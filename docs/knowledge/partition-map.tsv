@@ -1,0 +1,22 @@
+name	scatter_region	scatter_linear_bytes	scatter_physical_bytes	scatter_size_bytes	runtime_start_bytes	runtime_size_bytes	runtime_mapping	major_minor	sysfs_start_512B_sectors	sysfs_size_512B_sectors	package_file	download	status	note
+PRELOADER	EMMC_BOOT_1	0x0	0x0	0x1400000	0x0	0x1400000	/dev/misc-sd	not a dedicated partition			preloader_eastaeon82_wet_kk.bin	true	UNKNOWN physical extent	Vendor span 20 MiB; each boot hardware region reports 4 MiB. Not a flash/readback length.
+MBR	EMMC_USER	0x1400000	0x0	0x80000	0x0	0x80000	/dev/block/mmcblk0	not a dedicated partition			MBR	true	CONFIRMED package + runtime metadata	—
+EBR1	EMMC_USER	0x1480000	0x80000	0x80000	0x80000	0x80000	mmcblk0p1	179:1	1024	2	EBR1	true	CONFIRMED package + runtime metadata	Vendor span 512 KiB; exported p1 is only 2 sectors (1 KiB). Do not substitute lengths.
+PRO_INFO	EMMC_USER	0x1500000	0x100000	0x300000	0x100000	0x300000	/dev/block/mmcblk0	not a dedicated partition			NONE	false	CONFIRMED package + runtime metadata	—
+NVRAM	EMMC_USER	0x1800000	0x400000	0x500000	0x400000	0x500000	/dev/block/mmcblk0	not a dedicated partition			NONE	false	CONFIRMED package + runtime metadata	—
+PROTECT_F	EMMC_USER	0x1d00000	0x900000	0xa00000	0x900000	0xa00000	mmcblk0p2	179:2	18432	20480	NONE	false	CONFIRMED package + runtime metadata	—
+PROTECT_S	EMMC_USER	0x2700000	0x1300000	0xa00000	0x1300000	0xa00000	mmcblk0p3	179:3	38912	20480	NONE	false	CONFIRMED package + runtime metadata	—
+SECCFG	EMMC_USER	0x3100000	0x1d00000	0x20000	0x1d00000	0x20000	/dev/block/mmcblk0	not a dedicated partition			NONE	false	CONFIRMED package + runtime metadata	—
+UBOOT	EMMC_USER	0x3120000	0x1d20000	0x60000	0x1d20000	0x60000	/dev/block/mmcblk0	not a dedicated partition			lk.bin	true	CONFIRMED package + runtime metadata	—
+BOOTIMG	EMMC_USER	0x3180000	0x1d80000	0x1000000	0x1d80000	0x1000000	/dev/block/mmcblk0	not a dedicated partition			boot.img	true	CONFIRMED package + runtime metadata	—
+RECOVERY	EMMC_USER	0x4180000	0x2d80000	0x1000000	0x2d80000	0x1000000	/dev/block/mmcblk0	not a dedicated partition			recovery.img	true	CONFIRMED package + runtime metadata	—
+SEC_RO	EMMC_USER	0x5180000	0x3d80000	0x600000	0x3d80000	0x600000	mmcblk0p4	179:4	125952	12288	secro.img	true	CONFIRMED package + runtime metadata	—
+MISC	EMMC_USER	0x5780000	0x4380000	0x80000	0x4380000	0x80000	/dev/block/mmcblk0	not a dedicated partition			NONE	false	CONFIRMED package + runtime metadata	—
+LOGO	EMMC_USER	0x5800000	0x4400000	0x300000	0x4400000	0x300000	/dev/block/mmcblk0	not a dedicated partition			logo.bin	true	CONFIRMED package + runtime metadata	—
+EBR2	EMMC_USER	0x5b00000	0x4700000	0x80000	0x4700000	0x80000	/dev/block/mmcblk0	not a dedicated partition			EBR2	true	CONFIRMED package + runtime metadata	—
+EXPDB	EMMC_USER	0x5b80000	0x4780000	0xa00000	0x4780000	0xa00000	/dev/block/mmcblk0	not a dedicated partition			NONE	false	CONFIRMED package + runtime metadata	—
+ANDROID	EMMC_USER	0x6580000	0x5180000	0x33400000	0x5180000	0x33400000	mmcblk0p5	179:5	166912	1679360	system.img	true	CONFIRMED package + runtime metadata	—
+CACHE	EMMC_USER	0x39980000	0x38580000	0x7e00000	0x38580000	0x7e00000	mmcblk0p6	179:6	1846272	258048	cache.img	true	CONFIRMED package + runtime metadata	—
+USRDATA	EMMC_USER	0x41780000	0x40380000	0x32000000	0x40380000	0x32000000	mmcblk0p7	179:7	2104320	1638400	userdata.img	true	CONFIRMED package + runtime metadata	—
+FAT	EMMC_USER	0x73780000	0x72380000	0x0	0x72380000	0x15dc00000	mmcblk0p8	179:8	3742720	11460608	fat_sparse.img	false	UNKNOWN; requires interpretation	Scatter size zero; runtime resolves allocated size.
+BMTPOOL	EMMC_USER	0xFFFF00a8	0xffff00a8	0x1500000	0xfebf00a8	0x1500000	/dev/block/mmcblk0	not a dedicated partition			NONE	false	UNKNOWN; requires interpretation	Sentinel/unaligned runtime start differs from scatter; no operational range approved.
