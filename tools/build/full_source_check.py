@@ -35,6 +35,6 @@ def main():
     manifest = ''.join(f'{value}  {name}\n' for name,value in sorted(entries.items()))
     print(json.dumps({'archive_sha256':item['sha256'],'upstream_commit':lock['linux_commit'],
         'verified_files_and_links':len(entries),'tree_manifest_sha256':hashlib.sha256(manifest.encode()).hexdigest(),
-        'result':'PASS pristine source cache; only declared Kconfig overlay at build time'},indent=2))
+        'result':'PASS pristine source cache; only declared reviewed overlays at build time'},indent=2))
 
 if __name__=='__main__': main()

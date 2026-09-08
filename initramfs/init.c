@@ -2,6 +2,7 @@
  * Deliberately tiny diagnostic PID1. No shell, block I/O, network or reboot.
  * ARM EABI numbers: upstream v6.18 arch/arm/tools/syscall.tbl.
  */
+#include "../kernel/diagnostic/policy.h"
 typedef unsigned int u32;
 static long call5(long number, long a, long b, long c, long d, long e)
 {
@@ -60,6 +61,21 @@ static void dump(const char *path)
     call5(6, fd, 0, 0, 0, 0);
     say("\nY2DIAG END FILE\n");
 }
+static long sleep_for(long seconds)
+{
+    struct { long sec, nsec; } delay = {seconds, 0}, rest;
+    long code;
+    do {
+        code = call5(162, (long)&delay, (long)&rest, 0, 0, 0);
+        if (code == -4) delay = rest;
+    } while (code == -4);
+    return code;
+}
+static long visual(long fd, char command)
+{
+    if (fd < 0) return fd;
+    return call5(4, fd, (long)&command, 1, 0, 0);
+}
 __attribute__((noreturn)) void diag_start(u32 *stack)
 {
     unsigned argc = stack[0];
@@ -81,15 +97,24 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     }
     say("Y2DIAG PID1 ENTER D08 CPU0\n");
     result("Y2DIAG console fd ", fd);
-    result("Y2DIAG proc mount ", call5(21, (long)"proc", (long)"/proc", (long)"proc", 15, 0));
+    result("Y2DIAG proc mount ", call5(21, (long)"proc", (long)"/proc", (long)"proc", 14, 0));
     result("Y2DIAG sysfs mount ", call5(21, (long)"sysfs", (long)"/sys", (long)"sysfs", 15, 0));
+    long diagnostic = call5(5, (long)"/proc/y2_diag", 1, 0, 0, 0);
+    /* Hold kernel stripes briefly so the observer can distinguish stages. */
+    result("Y2DIAG stripe hold ", sleep_for(2));
+    result("Y2DIAG visual PID1 ", visual(diagnostic, 'I'));
     dump("/proc/version"); dump("/proc/cmdline"); dump("/proc/meminfo");
     dump("/proc/iomem"); dump("/proc/interrupts"); dump("/proc/cpuinfo");
     dump("/sys/devices/system/cpu/online");
     say("Y2DIAG READY observation only\n");
-    for (;;) {
-        struct { long sec, nsec; } delay = {5, 0}, rest;
-        while (call5(162, (long)&delay, (long)&rest, 0, 0, 0) == -4) delay = rest;
+    for (unsigned beat = 0; beat < Y2_HEARTBEATS; ++beat) {
+        long slept = sleep_for(5);
+        if (slept) { result("Y2DIAG sleep failed ", slept); break; }
+        result("Y2DIAG visual heartbeat ", visual(diagnostic, 'H'));
         say("Y2DIAG HEARTBEAT\n");
     }
+    result("Y2DIAG visual finish ", visual(diagnostic, 'F'));
+    say("Y2DIAG STOP heartbeat loop; restore stock BOOTIMG\n");
+    if (diagnostic >= 0) call5(6, diagnostic, 0, 0, 0, 0);
+    for (;;) sleep_for(60);
 }

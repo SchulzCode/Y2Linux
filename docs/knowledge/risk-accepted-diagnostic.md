@@ -26,7 +26,8 @@ FM LK disable helper 0x81e10ddc. Insert the board-specific operation immediately
 after masking interrupts in compressed/head.S, before stack, relocation and
 inflation. Only scratch r0/r1 are used; saved r7/r8/r9 and loader artifacts are
 preserved. Key 0x22000000, clear bit 0, DSB and readback. If still enabled, do not
-continue. No length, reset-request, security, PMIC or display register writes.
+continue. An explicit branch into the text continuation skips linker padding;
+the emitted branch target is validated in addition to the stop instructions. No length, reset-request, security, PMIC or display register writes.
 The diagnostic kernel rechecks MODE disabled before exposing a visible stage.
 
 This stops the identified AP watchdog, not every possible watchdog. A hang
@@ -88,11 +89,12 @@ outside ordinary allocations. Read-only OVL/DSI mappings never receive writes.
 
 A built-in board diagnostic marks kernel initcall progress with black/white
 stripes. PID1 writes a one-byte command to its dedicated root-only proc endpoint
-for solid green, then twelve five-second heartbeat transitions with a white
-half alternating on green. After twelve intervals it displays a terminal
+for solid green after a two-second stripe hold, then ten five-second heartbeat transitions with a white
+half alternating on green. After ten intervals it displays a terminal
 checkerboard and emits no further heartbeat. No display reinitialization,
 page flip, clock/pinmux/panel/LED/backlight programming or framebuffer device
-stack. UART0 remains additional output. Greyscale and green avoid red/blue
+stack. Procfs is mounted nosuid/nodev/noexec but writable for this volatile
+PID1-only endpoint; sysfs remains read-only. UART0 remains additional output. Greyscale and green avoid red/blue
 ordering ambiguity. Tearing and bootloader console overlay are acceptable;
 stale logo, stripes alone or static green are not full success.
 

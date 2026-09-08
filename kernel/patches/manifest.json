@@ -1,6 +1,28 @@
 {
-  "path": "arch/arm/mm/Kconfig",
-  "base_sha256": "320a616f70976e6bf1544f4cebccd4f796524d7e856da6d2f053aed581d4a049",
-  "result_sha256": "57ec8dcb3b02cd5c5efc6925b921e69671add7f2db51a9c21ca72df5ec307116",
-  "patch": "0001-arm-allow-explicit-virt-ext-disable.patch"
+  "overlays": [
+    {
+      "path": "arch/arm/mm/Kconfig",
+      "base_sha256": "320a616f70976e6bf1544f4cebccd4f796524d7e856da6d2f053aed581d4a049",
+      "result_sha256": "57ec8dcb3b02cd5c5efc6925b921e69671add7f2db51a9c21ca72df5ec307116",
+      "patch": "0001-arm-allow-explicit-virt-ext-disable.patch"
+    },
+    {
+      "path": "arch/arm/mach-mediatek/Kconfig",
+      "base_sha256": "61790e35f9fbdb5dd524c658f041739b4cf52d8393962622d6cdb4a0f497506b",
+      "result_sha256": "856199adbaffb5bfec5614a9e9498ec505de80bf054d5f301c0fa45dccf7247b",
+      "patch": "0002-y2-Kconfig.patch"
+    },
+    {
+      "path": "arch/arm/mach-mediatek/mediatek.c",
+      "base_sha256": "5fef5712eb9b6729519b4e45898ea25b1b7a0bbd914dabecfc46f3f3de624ea5",
+      "result_sha256": "c9af7de9bc3d28895223e5eb190aae5875b2552050368b0f979341f7d75155fc",
+      "patch": "0003-y2-mediatek-c.patch"
+    },
+    {
+      "path": "arch/arm/boot/compressed/head.S",
+      "base_sha256": "f58ea39b9d2d64f6b985a3be842ddb340365521a782dcb0c15e6183804bf3d82",
+      "result_sha256": "74ebd59edef9a0ef2cd80acd5081ac095e1957970182c8ec915d84e6101ccbc6",
+      "patch": "0004-y2-head-S.patch"
+    }
+  ]
 }

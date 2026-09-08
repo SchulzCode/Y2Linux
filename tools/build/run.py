@@ -5,7 +5,6 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
-import difflib
 
 PROJECT = Path(__file__).resolve().parents[2]
 
@@ -29,20 +28,22 @@ def main():
     if not output.is_relative_to(PROJECT / 'out'):
         raise SystemExit('Build output must be below project/out')
     output.mkdir(parents=True, exist_ok=True)
-    # Overlay exactly one audited Kconfig visibility change; preserve pristine source cache.
-    spec = json.loads((PROJECT / 'kernel/patches/manifest.json').read_text())
-    original = (PROJECT / '.cache/sources/linux-6.18' / spec['path']).read_text()
-    changed = original.replace('config ARM_VIRT_EXT\n\tbool\n',
-        'config ARM_VIRT_EXT\n\tbool "ARM virtualization extension startup" if EXPERT\n')
-    patch = ''.join(difflib.unified_diff(original.splitlines(True), changed.splitlines(True),
-        fromfile='a/' + spec['path'], tofile='b/' + spec['path']))
-    if (hashlib.sha256(original.encode()).hexdigest() != spec['base_sha256'] or
-        hashlib.sha256(changed.encode()).hexdigest() != spec['result_sha256'] or
-        patch != (PROJECT / 'kernel/patches' / spec['patch']).read_text()):
-        raise SystemExit('Reviewed Kconfig overlay mismatch')
-    overlay = PROJECT / '.cache/overlays' / spec['result_sha256']
-    overlay.parent.mkdir(parents=True, exist_ok=True)
-    overlay.write_text(changed)
+    # Each existing-file overlay requires exact base/result hashes and a zero-fuzz patch.
+    specs = json.loads((PROJECT / 'kernel/patches/manifest.json').read_text())['overlays']
+    overlays = []
+    for spec in specs:
+        original = (PROJECT / '.cache/sources/linux-6.18' / spec['path']).read_bytes()
+        if hashlib.sha256(original).hexdigest() != spec['base_sha256']:
+            raise SystemExit('Reviewed overlay base mismatch: ' + spec['path'])
+        overlay = PROJECT / '.cache/overlays' / spec['result_sha256']
+        overlay.parent.mkdir(parents=True, exist_ok=True)
+        overlay.write_bytes(original)
+        patch = (PROJECT / 'kernel/patches' / spec['patch']).read_bytes()
+        subprocess.run(['patch', '--batch', '--fuzz=0', str(overlay)], input=patch, check=True,
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if hashlib.sha256(overlay.read_bytes()).hexdigest() != spec['result_sha256']:
+            raise SystemExit('Reviewed overlay result mismatch: ' + spec['path'])
+        overlays.append((overlay, spec['path']))
     env = {
         'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LC_ALL': 'C', 'TZ': 'UTC',
         'ARCH': 'arm', 'LLVM': '1', 'CROSS_COMPILE': 'arm-linux-gnueabi-',
@@ -58,8 +59,9 @@ def main():
         '--tmpfs', '/tmp', '--ro-bind', str(PROJECT), '/project',
         '--ro-bind', str(PROJECT / '.cache/sources/linux-6.18'), '/src',
         '--bind', str(output), '/build', '--chdir', '/build',
-        '--ro-bind', str(overlay), '/src/' + spec['path'],
     ]
+    for overlay, path in overlays:
+        invocation += ['--ro-bind', str(overlay), '/src/' + path]
     for key, value in env.items():
         invocation += ['--setenv', key, value]
     raise SystemExit(subprocess.call(invocation + ['--'] + command))

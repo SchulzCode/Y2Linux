@@ -1,0 +1,10 @@
+--- a/arch/arm/mach-mediatek/mediatek.c
++++ b/arch/arm/mach-mediatek/mediatek.c
+@@ -52,3 +52,7 @@
+ 	.dt_compat	= mediatek_board_dt_compat,
+ 	.init_time	= mediatek_timer_init,
+ MACHINE_END
++
++#ifdef CONFIG_Y2_BOOT_DIAGNOSTIC
++#include "/project/kernel/diagnostic/board.c"
++#endif

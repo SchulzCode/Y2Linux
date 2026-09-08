@@ -1,0 +1,28 @@
+--- a/arch/arm/boot/compressed/head.S
++++ b/arch/arm/boot/compressed/head.S
+@@ -248,0 +249,21 @@
++#ifdef CONFIG_Y2_BOOT_DIAGNOSTIC
++		/* D12: FM LK leaves AP_RGU armed. Stop before decompression.
++		 * Preserve r7/r8/r9; MMU-off SVC entry is the researched contract.
++		 * Identical MODE key/enable operation to upstream mtk_wdt_stop.
++		 */
++		.global y2_wdt_stop_begin, y2_wdt_stop_end, y2_wdt_continue
++ y2_wdt_stop_begin:
++		movw	r0, #0x7000
++		movt	r0, #0x1000
++		ldr	r1, [r0]
++		bic	r1, r1, #1
++		orr	r1, r1, #0x22000000
++		str	r1, [r0]
++		dsb	sy
++		ldr	r1, [r0]
++		tst	r1, #1
++		bne	.			@ refuse continuation if still enabled
++		b	y2_wdt_continue	@ skip linker alignment padding
++ y2_wdt_stop_end:
++#endif
++
+@@ -259,0 +281,3 @@
++#ifdef CONFIG_Y2_BOOT_DIAGNOSTIC
++ y2_wdt_continue:
++#endif

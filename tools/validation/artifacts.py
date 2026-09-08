@@ -85,6 +85,20 @@ def check(root, project):
     require(start == 0 and comp.elf['e_entry'] == start, 'compressed link/entry address')
     require(comp.binary(start, 0x600000) == z, 'zImage differs from compressed ELF')
     off = lambda name: comp.sym(name) - start
+    # D12: inspect emitted ARM instructions, not only config/source intent.
+    begin, end = off('y2_wdt_stop_begin'), off('y2_wdt_stop_end')
+    expected_wdt = struct.pack('<10I', 0xe3070000, 0xe3410000, 0xe5901000,
+        0xe3c11001, 0xe3811422, 0xe5801000, 0xf57ff04f, 0xe5901000,
+        0xe3110001, 0x1afffffe)
+    continuation = off('y2_wdt_continue')
+    branch_pc = end - 4
+    require(end <= continuation < off('restart') and (continuation - branch_pc - 8) % 4 == 0,
+            'D12 continuation must skip linker padding')
+    branch = 0xea000000 | (((continuation - branch_pc - 8) // 4) & 0xffffff)
+    expected_wdt += struct.pack('<I', branch)
+    require(z[begin:end] == expected_wdt, 'D12 early watchdog instructions and continuation')
+    require(0x30 < begin < end < off('restart'), 'watchdog must precede relocation/inflation')
+    require(kernel.sym('y2_diagnostic_init') >= text, 'built-in guarded video diagnostic missing')
     require(struct.unpack_from('<III', z, 0x24) == (0x016f2818, start, comp.sym('_edata')), 'zImage header')
     require(off('_edata_real') == off('_edata') == len(z), 'zImage real end')
     bss = kernel.sym('__bss_stop') - kernel.sym('__bss_start')
@@ -110,6 +124,16 @@ def check(root, project):
     appended = root / 'zImage-dtb'
     if appended.exists(): require(appended.read_bytes() == expected, 'appended payload differs from zImage + padded DTB')
     # Caller may create the payload only after all evidence passes.
+    layout['diagnostic'] = {'watchdog_entry_offset':begin, 'watchdog_end_offset':end, 'watchdog_continuation_offset':continuation,
+        'watchdog_instruction_sha256':digest(expected_wdt), 'framebuffer':[0xbfb00000,0xbfb54600],
+        'policy':'D12/D13 guarded LK video; no hardware validation claimed'}
+    source_paths = ['kernel/diagnostic/board.c', 'kernel/diagnostic/policy.h',
+        'initramfs/init.c', 'initramfs/start.S', 'kernel/config/first-boot.config',
+        'kernel/dts/innioasis-y2-first-boot.dts', 'kernel/patches/manifest.json']
+    source_paths += ['kernel/patches/' + item['patch'] for item in
+        json.loads((project/'kernel/patches/manifest.json').read_text())['overlays']]
+    layout['diagnostic']['source_sha256'] = {
+        name:digest((project/name).read_bytes()) for name in source_paths}
     layout['dt'] = decoded
     layout['artifacts'] = {name: {'bytes':len(data),'sha256':digest(data)} for name,data in
         [('Image',image),('zImage',z),('y2.dtb',tree),('initramfs.cpio.gz',initrd),('init',init),('zImage-dtb',expected)]}
