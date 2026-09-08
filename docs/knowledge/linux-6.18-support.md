@@ -1,5 +1,7 @@
 # Linux 6.18 boot-fundamentals audit
 
+> Hardware update 2026-09-08: [Y2B-240](first-experiment-result.md) provides strong owner-observed evidence of the reviewed Linux 6.18 candidate reaching PID1 with static DT RAM and inherited framebuffer output. Timed heartbeat/stability validation remains unproven.
+
 > Y2E-150 adds an explicitly temporary board diagnostic overlay to audited v6.18: early AP watchdog stop plus guarded writes to LK-inherited RGB565 memory. Upstream MT6582 watchdog support exists, but normal probe cannot cover decompression. This is not full native display support. See [D12/D13](risk-accepted-diagnostic.md).
 
 Date: 2026-09-08. Y2E-125, extended by [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7). Status: **source support CONFIRMED; Y2 execution UNKNOWN**. Target remains upstream Linux **6.18 LTS**, not 6.12 or a forward-ported Android kernel.

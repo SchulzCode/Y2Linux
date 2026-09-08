@@ -1,8 +1,9 @@
 # Y2B-240 — One risk-accepted BOOTIMG-only diagnostic experiment
 
-**Owner explicitly authorized this exact one-trial procedure on 2026-09-08.
-Host preflight is complete; execution awaits physical observation/recovery
-coordination. No experimental download or boot has been initiated.** The experiment uses
+**Experiment concluded on 2026-09-08: owner-observed green PID1 stage,
+successful BOOTIMG-only Android recovery. Timed heartbeats and 60-second
+cutoff were not verified; actual restore image differed from the planned FM
+fallback. See the recorded result; no further experiment is authorized.** The experiment uses
 [D11–D13](risk-accepted-diagnostic.md), not the superseded Y2E-145 hard gates.
 The final candidate hash and offline reports are in
 [diagnostic result](../build/risk-diagnostic-result.md).
@@ -109,4 +110,4 @@ Close this issue only after the authorized operation, observations and stock
 restoration results are retained and interpreted. M1 hardware completion is
 not implied by offline GO.
 
-Execution checkpoint: [Y2B-240 / #19](https://github.com/SchulzCode/Y2Linux/issues/19), authorized; see [preflight checkpoint](first-experiment-preflight.md).
+Execution checkpoint: [Y2B-240 / #19](https://github.com/SchulzCode/Y2Linux/issues/19), concluded; see [result and limitations](first-experiment-result.md).

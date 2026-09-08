@@ -1,5 +1,7 @@
 # Unknowns and architecture decisions
 
+> 2026-09-08 hardware update: [Y2B-240 result](first-experiment-result.md) records owner-observed green PID1 evidence and successful BOOTIMG-only Android recovery using the owner-selected boot-adb image. Timed heartbeats, cutoff and exact FM restoration were not verified. Historical pre-launch unknowns below must be read with this narrower new evidence.
+
 > Current first-experiment policy is [D11–D13](risk-accepted-diagnostic.md): unsigned acceptance, missing current BOOTIMG backup and incomplete DMA/secure-state proofs are accepted experimental risks, not absolute launch blockers. They remain factual unknowns. Guarded inherited video replaces physical UART as the proposed first-test observation; successful board output is not yet observed.
 
 Date: 2026-09-08. [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7) fixes the offline memory policy after Y2E-125. **M0 remains open.** The owner subsequently authorized direct M1 offline implementation; its [validated result](../build/first-boot-result.md) does not clear hardware gates.
