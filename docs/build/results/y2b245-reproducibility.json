@@ -1,0 +1,58 @@
+{
+  "result": "PASS two independent clean builds; 12 outputs byte-identical",
+  "source_commit": "d83fccfcc03f86f2085ed1279aa3dce352fcf8fe",
+  "builds": [
+    "text-release-1",
+    "text-release-2"
+  ],
+  "outputs": {
+    "Image": {
+      "bytes": 2543296,
+      "sha256": "3c34ff234c0253ebf34a236671bd953633410f0539e38a5baca6415188c45b49"
+    },
+    "zImage": {
+      "bytes": 1075944,
+      "sha256": "5c3e6fd59780071e2e28d807c54c91714e9e459f188d4b2f8bce99949ebdea3d"
+    },
+    "y2.dtb": {
+      "bytes": 1835,
+      "sha256": "4c04d45f201e0f16a6e8139c907dadf4cd01a3ea43da78f797839dedb7f460a9"
+    },
+    "zImage-dtb": {
+      "bytes": 1077784,
+      "sha256": "5d30d2cc20859880cfff65e9884dc7c2148562e186c1d49a26b3eeeb29485030"
+    },
+    "init": {
+      "bytes": 6592,
+      "sha256": "0131e69afd63d6d9ef94701df60d7699332df915b0d7397fe30e9642de1bfab9"
+    },
+    "initramfs.cpio": {
+      "bytes": 7680,
+      "sha256": "2350d3d037cdf228d4bccea257a3e5eeed079b9949bf60e9008de70568f4f188"
+    },
+    "initramfs.cpio.gz": {
+      "bytes": 3968,
+      "sha256": "f55a9a1388baa411ce597f408c4e609728ce087e90d632f820edb05b1ad3c88e"
+    },
+    "kernel.config": {
+      "bytes": 35355,
+      "sha256": "bb3f61066c098bb3f0a601ea3cbc9f1b06e6a8ae43972dc9c2790ee882e2b43c"
+    },
+    "kernel/vmlinux": {
+      "bytes": 3162544,
+      "sha256": "42ea5fc95a62377e591bc880a3d16abb1f9afe092273b605cb2f5d2492f51563"
+    },
+    "kernel/arch/arm/boot/compressed/vmlinux": {
+      "bytes": 1154728,
+      "sha256": "1ec2ce08f61ffcf03008717c7e9419ebbaad3305c1d278f545be378270469598"
+    },
+    "BOOTIMG.img": {
+      "bytes": 1091584,
+      "sha256": "f2c048405c7aafc5c368d51b85a9eeb9d9f42ee3b1a6abe308701e5b551c52a0"
+    },
+    "layout.json": {
+      "bytes": 5234,
+      "sha256": "b6b2a7467c0b293faf1bca3bf12c3e5ce2bae4e69518293e2a73ce0dab80fec8"
+    }
+  }
+}

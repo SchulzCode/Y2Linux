@@ -41,3 +41,9 @@ The [hardware launch-gate review](../knowledge/first-boot-launch-gates.md) ident
 Y2E-150 / #18 now supplies D11–D13 and the [risk-accepted diagnostic result](../build/risk-diagnostic-result.md). Research `3aeeb03`; implementation `1234f85`; two final builds match and all 11 tests pass. The previous NO-GO hard gates are superseded by owner-accepted risk; watchdog and guarded visual diagnostics are implemented. Y2B-240 prepares one BOOTIMG-only experiment requiring separate hardware authorization. M1 remains open until actual boot evidence is reviewed.
 
 Execution checkpoint: [Y2B-240 / #19](https://github.com/SchulzCode/Y2Linux/issues/19), awaiting separate owner hardware authorization.
+
+Y2B-245 offline implementation is complete at source `d83fccf`. Two release
+builds match across 12 outputs and all 14 tests pass. [Final artifact and
+validation](../build/y2b245-result.md). New text-candidate hardware validation
+remains pending separate authorization; Linux-plus-PID1 boot is already
+achieved by Y2B-240 solid green.

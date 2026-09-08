@@ -1,0 +1,183 @@
+{
+  "policy": "D08",
+  "inputs": {
+    "z": 1075944,
+    "dtb": 1835,
+    "initramfs": 3968,
+    "image": 2543296,
+    "kernel_bss": 165360,
+    "kernel_span": 2708656,
+    "restart": 276,
+    "wont_overwrite": 520,
+    "edata": 1075944,
+    "reloc_code_end": 2364,
+    "stack_top": 1080064,
+    "compressed_bss_start": 1075944,
+    "compressed_bss_end": 1075968,
+    "regular_file_bytes": 6592
+  },
+  "ram": [
+    [
+      2147483648,
+      2172649472
+    ],
+    [
+      2214592512,
+      2215116800
+    ]
+  ],
+  "reserved": [
+    [
+      2147483648,
+      2147500032
+    ]
+  ],
+  "zimage": [
+    2147516416,
+    2148592360
+  ],
+  "appended_dtb": [
+    2148592360,
+    2148594200
+  ],
+  "image": [
+    2147516416,
+    2150059712
+  ],
+  "resident_kernel": [
+    2147516416,
+    2150225072
+  ],
+  "relocated_copy": [
+    2150061824,
+    2151139360
+  ],
+  "relocated_dtb": [
+    2151137512,
+    2151139352
+  ],
+  "compressed_bss": [
+    2151139352,
+    2151139384
+  ],
+  "stack_top": 2151143472,
+  "malloc": [
+    2151143472,
+    2151209008
+  ],
+  "initramfs": [
+    2214592512,
+    2214596480
+  ],
+  "lk_staging": [
+    2147515904,
+    2148605440
+  ],
+  "staged_initramfs": [
+    2148595712,
+    2148599680
+  ],
+  "bootimg_read_end": 1091584,
+  "relocation_delta": 2545152,
+  "relocation_code_allowance": 2304,
+  "adjusted_image_size": 2543296,
+  "workspace_end": 2151209008,
+  "diagnostic": {
+    "watchdog_entry_offset": 144,
+    "watchdog_end_offset": 188,
+    "watchdog_continuation_offset": 192,
+    "watchdog_instruction_sha256": "c45c5a4471e6c9c47c686e378323c75eb80e0a60fba9d78f79a6853bca148af4",
+    "framebuffer": [
+      3215982592,
+      3216328192
+    ],
+    "policy": "D12/D13/D14 guarded text; new candidate offline only",
+    "source_sha256": {
+      "kernel/diagnostic/board.c": "983b973020e9566c88ebbe661cf9d902a47b0b5764aafefbf1d13d9094667010",
+      "kernel/diagnostic/policy.h": "9c219fba02609879e8256f9c5a4e13e5632fca44c267034ef88ae73c2e956238",
+      "kernel/diagnostic/text.h": "b0f59307ec97c0e513d1ca35d1a04c5bc2d42dc2cfd9a71c7384374c05a63a4e",
+      "initramfs/status.h": "2e1e7351a0813a947d20113ea325c06ddad7a001f5d2fd6928a91fc5ae7a49c1",
+      "initramfs/init.c": "31bc447de33a702574dcaf5e7578e18dc5b2b7421845f62cd3139a9acc870292",
+      "initramfs/start.S": "1c73b2108ebc035d89b2eb4d57a15133f984cf602b15b48e2f74b2857c5243d2",
+      "kernel/config/first-boot.config": "f1d6e7d7c16cd6d45b60a832ce68116458df9a816df63bc0cf4fcd95bda79036",
+      "kernel/dts/innioasis-y2-first-boot.dts": "914440317066be75ac98f14e7e7db2760f8cb67ff61e90f3fdc2dcfa6169f101",
+      "kernel/patches/manifest.json": "ec72e2eed8c44bff744c15cd6176e4604b6a549f4dcb4d07e5870fdedfc10183",
+      "kernel/patches/0001-arm-allow-explicit-virt-ext-disable.patch": "2e2f6daffa9f8375162f9fec8ac7649d332bd7b2d945018da4104231ebb8ce74",
+      "kernel/patches/0002-y2-Kconfig.patch": "2ca5ecb71aadb2eec0d1cd259f16a52aa2fc6dad1618e279c7d4b273c262968f",
+      "kernel/patches/0003-y2-mediatek-c.patch": "2f616ded9fe1a9b76158c70cff332a0241d37704ada52ad32f98b3d5eae291d8",
+      "kernel/patches/0004-y2-head-S.patch": "78c0fa1790f3f8cc15451ff039fc0c50ea41c0956a19661676cd2dd1f894b839"
+    }
+  },
+  "dt": {
+    "node_count": 13,
+    "bootargs": "rdinit=/init earlycon console=ttyS0,921600n8 loglevel=8 ignore_loglevel panic=0",
+    "stdout_path": "serial0",
+    "memory": [
+      [
+        2147483648,
+        2172649472
+      ],
+      [
+        2214592512,
+        2215116800
+      ]
+    ]
+  },
+  "artifacts": {
+    "Image": {
+      "bytes": 2543296,
+      "sha256": "3c34ff234c0253ebf34a236671bd953633410f0539e38a5baca6415188c45b49"
+    },
+    "zImage": {
+      "bytes": 1075944,
+      "sha256": "5c3e6fd59780071e2e28d807c54c91714e9e459f188d4b2f8bce99949ebdea3d"
+    },
+    "y2.dtb": {
+      "bytes": 1835,
+      "sha256": "4c04d45f201e0f16a6e8139c907dadf4cd01a3ea43da78f797839dedb7f460a9"
+    },
+    "initramfs.cpio.gz": {
+      "bytes": 3968,
+      "sha256": "f55a9a1388baa411ce597f408c4e609728ce087e90d632f820edb05b1ad3c88e"
+    },
+    "init": {
+      "bytes": 6592,
+      "sha256": "0131e69afd63d6d9ef94701df60d7699332df915b0d7397fe30e9642de1bfab9"
+    },
+    "zImage-dtb": {
+      "bytes": 1077784,
+      "sha256": "5d30d2cc20859880cfff65e9884dc7c2148562e186c1d49a26b3eeeb29485030"
+    }
+  },
+  "kernel_symbols": {
+    "_text": 3221258240,
+    "_edata": 3223801536,
+    "__bss_start": 3223801536,
+    "__bss_stop": 3223966896,
+    "_end": 3223966896
+  },
+  "compressed_symbols": {
+    "_start": 0,
+    "restart": 276,
+    "wont_overwrite": 520,
+    "reloc_code_end": 2364,
+    "_edata": 1075944,
+    "__bss_start": 1075944,
+    "_end": 1075968,
+    "LC1": 736,
+    "input_data": 27453,
+    "input_data_end": 1075904
+  },
+  "status": "PASS offline D08; hardware launch NOT authorized",
+  "bootimg": {
+    "bytes": 1091584,
+    "sha256": "f2c048405c7aafc5c368d51b85a9eeb9d9f42ee3b1a6abe308701e5b551c52a0",
+    "android_id_sha1": "6130506b575de370d48ff43d6f00bba6f44162f5",
+    "partition_bytes": 16777216,
+    "kernel_wrapper_offset": 2048,
+    "ramdisk_wrapper_offset": 1081344,
+    "lk_complete_read_end": 1091584,
+    "zero_filled_read_tail_bytes": 5760,
+    "authentication": "unsigned candidate; installed LK acceptance unresolved (U07b)"
+  }
+}
