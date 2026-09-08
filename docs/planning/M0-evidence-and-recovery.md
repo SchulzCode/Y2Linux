@@ -1,5 +1,7 @@
 # M0 — Evidence & Recovery Baseline
 
+> Current audit (2026-09-09): M1 core is achieved under the owner-accepted bounded risk policy, and same-device SPFT/BOOTIMG recovery evidence exists. M0 remains open for unresolved personalized backup/lineage/consistency facts; older absolute launch-blocker language below is historical. See [roadmap audit](roadmap-gap-audit.md) and [D11](../knowledge/risk-accepted-diagnostic.md). Recovery/production continuity is tracked by Y2R-600 #32, without another blanket SPFT rehearsal.
+
 Updated 2026-09-08. Canonical milestone: [Y2Linux M0](https://github.com/SchulzCode/Y2Linux/milestone/1). **Gate: NOT PASSED.**
 
 ## Ownership and history

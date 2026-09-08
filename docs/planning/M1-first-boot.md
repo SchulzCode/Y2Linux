@@ -67,3 +67,7 @@ builds. Reserve exhaustive verification for architecture/memory/packaging change
 new subsystems, milestone completion and release candidates.
 
 Y2B-250 is built and validated offline: [candidate and focused results](../build/y2b250-result.md). The real timer/heartbeat trial remains pending; no milestone-completion claim is added.
+
+## Post-core roadmap audit, 2026-09-09
+
+[Full coverage and remaining phase gates](roadmap-gap-audit.md). M1 core remains achieved. Broader exact-artifact boot repeatability, timing accuracy and long-run qualification remain under Y2H-300 #28 rather than being silently inferred from the successful screen. Five later-phase epics are deferred; no new implementation or hardware test was performed.

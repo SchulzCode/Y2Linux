@@ -7,6 +7,8 @@ The Android Y2Player is a behavioral and hardware-research reference, not a sour
 
 Current status: **M1 core achieved on the physical Y2: Linux 6.18, initramfs and native PID1 with increasing BEAT/uptime.** M0 residual questions and broader platform work remain separate.
 
+- [Roadmap coverage, gaps and milestone audit rule](docs/planning/roadmap-gap-audit.md)
+
 - [Actual runtime hardware result and evidence limits](docs/knowledge/m1-runtime-hardware-result.md)
 - [Next five foundation research issues, planning only](docs/planning/next-five-platform-foundations.md)
 

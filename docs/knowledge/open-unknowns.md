@@ -88,3 +88,7 @@ is specified; exact MT6582 PHY/clock/VUSB/FIFO and handoff support blocks hardwa
 implementation readiness. No reliable smaller host-readable alternative is
 established; this does not negate working visual M1 diagnostics. One additional
 owner-requested logging issue is drafted; no implementation/build/flash occurred.
+
+## Whole-roadmap coverage audit, 2026-09-09
+
+[Classified coverage matrix and standing rule](../planning/roadmap-gap-audit.md) explicitly tracks shared clocks/resets/pinctrl/GPIO/I2C, SMP, production watchdog/reset, native audio/analog routing, thermal and PM, radio firmware/calibration/FM, rootfs and update/security lifecycle. Deferred epics #28–#32 cover these gaps without claiming implementation readiness or changing D08. M1 core remains achieved; M0 residual questions and full stability qualification remain separate.

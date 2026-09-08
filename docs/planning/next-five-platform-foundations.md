@@ -37,3 +37,7 @@ Every future hardware trial still needs its own explicit authorization.
 M1 core completion records the actual runtime result; it is not a release-quality
 certification or retrospective full-suite execution. Physical UART research
 Y2E-140 #16 stays open separately and does not erase achieved visual observation.
+
+## Coverage extension, 2026-09-09
+
+The [roadmap audit](roadmap-gap-audit.md) adds five deferred phase epics around this unchanged five-issue queue and the separately requested USB logging #27. No detailed tasks or new execution are added. Repeat the audit at each major milestone boundary before proceeding.
