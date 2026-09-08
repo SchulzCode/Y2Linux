@@ -1,5 +1,7 @@
 # Linux 6.18 boot-fundamentals audit
 
+> Y2B-240 hardware result: the owner reports **solid green**, which the implemented state machine reaches through initramfs `/init` running as PID1. M1's Linux 6.18 plus PID1 boot objective is achieved. No heartbeat/checkerboard success is claimed. [Y2B-245 / D14](on-screen-diagnostics.md) is the offline follow-up for readable runtime diagnostics.
+
 > Hardware update 2026-09-08: [Y2B-240](first-experiment-result.md) provides strong owner-observed evidence of the reviewed Linux 6.18 candidate reaching PID1 with static DT RAM and inherited framebuffer output. Timed heartbeat/stability validation remains unproven.
 
 > Y2E-150 adds an explicitly temporary board diagnostic overlay to audited v6.18: early AP watchdog stop plus guarded writes to LK-inherited RGB565 memory. Upstream MT6582 watchdog support exists, but normal probe cannot cover decompression. This is not full native display support. See [D12/D13](risk-accepted-diagnostic.md).

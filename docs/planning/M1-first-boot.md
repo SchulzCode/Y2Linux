@@ -1,6 +1,19 @@
 # M1 — Linux 6.18 First Boot
 
-Canonical [milestone 2](https://github.com/SchulzCode/Y2Linux/milestone/2), created 2026-09-08. **Offline first wave complete; hardware first boot not performed and milestone remains open.** M0 recovery/launch gates remain open.
+Canonical [milestone 2](https://github.com/SchulzCode/Y2Linux/milestone/2).
+**The Linux 6.18 plus initramfs PID1 first-boot objective is achieved.**
+The owner explicitly reported solid green from Y2B-240, which the implemented
+state machine paints only upon PID1's diagnostic command. No heartbeat or
+checkerboard was reported. Android recovery succeeded using the owner's
+boot-adb image; see [actual result](../knowledge/first-experiment-result.md).
+M1 remains open for the requested Y2B-245 offline diagnostic follow-up; this
+is not a claim of full timing, peripheral or long-term stability validation.
+
+[Y2B-245 / #20](https://github.com/SchulzCode/Y2Linux/issues/20) implements the
+[D14 on-screen status environment](../knowledge/on-screen-diagnostics.md)
+without changing D08 or adding peripherals. No new hardware launch is authorized.
+The sections below retain the chronology of earlier offline/research boundaries.
+
 
 The owner explicitly changed execution for M1: the lead researches and implements directly, without delegation. Tiny sequential issues preserve reviewable checkpoints; none is state:luna-ready. All commits use the owner's configured identity and issues use the authenticated owner account. Platform work remains solely in Y2Linux.
 

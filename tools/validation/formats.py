@@ -18,6 +18,7 @@ def cpio(data):
     expected = [('.', stat.S_IFDIR | 0o755, 0, 0), ('dev', stat.S_IFDIR | 0o755, 0, 0),
                 ('dev/console', stat.S_IFCHR | 0o600, 5, 1),
                 ('dev/null', stat.S_IFCHR | 0o666, 1, 3),
+                ('dev/y2diag', stat.S_IFCHR | 0o600, 120, 0),
                 ('proc', stat.S_IFDIR | 0o555, 0, 0), ('sys', stat.S_IFDIR | 0o555, 0, 0),
                 ('init', stat.S_IFREG | 0o755, 0, 0), ('TRAILER!!!', 0, 0, 0)]
     cursor = 0

@@ -1,5 +1,7 @@
 # Unknowns and architecture decisions
 
+> Y2B-240 hardware result: the owner reports **solid green**, which the implemented state machine reaches through initramfs `/init` running as PID1. M1's Linux 6.18 plus PID1 boot objective is achieved. No heartbeat/checkerboard success is claimed. [Y2B-245 / D14](on-screen-diagnostics.md) is the offline follow-up for readable runtime diagnostics.
+
 > 2026-09-08 hardware update: [Y2B-240 result](first-experiment-result.md) records owner-observed green PID1 evidence and successful BOOTIMG-only Android recovery using the owner-selected boot-adb image. Timed heartbeats, cutoff and exact FM restoration were not verified. Historical pre-launch unknowns below must be read with this narrower new evidence.
 
 > Current first-experiment policy is [D11–D13](risk-accepted-diagnostic.md): unsigned acceptance, missing current BOOTIMG backup and incomplete DMA/secure-state proofs are accepted experimental risks, not absolute launch blockers. They remain factual unknowns. Guarded inherited video replaces physical UART as the proposed first-test observation; successful board output is not yet observed.

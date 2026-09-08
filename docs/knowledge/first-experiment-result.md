@@ -1,10 +1,11 @@
 # Y2B-240 result — Linux PID1 evidence and Android recovery
 
 2026-09-08. The single diagnostic candidate transfer completed and the owner
-observed a green Y2 display. Android was restored through a second BOOTIMG-only
-transfer and the owner reports normal operation. **Linux boot to PID1 is strongly
-supported; timed heartbeat success is not established.** This concludes this
-experiment, not the remaining M1 diagnostic validation. No further boot is implied.
+observed a solid green Y2 display. Android was restored through a second BOOTIMG-only
+transfer and the owner reports normal operation. **Linux 6.18 boot to initramfs PID1 is established by the reported
+solid-green diagnostic stage; timed heartbeat success is not established.** This concludes this
+experiment and achieves M1's Linux-plus-PID1 boot objective, while further
+diagnostic/timing validation remains. No further boot is implied.
 
 ## Actual operation and evidence
 
@@ -42,8 +43,7 @@ performed host verification/log inspection and read-only Android checks.
 The reviewed diagnostic paints full green only when its proc endpoint receives
 `I` from task PID1. That endpoint exists after the built-in kernel initcall,
 and each paint rechecks the watchdog-disabled and inherited-display guards.
-Taken with the exact candidate transfer and owner observation, this strongly
-supports installed LK accepting this image, Linux decompression/startup, usable
+Taken with the exact candidate transfer and owner observation, this is evidence of installed LK accepting this image, Linux decompression/startup, usable
 static-DT RAM, initramfs execution, PID1 and the guarded framebuffer path.
 This is functional evidence for this image/device state, not a complete audit
 of loader security, all RAM, DMA safety or watchdog behavior over time.

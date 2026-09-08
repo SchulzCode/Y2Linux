@@ -3,10 +3,38 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
+import tempfile
 
 PROJECT = Path(__file__).resolve().parents[2]
+
+
+def prepare_overlay(project, spec):
+    """Publish verified immutable overlay bytes; never rewrite a bound inode."""
+    original = (project / '.cache/sources/linux-6.18' / spec['path']).read_bytes()
+    if hashlib.sha256(original).hexdigest() != spec['base_sha256']:
+        raise ValueError('Reviewed overlay base mismatch: ' + spec['path'])
+    overlay = project / '.cache/overlays' / spec['result_sha256']
+    overlay.parent.mkdir(parents=True, exist_ok=True)
+    if overlay.exists():
+        if hashlib.sha256(overlay.read_bytes()).hexdigest() != spec['result_sha256']:
+            raise ValueError('Existing overlay cache mismatch: ' + spec['path'])
+        return overlay
+    patch = (project / 'kernel/patches' / spec['patch']).read_bytes()
+    with tempfile.NamedTemporaryFile(dir=overlay.parent, prefix='.overlay-', delete=False) as f:
+        temporary = Path(f.name)
+        f.write(original)
+    try:
+        subprocess.run(['patch', '--batch', '--fuzz=0', str(temporary)], input=patch, check=True,
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if hashlib.sha256(temporary.read_bytes()).hexdigest() != spec['result_sha256']:
+            raise ValueError('Reviewed overlay result mismatch: ' + spec['path'])
+        os.replace(temporary, overlay)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return overlay
 
 
 def main():
@@ -32,18 +60,7 @@ def main():
     specs = json.loads((PROJECT / 'kernel/patches/manifest.json').read_text())['overlays']
     overlays = []
     for spec in specs:
-        original = (PROJECT / '.cache/sources/linux-6.18' / spec['path']).read_bytes()
-        if hashlib.sha256(original).hexdigest() != spec['base_sha256']:
-            raise SystemExit('Reviewed overlay base mismatch: ' + spec['path'])
-        overlay = PROJECT / '.cache/overlays' / spec['result_sha256']
-        overlay.parent.mkdir(parents=True, exist_ok=True)
-        overlay.write_bytes(original)
-        patch = (PROJECT / 'kernel/patches' / spec['patch']).read_bytes()
-        subprocess.run(['patch', '--batch', '--fuzz=0', str(overlay)], input=patch, check=True,
-                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if hashlib.sha256(overlay.read_bytes()).hexdigest() != spec['result_sha256']:
-            raise SystemExit('Reviewed overlay result mismatch: ' + spec['path'])
-        overlays.append((overlay, spec['path']))
+        overlays.append((prepare_overlay(PROJECT,spec), spec['path']))
     env = {
         'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LC_ALL': 'C', 'TZ': 'UTC',
         'ARCH': 'arm', 'LLVM': '1', 'CROSS_COMPILE': 'arm-linux-gnueabi-',

@@ -99,6 +99,8 @@ def check(root, project):
     require(z[begin:end] == expected_wdt, 'D12 early watchdog instructions and continuation')
     require(0x30 < begin < end < off('restart'), 'watchdog must precede relocation/inflation')
     require(kernel.sym('y2_diagnostic_init') >= text, 'built-in guarded video diagnostic missing')
+    require(kernel.sym('y2_text_write') >= text, 'D14 guarded text writer missing')
+    require(b'/dev/y2diag\0' in init, 'PID1 diagnostic endpoint missing')
     require(struct.unpack_from('<III', z, 0x24) == (0x016f2818, start, comp.sym('_edata')), 'zImage header')
     require(off('_edata_real') == off('_edata') == len(z), 'zImage real end')
     bss = kernel.sym('__bss_stop') - kernel.sym('__bss_start')
@@ -126,8 +128,9 @@ def check(root, project):
     # Caller may create the payload only after all evidence passes.
     layout['diagnostic'] = {'watchdog_entry_offset':begin, 'watchdog_end_offset':end, 'watchdog_continuation_offset':continuation,
         'watchdog_instruction_sha256':digest(expected_wdt), 'framebuffer':[0xbfb00000,0xbfb54600],
-        'policy':'D12/D13 guarded LK video; no hardware validation claimed'}
-    source_paths = ['kernel/diagnostic/board.c', 'kernel/diagnostic/policy.h',
+        'policy':'D12/D13/D14 guarded text; new candidate offline only'}
+    source_paths = ['kernel/diagnostic/board.c', 'kernel/diagnostic/policy.h', 'kernel/diagnostic/text.h',
+        'initramfs/status.h',
         'initramfs/init.c', 'initramfs/start.S', 'kernel/config/first-boot.config',
         'kernel/dts/innioasis-y2-first-boot.dts', 'kernel/patches/manifest.json']
     source_paths += ['kernel/patches/' + item['patch'] for item in

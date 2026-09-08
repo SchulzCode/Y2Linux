@@ -11,6 +11,7 @@ def archive(init):
                ('dev', stat.S_IFDIR | 0o755, b'', 0, 0),
                ('dev/console', stat.S_IFCHR | 0o600, b'', 5, 1),
                ('dev/null', stat.S_IFCHR | 0o666, b'', 1, 3),
+               ('dev/y2diag', stat.S_IFCHR | 0o600, b'', 120, 0),
                ('proc', stat.S_IFDIR | 0o555, b'', 0, 0),
                ('sys', stat.S_IFDIR | 0o555, b'', 0, 0),
                ('init', stat.S_IFREG | 0o755, init, 0, 0),
