@@ -1,5 +1,7 @@
 # Display and input evidence
 
+> Current hardware result: [owner-observed M1 runtime success](m1-runtime-hardware-result.md) confirms Linux 6.18, native PID1, increasing BEAT/uptime, working sleep, proc/sysfs mounts, CPU0, D08 RAM visibility, framebuffer diagnostics and stopped-watchdog status. **M1 core achieved.** Exact flashed hash and unreported diagnostic fields remain unverified. Earlier dated statements below are historical.
+
 > Y2B-240 hardware result: the owner reports **solid green**, which the implemented state machine reaches through initramfs `/init` running as PID1. M1's Linux 6.18 plus PID1 boot objective is achieved. No heartbeat/checkerboard success is claimed. [Y2B-245 / D14](on-screen-diagnostics.md) is the offline follow-up for readable runtime diagnostics.
 
 > Y2E-150 resolves the limited LK diagnostic contract: normal final layer 2 at 0xbfb00000, 480x360 RGB565, 960-byte stride; DSI sync-pulse video and normal backlight persistence supported by exact FM/LK instructions. Android runtime metadata differs (32 bpp, stride 1920). [D13](risk-accepted-diagnostic.md) provides guarded access, provenance and limits; no panel initialization/input driver was implemented.

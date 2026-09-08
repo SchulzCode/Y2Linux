@@ -1,18 +1,23 @@
 # M1 — Linux 6.18 First Boot
 
 Canonical [milestone 2](https://github.com/SchulzCode/Y2Linux/milestone/2).
-**The Linux 6.18 plus initramfs PID1 first-boot objective is achieved.**
-The owner explicitly reported solid green from Y2B-240, which the implemented
-state machine paints only upon PID1's diagnostic command. No heartbeat or
-checkerboard was reported. Android recovery succeeded using the owner's
-boot-adb image; see [actual result](../knowledge/first-experiment-result.md).
-M1 remains open for the Y2B-250 sleep-syscall fix and periodic diagnostic hardware validation; this
-is not a claim of full timing, peripheral or long-term stability validation.
+**Core objective achieved on the physical Y2: Linux 6.18 + initramfs + native PID1.**
+The M1 milestone is closed for this core objective. Physical UART research #16
+remains open outside the milestone; remaining diagnostic uncertainties are
+recorded separately rather than treated as failures of the core boot objective.
 
-[Y2B-245 / #20](https://github.com/SchulzCode/Y2Linux/issues/20) implements the
-[D14 on-screen status environment](../knowledge/on-screen-diagnostics.md)
-without changing D08 or adding peripherals. No new hardware launch is authorized.
-The sections below retain the chronology of earlier offline/research boundaries.
+The latest owner report confirms `6.18.0-y2-m1`, increasing BEAT and uptime,
+working sleep, proc/sysfs mounts, framebuffer diagnostics, watchdog stopped,
+CPU0 online and static D08 RAM visible. [Hardware result and remaining diagnostic
+uncertainties](../knowledge/m1-runtime-hardware-result.md). This supersedes the
+historical sleep -38 and hardware-pending status below. It does not certify
+unreported counters, run duration, expanded RAM or unrelated peripherals.
+
+[Next five foundation issues](next-five-platform-foundations.md) are planning
+only. No new code/build/flash or M2 execution occurred in this session. M1 core
+success does not require another build or retrospective full-suite run: today's
+change records hardware evidence, not a new release-candidate certification.
+The sections below preserve the earlier implementation/research chronology.
 
 
 The owner explicitly changed execution for M1: the lead researches and implements directly, without delegation. Tiny sequential issues preserve reviewable checkpoints; none is state:luna-ready. All commits use the owner's configured identity and issues use the authenticated owner account. Platform work remains solely in Y2Linux.

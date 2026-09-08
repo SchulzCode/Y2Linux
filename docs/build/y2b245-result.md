@@ -1,5 +1,7 @@
 # Y2B-245 — Offline on-screen diagnostic candidate
 
+> Subsequent owner hardware report confirms working sleep and increasing BEAT/uptime. [M1 core result and exact evidence limits](../knowledge/m1-runtime-hardware-result.md). The report does not independently pin the flashed candidate hash; offline artifact identities below remain unchanged.
+
 2026-09-08. Original offline build record. **Subsequent owner-reported hardware trial reached the text screen and stopped at sleep -38 / ENOSYS.**
 See [actual hardware result and focused fix](../knowledge/y2b245-hardware-result.md).
 The historical offline checks below did not detect the missing kernel time32 syscall.

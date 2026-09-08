@@ -1,6 +1,7 @@
 # Unknowns and architecture decisions
 
-> Latest hardware evidence: [Y2B-245 real screen](y2b245-hardware-result.md) confirms text rendering, PID1 and proc/sysfs mounts. Sleep stops at -38 / ENOSYS, BEAT 0. Y2B-250 enables the missing ARM time32 syscall; timer wakeups and increasing heartbeats still await the next authorized trial.
+> Current hardware result: [owner-observed M1 runtime success](m1-runtime-hardware-result.md) confirms Linux 6.18, native PID1, increasing BEAT/uptime, working sleep, proc/sysfs mounts, CPU0, D08 RAM visibility, framebuffer diagnostics and stopped-watchdog status. **M1 core achieved.** Exact flashed hash and unreported diagnostic fields remain unverified. Earlier dated statements below are historical.
+
 
 > Y2B-240 hardware result: the owner reports **solid green**, which the implemented state machine reaches through initramfs `/init` running as PID1. M1's Linux 6.18 plus PID1 boot objective is achieved. No heartbeat/checkerboard success is claimed. [Y2B-245 / D14](on-screen-diagnostics.md) is the offline follow-up for readable runtime diagnostics.
 
@@ -33,7 +34,7 @@ Date: 2026-09-08. [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7) fixe
 | U06 | Detailed independent-of-Android entry sequence and recorded post-restore checks | Future operator procedure; reuse owner-proven recovery, no broad viability re-test. |
 | U07c | Live inherited DMA/secure state; loader heap extent, display scratch lifetime, physical ranks and secure/shared aliases remain incompletely observed | **Accepted first-experiment risk (D11).** Reduced static memory avoids identified storage but is not bus-master containment. Trace the selected normal loader path and obtain bounded stock evidence; no arbitrary MMIO probes. Full rank topology/high-memory reclamation is deferred. |
 | U07b | Installed loader identity and hardware-selected authentication policy | Y2E-145 finds package ROM_INFO +0xe8=0x22 still consults bit 1 of 0x10206060; not unconditional disable. Current ADB exposes neither installed bytes nor a reliable policy result. [Assessment](launch-readiness.md). |
-| U08 | Actual runtime working set and board execution | Offline sizes, DTB and symbol-derived D08 layout are now validated and reproducible. Runtime boot/memory/interrupt behavior remains untested; no RAM expansion is authorized. |
+| U08 | Expanded allocator RAM, exact working set and stability beyond the reported run | Core board execution, working sleep and increasing BEAT/uptime are owner-observed. D08 RAM is visible; exact MemTotal, stress/timing accuracy and expanded RAM remain unverified. Y2E-155 plans one safe expansion decision; no RAM change is authorized today. |
 | U09 | Conflicting battery readings / trusted power and consistency prerequisites | Future acquisition/restore/boot procedure; passive evidence only. |
 | U10a | Physically usable console, routing, voltage/pins, baud and stock output | Y2E-140 confirms installed ttyMT0/UART0 controller selection and corrects/revalidates the artifact. Board TX/GND, pad voltage, live baud and stock LK+kernel serial capture remain open; host PTY tests and ADB last_kmsg are not that proof. [Evidence](observation-path.md). |
 | U10b | Panel/input, audio supplies/reset/clocks/analog path, radios/firmware/calibration | Later subsystem work, one bounded proof at a time. |
@@ -74,3 +75,7 @@ Y2B-201 through Y2B-235 deliver a reproducible, strictly validated offline candi
 - **D11:** Owner accepts the three specified launch uncertainties for one BOOTIMG-only test; recovery files, watchdog and useful observation remain required.
 - **D12:** Stop AP_RGU at zImage entry, read back and branch past linker padding before decompression.
 - **D13:** Guarded inherited RGB565 pixel diagnostics only; no display register writes or D08 allocator expansion.
+
+## Current core result and next planning boundary
+
+[M1 runtime result](m1-runtime-hardware-result.md) supersedes historical claims above that no Linux hardware execution or heartbeat has been observed. The sleep ENOSYS failure is historical; increasing BEAT and working sleep are now reported. Physical UART, exact image lineage and broader DMA/power/peripheral questions remain separate. Exactly five research issues are queued in [execution order](../planning/next-five-platform-foundations.md); no implementation or M2 execution occurred today.

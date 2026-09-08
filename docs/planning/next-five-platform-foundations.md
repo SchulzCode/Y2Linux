@@ -1,0 +1,39 @@
+# Next five platform foundations — queued research only
+
+2026-09-08. [M1 core is achieved on the physical Y2](../knowledge/m1-runtime-hardware-result.md).
+Exactly five issues are drafted below. None was executed today, and no M2
+milestone, implementation or hardware work has begun. These are deliberately
+bounded research tasks: present evidence does not yet justify guessing driver
+contracts. A later instruction to work an ID means completing that issue's stated
+research deliverable, not silently adding a driver or authorizing a flash.
+
+| Order | Stable issue | One deliverable | Dependency interpretation |
+| --- | --- | --- | --- |
+| 1 | [Y2E-155 / #22 — Specify one safe static RAM expansion step](https://github.com/SchulzCode/Y2Linux/issues/22) | One exact additional-RAM policy or a precise NO-GO | Uses Y2E-130, Y2B-250 and current hardware evidence; D08 unchanged until a reviewed successor. |
+| 2 | [Y2E-160 / #23 — Establish the MT6323 power and supply prerequisite map](https://github.com/SchulzCode/Y2Linux/issues/23) | Minimal PMIC transport/supply ownership contract | Follows the RAM decision; does not require actual expansion. |
+| 3 | [Y2E-165 / #24 — Resolve the wheel and select-button event path](https://github.com/SchulzCode/Y2Linux/issues/24) | CW/CCW/select evdev implementation contract or bounded blocker | Uses supply/transport findings; full input and power drivers are not prerequisites for research. |
+| 4 | [Y2E-170 / #25 — Specify a safe display handoff and backlight ownership boundary](https://github.com/SchulzCode/Y2Linux/issues/25) | One standard-interface takeover decision preserving observation | Uses power ownership and proven D13/D14; follows input research without requiring its driver. |
+| 5 | [Y2E-175 / #26 — Specify a read-only removable-SD controller proof](https://github.com/SchulzCode/Y2Linux/issues/26) | One slot/controller read-only test contract or first missing prerequisite | Uses RAM, power and inherited display-DMA exclusions; keeps eMMC disabled. |
+
+RAM headroom comes first, shared power dependencies next, then local controls
+and display ownership, and finally removable storage once memory/DMA/supply
+constraints are explicit. Removable SD is a smaller first storage surface than
+internal eMMC. Proper panel/backlight support may need a later controller step;
+working inherited pixels are not a driver contract. Power findings also feed
+later audio without opening audio work now.
+
+Each issue includes scope, out-of-scope, expected files/components, acceptance,
+validation, stop conditions and unlocks. Stop at the specified evidence boundary;
+record denied/missing evidence rather than forcing all-five implementation.
+No follow-on issue is created automatically. Reprioritize only on returned facts.
+
+For future localized code changes, use one clean build, directly affected tests,
+D08/layout/BOOTIMG safety checks and final image size/hash. Material memory,
+architecture or packaging changes and new hardware subsystems require the broader
+relevant verification review. Do not routinely rehash all Linux sources or redo
+ROM/recovery provenance, and do not repeat two builds after every small change.
+Every future hardware trial still needs its own explicit authorization.
+
+M1 core completion records the actual runtime result; it is not a release-quality
+certification or retrospective full-suite execution. Physical UART research
+Y2E-140 #16 stays open separately and does not erase achieved visual observation.

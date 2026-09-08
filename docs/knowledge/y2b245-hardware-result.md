@@ -1,5 +1,7 @@
 # Y2B-245 — Real screen result and sleep failure
 
+> Historical failed iteration. The owner subsequently reports [successful periodic PID1 execution](m1-runtime-hardware-result.md); retain the -38 screen below as the evidence that led to the time32 fix.
+
 Owner-reported hardware evidence, recorded 2026-09-08 in
 [#20](https://github.com/SchulzCode/Y2Linux/issues/20#issuecomment-5592238984):
 
