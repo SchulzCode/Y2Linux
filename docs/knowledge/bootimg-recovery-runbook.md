@@ -1,4 +1,6 @@
-# Prepared BOOTIMG-only backup and restore runbook
+# Historical exact-backup runbook and current recovery route
+
+> **Current risk-accepted BOOTIMG-only experiment/restore procedure: [Y2B-240](first-experiment.md).** The exact-current-backup procedure below is optional historical work.
 
 > Current policy: [D11–D13 risk-accepted diagnostic](risk-accepted-diagnostic.md) supersedes the earlier absolute authentication/current-backup/full-handoff gates below. This document retains the historical assessment; watchdog, observation, verified recovery and BOOTIMG-only scope remain mandatory. No flash authorized.
 

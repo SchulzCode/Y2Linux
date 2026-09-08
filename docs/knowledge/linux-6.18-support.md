@@ -1,5 +1,7 @@
 # Linux 6.18 boot-fundamentals audit
 
+> Y2E-150 adds an explicitly temporary board diagnostic overlay to audited v6.18: early AP watchdog stop plus guarded writes to LK-inherited RGB565 memory. Upstream MT6582 watchdog support exists, but normal probe cannot cover decompression. This is not full native display support. See [D12/D13](risk-accepted-diagnostic.md).
+
 Date: 2026-09-08. Y2E-125, extended by [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7). Status: **source support CONFIRMED; Y2 execution UNKNOWN**. Target remains upstream Linux **6.18 LTS**, not 6.12 or a forward-ported Android kernel.
 
 Pinned upstream tag: `v6.18`; tag object `f7b88edb52c8dd01b7e576390d658ae6eef0e134`; peeled commit `7d0a66e4bb9081d75c82ec4957c50034cb0ea449`. This is a reproducible architecture baseline, not a final selection of the 6.18.y patch release. The [kernel.org release page](https://www.kernel.org/category/releases.html) identifies the longterm series; that does not certify Y2 support. Successful source files/URLs/hashes are in [linux-6.18-sources.tsv](linux-6.18-sources.tsv). Failed/rate-limited requests remain explicitly recorded privately; claims below use retrieved primary source.

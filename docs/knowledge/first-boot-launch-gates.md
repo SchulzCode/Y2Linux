@@ -1,8 +1,10 @@
 # First-device launch gates after the M1 offline wave
 
+> **Current: [risk-accepted diagnostic GO](../build/risk-diagnostic-result.md), pending separate flash authorization.** The earlier candidate/assessment below is retained as history.
+
 > Current policy: [D11–D13 risk-accepted diagnostic](risk-accepted-diagnostic.md) supersedes the earlier absolute authentication/current-backup/full-handoff gates below. This document retains the historical assessment; watchdog, observation, verified recovery and BOOTIMG-only scope remain mandatory. No flash authorized.
 
-**Current verdict: [Y2E-145 launch assessment](launch-readiness.md) — NO-GO.** Ordinary USB/ADB does not establish early observation; installed authentication and current BOOTIMG backup are unproved. New package analysis finds a nominal 10-second watchdog interval on normal initialization, without an established normal-handoff disable. The current no-watchdog candidate is not approved for the proposed 60-second run.
+**Historical verdict: [Y2E-145 launch assessment](launch-readiness.md) — NO-GO.** Ordinary USB/ADB does not establish early observation; installed authentication and current BOOTIMG backup are unproved. New package analysis finds a nominal 10-second watchdog interval on normal initialization, without an established normal-handoff disable. The current no-watchdog candidate is not approved for the proposed 60-second run.
 
 2026-09-08; Y2B-235. **Offline artifact acceptance is complete only when its reproducibility report passes; hardware launch is still blocked.** The initial Y2B-235 review used retained package disassembly and audited upstream sources, with no ADB, device mode change, raw readback, DA execution, flash or boot. The later U10a update below additionally uses explicitly safe read-only stock ADB from Y2E-140. Known-good owner recovery remains strong evidence. No research was delegated.
 

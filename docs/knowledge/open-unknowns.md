@@ -1,5 +1,7 @@
 # Unknowns and architecture decisions
 
+> Current first-experiment policy is [D11–D13](risk-accepted-diagnostic.md): unsigned acceptance, missing current BOOTIMG backup and incomplete DMA/secure-state proofs are accepted experimental risks, not absolute launch blockers. They remain factual unknowns. Guarded inherited video replaces physical UART as the proposed first-test observation; successful board output is not yet observed.
+
 Date: 2026-09-08. [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7) fixes the offline memory policy after Y2E-125. **M0 remains open.** The owner subsequently authorized direct M1 offline implementation; its [validated result](../build/first-boot-result.md) does not clear hardware gates.
 
 ## Resolved or materially improved
@@ -21,9 +23,9 @@ Date: 2026-09-08. [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7) fixe
 | U02 | Original download authenticity and current bytes versus historical flashed bytes | Record provenance accurately; does not negate the owner's successful same-device fallback. |
 | U03 | Exact historical DA, flash mode/targets and reviewed acquisition/connection semantics | Future backup/runbook. Bundled DA hash is a candidate, not an established historical selection. |
 | U04 | PRELOADER hardware-region configuration, EBR span and BMTPOOL semantics | Special-region acquisition. Ordinary boot/recovery metadata is reconciled; no guessed raw ranges. |
-| U05 | Consistent per-device boot/recovery/calibration/protect backups and independent copies | Recovery gate. No factory-data substitution or unapproved filesystem freeze/unmount. |
+| U05 | Consistent per-device boot/recovery/calibration/protect backups and independent copies | Optional exact-state preservation for this experiment; FM fallback accepted under D11. No factory-data substitution or unapproved filesystem freeze/unmount. |
 | U06 | Detailed independent-of-Android entry sequence and recorded post-restore checks | Future operator procedure; reuse owner-proven recovery, no broad viability re-test. |
-| U07c | Live inherited DMA/secure state; loader heap extent, display scratch lifetime, physical ranks and secure/shared aliases remain incompletely observed | **Launch gate.** Reduced static memory avoids identified storage but is not bus-master containment. Trace the selected normal loader path and obtain bounded stock evidence; no arbitrary MMIO probes. Full rank topology/high-memory reclamation is deferred. |
+| U07c | Live inherited DMA/secure state; loader heap extent, display scratch lifetime, physical ranks and secure/shared aliases remain incompletely observed | **Accepted first-experiment risk (D11).** Reduced static memory avoids identified storage but is not bus-master containment. Trace the selected normal loader path and obtain bounded stock evidence; no arbitrary MMIO probes. Full rank topology/high-memory reclamation is deferred. |
 | U07b | Installed loader identity and hardware-selected authentication policy | Y2E-145 finds package ROM_INFO +0xe8=0x22 still consults bit 1 of 0x10206060; not unconditional disable. Current ADB exposes neither installed bytes nor a reliable policy result. [Assessment](launch-readiness.md). |
 | U08 | Actual runtime working set and board execution | Offline sizes, DTB and symbol-derived D08 layout are now validated and reproducible. Runtime boot/memory/interrupt behavior remains untested; no RAM expansion is authorized. |
 | U09 | Conflicting battery readings / trusted power and consistency prerequisites | Future acquisition/restore/boot procedure; passive evidence only. |
@@ -62,3 +64,7 @@ Y2B-201 through Y2B-235 deliver a reproducible, strictly validated offline candi
 **NO-GO** for the requested 60-second first BOOTIMG-only experiment. Ordinary USB/ADB does not provide the proved early observation channel; current BOOTIMG backup/independent retention and installed authentication remain missing. Normal package LK arms a nominal 10-second watchdog interval with IRQ/dual-mode behavior; identified disable calls are Download/Fastboot, not normal BOOTIMG handoff. Treat it as inherited until disproved. Current candidate has no watchdog servicing, so a reviewed minimal timing/watchdog policy may be needed after installed-lineage proof. No feature or D08 change was made to guess past this gate.
 
 [Complete decision/evidence](launch-readiness.md), [blocked BOOTIMG backup/restore procedure](bootimg-recovery-runbook.md). Y2E-140 (#16) and Y2E-145 (#17) stay open. No first-boot execution issue was created because GO was not reached.
+
+- **D11:** Owner accepts the three specified launch uncertainties for one BOOTIMG-only test; recovery files, watchdog and useful observation remain required.
+- **D12:** Stop AP_RGU at zImage entry, read back and branch past linker padding before decompression.
+- **D13:** Guarded inherited RGB565 pixel diagnostics only; no display register writes or D08 allocator expansion.

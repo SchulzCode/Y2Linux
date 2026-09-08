@@ -1,5 +1,7 @@
 # Recovery baseline
 
+> For the risk-accepted first experiment, verified owner-proven FM boot.img restoration is sufficient; an exact current BOOTIMG backup is optional. See [D11 recovery tradeoff](risk-accepted-diagnostic.md#recovery-tradeoff). All 24 ROM files and SPFT/DA were rehashed in Y2E-150; neither loader was changed. Later full-ROM recovery would require separate authorization and may lose current software/userdata.
+
 Date: 2026-09-08. [Y2E-125](https://github.com/SchulzCode/Y2Linux/issues/6) updates [Y2E-120](https://github.com/SchulzCode/Y2Linux/issues/5). **Known-good owner-observed SP Flash Tool recovery/flash exists. M0 remains open because device-specific backups and experiment prerequisites are incomplete.** This is an evidence assessment, not an executable flashing procedure.
 
 ## Owner-confirmed history: accepted evidence

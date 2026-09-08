@@ -1,0 +1,69 @@
+{
+  "result": "PASS two clean complete builds byte-identical",
+  "builds": [
+    "diagnostic-reviewed-1",
+    "diagnostic-reviewed-2"
+  ],
+  "artifacts": [
+    {
+      "file": "kernel/.config",
+      "bytes": 35355,
+      "sha256": "bb3f61066c098bb3f0a601ea3cbc9f1b06e6a8ae43972dc9c2790ee882e2b43c"
+    },
+    {
+      "file": "kernel/vmlinux",
+      "bytes": 3161516,
+      "sha256": "74ea3d4da37abb2063560a17445886a8785d45ec3e467bd87a6877eb2f36ccab"
+    },
+    {
+      "file": "kernel/arch/arm/boot/compressed/vmlinux",
+      "bytes": 1155560,
+      "sha256": "1c7a831f7967c7f86ca144cb60d227391999cd66939dc8000bee81e518b8fecd"
+    },
+    {
+      "file": "kernel/arch/arm/boot/Image",
+      "bytes": 2543296,
+      "sha256": "7b678ab7a60068531a19112a4bcdc97e339d4e164385c1f6d6c79ae57f72919a"
+    },
+    {
+      "file": "kernel/arch/arm/boot/zImage",
+      "bytes": 1076776,
+      "sha256": "4328b65b46eb0c7ee4fb176ea9b04fcd5f02edf120bd27b74380517c07a85364"
+    },
+    {
+      "file": "y2.dtb",
+      "bytes": 1835,
+      "sha256": "22b6f95f09802c3ef79f7f2bcfce5d5140f978877171ca69cefff2f22a61c07c"
+    },
+    {
+      "file": "zImage-dtb",
+      "bytes": 1078616,
+      "sha256": "a4145743d79f210c4f400bbc0788017a4725fc9c2a839cc7ab1f7b370812afbb"
+    },
+    {
+      "file": "init",
+      "bytes": 3304,
+      "sha256": "96e41536bd2bd6d419dbed394a963b278a7095719eeacdf39828904adbc4ff17"
+    },
+    {
+      "file": "initramfs.cpio",
+      "bytes": 4608,
+      "sha256": "78b72a316149f24fe29e03dc5a5bf48ae0778c34ac7be3b0320efd2294b8fc3d"
+    },
+    {
+      "file": "initramfs.cpio.gz",
+      "bytes": 1860,
+      "sha256": "7600b0d245b0f3abe4dd8b7f385f31f2a4c83c9db1f0ca4d9453a2fcab9e376b"
+    },
+    {
+      "file": "BOOTIMG.img",
+      "bytes": 1089536,
+      "sha256": "db7d8a5cf082b37f77c8732bd8e1ab742e4205f9383e421b051917f17364ab7e"
+    },
+    {
+      "file": "layout.json",
+      "bytes": 5040,
+      "sha256": "e46b02f42e9750b873b05317568ac76111599bf86b3e7220c2a17d7119ea4839"
+    }
+  ]
+}

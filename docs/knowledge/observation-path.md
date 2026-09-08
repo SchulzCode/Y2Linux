@@ -1,5 +1,7 @@
 # Y2 first-boot observation path
 
+> The owner authorized a temporary alternative in Y2E-150: [D13 guarded inherited-framebuffer diagnostics](risk-accepted-diagnostic.md). UART0 remains compiled as an additional path. Physical UART/stock serial capture below remains unproved, but is no longer required for this risk-accepted visual experiment. Display persistence and visible stages still require the first board trial.
+
 2026-09-08, [Y2E-140 / #16](https://github.com/SchulzCode/Y2Linux/issues/16). **Software controller corrected to UART0; physical observation gate remains open.** This investigation used offline FM artifacts, pinned source, public PCB imagery and bounded read-only ADB on the already running Android device. No reboot, port/register probing, wiring, accessory-mode change, image installation or experimental boot occurred.
 
 ## Installed evidence takes precedence over the package default string

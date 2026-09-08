@@ -1,5 +1,7 @@
 # M1 offline first-boot result
 
+> **Current: [risk-accepted diagnostic GO](risk-diagnostic-result.md), pending separate flash authorization.** The earlier candidate/assessment below is retained as history.
+
 2026-09-08, revised by [Y2E-140 / D10](../knowledge/observation-path.md) to UART0/IRQ51 after installed-stock evidence. The previous UART3 candidate is superseded; its [layout](results/m1-uart3-superseded-layout.json) and [hash inventory](results/m1-uart3-superseded-reproducibility.json) remain historical evidence. **Offline candidate built and validated; no experimental device boot or flash performed.** M0 and M1 hardware completion remain open. [Checkpoint history](../planning/M1-first-boot.md), [reproduction commands](first-boot.md), [launch gates and conditional experiment](../knowledge/first-boot-launch-gates.md).
 
 ## Baseline and configuration

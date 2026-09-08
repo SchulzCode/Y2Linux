@@ -1,5 +1,7 @@
 # First BOOTIMG-only experiment: launch readiness
 
+> **Current: [risk-accepted diagnostic GO](../build/risk-diagnostic-result.md), pending separate flash authorization.** The earlier candidate/assessment below is retained as history.
+
 > Current policy: [D11–D13 risk-accepted diagnostic](risk-accepted-diagnostic.md) supersedes the earlier absolute authentication/current-backup/full-handoff gates below. This document retains the historical assessment; watchdog, observation, verified recovery and BOOTIMG-only scope remain mandatory. No flash authorized.
 
 2026-09-08 follow-up, [Y2E-145 / #17](https://github.com/SchulzCode/Y2Linux/issues/17), with [Y2E-140 / #16](https://github.com/SchulzCode/Y2Linux/issues/16). **NO-GO for the first Linux hardware boot.** The owner confirms only ordinary USB/ADB is available, with no additional UART hardware/evidence. Bounded offline analysis and read-only ADB improved the gates but did not pass them. No device mode change, DA execution, partition read/write, security modification, experimental boot or Linux feature change occurred.

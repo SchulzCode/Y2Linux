@@ -1,5 +1,7 @@
 # Initial Linux RAM policy
 
+> D13 diagnostic scope clarification: ordinary DT RAM, reservations and every D08 artifact cap remain unchanged. The owner additionally authorized a strictly guarded write-only pixel aperture [0xbfb00000,0xbfb54600) inside the excluded high framebuffer. It is mapped as I/O, never offered to the allocator; no display scratch or other high RAM is reclaimed. See [D13](risk-accepted-diagnostic.md).
+
 Date: 2026-09-08. [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7), following [Y2E-125](https://github.com/SchulzCode/Y2Linux/issues/6). **D08: static DT memory, 24.5 MiB initially; no LK ATAG import.** This closes U07a's offline memory-policy decision. It is a conservative design supported by package analysis and retained runtime observations, **not a tested Linux RAM map or permission to boot**. Inherited DMA/secure state remains a launch gate (U07c). All intervals below are physical, hexadecimal and half-open: `[start, end)`.
 
 ## Evidence and confidence

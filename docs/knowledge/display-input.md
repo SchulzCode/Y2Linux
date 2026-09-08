@@ -1,5 +1,7 @@
 # Display and input evidence
 
+> Y2E-150 resolves the limited LK diagnostic contract: normal final layer 2 at 0xbfb00000, 480x360 RGB565, 960-byte stride; DSI sync-pulse video and normal backlight persistence supported by exact FM/LK instructions. Android runtime metadata differs (32 bpp, stride 1920). [D13](risk-accepted-diagnostic.md) provides guarded access, provenance and limits; no panel initialization/input driver was implemented.
+
 Date: 2026-09-08. Related task: Y2E-101. Historical source: integrity-verified snapshot `2026-07-29_004935/hardware/input-devices.txt`.
 
 CONFIRMED in that archive: `mtk-kpd`, `ACCDET`, `mtk-tpd`, `mtk-tpd-kpd` and AVRCP input devices, including event handlers and capability bitmaps. The application documents a 480 × 360 landscape display and wheel/button navigation. That behavioral resolution is not a panel/controller/timing identification.

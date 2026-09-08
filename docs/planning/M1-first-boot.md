@@ -24,3 +24,7 @@ The [hardware launch-gate review](../knowledge/first-boot-launch-gates.md) ident
 [Y2E-140 / #16](https://github.com/SchulzCode/Y2Linux/issues/16) is open: installed ttyMT0/UART0 evidence prompted D10 and two fully validated reproducible builds, plus receive-only host tooling. The first-artifact hashes above now resolve to the current UART0 result; historical UART3 reports/bundle remain retained. Physical TX/GND/level and actual stock LK/kernel serial capture are still missing. No further kernel feature or device experiment was added.
 
 [Y2E-145 / #17](https://github.com/SchulzCode/Y2Linux/issues/17) records the subsequent **NO-GO** decision for the unchanged candidate, hardware-dependent authentication, denied current raw acquisition and adverse normal-path watchdog evidence. [Decision](../knowledge/launch-readiness.md). M1 remains open; no first-boot operation issue exists.
+
+Y2E-150 / #18 now supplies D11–D13 and the [risk-accepted diagnostic result](../build/risk-diagnostic-result.md). Research `3aeeb03`; implementation `1234f85`; two final builds match and all 11 tests pass. The previous NO-GO hard gates are superseded by owner-accepted risk; watchdog and guarded visual diagnostics are implemented. Y2B-240 prepares one BOOTIMG-only experiment requiring separate hardware authorization. M1 remains open until actual boot evidence is reviewed.
+
+Execution checkpoint: [Y2B-240 / #19](https://github.com/SchulzCode/Y2Linux/issues/19), awaiting separate owner hardware authorization.
