@@ -1,7 +1,8 @@
 # Y2B-240 — One risk-accepted BOOTIMG-only diagnostic experiment
 
-**Prepared only. Separate explicit owner authorization is required before any
-SPFT operation, DA upload, device mode change or flash.** The experiment uses
+**Owner explicitly authorized this exact one-trial procedure on 2026-09-08.
+Host preflight is complete; execution awaits physical observation/recovery
+coordination. No experimental download or boot has been initiated.** The experiment uses
 [D11–D13](risk-accepted-diagnostic.md), not the superseded Y2E-145 hard gates.
 The final candidate hash and offline reports are in
 [diagnostic result](../build/risk-diagnostic-result.md).
@@ -108,4 +109,4 @@ Close this issue only after the authorized operation, observations and stock
 restoration results are retained and interpreted. M1 hardware completion is
 not implied by offline GO.
 
-Execution checkpoint: [Y2B-240 / #19](https://github.com/SchulzCode/Y2Linux/issues/19), awaiting separate owner hardware authorization.
+Execution checkpoint: [Y2B-240 / #19](https://github.com/SchulzCode/Y2Linux/issues/19), authorized; see [preflight checkpoint](first-experiment-preflight.md).
