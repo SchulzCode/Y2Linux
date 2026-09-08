@@ -79,3 +79,12 @@ Y2B-201 through Y2B-235 deliver a reproducible, strictly validated offline candi
 ## Current core result and next planning boundary
 
 [M1 runtime result](m1-runtime-hardware-result.md) supersedes historical claims above that no Linux hardware execution or heartbeat has been observed. The sleep ENOSYS failure is historical; increasing BEAT and working sleep are now reported. Physical UART, exact image lineage and broader DMA/power/peripheral questions remain separate. Exactly five research issues are queued in [execution order](../planning/next-five-platform-foundations.md); no implementation or M2 execution occurred today.
+
+## USB log-channel planning, 2026-09-09
+
+[USB logging research](usb-logging.md) selects peripheral-only MUSB/PIO plus
+g_serial CDC ACM and nonblocking kernel/PID1 replay. The upper-layer contract
+is specified; exact MT6582 PHY/clock/VUSB/FIFO and handoff support blocks hardware
+implementation readiness. No reliable smaller host-readable alternative is
+established; this does not negate working visual M1 diagnostics. One additional
+owner-requested logging issue is drafted; no implementation/build/flash occurred.

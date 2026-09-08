@@ -1,0 +1,43 @@
+[
+  {
+    "path": "drivers/misc/mediatek/usb20/mt6582/usb20.c",
+    "file": "drivers__misc__mediatek__usb20__mt6582__usb20.c",
+    "sha256": "d29c9677d54cd422d2bfb9ee3ec603ef606a3f2e017a477f8a21e6a8ff07b289",
+    "bytes": 27716,
+    "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/usb20/mt6582/usb20.c"
+  },
+  {
+    "path": "drivers/misc/mediatek/usb20/mt6582/usb20.h",
+    "file": "drivers__misc__mediatek__usb20__mt6582__usb20.h",
+    "sha256": "5948d5a4b64aa91fa0e92898f1ea991f00fda6cf18df049d04329dfcfb28d4bf",
+    "bytes": 3219,
+    "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/usb20/mt6582/usb20.h"
+  },
+  {
+    "path": "arch/arm/mach-mt6582/include/mach/mt_irq.h",
+    "file": "arch__arm__mach-mt6582__include__mach__mt_irq.h",
+    "sha256": "9b261a6e366947b677046737e5077e202eb491491f44437f01923829fc2c89eb",
+    "bytes": 8672,
+    "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/include/mach/mt_irq.h"
+  },
+  {
+    "path": "arch/arm/mach-mt6582/include/mach/mt_reg_base.h",
+    "file": "arch__arm__mach-mt6582__include__mach__mt_reg_base.h",
+    "sha256": "95af24b0c480c5a5a46203708ac16f333810a37a49bff348f8b6ebd3885e964d",
+    "bytes": 16370,
+    "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/include/mach/mt_reg_base.h"
+  },
+  {
+    "path": "arch/arm/mach-mt6582/mt_devs.c",
+    "file": "arch__arm__mach-mt6582__mt_devs.c",
+    "sha256": "082a0defcf2271fb2ae081466e1837d47fc58500cd0fb5765b3f857d8b85743c",
+    "bytes": 77688,
+    "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_devs.c"
+  },
+  {
+    "path": "drivers/misc/mediatek/usb20/mt6582/usb20_phy.c",
+    "sha256": "d92dad0233b8627d863649a9bbf3f2644c83a69594a7bd0a5ffdb18dbd93e0b6",
+    "bytes": 14129,
+    "source": "Previously retained pinned MediaTek d53dd75 source; see observation capture manifest"
+  }
+]
