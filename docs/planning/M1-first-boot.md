@@ -6,7 +6,7 @@ The owner explicitly reported solid green from Y2B-240, which the implemented
 state machine paints only upon PID1's diagnostic command. No heartbeat or
 checkerboard was reported. Android recovery succeeded using the owner's
 boot-adb image; see [actual result](../knowledge/first-experiment-result.md).
-M1 remains open for the requested Y2B-245 offline diagnostic follow-up; this
+M1 remains open for the Y2B-250 sleep-syscall fix and periodic diagnostic hardware validation; this
 is not a claim of full timing, peripheral or long-term stability validation.
 
 [Y2B-245 / #20](https://github.com/SchulzCode/Y2Linux/issues/20) implements the
@@ -47,3 +47,16 @@ builds match across 12 outputs and all 14 tests pass. [Final artifact and
 validation](../build/y2b245-result.md). New text-candidate hardware validation
 remains pending separate authorization; Linux-plus-PID1 boot is already
 achieved by Y2B-240 solid green.
+
+## Current hardware boundary: Y2B-250
+
+The owner reports the real Y2B-245 renderer, PID1 and successful proc/sysfs mounts,
+followed by `BEAT: 0 / STOP: SLEEP ERROR / -38`. [Evidence and root cause](../knowledge/y2b245-hardware-result.md).
+[Y2B-250 #21](https://github.com/SchulzCode/Y2Linux/issues/21) enables the missing ARM time32 ABI.
+No increasing heartbeat has been established; no new flash or M2 is authorized.
+
+Localized iterations now use one clean build, directly affected tests, D08/layout/BOOTIMG
+safety validation and final image size/hash. Trust the unchanged audited source and
+locked toolchain; do not repeat full provenance/recovery audits or two reproducibility
+builds. Reserve exhaustive verification for architecture/memory/packaging changes,
+new subsystems, milestone completion and release candidates.

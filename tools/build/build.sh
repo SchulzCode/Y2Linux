@@ -10,7 +10,13 @@ sh /project/tools/build/dtb.sh
 cd /project
 python3 -m tools.validation.artifacts /build --append > /build/artifact-validation.log
 python3 -m tools.build.package /build > /build/package-validation.log
-Y2_ARTIFACT_TEST_ROOT=/build python3 -m unittest discover -s tests -v > /build/tests.log 2>&1
+# Optional unittest filename patterns support localized hardware iterations.
+# No arguments retains the full suite for architecture/release validation.
+if [ "$#" -eq 0 ]; then set -- 'test*.py'; fi
+: > /build/tests.log
+for pattern in "$@"; do
+    Y2_ARTIFACT_TEST_ROOT=/build python3 -m unittest discover -s tests -p "$pattern" -v >> /build/tests.log 2>&1
+done
 cp /build/kernel/arch/arm/boot/Image /build/Image
 cp /build/kernel/arch/arm/boot/zImage /build/zImage
 cp /build/kernel/.config /build/kernel.config

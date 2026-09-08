@@ -105,3 +105,10 @@ Build runner: verified cache overlays are reused without rewriting their inode.
 New overlays are patched in private temporary files and atomically published
 only after hash verification. This removes the shared-overlay rewrite race
 caught by the config validator during an unpublished development build.
+
+## Real hardware follow-up
+
+Y2B-245 reached the real text renderer and PID1 with both mounts successful, then
+stopped at sleep -38 with BEAT 0. [Exact report and time32 ABI diagnosis](y2b245-hardware-result.md).
+Y2B-250 changes only kernel time32 syscall availability; the D14 renderer and PID1
+state machine remain unchanged. Continued heartbeat execution still needs testing.

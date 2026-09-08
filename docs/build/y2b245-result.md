@@ -1,6 +1,8 @@
 # Y2B-245 — Offline on-screen diagnostic candidate
 
-2026-09-08. **Built and validated offline; NOT flashed and no new hardware launch authorized.**
+2026-09-08. Original offline build record. **Subsequent owner-reported hardware trial reached the text screen and stopped at sleep -38 / ENOSYS.**
+See [actual hardware result and focused fix](../knowledge/y2b245-hardware-result.md).
+The historical offline checks below did not detect the missing kernel time32 syscall.
 Issue [#20](https://github.com/SchulzCode/Y2Linux/issues/20); [D14 design](../knowledge/on-screen-diagnostics.md).
 
 ## First hardware result and M1

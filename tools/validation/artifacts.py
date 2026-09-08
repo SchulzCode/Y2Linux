@@ -11,6 +11,7 @@ from tools.validation import dtb
 from tools.validation.d08 import Inputs, validate, require
 from tools.validation.formats import gunzip, cpio
 from tools.validation.bootimg import check as check_bootimg
+from tools.validation.sleep_syscall import check as check_sleep
 
 
 def digest(data): return hashlib.sha256(data).hexdigest()
@@ -76,6 +77,7 @@ def check(root, project):
     require(initelf.elf['e_flags'] & 0xff000600 == 0x05000200, 'init EABI5 soft float')
     decoded = dtb.check(tree, len(initrd))
     kernel = Elf(root / 'kernel/vmlinux')
+    sleep = check_sleep(kernel, root / 'kernel/.config')
     comp = Elf(root / 'kernel/arch/arm/boot/compressed/vmlinux')
     text = kernel.sym('_text')
     require(text == 0xc0008000 and kernel.elf['e_entry'] == text, 'kernel virtual entry/TEXT_OFFSET')
@@ -138,6 +140,7 @@ def check(root, project):
     layout['diagnostic']['source_sha256'] = {
         name:digest((project/name).read_bytes()) for name in source_paths}
     layout['dt'] = decoded
+    layout['sleep_syscall'] = sleep
     layout['artifacts'] = {name: {'bytes':len(data),'sha256':digest(data)} for name,data in
         [('Image',image),('zImage',z),('y2.dtb',tree),('initramfs.cpio.gz',initrd),('init',init),('zImage-dtb',expected)]}
     layout['kernel_symbols'] = {name:kernel.sym(name) for name in ['_text','_edata','__bss_start','__bss_stop','_end']}
