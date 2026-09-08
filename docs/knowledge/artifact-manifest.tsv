@@ -49,11 +49,11 @@ docs/BLUETOOTH_STACK_INVESTIGATION.md	21213	5de22f7366a854fd25330f46a2d11830d606
 docs/FM_RADIO_FEASIBILITY.md	17361	859233a59079e87793b34e5b3cb75812ab950f32d3e3ad1e4cc7535ab74eb535	historical-analysis-report	UNKNOWN; existing local reference checkout
 docs/ADB_BOOT_IMAGE.md	1973	ab7576a0e37e6523dec0b5100b4dff58994ecfb87f5ee7426fed6c2bab3bfa91	historical-analysis-report	UNKNOWN; existing local reference checkout
 RELEASE_2.5.md	13587	40679a1cea6e8c7b8953e3e999be04a6a896c1c9c57a3efe59c049ccf8bee02d	behavior/revision-report	UNKNOWN; existing local reference checkout
-y2_v3.2.0_FM-20260813/boot.img	5656576	5ef1bdf28481ee0bf5f3528c1ddd91cf3f4d2d5f39e4d0ea049a8137a30f6af6	candidate package/tool; unapproved for recovery	UNKNOWN; discovered local artifact
-y2_v3.2.0_FM-20260813/recovery.img	6041600	319ae8113b7741c13a0ab6254575c9a0e70336c4290fca49dd33abb4f85f29b0	candidate package/tool; unapproved for recovery	UNKNOWN; discovered local artifact
-y2_v3.2.0_FM-20260813/system.img	518590232	5a7a92f3a95374f31abe8b3ddbd68c5c2ce5677547db3d1cbc21653d24c76989	candidate package/tool; unapproved for recovery	UNKNOWN; discovered local artifact
-y2_v3.2.0_FM-20260813/kernel	4944888	8f250f5ce97ffd2d2a59455c0fb9eceff7e32b0e1ba34de84ae0d551a9f9e48e	candidate package/tool; unapproved for recovery	UNKNOWN; discovered local artifact
-y2_v3.2.0_FM-20260813/MT6582_Android_scatter.txt	7666	e5fe03e9f3219cc9b5ead27892f2ddb722acc16adce3306d27feb87893cd977e	candidate package/tool; unapproved for recovery	UNKNOWN; discovered local artifact
+y2_v3.2.0_FM-20260813/boot.img	5656576	5ef1bdf28481ee0bf5f3528c1ddd91cf3f4d2d5f39e4d0ea049a8137a30f6af6	owner-confirmed recovery package; current local hash	Y2E-125 owner observation; full audit in handoff-artifacts.tsv
+y2_v3.2.0_FM-20260813/recovery.img	6041600	319ae8113b7741c13a0ab6254575c9a0e70336c4290fca49dd33abb4f85f29b0	owner-confirmed recovery package; current local hash	Y2E-125 owner observation; full audit in handoff-artifacts.tsv
+y2_v3.2.0_FM-20260813/system.img	518590232	5a7a92f3a95374f31abe8b3ddbd68c5c2ce5677547db3d1cbc21653d24c76989	owner-confirmed recovery package; current local hash	Y2E-125 owner observation; full audit in handoff-artifacts.tsv
+y2_v3.2.0_FM-20260813/kernel	4944888	8f250f5ce97ffd2d2a59455c0fb9eceff7e32b0e1ba34de84ae0d551a9f9e48e	owner-confirmed recovery package; current local hash	Y2E-125 owner observation; full audit in handoff-artifacts.tsv
+y2_v3.2.0_FM-20260813/MT6582_Android_scatter.txt	7666	e5fe03e9f3219cc9b5ead27892f2ddb722acc16adce3306d27feb87893cd977e	owner-confirmed recovery package; current local hash	Y2E-125 owner observation; full audit in handoff-artifacts.tsv
 Y1Software/flash_tool.exe	10514944	8aa16765f811f9b665dd1dc110f68081a4bcd8efa19832cb49b23cfd031881df	candidate package/tool; unapproved for recovery	UNKNOWN; discovered local artifact
 Y1Software/MTK_AllInOne_DA.bin	12945664	4729b77976508708a541039a807f3203f68a37e91ebbc832ac7db70b4ea6d832	candidate package/tool; unapproved for recovery	UNKNOWN; discovered local artifact
 Y1Software/DA_PL.bin	12834208	d64712d7a859592712afb4d008f6bfa17a5037c7f6dc9f403512fd5194d713fc	candidate package/tool; unapproved for recovery	UNKNOWN; discovered local artifact

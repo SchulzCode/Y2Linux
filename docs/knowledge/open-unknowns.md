@@ -1,25 +1,43 @@
-# Open unknowns and decision register
+# Unknowns and architecture decisions
 
-Date: 2026-09-08. M0 remains NOT PASSED. Research ownership and repository authority follow the current project instruction, which supersedes earlier implementation-assigned research plans.
+Date: 2026-09-08. [Y2E-125](https://github.com/SchulzCode/Y2Linux/issues/6) extends the five completed initial research tasks. **M0 remains open.** Research/architecture decisions precede any implementation handoff.
 
-| ID | Unknown / evidence needed | Blocks | Current decision |
-| --- | --- | --- | --- |
-| U01 | Current physical PCB/FM revision and installed boot/system hashes/lineage | Compatible stock fallback selection | UNKNOWN; owner restoration history requested; do not infer from fingerprint. |
-| U02 | Trusted vendor origin and relationship between OriginalFirmware, Y2 FM package and modified outputs | Recovery input certification | Catalog separately; matching scatter is insufficient. |
-| U03 | Exact flasher/DA/host and non-destructive connection/readback semantics | Per-device acquisition | No tool/device connection or payload execution. |
-| U04 | PRELOADER hardware region, EBR span and BMTPOOL semantics | Generic range-based acquisition | Ordinary boot/recovery metadata reconciles; special ranges remain unapproved. |
-| U05 | Consistent personalized-data backup and independent retention | Recovery gate | No factory-data substitution; protect filesystems currently writable. |
-| U06 | Emergency-mode reachability and actual bounded stock restore proof | Any experimental Linux boot | No deliberate corruption; later operator procedure needs explicit authorization. |
-| U07 | Header 0x10000000-family addresses versus runtime 0x80000000-family memory; loader ATAG/DT contract and reservations | Linux image construction | Offline loader research next; no guessed addresses/DTS. |
-| U08 | Config/DT absent in bounded searched inputs; compiled board configuration | Minimal kernel/device description | Preserve negative search scope; absence elsewhere unproven. |
-| U09 | Conflicting battery service values and trusted physical power readings | Recovery power prerequisites | Passive service/sysfs investigation only. |
-| U10 | Current panel/input wiring; audio clocks/reset/power/analog route; radio transport/firmware/calibration | Subsystem implementation | Resolve one subsystem at a time; no implementation-ready tasks. |
-| U11 | Actual upstream v6.18 applicability and smallest board delta | Implementation specification | Deferred until evidence and recovery boundaries support a concrete experiment. |
+## Resolved or materially improved
 
-Decision D01: all platform documents/tasks/milestones belong to Y2Linux; the five issues were transferred, not duplicated. Y2PlayerNative is the later application repository.
+| ID | New evidence / decision |
+| --- | --- |
+| U01/U02 recovery selection | Owner confirms successful SPFT flashing of this exact Y2 with the FM ROM. It is the owner-proven fallback; 24 current files and scatter are hashed. Exact current installed hashes and historical-byte identity remain distinct unknowns. |
+| U03 tool identity | Local executable identifies v5.2032.00 / 5.2032.00.sn100; archive matches executable; recent-file history names the FM scatter. Previously used build strongly corroborated; DA/settings not proved. |
+| U06 recovery viability | Successful owner-observed same-device recovery/flash accepted as strong evidence. Do not re-prove from scratch or require deliberate damage. Exact emergency entry/runbook details remain incomplete. |
+| U07 address/boot-data discrepancy | Package LK overrides header addresses: kernel `0x80008000`, tags `0x80000100`, ramdisk `0x84000000`, machine ID 6582. ATAG construction and final entry traced. No RAM-alias explanation is required. |
+| U08/U11 boot fundamentals | Upstream v6.18 includes mt6582.dtsi, ARMv7/GIC/sysirq/GPT/UART foundation, GENERIC_DT fallback and appended-DTB/ATAG conversion. No new legacy board-file port is presently justified. This is not proof of a complete working Y2 port. |
 
-Decision D02: research, reverse engineering, read-only captures and architectural decisions precede implementation. The implementation role receives only fully researched, bounded changes. No current research task is `state:luna-ready`.
+## Remaining unknowns
 
-Decision D03: checksum failures quarantine the affected generated distribution claim; independent verified historical evidence and passive reads may proceed after review. A completed observation task can report DENIED/UNKNOWN without passing recovery.
+| ID | Bounded missing evidence | Blocks / current action |
+| --- | --- | --- |
+| U01 | Current PCB/build and installed loader/image lineage | Pin the actual experiment target. Do not infer exact installed bytes from fingerprint or package name. |
+| U02 | Original download authenticity and current bytes versus historical flashed bytes | Record provenance accurately; does not negate the owner's successful same-device fallback. |
+| U03 | Exact historical DA, flash mode/targets and reviewed acquisition/connection semantics | Future backup/runbook. Bundled DA hash is a candidate, not an established historical selection. |
+| U04 | PRELOADER hardware-region configuration, EBR span and BMTPOOL semantics | Special-region acquisition. Ordinary boot/recovery metadata is reconciled; no guessed raw ranges. |
+| U05 | Consistent per-device boot/recovery/calibration/protect backups and independent copies | Recovery gate. No factory-data substitution or unapproved filesystem freeze/unmount. |
+| U06 | Detailed independent-of-Android entry sequence and recorded post-restore checks | Future operator procedure; reuse owner-proven recovery, no broad viability re-test. |
+| U07a | Exact safe RAM envelope/exclusions at LK exit, including display/preloader/secure-world/DMA state | **Smallest remaining artifact-design proof.** Resolve DT memory and ATAG import policy before specifying an image. Current iomem is insufficient to identify all reservations. |
+| U07b | Active image-authentication policy and exact installed LK | Launch gate. Static LK has both conditional verification and no-check paths. Stock flashing does not prove unsigned-kernel acceptance. |
+| U08 | Exact FM kernel reservation functions / minimal Y2 board description | Remap old symbols against FM bytes. Old kernel fixup/reservation mechanisms are evidence, not a source port. |
+| U09 | Conflicting battery readings / trusted power and consistency prerequisites | Future acquisition/restore/boot procedure; passive evidence only. |
+| U10a | Physically usable console, routing, voltage/pins, baud and stock output | Observable first experiment. ttyMT3 string and UART3 MMIO are candidates, not pinout proof. No blind probing. |
+| U10b | Panel/input, audio supplies/reset/clocks/analog path, radios/firmware/calibration | Later subsystem work, one bounded proof at a time. |
+| U11 | Y2-compatible clocks/pinctrl/MMC, SMP release and full peripheral support | Later persistent rootfs/platform work. Source names/sibling compatibles do not prove support. |
 
-Decision D04: closing Y2E-101/105/110/115/120 means this evidence boundary was assessed. M0 remains open until the [recovery checklist](recovery.md) is satisfied. No speculative implementation backlog was added.
+## Decisions
+
+- **D01:** Y2Linux owns platform evidence, recovery, kernel/DT research and implementation issues; Y2PlayerNative is the later native Rust + C application. Initial issues were transferred, preserving stable IDs/history.
+- **D02:** Research and architectural choices belong to the research owner. Implementation receives tiny fully specified changes. No current task is `state:luna-ready`.
+- **D03:** Failed generated-distribution checks quarantine those claims; independently verified historical evidence and safe observations remain useful. Missing/denied evidence is not silently promoted to success.
+- **D04:** Closed Y2E-101/105/110/115/120 represent completed bounded investigations, not M0 passage. Y2E-125 updates their conclusions without duplicating their backlog.
+- **D05:** Candidate boot strategy: retain preloader/LK; legacy 2 KiB BOOTIMG with KERNEL(zImage + appended Y2 DTB), ROOTFS(small initramfs), CPU0 and observable console. No eMMC writes in the first experiment. DT/ATAG-import policy waits for U07a.
+- **D06:** Accept owner-observed successful SPFT recovery and the corroborated v5.2032 installation. Focus remaining recovery work on exact procedure/backups, not proving viability again. Preserve preloader/calibration and prohibit destructive formatting.
+- **D07:** Treat the supplied Debian/replacement-BOOTIMG description as a consistent engineering lead, not implementation evidence. Kernel target is upstream 6.18 LTS. Do not repurpose everything after BOOTIMG; recovery/security/table partitions intervene.
+
+Next rolling-wave proof: U07a, supported by remapping the FM reservation functions and existing stock memory/display evidence. Deliver an explicit usable-memory/exclusion map and a decision on ATAG import with all load/decompression/initrd intervals accounted for. Console/security/recovery checks remain separate launch gates. No speculative backlog or implementation issue is created at this boundary.

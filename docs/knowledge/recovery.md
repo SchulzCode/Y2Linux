@@ -1,65 +1,73 @@
-# Recovery capability and next evidence boundary
+# Recovery baseline
 
-Date: 2026-09-08. Task: [Y2E-120](https://github.com/SchulzCode/Y2Linux/issues/5). Status: **M0 NOT PASSED**. This is a capability/gap assessment, not an executable restore procedure.
+Date: 2026-09-08. [Y2E-125](https://github.com/SchulzCode/Y2Linux/issues/6) updates [Y2E-120](https://github.com/SchulzCode/Y2Linux/issues/5). **Known-good owner-observed SP Flash Tool recovery/flash exists. M0 remains open because device-specific backups and experiment prerequisites are incomplete.** This is an evidence assessment, not an executable flashing procedure.
 
-## Capability matrix
+## Owner-confirmed history: accepted evidence
 
-| Requirement | Current evidence | Decision |
+The owner reports personally successfully flashing **this Y2** with SP Flash Tool obtained from [spflashtool.com](https://spflashtool.com/) and the ROM at `/home/luca/Dokumente/Code/Y2Player/y2_v3.2.0_FM-20260813/`.
+
+Classification: **CONFIRMED owner observation**, strong evidence of a working tool/package/device combination. This supersedes the earlier assessment that no compatible tested combination or same-device restore evidence existed. We do not need to establish SP Flash Tool's recovery viability from scratch or deliberately repeat a restore to accept this history. The website is the owner's stated download source; its current headline version is not evidence of the previously used version or manufacturer provenance.
+
+The successful operation's date, precise target selection/mode, DA choice, USB entry sequence and recorded post-flash checks are not supplied. Current local hashes identify bytes inspected today, not a retroactively verified historical checksum. This distinction does not diminish the reported successful recovery, but prevents inventing a fully reproducible runbook.
+
+## Exact local tool identification
+
+Found `/home/luca/Downloads/SP_Flash_Tool_v5.2032_Linux/` and its ZIP. Offline ELF inspection resolves `ToolInfo::ToolName()` and `ToolInfo::VersionNum()`: format strings and constants identify **MediaTek SP Flash Tool v5.2032.00**, detailed version **5.2032.00.sn100**, build string `2020/08/11 13:36`. The version is derived from executable code, not merely the folder name. The flasher was not executed.
+
+Its `history.ini` points both `lastDir` and `scatterHistory` to the owner's exact FM scatter. The installed executable matches the archived executable byte for byte. Together these make this build the **strongly corroborated previously used local tool**, although no operation log proves the exact executable/DA/settings of the successful write.
+
+| Artifact | Bytes | SHA-256 |
 | --- | --- | --- |
-| Identifiable stock-family package | OriginalFirmware boot/recovery/system/scatter hashes recorded; original download provenance unknown | Present, authenticity/board compatibility unproven |
-| Alternate Y2 package | `y2_v3.2.0_FM-20260813/` has different boot/recovery/kernel/system hashes but identical scatter | Separate candidate; do not mix images or infer installation from dates |
-| Per-device boot/recovery copies | None established by this research | BLOCKED: packaged images are not current-device dumps |
-| Per-device calibration/NVRAM/protect copies | No verified device-specific backup set located in the scoped inventory | BLOCKED: generic factory files do not replace personalization |
-| Safe access to exact ranges | Normal boot/recovery metadata reconciles; block nodes are restricted; special regions unresolved | BLOCKED: no raw reads, guessed ioctl or privilege workaround |
-| Independent backup retention | Private research captures retained on host; no independently retained partition backups established | BLOCKED |
-| Flashing host/tool/DA | Windows flasher/DA candidates found; no compatible tested combination established | BLOCKED |
-| Emergency reachability | Only authorized normal Android USB/ADB observed | UNKNOWN for stock recovery, preloader and BROM; no mode transition attempted |
-| Exact stock restore procedure | Historical instructions exist but no same-device readback/restore evidence established | INCOMPLETE |
-| Actual stock boot/recovery restore rehearsal | Not performed or evidenced here | BLOCKED pending prerequisites and explicit authorization |
-| Recovery power conditions | Framework battery output has conflicting fields | UNKNOWN; need trustworthy passive power evidence before an operator procedure |
+| flash_tool | 11,392,491 | `d618e7d08ba5a4020038921a95336a3805a4b2cf17a374fd308cc5299ea7d9d8` |
+| SP_Flash_Tool_v5.2032_Linux.zip | 73,238,268 | `83e0367b2f357eacaca8e6dabedba0c09c06236f95a9fa458573b4ad52f024cc` |
+| Bundled MTK_AllInOne_DA.bin | 16,107,176 | `46cd175d7556e6e80b13f6a70827c6931a5dfa25a09c3cc50e75ba7ff9327618` |
 
-## Tool/package candidates discovered offline
+The DA is a hashed **bundled candidate**, not a confirmed selection during the successful operation. Launcher, libraries and history are additionally hashed in [handoff-artifacts.tsv](handoff-artifacts.tsv); private `spft-version-disassembly.txt` records the offline version proof. Historical Y1/MT6572 tool-package observations remain in prior history/manifests but are no longer the preferred recovery evidence. Do not use that Y1 scatter on this Y2.
 
-No `flash_tool`, `SPFlashTool`, `mtk` or `mtkclient` executable was on PATH. ADB and fastboot are installed; a host fastboot executable does not prove this device supports that mode or a temporary boot command.
+## Exact owner-ROM identity
 
-`Y1Software/flash_tool.exe` is a Windows PE32/i386 GUI executable, SHA-256 `8aa16765f811f9b665dd1dc110f68081a4bcd8efa19832cb49b23cfd031881df`. Several bundled download agents were hashed; see [artifact-manifest.tsv](artifact-manifest.tsv). Exact flasher release/version and DA compatibility remain UNKNOWN. Strings include a build time and a message recommending a different version for old platforms; neither identifies a tested recovery version. No executable, DLL, download agent or updater was run.
+All 24 top-level regular ROM files were hashed without modification; see [handoff-artifacts.tsv](handoff-artifacts.tsv). There is no claim that these are full per-device partition backups.
 
-The accompanying package scatter is **MT6572**, with different image sizes, while `BromAdapterTool.ini` names MT6582. These conflicting package/config clues are not evidence of Y2 compatibility. The Y1 firmware/scatter must not be used as a Y2 restore set. Tool reuse, if considered later, requires independent compatibility and command-semantics analysis.
+| Input | SHA-256 |
+| --- | --- |
+| MT6582_Android_scatter.txt (7,666 bytes) | `e5fe03e9f3219cc9b5ead27892f2ddb722acc16adce3306d27feb87893cd977e` |
+| boot.img (5,656,576 bytes) | `5ef1bdf28481ee0bf5f3528c1ddd91cf3f4d2d5f39e4d0ea049a8137a30f6af6` |
+| recovery.img (6,041,600 bytes) | `319ae8113b7741c13a0ab6254575c9a0e70336c4290fca49dd33abb4f85f29b0` |
+| system.img | `5a7a92f3a95374f31abe8b3ddbd68c5c2ce5677547db3d1cbc21653d24c76989` |
+| lk.bin | `bb1a93b4c1f02eab09ebad1314a8fdc25d94d3ca99771fc14e21cb18a289964a` |
+| preloader_eastaeon82_wet_kk.bin | `1df1b62498754aab0c7ddc80a79d310a92fcf81f29b515730c562aaeeb6a884a` |
 
-An existing source checkout at `build/inspect-innioasis-updater` identifies Git revision `07d220d62de8a02b6eac9d8c06b3427388ad8195` and contains mtkclient/DA sources. This is an offline research candidate, not an approved acquisition tool. Inspecting source is separate from connecting a tool or uploading code to the device.
+Scatter and LK match OriginalFirmware; preloader/kernel/boot/recovery/system differ. Keep package lineages separate. The FM set is now the owner-proven same-device fallback, replacing the former equal-ranking of untested candidates. Exact current installed build/PCB details still need recording for a precise future operation, not for re-proving the owner's history.
 
-The additional Y2 FM package has boot SHA-256 `5ef1bdf28481ee0bf5f3528c1ddd91cf3f4d2d5f39e4d0ea049a8137a30f6af6`, recovery `319ae8113b7741c13a0ab6254575c9a0e70336c4290fca49dd33abb4f85f29b0`, and the same scatter as OriginalFirmware. Its images differ. This makes exact installed-build and physical-revision identification a prerequisite for selecting a fallback.
+## Remaining safeguards and evidence gaps
 
-## Conditions for a later acquisition/restore procedure
+| Requirement | Updated assessment |
+| --- | --- |
+| Working recovery/flash method | **Established by owner observation**, corroborated by local tool/scatter history. |
+| Identifiable compatible package | **Owner-proven FM package**; current local files/scatter fully hashed. |
+| Exact historical tool build | v5.2032.00 / 5.2032.00.sn100 strongly corroborated; operation log absent. |
+| Exact DA/mode/targets/connection procedure | Incomplete historical details; record before a future operation. |
+| Recovery independent of functioning Android | SPFT history is strong evidence of the MediaTek recovery route; exact emergency entry conditions with damaged BOOTIMG are not separately recorded. No intentional damage test is needed. |
+| Same-device boot/recovery and personalized backups | Not established by this research; factory/package images do not substitute. |
+| Independent backup copies | Not established. Private research captures on this host are not independent partition backups. |
+| Power/capture consistency | Battery reporting conflict and mutable protect/NVRAM consistency strategy remain unresolved. |
+| Linux boot experiment | Still gated by memory/observation/installed-loader evidence and backups. |
 
-Before any device readback tool is executed, identify its exact executable/source revision, download agent if any, host/driver, supported MT6582 protocol, every command sent during connection, address-space/offset/length semantics and whether any connection step writes persistent state or runs a payload. A tool advertising readback does not make its whole connection path passive. The present non-root block-node permissions provide no approved route.
+Preserve NVRAM, calibration, protect/security data and individual radio identity. Preserve preloader/LK and partition tables during ordinary bring-up. **No Format All, destructive formatting, automatic repartitioning or preloader write is authorized.** A successful historical flash does not make those operations safe or recreate lost personalization. No generic factory file may be treated as a calibration backup.
 
-For each backup object, record private device identity, hardware revision, source region/offset/length, consistent capture state, command/status, complete host byte length and SHA-256, and independent verification. Repeat hashes alone do not prove a range is correct. Mutable protect/NVRAM data needs a consistency strategy; do not unmount or freeze filesystems without a separately reviewed procedure. Retain a second verified copy on independent storage before any restore. Capture provenance must distinguish package images, exact device dumps, expanded sparse files and full-partition contents.
+A later acquisition proposal must pin exact tool/DA, connection behavior, region/offset/length semantics, consistency state, expected output bytes, hashes and abort conditions. A readback feature does not make loading a DA or switching device mode a passive operation. Current non-root block permissions provide no already-approved raw-read route. Retain and verify a second independent backup copy before experimentation.
 
-A future operator runbook must pin the compatible stock package, device/revision, tool/DA/host, expected USB identities and connection sequence, trusted battery/power conditions, timeouts, target list, abort conditions, readback and post-restore checks. All these currently unresolved fields must remain visibly unresolved. Ordinary permitted restore targets should be bounded to the specifically reviewed stock boot/recovery operation; exclude preloader/LK, partition tables, calibration and formatting. Do not deliberately corrupt the device to demonstrate recovery. If the tool cannot honor the allowed target boundary, stop and redesign the procedure.
+A future bounded restore runbook should record the owner's proven sequence, exact package/tool selection, target list, USB/host/power prerequisites, timeouts and functional/calibration checks. Exclude preloader/LK, tables, calibration and formatting from ordinary restoration. Execute no restoration in this research session. Existing successful owner recovery satisfies the known-method evidence; a new full-flash rehearsal is not imposed merely to reconfirm it.
 
-Reachability must eventually be proven independently of a working Android installation, but actual mode transitions/tool connections and restoration are separate operator steps with explicit authorization after their procedures and backups are ready. A successful boot after a write is insufficient without readback and checks that storage, controls, audio, radios and calibration remain intact.
+## Current M0 gate and next boundary
 
-## Three next proofs, in priority order
+- [x] Stock-family artifacts and owner-confirmed FM fallback hashed; failed generated distributions kept separate.
+- [x] Non-root baseline and ordinary partition layout reconciled.
+- [x] Package boot structure and actual LK load/ATAG contract analyzed.
+- [x] Successful same-device SP Flash Tool recovery/flash accepted and local build corroborated.
+- [ ] Current-device image lineage and exact future recovery procedure/DA recorded sufficiently for the bounded operation.
+- [ ] Same-device boot/recovery/personalized backups verified with independent retention.
+- [ ] Power/capture consistency and safe acquisition procedure established.
+- [ ] Safe initial RAM exclusions, observation channel and installed-loader launch policy resolved.
 
-1. **Recovery provenance and acquisition-method review:** reconcile owner restoration history/backups, OriginalFirmware versus the Y2 FM package, exact flasher/DA/source capability and region semantics. Deliver one reviewed non-destructive acquisition proposal, or a precise blocker. No device-tool connection yet.
-2. **Bootloader handoff/address proof:** inspect the exact LK/preloader artifacts offline to explain the header/runtime address difference and ATAG/DT/memory handoff. No patch, payload execution, DTS or guessed load address.
-3. **Passive subsystem baseline:** scope one subsystem at a time, beginning with contradictory battery reporting and hardware identity. Reuse verified archived audio/input evidence; then collect only known-safe standard metadata needed for display/input, power and radio/firmware identification. No arbitrary sysfs register dumps or radio toggles.
-
-These are research directions for the next rolling-wave boundary, not implementation issues and not authorization for the operations they investigate. No implementation task is ready at this point.
-
-## Gate checklist
-
-- [x] Artifact provenance catalog and generated-package integrity limitations recorded.
-- [x] Current non-root identity/access baseline and error semantics recorded.
-- [x] Normal boot/recovery partition metadata reconciled; special cases explicit.
-- [x] Exact package boot/kernel/ramdisk structure and derivative lineage established.
-- [x] Recovery capability assessment and prioritized next proofs recorded.
-- [ ] Current-device boot/system lineage and physical revision verified.
-- [ ] Bootloader handoff, memory reservations and relevant critical hardware unknowns resolved sufficiently for a concrete experiment.
-- [ ] Compatible exact recovery tool/DA/host/path established independently of Android.
-- [ ] Complete device-specific boot/recovery/calibration backups verified and independently retained.
-- [ ] Trustworthy power and capture-consistency prerequisites established.
-- [ ] Explicitly authorized stock restoration rehearsal, readback and functional/calibration checks recorded.
-
-The five initial research tasks can close with their reports while this milestone stays open. Research completion is not recovery proof and does not authorize an experimental Linux boot.
+The next main research proof is the [boot memory envelope](boot-chain.md), not another broad investigation of whether SPFT works. Recovery work should fill the concrete remaining backup/runbook gaps using the known-good history. M0 remains open; no Linux boot artifact or implementation issue is ready.

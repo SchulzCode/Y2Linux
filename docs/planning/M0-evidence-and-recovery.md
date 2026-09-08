@@ -22,17 +22,23 @@ Research owner: investigation, read-only captures, reverse engineering, evidence
 
 The issue specifications in `issues/` retain the original bounded goals with corrected canonical ownership/research role. Results above and the linked knowledge documents are authoritative for subsequent decisions. Denied/missing/failed observations can complete an investigation without satisfying the underlying hardware/recovery requirement.
 
+## Second evidence boundary: Y2E-125
+
+[Y2E-125](https://github.com/SchulzCode/Y2Linux/issues/6) accepts owner-observed successful SP Flash Tool recovery using the FM ROM, hashes all 24 package inputs, and corroborates local tool v5.2032.00. Offline preloader/LK analysis resolves the header/runtime discrepancy and confirms kernel entry, ATAGs, ramdisk relocation and command-line source. The exact v6.18 audit supports a candidate appended-DTB/initramfs strategy with unchanged loaders. See [boot-chain.md](../knowledge/boot-chain.md), [recovery.md](../knowledge/recovery.md) and [linux-6.18-support.md](../knowledge/linux-6.18-support.md).
+
+The smallest remaining artifact-design proof is the safe initial memory envelope/exclusions and resulting ATAG-import policy. Installed-loader/security state, observable console and device-specific backups separately gate an experiment. No implementation handoff is ready.
+
 ## Coverage contract
 
 | Area | Evidence now available | Remaining evidence before relevant implementation |
 | --- | --- | --- |
 | Identity/access | Fresh non-root system/build/USB state, errors and permissions | Physical revision, installed image provenance |
-| Boot/storage | Package header/components, runtime/vendor map and ordinary filesystem relationships | Loader handoff, memory reservations, special-region semantics and exact acquisition method |
+| Boot/storage | Package components/map and traced package preloader/LK ATAG handoff | Safe memory envelope, installed-loader policy, special-region semantics and acquisition method |
 | Audio/FM | Verified archived bindings and exact HAL/kernel derivatives; later route reports indexed | Current lineage, physical routing, reset/supplies/clocks/mute, reception/revision |
 | Display/input | Archived controller and evdev capability identities; application behavior | Panel/interface/timings, wiring/reset/wake and current raw-code relationships |
 | Power | PMIC historical identity, conflicting current battery service output | Trusted readings/calibration, charging/suspend/wake behavior |
 | Wi-Fi/Bluetooth/firmware | Current filename/module metadata, stock loader declarations and vendor analysis | Controller/transport, loaded firmware hashes, calibration/power and upstream applicability |
-| Recovery | Stock-family package candidates and existing tool/source artifacts identified | Verified exact device backups, independent copies, compatible tool/DA/host and authorized restoration proof |
+| Recovery | Owner-observed successful same-device SPFT/FM restore; exact ROM and local v5.2032.00 tool hashed | Same-device backups/independent copies, exact DA/settings/entry sequence and power prerequisites |
 
 ## Execution and gates
 
@@ -40,6 +46,6 @@ Use CONFIRMED/INFERRED/UNKNOWN/DISPROVEN with date, task and raw locator. Preser
 
 The first batch used no device writes, reboot, boot-mode change, radio toggle, raw block-device access, downloaded-agent execution, kernel/DTS change or application implementation. Read-only metadata does not make all possible device reads harmless: each later command needs a known interface and bounded scope.
 
-M0 PASS requires a trustworthy device/build/partition/boot baseline, sufficient subsystem evidence and explicit critical unknowns, verified same-device boot/recovery/personalized-data backups with independent retention, a compatible recovery path independent of working Android, and an explicitly authorized bounded stock restoration rehearsal with readback and functional/calibration checks. Preloader/LK/partition-table/calibration writes and formatting stay outside ordinary restoration. Recovery rehearsal is a separately controlled step before experimental Linux work, not a reason to waive recovery prerequisites.
+M0 PASS requires a trustworthy device/build/partition/boot baseline, sufficient subsystem evidence and explicit critical unknowns, verified same-device boot/recovery/personalized-data backups with independent retention, and a documented known-good recovery path with appropriate checks. The owner's successful same-device SPFT recovery now supplies the actual tested-method evidence; do not demand another full-flash rehearsal merely to reconfirm it. Exact procedure/DA/entry details and backups remain incomplete. Preloader/LK/table/calibration writes and formatting stay outside ordinary restoration. Any later device operation still needs a concrete bounded procedure and authorization.
 
-Next rolling-wave research boundary: (1) recovery provenance and acquisition-method semantics; (2) bootloader handoff/address proof; (3) individually scoped passive subsystem evidence, beginning with power-reporting inconsistency. No speculative implementation backlog or M1 tasks were created. Only after the next proof is researched and a concrete intended change exists should an implementation issue be written.
+Next rolling-wave research boundary: safe initial boot memory/exclusions and a fixed DT/ATAG policy. Fill the specific acquisition/runbook gaps using the known-good recovery history; pursue console/power evidence only within safe bounded scopes. No speculative implementation backlog or M1 tasks were created. Only after research fixes a concrete intended change should an implementation issue be written.

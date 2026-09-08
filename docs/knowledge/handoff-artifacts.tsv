@@ -1,0 +1,34 @@
+source_locator	bytes	sha256	evidence_class
+Y2Player/y2_v3.2.0_FM-20260813/EBR1	512	0eca0f26847ffd17426ffd7c9e976a7e28017cf6bc454d6478c68d3b2c52a64e	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/EBR2	512	699e1e33054e944e7b1776a539cd41551f4a066abc51535ccfc3d50b44c4ffc7	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/MBR	512	4be9c92be18ba4169d4b050e18811c6650eab27a487f1c67f4a49efa01cd32a1	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/MT6582_Android_scatter.txt	7666	e5fe03e9f3219cc9b5ead27892f2ddb722acc16adce3306d27feb87893cd977e	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/android-info.txt	7	ebbdb47d3206997d594fe88ae6c5fe3acbaff8d8260b1e8f137aa5ce78c33eb9	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/appsboot.mbn	242480	2b3dd296db6aeed15d4691777099cab50481c114355eea3a17dbd25ad32a59ae	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/appsboot.raw	242440	bb1a93b4c1f02eab09ebad1314a8fdc25d94d3ca99771fc14e21cb18a289964a	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/boot.img	5656576	5ef1bdf28481ee0bf5f3528c1ddd91cf3f4d2d5f39e4d0ea049a8137a30f6af6	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/cache.img	6316180	4aaf54d75eb29fd157c8d796bb8434fef94f8117b9d5c2736bc81ab4a1a6a76a	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/clean_steps.mk	40847	8fb02fa03bb21ec2331beac7d4e61ab59c531e2fe4f855d53939f9ecc86f70d9	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/custom_build_verno	10	699e067f4ce581f16b17567fded3e4966723ff34dc03a012a52e5675958da723	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/installed-files.txt	80833	b7cb5ff35ce2426d715f9b500767fbf79c81caafd93d068163c564595c302602	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/kernel	4944888	8f250f5ce97ffd2d2a59455c0fb9eceff7e32b0e1ba34de84ae0d551a9f9e48e	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/kernel_eastaeon82_wet_kk.bin	4944888	8f250f5ce97ffd2d2a59455c0fb9eceff7e32b0e1ba34de84ae0d551a9f9e48e	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/lk.bin	242440	bb1a93b4c1f02eab09ebad1314a8fdc25d94d3ca99771fc14e21cb18a289964a	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/logo.bin	102593	028d12afefef0a9b3b24879bbc95a6dfb179e55955625474d9528fd5263b105d	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/preloader_eastaeon82_wet_kk.bin	120384	1df1b62498754aab0c7ddc80a79d310a92fcf81f29b515730c562aaeeb6a884a	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/previous_build_config.mk	111	2e67bfc0eb20a492555cdc6454908cb2e6c754d0abe65514b9cfd4c666313ea7	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/ramdisk-recovery.img	1092308	2f264529791e8d694e75f23a5fff0eeb527d85e716c5f6ea07fa334307ce9f96	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/ramdisk.img	707837	441e6995741029f8254120d3259aa0e570f31e482f639baa3e0849cbb8e1802e	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/recovery.img	6041600	319ae8113b7741c13a0ab6254575c9a0e70336c4290fca49dd33abb4f85f29b0	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/secro.img	135168	acaf48de55477d23437a81e27241ec4cfb59186369919fdd942eae41bc262fb6	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/system.img	518590232	5a7a92f3a95374f31abe8b3ddbd68c5c2ce5677547db3d1cbc21653d24c76989	owner-confirmed package; current bytes hashed
+Y2Player/y2_v3.2.0_FM-20260813/userdata.img	15290768	552e325ecf2faffeb9351022147bbfda3b7cebe25df491b2d732e85c5c68f27c	owner-confirmed package; current bytes hashed
+Downloads/SP_Flash_Tool_v5.2032_Linux/flash_tool	11392491	d618e7d08ba5a4020038921a95336a3805a4b2cf17a374fd308cc5299ea7d9d8	local tool provenance; historical selection not fully logged
+Downloads/SP_Flash_Tool_v5.2032_Linux/flash_tool.sh	272	ff44f3e817f407ecec5f111a2f609ef0dc201abcff32f7087b1a9460de0c67b2	local tool provenance; historical selection not fully logged
+Downloads/SP_Flash_Tool_v5.2032_Linux/MTK_AllInOne_DA.bin	16107176	46cd175d7556e6e80b13f6a70827c6931a5dfa25a09c3cc50e75ba7ff9327618	local tool provenance; historical selection not fully logged
+Downloads/SP_Flash_Tool_v5.2032_Linux/libflashtool.so	1733392	cd479d82b4c1895fa65175cad7851524f6a11c2fdb5a07c4a6cbe69478114718	local tool provenance; historical selection not fully logged
+Downloads/SP_Flash_Tool_v5.2032_Linux/libflashtool.v1.so	7442268	f6ec2294cb34a72d0cf67373e29437d2f5baec0af8d650fb694f7d26f1436365	local tool provenance; historical selection not fully logged
+Downloads/SP_Flash_Tool_v5.2032_Linux/libflashtoolEx.so	6915902	27441876e3ad031866c809ae973e74c44f44fe93bc438fba94f593e2190cbaa7	local tool provenance; historical selection not fully logged
+Downloads/SP_Flash_Tool_v5.2032_Linux/history.ini	231	a2a884ccab9e609e7b57ee29ed462bdf65ab074ca568f7195385261c7c3b495c	local tool provenance; historical selection not fully logged
+Downloads/SP_Flash_Tool_v5.2032_Linux/registry.ini	74	f81af0de4161c3f2fb4965d90fc3024ab379ee530eb25a51ffb45a324d4a47d9	local tool provenance; historical selection not fully logged
+Downloads/SP_Flash_Tool_v5.2032_Linux.zip	73238268	83e0367b2f357eacaca8e6dabedba0c09c06236f95a9fa458573b4ad52f024cc	local tool provenance; historical selection not fully logged
