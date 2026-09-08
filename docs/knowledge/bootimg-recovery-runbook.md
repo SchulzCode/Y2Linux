@@ -1,5 +1,7 @@
 # Prepared BOOTIMG-only backup and restore runbook
 
+> Current policy: [D11–D13 risk-accepted diagnostic](risk-accepted-diagnostic.md) supersedes the earlier absolute authentication/current-backup/full-handoff gates below. This document retains the historical assessment; watchdog, observation, verified recovery and BOOTIMG-only scope remain mandatory. No flash authorized.
+
 2026-09-08, Y2E-145. **Prepared procedure, not executed or ready for unattended use. Current BOOTIMG backup: NOT ACQUIRED.** The owner-proven SP Flash Tool v5.2032 route is accepted. Exact historical DA/entry details and current acquisition/independent-retention requirements remain open. See [launch assessment](launch-readiness.md) and [recovery baseline](recovery.md).
 
 ## Pinned inputs and address semantics
