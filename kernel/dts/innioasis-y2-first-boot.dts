@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: GPL-2.0+
+/* MT6582 foundation derived from upstream v6.18 mt6582.dtsi:
+ * Copyright (c) 2021 Maxim Kutnij <gtk3@inbox.ru>
+ * Y2 first-boot scope and memory: docs/knowledge/initial-ram-map.md (D08).
+ */
+/dts-v1/;
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "initrd-size.h"
+
+/memreserve/ 0x80000000 0x00004000;
+
+/ {
+    model = "Innioasis Y2 offline first-boot candidate";
+    compatible = "innioasis,y2", "mediatek,mt6582";
+    #address-cells = <1>;
+    #size-cells = <1>;
+    interrupt-parent = <&sysirq>;
+
+    aliases { serial0 = &uart3; };
+    chosen {
+        stdout-path = "serial0";
+        bootargs = "rdinit=/init earlycon console=ttyS0,921600n8 loglevel=8 ignore_loglevel panic=0";
+        linux,initrd-start = <0x84000000>;
+        linux,initrd-end = <Y2_INITRD_END>;
+    };
+    memory@80000000 {
+        device_type = "memory";
+        reg = <0x80000000 0x01800000>, <0x84000000 0x00080000>;
+    };
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        cpu@0 {
+            device_type = "cpu";
+            compatible = "arm,cortex-a7";
+            reg = <0>;
+        };
+    };
+    system_clk: clock-system {
+        compatible = "fixed-clock";
+        #clock-cells = <0>;
+        clock-frequency = <13000000>;
+    };
+    rtc_clk: clock-rtc {
+        compatible = "fixed-clock";
+        #clock-cells = <0>;
+        clock-frequency = <32000>;
+    };
+    uart_clk: clock-uart {
+        compatible = "fixed-clock";
+        #clock-cells = <0>;
+        clock-frequency = <26000000>;
+    };
+    timer@10008000 {
+        compatible = "mediatek,mt6577-timer";
+        reg = <0x10008000 0x80>;
+        interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&system_clk>, <&rtc_clk>;
+        clock-names = "system-clk", "rtc-clk";
+    };
+    sysirq: interrupt-controller@10200100 {
+        compatible = "mediatek,mt6582-sysirq", "mediatek,mt6577-sysirq";
+        interrupt-controller;
+        #interrupt-cells = <3>;
+        #address-cells = <0>;
+        interrupt-parent = <&gic>;
+        reg = <0x10200100 0x1c>;
+    };
+    gic: interrupt-controller@10211000 {
+        compatible = "arm,cortex-a7-gic";
+        interrupt-controller;
+        #interrupt-cells = <3>;
+        #address-cells = <0>;
+        interrupt-parent = <&gic>;
+        reg = <0x10211000 0x1000>, <0x10212000 0x2000>;
+    };
+    uart3: serial@11005000 {
+        compatible = "mediatek,mt6582-uart", "mediatek,mt6577-uart";
+        reg = <0x11005000 0x400>;
+        interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&uart_clk>;
+    };
+};
