@@ -40,7 +40,8 @@ def main():
         hashlib.sha256(changed.encode()).hexdigest() != spec['result_sha256'] or
         patch != (PROJECT / 'kernel/patches' / spec['patch']).read_text()):
         raise SystemExit('Reviewed Kconfig overlay mismatch')
-    overlay = output / 'arm-mm-Kconfig'
+    overlay = PROJECT / '.cache/overlays' / spec['result_sha256']
+    overlay.parent.mkdir(parents=True, exist_ok=True)
     overlay.write_text(changed)
     env = {
         'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LC_ALL': 'C', 'TZ': 'UTC',

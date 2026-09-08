@@ -41,3 +41,9 @@ D08 admits 24 MiB low RAM plus 512 KiB at `0x84000000`, with all loading/decompr
 The memory/import architecture is fixed sufficiently for a small **offline** implementation task after its precise issue is written. Target remains upstream Linux 6.18; retain preloader/LK, use appended DTB plus external initramfs and CPU0. Y2E-130 created no artifact or implementation issue.
 
 The ARM boot requirement to quiesce DMA remains a separate unsatisfied launch condition (U07c). DT exclusions cannot enforce bus-master isolation. Installed loader/security, physical console and backup/recovery/power controls also remain gates. No hardware boot is authorized by closing the bounded memory-policy research.
+
+## M1 offline implementation result
+
+[The first candidate](../build/first-boot-result.md) compiles as Linux `6.18.0-y2-m1` using Clang/LLD 20.1.8. The precise baseline is upstream v6.18 plus [one Kconfig visibility patch](../build/kernel-policy.md), needed because hidden ARM_VIRT_EXT otherwise defaults to y for CPU_V7. No C/assembly driver or board-file patch was required for this offline build. D08 remains static DT, appended DTB, no ATAG conversion and CPU0. All real ELF/DT/compression/package checks and two-clean-build byte comparisons pass.
+
+Successful compilation proves that this configuration and artifact layout can be produced. It does not prove GIC/GPT/UART operation on this board, sufficient runtime memory, installed unsigned-image acceptance, inherited-state safety or recovery readiness. Those remain in the [hardware launch gates](first-boot-launch-gates.md). No device was touched.

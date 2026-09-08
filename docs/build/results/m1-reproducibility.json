@@ -1,0 +1,64 @@
+{
+  "result": "PASS two clean output trees are byte-identical",
+  "builds": [
+    "repro-a",
+    "repro-b"
+  ],
+  "artifacts": [
+    {
+      "file": "kernel/.config",
+      "bytes": 35327,
+      "sha256": "27d41c25ab84cdbff5d134323ca386707ee8b64655cf904dd526b3387c01e7c0"
+    },
+    {
+      "file": "kernel/vmlinux",
+      "bytes": 3161140,
+      "sha256": "ff2336c889573769738b5f93f3f7b0ce5531d3eb096bbc0fc90a8b2c270bf876"
+    },
+    {
+      "file": "kernel/arch/arm/boot/compressed/vmlinux",
+      "bytes": 1154756,
+      "sha256": "374e60cb57a9a900e4590f348421dca3186e4b42302b2a3146880cc93d133fc3"
+    },
+    {
+      "file": "kernel/arch/arm/boot/Image",
+      "bytes": 2543296,
+      "sha256": "293a252637578f004a941cc20940043d041114a174ae5cb5789253df8ed257b9"
+    },
+    {
+      "file": "kernel/arch/arm/boot/zImage",
+      "bytes": 1076072,
+      "sha256": "798f398d5190e86e3fb2d4a60fdaae625b2394ec2439634d7dd40035f610b8a1"
+    },
+    {
+      "file": "y2.dtb",
+      "bytes": 1835,
+      "sha256": "dc6fe6b7f405ca27500f995db61c4fd4051b8be0edd51a1ca28ffab9b648ec1f"
+    },
+    {
+      "file": "zImage-dtb",
+      "bytes": 1077912,
+      "sha256": "7680cdb382f057f83ccd23c2de7672afbbbc5b930ff71c9006d5a9bb97630164"
+    },
+    {
+      "file": "init",
+      "bytes": 2740,
+      "sha256": "eb9a5dc82e26803c772298bd232568efd3f388bb8ce1bfabaa548c804e823a4e"
+    },
+    {
+      "file": "initramfs.cpio",
+      "bytes": 4096,
+      "sha256": "4dab8f046c1c162f5772e2549f5d12b05cdd09767c5555cee4f6ff494d82f309"
+    },
+    {
+      "file": "initramfs.cpio.gz",
+      "bytes": 1582,
+      "sha256": "6abce20dd5e27475045b1242b0947c9abb5c570966d84fa09dc388bd676f6de5"
+    },
+    {
+      "file": "BOOTIMG.img",
+      "bytes": 1089536,
+      "sha256": "8e2fdae1f90c7589073676f69c0418af25cb0671a288ad838d83077f04b6d2f5"
+    }
+  ]
+}

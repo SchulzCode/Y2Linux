@@ -75,3 +75,7 @@ The next main research proof is the [boot memory envelope](boot-chain.md), not a
 ## Y2E-130 boundary
 
 The [fixed initial RAM policy](initial-ram-map.md) permits bounded offline artifact work; it does not pass M0 or change recovery authorization. Owner-confirmed SP Flash Tool recovery remains accepted. Per-device backups/independent retention, exact procedure and trusted power remain incomplete; inherited DMA/secure state, installed-loader/security and observation-channel checks still precede a hardware experiment. No device operation or boot artifact was produced during this research.
+
+## M1 offline boundary
+
+A [validated offline BOOTIMG candidate](../build/first-boot-result.md) now exists under the owner's later implementation authorization. This changes neither the accepted SPFT recovery history nor the open backup/DA/entry/power requirements. M0 remains open. [The conditional experiment](first-boot-launch-gates.md) specifies a later BOOTIMG-only target and restore concept; it cannot be executed until the missing operator/backup/console/security evidence is supplied and the bounded operation is separately authorized. No new flash, readback, DA execution, ADB or device operation occurred. Earlier no-artifact statements describe their dated research phase.

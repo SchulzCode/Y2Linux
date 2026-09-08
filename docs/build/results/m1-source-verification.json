@@ -1,0 +1,7 @@
+{
+  "archive_sha256": "9106a4605da9e31ff17659d958782b815f9591ab308d03b0ee21aad6c7dced4b",
+  "upstream_commit": "7d0a66e4bb9081d75c82ec4957c50034cb0ea449",
+  "verified_files_and_links": 91166,
+  "tree_manifest_sha256": "b4e347210767539bd20d4ec7cdd7d6469592a94f54af24a97b5d6ea04dbccba5",
+  "result": "PASS pristine source cache; only declared Kconfig overlay at build time"
+}

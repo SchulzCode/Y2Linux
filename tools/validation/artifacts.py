@@ -10,6 +10,7 @@ from tools.build.check_config import check as check_config
 from tools.validation import dtb
 from tools.validation.d08 import Inputs, validate, require
 from tools.validation.formats import gunzip, cpio
+from tools.validation.bootimg import check as check_bootimg
 
 
 def digest(data): return hashlib.sha256(data).hexdigest()
@@ -114,6 +115,8 @@ def check(root, project):
         [('Image',image),('zImage',z),('y2.dtb',tree),('initramfs.cpio.gz',initrd),('init',init),('zImage-dtb',expected)]}
     layout['kernel_symbols'] = {name:kernel.sym(name) for name in ['_text','_edata','__bss_start','__bss_stop','_end']}
     layout['compressed_symbols'] = {name:comp.sym(name) for name in ['_start','restart','wont_overwrite','reloc_code_end','_edata','__bss_start','_end','LC1','input_data','input_data_end']}
+    if (root / 'BOOTIMG.img').exists():
+        layout['bootimg'] = check_bootimg((root / 'BOOTIMG.img').read_bytes(), expected, initrd, layout)
     layout['status'] = 'PASS offline D08; hardware launch NOT authorized'
     return layout, expected
 

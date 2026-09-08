@@ -1,6 +1,6 @@
 # Unknowns and architecture decisions
 
-Date: 2026-09-08. [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7) fixes the offline memory policy after Y2E-125. **M0 remains open.** Research/architecture decisions precede any implementation handoff.
+Date: 2026-09-08. [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7) fixes the offline memory policy after Y2E-125. **M0 remains open.** The owner subsequently authorized direct M1 offline implementation; its [validated result](../build/first-boot-result.md) does not clear hardware gates.
 
 ## Resolved or materially improved
 
@@ -25,7 +25,7 @@ Date: 2026-09-08. [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7) fixe
 | U06 | Detailed independent-of-Android entry sequence and recorded post-restore checks | Future operator procedure; reuse owner-proven recovery, no broad viability re-test. |
 | U07c | Live inherited DMA/secure state; loader heap extent, display scratch lifetime, physical ranks and secure/shared aliases remain incompletely observed | **Launch gate.** Reduced static memory avoids identified storage but is not bus-master containment. Trace the selected normal loader path and obtain bounded stock evidence; no arbitrary MMIO probes. Full rank topology/high-memory reclamation is deferred. |
 | U07b | Active image-authentication policy and exact installed LK | Launch gate. Static LK has both conditional verification and no-check paths. Stock flashing does not prove unsigned-kernel acceptance. |
-| U08 | Actual minimal Linux artifact sizes, DTB layout and runtime working set | Offline implementation must obey D08 and emit a symbol-derived interval manifest. FM reservation remapping is complete. Console and board-specific launch details still require their own specification. |
+| U08 | Actual runtime working set and board execution | Offline sizes, DTB and symbol-derived D08 layout are now validated and reproducible. Runtime boot/memory/interrupt behavior remains untested; no RAM expansion is authorized. |
 | U09 | Conflicting battery readings / trusted power and consistency prerequisites | Future acquisition/restore/boot procedure; passive evidence only. |
 | U10a | Physically usable console, routing, voltage/pins, baud and stock output | Observable first experiment. ttyMT3 string and UART3 MMIO are candidates, not pinout proof. No blind probing. |
 | U10b | Panel/input, audio supplies/reset/clocks/analog path, radios/firmware/calibration | Later subsystem work, one bounded proof at a time. |
@@ -34,13 +34,19 @@ Date: 2026-09-08. [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7) fixe
 ## Decisions
 
 - **D01:** Y2Linux owns platform evidence, recovery, kernel/DT research and implementation issues; Y2PlayerNative is the later native Rust + C application. Initial issues were transferred, preserving stable IDs/history.
-- **D02:** Research and architectural choices belong to the research owner. Implementation receives tiny fully specified changes. No current task is `state:luna-ready`.
+- **D02:** Research precedes small specified implementation checkpoints. For M1 the owner explicitly authorized the same lead to implement directly, with no delegation. No task in this wave is `state:luna-ready`.
 - **D03:** Failed generated-distribution checks quarantine those claims; independently verified historical evidence and safe observations remain useful. Missing/denied evidence is not silently promoted to success.
 - **D04:** Closed Y2E-101/105/110/115/120 represent completed bounded investigations, not M0 passage. Y2E-125 updates their conclusions without duplicating their backlog.
-- **D05:** Candidate boot strategy: retain preloader/LK; legacy 2 KiB BOOTIMG with KERNEL(zImage + appended Y2 DTB), ROOTFS(small initramfs), CPU0 and observable console. No eMMC writes in the first experiment. DT/ATAG policy is now fixed by D08.
+- **D05:** Candidate boot strategy: retain preloader/LK; legacy 2 KiB BOOTIMG with KERNEL(zImage + appended Y2 DTB), ROOTFS(small initramfs), CPU0 and observable console. No persistent eMMC rootfs or Linux-initiated eMMC writes; any later BOOTIMG-only deployment separately requires passed launch gates and explicit authorization. DT/ATAG policy is now fixed by D08.
 - **D06:** Accept owner-observed successful SPFT recovery and the corroborated v5.2032 installation. Focus remaining recovery work on exact procedure/backups, not proving viability again. Preserve preloader/calibration and prohibit destructive formatting.
 - **D07:** Treat the supplied Debian/replacement-BOOTIMG description as a consistent engineering lead, not implementation evidence. Kernel target is upstream 6.18 LTS. Do not repurpose everything after BOOTIMG; recovery/security/table partitions intervene.
 
 - **D08:** [Initial RAM policy](initial-ram-map.md): 24 MiB low RAM and 512 KiB initramfs bank; all other DRAM omitted, first 16 KiB retained. Appended DTB with no ATAG import; controlled DT bootargs and exact inner initrd length. Fixed caps and symbol-based relocation/overread checks permit bounded offline implementation. Failure to fit returns for review; no automatic memory expansion. U07c remains a launch gate.
 
 Next implementation boundary can be a tiny offline artifact/layout task under D08, after its concrete issue is specified. No implementation issue was created in Y2E-130. Next research is a bounded prerequisite for a hardware launch: inherited DMA/secure-state assurance or physical console evidence, with installed-loader and recovery prerequisites preserved. Do not bundle all peripherals into a speculative backlog.
+
+- **D09:** [Kconfig compatibility and console policy](../build/kernel-policy.md). One reviewed prompt-visibility patch makes the existing D08 `ARM_VIRT_EXT=n` requirement selectable on v6.18; upstream default and all memory limits stay unchanged. Static `PHYS_OFFSET=0x80000000` is checked. The only serial candidate is UART3; physical readiness remains U10a.
+
+## M1 offline boundary
+
+Y2B-201 through Y2B-235 deliver a reproducible, strictly validated offline candidate. [Launch-gate review](first-boot-launch-gates.md) records the rechecked FM security branches, storage DMA stop, final cleanup and UART selection, plus the smallest missing live/backup proofs. U07b/U07c/U10a and recovery/power remain open; M0 is not passed and M1 has no hardware-boot result. No device interaction occurred during this wave.
