@@ -9,3 +9,7 @@ Android `KEYCODE_*` mappings are not Linux evdev scan codes. The old input-map n
 UNKNOWN: panel part/interface, timings, backlight controller, touch/controller identity, orientation transformation, physical wheel/button wiring, IRQ/reset/power sequencing and wake sources. APT32F/UPDATE I2C names are discovery clues, not established functions.
 
 Next proof is a bounded passive current-device capability/driver inventory matched to stock kernel symbols and display configuration. No synthetic input, panel writes, unreviewed controller sysfs reads, disassembly of an entire subsystem or Linux driver implementation is included in the first M0 batch.
+
+## Y2E-130 memory evidence
+
+The retained stock iomem identifies framebuffer `[0xbfb00000,0xc0000000)` (5 MiB). FM display-size functions were remapped at `0xc05128d4`/`0xc051296c`; the unknown-panel fallback is actually 20 MiB despite its misleading log. LK also forms a scratch pointer framebuffer minus 4 MiB. Buffer lifetime and inherited DMA are not fully established. See [initial RAM policy](initial-ram-map.md); all high display/scratch storage is excluded initially. These findings do not identify the panel or prove DMA shutdown.

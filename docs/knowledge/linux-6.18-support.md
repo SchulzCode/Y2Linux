@@ -1,6 +1,6 @@
 # Linux 6.18 boot-fundamentals audit
 
-Date: 2026-09-08. [Y2E-125](https://github.com/SchulzCode/Y2Linux/issues/6). Status: **source support CONFIRMED; Y2 execution UNKNOWN**. Target remains upstream Linux **6.18 LTS**, not 6.12 or a forward-ported Android kernel.
+Date: 2026-09-08. Y2E-125, extended by [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7). Status: **source support CONFIRMED; Y2 execution UNKNOWN**. Target remains upstream Linux **6.18 LTS**, not 6.12 or a forward-ported Android kernel.
 
 Pinned upstream tag: `v6.18`; tag object `f7b88edb52c8dd01b7e576390d658ae6eef0e134`; peeled commit `7d0a66e4bb9081d75c82ec4957c50034cb0ea449`. This is a reproducible architecture baseline, not a final selection of the 6.18.y patch release. The [kernel.org release page](https://www.kernel.org/category/releases.html) identifies the longterm series; that does not certify Y2 support. Successful source files/URLs/hashes are in [linux-6.18-sources.tsv](linux-6.18-sources.tsv). Failed/rate-limited requests remain explicitly recorded privately; claims below use retrieved primary source.
 
@@ -28,10 +28,16 @@ The [ARM boot protocol](https://github.com/torvalds/linux/blob/v6.18/Documentati
 
 `ARM_ATAG_DTB_COMPAT` uses [atags_to_fdt.c](https://github.com/torvalds/linux/blob/v6.18/arch/arm/boot/compressed/atags_to_fdt.c), which accepts LK's two-word CORE tag and transfers standard MEM, CMDLINE, INITRD2 and SERIAL data. It does not translate vendor framebuffer/modem reservations. MEM can replace `/memory/reg`; default command-line policy replaces DT bootargs, while EXTEND appends loader arguments after DT arguments. A small DT memory range or clean DT command line therefore does not automatically win.
 
-The outstanding memory proof must decide between importing tags with adequate explicit exclusions and disabling import with a fully specified static memory/initrd description. For a controlled experiment, `CMDLINE_FORCE` is available to avoid LK's Android console/root defaults. External ramdisk location/size may be imported from INITRD2, or specified only when packaging lengths are fixed. No config was authored here, and the implementation role must not be asked to choose these policies.
+Y2E-130 now selects **static DT memory with `ARM_ATAG_DTB_COMPAT=n`**. LK's tags remain physically present but their RAM, command line and initrd properties are not imported. Controlled DT `/chosen/bootargs` uses ordinary command-line precedence; `/chosen/linux,initrd-start/end` use LK's fixed destination and the actual inner compressed payload length. See the [initial RAM policy](initial-ram-map.md); no config was authored in the research phase.
 
-## Decision boundary
+## Y2E-130 memory and decompressor audit
 
-Candidate: retain preloader/LK; package zImage + appended Y2 DTB in a legacy BOOTIMG KERNEL payload, and a small initramfs in ROOTFS; use CPU0 and an observable console. This is supported by static evidence, not a demonstrated working Y2 recipe.
+Ten exact v6.18 files were retrieved from the official Torvalds Gitiles tree and hashed, including compressed/kernel head.S, both linker scripts, compressed Makefile and OF/ARM memory initialization. The full [RAM policy](initial-ram-map.md) gives exact formulas, symbols and primary-source links. File-size-only reasoning is insufficient: the in-place zImage relocates itself, includes the appended DTB, compensates for kernel BSS and uses a stack plus 64 KiB malloc workspace. The linker requires appended-DTB file alignment and exposes the sizes needed for an offline verifier.
 
-The smallest remaining artifact-design proof is the safe initial memory envelope/exclusions, including inherited DMA, to fix DT/ATAG policy and all memory intervals. Installed loader/security-state evidence, a usable observation channel and the backup/recovery controls separately gate experimentation. No kernel/DTS implementation, boot image or implementation-ready issue was created.
+D08 admits 24 MiB low RAM plus 512 KiB at `0x84000000`, with all loading/decompression below `0x81800000`. Static OF memory scanning and chosen initrd properties support this sparse physical map; non-LPAE page tables occupy `0x80004000..0x80008000`. This is source-supported design, not a demonstrated execution or measured working-set claim. If a minimal build exceeds the declared caps, it must be reduced or returned for research review, never automatically given more RAM.
+
+## Current decision boundary
+
+The memory/import architecture is fixed sufficiently for a small **offline** implementation task after its precise issue is written. Target remains upstream Linux 6.18; retain preloader/LK, use appended DTB plus external initramfs and CPU0. Y2E-130 created no artifact or implementation issue.
+
+The ARM boot requirement to quiesce DMA remains a separate unsatisfied launch condition (U07c). DT exclusions cannot enforce bus-master isolation. Installed loader/security, physical console and backup/recovery/power controls also remain gates. No hardware boot is authorized by closing the bounded memory-policy research.

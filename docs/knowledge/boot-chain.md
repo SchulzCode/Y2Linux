@@ -92,7 +92,7 @@ LK passes its internal writable command-line buffer at `0x81e35aac`, initially `
 
 ROOTFS is an MTK payload label, not a demand for Debian, ext4 or a partition called ROOTFS. Stock transports a gzip/cpio ramdisk; Android /init later mounts Android storage. A Linux initramfs with its own /init can supply first userspace without Android. LK need not understand the distribution filesystem.
 
-## Remaining memory and launch constraints
+## Y2E-125 memory findings (superseded by Y2E-130)
 
 Archived iomem reports 992 MiB at `0x80000000–0xbdffffff` plus 2 MiB at `0xbf800000–0xbf9fffff`. Within a hypothesized 1 GiB window, `0xbe000000–0xbf7fffff` and `0xbfa00000–0xbfffffff` are unaccounted for. Rank topology and the meaning of every hole are not established. System RAM reporting is not an exhaustive reserved/DMA-region inventory.
 
@@ -104,7 +104,7 @@ LK performs platform cleanup, cache clean/disable and MMU disable before entry (
 
 A security-policy function (`0x81e207d0`) precedes loading. It has both no-check and authenticated-partition paths dependent on configuration/hardware state. Owner-confirmed stock flashing does not prove acceptance of arbitrary unsigned kernels. Exact installed loader/policy evidence is a separate pre-launch requirement; no security state was changed or bypass attempted.
 
-## Candidate architecture and next evidence boundary
+## Y2E-125 candidate architecture and evidence boundary
 
 **D05:** preserve preloader/LK; use a legacy 2 KiB-page BOOTIMG with upstream 6.18 ARM zImage + appended Y2 DTB inside KERNEL, and a small external initramfs inside ROOTFS. Begin on CPU0 with a bounded memory description and observable console, preserving eMMC. No old Android board-file port is presently justified. The reported Debian/replacement-BOOTIMG approach is consistent with this mechanism, but supplies no verified patch set, logs or upstream-version proof.
 
@@ -113,6 +113,18 @@ The [upstream audit](linux-6.18-support.md) confirms appended-DTB and ATAG conve
 **Smallest remaining artifact-design proof:** establish the exact safe initial RAM envelope and required exclusions at LK exit, including inherited DMA. This fixes DT-memory/ATAG-import policy and validates every load/decompression/initrd interval. A proven conservative envelope may suffice; full peripheral reverse engineering is unnecessary. Remap the FM reservation functions and review existing memory/display evidence next; obtain a passive stock boot log only when its observation route is established.
 
 Installed loader/security state, a usable physical console and recovery backups separately gate launch. There is no honest single-unknown claim for overall readiness. No kernel/DTS change, Linux artifact or implementation-ready issue was created.
+
+## Y2E-130: fixed initial RAM policy
+
+[Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7) supersedes the memory uncertainty and pending ATAG choice above for **offline artifact design**. The complete [initial RAM policy](initial-ram-map.md) is authoritative for FM symbol remapping, evidence confidence, exact interval formulas and rejection limits.
+
+FM kallsyms were recovered independently (54,692 symbols). FM `mt_fixup`/`mt_reserve` and allocator flows establish normal framebuffer subtraction, connectivity's 1 MiB steal and the default 22 MiB modem + 2 MiB shared allocation. The retained iomem **also reports a 5 MiB `mtkfb.0` resource at `[0xbfb00000,0xc0000000)`**, omitted in the earlier summary. Modem/connectivity placement explains the remaining holes but is still inferred from defaults plus runtime layout. Individual live preloader rank sizes are not known.
+
+**D08:** describe only `[0x80000000,0x81800000)` plus `[0x84000000,0x84080000)` in DT (24.5 MiB); retain the first 16 KiB for boot data. Preserve appended DTB, disable `ARM_ATAG_DTB_COMPAT`, specify actual initramfs start/end in `/chosen` and use controlled DT bootargs. LK header addresses and command-line tags do not choose these values. Kernel+DTB cap 6 MiB, whole decompressed kernel including BSS cap 14 MiB, external compressed initramfs cap 512 KiB. Exact decompressor relocation/workspace checks and LK overread checks are mandatory; these caps do not describe an already built image.
+
+LK control state starts at `0x81e00000`, heap at `0x81e55434`; heap upper/live extent remains unresolved and broadly excluded. Display initialization also records a scratch pointer 4 MiB below its framebuffer. Preloader scratch/page-table placement is near DRAM top. This policy excludes those locations and all high modem/connectivity/possible secure storage, without asserting that iomem enumerates every bus-master target.
+
+The loader has an eMMC DMA stop-and-idle-wait path, but final interrupt/cache cleanup is not proof that all DMA or secure-world accesses stop. **U07a memory policy is resolved; U07c inherited DMA/secure-state assurance remains a launch gate.** Offline work can be specified against the fixed policy; device launch still needs installed-loader/security, console, recovery/backup and power evidence. No Linux artifact, DTS/kernel implementation or implementation issue was created by this research.
 
 ## Later persistent rootfs
 

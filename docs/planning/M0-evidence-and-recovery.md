@@ -26,14 +26,20 @@ The issue specifications in `issues/` retain the original bounded goals with cor
 
 [Y2E-125](https://github.com/SchulzCode/Y2Linux/issues/6) accepts owner-observed successful SP Flash Tool recovery using the FM ROM, hashes all 24 package inputs, and corroborates local tool v5.2032.00. Offline preloader/LK analysis resolves the header/runtime discrepancy and confirms kernel entry, ATAGs, ramdisk relocation and command-line source. The exact v6.18 audit supports a candidate appended-DTB/initramfs strategy with unchanged loaders. See [boot-chain.md](../knowledge/boot-chain.md), [recovery.md](../knowledge/recovery.md) and [linux-6.18-support.md](../knowledge/linux-6.18-support.md).
 
-The smallest remaining artifact-design proof is the safe initial memory envelope/exclusions and resulting ATAG-import policy. Installed-loader/security state, observable console and device-specific backups separately gate an experiment. No implementation handoff is ready.
+That memory proof was the next boundary and is now addressed by Y2E-130 below. Installed-loader/security state, observable console and device-specific backups still gate an experiment.
+
+## Third evidence boundary: Y2E-130
+
+[Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7) independently remaps FM symbols, explains the high reservation pattern and fixes D08: static DT memory `[0x80000000,0x81800000)` plus `[0x84000000,0x84080000)`, no ATAG import. The [initial RAM policy](../knowledge/initial-ram-map.md) specifies permitted intervals, limits and exact decompressor/LK validation formulas. Small offline implementation can now be specified without delegating memory architecture. No implementation issue was created here.
+
+U07c explicitly retains the unproved inherited DMA/secure-state requirement before launch. The reduced map excludes identified storage; it is not a DMA firewall or tested boot. M0 stays open.
 
 ## Coverage contract
 
 | Area | Evidence now available | Remaining evidence before relevant implementation |
 | --- | --- | --- |
 | Identity/access | Fresh non-root system/build/USB state, errors and permissions | Physical revision, installed image provenance |
-| Boot/storage | Package components/map and traced package preloader/LK ATAG handoff | Safe memory envelope, installed-loader policy, special-region semantics and acquisition method |
+| Boot/storage | Package components/map and traced package preloader/LK ATAG handoff | D08 actual artifact validation, inherited DMA/secure state, installed-loader policy, special-region semantics and acquisition method |
 | Audio/FM | Verified archived bindings and exact HAL/kernel derivatives; later route reports indexed | Current lineage, physical routing, reset/supplies/clocks/mute, reception/revision |
 | Display/input | Archived controller and evdev capability identities; application behavior | Panel/interface/timings, wiring/reset/wake and current raw-code relationships |
 | Power | PMIC historical identity, conflicting current battery service output | Trusted readings/calibration, charging/suspend/wake behavior |
@@ -48,4 +54,4 @@ The first batch used no device writes, reboot, boot-mode change, radio toggle, r
 
 M0 PASS requires a trustworthy device/build/partition/boot baseline, sufficient subsystem evidence and explicit critical unknowns, verified same-device boot/recovery/personalized-data backups with independent retention, and a documented known-good recovery path with appropriate checks. The owner's successful same-device SPFT recovery now supplies the actual tested-method evidence; do not demand another full-flash rehearsal merely to reconfirm it. Exact procedure/DA/entry details and backups remain incomplete. Preloader/LK/table/calibration writes and formatting stay outside ordinary restoration. Any later device operation still needs a concrete bounded procedure and authorization.
 
-Next rolling-wave research boundary: safe initial boot memory/exclusions and a fixed DT/ATAG policy. Fill the specific acquisition/runbook gaps using the known-good recovery history; pursue console/power evidence only within safe bounded scopes. No speculative implementation backlog or M1 tasks were created. Only after research fixes a concrete intended change should an implementation issue be written.
+The memory/ATAG policy is fixed; next research must address a bounded launch prerequisite such as inherited DMA/secure state or physical console. Fill the specific acquisition/runbook gaps using the known-good recovery history; pursue console/power evidence only within safe bounded scopes. No speculative implementation backlog or M1 tasks were created. Only after research fixes a concrete intended change should an implementation issue be written.

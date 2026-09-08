@@ -71,3 +71,7 @@ A future bounded restore runbook should record the owner's proven sequence, exac
 - [ ] Safe initial RAM exclusions, observation channel and installed-loader launch policy resolved.
 
 The next main research proof is the [boot memory envelope](boot-chain.md), not another broad investigation of whether SPFT works. Recovery work should fill the concrete remaining backup/runbook gaps using the known-good history. M0 remains open; no Linux boot artifact or implementation issue is ready.
+
+## Y2E-130 boundary
+
+The [fixed initial RAM policy](initial-ram-map.md) permits bounded offline artifact work; it does not pass M0 or change recovery authorization. Owner-confirmed SP Flash Tool recovery remains accepted. Per-device backups/independent retention, exact procedure and trusted power remain incomplete; inherited DMA/secure state, installed-loader/security and observation-channel checks still precede a hardware experiment. No device operation or boot artifact was produced during this research.
