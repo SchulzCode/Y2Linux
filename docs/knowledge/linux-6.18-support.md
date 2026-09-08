@@ -1,5 +1,7 @@
 # Linux 6.18 boot-fundamentals audit
 
+> Latest hardware evidence: [Y2B-245 real screen](y2b245-hardware-result.md) confirms text rendering, PID1 and proc/sysfs mounts. Sleep stops at -38 / ENOSYS, BEAT 0. Y2B-250 enables the missing ARM time32 syscall; timer wakeups and increasing heartbeats still await the next authorized trial.
+
 > Y2B-240 hardware result: the owner reports **solid green**, which the implemented state machine reaches through initramfs `/init` running as PID1. M1's Linux 6.18 plus PID1 boot objective is achieved. No heartbeat/checkerboard success is claimed. [Y2B-245 / D14](on-screen-diagnostics.md) is the offline follow-up for readable runtime diagnostics.
 
 > Hardware update 2026-09-08: [Y2B-240](first-experiment-result.md) provides strong owner-observed evidence of the reviewed Linux 6.18 candidate reaching PID1 with static DT RAM and inherited framebuffer output. Timed heartbeat/stability validation remains unproven.

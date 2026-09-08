@@ -60,3 +60,5 @@ safety validation and final image size/hash. Trust the unchanged audited source 
 locked toolchain; do not repeat full provenance/recovery audits or two reproducibility
 builds. Reserve exhaustive verification for architecture/memory/packaging changes,
 new subsystems, milestone completion and release candidates.
+
+Y2B-250 is built and validated offline: [candidate and focused results](../build/y2b250-result.md). The real timer/heartbeat trial remains pending; no milestone-completion claim is added.
