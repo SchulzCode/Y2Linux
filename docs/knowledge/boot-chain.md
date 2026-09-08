@@ -141,3 +141,7 @@ One Kconfig prompt-visibility patch is needed to enforce D08's no-hyp option on 
 ## Y2E-140 console correction (2026-09-08)
 
 The package default `ttyMT3` string is not the installed controller selection. Fresh read-only stock console/sysfs/resource evidence identifies ttyMT0 / hardware UART0 at 0x11002000. Remapped FM driver code confirms index-to-MMIO identity. This matches the conditional UART0 path in package LK; exact installed loader and live preloader arguments remain U07b. [Full evidence, expected 1.8 V domain/921600 8N1, physical blockers and alternative research](observation-path.md). D10 updates/revalidates only the DT controller/IRQ and associated packaging. No handoff, memory or loader change, and no actual serial boot capture yet.
+
+## Y2E-145 installed-policy and watchdog boundary
+
+[Launch readiness](launch-readiness.md) now traces FM ROM_INFO m_sec_boot=0x22 to LK's hardware security-bit decision, rather than assuming that value disables verification. Normal platform initialization also arms a nominal 10-second AP watchdog interval; the identified disable calls belong to Download/Fastboot paths. No normal-handoff disable is established. This is adverse evidence for the current no-watchdog candidate's proposed 60-second run. Installed loader identity/security and inherited DMA/secure state remain unproved. NO-GO; no image, loader or memory-architecture change.

@@ -55,6 +55,8 @@ Artifacts, both required ELFs, config, logs and provenance are retained locally 
 
 ## Stop boundary and proposed first experiment
 
+**Y2E-145 follow-up: NO-GO.** [Updated launch assessment](../knowledge/launch-readiness.md) identifies nominal 10-second watchdog arming on normal package LK initialization without an established handoff disable. The unchanged no-watchdog artifact is not approved for the requested 60-second run. Observation, installed authentication and current-device backups also remain missing. All 28 retained artifact members were rehashed successfully; no rebuild or product change occurred.
+
 The [launch-gate review](../knowledge/first-boot-launch-gates.md) leaves U07b (installed loader/authentication), U07c (inherited DMA/secure/SVC and watchdog state), U10a (physical console/voltage/routing and stock capture), and same-device independent backups/exact recovery procedure/trusted power unresolved. Owner-proven SPFT recovery remains accepted; no broad re-test is imposed.
 
 After these proofs and separate authorization, the proposed experiment is one BOOTIMG-only deployment through the owner's proven, precisely recorded SPFT/DA route, one normal LK launch, captured Linux/CPU0/D08 diagnostics and at least three heartbeats within a reviewed 60-second observation window, followed by BOOTIMG-only stock restoration and checks. No preloader/LK, table, calibration, Android/system/userdata or rootfs change. The exact DA/entry/readback/wiring recipe remains blocked on those proofs; no verified temporary fastboot boot route is assumed. **No experimental launch: all remaining gates and separate authorization are still required.**

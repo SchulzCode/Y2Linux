@@ -79,3 +79,9 @@ The [fixed initial RAM policy](initial-ram-map.md) permits bounded offline artif
 ## M1 offline boundary
 
 A [validated offline BOOTIMG candidate](../build/first-boot-result.md) now exists under the owner's later implementation authorization. This changes neither the accepted SPFT recovery history nor the open backup/DA/entry/power requirements. M0 remains open. [The conditional experiment](first-boot-launch-gates.md) specifies a later BOOTIMG-only target and restore concept; it cannot be executed until the missing operator/backup/console/security evidence is supplied and the bounded operation is separately authorized. No new flash, readback, DA execution, ADB or device operation occurred. Earlier no-artifact statements describe their dated research phase.
+
+## Y2E-145 current-device recovery assessment
+
+Fresh shell uid/group and device-node permissions confirm that mmcblk0, bootimg and uboot are not readable through current ADB access; no raw acquisition was performed. **Current BOOTIMG backup and independent copy: absent.** Live dumchar still identifies EMMC_USER [0x01d80000,0x02d80000), 16 MiB. Tool/DA hashes were reverified; configured SPFT log directory is absent, and available-scene flags/unchecked historical settings cannot prove the old DA/mode/targets. Owner success remains accepted.
+
+[Prepared BOOTIMG-only acquisition/restore runbook](bootimg-recovery-runbook.md) fixes physical addresses, exact bytes, input hashes, repeat-read verification, independent retention and BOOTIMG-only Download Only selection. Exact DA/connection/power and bounded transport/image acceptance remain open; it was not executed. [Launch decision](launch-readiness.md): NO-GO, also due to observation/authentication and the newly identified normal-path watchdog risk. No preloader/LK/table/calibration or other partition operation occurred.

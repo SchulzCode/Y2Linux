@@ -22,3 +22,5 @@ The [hardware launch-gate review](../knowledge/first-boot-launch-gates.md) ident
 ## Observation gate follow-up
 
 [Y2E-140 / #16](https://github.com/SchulzCode/Y2Linux/issues/16) is open: installed ttyMT0/UART0 evidence prompted D10 and two fully validated reproducible builds, plus receive-only host tooling. The first-artifact hashes above now resolve to the current UART0 result; historical UART3 reports/bundle remain retained. Physical TX/GND/level and actual stock LK/kernel serial capture are still missing. No further kernel feature or device experiment was added.
+
+[Y2E-145 / #17](https://github.com/SchulzCode/Y2Linux/issues/17) records the subsequent **NO-GO** decision for the unchanged candidate, hardware-dependent authentication, denied current raw acquisition and adverse normal-path watchdog evidence. [Decision](../knowledge/launch-readiness.md). M1 remains open; no first-boot operation issue exists.
