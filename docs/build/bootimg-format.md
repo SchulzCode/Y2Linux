@@ -1,0 +1,7 @@
+# Legacy BOOTIMG package contract
+
+Y2B-230 packages only the validated payload. Offline inspection of the owner-proven FM `boot.img` confirmed `ANDROID!`, 2048-byte page size, header fields `kernel_addr=0x10008000`, `ramdisk_addr=0x11000000`, `second_addr=0x10f00000`, `tags_addr=0x10000100`, zero second/DT sizes, empty header cmdline, and SHA-1 over each **wrapped** kernel/ramdisk section followed by its little-endian size, then zero second size. These are legacy header fields; FM LK's actual load/entry addresses remain D08's `0x80008000` and `0x84000000`.
+
+Each MTK wrapper is 512 bytes: little-endian magic `0x58881688`, inner byte length, 32-byte NUL-padded KERNEL or ROOTFS name, then 472 bytes of `0xff`. New header name is deterministic `Y2Linux-M1`; trailing ID bytes and unused header bytes are zero. Neither the old Android SHA-1 ID nor SHA-256 manifest constitutes an image signature or proves installed LK acceptance.
+
+Output is Android header page + page-padded wrapped kernel + page-padded wrapped initramfs + **two explicit zero pages**. This covers the entire additional LK read traced in Y2E-125/D08 instead of relying on stale partition tail contents. The resulting file must equal `2048 + align_up(K,2048) + align_up(W,2048) + 4096` and be no larger than the 16 MiB BOOTIMG partition. All page padding is zero. The parser checks every field, payload byte, SHA-1 ID, wrapper and padding extent independently before output is written. No flasher or partition-access code exists in this build path.
