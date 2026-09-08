@@ -17,7 +17,7 @@
     #size-cells = <1>;
     interrupt-parent = <&sysirq>;
 
-    aliases { serial0 = &uart3; };
+    aliases { serial0 = &uart0; };
     chosen {
         stdout-path = "serial0";
         bootargs = "rdinit=/init earlycon console=ttyS0,921600n8 loglevel=8 ignore_loglevel panic=0";
@@ -75,10 +75,10 @@
         interrupt-parent = <&gic>;
         reg = <0x10211000 0x1000>, <0x10212000 0x2000>;
     };
-    uart3: serial@11005000 {
+    uart0: serial@11002000 {
         compatible = "mediatek,mt6582-uart", "mediatek,mt6577-uart";
-        reg = <0x11005000 0x400>;
-        interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_LOW>;
+        reg = <0x11002000 0x400>;
+        interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
         clocks = <&uart_clk>;
     };
 };

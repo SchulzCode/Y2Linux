@@ -27,7 +27,7 @@ Date: 2026-09-08. [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7) fixe
 | U07b | Active image-authentication policy and exact installed LK | Launch gate. Static LK has both conditional verification and no-check paths. Stock flashing does not prove unsigned-kernel acceptance. |
 | U08 | Actual runtime working set and board execution | Offline sizes, DTB and symbol-derived D08 layout are now validated and reproducible. Runtime boot/memory/interrupt behavior remains untested; no RAM expansion is authorized. |
 | U09 | Conflicting battery readings / trusted power and consistency prerequisites | Future acquisition/restore/boot procedure; passive evidence only. |
-| U10a | Physically usable console, routing, voltage/pins, baud and stock output | Observable first experiment. ttyMT3 string and UART3 MMIO are candidates, not pinout proof. No blind probing. |
+| U10a | Physically usable console, routing, voltage/pins, baud and stock output | Y2E-140 confirms installed ttyMT0/UART0 controller selection and corrects/revalidates the artifact. Board TX/GND, pad voltage, live baud and stock LK+kernel serial capture remain open; host PTY tests and ADB last_kmsg are not that proof. [Evidence](observation-path.md). |
 | U10b | Panel/input, audio supplies/reset/clocks/analog path, radios/firmware/calibration | Later subsystem work, one bounded proof at a time. |
 | U11 | Y2-compatible clocks/pinctrl/MMC, SMP release and full peripheral support | Later persistent rootfs/platform work. Source names/sibling compatibles do not prove support. |
 
@@ -45,8 +45,14 @@ Date: 2026-09-08. [Y2E-130](https://github.com/SchulzCode/Y2Linux/issues/7) fixe
 
 Next implementation boundary can be a tiny offline artifact/layout task under D08, after its concrete issue is specified. No implementation issue was created in Y2E-130. Next research is a bounded prerequisite for a hardware launch: inherited DMA/secure-state assurance or physical console evidence, with installed-loader and recovery prerequisites preserved. Do not bundle all peripherals into a speculative backlog.
 
-- **D09:** [Kconfig compatibility and console policy](../build/kernel-policy.md). One reviewed prompt-visibility patch makes the existing D08 `ARM_VIRT_EXT=n` requirement selectable on v6.18; upstream default and all memory limits stay unchanged. Static `PHYS_OFFSET=0x80000000` is checked. The only serial candidate is UART3; physical readiness remains U10a.
+- **D09:** [Kconfig compatibility and console policy](../build/kernel-policy.md). One reviewed prompt-visibility patch makes the existing D08 `ARM_VIRT_EXT=n` requirement selectable on v6.18; upstream default and all memory limits stay unchanged. Static `PHYS_OFFSET=0x80000000` is checked. The original UART3 candidate is superseded by D10; physical readiness remains U10a.
 
 ## M1 offline boundary
 
 Y2B-201 through Y2B-235 deliver a reproducible, strictly validated offline candidate. [Launch-gate review](first-boot-launch-gates.md) records the rechecked FM security branches, storage DMA stop, final cleanup and UART selection, plus the smallest missing live/backup proofs. U07b/U07c/U10a and recovery/power remain open; M0 is not passed and M1 has no hardware-boot result. No device interaction occurred during this wave.
+
+## Y2E-140 observation boundary
+
+- **D10:** [Installed observation evidence and controller correction](observation-path.md): UART0 at 0x11002000, IRQ51, sole serial0/ttyS0 alias; D08 and kernel features unchanged. Two complete clean builds pass and match. Expected native logic is 1.8 V; 921600 8N1 is the firmware-supported receive candidate, not a measured board rate.
+- U10a remains open for board-specific TX/GND/level and actual stock LK/kernel capture. No safe physical connection was established. Bounded alternative: trace the FM preloader's existing UART-over-USB accessory selection/electrical requirements if native TX access is unavailable; do not guess a cable or change the PHY live.
+- This later research used passive stock ADB, including a previous kernel RAM-console tail. It made no device state change or experimental boot. After U10a passes, resolve installed loader/authentication U07b, with U07c and backup/recovery/power gates preserved.

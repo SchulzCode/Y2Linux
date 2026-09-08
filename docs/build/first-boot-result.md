@@ -1,6 +1,6 @@
 # M1 offline first-boot result
 
-2026-09-08. **Offline candidate built and validated; no experimental device boot or flash performed.** M0 and M1 hardware completion remain open. [Checkpoint history](../planning/M1-first-boot.md), [reproduction commands](first-boot.md), [launch gates and conditional experiment](../knowledge/first-boot-launch-gates.md).
+2026-09-08, revised by [Y2E-140 / D10](../knowledge/observation-path.md) to UART0/IRQ51 after installed-stock evidence. The previous UART3 candidate is superseded; its [layout](results/m1-uart3-superseded-layout.json) and [hash inventory](results/m1-uart3-superseded-reproducibility.json) remain historical evidence. **Offline candidate built and validated; no experimental device boot or flash performed.** M0 and M1 hardware completion remain open. [Checkpoint history](../planning/M1-first-boot.md), [reproduction commands](first-boot.md), [launch gates and conditional experiment](../knowledge/first-boot-launch-gates.md).
 
 ## Baseline and configuration
 
@@ -14,11 +14,11 @@ ARMv7 ARM instruction mode, EABI little-endian, CPU0 only, MMU/non-LPAE, `PHYS_O
 | --- | ---: | --- |
 | Image | 2,543,296 | `293a252637578f004a941cc20940043d041114a174ae5cb5789253df8ed257b9` |
 | zImage | 1,076,072 | `798f398d5190e86e3fb2d4a60fdaae625b2394ec2439634d7dd40035f610b8a1` |
-| y2.dtb | 1,835 | `dc6fe6b7f405ca27500f995db61c4fd4051b8be0edd51a1ca28ffab9b648ec1f` |
-| zImage-dtb | 1,077,912 | `7680cdb382f057f83ccd23c2de7672afbbbc5b930ff71c9006d5a9bb97630164` |
+| y2.dtb | 1,835 | `3582a3b9b683c141602492e125aa254ba9414f5be0dc1e362bb58dcb4c3f2235` |
+| zImage-dtb | 1,077,912 | `a737850794478c057dc8703f9ef0ff4d0e9f33bfcb44d7235981ad7ba84afd76` |
 | initramfs.cpio.gz | 1,582 | `6abce20dd5e27475045b1242b0947c9abb5c570966d84fa09dc388bd676f6de5` |
 | init | 2,740 | `eb9a5dc82e26803c772298bd232568efd3f388bb8ce1bfabaa548c804e823a4e` |
-| BOOTIMG.img | 1,089,536 | `8e2fdae1f90c7589073676f69c0418af25cb0671a288ad838d83077f04b6d2f5` |
+| BOOTIMG.img | 1,089,536 | `574061649e10266927267b68afbc95da7fe0761dc9823e88767741bac9363fd9` |
 
 DTB totalsize is 1,835 bytes, padded to 1,840 when appended. Uncompressed newc is 4,096 bytes containing one 2,740-byte static executable and fixed directories/device nodes; gzip is 1,582 bytes. The image is unsigned; Android SHA-1 ID is only legacy metadata.
 
@@ -49,12 +49,12 @@ BOOTIMG has 2048-byte header/pages and 512-byte KERNEL/ROOTFS wrappers. Declared
 - [Actual symbol/layout/DT/package report](results/m1-layout.json): **PASS** every D08 cap and collision/workspace/DTB-survival constraint, config/ELF/Image/gzip/DTB agreement, wrappers, checksums and overread/partition bounds.
 - [Reproducibility report](results/m1-reproducibility.json): **PASS**, 11 outputs byte-identical in two separate clean build directories, including both ELFs, full config and all deployable bytes.
 - [Full source verification](results/m1-source-verification.json): **PASS**, 91,166 files/links match the locked release archive (redundant relative-link syntax normalized by safe extraction). The only build-time overlay is the reviewed Kconfig line.
-- Nine tests pass with no skips in complete builds, including 20 real-artifact mutation cases, 25 package mutation/extent cases, fixed-policy boundaries and bounded gzip/cpio checks. QEMU 10.0.0 Cortex-A7 user-mode self-test passes. Kernel and dtc builds have no warning/error diagnostics.
+- Nine tests pass with no skips in complete builds, including 22 real-artifact mutation cases (including rejection of the superseded UART3 base and IRQ), 25 package mutation/extent cases, fixed-policy boundaries and bounded gzip/cpio checks. QEMU 10.0.0 Cortex-A7 user-mode self-test passes. Kernel and dtc builds have no warning/error diagnostics.
 
-Artifacts, both required ELFs, config, logs and provenance are retained locally under `out/m1-first-boot/` in the canonical Y2Linux checkout; caches/products are deliberately excluded from Git. Committed reports contain exact hashes and reproduction instructions. These are host verification results, not hardware execution, measured MemTotal, authenticated-loader acceptance, DMA containment or recovery backups. Runtime working set and board GIC/GPT/UART behavior remain untested. No full dt-schema claim is made.
+Artifacts, both required ELFs, config, logs and provenance are retained locally under `out/m1-uart0-first-boot/` in the canonical Y2Linux checkout; caches/products are deliberately excluded from Git. Committed reports contain exact hashes and reproduction instructions. These are host verification results, not hardware execution, measured MemTotal, authenticated-loader acceptance, DMA containment or recovery backups. Runtime working set and board GIC/GPT/UART behavior remain untested. No full dt-schema claim is made.
 
 ## Stop boundary and proposed first experiment
 
 The [launch-gate review](../knowledge/first-boot-launch-gates.md) leaves U07b (installed loader/authentication), U07c (inherited DMA/secure/SVC and watchdog state), U10a (physical console/voltage/routing and stock capture), and same-device independent backups/exact recovery procedure/trusted power unresolved. Owner-proven SPFT recovery remains accepted; no broad re-test is imposed.
 
-After these proofs and separate authorization, the proposed experiment is one BOOTIMG-only deployment through the owner's proven, precisely recorded SPFT/DA route, one normal LK launch, captured Linux/CPU0/D08 diagnostics and at least three heartbeats within a reviewed 60-second observation window, followed by BOOTIMG-only stock restoration and checks. No preloader/LK, table, calibration, Android/system/userdata or rootfs change. The exact DA/entry/readback/wiring recipe remains blocked on those proofs; no verified temporary fastboot boot route is assumed. **Stop here before device interaction.**
+After these proofs and separate authorization, the proposed experiment is one BOOTIMG-only deployment through the owner's proven, precisely recorded SPFT/DA route, one normal LK launch, captured Linux/CPU0/D08 diagnostics and at least three heartbeats within a reviewed 60-second observation window, followed by BOOTIMG-only stock restoration and checks. No preloader/LK, table, calibration, Android/system/userdata or rootfs change. The exact DA/entry/readback/wiring recipe remains blocked on those proofs; no verified temporary fastboot boot route is assumed. **No experimental launch: all remaining gates and separate authorization are still required.**

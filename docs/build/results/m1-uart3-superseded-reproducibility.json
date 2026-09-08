@@ -1,8 +1,8 @@
 {
   "result": "PASS two clean output trees are byte-identical",
   "builds": [
-    "uart0-a",
-    "uart0-b"
+    "repro-a",
+    "repro-b"
   ],
   "artifacts": [
     {
@@ -33,12 +33,12 @@
     {
       "file": "y2.dtb",
       "bytes": 1835,
-      "sha256": "3582a3b9b683c141602492e125aa254ba9414f5be0dc1e362bb58dcb4c3f2235"
+      "sha256": "dc6fe6b7f405ca27500f995db61c4fd4051b8be0edd51a1ca28ffab9b648ec1f"
     },
     {
       "file": "zImage-dtb",
       "bytes": 1077912,
-      "sha256": "a737850794478c057dc8703f9ef0ff4d0e9f33bfcb44d7235981ad7ba84afd76"
+      "sha256": "7680cdb382f057f83ccd23c2de7672afbbbc5b930ff71c9006d5a9bb97630164"
     },
     {
       "file": "init",
@@ -58,7 +58,7 @@
     {
       "file": "BOOTIMG.img",
       "bytes": 1089536,
-      "sha256": "574061649e10266927267b68afbc95da7fe0761dc9823e88767741bac9363fd9"
+      "sha256": "8e2fdae1f90c7589073676f69c0418af25cb0671a288ad838d83077f04b6d2f5"
     }
   ]
 }

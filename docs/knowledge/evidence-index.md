@@ -42,3 +42,7 @@ The decompressed kernel and symbolized ELF match their published hashes (`5f284f
 ## Review decision
 
 Y2E-101 is complete as a catalog and integrity assessment, including failed/generated inputs. Failed package checks are quarantined from recovery readiness; they do not prevent independent, passive observation of an already authorized device. Y2E-105 is therefore permitted next, without assuming that the connected device is stock or that any generated image is installed. Raw partition acquisition, firmware execution and restoration remain blocked. No implementation issue is ready.
+
+## Y2E-140 evidence follow-up
+
+Private `20260908-observation/` retains fresh read-only stock console/sysfs/resource evidence and previous kernel RAM-console tail, FM UART remapping, pinned vendor sources and externally sourced board-photo evidence. [Interpretation and limits](observation-path.md); per-file hashes are appended to [capture-index.tsv](capture-index.tsv). Definitive remote statuses use Android echo; preliminary printf attempts are explicitly superseded. No UART wire capture or physical pin/voltage proof exists yet.

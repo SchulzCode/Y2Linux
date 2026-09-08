@@ -49,6 +49,8 @@ class ActualArtifacts(unittest.TestCase):
                            struct.pack('>IIII',0x80000000,0x40000000,0x84000000,0x80000))),
           ('y2.dtb',replace(struct.pack('>I',0x84000000+(self.original/'initramfs.cpio.gz').stat().st_size),struct.pack('>I',0x84000001+(self.original/'initramfs.cpio.gz').stat().st_size))),
           ('y2.dtb',replace(b'serial0\0',b'serial1\0')),
+          ('y2.dtb',replace(struct.pack('>II',0x11002000,0x400),struct.pack('>II',0x11005000,0x400))),
+          ('y2.dtb',replace(struct.pack('>III',0,51,8),struct.pack('>III',0,54,8))),
           ('y2.dtb',replace(struct.pack('>QQ',0x80000000,0x4000),struct.pack('>QQ',0x80000000,0x3000))),
           ('y2.dtb',lambda b:b[:-1]),
           ('initramfs.cpio.gz',lambda b:b+b),

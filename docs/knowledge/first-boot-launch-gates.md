@@ -1,6 +1,6 @@
 # First-device launch gates after the M1 offline wave
 
-2026-09-08; Y2B-235. **Offline artifact acceptance is complete only when its reproducibility report passes; hardware launch is still blocked.** This review used retained package disassembly and audited upstream sources, with no ADB, device mode change, raw readback, DA execution, flash or boot. Known-good owner recovery remains strong evidence. No research was delegated.
+2026-09-08; Y2B-235. **Offline artifact acceptance is complete only when its reproducibility report passes; hardware launch is still blocked.** The initial Y2B-235 review used retained package disassembly and audited upstream sources, with no ADB, device mode change, raw readback, DA execution, flash or boot. The later U10a update below additionally uses explicitly safe read-only stock ADB from Y2E-140. Known-good owner recovery remains strong evidence. No research was delegated.
 
 ## U07b — Installed LK and authentication
 
@@ -16,11 +16,11 @@ D08 excludes LK/heap uncertainty, display scratch/high framebuffer, modem and co
 
 ## U10a — Observable console
 
-FM LK's `0x81e00fc8` programs GPIO arguments `0x8000006d`/`0x8000006c`, then chooses UART3 at `0x11005000` unless its conditional helper selects UART0. It assigns baud `0x000e1000` (921600) and an 8-bit line setting. These are SoC/software identities, **not board-pad locations or voltage measurements**.
+[Y2E-140 / D10](observation-path.md) supersedes the original UART3 default-string inference: fresh installed console-core/sysfs evidence selects **ttyMT0 → mtk-uart.0 → UART0 at 0x11002000**. FM kernel settings and console functions were independently remapped and confirm that indices are not swapped. Package LK selects UART0 when the preloader boot-argument logging fields satisfy its conditional branch; otherwise UART3. Both package paths configure 921600 8N1. Exact installed loader identity, selected handoff routing and live baud remain unproved.
 
-The offline DT selects only this UART3 candidate, upstream `ttyS0`, with the audited 26 MHz clock and IRQ54. Detailed v6.18 earlycon review found that the generic parser sets `device->baud` from stdout options before the driver callback. Therefore stdout-path is simply `serial0`, with no current-speed property; earlycon preserves inherited baud and only masks UART interrupts. Normal console configuration then requests `921600n8`. Relevant sources: `drivers/tty/serial/earlycon.c:278`, `8250/8250_mtk.c:664`, `8250/8250_early.c:154` in the locked source.
+The revised, fully revalidated offline DT uses UART0, IRQ51 and the same 26 MHz clock; the only Linux alias remains `serial0` / `ttyS0`. stdout-path has no baud suffix/current-speed, so upstream earlycon preserves inherited baud until normal `console=ttyS0,921600n8` setup. No pinmux or peripheral feature was added. A pre-earlycon hang can still be silent.
 
-**Unresolved proof:** safe accessible routing/pads and logic voltage, actual installed selected port/baud, reliable captured stock output, and a stable capture arrangement. No blind wiring or serial register probes. No DEBUG_LL/decompressor console or USB fallback is claimed. A hang before earlycon can be silent. If evidence identifies UART0 instead, revise and revalidate the artifact before launch.
+**Unresolved proof:** confirmed board TX/GND, measured pad voltage/receiver compatibility, stock LK plus kernel serial capture and inherited routing. Native SoC UART pins are documented in a 1.8 V domain, which is not a measurement at a Y2 test point. The host [receive-only capture tool/runbook](../build/stock-console-capture.md) is tested with PTYs only. Readable stock `/proc/last_kmsg` is a previous late kernel log, not serial proof or a Linux fallback. No serial adapter was present. A bootloader UART-over-USB accessory route is the smallest remaining alternative lead if native pads cannot be established, but detection/wiring/voltage/persistence are not yet proved. **Y2E-140 remains open.**
 
 ## Backup/recovery and power
 

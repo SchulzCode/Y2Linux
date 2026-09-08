@@ -13,3 +13,7 @@ Date: 2026-09-08. Related research: Y2E-101/105/110/115/120. Scope: one current 
 | UNKNOWN | Physical PCB/FM revision, exact installed boot/system lineage, trusted battery readings | [recovery assessment](recovery.md), current conflicting battery service output | Required before selecting a recovery baseline. |
 
 The archive contains engineering reports rather than electrical verification of all routes. The current session did not re-run audio/FM experiments or scan hardware buses. See [evidence provenance](evidence-index.md) for hash validation and superseded claims, [open unknowns](open-unknowns.md) for blockers, and subsystem documents for next proof requirements.
+
+## Y2E-140 installed console evidence
+
+2026-09-08: installed console core selects ttyMT0; sysfs and `/proc/iomem` map it to UART0 at 0x11002000. The FM driver was remapped to rule out index swapping. [Observation-path evidence](observation-path.md) supersedes UART3 as the first-artifact candidate. Native UART logic is expected to be 1.8 V from the manufacturer pin-domain table; no Y2 pad voltage or TX/GND test point is confirmed. Physical UART and actual LK/kernel wire capture remain a launch prerequisite.

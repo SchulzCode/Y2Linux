@@ -26,7 +26,7 @@ def check(data, r):
             'compatible': strings('innioasis,y2', 'mediatek,mt6582'),
             '#address-cells': cells(1), '#size-cells': cells(1),
             'interrupt-parent': cells(ph('/interrupt-controller@10200100'))},
-      '/aliases': {'serial0': strings('/serial@11005000')},
+      '/aliases': {'serial0': strings('/serial@11002000')},
       '/chosen': {'stdout-path': strings('serial0'), 'bootargs': strings(BOOTARGS),
                   'linux,initrd-start': cells(0x84000000), 'linux,initrd-end': cells(0x84000000+r)},
       '/memory@80000000': {'device_type': strings('memory'),
@@ -45,8 +45,8 @@ def check(data, r):
                          'reg': cells(0x10211000,0x1000,0x10212000,0x2000), 'interrupt-controller': b'',
                          '#interrupt-cells': cells(3), '#address-cells': cells(0),
                          'interrupt-parent': cells(ph('/interrupt-controller@10211000'))},
-      '/serial@11005000': {'compatible': strings('mediatek,mt6582-uart','mediatek,mt6577-uart'),
-                         'reg': cells(0x11005000,0x400), 'interrupts': cells(0,54,8),
+      '/serial@11002000': {'compatible': strings('mediatek,mt6582-uart','mediatek,mt6577-uart'),
+                         'reg': cells(0x11002000,0x400), 'interrupts': cells(0,51,8),
                          'clocks': cells(ph('/clock-uart'))},
     }
     for path, rate in [('/clock-system',13000000),('/clock-rtc',32000),('/clock-uart',26000000)]:

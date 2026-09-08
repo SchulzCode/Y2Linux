@@ -18,3 +18,7 @@ The owner explicitly changed execution for M1: the lead researches and implement
 [Result, exact versions/hashes/map](../build/first-boot-result.md) and [reproduction commands](../build/first-boot.md) are authoritative for this artifact. D08 limits are unchanged. Configuration resolution exposed a hidden upstream option; bounded research produced one Kconfig prompt-visibility patch (D09) rather than accepting a policy violation.
 
 The [hardware launch-gate review](../knowledge/first-boot-launch-gates.md) identifies the next smallest missing proofs. No speculative peripheral/rootfs/SMP backlog or next implementation wave is created. The current output is an unsigned offline candidate. Closing the eight implementation checkpoints does not close M1, pass M0, authorize a DA, raw acquisition, flash, boot or restore, or prove the physical console. The next wave must start from launch-gate evidence and a concrete separately authorized experiment.
+
+## Observation gate follow-up
+
+[Y2E-140 / #16](https://github.com/SchulzCode/Y2Linux/issues/16) is open: installed ttyMT0/UART0 evidence prompted D10 and two fully validated reproducible builds, plus receive-only host tooling. The first-artifact hashes above now resolve to the current UART0 result; historical UART3 reports/bundle remain retained. Physical TX/GND/level and actual stock LK/kernel serial capture are still missing. No further kernel feature or device experiment was added.
