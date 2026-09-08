@@ -1,0 +1,11 @@
+--- a/arch/arm/mm/Kconfig
++++ b/arch/arm/mm/Kconfig
+@@ -704,7 +704,7 @@
+ 	  make use of it. Say N for code that can run on CPUs without ThumbEE.
+ 
+ config ARM_VIRT_EXT
+-	bool
++	bool "ARM virtualization extension startup" if EXPERT
+ 	default y if CPU_V7
+ 	help
+ 	  Enable the kernel to make use of the ARM Virtualization

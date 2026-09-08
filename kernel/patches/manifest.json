@@ -1,0 +1,6 @@
+{
+  "path": "arch/arm/mm/Kconfig",
+  "base_sha256": "320a616f70976e6bf1544f4cebccd4f796524d7e856da6d2f053aed581d4a049",
+  "result_sha256": "57ec8dcb3b02cd5c5efc6925b921e69671add7f2db51a9c21ca72df5ec307116",
+  "patch": "0001-arm-allow-explicit-virt-ext-disable.patch"
+}

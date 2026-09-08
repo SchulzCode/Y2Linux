@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import difflib
 
 PROJECT = Path(__file__).resolve().parents[2]
 
@@ -28,6 +29,19 @@ def main():
     if not output.is_relative_to(PROJECT / 'out'):
         raise SystemExit('Build output must be below project/out')
     output.mkdir(parents=True, exist_ok=True)
+    # Overlay exactly one audited Kconfig visibility change; preserve pristine source cache.
+    spec = json.loads((PROJECT / 'kernel/patches/manifest.json').read_text())
+    original = (PROJECT / '.cache/sources/linux-6.18' / spec['path']).read_text()
+    changed = original.replace('config ARM_VIRT_EXT\n\tbool\n',
+        'config ARM_VIRT_EXT\n\tbool "ARM virtualization extension startup" if EXPERT\n')
+    patch = ''.join(difflib.unified_diff(original.splitlines(True), changed.splitlines(True),
+        fromfile='a/' + spec['path'], tofile='b/' + spec['path']))
+    if (hashlib.sha256(original.encode()).hexdigest() != spec['base_sha256'] or
+        hashlib.sha256(changed.encode()).hexdigest() != spec['result_sha256'] or
+        patch != (PROJECT / 'kernel/patches' / spec['patch']).read_text()):
+        raise SystemExit('Reviewed Kconfig overlay mismatch')
+    overlay = output / 'arm-mm-Kconfig'
+    overlay.write_text(changed)
     env = {
         'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LC_ALL': 'C', 'TZ': 'UTC',
         'ARCH': 'arm', 'LLVM': '1', 'CROSS_COMPILE': 'arm-linux-gnueabi-',
@@ -43,6 +57,7 @@ def main():
         '--tmpfs', '/tmp', '--ro-bind', str(PROJECT), '/project',
         '--ro-bind', str(PROJECT / '.cache/sources/linux-6.18'), '/src',
         '--bind', str(output), '/build', '--chdir', '/build',
+        '--ro-bind', str(overlay), '/src/' + spec['path'],
     ]
     for key, value in env.items():
         invocation += ['--setenv', key, value]
