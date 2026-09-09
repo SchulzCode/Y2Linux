@@ -3,10 +3,13 @@
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/io.h>
+#include <linux/ioport.h>
+#include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include "/project/kernel/diagnostic/text.h"
+#include "/project/kernel/diagnostic/pwrap.h"
 
 static void __iomem *y2_ovl, *y2_dsi, *y2_wdt, *y2_pixels;
 static struct cdev y2_cdev;
@@ -48,7 +51,52 @@ static ssize_t y2_text_write(struct file *file, const char __user *buf,
     mutex_unlock(&y2_frame_lock);
     return ret ? ret : count;
 }
-static const struct file_operations y2_fops = { .write = y2_text_write };
+static struct y2_pwrap_snapshot y2_power;
+static bool y2_power_done;
+static unsigned y2_power_read(void *context, unsigned offset)
+{ return readl((void __iomem *)context + offset); }
+static void y2_power_write(void *context, unsigned offset, unsigned value)
+{ writel(value, (void __iomem *)context + offset); }
+static void y2_power_delay(void *context)
+{ udelay(10); }
+static void y2_collect_power(void)
+{
+    void __iomem *base;
+    struct y2_pwrap_io io = { .read = y2_power_read, .write = y2_power_write,
+                              .delay = y2_power_delay };
+    y2_power.magic = Y2_PWRAP_MAGIC;
+    y2_power.result = -ENODEV;
+    if (!y2_display_valid()) return;
+    if (!request_mem_region(Y2_PWRAP_BASE, Y2_PWRAP_BYTES, "y2-pwrap-probe")) {
+        y2_power.result = -EBUSY;
+        return;
+    }
+    base = ioremap(Y2_PWRAP_BASE, Y2_PWRAP_BYTES);
+    if (base) {
+        io.context = (void *)base;
+        y2_pwrap_probe(&io, &y2_power);
+        iounmap(base);
+    }
+    release_mem_region(Y2_PWRAP_BASE, Y2_PWRAP_BYTES);
+}
+static ssize_t y2_power_snapshot(struct file *file, char __user *buf,
+                                 size_t count, loff_t *pos)
+{
+    int rc = 0;
+    if (task_pid_nr(current) != 1) return -EPERM;
+    if (count != sizeof(y2_power)) return -EINVAL;
+    if (mutex_lock_interruptible(&y2_frame_lock)) return -ERESTARTSYS;
+    if (!y2_power_done) {
+        y2_power_done = true; /* cache even failures and failed user copies */
+        y2_collect_power();
+    }
+    if (copy_to_user(buf, &y2_power, sizeof(y2_power))) rc = -EFAULT;
+    mutex_unlock(&y2_frame_lock);
+    return rc ? rc : sizeof(y2_power);
+}
+static const struct file_operations y2_fops = {
+    .write = y2_text_write, .read = y2_power_snapshot,
+};
 static int __init y2_diagnostic_init(void)
 {
     int ret;

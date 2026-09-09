@@ -1,0 +1,122 @@
+[
+  {
+    "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/pmic_wrap/mt6582/?format=JSON",
+    "file": "drivers__misc__mediatek__pmic_wrap__mt6582.json",
+    "bytes": 496,
+    "sha256": "81d0d3767af73d4fcbdd6c6a816a615817e127dcbbccc066d6533e5051224250"
+  },
+  {
+    "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/include/mach/mt_clkmgr.h?format=TEXT",
+    "file": "arch__arm__mach-mt6582__include__mach__mt_clkmgr.h",
+    "bytes": 13144,
+    "sha256": "68285fb529acaf8dc976fd9988c13d4e2abe9e339a27e7c515c709491ce5d361"
+  },
+  {
+    "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/power/mt6582/pmic_mt6323.c?format=TEXT",
+    "file": "drivers__misc__mediatek__power__mt6582__pmic_mt6323.c",
+    "bytes": 135844,
+    "sha256": "196b4605c4d367189f6b7b4a6263d617c0c90dfade649020a4e7139acdf27a98"
+  },
+  {
+    "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/pmic_wrap/mt6582/pwrap_hal.h?format=TEXT",
+    "file": "drivers__misc__mediatek__pmic_wrap__mt6582__pwrap_hal.h",
+    "bytes": 18315,
+    "sha256": "c9e05696a948a549b63e5ec988f6f2e3b68fb171c3bf89cdb1a2472d76c9b6fb"
+  },
+  {
+    "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/pmic_wrap/mt6582/pwrap_hal.c?format=TEXT",
+    "file": "drivers__misc__mediatek__pmic_wrap__mt6582__pwrap_hal.c",
+    "bytes": 36092,
+    "sha256": "d737cfe2e7787e6a80938a87554f85a0667a85b837aacf06b79efd42c52a5610"
+  },
+  {
+    "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/include/mach/upmu_hw.h?format=TEXT",
+    "file": "arch__arm__mach-mt6582__include__mach__upmu_hw.h",
+    "bytes": 179803,
+    "sha256": "62eb6f463981dbc8aa901927f977b05e8571988a9984ffbf33d6ad8c8007654e"
+  },
+  {
+    "path": "arch/arm/boot/dts/mediatek/mt6582.dtsi",
+    "sha256": "93311d1e7f2cd1b222d6f4d92682f314add934faafb7f03f73ce881f13e8dec9",
+    "bytes": 2816,
+    "url": "https://github.com/torvalds/linux/blob/v6.18/arch/arm/boot/dts/mediatek/mt6582.dtsi"
+  },
+  {
+    "path": "drivers/mfd/mt6397-core.c",
+    "sha256": "4c9b1a942df7ade97f0bb4cd7af65a8f7a9487df96b278eedc125f1eda6e3209",
+    "bytes": 11924,
+    "url": "https://github.com/torvalds/linux/blob/v6.18/drivers/mfd/mt6397-core.c"
+  },
+  {
+    "path": "drivers/phy/mediatek/phy-mtk-tphy.c",
+    "sha256": "c57efe8f40fdaf6572805a0546d3fceef8c4028c402405a3f61264955d90051b",
+    "bytes": 46869,
+    "url": "https://github.com/torvalds/linux/blob/v6.18/drivers/phy/mediatek/phy-mtk-tphy.c"
+  },
+  {
+    "path": "drivers/phy/mediatek/phy-mtk-xsphy.c",
+    "sha256": "637019433172be910ea91bef73f53f4fed7ff225f6da52a7e3029b0a4e9e617c",
+    "bytes": 15982,
+    "url": "https://github.com/torvalds/linux/blob/v6.18/drivers/phy/mediatek/phy-mtk-xsphy.c"
+  },
+  {
+    "path": "drivers/regulator/mt6323-regulator.c",
+    "sha256": "c64e2077ff90fe4055c304a2054e159b680713eb47e91bd64332e8f0dda33686",
+    "bytes": 12920,
+    "url": "https://github.com/torvalds/linux/blob/v6.18/drivers/regulator/mt6323-regulator.c"
+  },
+  {
+    "path": "drivers/soc/mediatek/mtk-pmic-wrap.c",
+    "sha256": "80173dd03ba85c5f900d27d35a2b6d0bd60bb5cf4bd801295e9953a0e4eaec12",
+    "bytes": 70783,
+    "url": "https://github.com/torvalds/linux/blob/v6.18/drivers/soc/mediatek/mtk-pmic-wrap.c"
+  },
+  {
+    "path": "drivers/usb/musb/mediatek.c",
+    "sha256": "33502cc67a3853560a26439fb93a81e034fdd519cb89ffb2dd0e9c2d069137f2",
+    "bytes": 13649,
+    "url": "https://github.com/torvalds/linux/blob/v6.18/drivers/usb/musb/mediatek.c"
+  },
+  {
+    "path": "drivers/usb/musb/musb_core.c",
+    "sha256": "0b8be0783e244d987284f10d6e87e6173bc29c91458cc7c5f2fe58057b0d63fc",
+    "bytes": 80465,
+    "url": "https://github.com/torvalds/linux/blob/v6.18/drivers/usb/musb/musb_core.c"
+  },
+  {
+    "path": "drivers/usb/musb/musb_gadget.c",
+    "sha256": "c0948905903b9e2998408d01adefbb69195bd493f165c209b350e019760a97a4",
+    "bytes": 54459,
+    "url": "https://github.com/torvalds/linux/blob/v6.18/drivers/usb/musb/musb_gadget.c"
+  },
+  {
+    "path": "drivers/usb/musb/musb_regs.h",
+    "sha256": "589ac714a769b65b27bc9a35ab1e8037775b6c720a1acd70be6c319367c632a6",
+    "bytes": 10847,
+    "url": "https://github.com/torvalds/linux/blob/v6.18/drivers/usb/musb/musb_regs.h"
+  },
+  {
+    "path": "drivers/usb/musb/musbhsdma.c",
+    "sha256": "45ee5dacef39ff755e5bd9b8c4f895b534f5a28014b0ecd7b4f06d527097fc40",
+    "bytes": 12359,
+    "url": "https://github.com/torvalds/linux/blob/v6.18/drivers/usb/musb/musbhsdma.c"
+  },
+  {
+    "path": "include/linux/mfd/mt6323/registers.h",
+    "sha256": "fcb63e3e298cea7d1ebbdd12d462f2920aa7fcf258282389d82774b1d1e45ddf",
+    "bytes": 16398,
+    "url": "https://github.com/torvalds/linux/blob/v6.18/include/linux/mfd/mt6323/registers.h"
+  },
+  {
+    "file": "fm-usb-functions.txt",
+    "sha256": "196ccacb2d4fcf744a40e810ef7dfa55f79740006e19941a23c10c7ceaff8014",
+    "bytes": 104873,
+    "origin": "Retained FM kernel; see initial-ram-map.md for immutable binary/symbol identity"
+  },
+  {
+    "file": "disassemble.py",
+    "sha256": "3a5f6bc0e2cc90dce328a5f77c658743392735e0056e437a108d2e8e7cfb935d",
+    "bytes": 1734,
+    "origin": "Retained FM kernel; see initial-ram-map.md for immutable binary/symbol identity"
+  }
+]

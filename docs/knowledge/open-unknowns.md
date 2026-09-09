@@ -92,3 +92,14 @@ owner-requested logging issue is drafted; no implementation/build/flash occurred
 ## Whole-roadmap coverage audit, 2026-09-09
 
 [Classified coverage matrix and standing rule](../planning/roadmap-gap-audit.md) explicitly tracks shared clocks/resets/pinctrl/GPIO/I2C, SMP, production watchdog/reset, native audio/analog routing, thermal and PM, radio firmware/calibration/FM, rootfs and update/security lifecycle. Deferred epics #28–#32 cover these gaps without claiming implementation readiness or changing D08. M1 core remains achieved; M0 residual questions and full stability qualification remain separate.
+
+
+## M2 activation / USB prerequisite update — 2026-09-09
+
+M2 #28 is active under the owner's incremental implementation instruction;
+M1 core remains complete. USB #27 has priority over optional RAM expansion.
+FM/LK now establish the specific PWRAP read protocol and VUSB register needed
+for a [bounded inherited-state probe](m2-pwrap-probe.md), owned by #23.
+This is offline contract evidence, not a new PMIC/USB hardware result. #23's
+other consumer rails and trustworthy telemetry remain unknown; #27 still needs
+its complete clock/PHY/VBUS/FIFO/IRQ/DMA contract. D08 remains authoritative.

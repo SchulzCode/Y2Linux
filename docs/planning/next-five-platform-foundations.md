@@ -1,4 +1,12 @@
-# Next five platform foundations — queued research only
+# Platform foundation work and execution order
+
+> **2026-09-09 activation:** the owner authorized incremental M2 implementation
+> with a stop before device changes and at each testable BOOTIMG. The
+> [activation audit](roadmap-gap-audit.md#m2-activation-audit--2026-09-09) now
+> prioritizes #27 plus the smallest VUSB/clock/PWRAP prerequisite from #23,
+> then RAM adequacy/#22, input/#24, display/#25, SD/#26, rootfs and qualification.
+> The original research scopes/order below remain historical context, not a
+> prohibition on the newly authorized work. No hardware success is implied.
 
 2026-09-08. [M1 core is achieved on the physical Y2](../knowledge/m1-runtime-hardware-result.md).
 Exactly five issues are drafted below. None was executed today, and no M2

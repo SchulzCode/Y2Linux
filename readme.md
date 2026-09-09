@@ -5,12 +5,12 @@ reverse engineering, recovery, upstream Linux 6.18 research and later bring-up.
 The native Rust/C application belongs to [Y2PlayerNative](https://github.com/SchulzCode/Y2PlayerNative).
 The Android Y2Player is a behavioral and hardware-research reference, not a source-port base.
 
-Current status: **M1 core achieved on the physical Y2: Linux 6.18, initramfs and native PID1 with increasing BEAT/uptime.** M0 residual questions and broader platform work remain separate.
+Current status: **M1 core achieved on the physical Y2: Linux 6.18, initramfs and native PID1 with increasing BEAT/uptime.** M2 is active with USB logging prerequisites first; core-interface exit evidence is still incomplete. M0 residual questions remain separate.
 
 - [Roadmap coverage, gaps and milestone audit rule](docs/planning/roadmap-gap-audit.md)
 
 - [Actual runtime hardware result and evidence limits](docs/knowledge/m1-runtime-hardware-result.md)
-- [Next five foundation research issues, planning only](docs/planning/next-five-platform-foundations.md)
+- [Foundation issues and current execution order](docs/planning/next-five-platform-foundations.md)
 
 - [Offline build result, hashes and exact D08 intervals](docs/build/first-boot-result.md)
 - [Reproduce the offline build](docs/build/first-boot.md)

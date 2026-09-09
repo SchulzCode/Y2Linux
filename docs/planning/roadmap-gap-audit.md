@@ -1,10 +1,64 @@
 # Y2Linux roadmap and gap audit
 
-Audit date: **2026-09-09**. Documentation/planning only. No implementation, build,
+Original audit date: **2026-09-09**. Documentation/planning only. No implementation, build,
 BOOTIMG creation, device access or flash. Repository baseline `00b4afa`; GitHub
 issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
+
+## M2 activation audit — 2026-09-09
+
+Baseline `ebeed72`, clean `main`; current GitHub #1–#32, open M0 and closed M1
+reviewed against the local blueprint and retained hardware result. The owner now
+explicitly authorizes autonomous M2 research/implementation/builds and normal
+Git/GitHub operations, with a stop at each hardware-testable BOOTIMG and before
+any physical-device modification. This supersedes the earlier planning-session
+restrictions and queued research order; it does not establish any hardware fact.
+
+**M2 is ACTIVE, entry PARTIAL; exit BLOCKED on unimplemented/unverified core
+interfaces.** M1 stays complete. All coverage rows below were reconsidered:
+their capability classifications and evidence limits remain unchanged because
+no newer physical result exists. M2's phase status changes from PLANNED to ACTIVE;
+#22–#27 remain open, and #27's controller gate is still BLOCKED. The working
+owner-reported version is 6.18.0-y2-m1; exact flashed SHA-256, MemTotal, repetition
+and timing are not supplied. The retained time32 candidate identity is recorded
+in [the M1 result](../knowledge/m1-runtime-hardware-result.md), not promoted to
+an identified hardware trial.
+
+Execution priority: (1) #27 USB contract and only #23's needed VUSB/PWRAP/clock
+prerequisite; (2) one logging implementation/trial if that contract permits it;
+(3) RAM adequacy and #22's bounded expansion decision; (4) #24 input; (5) #25
+standard display handoff; (6) #26 read-only removable media and recoverable
+stage-appropriate rootfs; (7) identified repeatability/stability and M2 exit audit.
+RAM expansion, UART wiring, full SMP and full power-framework implementation are
+not prerequisites for USB research. Reorder subsequent work only on evidence.
+The smallest current blocker is the FM-normal-handoff USB PHY/clock/VUSB/DMA
+contract; inspect those exact functions before selecting a runtime change.
+
+D08, CPU0, stopped AP watchdog and guarded framebuffer remain the default.
+Stock preloader/LK, partition tables and calibration remain protected. Existing
+SPFT/FM recovery evidence is retained without another provenance/recovery audit;
+M0 backup/installed-lineage and inherited-DMA uncertainties remain residual risks,
+not production waivers. New subsystem ownership must be justified separately.
+No M3 audio or Y2PlayerNative implementation starts before real M2 exit evidence.
+No optional feature has been waived merely to reach today's target.
+
+### Current execution checkpoint
+
+[M2-PWRAP-01](../build/m2-pwrap-01-result.md) is offline validated, 1,093,632 bytes,
+SHA-256 `c51102c861d65d39f5af2425ed73e9c1ba21d8adaae1b016f450a58630946ac0`.
+It awaits the owner physical test; no new hardware evidence is inferred. This
+session stops at that image boundary. #23/#27 and M2 remain open.
+
+### First prerequisite scope review
+
+The focused [PWRAP/VUSB probe contract](../knowledge/m2-pwrap-probe.md) now resolves
+one implementable #23 step using FM/LK and pinned upstream/vendor source. This
+adds bounded AP PMIC read transactions to a candidate, with no PMIC register
+writes or USB ownership. Power remains PARTIAL and USB remains BLOCKED pending
+physical state evidence and the remaining PHY/clock/DMA contract. D08 and all
+other coverage classifications remain unchanged. Basic battery/charger reporting
+also remains an M2 exit gap from the blueprint; VUSB status cannot satisfy it.
 
 ## Blueprint assessment and authority
 
@@ -101,7 +155,7 @@ new GitHub milestone shells are needed today:
 | --- | --- | --- |
 | M0 Evidence & Recovery | Existing open milestone 1 | **PARTIAL**; owner-accepted experimental exceptions are documented, not a full pass. |
 | M1 First Boot | Existing closed milestone 2 | **CONFIRMED core**; broader stability qualification moves into #28. |
-| M2 Core Hardware | [Y2H-300 #28](https://github.com/SchulzCode/Y2Linux/issues/28) | **PLANNED**, not started by this audit; owns existing #22–#27 dependencies. |
+| M2 Core Hardware | [Y2H-300 #28](https://github.com/SchulzCode/Y2Linux/issues/28) | **ACTIVE, entry PARTIAL**, under the activation decision above; owns #22–#27 dependencies. |
 | M3 Native Audio | [Y2A-300 #29](https://github.com/SchulzCode/Y2Linux/issues/29) | **BLOCKED** on needed core resources; major Gate D before central player/audio work. |
 | M4 Power Viability | [Y2P-400 #30](https://github.com/SchulzCode/Y2Linux/issues/30) | **PLANNED**; basic safety begins alongside M2, full suspend/playback integrates later. |
 | M5 Connectivity | [Y2N-500 #31](https://github.com/SchulzCode/Y2Linux/issues/31) | **PLANNED**; radio transport/firmware dependencies, conditional FM foundation. |
@@ -112,8 +166,9 @@ M4 numbering is not permission to defer basic thermal/power safety until after
 audio. M5 radio-specific power measurements depend on radio operation, so these
 phases have shared gates rather than a rigid all-or-nothing serial chain. M6
 rootfs contracts can mature with M2 without prematurely choosing production OTA.
-The existing next-five execution order is unchanged. USB logging #27 remains a
-separately requested, blocked acceleration path; this audit does not unblock it.
+The original next-five order is retained as history. The activation decision above
+prioritizes USB logging #27 and its smallest shared prerequisite; it does not
+remove the controller evidence gate.
 
 ## When Y2PlayerNative can become the serious workstream
 

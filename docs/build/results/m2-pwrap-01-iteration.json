@@ -1,0 +1,22 @@
+{
+  "candidate": "M2-PWRAP-01",
+  "hardware_status": "NOT TESTED",
+  "baseline": "ebeed72",
+  "kernel_release": "6.18.0-y2-m2-pwrap1",
+  "scope": "Cached bounded inherited PWRAP reads of CID/VUSB; no PMIC writes or USB enable",
+  "config_delta": [
+    "CONFIG_LOCALVERSION: -y2-m1 -> -y2-m2-pwrap1"
+  ],
+  "size": 1093632,
+  "sha256": "c51102c861d65d39f5af2425ed73e9c1ba21d8adaae1b016f450a58630946ac0",
+  "linked_review": {
+    "snapshot": "0xc0015208",
+    "read_pmic": "0xc00156e4",
+    "write_adapter": "0xc00156bc",
+    "cid_read_command": "0x00800000",
+    "vusb_read_command": "0x02810000",
+    "completion_ack": "offset 0xa4 value 1",
+    "limits": "1000 polls, 10us delay; no reset/retry; first-result cache before access",
+    "note": "Core routines are partly inlined; disassembly reviewed through y2_power_snapshot and y2_pwrap_read_pmic."
+  }
+}

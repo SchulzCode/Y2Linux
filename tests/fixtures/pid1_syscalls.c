@@ -2,7 +2,9 @@
  * Host-only QEMU ARM fixture. No actual kernel/device/MMIO is exercised.
  */
 #include "text.h"
+#include "pwrap.h"
 static unsigned writes,sleeps,opened,offset,closed;
+static unsigned power_reads;
 static const char *path;
 static const struct y2_text_frame *last;
 static int eq(const char *a,const char *b)
@@ -22,7 +24,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
     (void)d;(void)e;
     if(number==20) return 1;
     if(number==122) {
-        char *uts=(char*)a;const char release[]="6.18.0-y2-m1";
+        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-pwrap1";
         if(TEST_CASE==7) return -14;
         for(unsigned i=0;i<390;++i) uts[i]=0;
         for(unsigned i=0;i<sizeof(release);++i) uts[130+i]=release[i];
@@ -34,7 +36,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
                (TEST_CASE==8 && eq((char*)b,"/sys")) ? -1 : 0;
     }
     if(number==5) {
-        if(eq((char*)a,"/dev/y2diag")) { CHECK(b==1);return TEST_CASE==6 ? -6 : 3; }
+        if(eq((char*)a,"/dev/y2diag")) { CHECK(b==2);return TEST_CASE==6 ? -6 : 3; }
         CHECK(b==2048 && !opened);
         if(TEST_CASE==1 && prefix((char*)a,"/proc/")) return -2;
         if(TEST_CASE==8 && prefix((char*)a,"/sys/")) return -2;
@@ -48,6 +50,20 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
     }
     if(number==3) {
         const char *data="";unsigned size=0,n=0;
+        if(a==3) {
+            CHECK(c==sizeof(struct y2_pwrap_snapshot) && sleeps==1);
+            CHECK(++power_reads==1);
+            CHECK(prefix(last->rows[1],"STAGE: READ PWRAP"));
+            if(TEST_CASE==9) return -4;
+            if(TEST_CASE==10) return c-1;
+            struct y2_pwrap_snapshot *s=(void*)b;
+            *s=(struct y2_pwrap_snapshot){.magic=Y2_PWRAP_MAGIC,
+                .valid=3,.wrap=1,.channel=1,.init=1,.arb=0x1ff,
+                .before=0x00300000,.after=0x00300000,.cid=0x2023,.vusb=0xc001};
+            if(TEST_CASE==11) {s->result=-110;s->valid=1;}
+            if(TEST_CASE==12) s->magic=0;
+            return c;
+        }
         CHECK(a==4 && opened && c>0 && c<=4096);
         if(TEST_CASE==5) return -4;
         if(TEST_CASE==4 && eq(path,"/proc/meminfo")) {
@@ -88,12 +104,18 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
             CHECK(prefix(last->rows[13],"SLEEP RC: -22"));finish(0);
         }
         CHECK(sleeps==50 && prefix(last->rows[0],"PID1:1 BEAT:50"));
+        CHECK(power_reads==1);
         CHECK(prefix(last->rows[1],"STAGE: STOP: RESTORE ANDROID"));
         CHECK(closed>0);
         if(TEST_CASE==0) {
-            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m1"));
+            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-pwrap1"));
             CHECK(prefix(last->rows[3],"CPU PART: 0xc07"));
-            CHECK(prefix(last->rows[4],"SOC: MT6582 (DT DESCRIBED)"));
+            CHECK(prefix(last->rows[4],"PWRAP RC:0"));
+            CHECK(prefix(last->rows[4]+20,"VALID:3"));
+            CHECK(prefix(last->rows[16],"MUX:0 WRAP:1 WACS:1 INIT:1"));
+            CHECK(prefix(last->rows[17],"ARB:000001FF PRE:00300000"));
+            CHECK(prefix(last->rows[18],"CID:00002023 VUSB:0000C001"));
+            CHECK(prefix(last->rows[19],"POST:00300000; PMIC READS ONLY"));
             CHECK(prefix(last->rows[6],"DT RAM: 24M + 512K (D08 STATIC)"));
             CHECK(prefix(last->rows[9],"TIMER IRQ CPU0: 1234"));
         }
@@ -103,6 +125,12 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         if(TEST_CASE==5) CHECK(prefix(last->rows[7],"MEMTOTAL: -11"));
         if(TEST_CASE==7) CHECK(prefix(last->rows[2],"LINUX ERR: -14"));
         if(TEST_CASE==8) CHECK(prefix(last->rows[11],"SYSFS MOUNT RC: -1"));
+        if(TEST_CASE==9) CHECK(prefix(last->rows[4],"PWRAP READ ERR: -4"));
+        if(TEST_CASE==10 || TEST_CASE==12) CHECK(prefix(last->rows[4],"PWRAP READ ERR: -5"));
+        if(TEST_CASE==11) {
+            CHECK(prefix(last->rows[4],"PWRAP RC:-110"));
+            CHECK(prefix(last->rows[4]+20,"VALID:1"));
+        }
         finish(0);
     }
     CHECK(0);return -38;

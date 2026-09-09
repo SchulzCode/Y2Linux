@@ -2,6 +2,7 @@
  * Y2B-245: freestanding PID1, bounded screen diagnostics; no runtime UART I/O.
  */
 #include "status.h"
+#include "../kernel/diagnostic/pwrap.h"
 typedef unsigned int u32;
 #ifdef Y2_SYSCALL_TEST
 extern long y2_test_call(long,long,long,long,long,long);
@@ -115,6 +116,36 @@ static long sleep_one(void)
     }
     return code;
 }
+static unsigned row_hex(char *row, unsigned col, unsigned value)
+{
+    char text[9]; unsigned i;
+    for (i=0;i<8;++i) text[i]="0123456789ABCDEF"[(value >> (28-4*i)) & 15];
+    text[8]=0; return row_add(row,col,text);
+}
+static void power_rows(void)
+{
+    struct y2_pwrap_snapshot s;
+    unsigned col;
+    long n=call5(3,diagnostic,(long)&s,sizeof(s),0,0);
+    if(n!=(long)sizeof(s) || s.magic!=Y2_PWRAP_MAGIC) {
+        row_code(screen.rows[4],"PWRAP READ ERR: ",n<0?n:-5);
+        error("PWRAP READ",n<0?n:-5); return;
+    }
+    row_code(screen.rows[4],"PWRAP RC:",s.result);
+    col=row_add(screen.rows[4],20,"VALID:");row_number(screen.rows[4],col,s.valid);
+    row_clear(screen.rows[16]);col=row_add(screen.rows[16],0,"MUX:");
+    col=row_number(screen.rows[16],col,s.mux);col=row_add(screen.rows[16],col," WRAP:");
+    col=row_number(screen.rows[16],col,s.wrap);col=row_add(screen.rows[16],col," WACS:");
+    col=row_number(screen.rows[16],col,s.channel);col=row_add(screen.rows[16],col," INIT:");
+    row_number(screen.rows[16],col,s.init);
+    row_pair(screen.rows[17],"ARB:","");col=row_hex(screen.rows[17],4,s.arb);
+    col=row_add(screen.rows[17],col," PRE:");row_hex(screen.rows[17],col,s.before);
+    row_pair(screen.rows[18],"CID:","");col=row_hex(screen.rows[18],4,s.cid);
+    col=row_add(screen.rows[18],col," VUSB:");row_hex(screen.rows[18],col,s.vusb);
+    row_pair(screen.rows[19],"POST:","");col=row_hex(screen.rows[19],5,s.after);
+    row_add(screen.rows[19],col,"; PMIC READS ONLY");
+    if(s.result) error("PWRAP",s.result);
+}
 __attribute__((noreturn)) void diag_start(u32 *stack)
 {
     char **argv=(char**)(stack+1);
@@ -127,13 +158,13 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     for(row=0;row<Y2_ROWS;++row) row_clear(screen.rows[row]);
     screen.magic=Y2_TEXT_MAGIC;
     row_pair(screen.rows[12],"LAST ERR: ","NONE");
-    row_pair(screen.rows[15],"BUILD: ","Y2B-245 TEXT V1");
+    row_pair(screen.rows[15],"BUILD: ","M2-PWRAP-01");
     row_pair(screen.rows[16],"TRUNCATED TEXT: ","~ ; ERRORS: -ERRNO");
     row_pair(screen.rows[17],"SCOPE: ","CPU0 / INITRAMFS ONLY");
     row_pair(screen.rows[18],"HOST LIMIT: ","60S FROM POWER-ON");
     row_pair(screen.rows[19],"END: ","MANUAL BOOTIMG RESTORE");
     if(call5(20,0,0,0,0,0)!=1) { call5(1,2,0,0,0,0);for(;;) {} }
-    diagnostic=call5(5,(long)"/dev/y2diag",1,0,0,0);
+    diagnostic=call5(5,(long)"/dev/y2diag",2,0,0,0);
     if(diagnostic<0) goto stop; /* Kernel WAITING screen remains; no unsafe fallback. */
     present("PID1 ENTER");
     proc=call5(21,(long)"proc",(long)"/proc",(long)"proc",14,0);
@@ -154,6 +185,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
             present("READ CPU");file_row(3,"CPU PART: ","/proc/cpuinfo","CPU part");
             present("READ ONLINE");file_row(5,"CPUS ONLINE: ","/sys/devices/system/cpu/online",0);
             present("READ DT");dt_rows();
+            present("READ PWRAP / NO PMIC WRITES");power_rows();
         }
         present("READ MEMORY");file_row(7,"MEMTOTAL: ","/proc/meminfo","MemTotal");
         present("READ UPTIME");file_row(8,"UPTIME/IDLE S: ","/proc/uptime",0);

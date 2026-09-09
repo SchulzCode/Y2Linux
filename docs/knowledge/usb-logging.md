@@ -17,6 +17,24 @@ contract can be fixed now; the controller/PHY/clock contract cannot honestly be
 filled with guessed sibling compatibles. Stop implementation at that gate.
 No reliable smaller host-readable channel is currently established on this Y2.
 
+## M2 execution update — 2026-09-09
+
+The owner has activated M2 and prioritized this path. Focused FM/LK comparison
+now distinguishes controller `0x11200000` from PHY `0x11210800`; it also confirms
+FM's VUSB request and the AP PWRAP read transaction. Exact locators and the
+[selected PWRAP/VUSB prerequisite](m2-pwrap-probe.md) are retained separately.
+A bounded candidate will read inherited PMIC identity and VUSB enable status on
+the existing screen. It does not enable this logging implementation. #23 and
+#27 remain open; no physical USB enumeration or rail state has been observed.
+
+Remaining USB contract includes clock-provider integration, PHY recovery and
+analog trim differences, peripheral/VBUS behavior, FIFO/interrupt semantics and
+inherited DMA quiescence. In particular, FM `usb_phy_recover` includes devinfo
+conditionals and slew measurement; LK's selected trim branch is not mechanically
+interchangeable with the generic vendor source. This probe performs none of
+those analog/clock operations. A successful PWRAP read would resolve one supply
+observation prerequisite, not the complete hard gate.
+
 ## Evidence reviewed
 
 | Evidence | Finding / limit |
