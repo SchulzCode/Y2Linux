@@ -1,5 +1,11 @@
 # Initial Linux RAM policy
 
+> 2026-09-09 donor review: the new 6.12 board DT agrees with the main 992 MiB
+> stock bank, but its chosen connectivity reservation differs from our inferred
+> stock allocation. [Reconciliation and large-bank direction](donor-audit.md#ram-reconciliation)
+> now guide #22. D08 remains the current implementation until loader/DMA and
+> ARM lowmem/HIGHMEM validation establish its successor.
+
 > Current hardware result: [owner-observed M1 runtime success](m1-runtime-hardware-result.md) confirms Linux 6.18, native PID1, increasing BEAT/uptime, working sleep, proc/sysfs mounts, CPU0, D08 RAM visibility, framebuffer diagnostics and stopped-watchdog status. **M1 core achieved.** Exact flashed hash and unreported diagnostic fields remain unverified. Earlier dated statements below are historical.
 
 > D13 diagnostic scope clarification: ordinary DT RAM, reservations and every D08 artifact cap remain unchanged. The owner additionally authorized a strictly guarded write-only pixel aperture [0xbfb00000,0xbfb54600) inside the excluded high framebuffer. It is mapped as I/O, never offered to the allocator; no display scratch or other high RAM is reclaimed. See [D13](risk-accepted-diagnostic.md).

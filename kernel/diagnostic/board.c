@@ -204,3 +204,6 @@ fail:
 device_initcall(y2_diagnostic_init);
 
 #include "/project/kernel/usb/y2_musb.c"
+
+/* Standalone provider, built through the existing diagnostic source overlay. */
+#include "/project/kernel/gpio/gpio-mt6582-input.c"

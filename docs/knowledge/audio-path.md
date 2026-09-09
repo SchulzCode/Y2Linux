@@ -1,5 +1,26 @@
 # Audio and FM evidence
 
+## Donor integration input — 2026-09-09
+
+M3 remains gated on M2. [Complete reuse audit](donor-audit.md) and the immutable
+`donorSource/sound/soc/mediatek/mt6582/` now replace discovery from zero as the
+starting point. None of these donor claims is a new audio measurement on our Y2.
+
+| Contract | Donor implementation to preserve/review for v6.18 |
+| --- | --- |
+| AFE | `11220000`, SPI104 level-low; DL1 base/current/end offsets40/44/48, IRQ control/status/clear/count at3a0/3a4/3a8/3ac. Uses shared MediaTek memif/IRQ framework and 32-bit DMA mask. |
+| DAI | DL1 I05/I06→O00/O01; external second-I2S uses CON3 offset4c and FPGA_CFG1 bit4. 32-bit slots, 64 bit clocks per frame, rate table8–48kHz; this is a driver limit, not a proved hardware maximum. |
+| Clock/PM | infra_audio, audintbus and audio CCF handles. Review runtime-resume failure unwinding, regmap errors and IRQ/substream lifetime against the v6.18 common AFE implementation. |
+| CS43131 | Upstream cs43130 driver, I2C1:30, IRQ16, 22.5792MHz crystal; machine sets serial clock to rate×64. VGP2 plus GPIO20→18 and GPIO15 sequencing need electrical/supply validation. |
+| Amp | I2C1:58, enable8; AW87559 ID5a / alternative OCA72559 ID09. Tables and enable delays retained in donor aw87559.c. Add mute/drop-enable on write failure and safe shutdown. |
+| Routing | Headphones use HPOUTA/B; amplifier input takes both. Speaker DAPM event writes DAC PCM_PATH_CTL_2 mask7, mode5 versus stereo0. Independent switches do not enforce headphone/speaker exclusion; review jack integration, event return and pop-safe ordering. |
+| FM | ASRC/gain2/32kHz route is donor reference only. Owner confirms the older physical Y2 lacks usable FM reception hardware. Do not enable this path or make reception an exit requirement for this board. |
+
+The 6.12 machine driver uses card/DAI structures and shared static mutable state
+that must be adapted to 6.18, with proper DT reference/device lifetime and
+resource ownership. Real ALSA playback, rate/format/IRQ/DMA integrity and analog
+levels remain M3 tests before player features. Original historical evidence follows.
+
 Date: 2026-09-08. Related task: Y2E-101; archived evidence reviewed, no active audio investigation in this session.
 
 CONFIRMED in the integrity-verified `2026-07-29_004935` snapshot: `1-0030` binds `cs43131_dac`, `1-0058` binds `aw87559_pa`, `/proc/asound/cards` reports no soundcards. These observations identify a vendor-controlled system; `/dev/cs43131_dac` is not established as a PCM sink.

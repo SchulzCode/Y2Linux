@@ -91,7 +91,7 @@ static void relay_open(void)
 }
 static void relay_request(void)
 {
-    static const char header[]="Y2LOG1 M2-USBACM-04\n";
+    static const char header[]="Y2LOG1 M2-INPUT-01\n";
     relay.head=relay.tail=0;relay.lost=0;relay.active=1;
     relay_put(header,sizeof(header)-1);
     relay_put(relay.history,relay.history_used);

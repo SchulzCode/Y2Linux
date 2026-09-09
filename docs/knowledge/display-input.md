@@ -1,5 +1,12 @@
 # Display and input evidence
 
+> 2026-09-09: [donor audit](donor-audit.md) supplies concrete GPIO navigation,
+> APT32F protocol, keypad, DRM and GC9503V starting points. These supersede the
+> discovery-only next steps below. The first implementation uses donor GPIO
+> layout/mapping with upstream polled keys and evdev; older-board wiring and
+> events still need physical USB capture. Keep our proven framebuffer address;
+> donor comments/timings/address and backlight ownership need correction.
+
 > Current hardware result: [owner-observed M1 runtime success](m1-runtime-hardware-result.md) confirms Linux 6.18, native PID1, increasing BEAT/uptime, working sleep, proc/sysfs mounts, CPU0, D08 RAM visibility, framebuffer diagnostics and stopped-watchdog status. **M1 core achieved.** Exact flashed hash and unreported diagnostic fields remain unverified. Earlier dated statements below are historical.
 
 > Y2B-240 hardware result: the owner reports **solid green**, which the implemented state machine reaches through initramfs `/init` running as PID1. M1's Linux 6.18 plus PID1 boot objective is achieved. No heartbeat/checkerboard success is claimed. [Y2B-245 / D14](on-screen-diagnostics.md) is the offline follow-up for readable runtime diagnostics.

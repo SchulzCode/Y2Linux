@@ -24,6 +24,7 @@ static long call5(long number,long a,long b,long c,long d,long e)
 #endif
 }
 #include "relay.h"
+#include "evdev.h"
 static struct y2_text_frame screen;
 static long diagnostic=-1,previous_draw=-1;
 static unsigned beat,frames;
@@ -286,7 +287,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     for(row=0;row<Y2_ROWS;++row) row_clear(screen.rows[row]);
     screen.magic=Y2_TEXT_MAGIC;
     row_pair(screen.rows[12],"LAST ERR: ","NONE");
-    row_pair(screen.rows[15],"BUILD: ","M2-USBACM-04");
+    row_pair(screen.rows[15],"BUILD: ","M2-INPUT-01");
     row_pair(screen.rows[16],"TRUNCATED TEXT: ","~ ; ERRORS: -ERRNO");
     row_pair(screen.rows[17],"SCOPE: ","CPU0 / INITRAMFS ONLY");
     row_pair(screen.rows[18],"HOST LIMIT: ","60S FROM POWER-ON");
@@ -301,6 +302,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     sys=call5(21,(long)"sysfs",(long)"/sys",(long)"sysfs",15,0);
     row_code(screen.rows[11],"SYSFS MOUNT RC: ",sys);if(sys<0) error("MOUNT SYS",sys);
     present("SYSFS MOUNT DONE");
+    nav_open();
     /* Visible loop starts before optional collection; no UART writes here. */
     for(beat=0;beat<50;) {
         long slept;
@@ -319,6 +321,11 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
         present("READ MEMORY");file_row(7,"MEMTOTAL: ","/proc/meminfo","MemTotal");
         present("READ UPTIME");file_row(8,"UPTIME/IDLE S: ","/proc/uptime",0);
         present("READ TIMER IRQ");timer_row();
+        nav_service();
+        row_pair(screen.rows[15],"BUILD: ","M2-INPUT-01");
+        row_number(screen.rows[15],row_add(screen.rows[15],22,
+                   nav.result ? "INPUT RC:" : "KEYS:"),
+                   nav.result ? nav.result : (long)nav.events);
         if(usb_live_row()) relay_service();
         if(relay.result) {row_code(screen.rows[5],"LOG RC:",relay.result);error("LOG",relay.result);}
         log_row(0);log_row(3);log_row(12);
@@ -326,6 +333,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     }
     present("STOP: RESTORE ANDROID");
 stop:
+    nav_close();
     relay_close();
     if(diagnostic>=0) call5(6,diagnostic,0,0,0,0);
     for(;;) call5(29,0,0,0,0,0); /* pause; no reset/retry or busy loop */

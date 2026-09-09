@@ -105,9 +105,12 @@ def check(root, project):
     require(kernel.sym('y2_diagnostic_init') >= text, 'built-in guarded video diagnostic missing')
     require(kernel.sym('y2_text_write') >= text, 'D14 guarded text writer missing')
     require(kernel.sym('y2_power_snapshot') >= text, 'M2 cached PWRAP snapshot missing')
-    require(b'M2-USBACM-04\0' in init, 'M2 prerequisite build identifier missing')
-    require(b'Y2 LINUX / M2-USBACM-04\0' in image, 'Diagnostic heading/build mismatch')
+    require(b'M2-INPUT-01\0' in init, 'M2 prerequisite build identifier missing')
+    require(b'Y2 LINUX / M2-INPUT-01\0' in image, 'Diagnostic heading/build mismatch')
     require(b'/dev/y2diag\0' in init, 'PID1 diagnostic endpoint missing')
+    require(b'/dev/y2input\0' in init, 'PID1 evdev endpoint missing')
+    for symbol in ('mt6582_input_probe', 'gpio_keys_polled_probe', 'evdev_read', 'evdev_ioctl'):
+        require(kernel.sym(symbol) >= text, 'GPIO/evdev implementation missing: ' + symbol)
     require(struct.unpack_from('<III', z, 0x24) == (0x016f2818, start, comp.sym('_edata')), 'zImage header')
     require(off('_edata_real') == off('_edata') == len(z), 'zImage real end')
     bss = kernel.sym('__bss_stop') - kernel.sym('__bss_start')
@@ -138,7 +141,8 @@ def check(root, project):
         'policy':'D12/D13/D14 guarded text; new candidate offline only'}
     source_paths = ['kernel/diagnostic/board.c', 'kernel/diagnostic/policy.h', 'kernel/diagnostic/text.h',
         'kernel/diagnostic/pwrap.h', 'kernel/diagnostic/usb_clock.h', 'kernel/diagnostic/usb_state.h', 'kernel/diagnostic/usb_wake.h', 'initramfs/status.h',
-        'initramfs/init.c', 'initramfs/start.S', 'initramfs/relay.h',
+        'initramfs/init.c', 'initramfs/start.S', 'initramfs/relay.h', 'initramfs/evdev.h',
+        'kernel/gpio/gpio-mt6582-input.c',
         'kernel/usb/y2_musb.c', 'kernel/usb/session.h', 'kernel/usb/gate.h', 'kernel/usb/live.h',
         'kernel/config/first-boot.config',
         'kernel/dts/innioasis-y2-first-boot.dts', 'kernel/patches/manifest.json']

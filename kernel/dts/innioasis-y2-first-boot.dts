@@ -6,6 +6,8 @@
 /dts-v1/;
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include "initrd-size.h"
 
 /memreserve/ 0x80000000 0x00004000;
@@ -16,6 +18,28 @@
     #address-cells = <1>;
     #size-cells = <1>;
     interrupt-parent = <&sysirq>;
+
+    /* Donor Y2 DT: Chris Hendrickson, 53fb57bb99c916c24b65db5b7f9723be37f67826.
+     * Read-only inherited GPIO subset; no EINT or mux/rail changes. */
+    pio: gpio@10005000 {
+        compatible = "innioasis,y2-gpio-input";
+        reg = <0x10005000 0x1000>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        /* Only 6,7,9,10,54 are exposed in this candidate. */
+        gpio-reserved-ranges = <0 6>, <8 1>, <11 43>, <55 114>;
+    };
+
+    navigation-keys {
+        compatible = "gpio-keys-polled";
+        label = "Y2 navigation buttons";
+        poll-interval = <20>;
+        key-prev { gpios = <&pio 6 GPIO_ACTIVE_LOW>; linux,code = <KEY_LEFT>; };
+        key-menu { gpios = <&pio 7 GPIO_ACTIVE_LOW>; linux,code = <KEY_BACK>; };
+        key-next { gpios = <&pio 9 GPIO_ACTIVE_LOW>; linux,code = <KEY_RIGHT>; };
+        key-play { gpios = <&pio 10 GPIO_ACTIVE_LOW>; linux,code = <KEY_PLAYPAUSE>; };
+        key-select { gpios = <&pio 54 GPIO_ACTIVE_LOW>; linux,code = <KEY_ENTER>; };
+    };
 
     aliases { serial0 = &uart0; };
     chosen {

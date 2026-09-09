@@ -1,5 +1,13 @@
 # Platform foundation work and execution order
 
+> **Donor adoption, 2026-09-09:** the owner's new implementation instruction
+> supersedes the rigid order below. [Complete donor audit](../knowledge/donor-audit.md)
+> selects GPIO navigation/evdev on D08 first while USB robustness remains open;
+> corrected CCF/PWRAP/EINT/I2C and meaningful RAM reconciliation then unlock
+> wheel/power, display and storage/rootfs by actual dependency. Reuse the existing
+> #22–#32 owners. M1 complete; M2 active/exit blocked; M3/app deferred. Build
+> reviewable Linux 6.18 candidates and stop for the owner's manual BOOTIMG flash.
+
 > **2026-09-09 activation:** the owner authorized incremental M2 implementation
 > with a stop before device changes and at each testable BOOTIMG. The
 > [activation audit](roadmap-gap-audit.md#m2-activation-audit--2026-09-09) now

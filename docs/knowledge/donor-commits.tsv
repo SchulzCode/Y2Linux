@@ -1,0 +1,36 @@
+4413412ed5eb8ee07e4931884dea8ef10b666eab	Chris Hendrickson	2026-09-09T16:20:00-04:00	arm mediatek add mt6582 machine
+8ebd46e602ffc4766d82ae623ad47fbb73c41b36	Chris Hendrickson	2026-09-09T16:20:00-04:00	tty vt mt6582 near black palette
+b8f65e370f2d1bbc1fbf354106b73025746035b1	Chris Hendrickson	2026-09-09T16:20:00-04:00	mmc mtk sd optional pinctrl
+0b3998f498832d84b276c4fbf7fd23910ee4a873	Chris Hendrickson	2026-09-09T16:20:00-04:00	phy mediatek mt6582 u2phy
+2813da2804d0df45a5bcebaf124e6083adcd5a2a	Chris Hendrickson	2026-09-09T16:20:00-04:00	soc mediatek mt6582 pwrap
+0f00fb94813d5be61ec4702ce81fbd4e0da23976	Chris Hendrickson	2026-09-09T16:20:00-04:00	power supply mt6323 charger
+f0d149a2a325c0790eb816be71314ebdcaa8ee99	Chris Hendrickson	2026-09-09T16:20:01-04:00	gpio mt6582 gpio eint
+657bdb72d6b3091990b867f606bb4e8aa49f7649	Chris Hendrickson	2026-09-09T16:20:01-04:00	input apt32f wheel scroll
+5f0446c8d2a3de9b9237621a5939ea745e9ff86d	Chris Hendrickson	2026-09-09T16:20:01-04:00	input mtk pmic keys single key
+6582018bd8d18ca340ea6934f6a97ede0aea9ba8	Chris Hendrickson	2026-09-09T16:20:01-04:00	input mt6582 keypad volume
+b9f83864bea07aafdc6894784202beb1c4f2eb17	Chris Hendrickson	2026-09-09T16:20:01-04:00	backlight mt6323 ganged isink
+52a7c8b618eb7c557fc6bf8713814ed726773a16	Chris Hendrickson	2026-09-09T16:20:01-04:00	soc mediatek mt6582 mfg power
+c3f649be027a732f1105297a4197b27ba941eb2c	Chris Hendrickson	2026-09-09T16:20:01-04:00	clk mediatek mt6582
+7d84ea7ee1f07c66dda07f6707cf795eff3b0767	Chris Hendrickson	2026-09-09T16:20:01-04:00	drm panel gc9503v
+54144d08797109349085ca492aa03cf9be59be4f	Chris Hendrickson	2026-09-09T16:20:01-04:00	drm mediatek mt6582 ddp
+1cbe5ffdcd7600c4af50dc918c80f50296d2855a	Chris Hendrickson	2026-09-09T16:20:01-04:00	arm mediatek mt6582 smp
+2231430688688373edf5e46e844a4b1b2f7a334f	Chris Hendrickson	2026-09-09T16:20:01-04:00	asoc mediatek mt6582 afe cs43131 aw87559
+3755b1c1b77997d31e7abb48eed37932405f0ed4	Chris Hendrickson	2026-09-09T16:20:01-04:00	misc mediatek consys mt6582 bluetooth
+3d8bcf7fb6cbd9aa2014142d7c048533be221d1f	Chris Hendrickson	2026-09-09T16:20:01-04:00	regmap debugfs writes bringup
+000718f7859c0633da33af77f9207a357632bcd5	Chris Hendrickson	2026-09-09T16:20:01-04:00	misc mediatek consys early pmic clock
+dc5e6134fb42bc476f482857eca6612b97a4b7c4	Chris Hendrickson	2026-09-09T16:20:01-04:00	soc mediatek mt6582 spm
+2d37329bb1417846ec64b79008e83f6bdfc9cb94	Chris Hendrickson	2026-09-09T16:20:01-04:00	misc mediatek consys wifi paldo
+7c2bf3ee026a60cded2507d8abd2b0bb56f37d21	Chris Hendrickson	2026-09-09T16:20:02-04:00	misc mediatek consys wifi normal hif scan
+82a4b84be9ce2779cd670d4dff0abbb0435e3d45	Chris Hendrickson	2026-09-09T16:20:02-04:00	misc mediatek consys mt6582 fullmac wifi
+678e72bb12a8aaf1999496aeb4b7211a0f1f7dc4	Chris Hendrickson	2026-09-09T16:20:02-04:00	misc mediatek consys fix runtime quick psm
+5a0058fbc128e24612697281ff671c93962ff890	Chris Hendrickson	2026-09-09T16:20:02-04:00	misc mediatek consys mt6627 fm
+fcb64f29b3915fa479175a1a6e01def83fad73af	Chris Hendrickson	2026-09-09T16:20:02-04:00	asoc mediatek mt6582 fm audio route
+38532b81ebe372a418e1d79db53492673dc864b3	Chris Hendrickson	2026-09-09T16:20:02-04:00	misc mediatek consys retain tested radio init
+aa77818b964f08b39d16cd4b56e33f22af200da2	Chris Hendrickson	2026-09-09T16:20:02-04:00	bluetooth consys basic rate default
+cdd4166216c46839b0fbf8055e46099f6c09b1cd	Chris Hendrickson	2026-09-09T16:20:02-04:00	power mt6323 recovery charge policy
+2fab1edcf4dac55adf94335fa89db97253e18e47	Chris Hendrickson	2026-09-09T16:20:02-04:00	drm mediatek initialize dsi before host registration
+58d8d142f500184b67ee0bfc0e05f08847f6a9aa	Chris Hendrickson	2026-09-09T16:20:02-04:00	drm mediatek clock dsi register access
+97418dad08aa3ac3c58613d3591507164116f49a	Chris Hendrickson	2026-09-09T16:20:02-04:00	drm mediatek usb bringup tracing
+3e51fee48a6fad7ffac00fe527389a58b40049e9	Chris Hendrickson	2026-09-09T16:20:02-04:00	drm mediatek diagnostic phy before probe
+7c18e305eac94454a604635f03d023752fb56a45	Chris Hendrickson	2026-09-09T16:20:02-04:00	drm mediatek set early phy rate
+53fb57bb99c916c24b65db5b7f9723be37f67826	Chris Hendrickson	2026-09-09T16:20:02-04:00	ARM: dts: mediatek: add Innioasis Y2 device tree

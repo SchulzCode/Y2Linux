@@ -25,7 +25,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
     (void)d;(void)e;
     if(number==20) return 1;
     if(number==122) {
-        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-usbacm4";
+        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-input1";
         if(TEST_CASE==7) return -14;
         for(unsigned i=0;i<390;++i) uts[i]=0;
         for(unsigned i=0;i<sizeof(release);++i) uts[130+i]=release[i];
@@ -37,6 +37,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
                (TEST_CASE==8 && eq((char*)b,"/sys")) ? -1 : 0;
     }
     if(number==5) {
+        if(prefix((char*)a,"/sys/class/input/event")) return -2;
         if(eq((char*)a,"/dev/y2diag")) { CHECK(b==2);return TEST_CASE==6 ? -6 : 3; }
         if(eq((char*)a,"/sys/class/tty/ttyGS0/dev")) {CHECK(TEST_CASE==27 || TEST_CASE==28);return -2;}
         CHECK(b==2048 && !opened);
@@ -180,7 +181,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         CHECK(power_reads==1);
         CHECK(prefix(last->rows[1],"STAGE: STOP: RESTORE ANDROID"));
         CHECK(closed>0);
-        CHECK(prefix(last->rows[15],"BUILD: M2-USBACM-04"));
+        CHECK(prefix(last->rows[15],"BUILD: M2-INPUT-01"));
         if(TEST_CASE>=30 && TEST_CASE<=32) {
             CHECK(prefix(last->rows[3],TEST_CASE==32 ? "US:2 RC:-110 IRQ:0 D:--" : "US:2 RC:-16 IRQ:0 D:--"));
             CHECK(prefix(last->rows[4]+24,"CHR:---- D:?"));
@@ -207,7 +208,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
             CHECK(prefix(last->rows[4]+24,"CHR:---- D:?"));
         }
         if(TEST_CASE==0) {
-            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-usbacm4"));
+            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-input1"));
             CHECK(prefix(last->rows[3],"USB RC:0"));
             CHECK(prefix(last->rows[3]+12,"VALID:001FFFFF"));
             CHECK(prefix(last->rows[4],"PW:0"));

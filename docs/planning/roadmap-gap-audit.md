@@ -8,6 +8,58 @@ blueprint/planning material; no native platform readiness is inferred from that.
 
 ## M2 activation audit — 2026-09-09
 
+### Donor adoption and GPIO input scope — baseline 8ebc800
+
+2026-09-09. The owner authorizes donor-assisted Linux **6.18** implementation,
+build/test/Git/GitHub and live host logs, with manual owner BOOTIMG flashes.
+Reviewed the complete 364-file/36-commit donor inventory, local blueprint M2/M3
+and later gates, current GitHub issues #1–32, canonical config/DT/source and
+retained stock/RAM/Linux evidence. [Subsystem audit and dependencies](../knowledge/donor-audit.md).
+No new physical result: USBACM-03 remains the 11,754-byte kernel/PID1 success;
+USBACM-04 robustness remains pending. Host USB is accessible outside the sandbox;
+no Y2 was attached at this inspection. Identity/recovery/provenance is unchanged.
+
+Every coverage row below was reconsidered. Hardware status stays unchanged
+except that other navigation buttons now have a concrete **PLANNED** evdev
+slice; source availability does not promote hardware readiness. The former
+"common providers not established" blocker now has substantial donor contracts
+to correct/forward-port. SMP, CCF, EINT, PMIC, input, display, storage, audio,
+radio and haptic source availability is detailed in the separate reuse matrix.
+Thermal/DVFS/idle, full memory/DMA ownership and production/recovery gaps remain.
+FM reception is inapplicable to the owner's older board; retain donor knowledge
+only for other revisions. M1 complete, M2 active/exit blocked, M3/app deferred.
+All M2 rootfs/display/input/storage/observation/battery criteria still apply.
+
+Supersede the rigid #27→#22→#23→#24→#25→#26 order. Keep USB robustness open and
+preserve both USB candidates; use GPIO navigation→upstream gpio-keys-polled→
+evdev→USB as the first coherent slice under #24/#28. D08 stays unchanged.
+The five inherited input lines can be sampled without EINT, I2C DMA, supply,
+clock or pinmux writes. Refuse output-configured lines. Poll at 20 ms through
+the input core; bounded userspace evdev capture must preserve USB/heartbeat.
+This is real input integration, not a hardware-success claim. General pinctrl,
+EINT, wheel rotation, keypad and PMIC power key remain subsequent dependencies.
+
+Next combine corrected CCF/PWRAP/GPIO/EINT/I2C foundations by consumer dependency;
+reconcile a useful large RAM expansion under #22 instead of arbitrary tiny
+increments. DRM/panel/backlight and removable storage/rootfs follow their actual
+rail/clock/DMA requirements. Retain donor AFE/codec knowledge for M3, with radio
+work deferred. Planning-only wording in old issue bodies is superseded only by
+the owner's explicit implementation scope; it never authorizes device flashes.
+
+New input subsystem qualification: one clean build, full existing offline suite,
+GPIO range/refusal and ARM evdev/relay cases, linked access review, resolved
+config/DT and D08/BOOTIMG checks. No memory architecture change or repeated ROM,
+source or recovery provenance. Stop at the validated candidate for the owner's
+physical test. Source/license attribution remains with each reused piece;
+donorSource stays immutable and outside versioned implementation.
+
+[M2-INPUT-01](../build/m2-input-01-result.md) is now offline validated: one
+clean kernel build, corrected PID1/package after a caught parser defect,
+29 build-suite and 12 observation tests, emitted GPIO loads/refusal review and
+current D08/BOOTIMG checks. Candidate 1,204,224 bytes, SHA-256
+`05c6f33d7fadb75c9bc5d8cc4a23aed1a5dcc79cf6b4fe735ce9006906290d37`.
+Stop at this owner-flash boundary; no input/USB hardware classification advances.
+
 ### Current scope review — one bounded USB reconnect, baseline 7ee780a
 
 2026-09-09. The owner explicitly authorizes completing #27 robustness before
@@ -420,7 +472,7 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 | Display/controller/panel | **PARTIAL** | Inherited 480×360 RGB565 works; panel candidate and LK evidence exist. No native DRM/panel initialization, standard-interface takeover or display-PM proof. | #25; #28. |
 | Backlight | **PLANNED** | Existing illumination persists; independent brightness/control/limits and rail/PWM ownership unverified. Narrow ownership research is queued. | #25/#23; #28/#30. |
 | Wheel/select input | **PLANNED** | Stock input nodes/key behavior exist; GPIO/MCU/transport and evdev mapping require the scoped proof. No native input driver. | #24; #28. |
-| Other buttons/power-key/touch/wake | **UNKNOWN** | Stock touch-named nodes do not prove physical touchscreen capability. Full key coverage, long-press and wake routes not established. | #28 and #30; no fabricated touchscreen requirement. |
+| Other buttons/power-key/touch/wake | **PLANNED** | Donor GPIO6/7/9/10/54 navigation mapping feeds the first polled-evdev slice. Mapping on our board remains untested; keypad/power-key/wake remain unqualified. Stock touch names do not prove a touchscreen. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
 | Removable SD | **PLANNED** | Metadata distinguishes card from internal eMMC; #26 scopes controller/read-only proof. Native driver/clock/pins/DMA contract missing. | #26; #28. |
 | Internal eMMC | **BLOCKED** | Capacity/ordinary partition offsets reconciled; no native controller support contract, safe write/flush path or filesystem integrity qualification. | #28; recovery/rootfs policy #32. |
 | Development rootfs and filesystem/data layout | **PLANNED** | Current image is diagnostic initramfs only. Block access, filesystem, writable-data boundaries and recoverable rootfs deployment were absent beyond broad blueprint intent. | Added #28/#32; no distribution/layout chosen. |
@@ -433,7 +485,7 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 | Wi-Fi | **PARTIAL** | Stock firmware/module names present, not loaded-blob or native-driver evidence. Transport/revision/calibration/regulatory/power contract missing. | Added #31. |
 | Bluetooth | **PARTIAL** | WMT/STP and ttyMT2 clues; no standard HCI transport/firmware initialization or native BlueZ/A2DP proof. | #31; audio #29 and power #30. |
 | Firmware and per-device calibration | **PARTIAL** | Names and some hashed artifacts exist; exact selected radio blobs/order/compatibility, loading permissions, redistribution provenance and unique-data retention unresolved. | #31 and #32; private raw data stays private. |
-| FM where physically supported | **UNKNOWN** | Stock chip-ID/tune leads do not establish useful RF reception, antenna population or this board revision's native route. | Explicit conditional branch #31 feeding blueprint M16, not a universal promise. |
+| FM where physically supported | **PARTIAL** | Donor STP/FM/AFE source exists; owner confirms this older Y2 lacks usable reception hardware. No reception implementation/qualification target for this board; other revisions remain untested. | Conditional #31/M16 reference only; [donor audit](../knowledge/donor-audit.md). |
 | Recovery and safe acquisition | **PARTIAL** | Owner-proven SPFT/FM history plus documented BOOTIMG-only Android restoration. Exact current image/per-device backups, consistency and independent retention remain incomplete. [Recovery](../knowledge/recovery.md), [actual trial](../knowledge/first-experiment-result.md). | Open M0; #32 owns continuing production/recovery coverage. |
 | Updates / rollback / production security | **PLANNED** | Blueprint names signatures/rollback; no reviewed storage/key/threat/interrupt-safe updater design. Unchanged LK does not automatically verify custom payloads. | Added #32; M18–20 platform handoff, not implementation now. |
 | Production rootfs / services / non-root app contract | **PLANNED** | No rootfs/udev/service stack yet. ARMv7 ABI, filesystem permissions, startup/restart policy, footprint and privileged-service boundary need design. | #32 (M6); app implementation belongs to native repo M7+. |

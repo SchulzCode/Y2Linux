@@ -15,7 +15,7 @@ def check(data, r):
     require(tuple(reserved) == RESERVED, 'D08 FDT permanent reservation mismatch')
     handles = {}
     for path in ['/interrupt-controller@10200100', '/interrupt-controller@10211000',
-                 '/clock-system', '/clock-rtc', '/clock-uart']:
+                 '/clock-system', '/clock-rtc', '/clock-uart', '/gpio@10005000']:
         raw = nodes.get(path, {}).get('phandle', b'')
         require(len(raw) == 4, 'missing hardware phandle')
         handles[path] = struct.unpack('>I', raw)[0]
@@ -55,6 +55,20 @@ def check(data, r):
     }
     for path, rate in [('/clock-system',13000000),('/clock-rtc',32000),('/clock-uart',26000000)]:
         expected[path] = {'compatible': strings('fixed-clock'), '#clock-cells': cells(0), 'clock-frequency': cells(rate)}
+    expected['/gpio@10005000'] = {
+        'compatible': strings('innioasis,y2-gpio-input'),
+        'reg': cells(0x10005000, 0x1000), 'gpio-controller': b'',
+        '#gpio-cells': cells(2), 'gpio-reserved-ranges': cells(0,6,8,1,11,43,55,114),
+    }
+    expected['/navigation-keys'] = {
+        'compatible': strings('gpio-keys-polled'),
+        'label': strings('Y2 navigation buttons'), 'poll-interval': cells(20),
+    }
+    for name, pin, code in [('prev',6,105),('menu',7,158),('next',9,106),
+                            ('play',10,164),('select',54,28)]:
+        expected['/navigation-keys/key-'+name] = {
+            'gpios': cells(ph('/gpio@10005000'),pin,1), 'linux,code': cells(code),
+        }
     for path, handle in handles.items(): expected[path]['phandle'] = cells(handle)
     require(set(nodes) == set(expected), 'unexpected/missing hardware or memory node')
     for path, props in expected.items():

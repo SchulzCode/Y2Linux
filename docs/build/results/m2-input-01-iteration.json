@@ -1,0 +1,75 @@
+{
+  "baseline": "8ebc800",
+  "build": "M2-INPUT-01",
+  "linux": "6.18.0-y2-m2-input1",
+  "hardware_tested": false,
+  "kernel_build": "one clean kernel build; unchanged kernel retained after correcting and rebuilding PID1/DT/package",
+  "tests": {
+    "build_suite": 29,
+    "observation": 12,
+    "arm_evdev_scenarios": 16,
+    "gpio_pins_checked": 169,
+    "arm_pid1_scenarios": 34
+  },
+  "memory_policy": "D08 unchanged",
+  "donor_head": "53fb57bb99c916c24b65db5b7f9723be37f67826",
+  "source_files": 75,
+  "artifacts": {
+    "BOOTIMG.img": {
+      "bytes": 1204224,
+      "sha256": "05c6f33d7fadb75c9bc5d8cc4a23aed1a5dcc79cf6b4fe735ce9006906290d37"
+    },
+    "Image": {
+      "bytes": 2752416,
+      "sha256": "3debaefd25c38c463fd420e287a28414f75cdd3699b1313b1590510c82e52e5c"
+    },
+    "zImage": {
+      "bytes": 1180912,
+      "sha256": "a56c4f8da31080f569d147f45d5e184f2fef932fa1d115603929670e07c2adef"
+    },
+    "y2.dtb": {
+      "bytes": 2675,
+      "sha256": "01b7c4b1abb2f1cc3391875209bc8f92f257141b133b26db5e0d0e1c55630270"
+    },
+    "zImage-dtb": {
+      "bytes": 1183592,
+      "sha256": "372ba860706a0c19cda489fe3f7e0cc9e06d8447f59071f105f6fac047b53566"
+    },
+    "init": {
+      "bytes": 69340,
+      "sha256": "cde66181894513627fae5e6cc428876df62ee0322b11e55015afa46ee8bd4661"
+    },
+    "initramfs.cpio.gz": {
+      "bytes": 10760,
+      "sha256": "7339049e2fa74bc62041d7183017c80eaa699e6ea02c6d31a84bdf904c3c9ec8"
+    },
+    "kernel.config": {
+      "bytes": 41077,
+      "sha256": "52bed42a1b37521e27b18447641e5aef0078f701a100bc314d106b461614db97"
+    },
+    "gpio-linked.txt": {
+      "bytes": 4417,
+      "sha256": "53326518e372b24a2dff447329289cab98d354dd6717bb05b4650c8686d032b3"
+    },
+    "init-linked.txt": {
+      "bytes": 178667,
+      "sha256": "c56ee18b62c9b411bdc3e138871d176dbf69440d9fcf492a30421af7f2efc37a"
+    },
+    "tests.log": {
+      "bytes": 2900,
+      "sha256": "dde88f4032fb77c05faa4196e108d7edabd1df94843499cd071b92ef9c3ea06a"
+    },
+    "observation-tests.log": {
+      "bytes": 3045,
+      "sha256": "19c360b14a17c069686cd52746fbdc0e582cba6d7a23cbe7070f1cbe2239357b"
+    },
+    "config-diff.json": {
+      "bytes": 486,
+      "sha256": "12b8253730df55fab19094103ec78cf35eb62697e56e7a2d871fd37d1a9894b8"
+    },
+    "source-manifest.json": {
+      "bytes": 7479,
+      "sha256": "b2e84ebcffaf3cc257b0418593a5b914b3c743d764812901222a0dae40ad9cad"
+    }
+  }
+}

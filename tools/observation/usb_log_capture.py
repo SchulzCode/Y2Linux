@@ -126,7 +126,7 @@ def main():
     parser.add_argument('--wait-seconds',type=float,default=90)
     parser.add_argument('--seconds',type=float,default=45)
     parser.add_argument('--max-bytes',type=int,default=1048576)
-    parser.add_argument('--build',choices=('M2-USBACM-03','M2-USBACM-04'),default='M2-USBACM-04')
+    parser.add_argument('--build',choices=('M2-USBACM-03','M2-USBACM-04','M2-INPUT-01'),default='M2-USBACM-04')
     args=parser.parse_args()
     if not (0<args.wait_seconds<=120 and 0<args.seconds<=60 and 0<args.max_bytes<=4194304):
         parser.error('Wait <=120s, capture <=60s, bytes <=4MiB; all positive')
