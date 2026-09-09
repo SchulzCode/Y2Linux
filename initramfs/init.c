@@ -144,6 +144,12 @@ static void power_rows(void)
     col=row_add(screen.rows[4],8,"/");row_number(screen.rows[4],col,s->valid);
     col=row_add(screen.rows[4],14,"CLK:");col=row_number(screen.rows[4],col,c->result);
     col=row_add(screen.rows[4],col,"/");row_number(screen.rows[4],col,c->valid);
+    col=row_add(screen.rows[4],24,"CHR:");
+    if(s->valid & 4) {
+        col=row_hex_width(screen.rows[4],col,s->chrdet,4);
+        col=row_add(screen.rows[4],col," D:");
+        row_number(screen.rows[4],col,(s->chrdet >> 5) & 1);
+    } else row_add(screen.rows[4],col,"---- D:?");
     row_code(screen.rows[3],"USB RC:",snapshot.usb.result);
     col=row_add(screen.rows[3],12,"VALID:");row_hex(screen.rows[3],col,snapshot.usb.valid);
     for(unsigned row=16;row<20;++row) row_clear(screen.rows[row]);
@@ -214,7 +220,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     for(row=0;row<Y2_ROWS;++row) row_clear(screen.rows[row]);
     screen.magic=Y2_TEXT_MAGIC;
     row_pair(screen.rows[12],"LAST ERR: ","NONE");
-    row_pair(screen.rows[15],"BUILD: ","M2-PHYWAKE-01");
+    row_pair(screen.rows[15],"BUILD: ","M2-CHRDET-01");
     row_pair(screen.rows[16],"TRUNCATED TEXT: ","~ ; ERRORS: -ERRNO");
     row_pair(screen.rows[17],"SCOPE: ","CPU0 / INITRAMFS ONLY");
     row_pair(screen.rows[18],"HOST LIMIT: ","60S FROM POWER-ON");

@@ -39,23 +39,24 @@ static unsigned rd(void *ctx, unsigned reg) {
     }
     if (f->phase==1) {
         ++f->polls;
-        if(f->fault==13 || (f->fault==17 && f->commands==2)) return 0x00340000;
-        if(f->fault==14) return 0x00160000; /* lost init */
-        if(f->fault==15) return 0x00370000; /* invalid FSM */
+        if(f->fault==13 || (f->fault==17 && f->commands==2) || (f->fault==21 && f->commands==3)) return 0x00340000;
+        if(f->fault==14 || (f->fault==22 && f->commands==3)) return 0x00160000; /* lost init */
+        if(f->fault==15 || (f->fault==23 && f->commands==3)) return 0x00370000; /* invalid FSM */
         if(f->polls<3) return 0x00340000; /* real completion requires polling */
         return 0x00360000 | (f->commands==1 ?
-               (f->fault==16 ? 0x6397 : 0x2023) : 0xc001);
+               (f->fault==16 ? 0x6397 : 0x2023) :
+               f->commands==2 ? 0xc001 : f->fault==20 ? 0xa500 : 0xa520);
     }
-    if (f->phase==2 && f->fault==18) return 0x00360000;
-    if (f->phase==2 && f->fault==19) return 0x00100000;
+    if (f->phase==2 && (f->fault==18 || (f->fault==24 && f->commands==3))) return 0x00360000;
+    if (f->phase==2 && (f->fault==19 || (f->fault==25 && f->commands==3))) return 0x00100000;
     return 0x00300000;
 }
 static void wr(void *ctx, unsigned reg, unsigned value) {
     struct fixture *f=ctx;
     if(reg==0x9c) {
         assert(!(value & 0x80000000U)); /* never a PMIC write */
-        assert(f->commands==f->acks && f->commands<2);
-        assert(value==(f->commands ? 0x02810000 : 0x00800000));
+        assert(f->commands==f->acks && f->commands<3);
+        assert(value==(f->commands==0 ? 0x00800000 : f->commands==1 ? 0x02810000 : 0x00000000));
         ++f->commands; f->phase=1; f->polls=0;
     } else {
         assert(reg==0xa4 && value==1 && f->phase==1 && f->polls>=3);
@@ -64,13 +65,13 @@ static void wr(void *ctx, unsigned reg, unsigned value) {
 }
 static void delay(void *ctx) { ++((struct fixture *)ctx)->delays; }
 int main(void) {
-    for(unsigned fault=0;fault<20;++fault) {
+    for(unsigned fault=0;fault<26;++fault) {
         struct fixture f={.fault=fault};
         struct y2_pwrap_io io={&f,rd,wr,delay};
         struct y2_pwrap_snapshot s;
         y2_pwrap_probe(&io,&s);
         assert(s.magic==Y2_PWRAP_MAGIC);
-        assert(f.delays<=Y2_PWRAP_POLLS+4);
+        assert(f.delays<=Y2_PWRAP_POLLS+6);
         if(fault>=1 && fault<=12) {
             assert(s.result<0 && !s.valid && !f.commands && !f.acks);
         } else if(fault==13 || fault==14 || fault==15) {
@@ -82,9 +83,17 @@ int main(void) {
             assert(s.result==-110 && s.valid==1 && f.commands==2 && f.acks==1);
         } else if(fault==18 || fault==19) {
             assert(s.result<0 && !s.valid && f.commands==1 && f.acks==1);
+        } else if(fault>=21 && fault<=23) {
+            assert(s.result==(fault==21 ? -110 : -5) && s.valid==3);
+            assert(f.commands==3 && f.acks==2 && !s.chrdet);
+        } else if(fault==24 || fault==25) {
+            assert(s.result==(fault==24 ? -110 : -5) && s.valid==3);
+            assert(f.commands==3 && f.acks==3); /* raw response is not yet valid */
         } else {
-            assert(!s.result && s.valid==3 && s.cid==0x2023 && s.vusb==0xc001);
-            assert(f.commands==2 && f.acks==2 && s.after==0x00300000);
+            assert(!s.result && s.valid==7 && s.cid==0x2023 && s.vusb==0xc001);
+            assert(f.commands==3 && f.acks==3 && s.after==0x00300000);
+            assert(s.chrdet==(fault==20 ? 0xa500U : 0xa520U));
+            assert(((s.chrdet >> 5) & 1)==(fault!=20));
         }
         if(fault==13 || fault==17 || fault==18) assert(s.result==-110);
         unsigned value=0,state=0,reads=f.reads;

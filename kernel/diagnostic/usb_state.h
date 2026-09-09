@@ -37,7 +37,7 @@ static const struct y2_usb_register y2_usb_registers[Y2_USB_STATE_COUNT] = {
 static inline int y2_usb_state_ready(const struct y2_platform_snapshot *s)
 {
     return s->power.magic == Y2_PWRAP_MAGIC && !s->power.result &&
-        s->power.valid == 3 && (s->power.cid & 0xffU) == 0x23 &&
+        s->power.valid == 7 && (s->power.cid & 0xffU) == 0x23 &&
         (s->power.vusb & (1U << 15)) && !s->clock.result && s->clock.valid == 15 &&
         !(s->clock.peri & (1U << 10)) &&
         (s->clock.mux & 0x00870000U) == 0x00010000U &&

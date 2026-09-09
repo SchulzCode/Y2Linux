@@ -56,7 +56,7 @@ int main(void) {
         f.phy[0]=0x11;f.phy[5]=0x22;f.phy[0x15]=0x40;
         f.phy[0x1a]=0x10;f.phy[0x63]=2;f.phy[0x6a]=4;f.phy[0x6b]=2;f.phy[0x6c]=0x12;
         struct y2_platform_snapshot s={
-            .power={.magic=Y2_PWRAP_MAGIC,.valid=3,.cid=0x2023,.vusb=0xc000},
+            .power={.magic=Y2_PWRAP_MAGIC,.valid=7,.cid=0x2023,.vusb=0xc000},
             .clock={.valid=15,.mux=0x01010100,.pll=0xfd000001,.pll_power=0x80000001},
             .usb={.valid=0x1fffff,.values={0x20,0x80,0x6503,0x1ff,0x1fe,6,0,0,4,2,0x12,0,0}},
             .wake={.written=99,.before_valid=99,.after_valid=99}

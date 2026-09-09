@@ -14,7 +14,7 @@ struct y2_pwrap_snapshot {
     unsigned magic;
     int result;
     unsigned valid, mux, wrap, arb, channel, init;
-    unsigned before, after, cid, vusb;
+    unsigned before, after, cid, vusb, chrdet;
 };
 struct y2_pwrap_io {
     void *context;
@@ -49,7 +49,7 @@ static inline int y2_pwrap_read_pmic(const struct y2_pwrap_io *io,
 {
     int rc;
     /* No caller can use this helper for an arbitrary register or PMIC write. */
-    if (address != 0x100 && address != 0x502) return -22;
+    if (address != 0x100 && address != 0x502 && address != 0x0000) return -22;
     *state = io->read(io->context, 0xa0);
     if (!y2_pwrap_idle(*state)) return -16;
     io->write(io->context, 0x9c, (address >> 1) << 16);
@@ -78,6 +78,9 @@ static inline void y2_pwrap_probe(const struct y2_pwrap_io *io,
     s->valid = 1;
     if ((s->cid & 0xffU) != 0x23) { s->result = -19; return; }
     s->result = y2_pwrap_read_pmic(io, 0x502, &s->vusb, &s->after);
-    if (!s->result) s->valid |= 2;
+    if (s->result) return;
+    s->valid |= 2;
+    s->result = y2_pwrap_read_pmic(io, 0x0000, &s->chrdet, &s->after);
+    if (!s->result) s->valid |= 4;
 }
 #endif

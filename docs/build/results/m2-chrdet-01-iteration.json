@@ -1,0 +1,33 @@
+{
+  "candidate": "M2-CHRDET-01",
+  "hardware_status": "NOT TESTED",
+  "baseline": "305f8f9",
+  "kernel_release": "6.18.0-y2-m2-chrdet1",
+  "scope": "One additional PMIC CHR_CON0 status read at 0x0000 via proven PWRAP; display raw value and bit5. Existing guarded PHY release unchanged. No new PMIC/analog/VBUS/MAC/DMA write.",
+  "config_delta": [
+    "CONFIG_LOCALVERSION: -y2-m2-phywake1 -> -y2-m2-chrdet1"
+  ],
+  "size": 1097728,
+  "sha256": "e511fb89e45326673183f426a4bdd3b6ca708c25bf3e6ceecfc4a67478aa9660",
+  "validation": {
+    "clean_builds": 1,
+    "targeted_top_level_test_methods": 18,
+    "pid1_arm_scenarios": 22,
+    "pwrap_scenarios": 26,
+    "clock_scenarios": 10,
+    "usb_state_scenarios": 37,
+    "phy_wake_scenarios": 48,
+    "compiler_warnings": 0
+  },
+  "linked_review": {
+    "snapshot": "0xc0015208",
+    "snapshot_bytes": 260,
+    "chrdet_address_zero": "0xc0015830",
+    "chrdet_read_call": "0xc0015840 -> y2_pwrap_read_pmic at 0xc0015eec",
+    "chrdet_valid_on_success": "0xc0015844..0xc0015854",
+    "read_command": "0xc0015f44 shifts address by 15; 0xc0015f50 invokes write adapter at AP+0x9c",
+    "completed_response_ack": "0xc0015fac..0xc0015fc4, AP+0xa4 value1",
+    "bounded_waits": "1000 polls each, unchanged 10us delay, no retry",
+    "existing_phy_byte_write": "0xc0015b90"
+  }
+}

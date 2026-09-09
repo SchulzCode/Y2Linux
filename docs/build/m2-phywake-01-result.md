@@ -1,7 +1,9 @@
-# M2-PHYWAKE-01 — ready for owner device test
+# M2-PHYWAKE-01 — build and owner test handoff
 
 2026-09-09, active M2 #28, USB prerequisite #27/#23.
-**Offline validated; not flashed or hardware tested.** Previous
+**Superseded test status:** the owner has now supplied a successful
+[same-boot physical result](../knowledge/m2-phy-wake-hardware-result.md).
+The original pre-test handoff below is retained as history. Previous
 [USB-state photos](../knowledge/m2-usb-state-hardware-result.md) confirm reads
 and BEAT 50 without errors; they identify PHY suspendm forced low.
 

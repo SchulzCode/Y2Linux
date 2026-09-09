@@ -8,6 +8,30 @@ blueprint/planning material; no native platform readiness is inferred from that.
 
 ## M2 activation audit — 2026-09-09
 
+### Current checkpoint — PHY wake confirmed, baseline 305f8f9
+
+The owner-confirmed [same-boot USB-connected pair](../knowledge/m2-phy-wake-hardware-result.md)
+shows BEAT 10→49, IRQ 1134→5463, MemTotal 22208 kB, no reported error, the guarded
+6a 04→00 write and unchanged sampled trims. The earlier conflicting pair remains
+retained with unresolved chronology. Full PHY readiness/session detection is
+still unproved: POWER20/DEV80 remain after release with the cable attached.
+
+Reconsidered the coverage matrix and current open #22–#32: narrow PHY release
+advances to CONFIRMED; boot qualification/memory/power remain PARTIAL, USB logging
+BLOCKED, and input/display/media/rootfs/thermal and later-phase gaps unchanged.
+No optional criterion waived, M1 reopened or M3 work started. The next localized
+step is [one PMIC CHRDET status read](../knowledge/m2-chrdet-probe.md) through the
+proven PWRAP transport, addressing only the cable/session prerequisite. It adds
+no new PMIC/analog/VBUS/MAC/DMA write, changes no memory/packaging policy and uses
+targeted validation. Stop at the next BOOTIMG for owner test. Existing recovery,
+stock loader, partition and calibration boundaries remain unchanged.
+
+[M2-CHRDET-01](../build/m2-chrdet-01-result.md) passes one clean build and all
+18 selected methods plus linked transaction and D08/BOOTIMG checks. Candidate:
+1,097,728 bytes, SHA-256
+`e511fb89e45326673183f426a4bdd3b6ca708c25bf3e6ceecfc4a67478aa9660`.
+It awaits owner test; no physical charger-presence result is claimed yet.
+
 ### Latest scope review — PHY suspend release, baseline 726d38d
 
 [USB-state photos](../knowledge/m2-usb-state-hardware-result.md) confirm all 21

@@ -29,7 +29,7 @@ int main(void) {
         struct fixture f = { .fail = scenario >= 6 ? scenario - 5 : 0 };
         struct y2_usb_clock_io io = { &f, rd };
         struct y2_pwrap_snapshot power = {
-            .magic = Y2_PWRAP_MAGIC, .valid = 3, .cid = 0x2023, .vusb = 0xc000
+            .magic = Y2_PWRAP_MAGIC, .valid = 7, .cid = 0x2023, .vusb = 0xc000
         };
         struct y2_usb_clock_snapshot s = { .valid = 15, .peri = 99 };
         switch (scenario) {

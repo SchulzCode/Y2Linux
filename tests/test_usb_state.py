@@ -33,7 +33,7 @@ int main(void) {
         struct fixture f={.fail=scenario>=16 ? scenario-15 : 0};
         struct y2_usb_state_io io={&f,rd};
         struct y2_platform_snapshot s={
-            .power={.magic=Y2_PWRAP_MAGIC,.valid=3,.cid=0x2023,.vusb=0xc000},
+            .power={.magic=Y2_PWRAP_MAGIC,.valid=7,.cid=0x2023,.vusb=0xc000},
             .clock={.valid=15,.mux=0x01010100,.pll=0xfd000001,.pll_power=0x80000001},
             .usb={.valid=0x1fffff,.values={123}}
         };

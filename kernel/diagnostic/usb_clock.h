@@ -20,7 +20,7 @@ static inline void y2_usb_clock_probe(const struct y2_usb_clock_io *io,
     unsigned *values[] = { &s->peri, &s->mux, &s->pll, &s->pll_power };
     unsigned i;
     *s = (struct y2_usb_clock_snapshot){ .result = -19 };
-    if (power->magic != Y2_PWRAP_MAGIC || power->result || power->valid != 3 ||
+    if (power->magic != Y2_PWRAP_MAGIC || power->result || power->valid != 7 ||
         (power->cid & 0xffU) != 0x23 || !(power->vusb & (1U << 15))) return;
     for (i = 0; i < 4; ++i) {
         s->result = io->read(io->context, addresses[i], values[i]);

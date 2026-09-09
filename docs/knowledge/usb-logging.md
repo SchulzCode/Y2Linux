@@ -174,3 +174,9 @@ conditionally clears only the suspend-force bit. Calibration/analog controls,
 clocks, VBUS forcing, controller connection and DMA remain unchanged. The
 candidate must stop for owner testing; full USB/clock-provider/PHY/VBUS/FIFO/IRQ/
 DMA contract, host logging and M2 exit remain unqualified.
+
+[The confirmed same-boot PHY wake result](m2-phy-wake-hardware-result.md) now
+records 6a 04→00, unchanged sampled trims, BEAT 10→49 and no reported errors with
+USB attached. DEVCTL remains 80; release alone does not establish PHY readiness
+or physical VBUS. The next localized prerequisite is
+[PMIC CHRDET observation](m2-chrdet-probe.md), not guessed VBUS forcing.
