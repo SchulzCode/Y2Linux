@@ -1,5 +1,9 @@
 # M2-USBSTATE-01 — ready for owner device test
 
+> Returned [physical photos](../knowledge/m2-usb-state-hardware-result.md) confirm
+> all 21 reads, zero DMA control words and BEAT 50 without reported errors.
+> The original pending-test handoff below is historical.
+
 2026-09-09, active M2 #28 and USB prerequisite #27/#23.
 **Offline validated; this candidate has not been flashed or hardware tested.**
 The preceding [clock-probe photos](../knowledge/m2-usb-clock-hardware-result.md)

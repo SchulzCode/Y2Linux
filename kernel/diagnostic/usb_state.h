@@ -11,10 +11,15 @@ struct y2_usb_state_snapshot {
     int result;
     unsigned valid, values[Y2_USB_STATE_COUNT];
 };
+struct y2_usb_wake_snapshot {
+    int result;
+    unsigned written, before_valid, after_valid, controls[7], after[12];
+};
 struct y2_platform_snapshot {
     struct y2_pwrap_snapshot power;
     struct y2_usb_clock_snapshot clock;
     struct y2_usb_state_snapshot usb;
+    struct y2_usb_wake_snapshot wake;
 };
 struct y2_usb_state_io {
     void *context;

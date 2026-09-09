@@ -1,5 +1,8 @@
 # M2-USBSTATE-01 — inherited USB state, read only
 
+> [Physical result](m2-usb-state-hardware-result.md): all reads pass, with PHY
+> force_suspendm still set. [Next guarded release](m2-phy-wake-probe.md).
+
 2026-09-09. Smallest #27 prerequisite after successful physical
 [PWRAP/VUSB and clock reads](m2-usb-clock-hardware-result.md).
 No USB initialization or new hardware write is implemented.

@@ -46,3 +46,16 @@ PWRAP CID/VUSB snapshot and enabled inherited USB clocks, with no reported error
 through BEAT 50. Supply voltage, consumer regulator control and battery/charger
 telemetry remain unqualified. [Next read-only USB state probe](m2-usb-state-probe.md)
 preserves the inherited rail/PLL state; it makes no PMIC/clock/calibration write.
+
+
+## USB state result / bounded PHY wake — 2026-09-09
+
+[Returned USB-state photos](m2-usb-state-hardware-result.md) confirm all 21
+MAC/digital-PHY/DMA reads, disconnected B-device state, eight zero DMA controls,
+PHY force_suspendm=1/value=0 and BEAT 50 without errors. This is one cached
+snapshot, not DMA ownership or a USB enumeration result. The next
+[guarded PHY wake](m2-phy-wake-probe.md) checks remaining mode controls and
+conditionally clears only the suspend-force bit. Calibration/analog controls,
+clocks, VBUS forcing, controller connection and DMA remain unchanged. The
+candidate must stop for owner testing; full USB/clock-provider/PHY/VBUS/FIFO/IRQ/
+DMA contract, host logging and M2 exit remain unqualified.

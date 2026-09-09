@@ -24,7 +24,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
     (void)d;(void)e;
     if(number==20) return 1;
     if(number==122) {
-        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-usbstate1";
+        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-phywake1";
         if(TEST_CASE==7) return -14;
         for(unsigned i=0;i<390;++i) uts[i]=0;
         for(unsigned i=0;i<sizeof(release);++i) uts[130+i]=release[i];
@@ -53,7 +53,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         if(a==3) {
             CHECK(c==sizeof(struct y2_platform_snapshot) && sleeps==1);
             CHECK(++power_reads==1);
-            CHECK(prefix(last->rows[1],"STAGE: READ USB STATE"));
+            CHECK(prefix(last->rows[1],"STAGE: CHECK PHY / RELEASE SUSPEND"));
             if(TEST_CASE==9) return -4;
             if(TEST_CASE==10) return c-1;
             struct y2_platform_snapshot *snapshot=(void*)b;
@@ -70,6 +70,17 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
             if(TEST_CASE==14) {snapshot->usb.result=-16;snapshot->usb.valid=0;}
             if(TEST_CASE==15) {snapshot->clock.peri=1<<10;snapshot->usb.result=-19;snapshot->usb.valid=0;}
             if(TEST_CASE==16) {snapshot->usb.result=-5;snapshot->usb.valid=1;}
+            snapshot->wake.result=0;snapshot->wake.written=1;
+            snapshot->wake.before_valid=0x7f;snapshot->wake.after_valid=0xfff;
+            for(unsigned i=0;i<7;++i) snapshot->wake.controls[i]=0;
+            for(unsigned i=0;i<12;++i) snapshot->wake.after[i]=0;
+            snapshot->usb.values[8]=4;
+            snapshot->wake.controls[3]=0x10;
+            snapshot->wake.after[3]=2;snapshot->wake.after[4]=0x12;
+            snapshot->wake.after[10]=0x20;snapshot->wake.after[11]=0x80;
+            if(TEST_CASE==17) {snapshot->wake.result=-19;snapshot->wake.written=0;snapshot->wake.after_valid=0;}
+            if(TEST_CASE==18) snapshot->wake.result=-5;
+            if(TEST_CASE==19) {snapshot->wake.result=-16;snapshot->wake.written=0;snapshot->wake.after_valid=0;}
             *s=(struct y2_pwrap_snapshot){.magic=Y2_PWRAP_MAGIC,
                 .valid=3,.wrap=1,.channel=1,.init=1,.arb=0x1ff,
                 .before=0x00300000,.after=0x00300000,.cid=0x2023,.vusb=0xc001};
@@ -121,15 +132,16 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         CHECK(prefix(last->rows[1],"STAGE: STOP: RESTORE ANDROID"));
         CHECK(closed>0);
         if(TEST_CASE==0) {
-            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-usbstate1"));
+            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-phywake1"));
             CHECK(prefix(last->rows[3],"USB RC:0"));
             CHECK(prefix(last->rows[3]+12,"VALID:001FFFFF"));
             CHECK(prefix(last->rows[4],"PW:0"));
             CHECK(prefix(last->rows[4]+14,"CLK:0/15"));
-            CHECK(prefix(last->rows[16],"POWER:20 DEV:80 HW:1900"));
-            CHECK(prefix(last->rows[17],"PHY68:06 07 08 09 0A 0B 0C"));
-            CHECK(prefix(last->rows[18],"DMA:00000000000000000000000000000000"));
-            CHECK(prefix(last->rows[19],"IRQE TX:1234 RX:5678 USB:9A"));
+            CHECK(prefix(last->rows[16],"WAKE:0"));
+            CHECK(prefix(last->rows[16]+9,"W:1 V:7F/FFF P:20 D:80"));
+            CHECK(prefix(last->rows[17],"6A:04>00 PHY:00000002120000"));
+            CHECK(prefix(last->rows[18],"CTL:1A:10 1D:00 22:00 63:00"));
+            CHECK(prefix(last->rows[19],"TRIM:00:00/00 05:00/00 15:00/00"));
             CHECK(prefix(last->rows[6],"DT RAM: 24M + 512K (D08 STATIC)"));
             CHECK(prefix(last->rows[9],"TIMER IRQ CPU0: 1234"));
         }
@@ -152,6 +164,9 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
             CHECK(prefix(last->rows[3],"USB RC:-5"));
             CHECK(prefix(last->rows[3]+12,"VALID:00000001"));
         }
+        if(TEST_CASE==17) CHECK(prefix(last->rows[16],"WAKE:-19"));
+        if(TEST_CASE==18) CHECK(prefix(last->rows[16],"WAKE:-5"));
+        if(TEST_CASE==19) CHECK(prefix(last->rows[16],"WAKE:-16"));
         if(TEST_CASE==11) {
             CHECK(prefix(last->rows[4],"PW:-110"));
             CHECK(prefix(last->rows[4]+8,"/1"));

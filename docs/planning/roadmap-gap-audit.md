@@ -8,6 +8,31 @@ blueprint/planning material; no native platform readiness is inferred from that.
 
 ## M2 activation audit — 2026-09-09
 
+### Latest scope review — PHY suspend release, baseline 726d38d
+
+[USB-state photos](../knowledge/m2-usb-state-hardware-result.md) confirm all 21
+reads, BEAT 11→50 without errors, MemTotal 22204 kB, disconnected B-device MAC,
+eight zero DMA controls, inherited IRQ enables and PHY force_suspendm=1/value=0.
+Current active issues and every coverage row were reconsidered against owner/
+blueprint requirements. Narrow MAC/PHY read access is CONFIRMED; the controller
+contract/host logging remain BLOCKED. Memory, boot qualification and power stay
+PARTIAL; input/display/media/rootfs/thermal/battery and later-phase gaps remain.
+No optional exit criterion is waived; M1 stays complete and M3 deferred.
+
+The smallest functional next step is [M2-PHYWAKE-01](../knowledge/m2-phy-wake-probe.md):
+read/check remaining PHY mode controls, then conditionally clear only 6a bit2,
+as corroborated by FM/LK. Require disconnected B-device and zero DMA, preserve
+calibration and all analog/VBUS settings, inspect readback without retry. This
+adds one bounded PHY control write, not UDC/DMA ownership or calibration policy.
+Full existing offline checks plus emitted access review apply; stop at BOOTIMG
+for owner test. Recovery/loader/partition boundaries and D08 are unchanged.
+
+[M2-PHYWAKE-01](../build/m2-phywake-01-result.md) now passes one clean build,
+21 top-level and four observation test methods plus linked-write/layout review.
+Candidate: 1,097,728 bytes, SHA-256
+`d68c8fbc56721c7aa1fda5b3e321a9aff5876661aac857505864e28d8924793a`.
+It awaits owner test; no successful PHY release is claimed yet.
+
 ### Latest scope review — USB state observation, baseline 23d09db
 
 The [returned clock-probe photographs](../knowledge/m2-usb-clock-hardware-result.md)

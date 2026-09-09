@@ -1,0 +1,35 @@
+{
+  "candidate": "M2-PHYWAKE-01",
+  "hardware_status": "NOT TESTED",
+  "baseline": "726d38d",
+  "kernel_release": "6.18.0-y2-m2-phywake1",
+  "scope": "Guarded single PHY force_suspendm release 0x1121086a:04->00, after mode/control reads. Preserve calibration/analog/VBUS/clocks/MAC/DMA. No enumeration.",
+  "config_delta": [
+    "CONFIG_LOCALVERSION: -y2-m2-usbstate1 -> -y2-m2-phywake1"
+  ],
+  "size": 1097728,
+  "sha256": "d68c8fbc56721c7aa1fda5b3e321a9aff5876661aac857505864e28d8924793a",
+  "validation": {
+    "clean_builds": 1,
+    "full_top_level_test_methods": 21,
+    "observation_test_methods": 4,
+    "pid1_arm_scenarios": 20,
+    "phy_wake_scenarios": 48,
+    "usb_state_scenarios": 37,
+    "pwrap_scenarios": 20,
+    "clock_scenarios": 10,
+    "compiler_warnings": 0
+  },
+  "linked_review": {
+    "snapshot": "0xc0015204",
+    "snapshot_bytes": 256,
+    "usb_read": "0xc0015ff8",
+    "fresh_force_read": "0xc0015b40",
+    "force_equals_04_guard": "0xc0015b4c",
+    "single_new_mmio_write": "0xc0015b64: strb r5,[r1]; r5=0, r1=PHY mapping+0x6a",
+    "settle": "0xc0015b80..0xc0015b88 loads 0x0a3d6f80 = 800 * UDELAY_MULT at HZ100, calls const_udelay",
+    "note": "release_suspend and settle are inlined into cached snapshot; not missing functionality",
+    "before_valid": "0x7f",
+    "after_valid": "0xfff"
+  }
+}

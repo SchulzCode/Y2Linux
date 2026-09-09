@@ -125,3 +125,16 @@ BEAT 50 without errors. This resolves the narrow inherited-clock observation,
 not the clock provider/USB controller contract. [Read-only USB state](m2-usb-state-probe.md)
 is the next prerequisite; no MAC/PHY/DMA hardware result exists yet. M2 remains
 open with unchanged input/display/media/rootfs and qualification gaps.
+
+
+## USB state result / bounded PHY wake — 2026-09-09
+
+[Returned USB-state photos](m2-usb-state-hardware-result.md) confirm all 21
+MAC/digital-PHY/DMA reads, disconnected B-device state, eight zero DMA controls,
+PHY force_suspendm=1/value=0 and BEAT 50 without errors. This is one cached
+snapshot, not DMA ownership or a USB enumeration result. The next
+[guarded PHY wake](m2-phy-wake-probe.md) checks remaining mode controls and
+conditionally clears only the suspend-force bit. Calibration/analog controls,
+clocks, VBUS forcing, controller connection and DMA remain unchanged. The
+candidate must stop for owner testing; full USB/clock-provider/PHY/VBUS/FIFO/IRQ/
+DMA contract, host logging and M2 exit remain unqualified.

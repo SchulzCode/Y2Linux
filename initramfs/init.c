@@ -168,9 +168,39 @@ static void power_rows(void)
         col=row_add(screen.rows[19],col," RX:");col=row_hex_width(screen.rows[19],col,v[4],4);
         col=row_add(screen.rows[19],col," USB:");row_hex_width(screen.rows[19],col,v[5],2);
     }
+    if(!snapshot.usb.result && snapshot.usb.valid==0x1fffff) {
+        const struct y2_usb_wake_snapshot *w=&snapshot.wake;
+        row_code(screen.rows[16],"WAKE:",w->result);
+        col=row_add(screen.rows[16],9,"W:");col=row_number(screen.rows[16],col,w->written);
+        col=row_add(screen.rows[16],col," V:");col=row_hex_width(screen.rows[16],col,w->before_valid,2);
+        col=row_add(screen.rows[16],col,"/");col=row_hex_width(screen.rows[16],col,w->after_valid,3);
+        col=row_add(screen.rows[16],col," P:");col=row_hex_width(screen.rows[16],col,w->after[10],2);
+        col=row_add(screen.rows[16],col," D:");row_hex_width(screen.rows[16],col,w->after[11],2);
+        row_pair(screen.rows[17],"6A:","");col=row_hex_width(screen.rows[17],3,snapshot.usb.values[8],2);
+        col=row_add(screen.rows[17],col,">");col=row_hex_width(screen.rows[17],col,w->after[2],2);
+        col=row_add(screen.rows[17],col," PHY:");
+        for(unsigned i=0;i<7;++i) col=row_hex_width(screen.rows[17],col,w->after[i],2);
+        row_pair(screen.rows[18],"CTL:","");col=4;
+        const char *labels[]={"1A:","1D:","22:","63:"};
+        for(unsigned i=0;i<4;++i) {
+            col=row_add(screen.rows[18],col,labels[i]);
+            col=row_hex_width(screen.rows[18],col,w->controls[3+i],2);
+            col=row_add(screen.rows[18],col," ");
+        }
+        row_pair(screen.rows[19],"TRIM:","");col=5;
+        const char *trims[]={"00:","05:","15:"};
+        for(unsigned i=0;i<3;++i) {
+            col=row_add(screen.rows[19],col,trims[i]);
+            col=row_hex_width(screen.rows[19],col,w->controls[i],2);
+            col=row_add(screen.rows[19],col,"/");
+            col=row_hex_width(screen.rows[19],col,w->after[7+i],2);
+            col=row_add(screen.rows[19],col," ");
+        }
+    }
     if(s->result) error("PWRAP",s->result);
     else if(c->result) error("CLOCK",c->result);
     else if(snapshot.usb.result) error("USB",snapshot.usb.result);
+    else if(snapshot.wake.result) error("PHY WAKE",snapshot.wake.result);
 }
 __attribute__((noreturn)) void diag_start(u32 *stack)
 {
@@ -184,7 +214,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     for(row=0;row<Y2_ROWS;++row) row_clear(screen.rows[row]);
     screen.magic=Y2_TEXT_MAGIC;
     row_pair(screen.rows[12],"LAST ERR: ","NONE");
-    row_pair(screen.rows[15],"BUILD: ","M2-USBSTATE-01");
+    row_pair(screen.rows[15],"BUILD: ","M2-PHYWAKE-01");
     row_pair(screen.rows[16],"TRUNCATED TEXT: ","~ ; ERRORS: -ERRNO");
     row_pair(screen.rows[17],"SCOPE: ","CPU0 / INITRAMFS ONLY");
     row_pair(screen.rows[18],"HOST LIMIT: ","60S FROM POWER-ON");
@@ -211,7 +241,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
             present("READ CPU");file_row(3,"CPU PART: ","/proc/cpuinfo","CPU part");
             present("READ ONLINE");file_row(5,"CPUS ONLINE: ","/sys/devices/system/cpu/online",0);
             present("READ DT");dt_rows();
-            present("READ USB STATE");power_rows();
+            present("CHECK PHY / RELEASE SUSPEND");power_rows();
         }
         present("READ MEMORY");file_row(7,"MEMTOTAL: ","/proc/meminfo","MemTotal");
         present("READ UPTIME");file_row(8,"UPTIME/IDLE S: ","/proc/uptime",0);
