@@ -29,6 +29,21 @@ static inline int y2_pwrap_idle(unsigned state)
     return (state & (Y2_PWRAP_INIT | Y2_PWRAP_SYNC | Y2_PWRAP_REQ)) ==
         (Y2_PWRAP_INIT | Y2_PWRAP_SYNC) && !y2_pwrap_fsm(state);
 }
+/* USBACM-02 observed INIT=1/FSM=0/REQ=0 with SYNC_IDLE=0 (00200001).
+ * Wait only for that synchronization condition, never for an unowned request
+ * or stale response. No command/ack/reset is permitted by this helper. */
+static inline int y2_pwrap_wait_sync(const struct y2_pwrap_io *io, unsigned *state)
+{
+    unsigned polls=0;
+    for (;;) {
+        if (!(*state & Y2_PWRAP_INIT)) return -5;
+        if ((*state & Y2_PWRAP_REQ) || y2_pwrap_fsm(*state)) return -16;
+        if (y2_pwrap_idle(*state)) return 0;
+        if (polls++ == Y2_PWRAP_POLLS) return -110;
+        io->delay(io->context);
+        *state = io->read(io->context, 0xa0);
+    }
+}
 static inline int y2_pwrap_wait(const struct y2_pwrap_io *io,
                                 unsigned *state, int completion)
 {
@@ -51,7 +66,8 @@ static inline int y2_pwrap_read_pmic(const struct y2_pwrap_io *io,
     /* No caller can use this helper for an arbitrary register or PMIC write. */
     if (address != 0x100 && address != 0x502 && address != 0x0000) return -22;
     *state = io->read(io->context, 0xa0);
-    if (!y2_pwrap_idle(*state)) return -16;
+    rc = y2_pwrap_wait_sync(io, state);
+    if (rc) return rc;
     io->write(io->context, 0x9c, (address >> 1) << 16);
     rc = y2_pwrap_wait(io, state, 1);
     if (rc) return rc; /* no stale clearing, reset, retry or guessed recovery */
@@ -72,7 +88,8 @@ static inline void y2_pwrap_probe(const struct y2_pwrap_io *io,
     /* MT6582 WACS2 arbitration bit is 3, not a sibling-derived value. */
     if (s->mux != 0 || s->wrap != 1 || !(s->arb & (1U << 3)) ||
         s->channel != 1 || s->init != 1) return;
-    if (!y2_pwrap_idle(s->before)) { s->result = -16; return; }
+    s->result = y2_pwrap_wait_sync(io, &s->after);
+    if (s->result) return;
     s->result = y2_pwrap_read_pmic(io, 0x100, &s->cid, &s->after);
     if (s->result) return;
     s->valid = 1;

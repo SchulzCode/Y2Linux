@@ -1,0 +1,32 @@
+{
+  "candidate": "M2-USBACM-03",
+  "origin": "out/m2-usbacm-03/capture-03",
+  "bytes": 11754,
+  "sha256": "24f7516ccb3ab76435b36ebca3a5459333f407ce36c4f4e3d6259fb6e97d5bac",
+  "started_utc": "2026-09-09T19:00:49.940090+00:00",
+  "elapsed_seconds": 45.048183896,
+  "stop_reason": "timeout",
+  "exit_code": 0,
+  "header": "Y2LOG1 M2-USBACM-03",
+  "chunks": 44,
+  "chunk_offsets_contiguous": true,
+  "first_byte_seconds": 1.053460526,
+  "last_byte_seconds": 44.346827084,
+  "kernel_sequence_first": 0,
+  "kernel_sequence_last": 77,
+  "kernel_sequence_contiguous": true,
+  "heartbeat_unique_first": 1,
+  "heartbeat_unique_last": 43,
+  "heartbeat_unique_contiguous": true,
+  "startup_replay_duplicates": 1,
+  "usb_configured_beat_first": 4,
+  "usb_irq_first_configured": 43,
+  "usb_irq_last": 101,
+  "protocol_gap_or_error_lines": [],
+  "steady_heartbeat_interval_seconds": {
+    "min": 1.109510725,
+    "median": 1.1101162955000001,
+    "max": 1.110698689
+  },
+  "scope": "One successful bounded kernel/PID1 USB log capture; not full milestone qualification"
+}

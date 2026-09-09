@@ -16,6 +16,7 @@ static struct usb_phy y2_xceiv;
 static struct usb_otg y2_otg;
 static struct y2_session y2_session;
 static struct y2_pwrap_snapshot y2_usb_supply;
+static DEFINE_SPINLOCK(y2_usb_failure_lock);
 static struct y2_usb_live y2_live = { .magic=Y2_USB_LIVE_MAGIC,.devctl=0x100 };
 static bool y2_usb_started, y2_usb_finished;
 static unsigned long y2_usb_deadline, y2_irq_tick;
@@ -272,6 +273,9 @@ static void y2_usb_worker(struct work_struct *work)
     y2_pwrap_probe(&io,&power);
     ++y2_live.polls;
     if(power.result || power.valid!=7 || !(power.vusb&0x8000)) {
+        spin_lock(&y2_usb_failure_lock);
+        y2_live.power_failure=power;
+        spin_unlock(&y2_usb_failure_lock);
         y2_live.chrdet=0x10000; /* visibly invalid, not cached absence */
         y2_usb_fail(power.result ? power.result : -ENODEV);goto done;
     }
@@ -325,5 +329,8 @@ static ssize_t y2_usb_status(char __user *buf)
         .polls=READ_ONCE(y2_live.polls),.chrdet=READ_ONCE(y2_live.chrdet),
         .devctl=READ_ONCE(y2_live.devctl),.irqs=READ_ONCE(y2_live.irqs),
         .events=READ_ONCE(y2_live.events),.configured=READ_ONCE(y2_live.configured)};
+    spin_lock(&y2_usb_failure_lock);
+    s.power_failure=y2_live.power_failure;
+    spin_unlock(&y2_usb_failure_lock);
     return copy_to_user(buf,&s,sizeof(s)) ? -EFAULT : sizeof(s);
 }

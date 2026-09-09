@@ -25,7 +25,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
     (void)d;(void)e;
     if(number==20) return 1;
     if(number==122) {
-        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-usbacm1";
+        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-usbacm3";
         if(TEST_CASE==7) return -14;
         for(unsigned i=0;i<390;++i) uts[i]=0;
         for(unsigned i=0;i<sizeof(release);++i) uts[130+i]=release[i];
@@ -65,6 +65,15 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
                     live->polls=1;live->chrdet=TEST_CASE==29 ? 0x10000 : TEST_CASE==26 ? 1 : 0x7b;
                     live->devctl=TEST_CASE==26 || TEST_CASE==29 ? 0x100 : 0x98;
                     live->irqs=TEST_CASE==28 ? 42 : 0;
+                    if(TEST_CASE>=30) {
+                        live->stage=Y2_USB_ATTACH;live->result=TEST_CASE==32 ? -110 : -16;
+                        live->devctl=0x100;live->chrdet=0x10000;
+                        live->power_failure=(struct y2_pwrap_snapshot){
+                            .magic=Y2_PWRAP_MAGIC,.result=live->result,
+                            .valid=TEST_CASE==32 ? 3 : 0,.wrap=1,.arb=0x1ff,.channel=1,.init=1,
+                            .before=TEST_CASE==30 ? 0x00200001 : 0x00360001,
+                            .after=TEST_CASE==32 ? 0x00340023 : TEST_CASE==30 ? 0x00200001 : 0x00360001};
+                    }
                 }
                 return c;
             }
@@ -170,6 +179,20 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         CHECK(power_reads==1);
         CHECK(prefix(last->rows[1],"STAGE: STOP: RESTORE ANDROID"));
         CHECK(closed>0);
+        CHECK(prefix(last->rows[15],"BUILD: M2-USBACM-03"));
+        if(TEST_CASE>=30) {
+            CHECK(prefix(last->rows[3],TEST_CASE==32 ? "US:2 RC:-110 IRQ:0 D:--" : "US:2 RC:-16 IRQ:0 D:--"));
+            CHECK(prefix(last->rows[4]+24,"CHR:---- D:?"));
+            CHECK(prefix(last->rows[5],"POLL:1"));
+            CHECK(prefix(last->rows[5]+10,TEST_CASE==32 ? "PW:-110 V:3" : "PW:-16 V:0"));
+            CHECK(prefix(last->rows[10],TEST_CASE==30 ? "WACS:00200001>00200001" :
+                TEST_CASE==31 ? "WACS:00360001>00360001" : "WACS:00360001>00340023"));
+            CHECK(prefix(last->rows[11],"G M:00 W:01 A:000001FF C:01 I:01"));
+            CHECK(prefix(last->rows[16],"WAKE:0"));
+            CHECK(prefix(last->rows[17],"6A:04>00 PHY:00000002120000"));
+            CHECK(prefix(last->rows[18],"CTL:1A:10 1D:00 22:00 63:00"));
+            CHECK(prefix(last->rows[19],"TRIM:00:00/00 05:00/00 15:00/00"));
+        }
         if(TEST_CASE==26) CHECK(prefix(last->rows[6],"ATTACH USB CABLE NOW"));
         if(TEST_CASE==27) CHECK(prefix(last->rows[6],"USB ENUMERATION IN PROGRESS"));
         if(TEST_CASE==28) {
@@ -182,7 +205,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
             CHECK(prefix(last->rows[4]+24,"CHR:---- D:?"));
         }
         if(TEST_CASE==0) {
-            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-usbacm1"));
+            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-usbacm3"));
             CHECK(prefix(last->rows[3],"USB RC:0"));
             CHECK(prefix(last->rows[3]+12,"VALID:001FFFFF"));
             CHECK(prefix(last->rows[4],"PW:0"));

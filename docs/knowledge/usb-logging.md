@@ -1,5 +1,11 @@
 # Host-readable USB logging — minimal path and controller gate
 
+> Current physical result: [USBACM-03 capture-03](m2-usbacm-hardware-result.md#usbacm-03-kernel-and-pid1-capture-confirmed)
+> confirms retained early kernel messages and increasing PID1 heartbeats over
+> CDC ACM. The initial transport blocker is resolved; broader logging remains
+> PARTIAL pending repeatability/reader/reconnect/stability qualification. Earlier
+> research/checkpoints below retain their original evidence limits.
+
 2026-09-09. [Y2B-255 #27](https://github.com/SchulzCode/Y2Linux/issues/27).
 Originally research/planning only; subsequent authorized execution is recorded below.
 Baseline: audited upstream v6.18 `7d0a66e4bb9081d75c82ec4957c50034cb0ea449`.

@@ -1,5 +1,42 @@
 # M2 PWRAP/VUSB prerequisite — bounded read-only PMIC probe
 
+## USBACM-03 pre-command sync wait — 2026-09-09
+
+The [USBACM-02 photo](m2-usbacm-hardware-result.md#usbacm-02-result) establishes
+`00200001` at poll-5 entry: initialized, no request, idle FSM, sync not idle.
+The owner confirms this happened before attachment. The original single-sample
+idle check incorrectly made this synchronization condition an immediate fatal
+refusal. It does not establish that sync will become idle within a given time.
+
+The retained, pinned MT6582 `pwrap_hal.h` separates INIT_DONE bit21, SYNC_IDLE
+bit20, REQ bit19 and FSM18:16. In `pwrap_hal.c`, `wait_for_sync` and
+`wait_for_idle_and_sync` poll that distinct condition; ordinary vendor reads
+wait on FSM idle. See [retained source identities](m2-pwrap-sources.json).
+USBACM-03 retains the stricter complete predicate before commands but allows
+sync-only activity to settle. This does not copy the vendor stale-VLDCLR
+recovery path.
+
+At probe entry and each of the three pre-command checks, `y2_pwrap_wait_sync`
+examines the already-read word, then performs at most 1000 additional RDATA
+reads with 10us delays. Every sample requires INIT_DONE, no request and FSM=0.
+It returns -5 for missing init, -16 immediately for any request/nonzero FSM,
+and -110 after 1000 delays if sync remains busy. A ready last sample at that
+boundary succeeds. No command, acknowledgement or reset occurs while waiting.
+At most four such waits add 40ms delay to a complete probe; existing completion
+and acknowledgement waits, command allowlist and 250ms worker interval stay
+unchanged. No whole-transaction retry is introduced.
+
+The original entry word remains `before`; `after` records the last sampled
+word on failure. USBACM-02's retained failed-poll display/88-byte live ABI remains.
+The 260-byte baseline, D08/CPU0, USB ownership and BOOTIMG/recovery boundaries
+stay unchanged. Targeted tests inject successful/timeout/unsafe transitions at
+all four pre-command gates, including 999/1000/1001-delay boundaries, while
+checking exact command/ack counts and no stale acknowledgement. Real hardware
+sync recovery and enumeration still await the USBACM-03 owner test.
+
+The original one-shot handoff below is historical. CHRDET subsequently added
+the third allowed read; USBACM added bounded repeated worker polls.
+
 > Subsequent [physical photographs](m2-pwrap-hardware-result.md) confirm PWRAP RC=0, CID=0x2023, VUSB=0xc000 and BEAT 50.
 > Timer IRQ reporting returns -61; source-backed parser diagnosis is recorded.
 > Exact flashed hash and restoration outcome remain unreported. Original handoff below is historical.

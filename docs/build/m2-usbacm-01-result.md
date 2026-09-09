@@ -1,5 +1,10 @@
 # M2-USBACM-01 — ready for owner enumeration test
 
+> Subsequent [owner photograph](../knowledge/m2-usbacm-hardware-result.md) shows
+> successful unplugged-start PHY wake, then US:2 RC:-16 from a live PWRAP poll.
+> No enumeration result. The original handoff below is retained as history;
+> M2-USBACM-02 adds the missing failed-poll evidence.
+
 2026-09-09, baseline `d9c2c98`, #23/#27 under active M2 #28.
 **Offline validated; no physical device operation or enumeration result.**
 

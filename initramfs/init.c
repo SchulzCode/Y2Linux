@@ -257,6 +257,19 @@ static int usb_live_row(void)
         if(s.chrdet!=0x10000) row_number(screen.rows[4],col,(s.chrdet>>5)&1);
         else row_add(screen.rows[4],col,"?");
     }
+    if(s.power_failure.magic==Y2_PWRAP_MAGIC) {
+        const struct y2_pwrap_snapshot *p=&s.power_failure;
+        row_code(screen.rows[5],"POLL:",s.polls);
+        col=row_add(screen.rows[5],10,"PW:");col=row_number(screen.rows[5],col,p->result);
+        col=row_add(screen.rows[5],col," V:");row_number(screen.rows[5],col,p->valid);
+        row_pair(screen.rows[10],"WACS:","");col=row_hex(screen.rows[10],5,p->before);
+        col=row_add(screen.rows[10],col,">");row_hex(screen.rows[10],col,p->after);
+        row_pair(screen.rows[11],"G M:","");col=row_hex_width(screen.rows[11],4,p->mux,2);
+        col=row_add(screen.rows[11],col," W:");col=row_hex_width(screen.rows[11],col,p->wrap,2);
+        col=row_add(screen.rows[11],col," A:");col=row_hex(screen.rows[11],col,p->arb);
+        col=row_add(screen.rows[11],col," C:");col=row_hex_width(screen.rows[11],col,p->channel,2);
+        col=row_add(screen.rows[11],col," I:");row_hex_width(screen.rows[11],col,p->init,2);
+    }
     if(s.result || s.stage==Y2_USB_STOPPED) {relay_close();return 0;}
     return s.stage==Y2_USB_READY || s.stage==Y2_USB_CONFIGURED;
 }
@@ -272,7 +285,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     for(row=0;row<Y2_ROWS;++row) row_clear(screen.rows[row]);
     screen.magic=Y2_TEXT_MAGIC;
     row_pair(screen.rows[12],"LAST ERR: ","NONE");
-    row_pair(screen.rows[15],"BUILD: ","M2-USBACM-01");
+    row_pair(screen.rows[15],"BUILD: ","M2-USBACM-03");
     row_pair(screen.rows[16],"TRUNCATED TEXT: ","~ ; ERRORS: -ERRNO");
     row_pair(screen.rows[17],"SCOPE: ","CPU0 / INITRAMFS ONLY");
     row_pair(screen.rows[18],"HOST LIMIT: ","60S FROM POWER-ON");

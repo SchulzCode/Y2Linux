@@ -4,7 +4,10 @@
 requested one combined enumeration/logging attempt to reduce physical cycles.
 [Scope audit](../planning/roadmap-gap-audit.md#combined-usb-ownership-scope-review--baseline-d9c2c98).
 **Offline implementation, not a successful hardware enumeration result.**
-[Candidate and owner procedure](../build/m2-usbacm-01-result.md).
+[Original candidate](../build/m2-usbacm-01-result.md);
+[sync-wait fix](../build/m2-usbacm-03-result.md).
+The [first hardware photo](m2-usbacm-hardware-result.md) records a cable-wait
+PWRAP poll refusal before enumeration.
 
 ## Entry evidence and limits
 
@@ -88,8 +91,13 @@ Built-in upstream g_serial defaults ACM on, OBEX off, one port. Standard
 CONFIGFS_FS and unused serial/OBEX function code are selected dependencies;
 no configfs mount and no additional function is instantiated.
 
-PID1 retains its cached260-byte baseline snapshot and reads a separate36-byte
-status ABI: magic/result/stage/polls/CHRDET/DEVCTL/IRQ/events/configured. Reads
+PID1 retains its cached 260-byte baseline snapshot. USBACM-01 used a separate
+36-byte live ABI: magic/result/stage/polls/CHRDET/DEVCTL/IRQ/events/configured.
+USBACM-02 bumps the magic to 0x59325532 and appends the 52-byte failed PWRAP
+poll snapshot (88 bytes total); zero snapshot magic means no failed poll.
+A dedicated spinlock protects the failure copy across worker/status reads;
+no user copy or hardware access occurs under that lock. The sample survives
+teardown. PID1 displays it without replacing the cached PHY/wake rows. Reads
 are PID1-only and copy cached RAM, without fresh MMIO. DEVCTL=0x100 is uncollected;
 CHRDET=0x10000 is invalid. Screen dashes distinguish unread values from zero.
 Stages:1 preflight,2 attach prompt,3 session,4 registration,5 ready,6 configured,
@@ -101,7 +109,7 @@ EABI mknod14, lseek19, ioctl54 and existing read/write/open/close; actual linked
 targets are checked against ENOSYS. Raw tty open is nonblocking/O_NOCTTY.
 There is no serial console dependency and no runtime UART write in PID1.
 
-Only exact `LOG1\n` requests a stream. It emits `Y2LOG1 M2-USBACM-01`, retained
+Only exact `LOG1\n` requests a stream. It emits `Y2LOG1 M2-USBACM-03` (01/02 in the earlier candidates), retained
 PID1 startup/mount/sleep/baseline rows and heartbeat/status/error rows, rewinds
 `/dev/kmsg` to the oldest available kernel-ring record, and continues both.
 Kernel records retain native level/sequence/timestamp; PID1 records identify

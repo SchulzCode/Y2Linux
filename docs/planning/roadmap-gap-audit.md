@@ -8,6 +8,99 @@ blueprint/planning material; no native platform readiness is inferred from that.
 
 ## M2 activation audit — 2026-09-09
 
+### Current checkpoint — first kernel/PID1 USB capture succeeds
+
+2026-09-09, USBACM-03 retained candidate/source identity. The owner-run
+[capture-03](../knowledge/m2-usbacm-hardware-result.md#usbacm-03-kernel-and-pid1-capture-confirmed)
+contains 11754 verified bytes over a 45-second reader window: exact LOG1 build
+header, contiguous kernel sequence 0–77, every PID1 beat 1–43, US:6 RC:0 from
+beat 4 and increasing IRQs. No relay GAP/ERR or PID1 error appears. The normal
+reader timeout exits 0. The prior host-permission blocker is resolved for this
+run; this is the first captured log result, not just enumeration.
+
+Update the USB coverage row to PARTIAL: narrow kernel/PID1 logging is confirmed,
+while repeatability, late-open/non-reading host, detach/reconnect and stability
+remain unqualified under #27/#28. All other coverage classifications and owners
+remain unchanged; no boot/memory/power or M2 exit criterion is promoted by this
+capture. M1 complete, M2 active/exit blocked, M3/application deferred. This is
+an evidence review within the existing experiment: no milestone closure,
+new hardware scope, build or flash. Repeat the standing full audit before
+activating a different scope or closing the milestone/qualification boundary.
+
+### Previous checkpoint — USBACM-03 enumerates; host capture access blocked
+
+2026-09-09. [Host journal](../knowledge/m2-usbacm-hardware-result.md#usbacm-03-host-enumeration-confirmed)
+and owner report confirm high-speed 0525:a4a7, the USBACM-03 kernel identity
+and CDC ACM ttyACM0. The former capture timeout came from the assistant's
+isolated `/dev`; an unsandboxed run matches the device but gets EACCES because
+the host account lacks tty permission. Neither error disproves enumeration.
+No LOG1 payload was captured. The next step is the same image and script with
+owner-authorized host access, not a new hardware change or build.
+
+Narrow enumeration is now evidenced. Overall host logging remains BLOCKED on
+reader access and log-content proof; other coverage statuses and owners remain
+unchanged. No milestone activation/closure, memory/production scope change or
+reconnect/boot-repeatability qualification is inferred. M1 complete, M2 active
+with blocked exit, #23/#27/#28 open, M3/application deferred.
+
+### Previous checkpoint — USBACM-02 sync-only refusal
+
+2026-09-09, `c066d62` plus the retained USBACM-02 source snapshot. The owner
+reports the attach prompt now appears, followed by an error **before attachment**.
+The [new photo](../knowledge/m2-usbacm-hardware-result.md#usbacm-02-result)
+shows poll 5, US:2 RC:-16, WACS2 `00200001` at entry/failure, valid mask zero,
+and passing wrapper gates. Init is set, request is clear and FSM is idle;
+only sync-idle is absent. The snapshot does not establish how long this lasts.
+No controller registration or enumeration occurred. Wake/clock evidence remains
+confirmed within the prior narrow scope; USB BLOCKED, boot/memory/power PARTIAL,
+all other coverage classifications and issue owners unchanged. M1 stays complete,
+M2 active with blocked exit, M3/application work deferred.
+
+The next localized fix is a bounded, read-only pre-command wait for **sync only**
+in M2-USBACM-03. Retained MT6582 definitions identify bit 20 separately from
+channel FSM/request; vendor `wait_for_sync`/`wait_for_idle_and_sync` explicitly
+poll this condition. Require init/no-request/FSM-idle on every sample, retain
+the full existing ready predicate before any command, and stop immediately on
+stale/active/invalid channel states. Limit each wait to 1000 ten-microsecond
+delays; no transaction retry, stale acknowledgement, wrapper reset, new register,
+PMIC write, memory map or packaging scope. This repairs single-sample rejection
+within the active PWRAP/USB contract; it does not authorize channel recovery or
+promote hardware readiness. Targeted protocol/fault, worker/ARM PID1, linked
+access and one clean BOOTIMG/D08 validation apply before the owner test.
+
+[M2-USBACM-03](../build/m2-usbacm-03-result.md) now passes one clean build,
+15 targeted methods plus four host-capture methods and linked/D08/package
+review. The new protocol cases cover sync settling and failure at all four
+pre-command gates. Image: 1,159,168 bytes, SHA-256
+`20c7f01ad97832def704523897fb5ec08cbfacd560558bbd3989b4f4426f734a`.
+Hardware sync recovery/enumeration remains untested; no capability is promoted.
+
+### Previous checkpoint — USBACM cable-wait poll refusal
+
+2026-09-09, baseline `c066d62`. The owner reports unplugged startup and supplies
+[one M2-USBACM-01 photo](../knowledge/m2-usbacm-hardware-result.md): cached
+power/clock and PHY wake succeed, US:2 RC:-16 with invalid live CHRDET stops the
+worker before controller registration. BEAT 12 and MemTotal 22096 kB are visible;
+there is no enumeration/logging success or identified repeatability result.
+The raw failed WACS2 sample was discarded, so the particular idle-gate cause
+remains unknown. The earlier CHRDET/wake evidence is retained.
+
+The localized next candidate, M2-USBACM-02, preserves that failed sample and
+corrects the stale screen heading. No hardware access, guard, memory map,
+packaging or production scope changes; targeted validation applies. This is
+an evidence-display repair within the active experiment, not a milestone
+boundary or authority to recover a busy/stale channel. Coverage classifications
+and owners remain unchanged: USB BLOCKED, boot/memory/power PARTIAL, M1 complete,
+M2 exit blocked, M3/application and other input/display/media/thermal gaps deferred
+to their existing gates. Stop at the validated candidate for owner testing.
+
+[M2-USBACM-02](../build/m2-usbacm-02-result.md) now passes one clean build,
+15 targeted methods and four host-capture methods, including 33 ARM PID1 paths
+and real-artifact/D08 checks. Candidate is 1,159,168 bytes, SHA-256
+`4ff741513ef842fca28e6fd8cd08829c9c8c9d2e3e160da70552e06166460e20`.
+It awaits the failed-poll screen or bounded enumeration evidence; no busy-state
+recovery or new hardware success is claimed.
+
 ### Combined USB ownership scope review — baseline d9c2c98
 
 2026-09-09. The owner explicitly replaces the register-by-register handoff with
@@ -279,7 +372,7 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 | Clocks, resets, pinctrl/GPIO/IRQ and I2C | **BLOCKED** | Minimal fixed timer/UART clocks work sufficiently for M1. Common peripheral providers/mux/reset/rail contracts are not established; USB/storage/audio cannot simply inherit sibling compatibles. | #23 and #28, now explicit shared foundation. |
 | Watchdog and controlled reset | **PARTIAL** | Reviewed early AP_RGU stop and displayed stopped state; no production driver takeover, pet/timeout strategy, deliberate reset or restart qualification. | #28 with #30. Preserve current experiment behavior. |
 | On-device diagnostic channel | **CONFIRMED** | Working inherited RGB565 text and owner-observed heartbeat; exact other fields/duration are not invented. | #20–21; [result](../knowledge/m1-runtime-hardware-result.md). |
-| Developer host logs / USB | **BLOCKED** | CDC ACM/PID1 relay specified, but controller/PHY/clocks/VUSB/FIFO/PIO handoff are unresolved. [Research](../knowledge/usb-logging.md). Stock ADB is not Linux USB support. | #27, #23, #28. |
+| Developer host logs / USB | **PARTIAL** | USBACM-03 physical ACM capture confirms retained kernel sequence 0–77 and PID1 beats 1–43 with no captured relay gaps/errors. [Result](../knowledge/m2-usbacm-hardware-result.md#usbacm-03-kernel-and-pid1-capture-confirmed). Repeatability, late-open/non-reading host, detach/reconnect and stability remain unqualified. | #27, #23, #28. |
 | Physical UART / early crash capture | **UNKNOWN** | UART0 candidate exists; no pad/level/wire capture. Ramoops retention/reader is unproved. USB cannot log hangs before its initialization. | Existing #16; broader crash/debug policy #32. |
 | Display/controller/panel | **PARTIAL** | Inherited 480×360 RGB565 works; panel candidate and LK evidence exist. No native DRM/panel initialization, standard-interface takeover or display-PM proof. | #25; #28. |
 | Backlight | **PLANNED** | Existing illumination persists; independent brightness/control/limits and rail/PWM ownership unverified. Narrow ownership research is queued. | #25/#23; #28/#30. |

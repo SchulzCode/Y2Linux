@@ -1,0 +1,95 @@
+{
+  "candidate": "M2-USBACM-02",
+  "baseline": "c066d62",
+  "hardware_status": "NOT TESTED",
+  "kernel_release": "6.18.0-y2-m2-usbacm2",
+  "size": 1159168,
+  "sha256": "4ff741513ef842fca28e6fd8cd08829c9c8c9d2e3e160da70552e06166460e20",
+  "scope": "Retain failed cable-wait PWRAP poll in live ABI v2 and screen; repair heading. Hardware guards/transactions unchanged.",
+  "validation": {
+    "clean_builds": 1,
+    "targeted_suite_methods": 15,
+    "observation_methods": 4,
+    "pid1_arm_scenarios": 33,
+    "worker_scenarios": 5,
+    "compiler_warnings": 0
+  },
+  "config_delta": {
+    "CONFIG_LOCALVERSION": {
+      "old": "\"-y2-m2-usbacm1\"",
+      "new": "\"-y2-m2-usbacm2\""
+    }
+  },
+  "linked_pwrap_comparison": {
+    "y2_pwrap_probe": {
+      "bytes": 384,
+      "sha256": "c3bccc22ff2c4a582fb58ca2a2872e1ebc1dc0221bfcc3a0220262330a09a1de",
+      "identical_to_01": false
+    },
+    "y2_pwrap_read_pmic": {
+      "bytes": 316,
+      "sha256": "aa9de8aa859346d8e43bc8c5ee1c495c3c8527df4b0a01448d925f4ee22f1075",
+      "identical_to_01": true
+    },
+    "y2_power_read": {
+      "bytes": 16,
+      "sha256": "0d600d3797472d34dc14af8d96a2cd799f1bf1ecde05df761e0b945d53873d91",
+      "identical_to_01": true
+    },
+    "y2_power_write": {
+      "bytes": 16,
+      "sha256": "ddfe74b45039e9c4a7b28e67e563e311b26a432f05add0191af1feda8f64d494",
+      "identical_to_01": true
+    },
+    "y2_power_delay": {
+      "bytes": 24,
+      "sha256": "a260bb96e510103b006f27979f33185c6e83ed7c03555d23848a3e4b6fce57fa",
+      "identical_to_01": true
+    }
+  },
+  "linked_usb": {
+    "syscalls": {
+      "14": {
+        "target": "sys_mknod",
+        "address": "0xc00c2c8c"
+      },
+      "19": {
+        "target": "sys_lseek",
+        "address": "0xc00b54c4"
+      },
+      "54": {
+        "target": "sys_ioctl",
+        "address": "0xc00c7d9c"
+      }
+    },
+    "linked": {
+      "y2_usb_worker": "0xc0016508",
+      "y2_musb_init": "0xc0009c54",
+      "y2_musb_interrupt": "0xc0016cc4",
+      "y2_session_write": "0xc0016f08",
+      "musb_start": "0xc015ab28",
+      "musb_interrupt": "0xc015add0",
+      "musb_g_ep0_irq": "0xc015d444",
+      "gs_bind": "0xc0169894",
+      "acm_bind": "0xc0167904",
+      "gserial_connect": "0xc0168278"
+    },
+    "status": "PASS offline; enumeration untested"
+  },
+  "baseline_snapshot_bytes": 260,
+  "live_status_bytes": 88,
+  "limits": {
+    "power_on_seconds": 60,
+    "usb_active_seconds": 50,
+    "pwrap_poll_ms": 250,
+    "first_detach_stops": true
+  },
+  "unqualified": [
+    "underlying PWRAP busy cause",
+    "enumeration",
+    "physical log continuity",
+    "late-open/non-reading host",
+    "controller reconnect",
+    "connected-start recovery"
+  ]
+}

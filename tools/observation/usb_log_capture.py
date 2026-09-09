@@ -13,7 +13,7 @@ import struct
 import termios
 import time
 
-HEADER=b'Y2LOG1 M2-USBACM-01\n'
+HEADER=b'Y2LOG1 M2-USBACM-03\n'
 
 
 def usb_identity(device, sysfs=Path('/sys')):

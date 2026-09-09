@@ -96,7 +96,7 @@ static void run(void) {
     command("LO");service();CHECK(!relay.active);
     command("G1\n");partial=1;service();CHECK(relay.active && seeked==1 && output_n==24);
     for(unsigned i=0;i<100;++i) service();
-    CHECK(contains("Y2LOG1 M2-USBACM-01\nPID1 startup\n"));
+    CHECK(contains("Y2LOG1 M2-USBACM-03\nPID1 startup\n"));
     CHECK(contains("6,17,1000,-;kernel fixture\n") && relay.head==relay.tail);
     relay_log("PID1 live\n",10);partial=0;service();CHECK(contains("PID1 live\n"));
     block=1;

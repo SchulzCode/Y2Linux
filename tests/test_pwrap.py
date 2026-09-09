@@ -74,6 +74,8 @@ int main(void) {
         assert(f.delays<=Y2_PWRAP_POLLS+6);
         if(fault>=1 && fault<=12) {
             assert(s.result<0 && !s.valid && !f.commands && !f.acks);
+            if(fault==7) assert(s.result==-110 && f.delays==Y2_PWRAP_POLLS);
+            else assert(!f.delays); /* no waiting on active/stale/invalid states */
         } else if(fault==13 || fault==14 || fault==15) {
             assert(s.result<0 && !s.valid && f.commands==1 && !f.acks);
         } else if(fault==16) {
@@ -99,6 +101,79 @@ int main(void) {
         unsigned value=0,state=0,reads=f.reads;
         assert(y2_pwrap_read_pmic(&io,0x102,&value,&state)==-22);
         assert(f.reads==reads); /* reject arbitrary-address access before IO */
+    }
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            (path / 'test.c').write_text(source)
+            subprocess.run(['clang', '-O2', '-Wall', '-Wextra', '-Werror',
+                            '-I' + str(PROJECT / 'kernel/diagnostic'),
+                            str(path / 'test.c'), '-o', str(path / 'test')], check=True)
+            subprocess.run([str(path / 'test')], check=True)
+
+    def test_sync_wait_before_each_command(self):
+        source = r'''
+#include <assert.h>
+#include "pwrap.h"
+struct fixture { unsigned target, ready_after, fault, phase, commands, acks, delays, reads; };
+static unsigned gate(struct fixture *f,unsigned which) {
+    if(which!=f->target) return 0x00300001;
+    if(f->delays<f->ready_after) return 0x00200001; /* photographed condition */
+    switch(f->fault) {
+    case 1:return 0x00100001; /* initialization lost */
+    case 2:return 0x00380001; /* new unowned request */
+    case 3:return 0x00360001; /* stale completion must not be cleared */
+    case 4:return 0x00370001; /* invalid FSM */
+    default:return 0x00300001;
+    }
+}
+static unsigned rd(void *context,unsigned reg) {
+    struct fixture *f=context;++f->reads;assert(f->reads<1100);
+    switch(reg) {
+    case 0:return 0;case 4:case 0x94:case 0x98:return 1;
+    case 0x50:return 0x7f;case 0xa0:break;default:assert(0);
+    }
+    if(f->phase==0 || f->phase==1) {
+        unsigned v=gate(f,f->phase==0 ? 0 : f->commands+1);
+        if(y2_pwrap_idle(v)) ++f->phase;
+        return v;
+    }
+    if(f->phase==3) return 0x00360000 | (f->commands==1 ? 0x2023 : f->commands==2 ? 0xc000 : 1);
+    assert(f->phase==4);f->phase=1;return 0x00300001;
+}
+static void wr(void *context,unsigned reg,unsigned value) {
+    struct fixture *f=context;
+    if(reg==0x9c) {
+        assert(f->phase==2 && f->commands==f->acks && f->commands<3);
+        assert(value==(f->commands==0 ? 0x00800000 : f->commands==1 ? 0x02810000 : 0));
+        ++f->commands;f->phase=3;
+    } else {
+        assert(reg==0xa4 && value==1 && f->phase==3);++f->acks;f->phase=4;
+    }
+}
+static void delay(void *context) {++((struct fixture*)context)->delays;}
+int main(void) {
+    const unsigned waits[]={0,3,999,1000,1001};
+    for(unsigned target=0;target<4;++target) {
+        for(unsigned mode=0;mode<9;++mode) {
+            struct fixture f={.target=target,.ready_after=mode<5 ? waits[mode] : 3,
+                .fault=mode<5 ? 0 : mode-4};
+            struct y2_pwrap_io io={&f,rd,wr,delay};struct y2_pwrap_snapshot s;
+            y2_pwrap_probe(&io,&s);
+            assert(s.before==(target==0 && f.ready_after ? 0x00200001 : 0x00300001));
+            if(mode<4) {
+                assert(!s.result && s.valid==7 && s.cid==0x2023 && s.vusb==0xc000 && s.chrdet==1);
+                assert(f.commands==3 && f.acks==3 && f.delays==f.ready_after);
+            } else {
+                unsigned completed=target>1 ? target-1 : 0;
+                assert(s.result==(mode==4 ? -110 : mode==5 ? -5 : -16));
+                assert(s.valid==((1U<<completed)-1));
+                assert(f.commands==completed && f.acks==completed);
+                assert(f.delays==(mode==4 ? Y2_PWRAP_POLLS : 3));
+                assert(s.after==(mode==4 ? 0x00200001 : gate(&f,target)));
+            }
+        }
     }
 }
 '''
