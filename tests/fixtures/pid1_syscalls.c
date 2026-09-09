@@ -2,7 +2,7 @@
  * Host-only QEMU ARM fixture. No actual kernel/device/MMIO is exercised.
  */
 #include "text.h"
-#include "pwrap.h"
+#include "usb_clock.h"
 static unsigned writes,sleeps,opened,offset,closed;
 static unsigned power_reads;
 static const char *path;
@@ -24,7 +24,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
     (void)d;(void)e;
     if(number==20) return 1;
     if(number==122) {
-        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-pwrap1";
+        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-usbclk1";
         if(TEST_CASE==7) return -14;
         for(unsigned i=0;i<390;++i) uts[i]=0;
         for(unsigned i=0;i<sizeof(release);++i) uts[130+i]=release[i];
@@ -51,12 +51,16 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
     if(number==3) {
         const char *data="";unsigned size=0,n=0;
         if(a==3) {
-            CHECK(c==sizeof(struct y2_pwrap_snapshot) && sleeps==1);
+            CHECK(c==sizeof(struct y2_platform_snapshot) && sleeps==1);
             CHECK(++power_reads==1);
             CHECK(prefix(last->rows[1],"STAGE: READ PWRAP"));
             if(TEST_CASE==9) return -4;
             if(TEST_CASE==10) return c-1;
-            struct y2_pwrap_snapshot *s=(void*)b;
+            struct y2_platform_snapshot *snapshot=(void*)b;
+            struct y2_pwrap_snapshot *s=&snapshot->power;
+            snapshot->clock=(struct y2_usb_clock_snapshot){.valid=15,.peri=0x03ffffff,
+                .mux=0x00800000,.pll=0xf4000001,.pll_power=1};
+            if(TEST_CASE==13) { snapshot->clock.result=-16; snapshot->clock.valid=1; }
             *s=(struct y2_pwrap_snapshot){.magic=Y2_PWRAP_MAGIC,
                 .valid=3,.wrap=1,.channel=1,.init=1,.arb=0x1ff,
                 .before=0x00300000,.after=0x00300000,.cid=0x2023,.vusb=0xc001};
@@ -73,7 +77,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         else if(eq(path,"/sys/devices/system/cpu/online")) data="0\n";
         else if(eq(path,"/proc/meminfo")) data="MemTotal: 21000 kB\nMemFree: 17000 kB\n";
         else if(eq(path,"/proc/uptime")) data="12.34 5.67\n";
-        else if(eq(path,"/proc/interrupts")) data="CPU0\n 1: 1234 GIC mtk-clkevt\n";
+        else if(eq(path,"/proc/interrupts")) data="CPU0\n 1: 1234 GIC 112 Level timer@10008000\n";
         else if(eq(path,"/sys/firmware/devicetree/base/compatible")) {
             static const char compat[]="innioasis,y2\0mediatek,mt6582";
             data=compat;size=sizeof(compat);
@@ -108,14 +112,15 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         CHECK(prefix(last->rows[1],"STAGE: STOP: RESTORE ANDROID"));
         CHECK(closed>0);
         if(TEST_CASE==0) {
-            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-pwrap1"));
+            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-usbclk1"));
             CHECK(prefix(last->rows[3],"CPU PART: 0xc07"));
             CHECK(prefix(last->rows[4],"PWRAP RC:0"));
             CHECK(prefix(last->rows[4]+20,"VALID:3"));
-            CHECK(prefix(last->rows[16],"MUX:0 WRAP:1 WACS:1 INIT:1"));
-            CHECK(prefix(last->rows[17],"ARB:000001FF PRE:00300000"));
-            CHECK(prefix(last->rows[18],"CID:00002023 VUSB:0000C001"));
-            CHECK(prefix(last->rows[19],"POST:00300000; PMIC READS ONLY"));
+            CHECK(prefix(last->rows[16],"CID:00002023 VUSB:0000C001"));
+            CHECK(prefix(last->rows[17],"PERI:03FFFFFF MUX:00800000"));
+            CHECK(prefix(last->rows[18],"PLL:F4000001 PWR:00000001"));
+            CHECK(prefix(last->rows[19],"CLOCK RC:0"));
+            CHECK(prefix(last->rows[19]+18,"VALID:15 READ ONLY"));
             CHECK(prefix(last->rows[6],"DT RAM: 24M + 512K (D08 STATIC)"));
             CHECK(prefix(last->rows[9],"TIMER IRQ CPU0: 1234"));
         }
@@ -127,6 +132,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         if(TEST_CASE==8) CHECK(prefix(last->rows[11],"SYSFS MOUNT RC: -1"));
         if(TEST_CASE==9) CHECK(prefix(last->rows[4],"PWRAP READ ERR: -4"));
         if(TEST_CASE==10 || TEST_CASE==12) CHECK(prefix(last->rows[4],"PWRAP READ ERR: -5"));
+        if(TEST_CASE==13) CHECK(prefix(last->rows[19],"CLOCK RC:-16"));
         if(TEST_CASE==11) {
             CHECK(prefix(last->rows[4],"PWRAP RC:-110"));
             CHECK(prefix(last->rows[4]+20,"VALID:1"));

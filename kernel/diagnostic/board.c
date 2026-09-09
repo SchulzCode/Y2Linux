@@ -9,7 +9,7 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include "/project/kernel/diagnostic/text.h"
-#include "/project/kernel/diagnostic/pwrap.h"
+#include "/project/kernel/diagnostic/usb_clock.h"
 
 static void __iomem *y2_ovl, *y2_dsi, *y2_wdt, *y2_pixels;
 static struct cdev y2_cdev;
@@ -51,7 +51,7 @@ static ssize_t y2_text_write(struct file *file, const char __user *buf,
     mutex_unlock(&y2_frame_lock);
     return ret ? ret : count;
 }
-static struct y2_pwrap_snapshot y2_power;
+static struct y2_platform_snapshot y2_power;
 static bool y2_power_done;
 static unsigned y2_power_read(void *context, unsigned offset)
 { return readl((void __iomem *)context + offset); }
@@ -59,25 +59,39 @@ static void y2_power_write(void *context, unsigned offset, unsigned value)
 { writel(value, (void __iomem *)context + offset); }
 static void y2_power_delay(void *context)
 { udelay(10); }
+static int y2_clock_read(void *context, unsigned address, unsigned *value)
+{
+    void __iomem *base;
+    /* No write accessor and no unreviewed register can enter this mapping. */
+    if (address != 0x10003018U && address != 0x10000060U &&
+        address != 0x10209220U && address != 0x1020922cU) return -EINVAL;
+    if (!request_mem_region(address, 4, "y2-usb-clock-snapshot")) return -EBUSY;
+    base = ioremap(address, 4);
+    if (base) { *value = readl(base); iounmap(base); }
+    release_mem_region(address, 4);
+    return base ? 0 : -ENOMEM;
+}
 static void y2_collect_power(void)
 {
     void __iomem *base;
     struct y2_pwrap_io io = { .read = y2_power_read, .write = y2_power_write,
                               .delay = y2_power_delay };
-    y2_power.magic = Y2_PWRAP_MAGIC;
-    y2_power.result = -ENODEV;
+    struct y2_usb_clock_io clocks = { .read = y2_clock_read };
+    y2_power.power.magic = Y2_PWRAP_MAGIC;
+    y2_power.power.result = y2_power.clock.result = -ENODEV;
     if (!y2_display_valid()) return;
     if (!request_mem_region(Y2_PWRAP_BASE, Y2_PWRAP_BYTES, "y2-pwrap-probe")) {
-        y2_power.result = -EBUSY;
+        y2_power.power.result = -EBUSY;
         return;
     }
     base = ioremap(Y2_PWRAP_BASE, Y2_PWRAP_BYTES);
     if (base) {
         io.context = (void *)base;
-        y2_pwrap_probe(&io, &y2_power);
+        y2_pwrap_probe(&io, &y2_power.power);
         iounmap(base);
     }
     release_mem_region(Y2_PWRAP_BASE, Y2_PWRAP_BYTES);
+    y2_usb_clock_probe(&clocks, &y2_power.power, &y2_power.clock);
 }
 static ssize_t y2_power_snapshot(struct file *file, char __user *buf,
                                  size_t count, loff_t *pos)

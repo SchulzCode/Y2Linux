@@ -1,5 +1,9 @@
 # M2 PWRAP/VUSB prerequisite — bounded read-only PMIC probe
 
+> Subsequent [physical photographs](m2-pwrap-hardware-result.md) confirm PWRAP RC=0, CID=0x2023, VUSB=0xc000 and BEAT 50.
+> Timer IRQ reporting returns -61; source-backed parser diagnosis is recorded.
+> Exact flashed hash and restoration outcome remain unreported. Original handoff below is historical.
+
 2026-09-09. #23 supplies the immediate prerequisite for blocked USB logging #27.
 M2 activation baseline `ebeed72`; latest physical evidence is the existing
 owner-reported M1 heartbeat result. No new hardware success is claimed.

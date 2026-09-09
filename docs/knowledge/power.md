@@ -26,3 +26,14 @@ shared input/display/SD rail ownership and battery/charger telemetry remain open
 under #23; the conflicting Android battery fields above remain unresolved.
 There is no evidence that a VUSB enable report measures actual supply voltage or
 satisfies the basic battery/charger reporting required for M2 exit.
+
+
+## Returned M2-PWRAP-01 hardware evidence
+
+[Owner photographs](m2-pwrap-hardware-result.md) confirm RC=0/VALID=3,
+CID=0x2023, VUSB=0xc000 and continued execution through BEAT 50. This resolves
+the narrow inherited AP read-transport/VUSB-enable observation for this boot.
+It is one cached snapshot, not repeated sampling, voltage measurement or battery
+telemetry. Earlier pending/unknown statements describe the original handoff.
+Next: [read-only USB clock handoff snapshot](m2-usb-clock-probe.md), with the
+source-identified timer IRQ-name parser correction. USB ownership remains blocked.

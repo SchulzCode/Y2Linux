@@ -47,8 +47,25 @@ No optional feature has been waived merely to reach today's target.
 
 [M2-PWRAP-01](../build/m2-pwrap-01-result.md) is offline validated, 1,093,632 bytes,
 SHA-256 `c51102c861d65d39f5af2425ed73e9c1ba21d8adaae1b016f450a58630946ac0`.
-It awaits the owner physical test; no new hardware evidence is inferred. This
-session stops at that image boundary. #23/#27 and M2 remain open.
+The owner has now supplied [two physical photographs](../knowledge/m2-pwrap-hardware-result.md):
+PWRAP RC=0/VALID=3, CID=0x2023, VUSB=0xc000, BEAT 18→50 and MemTotal 22208 kB.
+The cached PWRAP/VUSB result is confirmed on this boot; exact flashed hash,
+host timing and restoration remain unreported. Timer -61 is a source-identified
+IRQ-name parser mismatch. #23/#27 and M2 remain open.
+
+Scope review at `c6709cc`: the next localized candidate corrects IRQ parsing and
+reads four exact USB clock handoff registers; no clock/PHY/USB controller/PMIC
+write or DMA ownership change is added. [Contract](../knowledge/m2-usb-clock-probe.md).
+All coverage rows were reconsidered against these photographs: boot stability,
+memory and power remain PARTIAL (now with measured MemTotal and one successful
+PWRAP read path); USB remains BLOCKED on its lower-level ownership contract.
+Other input/display/storage/rootfs/thermal/battery gaps and later-phase gates are
+unchanged. Preserve D08, CPU0, screen/watchdog and established recovery policy.
+
+[M2-USBCLK-01](../build/m2-usbclk-01-result.md) is now offline validated and
+awaits the owner test: 1,093,632 bytes, SHA-256
+`602080eb199f3a4be30082ee114dfeb97ef414e10d8ad4acf5d239f2096cd6ec`.
+One clean build and 19 targeted validation methods pass; no device action occurred.
 
 ### First prerequisite scope review
 
@@ -111,7 +128,7 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 | --- | --- | --- | --- |
 | Physical Linux + initramfs + native PID1 | **CONFIRMED** | Owner reports 6.18.0-y2-m1, PID1, mounts, increasing BEAT/uptime and working sleep. [Result](../knowledge/m1-runtime-hardware-result.md). | Closed M1 / #20–21; core stays achieved. |
 | Boot/kernel stability and maintenance | **PARTIAL** | Reproducible offline artifacts and a working run exist; exact flashed hash for latest report, repeated cold/warm boots, duration, timing accuracy, stress and maintained 6.18.y selection are not qualified. | Y2H-300 #28; maintenance/release policy #32. |
-| RAM and reserved/DMA ownership | **PARTIAL** | D08 24.5 MiB described map is visible; exact working set, expanded banks, heap/high carveouts and full DMA containment remain open. [Map](../knowledge/initial-ram-map.md). | #22; #28. No automatic expansion. |
+| RAM and reserved/DMA ownership | **PARTIAL** | D08 24.5 MiB described map is visible; photographed MemTotal 22208 kB; working-set adequacy, expanded banks, heap/high carveouts and full DMA containment remain open. [Map](../knowledge/initial-ram-map.md). | #22; #28. No automatic expansion. |
 | SMP | **UNKNOWN** | CPU0 works; physical extra cores do not establish release/coherency/interrupt/PM semantics. [Audit](../knowledge/linux-6.18-support.md). | #28; optional for first wired player. |
 | Clocks, resets, pinctrl/GPIO/IRQ and I2C | **BLOCKED** | Minimal fixed timer/UART clocks work sufficiently for M1. Common peripheral providers/mux/reset/rail contracts are not established; USB/storage/audio cannot simply inherit sibling compatibles. | #23 and #28, now explicit shared foundation. |
 | Watchdog and controlled reset | **PARTIAL** | Reviewed early AP_RGU stop and displayed stopped state; no production driver takeover, pet/timeout strategy, deliberate reset or restart qualification. | #28 with #30. Preserve current experiment behavior. |
@@ -125,7 +142,7 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 | Removable SD | **PLANNED** | Metadata distinguishes card from internal eMMC; #26 scopes controller/read-only proof. Native driver/clock/pins/DMA contract missing. | #26; #28. |
 | Internal eMMC | **BLOCKED** | Capacity/ordinary partition offsets reconciled; no native controller support contract, safe write/flush path or filesystem integrity qualification. | #28; recovery/rootfs policy #32. |
 | Development rootfs and filesystem/data layout | **PLANNED** | Current image is diagnostic initramfs only. Block access, filesystem, writable-data boundaries and recoverable rootfs deployment were absent beyond broad blueprint intent. | Added #28/#32; no distribution/layout chosen. |
-| PMIC/battery/charger telemetry | **PARTIAL** | Historical MT6323 identity and stock readings; duplicate Android fields conflict. No trustworthy units/calibration, native gauge/charger path or charge policy. | #23; added #30. |
+| PMIC/battery/charger telemetry | **PARTIAL** | Photographed native PWRAP CID 0x2023/VUSB 0xc000 reads now work; duplicate Android battery fields still conflict. No trustworthy units/calibration, native gauge/charger path or charge policy. | #23; added #30. |
 | Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |
 | cpufreq/voltage/OPP and cpuidle | **UNKNOWN** | Minimal config does not establish frequency/voltage transitions or idle states. Shared clocks/rails precede optimization. | #30 with #28. |
 | Runtime PM/suspend/resume/wake | **UNKNOWN** | No native suspend/wake, rail retention, storage resume or screen-off-audio proof. | #30; integrates #28/#29/#31 incrementally. |

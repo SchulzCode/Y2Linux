@@ -2,7 +2,7 @@
  * Y2B-245: freestanding PID1, bounded screen diagnostics; no runtime UART I/O.
  */
 #include "status.h"
-#include "../kernel/diagnostic/pwrap.h"
+#include "../kernel/diagnostic/usb_clock.h"
 typedef unsigned int u32;
 #ifdef Y2_SYSCALL_TEST
 extern long y2_test_call(long,long,long,long,long,long);
@@ -124,27 +124,28 @@ static unsigned row_hex(char *row, unsigned col, unsigned value)
 }
 static void power_rows(void)
 {
-    struct y2_pwrap_snapshot s;
+    struct y2_platform_snapshot snapshot;
+    struct y2_pwrap_snapshot *s=&snapshot.power;
+    struct y2_usb_clock_snapshot *c=&snapshot.clock;
     unsigned col;
-    long n=call5(3,diagnostic,(long)&s,sizeof(s),0,0);
-    if(n!=(long)sizeof(s) || s.magic!=Y2_PWRAP_MAGIC) {
+    long n=call5(3,diagnostic,(long)&snapshot,sizeof(snapshot),0,0);
+    if(n!=(long)sizeof(snapshot) || s->magic!=Y2_PWRAP_MAGIC) {
         row_code(screen.rows[4],"PWRAP READ ERR: ",n<0?n:-5);
         error("PWRAP READ",n<0?n:-5); return;
     }
-    row_code(screen.rows[4],"PWRAP RC:",s.result);
-    col=row_add(screen.rows[4],20,"VALID:");row_number(screen.rows[4],col,s.valid);
-    row_clear(screen.rows[16]);col=row_add(screen.rows[16],0,"MUX:");
-    col=row_number(screen.rows[16],col,s.mux);col=row_add(screen.rows[16],col," WRAP:");
-    col=row_number(screen.rows[16],col,s.wrap);col=row_add(screen.rows[16],col," WACS:");
-    col=row_number(screen.rows[16],col,s.channel);col=row_add(screen.rows[16],col," INIT:");
-    row_number(screen.rows[16],col,s.init);
-    row_pair(screen.rows[17],"ARB:","");col=row_hex(screen.rows[17],4,s.arb);
-    col=row_add(screen.rows[17],col," PRE:");row_hex(screen.rows[17],col,s.before);
-    row_pair(screen.rows[18],"CID:","");col=row_hex(screen.rows[18],4,s.cid);
-    col=row_add(screen.rows[18],col," VUSB:");row_hex(screen.rows[18],col,s.vusb);
-    row_pair(screen.rows[19],"POST:","");col=row_hex(screen.rows[19],5,s.after);
-    row_add(screen.rows[19],col,"; PMIC READS ONLY");
-    if(s.result) error("PWRAP",s.result);
+    row_code(screen.rows[4],"PWRAP RC:",s->result);
+    col=row_add(screen.rows[4],20,"VALID:");row_number(screen.rows[4],col,s->valid);
+    row_pair(screen.rows[16],"CID:","");col=row_hex(screen.rows[16],4,s->cid);
+    col=row_add(screen.rows[16],col," VUSB:");row_hex(screen.rows[16],col,s->vusb);
+    row_pair(screen.rows[17],"PERI:","");col=row_hex(screen.rows[17],5,c->peri);
+    col=row_add(screen.rows[17],col," MUX:");row_hex(screen.rows[17],col,c->mux);
+    row_pair(screen.rows[18],"PLL:","");col=row_hex(screen.rows[18],4,c->pll);
+    col=row_add(screen.rows[18],col," PWR:");row_hex(screen.rows[18],col,c->pll_power);
+    row_code(screen.rows[19],"CLOCK RC:",c->result);
+    col=row_add(screen.rows[19],18,"VALID:");col=row_number(screen.rows[19],col,c->valid);
+    row_add(screen.rows[19],col," READ ONLY");
+    if(s->result) error("PWRAP",s->result);
+    else if(c->result) error("CLOCK",c->result);
 }
 __attribute__((noreturn)) void diag_start(u32 *stack)
 {
@@ -158,7 +159,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     for(row=0;row<Y2_ROWS;++row) row_clear(screen.rows[row]);
     screen.magic=Y2_TEXT_MAGIC;
     row_pair(screen.rows[12],"LAST ERR: ","NONE");
-    row_pair(screen.rows[15],"BUILD: ","M2-PWRAP-01");
+    row_pair(screen.rows[15],"BUILD: ","M2-USBCLK-01");
     row_pair(screen.rows[16],"TRUNCATED TEXT: ","~ ; ERRORS: -ERRNO");
     row_pair(screen.rows[17],"SCOPE: ","CPU0 / INITRAMFS ONLY");
     row_pair(screen.rows[18],"HOST LIMIT: ","60S FROM POWER-ON");
@@ -185,7 +186,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
             present("READ CPU");file_row(3,"CPU PART: ","/proc/cpuinfo","CPU part");
             present("READ ONLINE");file_row(5,"CPUS ONLINE: ","/sys/devices/system/cpu/online",0);
             present("READ DT");dt_rows();
-            present("READ PWRAP / NO PMIC WRITES");power_rows();
+            present("READ PWRAP / USB CLOCKS");power_rows();
         }
         present("READ MEMORY");file_row(7,"MEMTOTAL: ","/proc/meminfo","MemTotal");
         present("READ UPTIME");file_row(8,"UPTIME/IDLE S: ","/proc/uptime",0);

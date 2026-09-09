@@ -1,5 +1,9 @@
 # M2-PWRAP-01 — USB power prerequisite ready for device test
 
+> Subsequent [physical photographs](../knowledge/m2-pwrap-hardware-result.md) confirm PWRAP RC=0, CID=0x2023, VUSB=0xc000 and BEAT 50.
+> Timer IRQ reporting returns -61; source-backed parser diagnosis is recorded.
+> Exact flashed hash and restoration outcome remain unreported. Original handoff below is historical.
+
 2026-09-09. #23 prerequisite for #27, under active M2 #28.
 **Offline validated; not flashed or hardware validated.** M1 remains complete.
 [Contract and source evidence](../knowledge/m2-pwrap-probe.md).

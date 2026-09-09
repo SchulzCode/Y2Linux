@@ -7,7 +7,7 @@ PROJECT=Path(__file__).resolve().parents[1]
 class Pid1Control(unittest.TestCase):
     def test_runtime_without_uart(self):
         with tempfile.TemporaryDirectory() as d:
-            for case in range(13):
+            for case in range(14):
                 with self.subTest(case=case):
                     binary=Path(d)/('pid1-'+str(case))
                     subprocess.run(['clang','--target=arm-linux-gnueabi','-mcpu=cortex-a7',

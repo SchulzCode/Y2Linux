@@ -1,0 +1,34 @@
+{
+  "candidate": "M2-USBCLK-01",
+  "hardware_status": "NOT TESTED",
+  "baseline": "c6709cc",
+  "kernel_release": "6.18.0-y2-m2-usbclk1",
+  "scope": "Correct DT timer IRQ action parser; four guarded inherited USB clock reads following PWRAP CID/VUSB success. No clock/PMIC/PHY/controller writes or DMA change.",
+  "config_delta": [
+    "CONFIG_LOCALVERSION: -y2-m2-pwrap1 -> -y2-m2-usbclk1"
+  ],
+  "size": 1093632,
+  "sha256": "602080eb199f3a4be30082ee114dfeb97ef414e10d8ad4acf5d239f2096cd6ec",
+  "validation": {
+    "clean_builds": 1,
+    "unittest_methods": 19,
+    "pid1_arm_scenarios": 14,
+    "pwrap_scenarios": 20,
+    "clock_probe_scenarios": 10,
+    "compiler_warnings": 0
+  },
+  "linked_review": {
+    "snapshot": "0xc0015208",
+    "snapshot_bytes": 72,
+    "clock_read": "0xc0015794",
+    "clock_read_instruction": "0xc0015834: ldr r1,[r0]; stores only to output RAM, no mapped register writes",
+    "read_pmic": "0xc0015878",
+    "guards": "PID1, cached before access, display valid, PWRAP success/VALID3/CID low byte23/VUSB bit15, exact address whitelist, resource ownership",
+    "registers": [
+      "0x10003018",
+      "0x10000060",
+      "0x10209220",
+      "0x1020922c"
+    ]
+  }
+}

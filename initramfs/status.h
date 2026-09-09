@@ -52,22 +52,38 @@ next:  while(*input && *input!='\n') ++input;
 static int irq_count(char *out,unsigned capacity,const char *input)
 {
     while(*input) {
-        const char *line=input,*colon=0,*timer=0;
+        const char *line=input,*end=input,*count,*number_end,*token;
         unsigned n=0;
-        while(*input && *input!='\n') {
-            if(*input==':') colon=input;
-            if(starts(input,"mtk-clkevt")) timer=input;
-            ++input;
+        int matched=0;
+        while(*end && *end!='\n') ++end;
+        input=*end ? end+1 : end;
+        while(line<end && (*line==' ' || *line=='\t')) ++line;
+        if(line==end || *line<'0' || *line>'9') continue;
+        while(line<end && *line>='0' && *line<='9') ++line;
+        if(line==end || *line++!=':') continue;
+        while(line<end && (*line==' ' || *line=='\t')) ++line;
+        count=number_end=line;
+        while(number_end<end && *number_end>='0' && *number_end<='9') ++number_end;
+        if(number_end==count || number_end==end ||
+           (*number_end!=' ' && *number_end!='\t')) continue;
+        token=number_end;
+        while(token<end) {
+            const char *next;
+            while(token<end && (*token==' ' || *token=='\t')) ++token;
+            next=token;
+            while(next<end && *next!=' ' && *next!='\t') ++next;
+            /* timer-of.c passes np->full_name, not the clock-event name. */
+            if(token<next && *token=='/') ++token;
+            if(next-token==14 && starts(token,"timer@10008000")) matched=1;
+            token=next;
         }
-        if(timer && colon && colon<timer && colon>=line) {
-            ++colon;while(*colon==' ' || *colon=='\t') ++colon;
-            while(*colon>='0' && *colon<='9') {
+        if(matched) {
+            while(count<number_end) {
                 if(n+1>=capacity) return -75;
-                out[n++]=*colon++;
+                out[n++]=*count++;
             }
-            out[n]=0;return n ? 0 : -61;
+            out[n]=0;return 0;
         }
-        if(*input) ++input;
     }
     return -61;
 }

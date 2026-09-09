@@ -141,3 +141,14 @@ accessory, not an ordinary cable. Stock last_kmsg/ramoops retrieval has no prove
 cross-boot layout/retention/reader contract and would change D08. Current screen
 output is a functioning temporary aid but does not meet the requested host-log
 channel. Therefore no smaller **reliable host-readable fallback** is claimed.
+
+
+## Returned M2-PWRAP-01 hardware evidence
+
+[Owner photographs](m2-pwrap-hardware-result.md) confirm RC=0/VALID=3,
+CID=0x2023, VUSB=0xc000 and continued execution through BEAT 50. This resolves
+the narrow inherited AP read-transport/VUSB-enable observation for this boot.
+It is one cached snapshot, not repeated sampling, voltage measurement or battery
+telemetry. Earlier pending/unknown statements describe the original handoff.
+Next: [read-only USB clock handoff snapshot](m2-usb-clock-probe.md), with the
+source-identified timer IRQ-name parser correction. USB ownership remains blocked.

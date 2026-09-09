@@ -103,3 +103,15 @@ for a [bounded inherited-state probe](m2-pwrap-probe.md), owned by #23.
 This is offline contract evidence, not a new PMIC/USB hardware result. #23's
 other consumer rails and trustworthy telemetry remain unknown; #27 still needs
 its complete clock/PHY/VBUS/FIFO/IRQ/DMA contract. D08 remains authoritative.
+
+## Returned M2-PWRAP-01 photographs — 2026-09-09
+
+[Physical evidence](m2-pwrap-hardware-result.md) now confirms one successful
+inherited PWRAP CID/VUSB snapshot: RC 0, VALID 3, CID 0x2023, VUSB 0xc000,
+and continued heartbeat through BEAT 50. MemTotal is 22208 kB. This supersedes
+the preceding checkpoint's absence of PMIC hardware evidence; it does not
+qualify general PMIC control, supply voltage, repeated boots or USB logging.
+Timer -61 is traced to the IRQ action-name parser, with hardware confirmation
+of its correction pending. The next [clock snapshot](m2-usb-clock-probe.md)
+reads four corroborated clock registers without enabling clocks or accessing
+USB MAC/PHY/DMA. Other unknowns and milestone classifications are unchanged.
