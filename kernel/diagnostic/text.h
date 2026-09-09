@@ -61,7 +61,7 @@ static inline unsigned char y2_glyph(char c, unsigned row)
 }
 static inline unsigned short y2_text_pixel(const struct y2_text_frame *f, unsigned x, unsigned y)
 {
-    static const char title[]="Y2 LINUX / M2-CHRDET-01";
+    static const char title[]="Y2 LINUX / M2-USBGUARD-01";
     static const char guard[]="WDT:STOPPED  FB:GUARD OK";
     unsigned row=y/16, col=x/12, gx=(x%12)/2, gy=(y%16)/2;
     char ch=' ';

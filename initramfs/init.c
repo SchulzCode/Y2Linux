@@ -129,6 +129,12 @@ static unsigned row_hex_width(char *row,unsigned col,unsigned value,unsigned dig
     for(unsigned i=0;i<digits;++i) buf[i]=hex[(value >> ((digits-1-i)*4))&15];
     buf[digits]=0;return row_add(row,col,buf);
 }
+static unsigned row_hex_valid(char *row,unsigned col,unsigned value,unsigned digits,int valid)
+{
+    if(valid) return row_hex_width(row,col,value,digits);
+    for(unsigned i=0;i<digits;++i) col=row_add(row,col,"-");
+    return col;
+}
 static void power_rows(void)
 {
     struct y2_platform_snapshot snapshot;
@@ -160,46 +166,52 @@ static void power_rows(void)
         row_pair(screen.rows[19],"PWR:","");row_hex(screen.rows[19],4,c->pll_power);
     } else {
         const unsigned *v=snapshot.usb.values;
-        col=row_add(screen.rows[16],0,"POWER:");col=row_hex_width(screen.rows[16],col,v[0],2);
-        col=row_add(screen.rows[16],col," DEV:");col=row_hex_width(screen.rows[16],col,v[1],2);
-        col=row_add(screen.rows[16],col," HW:");row_hex_width(screen.rows[16],col,v[2],4);
+        unsigned valid=snapshot.usb.valid;
+        col=row_add(screen.rows[16],0,"PRE P:");col=row_hex_valid(screen.rows[16],col,v[0],2,valid & 1);
+        col=row_add(screen.rows[16],col," D:");col=row_hex_valid(screen.rows[16],col,v[1],2,valid & 2);
+        col=row_add(screen.rows[16],col," HW:");col=row_hex_valid(screen.rows[16],col,v[2],4,valid & 4);
+        col=row_add(screen.rows[16],col," W:");col=row_number(screen.rows[16],col,snapshot.wake.result);
+        col=row_add(screen.rows[16],col,"/");row_number(screen.rows[16],col,snapshot.wake.written);
         col=row_add(screen.rows[17],0,"PHY68:");
         for(unsigned i=6;i<13;++i) {
-            col=row_hex_width(screen.rows[17],col,v[i],2);
+            col=row_hex_valid(screen.rows[17],col,v[i],2,valid & (1U << i));
             col=row_add(screen.rows[17],col," ");
         }
         col=row_add(screen.rows[18],0,"DMA:");
-        for(unsigned i=13;i<21;++i) col=row_hex_width(screen.rows[18],col,v[i],4);
-        col=row_add(screen.rows[19],0,"IRQE TX:");col=row_hex_width(screen.rows[19],col,v[3],4);
-        col=row_add(screen.rows[19],col," RX:");col=row_hex_width(screen.rows[19],col,v[4],4);
-        col=row_add(screen.rows[19],col," USB:");row_hex_width(screen.rows[19],col,v[5],2);
+        for(unsigned i=13;i<21;++i) col=row_hex_valid(screen.rows[18],col,v[i],4,valid & (1U << i));
+        col=row_add(screen.rows[19],0,"IRQE TX:");col=row_hex_valid(screen.rows[19],col,v[3],4,valid & 8);
+        col=row_add(screen.rows[19],col," RX:");col=row_hex_valid(screen.rows[19],col,v[4],4,valid & 16);
+        col=row_add(screen.rows[19],col," USB:");row_hex_valid(screen.rows[19],col,v[5],2,valid & 32);
     }
-    if(!snapshot.usb.result && snapshot.usb.valid==0x1fffff) {
+    /* Preserve the original MAC/PHY/DMA evidence when the first guard refuses.
+     * An unperformed wake read must never replace that evidence with zeros. */
+    if(!snapshot.usb.result && snapshot.usb.valid==0x1fffff &&
+       (snapshot.wake.before_valid || snapshot.wake.written)) {
         const struct y2_usb_wake_snapshot *w=&snapshot.wake;
         row_code(screen.rows[16],"WAKE:",w->result);
         col=row_add(screen.rows[16],9,"W:");col=row_number(screen.rows[16],col,w->written);
         col=row_add(screen.rows[16],col," V:");col=row_hex_width(screen.rows[16],col,w->before_valid,2);
         col=row_add(screen.rows[16],col,"/");col=row_hex_width(screen.rows[16],col,w->after_valid,3);
-        col=row_add(screen.rows[16],col," P:");col=row_hex_width(screen.rows[16],col,w->after[10],2);
-        col=row_add(screen.rows[16],col," D:");row_hex_width(screen.rows[16],col,w->after[11],2);
+        col=row_add(screen.rows[16],col," P:");col=row_hex_valid(screen.rows[16],col,w->after[10],2,w->after_valid & (1U << 10));
+        col=row_add(screen.rows[16],col," D:");row_hex_valid(screen.rows[16],col,w->after[11],2,w->after_valid & (1U << 11));
         row_pair(screen.rows[17],"6A:","");col=row_hex_width(screen.rows[17],3,snapshot.usb.values[8],2);
-        col=row_add(screen.rows[17],col,">");col=row_hex_width(screen.rows[17],col,w->after[2],2);
+        col=row_add(screen.rows[17],col,">");col=row_hex_valid(screen.rows[17],col,w->after[2],2,w->after_valid & 4);
         col=row_add(screen.rows[17],col," PHY:");
-        for(unsigned i=0;i<7;++i) col=row_hex_width(screen.rows[17],col,w->after[i],2);
+        for(unsigned i=0;i<7;++i) col=row_hex_valid(screen.rows[17],col,w->after[i],2,w->after_valid & (1U << i));
         row_pair(screen.rows[18],"CTL:","");col=4;
         const char *labels[]={"1A:","1D:","22:","63:"};
         for(unsigned i=0;i<4;++i) {
             col=row_add(screen.rows[18],col,labels[i]);
-            col=row_hex_width(screen.rows[18],col,w->controls[3+i],2);
+            col=row_hex_valid(screen.rows[18],col,w->controls[3+i],2,w->before_valid & (1U << (3+i)));
             col=row_add(screen.rows[18],col," ");
         }
         row_pair(screen.rows[19],"TRIM:","");col=5;
         const char *trims[]={"00:","05:","15:"};
         for(unsigned i=0;i<3;++i) {
             col=row_add(screen.rows[19],col,trims[i]);
-            col=row_hex_width(screen.rows[19],col,w->controls[i],2);
+            col=row_hex_valid(screen.rows[19],col,w->controls[i],2,w->before_valid & (1U << i));
             col=row_add(screen.rows[19],col,"/");
-            col=row_hex_width(screen.rows[19],col,w->after[7+i],2);
+            col=row_hex_valid(screen.rows[19],col,w->after[7+i],2,w->after_valid & (1U << (7+i)));
             col=row_add(screen.rows[19],col," ");
         }
     }
@@ -220,7 +232,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     for(row=0;row<Y2_ROWS;++row) row_clear(screen.rows[row]);
     screen.magic=Y2_TEXT_MAGIC;
     row_pair(screen.rows[12],"LAST ERR: ","NONE");
-    row_pair(screen.rows[15],"BUILD: ","M2-CHRDET-01");
+    row_pair(screen.rows[15],"BUILD: ","M2-USBGUARD-01");
     row_pair(screen.rows[16],"TRUNCATED TEXT: ","~ ; ERRORS: -ERRNO");
     row_pair(screen.rows[17],"SCOPE: ","CPU0 / INITRAMFS ONLY");
     row_pair(screen.rows[18],"HOST LIMIT: ","60S FROM POWER-ON");

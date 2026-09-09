@@ -8,7 +8,36 @@ blueprint/planning material; no native platform readiness is inferred from that.
 
 ## M2 activation audit — 2026-09-09
 
-### Current checkpoint — PHY wake confirmed, baseline 305f8f9
+### Current checkpoint — CHRDET confirmed, connected-start guard refusal
+
+Baseline `de1a6d0`, 2026-09-09. [Three owner photos](../knowledge/m2-chrdet-hardware-result.md)
+show CHRDET 007B/1 with USB attached at startup and 0001/0 without it. PWRAP,
+clock and initial USB snapshots succeed. The connected boot reaches BEAT 10 but
+refuses wake before writing (6a=BE, W0, V00/000); no-USB photos show successful
+wake and BEAT 11/46. Same-boot chronology of the no-USB pair is not explicit.
+The connected screen's zero wake fields are unread, not hardware values.
+
+Narrow PMIC charger detection advances to CONFIRMED. Broader power/boot/memory
+remain PARTIAL and host USB logging BLOCKED. Current #22–#32 tracking and the
+coverage matrix retain their remaining gaps: no input/display/media/rootfs,
+thermal or later-phase capability advances from these photos. M1 stays complete,
+M2 active with blocked exit, M3 and Y2PlayerNative deferred; no criterion waived.
+
+The next localized step is [M2-USBGUARD-01](../knowledge/m2-usb-guard-diagnostic.md),
+preserving the already-captured raw USB state on early guard refusal and marking
+unread data. Hardware access/guards, 260-byte ABI, D08, DMA, loader, calibration,
+recovery and packaging policies are unchanged. This is a presentation fix within
+the active prerequisite, not a new subsystem or milestone boundary. Targeted
+tests and one clean build with D08/BOOTIMG checks apply. Stop at the candidate
+for connected-start owner photos before selecting a recovery/session write.
+
+[M2-USBGUARD-01](../build/m2-usbguard-01-result.md) now passes one clean build,
+all 15 selected methods (26 ARM PID1 and 49 PHY-wake scenarios), linked probe
+comparison and D08/BOOTIMG checks. Candidate: 1,097,728 bytes, SHA-256
+`e4078583ab53bd7e6388c94a357023fe8a7504ccc5a7499341cf72287ecd19b5`.
+It awaits the connected-start owner test; no new hardware result is inferred.
+
+### Previous checkpoint — PHY wake confirmed, baseline 305f8f9
 
 The owner-confirmed [same-boot USB-connected pair](../knowledge/m2-phy-wake-hardware-result.md)
 shows BEAT 10→49, IRQ 1134→5463, MemTotal 22208 kB, no reported error, the guarded
@@ -220,7 +249,7 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 | Removable SD | **PLANNED** | Metadata distinguishes card from internal eMMC; #26 scopes controller/read-only proof. Native driver/clock/pins/DMA contract missing. | #26; #28. |
 | Internal eMMC | **BLOCKED** | Capacity/ordinary partition offsets reconciled; no native controller support contract, safe write/flush path or filesystem integrity qualification. | #28; recovery/rootfs policy #32. |
 | Development rootfs and filesystem/data layout | **PLANNED** | Current image is diagnostic initramfs only. Block access, filesystem, writable-data boundaries and recoverable rootfs deployment were absent beyond broad blueprint intent. | Added #28/#32; no distribution/layout chosen. |
-| PMIC/battery/charger telemetry | **PARTIAL** | Photographed native PWRAP CID 0x2023/VUSB 0xc000 reads now work; duplicate Android battery fields still conflict. No trustworthy units/calibration, native gauge/charger path or charge policy. | #23; added #30. |
+| PMIC/battery/charger telemetry | **PARTIAL** | Photographed native PWRAP CID 0x2023/VUSB 0xc000 reads work; CHRDET follows reported startup cable state ([result](../knowledge/m2-chrdet-hardware-result.md)). Duplicate Android battery fields still conflict. No trustworthy units/calibration, native gauge/charger policy or voltage measurement. | #23; added #30. |
 | Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |
 | cpufreq/voltage/OPP and cpuidle | **UNKNOWN** | Minimal config does not establish frequency/voltage transitions or idle states. Shared clocks/rails precede optimization. | #30 with #28. |
 | Runtime PM/suspend/resume/wake | **UNKNOWN** | No native suspend/wake, rail retention, storage resume or screen-off-audio proof. | #30; integrates #28/#29/#31 incrementally. |

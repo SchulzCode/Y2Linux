@@ -1,5 +1,10 @@
 # M2-CHRDET-01 — PMIC charger-presence observation
 
+Result received: [CHRDET follows reported startup cable state](m2-chrdet-hardware-result.md).
+The connected-start PHY guard refuses before writing; the next step exposes
+its original inputs in [M2-USBGUARD-01](m2-usb-guard-diagnostic.md).
+The contract below describes the tested candidate.
+
 2026-09-09, localized #23/#27 prerequisite after the
 [same-boot PHY wake result](m2-phy-wake-hardware-result.md). USB is attached but
 DEVCTL remains 80. Read the independent PMIC indication before considering the

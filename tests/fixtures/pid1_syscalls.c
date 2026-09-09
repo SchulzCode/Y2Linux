@@ -24,7 +24,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
     (void)d;(void)e;
     if(number==20) return 1;
     if(number==122) {
-        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-chrdet1";
+        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-usbguard1";
         if(TEST_CASE==7) return -14;
         for(unsigned i=0;i<390;++i) uts[i]=0;
         for(unsigned i=0;i<sizeof(release);++i) uts[130+i]=release[i];
@@ -81,6 +81,23 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
             if(TEST_CASE==17) {snapshot->wake.result=-19;snapshot->wake.written=0;snapshot->wake.after_valid=0;}
             if(TEST_CASE==18) snapshot->wake.result=-5;
             if(TEST_CASE==19) {snapshot->wake.result=-16;snapshot->wake.written=0;snapshot->wake.after_valid=0;}
+            if(TEST_CASE==22 || TEST_CASE==25) {
+                /* The connected photo establishes 6a=BE and early refusal.
+                 * Other values here are synthetic sentinels, not device evidence. */
+                snapshot->usb.values[8]=0xbe;
+                snapshot->usb.values[13]=0xabcd;
+                snapshot->usb.values[20]=0x1234;
+                snapshot->wake.result=TEST_CASE==22 ? -19 : -12;
+                snapshot->wake.written=0;snapshot->wake.before_valid=0;
+                snapshot->wake.after_valid=0;
+            }
+            if(TEST_CASE==23) {
+                snapshot->wake.result=-12;snapshot->wake.written=0;
+                snapshot->wake.before_valid=7;snapshot->wake.after_valid=0;
+            }
+            if(TEST_CASE==24) {
+                snapshot->wake.result=-12;snapshot->wake.after_valid=3;
+            }
             *s=(struct y2_pwrap_snapshot){.magic=Y2_PWRAP_MAGIC,
                 .valid=7,.wrap=1,.channel=1,.init=1,.arb=0x1ff,
                 .before=0x00300000,.after=0x00300000,.cid=0x2023,.vusb=0xc001,.chrdet=0xa520};
@@ -137,7 +154,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         CHECK(prefix(last->rows[1],"STAGE: STOP: RESTORE ANDROID"));
         CHECK(closed>0);
         if(TEST_CASE==0) {
-            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-chrdet1"));
+            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-usbguard1"));
             CHECK(prefix(last->rows[3],"USB RC:0"));
             CHECK(prefix(last->rows[3]+12,"VALID:001FFFFF"));
             CHECK(prefix(last->rows[4],"PW:0"));
@@ -170,8 +187,17 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         if(TEST_CASE==16) {
             CHECK(prefix(last->rows[3],"USB RC:-5"));
             CHECK(prefix(last->rows[3]+12,"VALID:00000001"));
+            CHECK(prefix(last->rows[16],"PRE P:20 D:-- HW:----"));
+            CHECK(prefix(last->rows[17],"PHY68:-- -- -- -- -- -- --"));
+            CHECK(prefix(last->rows[18],"DMA:--------------------------------"));
+            CHECK(prefix(last->rows[19],"IRQE TX:---- RX:---- USB:--"));
         }
-        if(TEST_CASE==17) CHECK(prefix(last->rows[16],"WAKE:-19"));
+        if(TEST_CASE==17) {
+            CHECK(prefix(last->rows[16],"WAKE:-19"));
+            CHECK(prefix(last->rows[16]+9,"W:0 V:7F/000 P:-- D:--"));
+            CHECK(prefix(last->rows[17],"6A:04>-- PHY:--------------"));
+            CHECK(prefix(last->rows[19],"TRIM:00:00/-- 05:00/-- 15:00/--"));
+        }
         if(TEST_CASE==18) CHECK(prefix(last->rows[16],"WAKE:-5"));
         if(TEST_CASE==19) CHECK(prefix(last->rows[16],"WAKE:-16"));
         if(TEST_CASE==20) CHECK(prefix(last->rows[4]+24,"CHR:A500 D:0"));
@@ -180,6 +206,23 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
             CHECK(prefix(last->rows[4]+8,"/3"));
             CHECK(prefix(last->rows[4]+24,"CHR:---- D:?"));
             CHECK(prefix(last->rows[12],"LAST ERR: PWRAP -110"));
+        }
+        if(TEST_CASE==22 || TEST_CASE==25) {
+            CHECK(prefix(last->rows[16],TEST_CASE==22 ?
+                "PRE P:20 D:80 HW:1900 W:-19/0" : "PRE P:20 D:80 HW:1900 W:-12/0"));
+            CHECK(prefix(last->rows[17],"PHY68:06 07 BE 09 0A 0B 0C"));
+            CHECK(prefix(last->rows[18],"DMA:ABCD0000000000000000000000001234"));
+            CHECK(prefix(last->rows[19],"IRQE TX:1234 RX:5678 USB:9A"));
+            CHECK(prefix(last->rows[12],TEST_CASE==22 ?
+                "LAST ERR: PHY WAKE -19" : "LAST ERR: PHY WAKE -12"));
+        }
+        if(TEST_CASE==23) {
+            CHECK(prefix(last->rows[16]+9,"W:0 V:07/000 P:-- D:--"));
+            CHECK(prefix(last->rows[18],"CTL:1A:-- 1D:-- 22:-- 63:--"));
+        }
+        if(TEST_CASE==24) {
+            CHECK(prefix(last->rows[16]+9,"W:1 V:7F/003 P:-- D:--"));
+            CHECK(prefix(last->rows[17],"6A:04>-- PHY:0000----------"));
         }
         if(TEST_CASE==11) {
             CHECK(prefix(last->rows[4],"PW:-110"));

@@ -1,6 +1,6 @@
 {
   "candidate": "M2-CHRDET-01",
-  "hardware_status": "NOT TESTED",
+  "hardware_status": "OWNER PHOTOS: CHRDET 1 connected at startup / 0 without USB; connected-start PHY guard refusal before write; no-USB wake success",
   "baseline": "305f8f9",
   "kernel_release": "6.18.0-y2-m2-chrdet1",
   "scope": "One additional PMIC CHR_CON0 status read at 0x0000 via proven PWRAP; display raw value and bit5. Existing guarded PHY release unchanged. No new PMIC/analog/VBUS/MAC/DMA write.",
@@ -29,5 +29,6 @@
     "completed_response_ack": "0xc0015fac..0xc0015fc4, AP+0xa4 value1",
     "bounded_waits": "1000 polls each, unchanged 10us delay, no retry",
     "existing_phy_byte_write": "0xc0015b90"
-  }
+  },
+  "hardware_result": "docs/knowledge/m2-chrdet-hardware-result.md"
 }

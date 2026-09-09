@@ -1,0 +1,68 @@
+{
+  "candidate": "M2-USBGUARD-01",
+  "hardware_status": "NOT TESTED",
+  "baseline": "de1a6d0",
+  "kernel_release": "6.18.0-y2-m2-usbguard1",
+  "scope": "PID1 preserves the original USB snapshot on early wake refusal and renders invalid values as dashes. Hardware access/guards and 260-byte ABI unchanged.",
+  "config_delta": [
+    "CONFIG_LOCALVERSION: -y2-m2-chrdet1 -> -y2-m2-usbguard1"
+  ],
+  "size": 1097728,
+  "sha256": "e4078583ab53bd7e6388c94a357023fe8a7504ccc5a7499341cf72287ecd19b5",
+  "validation": {
+    "clean_builds": 1,
+    "targeted_top_level_test_methods": 15,
+    "pid1_arm_scenarios": 26,
+    "phy_wake_scenarios": 49,
+    "compiler_warnings": 0
+  },
+  "linked_review": {
+    "y2_power_snapshot": {
+      "address": "0xc0015208",
+      "bytes": 2724,
+      "sha256": "c9dec822a8dd0b50be7ae360514bfb59b9f50208e05f2a959fcfb58f71cd7fe1",
+      "changed_instructions": [
+        "0xc00154bc",
+        "0xc00154fc"
+      ],
+      "comparison": "only relocated y2-usb-state resource-name pointer; old/new string verified"
+    },
+    "y2_usb_read": {
+      "address": "0xc001602c",
+      "bytes": 212,
+      "sha256": "2db9e3d954b7ed2e73fa03f0ac87eb4b2131d9e6a28d1c6c4f085b105fa90b2c",
+      "changed_instructions": [],
+      "comparison": "identical"
+    },
+    "y2_pwrap_read_pmic": {
+      "address": "0xc0015eec",
+      "bytes": 320,
+      "sha256": "5407340f4e42a6013543c998983eb8fd7e246146dbf57e387721d40ec885b3f7",
+      "changed_instructions": [],
+      "comparison": "identical"
+    },
+    "y2_power_read": {
+      "address": "0xc0015dd0",
+      "bytes": 16,
+      "sha256": "0d600d3797472d34dc14af8d96a2cd799f1bf1ecde05df761e0b945d53873d91",
+      "changed_instructions": [],
+      "comparison": "identical"
+    },
+    "y2_power_write": {
+      "address": "0xc0015de0",
+      "bytes": 16,
+      "sha256": "ddfe74b45039e9c4a7b28e67e563e311b26a432f05add0191af1feda8f64d494",
+      "changed_instructions": [],
+      "comparison": "identical"
+    },
+    "y2_power_delay": {
+      "address": "0xc0015df0",
+      "bytes": 24,
+      "sha256": "34835046f66769161e60e61969303fc6d0d172f1ac369a1cb974e51d0bc77693",
+      "changed_instructions": [],
+      "comparison": "identical"
+    }
+  },
+  "existing_phy_byte_write": "0xc0015b90; guarded PHY6a=04 -> 00, unchanged",
+  "snapshot_bytes": 260
+}

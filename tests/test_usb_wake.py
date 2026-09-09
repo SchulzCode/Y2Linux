@@ -51,7 +51,7 @@ static void settle(void *context) {
     if(f->scenario==44) f->phy[0x15]^=1;
 }
 int main(void) {
-    for(unsigned scenario=0;scenario<48;++scenario) {
+    for(unsigned scenario=0;scenario<49;++scenario) {
         struct fixture f={.scenario=scenario};
         f.phy[0]=0x11;f.phy[5]=0x22;f.phy[0x15]=0x40;
         f.phy[0x1a]=0x10;f.phy[0x63]=2;f.phy[0x6a]=4;f.phy[0x6b]=2;f.phy[0x6c]=0x12;
@@ -82,6 +82,7 @@ int main(void) {
         case 18:f.phy[0x1d]|=0x10;break;
         case 19:f.phy[0x22]|=1;break;
         case 20:f.phy[0x22]|=2;break;
+        case 48:s.usb.values[8]=0xbe;break; /* observed connected-start refusal */
         }
         if(scenario>=21 && scenario<=27) f.fail=scenario-20;
         if(scenario>=29 && scenario<=40) f.fail=scenario-21;
@@ -90,7 +91,7 @@ int main(void) {
         y2_usb_wake_probe(&io,&s);
         assert(!memcmp(&s,&before,offsetof(struct y2_platform_snapshot,wake)));
         assert(s.wake.written==f.writes && f.writes<=1 && f.delays==f.writes);
-        if(scenario>=1 && scenario<=15) {
+        if((scenario>=1 && scenario<=15) || scenario==48) {
             assert(!f.reads && !f.writes && s.wake.result==-19 && !s.wake.before_valid);
         } else if(scenario>=16 && scenario<=20) {
             assert(f.reads==7 && !f.writes && s.wake.result==-19 && s.wake.before_valid==0x7f);

@@ -180,3 +180,15 @@ records 6a 04→00, unchanged sampled trims, BEAT 10→49 and no reported errors
 USB attached. DEVCTL remains 80; release alone does not establish PHY readiness
 or physical VBUS. The next localized prerequisite is
 [PMIC CHRDET observation](m2-chrdet-probe.md), not guessed VBUS forcing.
+
+## CHRDET result / connected-start refusal — 2026-09-09
+
+[Returned CHRDET photographs](m2-chrdet-hardware-result.md) show PMIC bit5=1
+with USB connected at startup and 0 without it. Connected startup instead
+refuses the PHY wake guard before writing: 6a=BE, W0, V00/000. Original MAC,
+remaining PHY, DMA and IRQ-enable data are hidden by the old wake presentation;
+its unread zeros are not evidence of reset registers or a completed 6a write.
+[M2-USBGUARD-01](m2-usb-guard-diagnostic.md) exposes the original snapshot and
+validity with unchanged hardware behavior. Capture that startup condition before
+choosing an FM/LK-derived recovery/session step. USB ownership, MUSB/gadget,
+CDC ACM and live host logs remain blocked; charger detection alone is insufficient.

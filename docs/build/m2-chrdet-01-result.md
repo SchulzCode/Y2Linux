@@ -1,4 +1,12 @@
-# M2-CHRDET-01 — ready for owner device test
+# M2-CHRDET-01 — owner result received
+
+2026-09-09 update: [returned photos](../knowledge/m2-chrdet-hardware-result.md)
+confirm successful CHRDET reads in both reported cable-at-startup conditions.
+Connected startup returns a guarded PHY refusal (6a=BE, W0), while no-USB
+photos show wake success. The next candidate is
+[M2-USBGUARD-01](m2-usbguard-01-result.md), exposing the hidden raw guard inputs.
+The original offline validation and test instructions below are retained as
+the historical handoff; “not tested” no longer describes current status.
 
 2026-09-09, #23/#27 prerequisite under active M2 #28, baseline 305f8f9.
 **Offline validated; not flashed or hardware tested.** The previous
