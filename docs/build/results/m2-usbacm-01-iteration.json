@@ -1,0 +1,211 @@
+{
+  "candidate": "M2-USBACM-01",
+  "baseline": "d9c2c98",
+  "hardware_status": "NOT TESTED",
+  "kernel_release": "6.18.0-y2-m2-usbacm1",
+  "size": 1159168,
+  "sha256": "d2d1f8cbbaa23ffcbdeddb317db7a8e62bc21deca9ebebc564c9b55a5590aedd",
+  "scope": "Guarded first attachment: retained supplies/clocks, inactive USB DMA, LK/FM digital session, upstream MUSB peripheral PIO, one CDC ACM and bounded kernel/PID1 LOG1 relay.",
+  "validation": {
+    "clean_builds": 1,
+    "full_suite_methods": 23,
+    "additional_linked_syscall_methods": 1,
+    "observation_methods": 8,
+    "pid1_arm_scenarios": 30,
+    "phy_wake_scenarios": 49,
+    "compiler_warnings": 0
+  },
+  "config_delta": {
+    "CONFIG_CONFIGFS_FS": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_LOCALVERSION": {
+      "old": "\"-y2-m2-usbguard1\"",
+      "new": "\"-y2-m2-usbacm1\""
+    },
+    "CONFIG_MUSB_PIO_ONLY": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_NLS": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_NLS_DEFAULT": {
+      "old": "n",
+      "new": "\"iso8859-1\""
+    },
+    "CONFIG_USB_ARCH_HAS_HCD": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_USB_COMMON": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_USB_F_ACM": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_USB_F_OBEX": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_USB_F_SERIAL": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_USB_GADGET": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS": {
+      "old": "n",
+      "new": "2"
+    },
+    "CONFIG_USB_GADGET_VBUS_DRAW": {
+      "old": "n",
+      "new": "2"
+    },
+    "CONFIG_USB_G_SERIAL": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_USB_LIBCOMPOSITE": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_USB_MUSB_GADGET": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_USB_MUSB_HDRC": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_USB_SUPPORT": {
+      "old": "n",
+      "new": "y"
+    },
+    "CONFIG_USB_U_SERIAL": {
+      "old": "n",
+      "new": "y"
+    }
+  },
+  "linked_review": {
+    "y2_usb_worker": {
+      "address": "0xc00164e4",
+      "bytes": 572,
+      "sha256": "51f80722343386eb12f1f075e3061e72066ca17533161a97a9a263c249d1457c"
+    },
+    "y2_musb_init": {
+      "address": "0xc0009c54",
+      "bytes": 2000,
+      "sha256": "ded09441f375c3d9918816a9197d7098c28bc21ca64aeda6a6b7eaa1c85a8666"
+    },
+    "y2_musb_interrupt": {
+      "address": "0xc0016c84",
+      "bytes": 520,
+      "sha256": "b6da165131027b8d9855a14ed0852e5153c2b50c144bd70ba720d130671f01e3"
+    },
+    "y2_session_write": {
+      "address": "0xc0016ec8",
+      "bytes": 116,
+      "sha256": "52ebbd5683f05cfdde3c7af3bc4d1724b165e6526bcd1ab37d55001fd1685063"
+    },
+    "musb_start": {
+      "address": "0xc015aae8",
+      "bytes": 404,
+      "sha256": "54ae869754a807952d2284f7c387a76d3999f130fb8146e826f98303defad55e"
+    },
+    "musb_interrupt": {
+      "address": "0xc015ad90",
+      "bytes": 3608,
+      "sha256": "8502fe6d1e9477b4b622e3e7996048ef6b4d6da9790593a2463bd8a114489848"
+    },
+    "musb_g_ep0_irq": {
+      "address": "0xc015d404",
+      "bytes": 3332,
+      "sha256": "61a0c75e3c4a722021c400151b302478cb22cb5276acb5d101584a4faf69b178"
+    },
+    "gs_bind": {
+      "address": "0xc0169854",
+      "bytes": 260,
+      "sha256": "c2b8a789dd59d4ad56cf73e1a97c8d03821efab28407a8f774c7b774eefcf402"
+    },
+    "acm_bind": {
+      "address": "0xc01678c4",
+      "bytes": 508,
+      "sha256": "4605a4e177c02c675d53cf76e7cefda96cffea28d3ba8222a8baa42dca23d1a0"
+    },
+    "gserial_connect": {
+      "address": "0xc0168238",
+      "bytes": 264,
+      "sha256": "436533ec3d38b798e0824da1b7e94aa548cc112d52e0fd774bd4d40ae4fa7d6f"
+    },
+    "y2_musb_writeb": {
+      "address": "0xc0016a60",
+      "bytes": 60,
+      "sha256": "64f2fb7cb97326ab926aa690cadf8e8908efbe30b6433dc6e4d08020ef261ca1"
+    },
+    "y2_usb_finish": {
+      "address": "0xc0016378",
+      "bytes": 364,
+      "sha256": "02b8c42824c90d8cfed1c3d87eb1ae5442a525319198cb1270c7a3f085f84eda"
+    },
+    "y2_power_snapshot": {
+      "address": "0xc0015208",
+      "bytes": 2976,
+      "sha256": "55f3afaea423d4f6559e3c012a87a8719cf6faf80f16681a35b4fe0ee5efd26e"
+    }
+  },
+  "linked_usb": {
+    "syscalls": {
+      "14": {
+        "target": "sys_mknod",
+        "address": "0xc00c2c4c"
+      },
+      "19": {
+        "target": "sys_lseek",
+        "address": "0xc00b5484"
+      },
+      "54": {
+        "target": "sys_ioctl",
+        "address": "0xc00c7d5c"
+      }
+    },
+    "linked": {
+      "y2_usb_worker": "0xc00164e4",
+      "y2_musb_init": "0xc0009c54",
+      "y2_musb_interrupt": "0xc0016c84",
+      "y2_session_write": "0xc0016ec8",
+      "musb_start": "0xc015aae8",
+      "musb_interrupt": "0xc015ad90",
+      "musb_g_ep0_irq": "0xc015d404",
+      "gs_bind": "0xc0169854",
+      "acm_bind": "0xc01678c4",
+      "gserial_connect": "0xc0168238"
+    },
+    "status": "PASS offline; enumeration untested"
+  },
+  "baseline_snapshot_bytes": 260,
+  "live_status_bytes": 36,
+  "limits": {
+    "power_on_seconds": 60,
+    "usb_active_seconds": 50,
+    "first_detach_stops": true,
+    "pwrap_poll_ms": 250,
+    "irq_burst_per_jiffy": 512,
+    "pid1_history_bytes": 8192,
+    "tx_queue_bytes": 32768,
+    "kmsg_record_bytes": 8192
+  },
+  "unqualified": [
+    "enumeration",
+    "physical log continuity",
+    "late-open/non-reading host",
+    "controller reconnect",
+    "connected-start recovery"
+  ]
+}

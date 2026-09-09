@@ -8,7 +8,46 @@ blueprint/planning material; no native platform readiness is inferred from that.
 
 ## M2 activation audit — 2026-09-09
 
-### Current checkpoint — CHRDET confirmed, connected-start guard refusal
+### Combined USB ownership scope review — baseline d9c2c98
+
+2026-09-09. The owner explicitly replaces the register-by-register handoff with
+one guarded candidate targeting enumeration and kernel/PID1 logs. USBGUARD-01
+remains an untested fallback; there is no new physical result. Reviewed the
+blueprint M2/exit and later gates, current open #16/#22–#32, this coverage matrix,
+the CHRDET and PHY-wake reports and current implementation. All capability
+classifications remain unchanged: M1 complete; M2 active, exit blocked; host USB
+logging blocked pending implementation and hardware proof. Boot/memory/power
+remain partial; input, standard display, media/rootfs, thermal/battery and all
+later-phase gaps retain their existing owners. No milestone criterion waived.
+
+Authorize development of one experimental vertical slice under #23/#27:
+source-reviewed MT6582 controller/PHY ownership, peripheral-only PIO MUSB,
+one standard g_serial ACM function and bounded kernel/PID1 log relay. Use the
+observed passive handoff as a runtime gate, initially booting without USB and
+requesting attachment only after successful preflight. The unobserved complete
+connected-start save-current state is not normalized by guessing. Refuse unknown
+clock/supply/PHY/DMA states and preserve the screen at every stage. Resolve each
+write/IRQ/FIFO contract from retained FM/LK and pinned Linux/vendor source before
+implementing it; combine resolved stages within the candidate, not hardware claims.
+
+This is first controller/IRQ/FIFO ownership and requires broader qualification:
+production guard/fault tests, actual ARM relay/syscall tests, full existing
+offline suite, linked access review, resolved config/DT and D08/BOOTIMG checks.
+One clean candidate build, no duplicate reproducibility or unchanged source/ROM/
+recovery audit. Keep D08/CPU0, watchdog stop, framebuffer fallback and original
+loader/partition/calibration boundaries. No USB DMA, host VBUS supply, analog
+calibration rewrite, M3/audio or application work. Stop at validated BOOTIMG for
+owner physical test; successful enumeration cannot be promised offline.
+
+[M2-USBACM-01](../build/m2-usbacm-01-result.md) is now the immediate next owner
+test: one clean build, full offline suite plus ARM relay/linked syscall and host
+capture checks, unchanged D08 bounds and valid BOOTIMG. It attempts enumeration
+and logging in one unplugged-start/late-attach boot. Implementation has advanced;
+USB hardware status remains BLOCKED pending that evidence. No milestone or
+capability is promoted from the build. First-detach/reconnect qualification and
+connected-start recovery remain outstanding; the original #27 criteria stand.
+
+### Previous checkpoint — CHRDET confirmed, connected-start guard refusal
 
 Baseline `de1a6d0`, 2026-09-09. [Three owner photos](../knowledge/m2-chrdet-hardware-result.md)
 show CHRDET 007B/1 with USB attached at startup and 0001/0 without it. PWRAP,

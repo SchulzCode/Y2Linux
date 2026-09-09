@@ -3,6 +3,7 @@
  */
 #include "text.h"
 #include "usb_state.h"
+#include "../../kernel/usb/live.h"
 static unsigned writes,sleeps,opened,offset,closed;
 static unsigned power_reads;
 static const char *path;
@@ -24,7 +25,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
     (void)d;(void)e;
     if(number==20) return 1;
     if(number==122) {
-        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-usbguard1";
+        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-usbacm1";
         if(TEST_CASE==7) return -14;
         for(unsigned i=0;i<390;++i) uts[i]=0;
         for(unsigned i=0;i<sizeof(release);++i) uts[130+i]=release[i];
@@ -37,6 +38,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
     }
     if(number==5) {
         if(eq((char*)a,"/dev/y2diag")) { CHECK(b==2);return TEST_CASE==6 ? -6 : 3; }
+        if(eq((char*)a,"/sys/class/tty/ttyGS0/dev")) {CHECK(TEST_CASE==27 || TEST_CASE==28);return -2;}
         CHECK(b==2048 && !opened);
         if(TEST_CASE==1 && prefix((char*)a,"/proc/")) return -2;
         if(TEST_CASE==8 && prefix((char*)a,"/sys/")) return -2;
@@ -51,6 +53,21 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
     if(number==3) {
         const char *data="";unsigned size=0,n=0;
         if(a==3) {
+            if(c==sizeof(struct y2_usb_live)) {
+                volatile unsigned *words=(void*)b;
+                for(unsigned i=0;i<sizeof(struct y2_usb_live)/4;++i) words[i]=0;
+                words[0]=Y2_USB_LIVE_MAGIC;
+                if(TEST_CASE>=26) {
+                    struct y2_usb_live *live=(void*)b;
+                    live->stage=TEST_CASE==26 ? Y2_USB_ATTACH : TEST_CASE==27 ? Y2_USB_READY :
+                        TEST_CASE==28 ? Y2_USB_CONFIGURED : Y2_USB_PREFLIGHT;
+                    live->result=TEST_CASE==29 ? -19 : 0;
+                    live->polls=1;live->chrdet=TEST_CASE==29 ? 0x10000 : TEST_CASE==26 ? 1 : 0x7b;
+                    live->devctl=TEST_CASE==26 || TEST_CASE==29 ? 0x100 : 0x98;
+                    live->irqs=TEST_CASE==28 ? 42 : 0;
+                }
+                return c;
+            }
             CHECK(c==sizeof(struct y2_platform_snapshot) && sleeps==1);
             CHECK(++power_reads==1);
             CHECK(prefix(last->rows[1],"STAGE: CHECK PHY / RELEASE SUSPEND"));
@@ -153,8 +170,19 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         CHECK(power_reads==1);
         CHECK(prefix(last->rows[1],"STAGE: STOP: RESTORE ANDROID"));
         CHECK(closed>0);
+        if(TEST_CASE==26) CHECK(prefix(last->rows[6],"ATTACH USB CABLE NOW"));
+        if(TEST_CASE==27) CHECK(prefix(last->rows[6],"USB ENUMERATION IN PROGRESS"));
+        if(TEST_CASE==28) {
+            CHECK(prefix(last->rows[6],"USB CONFIGURED / HOST SENDS LOG1"));
+            CHECK(prefix(last->rows[3],"US:6 RC:0 IRQ:42 D:98"));
+        }
+        if(TEST_CASE==29) {
+            CHECK(prefix(last->rows[6],"USB STOP RC:-19"));
+            CHECK(prefix(last->rows[3],"US:1 RC:-19 IRQ:0 D:--"));
+            CHECK(prefix(last->rows[4]+24,"CHR:---- D:?"));
+        }
         if(TEST_CASE==0) {
-            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-usbguard1"));
+            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-usbacm1"));
             CHECK(prefix(last->rows[3],"USB RC:0"));
             CHECK(prefix(last->rows[3]+12,"VALID:001FFFFF"));
             CHECK(prefix(last->rows[4],"PW:0"));

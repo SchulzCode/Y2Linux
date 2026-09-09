@@ -12,6 +12,7 @@ from tools.validation.d08 import Inputs, validate, require
 from tools.validation.formats import gunzip, cpio
 from tools.validation.bootimg import check as check_bootimg
 from tools.validation.sleep_syscall import check as check_sleep
+from tools.validation.usb import check as check_usb
 
 
 def digest(data): return hashlib.sha256(data).hexdigest()
@@ -78,6 +79,7 @@ def check(root, project):
     decoded = dtb.check(tree, len(initrd))
     kernel = Elf(root / 'kernel/vmlinux')
     sleep = check_sleep(kernel, root / 'kernel/.config')
+    usb = check_usb(kernel)
     comp = Elf(root / 'kernel/arch/arm/boot/compressed/vmlinux')
     text = kernel.sym('_text')
     require(text == 0xc0008000 and kernel.elf['e_entry'] == text, 'kernel virtual entry/TEXT_OFFSET')
@@ -103,7 +105,7 @@ def check(root, project):
     require(kernel.sym('y2_diagnostic_init') >= text, 'built-in guarded video diagnostic missing')
     require(kernel.sym('y2_text_write') >= text, 'D14 guarded text writer missing')
     require(kernel.sym('y2_power_snapshot') >= text, 'M2 cached PWRAP snapshot missing')
-    require(b'M2-USBGUARD-01\0' in init, 'M2 prerequisite build identifier missing')
+    require(b'M2-USBACM-01\0' in init, 'M2 prerequisite build identifier missing')
     require(b'/dev/y2diag\0' in init, 'PID1 diagnostic endpoint missing')
     require(struct.unpack_from('<III', z, 0x24) == (0x016f2818, start, comp.sym('_edata')), 'zImage header')
     require(off('_edata_real') == off('_edata') == len(z), 'zImage real end')
@@ -135,7 +137,9 @@ def check(root, project):
         'policy':'D12/D13/D14 guarded text; new candidate offline only'}
     source_paths = ['kernel/diagnostic/board.c', 'kernel/diagnostic/policy.h', 'kernel/diagnostic/text.h',
         'kernel/diagnostic/pwrap.h', 'kernel/diagnostic/usb_clock.h', 'kernel/diagnostic/usb_state.h', 'kernel/diagnostic/usb_wake.h', 'initramfs/status.h',
-        'initramfs/init.c', 'initramfs/start.S', 'kernel/config/first-boot.config',
+        'initramfs/init.c', 'initramfs/start.S', 'initramfs/relay.h',
+        'kernel/usb/y2_musb.c', 'kernel/usb/session.h', 'kernel/usb/gate.h', 'kernel/usb/live.h',
+        'kernel/config/first-boot.config',
         'kernel/dts/innioasis-y2-first-boot.dts', 'kernel/patches/manifest.json']
     source_paths += ['kernel/patches/' + item['patch'] for item in
         json.loads((project/'kernel/patches/manifest.json').read_text())['overlays']]
@@ -143,6 +147,7 @@ def check(root, project):
         name:digest((project/name).read_bytes()) for name in source_paths}
     layout['dt'] = decoded
     layout['sleep_syscall'] = sleep
+    layout['usb'] = usb
     layout['artifacts'] = {name: {'bytes':len(data),'sha256':digest(data)} for name,data in
         [('Image',image),('zImage',z),('y2.dtb',tree),('initramfs.cpio.gz',initrd),('init',init),('zImage-dtb',expected)]}
     layout['kernel_symbols'] = {name:kernel.sym(name) for name in ['_text','_edata','__bss_start','__bss_stop','_end']}

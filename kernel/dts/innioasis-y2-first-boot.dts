@@ -81,4 +81,13 @@
         interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
         clocks = <&uart_clk>;
     };
+    usb@11200000 {
+        /* Experimental Y2 adapter verifies and retains inherited clocks/PHY.
+         * No sibling compatible or fabricated fixed USB clock. */
+        compatible = "innioasis,y2-usb-experiment";
+        reg = <0x11200000 0x280>, <0x11210800 0x70>;
+        reg-names = "mac", "phy";
+        interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_LOW>;
+        dr_mode = "peripheral";
+    };
 };

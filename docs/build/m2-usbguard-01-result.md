@@ -1,5 +1,9 @@
 # M2-USBGUARD-01 — ready for owner device test
 
+**Superseded as the immediate next test by [M2-USBACM-01](m2-usbacm-01-result.md)**
+at the owner's request to combine enumeration and logging. This image remains
+an untested diagnostic fallback; the procedure below is its historical handoff.
+
 2026-09-09, #23/#27 prerequisite under active M2 #28, baseline `de1a6d0`.
 **Offline validated; not flashed or hardware tested.**
 

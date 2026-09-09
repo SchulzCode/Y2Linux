@@ -1,9 +1,24 @@
 # Host-readable USB logging — minimal path and controller gate
 
-2026-09-09. [Y2B-255 #27](https://github.com/SchulzCode/Y2Linux/issues/27). Research/planning only; no device access, code, build or flash.
+2026-09-09. [Y2B-255 #27](https://github.com/SchulzCode/Y2Linux/issues/27).
+Originally research/planning only; subsequent authorized execution is recorded below.
 Baseline: audited upstream v6.18 `7d0a66e4bb9081d75c82ec4957c50034cb0ea449`.
 
-## Decision
+## Current execution checkpoint — combined first enumeration attempt
+
+The owner requested a combined candidate instead of another register-only test.
+[M2-USBACM-01](m2-usb-enumeration.md) now implements the bounded retained-state
+adapter, exact FM/LK device-session sequence, upstream peripheral PIO MUSB and
+one ACM log relay. [Offline validated handoff](../build/m2-usbacm-01-result.md).
+Boot unplugged, attach at the prompt, attempt host capture in the same test.
+It refuses active inherited DMA rather than attempting an unreviewed DMA stop.
+This supersedes the original implementation stop for this specifically audited
+first-attachment experiment; it does not complete the general controller port
+or establish reconnect behavior. No physical enumeration result exists yet.
+USBGUARD-01 remains an optional untested fallback. #27 and M2 stay open with all
+hardware/late-open/non-reading/reconnect acceptance criteria intact.
+
+## Original decision and gate
 
 Prefer **one CDC ACM function using built-in g_serial, peripheral-only MUSB,
 PIO transfers, and a nonblocking PID1 log relay**. Host Linux would expose

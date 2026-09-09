@@ -3,6 +3,7 @@
  */
 #include "status.h"
 #include "../kernel/diagnostic/usb_state.h"
+#include "../kernel/usb/live.h"
 typedef unsigned int u32;
 #ifdef Y2_SYSCALL_TEST
 extern long y2_test_call(long,long,long,long,long,long);
@@ -22,10 +23,18 @@ static long call5(long number,long a,long b,long c,long d,long e)
     return r0;
 #endif
 }
+#include "relay.h"
 static struct y2_text_frame screen;
 static long diagnostic=-1,previous_draw=-1;
 static unsigned beat,frames;
 static char input[4097],value[160];
+static void log_row(unsigned row)
+{
+    char line[Y2_COLS+6];
+    for(unsigned i=0;i<5;++i) line[i]="PID1 "[i];
+    for(unsigned i=0;i<Y2_COLS;++i) line[5+i]=screen.rows[row][i];
+    line[Y2_COLS+5]='\n';relay_log(line,sizeof(line));
+}
 static void error(const char *where,long code)
 {
     unsigned col;
@@ -41,6 +50,7 @@ static void present(const char *stage)
     col=row_add(screen.rows[0],col,beat&1 ? " [*] FRAME:" : " [ ] FRAME:");
     row_number(screen.rows[0],col,frames++);
     row_pair(screen.rows[1],"STAGE: ",stage);
+    if(!beat || starts(stage,"STOP:")) log_row(1);
     row_code(screen.rows[14],"PREVIOUS FRAME WRITE: ",previous_draw);
     previous_draw=call5(4,diagnostic,(long)&screen,sizeof(screen),0,0);
     if(previous_draw!=(long)sizeof(screen)) error("DRAW",previous_draw);
@@ -220,6 +230,36 @@ static void power_rows(void)
     else if(snapshot.usb.result) error("USB",snapshot.usb.result);
     else if(snapshot.wake.result) error("PHY WAKE",snapshot.wake.result);
 }
+static int usb_live_row(void)
+{
+    struct y2_usb_live s;
+    long n=call5(3,diagnostic,(long)&s,sizeof(s),0,0);
+    unsigned col;
+    if(n!=(long)sizeof(s) || s.magic!=Y2_USB_LIVE_MAGIC) {
+        error("USB STATUS",n<0?n:-5);return 0;
+    }
+    if(s.stage==Y2_USB_OFF) return 0;
+    row_code(screen.rows[3],"US:",s.stage);
+    col=row_add(screen.rows[3],5,"RC:");col=row_number(screen.rows[3],col,s.result);
+    col=row_add(screen.rows[3],col," IRQ:");col=row_number(screen.rows[3],col,s.irqs);
+    col=row_add(screen.rows[3],col," D:");
+    row_hex_valid(screen.rows[3],col,s.devctl,2,s.devctl<=255);
+    row_clear(screen.rows[6]);
+    if(s.result) {row_code(screen.rows[6],"USB STOP RC:",s.result);error("USB LIVE",s.result);}
+    else if(s.stage==Y2_USB_ATTACH) row_add(screen.rows[6],0,"ATTACH USB CABLE NOW");
+    else if(s.stage==Y2_USB_CONFIGURED) row_add(screen.rows[6],0,"USB CONFIGURED / HOST SENDS LOG1");
+    else if(s.stage==Y2_USB_STOPPED) row_add(screen.rows[6],0,"USB STOPPED / RESTORE ANDROID");
+    else row_add(screen.rows[6],0,"USB ENUMERATION IN PROGRESS");
+    if(s.polls) {
+        col=row_add(screen.rows[4],24,"CHR:");
+        col=row_hex_valid(screen.rows[4],col,s.chrdet,4,s.chrdet!=0x10000);
+        col=row_add(screen.rows[4],col," D:");
+        if(s.chrdet!=0x10000) row_number(screen.rows[4],col,(s.chrdet>>5)&1);
+        else row_add(screen.rows[4],col,"?");
+    }
+    if(s.result || s.stage==Y2_USB_STOPPED) {relay_close();return 0;}
+    return s.stage==Y2_USB_READY || s.stage==Y2_USB_CONFIGURED;
+}
 __attribute__((noreturn)) void diag_start(u32 *stack)
 {
     char **argv=(char**)(stack+1);
@@ -232,7 +272,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     for(row=0;row<Y2_ROWS;++row) row_clear(screen.rows[row]);
     screen.magic=Y2_TEXT_MAGIC;
     row_pair(screen.rows[12],"LAST ERR: ","NONE");
-    row_pair(screen.rows[15],"BUILD: ","M2-USBGUARD-01");
+    row_pair(screen.rows[15],"BUILD: ","M2-USBACM-01");
     row_pair(screen.rows[16],"TRUNCATED TEXT: ","~ ; ERRORS: -ERRNO");
     row_pair(screen.rows[17],"SCOPE: ","CPU0 / INITRAMFS ONLY");
     row_pair(screen.rows[18],"HOST LIMIT: ","60S FROM POWER-ON");
@@ -260,14 +300,19 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
             present("READ ONLINE");file_row(5,"CPUS ONLINE: ","/sys/devices/system/cpu/online",0);
             present("READ DT");dt_rows();
             present("CHECK PHY / RELEASE SUSPEND");power_rows();
+            for(row=0;row<Y2_ROWS;++row) log_row(row);
         }
         present("READ MEMORY");file_row(7,"MEMTOTAL: ","/proc/meminfo","MemTotal");
         present("READ UPTIME");file_row(8,"UPTIME/IDLE S: ","/proc/uptime",0);
         present("READ TIMER IRQ");timer_row();
+        if(usb_live_row()) relay_service();
+        if(relay.result) {row_code(screen.rows[5],"LOG RC:",relay.result);error("LOG",relay.result);}
+        log_row(0);log_row(3);log_row(12);
         present("STATUS / LOOP LIVE");
     }
     present("STOP: RESTORE ANDROID");
 stop:
+    relay_close();
     if(diagnostic>=0) call5(6,diagnostic,0,0,0,0);
     for(;;) call5(29,0,0,0,0,0); /* pause; no reset/retry or busy loop */
 }

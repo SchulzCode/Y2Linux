@@ -1,5 +1,9 @@
 # M2-USBGUARD-01 — expose the refused USB handoff
 
+Current next test: [M2-USBACM-01](m2-usb-enumeration.md), a combined guarded
+enumeration/logging attempt requested by the owner. USBGUARD remains untested
+and retained as an optional fallback; no additional guard-only test is required.
+
 2026-09-09, localized #23/#27 prerequisite, baseline `de1a6d0`.
 [Returned CHRDET photos](m2-chrdet-hardware-result.md) establish detection but
 show a connected-start wake refusal with PHY6a=BE instead of the guarded 04.

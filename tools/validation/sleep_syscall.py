@@ -4,8 +4,8 @@ from tools.build.check_config import parse
 from tools.validation.d08 import require
 
 
-def slot_offset(kernel):
-    address = kernel.sym('sys_call_table') + 162 * 4
+def slot_offset(kernel, number=162):
+    address = kernel.sym('sys_call_table') + number * 4
     sections = [s for s in kernel.elf.iter_sections()
                 if s['sh_flags'] & 2 and s['sh_type'] != 'SHT_NOBITS'
                 and s['sh_addr'] <= address

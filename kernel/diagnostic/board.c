@@ -10,6 +10,9 @@
 #include <linux/uaccess.h>
 #include "/project/kernel/diagnostic/text.h"
 #include "/project/kernel/diagnostic/usb_wake.h"
+#include "/project/kernel/usb/live.h"
+static void y2_usb_begin(void);
+static ssize_t y2_usb_status(char __user *buf);
 
 static void __iomem *y2_ovl, *y2_dsi, *y2_wdt, *y2_pixels;
 static struct cdev y2_cdev;
@@ -153,11 +156,13 @@ static ssize_t y2_power_snapshot(struct file *file, char __user *buf,
 {
     int rc = 0;
     if (task_pid_nr(current) != 1) return -EPERM;
+    if (count == sizeof(struct y2_usb_live)) return y2_usb_status(buf);
     if (count != sizeof(y2_power)) return -EINVAL;
     if (mutex_lock_interruptible(&y2_frame_lock)) return -ERESTARTSYS;
     if (!y2_power_done) {
         y2_power_done = true; /* cache even failures and failed user copies */
         y2_collect_power();
+        y2_usb_begin();
     }
     if (copy_to_user(buf, &y2_power, sizeof(y2_power))) rc = -EFAULT;
     mutex_unlock(&y2_frame_lock);
@@ -197,3 +202,5 @@ fail:
     return -ENODEV;
 }
 device_initcall(y2_diagnostic_init);
+
+#include "/project/kernel/usb/y2_musb.c"
