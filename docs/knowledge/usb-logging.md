@@ -152,3 +152,12 @@ It is one cached snapshot, not repeated sampling, voltage measurement or battery
 telemetry. Earlier pending/unknown statements describe the original handoff.
 Next: [read-only USB clock handoff snapshot](m2-usb-clock-probe.md), with the
 source-identified timer IRQ-name parser correction. USB ownership remains blocked.
+
+
+## Clock hardware result and next USB prerequisite — 2026-09-09
+
+Latest: [M2-USBCLK-01 photos](m2-usb-clock-hardware-result.md) confirm inherited
+VUSB and USB clock enables, corrected timer reporting and BEAT 50 without errors.
+[M2-USBSTATE-01](../build/m2-usbstate-01-result.md) is the next read-only MAC,
+digital PHY and DMA-control observation. USB initialization/logging remains
+blocked; earlier pending-clock statements describe historical checkpoints.

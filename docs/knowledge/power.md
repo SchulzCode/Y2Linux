@@ -37,3 +37,12 @@ It is one cached snapshot, not repeated sampling, voltage measurement or battery
 telemetry. Earlier pending/unknown statements describe the original handoff.
 Next: [read-only USB clock handoff snapshot](m2-usb-clock-probe.md), with the
 source-identified timer IRQ-name parser correction. USB ownership remains blocked.
+
+
+## Clock hardware result and next USB prerequisite — 2026-09-09
+
+The [clock trial](m2-usb-clock-hardware-result.md) confirms another successful
+PWRAP CID/VUSB snapshot and enabled inherited USB clocks, with no reported errors
+through BEAT 50. Supply voltage, consumer regulator control and battery/charger
+telemetry remain unqualified. [Next read-only USB state probe](m2-usb-state-probe.md)
+preserves the inherited rail/PLL state; it makes no PMIC/clock/calibration write.

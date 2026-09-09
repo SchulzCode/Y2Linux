@@ -103,7 +103,7 @@ def check(root, project):
     require(kernel.sym('y2_diagnostic_init') >= text, 'built-in guarded video diagnostic missing')
     require(kernel.sym('y2_text_write') >= text, 'D14 guarded text writer missing')
     require(kernel.sym('y2_power_snapshot') >= text, 'M2 cached PWRAP snapshot missing')
-    require(b'M2-USBCLK-01\0' in init, 'M2 prerequisite build identifier missing')
+    require(b'M2-USBSTATE-01\0' in init, 'M2 prerequisite build identifier missing')
     require(b'/dev/y2diag\0' in init, 'PID1 diagnostic endpoint missing')
     require(struct.unpack_from('<III', z, 0x24) == (0x016f2818, start, comp.sym('_edata')), 'zImage header')
     require(off('_edata_real') == off('_edata') == len(z), 'zImage real end')
@@ -134,7 +134,7 @@ def check(root, project):
         'watchdog_instruction_sha256':digest(expected_wdt), 'framebuffer':[0xbfb00000,0xbfb54600],
         'policy':'D12/D13/D14 guarded text; new candidate offline only'}
     source_paths = ['kernel/diagnostic/board.c', 'kernel/diagnostic/policy.h', 'kernel/diagnostic/text.h',
-        'kernel/diagnostic/pwrap.h', 'kernel/diagnostic/usb_clock.h', 'initramfs/status.h',
+        'kernel/diagnostic/pwrap.h', 'kernel/diagnostic/usb_clock.h', 'kernel/diagnostic/usb_state.h', 'initramfs/status.h',
         'initramfs/init.c', 'initramfs/start.S', 'kernel/config/first-boot.config',
         'kernel/dts/innioasis-y2-first-boot.dts', 'kernel/patches/manifest.json']
     source_paths += ['kernel/patches/' + item['patch'] for item in

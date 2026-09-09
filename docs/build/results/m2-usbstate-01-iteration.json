@@ -1,0 +1,40 @@
+{
+  "candidate": "M2-USBSTATE-01",
+  "hardware_status": "NOT TESTED",
+  "baseline": "23d09db",
+  "kernel_release": "6.18.0-y2-m2-usbstate1",
+  "scope": "One cached 21-register MAC/digital-PHY/DMA-control read-only snapshot under observed PWRAP/VUSB/clock guards; no new hardware writes or DMA ownership",
+  "config_delta": [
+    "CONFIG_LOCALVERSION: -y2-m2-usbclk1 -> -y2-m2-usbstate1"
+  ],
+  "size": 1095680,
+  "sha256": "8c1f701b61a1adb70b1377071e6cb885cda989a422fd75d626cd5c7da5bdb5e7",
+  "validation": {
+    "clean_builds": 1,
+    "full_top_level_test_methods": 20,
+    "observation_test_methods": 4,
+    "pid1_arm_scenarios": 17,
+    "usb_state_scenarios": 37,
+    "pwrap_scenarios": 20,
+    "clock_scenarios": 10,
+    "compiler_warnings": 0
+  },
+  "linked_review": {
+    "snapshot": "0xc0015208",
+    "snapshot_bytes": 164,
+    "usb_read": "0xc0015c50",
+    "byte_read": "0xc0015cc8",
+    "halfword_read": "0xc0015cd8",
+    "only_adapter_store": "0xc0015ce4 stores to snapshot output RAM",
+    "mac_resource": [
+      "0x11200000",
+      "0x11200280"
+    ],
+    "phy_resource": [
+      "0x11210800",
+      "0x11210870"
+    ],
+    "guards": "cached PID1/display/PWRAP/VUSB/clock, PLL reset-bar bit24, exact address AND width whitelist",
+    "valid_mask": "0x001fffff"
+  }
+}

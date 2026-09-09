@@ -6,10 +6,6 @@ struct y2_usb_clock_snapshot {
     int result;
     unsigned valid, peri, mux, pll, pll_power;
 };
-struct y2_platform_snapshot {
-    struct y2_pwrap_snapshot power;
-    struct y2_usb_clock_snapshot clock;
-};
 struct y2_usb_clock_io {
     void *context;
     int (*read)(void *, unsigned, unsigned *);

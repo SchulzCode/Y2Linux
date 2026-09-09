@@ -8,6 +8,35 @@ blueprint/planning material; no native platform readiness is inferred from that.
 
 ## M2 activation audit — 2026-09-09
 
+### Latest scope review — USB state observation, baseline 23d09db
+
+The [returned clock-probe photographs](../knowledge/m2-usb-clock-hardware-result.md)
+show no errors, BEAT 15→50, IRQ 1689→5574, MemTotal 22208 kB, successful
+PWRAP/VUSB reads, USB0 ungated, USB mux selector 1 enabled and PLL USB reference
+enabled with power on/isolation off. Reconsidered every coverage row below,
+current open issues and owner/blueprint requirements: only narrow clock-read and
+timer-reporting facts advance. Core clocks/pins/IRQ/power stay incomplete;
+boot/memory remain PARTIAL, USB logging BLOCKED. Input, standard display, media,
+rootfs, thermal/battery and later milestone gates are unchanged. No optional
+feature is waived, no M1 reopening and no M3 work.
+
+Next scope: a single cached read-only MAC/digital-PHY/DMA-control snapshot under
+strict observed supply/clock guards. This is first access to those register
+windows, requiring source/FM/LK width/side-effect review, fault tests and the
+full existing offline suite plus D08/package validation. No interrupt status,
+FIFO, endpoint index, analog trim/calibration, clock or controller writes; no
+DMA ownership change. [Contract](../knowledge/m2-usb-state-probe.md).
+Stop at the new BOOTIMG for owner test. Keep all existing recovery boundaries;
+no repeated unchanged source/ROM/recovery audit is needed.
+
+[M2-USBSTATE-01](../build/m2-usbstate-01-result.md) now passes one clean build,
+20 full build-suite methods and four observation-tool methods. Candidate:
+1,095,680 bytes, SHA-256
+`8c1f701b61a1adb70b1377071e6cb885cda989a422fd75d626cd5c7da5bdb5e7`.
+It awaits the owner test; no MAC/PHY hardware result is inferred.
+
+### Original activation review
+
 Baseline `ebeed72`, clean `main`; current GitHub #1–#32, open M0 and closed M1
 reviewed against the local blueprint and retained hardware result. The owner now
 explicitly authorizes autonomous M2 research/implementation/builds and normal

@@ -115,3 +115,13 @@ Timer -61 is traced to the IRQ action-name parser, with hardware confirmation
 of its correction pending. The next [clock snapshot](m2-usb-clock-probe.md)
 reads four corroborated clock registers without enabling clocks or accessing
 USB MAC/PHY/DMA. Other unknowns and milestone classifications are unchanged.
+
+
+## Clock hardware result and next USB prerequisite — 2026-09-09
+
+[M2-USBCLK-01 photos](m2-usb-clock-hardware-result.md) confirm all four clock
+reads, enabled USB0/mux/PLL reference, corrected increasing timer IRQ counts and
+BEAT 50 without errors. This resolves the narrow inherited-clock observation,
+not the clock provider/USB controller contract. [Read-only USB state](m2-usb-state-probe.md)
+is the next prerequisite; no MAC/PHY/DMA hardware result exists yet. M2 remains
+open with unchanged input/display/media/rootfs and qualification gaps.

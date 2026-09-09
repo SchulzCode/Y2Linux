@@ -2,7 +2,7 @@
  * Host-only QEMU ARM fixture. No actual kernel/device/MMIO is exercised.
  */
 #include "text.h"
-#include "usb_clock.h"
+#include "usb_state.h"
 static unsigned writes,sleeps,opened,offset,closed;
 static unsigned power_reads;
 static const char *path;
@@ -24,7 +24,7 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
     (void)d;(void)e;
     if(number==20) return 1;
     if(number==122) {
-        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-usbclk1";
+        char *uts=(char*)a;const char release[]="6.18.0-y2-m2-usbstate1";
         if(TEST_CASE==7) return -14;
         for(unsigned i=0;i<390;++i) uts[i]=0;
         for(unsigned i=0;i<sizeof(release);++i) uts[130+i]=release[i];
@@ -53,14 +53,23 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         if(a==3) {
             CHECK(c==sizeof(struct y2_platform_snapshot) && sleeps==1);
             CHECK(++power_reads==1);
-            CHECK(prefix(last->rows[1],"STAGE: READ PWRAP"));
+            CHECK(prefix(last->rows[1],"STAGE: READ USB STATE"));
             if(TEST_CASE==9) return -4;
             if(TEST_CASE==10) return c-1;
             struct y2_platform_snapshot *snapshot=(void*)b;
             struct y2_pwrap_snapshot *s=&snapshot->power;
-            snapshot->clock=(struct y2_usb_clock_snapshot){.valid=15,.peri=0x03ffffff,
-                .mux=0x00800000,.pll=0xf4000001,.pll_power=1};
+            snapshot->clock=(struct y2_usb_clock_snapshot){.valid=15,.peri=0,
+                .mux=0x01010100,.pll=0xfd000001,.pll_power=0x80000001};
             if(TEST_CASE==13) { snapshot->clock.result=-16; snapshot->clock.valid=1; }
+            snapshot->usb.result=0;snapshot->usb.valid=0x1fffff;
+            for(unsigned i=0;i<21;++i) snapshot->usb.values[i]=0;
+            snapshot->usb.values[0]=0x20;snapshot->usb.values[1]=0x80;
+            snapshot->usb.values[2]=0x1900;snapshot->usb.values[3]=0x1234;
+            snapshot->usb.values[4]=0x5678;snapshot->usb.values[5]=0x9a;
+            for(unsigned i=6;i<13;++i) snapshot->usb.values[i]=i;
+            if(TEST_CASE==14) {snapshot->usb.result=-16;snapshot->usb.valid=0;}
+            if(TEST_CASE==15) {snapshot->clock.peri=1<<10;snapshot->usb.result=-19;snapshot->usb.valid=0;}
+            if(TEST_CASE==16) {snapshot->usb.result=-5;snapshot->usb.valid=1;}
             *s=(struct y2_pwrap_snapshot){.magic=Y2_PWRAP_MAGIC,
                 .valid=3,.wrap=1,.channel=1,.init=1,.arb=0x1ff,
                 .before=0x00300000,.after=0x00300000,.cid=0x2023,.vusb=0xc001};
@@ -112,15 +121,15 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         CHECK(prefix(last->rows[1],"STAGE: STOP: RESTORE ANDROID"));
         CHECK(closed>0);
         if(TEST_CASE==0) {
-            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-usbclk1"));
-            CHECK(prefix(last->rows[3],"CPU PART: 0xc07"));
-            CHECK(prefix(last->rows[4],"PWRAP RC:0"));
-            CHECK(prefix(last->rows[4]+20,"VALID:3"));
-            CHECK(prefix(last->rows[16],"CID:00002023 VUSB:0000C001"));
-            CHECK(prefix(last->rows[17],"PERI:03FFFFFF MUX:00800000"));
-            CHECK(prefix(last->rows[18],"PLL:F4000001 PWR:00000001"));
-            CHECK(prefix(last->rows[19],"CLOCK RC:0"));
-            CHECK(prefix(last->rows[19]+18,"VALID:15 READ ONLY"));
+            CHECK(prefix(last->rows[2],"LINUX: 6.18.0-y2-m2-usbstate1"));
+            CHECK(prefix(last->rows[3],"USB RC:0"));
+            CHECK(prefix(last->rows[3]+12,"VALID:001FFFFF"));
+            CHECK(prefix(last->rows[4],"PW:0"));
+            CHECK(prefix(last->rows[4]+14,"CLK:0/15"));
+            CHECK(prefix(last->rows[16],"POWER:20 DEV:80 HW:1900"));
+            CHECK(prefix(last->rows[17],"PHY68:06 07 08 09 0A 0B 0C"));
+            CHECK(prefix(last->rows[18],"DMA:00000000000000000000000000000000"));
+            CHECK(prefix(last->rows[19],"IRQE TX:1234 RX:5678 USB:9A"));
             CHECK(prefix(last->rows[6],"DT RAM: 24M + 512K (D08 STATIC)"));
             CHECK(prefix(last->rows[9],"TIMER IRQ CPU0: 1234"));
         }
@@ -132,10 +141,20 @@ long y2_test_call(long number,long a,long b,long c,long d,long e)
         if(TEST_CASE==8) CHECK(prefix(last->rows[11],"SYSFS MOUNT RC: -1"));
         if(TEST_CASE==9) CHECK(prefix(last->rows[4],"PWRAP READ ERR: -4"));
         if(TEST_CASE==10 || TEST_CASE==12) CHECK(prefix(last->rows[4],"PWRAP READ ERR: -5"));
-        if(TEST_CASE==13) CHECK(prefix(last->rows[19],"CLOCK RC:-16"));
+        if(TEST_CASE==13) CHECK(prefix(last->rows[4]+14,"CLK:-16/1"));
+        if(TEST_CASE==14) CHECK(prefix(last->rows[3],"USB RC:-16"));
+        if(TEST_CASE==15) {
+            CHECK(prefix(last->rows[3],"USB RC:-19"));
+            CHECK(prefix(last->rows[16],"PERI:00000400"));
+            CHECK(prefix(last->rows[17],"MUX:01010100"));
+        }
+        if(TEST_CASE==16) {
+            CHECK(prefix(last->rows[3],"USB RC:-5"));
+            CHECK(prefix(last->rows[3]+12,"VALID:00000001"));
+        }
         if(TEST_CASE==11) {
-            CHECK(prefix(last->rows[4],"PWRAP RC:-110"));
-            CHECK(prefix(last->rows[4]+20,"VALID:1"));
+            CHECK(prefix(last->rows[4],"PW:-110"));
+            CHECK(prefix(last->rows[4]+8,"/1"));
         }
         finish(0);
     }

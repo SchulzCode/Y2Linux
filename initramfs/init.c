@@ -2,7 +2,7 @@
  * Y2B-245: freestanding PID1, bounded screen diagnostics; no runtime UART I/O.
  */
 #include "status.h"
-#include "../kernel/diagnostic/usb_clock.h"
+#include "../kernel/diagnostic/usb_state.h"
 typedef unsigned int u32;
 #ifdef Y2_SYSCALL_TEST
 extern long y2_test_call(long,long,long,long,long,long);
@@ -122,6 +122,13 @@ static unsigned row_hex(char *row, unsigned col, unsigned value)
     for (i=0;i<8;++i) text[i]="0123456789ABCDEF"[(value >> (28-4*i)) & 15];
     text[8]=0; return row_add(row,col,text);
 }
+static unsigned row_hex_width(char *row,unsigned col,unsigned value,unsigned digits)
+{
+    static const char hex[]="0123456789ABCDEF";
+    char buf[9];
+    for(unsigned i=0;i<digits;++i) buf[i]=hex[(value >> ((digits-1-i)*4))&15];
+    buf[digits]=0;return row_add(row,col,buf);
+}
 static void power_rows(void)
 {
     struct y2_platform_snapshot snapshot;
@@ -133,19 +140,37 @@ static void power_rows(void)
         row_code(screen.rows[4],"PWRAP READ ERR: ",n<0?n:-5);
         error("PWRAP READ",n<0?n:-5); return;
     }
-    row_code(screen.rows[4],"PWRAP RC:",s->result);
-    col=row_add(screen.rows[4],20,"VALID:");row_number(screen.rows[4],col,s->valid);
-    row_pair(screen.rows[16],"CID:","");col=row_hex(screen.rows[16],4,s->cid);
-    col=row_add(screen.rows[16],col," VUSB:");row_hex(screen.rows[16],col,s->vusb);
-    row_pair(screen.rows[17],"PERI:","");col=row_hex(screen.rows[17],5,c->peri);
-    col=row_add(screen.rows[17],col," MUX:");row_hex(screen.rows[17],col,c->mux);
-    row_pair(screen.rows[18],"PLL:","");col=row_hex(screen.rows[18],4,c->pll);
-    col=row_add(screen.rows[18],col," PWR:");row_hex(screen.rows[18],col,c->pll_power);
-    row_code(screen.rows[19],"CLOCK RC:",c->result);
-    col=row_add(screen.rows[19],18,"VALID:");col=row_number(screen.rows[19],col,c->valid);
-    row_add(screen.rows[19],col," READ ONLY");
+    row_code(screen.rows[4],"PW:",s->result);
+    col=row_add(screen.rows[4],8,"/");row_number(screen.rows[4],col,s->valid);
+    col=row_add(screen.rows[4],14,"CLK:");col=row_number(screen.rows[4],col,c->result);
+    col=row_add(screen.rows[4],col,"/");row_number(screen.rows[4],col,c->valid);
+    row_code(screen.rows[3],"USB RC:",snapshot.usb.result);
+    col=row_add(screen.rows[3],12,"VALID:");row_hex(screen.rows[3],col,snapshot.usb.valid);
+    for(unsigned row=16;row<20;++row) row_clear(screen.rows[row]);
+    if(!y2_usb_state_ready(&snapshot)) {
+        row_pair(screen.rows[16],"PERI:","");row_hex(screen.rows[16],5,c->peri);
+        row_pair(screen.rows[17],"MUX:","");row_hex(screen.rows[17],4,c->mux);
+        row_pair(screen.rows[18],"PLL:","");row_hex(screen.rows[18],4,c->pll);
+        row_pair(screen.rows[19],"PWR:","");row_hex(screen.rows[19],4,c->pll_power);
+    } else {
+        const unsigned *v=snapshot.usb.values;
+        col=row_add(screen.rows[16],0,"POWER:");col=row_hex_width(screen.rows[16],col,v[0],2);
+        col=row_add(screen.rows[16],col," DEV:");col=row_hex_width(screen.rows[16],col,v[1],2);
+        col=row_add(screen.rows[16],col," HW:");row_hex_width(screen.rows[16],col,v[2],4);
+        col=row_add(screen.rows[17],0,"PHY68:");
+        for(unsigned i=6;i<13;++i) {
+            col=row_hex_width(screen.rows[17],col,v[i],2);
+            col=row_add(screen.rows[17],col," ");
+        }
+        col=row_add(screen.rows[18],0,"DMA:");
+        for(unsigned i=13;i<21;++i) col=row_hex_width(screen.rows[18],col,v[i],4);
+        col=row_add(screen.rows[19],0,"IRQE TX:");col=row_hex_width(screen.rows[19],col,v[3],4);
+        col=row_add(screen.rows[19],col," RX:");col=row_hex_width(screen.rows[19],col,v[4],4);
+        col=row_add(screen.rows[19],col," USB:");row_hex_width(screen.rows[19],col,v[5],2);
+    }
     if(s->result) error("PWRAP",s->result);
     else if(c->result) error("CLOCK",c->result);
+    else if(snapshot.usb.result) error("USB",snapshot.usb.result);
 }
 __attribute__((noreturn)) void diag_start(u32 *stack)
 {
@@ -159,7 +184,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     for(row=0;row<Y2_ROWS;++row) row_clear(screen.rows[row]);
     screen.magic=Y2_TEXT_MAGIC;
     row_pair(screen.rows[12],"LAST ERR: ","NONE");
-    row_pair(screen.rows[15],"BUILD: ","M2-USBCLK-01");
+    row_pair(screen.rows[15],"BUILD: ","M2-USBSTATE-01");
     row_pair(screen.rows[16],"TRUNCATED TEXT: ","~ ; ERRORS: -ERRNO");
     row_pair(screen.rows[17],"SCOPE: ","CPU0 / INITRAMFS ONLY");
     row_pair(screen.rows[18],"HOST LIMIT: ","60S FROM POWER-ON");
@@ -186,7 +211,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
             present("READ CPU");file_row(3,"CPU PART: ","/proc/cpuinfo","CPU part");
             present("READ ONLINE");file_row(5,"CPUS ONLINE: ","/sys/devices/system/cpu/online",0);
             present("READ DT");dt_rows();
-            present("READ PWRAP / USB CLOCKS");power_rows();
+            present("READ USB STATE");power_rows();
         }
         present("READ MEMORY");file_row(7,"MEMTOTAL: ","/proc/meminfo","MemTotal");
         present("READ UPTIME");file_row(8,"UPTIME/IDLE S: ","/proc/uptime",0);

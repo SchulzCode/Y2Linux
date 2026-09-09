@@ -9,7 +9,7 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include "/project/kernel/diagnostic/text.h"
-#include "/project/kernel/diagnostic/usb_clock.h"
+#include "/project/kernel/diagnostic/usb_state.h"
 
 static void __iomem *y2_ovl, *y2_dsi, *y2_wdt, *y2_pixels;
 static struct cdev y2_cdev;
@@ -71,6 +71,40 @@ static int y2_clock_read(void *context, unsigned address, unsigned *value)
     release_mem_region(address, 4);
     return base ? 0 : -ENOMEM;
 }
+struct y2_usb_mapping { void __iomem *mac, *phy; };
+static int y2_usb_read(void *context, unsigned address, unsigned width, unsigned *value)
+{
+    struct y2_usb_mapping *mapping = context;
+    void __iomem *reg;
+    unsigned i;
+    for (i = 0; i < Y2_USB_STATE_COUNT; ++i)
+        if (address == y2_usb_registers[i].address &&
+            width == y2_usb_registers[i].width) break;
+    if (i == Y2_USB_STATE_COUNT) return -EINVAL;
+    reg = address >= Y2_USB_PHY_BASE ? mapping->phy + (address - Y2_USB_PHY_BASE) :
+                                     mapping->mac + (address - Y2_USB_MAC_BASE);
+    *value = width == 1 ? readb(reg) : readw(reg);
+    return 0;
+}
+static void y2_collect_usb(void)
+{
+    struct y2_usb_mapping mapping = { 0 };
+    struct y2_usb_state_io io = { .context = &mapping, .read = y2_usb_read };
+    y2_power.usb.result = -ENODEV;
+    if (!y2_usb_state_ready(&y2_power)) return;
+    y2_power.usb.result = -EBUSY;
+    if (!request_mem_region(Y2_USB_MAC_BASE, Y2_USB_MAC_BYTES, "y2-usb-state")) return;
+    if (!request_mem_region(Y2_USB_PHY_BASE, Y2_USB_PHY_BYTES, "y2-usb-state")) goto release_mac;
+    mapping.mac = ioremap(Y2_USB_MAC_BASE, Y2_USB_MAC_BYTES);
+    mapping.phy = ioremap(Y2_USB_PHY_BASE, Y2_USB_PHY_BYTES);
+    y2_power.usb.result = -ENOMEM;
+    if (mapping.mac && mapping.phy) y2_usb_state_probe(&io, &y2_power);
+    if (mapping.phy) iounmap(mapping.phy);
+    if (mapping.mac) iounmap(mapping.mac);
+    release_mem_region(Y2_USB_PHY_BASE, Y2_USB_PHY_BYTES);
+release_mac:
+    release_mem_region(Y2_USB_MAC_BASE, Y2_USB_MAC_BYTES);
+}
 static void y2_collect_power(void)
 {
     void __iomem *base;
@@ -78,7 +112,7 @@ static void y2_collect_power(void)
                               .delay = y2_power_delay };
     struct y2_usb_clock_io clocks = { .read = y2_clock_read };
     y2_power.power.magic = Y2_PWRAP_MAGIC;
-    y2_power.power.result = y2_power.clock.result = -ENODEV;
+    y2_power.power.result = y2_power.clock.result = y2_power.usb.result = -ENODEV;
     if (!y2_display_valid()) return;
     if (!request_mem_region(Y2_PWRAP_BASE, Y2_PWRAP_BYTES, "y2-pwrap-probe")) {
         y2_power.power.result = -EBUSY;
@@ -92,6 +126,7 @@ static void y2_collect_power(void)
     }
     release_mem_region(Y2_PWRAP_BASE, Y2_PWRAP_BYTES);
     y2_usb_clock_probe(&clocks, &y2_power.power, &y2_power.clock);
+    y2_collect_usb();
 }
 static ssize_t y2_power_snapshot(struct file *file, char __user *buf,
                                  size_t count, loff_t *pos)

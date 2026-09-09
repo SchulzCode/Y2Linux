@@ -1,5 +1,10 @@
 # M2-USBCLK-01 — ready for owner device test
 
+> Returned [physical photos](../knowledge/m2-usb-clock-hardware-result.md) now
+> confirm CLOCK RC=0/VALID=15, increasing timer IRQ counts and BEAT 50 with no
+> reported errors. Exact flashed hash and restoration remain unreported.
+> The original pending-test handoff below is historical.
+
 2026-09-09. Incremental #23/#27 prerequisite under active M2 #28.
 **Offline validated; this candidate has not been flashed or hardware tested.**
 

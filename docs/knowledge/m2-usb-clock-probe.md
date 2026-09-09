@@ -1,5 +1,9 @@
 # M2-USBCLK-01 — inherited USB clock state
 
+> [Physical result](m2-usb-clock-hardware-result.md): all four clock reads pass,
+> timer reporting works, and BEAT 50 is photographed without errors. The next
+> bounded step is [read-only USB state observation](m2-usb-state-probe.md).
+
 2026-09-09. Smallest next #27 prerequisite after
 [physical PWRAP/VUSB success](m2-pwrap-hardware-result.md). Correct the source-
 identified timer action-name parser error in the same localized candidate.
