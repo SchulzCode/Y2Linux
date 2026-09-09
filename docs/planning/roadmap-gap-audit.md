@@ -8,7 +8,50 @@ blueprint/planning material; no native platform readiness is inferred from that.
 
 ## M2 activation audit — 2026-09-09
 
-### Current checkpoint — first kernel/PID1 USB capture succeeds
+### Current scope review — one bounded USB reconnect, baseline 7ee780a
+
+2026-09-09. The owner explicitly authorizes completing #27 robustness before
+#22 → #23 → #24 → #25 → #26 → M2 boot/stability qualification and closure audit.
+Reviewed the current repository, open #16/#22–#32, #27 acceptance and #28 epic,
+the existing blueprint/coverage matrix and USBACM-03 capture/source/build evidence.
+The successful baseline is now pushed; its 67 retained implementation/test/tool
+files match the build snapshot. No repeated source/ROM/recovery provenance audit.
+
+Every coverage row below is re-evaluated and retains its classification: narrow
+kernel/PID1 logging CONFIRMED inside overall USB PARTIAL; boot, RAM, display,
+power, recovery and later product gaps remain with their existing issue owners.
+M1 stays complete; M2 active with blocked exit; M3 and application work deferred.
+No optional exit criterion or D11 experimental limitation becomes a production
+waiver. The existing backup/calibration and full DMA ownership gaps remain open.
+
+USBACM-03 stops permanently at first detach, so it cannot satisfy the requested
+reconnect criterion unchanged. Develop USBACM-04 using the already-owned PIO
+controller: on first sampled CHRDET loss remove SOFTCONN, notify upstream gadget
+disconnect and restore only the existing saved digital PHY session inputs;
+retain the controller and PID1 history while unplugged. Permit one restart only
+after fresh supply/clock, passive digital PHY, zero DMA controls and unchanged
+mode/trim checks, using the same guarded session writes and upstream controller
+start. A second detach, any failed guard or the original 50-second deadline is
+terminal. PID1 heartbeat and the 60-second owner limit remain unchanged.
+
+This is a localized lifecycle extension of the proven subsystem, not new USB,
+DMA, memory, boot packaging, rail or production ownership. Targeted transition,
+relay/ARM PID1, host capture, linked and D08/BOOTIMG checks plus one clean build
+apply. Qualification still needs the physical combined delayed-open/no-reader/
+disconnect/offline-heartbeat/reconnect/replay test; do not close #27 from fixtures.
+The real host sees Y2 at 5-2, ttyACM0, 0525:a4a7 with the USBACM-03 manufacturer;
+this session lacks tty permissions, independently of sandbox visibility.
+
+[USBACM-04 is now ready for the owner test](../build/m2-usbacm-04-result.md).
+One clean build, 16 targeted methods and eight host observation/orchestration
+methods pass; 34 ARM PID1, eight worker and 29 lifecycle/guard scenarios are
+included. Current D08/BOOTIMG and focused emitted-ARM checks pass. Candidate:
+1,161,216 bytes, SHA-256
+`ecdce008c34998dce03e1b5dd88b0c78c3015e5865b93d4ba609f6cbf134f365`.
+No physical robustness run occurred and no capability classification is promoted.
+Stop at this BOOTIMG for the owner flash/cable test; #27 remains open.
+
+### Previous checkpoint — first kernel/PID1 USB capture succeeds
 
 2026-09-09, USBACM-03 retained candidate/source identity. The owner-run
 [capture-03](../knowledge/m2-usbacm-hardware-result.md#usbacm-03-kernel-and-pid1-capture-confirmed)

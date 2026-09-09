@@ -19,6 +19,8 @@ static struct y2_pwrap_snapshot y2_usb_supply;
 static DEFINE_SPINLOCK(y2_usb_failure_lock);
 static struct y2_usb_live y2_live = { .magic=Y2_USB_LIVE_MAGIC,.devctl=0x100 };
 static bool y2_usb_started, y2_usb_finished;
+static bool y2_usb_detached;
+static unsigned y2_usb_detaches;
 static unsigned long y2_usb_deadline, y2_irq_tick;
 static unsigned y2_irq_burst;
 static void y2_usb_worker(struct work_struct *work);
@@ -55,7 +57,8 @@ static void y2_musb_writeb(void __iomem *base,u32 offset,u8 value)
 {
     /* No SRP/host request, even if the generic state machine requests one. */
     if(offset==MUSB_DEVCTL) value &= ~(MUSB_DEVCTL_SESSION|MUSB_DEVCTL_HR);
-    if(offset==MUSB_POWER && READ_ONCE(y2_live.result)) value &= ~MUSB_POWER_SOFTCONN;
+    if(offset==MUSB_POWER && (READ_ONCE(y2_live.result) || READ_ONCE(y2_usb_detached)))
+        value &= ~MUSB_POWER_SOFTCONN;
     writeb(value,base+offset);
 }
 static void y2_musb_writew(void __iomem *base,u32 offset,u16 value)
@@ -263,6 +266,65 @@ static void y2_usb_finish(void)
     pr_info("Y2USB stopped stage=%u result=%d IRQ=%u events=%02x\n",
         y2_live.stage,y2_live.result,y2_live.irqs,y2_live.events);
 }
+/* The controller remains registered: no gadget-unregister wait on PID1's tty.
+ * Upstream musb_g_disconnect requires the lock and invokes endpoint teardown.
+ * The write callback blocks delayed gadget_work from restoring the pullup. */
+static void y2_usb_detach(void)
+{
+    struct y2_session_io session=y2_session_io(y2_musb);
+    unsigned long flags;
+    WRITE_ONCE(y2_usb_detached,true);
+    WRITE_ONCE(y2_live.configured,0);
+    y2_usb_phase(Y2_USB_DETACHED);
+    spin_lock_irqsave(&y2_musb->lock,flags);
+    writel(0,y2_musb->mregs+0xa4);
+    writeb(readb(y2_musb->mregs+MUSB_POWER)&~MUSB_POWER_SOFTCONN,y2_musb->mregs+MUSB_POWER);
+    musb_g_disconnect(y2_musb);
+    musb_stop(y2_musb);
+    spin_unlock_irqrestore(&y2_musb->lock,flags);
+    y2_session_end(&session,&y2_session);
+    WRITE_ONCE(y2_live.devctl,readb(y2_musb->mregs+MUSB_DEVCTL));
+    pr_info("Y2USB detached; PID1 continues; one reconnect allowed\n");
+}
+static int y2_usb_reconnect(void)
+{
+    struct y2_usb_clock_io clocks={.read=y2_clock_read};
+    struct y2_platform_snapshot fresh=y2_power;
+    struct y2_session_io session=y2_session_io(y2_musb);
+    unsigned long flags;
+    unsigned i;
+    int rc;
+    fresh.power=y2_usb_supply;
+    y2_usb_clock_probe(&clocks,&fresh.power,&fresh.clock);
+    if(!y2_usb_state_ready(&fresh) || !(fresh.power.chrdet&0x20)) return -ENODEV;
+    if(readb(y2_usb_phy+0x6c)!=y2_session.before_c ||
+       readb(y2_usb_phy+0x6d)!=y2_session.before_d ||
+       (readb(y2_musb->mregs+MUSB_DEVCTL)&0x87)!=0x80) return -ENODEV;
+    for(i=0;i<7;++i)
+        if(readb(y2_usb_phy+y2_usb_mode_offsets[i])!=y2_power.wake.controls[i]) return -EIO;
+    for(i=0;i<7;++i)
+        if(i!=4 && i!=5 && readb(y2_usb_phy+0x68+i)!=y2_power.wake.after[i]) return -EIO;
+    for(i=0;i<8;++i) if(readw(y2_musb->mregs+0x204+16*i)) return -ENODEV;
+    rc=y2_session_start(&session,&y2_session);
+    if(rc) return rc; /* terminal teardown restores any partially forced inputs */
+    spin_lock_irqsave(&y2_musb->lock,flags);
+    /* Start rechecks the retained FIFO layout; stale status is sampled W1C. */
+    y2_musb_clearb(y2_musb->mregs,MUSB_INTRUSB);
+    y2_musb_clearw(y2_musb->mregs,MUSB_INTRTX);
+    y2_musb_clearw(y2_musb->mregs,MUSB_INTRRX);
+    musb_start(y2_musb);
+    if(!READ_ONCE(y2_live.result)) {
+        WRITE_ONCE(y2_usb_detached,false);
+        if(y2_musb->softconnect)
+            y2_musb_writeb(y2_musb->mregs,MUSB_POWER,
+                readb(y2_musb->mregs+MUSB_POWER)|MUSB_POWER_SOFTCONN);
+    }
+    spin_unlock_irqrestore(&y2_musb->lock,flags);
+    if(READ_ONCE(y2_live.result)) return READ_ONCE(y2_live.result);
+    y2_usb_phase(Y2_USB_READY);
+    pr_info("Y2USB reconnect armed; host reset/configuration required\n");
+    return 0;
+}
 static void y2_usb_worker(struct work_struct *work)
 {
     struct y2_pwrap_io io={y2_usb_pmic,y2_power_read,y2_power_write,y2_power_delay};
@@ -288,11 +350,22 @@ static void y2_usb_worker(struct work_struct *work)
         y2_usb_phase(Y2_USB_READY);
     }
     if(y2_musb) {
-        if(!(power.chrdet&0x20)) goto done; /* bounded first attachment only */
+        if(!(power.chrdet&0x20)) {
+            if(!y2_usb_detached) {
+                if(y2_usb_detaches++) goto done; /* one reconnect, no deadline extension */
+                y2_usb_detach();
+            }
+            goto again;
+        }
+        if(y2_usb_detached) {
+            rc=y2_usb_reconnect();
+            if(rc) {y2_usb_fail(rc);goto done;}
+        }
         WRITE_ONCE(y2_live.devctl,readb(y2_musb->mregs+MUSB_DEVCTL));
         WRITE_ONCE(y2_live.configured,READ_ONCE(y2_musb->g.state)==USB_STATE_CONFIGURED);
         if(y2_live.configured && y2_live.stage!=Y2_USB_CONFIGURED) y2_usb_phase(Y2_USB_CONFIGURED);
     }
+again:
     schedule_delayed_work(&y2_usb_work,msecs_to_jiffies(250));
     return;
 done:

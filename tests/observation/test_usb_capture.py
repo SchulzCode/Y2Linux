@@ -12,7 +12,7 @@ from tools.observation.usb_log_capture import HEADER,receive,usb_identity
 
 
 class UsbCapture(unittest.TestCase):
-    def capture(self,payload,limit=4096):
+    def capture(self,payload,limit=4096,**kwargs):
         with tempfile.TemporaryDirectory() as d:
             output=Path(d);master,slave=pty.openpty();command=[]
             os.set_blocking(slave,False)
@@ -21,7 +21,7 @@ class UsbCapture(unittest.TestCase):
                     command.append(os.read(master,128));os.write(master,payload)
             thread=threading.Thread(target=peer);thread.start()
             try:
-                report=receive(slave,output,.3,limit,{'fixture':'PTY'})
+                report=receive(slave,output,.3,limit,{'fixture':'PTY'},**kwargs)
                 thread.join(2)
                 self.assertEqual(command,[b'LOG1\n'])
                 raw=(output/'raw.bin').read_bytes()
@@ -44,6 +44,11 @@ class UsbCapture(unittest.TestCase):
         report,raw=self.capture(b'unrelated serial output\n')
         self.assertFalse(report['protocol_header']);self.assertEqual(report['exit_code'],2)
 
+    def test_explicit_previous_build(self):
+        header=b'Y2LOG1 M2-USBACM-03\n'
+        report,raw=self.capture(header+b'PID1 previous build\n',expected_header=header)
+        self.assertTrue(report['protocol_header']);self.assertEqual(report['exit_code'],0)
+
     def test_byte_limit_is_incomplete(self):
         report,raw=self.capture(HEADER+b'overflow',len(HEADER))
         self.assertEqual(raw,HEADER);self.assertEqual(report['status'],'byte-limit')
@@ -64,3 +69,26 @@ class UsbCapture(unittest.TestCase):
             with self.assertRaises(ValueError): usb_identity(device,root)
             (usb/'idVendor').write_text('0525');(interface/'bInterfaceClass').write_text('ff')
             with self.assertRaises(ValueError): usb_identity(device,root)
+
+    def test_read_pause_retains_bytes_and_timing(self):
+        with tempfile.TemporaryDirectory() as d:
+            output=Path(d);master,slave=pty.openpty();os.set_blocking(slave,False)
+            def peer():
+                import time
+                self.assertTrue(select.select([master],[],[],2)[0])
+                self.assertEqual(os.read(master,128),b'LOG1\n')
+                os.write(master,HEADER)
+                time.sleep(.2)
+                os.write(master,b'PID1 while host is not reading\n')
+            thread=threading.Thread(target=peer);thread.start()
+            try:
+                report=receive(slave,output,.7,4096,{'fixture':'PTY'},pause_after=.1,pause_seconds=.3)
+                thread.join(2)
+                self.assertEqual((output/'raw.bin').read_bytes(),HEADER+b'PID1 while host is not reading\n')
+                events=report['events']
+                self.assertEqual([x['event'] for x in events],['read-pause-start','read-pause-end'])
+                chunks=[json.loads(x) for x in (output/'chunks.jsonl').read_text().splitlines()]
+                for chunk in chunks:
+                    self.assertFalse(events[0]['elapsed_ns']<=chunk['elapsed_ns']<events[1]['elapsed_ns'])
+                self.assertEqual(report['exit_code'],0)
+            finally: os.close(master);os.close(slave)

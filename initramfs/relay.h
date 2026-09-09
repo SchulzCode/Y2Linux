@@ -50,6 +50,15 @@ static void relay_close(void)
     relay.tty=relay.kmsg=-1;relay.active=0;
     relay.head=relay.tail=relay.command=relay.bad=0;
 }
+static void relay_link_error(long rc)
+{
+    relay_close();
+    /* TTY hangup may precede the 250ms CHRDET worker. Retain the event without
+     * latching an expected disconnect as a PID1 error. Other errors still fail. */
+    if(rc==-5 || rc==-19 || rc==-32)
+        relay_log("LINK tty disconnected\n",22);
+    else relay.result=rc;
+}
 static void relay_open(void)
 {
     char dev[24];unsigned device;
@@ -64,7 +73,7 @@ static void relay_open(void)
     rc=call5(14,(long)"/dev/ttyGS0",0020600,device,0,0);
     if(rc<0 && rc!=-17) {relay.result=rc;return;}
     fd=call5(5,(long)"/dev/ttyGS0",2|256|2048,0,0,0);
-    if(fd<0) {relay.result=fd;return;}
+    if(fd<0) {relay_link_error(fd);return;}
     relay.tty=fd;
     rc=call5(54,fd,0x5401,(long)&t,0,0);
     if(rc>=0) {
@@ -72,7 +81,7 @@ static void relay_open(void)
         t.line=0;for(unsigned i=0;i<19;++i) t.cc[i]=0;
         rc=call5(54,fd,0x5402,(long)&t,0,0);
     }
-    if(rc<0) {relay.result=rc;relay_close();return;}
+    if(rc<0) {relay_link_error(rc);return;}
     rc=call5(14,(long)"/dev/kmsg",0020400,(1<<8)|11,0,0);
     if(rc<0 && rc!=-17) relay.result=rc;
     else {
@@ -82,7 +91,7 @@ static void relay_open(void)
 }
 static void relay_request(void)
 {
-    static const char header[]="Y2LOG1 M2-USBACM-03\n";
+    static const char header[]="Y2LOG1 M2-USBACM-04\n";
     relay.head=relay.tail=0;relay.lost=0;relay.active=1;
     relay_put(header,sizeof(header)-1);
     relay_put(relay.history,relay.history_used);
@@ -98,7 +107,7 @@ static void relay_service(void)
     if(relay.tty<0) relay_open();
     if(relay.tty<0) return;
     n=call5(3,relay.tty,(long)command,sizeof(command),0,0);
-    if(n<0 && n!=-11 && n!=-4) {relay.result=n;relay_close();return;}
+    if(n<0 && n!=-11 && n!=-4) {relay_link_error(n);return;}
     for(long i=0;i<n;++i) {
         char c=command[i];
         if(c=='\n') {
@@ -127,7 +136,7 @@ static void relay_service(void)
         n=call5(4,relay.tty,(long)(relay.queue+offset),count,0,0);
         if(n==-11 || !n) break;
         if(n==-4) continue;
-        if(n<0) {relay.result=n;relay_close();return;}
+        if(n<0) {relay_link_error(n);return;}
         relay.tail+=(unsigned)n;
     }
 }

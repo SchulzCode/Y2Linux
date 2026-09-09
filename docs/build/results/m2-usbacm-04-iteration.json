@@ -1,0 +1,118 @@
+{
+  "candidate": "M2-USBACM-04",
+  "baseline": "7ee780a",
+  "hardware_status": "NOT TESTED",
+  "kernel_release": "6.18.0-y2-m2-usbacm4",
+  "size": 1161216,
+  "sha256": "ecdce008c34998dce03e1b5dd88b0c78c3015e5865b93d4ba609f6cbf134f365",
+  "scope": "One bounded CHRDET detach/guarded reconnect of the owned PIO controller; retained PID1 history; combined host capture.",
+  "validation": {
+    "clean_builds": 1,
+    "targeted_suite_methods": 16,
+    "observation_methods": 8,
+    "pid1_arm_scenarios": 34,
+    "worker_scenarios": 8,
+    "reconnect_lifecycle_scenarios": 29,
+    "compiler_warnings": 0
+  },
+  "config_delta": {
+    "CONFIG_LOCALVERSION": {
+      "old": "\"-y2-m2-usbacm3\"",
+      "new": "\"-y2-m2-usbacm4\""
+    }
+  },
+  "dt_delta": "Only generated linux,initrd-end changes for the new gzip size; hardware nodes and D08 unchanged",
+  "linked_usb": {
+    "syscalls": {
+      "14": {
+        "target": "sys_mknod",
+        "address": "0xc00c3208"
+      },
+      "19": {
+        "target": "sys_lseek",
+        "address": "0xc00b5a40"
+      },
+      "54": {
+        "target": "sys_ioctl",
+        "address": "0xc00c8318"
+      }
+    },
+    "linked": {
+      "y2_usb_worker": "0xc00165ac",
+      "y2_musb_init": "0xc0009dac",
+      "y2_musb_interrupt": "0xc0017240",
+      "y2_session_write": "0xc0017484",
+      "musb_start": "0xc015b0a8",
+      "musb_stop": "0xc015b23c",
+      "musb_g_disconnect": "0xc015f890",
+      "musb_interrupt": "0xc015b350",
+      "musb_g_ep0_irq": "0xc015d9c4",
+      "gs_bind": "0xc0169e14",
+      "acm_bind": "0xc0167e84",
+      "gserial_connect": "0xc01687f8"
+    },
+    "status": "PASS offline; enumeration untested"
+  },
+  "linked_lifecycle": {
+    "y2_usb_detach": {
+      "address": "0xc0009c54",
+      "bytes": 344,
+      "sha256": "9035835f81e05590e04035da8b00541e63879e1eb143e3ffdf63cc167fdd2ad7"
+    },
+    "y2_usb_reconnect": {
+      "address": "0xc0016984",
+      "bytes": 1136,
+      "sha256": "a7eaf6ef2ae7f8860b8f42e3ab954512b3fcb6abb0cbc5ed35f33047a167a669"
+    },
+    "y2_usb_worker": {
+      "address": "0xc00165ac",
+      "bytes": 680,
+      "sha256": "91637b7acf222bbe1e00eceb784e48552ce26ed245aa76c3e5d4a846452d8653"
+    },
+    "y2_musb_writeb": {
+      "address": "0xc0017004",
+      "bytes": 84,
+      "sha256": "043750f1451c18edd38979b9505d3ddeafe64d18e5d41e63b1d722308ecccca7"
+    },
+    "musb_g_disconnect": {
+      "address": "0xc015f890",
+      "bytes": 444,
+      "sha256": "3924a89ab3801713f85d0b5282e53d374faed027bc2b08119e4bfd5a29e5c155"
+    },
+    "musb_stop": {
+      "address": "0xc015b23c",
+      "bytes": 100,
+      "sha256": "92dd4022c6d850d2e3c539bbf94fbcb510a308c8ddc590dd8fd6d65c4fb87974"
+    },
+    "musb_start": {
+      "address": "0xc015b0a8",
+      "bytes": 404,
+      "sha256": "e0ac1a162d63d5b1fb6a09d176b77a176593003333944be94d546bd98795a3e7"
+    }
+  },
+  "baseline_snapshot_bytes": 260,
+  "live_status_bytes": 88,
+  "limits": {
+    "power_on_seconds": 60,
+    "usb_active_seconds": 50,
+    "pwrap_poll_ms": 250,
+    "reconnects": 1,
+    "host_seconds_after_enumeration": 42
+  },
+  "host_plan": {
+    "late_open_seconds": 8,
+    "read_pause_after_seconds": 3,
+    "read_pause_seconds": 6,
+    "disconnect_prompt_after_open_seconds": 12,
+    "requested_unplugged_seconds": 5,
+    "reconnect_wait_max_seconds": 10,
+    "replay_capture_max_seconds": 12
+  },
+  "unqualified": [
+    "physical late-open/non-reading continuity",
+    "physical offline heartbeat",
+    "controller re-enumeration/replay",
+    "boot repeatability",
+    "connected-start recovery"
+  ]
+}

@@ -1,4 +1,24 @@
-# Capture the first Y2 CDC ACM trial
+# Capture Y2 CDC ACM logs
+
+Current robustness candidate: [M2-USBACM-04 handoff](m2-usbacm-04-result.md).
+Use its single combined host capture for delayed open, paused reads and one
+physical cable cycle. It identifies the actual USB tty on each enumeration;
+never infer the Y2 from ttyACM numbering alone. Run on the real host, outside
+any private-device sandbox, with permission to open both enumerations.
+
+For ordinary USBACM-04 logging use `usb_log_capture.py --output NEW_DIRECTORY`.
+For a still-running USBACM-03 image add `--build M2-USBACM-03`; the default header
+now identifies USBACM-04. All older commands below require that explicit option
+when using the current tool. Keep each capture in a new directory.
+
+The USBACM-03 success is already recorded and pushed: 11754 bytes, kernel
+sequence 0–77, BEAT 1–43 and normal 45-second exit 0. Current session host
+metadata identifies port 5-2, ttyACM0, 0525:a4a7 and the USBACM-03 manufacturer;
+host visibility succeeds, but `luca` lacks tty access (root:uucp 0660, no ACL,
+no passwordless sudo). Host permission is a separate prerequisite from visibility.
+
+
+## Historical USBACM-03 capture procedure
 
 For [M2-USBACM-03](m2-usbacm-03-result.md), Linux host, standard Python 3 only.
 Run from the repository **before powering on the test image**:

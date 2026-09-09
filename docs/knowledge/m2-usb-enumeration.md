@@ -1,5 +1,37 @@
 # M2-USBACM-01 — guarded first controller ownership and logging
 
+> USBACM-03 now has successful physical kernel/PID1 logging evidence.
+> [USBACM-04](../build/m2-usbacm-04-result.md) extends the original first-detach
+> stop below to one guarded reconnect; it is offline validated and untested on
+> hardware. All other ownership/deadline boundaries remain. The original
+> first-attachment contract is retained below as history.
+
+## USBACM-04 lifecycle source contract
+
+The pinned Linux v6.18 [musb_gadget.c](https://github.com/torvalds/linux/blob/v6.18/drivers/usb/musb/musb_gadget.c)
+requires `musb_g_disconnect` under the controller lock; it invokes the composite
+disconnect callback, clears speed/activity and returns B-peripheral/B-idle to
+B-idle with NOTATTACHED state. Its vbus_session gadget operation is disabled, so
+this adapter does not pretend a generic VBUS callback is available.
+[Core start/stop](https://github.com/torvalds/linux/blob/v6.18/drivers/usb/musb/musb_core.c)
+disable/re-enable interrupts using platform callbacks; stop samples/acknowledges
+pending status. Start does not assert SOFTCONN, so the adapter permits pullup only
+after successful re-entry and the unchanged FIFO-layout check. Existing write
+callbacks continue clearing SESSION/HR and implement MT6582 sampled W1C semantics.
+The upstream host-state alternatives are excluded by the existing peripheral-only
+configuration and runtime B-device guard; no OTG or DMA path is introduced.
+
+On CHRDET loss, retain the owned controller and use the same saved-input
+`y2_session_end` contract already used by terminal teardown. On reattachment,
+require fresh supply/clocks, exact saved inputs, unchanged digital/mode/trim bytes
+and zero DMA controls before `y2_session_start`; do not replay the original
+inherited-controller takeover predicate against registers Linux now owns.
+One re-entry only, no deadline reset. These are source-supported implementation
+facts; physical detach/re-enumeration and heartbeat/replay require the combined
+owner test. An offline fixture cannot establish electrical behavior.
+
+## Original first-attachment ownership contract
+
 2026-09-09, baseline `d9c2c98`, #23/#27 under active M2 #28. The owner explicitly
 requested one combined enumeration/logging attempt to reduce physical cycles.
 [Scope audit](../planning/roadmap-gap-audit.md#combined-usb-ownership-scope-review--baseline-d9c2c98).

@@ -7,8 +7,8 @@
 
 > Earlier [host journal evidence](../knowledge/m2-usbacm-hardware-result.md#usbacm-03-host-enumeration-confirmed)
 > confirms 0525:a4a7 enumeration and ttyACM0. The first capture was sandboxed;
-> the second reached the tty but lacked host permissions. LOG1 capture remains
-> outstanding; reuse this image with an authorized host reader.
+> the second reached the tty but lacked host permissions. Those historical
+> access failures are superseded by the successful owner capture-03 above.
 
 2026-09-09, baseline `c066d62` plus the retained USBACM-02 source snapshot.
 **Offline validated and hardware logging confirmed by capture-03.**

@@ -16,7 +16,7 @@ def check(kernel):
                 'USB relay syscall must not be a weak alias: '+name)
         calls[str(number)]={'target':name,'address':hex(entry)}
     names=('y2_usb_worker','y2_musb_init','y2_musb_interrupt','y2_session_write',
-           'musb_start','musb_interrupt','musb_g_ep0_irq','gs_bind','acm_bind','gserial_connect')
+           'musb_start','musb_stop','musb_g_disconnect','musb_interrupt','musb_g_ep0_irq','gs_bind','acm_bind','gserial_connect')
     linked={name:hex(kernel.sym(name)) for name in names}
     require(not any(name in kernel.syms for name in
         ('musb_dma_controller_create','dma_controller_irq','musb_host_setup','mtk_musb_init')),

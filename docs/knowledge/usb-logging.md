@@ -1,5 +1,11 @@
 # Host-readable USB logging — minimal path and controller gate
 
+Current next test: [USBACM-04 bounded robustness handoff](../build/m2-usbacm-04-result.md).
+USBACM-03 basic logging is confirmed and pushed; late-open/non-reading host,
+offline heartbeat and controller reconnect/replay remain hardware-unqualified.
+The one-reconnect implementation and host orchestration pass offline checks.
+#27 stays open until the combined physical result is reviewed.
+
 > Current physical result: [USBACM-03 capture-03](m2-usbacm-hardware-result.md#usbacm-03-kernel-and-pid1-capture-confirmed)
 > confirms retained early kernel messages and increasing PID1 heartbeats over
 > CDC ACM. The initial transport blocker is resolved; broader logging remains
