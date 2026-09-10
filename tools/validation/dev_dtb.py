@@ -7,6 +7,7 @@ from tools.validation.dtb import cells, strings
 
 # Reviewed controller address/size and GIC SPI/type (MT6582, not sibling IRQs).
 REGS = {
+ '/audio-controller@11220000': (0x11220000,0x1000),
  '/clock-controller@10000000': (0x10000000,0x1000,0x10003000,0x1000,0x10001000,0x1000,0x10209000,0x1000),
  '/pinctrl@10005000': (0x10005000,0x1000,0x1000b000,0x1000),
  '/pwrap@1000d000': (0x1000d000,0x1000),
@@ -24,7 +25,7 @@ REGS = {
  '/color@1400b000': (0x1400b000,0x1000), '/mutex@1400e000': (0x1400e000,0x1000),
  '/mipi-tx@10010000': (0x10010000,0x1000), '/dsi@1400c000': (0x1400c000,0x1000),
 }
-IRQS = {'/timer@10008000':(112,8), '/serial@11002000':(51,8), '/usb@11200000':(32,8),
+IRQS = {'/audio-controller@11220000':(104,8), '/timer@10008000':(112,8), '/serial@11002000':(51,8), '/usb@11200000':(32,8),
  '/pinctrl@10005000':(113,4), '/i2c@11007000':(44,8), '/i2c@11008000':(45,8),
  '/keypad@10011000':(116,2), '/mmc@11230000':(39,8), '/mmc@11240000':(40,8),
  '/ovl@14007000':(153,8), '/rdma@14008000':(152,8), '/color@1400b000':(156,8),
@@ -53,8 +54,12 @@ def check(data, initrd_size):
         if 'phandle' in props:
             h=struct.unpack('>I',props['phandle'])[0]
             require(h and h not in handles,'duplicate phandle');handles[h]=(path,props)
-        require(not any(k.startswith('regulator-') or k in ('iommus','memory-region','assigned-clock-rates','assigned-clocks') for k in props), 'unreviewed rail/DMA/clock policy')
-        if path.startswith('/i2c@11008000/'): raise ValueError('M3/M5 I2C clients activated')
+        require(not any(k in ('iommus','memory-region','assigned-clock-rates','assigned-clocks') for k in props), 'unreviewed DMA/clock policy')
+        if any(k.startswith('regulator-') for k in props):
+            require(path in ('/regulator-dac20','/regulator-dac18','/regulator-dac15',
+                            '/pwrap@1000d000/pmic/regulators/ldo_vgp2'), 'unreviewed rail')
+        if path.startswith('/i2c@11008000/'):
+            require(path == '/i2c@11008000/codec@30', 'unreviewed audio/radio I2C client')
     def handle(path): return struct.unpack('>I',nodes[path]['phandle'])[0]
     for path,props in nodes.items():
         # Validate variable-length clock specifiers, provider arity and clock IDs.
@@ -63,7 +68,7 @@ def check(data, initrd_size):
             require(words[i] in handles,'missing clock provider '+path)
             provider,v=handles[words[i]];n=struct.unpack('>I',v['#clock-cells'])[0]
             require(i+1+n<=len(words),'short clock specifier')
-            if n: require(n==1 and words[i+1]<(15 if provider.startswith('/clock-controller') else 23),'invalid clock ID')
+            if n: require(n==1 and words[i+1]<(18 if provider.startswith('/clock-controller') else 23),'invalid clock ID')
             i+=1+n
         for prop in ('pinctrl-0','pinctrl-1','backlight','remote-endpoint','interrupt-parent'):
             if prop in props:
@@ -85,6 +90,27 @@ def check(data, initrd_size):
         require(nodes[path]['clock-div']==cells(16) and nodes[path]['clock-frequency']==cells(100000),'I2C clock contract')
     for path,irq in (('/pwrap@1000d000/pmic',(25,4)),('/i2c@11007000/wheel@51',(55,2))):
         require(nodes[path]['interrupt-parent']==cells(handle('/pinctrl@10005000')) and nodes[path]['interrupts']==cells(*irq),'PMIC/wheel EINT')
+    rail='/pwrap@1000d000/pmic/regulators/ldo_vgp2'
+    require(nodes[rail]['regulator-min-microvolt']==cells(1800000) and
+            nodes[rail]['regulator-max-microvolt']==cells(1800000) and
+            'regulator-always-on' in nodes[rail], 'VGP2 1.8V/shared retention')
+    parent=rail
+    for pin in (20,18,15):
+        path='/regulator-dac'+str(pin); v=nodes[path]
+        require(v['compatible']==strings('regulator-fixed') and v['gpio']==cells(handle('/pinctrl@10005000'),pin,0), 'DAC enable GPIO')
+        require(v['vin-supply']==cells(handle(parent)) and v['startup-delay-us']==cells(50000), 'DAC supply ordering/delay')
+        require(v['regulator-min-microvolt']==cells(1800000) and v['regulator-max-microvolt']==cells(1800000), 'nominal DAC rails')
+        parent=path
+    codec=nodes['/i2c@11008000/codec@30']
+    require(codec['compatible']==strings('cirrus,cs43131') and codec['reg']==cells(0x30), 'CS43131 identity')
+    for supply in ('VA','VP','VCP'):
+        require(codec[supply+'-supply']==cells(handle(rail)), 'DAC analog VGP2 ownership')
+    require(codec['VD-supply']==cells(handle('/regulator-dac18')) and codec['VL-supply']==cells(handle('/regulator-dac15')), 'DAC digital controls')
+    require(codec['cirrus,xtal-ibias']==cells(2) and 'interrupts' not in codec, 'codec crystal/polling')
+    require(nodes['/sound']['mediatek,platform']==cells(handle('/audio-controller@11220000')) and
+            nodes['/sound']['audio-codec']==cells(handle('/i2c@11008000/codec@30')), 'ASoC topology')
+    require(nodes['/pinctrl@10005000/speaker-disable']['gpios']==cells(8,0) and
+            'output-low' in nodes['/pinctrl@10005000/speaker-disable'], 'speaker stays disabled')
     panel=nodes['/dsi@1400c000/panel@0']
     require(panel['resets']==cells(handle('/syscon@14000000'),0) and 'innioasis,lk-powered' in panel,'evidenced panel reset/power')
     return {'node_count':len(nodes),'bootargs':args,'memory':RAM,'storage':'internal eMMC disabled; removable SD writable','evidence':'offline dependencies only'}

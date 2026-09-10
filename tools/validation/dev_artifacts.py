@@ -91,7 +91,7 @@ def check(root,project):
     payload=z+tree+bytes(-len(tree)%8)
     layout['kernel_symbols']={n:kernel.sym(n) for n in ('_text','_edata','__bss_start','__bss_stop','_end')}
     layout['artifacts']={name:{'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()} for name,raw in [('Image',image),('zImage',z),('y2.dtb',tree),('zImage-dtb',payload),('initramfs.cpio.gz',rd),('display.ko',module)]}
-    layout['status']='PASS offline DEV-01; physical expanded RAM/display/wheel/SD/USB/SSH acceptance pending'
+    layout['status']='PASS offline M3 audio candidate; DEV-02 core physically qualified; audio acceptance pending'
     return layout,payload,rd
 
 

@@ -34,3 +34,10 @@ install -m 644 "$target/display.ko" "$target/lib/modules/$release/kernel/drivers
 cp "$artifacts/kernel/modules.builtin" "$target/lib/modules/$release/modules.builtin"
 cp "$artifacts/kernel/modules.builtin.modinfo" "$target/lib/modules/$release/modules.builtin.modinfo"
 "${HOST_DIR}/sbin/depmod" -b "$target" "$release"
+
+# Generated locally, short and quiet; never autoplay or restore high mixer gain.
+install -d "$target/usr/share/y2linux/audio"
+for fixture in "$artifacts"/audio/*; do
+    install -m 644 "$fixture" "$target/usr/share/y2linux/audio/"
+done
+printf '%s\n' 'Y2LINUX-M3-AUDIO-01' > "$target/etc/y2linux/build-id"

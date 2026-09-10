@@ -1,0 +1,19 @@
+--- a/sound/soc/mediatek/Kconfig
++++ b/sound/soc/mediatek/Kconfig
+@@ -322,4 +322,16 @@
+ 	  Select Y if you have such device.
+ 	  If unsure select "N".
+ 
++
++config SND_SOC_MT6582
++	tristate "MT6582 DL1 and second I2S playback"
++	depends on ARCH_MEDIATEK
++	select REGMAP_MMIO
++	select SND_PCM
++
++config SND_SOC_Y2_CS43131
++	tristate "Innioasis Y2 CS43131 headphone card"
++	depends on SND_SOC_MT6582 && I2C
++	select SND_SOC_CS43130
++
+ endmenu

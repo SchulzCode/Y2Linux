@@ -60,6 +60,13 @@ int main(void) {
  assert(wrap_reg_read(&w,1,&value)==-EINVAL&&!commands);
  assert(!wrap_reg_write(&w,0x160,1)&&writes==1); /* mask, no read needed */
  assert(!wrap_reg_read(&w,0x160,&value)&&value==1);
+ phase=polls=delays=commands=writes=acks=0;word=0x0055;
+ assert(!wrap_reg_write(&w,0x50c,0x8055)&&word==0x8055&&writes==1);
+ assert(wrap_reg_write(&w,0x50c,0x8054)==-EPERM); /* enable, not unrelated mode */
+ phase=polls=delays=commands=writes=acks=0;word=0xff1f;
+ assert(!wrap_reg_write(&w,0x532,0xff5f)&&word==0xff5f&&writes==1);
+ assert(wrap_reg_write(&w,0x532,0xfe5f)==-EPERM); /* selector, not adjacent rail */
+
 }
 '''
         with tempfile.TemporaryDirectory() as tmp:

@@ -27,13 +27,13 @@ struct y2_pins {
 static const unsigned nav_pins[] = {6, 7, 9, 10, 54}, wheel_pins[] = {55}, pmic_pins[] = {25},
 		      lcm_pins[] = {112};
 static const unsigned i2c0_pins[] = {84, 85}, i2c1_pins[] = {86, 87},
-		      sd_pins[] = {124, 125, 126, 127, 128, 129};
+		      sd_pins[] = {124, 125, 126, 127, 128, 129}, audio_pins[] = {43, 44, 46};
 static const char *const group_names[] = {"navigation", "wheel-irq", "pmic-irq", "lcm-reset",
-					  "i2c0",	"i2c1",	     "msdc1"};
+					  "i2c0",	"i2c1",	     "msdc1", "i2s-lk"};
 static const unsigned *const group_pins[] = {nav_pins,	wheel_pins, pmic_pins, lcm_pins,
-					     i2c0_pins, i2c1_pins,  sd_pins};
-static const unsigned group_counts[] = {5, 1, 1, 1, 2, 2, 6};
-static const char *const function_names[] = {"gpio", "eint", "lcm-reset", "i2c0", "i2c1", "msdc1"};
+					     i2c0_pins, i2c1_pins,  sd_pins, audio_pins};
+static const unsigned group_counts[] = {5, 1, 1, 1, 2, 2, 6, 3};
+static const char *const function_names[] = {"gpio", "eint", "lcm-reset", "i2c0", "i2c1", "msdc1", "i2s-lk"};
 static int group_count(struct pinctrl_dev *p) { return ARRAY_SIZE(group_names); }
 static const char *group_name(struct pinctrl_dev *p, unsigned n) { return group_names[n]; }
 static int group_get(struct pinctrl_dev *p, unsigned n, const unsigned **pins, unsigned *num)
@@ -83,7 +83,13 @@ static int pin_mux(struct pinctrl_dev *pc, unsigned f, unsigned g)
 			pin_bit(p, 0, pin, false);
 		/* EINT25/55 are already selected by LK on tested donor hardware.
 		 * Do not assume a universal GPIO->EINT mux function number. */
-		if (f != 1)
+		/* The retained second-I2S hardware proof uses LK's pad mux.
+		 * Claim the pins and retain that mux; report it for physical review. */
+		if (f == 6 && !((readl(p->base + 0x600 + (pin / 5) * 16) >>
+				 ((pin % 5) * 3)) & 7))
+			return dev_err_probe(p->gpio.parent, -EINVAL,
+					     "I2S pin%u lacks inherited peripheral mux\n", pin);
+		if (f != 1 && f != 6)
 			pin_mode(p, pin, f >= 2 ? 1 : 0);
 		dev_info(p->gpio.parent, "pin%u mode=%u function=%s\n", pin,
 			 (readl(p->base + 0x600 + (pin / 5) * 16) >> ((pin % 5) * 3)) & 7,
@@ -159,13 +165,17 @@ static const struct pinctrl_ops pin_ops = {.get_groups_count = group_count,
 					   .get_group_pins = group_get,
 					   .dt_node_to_map = pinconf_generic_dt_node_to_map_all,
 					   .dt_free_map = pinconf_generic_dt_free_map};
+static bool audio_output(unsigned n) { return n == 8 || n == 15 || n == 18 || n == 20; }
 static int mux_gpio_request(struct pinctrl_dev *pc, struct pinctrl_gpio_range *range, unsigned n)
 {
 	struct y2_pins *p = pinctrl_dev_get_drvdata(pc);
-	if (n != 6 && n != 7 && n != 9 && n != 10 && n != 54)
+	if (!audio_output(n) && n != 6 && n != 7 && n != 9 && n != 10 && n != 54)
 		return -ENOTSUPP;
-	pin_mode(p, n, 0);
+	/* Clear output latch before selecting GPIO: never pulse amp/power high. */
+	if (audio_output(n))
+		pin_bit(p, 0x400, n, false);
 	pin_bit(p, 0, n, false);
+	pin_mode(p, n, 0);
 	return 0;
 }
 static const struct pinmux_ops mux_ops = {.get_functions_count = func_count,
@@ -188,6 +198,22 @@ static int gpio_input(struct gpio_chip *gc, unsigned n)
 {
 	struct y2_pins *p = gpiochip_get_data(gc);
 	pin_bit(p, 0, n, false);
+	return 0;
+}
+static int gpio_output(struct gpio_chip *gc, unsigned n, int value)
+{
+	struct y2_pins *p = gpiochip_get_data(gc);
+	if (!audio_output(n))
+		return -ENOTSUPP;
+	pin_bit(p, 0x400, n, value);
+	pin_bit(p, 0, n, true);
+	return 0;
+}
+static int gpio_set(struct gpio_chip *gc, unsigned n, int value)
+{
+	if (!audio_output(n))
+		return -ENOTSUPP;
+	pin_bit(gpiochip_get_data(gc), 0x400, n, value);
 	return 0;
 }
 static int gpio_get(struct gpio_chip *gc, unsigned n)
@@ -270,6 +296,8 @@ static int pins_probe(struct platform_device *pdev)
 				     .get = gpio_get,
 				     .get_direction = gpio_direction,
 				     .direction_input = gpio_input,
+				     .direction_output = gpio_output,
+				     .set = gpio_set,
 				     .to_irq = gpio_irq};
 	ret = devm_gpiochip_add_data(dev, &p->gpio, p);
 	if (ret)

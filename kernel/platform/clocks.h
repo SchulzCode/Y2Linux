@@ -14,4 +14,7 @@
 #define Y2_CLK_MSDC1 12
 #define Y2_CLK_MSDC0_SRC 13
 #define Y2_CLK_MSDC1_SRC 14
-#define Y2_CLK_NR 15
+#define Y2_CLK_AUDINTBUS 15
+#define Y2_CLK_AUDIO 16
+#define Y2_CLK_INFRA_AUDIO 17
+#define Y2_CLK_NR 18

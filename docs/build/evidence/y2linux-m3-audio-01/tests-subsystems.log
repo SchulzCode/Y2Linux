@@ -1,0 +1,54 @@
+test_real_trigger_irq_and_dma_bounds (test_audio.AFE.test_real_trigger_irq_and_dma_bounds) ... ok
+test_resolved_audio_dt_rejects_unsafe_rails (test_audio.AFE.test_resolved_audio_dt_rejects_unsafe_rails) ... ok
+test_audio_mux_masks (test_audio_clocks.AudioClocks.test_audio_mux_masks) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.166s
+
+OK
+test_regmap_callbacks (test_baseline_pwrap.Transport.test_regmap_callbacks) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.106s
+
+OK
+test_clock_decode_and_write_firewalls (tests.test_baseline.SharedPolicy.test_clock_decode_and_write_firewalls) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.063s
+
+OK
+test_dt_protects_emmc_and_reservations (test_dev_foundation.DevFoundation.test_dt_protects_emmc_and_reservations) ... ok
+test_large_bank_and_packaging_limits (test_dev_foundation.DevFoundation.test_large_bank_and_packaging_limits) ... ok
+test_rescue_archive_and_bad_data (test_dev_foundation.DevFoundation.test_rescue_archive_and_bad_data) ... ok
+test_rescue_only_selects_one_removable_ext4_label (test_dev_foundation.DevFoundation.test_rescue_only_selects_one_removable_ext4_label) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.028s
+
+OK
+test_old_controller_uses_one_wrrd_without_retries (test_dev_i2c.CombinedI2C.test_old_controller_uses_one_wrrd_without_retries) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.070s
+
+OK
+test_failed_child_keeps_root_handoff_disabled (test_dev_abi.UserspaceABI.test_failed_child_keeps_root_handoff_disabled) ... ok
+test_required_abi_and_framebuffer_support (test_dev_abi.UserspaceABI.test_required_abi_and_framebuffer_support) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.056s
+
+OK
+test_atomic_publication_and_corruption_rejection (test_overlays.OverlayCache.test_atomic_publication_and_corruption_rejection) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.008s
+
+OK
+Y2ABI begin: Thumb signal return, kuser helpers, glibc TLS/threads and VFP
+Y2ABI Thumb signal delivery/return OK
+Y2ABI kuser memory barrier and TLS OK
+Y2ABI PASS: glibc thread/TLS, VFP, clock and allocator
+aplay: version 1.2.13 by Jaroslav Kysela <perex@perex.cz>
+amixer version 1.2.13

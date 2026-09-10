@@ -28,6 +28,8 @@ int main(void) {
         else if(r==0x16c) assert(mask==16);
         else if(r==0x330||r==0x338||r==0x340||r==0x348) assert(mask==0x1f00);
         else if(r==0x356) assert(mask==15);
+        else if(r==0x50c) assert(mask==0x8000);
+        else if(r==0x532) assert(mask==0x00e0);
         else assert(mask==0); /* every rail/charger/reset and alias is blocked */
     }
     for(unsigned op=0;op<64;++op) for(unsigned embedded=0;embedded<2;++embedded) {

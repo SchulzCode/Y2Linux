@@ -39,7 +39,7 @@ def check(root, public_key, rootfs_kernel=None):
                 require(False,'host keys must be generated on the Y2, not packaged')
         require(read('root/.ssh/authorized_keys')==key,'authorized public key mismatch')
         require(entry('root/.ssh').mode==0o700 and entry('root/.ssh/authorized_keys').mode==0o600,'SSH permissions')
-        require(read('etc/y2linux/build-id')==b'Y2LINUX-DEV-01\n','rootfs identity')
+        require(read('etc/y2linux/build-id')==b'Y2LINUX-M3-AUDIO-01\n','rootfs identity')
         shadow=next(s for s in read('etc/shadow').splitlines() if s.startswith(b'root:'))
         require(shadow.split(b':')[1]==b'$6$y2linux$disabled','unusable password without locked public-key account')
         require(b'-s -g -j -k -p 10.42.0.1:22' in read('etc/default/dropbear'),'key-only SSH policy')
@@ -49,17 +49,26 @@ def check(root, public_key, rootfs_kernel=None):
             require(read('usr/sbin/'+name)==(root/name).read_bytes(),'stale rootfs '+name)
         for name in ('bin/busybox','sbin/init','sbin/ip','bin/ps','bin/lsblk','usr/sbin/i2cdetect',
                      'usr/sbin/ethtool','usr/bin/strace','sbin/e2fsck','sbin/fsck.fat','usr/sbin/dropbear',
+                     'usr/bin/aplay','usr/bin/amixer','usr/bin/speaker-test','usr/bin/evtest',
                      'sbin/modprobe','usr/bin/memtester','sbin/blkid','sbin/switch_root'):
             raw=read(name)
             require(raw[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',raw,18)[0]==40,'ARM ELF '+name)
             require(struct.unpack_from('<I',raw,36)[0]&0x400,'ARM hard-float ABI '+name)
+        import io, wave
+        for rate in (44100,48000):
+            raw=read(f'usr/share/y2linux/audio/headphone-{rate}.wav')
+            with wave.open(io.BytesIO(raw)) as w:
+                require(w.getparams()[:4]==(2,2,rate,rate*3),'WAV format/duration')
+                samples=struct.unpack('<'+'h'*(w.getnframes()*2),w.readframes(w.getnframes()))
+                require(max(map(abs,samples))<=1037,'WAV peak above -30 dBFS')
+        require('etc/init.d/S30alsactl' not in members,'unexpected mixer autorestoration')
         for name in ('lib/ld-linux-armhf.so.3','lib/libc.so.6'):require(read(name)[:4]==b'\x7fELF','glibc runtime')
         release=(module_root/'kernel/include/config/kernel.release').read_text().strip()
         require(read('lib/modules/'+release+'/modules.dep').startswith(b'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko:'),'module index')
         for name in ('S01y2-observer','S20y2-usb','S25y2-pattern','S50dropbear'):
             m=entry('etc/init.d/'+name);require(m.mode&0o111,'non-executable init service '+name)
         # Read the filesystem image independently, so tar checks do not stand in for ext4 contents.
-        for name in ('root/.ssh/authorized_keys','etc/shadow','display.ko','usr/sbin/y2-observer','usr/sbin/y2-fbtest'):
+        for name in ('root/.ssh/authorized_keys','etc/shadow','display.ko','usr/sbin/y2-observer','usr/sbin/y2-fbtest','usr/bin/aplay','usr/bin/amixer','usr/share/y2linux/audio/headphone-44100.wav','usr/share/y2linux/audio/headphone-48000.wav'):
             result=subprocess.run(['debugfs','-R','cat /'+name,str(image)],check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             require(result.stdout==read(name),'ext4/tar disagreement '+name)
     result={'status':'PASS offline; SD boot and SSH login require physical qualification',

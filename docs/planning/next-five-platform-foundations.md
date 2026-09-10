@@ -1,3 +1,12 @@
+## Current execution — 2026-09-10
+
+M3 native audio is explicitly owner-authorized and ACTIVE. The physical DEV-02
+core/Buildroot foundation is accepted for progression; USB reconnect #27/#28
+remains an explicit deferred gap for final platform qualification. No reconnect
+work in this pass. M3 requires actual controlled headphone playback before closure.
+M4 power, M5 radio, GPU/lima and whole-platform qualification precede Y2PlayerNative.
+[Activation audit](roadmap-gap-audit.md#m3-activation-audit--2026-09-10).
+
 # Current platform order — DEV-02 live checkpoint, 2026-09-10
 
 [Physical qualification](../knowledge/y2linux-dev02-live-qualification.md):

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build one fresh DEV-01 candidate. Host files only; no deployment commands."""
+"""Build one integrated M3 candidate; resume corrections in the same tree. No deployment."""
 import argparse, hashlib, json, os, shlex, shutil, subprocess, tarfile, urllib.request
 from pathlib import Path
 PROJECT=Path(__file__).resolve().parents[2]
@@ -7,11 +7,12 @@ PROJECT=Path(__file__).resolve().parents[2]
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--output',default='out/y2linux-dev-02')
-    p.add_argument('--candidate',default='Y2LINUX-DEV-02')
+    p.add_argument('--output',default='out/y2linux-m3-audio-01')
+    p.add_argument('--candidate',default='Y2LINUX-M3-AUDIO-01')
     p.add_argument('--public-key',type=Path,required=True)
+    p.add_argument('--resume-from',choices=('kernel','buildroot','artifacts','tests','rootfs','finalize'))
     a=p.parse_args();out=(PROJECT/a.output).resolve();key=a.public_key.absolute()
-    if not out.is_relative_to(PROJECT/'out') or (out/'kernel/vmlinux').exists():
+    if not out.is_relative_to(PROJECT/'out') or ((out/'kernel/vmlinux').exists() and not a.resume_from):
         p.error('a fresh output directory below project/out is required')
     if key.suffix!='.pub' or key.is_symlink():p.error('a regular explicit .pub file is required')
     # This command reads the public file only; no SSH directory or private-file discovery.
@@ -45,21 +46,29 @@ def main():
         env['PATH']=str(hosttools)+os.pathsep+env['PATH']
     def run(command,log):
         print(log,flush=True)
-        with (out/log).open('w') as stream:subprocess.run(command,cwd=PROJECT,env=env,check=True,stdout=stream,stderr=subprocess.STDOUT)
+        with (out/log).open('a') as stream:subprocess.run(command,cwd=PROJECT,env=env,check=True,stdout=stream,stderr=subprocess.STDOUT)
     builder=['python3','tools/build/run.py','--output',str(out.relative_to(PROJECT)),'--']
-    run(builder+['sh','-c','sh /project/tools/build/configure.sh && make -C /src O=/build/kernel -j12 Image zImage modules && sh /project/tools/build/dev_observer.sh'],'kernel-build.log')
-    br=['make','-C',str(source),'O='+str(out/'buildroot'),'BR2_EXTERNAL='+str(PROJECT/'buildroot')]
-    run(br+['y2_dev_defconfig'],'buildroot-configure.log')
-    run(br+['-j12','toolchain'],'buildroot-toolchain.log')
-    run([str(out/'buildroot/host/bin/arm-linux-gcc'),'-Os','-Wall','-Wextra','-Werror',
-         'tools/development/fbtest.c','-o',str(out/'y2-fbtest')],'fbtest-build.log')
-    run([str(out/'buildroot/host/bin/arm-linux-gcc'),'-mcpu=cortex-a7','-mfpu=neon-vfpv4','-mfloat-abi=hard','-marm','-Os','-Wall','-Wextra','-Werror','-pthread',
-         'tools/development/abi-check.c','-o',str(out/'y2-abi-check')],'abi-check-build.log')
-    run(br+['-j12','all'],'buildroot-build.log')
-    run(builder+['sh','-c','cd /project && python3 -m tools.build.dev_initramfs && sh tools/build/dtb.sh && python3 -m tools.validation.dev_artifacts /build --package'],'artifact-validation.log')
-    run(builder+['sh','/project/tools/build/dev_tests.sh'],'tests-subsystems.log')
-    run(['python3','tools/validation/dev_rootfs.py',str(out),'--public-key',str(key)],'rootfs-validation.log')
-    run(['python3','tools/build/dev_finalize.py',str(out),'--candidate',a.candidate],'finalize.log')
+    stage = ('kernel','buildroot','artifacts','tests','rootfs','finalize').index(a.resume_from or 'kernel')
+    if stage <= 0:
+        run(builder+['sh','-c',('python3 /project/tools/build/check_config.py /build/kernel/.config /project/kernel/config/first-boot.config' if a.resume_from else 'sh /project/tools/build/configure.sh')+' && make -C /src O=/build/kernel -j12 Image zImage modules && sh /project/tools/build/dev_observer.sh'],'kernel-build.log')
+    if stage <= 1:
+        br=['make','-C',str(source),'O='+str(out/'buildroot'),'BR2_EXTERNAL='+str(PROJECT/'buildroot')]
+        run(br+['y2_dev_defconfig'],'buildroot-configure.log')
+        run(br+['-j12','toolchain'],'buildroot-toolchain.log')
+        run([str(out/'buildroot/host/bin/arm-linux-gcc'),'-Os','-Wall','-Wextra','-Werror',
+             'tools/development/fbtest.c','-o',str(out/'y2-fbtest')],'fbtest-build.log')
+        run([str(out/'buildroot/host/bin/arm-linux-gcc'),'-mcpu=cortex-a7','-mfpu=neon-vfpv4','-mfloat-abi=hard','-marm','-Os','-Wall','-Wextra','-Werror','-pthread',
+             'tools/development/abi-check.c','-o',str(out/'y2-abi-check')],'abi-check-build.log')
+        run(['python3','tools/development/audio-fixtures.py',str(out/'audio')],'audio-fixtures.log')
+        run(br+['-j12','all'],'buildroot-build.log')
+    if stage <= 2:
+        run(builder+['sh','-c','cd /project && python3 -m tools.build.dev_initramfs && sh tools/build/dtb.sh && python3 -m tools.validation.dev_artifacts /build --package'],'artifact-validation.log')
+    if stage <= 3:
+        run(builder+['sh','/project/tools/build/audio_tests.sh'],'tests-subsystems.log')
+    if stage <= 4:
+        run(['python3','tools/validation/dev_rootfs.py',str(out),'--public-key',str(key)],'rootfs-validation.log')
+    if stage <= 5:
+        run(['python3','tools/build/dev_finalize.py',str(out),'--candidate',a.candidate],'finalize.log')
     print('Built and checked:',out,'— owner manual deployment remains pending.')
 
 if __name__=='__main__':main()

@@ -36,6 +36,9 @@
         gpio-controller; #gpio-cells = <2>; gpio-ranges = <&pio 0 0 169>;
         interrupt-controller; #interrupt-cells = <2>; #address-cells = <0>;
         interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+        speaker-disable { gpio-hog; gpios = <8 GPIO_ACTIVE_HIGH>;
+            output-low; line-name = "speaker-disabled-m3"; };
+        audio_state: audio-state { groups = "i2s-lk"; function = "i2s-lk"; };
         nav_state: nav-state { groups = "navigation"; input-enable; };
         wheel_state: wheel-state { groups = "wheel-irq"; function = "eint"; input-enable; };
         pmic_state: pmic-state { groups = "pmic-irq"; function = "eint"; input-enable; };
@@ -43,6 +46,37 @@
         i2c1_state: i2c1-state { groups = "i2c1"; function = "i2c1"; };
         sd_state: sd-state { groups = "msdc1"; function = "msdc1"; };
         lcm_state: lcm-state { groups = "lcm-reset"; function = "lcm-reset"; };
+    };
+    /* GPIO controls reproduce stock 20 -> 18 -> 15 order. Dependency refs
+     * serialize regulator_bulk_enable and reverse disable. GPIO rail voltages
+     * are nominal board enable models, not independently measured LDOs. */
+    dac20: regulator-dac20 { compatible = "regulator-fixed";
+        regulator-name = "cs43131-en20";
+        regulator-min-microvolt = <1800000>; regulator-max-microvolt = <1800000>;
+        gpio = <&pio 20 GPIO_ACTIVE_HIGH>; enable-active-high;
+        startup-delay-us = <50000>; vin-supply = <&vgp2>;
+    };
+    dac18: regulator-dac18 { compatible = "regulator-fixed";
+        regulator-name = "cs43131-en18";
+        regulator-min-microvolt = <1800000>; regulator-max-microvolt = <1800000>;
+        gpio = <&pio 18 GPIO_ACTIVE_HIGH>; enable-active-high;
+        startup-delay-us = <50000>; vin-supply = <&dac20>;
+    };
+    dac15: regulator-dac15 { compatible = "regulator-fixed";
+        regulator-name = "cs43131-en15";
+        regulator-min-microvolt = <1800000>; regulator-max-microvolt = <1800000>;
+        gpio = <&pio 15 GPIO_ACTIVE_HIGH>; enable-active-high;
+        startup-delay-us = <50000>; vin-supply = <&dac18>;
+    };
+    afe: audio-controller@11220000 {
+        compatible = "mediatek,mt6582-afe"; reg = <0x11220000 0x1000>;
+        interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&y2clk Y2_CLK_AUDINTBUS>, <&y2clk Y2_CLK_AUDIO>, <&y2clk Y2_CLK_INFRA_AUDIO>;
+        clock-names = "audintbus", "audio", "infra_audio";
+        pinctrl-names = "default"; pinctrl-0 = <&audio_state>;
+    };
+    sound { compatible = "innioasis,y2-audio";
+        mediatek,platform = <&afe>; audio-codec = <&dac>;
     };
     navigation-keys {
         pinctrl-names = "default"; pinctrl-0 = <&nav_state>;
@@ -149,7 +183,16 @@
             interrupt-parent = <&pio>; interrupts = <25 IRQ_TYPE_LEVEL_HIGH>;
             interrupt-controller; #interrupt-cells = <2>;
             keys { compatible = "mediatek,mt6323-keys"; power { linux,keycodes = <KEY_POWER>; }; };
-            regulators { compatible = "mediatek,mt6323-regulator"; };
+            regulators { compatible = "mediatek,mt6323-regulator";
+                vgp2: ldo_vgp2 {
+                    regulator-name = "vgp2-audio";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-enable-ramp-delay = <216>;
+                    /* Shared ownership is not fully qualified: keep the rail on. */
+                    regulator-always-on;
+                };
+            };
         };
         backlight: backlight { compatible = "innioasis,y2-backlight"; };
     };
@@ -174,6 +217,13 @@
         clock-div = <16>; clock-frequency = <100000>;
         pinctrl-names = "default"; pinctrl-0 = <&i2c1_state>;
         #address-cells = <1>; #size-cells = <0>;
+        dac: codec@30 {
+            compatible = "cirrus,cs43131"; reg = <0x30>;
+            VA-supply = <&vgp2>; VP-supply = <&vgp2>; VCP-supply = <&vgp2>;
+            VD-supply = <&dac18>; VL-supply = <&dac15>;
+            cirrus,xtal-ibias = <2>;
+            /* Use upstream ready-status polling. EINT16/jack is a later test. */
+        };
     };
     keypad@10011000 { compatible = "mediatek,mt6582-keypad";
         reg = <0x10011000 0x1000>; interrupts = <GIC_SPI 116 IRQ_TYPE_EDGE_FALLING>;

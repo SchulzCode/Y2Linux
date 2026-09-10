@@ -17,8 +17,16 @@ def main():
                     ('buildroot/images/rootfs.ext4','rootfs.ext4'),('buildroot/images/rootfs.tar','rootfs.tar')]:
         shutil.copyfile(root/src,root/dst)
     shutil.copyfile(PROJECT/('docs/build/'+a.candidate.lower()+'-deployment.md'),root/'DEPLOYMENT.md')
-    files=subprocess.check_output(['git','ls-files','--cached','--others','--exclude-standard','-z',
-        'kernel','initramfs','buildroot','tools/build','tools/validation','tools/development','tools/observation','tests'],cwd=PROJECT).decode().split('\0')
+    # M3 retains the qualified baseline by Git identity and hashes only its
+    # changed source delta, not another complete kernel/donor inventory.
+    if a.candidate == 'Y2LINUX-M3-AUDIO-01':
+        files=subprocess.check_output(['git','diff','--name-only','d76e57f','--',
+            'kernel','initramfs','buildroot','tools','tests'],cwd=PROJECT,text=True).splitlines()
+        files+=subprocess.check_output(['git','ls-files','--others','--exclude-standard',
+            'kernel','buildroot','tools','tests'],cwd=PROJECT,text=True).splitlines()
+    else:
+        files=subprocess.check_output(['git','ls-files','--cached','--others','--exclude-standard','-z',
+            'kernel','initramfs','buildroot','tools/build','tools/validation','tools/development','tools/observation','tests'],cwd=PROJECT).decode().split('\0')
     sources={name:digest(PROJECT/name) for name in sorted(set(files)) if name and (PROJECT/name).is_file()}
     (root/'source-manifest.json').write_text(json.dumps(sources,indent=2)+'\n')
     metadata={'candidate':a.candidate,'analysis_checkpoint':'2efcdc1',
@@ -36,6 +44,20 @@ def main():
     if a.candidate=='Y2LINUX-DEV-02':
         metadata.update(analysis_checkpoint='a34a360',physical_status='UNTESTED revision; DEV-01 has visible console, four CPUs/large RAM, SD ext4 mount followed by PID1 SIGILL',deployment='owner BOOTIMG-only; retain existing DEV-01 SD rootfs',validation='one clean revised kernel; reused pinned Buildroot binaries; ARM ABI probe, controller dispatch tests, exact layout/BOOTIMG and unchanged rootfs validation')
         metadata['known_limits']=['root handoff correction requires physical test; no captured original SIGILL PC','wheel WRRD correction requires hardware test','SD module tree has DEV-01; active DRM loads matching DEV-02 module from rescue; refresh SD over SSH later','LOG1 and USB serial retain DEV-01 userspace identity; kernel release identifies DEV-02','boot USB unplugged, then attach; inherited power-state guard retained']
+    if a.candidate == 'Y2LINUX-M3-AUDIO-01':
+        metadata.update(analysis_checkpoint='d76e57f',
+            source_state='qualified DEV-02 Git baseline plus changed-source hashes in source-manifest.json',
+            physical_status='M3 audio UNTESTED; DEV-02 core physically qualified, reconnect deferred #27',
+            deployment='owner offline SD rootfs content update, then BOOTIMG-only manual flash',
+            audio_architecture='ALSA DPCM DL1 -> I05/I06 -> O00/O01 -> I2S_CON3 -> upstream CS43131 -> headphone; amp held low',
+            alsa_card='Y2Audio',pcm='hw:CARD=Y2Audio,DEV=0',
+            initial_formats=['S16_LE stereo 44100 Hz','S16_LE stereo 48000 Hz'])
+        metadata['known_limits']=['M3 playback/analog sequencing/pops/rate accuracy require physical acceptance',
+            'speaker identity/output and jack reporting deferred; codec uses ready-status polling',
+            'VGP2 retained on at 1.8 V pending shared-rail power qualification',
+            'I2S pads retain LK mux; no guessed mux rewrite',
+            'USB reconnect remains #27; boot unplugged then attach once',
+            'USB serial/observer identity remains DEV-01; kernel and rootfs build-id identify M3']
     names=['BOOTIMG.img','rootfs.ext4','rootfs.tar','kernel.config','buildroot.config','y2.dtb','Image','zImage',
            'zImage-dtb','initramfs.cpio.gz','display.ko','y2-observer','y2-fbtest','layout.json','rescue-manifest.json',
            'rootfs-validation.json','source-manifest.json','DEPLOYMENT.md']

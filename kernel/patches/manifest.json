@@ -119,6 +119,18 @@
       "patch": "0017-mt6582-dsi.patch",
       "base_sha256": "ae2af9a535188a35e6e6314e6554b15791553b94d19d3f0f768694adaf4bd477",
       "result_sha256": "56685fb3b55940c13ab5868f0436200b054a05a6b96fe33fc51978c24812a7be"
+    },
+    {
+      "path": "sound/soc/mediatek/Makefile",
+      "patch": "0021-mt6582-audio-Makefile.patch",
+      "base_sha256": "5a4c58e2b6ff638bfe69aba785dee981a003ee1e5a894a5636e055d647b8c9ec",
+      "result_sha256": "39199c53e3f00b2d5132543d472266434ef8a68de541e411d870e2f27cceb311"
+    },
+    {
+      "path": "sound/soc/mediatek/Kconfig",
+      "patch": "0022-mt6582-audio-Kconfig.patch",
+      "base_sha256": "0bb03979e1b171cccf16fb727332cc24413794442e571c31a73745acd542ad70",
+      "result_sha256": "db3710fb9d8e380514d524e71f91557ed2e465f7ca08f008794d8f07a22feb95"
     }
   ]
 }

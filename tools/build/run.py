@@ -83,6 +83,10 @@ def main():
     for child in sorted((PROJECT / '.cache/sources/linux-6.18/drivers').iterdir()):
         invocation += ['--ro-bind', str(child), '/src/drivers/' + child.name]
     invocation += ['--ro-bind', str(PROJECT / 'kernel/platform'), '/src/drivers/y2']
+    invocation += ['--tmpfs', '/src/sound/soc/mediatek']
+    for child in sorted((PROJECT / '.cache/sources/linux-6.18/sound/soc/mediatek').iterdir()):
+        invocation += ['--ro-bind', str(child), '/src/sound/soc/mediatek/' + child.name]
+    invocation += ['--ro-bind', str(PROJECT / 'kernel/audio'), '/src/sound/soc/mediatek/mt6582']
     for overlay, path in overlays:
         invocation += ['--ro-bind', str(overlay), '/src/' + path]
     for key, value in env.items():

@@ -1,0 +1,16 @@
+#!/bin/sh
+# Read-only collection; invoke before, during and after controlled playback.
+set -u
+for f in /proc/asound/cards /proc/asound/pcm /proc/asound/devices /proc/interrupts /proc/uptime /proc/asound/card*/pcm*p/sub*/status /proc/asound/card*/pcm*p/sub*/hw_params /sys/bus/platform/devices/11220000.audio-controller/state; do
+    [ -r "$f" ] || continue
+    printf '\n### %s\n' "$f"
+    cat "$f"
+done
+aplay -l
+aplay -L
+amixer -c Y2Audio contents
+for f in /sys/kernel/debug/clk/clk_summary /sys/kernel/debug/regulator/regulator_summary; do
+    [ ! -r "$f" ] || { printf '\n### %s\n' "$f"; cat "$f"; }
+done
+ls -R /sys/kernel/debug/asoc 2>/dev/null
+dmesg

@@ -33,6 +33,10 @@ static inline unsigned y2_pmic_write_mask(unsigned reg)
 	case 0x340:
 	case 0x348:
 		return 0x1f00;
+	case 0x50c: /* MT6323 DIGLDO_CON8: VGP2 enable only. */
+		return 0x8000;
+	case 0x532: /* DIGLDO_CON29: VGP2 selector only. */
+		return 0x00e0;
 	case 0x356:
 		return 0x000f;
 	default:

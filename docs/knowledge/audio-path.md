@@ -1,5 +1,10 @@
 # Audio and FM evidence
 
+**2026-09-10 M3 ACTIVE:** owner authorizes one integrated headphone-first ALSA
+candidate, with #27 reconnect explicitly deferred. [Implementation and source
+review](m3-audio-architecture.md); [deployment](../build/y2linux-m3-audio-01-deployment.md).
+Earlier gated wording below is historical. Physical M3 acceptance remains open.
+
 > 2026-09-10: [porting history and failures](reverse-engineering-audit.md)
 > corroborate external CON3/DL1 and distinguish digital DAC probe success from
 > VGP2-powered analog operation. Their observed amplifier is OCA72559 ID09;

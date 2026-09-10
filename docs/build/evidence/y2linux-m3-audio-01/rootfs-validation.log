@@ -1,0 +1,10 @@
+{
+  "status": "PASS offline; SD boot and SSH login require physical qualification",
+  "sd_module_kernel": "6.18.0-y2linux-m3audio01",
+  "module_policy": "rootfs and rescue modules match",
+  "public_key_sha256": "bf9cc937fb5dcee8569514b674fb9b3d5ba25396162efac7e8854f88bfe98c25",
+  "filesystem": "DEVNAME=/home/luca/Dokumente/Code/Y2Linux/out/y2linux-m3-audio-01/buildroot/images/rootfs.ext4\nLABEL=Y2ROOT\nUUID=79324c69-6e75-4801-8000-000000000001\nVERSION=1.0\nFSBLOCKSIZE=4096\nBLOCK_SIZE=4096\nFSLASTBLOCK=131072\nFSSIZE=536870912\nTYPE=ext4\nUSAGE=filesystem\n",
+  "e2fsck": "e2fsck 1.47.4 (6-Mar-2025)\nPass 1: Checking inodes, blocks, and sizes\nPass 2: Checking directory structure\nPass 3: Checking directory connectivity\nPass 4: Checking reference counts\nPass 5: Checking group summary information\nY2ROOT: 780/32768 files (0.0% non-contiguous), 11757/131072 blocks\n",
+  "rootfs_tar_bytes": 23296000,
+  "rootfs_ext4_bytes": 536870912
+}

@@ -23,7 +23,8 @@ static DEFINE_SPINLOCK(y2_clk_lock);
 static const char *const y2_clk_names[] = {
     "y2-armpll", "y2-mainpll", "y2-univpll", "y2-mmpll",	"y2-msdcpll",
     "y2-axi",	 "y2-i2c0",    "y2-i2c1",    "y2-apdma",	"y2-pwrap",
-    "y2-kp",	 "y2-msdc0",   "y2-msdc1",   "y2-msdc0-source", "y2-msdc1-source"};
+    "y2-kp",	 "y2-msdc0",   "y2-msdc1",   "y2-msdc0-source", "y2-msdc1-source",
+    "y2-audintbus", "y2-audio", "y2-infra-audio"};
 static unsigned long y2_pll_rate(void __iomem *base, unsigned id)
 {
 	unsigned con0 = readl(base + 0x200 + id * 16), con1 = readl(base + 0x204 + id * 16);
@@ -60,6 +61,11 @@ static unsigned long y2_rate(struct clk_hw *hw, unsigned long parent)
 		unsigned r = readl(c->top + (c->id == Y2_CLK_MSDC0_SRC ? 0x60 : 0x70));
 		unsigned shift = c->id == Y2_CLK_MSDC0_SRC ? 24 : 0;
 		return ((r >> shift) & 7) == 0 ? 26000000 : 0;
+	}
+	if (c->id == Y2_CLK_AUDINTBUS || c->id == Y2_CLK_AUDIO) {
+		unsigned shift = c->id == Y2_CLK_AUDIO ? 16 : 24;
+		unsigned mask = c->id == Y2_CLK_AUDIO ? 1 : 7;
+		return ((readl(c->top + 0x70) >> shift) & mask) ? 0 : 26000000;
 	}
 	return parent;
 }
@@ -101,6 +107,39 @@ static const struct clk_ops y2_peri_ops = {.recalc_rate = y2_rate,
 					   .enable = y2_peri_enable,
 					   .disable = y2_disable,
 					   .is_enabled = y2_peri_enabled};
+/* Vendor CLK_CFG_3 audio muxes. Select their documented crystal parent;
+ * no approximate donor PLL factors and no writes to the adjacent SD muxes. */
+static int y2_audio_enable(struct clk_hw *hw)
+{
+	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
+	unsigned shift = c->id == Y2_CLK_AUDIO ? 16 : 24;
+	unsigned mask = (c->id == Y2_CLK_AUDIO ? 0x81U : 0x87U) << shift;
+	unsigned long flags;
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	writel(readl(c->top + 0x70) & ~mask, c->top + 0x70);
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
+	return 0;
+}
+static void y2_audio_disable(struct clk_hw *hw)
+{
+	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
+	unsigned bit = c->id == Y2_CLK_AUDIO ? 23 : 31;
+	unsigned long flags;
+	if (c->inherited)
+		return;
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	writel(readl(c->top + 0x70) | BIT(bit), c->top + 0x70);
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
+}
+static int y2_audio_enabled(struct clk_hw *hw)
+{
+	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
+	return !(readl(c->top + 0x70) & BIT(c->id == Y2_CLK_AUDIO ? 23 : 31));
+}
+static const struct clk_ops y2_audio_ops = {
+	.recalc_rate = y2_rate, .enable = y2_audio_enable,
+	.disable = y2_audio_disable, .is_enabled = y2_audio_enabled,
+};
 /* Called only by the MT6582 MMC variant after checking inherited DMA idle.
  * Source 0 is the documented crystal, giving a real 26MHz rate contract. */
 int y2_msdc_crystal(unsigned id)
@@ -187,6 +226,16 @@ static int y2_clocks_probe(struct platform_device *pdev)
 			c->bit = i + 1;
 			parent = y2_clk_names[i + 2];
 			init.ops = &y2_peri_ops;
+		}
+		if (i == Y2_CLK_AUDINTBUS || i == Y2_CLK_AUDIO) {
+			init.ops = &y2_audio_ops;
+			c->inherited = y2_audio_enabled(&c->hw);
+		}
+		if (i == Y2_CLK_INFRA_AUDIO) {
+			c->gate = base[2] + 0x40;
+			c->bit = 5;
+			parent = "y2-audintbus";
+			init.ops = &y2_infra_ops;
 		}
 		if (c->gate)
 			c->inherited = init.ops->is_enabled(&c->hw);
