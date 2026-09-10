@@ -1,6 +1,51 @@
 # M2 integrated baseline — physical results, 2026-09-10
 
-## Latest: BASELINE-02 loses the responding log relay
+## Latest: BASELINE-03 logs the display handoff; screen remains black
+
+Owner reports LK logo followed by black in **BASELINE-03 capture-02**, starting
+2026-09-10 15:52:10 UTC. This is a fresh boot log, not proof of a reconnect merely
+because the directory ends in `02`. The 180-second capture contains **102,314
+bytes**, SHA-256 `8fb89a7ee79f17a6496aaa24184ebb7596786b33b5e1357cb3ed6145bb966bf6`.
+USB identity confirms `6.18.0-y2-m2-baseline3`; LOG1 responds, exit0. All kernel
+records **0–605** are present in order, and PID1 reaches heartbeat184 with USB
+stage6/result0. `timeout` means the host recording duration elapsed. Original
+bytes and chunk index are retained in ignored evidence storage; the
+[capture record](../build/results/m2-baseline-03-capture.json) records integrity,
+event counts and limitations. Exact flashed hash/restoration remain owner-unreported.
+
+| Path | Evidence on this unit | Remaining gap / action |
+| --- | --- | --- |
+| Display startup | Module starts at 13.815s; live LK PHY is adopted, DSI parks and releases inherited power. Linux powers its PHY at reported338MHz, binds OVL/RDMA/COLOR/DSI, registers `fb0` and a 60×45-character framebuffer console. Module returns0 at14.309s, without a logged panel-transfer/probe error. | **Visible output fails.** This narrows the failure beyond the original live-PLL refusal; it does not identify a bad instruction, validate panel identity, or prove pixel delivery. |
+| Display IRQs | OVL334, DSI38, RDMA0 in snapshots at heartbeat60 and120. | OVL IRQ activity establishes some frame-completion signaling. Its stationary count can be normal vblank IRQ disabling after an idle console; it is not proof that scanout stopped. No post-modeset KMS state or backlight hardware readback was captured. |
+| Wheel | EINT55 fires eight times; eight APT32F register-frame transfers return `-110` between11.364s and38.884s. I2C0 completion IRQ count stays0. No scroll events. | EINT activity is now confirmed; successful I2C transport is not. Diagnose controller/pads/clock/DMA/IRQ completion before changing wheel decoding. I2C1 remains untested. |
+| Other input | 55 balanced press/release pairs: navigation46, volume6, power3. PMIC EINT25/nested-key IRQs6; keypad IRQs12. | These paths work in this boot. Physical action order/label mapping and repeat/hold behavior are not separately qualified. |
+| Core and observation | Four CPUs online, timer/IPIs advance, IRQ errors0. MemTotal19,548kB; post-display MemAvailable12,080kB. USB/PID1 continue through the recording without captured panic/OOM/relay loss. | Confirms usable logging during and after display loading. Reconnect, five-minute cutoff and stress/PM qualification remain open. |
+
+The inherited PHY words are now actual unit evidence: CON0=`0x11`, CON1=`0x3`,
+CON2=`0x3c000000`, PWR=`0x101`, CON=`0x403`, lane LDO intersection=`0x1`.
+**Inherited rate is still unknown**; do not interpret the Linux338MHz report as
+the LK rate or retune from these words without the complete divider contract.
+
+Independent observation defect: `initramfs/init.c:log_file()` services the relay
+between arbitrary 2048-byte snapshot chunks. Seven kernel record headers follow
+partial snapshot lines. A line-start-only parser falsely reports gaps at128,
+240,256,272,288,304,336. They are present in the raw bytes; preserve those bytes
+and fix snapshot framing in the next source iteration. `PID1 LAST ERR: NONE`
+is not an all-driver health verdict: the wheel timeouts are kernel messages.
+
+Next combined iteration should collect standard post-modeset DRM state and
+backlight status, expose the existing I2C driver's bounded failure diagnostics,
+and repair log framing alongside any source-supported controller fixes. Compare
+display routing/reset/format and actual unit panel/clock evidence; the capture
+does not justify guessing a new panel table, rate, rail or DMA range. Source
+review confirms upstream6.18 already limits OVL PITCH_MSB accesses to supporting
+variants, and the retained BSP computes I2C source as bus frequency/16; neither
+an obsolete OVL fix nor the donor's dummy66MHz clock is a justified remedy here.
+
+M1 COMPLETE, M2 ACTIVE. This evidence review changes no candidate bytes, memory,
+PMIC/storage policy or five-minute limit. No new flash or build was performed.
+
+## BASELINE-02 history: loses the responding log relay
 
 The owner reports LK logo followed by black/grey. The 180-second capture at
 2026-09-10 15:30:15 UTC identifies `6.18.0-y2-m2-baseline2` / 0525:a4a7 / 480Mbps,

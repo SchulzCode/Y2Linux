@@ -1,0 +1,219 @@
+{
+  "build": "M2-BASELINE-03",
+  "source_checkpoint": "d886767",
+  "owner_report": "Bootloader logo followed by black screen. Exact flashed image hash and Android restoration not separately reported.",
+  "capture": "out/m2-baseline-03/capture-02",
+  "retained_directory": "evidence-private/20260910-baseline-hardware/baseline-03-capture-02",
+  "started_utc": "2026-09-10T15:52:10.566632+00:00",
+  "bytes": 102314,
+  "sha256": "8fb89a7ee79f17a6496aaa24184ebb7596786b33b5e1357cb3ed6145bb966bf6",
+  "seconds": 180.0,
+  "status": "timeout",
+  "exit_code": 0,
+  "identity": {
+    "idVendor": "0525",
+    "idProduct": "a4a7",
+    "manufacturer": "Linux 6.18.0-y2-m2-baseline3 with musb-hdrc",
+    "speed": "480"
+  },
+  "protocol_header": true,
+  "chunks_contiguous": true,
+  "kernel_first": 0,
+  "kernel_last": 605,
+  "kernel_sequence_contiguous": true,
+  "kernel_records_interleaved_inside_snapshot_lines": [
+    128,
+    240,
+    256,
+    272,
+    288,
+    304,
+    336
+  ],
+  "framing_limit": "Snapshot chunks can end mid-line; seven kmsg record headers follow partial snapshot text. All 606 records are present in order; line-start-only parsers falsely report loss.",
+  "last_pid1_beat": 184,
+  "relay_loss_markers": [],
+  "input_events": [
+    {
+      "device": 0,
+      "code": 28,
+      "value": 0,
+      "count": 10
+    },
+    {
+      "device": 0,
+      "code": 28,
+      "value": 1,
+      "count": 10
+    },
+    {
+      "device": 0,
+      "code": 105,
+      "value": 0,
+      "count": 9
+    },
+    {
+      "device": 0,
+      "code": 105,
+      "value": 1,
+      "count": 9
+    },
+    {
+      "device": 0,
+      "code": 106,
+      "value": 0,
+      "count": 9
+    },
+    {
+      "device": 0,
+      "code": 106,
+      "value": 1,
+      "count": 9
+    },
+    {
+      "device": 0,
+      "code": 158,
+      "value": 0,
+      "count": 11
+    },
+    {
+      "device": 0,
+      "code": 158,
+      "value": 1,
+      "count": 11
+    },
+    {
+      "device": 0,
+      "code": 164,
+      "value": 0,
+      "count": 7
+    },
+    {
+      "device": 0,
+      "code": 164,
+      "value": 1,
+      "count": 7
+    },
+    {
+      "device": 1,
+      "code": 116,
+      "value": 0,
+      "count": 3
+    },
+    {
+      "device": 1,
+      "code": 116,
+      "value": 1,
+      "count": 3
+    },
+    {
+      "device": 3,
+      "code": 114,
+      "value": 0,
+      "count": 3
+    },
+    {
+      "device": 3,
+      "code": 114,
+      "value": 1,
+      "count": 3
+    },
+    {
+      "device": 3,
+      "code": 115,
+      "value": 0,
+      "count": 3
+    },
+    {
+      "device": 3,
+      "code": 115,
+      "value": 1,
+      "count": 3
+    }
+  ],
+  "wheel_transfer_timeouts": [
+    {
+      "sequence": 560,
+      "seconds": 11.363913,
+      "message": "apt32f-wheel 0-0051: frame transfer: -110"
+    },
+    {
+      "sequence": 563,
+      "seconds": 13.443925,
+      "message": "apt32f-wheel 0-0051: frame transfer: -110"
+    },
+    {
+      "sequence": 599,
+      "seconds": 24.964015,
+      "message": "apt32f-wheel 0-0051: frame transfer: -110"
+    },
+    {
+      "sequence": 600,
+      "seconds": 27.044027,
+      "message": "apt32f-wheel 0-0051: frame transfer: -110"
+    },
+    {
+      "sequence": 602,
+      "seconds": 32.644068,
+      "message": "apt32f-wheel 0-0051: frame transfer: -110"
+    },
+    {
+      "sequence": 603,
+      "seconds": 34.724082,
+      "message": "apt32f-wheel 0-0051: frame transfer: -110"
+    },
+    {
+      "sequence": 604,
+      "seconds": 36.804097,
+      "message": "apt32f-wheel 0-0051: frame transfer: -110"
+    },
+    {
+      "sequence": 605,
+      "seconds": 38.884114,
+      "message": "apt32f-wheel 0-0051: frame transfer: -110"
+    }
+  ],
+  "display": {
+    "module_start_seconds": 13.814875,
+    "module_result": 0,
+    "module_result_seconds": 14.309086,
+    "inherited_phy": {
+      "CON0": "0x00000011",
+      "CON1": "0x00000003",
+      "CON2": "0x3c000000",
+      "PWR": "0x00000101",
+      "CON": "0x00000403",
+      "lane_ldos": "0x00000001",
+      "rate": "unknown"
+    },
+    "linux_phy_reported_hz": 338000000,
+    "fbcon": "60x45 characters",
+    "framebuffer": "mediatekdrmfb fb0",
+    "visible_output": "FAILED per owner; successful driver initialization is not proof of visible scanout or panel identity"
+  },
+  "runtime_snapshots": {
+    "cpu_online": "0-3",
+    "memtotal_kb": 19548,
+    "memavailable_kb_after_display": 12080,
+    "irq_totals_at_60_and_120_beats": {
+      "wheel_eint55": 8,
+      "i2c0_spi44": 0,
+      "i2c1_spi45": 0,
+      "pmic_eint25": 6,
+      "pmic_key": 6,
+      "keypad": 12,
+      "ovl": 334,
+      "rdma": 0,
+      "dsi": 38,
+      "irq_errors": 0
+    },
+    "deferred_devices": []
+  },
+  "limitations": [
+    "180-second capture does not qualify five-minute cutoff or reconnect.",
+    "Stationary OVL interrupt count does not prove stopped scanout: normal DRM vblank interrupt disabling can explain it.",
+    "No I2C register dump, post-modeset DRM state, panel identity read or backlight hardware readback in this capture.",
+    "No kernel driver, memory, PMIC, storage or firmware policy changed by this evidence review."
+  ],
+  "hardware_qualified": false
+}

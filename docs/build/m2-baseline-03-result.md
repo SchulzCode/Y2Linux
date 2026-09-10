@@ -1,6 +1,12 @@
 # M2-BASELINE-03 — keep the log reader ahead of display probing
 
-**Offline validated; owner manual BOOTIMG flash pending.** M1 COMPLETE, M2 ACTIVE.
+**Owner-tested: logging responds through display initialization; screen remains
+black.** M1 COMPLETE, M2 ACTIVE. The 180-second capture-02 contains all kernel
+records0–605 and PID1 through heartbeat184. DRM/fb0/module initialization returns
+success; wheel I2C reads time out. See the
+[physical result](../knowledge/m2-baseline-hardware-result.md#latest-baseline-03-logs-the-display-handoff-screen-remains-black).
+The artifact and original handoff procedure below are retained unchanged.
+
 BASELINE-02 enumerated over USB but its 180-second capture contained zero bytes.
 The owner saw black/grey after LK. [Evidence](../knowledge/m2-baseline-hardware-result.md)
 does not identify the failed instruction or establish PID1 responsiveness.

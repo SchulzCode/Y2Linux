@@ -6,6 +6,24 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## BASELINE-03 hardware evidence update — 2026-09-10
+
+Owner capture-02 restores complete kernel/PID1 observation for180seconds, including
+successful live-PHY adoption, DSI park, cold Linux PHY initialization, DRM/fb0
+registration and module return0. The owner still sees black: visible display
+acceptance remains failed. Four CPUs and existing navigation/volume/power input
+operate. Wheel EINT55 now fires, but eight I2C reads time out with no controller
+completion IRQ; transport debugging replaces the previous unobserved-wheel gap.
+[Retained result](../knowledge/m2-baseline-hardware-result.md#latest-baseline-03-logs-the-display-handoff-screen-remains-black).
+
+Next combined source iteration: diagnose actual display output and wheel I2C
+completion, include standard runtime state/failure diagnostics and repair snapshot
+line framing. Preserve the working single USB writer. No guessed rate/rail/panel
+changes, repeated per-register images or milestone promotion. M1 COMPLETE;
+M2 ACTIVE, exit incomplete. D08, storage/PMIC firewalls, owner300s limit and later
+milestone exclusions remain. This is an evidence/documentation update, not a
+new build, hardware scope authorization or five-minute/reconnect qualification.
+
 ## BASELINE-03 observation and packaging review — 2026-09-10
 
 BASELINE-02 owner reports grey/black after LK. The retained 180-second capture
@@ -586,14 +604,14 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Boot/kernel stability and maintenance | **PARTIAL** | Reproducible offline artifacts and a working run exist; exact flashed hash for latest report, repeated cold/warm boots, duration, timing accuracy, stress and maintained 6.18.y selection are not qualified. | Y2H-300 #28; maintenance/release policy #32. |
 | RAM and reserved/DMA ownership | **PARTIAL** | D08 24.5 MiB described map is visible; photographed MemTotal 22208 kB; working-set adequacy, expanded banks, heap/high carveouts and full DMA containment remain open. [Map](../knowledge/initial-ram-map.md). | #22; #28. No automatic expansion. |
 | SMP | **PARTIAL** | All four CPUs online with advancing timer-broadcast/cross-CPU IPIs in BASELINE-01; SMP stress/coherency/PM not qualified. | #28; optional for first wired player. |
-| Clocks, resets, pinctrl/GPIO/IRQ and I2C | **PARTIAL** | Shared CCF/pinctrl/EINT/PWRAP and I2C providers probe. Navigation, keypad and PMIC EINT25 operate. Wheel EINT55/I2C transfers remain unobserved; full rates/pads and reset ownership unqualified. | #23/#24/#28; [research](../knowledge/reverse-engineering-audit.md). |
+| Clocks, resets, pinctrl/GPIO/IRQ and I2C | **PARTIAL** | Shared CCF/pinctrl/EINT/PWRAP and I2C providers probe. Navigation, keypad and PMIC EINT25 operate. BASELINE-03 confirms wheel EINT55 activity, but eight I2C reads time out with no completion IRQ; full rates/pads and reset ownership unqualified. | #23/#24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Watchdog and controlled reset | **PARTIAL** | Reviewed early AP_RGU stop and displayed stopped state; no production driver takeover, pet/timeout strategy, deliberate reset or restart qualification. | #28 with #30. Preserve current experiment behavior. |
 | On-device diagnostic channel | **PARTIAL** | Earlier inherited text worked; current integrated baseline shows only LK logo because DSI probe fails. USB logs remain the working diagnostic channel. | #20–21; [result](../knowledge/m1-runtime-hardware-result.md). |
-| Developer host logs / USB | **PARTIAL** | BASELINE-01 retains initial kernel/PID1 logs; BASELINE-02 enumerates but its 180-second capture has zero bytes. BASELINE-03 isolates module loading from PID1; logging restoration and reconnect need hardware validation. | #27, #23, #28. |
+| Developer host logs / USB | **PARTIAL** | BASELINE-03 restores all initial kernel records and PID1 observation for180seconds through DRM loading. Reconnect and five-minute cutoff remain unqualified; fix snapshot line interleaving without changing the single USB writer. | #27, #23, #28. |
 | Physical UART / early crash capture | **UNKNOWN** | UART0 candidate exists; no pad/level/wire capture. Ramoops retention/reader is unproved. USB cannot log hangs before its initialization. | Existing #16; broader crash/debug policy #32. |
-| Display/controller/panel | **PARTIAL** | LK logo persists; BASELINE-01 DSI fails -EBUSY on an incorrect inherited-PLL rate assumption. BASELINE-02 then showed black/grey with no responding LOG1 relay. BASELINE-03 loads DRM after the log reader starts; failure location/native modeset remain unknown. | #25/#28; [research](../knowledge/reverse-engineering-audit.md). |
+| Display/controller/panel | **PARTIAL** | BASELINE-03 logs live-PHY adoption, DSI park, cold Linux PHY power and successful DRM/fb0/module initialization. Owner sees black; visible output fails and its cause remains unknown. Preserve post-modeset observation; do not confuse probe success with panel qualification. | #25/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Backlight | **PARTIAL** | Four inherited PWM channels accepted at duty32/32, step5 unchanged. Native brightness changes and panel sequencing untested. | #25/#23; #28/#30. |
-| Wheel/select input | **PARTIAL** | Select and four navigation channels have balanced evdev events. Wheel registers but has no EINT55/I2C/scroll events; rotation attempt not explicitly reported. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
+| Wheel/select input | **PARTIAL** | Select and four navigation channels have balanced evdev events. BASELINE-03 wheel EINT55 fires8times, but all eight frame reads time out (-110) with I2C completion IRQ0; no scroll events. Diagnose transport before decoding. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation codes, both volume keys and Power have press/release events; keypad and PMIC IRQ counts agree. Wake deferred; no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
 | Removable SD | **PARTIAL** | BASELINE-01 identifies SDXC through native MSDC under <=400kHz/one-bit policy. No block device, disk write/mount or throughput/filesystem qualification. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Internal eMMC | **PARTIAL** | Native CMD2/CMD9 identity works. CMD6 is intentionally rejected (-EROFS); configuration, block access and every write remain excluded. | #28; recovery/rootfs policy #32. |
