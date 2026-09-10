@@ -1,0 +1,8 @@
+{
+  "base_commit": "aa3c94932db59039549456330fc02d8cb5199c61",
+  "fix_commit": "137b3f2",
+  "changes": {
+    "kernel/audio/mt6582-afe.c": "3075671aef17ac0082837d51d4cd9616a83a67bcccb458c553c7c0970f57fbba",
+    "kernel/config/first-boot.config": "1ecd1ddefadf488c75e75238632b5e24f57e2e9a756b2d0151874d5c51f74840"
+  }
+}

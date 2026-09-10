@@ -26,7 +26,10 @@ DMA ring845c8000..845cffff and advancing CUR, then CON3=0000090a at shutdown.
 No new I2C/PLL-ready/brownout/kernel errors appear. However playback is still
 RUNNING more than4seconds after trigger for a3second fixture, and ALSA hw_ptr
 loses ring wraps. Do not call this stable PCM or clock-accuracy acceptance.
-Owner audibility/quality report is pending.
+Owner reports audible sound with clicking during the requested repeat. The
+repeat log records PLAYBACK_DEADLINE: its exit0 does not prove completion.
+Missing period notifications are a plausible cause of stale-buffer playback;
+clean output must be retested with the corrected kernel.
 
 Source investigation identified mt6582_open treating positive ALSA constraint
 success as an early exit. Linux6.18 snd_interval_setinteger returns1 when it

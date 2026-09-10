@@ -12,7 +12,7 @@ open.** [Full evidence and reproduction](../hardware-evidence/2026-09-10-m3-audi
 | Second I2S / DMA | CONN0=00400020, CON3=90b while playing, CUR advances;327IRQ events | Register/DMA evidence is not pad/audio-quality proof |
 | PCM accounting | Three-second WAV still running after4seconds; lost ALSA pointer wraps | Correct positive-success handling in startup; new kernel needed |
 | Rootfs utilities | SD remains DEV-01; ALSA tools missing | Validated tools staged in /tmp through a reproducible bundler; persistent SD update remains outstanding |
-| Audible headphones | Owner listening report pending | No acceptance claim |
+| Audible headphones | Owner heard sound with clicking during repeat | Audible path confirmed; clean playback remains unqualified |
 
 The new regression invokes actual production mt6582_open with constraint return
 values0,+1 and negative errors. It fails before the correction and passes after.
