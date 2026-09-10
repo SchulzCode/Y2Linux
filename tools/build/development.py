@@ -7,7 +7,8 @@ PROJECT=Path(__file__).resolve().parents[2]
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--output',default='out/y2linux-dev-01')
+    p.add_argument('--output',default='out/y2linux-dev-02')
+    p.add_argument('--candidate',default='Y2LINUX-DEV-02')
     p.add_argument('--public-key',type=Path,required=True)
     a=p.parse_args();out=(PROJECT/a.output).resolve();key=a.public_key.absolute()
     if not out.is_relative_to(PROJECT/'out') or (out/'kernel/vmlinux').exists():
@@ -52,11 +53,13 @@ def main():
     run(br+['-j12','toolchain'],'buildroot-toolchain.log')
     run([str(out/'buildroot/host/bin/arm-linux-gcc'),'-Os','-Wall','-Wextra','-Werror',
          'tools/development/fbtest.c','-o',str(out/'y2-fbtest')],'fbtest-build.log')
+    run([str(out/'buildroot/host/bin/arm-linux-gcc'),'-mcpu=cortex-a7','-mfpu=neon-vfpv4','-mfloat-abi=hard','-marm','-Os','-Wall','-Wextra','-Werror','-pthread',
+         'tools/development/abi-check.c','-o',str(out/'y2-abi-check')],'abi-check-build.log')
     run(br+['-j12','all'],'buildroot-build.log')
     run(builder+['sh','-c','cd /project && python3 -m tools.build.dev_initramfs && sh tools/build/dtb.sh && python3 -m tools.validation.dev_artifacts /build --package'],'artifact-validation.log')
     run(builder+['sh','/project/tools/build/dev_tests.sh'],'tests-subsystems.log')
     run(['python3','tools/validation/dev_rootfs.py',str(out),'--public-key',str(key)],'rootfs-validation.log')
-    run(['python3','tools/build/dev_finalize.py',str(out)],'finalize.log')
+    run(['python3','tools/build/dev_finalize.py',str(out),'--candidate',a.candidate],'finalize.log')
     print('Built and checked:',out,'— owner manual deployment remains pending.')
 
 if __name__=='__main__':main()

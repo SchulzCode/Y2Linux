@@ -44,7 +44,7 @@ def check(data, initrd_size):
             chosen['linux,initrd-end']==cells(0x84000000+initrd_size), 'initrd bounds')
     require(chosen['stdout-path']==strings('serial0') and nodes['/aliases']['serial0']==strings('/serial@11002000'), 'UART observation path')
     args=chosen['bootargs'].decode().rstrip('\0')
-    require(args=='rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2LINUX-DEV-01', 'baseline command line')
+    require(args=='rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2LINUX-DEV-01', 'baseline command line')
     for path,reg in REGS.items(): require(nodes[path]['reg']==cells(*reg),'MMIO mapping '+path)
     for path,(irq,flags) in IRQS.items(): require(nodes[path]['interrupts']==cells(0,irq,flags),'IRQ mapping '+path)
     require({p for p,v in nodes.items() if p.count('/')==1 and 'reg' in v}==set(REGS)|{'/memory@80000000'},'unreviewed MMIO controller')

@@ -1,0 +1,41 @@
+{
+  "host_utc": "2026-09-10T19:21:00Z",
+  "git_head": "a34a3603a05c82fb78dac2aeef5d61b1261b4a6b",
+  "git_status_at_start": "main ahead 5 with pre-existing DEV-02 work; initial tool transcript; git-status-during.txt includes qualification additions",
+  "running_kernel": "6.18.0-y2linux-dev02",
+  "live_dtb_sha256": "57d774abaf2d410bbfbd5ec8956f7f3c4a35bf3120611fadb474cd51c12947e7",
+  "flashed_bootimg_hash": "Not read back; release and live DTB match DEV-02, full BOOTIMG identity not independently verified",
+  "owner_observations": [
+    {
+      "display": "Owner confirmed white/red/green/blue columns and checkerboard after standard fb0 unblank and y2-fbtest",
+      "quote": "yes screen shows what you are saying"
+    },
+    {
+      "usb": "Owner reconnect did not restore enumeration",
+      "quote": "i reconnedted, but no dialog came"
+    },
+    {
+      "usb": "Owner reports restart-dependent recovery",
+      "quote": "it only works when i resatrt the y2"
+    },
+    {
+      "restart": "Owner explicitly performed a restart",
+      "quote": "ok i restarted the y2"
+    }
+  ],
+  "scope": "Current boot only; no reboot, BOOTIMG preparation, eMMC writes or arbitrary register access",
+  "final_observed_state": "New DEV-02 boot; SSH open, cable stays connected; first unplug/replug FAILED, owner restart recovered access",
+  "issues_closed": [
+    22,
+    23,
+    24,
+    25,
+    26
+  ],
+  "issues_remaining_core": [
+    27,
+    28
+  ],
+  "assistant_reboots": 0,
+  "bootimgs_prepared": 0
+}

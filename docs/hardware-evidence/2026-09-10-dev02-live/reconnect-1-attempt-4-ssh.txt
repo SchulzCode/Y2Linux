@@ -1,0 +1,10 @@
+33.32 121.79
+Linux y2linux 6.18.0-y2linux-dev02 #1 SMP @1764542530 armv7l GNU/Linux
+1 (init) S 0 1 1 0 -1 4194560 378 8530 9 62 0 18 61 41 20 0 1 0 6 2879488 362 4294967295 4202496 5064728 3198349008 0 0 0 0 0 524288 1 0 0 17 3 0 0 0 0 0 5068912 5075261 37228544 3198349219 3198349230 3198349230 3198349297 0
+2: usb0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether 02:42:00:00:00:01 brd ff:ff:ff:ff:ff:ff
+    inet 10.42.0.1/24 scope global usb0
+       valid_lft forever preferred_lft forever
+crw-------    1 root     root      252,   0 Jan  1 00:00 /dev/ttyGS0
+configured
+cat: can't open '/tmp/y2-live-qualification/boot-token': No such file or directory

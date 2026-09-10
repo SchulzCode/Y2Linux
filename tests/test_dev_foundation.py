@@ -7,7 +7,7 @@ from tools.validation.dev_dtb import check as check_dtb
 from tools.validation.dev_artifacts import rescue_entries
 from tools.validation.formats import gunzip
 ROOT=Path(__file__).resolve().parents[1]
-BUILD=Path(os.environ.get('Y2_ARTIFACT_TEST_ROOT',ROOT/'out/y2linux-dev-01'))
+BUILD=Path(os.environ.get('Y2_ARTIFACT_TEST_ROOT',ROOT/'out/y2linux-dev-02'))
 class DevFoundation(unittest.TestCase):
     def test_large_bank_and_packaging_limits(self):
         x=json.loads((BUILD/'layout.json').read_text())['inputs']
@@ -28,12 +28,12 @@ class DevFoundation(unittest.TestCase):
     def test_rescue_archive_and_bad_data(self):
         rd=(BUILD/'initramfs.cpio.gz').read_bytes();raw=gunzip(rd,0x810000);entries=rescue_entries(raw)
         self.assertEqual(entries['init'][1],(ROOT/'initramfs/rescue/init').read_bytes())
-        for path in ('sbin/blkid','bin/busybox','lib/ld-linux-armhf.so.3','sbin/y2-observer','sbin/y2-fbtest'):self.assertIn(path,entries)
+        for path in ('sbin/blkid','bin/busybox','lib/ld-linux-armhf.so.3','sbin/y2-observer','sbin/y2-fbtest','sbin/y2-abi-check'):self.assertIn(path,entries)
         for bad in (raw[:-512],raw.replace(b'bin/busybox\0',b'../busyboxx\0',1)):
             with self.assertRaises((ValueError,UnicodeDecodeError)):rescue_entries(bad)
     def test_rescue_only_selects_one_removable_ext4_label(self):
         script=(ROOT/'initramfs/rescue/init').read_text()
-        selection=script[script.index('rootdev='):script.index('if [ "$ambiguous" = 0 ]')]
+        selection=script[script.index('rootdev='):script.index('if [ "$abi_ok" = 1 ]')]
         with tempfile.TemporaryDirectory() as tmp:
             t=Path(tmp);(t/'block').mkdir();(t/'bin').mkdir();(t/'dev').mkdir()
             blkid=t/'bin/blkid';blkid.write_text('#!/bin/sh\ncat "$1.info"\n');blkid.chmod(0o755)

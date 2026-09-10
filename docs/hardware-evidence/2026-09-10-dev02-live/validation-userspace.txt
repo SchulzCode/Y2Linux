@@ -1,0 +1,2 @@
+PASS: shell syntax; Python syntax; exact DEV-02 module archive SHA256; path/type allowlist; per-file update manifest. No kernel or Buildroot rebuild.
+PASS: final live hashes match all five canonical deployed overlay files; matching DEV-02 vermagic; cursor-safe pattern check; five-second persistent recorder cached ABI88-byte read.

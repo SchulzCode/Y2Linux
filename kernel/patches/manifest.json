@@ -82,7 +82,7 @@
       "path": "drivers/i2c/busses/i2c-mt65xx.c",
       "patch": "0008-mt6582-i2c.patch",
       "base_sha256": "97a7193f00827341b26f074ed26fb5b4ed7839e45b87b7a2a2c03681c46d7b69",
-      "result_sha256": "47e22dd3f7ed424d0e150f53c800c20581487a462c89074231faaa6b52d9054f"
+      "result_sha256": "1c60bf29cc1f94542a7897c53cbcd518d6b6572facf13ed6f48b897fc7f2a541"
     },
     {
       "path": "drivers/mmc/host/mtk-sd.c",

@@ -1,0 +1,10 @@
+1595.34 5723.45
+dev02-live-20260910-qualification
+Linux y2linux 6.18.0-y2linux-dev02 #1 SMP @1764542530 armv7l GNU/Linux
+1 (init) S 0 1 1 0 -1 4194560 376 8689 9 62 0 17 85 32 20 0 1 0 6 2879488 381 4294967295 4665344 5527576 3199921872 0 0 0 0 0 524288 1 0 0 17 0 0 0 0 0 0 5531760 5538109 35627008 3199922083 3199922094 3199922094 3199922161 0
+2: usb0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether 02:42:00:00:00:01 brd ff:ff:ff:ff:ff:ff
+    inet 10.42.0.1/24 scope global usb0
+       valid_lft forever preferred_lft forever
+crw-------    1 root     root      252,   0 Jan  1 00:00 /dev/ttyGS0
+configured

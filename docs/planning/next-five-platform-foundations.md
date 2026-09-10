@@ -1,3 +1,15 @@
+# Current platform order — DEV-02 live checkpoint, 2026-09-10
+
+[Physical qualification](../knowledge/y2linux-dev02-live-qualification.md):
+core/Buildroot, expanded RAM, CPUs, input, display and SD are substantially
+qualified. The first USB reconnect fails; resolve #27/#28 before closing M2.
+The old five research slices #22–26 are satisfied within their narrow scope.
+
+Next: M3 complete native audio → M4 full power → M5 connectivity → GPU/lima and
+final reusable-platform qualification → Y2PlayerNative. Shared prerequisites
+remain explicit; these are phase gates, not blanket implementation/flash authority.
+No new BOOTIMG is prepared in the live pass. The former sequence below is history.
+
 # Platform foundation work and execution order
 **Current M2 workflow (2026-09-10):** one [M2-BASELINE-01](../build/m2-baseline-01-result.md)
 integrates evidenced core controllers on Linux 6.18. Offline validated; stop for

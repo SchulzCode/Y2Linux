@@ -1,0 +1,45 @@
+#!/bin/sh
+# Explicit, bounded diagnostic run; never started automatically at boot.
+# Retain logs on removable Y2ROOT even if USB/SSH disappears.
+set -eu
+seconds=${1:-180}
+case "$seconds" in ''|*[!0-9]*) echo 'Seconds must be 1..600' >&2; exit 1;; esac
+[ "$seconds" -ge 1 ] && [ "$seconds" -le 600 ]
+rootdev=$(findmnt -n -o SOURCE /)
+case "$(readlink -f "/sys/class/block/${rootdev##*/}")" in
+    */11240000.mmc/*) ;; *) echo 'Refusing non-removable root' >&2; exit 1;;
+esac
+[ "$(blkid -s LABEL -o value "$rootdev")" = Y2ROOT ]
+umask 077
+mkdir -p /var/lib/y2linux
+dir=$(mktemp -d /var/lib/y2linux/usb-record.XXXXXX)
+echo "$dir"
+uname -a > "$dir/identity.txt"
+cat /proc/uptime >> "$dir/identity.txt"
+dmesg > "$dir/dmesg-start.txt"
+i=0
+while [ "$i" -lt "$seconds" ]; do
+    {
+        cat /proc/uptime
+        cat /sys/class/udc/*/state 2>&1 || true
+        cat /sys/class/power_supply/y2-usb-presence/online 2>&1 || true
+        # Existing driver exports cached USB status at this exact ABI size.
+        # Reading it does not perform arbitrary PMIC/MMIO transactions.
+        if dd if=/dev/y2diag bs=88 count=1 of="$dir/usb-status.bin" 2> "$dir/status-read.err"; then
+            wc -c < "$dir/usb-status.bin"
+            od -An -tu4 "$dir/usb-status.bin"
+        else
+            cat "$dir/status-read.err"
+        fi
+    } >> "$dir/status.txt"
+    if [ "$((i % 5))" = 0 ]; then
+        dmesg > "$dir/dmesg-next.txt"
+        mv "$dir/dmesg-next.txt" "$dir/dmesg-latest.txt"
+        sync
+    fi
+    sleep 1
+    i=$((i + 1))
+done
+dmesg > "$dir/dmesg-final.txt"
+echo COMPLETE >> "$dir/status.txt"
+sync

@@ -1,0 +1,44 @@
+/sys/bus/mmc/devices/mmc0:aaaa/type
+SD
+/sys/bus/mmc/devices/mmc0:aaaa/name
+SD128
+/sys/bus/mmc/devices/mmc0:aaaa/cid
+035344534431323885d04dba410192c7
+/sys/bus/mmc/devices/mmc0:aaaa/csd
+400e00325b590003b8ab7f800a404079
+/sys/class/power_supply/y2-usb-presence/uevent
+DEVTYPE=power_supply
+OF_NAME=pwrap
+OF_FULLNAME=/pwrap@1000d000
+OF_COMPATIBLE_0=innioasis,y2-pwrap
+OF_COMPATIBLE_N=1
+POWER_SUPPLY_NAME=y2-usb-presence
+POWER_SUPPLY_TYPE=USB
+POWER_SUPPLY_ONLINE=1
+POWER_SUPPLY_TYPE=USB
+/sys/devices/system/cpu/cpu0/topology/core_id
+0
+/sys/devices/system/cpu/cpu1/topology/core_id
+0
+/sys/devices/system/cpu/cpu2/topology/core_id
+0
+/sys/devices/system/cpu/cpu3/topology/core_id
+0
+/sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq
+cat: can't open '/sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq': No such file or directory
+cat: can't open '/etc/init.d/S20seedrng': No such file or directory
+total 12
+drwx------    2 root     root          4096 Jan  1 00:00 .
+drwxr-xr-x    3 root     root          4096 Jan  1 00:00 ..
+-r--------    1 root     root            32 Jan  1 00:00 seed.no-credit
+cat: can't open '/proc/sys/kernel/random/entropy_avail': No such file or directory
+gpiochip0: 169 GPIOs, parent: platform/10005000.pinctrl, 10005000.pinctrl:
+ gpio-6   (                    |?                   ) in  hi ACTIVE LOW
+ gpio-7   (                    |?                   ) in  hi ACTIVE LOW
+ gpio-9   (                    |?                   ) in  hi ACTIVE LOW
+ gpio-10  (                    |?                   ) in  hi ACTIVE LOW
+ gpio-25  (                    |interrupt           ) in  lo IRQ 
+ gpio-54  (                    |?                   ) in  hi ACTIVE LOW
+ gpio-55  (                    |interrupt           ) in  hi IRQ 
+cat: can't open '/sys/kernel/debug/dri/0/crtc-0/vblank': No such file or directory
+930.68 3229.77

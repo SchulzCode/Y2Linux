@@ -1,0 +1,22 @@
+{
+  "display.ko": "545e29be86e0148445d70a5e508fedcdcc21126ca3d236000029bd1aaea86174",
+  "lib/modules/6.18.0-y2linux-dev02/kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko": "545e29be86e0148445d70a5e508fedcdcc21126ca3d236000029bd1aaea86174",
+  "lib/modules/6.18.0-y2linux-dev02/modules.alias": "369093dad0701fc8f88640c000808eb360f9aa70069ff0a3977d9f704ee7fbd0",
+  "lib/modules/6.18.0-y2linux-dev02/modules.alias.bin": "130c69316e5444636b306b216f3b9adf4c6869bb7479736f060ace6808400fca",
+  "lib/modules/6.18.0-y2linux-dev02/modules.builtin": "b284e11a2151eed3482c629900d951fc06e60faa262cfd2671606dfdb3fbf1fa",
+  "lib/modules/6.18.0-y2linux-dev02/modules.builtin.alias.bin": "684cc68b9780d7c50aac44ab6639e88921f5eee41abe3b8e95cc26eb24390ea9",
+  "lib/modules/6.18.0-y2linux-dev02/modules.builtin.bin": "e284e03f726e410c698dfa23ba4ea17a540d895987b83715c6ea6c98f4667b7f",
+  "lib/modules/6.18.0-y2linux-dev02/modules.builtin.modinfo": "2ecda2151a70260faa7e6b850341db3ad831c68eacd1762a20064537f75d1246",
+  "lib/modules/6.18.0-y2linux-dev02/modules.dep": "caf99299cff7893ab52aee89c83cb1ae9a71991ee70ebb2c4276f58600a78bbc",
+  "lib/modules/6.18.0-y2linux-dev02/modules.dep.bin": "10cfe1f693afcb4d0ef8de25005548dce07bf1ab78023f70a43b32c002b79412",
+  "lib/modules/6.18.0-y2linux-dev02/modules.devname": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "lib/modules/6.18.0-y2linux-dev02/modules.order": "ac0d4a248982482b7af0eb545aba831f6669c6a294e6fa7ef2084a64b677c149",
+  "lib/modules/6.18.0-y2linux-dev02/modules.softdep": "ac2de753255c506934be29e69261f1485f51ee9cf9c2bf467bcc0c4cf95f8713",
+  "lib/modules/6.18.0-y2linux-dev02/modules.symbols": "e1d07394350b0dc9be149c69080c47fb1faf4d88fabb900387b6016e6fff3976",
+  "lib/modules/6.18.0-y2linux-dev02/modules.symbols.bin": "87b6e280f77dbc7f4d6708f6d83aa23dac73185bc345bd7c98e5f619fc78ec37",
+  "lib/modules/6.18.0-y2linux-dev02/modules.weakdep": "a1fffe1059d8150b5d402b3f284f507025a8d4b5881810cb17b3fda8b8ab9304",
+  "etc/init.d/S00y2-runtime": "9b62b2038d59853f0279aba8734af5c8bf513c3966f3b5281e135f00d612c92a",
+  "etc/init.d/S25y2-pattern": "8831c2a0457f7ae69214f2cfbc2ded4e5a1d55264a0218e58258a5ea74033d84",
+  "usr/sbin/y2-memory-check": "afc2c31107b4ef323e5ea3a1aa28c6061f9a79f4988f532f9a24817ac9323280",
+  "usr/sbin/y2-collect": "556dd997554e6d062aab92491de4ffb3861d3293a6d983b4076c5fa104786eef"
+}

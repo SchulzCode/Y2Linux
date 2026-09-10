@@ -1,0 +1,31 @@
+## main...origin/main [ahead 5]
+ M buildroot/board/y2/overlay/etc/init.d/S25y2-pattern
+ M buildroot/configs/y2_dev_defconfig
+ M docs/planning/roadmap-gap-audit.md
+ M initramfs/rescue/init
+ M kernel/config/first-boot.config
+ M kernel/dts/innioasis-y2-first-boot.dts
+ M kernel/patches/0008-mt6582-i2c.patch
+ M kernel/patches/manifest.json
+ M tests/test_dev_foundation.py
+ M tools/build/dev_finalize.py
+ M tools/build/dev_initramfs.py
+ M tools/build/dev_tests.sh
+ M tools/build/development.py
+ M tools/validation/dev_artifacts.py
+ M tools/validation/dev_dtb.py
+ M tools/validation/dev_rootfs.py
+?? buildroot/board/y2/busybox.fragment
+?? buildroot/board/y2/overlay/etc/init.d/S00y2-runtime
+?? docs/build/y2linux-dev-01-mac-sd.md
+?? docs/build/y2linux-dev-02-deployment.md
+?? docs/build/y2linux-dev-02-result.md
+?? docs/hardware-evidence/
+?? docs/knowledge/y2linux-development-hardware-result.md
+?? tests/test_dev_abi.py
+?? tests/test_dev_i2c.py
+?? tools/development/abi-check.c
+?? tools/development/capture-live-input.py
+?? tools/development/configure-host-usb.sh
+?? tools/development/live-inventory.sh
+?? tools/development/live-ram-check.sh

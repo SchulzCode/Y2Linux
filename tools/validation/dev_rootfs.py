@@ -7,7 +7,8 @@ def require(ok, message):
     if not ok: raise ValueError(message)
 
 
-def check(root, public_key):
+def check(root, public_key, rootfs_kernel=None):
+    module_root=rootfs_kernel or root
     require(public_key.name.endswith('.pub'), 'explicit .pub key required')
     key=public_key.read_bytes()
     require(key.startswith(b'ssh-ed25519 ') and len(key.splitlines())==1, 'expected one owner ED25519 public key')
@@ -43,7 +44,7 @@ def check(root, public_key):
         require(shadow.split(b':')[1]==b'$6$y2linux$disabled','unusable password without locked public-key account')
         require(b'-s -g -j -k -p 10.42.0.1:22' in read('etc/default/dropbear'),'key-only SSH policy')
         require(b'LABEL=Y2ROOT / ext4' in read('etc/fstab'),'root mount identity')
-        require(read('display.ko')==(root/'display.ko').read_bytes(),'rootfs/rescue DRM module mismatch')
+        require(read('display.ko')==(module_root/'display.ko').read_bytes(),'rootfs/rescue DRM module mismatch')
         for name in ('y2-observer','y2-fbtest'):
             require(read('usr/sbin/'+name)==(root/name).read_bytes(),'stale rootfs '+name)
         for name in ('bin/busybox','sbin/init','sbin/ip','bin/ps','bin/lsblk','usr/sbin/i2cdetect',
@@ -53,7 +54,7 @@ def check(root, public_key):
             require(raw[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',raw,18)[0]==40,'ARM ELF '+name)
             require(struct.unpack_from('<I',raw,36)[0]&0x400,'ARM hard-float ABI '+name)
         for name in ('lib/ld-linux-armhf.so.3','lib/libc.so.6'):require(read(name)[:4]==b'\x7fELF','glibc runtime')
-        release=(root/'kernel/include/config/kernel.release').read_text().strip()
+        release=(module_root/'kernel/include/config/kernel.release').read_text().strip()
         require(read('lib/modules/'+release+'/modules.dep').startswith(b'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko:'),'module index')
         for name in ('S01y2-observer','S20y2-usb','S25y2-pattern','S50dropbear'):
             m=entry('etc/init.d/'+name);require(m.mode&0o111,'non-executable init service '+name)
@@ -62,6 +63,7 @@ def check(root, public_key):
             result=subprocess.run(['debugfs','-R','cat /'+name,str(image)],check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             require(result.stdout==read(name),'ext4/tar disagreement '+name)
     result={'status':'PASS offline; SD boot and SSH login require physical qualification',
+            'sd_module_kernel':release,'module_policy':'rescue supplies running kernel module; SD module tree refresh pending' if rootfs_kernel else 'rootfs and rescue modules match',
             'public_key_sha256':hashlib.sha256(key).hexdigest(),'filesystem':identity,'e2fsck':fsck,
             'rootfs_tar_bytes':(images/'rootfs.tar').stat().st_size,'rootfs_ext4_bytes':image.stat().st_size}
     (root/'rootfs-validation.json').write_text(json.dumps(result,indent=2)+'\n')
@@ -70,4 +72,5 @@ def check(root, public_key):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('root',type=Path);p.add_argument('--public-key',type=Path,required=True)
-    a=p.parse_args();check(a.root,a.public_key)
+    p.add_argument('--rootfs-kernel',type=Path,help='explicit existing rootfs kernel when the new BOOTIMG supplies its module from rescue')
+    a=p.parse_args();check(a.root,a.public_key,a.rootfs_kernel)

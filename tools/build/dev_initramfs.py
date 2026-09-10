@@ -48,6 +48,7 @@ def build(root, project):
     binary('sbin/blkid',target/'sbin/blkid')
     binary('sbin/y2-observer',root/'y2-observer')
     binary('sbin/y2-fbtest',root/'y2-fbtest')
+    binary('sbin/y2-abi-check',root/'y2-abi-check')
     module=(root/'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko').read_bytes()
     put('display.ko',stat.S_IFREG|0o400,module);(root/'display.ko').write_bytes(module)
     for applet in ('sh','mount','mkdir','mknod','sleep','readlink','chroot','umount','switch_root','kill'):

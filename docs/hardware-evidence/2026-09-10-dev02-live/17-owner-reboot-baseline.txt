@@ -1,0 +1,3113 @@
+
+===== COMMAND: sh -c uname -a =====
+Linux y2linux 6.18.0-y2linux-dev02 #1 SMP @1764542530 armv7l GNU/Linux
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c cat /proc/cpuinfo =====
+processor	: 0
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 2079.12
+Features	: half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+processor	: 1
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 2072.57
+Features	: half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+processor	: 2
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 2072.57
+Features	: half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+processor	: 3
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 2072.57
+Features	: half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+Hardware	: Generic DT based system
+Revision	: 0000
+Serial		: 0000000000000000
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c cat /proc/meminfo =====
+MemTotal:         954660 kB
+MemFree:          929420 kB
+MemAvailable:     921364 kB
+Buffers:            3856 kB
+Cached:             5040 kB
+SwapCached:            0 kB
+Active:             6756 kB
+Inactive:           2648 kB
+Active(anon):         56 kB
+Inactive(anon):      528 kB
+Active(file):       6700 kB
+Inactive(file):     2120 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+HighTotal:        228352 kB
+HighFree:         221388 kB
+LowTotal:         726308 kB
+LowFree:          708032 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:               104 kB
+Writeback:             0 kB
+AnonPages:           524 kB
+Mapped:             2480 kB
+Shmem:                64 kB
+KReclaimable:       1044 kB
+Slab:               6040 kB
+SReclaimable:       1044 kB
+SUnreclaim:         4996 kB
+KernelStack:         648 kB
+PageTables:          344 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:      477328 kB
+Committed_AS:       3800 kB
+VmallocTotal:     245760 kB
+VmallocUsed:         136 kB
+VmallocChunk:          0 kB
+Percpu:              176 kB
+Balloon:               0 kB
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c cat /proc/zoneinfo =====
+Node 0, zone   Normal
+  per-node stats
+      nr_inactive_anon 132
+      nr_active_anon 14
+      nr_inactive_file 530
+      nr_active_file 1675
+      nr_unevictable 0
+      nr_slab_reclaimable 261
+      nr_slab_unreclaimable 1249
+      nr_isolated_anon 0
+      nr_isolated_file 0
+      workingset_nodes 0
+      workingset_refault_anon 0
+      workingset_refault_file 0
+      workingset_activate_anon 0
+      workingset_activate_file 0
+      workingset_restore_anon 0
+      workingset_restore_file 0
+      workingset_nodereclaim 0
+      nr_anon_pages 156
+      nr_mapped    620
+      nr_file_pages 2224
+      nr_dirty     26
+      nr_writeback 0
+      nr_shmem     16
+      nr_shmem_hugepages 0
+      nr_shmem_pmdmapped 0
+      nr_file_hugepages 0
+      nr_file_pmdmapped 0
+      nr_anon_transparent_hugepages 0
+      nr_vmscan_write 0
+      nr_vmscan_immediate_reclaim 0
+      nr_dirtied   84
+      nr_written   58
+      nr_throttled_written 0
+      nr_kernel_misc_reclaimable 0
+      nr_foll_pin_acquired 0
+      nr_foll_pin_released 0
+      nr_kernel_stack 680
+      nr_page_table_pages 86
+      nr_sec_page_table_pages 0
+      pgdemote_kswapd 0
+      pgdemote_direct 0
+      pgdemote_khugepaged 0
+      pgdemote_proactive 0
+      nr_balloon_pages 0
+      nr_kernel_file_pages 0
+  pages free     177008
+        boost    0
+        min      851
+        low      1063
+        high     1275
+        promo    1487
+        spanned  196608
+        present  196608
+        managed  181577
+        cma      0
+        protection: (0, 1784, 1784)
+      nr_free_pages 177008
+      nr_free_pages_blocks 174080
+      nr_zone_inactive_anon 0
+      nr_zone_active_anon 0
+      nr_zone_inactive_file 212
+      nr_zone_active_file 760
+      nr_zone_unevictable 0
+      nr_zone_write_pending 25
+      nr_mlock     0
+      nr_free_cma  0
+  pagesets
+    cpu: 0
+              count:    469
+              high:     520
+              batch:    63
+              high_min: 265
+              high_max: 5660
+  vm stats threshold: 24
+    cpu: 1
+              count:    274
+              high:     328
+              batch:    63
+              high_min: 265
+              high_max: 5660
+  vm stats threshold: 24
+    cpu: 2
+              count:    300
+              high:     328
+              batch:    63
+              high_min: 265
+              high_max: 5660
+  vm stats threshold: 24
+    cpu: 3
+              count:    244
+              high:     328
+              batch:    63
+              high_min: 265
+              high_max: 5660
+  vm stats threshold: 24
+  node_unreclaimable:  0
+  start_pfn:           524288
+Node 0, zone  HighMem
+  pages free     55347
+        boost    0
+        min      55
+        low      122
+        high     189
+        promo    256
+        spanned  57344
+        present  57344
+        managed  57088
+        cma      0
+        protection: (0, 0, 0)
+      nr_free_pages 55347
+      nr_free_pages_blocks 53248
+      nr_zone_inactive_anon 172
+      nr_zone_active_anon 14
+      nr_zone_inactive_file 318
+      nr_zone_active_file 915
+      nr_zone_unevictable 0
+      nr_zone_write_pending 1
+      nr_mlock     0
+      nr_free_cma  0
+  pagesets
+    cpu: 0
+              count:    125
+              high:     158
+              batch:    15
+              high_min: 60
+              high_max: 1784
+  vm stats threshold: 12
+    cpu: 1
+              count:    47
+              high:     90
+              batch:    15
+              high_min: 60
+              high_max: 1784
+  vm stats threshold: 12
+    cpu: 2
+              count:    72
+              high:     161
+              batch:    15
+              high_min: 60
+              high_max: 1784
+  vm stats threshold: 12
+    cpu: 3
+              count:    17
+              high:     215
+              batch:    15
+              high_min: 60
+              high_max: 1784
+  vm stats threshold: 12
+  node_unreclaimable:  0
+  start_pfn:           720896
+Node 0, zone  Movable
+  pages free     0
+        boost    0
+        min      32
+        low      32
+        high     32
+        promo    32
+        spanned  0
+        present  0
+        managed  0
+        cma      0
+        protection: (0, 0, 0)
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c cat /proc/interrupts =====
+           CPU0       CPU1       CPU2       CPU3       
+ 24:       3640          0          0          0 MT_SYSIRQ 112 Level     timer@10008000
+ 51:          0          0          0          0  mt-eint  25 Level     mt6397-pmic
+ 81:          0          0          0          0  mt-eint  55 Edge      apt32f-wheel
+197:          0          0          0          0 mt6397-irq   5 Edge      mtk-pmic-keys
+199:          0          0          0          0 MT_SYSIRQ  44 Level     11007000.i2c
+200:          0          0          0          0 MT_SYSIRQ  45 Level     11008000.i2c
+201:       2869          0          0          0 MT_SYSIRQ  40 Level     11240000.mmc
+202:          0          0          0          0 MT_SYSIRQ 116 Edge      mt6582-keypad
+203:        879          0          0          0 MT_SYSIRQ 153 Level     14007000.ovl
+204:          0          0          0          0 MT_SYSIRQ 152 Level     14008000.rdma
+205:          0          0          0          0 MT_SYSIRQ 157 Level     1400c000.dsi
+206:        303          0          0          0 MT_SYSIRQ  32 Level     musb-hdrc.2.auto
+IPI0:         0          1          1          1  CPU wakeup interrupts
+IPI1:         0       3628       3622       3616  Timer broadcast interrupts
+IPI2:        41         49         43         40  Rescheduling interrupts
+IPI3:       196        151        285        366  Function call interrupts
+IPI4:         0          0          0          0  CPU stop interrupts
+IPI5:         0          0          0          0  IRQ work interrupts
+IPI6:         0          0          0          0  completion interrupts
+Err:          0
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c cat /proc/iomem =====
+00008000-0000803f : mt6323-pwrc
+  00008000-0000803f : mt6323-rtc
+10000000-10000fff : 10000000.clock-controller clock-controller@10000000
+10001000-10001fff : 10000000.clock-controller clock-controller@10000000
+10003000-10003fff : 10000000.clock-controller clock-controller@10000000
+10005000-10005fff : 10005000.pinctrl pinctrl@10005000
+1000b000-1000bfff : 10005000.pinctrl pinctrl@10005000
+1000d000-1000dfff : 1000d000.pwrap pwrap@1000d000
+10010000-10010fff : 10010000.mipi-tx mipi-tx@10010000
+10011000-10011fff : 10011000.keypad keypad@10011000
+10209000-10209fff : 10000000.clock-controller clock-controller@10000000
+11000200-1100027f : 11007000.i2c i2c@11007000
+11000280-110002ff : 11008000.i2c i2c@11008000
+11002000-1100201f : serial
+11007000-1100706f : 11007000.i2c i2c@11007000
+11008000-1100806f : 11008000.i2c i2c@11008000
+11200000-1120027f : musb-hdrc.2.auto
+  11200000-1120027f : musb-hdrc.2.auto musb-hdrc.2.auto
+11210800-1121086f : y2-usb-phy
+11240000-11240fff : 11240000.mmc mmc@11240000
+14000000-14000fff : 14000000.syscon syscon@14000000
+14007000-14007fff : 14007000.ovl ovl@14007000
+14008000-14008fff : 14008000.rdma rdma@14008000
+1400b000-1400bfff : 1400b000.color color@1400b000
+1400c000-1400cfff : 1400c000.dsi dsi@1400c000
+1400e000-1400efff : 1400e000.mutex mutex@1400e000
+80000000-817fffff : System RAM
+  80008000-805acfff : Kernel code
+  805de000-80a2a4bf : Kernel data
+84000000-bdefffff : System RAM
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c cat /proc/cmdline =====
+rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2LINUX-DEV-01
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c cat /proc/sys/kernel/random/boot_id =====
+cat: can't open '/proc/sys/kernel/random/boot_id': No such file or directory
+
+===== EXIT 1 =====
+
+===== COMMAND: sh -c uptime =====
+ 00:00:36 up 0 min,  load average: 0.06, 0.01, 0.00
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c free -m =====
+              total        used        free      shared  buff/cache   available
+Mem:            932          15         908           0          10         900
+Swap:             0           0           0
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c ps =====
+  PID TTY          TIME CMD
+    1 ?        00:00:00 init
+    2 ?        00:00:00 kthreadd
+    3 ?        00:00:00 pool_workqueue_release
+    4 ?        00:00:00 kworker/R-rcu_gp
+    5 ?        00:00:00 kworker/R-sync_wq
+    6 ?        00:00:00 kworker/R-kvfree_rcu_reclaim
+    7 ?        00:00:00 kworker/R-slub_flushwq
+    8 ?        00:00:00 kworker/0:0-pm
+    9 ?        00:00:00 kworker/0:0H-events_highpri
+   10 ?        00:00:00 kworker/0:1-device_link_wq
+   11 ?        00:00:00 kworker/u16:0
+   12 ?        00:00:00 kworker/R-mm_percpu_wq
+   13 ?        00:00:00 ksoftirqd/0
+   14 ?        00:00:00 rcu_sched
+   15 ?        00:00:00 rcu_exp_par_gp_kthread_worker/0
+   16 ?        00:00:00 rcu_exp_gp_kthread_worker
+   17 ?        00:00:00 migration/0
+   18 ?        00:00:00 cpuhp/0
+   19 ?        00:00:00 cpuhp/1
+   20 ?        00:00:00 migration/1
+   21 ?        00:00:00 ksoftirqd/1
+   22 ?        00:00:00 kworker/1:0-device_link_wq
+   23 ?        00:00:00 kworker/1:0H-kblockd
+   24 ?        00:00:00 cpuhp/2
+   25 ?        00:00:00 migration/2
+   26 ?        00:00:00 ksoftirqd/2
+   27 ?        00:00:00 kworker/2:0-mm_percpu_wq
+   28 ?        00:00:00 kworker/2:0H-events_highpri
+   29 ?        00:00:00 cpuhp/3
+   30 ?        00:00:00 migration/3
+   31 ?        00:00:00 ksoftirqd/3
+   32 ?        00:00:00 kworker/3:0-mm_percpu_wq
+   33 ?        00:00:00 kworker/3:0H-kblockd
+   34 ?        00:00:00 kworker/u17:0-kvfree_rcu_reclaim
+   35 ?        00:00:00 kworker/u18:0-events_unbound
+   36 ?        00:00:00 kworker/u19:0-events_unbound
+   37 ?        00:00:00 kworker/u20:0-events_unbound
+   38 ?        00:00:00 kdevtmpfs
+   39 ?        00:00:00 kworker/R-inet_frag_wq
+   40 ?        00:00:00 oom_reaper
+   41 ?        00:00:00 kworker/R-writeback
+   42 ?        00:00:00 kworker/R-kblockd
+   43 ?        00:00:00 kworker/0:2
+   44 ?        00:00:00 kworker/u17:1-flush-179:0
+   45 ?        00:00:00 kswapd0
+   46 ?        00:00:00 kworker/1:1-events
+   47 ?        00:00:00 kworker/0:1H-kblockd
+   48 ?        00:00:00 irq/51-mt6397-pmic
+   49 ?        00:00:00 kworker/u18:1-kvfree_rcu_reclaim
+   50 ?        00:00:00 kworker/2:1-mm_percpu_wq
+   51 ?        00:00:00 kworker/u18:2-events_unbound
+   52 ?        00:00:00 kworker/u19:1
+   53 ?        00:00:00 irq/81-apt32f-wheel
+   54 ?        00:00:00 irq/202-mt6582-keypad
+   55 ?        00:00:00 kworker/u20:1-kvfree_rcu_reclaim
+   56 ?        00:00:00 kworker/u19:2-kvfree_rcu_reclaim
+   70 ?        00:00:00 kworker/2:1H-kblockd
+   71 ?        00:00:00 kworker/R-mmc_complete
+   72 ?        00:00:00 kworker/3:1-mm_percpu_wq
+   74 ?        00:00:00 card0-crtc0
+   75 ?        00:00:00 card0-crtc1
+   76 ?        00:00:00 card0-crtc2
+   77 ?        00:00:00 kworker/1:2-device_link_wq
+   78 ?        00:00:00 kworker/1:3-device_link_wq
+   79 ?        00:00:00 kworker/1:4-events_freezable
+   80 ?        00:00:00 kworker/1:5-events_freezable
+   81 ?        00:00:00 kworker/1:6-rcu_gp
+   82 ?        00:00:00 kworker/1:7
+   83 ?        00:00:00 kworker/2:2-mm_percpu_wq
+   88 ?        00:00:00 kworker/1:1H-events_highpri
+   92 ?        00:00:00 kworker/3:1H-events_highpri
+   93 ?        00:00:00 jbd2/mmcblk0p1-8
+   94 ?        00:00:00 kworker/R-ext4-rsv-conversion
+  130 ?        00:00:00 syslogd
+  136 ?        00:00:00 y2-observer
+  140 ?        00:00:00 klogd
+  169 ?        00:00:00 crond
+  175 ?        00:00:01 dropbear
+  185 ?        00:00:00 dropbear
+  186 ?        00:00:00 y2-collect
+  197 ?        00:00:00 ps
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c mount =====
+proc on /proc type proc (rw,relatime)
+sysfs on /sys type sysfs (rw,relatime)
+devtmpfs on /dev type devtmpfs (rw,relatime,size=476468k,nr_inodes=119117,mode=755)
+devpts on /dev/pts type devpts (rw,relatime,gid=5,mode=620,ptmxmode=666)
+tmpfs on /run type tmpfs (rw,nosuid,nodev,relatime)
+tmpfs on /tmp type tmpfs (rw,relatime)
+debugfs on /sys/kernel/debug type debugfs (rw,relatime)
+/dev/mmcblk0p1 on / type ext4 (rw,relatime)
+proc on /proc type proc (rw,relatime)
+tmpfs on /dev/shm type tmpfs (rw,relatime)
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c df -h =====
+Filesystem                Size      Used Available Use% Mounted on
+devtmpfs                465.3M         0    465.3M   0% /dev
+tmpfs                   466.1M     32.0K    466.1M   0% /run
+tmpfs                   466.1M     32.0K    466.1M   0% /tmp
+/dev/mmcblk0p1          487.6M     17.7M    434.0M   4% /
+tmpfs                   466.1M         0    466.1M   0% /dev/shm
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c lsblk =====
+NAME        MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
+mmcblk0     179:0    0 119.1G  0 disk 
+`-mmcblk0p1 179:1    0 119.1G  0 part /
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c blkid =====
+/dev/mmcblk0p1: LABEL="Y2ROOT" UUID="79324c69-6e75-4801-8000-000000000001" BLOCK_SIZE="4096" TYPE="ext4"
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c ip addr =====
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+2: usb0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether 02:42:00:00:00:01 brd ff:ff:ff:ff:ff:ff
+    inet 10.42.0.1/24 scope global usb0
+       valid_lft forever preferred_lft forever
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c ip link =====
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: usb0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+    link/ether 02:42:00:00:00:01 brd ff:ff:ff:ff:ff:ff
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c route =====
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+10.42.0.0       *               255.255.255.0   U     0      0        0 usb0
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c ip route =====
+10.42.0.0/24 dev usb0 proto kernel scope link src 10.42.0.1 
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c dmesg =====
+[    0.000000] Booting Linux on physical CPU 0x0
+[    0.000000] Linux version 6.18.0-y2linux-dev02 (Luca@y2-build) (Alpine clang version 20.1.8, LLD 20.1.8) #1 SMP @1764542530
+[    0.000000] CPU: ARMv7 Processor [410fc073] revision 3 (ARMv7), cr=10c5387d
+[    0.000000] CPU: PIPT / VIPT nonaliasing data cache, VIPT aliasing instruction cache
+[    0.000000] OF: fdt: Machine model: Innioasis Y2 Y2LINUX-DEV-01
+[    0.000000] earlycon: mtk8250 at MMIO32 0x11002000 (options '')
+[    0.000000] printk: legacy bootconsole [mtk8250] enabled
+[    0.000000] printk: debug: ignoring loglevel setting.
+[    0.000000] Memory policy: Data cache writealloc
+[    0.000000] Zone ranges:
+[    0.000000]   Normal   [mem 0x0000000080000000-0x00000000afffffff]
+[    0.000000]   HighMem  [mem 0x00000000b0000000-0x00000000bdffffff]
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000080000000-0x00000000817fffff]
+[    0.000000]   node   0: [mem 0x0000000081800000-0x0000000083ffffff]
+[    0.000000]   node   0: [mem 0x0000000084000000-0x00000000bdefffff]
+[    0.000000]   node   0: [mem 0x00000000bdf00000-0x00000000bdffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x00000000bdffffff]
+[    0.000000] OF: reserved mem: 0x81800000..0x83ffffff (40960 KiB) nomap non-reusable loader@81800000
+[    0.000000] OF: reserved mem: 0xbdf00000..0xbfffffff (33792 KiB) nomap non-reusable high-owned@bdf00000
+[    0.000000] percpu: Embedded 11 pages/cpu s13260 r8192 d23604 u45056
+[    0.000000] pcpu-alloc: s13260 r8192 d23604 u45056 alloc=11*4096
+[    0.000000] pcpu-alloc: [0] 0 [0] 1 [0] 2 [0] 3 
+[    0.000000] Kernel command line: rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2LINUX-DEV-01
+[    0.000000] printk: log buffer data + meta data: 1048576 + 3276800 = 4325376 bytes
+[    0.000000] Dentry cache hash table entries: 131072 (order: 7, 524288 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 253952
+[    0.000000] mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=1
+[    0.000000] rcu: Hierarchical RCU implementation.
+[    0.000000] rcu: RCU calculated value of scheduler-enlistment delay is 10 jiffies.
+[    0.000000] NR_IRQS: 16, nr_irqs: 16, preallocated irqs: 16
+[    0.000000] rcu: srcu_init: Setting srcu_struct sizes based on contention.
+[    0.000000] clocksource: timer: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 147020034397 ns
+[    0.000001] sched_clock: 32 bits at 13MHz, resolution 76ns, wraps every 165191050201ns
+[    0.001181] Console: colour dummy device 80x30
+[    0.001782] printk: legacy console [tty0] enabled
+[    0.002411] printk: legacy bootconsole [mtk8250] disabled
+[    0.003175] Calibrating delay loop... 2079.12 BogoMIPS (lpj=10395648)
+[    0.061082] CPU: Testing write buffer coherency: ok
+[    0.061143] pid_max: default: 32768 minimum: 301
+[    0.061309] Mount-cache hash table entries: 2048 (order: 1, 8192 bytes, linear)
+[    0.061339] Mountpoint-cache hash table entries: 2048 (order: 1, 8192 bytes, linear)
+[    0.062790] Setting up static identity map for 0x800081c0 - 0x800081f4
+[    0.062940] rcu: Hierarchical SRCU implementation.
+[    0.062961] rcu: 	Max phase no-delay instances is 1000.
+[    0.063418] smp: Bringing up secondary CPUs ...
+[    0.243351] smp: Brought up 1 node, 4 CPUs
+[    0.243387] SMP: Total of 4 processors activated (8296.85 BogoMIPS).
+[    0.243933] Memory: 950788K/1015808K available (4432K kernel code, 3301K rwdata, 1172K rodata, 196K init, 1099K bss, 62872K reserved, 0K cma-reserved, 228352K highmem)
+[    0.244449] devtmpfs: initialized
+[    0.246989] VFP support v0.3: implementor 41 architecture 2 part 30 variant 7 rev 3
+[    0.247167] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+[    0.247210] posixtimers hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.247311] futex hash table entries: 1024 (65536 bytes on 1 NUMA nodes, total 64 KiB, linear).
+[    0.247410] pinctrl core: initialized pinctrl subsystem
+[    0.248296] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.248656] DMA: preallocated 256 KiB pool for atomic coherent allocations
+[    0.253367] /dsi@1400c000: Fixed dependency cycle(s) with /dsi@1400c000/panel@0
+[    0.253558] /dsi@1400c000/panel@0: Fixed dependency cycle(s) with /dsi@1400c000
+[    0.255073] y2-clocks 10000000.clock-controller: CCF inherited PLLs/AXI and M2 gates; AXI=273000000 Hz; no PLL retune
+[    0.261386] y2-pinctrl 10005000.pinctrl: minimal pinctrl/GPIO; EINT parent high, PMIC25 high/wheel55 falling
+[    0.262422] y2-pwrap 1000d000.pwrap: MT6323 CID=2023 VUSB=c000 CHRDET=0; serialized regmap; rail/charger/reset writes blocked
+[    0.263452] clocksource: Switched to clocksource timer
+[    0.271617] NET: Registered PF_INET protocol family
+[    0.271811] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[    0.273631] tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes, linear)
+[    0.273685] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.273725] TCP established hash table entries: 8192 (order: 3, 32768 bytes, linear)
+[    0.273819] TCP bind hash table entries: 8192 (order: 5, 131072 bytes, linear)
+[    0.274030] TCP: Hash tables configured (established 8192 bind 8192)
+[    0.274155] UDP hash table entries: 512 (order: 3, 28672 bytes, linear)
+[    0.274237] UDP-Lite hash table entries: 512 (order: 3, 28672 bytes, linear)
+[    0.274439] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.275855] Y2USB stage=1 result=0
+[    0.275907] Y2USB stage=2 result=0
+[    0.275930] Y2LINUX-DEV-01: persistent ACM+ECM; internal eMMC disabled
+[    0.276056] Unpacking initramfs...
+[    0.276702] workingset: timestamp_bits=30 max_order=18 bucket_order=0
+[    0.277544] mediatek-mipi-tx 10010000.mipi-tx: can't get nvmem_cell_get, ignore it
+[    0.278880] Serial: 8250/16550 driver, 1 ports, IRQ sharing disabled
+[    0.279908] printk: legacy console [ttyS0] disabled
+[    0.280396] 11002000.serial: ttyS0 at MMIO 0x11002000 (irq = 195, base_baud = 1625000) is a 16550A
+[    0.280474] printk: legacy console [ttyS0] enabled
+[    0.362741] Freeing initrd memory: 1528K
+[    0.363423] cacheinfo: Unable to detect cache hierarchy for CPU 0
+[    0.364452] y2-pinctrl 10005000.pinctrl: pin25 mode=0 function=eint
+[    0.365606] mt6323-rtc: Failed to locate of_node [id: -1]
+[    0.366713] mt6323-led: Failed to locate of_node [id: -1]
+[    0.367737] mt6323-pwrc: Failed to locate of_node [id: -1]
+[    0.368813] UDC core: g_cdc: couldn't find an available UDC
+[    0.369917] input: Y2 navigation buttons as /devices/platform/navigation-keys/input/input0
+[    0.371454] mt6323-regulator mt6323-regulator: Chip ID = 0x2023
+[    0.371849] input: mtk-pmic-keys as /devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-keys/input/input1
+[    0.373939] i2c_dev: i2c /dev entries driver
+[    0.374680] y2-pinctrl 10005000.pinctrl: before pin84 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.375811] y2-pinctrl 10005000.pinctrl: pin84 mode=1 function=i2c0
+[    0.376623] y2-pinctrl 10005000.pinctrl: before pin85 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.377744] y2-pinctrl 10005000.pinctrl: pin85 mode=1 function=i2c0
+[    0.379415] y2-pinctrl 10005000.pinctrl: before pin86 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.380554] y2-pinctrl 10005000.pinctrl: pin86 mode=1 function=i2c1
+[    0.381365] y2-pinctrl 10005000.pinctrl: before pin87 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.382486] y2-pinctrl 10005000.pinctrl: pin87 mode=1 function=i2c1
+[    0.384382] y2-pinctrl 10005000.pinctrl: pin55 mode=0 function=eint
+[    0.385391] input: APT32F click-wheel as /devices/platform/11007000.i2c/i2c-0/0-0051/input/input2
+[    0.386879] y2-pinctrl 10005000.pinctrl: pin124 mode=1 function=msdc1
+[    0.387723] y2-pinctrl 10005000.pinctrl: pin125 mode=1 function=msdc1
+[    0.388554] y2-pinctrl 10005000.pinctrl: pin126 mode=1 function=msdc1
+[    0.389385] y2-pinctrl 10005000.pinctrl: pin127 mode=1 function=msdc1
+[    0.390215] y2-pinctrl 10005000.pinctrl: pin128 mode=1 function=msdc1
+[    0.391045] y2-pinctrl 10005000.pinctrl: pin129 mode=1 function=msdc1
+[    0.392182] mtk-msdc 11240000.mmc: MSDC 26MHz crystal; inherited rails; policy=removable SD writable
+[    0.393770] input: mt6582-keypad as /devices/platform/10011000.keypad/input/input3
+[    0.395420] y2-backlight 1000d000.pwrap:backlight: four ISINK PWM; max duty=32/32 inherited current step=5 unchanged
+[    0.397349] NET: Registered PF_PACKET protocol family
+[    0.398135] Registering SWP/SWPB emulation handler
+[    0.410842] clk: Disabling unused clocks
+[    0.433560] Freeing unused kernel image (initmem) memory: 196K
+[    0.434329] Kernel memory protection not selected by kernel config.
+[    0.435133] Run /init as init process
+[    0.435608]   with arguments:
+[    0.435996]     /init
+[    0.436297]   with environment:
+[    0.436706]     HOME=/
+[    0.437017]     TERM=linux
+[    0.480034] Y2ROOT: rescue active; searching removable SD LABEL=Y2ROOT
+[    0.801799] mmc0: Host Software Queue enabled
+[    0.802414] mmc0: new SDXC card at address aaaa
+[    0.804159] mmcblk0: mmc0:aaaa SD128 119 GiB
+[    0.808875]  mmcblk0: p1
+[    4.514047] Y2DISPLAY: finit_module begin on CPU1
+[    4.519065] mediatek-drm mediatek-drm.1.auto: Adding component match for /ovl@14007000
+[    4.520167] mediatek-drm mediatek-drm.1.auto: Adding component match for /rdma@14008000
+[    4.521245] mediatek-drm mediatek-drm.1.auto: Adding component match for /color@1400b000
+[    4.522407] mediatek-drm mediatek-drm.1.auto: Adding component match for /dsi@1400c000
+[    4.523931] mtk-dsi 1400c000.dsi: handoff: acquire PHY
+[    4.524615] mediatek-mipi-tx 10010000.mipi-tx: PHY entry CON0=00000011 CON1=00000003 CON2=3c000000 PWR=00000101 CON=00000403 lanes=00000001
+[    4.526217] mediatek-mipi-tx 10010000.mipi-tx: adopting live LK PHY unchanged; inherited rate unknown
+[    4.527405] mtk-dsi 1400c000.dsi: handoff: clocks on; park video
+[    4.553315] mtk-dsi 1400c000.dsi: inherited DSI parked; releasing PHY before Linux modeset
+[    4.554396] mtk-dsi 1400c000.dsi: handoff: released PHY, result=0
+[    4.555216] mtk-dsi 1400c000.dsi: handoff: register host/panel
+[    4.556064] /dsi@1400c000: Fixed dependency cycle(s) with /dsi@1400c000/panel@0
+[    4.557145] /dsi@1400c000/panel@0: Fixed dependency cycle(s) with /dsi@1400c000
+[    4.558331] y2-pinctrl 10005000.pinctrl: before pin112 mux=1 dir=1 pull=0/0 input=1 IES=0000ffff
+[    4.559471] y2-pinctrl 10005000.pinctrl: pin112 mode=1 function=lcm-reset
+[    4.560780] mediatek-drm mediatek-drm.1.auto: bound 14007000.ovl (ops mtk_disp_ovl_component_ops [mediatek_drm])
+[    4.562190] mediatek-drm mediatek-drm.1.auto: bound 14008000.rdma (ops mtk_disp_rdma_component_ops [mediatek_drm])
+[    4.563599] mediatek-drm mediatek-drm.1.auto: bound 1400b000.color (ops mtk_disp_color_component_ops [mediatek_drm])
+[    4.565039] mediatek-drm mediatek-drm.1.auto: bound 1400c000.dsi (ops mtk_dsi_component_ops [mediatek_drm])
+[    4.567188] [drm] Initialized mediatek 1.0.0 for mediatek-drm.1.auto on minor 0
+[    4.568949] mediatek-mipi-tx 10010000.mipi-tx: PHY entry CON0=00000000 CON1=00000003 CON2=3c000000 PWR=00000002 CON=00000400 lanes=00000000
+[    4.589956] mediatek-mipi-tx 10010000.mipi-tx: Linux PHY powered at 338000000Hz
+[    4.589976] mtk-dsi 1400c000.dsi: modeset: PHY/clocks ready, initialize DSI
+[    4.589989] mtk-dsi 1400c000.dsi: modeset: DSI command engine ready
+[    4.590019] (NULL device *): Y2SCAN inherited mutex0 en=00000001 get=00000000 mod=00000488 sof=00000001; clear parked ownership
+[    4.603527] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=03ff0001
+[    4.616854] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=03ff0001
+[    4.633206] Console: switching to colour frame buffer device 60x45
+[    4.633280] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00130001
+[    4.684890] mediatek-drm mediatek-drm.1.auto: [drm] fb0: mediatekdrmfb frame buffer device
+[    4.689161] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00080001
+[    4.699583] Y2DISPLAY: finit_module result=0
+[    4.863316] mtk-dsi 1400c000.dsi: Y2SCAN sample=0 vblank=18 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+[    4.870135] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+[    4.877290] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+[    5.923323] mtk-dsi 1400c000.dsi: Y2SCAN sample=1 vblank=86 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+[    5.930081] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+[    5.937177] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+[    6.963331] mtk-dsi 1400c000.dsi: Y2SCAN sample=2 vblank=154 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+[    6.970080] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+[    6.977150] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+[    8.003340] mtk-dsi 1400c000.dsi: Y2SCAN sample=3 vblank=221 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+[    8.010078] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+[    8.017180] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+[    8.672017] Y2PATTERN white/red/green/blue + checkerboard: 480x360 bpp=32 pitch=1920 DMA=00000000 allocation=691200 FNV-before=86209887 after=a40f4cc5 expected=a40f4cc5 match=yes; PHYSICAL VISIBILITY STILL REQUIRES OWNER OBSERVATION
+[   10.673399] Y2USB stage=1 result=0
+[   10.675277] Y2USB stage=1 result=0
+[   10.676832] Y2USB fresh power=0/7 CHR=0063 clock=0/f USB=0/1fffff
+[   10.679777] Y2USB stage=3 result=0
+[   10.681842] Y2USB PHY00 saved=6e session=6e
+[   10.683468] Y2USB PHY05 saved=44 session=44
+[   10.685062] Y2USB PHY15 saved=10 session=10
+[   10.686639] Y2USB PHY1a saved=10 session=10
+[   10.688194] Y2USB PHY1d saved=00 session=00
+[   10.689731] Y2USB PHY22 saved=00 session=00
+[   10.691251] Y2USB PHY63 saved=00 session=00
+[   10.692751] Y2USB stage=4 result=0
+[   10.694477] using host ethernet address: 02:42:00:00:00:02
+[   10.694487] using self ethernet address: 02:42:00:00:00:01
+[   10.697606] g_cdc gadget.0: HOST MAC 02:42:00:00:00:02
+[   10.701827] g_cdc gadget.0: MAC 02:42:00:00:00:01
+[   10.703451] g_cdc gadget.0: CDC Composite Gadget, version: King Kamehameha Day 2008
+[   10.706299] g_cdc gadget.0: g_cdc ready
+[   10.707861] Y2USB stage=5 result=0
+[   11.223395] Y2USB stage=6 result=0
+[   12.596120] regulator regulator.9: regulator VCAMA doesn't support get_mode
+[   12.599259] regulator regulator.21: regulator VRTC doesn't support get_mode
+[   12.603148] backlight y2-backlight: Y2SCAN backlight enable=00ff pwm=1f00 current=5000
+[   20.496699] Y2ABI begin: Thumb signal return, kuser helpers, glibc TLS/threads and VFP
+
+[   20.500753] Y2ABI Thumb signal delivery/return OK
+
+[   20.503352] Y2ABI kuser memory barrier and TLS OK
+
+[   20.512961] Y2ABI PASS: glibc thread/TLS, VFP, clock and allocator
+
+[   22.205385] EXT4-fs (mmcblk0p1): INFO: recovery required on readonly filesystem
+[   22.208097] EXT4-fs (mmcblk0p1): write access will be enabled during recovery
+[   24.237075] EXT4-fs (mmcblk0p1): orphan cleanup on readonly fs
+[   24.239835] EXT4-fs (mmcblk0p1): recovery complete
+[   24.248056] EXT4-fs (mmcblk0p1): mounted filesystem 79324c69-6e75-4801-8000-000000000001 ro with ordered data mode. Quota mode: disabled.
+[   25.417027] EXT4-fs (mmcblk0p1): re-mounted 79324c69-6e75-4801-8000-000000000001 r/w.
+[   25.420525] Y2ROOT: verified /dev/mmcblk0p1; switching to Buildroot
+[   27.003662] EXT4-fs (mmcblk0p1): re-mounted 79324c69-6e75-4801-8000-000000000001.
+[   28.103266] Y2NET: usb0 10.42.0.1/24 ready; address persists across cable reconnect
+[   29.804316] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00050001
+[   30.006446] Y2PATTERN white/red/green/blue + checkerboard: 480x360 bpp=32 pitch=1920 DMA=00000000 allocation=691200 FNV-before=b9aabb87 after=feb0b6c5 expected=a40f4cc5 match=NO; PHYSICAL VISIBILITY STILL REQUIRES OWNER OBSERVATION
+[   33.093547] random: crng init done
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/class/drm =====
+total 0
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 .
+drwxr-xr-x   21 root     root             0 Jan  1 00:00 ..
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 card0 -> ../../devices/platform/14000000.syscon/mediatek-drm.1.auto/drm/card0
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 card0-DSI-1 -> ../../devices/platform/14000000.syscon/mediatek-drm.1.auto/drm/card0/card0-DSI-1
+-r--r--r--    1 root     root          4096 Jan  1 00:00 version
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/class/graphics =====
+total 0
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 .
+drwxr-xr-x   21 root     root             0 Jan  1 00:00 ..
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 fb0 -> ../../devices/platform/14000000.syscon/mediatek-drm.1.auto/graphics/fb0
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 fbcon -> ../../devices/virtual/graphics/fbcon
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/class/input =====
+total 0
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 .
+drwxr-xr-x   21 root     root             0 Jan  1 00:00 ..
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 event0 -> ../../devices/platform/navigation-keys/input/input0/event0
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 event1 -> ../../devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-keys/input/input1/event1
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 event2 -> ../../devices/platform/11007000.i2c/i2c-0/0-0051/input/input2/event2
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 event3 -> ../../devices/platform/10011000.keypad/input/input3/event3
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 input0 -> ../../devices/platform/navigation-keys/input/input0
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 input1 -> ../../devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-keys/input/input1
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 input2 -> ../../devices/platform/11007000.i2c/i2c-0/0-0051/input/input2
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 input3 -> ../../devices/platform/10011000.keypad/input/input3
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/class/backlight =====
+total 0
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 .
+drwxr-xr-x   21 root     root             0 Jan  1 00:00 ..
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 y2-backlight -> ../../devices/platform/1000d000.pwrap/1000d000.pwrap:backlight/backlight/y2-backlight
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/class/power_supply =====
+total 0
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 .
+drwxr-xr-x   21 root     root             0 Jan  1 00:00 ..
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 y2-usb-presence -> ../../devices/platform/1000d000.pwrap/power_supply/y2-usb-presence
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/class/rtc =====
+ls: /sys/class/rtc: No such file or directory
+
+===== EXIT 1 =====
+
+===== COMMAND: ls -la /sys/class/mmc_host =====
+total 0
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 .
+drwxr-xr-x   21 root     root             0 Jan  1 00:00 ..
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 mmc0 -> ../../devices/platform/11240000.mmc/mmc_host/mmc0
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/bus/mmc/devices =====
+total 0
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 .
+drwxr-xr-x    4 root     root             0 Jan  1 00:00 ..
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 mmc0:aaaa -> ../../../devices/platform/11240000.mmc/mmc_host/mmc0/mmc0:aaaa
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/bus/i2c/devices =====
+total 0
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 .
+drwxr-xr-x    4 root     root             0 Jan  1 00:00 ..
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 0-0051 -> ../../../devices/platform/11007000.i2c/i2c-0/0-0051
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 i2c-0 -> ../../../devices/platform/11007000.i2c/i2c-0
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 i2c-1 -> ../../../devices/platform/11008000.i2c/i2c-1
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/devices/system/cpu =====
+total 0
+drwxr-xr-x    8 root     root             0 Jan  1 00:00 .
+drwxr-xr-x    6 root     root             0 Jan  1 00:00 ..
+drwxr-xr-x    4 root     root             0 Jan  1 00:00 cpu0
+drwxr-xr-x    4 root     root             0 Jan  1 00:00 cpu1
+drwxr-xr-x    4 root     root             0 Jan  1 00:00 cpu2
+drwxr-xr-x    4 root     root             0 Jan  1 00:00 cpu3
+-r--r--r--    1 root     root          4096 Jan  1 00:00 enabled
+-r--r--r--    1 root     root          4096 Jan  1 00:00 isolated
+-r--r--r--    1 root     root          4096 Jan  1 00:00 kernel_max
+-r--r--r--    1 root     root          4096 Jan  1 00:00 modalias
+-r--r--r--    1 root     root          4096 Jan  1 00:00 offline
+-r--r--r--    1 root     root          4096 Jan  1 00:00 online
+-r--r--r--    1 root     root          4096 Jan  1 00:00 possible
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 power
+-r--r--r--    1 root     root          4096 Jan  1 00:00 present
+-rw-r--r--    1 root     root          4096 Jan  1 00:00 uevent
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 vulnerabilities
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/class/udc =====
+total 0
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 .
+drwxr-xr-x   21 root     root             0 Jan  1 00:00 ..
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 musb-hdrc.2.auto -> ../../devices/platform/musb-hdrc.2.auto/udc/musb-hdrc.2.auto
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/class/tty/ttyGS0 =====
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 /sys/class/tty/ttyGS0 -> ../../devices/virtual/tty/ttyGS0
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/class/block =====
+total 0
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 .
+drwxr-xr-x   21 root     root             0 Jan  1 00:00 ..
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 mmcblk0 -> ../../devices/platform/11240000.mmc/mmc_host/mmc0/mmc0:aaaa/block/mmcblk0
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 mmcblk0p1 -> ../../devices/platform/11240000.mmc/mmc_host/mmc0/mmc0:aaaa/block/mmcblk0/mmcblk0p1
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /dev/dri =====
+total 0
+drwxr-xr-x    2 root     root            60 Jan  1 00:00 .
+drwxr-xr-x    6 root     root          2040 Jan  1 00:00 ..
+crw-------    1 root     root      226,   0 Jan  1 00:00 card0
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /dev/input =====
+total 0
+drwxr-xr-x    2 root     root           120 Jan  1 00:00 .
+drwxr-xr-x    6 root     root          2040 Jan  1 00:00 ..
+crw-------    1 root     root       13,  64 Jan  1 00:00 event0
+crw-------    1 root     root       13,  65 Jan  1 00:00 event1
+crw-------    1 root     root       13,  66 Jan  1 00:00 event2
+crw-------    1 root     root       13,  67 Jan  1 00:00 event3
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /lib/modules =====
+total 16
+drwxr-xr-x    4 root     root          4096 Jan  1  1970 .
+drwxr-xr-x    3 root     root          4096 Aug 23  2026 ..
+drwxr-xr-x    3 root     root          4096 Aug 23  2026 6.18.0-y2linux-dev01
+drwxr-xr-x    3 root     root          4096 Jan  1  1970 6.18.0-y2linux-dev02
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/kernel/debug/dri =====
+total 0
+drwxr-xr-x    4 root     root             0 Jan  1 00:00 .
+drwx------   18 root     root             0 Jan  1 00:00 ..
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 0 -> mediatek-drm.1.auto
+-r--r--r--    1 root     root             0 Jan  1 00:00 bridges
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 client-1
+drwxr-xr-x    5 root     root             0 Jan  1 00:00 mediatek-drm.1.auto
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/kernel/debug/regulator =====
+total 0
+drwxr-xr-x   31 root     root             0 Jan  1 00:00 .
+drwx------   18 root     root             0 Jan  1 00:00 ..
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VA
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VCAMA
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VCAMAF
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VCAMD
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VCAMIO
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VCN18
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VCN28
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VCN33_BT
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VCN33_WIFI
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VEMC3V3
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VGP1
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VGP2
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VGP3
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VIBR
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VIO18
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VIO28
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VM
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VMC
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VMCH
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VPA
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VPROC
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VRF18
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VRTC
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VSIM1
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VSIM2
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VSYS
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VTCXO
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 mt6323-regulator-VUSB
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 reg-dummy-regulator-dummy
+-r--r--r--    1 root     root             0 Jan  1 00:00 regulator_summary
+-r--r--r--    1 root     root             0 Jan  1 00:00 supply_map
+
+===== EXIT 0 =====
+
+===== COMMAND: ls -la /sys/class/vtconsole =====
+total 0
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 .
+drwxr-xr-x   21 root     root             0 Jan  1 00:00 ..
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 vtcon0 -> ../../devices/virtual/vtconsole/vtcon0
+lrwxrwxrwx    1 root     root             0 Jan  1 00:00 vtcon1 -> ../../devices/virtual/vtconsole/vtcon1
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /etc/os-release =====
+NAME=Buildroot
+VERSION=-g2efcdc1-dirty
+ID=buildroot
+VERSION_ID=2025.02.17
+PRETTY_NAME="Buildroot 2025.02.17"
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /etc/inittab =====
+# /etc/inittab
+#
+# Copyright (C) 2001 Erik Andersen <andersen@codepoet.org>
+#
+# Note: BusyBox init doesn't support runlevels.  The runlevels field is
+# completely ignored by BusyBox init. If you want runlevels, use
+# sysvinit.
+#
+# Format for each entry: <id>:<runlevels>:<action>:<process>
+#
+# id        == tty to run on, or empty for /dev/console
+# runlevels == ignored
+# action    == one of sysinit, respawn, askfirst, wait, and once
+# process   == program to run
+
+# Startup the system
+::sysinit:/bin/mount -t proc proc /proc
+::sysinit:/bin/mount -o remount,rw /
+::sysinit:/bin/mkdir -p /dev/pts /dev/shm
+::sysinit:/bin/mount -a
+::sysinit:/bin/mkdir -p /run/lock/subsys
+::sysinit:/sbin/swapon -a
+null::sysinit:/bin/ln -sf /proc/self/fd /dev/fd
+null::sysinit:/bin/ln -sf /proc/self/fd/0 /dev/stdin
+null::sysinit:/bin/ln -sf /proc/self/fd/1 /dev/stdout
+null::sysinit:/bin/ln -sf /proc/self/fd/2 /dev/stderr
+::sysinit:/bin/hostname -F /etc/hostname
+# now run any rc scripts
+::sysinit:/etc/init.d/rcS
+
+# Put a getty on the serial port
+#ttyS0::respawn:/sbin/getty -L ttyS0 115200 vt100 # GENERIC_SERIAL
+
+# Stuff to do for the 3-finger salute
+#::ctrlaltdel:/sbin/reboot
+
+# Stuff to do before rebooting
+::shutdown:/etc/init.d/rcK
+::shutdown:/sbin/swapoff -a
+::shutdown:/bin/umount -a -r
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /etc/fstab =====
+# Rescue resolves this label only on the removable 11240000.mmc host.
+LABEL=Y2ROOT / ext4 rw,noauto 0 1
+proc /proc proc defaults 0 0
+sysfs /sys sysfs defaults 0 0
+devpts /dev/pts devpts defaults,gid=5,mode=620,ptmxmode=0666 0 0
+tmpfs /dev/shm tmpfs mode=1777 0 0
+tmpfs /tmp tmpfs mode=1777 0 0
+tmpfs /run tmpfs mode=0755,nosuid,nodev 0 0
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /etc/network/interfaces =====
+# interface file auto-generated by buildroot
+
+auto lo
+iface lo inet loopback
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /etc/default/dropbear =====
+# Disable all password authentication; retain root public-key login.
+DROPBEAR_ARGS="-s -g -j -k -p 10.42.0.1:22"
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /proc/1/mountinfo =====
+16 24 0:14 / /proc rw,relatime - proc proc rw
+17 24 0:15 / /sys rw,relatime - sysfs sysfs rw
+18 24 0:6 / /dev rw,relatime - devtmpfs devtmpfs rw,size=476468k,nr_inodes=119117,mode=755
+19 18 0:16 / /dev/pts rw,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=666
+20 24 0:17 / /run rw,nosuid,nodev,relatime - tmpfs tmpfs rw
+21 24 0:18 / /tmp rw,relatime - tmpfs tmpfs rw
+22 17 0:7 / /sys/kernel/debug rw,relatime - debugfs debugfs rw
+24 2 179:1 / / rw,relatime - ext4 /dev/mmcblk0p1 rw
+25 16 0:20 / /proc rw,relatime - proc proc rw
+26 18 0:21 / /dev/shm rw,relatime - tmpfs tmpfs rw
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /proc/bus/input/devices =====
+I: Bus=0019 Vendor=0001 Product=0001 Version=0100
+N: Name="Y2 navigation buttons"
+P: Phys=gpio-keys-polled/input0
+S: Sysfs=/devices/platform/navigation-keys/input/input0
+U: Uniq=
+H: Handlers=kbd event0 
+B: PROP=0
+B: EV=3
+B: KEY=10 40000000 600 0 0 10000000
+
+I: Bus=0019 Vendor=0001 Product=0001 Version=0001
+N: Name="mtk-pmic-keys"
+P: Phys=
+S: Sysfs=/devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-keys/input/input1
+U: Uniq=
+H: Handlers=kbd event1 
+B: PROP=0
+B: EV=3
+B: KEY=100000 0 0 0
+
+I: Bus=0018 Vendor=0000 Product=0000 Version=0000
+N: Name="APT32F click-wheel"
+P: Phys=
+S: Sysfs=/devices/platform/11007000.i2c/i2c-0/0-0051/input/input2
+U: Uniq=
+H: Handlers=kbd event2 
+B: PROP=0
+B: EV=3
+B: KEY=3180 0 0 0
+
+I: Bus=0019 Vendor=0000 Product=0000 Version=0000
+N: Name="mt6582-keypad"
+P: Phys=
+S: Sysfs=/devices/platform/10011000.keypad/input/input3
+U: Uniq=
+H: Handlers=kbd event3 
+B: PROP=0
+B: EV=3
+B: KEY=c0000 0 0 0
+
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /proc/modules =====
+mediatek_drm 110592 - - Live 0xbf000000
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /proc/buddyinfo =====
+Node 0, zone   Normal      6      6      5      7     10      6      6      0      2      3    170 
+Node 0, zone  HighMem      1      1      4      0      3      0      0      2      1      2     52 
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/devices/system/cpu/online =====
+0-3
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/devices/system/cpu/possible =====
+0-3
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/kernel/debug/devices_deferred =====
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/kernel/debug/clk/clk_summary =====
+                                 enable  prepare  protect                                duty  hardware                            connection
+   clock                          count    count    count        rate   accuracy phase  cycle    enable   consumer                         id
+---------------------------------------------------------------------------------------------------------------------------------------------
+ clock-uart                          1       1        0        26000000    0          0     50000      Y   11002000.serial                 no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ clock-rtc                           0       0        0        32000       0          0     50000      Y   deviceless                      no_connection_id         
+ clock-system                        1       1        0        13000000    0          0     50000      Y   timer@10008000                  no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ y2-rtc32k                           1       1        0        32768       0          0     50000      Y   deviceless                      no_connection_id         
+    mm_mutex_32k                     1       1        0        32768       0          0     50000      Y      1400e000.mutex                  no_connection_id         
+                                                                                                              deviceless                      no_connection_id         
+ clk26m                              4       5        1        26000000    0          0     50000      Y   10010000.mipi-tx                no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+    mm_dsi_digital                   1       1        0        26000000    0          0     50000      Y      1400c000.dsi                    digital                  
+                                                                                                              deviceless                      no_connection_id         
+    mipi_tx0_pll                     1       1        1        338000000   0          0     50000      Y      1400c000.dsi                    hs                       
+                                                                                                              deviceless                      no_connection_id         
+    y2-msdc1-source                  0       0        0        26000000    0          0     50000      Y      11240000.mmc                    source                   
+                                                                                                              deviceless                      no_connection_id         
+       y2-msdc1                      0       0        0        26000000    0          0     50000      Y         11240000.mmc                    source_cg                
+                                                                                                                 11240000.mmc                    hclk                     
+                                                                                                                 deviceless                      no_connection_id         
+    y2-msdc0-source                  0       0        0        0           0          0     50000      Y      deviceless                      no_connection_id         
+       y2-msdc0                      0       0        0        0           0          0     50000      Y         deviceless                      no_connection_id         
+    y2-kp                            1       1        0        26000000    0          0     50000      Y      10011000.keypad                 no_connection_id         
+                                                                                                              deviceless                      no_connection_id         
+    y2-pwrap                         1       1        0        26000000    0          0     50000      Y      1000d000.pwrap                  no_connection_id         
+                                                                                                              deviceless                      no_connection_id         
+    y2-axi                           0       3        0        273000000   0          0     50000      Y      deviceless                      no_connection_id         
+       y2-apdma                      0       2        0        273000000   0          0     50000      Y         11008000.i2c                    dma                      
+                                                                                                                 11007000.i2c                    dma                      
+                                                                                                                 deviceless                      no_connection_id         
+       y2-i2c1                       0       1        0        273000000   0          0     50000      Y         11008000.i2c                    main                     
+                                                                                                                 deviceless                      no_connection_id         
+       y2-i2c0                       0       1        0        273000000   0          0     50000      Y         11007000.i2c                    main                     
+                                                                                                                 deviceless                      no_connection_id         
+    y2-msdcpll                       0       0        0        399999542   0          0     50000      Y      deviceless                      no_connection_id         
+    y2-mmpll                         0       0        0        500500000   0          0     50000      Y      deviceless                      no_connection_id         
+    y2-univpll                       0       0        0        1248000000  0          0     50000      Y      deviceless                      no_connection_id         
+    y2-mainpll                       0       0        0        1092000000  0          0     50000      Y      deviceless                      no_connection_id         
+    y2-armpll                        0       0        0        1040000000  0          0     50000      Y      deviceless                      no_connection_id         
+ mm_dpi_engine                       0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_dpi_digital_lane                 0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_dsi_engine                       1       1        0        0           0          0     50000      Y   1400c000.dsi                    engine                   
+                                                                                                           deviceless                      no_connection_id         
+ mm_fake_eng                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_cam_mdp                          0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_bls_26m                      0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_rdma                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_rsz0                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_rsz1                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_wdma                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_wrot                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_tdshp                        0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_disp_ovl                         1       1        0        0           0          0     50000      Y   14007000.ovl                    no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ mm_disp_rdma                        1       1        0        0           0          0     50000      Y   14008000.rdma                   no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ mm_disp_wdma                        0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_disp_bls                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_disp_color                       1       1        0        0           0          0     50000      Y   1400b000.color                  no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ mm_mutex                            1       1        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_cmdq                             0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_smi_larb0                        1       1        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_smi_common                       1       1        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/kernel/debug/regulator/regulator_summary =====
+ regulator                      use open bypass  opmode voltage current     min     max
+---------------------------------------------------------------------------------------
+ regulator-dummy                  1    0      0 unknown     0mV     0mA     0mV     0mV 
+ VPROC                            0    0      0 unknown  1150mV     0mA     0mV     0mV 
+ VSYS                             0    0      0 unknown  2200mV     0mA     0mV     0mV 
+ VPA                              0    0      0 unknown   500mV     0mA     0mV     0mV 
+ VTCXO                            0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VCN28                            0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VCN33_BT                         0    0      0  normal  3600mV     0mA     0mV     0mV 
+ VCN33_WIFI                       0    0      0  normal  3600mV     0mA     0mV     0mV 
+ VA                               0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VCAMA                            0    0      0 unknown  2800mV     0mA     0mV     0mV 
+ VIO28                            0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VUSB                             0    0      0  normal  3300mV     0mA  3300mV  3300mV 
+ VMC                              0    0      0  normal  3300mV     0mA     0mV     0mV 
+ VMCH                             0    0      0  normal  3300mV     0mA     0mV     0mV 
+ VEMC3V3                          0    0      0  normal  3300mV     0mA     0mV     0mV 
+ VGP1                             0    0      0  normal  2800mV     0mA     0mV     0mV 
+ VGP2                             0    0      0  normal  2500mV     0mA     0mV     0mV 
+ VGP3                             0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VCN18                            0    0      0  normal  1800mV     0mA  1800mV  1800mV 
+ VSIM1                            0    0      0  normal  1800mV     0mA     0mV     0mV 
+ VSIM2                            0    0      0  normal  1800mV     0mA     0mV     0mV 
+ VRTC                             0    0      0 unknown  2800mV     0mA  2800mV  2800mV 
+ VCAMAF                           0    0      0  normal  2000mV     0mA     0mV     0mV 
+ VIBR                             0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VRF18                            0    0      0  normal  1825mV     0mA  1825mV  1825mV 
+ VM                               0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VIO18                            0    0      0  normal  1800mV     0mA  1800mV  1800mV 
+ VCAMD                            0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VCAMIO                           0    0      0  normal  1800mV     0mA  1800mV  1800mV 
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/kernel/debug/dri/0/state =====
+plane[35]: plane-0
+	crtc=crtc-0
+	fb=56
+		allocated by = [fbcon]
+		refcount=2
+		format=XR24 little-endian (0x34325258)
+		modifier=0x0
+		size=480x360
+		layers:
+			size[0]=480x360
+			pitch[0]=1920
+			offset[0]=0
+			obj[0]:
+				name=0
+				refcount=3
+				start=00000000
+				size=692224
+				imported=no
+	crtc-pos=480x360+0+0
+	src-pos=480.000000x360.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=0
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+plane[40]: plane-1
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=1
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+plane[45]: plane-2
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=2
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+plane[50]: plane-3
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=3
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+crtc[55]: crtc-0
+	enable=1
+	active=1
+	self_refresh_active=0
+	planes_changed=1
+	mode_changed=0
+	active_changed=0
+	connectors_changed=0
+	color_mgmt_changed=0
+	plane_mask=1
+	connector_mask=1
+	encoder_mask=1
+	mode: "480x360": 63 27362 480 680 690 890 360 420 428 488 0x48 0x0
+connector[34]: DSI-1
+	crtc=crtc-0
+	self_refresh_aware=0
+	interlace_allowed=0
+	ycbcr_420_allowed=0
+	max_requested_bpc=0
+	colorspace=Default
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/kernel/debug/dri/mediatek-drm.1.auto/state =====
+plane[35]: plane-0
+	crtc=crtc-0
+	fb=56
+		allocated by = [fbcon]
+		refcount=2
+		format=XR24 little-endian (0x34325258)
+		modifier=0x0
+		size=480x360
+		layers:
+			size[0]=480x360
+			pitch[0]=1920
+			offset[0]=0
+			obj[0]:
+				name=0
+				refcount=3
+				start=00000000
+				size=692224
+				imported=no
+	crtc-pos=480x360+0+0
+	src-pos=480.000000x360.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=0
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+plane[40]: plane-1
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=1
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+plane[45]: plane-2
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=2
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+plane[50]: plane-3
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=3
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+crtc[55]: crtc-0
+	enable=1
+	active=1
+	self_refresh_active=0
+	planes_changed=1
+	mode_changed=0
+	active_changed=0
+	connectors_changed=0
+	color_mgmt_changed=0
+	plane_mask=1
+	connector_mask=1
+	encoder_mask=1
+	mode: "480x360": 63 27362 480 680 690 890 360 420 428 488 0x48 0x0
+connector[34]: DSI-1
+	crtc=crtc-0
+	self_refresh_aware=0
+	interlace_allowed=0
+	ycbcr_420_allowed=0
+	max_requested_bpc=0
+	colorspace=Default
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/kernel/debug/dri/0/framebuffer =====
+framebuffer[56]:
+	allocated by = [fbcon]
+	refcount=2
+	format=XR24 little-endian (0x34325258)
+	modifier=0x0
+	size=480x360
+	layers:
+		size[0]=480x360
+		pitch[0]=1920
+		offset[0]=0
+		obj[0]:
+			name=0
+			refcount=3
+			start=00000000
+			size=692224
+			imported=no
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/kernel/debug/dri/mediatek-drm.1.auto/framebuffer =====
+framebuffer[56]:
+	allocated by = [fbcon]
+	refcount=2
+	format=XR24 little-endian (0x34325258)
+	modifier=0x0
+	size=480x360
+	layers:
+		size[0]=480x360
+		pitch[0]=1920
+		offset[0]=0
+		obj[0]:
+			name=0
+			refcount=3
+			start=00000000
+			size=692224
+			imported=no
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/kernel/debug/dri/0/clients =====
+             command  tgid dev master a   uid      magic                                                             name                   id
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/kernel/debug/dri/mediatek-drm.1.auto/clients =====
+             command  tgid dev master a   uid      magic                                                             name                   id
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/kernel/debug/dri/0/gem_names =====
+  name     size handles refcount
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/kernel/debug/dri/mediatek-drm.1.auto/gem_names =====
+  name     size handles refcount
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/drm/card0-DSI-1/status =====
+connected
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/drm/card0-DSI-1/modes =====
+480x360
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/drm/card0-DSI-1/enabled =====
+enabled
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/graphics/fb0/name =====
+mediatekdrmfb
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/graphics/fb0/bits_per_pixel =====
+32
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/graphics/fb0/stride =====
+1920
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/graphics/fb0/virtual_size =====
+480,360
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/graphics/fb0/modes =====
+U:480x360p-0
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/graphics/fb0/blank =====
+0
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/vtconsole/vtcon0/name =====
+(S) dummy device
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/vtconsole/vtcon1/name =====
+(M) frame buffer device
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/vtconsole/vtcon0/bind =====
+0
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/vtconsole/vtcon1/bind =====
+1
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/backlight/y2-backlight/brightness =====
+32
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/backlight/y2-backlight/actual_brightness =====
+32
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/backlight/y2-backlight/max_brightness =====
+32
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/backlight/y2-backlight/bl_power =====
+0
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/bus/mmc/devices/mmc0:aaaa/type =====
+SD
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/bus/mmc/devices/mmc0:aaaa/name =====
+SD128
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/bus/mmc/devices/mmc0:aaaa/cid =====
+035344534431323885d04dba410192c7
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/bus/mmc/devices/mmc0:aaaa/csd =====
+400e00325b590003b8ab7f800a404079
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/bus/mmc/devices/mmc0:aaaa/uevent =====
+DRIVER=mmcblk
+MMC_TYPE=SD
+MMC_NAME=SD128
+MODALIAS=mmc:block
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/block/mmcblk0/ro =====
+0
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/block/mmcblk0p1/ro =====
+0
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/block/mmcblk0/removable =====
+0
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/bus/i2c/devices/0-0051/name =====
+apt32f-wheel
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/bus/i2c/devices/i2c-0/name =====
+i2c-mt65xx
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/bus/i2c/devices/i2c-1/name =====
+i2c-mt65xx
+
+===== EXIT 0 =====
+
+===== COMMAND: cat /sys/class/udc/musb-hdrc.2.auto/state =====
+configured
+
+===== EXIT 0 =====
+
+===== COMMAND: readlink /proc/1/exe =====
+/bin/busybox
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c tr "\000" " " < /proc/1/cmdline; echo =====
+init       
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c for f in /etc/init.d/*; do echo "===== $f ====="; cat "$f"; done =====
+===== /etc/init.d/S00y2-runtime =====
+#!/bin/sh
+# Rescue moves these mounts into Y2ROOT; mount -a skips existing mounts.
+# Reapply the declared development permissions before starting services.
+[ "$1" = start ] || exit 0
+set -eu
+mount -t tmpfs -o remount,mode=0755,nosuid,nodev tmpfs /run
+# tmpfs remount does not change the existing root inode's mode.
+chmod 0755 /run
+mount -t devpts -o remount,gid=5,mode=620,ptmxmode=0666 devpts /dev/pts
+===== /etc/init.d/S01seedrng =====
+#! /bin/sh
+#
+# Preserve the random seed between reboots. See urandom(4).
+#
+# This script can be called multiple times during operation (e.g. with
+# "reload" argument) to refresh the seed.
+
+# The following arguments can be added to SEEDRNG_ARGS in
+# /etc/default/seedrng:
+#   --seed-dir=/path/to/seed/directory
+#     Path to the directory where the seed and the lock files are stored.
+#     for optimal operation, this should be a persistent, writeable
+#     location. Default is /var/lib/seedrng
+#
+#  --skip-credit
+#     Set this to true only if you do not want seed files to actually
+#     credit the RNG, for example if you plan to replicate this file
+#     system image and do not have the wherewithal to first delete the
+#     contents of /var/lib/seedrng.
+#
+# Example:
+# SEEDRNG_ARGS="--seed-dir=/data/seedrng --skip-credit"
+#
+
+DAEMON="seedrng"
+SEEDRNG_ARGS=""
+
+# shellcheck source=/dev/null
+[ -r "/etc/default/$DAEMON" ] && . "/etc/default/$DAEMON"
+
+case "$1" in
+	start|stop|restart|reload)
+		# Never fail, as this isn't worth making a fuss
+		# over if it doesn't go as planned.
+		# shellcheck disable=SC2086 # we need the word splitting
+		seedrng $SEEDRNG_ARGS || true;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+esac
+===== /etc/init.d/S01syslogd =====
+#!/bin/sh
+
+DAEMON="syslogd"
+PIDFILE="/var/run/$DAEMON.pid"
+
+SYSLOGD_ARGS=""
+
+# shellcheck source=/dev/null
+[ -r "/etc/default/$DAEMON" ] && . "/etc/default/$DAEMON"
+
+# BusyBox' syslogd does not create a pidfile, so pass "-n" in the command line
+# and use "--make-pidfile" to instruct start-stop-daemon to create one.
+start() {
+	printf 'Starting %s: ' "$DAEMON"
+	# shellcheck disable=SC2086 # we need the word splitting
+	start-stop-daemon --start --background --make-pidfile \
+		--pidfile "$PIDFILE" --exec "/sbin/$DAEMON" \
+		-- -n $SYSLOGD_ARGS
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+	return "$status"
+}
+
+stop() {
+	printf 'Stopping %s: ' "$DAEMON"
+	start-stop-daemon --stop --pidfile "$PIDFILE" --exec "/sbin/$DAEMON"
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL"
+		return "$status"
+	fi
+	while start-stop-daemon --stop --test --quiet --pidfile "$PIDFILE" \
+		--exec "/sbin/$DAEMON"; do
+		sleep 0.1
+	done
+	rm -f "$PIDFILE"
+	return "$status"
+}
+
+restart() {
+	stop
+	start
+}
+
+case "$1" in
+	start|stop|restart)
+		"$1";;
+	reload)
+		# Restart, since there is no true "reload" feature.
+		restart;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+esac
+===== /etc/init.d/S01y2-observer =====
+#!/bin/sh
+case "$1" in
+ start)
+    mkdir -p /run /sys/kernel/debug
+    mountpoint -q /sys/kernel/debug || mount -t debugfs debugfs /sys/kernel/debug
+    [ -e /dev/y2diag ] || mknod -m 600 /dev/y2diag c 120 0
+    start-stop-daemon -S -b -m -p /run/y2-observer.pid -x /usr/sbin/y2-observer -- --resume
+    ;;
+ stop) start-stop-daemon -K -p /run/y2-observer.pid;;
+esac
+===== /etc/init.d/S02klogd =====
+#!/bin/sh
+
+DAEMON="klogd"
+PIDFILE="/var/run/$DAEMON.pid"
+
+KLOGD_ARGS=""
+
+# shellcheck source=/dev/null
+[ -r "/etc/default/$DAEMON" ] && . "/etc/default/$DAEMON"
+
+# BusyBox' klogd does not create a pidfile, so pass "-n" in the command line
+# and use "-m" to instruct start-stop-daemon to create one.
+start() {
+	printf 'Starting %s: ' "$DAEMON"
+	# shellcheck disable=SC2086 # we need the word splitting
+	start-stop-daemon --start --background --make-pidfile \
+		--pidfile "$PIDFILE" --exec "/sbin/$DAEMON" \
+		-- -n $KLOGD_ARGS
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+	return "$status"
+}
+
+stop() {
+	printf 'Stopping %s: ' "$DAEMON"
+	start-stop-daemon --stop --pidfile "$PIDFILE" --exec "/sbin/$DAEMON"
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL"
+		return "$status"
+	fi
+	while start-stop-daemon --stop --test --quiet --pidfile "$PIDFILE" \
+		--exec "/sbin/$DAEMON"; do
+		sleep 0.1
+	done
+	rm -f "$PIDFILE"
+	return "$status"
+}
+
+restart() {
+	stop
+	start
+}
+
+case "$1" in
+	start|stop|restart)
+		"$1";;
+	reload)
+		# Restart, since there is no true "reload" feature.
+		restart;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+esac
+===== /etc/init.d/S02sysctl =====
+#!/bin/sh
+#
+# This script is used by busybox and procps-ng.
+#
+# With procps-ng, the "--system" option of sysctl also enables "--ignore", so
+# errors are not reported via syslog. Use the run_logger function to mimic the
+# --system behavior, still reporting errors via syslog. Users not interested
+# on error reports can add "-e" to SYSCTL_ARGS.
+#
+# busybox does not have a "--system" option neither reports errors via syslog,
+# so the scripting provides a consistent behavior between the implementations.
+# Testing the busybox sysctl exit code is fruitless, as at the moment, since
+# its exit status is zero even if errors happen. Hopefully this will be fixed
+# in a future busybox version.
+
+PROGRAM="sysctl"
+
+SYSCTL_ARGS=""
+
+# shellcheck source=/dev/null
+[ -r "/etc/default/$PROGRAM" ] && . "/etc/default/$PROGRAM"
+
+# Files are read from directories in the SYSCTL_SOURCES list, in the given
+# order. A file may be used more than once, since there can be multiple
+# symlinks to it. No attempt is made to prevent this.
+SYSCTL_SOURCES="/etc/sysctl.d/ /usr/local/lib/sysctl.d/ /usr/lib/sysctl.d/ /lib/sysctl.d/ /etc/sysctl.conf"
+
+# If the logger utility is available all messages are sent to syslog, except
+# for the final status. The file redirections do the following:
+#
+# - stdout is redirected to syslog with facility.level "kern.info"
+# - stderr is redirected to syslog with facility.level "kern.err"
+# - file dscriptor 4 is used to pass the result to the "start" function.
+#
+run_logger() {
+	# shellcheck disable=SC2086 # we need the word splitting
+	find $SYSCTL_SOURCES -maxdepth 1 -name '*.conf' -print0 2> /dev/null | \
+	xargs -0 -r -n 1 readlink -f | {
+		prog_status="OK"
+		while :; do
+			read -r file || {
+				echo "$prog_status" >&4
+				break
+			}
+			echo "* Applying $file ..."
+			/sbin/sysctl $SYSCTL_ARGS -p "$file" || prog_status="FAIL"
+		done 2>&1 >&3 | /usr/bin/logger -t sysctl -p kern.err
+	} 3>&1 | /usr/bin/logger -t sysctl -p kern.info
+}
+
+# If logger is not available all messages are sent to stdout/stderr.
+run_std() {
+	# shellcheck disable=SC2086 # we need the word splitting
+	find $SYSCTL_SOURCES -maxdepth 1 -name '*.conf' -print0 2> /dev/null | \
+	xargs -0 -r -n 1 readlink -f | {
+		prog_status="OK"
+		while :; do
+			read -r file || {
+				echo "$prog_status" >&4
+				break
+			}
+			echo "* Applying $file ..."
+			/sbin/sysctl $SYSCTL_ARGS -p "$file" || prog_status="FAIL"
+		done
+	}
+}
+
+if [ -x /usr/bin/logger ]; then
+	run_program="run_logger"
+else
+	run_program="run_std"
+fi
+
+start() {
+	printf '%s %s: ' "$1" "$PROGRAM"
+	status=$("$run_program" 4>&1)
+	echo "$status"
+	if [ "$status" = "OK" ]; then
+		return 0
+	fi
+	return 1
+}
+
+case "$1" in
+	start)
+		start "Running";;
+	restart|reload)
+		start "Rerunning";;
+	stop)
+		:;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+esac
+===== /etc/init.d/S20y2-usb =====
+#!/bin/sh
+case "$1" in
+ start)
+    (
+      until ip link show usb0 >/dev/null 2>&1; do sleep 1; done
+      ip address replace 10.42.0.1/24 dev usb0
+      ip link set usb0 up
+      echo 'Y2NET: usb0 10.42.0.1/24 ready; address persists across cable reconnect' > /dev/kmsg
+    ) &
+    ;;
+ stop) ip link set usb0 down 2>/dev/null;;
+esac
+===== /etc/init.d/S25y2-pattern =====
+#!/bin/sh
+[ "$1" = start ] || exit 0
+(
+    for attempt in $(seq 1 30); do
+        if [ -e /dev/fb0 ]; then
+            sleep 2
+            # DRM scanout can be active while the fbdev blank state is 4.
+            # DEV-02 live qualification restored the visible pattern this way.
+            echo 0 > /sys/class/graphics/fb0/blank
+            /usr/sbin/y2-fbtest > /dev/kmsg 2>&1
+            exit
+        fi
+        sleep 1
+    done
+    echo 'Y2PATTERN: no fb0 within 30 seconds' > /dev/kmsg
+) &
+===== /etc/init.d/S40network =====
+#!/bin/sh
+#
+# Start the network....
+#
+
+# Debian ifupdown needs the /run/network lock directory
+mkdir -p /run/network
+
+case "$1" in
+  start)
+	printf "Starting network: "
+	/sbin/ifup -a
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	;;
+  stop)
+	printf "Stopping network: "
+	/sbin/ifdown -a
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	;;
+  restart|reload)
+	"$0" stop
+	"$0" start
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?
+
+===== /etc/init.d/S50crond =====
+#!/bin/sh
+
+DAEMON="crond"
+PIDFILE="/var/run/$DAEMON.pid"
+
+CROND_ARGS=""
+
+# shellcheck source=/dev/null
+[ -r "/etc/default/$DAEMON" ] && . "/etc/default/$DAEMON"
+
+# BusyBox' crond does not create a pidfile, so pass "-f" on the crond
+# command line and use "--make-pidfile" to instruct start-stop-daemon
+# to create one.
+start() {
+	printf 'Starting %s: ' "$DAEMON"
+	# shellcheck disable=SC2086 # we need the word splitting
+	start-stop-daemon --start --background --make-pidfile \
+		--pidfile "$PIDFILE" --exec "/usr/sbin/$DAEMON" \
+		-- -f $CROND_ARGS
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+	return "$status"
+}
+
+stop() {
+	printf 'Stopping %s: ' "$DAEMON"
+	start-stop-daemon --stop --pidfile "$PIDFILE" --exec "/usr/sbin/$DAEMON"
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+	while start-stop-daemon --stop --test --quiet --pidfile "$PIDFILE" \
+		--exec "/usr/sbin/$DAEMON"; do
+		sleep 0.1
+	done
+	rm -f "$PIDFILE"
+	return "$status"
+}
+
+restart() {
+	stop
+	start
+}
+
+case "$1" in
+	start|stop|restart)
+		"$1";;
+	reload)
+		# Restart, since there is no true "reload" feature.
+		restart;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+esac
+===== /etc/init.d/S50dropbear =====
+#!/bin/sh
+# SSH starts even when USB is first attached after init has completed.
+case "$1" in
+ start)
+    (
+      while ! ip -4 addr show dev usb0 2>/dev/null | grep -q '10.42.0.1/24'; do sleep 1; done
+      if [ ! -s /root/.ssh/authorized_keys ]; then
+        echo 'Y2SSH: no authorized public key; SSH remains disabled' > /dev/kmsg
+        exit 0
+      fi
+      umask 077
+      mkdir -p /etc/dropbear
+      . /etc/default/dropbear
+      /usr/sbin/dropbear -R $DROPBEAR_ARGS
+    ) &
+    ;;
+ stop) start-stop-daemon -K -q -p /var/run/dropbear.pid;;
+ restart) "$0" stop; "$0" start;;
+esac
+===== /etc/init.d/rcK =====
+#!/bin/sh
+#
+# Stop all init scripts in /etc/init.d
+# executing them in reversed numerical order.
+#
+# we need to reverse the order here, sort -r would be no less fragile
+# shellcheck disable=SC2045
+for i in $(ls -r /etc/init.d/S??*); do
+
+	# Ignore dangling symlinks (if any).
+	[ ! -f "$i" ] && continue
+
+	case "$i" in
+		*.sh)
+			# Source shell script for speed.
+			(
+				trap - INT QUIT TSTP
+				set stop
+				# shellcheck source=/dev/null
+				. "$i"
+			)
+			;;
+		*)
+			# No sh extension, so fork subprocess.
+			"$i" stop
+			;;
+	esac
+done
+===== /etc/init.d/rcS =====
+#!/bin/sh
+#
+# Start all init scripts in /etc/init.d
+# executing them in numerical order.
+#
+for i in /etc/init.d/S??*; do
+
+	# Ignore dangling symlinks (if any).
+	[ ! -f "$i" ] && continue
+
+	case "$i" in
+		*.sh)
+			# Source shell script for speed.
+			(
+				trap - INT QUIT TSTP
+				set start
+				# shellcheck source=/dev/null
+				. "$i"
+			)
+			;;
+		*)
+			# No sh extension, so fork subprocess.
+			"$i" start
+			;;
+	esac
+done
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c ls -la /dev /run /var/log /etc/dropbear /root/.ssh; ls -l /dev/dri/* /dev/input/* /dev/ttyGS* /dev/fb* /dev/mmc*; for f in /run/*.pid; do echo "$f"; cat "$f"; done =====
+lrwxrwxrwx    1 root     root             6 Aug 23  2026 /var/log -> ../tmp
+
+/dev:
+total 4
+drwxr-xr-x    6 root     root          2040 Jan  1 00:00 .
+drwxr-xr-x   18 root     root          4096 Jan  1  1970 ..
+crw-------    1 root     root        5,   1 Jan  1 00:00 console
+drwxr-xr-x    2 root     root            60 Jan  1 00:00 dri
+crw-------    1 root     root       29,   0 Jan  1 00:00 fb0
+lrwxrwxrwx    1 root     root            13 Jan  1 00:00 fd -> /proc/self/fd
+crw-rw-rw-    1 root     root        1,   7 Jan  1 00:00 full
+crw-------    1 root     root       89,   0 Jan  1 00:00 i2c-0
+crw-------    1 root     root       89,   1 Jan  1 00:00 i2c-1
+drwxr-xr-x    2 root     root           120 Jan  1 00:00 input
+crw-r--r--    1 root     root        1,  11 Jan  1 00:00 kmsg
+srw-rw-rw-    1 root     root             0 Jan  1 00:00 log
+brw-------    1 root     root      179,   0 Jan  1 00:00 mmcblk0
+brw-------    1 root     root      179,   1 Jan  1 00:00 mmcblk0p1
+crw-rw-rw-    1 root     root        1,   3 Jan  1 00:00 null
+crw-rw-rw-    1 root     root        5,   2 Jan  1 00:00 ptmx
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 pts
+crw-rw-rw-    1 root     root        1,   8 Jan  1 00:00 random
+drwxrwxrwt    2 root     root            40 Jan  1 00:00 shm
+lrwxrwxrwx    1 root     root            15 Jan  1 00:00 stderr -> /proc/self/fd/2
+lrwxrwxrwx    1 root     root            15 Jan  1 00:00 stdin -> /proc/self/fd/0
+lrwxrwxrwx    1 root     root            15 Jan  1 00:00 stdout -> /proc/self/fd/1
+crw-rw-rw-    1 root     root        5,   0 Jan  1 00:00 tty
+crw-------    1 root     root        4,   0 Jan  1 00:00 tty0
+crw-------    1 root     root        4,   1 Jan  1 00:00 tty1
+crw-------    1 root     root        4,  10 Jan  1 00:00 tty10
+crw-------    1 root     root        4,  11 Jan  1 00:00 tty11
+crw-------    1 root     root        4,  12 Jan  1 00:00 tty12
+crw-------    1 root     root        4,  13 Jan  1 00:00 tty13
+crw-------    1 root     root        4,  14 Jan  1 00:00 tty14
+crw-------    1 root     root        4,  15 Jan  1 00:00 tty15
+crw-------    1 root     root        4,  16 Jan  1 00:00 tty16
+crw-------    1 root     root        4,  17 Jan  1 00:00 tty17
+crw-------    1 root     root        4,  18 Jan  1 00:00 tty18
+crw-------    1 root     root        4,  19 Jan  1 00:00 tty19
+crw-------    1 root     root        4,   2 Jan  1 00:00 tty2
+crw-------    1 root     root        4,  20 Jan  1 00:00 tty20
+crw-------    1 root     root        4,  21 Jan  1 00:00 tty21
+crw-------    1 root     root        4,  22 Jan  1 00:00 tty22
+crw-------    1 root     root        4,  23 Jan  1 00:00 tty23
+crw-------    1 root     root        4,  24 Jan  1 00:00 tty24
+crw-------    1 root     root        4,  25 Jan  1 00:00 tty25
+crw-------    1 root     root        4,  26 Jan  1 00:00 tty26
+crw-------    1 root     root        4,  27 Jan  1 00:00 tty27
+crw-------    1 root     root        4,  28 Jan  1 00:00 tty28
+crw-------    1 root     root        4,  29 Jan  1 00:00 tty29
+crw-------    1 root     root        4,   3 Jan  1 00:00 tty3
+crw-------    1 root     root        4,  30 Jan  1 00:00 tty30
+crw-------    1 root     root        4,  31 Jan  1 00:00 tty31
+crw-------    1 root     root        4,  32 Jan  1 00:00 tty32
+crw-------    1 root     root        4,  33 Jan  1 00:00 tty33
+crw-------    1 root     root        4,  34 Jan  1 00:00 tty34
+crw-------    1 root     root        4,  35 Jan  1 00:00 tty35
+crw-------    1 root     root        4,  36 Jan  1 00:00 tty36
+crw-------    1 root     root        4,  37 Jan  1 00:00 tty37
+crw-------    1 root     root        4,  38 Jan  1 00:00 tty38
+crw-------    1 root     root        4,  39 Jan  1 00:00 tty39
+crw-------    1 root     root        4,   4 Jan  1 00:00 tty4
+crw-------    1 root     root        4,  40 Jan  1 00:00 tty40
+crw-------    1 root     root        4,  41 Jan  1 00:00 tty41
+crw-------    1 root     root        4,  42 Jan  1 00:00 tty42
+crw-------    1 root     root        4,  43 Jan  1 00:00 tty43
+crw-------    1 root     root        4,  44 Jan  1 00:00 tty44
+crw-------    1 root     root        4,  45 Jan  1 00:00 tty45
+crw-------    1 root     root        4,  46 Jan  1 00:00 tty46
+crw-------    1 root     root        4,  47 Jan  1 00:00 tty47
+crw-------    1 root     root        4,  48 Jan  1 00:00 tty48
+crw-------    1 root     root        4,  49 Jan  1 00:00 tty49
+crw-------    1 root     root        4,   5 Jan  1 00:00 tty5
+crw-------    1 root     root        4,  50 Jan  1 00:00 tty50
+crw-------    1 root     root        4,  51 Jan  1 00:00 tty51
+crw-------    1 root     root        4,  52 Jan  1 00:00 tty52
+crw-------    1 root     root        4,  53 Jan  1 00:00 tty53
+crw-------    1 root     root        4,  54 Jan  1 00:00 tty54
+crw-------    1 root     root        4,  55 Jan  1 00:00 tty55
+crw-------    1 root     root        4,  56 Jan  1 00:00 tty56
+crw-------    1 root     root        4,  57 Jan  1 00:00 tty57
+crw-------    1 root     root        4,  58 Jan  1 00:00 tty58
+crw-------    1 root     root        4,  59 Jan  1 00:00 tty59
+crw-------    1 root     root        4,   6 Jan  1 00:00 tty6
+crw-------    1 root     root        4,  60 Jan  1 00:00 tty60
+crw-------    1 root     root        4,  61 Jan  1 00:00 tty61
+crw-------    1 root     root        4,  62 Jan  1 00:00 tty62
+crw-------    1 root     root        4,  63 Jan  1 00:00 tty63
+crw-------    1 root     root        4,   7 Jan  1 00:00 tty7
+crw-------    1 root     root        4,   8 Jan  1 00:00 tty8
+crw-------    1 root     root        4,   9 Jan  1 00:00 tty9
+crw-------    1 root     root      252,   0 Jan  1 00:00 ttyGS0
+crw-------    1 root     root        4,  64 Jan  1 00:00 ttyS0
+crw-rw-rw-    1 root     root        1,   9 Jan  1 00:00 urandom
+crw-------    1 root     root        7,   0 Jan  1 00:00 vcs
+crw-------    1 root     root        7,   1 Jan  1 00:00 vcs1
+crw-------    1 root     root        7, 128 Jan  1 00:00 vcsa
+crw-------    1 root     root        7, 129 Jan  1 00:00 vcsa1
+crw-------    1 root     root        7,  64 Jan  1 00:00 vcsu
+crw-------    1 root     root        7,  65 Jan  1 00:00 vcsu1
+crw-------    1 root     root      120,   0 Jan  1 00:00 y2diag
+cr--------    1 root     root       13,  64 Jan  1 00:00 y2input0
+cr--------    1 root     root       13,  65 Jan  1 00:00 y2input1
+cr--------    1 root     root       13,  66 Jan  1 00:00 y2input2
+cr--------    1 root     root       13,  67 Jan  1 00:00 y2input3
+crw-rw-rw-    1 root     root        1,   5 Jan  1 00:00 zero
+
+/etc/dropbear:
+total 12
+drwx------    2 root     root          4096 Jan  1 00:02 .
+drwxr-xr-x    9 root     root          4096 Aug 23  2026 ..
+-rw-------    1 root     root            83 Jan  1 00:02 dropbear_ed25519_host_key
+
+/root/.ssh:
+total 12
+drwx------    2 root     root          4096 Aug 23  2026 .
+drwx------    3 root     root          4096 Jan  1 00:03 ..
+-rw-------    1 root     root           101 Aug 23  2026 authorized_keys
+
+/run:
+total 28
+drwxr-xr-x    6 root     root           260 Jan  1 00:00 .
+drwxr-xr-x   18 root     root          4096 Jan  1  1970 ..
+drwxr-xr-x    2 root     root            80 Jan  1 00:00 blkid
+-rw-r--r--    1 root     root             4 Jan  1 00:00 crond.pid
+-rw-------    1 root     root             4 Jan  1 00:00 dropbear.pid
+-rw-r--r--    1 root     root             6 Jan  1 00:00 ifstate
+-rw-r--r--    1 root     root             4 Jan  1 00:00 klogd.pid
+drwxr-xr-x    3 root     root            60 Jan  1 00:00 lock
+drwxr-xr-x    2 root     root            40 Jan  1 00:00 mount
+drwxr-xr-x    2 root     root            40 Jan  1 00:00 network
+-rw-r--r--    1 root     root             4 Jan  1 00:00 syslogd.pid
+-rw-r--r--    1 root     root             0 Jan  1 00:00 utmp
+-rw-r--r--    1 root     root             4 Jan  1 00:00 y2-observer.pid
+crw-------    1 root     root      226,   0 Jan  1 00:00 /dev/dri/card0
+crw-------    1 root     root       29,   0 Jan  1 00:00 /dev/fb0
+crw-------    1 root     root       13,  64 Jan  1 00:00 /dev/input/event0
+crw-------    1 root     root       13,  65 Jan  1 00:00 /dev/input/event1
+crw-------    1 root     root       13,  66 Jan  1 00:00 /dev/input/event2
+crw-------    1 root     root       13,  67 Jan  1 00:00 /dev/input/event3
+brw-------    1 root     root      179,   0 Jan  1 00:00 /dev/mmcblk0
+brw-------    1 root     root      179,   1 Jan  1 00:00 /dev/mmcblk0p1
+crw-------    1 root     root      252,   0 Jan  1 00:00 /dev/ttyGS0
+/run/crond.pid
+169
+/run/dropbear.pid
+175
+/run/klogd.pid
+140
+/run/syslogd.pid
+130
+/run/y2-observer.pid
+136
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c for cmd in memtester timeout evtest modetest fbset i2cdetect i2cget i2ctransfer depmod modinfo logread dmesg sha256sum findmnt e2fsck; do command -v "$cmd"; done =====
+/usr/bin/memtester
+/usr/sbin/fbset
+/usr/sbin/i2cdetect
+/usr/sbin/i2cget
+/usr/sbin/i2ctransfer
+/usr/bin/depmod
+/usr/bin/modinfo
+/bin/dmesg
+/usr/bin/sha256sum
+/bin/findmnt
+/sbin/e2fsck
+
+===== EXIT 0 =====
+
+===== COMMAND: logread =====
+/usr/sbin/y2-collect: line 4: logread: not found
+
+===== EXIT 127 =====
+
+===== COMMAND: sh -c for f in /var/log/messages*; do [ ! -f "$f" ] || cat "$f"; done =====
+Jan  1 00:00:27 y2linux syslog.info syslogd started: BusyBox v1.37.0
+Jan  1 00:00:27 y2linux kern.notice kernel: klogd started: BusyBox v1.37.0 ()
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] Booting Linux on physical CPU 0x0
+Jan  1 00:00:27 y2linux kern.notice kernel: [    0.000000] Linux version 6.18.0-y2linux-dev02 (Luca@y2-build) (Alpine clang version 20.1.8, LLD 20.1.8) #1 SMP @1764542530
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] CPU: ARMv7 Processor [410fc073] revision 3 (ARMv7), cr=10c5387d
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] CPU: PIPT / VIPT nonaliasing data cache, VIPT aliasing instruction cache
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] OF: fdt: Machine model: Innioasis Y2 Y2LINUX-DEV-01
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] earlycon: mtk8250 at MMIO32 0x11002000 (options '')
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] printk: legacy bootconsole [mtk8250] enabled
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] printk: debug: ignoring loglevel setting.
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] Memory policy: Data cache writealloc
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] Zone ranges:
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000]   Normal   [mem 0x0000000080000000-0x00000000afffffff]
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000]   HighMem  [mem 0x00000000b0000000-0x00000000bdffffff]
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] Movable zone start for each node
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] Early memory node ranges
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000]   node   0: [mem 0x0000000080000000-0x00000000817fffff]
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000]   node   0: [mem 0x0000000081800000-0x0000000083ffffff]
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000]   node   0: [mem 0x0000000084000000-0x00000000bdefffff]
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000]   node   0: [mem 0x00000000bdf00000-0x00000000bdffffff]
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x00000000bdffffff]
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] OF: reserved mem: 0x81800000..0x83ffffff (40960 KiB) nomap non-reusable loader@81800000
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] OF: reserved mem: 0xbdf00000..0xbfffffff (33792 KiB) nomap non-reusable high-owned@bdf00000
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] percpu: Embedded 11 pages/cpu s13260 r8192 d23604 u45056
+Jan  1 00:00:27 y2linux kern.debug kernel: [    0.000000] pcpu-alloc: s13260 r8192 d23604 u45056 alloc=11*4096
+Jan  1 00:00:27 y2linux kern.debug kernel: [    0.000000] pcpu-alloc: [0] 0 [0] 1 [0] 2 [0] 3 
+Jan  1 00:00:27 y2linux kern.notice kernel: [    0.000000] Kernel command line: rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_c
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] printk: log buffer data + meta data: 1048576 + 3276800 = 4325376 bytes
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] Dentry cache hash table entries: 131072 (order: 7, 524288 bytes, linear)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] Inode-cache hash table entries: 65536 (order: 6, 262144 bytes, linear)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 253952
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=1
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] rcu: Hierarchical RCU implementation.
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] rcu: RCU calculated value of scheduler-enlistment delay is 10 jiffies.
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] NR_IRQS: 16, nr_irqs: 16, preallocated irqs: 16
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] rcu: srcu_init: Setting srcu_struct sizes based on contention.
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000000] clocksource: timer: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 147020034397 ns
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.000001] sched_clock: 32 bits at 13MHz, resolution 76ns, wraps every 165191050201ns
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.001181] Console: colour dummy device 80x30
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.001782] printk: legacy console [tty0] enabled
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.002411] printk: legacy bootconsole [mtk8250] disabled
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.003175] Calibrating delay loop... 2079.12 BogoMIPS (lpj=10395648)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.061082] CPU: Testing write buffer coherency: ok
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.061143] pid_max: default: 32768 minimum: 301
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.061309] Mount-cache hash table entries: 2048 (order: 1, 8192 bytes, linear)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.061339] Mountpoint-cache hash table entries: 2048 (order: 1, 8192 bytes, linear)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.062790] Setting up static identity map for 0x800081c0 - 0x800081f4
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.062940] rcu: Hierarchical SRCU implementation.
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.062961] rcu: 	Max phase no-delay instances is 1000.
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.063418] smp: Bringing up secondary CPUs ...
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.243351] smp: Brought up 1 node, 4 CPUs
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.243387] SMP: Total of 4 processors activated (8296.85 BogoMIPS).
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.243933] Memory: 950788K/1015808K available (4432K kernel code, 3301K rwdata, 1172K rodata, 196K init, 1099K bss, 62872K reserved, 0K cma-reserved, 228352K highmem)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.244449] devtmpfs: initialized
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.246989] VFP support v0.3: implementor 41 architecture 2 part 30 variant 7 rev 3
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.247167] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.247210] posixtimers hash table entries: 2048 (order: 2, 16384 bytes, linear)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.247311] futex hash table entries: 1024 (65536 bytes on 1 NUMA nodes, total 64 KiB, linear).
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.247410] pinctrl core: initialized pinctrl subsystem
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.248296] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.248656] DMA: preallocated 256 KiB pool for atomic coherent allocations
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.253367] /dsi@1400c000: Fixed dependency cycle(s) with /dsi@1400c000/panel@0
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.253558] /dsi@1400c000/panel@0: Fixed dependency cycle(s) with /dsi@1400c000
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.255073] y2-clocks 10000000.clock-controller: CCF inherited PLLs/AXI and M2 gates; AXI=273000000 Hz; no PLL retune
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.261386] y2-pinctrl 10005000.pinctrl: minimal pinctrl/GPIO; EINT parent high, PMIC25 high/wheel55 falling
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.262422] y2-pwrap 1000d000.pwrap: MT6323 CID=2023 VUSB=c000 CHRDET=0; serialized regmap; rail/charger/reset writes blocked
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.263452] clocksource: Switched to clocksource timer
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.271617] NET: Registered PF_INET protocol family
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.271811] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.273631] tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes, linear)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.273685] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.273725] TCP established hash table entries: 8192 (order: 3, 32768 bytes, linear)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.273819] TCP bind hash table entries: 8192 (order: 5, 131072 bytes, linear)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.274030] TCP: Hash tables configured (established 8192 bind 8192)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.274155] UDP hash table entries: 512 (order: 3, 28672 bytes, linear)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.274237] UDP-Lite hash table entries: 512 (order: 3, 28672 bytes, linear)
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.274439] NET: Registered PF_UNIX/PF_LOCAL protocol family
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.275855] Y2USB stage=1 result=0
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.275907] Y2USB stage=2 result=0
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.275930] Y2LINUX-DEV-01: persistent ACM+ECM; internal eMMC disabled
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.276056] Unpacking initramfs...
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.276702] workingset: timestamp_bits=30 max_order=18 bucket_order=0
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.277544] mediatek-mipi-tx 10010000.mipi-tx: can't get nvmem_cell_get, ignore it
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.278880] Serial: 8250/16550 driver, 1 ports, IRQ sharing disabled
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.279908] printk: legacy console [ttyS0] disabled
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.280396] 11002000.serial: ttyS0 at MMIO 0x11002000 (irq = 195, base_baud = 1625000) is a 16550A
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.280474] printk: legacy console [ttyS0] enabled
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.362741] Freeing initrd memory: 1528K
+Jan  1 00:00:27 y2linux kern.warn kernel: [    0.363423] cacheinfo: Unable to detect cache hierarchy for CPU 0
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.364452] y2-pinctrl 10005000.pinctrl: pin25 mode=0 function=eint
+Jan  1 00:00:27 y2linux kern.warn kernel: [    0.365606] mt6323-rtc: Failed to locate of_node [id: -1]
+Jan  1 00:00:27 y2linux kern.warn kernel: [    0.366713] mt6323-led: Failed to locate of_node [id: -1]
+Jan  1 00:00:27 y2linux kern.warn kernel: [    0.367737] mt6323-pwrc: Failed to locate of_node [id: -1]
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.368813] UDC core: g_cdc: couldn't find an available UDC
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.369917] input: Y2 navigation buttons as /devices/platform/navigation-keys/input/input0
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.371454] mt6323-regulator mt6323-regulator: Chip ID = 0x2023
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.371849] input: mtk-pmic-keys as /devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-keys/input/input1
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.373939] i2c_dev: i2c /dev entries driver
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.374680] y2-pinctrl 10005000.pinctrl: before pin84 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.375811] y2-pinctrl 10005000.pinctrl: pin84 mode=1 function=i2c0
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.376623] y2-pinctrl 10005000.pinctrl: before pin85 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.377744] y2-pinctrl 10005000.pinctrl: pin85 mode=1 function=i2c0
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.379415] y2-pinctrl 10005000.pinctrl: before pin86 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.380554] y2-pinctrl 10005000.pinctrl: pin86 mode=1 function=i2c1
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.381365] y2-pinctrl 10005000.pinctrl: before pin87 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.382486] y2-pinctrl 10005000.pinctrl: pin87 mode=1 function=i2c1
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.384382] y2-pinctrl 10005000.pinctrl: pin55 mode=0 function=eint
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.385391] input: APT32F click-wheel as /devices/platform/11007000.i2c/i2c-0/0-0051/input/input2
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.386879] y2-pinctrl 10005000.pinctrl: pin124 mode=1 function=msdc1
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.387723] y2-pinctrl 10005000.pinctrl: pin125 mode=1 function=msdc1
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.388554] y2-pinctrl 10005000.pinctrl: pin126 mode=1 function=msdc1
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.389385] y2-pinctrl 10005000.pinctrl: pin127 mode=1 function=msdc1
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.390215] y2-pinctrl 10005000.pinctrl: pin128 mode=1 function=msdc1
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.391045] y2-pinctrl 10005000.pinctrl: pin129 mode=1 function=msdc1
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.392182] mtk-msdc 11240000.mmc: MSDC 26MHz crystal; inherited rails; policy=removable SD writable
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.393770] input: mt6582-keypad as /devices/platform/10011000.keypad/input/input3
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.395420] y2-backlight 1000d000.pwrap:backlight: four ISINK PWM; max duty=32/32 inherited current step=5 unchanged
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.397349] NET: Registered PF_PACKET protocol family
+Jan  1 00:00:27 y2linux kern.notice kernel: [    0.398135] Registering SWP/SWPB emulation handler
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.410842] clk: Disabling unused clocks
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.433560] Freeing unused kernel image (initmem) memory: 196K
+Jan  1 00:00:27 y2linux kern.warn kernel: [    0.434329] Kernel memory protection not selected by kernel config.
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.435133] Run /init as init process
+Jan  1 00:00:27 y2linux kern.debug kernel: [    0.435608]   with arguments:
+Jan  1 00:00:27 y2linux kern.debug kernel: [    0.435996]     /init
+Jan  1 00:00:27 y2linux kern.debug kernel: [    0.436297]   with environment:
+Jan  1 00:00:27 y2linux kern.debug kernel: [    0.436706]     HOME=/
+Jan  1 00:00:27 y2linux kern.debug kernel: [    0.437017]     TERM=linux
+Jan  1 00:00:27 y2linux user.warn kernel: [    0.480034] Y2ROOT: rescue active; searching removable SD LABEL=Y2ROOT
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.801799] mmc0: Host Software Queue enabled
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.802414] mmc0: new SDXC card at address aaaa
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.804159] mmcblk0: mmc0:aaaa SD128 119 GiB
+Jan  1 00:00:27 y2linux kern.info kernel: [    0.808875]  mmcblk0: p1
+Jan  1 00:00:27 y2linux user.warn kernel: [    4.514047] Y2DISPLAY: finit_module begin on CPU1
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.519065] mediatek-drm mediatek-drm.1.auto: Adding component match for /ovl@14007000
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.520167] mediatek-drm mediatek-drm.1.auto: Adding component match for /rdma@14008000
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.521245] mediatek-drm mediatek-drm.1.auto: Adding component match for /color@1400b000
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.522407] mediatek-drm mediatek-drm.1.auto: Adding component match for /dsi@1400c000
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.523931] mtk-dsi 1400c000.dsi: handoff: acquire PHY
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.524615] mediatek-mipi-tx 10010000.mipi-tx: PHY entry CON0=00000011 CON1=00000003 CON2=3c000000 PWR=00000101 CON=00000403 lanes=00000001
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.526217] mediatek-mipi-tx 10010000.mipi-tx: adopting live LK PHY unchanged; inherited rate unknown
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.527405] mtk-dsi 1400c000.dsi: handoff: clocks on; park video
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.553315] mtk-dsi 1400c000.dsi: inherited DSI parked; releasing PHY before Linux modeset
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.554396] mtk-dsi 1400c000.dsi: handoff: released PHY, result=0
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.555216] mtk-dsi 1400c000.dsi: handoff: register host/panel
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.556064] /dsi@1400c000: Fixed dependency cycle(s) with /dsi@1400c000/panel@0
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.557145] /dsi@1400c000/panel@0: Fixed dependency cycle(s) with /dsi@1400c000
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.558331] y2-pinctrl 10005000.pinctrl: before pin112 mux=1 dir=1 pull=0/0 input=1 IES=0000ffff
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.559471] y2-pinctrl 10005000.pinctrl: pin112 mode=1 function=lcm-reset
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.560780] mediatek-drm mediatek-drm.1.auto: bound 14007000.ovl (ops mtk_disp_ovl_component_ops [mediatek_drm])
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.562190] mediatek-drm mediatek-drm.1.auto: bound 14008000.rdma (ops mtk_disp_rdma_component_ops [mediatek_drm])
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.563599] mediatek-drm mediatek-drm.1.auto: bound 1400b000.color (ops mtk_disp_color_component_ops [mediatek_drm])
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.565039] mediatek-drm mediatek-drm.1.auto: bound 1400c000.dsi (ops mtk_dsi_component_ops [mediatek_drm])
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.567188] [drm] Initialized mediatek 1.0.0 for mediatek-drm.1.auto on minor 0
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.568949] mediatek-mipi-tx 10010000.mipi-tx: PHY entry CON0=00000000 CON1=00000003 CON2=3c000000 PWR=00000002 CON=00000400 lanes=00000000
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.589956] mediatek-mipi-tx 10010000.mipi-tx: Linux PHY powered at 338000000Hz
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.589976] mtk-dsi 1400c000.dsi: modeset: PHY/clocks ready, initialize DSI
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.589989] mtk-dsi 1400c000.dsi: modeset: DSI command engine ready
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.590019] (NULL device *): Y2SCAN inherited mutex0 en=00000001 get=00000000 mod=00000488 sof=00000001; clear parked ownership
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.603527] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.616854] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.633206] Console: switching to colour frame buffer device 60x45
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.633280] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.684890] mediatek-drm mediatek-drm.1.auto: [drm] fb0: mediatekdrmfb frame buffer device
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.689161] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=
+Jan  1 00:00:27 y2linux user.warn kernel: [    4.699583] Y2DISPLAY: finit_module result=0
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.863316] mtk-dsi 1400c000.dsi: Y2SCAN sample=0 vblank=18 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.870135] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 s
+Jan  1 00:00:27 y2linux kern.info kernel: [    4.877290] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=
+Jan  1 00:00:27 y2linux kern.info kernel: [    5.923323] mtk-dsi 1400c000.dsi: Y2SCAN sample=1 vblank=86 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+Jan  1 00:00:27 y2linux kern.info kernel: [    5.930081] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 s
+Jan  1 00:00:27 y2linux kern.info kernel: [    5.937177] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=
+Jan  1 00:00:27 y2linux kern.info kernel: [    6.963331] mtk-dsi 1400c000.dsi: Y2SCAN sample=2 vblank=154 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+Jan  1 00:00:27 y2linux kern.info kernel: [    6.970080] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 s
+Jan  1 00:00:27 y2linux kern.info kernel: [    6.977150] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=
+Jan  1 00:00:27 y2linux kern.info kernel: [    8.003340] mtk-dsi 1400c000.dsi: Y2SCAN sample=3 vblank=221 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+Jan  1 00:00:27 y2linux kern.info kernel: [    8.010078] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 s
+Jan  1 00:00:27 y2linux kern.info kernel: [    8.017180] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=
+Jan  1 00:00:27 y2linux user.warn kernel: [    8.672017] Y2PATTERN white/red/green/blue + checkerboard: 480x360 bpp=32 pitch=1920 DMA=00000000 allocation=691200 FNV-before=86209887 after=a40f4cc5 expected=a40f4cc5 match=yes; PHYSICAL VISIBILITY STILL REQUIRES OWNER OBS
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.673399] Y2USB stage=1 result=0
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.675277] Y2USB stage=1 result=0
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.676832] Y2USB fresh power=0/7 CHR=0063 clock=0/f USB=0/1fffff
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.679777] Y2USB stage=3 result=0
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.681842] Y2USB PHY00 saved=6e session=6e
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.683468] Y2USB PHY05 saved=44 session=44
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.685062] Y2USB PHY15 saved=10 session=10
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.686639] Y2USB PHY1a saved=10 session=10
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.688194] Y2USB PHY1d saved=00 session=00
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.689731] Y2USB PHY22 saved=00 session=00
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.691251] Y2USB PHY63 saved=00 session=00
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.692751] Y2USB stage=4 result=0
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.694477] using host ethernet address: 02:42:00:00:00:02
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.694487] using self ethernet address: 02:42:00:00:00:01
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.697606] g_cdc gadget.0: HOST MAC 02:42:00:00:00:02
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.701827] g_cdc gadget.0: MAC 02:42:00:00:00:01
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.703451] g_cdc gadget.0: CDC Composite Gadget, version: King Kamehameha Day 2008
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.706299] g_cdc gadget.0: g_cdc ready
+Jan  1 00:00:27 y2linux kern.info kernel: [   10.707861] Y2USB stage=5 result=0
+Jan  1 00:00:27 y2linux kern.info kernel: [   11.223395] Y2USB stage=6 result=0
+Jan  1 00:00:27 y2linux kern.err kernel: [   12.596120] regulator regulator.9: regulator VCAMA doesn't support get_mode
+Jan  1 00:00:27 y2linux kern.err kernel: [   12.599259] regulator regulator.21: regulator VRTC doesn't support get_mode
+Jan  1 00:00:27 y2linux kern.info kernel: [   12.603148] backlight y2-backlight: Y2SCAN backlight enable=00ff pwm=1f00 current=5000
+Jan  1 00:00:27 y2linux user.warn kernel: [   20.496699] Y2ABI begin: Thumb signal return, kuser helpers, glibc TLS/threads and VFP
+Jan  1 00:00:27 y2linux user.warn kernel: [   20.496724] 
+Jan  1 00:00:27 y2linux user.warn kernel: [   20.500753] Y2ABI Thumb signal delivery/return OK
+Jan  1 00:00:27 y2linux user.warn kernel: [   20.500764] 
+Jan  1 00:00:27 y2linux user.warn kernel: [   20.503352] Y2ABI kuser memory barrier and TLS OK
+Jan  1 00:00:27 y2linux user.warn kernel: [   20.503360] 
+Jan  1 00:00:27 y2linux user.warn kernel: [   20.512961] Y2ABI PASS: glibc thread/TLS, VFP, clock and allocator
+Jan  1 00:00:27 y2linux user.warn kernel: [   20.512989] 
+Jan  1 00:00:27 y2linux kern.info kernel: [   22.205385] EXT4-fs (mmcblk0p1): INFO: recovery required on readonly filesystem
+Jan  1 00:00:27 y2linux kern.info kernel: [   22.208097] EXT4-fs (mmcblk0p1): write access will be enabled during recovery
+Jan  1 00:00:27 y2linux kern.info kernel: [   24.237075] EXT4-fs (mmcblk0p1): orphan cleanup on readonly fs
+Jan  1 00:00:27 y2linux kern.info kernel: [   24.239835] EXT4-fs (mmcblk0p1): recovery complete
+Jan  1 00:00:27 y2linux kern.info kernel: [   24.248056] EXT4-fs (mmcblk0p1): mounted filesystem 79324c69-6e75-4801-8000-000000000001 ro with ordered data mode. Quota mode: disabled.
+Jan  1 00:00:27 y2linux kern.info kernel: [   25.417027] EXT4-fs (mmcblk0p1): re-mounted 79324c69-6e75-4801-8000-000000000001 r/w.
+Jan  1 00:00:27 y2linux user.warn kernel: [   25.420525] Y2ROOT: verified /dev/mmcblk0p1; switching to Buildroot
+Jan  1 00:00:27 y2linux kern.info kernel: [   27.003662] EXT4-fs (mmcblk0p1): re-mounted 79324c69-6e75-4801-8000-000000000001.
+Jan  1 00:00:28 y2linux user.warn kernel: [   28.103266] Y2NET: usb0 10.42.0.1/24 ready; address persists across cable reconnect
+Jan  1 00:00:28 y2linux cron.info crond[169]: crond (busybox 1.37.0) started, log level 8
+Jan  1 00:00:28 y2linux authpriv.info dropbear[175]: Running in background
+Jan  1 00:00:29 y2linux kern.info kernel: [   29.804316] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=
+Jan  1 00:00:30 y2linux user.warn kernel: [   30.006446] Y2PATTERN white/red/green/blue + checkerboard: 480x360 bpp=32 pitch=1920 DMA=00000000 allocation=691200 FNV-before=b9aabb87 after=feb0b6c5 expected=a40f4cc5 match=NO; PHYSICAL VISIBILITY STILL REQUIRES OWNER OBSE
+Jan  1 00:00:31 y2linux authpriv.warn dropbear[175]: Waiting for kernel randomness to be initialised...
+Jan  1 00:00:33 y2linux authpriv.info dropbear[177]: Child connection from 10.42.0.2:55458
+Jan  1 00:00:33 y2linux kern.notice kernel: [   33.093547] random: crng init done
+Jan  1 00:00:33 y2linux authpriv.notice dropbear[177]: Pubkey auth succeeded for 'root' with ssh-ed25519 key SHA256:IS9HhrmQKRtlEEbrcJjZa0XQHVwnRXRUzQQ61/7XAb8 from 10.42.0.2:55458
+Jan  1 00:00:33 y2linux authpriv.info dropbear[177]: Exit (root) from <10.42.0.2:55458>: Disconnect received
+Jan  1 00:00:36 y2linux authpriv.info dropbear[185]: Child connection from 10.42.0.2:55474
+Jan  1 00:00:36 y2linux authpriv.notice dropbear[185]: Pubkey auth succeeded for 'root' with ssh-ed25519 key SHA256:IS9HhrmQKRtlEEbrcJjZa0XQHVwnRXRUzQQ61/7XAb8 from 10.42.0.2:55474
+Jan  1 00:00:37 y2linux kern.err kernel: [   37.341552] regulator regulator.9: regulator VCAMA doesn't support get_mode
+Jan  1 00:00:37 y2linux kern.err kernel: [   37.344996] regulator regulator.21: regulator VRTC doesn't support get_mode
+Jan  1 00:00:37 y2linux kern.info kernel: [   37.456340] backlight y2-backlight: Y2SCAN backlight enable=00ff pwm=1f00 current=5000
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c find /sys/kernel/debug/dri /sys/kernel/debug/regulator /sys/kernel/debug/clk -maxdepth 2 -type f =====
+/sys/kernel/debug/dri/client-1/proc_info
+/sys/kernel/debug/dri/mediatek-drm.1.auto/state
+/sys/kernel/debug/dri/mediatek-drm.1.auto/internal_clients
+/sys/kernel/debug/dri/mediatek-drm.1.auto/framebuffer
+/sys/kernel/debug/dri/mediatek-drm.1.auto/gem_names
+/sys/kernel/debug/dri/mediatek-drm.1.auto/clients
+/sys/kernel/debug/dri/mediatek-drm.1.auto/name
+/sys/kernel/debug/dri/bridges
+/sys/kernel/debug/regulator/mt6323-regulator-VCAMIO/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCAMIO/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCAMIO/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCAMD/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCAMD/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCAMD/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VIO18/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VIO18/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VIO18/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VM/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VM/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VM/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VRF18/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VRF18/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VRF18/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VIBR/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VIBR/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VIBR/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCAMAF/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCAMAF/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCAMAF/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VRTC/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VRTC/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VRTC/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VSIM2/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VSIM2/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VSIM2/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VSIM1/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VSIM1/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VSIM1/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCN18/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCN18/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCN18/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VGP3/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VGP3/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VGP3/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VGP2/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VGP2/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VGP2/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VGP1/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VGP1/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VGP1/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VEMC3V3/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VEMC3V3/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VEMC3V3/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VMCH/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VMCH/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VMCH/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VMC/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VMC/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VMC/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VUSB/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VUSB/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VUSB/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VIO28/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VIO28/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VIO28/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCAMA/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCAMA/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCAMA/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VA/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VA/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VA/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCN33_WIFI/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCN33_WIFI/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCN33_WIFI/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCN33_BT/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCN33_BT/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCN33_BT/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCN28/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCN28/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VCN28/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VTCXO/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VTCXO/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VTCXO/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VPA/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VPA/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VPA/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VSYS/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VSYS/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VSYS/use_count
+/sys/kernel/debug/regulator/mt6323-regulator-VPROC/bypass_count
+/sys/kernel/debug/regulator/mt6323-regulator-VPROC/open_count
+/sys/kernel/debug/regulator/mt6323-regulator-VPROC/use_count
+/sys/kernel/debug/regulator/reg-dummy-regulator-dummy/bypass_count
+/sys/kernel/debug/regulator/reg-dummy-regulator-dummy/open_count
+/sys/kernel/debug/regulator/reg-dummy-regulator-dummy/use_count
+/sys/kernel/debug/regulator/regulator_summary
+/sys/kernel/debug/regulator/supply_map
+/sys/kernel/debug/clk/clk26m/clk_duty_cycle
+/sys/kernel/debug/clk/clk26m/clk_notifier_count
+/sys/kernel/debug/clk/clk26m/clk_protect_count
+/sys/kernel/debug/clk/clk26m/clk_enable_count
+/sys/kernel/debug/clk/clk26m/clk_prepare_count
+/sys/kernel/debug/clk/clk26m/clk_flags
+/sys/kernel/debug/clk/clk26m/clk_phase
+/sys/kernel/debug/clk/clk26m/clk_accuracy
+/sys/kernel/debug/clk/clk26m/clk_max_rate
+/sys/kernel/debug/clk/clk26m/clk_min_rate
+/sys/kernel/debug/clk/clk26m/clk_rate
+/sys/kernel/debug/clk/y2-rtc32k/clk_duty_cycle
+/sys/kernel/debug/clk/y2-rtc32k/clk_notifier_count
+/sys/kernel/debug/clk/y2-rtc32k/clk_protect_count
+/sys/kernel/debug/clk/y2-rtc32k/clk_enable_count
+/sys/kernel/debug/clk/y2-rtc32k/clk_prepare_count
+/sys/kernel/debug/clk/y2-rtc32k/clk_flags
+/sys/kernel/debug/clk/y2-rtc32k/clk_phase
+/sys/kernel/debug/clk/y2-rtc32k/clk_accuracy
+/sys/kernel/debug/clk/y2-rtc32k/clk_max_rate
+/sys/kernel/debug/clk/y2-rtc32k/clk_min_rate
+/sys/kernel/debug/clk/y2-rtc32k/clk_rate
+/sys/kernel/debug/clk/clock-system/clk_duty_cycle
+/sys/kernel/debug/clk/clock-system/clk_notifier_count
+/sys/kernel/debug/clk/clock-system/clk_protect_count
+/sys/kernel/debug/clk/clock-system/clk_enable_count
+/sys/kernel/debug/clk/clock-system/clk_prepare_count
+/sys/kernel/debug/clk/clock-system/clk_flags
+/sys/kernel/debug/clk/clock-system/clk_phase
+/sys/kernel/debug/clk/clock-system/clk_accuracy
+/sys/kernel/debug/clk/clock-system/clk_max_rate
+/sys/kernel/debug/clk/clock-system/clk_min_rate
+/sys/kernel/debug/clk/clock-system/clk_rate
+/sys/kernel/debug/clk/clock-rtc/clk_duty_cycle
+/sys/kernel/debug/clk/clock-rtc/clk_notifier_count
+/sys/kernel/debug/clk/clock-rtc/clk_protect_count
+/sys/kernel/debug/clk/clock-rtc/clk_enable_count
+/sys/kernel/debug/clk/clock-rtc/clk_prepare_count
+/sys/kernel/debug/clk/clock-rtc/clk_flags
+/sys/kernel/debug/clk/clock-rtc/clk_phase
+/sys/kernel/debug/clk/clock-rtc/clk_accuracy
+/sys/kernel/debug/clk/clock-rtc/clk_max_rate
+/sys/kernel/debug/clk/clock-rtc/clk_min_rate
+/sys/kernel/debug/clk/clock-rtc/clk_rate
+/sys/kernel/debug/clk/clock-uart/clk_duty_cycle
+/sys/kernel/debug/clk/clock-uart/clk_notifier_count
+/sys/kernel/debug/clk/clock-uart/clk_protect_count
+/sys/kernel/debug/clk/clock-uart/clk_enable_count
+/sys/kernel/debug/clk/clock-uart/clk_prepare_count
+/sys/kernel/debug/clk/clock-uart/clk_flags
+/sys/kernel/debug/clk/clock-uart/clk_phase
+/sys/kernel/debug/clk/clock-uart/clk_accuracy
+/sys/kernel/debug/clk/clock-uart/clk_max_rate
+/sys/kernel/debug/clk/clock-uart/clk_min_rate
+/sys/kernel/debug/clk/clock-uart/clk_rate
+/sys/kernel/debug/clk/y2-armpll/clk_parent
+/sys/kernel/debug/clk/y2-armpll/clk_duty_cycle
+/sys/kernel/debug/clk/y2-armpll/clk_notifier_count
+/sys/kernel/debug/clk/y2-armpll/clk_protect_count
+/sys/kernel/debug/clk/y2-armpll/clk_enable_count
+/sys/kernel/debug/clk/y2-armpll/clk_prepare_count
+/sys/kernel/debug/clk/y2-armpll/clk_flags
+/sys/kernel/debug/clk/y2-armpll/clk_phase
+/sys/kernel/debug/clk/y2-armpll/clk_accuracy
+/sys/kernel/debug/clk/y2-armpll/clk_max_rate
+/sys/kernel/debug/clk/y2-armpll/clk_min_rate
+/sys/kernel/debug/clk/y2-armpll/clk_rate
+/sys/kernel/debug/clk/y2-mainpll/clk_parent
+/sys/kernel/debug/clk/y2-mainpll/clk_duty_cycle
+/sys/kernel/debug/clk/y2-mainpll/clk_notifier_count
+/sys/kernel/debug/clk/y2-mainpll/clk_protect_count
+/sys/kernel/debug/clk/y2-mainpll/clk_enable_count
+/sys/kernel/debug/clk/y2-mainpll/clk_prepare_count
+/sys/kernel/debug/clk/y2-mainpll/clk_flags
+/sys/kernel/debug/clk/y2-mainpll/clk_phase
+/sys/kernel/debug/clk/y2-mainpll/clk_accuracy
+/sys/kernel/debug/clk/y2-mainpll/clk_max_rate
+/sys/kernel/debug/clk/y2-mainpll/clk_min_rate
+/sys/kernel/debug/clk/y2-mainpll/clk_rate
+/sys/kernel/debug/clk/y2-univpll/clk_parent
+/sys/kernel/debug/clk/y2-univpll/clk_duty_cycle
+/sys/kernel/debug/clk/y2-univpll/clk_notifier_count
+/sys/kernel/debug/clk/y2-univpll/clk_protect_count
+/sys/kernel/debug/clk/y2-univpll/clk_enable_count
+/sys/kernel/debug/clk/y2-univpll/clk_prepare_count
+/sys/kernel/debug/clk/y2-univpll/clk_flags
+/sys/kernel/debug/clk/y2-univpll/clk_phase
+/sys/kernel/debug/clk/y2-univpll/clk_accuracy
+/sys/kernel/debug/clk/y2-univpll/clk_max_rate
+/sys/kernel/debug/clk/y2-univpll/clk_min_rate
+/sys/kernel/debug/clk/y2-univpll/clk_rate
+/sys/kernel/debug/clk/y2-mmpll/clk_parent
+/sys/kernel/debug/clk/y2-mmpll/clk_duty_cycle
+/sys/kernel/debug/clk/y2-mmpll/clk_notifier_count
+/sys/kernel/debug/clk/y2-mmpll/clk_protect_count
+/sys/kernel/debug/clk/y2-mmpll/clk_enable_count
+/sys/kernel/debug/clk/y2-mmpll/clk_prepare_count
+/sys/kernel/debug/clk/y2-mmpll/clk_flags
+/sys/kernel/debug/clk/y2-mmpll/clk_phase
+/sys/kernel/debug/clk/y2-mmpll/clk_accuracy
+/sys/kernel/debug/clk/y2-mmpll/clk_max_rate
+/sys/kernel/debug/clk/y2-mmpll/clk_min_rate
+/sys/kernel/debug/clk/y2-mmpll/clk_rate
+/sys/kernel/debug/clk/y2-msdcpll/clk_parent
+/sys/kernel/debug/clk/y2-msdcpll/clk_duty_cycle
+/sys/kernel/debug/clk/y2-msdcpll/clk_notifier_count
+/sys/kernel/debug/clk/y2-msdcpll/clk_protect_count
+/sys/kernel/debug/clk/y2-msdcpll/clk_enable_count
+/sys/kernel/debug/clk/y2-msdcpll/clk_prepare_count
+/sys/kernel/debug/clk/y2-msdcpll/clk_flags
+/sys/kernel/debug/clk/y2-msdcpll/clk_phase
+/sys/kernel/debug/clk/y2-msdcpll/clk_accuracy
+/sys/kernel/debug/clk/y2-msdcpll/clk_max_rate
+/sys/kernel/debug/clk/y2-msdcpll/clk_min_rate
+/sys/kernel/debug/clk/y2-msdcpll/clk_rate
+/sys/kernel/debug/clk/y2-axi/clk_parent
+/sys/kernel/debug/clk/y2-axi/clk_duty_cycle
+/sys/kernel/debug/clk/y2-axi/clk_notifier_count
+/sys/kernel/debug/clk/y2-axi/clk_protect_count
+/sys/kernel/debug/clk/y2-axi/clk_enable_count
+/sys/kernel/debug/clk/y2-axi/clk_prepare_count
+/sys/kernel/debug/clk/y2-axi/clk_flags
+/sys/kernel/debug/clk/y2-axi/clk_phase
+/sys/kernel/debug/clk/y2-axi/clk_accuracy
+/sys/kernel/debug/clk/y2-axi/clk_max_rate
+/sys/kernel/debug/clk/y2-axi/clk_min_rate
+/sys/kernel/debug/clk/y2-axi/clk_rate
+/sys/kernel/debug/clk/y2-i2c0/clk_parent
+/sys/kernel/debug/clk/y2-i2c0/clk_duty_cycle
+/sys/kernel/debug/clk/y2-i2c0/clk_notifier_count
+/sys/kernel/debug/clk/y2-i2c0/clk_protect_count
+/sys/kernel/debug/clk/y2-i2c0/clk_enable_count
+/sys/kernel/debug/clk/y2-i2c0/clk_prepare_count
+/sys/kernel/debug/clk/y2-i2c0/clk_flags
+/sys/kernel/debug/clk/y2-i2c0/clk_phase
+/sys/kernel/debug/clk/y2-i2c0/clk_accuracy
+/sys/kernel/debug/clk/y2-i2c0/clk_max_rate
+/sys/kernel/debug/clk/y2-i2c0/clk_min_rate
+/sys/kernel/debug/clk/y2-i2c0/clk_rate
+/sys/kernel/debug/clk/y2-i2c1/clk_parent
+/sys/kernel/debug/clk/y2-i2c1/clk_duty_cycle
+/sys/kernel/debug/clk/y2-i2c1/clk_notifier_count
+/sys/kernel/debug/clk/y2-i2c1/clk_protect_count
+/sys/kernel/debug/clk/y2-i2c1/clk_enable_count
+/sys/kernel/debug/clk/y2-i2c1/clk_prepare_count
+/sys/kernel/debug/clk/y2-i2c1/clk_flags
+/sys/kernel/debug/clk/y2-i2c1/clk_phase
+/sys/kernel/debug/clk/y2-i2c1/clk_accuracy
+/sys/kernel/debug/clk/y2-i2c1/clk_max_rate
+/sys/kernel/debug/clk/y2-i2c1/clk_min_rate
+/sys/kernel/debug/clk/y2-i2c1/clk_rate
+/sys/kernel/debug/clk/y2-apdma/clk_parent
+/sys/kernel/debug/clk/y2-apdma/clk_duty_cycle
+/sys/kernel/debug/clk/y2-apdma/clk_notifier_count
+/sys/kernel/debug/clk/y2-apdma/clk_protect_count
+/sys/kernel/debug/clk/y2-apdma/clk_enable_count
+/sys/kernel/debug/clk/y2-apdma/clk_prepare_count
+/sys/kernel/debug/clk/y2-apdma/clk_flags
+/sys/kernel/debug/clk/y2-apdma/clk_phase
+/sys/kernel/debug/clk/y2-apdma/clk_accuracy
+/sys/kernel/debug/clk/y2-apdma/clk_max_rate
+/sys/kernel/debug/clk/y2-apdma/clk_min_rate
+/sys/kernel/debug/clk/y2-apdma/clk_rate
+/sys/kernel/debug/clk/y2-pwrap/clk_parent
+/sys/kernel/debug/clk/y2-pwrap/clk_duty_cycle
+/sys/kernel/debug/clk/y2-pwrap/clk_notifier_count
+/sys/kernel/debug/clk/y2-pwrap/clk_protect_count
+/sys/kernel/debug/clk/y2-pwrap/clk_enable_count
+/sys/kernel/debug/clk/y2-pwrap/clk_prepare_count
+/sys/kernel/debug/clk/y2-pwrap/clk_flags
+/sys/kernel/debug/clk/y2-pwrap/clk_phase
+/sys/kernel/debug/clk/y2-pwrap/clk_accuracy
+/sys/kernel/debug/clk/y2-pwrap/clk_max_rate
+/sys/kernel/debug/clk/y2-pwrap/clk_min_rate
+/sys/kernel/debug/clk/y2-pwrap/clk_rate
+/sys/kernel/debug/clk/y2-kp/clk_parent
+/sys/kernel/debug/clk/y2-kp/clk_duty_cycle
+/sys/kernel/debug/clk/y2-kp/clk_notifier_count
+/sys/kernel/debug/clk/y2-kp/clk_protect_count
+/sys/kernel/debug/clk/y2-kp/clk_enable_count
+/sys/kernel/debug/clk/y2-kp/clk_prepare_count
+/sys/kernel/debug/clk/y2-kp/clk_flags
+/sys/kernel/debug/clk/y2-kp/clk_phase
+/sys/kernel/debug/clk/y2-kp/clk_accuracy
+/sys/kernel/debug/clk/y2-kp/clk_max_rate
+/sys/kernel/debug/clk/y2-kp/clk_min_rate
+/sys/kernel/debug/clk/y2-kp/clk_rate
+/sys/kernel/debug/clk/y2-msdc0/clk_parent
+/sys/kernel/debug/clk/y2-msdc0/clk_duty_cycle
+/sys/kernel/debug/clk/y2-msdc0/clk_notifier_count
+/sys/kernel/debug/clk/y2-msdc0/clk_protect_count
+/sys/kernel/debug/clk/y2-msdc0/clk_enable_count
+/sys/kernel/debug/clk/y2-msdc0/clk_prepare_count
+/sys/kernel/debug/clk/y2-msdc0/clk_flags
+/sys/kernel/debug/clk/y2-msdc0/clk_phase
+/sys/kernel/debug/clk/y2-msdc0/clk_accuracy
+/sys/kernel/debug/clk/y2-msdc0/clk_max_rate
+/sys/kernel/debug/clk/y2-msdc0/clk_min_rate
+/sys/kernel/debug/clk/y2-msdc0/clk_rate
+/sys/kernel/debug/clk/y2-msdc1/clk_parent
+/sys/kernel/debug/clk/y2-msdc1/clk_duty_cycle
+/sys/kernel/debug/clk/y2-msdc1/clk_notifier_count
+/sys/kernel/debug/clk/y2-msdc1/clk_protect_count
+/sys/kernel/debug/clk/y2-msdc1/clk_enable_count
+/sys/kernel/debug/clk/y2-msdc1/clk_prepare_count
+/sys/kernel/debug/clk/y2-msdc1/clk_flags
+/sys/kernel/debug/clk/y2-msdc1/clk_phase
+/sys/kernel/debug/clk/y2-msdc1/clk_accuracy
+/sys/kernel/debug/clk/y2-msdc1/clk_max_rate
+/sys/kernel/debug/clk/y2-msdc1/clk_min_rate
+/sys/kernel/debug/clk/y2-msdc1/clk_rate
+/sys/kernel/debug/clk/y2-msdc0-source/clk_parent
+/sys/kernel/debug/clk/y2-msdc0-source/clk_duty_cycle
+/sys/kernel/debug/clk/y2-msdc0-source/clk_notifier_count
+/sys/kernel/debug/clk/y2-msdc0-source/clk_protect_count
+/sys/kernel/debug/clk/y2-msdc0-source/clk_enable_count
+/sys/kernel/debug/clk/y2-msdc0-source/clk_prepare_count
+/sys/kernel/debug/clk/y2-msdc0-source/clk_flags
+/sys/kernel/debug/clk/y2-msdc0-source/clk_phase
+/sys/kernel/debug/clk/y2-msdc0-source/clk_accuracy
+/sys/kernel/debug/clk/y2-msdc0-source/clk_max_rate
+/sys/kernel/debug/clk/y2-msdc0-source/clk_min_rate
+/sys/kernel/debug/clk/y2-msdc0-source/clk_rate
+/sys/kernel/debug/clk/y2-msdc1-source/clk_parent
+/sys/kernel/debug/clk/y2-msdc1-source/clk_duty_cycle
+/sys/kernel/debug/clk/y2-msdc1-source/clk_notifier_count
+/sys/kernel/debug/clk/y2-msdc1-source/clk_protect_count
+/sys/kernel/debug/clk/y2-msdc1-source/clk_enable_count
+/sys/kernel/debug/clk/y2-msdc1-source/clk_prepare_count
+/sys/kernel/debug/clk/y2-msdc1-source/clk_flags
+/sys/kernel/debug/clk/y2-msdc1-source/clk_phase
+/sys/kernel/debug/clk/y2-msdc1-source/clk_accuracy
+/sys/kernel/debug/clk/y2-msdc1-source/clk_max_rate
+/sys/kernel/debug/clk/y2-msdc1-source/clk_min_rate
+/sys/kernel/debug/clk/y2-msdc1-source/clk_rate
+/sys/kernel/debug/clk/mipi_tx0_pll/clk_parent
+/sys/kernel/debug/clk/mipi_tx0_pll/clk_duty_cycle
+/sys/kernel/debug/clk/mipi_tx0_pll/clk_notifier_count
+/sys/kernel/debug/clk/mipi_tx0_pll/clk_protect_count
+/sys/kernel/debug/clk/mipi_tx0_pll/clk_enable_count
+/sys/kernel/debug/clk/mipi_tx0_pll/clk_prepare_count
+/sys/kernel/debug/clk/mipi_tx0_pll/clk_flags
+/sys/kernel/debug/clk/mipi_tx0_pll/clk_phase
+/sys/kernel/debug/clk/mipi_tx0_pll/clk_accuracy
+/sys/kernel/debug/clk/mipi_tx0_pll/clk_max_rate
+/sys/kernel/debug/clk/mipi_tx0_pll/clk_min_rate
+/sys/kernel/debug/clk/mipi_tx0_pll/clk_rate
+/sys/kernel/debug/clk/mm_smi_common/clk_parent
+/sys/kernel/debug/clk/mm_smi_common/clk_duty_cycle
+/sys/kernel/debug/clk/mm_smi_common/clk_notifier_count
+/sys/kernel/debug/clk/mm_smi_common/clk_protect_count
+/sys/kernel/debug/clk/mm_smi_common/clk_enable_count
+/sys/kernel/debug/clk/mm_smi_common/clk_prepare_count
+/sys/kernel/debug/clk/mm_smi_common/clk_flags
+/sys/kernel/debug/clk/mm_smi_common/clk_phase
+/sys/kernel/debug/clk/mm_smi_common/clk_accuracy
+/sys/kernel/debug/clk/mm_smi_common/clk_max_rate
+/sys/kernel/debug/clk/mm_smi_common/clk_min_rate
+/sys/kernel/debug/clk/mm_smi_common/clk_rate
+/sys/kernel/debug/clk/mm_smi_larb0/clk_parent
+/sys/kernel/debug/clk/mm_smi_larb0/clk_duty_cycle
+/sys/kernel/debug/clk/mm_smi_larb0/clk_notifier_count
+/sys/kernel/debug/clk/mm_smi_larb0/clk_protect_count
+/sys/kernel/debug/clk/mm_smi_larb0/clk_enable_count
+/sys/kernel/debug/clk/mm_smi_larb0/clk_prepare_count
+/sys/kernel/debug/clk/mm_smi_larb0/clk_flags
+/sys/kernel/debug/clk/mm_smi_larb0/clk_phase
+/sys/kernel/debug/clk/mm_smi_larb0/clk_accuracy
+/sys/kernel/debug/clk/mm_smi_larb0/clk_max_rate
+/sys/kernel/debug/clk/mm_smi_larb0/clk_min_rate
+/sys/kernel/debug/clk/mm_smi_larb0/clk_rate
+/sys/kernel/debug/clk/mm_cmdq/clk_parent
+/sys/kernel/debug/clk/mm_cmdq/clk_duty_cycle
+/sys/kernel/debug/clk/mm_cmdq/clk_notifier_count
+/sys/kernel/debug/clk/mm_cmdq/clk_protect_count
+/sys/kernel/debug/clk/mm_cmdq/clk_enable_count
+/sys/kernel/debug/clk/mm_cmdq/clk_prepare_count
+/sys/kernel/debug/clk/mm_cmdq/clk_flags
+/sys/kernel/debug/clk/mm_cmdq/clk_phase
+/sys/kernel/debug/clk/mm_cmdq/clk_accuracy
+/sys/kernel/debug/clk/mm_cmdq/clk_max_rate
+/sys/kernel/debug/clk/mm_cmdq/clk_min_rate
+/sys/kernel/debug/clk/mm_cmdq/clk_rate
+/sys/kernel/debug/clk/mm_mutex/clk_parent
+/sys/kernel/debug/clk/mm_mutex/clk_duty_cycle
+/sys/kernel/debug/clk/mm_mutex/clk_notifier_count
+/sys/kernel/debug/clk/mm_mutex/clk_protect_count
+/sys/kernel/debug/clk/mm_mutex/clk_enable_count
+/sys/kernel/debug/clk/mm_mutex/clk_prepare_count
+/sys/kernel/debug/clk/mm_mutex/clk_flags
+/sys/kernel/debug/clk/mm_mutex/clk_phase
+/sys/kernel/debug/clk/mm_mutex/clk_accuracy
+/sys/kernel/debug/clk/mm_mutex/clk_max_rate
+/sys/kernel/debug/clk/mm_mutex/clk_min_rate
+/sys/kernel/debug/clk/mm_mutex/clk_rate
+/sys/kernel/debug/clk/mm_disp_color/clk_parent
+/sys/kernel/debug/clk/mm_disp_color/clk_duty_cycle
+/sys/kernel/debug/clk/mm_disp_color/clk_notifier_count
+/sys/kernel/debug/clk/mm_disp_color/clk_protect_count
+/sys/kernel/debug/clk/mm_disp_color/clk_enable_count
+/sys/kernel/debug/clk/mm_disp_color/clk_prepare_count
+/sys/kernel/debug/clk/mm_disp_color/clk_flags
+/sys/kernel/debug/clk/mm_disp_color/clk_phase
+/sys/kernel/debug/clk/mm_disp_color/clk_accuracy
+/sys/kernel/debug/clk/mm_disp_color/clk_max_rate
+/sys/kernel/debug/clk/mm_disp_color/clk_min_rate
+/sys/kernel/debug/clk/mm_disp_color/clk_rate
+/sys/kernel/debug/clk/mm_disp_bls/clk_parent
+/sys/kernel/debug/clk/mm_disp_bls/clk_duty_cycle
+/sys/kernel/debug/clk/mm_disp_bls/clk_notifier_count
+/sys/kernel/debug/clk/mm_disp_bls/clk_protect_count
+/sys/kernel/debug/clk/mm_disp_bls/clk_enable_count
+/sys/kernel/debug/clk/mm_disp_bls/clk_prepare_count
+/sys/kernel/debug/clk/mm_disp_bls/clk_flags
+/sys/kernel/debug/clk/mm_disp_bls/clk_phase
+/sys/kernel/debug/clk/mm_disp_bls/clk_accuracy
+/sys/kernel/debug/clk/mm_disp_bls/clk_max_rate
+/sys/kernel/debug/clk/mm_disp_bls/clk_min_rate
+/sys/kernel/debug/clk/mm_disp_bls/clk_rate
+/sys/kernel/debug/clk/mm_disp_wdma/clk_parent
+/sys/kernel/debug/clk/mm_disp_wdma/clk_duty_cycle
+/sys/kernel/debug/clk/mm_disp_wdma/clk_notifier_count
+/sys/kernel/debug/clk/mm_disp_wdma/clk_protect_count
+/sys/kernel/debug/clk/mm_disp_wdma/clk_enable_count
+/sys/kernel/debug/clk/mm_disp_wdma/clk_prepare_count
+/sys/kernel/debug/clk/mm_disp_wdma/clk_flags
+/sys/kernel/debug/clk/mm_disp_wdma/clk_phase
+/sys/kernel/debug/clk/mm_disp_wdma/clk_accuracy
+/sys/kernel/debug/clk/mm_disp_wdma/clk_max_rate
+/sys/kernel/debug/clk/mm_disp_wdma/clk_min_rate
+/sys/kernel/debug/clk/mm_disp_wdma/clk_rate
+/sys/kernel/debug/clk/mm_disp_rdma/clk_parent
+/sys/kernel/debug/clk/mm_disp_rdma/clk_duty_cycle
+/sys/kernel/debug/clk/mm_disp_rdma/clk_notifier_count
+/sys/kernel/debug/clk/mm_disp_rdma/clk_protect_count
+/sys/kernel/debug/clk/mm_disp_rdma/clk_enable_count
+/sys/kernel/debug/clk/mm_disp_rdma/clk_prepare_count
+/sys/kernel/debug/clk/mm_disp_rdma/clk_flags
+/sys/kernel/debug/clk/mm_disp_rdma/clk_phase
+/sys/kernel/debug/clk/mm_disp_rdma/clk_accuracy
+/sys/kernel/debug/clk/mm_disp_rdma/clk_max_rate
+/sys/kernel/debug/clk/mm_disp_rdma/clk_min_rate
+/sys/kernel/debug/clk/mm_disp_rdma/clk_rate
+/sys/kernel/debug/clk/mm_disp_ovl/clk_parent
+/sys/kernel/debug/clk/mm_disp_ovl/clk_duty_cycle
+/sys/kernel/debug/clk/mm_disp_ovl/clk_notifier_count
+/sys/kernel/debug/clk/mm_disp_ovl/clk_protect_count
+/sys/kernel/debug/clk/mm_disp_ovl/clk_enable_count
+/sys/kernel/debug/clk/mm_disp_ovl/clk_prepare_count
+/sys/kernel/debug/clk/mm_disp_ovl/clk_flags
+/sys/kernel/debug/clk/mm_disp_ovl/clk_phase
+/sys/kernel/debug/clk/mm_disp_ovl/clk_accuracy
+/sys/kernel/debug/clk/mm_disp_ovl/clk_max_rate
+/sys/kernel/debug/clk/mm_disp_ovl/clk_min_rate
+/sys/kernel/debug/clk/mm_disp_ovl/clk_rate
+/sys/kernel/debug/clk/mm_mdp_tdshp/clk_parent
+/sys/kernel/debug/clk/mm_mdp_tdshp/clk_duty_cycle
+/sys/kernel/debug/clk/mm_mdp_tdshp/clk_notifier_count
+/sys/kernel/debug/clk/mm_mdp_tdshp/clk_protect_count
+/sys/kernel/debug/clk/mm_mdp_tdshp/clk_enable_count
+/sys/kernel/debug/clk/mm_mdp_tdshp/clk_prepare_count
+/sys/kernel/debug/clk/mm_mdp_tdshp/clk_flags
+/sys/kernel/debug/clk/mm_mdp_tdshp/clk_phase
+/sys/kernel/debug/clk/mm_mdp_tdshp/clk_accuracy
+/sys/kernel/debug/clk/mm_mdp_tdshp/clk_max_rate
+/sys/kernel/debug/clk/mm_mdp_tdshp/clk_min_rate
+/sys/kernel/debug/clk/mm_mdp_tdshp/clk_rate
+/sys/kernel/debug/clk/mm_mdp_wrot/clk_parent
+/sys/kernel/debug/clk/mm_mdp_wrot/clk_duty_cycle
+/sys/kernel/debug/clk/mm_mdp_wrot/clk_notifier_count
+/sys/kernel/debug/clk/mm_mdp_wrot/clk_protect_count
+/sys/kernel/debug/clk/mm_mdp_wrot/clk_enable_count
+/sys/kernel/debug/clk/mm_mdp_wrot/clk_prepare_count
+/sys/kernel/debug/clk/mm_mdp_wrot/clk_flags
+/sys/kernel/debug/clk/mm_mdp_wrot/clk_phase
+/sys/kernel/debug/clk/mm_mdp_wrot/clk_accuracy
+/sys/kernel/debug/clk/mm_mdp_wrot/clk_max_rate
+/sys/kernel/debug/clk/mm_mdp_wrot/clk_min_rate
+/sys/kernel/debug/clk/mm_mdp_wrot/clk_rate
+/sys/kernel/debug/clk/mm_mdp_wdma/clk_parent
+/sys/kernel/debug/clk/mm_mdp_wdma/clk_duty_cycle
+/sys/kernel/debug/clk/mm_mdp_wdma/clk_notifier_count
+/sys/kernel/debug/clk/mm_mdp_wdma/clk_protect_count
+/sys/kernel/debug/clk/mm_mdp_wdma/clk_enable_count
+/sys/kernel/debug/clk/mm_mdp_wdma/clk_prepare_count
+/sys/kernel/debug/clk/mm_mdp_wdma/clk_flags
+/sys/kernel/debug/clk/mm_mdp_wdma/clk_phase
+/sys/kernel/debug/clk/mm_mdp_wdma/clk_accuracy
+/sys/kernel/debug/clk/mm_mdp_wdma/clk_max_rate
+/sys/kernel/debug/clk/mm_mdp_wdma/clk_min_rate
+/sys/kernel/debug/clk/mm_mdp_wdma/clk_rate
+/sys/kernel/debug/clk/mm_mdp_rsz1/clk_parent
+/sys/kernel/debug/clk/mm_mdp_rsz1/clk_duty_cycle
+/sys/kernel/debug/clk/mm_mdp_rsz1/clk_notifier_count
+/sys/kernel/debug/clk/mm_mdp_rsz1/clk_protect_count
+/sys/kernel/debug/clk/mm_mdp_rsz1/clk_enable_count
+/sys/kernel/debug/clk/mm_mdp_rsz1/clk_prepare_count
+/sys/kernel/debug/clk/mm_mdp_rsz1/clk_flags
+/sys/kernel/debug/clk/mm_mdp_rsz1/clk_phase
+/sys/kernel/debug/clk/mm_mdp_rsz1/clk_accuracy
+/sys/kernel/debug/clk/mm_mdp_rsz1/clk_max_rate
+/sys/kernel/debug/clk/mm_mdp_rsz1/clk_min_rate
+/sys/kernel/debug/clk/mm_mdp_rsz1/clk_rate
+/sys/kernel/debug/clk/mm_mdp_rsz0/clk_parent
+/sys/kernel/debug/clk/mm_mdp_rsz0/clk_duty_cycle
+/sys/kernel/debug/clk/mm_mdp_rsz0/clk_notifier_count
+/sys/kernel/debug/clk/mm_mdp_rsz0/clk_protect_count
+/sys/kernel/debug/clk/mm_mdp_rsz0/clk_enable_count
+/sys/kernel/debug/clk/mm_mdp_rsz0/clk_prepare_count
+/sys/kernel/debug/clk/mm_mdp_rsz0/clk_flags
+/sys/kernel/debug/clk/mm_mdp_rsz0/clk_phase
+/sys/kernel/debug/clk/mm_mdp_rsz0/clk_accuracy
+/sys/kernel/debug/clk/mm_mdp_rsz0/clk_max_rate
+/sys/kernel/debug/clk/mm_mdp_rsz0/clk_min_rate
+/sys/kernel/debug/clk/mm_mdp_rsz0/clk_rate
+/sys/kernel/debug/clk/mm_mdp_rdma/clk_parent
+/sys/kernel/debug/clk/mm_mdp_rdma/clk_duty_cycle
+/sys/kernel/debug/clk/mm_mdp_rdma/clk_notifier_count
+/sys/kernel/debug/clk/mm_mdp_rdma/clk_protect_count
+/sys/kernel/debug/clk/mm_mdp_rdma/clk_enable_count
+/sys/kernel/debug/clk/mm_mdp_rdma/clk_prepare_count
+/sys/kernel/debug/clk/mm_mdp_rdma/clk_flags
+/sys/kernel/debug/clk/mm_mdp_rdma/clk_phase
+/sys/kernel/debug/clk/mm_mdp_rdma/clk_accuracy
+/sys/kernel/debug/clk/mm_mdp_rdma/clk_max_rate
+/sys/kernel/debug/clk/mm_mdp_rdma/clk_min_rate
+/sys/kernel/debug/clk/mm_mdp_rdma/clk_rate
+/sys/kernel/debug/clk/mm_mdp_bls_26m/clk_parent
+/sys/kernel/debug/clk/mm_mdp_bls_26m/clk_duty_cycle
+/sys/kernel/debug/clk/mm_mdp_bls_26m/clk_notifier_count
+/sys/kernel/debug/clk/mm_mdp_bls_26m/clk_protect_count
+/sys/kernel/debug/clk/mm_mdp_bls_26m/clk_enable_count
+/sys/kernel/debug/clk/mm_mdp_bls_26m/clk_prepare_count
+/sys/kernel/debug/clk/mm_mdp_bls_26m/clk_flags
+/sys/kernel/debug/clk/mm_mdp_bls_26m/clk_phase
+/sys/kernel/debug/clk/mm_mdp_bls_26m/clk_accuracy
+/sys/kernel/debug/clk/mm_mdp_bls_26m/clk_max_rate
+/sys/kernel/debug/clk/mm_mdp_bls_26m/clk_min_rate
+/sys/kernel/debug/clk/mm_mdp_bls_26m/clk_rate
+/sys/kernel/debug/clk/mm_cam_mdp/clk_parent
+/sys/kernel/debug/clk/mm_cam_mdp/clk_duty_cycle
+/sys/kernel/debug/clk/mm_cam_mdp/clk_notifier_count
+/sys/kernel/debug/clk/mm_cam_mdp/clk_protect_count
+/sys/kernel/debug/clk/mm_cam_mdp/clk_enable_count
+/sys/kernel/debug/clk/mm_cam_mdp/clk_prepare_count
+/sys/kernel/debug/clk/mm_cam_mdp/clk_flags
+/sys/kernel/debug/clk/mm_cam_mdp/clk_phase
+/sys/kernel/debug/clk/mm_cam_mdp/clk_accuracy
+/sys/kernel/debug/clk/mm_cam_mdp/clk_max_rate
+/sys/kernel/debug/clk/mm_cam_mdp/clk_min_rate
+/sys/kernel/debug/clk/mm_cam_mdp/clk_rate
+/sys/kernel/debug/clk/mm_fake_eng/clk_parent
+/sys/kernel/debug/clk/mm_fake_eng/clk_duty_cycle
+/sys/kernel/debug/clk/mm_fake_eng/clk_notifier_count
+/sys/kernel/debug/clk/mm_fake_eng/clk_protect_count
+/sys/kernel/debug/clk/mm_fake_eng/clk_enable_count
+/sys/kernel/debug/clk/mm_fake_eng/clk_prepare_count
+/sys/kernel/debug/clk/mm_fake_eng/clk_flags
+/sys/kernel/debug/clk/mm_fake_eng/clk_phase
+/sys/kernel/debug/clk/mm_fake_eng/clk_accuracy
+/sys/kernel/debug/clk/mm_fake_eng/clk_max_rate
+/sys/kernel/debug/clk/mm_fake_eng/clk_min_rate
+/sys/kernel/debug/clk/mm_fake_eng/clk_rate
+/sys/kernel/debug/clk/mm_mutex_32k/clk_parent
+/sys/kernel/debug/clk/mm_mutex_32k/clk_duty_cycle
+/sys/kernel/debug/clk/mm_mutex_32k/clk_notifier_count
+/sys/kernel/debug/clk/mm_mutex_32k/clk_protect_count
+/sys/kernel/debug/clk/mm_mutex_32k/clk_enable_count
+/sys/kernel/debug/clk/mm_mutex_32k/clk_prepare_count
+/sys/kernel/debug/clk/mm_mutex_32k/clk_flags
+/sys/kernel/debug/clk/mm_mutex_32k/clk_phase
+/sys/kernel/debug/clk/mm_mutex_32k/clk_accuracy
+/sys/kernel/debug/clk/mm_mutex_32k/clk_max_rate
+/sys/kernel/debug/clk/mm_mutex_32k/clk_min_rate
+/sys/kernel/debug/clk/mm_mutex_32k/clk_rate
+/sys/kernel/debug/clk/mm_dsi_engine/clk_parent
+/sys/kernel/debug/clk/mm_dsi_engine/clk_duty_cycle
+/sys/kernel/debug/clk/mm_dsi_engine/clk_notifier_count
+/sys/kernel/debug/clk/mm_dsi_engine/clk_protect_count
+/sys/kernel/debug/clk/mm_dsi_engine/clk_enable_count
+/sys/kernel/debug/clk/mm_dsi_engine/clk_prepare_count
+/sys/kernel/debug/clk/mm_dsi_engine/clk_flags
+/sys/kernel/debug/clk/mm_dsi_engine/clk_phase
+/sys/kernel/debug/clk/mm_dsi_engine/clk_accuracy
+/sys/kernel/debug/clk/mm_dsi_engine/clk_max_rate
+/sys/kernel/debug/clk/mm_dsi_engine/clk_min_rate
+/sys/kernel/debug/clk/mm_dsi_engine/clk_rate
+/sys/kernel/debug/clk/mm_dsi_digital/clk_parent
+/sys/kernel/debug/clk/mm_dsi_digital/clk_duty_cycle
+/sys/kernel/debug/clk/mm_dsi_digital/clk_notifier_count
+/sys/kernel/debug/clk/mm_dsi_digital/clk_protect_count
+/sys/kernel/debug/clk/mm_dsi_digital/clk_enable_count
+/sys/kernel/debug/clk/mm_dsi_digital/clk_prepare_count
+/sys/kernel/debug/clk/mm_dsi_digital/clk_flags
+/sys/kernel/debug/clk/mm_dsi_digital/clk_phase
+/sys/kernel/debug/clk/mm_dsi_digital/clk_accuracy
+/sys/kernel/debug/clk/mm_dsi_digital/clk_max_rate
+/sys/kernel/debug/clk/mm_dsi_digital/clk_min_rate
+/sys/kernel/debug/clk/mm_dsi_digital/clk_rate
+/sys/kernel/debug/clk/mm_dpi_digital_lane/clk_parent
+/sys/kernel/debug/clk/mm_dpi_digital_lane/clk_duty_cycle
+/sys/kernel/debug/clk/mm_dpi_digital_lane/clk_notifier_count
+/sys/kernel/debug/clk/mm_dpi_digital_lane/clk_protect_count
+/sys/kernel/debug/clk/mm_dpi_digital_lane/clk_enable_count
+/sys/kernel/debug/clk/mm_dpi_digital_lane/clk_prepare_count
+/sys/kernel/debug/clk/mm_dpi_digital_lane/clk_flags
+/sys/kernel/debug/clk/mm_dpi_digital_lane/clk_phase
+/sys/kernel/debug/clk/mm_dpi_digital_lane/clk_accuracy
+/sys/kernel/debug/clk/mm_dpi_digital_lane/clk_max_rate
+/sys/kernel/debug/clk/mm_dpi_digital_lane/clk_min_rate
+/sys/kernel/debug/clk/mm_dpi_digital_lane/clk_rate
+/sys/kernel/debug/clk/mm_dpi_engine/clk_parent
+/sys/kernel/debug/clk/mm_dpi_engine/clk_duty_cycle
+/sys/kernel/debug/clk/mm_dpi_engine/clk_notifier_count
+/sys/kernel/debug/clk/mm_dpi_engine/clk_protect_count
+/sys/kernel/debug/clk/mm_dpi_engine/clk_enable_count
+/sys/kernel/debug/clk/mm_dpi_engine/clk_prepare_count
+/sys/kernel/debug/clk/mm_dpi_engine/clk_flags
+/sys/kernel/debug/clk/mm_dpi_engine/clk_phase
+/sys/kernel/debug/clk/mm_dpi_engine/clk_accuracy
+/sys/kernel/debug/clk/mm_dpi_engine/clk_max_rate
+/sys/kernel/debug/clk/mm_dpi_engine/clk_min_rate
+/sys/kernel/debug/clk/mm_dpi_engine/clk_rate
+/sys/kernel/debug/clk/clk_orphan_dump
+/sys/kernel/debug/clk/clk_orphan_summary
+/sys/kernel/debug/clk/clk_dump
+/sys/kernel/debug/clk/clk_summary
+
+===== EXIT 0 =====
+
+===== COMMAND: sh -c for d in /sys/firmware/devicetree/base/*mmc*; do echo "$d"; for f in status compatible; do [ ! -f "$d/$f" ] || tr "\000" "\n" < "$d/$f"; done; done =====
+/sys/firmware/devicetree/base/mmc@11230000
+disabled
+innioasis,y2-msdc-readonly
+/sys/firmware/devicetree/base/mmc@11240000
+innioasis,y2-msdc-sd
+
+===== EXIT 0 =====

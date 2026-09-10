@@ -1,0 +1,28 @@
+$ ['lsusb']
+exit=0
+Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+Bus 003 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 003 Device 002: ID 1235:8211 Focusrite-Novation Scarlett Solo (3rd Gen.)
+Bus 004 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+Bus 005 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 005 Device 023: ID 0525:a4aa Netchip Technology, Inc. Linux-USB CDC Composite Gadge (Ethernet and ACM)
+Bus 006 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+Bus 007 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 007 Device 004: ID 3554:f58a Compx VXE NordicMouse 1K Dongle
+Bus 008 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+Bus 009 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 009 Device 002: ID 3837:3003 MCHOSE Ace 68 -III
+
+$ ['ip', '-br', 'address']
+exit=0
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+enp5s0           UP             192.168.123.204/24 fe80::d61b:1543:1314:279e/64 
+enp8s0f3u2       DOWN           
+
+$ ['ip', 'route', 'get', '10.42.0.1']
+exit=0
+10.42.0.1 via 192.168.123.1 dev enp5s0 src 192.168.123.204 uid 1000 
+    cache 
+
+ACM nodes: ['/dev/ttyACM0']

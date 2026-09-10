@@ -1,0 +1,5 @@
+{
+  "error": "[Errno 13] Permission denied: '/dev/ttyACM0'",
+  "type": "PermissionError",
+  "hardware_qualified": false
+}

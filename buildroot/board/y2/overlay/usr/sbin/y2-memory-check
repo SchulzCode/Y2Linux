@@ -1,6 +1,24 @@
 #!/bin/sh
-# One allocator-owned 128 MiB pass; no /dev/mem, MMIO or reserved-region sweep.
+# Short allocator-only qualification: address, random, arithmetic and sequence.
+# memtester 4.5.1 mask 0xff omits the much slower exhaustive bit-pattern sweeps.
 set -eu
 available=$(awk '/MemAvailable:/ {print $2}' /proc/meminfo)
-[ "$available" -ge 262144 ] || { echo 'Need at least 256 MiB available for this test' >&2; exit 1; }
-exec memtester 128M 1
+[ "$available" -ge 524288 ] || { echo 'Need at least 512 MiB available for this test' >&2; exit 1; }
+echo 'Y2RAM: 256 MiB, one loop, mask=0xff, allocator only, 180-second limit'
+MEMTESTER_TEST_MASK=0xff memtester 256M 1 &
+test_pid=$!
+(
+    sleep 180
+    if kill -0 "$test_pid" 2>/dev/null; then
+        echo 'Y2RAM: time limit reached; incomplete test'
+        kill "$test_pid"
+    fi
+) &
+watchdog=$!
+set +e
+wait "$test_pid"
+rc=$?
+kill "$watchdog" 2>/dev/null
+wait "$watchdog" 2>/dev/null
+echo "Y2RAM: exit=$rc"
+exit "$rc"

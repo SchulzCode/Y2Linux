@@ -1,0 +1,2 @@
+Sep 10 21:32:50 cachyos-x8664 kernel: usb 5-2: USB disconnect, device number 22
+Sep 10 21:32:50 cachyos-x8664 kernel: cdc_ether 5-2:1.0 enp8s0f3u2: unregister 'cdc_ether' usb-0000:08:00.3-2, CDC Ethernet Device

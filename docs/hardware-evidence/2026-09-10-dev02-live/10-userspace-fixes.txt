@@ -1,0 +1,170 @@
+display.ko
+lib/
+lib/modules/
+lib/modules/6.18.0-y2linux-dev02/
+lib/modules/6.18.0-y2linux-dev02/kernel/
+lib/modules/6.18.0-y2linux-dev02/kernel/drivers/
+lib/modules/6.18.0-y2linux-dev02/kernel/drivers/gpu/
+lib/modules/6.18.0-y2linux-dev02/kernel/drivers/gpu/drm/
+lib/modules/6.18.0-y2linux-dev02/kernel/drivers/gpu/drm/mediatek/
+lib/modules/6.18.0-y2linux-dev02/kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko
+lib/modules/6.18.0-y2linux-dev02/modules.alias
+lib/modules/6.18.0-y2linux-dev02/modules.alias.bin
+lib/modules/6.18.0-y2linux-dev02/modules.builtin
+lib/modules/6.18.0-y2linux-dev02/modules.builtin.alias.bin
+lib/modules/6.18.0-y2linux-dev02/modules.builtin.bin
+lib/modules/6.18.0-y2linux-dev02/modules.builtin.modinfo
+lib/modules/6.18.0-y2linux-dev02/modules.dep
+lib/modules/6.18.0-y2linux-dev02/modules.dep.bin
+lib/modules/6.18.0-y2linux-dev02/modules.devname
+lib/modules/6.18.0-y2linux-dev02/modules.order
+lib/modules/6.18.0-y2linux-dev02/modules.softdep
+lib/modules/6.18.0-y2linux-dev02/modules.symbols
+lib/modules/6.18.0-y2linux-dev02/modules.symbols.bin
+lib/modules/6.18.0-y2linux-dev02/modules.weakdep
+etc/init.d/S00y2-runtime
+etc/init.d/S25y2-pattern
+usr/sbin/y2-memory-check
+usr/sbin/y2-collect
+filename:       /lib/modules/6.18.0-y2linux-dev02/kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko
+author:         YT SHEN <yt.shen@mediatek.com>
+description:    Mediatek SoC DRM driver
+license:        GPL v2
+name:           mediatek_drm
+intree:         Y
+depends:        
+alias:          of:N*T*Cmediatek,mt8173-disp-aal
+alias:          of:N*T*Cmediatek,mt8173-disp-aalC*
+alias:          of:N*T*Cmediatek,mt8183-disp-aal
+alias:          of:N*T*Cmediatek,mt8183-disp-aalC*
+alias:          of:N*T*Cmediatek,mt8183-disp-ccorr
+alias:          of:N*T*Cmediatek,mt8183-disp-ccorrC*
+alias:          of:N*T*Cmediatek,mt8192-disp-ccorr
+alias:          of:N*T*Cmediatek,mt8192-disp-ccorrC*
+alias:          of:N*T*Cmediatek,mt2701-disp-color
+alias:          of:N*T*Cmediatek,mt2701-disp-colorC*
+alias:          of:N*T*Cmediatek,mt6582-disp-color
+alias:          of:N*T*Cmediatek,mt6582-disp-colorC*
+alias:          of:N*T*Cmediatek,mt8167-disp-color
+alias:          of:N*T*Cmediatek,mt8167-disp-colorC*
+alias:          of:N*T*Cmediatek,mt8173-disp-color
+alias:          of:N*T*Cmediatek,mt8173-disp-colorC*
+alias:          of:N*T*Cmediatek,mt8173-disp-gamma
+alias:          of:N*T*Cmediatek,mt8173-disp-gammaC*
+alias:          of:N*T*Cmediatek,mt8183-disp-gamma
+alias:          of:N*T*Cmediatek,mt8183-disp-gammaC*
+alias:          of:N*T*Cmediatek,mt8195-disp-gamma
+alias:          of:N*T*Cmediatek,mt8195-disp-gammaC*
+alias:          of:N*T*Cmediatek,mt8195-disp-merge
+alias:          of:N*T*Cmediatek,mt8195-disp-mergeC*
+alias:          of:N*T*Cmediatek,mt2701-disp-ovl
+alias:          of:N*T*Cmediatek,mt2701-disp-ovlC*
+alias:          of:N*T*Cmediatek,mt6582-disp-ovl
+alias:          of:N*T*Cmediatek,mt6582-disp-ovlC*
+alias:          of:N*T*Cmediatek,mt8173-disp-ovl
+alias:          of:N*T*Cmediatek,mt8173-disp-ovlC*
+alias:          of:N*T*Cmediatek,mt8183-disp-ovl
+alias:          of:N*T*Cmediatek,mt8183-disp-ovlC*
+alias:          of:N*T*Cmediatek,mt8183-disp-ovl-2l
+alias:          of:N*T*Cmediatek,mt8183-disp-ovl-2lC*
+alias:          of:N*T*Cmediatek,mt8192-disp-ovl
+alias:          of:N*T*Cmediatek,mt8192-disp-ovlC*
+alias:          of:N*T*Cmediatek,mt8192-disp-ovl-2l
+alias:          of:N*T*Cmediatek,mt8192-disp-ovl-2lC*
+alias:          of:N*T*Cmediatek,mt8195-disp-ovl
+alias:          of:N*T*Cmediatek,mt8195-disp-ovlC*
+alias:          of:N*T*Cmediatek,mt2701-disp-rdma
+alias:          of:N*T*Cmediatek,mt2701-disp-rdmaC*
+alias:          of:N*T*Cmediatek,mt6582-disp-rdma
+alias:          of:N*T*Cmediatek,mt6582-disp-rdmaC*
+alias:          of:N*T*Cmediatek,mt8173-disp-rdma
+alias:          of:N*T*Cmediatek,mt8173-disp-rdmaC*
+alias:          of:N*T*Cmediatek,mt8183-disp-rdma
+alias:          of:N*T*Cmediatek,mt8183-disp-rdmaC*
+alias:          of:N*T*Cmediatek,mt8195-disp-rdma
+alias:          of:N*T*Cmediatek,mt8195-disp-rdmaC*
+alias:          of:N*T*Cmediatek,mt2701-mmsys
+alias:          of:N*T*Cmediatek,mt2701-mmsysC*
+alias:          of:N*T*Cmediatek,mt6582-mmsys
+alias:          of:N*T*Cmediatek,mt6582-mmsysC*
+alias:          of:N*T*Cmediatek,mt7623-mmsys
+alias:          of:N*T*Cmediatek,mt7623-mmsysC*
+alias:          of:N*T*Cmediatek,mt2712-mmsys
+alias:          of:N*T*Cmediatek,mt2712-mmsysC*
+alias:          of:N*T*Cmediatek,mt8167-mmsys
+alias:          of:N*T*Cmediatek,mt8167-mmsysC*
+alias:          of:N*T*Cmediatek,mt8173-mmsys
+alias:          of:N*T*Cmediatek,mt8173-mmsysC*
+alias:          of:N*T*Cmediatek,mt8183-mmsys
+alias:          of:N*T*Cmediatek,mt8183-mmsysC*
+alias:          of:N*T*Cmediatek,mt8186-mmsys
+alias:          of:N*T*Cmediatek,mt8186-mmsysC*
+alias:          of:N*T*Cmediatek,mt8188-vdosys0
+alias:          of:N*T*Cmediatek,mt8188-vdosys0C*
+alias:          of:N*T*Cmediatek,mt8188-vdosys1
+alias:          of:N*T*Cmediatek,mt8188-vdosys1C*
+alias:          of:N*T*Cmediatek,mt8192-mmsys
+alias:          of:N*T*Cmediatek,mt8192-mmsysC*
+alias:          of:N*T*Cmediatek,mt8195-mmsys
+alias:          of:N*T*Cmediatek,mt8195-mmsysC*
+alias:          of:N*T*Cmediatek,mt8195-vdosys0
+alias:          of:N*T*Cmediatek,mt8195-vdosys0C*
+alias:          of:N*T*Cmediatek,mt8195-vdosys1
+alias:          of:N*T*Cmediatek,mt8195-vdosys1C*
+alias:          of:N*T*Cmediatek,mt8365-mmsys
+alias:          of:N*T*Cmediatek,mt8365-mmsysC*
+alias:          of:N*T*Cmediatek,mt6582-dsi
+alias:          of:N*T*Cmediatek,mt6582-dsiC*
+alias:          of:N*T*Cmediatek,mt2701-dsi
+alias:          of:N*T*Cmediatek,mt2701-dsiC*
+alias:          of:N*T*Cmediatek,mt8173-dsi
+alias:          of:N*T*Cmediatek,mt8173-dsiC*
+alias:          of:N*T*Cmediatek,mt8183-dsi
+alias:          of:N*T*Cmediatek,mt8183-dsiC*
+alias:          of:N*T*Cmediatek,mt8186-dsi
+alias:          of:N*T*Cmediatek,mt8186-dsiC*
+alias:          of:N*T*Cmediatek,mt8188-dsi
+alias:          of:N*T*Cmediatek,mt8188-dsiC*
+alias:          of:N*T*Cmediatek,mt2701-dpi
+alias:          of:N*T*Cmediatek,mt2701-dpiC*
+alias:          of:N*T*Cmediatek,mt8173-dpi
+alias:          of:N*T*Cmediatek,mt8173-dpiC*
+alias:          of:N*T*Cmediatek,mt8183-dpi
+alias:          of:N*T*Cmediatek,mt8183-dpiC*
+alias:          of:N*T*Cmediatek,mt8186-dpi
+alias:          of:N*T*Cmediatek,mt8186-dpiC*
+alias:          of:N*T*Cmediatek,mt8188-dp-intf
+alias:          of:N*T*Cmediatek,mt8188-dp-intfC*
+alias:          of:N*T*Cmediatek,mt8192-dpi
+alias:          of:N*T*Cmediatek,mt8192-dpiC*
+alias:          of:N*T*Cmediatek,mt8195-dp-intf
+alias:          of:N*T*Cmediatek,mt8195-dp-intfC*
+alias:          of:N*T*Cmediatek,mt8195-dpi
+alias:          of:N*T*Cmediatek,mt8195-dpiC*
+alias:          of:N*T*Cmediatek,mt8195-disp-ethdr
+alias:          of:N*T*Cmediatek,mt8195-disp-ethdrC*
+alias:          of:N*T*Cmediatek,mt8195-vdo1-rdma
+alias:          of:N*T*Cmediatek,mt8195-vdo1-rdmaC*
+alias:          of:N*T*Cmediatek,mt8188-disp-padding
+alias:          of:N*T*Cmediatek,mt8188-disp-paddingC*
+vermagic:       6.18.0-y2linux-dev02 SMP ARMv7 
+proc on /proc type proc (rw,relatime)
+sysfs on /sys type sysfs (rw,relatime)
+devtmpfs on /dev type devtmpfs (rw,relatime,size=476468k,nr_inodes=119117,mode=755)
+devpts on /dev/pts type devpts (rw,relatime,gid=5,mode=620,ptmxmode=666)
+tmpfs on /run type tmpfs (rw,nosuid,nodev,relatime)
+tmpfs on /tmp type tmpfs (rw,relatime)
+debugfs on /sys/kernel/debug type debugfs (rw,relatime)
+/dev/mmcblk0p1 on / type ext4 (rw,relatime)
+proc on /proc type proc (rw,relatime)
+tmpfs on /dev/shm type tmpfs (rw,relatime)
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 /dev/pts
+drwxrwxrwt    6 root     root           260 Jan  1 00:00 /run
+crw--w----    1 root     root      136,   0 Jan  1 00:04 /dev/pts/0
+crw-rw-rw-    1 root     root        5,   2 Jan  1 00:00 /dev/pts/ptmx
+545e29be86e0148445d70a5e508fedcdcc21126ca3d236000029bd1aaea86174  /display.ko
+9b62b2038d59853f0279aba8734af5c8bf513c3966f3b5281e135f00d612c92a  /etc/init.d/S00y2-runtime
+8831c2a0457f7ae69214f2cfbc2ded4e5a1d55264a0218e58258a5ea74033d84  /etc/init.d/S25y2-pattern
+afc2c31107b4ef323e5ea3a1aa28c6061f9a79f4988f532f9a24817ac9323280  /usr/sbin/y2-memory-check
+556dd997554e6d062aab92491de4ffb3861d3293a6d983b4076c5fa104786eef  /usr/sbin/y2-collect
+1177.30 4092.15

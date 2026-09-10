@@ -4,8 +4,16 @@
     for attempt in $(seq 1 30); do
         if [ -e /dev/fb0 ]; then
             sleep 2
+            # DRM scanout can be active while the fbdev blank state is 4.
+            # DEV-02 live qualification restored the visible pattern this way.
+            echo 0 > /sys/class/graphics/fb0/blank
+            # fbcon's blinking cursor writes the same scanout buffer. Hide it
+            # during the checksum, then restore normal console behavior.
+            printf '\033[?25l' > /dev/tty0
             /usr/sbin/y2-fbtest > /dev/kmsg 2>&1
-            exit
+            rc=$?
+            printf '\033[?25h' > /dev/tty0
+            exit "$rc"
         fi
         sleep 1
     done

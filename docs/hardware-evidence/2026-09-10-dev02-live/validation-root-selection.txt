@@ -1,0 +1,6 @@
+test_rescue_only_selects_one_removable_ext4_label (tests.test_dev_foundation.DevFoundation.test_rescue_only_selects_one_removable_ext4_label) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.017s
+
+OK

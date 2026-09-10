@@ -1,5 +1,16 @@
 # DEV-01 practical RAM reconciliation
 
+## Physical DEV-02 result — 2026-09-10
+
+[Live qualification](y2linux-dev02-live-qualification.md) measures MemTotal954660KiB
+(932.285MiB), HighTotal228352KiB and a completed256MiB allocator-backed short test.
+The difference from951MiB minus16KiB before kernel reservations is19148KiB of
+ordinary kernel/early-allocation overhead. HIGHMEM is substantially consumed
+through the allocator; no physical-address sweep. The separate exhaustive run
+was capped at600seconds, not a full-suite pass. Full DMA/long-run qualification
+remains open. The original offline reconciliation below is retained as history.
+
+
 2026-09-10; successor to [D08](initial-ram-map.md), authorized by the owner for
 one integrated development candidate. This is an implemented, offline-validated
 map. Its actual MemTotal, HIGHMEM operation and allocator stability remain to be

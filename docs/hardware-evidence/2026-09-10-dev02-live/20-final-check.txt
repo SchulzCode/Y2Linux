@@ -1,0 +1,299 @@
+Linux y2linux 6.18.0-y2linux-dev02 #1 SMP @1764542530 armv7l GNU/Linux
+1248.63 4978.97
+0-3
+MemTotal:         954660 kB
+MemFree:          928064 kB
+MemAvailable:     921484 kB
+Buffers:            3940 kB
+Cached:             6652 kB
+SwapCached:            0 kB
+Active:             8612 kB
+Inactive:           3188 kB
+Active(anon):         80 kB
+Inactive(anon):     1196 kB
+Active(file):       8532 kB
+Inactive(file):     1992 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+HighTotal:        228352 kB
+HighFree:         219772 kB
+LowTotal:         726308 kB
+LowFree:          708292 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:                 0 kB
+Writeback:             0 kB
+AnonPages:          1288 kB
+Mapped:             2556 kB
+Shmem:                68 kB
+KReclaimable:       1508 kB
+Slab:               6760 kB
+SReclaimable:       1508 kB
+SUnreclaim:         5252 kB
+KernelStack:         632 kB
+PageTables:          444 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:      477328 kB
+Committed_AS:       4552 kB
+VmallocTotal:     245760 kB
+VmallocUsed:         160 kB
+VmallocChunk:          0 kB
+Percpu:              176 kB
+Balloon:               0 kB
+0
+configured
+2: usb0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether 02:42:00:00:00:01 brd ff:ff:ff:ff:ff:ff
+    inet 10.42.0.1/24 scope global usb0
+       valid_lft forever preferred_lft forever
+drwxr-xr-x    6 root     root           260 Jan  1 00:00 /run
+crw-rw-rw-    1 root     root        5,   2 Jan  1 00:00 /dev/pts/ptmx
+4127181f35807836036c553bc080e44cf12753ac5ce089cff0dadb273d044302  /etc/init.d/S00y2-runtime
+aedf44379ad4c732e597508a3a6b711a651263fd3570af87035fe859e7423225  /etc/init.d/S25y2-pattern
+afc2c31107b4ef323e5ea3a1aa28c6061f9a79f4988f532f9a24817ac9323280  /usr/sbin/y2-memory-check
+556dd997554e6d062aab92491de4ffb3861d3293a6d983b4076c5fa104786eef  /usr/sbin/y2-collect
+83a746e9caa315463db2580b59b2501445c83d707434f6397efabf74662dba90  /usr/sbin/y2-usb-record
+545e29be86e0148445d70a5e508fedcdcc21126ca3d236000029bd1aaea86174  /display.ko
+6.18.0-y2linux-dev02 SMP ARMv7 
+/run/crond.pid 169
+crond
+/run/dropbear.pid 175
+dropbear
+/run/klogd.pid 140
+klogd
+/run/syslogd.pid 130
+syslogd
+/run/y2-observer.pid 136
+y2-observer
+[    0.000000] Booting Linux on physical CPU 0x0
+[    0.000000] Linux version 6.18.0-y2linux-dev02 (Luca@y2-build) (Alpine clang version 20.1.8, LLD 20.1.8) #1 SMP @1764542530
+[    0.000000] CPU: ARMv7 Processor [410fc073] revision 3 (ARMv7), cr=10c5387d
+[    0.000000] CPU: PIPT / VIPT nonaliasing data cache, VIPT aliasing instruction cache
+[    0.000000] OF: fdt: Machine model: Innioasis Y2 Y2LINUX-DEV-01
+[    0.000000] earlycon: mtk8250 at MMIO32 0x11002000 (options '')
+[    0.000000] printk: legacy bootconsole [mtk8250] enabled
+[    0.000000] printk: debug: ignoring loglevel setting.
+[    0.000000] Memory policy: Data cache writealloc
+[    0.000000] Zone ranges:
+[    0.000000]   Normal   [mem 0x0000000080000000-0x00000000afffffff]
+[    0.000000]   HighMem  [mem 0x00000000b0000000-0x00000000bdffffff]
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000080000000-0x00000000817fffff]
+[    0.000000]   node   0: [mem 0x0000000081800000-0x0000000083ffffff]
+[    0.000000]   node   0: [mem 0x0000000084000000-0x00000000bdefffff]
+[    0.000000]   node   0: [mem 0x00000000bdf00000-0x00000000bdffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x00000000bdffffff]
+[    0.000000] OF: reserved mem: 0x81800000..0x83ffffff (40960 KiB) nomap non-reusable loader@81800000
+[    0.000000] OF: reserved mem: 0xbdf00000..0xbfffffff (33792 KiB) nomap non-reusable high-owned@bdf00000
+[    0.000000] percpu: Embedded 11 pages/cpu s13260 r8192 d23604 u45056
+[    0.000000] pcpu-alloc: s13260 r8192 d23604 u45056 alloc=11*4096
+[    0.000000] pcpu-alloc: [0] 0 [0] 1 [0] 2 [0] 3 
+[    0.000000] Kernel command line: rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2LINUX-DEV-01
+[    0.000000] printk: log buffer data + meta data: 1048576 + 3276800 = 4325376 bytes
+[    0.000000] Dentry cache hash table entries: 131072 (order: 7, 524288 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 253952
+[    0.000000] mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=1
+[    0.000000] rcu: Hierarchical RCU implementation.
+[    0.000000] rcu: RCU calculated value of scheduler-enlistment delay is 10 jiffies.
+[    0.000000] NR_IRQS: 16, nr_irqs: 16, preallocated irqs: 16
+[    0.000000] rcu: srcu_init: Setting srcu_struct sizes based on contention.
+[    0.000000] clocksource: timer: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 147020034397 ns
+[    0.000001] sched_clock: 32 bits at 13MHz, resolution 76ns, wraps every 165191050201ns
+[    0.001181] Console: colour dummy device 80x30
+[    0.001782] printk: legacy console [tty0] enabled
+[    0.002411] printk: legacy bootconsole [mtk8250] disabled
+[    0.003175] Calibrating delay loop... 2079.12 BogoMIPS (lpj=10395648)
+[    0.061082] CPU: Testing write buffer coherency: ok
+[    0.061143] pid_max: default: 32768 minimum: 301
+[    0.061309] Mount-cache hash table entries: 2048 (order: 1, 8192 bytes, linear)
+[    0.061339] Mountpoint-cache hash table entries: 2048 (order: 1, 8192 bytes, linear)
+[    0.062790] Setting up static identity map for 0x800081c0 - 0x800081f4
+[    0.062940] rcu: Hierarchical SRCU implementation.
+[    0.062961] rcu: 	Max phase no-delay instances is 1000.
+[    0.063418] smp: Bringing up secondary CPUs ...
+[    0.243351] smp: Brought up 1 node, 4 CPUs
+[    0.243387] SMP: Total of 4 processors activated (8296.85 BogoMIPS).
+[    0.243933] Memory: 950788K/1015808K available (4432K kernel code, 3301K rwdata, 1172K rodata, 196K init, 1099K bss, 62872K reserved, 0K cma-reserved, 228352K highmem)
+[    0.244449] devtmpfs: initialized
+[    0.246989] VFP support v0.3: implementor 41 architecture 2 part 30 variant 7 rev 3
+[    0.247167] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+[    0.247210] posixtimers hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.247311] futex hash table entries: 1024 (65536 bytes on 1 NUMA nodes, total 64 KiB, linear).
+[    0.247410] pinctrl core: initialized pinctrl subsystem
+[    0.248296] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.248656] DMA: preallocated 256 KiB pool for atomic coherent allocations
+[    0.253367] /dsi@1400c000: Fixed dependency cycle(s) with /dsi@1400c000/panel@0
+[    0.253558] /dsi@1400c000/panel@0: Fixed dependency cycle(s) with /dsi@1400c000
+[    0.255073] y2-clocks 10000000.clock-controller: CCF inherited PLLs/AXI and M2 gates; AXI=273000000 Hz; no PLL retune
+[    0.261386] y2-pinctrl 10005000.pinctrl: minimal pinctrl/GPIO; EINT parent high, PMIC25 high/wheel55 falling
+[    0.262422] y2-pwrap 1000d000.pwrap: MT6323 CID=2023 VUSB=c000 CHRDET=0; serialized regmap; rail/charger/reset writes blocked
+[    0.263452] clocksource: Switched to clocksource timer
+[    0.271617] NET: Registered PF_INET protocol family
+[    0.271811] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[    0.273631] tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes, linear)
+[    0.273685] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.273725] TCP established hash table entries: 8192 (order: 3, 32768 bytes, linear)
+[    0.273819] TCP bind hash table entries: 8192 (order: 5, 131072 bytes, linear)
+[    0.274030] TCP: Hash tables configured (established 8192 bind 8192)
+[    0.274155] UDP hash table entries: 512 (order: 3, 28672 bytes, linear)
+[    0.274237] UDP-Lite hash table entries: 512 (order: 3, 28672 bytes, linear)
+[    0.274439] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.275855] Y2USB stage=1 result=0
+[    0.275907] Y2USB stage=2 result=0
+[    0.275930] Y2LINUX-DEV-01: persistent ACM+ECM; internal eMMC disabled
+[    0.276056] Unpacking initramfs...
+[    0.276702] workingset: timestamp_bits=30 max_order=18 bucket_order=0
+[    0.277544] mediatek-mipi-tx 10010000.mipi-tx: can't get nvmem_cell_get, ignore it
+[    0.278880] Serial: 8250/16550 driver, 1 ports, IRQ sharing disabled
+[    0.279908] printk: legacy console [ttyS0] disabled
+[    0.280396] 11002000.serial: ttyS0 at MMIO 0x11002000 (irq = 195, base_baud = 1625000) is a 16550A
+[    0.280474] printk: legacy console [ttyS0] enabled
+[    0.362741] Freeing initrd memory: 1528K
+[    0.363423] cacheinfo: Unable to detect cache hierarchy for CPU 0
+[    0.364452] y2-pinctrl 10005000.pinctrl: pin25 mode=0 function=eint
+[    0.365606] mt6323-rtc: Failed to locate of_node [id: -1]
+[    0.366713] mt6323-led: Failed to locate of_node [id: -1]
+[    0.367737] mt6323-pwrc: Failed to locate of_node [id: -1]
+[    0.368813] UDC core: g_cdc: couldn't find an available UDC
+[    0.369917] input: Y2 navigation buttons as /devices/platform/navigation-keys/input/input0
+[    0.371454] mt6323-regulator mt6323-regulator: Chip ID = 0x2023
+[    0.371849] input: mtk-pmic-keys as /devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-keys/input/input1
+[    0.373939] i2c_dev: i2c /dev entries driver
+[    0.374680] y2-pinctrl 10005000.pinctrl: before pin84 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.375811] y2-pinctrl 10005000.pinctrl: pin84 mode=1 function=i2c0
+[    0.376623] y2-pinctrl 10005000.pinctrl: before pin85 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.377744] y2-pinctrl 10005000.pinctrl: pin85 mode=1 function=i2c0
+[    0.379415] y2-pinctrl 10005000.pinctrl: before pin86 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.380554] y2-pinctrl 10005000.pinctrl: pin86 mode=1 function=i2c1
+[    0.381365] y2-pinctrl 10005000.pinctrl: before pin87 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.382486] y2-pinctrl 10005000.pinctrl: pin87 mode=1 function=i2c1
+[    0.384382] y2-pinctrl 10005000.pinctrl: pin55 mode=0 function=eint
+[    0.385391] input: APT32F click-wheel as /devices/platform/11007000.i2c/i2c-0/0-0051/input/input2
+[    0.386879] y2-pinctrl 10005000.pinctrl: pin124 mode=1 function=msdc1
+[    0.387723] y2-pinctrl 10005000.pinctrl: pin125 mode=1 function=msdc1
+[    0.388554] y2-pinctrl 10005000.pinctrl: pin126 mode=1 function=msdc1
+[    0.389385] y2-pinctrl 10005000.pinctrl: pin127 mode=1 function=msdc1
+[    0.390215] y2-pinctrl 10005000.pinctrl: pin128 mode=1 function=msdc1
+[    0.391045] y2-pinctrl 10005000.pinctrl: pin129 mode=1 function=msdc1
+[    0.392182] mtk-msdc 11240000.mmc: MSDC 26MHz crystal; inherited rails; policy=removable SD writable
+[    0.393770] input: mt6582-keypad as /devices/platform/10011000.keypad/input/input3
+[    0.395420] y2-backlight 1000d000.pwrap:backlight: four ISINK PWM; max duty=32/32 inherited current step=5 unchanged
+[    0.397349] NET: Registered PF_PACKET protocol family
+[    0.398135] Registering SWP/SWPB emulation handler
+[    0.410842] clk: Disabling unused clocks
+[    0.433560] Freeing unused kernel image (initmem) memory: 196K
+[    0.434329] Kernel memory protection not selected by kernel config.
+[    0.435133] Run /init as init process
+[    0.435608]   with arguments:
+[    0.435996]     /init
+[    0.436297]   with environment:
+[    0.436706]     HOME=/
+[    0.437017]     TERM=linux
+[    0.480034] Y2ROOT: rescue active; searching removable SD LABEL=Y2ROOT
+[    0.801799] mmc0: Host Software Queue enabled
+[    0.802414] mmc0: new SDXC card at address aaaa
+[    0.804159] mmcblk0: mmc0:aaaa SD128 119 GiB
+[    0.808875]  mmcblk0: p1
+[    4.514047] Y2DISPLAY: finit_module begin on CPU1
+[    4.519065] mediatek-drm mediatek-drm.1.auto: Adding component match for /ovl@14007000
+[    4.520167] mediatek-drm mediatek-drm.1.auto: Adding component match for /rdma@14008000
+[    4.521245] mediatek-drm mediatek-drm.1.auto: Adding component match for /color@1400b000
+[    4.522407] mediatek-drm mediatek-drm.1.auto: Adding component match for /dsi@1400c000
+[    4.523931] mtk-dsi 1400c000.dsi: handoff: acquire PHY
+[    4.524615] mediatek-mipi-tx 10010000.mipi-tx: PHY entry CON0=00000011 CON1=00000003 CON2=3c000000 PWR=00000101 CON=00000403 lanes=00000001
+[    4.526217] mediatek-mipi-tx 10010000.mipi-tx: adopting live LK PHY unchanged; inherited rate unknown
+[    4.527405] mtk-dsi 1400c000.dsi: handoff: clocks on; park video
+[    4.553315] mtk-dsi 1400c000.dsi: inherited DSI parked; releasing PHY before Linux modeset
+[    4.554396] mtk-dsi 1400c000.dsi: handoff: released PHY, result=0
+[    4.555216] mtk-dsi 1400c000.dsi: handoff: register host/panel
+[    4.556064] /dsi@1400c000: Fixed dependency cycle(s) with /dsi@1400c000/panel@0
+[    4.557145] /dsi@1400c000/panel@0: Fixed dependency cycle(s) with /dsi@1400c000
+[    4.558331] y2-pinctrl 10005000.pinctrl: before pin112 mux=1 dir=1 pull=0/0 input=1 IES=0000ffff
+[    4.559471] y2-pinctrl 10005000.pinctrl: pin112 mode=1 function=lcm-reset
+[    4.560780] mediatek-drm mediatek-drm.1.auto: bound 14007000.ovl (ops mtk_disp_ovl_component_ops [mediatek_drm])
+[    4.562190] mediatek-drm mediatek-drm.1.auto: bound 14008000.rdma (ops mtk_disp_rdma_component_ops [mediatek_drm])
+[    4.563599] mediatek-drm mediatek-drm.1.auto: bound 1400b000.color (ops mtk_disp_color_component_ops [mediatek_drm])
+[    4.565039] mediatek-drm mediatek-drm.1.auto: bound 1400c000.dsi (ops mtk_dsi_component_ops [mediatek_drm])
+[    4.567188] [drm] Initialized mediatek 1.0.0 for mediatek-drm.1.auto on minor 0
+[    4.568949] mediatek-mipi-tx 10010000.mipi-tx: PHY entry CON0=00000000 CON1=00000003 CON2=3c000000 PWR=00000002 CON=00000400 lanes=00000000
+[    4.589956] mediatek-mipi-tx 10010000.mipi-tx: Linux PHY powered at 338000000Hz
+[    4.589976] mtk-dsi 1400c000.dsi: modeset: PHY/clocks ready, initialize DSI
+[    4.589989] mtk-dsi 1400c000.dsi: modeset: DSI command engine ready
+[    4.590019] (NULL device *): Y2SCAN inherited mutex0 en=00000001 get=00000000 mod=00000488 sof=00000001; clear parked ownership
+[    4.603527] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=03ff0001
+[    4.616854] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=03ff0001
+[    4.633206] Console: switching to colour frame buffer device 60x45
+[    4.633280] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00130001
+[    4.684890] mediatek-drm mediatek-drm.1.auto: [drm] fb0: mediatekdrmfb frame buffer device
+[    4.689161] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00080001
+[    4.699583] Y2DISPLAY: finit_module result=0
+[    4.863316] mtk-dsi 1400c000.dsi: Y2SCAN sample=0 vblank=18 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+[    4.870135] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+[    4.877290] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+[    5.923323] mtk-dsi 1400c000.dsi: Y2SCAN sample=1 vblank=86 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+[    5.930081] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+[    5.937177] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+[    6.963331] mtk-dsi 1400c000.dsi: Y2SCAN sample=2 vblank=154 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+[    6.970080] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+[    6.977150] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+[    8.003340] mtk-dsi 1400c000.dsi: Y2SCAN sample=3 vblank=221 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+[    8.010078] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+[    8.017180] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+[    8.672017] Y2PATTERN white/red/green/blue + checkerboard: 480x360 bpp=32 pitch=1920 DMA=00000000 allocation=691200 FNV-before=86209887 after=a40f4cc5 expected=a40f4cc5 match=yes; PHYSICAL VISIBILITY STILL REQUIRES OWNER OBSERVATION
+[   10.673399] Y2USB stage=1 result=0
+[   10.675277] Y2USB stage=1 result=0
+[   10.676832] Y2USB fresh power=0/7 CHR=0063 clock=0/f USB=0/1fffff
+[   10.679777] Y2USB stage=3 result=0
+[   10.681842] Y2USB PHY00 saved=6e session=6e
+[   10.683468] Y2USB PHY05 saved=44 session=44
+[   10.685062] Y2USB PHY15 saved=10 session=10
+[   10.686639] Y2USB PHY1a saved=10 session=10
+[   10.688194] Y2USB PHY1d saved=00 session=00
+[   10.689731] Y2USB PHY22 saved=00 session=00
+[   10.691251] Y2USB PHY63 saved=00 session=00
+[   10.692751] Y2USB stage=4 result=0
+[   10.694477] using host ethernet address: 02:42:00:00:00:02
+[   10.694487] using self ethernet address: 02:42:00:00:00:01
+[   10.697606] g_cdc gadget.0: HOST MAC 02:42:00:00:00:02
+[   10.701827] g_cdc gadget.0: MAC 02:42:00:00:00:01
+[   10.703451] g_cdc gadget.0: CDC Composite Gadget, version: King Kamehameha Day 2008
+[   10.706299] g_cdc gadget.0: g_cdc ready
+[   10.707861] Y2USB stage=5 result=0
+[   11.223395] Y2USB stage=6 result=0
+[   12.596120] regulator regulator.9: regulator VCAMA doesn't support get_mode
+[   12.599259] regulator regulator.21: regulator VRTC doesn't support get_mode
+[   12.603148] backlight y2-backlight: Y2SCAN backlight enable=00ff pwm=1f00 current=5000
+[   20.496699] Y2ABI begin: Thumb signal return, kuser helpers, glibc TLS/threads and VFP
+
+[   20.500753] Y2ABI Thumb signal delivery/return OK
+
+[   20.503352] Y2ABI kuser memory barrier and TLS OK
+
+[   20.512961] Y2ABI PASS: glibc thread/TLS, VFP, clock and allocator
+
+[   22.205385] EXT4-fs (mmcblk0p1): INFO: recovery required on readonly filesystem
+[   22.208097] EXT4-fs (mmcblk0p1): write access will be enabled during recovery
+[   24.237075] EXT4-fs (mmcblk0p1): orphan cleanup on readonly fs
+[   24.239835] EXT4-fs (mmcblk0p1): recovery complete
+[   24.248056] EXT4-fs (mmcblk0p1): mounted filesystem 79324c69-6e75-4801-8000-000000000001 ro with ordered data mode. Quota mode: disabled.
+[   25.417027] EXT4-fs (mmcblk0p1): re-mounted 79324c69-6e75-4801-8000-000000000001 r/w.
+[   25.420525] Y2ROOT: verified /dev/mmcblk0p1; switching to Buildroot
+[   27.003662] EXT4-fs (mmcblk0p1): re-mounted 79324c69-6e75-4801-8000-000000000001.
+[   28.103266] Y2NET: usb0 10.42.0.1/24 ready; address persists across cable reconnect
+[   29.804316] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00050001
+[   30.006446] Y2PATTERN white/red/green/blue + checkerboard: 480x360 bpp=32 pitch=1920 DMA=00000000 allocation=691200 FNV-before=b9aabb87 after=feb0b6c5 expected=a40f4cc5 match=NO; PHYSICAL VISIBILITY STILL REQUIRES OWNER OBSERVATION
+[   33.093547] random: crng init done
+[   37.341552] regulator regulator.9: regulator VCAMA doesn't support get_mode
+[   37.344996] regulator regulator.21: regulator VRTC doesn't support get_mode
+[   37.456340] backlight y2-backlight: Y2SCAN backlight enable=00ff pwm=1f00 current=5000
+[   39.736985] regulator regulator.9: regulator VCAMA doesn't support get_mode
+[   39.740453] regulator regulator.21: regulator VRTC doesn't support get_mode
+[   39.744818] backlight y2-backlight: Y2SCAN backlight enable=00ff pwm=1f00 current=5000
+[  831.400476] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00010001
+[  831.590760] Y2PATTERN white/red/green/blue + checkerboard: 480x360 bpp=32 pitch=1920 DMA=00000000 allocation=691200 FNV-before=999d4867 after=a40f4cc5 expected=a40f4cc5 match=yes; PHYSICAL VISIBILITY STILL REQUIRES OWNER OBSERVATION

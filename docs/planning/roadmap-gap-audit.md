@@ -6,6 +6,99 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## DEV-02 live qualification boundary audit — 2026-09-10
+
+Owner-authorized complete live pass on physical Linux `6.18.0-y2linux-dev02`,
+source checkpoint `a34a360` plus preserved DEV-02 working changes. Live DT hash
+matches DEV-02; full flashed BOOTIMG was not read back. Reassessed every coverage
+row, current #16/#22–32, retained baseline, raw evdev, RAM tests, DRM/sysfs and
+host disconnect evidence. [Complete report and evidence](../knowledge/y2linux-dev02-live-qualification.md).
+
+Buildroot PID1 runs on writable removable Y2ROOT, four CPUs online, MemTotal
+954660 KiB. The completed 256 MiB allocator test passes; a separate exhaustive
+run was capped at 600 seconds without observed memory errors. All eight buttons
+and both wheel directions produce evdev events; wheel/I2C IRQs agree and no
+transport timeout remains. Owner confirms native display pattern after standard
+fb0 unblank. Internal eMMC is disabled and unexposed. PMIC/core buses, initial
+ACM enumeration, key-authenticated SSH and USB Ethernet work.
+
+**USB reconnect FAILED.** The host sees removal, then no enumeration after owner
+reconnect. The owner reports USB works only after restarting; no post-reconnect
+uptime/continuity measurement exists. Do not perform the second cycle or close
+M2. The generic core/Buildroot foundation is substantially qualified, with the
+real #27/#28 reconnect blocker replacing the old research sequence. A later
+shared-framebuffer checksum mismatch is corrected by hiding/restoring the cursor;
+visible display acceptance and independent allocator-test success stand.
+
+Safe runtime/module/config changes are represented in canonical Buildroot/host
+sources and retained readbacks. Missing evtest/modetest and longer syslog records
+are configured for the next userspace build, without triggering a rebuild.
+Close satisfied #22–26 narrow slices; retain long-run/DMA, full power, routing,
+production and final platform concerns under #29–32. Optional physical UART #16
+remains separate, not an M2 closure prerequisite. No new kernel/BOOTIMG, flash,
+assistant-initiated reboot, internal storage access or unchanged provenance qualification occurred.
+
+M1 COMPLETE; M2 ACTIVE solely around remaining real qualification/fixes, chiefly
+USB re-entry. M3 audio is the next platform phase once that foundation is usable;
+M4 full power and M5 connectivity follow with shared dependencies. GPU/lima and
+final whole-system qualification precede Y2PlayerNative under the owner's new
+explicit platform-first gate. No later hardware phase is activated by this audit.
+After the failed reconnect the owner restarted the device; SSH returns at33.32s
+with the old tmpfs token missing, confirming a new boot. Runtime fixes persist
+and actual ACM capture now works after the host rule. A bounded SD recorder is
+installed/tested so a future failure log can survive loss of USB.
+A USB-focused DEV-03 requires device-side failure evidence and a justified change;
+host absence alone does not identify which guard/callback failed.
+
+## DEV-02 root handoff / wheel correction audit — 2026-09-10
+
+Owner's new photograph confirms SD partition mmcblk0p1, ext4 recovery, exact
+Y2ROOT UUID, writable remount and handoff attempt. PID1 then dies by SIGILL
+(exitcode4) at23.723s. Visible fbcon remains positive. SD block/filesystem access
+now has physical evidence; Buildroot init/SSH do not. The raw fault PC is absent.
+All other coverage rows retain their latest evidence and open gaps; no milestone
+closes, M2 stays active. No loader/partition/internal-eMMC write or new hardware
+subsystem is authorized. Preserve the observed RAM/display/SD configuration.
+
+DEV-02 combines standard ARM userspace Thumb/signal and kuser compatibility,
+framebuffer device-node availability, userspace fault reporting/preflight, and
+an evidence-backed MT6582 I2C combined-message correction. v6.18 selects WRRD
+only with auto_restart, but MT6582 uses the older non-auto-restart compatible;
+DEV-01 logs op1/transactions2 with only one byte of completed TX DMA. Restore
+combined WRRD for this exact compatible and test the controller-level selection,
+without changing APT32F packet framing or adding retries.
+
+Use one new kernel build, existing pinned Buildroot binaries, targeted regression
+checks and fresh actual layout/BOOTIMG validation. Keep the already written SD
+rootfs usable; the new DRM module loads from rescue before switching. A later
+SSH module-index refresh can bring the SD module directory to the new kernel.
+Stop at owner BOOTIMG-only flashing, then collect all independent failures again.
+
+## DEV-01 retained rescue/RAM/display checkpoint — 2026-09-10
+
+[Capture-02](../knowledge/y2linux-development-hardware-result.md) now retains all
+704 kernel records, visible-console supporting scanout/vblank state, four CPUs,
+MemTotal954668KiB and HighTotal228352KiB. RAM/HIGHMEM visibility is physically
+observed; stress and full DMA containment remain open. Wheel remains regressed
+with ten I2C timeouts; the test-pattern tool cannot open/query fb0. Rescue fallback
+is confirmed without Y2ROOT; SD boot/ECM traffic/SSH/reconnect remain unqualified.
+M2 ACTIVE/exit incomplete, later gates unchanged. Transfer the existing rootfs to
+the owner's Mac, identify its removable card, then prepare exact manual commands.
+No hardware scope expansion or new build is needed for this transfer.
+
+## DEV-01 owner-visible console update — 2026-09-10
+
+The owner reports a visible Linux console after manually flashing DEV-01; SD
+rootfs is not installed. Host USB descriptors independently identify Linux
+6.18.0-y2linux-dev01 and composite ACM+ECM enumeration. This is positive visible
+output, superseding the prior black-screen outcome for this boot; display remains
+PARTIAL pending broader qualification. [Evidence and host access limitation](../knowledge/y2linux-development-hardware-result.md).
+
+No new RAM, wheel, SD-root, network, SSH or reconnect success is inferred.
+M1 COMPLETE; M2 ACTIVE/exit incomplete, later phases unchanged. Continue the
+already authorized removable-SD preparation after exact host device identification;
+no assistant write or guessed disk target. The existing DEV-01 BOOTIMG can remain.
+
 ## Y2LINUX-DEV-01 manual-deployment boundary audit — 2026-09-10
 
 Offline implementation and the combined candidate are now built and validated:
@@ -650,28 +743,28 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 
 ## Coverage matrix
 
-Reassessed 2026-09-10 against the [integrated physical captures](../knowledge/m2-baseline-hardware-result.md).
+Reassessed 2026-09-10 against the [DEV-02 live qualification](../knowledge/y2linux-dev02-live-qualification.md); every row reviewed, including untouched later-phase gaps.
 Status measures our hardware; registration alone never establishes consumer operation.
 
 | Area | Status | Actual evidence / remaining gap | Durable tracking |
 | --- | --- | --- | --- |
-| Physical Linux + initramfs + native PID1 | **CONFIRMED** | Owner reports 6.18.0-y2-m1, PID1, mounts, increasing BEAT/uptime and working sleep. [Result](../knowledge/m1-runtime-hardware-result.md). | Closed M1 / #20–21; core stays achieved. |
-| Boot/kernel stability and maintenance | **PARTIAL** | Reproducible offline artifacts and a working run exist; exact flashed hash for latest report, repeated cold/warm boots, duration, timing accuracy, stress and maintained 6.18.y selection are not qualified. | Y2H-300 #28; maintenance/release policy #32. |
-| RAM and reserved/DMA ownership | **PARTIAL** | D08 24.5 MiB described map is visible; photographed MemTotal 22208 kB; DEV-01 now builds the 992 MiB bank with explicit reservations and HIGHMEM (about 951 MiB before kernel allocations); physical stability and full DMA containment remain open. [Successor map](../knowledge/development-memory.md). | #22; #28. Owner-authorized development qualification. |
-| SMP | **PARTIAL** | All four CPUs online with advancing timer-broadcast/cross-CPU IPIs in BASELINE-01; SMP stress/coherency/PM not qualified. | #28; optional for first wired player. |
-| Clocks, resets, pinctrl/GPIO/IRQ and I2C | **PARTIAL** | Shared CCF/pinctrl/EINT/PWRAP and I2C providers probe. Navigation, keypad and PMIC EINT25 operate. BASELINE-03 confirms wheel EINT55 activity, but eight I2C reads time out with no completion IRQ; full rates/pads and reset ownership unqualified. | #23/#24/#28; [research](../knowledge/reverse-engineering-audit.md). |
+| Physical Linux + initramfs + native PID1 | **CONFIRMED** | DEV-02 now switches to real Buildroot BusyBox PID1 on removable ext4 Y2ROOT; rescue and earlier M1 results remain historical. | Closed M1 / #20–21; core stays achieved. |
+| Boot/kernel stability and maintenance | **PARTIAL** | DEV-02 live work, bounded RAM and initial SSH operate. First USB reconnect fails before enumeration; post-detach execution/uptime unavailable. Repeated cold/warm boots, long-run stress and maintenance remain later qualification. | Y2H-300 #28; maintenance/release policy #32. |
+| RAM and reserved/DMA ownership | **PARTIAL** | 992 MiB bank with exclusions; physical MemTotal954660KiB and HighTotal228352KiB. Completed 256MiB short allocator test passes, substantial HIGHMEM consumed. Full-suite run capped600s; every-page/long-run/inherited-DMA containment is not proved. Narrow expansion #22 satisfied. | #22; #28. Owner-authorized development qualification. |
+| SMP | **CONFIRMED** | Four CPUs online on DEV-02 with advancing cross-CPU/timer IPIs and no interrupt errors; full coherency/PM stress is a later qualification scope. | #28; optional for first wired player. |
+| Clocks, resets, pinctrl/GPIO/IRQ and I2C | **PARTIAL** | DEV-02 CCF/PWRAP/MFD/regulator/core consumers operate; wheel has52IRQ/52I2C completions and both directions, no timeout. Exact full clock rates/unused orphan gates and future consumer reset/rail ownership remain #29/#30 prerequisites. | #23/#24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Watchdog and controlled reset | **PARTIAL** | Reviewed early AP_RGU stop and displayed stopped state; no production driver takeover, pet/timeout strategy, deliberate reset or restart qualification. | #28 with #30. Preserve current experiment behavior. |
-| On-device diagnostic channel | **PARTIAL** | Earlier inherited text worked; BASELINE-03 completes DRM takeover but the owner sees black. USB logs remain the working diagnostic channel. | #20–21; [result](../knowledge/m1-runtime-hardware-result.md). |
-| Developer host logs / USB | **PARTIAL** | BASELINE-03 restores all initial kernel records and PID1 observation for180seconds through DRM loading. DEV-01 implements persistent ACM+ECM, repeated reconnect and corrected snapshot framing; the expanded composite function is not yet physically qualified. | #27, #23, #28. |
+| On-device diagnostic channel | **CONFIRMED** | DEV-02 native fbcon and owner-confirmed visible color/checkerboard pattern; supported unblank succeeds. Cursor handling fixes a later shared-buffer checksum mismatch without a kernel change. | #20–21; [result](../knowledge/m1-runtime-hardware-result.md). |
+| Developer host logs / USB | **PARTIAL** | DEV-02 ACM enumeration, complete logs over authenticated SSH and ECM traffic work. First physical reconnect fails before enumeration; no boot-continuity result. Host static-address/uaccess fixes verified after an owner restart; ACM transfers61463bytes/12s. This is restart recovery, not reconnect success. | #27, #23, #28. |
 | Physical UART / early crash capture | **UNKNOWN** | UART0 candidate exists; no pad/level/wire capture. Ramoops retention/reader is unproved. USB cannot log hangs before its initialization. | Existing #16; broader crash/debug policy #32. |
-| Display/controller/panel | **PARTIAL** | BASELINE-03 logs live-PHY adoption, DSI park, cold Linux PHY power and successful DRM/fb0/module initialization. Owner sees black; visible output fails and its cause remains unknown. Preserve post-modeset observation; do not confuse probe success with panel qualification. | #25/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Backlight | **PARTIAL** | Four inherited PWM channels accepted at duty32/32, step5 unchanged. Native brightness changes and panel sequencing untested. | #25/#23; #28/#30. |
-| Wheel/select input | **PARTIAL** | Select and four navigation channels have balanced evdev events. BASELINE-03 wheel EINT55 fires8times, but all eight frame reads time out (-110) with I2C completion IRQ0; no scroll events. Diagnose transport before decoding. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation codes, both volume keys and Power have press/release events; keypad and PMIC IRQ counts agree. Wake deferred; no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
-| Removable SD | **PARTIAL** | BASELINE-01 identifies SDXC through native MSDC under <=400kHz/one-bit policy. DEV-01 implements removable-only writable block/ext4 root at one bit, maximum 13 MHz; SD root boot/write/throughput remain unqualified. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Internal eMMC | **PARTIAL** | Native CMD2/CMD9 identity works. CMD6 is intentionally rejected (-EROFS); DEV-01 disables the internal host entirely and retains the read-only compatible firewall. | #28; recovery/rootfs policy #32. |
-| Development rootfs and filesystem/data layout | **PLANNED** | DEV-01 now contains built Buildroot/glibc, ext4 Y2ROOT, rescue fallback, ECM and key-only SSH. Offline validation passes; physical SD root and SSH acceptance remain untested. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
-| PMIC/battery/charger telemetry | **PARTIAL** | Photographed native PWRAP CID 0x2023/VUSB 0xc000 reads work; CHRDET follows reported startup cable state ([result](../knowledge/m2-chrdet-hardware-result.md)). Duplicate Android battery fields still conflict. No trustworthy units/calibration, native gauge/charger policy or voltage measurement. | #23; added #30. |
+| Display/controller/panel | **CONFIRMED** | DEV-02 DSI-1 connected, CRTC55 active, framebuffer56 XR24 480x360/pitch1920, fbcon bound, safe GEM/OVL address match and owner-confirmed pattern. Blank state corrected through sysfs; broader modes/power sequencing remain later. | #25/#28; [research](../knowledge/reverse-engineering-audit.md). |
+| Backlight | **PARTIAL** | DEV-02 brightness/actual/max32 with physically visible panel; native brightness range, PWM/rail transitions and suspend sequencing remain #30. | #25/#23; #28/#30. |
+| Wheel/select input | **CONFIRMED** | DEV-02 raw evdev has balanced Select and both wheel KEY_UP/KEY_DOWN directions;52wheelIRQ/52I2C completions. Supersedes DEV-01 -110 transport regression. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
+| Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation keys, both volume keys and brief Power have balanced DEV-02 evdev events. No redesign; wake/suspend remains M4 and no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
+| Removable SD | **CONFIRMED** | DEV-02 SD128 on11240000.mmc at13MHz/one bit; ext4 Y2ROOT boots Buildroot, reads files, accepts verified userspace updates and sync.512MiB filesystem retained; throughput/hotplug/card-removal/power-fail qualification later. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
+| Internal eMMC | **CONFIRMED** | DEV-02 live DT disables11230000.mmc, no native eMMC block/partition node or mount. Removable-only root resolver and no automounter exclude Android partitions. Identity remains historical because disabled host exposes no live CID. | #28; recovery/rootfs policy #32. |
+| Development rootfs and filesystem/data layout | **CONFIRMED** | Physical Buildroot2025.02.17/glibc/BusyBox/Dropbear on writable removable Y2ROOT, key authentication and complete command logs. Runtime mount and matching-module index fixes applied. Owner restart validates persistent runtime/module fixes; production layout separate. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
+| PMIC/battery/charger telemetry | **PARTIAL** | DEV-02 PWRAP/MFD/regulator/PMIC key consumers work and USB presence power_supply ONLINE=1 is readable. This does not provide battery units/calibration, charging policy or voltage/thermal telemetry; full power now belongs to M4 #30. | #23; added #30. |
 | Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |
 | cpufreq/voltage/OPP and cpuidle | **UNKNOWN** | Minimal config does not establish frequency/voltage transitions or idle states. Shared clocks/rails precede optimization. | #30 with #28. |
 | Runtime PM/suspend/resume/wake | **UNKNOWN** | No native suspend/wake, rail retention, storage resume or screen-off-audio proof. | #30; integrates #28/#29/#31 incrementally. |
@@ -684,7 +777,7 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Recovery and safe acquisition | **PARTIAL** | Owner-proven SPFT/FM history plus documented BOOTIMG-only Android restoration. Exact current image/per-device backups, consistency and independent retention remain incomplete. [Recovery](../knowledge/recovery.md), [actual trial](../knowledge/first-experiment-result.md). | Open M0; #32 owns continuing production/recovery coverage. |
 | Updates / rollback / production security | **PLANNED** | Blueprint names signatures/rollback; no reviewed storage/key/threat/interrupt-safe updater design. Unchanged LK does not automatically verify custom payloads. | Added #32; M18–20 platform handoff, not implementation now. |
 | Production rootfs / services / non-root app contract | **PLANNED** | DEV-01 has a development BusyBox-init/glibc/Dropbear stack. Production services, non-root app boundaries and lifecycle policy remain unimplemented; no native app starts. | #32 (M6); app implementation belongs to native repo M7+. |
-| Time/RTC, entropy, identity and diagnostic privacy | **UNKNOWN** | Wall-clock persistence/source, entropy readiness and secret-redacted export policy not yet qualified. No physical RTC assumed. Relevant to TLS, updates and later history. | #31/#32; added explicit cross-cutting coverage. |
+| Time/RTC, entropy, identity and diagnostic privacy | **PARTIAL** | DEV-02 has no RTC class, starts at1970, and initializes CRNG at153.97s before ED25519 host-key generation. Key persists on SD. Entropy sysctl/boot_id files absent; no insecure entropy-credit workaround. Time/privacy policy remains #31/#32. | #31/#32; added explicit cross-cutting coverage. |
 
 ## Gaps found and minimum additions
 
@@ -701,7 +794,7 @@ new GitHub milestone shells are needed today:
 | --- | --- | --- |
 | M0 Evidence & Recovery | Existing open milestone 1 | **PARTIAL**; owner-accepted experimental exceptions are documented, not a full pass. |
 | M1 First Boot | Existing closed milestone 2 | **CONFIRMED core**; broader stability qualification moves into #28. |
-| M2 Core Hardware | [Y2H-300 #28](https://github.com/SchulzCode/Y2Linux/issues/28) | **ACTIVE, entry PARTIAL**, under the activation decision above; owns #22–#27 dependencies. |
+| M2 Core Hardware | [Y2H-300 #28](https://github.com/SchulzCode/Y2Linux/issues/28) | **ACTIVE, core/Buildroot substantially qualified**; #22–26 narrow slices satisfied. USB reconnect #27 is the concrete remaining #28 blocker. |
 | M3 Native Audio | [Y2A-300 #29](https://github.com/SchulzCode/Y2Linux/issues/29) | **BLOCKED** on needed core resources; major Gate D before central player/audio work. |
 | M4 Power Viability | [Y2P-400 #30](https://github.com/SchulzCode/Y2Linux/issues/30) | **PLANNED**; basic safety begins alongside M2, full suspend/playback integrates later. |
 | M5 Connectivity | [Y2N-500 #31](https://github.com/SchulzCode/Y2Linux/issues/31) | **PLANNED**; radio transport/firmware dependencies, conditional FM foundation. |
@@ -718,27 +811,15 @@ remove the controller evidence gate.
 
 ## When Y2PlayerNative can become the serious workstream
 
-The blueprint's Gate C and especially Gate D remain the immediate platform
-threshold. Require an evidenced vertical slice:
-
-1. Repeatable, identified Linux boot with sufficient measured memory, recoverable
-   artifacts and usable logs; real timer/syscall behavior and basic thermal/power
-   safety, not only one screen report.
-2. Stable Linux input and a supported display interface (reviewed framebuffer
-   fallback is acceptable initially), readable media storage and a recoverable
-   userspace layout with writable app data/permissions defined.
-3. Real ALSA/ASoC PCM playback through the intended Y2 headphone path, with known
-   clock/rate/format/volume/routing behavior and repeated playback evidence.
-4. An ARMv7 Rust/C build/runtime and platform API contract using Linux interfaces,
-   with boot supervision and non-root application access scoped. This is later
-   design work, not proof supplied by the kernel-only toolchain.
-
-Host-only application models/tests could precede that slice, but should not
-become the central device workstream now. Full SMP, maximal RAM, Wi-Fi, Bluetooth,
-FM, advanced suspend and OTA are **not all prerequisites for initial wired-player
-work**. They remain necessary where applicable for later product promises and
-Android retirement under Gates E–I; no feature parity or production readiness is
-claimed by M1 completion.
+The owner's 2026-09-10 platform-first instruction supersedes the earlier
+wired-player-only gate. First qualify the reusable general-purpose Y2 platform:
+M2 core/Buildroot including reliable development reconnect; M3 native ALSA/ASoC,
+MT6582 AFE, CS43131, amplifier, headphone/speaker routing and jack detection;
+M4 battery/charging/thermal, cpufreq/cpuidle, suspend/resume/wake and controlled
+shutdown/reboot; M5 Wi-Fi/Bluetooth with own firmware/calibration, BlueZ,
+reconnect/coexistence. Then complete GPU/lima and final whole-system qualification.
+Only after that does Y2PlayerNative implementation begin. #29–32 retain these
+gates; no application or later hardware phase starts in this live audit.
 
 ## Standing milestone-boundary rule
 

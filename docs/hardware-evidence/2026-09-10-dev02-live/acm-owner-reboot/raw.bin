@@ -1,0 +1,1205 @@
+Y2LOG1 Y2LINUX-DEV-01
+PID1 STAGE: PID1 ENTER                       
+PID1 STAGE: PROC MOUNT DONE                  
+PID1 STAGE: SYSFS MOUNT DONE                 
+INPUT DEVICE Y2 navigation buttons
+INPUT OPEN 0 3392 0
+INPUT DEVICE mtk-pmic-keys
+INPUT OPEN 1 3393 0
+INPUT DEVICE APT32F click-wheel
+INPUT OPEN 2 3394 0
+INPUT DEVICE mt6582-keypad
+INPUT OPEN 3 3395 0
+PID1 STAGE: WAIT 1S / LOOP LIVE              
+PID1 PID1:1 BEAT:1 [*] FRAME:9               
+PID1 STAGE: CHECK PHY / RELEASE SUSPEND      
+PID1 LINUX: 6.18.0-y2linux-dev02             
+PID1 USB RC:0    VALID:001FFFFF              
+PID1 PW:0    /7    CLK:0/15  CHR:0001 D:0    
+PID1 CPUS ONLINE: 0-3                        
+PID1 DT RAM: 992M MINUS RESERVATIONS         
+PID1                                         
+PID1                                         
+PID1                                         
+PID1 PROC MOUNT RC: 0                        
+PID1 SYSFS MOUNT RC: 0                       
+PID1 LAST ERR: NONE                          
+PID1 SLEEP RC: 0                             
+PID1 PREVIOUS FRAME WRITE: 804               
+PID1 BUILD: Y2LINUX-DEV-01                   
+PID1 WAKE:0   W:1 V:7F/FFF P:20 D:80         
+PID1 6A:04>00 PHY:00000002120000             
+PID1 CTL:1A:10 1D:00 22:00 63:00             
+PID1 TRIM:00:6E/6E 05:44/44 15:10/10         
+6,0,0,-;Booting Linux on physical CPU 0x0
+5,1,0,-;Linux version 6.18.0-y2linux-dev02 (Luca@y2-build) (Alpine clang version 20.1.8, LLD 20.1.8) #1 SMP @1764542530
+6,2,0,-;CPU: ARMv7 Processor [410fc073] revision 3 (ARMv7), cr=10c5387d
+6,3,0,-;CPU: PIPT / VIPT nonaliasing data cache, VIPT aliasing instruction cache
+6,4,0,-;OF: fdt: Machine model: Innioasis Y2 Y2LINUX-DEV-01
+6,5,0,-;earlycon: mtk8250 at MMIO32 0x11002000 (options '')
+6,6,0,-;printk: legacy bootconsole [mtk8250] enabled
+6,7,0,-;printk: debug: ignoring loglevel setting.
+6,8,0,-;Memory policy: Data cache writealloc
+6,9,0,-;Zone ranges:
+6,10,0,-;  Normal   [mem 0x0000000080000000-0x00000000afffffff]
+6,11,0,-;  HighMem  [mem 0x00000000b0000000-0x00000000bdffffff]
+6,12,0,-;Movable zone start for each node
+6,13,0,-;Early memory node ranges
+6,14,0,-;  node   0: [mem 0x0000000080000000-0x00000000817fffff]
+6,15,0,-;  node   0: [mem 0x0000000081800000-0x0000000083ffffff]
+PID1 PID1:1 BEAT:1 [*] FRAME:12              
+PID1 US:6 RC:0 IRQ:110 D:99                  
+PID1 LAST ERR: NONE                          
+6,16,0,-;  node   0: [mem 0x0000000084000000-0x00000000bdefffff]
+6,17,0,-;  node   0: [mem 0x00000000bdf00000-0x00000000bdffffff]
+6,18,0,-;Initmem setup node 0 [mem 0x0000000080000000-0x00000000bdffffff]
+6,19,0,-;OF: reserved mem: 0x81800000..0x83ffffff (40960 KiB) nomap non-reusable loader@81800000
+6,20,0,-;OF: reserved mem: 0xbdf00000..0xbfffffff (33792 KiB) nomap non-reusable high-owned@bdf00000
+6,21,0,-;percpu: Embedded 11 pages/cpu s13260 r8192 d23604 u45056
+7,22,0,-;pcpu-alloc: s13260 r8192 d23604 u45056 alloc=11*4096
+7,23,0,-;pcpu-alloc: [0] 0 [0] 1 [0] 2 [0] 3 
+5,24,0,-;Kernel command line: rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2LINUX-DEV-01
+6,25,0,-;printk: log buffer data + meta data: 1048576 + 3276800 = 4325376 bytes
+6,26,0,-;Dentry cache hash table entries: 131072 (order: 7, 524288 bytes, linear)
+6,27,0,-;Inode-cache hash table entries: 65536 (order: 6, 262144 bytes, linear)
+6,28,0,-;Built 1 zonelists, mobility grouping on.  Total pages: 253952
+6,29,0,-;mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+6,30,0,-;SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=1
+6,31,0,-;rcu: Hierarchical RCU implementation.
+PID1 PID1:1 BEAT:2 [ ] FRAME:18              
+PID1 US:6 RC:0 IRQ:123 D:99                  
+PID1 LAST ERR: NONE                          
+6,32,0,-;rcu: RCU calculated value of scheduler-enlistment delay is 10 jiffies.
+6,33,0,-;NR_IRQS: 16, nr_irqs: 16, preallocated irqs: 16
+6,34,0,-;rcu: srcu_init: Setting srcu_struct sizes based on contention.
+6,35,0,-;clocksource: timer: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 147020034397 ns
+6,36,1,-;sched_clock: 32 bits at 13MHz, resolution 76ns, wraps every 165191050201ns
+6,37,1181,-;Console: colour dummy device 80x30
+6,38,1782,-;printk: legacy console [tty0] enabled
+6,39,2411,-;printk: legacy bootconsole [mtk8250] disabled
+6,40,3175,-;Calibrating delay loop... 2079.12 BogoMIPS (lpj=10395648)
+6,41,61082,-;CPU: Testing write buffer coherency: ok
+6,42,61143,-;pid_max: default: 32768 minimum: 301
+6,43,61309,-;Mount-cache hash table entries: 2048 (order: 1, 8192 bytes, linear)
+6,44,61339,-;Mountpoint-cache hash table entries: 2048 (order: 1, 8192 bytes, linear)
+6,45,62790,-;Setting up static identity map for 0x800081c0 - 0x800081f4
+6,46,62940,-;rcu: Hierarchical SRCU implementation.
+6,47,62961,-;rcu: \x09Max phase no-delay instances is 1000.
+PID1 PID1:1 BEAT:3 [*] FRAME:24              
+PID1 US:6 RC:0 IRQ:148 D:99                  
+PID1 LAST ERR: NONE                          
+6,48,63418,-;smp: Bringing up secondary CPUs ...
+6,49,243351,-;smp: Brought up 1 node, 4 CPUs
+6,50,243387,-;SMP: Total of 4 processors activated (8296.85 BogoMIPS).
+6,51,243933,-;Memory: 950788K/1015808K available (4432K kernel code, 3301K rwdata, 1172K rodata, 196K init, 1099K bss, 62872K reserved, 0K cma-reserved, 228352K highmem)
+6,52,244449,-;devtmpfs: initialized
+6,53,246989,-;VFP support v0.3: implementor 41 architecture 2 part 30 variant 7 rev 3
+6,54,247167,-;clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+6,55,247210,-;posixtimers hash table entries: 2048 (order: 2, 16384 bytes, linear)
+6,56,247311,-;futex hash table entries: 1024 (65536 bytes on 1 NUMA nodes, total 64 KiB, linear).
+6,57,247410,-;pinctrl core: initialized pinctrl subsystem
+6,58,248296,-;NET: Registered PF_NETLINK/PF_ROUTE protocol family
+6,59,248656,-;DMA: preallocated 256 KiB pool for atomic coherent allocations
+6,60,253367,-;/dsi@1400c000: Fixed dependency cycle(s) with /dsi@1400c000/panel@0
+6,61,253558,-;/dsi@1400c000/panel@0: Fixed dependency cycle(s) with /dsi@1400c000
+6,62,255073,-;y2-clocks 10000000.clock-controller: CCF inherited PLLs/AXI and M2 gates; AXI=273000000 Hz; no PLL retune
+ SUBSYSTEM=platform
+ DEVICE=+platform:10000000.clock-controller
+6,63,261386,-;y2-pinctrl 10005000.pinctrl: minimal pinctrl/GPIO; EINT parent high, PMIC25 high/wheel55 falling
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+PID1 PID1:1 BEAT:4 [ ] FRAME:30              
+PID1 US:6 RC:0 IRQ:162 D:99                  
+PID1 LAST ERR: NONE                          
+6,64,262422,-;y2-pwrap 1000d000.pwrap: MT6323 CID=2023 VUSB=c000 CHRDET=0; serialized regmap; rail/charger/reset writes blocked
+ SUBSYSTEM=platform
+ DEVICE=+platform:1000d000.pwrap
+6,65,263452,-;clocksource: Switched to clocksource timer
+6,66,271617,-;NET: Registered PF_INET protocol family
+6,67,271811,-;IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+6,68,273631,-;tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes, linear)
+6,69,273685,-;Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+6,70,273725,-;TCP established hash table entries: 8192 (order: 3, 32768 bytes, linear)
+6,71,273819,-;TCP bind hash table entries: 8192 (order: 5, 131072 bytes, linear)
+6,72,274030,-;TCP: Hash tables configured (established 8192 bind 8192)
+6,73,274155,-;UDP hash table entries: 512 (order: 3, 28672 bytes, linear)
+6,74,274237,-;UDP-Lite hash table entries: 512 (order: 3, 28672 bytes, linear)
+6,75,274439,-;NET: Registered PF_UNIX/PF_LOCAL protocol family
+6,76,275855,-;Y2USB stage=1 result=0
+6,77,275907,-;Y2USB stage=2 result=0
+6,78,275930,-;Y2LINUX-DEV-01: persistent ACM+ECM; internal eMMC disabled
+6,79,276056,-;Unpacking initramfs...
+PID1 PID1:1 BEAT:5 [*] FRAME:36              
+PID1 US:6 RC:0 IRQ:167 D:99                  
+PID1 LAST ERR: NONE                          
+6,80,276702,-;workingset: timestamp_bits=30 max_order=18 bucket_order=0
+6,81,277544,-;mediatek-mipi-tx 10010000.mipi-tx: can't get nvmem_cell_get, ignore it
+ SUBSYSTEM=platform
+ DEVICE=+platform:10010000.mipi-tx
+6,82,278880,-;Serial: 8250/16550 driver, 1 ports, IRQ sharing disabled
+6,83,279908,-;printk: legacy console [ttyS0] disabled
+6,84,280396,-;11002000.serial: ttyS0 at MMIO 0x11002000 (irq = 195, base_baud = 1625000) is a 16550A
+6,85,280474,-;printk: legacy console [ttyS0] enabled
+6,86,362741,-;Freeing initrd memory: 1528K
+4,87,363423,-;cacheinfo: Unable to detect cache hierarchy for CPU 0
+6,88,364452,-;y2-pinctrl 10005000.pinctrl: pin25 mode=0 function=eint
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+4,89,365606,-;mt6323-rtc: Failed to locate of_node [id: -1]
+4,90,366713,-;mt6323-led: Failed to locate of_node [id: -1]
+4,91,367737,-;mt6323-pwrc: Failed to locate of_node [id: -1]
+6,92,368813,-;UDC core: g_cdc: couldn't find an available UDC
+6,93,369917,-;input: Y2 navigation buttons as /devices/platform/navigation-keys/input/input0
+6,94,371454,-;mt6323-regulator mt6323-regulator: Chip ID = 0x2023
+ SUBSYSTEM=platform
+ DEVICE=+platform:mt6323-regulator
+6,95,371849,-;input: mtk-pmic-keys as /devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-keys/input/input1
+PID1 PID1:1 BEAT:6 [ ] FRAME:42              
+PID1 US:6 RC:0 IRQ:227 D:99                  
+PID1 LAST ERR: NONE                          
+6,96,373939,-;i2c_dev: i2c /dev entries driver
+6,97,374680,-;y2-pinctrl 10005000.pinctrl: before pin84 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,98,375811,-;y2-pinctrl 10005000.pinctrl: pin84 mode=1 function=i2c0
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,99,376623,-;y2-pinctrl 10005000.pinctrl: before pin85 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,100,377744,-;y2-pinctrl 10005000.pinctrl: pin85 mode=1 function=i2c0
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,101,379415,-;y2-pinctrl 10005000.pinctrl: before pin86 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,102,380554,-;y2-pinctrl 10005000.pinctrl: pin86 mode=1 function=i2c1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,103,381365,-;y2-pinctrl 10005000.pinctrl: before pin87 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,104,382486,-;y2-pinctrl 10005000.pinctrl: pin87 mode=1 function=i2c1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,105,384382,-;y2-pinctrl 10005000.pinctrl: pin55 mode=0 function=eint
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,106,385391,-;input: APT32F click-wheel as /devices/platform/11007000.i2c/i2c-0/0-0051/input/input2
+6,107,386879,-;y2-pinctrl 10005000.pinctrl: pin124 mode=1 function=msdc1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,108,387723,-;y2-pinctrl 10005000.pinctrl: pin125 mode=1 function=msdc1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,109,388554,-;y2-pinctrl 10005000.pinctrl: pin126 mode=1 function=msdc1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,110,389385,-;y2-pinctrl 10005000.pinctrl: pin127 mode=1 function=msdc1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,111,390215,-;y2-pinctrl 10005000.pinctrl: pin128 mode=1 function=msdc1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+PID1 PID1:1 BEAT:7 [*] FRAME:48              
+PID1 US:6 RC:0 IRQ:228 D:99                  
+PID1 LAST ERR: NONE                          
+6,112,391045,-;y2-pinctrl 10005000.pinctrl: pin129 mode=1 function=msdc1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,113,392182,-;mtk-msdc 11240000.mmc: MSDC 26MHz crystal; inherited rails; policy=removable SD writable
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+6,114,393770,-;input: mt6582-keypad as /devices/platform/10011000.keypad/input/input3
+6,115,395420,-;y2-backlight 1000d000.pwrap:backlight: four ISINK PWM; max duty=32/32 inherited current step=5 unchanged
+ SUBSYSTEM=platform
+ DEVICE=+platform:1000d000.pwrap:backlight
+6,116,397349,-;NET: Registered PF_PACKET protocol family
+5,117,398135,-;Registering SWP/SWPB emulation handler
+6,118,410842,-;clk: Disabling unused clocks
+6,119,433560,-;Freeing unused kernel image (initmem) memory: 196K
+4,120,434329,-;Kernel memory protection not selected by kernel config.
+6,121,435133,-;Run /init as init process
+7,122,435608,-;  with arguments:
+7,123,435996,-;    /init
+7,124,436297,-;  with environment:
+7,125,436706,-;    HOME=/
+7,126,437017,-;    TERM=linux
+12,127,480034,-;Y2ROOT: rescue active; searching removable SD LABEL=Y2ROOT
+PID1 PID1:1 BEAT:8 [ ] FRAME:54              
+PID1 US:6 RC:0 IRQ:229 D:99                  
+PID1 LAST ERR: NONE                          
+6,128,801799,-;mmc0: Host Software Queue enabled
+6,129,802414,-;mmc0: new SDXC card at address aaaa
+6,130,804159,-;mmcblk0: mmc0:aaaa SD128 119 GiB
+6,131,808875,-; mmcblk0: p1
+12,132,4514047,-;Y2DISPLAY: finit_module begin on CPU1
+6,133,4519065,-;mediatek-drm mediatek-drm.1.auto: Adding component match for /ovl@14007000
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,134,4520167,-;mediatek-drm mediatek-drm.1.auto: Adding component match for /rdma@14008000
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,135,4521245,-;mediatek-drm mediatek-drm.1.auto: Adding component match for /color@1400b000
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,136,4522407,-;mediatek-drm mediatek-drm.1.auto: Adding component match for /dsi@1400c000
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,137,4523931,-;mtk-dsi 1400c000.dsi: handoff: acquire PHY
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,138,4524615,-;mediatek-mipi-tx 10010000.mipi-tx: PHY entry CON0=00000011 CON1=00000003 CON2=3c000000 PWR=00000101 CON=00000403 lanes=00000001
+ SUBSYSTEM=platform
+ DEVICE=+platform:10010000.mipi-tx
+6,139,4526217,-;mediatek-mipi-tx 10010000.mipi-tx: adopting live LK PHY unchanged; inherited rate unknown
+ SUBSYSTEM=platform
+ DEVICE=+platform:10010000.mipi-tx
+6,140,4527405,-;mtk-dsi 1400c000.dsi: handoff: clocks on; park video
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,141,4553315,-;mtk-dsi 1400c000.dsi: inherited DSI parked; releasing PHY before Linux modeset
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,142,4554396,-;mtk-dsi 1400c000.dsi: handoff: released PHY, result=0
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,143,4555216,-;mtk-dsi 1400c000.dsi: handoff: register host/panel
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+PID1 PID1:1 BEAT:9 [*] FRAME:60              
+PID1 US:6 RC:0 IRQ:365 D:99                  
+PID1 LAST ERR: NONE                          
+6,144,4556064,-;/dsi@1400c000: Fixed dependency cycle(s) with /dsi@1400c000/panel@0
+6,145,4557145,-;/dsi@1400c000/panel@0: Fixed dependency cycle(s) with /dsi@1400c000
+6,146,4558331,-;y2-pinctrl 10005000.pinctrl: before pin112 mux=1 dir=1 pull=0/0 input=1 IES=0000ffff
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,147,4559471,-;y2-pinctrl 10005000.pinctrl: pin112 mode=1 function=lcm-reset
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,148,4560780,-;mediatek-drm mediatek-drm.1.auto: bound 14007000.ovl (ops mtk_disp_ovl_component_ops [mediatek_drm])
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,149,4562190,-;mediatek-drm mediatek-drm.1.auto: bound 14008000.rdma (ops mtk_disp_rdma_component_ops [mediatek_drm])
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,150,4563599,-;mediatek-drm mediatek-drm.1.auto: bound 1400b000.color (ops mtk_disp_color_component_ops [mediatek_drm])
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,151,4565039,-;mediatek-drm mediatek-drm.1.auto: bound 1400c000.dsi (ops mtk_dsi_component_ops [mediatek_drm])
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,152,4567188,-;[drm] Initialized mediatek 1.0.0 for mediatek-drm.1.auto on minor 0
+6,153,4568949,-;mediatek-mipi-tx 10010000.mipi-tx: PHY entry CON0=00000000 CON1=00000003 CON2=3c000000 PWR=00000002 CON=00000400 lanes=00000000
+ SUBSYSTEM=platform
+ DEVICE=+platform:10010000.mipi-tx
+6,154,4589956,-;mediatek-mipi-tx 10010000.mipi-tx: Linux PHY powered at 338000000Hz
+ SUBSYSTEM=platform
+ DEVICE=+platform:10010000.mipi-tx
+6,155,4589976,-;mtk-dsi 1400c000.dsi: modeset: PHY/clocks ready, initialize DSI
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,156,4589989,-;mtk-dsi 1400c000.dsi: modeset: DSI command engine ready
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,157,4590019,-;(NULL device *): Y2SCAN inherited mutex0 en=00000001 get=00000000 mod=00000488 sof=00000001; clear parked ownership
+6,158,4603527,-;mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=03ff0001
+ SUBSYSTEM=platform
+ DEVICE=+platform:14007000.ovl
+6,159,4616854,-;mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=03ff0001
+ SUBSYSTEM=platform
+ DEVICE=+platform:14007000.ovl
+PID1 PID1:1 BEAT:10 [ ] FRAME:66             
+PID1 US:6 RC:0 IRQ:1430 D:99                 
+PID1 LAST ERR: NONE                          
+6,160,4633206,-;Console: switching to colour frame buffer device 60x45
+6,161,4633280,-;mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00130001
+ SUBSYSTEM=platform
+ DEVICE=+platform:14007000.ovl
+6,162,4684890,-;mediatek-drm mediatek-drm.1.auto: [drm] fb0: mediatekdrmfb frame buffer device
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,163,4689161,-;mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00080001
+ SUBSYSTEM=platform
+ DEVICE=+platform:14007000.ovl
+12,164,4699583,-;Y2DISPLAY: finit_module result=0
+6,165,4863316,-;mtk-dsi 1400c000.dsi: Y2SCAN sample=0 vblank=18 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,166,4870135,-;mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,167,4877290,-;mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,168,5923323,-;mtk-dsi 1400c000.dsi: Y2SCAN sample=1 vblank=86 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,169,5930081,-;mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,170,5937177,-;mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,171,6963331,-;mtk-dsi 1400c000.dsi: Y2SCAN sample=2 vblank=154 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,172,6970080,-;mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,173,6977150,-;mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,174,8003340,-;mtk-dsi 1400c000.dsi: Y2SCAN sample=3 vblank=221 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,175,8010078,-;mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84900000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+PID1 PID1:1 BEAT:11 [*] FRAME:72             
+PID1 US:6 RC:0 IRQ:1430 D:99                 
+PID1 LAST ERR: NONE                          
+6,176,8017180,-;mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+12,177,8672017,-;Y2PATTERN white/red/green/blue + checkerboard: 480x360 bpp=32 pitch=1920 DMA=00000000 allocation=691200 FNV-before=86209887 after=a40f4cc5 expected=a40f4cc5 match=yes; PHYSICAL VISIBILITY STILL REQUIRES OWNER OBSERVATION
+6,178,10673399,-;Y2USB stage=1 result=0
+6,179,10675277,-;Y2USB stage=1 result=0
+6,180,10676832,-;Y2USB fresh power=0/7 CHR=0063 clock=0/f USB=0/1fffff
+6,181,10679777,-;Y2USB stage=3 result=0
+6,182,10681842,-;Y2USB PHY00 saved=6e session=6e
+6,183,10683468,-;Y2USB PHY05 saved=44 session=44
+6,184,10685062,-;Y2USB PHY15 saved=10 session=10
+6,185,10686639,-;Y2USB PHY1a saved=10 session=10
+6,186,10688194,-;Y2USB PHY1d saved=00 session=00
+6,187,10689731,-;Y2USB PHY22 saved=00 session=00
+6,188,10691251,-;Y2USB PHY63 saved=00 session=00
+6,189,10692751,-;Y2USB stage=4 result=0
+6,190,10694477,-;using host ethernet address: 02:42:00:00:00:02
+6,191,10694487,-;using self ethernet address: 02:42:00:00:00:01
+
+SNAPSHOT BEGIN /proc/cpuinfo
+processor	: 0
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 2079.12
+Features	: half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+processor	: 1
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 2072.57
+Features	: half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+processor	: 2
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 2072.57
+Features	: half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+processor	: 3
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 2072.57
+Features	: half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+Hardware	: Generic DT based system
+Revision	: 0000
+Serial		: 0000000000000000
+6,192,10697606,-;g_cdc gadget.0: HOST MAC 02:42:00:00:00:02
+ SUBSYSTEM=gadget
+ DEVICE=+gadget:gadget.0
+6,193,10701827,-;g_cdc gadget.0: MAC 02:42:00:00:00:01
+ SUBSYSTEM=gadget
+ DEVICE=+gadget:gadget.0
+6,194,10703451,-;g_cdc gadget.0: CDC Composite Gadget, version: King Kamehameha Day 2008
+ SUBSYSTEM=gadget
+ DEVICE=+gadget:gadget.0
+6,195,10706299,-;g_cdc gadget.0: g_cdc ready
+ SUBSYSTEM=gadget
+ DEVICE=+gadget:gadget.0
+6,196,10707861,-;Y2USB stage=5 result=0
+6,197,11223395,-;Y2USB stage=6 result=0
+3,198,12596120,-;regulator regulator.9: regulator VCAMA doesn't support get_mode
+ SUBSYSTEM=regulator
+ DEVICE=+regulator:regulator.9
+3,199,12599259,-;regulator regulator.21: regulator VRTC doesn't support get_mode
+ SUBSYSTEM=regulator
+ DEVICE=+regulator:regulator.21
+6,200,12603148,-;backlight y2-backlight: Y2SCAN backlight enable=00ff pwm=1f00 current=5000
+ SUBSYSTEM=backlight
+ DEVICE=+backlight:y2-backlight
+12,201,20496699,-;Y2ABI begin: Thumb signal return, kuser helpers, glibc TLS/threads and VFP
+12,202,20496724,-;
+12,203,20500753,-;Y2ABI Thumb signal delivery/return OK
+12,204,20500764,-;
+12,205,20503352,-;Y2ABI kuser memory barrier and TLS OK
+12,206,20503360,-;
+12,207,20512961,-;Y2ABI PASS: glibc thread/TLS, VFP, clock and allocator
+
+SNAPSHOT END /proc/cpuinfo
+
+SNAPSHOT BEGIN /sys/devices/system/cpu/online
+0-3
+12,208,20512989,-;
+6,209,22205385,-;EXT4-fs (mmcblk0p1): INFO: recovery required on readonly filesystem
+6,210,22208097,-;EXT4-fs (mmcblk0p1): write access will be enabled during recovery
+6,211,24237075,-;EXT4-fs (mmcblk0p1): orphan cleanup on readonly fs
+6,212,24239835,-;EXT4-fs (mmcblk0p1): recovery complete
+6,213,24248056,-;EXT4-fs (mmcblk0p1): mounted filesystem 79324c69-6e75-4801-8000-000000000001 ro with ordered data mode. Quota mode: disabled.
+6,214,25417027,-;EXT4-fs (mmcblk0p1): re-mounted 79324c69-6e75-4801-8000-000000000001 r/w.
+12,215,25420525,-;Y2ROOT: verified /dev/mmcblk0p1; switching to Buildroot
+6,216,27003662,-;EXT4-fs (mmcblk0p1): re-mounted 79324c69-6e75-4801-8000-000000000001.
+12,217,28103266,-;Y2NET: usb0 10.42.0.1/24 ready; address persists across cable reconnect
+6,218,29804316,-;mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84900000 allocation=692224 expected=84900000 live=84900000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00050001
+ SUBSYSTEM=platform
+ DEVICE=+platform:14007000.ovl
+12,219,30006446,-;Y2PATTERN white/red/green/blue + checkerboard: 480x360 bpp=32 pitch=1920 DMA=00000000 allocation=691200 FNV-before=b9aabb87 after=feb0b6c5 expected=a40f4cc5 match=NO; PHYSICAL VISIBILITY STILL REQUIRES OWNER OBSERVATION
+5,220,33093547,-;random: crng init done
+3,221,37341552,-;regulator regulator.9: regulator VCAMA doesn't support get_mode
+ SUBSYSTEM=regulator
+ DEVICE=+regulator:regulator.9
+3,222,37344996,-;regulator regulator.21: regulator VRTC doesn't support get_mode
+ SUBSYSTEM=regulator
+ DEVICE=+regulator:regulator.21
+6,223,37456340,-;backlight y2-backlight: Y2SCAN backlight enable=00ff pwm=1f00 current=5000
+ SUBSYSTEM=backlight
+ DEVICE=+backlight:y2-backlight
+
+SNAPSHOT END /sys/devices/system/cpu/online
+
+SNAPSHOT BEGIN /proc/meminfo
+MemTotal:         954660 kB
+MemFree:          926300 kB
+MemAvailable:     918908 kB
+Buffers:            3864 kB
+Cached:             5968 kB
+SwapCached:            0 kB
+Active:             8068 kB
+Inactive:           2188 kB
+Active(anon):         80 kB
+Inactive(anon):      408 kB
+Active(file):       7988 kB
+Inactive(file):     1780 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+HighTotal:        228352 kB
+HighFree:         219008 kB
+LowTotal:         726308 kB
+LowFree:          707292 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:               104 kB
+Writeback:             0 kB
+AnonPages:           432 kB
+Mapped:             2380 kB
+Shmem:                64 kB
+KReclaimable:       1396 kB
+Slab:               6540 kB
+SReclaimable:       1396 kB
+SUnreclaim:         5144 kB
+KernelStack:         648 kB
+PageTables:          244 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:      477328 kB
+Committed_AS:       2820 kB
+VmallocTotal:     245760 kB
+VmallocUsed:         136 kB
+VmallocChunk:          0 kB
+Percpu:              176 kB
+Balloon:               0 kB
+
+SNAPSHOT END /proc/meminfo
+
+SNAPSHOT BEGIN /proc/zoneinfo
+Node 0, zone   Normal
+  per-node stats
+      nr_inactive_anon 102
+      nr_active_anon 20
+      nr_inactive_file 445
+      nr_active_file 1997
+      nr_unevictable 0
+      nr_slab_reclaimable 349
+      nr_slab_unreclaimable 1286
+      nr_isolated_anon 0
+      nr_isolated_file 0
+      workingset_nodes 0
+      workingset_refault_anon 0
+      workingset_refault_file 0
+      workingset_activate_anon 0
+      workingset_activate_file 0
+      workingset_restore_anon 0
+      workingset_restore_file 0
+      workingset_nodereclaim 0
+      nr_anon_pages 108
+      nr_mapped    595
+      nr_file_pages 2458
+      nr_dirty     26
+      nr_writeback 0
+      nr_shmem     16
+      nr_shmem_hugepages 0
+      nr_shmem_pmdmapped 0
+      nr_file_hugepages 0
+      nr_file_pmdmapped 0
+      nr_anon_transparent_hugepages 0
+      nr_vmscan_write 0
+      nr_vmscan_immediate_reclaim 0
+      nr_dirtied   84
+      nr_written   58
+      nr_throttled_written 0
+      nr_kernel_misc_reclaimable 0
+      nr_foll_pin_acquired 0
+      nr_foll_pin_released 0
+      nr_kernel_stack 648
+      nr_page_table_pages 61
+      nr_sec_page_table_pages 0
+      pgdemote_kswapd 0
+      pgdemote_direct 0
+      pgdemote_khugepaged 0
+      pgdemote_proactive 0
+      nr_balloon_pages 0
+      nr_kernel_file_pages 0
+  pages free     176823
+        boost    0
+        min      851
+        low      1063
+        high     1275
+        promo    1487
+        spanned  196608
+        present  196608
+        managed  181577
+        cma      0
+        protection: (0, 1784, 1784)
+      nr_free_pages 176823
+      nr_free_pages_blocks 174080
+      nr_zone_inactive_anon 0
+      nr_zone_active_anon 0
+      nr_zone_inactive_file 9
+      nr_zone_active_file 963
+      nr_zone_unevictable 0
+      nr_zone_write_pending 25
+      nr_mlock     0
+      nr_free_cma  0
+  pagesets
+    cpu: 0
+              count:    403
+              high:     1061
+              batch:    63
+              high_min: 265
+              high_max: 5660
+  vm stats threshold: 24
+    cpu: 1
+              count:    312
+    
+SNAPSHOT CONTINUED
+          high:     312
+              batch:    63
+              high_min: 265
+              high_max: 5660
+  vm stats threshold: 24
+    cpu: 2
+              count:    269
+              high:     269
+              batch:    63
+              high_min: 265
+              high_max: 5660
+  vm stats threshold: 24
+    cpu: 3
+              count:    324
+              high:     365
+              batch:    63
+              high_min: 265
+              high_max: 5660
+  vm stats threshold: 24
+  node_unreclaimable:  0
+  start_pfn:           524288
+Node 0, zone  HighMem
+  pages free     54752
+        boost    0
+        min      55
+        low      122
+        high     189
+        promo    256
+        spanned  57344
+        present  57344
+        managed  57088
+        cma      0
+        protection: (0, 0, 0)
+      nr_free_pages 54752
+      nr_free_pages_blocks 53248
+      nr_zone_inactive_anon 102
+      nr_zone_active_anon 20
+      nr_zone_inactive_file 436
+      nr_zone_active_file 1034
+      nr_zone_unevictable 0
+      nr_zone_write_pending 1
+      nr_mlock     0
+      nr_free_cma  0
+  pagesets
+    cpu: 0
+              count:    87
+              high:     268
+              batch:    15
+              high_min: 60
+              high_max: 1784
+  vm stats threshold: 12
+    cpu: 1
+              count:    132
+              high:     132
+              batch:    15
+              high_min: 60
+              high_max: 1784
+  vm stats threshold: 12
+    cpu: 2
+              count:    340
+              high:     340
+              batch:    15
+              high_min: 60
+              high_max: 1784
+  vm stats threshold: 12
+    cpu: 3
+              count:    88
+              high:     180
+              batch:    15
+              high_min: 60
+              high_max: 1784
+  vm stats threshold: 12
+  node_unreclaimable:  0
+  start_pfn:           720896
+Node 0, zone  Movable
+  pages free     0
+        boost    0
+        min      32
+        low      32
+        high     32
+        promo    32
+        spanned  0
+        present  0
+        managed  0
+SNAPSHOT CONTINUED
+
+        cma      0
+        protection: (0, 0, 0)
+
+SNAPSHOT END /proc/zoneinfo
+
+SNAPSHOT BEGIN /proc/buddyinfo
+Node 0, zone   Normal     48     18     10      7     10      6      5      1      1      3    170 
+Node 0, zone  HighMem     24     11      6      3      3      1      1      2      2      1     52 
+
+SNAPSHOT END /proc/buddyinfo
+
+SNAPSHOT BEGIN /proc/iomem
+00008000-0000803f : mt6323-pwrc
+  00008000-0000803f : mt6323-rtc
+10000000-10000fff : 10000000.clock-controller clock-controller@10000000
+10001000-10001fff : 10000000.clock-controller clock-controller@10000000
+10003000-10003fff : 10000000.clock-controller clock-controller@10000000
+10005000-10005fff : 10005000.pinctrl pinctrl@10005000
+1000b000-1000bfff : 10005000.pinctrl pinctrl@10005000
+1000d000-1000dfff : 1000d000.pwrap pwrap@1000d000
+10010000-10010fff : 10010000.mipi-tx mipi-tx@10010000
+10011000-10011fff : 10011000.keypad keypad@10011000
+10209000-10209fff : 10000000.clock-controller clock-controller@10000000
+11000200-1100027f : 11007000.i2c i2c@11007000
+11000280-110002ff : 11008000.i2c i2c@11008000
+11002000-1100201f : serial
+11007000-1100706f : 11007000.i2c i2c@11007000
+11008000-1100806f : 11008000.i2c i2c@11008000
+11200000-1120027f : musb-hdrc.2.auto
+  11200000-1120027f : musb-hdrc.2.auto musb-hdrc.2.auto
+11210800-1121086f : y2-usb-phy
+11240000-11240fff : 11240000.mmc mmc@11240000
+14000000-14000fff : 14000000.syscon syscon@14000000
+14007000-14007fff : 14007000.ovl ovl@14007000
+14008000-14008fff : 14008000.rdma rdma@14008000
+1400b000-1400bfff : 1400b000.color color@1400b000
+1400c000-1400cfff : 1400c000.dsi dsi@1400c000
+1400e000-1400efff : 1400e000.mutex mutex@1400e000
+80000000-817fffff : System RAM
+  80008000-805acfff : Kernel code
+  805de000-80a2a4bf : Kernel data
+84000000-bdefffff : System RAM
+
+SNAPSHOT END /proc/iomem
+
+SNAPSHOT BEGIN /proc/interrupts
+           CPU0       CPU1       CPU2       CPU3       
+ 24:       3973          0          0          0 MT_SYSIRQ 112 Level     timer@10008000
+ 51:          0          0          0          0  mt-eint  25 Level     mt6397-pmic
+ 81:          0          0          0          0  mt-eint  55 Edge      apt32f-wheel
+197:          0          0          0          0 mt6397-irq   5 Edge      mtk-pmic-keys
+199:          0          0          0          0 MT_SYSIRQ  44 Level     11007000.i2c
+200:          0          0          0          0 MT_SYSIRQ  45 Level     11008000.i2c
+201:       2941          0          0          0 MT_SYSIRQ  40 Level     11240000.mmc
+202:          0          0          0          0 MT_SYSIRQ 116 Edge      mt6582-keypad
+203:        879          0          0          0 MT_SYSIRQ 153 Level     14007000.ovl
+204:          0          0          0          0 MT_SYSIRQ 152 Level     14008000.rdma
+205:          0          0          0          0 MT_SYSIRQ 157 Level     1400c000.dsi
+206:       1433          0          0          0 MT_SYSIRQ  32 Level     musb-hdrc.2.auto
+IPI0:         0          1          1          1  CPU wakeup interrupts
+IPI1:         0       3961       3955       3949  Timer broadcast interrupts
+IPI2:        46         94         96         61  Rescheduling interrupts
+IPI3:       294        166        309        650  Function call interrupts
+IPI4:         0          0          0          0  CPU stop interrupts
+IPI5:         0          0          0          0  IRQ work interrupts
+IPI6:         0          0          0          0  completion interrupts
+Err:          0
+
+SNAPSHOT END /proc/interrupts
+
+SNAPSHOT BEGIN /proc/cmdline
+rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2LINUX-DEV-01
+
+SNAPSHOT END /proc/cmdline
+
+SNAPSHOT BEGIN /proc/bus/input/devices
+I: Bus=0019 Vendor=0001 Product=0001 Version=0100
+N: Name="Y2 navigation buttons"
+P: Phys=gpio-keys-polled/input0
+S: Sysfs=/devices/platform/navigation-keys/input/input0
+U: Uniq=
+H: Handlers=kbd event0 
+B: PROP=0
+B: EV=3
+B: KEY=10 40000000 600 0 0 10000000
+
+I: Bus=0019 Vendor=0001 Product=0001 Version=0001
+N: Name="mtk-pmic-keys"
+P: Phys=
+S: Sysfs=/devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-keys/input/input1
+U: Uniq=
+H: Handlers=kbd event1 
+B: PROP=0
+B: EV=3
+B: KEY=100000 0 0 0
+
+I: Bus=0018 Vendor=0000 Product=0000 Version=0000
+N: Name="APT32F click-wheel"
+P: Phys=
+S: Sysfs=/devices/platform/11007000.i2c/i2c-0/0-0051/input/input2
+U: Uniq=
+H: Handlers=kbd event2 
+B: PROP=0
+B: EV=3
+B: KEY=3180 0 0 0
+
+I: Bus=0019 Vendor=0000 Product=0000 Version=0000
+N: Name="mt6582-keypad"
+P: Phys=
+S: Sysfs=/devices/platform/10011000.keypad/input/input3
+U: Uniq=
+H: Handlers=kbd event3 
+B: PROP=0
+B: EV=3
+B: KEY=c0000 0 0 0
+
+
+SNAPSHOT END /proc/bus/input/devices
+
+SNAPSHOT BEGIN /sys/kernel/debug/clk/clk_summary
+                                 enable  prepare  protect                                duty  hardware                            connection
+   clock                          count    count    count        rate   accuracy phase  cycle    enable   consumer                         id
+---------------------------------------------------------------------------------------------------------------------------------------------
+ clock-uart                          1       1        0        26000000    0          0     50000      Y   11002000.serial                 no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ clock-rtc                           0       0        0        32000       0          0     50000      Y   deviceless                      no_connection_id         
+ clock-system                        1       1        0        13000000    0          0     50000      Y   timer@10008000                  no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ y2-rtc32k                           1       1        0        32768       0          0     50000      Y   deviceless                      no_connection_id         
+    mm_mutex_32k                     1       1        0        32768       0          0     50000      Y      1400e000.mutex                  no_connection_id         
+                                                                                                              deviceless                      no_connection_id         
+ clk26m                              4       5        1        26000000    0          0     50000      Y   10010000.mipi-tx                no_connection_id         
+                                                                                                           deviceless              
+SNAPSHOT CONTINUED
+        no_connection_id         
+    mm_dsi_digital                   1       1        0        26000000    0          0     50000      Y      1400c000.dsi                    digital                  
+                                                                                                              deviceless                      no_connection_id         
+    mipi_tx0_pll                     1       1        1        338000000   0          0     50000      Y      1400c000.dsi                    hs                       
+                                                                                                              deviceless                      no_connection_id         
+    y2-msdc1-source                  0       0        0        26000000    0          0     50000      Y      11240000.mmc                    source                   
+                                                                                                              deviceless                      no_connection_id         
+       y2-msdc1                      0       0        0        26000000    0          0     50000      Y         11240000.mmc                    source_cg                
+                                                                                                                 11240000.mmc                    hclk                     
+                                                                                                                 deviceless                      no_connection_id         
+    y2-msdc0-source                  0       0        0        0           0          0     50000      Y      deviceless                      no_connection_id         
+       y2-msdc0                      0       0        0        0           0          0     50000      Y         deviceless                      no_connection_id         
+    y2-kp                            1       1        0        26000000    0          0     50000      Y      10011000.keypad                 no_connectio
+SNAPSHOT CONTINUED
+n_id         
+                                                                                                              deviceless                      no_connection_id         
+    y2-pwrap                         1       1        0        26000000    0          0     50000      Y      1000d000.pwrap                  no_connection_id         
+                                                                                                              deviceless                      no_connection_id         
+    y2-axi                           0       3        0        273000000   0          0     50000      Y      deviceless                      no_connection_id         
+       y2-apdma                      0       2        0        273000000   0          0     50000      Y         11008000.i2c                    dma                      
+                                                                                                                 11007000.i2c                    dma                      
+                                                                                                                 deviceless                      no_connection_id         
+       y2-i2c1                       0       1        0        273000000   0          0     50000      Y         11008000.i2c                    main                     
+                                                                                                                 deviceless                      no_connection_id         
+       y2-i2c0                       0       1        0        273000000   0          0     50000      Y         11007000.i2c                    main                     
+                                                                                                                 deviceless                      no_connection_id         
+    y2-msdcpll                       0       0        0        399999542   0          0     50000      Y      deviceless                      no_connection_id       
+SNAPSHOT CONTINUED
+  
+    y2-mmpll                         0       0        0        500500000   0          0     50000      Y      deviceless                      no_connection_id         
+    y2-univpll                       0       0        0        1248000000  0          0     50000      Y      deviceless                      no_connection_id         
+    y2-mainpll                       0       0        0        1092000000  0          0     50000      Y      deviceless                      no_connection_id         
+    y2-armpll                        0       0        0        1040000000  0          0     50000      Y      deviceless                      no_connection_id         
+ mm_dpi_engine                       0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_dpi_digital_lane                 0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_dsi_engine                       1       1        0        0           0          0     50000      Y   1400c000.dsi                    engine                   
+                                                                                                           deviceless                      no_connection_id         
+ mm_fake_eng                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_cam_mdp                          0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_bls_26m                      0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_rdma                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_rsz0                         0       0       
+SNAPSHOT CONTINUED
+ 0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_rsz1                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_wdma                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_wrot                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_tdshp                        0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_disp_ovl                         1       1        0        0           0          0     50000      Y   14007000.ovl                    no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ mm_disp_rdma                        1       1        0        0           0          0     50000      Y   14008000.rdma                   no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ mm_disp_wdma                        0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_disp_bls                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_disp_color                       1       1        0        0           0          0     50000      Y   1400b000.color                  no_connection_id         
+                                                                                                           deviceless    
+SNAPSHOT CONTINUED
+                  no_connection_id         
+ mm_mutex                            1       1        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_cmdq                             0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_smi_larb0                        1       1        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_smi_common                       1       1        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+
+SNAPSHOT END /sys/kernel/debug/clk/clk_summary
+
+SNAPSHOT BEGIN /sys/kernel/debug/devices_deferred
+
+SNAPSHOT END /sys/kernel/debug/devices_deferred
+
+SNAPSHOT BEGIN /sys/kernel/debug/regulator/regulator_summary
+ regulator                      use open bypass  opmode voltage current     min     max
+---------------------------------------------------------------------------------------
+ regulator-dummy                  1    0      0 unknown     0mV     0mA     0mV     0mV 
+ VPROC                            0    0      0 unknown  1150mV     0mA     0mV     0mV 
+ VSYS                             0    0      0 unknown  2200mV     0mA     0mV     0mV 
+ VPA                              0    0      0 unknown   500mV     0mA     0mV     0mV 
+ VTCXO                            0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VCN28                            0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VCN33_BT                         0    0      0  normal  3600mV     0mA     0mV     0mV 
+ VCN33_WIFI                       0    0      0  normal  3600mV     0mA     0mV     0mV 
+ VA                               0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VCAMA                            0    0      0 unknown  2800mV     0mA     0mV     0mV 
+ VIO28                            0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VUSB                             0    0      0  normal  3300mV     0mA  3300mV  3300mV 
+ VMC                              0    0      0  normal  3300mV     0mA     0mV     0mV 
+ VMCH                             0    0      0  normal  3300mV     0mA     0mV     0mV 
+ VEMC3V3                          0    0      0  normal  3300mV     0mA     0mV     0mV 
+ VGP1                             0    0      0  normal  2800mV     0mA     0mV     0mV 
+ VGP2                             0    0      0  normal  2500mV     0mA     0mV     0mV 
+ VGP3                             0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VCN18                            0    0      0  normal  1800mV     0mA  1800mV  1800mV 
+ VSIM1                            0    0      0  normal  1800mV     0mA     0mV     0mV 
+ VSIM2                            0    0      0  normal  1800mV     0mA     0mV     0mV 
+ VR
+SNAPSHOT CONTINUED
+3,224,39736985,-;regulator regulator.9: regulator VCAMA doesn't support get_mode
+ SUBSYSTEM=regulator
+ DEVICE=+regulator:regulator.9
+3,225,39740453,-;regulator regulator.21: regulator VRTC doesn't support get_mode
+ SUBSYSTEM=regulator
+ DEVICE=+regulator:regulator.21
+TC                             0    0      0 unknown  2800mV     0mA  2800mV  2800mV 
+ VCAMAF                           0    0      0  normal  2000mV     0mA     0mV     0mV 
+ VIBR                             0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VRF18                            0    0      0  normal  1825mV     0mA  1825mV  1825mV 
+ VM                               0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VIO18                            0    0      0  normal  1800mV     0mA  1800mV  1800mV 
+ VCAMD                            0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VCAMIO                           0    0      0  normal  1800mV     0mA  1800mV  1800mV 
+
+SNAPSHOT END /sys/kernel/debug/regulator/regulator_summary
+
+SNAPSHOT BEGIN /sys/class/power_supply/y2-usb-presence/uevent
+DEVTYPE=power_supply
+OF_NAME=pwrap
+OF_FULLNAME=/pwrap@1000d000
+OF_COMPATIBLE_0=innioasis,y2-pwrap
+OF_COMPATIBLE_N=1
+POWER_SUPPLY_NAME=y2-usb-presence
+POWER_SUPPLY_TYPE=USB
+POWER_SUPPLY_ONLINE=1
+POWER_SUPPLY_TYPE=USB
+
+SNAPSHOT END /sys/class/power_supply/y2-usb-presence/uevent
+
+SNAPSHOT BEGIN /proc/mounts
+proc /proc proc rw,relatime 0 0
+sysfs /sys sysfs rw,relatime 0 0
+devtmpfs /dev devtmpfs rw,relatime,size=476468k,nr_inodes=119117,mode=755 0 0
+devpts /dev/pts devpts rw,relatime,gid=5,mode=620,ptmxmode=666 0 0
+tmpfs /run tmpfs rw,nosuid,nodev,relatime 0 0
+tmpfs /tmp tmpfs rw,relatime 0 0
+debugfs /sys/kernel/debug debugfs rw,relatime 0 0
+/dev/mmcblk0p1 / ext4 rw,relatime 0 0
+proc /proc proc rw,relatime 0 0
+tmpfs /dev/shm tmpfs rw,relatime 0 0
+
+SNAPSHOT END /proc/mounts
+
+SNAPSHOT BEGIN /proc/partitions
+major minor  #blocks  name
+
+ 179        0  124868608 mmcblk0
+ 179        1  124867584 mmcblk0p1
+
+SNAPSHOT END /proc/partitions
+
+SNAPSHOT BEGIN /proc/net/dev
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0
+  usb0:   43157     564    0   30    0     0          0         0   215110     559    0    0    0     0       0          0
+
+SNAPSHOT END /proc/net/dev
+
+SNAPSHOT BEGIN /sys/kernel/debug/dri/0/state
+plane[35]: plane-0
+	crtc=crtc-0
+	fb=56
+		allocated by = [fbcon]
+		refcount=2
+		format=XR24 little-endian (0x34325258)
+		modifier=0x0
+		size=480x360
+		layers:
+			size[0]=480x360
+			pitch[0]=1920
+			offset[0]=0
+			obj[0]:
+				name=0
+				refcount=3
+				start=00000000
+				size=692224
+				imported=no
+	crtc-pos=480x360+0+0
+	src-pos=480.000000x360.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=0
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+plane[40]: plane-1
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=1
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+plane[45]: plane-2
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=2
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+plane[50]: plane-3
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=3
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+crtc[55]: crtc-0
+	enable=1
+	active=1
+	self_refresh_active=0
+	planes_changed=1
+	mode_changed=0
+	active_changed=0
+	connectors_changed=0
+	color_mgmt_changed=0
+	plane_mask=1
+	connector_mask=1
+	encoder_mask=1
+	mode: "480x360": 63 27362 480 680 690 890 360 420 428 488 0x48 0x0
+connector[34]: DSI-1
+	crtc=crtc-0
+	self_refresh_aware=0
+	interlace_allowed=0
+	ycbcr_420_allowed=0
+	max_requested_bpc=0
+	colorspace=Default
+
+SNAPSHOT END /sys/kernel/debug/dri/0/state
+
+SNAPSHOT BEGIN /sys/class/graphics/fb0/virtual_size
+480,360
+
+SNAPSHOT END /sys/class/graphics/fb0/virtual_size
+
+SNAPSHOT BEGIN /sys/class/graphics/fb0/bits_per_pixel
+32
+
+SNAPSHOT END /sys/class/graphics/fb0/bits_per_pixel
+
+SNAPSHOT BEGIN /sys/class/backlight/y2-backlight/actual_brightness
+32
+6,226,39744818,-;backlight y2-backlight: Y2SCAN backlight enable=00ff pwm=1f00 current=5000
+ SUBSYSTEM=backlight
+ DEVICE=+backlight:y2-backlight
+
+SNAPSHOT END /sys/class/backlight/y2-backlight/actual_brightness
+PID1 PID1:1 BEAT:12 [ ] FRAME:78             
+PID1 US:6 RC:0 IRQ:1433 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:13 [*] FRAME:84             
+PID1 US:6 RC:0 IRQ:1434 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:14 [ ] FRAME:90             
+PID1 US:6 RC:0 IRQ:1435 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:15 [*] FRAME:96             
+PID1 US:6 RC:0 IRQ:1435 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:16 [ ] FRAME:102            
+PID1 US:6 RC:0 IRQ:1437 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:17 [*] FRAME:108            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:18 [ ] FRAME:114            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:19 [*] FRAME:120            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:20 [ ] FRAME:126            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:21 [*] FRAME:132            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:22 [ ] FRAME:138            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:23 [*] FRAME:144            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:24 [ ] FRAME:150            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:25 [*] FRAME:156            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:26 [ ] FRAME:162            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:27 [*] FRAME:168            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:28 [ ] FRAME:174            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:29 [*] FRAME:180            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:30 [ ] FRAME:186            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:31 [*] FRAME:192            
+PID1 US:6 RC:0 IRQ:1438 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:32 [ ] FRAME:198            
+PID1 US:6 RC:0 IRQ:1439 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:33 [*] FRAME:204            
+PID1 US:6 RC:0 IRQ:1441 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:34 [ ] FRAME:210            
+PID1 US:6 RC:0 IRQ:1441 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:35 [*] FRAME:216            
+PID1 US:6 RC:0 IRQ:1441 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:36 [ ] FRAME:222            
+PID1 US:6 RC:0 IRQ:1441 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:37 [*] FRAME:228            
+PID1 US:6 RC:0 IRQ:1441 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:38 [ ] FRAME:234            
+PID1 US:6 RC:0 IRQ:1441 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:39 [*] FRAME:240            
+PID1 US:6 RC:0 IRQ:1441 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:40 [ ] FRAME:246            
+PID1 US:6 RC:0 IRQ:1441 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:41 [*] FRAME:252            
+PID1 US:6 RC:0 IRQ:1500 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:42 [ ] FRAME:258            
+PID1 US:6 RC:0 IRQ:1572 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:43 [*] FRAME:264            
+PID1 US:6 RC:0 IRQ:1630 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:44 [ ] FRAME:270            
+PID1 US:6 RC:0 IRQ:1644 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:45 [*] FRAME:276            
+PID1 US:6 RC:0 IRQ:1645 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:46 [ ] FRAME:282            
+PID1 US:6 RC:0 IRQ:1646 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:47 [*] FRAME:288            
+PID1 US:6 RC:0 IRQ:1647 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:48 [ ] FRAME:294            
+PID1 US:6 RC:0 IRQ:1648 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:49 [*] FRAME:300            
+PID1 US:6 RC:0 IRQ:1649 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:50 [ ] FRAME:306            
+PID1 US:6 RC:0 IRQ:1650 D:99                 
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:51 [*] FRAME:312            
+PID1 US:6 RC:0 IRQ:1651 D:99                 
+PID1 LAST ERR: NONE                          

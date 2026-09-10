@@ -1,0 +1,12 @@
+connection.id:                          Kabelgebundene Verbindung 2
+connection.interface-name:              enp8s0f3u2
+802-3-ethernet.mac-address:             --
+ipv4.method:                            auto
+ipv4.addresses:                         --
+ipv4.never-default:                     no
+connection.id:                          Kabelgebundene Verbindung 2
+connection.interface-name:              enp8s0f3u2
+802-3-ethernet.mac-address:             02:42:00:00:00:02
+ipv4.method:                            manual
+ipv4.addresses:                         10.42.0.2/24
+ipv4.never-default:                     yes

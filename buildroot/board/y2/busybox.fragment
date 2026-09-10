@@ -1,0 +1,3 @@
+# Standard bounded diagnostics and complete normal kernel log records.
+CONFIG_TIMEOUT=y
+CONFIG_FEATURE_SYSLOGD_READ_BUFFER_SIZE=2048

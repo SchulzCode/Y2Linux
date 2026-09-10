@@ -51,7 +51,19 @@
  	/* Clear interrupt mask */
  	mtk_i2c_writew(i2c, ~(restart_flag | I2C_HS_NACKERR | I2C_ACKERR |
  			    I2C_ARB_LOST | I2C_TRANSAC_COMP), OFFSET_INTR_MASK);
-@@ -1457,7 +1478,10 @@
+@@ -1250,7 +1271,10 @@
+ 	i2c->auto_restart = i2c->dev_comp->auto_restart;
+ 
+ 	/* checking if we can skip restart and optimize using WRRD mode */
+-	if (i2c->auto_restart && num == 2) {
++	/* MT6582 has WRRD but no auto-restart engine. Without combining, a
++	 * one-byte TX is incorrectly programmed for two write transactions. */
++	if (num == 2 && (i2c->auto_restart ||
++	    of_device_is_compatible(i2c->dev->of_node, "mediatek,mt6582-i2c"))) {
+ 		if (!(msgs[0].flags & I2C_M_RD) && (msgs[1].flags & I2C_M_RD) &&
+ 		    msgs[0].addr == msgs[1].addr) {
+ 			i2c->auto_restart = 0;
+@@ -1457,7 +1481,10 @@
  
  	strscpy(i2c->adap.name, I2C_DRV_NAME, sizeof(i2c->adap.name));
  

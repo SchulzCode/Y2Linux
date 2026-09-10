@@ -1,0 +1,2 @@
+# Active desktop user access to this development Y2's CDC ACM endpoint.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0525", ATTRS{idProduct}=="a4aa", ATTRS{serial}=="Y2LINUX-DEV-01", TAG+="uaccess"

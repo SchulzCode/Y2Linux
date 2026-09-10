@@ -1,0 +1,33 @@
+[
+  {
+    "host_monotonic": 21673.879168512,
+    "host_unix": 1789068749.2844703,
+    "event": "ready",
+    "uptime": 1595.34,
+    "token": "dev02-live-20260910-qualification"
+  },
+  {
+    "host_monotonic": 21694.892425335,
+    "host_unix": 1789068770.2977266,
+    "event": "USB_absent",
+    "cycle": 1
+  },
+  {
+    "host_monotonic": 22165.183453318,
+    "host_unix": 1789069240.5887547,
+    "event": "USB_returned",
+    "cycle": 1,
+    "disconnected_seconds": 470.29102887499903
+  },
+  {
+    "host_monotonic": 22187.102779441,
+    "host_unix": 1789069262.508081,
+    "event": "SSH_returned",
+    "cycle": 1,
+    "uptime": 33.32,
+    "token": "Linux y2linux 6.18.0-y2linux-dev02 #1 SMP @1764542530 armv7l GNU/Linux",
+    "uptime_delta": -1562.02,
+    "host_elapsed": 513.223606861,
+    "continued_boot": false
+  }
+]

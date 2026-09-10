@@ -13,3 +13,5 @@ for script in /project/initramfs/rescue/init /project/buildroot/board/y2/overlay
 done
 qemu-arm -cpu cortex-a7 -L /build/buildroot/target /build/buildroot/target/bin/busybox --list > /build/busybox-applets.txt
 qemu-arm -cpu cortex-a7 -L /build/buildroot/target /build/buildroot/target/usr/sbin/dropbear -h > /build/dropbear-help.txt 2>&1
+
+qemu-arm -cpu cortex-a7 -L /build/buildroot/target /build/y2-abi-check

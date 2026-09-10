@@ -34,12 +34,16 @@ def rescue_entries(raw):
         entries[name]=(mode,data)
 
 
+def userspace_config(config):
+    require(config['CONFIG_PAGE_OFFSET']=='0xC0000000' and config['CONFIG_HIGHMEM']=='y','ARM split/HIGHMEM')
+    for key in ('CONFIG_ARM_THUMB','CONFIG_KUSER_HELPERS','CONFIG_FB_DEVICE','CONFIG_DEBUG_USER','CONFIG_VFP','CONFIG_NEON','CONFIG_EXT4_FS','CONFIG_MMC_BLOCK','CONFIG_USB_CDC_COMPOSITE','CONFIG_INET','CONFIG_UNIX98_PTYS'):
+        require(config.get(key)=='y','missing development prerequisite '+key)
+
+
 def check(root,project):
     check_config(root/'kernel/.config',project/'kernel/config/first-boot.config')
     config=parse(root/'kernel/.config')
-    require(config['CONFIG_PAGE_OFFSET']=='0xC0000000' and config['CONFIG_HIGHMEM']=='y','ARM split/HIGHMEM')
-    for key in ('CONFIG_VFP','CONFIG_NEON','CONFIG_EXT4_FS','CONFIG_MMC_BLOCK','CONFIG_USB_CDC_COMPOSITE','CONFIG_INET','CONFIG_UNIX98_PTYS'):
-        require(config.get(key)=='y','missing development prerequisite '+key)
+    userspace_config(config)
     kernel=Elf(root/'kernel/vmlinux');comp=Elf(root/'kernel/arch/arm/boot/compressed/vmlinux')
     image=(root/'kernel/arch/arm/boot/Image').read_bytes();z=(root/'kernel/arch/arm/boot/zImage').read_bytes()
     tree=(root/'y2.dtb').read_bytes();rd=(root/'initramfs.cpio.gz').read_bytes()
@@ -72,7 +76,7 @@ def check(root,project):
     release=(root/'kernel/include/config/kernel.release').read_text().strip()
     require(b'depends=' in info and any(x.startswith(('vermagic='+release+' ').encode()) for x in info),'module ABI/dependencies')
     require((root/'kernel/modules.order').read_text().splitlines()==['drivers/gpu/drm/mediatek/mediatek-drm.o'],'unexpected modules')
-    for name in ('bin/busybox','sbin/blkid','sbin/y2-observer','sbin/y2-fbtest','lib/ld-linux-armhf.so.3','lib/libc.so.6'):
+    for name in ('bin/busybox','sbin/blkid','sbin/y2-observer','sbin/y2-fbtest','sbin/y2-abi-check','lib/ld-linux-armhf.so.3','lib/libc.so.6'):
         elf=ELFFile(io.BytesIO(entries[name][1]));require(elf.elfclass==32 and elf.little_endian and elf['e_machine']=='EM_ARM','rescue ARM ABI '+name)
     require(b'Y2LINUX-DEV-01' in entries['sbin/y2-observer'][1],'observer identity')
     args=Inputs(len(z),len(tree),len(rd),len(image),bss,kernel.sym('_end')-text,

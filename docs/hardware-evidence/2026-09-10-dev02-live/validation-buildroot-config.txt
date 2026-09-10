@@ -1,0 +1,27 @@
+make: Entering directory '/home/luca/Dokumente/Code/Y2Linux/.cache/sources/buildroot-2025.02.17'
+mkdir -p /tmp/y2-live-buildroot-config/build/buildroot-config/lxdialog
+PKG_CONFIG_PATH="" make CC="/usr/bin/gcc" HOSTCC="/usr/bin/gcc" \
+    obj=/tmp/y2-live-buildroot-config/build/buildroot-config -C support/kconfig -f Makefile.br conf
+make[1]: Entering directory '/home/luca/Dokumente/Code/Y2Linux/.cache/sources/buildroot-2025.02.17/support/kconfig'
+/usr/bin/gcc -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=600 -DCURSES_LOC="<ncurses.h>" -DNCURSES_WIDECHAR=1 -DLOCALE  -I/tmp/y2-live-buildroot-config/build/buildroot-config -DCONFIG_=\"\"  -MM *.c > /tmp/y2-live-buildroot-config/build/buildroot-config/.depend 2>/dev/null || :
+/usr/bin/gcc -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=600 -DCURSES_LOC="<ncurses.h>" -DNCURSES_WIDECHAR=1 -DLOCALE  -I/tmp/y2-live-buildroot-config/build/buildroot-config -DCONFIG_=\"\"   -c conf.c -o /tmp/y2-live-buildroot-config/build/buildroot-config/conf.o
+/usr/bin/gcc -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=600 -DCURSES_LOC="<ncurses.h>" -DNCURSES_WIDECHAR=1 -DLOCALE  -I/tmp/y2-live-buildroot-config/build/buildroot-config -DCONFIG_=\"\"  -I. -c /tmp/y2-live-buildroot-config/build/buildroot-config/zconf.tab.c -o /tmp/y2-live-buildroot-config/build/buildroot-config/zconf.tab.o
+In file included from /tmp/y2-live-buildroot-config/build/buildroot-config/zconf.tab.c:2485:
+./confdata.c: In function ‘conf_write’:
+./confdata.c:762:35: warning: assignment discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  762 |                 } else if ((slash = strrchr(name, '/'))) {
+      |                                   ^
+/usr/bin/gcc -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=600 -DCURSES_LOC="<ncurses.h>" -DNCURSES_WIDECHAR=1 -DLOCALE  -I/tmp/y2-live-buildroot-config/build/buildroot-config -DCONFIG_=\"\"   /tmp/y2-live-buildroot-config/build/buildroot-config/conf.o /tmp/y2-live-buildroot-config/build/buildroot-config/zconf.tab.o  -o /tmp/y2-live-buildroot-config/build/buildroot-config/conf
+rm /tmp/y2-live-buildroot-config/build/buildroot-config/zconf.tab.c
+make[1]: Leaving directory '/home/luca/Dokumente/Code/Y2Linux/.cache/sources/buildroot-2025.02.17/support/kconfig'
+  GEN     /tmp/y2-live-buildroot-config/Makefile
+#
+# configuration written to /tmp/y2-live-buildroot-config/.config
+#
+make: Leaving directory '/home/luca/Dokumente/Code/Y2Linux/.cache/sources/buildroot-2025.02.17'
+
+PASS: planned diagnostic selections survive real Buildroot defconfig resolution; no image built.
+BR2_PACKAGE_EVTEST=y
+BR2_PACKAGE_LIBDRM=y
+BR2_PACKAGE_LIBDRM_INSTALL_TESTS=y
+BR2_PACKAGE_UTIL_LINUX_SETTERM=y

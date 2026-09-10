@@ -1,0 +1,9 @@
+#!/bin/sh
+# Rescue moves these mounts into Y2ROOT; mount -a skips existing mounts.
+# Reapply the declared development permissions before starting services.
+[ "$1" = start ] || exit 0
+set -eu
+mount -t tmpfs -o remount,mode=0755,nosuid,nodev tmpfs /run
+# tmpfs remount does not change the existing root inode's mode.
+chmod 0755 /run
+mount -t devpts -o remount,gid=5,mode=620,ptmxmode=0666 devpts /dev/pts

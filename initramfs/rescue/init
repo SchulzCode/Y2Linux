@@ -16,6 +16,13 @@ observer=$!
 echo 'Y2ROOT: rescue active; searching removable SD LABEL=Y2ROOT' > /dev/kmsg
 # Give asynchronous display and SD discovery time while ACM remains live.
 sleep 20
+# Run potentially faulting libc/Thumb paths as a child while rescue PID1 lives.
+abi_ok=0
+if /sbin/y2-abi-check > /dev/kmsg 2>&1; then
+    abi_ok=1
+else
+    echo 'Y2ROOT: userspace ABI preflight failed; preserving rescue' > /dev/kmsg
+fi
 rootdev=
 ambiguous=0
 for entry in /sys/class/block/*; do
@@ -28,7 +35,7 @@ for entry in /sys/class/block/*; do
     if [ -n "$rootdev" ]; then ambiguous=1; break; fi
     rootdev=$dev
 done
-if [ "$ambiguous" = 0 ] && [ -n "$rootdev" ] && mount -t ext4 -o ro "$rootdev" /newroot; then
+if [ "$abi_ok" = 1 ] && [ "$ambiguous" = 0 ] && [ -n "$rootdev" ] && mount -t ext4 -o ro "$rootdev" /newroot; then
     if [ -x /newroot/sbin/init ] && [ -x /newroot/usr/sbin/y2-observer ] &&
        [ -r /newroot/etc/y2linux/build-id ] && chroot /newroot /bin/true &&
        mount -o remount,rw /newroot; then
