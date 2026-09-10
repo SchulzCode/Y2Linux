@@ -1,0 +1,33 @@
+{
+  "status": "PASS offline; owner manual BOOTIMG flash pending",
+  "build": "M2-BASELINE-02",
+  "base_checkpoint": "7c34d35",
+  "bootimg": {
+    "bytes": 2015232,
+    "sha256": "13754b8f5ac49d173bce85f854b9683d23a2f3dc798b23309a1aa7197a4a8a34",
+    "android_id_sha1": "1d46da6b22e071e134c99d1f2a90da7e85bff6ed",
+    "partition_bytes": 16777216,
+    "kernel_wrapper_offset": 2048,
+    "ramdisk_wrapper_offset": 1996800,
+    "lk_complete_read_end": 2015232,
+    "zero_filled_read_tail_bytes": 4521,
+    "authentication": "unsigned image; offline checks do not establish this candidate hardware acceptance"
+  },
+  "tests": {
+    "applicable_passed": 26,
+    "baseline_providers_transport_input_phy": 5,
+    "pwrap_startup": 2,
+    "usb_guards_lifecycle_including_linked": 7,
+    "relay_host_and_arm": 1,
+    "real_artifact_mutations": 2,
+    "host_observation": 9
+  },
+  "source_manifest_sha256": "4cce624874bd37ed9efc8459e17f86d108d45f17a68da11b0636ea1534b0239b",
+  "logs": {
+    "artifact-validation.log": "64713662c903b2d2d6f4f6f2c7b0491188446f7cf100cee85ac618d38b1f9319",
+    "host-tests.log": "b3897f056390c75659b59ad8e985c0418e66042ef3afb66668d72e0f9ec28fe8",
+    "kernel-build.log": "c11506c784cfb66f307133c1debd78ac6a3f81d21b0dc789d5143955e8a5aed2",
+    "package-validation.log": "fb6e2cc21ac3e662bd1a6e5e28803eed3b538f0f31e3feb21f9c9ee07d445dd0",
+    "tests.log": "60276f5f53dae94cc3910e77af05f7099c7d79bcd99c3a1aa40843af4f438f33"
+  }
+}

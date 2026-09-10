@@ -105,8 +105,8 @@ def check(root, project):
     require(kernel.sym('y2_diagnostic_init') >= text, 'built-in guarded video diagnostic missing')
     require(kernel.sym('y2_text_write') >= text, 'D14 guarded text writer missing')
     require(kernel.sym('y2_power_snapshot') >= text, 'M2 cached PWRAP snapshot missing')
-    require(b'M2-BASELINE-01\0' in init, 'M2 prerequisite build identifier missing')
-    require(b'Y2BASELINE M2-BASELINE-01' in image, 'Diagnostic heading/build mismatch')
+    require(b'M2-BASELINE-02\0' in init, 'M2 prerequisite build identifier missing')
+    require(b'Y2BASELINE M2-BASELINE-02' in image, 'Diagnostic heading/build mismatch')
     require(b'/dev/y2diag\0' in init, 'PID1 diagnostic endpoint missing')
     require(b'/dev/y2input0\0' in init, 'PID1 evdev endpoint missing')
     for symbol in ('pins_probe', 'wrap_probe', 'y2_clocks_probe', 'gc9503v_probe', 'mt6582_keypad_probe', 'mtk_i2c_probe', 'msdc_drv_probe', 'gpio_keys_polled_probe', 'evdev_read', 'evdev_ioctl'):
@@ -138,7 +138,7 @@ def check(root, project):
     # Caller may create the payload only after all evidence passes.
     layout['diagnostic'] = {'watchdog_entry_offset':begin, 'watchdog_end_offset':end, 'watchdog_continuation_offset':continuation,
         'watchdog_instruction_sha256':digest(expected_wdt), 'framebuffer':'DRM allocated; no legacy raw framebuffer access',
-        'policy':'M2-BASELINE-01 shared core; 300s owner limit; offline only'}
+        'policy':'M2-BASELINE-02 shared core; 300s owner limit; offline only'}
     source_paths = ['kernel/diagnostic/board.c', 'kernel/diagnostic/policy.h', 'kernel/diagnostic/text.h',
         'kernel/diagnostic/pwrap.h', 'kernel/diagnostic/usb_clock.h', 'kernel/diagnostic/usb_state.h', 'kernel/diagnostic/usb_wake.h', 'initramfs/status.h',
         'initramfs/init.c', 'initramfs/start.S', 'initramfs/relay.h', 'initramfs/evdev.h',

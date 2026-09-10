@@ -97,22 +97,28 @@
       "result_sha256": "d1a4963a3a707070f2b7ca9b5e8e1f192d968df3ed11da4088f45dc64477f438"
     },
     {
+      "path": "drivers/gpu/drm/mediatek/mtk_crtc.c",
+      "patch": "0018-mt6582-crtc.patch",
+      "base_sha256": "6e5cffe1da09a0d4cacb4cbf7a6a79fa7c8e69982131c3cf44d6f1ac34e2e2c2",
+      "result_sha256": "660f9f33fcfd02b9704851c33103f1a238b3d77a1b0817dc01473e6f1ea64451"
+    },
+    {
+      "path": "drivers/phy/mediatek/phy-mtk-mipi-dsi.h",
+      "patch": "0020-mt6582-phy-ops.patch",
+      "base_sha256": "e2bc2b68cfad1e061eb61f27847fbac8c840db0597b4eccd4284d15c90e5e2b7",
+      "result_sha256": "8d732c198b30a65fdcdeb09bebea17ea5e82b065c7879d2655c42b2d3b209a78"
+    },
+    {
       "path": "drivers/phy/mediatek/phy-mtk-mipi-dsi.c",
       "patch": "0016-mt6582-phy.patch",
       "base_sha256": "22cd8bea37a7663052a5576c37d1fd68712d98fc8c45f4c0754547539cb3aded",
-      "result_sha256": "7038006e720bb334d6168ce068e6a15b462f486afa362f8402907e132cd7ce2b"
+      "result_sha256": "0a351569415609dfc9ea29eb5661045451fa4a37fcb20a98b38cc70b84e19817"
     },
     {
       "path": "drivers/gpu/drm/mediatek/mtk_dsi.c",
       "patch": "0017-mt6582-dsi.patch",
       "base_sha256": "ae2af9a535188a35e6e6314e6554b15791553b94d19d3f0f768694adaf4bd477",
-      "result_sha256": "89819bcd4ec1ad302a2ceb1178f29a9fec89ba7dab2c841fdb8af2078a61f6d2"
-    },
-    {
-      "path": "drivers/gpu/drm/mediatek/mtk_crtc.c",
-      "patch": "0018-mt6582-crtc.patch",
-      "base_sha256": "6e5cffe1da09a0d4cacb4cbf7a6a79fa7c8e69982131c3cf44d6f1ac34e2e2c2",
-      "result_sha256": "660f9f33fcfd02b9704851c33103f1a238b3d77a1b0817dc01473e6f1ea64451"
+      "result_sha256": "8d2a2099b584b60851b5744252974acabffb3d683589981ecc44a49931e30ed2"
     }
   ]
 }

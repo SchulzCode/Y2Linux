@@ -1,0 +1,18 @@
+--- a/drivers/phy/mediatek/phy-mtk-mipi-dsi.h
++++ b/drivers/phy/mediatek/phy-mtk-mipi-dsi.h
+@@ -19,6 +19,7 @@
+ struct mtk_mipitx_data {
+ 	const u32 mppll_preserve;
+ 	const struct clk_ops *mipi_tx_clk_ops;
++	const struct phy_ops *phy_ops;
+ 	void (*mipi_tx_enable_signal)(struct phy *phy);
+ 	void (*mipi_tx_disable_signal)(struct phy *phy);
+ };
+@@ -27,6 +28,7 @@
+ 	struct device *dev;
+ 	void __iomem *regs;
+ 	u32 data_rate;
++	bool inherited_power; /* MT6582: bootloader power, no CCF reference */
+ 	u32 mipitx_drive;
+ 	u32 rt_code[5];
+ 	const struct mtk_mipitx_data *driver_data;

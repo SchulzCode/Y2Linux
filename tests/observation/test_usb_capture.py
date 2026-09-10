@@ -92,3 +92,19 @@ class UsbCapture(unittest.TestCase):
                     self.assertFalse(events[0]['elapsed_ns']<=chunk['elapsed_ns']<events[1]['elapsed_ns'])
                 self.assertEqual(report['exit_code'],0)
             finally: os.close(master);os.close(slave)
+
+
+class CaptureArguments(unittest.TestCase):
+    def test_build_specific_duration_defaults_and_limits(self):
+        import contextlib
+        import io
+        from tools.observation.usb_log_capture import parse_args
+        for build in ('M2-BASELINE-01', 'M2-BASELINE-02'):
+            args=['--build',build,'--output','unused-test-output']
+            self.assertEqual(parse_args(args).seconds,180)
+            self.assertEqual(parse_args(args+['--seconds','60']).seconds,60)
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                parse_args(args+['--seconds','296'])
+        self.assertEqual(parse_args(['--output','unused-test-output']).seconds,45)
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            parse_args(['--output','unused-test-output','--seconds','180'])

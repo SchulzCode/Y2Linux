@@ -1,0 +1,132 @@
+{
+  "build": "M2-BASELINE-01",
+  "source_checkpoint": "7c34d35",
+  "owner_report": "BOOTIMG test; bootloader logo only; USB disconnected at about five minutes; buttons pressed in capture-02. Exact flashed hash and Android restoration not independently reported.",
+  "captures": [
+    {
+      "capture": "capture-01",
+      "retained_directory": "evidence-private/20260910-baseline-hardware/capture-01",
+      "started_utc": "2026-09-10T15:08:52.606903+00:00",
+      "bytes": 78903,
+      "sha256": "502006206f4dd109d99fc7a2293f45b44be961f54cb3a858f475009e7264626c",
+      "kernel_first": 0,
+      "kernel_last": 574,
+      "kernel_sequence_contiguous": true,
+      "relay_loss_markers": [],
+      "last_pid1_beat": 71,
+      "capture_seconds": 45,
+      "input_events": []
+    },
+    {
+      "capture": "capture-02",
+      "retained_directory": "evidence-private/20260910-baseline-hardware/capture-02",
+      "started_utc": "2026-09-10T15:20:03.597330+00:00",
+      "bytes": 79568,
+      "sha256": "4bfb2e04a121513f9886e2d2468063166825d3d7e05965464907b0ee41b3b7ad",
+      "kernel_first": 0,
+      "kernel_last": 575,
+      "kernel_sequence_contiguous": true,
+      "relay_loss_markers": [],
+      "last_pid1_beat": 68,
+      "capture_seconds": 45,
+      "input_events": [
+        {
+          "device": 0,
+          "code": 28,
+          "value": 0,
+          "count": 3
+        },
+        {
+          "device": 0,
+          "code": 28,
+          "value": 1,
+          "count": 3
+        },
+        {
+          "device": 0,
+          "code": 105,
+          "value": 0,
+          "count": 3
+        },
+        {
+          "device": 0,
+          "code": 105,
+          "value": 1,
+          "count": 3
+        },
+        {
+          "device": 0,
+          "code": 106,
+          "value": 0,
+          "count": 3
+        },
+        {
+          "device": 0,
+          "code": 106,
+          "value": 1,
+          "count": 3
+        },
+        {
+          "device": 0,
+          "code": 158,
+          "value": 0,
+          "count": 3
+        },
+        {
+          "device": 0,
+          "code": 158,
+          "value": 1,
+          "count": 3
+        },
+        {
+          "device": 0,
+          "code": 164,
+          "value": 0,
+          "count": 3
+        },
+        {
+          "device": 0,
+          "code": 164,
+          "value": 1,
+          "count": 3
+        },
+        {
+          "device": 1,
+          "code": 116,
+          "value": 0,
+          "count": 4
+        },
+        {
+          "device": 1,
+          "code": 116,
+          "value": 1,
+          "count": 4
+        },
+        {
+          "device": 3,
+          "code": 114,
+          "value": 0,
+          "count": 6
+        },
+        {
+          "device": 3,
+          "code": 114,
+          "value": 1,
+          "count": 6
+        },
+        {
+          "device": 3,
+          "code": 115,
+          "value": 0,
+          "count": 4
+        },
+        {
+          "device": 3,
+          "code": 115,
+          "value": 1,
+          "count": 4
+        }
+      ]
+    }
+  ]
+}

@@ -142,13 +142,9 @@ static int mtk_mipi_tx_pll_prepare(struct clk_hw *hw)
 
 	if (mipi_tx->data_rate != 338000000)
 		return -EINVAL;
-	if (readl(base + MIPITX_DSI_PLL_CON0) & RG_DSI_MPPLL_PLL_EN) {
-		if ((readl(base + MIPITX_DSI_PLL_CON0) & RG_DSI_MPPLL_DIV_MSK) !=
-			FIELD_PREP(RG_DSI_MPPLL_TXDIV0, 1) ||
-		    readl(base + MIPITX_DSI_PLL_CON2) != (52u << 24))
-			return dev_err_probe(mipi_tx->dev, -EBUSY, "unrecognized live DSI PLL\n");
-		return 0;
-	}
+	/* Live boot power must be adopted by the PHY, never retuned by CCF. */
+	if (readl(base + MIPITX_DSI_PLL_CON0) & RG_DSI_MPPLL_PLL_EN)
+		return dev_err_probe(mipi_tx->dev, -EBUSY, "DSI PLL still live at cold prepare\n");
 
 	/* bias + core/clk LDO */
 	mtk_phy_update_bits(base + MIPITX_DSI_TOP_CON,
@@ -261,7 +257,76 @@ static void mtk_mipi_tx_power_off_signal(struct phy *phy)
 		mtk_phy_clear_bits(mipi_tx->regs + reg, RG_DSI_LNTx_LDOOUT_EN);
 }
 
+/* LK owns the initial running link and may use a different divider/PCW.
+ * Taking a normal CCF prepare reference here would either reject that valid
+ * state or reprogram a live stream. Adopt only demonstrably powered hardware,
+ * without any writes or a claimed clock rate. DSI parks it before power_off;
+ * the subsequent normal modeset uses the cold CCF path and its 338MHz contract.
+ */
+static int mt6582_phy_power_on(struct phy *phy)
+{
+	struct mtk_mipi_tx *tx = phy_get_drvdata(phy);
+	void __iomem *base = tx->regs;
+	u32 con0 = readl(base + MIPITX_DSI_PLL_CON0);
+	u32 pwr = readl(base + MIPITX_DSI_PLL_PWR);
+	u32 con = readl(base + MIPITX_DSI_CON);
+	u32 lanes = readl(base + MIPITX_DSI_CLOCK_LANE) &
+		readl(base + MIPITX_DSI_DATA_LANE0) & readl(base + MIPITX_DSI_DATA_LANE1);
+	int ret;
+
+	dev_info(tx->dev, "PHY entry CON0=%08x CON1=%08x CON2=%08x PWR=%08x CON=%08x lanes=%08x\n",
+		 con0, readl(base + MIPITX_DSI_PLL_CON1),
+		 readl(base + MIPITX_DSI_PLL_CON2), pwr, con, lanes);
+	if (con0 & RG_DSI_MPPLL_PLL_EN) {
+		if ((pwr & (RG_DSI_MPPLL_SDM_PWR_ON | RG_DSI_MPPLL_SDM_ISO_EN)) !=
+			RG_DSI_MPPLL_SDM_PWR_ON ||
+		    (con & (RG_DSI_LDOCORE_EN | RG_DSI_CKG_LDOOUT_EN)) !=
+			(RG_DSI_LDOCORE_EN | RG_DSI_CKG_LDOOUT_EN) ||
+		    !(lanes & RG_DSI_LNTx_LDOOUT_EN))
+			return dev_err_probe(tx->dev, -EBUSY, "incomplete live PHY power; left untouched\n");
+		tx->inherited_power = true;
+		dev_info(tx->dev, "adopting live LK PHY unchanged; inherited rate unknown\n");
+		return 0;
+	}
+
+	/* Also supports an already stopped PHY before the first modeset. */
+	if (!tx->data_rate) {
+		ret = clk_set_rate(tx->pll_hw.clk, 338000000);
+		if (ret)
+			return ret;
+	}
+	ret = clk_prepare_enable(tx->pll_hw.clk);
+	if (ret)
+		return ret;
+	mtk_mipi_tx_power_on_signal(phy);
+	dev_info(tx->dev, "Linux PHY powered at %uHz\n", tx->data_rate);
+	return 0;
+}
+
+static int mt6582_phy_power_off(struct phy *phy)
+{
+	struct mtk_mipi_tx *tx = phy_get_drvdata(phy);
+
+	mtk_mipi_tx_power_off_signal(phy);
+	if (tx->inherited_power) {
+		/* No CCF reference was acquired for LK's power. The PHY is its
+		 * sole register owner; retire it once the DSI consumer has parked. */
+		mtk_mipi_tx_pll_unprepare(&tx->pll_hw);
+		tx->inherited_power = false;
+	} else {
+		clk_disable_unprepare(tx->pll_hw.clk);
+	}
+	return 0;
+}
+
+static const struct phy_ops mt6582_phy_ops = {
+	.power_on = mt6582_phy_power_on,
+	.power_off = mt6582_phy_power_off,
+	.owner = THIS_MODULE,
+};
+
 const struct mtk_mipitx_data mt6582_mipitx_data = {
+    .phy_ops = &mt6582_phy_ops,
     .mppll_preserve = 3,
     .mipi_tx_clk_ops = &mtk_mipi_tx_pll_ops,
     .mipi_tx_enable_signal = mtk_mipi_tx_power_on_signal,

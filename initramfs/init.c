@@ -315,7 +315,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     for(row=0;row<Y2_ROWS;++row) row_clear(screen.rows[row]);
     screen.magic=Y2_TEXT_MAGIC;
     row_pair(screen.rows[12],"LAST ERR: ","NONE");
-    row_pair(screen.rows[15],"BUILD: ","M2-BASELINE-01");
+    row_pair(screen.rows[15],"BUILD: ","M2-BASELINE-02");
     row_pair(screen.rows[16],"TRUNCATED TEXT: ","~ ; ERRORS: -ERRNO");
     row_pair(screen.rows[17],"SCOPE: ","M2 CORE / INITRAMFS ONLY");
     row_pair(screen.rows[18],"HOST LIMIT: ","300S FROM POWER-ON");
@@ -351,7 +351,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
         present("READ UPTIME");file_row(8,"UPTIME/IDLE S: ","/proc/uptime",0);
         present("READ TIMER IRQ");timer_row();
         nav_service();
-        row_pair(screen.rows[15],"BUILD: ","M2-BASELINE-01");
+        row_pair(screen.rows[15],"BUILD: ","M2-BASELINE-02");
         row_number(screen.rows[15],row_add(screen.rows[15],22,
                    nav.result ? "INPUT RC:" : "KEYS:"),
                    nav.result ? nav.result : (long)nav.events);

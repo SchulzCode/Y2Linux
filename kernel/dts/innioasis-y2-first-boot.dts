@@ -15,7 +15,7 @@
 /memreserve/ 0x80000000 0x00004000;
 
 / {
-    model = "Innioasis Y2 M2-BASELINE-01";
+    model = "Innioasis Y2 M2-BASELINE-02";
     compatible = "innioasis,y2", "mediatek,mt6582";
     #address-cells = <1>;
     #size-cells = <1>;

@@ -6,6 +6,21 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## M2 integrated hardware checkpoint — 2026-09-10
+
+[BASELINE-01 physical results](../knowledge/m2-baseline-hardware-result.md): two
+complete initial kernel captures confirm four CPUs, shared PWRAP/MFD/regulator
+probes, all five navigation channels, both volume keys, PMIC power key through
+EINT25, and native microSD/eMMC identity. DSI rejects the inherited PLL before
+handoff; wheel rotation has no captured IRQ/transfer/events. These are partial
+core results, not M2 closure. M1 COMPLETE, M2 ACTIVE; M3/M4/M5 gates unchanged.
+
+Continue one combined source iteration: repair live-PHY adoption and capture
+window defaults; retain D08, PMIC/storage write firewalls, USB logging, the
+295-second USB deadline and owner 300-second limit. The five-minute disconnect
+report is consistent with the deadline but not captured in the 45-second files.
+No memory/rail/production scope expansion or independent per-register flash.
+
 ## M2-BASELINE-01 integration authorization — 2026-09-10
 
 Baseline **4dde305** (clean main). The owner explicitly supersedes per-register
@@ -535,29 +550,26 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 
 ## Coverage matrix
 
-Reassessed 2026-09-10. Status measures **our hardware**, not donor availability;
-all rows retain their previous classification. The additional research above
-narrows implementation gaps without claiming new hardware acceptance. The
-[combined baseline](../build/m2-baseline-01-result.md) now provides offline
-implementations for the core rows; their hardware classifications remain unchanged.
+Reassessed 2026-09-10 against the [integrated physical captures](../knowledge/m2-baseline-hardware-result.md).
+Status measures our hardware; registration alone never establishes consumer operation.
 
 | Area | Status | Actual evidence / remaining gap | Durable tracking |
 | --- | --- | --- | --- |
 | Physical Linux + initramfs + native PID1 | **CONFIRMED** | Owner reports 6.18.0-y2-m1, PID1, mounts, increasing BEAT/uptime and working sleep. [Result](../knowledge/m1-runtime-hardware-result.md). | Closed M1 / #20–21; core stays achieved. |
 | Boot/kernel stability and maintenance | **PARTIAL** | Reproducible offline artifacts and a working run exist; exact flashed hash for latest report, repeated cold/warm boots, duration, timing accuracy, stress and maintained 6.18.y selection are not qualified. | Y2H-300 #28; maintenance/release policy #32. |
 | RAM and reserved/DMA ownership | **PARTIAL** | D08 24.5 MiB described map is visible; photographed MemTotal 22208 kB; working-set adequacy, expanded banks, heap/high carveouts and full DMA containment remain open. [Map](../knowledge/initial-ram-map.md). | #22; #28. No automatic expansion. |
-| SMP | **UNKNOWN** | CPU0 works locally; the external four-core result identifies SRAMROM 10202000 and an upstream release mechanism. SRAMROM release plus upstream GPT tick broadcast are now compiled; our release/coherency/IRQ/PM validation remains open. [Research](../knowledge/reverse-engineering-audit.md). | #28; optional for first wired player. |
-| Clocks, resets, pinctrl/GPIO/IRQ and I2C | **BLOCKED** | Narrow inherited USB clocks work; BASELINE-01 integrates CCF, minimal pinctrl/EINT, one PWRAP owner and I2C0/1. Complete rates/pads/rail ownership and hardware behavior remain unqualified. | #23/#24/#28; [research](../knowledge/reverse-engineering-audit.md). |
+| SMP | **PARTIAL** | All four CPUs online with advancing timer-broadcast/cross-CPU IPIs in BASELINE-01; SMP stress/coherency/PM not qualified. | #28; optional for first wired player. |
+| Clocks, resets, pinctrl/GPIO/IRQ and I2C | **PARTIAL** | Shared CCF/pinctrl/EINT/PWRAP and I2C providers probe. Navigation, keypad and PMIC EINT25 operate. Wheel EINT55/I2C transfers remain unobserved; full rates/pads and reset ownership unqualified. | #23/#24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Watchdog and controlled reset | **PARTIAL** | Reviewed early AP_RGU stop and displayed stopped state; no production driver takeover, pet/timeout strategy, deliberate reset or restart qualification. | #28 with #30. Preserve current experiment behavior. |
-| On-device diagnostic channel | **CONFIRMED** | Working inherited RGB565 text and owner-observed heartbeat; exact other fields/duration are not invented. | #20–21; [result](../knowledge/m1-runtime-hardware-result.md). |
-| Developer host logs / USB | **PARTIAL** | USBACM-03 physical ACM capture confirms retained kernel sequence 0–77 and PID1 beats 1–43 with no captured relay gaps/errors. [Result](../knowledge/m2-usbacm-hardware-result.md#usbacm-03-kernel-and-pid1-capture-confirmed). Repeatability, late-open/non-reading host, detach/reconnect and stability remain unqualified. | #27, #23, #28. |
+| On-device diagnostic channel | **PARTIAL** | Earlier inherited text worked; current integrated baseline shows only LK logo because DSI probe fails. USB logs remain the working diagnostic channel. | #20–21; [result](../knowledge/m1-runtime-hardware-result.md). |
+| Developer host logs / USB | **PARTIAL** | Two BASELINE-01 boots retain all initial kernel records (0–574/575) and PID1 without relay gaps. Separate boots do not qualify reconnect; only 45 seconds captured per boot. | #27, #23, #28. |
 | Physical UART / early crash capture | **UNKNOWN** | UART0 candidate exists; no pad/level/wire capture. Ramoops retention/reader is unproved. USB cannot log hangs before its initialization. | Existing #16; broader crash/debug policy #32. |
-| Display/controller/panel | **PARTIAL** | Inherited 480×360 RGB565 works; later external camera results retract 368. BASELINE-01 integrates corrected PHY/GPIO112 reset and DRM handoff; native DRM/panel and display PM remain untested here. | #25/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Backlight | **PLANNED** | Existing illumination persists; independent brightness/control/limits and rail/PWM ownership unverified. BASELINE-01 implements bounded inherited-current PWM with error handling; hardware validation remains pending. | #25/#23; #28/#30. |
-| Wheel/select input | **PLANNED** | BASELINE-01 integrates navigation and APT32F register-zero/repeated-start evdev; local rotation/IRQ/transport evidence is absent. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Other buttons/power-key/touch/wake | **PLANNED** | Donor GPIO6/7/9/10/54 navigation mapping feeds the first polled-evdev slice. Mapping on our board remains untested; keypad and PMIC power key are now compiled but unqualified; wake remains deferred. Stock touch names do not prove a touchscreen. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
-| Removable SD | **PLANNED** | Metadata distinguishes card from eMMC. External MSDC operation reduces compatibility uncertainty; BASELINE-01 enables <=400kHz identification/metadata only; asynchronous discovery and read-only behavior still need local proof. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Internal eMMC | **BLOCKED** | Capacity/ordinary partition offsets reconciled; BASELINE-01 has a guarded native identity-only path; no safe write/flush path or filesystem integrity qualification. | #28; recovery/rootfs policy #32. |
+| Display/controller/panel | **PARTIAL** | LK logo persists; BASELINE-01 DSI fails -EBUSY on an incorrect inherited-PLL rate assumption. BASELINE-02 separates live adoption from cold configuration; native modeset/panel still needs hardware validation. | #25/#28; [research](../knowledge/reverse-engineering-audit.md). |
+| Backlight | **PARTIAL** | Four inherited PWM channels accepted at duty32/32, step5 unchanged. Native brightness changes and panel sequencing untested. | #25/#23; #28/#30. |
+| Wheel/select input | **PARTIAL** | Select and four navigation channels have balanced evdev events. Wheel registers but has no EINT55/I2C/scroll events; rotation attempt not explicitly reported. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
+| Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation codes, both volume keys and Power have press/release events; keypad and PMIC IRQ counts agree. Wake deferred; no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
+| Removable SD | **PARTIAL** | BASELINE-01 identifies SDXC through native MSDC under <=400kHz/one-bit policy. No block device, disk write/mount or throughput/filesystem qualification. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
+| Internal eMMC | **PARTIAL** | Native CMD2/CMD9 identity works. CMD6 is intentionally rejected (-EROFS); configuration, block access and every write remain excluded. | #28; recovery/rootfs policy #32. |
 | Development rootfs and filesystem/data layout | **PLANNED** | Current image is diagnostic initramfs only. Block access, filesystem, writable-data boundaries and recoverable rootfs deployment were absent beyond broad blueprint intent. | Added #28/#32; no distribution/layout chosen. |
 | PMIC/battery/charger telemetry | **PARTIAL** | Photographed native PWRAP CID 0x2023/VUSB 0xc000 reads work; CHRDET follows reported startup cable state ([result](../knowledge/m2-chrdet-hardware-result.md)). Duplicate Android battery fields still conflict. No trustworthy units/calibration, native gauge/charger policy or voltage measurement. | #23; added #30. |
 | Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |

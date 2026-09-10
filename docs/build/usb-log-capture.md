@@ -1,6 +1,8 @@
 # Capture Y2 CDC ACM logs
 
-Current robustness candidate: [M2-USBACM-04 handoff](m2-usbacm-04-result.md).
+Current integrated candidate: [M2-BASELINE-02 handoff](m2-baseline-02-result.md).
+Baseline captures default to 180 seconds; the owner power-on limit is 300 seconds.
+The older USBACM-04 procedure below retains its historical 60-second boundary.
 Use its single combined host capture for delayed open, paused reads and one
 physical cable cycle. It identifies the actual USB tty on each enumeration;
 never infer the Y2 from ttyACM numbering alone. Run on the real host, outside
