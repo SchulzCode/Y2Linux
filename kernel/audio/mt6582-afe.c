@@ -80,15 +80,16 @@ static int mt6582_open(struct snd_pcm_substream *substream, struct snd_soc_dai *
 	snd_soc_set_runtime_hwparams(substream, &mt6582_hw);
 	ret = snd_pcm_hw_constraint_step(substream->runtime, 0,
 					SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 16);
-	if (ret)
+	if (ret < 0)
 		return ret;
 	ret = snd_pcm_hw_constraint_step(substream->runtime, 0,
 					SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 16);
-	if (ret)
+	if (ret < 0)
 		return ret;
 	ret = snd_pcm_hw_constraint_integer(substream->runtime, SNDRV_PCM_HW_PARAM_PERIODS);
-	if (ret)
+	if (ret < 0)
 		return ret;
+	/* Constraint refinement may return +1: only negatives are failures. */
 	WRITE_ONCE(afe->substream, substream);
 	return 0;
 }

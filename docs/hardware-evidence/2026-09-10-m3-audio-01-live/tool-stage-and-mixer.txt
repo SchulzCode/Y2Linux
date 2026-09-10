@@ -1,0 +1,18 @@
+amixer: OK
+aplay: OK
+asound.conf: OK
+audio/headphone-44100.wav: OK
+audio/headphone-48000.wav: OK
+bin/amixer: OK
+bin/aplay: OK
+lib/ld-linux-armhf.so.3: OK
+lib/libasound.so.2: OK
+lib/libc.so.6: OK
+lib/libm.so.6: OK
+aplay: version 1.2.13 by Jaroslav Kysela <perex@perex.cz>
+**** List of PLAYBACK Hardware Devices ****
+card 0: Y2Audio [Y2Audio], device 0: Y2 Headphone Playback (*) []
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+ALSA lib control.c:1575:(snd_ctl_open_noupdate) Invalid CTL sysdefault:0
+amixer: Control sysdefault:0 open error: No such file or directory

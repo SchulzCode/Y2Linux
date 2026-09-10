@@ -1,0 +1,9 @@
+test_real_trigger_irq_and_dma_bounds (test_audio.AFE.test_real_trigger_irq_and_dma_bounds) ... ok
+test_resolved_audio_dt_rejects_unsafe_rails (test_audio.AFE.test_resolved_audio_dt_rejects_unsafe_rails) ... skipped 'needs built DT'
+test_startup_accepts_positive_constraint_success (test_audio.AFE.test_startup_accepts_positive_constraint_success) ... ok
+test_audio_mux_masks (test_audio_clocks.AudioClocks.test_audio_mux_masks) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.120s
+
+OK (skipped=1)

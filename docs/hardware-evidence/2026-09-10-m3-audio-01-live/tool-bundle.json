@@ -1,0 +1,17 @@
+{
+  "archive": "out/y2linux-m3-audio-01/audio-live.tar",
+  "sha256": "ac29ea5738272b4caf2c5691bfbec639def0298febc8f9490624572906794d9b",
+  "files": {
+    "bin/aplay": "21a1dea9122702fc632fcc1df0504eaa6b4a46728377a66623a9d799cceb7247",
+    "aplay": "389d4bf7e7c1c599260f5c6e2473efb211e8dfc977a9aad2506d8a60414d17ed",
+    "bin/amixer": "6f97f01e6ef7f0ce6f2ae3a551112bf9640192c94dd5f0a518f301c31b0c962d",
+    "amixer": "775a524bcbd3b0b19ea7055ff379530a30582c24e249267c9ca1263026f42edd",
+    "lib/libasound.so.2": "eb27881636c41c2b6278923257840163580326a4725fbbf1693ce8d26d039dd0",
+    "lib/libm.so.6": "f10c043ec39c46ec7be48c875379688801e0f591fa9f06fd1c61fdc83ca9777f",
+    "lib/libc.so.6": "976ee8ccd4f82ede9ec9eefc6a8042edb750e756ad259b9b2f643ac84bcd9627",
+    "lib/ld-linux-armhf.so.3": "d368804869f84c59e82b18ee63b550f968a170738c80bd0c6d2836803105c062",
+    "audio/headphone-44100.wav": "862d2cc224d82c1ccebac8b6cb18246bd06d9b00d4ac29fdd9287a64254489a8",
+    "audio/headphone-48000.wav": "8e26565c7a6e35d8777cf9d4c18cf58e66ad44eccf9f5ed3ad4f0ebc31af4448",
+    "asound.conf": "14935db2cb388659e5b7d87b912c2e31519d297b92191d77ddd249f32fa0975c"
+  }
+}

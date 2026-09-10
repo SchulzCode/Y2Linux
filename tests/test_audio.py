@@ -98,6 +98,44 @@ int main(void) {
                             '-I'+str(ROOT/'kernel/audio'),str(p/'test.c'),'-o',str(p/'test')],check=True)
             subprocess.run([str(p/'test')],check=True)
 
+    def test_startup_accepts_positive_constraint_success(self):
+        src=(ROOT/'kernel/audio/mt6582-afe.c').read_text()
+        fixture=r'''
+#include <assert.h>
+#include <stddef.h>
+#include "mt6582-afe.h"
+#define SNDRV_PCM_HW_PARAM_BUFFER_BYTES 0
+#define SNDRV_PCM_HW_PARAM_PERIOD_BYTES 1
+#define SNDRV_PCM_HW_PARAM_PERIODS 2
+#define WRITE_ONCE(p,v) ((p)=(v))
+struct snd_pcm_runtime { int unused; };
+struct snd_pcm_substream { struct snd_pcm_runtime *runtime; };
+struct mt6582_afe { struct snd_pcm_substream *substream; };
+struct snd_soc_dai { struct mt6582_afe *afe; };
+static int mt6582_hw, result, step_result;
+static struct mt6582_afe *snd_soc_dai_get_drvdata(struct snd_soc_dai *d) {return d->afe;}
+static void snd_soc_set_runtime_hwparams(struct snd_pcm_substream *s, int *h) {(void)s;(void)h;}
+static int snd_pcm_hw_constraint_step(struct snd_pcm_runtime *r,int c,int p,int step) {
+ (void)r;(void)c;(void)p;(void)step;return step_result;
+}
+static int snd_pcm_hw_constraint_integer(struct snd_pcm_runtime *r,int p) {(void)r;(void)p;return result;}
+'''+function(src,'mt6582_open')+r'''
+int main(void) {
+ struct snd_pcm_runtime rt={0};struct snd_pcm_substream sub={&rt};
+ struct mt6582_afe afe={0};struct snd_soc_dai dai={&afe};
+ for(result=0;result<=1;result++) {
+  afe.substream=NULL;assert(mt6582_open(&sub,&dai)==0);assert(afe.substream==&sub);
+ }
+ result=-22;afe.substream=NULL;assert(mt6582_open(&sub,&dai)==-22);assert(!afe.substream);
+ result=1;step_result=-12;assert(mt6582_open(&sub,&dai)==-12);assert(!afe.substream);
+}
+'''
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp);(p/'test.c').write_text(fixture)
+            subprocess.run(['clang','-O2','-Wall','-Wextra','-Werror',
+                            '-I'+str(ROOT/'kernel/audio'),str(p/'test.c'),'-o',str(p/'test')],check=True)
+            subprocess.run([str(p/'test')],check=True)
+
     @unittest.skipUnless(os.environ.get('Y2_ARTIFACT_TEST_ROOT'),'needs built DT')
     def test_resolved_audio_dt_rejects_unsafe_rails(self):
         from tools.validation.dev_dtb import check

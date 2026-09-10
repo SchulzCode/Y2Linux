@@ -1,0 +1,61 @@
+amixer: OK
+aplay: OK
+asound.conf: OK
+audio/headphone-44100.wav: OK
+audio/headphone-48000.wav: OK
+bin/amixer: OK
+bin/aplay: OK
+lib/ld-linux-armhf.so.3: OK
+lib/libasound.so.2: OK
+lib/libc.so.6: OK
+lib/libm.so.6: OK
+numid=1,iface=CARD,name='Headphone Jack'
+  ; type=BOOLEAN,access=r-------,values=1
+  : values=off
+numid=3,iface=MIXER,name='Master DSD Playback Volume'
+  ; type=INTEGER,access=rw---R--,values=2,min=0,max=255,step=0
+  : values=135,135
+  | dBscale-min=-127.50dB,step=0.50dB,mute=1
+numid=2,iface=MIXER,name='Master Playback Volume'
+  ; type=INTEGER,access=rw---R--,values=2,min=0,max=255,step=0
+  : values=135,135
+  | dBscale-min=-127.50dB,step=0.50dB,mute=1
+numid=11,iface=MIXER,name='Headphone Switch'
+  ; type=BOOLEAN,access=rw------,values=1
+  : values=off
+numid=4,iface=MIXER,name='PCM Ch Select'
+  ; type=ENUMERATED,access=rw------,values=1,items=4
+  ; Item #0 'Left-Right Ch'
+  ; Item #1 'Left-Left Ch'
+  ; Item #2 'Right-Left Ch'
+  ; Item #3 'Right-Right Ch'
+  : values=0
+numid=9,iface=MIXER,name='PCM De-emphasis Filter'
+  ; type=BOOLEAN,access=rw------,values=1
+  : values=off
+numid=5,iface=MIXER,name='PCM Filter Speed'
+  ; type=ENUMERATED,access=rw------,values=1,items=2
+  ; Item #0 'Fast'
+  ; Item #1 'Slow'
+  : values=0
+numid=8,iface=MIXER,name='PCM High-pass Filter'
+  ; type=BOOLEAN,access=rw------,values=1
+  : values=on
+numid=7,iface=MIXER,name='PCM Nonoversample Emulate'
+  ; type=BOOLEAN,access=rw------,values=1
+  : values=off
+numid=6,iface=MIXER,name='PCM Phase Compensation'
+  ; type=BOOLEAN,access=rw------,values=1
+  : values=off
+numid=12,iface=MIXER,name='Bypass Switch'
+  ; type=ENUMERATED,access=rw------,values=1,items=2
+  ; Item #0 'Internal'
+  ; Item #1 'Alternative'
+  : values=0
+numid=10,iface=MIXER,name='DSD Phase Modulation'
+  ; type=ENUMERATED,access=rw------,values=1,items=3
+  ; Item #0 'Off'
+  ; Item #1 'BCKA Mode'
+  ; Item #2 'BCKD Mode'
+  : values=0
+cat: can't open '/sys/kernel/debug/asoc/cards': No such file or directory

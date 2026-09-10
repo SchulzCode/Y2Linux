@@ -1,0 +1,21 @@
+test_real_trigger_irq_and_dma_bounds (test_audio.AFE.test_real_trigger_irq_and_dma_bounds) ... ok
+test_resolved_audio_dt_rejects_unsafe_rails (test_audio.AFE.test_resolved_audio_dt_rejects_unsafe_rails) ... skipped 'needs built DT'
+test_startup_accepts_positive_constraint_success (test_audio.AFE.test_startup_accepts_positive_constraint_success) ... test: /tmp/tmpwtbnqyn_/test.c:45: int main(void): Assertion `mt6582_open(&sub,&dai)==0' failed.
+ERROR
+
+======================================================================
+ERROR: test_startup_accepts_positive_constraint_success (test_audio.AFE.test_startup_accepts_positive_constraint_success)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/luca/Dokumente/Code/Y2Linux/tests/test_audio.py", line 137, in test_startup_accepts_positive_constraint_success
+    subprocess.run([str(p/'test')],check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/tmp/tmpwtbnqyn_/test']' died with <Signals.SIGABRT: 6>.
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.130s
+
+FAILED (errors=1, skipped=1)

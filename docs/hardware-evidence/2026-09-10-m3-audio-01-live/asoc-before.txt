@@ -1,0 +1,49 @@
+/sys/kernel/debug/asoc/Y2Audio/Y2 Headphone Playback/state
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/XSP DSD Playback
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/XSP DoP Playback
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/ASP DoP Playback
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/ASP PCM Playback
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/Analog Playback
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/HiFi DAC
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/DSD
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/XSPIN DSD
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/XSPIN DoP
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/ASPIN DoP
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/ASPIN PCM
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/HPOUTB
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/HPOUTA
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/Bypass Switch
+/sys/kernel/debug/asoc/Y2Audio/cs43130.1-0030/dapm/bias_level
+/sys/kernel/debug/asoc/Y2Audio/11220000.audio-controller/dapm/I2S Playback
+/sys/kernel/debug/asoc/Y2Audio/11220000.audio-controller/dapm/DL1
+/sys/kernel/debug/asoc/Y2Audio/11220000.audio-controller/dapm/bias_level
+/sys/kernel/debug/asoc/Y2Audio/dapm/Headphone
+/sys/kernel/debug/asoc/Y2Audio/dapm/bias_level
+/sys/kernel/debug/asoc/Y2Audio/dapm_pop_time
+/sys/kernel/debug/asoc/components
+/sys/kernel/debug/asoc/dais
+cs43130.1-0030
+11220000.audio-controller
+snd-soc-dummy
+snd-soc-dummy
+cs43130-asp-pcm
+cs43130-asp-dop
+cs43130-xsp-dop
+cs43130-xsp-dsd
+DL1
+I2S
+snd-soc-dummy-dai
+-rwxr-xr-x    1 root     root        185324 Aug 23  2026 /lib/ld-linux-armhf.so.3
+-rwxr-xr-x    1 root     root       1454196 Aug 23  2026 /lib/libc.so.6
+closed
+running=0 periods=0
+0000=e0394038
+0010=00001001
+0014=00000000
+0020=00000000
+0040=00000000
+0044=00000000
+0048=00000007
+004c=00000000
+03a0=00000000
+03ac=00000000
