@@ -1,0 +1,84 @@
+{
+  "date": "2026-09-10",
+  "repo": "SchulzCode/Y2Linux",
+  "branch": "main",
+  "issues": [
+    {
+      "number": 22,
+      "title": "Y2E-155 \u2014 Specify one safe static RAM expansion step",
+      "state": "CLOSED",
+      "url": "https://github.com/SchulzCode/Y2Linux/issues/22",
+      "body_sha256": "da9492fa82c6db8e29b169e9cce9168b15b0abd1250a1da047bc761b8831a856"
+    },
+    {
+      "number": 23,
+      "title": "Y2E-160 \u2014 Establish the MT6323 power and supply prerequisite map",
+      "state": "CLOSED",
+      "url": "https://github.com/SchulzCode/Y2Linux/issues/23",
+      "body_sha256": "0f25bbc4d40a77e01b8b65a2967904ace5878e90ee07200ccb31ecaa15238bd7"
+    },
+    {
+      "number": 24,
+      "title": "Y2E-165 \u2014 Resolve the wheel and select-button event path",
+      "state": "CLOSED",
+      "url": "https://github.com/SchulzCode/Y2Linux/issues/24",
+      "body_sha256": "50e03c6da602f6f33e24f226e327cf5a7161603f346b70c1236224f02f9252d4"
+    },
+    {
+      "number": 25,
+      "title": "Y2E-170 \u2014 Specify a safe display handoff and backlight ownership boundary",
+      "state": "CLOSED",
+      "url": "https://github.com/SchulzCode/Y2Linux/issues/25",
+      "body_sha256": "6ef0b69db399d68e7c27c32ef3b1d6a15db9b3abced5a9fb05e786dc9565ef1a"
+    },
+    {
+      "number": 26,
+      "title": "Y2E-175 \u2014 Specify a read-only removable-SD controller proof",
+      "state": "CLOSED",
+      "url": "https://github.com/SchulzCode/Y2Linux/issues/26",
+      "body_sha256": "e2fe9a58b51483a6a8f25663677821b157fe8f856fe8090da6343a568e768d0b"
+    },
+    {
+      "number": 27,
+      "title": "Y2B-255 \u2014 Add bounded USB CDC ACM kernel and PID1 logging",
+      "state": "OPEN",
+      "url": "https://github.com/SchulzCode/Y2Linux/issues/27",
+      "body_sha256": "391e068c093a9f3ca0369100635e5714e3ee95ac5addef07c206345363a769c1"
+    },
+    {
+      "number": 28,
+      "title": "Y2H-300 \u2014 M2 core platform foundations and boot stability",
+      "state": "OPEN",
+      "url": "https://github.com/SchulzCode/Y2Linux/issues/28",
+      "body_sha256": "f079dcd491a52118581a0de1bb9ed3d0d600d8767a6802a5a2a8a69a97b4c302"
+    },
+    {
+      "number": 29,
+      "title": "Y2A-300 \u2014 M3 native audio and analog routing proof",
+      "state": "OPEN",
+      "url": "https://github.com/SchulzCode/Y2Linux/issues/29",
+      "body_sha256": "e2121a458f7c60d658a46126d3db1fbb4b8be3f76387b929752de45308c80f91"
+    },
+    {
+      "number": 30,
+      "title": "Y2P-400 \u2014 M4 battery safety and power-management viability",
+      "state": "OPEN",
+      "url": "https://github.com/SchulzCode/Y2Linux/issues/30",
+      "body_sha256": "170ca7891f54254e012b98d81756615ba67c8f407687a6758de286b7bbfc4bd6"
+    },
+    {
+      "number": 31,
+      "title": "Y2N-500 \u2014 M5 connectivity, firmware and conditional FM coverage",
+      "state": "OPEN",
+      "url": "https://github.com/SchulzCode/Y2Linux/issues/31",
+      "body_sha256": "8a04b062e166bf2e22cd6bba0adb42d6c250ba3cacf76dfea7b867669b1bbdca"
+    },
+    {
+      "number": 32,
+      "title": "Y2R-600 \u2014 M6 recoverable production userspace, updates and security",
+      "state": "OPEN",
+      "url": "https://github.com/SchulzCode/Y2Linux/issues/32",
+      "body_sha256": "b90d6f8a922913331c8bb4dd55a9c8aed9ae22f336108ff44af4a1a3639dbbf5"
+    }
+  ]
+}

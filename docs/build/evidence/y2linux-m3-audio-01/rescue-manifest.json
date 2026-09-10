@@ -1,0 +1,299 @@
+{
+  ".": {
+    "mode": 16877,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "dev": {
+    "mode": 16877,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "proc": {
+    "mode": 16877,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "sys": {
+    "mode": 16877,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "run": {
+    "mode": 16877,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "tmp": {
+    "mode": 16877,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "newroot": {
+    "mode": 16877,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "bin": {
+    "mode": 16877,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "sbin": {
+    "mode": 16877,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "dev/console": {
+    "mode": 8576,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rdev": [
+      5,
+      1
+    ]
+  },
+  "dev/null": {
+    "mode": 8630,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rdev": [
+      1,
+      3
+    ]
+  },
+  "init": {
+    "mode": 33261,
+    "bytes": 2658,
+    "sha256": "3f905f7bb5de8b5a758eb4cb0fab76807fc5f1e1425ce09223202dcfed2bc7a3",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "bin/busybox": {
+    "mode": 33261,
+    "bytes": 874136,
+    "sha256": "8040ac7afc5a42db1b130477254d68610945bd13b6beedef160761ef4229e98c",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "lib": {
+    "mode": 16877,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "lib/ld-linux-armhf.so.3": {
+    "mode": 33261,
+    "bytes": 185324,
+    "sha256": "d368804869f84c59e82b18ee63b550f968a170738c80bd0c6d2836803105c062",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "lib/libresolv.so.2": {
+    "mode": 33261,
+    "bytes": 50548,
+    "sha256": "94b078dcc16a2eb23b42364d8f92260954aa3b90bee19df95a6b399bb57450a4",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "lib/libc.so.6": {
+    "mode": 33261,
+    "bytes": 1454196,
+    "sha256": "976ee8ccd4f82ede9ec9eefc6a8042edb750e756ad259b9b2f643ac84bcd9627",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "sbin/blkid": {
+    "mode": 33261,
+    "bytes": 112008,
+    "sha256": "e92c743a902188e70c737ef52581f0d6d8e024748368874e3027ed044a380b85",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "lib/libblkid.so.1": {
+    "mode": 33261,
+    "bytes": 321352,
+    "sha256": "ba6bc5e23f1003199e57ef92469634f1b5c227265ca4b810f8df8912481b375d",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "sbin/y2-observer": {
+    "mode": 33261,
+    "bytes": 817524,
+    "sha256": "f950828638ad6f732cf778b89269934e14b04224b42b5d74c0c12c40aff4b1c9",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "sbin/y2-fbtest": {
+    "mode": 33261,
+    "bytes": 8204,
+    "sha256": "77f35da4b0a584b645a4a7f607dbe10620ef04f6dbe2fa632ebbff56a6382d35",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "sbin/y2-abi-check": {
+    "mode": 33261,
+    "bytes": 8564,
+    "sha256": "9831bd81cad23456d1855252066b718a8d5fdbe58d2c0def7ea639c22b342342",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "display.ko": {
+    "mode": 33024,
+    "bytes": 158300,
+    "sha256": "ffbeaf23ac5105b69283851dcd721437fcc829e4cd6123b95c987fff587e246c",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "bin/sh": {
+    "mode": 41471,
+    "bytes": 7,
+    "sha256": "9d75f0d7c398df565d7ac04c6819b62d6d8f9560f5eb4672596ecd8f7e96ae91",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "bin/mount": {
+    "mode": 41471,
+    "bytes": 7,
+    "sha256": "9d75f0d7c398df565d7ac04c6819b62d6d8f9560f5eb4672596ecd8f7e96ae91",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "bin/mkdir": {
+    "mode": 41471,
+    "bytes": 7,
+    "sha256": "9d75f0d7c398df565d7ac04c6819b62d6d8f9560f5eb4672596ecd8f7e96ae91",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "bin/mknod": {
+    "mode": 41471,
+    "bytes": 7,
+    "sha256": "9d75f0d7c398df565d7ac04c6819b62d6d8f9560f5eb4672596ecd8f7e96ae91",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "bin/sleep": {
+    "mode": 41471,
+    "bytes": 7,
+    "sha256": "9d75f0d7c398df565d7ac04c6819b62d6d8f9560f5eb4672596ecd8f7e96ae91",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "bin/readlink": {
+    "mode": 41471,
+    "bytes": 7,
+    "sha256": "9d75f0d7c398df565d7ac04c6819b62d6d8f9560f5eb4672596ecd8f7e96ae91",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "bin/chroot": {
+    "mode": 41471,
+    "bytes": 7,
+    "sha256": "9d75f0d7c398df565d7ac04c6819b62d6d8f9560f5eb4672596ecd8f7e96ae91",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "bin/umount": {
+    "mode": 41471,
+    "bytes": 7,
+    "sha256": "9d75f0d7c398df565d7ac04c6819b62d6d8f9560f5eb4672596ecd8f7e96ae91",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "bin/switch_root": {
+    "mode": 41471,
+    "bytes": 7,
+    "sha256": "9d75f0d7c398df565d7ac04c6819b62d6d8f9560f5eb4672596ecd8f7e96ae91",
+    "rdev": [
+      0,
+      0
+    ]
+  },
+  "bin/kill": {
+    "mode": 41471,
+    "bytes": 7,
+    "sha256": "9d75f0d7c398df565d7ac04c6819b62d6d8f9560f5eb4672596ecd8f7e96ae91",
+    "rdev": [
+      0,
+      0
+    ]
+  }
+}

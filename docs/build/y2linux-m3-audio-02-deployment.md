@@ -1,6 +1,8 @@
 # M3-AUDIO-02 — corrected PCM notification candidate
 
-Post-deployment update: the owner has flashed AUDIO-02 and the
+Post-deployment update: AUDIO-02 is owner-flashed and now has
+[clean 44.1 kHz physical playback](../knowledge/m3-audio-01-live-result.md),
+including the period-notification correction. The
 [ALSA tools are now installed persistently on SD](../knowledge/audio-tools-sd.md).
 Use standard `aplay`/`amixer` paths; the temporary-tool instructions below
 record the original artifact handoff and are superseded for this device.

@@ -1,3 +1,11 @@
+## Current next task — session close, 2026-09-10
+
+Finish small M3 qualification on deployed AUDIO-02:48kHz, L/R, stop/restart/repeat.
+The notification fix is already physically validated at44.1kHz. Then audit before
+M4; do not start M4/M5/Y2PlayerNative tonight. #27 reconnect remains deferred.
+[Exact handoff](session-handoff-2026-09-10.md). Earlier candidate/flash queues below
+are historical, not tomorrow's task.
+
 ## Current execution — 2026-09-10
 
 M3 native audio is explicitly owner-authorized and ACTIVE. The physical DEV-02

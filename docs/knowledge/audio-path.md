@@ -1,5 +1,11 @@
 # Audio and FM evidence
 
+**Current physical checkpoint:** AUDIO-02 now produces owner-confirmed clean
+S16 stereo44.1kHz headphones. The notification fix is deployed and tested.
+[Current result and exact limits](m3-audio-01-live-result.md) supersede the
+historical untested/gated claims below.48kHz/LR/restart checks remain; M4/M5
+and high-resolution implementation have not started.
+
 **2026-09-10 M3 ACTIVE:** owner authorizes one integrated headphone-first ALSA
 candidate, with #27 reconnect explicitly deferred. [Implementation and source
 review](m3-audio-architecture.md); [deployment](../build/y2linux-m3-audio-01-deployment.md).

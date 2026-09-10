@@ -17,7 +17,9 @@ A fresh SSH session resolves the installed programs normally. Installed hashes,
 ALSA card/PCM enumeration and read-only diagnostics are retained in
 [hardware evidence](../hardware-evidence/2026-09-10-audio-tools-sd/).
 Headphone remains off; installing tools does not play audio or change gain.
-The corrected kernel's clean playback acceptance remains pending.
+A subsequent AUDIO-02 test now has owner-confirmed clean 44.1 kHz playback;
+48 kHz, explicit L/R and stop/restart/repeat remain. See the
+[current physical result](m3-audio-01-live-result.md).
 
 ## Reproducible source and update
 

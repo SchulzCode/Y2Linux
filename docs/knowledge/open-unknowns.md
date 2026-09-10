@@ -1,5 +1,11 @@
 # Unknowns and architecture decisions
 
+**Current checkpoint:** [session handoff](../planning/session-handoff-2026-09-10.md).
+M1 complete; M2 core/Buildroot physically qualified for progression; M3 AUDIO-02
+has clean44.1kHz headphones and a deployed/tested notification fix. USB reconnect
+#27 remains unresolved. M4/M5/Y2PlayerNative are not started. Earlier unknowns
+below are historical wherever the current hardware reports supersede them.
+
 > 2026-09-10: [additional reverse-engineering audit](reverse-engineering-audit.md)
 > narrows U10b/U11: SMP release, input protocol, display failures and audio supply
 > requirements now have concrete external experiments to validate/forward-port.

@@ -1,8 +1,12 @@
 # M3 headphone-first architecture and source review
 
-2026-09-10; qualified core baseline `d76e57f`; candidate Y2LINUX-M3-AUDIO-01.
+2026-09-10; qualified core baseline `d76e57f`; current deployed candidate
+Y2LINUX-M3-AUDIO-02 (`8f93e44`), including notification fix `137b3f2`.
 [Owner-authorized activation audit](../planning/roadmap-gap-audit.md#m3-activation-audit--2026-09-10).
-Implementation/build evidence is distinct from physical playback: **M3 is open**.
+[Physical result](m3-audio-01-live-result.md): clean S16 stereo44.1kHz headphones
+confirmed;48kHz, explicit L/R and stop/restart/repeat remain. **M3 is open and
+near completion.**32-bit I2S slots do not provide32-bit PCM;24/32-bit and higher
+rates remain unimplemented later enhancements.
 
 ## Reconciled evidence
 
@@ -18,7 +22,7 @@ GPL attribution is retained in adapted files.
 | Native controller | Donor/vendor AFE 0x11220000, size0x1000; GIC SPI104 level-low. DL1 base/current/end 0x40/44/48; MCU IRQ CON/STATUS/CLR/CNT1 0x3a0/a4/a8/ac. |
 | External route | Our `Y2Player/docs/Y2_AUDIO_PATH_PHASE4_SECOND_I2S.md`, backed by stock capture `2026-07-30_135519`, reports CONN0=0x00400020, CON3=0x90b playing/0x90a idle, CON1=0 throughout ten states. HAL hash5c5162f6a68f7db57febd050ee88cc886779dcce5948937149d6cd211eb0e6de; no repeat full HAL hash. Donor and external pad proof agree on I05/I06 -> O00/O01 -> CON3. |
 | Source limit | The stock report's PMIC ABB/AUDTOP activity does not prove the PMIC analog output lies in the headphone signal chain. We do not reproduce those analog writes. If DAC/I2S work but headphones remain silent, this remains class E routing evidence to resolve. |
-| I2S pins | External history identifies GPIO43 BCK,44 WS,46 data using LK's mux. Claim/retain/report those muxes; fail if a pad is still GPIO mode0. No unverified pin function number or drive strength is programmed. Own-unit pad activity needs deployment evidence. |
+| I2S pins | External history identifies GPIO43 BCK,44 WS,46 data using LK's mux. Claim/retain/report those muxes; fail if a pad is still GPIO mode0. No unverified pin function number or drive strength is programmed. Own-unit clean headphone playback now confirms the route operates; no independent electrical pad/clock measurement is claimed. |
 | FPGA_CFG1 | External history says bit4 does not read back on silicon. Omit the ineffective fidelity-only write; do not assume it establishes external routing. |
 | Clocks | Vendor CLK_CFG_3 uses audio bits16/23 and audintbus bits24–26/31; infracfg audio gate5. Both muxes select documented 26MHz parent0 through CCF. Adjacent SD fields and inherited gate retention are tested. No PLL retune or approximate fixed donor PLL rates. |
 | Rate contract | Both rates use the same source: DL1, IRQ1 and CON3 code9 at44100 / code10 at48000; 32-bit I2S slots, 64 BCLK/frame. Nominal BCLK2.8224/3.072MHz. DAC crystal22.5792MHz, upstream codec PLL/clock-family handling for48k. No end-to-end accuracy claim until measured. |
@@ -82,7 +86,9 @@ Headphone is disabled initially; owner enables it only for a controlled test.
 
 `y2-audio-collect` collects standard ALSA, interrupts, dmesg, regulators and clocks.
 AFE's read-only `state` attribute guards bounded MMIO reads with runtime PM and
-exposes DMA range/current, CONN0/CON3, rate/count and cumulative period callbacks.
+exposes DMA range/current, CONN0/CON3, rate/count and cumulative running IRQ
+events. The counter alone does not prove ALSA callbacks occurred, as AUDIO-01
+demonstrated; correlate ALSA pointer progress and playback timing.
 Use it instead of clock-gated raw regmap dumps. It reports nominal register state,
 not an electrical BCLK/LRCK measurement. No register-writing userspace helper.
 
@@ -94,7 +100,7 @@ ARM ABI, current expanded-RAM/reservation/relocation layout, emitted BOOTIMG and
 rootfs/fixture contents. Kernel and Buildroot logs retain failed compilation
 attempts followed by the resolved pass; no hardware success follows from these.
 
-After owner deployment classify A card-probe, B PCM/DMA, C DMA-with-wrong-I2S,
+For remaining tests classify A card-probe, B PCM/DMA, C DMA-with-wrong-I2S,
 D DAC brownout/reset, E route/mute, F userspace underrun, G clock/rate faults.
 Required physical evidence: stable DMA/IRQ + correct second-I2S + powered DAC +
 clean audible headphones, then stop/restart/repeated44.1k and48k runs, no severe

@@ -1,0 +1,66 @@
+{
+  "candidate": "Y2LINUX-M3-AUDIO-02",
+  "commit": "8f93e44918518bfc3246aad1867dd0701f07e056",
+  "kernel_release": "6.18.0-y2linux-m3audio02",
+  "physical_status": "UNTESTED correction; AUDIO-01 audible with clicking",
+  "validation": "PASS four targeted audio tests and exact ELF/DT/rescue/memory/BOOTIMG checks; config unchanged except release",
+  "rootfs": "No new rootfs; existing SD retained, temporary ALSA tools restaged after boot; matching DRM module in rescue",
+  "artifacts": {
+    "BOOTIMG.img": {
+      "bytes": 4816896,
+      "sha256": "b9dbf6b528e4afbee2a5ffb2fc65df7f6a076564e92960332e24cee3809b5842"
+    },
+    "Image": {
+      "bytes": 9781504,
+      "sha256": "a3a34c0821616545e1e7af05d0d9c64230a31906f301201811303304e336b659"
+    },
+    "zImage": {
+      "bytes": 3234912,
+      "sha256": "46a80efb99f39e4d62087879065c77c5a66ff4ff153b715b310a7f459810f1f4"
+    },
+    "zImage-dtb": {
+      "bytes": 3244360,
+      "sha256": "5aef713071d57c863a06b640a25644228366fdf7edba69a9fe370b09aabbee8a"
+    },
+    "y2.dtb": {
+      "bytes": 9446,
+      "sha256": "95889f0a4edabaebf3a0766e3258ba5dc358ca74a4935ba33d328b79fb819940"
+    },
+    "initramfs.cpio.gz": {
+      "bytes": 1562401,
+      "sha256": "6c0c4ce6326f1fc9defa97c7ca6ab1aba6dec0a7752d4b2f1e416e51d0776891"
+    },
+    "display.ko": {
+      "bytes": 158300,
+      "sha256": "8c8a44f37b91792b6a490a9418ea61b801e9e2fedf1135ebd19564da50f0b43c"
+    },
+    "kernel.config": {
+      "bytes": 82940,
+      "sha256": "277022ff5d34d88d19216e3812bac3301f45a0ccd1366206162586897bc36ea0"
+    },
+    "source-manifest.json": {
+      "bytes": 318,
+      "sha256": "36efdf0663896f448262c0382e06ddc65b499f3fccf0875c0860d13735c14a0c"
+    },
+    "layout.json": {
+      "bytes": 3745,
+      "sha256": "b08365558798829c1a600373e75090ae066978b504e98ac3e0dd67e4941a4d94"
+    },
+    "rescue-manifest.json": {
+      "bytes": 5864,
+      "sha256": "4589f58752506734fda130db60276760dfa95ec10e389c17a7883668941fdd84"
+    },
+    "DEPLOYMENT.md": {
+      "bytes": 4251,
+      "sha256": "f8fdf0a5e3f2b75a6338340d326a72db5fee0a654b2f135010ba1be8127c6408"
+    },
+    "kernel-build.log": {
+      "bytes": 1925,
+      "sha256": "76fb3fed633cb65028e1b4547dd168aca063c51435da55a413d3724b159b080c"
+    },
+    "validation.log": {
+      "bytes": 4539,
+      "sha256": "6977f275352b9f6982b5e64ee1de05679e58fca6ed36703af8e52d51d2258983"
+    }
+  }
+}

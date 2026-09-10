@@ -1,5 +1,10 @@
 # M3-AUDIO-01 integrated candidate — offline result
 
+**Historical build result.** AUDIO-01 was deployed and exposed a PCM notification
+bug. AUDIO-02 fixes it and now has clean44.1kHz physical playback. See the
+[current audio result](../knowledge/m3-audio-01-live-result.md). The original
+artifact hashes and offline status below describe packaging time only.
+
 2026-09-10. **PASS offline; physical M3 audio remains untested.** Owner manual
 BOOTIMG-only deployment is the next boundary. No device flash, reboot, raw codec
 or PMIC write, reconnect experiment or Y2PlayerNative implementation occurred.

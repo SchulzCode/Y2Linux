@@ -1,0 +1,113 @@
+{
+  "candidate": "Y2LINUX-M3-AUDIO-01",
+  "analysis_checkpoint": "d76e57f",
+  "git_head_at_packaging": "aa3c94932db59039549456330fc02d8cb5199c61",
+  "source_state": "qualified DEV-02 Git baseline plus changed-source hashes in source-manifest.json",
+  "kernel_release": "6.18.0-y2linux-m3audio01",
+  "buildroot": {
+    "version": "2025.02.17",
+    "url": "https://buildroot.org/downloads/buildroot-2025.02.17.tar.xz",
+    "sha256": "13618704563ad0b928a4564aaa73e2db97e12e8df0ed5ae874744a83964a023a",
+    "source_date_epoch": 1787518700,
+    "toolchain": "Bootlin armv7-eabihf glibc stable 2024.05-1 (Buildroot hash checked)"
+  },
+  "public_key_fingerprint": "SHA256:IS9HhrmQKRtlEEbrcJjZa0XQHVwnRXRUzQQ61/7XAb8",
+  "public_key_file_sha256": "bf9cc937fb5dcee8569514b674fb9b3d5ba25396162efac7e8854f88bfe98c25",
+  "ram_before_kernel_bytes": 997179392,
+  "physical_status": "M3 audio UNTESTED; DEV-02 core physically qualified, reconnect deferred #27",
+  "deployment": "owner offline SD rootfs content update, then BOOTIMG-only manual flash",
+  "validation": "one clean kernel tree, one Buildroot tree; corrections in place; targeted tests, ELF/DT/layout/BOOTIMG, ARM userspace checks, e2fsck and independent ext4/tar content comparison",
+  "known_limits": [
+    "M3 playback/analog sequencing/pops/rate accuracy require physical acceptance",
+    "speaker identity/output and jack reporting deferred; codec uses ready-status polling",
+    "VGP2 retained on at 1.8 V pending shared-rail power qualification",
+    "I2S pads retain LK mux; no guessed mux rewrite",
+    "USB reconnect remains #27; boot unplugged then attach once",
+    "USB serial/observer identity remains DEV-01; kernel and rootfs build-id identify M3"
+  ],
+  "audio_architecture": "ALSA DPCM DL1 -> I05/I06 -> O00/O01 -> I2S_CON3 -> upstream CS43131 -> headphone; amp held low",
+  "alsa_card": "Y2Audio",
+  "pcm": "hw:CARD=Y2Audio,DEV=0",
+  "initial_formats": [
+    "S16_LE stereo 44100 Hz",
+    "S16_LE stereo 48000 Hz"
+  ],
+  "artifacts": {
+    "BOOTIMG.img": {
+      "bytes": 4816896,
+      "sha256": "126243845ef3ecdc5ac81f654e8ef0d09d2782dbce48117a4c5b65a8b0d5f92e"
+    },
+    "rootfs.ext4": {
+      "bytes": 536870912,
+      "sha256": "742bf915ec74cd2f5bc8c5a8f5be40eff8d2c5d5b1b12fb881c84c59e9bd4610"
+    },
+    "rootfs.tar": {
+      "bytes": 23296000,
+      "sha256": "732c10ad77f58867c434bc53dd870a39f089c4eb836d7cf1f540498b3adad3c3"
+    },
+    "kernel.config": {
+      "bytes": 82940,
+      "sha256": "6b2370ad71bd3934662d136973ba5cc49590352a571d2f58f3d437f305c6faca"
+    },
+    "buildroot.config": {
+      "bytes": 126441,
+      "sha256": "06792bddf6b196d1a93723f5a3d4728102da4ccc24cb21617eee1acd04691b55"
+    },
+    "y2.dtb": {
+      "bytes": 9446,
+      "sha256": "61cb948623ab40295041807e7c0b8158f8c8bad0a5f39ac113f6fec71f3b3caf"
+    },
+    "Image": {
+      "bytes": 9781504,
+      "sha256": "35f2d0b0a14b96e162efb7d22b4106060ece822f3da714f10b4f9bbc5ca4430c"
+    },
+    "zImage": {
+      "bytes": 3234856,
+      "sha256": "b71b2bcdd0a420c20e2bdc025acb0976bcb01363ec6ad2fa112a439f91be8368"
+    },
+    "zImage-dtb": {
+      "bytes": 3244304,
+      "sha256": "c1deb95c912fababe9eb18736710554dd29596fcba0ad9ed7abf938df66df581"
+    },
+    "initramfs.cpio.gz": {
+      "bytes": 1562400,
+      "sha256": "8a5841a0e0d88104aa886665d428e70672a168b57dae8b77b3f2741552436186"
+    },
+    "display.ko": {
+      "bytes": 158300,
+      "sha256": "ffbeaf23ac5105b69283851dcd721437fcc829e4cd6123b95c987fff587e246c"
+    },
+    "y2-observer": {
+      "bytes": 817524,
+      "sha256": "f950828638ad6f732cf778b89269934e14b04224b42b5d74c0c12c40aff4b1c9"
+    },
+    "y2-fbtest": {
+      "bytes": 8204,
+      "sha256": "77f35da4b0a584b645a4a7f607dbe10620ef04f6dbe2fa632ebbff56a6382d35"
+    },
+    "layout.json": {
+      "bytes": 3745,
+      "sha256": "aa8eca75835c9e023f92be718f05458c58b3cc8c094dde5dfa20415fb0f1abfc"
+    },
+    "rescue-manifest.json": {
+      "bytes": 5864,
+      "sha256": "2ecb07f3b3b007e68dcbdb9b860addbe00f5e84083ba2128c10dcb1c09e5ca07"
+    },
+    "rootfs-validation.json": {
+      "bytes": 948,
+      "sha256": "f5c16cd4e33cfc5199119ba472da7fc642c4907698ae218bda7b1bbbad6a6fd9"
+    },
+    "source-manifest.json": {
+      "bytes": 2990,
+      "sha256": "9ffe8c3a863fcdce34df0c8ae5c8cd9f38fa5fe5e4c84b115e0ebb8c6bd255f8"
+    },
+    "DEPLOYMENT.md": {
+      "bytes": 6950,
+      "sha256": "b4cc83ca2fd88957a84dc076ba78d99103e23f0308783c45902b3c24a62f9eab"
+    },
+    "y2-abi-check": {
+      "bytes": 8564,
+      "sha256": "9831bd81cad23456d1855252066b718a8d5fdbe58d2c0def7ea639c22b342342"
+    }
+  }
+}

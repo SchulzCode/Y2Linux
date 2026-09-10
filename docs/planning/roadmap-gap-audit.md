@@ -6,6 +6,47 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Current session-close audit — 2026-09-10
+
+This is the authoritative current status; dated candidate/activation sections
+below are historical. Reconciled owner reports, source commits, retained core
+and AUDIO-02 logs/build metadata, and current GitHub#22–32. Every coverage row
+was reviewed: the audio, PCM/rootfs tools and phase rows change below; remaining
+power/radio/GPU/production gaps keep their prior scope. No new phase is activated,
+closed or implemented tonight. No build, flash or device change in this audit.
+
+- **M1 COMPLETE.** Linux6.18 and native boot objectives achieved.
+- **M2 core/Buildroot qualified for progression.** #22–26 confirmed closed;
+  four CPUs, bounded RAM pass, writable SD/SSH, display/input and buses remain
+  proven. #27 reconnect stays open/deferred under#28. Initial ACM/ECM/SSH and
+  owner startup/restart recovery work; do not label that cable reconnect success.
+- **M3 ACTIVE / NEAR COMPLETION.** AUDIO-02 `8f93e44` contains startup fix
+  `137b3f2`, is owner-deployed and has clean S16 stereo44.1kHz headphones.
+  3.13s/130IRQs/advancing ALSA pointers and owner "perfect, no clicking!" support
+  the fix. Persistent ALSA tools are installed on SD. Remaining small checks:
+  48kHz, explicit L/R, stop/restart/repeat and associated noise/reset/XRUN checks.
+  Do not redeploy the already validated fix or rediscover AFE/CON3/CS43131/VGP2.
+- **M4 NOT STARTED.** Next after M3 short qualification and a boundary audit:
+  battery/charging/thermal/DVFS/idle/suspend/wake/reboot/poweroff.
+- **M5 NOT STARTED.** Wi-Fi/Bluetooth remains later; no native app starts.
+  GPU/lima and final reusable-platform qualification still precede Y2PlayerNative.
+
+DEV-02 measured MemTotal954660KiB; AUDIO-01 measured954384KiB with its larger
+kernel. Do not turn either into954MiB or invent a fresh AUDIO-02 /proc/meminfo
+measurement: AUDIO-02 retains the same bank/reservations and comparable boot
+memory log, while this closeout performs no device inventory. Physical bank is
+992MiB; exclusions leave about951MiB before kernel/page metadata reservations.
+
+[Current physical audio result](../knowledge/m3-audio-01-live-result.md) ·
+[Core qualification](../knowledge/y2linux-dev02-live-qualification.md) ·
+[Exact next-session handoff](session-handoff-2026-09-10.md).
+
+Native24/32-bit and higher rates are not implemented.32-bit I2S slots carry16-bit
+PCM. These are later enhancements; amp/speaker identity/output, jack and precision
+clock checks remain separately tracked under#29, not grounds to reopen the basic
+headphone proof. Before M3 core closure explicitly retain those subpath gaps and
+re-audit before M4; clean one-run audio alone is not full milestone completion.
+
 ## M3-AUDIO-01 manual-deployment boundary — 2026-09-10
 
 [Integrated result](../build/y2linux-m3-audio-01-result.md) now passes offline
@@ -782,7 +823,7 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 
 ## Coverage matrix
 
-Reassessed 2026-09-10 against the [DEV-02 live qualification](../knowledge/y2linux-dev02-live-qualification.md); every row reviewed, including untouched later-phase gaps.
+Reassessed at session close2026-09-10 against [DEV-02 core](../knowledge/y2linux-dev02-live-qualification.md) and [AUDIO-02 playback](../knowledge/m3-audio-01-live-result.md); every row reviewed, including unchanged later-phase gaps.
 Status measures our hardware; registration alone never establishes consumer operation.
 
 | Area | Status | Actual evidence / remaining gap | Durable tracking |
@@ -802,13 +843,13 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation keys, both volume keys and brief Power have balanced DEV-02 evdev events. No redesign; wake/suspend remains M4 and no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
 | Removable SD | **CONFIRMED** | DEV-02 SD128 on11240000.mmc at13MHz/one bit; ext4 Y2ROOT boots Buildroot, reads files, accepts verified userspace updates and sync.512MiB filesystem retained; throughput/hotplug/card-removal/power-fail qualification later. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Internal eMMC | **CONFIRMED** | DEV-02 live DT disables11230000.mmc, no native eMMC block/partition node or mount. Removable-only root resolver and no automounter exclude Android partitions. Identity remains historical because disabled host exposes no live CID. | #28; recovery/rootfs policy #32. |
-| Development rootfs and filesystem/data layout | **CONFIRMED** | Physical Buildroot2025.02.17/glibc/BusyBox/Dropbear on writable removable Y2ROOT, key authentication and complete command logs. Runtime mount and matching-module index fixes applied. Owner restart validates persistent runtime/module fixes; production layout separate. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
+| Development rootfs and filesystem/data layout | **CONFIRMED** | Physical Buildroot2025.02.17/glibc/BusyBox/Dropbear on writable removable Y2ROOT, key authentication and complete command logs. Runtime mount and matching-module index fixes applied. Owner restart validates persistent runtime/module fixes; persistent ALSA tools/config/WAVs now installed from canonical Buildroot output; SD full build-id remains DEV-01 with additive file manifest. Production layout separate. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
 | PMIC/battery/charger telemetry | **PARTIAL** | DEV-02 PWRAP/MFD/regulator/PMIC key consumers work and USB presence power_supply ONLINE=1 is readable. This does not provide battery units/calibration, charging policy or voltage/thermal telemetry; full power now belongs to M4 #30. | #23; added #30. |
 | Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |
 | cpufreq/voltage/OPP and cpuidle | **UNKNOWN** | Minimal config does not establish frequency/voltage transitions or idle states. Shared clocks/rails precede optimization. | #30 with #28. |
 | Runtime PM/suspend/resume/wake | **UNKNOWN** | No native suspend/wake, rail retention, storage resume or screen-off-audio proof. | #30; integrates #28/#29/#31 incrementally. |
-| MT6582 AFE/ASoC/I2S/DMA | **PARTIAL (card/codec and audible path; PCM defect)** | Our HAL evidence and external pad/audio results support second-I2S/DL1; CON1 silence and VGP2 brownout have failure explanations. M3-AUDIO-01 probes ALSA/CS43131, advances CON3/DMA/IRQ and produces audible headphones with clicking. A startup success-handling defect prevents ALSA period notification; corrected kernel acceptance is pending. [Audio](../knowledge/audio-path.md). | #29; shared resources #23/#28/#30. |
-| CS43131 / headphone / amplifier / speaker routing | **PARTIAL** | Historical cs43131_dac at 1-0030 and aw87559_pa at 1-0058; stock /proc/asound/cards empty. Binding names are not native PCM, electrical routing or upstream applicability proof. Reset/mute/jack/ACCDET/analog levels remain open. | #29 with #23/#30. |
+| MT6582 AFE/ASoC/I2S/DMA | **CONFIRMED narrow S16/44.1k path** | AUDIO-02 DL1/CON3/IRQ/ALSA pointer progress and clean headphones; startup fix137b3f2 is deployed/tested. 48kHz, L/R and repeated stop/start remain;24/32-bit/higher rates unimplemented. [Result](../knowledge/m3-audio-01-live-result.md). | #29; shared resources #23/#28/#30. |
+| CS43131 / headphone / amplifier / speaker routing | **PARTIAL; basic headphones CONFIRMED** | Own CS43131 revisionA1 operates through upstream ASoC, VGP2=1.8V, ordered20/18/15 enables; clean44.1kHz audible headphones. SpeakerGPIO8 stays low; amplifier identity/output, jack reporting and precision clock validation separate/unqualified. | #29 with #23/#30. |
 | Wi-Fi | **PARTIAL** | Stock firmware/module names present, not loaded-blob or native-driver evidence. Transport/revision/calibration/regulatory/power contract missing. | Added #31. |
 | Bluetooth | **PARTIAL** | Local WMT/STP metadata; external BTIF/HCI, cold calibration and A2DP records reduce research uncertainty. Own firmware/calibration and cold/link/rate qualification remain open; EDR fallback is a workaround. | #31; audio #29 and power #30. |
 | Firmware and per-device calibration | **PARTIAL** | Names and some hashed artifacts exist; exact selected radio blobs/order/compatibility, loading permissions, redistribution provenance and unique-data retention unresolved. | #31 and #32; private raw data stays private. |
@@ -834,19 +875,19 @@ new GitHub milestone shells are needed today:
 | M0 Evidence & Recovery | Existing open milestone 1 | **PARTIAL**; owner-accepted experimental exceptions are documented, not a full pass. |
 | M1 First Boot | Existing closed milestone 2 | **CONFIRMED core**; broader stability qualification moves into #28. |
 | M2 Core Hardware | [Y2H-300 #28](https://github.com/SchulzCode/Y2Linux/issues/28) | **Core/Buildroot qualified for M3 progression**; #22–26 satisfied. USB reconnect #27 stays open under #28 for later whole-platform qualification. |
-| M3 Native Audio | [Y2A-300 #29](https://github.com/SchulzCode/Y2Linux/issues/29) | **ACTIVE by explicit owner authorization**; headphone ALSA candidate produced audible sound with clicking. PCM notification fix needs physical retest; clean playback and rates remain unqualified; #27 is deferred. |
-| M4 Power Viability | [Y2P-400 #30](https://github.com/SchulzCode/Y2Linux/issues/30) | **PLANNED**; basic safety begins alongside M2, full suspend/playback integrates later. |
-| M5 Connectivity | [Y2N-500 #31](https://github.com/SchulzCode/Y2Linux/issues/31) | **PLANNED**; radio transport/firmware dependencies, conditional FM foundation. |
+| M3 Native Audio | [Y2A-300 #29](https://github.com/SchulzCode/Y2Linux/issues/29) | **ACTIVE / NEAR COMPLETION**; clean native S16/44.1kHz headphones. Notification fix deployed/tested. Remaining48kHz, L/R, stop/restart/repeat; #27 deferred. |
+| M4 Power Viability | [Y2P-400 #30](https://github.com/SchulzCode/Y2Linux/issues/30) | **NOT STARTED**; next after short M3 qualification and boundary audit. Full battery/charger/thermal/DVFS/idle/suspend/wake/reboot/poweroff. |
+| M5 Connectivity | [Y2N-500 #31](https://github.com/SchulzCode/Y2Linux/issues/31) | **NOT STARTED**; later Wi-Fi/Bluetooth, own firmware/calibration, BlueZ and reconnect/coexistence. |
 | M6 Production Y2Linux | [Y2R-600 #32](https://github.com/SchulzCode/Y2Linux/issues/32) | **PLANNED**; storage/recovery/PM gates and later M18–20 platform release obligations. |
-| M7–M20 application/product phases | Existing blueprint, no native backlog added | **PLANNED** at blueprint level only. Native implementation is gated; do not manufacture detailed tasks now. |
+| M7–M20 application/product phases | Existing blueprint, no native backlog added | **NOT STARTED**; Y2PlayerNative waits for reusable Linux platform and final qualification. |
 
 M4 numbering is not permission to defer basic thermal/power safety until after
 audio. M5 radio-specific power measurements depend on radio operation, so these
 phases have shared gates rather than a rigid all-or-nothing serial chain. M6
 rootfs contracts can mature with M2 without prematurely choosing production OTA.
-The original next-five order is retained as history. The activation decision above
-prioritizes USB logging #27 and its smallest shared prerequisite; it does not
-remove the controller evidence gate.
+The original next-five order is retained as history. Current owner direction
+defers #27 while finishing small M3 acceptance; it does not waive reconnect from
+final platform qualification.
 
 ## When Y2PlayerNative can become the serious workstream
 
