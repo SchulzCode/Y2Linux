@@ -12,9 +12,10 @@ VGP2 remains1.8V. No new DAC reset/I2C/PLL-ready error or kernel crash observed.
 Regulator summary logs unsupported get_mode on VCAMA/VRTC as before playback;
 these are unrelated read-only diagnostic warnings.
 
-This physically supports the period-notification fix. Owner audibility/quality
-report for this run is still pending. Clean headphone output, repeated/stop-start
-runs and48kHz remain required before M3 wired-audio acceptance. No new kernel
+Owner confirms: "perfect, no clicking!" This establishes clean audible headphone
+output for this short 44.1kHz/S16 stereo run and supports the notification fix.
+Repeated/stop-start runs and48kHz remain required before M3 wired-audio acceptance.
+Native24/32-bit PCM and higher rates are not implemented or qualified. No new kernel
 build, reboot, flash, speaker activation or USB reconnect experiment performed.
 
 before.txt and play-44100.txt retain command outputs; play-44100.sh is the exact
