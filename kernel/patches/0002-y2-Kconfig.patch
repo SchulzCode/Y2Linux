@@ -1,17 +1,20 @@
 --- a/arch/arm/mach-mediatek/Kconfig
 +++ b/arch/arm/mach-mediatek/Kconfig
-@@ -10,6 +10,14 @@
+@@ -10,6 +10,17 @@
  	  Support for Mediatek MT65xx & MT81xx SoCs
  
  if ARCH_MEDIATEK
 +
 +config Y2_BOOT_DIAGNOSTIC
-+	bool "Innioasis Y2 bounded boot diagnostic"
-+	depends on !SMP && !THUMB2_KERNEL && !ARM_LPAE && PROC_FS
-+	help
-+	  Y2-only offline candidate: stop AP watchdog before decompression and
-+	  paint a strictly checked inherited LK framebuffer without modesetting.
-+	  Do not enable for any other board or ordinary production kernels.
++ bool "Innioasis Y2 M2 development baseline"
++ depends on !THUMB2_KERNEL && !ARM_LPAE && PROC_FS
++ select COMMON_CLK_MEDIATEK
++ select EINT_MTK
++ select PINMUX
++ select GENERIC_PINCONF
++ help
++   Bounded Linux 6.18 Y2 core bring-up; not a production configuration.
++
  
  config MACH_MT2701
  	bool "MediaTek MT2701 SoCs support"

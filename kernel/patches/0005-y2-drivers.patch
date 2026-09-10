@@ -1,0 +1,8 @@
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -197,3 +197,5 @@
+ 
+ obj-$(CONFIG_DIBS)		+= dibs/
+ obj-$(CONFIG_S390)		+= s390/
++
++obj-$(CONFIG_Y2_BOOT_DIAGNOSTIC) += y2/

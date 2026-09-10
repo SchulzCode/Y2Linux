@@ -1,0 +1,25 @@
+--- a/drivers/input/keyboard/mtk-pmic-keys.c
++++ b/drivers/input/keyboard/mtk-pmic-keys.c
+@@ -207,7 +207,8 @@
+ 	struct mtk_pmic_keys_info *info = data;
+ 	u32 key_deb, pressed;
+ 
+-	regmap_read(info->keys->regmap, info->regs->deb_reg, &key_deb);
++	if (regmap_read(info->keys->regmap, info->regs->deb_reg, &key_deb))
++		return IRQ_HANDLED;
+ 
+ 	key_deb &= info->regs->deb_mask;
+ 
+@@ -405,7 +406,11 @@
+ 		return error;
+ 	}
+ 
+-	mtk_pmic_keys_lp_reset_setup(keys, mtk_pmic_regs);
++	/* Y2 development baseline preserves the physical long-press recovery
++	 * contract; no reset policy programming. The upstream single-key fix
++	 * is already present in 6.18. */
++	if (!of_machine_is_compatible("innioasis,y2"))
++		mtk_pmic_keys_lp_reset_setup(keys, mtk_pmic_regs);
+ 
+ 	platform_set_drvdata(pdev, keys);
+ 

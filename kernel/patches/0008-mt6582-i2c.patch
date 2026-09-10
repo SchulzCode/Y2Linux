@@ -1,0 +1,39 @@
+--- a/drivers/i2c/busses/i2c-mt65xx.c
++++ b/drivers/i2c/busses/i2c-mt65xx.c
+@@ -522,6 +522,7 @@
+ };
+ 
+ static const struct of_device_id mtk_i2c_of_match[] = {
++	{ .compatible = "mediatek,mt6582-i2c", .data = &mt6577_compat },
+ 	{ .compatible = "mediatek,mt2712-i2c", .data = &mt2712_compat },
+ 	{ .compatible = "mediatek,mt6577-i2c", .data = &mt6577_compat },
+ 	{ .compatible = "mediatek,mt6589-i2c", .data = &mt6589_compat },
+@@ -868,7 +869,7 @@
+ 	return 0;
+ }
+ 
+-static void mtk_i2c_set_speed(struct mtk_i2c *i2c, unsigned int parent_clk)
++static int mtk_i2c_set_speed(struct mtk_i2c *i2c, unsigned int parent_clk)
+ {
+ 	unsigned int clk_src;
+ 	unsigned int step_cnt;
+@@ -938,6 +939,7 @@
+ 
+ 		break;
+ 	}
++	return clk_div <= max_clk_div ? 0 : -EINVAL;
+ }
+ 
+ static void i2c_dump_register(struct mtk_i2c *i2c)
+@@ -1457,7 +1459,10 @@
+ 
+ 	strscpy(i2c->adap.name, I2C_DRV_NAME, sizeof(i2c->adap.name));
+ 
+-	mtk_i2c_set_speed(i2c, clk_get_rate(i2c->clocks[speed_clk].clk));
++	if (!clk_get_rate(i2c->clocks[speed_clk].clk))
++		return dev_err_probe(&pdev->dev, -EINVAL, "unknown source clock rate\n");
++	ret = mtk_i2c_set_speed(i2c, clk_get_rate(i2c->clocks[speed_clk].clk));
++	if (ret) return dev_err_probe(&pdev->dev, ret, "I2C timing\n");
+ 
+ 	if (i2c->dev_comp->max_dma_support > 32) {
+ 		ret = dma_set_mask(&pdev->dev,

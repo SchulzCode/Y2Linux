@@ -1,0 +1,11 @@
+--- a/drivers/pinctrl/mediatek/Kconfig
++++ b/drivers/pinctrl/mediatek/Kconfig
+@@ -4,7 +4,7 @@
+ 
+ config EINT_MTK
+ 	tristate "MediaTek External Interrupt Support"
+-	depends on PINCTRL_MTK || PINCTRL_MTK_MOORE || PINCTRL_MTK_PARIS || COMPILE_TEST
++	depends on PINCTRL_MTK || PINCTRL_MTK_MOORE || PINCTRL_MTK_PARIS || COMPILE_TEST || Y2_BOOT_DIAGNOSTIC
+ 	select GPIOLIB
+ 	select IRQ_DOMAIN
+ 	default y if PINCTRL_MTK || PINCTRL_MTK_MOORE

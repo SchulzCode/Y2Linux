@@ -40,13 +40,9 @@ static int time_after_eq(unsigned a,unsigned b) {return a>=b;}
 static unsigned msecs_to_jiffies(unsigned ms) {return ms;}
 static void spin_lock(int *lock) {assert(!*lock);*lock=1;}
 static void spin_unlock(int *lock) {assert(*lock);*lock=0;}
-static unsigned y2_power_read(void *p,unsigned r) {(void)p;(void)r;assert(0);return 0;}
-static void y2_power_write(void *p,unsigned r,unsigned v) {(void)p;(void)r;(void)v;assert(0);}
-static void y2_power_delay(void *p) {(void)p;assert(0);}
-/* Protocol faults themselves are covered by test_pwrap; inject its result here. */
-static void fake_probe(const struct y2_pwrap_io *io,struct y2_pwrap_snapshot *out)
-{assert(io->context==y2_usb_pmic);++probes;*out=next_power;}
-#define y2_pwrap_probe fake_probe
+/* Inject the canonical serialized PMIC provider's public result. */
+static int y2_pmic_snapshot(struct y2_pwrap_snapshot *out)
+{++probes;*out=next_power;return out->result;}
 static void y2_usb_fail(int rc) {if(!y2_live.result)y2_live.result=rc;}
 static void y2_usb_phase(unsigned stage) {y2_live.stage=stage;}
 static int y2_usb_register(void) {++registered;return 0;}

@@ -1,0 +1,106 @@
+--- a/drivers/mmc/host/mtk-sd.c
++++ b/drivers/mmc/host/mtk-sd.c
+@@ -1,3 +1,4 @@
++#include "/project/kernel/platform/policy.h"
+ // SPDX-License-Identifier: GPL-2.0-only
+ /*
+  * Copyright (c) 2014-2015, 2022 MediaTek Inc.
+@@ -465,6 +466,7 @@
+ };
+ 
+ struct msdc_host {
++	bool y2_read_only;
+ 	struct device *dev;
+ 	const struct mtk_mmc_compatible *dev_comp;
+ 	int cmd_rsp;
+@@ -692,6 +694,7 @@
+ };
+ 
+ static const struct of_device_id msdc_of_ids[] = {
++	{ .compatible = "innioasis,y2-msdc-readonly", .data = &mt8135_compat },
+ 	{ .compatible = "mediatek,mt2701-mmc", .data = &mt2701_compat},
+ 	{ .compatible = "mediatek,mt2712-mmc", .data = &mt2712_compat},
+ 	{ .compatible = "mediatek,mt6779-mmc", .data = &mt6779_compat},
+@@ -1373,6 +1376,10 @@
+ 		}
+ 	}
+ 
++	if (host->y2_read_only && (events & MSDC_INT_CMDRDY) &&
++	    (cmd->opcode == 2 || cmd->opcode == 9 || cmd->opcode == 10))
++		dev_info(host->dev, "identity CMD%u R2=%08x %08x %08x %08x\n",
++			 cmd->opcode, rsp[0], rsp[1], rsp[2], rsp[3]);
+ 	if (!sbc_error && !(events & MSDC_INT_CMDRDY)) {
+ 		if ((events & MSDC_INT_CMDTMO && !host->hs400_tuning) ||
+ 		    (!mmc_op_tuning(cmd->opcode) && !host->hs400_tuning))
+@@ -1484,6 +1491,17 @@
+ static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
+ {
+ 	struct msdc_host *host = mmc_priv(mmc);
++	if (IS_ENABLED(CONFIG_Y2_BOOT_DIAGNOSTIC) && host->y2_read_only) {
++		unsigned int op = mrq->cmd->opcode;
++		if (!y2_mmc_read_allowed(op, !!(mmc->caps & MMC_CAP_NONREMOVABLE),
++					 mrq->data && (mrq->data->flags & MMC_DATA_WRITE), !!mrq->sbc)) {
++			mrq->cmd->error = -EROFS;
++			dev_info_ratelimited(host->dev, "identity/read-only policy rejects CMD%u\n", op);
++			mmc_request_done(mmc, mrq);
++			return;
++		}
++	}
++
+ 
+ 	host->error = 0;
+ 	WARN_ON(!host->hsq_en && host->mrq);
+@@ -2983,6 +3001,9 @@
+ 		return PTR_ERR(host->base);
+ 
+ 	host->dev_comp = of_device_get_match_data(&pdev->dev);
++	host->y2_read_only = IS_ENABLED(CONFIG_Y2_BOOT_DIAGNOSTIC) && of_device_is_compatible(pdev->dev.of_node,
++						 "innioasis,y2-msdc-readonly");
++
+ 
+ 	if (host->dev_comp->needs_top_base) {
+ 		host->top_base = devm_platform_ioremap_resource(pdev, 1);
+@@ -3016,6 +3037,11 @@
+ 	if (host->irq < 0)
+ 		return host->irq;
+ 
++ if (host->y2_read_only && (mmc->caps & MMC_CAP_NONREMOVABLE)) {
++		/* Fixed eMMC boot pins remain exactly as LK configured them.
++		 * No UHS, voltage switching or storage writes in this variant. */
++		host->pinctrl = NULL;
++	} else {
+ 	host->pinctrl = devm_pinctrl_get(&pdev->dev);
+ 	if (IS_ERR(host->pinctrl))
+ 		return dev_err_probe(&pdev->dev, PTR_ERR(host->pinctrl),
+@@ -3032,6 +3058,8 @@
+ 		dev_err(&pdev->dev, "Cannot find pinctrl uhs!\n");
+ 		return PTR_ERR(host->pins_uhs);
+ 	}
++
++ }
+ 
+ 	/* Support for SDIO eint irq ? */
+ 	if ((mmc->pm_caps & MMC_PM_WAKE_SDIO_IRQ) && (mmc->pm_caps & MMC_PM_KEEP_POWER)) {
+@@ -3050,6 +3078,22 @@
+ 	msdc_of_property_parse(pdev, host);
+ 
+ 	host->dev = &pdev->dev;
++	if (IS_ENABLED(CONFIG_Y2_BOOT_DIAGNOSTIC) && host->y2_read_only) {
++		extern int y2_msdc_crystal(unsigned int id);
++		ret = clk_prepare_enable(host->h_clk);
++		if (ret) return ret;
++		if (readl(host->base + MSDC_DMA_CFG) & MSDC_DMA_CFG_STS) {
++			clk_disable_unprepare(host->h_clk);
++			return dev_err_probe(&pdev->dev, -EBUSY, "inherited MSDC DMA active\n");
++		}
++		ret = y2_msdc_crystal(!(mmc->caps & MMC_CAP_NONREMOVABLE));
++		clk_disable_unprepare(host->h_clk);
++		if (ret) return ret;
++		mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
++		mmc->caps &= ~MMC_CAP_CMD23;
++		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
++		dev_info(&pdev->dev, "MSDC 26MHz source; <=400kHz card; no block devices/writes; inherited rails\n");
++	}
+ 	host->src_clk_freq = clk_get_rate(host->src_clk);
+ 	/* Set host parameters to mmc */
+ 	mmc->ops = &mt_msdc_ops;

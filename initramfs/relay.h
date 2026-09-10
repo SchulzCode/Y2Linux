@@ -6,8 +6,9 @@
 static struct {
     long tty, kmsg, result;
     unsigned active, command, bad, head, tail, lost, history_used, history_lost;
-    char queue[32768], history[8192], record[8192];
+    char queue[524288], history[262144], record[8192];
 } relay={.tty=-1,.kmsg=-1};
+_Static_assert(sizeof(relay.queue)>sizeof(relay.history)+sizeof(relay.record)+64,"replay must fit queue");
 static unsigned relay_length(const char *s)
 { unsigned n=0;while(s[n]) ++n;return n; }
 static int relay_put(const char *s,unsigned n)
@@ -91,7 +92,7 @@ static void relay_open(void)
 }
 static void relay_request(void)
 {
-    static const char header[]="Y2LOG1 M2-INPUT-01\n";
+    static const char header[]="Y2LOG1 M2-BASELINE-01\n";
     relay.head=relay.tail=0;relay.lost=0;relay.active=1;
     relay_put(header,sizeof(header)-1);
     relay_put(relay.history,relay.history_used);

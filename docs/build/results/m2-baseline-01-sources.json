@@ -1,0 +1,34 @@
+{
+  "baseline": "4dde3051301e462b8db4ccf06314521767d6f41a",
+  "donor": "53fb57bb99c916c24b65db5b7f9723be37f67826",
+  "history": "f96d4c7dddbcafeb31919fe1fbe2dab99c4bd641",
+  "additional_targeted_bsp": [
+    {
+      "path": "arch/arm/mach-mt6582/include/mach/mt_reg_base.h",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/include/mach/mt_reg_base.h",
+      "sha256": "95af24b0c480c5a5a46203708ac16f333810a37a49bff348f8b6ebd3885e964d"
+    },
+    {
+      "path": "arch/arm/mach-mt6582/mt_pm_init.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_pm_init.c",
+      "sha256": "f888a6e315321732c85056bf070f28f23a592be3dea8d8f3edceb1ccac98fcb0"
+    },
+    {
+      "path": "arch/arm/mach-mt6582/sprout/dct/dct/cust_gpio_usage.h",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/sprout/dct/dct/cust_gpio_usage.h",
+      "sha256": "d68fc9ac8ff46d961c2c7c3b67a94ced0436d8066042fce05a48e0e3ddf5ac2b"
+    },
+    {
+      "path": "drivers/misc/mediatek/i2c/mt6582/i2c.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/i2c/mt6582/i2c.c",
+      "sha256": "a8c2c1aefe8bb4264d14131f820c37cbca004163e1f115f9ee304bd9378832a9"
+    },
+    {
+      "path": "drivers/misc/mediatek/mmc-host/mt6582/sd.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/mmc-host/mt6582/sd.c",
+      "sha256": "ad27ccb271c8088f3b1da36f590371a69fc5ad6c592d6f6fb8ea0ede2387d7f0"
+    }
+  ],
+  "prior_clock_provenance": "evidence-private/20260909-m2-usb/clock-source.json",
+  "classifications": "BSP-derived, not measurements on the owner unit"
+}

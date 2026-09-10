@@ -1,0 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+#define Y2_CLK_ARMPLL 0
+#define Y2_CLK_MAINPLL 1
+#define Y2_CLK_UNIVPLL 2
+#define Y2_CLK_MMPLL 3
+#define Y2_CLK_MSDCPLL 4
+#define Y2_CLK_AXI 5
+#define Y2_CLK_I2C0 6
+#define Y2_CLK_I2C1 7
+#define Y2_CLK_APDMA 8
+#define Y2_CLK_PWRAP 9
+#define Y2_CLK_KP 10
+#define Y2_CLK_MSDC0 11
+#define Y2_CLK_MSDC1 12
+#define Y2_CLK_MSDC0_SRC 13
+#define Y2_CLK_MSDC1_SRC 14
+#define Y2_CLK_NR 15

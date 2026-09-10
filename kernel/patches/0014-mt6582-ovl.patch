@@ -1,0 +1,100 @@
+--- a/drivers/gpu/drm/mediatek/mtk_disp_ovl.c
++++ b/drivers/gpu/drm/mediatek/mtk_disp_ovl.c
+@@ -101,6 +101,18 @@
+ 	return false;
+ }
+ 
++static const u32 mt6582_formats[] = {
++	DRM_FORMAT_XRGB8888,
++	DRM_FORMAT_ARGB8888,
++	DRM_FORMAT_XBGR8888,
++	DRM_FORMAT_ABGR8888,
++	DRM_FORMAT_RGB888,
++	DRM_FORMAT_BGR888,
++	DRM_FORMAT_RGB565,
++	DRM_FORMAT_BGR565,
++};
++
++
+ static const u32 mt8173_formats[] = {
+ 	DRM_FORMAT_XRGB8888,
+ 	DRM_FORMAT_ARGB8888,
+@@ -140,6 +152,7 @@
+ };
+ 
+ struct mtk_disp_ovl_data {
++	bool mt6582;
+ 	unsigned int addr;
+ 	unsigned int gmc_bits;
+ 	unsigned int layer_nr;
+@@ -384,6 +397,7 @@
+ 	else
+ 		gmc_value = gmc_thrshd_l | gmc_thrshd_l << 8 |
+ 			    gmc_thrshd_h << 16 | gmc_thrshd_h << 24;
++	if (ovl->data->mt6582) gmc_value = 0x10101010; /* vendor LK FIFO thresholds */
+ 	mtk_ddp_write(cmdq_pkt, gmc_value,
+ 		      &ovl->cmdq_reg, ovl->regs, DISP_REG_OVL_RDMA_GMC(idx));
+ 	mtk_ddp_write_mask(cmdq_pkt, BIT(idx), &ovl->cmdq_reg, ovl->regs,
+@@ -421,6 +435,26 @@
+ 	 */
+ 	if (ovl->data->blend_modes & BIT(DRM_MODE_BLEND_PREMULTI))
+ 		blend_mode = state->base.pixel_blend_mode;
++
++	if (ovl->data->mt6582) {
++		switch (fmt) {
++		case DRM_FORMAT_XRGB8888:
++			return (4 << 12);
++		case DRM_FORMAT_XBGR8888:
++			return (4 << 12) |
++			       OVL_CON_BYTE_SWAP;
++		case DRM_FORMAT_ARGB8888:
++			return blend_mode == DRM_MODE_BLEND_PREMULTI ?
++			       (3 << 12) :
++			       OVL_CON_CLRFMT_ARGB8888;
++		case DRM_FORMAT_ABGR8888:
++			return (blend_mode == DRM_MODE_BLEND_PREMULTI ?
++				(3 << 12) :
++				OVL_CON_CLRFMT_ARGB8888) | OVL_CON_BYTE_SWAP;
++		default:
++			break;
++		}
++	}
+ 
+ 	switch (fmt) {
+ 	default:
+@@ -528,7 +562,7 @@
+ 		 * For RGB888 related formats, whether CONST_BLD is enabled or not won't
+ 		 * affect the result. Therefore we use !has_alpha as the condition.
+ 		 */
+-		if (blend_mode == DRM_MODE_BLEND_PIXEL_NONE || !state->base.fb->format->has_alpha)
++		if (!ovl->data->mt6582 && (blend_mode == DRM_MODE_BLEND_PIXEL_NONE || !state->base.fb->format->has_alpha))
+ 			ignore_pixel_alpha = OVL_CONST_BLEND;
+ 	}
+ 
+@@ -670,6 +704,17 @@
+ 	.formats = mt8173_formats,
+ 	.num_formats = ARRAY_SIZE(mt8173_formats),
+ };
++
++static const struct mtk_disp_ovl_data mt6582_ovl_driver_data = {
++	.mt6582 = true,
++	.addr = DISP_REG_OVL_ADDR_MT2701,
++	.gmc_bits = 8,
++	.layer_nr = 4,
++	.fmt_rgb565_is_0 = false,
++	.formats = mt6582_formats,
++	.num_formats = ARRAY_SIZE(mt6582_formats),
++};
++
+ 
+ static const struct mtk_disp_ovl_data mt8173_ovl_driver_data = {
+ 	.addr = DISP_REG_OVL_ADDR_MT8173,
+@@ -742,6 +787,8 @@
+ static const struct of_device_id mtk_disp_ovl_driver_dt_match[] = {
+ 	{ .compatible = "mediatek,mt2701-disp-ovl",
+ 	  .data = &mt2701_ovl_driver_data},
++	{ .compatible = "mediatek,mt6582-disp-ovl",
++	  .data = &mt6582_ovl_driver_data},
+ 	{ .compatible = "mediatek,mt8173-disp-ovl",
+ 	  .data = &mt8173_ovl_driver_data},
+ 	{ .compatible = "mediatek,mt8183-disp-ovl",

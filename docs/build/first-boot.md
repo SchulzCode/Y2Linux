@@ -1,5 +1,10 @@
 # Reproduce the offline first-boot artifact
 
+Current M2 integration uses [M2-BASELINE-01](m2-baseline-01-result.md) and
+`tools/build/baseline.sh` with its targeted suite. The original first-boot
+workflow and historical suite below do not qualify the combined baseline.
+
+
 Host requirements and locked package/source provenance are in [environment.md](environment.md). The source tree is upstream v6.18 plus the single [D09 Kconfig visibility overlay](kernel-policy.md), with no C/assembly kernel patch. This command sequence never runs ADB, a flasher or an ARM system emulator.
 
 ```sh

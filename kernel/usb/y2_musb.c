@@ -9,7 +9,7 @@
 #include "session.h"
 #include "gate.h"
 
-static void __iomem *y2_usb_pmic, *y2_usb_phy;
+static void __iomem *y2_usb_phy;
 static struct platform_device *y2_usb_child;
 static struct musb *y2_musb;
 static struct usb_phy y2_xceiv;
@@ -261,8 +261,6 @@ static void y2_usb_finish(void)
     }
     if(y2_usb_phy) {iounmap(y2_usb_phy);y2_usb_phy=NULL;
         release_mem_region(Y2_USB_PHY_BASE,Y2_USB_PHY_BYTES);}
-    if(y2_usb_pmic) {iounmap(y2_usb_pmic);y2_usb_pmic=NULL;
-        release_mem_region(Y2_PWRAP_BASE,Y2_PWRAP_BYTES);}
     pr_info("Y2USB stopped stage=%u result=%d IRQ=%u events=%02x\n",
         y2_live.stage,y2_live.result,y2_live.irqs,y2_live.events);
 }
@@ -327,12 +325,11 @@ static int y2_usb_reconnect(void)
 }
 static void y2_usb_worker(struct work_struct *work)
 {
-    struct y2_pwrap_io io={y2_usb_pmic,y2_power_read,y2_power_write,y2_power_delay};
     struct y2_pwrap_snapshot power;
     int rc;
     if(y2_usb_finished) return;
     if(READ_ONCE(y2_live.result) || time_after_eq(jiffies,y2_usb_deadline)) goto done;
-    y2_pwrap_probe(&io,&power);
+    y2_pmic_snapshot(&power);
     ++y2_live.polls;
     if(power.result || power.valid!=7 || !(power.vusb&0x8000)) {
         spin_lock(&y2_usb_failure_lock);
@@ -380,18 +377,13 @@ static void y2_usb_begin(void)
        y2_power.wake.after_valid!=0xfff || (y2_power.power.chrdet&0x20)) {
         y2_usb_fail(-ENODEV);return;
     }
-    if(!request_mem_region(Y2_PWRAP_BASE,Y2_PWRAP_BYTES,"y2-usb-pmic")) {
-        y2_usb_fail(-EBUSY);return;
-    }
-    y2_usb_pmic=ioremap(Y2_PWRAP_BASE,Y2_PWRAP_BYTES);
-    if(!y2_usb_pmic) {release_mem_region(Y2_PWRAP_BASE,Y2_PWRAP_BYTES);y2_usb_fail(-ENOMEM);return;}
     if(!request_mem_region(Y2_USB_PHY_BASE,Y2_USB_PHY_BYTES,"y2-usb-phy")) {
         y2_usb_fail(-EBUSY);y2_usb_finish();return;
     }
     y2_usb_phy=ioremap(Y2_USB_PHY_BASE,Y2_USB_PHY_BYTES);
     if(!y2_usb_phy) {release_mem_region(Y2_USB_PHY_BASE,Y2_USB_PHY_BYTES);
         y2_usb_fail(-ENOMEM);y2_usb_finish();return;}
-    y2_usb_deadline=jiffies+msecs_to_jiffies(50000);
+    y2_usb_deadline=jiffies+msecs_to_jiffies(295000);
     y2_usb_phase(Y2_USB_ATTACH);
     schedule_delayed_work(&y2_usb_work,msecs_to_jiffies(250));
 }

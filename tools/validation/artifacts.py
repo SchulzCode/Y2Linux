@@ -105,11 +105,11 @@ def check(root, project):
     require(kernel.sym('y2_diagnostic_init') >= text, 'built-in guarded video diagnostic missing')
     require(kernel.sym('y2_text_write') >= text, 'D14 guarded text writer missing')
     require(kernel.sym('y2_power_snapshot') >= text, 'M2 cached PWRAP snapshot missing')
-    require(b'M2-INPUT-01\0' in init, 'M2 prerequisite build identifier missing')
-    require(b'Y2 LINUX / M2-INPUT-01\0' in image, 'Diagnostic heading/build mismatch')
+    require(b'M2-BASELINE-01\0' in init, 'M2 prerequisite build identifier missing')
+    require(b'Y2BASELINE M2-BASELINE-01' in image, 'Diagnostic heading/build mismatch')
     require(b'/dev/y2diag\0' in init, 'PID1 diagnostic endpoint missing')
-    require(b'/dev/y2input\0' in init, 'PID1 evdev endpoint missing')
-    for symbol in ('mt6582_input_probe', 'gpio_keys_polled_probe', 'evdev_read', 'evdev_ioctl'):
+    require(b'/dev/y2input0\0' in init, 'PID1 evdev endpoint missing')
+    for symbol in ('pins_probe', 'wrap_probe', 'y2_clocks_probe', 'gc9503v_probe', 'mt6582_keypad_probe', 'mtk_i2c_probe', 'msdc_drv_probe', 'gpio_keys_polled_probe', 'evdev_read', 'evdev_ioctl'):
         require(kernel.sym(symbol) >= text, 'GPIO/evdev implementation missing: ' + symbol)
     require(struct.unpack_from('<III', z, 0x24) == (0x016f2818, start, comp.sym('_edata')), 'zImage header')
     require(off('_edata_real') == off('_edata') == len(z), 'zImage real end')
@@ -137,8 +137,8 @@ def check(root, project):
     if appended.exists(): require(appended.read_bytes() == expected, 'appended payload differs from zImage + padded DTB')
     # Caller may create the payload only after all evidence passes.
     layout['diagnostic'] = {'watchdog_entry_offset':begin, 'watchdog_end_offset':end, 'watchdog_continuation_offset':continuation,
-        'watchdog_instruction_sha256':digest(expected_wdt), 'framebuffer':[0xbfb00000,0xbfb54600],
-        'policy':'D12/D13/D14 guarded text; new candidate offline only'}
+        'watchdog_instruction_sha256':digest(expected_wdt), 'framebuffer':'DRM allocated; no legacy raw framebuffer access',
+        'policy':'M2-BASELINE-01 shared core; 300s owner limit; offline only'}
     source_paths = ['kernel/diagnostic/board.c', 'kernel/diagnostic/policy.h', 'kernel/diagnostic/text.h',
         'kernel/diagnostic/pwrap.h', 'kernel/diagnostic/usb_clock.h', 'kernel/diagnostic/usb_state.h', 'kernel/diagnostic/usb_wake.h', 'initramfs/status.h',
         'initramfs/init.c', 'initramfs/start.S', 'initramfs/relay.h', 'initramfs/evdev.h',
@@ -146,6 +146,7 @@ def check(root, project):
         'kernel/usb/y2_musb.c', 'kernel/usb/session.h', 'kernel/usb/gate.h', 'kernel/usb/live.h',
         'kernel/config/first-boot.config',
         'kernel/dts/innioasis-y2-first-boot.dts', 'kernel/patches/manifest.json']
+    source_paths += [str(p.relative_to(project)) for p in sorted((project/'kernel/platform').glob('*')) if p.is_file()]
     source_paths += ['kernel/patches/' + item['patch'] for item in
         json.loads((project/'kernel/patches/manifest.json').read_text())['overlays']]
     layout['diagnostic']['source_sha256'] = {
@@ -159,7 +160,7 @@ def check(root, project):
     layout['compressed_symbols'] = {name:comp.sym(name) for name in ['_start','restart','wont_overwrite','reloc_code_end','_edata','__bss_start','_end','LC1','input_data','input_data_end']}
     if (root / 'BOOTIMG.img').exists():
         layout['bootimg'] = check_bootimg((root / 'BOOTIMG.img').read_bytes(), expected, initrd, layout)
-    layout['status'] = 'PASS offline D08; hardware launch NOT authorized'
+    layout['status'] = 'PASS offline D08; owner hardware test pending'
     return layout, expected
 
 

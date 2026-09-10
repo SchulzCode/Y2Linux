@@ -1,0 +1,14 @@
+--- a/drivers/phy/mediatek/phy-mtk-mipi-dsi.c
++++ b/drivers/phy/mediatek/phy-mtk-mipi-dsi.c
+@@ -179,7 +179,11 @@
+ 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, &mipi_tx->pll_hw);
+ }
+ 
++extern const struct mtk_mipitx_data mt6582_mipitx_data;
+ static const struct of_device_id mtk_mipi_tx_match[] = {
++#if IS_ENABLED(CONFIG_Y2_BOOT_DIAGNOSTIC)
++	{ .compatible = "mediatek,mt6582-mipi-tx", .data = &mt6582_mipitx_data },
++#endif
+ 	{ .compatible = "mediatek,mt2701-mipi-tx", .data = &mt2701_mipitx_data },
+ 	{ .compatible = "mediatek,mt8173-mipi-tx", .data = &mt8173_mipitx_data },
+ 	{ .compatible = "mediatek,mt8183-mipi-tx", .data = &mt8183_mipitx_data },

@@ -12,6 +12,9 @@ def strings(*values): return b''.join(v.encode() + b'\0' for v in values)
 
 def check(data, r):
     nodes, reserved = fdt(data)
+    if nodes.get("/",{}).get("model")==strings("Innioasis Y2 M2-BASELINE-01"):
+        from tools.validation.baseline_dtb import check as baseline_check
+        return baseline_check(data,r)
     require(tuple(reserved) == RESERVED, 'D08 FDT permanent reservation mismatch')
     handles = {}
     for path in ['/interrupt-controller@10200100', '/interrupt-controller@10211000',

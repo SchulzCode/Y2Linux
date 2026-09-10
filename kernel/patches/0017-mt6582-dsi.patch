@@ -1,0 +1,172 @@
+--- a/drivers/gpu/drm/mediatek/mtk_dsi.c
++++ b/drivers/gpu/drm/mediatek/mtk_dsi.c
+@@ -186,6 +186,7 @@
+ struct phy;
+ 
+ struct mtk_dsi_driver_data {
++	bool mt6582;
+ 	const u32 reg_cmdq_off;
+ 	const u32 reg_vm_cmd_off;
+ 	const u32 reg_shadow_dbg_off;
+@@ -264,6 +265,22 @@
+ 	timing->clk_hs_trail = timing->clk_hs_prepare;
+ 	timing->clk_hs_zero = timing->clk_hs_trail * 4;
+ 	timing->clk_hs_exit = 2 * timing->clk_hs_trail;
++
++	if (dsi->driver_data->mt6582) {
++		timing->lpx = 3;
++		timing->da_hs_prepare = 3;
++		timing->da_hs_zero = 6;
++		timing->da_hs_trail = 14;
++		timing->ta_go = 12;
++		timing->ta_sure = 4;
++		timing->ta_get = 15;
++		timing->da_hs_exit = 18;
++		timing->clk_hs_prepare = 2;
++		timing->clk_hs_post = 18;
++		timing->clk_hs_trail = 14;
++		timing->clk_hs_zero = 16;
++		timing->clk_hs_exit = 6;
++	}
+ 
+ 	timcon0 = FIELD_PREP(LPX, timing->lpx) |
+ 		  FIELD_PREP(HS_PREP, timing->da_hs_prepare) |
+@@ -646,10 +663,20 @@
+ 	status = readl(dsi->regs + DSI_INTSTA) & flag;
+ 
+ 	if (status) {
++		if (dsi->driver_data->mt6582) {
++   mtk_dsi_mask(dsi, DSI_RACK, RACK, RACK);
++   if (readl_poll_timeout_atomic(dsi->regs + DSI_INTSTA, tmp,
++                                !(tmp & DSI_BUSY), 1, 2000)) {
++    writel(0, dsi->regs + DSI_INTEN);
++    dev_err_ratelimited(dsi->dev, "DSI IRQ busy timeout; IRQ masked\n");
++    return IRQ_HANDLED;
++   }
++  } else {
+ 		do {
+ 			mtk_dsi_mask(dsi, DSI_RACK, RACK, RACK);
+ 			tmp = readl(dsi->regs + DSI_INTSTA);
+ 		} while (tmp & DSI_BUSY);
++  }
+ 
+ 		mtk_dsi_mask(dsi, DSI_INTSTA, status, 0);
+ 		mtk_dsi_irq_data_set(dsi, status);
+@@ -684,7 +711,7 @@
+ 	ret = mipi_dsi_pixel_format_to_bpp(dsi->format);
+ 	if (ret < 0) {
+ 		dev_err(dev, "Unknown MIPI DSI format %d\n", dsi->format);
+-		return ret;
++		goto err_refcount;
+ 	}
+ 	bit_per_pixel = ret;
+ 
+@@ -697,7 +724,9 @@
+ 		goto err_refcount;
+ 	}
+ 
+-	phy_power_on(dsi->phy);
++	ret = phy_power_on(dsi->phy);
++	if (ret) goto err_refcount;
++	if (dsi->driver_data->mt6582) dsi->data_rate = clk_get_rate(dsi->hs_clk);
+ 
+ 	ret = clk_prepare_enable(dsi->engine_clk);
+ 	if (ret < 0) {
+@@ -1195,6 +1224,37 @@
+ 	.transfer = mtk_dsi_host_transfer,
+ };
+ 
++static int mt6582_dsi_park(struct mtk_dsi *dsi)
++{
++ u32 v; int ret;
++ ret = clk_set_rate(dsi->hs_clk, 338000000);
++ if (ret) return ret;
++ ret = phy_power_on(dsi->phy);
++ if (ret) return ret;
++ ret = clk_prepare_enable(dsi->engine_clk);
++ if (ret) goto phy_off;
++ ret = clk_prepare_enable(dsi->digital_clk);
++ if (ret) goto engine_off;
++ writel(0, dsi->regs + DSI_INTEN);
++ v = readl(dsi->regs + DSI_MODE_CTRL);
++ if (v & MODE) {
++  writel(v & ~MODE, dsi->regs + DSI_MODE_CTRL);
++  ret = readl_poll_timeout(dsi->regs + DSI_INTSTA, v, !(v & DSI_BUSY), 1000, 100000);
++  if (ret) dev_err(dsi->dev, "inherited DSI failed to park; no OVL takeover\n");
++ }
++ if (!ret) {
++  writel(0, dsi->regs + DSI_START);
++  writel(0, dsi->regs + DSI_INTSTA);
++  dev_info(dsi->dev, "inherited DSI parked; PHY=338000000Hz; balanced probe refs\n");
++ }
++ clk_disable_unprepare(dsi->digital_clk);
++engine_off:
++ clk_disable_unprepare(dsi->engine_clk);
++phy_off:
++ phy_power_off(dsi->phy);
++ return ret;
++}
++
+ static int mtk_dsi_probe(struct platform_device *pdev)
+ {
+ 	struct mtk_dsi *dsi;
+@@ -1236,25 +1296,20 @@
+ 	if (irq_num < 0)
+ 		return irq_num;
+ 
+-	dsi->host.ops = &mtk_dsi_ops;
+-	dsi->host.dev = dev;
+-	ret = mipi_dsi_host_register(&dsi->host);
+-	if (ret < 0)
+-		return dev_err_probe(dev, ret, "Failed to register DSI host\n");
+-
+-	ret = devm_request_irq(&pdev->dev, irq_num, mtk_dsi_irq,
+-			       IRQF_TRIGGER_NONE, dev_name(&pdev->dev), dsi);
+-	if (ret) {
+-		mipi_dsi_host_unregister(&dsi->host);
+-		return dev_err_probe(&pdev->dev, ret, "Failed to request DSI irq\n");
+-	}
+-
+-	init_waitqueue_head(&dsi->irq_wait_queue);
+-
+-	platform_set_drvdata(pdev, dsi);
+-
+-	dsi->bridge.of_node = dev->of_node;
+-	dsi->bridge.type = DRM_MODE_CONNECTOR_DSI;
++ if (dsi->driver_data->mt6582) {
++  ret = mt6582_dsi_park(dsi);
++  if (ret) return dev_err_probe(dev, ret, "DSI handoff\n");
++ }
++ init_waitqueue_head(&dsi->irq_wait_queue);
++ platform_set_drvdata(pdev, dsi);
++ dsi->bridge.of_node = dev->of_node;
++ dsi->bridge.type = DRM_MODE_CONNECTOR_DSI;
++ ret = devm_request_irq(dev, irq_num, mtk_dsi_irq, IRQF_TRIGGER_NONE, dev_name(dev), dsi);
++ if (ret) return dev_err_probe(dev, ret, "DSI irq\n");
++ dsi->host.ops = &mtk_dsi_ops;
++ dsi->host.dev = dev;
++ ret = mipi_dsi_host_register(&dsi->host);
++ if (ret) return dev_err_probe(dev, ret, "DSI host\n");
+ 
+ 	return 0;
+ }
+@@ -1277,6 +1332,11 @@
+ 	.reg_cmdq_off = 0x180,
+ 	.reg_vm_cmd_off = 0x130,
+ 	.reg_shadow_dbg_off = 0x190
++};
++
++static const struct mtk_dsi_driver_data mt6582_dsi_driver_data = {
++ .mt6582 = true, .reg_cmdq_off = 0x180, .reg_vm_cmd_off = 0x130,
++ .reg_shadow_dbg_off = 0x190,
+ };
+ 
+ static const struct mtk_dsi_driver_data mt8183_dsi_driver_data = {
+@@ -1306,6 +1366,7 @@
+ };
+ 
+ static const struct of_device_id mtk_dsi_of_match[] = {
++	{ .compatible = "mediatek,mt6582-dsi", .data = &mt6582_dsi_driver_data },
+ 	{ .compatible = "mediatek,mt2701-dsi", .data = &mt2701_dsi_driver_data },
+ 	{ .compatible = "mediatek,mt8173-dsi", .data = &mt8173_dsi_driver_data },
+ 	{ .compatible = "mediatek,mt8183-dsi", .data = &mt8183_dsi_driver_data },

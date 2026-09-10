@@ -1,0 +1,15 @@
+--- a/drivers/gpu/drm/mediatek/mtk_crtc.c
++++ b/drivers/gpu/drm/mediatek/mtk_crtc.c
+@@ -385,6 +385,12 @@
+ 		DRM_ERROR("Failed to enable component clocks: %d\n", ret);
+ 		goto err_mutex_unprepare;
+ 	}
++
++ /* DSI probe has already parked the MT6582 inherited stream before
++	 * host registration. Stop upstream engines before routing/config/reset. */
++	if (of_machine_is_compatible("innioasis,y2"))
++		for (i = 0; i < mtk_crtc->ddp_comp_nr - 1; i++)
++			mtk_ddp_comp_stop(mtk_crtc->ddp_comp[i]);
+ 
+ 	for (i = 0; i < mtk_crtc->ddp_comp_nr - 1; i++) {
+ 		if (!mtk_ddp_comp_connect(mtk_crtc->ddp_comp[i], mtk_crtc->mmsys_dev,

@@ -126,12 +126,13 @@ def main():
     parser.add_argument('--wait-seconds',type=float,default=90)
     parser.add_argument('--seconds',type=float,default=45)
     parser.add_argument('--max-bytes',type=int,default=1048576)
-    parser.add_argument('--build',choices=('M2-USBACM-03','M2-USBACM-04','M2-INPUT-01'),default='M2-USBACM-04')
+    parser.add_argument('--build',choices=('M2-USBACM-03','M2-USBACM-04','M2-INPUT-01','M2-BASELINE-01'),default='M2-USBACM-04')
     args=parser.parse_args()
-    if not (0<args.wait_seconds<=120 and 0<args.seconds<=60 and 0<args.max_bytes<=4194304):
-        parser.error('Wait <=120s, capture <=60s, bytes <=4MiB; all positive')
+    limit=295 if args.build=='M2-BASELINE-01' else 60
+    if not (0<args.wait_seconds<=120 and 0<args.seconds<=limit and 0<args.max_bytes<=4194304):
+        parser.error(f'Wait <=120s, capture <={limit}s, bytes <=4MiB; all positive')
     args.output.mkdir(parents=True,exist_ok=False)
-    print('Waiting for Y2 CDC ACM. Boot UNPLUGGED; attach at the screen prompt.',flush=True)
+    print('Waiting for Y2 CDC ACM. Boot UNPLUGGED; attach after ten seconds.' if args.build=='M2-BASELINE-01' else 'Waiting for Y2 CDC ACM. Boot UNPLUGGED; attach at the screen prompt.',flush=True)
     deadline=time.monotonic()+args.wait_seconds
     try:
         while time.monotonic()<deadline:

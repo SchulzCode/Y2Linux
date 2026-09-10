@@ -7,12 +7,6 @@
       "patch": "0001-arm-allow-explicit-virt-ext-disable.patch"
     },
     {
-      "path": "arch/arm/mach-mediatek/Kconfig",
-      "base_sha256": "61790e35f9fbdb5dd524c658f041739b4cf52d8393962622d6cdb4a0f497506b",
-      "result_sha256": "856199adbaffb5bfec5614a9e9498ec505de80bf054d5f301c0fa45dccf7247b",
-      "patch": "0002-y2-Kconfig.patch"
-    },
-    {
       "path": "arch/arm/mach-mediatek/mediatek.c",
       "base_sha256": "5fef5712eb9b6729519b4e45898ea25b1b7a0bbd914dabecfc46f3f3de624ea5",
       "result_sha256": "c9af7de9bc3d28895223e5eb190aae5875b2552050368b0f979341f7d75155fc",
@@ -23,6 +17,102 @@
       "base_sha256": "f58ea39b9d2d64f6b985a3be842ddb340365521a782dcb0c15e6183804bf3d82",
       "result_sha256": "74ebd59edef9a0ef2cd80acd5081ac095e1957970182c8ec915d84e6101ccbc6",
       "patch": "0004-y2-head-S.patch"
+    },
+    {
+      "path": "drivers/soc/mediatek/mtk-mmsys.c",
+      "patch": "0010-mt6582-mmsys.patch",
+      "base_sha256": "6f959cf51269bd1e1cf2895c38962bec5341a53e4f189681ff0db75e960e3dac",
+      "result_sha256": "9029d6fe9696fd1663985e2d15575a2ea3ed3142627fee986e3df5170418f457"
+    },
+    {
+      "path": "drivers/soc/mediatek/mtk-mutex.c",
+      "patch": "0011-mt6582-mutex.patch",
+      "base_sha256": "3d62c9f315dc53c189f97febb3aaaea9a76528c84bf42515cf572c5f5f11f2e3",
+      "result_sha256": "4f18effdb176b1c466593eef267f78d86ccb1acaa73d878b7e98675619175624"
+    },
+    {
+      "path": "drivers/gpu/drm/mediatek/mtk_drm_drv.c",
+      "patch": "0012-mt6582-drm.patch",
+      "base_sha256": "cf13005541bc4edbc691315847afca9e467b619049c8d5d021cc22b4935dd161",
+      "result_sha256": "ec6428b1b7ad0df9906eaecd3065d9cf1b312ad4b85c9d7ff08c67620bce88ca"
+    },
+    {
+      "path": "drivers/gpu/drm/mediatek/mtk_disp_color.c",
+      "patch": "0013-mt6582-color.patch",
+      "base_sha256": "c0c6bf9320e17010264634ea6318fdb7596f42efbb2ca9fb6b628374ae6516c1",
+      "result_sha256": "bf29c8ee49a30023f554b52a614142ceb5bba3493201061ad0e9d5c2f50c7b31"
+    },
+    {
+      "path": "drivers/gpu/drm/mediatek/mtk_disp_ovl.c",
+      "patch": "0014-mt6582-ovl.patch",
+      "base_sha256": "405ee251d3f328a00074158d2cf9664c934de40a5b47c7a5b018a8deeb6b233d",
+      "result_sha256": "c63494d62fd82b610f6a707632e1d18c994fc1a9f98e36aa27926dfe2b538d40"
+    },
+    {
+      "path": "drivers/gpu/drm/mediatek/mtk_disp_rdma.c",
+      "patch": "0015-mt6582-rdma.patch",
+      "base_sha256": "accb19352368a971d67937c4e0b97a17988f5136c22870aa72e69c5787dadd26",
+      "result_sha256": "205a9d64e736d8ba5ae73bc70b2d861c0e93c1c2024047fb09faa01e716fe92f"
+    },
+    {
+      "path": "arch/arm/mach-mediatek/Kconfig",
+      "patch": "0002-y2-Kconfig.patch",
+      "base_sha256": "61790e35f9fbdb5dd524c658f041739b4cf52d8393962622d6cdb4a0f497506b",
+      "result_sha256": "254d777d1dc4d9e2572ffc6779db429c8b86c12a721f55af74985b8445736b15"
+    },
+    {
+      "path": "drivers/Makefile",
+      "patch": "0005-y2-drivers.patch",
+      "base_sha256": "32d5e6823a71712aaab73276e574a8c24c386602c2c05a4085d1e2abfa381d01",
+      "result_sha256": "86413a859be01ee9ff58682b95f4415d1cbbb62007bf5662f78a14b02b0187f7"
+    },
+    {
+      "path": "arch/arm/mach-mediatek/platsmp.c",
+      "patch": "0006-mt6582-smp.patch",
+      "base_sha256": "437c79de149466434a7bd3ab0a5210196a43f75f151d896d0e3871c1d37c7145",
+      "result_sha256": "a2b386995774afa64e1ca463c744da98aec0f1021a753ec7d220238619f58fef"
+    },
+    {
+      "path": "drivers/pinctrl/mediatek/Kconfig",
+      "patch": "0019-y2-eint-library.patch",
+      "base_sha256": "358c03715ce2d3351183bff171f663ba7f3ee071425b44c9ef159fd0b8146d1c",
+      "result_sha256": "7810449062f43ce3cc1c2ddcddf7cb6815493bdda36c2f81bfd3d4408c52e27c"
+    },
+    {
+      "path": "drivers/input/keyboard/mtk-pmic-keys.c",
+      "patch": "0007-y2-pmic-keys.patch",
+      "base_sha256": "4a085e49f16e12cc6c00f7b74b7c1e7e18735b45eccd26f0b24e076d9f940d1e",
+      "result_sha256": "170ed8d9b742345e4bebbaa9e7d3dc04ada57a09a954dc0cbd08e90ef36fbfd0"
+    },
+    {
+      "path": "drivers/i2c/busses/i2c-mt65xx.c",
+      "patch": "0008-mt6582-i2c.patch",
+      "base_sha256": "97a7193f00827341b26f074ed26fb5b4ed7839e45b87b7a2a2c03681c46d7b69",
+      "result_sha256": "61b7b94a29c54639504e5b052215775edc22eaa4de92388f7da5525e7c3787f6"
+    },
+    {
+      "path": "drivers/mmc/host/mtk-sd.c",
+      "patch": "0009-y2-msdc-readonly.patch",
+      "base_sha256": "8fd10e3a6f6d60e37216de79b2d7a8b8f766c7d7e5cdd5851cccfe375e2536d1",
+      "result_sha256": "d1a4963a3a707070f2b7ca9b5e8e1f192d968df3ed11da4088f45dc64477f438"
+    },
+    {
+      "path": "drivers/phy/mediatek/phy-mtk-mipi-dsi.c",
+      "patch": "0016-mt6582-phy.patch",
+      "base_sha256": "22cd8bea37a7663052a5576c37d1fd68712d98fc8c45f4c0754547539cb3aded",
+      "result_sha256": "7038006e720bb334d6168ce068e6a15b462f486afa362f8402907e132cd7ce2b"
+    },
+    {
+      "path": "drivers/gpu/drm/mediatek/mtk_dsi.c",
+      "patch": "0017-mt6582-dsi.patch",
+      "base_sha256": "ae2af9a535188a35e6e6314e6554b15791553b94d19d3f0f768694adaf4bd477",
+      "result_sha256": "89819bcd4ec1ad302a2ceb1178f29a9fec89ba7dab2c841fdb8af2078a61f6d2"
+    },
+    {
+      "path": "drivers/gpu/drm/mediatek/mtk_crtc.c",
+      "patch": "0018-mt6582-crtc.patch",
+      "base_sha256": "6e5cffe1da09a0d4cacb4cbf7a6a79fa7c8e69982131c3cf44d6f1ac34e2e2c2",
+      "result_sha256": "660f9f33fcfd02b9704851c33103f1a238b3d77a1b0817dc01473e6f1ea64451"
     }
   ]
 }

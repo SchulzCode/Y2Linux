@@ -7,6 +7,12 @@ The Android Y2Player is a behavioral and hardware-research reference, not a sour
 
 Current status: **M1 core achieved on the physical Y2: Linux 6.18, initramfs and native PID1 with increasing BEAT/uptime.** M2 is active: USB kernel/PID1 logs work, donor-assisted core bring-up follows the [subsystem audit](docs/knowledge/donor-audit.md). Core-interface exit evidence is still incomplete. M0 residual questions remain separate.
 
+**Current M2 workflow (2026-09-10):** one [M2-BASELINE-01](docs/build/m2-baseline-01-result.md)
+integrates evidenced core controllers on Linux 6.18. Offline validated; stop for
+one owner BOOTIMG flash, then inspect the complete USB log and fix independent
+failures together. No separate INPUT-01/USBACM-04 prerequisite flash. M2 closure
+still requires real hardware exit evidence; M3/M4/M5 stay separate.
+
 - [Roadmap coverage, gaps and milestone audit rule](docs/planning/roadmap-gap-audit.md)
 - [Additional reverse-engineering evidence and Linux 6.18 decisions](docs/knowledge/reverse-engineering-audit.md)
 
@@ -25,9 +31,8 @@ Current status: **M1 core achieved on the physical Y2: Linux 6.18, initramfs and
 - [Open unknowns and decisions](docs/knowledge/open-unknowns.md)
 - [Canonical M0 milestone](https://github.com/SchulzCode/Y2Linux/milestone/1)
 
-Research and architectural decisions precede implementation. The owner authorized
-direct M1 implementation by the lead with no delegation; work proceeds through
-small researched issues. No task in this wave is `state:luna-ready`. Preserve the configured user's Git identity and
+Research informs direct Linux 6.18 implementation. The owner authorized the
+combined M2 controller integration and manual-flash workflow above, without delegation. No task in this wave is `state:luna-ready`. Preserve the configured user's Git identity and
 authenticated GitHub account; never alter identity or add model attribution.
 
 Raw device captures, firmware and personalized data stay in ignored

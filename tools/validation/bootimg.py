@@ -35,4 +35,4 @@ def check(data, kernel, ramdisk, layout):
             'android_id_sha1':sha.hexdigest(),'partition_bytes':0x1000000,
             'kernel_wrapper_offset':ko,'ramdisk_wrapper_offset':ro,
             'lk_complete_read_end':end,'zero_filled_read_tail_bytes':end-(ro+r),
-            'authentication':'unsigned candidate; installed LK acceptance unresolved (U07b)'}
+            'authentication':'unsigned image; offline checks do not establish this candidate hardware acceptance'}

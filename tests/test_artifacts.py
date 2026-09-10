@@ -26,7 +26,7 @@ class ActualArtifacts(unittest.TestCase):
         report, payload = self.verify(self.original)
         check_bootimg((self.original/'BOOTIMG.img').read_bytes(),payload,
                       (self.original/'initramfs.cpio.gz').read_bytes(),report)
-        self.assertEqual(report['status'], 'PASS offline D08; hardware launch NOT authorized')
+        self.assertEqual(report['status'], 'PASS offline D08; owner hardware test pending')
 
     def test_actual_corruptions(self):
         files = ['kernel/.config','kernel/vmlinux','kernel/arch/arm/boot/Image',
@@ -41,7 +41,7 @@ class ActualArtifacts(unittest.TestCase):
             return mutate
         cases = [
           ('kernel/.config',replace(b'# CONFIG_ARM_ATAG_DTB_COMPAT is not set',b'CONFIG_ARM_ATAG_DTB_COMPAT=y')),
-          ('kernel/.config',replace(b'# CONFIG_SMP is not set',b'CONFIG_SMP=y')),
+          ('kernel/.config',replace(b'CONFIG_SMP=y',b'# CONFIG_SMP is not set')),
           ('kernel/.config',replace(b'CONFIG_PHYS_OFFSET=0x80000000',b'CONFIG_PHYS_OFFSET=0x00000000')),
           ('kernel/.config',replace(b'# CONFIG_ARM_VIRT_EXT is not set',b'CONFIG_ARM_VIRT_EXT=y')),
           ('kernel/.config',lambda b:b+b'\nCONFIG_SERIAL_8250_DMA=y\n'),

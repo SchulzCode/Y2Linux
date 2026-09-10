@@ -1,4 +1,12 @@
 # Platform foundation work and execution order
+**Current M2 workflow (2026-09-10):** one [M2-BASELINE-01](../build/m2-baseline-01-result.md)
+integrates evidenced core controllers on Linux 6.18. Offline validated; stop for
+one owner BOOTIMG flash, then inspect the complete USB log and fix independent
+failures together. No separate INPUT-01/USBACM-04 prerequisite flash. M2 closure
+still requires real hardware exit evidence; M3/M4/M5 stay separate.
+
+The earlier sequences below are retained as historical checkpoints.
+
 
 > **Additional evidence, 2026-09-10:** [research matrix](../knowledge/reverse-engineering-audit.md)
 > turns SMP, wheel, power and display discovery into validation/adaptation work.

@@ -75,6 +75,34 @@ static long read_file(const char *path)
     { long closed=call5(6,fd,0,0,0,0); if(closed<0 && result>=0) result=closed; }
     return result;
 }
+/* Standard read-only kernel diagnostics. Bound each source, retain failures and
+ * truncation explicitly, and drain LOG1 between chunks. No disk access. */
+static void log_file(const char *path)
+{
+    long fd,n=0;unsigned used=0;
+    relay_log("\nSNAPSHOT BEGIN ",16);relay_log(path,relay_length(path));relay_log("\n",1);
+    fd=call5(5,(long)path,2048,0,0,0);
+    if(fd<0) {nav_log("SNAPSHOT_ERR",beat,fd,0);return;}
+    for(unsigned i=0;i<32;++i) {
+        n=call5(3,fd,(long)input,2048,0,0);
+        if(n==-4)continue;
+        if(n<=0)break;
+        relay_log(input,(unsigned)n);used+=(unsigned)n;relay_service();
+    }
+    if(n<0||used>=65536)nav_log("SNAPSHOT_ERR",beat,n<0?n:-75,used);
+    call5(6,fd,0,0,0,0);
+    relay_log("\nSNAPSHOT END ",14);relay_log(path,relay_length(path));relay_log("\n",1);
+}
+static void baseline_snapshot(void)
+{
+    static const char *files[]={"/proc/cpuinfo","/sys/devices/system/cpu/online",
+        "/proc/meminfo","/proc/zoneinfo","/proc/buddyinfo","/proc/iomem",
+        "/proc/interrupts","/proc/cmdline","/proc/bus/input/devices",
+        "/sys/kernel/debug/clk/clk_summary","/sys/kernel/debug/devices_deferred",
+        "/sys/kernel/debug/regulator/regulator_summary",
+        "/sys/class/power_supply/y2-usb-presence/uevent"};
+    for(unsigned i=0;i<sizeof(files)/sizeof(files[0]);++i)log_file(files[i]);
+}
 static void file_row(unsigned row,const char *key,const char *path,const char *field_key)
 {
     long code=read_file(path);
@@ -287,10 +315,10 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     for(row=0;row<Y2_ROWS;++row) row_clear(screen.rows[row]);
     screen.magic=Y2_TEXT_MAGIC;
     row_pair(screen.rows[12],"LAST ERR: ","NONE");
-    row_pair(screen.rows[15],"BUILD: ","M2-INPUT-01");
+    row_pair(screen.rows[15],"BUILD: ","M2-BASELINE-01");
     row_pair(screen.rows[16],"TRUNCATED TEXT: ","~ ; ERRORS: -ERRNO");
-    row_pair(screen.rows[17],"SCOPE: ","CPU0 / INITRAMFS ONLY");
-    row_pair(screen.rows[18],"HOST LIMIT: ","60S FROM POWER-ON");
+    row_pair(screen.rows[17],"SCOPE: ","M2 CORE / INITRAMFS ONLY");
+    row_pair(screen.rows[18],"HOST LIMIT: ","300S FROM POWER-ON");
     row_pair(screen.rows[19],"END: ","MANUAL BOOTIMG RESTORE");
     if(call5(20,0,0,0,0,0)!=1) { call5(1,2,0,0,0,0);for(;;) {} }
     diagnostic=call5(5,(long)"/dev/y2diag",2,0,0,0);
@@ -302,9 +330,10 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
     sys=call5(21,(long)"sysfs",(long)"/sys",(long)"sysfs",15,0);
     row_code(screen.rows[11],"SYSFS MOUNT RC: ",sys);if(sys<0) error("MOUNT SYS",sys);
     present("SYSFS MOUNT DONE");
+    call5(21,(long)"debugfs",(long)"/sys/kernel/debug",(long)"debugfs",15,0);
     nav_open();
     /* Visible loop starts before optional collection; no UART writes here. */
-    for(beat=0;beat<50;) {
+    for(beat=0;beat<285;) {
         long slept;
         present("WAIT 1S / LOOP LIVE");
         slept=sleep_one();row_code(screen.rows[13],"SLEEP RC: ",slept);
@@ -322,11 +351,16 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
         present("READ UPTIME");file_row(8,"UPTIME/IDLE S: ","/proc/uptime",0);
         present("READ TIMER IRQ");timer_row();
         nav_service();
-        row_pair(screen.rows[15],"BUILD: ","M2-INPUT-01");
+        row_pair(screen.rows[15],"BUILD: ","M2-BASELINE-01");
         row_number(screen.rows[15],row_add(screen.rows[15],22,
                    nav.result ? "INPUT RC:" : "KEYS:"),
                    nav.result ? nav.result : (long)nav.events);
         if(usb_live_row()) relay_service();
+        if(beat==12)baseline_snapshot();
+        if(beat==60||beat==120||beat==240) {
+            log_file("/proc/interrupts");log_file("/proc/meminfo");
+            log_file("/sys/kernel/debug/devices_deferred");
+        }
         if(relay.result) {row_code(screen.rows[5],"LOG RC:",relay.result);error("LOG",relay.result);}
         log_row(0);log_row(3);log_row(12);
         present("STATUS / LOOP LIVE");

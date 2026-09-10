@@ -1,0 +1,43 @@
+--- a/drivers/gpu/drm/mediatek/mtk_disp_rdma.c
++++ b/drivers/gpu/drm/mediatek/mtk_disp_rdma.c
+@@ -69,6 +69,7 @@
+ };
+ 
+ struct mtk_disp_rdma_data {
++	bool mt6582;
+ 	unsigned int fifo_size;
+ 	const u32 *formats;
+ 	size_t num_formats;
+@@ -210,7 +211,7 @@
+ 	reg = RDMA_FIFO_UNDERFLOW_EN |
+ 	      RDMA_FIFO_PSEUDO_SIZE(rdma_fifo_size) |
+ 	      RDMA_OUTPUT_VALID_FIFO_THRESHOLD(threshold);
+-	mtk_ddp_write(cmdq_pkt, reg, &rdma->cmdq_reg, rdma->regs, DISP_REG_RDMA_FIFO_CON);
++	mtk_ddp_write(cmdq_pkt, rdma->data->mt6582 ? 0x01000010 : reg, &rdma->cmdq_reg, rdma->regs, DISP_REG_RDMA_FIFO_CON);
+ }
+ 
+ static unsigned int rdma_fmt_convert(struct mtk_disp_rdma *rdma,
+@@ -382,6 +383,14 @@
+ 	.num_formats = ARRAY_SIZE(mt8173_formats),
+ };
+ 
++static const struct mtk_disp_rdma_data mt6582_rdma_driver_data = {
++	.mt6582 = true,
++	.fifo_size = SZ_4K,
++	.formats = mt8173_formats,
++	.num_formats = ARRAY_SIZE(mt8173_formats),
++};
++
++
+ static const struct mtk_disp_rdma_data mt8173_rdma_driver_data = {
+ 	.fifo_size = SZ_8K,
+ 	.formats = mt8173_formats,
+@@ -403,6 +412,8 @@
+ static const struct of_device_id mtk_disp_rdma_driver_dt_match[] = {
+ 	{ .compatible = "mediatek,mt2701-disp-rdma",
+ 	  .data = &mt2701_rdma_driver_data},
++	{ .compatible = "mediatek,mt6582-disp-rdma",
++	  .data = &mt6582_rdma_driver_data},
+ 	{ .compatible = "mediatek,mt8173-disp-rdma",
+ 	  .data = &mt8173_rdma_driver_data},
+ 	{ .compatible = "mediatek,mt8183-disp-rdma",

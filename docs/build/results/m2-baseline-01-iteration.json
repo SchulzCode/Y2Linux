@@ -1,0 +1,40 @@
+{
+  "baseline": "4dde3051301e462b8db4ccf06314521767d6f41a",
+  "candidate": "M2-BASELINE-01",
+  "hardware_tested": false,
+  "build_policy": "one clean kernel tree; compile/fixture corrections in place; no duplicate successful clean build",
+  "bootimg": {
+    "bytes": 2015232,
+    "sha256": "6cba96dbcb529d46f2c5ca51d5e2a7c62ca90aaa005d2173e24558437cbe8598",
+    "android_id_sha1": "7ab063a4b517385c0a39fed107d093e960bb3466",
+    "partition_bytes": 16777216,
+    "kernel_wrapper_offset": 2048,
+    "ramdisk_wrapper_offset": 1996800,
+    "lk_complete_read_end": 2015232,
+    "zero_filled_read_tail_bytes": 4521,
+    "authentication": "unsigned image; offline checks do not establish this candidate hardware acceptance"
+  },
+  "tests": {
+    "applicable_passed": 24,
+    "baseline_providers_transport_input": 4,
+    "pwrap_startup": 2,
+    "usb_guards_lifecycle_including_linked": 7,
+    "relay_host_and_arm": 1,
+    "real_artifact_mutations": 2,
+    "host_observation": 8
+  },
+  "source_manifest_sha256": "db43c2e94db8e51e2dabcab7b9f640631bd78dfdb86b828e88e72630319c17f2",
+  "logs": {
+    "kernel-build.log": "5e311e87e27862a1835a1cfa57eea6ba0d4b3eae790cdf288dfacf9cfc820762",
+    "kernel-final-build.log": "370d4d6dcc124b03a1c8fbfd86115a7253714e0b55e4caf0ec6f4649b0125d07",
+    "kernel-success.log": "0ca8908381438ea5e96e0adabd659d9dea1e5beb38c1def8c9edb50408926543",
+    "initramfs-build.log": "1c76e5ccb6addc2ab4ae2c2a8dffed50d7cffe417844b5cec5f04ed702bbbbd5",
+    "dtb-build.log": "9ed86e85412f3ffe1ba2ca4fa46f6d26e2ac891d8163f30082580022c1c0a65a",
+    "provider-tests.log": "d8d3d73e381e9ca17907e3bd59bbb04de372bf3c2bebc1663ddfeee3402cc4e7",
+    "baseline-tests.log": "5e82f63a06c212f10854710d734ed35c2784f32085569de5e289561fb0ef918b",
+    "usb-tests.log": "6bd96756324868057b493575a7daffdffb268e1dde08c3e13feee5ab9444d9d8",
+    "relay-tests.log": "221ca0f28519a11319720c0872254c02887c94a1f11fc63bf023bde5e5b34a3d",
+    "package-tests.log": "1acf9aaaa46100a95e04873d3808365a4793fa200d0b4cc944acf525e7e4fcb3",
+    "host-tests.log": "581888f1619e79dad0776f779212f9a8af90a8f639247d8d93727880af29780b"
+  }
+}

@@ -77,6 +77,12 @@ def main():
         '--ro-bind', str(PROJECT / '.cache/sources/linux-6.18'), '/src',
         '--bind', str(output), '/build', '--chdir', '/build',
     ]
+    # A private parent mount permits adding Y2 sources without creating files
+    # in the locked upstream tree or replacing another platform's directory.
+    invocation += ['--tmpfs', '/src/drivers']
+    for child in sorted((PROJECT / '.cache/sources/linux-6.18/drivers').iterdir()):
+        invocation += ['--ro-bind', str(child), '/src/drivers/' + child.name]
+    invocation += ['--ro-bind', str(PROJECT / 'kernel/platform'), '/src/drivers/y2']
     for overlay, path in overlays:
         invocation += ['--ro-bind', str(overlay), '/src/' + path]
     for key, value in env.items():
