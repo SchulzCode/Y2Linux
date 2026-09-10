@@ -1,6 +1,6 @@
 --- a/arch/arm/mach-mediatek/Kconfig
 +++ b/arch/arm/mach-mediatek/Kconfig
-@@ -10,6 +10,17 @@
+@@ -10,6 +10,24 @@
  	  Support for Mediatek MT65xx & MT81xx SoCs
  
  if ARCH_MEDIATEK
@@ -8,6 +8,13 @@
 +config Y2_BOOT_DIAGNOSTIC
 + bool "Innioasis Y2 M2 development baseline"
 + depends on !THUMB2_KERNEL && !ARM_LPAE && PROC_FS
++ # Keep shared DRM infrastructure built in; only the controller aggregate
++ # is loaded after PID1 logging is active in the M2 development initramfs.
++ select DRM_KMS_HELPER
++ select DRM_DISPLAY_HELPER
++ select DRM_GEM_DMA_HELPER
++ select DRM_CLIENT_SELECTION
++ select CEC_CORE
 + select COMMON_CLK_MEDIATEK
 + select EINT_MTK
 + select PINMUX

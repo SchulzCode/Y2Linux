@@ -4,8 +4,8 @@ set -eu
 test ! -e /build/BOOTIMG.img
 test ! -e /build/kernel/vmlinux
 sh /project/tools/build/configure.sh
+make -C /src O=/build/kernel -j12 Image zImage modules > /build/kernel-build.log 2>&1
 sh /project/tools/build/initramfs.sh
-make -C /src O=/build/kernel -j12 Image zImage > /build/kernel-build.log 2>&1
 sh /project/tools/build/dtb.sh
 cd /project
 python3 -m tools.validation.artifacts /build --append > /build/artifact-validation.log

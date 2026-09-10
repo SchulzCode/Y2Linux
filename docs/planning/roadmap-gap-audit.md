@@ -6,6 +6,33 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## BASELINE-03 observation and packaging review — 2026-09-10
+
+BASELINE-02 owner reports grey/black after LK. The retained 180-second capture
+identifies baseline2 at high-speed ACM, sends LOG1, but receives zero bytes
+(exit2, no protocol header). No kernel/PID1 execution point or display failure
+instruction is established. This is a regression of observation, not display
+success. All newly tested BASELINE-01 results remain historical, not silently
+revalidated for BASELINE-02.
+
+Same M2 hardware scope, revised **initramfs packaging/startup**: compile the
+MediaTek DRM aggregate as the sole loadable module, with required DRM helpers
+built in. Package the exact module with PID1 in the existing bounded RAM-only
+initramfs. Start it once through finit_module in a separate child after LOG1 is
+active; PID1 must never wait synchronously for display probing. Keep PID1 on CPU0
+and the load child on previously observed CPU1 using normal scheduler affinity;
+this reduces local CPU starvation, not global bus/lockup risk. Kernel/driver logs
+still use the unchanged /dev/kmsg-to-CDC relay, without competing USB writers.
+Repair unpowered DSI host-transfer access and add phase messages. No guessed
+panel/clock/rail changes or extra per-register image.
+
+Audit module dependencies, ABI/exports and exact initramfs membership, include
+module bytes in the D08 unpacked-file/layout accounting, test child errors and
+nonblocking reap, then one clean combined build/package. No second reproducibility
+build or unchanged ROM/recovery/source-tree hashing. D08, protected partitions,
+PMIC/storage write firewalls, five-minute owner limit and M3/M4/M5 gates remain.
+M1 COMPLETE; M2 ACTIVE; stop at BASELINE-03 for manual owner BOOTIMG flash.
+
 ## M2 integrated hardware checkpoint — 2026-09-10
 
 [BASELINE-01 physical results](../knowledge/m2-baseline-hardware-result.md): two
@@ -562,9 +589,9 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Clocks, resets, pinctrl/GPIO/IRQ and I2C | **PARTIAL** | Shared CCF/pinctrl/EINT/PWRAP and I2C providers probe. Navigation, keypad and PMIC EINT25 operate. Wheel EINT55/I2C transfers remain unobserved; full rates/pads and reset ownership unqualified. | #23/#24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Watchdog and controlled reset | **PARTIAL** | Reviewed early AP_RGU stop and displayed stopped state; no production driver takeover, pet/timeout strategy, deliberate reset or restart qualification. | #28 with #30. Preserve current experiment behavior. |
 | On-device diagnostic channel | **PARTIAL** | Earlier inherited text worked; current integrated baseline shows only LK logo because DSI probe fails. USB logs remain the working diagnostic channel. | #20–21; [result](../knowledge/m1-runtime-hardware-result.md). |
-| Developer host logs / USB | **PARTIAL** | Two BASELINE-01 boots retain all initial kernel records (0–574/575) and PID1 without relay gaps. Separate boots do not qualify reconnect; only 45 seconds captured per boot. | #27, #23, #28. |
+| Developer host logs / USB | **PARTIAL** | BASELINE-01 retains initial kernel/PID1 logs; BASELINE-02 enumerates but its 180-second capture has zero bytes. BASELINE-03 isolates module loading from PID1; logging restoration and reconnect need hardware validation. | #27, #23, #28. |
 | Physical UART / early crash capture | **UNKNOWN** | UART0 candidate exists; no pad/level/wire capture. Ramoops retention/reader is unproved. USB cannot log hangs before its initialization. | Existing #16; broader crash/debug policy #32. |
-| Display/controller/panel | **PARTIAL** | LK logo persists; BASELINE-01 DSI fails -EBUSY on an incorrect inherited-PLL rate assumption. BASELINE-02 separates live adoption from cold configuration; native modeset/panel still needs hardware validation. | #25/#28; [research](../knowledge/reverse-engineering-audit.md). |
+| Display/controller/panel | **PARTIAL** | LK logo persists; BASELINE-01 DSI fails -EBUSY on an incorrect inherited-PLL rate assumption. BASELINE-02 then showed black/grey with no responding LOG1 relay. BASELINE-03 loads DRM after the log reader starts; failure location/native modeset remain unknown. | #25/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Backlight | **PARTIAL** | Four inherited PWM channels accepted at duty32/32, step5 unchanged. Native brightness changes and panel sequencing untested. | #25/#23; #28/#30. |
 | Wheel/select input | **PARTIAL** | Select and four navigation channels have balanced evdev events. Wheel registers but has no EINT55/I2C/scroll events; rotation attempt not explicitly reported. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation codes, both volume keys and Power have press/release events; keypad and PMIC IRQ counts agree. Wake deferred; no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |

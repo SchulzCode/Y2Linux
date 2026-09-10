@@ -126,7 +126,7 @@ def parse_args(argv=None):
     parser.add_argument('--wait-seconds',type=float,default=90)
     parser.add_argument('--seconds',type=float,help='Capture duration (baseline: 180s; earlier builds: 45s)')
     parser.add_argument('--max-bytes',type=int,default=1048576)
-    parser.add_argument('--build',choices=('M2-USBACM-03','M2-USBACM-04','M2-INPUT-01','M2-BASELINE-01','M2-BASELINE-02'),default='M2-USBACM-04')
+    parser.add_argument('--build',choices=('M2-USBACM-03','M2-USBACM-04','M2-INPUT-01','M2-BASELINE-01','M2-BASELINE-02','M2-BASELINE-03'),default='M2-USBACM-04')
     args=parser.parse_args(argv)
     baseline=args.build.startswith('M2-BASELINE-')
     if args.seconds is None: args.seconds=180 if baseline else 45

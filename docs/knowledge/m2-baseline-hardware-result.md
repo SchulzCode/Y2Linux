@@ -1,5 +1,24 @@
 # M2 integrated baseline — physical results, 2026-09-10
 
+## Latest: BASELINE-02 loses the responding log relay
+
+The owner reports LK logo followed by black/grey. The 180-second capture at
+2026-09-10 15:30:15 UTC identifies `6.18.0-y2-m2-baseline2` / 0525:a4a7 / 480Mbps,
+sends LOG1, but receives **zero bytes**, no protocol header, exit2. Empty raw data
+and chunk index match the retained hash. [Capture record](../build/results/m2-baseline-02-capture.json).
+USB enumeration is alive; PID1/relay startup or responsiveness is **unknown**.
+Neither the failing instruction nor a completed DSI park/modeset is established.
+The changed screen does not prove that the display driver successfully probed.
+
+The inferred risk is synchronous display initialization preventing observation.
+BASELINE-03 moves the exact MediaTek controller module into the initramfs and
+loads it in a separate child after LOG1 starts, retaining the original kernel/
+PID1 relay. This is a normal module-lifecycle change, not a guessed panel fix.
+Also refuse unpowered DSI host transfers after pre-enable errors. The driver
+remains part of the one combined candidate. [Packaging/startup audit](../planning/roadmap-gap-audit.md#baseline-03-observation-and-packaging-review--2026-09-10).
+
+## BASELINE-01 history
+
 M1 COMPLETE; M2 ACTIVE. Owner-tested **M2-BASELINE-01**, source checkpoint
 `7c34d35`, reports LK logo only and host USB disconnect after about five minutes.
 The compiled identity is confirmed in both captures; the owner did not separately

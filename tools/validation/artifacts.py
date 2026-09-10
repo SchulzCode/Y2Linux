@@ -71,7 +71,18 @@ def check(root, project):
     tree = (root / 'y2.dtb').read_bytes()
     initrd = (root / 'initramfs.cpio.gz').read_bytes()
     require(0 < len(initrd) <= 0x80000 and len(tree) <= 0x10000 and len(z) <= 0x600000, 'artifact input caps')
-    init = cpio(gunzip(initrd, 0x210000))
+    module = (root/'display.ko').read_bytes()
+    require(module == (root/'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko').read_bytes(),
+            'module differs from compiled output')
+    module_elf = ELFFile(io.BytesIO(module))
+    require(module_elf.elfclass == 32 and module_elf.little_endian and
+            module_elf['e_machine'] == 'EM_ARM' and module_elf['e_type'] == 'ET_REL', 'module ARM32 ABI')
+    info = module_elf.get_section_by_name('.modinfo').data().split(b'\0')
+    require(b'name=mediatek_drm' in info and b'depends=' in info and
+            any(x.startswith(b'vermagic=6.18.0-y2-m2-baseline3 ') for x in info), 'module identity/dependencies')
+    require((root/'kernel/modules.order').read_text().splitlines() ==
+            ['drivers/gpu/drm/mediatek/mediatek-drm.o'], 'exactly one permitted module')
+    init = cpio(gunzip(initrd, 0x210000), module)
     require(init == (root / 'init').read_bytes(), 'archive /init differs from executable')
     initelf = Elf(root / 'init')
     require(not any(s['p_type'] in ('PT_INTERP','PT_DYNAMIC') for s in initelf.elf.iter_segments()), 'init must be static')
@@ -80,6 +91,14 @@ def check(root, project):
     kernel = Elf(root / 'kernel/vmlinux')
     sleep = check_sleep(kernel, root / 'kernel/.config')
     usb = check_usb(kernel)
+    from tools.validation.sleep_syscall import slot_offset
+    loader_calls = {}
+    for nr, name in ((114, 'sys_wait4'), (120, 'sys_clone'),
+                     (241, 'sys_sched_setaffinity'), (379, 'sys_finit_module')):
+        target = struct.unpack_from('<I', kernel.data, slot_offset(kernel, nr))[0]
+        require(target == kernel.sym(name) and target != kernel.sym('sys_ni_syscall'),
+                'display loader syscall unavailable: ' + name)
+        loader_calls[str(nr)] = name
     comp = Elf(root / 'kernel/arch/arm/boot/compressed/vmlinux')
     text = kernel.sym('_text')
     require(text == 0xc0008000 and kernel.elf['e_entry'] == text, 'kernel virtual entry/TEXT_OFFSET')
@@ -105,8 +124,8 @@ def check(root, project):
     require(kernel.sym('y2_diagnostic_init') >= text, 'built-in guarded video diagnostic missing')
     require(kernel.sym('y2_text_write') >= text, 'D14 guarded text writer missing')
     require(kernel.sym('y2_power_snapshot') >= text, 'M2 cached PWRAP snapshot missing')
-    require(b'M2-BASELINE-02\0' in init, 'M2 prerequisite build identifier missing')
-    require(b'Y2BASELINE M2-BASELINE-02' in image, 'Diagnostic heading/build mismatch')
+    require(b'M2-BASELINE-03\0' in init, 'M2 prerequisite build identifier missing')
+    require(b'Y2BASELINE M2-BASELINE-03' in image, 'Diagnostic heading/build mismatch')
     require(b'/dev/y2diag\0' in init, 'PID1 diagnostic endpoint missing')
     require(b'/dev/y2input0\0' in init, 'PID1 evdev endpoint missing')
     for symbol in ('pins_probe', 'wrap_probe', 'y2_clocks_probe', 'gc9503v_probe', 'mt6582_keypad_probe', 'mtk_i2c_probe', 'msdc_drv_probe', 'gpio_keys_polled_probe', 'evdev_read', 'evdev_ioctl'):
@@ -129,7 +148,7 @@ def check(root, project):
             stack_section['sh_addr'] + stack_section['sh_size'] - start == stack, 'LC1 stack decode')
     x = Inputs(len(z),len(tree),len(initrd),len(image),bss,kernel.sym('_end')-text,
         off('restart'),off('wont_overwrite'),off('_edata'),off('reloc_code_end'),stack,
-        off('__bss_start'),off('_end'),len(init))
+        off('__bss_start'),off('_end'),len(init)+len(module))
     layout = validate(x)
     padded = tree + bytes(-len(tree) % 8)
     expected = z + padded
@@ -138,10 +157,10 @@ def check(root, project):
     # Caller may create the payload only after all evidence passes.
     layout['diagnostic'] = {'watchdog_entry_offset':begin, 'watchdog_end_offset':end, 'watchdog_continuation_offset':continuation,
         'watchdog_instruction_sha256':digest(expected_wdt), 'framebuffer':'DRM allocated; no legacy raw framebuffer access',
-        'policy':'M2-BASELINE-02 shared core; 300s owner limit; offline only'}
+        'policy':'M2-BASELINE-03 shared core; 300s owner limit; offline only'}
     source_paths = ['kernel/diagnostic/board.c', 'kernel/diagnostic/policy.h', 'kernel/diagnostic/text.h',
         'kernel/diagnostic/pwrap.h', 'kernel/diagnostic/usb_clock.h', 'kernel/diagnostic/usb_state.h', 'kernel/diagnostic/usb_wake.h', 'initramfs/status.h',
-        'initramfs/init.c', 'initramfs/start.S', 'initramfs/relay.h', 'initramfs/evdev.h',
+        'initramfs/init.c', 'initramfs/start.S', 'initramfs/relay.h', 'initramfs/evdev.h', 'initramfs/display.h',
         'kernel/gpio/gpio-mt6582-input.c',
         'kernel/usb/y2_musb.c', 'kernel/usb/session.h', 'kernel/usb/gate.h', 'kernel/usb/live.h',
         'kernel/config/first-boot.config',
@@ -154,8 +173,10 @@ def check(root, project):
     layout['dt'] = decoded
     layout['sleep_syscall'] = sleep
     layout['usb'] = usb
+    layout['display_loader'] = {'syscalls': loader_calls, 'module_bytes': len(module),
+                                'module_sha256': digest(module), 'trigger': 'once after LOG1'}
     layout['artifacts'] = {name: {'bytes':len(data),'sha256':digest(data)} for name,data in
-        [('Image',image),('zImage',z),('y2.dtb',tree),('initramfs.cpio.gz',initrd),('init',init),('zImage-dtb',expected)]}
+        [('Image',image),('zImage',z),('y2.dtb',tree),('initramfs.cpio.gz',initrd),('init',init),('display.ko',module),('zImage-dtb',expected)]}
     layout['kernel_symbols'] = {name:kernel.sym(name) for name in ['_text','_edata','__bss_start','__bss_stop','_end']}
     layout['compressed_symbols'] = {name:comp.sym(name) for name in ['_start','restart','wont_overwrite','reloc_code_end','_edata','__bss_start','_end','LC1','input_data','input_data_end']}
     if (root / 'BOOTIMG.img').exists():

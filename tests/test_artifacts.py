@@ -31,7 +31,8 @@ class ActualArtifacts(unittest.TestCase):
     def test_actual_corruptions(self):
         files = ['kernel/.config','kernel/vmlinux','kernel/arch/arm/boot/Image',
                  'kernel/arch/arm/boot/zImage','kernel/arch/arm/boot/compressed/vmlinux',
-                 'y2.dtb','initramfs.cpio.gz','init','zImage-dtb','BOOTIMG.img']
+                 'y2.dtb','initramfs.cpio.gz','init','zImage-dtb','BOOTIMG.img',
+                 'display.ko','kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko','kernel/modules.order']
         def flip(data):
             b=bytearray(data); b[len(b)//2]^=1; return bytes(b)
         def replace(old,new):
@@ -40,6 +41,8 @@ class ActualArtifacts(unittest.TestCase):
                 return data.replace(old,new,1)
             return mutate
         cases = [
+          ('display.ko',flip),
+          ('kernel/modules.order',lambda b:b+b'drivers/unsafe.o\n'),
           ('kernel/.config',replace(b'# CONFIG_ARM_ATAG_DTB_COMPAT is not set',b'CONFIG_ARM_ATAG_DTB_COMPAT=y')),
           ('kernel/.config',replace(b'CONFIG_SMP=y',b'# CONFIG_SMP is not set')),
           ('kernel/.config',replace(b'CONFIG_PHYS_OFFSET=0x80000000',b'CONFIG_PHYS_OFFSET=0x00000000')),

@@ -125,7 +125,7 @@ static int __init y2_diagnostic_init(void)
     y2_power_done = true;
     y2_collect_power();
     y2_usb_begin();
-    pr_info("Y2BASELINE M2-BASELINE-02: USB independent of display; 300s owner window\n");
+    pr_info("Y2BASELINE M2-BASELINE-03: USB independent of display; 300s owner window\n");
     return ret;
 }
 device_initcall(y2_diagnostic_init);

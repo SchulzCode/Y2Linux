@@ -99,7 +99,7 @@ class CaptureArguments(unittest.TestCase):
         import contextlib
         import io
         from tools.observation.usb_log_capture import parse_args
-        for build in ('M2-BASELINE-01', 'M2-BASELINE-02'):
+        for build in ('M2-BASELINE-01', 'M2-BASELINE-02', 'M2-BASELINE-03'):
             args=['--build',build,'--output','unused-test-output']
             self.assertEqual(parse_args(args).seconds,180)
             self.assertEqual(parse_args(args+['--seconds','60']).seconds,60)

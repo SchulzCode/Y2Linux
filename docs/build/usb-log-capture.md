@@ -1,6 +1,6 @@
 # Capture Y2 CDC ACM logs
 
-Current integrated candidate: [M2-BASELINE-02 handoff](m2-baseline-02-result.md).
+Current integrated candidate: [M2-BASELINE-03 handoff](m2-baseline-03-result.md).
 Baseline captures default to 180 seconds; the owner power-on limit is 300 seconds.
 The older USBACM-04 procedure below retains its historical 60-second boundary.
 Use its single combined host capture for delayed open, paused reads and one

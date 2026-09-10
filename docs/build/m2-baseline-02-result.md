@@ -1,6 +1,8 @@
 # M2-BASELINE-02 — correct live display PHY handoff
 
-**Offline validated; stop for owner manual BOOTIMG flash.** M1 COMPLETE, M2 ACTIVE.
+**Owner tested: black/grey screen and no responding log relay.**
+The [hardware result](../knowledge/m2-baseline-hardware-result.md) supersedes the
+original offline handoff below. M1 COMPLETE, M2 ACTIVE.
 Build starts from `7c34d35` plus this source iteration. [BASELINE-01 captures](../knowledge/m2-baseline-hardware-result.md)
 confirm four CPUs, the five navigation channels, volume/Power, shared PMIC
 ownership and card identity, but show DSI failing before native display takeover.

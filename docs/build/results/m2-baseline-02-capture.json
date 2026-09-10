@@ -1,0 +1,39 @@
+{
+  "build": "M2-BASELINE-02",
+  "source_checkpoint": "89bb2d6",
+  "retained_directory": "evidence-private/20260910-baseline-hardware/baseline-02-capture-01",
+  "owner_screen": "LK logo followed by black/grey",
+  "capture": {
+    "status": "timeout",
+    "identity": {
+      "idVendor": "0525",
+      "idProduct": "a4a7",
+      "manufacturer": "Linux 6.18.0-y2-m2-baseline2 with musb-hdrc",
+      "product": "Gadget Serial v2.4",
+      "speed": "480",
+      "busnum": "5",
+      "devnum": "12",
+      "sysfs_path": "/sys/devices/pci0000:00/0000:00:08.1/0000:08:00.3/usb5/5-2",
+      "interface": {
+        "bInterfaceClass": "02",
+        "bInterfaceSubClass": "02",
+        "bInterfaceProtocol": "01"
+      },
+      "descriptors_hex": "12010002020000402505a7a418060102000109024b00020204c000080b00020202010709040000010202010505240010010524010001042402020524060001070582030a000909040100020a0000060705810200020007050102000200",
+      "dtr_asserted": true
+    },
+    "bytes": 0,
+    "started_utc": "2026-09-10T15:30:15.933113+00:00",
+    "seconds": 180.0,
+    "max_bytes": 1048576,
+    "requested_protocol": "LOG1",
+    "hardware_qualified": false,
+    "events": [],
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "protocol_header": false,
+    "command_sent": true,
+    "elapsed_ns": 180007569992,
+    "exit_code": 2
+  },
+  "interpretation": "Enumeration and host LOG1 send confirmed. No kernel/PID1 log or responding relay; display failure location unknown. Do not treat timeout/exit2 as a passed capture."
+}

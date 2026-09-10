@@ -55,12 +55,6 @@
       "result_sha256": "205a9d64e736d8ba5ae73bc70b2d861c0e93c1c2024047fb09faa01e716fe92f"
     },
     {
-      "path": "arch/arm/mach-mediatek/Kconfig",
-      "patch": "0002-y2-Kconfig.patch",
-      "base_sha256": "61790e35f9fbdb5dd524c658f041739b4cf52d8393962622d6cdb4a0f497506b",
-      "result_sha256": "254d777d1dc4d9e2572ffc6779db429c8b86c12a721f55af74985b8445736b15"
-    },
-    {
       "path": "drivers/Makefile",
       "patch": "0005-y2-drivers.patch",
       "base_sha256": "32d5e6823a71712aaab73276e574a8c24c386602c2c05a4085d1e2abfa381d01",
@@ -115,10 +109,16 @@
       "result_sha256": "0a351569415609dfc9ea29eb5661045451fa4a37fcb20a98b38cc70b84e19817"
     },
     {
+      "path": "arch/arm/mach-mediatek/Kconfig",
+      "patch": "0002-y2-Kconfig.patch",
+      "base_sha256": "61790e35f9fbdb5dd524c658f041739b4cf52d8393962622d6cdb4a0f497506b",
+      "result_sha256": "59df769e646edff398ae799f6fa4b7a02e9c7ef8c897676417598b806211e1d7"
+    },
+    {
       "path": "drivers/gpu/drm/mediatek/mtk_dsi.c",
       "patch": "0017-mt6582-dsi.patch",
       "base_sha256": "ae2af9a535188a35e6e6314e6554b15791553b94d19d3f0f768694adaf4bd477",
-      "result_sha256": "8d2a2099b584b60851b5744252974acabffb3d683589981ecc44a49931e30ed2"
+      "result_sha256": "cbd03b5140b26a0409c799f6c0da066d359b64b61dc802a1a155ebbda668eb6e"
     }
   ]
 }

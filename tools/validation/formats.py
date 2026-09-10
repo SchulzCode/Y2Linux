@@ -14,13 +14,15 @@ def gunzip(data, limit):
     return raw
 
 
-def cpio(data):
+def cpio(data, module=None):
     expected = [('.', stat.S_IFDIR | 0o755, 0, 0), ('dev', stat.S_IFDIR | 0o755, 0, 0),
                 ('dev/console', stat.S_IFCHR | 0o600, 5, 1),
                 ('dev/null', stat.S_IFCHR | 0o666, 1, 3),
                 ('dev/y2diag', stat.S_IFCHR | 0o600, 120, 0),
                 ('proc', stat.S_IFDIR | 0o555, 0, 0), ('sys', stat.S_IFDIR | 0o555, 0, 0),
                 ('init', stat.S_IFREG | 0o755, 0, 0), ('TRAILER!!!', 0, 0, 0)]
+    if module is not None:
+        expected.insert(-1, ('display.ko', stat.S_IFREG | 0o400, 0, 0))
     cursor = 0
     init = None
     for ino, (name, mode, major, minor) in enumerate(expected, 1):
@@ -42,6 +44,8 @@ def cpio(data):
         if name == 'init':
             require(0 < size <= 0x200000, 'unpacked file cap')
             init = body
+        elif name == 'display.ko':
+            require(body == module, 'packaged display module mismatch')
         else:
             require(size == 0, 'unexpected newc file contents')
         cursor += size

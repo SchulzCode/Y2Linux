@@ -4,7 +4,7 @@ from pathlib import Path
 import stat
 
 
-def archive(init):
+def archive(init, module=None):
     if not 0 < len(init) <= 0x200000:
         raise ValueError('D08 unpacked regular-file cap')
     entries = [('.', stat.S_IFDIR | 0o755, b'', 0, 0),
@@ -16,6 +16,10 @@ def archive(init):
                ('sys', stat.S_IFDIR | 0o555, b'', 0, 0),
                ('init', stat.S_IFREG | 0o755, init, 0, 0),
                ('TRAILER!!!', 0, b'', 0, 0)]
+    if module is not None:
+        if not module or len(init)+len(module)>0x200000:
+            raise ValueError('D08 combined regular-file cap')
+        entries.insert(-1, ('display.ko', stat.S_IFREG | 0o400, module, 0, 0))
     result = bytearray()
     for ino, (name, mode, data, major, minor) in enumerate(entries, 1):
         name = name.encode() + b'\0'
@@ -31,7 +35,9 @@ def archive(init):
 
 def main():
     root = Path('/build')
-    raw = archive((root / 'init').read_bytes())
+    module=(root/'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko').read_bytes()
+    (root/'display.ko').write_bytes(module)
+    raw = archive((root / 'init').read_bytes(),module)
     packed = gzip.compress(raw, compresslevel=9, mtime=0)
     if not 0 < len(packed) <= 0x80000:
         raise ValueError('D08 compressed initramfs cap')
