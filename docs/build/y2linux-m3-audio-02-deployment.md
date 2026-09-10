@@ -1,5 +1,10 @@
 # M3-AUDIO-02 — corrected PCM notification candidate
 
+Post-deployment update: the owner has flashed AUDIO-02 and the
+[ALSA tools are now installed persistently on SD](../knowledge/audio-tools-sd.md).
+Use standard `aplay`/`amixer` paths; the temporary-tool instructions below
+record the original artifact handoff and are superseded for this device.
+
 Owner manual deployment only. Built on 2026-09-10 from the startup fix in
 `137b3f2`, with release `6.18.0-y2linux-m3audio02`. M3-AUDIO-01 produced audible
 headphone sound with clicking; clean playback is not yet qualified. This fixes

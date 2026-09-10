@@ -1,0 +1,110 @@
+audio-tools.tar: OK
+runtime.sha256: OK
+/lib/libc.so.6: OK
+/lib/libm.so.6: OK
+/lib/ld-linux-armhf.so.3: OK
+usr/bin/amixer: OK
+usr/bin/aplay: OK
+usr/bin/speaker-test: OK
+usr/lib/libasound.so.2: OK
+usr/sbin/y2-audio-collect: OK
+usr/share/alsa/alsa.conf: OK
+usr/share/alsa/cards/AACI.conf: OK
+usr/share/alsa/cards/ATIIXP-MODEM.conf: OK
+usr/share/alsa/cards/ATIIXP-SPDMA.conf: OK
+usr/share/alsa/cards/ATIIXP.conf: OK
+usr/share/alsa/cards/AU8810.conf: OK
+usr/share/alsa/cards/AU8820.conf: OK
+usr/share/alsa/cards/AU8830.conf: OK
+usr/share/alsa/cards/Audigy.conf: OK
+usr/share/alsa/cards/Audigy2.conf: OK
+usr/share/alsa/cards/Aureon51.conf: OK
+usr/share/alsa/cards/Aureon71.conf: OK
+usr/share/alsa/cards/CA0106.conf: OK
+usr/share/alsa/cards/CMI8338-SWIEC.conf: OK
+usr/share/alsa/cards/CMI8338.conf: OK
+usr/share/alsa/cards/CMI8738-MC6.conf: OK
+usr/share/alsa/cards/CMI8738-MC8.conf: OK
+usr/share/alsa/cards/CMI8788.conf: OK
+usr/share/alsa/cards/CS46xx.conf: OK
+usr/share/alsa/cards/EMU10K1.conf: OK
+usr/share/alsa/cards/EMU10K1X.conf: OK
+usr/share/alsa/cards/ENS1370.conf: OK
+usr/share/alsa/cards/ENS1371.conf: OK
+usr/share/alsa/cards/ES1968.conf: OK
+usr/share/alsa/cards/Echo_Echo3G.conf: OK
+usr/share/alsa/cards/FM801.conf: OK
+usr/share/alsa/cards/FWSpeakers.conf: OK
+usr/share/alsa/cards/FireWave.conf: OK
+usr/share/alsa/cards/GUS.conf: OK
+usr/share/alsa/cards/HDA-Intel.conf: OK
+usr/share/alsa/cards/HdmiLpeAudio.conf: OK
+usr/share/alsa/cards/ICE1712.conf: OK
+usr/share/alsa/cards/ICE1724.conf: OK
+usr/share/alsa/cards/ICH-MODEM.conf: OK
+usr/share/alsa/cards/ICH.conf: OK
+usr/share/alsa/cards/ICH4.conf: OK
+usr/share/alsa/cards/Loopback.conf: OK
+usr/share/alsa/cards/Maestro3.conf: OK
+usr/share/alsa/cards/NFORCE.conf: OK
+usr/share/alsa/cards/PC-Speaker.conf: OK
+usr/share/alsa/cards/PMac.conf: OK
+usr/share/alsa/cards/PMacToonie.conf: OK
+usr/share/alsa/cards/PS3.conf: OK
+usr/share/alsa/cards/RME9636.conf: OK
+usr/share/alsa/cards/RME9652.conf: OK
+usr/share/alsa/cards/SB-XFi.conf: OK
+usr/share/alsa/cards/SI7018.conf: OK
+usr/share/alsa/cards/TRID4DWAVENX.conf: OK
+usr/share/alsa/cards/USB-Audio.conf: OK
+usr/share/alsa/cards/VIA686A.conf: OK
+usr/share/alsa/cards/VIA8233.conf: OK
+usr/share/alsa/cards/VIA8233A.conf: OK
+usr/share/alsa/cards/VIA8237.conf: OK
+usr/share/alsa/cards/VX222.conf: OK
+usr/share/alsa/cards/VXPocket.conf: OK
+usr/share/alsa/cards/VXPocket440.conf: OK
+usr/share/alsa/cards/YMF744.conf: OK
+usr/share/alsa/cards/aliases.conf: OK
+usr/share/alsa/cards/pistachio-card.conf: OK
+usr/share/alsa/cards/vc4-hdmi.conf: OK
+usr/share/alsa/ctl/default.conf: OK
+usr/share/alsa/pcm/center_lfe.conf: OK
+usr/share/alsa/pcm/default.conf: OK
+usr/share/alsa/pcm/dmix.conf: OK
+usr/share/alsa/pcm/dpl.conf: OK
+usr/share/alsa/pcm/dsnoop.conf: OK
+usr/share/alsa/pcm/front.conf: OK
+usr/share/alsa/pcm/hdmi.conf: OK
+usr/share/alsa/pcm/iec958.conf: OK
+usr/share/alsa/pcm/modem.conf: OK
+usr/share/alsa/pcm/rear.conf: OK
+usr/share/alsa/pcm/side.conf: OK
+usr/share/alsa/pcm/surround21.conf: OK
+usr/share/alsa/pcm/surround40.conf: OK
+usr/share/alsa/pcm/surround41.conf: OK
+usr/share/alsa/pcm/surround50.conf: OK
+usr/share/alsa/pcm/surround51.conf: OK
+usr/share/alsa/pcm/surround71.conf: OK
+usr/share/y2linux/audio/README.txt: OK
+usr/share/y2linux/audio/headphone-44100.wav: OK
+usr/share/y2linux/audio/headphone-48000.wav: OK
+aplay: version 1.2.13 by Jaroslav Kysela <perex@perex.cz>
+amixer version 1.2.13
+**** List of PLAYBACK Hardware Devices ****
+card 0: Y2Audio [Y2Audio], device 0: Y2 Headphone Playback (*) []
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+null
+    Discard all samples (playback) or generate zero samples (capture)
+default:CARD=Y2Audio
+    Y2Audio, 
+    Default Audio Device
+sysdefault:CARD=Y2Audio
+    Y2Audio, 
+    Default Audio Device
+Simple mixer control 'Headphone',0
+  Capabilities: pswitch pswitch-joined
+  Playback channels: Mono
+  Mono: Playback [off]
+Persistent ALSA tools installed on Y2ROOT; no playback or mixer changes.
