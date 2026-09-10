@@ -88,7 +88,10 @@ static void log_file(const char *path)
         n=call5(3,fd,(long)input,2048,0,0);
         if(n==-4)continue;
         if(n<=0)break;
-        relay_log(input,(unsigned)n);used+=(unsigned)n;relay_service();
+        relay_log(input,(unsigned)n);used+=(unsigned)n;
+        /* Keep kernel record headers at line boundaries between snapshot chunks. */
+        if (input[n-1] != '\n') relay_log("\nSNAPSHOT CONTINUED\n",20);
+        relay_service();
     }
     if(n<0||used>=65536)nav_log("SNAPSHOT_ERR",beat,n<0?n:-75,used);
     call5(6,fd,0,0,0,0);
@@ -101,7 +104,10 @@ static void baseline_snapshot(void)
         "/proc/interrupts","/proc/cmdline","/proc/bus/input/devices",
         "/sys/kernel/debug/clk/clk_summary","/sys/kernel/debug/devices_deferred",
         "/sys/kernel/debug/regulator/regulator_summary",
-        "/sys/class/power_supply/y2-usb-presence/uevent"};
+        "/sys/class/power_supply/y2-usb-presence/uevent",
+        "/proc/mounts","/proc/partitions","/proc/net/dev",
+        "/sys/kernel/debug/dri/0/state","/sys/class/graphics/fb0/virtual_size",
+        "/sys/class/graphics/fb0/bits_per_pixel","/sys/class/backlight/y2-backlight/actual_brightness"};
     for(unsigned i=0;i<sizeof(files)/sizeof(files[0]);++i)log_file(files[i]);
 }
 static void file_row(unsigned row,const char *key,const char *path,const char *field_key)
@@ -139,11 +145,9 @@ static void dt_rows(void)
     if(found) row_pair(screen.rows[4],"SOC: ","MT6582 (DT DESCRIBED)");
     else { row_code(screen.rows[4],"SOC DT ERR: ",n<0?n:-61);error("SOC DT",n<0?n:-61); }
     n=read_file("/sys/firmware/devicetree/base/memory@80000000/reg");
-    if(n==16 && be32((unsigned char*)input)==0x80000000 &&
-       be32((unsigned char*)input+4)==0x01800000 &&
-       be32((unsigned char*)input+8)==0x84000000 &&
-       be32((unsigned char*)input+12)==0x00080000)
-        row_pair(screen.rows[6],"DT RAM: ","24M + 512K (D08 STATIC)");
+    if(n==8 && be32((unsigned char*)input)==0x80000000 &&
+       be32((unsigned char*)input+4)==0x3e000000)
+        row_pair(screen.rows[6],"DT RAM: ","992M MINUS RESERVATIONS");
     else { row_code(screen.rows[6],"DT RAM ERR: ",n<0?n:-22);error("DT RAM",n<0?n:-22); }
 }
 static long sleep_one(void)
@@ -313,28 +317,27 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
         call5(4,1,(long)msg,sizeof(msg)-1,0,0);call5(1,0,0,0,0,0);
         for(;;) {}
     }
+    if(stack[0]==2 && starts(argv[1],"--resume") && !argv[1][8]) relay.resume=1;
     for(row=0;row<Y2_ROWS;++row) row_clear(screen.rows[row]);
     screen.magic=Y2_TEXT_MAGIC;
     row_pair(screen.rows[12],"LAST ERR: ","NONE");
-    row_pair(screen.rows[15],"BUILD: ","M2-BASELINE-03");
+    row_pair(screen.rows[15],"BUILD: ","Y2LINUX-DEV-01");
     row_pair(screen.rows[16],"TRUNCATED TEXT: ","~ ; ERRORS: -ERRNO");
-    row_pair(screen.rows[17],"SCOPE: ","M2 CORE / INITRAMFS ONLY");
-    row_pair(screen.rows[18],"HOST LIMIT: ","300S FROM POWER-ON");
-    row_pair(screen.rows[19],"END: ","MANUAL BOOTIMG RESTORE");
-    if(call5(20,0,0,0,0,0)!=1) { call5(1,2,0,0,0,0);for(;;) {} }
+    row_pair(screen.rows[17],"SCOPE: ","BUILDROOT / RESCUE OBSERVER");
+    row_pair(screen.rows[18],"HOST LIMIT: ","PERSISTENT DEVELOPMENT");
+    row_pair(screen.rows[19],"END: ","OWNER CONTROLLED POWER");
     diagnostic=call5(5,(long)"/dev/y2diag",2,0,0,0);
     if(diagnostic<0) goto stop; /* Kernel WAITING screen remains; no unsafe fallback. */
     present("PID1 ENTER");
-    proc=call5(21,(long)"proc",(long)"/proc",(long)"proc",14,0);
+    proc=0; /* /init or Buildroot mounts proc before starting this observer. */
     row_code(screen.rows[10],"PROC MOUNT RC: ",proc);if(proc<0) error("MOUNT PROC",proc);
     present("PROC MOUNT DONE");
-    sys=call5(21,(long)"sysfs",(long)"/sys",(long)"sysfs",15,0);
+    sys=0;
     row_code(screen.rows[11],"SYSFS MOUNT RC: ",sys);if(sys<0) error("MOUNT SYS",sys);
     present("SYSFS MOUNT DONE");
-    call5(21,(long)"debugfs",(long)"/sys/kernel/debug",(long)"debugfs",15,0);
     nav_open();
     /* Visible loop starts before optional collection; no UART writes here. */
-    for(beat=0;beat<285;) {
+    for(beat=0;;) {
         long slept;
         present("WAIT 1S / LOOP LIVE");
         slept=sleep_one();row_code(screen.rows[13],"SLEEP RC: ",slept);
@@ -352,7 +355,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
         present("READ UPTIME");file_row(8,"UPTIME/IDLE S: ","/proc/uptime",0);
         present("READ TIMER IRQ");timer_row();
         nav_service();
-        row_pair(screen.rows[15],"BUILD: ","M2-BASELINE-03");
+        row_pair(screen.rows[15],"BUILD: ","Y2LINUX-DEV-01");
         row_number(screen.rows[15],row_add(screen.rows[15],22,
                    nav.result ? "INPUT RC:" : "KEYS:"),
                    nav.result ? nav.result : (long)nav.events);

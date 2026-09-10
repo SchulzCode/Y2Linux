@@ -1,0 +1,100 @@
+{
+  "candidate": "Y2LINUX-DEV-01",
+  "analysis_checkpoint": "2efcdc1",
+  "git_head_at_packaging": "2efcdc107c137af60b6bffc3ed61f18a5016796a",
+  "source_state": "reviewed working tree; exact project source hashes in source-manifest.json",
+  "kernel_release": "6.18.0-y2linux-dev01",
+  "buildroot": {
+    "version": "2025.02.17",
+    "url": "https://buildroot.org/downloads/buildroot-2025.02.17.tar.xz",
+    "sha256": "13618704563ad0b928a4564aaa73e2db97e12e8df0ed5ae874744a83964a023a",
+    "source_date_epoch": 1787518700,
+    "toolchain": "Bootlin armv7-eabihf glibc stable 2024.05-1 (Buildroot hash checked)"
+  },
+  "public_key_fingerprint": "SHA256:IS9HhrmQKRtlEEbrcJjZa0XQHVwnRXRUzQQ61/7XAb8",
+  "public_key_file_sha256": "bf9cc937fb5dcee8569514b674fb9b3d5ba25396162efac7e8854f88bfe98c25",
+  "ram_before_kernel_bytes": 997179392,
+  "physical_status": "UNTESTED; latest physical result remains BASELINE-03 capture-02",
+  "deployment": "owner manual removable-SD partition and BOOTIMG only",
+  "validation": "one clean kernel tree, one Buildroot tree; corrections in place; targeted tests, ELF/DT/layout/BOOTIMG, ARM userspace checks, e2fsck and independent ext4/tar content comparison",
+  "known_limits": [
+    "visible output and wheel recovery unproved",
+    "large RAM/SD/ACM+ECM/reconnect/SSH need Y2 qualification",
+    "initial SD: 1-bit, at most 13 MHz; root filesystem 512 MiB",
+    "boot USB unplugged, then attach; inherited power-state guard retained"
+  ],
+  "artifacts": {
+    "BOOTIMG.img": {
+      "bytes": 4675584,
+      "sha256": "59f2d5980cdcfe0f7da3f6ec76f7c653528dddc481173660f3b99f615bded9ff"
+    },
+    "rootfs.ext4": {
+      "bytes": 536870912,
+      "sha256": "ecf7f9a448e708f9a1c023443ab4d4a9a22d9ab4e8e812b3319b58770dbd2ed3"
+    },
+    "rootfs.tar": {
+      "bytes": 19025920,
+      "sha256": "e2eaeac8d0f954e60d24b83367f9946ef0f28656831d720b9e0e9b2fb0819648"
+    },
+    "kernel.config": {
+      "bytes": 72938,
+      "sha256": "88d6b6fa33699d10c2b7b063d5e6fec33db6f36fc39a4958b51bb32e0f48a640"
+    },
+    "buildroot.config": {
+      "bytes": 124825,
+      "sha256": "4bbe2421e4ac3e1ac1c4c422f2ec0e06ee1ed2f5f5699513f6d24358bca58540"
+    },
+    "y2.dtb": {
+      "bytes": 7762,
+      "sha256": "42eab3256d7c97ea209d61351c3e8a94a24f2a6c44d9c4767fdbf762f3bab74c"
+    },
+    "Image": {
+      "bytes": 9491616,
+      "sha256": "1544c396d62bf088f96d9b5b73278d17364f5f9539eff973a3c7037ef74d3c73"
+    },
+    "zImage": {
+      "bytes": 3099304,
+      "sha256": "c53a2a3a87fe7661618d66ed98c20bf3c25d10087736f1e091c42534d8ad60fa"
+    },
+    "zImage-dtb": {
+      "bytes": 3107072,
+      "sha256": "12d1b624dbf3e63d7dedaf1faf2e7d9ca5f40d6504f4ae3e9a04b2b329b94104"
+    },
+    "initramfs.cpio.gz": {
+      "bytes": 1559746,
+      "sha256": "11ab7d4f452452fb8d72f8d887b17aa0ce82ee2acb359e71cde93d79e90cd9a8"
+    },
+    "display.ko": {
+      "bytes": 158300,
+      "sha256": "e64413d819f3e7dea6d93e155fad1cad4caa588353d138e3e0c7feeee2602aa6"
+    },
+    "y2-observer": {
+      "bytes": 817524,
+      "sha256": "f950828638ad6f732cf778b89269934e14b04224b42b5d74c0c12c40aff4b1c9"
+    },
+    "y2-fbtest": {
+      "bytes": 8204,
+      "sha256": "77f35da4b0a584b645a4a7f607dbe10620ef04f6dbe2fa632ebbff56a6382d35"
+    },
+    "layout.json": {
+      "bytes": 3726,
+      "sha256": "8e032d553da63494778ea2bf6b1383500ed10b2d5cf4d70f7b7a2c127479f07f"
+    },
+    "rescue-manifest.json": {
+      "bytes": 5677,
+      "sha256": "79c1f580fbdb44f8a25eccffafc1f809843f1e67ad20f026ecec22c2560c10db"
+    },
+    "rootfs-validation.json": {
+      "bytes": 805,
+      "sha256": "ad3bcd1889f194aba6f8745543927503fdee451d43347262f6a3f0b63f53d8f5"
+    },
+    "source-manifest.json": {
+      "bytes": 14755,
+      "sha256": "c92e055c7c0049c42738d14f97d4be8157bdd6e8e6995c5c3f69a410fac44059"
+    },
+    "DEPLOYMENT.md": {
+      "bytes": 6297,
+      "sha256": "a8e077fb89be972baeba8fc146ba7a9707aa94ecf7e8baaee6d2313a0c75c976"
+    }
+  }
+}

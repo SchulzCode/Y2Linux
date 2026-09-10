@@ -2,6 +2,7 @@
 typedef unsigned int u32;
 static struct { long tty,kmsg,result;unsigned active,tail; } relay;
 static unsigned nr_calls[400], aff_mask, close_count, finit_count;
+static unsigned module_present;
 static long fork_result=73,wait_result,aff_result,open_result=7,finit_result;
 static char output[8192];static unsigned used;
 static void fail(int line);
@@ -12,7 +13,7 @@ static long call5(long nr,long a,long b,long c,long d,long e) {
  if(nr==241) {CHECK(!a && b==4);aff_mask=*(unsigned *)c;return aff_result;}
  if(nr==120) {CHECK(a==17 && !b && !c);return fork_result;}
  if(nr==114) {CHECK(a==73 && c==1 && !d);*(int *)b=0;return wait_result;}
- if(nr==5) {CHECK(b==0 || b==1);return open_result;}
+ if(nr==5) {CHECK(b==0 || b==1);if(((char *)a)[1]=='s') return module_present ? 7 : -2;return open_result;}
  if(nr==6) {close_count++;return 0;}
  if(nr==4) return c;
  if(nr==379) {CHECK(a==7 && !*(char *)b && !c);finit_count++;return finit_result;}
@@ -24,12 +25,10 @@ static void reset(void) {
  relay.active=relay.tail=0;relay.tty=3;relay.kmsg=4;relay.result=0;
  for(unsigned i=0;i<400;++i) nr_calls[i]=0;
  fork_result=73;wait_result=aff_result=finit_result=0;open_result=7;
- aff_mask=close_count=finit_count=used=0;
+ aff_mask=close_count=finit_count=used=module_present=0;
 }
 static int test(void) {
- reset();display_service(15);CHECK(!display.attempted && !nr_calls[120]);
- relay.active=1;display_service(15);CHECK(!display.attempted);
- relay.tail=20;display_service(12);CHECK(!display.attempted && !nr_calls[120]);
+ reset();display_service(3);CHECK(!display.attempted && !nr_calls[120]);
  display_service(15);
  CHECK(display.pid==73 && nr_calls[120]==1 && nr_calls[114]==1 && aff_mask==1);
  CHECK(!nr_calls[379]); /* PID1 never loads synchronously */
@@ -41,7 +40,8 @@ static int test(void) {
  CHECK(display.attempted && !display.pid && !nr_calls[114]);
  reset();relay.active=relay.tail=1;aff_result=-22;display_service(20);
  CHECK(display.attempted && !nr_calls[120]);
- reset();relay.active=relay.tail=1;display_service(240);CHECK(!nr_calls[120]);
+ reset();relay.active=relay.tail=1;display_service(240);CHECK(nr_calls[120]==1);
+ reset();module_present=1;display_service(20);CHECK(display.attempted && !nr_calls[120]);
  reset();relay.active=relay.tail=1;display_service(20);wait_result=-4;
  display_service(21);CHECK(display.pid==73);wait_result=-10;display_service(22);CHECK(!display.pid);
  reset();CHECK(display_child()==0 && finit_count==1 && aff_mask==2 && close_count==4);

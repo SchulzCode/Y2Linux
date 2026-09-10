@@ -6,6 +6,61 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Y2LINUX-DEV-01 manual-deployment boundary audit — 2026-09-10
+
+Offline implementation and the combined candidate are now built and validated:
+[DEV-01 result](../build/y2linux-dev-01-result.md), [memory reconciliation](../knowledge/development-memory.md).
+Rechecked every hardware coverage row against the retained BASELINE-03 capture
+and owner observations. No newer physical capture exists, so **no physical
+classification or milestone exit is promoted**. M1 COMPLETE; M2 ACTIVE/exit
+incomplete; audio/application, radio, product PM/security and later milestones
+retain their gaps and owners.
+
+The owner-specified ED25519 public key is packaged; no host private key was
+accessed. Kernel/module, large-memory DT, rescue archive, actual pinned Buildroot,
+ext4/tar content and key policy pass offline validation. Rootfs/ECM/SSH now have
+built implementations; their physical state remains untested. SD writes and
+BOOTIMG flashing remain owner-only. Next action is one manual deployment and
+combined visible-display, wheel, RAM, SD, persistent USB/network/SSH collection.
+No unchanged ROM/recovery provenance or duplicate clean build was repeated.
+
+## Y2LINUX-DEV-01 integration scope audit — 2026-09-10
+
+Fresh-session local baseline **2efcdc1**, clean main; current open issues #16,
+#22–32 agree with the local BASELINE-03 checkpoint. Reviewed all coverage rows,
+retained capture-02 (102314 bytes, all 606 kernel records, 180 seconds), source
+and artifact metadata. No new hardware success is claimed. Owner confirms an
+earlier wheel-working integrated baseline; its exact artifact identity is not
+established in the retained canonical captures. Treat current eight -110 reads
+as an integration regression and preserve register-zero repeated-start framing.
+
+The owner now explicitly authorizes **one integrated development candidate**:
+post-modeset display fixes/diagnostics at 480x360; wheel transport correction;
+large RAM with explicit reservations and HIGHMEM; pinned ARMv7 hard-float glibc
+Buildroot; removable-SD ext4 LABEL=Y2ROOT; rescue initramfs; persistent ACM+ECM;
+key-only Dropbear. This supersedes D08 as the final target, identity-only SD and
+temporary USB disconnect deadlines. Internal eMMC remains protected; no assistant
+flash, SD write, loader/partition/calibration/Android write is authorized.
+
+Every physical coverage classification below remains unchanged. Display remains
+PARTIAL with failed visible output despite successful DRM initialization. Wheel
+remains PARTIAL with working historical owner observation and current transport
+regression. RAM, removable SD and USB are PARTIAL; Buildroot/rootfs/SSH are
+PLANNED pending implementation/build and then physical qualification. SMP and
+buttons retain their narrow successes. All power/thermal, audio, radio, recovery,
+production security, time/entropy and application gaps retain their existing
+owners and limitations. M1 COMPLETE; M2 ACTIVE/exit incomplete; M3/application
+and later product phases are not activated. Existing #22–28 own this work;
+#30 retains sustained-workload/power qualification and #32 production policy.
+
+Proceed offline together, preserving attribution/identity and unchanged donor,
+ROM and recovery provenance. One clean kernel tree, one pinned Buildroot build,
+changed-subsystem tests and full new memory/layout/BOOTIMG/rootfs validation.
+Record exact artifact hashes and remaining physical tests. Stop for owner manual
+SD identification/write and BOOTIMG-only deployment. Permanent USB observation
+is a development capability, not sustained power/thermal qualification. Re-audit
+before milestone closure using the subsequently collected real hardware results.
+
 ## BASELINE-03 hardware evidence update — 2026-09-10
 
 Owner capture-02 restores complete kernel/PID1 observation for180seconds, including
@@ -602,20 +657,20 @@ Status measures our hardware; registration alone never establishes consumer oper
 | --- | --- | --- | --- |
 | Physical Linux + initramfs + native PID1 | **CONFIRMED** | Owner reports 6.18.0-y2-m1, PID1, mounts, increasing BEAT/uptime and working sleep. [Result](../knowledge/m1-runtime-hardware-result.md). | Closed M1 / #20–21; core stays achieved. |
 | Boot/kernel stability and maintenance | **PARTIAL** | Reproducible offline artifacts and a working run exist; exact flashed hash for latest report, repeated cold/warm boots, duration, timing accuracy, stress and maintained 6.18.y selection are not qualified. | Y2H-300 #28; maintenance/release policy #32. |
-| RAM and reserved/DMA ownership | **PARTIAL** | D08 24.5 MiB described map is visible; photographed MemTotal 22208 kB; working-set adequacy, expanded banks, heap/high carveouts and full DMA containment remain open. [Map](../knowledge/initial-ram-map.md). | #22; #28. No automatic expansion. |
+| RAM and reserved/DMA ownership | **PARTIAL** | D08 24.5 MiB described map is visible; photographed MemTotal 22208 kB; DEV-01 now builds the 992 MiB bank with explicit reservations and HIGHMEM (about 951 MiB before kernel allocations); physical stability and full DMA containment remain open. [Successor map](../knowledge/development-memory.md). | #22; #28. Owner-authorized development qualification. |
 | SMP | **PARTIAL** | All four CPUs online with advancing timer-broadcast/cross-CPU IPIs in BASELINE-01; SMP stress/coherency/PM not qualified. | #28; optional for first wired player. |
 | Clocks, resets, pinctrl/GPIO/IRQ and I2C | **PARTIAL** | Shared CCF/pinctrl/EINT/PWRAP and I2C providers probe. Navigation, keypad and PMIC EINT25 operate. BASELINE-03 confirms wheel EINT55 activity, but eight I2C reads time out with no completion IRQ; full rates/pads and reset ownership unqualified. | #23/#24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Watchdog and controlled reset | **PARTIAL** | Reviewed early AP_RGU stop and displayed stopped state; no production driver takeover, pet/timeout strategy, deliberate reset or restart qualification. | #28 with #30. Preserve current experiment behavior. |
-| On-device diagnostic channel | **PARTIAL** | Earlier inherited text worked; current integrated baseline shows only LK logo because DSI probe fails. USB logs remain the working diagnostic channel. | #20–21; [result](../knowledge/m1-runtime-hardware-result.md). |
-| Developer host logs / USB | **PARTIAL** | BASELINE-03 restores all initial kernel records and PID1 observation for180seconds through DRM loading. Reconnect and five-minute cutoff remain unqualified; fix snapshot line interleaving without changing the single USB writer. | #27, #23, #28. |
+| On-device diagnostic channel | **PARTIAL** | Earlier inherited text worked; BASELINE-03 completes DRM takeover but the owner sees black. USB logs remain the working diagnostic channel. | #20–21; [result](../knowledge/m1-runtime-hardware-result.md). |
+| Developer host logs / USB | **PARTIAL** | BASELINE-03 restores all initial kernel records and PID1 observation for180seconds through DRM loading. DEV-01 implements persistent ACM+ECM, repeated reconnect and corrected snapshot framing; the expanded composite function is not yet physically qualified. | #27, #23, #28. |
 | Physical UART / early crash capture | **UNKNOWN** | UART0 candidate exists; no pad/level/wire capture. Ramoops retention/reader is unproved. USB cannot log hangs before its initialization. | Existing #16; broader crash/debug policy #32. |
 | Display/controller/panel | **PARTIAL** | BASELINE-03 logs live-PHY adoption, DSI park, cold Linux PHY power and successful DRM/fb0/module initialization. Owner sees black; visible output fails and its cause remains unknown. Preserve post-modeset observation; do not confuse probe success with panel qualification. | #25/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Backlight | **PARTIAL** | Four inherited PWM channels accepted at duty32/32, step5 unchanged. Native brightness changes and panel sequencing untested. | #25/#23; #28/#30. |
 | Wheel/select input | **PARTIAL** | Select and four navigation channels have balanced evdev events. BASELINE-03 wheel EINT55 fires8times, but all eight frame reads time out (-110) with I2C completion IRQ0; no scroll events. Diagnose transport before decoding. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation codes, both volume keys and Power have press/release events; keypad and PMIC IRQ counts agree. Wake deferred; no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
-| Removable SD | **PARTIAL** | BASELINE-01 identifies SDXC through native MSDC under <=400kHz/one-bit policy. No block device, disk write/mount or throughput/filesystem qualification. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Internal eMMC | **PARTIAL** | Native CMD2/CMD9 identity works. CMD6 is intentionally rejected (-EROFS); configuration, block access and every write remain excluded. | #28; recovery/rootfs policy #32. |
-| Development rootfs and filesystem/data layout | **PLANNED** | Current image is diagnostic initramfs only. Block access, filesystem, writable-data boundaries and recoverable rootfs deployment were absent beyond broad blueprint intent. | Added #28/#32; no distribution/layout chosen. |
+| Removable SD | **PARTIAL** | BASELINE-01 identifies SDXC through native MSDC under <=400kHz/one-bit policy. DEV-01 implements removable-only writable block/ext4 root at one bit, maximum 13 MHz; SD root boot/write/throughput remain unqualified. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
+| Internal eMMC | **PARTIAL** | Native CMD2/CMD9 identity works. CMD6 is intentionally rejected (-EROFS); DEV-01 disables the internal host entirely and retains the read-only compatible firewall. | #28; recovery/rootfs policy #32. |
+| Development rootfs and filesystem/data layout | **PLANNED** | DEV-01 now contains built Buildroot/glibc, ext4 Y2ROOT, rescue fallback, ECM and key-only SSH. Offline validation passes; physical SD root and SSH acceptance remain untested. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
 | PMIC/battery/charger telemetry | **PARTIAL** | Photographed native PWRAP CID 0x2023/VUSB 0xc000 reads work; CHRDET follows reported startup cable state ([result](../knowledge/m2-chrdet-hardware-result.md)). Duplicate Android battery fields still conflict. No trustworthy units/calibration, native gauge/charger policy or voltage measurement. | #23; added #30. |
 | Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |
 | cpufreq/voltage/OPP and cpuidle | **UNKNOWN** | Minimal config does not establish frequency/voltage transitions or idle states. Shared clocks/rails precede optimization. | #30 with #28. |
@@ -628,7 +683,7 @@ Status measures our hardware; registration alone never establishes consumer oper
 | FM where physically supported | **PARTIAL** | Donor STP/FM/AFE source exists; owner confirms this older Y2 lacks usable reception hardware. No reception implementation/qualification target for this board; other revisions remain untested. | Conditional #31/M16 reference only; [donor audit](../knowledge/donor-audit.md). |
 | Recovery and safe acquisition | **PARTIAL** | Owner-proven SPFT/FM history plus documented BOOTIMG-only Android restoration. Exact current image/per-device backups, consistency and independent retention remain incomplete. [Recovery](../knowledge/recovery.md), [actual trial](../knowledge/first-experiment-result.md). | Open M0; #32 owns continuing production/recovery coverage. |
 | Updates / rollback / production security | **PLANNED** | Blueprint names signatures/rollback; no reviewed storage/key/threat/interrupt-safe updater design. Unchanged LK does not automatically verify custom payloads. | Added #32; M18–20 platform handoff, not implementation now. |
-| Production rootfs / services / non-root app contract | **PLANNED** | No rootfs/udev/service stack yet. ARMv7 ABI, filesystem permissions, startup/restart policy, footprint and privileged-service boundary need design. | #32 (M6); app implementation belongs to native repo M7+. |
+| Production rootfs / services / non-root app contract | **PLANNED** | DEV-01 has a development BusyBox-init/glibc/Dropbear stack. Production services, non-root app boundaries and lifecycle policy remain unimplemented; no native app starts. | #32 (M6); app implementation belongs to native repo M7+. |
 | Time/RTC, entropy, identity and diagnostic privacy | **UNKNOWN** | Wall-clock persistence/source, entropy readiness and secret-redacted export policy not yet qualified. No physical RTC assumed. Relevant to TLS, updates and later history. | #31/#32; added explicit cross-cutting coverage. |
 
 ## Gaps found and minimum additions

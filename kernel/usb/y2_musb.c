@@ -20,8 +20,7 @@ static DEFINE_SPINLOCK(y2_usb_failure_lock);
 static struct y2_usb_live y2_live = { .magic=Y2_USB_LIVE_MAGIC,.devctl=0x100 };
 static bool y2_usb_started, y2_usb_finished;
 static bool y2_usb_detached;
-static unsigned y2_usb_detaches;
-static unsigned long y2_usb_deadline, y2_irq_tick;
+static unsigned long y2_irq_tick;
 static unsigned y2_irq_burst;
 static void y2_usb_worker(struct work_struct *work);
 static DECLARE_DELAYED_WORK(y2_usb_work,y2_usb_worker);
@@ -83,12 +82,17 @@ static int y2_musb_fifos(struct musb *musb)
     void __iomem *b=musb->mregs;
     u8 index=readb(b+MUSB_INDEX);
     int ok;
-    /* EP0=64; EP1 TX/RX=512 each; EP2 TX=512. Single buffering, 1600 B. */
+    /* ECM/ACM: two bulk pairs and two 16-byte notifications, 2144 bytes. */
     writeb(1,b+MUSB_INDEX);
     ok=readb(b+MUSB_TXFIFOSZ)==6 && readb(b+MUSB_RXFIFOSZ)==6 &&
         readw(b+MUSB_TXFIFOADD)==8 && readw(b+MUSB_RXFIFOADD)==72;
     writeb(2,b+MUSB_INDEX);
-    ok=ok && readb(b+MUSB_TXFIFOSZ)==6 && readw(b+MUSB_TXFIFOADD)==136;
+    ok=ok && readb(b+MUSB_TXFIFOSZ)==1 && readw(b+MUSB_TXFIFOADD)==136;
+    writeb(3,b+MUSB_INDEX);
+    ok=ok && readb(b+MUSB_TXFIFOSZ)==6 && readb(b+MUSB_RXFIFOSZ)==6 &&
+        readw(b+MUSB_TXFIFOADD)==138 && readw(b+MUSB_RXFIFOADD)==202;
+    writeb(4,b+MUSB_INDEX);
+    ok=ok && readb(b+MUSB_TXFIFOSZ)==1 && readw(b+MUSB_TXFIFOADD)==266;
     writeb(index,b+MUSB_INDEX);
     return ok;
 }
@@ -213,11 +217,13 @@ static const struct musb_platform_ops y2_musb_ops={
 };
 static const struct musb_fifo_cfg y2_fifo[]={
     MUSB_EP_FIFO_SINGLE(1,FIFO_TX,512),MUSB_EP_FIFO_SINGLE(1,FIFO_RX,512),
-    MUSB_EP_FIFO_SINGLE(2,FIFO_TX,512),
+    MUSB_EP_FIFO_SINGLE(2,FIFO_TX,16),
+    MUSB_EP_FIFO_SINGLE(3,FIFO_TX,512),MUSB_EP_FIFO_SINGLE(3,FIFO_RX,512),
+    MUSB_EP_FIFO_SINGLE(4,FIFO_TX,16),
 };
 static const struct musb_hdrc_config y2_musb_config={
     .fifo_cfg=y2_fifo,.fifo_cfg_size=ARRAY_SIZE(y2_fifo),.multipoint=true,
-    .num_eps=3,.ram_bits=11,.maximum_speed=USB_SPEED_HIGH,
+    .num_eps=5,.ram_bits=11,.maximum_speed=USB_SPEED_HIGH,
 };
 static const struct musb_hdrc_platform_data y2_musb_data={
     .mode=MUSB_PERIPHERAL,.config=&y2_musb_config,.platform_ops=&y2_musb_ops,
@@ -282,7 +288,7 @@ static void y2_usb_detach(void)
     spin_unlock_irqrestore(&y2_musb->lock,flags);
     y2_session_end(&session,&y2_session);
     WRITE_ONCE(y2_live.devctl,readb(y2_musb->mregs+MUSB_DEVCTL));
-    pr_info("Y2USB detached; PID1 continues; one reconnect allowed\n");
+    pr_info("Y2USB detached; PID1 continues; persistent reconnect enabled\n");
 }
 static int y2_usb_reconnect(void)
 {
@@ -328,7 +334,7 @@ static void y2_usb_worker(struct work_struct *work)
     struct y2_pwrap_snapshot power;
     int rc;
     if(y2_usb_finished) return;
-    if(READ_ONCE(y2_live.result) || time_after_eq(jiffies,y2_usb_deadline)) goto done;
+    if(READ_ONCE(y2_live.result)) goto done;
     y2_pmic_snapshot(&power);
     ++y2_live.polls;
     if(power.result || power.valid!=7 || !(power.vusb&0x8000)) {
@@ -349,7 +355,6 @@ static void y2_usb_worker(struct work_struct *work)
     if(y2_musb) {
         if(!(power.chrdet&0x20)) {
             if(!y2_usb_detached) {
-                if(y2_usb_detaches++) goto done; /* one reconnect, no deadline extension */
                 y2_usb_detach();
             }
             goto again;
@@ -383,7 +388,6 @@ static void y2_usb_begin(void)
     y2_usb_phy=ioremap(Y2_USB_PHY_BASE,Y2_USB_PHY_BYTES);
     if(!y2_usb_phy) {release_mem_region(Y2_USB_PHY_BASE,Y2_USB_PHY_BYTES);
         y2_usb_fail(-ENOMEM);y2_usb_finish();return;}
-    y2_usb_deadline=jiffies+msecs_to_jiffies(295000);
     y2_usb_phase(Y2_USB_ATTACH);
     schedule_delayed_work(&y2_usb_work,msecs_to_jiffies(250));
 }

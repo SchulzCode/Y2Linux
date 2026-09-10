@@ -96,7 +96,7 @@ static void run(void) {
     command("LO");service();CHECK(!relay.active);
     command("G1\n");partial=1;service();CHECK(relay.active && seeked==1 && output_n==24);
     for(unsigned i=0;i<100;++i) service();
-    CHECK(contains("Y2LOG1 M2-BASELINE-03\nPID1 startup\n"));
+    CHECK(contains("Y2LOG1 Y2LINUX-DEV-01\nPID1 startup\n"));
     CHECK(contains("6,17,1000,-;kernel fixture\n") && relay.head==relay.tail);
     relay_log("PID1 live\n",10);partial=0;service();CHECK(contains("PID1 live\n"));
     block=1;
@@ -114,13 +114,18 @@ static void run(void) {
     read_error=19;service();CHECK(relay.tty==-1 && !relay.result && flushes==2);
     read_error=0;output_n=0;relay_log("PID1 offline heartbeat\n",23);
     service();command("LOG1\n");service();
-    CHECK(contains("Y2LOG1 M2-BASELINE-03\n") && !relay.result);
+    CHECK(contains("Y2LOG1 Y2LINUX-DEV-01\n") && !relay.result);
     /* Full-history case still reports its loss; no silent completeness claim. */
     CHECK(contains("GAP PID1 history full\n"));
     relay.history_used=relay.history_lost=0;relay_close();
     relay_log("PID1 offline heartbeat\n",23);output_n=0;
     service();command("LOG1\n");service();CHECK(contains("PID1 offline heartbeat\n"));
     write_error=22;relay_text("pending\n");service();CHECK(relay.result==-22 && relay.tty==-1);
+    write_error=0;relay.result=0;output_n=0;relay.resume=1;command("");
+    unsigned prior=seeked;service();
+    CHECK(relay.active && !relay.resume && seeked==prior+1 && contains("Y2LOG1 Y2LINUX-DEV-01\n"));
+    service();CHECK(seeked==prior+1);
+    relay_close();
     unsigned count=closes;relay_close();CHECK(closes==count);
 }
 #ifdef ARM

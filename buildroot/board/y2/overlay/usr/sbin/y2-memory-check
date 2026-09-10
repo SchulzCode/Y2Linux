@@ -1,0 +1,6 @@
+#!/bin/sh
+# One allocator-owned 128 MiB pass; no /dev/mem, MMIO or reserved-region sweep.
+set -eu
+available=$(awk '/MemAvailable:/ {print $2}' /proc/meminfo)
+[ "$available" -ge 262144 ] || { echo 'Need at least 256 MiB available for this test' >&2; exit 1; }
+exec memtester 128M 1

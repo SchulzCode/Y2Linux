@@ -1,0 +1,19 @@
+#!/bin/sh
+# SSH starts even when USB is first attached after init has completed.
+case "$1" in
+ start)
+    (
+      while ! ip -4 addr show dev usb0 2>/dev/null | grep -q '10.42.0.1/24'; do sleep 1; done
+      if [ ! -s /root/.ssh/authorized_keys ]; then
+        echo 'Y2SSH: no authorized public key; SSH remains disabled' > /dev/kmsg
+        exit 0
+      fi
+      umask 077
+      mkdir -p /etc/dropbear
+      . /etc/default/dropbear
+      /usr/sbin/dropbear -R $DROPBEAR_ARGS
+    ) &
+    ;;
+ stop) start-stop-daemon -K -q -p /var/run/dropbear.pid;;
+ restart) "$0" stop; "$0" start;;
+esac

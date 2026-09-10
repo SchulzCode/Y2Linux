@@ -1,0 +1,13 @@
+#!/bin/sh
+[ "$1" = start ] || exit 0
+(
+    for attempt in $(seq 1 30); do
+        if [ -e /dev/fb0 ]; then
+            sleep 2
+            /usr/sbin/y2-fbtest > /dev/kmsg 2>&1
+            exit
+        fi
+        sleep 1
+    done
+    echo 'Y2PATTERN: no fb0 within 30 seconds' > /dev/kmsg
+) &

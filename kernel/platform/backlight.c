@@ -55,7 +55,23 @@ out:
 	mutex_unlock(&b->lock);
 	return ret;
 }
-static const struct backlight_ops y2_bl_ops = {.update_status = y2_bl_update};
+static int y2_bl_read(struct backlight_device *bl)
+{
+    struct y2_bl *b = bl_get_data(bl);
+    unsigned en, pwm, current_step;
+    int ret;
+    mutex_lock(&b->lock);
+    ret = regmap_read(b->map, 0x356, &en);
+    if (!ret) ret = regmap_read(b->map, 0x330, &pwm);
+    if (!ret) ret = regmap_read(b->map, 0x334, &current_step);
+    if (!ret) {
+        dev_info_ratelimited(&bl->dev, "Y2SCAN backlight enable=%04x pwm=%04x current=%04x\n", en,pwm,current_step);
+        ret = (en & 15) ? ((pwm >> 8) & 31) + 1 : 0;
+    }
+    mutex_unlock(&b->lock);
+    return ret;
+}
+static const struct backlight_ops y2_bl_ops = {.update_status = y2_bl_update, .get_brightness = y2_bl_read};
 static int y2_bl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;

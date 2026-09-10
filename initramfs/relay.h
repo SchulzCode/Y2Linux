@@ -5,7 +5,7 @@
  * Every service call is bounded, including no-reader and malformed input. */
 static struct {
     long tty, kmsg, result;
-    unsigned active, command, bad, head, tail, lost, history_used, history_lost;
+    unsigned resume, active, command, bad, head, tail, lost, history_used, history_lost;
     char queue[524288], history[262144], record[8192];
 } relay={.tty=-1,.kmsg=-1};
 _Static_assert(sizeof(relay.queue)>sizeof(relay.history)+sizeof(relay.record)+64,"replay must fit queue");
@@ -92,7 +92,7 @@ static void relay_open(void)
 }
 static void relay_request(void)
 {
-    static const char header[]="Y2LOG1 M2-BASELINE-03\n";
+    static const char header[]="Y2LOG1 Y2LINUX-DEV-01\n";
     relay.head=relay.tail=0;relay.lost=0;relay.active=1;
     relay_put(header,sizeof(header)-1);
     relay_put(relay.history,relay.history_used);
@@ -107,6 +107,9 @@ static void relay_service(void)
     char command[32];long n;
     if(relay.tty<0) relay_open();
     if(relay.tty<0) return;
+    /* Buildroot restarts the observer after switch_root; resume the existing
+     * ACM reader once without requiring a second host handshake. */
+    if(relay.resume) {relay.resume=0;relay_request();}
     n=call5(3,relay.tty,(long)command,sizeof(command),0,0);
     if(n<0 && n!=-11 && n!=-4) {relay_link_error(n);return;}
     for(long i=0;i<n;++i) {

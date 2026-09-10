@@ -5,23 +5,25 @@
  // SPDX-License-Identifier: GPL-2.0-only
  /*
   * Copyright (c) 2014-2015, 2022 MediaTek Inc.
-@@ -465,6 +466,7 @@
+@@ -465,6 +466,8 @@
  };
  
  struct msdc_host {
 +	bool y2_read_only;
++	bool y2_sd;
  	struct device *dev;
  	const struct mtk_mmc_compatible *dev_comp;
  	int cmd_rsp;
-@@ -692,6 +694,7 @@
+@@ -692,6 +695,8 @@
  };
  
  static const struct of_device_id msdc_of_ids[] = {
 +	{ .compatible = "innioasis,y2-msdc-readonly", .data = &mt8135_compat },
++	{ .compatible = "innioasis,y2-msdc-sd", .data = &mt8135_compat },
  	{ .compatible = "mediatek,mt2701-mmc", .data = &mt2701_compat},
  	{ .compatible = "mediatek,mt2712-mmc", .data = &mt2712_compat},
  	{ .compatible = "mediatek,mt6779-mmc", .data = &mt6779_compat},
-@@ -1373,6 +1376,10 @@
+@@ -1373,6 +1378,10 @@
  		}
  	}
  
@@ -32,7 +34,7 @@
  	if (!sbc_error && !(events & MSDC_INT_CMDRDY)) {
  		if ((events & MSDC_INT_CMDTMO && !host->hs400_tuning) ||
  		    (!mmc_op_tuning(cmd->opcode) && !host->hs400_tuning))
-@@ -1484,6 +1491,17 @@
+@@ -1484,6 +1493,17 @@
  static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
  {
  	struct msdc_host *host = mmc_priv(mmc);
@@ -50,17 +52,18 @@
  
  	host->error = 0;
  	WARN_ON(!host->hsq_en && host->mrq);
-@@ -2983,6 +3001,9 @@
+@@ -2983,6 +3003,10 @@
  		return PTR_ERR(host->base);
  
  	host->dev_comp = of_device_get_match_data(&pdev->dev);
++	host->y2_sd = of_device_is_compatible(pdev->dev.of_node, "innioasis,y2-msdc-sd");
 +	host->y2_read_only = IS_ENABLED(CONFIG_Y2_BOOT_DIAGNOSTIC) && of_device_is_compatible(pdev->dev.of_node,
 +						 "innioasis,y2-msdc-readonly");
 +
  
  	if (host->dev_comp->needs_top_base) {
  		host->top_base = devm_platform_ioremap_resource(pdev, 1);
-@@ -3016,6 +3037,11 @@
+@@ -3016,6 +3040,11 @@
  	if (host->irq < 0)
  		return host->irq;
  
@@ -72,7 +75,7 @@
  	host->pinctrl = devm_pinctrl_get(&pdev->dev);
  	if (IS_ERR(host->pinctrl))
  		return dev_err_probe(&pdev->dev, PTR_ERR(host->pinctrl),
-@@ -3032,6 +3058,8 @@
+@@ -3032,6 +3061,8 @@
  		dev_err(&pdev->dev, "Cannot find pinctrl uhs!\n");
  		return PTR_ERR(host->pins_uhs);
  	}
@@ -81,11 +84,11 @@
  
  	/* Support for SDIO eint irq ? */
  	if ((mmc->pm_caps & MMC_PM_WAKE_SDIO_IRQ) && (mmc->pm_caps & MMC_PM_KEEP_POWER)) {
-@@ -3050,6 +3078,22 @@
+@@ -3050,6 +3081,22 @@
  	msdc_of_property_parse(pdev, host);
  
  	host->dev = &pdev->dev;
-+	if (IS_ENABLED(CONFIG_Y2_BOOT_DIAGNOSTIC) && host->y2_read_only) {
++	if (IS_ENABLED(CONFIG_Y2_BOOT_DIAGNOSTIC) && (host->y2_read_only || host->y2_sd)) {
 +		extern int y2_msdc_crystal(unsigned int id);
 +		ret = clk_prepare_enable(host->h_clk);
 +		if (ret) return ret;
@@ -99,7 +102,7 @@
 +		mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
 +		mmc->caps &= ~MMC_CAP_CMD23;
 +		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
-+		dev_info(&pdev->dev, "MSDC 26MHz source; <=400kHz card; no block devices/writes; inherited rails\n");
++		dev_info(&pdev->dev, "MSDC 26MHz crystal; inherited rails; policy=%s\n", host->y2_sd ? "removable SD writable" : "identity only");
 +	}
  	host->src_clk_freq = clk_get_rate(host->src_clk);
  	/* Set host parameters to mmc */

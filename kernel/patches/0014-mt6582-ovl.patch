@@ -1,6 +1,15 @@
 --- a/drivers/gpu/drm/mediatek/mtk_disp_ovl.c
 +++ b/drivers/gpu/drm/mediatek/mtk_disp_ovl.c
-@@ -101,6 +101,18 @@
+@@ -16,6 +16,8 @@
+ #include <linux/soc/mediatek/mtk-cmdq.h>
+ 
+ #include "mtk_crtc.h"
++#include "mtk_gem.h"
++#include <drm/drm_framebuffer.h>
+ #include "mtk_ddp_comp.h"
+ #include "mtk_disp_drv.h"
+ #include "mtk_drm_drv.h"
+@@ -101,6 +103,18 @@
  	return false;
  }
  
@@ -19,7 +28,7 @@
  static const u32 mt8173_formats[] = {
  	DRM_FORMAT_XRGB8888,
  	DRM_FORMAT_ARGB8888,
-@@ -140,6 +152,7 @@
+@@ -140,6 +154,7 @@
  };
  
  struct mtk_disp_ovl_data {
@@ -27,7 +36,18 @@
  	unsigned int addr;
  	unsigned int gmc_bits;
  	unsigned int layer_nr;
-@@ -384,6 +397,7 @@
+@@ -327,6 +342,10 @@
+ 	mtk_ddp_write_relaxed(cmdq_pkt, OVL_COLOR_ALPHA, &ovl->cmdq_reg,
+ 			      ovl->regs, DISP_REG_OVL_ROI_BGCLR);
+ 
++    /* Donor 53fb57bb: resetting enabled MT6582 OVL can deadlock SOF. */
++	if (ovl->data->mt6582 && !cmdq_pkt && (readl(ovl->regs + DISP_REG_OVL_EN) & 1)) {
++		return;
++	}
+ 	mtk_ddp_write(cmdq_pkt, 0x1, &ovl->cmdq_reg, ovl->regs, DISP_REG_OVL_RST);
+ 	mtk_ddp_write(cmdq_pkt, 0x0, &ovl->cmdq_reg, ovl->regs, DISP_REG_OVL_RST);
+ }
+@@ -384,6 +403,7 @@
  	else
  		gmc_value = gmc_thrshd_l | gmc_thrshd_l << 8 |
  			    gmc_thrshd_h << 16 | gmc_thrshd_h << 24;
@@ -35,7 +55,7 @@
  	mtk_ddp_write(cmdq_pkt, gmc_value,
  		      &ovl->cmdq_reg, ovl->regs, DISP_REG_OVL_RDMA_GMC(idx));
  	mtk_ddp_write_mask(cmdq_pkt, BIT(idx), &ovl->cmdq_reg, ovl->regs,
-@@ -421,6 +435,26 @@
+@@ -421,6 +441,26 @@
  	 */
  	if (ovl->data->blend_modes & BIT(DRM_MODE_BLEND_PREMULTI))
  		blend_mode = state->base.pixel_blend_mode;
@@ -62,7 +82,7 @@
  
  	switch (fmt) {
  	default:
-@@ -528,7 +562,7 @@
+@@ -528,7 +568,7 @@
  		 * For RGB888 related formats, whether CONST_BLD is enabled or not won't
  		 * affect the result. Therefore we use !has_alpha as the condition.
  		 */
@@ -71,7 +91,26 @@
  			ignore_pixel_alpha = OVL_CONST_BLEND;
  	}
  
-@@ -670,6 +704,17 @@
+@@ -569,6 +609,18 @@
+ 
+ 	mtk_ovl_set_bit_depth(dev, idx, fmt, cmdq_pkt);
+ 	mtk_ovl_layer_on(dev, idx, cmdq_pkt);
++    if (ovl->data->mt6582 && idx == 0 && !cmdq_pkt && state->base.fb) {
++        struct drm_framebuffer *fb = state->base.fb;
++        struct mtk_gem_obj *gem = to_mtk_gem_obj(fb->obj[0]);
++        dev_info_ratelimited(dev, "Y2SCAN FB format=%p4cc size=%ux%u pitch=%u GEM-DMA=%pad allocation=%zu expected=%08x live=%08x match=%u ctrl=%08x src=%08x roi=%08x layer=%08x pitch-live=%08x size-live=%08x offset=%08x rdma=%08x\n",
++            &fmt, fb->width, fb->height, pending->pitch, &gem->dma_addr, gem->base.size, addr,
++            readl(ovl->regs + DISP_REG_OVL_ADDR(ovl, idx)),
++            addr == readl(ovl->regs + DISP_REG_OVL_ADDR(ovl, idx)),
++            readl(ovl->regs + DISP_REG_OVL_EN), readl(ovl->regs + DISP_REG_OVL_SRC_CON),
++            readl(ovl->regs + DISP_REG_OVL_ROI_SIZE), readl(ovl->regs + DISP_REG_OVL_CON(idx)),
++            readl(ovl->regs + DISP_REG_OVL_PITCH(idx)), readl(ovl->regs + DISP_REG_OVL_SRC_SIZE(idx)),
++            readl(ovl->regs + DISP_REG_OVL_OFFSET(idx)), readl(ovl->regs + DISP_REG_OVL_RDMA_CTRL(idx)));
++    }
+ }
+ 
+ void mtk_ovl_bgclr_in_on(struct device *dev)
+@@ -670,6 +722,17 @@
  	.formats = mt8173_formats,
  	.num_formats = ARRAY_SIZE(mt8173_formats),
  };
@@ -89,7 +128,7 @@
  
  static const struct mtk_disp_ovl_data mt8173_ovl_driver_data = {
  	.addr = DISP_REG_OVL_ADDR_MT8173,
-@@ -742,6 +787,8 @@
+@@ -742,6 +805,8 @@
  static const struct of_device_id mtk_disp_ovl_driver_dt_match[] = {
  	{ .compatible = "mediatek,mt2701-disp-ovl",
  	  .data = &mt2701_ovl_driver_data},

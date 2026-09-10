@@ -1,0 +1,15 @@
+#!/bin/sh
+# Read-only collection; stdout can be retained over SSH in one pass.
+set +e
+for f in /proc/cpuinfo /proc/meminfo /proc/interrupts /proc/iomem /proc/zoneinfo /proc/buddyinfo /proc/cmdline /proc/bus/input/devices /sys/kernel/debug/dri/0/state /sys/kernel/debug/clk/clk_summary /sys/kernel/debug/devices_deferred /sys/class/backlight/y2-backlight/actual_brightness; do
+    printf '\n===== %s =====\n' "$f"
+    cat "$f"
+done
+dmesg
+ip addr
+lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL,UUID,MOUNTPOINTS,RO,RM
+mount
+df -h
+for f in /sys/class/graphics/fb0/* /sys/bus/mmc/devices/*/uevent /sys/bus/mmc/devices/*/cid /sys/bus/i2c/devices/*/name /sys/class/input/event*/device/name /sys/class/net/usb0/uevent; do
+    [ -f "$f" ] && { printf '\n===== %s =====\n' "$f"; cat "$f"; }
+done

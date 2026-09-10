@@ -65,6 +65,11 @@ class UsbCapture(unittest.TestCase):
                 (interface/name).write_text(value)
             device=Path('/dev/ttyACM0')
             self.assertEqual(usb_identity(device,root)['idProduct'],'a4a7')
+            (usb/'idProduct').write_text('a4aa')
+            self.assertEqual(usb_identity(device,root)['idProduct'],'a4aa')
+            (interface/'bInterfaceSubClass').write_text('06')
+            with self.assertRaises(ValueError): usb_identity(device,root)
+            (interface/'bInterfaceSubClass').write_text('02')
             (usb/'idVendor').write_text('0e8d')
             with self.assertRaises(ValueError): usb_identity(device,root)
             (usb/'idVendor').write_text('0525');(interface/'bInterfaceClass').write_text('ff')
@@ -105,6 +110,9 @@ class CaptureArguments(unittest.TestCase):
             self.assertEqual(parse_args(args+['--seconds','60']).seconds,60)
             with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 parse_args(args+['--seconds','296'])
+        dev=['--build','Y2LINUX-DEV-01','--output','unused-test-output']
+        self.assertEqual(parse_args(dev).seconds,180)
+        self.assertEqual(parse_args(dev+['--seconds','3600']).seconds,3600)
         self.assertEqual(parse_args(['--output','unused-test-output']).seconds,45)
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             parse_args(['--output','unused-test-output','--seconds','180'])

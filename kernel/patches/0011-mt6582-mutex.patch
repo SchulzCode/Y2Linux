@@ -15,7 +15,30 @@
  static const struct mtk_mutex_data mt2712_mutex_driver_data = {
  	.mutex_mod = mt2712_mutex_mod,
  	.mutex_sof = mt2712_mutex_sof,
-@@ -1131,6 +1139,7 @@
+@@ -875,7 +883,21 @@
+ {
+ 	struct mtk_mutex_ctx *mtx = container_of(mutex, struct mtk_mutex_ctx,
+ 						 mutex[mutex->id]);
+-	return clk_prepare_enable(mtx->clk);
++    int ret = clk_prepare_enable(mtx->clk);
++    if (!ret && mtx->data == &mt6582_mutex_driver_data) {
++        /* Y2 DSI has parked LK before DRM binds. Replace inherited membership
++         * rather than ORing Linux's route into stale BLS/WDMA/RDMA bits. */
++        dev_info(mtx->dev, "Y2SCAN inherited mutex%u en=%08x get=%08x mod=%08x sof=%08x; clear parked ownership\n",
++            mutex->id, readl(mtx->regs+DISP_REG_MUTEX_EN(mutex->id)),
++            readl(mtx->regs+DISP_REG_MUTEX(mutex->id)),
++            readl(mtx->regs+MT2701_MUTEX0_MOD0+0x20*mutex->id),
++            readl(mtx->regs+MT2701_MUTEX0_SOF0+0x20*mutex->id));
++        writel(0, mtx->regs+DISP_REG_MUTEX_EN(mutex->id));
++        writel(0, mtx->regs+DISP_REG_MUTEX(mutex->id));
++        writel(0, mtx->regs+MT2701_MUTEX0_MOD0+0x20*mutex->id);
++        writel(0, mtx->regs+MT2701_MUTEX0_SOF0+0x20*mutex->id);
++    }
++    return ret;
+ }
+ EXPORT_SYMBOL_GPL(mtk_mutex_prepare);
+ 
+@@ -1131,6 +1153,7 @@
  
  static const struct of_device_id mutex_driver_dt_match[] = {
  	{ .compatible = "mediatek,mt2701-disp-mutex", .data = &mt2701_mutex_driver_data },

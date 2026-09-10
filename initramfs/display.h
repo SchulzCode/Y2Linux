@@ -49,12 +49,13 @@ static void display_service(unsigned beat)
 {
     long rc;unsigned cpu=1;int status=0;
     /* Finish the one-time clock/regulator snapshots before probing DRM. */
-    if(beat>12 && !display.attempted && relay.active && relay.tail && !relay.result) {
+    if(beat>3 && !display.attempted) {
         display.attempted=1;
-        if(beat>=240) {display_log("DISPLAY skipped late session, beat=",beat);return;}
+        rc=call5(5,(long)"/sys/module/mediatek_drm/initstate",0,0,0,0);
+        if(rc>=0) {call5(6,rc,0,0,0,0);return;}
         rc=call5(241,0,sizeof(cpu),(long)&cpu,0,0);
         if(rc<0) {display_log("DISPLAY parent affinity failed=",rc);return;}
-        display_log("DISPLAY start after LOG1, beat=",beat);
+        display_log("DISPLAY asynchronous start, beat=",beat);
         rc=call5(120,17,0,0,0,0); /* clone(SIGCHLD), separate address space/files */
         if(!rc) {
             rc=display_child();

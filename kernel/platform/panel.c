@@ -18,6 +18,7 @@ struct gc9503v {
 	struct drm_panel panel;
 	struct mipi_dsi_device *dsi;
 	struct reset_control *reset;
+	bool inherited;
 };
 
 /* One MIPI DCS long/short write: command byte + parameter bytes. */
@@ -103,6 +104,16 @@ static int gc9503v_prepare(struct drm_panel *panel)
 	unsigned int i;
 	int ret;
 
+	if (ctx->inherited) {
+        ret = reset_control_status(ctx->reset);
+        if (ret < 0) return ret;
+        ctx->inherited = false;
+        if (!ret) {
+            dev_info(dev, "retaining live LK panel, reset deasserted; no DCS replay\n");
+            return 0;
+        }
+    }
+    dev_info(dev, "panel reset asserted/previously unprepared: full DCS initialization\n");
 	/* Reset high 10ms, low 10ms, high 120ms: retained LK/recovery sequence. */
 	ret = reset_control_deassert(ctx->reset);
 	if (ret)
@@ -137,6 +148,7 @@ static int gc9503v_prepare(struct drm_panel *panel)
 		goto disable_supply;
 	msleep(20);
 
+	dev_info(dev, "panel DCS sleep-out and display-on complete\n");
 	return 0;
 
 disable_supply:
@@ -213,6 +225,7 @@ static int gc9503v_probe(struct mipi_dsi_device *dsi)
 	if (!of_property_read_bool(dev->of_node, "innioasis,lk-powered"))
 		return -EINVAL;
 
+	ctx->inherited = true;
 	dsi->lanes = 2;
 	/*
 	 * DSI *wire* format (SoC->panel link), not the framebuffer format. LK's

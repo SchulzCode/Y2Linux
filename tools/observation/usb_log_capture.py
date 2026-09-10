@@ -27,9 +27,9 @@ def usb_identity(device, sysfs=Path('/sys')):
                        ('bInterfaceClass','bInterfaceSubClass','bInterfaceProtocol')}
         if (parent/'idVendor').exists():
             identity={k:(parent/k).read_text().strip() for k in ('idVendor','idProduct')}
-            if identity != {'idVendor':'0525','idProduct':'a4a7'} or not interface or \
+            if identity['idVendor']!='0525' or identity['idProduct'] not in ('a4a7','a4aa') or not interface or \
                (interface['bInterfaceClass'],interface['bInterfaceSubClass'])!=('02','02'):
-                raise ValueError('USB identity is not the expected g_serial CDC ACM function')
+                raise ValueError('USB identity is not the expected Y2 CDC ACM function')
             for k in ('manufacturer','product','serial','speed','busnum','devnum'):
                 if (parent/k).exists(): identity[k]=(parent/k).read_text().strip()
             identity.update(sysfs_path=str(parent),interface=interface)
@@ -126,11 +126,11 @@ def parse_args(argv=None):
     parser.add_argument('--wait-seconds',type=float,default=90)
     parser.add_argument('--seconds',type=float,help='Capture duration (baseline: 180s; earlier builds: 45s)')
     parser.add_argument('--max-bytes',type=int,default=1048576)
-    parser.add_argument('--build',choices=('M2-USBACM-03','M2-USBACM-04','M2-INPUT-01','M2-BASELINE-01','M2-BASELINE-02','M2-BASELINE-03'),default='M2-USBACM-04')
+    parser.add_argument('--build',choices=('M2-USBACM-03','M2-USBACM-04','M2-INPUT-01','M2-BASELINE-01','M2-BASELINE-02','M2-BASELINE-03','Y2LINUX-DEV-01'),default='M2-USBACM-04')
     args=parser.parse_args(argv)
-    baseline=args.build.startswith('M2-BASELINE-')
+    baseline=args.build.startswith('M2-BASELINE-') or args.build.startswith('Y2LINUX-DEV-')
     if args.seconds is None: args.seconds=180 if baseline else 45
-    limit=295 if baseline else 60
+    limit=86400 if args.build.startswith('Y2LINUX-DEV-') else 295 if baseline else 60
     if not (0<args.wait_seconds<=120 and 0<args.seconds<=limit and 0<args.max_bytes<=4194304):
         parser.error(f'Wait <=120s, capture <={limit}s, bytes <=4MiB; all positive')
     return args
@@ -138,7 +138,7 @@ def parse_args(argv=None):
 
 def main():
     args=parse_args()
-    baseline=args.build.startswith('M2-BASELINE-')
+    baseline=args.build.startswith('M2-BASELINE-') or args.build.startswith('Y2LINUX-DEV-')
     args.output.mkdir(parents=True,exist_ok=False)
     print('Waiting for Y2 CDC ACM. Boot UNPLUGGED; attach after ten seconds.' if baseline else 'Waiting for Y2 CDC ACM. Boot UNPLUGGED; attach at the screen prompt.',flush=True)
     deadline=time.monotonic()+args.wait_seconds

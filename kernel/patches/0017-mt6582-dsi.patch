@@ -1,6 +1,23 @@
 --- a/drivers/gpu/drm/mediatek/mtk_dsi.c
 +++ b/drivers/gpu/drm/mediatek/mtk_dsi.c
-@@ -186,6 +186,7 @@
+@@ -14,6 +14,7 @@
+ #include <linux/platform_device.h>
+ #include <linux/reset.h>
+ #include <linux/units.h>
++#include <linux/workqueue.h>
+ 
+ #include <video/mipi_display.h>
+ #include <video/videomode.h>
+@@ -25,6 +26,8 @@
+ #include <drm/drm_of.h>
+ #include <drm/drm_panel.h>
+ #include <drm/drm_print.h>
++#include <drm/drm_vblank.h>
++#include <drm/drm_encoder.h>
+ #include <drm/drm_probe_helper.h>
+ #include <drm/drm_simple_kms_helper.h>
+ 
+@@ -186,6 +189,7 @@
  struct phy;
  
  struct mtk_dsi_driver_data {
@@ -8,7 +25,57 @@
  	const u32 reg_cmdq_off;
  	const u32 reg_vm_cmd_off;
  	const u32 reg_shadow_dbg_off;
-@@ -264,6 +265,22 @@
+@@ -196,6 +200,11 @@
+ };
+ 
+ struct mtk_dsi {
++    struct delayed_work y2_sample;
++    unsigned y2_samples, y2_irqs;
++    struct drm_crtc *y2_crtc;
++    bool y2_vblank;
++    void __iomem *y2_mm, *y2_mutex, *y2_ovl, *y2_rdma, *y2_color, *y2_pins, *y2_phy;
+ 	struct device *dev;
+ 	struct mipi_dsi_host host;
+ 	struct drm_encoder encoder;
+@@ -225,6 +234,37 @@
+ 	const struct mtk_dsi_driver_data *driver_data;
+ };
+ 
++/* Read-only bounded post-modeset observation. Only scheduled with DSI powered;
++ * cancel synchronously before bridge disable so no unclocked access occurs.
++ * Component registers are the same retained MT6582 map used by their owners. */
++static void y2_scanout_sample(struct work_struct *work)
++{
++    struct mtk_dsi *dsi = container_of(to_delayed_work(work), struct mtk_dsi, y2_sample);
++    void __iomem *o=dsi->y2_ovl, *r=dsi->y2_rdma, *c=dsi->y2_color;
++    void __iomem *m=dsi->y2_mm, *u=dsi->y2_mutex, *g=dsi->y2_pins, *p=dsi->y2_phy;
++    if (!dsi->refcount) return;
++    dev_info(dsi->dev, "Y2SCAN sample=%u vblank=%llu DSI irq=%u mode=%08x start=%08x con=%08x inten=%08x status=%08x txrx=%08x ps=%08x vactive=%u lcc=%08x ld0=%08x\n",
++        dsi->y2_samples, (unsigned long long)(dsi->y2_vblank ? drm_crtc_vblank_count(dsi->y2_crtc) : 0), READ_ONCE(dsi->y2_irqs), readl(dsi->regs+0x14),
++        readl(dsi->regs), readl(dsi->regs+0x10), readl(dsi->regs+8),
++        readl(dsi->regs+0xc), readl(dsi->regs+0x18), readl(dsi->regs+0x1c),
++        readl(dsi->regs+0x2c), readl(dsi->regs+0x104), readl(dsi->regs+0x108));
++    dev_info(dsi->dev, "Y2SCAN OVL en=%08x irq=%08x src=%08x addr=%08x con=%08x pitch=%08x RDMA con=%08x irq=%08x size=%08x/%08x fifo=%08x COLOR cfg=%08x en=%08x size=%u/%u\n",
++        readl(o+0xc),readl(o+8),readl(o+0x2c),readl(o+0x40),readl(o+0x30),readl(o+0x44),
++        readl(r+0x10),readl(r+4),readl(r+0x14),readl(r+0x18),readl(r+0x40),
++        readl(c+0x400),readl(c+0xf00),readl(c+0xf50),readl(c+0xf54));
++    dev_info(dsi->dev, "Y2SCAN MMSYS mout30=%08x out4c=%08x dsi50=%08x reset=%08x CG=%08x/%08x MUTEX en=%08x get=%08x mod=%08x sof=%08x GPIO112 mux=%u dir=%u out=%u in=%u PHY con=%08x pll=%08x/%08x/%08x pwr=%08x\n",
++        readl(m+0x30),readl(m+0x4c),readl(m+0x50),readl(m+0x13c),readl(m+0x100),readl(m+0x110),
++        readl(u+0x20),readl(u+0x24),readl(u+0x2c),readl(u+0x30),
++        (readl(g+0x760)>>6)&7,readl(g+0x70)&1,readl(g+0x470)&1,readl(g+0x570)&1,
++        readl(p),readl(p+0x50),readl(p+0x54),readl(p+0x58),readl(p+0x68));
++    if (++dsi->y2_samples < 4) {
++        schedule_delayed_work(&dsi->y2_sample, msecs_to_jiffies(1000));
++    } else if (dsi->y2_vblank) {
++        drm_crtc_vblank_put(dsi->y2_crtc);
++        dsi->y2_vblank = false;
++    }
++}
++
+ static inline struct mtk_dsi *bridge_to_dsi(struct drm_bridge *b)
+ {
+ 	return container_of(b, struct mtk_dsi, bridge);
+@@ -264,6 +304,22 @@
  	timing->clk_hs_trail = timing->clk_hs_prepare;
  	timing->clk_hs_zero = timing->clk_hs_trail * 4;
  	timing->clk_hs_exit = 2 * timing->clk_hs_trail;
@@ -31,7 +98,11 @@
  
  	timcon0 = FIELD_PREP(LPX, timing->lpx) |
  		  FIELD_PREP(HS_PREP, timing->da_hs_prepare) |
-@@ -646,10 +663,20 @@
+@@ -643,13 +699,24 @@
+ 	u32 status, tmp;
+ 	u32 flag = LPRX_RD_RDY_INT_FLAG | CMD_DONE_INT_FLAG | VM_DONE_INT_FLAG;
+ 
++	++dsi->y2_irqs;
  	status = readl(dsi->regs + DSI_INTSTA) & flag;
  
  	if (status) {
@@ -52,7 +123,7 @@
  
  		mtk_dsi_mask(dsi, DSI_INTSTA, status, 0);
  		mtk_dsi_irq_data_set(dsi, status);
-@@ -684,7 +711,7 @@
+@@ -684,7 +751,7 @@
  	ret = mipi_dsi_pixel_format_to_bpp(dsi->format);
  	if (ret < 0) {
  		dev_err(dev, "Unknown MIPI DSI format %d\n", dsi->format);
@@ -61,7 +132,7 @@
  	}
  	bit_per_pixel = ret;
  
-@@ -697,7 +724,9 @@
+@@ -697,7 +764,9 @@
  		goto err_refcount;
  	}
  
@@ -72,7 +143,7 @@
  
  	ret = clk_prepare_enable(dsi->engine_clk);
  	if (ret < 0) {
-@@ -711,6 +740,7 @@
+@@ -711,6 +780,7 @@
  		goto err_disable_engine_clk;
  	}
  
@@ -80,7 +151,7 @@
  	mtk_dsi_enable(dsi);
  
  	if (dsi->driver_data->has_shadow_ctl)
-@@ -724,6 +754,7 @@
+@@ -724,6 +794,7 @@
  	mtk_dsi_set_vm_cmd(dsi);
  	mtk_dsi_config_vdo_timing(dsi);
  	mtk_dsi_set_interrupt_enable(dsi);
@@ -88,7 +159,32 @@
  
  	return 0;
  err_disable_engine_clk:
-@@ -1130,6 +1161,9 @@
+@@ -831,6 +902,11 @@
+ {
+ 	struct mtk_dsi *dsi = bridge_to_dsi(bridge);
+ 
++	if (dsi->driver_data->mt6582) {
++        cancel_delayed_work_sync(&dsi->y2_sample);
++        if (dsi->y2_vblank) drm_crtc_vblank_put(dsi->y2_crtc);
++        dsi->y2_vblank = false;
++    }
+ 	mtk_output_dsi_disable(dsi);
+ }
+ 
+@@ -843,6 +919,12 @@
+ 		return;
+ 
+ 	mtk_output_dsi_enable(dsi);
++    if (dsi->driver_data->mt6582) {
++        dsi->y2_samples = 0;
++        dsi->y2_crtc = bridge->encoder->crtc;
++        dsi->y2_vblank = dsi->y2_crtc && !drm_crtc_vblank_get(dsi->y2_crtc);
++        schedule_delayed_work(&dsi->y2_sample, msecs_to_jiffies(250));
++    }
+ }
+ 
+ static void mtk_dsi_bridge_atomic_pre_enable(struct drm_bridge *bridge,
+@@ -1130,6 +1212,9 @@
  	u32 dsi_mode;
  	int ret, i;
  
@@ -98,7 +194,7 @@
  	dsi_mode = readl(dsi->regs + DSI_MODE_CTRL);
  	if (dsi_mode & MODE) {
  		mtk_dsi_stop(dsi);
-@@ -1195,6 +1229,40 @@
+@@ -1195,6 +1280,40 @@
  	.transfer = mtk_dsi_host_transfer,
  };
  
@@ -139,7 +235,7 @@
  static int mtk_dsi_probe(struct platform_device *pdev)
  {
  	struct mtk_dsi *dsi;
-@@ -1236,25 +1304,21 @@
+@@ -1236,25 +1355,33 @@
  	if (irq_num < 0)
  		return irq_num;
  
@@ -162,7 +258,19 @@
 -
 -	dsi->bridge.of_node = dev->of_node;
 -	dsi->bridge.type = DRM_MODE_CONNECTOR_DSI;
++ dsi->dev = dev;
++ dsi->host.dev = dev;
 + if (dsi->driver_data->mt6582) {
++  INIT_DELAYED_WORK(&dsi->y2_sample, y2_scanout_sample);
++  dsi->y2_mm = devm_ioremap(dev, 0x14000000, 0x1000);
++  dsi->y2_mutex = devm_ioremap(dev, 0x1400e000, 0x1000);
++  dsi->y2_ovl = devm_ioremap(dev, 0x14007000, 0x1000);
++  dsi->y2_rdma = devm_ioremap(dev, 0x14008000, 0x1000);
++  dsi->y2_color = devm_ioremap(dev, 0x1400b000, 0x1000);
++  dsi->y2_pins = devm_ioremap(dev, 0x10005000, 0x1000);
++  dsi->y2_phy = devm_ioremap(dev, 0x10010000, 0x1000);
++  if (!dsi->y2_mm || !dsi->y2_mutex || !dsi->y2_ovl || !dsi->y2_rdma ||
++      !dsi->y2_color || !dsi->y2_pins || !dsi->y2_phy) return -ENOMEM;
 +  ret = mt6582_dsi_park(dsi);
 +  if (ret) return dev_err_probe(dev, ret, "DSI handoff\n");
 + }
@@ -180,7 +288,19 @@
  
  	return 0;
  }
-@@ -1277,6 +1341,11 @@
+@@ -1263,6 +1390,11 @@
+ {
+ 	struct mtk_dsi *dsi = platform_get_drvdata(pdev);
+ 
++	if (dsi->driver_data->mt6582) {
++        cancel_delayed_work_sync(&dsi->y2_sample);
++        if (dsi->y2_vblank) drm_crtc_vblank_put(dsi->y2_crtc);
++        dsi->y2_vblank = false;
++    }
+ 	mtk_output_dsi_disable(dsi);
+ 	mipi_dsi_host_unregister(&dsi->host);
+ }
+@@ -1277,6 +1409,11 @@
  	.reg_cmdq_off = 0x180,
  	.reg_vm_cmd_off = 0x130,
  	.reg_shadow_dbg_off = 0x190
@@ -192,7 +312,7 @@
  };
  
  static const struct mtk_dsi_driver_data mt8183_dsi_driver_data = {
-@@ -1306,6 +1375,7 @@
+@@ -1306,6 +1443,7 @@
  };
  
  static const struct of_device_id mtk_dsi_of_match[] = {

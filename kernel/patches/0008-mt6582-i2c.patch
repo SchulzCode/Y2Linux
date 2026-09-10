@@ -25,7 +25,33 @@
  }
  
  static void i2c_dump_register(struct mtk_i2c *i2c)
-@@ -1457,7 +1459,10 @@
+@@ -1195,6 +1197,25 @@
+ 	ret = wait_for_completion_timeout(&i2c->msg_complete,
+ 					  i2c->adap.timeout);
+ 
++    if (of_device_is_compatible(i2c->dev->of_node, "mediatek,mt6582-i2c") &&
++        (!ret || (i2c->irq_stat & (I2C_HS_NACKERR | I2C_ACKERR)))) {
++        dev_warn(i2c->dev, "Y2I2C result=%s irq_seen=%04x parent=%lu div=%u bus=%u op=%u\n",
++            ret ? "NACK" : "timeout", i2c->irq_stat,
++            clk_get_rate(i2c->clocks[0].clk), i2c->clk_src_div, i2c->speed_hz, i2c->op);
++        dev_warn(i2c->dev, "Y2I2C start=%04x status=%04x mask=%04x control=%04x timing=%04x len=%04x transactions=%04x fifo=%04x debug=%04x io=%04x\n",
++            mtk_i2c_readw(i2c, OFFSET_START), mtk_i2c_readw(i2c, OFFSET_INTR_STAT),
++            mtk_i2c_readw(i2c, OFFSET_INTR_MASK), mtk_i2c_readw(i2c, OFFSET_CONTROL),
++            mtk_i2c_readw(i2c, OFFSET_TIMING), mtk_i2c_readw(i2c, OFFSET_TRANSFER_LEN),
++            mtk_i2c_readw(i2c, OFFSET_TRANSAC_LEN), mtk_i2c_readw(i2c, OFFSET_FIFO_STAT),
++            mtk_i2c_readw(i2c, OFFSET_DEBUGSTAT), mtk_i2c_readw(i2c, OFFSET_IO_CONFIG));
++        dev_warn(i2c->dev, "Y2I2C DMA en=%08x flags=%08x con=%08x tx=%08x/%u rx=%08x/%u\n",
++            readl(i2c->pdmabase + OFFSET_EN), readl(i2c->pdmabase + OFFSET_INT_FLAG),
++            readl(i2c->pdmabase + OFFSET_CON), readl(i2c->pdmabase + OFFSET_TX_MEM_ADDR),
++            readl(i2c->pdmabase + OFFSET_TX_LEN), readl(i2c->pdmabase + OFFSET_RX_MEM_ADDR),
++            readl(i2c->pdmabase + OFFSET_RX_LEN));
++        /* Retire controller/DMA ownership BEFORE unmap/free on an error. */
++        mtk_i2c_init_hw(i2c);
++    }
+ 	/* Clear interrupt mask */
+ 	mtk_i2c_writew(i2c, ~(restart_flag | I2C_HS_NACKERR | I2C_ACKERR |
+ 			    I2C_ARB_LOST | I2C_TRANSAC_COMP), OFFSET_INTR_MASK);
+@@ -1457,7 +1478,10 @@
  
  	strscpy(i2c->adap.name, I2C_DRV_NAME, sizeof(i2c->adap.name));
  

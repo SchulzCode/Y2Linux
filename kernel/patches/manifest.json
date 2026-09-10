@@ -28,7 +28,7 @@
       "path": "drivers/soc/mediatek/mtk-mutex.c",
       "patch": "0011-mt6582-mutex.patch",
       "base_sha256": "3d62c9f315dc53c189f97febb3aaaea9a76528c84bf42515cf572c5f5f11f2e3",
-      "result_sha256": "4f18effdb176b1c466593eef267f78d86ccb1acaa73d878b7e98675619175624"
+      "result_sha256": "3471b732e39c8016a846beebb6829b04a4a6f9214bb7be4102bf49c244b678d8"
     },
     {
       "path": "drivers/gpu/drm/mediatek/mtk_drm_drv.c",
@@ -46,7 +46,7 @@
       "path": "drivers/gpu/drm/mediatek/mtk_disp_ovl.c",
       "patch": "0014-mt6582-ovl.patch",
       "base_sha256": "405ee251d3f328a00074158d2cf9664c934de40a5b47c7a5b018a8deeb6b233d",
-      "result_sha256": "c63494d62fd82b610f6a707632e1d18c994fc1a9f98e36aa27926dfe2b538d40"
+      "result_sha256": "2431e5a48ceea50fda683e7bf49f40e56223a70ba94b837c44c3a8dbb2492af5"
     },
     {
       "path": "drivers/gpu/drm/mediatek/mtk_disp_rdma.c",
@@ -82,13 +82,13 @@
       "path": "drivers/i2c/busses/i2c-mt65xx.c",
       "patch": "0008-mt6582-i2c.patch",
       "base_sha256": "97a7193f00827341b26f074ed26fb5b4ed7839e45b87b7a2a2c03681c46d7b69",
-      "result_sha256": "61b7b94a29c54639504e5b052215775edc22eaa4de92388f7da5525e7c3787f6"
+      "result_sha256": "47e22dd3f7ed424d0e150f53c800c20581487a462c89074231faaa6b52d9054f"
     },
     {
       "path": "drivers/mmc/host/mtk-sd.c",
       "patch": "0009-y2-msdc-readonly.patch",
       "base_sha256": "8fd10e3a6f6d60e37216de79b2d7a8b8f766c7d7e5cdd5851cccfe375e2536d1",
-      "result_sha256": "d1a4963a3a707070f2b7ca9b5e8e1f192d968df3ed11da4088f45dc64477f438"
+      "result_sha256": "ac04e8f54b5a52c7a66c6818ffb61f20b86c703d2f6350c8245f2bca984fbed7"
     },
     {
       "path": "drivers/gpu/drm/mediatek/mtk_crtc.c",
@@ -118,7 +118,7 @@
       "path": "drivers/gpu/drm/mediatek/mtk_dsi.c",
       "patch": "0017-mt6582-dsi.patch",
       "base_sha256": "ae2af9a535188a35e6e6314e6554b15791553b94d19d3f0f768694adaf4bd477",
-      "result_sha256": "cbd03b5140b26a0409c799f6c0da066d359b64b61dc802a1a155ebbda668eb6e"
+      "result_sha256": "56685fb3b55940c13ab5868f0436200b054a05a6b96fe33fc51978c24812a7be"
     }
   ]
 }

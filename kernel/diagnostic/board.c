@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* M2 shared observation endpoint and proven guarded USB startup. */
 #include <linux/cdev.h>
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -20,7 +21,7 @@ static DEFINE_MUTEX(y2_frame_lock);
 static ssize_t y2_text_write(struct file *file, const char __user *buf,
                             size_t count, loff_t *pos)
 {
-    if (task_pid_nr(current) != 1) return -EPERM;
+    if (!capable(CAP_SYS_ADMIN)) return -EPERM;
     return count == sizeof(struct y2_text_frame) ? count : -EINVAL;
 }
 static struct y2_platform_snapshot y2_power;
@@ -94,7 +95,7 @@ static ssize_t y2_power_snapshot(struct file *file, char __user *buf,
                                  size_t count, loff_t *pos)
 {
     int rc = 0;
-    if (task_pid_nr(current) != 1) return -EPERM;
+    if (!capable(CAP_SYS_ADMIN)) return -EPERM;
     if (count == sizeof(struct y2_usb_live)) return y2_usb_status(buf);
     if (count != sizeof(y2_power)) return -EINVAL;
     if (mutex_lock_interruptible(&y2_frame_lock)) return -ERESTARTSYS;
@@ -125,7 +126,7 @@ static int __init y2_diagnostic_init(void)
     y2_power_done = true;
     y2_collect_power();
     y2_usb_begin();
-    pr_info("Y2BASELINE M2-BASELINE-03: USB independent of display; 300s owner window\n");
+    pr_info("Y2LINUX-DEV-01: persistent ACM+ECM; internal eMMC disabled\n");
     return ret;
 }
 device_initcall(y2_diagnostic_init);

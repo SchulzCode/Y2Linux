@@ -1,5 +1,10 @@
 # Initial Linux RAM policy
 
+> DEV-01 supersedes D08 for the owner-authorized integrated development candidate.
+> See [practical RAM reconciliation](development-memory.md) for the built 992 MiB
+> bank, explicit reservations, HIGHMEM and remaining physical qualification.
+> Dated D08 constraints below remain historical provenance.
+
 > 2026-09-10: [additional history](reverse-engineering-audit.md) records a stock
 > modem load overwriting an excluded HYP trace/stub region at be000000/be800000.
 > This strengthens the containment warning, not a heap bound or new free interval.

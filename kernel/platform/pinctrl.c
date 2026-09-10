@@ -71,6 +71,14 @@ static int pin_mux(struct pinctrl_dev *pc, unsigned f, unsigned g)
 		return -EINVAL;
 	for (i = 0; i < group_counts[g]; i++) {
 		unsigned pin = group_pins[g][i];
+        if (f == 3 || f == 4 || f == 2)
+            dev_info(p->gpio.parent, "before pin%u mux=%u dir=%u pull=%u/%u input=%u IES=%08x\n", pin,
+                (readl(p->base + 0x600 + (pin / 5) * 16) >> ((pin % 5) * 3)) & 7,
+                !!(readl(p->base + (pin / 16) * 16) & BIT(pin % 16)),
+                !!(readl(p->base + 0x100 + (pin / 16) * 16) & BIT(pin % 16)),
+                !!(readl(p->base + 0x200 + (pin / 16) * 16) & BIT(pin % 16)),
+                !!(readl(p->base + 0x500 + (pin / 16) * 16) & BIT(pin % 16)),
+                readl(p->base + (pin <= 85 ? 0x900 : 0x910)));
 		if (f < 2)
 			pin_bit(p, 0, pin, false);
 		/* EINT25/55 are already selected by LK on tested donor hardware.

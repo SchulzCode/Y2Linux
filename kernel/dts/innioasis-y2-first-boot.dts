@@ -15,7 +15,7 @@
 /memreserve/ 0x80000000 0x00004000;
 
 / {
-    model = "Innioasis Y2 M2-BASELINE-03";
+    model = "Innioasis Y2 Y2LINUX-DEV-01";
     compatible = "innioasis,y2", "mediatek,mt6582";
     #address-cells = <1>;
     #size-cells = <1>;
@@ -39,8 +39,8 @@
         nav_state: nav-state { groups = "navigation"; input-enable; };
         wheel_state: wheel-state { groups = "wheel-irq"; function = "eint"; input-enable; };
         pmic_state: pmic-state { groups = "pmic-irq"; function = "eint"; input-enable; };
-        i2c0_state: i2c0-state { groups = "i2c0"; function = "i2c0"; bias-disable; };
-        i2c1_state: i2c1-state { groups = "i2c1"; function = "i2c1"; bias-disable; };
+        i2c0_state: i2c0-state { groups = "i2c0"; function = "i2c0"; };
+        i2c1_state: i2c1-state { groups = "i2c1"; function = "i2c1"; };
         sd_state: sd-state { groups = "msdc1"; function = "msdc1"; };
         lcm_state: lcm-state { groups = "lcm-reset"; function = "lcm-reset"; };
     };
@@ -59,13 +59,20 @@
     aliases { serial0 = &uart0; };
     chosen {
         stdout-path = "serial0";
-        bootargs = "rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=256K initcall_debug";
+        bootargs = "rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2LINUX-DEV-01";
         linux,initrd-start = <0x84000000>;
         linux,initrd-end = <Y2_INITRD_END>;
     };
     memory@80000000 {
         device_type = "memory";
-        reg = <0x80000000 0x01800000>, <0x84000000 0x00080000>;
+        reg = <0x80000000 0x3e000000>;
+    };
+    reserved-memory {
+        #address-cells = <1>; #size-cells = <1>; ranges;
+        /* Retain the complete historical LK gap, not an invented heap end. */
+        loader@81800000 { reg = <0x81800000 0x02800000>; no-map; };
+        /* Both stock and donor connectivity locations stay unavailable. */
+        high-owned@bdf00000 { reg = <0xbdf00000 0x02100000>; no-map; };
     };
     cpus {
         enable-method = "mediatek,mt6589-smp";
@@ -173,6 +180,7 @@
         clocks = <&y2clk Y2_CLK_KP>; linux,keycodes = <KEY_VOLUMEDOWN KEY_VOLUMEUP>;
     };
     mmc0: mmc@11230000 {
+        status = "disabled"; /* Internal eMMC: no Linux block device or commands. */
         compatible = "innioasis,y2-msdc-readonly"; reg = <0x11230000 0x1000>;
         interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_LOW>;
         clocks = <&y2clk Y2_CLK_MSDC0_SRC>, <&y2clk Y2_CLK_MSDC0>, <&y2clk Y2_CLK_MSDC0>;
@@ -180,12 +188,12 @@
         bus-width = <1>; max-frequency = <400000>; non-removable; no-sd; no-sdio; disable-wp;
     };
     mmc1: mmc@11240000 {
-        compatible = "innioasis,y2-msdc-readonly"; reg = <0x11240000 0x1000>;
+        compatible = "innioasis,y2-msdc-sd"; reg = <0x11240000 0x1000>;
         interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_LOW>;
         clocks = <&y2clk Y2_CLK_MSDC1_SRC>, <&y2clk Y2_CLK_MSDC1>, <&y2clk Y2_CLK_MSDC1>;
         clock-names = "source", "hclk", "source_cg";
         pinctrl-names = "default", "state_uhs"; pinctrl-0 = <&sd_state>; pinctrl-1 = <&sd_state>;
-        bus-width = <1>; max-frequency = <400000>; broken-cd; no-mmc; no-sdio; disable-wp;
+        bus-width = <1>; max-frequency = <13000000>; broken-cd; no-mmc; no-sdio; disable-wp;
     };
     mmsys: syscon@14000000 { compatible = "mediatek,mt6582-mmsys";
         reg = <0x14000000 0x1000>; #clock-cells = <1>; #reset-cells = <1>;

@@ -1,0 +1,2 @@
+# Disable all password authentication; retain root public-key login.
+DROPBEAR_ARGS="-s -g -j -k -p 10.42.0.1:22"

@@ -51,18 +51,18 @@ class Inputs:
     regular_file_bytes: int
 
 
-def validate(x):
+def validate(x, *, initramfs_cap=0x80000, regular_file_cap=0x200000):
     for name, value in asdict(x).items():
         u32(value)
     d = up(x.dtb, 8)
     require(40 <= x.dtb and d <= 0x10000, 'DTB size cap')
     require(x.z > 0 and x.z % 8 == 0 and x.edata == x.z, 'zImage/_edata alignment/length')
     require(x.z + d <= 0x600000, 'packed kernel size cap')
-    require(0 < x.initramfs <= 0x80000, 'initramfs size cap')
+    require(0 < x.initramfs <= initramfs_cap, 'initramfs size cap')
     require(0 < x.image <= 0xc00000, 'Image size cap')
     require(0 < x.kernel_bss <= 0x200000, 'kernel BSS size cap')
     require(x.image + x.kernel_bss <= x.kernel_span <= 0xe00000, 'resident kernel span cap')
-    require(0 < x.regular_file_bytes <= 0x200000, 'unpacked regular files cap')
+    require(0 < x.regular_file_bytes <= regular_file_cap, 'unpacked regular files cap')
     require(0 < x.restart < x.wont_overwrite < x.reloc_code_end <= x.z, 'compressed code symbol order')
     require(x.z <= x.compressed_bss_start < x.compressed_bss_end <= x.stack_top, 'compressed BSS/stack order')
     q = down(x.reloc_code_end - x.restart + 256, 256)
