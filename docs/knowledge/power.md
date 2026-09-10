@@ -1,5 +1,11 @@
 # Power evidence and reporting discrepancy
 
+> 2026-09-10: [additional evidence](reverse-engineering-audit.md) explains the
+> donor wrapper-IRQ omission as an unresolved storm workaround, separate from
+> PMIC EINT25. Final donor DT includes an MFD despite older minimal-PMIC prose.
+> VGP2 brownout is a useful M3 supply lead; charging settings and inherited rail
+> enables do not resolve our telemetry/calibration gaps. One USB/regmap owner first.
+
 Date: 2026-09-08. Related tasks: Y2E-101/105. Status: power baseline incomplete.
 
 CONFIRMED historical observation: `pmic_mt6323`, battery and battery-meter platform nodes in the verified 2026-07-29 snapshot. Current CPU topology and `/proc/meminfo` were captured, but governor/idle/power behavior was not measured.

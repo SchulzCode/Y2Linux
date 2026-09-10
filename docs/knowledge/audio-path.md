@@ -1,5 +1,12 @@
 # Audio and FM evidence
 
+> 2026-09-10: [porting history and failures](reverse-engineering-audit.md)
+> corroborate external CON3/DL1 and distinguish digital DAC probe success from
+> VGP2-powered analog operation. Their observed amplifier is OCA72559 ID09;
+> our revision/rails/jack/clock accuracy remain untested. Capture M3 tests for
+> DMA/IRQ continuity, supply brownout and scheduling underruns separately.
+> M3 remains gated; the wired ALSA/Rust/C plan is unchanged.
+
 ## Donor integration input — 2026-09-09
 
 M3 remains gated on M2. [Complete reuse audit](donor-audit.md) and the immutable

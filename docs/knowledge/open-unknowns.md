@@ -1,5 +1,12 @@
 # Unknowns and architecture decisions
 
+> 2026-09-10: [additional reverse-engineering audit](reverse-engineering-audit.md)
+> narrows U10b/U11: SMP release, input protocol, display failures and audio supply
+> requirements now have concrete external experiments to validate/forward-port.
+> U07c's loader/DMA ownership and U09's trustworthy power telemetry remain open.
+> External hardware successes do not change our capability classifications;
+> M1 complete, M2 active, M3/application and M5 implementation deferred.
+
 > Current hardware result: [owner-observed M1 runtime success](m1-runtime-hardware-result.md) confirms Linux 6.18, native PID1, increasing BEAT/uptime, working sleep, proc/sysfs mounts, CPU0, D08 RAM visibility, framebuffer diagnostics and stopped-watchdog status. **M1 core achieved.** Exact flashed hash and unreported diagnostic fields remain unverified. Earlier dated statements below are historical.
 
 

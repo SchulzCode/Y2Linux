@@ -1,5 +1,10 @@
 # Initial Linux RAM policy
 
+> 2026-09-10: [additional history](reverse-engineering-audit.md) records a stock
+> modem load overwriting an excluded HYP trace/stub region at be000000/be800000.
+> This strengthens the containment warning, not a heap bound or new free interval.
+> #22 still needs LK lifetime, DMA and ARM lowmem/HIGHMEM reconciliation; D08 stays.
+
 > 2026-09-09 donor review: the new 6.12 board DT agrees with the main 992 MiB
 > stock bank, but its chosen connectivity reservation differs from our inferred
 > stock allocation. [Reconciliation and large-bank direction](donor-audit.md#ram-reconciliation)

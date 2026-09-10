@@ -6,6 +6,46 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Additional reverse-engineering evidence — 2026-09-10
+
+Baseline **e4a0a81**. Reviewed the blueprint, current issues #1–32 (open
+#16/#22–32), every coverage row, canonical source and retained physical results
+against the [additional research](../knowledge/reverse-engineering-audit.md).
+External f96d4c7 pins our existing donor 53fb57bb. Missing private captures and
+stale historical statements are identified in the research matrix.
+
+**Every hardware classification remains unchanged.** USBACM-03 remains the
+11,754-byte kernel/PID1 capture. USBACM-04 and M2-INPUT-01 have offline validation
+only; host inventory found no Y2 attached. M1 stays complete, M2 active/exit
+incomplete, M3 gated, M4/M5 deferred beyond shared M2 prerequisites. D08, the
+rootfs/application plan, recovery rules and older-board FM exclusion remain.
+No new boot, build, flash or unchanged provenance requalification occurred.
+
+The implementation strategy advances where evidence is stronger:
+
+- #24/#28: validate the navigation candidate, then adapt EINT/I2C/AP-DMA/wheel
+  and keypad by dependency. Upstream 6.18 already fixes the donor's PMIC
+  single-key null-pointer problem.
+- #23/#28: one WACS2 owner shared with USB; distinguish the wrapper IRQ storm
+  from PMIC EINT25. Derive CCF/pin/rail contracts; absent PLL probe files cannot
+  validate approximate donor rates.
+- #25: use the later 480×360 correction, cold PHY/reset findings and live-pipeline
+  failure history. v6.18 already protects the OVL address from PITCH_MSB writes;
+  port remaining variant differences instead of redundant 6.12 fixes.
+- #22 still needs loader/DMA/lowmem ownership despite main-bank agreement.
+  The modem/HYP collision reinforces high exclusions. #26 can validate reported
+  MSDC operation after clocks/pins/rails/DMA; there is no local native read result.
+- #29 retains CON3/VGP2-brownout evidence for M3; #30 retains separate charger/AP
+  watchdogs and unresolved thermal/DVFS/suspend limits. #31 retains cold radio
+  calibration and failed EDR experiments; #32 retains address-space/recovery
+  pitfalls. No later phase is activated.
+
+Execution remains navigation/USB evidence → corrected shared providers and useful
+RAM reconciliation → wheel/power, display and storage/rootfs → real M2 stability
+and exit audit. The research report specifies the next provider contract.
+Existing issues absorb the findings; no new issue/milestone fan-out. Physical
+flashes remain owner-performed; protected partitions/calibration are untouched.
+
 ## M2 activation audit — 2026-09-09
 
 ### Donor adoption and GPIO input scope — baseline 8ebc800
@@ -458,32 +498,36 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 
 ## Coverage matrix
 
+Reassessed 2026-09-10. Status measures **our hardware**, not donor availability;
+all rows retain their previous classification. The additional research above
+narrows implementation gaps without claiming new hardware acceptance.
+
 | Area | Status | Actual evidence / remaining gap | Durable tracking |
 | --- | --- | --- | --- |
 | Physical Linux + initramfs + native PID1 | **CONFIRMED** | Owner reports 6.18.0-y2-m1, PID1, mounts, increasing BEAT/uptime and working sleep. [Result](../knowledge/m1-runtime-hardware-result.md). | Closed M1 / #20–21; core stays achieved. |
 | Boot/kernel stability and maintenance | **PARTIAL** | Reproducible offline artifacts and a working run exist; exact flashed hash for latest report, repeated cold/warm boots, duration, timing accuracy, stress and maintained 6.18.y selection are not qualified. | Y2H-300 #28; maintenance/release policy #32. |
 | RAM and reserved/DMA ownership | **PARTIAL** | D08 24.5 MiB described map is visible; photographed MemTotal 22208 kB; working-set adequacy, expanded banks, heap/high carveouts and full DMA containment remain open. [Map](../knowledge/initial-ram-map.md). | #22; #28. No automatic expansion. |
-| SMP | **UNKNOWN** | CPU0 works; physical extra cores do not establish release/coherency/interrupt/PM semantics. [Audit](../knowledge/linux-6.18-support.md). | #28; optional for first wired player. |
-| Clocks, resets, pinctrl/GPIO/IRQ and I2C | **BLOCKED** | Minimal fixed timer/UART clocks work sufficiently for M1. Common peripheral providers/mux/reset/rail contracts are not established; USB/storage/audio cannot simply inherit sibling compatibles. | #23 and #28, now explicit shared foundation. |
+| SMP | **UNKNOWN** | CPU0 works locally; the external four-core result identifies SRAMROM 10202000 and an upstream release mechanism. Our release/coherency/IRQ/PM validation remains open. [Research](../knowledge/reverse-engineering-audit.md). | #28; optional for first wired player. |
+| Clocks, resets, pinctrl/GPIO/IRQ and I2C | **BLOCKED** | Narrow inherited USB clocks work; navigation has an offline-validated GPIO provider. Complete CCF/pinctrl/EINT/I2C/rail ownership remains incomplete; external clock/IRQ workarounds require correction. | #23/#24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Watchdog and controlled reset | **PARTIAL** | Reviewed early AP_RGU stop and displayed stopped state; no production driver takeover, pet/timeout strategy, deliberate reset or restart qualification. | #28 with #30. Preserve current experiment behavior. |
 | On-device diagnostic channel | **CONFIRMED** | Working inherited RGB565 text and owner-observed heartbeat; exact other fields/duration are not invented. | #20–21; [result](../knowledge/m1-runtime-hardware-result.md). |
 | Developer host logs / USB | **PARTIAL** | USBACM-03 physical ACM capture confirms retained kernel sequence 0–77 and PID1 beats 1–43 with no captured relay gaps/errors. [Result](../knowledge/m2-usbacm-hardware-result.md#usbacm-03-kernel-and-pid1-capture-confirmed). Repeatability, late-open/non-reading host, detach/reconnect and stability remain unqualified. | #27, #23, #28. |
 | Physical UART / early crash capture | **UNKNOWN** | UART0 candidate exists; no pad/level/wire capture. Ramoops retention/reader is unproved. USB cannot log hangs before its initialization. | Existing #16; broader crash/debug policy #32. |
-| Display/controller/panel | **PARTIAL** | Inherited 480×360 RGB565 works; panel candidate and LK evidence exist. No native DRM/panel initialization, standard-interface takeover or display-PM proof. | #25; #28. |
+| Display/controller/panel | **PARTIAL** | Inherited 480×360 RGB565 works; later external camera results retract 368. Cold PHY/GPIO112 reset and live takeover failures guide porting; native DRM/panel and display PM remain untested here. | #25/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Backlight | **PLANNED** | Existing illumination persists; independent brightness/control/limits and rail/PWM ownership unverified. Narrow ownership research is queued. | #25/#23; #28/#30. |
-| Wheel/select input | **PLANNED** | Stock input nodes/key behavior exist; GPIO/MCU/transport and evdev mapping require the scoped proof. No native input driver. | #24; #28. |
+| Wheel/select input | **PLANNED** | Select/navigation have pending M2-INPUT-01 polled evdev. APT32F register-zero/repeated-start frames guide implementation; local rotation/IRQ/transport evidence is absent. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Other buttons/power-key/touch/wake | **PLANNED** | Donor GPIO6/7/9/10/54 navigation mapping feeds the first polled-evdev slice. Mapping on our board remains untested; keypad/power-key/wake remain unqualified. Stock touch names do not prove a touchscreen. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
-| Removable SD | **PLANNED** | Metadata distinguishes card from internal eMMC; #26 scopes controller/read-only proof. Native driver/clock/pins/DMA contract missing. | #26; #28. |
+| Removable SD | **PLANNED** | Metadata distinguishes card from eMMC. External MSDC operation reduces compatibility uncertainty; clocks/pins/rails/DMA, asynchronous discovery and read-only proof remain required locally. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Internal eMMC | **BLOCKED** | Capacity/ordinary partition offsets reconciled; no native controller support contract, safe write/flush path or filesystem integrity qualification. | #28; recovery/rootfs policy #32. |
 | Development rootfs and filesystem/data layout | **PLANNED** | Current image is diagnostic initramfs only. Block access, filesystem, writable-data boundaries and recoverable rootfs deployment were absent beyond broad blueprint intent. | Added #28/#32; no distribution/layout chosen. |
 | PMIC/battery/charger telemetry | **PARTIAL** | Photographed native PWRAP CID 0x2023/VUSB 0xc000 reads work; CHRDET follows reported startup cable state ([result](../knowledge/m2-chrdet-hardware-result.md)). Duplicate Android battery fields still conflict. No trustworthy units/calibration, native gauge/charger policy or voltage measurement. | #23; added #30. |
 | Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |
 | cpufreq/voltage/OPP and cpuidle | **UNKNOWN** | Minimal config does not establish frequency/voltage transitions or idle states. Shared clocks/rails precede optimization. | #30 with #28. |
 | Runtime PM/suspend/resume/wake | **UNKNOWN** | No native suspend/wake, rail retention, storage resume or screen-off-audio proof. | #30; integrates #28/#29/#31 incrementally. |
-| MT6582 AFE/ASoC/I2S/DMA | **BLOCKED** | Later stock references suggest second-I2S/DL1. No established native CPU-DAI/DMA/clock/machine route. [Audio](../knowledge/audio-path.md). | Added #29; shared resource contracts #28/#30. |
+| MT6582 AFE/ASoC/I2S/DMA | **BLOCKED** | Our HAL evidence and external pad/audio results support second-I2S/DL1; CON1 silence and VGP2 brownout have failure explanations. No native PCM/DMA/clock result on our unit. [Audio](../knowledge/audio-path.md). | #29; shared resources #23/#28/#30. |
 | CS43131 / headphone / amplifier / speaker routing | **PARTIAL** | Historical cs43131_dac at 1-0030 and aw87559_pa at 1-0058; stock /proc/asound/cards empty. Binding names are not native PCM, electrical routing or upstream applicability proof. Reset/mute/jack/ACCDET/analog levels remain open. | #29 with #23/#30. |
 | Wi-Fi | **PARTIAL** | Stock firmware/module names present, not loaded-blob or native-driver evidence. Transport/revision/calibration/regulatory/power contract missing. | Added #31. |
-| Bluetooth | **PARTIAL** | WMT/STP and ttyMT2 clues; no standard HCI transport/firmware initialization or native BlueZ/A2DP proof. | #31; audio #29 and power #30. |
+| Bluetooth | **PARTIAL** | Local WMT/STP metadata; external BTIF/HCI, cold calibration and A2DP records reduce research uncertainty. Own firmware/calibration and cold/link/rate qualification remain open; EDR fallback is a workaround. | #31; audio #29 and power #30. |
 | Firmware and per-device calibration | **PARTIAL** | Names and some hashed artifacts exist; exact selected radio blobs/order/compatibility, loading permissions, redistribution provenance and unique-data retention unresolved. | #31 and #32; private raw data stays private. |
 | FM where physically supported | **PARTIAL** | Donor STP/FM/AFE source exists; owner confirms this older Y2 lacks usable reception hardware. No reception implementation/qualification target for this board; other revisions remain untested. | Conditional #31/M16 reference only; [donor audit](../knowledge/donor-audit.md). |
 | Recovery and safe acquisition | **PARTIAL** | Owner-proven SPFT/FM history plus documented BOOTIMG-only Android restoration. Exact current image/per-device backups, consistency and independent retention remain incomplete. [Recovery](../knowledge/recovery.md), [actual trial](../knowledge/first-experiment-result.md). | Open M0; #32 owns continuing production/recovery coverage. |

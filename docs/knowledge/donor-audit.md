@@ -1,5 +1,11 @@
 # Y2 donor audit and Linux 6.18 integration decision
 
+> 2026-09-10: [additional reverse-engineering audit](reverse-engineering-audit.md)
+> supplies experiment history and selected captures for this exact donor.
+> It resolves the stale 368-line claim, explains cold display/audio failures and
+> identifies two fixes already covered by 6.18. Power-key and Bluetooth
+> conclusions below are corrected accordingly. Their results are not ours.
+
 2026-09-09. Canonical baseline `8ebc800`. M1 complete; M2 active with
 exit criteria unmet; M3 and application development remain gated.
 
@@ -38,7 +44,7 @@ No new hardware result, build or flash is implied by this document.
 
 ## Subsystem matrix
 
-One primary reuse class per row: **A** our/upstream 6.18 solution is preferable;
+Reuse classes (split when a row combines distinct drivers): **A** our/upstream 6.18 solution is preferable;
 **B** likely small adaptation; **C** substantial forward-port; **D** evidence;
 **E** correction required; **F** implementation missing in both projects.
 Availability is separate from hardware readiness. Paths below are relative to
@@ -59,7 +65,7 @@ the donor snapshot unless explicitly identified as upstream or canonical.
 | I2C | D | No new bus driver. DT claims `mt6577-i2c`, AP-DMA channels `11000200/280`, SPI44/45 and fixed 66 MHz/div16. | Upstream v6.18 `i2c-mt65xx`; verify IP quirks, real clocks/pins, DMA mask/buffer ownership and inherited channel quiescence. |
 | Wheel rotation | B | `apt32f-wheel.c`: address 0x51, register-zero repeated-start nine-byte frame, class3 and codes1–4, data-ready55. | I2C + EINT; check AA as well as 55, transfer errors/capability; validate direction/acceleration then use standard relative wheel events where appropriate. |
 | Navigation buttons | B | Board DT maps active-low GPIO6/7/9/10/54 to left/back/right/playpause/enter. Reuse upstream gpio-keys family. | GPIO; verify mapping on our revision. Polled evdev first needs neither EINT nor I2C DMA. |
-| Volume / power key | E | Keypad source gives MEM1 bits0/1 and SPI116; PMIC-keys change allows a single key. Keypad enables scanning before later failures and omits clock/lifecycle ownership. | CCF keypad gate, proper keycode validation/register widths and input/IRQ lifetime. Power key needs PMIC EINT25/MFD; preserve long-press recovery. |
+| Volume / power key | E / A | Keypad gives MEM1 bits0/1 and SPI116 but needs clock/lifecycle/error correction. PMIC patch guards a missing-home-key pointer in long-press setup; v6.18 already uses static register descriptions and needs no such patch. | Keypad gate/keycode/register/lifetime validation. Use upstream PMIC keys after EINT25/MFD; preserve long-press recovery. |
 | Display interface / DRM | C | OVL→RDMA→COLOR→DSI, MMSYS/mutex and old format/FIFO data are high-value inputs. Port variants into current DRM helpers rather than replace files. | CCF, coherent DMA/CMA/IOMMU/SMI choice, quiesced old scanout, panel, atomic state, failure fallback. |
 | GC9503V panel | E | `panel-gc9503v.c` has a valuable LK init/gamma table. Comments claim 368 lines/sync-event; emitted mode is 360/sync-pulse. Board DT omits power/reset/backlight relationships used by driver. | Reconcile with our proven 480×360 scanout and LK, electrical reset polarity, real supply and link timings. |
 | Backlight | E | `mt6323-backlight.c` gangs four ISINKs into one class device, but drops every regmap error; comment ceiling1 conflicts with code5/full-brightness probe. Step/duty arithmetic drops brightness at boundaries (31→32). | MFD/regmap owner, verified current ceiling, monotonic map, error/shutdown handling and panel binding. |
@@ -75,7 +81,7 @@ the donor snapshot unless explicitly identified as upstream or canonical.
 | Headphone routing / detection | E | Machine driver routes DAC through amp and changes DAC PCM_PATH_CTL_2 for mono speaker. IRQ16/codec jack detection is only DT/source evidence. | Mutual exclusion, jack API/event policy, pop-safe ordering; DAPM event returns update_bits positive-change value rather than zero success. |
 | Haptics | B | DT uses upstream regulator-haptic with MT6323 VIBR. | PMIC regulator, actual motor voltage/current/duration; no 3.3 V assumption from comment alone. |
 | Wi-Fi | C | Vendor fullmac cfg80211 port and AHB HIF `180f0000`, WMT firmware/power dependencies. | Later #31; firmware/calibration, memory, shared power/locks and 6.18 cfg80211 review. |
-| Bluetooth | C | WMT/STP over BTIF plus standard HCI bridge, optional competing vendor char channel. | Later #31; real transport/firmware, AP-DMA, exclusive channel ownership. Do not apply global basic-rate HCI edits. |
+| Bluetooth | C | WMT/STP over BTIF plus standard HCI bridge, optional competing vendor char channel. History adds cold modem/calibration prerequisites outside the kernel bundle. | Later #31; transport/firmware/AP-DMA/exclusive ownership. Correction: Basic Rate is a controller-scoped HCI quirk, not a blanket ban; still an unresolved EDR workaround. |
 | FM | D | MT6627/STP and AFE ASRC route are reference for other revisions. | Owner confirms this older Y2 lacks usable reception hardware. Exclude from this device's implementation/exit promises. |
 | GPU / SPM | E | Lima DT, MFG genpd and normal-mode PCM provide leads; overlapping SPM mappings use devm_ioremap to evade exclusive claims; PCM uses virt_to_phys without DMA API. | Later, or only required core dependency: shared regmap/genpd and DMA ownership/cache visibility. No GPU required for first input. |
 | RTC / power-off | B | Board describes existing upstream MT6323 RTC and power controller. | PMIC transport/IRQ and tested shutdown; retain current recovery behavior until qualified. |
@@ -88,7 +94,7 @@ Additional concrete correction targets: the apmixed probe never stores its
 that value. The DRM/PHY changes include direct framebuffer `ioremap` writes at
 `bfb54600` and hardcoded FIFO values in shared component paths. They need to be
 removed or properly restricted by variant data. The donor's regmap debugfs-write
-enable and generic Bluetooth basic-rate changes are not Y2 platform foundations.
+enable and EDR fallback are not M2 platform foundations.
 
 Our [D08 analysis](initial-ram-map.md) is stronger than the donor DT alone:
 stock reports `[80000000,be000000)` **and** `[bf800000,bfa00000)` as RAM;

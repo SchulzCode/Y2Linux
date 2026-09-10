@@ -1,5 +1,11 @@
 # Platform foundation work and execution order
 
+> **Additional evidence, 2026-09-10:** [research matrix](../knowledge/reverse-engineering-audit.md)
+> turns SMP, wheel, power and display discovery into validation/adaptation work.
+> Keep M2-INPUT-01 and USBACM-04 as pending hardware candidates; shared CCF,
+> one PWRAP owner, EINT/I2C/DMA and RAM reconciliation remain the next providers.
+> No memory expansion or later milestone is activated by external successes.
+
 > **Donor adoption, 2026-09-09:** the owner's new implementation instruction
 > supersedes the rigid order below. [Complete donor audit](../knowledge/donor-audit.md)
 > selects GPIO navigation/evdev on D08 first while USB robustness remains open;

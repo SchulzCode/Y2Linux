@@ -1,5 +1,11 @@
 # Display and input evidence
 
+> 2026-09-10: [historical experiment audit](reverse-engineering-audit.md) finds a
+> dated correction to 480×360 and cold-display PHY/GPIO112 reset failures.
+> v6.18 already avoids the old OVL pitch/address and PMIC single-key bugs.
+> Preserve our live-LK display; validate remaining variant/pin/rail details and
+> the pending M2-INPUT-01 mappings on our older board.
+
 > 2026-09-09: [donor audit](donor-audit.md) supplies concrete GPIO navigation,
 > APT32F protocol, keypad, DRM and GC9503V starting points. These supersede the
 > discovery-only next steps below. The first implementation uses donor GPIO
