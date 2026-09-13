@@ -1,5 +1,7 @@
 # Storage05 owner boot result — failed internal discovery
 
+**2026-09-13 update:** Corrected readback at21:10:43 CEST matches all six samples. Tables are intact; flashed ext4 prefixes are correct. Actual stock FM code proves the missing23552-sector translation. [Verified result](readback-corrected-analysis.json), [production correction](../../knowledge/storage06-addressing-correction.md).
+
 ## Latest: SPFT readback completed in a different address mode
 
 At 21:00:03 CEST the owner completed the six Readback entries. All 13824 bytes

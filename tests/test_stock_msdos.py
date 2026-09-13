@@ -31,5 +31,5 @@ int main(int argc,char **argv) {
 '''
         with tempfile.TemporaryDirectory() as d:
             p=Path(d);(p/'test.c').write_text((fixtures/'msdos-harness.h').read_text()+strip(header)+strip(source)+tail)
-            subprocess.run(['cc','-Werror=implicit-function-declaration',str(p/'test.c'),'-o',str(p/'test')],check=True)
+            subprocess.run(['cc','-Werror=implicit-function-declaration','-I'+str(ROOT/'kernel/platform'),str(p/'test.c'),'-o',str(p/'test')],check=True)
             subprocess.run([str(p/'test'),*[str(fixtures/n) for n in ['MBR','EBR1','EBR2']]],check=True)

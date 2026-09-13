@@ -39,7 +39,8 @@ class ProductionMMC(unittest.TestCase):
                 self.assertFalse(self.io(True,arg=end-blocks+1,blocks=blocks))
         for sector in (0,1024,18432,38912,125952,145408,1846272,3742720):
             self.assertTrue(self.io(arg=sector));self.assertFalse(self.io(True,arg=sector))
-        for sector,count in ((0xffffffff,2),(166912,0xffffffff),(15269888,1),(0,0)):
+        self.assertTrue(self.io(arg=15203327,blocks=1))
+        for sector,count in ((0xffffffff,2),(166912,0xffffffff),(15269888,1),(15203328,1),(15203327,2),(0,0)):
             self.assertFalse(self.io(arg=sector,blocks=count));self.assertFalse(self.io(True,arg=sector,blocks=count))
     def test_switch_fields_and_hardware_areas(self):
         for index in range(256):

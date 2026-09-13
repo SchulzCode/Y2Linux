@@ -1,12 +1,12 @@
 # Production Storage / Installation v1 partition audit
 
-Current implementation: [Storage05 production MMC correction](../knowledge/storage05-mmc-correction.md),
-with [one BOOTIMG-only candidate and its failed owner boot result](../build/y2linux-production-v1-r5-deployment.md).
-Stock geometry/classification below remains unchanged. Upstream Linux 6.18 parses
-the retained factory tables without a compatibility parser. Storage04 ACM confirms
-eMMC capacity but signature0000 and no partitions; Storage05's owner photo shows
-the same failure after explicit software SBC. Independent raw table readback is
-absent. Physical internal-root acceptance has failed.
+Current correction: [stock Y2 eMMC address compatibility](../knowledge/storage06-addressing-correction.md).
+Storage05's physical boot failed, but the corrected owner readback at21:10:43 CEST
+proves intact MBR/EBRs and exact flashed ext4 identity prefixes. The actual stock
+FM kernel adds23552 native user sectors and exposes15203328 sectors; the port
+omitted that mapping. Stock geometry/classification below remains unchanged.
+Upstream Linux6.18 parses these tables without a compatibility parser. Corrected
+physical internal-root acceptance remains pending.
 BOOTIMG now owns loadable modules; rootfs/data and module ownership follow the
 [update contract](update-model.md). No physical success is inferred from builds.
 
@@ -30,13 +30,15 @@ Current Linux disables eMMC; initial SSH timed out; owner then connected Y2 and 
 and stock runtime metadata remain the latest available evidence, not live native
 filesystem proof. 48 kHz remains unqualified; M3 is not closed.
 
-All starts below are **physical bytes within EMMC_USER**, except PRELOADER
-(EMMC_BOOT_1) and BMTPOOL (unknown sentinel). The full JSON also retains distinct
-scatter linear values. Normal scatter linear = physical + 0x1400000. Never add
-that difference to Linux disk offsets. PRELOADER's vendor 20 MiB size is NOT a
-hardware boot-region extent (physical boot regions are 4 MiB each).
+All normal starts below are **stock logical disk bytes**, matching the scatter's
+`physical_start_addr` field. Native EMMC_USER commands add0xb80000 (23552 sectors).
+Legacy global DA coordinates instead add0x1400000. The full JSON preserves the
+original scatter fields; current packages also carry explicit
+`storage_addressing` and corrected readback coordinates. PRELOADER (EMMC_BOOT_1)
+and BMTPOOL (sentinel) are separate: the vendor20MiB PRELOADER span is not a
+hardware boot-region extent (each boot region is4MiB).
 
-| Stock entry | Classification | Physical start | Stock span | Reason |
+| Stock entry | Classification | Stock logical/scatter start | Stock span | Reason |
 | --- | --- | --- | --- | --- |
 | PRELOADER | KEEP | `0x0` | `0x1400000` | Boot ROM handoff; special hardware region span unresolved |
 | MBR | KEEP | `0x0` | `0x80000` | Stock partition table |
@@ -68,7 +70,7 @@ but Linux's stock p1 view is only 1024 bytes; preserve both facts.
 
 ## Reuse decision and dependencies
 
-| Component | Stock name / current purpose | Physical / linear start | Partition bytes | Linux stock view | SPFT |
+| Component | Stock name / current purpose | Stock logical / global linear start | Partition bytes | Linux stock view | SPFT |
 | --- | --- | --- | --- | --- | --- |
 | BOOTIMG | BOOTIMG, current M3 Linux boot | 0x1d80000 / 0x3180000 | 16777216 | Whole user disk range; no stock node | Independent NORMAL_ROM row |
 | Y2ROOT | ANDROID, stock ext4 /system | 0x5180000 / 0x6580000 | 859832320 (820 MiB) | p5, start 166912 sectors, length 1679360 sectors | Independent YAFFS_IMG row; Storage02 raw ext4 transport |

@@ -6,6 +6,37 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Stock address compatibility correction entry — 2026-09-13
+
+Entry revision `d7ee4f2`. The owner's corrected readback completed at
+21:10:43 CEST: all six samples match, including Storage05's BOOTIMG control,
+the complete stock MBR/EBRs and both flashed ext4 identity prefixes.
+[Evidence and limits](../hardware-evidence/2026-09-13-storage05-owner/readback-corrected-analysis.json).
+The independently retained **actual FM kernel binary**, unlike the public donor
+source previously reviewed, adds `(0x1400000 - other_hardware_capacity)/512`
+to user-area block commands. DA reports 0x880000 bytes of other hardware areas,
+so the missing translation is **23552 sectors**, with a 15203328-sector stock
+disk view. [Source proof and production correction](../knowledge/storage06-addressing-correction.md).
+This supersedes the missing-sector-evidence blocker and the assumption that the
+public donor's zero offset describes this device. Tables must not be repaired.
+
+Reassessed every coverage row against the new readback, actual stock binary,
+Storage05 ACM/failure photo, historical DEV-02/AUDIO-02, current owner scope and
+all eight open GitHub issues (#16/#27–33, read again today). Physical internal
+boot remains failed; no capability is promoted from offline evidence. #33 and
+milestone 3 already say ACTIVE/manual acceptance pending; no GitHub status
+change is needed. M1/M2 historical core success, narrow M3 44.1-kHz audio,
+deferred reconnect, backup/calibration gaps, M4/M5 not started, M6 planned and
+application deferral retain their classifications and gates.
+
+The owner-authorized integrated production pass now has concrete evidence for
+one corrected BOOTIMG: restore the stock logical-to-native address translation
+and visible capacity, enforce the same logical write spans before translation,
+preserve real EXT_CSD bytes, and reuse the installed root/data images. No DT,
+hardware/memory scope, separate diagnostic path, table write or next-phase
+activation. The next blocker is validation of that correction, followed by one
+owner manual BOOTIMG-only flash/no-SD boot; hardware acceptance remains pending.
+
 ## Storage05 readback observation update — 2026-09-13
 
 The owner completed the prepared 13824-byte batch at 21:00:03 CEST. The
@@ -1166,7 +1197,8 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 
 ## Coverage matrix
 
-Reassessed at the Storage05 manual boundary on 2026-09-13 against
+Reassessed at the stock address compatibility entry on 2026-09-13 against the
+21:10:43 corrected physical readback, actual retained stock FM kernel and
 [Storage05 owner result](../hardware-evidence/2026-09-13-storage05-owner/README.md),
 [Storage04 ACM](../hardware-evidence/2026-09-13-storage04-live/README.md),
 [DEV-02 core](../knowledge/y2linux-dev02-live-qualification.md) and
@@ -1191,7 +1223,7 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Wheel/select input | **CONFIRMED** | DEV-02 raw evdev has balanced Select and both wheel KEY_UP/KEY_DOWN directions;52wheelIRQ/52I2C completions. Supersedes DEV-01 -110 transport regression. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation keys, both volume keys and brief Power have balanced DEV-02 evdev events. No redesign; wake/suspend remains M4 and no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
 | Removable SD | **CONFIRMED** | DEV-02 SD128 on11240000.mmc at13MHz/one bit; ext4 Y2ROOT boots Buildroot, reads files, accepts verified userspace updates and sync.512MiB filesystem retained; throughput/hotplug/card-removal/power-fail qualification later. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Internal eMMC | **PARTIAL** | Storage04/Storage05 ACM and the owner photo show 15269888 sectors but sector-zero signature0000, no partitions and rescue. Storage05 confirms sector addressing and user-area access (PART_CONFIG=48); software SBC/CMD18 return R1=900 but discovery still fails. Physical table corruption is unproved; independent sector evidence is needed. Native filesystem reads/writes and no-SD Buildroot remain unqualified. | #33 storage; #28/#32. |
+| Internal eMMC | **PARTIAL** | Storage05 ACM identifies sector-addressed user access but sector-zero signature0000 and rescue. Corrected owner readback at21:10:43 proves intact stock tables and exact flashed root/data identity prefixes. Actual stock FM code adds23552 native user sectors; the production port omitted that mapping and stock capacity reduction. Correction is authorized; native filesystem reads/writes and no-SD Buildroot remain unqualified. | #33 storage; #28/#32. |
 | Development rootfs and filesystem/data layout | **CONFIRMED** | Physical Buildroot2025.02.17/glibc/BusyBox/Dropbear on writable removable Y2ROOT, key authentication and complete command logs. Runtime mount and matching-module index fixes applied. Owner restart validates persistent runtime/module fixes; persistent ALSA tools/config/WAVs now installed from canonical Buildroot output; SD full build-id remains DEV-01 with additive file manifest. Production layout separate. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
 | PMIC/battery/charger telemetry | **PARTIAL** | DEV-02 PWRAP/MFD/regulator/PMIC key consumers work and USB presence power_supply ONLINE=1 is readable. This does not provide battery units/calibration, charging policy or voltage/thermal telemetry; full power now belongs to M4 #30. | #23; added #30. |
 | Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |

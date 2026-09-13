@@ -26,7 +26,7 @@ rescue() {
     echo "<3>Y2RESCUE: $*; staying in rescue" > /dev/kmsg
     {
         printf '\033[2J\033[H'
-        echo 'Y2Linux STORAGE05 RESCUE'
+        echo 'Y2Linux STORAGE06 RESCUE'
         echo "$*"
         echo 'No reboot / no SD fallback / no formatting'
         /sbin/y2-usb-status
@@ -48,7 +48,7 @@ while [ "$n" -lt 40 ]; do
     [ -n "$rootdev" ] && [ -n "$datadev" ] && break
     n=$((n+1))
     if [ "$n" = 10 ]; then
-        printf '\nY2Linux Storage05: locating internal root/data\nNo SD card required.\n' > /dev/tty0
+        printf '\nY2Linux Storage06: locating internal root/data\nNo SD card required.\n' > /dev/tty0
     fi
     sleep 1
 done

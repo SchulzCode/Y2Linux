@@ -4,7 +4,10 @@ from pathlib import Path
 
 STOCK_SCATTER_SHA256='e5fe03e9f3219cc9b5ead27892f2ddb722acc16adce3306d27feb87893cd977e'
 CAPACITY=7784103936 # Stock Android exported layout bound, NOT physical SEC_COUNT.
-PHYSICAL_CAPACITY=7818182656 # Selected DA reports full EMMC_USER capacity.
+PHYSICAL_CAPACITY=7818182656 # Selected DA reports full native EMMC_USER capacity.
+USER_OFFSET_SECTORS=23552 # Own FM driver: (20 MiB - 8.5 MiB non-user areas)/512.
+DA_OTHER_BYTES=0x880000
+# start = stock logical disk/scatter physical_start_addr, NOT native USER bytes.
 TARGETS={
  'BOOTIMG': {'start':0x1d80000,'size':0x1000000,'linear':0x3180000,'file':'BOOTIMG.img','type':'kernel/boot'},
  'ANDROID': {'start':0x5180000,'size':0x33400000,'linear':0x6580000,'file':'Y2ROOT.img','type':'rootfs','label':'Y2ROOT','uuid':'79324c69-6e75-4801-8000-000000000101'},
@@ -17,6 +20,49 @@ def require(ok,message):
 def digest(path):
     require(Path(path).is_file() and not Path(path).is_symlink(),'regular file required: '+str(path))
     with open(path,'rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+
+def addressing_contract():
+    """Explicit coordinates for the single production kernel, including old fields."""
+    return {
+        'schema':'org.schulzcode.y2linux.stock-emmc-window/v1',
+        'logical_sector_bytes':512,
+        'native_user_sectors':PHYSICAL_CAPACITY//512,
+        'logical_disk_sectors':CAPACITY//512,
+        'logical_to_native_user_offset_sectors':USER_OFFSET_SECTORS,
+        'excluded_native_tail_sectors':(PHYSICAL_CAPACITY-CAPACITY)//512-USER_OFFSET_SECTORS,
+        'required_ext_csd':{'boot_size_mult':32,'rpmb_size_mult':4,'gp_size_mult':[0]*12},
+        'ext_csd_modified':False,
+        'translated_commands':[17,18,24,25],
+        'write_guard_address_space':'stock logical disk; before translation',
+        'payload_absolute_start_bytes_semantics':'stock logical disk / scatter physical_start_addr; not native EMMC_USER',
+        'legacy_da':{'region':'EMMC_PART_UNKNOWN(0x00)','address_type':'NUTL_ADDR_LOGICAL',
+                     'non_user_prefix_bytes':DA_OTHER_BYTES,'logical_disk_origin_bytes':0x1400000},
+        'targets':{n:{'logical_start_sector':t['start']//512,'length_sectors':t['size']//512,
+                      'native_user_start_bytes':t['start']+USER_OFFSET_SECTORS*512,
+                      'legacy_da_start_bytes':t['linear']} for n,t in TARGETS.items()},
+    }
+
+def make_readback_plan(classification, table_dir):
+    """Coordinate reference only. Acquisitions require the stated DA mode."""
+    def entry(name,start,size):
+        return {'partition':name,'file':name+'.bin','region':'EMMC_USER',
+                'physical_start_bytes':start+USER_OFFSET_SECTORS*512,
+                'stock_logical_start_bytes':start,'legacy_global_da_start_bytes':start+0x1400000,
+                'size_bytes':size}
+    keep=[]
+    for row in classification['partitions']:
+        if row['classification']!='KEEP' or row['scatter_region']!='EMMC_USER':continue
+        item=entry(row['name'],int(row['scatter_physical_bytes'],16),int(row['scatter_size_bytes'],16))
+        if row['name'] in ('MBR','EBR1','EBR2'):
+            table=table_dir/row['name']
+            item.update(stock_prefix_size_bytes=table.stat().st_size,stock_prefix_sha256=digest(table))
+        keep.append(item)
+    return {'address_space':'physical_start_bytes are native EMMC_USER offsets, valid only when the backend explicitly selects EMMC_USER',
+            'observed_spft_mode':'For the retained MT6582 legacy DA (NUTL_ADDR_LOGICAL / EMMC_PART_UNKNOWN=0), use legacy_global_da_start_bytes instead',
+            'mode_control':'Verify a known BOOTIMG prefix and logged mode before interpreting any samples',
+            'preservation_ranges':keep,
+            'target_readbacks':[entry(n,t['start'],t['size']) for n,t in TARGETS.items()],
+            'special_regions':'PRELOADER hardware regions and BMTPOOL are not included or accessed'}
 
 def scatter_rows(text):
     rows=[]

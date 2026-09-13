@@ -17,7 +17,8 @@ import sys
 
 PROJECT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT))
-from tools.production.layout import digest, make_boot_scatter, require, TARGETS
+from tools.production.layout import (digest, make_boot_scatter, require, TARGETS,
+                                     CAPACITY, addressing_contract, make_readback_plan)
 
 
 def stage_userspace(base, build):
@@ -89,17 +90,23 @@ def package(build, base, out):
     shutil.copyfile(base/'BOOTIMG.img', out/'fallback/BOOTIMG-storage04.img')
     for name in ('layout.json', 'rescue-manifest.json', 'versions.json', 'kernel-source-commit', 'userspace-source.json'):
         shutil.copyfile(build/name, out/'metadata'/name)
-    for name in ('partitions.json', 'readback-plan.json', 'buildroot.config', 'kernel-inputs.lock.json',
+    for name in ('partitions.json', 'buildroot.config', 'kernel-inputs.lock.json',
                  'buildroot-inputs.lock.json', 'kernel-COPYING', 'Buildroot-COPYING'):
         shutil.copyfile(base/'metadata'/name, out/'metadata'/name)
     shutil.copyfile(build/'kernel/.config', out/'metadata/kernel.config')
     shutil.copyfile(base/'manifest.json', out/'metadata/base-manifest.json')
-    shutil.copyfile(PROJECT/'docs/knowledge/storage05-mmc-correction.md', out/'metadata/mmc-correction.md')
+    shutil.copyfile(PROJECT/'docs/knowledge/storage06-addressing-correction.md', out/'metadata/mmc-correction.md')
+    (out/'metadata/storage-addressing.json').write_text(json.dumps(addressing_contract(), indent=2)+'\n')
+    classification = json.loads((out/'metadata/partitions.json').read_text())
+    (out/'metadata/readback-plan.json').write_text(json.dumps(
+        make_readback_plan(classification, PROJECT/'tests/fixtures/production'), indent=2)+'\n')
     stock = (PROJECT/'tests/fixtures/production/MT6582_Android_scatter.txt').read_text()
     scatter = 'MT6582_BOOTIMG_only_scatter.txt'
     (out/scatter).write_text(make_boot_scatter(stock))
     m = copy.deepcopy(previous)
     m.update(versions)
+    m['storage_addressing'] = addressing_contract()
+    m['hardware_compatibility']['accepted_linux_user_sector_counts'] = [CAPACITY//512]
     boot = next(p for p in m['payloads'] if p['target_partition'] == 'BOOTIMG')
     m['installed_components'] = [p for p in m['payloads'] if p['target_partition'] != 'BOOTIMG']
     m['payloads'] = [boot]
@@ -124,7 +131,8 @@ def package(build, base, out):
         'Use Download Only and MT6582_BOOTIMG_only_scatter.txt. Select BOOTIMG → BOOTIMG.img only. '
         'Every other row, including PRELOADER, MBR, EBR1, EBR2, ANDROID and USRDATA, stays unchecked. '
         'Do not use Format or Firmware Upgrade. Kernel writes remain limited to the two existing root/data spans.\n\n'
-        'Boot once without an SD card. Expected: mmcblk0p5/p7, verified internal ext4 root/data, '
+        'Boot once without an SD card. Expected: stock-layout=1, offset=23552, disk=15203328, '
+        'sector-zero signature55aa, mmcblk0p5/p7, verified internal ext4 root/data, '
         'switch_root to Buildroot and normal services. Physical success is not yet established. '
         'Existing SSH authorization is preserved; the matching client private key was absent at entry.\n\n'
         'Fallback: same scatter and BOOTIMG-only selection, choosing fallback/BOOTIMG-storage04.img. '

@@ -3,18 +3,40 @@
 import argparse, hashlib, json, posixpath, struct, subprocess, sys, tarfile
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
-from tools.production.layout import TARGETS, CAPACITY, digest, require, scatter_rows, sparse_identity, make_boot_scatter
+from tools.production.layout import (TARGETS, CAPACITY, digest, require, scatter_rows,
+                                     sparse_identity, make_boot_scatter,
+                                     addressing_contract, make_readback_plan)
 PROJECT=Path(__file__).resolve().parents[2]
 
 def run(*argv):
     return subprocess.run(argv,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout
+
+def validate_addressing(out, m):
+    # Retained historical packages describe the pre-correction port. Never
+    # rewrite their manifests or mistake their capacity allowance for current IO.
+    historical = m['kernel_version'] in ('6.18.0-y2linux-storage03',
+                                        '6.18.0-y2linux-storage04', '6.18.0-y2linux-storage05')
+    if historical and 'storage_addressing' not in m:
+        return False
+    require(m.get('storage_addressing')==addressing_contract(), 'stock logical/native addressing contract')
+    require(json.loads((out/'metadata/storage-addressing.json').read_text())==addressing_contract(),
+            'addressing metadata consistency')
+    require(m['hardware_compatibility']['accepted_linux_user_sector_counts']==[CAPACITY//512],
+            'current kernel exports the stock logical capacity only')
+    classification=json.loads((out/'metadata/partitions.json').read_text())
+    require(json.loads((out/'metadata/readback-plan.json').read_text())==
+            make_readback_plan(classification,PROJECT/'tests/fixtures/production'),
+            'readback coordinates/mode must match actual stock addressing')
+    return True
 
 def validate_manifest(out):
     m=json.loads((out/'manifest.json').read_text());classification=json.loads((out/'metadata/partitions.json').read_text())
     if m.get('installation_profile')=='boot-only':return validate_boot_update(out)
     require(m['schema']=='org.schulzcode.y2linux.release/v1' and m['layout_version']==1,'manifest/layout version')
     require(m['hardware_compatibility']['emmc_user_capacity_bytes']==CAPACITY,'layout capacity')
-    require(m['hardware_compatibility']['emmc_physical_user_capacity_bytes']==7818182656 and m['hardware_compatibility']['accepted_linux_user_sector_counts']==[15203328,15269888],'physical vs exported capacity')
+    mapped=validate_addressing(out,m)
+    require(m['hardware_compatibility']['emmc_physical_user_capacity_bytes']==7818182656 and
+            m['hardware_compatibility']['accepted_linux_user_sector_counts']==([15203328] if mapped else [15203328,15269888]),'physical vs exported capacity')
     require(m['hardware_compatibility']['soc']=='MT6582' and m['hardware_compatibility']['board']=='Y2 eastaeon82_wet_kk','board identity')
     require(m['normal_update_allowlist']==['BOOTIMG','ANDROID'],'OTA allowlist excludes data initialization')
     require(m['runtime_kernel_write_allowlist']==['ANDROID','USRDATA'],'runtime allowlist')
@@ -88,7 +110,11 @@ def validate_boot_update(out, base=None):
     require(m['schema']==previous['schema']=='org.schulzcode.y2linux.release/v1','release schema')
     require(m['installation_profile']=='boot-only' and len(m['payloads'])==1,'one boot payload')
     require(digest(out/'metadata/base-manifest.json')==m['base_manifest_sha256'],'base manifest hash')
-    for field in ('hardware_compatibility','layout_version','data_schema_version','rootfs_version',
+    mapped=validate_addressing(out,m)
+    expected_hardware={**previous['hardware_compatibility']}
+    if mapped:expected_hardware['accepted_linux_user_sector_counts']=[CAPACITY//512]
+    require(m['hardware_compatibility']==expected_hardware,'retained hardware; corrected stock disk view')
+    for field in ('layout_version','data_schema_version','rootfs_version',
                   'normal_update_allowlist','runtime_kernel_write_allowlist','minimum_compatible_components',
                   'debug_access','application'):
         require(m[field]==previous[field],'retained production contract '+field)
@@ -105,7 +131,7 @@ def validate_boot_update(out, base=None):
         require(not (out/entry['raw']['file']).exists(),'root/data must not be update payloads')
     p=m['payloads'][0];t=TARGETS['BOOTIMG']
     require(p['target_partition']=='BOOTIMG' and p['region']=='EMMC_USER' and p['partition_relative_offset_bytes']==0,
-            'BOOTIMG physical address space')
+            'BOOTIMG stock logical/scatter address space')
     require(p['absolute_start_bytes']==t['start'] and p['maximum_size_bytes']==t['size'] and
             p['scatter_linear_start_bytes']==t['linear'],'BOOTIMG coordinates')
     require(p['requires']=={'layout_version':1,'data_schema_version':1,'platform_contract':'y2-platform-v1'},'boot dependencies')

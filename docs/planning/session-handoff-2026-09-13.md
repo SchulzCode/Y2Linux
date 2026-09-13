@@ -1,5 +1,19 @@
 # Session handoff — 2026-09-13, Storage05 boot failed
 
+## Latest: readback verified; stock address correction in progress
+
+Corrected owner readback at21:10:43 matches all six samples, including intact
+MBR/EBRs and flashed ext4 identity prefixes. The actual stock FM kernel adds
+23552 native EMMC_USER sectors to stock logical block requests and subtracts
+prefix/tail from disk capacity. The public donor source had incorrectly suggested
+zero offset. [Proof and production correction](../knowledge/storage06-addressing-correction.md).
+
+One BOOTIMG-only production correction is in progress under the original owner
+scope. Keep root/data and tables untouched; do not request another readback.
+No device/GUI access or assistant flash. Roadmap entry audit is updated; #33
+remains ACTIVE, all physical/later gates unchanged. Earlier entries below are history.
+
+
 ## Latest: readback completed; acquisition addresses need correction
 
 The owner completed all six samples at 21:00:03 CEST. The

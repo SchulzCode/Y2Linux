@@ -1,5 +1,11 @@
 # Partition map and acquisition boundary
 
+**2026-09-13 clarification:** the actual FM kernel implements a23552-sector
+translation from this stock logical disk to native EMMC_USER. Corrected owner
+readback confirms all tables and flashed ext4 identity prefixes.
+[Evidence and three address spaces](storage06-addressing-correction.md).
+The original metadata and historical acquisition boundary below remain history.
+
 Date: 2026-09-08. Task: [Y2E-110](https://github.com/SchulzCode/Y2Linux/issues/3). Capture: `20260908-partitions`. Status: metadata reconciliation complete, raw acquisition NOT AUTHORIZED.
 
 The [full 21-entry table](partition-map.tsv) retains scatter linear and physical byte addresses, runtime vendor values, Linux node mapping, 512-byte sector counts and unresolved cases. Source scatter SHA-256: `e5fe03e9f3219cc9b5ead27892f2ddb722acc16adce3306d27feb87893cd977e`. `/proc/dumchar_info`, `/proc/emmc`, `/proc/partitions`, mount records, aliases and explicit sysfs block metadata were read without opening any block device. Sixty bounded read-only commands captured 13 eMMC/SD nodes. Missing `start` files on whole disks/hardware boot regions are expected observations, not zero-valued partition offsets.
@@ -17,7 +23,11 @@ All eight `/proc/emmc` partition starts/counts match the corresponding sysfs val
 
 Scatter and runtime dumchar independently agree on these two ranges. They are metadata findings, not an executable readback contract: parent-device permissions and exact acquisition semantics still require resolution. File sizes of the packaged boot/recovery images are much smaller than their partition spans; packaged images do not cover all partition bytes.
 
-The normal scatter linear address adds `0x1400000` relative to EMMC_USER physical address. It is not a physical offset to apply to a whole-device tool. Linux hardware boot regions are separate address spaces.
+The normal scatter linear address adds `0x1400000` to the stock logical disk
+address (named `physical_start_addr` in the scatter). A native EMMC_USER command
+adds `0xb80000` to that logical address; the retained legacy global DA uses the
+linear address. Hardware boot regions remain separate. Never interchange these
+coordinates without identifying the tool's actual mode.
 
 ## Special cases that prevent a generic recipe
 

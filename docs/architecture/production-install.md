@@ -1,5 +1,11 @@
 # Manual first installation — Production Storage v1
 
+**Current initialized device:** the address compatibility correction is
+BOOTIMG-only; preserve ANDROID/USRDATA. Follow the generated BOOTIMG-only
+package's install.md. The first-install procedure below is for a fresh device.
+Use current package coordinate metadata: older Storage04/05 readback plans
+incorrectly labelled stock logical disk starts as native EMMC_USER offsets.
+
 **Storage04 production candidate, physical no-SD acceptance pending.**
 
 For the already initialized Storage03 device select the preserve-data scatter:
@@ -29,7 +35,7 @@ prerequisites; do not experiment with bootloader/security/format modes.
    Android data**. Keep an independently accessible copy for recovery. If original
    Android settings/apps/data matter, take a full private USRDATA readback first
    (and ANDROID if modified system state matters). No whole-ROM backup is required.
-3. Before overwriting, use SPFT Readback EMMC_USER to capture MBR, EBR1, EBR2 and
+3. Before overwriting, use the explicit readback mode in current package metadata to capture MBR, EBR1, EBR2 and
    the bounded protected ranges listed in metadata/readback-plan.json. Preserve
    before/after files privately. Verify table prefixes against the original FM
    MBR/EBR files; stock scatter + historical map alone do not prove current tables.
@@ -47,7 +53,7 @@ prerequisites; do not experiment with bootloader/security/format modes.
 Load this package's `MT6582_Android_scatter.txt` for FIRST INITIALIZATION.
 Select **Download Only**. Review every row after loading; use no saved defaults.
 
-| SPFT row | First install | Image | Physical EMMC_USER start | Partition span |
+| SPFT row | First install | Image | Stock logical/scatter start | Partition span |
 | --- | --- | --- | --- | --- |
 | BOOTIMG | SELECT | BOOTIMG.img | 0x01d80000 | 0x01000000 |
 | ANDROID | SELECT | Y2ROOT.img | 0x05180000 | 0x33400000 |
@@ -73,11 +79,15 @@ fit their original partitions and every written byte has a defined SHA256 identi
 SPFT scatter linear addresses are BOOTIMG0x3180000, ANDROID0x6580000 and
 USRDATA0x41780000. **They are not physical EMMC_USER readback offsets.** The
 stock scatter carries both address fields and SPFT performs its own translation.
-No custom DA/global address translation is implemented. Verify physically below.
+Native EMMC_USER offsets are0x02900000,0x05d00000 and0x40f00000 respectively.
+The observed legacy Readback mode (`EMMC_PART_UNKNOWN=0`) uses the global
+addresses, while a backend explicitly selecting EMMC_USER uses native offsets.
+Current metadata/readback-plan.json names both. Check the logged mode and a
+known BOOTIMG prefix before interpreting samples. No table rewrite is involved.
 
 ## Readback before boot acceptance
 
-Read back full target spans using the physical starts above into
+When full readbacks are needed, use current metadata coordinates for the actual DA mode into
 `BOOTIMG.bin` (16777216 bytes), `ANDROID.bin` (859832320 bytes),
 `USRDATA.bin` (838860800 bytes). Also repeat the before-protected/table ranges.
 Capture before normal Linux boot, because root/data journal and host-key writes

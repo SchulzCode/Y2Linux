@@ -42,6 +42,6 @@ def main():
         path=a.after/(item['target_partition']+'.bin');raw=item['raw']
         require(path.stat().st_size==item['maximum_size_bytes'],'full partition readback length')
         require(prefix(path,raw['size_bytes'])==raw['sha256'],'raw image prefix mismatch '+path.name)
-        print('IMAGE VERIFIED',path.name,raw['size_bytes'],'bytes at physical',hex(item['absolute_start_bytes']))
+        print('IMAGE VERIFIED',path.name,raw['size_bytes'],'bytes at stock logical',hex(item['absolute_start_bytes']))
     print('PASS supplied readback bytes; operator DA/address identity and physical boot still required')
 if __name__=='__main__':main()

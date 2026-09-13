@@ -17,6 +17,7 @@ class Context(unittest.TestCase):
 #include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "storage-layout.h"
 typedef uint32_t u32;typedef uint8_t u8;
 #define BIT(n) (1U<<(n))
 #define MMC_DATA_READ BIT(9)
@@ -40,10 +41,18 @@ int main(void) {
  struct mmc_request r={&c,NULL};complete(&h,&r);assert(h.y2_blockaddr&&!h.y2_identified);
  unsigned char ext[512]={0};unsigned sectors=15269888;
  memcpy(ext+212,&sectors,4);ext[179]=0x49; /* boot enable/ack + boot0 access */
+ ext[226]=32;ext[168]=4; /* independently observed boot/RPMB sizes; no GP */
+ unsigned char original[512];memcpy(original,ext,512);
  struct mmc_data data={.flags=MMC_DATA_READ,.bytes_xfered=512,.sg_len=1,.sg=ext};
  r.data=&data;c.opcode=MMC_SEND_EXT_CSD;data.error=-5;complete(&h,&r);assert(!h.y2_identified&&!copies);
  data.error=0;c.error=-5;complete(&h,&r);assert(!h.y2_identified&&!copies);
  c.error=0;complete(&h,&r);assert(h.y2_identified&&h.y2_sectors==15269888&&h.y2_partition==0x49&&copies==1&&!owned);
+ assert(!memcmp(original,ext,512)); /* never spoof the card's real EXT_CSD */
+ const unsigned geometry_bytes[]={212,213,214,215,226,168,143,144,145,146,147,148,149,150,151,152,153,154};
+ for(unsigned i=0;i<sizeof(geometry_bytes)/sizeof(*geometry_bytes);i++) {
+  unsigned at=geometry_bytes[i];ext[at]^=1;complete(&h,&r);assert(!h.y2_identified);
+  ext[at]^=1;complete(&h,&r);assert(h.y2_identified);
+ }
  r.data=NULL;c.opcode=MMC_SWITCH;c.arg=0x03b34801;dispatch(&h,&r);complete(&h,&r);
  assert(h.y2_switch_pending&&h.y2_partition==0x49); /* not trusted on transport success */
  c.opcode=MMC_SEND_STATUS;c.resp[0]=7<<9;complete(&h,&r);assert(h.y2_switch_pending);
@@ -67,5 +76,5 @@ int main(void) {
 '''
         with tempfile.TemporaryDirectory() as d:
             p=Path(d);(p/'test.c').write_text(constants+pre+source[start:end]+'}\nstatic void dispatch(struct msdc_host *host,struct mmc_request *mrq) {\n'+source[dispatch_start:dispatch_end]+tail)
-            subprocess.run(['cc','-Wall','-Wextra','-Werror',str(p/'test.c'),'-o',str(p/'test')],check=True)
+            subprocess.run(['cc','-Wall','-Wextra','-Werror','-I'+str(ROOT/'kernel/platform'),str(p/'test.c'),'-o',str(p/'test')],check=True)
             subprocess.run([str(p/'test')],check=True)

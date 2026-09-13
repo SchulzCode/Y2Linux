@@ -1,0 +1,175 @@
+{
+  "operation": "owner-performed corrected SPFT Readback",
+  "completed_local_time": "2026-09-13T21:10:43+02:00",
+  "source_commit": "d7ee4f2",
+  "tool_result": "S_DONE(0x0)",
+  "total_bytes": 13824,
+  "address_mode": "NUTL_ADDR_LOGICAL / EMMC_PART_UNKNOWN(0x00); legacy global DA",
+  "raw_evidence_private": "evidence-private/20260913-storage05-readback-211043",
+  "logs": {
+    "ADPT_20260913-185127_0.log": {
+      "bytes": 38136,
+      "sha256": "065737ea457f368e08e6abc132f491b0d78b47613510d9fad9caa7929832ed0f"
+    },
+    "BROM_DLL_V5.log": {
+      "bytes": 964059,
+      "sha256": "529e02ea39bf76c58c0f881803d42fa0211494d43b5a0d47a7f08d10f2e6d330"
+    },
+    "GLB_20260913-185127_0.log": {
+      "bytes": 1053,
+      "sha256": "ee4bcb59d3ea3c02f597caf450e16c4449a4aff578612719fd2978351c44585e"
+    },
+    "QT_FLASH_TOOL.log": {
+      "bytes": 54950,
+      "sha256": "2cf7143af62c50c90bf339bc73739c1970b5ba2842e72bf65e09d8741e0d6c63"
+    }
+  },
+  "rows": [
+    {
+      "file": "BOOTIMG-prefix.bin",
+      "bytes": 4096,
+      "sha256": "a53c3f62d60057646f2b300a03ed4e67d440cf1f73c1bf23b3a2cb5dceb4a7c5",
+      "expected_match": true,
+      "spft_global_start_bytes": 51904512,
+      "stock_logical_start_bytes": 30932992,
+      "native_user_start_bytes": 42991616,
+      "read_command_log_line": 4876
+    },
+    {
+      "file": "MBR.bin",
+      "bytes": 512,
+      "sha256": "4be9c92be18ba4169d4b050e18811c6650eab27a487f1c67f4a49efa01cd32a1",
+      "expected_match": true,
+      "spft_global_start_bytes": 20971520,
+      "stock_logical_start_bytes": 0,
+      "native_user_start_bytes": 12058624,
+      "read_command_log_line": 4901,
+      "signature": "55aa",
+      "entries": [
+        {
+          "type": 5,
+          "relative_start_sector": 1024,
+          "length_sectors": 4294967295
+        },
+        {
+          "type": 131,
+          "relative_start_sector": 18432,
+          "length_sectors": 20480
+        },
+        {
+          "type": 131,
+          "relative_start_sector": 38912,
+          "length_sectors": 20480
+        },
+        {
+          "type": 131,
+          "relative_start_sector": 125952,
+          "length_sectors": 12288
+        }
+      ]
+    },
+    {
+      "file": "EBR1.bin",
+      "bytes": 512,
+      "sha256": "0eca0f26847ffd17426ffd7c9e976a7e28017cf6bc454d6478c68d3b2c52a64e",
+      "expected_match": true,
+      "spft_global_start_bytes": 21495808,
+      "stock_logical_start_bytes": 524288,
+      "native_user_start_bytes": 12582912,
+      "read_command_log_line": 4926,
+      "signature": "55aa",
+      "entries": [
+        {
+          "type": 131,
+          "relative_start_sector": 165888,
+          "length_sectors": 1679360
+        },
+        {
+          "type": 131,
+          "relative_start_sector": 1845248,
+          "length_sectors": 258048
+        },
+        {
+          "type": 131,
+          "relative_start_sector": 2103296,
+          "length_sectors": 1638400
+        },
+        {
+          "type": 5,
+          "relative_start_sector": 144384,
+          "length_sectors": 4294967295
+        }
+      ]
+    },
+    {
+      "file": "EBR2.bin",
+      "bytes": 512,
+      "sha256": "699e1e33054e944e7b1776a539cd41551f4a066abc51535ccfc3d50b44c4ffc7",
+      "expected_match": true,
+      "spft_global_start_bytes": 95420416,
+      "stock_logical_start_bytes": 74448896,
+      "native_user_start_bytes": 86507520,
+      "read_command_log_line": 4951,
+      "signature": "55aa",
+      "entries": [
+        {
+          "type": 131,
+          "relative_start_sector": 3597312,
+          "length_sectors": 4291225599
+        },
+        {
+          "type": 0,
+          "relative_start_sector": 0,
+          "length_sectors": 0
+        },
+        {
+          "type": 0,
+          "relative_start_sector": 0,
+          "length_sectors": 0
+        },
+        {
+          "type": 0,
+          "relative_start_sector": 0,
+          "length_sectors": 0
+        }
+      ]
+    },
+    {
+      "file": "Y2ROOT-prefix.bin",
+      "bytes": 4096,
+      "sha256": "6a0aec2a06f1cf872ad5d6d59e744f6f056501b223997fde3ab88f063ee0a146",
+      "expected_match": true,
+      "spft_global_start_bytes": 106430464,
+      "stock_logical_start_bytes": 85458944,
+      "native_user_start_bytes": 97517568,
+      "read_command_log_line": 4976,
+      "ext4_label": "Y2ROOT",
+      "ext4_uuid": "79324c69-6e75-4801-8000-000000000101"
+    },
+    {
+      "file": "Y2DATA-prefix.bin",
+      "bytes": 4096,
+      "sha256": "1df21cc4106599cb151beeccaf70750ece9d0b9180b5c7829714e5cea51f9c1e",
+      "expected_match": true,
+      "spft_global_start_bytes": 1098383360,
+      "stock_logical_start_bytes": 1077411840,
+      "native_user_start_bytes": 1089470464,
+      "read_command_log_line": 5001,
+      "ext4_label": "Y2DATA",
+      "ext4_uuid": "79324c69-6e75-4801-8000-000000000102"
+    }
+  ],
+  "stock_kernel_sha256": "7287acf1b397d243c927dde5c6ef9d5d871c9c158207cdd98e0e820923f4c197",
+  "stock_native_translation": {
+    "global_non_user_bytes": 8912896,
+    "global_mbr_bytes": 20971520,
+    "logical_to_native_user_sectors": 23552,
+    "raw_user_sectors": 15269888,
+    "stock_disk_sectors": 15203328,
+    "excluded_tail_sectors": 43008
+  },
+  "conclusion": "All six samples match. Tables are intact and both flashed ext4 headers are correctly located. The actual FM kernel translates stock logical block addresses by 23552 native EMMC_USER sectors; the production port omitted this.",
+  "limits": "4 KiB prefixes establish image location/header identity, not whole on-device filesystem integrity. No corrected Linux boot has yet occurred.",
+  "assistant_device_access": false,
+  "assistant_storage_writes": false
+}

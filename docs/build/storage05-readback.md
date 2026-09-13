@@ -1,5 +1,7 @@
 # Storage05: corrected SPFT readback coordinates
 
+**2026-09-13 update:** The owner completed the corrected table below at21:10:43 CEST. All six samples match; no further readback is requested. [Result](../hardware-evidence/2026-09-13-storage05-owner/readback-corrected-analysis.json). The stock logical/native coordinate distinction is established in the [production correction](../knowledge/storage06-addressing-correction.md).
+
 ## Completed batch: address mode mismatch
 
 The owner completed all six reads at 21:00:03 CEST on 2026-09-13. SPFT returned

@@ -85,7 +85,14 @@ static bool msdc_cmd_is_ready(struct msdc_host *h,struct mmc_request *r,struct m
 static int msdc_auto_cmd_done(struct msdc_host *h,int events,struct mmc_command *c) {assert(!h->y2_emmc);return 0;}
 static void msdc_start_data(struct msdc_host *h,struct mmc_command *c,struct mmc_data *d) {
     h->data=d;started++;
-    if(c->arg==0 && (d->flags&MMC_DATA_READ))memcpy(d->buffer,factory_mbr,512);
+    /* Model the native media from independent stock/DA evidence. The DMA
+     * must use the emitted wire address, not the unmodified logical request. */
+    unsigned wire=readl(registers+SDC_ARG);
+    if(wire==23552 && (d->flags&MMC_DATA_READ))memcpy(d->buffer,factory_mbr,512);
+    if(h->y2_emmc && (d->flags&MMC_DATA_WRITE)) {
+        unsigned end=wire+d->blocks;
+        assert((wire>=190464 && end<=1869824) || (wire>=2127872 && end<=3766272));
+    }
 }
 static const u32 cmd_ints_mask=MSDC_INT_CMDRDY|MSDC_INT_CMDTMO|MSDC_INT_RSPCRCERR;
 static const u32 data_ints_mask=MSDC_INT_XFER_COMPL|MSDC_INT_DATTMO|MSDC_INT_DATCRCERR;

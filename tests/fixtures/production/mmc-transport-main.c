@@ -27,11 +27,16 @@ static void response(u32 status) {
 int main(int argc,char **argv) {
     assert(argc==2);FILE *file=fopen(argv[1],"rb");assert(file);
     assert(fread(factory_mbr,1,512,file)==512);fclose(file);
-    /* Sector zero: exact CMD23(8) -> CMD18(0) -> 4096-byte completion. */
+    /* Without the Y2 mapping, a raw sector-zero read sees the reserved prefix. */
+    setup(17,0,1,false);host.y2_emmc=false;msdc_ops_request(&mmc,&mrq);
+    assert(arguments[0]==0);response(0);
+    msdc_data_xfer_done(&host,MSDC_INT_XFER_COMPL,&mrq,&data);
+    assert(buffer[510]==0 && buffer[511]==0);
+    /* Logical sector zero: CMD23(8) -> CMD18(native23552) -> intact MBR. */
     setup(18,0,8,true);msdc_ops_request(&mmc,&mrq);
     assert(ncommands==1&&commands[0]==23&&arguments[0]==8&&!started);
     response(R1_READY_FOR_DATA|(R1_STATE_TRAN<<9));
-    assert(ncommands==2&&commands[1]==18&&arguments[1]==0&&!started);
+    assert(ncommands==2&&commands[1]==18&&arguments[1]==23552&&!started&&cmd.arg==0);
     assert(!(encodings[1]&BIT(29))&&((encodings[1]>>11)&3)==2);
     assert(readl(registers+SDC_BLK_NUM)==8);
     response(R1_READY_FOR_DATA|(R1_STATE_TRAN<<9));
@@ -43,7 +48,7 @@ int main(int argc,char **argv) {
     for(unsigned i=0;i<4;i++) {
         setup(25,166912,1,true);sbc.arg|=flags[i];msdc_ops_request(&mmc,&mrq);
         assert(commands[0]==23&&arguments[0]==(flags[i]|1));response(0);
-        assert(commands[1]==25&&arguments[1]==166912);
+        assert(commands[1]==25&&arguments[1]==190464&&cmd.arg==166912);
         assert(((encodings[1]>>11)&3)==2&&(encodings[1]&BIT(13))&&!(encodings[1]&BIT(29)));
         response(0);msdc_data_xfer_done(&host,MSDC_INT_XFER_COMPL,&mrq,&data);
         assert(done==1&&data.bytes_xfered==512&&!data.error);
@@ -59,10 +64,40 @@ int main(int argc,char **argv) {
     assert(sbc.error==-EILSEQ&&ncommands==1&&!started&&done==1);
     /* Open-ended multiblock uses CMD12; CMD17 uses single-block encoding. */
     setup(18,1024,8,false);msdc_ops_request(&mmc,&mrq);response(0);
-    assert(arguments[0]==1024);msdc_data_xfer_done(&host,MSDC_INT_XFER_COMPL,&mrq,&data);
-    assert(ncommands==2&&commands[1]==12&&!done);response(0);assert(done==1);
+    assert(arguments[0]==24576);msdc_data_xfer_done(&host,MSDC_INT_XFER_COMPL,&mrq,&data);
+    assert(ncommands==2&&commands[1]==12&&arguments[1]==0&&!done);response(0);assert(done==1);
     setup(17,145408,1,false);msdc_ops_request(&mmc,&mrq);
-    assert(arguments[0]==145408&&((encodings[0]>>11)&3)==1);
+    assert(arguments[0]==168960&&((encodings[0]>>11)&3)==1&&cmd.arg==145408);
+    /* Retrying a failed request applies the offset exactly once. */
+    msdc_cmd_done(&host,MSDC_INT_CMDTMO,&mrq,&cmd);
+    assert(done==1&&cmd.arg==145408);msdc_ops_request(&mmc,&mrq);
+    assert(arguments[1]==168960&&cmd.arg==145408);
+    /* Single and multiblock data writes reach only the physical data span. */
+    for(unsigned op=24;op<=25;op++) {
+        setup(op,2104320,op==24?1:8,op==25);msdc_ops_request(&mmc,&mrq);
+        if(op==25)response(0);
+        assert(arguments[ncommands-1]==2127872&&cmd.arg==2104320);
+        response(0);msdc_data_xfer_done(&host,MSDC_INT_XFER_COMPL,&mrq,&data);
+        assert(done==1&&!data.error);
+    }
+    /* Disk end excludes the native tail; no command is emitted over the end. */
+    setup(17,15203327,1,false);msdc_ops_request(&mmc,&mrq);
+    assert(arguments[0]==15226879);
+    setup(18,15203327,2,true);msdc_ops_request(&mmc,&mrq);
+    assert(done==1&&cmd.error==-EROFS&&!ncommands&&!prepared);
+    /* Initialization/status/switch arguments must not receive any offset. */
+    const unsigned control_ops[]={0,1,2,3,7,9,10,12,13,16,6};
+    const unsigned control_args[]={0,0x40ff8000,0,1<<16,1<<16,1<<16,1<<16,0,1<<16,512,0x03b34801};
+    for(unsigned i=0;i<sizeof(control_ops)/sizeof(*control_ops);i++) {
+        setup(17,0,1,false);cmd.opcode=control_ops[i];cmd.arg=control_args[i];
+        cmd.data=NULL;cmd.flags=MMC_RSP_R1;mrq.data=NULL;host.y2_partition=0x48;
+        msdc_ops_request(&mmc,&mrq);
+        assert(ncommands==1&&arguments[0]==control_args[i]&&cmd.arg==control_args[i]);
+    }
+    setup(8,0,1,false);msdc_ops_request(&mmc,&mrq);assert(ncommands==1&&arguments[0]==0);
+    /* Removable SD uses upstream addressing, including writes. */
+    setup(24,1234,1,false);host.y2_emmc=false;card.is_mmc=false;msdc_ops_request(&mmc,&mrq);
+    assert(ncommands==1&&arguments[0]==1234);
     /* Every DMA error wins even if XFER_COMPL arrives at the same time. */
     const u32 faults[]={MSDC_INT_DATTMO,MSDC_INT_DATCRCERR,MSDC_INT_DMA_BDCSERR,
         MSDC_INT_DMA_GPDCSERR,MSDC_INT_DMA_PROTECT};

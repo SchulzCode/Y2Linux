@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <assert.h>
+#include "storage-layout.h"
 typedef uint64_t sector_t; typedef int16_t __s16; typedef uint32_t __u32; typedef uint16_t __u16; typedef uint8_t __u8;
 typedef uint32_t u32; typedef uint8_t u8;
 typedef uint16_t __le16; typedef uint32_t __le32;
@@ -22,7 +23,13 @@ struct disk {int queue;};
 struct parsed_partitions {struct disk *disk;struct part parts[256];int next,limit;char pp_buf[4096];};
 struct fat_boot_sector {char prefix[14];uint16_t reserved;uint8_t fats;char gap[4];uint8_t media;} __attribute__((packed));
 static unsigned char sectors[3][512];
-static unsigned char *read_part_sector(struct parsed_partitions *s, sector_t n, Sector *b) {(void)s;(void)b;return n==0?sectors[0]:n==1024?sectors[1]:n==145408?sectors[2]:NULL;}
+static unsigned char *read_part_sector(struct parsed_partitions *s, sector_t n, Sector *b) {
+    (void)s;(void)b;
+    if(n>=15203328)return NULL;
+    unsigned wire=y2_emmc_wire_arg(17,n);
+    /* Independently observed native locations, not logical fixture aliases. */
+    return wire==23552?sectors[0]:wire==24576?sectors[1]:wire==168960?sectors[2]:NULL;
+}
 static void put_dev_sector(Sector b) {(void)b;}
 static unsigned queue_logical_block_size(int q) {(void)q;return 512;}
 static u32 get_unaligned_le32(const void *p) {const uint8_t *b=p;return b[0]|b[1]<<8|b[2]<<16|((u32)b[3]<<24);}

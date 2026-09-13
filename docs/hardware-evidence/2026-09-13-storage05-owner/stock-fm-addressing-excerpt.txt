@@ -1,0 +1,167 @@
+# Own FM kernel; llvm-objdump --triple=armv7a, mapped .text base0xc0008000
+# SHA256 7287acf1b397d243c927dde5c6ef9d5d871c9c158207cdd98e0e820923f4c197
+# Gaps between ranges are intentional; complete function disassembly retained privately.
+c04e6668: e1a0c00d     	mov	r12, sp
+c04e666c: e92dd830     	push	{r4, r5, r11, r12, lr, pc}
+c04e6670: e24cb004     	sub	r11, r12, #4
+c04e6674: e3073308     	movw	r3, #0x7308
+c04e6678: e34c30d3     	movt	r3, #0xc0d3
+c04e667c: e5d300e2     	ldrb	r0, [r3, #0xe2]
+c04e6680: e5d320a8     	ldrb	r2, [r3, #0xa8]
+c04e6684: e5d31091     	ldrb	r1, [r3, #0x91]
+c04e6688: e0820080     	add	r0, r2, r0, lsl #1
+c04e668c: e5d32090     	ldrb	r2, [r3, #0x90]
+c04e6690: e5d3408f     	ldrb	r4, [r3, #0x8f]
+c04e6694: e0810080     	add	r0, r1, r0, lsl #1
+c04e6698: e5d3c094     	ldrb	r12, [r3, #0x94]
+c04e669c: e5d31093     	ldrb	r1, [r3, #0x93]
+c04e66a0: e0820400     	add	r0, r2, r0, lsl #8
+c04e66a4: e5d35097     	ldrb	r5, [r3, #0x97]
+c04e66a8: e5d32092     	ldrb	r2, [r3, #0x92]
+c04e66ac: e0840400     	add	r0, r4, r0, lsl #8
+c04e66b0: e5d34096     	ldrb	r4, [r3, #0x96]
+c04e66b4: e080080c     	add	r0, r0, r12, lsl #16
+c04e66b8: e5d3c095     	ldrb	r12, [r3, #0x95]
+c04e66bc: e0800401     	add	r0, r0, r1, lsl #8
+c04e66c0: e5d3109a     	ldrb	r1, [r3, #0x9a]
+c04e66c4: e0800002     	add	r0, r0, r2
+c04e66c8: e5d32099     	ldrb	r2, [r3, #0x99]
+c04e66cc: e0800805     	add	r0, r0, r5, lsl #16
+c04e66d0: e5d33098     	ldrb	r3, [r3, #0x98]
+c04e66d4: e0800404     	add	r0, r0, r4, lsl #8
+c04e66d8: e080000c     	add	r0, r0, r12
+c04e66dc: e0800801     	add	r0, r0, r1, lsl #16
+c04e66e0: e0800402     	add	r0, r0, r2, lsl #8
+c04e66e4: e0800003     	add	r0, r0, r3
+c04e66e8: e89da830     	ldm	sp, {r4, r5, r11, sp, pc}
+c04e66ec: e1a0c00d     	mov	r12, sp
+c04e66f0: e92dd800     	push	{r11, r12, lr, pc}
+c04e66f4: e24cb004     	sub	r11, r12, #4
+c04e66f8: ebffffda     	bl	0xc04e6668 @ imm = #-0x98 ; msdc_get_other_capacity
+c04e66fc: e2600505     	rsb	r0, r0, #20971520
+c04e6700: e1a004a0     	lsr	r0, r0, #9
+c04e6704: e89da800     	ldm	sp, {r11, sp, pc}
+c04eac28: ebffeeaf     	bl	0xc04e66ec @ imm = #-0x4544 ; msdc_get_offset
+c04eac9c: e5942010     	ldr	r2, [r4, #0x10]
+c04eaca0: e5943014     	ldr	r3, [r4, #0x14]
+c04eaca4: e59f0038     	ldr	r0, [pc, #0x38]         @ 0xc04eace4
+c04eaca8: e6ff4072     	uxth	r4, r2
+c04eacac: eb07e610     	bl	0xc06e44f4 @ imm = #0x1f9840 ; printk
+c04eacb0: e1a01008     	mov	r1, r8
+c04eacb4: e1a0300a     	mov	r3, r10
+c04eacb8: e1a04404     	lsl	r4, r4, #8
+c04eacbc: e59f0024     	ldr	r0, [pc, #0x24]         @ 0xc04eace8
+c04eacc0: e1a02004     	mov	r2, r4
+c04eacc4: eb07e60a     	bl	0xc06e44f4 @ imm = #0x1f9828 ; printk
+c04eacc8: e08a0004     	add	r0, r10, r4
+c04f02c8: e5984004     	ldr	r4, [r8, #0x4]
+c04f02cc: e593202c     	ldr	r2, [r3, #0x2c]
+c04f02d0: e3520000     	cmp	r2, #0
+c04f02d4: 1a000080     	bne	0xc04f04dc @ imm = #0x200
+c04f02d8: e5d33030     	ldrb	r3, [r3, #0x30]
+c04f02dc: e3530000     	cmp	r3, #0
+c04f02e0: e5983000     	ldr	r3, [r8]
+c04f02e4: 0a000009     	beq	0xc04f0310 @ imm = #0x24
+c04f02e8: e2432011     	sub	r2, r3, #17
+c04f02ec: e3530018     	cmp	r3, #24
+c04f02f0: 13520001     	cmpne	r2, #1
+c04f02f4: 9a00006a     	bls	0xc04f04a4 @ imm = #0x1a8
+c04f02f8: e3530019     	cmp	r3, #25
+c04f02fc: 0a000068     	beq	0xc04f04a4 @ imm = #0x1a0
+c04f0300: e3530023     	cmp	r3, #35
+c04f0304: 0a000066     	beq	0xc04f04a4 @ imm = #0x198
+c04f0308: e3530024     	cmp	r3, #36
+c04f030c: 0a000064     	beq	0xc04f04a4 @ imm = #0x190
+c04f0310: e3530026     	cmp	r3, #38
+c04f0314: 0a000076     	beq	0xc04f04f4 @ imm = #0x1d8
+c04f0318: e5854038     	str	r4, [r5, #0x38]
+c04f031c: f57ff04f     	dsb	sy
+c04f0320: f57ff04f     	dsb	sy
+c04f0324: e5856034     	str	r6, [r5, #0x34]
+c04f04a4: e59f9834     	ldr	r9, [pc, #0x834]        @ 0xc04f0ce0
+c04f04a8: e5d92268     	ldrb	r2, [r9, #0x268]
+c04f04ac: e3520000     	cmp	r2, #0
+c04f04b0: 1affff96     	bne	0xc04f0310 @ imm = #-0x1a8
+c04f04b4: e3540000     	cmp	r4, #0
+c04f04b8: 1599226c     	ldrne	r2, [r9, #0x26c]
+c04f04bc: 0a000082     	beq	0xc04f06cc @ imm = #0x208
+c04f04c0: e3530023     	cmp	r3, #35
+c04f04c4: e0844002     	add	r4, r4, r2
+c04f04c8: 05894270     	streq	r4, [r9, #0x270]
+c04f04cc: 05983000     	ldreq	r3, [r8]
+c04f04d0: e3530024     	cmp	r3, #36
+c04f04d4: 1affff8d     	bne	0xc04f0310 @ imm = #-0x1cc
+c04f04d8: e5894274     	str	r4, [r9, #0x274]
+c04f04dc: e5983000     	ldr	r3, [r8]
+c04f04e0: eaffff8a     	b	0xc04f0310 @ imm = #-0x1d8
+c04f06cc: ebffd7e5     	bl	0xc04e6668 @ imm = #-0xa06c ; msdc_get_other_capacity
+c04f06d0: e2603505     	rsb	r3, r0, #20971520
+c04f06d4: e1a00007     	mov	r0, r7
+c04f06d8: e589326c     	str	r3, [r9, #0x26c]
+c04f06dc: ebffe090     	bl	0xc04e8924 @ imm = #-0x7dc0 ; msdc_get_user_capacity
+c04f06e0: e5973004     	ldr	r3, [r7, #0x4]
+c04f06e4: e5933174     	ldr	r3, [r3, #0x174]
+c04f06e8: e5933100     	ldr	r3, [r3, #0x100]
+c04f06ec: e3130008     	tst	r3, #8
+c04f06f0: e50b0050     	str	r0, [r11, #-0x50]
+c04f06f4: e1a0c001     	mov	r12, r1
+c04f06f8: 0a000006     	beq	0xc04f0718 @ imm = #0x18
+c04f06fc: e599226c     	ldr	r2, [r9, #0x26c]
+c04f0700: e2823f7f     	add	r3, r2, #508
+c04f0704: e3520000     	cmp	r2, #0
+c04f0708: e2833003     	add	r3, r3, #3
+c04f070c: a1a03002     	movge	r3, r2
+c04f0710: e1a034c3     	asr	r3, r3, #9
+c04f0714: e589326c     	str	r3, [r9, #0x26c]
+c04f0718: e599321c     	ldr	r3, [r9, #0x21c]
+c04f071c: e59fa5bc     	ldr	r10, [pc, #0x5bc]       @ 0xc04f0ce0
+c04f0720: e3530000     	cmp	r3, #0
+c04f0724: 1a00003b     	bne	0xc04f0818 @ imm = #0xec
+c04f0728: e3a03001     	mov	r3, #1
+c04f072c: e58a321c     	str	r3, [r10, #0x21c]
+c04f0730: e50bc054     	str	r12, [r11, #-0x54]
+c04f0734: ebec8138     	bl	0xc0010c1c @ imm = #-0x4dfb20 ; sched_clock
+c04f0738: e59a326c     	ldr	r3, [r10, #0x26c]
+c04f073c: e1a0200d     	mov	r2, sp
+c04f0740: e3c2ed7f     	bic	lr, r2, #8128
+c04f0744: e59f25b8     	ldr	r2, [pc, #0x5b8]        @ 0xc04f0d04
+c04f0748: e51bc054     	ldr	r12, [r11, #-0x54]
+c04f074c: e3cee03f     	bic	lr, lr, #63
+c04f0750: e58d3000     	str	r3, [sp]
+c04f0754: e51b3050     	ldr	r3, [r11, #-0x50]
+c04f0758: e58d2004     	str	r2, [sp, #0x4]
+c04f075c: e1a02a23     	lsr	r2, r3, #20
+c04f0760: e3003d22     	movw	r3, #0xd22
+c04f0764: e182260c     	orr	r2, r2, r12, lsl #12
+c04f0768: e58d3008     	str	r3, [sp, #0x8]
+c04f076c: e1a03a2c     	lsr	r3, r12, #20
+c04f0770: e597c05c     	ldr	r12, [r7, #0x5c]
+c04f0774: e50bc050     	str	r12, [r11, #-0x50]
+c04f0778: e59ec00c     	ldr	r12, [lr, #0xc]
+# Stock main block allocation obtains the reserve through msdc_get_info.
+c034a0dc: e3a05000     	mov	r5, #0
+c034a0e0: e5902180     	ldr	r2, [r0, #0x180]
+c034a0e4: e2433009     	sub	r3, r3, #9
+c034a0e8: e1a03312     	lsl	r3, r2, r3
+c034a0ec: e1a04003     	mov	r4, r3
+c034a0f0: e3a01004     	mov	r1, #4
+c034a0f4: e24b204c     	sub	r2, r11, #76
+c034a0f8: e3a00000     	mov	r0, #0
+c034a0fc: eb06e280     	bl	0xc0502b04 @ imm = #0x1b8a00
+c034a100: e51b6034     	ldr	r6, [r11, #-0x34]
+c034a104: e59f02b4     	ldr	r0, [pc, #0x2b4]        @ 0xc034a3c0
+c034a108: e0544006     	subs	r4, r4, r6
+c034a10c: e2c55000     	sbc	r5, r5, #0
+c034a110: e1a01006     	mov	r1, r6
+c034a114: eb0e68f6     	bl	0xc06e44f4 @ imm = #0x39a3d8
+c034a118: e287c008     	add	r12, r7, #8
+c034a11c: e3a03000     	mov	r3, #0
+c034a120: e3a06001     	mov	r6, #1
+c034a124: e58d3000     	str	r3, [sp]
+c034a128: e58d3004     	str	r3, [sp, #0x4]
+c034a12c: e1a00007     	mov	r0, r7
+c034a130: e58d6008     	str	r6, [sp, #0x8]
+c034a134: e1a0100c     	mov	r1, r12
+c034a138: e1a02004     	mov	r2, r4
+c034a13c: e1a03005     	mov	r3, r5
+c034a140: e50bc068     	str	r12, [r11, #-0x68]

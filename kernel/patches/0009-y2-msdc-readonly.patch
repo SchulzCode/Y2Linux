@@ -82,13 +82,13 @@
 +				dma_sync_sg_for_cpu(host->dev, data->sg, data->sg_len, DMA_FROM_DEVICE);
 +				if (sg_copy_to_buffer(data->sg, data->sg_len, bytes, sizeof(bytes)) == 512) {
 +					if (ext) {
-+						host->y2_sectors = (u32)bytes[212] | (u32)bytes[213]<<8 |
-+							(u32)bytes[214]<<16 | (u32)bytes[215]<<24;
++						host->y2_sectors = y2_emmc_raw_sectors(bytes);
 +						host->y2_partition = bytes[179];
 +						host->y2_switch_pending = false;
-+						host->y2_identified = true;
-+						dev_info(host->dev, "eMMC context: sector-addressed=%u sectors=%u PART_CONFIG=%02x\n",
-+							host->y2_blockaddr, host->y2_sectors, host->y2_partition);
++						host->y2_identified = y2_emmc_layout_valid(bytes);
++						dev_info(host->dev, "eMMC context: sector-addressed=%u sectors=%u PART_CONFIG=%02x stock-layout=%u offset=%u disk=%u\n",
++							host->y2_blockaddr, host->y2_sectors, host->y2_partition,
++							host->y2_identified, Y2_EMMC_USER_OFFSET, Y2_EMMC_DISK_SECTORS);
 +					} else {
 +						dev_info_ratelimited(host->dev, "partition read CMD%u sector=%u bytes=%u signature=%02x%02x SBC=%u/%08x R1=%08x\n",
 +							op, sector, data->bytes_xfered, bytes[510], bytes[511],
@@ -129,7 +129,19 @@
  	if (cmd->error)
  		dev_dbg(host->dev,
  				"%s: cmd=%d arg=%08X; rsp %08X; cmd_error=%d\n",
-@@ -1484,7 +1554,48 @@
+@@ -1461,7 +1531,10 @@
+ 	sdr_set_bits(host->base + MSDC_INTEN, cmd_ints_mask);
+ 	spin_unlock_irqrestore(&host->lock, flags);
+ 
+-	writel(cmd->arg, host->base + SDC_ARG);
++	/* The stock Y2 disk starts after a reserved native USER prefix. The
++	 * request guard checked logical bounds before reaching this point. */
++	writel(host->y2_emmc ? y2_emmc_wire_arg(cmd->opcode, cmd->arg) : cmd->arg,
++	       host->base + SDC_ARG);
+ 	writel(rawcmd, host->base + SDC_CMD);
+ }
+ 
+@@ -1484,7 +1557,48 @@
  static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
  {
  	struct msdc_host *host = mmc_priv(mmc);
@@ -147,9 +159,9 @@
 +			.has_stop = !!mrq->stop,
 +			.stop_opcode = mrq->stop ? mrq->stop->opcode : 0,
 +			.stop_arg = mrq->stop ? mrq->stop->arg : 0,
-+			.identified = host->y2_identified && host->y2_blockaddr && host->y2_sectors == 15269888,
++			.identified = host->y2_identified && host->y2_blockaddr && host->y2_sectors == Y2_EMMC_RAW_SECTORS,
 +			.user_area = host->y2_identified && host->y2_blockaddr &&
-+				host->y2_sectors == 15269888 && !host->y2_switch_pending && !(host->y2_partition & 7),
++				host->y2_sectors == Y2_EMMC_RAW_SECTORS && !host->y2_switch_pending && !(host->y2_partition & 7),
 +			.part_config = host->y2_partition,
 +		};
 +		if (!y2_emmc_request_allowed(&request)) {
@@ -179,7 +191,7 @@
  	host->error = 0;
  	WARN_ON(!host->hsq_en && host->mrq);
  	host->mrq = mrq;
-@@ -1507,7 +1618,10 @@
+@@ -1507,7 +1621,10 @@
  	 * if HW option is enabled, and SBC does not have "special" flags,
  	 * use HW option,  otherwise use SW option
  	 */
@@ -191,7 +203,7 @@
  	    (mrq->sbc->arg & 0xFFFF0000)))
  		msdc_start_command(host, mrq, mrq->sbc);
  	else
-@@ -1562,6 +1676,17 @@
+@@ -1562,6 +1679,17 @@
  	     | MSDC_INT_DMA_PROTECT);
  	u32 val;
  	int ret;
@@ -209,7 +221,7 @@
  
  	spin_lock_irqsave(&host->lock, flags);
  	done = !host->data;
-@@ -1581,18 +1706,25 @@
+@@ -1581,18 +1709,25 @@
  
  		ret = readl_poll_timeout_atomic(host->base + MSDC_DMA_CTRL, val,
  						!(val & MSDC_DMA_CTRL_STOP), 1, 20000);
@@ -238,7 +250,7 @@
  			data->bytes_xfered = data->blocks * data->blksz;
  		} else {
  			dev_dbg(host->dev, "interrupt events: %x\n", events);
-@@ -1600,7 +1732,9 @@
+@@ -1600,7 +1735,9 @@
  			host->error |= REQ_DAT_ERR;
  			data->bytes_xfered = 0;
  
@@ -249,7 +261,7 @@
  				data->error = -ETIMEDOUT;
  			else if (events & MSDC_INT_DATCRCERR)
  				data->error = -EILSEQ;
-@@ -2983,6 +3117,9 @@
+@@ -2983,6 +3120,9 @@
  		return PTR_ERR(host->base);
  
  	host->dev_comp = of_device_get_match_data(&pdev->dev);
@@ -259,7 +271,7 @@
  
  	if (host->dev_comp->needs_top_base) {
  		host->top_base = devm_platform_ioremap_resource(pdev, 1);
-@@ -3016,6 +3153,11 @@
+@@ -3016,6 +3156,11 @@
  	if (host->irq < 0)
  		return host->irq;
  
@@ -271,7 +283,7 @@
  	host->pinctrl = devm_pinctrl_get(&pdev->dev);
  	if (IS_ERR(host->pinctrl))
  		return dev_err_probe(&pdev->dev, PTR_ERR(host->pinctrl),
-@@ -3032,6 +3174,8 @@
+@@ -3032,6 +3177,8 @@
  		dev_err(&pdev->dev, "Cannot find pinctrl uhs!\n");
  		return PTR_ERR(host->pins_uhs);
  	}
@@ -280,7 +292,7 @@
  
  	/* Support for SDIO eint irq ? */
  	if ((mmc->pm_caps & MMC_PM_WAKE_SDIO_IRQ) && (mmc->pm_caps & MMC_PM_KEEP_POWER)) {
-@@ -3050,6 +3194,21 @@
+@@ -3050,6 +3197,21 @@
  	msdc_of_property_parse(pdev, host);
  
  	host->dev = &pdev->dev;
@@ -302,7 +314,7 @@
  	host->src_clk_freq = clk_get_rate(host->src_clk);
  	/* Set host parameters to mmc */
  	mmc->ops = &mt_msdc_ops;
-@@ -3072,6 +3231,8 @@
+@@ -3072,6 +3234,8 @@
  		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
  
  	mmc->caps |= MMC_CAP_CMD23;
@@ -311,7 +323,7 @@
  	if (host->cqhci)
  		mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
  	/* MMC core transfer sizes tunable parameters */
-@@ -3132,7 +3293,7 @@
+@@ -3132,7 +3296,7 @@
  		mmc->max_seg_size = 64 * 1024;
  		/* Reduce CIT to 0x40 that corresponds to 2.35us */
  		msdc_cqe_cit_cal(host, 2350);

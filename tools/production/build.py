@@ -9,7 +9,7 @@ PROJECT=Path(__file__).resolve().parents[2]
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--output',default='out/y2linux-production-build-v1-r5')
+    p.add_argument('--output',default='out/y2linux-production-build-v1-r6')
     p.add_argument('--resume',choices=['kernel','buildroot','artifacts'])
     p.add_argument('--reuse-userspace',type=Path,help='verified production package whose root/data and rescue binaries are retained')
     a=p.parse_args();out=(PROJECT/a.output).resolve()
@@ -17,7 +17,7 @@ def main():
     out.mkdir(parents=True,exist_ok=True)
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PROJECT,text=True).strip()
     if subprocess.check_output(['git','status','--porcelain'],cwd=PROJECT,text=True).strip():p.error('commit the reviewed source before building a release candidate')
-    versions={'release_version':'0.1.0-storage.5','layout_version':1,'kernel_version':'6.18.0-y2linux-storage05','rootfs_version':'2025.02.17-storage.4','data_schema_version':1,'y2player_version':None,'build_git_commit':commit}
+    versions={'release_version':'0.1.0-storage.6','layout_version':1,'kernel_version':'6.18.0-y2linux-storage06','rootfs_version':'2025.02.17-storage.4','data_schema_version':1,'y2player_version':None,'build_git_commit':commit}
     if a.reuse_userspace:
         from tools.production.validate import validate_manifest
         base=a.reuse_userspace.resolve()

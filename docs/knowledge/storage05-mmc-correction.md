@@ -1,5 +1,7 @@
 # Storage05 integrated production MMC correction
 
+**2026-09-13 update:** Superseded addressing conclusion: the21:10:43 corrected physical readback matches every expected table/image prefix. The actual FM binary has a23552-sector offset absent from the public donor. [Storage06 evidence and correction](storage06-addressing-correction.md) supersedes zero-offset claims below; Storage05 still fails internal boot.
+
 ## Latest physical result: still in rescue
 
 The owner's subsequent [SPFT Readback](../hardware-evidence/2026-09-13-storage05-owner/README.md#latest-spft-readback-completed-in-a-different-address-mode)
