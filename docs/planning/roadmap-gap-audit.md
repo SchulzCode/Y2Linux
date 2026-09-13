@@ -6,6 +6,28 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Storage02 diagnostic BOOTIMG preparation — 2026-09-13
+
+A later owner startup/USB attachment still yields no Linux USB enumeration.
+The established unplugged-start sequence alone has not restored observation;
+its actual device-side USB status is unknown. Repeated button/cable trials are
+not useful without additional evidence. The rescue photo confirms failed
+internal root/data discovery, not its cause.
+
+Prepare a bounded BOOTIMG-only diagnostic with the exact Storage02 kernel,
+module, controller configuration and command guard. Replace only rescue PID1
+with an unmounted-filesystem observation loop and reduce console verbosity so
+empty removable-slot warnings cannot bury status. Display cached USB diagnostics,
+internal block geometry, approved root/data signatures and relevant driver logs.
+No root/data rewrite, filesystem repair, new hardware controls, changed write
+allowlist, OTA implementation or physical assistant operation. Owner flashes.
+
+Storage stays ACTIVE; no internal-root/USB acceptance or milestone closure.
+M3 physical results and later power/radio/GPU/reconnect/stability/app gates remain
+unchanged. Targeted new reader/ARM/shell/DT/newc/D08/BOOTIMG/selection checks are
+required before the manual diagnostic boundary. No repeated ROM provenance or
+M1/M2/M3 bring-up is justified.
+
 ## Storage02 rescue failure observation — 2026-09-13
 
 Latest owner photos establish Linux display with no SD, then rescue's aggregate

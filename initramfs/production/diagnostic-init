@@ -1,0 +1,30 @@
+#!/bin/busybox sh
+# SPDX-License-Identifier: GPL-2.0-only
+# Temporary diagnostic PID1. Never mounts a block filesystem or switches root.
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mkdir -p /run /tmp /sys/kernel/debug
+mount -t tmpfs -o mode=0755,nosuid,nodev tmpfs /run
+mount -t tmpfs -o mode=1777,nosuid,nodev tmpfs /tmp
+mount -t debugfs debugfs /sys/kernel/debug
+[ -e /dev/y2diag ] || mknod -m 600 /dev/y2diag c 120 0
+/bin/busybox dmesg > /run/early-kmsg.txt
+# The existing observer provides the exact embedded DRM module and ACM relay.
+# No framebuffer test pattern: these text pages must stay visible.
+/sbin/y2-observer &
+echo 'Y2DIAG01: read-only storage diagnostics; no filesystem mount or repair' > /dev/kmsg
+sleep 12
+. /sbin/y2-storage
+. /sbin/y2-diagnostic-pages
+while :; do
+    for page in 1 2 3; do
+        y2_diag_page "$page" > /run/diagnostic-page.txt 2>&1
+        # Keep complete text in RAM/ACM; limit screen to its 60x22 text cells.
+        cat /run/diagnostic-page.txt > /dev/kmsg
+        { printf '\033[H\033[2J'; /bin/busybox head -n 21 /run/diagnostic-page.txt |
+            /bin/busybox cut -c 1-60; } > /dev/tty0
+        sleep 12
+    done
+done
