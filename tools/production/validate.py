@@ -12,7 +12,8 @@ def run(*argv):
 def validate_manifest(out):
     m=json.loads((out/'manifest.json').read_text());classification=json.loads((out/'metadata/partitions.json').read_text())
     require(m['schema']=='org.schulzcode.y2linux.release/v1' and m['layout_version']==1,'manifest/layout version')
-    require(m['hardware_compatibility']['emmc_user_capacity_bytes']==CAPACITY,'board capacity')
+    require(m['hardware_compatibility']['emmc_user_capacity_bytes']==CAPACITY,'layout capacity')
+    require(m['hardware_compatibility']['emmc_physical_user_capacity_bytes']==7818182656 and m['hardware_compatibility']['accepted_linux_user_sector_counts']==[15203328,15269888],'physical vs exported capacity')
     require(m['hardware_compatibility']['soc']=='MT6582' and m['hardware_compatibility']['board']=='Y2 eastaeon82_wet_kk','board identity')
     require(m['normal_update_allowlist']==['BOOTIMG','ANDROID'],'OTA allowlist excludes data initialization')
     require(m['runtime_kernel_write_allowlist']==['ANDROID','USRDATA'],'runtime allowlist')
@@ -45,9 +46,8 @@ def validate_manifest(out):
         require(payload['raw']['size_bytes']<=t['size'],'expanded payload size')
         if name!='BOOTIMG':
             require(payload['filesystem']=={'type':'ext4','label':t['label'],'uuid':t['uuid']},'filesystem contract')
-            expanded=sparse_identity(out/payload['spft']['file'],strict=True)
-            require(expanded['expanded_bytes']==payload['raw']['size_bytes'] and expanded['expanded_sha256']==payload['raw']['sha256'],'transport expanded/raw equality')
-            require(all(payload['spft'][k]==v for k,v in expanded.items()),'manifest expanded identity')
+            require(payload['spft']['format']=='raw-ext4','legacy DA requires raw ext4 transport')
+            require(all(payload['spft'][k]==v for k,v in payload['raw'].items()),'raw ext4 transport identity')
             identity=run('blkid','-p','-o','export',str(out/t['file'])).decode()
             for k,v in [('TYPE','ext4'),('LABEL',t['label']),('UUID',t['uuid'])]:require(k+'='+v+'\n' in identity,'on-image '+k)
             fsck=run('e2fsck','-f','-n',str(out/t['file'])).decode()
@@ -95,7 +95,7 @@ def validate_rootfs(out,build,m):
             if x.isfile() and x.size<65536:require(b'PRIVATE KEY-----' not in read(name),'private key material')
             require((x.uid,x.gid)==((33,33) if name=='var/www' else (0,0)),'rootfs ownership')
         require(read('etc/y2linux/layout-version')==b'1\n','root layout marker')
-        require(read('etc/y2linux/build-id')==b'Y2LINUX-STORAGE-01\n','root build identity')
+        require(read('etc/y2linux/build-id')==b'Y2LINUX-STORAGE-02\n','root build identity')
         require(json.loads(read('etc/y2linux/versions.json'))==json.loads((build/'versions.json').read_text()),'versions root/build')
         require(json.loads(read('etc/y2linux/versions.json'))['build_git_commit']==m['build_git_commit'],'manifest root commit')
         for name in ('bin/busybox','sbin/init','sbin/blkid','sbin/e2fsck','sbin/ip','usr/sbin/dropbear','usr/bin/aplay','usr/bin/amixer','usr/bin/evtest','usr/bin/strace'):
@@ -118,7 +118,7 @@ def validate_rootfs(out,build,m):
     print('PASS root/data contents, module ABI, per-owner public key and persistent SSH paths')
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('package',type=Path);p.add_argument('--build',type=Path,default=PROJECT/'out/y2linux-production-build-v1');a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('package',type=Path);p.add_argument('--build',type=Path,default=PROJECT/'out/y2linux-production-build-v1-r2');a=p.parse_args()
     m=validate_manifest(a.package);validate_rootfs(a.package,a.build,m)
     print('PASS offline Production Storage v1; physical no-SD qualification PENDING')
 if __name__=='__main__':main()

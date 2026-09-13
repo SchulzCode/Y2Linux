@@ -6,6 +6,23 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Storage flash failure / transport correction audit — 2026-09-13
+
+[Owner flash evidence](../hardware-evidence/2026-09-13-storage-flash-failure/README.md)
+supersedes the package-ready state below: BOOTIMG transfer checksum passes,
+ANDROID sparse transfer fails3154, USRDATA not reached. Selected MT6582 DA's
+parser rejects FILL chunks. First package is withdrawn from retry use. Physical
+acceptance remains pending; all other hardware coverage rows retain their prior
+limits. No kernel/root boot success or protected-byte readback is established.
+
+DA physical user capacity differs from historical Android exported capacity;
+update exact capacity checks for both observed views without reclaiming the tail
+or changing a partition boundary. Normal write spans remain ANDROID/USRDATA only.
+Use raw ext4 transport to define every byte without the unsupported sparse path.
+#33 remains active; M3/M4/M5 and platform/app gates unchanged. This is a bounded
+failure correction with targeted storage/packaging/BOOTIMG validation, not a
+repeat of M1/M2/M3 bring-up. Owner alone performs the retry; no assistant flash.
+
 ## Production Storage v1 manual-package boundary audit — 2026-09-13
 
 Implementation/build commit `f2ef297a81cc0229155ba5d96f1955bdd230f11d` now yields the

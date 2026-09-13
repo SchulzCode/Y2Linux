@@ -3,7 +3,8 @@ import hashlib, re, struct
 from pathlib import Path
 
 STOCK_SCATTER_SHA256='e5fe03e9f3219cc9b5ead27892f2ddb722acc16adce3306d27feb87893cd977e'
-CAPACITY=7784103936
+CAPACITY=7784103936 # Stock Android exported layout bound, NOT physical SEC_COUNT.
+PHYSICAL_CAPACITY=7818182656 # Selected DA reports full EMMC_USER capacity.
 TARGETS={
  'BOOTIMG': {'start':0x1d80000,'size':0x1000000,'linear':0x3180000,'file':'BOOTIMG.img','type':'kernel/boot'},
  'ANDROID': {'start':0x5180000,'size':0x33400000,'linear':0x6580000,'file':'Y2ROOT.img','type':'rootfs','label':'Y2ROOT','uuid':'79324c69-6e75-4801-8000-000000000101'},
@@ -31,7 +32,7 @@ def make_scatter(stock, initialize_data):
     blocks=re.split(r'(?m)(?=^- partition_index: )',stock)
     for i in range(1,len(blocks)):
         name=re.search(r'partition_name: (\S+)',blocks[i]).group(1)
-        filename=TARGETS[name]['file'].replace('.img','.spft.img') if name in ('ANDROID','USRDATA') else 'BOOTIMG.img' if name=='BOOTIMG' else 'NONE'
+        filename=TARGETS[name]['file'] if name in TARGETS else 'NONE'
         enabled=name in ('BOOTIMG','ANDROID') or (name=='USRDATA' and initialize_data)
         blocks[i]=re.sub(r'(?m)^  file_name: .*$', '  file_name: '+filename,blocks[i])
         blocks[i]=re.sub(r'(?m)^  is_download: .*$', '  is_download: '+str(enabled).lower(),blocks[i])

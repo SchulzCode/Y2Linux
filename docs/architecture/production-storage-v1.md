@@ -1,5 +1,13 @@
 # Production Storage / Installation v1 partition audit
 
+Current correction: the first manual attempt completed BOOTIMG transfer but
+failed3154 on ANDROID. Selected DA[5] rejects sparse FILL. Storage02 uses raw
+ext4 transport. DA physical user capacity is7818182656bytes (15269888sectors);
+the historical Android exported disk remains7784103936bytes (15203328sectors).
+The difference is outside layoutv1 allocation, never reclaimed. See the
+[retained failure proof](../hardware-evidence/2026-09-13-storage-flash-failure/README.md).
+Partition boundaries and classification below remain unchanged.
+
 2026-09-13, baseline `1583360`. All 21 stock scatter entries reviewed before
 implementation. Sources: [reconciled physical Android map](../knowledge/partition-map.tsv),
 [map interpretation](../knowledge/partition-map.md), [LK/boot contract](../knowledge/boot-chain.md),
@@ -51,8 +59,8 @@ but Linux's stock p1 view is only 1024 bytes; preserve both facts.
 | Component | Stock name / current purpose | Physical / linear start | Partition bytes | Linux stock view | SPFT |
 | --- | --- | --- | --- | --- | --- |
 | BOOTIMG | BOOTIMG, current M3 Linux boot | 0x1d80000 / 0x3180000 | 16777216 | Whole user disk range; no stock node | Independent NORMAL_ROM row |
-| Y2ROOT | ANDROID, stock ext4 /system | 0x5180000 / 0x6580000 | 859832320 (820 MiB) | p5, start 166912 sectors, length 1679360 sectors | Independent YAFFS_IMG row; stock sparse ext4 semantics retained |
-| Y2DATA | USRDATA, stock ext4 /data | 0x40380000 / 0x41780000 | 838860800 (800 MiB) | p7, start 2104320 sectors, length 1638400 sectors | Independent YAFFS_IMG row; stock sparse ext4 semantics retained |
+| Y2ROOT | ANDROID, stock ext4 /system | 0x5180000 / 0x6580000 | 859832320 (820 MiB) | p5, start 166912 sectors, length 1679360 sectors | Independent YAFFS_IMG row; Storage02 raw ext4 transport |
+| Y2DATA | USRDATA, stock ext4 /data | 0x40380000 / 0x41780000 | 838860800 (800 MiB) | p7, start 2104320 sectors, length 1638400 sectors | Independent YAFFS_IMG row; Storage02 raw ext4 transport |
 
 LK reads BOOTIMG's legacy Android/MediaTek envelopes and transfers its ramdisk;
 it does not need Android /system or /data to run Linux. Preloader loads stock LK

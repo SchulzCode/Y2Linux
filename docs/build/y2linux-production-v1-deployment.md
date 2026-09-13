@@ -1,5 +1,7 @@
 # First manual Production Storage v1 deployment
 
+> Superseded for retry: first ANDROID sparse transfer failed3154. See [failure proof](../hardware-evidence/2026-09-13-storage-flash-failure/README.md); corrected Storage02 raw package is being prepared. Do not retry the original .spft.img files.
+
 **READY at the manual package boundary; NOT physically qualified.** No assistant
 physical eMMC write or SPFT operation. First actual eMMC/rootfs qualification
 belongs to the owner. The latest live system remains SD-backed AUDIO-02.

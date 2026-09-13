@@ -42,7 +42,7 @@ static void guard(struct msdc_host *host,struct mmc_host *mmc,struct mmc_request
 accepted++;
 }
 int main(void) {
- struct mmc_card card={{15203328,0},true};struct mmc_host mmc={&card};
+ struct mmc_card card={{15269888,0},true};struct mmc_host mmc={&card};
  struct msdc_host host={true,true};struct mmc_command cmd={25,0,0};
  struct mmc_data data={MMC_DATA_WRITE,1,512};struct mmc_request mrq={&cmd,&data,NULL};
  queued=1;guard(&host,&mmc,&mrq);assert(cmd.error==-EROFS && finalized==1 && !done && !accepted);
@@ -99,6 +99,8 @@ class RootResolver(unittest.TestCase):
         return subprocess.run(['sh','-c',self.script+'\ny2_find_partition Y2ROOT 79324c69-6e75-4801-8000-000000000101 166912 1679360'],env=env,text=True,capture_output=True)
     def test_exact_internal_geometry_without_fixed_number(self):
         self.disk();r=self.resolve();self.assertEqual((r.returncode,r.stdout),(0,'/dev/mmcblk7p5\n'))
+    def test_full_physical_disk_capacity(self):
+        self.disk(capacity=15269888);self.assertEqual(self.resolve().returncode,0)
     def test_removable_clone_never_selected(self):
         self.disk(host='11240000',media='SD');self.assertNotEqual(self.resolve().returncode,0)
     def test_mismatched_capacity(self):
@@ -124,6 +126,14 @@ class Transport(unittest.TestCase):
             # A legal hole is still rejected for our fully defined release transport.
             sparse.write_bytes(struct.pack('<IHHHHIIII',0xed26ff3a,1,0,28,12,4096,1,1,0)+struct.pack('<HHII',0xcac3,0,1,12))
             with self.assertRaises(ValueError):sparse_identity(sparse,strict=True)
+    def test_spft_scatter_maps_raw_images_only(self):
+        stock=Path('/home/luca/Dokumente/Code/Y2Player/y2_v3.2.0_FM-20260813/MT6582_Android_scatter.txt').read_text()
+        for first in (True,False):
+            rows=scatter_rows(make_scatter(stock,first))
+            for row in rows:
+                name=row['partition_name']
+                self.assertEqual(row['file_name'],TARGETS[name]['file'] if name in TARGETS else 'NONE')
+                self.assertEqual(row['is_download']=='true',name in ('BOOTIMG','ANDROID') or (first and name=='USRDATA'))
     def test_classified_partitions_and_target_math(self):
         m=json.loads((ROOT/'docs/architecture/production-partitions.json').read_text());rows={r['name']:r for r in m['partitions']}
         self.assertEqual(len(rows),21)

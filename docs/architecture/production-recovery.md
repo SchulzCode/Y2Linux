@@ -63,8 +63,8 @@ to format, security mismatch, table mismatch or unexpected address/identity.
 Read back the written ranges before Android boot; use raw prefix comparison for
 boot.img and compare material RAW/FILL chunks of stock sparse images against
 their physical expanded offsets. Stock DONT_CARE chunks have no prescribed hash;
-a factory sparse image's file SHA256 is not an eMMC readback hash. The generated
-Y2Linux sparse images avoid that ambiguity by defining every expanded byte.
+a factory sparse image's file SHA256 is not an eMMC readback hash. The corrected
+Y2Linux raw ext4 images avoid that ambiguity by defining every written byte.
 Recompare protected/table before/after captures. Then check actual Android UI,
 storage/audio/device-specific behavior; a green SPFT tick is insufficient.
 

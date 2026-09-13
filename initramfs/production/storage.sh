@@ -11,7 +11,7 @@ y2_find_partition() {
         parent=${path%/*}
         [ "$(cat "$parent/device/type" 2>/dev/null)" = MMC ] || continue
         [ "$(cat "$parent/removable" 2>/dev/null)" = 0 ] || continue
-        [ "$(cat "$parent/size" 2>/dev/null)" = 15203328 ] || continue
+        case "$(cat "$parent/size" 2>/dev/null)" in 15203328|15269888) ;; *) continue;; esac
         [ "$(cat "$entry/start" 2>/dev/null)" = "$wanted_start" ] || continue
         [ "$(cat "$entry/size" 2>/dev/null)" = "$wanted_size" ] || continue
         dev=/dev/${entry##*/}

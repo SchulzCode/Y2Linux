@@ -6,14 +6,14 @@ PROJECT=Path(__file__).resolve().parents[2]
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--output',default='out/y2linux-production-build-v1')
+    p.add_argument('--output',default='out/y2linux-production-build-v1-r2')
     p.add_argument('--resume',choices=['kernel','buildroot','artifacts'])
     a=p.parse_args();out=(PROJECT/a.output).resolve()
     if not out.is_relative_to(PROJECT/'out') or (out.exists() and not a.resume):p.error('fresh directory inside out required')
     out.mkdir(parents=True,exist_ok=True)
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PROJECT,text=True).strip()
     if subprocess.check_output(['git','status','--porcelain'],cwd=PROJECT,text=True).strip():p.error('commit the reviewed source before building a release candidate')
-    versions={'release_version':'0.1.0-storage.1','layout_version':1,'kernel_version':'6.18.0-y2linux-storage01','rootfs_version':'2025.02.17-storage.1','data_schema_version':1,'y2player_version':None,'build_git_commit':commit}
+    versions={'release_version':'0.1.0-storage.2','layout_version':1,'kernel_version':'6.18.0-y2linux-storage02','rootfs_version':'2025.02.17-storage.2','data_schema_version':1,'y2player_version':None,'build_git_commit':commit}
     if a.resume in ('buildroot','artifacts') and (not (out/'kernel-source-commit').exists() or (out/'kernel-source-commit').read_text().strip()!=commit):p.error('kernel source commit changed; resume kernel first')
     (out/'versions.json').write_text(json.dumps(versions,indent=2)+'\n')
     lock=json.loads((PROJECT/'buildroot/inputs.lock.json').read_text())

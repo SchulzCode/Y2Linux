@@ -1,5 +1,7 @@
 # Session handoff — 2026-09-13
 
+> Superseded for retry: first ANDROID sparse transfer failed3154. See [failure proof](../hardware-evidence/2026-09-13-storage-flash-failure/README.md); corrected Storage02 raw package is being prepared. Do not retry the original .spft.img files.
+
 Canonical SchulzCode/Y2Linux. Production Storage / Installation v1 is ACTIVE,
 #33/milestone3, between current M3 and M4. Read the
 [complete24-point deployment checklist](../build/y2linux-production-v1-deployment.md)

@@ -1,6 +1,7 @@
 # Manual first installation — Production Storage v1
 
-**Offline candidate, physical no-SD acceptance pending.** This installs Y2Linux
+**Storage02 retry candidate, physical no-SD acceptance pending.** Original
+Storage01 sparse transport failed3154 and must not be retried. This installs Y2Linux
 on this exact Innioasis Y2/MT6582/eastaeon82_wet_kk, retaining stock partition
 boundaries. It destroys Android /system and initializes Android /data as Y2DATA.
 It does not erase internal FAT/media, CACHE, loaders, tables or protected data.
@@ -16,7 +17,7 @@ known entry sequence and independent access to recovery files are operator
 prerequisites; do not experiment with bootloader/security/format modes.
 
 1. Run `sha256sum -c SHA256SUMS` inside this package. Use the checked-in
-   `python3 tools/production/validate.py out/y2linux-production-v1` for structural,
+   `python3 tools/production/validate.py out/y2linux-production-v1-r2` for structural,
    scatter, size, filesystem and hash checks. These are host-file operations.
 2. Confirm the retained original FM boot.img, system.img and userdata.img against
    manifest restoration_sources. They restore factory Android, **not personal
@@ -29,7 +30,7 @@ prerequisites; do not experiment with bootloader/security/format modes.
    MBR/EBR files; stock scatter + historical map alone do not prove current tables.
    The checked-in readback verifier checks the exact original table prefix hashes.
    Before flashing, run `python3 tools/production/verify_readback.py --package
-   out/y2linux-production-v1 --before /path/to/before --before-only` (one line).
+   out/y2linux-production-v1-r2 --before /path/to/before --before-only` (one line).
    Record DA/tool/device identity and coordinates with the readbacks. If actual
    capacity, starts or tables differ, stop. Never substitute a donor's layout.
 4. Keep the working SD and AUDIO-02 BOOTIMG available as the development fallback.
@@ -44,8 +45,8 @@ Select **Download Only**. Review every row after loading; use no saved defaults.
 | SPFT row | First install | Image | Physical EMMC_USER start | Partition span |
 | --- | --- | --- | --- | --- |
 | BOOTIMG | SELECT | BOOTIMG.img | 0x01d80000 | 0x01000000 |
-| ANDROID | SELECT | Y2ROOT.spft.img | 0x05180000 | 0x33400000 |
-| USRDATA | SELECT, erases existing Android/Y2DATA state | Y2DATA.spft.img | 0x40380000 | 0x32000000 |
+| ANDROID | SELECT | Y2ROOT.img | 0x05180000 | 0x33400000 |
+| USRDATA | SELECT, erases existing Android/Y2DATA state | Y2DATA.img | 0x40380000 | 0x32000000 |
 
 **DO NOT SELECT** PRELOADER, MBR, EBR1, PRO_INFO, NVRAM, PROTECT_F, PROTECT_S,
 SECCFG, UBOOT (LK), RECOVERY, SEC_RO, MISC, LOGO, EBR2, EXPDB, CACHE, FAT,
@@ -59,10 +60,10 @@ select BOOTIMG and ANDROID only, NEVER USRDATA. Data initialization is not OTA.
 A kernel-only reinstall is permitted only with the matching root/module contract.
 
 Use the normal Download tab and image mappings, not raw address-entry writes.
-Preserved stock YAFFS_IMG filesystem rows receive Android sparse ext4, as the
-stock system/userdata files do. Generated sparse chunks are RAW/FILL only: every
-expanded byte is defined. Raw Y2ROOT.img/Y2DATA.img are verification identities;
-the sparse files are their SPFT transport representations.
+Stock YAFFS_IMG filesystem rows now receive raw ext4 files through SPFT's
+ordinary byte-write path. The selected legacy MT6582 DA rejects sparse FILL
+chunks (observed3154); do not use the original .spft.img files. Raw image sizes
+fit their original partitions and every written byte has a defined SHA256 identity.
 
 SPFT scatter linear addresses are BOOTIMG0x3180000, ANDROID0x6580000 and
 USRDATA0x41780000. **They are not physical EMMC_USER readback offsets.** The
@@ -80,11 +81,11 @@ will legitimately change filesystem hashes after boot. Keep the tool/DA log.
 Run from the repo:
 
 ```
-python3 tools/production/verify_readback.py --package out/y2linux-production-v1 --after /path/to/after --before /path/to/before
+python3 tools/production/verify_readback.py --package out/y2linux-production-v1-r2 --after /path/to/after --before /path/to/before
 ```
 
 The verifier hashes the first manifest.raw.size_bytes of each full partition
-readback and compares with the **raw/expanded image hash**, not sparse-file hash.
+readback and compares with the **raw image hash**.
 It compares every protected/table before/after range byte-for-byte and checks
 original MBR/EBR prefix hashes. BOOTIMG and root tails outside the images are
 not image identity; selected partitions may be erased within their stock bounds.
@@ -94,7 +95,8 @@ readbacks also retain those tails; do not call a prefix check a full backup hash
 On Linux the same physical starts apply to the whole internal EMMC_USER disk;
 on a correctly resolved partition block node the image starts at **offset zero**.
 Never apply the whole-disk start to a partition node. The resolver checks internal
-host11230000, MMC/nonremovable, 15203328 sectors, start/size, label and UUID; it
+host11230000, MMC/nonremovable, either the observed15203328-sector Android disk view or
+15269888-sector full physical user area, start/size, label and UUID; it
 ignores removable host11240000 even if an old card still says Y2ROOT.
 
 ## Expected first boot and acceptance

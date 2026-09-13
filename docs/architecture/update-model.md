@@ -17,9 +17,10 @@ is implemented here. The release package is an unsigned manual-test candidate.
 
 `manifest.json` carries layout/release/component versions, build Git commit,
 board/capacity/scatter identity, physical and scatter-linear starts, partition
-bounds, actual sizes and SHA256 for each raw and SPFT representation. Sparse
-expanded hashes equal raw image hashes; transport length never substitutes for
-expanded bounds. Image offset zero means offset zero *inside that partition*.
+bounds, actual sizes and SHA256 for each raw and SPFT representation. Storage02 uses
+raw ext4 directly because the selected legacy DA rejects sparse FILL chunks.
+The same hash describes transport bytes and physical image bytes; old failed
+RAW/FILL package metadata remains historical evidence. Image offset zero means offset zero *inside that partition*.
 The layout file and validators are the future shared installer/updater contract.
 
 BOOTIMG and Y2ROOT can be independent updates only when kernel/userspace contracts

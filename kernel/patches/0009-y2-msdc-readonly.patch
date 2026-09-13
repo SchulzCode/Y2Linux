@@ -44,7 +44,7 @@
 +	if (host->y2_production) {
 +		struct mmc_card *card = mmc->card;
 +		bool user_card = card && mmc_card_is_blockaddr(card) &&
-+			card->ext_csd.sectors == 15203328 &&
++			card->ext_csd.sectors == 15269888 &&
 +			!(card->ext_csd.part_config & EXT_CSD_PART_CONFIG_ACC_MASK);
 +		if (!y2_emmc_command_allowed(mrq->cmd->opcode, mrq->cmd->arg,
 +			mrq->data && (mrq->data->flags & MMC_DATA_WRITE),
