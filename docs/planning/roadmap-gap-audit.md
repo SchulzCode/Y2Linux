@@ -6,6 +6,24 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Storage05 ACM observation update — 2026-09-13
+
+Owner-established host access now permits [Storage05 LOG1 capture](../hardware-evidence/2026-09-13-storage05-owner/README.md).
+578653 bytes retain contiguous kernel sequences 0–2735. The production eMMC host
+reports sector addressing, 15269888 sectors and PART_CONFIG=0x48 (user-area access),
+then CMD18 sector 0/signature0000 with successful SBC/R1. No eMMC guard rejection
+or reported transport error occurs in this interval; rescue fails at 40.853244
+seconds. Internal-root/write acceptance stays failed; physical MBR contents are
+still unverified. This supersedes host-absence/access-pending statements below.
+
+Existing LOG1 cannot supply raw sectors. The already identified independent
+read-only evidence boundary is now a concrete [six-sample SPFT Readback plan](../build/storage05-readback.md),
+13824 bytes including a known BOOTIMG address control and ext4 identity samples.
+It is prepared only. No readback, firmware build, physical assistant block write,
+reboot, flash, table repair, architecture change or milestone transition occurred.
+All coverage classifications, #33 ACTIVE and later gates remain unchanged. This
+is an observation update, not new hardware or repair authorization.
+
 ## Storage05 owner result boundary — 2026-09-13
 
 The [owner's Storage05 photo](../hardware-evidence/2026-09-13-storage05-owner/README.md)
@@ -1154,7 +1172,7 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Wheel/select input | **CONFIRMED** | DEV-02 raw evdev has balanced Select and both wheel KEY_UP/KEY_DOWN directions;52wheelIRQ/52I2C completions. Supersedes DEV-01 -110 transport regression. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation keys, both volume keys and brief Power have balanced DEV-02 evdev events. No redesign; wake/suspend remains M4 and no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
 | Removable SD | **CONFIRMED** | DEV-02 SD128 on11240000.mmc at13MHz/one bit; ext4 Y2ROOT boots Buildroot, reads files, accepts verified userspace updates and sync.512MiB filesystem retained; throughput/hotplug/card-removal/power-fail qualification later. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Internal eMMC | **PARTIAL** | Storage04 ACM and Storage05 owner photo show15269888 sectors but sector-zero signature0000, no partitions and rescue. Storage05 software SBC/CMD18 returnR1=900 but discovery still fails. Physical table corruption is unproved; independent sector evidence is needed. Native filesystem reads/writes and no-SD Buildroot remain unqualified. | #33 storage; #28/#32. |
+| Internal eMMC | **PARTIAL** | Storage04/Storage05 ACM and the owner photo show 15269888 sectors but sector-zero signature0000, no partitions and rescue. Storage05 confirms sector addressing and user-area access (PART_CONFIG=48); software SBC/CMD18 return R1=900 but discovery still fails. Physical table corruption is unproved; independent sector evidence is needed. Native filesystem reads/writes and no-SD Buildroot remain unqualified. | #33 storage; #28/#32. |
 | Development rootfs and filesystem/data layout | **CONFIRMED** | Physical Buildroot2025.02.17/glibc/BusyBox/Dropbear on writable removable Y2ROOT, key authentication and complete command logs. Runtime mount and matching-module index fixes applied. Owner restart validates persistent runtime/module fixes; persistent ALSA tools/config/WAVs now installed from canonical Buildroot output; SD full build-id remains DEV-01 with additive file manifest. Production layout separate. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
 | PMIC/battery/charger telemetry | **PARTIAL** | DEV-02 PWRAP/MFD/regulator/PMIC key consumers work and USB presence power_supply ONLINE=1 is readable. This does not provide battery units/calibration, charging policy or voltage/thermal telemetry; full power now belongs to M4 #30. | #23; added #30. |
 | Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |

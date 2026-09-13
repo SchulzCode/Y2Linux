@@ -1,10 +1,29 @@
 # Session handoff — 2026-09-13, Storage05 boot failed
 
+## Latest: Storage05 ACM captured; independent sector bytes still needed
+
+The owner connected the running device and granted `/dev/ttyACM0` access.
+[Initial and continuation logs](../hardware-evidence/2026-09-13-storage05-owner/README.md)
+retain 578653 bytes and contiguous kernel sequences 0–2735. EXT_CSD context reports
+sector-addressed=1, 15269888 sectors, PART_CONFIG=0x48: user-area access bits are zero.
+CMD18 sector 0 still returns signature0000 with successful SBC/R1; no eMMC guard
+rejection or reported transport error precedes rescue failure at 40.853244 seconds.
+Removable-host command timeouts are separate. Normal Buildroot still does not start.
+
+The connection/permission prerequisite below is now satisfied. LOG1 has no shell
+or raw-sector command. A [single 13.5-KiB manual SPFT Readback batch](../build/storage05-readback.md)
+is prepared in out/storage05-readback with six exact user-area samples and known
+source-prefix hashes. It has not run. Match the BOOTIMG/address control before
+inferring media corruption from the table samples. No second firmware, table
+rewrite, root/data rewrite, assistant reboot or flash. Storage #33 and all later
+phase gates remain unchanged. Capture metadata names its retained bytes/hashes;
+neither this capture nor the photo proves a whole-image device hash.
+
 ## Latest: owner flashed Storage05; internal discovery still fails
 
 [Photo evidence and limits](../hardware-evidence/2026-09-13-storage05-owner/README.md)
 supersede the pre-flash entry below. Screen identifies STORAGE05 RESCUE,
-15269888 sectors, CMD18 sector0/4096 bytes/signature0000, SBC8/00000900 and
+15269888 sectors, CMD18 sector 0/4096 bytes/signature0000, SBC8/00000900 and
 R1=00000900. No partitions or normal Buildroot. Explicit software SBC did not
 solve the physical boot blocker. Source defect fixes are not a proven explanation
 of the zero signature. Do not rewrite MBR/EBR or invent a partition/offset fallback.

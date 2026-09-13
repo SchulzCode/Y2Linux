@@ -11,5 +11,15 @@
   "result": "FAILED internal root/data discovery; no normal Buildroot boot",
   "host_observation": "no ttyACM0/ttyACM1, no Y2 in lsusb, no USB network interface; no new ACM capture",
   "no_sd_status": "not independently established by this photo",
-  "assistant_physical_writes": false
+  "assistant_physical_writes": false,
+  "subsequent_acm_capture": {
+    "status": "success after owner connection and device ACL grant",
+    "initial": "acm/capture.json",
+    "continuation": "acm-followup/capture.json",
+    "analysis": "acm-analysis.json",
+    "combined_bytes": 578653,
+    "kernel_sequences": "0-2735 without gaps",
+    "physical_internal_boot": "failed",
+    "physical_sector_bytes_obtained": false
+  }
 }

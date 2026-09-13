@@ -1,0 +1,29 @@
+{
+  "started_utc": "2026-09-13T18:00:17.447605+00:00",
+  "identity": {
+    "idVendor": "0525",
+    "idProduct": "a4aa",
+    "manufacturer": "Linux 6.18.0-y2linux-storage05 with musb-hdrc",
+    "product": "CDC Composite Gadget",
+    "speed": "480",
+    "busnum": "5",
+    "devnum": "27",
+    "sysfs_path": "/sys/devices/pci0000:00/0000:00:08.1/0000:08:00.3/usb5/5-2",
+    "interface": {
+      "bInterfaceClass": "02",
+      "bInterfaceSubClass": "02",
+      "bInterfaceProtocol": "01"
+    },
+    "descriptors_hex": "12010002020000402505aaa418060102000109029a00040100c000080b000202060007090400000102060004052400100105240600010d240f0500000000ea050000000705820310000909040100000a00000009040101020a0000060705810200020007050102000200080b02020202010b09040200010202010905240010010524010003042402020524060203070584030a000909040300020a00000a0705830200020007050302000200"
+  },
+  "initial_capture_sha256": "f31571c4c6d69bb2ca64af59d77c3f76398fcf442812a9ebe7d85639808042b6",
+  "operation": "drain existing LOG1 stream; no new command or rewind",
+  "seconds": 40,
+  "max_bytes": 524288,
+  "command_sent": false,
+  "new_protocol_handshake": false,
+  "status": "duration-complete",
+  "bytes": 399874,
+  "sha256": "edf86961f0f4eab2c1076c3a904c3a2010c13b8bb90db2dd4897df23d631a300",
+  "elapsed_seconds": 40.10106803799863
+}

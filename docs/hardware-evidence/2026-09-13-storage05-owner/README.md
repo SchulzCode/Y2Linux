@@ -1,5 +1,42 @@
 # Storage05 owner boot result — failed internal discovery
 
+## Latest: read-only ACM capture succeeds
+
+After the owner connected Storage05 and granted this ACM node's host access, a
+20-second LOG1 request returned a valid `Y2LOG1 Y2LINUX-PLATFORM` header and
+178779 bytes. A 40-second continuation drained 399874 bytes without sending
+another command or rewinding the log. Combined, 578653 bytes contain all 2736
+kernel records from sequence 0 through 2735 with no gap, covering startup through
+171.833982 kernel seconds. [Initial capture](acm/capture.json),
+[continuation](acm-followup/capture.json), [analysis](acm-analysis.json).
+These include retained startup records and snapshots, not only capture-time state.
+
+At 0.436047 seconds the production host reports:
+
+```text
+eMMC context: sector-addressed=1 sectors=15269888 PART_CONFIG=48
+```
+
+`48` is hexadecimal. The access field is `0x48 & 7 = 0`: user area, not a boot
+hardware region. The remaining bits describe preserved boot-enable/ack settings.
+At 0.442893 seconds CMD18 still returns 4096 bytes, signature0000, SBC8/00000900
+and R1=00000900. No eMMC guard rejection or internal command/data transport
+error is present in the complete retained interval. Repeated CMD8/CMD55 errors
+belong to removable host 11240000. At 40.853244 seconds rescue reports missing/
+invalid internal root/data. The retained mount/partition snapshot contains RAM
+and virtual filesystems plus whole mmcblk0 only; no switch_root message appears.
+
+This narrows the uncertainty: the captured context and normal command statuses
+do not support an unselected user area or a rejected SBC explanation. They do
+not independently prove the returned sector data correct. Actual MBR corruption
+remains unproved. LOG1 supplies no raw-read/shell interface, so a
+[single independent readback batch](../../build/storage05-readback.md) is prepared
+but not performed. No reboot, block read/write, firmware build or flash was
+initiated by the assistant. Source/parser/geometry and protected ranges stay
+unchanged; storage #33 remains ACTIVE with internal boot failed.
+
+## Earlier owner photograph
+
 The owner supplied a photograph during final evidence retention and reported:
 “still this is how far i come with the new bootimg”. The screen identifies
 `Y2Linux STORAGE05 RESCUE` and missing/invalid internal Y2ROOT or Y2DATA.

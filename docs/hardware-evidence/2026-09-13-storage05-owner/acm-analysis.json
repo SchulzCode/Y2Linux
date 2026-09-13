@@ -1,0 +1,38 @@
+{
+  "capture_bytes": 578653,
+  "kernel_sequence_range": [
+    0,
+    2735
+  ],
+  "kernel_record_count": 2736,
+  "sequence_gaps": [],
+  "storage_records": [
+    {
+      "sequence": 110,
+      "kernel_microseconds": 294770,
+      "message": "mtk-msdc 11230000.mmc: MSDC 26MHz crystal; inherited rails; policy=ANDROID/USRDATA writable; protected regions read-only"
+    },
+    {
+      "sequence": 141,
+      "kernel_microseconds": 436047,
+      "message": "mtk-msdc 11230000.mmc: eMMC context: sector-addressed=1 sectors=15269888 PART_CONFIG=48"
+    },
+    {
+      "sequence": 145,
+      "kernel_microseconds": 442893,
+      "message": "mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=4096 signature=0000 SBC=8/00000900 R1=00000900"
+    },
+    {
+      "sequence": 809,
+      "kernel_microseconds": 40853244,
+      "message": "Y2RESCUE: missing/invalid internal Y2ROOT or Y2DATA; staying in rescue"
+    }
+  ],
+  "part_config_hex": "48",
+  "partition_access": 0,
+  "sector_addressed": true,
+  "root_handover_seen": false,
+  "guard_rejection_seen": false,
+  "physical_sector_bytes_obtained": false,
+  "assistant_storage_writes": false
+}

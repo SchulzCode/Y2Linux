@@ -1,0 +1,78 @@
+{
+  "operation": "manual SPFT Readback only; not executed",
+  "address_space": "physical byte addresses within EMMC_USER, never scatter linear or hardware boot areas",
+  "tool": "existing SP Flash Tool v5.2032 and already used MT6582 DA",
+  "total_bytes": 13824,
+  "rows": [
+    {
+      "file": "BOOTIMG-prefix.bin",
+      "purpose": "BOOTIMG control",
+      "region": "EMMC_USER",
+      "start_address_hex": "0x1d80000",
+      "length_hex": "0x1000",
+      "physical_start_bytes": 30932992,
+      "size_bytes": 4096,
+      "expected_source": "out/y2linux-production-v1-r5/BOOTIMG.img",
+      "expected_prefix_sha256": "a53c3f62d60057646f2b300a03ed4e67d440cf1f73c1bf23b3a2cb5dceb4a7c5"
+    },
+    {
+      "file": "MBR.bin",
+      "purpose": "MBR",
+      "region": "EMMC_USER",
+      "start_address_hex": "0x0",
+      "length_hex": "0x200",
+      "physical_start_bytes": 0,
+      "size_bytes": 512,
+      "expected_source": "tests/fixtures/production/MBR",
+      "expected_prefix_sha256": "4be9c92be18ba4169d4b050e18811c6650eab27a487f1c67f4a49efa01cd32a1"
+    },
+    {
+      "file": "EBR1.bin",
+      "purpose": "EBR1",
+      "region": "EMMC_USER",
+      "start_address_hex": "0x80000",
+      "length_hex": "0x200",
+      "physical_start_bytes": 524288,
+      "size_bytes": 512,
+      "expected_source": "tests/fixtures/production/EBR1",
+      "expected_prefix_sha256": "0eca0f26847ffd17426ffd7c9e976a7e28017cf6bc454d6478c68d3b2c52a64e"
+    },
+    {
+      "file": "EBR2.bin",
+      "purpose": "EBR2",
+      "region": "EMMC_USER",
+      "start_address_hex": "0x4700000",
+      "length_hex": "0x200",
+      "physical_start_bytes": 74448896,
+      "size_bytes": 512,
+      "expected_source": "tests/fixtures/production/EBR2",
+      "expected_prefix_sha256": "699e1e33054e944e7b1776a539cd41551f4a066abc51535ccfc3d50b44c4ffc7"
+    },
+    {
+      "file": "Y2ROOT-prefix.bin",
+      "purpose": "ANDROID/Y2ROOT control",
+      "region": "EMMC_USER",
+      "start_address_hex": "0x5180000",
+      "length_hex": "0x1000",
+      "physical_start_bytes": 85458944,
+      "size_bytes": 4096,
+      "expected_source": "out/y2linux-production-v1-r4/Y2ROOT.img",
+      "expected_prefix_sha256": "6a0aec2a06f1cf872ad5d6d59e744f6f056501b223997fde3ab88f063ee0a146"
+    },
+    {
+      "file": "Y2DATA-prefix.bin",
+      "purpose": "USRDATA/Y2DATA control",
+      "region": "EMMC_USER",
+      "start_address_hex": "0x40380000",
+      "length_hex": "0x1000",
+      "physical_start_bytes": 1077411840,
+      "size_bytes": 4096,
+      "expected_source": "out/y2linux-production-v1-r4/Y2DATA.img",
+      "expected_prefix_sha256": "1df21cc4106599cb151beeccaf70750ece9d0b9180b5c7829714e5cea51f9c1e"
+    }
+  ],
+  "interpretation_gate": "BOOTIMG control must match the running Storage05 image, and region/address selection must be retained; otherwise no media-corruption inference",
+  "filesystem_limit": "4 KiB prefixes check location/superblock identity, not full on-device filesystem integrity",
+  "table_policy": "inspect differences only; do not rewrite MBR/EBR from this plan",
+  "storage_writes": false
+}

@@ -2,15 +2,26 @@
 
 ## Latest physical result: still in rescue
 
+The later [successful ACM capture](../hardware-evidence/2026-09-13-storage05-owner/README.md#latest-read-only-acm-capture-succeeds)
+retains 2736 contiguous kernel records, including sector-addressed=1, capacity
+15269888 and PART_CONFIG=0x48 (user-area access bits zero). The same CMD18
+signature0000 and successful SBC/R1 remain; rescue fails at 40.853244 seconds.
+There is no eMMC guard rejection or reported transport error in that interval.
+This further constrains the cause without proving actual MBR bytes. LOG1 cannot
+read arbitrary sectors. The next concrete evidence step is the
+[13.5-KiB manual Readback batch](../build/storage05-readback.md); no new image or
+table repair is prepared. Additional vendor check.c/genhd.c inspection found no
+PMT replacement parser on the reviewed path; no compatibility override is justified.
+
 The [owner's Storage05 photograph](../hardware-evidence/2026-09-13-storage05-owner/README.md)
-supersedes pending physical acceptance below. CMD18 sector0 reports4096 bytes,
+supersedes pending physical acceptance below. CMD18 sector 0 reports4096 bytes,
 signature0000, SBC8/00000900 and R1=00000900. Software SBC sequencing did not fix
 the physical boot blocker. Internal root/data remain undiscovered and Buildroot
 does not start. The reproduced source defects remain valid findings, but must
 not be presented as the established cause of that failed read.
 
 The retained vendor MMC block code only reduces exported capacity at the end;
-its DOS parser still requires55aa at sector0. Additional inspection found no
+its DOS parser still requires55aa at sector 0. Additional inspection found no
 vendor-generated replacement MBR in these paths. Sources:
 [vendor block.c](https://android.googlesource.com/kernel/mediatek/+/58a89abc8fc05796b12fd8829dac415c9e3f01e2/drivers/mmc/card/block.c),
 [vendor msdos.c](https://android.googlesource.com/kernel/mediatek/+/58a89abc8fc05796b12fd8829dac415c9e3f01e2/block/partitions/msdos.c).
