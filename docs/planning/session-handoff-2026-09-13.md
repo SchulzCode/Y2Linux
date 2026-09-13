@@ -1,4 +1,52 @@
-# Session handoff — 2026-09-13, Storage02 retry
+# Session handoff — 2026-09-13, Storage05 boot failed
+
+## Latest: owner flashed Storage05; internal discovery still fails
+
+[Photo evidence and limits](../hardware-evidence/2026-09-13-storage05-owner/README.md)
+supersede the pre-flash entry below. Screen identifies STORAGE05 RESCUE,
+15269888 sectors, CMD18 sector0/4096 bytes/signature0000, SBC8/00000900 and
+R1=00000900. No partitions or normal Buildroot. Explicit software SBC did not
+solve the physical boot blocker. Source defect fixes are not a proven explanation
+of the zero signature. Do not rewrite MBR/EBR or invent a partition/offset fallback.
+
+Host inspection found no Y2 USB/ACM/network device. A request to connect the
+already-running rescue for LOG1 evidence is pending. LOG1 is not a shell or
+arbitrary-read protocol. Independent sector-byte evidence with verified address
+semantics is needed to distinguish incorrect read data from invalid metadata.
+A bounded 20-second ACM wait also found no device; no request was sent.
+No second firmware candidate or additional flash was prepared. Storage #33 stays
+ACTIVE; the original one-candidate scope and all later gates remain unchanged.
+
+## Earlier: one production BOOTIMG-only correction prepared
+
+[Deployment and hashes](../build/y2linux-production-v1-r5-deployment.md),
+[source findings](../knowledge/storage05-mmc-correction.md),
+[offline evidence](../build/evidence/y2linux-production-v1-r5/README.md).
+One kernel candidate from `5401007791dc2d915c95baac31e91fd062c8edc0`, package
+out/y2linux-production-v1-r5, Linux 6.18.0-y2linux-storage05. BOOTIMG is 5193728
+bytes, SHA256 2af64e0fe0831a038ea681e82b93209bb21360995772a54699b7f0ef6be22efa.
+Y2ROOT and Y2DATA are byte-identical Storage04 images and are not packaged again.
+SPFT Download Only: MT6582_BOOTIMG_only_scatter.txt, BOOTIMG only; all other rows
+unchecked. Fallback is the copied Storage04 BOOTIMG, hash
+2f9d27a9d306ef5d49a1378f5063a7178edc18dec777340bf78330a23ac3a4f6,
+restoring the observed rescue/ACM state.
+
+Production fixes: explicit checked SBC/CMD23 sequencing, opcode-based one-block
+CMD18/CMD25 data type, data/command faults cannot report success, failed partition
+selection invalidates context, and valid BusyBox exec handover replaces fatal
+`set -i`. Source defects are reproduced; the exact physical zero-signature cause
+remains unproved. Upstream Linux parses retained stock tables at exact p5/p7
+geometry. No table rewrite, alternate DT, dev MMC behavior or new subsystem.
+The hardware DT/config are unchanged except initrd-end/release version.
+
+52 regression tests plus actual ARM ABI/shell, images, manifest, bounds and
+package rejection checks pass. Read-only host e2fsck and ARM blkid identify both
+existing ext4 images. No physical assistant writes or new hardware evidence.
+STOP for the owner's single manual flash, then one boot without SD; expected
+normal screen is `Internal system started.`. Storage #33 stays ACTIVE until
+physical internal-root/write acceptance. Existing SSH authorization and absent
+matching local client key are unchanged. No charging/power/radio/GPU/app/reconnect
+work is authorized by this handoff. All older sections below are history.
 
 ## Latest observation: owner-flashed Storage04 reaches rescue
 

@@ -1,0 +1,7 @@
+PASS reproduced Storage04 handover blocker: exit=2; sh: set: line 0: illegal option -i
+PASS actual ARM BusyBox syntax for production rescue, resolver and 2 root scripts
+Y2ABI begin: Thumb signal return, kuser helpers, glibc TLS/threads and VFP
+Y2ABI Thumb signal delivery/return OK
+Y2ABI kuser memory barrier and TLS OK
+Y2ABI PASS: glibc thread/TLS, VFP, clock and allocator
+PASS retained ARM ABI probe

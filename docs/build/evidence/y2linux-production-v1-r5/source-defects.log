@@ -1,0 +1,3 @@
+Storage04 one-block reliable CMD25: dtype=1 (requires 2)
+Storage04 XFER_COMPL|BDCSERR: data.error=0 bytes_xfered=4096 (requires error/zero bytes)
+These injected responses reproduce source defects, not the physical zero-signature cause.

@@ -1,0 +1,15 @@
+{
+  "source": "owner supplied photograph and report: still this is how far i come with the new bootimg",
+  "received_date": "2026-09-13",
+  "private_photo": "evidence-private/20260913-storage05-owner/console.png",
+  "photo_bytes": 2429120,
+  "photo_sha256": "9fa4441dcb87a200011a578b3a357cfa7e938498d22acb79635a4293baec07c7",
+  "visible_build_id": "Y2Linux STORAGE05 RESCUE",
+  "associated_local_bootimg": "out/y2linux-production-v1-r5/BOOTIMG.img",
+  "associated_local_bootimg_sha256": "2af64e0fe0831a038ea681e82b93209bb21360995772a54699b7f0ef6be22efa",
+  "image_identity_limit": "owner report/build text, not whole-BOOTIMG device readback",
+  "result": "FAILED internal root/data discovery; no normal Buildroot boot",
+  "host_observation": "no ttyACM0/ttyACM1, no Y2 in lsusb, no USB network interface; no new ACM capture",
+  "no_sd_status": "not independently established by this photo",
+  "assistant_physical_writes": false
+}

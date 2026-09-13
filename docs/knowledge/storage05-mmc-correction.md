@@ -1,5 +1,24 @@
 # Storage05 integrated production MMC correction
 
+## Latest physical result: still in rescue
+
+The [owner's Storage05 photograph](../hardware-evidence/2026-09-13-storage05-owner/README.md)
+supersedes pending physical acceptance below. CMD18 sector0 reports4096 bytes,
+signature0000, SBC8/00000900 and R1=00000900. Software SBC sequencing did not fix
+the physical boot blocker. Internal root/data remain undiscovered and Buildroot
+does not start. The reproduced source defects remain valid findings, but must
+not be presented as the established cause of that failed read.
+
+The retained vendor MMC block code only reduces exported capacity at the end;
+its DOS parser still requires55aa at sector0. Additional inspection found no
+vendor-generated replacement MBR in these paths. Sources:
+[vendor block.c](https://android.googlesource.com/kernel/mediatek/+/58a89abc8fc05796b12fd8829dac415c9e3f01e2/drivers/mmc/card/block.c),
+[vendor msdos.c](https://android.googlesource.com/kernel/mediatek/+/58a89abc8fc05796b12fd8829dac415c9e3f01e2/block/partitions/msdos.c).
+An independent read-only sector observation remains necessary to separate actual
+metadata failure from incorrect Linux read data. No additional firmware was built.
+
+## Original correction scope
+
 Entry: `37e4a3f` with the already-pending Storage04 ACM evidence and build-input
 preparation fixes. One production candidate is authorized. No new diagnostic
 firmware, physical write, table repair, alternate DT or SD boot dependency.

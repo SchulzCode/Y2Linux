@@ -1,0 +1,15 @@
+{
+  "build_git_commit": "5401007791dc2d915c95baac31e91fd062c8edc0",
+  "kernel_build_count": 1,
+  "rootfs_rebuilt": false,
+  "data_rebuilt": false,
+  "offline_validation": "PASS",
+  "regression_tests": 52,
+  "package_rejection_cases": 8,
+  "physical_result": "FAILED: Storage05 owner photo retains sector-zero signature0000 and rescue",
+  "physical_evidence": "../../../hardware-evidence/2026-09-13-storage05-owner/observation.json",
+  "bootimg_sha256": "2af64e0fe0831a038ea681e82b93209bb21360995772a54699b7f0ef6be22efa",
+  "fallback_sha256": "2f9d27a9d306ef5d49a1378f5063a7178edc18dec777340bf78330a23ac3a4f6",
+  "frozen_manifest_status_note": "package was composed before the owner supplied failed Storage05 boot evidence; tracked result supersedes its pending status",
+  "assistant_physical_writes": false
+}

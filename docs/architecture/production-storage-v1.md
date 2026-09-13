@@ -1,9 +1,12 @@
 # Production Storage / Installation v1 partition audit
 
-Current implementation: [Storage04 single production platform](../knowledge/storage04-production-platform.md).
+Current implementation: [Storage05 production MMC correction](../knowledge/storage05-mmc-correction.md),
+with [one BOOTIMG-only candidate and its failed owner boot result](../build/y2linux-production-v1-r5-deployment.md).
 Stock geometry/classification below remains unchanged. Upstream Linux 6.18 parses
-the retained factory tables without a compatibility parser. Storage03 failed
-physical internal-root and USB startup; current raw table readback is absent.
+the retained factory tables without a compatibility parser. Storage04 ACM confirms
+eMMC capacity but signature0000 and no partitions; Storage05's owner photo shows
+the same failure after explicit software SBC. Independent raw table readback is
+absent. Physical internal-root acceptance has failed.
 BOOTIMG now owns loadable modules; rootfs/data and module ownership follow the
 [update contract](update-model.md). No physical success is inferred from builds.
 
