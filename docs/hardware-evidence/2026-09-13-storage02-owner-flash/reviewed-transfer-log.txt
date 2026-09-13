@@ -1,0 +1,5 @@
+09/13/2026 14:47:00 FlashTool[357065][140275788957696][D]: CreateDLSetting(): Download scene:(DOWNLOAD_ONLY).(../../../flashtool/UI/src/MainWindow.cpp,411)
+09/13/2026 14:48:44 FlashTool[357065][140275556427456][D]: exec(): Download result: S_DONE(0)(../../../flashtool/Cmd/DADownloadAll.cpp,72)
+09/13/2026 14:48:44 FlashTool[357065][140275556427456][D]: exec(): download time: 96 s(../../../flashtool/Cmd/DADownloadAll.cpp,88)
+09/13/2026 14:48:44 FlashTool[357065][140275556427456][D]: GetRomFilesTotalSize(): Total size should be download is 1.28GB.(../../../flashtool/Utility/Utils.cpp,554)
+09/13/2026 14:48:44 FlashTool[357065][140275556427456][D]: exec(): Download Succeeded.(../../../flashtool/Cmd/DADownloadAll.cpp,105)

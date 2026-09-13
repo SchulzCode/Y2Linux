@@ -6,6 +6,18 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Storage02 owner transfer result — 2026-09-13
+
+[New physical/operator evidence](../hardware-evidence/2026-09-13-storage02-owner-flash/README.md):
+SPFT Download Only transfer completed successfully. Owner reports response after
+holding Power + Volume Up following a black start. No SD and connected USB are confirmed. Resulting boot stage is unspecified;
+host sees brief preloader appearances but no Linux USB/ACM/Ethernet. This qualifies the raw
+transport past its earlier failure, not internal boot or protected-byte integrity.
+Storage #33 remains ACTIVE; no milestone boundary is crossed. All remaining
+hardware acceptance and later M4/M5/platform/application gates are unchanged.
+No code change, build, assistant flash or repeat bring-up is warranted without
+identifying the current running state. See the handoff for pending observations.
+
 ## Storage02 manual retry boundary audit — 2026-09-13
 
 Source/build `c2db4893b79eca25458b6adc318232c80dd99872` produces the

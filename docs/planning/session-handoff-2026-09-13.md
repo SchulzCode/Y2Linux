@@ -1,5 +1,20 @@
 # Session handoff — 2026-09-13, Storage02 retry
 
+## New owner result: transfer passed; running-system verification pending
+
+[Storage02 owner evidence](../hardware-evidence/2026-09-13-storage02-owner-flash/README.md)
+supersedes the pending-retry statements below: manual SPFT Download Only completed
+successfully. The owner then reported a black/unresponsive start, followed by
+“it worked” after holding Power + Volume Up. USB connected and no SD are confirmed; the exact resulting screen/boot stage
+awaits clarification. Later host events show three-second preloader appearances,
+without a Linux gadget. Host inspection found no Y2 USB/ACM/
+Ethernet, so no SSH or internal-root qualification has yet been obtained.
+No new firmware change or assistant physical write. Preserve the installed
+Storage02 state for observation; do not automatically reflash or declare success.
+
+## Prepared package and prior boundary
+
+
 Canonical SchulzCode/Y2Linux. Production Storage / Installation v1 remains ACTIVE,
 #33/milestone 3, between current M3 and M4. Start with the
 [complete corrected 24-point deployment checklist](../build/y2linux-production-v1-r2-deployment.md)
