@@ -119,4 +119,4 @@ def check(data, initrd_size, production=False):
             'output-low' in nodes['/pinctrl@10005000/speaker-disable'], 'speaker stays disabled')
     panel=nodes['/dsi@1400c000/panel@0']
     require(panel['resets']==cells(handle('/syscon@14000000'),0) and 'innioasis,lk-powered' in panel,'evidenced panel reset/power')
-    return {'node_count':len(nodes),'bootargs':args,'memory':RAM,'storage':'internal eMMC disabled; removable SD writable','evidence':'offline dependencies only'}
+    return {'node_count':len(nodes),'bootargs':args,'memory':RAM,'storage':'internal eMMC: guarded root/data; removable SD optional' if production else 'internal eMMC disabled; removable SD writable','evidence':'offline dependencies only'}

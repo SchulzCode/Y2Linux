@@ -12,7 +12,6 @@ mount -t debugfs debugfs /sys/kernel/debug
 [ -e /dev/y2diag ] || mknod -m 600 /dev/y2diag c 120 0
 /sbin/y2-observer &
 observer=$!
-(sleep 10; printf '\nY2Linux Storage03: locating internal root/data\nNo SD card required.\n' > /dev/tty0) &
 . /sbin/y2-storage
 rescue() {
     echo "<3>Y2RESCUE: $*; staying in rescue" > /dev/kmsg
@@ -45,7 +44,11 @@ while [ "$n" -lt 40 ]; do
     rootdev=$(y2_find_partition Y2ROOT 79324c69-6e75-4801-8000-000000000101 166912 1679360)
     datadev=$(y2_find_partition Y2DATA 79324c69-6e75-4801-8000-000000000102 2104320 1638400)
     [ -n "$rootdev" ] && [ -n "$datadev" ] && break
-    n=$((n+1)); sleep 1
+    n=$((n+1))
+    if [ "$n" = 10 ]; then
+        printf '\nY2Linux Storage03: locating internal root/data\nNo SD card required.\n' > /dev/tty0
+    fi
+    sleep 1
 done
 [ -n "$rootdev" ] && [ -n "$datadev" ] || rescue 'missing/invalid internal Y2ROOT or Y2DATA'
 /sbin/y2-abi-check > /dev/kmsg 2>&1 || rescue 'ABI preflight failed'

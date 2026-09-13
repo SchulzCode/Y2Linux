@@ -50,7 +50,8 @@ hardware boot-region extent (physical boot regions are 4 MiB each).
 | BMTPOOL | UNKNOWN | `0xffff00a8` | `0x1500000` | Vendor sentinel/unaligned special region: DO NOT TOUCH |
 
 FAT's zero scatter length is dynamic: stock runtime resolves 0x15dc00000 bytes
-from 0x72380000, ending at 0x1cff80000. Disk capacity is 0x1cff80000.
+from 0x72380000, ending at 0x1cff80000. The historical Android exported bound is 0x1cff80000; DIAG01 confirms native
+physical capacity 0x1d2000000 (15269888 sectors).
 BMTPOOL has no approved operational range. EBR1's vendor allocation is 512 KiB,
 but Linux's stock p1 view is only 1024 bytes; preserve both facts.
 
