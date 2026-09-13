@@ -68,6 +68,17 @@ int main(void) {
  assert(!wrap_reg_write(&w,0x532,0xff5f)&&word==0xff5f&&writes==1);
  assert(wrap_reg_write(&w,0x532,0xfe5f)==-EPERM); /* selector, not adjacent rail */
 
+ phase=polls=delays=commands=writes=acks=0;word=0x0088;
+ assert(!wrap_reg_write(&w,0x76e,0x00e8)&&word==0x00e8&&writes==1);
+ for(unsigned bit=0;bit<16;bit++) {
+  if((1U<<bit)&0x00e8)continue;
+  unsigned before=writes;
+  assert(wrap_reg_write(&w,0x76e,word^(1U<<bit))==-EPERM&&writes==before);
+ }
+ /* Adding ADC requests must never relax the charge-enable value guard. */
+ unsigned before=writes;
+ assert(wrap_reg_write(&w,0x0000,0x007b)==-EPERM&&writes==before);
+
 }
 '''
         with tempfile.TemporaryDirectory() as tmp:

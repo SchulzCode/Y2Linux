@@ -86,17 +86,31 @@ static void usleep_range(unsigned a,unsigned b){assert(locked && a>=1000 && b>=a
 ''' + function(src, 'y2_adc_sample') + r'''
 int main(void){
  struct regmap m={0};struct y2_adc a={&m,0};int raw;
- for(unsigned ch=3;ch<=7;ch+=4)for(unsigned vbuf=0;vbuf<=1;vbuf++)for(fail=0;fail<=6;fail++){
+ unsigned channels[]={3,5,6,7},regs[]={0x71c,0x71a,0x716,0x714};
+ for(unsigned i=0;i<4;i++)for(unsigned vbuf=0;vbuf<=1;vbuf++)for(fail=0;fail<=6;fail++){
+  unsigned ch=channels[i];
   memset(&m,0,sizeof(m));op=0;raw=-1;m.r[0x758/2]=0xa003|(vbuf<<4);
-  m.r[0x76e/2]=0x5511;m.r[(ch==7?0x714:0x71c)/2]=0x8000|17000;
+  m.r[0x76e/2]=0x5511;m.r[regs[i]/2]=0x8000|17000;
   int r=y2_adc_sample(&a,ch,&raw); assert(!locked);
   if(fail) assert(r==-EIO); else assert(r==0 && raw==17000);
   if(fail!=6) assert(m.r[0x758/2]==(0xa003|(vbuf<<4)));
   assert((m.r[0x76e/2]&~BIT(ch))==(0x5511&~BIT(ch)));
  }
- fail=0;op=0;timeout=1;raw=-1;
- assert(y2_adc_sample(&a,7,&raw)==-ETIMEDOUT && raw==-1 && !locked);
- assert(y2_adc_sample(&a,6,&raw)==-EINVAL && !locked);
+ fail=0;op=0;timeout=1;
+ for(unsigned i=0;i<4;i++) {
+  raw=-1;
+  assert(y2_adc_sample(&a,channels[i],&raw)==-ETIMEDOUT && raw==-1 && !locked);
+ }
+ timeout=0;
+ for(unsigned i=0;i<4;i++) {
+  m.r[regs[i]/2]=17000;raw=-1; /* not-ready data must never look fresh */
+  assert(y2_adc_sample(&a,channels[i],&raw)==-ETIMEDOUT && raw==-1 && !locked);
+ }
+ for(unsigned ch=0;ch<10;ch++) {
+  if(ch==3 || ch==5 || ch==6 || ch==7) continue;
+  op=0;
+  assert(y2_adc_sample(&a,ch,&raw)==-EINVAL && !locked && !op);
+ }
 }
 ''')
 

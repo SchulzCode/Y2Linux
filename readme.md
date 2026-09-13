@@ -16,7 +16,11 @@ Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 | M4 | Active: integrated power platform on Storage06; physical qualification pending. [Architecture and limits](docs/knowledge/m4-power-platform.md) |
 | M5 | Not started; Wi-Fi/Bluetooth later |
 
-Current running kernel: `6.18.0-y2linux-storage06`. The owner-flashed correction
+Current running kernel: `6.18.0-y2linux-m4-01`, confirmed over SSH. BAT0 and
+die telemetry work; charging remains inhibited while the physical battery
+thermistor/current path is investigated. See the
+[charging completion entry](docs/planning/roadmap-gap-audit.md#charging-completion-entry--2026-09-14).
+The retained Storage06 correction
 restores the stock eMMC logical disk window. MBR/EBRs and the complete BOOTIMG
 hash match read-only Linux reads; internal ext4 Y2ROOT/Y2DATA and owner-key SSH
 at `root@10.42.0.1` work with no SD block device. The data seed now authorizes

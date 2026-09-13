@@ -8,6 +8,51 @@ blueprint/planning material; no native platform readiness is inferred from that.
 
 ## M4 integrated power activation — 2026-09-13
 
+### Charging completion entry — 2026-09-14
+
+Owner explicitly requests one conservative production charging completion pass,
+with BATON/ISENSE acquisition initially inhibited and a manual BOOTIMG boundary.
+Current local HEAD is `444e7ed`, clean at entry. Fresh SSH confirms the already
+owner-deployed `6.18.0-y2linux-m4-01`, continuing uptime, BAT0 present/Not charging,
+USB ONLINE=1 and configured 70 mA / 4.175 V. The preceding same-device battery audit
+establishes the raw BATON1/channel 5 and ISENSE/channel 6 paths, but neither had a
+ready result. Stock compiled NTC/current constants are hypotheses requiring
+physical validation; PMIC die calibration does not calibrate the pack.
+
+Reconsidered every coverage row below against the current owner scope, current
+M4 source, retained M2/M3/Storage06 evidence, live M4 bindings/DT/logs and all
+eight active GitHub issues (#16/#27–33, read 2026-09-14). #30 remains ACTIVE/PARTIAL;
+#33 wider storage and #29 audio residuals remain open. No phase closes, no radio
+or player starts, and unchanged provenance/recovery/stress gaps stay open.
+Current M4 boot, BAT0 and die telemetry supersede the earlier pending-deployment
+description; suspend, physical poweroff and whole-platform qualification are
+not inferred from those reads.
+
+The immediate acquisition blocker is concrete: M4-01's built-in PWRAP policy
+admits only request bits 3/7 at 0x076e (`0x88`), and the ADC driver exposes only
+those channels. BATON1/ISENSE need bits 5/6. A loadable consumer would still be
+rejected by that same transport guard. PWRAP has no unbind operation, regmap
+debugfs is read-only, and KEXEC/KPROBES are disabled. No raw WACS client, guard
+patching or live kernel memory modification is authorized as a substitute.
+
+The source change is the same production ADC owner exposing BATON1 and
+ISENSE raw/scale channels with scoped request permissions and propagated
+conversion errors. Charging enable and all current/CV/watchdog/protection writes
+remain prohibited until the physical temperature and policy prerequisites are
+established. This is a prerequisite, not a completed charging implementation.
+A production BOOTIMG-only sensor update, Y2LINUX-M4-ADC-01, is the minimum
+supported deployment needed to obtain that evidence. It keeps charging
+inhibited and is explicitly not Y2LINUX-M4-CHARGE-01. The owner's single final
+charging-candidate objective cannot be completed on the current guarded boot
+without this prerequisite. No assistant flash or live kernel patch is performed.
+The physical NTC connection/conversion is the first unresolved charging gate;
+input-budget/protection/termination qualification follows it.
+
+[The exact-device evidence, implemented channels and smallest experiment](../knowledge/m4-battery-acquisition.md)
+record this bounded change. Source/transport failure checks and the actual ARM
+ADC object compile pass before packaging; emitted configuration/DT/BOOTIMG checks
+apply to the sensor update. Existing M4 physical acceptance remains open.
+
 ### Candidate boundary re-audit — 2026-09-14
 
 Reconciled the coverage matrix and milestone gates again before handing off
@@ -1354,8 +1399,8 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Removable SD | **CONFIRMED** | DEV-02 SD128 on11240000.mmc at13MHz/one bit; ext4 Y2ROOT boots Buildroot, reads files, accepts verified userspace updates and sync.512MiB filesystem retained; throughput/hotplug/card-removal/power-fail qualification later. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Internal eMMC | **PARTIAL; internal boot CONFIRMED** | Storage06 authenticated reads confirm 15203328 logical sectors, exact p5/p7 geometry, stock MBR/EBR hashes and complete BOOTIMG hash. Offset 23552 restores normal reads; internal ext4 root/data mount rw and Buildroot starts without an SD block device. Owner SSH now works. Deliberate bounded-write/repeat/stress qualification remains. Two synthetic ext4 buddy-cache inode warnings remain; both filesystem checks report clean. | #33 storage; #28/#32. |
 | Development rootfs and filesystem/data layout | **CONFIRMED** | Physical Buildroot2025.02.17/glibc/BusyBox/Dropbear on writable removable Y2ROOT, key authentication and complete command logs. Runtime mount and matching-module index fixes applied. Owner restart validates persistent runtime/module fixes; persistent ALSA tools/config/WAVs now installed from canonical Buildroot output; SD full build-id remains DEV-01 with additive file manifest. Production layout separate. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
-| PMIC/battery/charger telemetry | **PARTIAL** | DEV-02 PWRAP/MFD/regulator/PMIC key consumers work and USB presence power_supply ONLINE=1 is readable. This does not provide battery units/calibration, charging policy or voltage/thermal telemetry; full power now belongs to M4 #30. | #23; added #30. |
-| Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |
+| PMIC/battery/charger telemetry | **PARTIAL** | M4-01 physically boots with serialized MFD ownership, BAT0 voltage/presence/status/health and configured70mA/4.175V, plus USB presence. Charging is inhibited; BATON/ISENSE wiring, actual current, full/SOC and safe input/protection policy remain unproved. | #23; #30 charging completion. |
+| Thermal sensors/protection | **PARTIAL** | M4-01 CPU/PMIC die zones produce readings using own calibration. Absolute accuracy and physical protection behavior remain unqualified; neither is battery temperature. BATON hot detection and PMIC hardware power-down enable read clear. | #30; basic reporting dependency for #28. |
 | cpufreq/voltage/OPP and cpuidle | **UNKNOWN** | Minimal config does not establish frequency/voltage transitions or idle states. Shared clocks/rails precede optimization. | #30 with #28. |
 | Runtime PM/suspend/resume/wake | **UNKNOWN** | No native suspend/wake, rail retention, storage resume or screen-off-audio proof. | #30; integrates #28/#29/#31 incrementally. |
 | MT6582 AFE/ASoC/I2S/DMA | **CONFIRMED narrow S16/44.1k path** | AUDIO-02 DL1/CON3/IRQ/ALSA pointer progress and clean headphones; startup fix137b3f2 is deployed/tested. 48kHz, L/R and repeated stop/start remain;24/32-bit/higher rates unimplemented. [Result](../knowledge/m3-audio-01-live-result.md). | #29; shared resources #23/#28/#30. |

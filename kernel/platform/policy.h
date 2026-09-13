@@ -25,8 +25,8 @@ static inline unsigned y2_pmic_write_mask(unsigned reg)
 		return 0x0018;
 	case 0x758: /* AUXADC_CON11: voltage buffer, no calibration bits. */
 		return 0x0010;
-	case 0x76e: /* AUXADC_CON22: requests for BATSNS and PMIC die only. */
-		return 0x0088;
+	case 0x76e: /* AUXADC_CON22: BATSNS, ISENSE, BATON1 and PMIC die requests. */
+		return 0x00e8;
 	case 0x8000: /* RTC BBPU key, permitted only for upstream poweroff. */
 		return 0xffff;
 	case 0x8004: return 0x000d; /* RTC alarm/one-shot/low-power IRQ enable. */

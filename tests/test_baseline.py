@@ -32,7 +32,7 @@ int main(void) {
         else if(r==0x532) assert(mask==0x00e0);
         else if(r==0) assert(mask==0x18); /* inhibit only; separate value guard */
         else if(r==0x758) assert(mask==0x10);
-        else if(r==0x76e) assert(mask==0x88);
+        else if(r==0x76e) assert(mask==0xe8);
         else if(r>=0x8000 && r<=0x803c) {
             /* M4 owns scoped RTC time/alarm/trigger fields, no spare state. */
             if(r==0x8000) assert(mask==65535);

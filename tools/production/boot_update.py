@@ -123,7 +123,7 @@ def package(build, base, out, fallback_package=None):
                    'sha256': digest(out/'BOOTIMG.img')}
     boot['spft'] = {'format': 'raw-android-mtk-bootimg', **boot['raw']}
     m['installation_profile'] = 'boot-only'
-    m['status'] = 'M4 integrated candidate; physical power/suspend qualification pending'
+    m['status'] = 'M4 ADC prerequisite; charging inhibited; physical sensor qualification pending'
     m['base_manifest_sha256'] = digest(base/'manifest.json')
     m['installed_components_policy'] = 'reference identities only; preserve ANDROID/USRDATA; no root/data payload packaged'
     m['profiles'] = {scatter: {'sha256': digest(out/scatter), 'selected_partitions': ['BOOTIMG']}}
@@ -141,11 +141,13 @@ def package(build, base, out, fallback_package=None):
         'Do not use Format or Firmware Upgrade. Kernel writes remain limited to the two existing root/data spans.\n\n'
         'Boot once without an SD card. Expected: stock-layout=1, offset=23552, disk=15203328, '
         'sector-zero signature55aa, mmcblk0p5/p7, internal ext4 root/data, '
-        'switch_root to Buildroot and normal services. M4 power acceptance is pending. '
+        'switch_root to Buildroot and normal services. BATON1/ISENSE are raw IIO voltages; '
+        'battery temperature/current remain unvalidated and charging stays inhibited. '
         'Existing rootfs, data and SSH authorization are preserved.\n\n'
         'Fallback: same scatter and BOOTIMG-only selection, choosing fallback/BOOTIMG-previous.img. '
         'Its exact previous kernel version and identity are recorded in manifest.json. '
-        'See the canonical M4 qualification procedure before suspend/reboot/poweroff tests.\n')
+        'See docs/knowledge/m4-battery-acquisition.md for bounded sensor acquisition; '
+        'this prerequisite does not require suspend/reboot/poweroff testing.\n')
     (out/'SHA256SUMS').write_text(''.join(digest(p)+'  '+str(p.relative_to(out))+'\n'
         for p in sorted(out.rglob('*')) if p.is_file() and p.name != 'SHA256SUMS'))
     validate_boot_update(out, base)

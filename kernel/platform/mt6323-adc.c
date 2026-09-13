@@ -23,6 +23,8 @@ static int y2_adc_sample(struct y2_adc *a, unsigned channel, int *raw)
 	int ret, restore;
 	switch (channel) {
 	case 7: reg = 0x714; break; /* BATSNS, internal 4:1 divider */
+	case 6: reg = 0x716; break; /* ISENSE, internal 4:1 divider; voltage only */
+	case 5: reg = 0x71a; break; /* BATON1 pin voltage; board NTC unvalidated */
 	case 3: reg = 0x71c; break; /* THR_SENSE1, PMIC die */
 	default: return -EINVAL;
 	}
@@ -53,11 +55,16 @@ static int y2_adc_read(struct iio_dev *indio, const struct iio_chan_spec *chan,
 	struct y2_adc *a = iio_priv(indio);
 	int ret, raw;
 	if (mask == IIO_CHAN_INFO_SCALE && chan->type == IIO_VOLTAGE) {
-		*val = 7200; *val2 = 15; /* mV, factory hardware trimming retained */
+		*val = chan->channel == 5 ? 1800 : 7200;
+		*val2 = 15; /* Nominal mV at named pin; inherited trim unchanged. */
 		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 	if (mask != IIO_CHAN_INFO_RAW && mask != IIO_CHAN_INFO_PROCESSED) return -EINVAL;
-	if (mask == IIO_CHAN_INFO_PROCESSED && !a->calibrated) return -ENODATA;
+	if (mask == IIO_CHAN_INFO_PROCESSED) {
+		/* Die calibration never converts BATON/ISENSE into pack C or A. */
+		if (chan->type != IIO_TEMP || chan->channel != 3) return -EINVAL;
+		if (!a->calibrated) return -ENODATA;
+	}
 	ret = y2_adc_sample(a, chan->channel, &raw);
 	if (ret) return ret;
 	if (mask == IIO_CHAN_INFO_PROCESSED && (!raw || raw == 0x7fff)) return -ENODATA;
@@ -78,6 +85,12 @@ static const struct iio_chan_spec y2_adc_channels[] = {
 	  .datasheet_name = "BATSNS", .info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE) },
 	{ .type = IIO_TEMP, .indexed = 1, .channel = 3,
 	  .datasheet_name = "THR_SENSE1", .info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_PROCESSED) },
+	/* Deliberately voltages: NTC topology and sense resistance/net-current
+	 * routing require evidence from this board before higher-level conversion. */
+	{ .type = IIO_VOLTAGE, .indexed = 1, .channel = 5,
+	  .datasheet_name = "BATON1", .info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE) },
+	{ .type = IIO_VOLTAGE, .indexed = 1, .channel = 6,
+	  .datasheet_name = "ISENSE", .info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE) },
 };
 static int y2_pmic_temp(struct thermal_zone_device *tz, int *temp)
 {
@@ -116,7 +129,7 @@ static int y2_adc_probe(struct platform_device *pdev)
 		tz = devm_thermal_of_zone_register(dev, 0, a, &y2_pmic_thermal_ops);
 		if (IS_ERR(tz)) return dev_err_probe(dev, PTR_ERR(tz), "PMIC thermal zone\n");
 	} else dev_warn(dev, "no valid die calibration; temperature unavailable\n");
-	dev_info(dev, "BATSNS 15-bit 1.8 V x4; die calibration=%u; no pack temperature/current/SOC\n", a->calibrated);
+	dev_info(dev, "BATSNS/ISENSE 15-bit 1.8 V x4; BATON1 1.8 V; die calibration=%u; pack temperature/current/SOC unvalidated\n", a->calibrated);
 	return 0;
 }
 static const struct of_device_id y2_adc_match[] = { { .compatible = "mediatek,mt6323-auxadc" }, {} };
