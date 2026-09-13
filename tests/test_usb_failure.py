@@ -9,10 +9,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class UsbFailure(unittest.TestCase):
     def test_poll_failure_survives_teardown(self):
-        adapter = (ROOT / 'kernel/usb/y2_musb.c').read_text()
+        adapter = (ROOT / 'kernel/platform/usb.c').read_text()
         worker = adapter[adapter.index('static void y2_usb_worker(struct work_struct *work)\n{'):
                          adapter.index('static void y2_usb_begin(void)\n{')]
-        status = adapter[adapter.index('static ssize_t y2_usb_status(char __user *buf)\n{'):]
+        status = adapter[adapter.index('static ssize_t y2_usb_status(char __user *buf)\n{'):adapter.index('static ssize_t status_show')]
         source = r'''
 #include <assert.h>
 #include <string.h>

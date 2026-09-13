@@ -1,15 +1,3 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#include "innioasis-y2-first-boot.dts"
-/ {
-    y2,production-usb-recover;
-    model = "Innioasis Y2 Production Storage v1";
-    chosen {
-        bootargs = "rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31";
-    };
-};
-&mmc0 {
-    status = "okay";
-    compatible = "innioasis,y2-msdc-production-v1";
-    /* Preserve LK pinmux/rails. Legacy one-bit, crystal / 2, no HS or DDR. */
-    max-frequency = <13000000>;
-};
+/* Compatibility filename: one canonical Y2 hardware description. */
+#include "innioasis-y2.dts"

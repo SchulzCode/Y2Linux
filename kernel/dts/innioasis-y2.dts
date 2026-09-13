@@ -1,0 +1,283 @@
+// SPDX-License-Identifier: GPL-2.0+
+/* MT6582 foundation derived from upstream v6.18 mt6582.dtsi:
+ * Copyright (c) 2021 Maxim Kutnij <gtk3@inbox.ru>
+ * Y2 first-boot scope and memory: docs/knowledge/initial-ram-map.md (D08).
+ */
+/dts-v1/;
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include "initrd-size.h"
+#include "/project/kernel/platform/clocks.h"
+#include "/project/kernel/platform/mt6582-clk.h"
+
+/memreserve/ 0x80000000 0x00004000;
+
+/ {
+    model = "Innioasis Y2 Y2Linux";
+    compatible = "innioasis,y2", "mediatek,mt6582";
+    #address-cells = <1>;
+    #size-cells = <1>;
+    interrupt-parent = <&sysirq>;
+
+    /* Donor Y2 DT: Chris Hendrickson, 53fb57bb99c916c24b65db5b7f9723be37f67826.
+     * MT6582/Y2 M2 consumers; separate shared-provider ownership. */
+    clk26m: clk26m { compatible = "fixed-clock"; #clock-cells = <0>; clock-frequency = <26000000>; clock-output-names = "clk26m"; };
+    rtc32k: rtc32k { compatible = "fixed-clock"; #clock-cells = <0>; clock-frequency = <32768>; clock-output-names = "y2-rtc32k"; };
+    y2clk: clock-controller@10000000 {
+        compatible = "innioasis,y2-clocks";
+        reg = <0x10000000 0x1000>, <0x10003000 0x1000>, <0x10001000 0x1000>, <0x10209000 0x1000>;
+        #clock-cells = <1>;
+    };
+    pio: pinctrl@10005000 {
+        compatible = "innioasis,y2-pinctrl";
+        reg = <0x10005000 0x1000>, <0x1000b000 0x1000>;
+        gpio-controller; #gpio-cells = <2>; gpio-ranges = <&pio 0 0 169>;
+        interrupt-controller; #interrupt-cells = <2>; #address-cells = <0>;
+        interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+        speaker-disable { gpio-hog; gpios = <8 GPIO_ACTIVE_HIGH>;
+            output-low; line-name = "speaker-disabled-m3"; };
+        audio_state: audio-state { groups = "i2s-lk"; function = "i2s-lk"; };
+        nav_state: nav-state { groups = "navigation"; input-enable; };
+        wheel_state: wheel-state { groups = "wheel-irq"; function = "eint"; input-enable; };
+        pmic_state: pmic-state { groups = "pmic-irq"; function = "eint"; input-enable; };
+        i2c0_state: i2c0-state { groups = "i2c0"; function = "i2c0"; };
+        i2c1_state: i2c1-state { groups = "i2c1"; function = "i2c1"; };
+        sd_state: sd-state { groups = "msdc1"; function = "msdc1"; };
+        lcm_state: lcm-state { groups = "lcm-reset"; function = "lcm-reset"; };
+    };
+    /* GPIO controls reproduce stock 20 -> 18 -> 15 order. Dependency refs
+     * serialize regulator_bulk_enable and reverse disable. GPIO rail voltages
+     * are nominal board enable models, not independently measured LDOs. */
+    dac20: regulator-dac20 { compatible = "regulator-fixed";
+        regulator-name = "cs43131-en20";
+        regulator-min-microvolt = <1800000>; regulator-max-microvolt = <1800000>;
+        gpio = <&pio 20 GPIO_ACTIVE_HIGH>; enable-active-high;
+        startup-delay-us = <50000>; vin-supply = <&vgp2>;
+    };
+    dac18: regulator-dac18 { compatible = "regulator-fixed";
+        regulator-name = "cs43131-en18";
+        regulator-min-microvolt = <1800000>; regulator-max-microvolt = <1800000>;
+        gpio = <&pio 18 GPIO_ACTIVE_HIGH>; enable-active-high;
+        startup-delay-us = <50000>; vin-supply = <&dac20>;
+    };
+    dac15: regulator-dac15 { compatible = "regulator-fixed";
+        regulator-name = "cs43131-en15";
+        regulator-min-microvolt = <1800000>; regulator-max-microvolt = <1800000>;
+        gpio = <&pio 15 GPIO_ACTIVE_HIGH>; enable-active-high;
+        startup-delay-us = <50000>; vin-supply = <&dac18>;
+    };
+    afe: audio-controller@11220000 {
+        compatible = "mediatek,mt6582-afe"; reg = <0x11220000 0x1000>;
+        interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&y2clk Y2_CLK_AUDINTBUS>, <&y2clk Y2_CLK_AUDIO>, <&y2clk Y2_CLK_INFRA_AUDIO>;
+        clock-names = "audintbus", "audio", "infra_audio";
+        pinctrl-names = "default"; pinctrl-0 = <&audio_state>;
+    };
+    sound { compatible = "innioasis,y2-audio";
+        mediatek,platform = <&afe>; audio-codec = <&dac>;
+    };
+    navigation-keys {
+        pinctrl-names = "default"; pinctrl-0 = <&nav_state>;
+        compatible = "gpio-keys-polled";
+        label = "Y2 navigation buttons";
+        poll-interval = <20>;
+        key-prev { gpios = <&pio 6 GPIO_ACTIVE_LOW>; linux,code = <KEY_LEFT>; };
+        key-menu { gpios = <&pio 7 GPIO_ACTIVE_LOW>; linux,code = <KEY_BACK>; };
+        key-next { gpios = <&pio 9 GPIO_ACTIVE_LOW>; linux,code = <KEY_RIGHT>; };
+        key-play { gpios = <&pio 10 GPIO_ACTIVE_LOW>; linux,code = <KEY_PLAYPAUSE>; };
+        key-select { gpios = <&pio 54 GPIO_ACTIVE_LOW>; linux,code = <KEY_ENTER>; };
+    };
+
+    aliases { serial0 = &uart0; };
+    chosen {
+        stdout-path = "serial0";
+        bootargs = "rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2Linux";
+        linux,initrd-start = <0x84000000>;
+        linux,initrd-end = <Y2_INITRD_END>;
+    };
+    memory@80000000 {
+        device_type = "memory";
+        reg = <0x80000000 0x3e000000>;
+    };
+    reserved-memory {
+        #address-cells = <1>; #size-cells = <1>; ranges;
+        /* Retain the complete historical LK gap, not an invented heap end. */
+        loader@81800000 { reg = <0x81800000 0x02800000>; no-map; };
+        /* Both stock and donor connectivity locations stay unavailable. */
+        high-owned@bdf00000 { reg = <0xbdf00000 0x02100000>; no-map; };
+    };
+    cpus {
+        enable-method = "mediatek,mt6589-smp";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        cpu@0 {
+            device_type = "cpu";
+            compatible = "arm,cortex-a7";
+            reg = <0>;
+        };
+        cpu@1 { device_type = "cpu"; compatible = "arm,cortex-a7"; reg = <1>; };
+        cpu@2 { device_type = "cpu"; compatible = "arm,cortex-a7"; reg = <2>; };
+        cpu@3 { device_type = "cpu"; compatible = "arm,cortex-a7"; reg = <3>; };
+    };
+    system_clk: clock-system {
+        compatible = "fixed-clock";
+        #clock-cells = <0>;
+        clock-frequency = <13000000>;
+    };
+    rtc_clk: clock-rtc {
+        compatible = "fixed-clock";
+        #clock-cells = <0>;
+        clock-frequency = <32000>;
+    };
+    uart_clk: clock-uart {
+        compatible = "fixed-clock";
+        #clock-cells = <0>;
+        clock-frequency = <26000000>;
+    };
+    timer@10008000 {
+        compatible = "mediatek,mt6577-timer";
+        reg = <0x10008000 0x80>;
+        interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&system_clk>, <&rtc_clk>;
+        clock-names = "system-clk", "rtc-clk";
+    };
+    sysirq: interrupt-controller@10200100 {
+        compatible = "mediatek,mt6582-sysirq", "mediatek,mt6577-sysirq";
+        interrupt-controller;
+        #interrupt-cells = <3>;
+        #address-cells = <0>;
+        interrupt-parent = <&gic>;
+        reg = <0x10200100 0x1c>;
+    };
+    gic: interrupt-controller@10211000 {
+        compatible = "arm,cortex-a7-gic";
+        interrupt-controller;
+        #interrupt-cells = <3>;
+        #address-cells = <0>;
+        interrupt-parent = <&gic>;
+        reg = <0x10211000 0x1000>, <0x10212000 0x2000>;
+    };
+    uart0: serial@11002000 {
+        compatible = "mediatek,mt6582-uart", "mediatek,mt6577-uart";
+        reg = <0x11002000 0x400>;
+        interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&uart_clk>;
+    };
+    usb@11200000 {
+        /* Y2 peripheral-only MUSB controller and integrated PHY.
+         * No sibling compatible or fabricated fixed USB clock. */
+        compatible = "innioasis,y2-usb";
+        reg = <0x11200000 0x280>, <0x11210800 0x70>;
+        reg-names = "mac", "phy";
+        interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_LOW>;
+        dr_mode = "peripheral";
+    };
+    pwrap: pwrap@1000d000 {
+        compatible = "innioasis,y2-pwrap"; reg = <0x1000d000 0x1000>;
+        clocks = <&y2clk Y2_CLK_PWRAP>;
+        pmic: pmic {
+            compatible = "mediatek,mt6323";
+            pinctrl-names = "default"; pinctrl-0 = <&pmic_state>;
+            interrupt-parent = <&pio>; interrupts = <25 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-controller; #interrupt-cells = <2>;
+            keys { compatible = "mediatek,mt6323-keys"; power { linux,keycodes = <KEY_POWER>; }; };
+            regulators { compatible = "mediatek,mt6323-regulator";
+                vgp2: ldo_vgp2 {
+                    regulator-name = "vgp2-audio";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-enable-ramp-delay = <216>;
+                    /* Shared ownership is not fully qualified: keep the rail on. */
+                    regulator-always-on;
+                };
+            };
+        };
+        backlight: backlight { compatible = "innioasis,y2-backlight"; };
+    };
+    i2c0: i2c@11007000 {
+        compatible = "mediatek,mt6582-i2c";
+        reg = <0x11007000 0x70>, <0x11000200 0x80>;
+        interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&y2clk Y2_CLK_I2C0>, <&y2clk Y2_CLK_APDMA>; clock-names = "main", "dma";
+        clock-div = <16>; clock-frequency = <100000>;
+        pinctrl-names = "default"; pinctrl-0 = <&i2c0_state>;
+        #address-cells = <1>; #size-cells = <0>;
+        wheel@51 { compatible = "innioasis,apt32f-wheel"; reg = <0x51>;
+            pinctrl-names = "default"; pinctrl-0 = <&wheel_state>;
+            interrupt-parent = <&pio>; interrupts = <55 IRQ_TYPE_EDGE_FALLING>;
+        };
+    };
+    i2c1: i2c@11008000 {
+        compatible = "mediatek,mt6582-i2c";
+        reg = <0x11008000 0x70>, <0x11000280 0x80>;
+        interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&y2clk Y2_CLK_I2C1>, <&y2clk Y2_CLK_APDMA>; clock-names = "main", "dma";
+        clock-div = <16>; clock-frequency = <100000>;
+        pinctrl-names = "default"; pinctrl-0 = <&i2c1_state>;
+        #address-cells = <1>; #size-cells = <0>;
+        dac: codec@30 {
+            compatible = "cirrus,cs43131"; reg = <0x30>;
+            VA-supply = <&vgp2>; VP-supply = <&vgp2>; VCP-supply = <&vgp2>;
+            VD-supply = <&dac18>; VL-supply = <&dac15>;
+            cirrus,xtal-ibias = <2>;
+            /* Use upstream ready-status polling. EINT16/jack is a later test. */
+        };
+    };
+    keypad@10011000 { compatible = "mediatek,mt6582-keypad";
+        reg = <0x10011000 0x1000>; interrupts = <GIC_SPI 116 IRQ_TYPE_EDGE_FALLING>;
+        clocks = <&y2clk Y2_CLK_KP>; linux,keycodes = <KEY_VOLUMEDOWN KEY_VOLUMEUP>;
+    };
+    mmc0: mmc@11230000 {
+        status = "okay"; /* Production internal root and persistent state. */
+        compatible = "innioasis,y2-mmc"; reg = <0x11230000 0x1000>;
+        interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&y2clk Y2_CLK_MSDC0_SRC>, <&y2clk Y2_CLK_MSDC0>, <&y2clk Y2_CLK_MSDC0>;
+        clock-names = "source", "hclk", "source_cg";
+        bus-width = <1>; max-frequency = <13000000>; non-removable; no-sd; no-sdio; disable-wp;
+    };
+    mmc1: mmc@11240000 {
+        compatible = "innioasis,y2-sd"; reg = <0x11240000 0x1000>;
+        interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&y2clk Y2_CLK_MSDC1_SRC>, <&y2clk Y2_CLK_MSDC1>, <&y2clk Y2_CLK_MSDC1>;
+        clock-names = "source", "hclk", "source_cg";
+        pinctrl-names = "default", "state_uhs"; pinctrl-0 = <&sd_state>; pinctrl-1 = <&sd_state>;
+        bus-width = <1>; max-frequency = <13000000>; broken-cd; no-mmc; no-sdio; disable-wp;
+    };
+    mmsys: syscon@14000000 { compatible = "mediatek,mt6582-mmsys";
+        reg = <0x14000000 0x1000>; #clock-cells = <1>; #reset-cells = <1>;
+    };
+    ovl0: ovl@14007000 { compatible = "mediatek,mt6582-disp-ovl";
+        reg = <0x14007000 0x1000>; interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_LOW>; clocks = <&mmsys CLK_MM_DISP_OVL>;
+    };
+    rdma0: rdma@14008000 { compatible = "mediatek,mt6582-disp-rdma";
+        reg = <0x14008000 0x1000>; interrupts = <GIC_SPI 152 IRQ_TYPE_LEVEL_LOW>; clocks = <&mmsys CLK_MM_DISP_RDMA>;
+    };
+    color0: color@1400b000 { compatible = "mediatek,mt6582-disp-color";
+        reg = <0x1400b000 0x1000>; interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_LOW>; clocks = <&mmsys CLK_MM_DISP_COLOR>;
+    };
+    mutex: mutex@1400e000 { compatible = "mediatek,mt6582-disp-mutex";
+        reg = <0x1400e000 0x1000>; interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_LOW>; clocks = <&mmsys CLK_MM_MUTEX_32K>;
+    };
+    mipitx: mipi-tx@10010000 { compatible = "mediatek,mt6582-mipi-tx";
+        reg = <0x10010000 0x1000>; clocks = <&clk26m>; clock-output-names = "mipi_tx0_pll";
+        #clock-cells = <0>; #phy-cells = <0>;
+    };
+    dsi0: dsi@1400c000 {
+        compatible = "mediatek,mt6582-dsi"; reg = <0x1400c000 0x1000>;
+        interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&mmsys CLK_MM_DSI_ENGINE>, <&mmsys CLK_MM_DSI_DIGITAL>, <&mipitx>;
+        clock-names = "engine", "digital", "hs"; phys = <&mipitx>; phy-names = "dphy";
+        #address-cells = <1>; #size-cells = <0>;
+        panel@0 { compatible = "innioasis,y2-gc9503v"; reg = <0>;
+            pinctrl-names = "default"; pinctrl-0 = <&lcm_state>;
+            resets = <&mmsys 0>; backlight = <&backlight>; innioasis,lk-powered;
+            port { panel_in: endpoint { remote-endpoint = <&dsi_out>; }; };
+        };
+        ports {
+            port { dsi_out: endpoint { remote-endpoint = <&panel_in>; }; };
+        };
+    };
+
+};

@@ -1,5 +1,21 @@
 # Session handoff — 2026-09-13, Storage02 retry
 
+## Current: Storage03 failed physical boot; one-platform correction active
+
+The owner flashed Storage03 and its screen reached `Y2Linux STORAGE03 RESCUE`:
+missing/invalid internal Y2ROOT or Y2DATA, no internal partition rows, USB
+preflight -19/configured=0/polls=0, PHY recovery -19/written=0. This supersedes
+all pending-flash statements below. No internal-root or USB acceptance exists.
+Off-state/cable-dependent response was also reported before the Storage03 flash;
+its cause is not established. Charging management is not implemented/qualified.
+
+The owner now requires one production platform: shared drivers/DT/boot logic,
+normal Linux storage semantics with permanent range protection, production USB
+startup, and diagnostic userspace observing those same interfaces. The current
+[scope audit](roadmap-gap-audit.md) records authorization and unchanged gates.
+No more separate diagnostic BOOTIMG; do not overwrite frozen Storage03 artifacts.
+No physical writes or automatic flash; stop at the next reviewed owner package.
+
 ## Latest: Storage03 complete; owner manual flash boundary
 
 [Full 24-point deployment report](../build/y2linux-production-v1-r3-deployment.md).

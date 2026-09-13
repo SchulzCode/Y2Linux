@@ -25,15 +25,8 @@ project=$(CDPATH= cd -- "$(dirname "$0")/../../.." && pwd)
 artifacts=${Y2_ARTIFACT_DIR:-$project/out/y2linux-dev-01}
 install -m 755 "$artifacts/y2-observer" "$target/usr/sbin/y2-observer"
 install -m 755 "$artifacts/y2-fbtest" "$target/usr/sbin/y2-fbtest"
-install -m 400 "$artifacts/kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko" "$target/display.ko"
-release=$(cat "$artifacts/kernel/include/config/kernel.release")
-mkdir -p "$target/lib/modules/$release/kernel/drivers/gpu/drm/mediatek"
-install -m 644 "$target/display.ko" "$target/lib/modules/$release/kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko"
-
-# Match the one packaged module to its exact kernel and generate modprobe indexes.
-cp "$artifacts/kernel/modules.builtin" "$target/lib/modules/$release/modules.builtin"
-cp "$artifacts/kernel/modules.builtin.modinfo" "$target/lib/modules/$release/modules.builtin.modinfo"
-"${HOST_DIR}/sbin/depmod" -b "$target" "$release"
+# Loadable kernel modules belong to BOOTIMG and are mounted from /run/y2/modules.
+mkdir -p "$target/lib/modules"
 
 # Generated locally, short and quiet; never autoplay or restore high mixer gain.
 install -d "$target/usr/share/y2linux/audio"

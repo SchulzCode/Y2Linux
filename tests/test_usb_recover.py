@@ -16,7 +16,11 @@ static int rd(void *p,unsigned a,unsigned width,unsigned *v) {
 }
 static int wr(void *p,unsigned a,unsigned v) {
  struct mock *m=p;unsigned off=a-Y2_USB_PHY_BASE;
- assert(off==0x1a || off==0x1d || (off>=0x68 && off<=0x6b) || off==0x6e);
+ if(a<Y2_USB_PHY_BASE) {
+  off=a-Y2_USB_MAC_BASE;assert(off==0xa4 || off==0x0b || off==0x06 || off==0x08 || off==0x01 || off==0x60);
+  m->mac[off]=v;return 0;
+ }
+ assert(off==0x1a || off==0x1d || (off>=0x68 && off<=0x6b) || off==0x6e || off==0x6d);
  ++m->writes;if(m->writes!=m->drop) m->phy[off]=v;return 0;
 }
 static void delay(void *p,unsigned us) { struct mock *m=p;assert(us==50 || us==800);m->delays++; }
@@ -36,25 +40,30 @@ int main(void) {
  for(unsigned saved=0;saved<2;saved++) for(unsigned cable=0;cable<2;cable++) {
   init(&m,&s,saved);s.power.chrdet=cable ? 0x7b : 0;
   y2_usb_recover(&io,&s);assert(!s.wake.result && s.wake.after_valid==0xfff);
-  assert(m.writes==16 && m.delays==2 && s.wake.written==1);
+  assert(m.writes==17 && m.delays==2 && s.wake.written==1);
   assert(m.phy[0]==0x6e && m.phy[5]==0x44 && m.phy[0x15]==0x10 && !m.phy[0x6d]);
  }
- for(unsigned bad=0;bad<12;bad++) {
+ for(unsigned bad=0;bad<6;bad++) {
   init(&m,&s,1);
   switch(bad) {
    case 0:s.power.result=-5;break;case 1:s.clock.valid=0;break;
-   case 2:s.usb.values[0]=0x60;break;case 3:s.usb.values[1]=0x84;break;
-   case 4:s.usb.values[2]=1;break;case 5:s.usb.values[13]=1;break;
-   case 6:s.usb.values[20]=1;break;case 7:s.usb.values[8]|=0x40;break;
-   case 8:s.usb.values[11]=0x3e;break;case 9:s.usb.values[10]=0;break;
-   case 10:m.phy[0x15]|=0x80;break;case 11:m.phy[0x22]|=1;break;
+   case 2:s.usb.values[1]=0x84;break;
+   case 3:s.usb.values[2]=1;break;
+   case 4:s.usb.values[13]=1;break;
+   case 5:s.usb.values[20]=1;break;
   }
   y2_usb_recover(&io,&s);assert(s.wake.result && !m.writes);
  }
+ /* Loader-forced peripheral values, dormant DMA config and unrelated bits
+  * are preserved/normalized, not arbitrary refusal conditions. */
+ init(&m,&s,1);m.mac[1]=0x60;m.mac[0x204]=0x1200;
+ m.phy[0x6d]=0xbe;m.phy[0x6c]=0;m.phy[0x6a]|=0x40;
+ {struct y2_usb_state_io state={&m,rd};y2_usb_state_probe(&state,&s);}
+ y2_usb_recover(&io,&s);assert(!s.wake.result && m.phy[0x6d]==0x80 && m.phy[0x6a]==0x40);
  init(&m,&s,1);y2_usb_recover(&io,&s);unsigned reads=m.reads;
  for(unsigned fail=1;fail<=reads;fail++) {
   init(&m,&s,1);m.fail=fail;y2_usb_recover(&io,&s);
-  assert(s.wake.result && s.wake.after_valid!=0xfff && m.writes<=16);
+  assert(s.wake.result && s.wake.after_valid!=0xfff && m.writes<=17);
  }
  init(&m,&s,1);m.drop=4;y2_usb_recover(&io,&s);assert(s.wake.result==-5 && m.writes==4);
  return 0;

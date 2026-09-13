@@ -59,7 +59,8 @@ static int wrap_reg_write(void *context, unsigned reg, unsigned val)
 	struct y2_pwrap_io io = wrap_io(w);
 	unsigned state, old, mask = 0;
 	int ret;
-	/* Development write firewall. Only VGP2 enable/selector is added for M3; charger/reset remain blocked.
+	/* Permanent PMIC register ownership. VGP2 enable/selector belongs to the
+	 * regulator consumer; charger/reset operations have no implemented owner.
 	 * INT_CON/STATUS are the upstream MT6323 MFD's mask/W1C registers.
 	 * Backlight may only lower PWM duty or restore the saved duty, never current. */
 	mask = y2_pmic_write_mask(reg);

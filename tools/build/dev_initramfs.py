@@ -18,7 +18,7 @@ def encode(entries):
     return bytes(result)
 
 
-def build(root, project, production=False):
+def build(root, project, production=True):
     target=root/'buildroot/target'; entries={}
     def put(name,mode,data=b'',major=0,minor=0):
         parent=posixpath.dirname(name)
@@ -47,6 +47,8 @@ def build(root, project, production=False):
     binary('bin/busybox',target/'bin/busybox')
     binary('sbin/blkid',target/'sbin/blkid')
     if production:
+        binary('sbin/y2-platform-start',root/'y2-platform-start')
+        put('sbin/y2-status',stat.S_IFREG|0o755,(project/'tools/production/y2-status').read_bytes())
         binary('sbin/y2-usb-status',root/'y2-usb-status')
         binary('sbin/e2fsck',target/'sbin/e2fsck')
         put('sbin/y2-storage',stat.S_IFREG|0o644,(project/'initramfs/production/storage.sh').read_bytes())
@@ -55,7 +57,7 @@ def build(root, project, production=False):
     binary('sbin/y2-abi-check',root/'y2-abi-check')
     module=(root/'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko').read_bytes()
     put('display.ko',stat.S_IFREG|0o400,module);(root/'display.ko').write_bytes(module)
-    for applet in ('sh','mount','mkdir','mknod','sleep','readlink','chroot','umount','switch_root','kill','cat'):
+    for applet in ('sh','mount','mkdir','mknod','sleep','readlink','chroot','umount','switch_root','kill','cat','dmesg','grep','tail','cp','uname'):
         put('bin/'+applet,stat.S_IFLNK|0o777,b'busybox')
     regular=sum(len(v[1]) for v in entries.values() if stat.S_ISREG(v[0]))
     require(regular<=0x800000,'DEV rescue regular-file budget')
@@ -70,4 +72,4 @@ def build(root, project, production=False):
 
 if __name__=='__main__':
     import sys
-    build(Path('/build'),Path('/project'),production='--production' in sys.argv)
+    build(Path('/build'),Path('/project'),production=True)

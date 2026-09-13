@@ -34,7 +34,7 @@ IRQS = {'/audio-controller@11220000':(104,8), '/timer@10008000':(112,8), '/seria
 def check(data, initrd_size, production=False):
     nodes,reserved=fdt(data)
     require(tuple(reserved)==RESERVED[:1], 'DEV low boot reservation changed')
-    require(nodes['/']['model']==strings('Innioasis Y2 Production Storage v1' if production else 'Innioasis Y2 Y2LINUX-DEV-01'),'DEV identity')
+    require(nodes['/']['model']==strings('Innioasis Y2 Y2Linux'),'DEV identity')
     expected={'/reserved-memory/loader@81800000':(0x81800000,0x02800000), '/reserved-memory/high-owned@bdf00000':(0xbdf00000,0x02100000)}
     require({p for p in nodes if p.startswith('/reserved-memory/')}==set(expected),'unreviewed reserved region')
     for path,region in expected.items():
@@ -45,11 +45,7 @@ def check(data, initrd_size, production=False):
             chosen['linux,initrd-end']==cells(0x84000000+initrd_size), 'initrd bounds')
     require(chosen['stdout-path']==strings('serial0') and nodes['/aliases']['serial0']==strings('/serial@11002000'), 'UART observation path')
     args=chosen['bootargs'].decode().rstrip('\0')
-    expected_args='rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2LINUX-DEV-01'
-    if production:
-        expected_args=expected_args.split(' g_cdc.')[0]
-        if 'y2,production-usb-recover' in nodes['/']:
-            expected_args=expected_args.replace('loglevel=8 ignore_loglevel','loglevel=3')
+    expected_args='rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2Linux'
     require(args==expected_args, 'profile command line')
     for path,reg in REGS.items(): require(nodes[path]['reg']==cells(*reg),'MMIO mapping '+path)
     for path,(irq,flags) in IRQS.items(): require(nodes[path]['interrupts']==cells(0,irq,flags),'IRQ mapping '+path)
@@ -81,15 +77,15 @@ def check(data, initrd_size, production=False):
     require(nodes['/cpus']['enable-method']==strings('mediatek,mt6589-smp'),'SMP release method')
     require({p for p in nodes if p.startswith('/cpus/cpu@')}=={'/cpus/cpu@'+str(i) for i in range(4)},'CPU count')
     for i in range(4): require(nodes['/cpus/cpu@'+str(i)]['reg']==cells(i),'CPU index')
-    require(nodes['/usb@11200000']['compatible']==strings('innioasis,y2-usb-experiment') and nodes['/usb@11200000']['dr_mode']==strings('peripheral'),'known USB glue/role')
+    require(nodes['/usb@11200000']['compatible']==strings('innioasis,y2-usb') and nodes['/usb@11200000']['dr_mode']==strings('peripheral'),'known USB glue/role')
     for path in ('/mmc@11230000','/mmc@11240000'):
         v=nodes[path]
         require(v['bus-width']==cells(1),'SD conservative width')
         if path=='/mmc@11230000':
-            require(v['status']==strings('okay' if production else 'disabled') and v['compatible']==strings('innioasis,y2-msdc-production-v1' if production else 'innioasis,y2-msdc-readonly'),'internal eMMC firewall')
-            require(v['max-frequency']==cells(13000000 if production else 400000),'internal legacy frequency')
+            require(v['status']==strings('okay') and v['compatible']==strings('innioasis,y2-mmc'),'internal eMMC firewall')
+            require(v['max-frequency']==cells(13000000),'internal legacy frequency')
         else:
-            require(v['compatible']==strings('innioasis,y2-msdc-sd') and v['max-frequency']==cells(13000000),'removable SD contract')
+            require(v['compatible']==strings('innioasis,y2-sd') and v['max-frequency']==cells(13000000),'removable SD contract')
             require('non-removable' not in v and 'no-mmc' in v,'SD removable only')
         require('no-sdio' in v and not any(k.endswith('-supply') for k in v),'MMC rail/radio activation')
     for path in ('/i2c@11007000','/i2c@11008000'):

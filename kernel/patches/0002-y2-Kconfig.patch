@@ -5,8 +5,8 @@
  
  if ARCH_MEDIATEK
 +
-+config Y2_BOOT_DIAGNOSTIC
-+ bool "Innioasis Y2 M2 development baseline"
++config Y2_PLATFORM
++ bool "Innioasis Y2 platform support"
 + depends on !THUMB2_KERNEL && !ARM_LPAE && PROC_FS
 + # Keep shared DRM infrastructure built in; only the controller aggregate
 + # is loaded after PID1 logging is active in the M2 development initramfs.
@@ -20,7 +20,7 @@
 + select PINMUX
 + select GENERIC_PINCONF
 + help
-+   Bounded Linux 6.18 Y2 core bring-up; not a production configuration.
++   Bounded Linux 6.18 Y2 core bring-up; a production configuration.
 +
  
  config MACH_MT2701

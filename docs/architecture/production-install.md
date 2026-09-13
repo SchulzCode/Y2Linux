@@ -1,6 +1,11 @@
 # Manual first installation — Production Storage v1
 
-**Storage03 correction candidate, physical no-SD acceptance pending.** Original
+**Storage04 production candidate, physical no-SD acceptance pending.**
+
+For the already initialized Storage03 device select the preserve-data scatter:
+BOOTIMG and ANDROID only. USRDATA/Y2DATA must remain unchecked. This transition
+updates platform startup/status tools and moves module ownership into BOOTIMG;
+the existing data template is unchanged. Original
 Storage01 sparse transport failed3154 and must not be retried. This installs Y2Linux
 on this exact Innioasis Y2/MT6582/eastaeon82_wet_kk, retaining stock partition
 boundaries. It destroys Android /system and initializes Android /data as Y2DATA.
@@ -17,7 +22,7 @@ known entry sequence and independent access to recovery files are operator
 prerequisites; do not experiment with bootloader/security/format modes.
 
 1. Run `sha256sum -c SHA256SUMS` inside this package. Use the checked-in
-   `python3 tools/production/validate.py out/y2linux-production-v1-r3` for structural,
+   `python3 tools/production/validate.py out/y2linux-production-v1-r4` for structural,
    scatter, size, filesystem and hash checks. These are host-file operations.
 2. Confirm the retained original FM boot.img, system.img and userdata.img against
    manifest restoration_sources. They restore factory Android, **not personal
@@ -30,7 +35,7 @@ prerequisites; do not experiment with bootloader/security/format modes.
    MBR/EBR files; stock scatter + historical map alone do not prove current tables.
    The checked-in readback verifier checks the exact original table prefix hashes.
    Before flashing, run `python3 tools/production/verify_readback.py --package
-   out/y2linux-production-v1-r3 --before /path/to/before --before-only` (one line).
+   out/y2linux-production-v1-r4 --before /path/to/before --before-only` (one line).
    Record DA/tool/device identity and coordinates with the readbacks. If actual
    capacity, starts or tables differ, stop. Never substitute a donor's layout.
 4. Keep the working SD and AUDIO-02 BOOTIMG available as the development fallback.
@@ -81,7 +86,7 @@ will legitimately change filesystem hashes after boot. Keep the tool/DA log.
 Run from the repo:
 
 ```
-python3 tools/production/verify_readback.py --package out/y2linux-production-v1-r3 --after /path/to/after --before /path/to/before
+python3 tools/production/verify_readback.py --package out/y2linux-production-v1-r4 --after /path/to/after --before /path/to/before
 ```
 
 The verifier hashes the first manifest.raw.size_bytes of each full partition
@@ -101,12 +106,12 @@ ignores removable host11240000 even if an old card still says Y2ROOT.
 
 ## Expected first boot and acceptance
 
-**Storage03 USB startup:** the production kernel now performs checked MT6582
+**Storage04 USB startup:** the production kernel now performs checked MT6582
 PHY saved-state recovery and permits cable-present startup. There is no longer a
 required unplugged-start workaround. Initial enumeration and reconnect must still
 be physically verified. The owner's cable-dependent stock power-entry complaint
 has no established cause or verified fix; this package does not modify loaders,
-PMIC power entry or battery controls. See metadata/storage03-corrections.md.
+PMIC power entry or battery controls. See metadata/storage04-production-platform.md.
 Rescue prints its failure and cached USB state on-screen even without an SD card;
 it has ACM logging intent but no SSH service before Buildroot handover.
 
@@ -130,9 +135,9 @@ Record uname, /proc/mounts, /proc/partitions, sysfs host/type/start/size, blkid,
 /proc/meminfo, online CPUs, ALSA and dmesg over SSH. Require Linux6.18, four CPUs,
 RAM comparable to954384KiB (exact new value measured), display/input/wheel,
 initial SSH/ECM/ACM, ALSA, internal writable root/data and no SD dependency.
-Perform a small owner-authorized root/data persistence check, plus a separate
-rescue-negative test with a separately prepared BOOTIMG that looks for a nonexistent
-UUID; do not corrupt a real filesystem to test rescue. Recheck protected data and
+Perform a small owner-authorized root/data persistence check, plus the product rescue-entry contract
+(`y2.rescue=1` on the boot command line) when an explicit entry mechanism is
+available; do not corrupt filesystems or introduce a diagnostic-only kernel. Recheck protected data and
 retain the recovery path. The package is not qualified until these pass.
 
 External SD is optional user media at /media/sd, with MUSIC, AUDIOBOOKS, playlists

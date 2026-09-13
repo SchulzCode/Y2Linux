@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class Reconnect(unittest.TestCase):
     def test_owned_controller_lifecycle_and_guards(self):
-        adapter = (ROOT / 'kernel/usb/y2_musb.c').read_text()
+        adapter = (ROOT / 'kernel/platform/usb.c').read_text()
         lifecycle = adapter[adapter.index('static void y2_usb_detach(void)\n{'):
                             adapter.index('static void y2_usb_worker(struct work_struct *work)\n{')]
         write_callback = adapter[adapter.index('static void y2_musb_writeb('):

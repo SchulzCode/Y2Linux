@@ -121,7 +121,7 @@ def check(root, project):
     expected_wdt += struct.pack('<I', branch)
     require(z[begin:end] == expected_wdt, 'D12 early watchdog instructions and continuation')
     require(0x30 < begin < end < off('restart'), 'watchdog must precede relocation/inflation')
-    require(kernel.sym('y2_diagnostic_init') >= text, 'built-in guarded video diagnostic missing')
+    require(kernel.sym('y2_usb_probe') >= text, 'built-in guarded video diagnostic missing')
     require(kernel.sym('y2_text_write') >= text, 'D14 guarded text writer missing')
     require(kernel.sym('y2_power_snapshot') >= text, 'M2 cached PWRAP snapshot missing')
     require(b'M2-BASELINE-03\0' in init, 'M2 prerequisite build identifier missing')
@@ -158,7 +158,7 @@ def check(root, project):
     layout['diagnostic'] = {'watchdog_entry_offset':begin, 'watchdog_end_offset':end, 'watchdog_continuation_offset':continuation,
         'watchdog_instruction_sha256':digest(expected_wdt), 'framebuffer':'DRM allocated; no legacy raw framebuffer access',
         'policy':'M2-BASELINE-03 shared core; 300s owner limit; offline only'}
-    source_paths = ['kernel/diagnostic/board.c', 'kernel/diagnostic/policy.h', 'kernel/diagnostic/text.h',
+    source_paths = ['kernel/platform/usb.c', 'kernel/diagnostic/policy.h', 'kernel/diagnostic/text.h',
         'kernel/diagnostic/pwrap.h', 'kernel/diagnostic/usb_clock.h', 'kernel/diagnostic/usb_state.h', 'kernel/diagnostic/usb_wake.h', 'initramfs/status.h',
         'initramfs/init.c', 'initramfs/start.S', 'initramfs/relay.h', 'initramfs/evdev.h', 'initramfs/display.h',
         'kernel/gpio/gpio-mt6582-input.c',

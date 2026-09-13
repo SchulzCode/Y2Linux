@@ -6,6 +6,37 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Single production platform correction audit — 2026-09-13
+
+Owner manual Storage03 flash completed, but the newest rescue photograph shows
+missing internal Y2ROOT/Y2DATA, no partition rows, USB preflight -19, zero polls,
+and recovery written=0. This supersedes the pending-flash entry below. Linux and
+rescue/display run; normal internal Buildroot and USB are **not qualified**.
+Cable-dependent/off-state response was reported before Storage03 too. Battery
+voltage is unknown; Y2Linux has no implemented/qualified charging manager.
+
+Rechecked the coverage matrix against this result, DIAG01, Storage02, and retained
+AUDIO-02 results. Storage #33 remains ACTIVE. M1/M2 and clean S16/44.1-kHz audio
+stand as historical physical results; 48 kHz, repeat/LR, USB reconnect, stability,
+power and radios retain their gaps. No M4/M5/application activation or closure.
+
+The owner explicitly authorizes replacing parallel bring-up hardware modes with
+one production platform. Active drivers, DT and root resolver must be shared by
+normal/rescue/diagnostic userspace. Preserve permanent hardware support and
+bounded write protection; remove identity-only MMC and unplugged USB semantics.
+Execute the upstream partition parser against retained stock metadata before
+considering any compatibility change. Do not rewrite tables or infer current
+raw-media contents from factory files. Instrument failures through production
+interfaces rather than another diagnostic firmware. Keep layout/data schema 1,
+OTA architecture and protected boundaries unchanged. Build a uniquely named
+successor to the already-flashed Storage03, validate the integrated package, and
+stop for manual owner flashing. BOOTIMG will own the matching DRM module and
+stage it in RAM for normal /lib/modules access. The rootfs gains only platform
+startup/status tools, removing the current exact-kernel module dependency from
+future rootfs updates. This changes packaging ownership, not the DRM driver or
+storage geometry; validate module ABI, archive, handover and release contracts.
+No physical assistant writes or SPFT execution.
+
 ## Storage03 complete manual boundary — 2026-09-13
 
 The [complete Storage03 package](../build/y2linux-production-v1-r3-deployment.md)
@@ -1025,7 +1056,7 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Wheel/select input | **CONFIRMED** | DEV-02 raw evdev has balanced Select and both wheel KEY_UP/KEY_DOWN directions;52wheelIRQ/52I2C completions. Supersedes DEV-01 -110 transport regression. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation keys, both volume keys and brief Power have balanced DEV-02 evdev events. No redesign; wake/suspend remains M4 and no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
 | Removable SD | **CONFIRMED** | DEV-02 SD128 on11240000.mmc at13MHz/one bit; ext4 Y2ROOT boots Buildroot, reads files, accepts verified userspace updates and sync.512MiB filesystem retained; throughput/hotplug/card-removal/power-fail qualification later. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Internal eMMC | **PARTIAL** | Current AUDIO-02 disables11230000.mmc. Historical native CID/CSD and stock runtime map exist. Production v1 enables a bounded native path with ANDROID/USRDATA write guard; offline validated, native block/mount/write physically pending. | #33 storage; #28/#32. |
+| Internal eMMC | **PARTIAL** | DIAG01 detects internal MMC at15269888 sectors but no partitions. Storage03 remains in rescue with missing root/data. Native filesystem reads/writes and no-SD Buildroot are unqualified; production driver correction is active. | #33 storage; #28/#32. |
 | Development rootfs and filesystem/data layout | **CONFIRMED** | Physical Buildroot2025.02.17/glibc/BusyBox/Dropbear on writable removable Y2ROOT, key authentication and complete command logs. Runtime mount and matching-module index fixes applied. Owner restart validates persistent runtime/module fixes; persistent ALSA tools/config/WAVs now installed from canonical Buildroot output; SD full build-id remains DEV-01 with additive file manifest. Production layout separate. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
 | PMIC/battery/charger telemetry | **PARTIAL** | DEV-02 PWRAP/MFD/regulator/PMIC key consumers work and USB presence power_supply ONLINE=1 is readable. This does not provide battery units/calibration, charging policy or voltage/thermal telemetry; full power now belongs to M4 #30. | #23; added #30. |
 | Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |

@@ -18,7 +18,8 @@ static inline int y2_session_start(const struct y2_session_io *io,struct y2_sess
     *s=(struct y2_session){.devctl=0x100};
     c=io->read(io->context,0x6c);d=io->read(io->context,0x6d);
     s->before_c=c;s->before_d=d;
-    if(!(c & 2) || d) return -19;
+    /* Fixed peripheral board: normalize owned digital inputs, preserving all
+     * unrelated PHY bits. Loader force values are not an identity check. */
     io->write(io->context,0x6c,c & ~0x10U);s->written=1;
     c=io->read(io->context,0x6c);
     io->write(io->context,0x6c,c | 0x2e);

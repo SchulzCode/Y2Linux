@@ -8,7 +8,7 @@ class StorageGuard(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp=tempfile.TemporaryDirectory();p=Path(cls.tmp.name)
-        (p/'guard.c').write_text('#include "'+str(ROOT/'kernel/platform/storage-policy.h')+'"\nint check(unsigned a,unsigned b,unsigned c,unsigned d,unsigned e,unsigned f,unsigned g) { return y2_emmc_command_allowed(a,b,c,d,e,f,g); }\n')
+        (p/'guard.c').write_text('#include "'+str(ROOT/'tests/fixtures/production/storage03-policy.h')+'"\nint check(unsigned a,unsigned b,unsigned c,unsigned d,unsigned e,unsigned f,unsigned g) { return y2_emmc_command_allowed(a,b,c,d,e,f,g); }\n')
         subprocess.run([shutil.which('cc') or 'clang','-Wall','-Wextra','-Werror','-shared','-fPIC',str(p/'guard.c'),'-o',str(p/'guard.so')],check=True)
         cls.lib=ctypes.CDLL(str(p/'guard.so'));cls.fn=cls.lib.check
         cls.fn.argtypes=[ctypes.c_uint]*7;cls.fn.restype=ctypes.c_int
@@ -18,7 +18,7 @@ class StorageGuard(unittest.TestCase):
         from tools.build.run import prepare_overlay
         spec=next(x for x in json.loads((ROOT/'kernel/patches/manifest.json').read_text())['overlays'] if x['path']=='drivers/mmc/host/mtk-sd.c')
         source=prepare_overlay(ROOT,spec).read_text()
-        start=source.index('\tif (host->y2_production) {');end=source.index('\tif (IS_ENABLED(CONFIG_Y2_BOOT_DIAGNOSTIC) && host->y2_read_only)',start)
+        start=source.index('\tif (host->y2_emmc) {');end=source.index('\n\tif (host->y2_emmc && mrq->cmd->opcode',start)
         fixture=r'''#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -27,34 +27,33 @@ class StorageGuard(unittest.TestCase):
 #define MMC_DATA_READ (1U << 9)
 #define EXT_CSD_PART_CONFIG_ACC_MASK 7
 #define EROFS 30
-#define pr_warn_ratelimited(...) ((void)0)
+#define dev_warn_ratelimited(...) ((void)0)
 struct mmc_card { struct { unsigned sectors,part_config; } ext_csd; bool blockaddr; };
 struct mmc_host { struct mmc_card *card; };
 struct mmc_command { unsigned opcode,arg; int error; };
 struct mmc_data { unsigned flags,blocks,blksz; };
-struct mmc_request { struct mmc_command *cmd; struct mmc_data *data; struct mmc_command *sbc; };
-struct msdc_host { bool y2_production,hsq_en; };
+struct mmc_request { struct mmc_command *cmd; struct mmc_data *data; struct mmc_command *sbc; struct mmc_command *stop; };
+struct msdc_host { bool y2_emmc,hsq_en,y2_identified,y2_blockaddr; unsigned y2_sectors,y2_partition; bool y2_switch_pending; };
 static int done,queued,finalized,accepted;
-static bool mmc_card_is_blockaddr(struct mmc_card *c) {return c->blockaddr;}
 static bool mmc_hsq_finalize_request(struct mmc_host *m,struct mmc_request *r) {(void)m;(void)r;finalized++;return queued;}
 static void mmc_request_done(struct mmc_host *m,struct mmc_request *r) {(void)m;(void)r;done++;}
 static void guard(struct msdc_host *host,struct mmc_host *mmc,struct mmc_request *mrq) {
 '''+source[start:end]+r'''
-accepted++;
+(void)mmc;accepted++;
 }
 int main(void) {
  struct mmc_card card={{15269888,0},true};struct mmc_host mmc={&card};
- struct msdc_host host={true,true};struct mmc_command cmd={25,0,0};
- struct mmc_data data={MMC_DATA_WRITE,1,512};struct mmc_request mrq={&cmd,&data,NULL};
+ struct msdc_host host={true,true,true,true,15269888,0,false};struct mmc_command cmd={25,0,0};
+ struct mmc_data data={MMC_DATA_WRITE,1,512};struct mmc_request mrq={&cmd,&data,NULL,NULL};
  queued=1;guard(&host,&mmc,&mrq);assert(cmd.error==-EROFS && finalized==1 && !done && !accepted);
  queued=0;guard(&host,&mmc,&mrq);assert(done==1 && finalized==2 && !accepted);
  host.hsq_en=false;guard(&host,&mmc,&mrq);assert(done==2 && finalized==2);
  cmd.arg=166912;guard(&host,&mmc,&mrq);assert(accepted==1);
- card.ext_csd.part_config=1;guard(&host,&mmc,&mrq);assert(accepted==1 && done==3);
- card.ext_csd.part_config=0;card.ext_csd.sectors--;guard(&host,&mmc,&mrq);assert(accepted==1 && done==4);
- card.ext_csd.sectors++;card.blockaddr=false;guard(&host,&mmc,&mrq);assert(accepted==1 && done==5);
- mmc.card=NULL;guard(&host,&mmc,&mrq);assert(accepted==1 && done==6);
- mmc.card=&card;card.blockaddr=true;data.flags=MMC_DATA_READ;
+ host.y2_partition=1;guard(&host,&mmc,&mrq);assert(accepted==1 && done==3);
+ host.y2_partition=0;host.y2_sectors--;guard(&host,&mmc,&mrq);assert(accepted==1 && done==4);
+ host.y2_sectors++;host.y2_blockaddr=false;guard(&host,&mmc,&mrq);assert(accepted==1 && done==5);
+ host.y2_identified=false;guard(&host,&mmc,&mrq);assert(accepted==1 && done==6);
+ host.y2_identified=true;host.y2_blockaddr=true;data.flags=MMC_DATA_READ;
  cmd.opcode=18;cmd.arg=0;data.blocks=8;
  struct mmc_command sbc={23,8,0};mrq.sbc=&sbc;
  guard(&host,&mmc,&mrq);assert(accepted==2); /* MBR read with bounded CMD23 */
@@ -67,7 +66,7 @@ int main(void) {
  cmd.arg=0;guard(&host,&mmc,&mrq);assert(accepted==4 && done==11);
  cmd.opcode=18;data.flags=MMC_DATA_READ;guard(&host,&mmc,&mrq);assert(accepted==4 && done==12);
  mrq.sbc=NULL;mrq.data=NULL;cmd.opcode=6;
- card.ext_csd.part_config=0x48;cmd.arg=0x03b34801;
+ host.y2_partition=0x48;cmd.arg=0x03b34801;
  guard(&host,&mmc,&mrq);assert(accepted==5); /* same boot settings, user access */
  cmd.arg=0x03b30001;guard(&host,&mmc,&mrq);assert(accepted==5 && done==13);
  cmd.arg=0x03b34901;guard(&host,&mmc,&mrq);assert(accepted==5 && done==14);

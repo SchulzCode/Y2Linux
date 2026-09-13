@@ -10,8 +10,8 @@ is implemented here. The release package is an unsigned manual-test candidate.
 
 | Unit | Location | Version / compatibility | Replacement boundary |
 | --- | --- | --- | --- |
-| Kernel + DT + rescue | Stock BOOTIMG | kernel_version, kernel_contract | Whole BOOTIMG image at partition-relative zero |
-| Buildroot system | ANDROID, ext4 LABEL=Y2ROOT | rootfs_version, rootfs_contract, ARM hard-float/glibc ABI | Whole root image, including exact matching kernel modules |
+| Kernel + DT + rescue + matching modules | Stock BOOTIMG | kernel_version, kernel_contract | Whole BOOTIMG image at partition-relative zero |
+| Buildroot system | ANDROID, ext4 LABEL=Y2ROOT | rootfs_version, rootfs_contract, ARM hard-float/glibc ABI | Whole userspace image; modules supplied by BOOTIMG |
 | Persistent state | USRDATA, ext4 LABEL=Y2DATA, mounted /data | data_schema_version | Never overwritten by normal OTA or preserving reinstall |
 | Future Y2PlayerNative | Built-in /usr/bin, /usr/lib, /usr/share; optional future /data/apps/y2player/releases | Independent application version plus minimum runtime ABI | App bundle/file tree; no firmware partition |
 
@@ -23,13 +23,13 @@ The same hash describes transport bytes and physical image bytes; old failed
 RAW/FILL package metadata remains historical evidence. Image offset zero means offset zero *inside that partition*.
 The layout file and validators are the future shared installer/updater contract.
 
-BOOTIMG and Y2ROOT can be independent updates only when kernel/userspace contracts
-and module ABIs remain compatible. This release embeds a DRM module in both
-rescue and rootfs; arbitrary kernel-only replacement can invalidate rootfs module
-indexes. A future kernel-only package must carry matching modules as an ancillary
-file payload or explicitly prove compatibility. Current manifest treats kernel
-contract plus exact packaged module validation as constraints, not permission to
-mix arbitrary kernels/root filesystems. Full releases may update both together.
+From Storage04 onward BOOTIMG owns its matching loadable modules. Rescue stages
+them in /run/y2/modules and binds that RAM tree at /lib/modules before Buildroot
+starts. Y2ROOT contains no duplicate kernel module or exact-kernel module index.
+Kernel-only and rootfs-only replacements check the shared y2-platform-v1 contract
+and userspace ABI instead of requiring equal kernel release strings. The first
+transition from Storage03 requires both BOOTIMG and Y2ROOT; later compatible
+BOOTIMG-only replacements need no root rewrite. Full releases may replace both.
 
 Y2DATA holds settings, apps, y2player state, logs, cache, SSH public authorizations
 and generated host keys. State survives root/kernel/app replacement. Root is
@@ -73,7 +73,8 @@ A torn BOOTIMG can prevent rescue itself starting: **v1 cannot provide automatic
 rollback for this case**. Owner-proven SPFT/stock loader recovery remains the
 external path. Kernel-only online self-overwrite is not a supported v1 operation.
 The current kernel guard permits writes only to ANDROID and USRDATA, and rejects
-BOOTIMG and hardware partition switches. A future rescue writer needs a separate
+BOOTIMG and switching into hardware boot/RPMB areas. Returning to EMMC_USER
+while preserving boot configuration is a normal permitted operation. A future rescue writer needs a separate
 reviewed, narrowly enabled BOOTIMG write policy; no repartition is needed.
 
 Release identity and component versions are independent of layout_version. Reject

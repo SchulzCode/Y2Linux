@@ -4,6 +4,7 @@ case "$1" in
     mkdir -p /run /sys/kernel/debug
     mountpoint -q /sys/kernel/debug || mount -t debugfs debugfs /sys/kernel/debug
     [ -e /dev/y2diag ] || mknod -m 600 /dev/y2diag c 120 0
+    /usr/sbin/y2-platform-start
     start-stop-daemon -S -b -m -p /run/y2-observer.pid -x /usr/sbin/y2-observer -- --resume
     ;;
  stop) start-stop-daemon -K -p /run/y2-observer.pid;;

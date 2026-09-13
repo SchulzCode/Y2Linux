@@ -10,6 +10,12 @@ mount -t tmpfs -o mode=0755,nosuid,nodev tmpfs /run
 mount -t tmpfs -o mode=1777,nosuid,nodev tmpfs /tmp
 mount -t debugfs debugfs /sys/kernel/debug
 [ -e /dev/y2diag ] || mknod -m 600 /dev/y2diag c 120 0
+# BOOTIMG owns every loadable module. Carry them into the real system in RAM.
+release=$(uname -r)
+mkdir -p "/run/y2/modules/$release/kernel"
+cp /display.ko "/run/y2/modules/$release/kernel/mediatek-drm.ko"
+printf '%s\n' 'kernel/mediatek-drm.ko:' > "/run/y2/modules/$release/modules.dep"
+/sbin/y2-platform-start
 /sbin/y2-observer &
 observer=$!
 . /sbin/y2-storage
@@ -17,19 +23,11 @@ rescue() {
     echo "<3>Y2RESCUE: $*; staying in rescue" > /dev/kmsg
     {
         printf '\033[2J\033[H'
-        echo 'Y2Linux STORAGE03 RESCUE'
+        echo 'Y2Linux STORAGE04 RESCUE'
         echo "$*"
         echo 'No reboot / no SD fallback / no formatting'
         /sbin/y2-usb-status
-        echo 'Internal partition sectors:'
-        for part in /sys/class/block/*; do
-            [ -f "$part/partition" ] || continue
-            case "$(readlink -f "$part")" in */11230000.mmc/*)
-                echo "${part##*/}: $(cat "$part/start") / $(cat "$part/size")";;
-            esac
-        done
-        /bin/busybox dmesg | /bin/busybox grep -E 'Y2GUARD|Y2USB' |
-            /bin/busybox sed -E 's/^.*(Y2GUARD|Y2USB)/\1/' | /bin/busybox tail -n 5
+        /sbin/y2-status storage
     } > /dev/tty0
     # A failed exec in a subshell cannot terminate rescue PID1.
     while :; do
@@ -37,6 +35,7 @@ rescue() {
         sleep 1
     done
 }
+case " $(cat /proc/cmdline) " in *' y2.rescue=1 '*) rescue 'rescue requested by boot command line';; esac
 echo 'Y2ROOT: Production Storage v1; internal-only discovery' > /dev/kmsg
 # Allow asynchronous controller discovery; no media card is needed or inspected.
 n=0
@@ -46,7 +45,7 @@ while [ "$n" -lt 40 ]; do
     [ -n "$rootdev" ] && [ -n "$datadev" ] && break
     n=$((n+1))
     if [ "$n" = 10 ]; then
-        printf '\nY2Linux Storage03: locating internal root/data\nNo SD card required.\n' > /dev/tty0
+        printf '\nY2Linux Storage04: locating internal root/data\nNo SD card required.\n' > /dev/tty0
     fi
     sleep 1
 done
@@ -69,6 +68,8 @@ for dev in "$rootdev" "$datadev"; do
 done
 mount -t ext4 -o rw "$rootdev" /newroot || rescue 'root writable mount failed'
 mount -t ext4 -o rw,nosuid,nodev "$datadev" /newroot/data || rescue 'data writable mount failed'
+mkdir -p /newroot/lib/modules
+mount --bind /run/y2/modules /newroot/lib/modules || rescue 'module handover failed'
 printf '%s\n' "$rootdev" > /run/y2-root-device
 printf '%s\n' "$datadev" > /run/y2-data-device
 echo "Y2ROOT: verified $rootdev with Y2DATA=$datadev; switching to Buildroot" > /dev/kmsg

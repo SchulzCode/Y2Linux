@@ -51,7 +51,7 @@ def check(data, r):
       '/serial@11002000': {'compatible': strings('mediatek,mt6582-uart','mediatek,mt6577-uart'),
                          'reg': cells(0x11002000,0x400), 'interrupts': cells(0,51,8),
                          'clocks': cells(ph('/clock-uart'))},
-      '/usb@11200000': {'compatible': strings('innioasis,y2-usb-experiment'),
+      '/usb@11200000': {'compatible': strings('innioasis,y2-usb'),
                          'reg': cells(0x11200000,0x280,0x11210800,0x70),
                          'reg-names': strings('mac','phy'),
                          'interrupts': cells(0,32,8), 'dr_mode': strings('peripheral')},

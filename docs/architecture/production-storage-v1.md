@@ -1,5 +1,13 @@
 # Production Storage / Installation v1 partition audit
 
+Current implementation: [Storage04 single production platform](../knowledge/storage04-production-platform.md).
+Stock geometry/classification below remains unchanged. Upstream Linux 6.18 parses
+the retained factory tables without a compatibility parser. Storage03 failed
+physical internal-root and USB startup; current raw table readback is absent.
+BOOTIMG now owns loadable modules; rootfs/data and module ownership follow the
+[update contract](update-model.md). No physical success is inferred from builds.
+
+
 Current correction: the first manual attempt completed BOOTIMG transfer but
 failed3154 on ANDROID. Selected DA[5] rejects sparse FILL. Storage02 uses raw
 ext4 transport. DA physical user capacity is7818182656bytes (15269888sectors);

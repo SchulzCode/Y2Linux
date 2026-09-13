@@ -5,4 +5,4 @@
  obj-$(CONFIG_DIBS)		+= dibs/
  obj-$(CONFIG_S390)		+= s390/
 +
-+obj-$(CONFIG_Y2_BOOT_DIAGNOSTIC) += y2/
++obj-$(CONFIG_Y2_PLATFORM) += y2/

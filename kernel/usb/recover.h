@@ -13,9 +13,10 @@ static inline int y2_usb_recovered_ready(const struct y2_platform_snapshot *s)
 {
     const unsigned *v=s->usb.values;
     if(!y2_usb_state_ready(s) || s->usb.result || s->usb.valid!=0x1fffff ||
-       (v[0]&~0x20U) || (v[1]&0x87)!=0x80 || v[2]!=0x6503 ||
-       (v[6]&~8U) || v[7] || v[8] || v[9]!=2 || !(v[10]&2) || v[11] || v[12]) return 0;
-    for(unsigned i=13;i<21;++i) if(v[i]) return 0;
+       (v[0]&0x40) || (v[1]&4) || v[2]!=0x6503 ||
+       (v[6]&0xf4) || (v[7]&0x3c) || (v[8]&0xbe) ||
+       (v[9]&4) || (v[11]&0x3e) || (v[12]&1)) return 0;
+    for(unsigned i=13;i<21;++i) if(v[i]&1) return 0;
     return 1;
 }
 static inline void y2_usb_recover(const struct y2_recover_io *io,
@@ -25,27 +26,37 @@ static inline void y2_usb_recover(const struct y2_recover_io *io,
         {0x1d,0x10,0},{0x6b,4,0},{0x6e,1,0},{0x6a,4,0},
         {0x68,0x40,0},{0x68,0x80,0},{0x68,0x30,0},{0x68,4,0},
         {0x69,0x3c,0},{0x6a,0x10,0},{0x6a,0x20,0},{0x6a,8,0},
-        {0x6a,2,0},{0x6a,0x80,0},{0x1a,0x80,0},{0x1a,0,0x10}
+        {0x6a,2,0},{0x6a,0x80,0},{0x1a,0x80,0},{0x1a,0,0x10},{0x6d,0x3e,0}
     };
     struct y2_usb_wake_snapshot *w=&s->wake;
     struct y2_platform_snapshot after=*s;
     const unsigned *v=s->usb.values;
     unsigned i,value,check;
     *w=(struct y2_usb_wake_snapshot){.result=-19};
-    /* Refuse active MAC/host/DMA and unrelated digital modes before any write.
-     * Saved-current pulldown/force bits are expected, unlike the old 6a=04 gate. */
+    /* Board is peripheral-only. Validate resources and active DMA/host ownership,
+     * not a particular loader's digital register snapshot. Dormant DMA channel
+     * configuration and inherited device-mode SOFTCONN are normal handoff states. */
     if(!y2_usb_state_ready(s) || s->usb.result || s->usb.valid!=0x1fffff ||
-       (v[0]&~0x20U) || (v[1]&0x87)!=0x80 || v[2]!=0x6503 ||
-       (v[6]&~0xfcU) || (v[7]&~0x3cU) || (v[8]&~0xbeU) ||
-       (v[9]&~4U)!=2 || !(v[10]&2) || v[11] || (v[12]&~1U)) return;
-    for(i=13;i<21;++i) if(v[i]) return;
+       (v[1]&4) || v[2]!=0x6503) return;
+    for(i=13;i<21;++i) if(v[i]&1) {w->result=-16;return;}
     for(i=0;i<7;++i) {
         w->result=io->state.read(io->state.context,Y2_USB_PHY_BASE+y2_usb_mode_offsets[i],1,&w->controls[i]);
         if(w->result) return;
         w->before_valid|=1U<<i;
     }
     w->result=-19;
-    if((w->controls[2]&0x80) || (w->controls[5]&3)) return;
+    /* Disconnect before replacing digital PHY inputs. Never enable host VBUS
+     * or an inherited DMA channel. Mask interrupt delivery before ownership. */
+    static const unsigned quiesce[][2] = {
+        {Y2_USB_MAC_BASE+0xa4,0}, {Y2_USB_MAC_BASE+0x0b,0},
+        {Y2_USB_MAC_BASE+0x06,0}, {Y2_USB_MAC_BASE+0x08,0},
+        {Y2_USB_MAC_BASE+0x01,0}, {Y2_USB_MAC_BASE+0x60,0}
+    };
+    for(i=0;i<sizeof(quiesce)/sizeof(quiesce[0]);++i) {
+        w->result=io->write(io->state.context,quiesce[i][0],quiesce[i][1]);
+        if(w->result) return;
+        w->written=1;
+    }
     io->delay(io->state.context,50);
     for(i=0;i<sizeof(steps)/sizeof(steps[0]);++i) {
         unsigned addr=Y2_USB_PHY_BASE+steps[i][0];

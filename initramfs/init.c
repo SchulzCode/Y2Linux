@@ -25,7 +25,7 @@ static long call5(long number,long a,long b,long c,long d,long e)
 }
 #include "relay.h"
 #include "evdev.h"
-#include "display.h"
+
 static struct y2_text_frame screen;
 static long diagnostic=-1,previous_draw=-1;
 static unsigned beat,frames;
@@ -360,7 +360,7 @@ __attribute__((noreturn)) void diag_start(u32 *stack)
                    nav.result ? "INPUT RC:" : "KEYS:"),
                    nav.result ? nav.result : (long)nav.events);
         if(usb_live_row()) relay_service();
-        display_service(beat);
+
         if(beat==12)baseline_snapshot();
         if(beat==60||beat==120||beat==240) {
             log_file("/proc/interrupts");log_file("/proc/meminfo");

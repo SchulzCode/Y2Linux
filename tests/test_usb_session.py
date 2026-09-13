@@ -59,19 +59,18 @@ int main(void) {
         if(i==4) f.dev=0x99;
         if(i>=5 && i<=7) f.drop=i-4;
         if(i==8) f.dev=0xd8; /* FS/LS status does not make this host mode */
-        unsigned original=f.c;
+        unsigned original=f.c, original_d=f.d;
         int rc=y2_session_start(&io,&s);
-        if(i==1 || i==2) assert(rc==-19 && !f.writes && s.devctl==0x100);
-        else {
+        {
             assert(s.written && f.writes==3);
             if(i==3) assert(rc==-110 && f.delays==1000);
             else if(i==4) assert(rc==-19 && !f.delays);
             else if(i>=5 && i<=7) assert(rc==-5 && !f.delays);
-            else assert(!rc && !f.delays && f.c==0xee && f.d==0x3e);
+            else assert(!rc && !f.delays && f.c==((original & ~0x10U)|0x2e) && f.d==0x3e);
             /* Relinquish only owned bits and preserve unrelated changes. */
             f.c^=0x40;f.d|=0x80;
             y2_session_end(&io,&s);
-            assert(!s.written && f.writes==5 && f.c==(original^0x40) && f.d==0x80);
+            assert(!s.written && f.writes==5 && f.c==(original^0x40) && f.d==(original_d|0x80));
         }
         unsigned count=f.writes;y2_session_end(&io,&s);assert(f.writes==count);
     }

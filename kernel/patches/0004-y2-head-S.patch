@@ -1,7 +1,10 @@
 --- a/arch/arm/boot/compressed/head.S
 +++ b/arch/arm/boot/compressed/head.S
-@@ -248,0 +249,21 @@
-+#ifdef CONFIG_Y2_BOOT_DIAGNOSTIC
+@@ -246,6 +246,27 @@
+ 		msr	spsr_cxsf, r9		@ Save the CPU boot mode in
+ 						@ SPSR
+ #endif
++#ifdef CONFIG_Y2_PLATFORM
 +		/* D12: FM LK leaves AP_RGU armed. Stop before decompression.
 +		 * Preserve r7/r8/r9; MMU-off SVC entry is the researched contract.
 +		 * Identical MODE key/enable operation to upstream mtk_wdt_stop.
@@ -22,7 +25,16 @@
 + y2_wdt_stop_end:
 +#endif
 +
-@@ -259,0 +281,3 @@
-+#ifdef CONFIG_Y2_BOOT_DIAGNOSTIC
+ 		/*
+ 		 * Note that some cache flushing and other stuff may
+ 		 * be needed here - is there an Angel SWI call for this?
+@@ -257,6 +278,9 @@
+ 		 */
+ 
+ 		.text
++#ifdef CONFIG_Y2_PLATFORM
 + y2_wdt_continue:
 +#endif
+ 
+ #ifdef CONFIG_AUTO_ZRELADDR
+ 		/*

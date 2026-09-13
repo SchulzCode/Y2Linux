@@ -36,7 +36,7 @@ def validate_manifest(out):
         require(payload['absolute_start_bytes']==t['start'] and payload['maximum_size_bytes']==t['size'] and payload['scatter_linear_start_bytes']==t['linear'],'payload coordinates')
         require(payload['region']=='EMMC_USER' and payload['partition_relative_offset_bytes']==0,'address space')
         require(payload['requires']['layout_version']==1 and payload['requires']['data_schema_version']==1,'payload dependencies')
-        if name!='USRDATA':require(payload['requires']['kernel_module_release']==m['kernel_version'],'module dependency contract')
+        if name!='USRDATA':require(payload['requires']['platform_contract']=='y2-platform-v1','platform dependency contract')
         require(payload['component']==t['type'] and payload['mandatory']==(name!='USRDATA'),'component/requirement')
         require(payload['preserves_existing_data'] is False,'images replace their contents')
         require(payload['raw']['file']==t['file'],'raw filename')
@@ -95,7 +95,7 @@ def validate_rootfs(out,build,m):
             if x.isfile() and x.size<65536:require(b'PRIVATE KEY-----' not in read(name),'private key material')
             require((x.uid,x.gid)==((33,33) if name=='var/www' else (0,0)),'rootfs ownership')
         require(read('etc/y2linux/layout-version')==b'1\n','root layout marker')
-        require(read('etc/y2linux/build-id')==b'Y2LINUX-STORAGE-03\n','root build identity')
+        require(read('etc/y2linux/build-id')==b'Y2LINUX-STORAGE-04\n','root build identity')
         require(json.loads(read('etc/y2linux/versions.json'))==json.loads((build/'versions.json').read_text()),'versions root/build')
         require(json.loads(read('etc/y2linux/versions.json'))['build_git_commit']==m['build_git_commit'],'manifest root commit')
         for name in ('bin/busybox','sbin/init','sbin/blkid','sbin/e2fsck','sbin/ip','usr/sbin/dropbear','usr/bin/aplay','usr/bin/amixer','usr/bin/evtest','usr/bin/strace'):
@@ -104,10 +104,8 @@ def validate_rootfs(out,build,m):
         require(b'-s -g -j -k -p 10.42.0.1:22' in read('etc/default/dropbear'),'key-only SSH')
         require(b'root:$6$y2linux$disabled:' in read('etc/shadow'),'password disabled')
         release=(build/'kernel/include/config/kernel.release').read_text().strip()
-        require(read('display.ko')==(build/'display.ko').read_bytes(),'exact DRM module')
-        require(read('lib/modules/'+release+'/kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko')==read('display.ko'),'system module version')
-        require(read('lib/modules/'+release+'/modules.dep').startswith(b'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko:'),'module index')
-        for name in ('etc/y2linux/layout-version','etc/y2linux/versions.json','display.ko','etc/init.d/S02y2-data','usr/sbin/y2-media','usr/bin/aplay','etc/fstab'):
+        require('display.ko' not in members and not any('.ko' in n and n.startswith('lib/modules/') for n in members),'kernel modules must be owned by BOOTIMG')
+        for name in ('etc/y2linux/layout-version','etc/y2linux/versions.json','usr/sbin/y2-platform-start','usr/sbin/y2-status','etc/init.d/S02y2-data','usr/sbin/y2-media','usr/bin/aplay','etc/fstab'):
             require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img'))==read(name),'raw ext4/tar agreement '+name)
     require(run('debugfs','-R','cat /.y2data-schema',str(out/'Y2DATA.img'))==b'1\n','data schema')
     key=run('debugfs','-R','cat /ssh/authorized_keys.d/authorized_keys',str(out/'Y2DATA.img'))
@@ -118,7 +116,7 @@ def validate_rootfs(out,build,m):
     print('PASS root/data contents, module ABI, per-owner public key and persistent SSH paths')
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('package',type=Path);p.add_argument('--build',type=Path,default=PROJECT/'out/y2linux-production-build-v1-r3');a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('package',type=Path);p.add_argument('--build',type=Path,default=PROJECT/'out/y2linux-production-build-v1-r4');a=p.parse_args()
     m=validate_manifest(a.package);validate_rootfs(a.package,a.build,m)
     print('PASS offline Production Storage v1; physical no-SD qualification PENDING')
 if __name__=='__main__':main()

@@ -15,7 +15,7 @@
  
 +extern const struct mtk_mipitx_data mt6582_mipitx_data;
  static const struct of_device_id mtk_mipi_tx_match[] = {
-+#if IS_ENABLED(CONFIG_Y2_BOOT_DIAGNOSTIC)
++#if IS_ENABLED(CONFIG_Y2_PLATFORM)
 +	{ .compatible = "mediatek,mt6582-mipi-tx", .data = &mt6582_mipitx_data },
 +#endif
  	{ .compatible = "mediatek,mt2701-mipi-tx", .data = &mt2701_mipitx_data },
