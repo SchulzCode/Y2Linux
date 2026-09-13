@@ -1,0 +1,34 @@
+USB FAILED rc=-19 configured=0
+Live CHR=00000020 polls=0 IRQ=0
+DEVCTL=80 events=0
+Initial PW=0/7 CHR=0020
+CLK=0/15 USB=0/1fffff WAKE=-19/0
+MUX=00010000 PLL=05000001 PWR=00000001
+USB status invalid/short
+DEVNAME=/project/out/y2linux-production-v1-r3/Y2ROOT.img
+LABEL=Y2ROOT
+UUID=79324c69-6e75-4801-8000-000000000101
+VERSION=1.0
+FSBLOCKSIZE=4096
+BLOCK_SIZE=4096
+FSLASTBLOCK=131072
+FSSIZE=536870912
+TYPE=ext4
+USAGE=filesystem
+DEVNAME=/project/out/y2linux-production-v1-r3/Y2DATA.img
+LABEL=Y2DATA
+UUID=79324c69-6e75-4801-8000-000000000102
+VERSION=1.0
+FSBLOCKSIZE=4096
+BLOCK_SIZE=4096
+FSLASTBLOCK=204800
+FSSIZE=838860800
+TYPE=ext4
+USAGE=filesystem
+test_disabled_relay_syscalls (tests.test_usb_linked.LinkedUsb.test_disabled_relay_syscalls) ... skipped 'requires completed build'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK (skipped=1)
+PASS ARM production status decoder, short-read rejection and real filesystem probes

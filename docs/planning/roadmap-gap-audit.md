@@ -6,6 +6,18 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Storage03 complete manual boundary — 2026-09-13
+
+The [complete Storage03 package](../build/y2linux-production-v1-r3-deployment.md)
+is built from 4845860 and passes 33 regression tests plus a linked ARM USB test,
+ARM userspace/reader/filesystem checks and full image/layout/package validation.
+Partition layout 1, data schema 1 and root/data runtime write ranges are retained.
+No further hardware evidence is available; this remains a correction candidate,
+not physical acceptance. The truncated rejected MMC command and off-state power
+entry cause remain unproven. No protected/table writes, physical assistant
+operation, OTA/player work, M4/M5 activation or milestone closure occurred.
+Storage remains ACTIVE and stops for owner manual SPFT Download Only operation.
+
 ## Storage03 correction scope — 2026-09-13
 
 Latest owner DIAG01 photos confirm internal MMC, nonremovable, 15269888 sectors,

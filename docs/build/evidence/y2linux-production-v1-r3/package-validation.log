@@ -1,0 +1,4 @@
+Y2ROOT.img: clean ext4, matching label/UUID; Y2ROOT: 786/32768 files (0.0% non-contiguous), 11761/131072 blocks
+Y2DATA.img: clean ext4, matching label/UUID; Y2DATA: 23/51296 files (0.0% non-contiguous), 7587/204800 blocks
+PASS root/data contents, module ABI, per-owner public key and persistent SSH paths
+PASS offline Production Storage v1; physical no-SD qualification PENDING

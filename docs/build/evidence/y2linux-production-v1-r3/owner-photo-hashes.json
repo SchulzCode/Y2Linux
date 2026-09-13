@@ -1,0 +1,17 @@
+[
+  {
+    "file": "page1.png",
+    "bytes": 2170944,
+    "sha256": "ae3323f081d0885701cbd977a5aed351c0a309a85ff94ef0a91d468b9c300787"
+  },
+  {
+    "file": "page2.png",
+    "bytes": 1975516,
+    "sha256": "52edd8c03e888606691480794eabfc1b45d17f3745d522f5db80f3e39248d605"
+  },
+  {
+    "file": "page3.png",
+    "bytes": 2325356,
+    "sha256": "554545fc834611a29d9997d1885a40c55602c3cc04d494654d0063e042d841ce"
+  }
+]

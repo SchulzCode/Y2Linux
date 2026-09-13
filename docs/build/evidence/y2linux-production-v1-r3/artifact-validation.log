@@ -1,0 +1,322 @@
+DEV rescue: 4754076 regular bytes; gzip 1935713 bytes; 43 entries
+make: Entering directory '/src'
+make[1]: Entering directory '/build/kernel'
+make[1]: Leaving directory '/build/kernel'
+make: Leaving directory '/src'
+Reviewed kernel configuration matches D08 and diagnostic fragment.
+{
+  "policy": "DEV-01",
+  "inputs": {
+    "z": 3238328,
+    "dtb": 9376,
+    "initramfs": 1935713,
+    "image": 9781504,
+    "kernel_bss": 1128576,
+    "kernel_span": 10910080,
+    "restart": 276,
+    "wont_overwrite": 520,
+    "edata": 3238328,
+    "reloc_code_end": 2364,
+    "stack_top": 3242448,
+    "compressed_bss_start": 3238328,
+    "compressed_bss_end": 3238352,
+    "regular_file_bytes": 4754076
+  },
+  "ram": [
+    [
+      2147483648,
+      3187671040
+    ]
+  ],
+  "reserved": [
+    [
+      2147483648,
+      2147500032
+    ],
+    [
+      2172649472,
+      2214592512
+    ],
+    [
+      3186622464,
+      3221225472
+    ]
+  ],
+  "zimage": [
+    2147516416,
+    2150754744
+  ],
+  "appended_dtb": [
+    2150754744,
+    2150764120
+  ],
+  "image": [
+    2147516416,
+    2157297920
+  ],
+  "resident_kernel": [
+    2147516416,
+    2158426496
+  ],
+  "relocated_copy": [
+    2157300224,
+    2160547680
+  ],
+  "relocated_dtb": [
+    2160538296,
+    2160547672
+  ],
+  "compressed_bss": [
+    2160547672,
+    2160547704
+  ],
+  "stack_top": 2160551792,
+  "malloc": [
+    2160551792,
+    2160617328
+  ],
+  "initramfs": [
+    2214592512,
+    2216528225
+  ],
+  "lk_staging": [
+    2147515904,
+    2152707584
+  ],
+  "staged_initramfs": [
+    2150766592,
+    2152702305
+  ],
+  "bootimg_read_end": 5193728,
+  "relocation_delta": 9783552,
+  "relocation_code_allowance": 2304,
+  "adjusted_image_size": 9781504,
+  "workspace_end": 2160617328,
+  "allocator_before_kernel_bytes": 997179392,
+  "dt": {
+    "node_count": 71,
+    "bootargs": "rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31",
+    "memory": [
+      [
+        2147483648,
+        3187671040
+      ]
+    ],
+    "storage": "internal eMMC disabled; removable SD writable",
+    "evidence": "offline dependencies only"
+  },
+  "sleep_syscall": {
+    "number": 162,
+    "target": "sys_nanosleep_time32",
+    "entry": "0xc008d410",
+    "sys_ni_syscall": "0xc0040900",
+    "compat_32bit_time": true,
+    "status": "PASS linked implementation, not ENOSYS"
+  },
+  "kernel_symbols": {
+    "_text": 3221258240,
+    "_edata": 3231039744,
+    "__bss_start": 3231039744,
+    "__bss_stop": 3232168320,
+    "_end": 3232168320
+  },
+  "artifacts": {
+    "Image": {
+      "bytes": 9781504,
+      "sha256": "a516a4cec5139ae2e05eecd11b03f788e54ad84ba24ddc1eca4d2f81f28a62fd"
+    },
+    "zImage": {
+      "bytes": 3238328,
+      "sha256": "8e1960b8d4f4d76dcb75b7db1132d7bb9010add307b8662d046f9eb9e3f9cba5"
+    },
+    "y2.dtb": {
+      "bytes": 9376,
+      "sha256": "694dd8773352b5ca144c0fcae903733d40db329b9f50a5c41405f6c5843fc85f"
+    },
+    "zImage-dtb": {
+      "bytes": 3247704,
+      "sha256": "8d8e9bac82b02b61b056866ad9d0adb5e45932a80b126dcb6f4f6a66858ea6b6"
+    },
+    "initramfs.cpio.gz": {
+      "bytes": 1935713,
+      "sha256": "ccc96c09d674d4e080bbc4cc343f64bfea712893d352ecb2c09c6b1c0bf29d4d"
+    },
+    "display.ko": {
+      "bytes": 158300,
+      "sha256": "25984fc134f72e01ccb5d9e66ff38073931e675e031bf0d21a611b4631625641"
+    }
+  },
+  "status": "PASS offline Production Storage v1; internal boot unqualified",
+  "bootimg": {
+    "bytes": 5193728,
+    "sha256": "aad969c6b239f64fa9d253d21728d142285fa2043f80a44617b707b12c3d3ec6",
+    "android_id_sha1": "3401e64a8bd32509cc07ad33d2c21a0f8f57dffc",
+    "partition_bytes": 16777216,
+    "kernel_wrapper_offset": 2048,
+    "ramdisk_wrapper_offset": 3252224,
+    "lk_complete_read_end": 5193728,
+    "zero_filled_read_tail_bytes": 5279,
+    "authentication": "unsigned image; offline checks do not establish this candidate hardware acceptance"
+  }
+}
+DEV rescue: 4754107 regular bytes; gzip 1935713 bytes; 43 entries
+make: Entering directory '/src'
+make[1]: Entering directory '/build/kernel'
+make[1]: Leaving directory '/build/kernel'
+make: Leaving directory '/src'
+Reviewed kernel configuration matches D08 and diagnostic fragment.
+{
+  "policy": "DEV-01",
+  "inputs": {
+    "z": 3238328,
+    "dtb": 9376,
+    "initramfs": 1935713,
+    "image": 9781504,
+    "kernel_bss": 1128576,
+    "kernel_span": 10910080,
+    "restart": 276,
+    "wont_overwrite": 520,
+    "edata": 3238328,
+    "reloc_code_end": 2364,
+    "stack_top": 3242448,
+    "compressed_bss_start": 3238328,
+    "compressed_bss_end": 3238352,
+    "regular_file_bytes": 4754107
+  },
+  "ram": [
+    [
+      2147483648,
+      3187671040
+    ]
+  ],
+  "reserved": [
+    [
+      2147483648,
+      2147500032
+    ],
+    [
+      2172649472,
+      2214592512
+    ],
+    [
+      3186622464,
+      3221225472
+    ]
+  ],
+  "zimage": [
+    2147516416,
+    2150754744
+  ],
+  "appended_dtb": [
+    2150754744,
+    2150764120
+  ],
+  "image": [
+    2147516416,
+    2157297920
+  ],
+  "resident_kernel": [
+    2147516416,
+    2158426496
+  ],
+  "relocated_copy": [
+    2157300224,
+    2160547680
+  ],
+  "relocated_dtb": [
+    2160538296,
+    2160547672
+  ],
+  "compressed_bss": [
+    2160547672,
+    2160547704
+  ],
+  "stack_top": 2160551792,
+  "malloc": [
+    2160551792,
+    2160617328
+  ],
+  "initramfs": [
+    2214592512,
+    2216528225
+  ],
+  "lk_staging": [
+    2147515904,
+    2152707584
+  ],
+  "staged_initramfs": [
+    2150766592,
+    2152702305
+  ],
+  "bootimg_read_end": 5193728,
+  "relocation_delta": 9783552,
+  "relocation_code_allowance": 2304,
+  "adjusted_image_size": 9781504,
+  "workspace_end": 2160617328,
+  "allocator_before_kernel_bytes": 997179392,
+  "dt": {
+    "node_count": 71,
+    "bootargs": "rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31",
+    "memory": [
+      [
+        2147483648,
+        3187671040
+      ]
+    ],
+    "storage": "internal eMMC: guarded root/data; removable SD optional",
+    "evidence": "offline dependencies only"
+  },
+  "sleep_syscall": {
+    "number": 162,
+    "target": "sys_nanosleep_time32",
+    "entry": "0xc008d410",
+    "sys_ni_syscall": "0xc0040900",
+    "compat_32bit_time": true,
+    "status": "PASS linked implementation, not ENOSYS"
+  },
+  "kernel_symbols": {
+    "_text": 3221258240,
+    "_edata": 3231039744,
+    "__bss_start": 3231039744,
+    "__bss_stop": 3232168320,
+    "_end": 3232168320
+  },
+  "artifacts": {
+    "Image": {
+      "bytes": 9781504,
+      "sha256": "a516a4cec5139ae2e05eecd11b03f788e54ad84ba24ddc1eca4d2f81f28a62fd"
+    },
+    "zImage": {
+      "bytes": 3238328,
+      "sha256": "8e1960b8d4f4d76dcb75b7db1132d7bb9010add307b8662d046f9eb9e3f9cba5"
+    },
+    "y2.dtb": {
+      "bytes": 9376,
+      "sha256": "694dd8773352b5ca144c0fcae903733d40db329b9f50a5c41405f6c5843fc85f"
+    },
+    "zImage-dtb": {
+      "bytes": 3247704,
+      "sha256": "8d8e9bac82b02b61b056866ad9d0adb5e45932a80b126dcb6f4f6a66858ea6b6"
+    },
+    "initramfs.cpio.gz": {
+      "bytes": 1935713,
+      "sha256": "435ca4ed2ee99419005225d664ef10baef3ab7967d72a6395aa306098b3deb4a"
+    },
+    "display.ko": {
+      "bytes": 158300,
+      "sha256": "25984fc134f72e01ccb5d9e66ff38073931e675e031bf0d21a611b4631625641"
+    }
+  },
+  "status": "PASS offline Production Storage v1; internal boot unqualified",
+  "bootimg": {
+    "bytes": 5193728,
+    "sha256": "499d7c3f839eeaafc4c3f79d0b38bc9af9ff1589cce368f24f7f9802380e9190",
+    "android_id_sha1": "5376021c6541a8ce6dcbb57623dec78a36cfcda5",
+    "partition_bytes": 16777216,
+    "kernel_wrapper_offset": 2048,
+    "ramdisk_wrapper_offset": 3252224,
+    "lk_complete_read_end": 5193728,
+    "zero_filled_read_tail_bytes": 5279,
+    "authentication": "unsigned image; offline checks do not establish this candidate hardware acceptance"
+  }
+}

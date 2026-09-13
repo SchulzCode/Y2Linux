@@ -1,15 +1,32 @@
 # Session handoff — 2026-09-13, Storage02 retry
 
-## Latest: Storage03 correction in progress
+## Latest: Storage03 complete; owner manual flash boundary
 
-Owner supplied all three DIAG01 photographs, then requested correction of the
-three production images without further device data. Internal MMC capacity is
-15269888 sectors, no partitions, both resolver failures; USB preflight -19 with
-initial CHRDET=007b, wake refusal and zero polls. Exact rejected MMC opcode is
-truncated in the photo. The owner reports cable-dependent power entry and
-SD-dependent apparent progress. See [source-backed correction scope](../knowledge/storage03-corrections.md)
-and the current roadmap audit. Earlier diagnostic manual boundary is superseded.
-No internal-root or USB acceptance. No assistant physical writes or SPFT execution.
+[Full 24-point deployment report](../build/y2linux-production-v1-r3-deployment.md).
+Build commit 48458605db5f53bd188921d53359e470f1e8bf05, release 0.1.0-storage.3,
+package out/y2linux-production-v1-r3. BOOTIMG 5193728 bytes, SHA256
+499d7c3f839eeaafc4c3f79d0b38bc9af9ff1589cce368f24f7f9802380e9190.
+Y2ROOT/Y2DATA are raw ext4, 512/800 MiB, layout/schema 1 unchanged. Matching
+BOOTIMG+Y2ROOT required; Y2DATA template only for explicit initialization, with
+preserve-data profile available. No sparse transport or partition-table change.
+
+Owner DIAG01 photos confirm internal MMC at 15269888 sectors, no partitions,
+both resolvers failed, USB PREFLIGHT -19/zero polls/initial CHRDET=007b. The exact
+rejected MMC command is truncated. Owner cannot provide more device data and
+requested correction of all three images. Storage03 handles bounded MMC/FUA/
+metadata requests and unchanged user-area reselection, suppresses boot-area
+probing, uses serialized eMMC requests, adds guarded MT6582 saved-state PHY
+recovery for cable-present startup, and prints compact rescue status without SD.
+
+[Correction rationale](../knowledge/storage03-corrections.md) and
+[validation evidence](../build/evidence/y2linux-production-v1-r3/README.md).
+33 regression tests, one linked ARM USB test, ARM ABI/ALSA/reader/blkid checks,
+rescue syntax, ext4 integrity/identity, kernel/module/DT/newc/D08/BOOTIMG, stock
+scatter/restore bounds and hashes pass. No physical success is claimed. The
+reported off-state power/button issue has no proven cause or verified fix;
+stock loaders/PMIC power-entry/battery controls were not changed. No physical
+assistant writes or SPFT execution. STOP for owner manual operation; no more
+diagnostic evidence requests before that boundary. Earlier entries are history.
 
 ## Current boundary: DIAG01 on-screen observation ready
 

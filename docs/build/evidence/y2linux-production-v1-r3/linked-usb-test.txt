@@ -1,0 +1,3 @@
+Command: python3 tools/build/run.py --output out/y2linux-production-build-v1-r3 -- env PYTHONPATH=/project Y2_ARTIFACT_TEST_ROOT=/build python3 -m unittest tests.test_usb_linked -v
+Result: test_disabled_relay_syscalls ... ok; Ran 1 test in 12.266s; OK; exit 0.
+The earlier ARM reader script omitted Y2_ARTIFACT_TEST_ROOT and skipped this test; the separate invocation above executed it against the completed ARM ELF.
