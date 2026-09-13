@@ -127,7 +127,7 @@ class Transport(unittest.TestCase):
             sparse.write_bytes(struct.pack('<IHHHHIIII',0xed26ff3a,1,0,28,12,4096,1,1,0)+struct.pack('<HHII',0xcac3,0,1,12))
             with self.assertRaises(ValueError):sparse_identity(sparse,strict=True)
     def test_spft_scatter_maps_raw_images_only(self):
-        stock=Path('/home/luca/Dokumente/Code/Y2Player/y2_v3.2.0_FM-20260813/MT6582_Android_scatter.txt').read_text()
+        stock=(ROOT/'tests/fixtures/production/MT6582_Android_scatter.txt').read_text()
         for first in (True,False):
             rows=scatter_rows(make_scatter(stock,first))
             for row in rows:
