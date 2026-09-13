@@ -7,8 +7,10 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/mt6397/core.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/workqueue.h>
 #include "power-math.h"
@@ -144,7 +146,7 @@ static int y2_charger_probe(struct platform_device *pdev)
 	struct mt6397_chip *chip = dev_get_drvdata(dev->parent);
 	struct power_supply_config cfg = {};
 	struct y2_charger *c;
-	unsigned wdt, current, voltage;
+	unsigned wdt, charge_current, voltage;
 	int ret, irq;
 	if (!chip || !chip->regmap) return -EPROBE_DEFER;
 	c = devm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
@@ -157,7 +159,7 @@ static int y2_charger_probe(struct platform_device *pdev)
 	c->battery = devm_iio_channel_get(dev, "battery-voltage");
 	if (IS_ERR(c->battery)) return dev_err_probe(dev, PTR_ERR(c->battery), "battery ADC\n");
 	ret = regmap_read(c->map, 0x01a, &wdt);
-	if (!ret) ret = regmap_read(c->map, 0x008, &current);
+	if (!ret) ret = regmap_read(c->map, 0x008, &charge_current);
 	if (!ret) ret = regmap_read(c->map, 0x006, &voltage);
 	if (ret) return ret;
 	cfg.drv_data = c; cfg.fwnode = dev_fwnode(dev);
@@ -175,7 +177,7 @@ static int y2_charger_probe(struct platform_device *pdev)
 	if (ret) return ret;
 	queue_delayed_work(system_freezable_wq, &c->work, msecs_to_jiffies(10000));
 	dev_info(dev, "charging INHIBITED: pack thermometry unvalidated; inherited limit=%duA/%duV WDT_CON=%04x unchanged\n",
-		 y2_charge_ua(current), y2_charge_uv(voltage), wdt);
+		 y2_charge_ua(charge_current), y2_charge_uv(voltage), wdt);
 	return 0;
 }
 static DEFINE_SIMPLE_DEV_PM_OPS(y2_charger_pm, y2_charger_suspend, y2_charger_resume);

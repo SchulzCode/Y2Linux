@@ -91,11 +91,16 @@ def check(root,project,production=False):
         require(entry!=kernel.sym('sys_ni_syscall'),'missing development syscall '+str(number))
     for name in ('y2_usb_worker','y2_musb_init','y2_musb_interrupt','musb_start','musb_g_disconnect','cdc_bind','ecm_bind','acm_bind','msdc_drv_probe','mtk_i2c_probe'):
         require(kernel.sym(name)>=text,'missing subsystem '+name)
+    if config.get('CONFIG_Y2_POWER')=='y':
+        for name in ('y2_adc_probe','y2_charger_probe','y2_thermal_probe','y2_cpu_set','y2_enter_idle','mt6323_irq_suspend'):
+            require(kernel.sym(name)>=text,'missing power subsystem '+name)
     require(not any(name in kernel.syms for name in ('musb_dma_controller_create','dma_controller_irq','musb_host_setup','mtk_musb_init')),'unexpected USB DMA/host/glue')
     payload=z+tree+bytes(-len(tree)%8)
     layout['kernel_symbols']={n:kernel.sym(n) for n in ('_text','_edata','__bss_start','__bss_stop','_end')}
     layout['artifacts']={name:{'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()} for name,raw in [('Image',image),('zImage',z),('y2.dtb',tree),('zImage-dtb',payload),('initramfs.cpio.gz',rd),('display.ko',module)]}
     layout['status']='PASS offline Production Storage v1; internal boot unqualified' if production else 'PASS offline M3 audio candidate; DEV-02 core physically qualified; audio acceptance pending'
+    if config.get('CONFIG_Y2_POWER')=='y':
+        layout['status']='PASS offline Y2LINUX-M4-01; Storage06 retained; physical power qualification pending'
     return layout,payload,rd
 
 

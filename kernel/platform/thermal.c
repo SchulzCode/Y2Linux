@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/thermal.h>
 #include <linux/unaligned.h>
 #include "power-math.h"
