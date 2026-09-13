@@ -1,0 +1,34 @@
+BEFORE RETAINED MBR.bin
+BEFORE RETAINED EBR1.bin
+BEFORE RETAINED PRO_INFO.bin
+BEFORE RETAINED NVRAM.bin
+BEFORE RETAINED PROTECT_F.bin
+BEFORE RETAINED PROTECT_S.bin
+BEFORE RETAINED SECCFG.bin
+BEFORE RETAINED UBOOT.bin
+BEFORE RETAINED RECOVERY.bin
+BEFORE RETAINED SEC_RO.bin
+BEFORE RETAINED MISC.bin
+BEFORE RETAINED LOGO.bin
+BEFORE RETAINED EBR2.bin
+PASS before lengths and original table identity; retain files independently before manual write
+UNCHANGED MBR.bin
+UNCHANGED EBR1.bin
+UNCHANGED PRO_INFO.bin
+UNCHANGED NVRAM.bin
+UNCHANGED PROTECT_F.bin
+UNCHANGED PROTECT_S.bin
+UNCHANGED SECCFG.bin
+UNCHANGED UBOOT.bin
+UNCHANGED RECOVERY.bin
+UNCHANGED SEC_RO.bin
+UNCHANGED MISC.bin
+UNCHANGED LOGO.bin
+UNCHANGED EBR2.bin
+IMAGE VERIFIED BOOTIMG.bin 5187584 bytes at physical 0x1d80000
+IMAGE VERIFIED ANDROID.bin 536870912 bytes at physical 0x5180000
+IMAGE VERIFIED USRDATA.bin 838860800 bytes at physical 0x40380000
+PASS supplied readback bytes; operator DA/address identity and physical boot still required
+PASS synthetic wrong-rootfs-byte rejection
+PASS synthetic protected-byte mutation rejection
+SYNTHETIC FILE TEST ONLY; no hardware readback acquired or claimed

@@ -6,6 +6,29 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Storage02 manual retry boundary audit — 2026-09-13
+
+Source/build `c2db4893b79eca25458b6adc318232c80dd99872` produces the
+[corrected raw-image package and full checklist](../build/y2linux-production-v1-r2-deployment.md).
+26 regression tests, ARM ABI/ALSA/shell checks, kernel/DT/BOOTIMG, filesystem,
+stock geometry, manifest/hash validation and synthetic readback rejection pass.
+The isolated scatter test now carries the hash-checked original fixture.
+
+Reassessed the coverage matrix against the newer owner failure: BOOTIMG transfer
+completed; ANDROID failed; USRDATA was not reached. This supersedes any statement
+below that AUDIO-02 is necessarily still deployed. No native eMMC filesystem,
+no-SD boot, protected preservation or rescue-negative physical acceptance exists.
+M3's clean 44.1 kHz and remaining 48 kHz/LR/repeat gaps are unchanged. Power,
+radios, GPU, USB reconnect, stability and whole-platform gates remain unchanged.
+
+Production Storage v1/#33 remains ACTIVE, awaiting manual retry and physical
+qualification. All stock boundaries, restoration sources and protected write
+exclusions remain unchanged; no further source/ROM/recovery audit is justified.
+Use only out/y2linux-production-v1-r2, including its new BOOTIMG. Before/after
+readbacks taken only after the failure cannot prove the prior attempt preserved
+all protected bytes. No assistant flash or physical write was performed.
+M4/M5 and Y2PlayerNative remain deferred. Stop at this owner operation boundary.
+
 ## Storage flash failure / transport correction audit — 2026-09-13
 
 [Owner flash evidence](../hardware-evidence/2026-09-13-storage-flash-failure/README.md)

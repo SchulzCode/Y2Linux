@@ -1,39 +1,46 @@
-# Session handoff — 2026-09-13
+# Session handoff — 2026-09-13, Storage02 retry
 
-> Superseded for retry: first ANDROID sparse transfer failed3154. See [failure proof](../hardware-evidence/2026-09-13-storage-flash-failure/README.md); corrected Storage02 raw package is being prepared. Do not retry the original .spft.img files.
+Canonical SchulzCode/Y2Linux. Production Storage / Installation v1 remains ACTIVE,
+#33/milestone 3, between current M3 and M4. Start with the
+[complete corrected 24-point deployment checklist](../build/y2linux-production-v1-r2-deployment.md)
+and [current roadmap/gap audit](roadmap-gap-audit.md).
 
-Canonical SchulzCode/Y2Linux. Production Storage / Installation v1 is ACTIVE,
-#33/milestone3, between current M3 and M4. Read the
-[complete24-point deployment checklist](../build/y2linux-production-v1-deployment.md)
-and [current audit](roadmap-gap-audit.md) before any operation.
+Source/build commit: `c2db4893b79eca25458b6adc318232c80dd99872`.
+Validated package: `out/y2linux-production-v1-r2/`, release `0.1.0-storage.2`.
+Evidence: docs/build/evidence/y2linux-production-v1-r2. Select only BOOTIMG,
+ANDROID→Y2ROOT.img and USRDATA→Y2DATA.img for first initialization, using the
+new package scatter and Download Only. All three matching images are required.
 
-Source/build commit `f2ef297a81cc0229155ba5d96f1955bdd230f11d`. Final package:
-`out/y2linux-production-v1/`. All payload hashes/offsets are retained in the
-checklist and docs/build/evidence/y2linux-production-v1. Kernel/rescue, internal
-512MiB Y2ROOT image in stock ANDROID820MiB, Y2DATA800MiB in stock USRDATA,
-SPFT sparse transports and first-install/preserve-data profiles are built.
-24 tests plus memory/DT/BOOTIMG/ext4/manifest/hash checks pass. No actual updater
-or native application was implemented. Read update-model.md for future design.
+The owner attempted the original package: BOOTIMG transfer/checksum completed,
+ANDROID failed 3154 after sparse detection, and USRDATA was not reached.
+[Exact DA parser analysis](../hardware-evidence/2026-09-13-storage-flash-failure/README.md)
+proves it rejects the FILL chunks emitted by that package. Do not retry those
+.spft.img files. Storage02 uses raw ext4 images directly. It also distinguishes
+physical eMMC capacity 15269888 sectors from historical Android's 15203328-sector
+export. No stock partition boundary or write allowlist expanded; tail not reclaimed.
 
-**Stop for owner manual readbacks/flash.** No assistant physical eMMC write or
-SPFT execution. Actual native eMMC boot/write/no-SD/rescue-negative validation
-has not occurred. No production milestone closure is justified. Source/docs may
-be read and reviewed; do not automatically deploy or start M4.
+26 regression tests and ARM ABI/ALSA/shell, kernel/DT/BOOTIMG, ext4 identity,
+contents/ownership, raw transport, scatter/manifest/hash checks pass. Synthetic
+readback tests reject root corruption and protected-byte mutation; they are not
+physical evidence. The new per-owner client key remains private under ignored
+out/y2linux-production-private; only its public half is in Y2DATA. Host keys are
+generated on device and persisted on /data. No universal production credential.
 
-Current physical Y2 remains6.18.0-y2linux-m3audio02, four CPUs,954384KiB,
-SD-backed writable root, Y2Audio and initial SSH. eMMC remains disabled.
-44.1kHz clean result stands;48kHz/LR/repeat pending. USB reconnect remains deferred.
-No solved M1/M2/M3 bring-up was repeated. Development SSH key unchanged.
-Production has a NEW owner-specific key in ignored out/y2linux-production-private;
-its private part is not packaged. Production host keys are generated on Y2DATA.
+**Stop for the owner's manual readback/flash.** No assistant physical eMMC write
+or SPFT execution. No post-failure boot result is established. Last qualified
+running baseline was AUDIO-02 on SD: four CPUs, MemTotal 954384 KiB, ALSA, internal
+eMMC disabled. 44.1 kHz clean stands; 48 kHz/LR/repeat and USB reconnect remain
+pending/deferred. Do not redo solved M1/M2/M3 research or close storage from SPFT
+completion. Native internal boot/write/no-SD/rescue-negative acceptance remains.
 
-Stock FM boot/system/userdata recovery sources were checked only for overwritten
-partitions; no full-ROM re-audit. Preserve SD+AUDIO-02 for the BOOTIMG-only Linux
-fallback. Owner must retain required before/after table/protected readbacks and
-independent recovery access. Factory userdata is not personal Android backup.
-Do not touch PRELOADER, LK, tables, NVRAM/calibration or unknown partitions.
+Retain the working SD and AUDIO-02 BOOTIMG for BOOTIMG-only Linux fallback.
+Verified original FM boot/system/userdata sources support factory restoration;
+factory userdata is not a personalized Android backup. Keep independent recovery
+access and before/after table/protected readbacks. A baseline captured only after
+the failed flash cannot prove preservation across that earlier attempt.
 
-M4 power → M5 radios → remaining GPU/USB/stability → final whole-platform
-qualification → Y2PlayerNative. Keep current Git identity and authenticated
-SchulzCode account. No co-author/model attribution. Images/caches/private data
-stay ignored; small reviewed evidence and metadata remain tracked.
+Future OTA/installer contracts use stable layout 1, independent component versions,
+allowlists, root/data separation and staged rescue updates. No updater, application,
+A/B repartitioning or forced Android cleanup was implemented. M4 power → M5 radios
+→ remaining GPU/USB/stability → whole-platform qualification → Y2PlayerNative.
+Preserve existing Git/GitHub identity and donor copyright. No attribution trailers.

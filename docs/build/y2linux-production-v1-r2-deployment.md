@@ -1,12 +1,19 @@
-# First manual Production Storage v1 deployment
+# Production Storage v1 — Storage02 manual retry
 
-> Withdrawn from retry use: ANDROID sparse transfer failed 3154. Use the [Storage02 retry checklist](y2linux-production-v1-r2-deployment.md). Everything below records the historical first package; it is not current deployment guidance.
+**Ready for the owner's manual retry; physical qualification remains pending.**
+The first package failed because its sparse FILL chunks are rejected by the
+selected MT6582 Download Agent. BOOTIMG transfer/checksum completed; ANDROID
+failed and may be partially written; USRDATA was not reached. This does not prove
+an eMMC hardware fault or unchanged protected data. See the retained
+[failure analysis and actual DA parser](../hardware-evidence/2026-09-13-storage-flash-failure/README.md).
 
-**READY at the manual package boundary; NOT physically qualified.** No assistant
-physical eMMC write or SPFT operation. First actual eMMC/rootfs qualification
-belongs to the owner. The latest live system remains SD-backed AUDIO-02.
+Use only the new folder below. It maps raw ext4 images directly, avoiding the
+unsupported sparse parser. Flash all three matching images, including the new
+BOOTIMG: Storage02 also corrects the eMMC physical-capacity guard. No partition
+boundary or runtime write allowlist was expanded. The original package remains
+unchanged as evidence and must not be retried.
 
-1. **Build Git commit:** `f2ef297a81cc0229155ba5d96f1955bdd230f11d`.
+1. **Build Git commit:** `c2db4893b79eca25458b6adc318232c80dd99872`.
    Canonical project SchulzCode/Y2Linux; existing Luca/SchulzCode identity retained.
    Later evidence-only commits do not change these built bytes.
 2. **Exact stock map** and 3. **classification of every entry** follow. All normal
@@ -41,7 +48,10 @@ PRELOADER is EMMC_BOOT_1: the scatter's20MiB span is a vendor abstraction,
 **not** a physical readback length; each boot hardware region is4MiB. BMTPOOL's
 sentinels remain UNKNOWN/unapproved. FAT's zero scatter span resolves physically
 to0x15dc00000 bytes and may contain user media; leave it alone. EMMC_USER capacity
-is7,784,103,936 bytes. Preserve MBR/EBR1/EBR2; no repartitioning occurs.
+historically exported by Android is 7,784,103,936 bytes (0x1cff80000).
+DA reports physical capacity 7,818,182,656 bytes (0x1d2000000). The unallocated
+difference remains untouched; the native Linux view awaits physical measurement.
+Preserve MBR/EBR1/EBR2; no repartitioning occurs.
 
 [Full source-backed classification/dependencies](../architecture/production-storage-v1.md)
 · [Machine-readable map](../architecture/production-partitions.json).
@@ -51,7 +61,7 @@ is7,784,103,936 bytes. Preserve MBR/EBR1/EBR2; no repartitioning occurs.
 6. **Physical start:** 0x05180000 =85,458,944 bytes; scatter linear0x06580000.
 7. **Partition size:** 0x33400000 =859,832,320 bytes (820MiB).
 8. **Raw Y2ROOT image size:** 536,870,912 bytes (512MiB).
-9. **Raw Y2ROOT SHA256:** `041fbd7fbe0a2966e178649ff958cb3ad3cfea1610ef75aa580ba2391b1f5be8`.
+9. **Raw Y2ROOT SHA256:** `18d1626196edcb8a9864858d0413dd3696a26eac058f51aa9181e8bce0d6568b`.
 10. **Y2DATA:** stock USRDATA (`/data`, historical p7), physical0x40380000
     =1,077,411,840 bytes, size0x32000000 =838,860,800 bytes (800MiB).
     ext4 LABEL=Y2DATA mounted /data; initializes Android data on first install.
@@ -61,25 +71,24 @@ is7,784,103,936 bytes. Preserve MBR/EBR1/EBR2; no repartitioning occurs.
 
 11. **BOOTIMG**, 12. **scatter**, 13. **manifest**, and filesystem transports:
 
-All files below are in `/home/luca/Dokumente/Code/Y2Linux/out/y2linux-production-v1/`.
+All files below are in `/home/luca/Dokumente/Code/Y2Linux/out/y2linux-production-v1-r2/`.
 
 | File | Bytes | SHA256 |
 | --- | ---: | --- |
-| BOOTIMG.img | 5187584 | `ca77a6767a1cbcbd36e5fdbcd6dfaeaa1c95a85aaab767b3146fd59831235e12` |
-| Y2ROOT.img | 536870912 | `041fbd7fbe0a2966e178649ff958cb3ad3cfea1610ef75aa580ba2391b1f5be8` |
-| Y2ROOT.spft.img | 27271092 | `2ce33a55faa34ef6e9119f5500bc67154d3cb97e68bf554422557d37f2d1d5ee` |
-| Y2DATA.img | 838860800 | `9e5eaa8345453d90d41a914dcc50e96302049382a8b082e49170c14fcce708b9` |
-| Y2DATA.spft.img | 7352832 | `66a659f42f67e277410e6ccb6b53ad9999d173a52549db7c1dce90f1a974e039` |
-| MT6582_Android_scatter.txt | 7626 | `83a60acc0a4ddebe14c4d4132d4ac3ac9d6d2b70c382fc422226705c925b7b36` |
-| MT6582_preserve_data_scatter.txt | 7627 | `d9d2bd550abc94f8a74b6ab4b4860a754cea82458f44ec272db5efe4db3c1808` |
-| manifest.json | 7412 | `a81e0b3017a26326483e162effa466144cc78e5b5ea8ae0a128d5c2e6e58cb92` |
-| SHA256SUMS | 2207 | `bf80adfa37d6bdd47804d4501b0af3ad5be57e9b1e880dd2b7fa76061db794ad` |
+| BOOTIMG.img | 5187584 | `6dfe7ff5de30f39581cc3479ed17d9a2fbf6671619741924d563f29114228d7d` |
+| Y2ROOT.img | 536870912 | `18d1626196edcb8a9864858d0413dd3696a26eac058f51aa9181e8bce0d6568b` |
+| Y2DATA.img | 838860800 | `c4d5a9d1b832599268b15b7108b8f34194526bc4ee4b65b7cc80dede33f4b654` |
+| MT6582_Android_scatter.txt | 7616 | `68ef5f895da993d40b720243c58b7591809ec39fce32626d39e628475fe57909` |
+| MT6582_preserve_data_scatter.txt | 7617 | `efb04b860e6a1e907e25d407bdb3f98d29b1da7651b0dbe55a2dd679ddd1e9e3` |
+| manifest.json | 7304 | `7b6526c30b3d84940510b60e1472306c0c29115a95887f7569de03d95f26ea61` |
+| SHA256SUMS | 2043 | `90cca6b18020855ad006710798c52c2de94bebd652448231094c09c7d53ea4cf` |
 
-The scatter maps the **.spft.img** filesystem files. Their expanded content is
-byte-for-byte identical to the raw .img; never compare sparse-file hashes with
-physical eMMC hashes. BOOTIMG is raw, at physical0x01d80000 within its16MiB span.
-The first scatter selects BOOTIMG/ANDROID/USRDATA; the preserving profile selects
-BOOTIMG/ANDROID only.
+The scatter maps **Y2ROOT.img and Y2DATA.img directly** as raw ext4; there are
+no .spft.img payloads in this package. The transfers are 512 MiB and 800 MiB,
+respectively, and take longer than the failed compressed transport. Every
+written image byte has a defined hash. BOOTIMG is raw at physical 0x01d80000
+within its 16 MiB span. The first scatter selects BOOTIMG/ANDROID/USRDATA;
+the preserving profile selects BOOTIMG/ANDROID only.
 
 14. **Restoration material for every overwritten partition:** verified original
     FM sources below exist locally in
@@ -96,7 +105,7 @@ BOOTIMG/ANDROID only.
 | USRDATA | userdata.img | 15290768 | `552e325ecf2faffeb9351022147bbfda3b7cebe25df491b2d732e85c5c68f27c` |
 
 15. **SPFT boxes to select:** BOOTIMG→BOOTIMG.img,
-    ANDROID→Y2ROOT.spft.img, USRDATA→Y2DATA.spft.img for FIRST installation only.
+    ANDROID→Y2ROOT.img, USRDATA→Y2DATA.img for FIRST installation only.
 16. **Boxes NEVER selected in this installation:** PRELOADER, MBR, EBR1,
     PRO_INFO, NVRAM, PROTECT_F, PROTECT_S, SECCFG, UBOOT/LK, RECOVERY, SEC_RO,
     MISC, LOGO, EBR2, EXPDB, CACHE, FAT, BMTPOOL.
@@ -114,9 +123,13 @@ BOOTIMG/ANDROID only.
     Compare protected ranges exactly and target raw-image prefixes by SHA256:
 
 ```
-python3 tools/production/verify_readback.py --package out/y2linux-production-v1 --before /path/to/before --before-only
-python3 tools/production/verify_readback.py --package out/y2linux-production-v1 --before /path/to/before --after /path/to/after
+python3 tools/production/verify_readback.py --package out/y2linux-production-v1-r2 --before /path/to/before --before-only
+python3 tools/production/verify_readback.py --package out/y2linux-production-v1-r2 --before /path/to/before --after /path/to/after
 ```
+
+If pre-failure captures exist, retain and compare those too. Captures taken only
+after the failed attempt establish preservation across the retry; they cannot
+prove the earlier attempt left every protected byte unchanged.
 
 Physical starts are BOOTIMG0x1d80000, ANDROID0x5180000, USRDATA0x40380000;
 scatter linear starts are0x3180000,0x6580000,0x41780000. SPFT normal Download
@@ -125,7 +138,7 @@ Linux whole-disk offsets are those same physical values, while a partition node
 starts at offset0. No custom DA/global offsets are guessed. Preserve logs proving
 which device/DA/region was read; file hashes alone cannot establish that.
 
-19. **Expected first boot:** stock ROM→preloader→LK→Linux6.18.0-y2linux-storage01
+19. **Expected first boot:** stock ROM→preloader→LK→Linux6.18.0-y2linux-storage02
     rescue→internal Y2ROOT/Y2DATA→switch_root→Buildroot. Discovery allows40s.
 20. **Expected no-SD boot:** identical boot path; removable SD is ignored by the
     root resolver. Later SD serves media through explicit `y2-media mount`;
@@ -173,9 +186,9 @@ credential is packaged. USB cable reconnect remains a known deferred limitation.
 
 ## Validation and remaining physical boundary
 
-PASS24 regression tests, emitted kernel/DT/D08 memory/BOOTIMG checks, matching
+PASS 26 regression tests, emitted kernel/DT/D08 memory/BOOTIMG checks, matching
 DRM module, ARM ABI and ALSA utilities, rescue shell syntax, ext4 e2fsck checks,
-label/UUID, root/data contents and ownership, sparse RAW/FILL expansion hashes,
+label/UUID, root/data contents and ownership, raw ext4 transport identity,
 all21 stock scatter coordinates/no overlap, allowlists, versions and package
 hash inventory. Synthetic readback tests reject both root-image corruption and
 protected-byte mutation; they are explicitly **not physical readbacks**.

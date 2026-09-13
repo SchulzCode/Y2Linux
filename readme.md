@@ -5,7 +5,7 @@ Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 **not started** until the platform milestones and whole-system qualification finish.
 
 **Start here:** [2026-09-13 production handoff](docs/planning/session-handoff-2026-09-13.md).
-[Manual install package, exact hashes and complete deployment checklist](docs/build/y2linux-production-v1-deployment.md).
+[Manual install package, exact hashes and complete deployment checklist](docs/build/y2linux-production-v1-r2-deployment.md).
 
 | Milestone | Current status |
 | --- | --- |
@@ -16,11 +16,14 @@ Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 | M4 | Not started; follows Production Storage v1 and boundary audit |
 | M5 | Not started; Wi-Fi/Bluetooth later |
 
-Current kernel: `6.18.0-y2linux-m3audio02`, hostname `y2linux`, SSH
+Last qualified running kernel: `6.18.0-y2linux-m3audio02`, hostname `y2linux`, SSH
 `root@10.42.0.1`. Writable removable SD Buildroot, four CPUs, visible display,
 wheel/buttons, PMIC/core buses and initial ACM/Ethernet/SSH work. DEV-02 measured
 MemTotal 954660 KiB and passed a bounded 256 MiB allocator test; AUDIO-01 measured
-954384 KiB with its larger kernel. These are KiB, not 954 MiB. eMMC stays disabled.
+954384 KiB with its larger kernel. These are KiB, not 954 MiB. eMMC is disabled in that baseline.
+The first production flash completed BOOTIMG transfer but failed during ANDROID;
+no subsequent boot is established. The corrected Storage02 raw package is ready
+for the owner's manual retry.
 Initial USB/SSH returns after owner startup/restart; cable reconnect still fails.
 
 ALSA tools and quiet WAVs are now persistent on SD. Current native format is
