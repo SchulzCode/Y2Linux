@@ -15,7 +15,7 @@
 /memreserve/ 0x80000000 0x00004000;
 
 / {
-    model = "Innioasis Y2 Y2Linux";
+    model = "Innioasis Y2";
     compatible = "innioasis,y2", "mediatek,mt6582";
     #address-cells = <1>;
     #size-cells = <1>;
@@ -93,7 +93,7 @@
     aliases { serial0 = &uart0; };
     chosen {
         stdout-path = "serial0";
-        bootargs = "rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2Linux";
+        bootargs = "rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31";
         linux,initrd-start = <0x84000000>;
         linux,initrd-end = <Y2_INITRD_END>;
     };

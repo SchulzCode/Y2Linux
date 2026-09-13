@@ -1,0 +1,14 @@
+#!/bin/sh
+# Production display readiness; explicit test patterns remain a userspace tool.
+[ "$1" = start ] || exit 0
+(
+    for attempt in $(seq 1 30); do
+        if [ -e /sys/class/graphics/fb0/blank ]; then
+            echo 0 > /sys/class/graphics/fb0/blank
+            printf '\033[2J\033[HY2Linux\nInternal system started.\nMedia card optional.\n' > /dev/tty0
+            exit 0
+        fi
+        sleep 1
+    done
+    echo 'Y2DISPLAY: no fb0 within 30 seconds' > /dev/kmsg
+) &

@@ -70,6 +70,10 @@ def check(root,project,production=False):
     regular=sum(len(data) for mode,data in entries.values() if stat.S_ISREG(mode))
     require(entries['init']==(stat.S_IFREG|0o755,(project/('initramfs/production/init' if production else 'initramfs/rescue/init')).read_bytes()),'rescue PID1 differs from reviewed source')
     require(entries['sbin/y2-observer'][1]==(root/'y2-observer').read_bytes(),'observer archive bytes')
+    if production:
+        for name in ('y2-platform-start','y2-usb-status'):
+            require(entries['sbin/'+name][1]==(root/name).read_bytes(),'production tool archive bytes '+name)
+        require(entries['sbin/y2-status'][1]==(project/'tools/production/y2-status').read_bytes(),'shared diagnostic tool')
     module=(root/'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko').read_bytes()
     require(entries['display.ko'][1]==module==(root/'display.ko').read_bytes(),'exact DRM module packaging')
     elf=ELFFile(io.BytesIO(module));info=elf.get_section_by_name('.modinfo').data().split(b'\0')
@@ -78,7 +82,7 @@ def check(root,project,production=False):
     require((root/'kernel/modules.order').read_text().splitlines()==['drivers/gpu/drm/mediatek/mediatek-drm.o'],'unexpected modules')
     for name in ('bin/busybox','sbin/blkid','sbin/y2-observer','sbin/y2-fbtest','sbin/y2-abi-check','lib/ld-linux-armhf.so.3','lib/libc.so.6'):
         elf=ELFFile(io.BytesIO(entries[name][1]));require(elf.elfclass==32 and elf.little_endian and elf['e_machine']=='EM_ARM','rescue ARM ABI '+name)
-    require(b'Y2LINUX-DEV-01' in entries['sbin/y2-observer'][1],'observer identity')
+    require(b'Y2LINUX-PLATFORM' in entries['sbin/y2-observer'][1],'observer identity')
     args=Inputs(len(z),len(tree),len(rd),len(image),bss,kernel.sym('_end')-text,
         sym('restart'),sym('wont_overwrite'),sym('_edata'),sym('reloc_code_end'),stack,sym('__bss_start'),sym('_end'),regular)
     layout=check_layout(args);layout['dt']=check_dtb(tree,len(rd),production=production);layout['sleep_syscall']=check_sleep(kernel,root/'kernel/.config')

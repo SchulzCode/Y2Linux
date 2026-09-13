@@ -31,10 +31,10 @@ IRQS = {'/audio-controller@11220000':(104,8), '/timer@10008000':(112,8), '/seria
  '/ovl@14007000':(153,8), '/rdma@14008000':(152,8), '/color@1400b000':(156,8),
  '/mutex@1400e000':(161,8), '/dsi@1400c000':(157,8)}
 
-def check(data, initrd_size, production=False):
+def check(data, initrd_size, production=True):
     nodes,reserved=fdt(data)
     require(tuple(reserved)==RESERVED[:1], 'DEV low boot reservation changed')
-    require(nodes['/']['model']==strings('Innioasis Y2 Y2Linux'),'DEV identity')
+    require(nodes['/']['model']==strings('Innioasis Y2'),'DEV identity')
     expected={'/reserved-memory/loader@81800000':(0x81800000,0x02800000), '/reserved-memory/high-owned@bdf00000':(0xbdf00000,0x02100000)}
     require({p for p in nodes if p.startswith('/reserved-memory/')}==set(expected),'unreviewed reserved region')
     for path,region in expected.items():
@@ -45,7 +45,7 @@ def check(data, initrd_size, production=False):
             chosen['linux,initrd-end']==cells(0x84000000+initrd_size), 'initrd bounds')
     require(chosen['stdout-path']==strings('serial0') and nodes['/aliases']['serial0']==strings('/serial@11002000'), 'UART observation path')
     args=chosen['bootargs'].decode().rstrip('\0')
-    expected_args='rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2Linux'
+    expected_args='rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31'
     require(args==expected_args, 'profile command line')
     for path,reg in REGS.items(): require(nodes[path]['reg']==cells(*reg),'MMIO mapping '+path)
     for path,(irq,flags) in IRQS.items(): require(nodes[path]['interrupts']==cells(0,irq,flags),'IRQ mapping '+path)
@@ -115,4 +115,4 @@ def check(data, initrd_size, production=False):
             'output-low' in nodes['/pinctrl@10005000/speaker-disable'], 'speaker stays disabled')
     panel=nodes['/dsi@1400c000/panel@0']
     require(panel['resets']==cells(handle('/syscon@14000000'),0) and 'innioasis,lk-powered' in panel,'evidenced panel reset/power')
-    return {'node_count':len(nodes),'bootargs':args,'memory':RAM,'storage':'internal eMMC: guarded root/data; removable SD optional' if production else 'internal eMMC disabled; removable SD writable','evidence':'offline dependencies only'}
+    return {'node_count':len(nodes),'bootargs':args,'memory':RAM,'storage':'internal eMMC: guarded root/data; removable SD optional','evidence':'offline dependencies only'}

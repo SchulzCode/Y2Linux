@@ -16,8 +16,11 @@ mkdir -p "/run/y2/modules/$release/kernel"
 cp /display.ko "/run/y2/modules/$release/kernel/mediatek-drm.ko"
 printf '%s\n' 'kernel/mediatek-drm.ko:' > "/run/y2/modules/$release/modules.dep"
 /sbin/y2-platform-start
-/sbin/y2-observer &
-observer=$!
+observer=
+start_observer() {
+    if [ -x /sbin/y2-observer ]; then /sbin/y2-observer & observer=$!; fi
+}
+start_observer
 . /sbin/y2-storage
 rescue() {
     echo "<3>Y2RESCUE: $*; staying in rescue" > /dev/kmsg
@@ -56,7 +59,8 @@ mount -t ext4 -o ro,noload "$rootdev" /newroot || rescue 'root read-only mount f
 mount -t ext4 -o ro,noload "$datadev" /newdata || rescue 'data read-only mount failed'
 [ "$(cat /newroot/etc/y2linux/layout-version 2>/dev/null)" = 1 ] || rescue 'root layout mismatch'
 [ "$(cat /newdata/.y2data-schema 2>/dev/null)" = 1 ] || rescue 'data schema mismatch'
-[ -x /newroot/sbin/init ] && [ -x /newroot/usr/sbin/y2-observer ] &&
+[ "$(cat /newroot/etc/y2linux/platform-contract 2>/dev/null)" = y2-platform-v1 ] || rescue 'root platform contract mismatch'
+[ -x /newroot/sbin/init ] &&
     chroot /newroot /bin/true || rescue 'root executable preflight failed'
 umount /newdata && umount /newroot || rescue 'preflight unmount failed'
 # e2fsck -p allows only safe automatic repairs on the two validated filesystems.
@@ -73,7 +77,7 @@ mount --bind /run/y2/modules /newroot/lib/modules || rescue 'module handover fai
 printf '%s\n' "$rootdev" > /run/y2-root-device
 printf '%s\n' "$datadev" > /run/y2-data-device
 echo "Y2ROOT: verified $rootdev with Y2DATA=$datadev; switching to Buildroot" > /dev/kmsg
-kill "$observer"; wait "$observer" 2>/dev/null
+[ -z "$observer" ] || { kill "$observer"; wait "$observer" 2>/dev/null; }
 moved=
 for fs in proc sys run tmp dev; do
     mkdir -p "/newroot/$fs"
@@ -81,7 +85,7 @@ for fs in proc sys run tmp dev; do
         moved="$fs $moved"
     else
         for undo in $moved; do mount --move "/newroot/$undo" "/$undo"; done
-        /sbin/y2-observer &
+        start_observer
         rescue 'mount handover failed'
     fi
 done
@@ -90,5 +94,5 @@ done
 set -i
 exec switch_root -c /dev/console /newroot /sbin/init
 for undo in $moved; do mount --move "/newroot/$undo" "/$undo"; done
-/sbin/y2-observer &
+start_observer
 rescue 'switch_root failed'

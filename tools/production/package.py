@@ -32,6 +32,25 @@ def main():
             return subprocess.check_output(['debugfs','-R','cat '+name,str(template)],stderr=subprocess.DEVNULL)
         require(contents('/.y2data-schema')==b'1\n','data template schema')
         require(contents('/ssh/authorized_keys.d/authorized_keys')==key,'data template authorization')
+        # Only an unused initialization seed may be redistributed. A live data
+        # backup can contain private host keys, databases and device identities.
+        empty={'settings','apps','y2player','logs','cache','updates','lost+found','ssh/host-keys'}
+        expected={'': {'lost+found','.y2data-schema','settings','apps','y2player','logs','cache','updates','ssh'},
+                  'ssh': {'authorized_keys.d','host-keys'},
+                  'ssh/authorized_keys.d': {'authorized_keys'}}
+        expected.update({name:set() for name in empty})
+        for directory,names in expected.items():
+            listing=subprocess.check_output(['debugfs','-R','ls -p /'+directory,str(template)],stderr=subprocess.DEVNULL,text=True)
+            found=set()
+            for line in listing.splitlines():
+                if not line:continue
+                fields=line.split('/')
+                require(len(fields)>=7,'data template directory record')
+                if fields[1]=='0' or fields[5] in ('.','..'):continue
+                require(fields[3:5]==['0','0'] and fields[2].startswith(('040','100')),'data template type/owner')
+                found.add(fields[5])
+            require(found==names,'data template contains unexpected state: /'+directory)
+
         subprocess.run(['e2fsck','-fn',str(template)],check=True,stdout=subprocess.DEVNULL)
         subprocess.run(['cp','--sparse=always',str(template),str(out/'Y2DATA.img')],check=True)
         require(digest(out/'Y2DATA.img')==digest(template),'unchanged data template hash')

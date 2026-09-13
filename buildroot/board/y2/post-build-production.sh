@@ -27,3 +27,4 @@ install -m 644 "$project/initramfs/production/storage.sh" "$target/usr/lib/y2-st
 install -m 755 "$Y2_ARTIFACT_DIR/y2-platform-start" "$target/usr/sbin/y2-platform-start"
 install -m 755 "$project/tools/production/y2-status" "$target/usr/sbin/y2-status"
 install -m 755 "$Y2_ARTIFACT_DIR/y2-usb-status" "$target/usr/sbin/y2-usb-status"
+printf '%s\n' y2-platform-v1 > "$target/etc/y2linux/platform-contract"

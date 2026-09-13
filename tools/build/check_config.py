@@ -23,7 +23,7 @@ def check(config, fragment):
               for k, v in wanted.items() if actual.get(k, 'n') != v]
     if errors:
         raise ValueError('\n'.join(errors))
-    print('Reviewed kernel configuration matches D08 and diagnostic fragment.')
+    print('Reviewed kernel configuration matches D08 and platform fragment.')
 
 
 if __name__ == '__main__':

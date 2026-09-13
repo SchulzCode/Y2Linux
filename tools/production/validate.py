@@ -36,7 +36,8 @@ def validate_manifest(out):
         require(payload['absolute_start_bytes']==t['start'] and payload['maximum_size_bytes']==t['size'] and payload['scatter_linear_start_bytes']==t['linear'],'payload coordinates')
         require(payload['region']=='EMMC_USER' and payload['partition_relative_offset_bytes']==0,'address space')
         require(payload['requires']['layout_version']==1 and payload['requires']['data_schema_version']==1,'payload dependencies')
-        if name!='USRDATA':require(payload['requires']['platform_contract']=='y2-platform-v1','platform dependency contract')
+        if name!='USRDATA':require(payload['requires']['platform_contract']=='y2-platform-v1' and 'kernel_module_release' not in payload['requires'],'platform dependency contract')
+        if name=='BOOTIMG':require(payload['modules']=={'ownership':'BOOTIMG','release':m['kernel_version'],'runtime_mount':'/lib/modules','ram_source':'/run/y2/modules'},'boot module ownership')
         require(payload['component']==t['type'] and payload['mandatory']==(name!='USRDATA'),'component/requirement')
         require(payload['preserves_existing_data'] is False,'images replace their contents')
         require(payload['raw']['file']==t['file'],'raw filename')
@@ -95,6 +96,7 @@ def validate_rootfs(out,build,m):
             if x.isfile() and x.size<65536:require(b'PRIVATE KEY-----' not in read(name),'private key material')
             require((x.uid,x.gid)==((33,33) if name=='var/www' else (0,0)),'rootfs ownership')
         require(read('etc/y2linux/layout-version')==b'1\n','root layout marker')
+        require(read('etc/y2linux/platform-contract')==b'y2-platform-v1\n','root platform contract')
         require(read('etc/y2linux/build-id')==b'Y2LINUX-STORAGE-04\n','root build identity')
         require(json.loads(read('etc/y2linux/versions.json'))==json.loads((build/'versions.json').read_text()),'versions root/build')
         require(json.loads(read('etc/y2linux/versions.json'))['build_git_commit']==m['build_git_commit'],'manifest root commit')
@@ -105,7 +107,7 @@ def validate_rootfs(out,build,m):
         require(b'root:$6$y2linux$disabled:' in read('etc/shadow'),'password disabled')
         release=(build/'kernel/include/config/kernel.release').read_text().strip()
         require('display.ko' not in members and not any('.ko' in n and n.startswith('lib/modules/') for n in members),'kernel modules must be owned by BOOTIMG')
-        for name in ('etc/y2linux/layout-version','etc/y2linux/versions.json','usr/sbin/y2-platform-start','usr/sbin/y2-status','etc/init.d/S02y2-data','usr/sbin/y2-media','usr/bin/aplay','etc/fstab'):
+        for name in ('etc/y2linux/layout-version','etc/y2linux/versions.json','etc/y2linux/platform-contract','usr/sbin/y2-platform-start','usr/sbin/y2-status','etc/init.d/S02y2-data','usr/sbin/y2-media','usr/bin/aplay','etc/fstab'):
             require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img'))==read(name),'raw ext4/tar agreement '+name)
     require(run('debugfs','-R','cat /.y2data-schema',str(out/'Y2DATA.img'))==b'1\n','data schema')
     key=run('debugfs','-R','cat /ssh/authorized_keys.d/authorized_keys',str(out/'Y2DATA.img'))

@@ -85,3 +85,9 @@ No claim is made that USB observes a crash before gadget initialization.
 Reflash only the failed allowlisted image using this release's matching profile,
 preserving USRDATA unless explicitly restoring/initializing data. Torn BOOTIMG
 may prevent rescue starting; stock loader + SPFT remains the recovery path.
+
+Storage04 adds `y2.rescue=1` as an explicit production command-line entry and
+`y2-status storage|usb|audio|power` in both environments. The observer is optional
+instrumentation; platform drivers and display startup do not depend on it.
+The retained AUDIO-02 fallback is historical SD firmware, not a charging remedy:
+Y2Linux charging management and off-state power behavior remain unqualified.
