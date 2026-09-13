@@ -1,5 +1,16 @@
 # Session handoff — 2026-09-13, Storage02 retry
 
+## Latest: Storage03 correction in progress
+
+Owner supplied all three DIAG01 photographs, then requested correction of the
+three production images without further device data. Internal MMC capacity is
+15269888 sectors, no partitions, both resolver failures; USB preflight -19 with
+initial CHRDET=007b, wake refusal and zero polls. Exact rejected MMC opcode is
+truncated in the photo. The owner reports cable-dependent power entry and
+SD-dependent apparent progress. See [source-backed correction scope](../knowledge/storage03-corrections.md)
+and the current roadmap audit. Earlier diagnostic manual boundary is superseded.
+No internal-root or USB acceptance. No assistant physical writes or SPFT execution.
+
 ## Current boundary: DIAG01 on-screen observation ready
 
 The latest owner restart/USB connection still produced no Linux enumeration.

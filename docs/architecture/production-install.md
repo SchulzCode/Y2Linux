@@ -1,6 +1,6 @@
 # Manual first installation — Production Storage v1
 
-**Storage02 retry candidate, physical no-SD acceptance pending.** Original
+**Storage03 correction candidate, physical no-SD acceptance pending.** Original
 Storage01 sparse transport failed3154 and must not be retried. This installs Y2Linux
 on this exact Innioasis Y2/MT6582/eastaeon82_wet_kk, retaining stock partition
 boundaries. It destroys Android /system and initializes Android /data as Y2DATA.
@@ -17,7 +17,7 @@ known entry sequence and independent access to recovery files are operator
 prerequisites; do not experiment with bootloader/security/format modes.
 
 1. Run `sha256sum -c SHA256SUMS` inside this package. Use the checked-in
-   `python3 tools/production/validate.py out/y2linux-production-v1-r2` for structural,
+   `python3 tools/production/validate.py out/y2linux-production-v1-r3` for structural,
    scatter, size, filesystem and hash checks. These are host-file operations.
 2. Confirm the retained original FM boot.img, system.img and userdata.img against
    manifest restoration_sources. They restore factory Android, **not personal
@@ -30,7 +30,7 @@ prerequisites; do not experiment with bootloader/security/format modes.
    MBR/EBR files; stock scatter + historical map alone do not prove current tables.
    The checked-in readback verifier checks the exact original table prefix hashes.
    Before flashing, run `python3 tools/production/verify_readback.py --package
-   out/y2linux-production-v1-r2 --before /path/to/before --before-only` (one line).
+   out/y2linux-production-v1-r3 --before /path/to/before --before-only` (one line).
    Record DA/tool/device identity and coordinates with the readbacks. If actual
    capacity, starts or tables differ, stop. Never substitute a donor's layout.
 4. Keep the working SD and AUDIO-02 BOOTIMG available as the development fallback.
@@ -81,7 +81,7 @@ will legitimately change filesystem hashes after boot. Keep the tool/DA log.
 Run from the repo:
 
 ```
-python3 tools/production/verify_readback.py --package out/y2linux-production-v1-r2 --after /path/to/after --before /path/to/before
+python3 tools/production/verify_readback.py --package out/y2linux-production-v1-r3 --after /path/to/after --before /path/to/before
 ```
 
 The verifier hashes the first manifest.raw.size_bytes of each full partition
@@ -101,13 +101,14 @@ ignores removable host11240000 even if an old card still says Y2ROOT.
 
 ## Expected first boot and acceptance
 
-**USB startup sequence for this driver:** after SPFT finishes, disconnect USB,
-boot with USB disconnected, wait at least ten seconds after Linux starts, then
-attach USB once. This is the existing AUDIO-02 startup contract. In
-kernel/usb/y2_musb.c, y2_usb_begin rejects CHRDET already asserted at its initial
-snapshot; leaving the cable connected across startup can prevent ACM/ECM.
-Cable reconnect later remains deferred. A BOOTIMG/rescue boot need not have SSH;
-use ACM logs until internal root handover is established.
+**Storage03 USB startup:** the production kernel now performs checked MT6582
+PHY saved-state recovery and permits cable-present startup. There is no longer a
+required unplugged-start workaround. Initial enumeration and reconnect must still
+be physically verified. The owner's cable-dependent stock power-entry complaint
+has no established cause or verified fix; this package does not modify loaders,
+PMIC power entry or battery controls. See metadata/storage03-corrections.md.
+Rescue prints its failure and cached USB state on-screen even without an SD card;
+it has ACM logging intent but no SSH service before Buildroot handover.
 
 Stock Boot ROM → unchanged preloader → unchanged LK → BOOTIMG Linux6.18 rescue →
 internal Y2ROOT and Y2DATA → switch_root → Buildroot. No SD should be present or

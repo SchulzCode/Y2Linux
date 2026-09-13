@@ -92,13 +92,13 @@ Production MSDC remains at legacy one-bit/13MHz with inherited LK pinmux and rai
 The v6.18 MMC core needs EXT_CSD WRITE_BYTE using command-set1 (see locked
 `include/linux/mmc/mmc.h` and `drivers/mmc/core/mmc_ops.c`), including volatile
 ERASE_GROUP_DEF initialization that the historical identity-only kernel rejected.
-The new profile permits only explicitly reviewed volatile EXT_CSD controls and
-read/identification commands; it refuses hardware partition selection, boot
-configuration, erase/trim/sanitize, RPMB/vendor operations and firmware writes.
-Only sector-addressed cards of the observed capacity in EMMC_USER may issue data
-writes, and the complete request must fit ANDROID or USRDATA. CMD23 is disabled
-for this profile. Rejected requests finalize through HSQ when queued so a denied
-write cannot strand the queue. All other stock partitions remain outside the
-kernel write allowlist, including BOOTIMG; future rescue OTA must deliberately
-extend the guard for that one component. This is accident containment, not a
-security boundary against an attacker who can replace the kernel.
+Storage03 permits explicitly reviewed volatile EXT_CSD controls and read/identity
+commands, validated bounded CMD23 companions and idempotent unchanged user-area
+selection. It refuses boot-configuration changes, other hardware partition
+selection, erase/trim/sanitize, RPMB/vendor operations and firmware writes. Only
+sector-addressed cards of the observed capacity in EMMC_USER may issue writes;
+the complete request must fit ANDROID or USRDATA. Boot-area enumeration is disabled
+and production uses serialized requests. See the [correction rationale](../knowledge/storage03-corrections.md).
+All other stock partitions remain outside the write allowlist, including BOOTIMG;
+future rescue OTA must deliberately extend the guard for that component. This is
+accident containment, not a security boundary against a replaceable kernel.

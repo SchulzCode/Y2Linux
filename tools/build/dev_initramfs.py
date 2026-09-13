@@ -47,6 +47,7 @@ def build(root, project, production=False):
     binary('bin/busybox',target/'bin/busybox')
     binary('sbin/blkid',target/'sbin/blkid')
     if production:
+        binary('sbin/y2-usb-status',root/'y2-usb-status')
         binary('sbin/e2fsck',target/'sbin/e2fsck')
         put('sbin/y2-storage',stat.S_IFREG|0o644,(project/'initramfs/production/storage.sh').read_bytes())
     binary('sbin/y2-observer',root/'y2-observer')

@@ -162,7 +162,7 @@ static int y2_musb_init(struct musb *musb)
     pr_info("Y2USB fresh power=%d/%x CHR=%04x clock=%d/%x USB=%d/%x\n",
         fresh.power.result,fresh.power.valid,fresh.power.chrdet,
         fresh.clock.result,fresh.clock.valid,fresh.usb.result,fresh.usb.valid);
-    if(!y2_usb_takeover_ready(&fresh)) goto fail;
+    if(!(y2_usb_production ? y2_usb_recovered_ready(&fresh) : y2_usb_takeover_ready(&fresh))) goto fail;
     for(i=0;i<7;++i) {
         value=readb(y2_usb_phy+y2_usb_mode_offsets[i]);
         if(value!=y2_power.wake.controls[i]) goto fail;
@@ -379,7 +379,7 @@ static void y2_usb_begin(void)
     y2_usb_started=true;
     y2_usb_phase(Y2_USB_PREFLIGHT);
     if(!y2_usb_state_ready(&y2_power) || y2_power.wake.result || !y2_power.wake.written ||
-       y2_power.wake.after_valid!=0xfff || (y2_power.power.chrdet&0x20)) {
+       y2_power.wake.after_valid!=0xfff || (!y2_usb_production && (y2_power.power.chrdet&0x20))) {
         y2_usb_fail(-ENODEV);return;
     }
     if(!request_mem_region(Y2_USB_PHY_BASE,Y2_USB_PHY_BYTES,"y2-usb-phy")) {

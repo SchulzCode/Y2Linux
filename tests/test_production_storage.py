@@ -23,15 +23,16 @@ class StorageGuard(unittest.TestCase):
 #include <stdbool.h>
 #include <stddef.h>
 #include "storage-policy.h"
-#define MMC_DATA_WRITE 1
+#define MMC_DATA_WRITE (1U << 8)
+#define MMC_DATA_READ (1U << 9)
 #define EXT_CSD_PART_CONFIG_ACC_MASK 7
 #define EROFS 30
-#define dev_warn_ratelimited(...) ((void)0)
+#define pr_warn_ratelimited(...) ((void)0)
 struct mmc_card { struct { unsigned sectors,part_config; } ext_csd; bool blockaddr; };
 struct mmc_host { struct mmc_card *card; };
 struct mmc_command { unsigned opcode,arg; int error; };
 struct mmc_data { unsigned flags,blocks,blksz; };
-struct mmc_request { struct mmc_command *cmd; struct mmc_data *data; void *sbc; };
+struct mmc_request { struct mmc_command *cmd; struct mmc_data *data; struct mmc_command *sbc; };
 struct msdc_host { bool y2_production,hsq_en; };
 static int done,queued,finalized,accepted;
 static bool mmc_card_is_blockaddr(struct mmc_card *c) {return c->blockaddr;}
@@ -53,6 +54,24 @@ int main(void) {
  card.ext_csd.part_config=0;card.ext_csd.sectors--;guard(&host,&mmc,&mrq);assert(accepted==1 && done==4);
  card.ext_csd.sectors++;card.blockaddr=false;guard(&host,&mmc,&mrq);assert(accepted==1 && done==5);
  mmc.card=NULL;guard(&host,&mmc,&mrq);assert(accepted==1 && done==6);
+ mmc.card=&card;card.blockaddr=true;data.flags=MMC_DATA_READ;
+ cmd.opcode=18;cmd.arg=0;data.blocks=8;
+ struct mmc_command sbc={23,8,0};mrq.sbc=&sbc;
+ guard(&host,&mmc,&mrq);assert(accepted==2); /* MBR read with bounded CMD23 */
+ cmd.opcode=25;data.flags=MMC_DATA_WRITE;guard(&host,&mmc,&mrq);assert(accepted==2 && done==7);
+ cmd.arg=166912;guard(&host,&mmc,&mrq);assert(accepted==3);
+ sbc.arg|=1U<<30;guard(&host,&mmc,&mrq);assert(accepted==3 && done==8);
+ sbc.arg=7;guard(&host,&mmc,&mrq);assert(accepted==3 && done==9);
+ sbc.arg=8;sbc.opcode=38;guard(&host,&mmc,&mrq);assert(accepted==3 && done==10);
+ sbc.opcode=23;sbc.arg=0xa0000008;guard(&host,&mmc,&mrq);assert(accepted==4);
+ cmd.arg=0;guard(&host,&mmc,&mrq);assert(accepted==4 && done==11);
+ cmd.opcode=18;data.flags=MMC_DATA_READ;guard(&host,&mmc,&mrq);assert(accepted==4 && done==12);
+ mrq.sbc=NULL;mrq.data=NULL;cmd.opcode=6;
+ card.ext_csd.part_config=0x48;cmd.arg=0x03b34801;
+ guard(&host,&mmc,&mrq);assert(accepted==5); /* same boot settings, user access */
+ cmd.arg=0x03b30001;guard(&host,&mmc,&mrq);assert(accepted==5 && done==13);
+ cmd.arg=0x03b34901;guard(&host,&mmc,&mrq);assert(accepted==5 && done==14);
+
 }
 '''
         with tempfile.TemporaryDirectory() as d:

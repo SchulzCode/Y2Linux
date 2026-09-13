@@ -12,10 +12,26 @@ mount -t debugfs debugfs /sys/kernel/debug
 [ -e /dev/y2diag ] || mknod -m 600 /dev/y2diag c 120 0
 /sbin/y2-observer &
 observer=$!
-(sleep 8; /sbin/y2-fbtest > /dev/kmsg 2>&1) &
+(sleep 10; printf '\nY2Linux Storage03: locating internal root/data\nNo SD card required.\n' > /dev/tty0) &
 . /sbin/y2-storage
 rescue() {
-    echo "Y2RESCUE: $*; no reboot, no SD fallback, ACM retained" > /dev/kmsg
+    echo "<3>Y2RESCUE: $*; staying in rescue" > /dev/kmsg
+    {
+        printf '\033[2J\033[H'
+        echo 'Y2Linux STORAGE03 RESCUE'
+        echo "$*"
+        echo 'No reboot / no SD fallback / no formatting'
+        /sbin/y2-usb-status
+        echo 'Internal partition sectors:'
+        for part in /sys/class/block/*; do
+            [ -f "$part/partition" ] || continue
+            case "$(readlink -f "$part")" in */11230000.mmc/*)
+                echo "${part##*/}: $(cat "$part/start") / $(cat "$part/size")";;
+            esac
+        done
+        /bin/busybox dmesg | /bin/busybox grep -E 'Y2GUARD|Y2USB' |
+            /bin/busybox sed -E 's/^.*(Y2GUARD|Y2USB)/\1/' | /bin/busybox tail -n 5
+    } > /dev/tty0
     # A failed exec in a subshell cannot terminate rescue PID1.
     while :; do
         /bin/busybox sh </dev/console >/dev/console 2>&1

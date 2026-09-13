@@ -14,6 +14,20 @@ static inline int y2_emmc_write_range(unsigned sector, unsigned blocks)
 	return (sector >= 166912 && end <= 1846272) ||
 	       (sector >= 2104320 && end <= 3742720);
 }
+/* A bounded CMD23 must describe exactly the associated transfer. Reliable-write and
+ * metadata-tag flags are allowed only for a separately range-checked write. It never grants a write by itself. */
+static inline int y2_emmc_sbc_allowed(unsigned op, unsigned arg, unsigned blocks, unsigned write)
+{
+	unsigned flags = write ? 0xa0000000U : 0;
+	return op == 23 && blocks && blocks <= 0xffff && (arg & ~flags) == blocks;
+}
+/* Idempotent EMMC_USER selection only. Preserve boot-enable/ack/reserved bits.
+ * Needed when the block layer invalidates its partition cache after an error. */
+static inline int y2_emmc_user_select(unsigned arg, unsigned current, unsigned user_card)
+{
+	return user_card && !(current & 7) &&
+	       arg == (0x03b30001U | (current << 8));
+}
 static inline int y2_emmc_command_allowed(unsigned op, unsigned arg,
 		unsigned write, unsigned blocks, unsigned blksz,
 		unsigned sbc, unsigned user_card)

@@ -37,7 +37,7 @@
  	if (!sbc_error && !(events & MSDC_INT_CMDRDY)) {
  		if ((events & MSDC_INT_CMDTMO && !host->hs400_tuning) ||
  		    (!mmc_op_tuning(cmd->opcode) && !host->hs400_tuning))
-@@ -1484,6 +1496,34 @@
+@@ -1484,6 +1496,42 @@
  static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
  {
  	struct msdc_host *host = mmc_priv(mmc);
@@ -49,9 +49,17 @@
 +		if (!y2_emmc_command_allowed(mrq->cmd->opcode, mrq->cmd->arg,
 +			mrq->data && (mrq->data->flags & MMC_DATA_WRITE),
 +			mrq->data ? mrq->data->blocks : 0,
-+			mrq->data ? mrq->data->blksz : 0, !!mrq->sbc, user_card)) {
++			mrq->data ? mrq->data->blksz : 0, mrq->sbc &&
++			(!(mrq->cmd->opcode == 18 || mrq->cmd->opcode == 25) ||
++			 !mrq->data || mrq->data->blksz != 512 || !user_card ||
++			 !y2_emmc_sbc_allowed(mrq->sbc->opcode, mrq->sbc->arg,
++				mrq->data ? mrq->data->blocks : 0,
++				mrq->cmd->opcode == 25)), user_card) &&
++		    !(mrq->cmd->opcode == 6 && !mrq->data && !mrq->sbc &&
++		      y2_emmc_user_select(mrq->cmd->arg,
++			card ? card->ext_csd.part_config : 0, user_card))) {
 +			mrq->cmd->error = -EROFS;
-+			dev_warn_ratelimited(host->dev, "Y2 storage guard rejects CMD%u arg=%08x\n",
++			pr_warn_ratelimited("Y2GUARD CMD%u arg=%08x rejected\n",
 +				mrq->cmd->opcode, mrq->cmd->arg);
 +			if (!host->hsq_en || !mmc_hsq_finalize_request(mmc, mrq))
 +				mmc_request_done(mmc, mrq);
@@ -72,7 +80,7 @@
  
  	host->error = 0;
  	WARN_ON(!host->hsq_en && host->mrq);
-@@ -2983,6 +3023,11 @@
+@@ -2983,6 +3031,11 @@
  		return PTR_ERR(host->base);
  
  	host->dev_comp = of_device_get_match_data(&pdev->dev);
@@ -84,7 +92,7 @@
  
  	if (host->dev_comp->needs_top_base) {
  		host->top_base = devm_platform_ioremap_resource(pdev, 1);
-@@ -3016,6 +3061,11 @@
+@@ -3016,6 +3069,11 @@
  	if (host->irq < 0)
  		return host->irq;
  
@@ -96,7 +104,7 @@
  	host->pinctrl = devm_pinctrl_get(&pdev->dev);
  	if (IS_ERR(host->pinctrl))
  		return dev_err_probe(&pdev->dev, PTR_ERR(host->pinctrl),
-@@ -3032,6 +3082,8 @@
+@@ -3032,6 +3090,8 @@
  		dev_err(&pdev->dev, "Cannot find pinctrl uhs!\n");
  		return PTR_ERR(host->pins_uhs);
  	}
@@ -105,7 +113,7 @@
  
  	/* Support for SDIO eint irq ? */
  	if ((mmc->pm_caps & MMC_PM_WAKE_SDIO_IRQ) && (mmc->pm_caps & MMC_PM_KEEP_POWER)) {
-@@ -3050,6 +3102,22 @@
+@@ -3050,6 +3110,22 @@
  	msdc_of_property_parse(pdev, host);
  
  	host->dev = &pdev->dev;
@@ -128,13 +136,21 @@
  	host->src_clk_freq = clk_get_rate(host->src_clk);
  	/* Set host parameters to mmc */
  	mmc->ops = &mt_msdc_ops;
-@@ -3071,7 +3139,8 @@
- 	if (mmc->caps & MMC_CAP_SDIO_IRQ)
+@@ -3072,6 +3148,8 @@
  		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
  
--	mmc->caps |= MMC_CAP_CMD23;
-+	if (!host->y2_production)
-+		mmc->caps |= MMC_CAP_CMD23;
+ 	mmc->caps |= MMC_CAP_CMD23;
++	if (host->y2_production)
++		mmc->caps2 |= MMC_CAP2_BOOTPART_NOACC;
  	if (host->cqhci)
  		mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
  	/* MMC core transfer sizes tunable parameters */
+@@ -3132,7 +3210,7 @@
+ 		mmc->max_seg_size = 64 * 1024;
+ 		/* Reduce CIT to 0x40 that corresponds to 2.35us */
+ 		msdc_cqe_cit_cal(host, 2350);
+-	} else if (mmc->caps2 & MMC_CAP2_NO_SDIO) {
++	} else if (!host->y2_production && (mmc->caps2 & MMC_CAP2_NO_SDIO)) {
+ 		/* Use HSQ on eMMC/SD (but not on SDIO) if HW CQE not supported */
+ 		struct mmc_hsq *hsq = devm_kzalloc(&pdev->dev, sizeof(*hsq), GFP_KERNEL);
+ 		if (!hsq) {

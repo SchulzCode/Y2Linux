@@ -46,7 +46,10 @@ def check(data, initrd_size, production=False):
     require(chosen['stdout-path']==strings('serial0') and nodes['/aliases']['serial0']==strings('/serial@11002000'), 'UART observation path')
     args=chosen['bootargs'].decode().rstrip('\0')
     expected_args='rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2LINUX-DEV-01'
-    if production: expected_args=expected_args.split(' g_cdc.')[0]
+    if production:
+        expected_args=expected_args.split(' g_cdc.')[0]
+        if 'y2,production-usb-recover' in nodes['/']:
+            expected_args=expected_args.replace('loglevel=8 ignore_loglevel','loglevel=3')
     require(args==expected_args, 'profile command line')
     for path,reg in REGS.items(): require(nodes[path]['reg']==cells(*reg),'MMIO mapping '+path)
     for path,(irq,flags) in IRQS.items(): require(nodes[path]['interrupts']==cells(0,irq,flags),'IRQ mapping '+path)

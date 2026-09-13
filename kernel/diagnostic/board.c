@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* M2 shared observation endpoint and proven guarded USB startup. */
 #include <linux/cdev.h>
+#include <linux/of.h>
+#include "/project/kernel/usb/recover.h"
 #include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/io.h>
@@ -26,12 +28,24 @@ static ssize_t y2_text_write(struct file *file, const char __user *buf,
 }
 static struct y2_platform_snapshot y2_power;
 static bool y2_power_done;
+static bool y2_usb_production;
+
 static void y2_power_delay(void *context) { udelay(10); }
 extern int y2_ccf_usb_read(unsigned address, unsigned *value);
 extern int y2_pmic_snapshot(struct y2_pwrap_snapshot *snapshot);
 static int y2_clock_read(void *context, unsigned address, unsigned *value)
 { return y2_ccf_usb_read(address, value); }
 struct y2_usb_mapping { void __iomem *mac, *phy; };
+static int y2_usb_recover_write(void *context, unsigned address, unsigned value)
+{
+    struct y2_usb_mapping *mapping=context;
+    switch(address-Y2_USB_PHY_BASE) {
+    case 0x1a: case 0x1d: case 0x68: case 0x69: case 0x6a: case 0x6b: case 0x6e:
+        writeb(value,mapping->phy+(address-Y2_USB_PHY_BASE));return 0;
+    default:return -EINVAL;
+    }
+}
+static void y2_usb_recover_delay(void *context, unsigned us) { udelay(us); }
 static int y2_usb_read(void *context, unsigned address, unsigned width, unsigned *value)
 {
     struct y2_usb_mapping *mapping = context;
@@ -76,7 +90,11 @@ static void y2_collect_usb(void)
     y2_power.usb.result = -ENOMEM;
     if (mapping.mac && mapping.phy) {
         y2_usb_state_probe(&io, &y2_power);
-        y2_usb_wake_probe(&wake, &y2_power);
+        if (y2_usb_production) {
+            struct y2_recover_io recover={io,y2_usb_recover_write,y2_usb_recover_delay};
+            y2_usb_recover(&recover,&y2_power);
+            pr_info("Y2USB recover rc=%d written=%u\n",y2_power.wake.result,y2_power.wake.written);
+        } else y2_usb_wake_probe(&wake, &y2_power);
     }
     if (mapping.phy) iounmap(mapping.phy);
     if (mapping.mac) iounmap(mapping.mac);
@@ -87,6 +105,9 @@ release_mac:
 static void y2_collect_power(void)
 {
     struct y2_usb_clock_io clocks = { .read = y2_clock_read };
+    struct device_node *root=of_find_node_by_path("/");
+    y2_usb_production=root && of_property_read_bool(root,"y2,production-usb-recover");
+    of_node_put(root);
     y2_pmic_snapshot(&y2_power.power);
     y2_usb_clock_probe(&clocks, &y2_power.power, &y2_power.clock);
     y2_collect_usb();

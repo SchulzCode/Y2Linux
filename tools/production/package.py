@@ -9,7 +9,7 @@ STOCK=Path('/home/luca/Dokumente/Code/Y2Player/y2_v3.2.0_FM-20260813')
 RESTORE={'boot.img':'5ef1bdf28481ee0bf5f3528c1ddd91cf3f4d2d5f39e4d0ea049a8137a30f6af6','system.img':'5a7a92f3a95374f31abe8b3ddbd68c5c2ce5677547db3d1cbc21653d24c76989','userdata.img':'552e325ecf2faffeb9351022147bbfda3b7cebe25df491b2d732e85c5c68f27c'}
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--build',type=Path,default=PROJECT/'out/y2linux-production-build-v1-r2');p.add_argument('--output',type=Path,default=PROJECT/'out/y2linux-production-v1-r2');p.add_argument('--public-key',type=Path,required=True);a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--build',type=Path,default=PROJECT/'out/y2linux-production-build-v1-r3');p.add_argument('--output',type=Path,default=PROJECT/'out/y2linux-production-v1-r3');p.add_argument('--public-key',type=Path,required=True);a=p.parse_args()
     out=a.output.resolve();require(out.is_relative_to(PROJECT/'out') and not out.exists(),'fresh package directory required')
     require(a.public_key.suffix=='.pub' and not a.public_key.is_symlink(),'explicit public key only')
     key=a.public_key.read_bytes();require(key.startswith(b'ssh-ed25519 ') and len(key.splitlines())==1,'one ED25519 public key')
@@ -72,7 +72,7 @@ def main():
     (out/'metadata/readback-plan.json').write_text(json.dumps(plan,indent=2)+'\n')
     for name in ['layout.json','rescue-manifest.json','versions.json','kernel-source-commit']:
         shutil.copyfile(a.build/name,out/'metadata'/name)
-    for source,dest in [('docs/architecture/production-install.md','install.md'),('docs/architecture/production-recovery.md','recovery.md'),('docs/architecture/update-model.md','ota-layout.md'),('docs/architecture/production-storage-v1.md','metadata/partition-audit.md')]:shutil.copyfile(PROJECT/source,out/dest)
+    for source,dest in [('docs/knowledge/storage03-corrections.md','metadata/storage03-corrections.md'),('docs/architecture/production-install.md','install.md'),('docs/architecture/production-recovery.md','recovery.md'),('docs/architecture/update-model.md','ota-layout.md'),('docs/architecture/production-storage-v1.md','metadata/partition-audit.md')]:shutil.copyfile(PROJECT/source,out/dest)
     shutil.copyfile(PROJECT/'buildroot/inputs.lock.json',out/'metadata/buildroot-inputs.lock.json')
     shutil.copyfile(PROJECT/'tools/build/inputs.lock.json',out/'metadata/kernel-inputs.lock.json')
     shutil.copyfile(a.build/'kernel/.config',out/'metadata/kernel.config')

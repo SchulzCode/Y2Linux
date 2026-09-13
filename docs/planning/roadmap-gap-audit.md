@@ -6,6 +6,24 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Storage03 correction scope — 2026-09-13
+
+Latest owner DIAG01 photos confirm internal MMC, nonremovable, 15269888 sectors,
+no exported partitions, rejected storage commands, and USB PREFLIGHT -19 with
+zero polls and initial CHRDET=007b. The display truncates the command/argument;
+no specific rejected opcode is established. Owner reports cable-dependent power
+entry and apparent SD-dependent progress, and cannot provide more device data.
+
+Correct the production storage request boundary and cable-present PHY startup;
+keep stock loader/table/calibration untouched and the same root/data write ranges.
+Quiet expected empty-slot console traffic and retain useful rescue status. This
+is authorized production correction, not M4 power/charging qualification or a
+new full USB milestone. No evidence yet attributes off-state power entry to a
+specific image; do not claim a software or physical fix without acceptance.
+Build a complete three-payload candidate with targeted request/PHY fault tests
+and full production package validation. Owner remains the only physical writer.
+Storage stays ACTIVE; later milestones and M3 qualification remain unchanged.
+
 ## DIAG01 manual observation boundary — 2026-09-13
 
 The [BOOTIMG-only diagnostic](../build/y2linux-storage-diag-01-deployment.md)
