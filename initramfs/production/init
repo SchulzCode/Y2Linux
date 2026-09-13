@@ -1,0 +1,74 @@
+#!/bin/busybox sh
+# SPDX-License-Identifier: GPL-2.0-only
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mkdir -p /dev/pts /run /tmp /newroot /newdata /sys/kernel/debug
+mount -t devpts devpts /dev/pts
+mount -t tmpfs -o mode=0755,nosuid,nodev tmpfs /run
+mount -t tmpfs -o mode=1777,nosuid,nodev tmpfs /tmp
+mount -t debugfs debugfs /sys/kernel/debug
+[ -e /dev/y2diag ] || mknod -m 600 /dev/y2diag c 120 0
+/sbin/y2-observer &
+observer=$!
+(sleep 8; /sbin/y2-fbtest > /dev/kmsg 2>&1) &
+. /sbin/y2-storage
+rescue() {
+    echo "Y2RESCUE: $*; no reboot, no SD fallback, ACM retained" > /dev/kmsg
+    # A failed exec in a subshell cannot terminate rescue PID1.
+    while :; do
+        /bin/busybox sh </dev/console >/dev/console 2>&1
+        sleep 1
+    done
+}
+echo 'Y2ROOT: Production Storage v1; internal-only discovery' > /dev/kmsg
+# Allow asynchronous controller discovery; no media card is needed or inspected.
+n=0
+while [ "$n" -lt 40 ]; do
+    rootdev=$(y2_find_partition Y2ROOT 79324c69-6e75-4801-8000-000000000101 166912 1679360)
+    datadev=$(y2_find_partition Y2DATA 79324c69-6e75-4801-8000-000000000102 2104320 1638400)
+    [ -n "$rootdev" ] && [ -n "$datadev" ] && break
+    n=$((n+1)); sleep 1
+done
+[ -n "$rootdev" ] && [ -n "$datadev" ] || rescue 'missing/invalid internal Y2ROOT or Y2DATA'
+/sbin/y2-abi-check > /dev/kmsg 2>&1 || rescue 'ABI preflight failed'
+# Journal is not replayed until identity + layout markers + executable preflight pass.
+mount -t ext4 -o ro,noload "$rootdev" /newroot || rescue 'root read-only mount failed'
+mount -t ext4 -o ro,noload "$datadev" /newdata || rescue 'data read-only mount failed'
+[ "$(cat /newroot/etc/y2linux/layout-version 2>/dev/null)" = 1 ] || rescue 'root layout mismatch'
+[ "$(cat /newdata/.y2data-schema 2>/dev/null)" = 1 ] || rescue 'data schema mismatch'
+[ -x /newroot/sbin/init ] && [ -x /newroot/usr/sbin/y2-observer ] &&
+    chroot /newroot /bin/true || rescue 'root executable preflight failed'
+umount /newdata && umount /newroot || rescue 'preflight unmount failed'
+# e2fsck -p allows only safe automatic repairs on the two validated filesystems.
+# Uncorrectable/interactive repairs never trigger boot loops or autoformatting.
+for dev in "$rootdev" "$datadev"; do
+    e2fsck -p "$dev" > /dev/kmsg 2>&1
+    rc=$?
+    [ "$rc" -le 1 ] || rescue "filesystem check failed ($rc) on $dev"
+done
+mount -t ext4 -o rw "$rootdev" /newroot || rescue 'root writable mount failed'
+mount -t ext4 -o rw,nosuid,nodev "$datadev" /newroot/data || rescue 'data writable mount failed'
+printf '%s\n' "$rootdev" > /run/y2-root-device
+printf '%s\n' "$datadev" > /run/y2-data-device
+echo "Y2ROOT: verified $rootdev with Y2DATA=$datadev; switching to Buildroot" > /dev/kmsg
+kill "$observer"; wait "$observer" 2>/dev/null
+moved=
+for fs in proc sys run tmp dev; do
+    mkdir -p "/newroot/$fs"
+    if mount --move "/$fs" "/newroot/$fs"; then
+        moved="$fs $moved"
+    else
+        for undo in $moved; do mount --move "/newroot/$undo" "/$undo"; done
+        /sbin/y2-observer &
+        rescue 'mount handover failed'
+    fi
+done
+# BusyBox ash exec failure is fatal in a noninteractive shell. Enable interactive
+# shell semantics for this final exec so a returned failure can restore mounts.
+set -i
+exec switch_root -c /dev/console /newroot /sbin/init
+for undo in $moved; do mount --move "/newroot/$undo" "/$undo"; done
+/sbin/y2-observer &
+rescue 'switch_root failed'

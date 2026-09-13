@@ -11,7 +11,8 @@ Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 | M1 | Complete: physical Linux boot and native PID1 |
 | M2 | Core/Buildroot physically qualified for progression; #22–26 closed. USB reconnect #27 remains unresolved/deferred under #28 |
 | M3 | Active / near completion: clean native S16 stereo 44.1-kHz headphones; period-notification fix deployed and tested. 48 kHz, L/R and stop/restart/repeat remain |
-| M4 | Not started; full power platform follows the short M3 qualification and boundary audit |
+| Production Storage / Installation v1 | Active: internal root/data and install package; physical no-SD acceptance pending |
+| M4 | Not started; follows Production Storage v1 and boundary audit |
 | M5 | Not started; Wi-Fi/Bluetooth later |
 
 Current kernel: `6.18.0-y2linux-m3audio02`, hostname `y2linux`, SSH
@@ -33,14 +34,11 @@ carry 16-bit samples: native 24/32-bit and higher rates are not implemented.
 - [AUDIO-02 deployment and hashes](docs/build/y2linux-m3-audio-02-deployment.md)
 - [M0 research/recovery](docs/planning/M0-evidence-and-recovery.md) and [evidence index](docs/knowledge/evidence-index.md)
 
-The session is closed for the night: no new feature, M4 implementation, build,
-flash or device change. Tomorrow finish only the remaining M3 tests, then audit
-before activating M4. Do not repeat discovery of AFE, CON3, CS43131 or VGP2;
-do not start high-resolution audio or Y2PlayerNative automatically.
-
-Owner performs BOOTIMG-only SP Flash Tool deployment. Never modify PRELOADER,
-LK, partition table, calibration/NVRAM or internal Android data. Preserve the
-configured Git identity and SchulzCode account; no model/co-author attribution.
+Current work: [Production Storage v1](docs/architecture/production-storage-v1.md).
+Build a stock-boundary internal-rootfs package with OTA-compatible component
+metadata. The owner performs the first manual BOOTIMG/ANDROID/USRDATA install.
+No assistant physical eMMC writes or SPFT operation. PRELOADER, LK, tables,
+NVRAM/calibration and all unrelated partitions remain untouched.
 
 Reviewed hardware logs, small manifests and findings belong in Git. Private raw
 captures remain in ignored `evidence-private/`; immutable donorSource, `.cache/`

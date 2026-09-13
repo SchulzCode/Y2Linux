@@ -141,7 +141,7 @@ int main(void) {
         from tools.validation.dev_dtb import check
         root=Path(os.environ['Y2_ARTIFACT_TEST_ROOT']);data=(root/'y2.dtb').read_bytes()
         size=(root/'initramfs.cpio.gz').stat().st_size
-        check(data,size)
+        check(data,size,production=os.environ.get("Y2_PRODUCTION_TEST")=="1")
         for old,new in [(struct.pack('>I',1800000),struct.pack('>I',2500000)),
                         (b'cirrus,cs43131\0',b'cirrus,cs43130\0'),
                         (struct.pack('>III',0,104,8),struct.pack('>III',0,105,8)),
@@ -149,4 +149,4 @@ int main(void) {
             with self.subTest(old=old):
                 self.assertIn(old,data)
                 with self.assertRaises((ValueError,KeyError)):
-                    check(data.replace(old,new,1),size)
+                    check(data.replace(old,new,1),size,production=os.environ.get("Y2_PRODUCTION_TEST")=="1")

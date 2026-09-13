@@ -18,7 +18,7 @@ def encode(entries):
     return bytes(result)
 
 
-def build(root, project):
+def build(root, project, production=False):
     target=root/'buildroot/target'; entries={}
     def put(name,mode,data=b'',major=0,minor=0):
         parent=posixpath.dirname(name)
@@ -43,15 +43,18 @@ def build(root, project):
     for name in ('.','dev','proc','sys','run','tmp','newroot','bin','sbin'):put(name,stat.S_IFDIR|0o755)
     put('dev/console',stat.S_IFCHR|0o600,major=5,minor=1)
     put('dev/null',stat.S_IFCHR|0o666,major=1,minor=3)
-    put('init',stat.S_IFREG|0o755,(project/'initramfs/rescue/init').read_bytes())
+    put('init',stat.S_IFREG|0o755,(project/('initramfs/production/init' if production else 'initramfs/rescue/init')).read_bytes())
     binary('bin/busybox',target/'bin/busybox')
     binary('sbin/blkid',target/'sbin/blkid')
+    if production:
+        binary('sbin/e2fsck',target/'sbin/e2fsck')
+        put('sbin/y2-storage',stat.S_IFREG|0o644,(project/'initramfs/production/storage.sh').read_bytes())
     binary('sbin/y2-observer',root/'y2-observer')
     binary('sbin/y2-fbtest',root/'y2-fbtest')
     binary('sbin/y2-abi-check',root/'y2-abi-check')
     module=(root/'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko').read_bytes()
     put('display.ko',stat.S_IFREG|0o400,module);(root/'display.ko').write_bytes(module)
-    for applet in ('sh','mount','mkdir','mknod','sleep','readlink','chroot','umount','switch_root','kill'):
+    for applet in ('sh','mount','mkdir','mknod','sleep','readlink','chroot','umount','switch_root','kill','cat'):
         put('bin/'+applet,stat.S_IFLNK|0o777,b'busybox')
     regular=sum(len(v[1]) for v in entries.values() if stat.S_ISREG(v[0]))
     require(regular<=0x800000,'DEV rescue regular-file budget')
@@ -65,4 +68,5 @@ def build(root, project):
     return entries
 
 if __name__=='__main__':
-    build(Path('/build'),Path('/project'))
+    import sys
+    build(Path('/build'),Path('/project'),production='--production' in sys.argv)

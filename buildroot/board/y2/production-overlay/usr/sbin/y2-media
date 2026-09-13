@@ -1,0 +1,26 @@
+#!/bin/sh
+# Explicit optional media-card mounting. Never invoked during boot; no formatting.
+set -eu
+case "${1:-}" in
+ unmount) umount /media/sd; exit;;
+ mount) ;;
+ *) echo 'Usage: y2-media mount|unmount' >&2; exit 2;;
+esac
+found=;fstype=
+for entry in /sys/class/block/*; do
+    path=$(readlink -f "$entry")
+    case "$path" in */11240000.mmc/*) ;; *) continue;; esac
+    # A partitioned disk's whole-device signature must not compete with its nodes.
+    if [ ! -f "$entry/partition" ]; then
+        has_parts=0
+        for child in "$entry"/*/partition; do [ ! -f "$child" ] || has_parts=1; done
+        [ "$has_parts" = 0 ] || continue
+    fi
+    dev=/dev/${entry##*/}
+    type=$(blkid -p -s TYPE -o value "$dev" 2>/dev/null) || continue
+    case "$type" in ext4|vfat) ;; *) continue;; esac
+    [ -z "$found" ] || { echo 'Multiple media filesystems; mount the intended one explicitly.' >&2; exit 1; }
+    found=$dev;fstype=$type
+done
+[ -n "$found" ] || { echo 'No unique supported SD filesystem (ext4/vfat).' >&2; exit 1; }
+mount -t "$fstype" -o rw,nosuid,nodev,noexec "$found" /media/sd

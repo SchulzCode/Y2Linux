@@ -1,0 +1,10 @@
+#!/bin/sh
+# Rescue already validated and mounted Y2DATA before switch_root.
+[ "$1" = start ] || exit 0
+set -eu
+[ "$(cat /data/.y2data-schema)" = 1 ]
+for dir in settings apps y2player logs cache ssh/authorized_keys.d ssh/host-keys updates; do
+    mkdir -p "/data/$dir"
+done
+chmod 700 /data/ssh /data/ssh/authorized_keys.d /data/ssh/host-keys
+# Application payload area intentionally permits execution; no updater exists.

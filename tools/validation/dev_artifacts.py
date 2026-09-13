@@ -40,8 +40,8 @@ def userspace_config(config):
         require(config.get(key)=='y','missing development prerequisite '+key)
 
 
-def check(root,project):
-    check_config(root/'kernel/.config',project/'kernel/config/first-boot.config')
+def check(root,project,production=False):
+    check_config(root/'kernel/.config',project/('kernel/config/production.config' if production else 'kernel/config/first-boot.config'))
     config=parse(root/'kernel/.config')
     userspace_config(config)
     kernel=Elf(root/'kernel/vmlinux');comp=Elf(root/'kernel/arch/arm/boot/compressed/vmlinux')
@@ -68,7 +68,7 @@ def check(root,project):
     require(z[begin:end]==expected,'early watchdog emitted instructions')
     entries=rescue_entries(gunzip(rd,0x810000))
     regular=sum(len(data) for mode,data in entries.values() if stat.S_ISREG(mode))
-    require(entries['init']==(stat.S_IFREG|0o755,(project/'initramfs/rescue/init').read_bytes()),'rescue PID1 differs from reviewed source')
+    require(entries['init']==(stat.S_IFREG|0o755,(project/('initramfs/production/init' if production else 'initramfs/rescue/init')).read_bytes()),'rescue PID1 differs from reviewed source')
     require(entries['sbin/y2-observer'][1]==(root/'y2-observer').read_bytes(),'observer archive bytes')
     module=(root/'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko').read_bytes()
     require(entries['display.ko'][1]==module==(root/'display.ko').read_bytes(),'exact DRM module packaging')
@@ -81,7 +81,7 @@ def check(root,project):
     require(b'Y2LINUX-DEV-01' in entries['sbin/y2-observer'][1],'observer identity')
     args=Inputs(len(z),len(tree),len(rd),len(image),bss,kernel.sym('_end')-text,
         sym('restart'),sym('wont_overwrite'),sym('_edata'),sym('reloc_code_end'),stack,sym('__bss_start'),sym('_end'),regular)
-    layout=check_layout(args);layout['dt']=check_dtb(tree,len(rd));layout['sleep_syscall']=check_sleep(kernel,root/'kernel/.config')
+    layout=check_layout(args);layout['dt']=check_dtb(tree,len(rd),production=production);layout['sleep_syscall']=check_sleep(kernel,root/'kernel/.config')
     for number in (11,14,19,21,54,114,120,192,221,240,241,281,282,284,379):
         entry=struct.unpack_from('<I',kernel.data,slot_offset(kernel,number))[0]
         require(entry!=kernel.sym('sys_ni_syscall'),'missing development syscall '+str(number))
@@ -91,13 +91,13 @@ def check(root,project):
     payload=z+tree+bytes(-len(tree)%8)
     layout['kernel_symbols']={n:kernel.sym(n) for n in ('_text','_edata','__bss_start','__bss_stop','_end')}
     layout['artifacts']={name:{'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()} for name,raw in [('Image',image),('zImage',z),('y2.dtb',tree),('zImage-dtb',payload),('initramfs.cpio.gz',rd),('display.ko',module)]}
-    layout['status']='PASS offline M3 audio candidate; DEV-02 core physically qualified; audio acceptance pending'
+    layout['status']='PASS offline Production Storage v1; internal boot unqualified' if production else 'PASS offline M3 audio candidate; DEV-02 core physically qualified; audio acceptance pending'
     return layout,payload,rd
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('root',type=Path);p.add_argument('--package',action='store_true');a=p.parse_args()
-    project=Path(__file__).resolve().parents[2];layout,payload,rd=check(a.root,project)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('root',type=Path);p.add_argument('--package',action='store_true');p.add_argument('--production',action='store_true');a=p.parse_args()
+    project=Path(__file__).resolve().parents[2];layout,payload,rd=check(a.root,project,production=a.production)
     if a.package:
         boot=pack(payload,rd);layout['bootimg']=check_bootimg(boot,payload,rd,layout)
         (a.root/'zImage-dtb').write_bytes(payload);(a.root/'BOOTIMG.img').write_bytes(boot)

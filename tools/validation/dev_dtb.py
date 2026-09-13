@@ -31,10 +31,10 @@ IRQS = {'/audio-controller@11220000':(104,8), '/timer@10008000':(112,8), '/seria
  '/ovl@14007000':(153,8), '/rdma@14008000':(152,8), '/color@1400b000':(156,8),
  '/mutex@1400e000':(161,8), '/dsi@1400c000':(157,8)}
 
-def check(data, initrd_size):
+def check(data, initrd_size, production=False):
     nodes,reserved=fdt(data)
     require(tuple(reserved)==RESERVED[:1], 'DEV low boot reservation changed')
-    require(nodes['/']['model']==strings('Innioasis Y2 Y2LINUX-DEV-01'),'DEV identity')
+    require(nodes['/']['model']==strings('Innioasis Y2 Production Storage v1' if production else 'Innioasis Y2 Y2LINUX-DEV-01'),'DEV identity')
     expected={'/reserved-memory/loader@81800000':(0x81800000,0x02800000), '/reserved-memory/high-owned@bdf00000':(0xbdf00000,0x02100000)}
     require({p for p in nodes if p.startswith('/reserved-memory/')}==set(expected),'unreviewed reserved region')
     for path,region in expected.items():
@@ -45,7 +45,9 @@ def check(data, initrd_size):
             chosen['linux,initrd-end']==cells(0x84000000+initrd_size), 'initrd bounds')
     require(chosen['stdout-path']==strings('serial0') and nodes['/aliases']['serial0']==strings('/serial@11002000'), 'UART observation path')
     args=chosen['bootargs'].decode().rstrip('\0')
-    require(args=='rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2LINUX-DEV-01', 'baseline command line')
+    expected_args='rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M user_debug=31 g_cdc.dev_addr=02:42:00:00:00:01 g_cdc.host_addr=02:42:00:00:00:02 g_cdc.iSerialNumber=Y2LINUX-DEV-01'
+    if production: expected_args=expected_args.split(' g_cdc.')[0]
+    require(args==expected_args, 'profile command line')
     for path,reg in REGS.items(): require(nodes[path]['reg']==cells(*reg),'MMIO mapping '+path)
     for path,(irq,flags) in IRQS.items(): require(nodes[path]['interrupts']==cells(0,irq,flags),'IRQ mapping '+path)
     require({p for p,v in nodes.items() if p.count('/')==1 and 'reg' in v}==set(REGS)|{'/memory@80000000'},'unreviewed MMIO controller')
@@ -81,7 +83,8 @@ def check(data, initrd_size):
         v=nodes[path]
         require(v['bus-width']==cells(1),'SD conservative width')
         if path=='/mmc@11230000':
-            require(v['status']==strings('disabled') and v['compatible']==strings('innioasis,y2-msdc-readonly'),'internal eMMC firewall')
+            require(v['status']==strings('okay' if production else 'disabled') and v['compatible']==strings('innioasis,y2-msdc-production-v1' if production else 'innioasis,y2-msdc-readonly'),'internal eMMC firewall')
+            require(v['max-frequency']==cells(13000000 if production else 400000),'internal legacy frequency')
         else:
             require(v['compatible']==strings('innioasis,y2-msdc-sd') and v['max-frequency']==cells(13000000),'removable SD contract')
             require('non-removable' not in v and 'no-mmc' in v,'SD removable only')
