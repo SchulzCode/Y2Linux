@@ -104,7 +104,7 @@ and all unreviewed writes remain blocked.
 | `BAT0/constant_charge_voltage` | CHR_CON3 0x006 selector4:0, BSP 32-entry table | Configured setpoint in µV. Entry live value: 4175000. Read-only. |
 | `y2-usb-presence/online` | CHR_CON0 CHRDET bit5 | The existing userspace name is retained; ownership moves under the charger MFD child. It does not identify USB negotiated input current. |
 | IIO `mt6323-auxadc` | BATSNS voltage7 raw/scale; THR_SENSE1 temp3 raw/processed | Serialized conversion, 1 ms settling, bounded ready poll, no stale result on errors/timeouts. |
-| `pmic-thermal/temp` | ADC4 0x71c via CON22 bit3; 1.8 V / 32768; factory efuses 0x63a/0x63c and CID-specific BSP conversion | Own E2 calibration is enabled: VTS3910, calibration point 27°C, slope0. This point is **not a live temperature**. Missing calibration or invalid ADC returns no data. PMIC die temperature is not battery temperature. |
+| `pmic-thermal/temp` | ADC4 0x71c via CON22 bit 3; 1.8 V / 32768; factory efuses 0x63a/0x63c and CID-specific BSP conversion | Own E2 calibration is enabled: VTS3910, calibration point 27°C, slope0. This point is **not a live temperature**. Missing calibration or invalid ADC returns no data. PMIC die temperature is not battery temperature. |
 | `cpu-thermal/temp` | Thermal1100b000 samples AUXADC11001000 channel11, analog TS_CON0/1 at10209600/4; two CPU sensors, maximum reported | Own read-only efuse words10206100/104 via NVMEM. BSP gain, offset, VTS1/2, slope and half-degree calibration. No default coefficients. Uncalibrated sensors do not register meaningful Celsius reporting. |
 
 There is deliberately no CAPACITY, CURRENT_NOW, battery TEMP, guessed VBUS
@@ -119,8 +119,8 @@ SPM thermal reset path. Qualification load is bounded and uses a much lower
 
 ### Charging limitation and the two watchdogs
 
-The owner's retained stock binary has both `force_get_tbat` at0xc039a8a0 and
-`battery_meter_get_battery_temperature` at0xc039cf24 returning literal25.
+The owner's retained stock binary has both `force_get_tbat` at 0xc039a8a0 and
+`battery_meter_get_battery_temperature` at 0xc039cf24 returning literal25.
 Their ARM instruction `e3a00019` is `mov r0, #25`. This does not prove the pack
 lacks a thermistor; it proves those stock functions are not calibrated pack
 thermometry. The Sprout NTC table/profile is not Y2 battery evidence. Pack
@@ -131,28 +131,28 @@ deferral and at suspend/resume/shutdown. CHRDET IRQ and a freezable 10-second
 work item verify inhibit and notify power_supply; they never enable charging.
 No current, CV, OVP or thermal/emergency protection limit is raised or disabled.
 
-PMIC CHR_CON13 0x01a has watchdog enable bit4 and timeout selection3:0; the live
-selection0 is the BSP 4-second charger watchdog. CHR_CON15 flag/interrupt and
+PMIC CHR_CON13 0x01a has watchdog enable bit 4 and timeout selection3:0; the live
+selection 0 is the BSP 4-second charger watchdog. CHR_CON15 flag/interrupt and
 watchdog control are retained. BSP actively charging policy must pet/rearm this
 watchdog; M4's inhibited engine requires no charger re-enable or servicing.
 The independent AP RGU10007000 uses the upstream MediaTek watchdog, with the
 exact upstream MT6582/MT6589 compatible pair. The proven early watchdog stop
 remains; no userspace watchdog daemon starts it. Reboot uses RGU software reset.
-Poweroff uses the upstream MT6323 BBPU key at0x8000 and WRTGR at0x803c, with
+Poweroff uses the upstream MT6323 BBPU key at 0x8000 and WRTGR at 0x803c, with
 checked writes and atomic polling. It never uses watchdog reset as poweroff.
 
 ### CPU and device PM
 
-Three shared OPPs are enabled: 598000, 747500 and1040000 kHz, all1150000 µV.
-They are the BSP normal F4/F3/F2 table without MT6333 low-voltage support;
-1.04GHz and1.15V are also observed on this Y2. No VPROC write is allowed.
+Three shared OPPs are enabled: 598000, 747500 and 1040000 kHz, all 1150000 µV.
+They are the BSP normal F4/F3/F2 table without MT6333 low voltage support;
+1.04 GHz and1.15 V are also observed on this Y2. No VPROC write is allowed.
 Each transition verifies the active VPROC selector, ARMPLL ownership/mux,
-divider and MAINPLL1092MHz, switches temporarily through MAINPLL/2, programs
-the evidenced ARMPLL word, waits at least30µs and verifies readback. Failure
+divider and MAINPLL 1092 MHz, switches temporarily through MAINPLL/2, programs
+the evidenced ARMPLL word, waits at least 30 µs and verifies readback. Failure
 restores the old PLL or leaves the verified lower fallback. Unknown FHCTL,
 voltage or mux state rejects the transition. All four CPUs share one
 `cpufreq-dt` policy/OPP table. Default governor is powersave; userspace and
-schedutil are available. The 100µs clock-latency entry is a conservative
+schedutil are available. The 100 µs clock-latency entry is a conservative
 software budget, not a measured physical latency.
 
 CPU idle exposes only the standard ARM WFI state, with tickless idle enabled.
@@ -178,7 +178,7 @@ with reset as the panel's quiescent fallback and full initialization on resume.
 The first LK handoff path is preserved. ASoC card PM and component device links
 order stream/DAPM shutdown before AFE/codec sleep. The codec uses standard
 runtime/system PM; GPIO rail dependencies retain20→18→15 enable order and
-reverse disable. VGP2 stays regulator-owned at1.8V for reliability. The M3
+reverse disable. VGP2 stays regulator-owned at1.8 V for reliability. The M3
 period-notification fix is unchanged.
 
 For internal eMMC, normal block queues drain and cache-flush/status checks run,
@@ -199,7 +199,7 @@ still require the single physical qualification session.
 
 ## Primary implementation sources
 
-The locked Linux6.18 tree supplies the MFD/regulator/key/RTC/poweroff, NVMEM,
+The locked Linux 6.18 tree supplies the MFD/regulator/key/RTC/poweroff, NVMEM,
 thermal, cpufreq-dt, cpuidle, ASoC and PM frameworks. Pinned BSP paths and SHA256
 are in [m4-power-sources.json](m4-power-sources.json). Key primary references:
 

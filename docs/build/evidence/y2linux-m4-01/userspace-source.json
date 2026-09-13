@@ -1,0 +1,18 @@
+{
+  "base_manifest_sha256": "f07c316cc159974a8fca9487052a8574400bafee0d4ec3cd7059fbfa3ffe205c",
+  "base_build_git_commit": "37e4a3f3062d6b10b9d788199adad6a5cbb2f823",
+  "rootfs_version": "2025.02.17-storage.4",
+  "retained_images": {
+    "ANDROID": {
+      "file": "Y2ROOT.img",
+      "size_bytes": 536870912,
+      "sha256": "814a5b2543931e01cee2eb6f641c3b6e02317bd6308d2d663aea78f618bd554f"
+    },
+    "USRDATA": {
+      "file": "Y2DATA.img",
+      "size_bytes": 838860800,
+      "sha256": "01bcf65da1716081707202af074969e21fc1196540cb1de6ca76ef9098d44079"
+    }
+  },
+  "method": "reuse verified production rescue binaries; no ext4 writes or rebuild"
+}

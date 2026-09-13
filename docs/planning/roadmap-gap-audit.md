@@ -8,6 +8,34 @@ blueprint/planning material; no native platform readiness is inferred from that.
 
 ## M4 integrated power activation — 2026-09-13
 
+### Candidate boundary re-audit — 2026-09-14
+
+Reconciled the coverage matrix and milestone gates again before handing off
+Y2LINUX-M4-01. There is no new physical M4 result: the latest actual hardware
+remains the authenticated Storage06 baseline and retained M2/M3 evidence.
+Source commit `f2d2ac641ee67cd94cd2c57c9f5201b6e78841fc` builds one integrated
+5355520-byte BOOTIMG. 66 final regressions, ARM ABI/shell checks, emitted
+DT/config/memory/BOOTIMG validation and 12 package rejection cases pass.
+[Build evidence and limitations](../build/evidence/y2linux-m4-01/README.md) ·
+[Owner deployment and qualification](../build/y2linux-m4-01-deployment.md).
+
+The implemented power scope uses standard frameworks; battery pack temperature,
+measured current, capacity and full-charge determination remain unsupported.
+Charging is inhibited and inherited limits/protection retained. Safe shared
+OPPs, calibrated die zones, WFI/s2idle, Power/RTC wake and RTC/reset/poweroff
+are candidate capabilities, not physical acceptance. Current internal p5/p7,
+M3 startup fix, input/display/USB/audio and Buildroot contracts remain the
+regression baseline; no root/data update is packaged. Storage06 is the fallback.
+
+M4 #30 stays ACTIVE/PARTIAL, every physical checkbox open. #33 wider storage,
+#29 narrow M3 residuals, #28 broader stability, #27 deferred reconnect, M0
+backup/recovery/calibration residuals and M5/M6/application deferrals retain
+their prior status. No memory expansion, boot-chain/table/calibration change,
+new radio or application scope. Stop for the owner's manual BOOTIMG deployment;
+do not cross into physical PM qualification until that deployment is reported.
+
+### Entry audit
+
 Owner explicitly authorizes a complete generic power-platform implementation,
 one integrated candidate and read-only live SSH inspection, then STOP for manual
 BOOTIMG deployment. Entry is local `ae5819f`, ten commits ahead of origin/main.

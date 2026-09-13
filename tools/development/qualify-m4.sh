@@ -132,19 +132,22 @@ post-resume)
     cat "$record/resume.log";;
 cable-reboot)
     # Launch this phase with nohup, then unplug/replug once. It reboots in 40 s.
+    cat /proc/sys/kernel/random/boot_id > "$record/transition-before"
     for second in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
         show /proc/uptime /sys/class/power_supply/*/uevent
         sleep 2
     done
     sync; reboot;;
-reboot) sync; reboot;;
+reboot) cat /proc/sys/kernel/random/boot_id > "$record/transition-before"; sync; reboot;;
 post-reboot)
-    if cmp -s "$record/boot-before" /proc/sys/kernel/random/boot_id; then echo 'No reboot observed' >&2; exit 1; fi
+    [ -f "$record/transition-before" ] || exit 1
+    if cmp -s "$record/transition-before" /proc/sys/kernel/random/boot_id; then echo 'No new boot observed' >&2; exit 1; fi
     (cd "$record"; sha256sum -c sentinel.sha256)
     inventory > "$record/reboot.log" 2>&1
     cat "$record/reboot.log";;
 poweroff)
     # Launch with nohup, unplug USB during the delay, observe actual hardware off.
+    cat /proc/sys/kernel/random/boot_id > "$record/transition-before"
     echo 'Orderly poweroff in 15 seconds; disconnect USB now.'
     sleep 15; sync; poweroff;;
 *) echo 'inventory | begin | audio | dvfs | idle | display | rtc | suspend | rtc-alarm | post-resume | cable-reboot | reboot | post-reboot | poweroff' >&2; exit 2;;

@@ -9,7 +9,7 @@ The [architecture and source reconciliation](../knowledge/m4-power-platform.md)
 records the live baseline, exact register/units/calibration assumptions, vendor
 references and limitations. The [activation audit](../planning/roadmap-gap-audit.md)
 keeps every physical acceptance gate open. M3's period-notification startup
-correction, commit137b3f2, is retained.
+correction, commit 137b3f2, is retained.
 
 ## Implemented interfaces
 
@@ -18,16 +18,16 @@ correction, commit137b3f2, is retained.
 | PMIC | One serialized MT6582 PWRAP → regmap → MT6323 MFD; regulator/key/RTC/poweroff plus ADC/charger/backlight children |
 | Battery | `/sys/class/power_supply/BAT0/`: present, status, health, voltage_now; configured constant_charge_current/voltage are read-only limits, not measured current |
 | USB | `/sys/class/power_supply/y2-usb-presence/online`, CHRDET event and polling |
-| Charging | Inhibited. No validated pack thermometry/profile/input policy. Inherited current/CV retained; live baseline70mA/4.175V. No capacity, current_now, battery temp or claimed full-charge detection |
+| Charging | Inhibited. No validated pack thermometry/profile/input policy. Inherited current/CV retained; live baseline 70 mA/4.175 V. No capacity, current_now, battery temp or claimed full-charge detection |
 | Thermal | `thermal_zone*/type` = cpu-thermal and pmic-thermal; calibrated temperatures in m°C only with valid own efuses; otherwise unavailable. CPU passive110°C/critical120°C, PMIC critical150°C from BSP |
-| CPU frequency | One policy0 for CPUs0–3:598000/747500/1040000kHz, all1.15V; default powersave; no VPROC write or overclock |
+| CPU frequency | One policy0 for CPUs 0–3:598000/747500/1040000kHz, all 1.15 V; default powersave; no VPROC write or overclock |
 | Idle / suspend | Architectural WFI only; `mem` selects s2idle, `freeze` also available. No SPM/deep/DRAM power-down; retained eMMC controller/card state |
-| Wake | Brief Power key; RTC alarm if valid/armed. USB, wheel and volume are not selected wake sources |
-| Display / audio | DRM/panel/backlight PM, ordered ASoC/codec/AFE PM. VGP2 retained1.8V. Physical repeat playback and resume tests still required |
+| Wake | Brief Power key; RTC alarm if valid and armed. USB, wheel and volume are not selected wake sources |
+| Display / audio | DRM/panel/backlight PM, ordered ASoC/codec/AFE PM. VGP2 retained1.8 V. Physical repeat playback and resume tests still required |
 | RTC | `/dev/rtc0`, standard read/set/alarm APIs; no automatic system/RTC time writes and no RTC spare/boot-state writes |
 | Reboot / off | Upstream MediaTek AP watchdog software reset for reboot; MT6323 RTC BBPU/WRTGR power controller for actual poweroff. Charger watchdog is separate and untouched |
 
-Battery voltage uses the MT6323 15-bit1.8V ADC with hardware4:1 divider and
+Battery voltage uses the MT6323 15-bit1.8 V ADC with hardware4:1 divider and
 inherited factory trim. There is no claim of independently measured absolute
 accuracy or external power consumption. PMIC die temperature is not pack
 temperature. The charger watchdog needs servicing for a future active charging
@@ -35,7 +35,20 @@ policy; an inhibited charge engine requires no pet/re-enable loop.
 
 ## Build and package
 
-The final build receipt records the exact source commit, bytes and hashes.
+The [final build receipt](evidence/y2linux-m4-01/README.md) records the exact
+checks and retained logs. Kernel source commit:
+`f2d2ac641ee67cd94cd2c57c9f5201b6e78841fc`.
+
+BOOTIMG: `out/y2linux-m4-01/BOOTIMG.img`, **5355520 bytes**, SHA256
+`5b2bdfa784aa790a81cd4c4f495ffcb1bd2dbfd2e26ffa33c0881c67967cb883`.
+
+Rootfs update: **NO**. The unchanged reference image is
+`out/y2linux-production-v1-r4/Y2ROOT.img`, SHA256
+`814a5b2543931e01cee2eb6f641c3b6e02317bd6308d2d663aea78f618bd554f`.
+The running Y2DATA, including its corrected owner SSH authorization, is
+preserved. Manifest root/data identities describe historical build inputs,
+not a hash claim about the subsequently mounted live filesystems.
+
 The reproducible commands, run from the repository root with reviewed clean Git:
 
 ```sh
@@ -51,7 +64,7 @@ Storage06 BOOTIMG, SHA256
 
 ## Owner's exact manual deployment
 
-1. In `out/y2linux-m4-01`, verify `sha256sum -c SHA256SUMS`.
+1. In `out/y2linux-m4-01`, verify `sha 256sum -c SHA256SUMS`.
 2. Use the established SPFT/DA procedure, **Download Only**. Load
    `MT6582_BOOTIMG_only_scatter.txt` from that directory.
 3. Select **BOOTIMG → BOOTIMG.img only**. All other rows remain unchecked,
@@ -82,13 +95,13 @@ y2ssh 'sh /tmp/qualify-m4.sh display'
 ```
 
 `begin` records boot ID, four CPUs/RAM, exact internal mounts, power/thermal/
-clock/regulator state, IRQs and logs in `/data/y2linux-m4-01/`. It writes a256KiB
+clock/regulator state, IRQs and logs in `/data/y2linux-m4-01/`. It writes a 256 KiB
 ordinary-file integrity sentinel in Y2DATA; no raw storage or mounted-fs fsck.
-`audio` repeats the proven44.1kHz stereo fixture at the existing -24dB mixer
+`audio` repeats the proven 44.1 kHz stereo fixture at the existing -24 dB mixer
 setting, with output disabled between plays. Observe clean audible output twice.
-`dvfs` refuses load unless both calibrated die zones work and remain below60°C
-and battery voltage is at least3.4V. These are conservative test-stop thresholds,
-not asserted battery/SoC protection limits. Each transition runs at most5seconds
+`dvfs` refuses load unless both calibrated die zones work and remain below 60°C
+and battery voltage is at least 3.4 V. These are conservative test-stop thresholds,
+not asserted battery/SoC protection limits. Each transition runs at most 5 seconds
 of four CPU loops, checks temperature each second, and restores powersave on
 exit. Failure is an acceptance result, not permission to bypass a guard.
 
@@ -121,7 +134,7 @@ RTC is read-first. If time is valid and no alarm was already configured:
 y2ssh 'sh /tmp/qualify-m4.sh rtc-alarm'
 ```
 
-It programs only a15second alarm through the RTC API and tests a second s2idle
+It programs only a 15 second alarm through the RTC API and tests a second s2idle
 entry. Do not press Power during this test. If the RTC was uninitialized, first
 record its original state, then deliberately set time using the host's UTC epoch
 and the normal API (no raw RTC/PMIC write):
@@ -137,7 +150,7 @@ is installed.
 
 Test a single cable cycle at the end, since the separately deferred USB
 reconnect issue can lose SSH. This explicitly schedules an orderly reboot
-after40seconds so the recorded observations can be recovered:
+after 40 seconds so the recorded observations can be recovered:
 
 ```sh
 y2ssh 'nohup sh /tmp/qualify-m4.sh cable-reboot > /data/y2linux-m4-01/cable.log 2>&1 < /dev/null &'

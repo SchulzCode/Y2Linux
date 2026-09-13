@@ -48,8 +48,10 @@ static int y2_usb_register(void) {++registered;return 0;}
 static unsigned readb(void *p) {(void)p;return 0x98;}
 static void y2_usb_detach(void) {++detached;y2_usb_detached=1;y2_usb_phase(Y2_USB_DETACHED);}
 static int y2_usb_reconnect(void) {++reconnected;if(!reconnect_rc)y2_usb_detached=0;return reconnect_rc;}
-static void schedule_delayed_work(int *work,unsigned delay)
-{assert(work==&y2_usb_work && delay==250);++scheduled;}
+static int freezable_queue;
+#define system_freezable_wq (&freezable_queue)
+static void queue_delayed_work(int *queue,int *work,unsigned delay)
+{assert(queue==system_freezable_wq && work==&y2_usb_work && delay==250);++scheduled;}
 static void y2_usb_finish(void) {++finished;y2_usb_finished=1;y2_usb_pmic=NULL;}
 static int copy_to_user(void *dest,const void *src,unsigned n)
 {assert(!y2_usb_failure_lock);memcpy(dest,src,n);return 0;}

@@ -1,0 +1,10 @@
+{
+  "release_version": "0.1.0-m4.1",
+  "layout_version": 1,
+  "kernel_version": "6.18.0-y2linux-m4-01",
+  "rootfs_version": "2025.02.17-storage.4",
+  "data_schema_version": 1,
+  "y2player_version": null,
+  "build_git_commit": "f2d2ac641ee67cd94cd2c57c9f5201b6e78841fc",
+  "rootfs_build_git_commit": "37e4a3f3062d6b10b9d788199adad6a5cbb2f823"
+}
