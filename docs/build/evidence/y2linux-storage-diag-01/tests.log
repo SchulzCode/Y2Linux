@@ -1,0 +1,20 @@
+test_cached_failure_and_initial_cable_state (tests.test_rescue_diagnostic.USBStatus.test_cached_failure_and_initial_cable_state) ... ok
+test_untrusted_or_truncated_status_is_rejected (tests.test_rescue_diagnostic.USBStatus.test_untrusted_or_truncated_status_is_rejected) ... ok
+test_roundtrip_and_corruptions (tests.test_bootimg.Bootimg.test_roundtrip_and_corruptions) ... ok
+test_bounded_layout (tests.test_d08.Layout.test_bounded_layout) ... ok
+test_checked_arithmetic (tests.test_d08.Layout.test_checked_arithmetic) ... ok
+test_independent_rejections (tests.test_d08.Layout.test_independent_rejections) ... ok
+test_small_adjustment_preserves_dtb (tests.test_d08.Layout.test_small_adjustment_preserves_dtb) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.055s
+
+OK
+USB FAILED rc=-19 configured=0
+Live CHR=00000020 polls=0 IRQ=0
+DEVCTL=80 events=0
+Initial PW=0/7 CHR=0020
+CLK=0/15 USB=0/1fffff WAKE=-19/0
+MUX=00010000 PLL=05000001 PWR=00000001
+USB status invalid/short
+PASS ARM cached-status decoder, rejection, shell syntax and real blkid identity

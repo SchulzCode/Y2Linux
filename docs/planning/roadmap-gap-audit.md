@@ -6,6 +6,17 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## DIAG01 manual observation boundary — 2026-09-13
+
+The [BOOTIMG-only diagnostic](../build/y2linux-storage-diag-01-deployment.md)
+passed seven targeted tests and ARM/newc/DT/D08/BOOTIMG/selection/hash checks.
+The exact Storage02 kernel/module and all hardware/write policies are unchanged.
+Owner photos establish failed internal-root discovery and Linux display; host
+still has no Linux USB capture. Hardware coverage and later gates remain as in
+the preceding audit; no new root/USB success is established by offline tests.
+Storage stays ACTIVE and pauses at the owner manual diagnostic flash boundary.
+No assistant physical write or SPFT execution. Do not start later milestones.
+
 ## Storage02 diagnostic BOOTIMG preparation — 2026-09-13
 
 A later owner startup/USB attachment still yields no Linux USB enumeration.

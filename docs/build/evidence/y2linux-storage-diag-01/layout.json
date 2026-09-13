@@ -1,0 +1,101 @@
+{
+  "policy": "DEV-01",
+  "inputs": {
+    "z": 3235792,
+    "dtb": 9338,
+    "initramfs": 1935926,
+    "image": 9781504,
+    "kernel_bss": 1128576,
+    "kernel_span": 10910080,
+    "restart": 276,
+    "wont_overwrite": 520,
+    "edata": 3235792,
+    "reloc_code_end": 2364,
+    "stack_top": 3239912,
+    "compressed_bss_start": 3235792,
+    "compressed_bss_end": 3235816,
+    "regular_file_bytes": 4753975
+  },
+  "ram": [
+    [
+      2147483648,
+      3187671040
+    ]
+  ],
+  "reserved": [
+    [
+      2147483648,
+      2147500032
+    ],
+    [
+      2172649472,
+      2214592512
+    ],
+    [
+      3186622464,
+      3221225472
+    ]
+  ],
+  "zimage": [
+    2147516416,
+    2150752208
+  ],
+  "appended_dtb": [
+    2150752208,
+    2150761552
+  ],
+  "image": [
+    2147516416,
+    2157297920
+  ],
+  "resident_kernel": [
+    2147516416,
+    2158426496
+  ],
+  "relocated_copy": [
+    2157300224,
+    2160545120
+  ],
+  "relocated_dtb": [
+    2160535760,
+    2160545104
+  ],
+  "compressed_bss": [
+    2160545104,
+    2160545136
+  ],
+  "stack_top": 2160549224,
+  "malloc": [
+    2160549224,
+    2160614760
+  ],
+  "initramfs": [
+    2214592512,
+    2216528438
+  ],
+  "lk_staging": [
+    2147515904,
+    2152703488
+  ],
+  "staged_initramfs": [
+    2150762496,
+    2152698422
+  ],
+  "bootimg_read_end": 5189632,
+  "relocation_delta": 9783552,
+  "relocation_code_allowance": 2304,
+  "adjusted_image_size": 9781504,
+  "workspace_end": 2160614760,
+  "allocator_before_kernel_bytes": 997179392,
+  "bootimg": {
+    "bytes": 5189632,
+    "sha256": "b45be7027c3b02186ec2e20cf1fec9cbb2a438bd9d4677b3528f905b6b869748",
+    "android_id_sha1": "620993381c9987c6b581e1e4fa0b591a03c1827e",
+    "partition_bytes": 16777216,
+    "kernel_wrapper_offset": 2048,
+    "ramdisk_wrapper_offset": 3248128,
+    "lk_complete_read_end": 5189632,
+    "zero_filled_read_tail_bytes": 5066,
+    "authentication": "unsigned image; offline checks do not establish this candidate hardware acceptance"
+  }
+}

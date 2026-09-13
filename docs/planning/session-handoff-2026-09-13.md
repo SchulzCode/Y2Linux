@@ -1,5 +1,21 @@
 # Session handoff — 2026-09-13, Storage02 retry
 
+## Current boundary: DIAG01 on-screen observation ready
+
+The latest owner restart/USB connection still produced no Linux enumeration.
+Two bounded ACM waits timed out. No repeated restart request or speculative
+kernel fix follows. [BOOTIMG-only DIAG01 package/checklist](../build/y2linux-storage-diag-01-deployment.md)
+is built in out/y2linux-storage-diag-01 from rescue commit 8bf2d64, retaining exact
+Storage02 kernel/module c2db489. Seven tests plus ARM/shell/newc/DT/memory/BOOTIMG/
+scatter/hash validation pass. Three screen pages expose cached USB error state,
+internal block geometry, allowed root/data signatures and relevant logs.
+No block filesystem mounts/repairs or root handover occur in this diagnostic.
+
+STOP for owner manual BOOTIMG-only flash. ANDROID/USRDATA remain unchecked.
+Boot unplugged, attach once after at least ten seconds; photograph all pages.
+Source/recovery/install details are in the checklist. Actual cause of internal
+root discovery failure remains unknown. No hardware acceptance is inferred.
+
 ## Latest: rescue failure identified; USB startup instructions corrected
 
 [Rescue console photo](../hardware-evidence/2026-09-13-storage02-owner-flash/rescue-console.md)

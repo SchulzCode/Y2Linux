@@ -1,0 +1,45 @@
+{
+  "schema": "org.schulzcode.y2linux.rescue-diagnostic/v1",
+  "diagnostic_version": "storage02-diag01",
+  "build_git_commit": "8bf2d6404ee7f93c9244b124d7acea035e37e6c3",
+  "kernel_build_git_commit": "c2db4893b79eca25458b6adc318232c80dd99872",
+  "kernel_version": "6.18.0-y2linux-storage02",
+  "layout_version": 1,
+  "hardware_compatibility": {
+    "vendor": "Innioasis",
+    "board": "Y2 eastaeon82_wet_kk",
+    "soc": "MT6582",
+    "emmc_user_capacity_bytes": 7784103936,
+    "capacity_semantics": "stock Android exported layout bound",
+    "emmc_physical_user_capacity_bytes": 7818182656,
+    "accepted_linux_user_sector_counts": [
+      15203328,
+      15269888
+    ],
+    "stock_scatter_sha256": "e5fe03e9f3219cc9b5ead27892f2ddb722acc16adce3306d27feb87893cd977e",
+    "other_revisions": "unsupported until their layout and hardware are verified"
+  },
+  "base_manifest_sha256": "7b6526c30b3d84940510b60e1472306c0c29115a95887f7569de03d95f26ea61",
+  "restore_bootimg": {
+    "file": "BOOTIMG.img",
+    "size_bytes": 5187584,
+    "sha256": "6dfe7ff5de30f39581cc3479ed17d9a2fbf6671619741924d563f29114228d7d"
+  },
+  "unchanged_kernel_sha256": "ac053604245e905c2f25b2a1c930754df12f10f81fd66bdb3e52c57989844c2b",
+  "unchanged_display_module_sha256": "b52edde5c94ccb08e16c7cacfc84c8db1ea972e224c290d72deb8cb48f23f114",
+  "status": "offline validated diagnostic; physical test pending",
+  "runtime": "rescue only; no block mounts, fsck, switch_root or data writes",
+  "preserved_partitions": "all except owner-selected BOOTIMG; stock table unchanged",
+  "payload": {
+    "file": "BOOTIMG.img",
+    "target_partition": "BOOTIMG",
+    "region": "EMMC_USER",
+    "absolute_start_bytes": 30932992,
+    "scatter_linear_start_bytes": 51904512,
+    "partition_relative_offset_bytes": 0,
+    "maximum_size_bytes": 16777216,
+    "size_bytes": 5189632,
+    "sha256": "b45be7027c3b02186ec2e20cf1fec9cbb2a438bd9d4677b3528f905b6b869748"
+  },
+  "scatter_sha256": "fe45a3f1d94b8cf7a8f127c3120b6b595db7a9644927693b5aecabf656c5b7a1"
+}
