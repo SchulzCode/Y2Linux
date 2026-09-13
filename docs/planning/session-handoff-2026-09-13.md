@@ -1,5 +1,22 @@
 # Session handoff — 2026-09-13, Storage02 retry
 
+## Latest: rescue failure identified; USB startup instructions corrected
+
+[Rescue console photo](../hardware-evidence/2026-09-13-storage02-owner-flash/rescue-console.md)
+shows `missing/invalid internal Y2ROOT or Y2DATA` at about 41.66 seconds. Normal
+Buildroot has NOT booted. Earlier no-SD photo establishes Linux fbcon/display,
+with repeated empty-slot CMD55/CMD8 timeouts from removable host 11240000.
+
+The existing USB driver rejects initial CHRDET asserted. Boot USB UNPLUGGED,
+wait at least ten seconds after Linux starts, then attach once, as AUDIO-02
+already required. Assistant instructions to keep the cable connected across
+restart were wrong. Tracked install instructions are corrected; frozen Storage02
+package documents predate this erratum. Rescue has ACM intent, no SSH service.
+A 120-second ACM wait timed out; no corrected-sequence device capture yet.
+The actual packaged ARM blkid probes root/data image UUIDs successfully under
+QEMU; stock table arithmetic still matches. Need ACM block/driver logs before
+choosing a root-detection fix. No speculative firmware change or new flash.
+
 ## New owner result: transfer passed; running-system verification pending
 
 [Storage02 owner evidence](../hardware-evidence/2026-09-13-storage02-owner-flash/README.md)

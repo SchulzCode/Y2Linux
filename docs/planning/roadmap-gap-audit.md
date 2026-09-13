@@ -6,6 +6,17 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Storage02 rescue failure observation — 2026-09-13
+
+Latest owner photos establish Linux display with no SD, then rescue's aggregate
+missing/invalid internal root/data failure with SD present. Full internal-root
+boot has failed this attempt; recovery PID1 remains alive. USB remains unobserved.
+Source review recovers the existing boot-unplugged / attach-after-startup contract
+and corrects the assistant's incompatible cable-present startup instructions.
+See [rescue evidence](../hardware-evidence/2026-09-13-storage02-owner-flash/rescue-console.md).
+No milestone closure or new hardware scope; storage remains active and every
+later milestone retains its prior gate. Next work is read-only ACM observation.
+
 ## Storage02 owner transfer result — 2026-09-13
 
 [New physical/operator evidence](../hardware-evidence/2026-09-13-storage02-owner-flash/README.md):

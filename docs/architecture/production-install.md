@@ -101,6 +101,14 @@ ignores removable host11240000 even if an old card still says Y2ROOT.
 
 ## Expected first boot and acceptance
 
+**USB startup sequence for this driver:** after SPFT finishes, disconnect USB,
+boot with USB disconnected, wait at least ten seconds after Linux starts, then
+attach USB once. This is the existing AUDIO-02 startup contract. In
+kernel/usb/y2_musb.c, y2_usb_begin rejects CHRDET already asserted at its initial
+snapshot; leaving the cable connected across startup can prevent ACM/ECM.
+Cable reconnect later remains deferred. A BOOTIMG/rescue boot need not have SSH;
+use ACM logs until internal root handover is established.
+
 Stock Boot ROM → unchanged preloader → unchanged LK → BOOTIMG Linux6.18 rescue →
 internal Y2ROOT and Y2DATA → switch_root → Buildroot. No SD should be present or
 required. Rescue logs `Y2ROOT: Production Storage v1; internal-only discovery`

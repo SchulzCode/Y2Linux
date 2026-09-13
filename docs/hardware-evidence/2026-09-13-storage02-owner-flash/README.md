@@ -24,3 +24,10 @@ writability/persistence, protected readbacks and rescue-negative qualification.
 Production Storage v1 remains active. No assistant eMMC write or SPFT execution.
 The original AUDIO-02 BOOTIMG hash was rechecked and still matches its documented
 BOOTIMG-only SD fallback. No restoration was performed.
+
+[Later no-SD console photo and source interpretation](no-sd-console.md) confirms
+Linux fbcon with repeated removable-slot timeouts; internal-root boot and USB
+remain unverified. This supersedes the previously unspecified screen state.
+
+[Latest rescue console and USB startup correction](rescue-console.md) confirms
+root handover failed and supersedes the unspecified boot-stage statements above.

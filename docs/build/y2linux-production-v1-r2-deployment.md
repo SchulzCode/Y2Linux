@@ -1,5 +1,12 @@
 # Production Storage v1 — Storage02 manual retry
 
+> Post-flash observation: the owner reached rescue, which reports missing/invalid
+> internal Y2ROOT or Y2DATA; normal boot remains unqualified. USB instruction
+> correction: disconnect after flashing, boot unplugged, then attach once at
+> least ten seconds after Linux starts. The driver rejects cable-present startup.
+> See the [retained console evidence](../hardware-evidence/2026-09-13-storage02-owner-flash/rescue-console.md).
+
+
 **Ready for the owner's manual retry; physical qualification remains pending.**
 The first package failed because its sparse FILL chunks are rejected by the
 selected MT6582 Download Agent. BOOTIMG transfer/checksum completed; ANDROID
