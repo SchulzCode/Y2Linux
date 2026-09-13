@@ -70,7 +70,7 @@
       "path": "drivers/pinctrl/mediatek/Kconfig",
       "patch": "0019-y2-eint-library.patch",
       "base_sha256": "358c03715ce2d3351183bff171f663ba7f3ee071425b44c9ef159fd0b8146d1c",
-      "result_sha256": "7810449062f43ce3cc1c2ddcddf7cb6815493bdda36c2f81bfd3d4408c52e27c"
+      "result_sha256": "288066840f6a86f78ec096ac76fad90877021cb941efeb1eced4d5ae657c179d"
     },
     {
       "path": "drivers/input/keyboard/mtk-pmic-keys.c",
