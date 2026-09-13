@@ -32,7 +32,8 @@ class DevFoundation(unittest.TestCase):
         for bad in (raw[:-512],raw.replace(b'bin/busybox\0',b'../busyboxx\0',1)):
             with self.assertRaises((ValueError,UnicodeDecodeError)):rescue_entries(bad)
     def test_rescue_only_selects_one_removable_ext4_label(self):
-        script=(ROOT/'initramfs/production/init').read_text()
+        # Historical SD recovery coverage; current production resolver is tested separately.
+        script=(ROOT/'initramfs/rescue/init').read_text()
         selection=script[script.index('rootdev='):script.index('if [ "$abi_ok" = 1 ]')]
         with tempfile.TemporaryDirectory() as tmp:
             t=Path(tmp);(t/'block').mkdir();(t/'bin').mkdir();(t/'dev').mkdir()

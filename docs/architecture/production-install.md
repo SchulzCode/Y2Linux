@@ -35,7 +35,7 @@ prerequisites; do not experiment with bootloader/security/format modes.
    MBR/EBR files; stock scatter + historical map alone do not prove current tables.
    The checked-in readback verifier checks the exact original table prefix hashes.
    Before flashing, run `python3 tools/production/verify_readback.py --package
-   out/y2linux-production-v1-r4 --before /path/to/before --before-only` (one line).
+   out/y2linux-production-v1-r4 --before /path/to/before --before-only --profile preserve-data` (one line).
    Record DA/tool/device identity and coordinates with the readbacks. If actual
    capacity, starts or tables differ, stop. Never substitute a donor's layout.
 4. Keep the working SD and AUDIO-02 BOOTIMG available as the development fallback.
@@ -86,11 +86,16 @@ will legitimately change filesystem hashes after boot. Keep the tool/DA log.
 Run from the repo:
 
 ```
-python3 tools/production/verify_readback.py --package out/y2linux-production-v1-r4 --after /path/to/after --before /path/to/before
+python3 tools/production/verify_readback.py --package out/y2linux-production-v1-r4 --after /path/to/after --before /path/to/before --profile preserve-data
 ```
 
-The verifier hashes the first manifest.raw.size_bytes of each full partition
-readback and compares with the **raw image hash**.
+For this preserving update, retain a full USRDATA.bin before and after flashing,
+before allowing Linux to boot and modify persistent state. The verifier compares
+those two files, not the bundled seed. BOOTIMG and ANDROID readbacks are checked
+against their raw image prefixes. For an explicit first initialization use
+`--profile first-install` instead; that checks USRDATA against the data template.
+The verifier hashes the first manifest.raw.size_bytes of each selected full
+partition readback and compares with the **raw image hash**.
 It compares every protected/table before/after range byte-for-byte and checks
 original MBR/EBR prefix hashes. BOOTIMG and root tails outside the images are
 not image identity; selected partitions may be erased within their stock bounds.
