@@ -1,6 +1,24 @@
 # Session handoff — 2026-09-13, Storage05 boot failed
 
-## Latest: Storage05 ACM captured; independent sector bytes still needed
+## Latest: readback completed; acquisition addresses need correction
+
+The owner completed all six samples at 21:00:03 CEST. The
+[retained readback result](../hardware-evidence/2026-09-13-storage05-owner/README.md)
+records SPFT success but a failed BOOTIMG identity gate. The assistant supplied
+physical offsets; this MT6582 SPFT path actually uses legacy global DA addresses
+(`NUTL_ADDR_LOGICAL`, `EMMC_PART_UNKNOWN=0`). The supposed Y2ROOT sample exactly
+matches stock SEC_RO. This proves an acquisition-mode mismatch, not corruption
+at the intended table/filesystem locations or a Linux LBA translation defect.
+
+The [corrected six addresses](../build/storage05-readback.md) match stock scatter
+linear coordinates and the retained PMT report. Change only start addresses in
+the same Readback mode; filenames/lengths stay the same. Prior samples and full
+logs are retained in evidence-private/20260913-storage05-readback-210003. The
+corrected batch has not run. No GUI change, device command, firmware build or
+flash was initiated by the assistant in this analysis. #33 stays ACTIVE and all
+later gates stay unchanged; no table/root/data rewrite is justified.
+
+## Earlier: Storage05 ACM captured; independent sector bytes still needed
 
 The owner connected the running device and granted `/dev/ttyACM0` access.
 [Initial and continuation logs](../hardware-evidence/2026-09-13-storage05-owner/README.md)

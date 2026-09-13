@@ -1,0 +1,92 @@
+{
+  "operation": "corrected manual SPFT Readback; not executed",
+  "address_space": "MT6582 legacy global DA bytes (NUTL_ADDR_LOGICAL, EMMC_PART_UNKNOWN=0); these are scatter linear coordinates, NOT Linux LBAs or EMMC_USER physical offsets",
+  "tool": "existing SP Flash Tool v5.2032 and already used MT6582 DA",
+  "total_bytes": 13824,
+  "rows": [
+    {
+      "file": "BOOTIMG-prefix.bin",
+      "purpose": "BOOTIMG control",
+      "region": "EMMC_PART_UNKNOWN (0x00), legacy global DA address mode",
+      "start_address_hex": "0x03180000",
+      "length_hex": "0x1000",
+      "physical_start_bytes": 30932992,
+      "size_bytes": 4096,
+      "expected_source": "out/y2linux-production-v1-r5/BOOTIMG.img",
+      "expected_prefix_sha256": "a53c3f62d60057646f2b300a03ed4e67d440cf1f73c1bf23b3a2cb5dceb4a7c5",
+      "spft_start_bytes": 51904512,
+      "stock_partition": "BOOTIMG"
+    },
+    {
+      "file": "MBR.bin",
+      "purpose": "MBR",
+      "region": "EMMC_PART_UNKNOWN (0x00), legacy global DA address mode",
+      "start_address_hex": "0x01400000",
+      "length_hex": "0x200",
+      "physical_start_bytes": 0,
+      "size_bytes": 512,
+      "expected_source": "tests/fixtures/production/MBR",
+      "expected_prefix_sha256": "4be9c92be18ba4169d4b050e18811c6650eab27a487f1c67f4a49efa01cd32a1",
+      "spft_start_bytes": 20971520,
+      "stock_partition": "MBR"
+    },
+    {
+      "file": "EBR1.bin",
+      "purpose": "EBR1",
+      "region": "EMMC_PART_UNKNOWN (0x00), legacy global DA address mode",
+      "start_address_hex": "0x01480000",
+      "length_hex": "0x200",
+      "physical_start_bytes": 524288,
+      "size_bytes": 512,
+      "expected_source": "tests/fixtures/production/EBR1",
+      "expected_prefix_sha256": "0eca0f26847ffd17426ffd7c9e976a7e28017cf6bc454d6478c68d3b2c52a64e",
+      "spft_start_bytes": 21495808,
+      "stock_partition": "EBR1"
+    },
+    {
+      "file": "EBR2.bin",
+      "purpose": "EBR2",
+      "region": "EMMC_PART_UNKNOWN (0x00), legacy global DA address mode",
+      "start_address_hex": "0x05b00000",
+      "length_hex": "0x200",
+      "physical_start_bytes": 74448896,
+      "size_bytes": 512,
+      "expected_source": "tests/fixtures/production/EBR2",
+      "expected_prefix_sha256": "699e1e33054e944e7b1776a539cd41551f4a066abc51535ccfc3d50b44c4ffc7",
+      "spft_start_bytes": 95420416,
+      "stock_partition": "EBR2"
+    },
+    {
+      "file": "Y2ROOT-prefix.bin",
+      "purpose": "ANDROID/Y2ROOT control",
+      "region": "EMMC_PART_UNKNOWN (0x00), legacy global DA address mode",
+      "start_address_hex": "0x06580000",
+      "length_hex": "0x1000",
+      "physical_start_bytes": 85458944,
+      "size_bytes": 4096,
+      "expected_source": "out/y2linux-production-v1-r4/Y2ROOT.img",
+      "expected_prefix_sha256": "6a0aec2a06f1cf872ad5d6d59e744f6f056501b223997fde3ab88f063ee0a146",
+      "spft_start_bytes": 106430464,
+      "stock_partition": "ANDROID"
+    },
+    {
+      "file": "Y2DATA-prefix.bin",
+      "purpose": "USRDATA/Y2DATA control",
+      "region": "EMMC_PART_UNKNOWN (0x00), legacy global DA address mode",
+      "start_address_hex": "0x41780000",
+      "length_hex": "0x1000",
+      "physical_start_bytes": 1077411840,
+      "size_bytes": 4096,
+      "expected_source": "out/y2linux-production-v1-r4/Y2DATA.img",
+      "expected_prefix_sha256": "1df21cc4106599cb151beeccaf70750ece9d0b9180b5c7829714e5cea51f9c1e",
+      "spft_start_bytes": 1098383360,
+      "stock_partition": "USRDATA"
+    }
+  ],
+  "interpretation_gate": "BOOTIMG control must match the running Storage05 image, and region/address selection must be retained; otherwise no media-corruption inference",
+  "filesystem_limit": "4 KiB prefixes check location/superblock identity, not full on-device filesystem integrity",
+  "table_policy": "inspect differences only; do not rewrite MBR/EBR from this plan",
+  "storage_writes": false,
+  "original_samples_retained": "evidence-private/20260913-storage05-readback-210003/samples",
+  "mode_guard": "Keep the same legacy mode used in the retained log. These addresses are not valid for a backend explicitly selecting EMMC_USER. Verify BOOTIMG content and logged commands before interpreting metadata."
+}

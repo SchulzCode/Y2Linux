@@ -2,7 +2,16 @@
 
 ## Latest physical result: still in rescue
 
-The later [successful ACM capture](../hardware-evidence/2026-09-13-storage05-owner/README.md#latest-read-only-acm-capture-succeeds)
+The owner's subsequent [SPFT Readback](../hardware-evidence/2026-09-13-storage05-owner/README.md#latest-spft-readback-completed-in-a-different-address-mode)
+completed all six files, but the assistant's physical-offset instructions did
+not match the tool's actual legacy global address mode. The supposed Y2ROOT
+prefix exactly matches stock SEC_RO; the BOOTIMG identity control fails. This
+does not establish intended MBR/EBR or ext4 contents. The
+[corrected readback coordinates](../build/storage05-readback.md) use the same
+observed tool mode. No Linux address translation, table repair, image rewrite
+or additional firmware is justified by this acquisition mismatch.
+
+The earlier [successful ACM capture](../hardware-evidence/2026-09-13-storage05-owner/README.md#earlier-read-only-acm-capture-succeeds)
 retains 2736 contiguous kernel records, including sector-addressed=1, capacity
 15269888 and PART_CONFIG=0x48 (user-area access bits zero). The same CMD18
 signature0000 and successful SBC/R1 remain; rescue fails at 40.853244 seconds.

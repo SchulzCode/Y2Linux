@@ -1,0 +1,120 @@
+{
+  "operation": "owner-performed SPFT Readback",
+  "reported_done": true,
+  "completed_local_time": "2026-09-13T21:00:03+02:00",
+  "tool_result": "S_DONE(0x0)",
+  "total_bytes": 13824,
+  "source_commit": "7c4063e",
+  "raw_evidence_private": "evidence-private/20260913-storage05-readback-210003",
+  "logs": {
+    "ADPT_20260913-185127_0.log": {
+      "bytes": 34971,
+      "sha256": "0262eac0990e60155beded9748c86cf14730d8a4131a8e43d80af726c2b1fa4b"
+    },
+    "BROM_DLL_V5.log": {
+      "bytes": 832026,
+      "sha256": "7b45f94aeddf39dc4e11b4a084cde7014443d9325383704438c4d84997c041a3"
+    },
+    "GLB_20260913-185127_0.log": {
+      "bytes": 1053,
+      "sha256": "ee4bcb59d3ea3c02f597caf450e16c4449a4aff578612719fd2978351c44585e"
+    },
+    "QT_FLASH_TOOL.log": {
+      "bytes": 47898,
+      "sha256": "c3daee3dd7f9e7eafef7e2719855a0779fe64190b6e1ec23d891b29741ebc85c"
+    }
+  },
+  "rows": [
+    {
+      "file": "BOOTIMG-prefix.bin",
+      "size_bytes": 4096,
+      "sha256": "ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7",
+      "expected_prefix_sha256": "a53c3f62d60057646f2b300a03ed4e67d440cf1f73c1bf23b3a2cb5dceb4a7c5",
+      "expected_match": false,
+      "all_zero": true,
+      "logged_start_hex": "0x01d80000",
+      "logged_address_flag": "NUTL_ADDR_LOGICAL",
+      "logged_region": "EMMC_PART_UNKNOWN (0x00)",
+      "read_command_log_line": 4157,
+      "partition_switch_log_line": 4147
+    },
+    {
+      "file": "MBR.bin",
+      "size_bytes": 512,
+      "sha256": "ee1d14c21d10e7a0ce8a4c9455fa9635278ff9f2afa95fb52b7dc5b0ba82286e",
+      "expected_prefix_sha256": "4be9c92be18ba4169d4b050e18811c6650eab27a487f1c67f4a49efa01cd32a1",
+      "expected_match": false,
+      "all_zero": false,
+      "logged_start_hex": "0x00000000",
+      "logged_address_flag": "NUTL_ADDR_LOGICAL",
+      "logged_region": "EMMC_PART_UNKNOWN (0x00)",
+      "read_command_log_line": 4182,
+      "partition_switch_log_line": 4172
+    },
+    {
+      "file": "EBR1.bin",
+      "size_bytes": 512,
+      "sha256": "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560",
+      "expected_prefix_sha256": "0eca0f26847ffd17426ffd7c9e976a7e28017cf6bc454d6478c68d3b2c52a64e",
+      "expected_match": false,
+      "all_zero": true,
+      "logged_start_hex": "0x00080000",
+      "logged_address_flag": "NUTL_ADDR_LOGICAL",
+      "logged_region": "EMMC_PART_UNKNOWN (0x00)",
+      "read_command_log_line": 4207,
+      "partition_switch_log_line": 4197
+    },
+    {
+      "file": "EBR2.bin",
+      "size_bytes": 512,
+      "sha256": "f5ee1aab0749ca9fde63ff196a4c3a290d263dd34558a648ef459410ffb13385",
+      "expected_prefix_sha256": "699e1e33054e944e7b1776a539cd41551f4a066abc51535ccfc3d50b44c4ffc7",
+      "expected_match": false,
+      "all_zero": false,
+      "logged_start_hex": "0x04700000",
+      "logged_address_flag": "NUTL_ADDR_LOGICAL",
+      "logged_region": "EMMC_PART_UNKNOWN (0x00)",
+      "read_command_log_line": 4232,
+      "partition_switch_log_line": 4222
+    },
+    {
+      "file": "Y2ROOT-prefix.bin",
+      "size_bytes": 4096,
+      "sha256": "4682ba615147a35cefb278dc917a215b25753ac1154076c1fd5496ea4896b4d2",
+      "expected_prefix_sha256": "6a0aec2a06f1cf872ad5d6d59e744f6f056501b223997fde3ab88f063ee0a146",
+      "expected_match": false,
+      "all_zero": false,
+      "logged_start_hex": "0x05180000",
+      "logged_address_flag": "NUTL_ADDR_LOGICAL",
+      "logged_region": "EMMC_PART_UNKNOWN (0x00)",
+      "read_command_log_line": 4257,
+      "partition_switch_log_line": 4247
+    },
+    {
+      "file": "Y2DATA-prefix.bin",
+      "size_bytes": 4096,
+      "sha256": "ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7",
+      "expected_prefix_sha256": "1df21cc4106599cb151beeccaf70750ece9d0b9180b5c7829714e5cea51f9c1e",
+      "expected_match": false,
+      "all_zero": true,
+      "logged_start_hex": "0x40380000",
+      "logged_address_flag": "NUTL_ADDR_LOGICAL",
+      "logged_region": "EMMC_PART_UNKNOWN (0x00)",
+      "read_command_log_line": 4282,
+      "partition_switch_log_line": 4272
+    }
+  ],
+  "address_mode_control": {
+    "sample": "Y2ROOT-prefix.bin",
+    "stock_comparison": "SEC_RO first 4096 bytes",
+    "exact_match": true,
+    "sha256": "4682ba615147a35cefb278dc917a215b25753ac1154076c1fd5496ea4896b4d2",
+    "logged_start_hex": "0x05180000",
+    "stock_sec_ro_linear_start_hex": "0x5180000",
+    "mbr_named_sample_header": "EMMC_BOOT"
+  },
+  "conclusion": "The supplied physical offsets were read as legacy global DA addresses. The BOOTIMG identity gate fails. These samples do not prove the contents or corruption of the intended MBR/EBR or ext4 locations. Correct the acquisition coordinates; do not change Linux addressing based on this result.",
+  "storage_writes_by_assistant": false,
+  "firmware_built": false,
+  "gui_changed_by_assistant_this_turn": false
+}

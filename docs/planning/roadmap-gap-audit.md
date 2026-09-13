@@ -6,6 +6,25 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Storage05 readback observation update — 2026-09-13
+
+The owner completed the prepared 13824-byte batch at 21:00:03 CEST. The
+[retained result](../hardware-evidence/2026-09-13-storage05-owner/README.md)
+shows that the assistant supplied physical offsets to a tool path operating
+in legacy global DA mode (`NUTL_ADDR_LOGICAL`, `EMMC_PART_UNKNOWN=0`). All six
+intended-prefix checks fail; the supposed Y2ROOT prefix exactly matches stock
+SEC_RO at its global address. The BOOTIMG identity gate fails. This establishes
+an acquisition-coordinate error, not intended table corruption or a Linux
+offset defect. Current internal boot is still failed and ext4 contents on the
+device remain unqualified.
+
+The next smallest blocker is the same six samples at the
+[corrected addresses for the observed mode](../build/storage05-readback.md).
+Original bytes and logs are retained privately. No firmware build, source/DT
+change, assistant device operation, GUI change, table repair, scope change or
+milestone transition occurred. #33 stays ACTIVE and later gates are unchanged.
+This is an observation update, not new hardware or repair authorization.
+
 ## Storage05 ACM observation update — 2026-09-13
 
 Owner-established host access now permits [Storage05 LOG1 capture](../hardware-evidence/2026-09-13-storage05-owner/README.md).

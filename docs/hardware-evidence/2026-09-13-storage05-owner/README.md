@@ -1,6 +1,33 @@
 # Storage05 owner boot result — failed internal discovery
 
-## Latest: read-only ACM capture succeeds
+## Latest: SPFT readback completed in a different address mode
+
+At 21:00:03 CEST the owner completed the six Readback entries. All 13824 bytes
+arrived and SPFT reported `S_DONE(0x0)`. The retained commands selected
+`EMMC_PART_UNKNOWN (0x00)` with `NUTL_ADDR_LOGICAL`; the supplied physical
+offsets were interpreted in the legacy global DA address space. This exposes an
+error in the assistant's instructions, not an on-device partition-table result.
+
+All six intended-prefix comparisons fail. The file named MBR has an `EMMC_BOOT`
+header. The file named Y2ROOT exactly equals the stock SEC_RO first 4096 bytes
+at global address `0x05180000`. This independently corroborates the address
+mode. BOOTIMG is all zero at the incorrectly selected location; the identity
+gate fails, so no intended MBR/EBR corruption or ext4 damage is established.
+[Analysis](readback-analysis.json), [selected log lines](readback-log-excerpt.txt).
+Raw samples and complete SPFT logs stay in
+`evidence-private/20260913-storage05-readback-210003/` because the unintended
+locations include boot/security data. The source files in `samples/` are also
+left in place until the owner's next acquisition.
+
+The [corrected six-row plan](../../build/storage05-readback.md) uses the same
+observed legacy mode and stock scatter/global addresses. It remains a 13.5-KiB
+manual read, with the known BOOTIMG control required before media conclusions.
+This is not a kernel address-translation finding. Firmware, DT, protected write
+ranges, partition geometry and ext4 images are unchanged. No new firmware,
+physical operation or GUI change was initiated by the assistant in this analysis.
+#33 remains ACTIVE; internal boot remains failed. No milestone status changes.
+
+## Earlier: read-only ACM capture succeeds
 
 After the owner connected Storage05 and granted this ACM node's host access, a
 20-second LOG1 request returned a valid `Y2LOG1 Y2LINUX-PLATFORM` header and
