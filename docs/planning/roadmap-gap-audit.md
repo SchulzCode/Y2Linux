@@ -6,6 +6,31 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Production Storage v1 manual-package boundary audit — 2026-09-13
+
+Implementation/build commit `f2ef297a81cc0229155ba5d96f1955bdd230f11d` now yields the
+[complete manual deployment package/checklist](../build/y2linux-production-v1-deployment.md).
+Re-reviewed every coverage row against the live AUDIO-02 entry, retained DEV-02/
+M3 results, current open issues#16/#27–33, stock table/scatter and recovery sources.
+24 regression tests, kernel/DT/BOOTIMG checks, root/data filesystem integrity,
+manifest/scatter/sparse/hash checks and synthetic readback rejection pass.
+No new production hardware result or protected-data readback is claimed.
+
+**Production Storage / Installation v1 ACTIVE / manual owner operation pending**
+([#33](https://github.com/SchulzCode/Y2Linux/issues/33), GitHub milestone3).
+Internal root/data implementation is ready for its first manual test, not closure.
+M3 remains open with clean44.1kHz;48kHz/LR/repeat remain pending. eMMC is disabled
+in the currently deployed kernel. Live MemTotal954384KiB/four CPUs/SD/ALSA are
+confirmed; current no-SD/internal-write/rescue-negative acceptance is absent.
+All other hardware gaps remain unchanged and tracked. M4 follows storage, then
+M5, remaining GPU/USB reconnect/stability, final qualification, then native app.
+
+Overwritten-partition FM factory sources are available/hashed; personal Android
+state and independent recovery retention remain explicit operator choices/steps.
+Before/after bounded protected/table readbacks and actual address verification
+belong to the owner manual boundary. The assistant has performed no eMMC write,
+SPFT operation, kernel deployment, OTA updater or Y2PlayerNative implementation.
+
 ## Production Storage v1 activation audit — 2026-09-13
 
 Authoritative current scope, superseding the historical phase order below.
@@ -874,7 +899,7 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Wheel/select input | **CONFIRMED** | DEV-02 raw evdev has balanced Select and both wheel KEY_UP/KEY_DOWN directions;52wheelIRQ/52I2C completions. Supersedes DEV-01 -110 transport regression. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation keys, both volume keys and brief Power have balanced DEV-02 evdev events. No redesign; wake/suspend remains M4 and no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
 | Removable SD | **CONFIRMED** | DEV-02 SD128 on11240000.mmc at13MHz/one bit; ext4 Y2ROOT boots Buildroot, reads files, accepts verified userspace updates and sync.512MiB filesystem retained; throughput/hotplug/card-removal/power-fail qualification later. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Internal eMMC | **CONFIRMED** | DEV-02 live DT disables11230000.mmc, no native eMMC block/partition node or mount. Removable-only root resolver and no automounter exclude Android partitions. Identity remains historical because disabled host exposes no live CID. | #28; recovery/rootfs policy #32. |
+| Internal eMMC | **PARTIAL** | Current AUDIO-02 disables11230000.mmc. Historical native CID/CSD and stock runtime map exist. Production v1 enables a bounded native path with ANDROID/USRDATA write guard; offline validated, native block/mount/write physically pending. | #33 storage; #28/#32. |
 | Development rootfs and filesystem/data layout | **CONFIRMED** | Physical Buildroot2025.02.17/glibc/BusyBox/Dropbear on writable removable Y2ROOT, key authentication and complete command logs. Runtime mount and matching-module index fixes applied. Owner restart validates persistent runtime/module fixes; persistent ALSA tools/config/WAVs now installed from canonical Buildroot output; SD full build-id remains DEV-01 with additive file manifest. Production layout separate. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
 | PMIC/battery/charger telemetry | **PARTIAL** | DEV-02 PWRAP/MFD/regulator/PMIC key consumers work and USB presence power_supply ONLINE=1 is readable. This does not provide battery units/calibration, charging policy or voltage/thermal telemetry; full power now belongs to M4 #30. | #23; added #30. |
 | Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |
@@ -887,8 +912,8 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Firmware and per-device calibration | **PARTIAL** | Names and some hashed artifacts exist; exact selected radio blobs/order/compatibility, loading permissions, redistribution provenance and unique-data retention unresolved. | #31 and #32; private raw data stays private. |
 | FM where physically supported | **PARTIAL** | Donor STP/FM/AFE source exists; owner confirms this older Y2 lacks usable reception hardware. No reception implementation/qualification target for this board; other revisions remain untested. | Conditional #31/M16 reference only; [donor audit](../knowledge/donor-audit.md). |
 | Recovery and safe acquisition | **PARTIAL** | Owner-proven SPFT/FM history plus documented BOOTIMG-only Android restoration. Exact current image/per-device backups, consistency and independent retention remain incomplete. [Recovery](../knowledge/recovery.md), [actual trial](../knowledge/first-experiment-result.md). | Open M0; #32 owns continuing production/recovery coverage. |
-| Updates / rollback / production security | **PLANNED** | Blueprint names signatures/rollback; no reviewed storage/key/threat/interrupt-safe updater design. Unchanged LK does not automatically verify custom payloads. | Added #32; M18–20 platform handoff, not implementation now. |
-| Production rootfs / services / non-root app contract | **PLANNED** | DEV-01 has a development BusyBox-init/glibc/Dropbear stack. Production services, non-root app boundaries and lifecycle policy remain unimplemented; no native app starts. | #32 (M6); app implementation belongs to native repo M7+. |
+| Updates / rollback / production security | **PARTIAL** | V1 release manifest, component versions, allowlists, per-owner SSH provisioning and staged rescue update/installer contract implemented. No OTA/signature implementation; no automatic torn-BOOTIMG rollback, unchanged LK supplies no new verified boot. | #33 architecture/package; #32 future lifecycle/security. |
+| Production rootfs / services / non-root app contract | **PARTIAL** | Production Buildroot/ext4 Y2ROOT and independent Y2DATA, persistent SSH state, internal rescue resolver and optional SD media tool built/validated offline. No-SD physical acceptance pending; non-root app lifecycle remains later. | #33 storage; #32 lifecycle; native app deferred. |
 | Time/RTC, entropy, identity and diagnostic privacy | **PARTIAL** | DEV-02 has no RTC class, starts at1970, and initializes CRNG at153.97s before ED25519 host-key generation. Key persists on SD. Entropy sysctl/boot_id files absent; no insecure entropy-credit workaround. Time/privacy policy remains #31/#32. | #31/#32; added explicit cross-cutting coverage. |
 
 ## Gaps found and minimum additions

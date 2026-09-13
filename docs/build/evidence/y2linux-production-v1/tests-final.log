@@ -1,0 +1,35 @@
+test_exact_internal_geometry_without_fixed_number (tests.test_production_storage.RootResolver.test_exact_internal_geometry_without_fixed_number) ... ok
+test_mismatched_capacity (tests.test_production_storage.RootResolver.test_mismatched_capacity) ... ok
+test_removable_clone_never_selected (tests.test_production_storage.RootResolver.test_removable_clone_never_selected) ... ok
+test_shifted_partition (tests.test_production_storage.RootResolver.test_shifted_partition) ... ok
+test_wrong_identity_and_duplicates (tests.test_production_storage.RootResolver.test_wrong_identity_and_duplicates) ... ok
+test_wrong_size (tests.test_production_storage.RootResolver.test_wrong_size) ... ok
+test_ext_csd_cannot_select_boot_rpmb_or_change_boot_config (tests.test_production_storage.StorageGuard.test_ext_csd_cannot_select_boot_rpmb_or_change_boot_config) ... ok
+test_real_request_guard_completes_hsq_rejections (tests.test_production_storage.StorageGuard.test_real_request_guard_completes_hsq_rejections) ... ok
+test_write_bounds_and_protected_exclusions (tests.test_production_storage.StorageGuard.test_write_bounds_and_protected_exclusions) ... ok
+test_classified_partitions_and_target_math (tests.test_production_storage.Transport.test_classified_partitions_and_target_math) ... ok
+test_sparse_defined_bytes_and_truncation (tests.test_production_storage.Transport.test_sparse_defined_bytes_and_truncation) ... ok
+test_real_trigger_irq_and_dma_bounds (tests.test_audio.AFE.test_real_trigger_irq_and_dma_bounds) ... ok
+test_resolved_audio_dt_rejects_unsafe_rails (tests.test_audio.AFE.test_resolved_audio_dt_rejects_unsafe_rails) ... ok
+test_startup_accepts_positive_constraint_success (tests.test_audio.AFE.test_startup_accepts_positive_constraint_success) ... ok
+test_failed_child_keeps_root_handoff_disabled (tests.test_dev_abi.UserspaceABI.test_failed_child_keeps_root_handoff_disabled) ... ok
+test_required_abi_and_framebuffer_support (tests.test_dev_abi.UserspaceABI.test_required_abi_and_framebuffer_support) ... ok
+test_old_controller_uses_one_wrrd_without_retries (tests.test_dev_i2c.CombinedI2C.test_old_controller_uses_one_wrrd_without_retries) ... ok
+test_regmap_callbacks (tests.test_baseline_pwrap.Transport.test_regmap_callbacks) ... ok
+test_atomic_publication_and_corruption_rejection (tests.test_overlays.OverlayCache.test_atomic_publication_and_corruption_rejection) ... ok
+test_bounded_layout (tests.test_d08.Layout.test_bounded_layout) ... ok
+test_checked_arithmetic (tests.test_d08.Layout.test_checked_arithmetic) ... ok
+test_independent_rejections (tests.test_d08.Layout.test_independent_rejections) ... ok
+test_small_adjustment_preserves_dtb (tests.test_d08.Layout.test_small_adjustment_preserves_dtb) ... ok
+test_roundtrip_and_corruptions (tests.test_bootimg.Bootimg.test_roundtrip_and_corruptions) ... ok
+
+----------------------------------------------------------------------
+Ran 24 tests in 0.553s
+
+OK
+Y2ABI begin: Thumb signal return, kuser helpers, glibc TLS/threads and VFP
+Y2ABI Thumb signal delivery/return OK
+Y2ABI kuser memory barrier and TLS OK
+Y2ABI PASS: glibc thread/TLS, VFP, clock and allocator
+aplay: version 1.2.13 by Jaroslav Kysela <perex@perex.cz>
+amixer version 1.2.13

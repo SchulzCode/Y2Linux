@@ -1,0 +1,155 @@
+{
+  "policy": "DEV-01",
+  "inputs": {
+    "z": 3235816,
+    "dtb": 9354,
+    "initramfs": 1932946,
+    "image": 9781504,
+    "kernel_bss": 1128576,
+    "kernel_span": 10910080,
+    "restart": 276,
+    "wont_overwrite": 520,
+    "edata": 3235816,
+    "reloc_code_end": 2364,
+    "stack_top": 3239936,
+    "compressed_bss_start": 3235816,
+    "compressed_bss_end": 3235840,
+    "regular_file_bytes": 4745123
+  },
+  "ram": [
+    [
+      2147483648,
+      3187671040
+    ]
+  ],
+  "reserved": [
+    [
+      2147483648,
+      2147500032
+    ],
+    [
+      2172649472,
+      2214592512
+    ],
+    [
+      3186622464,
+      3221225472
+    ]
+  ],
+  "zimage": [
+    2147516416,
+    2150752232
+  ],
+  "appended_dtb": [
+    2150752232,
+    2150761592
+  ],
+  "image": [
+    2147516416,
+    2157297920
+  ],
+  "resident_kernel": [
+    2147516416,
+    2158426496
+  ],
+  "relocated_copy": [
+    2157300224,
+    2160545152
+  ],
+  "relocated_dtb": [
+    2160535784,
+    2160545144
+  ],
+  "compressed_bss": [
+    2160545144,
+    2160545176
+  ],
+  "stack_top": 2160549264,
+  "malloc": [
+    2160549264,
+    2160614800
+  ],
+  "initramfs": [
+    2214592512,
+    2216525458
+  ],
+  "lk_staging": [
+    2147515904,
+    2152701440
+  ],
+  "staged_initramfs": [
+    2150762496,
+    2152695442
+  ],
+  "bootimg_read_end": 5187584,
+  "relocation_delta": 9783552,
+  "relocation_code_allowance": 2304,
+  "adjusted_image_size": 9781504,
+  "workspace_end": 2160614800,
+  "allocator_before_kernel_bytes": 997179392,
+  "dt": {
+    "node_count": 71,
+    "bootargs": "rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=8 ignore_loglevel panic=0 log_buf_len=1M user_debug=31",
+    "memory": [
+      [
+        2147483648,
+        3187671040
+      ]
+    ],
+    "storage": "internal eMMC disabled; removable SD writable",
+    "evidence": "offline dependencies only"
+  },
+  "sleep_syscall": {
+    "number": 162,
+    "target": "sys_nanosleep_time32",
+    "entry": "0xc008cca8",
+    "sys_ni_syscall": "0xc0040198",
+    "compat_32bit_time": true,
+    "status": "PASS linked implementation, not ENOSYS"
+  },
+  "kernel_symbols": {
+    "_text": 3221258240,
+    "_edata": 3231039744,
+    "__bss_start": 3231039744,
+    "__bss_stop": 3232168320,
+    "_end": 3232168320
+  },
+  "artifacts": {
+    "Image": {
+      "bytes": 9781504,
+      "sha256": "1111ac81809be7b9d4d3084ac68091c6347fa3fdce2de78cc599f1b41448fd92"
+    },
+    "zImage": {
+      "bytes": 3235816,
+      "sha256": "c7e85be28e7ad17e925ef7ca2a82236b56a64f941699bcfe0eee4c469b467679"
+    },
+    "y2.dtb": {
+      "bytes": 9354,
+      "sha256": "28758007464d26a0244fe6b901f091050423c07bf471364bf3a46189a60e8b72"
+    },
+    "zImage-dtb": {
+      "bytes": 3245176,
+      "sha256": "7c205dc7c6284e4b582d9d24ff17e006bf6cd3ff8caed49448d8c17c163ec71b"
+    },
+    "initramfs.cpio.gz": {
+      "bytes": 1932946,
+      "sha256": "2f7059b0e9751db2a6de559973a3c3b4a8dac9a9e780126cc804a8a4f19af4d3"
+    },
+    "display.ko": {
+      "bytes": 158300,
+      "sha256": "f9c844fd98244c6d926fc8e75f0a27673054135edaf8bccb76d517813becde0f"
+    }
+  },
+  "status": "PASS offline Production Storage v1; internal boot unqualified",
+  "bootimg": {
+    "bytes": 5187584,
+    "sha256": "ca77a6767a1cbcbd36e5fdbcd6dfaeaa1c95a85aaab767b3146fd59831235e12",
+    "android_id_sha1": "b49a5c634b51f11e6c861b26c8658978ed1d3876",
+    "partition_bytes": 16777216,
+    "kernel_wrapper_offset": 2048,
+    "ramdisk_wrapper_offset": 3248128,
+    "lk_complete_read_end": 5187584,
+    "zero_filled_read_tail_bytes": 5998,
+    "authentication": "unsigned image; offline checks do not establish this candidate hardware acceptance"
+  }
+}

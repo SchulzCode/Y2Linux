@@ -4,7 +4,8 @@ Reusable general-purpose Linux platform for the physical Innioasis Y2, using
 Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 **not started** until the platform milestones and whole-system qualification finish.
 
-**Start here:** [2026-09-10 session handoff](docs/planning/session-handoff-2026-09-10.md).
+**Start here:** [2026-09-13 production handoff](docs/planning/session-handoff-2026-09-13.md).
+[Manual install package, exact hashes and complete deployment checklist](docs/build/y2linux-production-v1-deployment.md).
 
 | Milestone | Current status |
 | --- | --- |
