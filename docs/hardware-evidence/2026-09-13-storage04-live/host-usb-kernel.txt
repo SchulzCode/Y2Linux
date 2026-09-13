@@ -1,0 +1,20 @@
+$ journalctl -k -b --no-pager --since 2026-09-13 18:51:00 --grep usb 5-2|cdc_ether 5-2|cdc_acm 5-2|enp8s0f3u2
+Sep 13 18:51:59 cachyos-x8664 kernel: usb 5-2: new high-speed USB device number 22 using xhci_hcd
+Sep 13 18:51:59 cachyos-x8664 kernel: usb 5-2: New USB device found, idVendor=0e8d, idProduct=2000, bcdDevice= 1.00
+Sep 13 18:51:59 cachyos-x8664 kernel: usb 5-2: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+Sep 13 18:51:59 cachyos-x8664 kernel: usb 5-2: Product: MT65xx Preloader
+Sep 13 18:51:59 cachyos-x8664 kernel: usb 5-2: Manufacturer: MediaTek
+Sep 13 18:51:59 cachyos-x8664 kernel: cdc_acm 5-2:1.0: Zero length descriptor references
+Sep 13 18:51:59 cachyos-x8664 kernel: cdc_acm 5-2:1.0: probe with driver cdc_acm failed with error -22
+Sep 13 18:51:59 cachyos-x8664 kernel: cdc_acm 5-2:1.1: ttyACM0: USB ACM device
+Sep 13 18:53:38 cachyos-x8664 kernel: usb 5-2: USB disconnect, device number 22
+Sep 13 18:53:54 cachyos-x8664 kernel: usb 5-2: new high-speed USB device number 23 using xhci_hcd
+Sep 13 18:53:54 cachyos-x8664 kernel: usb 5-2: New USB device found, idVendor=0525, idProduct=a4aa, bcdDevice= 6.18
+Sep 13 18:53:54 cachyos-x8664 kernel: usb 5-2: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+Sep 13 18:53:54 cachyos-x8664 kernel: usb 5-2: Product: CDC Composite Gadget
+Sep 13 18:53:54 cachyos-x8664 kernel: usb 5-2: Manufacturer: Linux 6.18.0-y2linux-storage04 with musb-hdrc
+Sep 13 18:53:54 cachyos-x8664 kernel: cdc_ether 5-2:1.0 usb0: register 'cdc_ether' at usb-0000:08:00.3-2, CDC Ethernet Device, be:e9:a8:0a:60:4c
+Sep 13 18:53:54 cachyos-x8664 kernel: cdc_acm 5-2:1.2: ttyACM0: USB ACM device
+Sep 13 18:53:54 cachyos-x8664 kernel: cdc_ether 5-2:1.0 enp8s0f3u2: renamed from usb0
+
+exit=0

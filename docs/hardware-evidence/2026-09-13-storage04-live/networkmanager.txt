@@ -1,0 +1,32 @@
+$ nmcli -f GENERAL,WIRED-PROPERTIES device show enp8s0f3u2
+GENERAL.DEVICE:                         enp8s0f3u2
+GENERAL.TYPE:                           ethernet
+GENERAL.NM-TYPE:                        NMDeviceEthernet
+GENERAL.DBUS-PATH:                      /org/freedesktop/NetworkManager/Devices/5
+GENERAL.VENDOR:                         Netchip Technology, Inc.
+GENERAL.PRODUCT:                        Linux-USB CDC Composite Gadge (Ethernet and ACM)
+GENERAL.DRIVER:                         cdc_ether
+GENERAL.DRIVER-VERSION:                 7.2.3-1-cachyos
+GENERAL.FIRMWARE-VERSION:               CDC Ethernet Device
+GENERAL.HWADDR:                         BE:E9:A8:0A:60:4C
+GENERAL.MTU:                            1500
+GENERAL.STATE:                          20 (unavailable)
+GENERAL.REASON:                         40 (Carrier/link changed)
+GENERAL.IP4-CONNECTIVITY:               1 (none)
+GENERAL.IP6-CONNECTIVITY:               1 (none)
+GENERAL.UDI:                            /sys/devices/pci0000:00/0000:00:08.1/0000:08:00.3/usb5/5-2/5-2:1.0/net/enp8s0f3u2
+GENERAL.PATH:                           pci-0000:08:00.3-usb-0:2:1.0
+GENERAL.IP-IFACE:                       --
+GENERAL.IS-SOFTWARE:                    no
+GENERAL.NM-MANAGED:                     yes
+GENERAL.AUTOCONNECT:                    yes
+GENERAL.FIRMWARE-MISSING:               no
+GENERAL.NM-PLUGIN-MISSING:              no
+GENERAL.PHYS-PORT-ID:                   --
+GENERAL.CONNECTION:                     --
+GENERAL.CON-UUID:                       --
+GENERAL.CON-PATH:                       --
+GENERAL.METERED:                        unknown
+WIRED-PROPERTIES.CARRIER:               off
+
+exit=0

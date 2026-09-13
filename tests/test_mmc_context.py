@@ -6,9 +6,10 @@ ROOT=Path(__file__).resolve().parents[1]
 class Context(unittest.TestCase):
     def test_initialization_before_card_registration_and_switch_confirmation(self):
         spec=next(x for x in json.loads((ROOT/'kernel/patches/manifest.json').read_text())['overlays'] if x['path']=='drivers/mmc/host/mtk-sd.c')
-        source=prepare_overlay(ROOT,spec).read_text();start=source.index('\tif (host->y2_emmc && !mrq->cmd->error)');end=source.index('\tmsdc_track_cmd_data(host, mrq->cmd);',start)
+        source=prepare_overlay(ROOT,spec).read_text();start=source.index('\tif (host->y2_emmc && mrq->cmd->error &&');end=source.index('\tmsdc_track_cmd_data(host, mrq->cmd);',start)
+        dispatch_start=source.index('\tif (host->y2_emmc && mrq->cmd->opcode == MMC_GO_IDLE_STATE)');dispatch_end=source.index('\thost->error = 0;',dispatch_start)
         hdr=(ROOT/'.cache/sources/linux-6.18/include/linux/mmc/mmc.h').read_text()
-        names=('MMC_SEND_OP_COND','MMC_SWITCH','MMC_SEND_STATUS','MMC_SEND_EXT_CSD','MMC_READ_SINGLE_BLOCK','MMC_READ_MULTIPLE_BLOCK','EXT_CSD_PART_CONFIG','R1_STATUS','R1_CURRENT_STATE','R1_READY_FOR_DATA','R1_SWITCH_ERROR','R1_STATE_TRAN')
+        names=('MMC_GO_IDLE_STATE','MMC_SEND_OP_COND','MMC_SWITCH','MMC_SEND_STATUS','MMC_SEND_EXT_CSD','MMC_READ_SINGLE_BLOCK','MMC_READ_MULTIPLE_BLOCK','EXT_CSD_PART_CONFIG','R1_STATUS','R1_CURRENT_STATE','R1_READY_FOR_DATA','R1_SWITCH_ERROR','R1_STATE_TRAN')
         constants='\n'.join(line for line in hdr.splitlines() if any(re.match(r'#define '+n+r'(\s|\()',line) for n in names))+'\n'
         pre=r'''
 #include <assert.h>
@@ -21,6 +22,7 @@ typedef uint32_t u32;typedef uint8_t u8;
 #define MMC_DATA_READ BIT(9)
 #define DMA_FROM_DEVICE 2
 #define dev_info_ratelimited(...) (++logs)
+#define dev_info(...) ((void)0)
 struct mmc_command {unsigned opcode,arg,resp[4];int error;};
 struct mmc_data {int error;unsigned flags,bytes_xfered,sg_len;void *sg;};
 struct mmc_request {struct mmc_command *cmd;struct mmc_data *data;};
@@ -42,21 +44,28 @@ int main(void) {
  r.data=&data;c.opcode=MMC_SEND_EXT_CSD;data.error=-5;complete(&h,&r);assert(!h.y2_identified&&!copies);
  data.error=0;c.error=-5;complete(&h,&r);assert(!h.y2_identified&&!copies);
  c.error=0;complete(&h,&r);assert(h.y2_identified&&h.y2_sectors==15269888&&h.y2_partition==0x49&&copies==1&&!owned);
- r.data=NULL;c.opcode=MMC_SWITCH;c.arg=0x03b34801;complete(&h,&r);
+ r.data=NULL;c.opcode=MMC_SWITCH;c.arg=0x03b34801;dispatch(&h,&r);complete(&h,&r);
  assert(h.y2_switch_pending&&h.y2_partition==0x49); /* not trusted on transport success */
  c.opcode=MMC_SEND_STATUS;c.resp[0]=7<<9;complete(&h,&r);assert(h.y2_switch_pending);
  c.resp[0]=(4<<9)|R1_READY_FOR_DATA|R1_SWITCH_ERROR;complete(&h,&r);
  assert(!h.y2_identified&&!h.y2_switch_pending&&h.y2_partition==0x49);
  r.data=&data;c.opcode=MMC_SEND_EXT_CSD;complete(&h,&r);assert(h.y2_identified);
- r.data=NULL;c.opcode=MMC_SWITCH;c.arg=0x03b34801;complete(&h,&r);
+ r.data=NULL;c.opcode=MMC_SWITCH;c.arg=0x03b34801;dispatch(&h,&r);complete(&h,&r);
  c.opcode=MMC_SEND_STATUS;c.resp[0]=(4<<9)|R1_READY_FOR_DATA;complete(&h,&r);
  assert(!h.y2_switch_pending&&h.y2_partition==0x48&&h.y2_identified);
  r.data=&data;c.opcode=MMC_READ_MULTIPLE_BLOCK;c.arg=0;complete(&h,&r);assert(logs==1&&!owned);
  c.arg=166912;complete(&h,&r);assert(logs==1); /* normal file contents never observed */
+ r.data=NULL;c.opcode=MMC_SWITCH;c.arg=0x03b34801;dispatch(&h,&r);
+ assert(h.y2_switch_pending);c.error=-5;complete(&h,&r);
+ assert(!h.y2_identified&&!h.y2_switch_pending);
+ c.error=0;c.opcode=MMC_SEND_STATUS;c.resp[0]=(4<<9)|R1_READY_FOR_DATA;complete(&h,&r);
+ assert(!h.y2_identified); /* status alone cannot bless a failed switch */
+ h.y2_identified=true;c.opcode=MMC_GO_IDLE_STATE;dispatch(&h,&r);
+ assert(!h.y2_identified&&!h.y2_blockaddr&&!h.y2_switch_pending);
  return 0;
 }
 '''
         with tempfile.TemporaryDirectory() as d:
-            p=Path(d);(p/'test.c').write_text(constants+pre+source[start:end]+tail)
+            p=Path(d);(p/'test.c').write_text(constants+pre+source[start:end]+'}\nstatic void dispatch(struct msdc_host *host,struct mmc_request *mrq) {\n'+source[dispatch_start:dispatch_end]+tail)
             subprocess.run(['cc','-Wall','-Wextra','-Werror',str(p/'test.c'),'-o',str(p/'test')],check=True)
             subprocess.run([str(p/'test')],check=True)

@@ -1,0 +1,2265 @@
+Y2LOG1 Y2LINUX-PLATFORM
+PID1 STAGE: PID1 ENTER                       
+PID1 STAGE: PROC MOUNT DONE                  
+PID1 STAGE: SYSFS MOUNT DONE                 
+INPUT DEVICE Y2 navigation buttons
+INPUT OPEN 0 3392 0
+INPUT DEVICE mtk-pmic-keys
+INPUT OPEN 1 3393 0
+INPUT DEVICE APT32F click-wheel
+INPUT OPEN 2 3394 0
+INPUT DEVICE mt6582-keypad
+INPUT OPEN 3 3395 0
+PID1 STAGE: WAIT 1S / LOOP LIVE              
+PID1 PID1:1 BEAT:1 [*] FRAME:9               
+PID1 STAGE: CHECK PHY / RELEASE SUSPEND      
+PID1 LINUX: 6.18.0-y2linux-storage04         
+PID1 USB RC:0    VALID:001FFFFF              
+PID1 PW:0    /7    CLK:0/15  CHR:0001 D:0    
+PID1 CPUS ONLINE: 0-3                        
+PID1 DT RAM: 992M MINUS RESERVATIONS         
+PID1                                         
+PID1                                         
+PID1                                         
+PID1 PROC MOUNT RC: 0                        
+PID1 SYSFS MOUNT RC: 0                       
+PID1 LAST ERR: NONE                          
+PID1 SLEEP RC: 0                             
+PID1 PREVIOUS FRAME WRITE: 804               
+PID1 BUILD: Y2LINUX-PLATFORM                 
+PID1 WAKE:0   W:1 V:7F/FFF P:00 D:80         
+PID1 6A:04>00 PHY:00000002120000             
+PID1 CTL:1A:10 1D:00 22:00 63:00             
+PID1 TRIM:00:6E/6E 05:44/44 15:10/10         
+PID1 PID1:1 BEAT:1 [*] FRAME:12              
+PID1 US:2 RC:0 IRQ:0 D:--                    
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:2 [ ] FRAME:18              
+PID1 US:2 RC:0 IRQ:0 D:--                    
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:3 [*] FRAME:24              
+PID1 US:2 RC:0 IRQ:0 D:--                    
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:4 [ ] FRAME:30              
+PID1 US:2 RC:0 IRQ:0 D:--                    
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:5 [*] FRAME:36              
+PID1 US:2 RC:0 IRQ:0 D:--                    
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:6 [ ] FRAME:42              
+PID1 US:2 RC:0 IRQ:0 D:--                    
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:7 [*] FRAME:48              
+PID1 US:2 RC:0 IRQ:0 D:--                    
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:8 [ ] FRAME:54              
+PID1 US:2 RC:0 IRQ:0 D:--                    
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:9 [*] FRAME:60              
+PID1 US:6 RC:0 IRQ:69 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:10 [ ] FRAME:66             
+PID1 US:6 RC:0 IRQ:71 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:11 [*] FRAME:72             
+PID1 US:6 RC:0 IRQ:71 D:99                   
+PID1 LAST ERR: NONE                          
+
+SNAPSHOT BEGIN /proc/cpuinfo
+processor	: 0
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 2079.12
+Features	: half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+processor	: 1
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 2072.57
+Features	: half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+processor	: 2
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 2072.57
+Features	: half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+processor	: 3
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 2072.57
+Features	: half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+Hardware	: Generic DT based system
+Revision	: 0000
+Serial		: 0000000000000000
+
+SNAPSHOT END /proc/cpuinfo
+
+SNAPSHOT BEGIN /sys/devices/system/cpu/online
+0-3
+
+SNAPSHOT END /sys/devices/system/cpu/online
+
+SNAPSHOT BEGIN /proc/meminfo
+MemTotal:         954380 kB
+MemFree:          934444 kB
+MemAvailable:     921852 kB
+Buffers:               0 kB
+Cached:             4872 kB
+SwapCached:            0 kB
+Active:             2708 kB
+Inactive:           2280 kB
+Active(anon):       2708 kB
+Inactive(anon):     2280 kB
+Active(file):          0 kB
+Inactive(file):        0 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+HighTotal:        228352 kB
+HighFree:         221340 kB
+LowTotal:         726028 kB
+LowFree:          713104 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:                 0 kB
+Writeback:             0 kB
+AnonPages:           192 kB
+Mapped:             1952 kB
+Shmem:              4872 kB
+KReclaimable:        788 kB
+Slab:               5368 kB
+SReclaimable:        788 kB
+SUnreclaim:         4580 kB
+KernelStack:         632 kB
+PageTables:          144 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:      477188 kB
+Committed_AS:       6388 kB
+VmallocTotal:     245760 kB
+VmallocUsed:         136 kB
+VmallocChunk:          0 kB
+Percpu:              176 kB
+Balloon:               0 kB
+
+SNAPSHOT END /proc/meminfo
+
+SNAPSHOT BEGIN /proc/zoneinfo
+Node 0, zone   Normal
+  per-node stats
+      nr_inactive_anon 570
+      nr_active_anon 677
+      nr_inactive_file 0
+      nr_active_file 0
+      nr_unevictable 0
+      nr_slab_reclaimable 197
+      nr_slab_unreclaimable 1145
+      nr_isolated_anon 0
+      nr_isolated_file 0
+      workingset_nodes 0
+      workingset_refault_anon 0
+      workingset_refault_file 0
+      workingset_activate_anon 0
+      workingset_activate_file 0
+      workingset_restore_anon 0
+      workingset_restore_file 0
+      workingset_nodereclaim 0
+      nr_anon_pages 48
+      nr_mapped    488
+      nr_file_pages 1218
+      nr_dirty     0
+      nr_writeback 0
+      nr_shmem     1218
+      nr_shmem_hugepages 0
+      nr_shmem_pmdmapped 0
+      nr_file_hugepages 0
+      nr_file_pmdmapped 0
+      nr_anon_transparent_hugepages 0
+      nr_vmscan_write 0
+      nr_vmscan_immediate_reclaim 0
+      nr_dirtied   0
+      nr_written   0
+      nr_throttled_written 0
+      nr_kernel_misc_reclaimable 0
+      nr_foll_pin_acquired 0
+      nr_foll_pin_released 0
+      nr_kernel_stack 632
+      nr_page_table_pages 36
+      nr_sec_page_table_pages 0
+      pgdemote_kswapd 0
+      pgdemote_direct 0
+      pgdemote_khugepaged 0
+      pgdemote_proactive 0
+      nr_balloon_pages 0
+      nr_kernel_file_pages 0
+  pages free     178276
+        boost    0
+        min      850
+        low      1062
+        high     1274
+        promo    1486
+        spanned  196608
+        present  196608
+        managed  181507
+        cma      0
+        protection: (0, 1784, 1784)
+      nr_free_pages 178276
+      nr_free_pages_blocks 174080
+      nr_zone_inactive_anon 0
+      nr_zone_active_anon 0
+      nr_zone_inactive_file 0
+      nr_zone_active_file 0
+      nr_zone_unevictable 0
+      nr_zone_write_pending 0
+      nr_mlock     0
+      nr_free_cma  0
+  pagesets
+    cpu: 0
+              count:    314
+              high:     487
+              batch:    63
+              high_min: 265
+              high_max: 5655
+  vm stats threshold: 24
+    cpu: 1
+              count:    265
+              
+SNAPSHOT CONTINUED
+high:     265
+              batch:    63
+              high_min: 265
+              high_max: 5655
+  vm stats threshold: 24
+    cpu: 2
+              count:    265
+              high:     265
+              batch:    63
+              high_min: 265
+              high_max: 5655
+  vm stats threshold: 24
+    cpu: 3
+              count:    265
+              high:     265
+              batch:    63
+              high_min: 265
+              high_max: 5655
+  vm stats threshold: 24
+  node_unreclaimable:  0
+  start_pfn:           524288
+Node 0, zone  HighMem
+  pages free     55335
+        boost    0
+        min      55
+        low      122
+        high     189
+        promo    256
+        spanned  57344
+        present  57344
+        managed  57088
+        cma      0
+        protection: (0, 0, 0)
+      nr_free_pages 55335
+      nr_free_pages_blocks 54272
+      nr_zone_inactive_anon 570
+      nr_zone_active_anon 677
+      nr_zone_inactive_file 0
+      nr_zone_active_file 0
+      nr_zone_unevictable 0
+      nr_zone_write_pending 0
+      nr_mlock     0
+      nr_free_cma  0
+  pagesets
+    cpu: 0
+              count:    18
+              high:     67
+              batch:    15
+              high_min: 60
+              high_max: 1784
+  vm stats threshold: 12
+    cpu: 1
+              count:    63
+              high:     63
+              batch:    15
+              high_min: 60
+              high_max: 1784
+  vm stats threshold: 12
+    cpu: 2
+              count:    301
+              high:     301
+              batch:    15
+              high_min: 60
+              high_max: 1784
+  vm stats threshold: 12
+    cpu: 3
+              count:    29
+              high:     60
+              batch:    15
+              high_min: 60
+              high_max: 1784
+  vm stats threshold: 12
+  node_unreclaimable:  0
+  start_pfn:           720896
+Node 0, zone  Movable
+  pages free     0
+        boost    0
+        min      32
+        low      32
+        high     32
+        promo    32
+        spanned  0
+        present  0
+        managed  0
+        cma      
+SNAPSHOT CONTINUED
+0
+        protection: (0, 0, 0)
+
+SNAPSHOT END /proc/zoneinfo
+
+SNAPSHOT BEGIN /proc/buddyinfo
+Node 0, zone   Normal     12     23     18     10      9      7      5      4      5      3    170 
+Node 0, zone  HighMem      3      9      5      4      3      2      0      1      1      1     53 
+
+SNAPSHOT END /proc/buddyinfo
+
+SNAPSHOT BEGIN /proc/iomem
+00008000-0000803f : mt6323-pwrc
+  00008000-0000803f : mt6323-rtc
+10000000-10000fff : 10000000.clock-controller clock-controller@10000000
+10001000-10001fff : 10000000.clock-controller clock-controller@10000000
+10003000-10003fff : 10000000.clock-controller clock-controller@10000000
+10005000-10005fff : 10005000.pinctrl pinctrl@10005000
+1000b000-1000bfff : 10005000.pinctrl pinctrl@10005000
+1000d000-1000dfff : 1000d000.pwrap pwrap@1000d000
+10010000-10010fff : 10010000.mipi-tx mipi-tx@10010000
+10011000-10011fff : 10011000.keypad keypad@10011000
+10209000-10209fff : 10000000.clock-controller clock-controller@10000000
+11000200-1100027f : 11007000.i2c i2c@11007000
+11000280-110002ff : 11008000.i2c i2c@11008000
+11002000-1100201f : serial
+11007000-1100706f : 11007000.i2c i2c@11007000
+11008000-1100806f : 11008000.i2c i2c@11008000
+11200000-1120027f : musb-hdrc.2.auto
+  11200000-1120027f : musb-hdrc.2.auto musb-hdrc.2.auto
+11210800-1121086f : y2-usb-phy
+11220000-11220fff : 11220000.audio-controller audio-controller@11220000
+11230000-11230fff : 11230000.mmc mmc@11230000
+11240000-11240fff : 11240000.mmc mmc@11240000
+14000000-14000fff : 14000000.syscon syscon@14000000
+14007000-14007fff : 14007000.ovl ovl@14007000
+14008000-14008fff : 14008000.rdma rdma@14008000
+1400b000-1400bfff : 1400b000.color color@1400b000
+1400c000-1400cfff : 1400c000.dsi dsi@1400c000
+1400e000-1400efff : 1400e000.mutex mutex@1400e000
+80000000-817fffff : System RAM
+  80008000-805f0fff : Kernel code
+  80622000-80a6f97f : Kernel data
+84000000-bdefffff : System RAM
+
+SNAPSHOT END /proc/iomem
+
+SNAPSHOT BEGIN /proc/interrupts
+           CPU0       CPU1       CPU2       CPU3       
+ 24:       1287          0          0          0 MT_SYSIRQ 112 Level     timer@10008000
+ 51:          0          0          0          0  mt-eint  25 Level     mt6397-pmic
+ 81:          0          0          0          0  mt-eint  55 Edge      apt32f-wheel
+197:          0          0          0          0 mt6397-irq   5 Edge      mtk-pmic-keys
+199:          0          0          0          0 MT_SYSIRQ  44 Level     11007000.i2c
+200:         17          0          0          0 MT_SYSIRQ  45 Level     11008000.i2c
+201:         23          0          0          0 MT_SYSIRQ  39 Level     11230000.mmc
+202:        236          0          0          0 MT_SYSIRQ  40 Level     11240000.mmc
+203:          0          0          0          0 MT_SYSIRQ 116 Edge      mt6582-keypad
+204:          0          0          0          0 MT_SYSIRQ 104 Level     mt6582-afe
+205:        550          0          0          0 MT_SYSIRQ 153 Level     14007000.ovl
+206:          0          0          0          0 MT_SYSIRQ 152 Level     14008000.rdma
+207:          0          0          0          0 MT_SYSIRQ 157 Level     1400c000.dsi
+208:         71          0          0          0 MT_SYSIRQ  32 Level     musb-hdrc.2.auto
+IPI0:         0          1          1          1  CPU wakeup interrupts
+IPI1:         0       1275       1269       1263  Timer broadcast interrupts
+IPI2:        12         38         29         24  Rescheduling interrupts
+IPI3:       190        294         88         72  Function call interrupts
+IPI4:         0          0          0          0  CPU stop interrupts
+IPI5:         0          0          0          0  IRQ work interrupts
+IPI6:         0          0          0          0  completion interrupts
+Err:          0
+
+SNAPSHOT END /proc/interrupts
+
+SNAPSHOT BEGIN /proc/cmdline
+rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31
+
+SNAPSHOT END /proc/cmdline
+
+SNAPSHOT BEGIN /proc/bus/input/devices
+I: Bus=0019 Vendor=0001 Product=0001 Version=0100
+N: Name="Y2 navigation buttons"
+P: Phys=gpio-keys-polled/input0
+S: Sysfs=/devices/platform/navigation-keys/input/input0
+U: Uniq=
+H: Handlers=kbd event0 
+B: PROP=0
+B: EV=3
+B: KEY=10 40000000 600 0 0 10000000
+
+I: Bus=0019 Vendor=0001 Product=0001 Version=0001
+N: Name="mtk-pmic-keys"
+P: Phys=
+S: Sysfs=/devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-keys/input/input1
+U: Uniq=
+H: Handlers=kbd event1 
+B: PROP=0
+B: EV=3
+B: KEY=100000 0 0 0
+
+I: Bus=0018 Vendor=0000 Product=0000 Version=0000
+N: Name="APT32F click-wheel"
+P: Phys=
+S: Sysfs=/devices/platform/11007000.i2c/i2c-0/0-0051/input/input2
+U: Uniq=
+H: Handlers=kbd event2 
+B: PROP=0
+B: EV=3
+B: KEY=3180 0 0 0
+
+I: Bus=0019 Vendor=0000 Product=0000 Version=0000
+N: Name="mt6582-keypad"
+P: Phys=
+S: Sysfs=/devices/platform/10011000.keypad/input/input3
+U: Uniq=
+H: Handlers=kbd event3 
+B: PROP=0
+B: EV=3
+B: KEY=c0000 0 0 0
+
+I: Bus=0000 Vendor=0000 Product=0000 Version=0000
+N: Name="Y2Audio Headphone"
+P: Phys=ALSA
+S: Sysfs=/devices/platform/sound/sound/card0/input4
+U: Uniq=
+H: Handlers=event4 
+B: PROP=0
+B: EV=21
+B: SW=c4
+
+
+SNAPSHOT END /proc/bus/input/devices
+
+SNAPSHOT BEGIN /sys/kernel/debug/clk/clk_summary
+                                 enable  prepare  protect                                duty  hardware                            connection
+   clock                          count    count    count        rate   accuracy phase  cycle    enable   consumer                         id
+---------------------------------------------------------------------------------------------------------------------------------------------
+ clock-uart                          1       1        0        26000000    0          0     50000      Y   11002000.serial                 no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ clock-rtc                           0       0        0        32000       0          0     50000      Y   deviceless                      no_connection_id         
+ clock-system                        1       1        0        13000000    0          0     50000      Y   timer@10008000                  no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ y2-rtc32k                           1       1        0        32768       0          0     50000      Y   deviceless                      no_connection_id         
+    mm_mutex_32k                     1       1        0        32768       0          0     50000      Y      1400e000.mutex                  no_connection_id         
+                                                                                                              deviceless                      no_connection_id         
+ clk26m                              5       6        1        26000000    0          0     50000      Y   10010000.mipi-tx                no_connection_id         
+                                                                                                           deviceless              
+SNAPSHOT CONTINUED
+        no_connection_id         
+    mm_dsi_digital                   1       1        0        26000000    0          0     50000      Y      1400c000.dsi                    digital                  
+                                                                                                              deviceless                      no_connection_id         
+    mipi_tx0_pll                     1       1        1        338000000   0          0     50000      Y      1400c000.dsi                    hs                       
+                                                                                                              deviceless                      no_connection_id         
+    y2-audio                         0       0        0        26000000    0          0     50000      Y      11220000.audio-controller       audio                    
+                                                                                                              deviceless                      no_connection_id         
+    y2-audintbus                     0       0        0        26000000    0          0     50000      Y      11220000.audio-controller       audintbus                
+                                                                                                              deviceless                      no_connection_id         
+       y2-infra-audio                0       0        0        26000000    0          0     50000      Y         11220000.audio-controller       infra_audio              
+                                                                                                                 deviceless                      no_connection_id         
+    y2-msdc1-source                  2       2        0        26000000    0          0     50000      Y      11240000.mmc                    source                   
+                                                                                                              deviceless                      no_connection_id  
+SNAPSHOT CONTINUED
+       
+       y2-msdc1                      2       2        0        26000000    0          0     50000      Y         11240000.mmc                    source_cg                
+                                                                                                                 11240000.mmc                    hclk                     
+                                                                                                                 deviceless                      no_connection_id         
+    y2-msdc0-source                  0       0        0        26000000    0          0     50000      Y      11230000.mmc                    source                   
+                                                                                                              deviceless                      no_connection_id         
+       y2-msdc0                      0       0        0        26000000    0          0     50000      Y         11230000.mmc                    source_cg                
+                                                                                                                 11230000.mmc                    hclk                     
+                                                                                                                 deviceless                      no_connection_id         
+    y2-kp                            1       1        0        26000000    0          0     50000      Y      10011000.keypad                 no_connection_id         
+                                                                                                              deviceless                      no_connection_id         
+    y2-pwrap                         1       1        0        26000000    0          0     50000      Y      1000d000.pwrap                  no_connection_id         
+                                                                                                              deviceless                      no_connection_id         
+    y2
+SNAPSHOT CONTINUED
+-axi                           0       3        0        273000000   0          0     50000      Y      deviceless                      no_connection_id         
+       y2-apdma                      0       2        0        273000000   0          0     50000      Y         11008000.i2c                    dma                      
+                                                                                                                 11007000.i2c                    dma                      
+                                                                                                                 deviceless                      no_connection_id         
+       y2-i2c1                       0       1        0        273000000   0          0     50000      Y         11008000.i2c                    main                     
+                                                                                                                 deviceless                      no_connection_id         
+       y2-i2c0                       0       1        0        273000000   0          0     50000      Y         11007000.i2c                    main                     
+                                                                                                                 deviceless                      no_connection_id         
+    y2-msdcpll                       0       0        0        399999542   0          0     50000      Y      deviceless                      no_connection_id         
+    y2-mmpll                         0       0        0        500500000   0          0     50000      Y      deviceless                      no_connection_id         
+    y2-univpll                       0       0        0        1248000000  0          0     50000      Y      deviceless                      no_connection_id         
+    y2-mainpll                       0       0        0        1092000000  0          0     50000      Y      deviceless                      no_connection_id         
+    y2-armpll    
+SNAPSHOT CONTINUED
+                    0       0        0        1040000000  0          0     50000      Y      deviceless                      no_connection_id         
+ mm_dpi_engine                       0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_dpi_digital_lane                 0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_dsi_engine                       1       1        0        0           0          0     50000      Y   1400c000.dsi                    engine                   
+                                                                                                           deviceless                      no_connection_id         
+ mm_fake_eng                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_cam_mdp                          0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_bls_26m                      0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_rdma                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_rsz0                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_rsz1                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_wdma                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_wrot                         0       0        0        0           0      
+SNAPSHOT CONTINUED
+    0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_tdshp                        0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_disp_ovl                         1       1        0        0           0          0     50000      Y   14007000.ovl                    no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ mm_disp_rdma                        1       1        0        0           0          0     50000      Y   14008000.rdma                   no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ mm_disp_wdma                        0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_disp_bls                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_disp_color                       1       1        0        0           0          0     50000      Y   1400b000.color                  no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ mm_mutex                            1       1        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_cmdq                             0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_smi_larb0                        1       1        0        0           0          0     50000      Y   deviceless                      no_connecti
+SNAPSHOT CONTINUED
+on_id         
+ mm_smi_common                       1       1        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+
+SNAPSHOT END /sys/kernel/debug/clk/clk_summary
+
+SNAPSHOT BEGIN /sys/kernel/debug/devices_deferred
+
+SNAPSHOT END /sys/kernel/debug/devices_deferred
+
+SNAPSHOT BEGIN /sys/kernel/debug/regulator/regulator_summary
+ regulator                      use open bypass  opmode voltage current     min     max
+---------------------------------------------------------------------------------------
+ regulator-dummy                  1    0      0 unknown     0mV     0mA     0mV     0mV 
+ VPROC                            0    0      0 unknown  1150mV     0mA     0mV     0mV 
+ VSYS                             0    0      0 unknown  2200mV     0mA     0mV     0mV 
+ VPA                              0    0      0 unknown   500mV     0mA     0mV     0mV 
+ VTCXO                            0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VCN28                            0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VCN33_BT                         0    0      0  normal  3600mV     0mA     0mV     0mV 
+ VCN33_WIFI                       0    0      0  normal  3600mV     0mA     0mV     0mV 
+ VA                               0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VCAMA                            0    0      0 unknown  2800mV     0mA     0mV     0mV 
+ VIO28                            0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VUSB                             0    0      0  normal  3300mV     0mA  3300mV  3300mV 
+ VMC                              0    0      0  normal  3300mV     0mA     0mV     0mV 
+ VMCH                             0    0      0  normal  3300mV     0mA     0mV     0mV 
+ VEMC3V3                          0    0      0  normal  3300mV     0mA     0mV     0mV 
+ VGP1                             0    0      0  normal  2800mV     0mA     0mV     0mV 
+ vgp2-audio                       5    4      0  normal  1800mV     0mA  1800mV  1800mV 
+    1-0030-VCP                    1                                 0mA     0mV     0mV
+    1-0030-VP                     1                                 0mA     0mV     0mV
+    1-0030-VA                     1                                 0mA     0mV     0mV
+    cs43131-en20                  1    1      0 unknown  1800mV     0mA  1800mV  1800mV 
+      
+SNAPSHOT CONTINUED
+ cs43131-en18               2    2      0 unknown  1800mV     0mA  1800mV  1800mV 
+          1-0030-VD               1                                 0mA     0mV     0mV
+          cs43131-en15            1    1      0 unknown  1800mV     0mA  1800mV  1800mV 
+             1-0030-VL            1                                 0mA     0mV     0mV
+ VGP3                             0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VCN18                            0    0      0  normal  1800mV     0mA  1800mV  1800mV 
+ VSIM1                            0    0      0  normal  1800mV     0mA     0mV     0mV 
+ VSIM2                            0    0      0  normal  1800mV     0mA     0mV     0mV 
+ VRTC                             0    0      0 unknown  2800mV     0mA  2800mV  2800mV 
+ VCAMAF                           0    0      0  normal  2000mV     0mA     0mV     0mV 
+ VIBR                             0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VRF18                            0    0      0  normal  1825mV     0mA  1825mV  1825mV 
+ VM                               0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VIO18                            0    0      0  normal  1800mV     0mA  1800mV  1800mV 
+ VCAMD                            0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VCAMIO                           0    0      0  normal  1800mV     0mA  1800mV  1800mV 
+
+SNAPSHOT END /sys/kernel/debug/regulator/regulator_summary
+
+SNAPSHOT BEGIN /sys/class/power_supply/y2-usb-presence/uevent
+DEVTYPE=power_supply
+OF_NAME=pwrap
+OF_FULLNAME=/pwrap@1000d000
+OF_COMPATIBLE_0=innioasis,y2-pwrap
+OF_COMPATIBLE_N=1
+POWER_SUPPLY_NAME=y2-usb-presence
+POWER_SUPPLY_TYPE=USB
+POWER_SUPPLY_ONLINE=1
+POWER_SUPPLY_TYPE=USB
+
+SNAPSHOT END /sys/class/power_supply/y2-usb-presence/uevent
+
+SNAPSHOT BEGIN /proc/mounts
+rootfs / rootfs rw,size=476144k,nr_inodes=119036 0 0
+proc /proc proc rw,relatime 0 0
+sysfs /sys sysfs rw,relatime 0 0
+devtmpfs /dev devtmpfs rw,relatime,size=476144k,nr_inodes=119036,mode=755 0 0
+devpts /dev/pts devpts rw,relatime,mode=600,ptmxmode=000 0 0
+tmpfs /run tmpfs rw,nosuid,nodev,relatime,mode=755 0 0
+tmpfs /tmp tmpfs rw,nosuid,nodev,relatime 0 0
+debugfs /sys/kernel/debug debugfs rw,relatime 0 0
+
+SNAPSHOT END /proc/mounts
+
+SNAPSHOT BEGIN /proc/partitions
+major minor  #blocks  name
+
+ 179        0    7634944 mmcblk0
+
+SNAPSHOT END /proc/partitions
+
+SNAPSHOT BEGIN /proc/net/dev
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0
+  usb0:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0
+
+SNAPSHOT END /proc/net/dev
+
+SNAPSHOT BEGIN /sys/kernel/debug/dri/0/state
+plane[35]: plane-0
+	crtc=crtc-0
+	fb=56
+		allocated by = [fbcon]
+		refcount=2
+		format=XR24 little-endian (0x34325258)
+		modifier=0x0
+		size=480x360
+		layers:
+			size[0]=480x360
+			pitch[0]=1920
+			offset[0]=0
+			obj[0]:
+				name=0
+				refcount=3
+				start=00000000
+				size=692224
+				imported=no
+	crtc-pos=480x360+0+0
+	src-pos=480.000000x360.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=0
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+plane[40]: plane-1
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=1
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+plane[45]: plane-2
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=2
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+plane[50]: plane-3
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=3
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+crtc[55]: crtc-0
+	enable=1
+	active=1
+	self_refresh_active=0
+	planes_changed=1
+	mode_changed=0
+	active_changed=0
+	connectors_changed=0
+	color_mgmt_changed=0
+	plane_mask=1
+	connector_mask=1
+	encoder_mask=1
+	mode: "480x360": 63 27362 480 680 690 890 360 420 428 488 0x48 0x0
+connector[34]: DSI-1
+	crtc=crtc-0
+	self_refresh_aware=0
+	interlace_allowed=0
+	ycbcr_420_allowed=0
+	max_requested_bpc=0
+	colorspace=Default
+
+SNAPSHOT END /sys/kernel/debug/dri/0/state
+
+SNAPSHOT BEGIN /sys/class/graphics/fb0/virtual_size
+480,360
+
+SNAPSHOT END /sys/class/graphics/fb0/virtual_size
+
+SNAPSHOT BEGIN /sys/class/graphics/fb0/bits_per_pixel
+32
+
+SNAPSHOT END /sys/class/graphics/fb0/bits_per_pixel
+
+SNAPSHOT BEGIN /sys/class/backlight/y2-backlight/actual_brightness
+32
+
+SNAPSHOT END /sys/class/backlight/y2-backlight/actual_brightness
+PID1 PID1:1 BEAT:12 [ ] FRAME:78             
+PID1 US:6 RC:0 IRQ:71 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:13 [*] FRAME:84             
+PID1 US:6 RC:0 IRQ:71 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:14 [ ] FRAME:90             
+PID1 US:6 RC:0 IRQ:71 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:15 [*] FRAME:96             
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:16 [ ] FRAME:102            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:17 [*] FRAME:108            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:18 [ ] FRAME:114            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:19 [*] FRAME:120            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:20 [ ] FRAME:126            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:21 [*] FRAME:132            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:22 [ ] FRAME:138            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:23 [*] FRAME:144            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:24 [ ] FRAME:150            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:25 [*] FRAME:156            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:26 [ ] FRAME:162            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:27 [*] FRAME:168            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:28 [ ] FRAME:174            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:29 [*] FRAME:180            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:30 [ ] FRAME:186            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:31 [*] FRAME:192            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:32 [ ] FRAME:198            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:33 [*] FRAME:204            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:34 [ ] FRAME:210            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:35 [*] FRAME:216            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:36 [ ] FRAME:222            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:37 [*] FRAME:228            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:38 [ ] FRAME:234            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:39 [*] FRAME:240            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:40 [ ] FRAME:246            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:41 [*] FRAME:252            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:42 [ ] FRAME:258            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:43 [*] FRAME:264            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:44 [ ] FRAME:270            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:45 [*] FRAME:276            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:46 [ ] FRAME:282            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:47 [*] FRAME:288            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:48 [ ] FRAME:294            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:49 [*] FRAME:300            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:50 [ ] FRAME:306            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:51 [*] FRAME:312            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:52 [ ] FRAME:318            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:53 [*] FRAME:324            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:54 [ ] FRAME:330            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:55 [*] FRAME:336            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:56 [ ] FRAME:342            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:57 [*] FRAME:348            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:58 [ ] FRAME:354            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:59 [*] FRAME:360            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+
+SNAPSHOT BEGIN /proc/interrupts
+           CPU0       CPU1       CPU2       CPU3       
+ 24:       6135          0          0          0 MT_SYSIRQ 112 Level     timer@10008000
+ 51:          0          0          0          0  mt-eint  25 Level     mt6397-pmic
+ 81:          0          0          0          0  mt-eint  55 Edge      apt32f-wheel
+197:          0          0          0          0 mt6397-irq   5 Edge      mtk-pmic-keys
+199:          0          0          0          0 MT_SYSIRQ  44 Level     11007000.i2c
+200:         17          0          0          0 MT_SYSIRQ  45 Level     11008000.i2c
+201:         23          0          0          0 MT_SYSIRQ  39 Level     11230000.mmc
+202:       1080          0          0          0 MT_SYSIRQ  40 Level     11240000.mmc
+203:          0          0          0          0 MT_SYSIRQ 116 Edge      mt6582-keypad
+204:          0          0          0          0 MT_SYSIRQ 104 Level     mt6582-afe
+205:        550          0          0          0 MT_SYSIRQ 153 Level     14007000.ovl
+206:          0          0          0          0 MT_SYSIRQ 152 Level     14008000.rdma
+207:          0          0          0          0 MT_SYSIRQ 157 Level     1400c000.dsi
+208:         73          0          0          0 MT_SYSIRQ  32 Level     musb-hdrc.2.auto
+IPI0:         0          1          1          1  CPU wakeup interrupts
+IPI1:         0       6123       6117       6111  Timer broadcast interrupts
+IPI2:        15         70         61         55  Rescheduling interrupts
+IPI3:       314       1181         98         80  Function call interrupts
+IPI4:         0          0          0          0  CPU stop interrupts
+IPI5:         0          0          0          0  IRQ work interrupts
+IPI6:         0          0          0          0  completion interrupts
+Err:          0
+
+SNAPSHOT END /proc/interrupts
+
+SNAPSHOT BEGIN /proc/meminfo
+MemTotal:         954380 kB
+MemFree:          935540 kB
+MemAvailable:     922952 kB
+Buffers:               0 kB
+Cached:             4872 kB
+SwapCached:            0 kB
+Active:             2716 kB
+Inactive:           2388 kB
+Active(anon):       2716 kB
+Inactive(anon):     2388 kB
+Active(file):          0 kB
+Inactive(file):        0 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+HighTotal:        228352 kB
+HighFree:         222240 kB
+LowTotal:         726028 kB
+LowFree:          713300 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:                 0 kB
+Writeback:             0 kB
+AnonPages:           240 kB
+Mapped:             1900 kB
+Shmem:              4872 kB
+KReclaimable:        800 kB
+Slab:               5448 kB
+SReclaimable:        800 kB
+SUnreclaim:         4648 kB
+KernelStack:         648 kB
+PageTables:          152 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:      477188 kB
+Committed_AS:       6520 kB
+VmallocTotal:     245760 kB
+VmallocUsed:         136 kB
+VmallocChunk:          0 kB
+Percpu:              176 kB
+Balloon:               0 kB
+
+SNAPSHOT END /proc/meminfo
+
+SNAPSHOT BEGIN /sys/kernel/debug/devices_deferred
+
+SNAPSHOT END /sys/kernel/debug/devices_deferred
+PID1 PID1:1 BEAT:60 [ ] FRAME:366            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:61 [*] FRAME:372            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:62 [ ] FRAME:378            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:63 [*] FRAME:384            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:64 [ ] FRAME:390            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:65 [*] FRAME:396            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:66 [ ] FRAME:402            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:67 [*] FRAME:408            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:68 [ ] FRAME:414            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:69 [*] FRAME:420            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:70 [ ] FRAME:426            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:71 [*] FRAME:432            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:72 [ ] FRAME:438            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:73 [*] FRAME:444            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:74 [ ] FRAME:450            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:75 [*] FRAME:456            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:76 [ ] FRAME:462            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:77 [*] FRAME:468            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:78 [ ] FRAME:474            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:79 [*] FRAME:480            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:80 [ ] FRAME:486            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:81 [*] FRAME:492            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:82 [ ] FRAME:498            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:83 [*] FRAME:504            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:84 [ ] FRAME:510            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:85 [*] FRAME:516            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:86 [ ] FRAME:522            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:87 [*] FRAME:528            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:88 [ ] FRAME:534            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:89 [*] FRAME:540            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:90 [ ] FRAME:546            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:91 [*] FRAME:552            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:92 [ ] FRAME:558            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:93 [*] FRAME:564            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:94 [ ] FRAME:570            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:95 [*] FRAME:576            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:96 [ ] FRAME:582            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:97 [*] FRAME:588            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:98 [ ] FRAME:594            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:99 [*] FRAME:600            
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:100 [ ] FRAME:606           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:101 [*] FRAME:612           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:102 [ ] FRAME:618           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:103 [*] FRAME:624           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:104 [ ] FRAME:630           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:105 [*] FRAME:636           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:106 [ ] FRAME:642           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:107 [*] FRAME:648           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:108 [ ] FRAME:654           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:109 [*] FRAME:660           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:110 [ ] FRAME:666           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:111 [*] FRAME:672           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:112 [ ] FRAME:678           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:113 [*] FRAME:684           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:114 [ ] FRAME:690           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:115 [*] FRAME:696           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:116 [ ] FRAME:702           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:117 [*] FRAME:708           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:118 [ ] FRAME:714           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:119 [*] FRAME:720           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+
+SNAPSHOT BEGIN /proc/interrupts
+           CPU0       CPU1       CPU2       CPU3       
+ 24:      12195          0          0          0 MT_SYSIRQ 112 Level     timer@10008000
+ 51:          0          0          0          0  mt-eint  25 Level     mt6397-pmic
+ 81:          0          0          0          0  mt-eint  55 Edge      apt32f-wheel
+197:          0          0          0          0 mt6397-irq   5 Edge      mtk-pmic-keys
+199:          0          0          0          0 MT_SYSIRQ  44 Level     11007000.i2c
+200:         17          0          0          0 MT_SYSIRQ  45 Level     11008000.i2c
+201:         23          0          0          0 MT_SYSIRQ  39 Level     11230000.mmc
+202:       2160          0          0          0 MT_SYSIRQ  40 Level     11240000.mmc
+203:          0          0          0          0 MT_SYSIRQ 116 Edge      mt6582-keypad
+204:          0          0          0          0 MT_SYSIRQ 104 Level     mt6582-afe
+205:        550          0          0          0 MT_SYSIRQ 153 Level     14007000.ovl
+206:          0          0          0          0 MT_SYSIRQ 152 Level     14008000.rdma
+207:          0          0          0          0 MT_SYSIRQ 157 Level     1400c000.dsi
+208:         73          0          0          0 MT_SYSIRQ  32 Level     musb-hdrc.2.auto
+IPI0:         0          1          1          1  CPU wakeup interrupts
+IPI1:         0      12183      12177      12171  Timer broadcast interrupts
+IPI2:        15         70         61         55  Rescheduling interrupts
+IPI3:       331       2261         98         83  Function call interrupts
+IPI4:         0          0          0          0  CPU stop interrupts
+IPI5:         0          0          0          0  IRQ work interrupts
+IPI6:         0          0          0          0  completion interrupts
+Err:          0
+
+SNAPSHOT END /proc/interrupts
+
+SNAPSHOT BEGIN /proc/meminfo
+MemTotal:         954380 kB
+MemFree:          935540 kB
+MemAvailable:     922952 kB
+Buffers:               0 kB
+Cached:             4872 kB
+SwapCached:            0 kB
+Active:             2716 kB
+Inactive:           2388 kB
+Active(anon):       2716 kB
+Inactive(anon):     2388 kB
+Active(file):          0 kB
+Inactive(file):        0 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+HighTotal:        228352 kB
+HighFree:         222240 kB
+LowTotal:         726028 kB
+LowFree:          713300 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:                 0 kB
+Writeback:             0 kB
+AnonPages:           252 kB
+Mapped:             1900 kB
+Shmem:              4872 kB
+KReclaimable:        800 kB
+Slab:               5448 kB
+SReclaimable:        800 kB
+SUnreclaim:         4648 kB
+KernelStack:         648 kB
+PageTables:          152 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:      477188 kB
+Committed_AS:       6520 kB
+VmallocTotal:     245760 kB
+VmallocUsed:         136 kB
+VmallocChunk:          0 kB
+Percpu:              176 kB
+Balloon:               0 kB
+
+SNAPSHOT END /proc/meminfo
+
+SNAPSHOT BEGIN /sys/kernel/debug/devices_deferred
+
+SNAPSHOT END /sys/kernel/debug/devices_deferred
+PID1 PID1:1 BEAT:120 [ ] FRAME:726           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:121 [*] FRAME:732           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:122 [ ] FRAME:738           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:123 [*] FRAME:744           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:124 [ ] FRAME:750           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:125 [*] FRAME:756           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:126 [ ] FRAME:762           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:127 [*] FRAME:768           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:128 [ ] FRAME:774           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:129 [*] FRAME:780           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:130 [ ] FRAME:786           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:131 [*] FRAME:792           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:132 [ ] FRAME:798           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:133 [*] FRAME:804           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:134 [ ] FRAME:810           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:135 [*] FRAME:816           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:136 [ ] FRAME:822           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:137 [*] FRAME:828           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:138 [ ] FRAME:834           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:139 [*] FRAME:840           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:140 [ ] FRAME:846           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:141 [*] FRAME:852           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:142 [ ] FRAME:858           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:143 [*] FRAME:864           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:144 [ ] FRAME:870           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:145 [*] FRAME:876           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:146 [ ] FRAME:882           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:147 [*] FRAME:888           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:148 [ ] FRAME:894           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:149 [*] FRAME:900           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:150 [ ] FRAME:906           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:151 [*] FRAME:912           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:152 [ ] FRAME:918           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:153 [*] FRAME:924           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:154 [ ] FRAME:930           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:155 [*] FRAME:936           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:156 [ ] FRAME:942           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:157 [*] FRAME:948           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:158 [ ] FRAME:954           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:159 [*] FRAME:960           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:160 [ ] FRAME:966           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:161 [*] FRAME:972           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:162 [ ] FRAME:978           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:163 [*] FRAME:984           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:164 [ ] FRAME:990           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:165 [*] FRAME:996           
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:166 [ ] FRAME:1002          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:167 [*] FRAME:1008          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:168 [ ] FRAME:1014          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:169 [*] FRAME:1020          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:170 [ ] FRAME:1026          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:171 [*] FRAME:1032          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:172 [ ] FRAME:1038          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:173 [*] FRAME:1044          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:174 [ ] FRAME:1050          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:175 [*] FRAME:1056          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:176 [ ] FRAME:1062          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:177 [*] FRAME:1068          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:178 [ ] FRAME:1074          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:179 [*] FRAME:1080          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:180 [ ] FRAME:1086          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:181 [*] FRAME:1092          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:182 [ ] FRAME:1098          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:183 [*] FRAME:1104          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:184 [ ] FRAME:1110          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:185 [*] FRAME:1116          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:186 [ ] FRAME:1122          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:187 [*] FRAME:1128          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:188 [ ] FRAME:1134          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:189 [*] FRAME:1140          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:190 [ ] FRAME:1146          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:191 [*] FRAME:1152          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:192 [ ] FRAME:1158          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:193 [*] FRAME:1164          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:194 [ ] FRAME:1170          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:195 [*] FRAME:1176          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:196 [ ] FRAME:1182          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:197 [*] FRAME:1188          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:198 [ ] FRAME:1194          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:199 [*] FRAME:1200          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:200 [ ] FRAME:1206          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:201 [*] FRAME:1212          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:202 [ ] FRAME:1218          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:203 [*] FRAME:1224          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:204 [ ] FRAME:1230          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:205 [*] FRAME:1236          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:206 [ ] FRAME:1242          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:207 [*] FRAME:1248          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:208 [ ] FRAME:1254          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+PID1 PID1:1 BEAT:209 [*] FRAME:1260          
+PID1 US:6 RC:0 IRQ:73 D:99                   
+PID1 LAST ERR: NONE                          
+6,0,0,-;Booting Linux on physical CPU 0x0
+5,1,0,-;Linux version 6.18.0-y2linux-storage04 (Luca@y2-build) (Alpine clang version 20.1.8, LLD 20.1.8) #1 SMP @1764542530
+6,2,0,-;CPU: ARMv7 Processor [410fc073] revision 3 (ARMv7), cr=10c5387d
+6,3,0,-;CPU: PIPT / VIPT nonaliasing data cache, VIPT aliasing instruction cache
+6,4,0,-;OF: fdt: Machine model: Innioasis Y2
+6,5,0,-;earlycon: mtk8250 at MMIO32 0x11002000 (options '')
+6,6,0,-;printk: legacy bootconsole [mtk8250] enabled
+6,7,0,-;Memory policy: Data cache writealloc
+6,8,0,-;Zone ranges:
+6,9,0,-;  Normal   [mem 0x0000000080000000-0x00000000afffffff]
+6,10,0,-;  HighMem  [mem 0x00000000b0000000-0x00000000bdffffff]
+6,11,0,-;Movable zone start for each node
+6,12,0,-;Early memory node ranges
+6,13,0,-;  node   0: [mem 0x0000000080000000-0x00000000817fffff]
+6,14,0,-;  node   0: [mem 0x0000000081800000-0x0000000083ffffff]
+6,15,0,-;  node   0: [mem 0x0000000084000000-0x00000000bdefffff]
+PID1 PID1:1 BEAT:210 [ ] FRAME:1266          
+PID1 US:6 RC:0 IRQ:81 D:99                   
+PID1 LAST ERR: NONE                          
+6,16,0,-;  node   0: [mem 0x00000000bdf00000-0x00000000bdffffff]
+6,17,0,-;Initmem setup node 0 [mem 0x0000000080000000-0x00000000bdffffff]
+6,18,0,-;OF: reserved mem: 0x81800000..0x83ffffff (40960 KiB) nomap non-reusable loader@81800000
+6,19,0,-;OF: reserved mem: 0xbdf00000..0xbfffffff (33792 KiB) nomap non-reusable high-owned@bdf00000
+6,20,0,-;percpu: Embedded 11 pages/cpu s13260 r8192 d23604 u45056
+7,21,0,-;pcpu-alloc: s13260 r8192 d23604 u45056 alloc=11*4096
+7,22,0,-;pcpu-alloc: [0] 0 [0] 1 [0] 2 [0] 3 
+5,23,0,-;Kernel command line: rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31
+6,24,0,-;printk: log buffer data + meta data: 1048576 + 3276800 = 4325376 bytes
+6,25,0,-;Dentry cache hash table entries: 131072 (order: 7, 524288 bytes, linear)
+6,26,0,-;Inode-cache hash table entries: 65536 (order: 6, 262144 bytes, linear)
+6,27,0,-;Built 1 zonelists, mobility grouping on.  Total pages: 253952
+6,28,0,-;mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+6,29,0,-;SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=1
+6,30,0,-;rcu: Hierarchical RCU implementation.
+6,31,0,-;rcu: RCU calculated value of scheduler-enlistment delay is 10 jiffies.
+PID1 PID1:1 BEAT:211 [*] FRAME:1272          
+PID1 US:6 RC:0 IRQ:122 D:99                  
+PID1 LAST ERR: NONE                          
+6,32,0,-;NR_IRQS: 16, nr_irqs: 16, preallocated irqs: 16
+6,33,0,-;rcu: srcu_init: Setting srcu_struct sizes based on contention.
+6,34,0,-;clocksource: timer: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 147020034397 ns
+6,35,1,-;sched_clock: 32 bits at 13MHz, resolution 76ns, wraps every 165191050201ns
+6,36,156,-;Console: colour dummy device 80x30
+6,37,181,-;printk: legacy console [tty0] enabled
+6,38,194,-;printk: legacy bootconsole [mtk8250] disabled
+6,39,252,-;Calibrating delay loop... 2079.12 BogoMIPS (lpj=10395648)
+6,40,60049,-;CPU: Testing write buffer coherency: ok
+6,41,60103,-;pid_max: default: 32768 minimum: 301
+6,42,60264,-;Mount-cache hash table entries: 2048 (order: 1, 8192 bytes, linear)
+6,43,60287,-;Mountpoint-cache hash table entries: 2048 (order: 1, 8192 bytes, linear)
+6,44,61726,-;Setting up static identity map for 0x800081c0 - 0x800081f4
+6,45,61865,-;rcu: Hierarchical SRCU implementation.
+6,46,61875,-;rcu: \x09Max phase no-delay instances is 1000.
+6,47,62337,-;smp: Bringing up secondary CPUs ...
+PID1 PID1:1 BEAT:212 [ ] FRAME:1278          
+PID1 US:6 RC:0 IRQ:163 D:99                  
+PID1 LAST ERR: NONE                          
+6,48,242268,-;smp: Brought up 1 node, 4 CPUs
+6,49,242291,-;SMP: Total of 4 processors activated (8296.85 BogoMIPS).
+6,50,242825,-;Memory: 950140K/1015808K available (4624K kernel code, 3304K rwdata, 1244K rodata, 196K init, 1102K bss, 63520K reserved, 0K cma-reserved, 228352K highmem)
+6,51,243324,-;devtmpfs: initialized
+6,52,245965,-;VFP support v0.3: implementor 41 architecture 2 part 30 variant 7 rev 3
+6,53,246120,-;clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+6,54,246153,-;posixtimers hash table entries: 2048 (order: 2, 16384 bytes, linear)
+6,55,246246,-;futex hash table entries: 1024 (65536 bytes on 1 NUMA nodes, total 64 KiB, linear).
+6,56,246327,-;pinctrl core: initialized pinctrl subsystem
+6,57,247196,-;NET: Registered PF_NETLINK/PF_ROUTE protocol family
+6,58,247520,-;DMA: preallocated 256 KiB pool for atomic coherent allocations
+6,59,253403,-;/dsi@1400c000: Fixed dependency cycle(s) with /dsi@1400c000/panel@0
+6,60,253556,-;/dsi@1400c000/panel@0: Fixed dependency cycle(s) with /dsi@1400c000
+6,61,255346,-;y2-clocks 10000000.clock-controller: CCF inherited PLLs/AXI and M2 gates; AXI=273000000 Hz; no PLL retune
+ SUBSYSTEM=platform
+ DEVICE=+platform:10000000.clock-controller
+6,62,261511,-;y2-pinctrl 10005000.pinctrl: minimal pinctrl/GPIO; EINT parent high, PMIC25 high/wheel55 falling
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,63,262636,-;y2-pwrap 1000d000.pwrap: MT6323 CID=2023 VUSB=c000 CHRDET=0; serialized regmap; rail/charger/reset writes blocked
+ SUBSYSTEM=platform
+ DEVICE=+platform:1000d000.pwrap
+PID1 PID1:1 BEAT:213 [*] FRAME:1284          
+PID1 US:6 RC:0 IRQ:204 D:99                  
+PID1 LAST ERR: NONE                          
+6,64,262859,-;Advanced Linux Sound Architecture Driver Initialized.
+6,65,263626,-;clocksource: Switched to clocksource timer
+6,66,271641,-;NET: Registered PF_INET protocol family
+6,67,271818,-;IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+6,68,273619,-;tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes, linear)
+6,69,273654,-;Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+6,70,273680,-;TCP established hash table entries: 8192 (order: 3, 32768 bytes, linear)
+6,71,273762,-;TCP bind hash table entries: 8192 (order: 5, 131072 bytes, linear)
+6,72,273960,-;TCP: Hash tables configured (established 8192 bind 8192)
+6,73,274072,-;UDP hash table entries: 512 (order: 3, 28672 bytes, linear)
+6,74,274141,-;UDP-Lite hash table entries: 512 (order: 3, 28672 bytes, linear)
+6,75,274327,-;NET: Registered PF_UNIX/PF_LOCAL protocol family
+6,76,275385,-;Unpacking initramfs...
+6,77,282257,-;workingset: timestamp_bits=30 max_order=18 bucket_order=0
+6,78,283291,-;mediatek-mipi-tx 10010000.mipi-tx: can't get nvmem_cell_get, ignore it
+ SUBSYSTEM=platform
+ DEVICE=+platform:10010000.mipi-tx
+6,79,284656,-;Serial: 8250/16550 driver, 1 ports, IRQ sharing disabled
+PID1 PID1:1 BEAT:214 [ ] FRAME:1290          
+PID1 US:6 RC:0 IRQ:244 D:99                  
+PID1 LAST ERR: NONE                          
+6,80,285725,-;printk: legacy console [ttyS0] disabled
+6,81,286197,-;11002000.serial: ttyS0 at MMIO 0x11002000 (irq = 195, base_baud = 1625000) is a 16550A
+6,82,286255,-;printk: legacy console [ttyS0] enabled
+4,83,287018,-;cacheinfo: Unable to detect cache hierarchy for CPU 0
+6,84,287240,-;y2-pinctrl 10005000.pinctrl: pin25 mode=0 function=eint
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+4,85,287559,-;mt6323-rtc: Failed to locate of_node [id: -1]
+4,86,287917,-;mt6323-led: Failed to locate of_node [id: -1]
+4,87,288247,-;mt6323-pwrc: Failed to locate of_node [id: -1]
+6,88,288648,-;UDC core: g_cdc: couldn't find an available UDC
+6,89,289055,-;input: Y2 navigation buttons as /devices/platform/navigation-keys/input/input0
+6,90,290076,-;input: mtk-pmic-keys as /devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-keys/input/input1
+6,91,290320,-;mt6323-regulator mt6323-regulator: Chip ID = 0x2023
+ SUBSYSTEM=platform
+ DEVICE=+platform:mt6323-regulator
+6,92,292289,-;vgp2-audio: Bringing 2500000uV into 1800000-1800000uV
+6,93,292377,-;i2c_dev: i2c /dev entries driver
+6,94,292590,-;y2-pinctrl 10005000.pinctrl: before pin84 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,95,292615,-;y2-pinctrl 10005000.pinctrl: pin84 mode=1 function=i2c0
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+PID1 PID1:1 BEAT:215 [*] FRAME:1296          
+PID1 US:6 RC:0 IRQ:248 D:99                  
+PID1 LAST ERR: NONE                          
+6,96,292632,-;y2-pinctrl 10005000.pinctrl: before pin85 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,97,292651,-;y2-pinctrl 10005000.pinctrl: pin85 mode=1 function=i2c0
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,98,293611,-;y2-pinctrl 10005000.pinctrl: before pin86 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,99,293641,-;y2-pinctrl 10005000.pinctrl: pin86 mode=1 function=i2c1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,100,293658,-;y2-pinctrl 10005000.pinctrl: before pin87 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,101,293677,-;y2-pinctrl 10005000.pinctrl: pin87 mode=1 function=i2c1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,102,295184,-;y2-pinctrl 10005000.pinctrl: pin55 mode=0 function=eint
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,103,295412,-;input: APT32F click-wheel as /devices/platform/11007000.i2c/i2c-0/0-0051/input/input2
+6,104,296161,-;mtk-msdc 11230000.mmc: MSDC 26MHz crystal; inherited rails; policy=ANDROID/USRDATA writable; protected regions read-only
+ SUBSYSTEM=platform
+ DEVICE=+platform:11230000.mmc
+6,105,296646,-;y2-pinctrl 10005000.pinctrl: pin124 mode=1 function=msdc1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,106,296671,-;y2-pinctrl 10005000.pinctrl: pin125 mode=1 function=msdc1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,107,296687,-;y2-pinctrl 10005000.pinctrl: pin126 mode=1 function=msdc1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,108,296702,-;y2-pinctrl 10005000.pinctrl: pin127 mode=1 function=msdc1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,109,296717,-;y2-pinctrl 10005000.pinctrl: pin128 mode=1 function=msdc1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,110,296732,-;y2-pinctrl 10005000.pinctrl: pin129 mode=1 function=msdc1
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,111,297043,-;mtk-msdc 11240000.mmc: MSDC 26MHz crystal; inherited rails; policy=removable media
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+PID1 PID1:1 BEAT:216 [ ] FRAME:1302          
+PID1 US:6 RC:0 IRQ:251 D:99                  
+PID1 LAST ERR: NONE                          
+6,112,297381,-;input: mt6582-keypad as /devices/platform/10011000.keypad/input/input3
+6,113,298123,-;y2-backlight 1000d000.pwrap:backlight: four ISINK PWM; max duty=32/32 inherited current step=5 unchanged
+ SUBSYSTEM=platform
+ DEVICE=+platform:1000d000.pwrap:backlight
+6,114,299702,-;Y2USB recover rc=0 written=1
+6,115,299730,-;Y2USB stage=1 result=0
+6,116,299746,-;Y2USB stage=2 result=0
+6,117,299764,-;y2-usb 11200000.usb: peripheral USB platform initialized; status is observational
+ SUBSYSTEM=platform
+ DEVICE=+platform:11200000.usb
+6,118,300440,-;y2-pinctrl 10005000.pinctrl: pin43 mode=4 function=i2s-lk
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,119,300463,-;y2-pinctrl 10005000.pinctrl: pin44 mode=4 function=i2s-lk
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,120,300478,-;y2-pinctrl 10005000.pinctrl: pin46 mode=3 function=i2s-lk
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,121,300797,-;mt6582-afe 11220000.audio-controller: DL1 -> I05/I06 -> O00/O01 -> second I2S CON3; DMA32, stereo S16 44.1/48k
+ SUBSYSTEM=platform
+ DEVICE=+platform:11220000.audio-controller
+6,122,301244,-;NET: Registered PF_PACKET protocol family
+5,123,301346,-;Registering SWP/SWPB emulation handler
+4,124,362631,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,125,363132,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,126,363609,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,127,364080,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+PID1 PID1:1 BEAT:217 [*] FRAME:1308          
+PID1 US:6 RC:0 IRQ:257 D:99                  
+PID1 LAST ERR: NONE                          
+4,128,364551,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+6,129,383276,-;Freeing initrd memory: 1896K
+6,130,436885,-;mmc0: new MMC card at address 0001
+6,131,438060,-;mmcblk0: mmc0:0001 FNX2MB 7.28 GiB
+6,132,441709,-;mtk-msdc 11230000.mmc: partition read sector=0 bytes=4096 signature=0000
+ SUBSYSTEM=platform
+ DEVICE=+platform:11230000.mmc
+6,133,442043,-;mmcblk0rpmb: mmc0:0001 FNX2MB 512 KiB, chardev (251:0)
+4,134,442701,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,135,443307,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,136,443896,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,137,444485,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,138,445074,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+6,139,505047,-;cs43130 1-0030: Cirrus Logic CS43130 (43131), Revision: A1
+ SUBSYSTEM=i2c
+ DEVICE=+i2c:1-0030
+4,140,522938,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,141,523833,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,142,524716,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,143,525600,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+PID1 PID1:1 BEAT:218 [ ] FRAME:1314          
+PID1 US:6 RC:0 IRQ:261 D:99                  
+PID1 LAST ERR: NONE                          
+4,144,526483,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,145,603652,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,146,605360,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,147,607070,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,148,608780,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,149,610490,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+6,150,697397,-;input: Y2Audio Headphone as /devices/platform/sound/sound/card0/input4
+6,151,697906,-;clk: Disabling unused clocks
+6,152,697946,-;ALSA device list:
+6,153,697955,-;  #0: Y2Audio
+6,154,698273,-;Freeing unused kernel image (initmem) memory: 196K
+4,155,698288,-;Kernel memory protection not selected by kernel config.
+6,156,698298,-;Run /init as init process
+7,157,698306,-;  with arguments:
+7,158,698314,-;    /init
+7,159,698322,-;  with environment:
+PID1 PID1:1 BEAT:219 [*] FRAME:1320          
+PID1 US:6 RC:0 IRQ:267 D:99                  
+PID1 LAST ERR: NONE                          
+7,160,698329,-;    HOME=/
+7,161,698337,-;    TERM=linux
+12,162,756595,-;Y2DISPLAY: production module initialization on CPU1
+6,163,762301,-;mediatek-drm mediatek-drm.1.auto: Adding component match for /ovl@14007000
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,164,762425,-;mediatek-drm mediatek-drm.1.auto: Adding component match for /rdma@14008000
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,165,762495,-;mediatek-drm mediatek-drm.1.auto: Adding component match for /color@1400b000
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,166,762630,-;mediatek-drm mediatek-drm.1.auto: Adding component match for /dsi@1400c000
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+12,167,762971,-;Y2ROOT: Production Storage v1; internal-only discovery
+6,168,763251,-;mtk-dsi 1400c000.dsi: handoff: acquire PHY
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,169,763274,-;mediatek-mipi-tx 10010000.mipi-tx: PHY entry CON0=00000011 CON1=00000003 CON2=3c000000 PWR=00000101 CON=00000403 lanes=00000001
+ SUBSYSTEM=platform
+ DEVICE=+platform:10010000.mipi-tx
+6,170,763295,-;mediatek-mipi-tx 10010000.mipi-tx: adopting live LK PHY unchanged; inherited rate unknown
+ SUBSYSTEM=platform
+ DEVICE=+platform:10010000.mipi-tx
+6,171,763320,-;mtk-dsi 1400c000.dsi: handoff: clocks on; park video
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,172,792271,-;mtk-dsi 1400c000.dsi: inherited DSI parked; releasing PHY before Linux modeset
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,173,792321,-;mtk-dsi 1400c000.dsi: handoff: released PHY, result=0
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,174,792391,-;mtk-dsi 1400c000.dsi: handoff: register host/panel
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,175,792546,-;/dsi@1400c000: Fixed dependency cycle(s) with /dsi@1400c000/panel@0
+PID1 PID1:1 BEAT:220 [ ] FRAME:1326          
+PID1 US:6 RC:0 IRQ:270 D:99                  
+PID1 LAST ERR: NONE                          
+6,176,792709,-;/dsi@1400c000/panel@0: Fixed dependency cycle(s) with /dsi@1400c000
+6,177,792973,-;y2-pinctrl 10005000.pinctrl: before pin112 mux=1 dir=1 pull=0/0 input=1 IES=0000ffff
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,178,792997,-;y2-pinctrl 10005000.pinctrl: pin112 mode=1 function=lcm-reset
+ SUBSYSTEM=platform
+ DEVICE=+platform:10005000.pinctrl
+6,179,793508,-;mediatek-drm mediatek-drm.1.auto: bound 14007000.ovl (ops mtk_disp_ovl_component_ops [mediatek_drm])
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,180,793637,-;mediatek-drm mediatek-drm.1.auto: bound 14008000.rdma (ops mtk_disp_rdma_component_ops [mediatek_drm])
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,181,793704,-;mediatek-drm mediatek-drm.1.auto: bound 1400b000.color (ops mtk_disp_color_component_ops [mediatek_drm])
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,182,793804,-;mediatek-drm mediatek-drm.1.auto: bound 1400c000.dsi (ops mtk_dsi_component_ops [mediatek_drm])
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,183,794749,-;[drm] Initialized mediatek 1.0.0 for mediatek-drm.1.auto on minor 0
+6,184,795564,-;mediatek-mipi-tx 10010000.mipi-tx: PHY entry CON0=00000000 CON1=00000003 CON2=3c000000 PWR=00000002 CON=00000400 lanes=00000000
+ SUBSYSTEM=platform
+ DEVICE=+platform:10010000.mipi-tx
+6,185,816563,-;mediatek-mipi-tx 10010000.mipi-tx: Linux PHY powered at 338000000Hz
+ SUBSYSTEM=platform
+ DEVICE=+platform:10010000.mipi-tx
+6,186,816584,-;mtk-dsi 1400c000.dsi: modeset: PHY/clocks ready, initialize DSI
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,187,816597,-;mtk-dsi 1400c000.dsi: modeset: DSI command engine ready
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,188,816628,-;(NULL device *): Y2SCAN inherited mutex0 en=00000001 get=00000000 mod=00000488 sof=00000001; clear parked ownership
+6,189,832405,-;mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84a00000 allocation=692224 expected=84a00000 live=84a00000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=03ff0001
+ SUBSYSTEM=platform
+ DEVICE=+platform:14007000.ovl
+6,190,845650,-;Console: switching to colour frame buffer device 60x45
+6,191,845756,-;mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84a00000 allocation=692224 expected=84a00000 live=84a00000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=03ff0001
+ SUBSYSTEM=platform
+ DEVICE=+platform:14007000.ovl
+PID1 PID1:1 BEAT:221 [*] FRAME:1332          
+PID1 US:6 RC:0 IRQ:274 D:99                  
+PID1 LAST ERR: NONE                          
+6,192,862125,-;mediatek-drm mediatek-drm.1.auto: [drm] fb0: mediatekdrmfb frame buffer device
+ SUBSYSTEM=platform
+ DEVICE=+platform:mediatek-drm.1.auto
+6,193,863089,-;mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84a00000 allocation=692224 expected=84a00000 live=84a00000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00080001
+ SUBSYSTEM=platform
+ DEVICE=+platform:14007000.ovl
+12,194,863390,-;Y2DISPLAY: module result=0 errno=0
+6,195,1092213,-;mtk-dsi 1400c000.dsi: Y2SCAN sample=0 vblank=18 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,196,1092249,-;mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84a00000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,197,1092284,-;mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+4,198,1752598,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,199,1753073,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,200,1753536,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,201,1753999,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,202,1754462,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,203,1832711,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,204,1833331,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,205,1833920,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,206,1834509,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,207,1835098,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+PID1 PID1:1 BEAT:222 [ ] FRAME:1338          
+PID1 US:6 RC:0 IRQ:281 D:99                  
+PID1 LAST ERR: NONE                          
+4,208,1912938,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,209,1913820,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,210,1914703,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,211,1915586,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,212,1916469,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,213,1993648,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,214,1995357,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,215,1997067,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,216,1998777,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,217,2000487,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+6,218,2162212,-;mtk-dsi 1400c000.dsi: Y2SCAN sample=1 vblank=87 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,219,2162244,-;mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84a00000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,220,2162278,-;mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+4,221,3112607,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,222,3113093,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,223,3113556,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+PID1 PID1:1 BEAT:223 [*] FRAME:1344          
+PID1 US:6 RC:0 IRQ:289 D:99                  
+PID1 LAST ERR: NONE                          
+4,224,3114026,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,225,3114489,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,226,3192711,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,227,3193309,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,228,3193898,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,229,3194487,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,230,3195076,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+6,231,3202231,-;mtk-dsi 1400c000.dsi: Y2SCAN sample=2 vblank=154 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,232,3202263,-;mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84a00000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,233,3202297,-;mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+4,234,3272958,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,235,3273840,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,236,3274723,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,237,3275607,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,238,3276490,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,239,3353649,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+PID1 PID1:1 BEAT:224 [ ] FRAME:1350          
+PID1 US:6 RC:0 IRQ:296 D:99                  
+PID1 LAST ERR: NONE                          
+4,240,3355358,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,241,3357067,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,242,3358778,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,243,3360487,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+6,244,4242235,-;mtk-dsi 1400c000.dsi: Y2SCAN sample=3 vblank=222 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,245,4242278,-;mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84a00000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+6,246,4242312,-;mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+ SUBSYSTEM=platform
+ DEVICE=+platform:1400c000.dsi
+4,247,4472609,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,248,4473084,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,249,4473555,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,250,4474026,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,251,4474489,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,252,4552718,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,253,4553315,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,254,4553904,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,255,4554493,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+PID1 PID1:1 BEAT:225 [*] FRAME:1356          
+PID1 US:6 RC:0 IRQ:303 D:99                  
+PID1 LAST ERR: NONE                          
+4,256,4555082,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,257,4632966,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,258,4633848,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,259,4634731,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,260,4635615,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,261,4636499,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,262,4713682,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,263,4715391,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,264,4717101,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,265,4718811,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,266,4720521,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,267,5832651,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,268,5833143,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,269,5833613,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,270,5834076,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,271,5834539,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+PID1 PID1:1 BEAT:226 [ ] FRAME:1362          
+PID1 US:6 RC:0 IRQ:310 D:99                  
+PID1 LAST ERR: NONE                          
+4,272,5912725,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,273,5913322,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,274,5913911,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,275,5914500,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,276,5915089,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,277,5992970,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,278,5993851,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,279,5994734,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,280,5995618,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,281,5996501,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,282,6073680,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,283,6075389,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,284,6077099,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,285,6078809,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,286,6080519,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,287,7192638,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+PID1 PID1:1 BEAT:227 [*] FRAME:1368          
+PID1 US:6 RC:0 IRQ:317 D:99                  
+PID1 LAST ERR: NONE                          
+4,288,7193125,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,289,7193588,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,290,7194051,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,291,7194513,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,292,7272743,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,293,7273341,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,294,7273930,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,295,7274519,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,296,7275107,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,297,7352974,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,298,7353857,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,299,7354740,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,300,7355623,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,301,7356506,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,302,7433680,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,303,7435389,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+PID1 PID1:1 BEAT:228 [ ] FRAME:1374          
+PID1 US:6 RC:0 IRQ:324 D:99                  
+PID1 LAST ERR: NONE                          
+4,304,7437099,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,305,7438809,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,306,7440519,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,307,8552645,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,308,8553132,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,309,8553595,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,310,8554057,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,311,8554520,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,312,8632749,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,313,8633347,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,314,8633936,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,315,8634525,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,316,8635114,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,317,8712997,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=8 arg=000001AA; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,318,8713880,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc
+4,319,8714763,-;mtk-msdc 11240000.mmc: msdc_track_cmd_data: cmd=55 arg=00000000; host->error=0x00000002
+ SUBSYSTEM=platform
+ DEVICE=+platform:11240000.mmc

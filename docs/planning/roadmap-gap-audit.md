@@ -6,6 +6,51 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## Integrated production MMC correction entry — 2026-09-13
+
+Owner authorizes one production fix pass and one candidate, stopping before a
+manual flash. Entry source is `37e4a3f` plus the retained live-evidence/build-input
+changes already in the workspace. Reassessed every coverage row below against
+the [Storage04 ACM capture](../hardware-evidence/2026-09-13-storage04-live/README.md),
+the last working SD-backed AUDIO-02, current source, and open GitHub issues
+#16/#27–33 (read again today). #33/milestone 3 remains ACTIVE; the GitHub status
+already matches. M1/M2 historical successes and M3's narrow 44.1-kHz result stand;
+all power/radio/GPU/reconnect/stability/application gates remain unchanged.
+
+Storage04 identifies 15269888 sectors, four CPUs and 954380 KiB RAM, but returns
+sector-zero signature `0000`, exports no partitions and stays in rescue. This is
+not proof of erased tables. ACM is absent at this pass's host inspection; its
+existing LOG1 protocol provides logs, not arbitrary remote block reads. No new
+physical write or new diagnostic firmware is authorized or performed.
+
+The next boundary is a BOOTIMG-only production correction: audit the actual MMC
+request/response/DMA path, retain normal bounded root/data writes and all protected
+regions, execute the stock parser against the retained tables, and check the
+existing ext4 identities and internal-only rescue handover. Preserve layout 1,
+the exact stock ANDROID/USRDATA geometry, existing root/data bytes, DT hardware,
+module ownership and y2-platform-v1. No parser replacement or MBR/EBR rewrite
+without evidence. Offline tests must distinguish reproduced source defects from
+the still-unverified physical cause. Re-audit at the manual-candidate boundary.
+
+## Storage04 live observation — 2026-09-13
+
+Read-only [hardware inspection](../hardware-evidence/2026-09-13-storage04-live/README.md)
+after the owner's r4 flash establishes Linux storage04, CPUs 0–3, MemTotal
+954380 KiB, initial USB composite enumeration and bounded ACM LOG1 reception.
+Internal MMC is detected at 15269888 sectors, but no partitions are exported.
+The driver observes sector-zero signature `0000`; rescue explicitly reports
+missing/invalid internal root/data at 41.163161 seconds. Normal Buildroot/SSH
+and internal-root/data acceptance remain blocked. Actual table bytes/addressing
+are not independently read back; do not infer physical erasure or authorize table
+repair from this signature alone. USB Ethernet and reconnect remain unqualified.
+
+Owner attributes the earlier off-state failure to an empty battery. Available
+telemetry reports USB ONLINE only; no battery voltage or charging measurement.
+Charging management remains absent. Storage #33 remains ACTIVE and later gates
+remain unchanged. This is an observation update, not a milestone-boundary audit,
+scope expansion, implementation authorization or M4 activation. It supersedes
+older pending-flash/no-USB statements for the observed Storage04 boot.
+
 ## Single production platform correction audit — 2026-09-13
 
 Owner manual Storage03 flash completed, but the newest rescue photograph shows
@@ -1056,7 +1101,7 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Wheel/select input | **CONFIRMED** | DEV-02 raw evdev has balanced Select and both wheel KEY_UP/KEY_DOWN directions;52wheelIRQ/52I2C completions. Supersedes DEV-01 -110 transport regression. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation keys, both volume keys and brief Power have balanced DEV-02 evdev events. No redesign; wake/suspend remains M4 and no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
 | Removable SD | **CONFIRMED** | DEV-02 SD128 on11240000.mmc at13MHz/one bit; ext4 Y2ROOT boots Buildroot, reads files, accepts verified userspace updates and sync.512MiB filesystem retained; throughput/hotplug/card-removal/power-fail qualification later. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Internal eMMC | **PARTIAL** | DIAG01 detects internal MMC at15269888 sectors but no partitions. Storage03 remains in rescue with missing root/data. Native filesystem reads/writes and no-SD Buildroot are unqualified; production driver correction is active. | #33 storage; #28/#32. |
+| Internal eMMC | **PARTIAL** | Storage04 ACM proves 15269888 sectors but sector-zero signature0000, no partitions and rescue. Physical table corruption is unproved. Native filesystem reads/writes and no-SD Buildroot remain unqualified; one integrated production correction is active. | #33 storage; #28/#32. |
 | Development rootfs and filesystem/data layout | **CONFIRMED** | Physical Buildroot2025.02.17/glibc/BusyBox/Dropbear on writable removable Y2ROOT, key authentication and complete command logs. Runtime mount and matching-module index fixes applied. Owner restart validates persistent runtime/module fixes; persistent ALSA tools/config/WAVs now installed from canonical Buildroot output; SD full build-id remains DEV-01 with additive file manifest. Production layout separate. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
 | PMIC/battery/charger telemetry | **PARTIAL** | DEV-02 PWRAP/MFD/regulator/PMIC key consumers work and USB presence power_supply ONLINE=1 is readable. This does not provide battery units/calibration, charging policy or voltage/thermal telemetry; full power now belongs to M4 #30. | #23; added #30. |
 | Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |

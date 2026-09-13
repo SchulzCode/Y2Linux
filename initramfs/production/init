@@ -26,7 +26,7 @@ rescue() {
     echo "<3>Y2RESCUE: $*; staying in rescue" > /dev/kmsg
     {
         printf '\033[2J\033[H'
-        echo 'Y2Linux STORAGE04 RESCUE'
+        echo 'Y2Linux STORAGE05 RESCUE'
         echo "$*"
         echo 'No reboot / no SD fallback / no formatting'
         /sbin/y2-usb-status
@@ -48,7 +48,7 @@ while [ "$n" -lt 40 ]; do
     [ -n "$rootdev" ] && [ -n "$datadev" ] && break
     n=$((n+1))
     if [ "$n" = 10 ]; then
-        printf '\nY2Linux Storage04: locating internal root/data\nNo SD card required.\n' > /dev/tty0
+        printf '\nY2Linux Storage05: locating internal root/data\nNo SD card required.\n' > /dev/tty0
     fi
     sleep 1
 done
@@ -89,10 +89,14 @@ for fs in proc sys run tmp dev; do
         rescue 'mount handover failed'
     fi
 done
-# BusyBox ash exec failure is fatal in a noninteractive shell. Enable interactive
-# shell semantics for this final exec so a returned failure can restore mounts.
-set -i
+# BusyBox ash accepts -i only at shell startup, never through "set -i".
+# An EXIT trap handles a failed shell exec; a successful exec keeps PID1 and
+# replaces the shell with the normal BusyBox switch_root applet.
+handover_exec_failed() {
+    trap - EXIT
+    for undo in $moved; do mount --move "/newroot/$undo" "/$undo"; done
+    start_observer
+    rescue 'switch_root exec failed'
+}
+trap handover_exec_failed EXIT
 exec switch_root -c /dev/console /newroot /sbin/init
-for undo in $moved; do mount --move "/newroot/$undo" "/$undo"; done
-start_observer
-rescue 'switch_root failed'

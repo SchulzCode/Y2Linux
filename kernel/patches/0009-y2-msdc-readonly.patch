@@ -26,19 +26,40 @@
  	{ .compatible = "mediatek,mt2701-mmc", .data = &mt2701_compat},
  	{ .compatible = "mediatek,mt2712-mmc", .data = &mt2712_compat},
  	{ .compatible = "mediatek,mt6779-mmc", .data = &mt6779_compat},
-@@ -1320,6 +1328,51 @@
+@@ -1180,7 +1188,7 @@
+ 		struct mmc_data *data = cmd->data;
+ 
+ 		if (mmc_op_multi(opcode)) {
+-			if (mmc_card_mmc(mmc->card) && mrq->sbc &&
++			if (!host->y2_emmc && mmc_card_mmc(mmc->card) && mrq->sbc &&
+ 			    !(mrq->sbc->arg & 0xFFFF0000))
+ 				rawcmd |= BIT(29); /* AutoCMD23 */
+ 		}
+@@ -1188,7 +1196,9 @@
+ 		rawcmd |= ((data->blksz & 0xFFF) << 16);
+ 		if (data->flags & MMC_DATA_WRITE)
+ 			rawcmd |= BIT(13);
+-		if (data->blocks > 1)
++		/* CMD18/CMD25 remain multiblock commands even for a one-block
++		 * reliable write. MT6582 encodes their protocol, not just length. */
++		if (data->blocks > 1 || (host->y2_emmc && mmc_op_multi(opcode)))
+ 			rawcmd |= BIT(12);
+ 		else
+ 			rawcmd |= BIT(11);
+@@ -1320,6 +1330,56 @@
  	host->mrq = NULL;
  	spin_unlock_irqrestore(&host->lock, flags);
  
++	if (host->y2_emmc && mrq->cmd->error &&
++	    mrq->cmd->opcode == MMC_SWITCH &&
++	    ((mrq->cmd->arg >> 16) & 255) == EXT_CSD_PART_CONFIG) {
++		host->y2_identified = false;
++		host->y2_switch_pending = false;
++	}
 +	if (host->y2_emmc && !mrq->cmd->error) {
 +		struct mmc_data *data = mrq->data;
 +		if (mrq->cmd->opcode == MMC_SEND_OP_COND)
 +			host->y2_blockaddr = !!(mrq->cmd->resp[0] & BIT(30));
-+		if (mrq->cmd->opcode == MMC_SWITCH &&
-+		    ((mrq->cmd->arg >> 16) & 255) == EXT_CSD_PART_CONFIG) {
-+			host->y2_pending_partition = (mrq->cmd->arg >> 8) & 255;
-+			host->y2_switch_pending = true;
-+		}
 +		/* A transport completion alone does not prove CMD6 succeeded. Linux
 +		 * mmc_switch_status() obtains CMD13 before proceeding with block I/O. */
 +		if (host->y2_switch_pending && mrq->cmd->opcode == MMC_SEND_STATUS &&
@@ -66,9 +87,13 @@
 +						host->y2_partition = bytes[179];
 +						host->y2_switch_pending = false;
 +						host->y2_identified = true;
++						dev_info(host->dev, "eMMC context: sector-addressed=%u sectors=%u PART_CONFIG=%02x\n",
++							host->y2_blockaddr, host->y2_sectors, host->y2_partition);
 +					} else {
-+						dev_info_ratelimited(host->dev, "partition read sector=%u bytes=%u signature=%02x%02x\n",
-+							sector, data->bytes_xfered, bytes[510], bytes[511]);
++						dev_info_ratelimited(host->dev, "partition read CMD%u sector=%u bytes=%u signature=%02x%02x SBC=%u/%08x R1=%08x\n",
++							op, sector, data->bytes_xfered, bytes[510], bytes[511],
++							mrq->sbc ? mrq->sbc->arg : 0, mrq->sbc ? mrq->sbc->resp[0] : 0,
++							mrq->cmd->resp[0]);
 +					}
 +				}
 +				dma_sync_sg_for_device(host->dev, data->sg, data->sg_len, DMA_FROM_DEVICE);
@@ -78,7 +103,33 @@
  	msdc_track_cmd_data(host, mrq->cmd);
  	if (mrq->data)
  		msdc_unprepare_data(host, mrq->data);
-@@ -1484,7 +1537,41 @@
+@@ -1373,7 +1433,9 @@
+ 		}
+ 	}
+ 
+-	if (!sbc_error && !(events & MSDC_INT_CMDRDY)) {
++	/* On Y2, completion never overrides a simultaneous transport error. */
++	if (!sbc_error && (!(events & MSDC_INT_CMDRDY) ||
++	    (host->y2_emmc && (events & (MSDC_INT_RSPCRCERR | MSDC_INT_CMDTMO))))) {
+ 		if ((events & MSDC_INT_CMDTMO && !host->hs400_tuning) ||
+ 		    (!mmc_op_tuning(cmd->opcode) && !host->hs400_tuning))
+ 			/*
+@@ -1391,6 +1453,14 @@
+ 			host->error |= REQ_CMD_TMO;
+ 		}
+ 	}
++	/* Never start a data transfer after a rejected SBC/data command.
++	 * Keep the MMC core's CMD6/CMD13 switch/status error semantics. */
++	if (host->y2_emmc && !cmd->error && (cmd == mrq->sbc || cmd->data) &&
++	    (mmc_resp_type(cmd) == MMC_RSP_R1 || mmc_resp_type(cmd) == MMC_RSP_R1B) &&
++	    (R1_STATUS(rsp[0]) || (rsp[0] & R1_SWITCH_ERROR))) {
++		cmd->error = -EIO;
++		host->error |= REQ_CMD_EIO;
++	}
+ 	if (cmd->error)
+ 		dev_dbg(host->dev,
+ 				"%s: cmd=%d arg=%08X; rsp %08X; cmd_error=%d\n",
+@@ -1484,7 +1554,48 @@
  static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
  {
  	struct msdc_host *host = mmc_priv(mmc);
@@ -118,10 +169,87 @@
 +		host->y2_blockaddr = false;
 +		host->y2_switch_pending = false;
 +	}
++	/* A failed/ambiguous CMD6 must not leave the previous region trusted.
++	 * Only a subsequent successful CMD13 (or fresh EXT_CSD) confirms it. */
++	if (host->y2_emmc && mrq->cmd->opcode == MMC_SWITCH &&
++	    ((mrq->cmd->arg >> 16) & 255) == EXT_CSD_PART_CONFIG) {
++		host->y2_pending_partition = (mrq->cmd->arg >> 8) & 255;
++		host->y2_switch_pending = true;
++	}
  	host->error = 0;
  	WARN_ON(!host->hsq_en && host->mrq);
  	host->mrq = mrq;
-@@ -2983,6 +3070,9 @@
+@@ -1507,7 +1618,10 @@
+ 	 * if HW option is enabled, and SBC does not have "special" flags,
+ 	 * use HW option,  otherwise use SW option
+ 	 */
+-	if (mrq->sbc && (!mmc_card_mmc(mmc->card) ||
++	/* MT6582 uses the ordinary software SBC path in production. This keeps
++	 * full CMD23 semantics (including reliable-write/data-tag bits), and
++	 * makes SBC acceptance explicit before every CMD18/CMD25 DMA transfer. */
++	if (mrq->sbc && (host->y2_emmc || !mmc_card_mmc(mmc->card) ||
+ 	    (mrq->sbc->arg & 0xFFFF0000)))
+ 		msdc_start_command(host, mrq, mrq->sbc);
+ 	else
+@@ -1562,6 +1676,17 @@
+ 	     | MSDC_INT_DMA_PROTECT);
+ 	u32 val;
+ 	int ret;
++	int transfer_error = 0;
++
++	if (host->y2_emmc) {
++		if (events & MSDC_INT_DATTMO)
++			transfer_error = -ETIMEDOUT;
++		else if (events & MSDC_INT_DATCRCERR)
++			transfer_error = -EILSEQ;
++		else if (events & (MSDC_INT_DMA_BDCSERR | MSDC_INT_DMA_GPDCSERR |
++				   MSDC_INT_DMA_PROTECT))
++			transfer_error = -EIO;
++	}
+ 
+ 	spin_lock_irqsave(&host->lock, flags);
+ 	done = !host->data;
+@@ -1581,18 +1706,25 @@
+ 
+ 		ret = readl_poll_timeout_atomic(host->base + MSDC_DMA_CTRL, val,
+ 						!(val & MSDC_DMA_CTRL_STOP), 1, 20000);
+-		if (ret)
++		if (ret) {
+ 			dev_dbg(host->dev, "DMA stop timed out\n");
++			if (host->y2_emmc)
++				transfer_error = -ETIMEDOUT;
++		}
+ 
+ 		ret = readl_poll_timeout_atomic(host->base + MSDC_DMA_CFG, val,
+ 						!(val & MSDC_DMA_CFG_STS), 1, 20000);
+-		if (ret)
++		if (ret) {
+ 			dev_dbg(host->dev, "DMA inactive timed out\n");
++			if (host->y2_emmc)
++				transfer_error = -ETIMEDOUT;
++		}
+ 
+ 		sdr_clr_bits(host->base + MSDC_INTEN, data_ints_mask);
+ 		dev_dbg(host->dev, "DMA stop\n");
+ 
+-		if ((events & MSDC_INT_XFER_COMPL) && (!stop || !stop->error)) {
++		if ((events & MSDC_INT_XFER_COMPL) && (!stop || !stop->error) &&
++		    !transfer_error) {
+ 			data->bytes_xfered = data->blocks * data->blksz;
+ 		} else {
+ 			dev_dbg(host->dev, "interrupt events: %x\n", events);
+@@ -1600,7 +1732,9 @@
+ 			host->error |= REQ_DAT_ERR;
+ 			data->bytes_xfered = 0;
+ 
+-			if (events & MSDC_INT_DATTMO)
++			if (transfer_error)
++				data->error = transfer_error;
++			else if (events & MSDC_INT_DATTMO)
+ 				data->error = -ETIMEDOUT;
+ 			else if (events & MSDC_INT_DATCRCERR)
+ 				data->error = -EILSEQ;
+@@ -2983,6 +3117,9 @@
  		return PTR_ERR(host->base);
  
  	host->dev_comp = of_device_get_match_data(&pdev->dev);
@@ -131,7 +259,7 @@
  
  	if (host->dev_comp->needs_top_base) {
  		host->top_base = devm_platform_ioremap_resource(pdev, 1);
-@@ -3016,6 +3106,11 @@
+@@ -3016,6 +3153,11 @@
  	if (host->irq < 0)
  		return host->irq;
  
@@ -143,7 +271,7 @@
  	host->pinctrl = devm_pinctrl_get(&pdev->dev);
  	if (IS_ERR(host->pinctrl))
  		return dev_err_probe(&pdev->dev, PTR_ERR(host->pinctrl),
-@@ -3032,6 +3127,8 @@
+@@ -3032,6 +3174,8 @@
  		dev_err(&pdev->dev, "Cannot find pinctrl uhs!\n");
  		return PTR_ERR(host->pins_uhs);
  	}
@@ -152,7 +280,7 @@
  
  	/* Support for SDIO eint irq ? */
  	if ((mmc->pm_caps & MMC_PM_WAKE_SDIO_IRQ) && (mmc->pm_caps & MMC_PM_KEEP_POWER)) {
-@@ -3050,6 +3147,21 @@
+@@ -3050,6 +3194,21 @@
  	msdc_of_property_parse(pdev, host);
  
  	host->dev = &pdev->dev;
@@ -174,7 +302,7 @@
  	host->src_clk_freq = clk_get_rate(host->src_clk);
  	/* Set host parameters to mmc */
  	mmc->ops = &mt_msdc_ops;
-@@ -3072,6 +3184,8 @@
+@@ -3072,6 +3231,8 @@
  		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
  
  	mmc->caps |= MMC_CAP_CMD23;
@@ -183,7 +311,7 @@
  	if (host->cqhci)
  		mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
  	/* MMC core transfer sizes tunable parameters */
-@@ -3132,7 +3246,7 @@
+@@ -3132,7 +3293,7 @@
  		mmc->max_seg_size = 64 * 1024;
  		/* Reduce CIT to 0x40 that corresponds to 2.35us */
  		msdc_cqe_cit_cal(host, 2350);

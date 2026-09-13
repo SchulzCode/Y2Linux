@@ -1,5 +1,23 @@
 # Session handoff — 2026-09-13, Storage02 retry
 
+## Latest observation: owner-flashed Storage04 reaches rescue
+
+[Live evidence](../hardware-evidence/2026-09-13-storage04-live/README.md), obtained
+through LOG1 after the owner granted host ACM access, confirms storage04 Linux,
+four CPUs and MemTotal 954380 KiB. Internal MMC exposes 15269888 sectors but no
+partitions; the driver reports sector-zero signature `0000`. At 41.163161 seconds
+the boot enters rescue for missing/invalid internal Y2ROOT/Y2DATA. Normal rootfs
+and SSH do not start. USB enumeration and bounded ACM log capture now work;
+Ethernet carrier, normal-root access and broader USB behavior remain unqualified.
+Physical metadata contents/addressing require read-only verification before any
+repair inference. The documented production private SSH key is missing locally;
+the development public key does not match the packaged Y2DATA authorization.
+
+Owner identifies the earlier failure to turn on as an empty battery. This is
+owner-reported cause, not measured battery telemetry; charging remains absent.
+This observation supersedes the earlier pending Storage04 flash/USB statements.
+Storage #33 stays ACTIVE, with no M4 activation, build, flash or physical write.
+
 ## Current: Storage03 failed physical boot; one-platform correction active
 
 The owner flashed Storage03 and its screen reached `Y2Linux STORAGE03 RESCUE`:

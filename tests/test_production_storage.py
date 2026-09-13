@@ -1,7 +1,7 @@
 """Adversarial tests for the production storage boundary, with no physical devices."""
 import ctypes, json, os, shutil, subprocess, tempfile, unittest
 from pathlib import Path
-from tools.production.layout import TARGETS, make_scatter, scatter_rows, sparse_encode, sparse_identity
+from tools.production.layout import TARGETS, make_scatter, make_boot_scatter, scatter_rows, sparse_encode, sparse_identity
 ROOT=Path(__file__).resolve().parents[1]
 
 class StorageGuard(unittest.TestCase):
@@ -112,13 +112,19 @@ class RootResolver(unittest.TestCase):
         (parent/'device').mkdir(parents=True);(parent/'device/type').write_text(media);(parent/'removable').write_text('0');(parent/'size').write_text(str(capacity))
         part=parent/(name+'p5');part.mkdir();(part/'partition').write_text('5');(part/'start').write_text(str(start));(part/'size').write_text(str(size))
         (self.blocks/(name+'p5')).symlink_to(part)
-    def resolve(self,**extra):
+    def resolve(self,request='Y2ROOT 79324c69-6e75-4801-8000-000000000101 166912 1679360',**extra):
         env=os.environ|extra;env['PATH']=str(self.bin)+':'+env['PATH']
-        return subprocess.run(['sh','-c',self.script+'\ny2_find_partition Y2ROOT 79324c69-6e75-4801-8000-000000000101 166912 1679360'],env=env,text=True,capture_output=True)
+        return subprocess.run(['sh','-c',self.script+'\ny2_find_partition '+request],env=env,text=True,capture_output=True)
     def test_exact_internal_geometry_without_fixed_number(self):
         self.disk();r=self.resolve();self.assertEqual((r.returncode,r.stdout),(0,'/dev/mmcblk7p5\n'))
     def test_full_physical_disk_capacity(self):
         self.disk(capacity=15269888);self.assertEqual(self.resolve().returncode,0)
+    def test_data_partition_geometry_identity_and_number_independence(self):
+        self.disk(start=2104320,size=1638400,capacity=15269888)
+        request='Y2DATA 79324c69-6e75-4801-8000-000000000102 2104320 1638400'
+        r=self.resolve(request,MOCK_LABEL='Y2DATA',MOCK_UUID='79324c69-6e75-4801-8000-000000000102')
+        self.assertEqual((r.returncode,r.stdout),(0,'/dev/mmcblk7p5\n'))
+        self.assertNotEqual(self.resolve(request).returncode,0)
     def test_removable_clone_never_selected(self):
         self.disk(host='11240000',media='SD');self.assertNotEqual(self.resolve().returncode,0)
     def test_mismatched_capacity(self):
@@ -133,6 +139,15 @@ class RootResolver(unittest.TestCase):
         self.disk(name='mmcblk8');self.assertNotEqual(self.resolve().returncode,0)
 
 class Transport(unittest.TestCase):
+    def test_boot_only_profile_preserves_all_stock_fields(self):
+        stock=(ROOT/'tests/fixtures/production/MT6582_Android_scatter.txt').read_text()
+        rows=scatter_rows(make_boot_scatter(stock))
+        for old,new in zip(scatter_rows(stock),rows):
+            self.assertEqual({k:v for k,v in old.items() if k not in ('file_name','is_download')},
+                             {k:v for k,v in new.items() if k not in ('file_name','is_download')})
+            selected=new['partition_name']=='BOOTIMG'
+            self.assertEqual(new['is_download'],str(selected).lower())
+            self.assertEqual(new['file_name'],'BOOTIMG.img' if selected else 'NONE')
     def test_sparse_defined_bytes_and_truncation(self):
         import hashlib,struct
         with tempfile.TemporaryDirectory() as d:

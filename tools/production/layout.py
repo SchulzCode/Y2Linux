@@ -38,6 +38,15 @@ def make_scatter(stock, initialize_data):
         blocks[i]=re.sub(r'(?m)^  is_download: .*$', '  is_download: '+str(enabled).lower(),blocks[i])
     return ''.join(blocks)
 
+def make_boot_scatter(stock):
+    """Normal production kernel update: only BOOTIMG is a downloadable payload."""
+    blocks=re.split(r'(?m)(?=^- partition_index: )',make_scatter(stock,False))
+    for i in range(1,len(blocks)):
+        if 'partition_name: BOOTIMG\n' in blocks[i]:continue
+        blocks[i]=re.sub(r'(?m)^  file_name: .*$', '  file_name: NONE',blocks[i])
+        blocks[i]=re.sub(r'(?m)^  is_download: .*$', '  is_download: false',blocks[i])
+    return ''.join(blocks)
+
 def sparse_encode(raw, destination):
     # Android sparse v1 with RAW/FILL only: no DONT_CARE holes left unverified.
     # Logical contents exactly match the raw filesystem, including zero blocks.
