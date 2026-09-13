@@ -1,15 +1,23 @@
-# Session handoff — 2026-09-13, Storage05 boot failed
+# Session handoff — 2026-09-13, Storage06 internal boot and SSH work
 
-## Current: Storage06 boots internally; prepare owner-key Y2DATA only
+## Current: owner flashed the correction; internal boot and SSH confirmed
 
-Owner flashed the working23552-sector correction. [ACM evidence](../hardware-evidence/2026-09-13-storage06-owner/README.md)
-confirms MBR/EBR55aa, p5/p7, ext4rw internal root/data and Buildroot handover.
-Dropbear is reachable but rejects the existing owner key. Owner selects
-~/.ssh/y2linux_ed25519.pub and confirms only initial state exists on Y2DATA.
-Prepare a validated USRDATA-only initialization; preserve the working BOOTIMG
-and Y2ROOT. No new kernel build or diagnostic path. Never inspect/copy/package
-the private key; authorization stays persistent in Y2DATA across system updates.
-All entries below are history.
+The owner flashed Storage06 and then the corrected initial Y2DATA image.
+[Authenticated evidence](../hardware-evidence/2026-09-13-storage06-owner/ssh-result.json)
+confirms the complete BOOTIMG hash, intact stock tables, exact p5/p7 geometry,
+internal ext4 read-write mounts, no SD block device and successful owner-key SSH.
+The live authorized key exactly matches ~/.ssh/y2linux_ed25519.pub. The private
+key was used only by the requested SSH client; its contents were never inspected,
+copied, packaged or committed. Authorization remains persistent in Y2DATA.
+The host's stale 10.42.0.1 server-key entry is corrected, and its normal SSH
+configuration now succeeds with strict host-key verification.
+
+[Exact artifacts, fallback hashes and completed test](../build/y2linux-production-v1-r6-deployment.md).
+No further build or flash is required for this fix. Preserve the working BOOTIMG
+and Y2ROOT; normal system updates must not select USRDATA. Do not start another
+firmware pass or a later subsystem automatically. #33 remains ACTIVE for wider
+qualification; deliberate scratch writes, stress/power-fail and synthetic ext4
+inode warnings remain recorded limits. All entries below are history.
 
 
 ## Latest: readback verified; stock address correction in progress

@@ -1,0 +1,19 @@
+PASS owner public key matches Y2DATA exactly; clean ext4, stock bounds, data-only selection, BOOTIMG/Y2ROOT preserved
+PASS exact existing owner public file, fingerprint SHA256:IS9HhrmQKRtlEEbrcJjZa0XQHVwnRXRUzQQ61/7XAb8
+PASS retained root symlink /root/.ssh -> /data/ssh/authorized_keys.d
+PASS retained root symlink /etc/dropbear -> /data/ssh/host-keys
+PASS installed root contains unchanged USB-address wait, key-only Dropbear and persistent data setup
+PASS original BOOTIMG, Y2ROOT and unused Y2DATA seed remain byte-identical
+PASS rejected different owner public key despite updated public hash: package differs from requested owner public key
+PASS rejected shifted USRDATA address: only Y2DATA contents change; exact stock geometry/schema
+PASS rejected wrong Y2DATA UUID: only Y2DATA contents change; exact stock geometry/schema
+PASS rejected NVRAM selection despite matching scatter hash: only USRDATA selected; all stock scatter fields unchanged
+PASS rejected USRDATA added to preserving system updates: data initialization must never become a preserving system update
+PASS rejected data initialization falsely claims preservation: data initialization must never become a preserving system update
+PASS rejected extra BOOTIMG payload file: working BOOTIMG/Y2ROOT are references only
+PASS rejected wrong native disk offset: stock logical/native addressing
+PASS rejected wrong filesystem bytes hash: only Y2DATA contents change; exact stock geometry/schema
+PASS rejected writable authorization despite updated image hash: persistent SSH path permissions
+PASS rejected host state in seed despite updated image hash: unused initialization seed required: /ssh/host-keys
+PASS all 11 isolated host-only mutations refused; final candidate preserved
+Y2DATA SHA256 9e0f6b063b2ccfe7bb97bd229f0140cd47aebd917ed636b36e7fa6740ab22fe1

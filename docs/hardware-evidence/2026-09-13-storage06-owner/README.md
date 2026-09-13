@@ -1,5 +1,35 @@
 # Storage06 owner boot result
 
+## Latest: corrected data initialization and authenticated SSH
+
+The owner subsequently flashed the corrected initial Y2DATA image. SSH now
+authenticates with the existing owner identity, and the live authorized public
+file exactly matches ~/.ssh/y2linux_ed25519.pub. A read-only shell check confirms
+the complete Storage06 BOOTIMG hash, stock MBR/EBR1/EBR2 hashes, exact p5/p7
+geometry and ext4 read-write internal mounts without an SD block device.
+Buildroot handover on this boot is at 8.728982 seconds.
+
+[Result and transcript hash](ssh-result.json), [selected transcript](ssh-excerpt.txt)
+and [read-only commands](ssh-read-only-check.sh) are retained. Raw SSH output stays
+private. Host-key files were inspected only as directory metadata; no private
+contents were read. The requested client private identity was used by SSH only.
+No assistant physical write or further firmware build was performed.
+
+The normal host SSH configuration initially rejected the regenerated server key.
+After verifying the new public fingerprint on the connected Y2, only the old
+10.42.0.1 entry in the host's known_hosts was replaced; its previous public entry
+is retained privately and other hosts are unchanged. [The normal SSH invocation](ssh-normal-command.txt)
+then succeeds with strict host-key verification intact. This host-side trust
+update does not change the owner's client identity.
+
+The earlier ACM result below records the successful kernel flash before correcting
+the data key. Its missing whole-BOOTIMG hash and failed SSH authentication are
+superseded by the authenticated result. The two ext4 synthetic-inode warnings
+also occur on the latest boot; filesystem checks complete cleanly. Wider
+write/stress/power-fail qualification remains outside this read-only acceptance.
+
+## Earlier: Storage06 kernel flash, original data key
+
 The owner flashed the single corrected production BOOTIMG and reported that it
 works. USB identity reports Linux6.18.0-y2linux-storage06. The expected local
 BOOTIMG hash is `3ba809e44bd9c945c994209d1d93f41fe0da9259a303487dd6ecf49724bf49a8`;

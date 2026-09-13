@@ -1,4 +1,13 @@
-## Current next task — session close, 2026-09-10
+## Current boundary — Storage06 and owner SSH accepted, 2026-09-13
+
+The owner completed the production BOOTIMG and initial Y2DATA corrections.
+Internal root/data boot and existing-key SSH are confirmed. [Current handoff](session-handoff-2026-09-13.md)
+records artifacts and limits; [the refreshed audit](roadmap-gap-audit.md) retains
+#33 ACTIVE for wider qualification. No further flash or later subsystem starts
+automatically. The M3/power/radio/GPU/application gates remain unchanged.
+The earlier task queues below are history.
+
+## Earlier next task — session close, 2026-09-10
 
 Finish small M3 qualification on deployed AUDIO-02:48kHz, L/R, stop/restart/repeat.
 The notification fix is already physically validated at44.1kHz. Then audit before

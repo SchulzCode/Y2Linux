@@ -1,0 +1,5 @@
+PASS production BOOTIMG-only manifest, stock geometry, unchanged root/data, module ABI contract, bounds and hashes
+Y2ROOT.img: clean ext4, matching label/UUID; Y2ROOT: 769/32768 files (0.0% non-contiguous), 11661/131072 blocks
+Y2DATA.img: clean ext4, matching label/UUID; Y2DATA: 23/51296 files (0.0% non-contiguous), 7587/204800 blocks
+PASS owner public key matches Y2DATA exactly; clean ext4, stock bounds, data-only selection, BOOTIMG/Y2ROOT preserved
+Prepared: /home/luca/Dokumente/Code/Y2Linux/out/y2linux-production-v1-r6-owner-key

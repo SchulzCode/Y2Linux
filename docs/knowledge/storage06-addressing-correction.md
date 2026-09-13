@@ -4,7 +4,10 @@
 `2af64e0fe0831a038ea681e82b93209bb21360995772a54699b7f0ef6be22efa`.
 The candidate built from bea30cd and the owner flashed it. [ACM confirms internal
 boot](../hardware-evidence/2026-09-13-storage06-owner/README.md). The remaining
-owner-key mismatch is corrected through Y2DATA initialization, with no new kernel.
+owner-key mismatch was corrected through Y2DATA initialization, with no new kernel.
+[Authenticated SSH acceptance](../hardware-evidence/2026-09-13-storage06-owner/ssh-result.json)
+now confirms the complete BOOTIMG hash and all three stock table hashes through
+normal Linux block reads. The integrated correction is deployed.
 
 ## Evidence and root cause
 
@@ -96,5 +99,8 @@ the write allowlist, stock parser, resolver, companions/retries/faults, readback
 mode metadata and rejected contract changes. Full ARM/package checks follow the
 single build.
 
-The deliverable is one BOOTIMG-only update using unchanged root/data images,
-followed by one owner manual flash and no-SD boot.
+The storage deliverable was one BOOTIMG-only update using unchanged root/data
+images; the owner's flash and internal boot succeeded. The separately authorized
+SSH correction then changed only the initial Y2DATA public key. Both steps use
+the same production platform and are now physically observed; see the
+[completed deployment](../build/y2linux-production-v1-r6-deployment.md).

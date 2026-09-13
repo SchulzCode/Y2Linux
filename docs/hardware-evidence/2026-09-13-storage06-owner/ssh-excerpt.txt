@@ -1,0 +1,139 @@
+KERNEL
+6.18.0-y2linux-storage06
+UPTIME
+180.23 709.63
+MOUNTS
+proc /proc proc rw,relatime 0 0
+sysfs /sys sysfs rw,relatime 0 0
+devtmpfs /dev devtmpfs rw,relatime,size=476140k,nr_inodes=119035,mode=755 0 0
+devpts /dev/pts devpts rw,relatime,gid=5,mode=620,ptmxmode=666 0 0
+tmpfs /run tmpfs rw,nosuid,nodev,relatime,mode=755 0 0
+tmpfs /tmp tmpfs rw,nosuid,nodev,relatime 0 0
+debugfs /sys/kernel/debug debugfs rw,relatime 0 0
+/dev/mmcblk0p5 / ext4 rw,relatime 0 0
+/dev/mmcblk0p7 /data ext4 rw,nosuid,nodev,relatime 0 0
+tmpfs /lib/modules tmpfs rw,nosuid,nodev,relatime,mode=755 0 0
+proc /proc proc rw,relatime 0 0
+tmpfs /dev/shm tmpfs rw,relatime 0 0
+PARTITIONS
+major minor  #blocks  name
+
+ 179        0    7601664 mmcblk0
+ 179        1          1 mmcblk0p1
+ 179        2      10240 mmcblk0p2
+ 179        3      10240 mmcblk0p3
+ 179        4       6144 mmcblk0p4
+ 179        5     839680 mmcblk0p5
+ 179        6     129024 mmcblk0p6
+ 179        7     819200 mmcblk0p7
+ 259        0    5730304 mmcblk0p8
+MMC_GEOMETRY
+mmcblk0 15203328
+/sys/devices/platform/11230000.mmc/mmc_host/mmc0/mmc0:0001
+mmcblk0p5 166912
+1679360
+/sys/devices/platform/11230000.mmc/mmc_host/mmc0/mmc0:0001/block/mmcblk0/mmcblk0p5/device
+mmcblk0p7 2104320
+1638400
+/sys/devices/platform/11230000.mmc/mmc_host/mmc0/mmc0:0001/block/mmcblk0/mmcblk0p7/device
+MMC_TYPE
+MMC
+TABLE_HASHES_512_BYTES
+logical_sector=0
+4be9c92be18ba4169d4b050e18811c6650eab27a487f1c67f4a49efa01cd32a1  -
+logical_sector=1024
+0eca0f26847ffd17426ffd7c9e976a7e28017cf6bc454d6478c68d3b2c52a64e  -
+logical_sector=145408
+699e1e33054e944e7b1776a539cd41551f4a066abc51535ccfc3d50b44c4ffc7  -
+BOOTIMG_HASH_5193728_BYTES
+3ba809e44bd9c945c994209d1d93f41fe0da9259a303487dd6ecf49724bf49a8  -
+FILESYSTEM_IDENTITIES
+DEVNAME=/dev/mmcblk0p5
+LABEL=Y2ROOT
+UUID=79324c69-6e75-4801-8000-000000000101
+VERSION=1.0
+FSBLOCKSIZE=4096
+BLOCK_SIZE=4096
+FSLASTBLOCK=131072
+FSSIZE=536870912
+TYPE=ext4
+USAGE=filesystem
+PART_ENTRY_SCHEME=dos
+PART_ENTRY_TYPE=0x83
+PART_ENTRY_NUMBER=5
+PART_ENTRY_OFFSET=166912
+PART_ENTRY_SIZE=1679360
+PART_ENTRY_DISK=179:0
+
+DEVNAME=/dev/mmcblk0p7
+LABEL=Y2DATA
+UUID=79324c69-6e75-4801-8000-000000000102
+VERSION=1.0
+FSBLOCKSIZE=4096
+BLOCK_SIZE=4096
+FSLASTBLOCK=204800
+FSSIZE=838860800
+TYPE=ext4
+USAGE=filesystem
+OWNER_AUTHORIZATION_HASH
+bf9cc937fb5dcee8569514b674fb9b3d5ba25396162efac7e8854f88bfe98c25  /data/ssh/authorized_keys.d/authorized_keys
+SSH_PATHS_AND_HOST_KEY_METADATA_ONLY
+drwx------    4 root     root          4096 Sep 13  2026 /data/ssh
+drwx------    2 root     root          4096 Sep 13  2026 /data/ssh/authorized_keys.d
+-rw-------    1 root     root           101 Sep 13  2026 /data/ssh/authorized_keys.d/authorized_keys
+drwx------    2 root     root          4096 Jan  1 00:00 /data/ssh/host-keys
+lrwxrwxrwx    1 root     root            19 Aug 23  2026 /etc/dropbear -> /data/ssh/host-keys
+lrwxrwxrwx    1 root     root            27 Aug 23  2026 /root/.ssh -> /data/ssh/authorized_keys.d
+total 4
+-rw-------    1 root     root            83 Jan  1 00:00 dropbear_ed25519_host_key
+DATA_SCHEMA
+1
+CPUS_RAM_NETWORK
+0-3
+MemTotal:         954376 kB
+MemFree:          916332 kB
+MemAvailable:     912828 kB
+Buffers:            8140 kB
+Cached:             6016 kB
+2: usb0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    inet 10.42.0.1/24 scope global usb0
+       valid_lft forever preferred_lft forever
+SELECTED_KERNEL_LINES
+[    0.000000] Linux version 6.18.0-y2linux-storage06 (Luca@y2-build) (Alpine clang version 20.1.8, LLD 20.1.8) #1 SMP @1764542530
+[    0.438116] mmcblk0: mmc0:0001 FNX2MB 7.25 GiB
+[    0.441763] mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    0.444634] mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    0.447457] mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    0.447519]  mmcblk0: p1 < p5 p6 p7 p8 > p2 p3 p4
+[    0.448441] mmcblk0: p8 size 4291225599 extends beyond EOD, truncated
+[    0.766291] Y2ROOT: Production Storage v1; internal-only discovery
+[    1.667177] mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+[    1.670157] mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    1.673050] mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    2.459764] mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+[    2.462748] mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    2.465648] mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    3.252456] mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+[    5.859286] mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+[    5.862250] mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    5.865155] mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    6.084009] EXT4-fs (mmcblk0p5): orphan cleanup on readonly fs
+[    6.084355] EXT4-fs (mmcblk0p5): mounted filesystem 79324c69-6e75-4801-8000-000000000101 ro without journal. Quota mode: disabled.
+[    6.238912] EXT4-fs (mmcblk0p7): orphan cleanup on readonly fs
+[    6.239392] EXT4-fs (mmcblk0p7): mounted filesystem 79324c69-6e75-4801-8000-000000000102 ro without journal. Quota mode: disabled.
+[    7.367145] EXT4-fs (mmcblk0p7): unmounting filesystem 79324c69-6e75-4801-8000-000000000102.
+[    7.367279] EXT4-fs (mmcblk0p7): Inode 1 ((ptrval)): inode tracked as orphan!
+[    7.374045] EXT4-fs (mmcblk0p5): unmounting filesystem 79324c69-6e75-4801-8000-000000000101.
+[    7.374172] EXT4-fs (mmcblk0p5): Inode 1 ((ptrval)): inode tracked as orphan!
+[    7.429828] Y2ROOT: recovering journal
+[    8.186491] Y2ROOT: clean, 772/32768 files, 11663/131072 blocks
+[    8.342519] Y2DATA: clean, 23/51296 files, 7587/204800 blocks
+[    8.552968] EXT4-fs (mmcblk0p5): mounted filesystem 79324c69-6e75-4801-8000-000000000101 r/w with ordered data mode. Quota mode: disabled.
+[    8.716889] EXT4-fs (mmcblk0p7): mounted filesystem 79324c69-6e75-4801-8000-000000000102 r/w with ordered data mode. Quota mode: disabled.
+[    8.728982] Y2ROOT: verified /dev/mmcblk0p5 with Y2DATA=/dev/mmcblk0p7; switching to Buildroot
+[   10.792458] EXT4-fs (mmcblk0p5): re-mounted 79324c69-6e75-4801-8000-000000000101.
+[   27.460345] Y2NET: usb0 10.42.0.1/24 ready; address persists across cable reconnect
+[   54.642631] random: crng init done
+[  180.301605] mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+[  180.309501] mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[  180.317254] mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900

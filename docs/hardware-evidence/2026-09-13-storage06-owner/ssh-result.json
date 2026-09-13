@@ -1,0 +1,98 @@
+{
+  "owner_report": "ok i flashed the new img",
+  "capture_completed_utc": "2026-09-13T20:11:56.928404+00:00",
+  "raw_transcript": "evidence-private/20260913-storage06-owner-ssh/read-only-acceptance.txt",
+  "raw_transcript_bytes": 315950,
+  "raw_transcript_sha256": "389d759694a3e2a4fb6afb1b5d50fc6264f374fd01658a672368b1efa3f36773",
+  "ssh_exit_status": 0,
+  "kernel_release": "6.18.0-y2linux-storage06",
+  "kernel_source_commit": "bea30cd5883f524a252d8b94d7e914d9d2f7cbdb",
+  "data_packaging_source_commit": "dcb7f45fd7fbe0adffc10195239f8df934491c8b",
+  "bootimg": {
+    "logical_start_sector": 60416,
+    "read_bytes": 5193728,
+    "sha256": "3ba809e44bd9c945c994209d1d93f41fe0da9259a303487dd6ecf49724bf49a8",
+    "complete_image_read_matches_package": true
+  },
+  "stock_tables": {
+    "MBR": {
+      "logical_sector": 0,
+      "bytes": 512,
+      "sha256": "4be9c92be18ba4169d4b050e18811c6650eab27a487f1c67f4a49efa01cd32a1",
+      "matches_stock": true
+    },
+    "EBR1": {
+      "logical_sector": 1024,
+      "bytes": 512,
+      "sha256": "0eca0f26847ffd17426ffd7c9e976a7e28017cf6bc454d6478c68d3b2c52a64e",
+      "matches_stock": true
+    },
+    "EBR2": {
+      "logical_sector": 145408,
+      "bytes": 512,
+      "sha256": "699e1e33054e944e7b1776a539cd41551f4a066abc51535ccfc3d50b44c4ffc7",
+      "matches_stock": true
+    }
+  },
+  "disk": {
+    "host": "11230000.mmc",
+    "type": "MMC",
+    "logical_sectors": 15203328,
+    "removable_sd_block_device_present": false
+  },
+  "root": {
+    "device": "/dev/mmcblk0p5",
+    "start_sectors": 166912,
+    "length_sectors": 1679360,
+    "label": "Y2ROOT",
+    "uuid": "79324c69-6e75-4801-8000-000000000101",
+    "mount": "/ ext4 rw"
+  },
+  "data": {
+    "device": "/dev/mmcblk0p7",
+    "start_sectors": 2104320,
+    "length_sectors": 1638400,
+    "label": "Y2DATA",
+    "uuid": "79324c69-6e75-4801-8000-000000000102",
+    "mount": "/data ext4 rw,nosuid,nodev"
+  },
+  "switch_to_buildroot_uptime_seconds": "8.728982",
+  "cpus_online": "0-3",
+  "MemTotal_KiB": 954376,
+  "ssh": {
+    "endpoint": "root@10.42.0.1",
+    "owner_public_file": "~/.ssh/y2linux_ed25519.pub",
+    "public_file_sha256": "bf9cc937fb5dcee8569514b674fb9b3d5ba25396162efac7e8854f88bfe98c25",
+    "fingerprint": "SHA256:IS9HhrmQKRtlEEbrcJjZa0XQHVwnRXRUzQQ61/7XAb8",
+    "live_authorization_exact_match": true,
+    "persistent_authorization": "/data/ssh/authorized_keys.d/authorized_keys",
+    "authorization_permissions": "root:root 0600; directories 0700",
+    "host_key_present": true,
+    "host_key_contents_read": false,
+    "client_private_key_contents_inspected_copied_or_packaged": false,
+    "normal_host_configuration_verified": true,
+    "normal_command_exit_status": 0,
+    "normal_command_transcript": "ssh-normal-command.txt",
+    "normal_command_transcript_sha256": "bee19d24e7cd65b75c55de6a578a7e526b5c1d8b6eb2659c6712976f56d86e30",
+    "host_trust_update": {
+      "reason": "data initialization regenerated the server host key",
+      "file": "~/.ssh/known_hosts",
+      "scope": "only the existing 10.42.0.1 public entry replaced; other entries preserved",
+      "verified_server_fingerprint": "SHA256:hi1mDX9thxF2vvO+5iTjUHD0on2zzgdZ1xuqciMhHf0",
+      "previous_public_entry_retained": "evidence-private/20260913-storage06-owner-ssh/previous-host-public-entry.txt",
+      "strict_host_key_verification_disabled": false
+    }
+  },
+  "assistant_device_commands": "authenticated read-only shell, sysfs/mount/blkid/public-key hash, bounded table/BOOTIMG reads and dmesg; no physical test writes",
+  "system_activity_observed": [
+    "root journal recovery completed, e2fsck clean",
+    "per-device SSH host key created in persistent Y2DATA"
+  ],
+  "emmc_request_rejections_or_io_errors": false,
+  "limits": [
+    "No deliberate scratch-write or protected-region write attempted",
+    "No whole live root/data digest claim; mounted ext4 changes initial images",
+    "Two synthetic ext4 buddy-cache inode warnings retained; both filesystem checks clean",
+    "No stress/power-fail or broader platform qualification"
+  ]
+}

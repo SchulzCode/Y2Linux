@@ -1,0 +1,207 @@
+{
+  "schema": "org.schulzcode.y2linux.release/v1",
+  "installation_profile": "data-initialization-only",
+  "operation": "owner-authorized replacement of initial Y2DATA state; not a normal system update",
+  "status": "offline-validated; manual data initialization and SSH acceptance pending",
+  "build_git_commit": "dcb7f45fd7fbe0adffc10195239f8df934491c8b",
+  "layout_version": 1,
+  "data_schema_version": 1,
+  "preserves_existing_data": false,
+  "normal_update_allowlist": [
+    "BOOTIMG",
+    "ANDROID"
+  ],
+  "storage_addressing": {
+    "schema": "org.schulzcode.y2linux.stock-emmc-window/v1",
+    "logical_sector_bytes": 512,
+    "native_user_sectors": 15269888,
+    "logical_disk_sectors": 15203328,
+    "logical_to_native_user_offset_sectors": 23552,
+    "excluded_native_tail_sectors": 43008,
+    "required_ext_csd": {
+      "boot_size_mult": 32,
+      "rpmb_size_mult": 4,
+      "gp_size_mult": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "ext_csd_modified": false,
+    "translated_commands": [
+      17,
+      18,
+      24,
+      25
+    ],
+    "write_guard_address_space": "stock logical disk; before translation",
+    "payload_absolute_start_bytes_semantics": "stock logical disk / scatter physical_start_addr; not native EMMC_USER",
+    "legacy_da": {
+      "region": "EMMC_PART_UNKNOWN(0x00)",
+      "address_type": "NUTL_ADDR_LOGICAL",
+      "non_user_prefix_bytes": 8912896,
+      "logical_disk_origin_bytes": 20971520
+    },
+    "targets": {
+      "BOOTIMG": {
+        "logical_start_sector": 60416,
+        "length_sectors": 32768,
+        "native_user_start_bytes": 42991616,
+        "legacy_da_start_bytes": 51904512
+      },
+      "ANDROID": {
+        "logical_start_sector": 166912,
+        "length_sectors": 1679360,
+        "native_user_start_bytes": 97517568,
+        "legacy_da_start_bytes": 106430464
+      },
+      "USRDATA": {
+        "logical_start_sector": 2104320,
+        "length_sectors": 1638400,
+        "native_user_start_bytes": 1089470464,
+        "legacy_da_start_bytes": 1098383360
+      }
+    }
+  },
+  "payloads": [
+    {
+      "component": "data-template",
+      "target_partition": "USRDATA",
+      "region": "EMMC_USER",
+      "absolute_start_bytes": 1077411840,
+      "scatter_linear_start_bytes": 1098383360,
+      "maximum_size_bytes": 838860800,
+      "partition_relative_offset_bytes": 0,
+      "mandatory": false,
+      "preserves_existing_data": false,
+      "install_policy": "initialize-only; NEVER select during preserving reinstall or OTA",
+      "version": 1,
+      "raw": {
+        "file": "Y2DATA.img",
+        "size_bytes": 838860800,
+        "sha256": "9e0f6b063b2ccfe7bb97bd229f0140cd47aebd917ed636b36e7fa6740ab22fe1"
+      },
+      "required_in_profiles": [
+        "data-initialization-only"
+      ],
+      "requires": {
+        "layout_version": 1,
+        "data_schema_version": 1
+      },
+      "filesystem": {
+        "type": "ext4",
+        "label": "Y2DATA",
+        "uuid": "79324c69-6e75-4801-8000-000000000102"
+      },
+      "spft": {
+        "format": "raw-ext4",
+        "file": "Y2DATA.img",
+        "size_bytes": 838860800,
+        "sha256": "9e0f6b063b2ccfe7bb97bd229f0140cd47aebd917ed636b36e7fa6740ab22fe1"
+      }
+    }
+  ],
+  "installed_components": [
+    {
+      "component": "kernel/boot",
+      "target_partition": "BOOTIMG",
+      "region": "EMMC_USER",
+      "absolute_start_bytes": 30932992,
+      "scatter_linear_start_bytes": 51904512,
+      "maximum_size_bytes": 16777216,
+      "partition_relative_offset_bytes": 0,
+      "mandatory": true,
+      "preserves_existing_data": false,
+      "install_policy": "replace",
+      "version": "6.18.0-y2linux-storage06",
+      "raw": {
+        "file": "BOOTIMG.img",
+        "size_bytes": 5193728,
+        "sha256": "3ba809e44bd9c945c994209d1d93f41fe0da9259a303487dd6ecf49724bf49a8"
+      },
+      "required_in_profiles": [
+        "boot-only"
+      ],
+      "requires": {
+        "layout_version": 1,
+        "data_schema_version": 1,
+        "platform_contract": "y2-platform-v1"
+      },
+      "modules": {
+        "ownership": "BOOTIMG",
+        "release": "6.18.0-y2linux-storage06",
+        "runtime_mount": "/lib/modules",
+        "ram_source": "/run/y2/modules"
+      },
+      "spft": {
+        "format": "raw-android-mtk-bootimg",
+        "file": "BOOTIMG.img",
+        "size_bytes": 5193728,
+        "sha256": "3ba809e44bd9c945c994209d1d93f41fe0da9259a303487dd6ecf49724bf49a8"
+      }
+    },
+    {
+      "component": "rootfs",
+      "target_partition": "ANDROID",
+      "region": "EMMC_USER",
+      "absolute_start_bytes": 85458944,
+      "scatter_linear_start_bytes": 106430464,
+      "maximum_size_bytes": 859832320,
+      "partition_relative_offset_bytes": 0,
+      "mandatory": true,
+      "preserves_existing_data": false,
+      "install_policy": "replace",
+      "version": "2025.02.17-storage.4",
+      "raw": {
+        "file": "Y2ROOT.img",
+        "size_bytes": 536870912,
+        "sha256": "814a5b2543931e01cee2eb6f641c3b6e02317bd6308d2d663aea78f618bd554f"
+      },
+      "required_in_profiles": [
+        "first-install",
+        "preserve-data"
+      ],
+      "requires": {
+        "layout_version": 1,
+        "data_schema_version": 1,
+        "platform_contract": "y2-platform-v1"
+      },
+      "filesystem": {
+        "type": "ext4",
+        "label": "Y2ROOT",
+        "uuid": "79324c69-6e75-4801-8000-000000000101"
+      },
+      "spft": {
+        "format": "raw-ext4",
+        "file": "Y2ROOT.img",
+        "size_bytes": 536870912,
+        "sha256": "814a5b2543931e01cee2eb6f641c3b6e02317bd6308d2d663aea78f618bd554f"
+      }
+    }
+  ],
+  "system_manifest_sha256": "886ae4cd2c44c23b095d13d0229dc2c1dd0150be975146a61139a6a328c621e5",
+  "template_base_manifest_sha256": "f07c316cc159974a8fca9487052a8574400bafee0d4ec3cd7059fbfa3ffe205c",
+  "debug_access": {
+    "authorized_public_key_sha256": "bf9cc937fb5dcee8569514b674fb9b3d5ba25396162efac7e8854f88bfe98c25",
+    "private_key_packaged": false,
+    "authorization_path": "/data/ssh/authorized_keys.d/authorized_keys",
+    "host_keys": "generated per device and persisted in Y2DATA; none packaged"
+  },
+  "profiles": {
+    "MT6582_Y2DATA_only_scatter.txt": {
+      "sha256": "bea13dc957ce284f027b64d898458b37031718acaf9ed3fa72e71821e9bb5602",
+      "selected_partitions": [
+        "USRDATA"
+      ]
+    }
+  }
+}

@@ -8,6 +8,40 @@ blueprint/planning material; no native platform readiness is inferred from that.
 
 ## Storage06 owner boot and SSH correction entry — 2026-09-13
 
+### Completed owner flash and authenticated acceptance
+
+At source `dcb7f45fd7fbe0adffc10195239f8df934491c8b`, the corrected initial Y2DATA
+package passed exact existing-public-key validation, ext4 integrity/identity,
+actual ARM blkid and eleven isolated package rejection checks. The owner then
+reported the new image flashed. [Authenticated SSH evidence](../hardware-evidence/2026-09-13-storage06-owner/ssh-result.json)
+confirms the requested identity now works, both internal filesystems mount
+read-write, p5/p7 retain exact stock geometry, and no removable SD block device
+is present. A complete 5193728-byte BOOTIMG read matches the Storage06 package
+SHA256; all three 512-byte stock table hashes match. Buildroot handover on this
+boot is at 8.728982 seconds. The live public-key file matches the local `.pub`
+exactly. No private-key contents were inspected, copied, packaged or committed.
+The regenerated server key required replacing the host's stale 10.42.0.1 public
+known_hosts entry with the verified new key. The normal SSH invocation then
+succeeds; strict host-key checks and all other saved host entries are preserved.
+
+Reassessed every coverage row and phase gate against this new physical result,
+the earlier ACM/readback/source evidence, the retained firmware/data package
+checks and today's existing #16/#27–33 snapshot. Internal boot, normal block
+reads and owner-key SSH are confirmed. Automatic root journal recovery and a
+new persistent server host key are observed; deliberate scratch-write,
+protected-region write, stress and power-fail qualification were not attempted.
+The two synthetic ext4 inode warnings remain recorded; filesystem checks finish
+cleanly. No table or existing Y2ROOT rewrite, alternate hardware path or further
+kernel build occurred in the SSH correction.
+
+[The deployed artifacts and limits](../build/y2linux-production-v1-r6-deployment.md)
+replace the pending manual-flash boundary below. This integrated pass is done;
+no further flash is required. #33 stays ACTIVE for its wider qualification,
+so its existing GitHub/milestone status needs no transition and no GitHub write
+was made. M1/M2 history, narrow M3 audio, deferred reconnect, backup/calibration
+gaps, M4/M5 not started, M6 planned and application deferral remain unchanged.
+No later phase starts automatically. The pre-initialization entry follows.
+
 The owner has already flashed Storage06, reports that it works, and requests
 SSH access/correction in this same production pass. The host observes Linux
 6.18.0-y2linux-storage06 over USB ECM/ACM. After assigning10.42.0.2/24 to the
@@ -1228,33 +1262,34 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 
 ## Coverage matrix
 
-Reassessed at the stock address compatibility entry on 2026-09-13 against the
-21:10:43 corrected physical readback, actual retained stock FM kernel and
+Reassessed after Storage06 owner-key SSH acceptance on 2026-09-13 against the
+[authenticated internal-boot result](../hardware-evidence/2026-09-13-storage06-owner/ssh-result.json),
+the 21:10:43 corrected physical readback, actual retained stock FM kernel and
 [Storage05 owner result](../hardware-evidence/2026-09-13-storage05-owner/README.md),
 [Storage04 ACM](../hardware-evidence/2026-09-13-storage04-live/README.md),
 [DEV-02 core](../knowledge/y2linux-dev02-live-qualification.md) and
 [AUDIO-02 playback](../knowledge/m3-audio-01-live-result.md); every row reviewed,
-including unchanged later-phase gaps. Storage05's failed physical boot supersedes
-its earlier pending-acceptance status; it adds no successful hardware capability.
+including unchanged later-phase gaps. Storage06 internal boot and owner-key SSH
+supersede Storage05's failure and the initial Storage06 authorization mismatch.
 Status measures our hardware; registration alone never establishes consumer operation.
 
 | Area | Status | Actual evidence / remaining gap | Durable tracking |
 | --- | --- | --- | --- |
-| Physical Linux + initramfs + native PID1 | **CONFIRMED** | DEV-02 now switches to real Buildroot BusyBox PID1 on removable ext4 Y2ROOT; rescue and earlier M1 results remain historical. | Closed M1 / #20–21; core stays achieved. |
+| Physical Linux + initramfs + native PID1 | **CONFIRMED** | Storage06 switches from rescue to internal Buildroot at 8.728982s and authenticates owner-key SSH with no SD block device. Earlier DEV-02 removable-root and M1 results remain historical. | Closed M1 / #20–21; core stays achieved; #33 internal storage. |
 | Boot/kernel stability and maintenance | **PARTIAL** | DEV-02 live work, bounded RAM and initial SSH operate. First USB reconnect fails before enumeration; post-detach execution/uptime unavailable. Repeated cold/warm boots, long-run stress and maintenance remain later qualification. | Y2H-300 #28; maintenance/release policy #32. |
 | RAM and reserved/DMA ownership | **PARTIAL** | 992 MiB bank with exclusions; physical MemTotal954660KiB and HighTotal228352KiB. Completed 256MiB short allocator test passes, substantial HIGHMEM consumed. Full-suite run capped600s; every-page/long-run/inherited-DMA containment is not proved. Narrow expansion #22 satisfied. | #22; #28. Owner-authorized development qualification. |
 | SMP | **CONFIRMED** | Four CPUs online on DEV-02 with advancing cross-CPU/timer IPIs and no interrupt errors; full coherency/PM stress is a later qualification scope. | #28; optional for first wired player. |
 | Clocks, resets, pinctrl/GPIO/IRQ and I2C | **PARTIAL** | DEV-02 CCF/PWRAP/MFD/regulator/core consumers operate; wheel has52IRQ/52I2C completions and both directions, no timeout. Exact full clock rates/unused orphan gates and future consumer reset/rail ownership remain #29/#30 prerequisites. | #23/#24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Watchdog and controlled reset | **PARTIAL** | Reviewed early AP_RGU stop and displayed stopped state; no production driver takeover, pet/timeout strategy, deliberate reset or restart qualification. | #28 with #30. Preserve current experiment behavior. |
 | On-device diagnostic channel | **CONFIRMED** | DEV-02 native fbcon and owner-confirmed visible color/checkerboard pattern; supported unblank succeeds. Cursor handling fixes a later shared-buffer checksum mismatch without a kernel change. | #20–21; [result](../knowledge/m1-runtime-hardware-result.md). |
-| Developer host logs / USB | **PARTIAL** | DEV-02 ACM enumeration, complete logs over authenticated SSH and ECM traffic work. First physical reconnect fails before enumeration; no boot-continuity result. Host static-address/uaccess fixes verified after an owner restart; ACM transfers61463bytes/12s. This is restart recovery, not reconnect success. | #27, #23, #28. |
+| Developer host logs / USB | **PARTIAL** | Storage06 ACM capture and authenticated owner-key SSH over ECM 10.42.0.1 work after owner startup; host USB profile uses 10.42.0.2/24. Historical first reconnect fails before enumeration; no boot-continuity/reconnect qualification is added by the manual flash/startup. | #27, #23, #28; #33 owner SSH. |
 | Physical UART / early crash capture | **UNKNOWN** | UART0 candidate exists; no pad/level/wire capture. Ramoops retention/reader is unproved. USB cannot log hangs before its initialization. | Existing #16; broader crash/debug policy #32. |
 | Display/controller/panel | **CONFIRMED** | DEV-02 DSI-1 connected, CRTC55 active, framebuffer56 XR24 480x360/pitch1920, fbcon bound, safe GEM/OVL address match and owner-confirmed pattern. Blank state corrected through sysfs; broader modes/power sequencing remain later. | #25/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Backlight | **PARTIAL** | DEV-02 brightness/actual/max32 with physically visible panel; native brightness range, PWM/rail transitions and suspend sequencing remain #30. | #25/#23; #28/#30. |
 | Wheel/select input | **CONFIRMED** | DEV-02 raw evdev has balanced Select and both wheel KEY_UP/KEY_DOWN directions;52wheelIRQ/52I2C completions. Supersedes DEV-01 -110 transport regression. | #24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation keys, both volume keys and brief Power have balanced DEV-02 evdev events. No redesign; wake/suspend remains M4 and no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
 | Removable SD | **CONFIRMED** | DEV-02 SD128 on11240000.mmc at13MHz/one bit; ext4 Y2ROOT boots Buildroot, reads files, accepts verified userspace updates and sync.512MiB filesystem retained; throughput/hotplug/card-removal/power-fail qualification later. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Internal eMMC | **PARTIAL; internal boot CONFIRMED** | Storage06 ACM confirms15203328 logical sectors, offset23552, MBR/EBR55aa, p5/p7, internal ext4rw root/data and switch to Buildroot at7.878653s; no SD block device is present. This supersedes Storage05 rescue failure. SSH is reachable but owner key mismatches; authenticated bounded-write/repeat/stress qualification remains. Two preflight unmount warnings concern synthetic ext4 buddy-cache inode1; both filesystem checks report clean. | #33 storage; #28/#32. |
+| Internal eMMC | **PARTIAL; internal boot CONFIRMED** | Storage06 authenticated reads confirm 15203328 logical sectors, exact p5/p7 geometry, stock MBR/EBR hashes and complete BOOTIMG hash. Offset 23552 restores normal reads; internal ext4 root/data mount rw and Buildroot starts without an SD block device. Owner SSH now works. Deliberate bounded-write/repeat/stress qualification remains. Two synthetic ext4 buddy-cache inode warnings remain; both filesystem checks report clean. | #33 storage; #28/#32. |
 | Development rootfs and filesystem/data layout | **CONFIRMED** | Physical Buildroot2025.02.17/glibc/BusyBox/Dropbear on writable removable Y2ROOT, key authentication and complete command logs. Runtime mount and matching-module index fixes applied. Owner restart validates persistent runtime/module fixes; persistent ALSA tools/config/WAVs now installed from canonical Buildroot output; SD full build-id remains DEV-01 with additive file manifest. Production layout separate. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
 | PMIC/battery/charger telemetry | **PARTIAL** | DEV-02 PWRAP/MFD/regulator/PMIC key consumers work and USB presence power_supply ONLINE=1 is readable. This does not provide battery units/calibration, charging policy or voltage/thermal telemetry; full power now belongs to M4 #30. | #23; added #30. |
 | Thermal sensors/protection | **UNKNOWN** | Sensor mapping, calibration, trips/cooling and safe operating limits unverified. Required before sustained workload qualification. | #30; basic reporting dependency for #28. |
@@ -1268,7 +1303,7 @@ Status measures our hardware; registration alone never establishes consumer oper
 | FM where physically supported | **PARTIAL** | Donor STP/FM/AFE source exists; owner confirms this older Y2 lacks usable reception hardware. No reception implementation/qualification target for this board; other revisions remain untested. | Conditional #31/M16 reference only; [donor audit](../knowledge/donor-audit.md). |
 | Recovery and safe acquisition | **PARTIAL** | Owner-proven SPFT/FM history plus documented BOOTIMG-only Android restoration. Exact current image/per-device backups, consistency and independent retention remain incomplete. [Recovery](../knowledge/recovery.md), [actual trial](../knowledge/first-experiment-result.md). | Open M0; #32 owns continuing production/recovery coverage. |
 | Updates / rollback / production security | **PARTIAL** | V1 release manifest, component versions, allowlists, per-owner SSH provisioning and staged rescue update/installer contract implemented. No OTA/signature implementation; no automatic torn-BOOTIMG rollback, unchanged LK supplies no new verified boot. | #33 architecture/package; #32 future lifecycle/security. |
-| Production rootfs / services / non-root app contract | **PARTIAL** | Storage06 physically mounts internal Y2ROOT/Y2DATA read-write and starts Buildroot without a removable block device. Persistent SSH service is reachable but the seed has the wrong owner key; correct initial Y2DATA only. Authenticated acceptance and non-root app lifecycle remain later. | #33 storage; #32 lifecycle; native app deferred. |
+| Production rootfs / services / non-root app contract | **PARTIAL** | Storage06 mounts internal Y2ROOT/Y2DATA read-write and starts Buildroot without an SD block device. After the owner-key data initialization, authenticated SSH works and live authorization exactly matches the existing owner public key. BOOTIMG/Y2ROOT remain unchanged. Wider write qualification and non-root app lifecycle remain later. | #33 storage; #32 lifecycle; native app deferred. |
 | Time/RTC, entropy, identity and diagnostic privacy | **PARTIAL** | DEV-02 has no RTC class, starts at1970, and initializes CRNG at153.97s before ED25519 host-key generation. Key persists on SD. Entropy sysctl/boot_id files absent; no insecure entropy-credit workaround. Time/privacy policy remains #31/#32. | #31/#32; added explicit cross-cutting coverage. |
 
 ## Gaps found and minimum additions
@@ -1288,7 +1323,7 @@ new GitHub milestone shells are needed today:
 | M1 First Boot | Existing closed milestone 2 | **CONFIRMED core**; broader stability qualification moves into #28. |
 | M2 Core Hardware | [Y2H-300 #28](https://github.com/SchulzCode/Y2Linux/issues/28) | **Core/Buildroot qualified for M3 progression**; #22–26 satisfied. USB reconnect #27 stays open under #28 for later whole-platform qualification. |
 | M3 Native Audio | [Y2A-300 #29](https://github.com/SchulzCode/Y2Linux/issues/29) | **ACTIVE / NEAR COMPLETION**; clean native S16/44.1kHz headphones. Notification fix deployed/tested. Remaining48kHz, L/R, stop/restart/repeat; #27 deferred. |
-| Production Storage / Installation v1 | Storage activation (2026-09-13); #32 lifecycle | **ACTIVE**; internal Y2ROOT/Y2DATA, rescue, SPFT package and OTA contract; manual hardware test pending. |
+| Production Storage / Installation v1 | #33 storage activation (2026-09-13); #32 lifecycle | **ACTIVE**; internal root/data boot, stock block reads and owner-key SSH confirmed after manual flash. Wider write/stress/recovery qualification remains. |
 | M4 Power Viability | [Y2P-400 #30](https://github.com/SchulzCode/Y2Linux/issues/30) | **NOT STARTED**; follows Production Storage v1 and boundary audit. Full battery/charger/thermal/DVFS/idle/suspend/wake/reboot/poweroff. |
 | M5 Connectivity | [Y2N-500 #31](https://github.com/SchulzCode/Y2Linux/issues/31) | **NOT STARTED**; later Wi-Fi/Bluetooth, own firmware/calibration, BlueZ and reconnect/coexistence. |
 | M6 Production Y2Linux | [Y2R-600 #32](https://github.com/SchulzCode/Y2Linux/issues/32) | **PLANNED**; storage/recovery/PM gates and later M18–20 platform release obligations. |

@@ -6,8 +6,10 @@ proves intact MBR/EBRs and exact flashed ext4 identity prefixes. The actual stoc
 FM kernel adds23552 native user sectors and exposes15203328 sectors; the port
 omitted that mapping. Stock geometry/classification below remains unchanged.
 Upstream Linux6.18 parses these tables without a compatibility parser. [Storage06 ACM](../hardware-evidence/2026-09-13-storage06-owner/README.md) now
-confirms internal ext4rw root/data and Buildroot. Authenticated SSH/bounded-write
-acceptance awaits the corrected owner-key data template.
+confirms internal ext4 read-write root/data and Buildroot.
+SSH now authenticates with the existing owner key after the manual data
+initialization. [Accepted deployment](../build/y2linux-production-v1-r6-deployment.md).
+Deliberate scratch-write/stress acceptance remains outside this read-only check.
 BOOTIMG now owns loadable modules; rootfs/data and module ownership follow the
 [update contract](update-model.md). No physical success is inferred from builds.
 
@@ -89,8 +91,9 @@ before first install if its personal state must be recoverable. Preserve FAT/med
 Native Linux must check host11230000, nonremovable MMC type, disk capacity and
 partition start/size before accepting LABEL=Y2ROOT/Y2DATA. Labels alone are not
 write authorization. No fixed mmcblk number or vendor /emmc alias is assumed.
-Both native filesystem mounts are **implemented candidate behavior, not yet
-physically qualified**. Resolver failure leaves ACM rescue active.
+Both native filesystem mounts and owner-key SSH are now **physically confirmed
+on Storage06**. Broader write/power-fail qualification remains. Resolver failure
+leaves ACM rescue active.
 
 CACHE (126 MiB) cannot hold the current 512 MiB root image. FAT is large but dynamic
 and may hold user media; it is unnecessary for v1. ANDROID is sufficient and
