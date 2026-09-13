@@ -1,0 +1,8 @@
+Read-only SSH: debugfs 1000d000.pwrap/registers, bs=10 skip=267 count=6 (old 0xffe map).
+216: 0000
+218: 0000
+21a: 3001
+21c: 0505
+21e: 0048
+220: 0048
+Active normal VPROC selector72 = 700000 + 72*6250 = 1150000 uV. Enable bit0 is set.

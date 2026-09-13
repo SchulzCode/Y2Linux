@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Innioasis Y2 headphone card. Board topology adapted from Chris Hendrickson's
- * GPL-2.0 mt6582-cs43131.c; codec implementation is unmodified upstream 6.18.
+ * GPL-2.0 mt6582-cs43131.c; upstream 6.18 codec with system PM/error fixes.
  */
 #include <linux/module.h>
 #include <linux/of.h>
@@ -36,6 +36,15 @@ static const struct snd_soc_dapm_route y2_routes[] = {
 static const struct snd_kcontrol_new y2_controls[] = { SOC_DAPM_PIN_SWITCH("Headphone") };
 static int y2_late_probe(struct snd_soc_card *card)
 {
+	struct y2_audio *y2 = container_of(card, struct y2_audio, card);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_get_pcm_runtime(card, &y2->links[1]);
+	/* Quiesce ALSA/DAPM before the AFE and I2C codec power down. These
+	 * managed links order system PM without adding runtime power references. */
+	if (!rtd || !device_link_add(card->dev, snd_soc_rtd_to_cpu(rtd, 0)->dev,
+				   DL_FLAG_AUTOREMOVE_CONSUMER) ||
+	    !device_link_add(card->dev, snd_soc_rtd_to_codec(rtd, 0)->dev,
+			     DL_FLAG_AUTOREMOVE_CONSUMER))
+		return -ENOMEM;
 	/* No automatic output: owner enables the pin after setting a safe level.
 	 * Upstream codec reset volume is -60 dB; no startup state restoration. */
 	return snd_soc_dapm_disable_pin(&card->dapm, "Headphone");
@@ -104,7 +113,7 @@ static const struct of_device_id y2_audio_match[] = { { .compatible = "innioasis
 MODULE_DEVICE_TABLE(of, y2_audio_match);
 static struct platform_driver y2_audio_driver = {
 	.probe = y2_audio_probe,
-	.driver = { .name = "y2-audio", .of_match_table = y2_audio_match },
+	.driver = { .name = "y2-audio", .of_match_table = y2_audio_match, .pm = &snd_soc_pm_ops },
 };
 module_platform_driver(y2_audio_driver);
 MODULE_DESCRIPTION("Innioasis Y2 CS43131 headphone ASoC card");

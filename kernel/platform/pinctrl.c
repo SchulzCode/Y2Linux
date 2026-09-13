@@ -311,13 +311,28 @@ static int pins_probe(struct platform_device *pdev)
 	ret = mtk_eint_do_init(&p->eint, p->epins);
 	if (ret)
 		return dev_err_probe(dev, ret, "EINT init\n");
+	platform_set_drvdata(pdev, p);
 	dev_info(dev, "minimal pinctrl/GPIO; EINT parent high, PMIC25 high/wheel55 falling\n");
 	return 0;
 }
 static const struct of_device_id pins_match[] = {{.compatible = "innioasis,y2-pinctrl"}, {}};
+static int pins_suspend(struct device *dev)
+{
+	struct y2_pins *p = dev_get_drvdata(dev);
+	return mtk_eint_do_suspend(&p->eint);
+}
+static int pins_resume(struct device *dev)
+{
+	struct y2_pins *p = dev_get_drvdata(dev);
+	return mtk_eint_do_resume(&p->eint);
+}
+static const struct dev_pm_ops pins_pm = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pins_suspend, pins_resume)
+};
 static struct platform_driver pins_driver = {
     .probe = pins_probe,
-    .driver = {.name = "y2-pinctrl", .of_match_table = pins_match, .suppress_bind_attrs = true}};
+    .driver = {.name = "y2-pinctrl", .of_match_table = pins_match,
+	.pm = pm_sleep_ptr(&pins_pm), .suppress_bind_attrs = true}};
 static int __init pins_init(void) { return platform_driver_register(&pins_driver); }
 subsys_initcall(pins_init);
 MODULE_LICENSE("GPL");

@@ -46,7 +46,19 @@
  			rawcmd |= BIT(12);
  		else
  			rawcmd |= BIT(11);
-@@ -1320,6 +1330,56 @@
+@@ -1276,6 +1286,11 @@
+ 
+ static void msdc_track_cmd_data(struct msdc_host *host, struct mmc_command *cmd)
+ {
++	/* Empty removable-slot polling is expected and must not overwrite the
++	 * power/resume log. Real card/data errors keep the original warning. */
++	if (host->y2_sd && !mmc_from_priv(host)->card && cmd->error == -ETIMEDOUT &&
++	    (cmd->opcode == SD_SEND_IF_COND || cmd->opcode == MMC_APP_CMD))
++		return;
+ 	if (host->error &&
+ 	    ((!mmc_op_tuning(cmd->opcode) && !host->hs400_tuning) ||
+ 	     cmd->error == -ETIMEDOUT))
+@@ -1320,6 +1335,56 @@
  	host->mrq = NULL;
  	spin_unlock_irqrestore(&host->lock, flags);
  
@@ -103,7 +115,7 @@
  	msdc_track_cmd_data(host, mrq->cmd);
  	if (mrq->data)
  		msdc_unprepare_data(host, mrq->data);
-@@ -1373,7 +1433,9 @@
+@@ -1373,7 +1438,9 @@
  		}
  	}
  
@@ -114,7 +126,7 @@
  		if ((events & MSDC_INT_CMDTMO && !host->hs400_tuning) ||
  		    (!mmc_op_tuning(cmd->opcode) && !host->hs400_tuning))
  			/*
-@@ -1391,6 +1453,14 @@
+@@ -1391,6 +1458,14 @@
  			host->error |= REQ_CMD_TMO;
  		}
  	}
@@ -129,7 +141,7 @@
  	if (cmd->error)
  		dev_dbg(host->dev,
  				"%s: cmd=%d arg=%08X; rsp %08X; cmd_error=%d\n",
-@@ -1461,7 +1531,10 @@
+@@ -1461,7 +1536,10 @@
  	sdr_set_bits(host->base + MSDC_INTEN, cmd_ints_mask);
  	spin_unlock_irqrestore(&host->lock, flags);
  
@@ -141,7 +153,7 @@
  	writel(rawcmd, host->base + SDC_CMD);
  }
  
-@@ -1484,7 +1557,48 @@
+@@ -1484,7 +1562,48 @@
  static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
  {
  	struct msdc_host *host = mmc_priv(mmc);
@@ -191,7 +203,7 @@
  	host->error = 0;
  	WARN_ON(!host->hsq_en && host->mrq);
  	host->mrq = mrq;
-@@ -1507,7 +1621,10 @@
+@@ -1507,7 +1626,10 @@
  	 * if HW option is enabled, and SBC does not have "special" flags,
  	 * use HW option,  otherwise use SW option
  	 */
@@ -203,7 +215,7 @@
  	    (mrq->sbc->arg & 0xFFFF0000)))
  		msdc_start_command(host, mrq, mrq->sbc);
  	else
-@@ -1562,6 +1679,17 @@
+@@ -1562,6 +1684,17 @@
  	     | MSDC_INT_DMA_PROTECT);
  	u32 val;
  	int ret;
@@ -221,7 +233,7 @@
  
  	spin_lock_irqsave(&host->lock, flags);
  	done = !host->data;
-@@ -1581,18 +1709,25 @@
+@@ -1581,18 +1714,25 @@
  
  		ret = readl_poll_timeout_atomic(host->base + MSDC_DMA_CTRL, val,
  						!(val & MSDC_DMA_CTRL_STOP), 1, 20000);
@@ -250,7 +262,7 @@
  			data->bytes_xfered = data->blocks * data->blksz;
  		} else {
  			dev_dbg(host->dev, "interrupt events: %x\n", events);
-@@ -1600,7 +1735,9 @@
+@@ -1600,7 +1740,9 @@
  			host->error |= REQ_DAT_ERR;
  			data->bytes_xfered = 0;
  
@@ -261,7 +273,7 @@
  				data->error = -ETIMEDOUT;
  			else if (events & MSDC_INT_DATCRCERR)
  				data->error = -EILSEQ;
-@@ -2983,6 +3120,9 @@
+@@ -2983,6 +3125,9 @@
  		return PTR_ERR(host->base);
  
  	host->dev_comp = of_device_get_match_data(&pdev->dev);
@@ -271,7 +283,7 @@
  
  	if (host->dev_comp->needs_top_base) {
  		host->top_base = devm_platform_ioremap_resource(pdev, 1);
-@@ -3016,6 +3156,11 @@
+@@ -3016,6 +3161,11 @@
  	if (host->irq < 0)
  		return host->irq;
  
@@ -283,7 +295,7 @@
  	host->pinctrl = devm_pinctrl_get(&pdev->dev);
  	if (IS_ERR(host->pinctrl))
  		return dev_err_probe(&pdev->dev, PTR_ERR(host->pinctrl),
-@@ -3032,6 +3177,8 @@
+@@ -3032,6 +3182,8 @@
  		dev_err(&pdev->dev, "Cannot find pinctrl uhs!\n");
  		return PTR_ERR(host->pins_uhs);
  	}
@@ -292,7 +304,7 @@
  
  	/* Support for SDIO eint irq ? */
  	if ((mmc->pm_caps & MMC_PM_WAKE_SDIO_IRQ) && (mmc->pm_caps & MMC_PM_KEEP_POWER)) {
-@@ -3050,6 +3197,21 @@
+@@ -3050,6 +3202,21 @@
  	msdc_of_property_parse(pdev, host);
  
  	host->dev = &pdev->dev;
@@ -314,7 +326,7 @@
  	host->src_clk_freq = clk_get_rate(host->src_clk);
  	/* Set host parameters to mmc */
  	mmc->ops = &mt_msdc_ops;
-@@ -3072,6 +3234,8 @@
+@@ -3072,6 +3239,8 @@
  		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
  
  	mmc->caps |= MMC_CAP_CMD23;
@@ -323,7 +335,7 @@
  	if (host->cqhci)
  		mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
  	/* MMC core transfer sizes tunable parameters */
-@@ -3132,7 +3296,7 @@
+@@ -3132,7 +3301,7 @@
  		mmc->max_seg_size = 64 * 1024;
  		/* Reduce CIT to 0x40 that corresponds to 2.35us */
  		msdc_cqe_cit_cal(host, 2350);
@@ -332,3 +344,31 @@
  		/* Use HSQ on eMMC/SD (but not on SDIO) if HW CQE not supported */
  		struct mmc_hsq *hsq = devm_kzalloc(&pdev->dev, sizeof(*hsq), GFP_KERNEL);
  		if (!hsq) {
+@@ -3285,6 +3454,16 @@
+ 
+ 	if (host->hsq_en)
+ 		mmc_hsq_suspend(mmc);
++	/* Core has quiesced requests. Retain the proven MT6582 register, clock
++	 * and rootfs power state; no sibling-SoC restore sequence on s2idle. */
++	if (IS_ENABLED(CONFIG_Y2_POWER) && (host->y2_emmc || host->y2_sd)) {
++		if (READ_ONCE(host->mrq) || (readl(host->base + MSDC_DMA_CFG) & MSDC_DMA_CFG_STS)) {
++			if (host->hsq_en && mmc_hsq_resume(mmc))
++				dev_err(dev, "HSQ rollback failed\n");
++			return -EBUSY;
++		}
++		return 0;
++	}
+ 
+ 	msdc_save_reg(host);
+ 
+@@ -3306,6 +3485,10 @@
+ 	struct msdc_host *host = mmc_priv(mmc);
+ 	int ret;
+ 
++	if (IS_ENABLED(CONFIG_Y2_POWER) && (host->y2_emmc || host->y2_sd)) {
++		if (host->hsq_en) return mmc_hsq_resume(mmc);
++		return 0;
++	}
+ 	ret = msdc_ungate_clock(host);
+ 	if (ret)
+ 		return ret;

@@ -166,7 +166,16 @@ def validate_boot_update(out, base=None):
     require(digest(out/'metadata/partitions.json')==digest(PROJECT/'docs/architecture/production-partitions.json'),
             'unchanged partition classification')
     fallback=m['fallback'];oldboot=next(p for p in previous['payloads'] if p['target_partition']=='BOOTIMG')
-    require(fallback['file']=='fallback/BOOTIMG-storage04.img' and
+    fallback_name='fallback/BOOTIMG-storage04.img'
+    if 'manifest_sha256' in fallback:
+        fm=json.loads((out/'metadata/fallback-manifest.json').read_text())
+        require(digest(out/'metadata/fallback-manifest.json')==fallback['manifest_sha256'],'fallback manifest identity')
+        for field in ('rootfs_version','layout_version','data_schema_version','minimum_compatible_components'):
+            require(fm[field]==m[field],'fallback compatibility '+field)
+        oldboot=next(p for p in fm['payloads'] if p['target_partition']=='BOOTIMG')
+        require(fallback['kernel_version']==fm['kernel_version'],'fallback kernel version')
+        fallback_name='fallback/BOOTIMG-previous.img'
+    require(fallback['file']==fallback_name and
             fallback['sha256']==oldboot['raw']['sha256']==digest(out/fallback['file']) and
             fallback['size_bytes']==oldboot['raw']['size_bytes'],'observed fallback identity')
     receipt=json.loads((out/'metadata/userspace-source.json').read_text())

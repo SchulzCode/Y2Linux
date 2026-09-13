@@ -1,0 +1,83 @@
+--- a/drivers/rtc/rtc-mt6397.c
++++ b/drivers/rtc/rtc-mt6397.c
+@@ -40,18 +40,22 @@
+ static irqreturn_t mtk_rtc_irq_handler_thread(int irq, void *data)
+ {
+ 	struct mt6397_rtc *rtc = data;
+-	u32 irqsta, irqen;
++	u32 irqsta;
+ 	int ret;
+ 
+ 	ret = regmap_read(rtc->regmap, rtc->addr_base + RTC_IRQ_STA, &irqsta);
++	if (ret) {
++		dev_err_ratelimited(rtc->rtc_dev->dev.parent, "RTC IRQ status: %d\n", ret);
++		return IRQ_HANDLED;
++	}
+ 	if ((ret >= 0) && (irqsta & RTC_IRQ_STA_AL)) {
+ 		rtc_update_irq(rtc->rtc_dev, 1, RTC_IRQF | RTC_AF);
+-		irqen = irqsta & ~RTC_IRQ_EN_AL;
+ 		mutex_lock(&rtc->lock);
+-		if (regmap_write(rtc->regmap, rtc->addr_base + RTC_IRQ_EN,
+-				 irqen) == 0)
+-			mtk_rtc_write_trigger(rtc);
++		ret = regmap_update_bits(rtc->regmap, rtc->addr_base + RTC_IRQ_EN,
++					 RTC_IRQ_EN_AL, 0);
++		if (!ret) ret = mtk_rtc_write_trigger(rtc);
+ 		mutex_unlock(&rtc->lock);
++		if (ret) dev_err_ratelimited(rtc->rtc_dev->dev.parent, "RTC alarm disable: %d\n", ret);
+ 
+ 		return IRQ_HANDLED;
+ 	}
+@@ -107,8 +111,9 @@
+ static int mtk_rtc_set_time(struct device *dev, struct rtc_time *tm)
+ {
+ 	struct mt6397_rtc *rtc = dev_get_drvdata(dev);
+-	int ret;
+-	u16 data[RTC_OFFSET_COUNT];
++	int ret, i;
++	u16 data[RTC_OFFSET_COUNT], old[RTC_OFFSET_COUNT];
++	static const u16 masks[RTC_OFFSET_COUNT] = { 0x3f,0x3f,0x1f,0x1f,7,15,0x7f };
+ 
+ 	tm->tm_mon++;
+ 	tm->tm_wday++;
+@@ -122,6 +127,11 @@
+ 	data[RTC_OFFSET_YEAR] = tm->tm_year;
+ 
+ 	mutex_lock(&rtc->lock);
++	ret = regmap_bulk_read(rtc->regmap, rtc->addr_base + RTC_TC_SEC,
++			       old, RTC_OFFSET_COUNT);
++	if (ret) goto exit;
++	for (i = 0; i < RTC_OFFSET_COUNT; i++)
++		data[i] = (old[i] & ~masks[i]) | (data[i] & masks[i]);
+ 	ret = regmap_bulk_write(rtc->regmap, rtc->addr_base + RTC_TC_SEC,
+ 				data, RTC_OFFSET_COUNT);
+ 	if (ret < 0)
+@@ -209,8 +219,8 @@
+ 					data, RTC_OFFSET_COUNT);
+ 		if (ret < 0)
+ 			goto exit;
+-		ret = regmap_write(rtc->regmap, rtc->addr_base + RTC_AL_MASK,
+-				   RTC_AL_MASK_DOW);
++		ret = regmap_update_bits(rtc->regmap, rtc->addr_base + RTC_AL_MASK,
++					 RTC_AL_MASK_DOW, RTC_AL_MASK_DOW);
+ 		if (ret < 0)
+ 			goto exit;
+ 		ret = regmap_update_bits(rtc->regmap,
+@@ -303,7 +313,7 @@
+ 	struct mt6397_rtc *rtc = dev_get_drvdata(dev);
+ 
+ 	if (device_may_wakeup(dev))
+-		enable_irq_wake(rtc->irq);
++		return enable_irq_wake(rtc->irq);
+ 
+ 	return 0;
+ }
+@@ -313,7 +323,7 @@
+ 	struct mt6397_rtc *rtc = dev_get_drvdata(dev);
+ 
+ 	if (device_may_wakeup(dev))
+-		disable_irq_wake(rtc->irq);
++		return disable_irq_wake(rtc->irq);
+ 
+ 	return 0;
+ }

@@ -21,6 +21,22 @@ static inline unsigned y2_pll_decode(unsigned con0, unsigned con1, unsigned arm)
 static inline unsigned y2_pmic_write_mask(unsigned reg)
 {
 	switch (reg) {
+	case 0x000: /* Charger owner may only clear CHR_EN/CSDAC_EN (value guard below). */
+		return 0x0018;
+	case 0x758: /* AUXADC_CON11: voltage buffer, no calibration bits. */
+		return 0x0010;
+	case 0x76e: /* AUXADC_CON22: requests for BATSNS and PMIC die only. */
+		return 0x0088;
+	case 0x8000: /* RTC BBPU key, permitted only for upstream poweroff. */
+		return 0xffff;
+	case 0x8004: return 0x000d; /* RTC alarm/one-shot/low-power IRQ enable. */
+	case 0x8008: return 0x0010; /* RTC alarm DOW mask. */
+	case 0x800a: case 0x800c: case 0x8018: case 0x801a: return 0x003f;
+	case 0x800e: case 0x8010: case 0x801c: case 0x801e: return 0x001f;
+	case 0x8012: case 0x8020: return 0x0007;
+	case 0x8014: case 0x8022: return 0x000f;
+	case 0x8016: case 0x8024: return 0x007f;
+	case 0x803c: return 0x0001; /* RTC_WRTGR. */
 	case 0x160:
 	case 0x166:
 	case 0x172:
@@ -42,6 +58,12 @@ static inline unsigned y2_pmic_write_mask(unsigned reg)
 	default:
 		return 0;
 	}
+}
+static inline int y2_pmic_value_allowed(unsigned reg, unsigned value)
+{
+	if (reg == 0 && (value & 0x18)) return 0;
+	if (reg == 0x8000 && value != 0x4300) return 0;
+	return y2_pmic_write_mask(reg) != 0;
 }
 /* Command filter precedes any DMA setup. SD CMD6 only changes volatile bus
  * mode; eMMC CMD6 can write persistent EXT_CSD and is deliberately refused. */

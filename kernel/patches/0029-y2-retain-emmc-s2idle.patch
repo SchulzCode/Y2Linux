@@ -1,0 +1,23 @@
+--- a/drivers/mmc/core/mmc.c
++++ b/drivers/mmc/core/mmc.c
+@@ -2143,6 +2143,20 @@
+ 			goto out;
+ 	}
+ 
++	if (IS_ENABLED(CONFIG_Y2_POWER) &&
++	    of_device_is_compatible(host->parent->of_node, "innioasis,y2-mmc") &&
++	    (pm_type == MMC_POWEROFF_SUSPEND || pm_type == MMC_POWEROFF_SHUTDOWN)) {
++		u32 status;
++		/* Y2 s2idle retains card power, clock and volatile addressing state.
++		 * Block queues have drained; cache flush above remains mandatory.
++		 * Do not send CMD5 or persistent EXT_CSD writes through the storage
++		 * firewall, and do not force card reinitialization on resume. */
++		err = mmc_send_status(host->card, &status);
++		if (!err && (!(status & R1_READY_FOR_DATA) || R1_CURRENT_STATE(status) != R1_STATE_TRAN))
++			err = -EBUSY;
++		goto out;
++	}
++
+ 	if (mmc_card_can_poweroff_notify(host->card) &&
+ 	    mmc_host_can_poweroff_notify(host, pm_type))
+ 		err = mmc_poweroff_notify(host->card, notify_type);

@@ -124,12 +124,27 @@ static const struct of_device_id apt32f_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, apt32f_of_match);
 
+/* Wheel is not a wake source. Drain the threaded transfer before the I2C
+ * adapter suspends; resume the IRQ only after the parent adapter is ready. */
+static int apt32f_suspend(struct device *dev)
+{
+	disable_irq(to_i2c_client(dev)->irq);
+	return 0;
+}
+static int apt32f_resume(struct device *dev)
+{
+	enable_irq(to_i2c_client(dev)->irq);
+	return 0;
+}
+static DEFINE_SIMPLE_DEV_PM_OPS(apt32f_pm, apt32f_suspend, apt32f_resume);
+
 static struct i2c_driver apt32f_driver = {
     .probe = apt32f_probe,
     .driver =
 	{
 	    .name = "apt32f-wheel",
 	    .of_match_table = apt32f_of_match,
+	    .pm = pm_sleep_ptr(&apt32f_pm),
 	},
 };
 module_i2c_driver(apt32f_driver);

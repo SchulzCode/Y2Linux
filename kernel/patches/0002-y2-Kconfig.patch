@@ -1,6 +1,6 @@
 --- a/arch/arm/mach-mediatek/Kconfig
 +++ b/arch/arm/mach-mediatek/Kconfig
-@@ -10,6 +10,24 @@
+@@ -10,6 +10,31 @@
  	  Support for Mediatek MT65xx & MT81xx SoCs
  
  if ARCH_MEDIATEK
@@ -21,6 +21,13 @@
 + select GENERIC_PINCONF
 + help
 +   Bounded Linux 6.18 Y2 core bring-up; a production configuration.
++
++config Y2_POWER
++ bool "Innioasis Y2 integrated power platform"
++ depends on Y2_PLATFORM && IIO && THERMAL_OF && CPU_IDLE && NVMEM
++ help
++   MT6323 telemetry and calibrated MT6582 thermal glue, plus architectural
++   WFI idle. Charging is inhibited until Y2 pack thermometry is validated.
 +
  
  config MACH_MT2701

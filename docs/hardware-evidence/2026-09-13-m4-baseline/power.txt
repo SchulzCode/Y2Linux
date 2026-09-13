@@ -1,0 +1,169 @@
+/sys/class/power_supply/y2-usb-presence
+DEVTYPE=power_supply
+OF_NAME=pwrap
+OF_FULLNAME=/pwrap@1000d000
+OF_COMPATIBLE_0=innioasis,y2-pwrap
+OF_COMPATIBLE_N=1
+POWER_SUPPLY_NAME=y2-usb-presence
+POWER_SUPPLY_TYPE=USB
+POWER_SUPPLY_ONLINE=1
+POWER_SUPPLY_TYPE=USB
+/sys/power/state
+/sys/power/mem_sleep
+/sys/power/pm_test
+/sys/power/wakeup_count
+/sys/kernel/debug/regulator/regulator_summary
+ regulator                      use open bypass  opmode voltage current     min     max
+---------------------------------------------------------------------------------------
+ regulator-dummy                  1    0      0 unknown     0mV     0mA     0mV     0mV 
+ VPROC                            0    0      0 unknown  1150mV     0mA     0mV     0mV 
+ VSYS                             0    0      0 unknown  2200mV     0mA     0mV     0mV 
+ VPA                              0    0      0 unknown   500mV     0mA     0mV     0mV 
+ VTCXO                            0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VCN28                            0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VCN33_BT                         0    0      0  normal  3600mV     0mA     0mV     0mV 
+ VCN33_WIFI                       0    0      0  normal  3600mV     0mA     0mV     0mV 
+ VA                               0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VCAMA                            0    0      0 unknown  2800mV     0mA     0mV     0mV 
+ VIO28                            0    0      0  normal  2800mV     0mA  2800mV  2800mV 
+ VUSB                             0    0      0  normal  3300mV     0mA  3300mV  3300mV 
+ VMC                              0    0      0  normal  3300mV     0mA     0mV     0mV 
+ VMCH                             0    0      0  normal  3300mV     0mA     0mV     0mV 
+ VEMC3V3                          0    0      0  normal  3300mV     0mA     0mV     0mV 
+ VGP1                             0    0      0  normal  2800mV     0mA     0mV     0mV 
+ vgp2-audio                       5    4      0  normal  1800mV     0mA  1800mV  1800mV 
+    1-0030-VCP                    1                                 0mA     0mV     0mV
+    1-0030-VP                     1                                 0mA     0mV     0mV
+    1-0030-VA                     1                                 0mA     0mV     0mV
+    cs43131-en20                  1    1      0 unknown  1800mV     0mA  1800mV  1800mV 
+       cs43131-en18               2    2      0 unknown  1800mV     0mA  1800mV  1800mV 
+          1-0030-VD               1                                 0mA     0mV     0mV
+          cs43131-en15            1    1      0 unknown  1800mV     0mA  1800mV  1800mV 
+             1-0030-VL            1                                 0mA     0mV     0mV
+ VGP3                             0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VCN18                            0    0      0  normal  1800mV     0mA  1800mV  1800mV 
+ VSIM1                            0    0      0  normal  1800mV     0mA     0mV     0mV 
+ VSIM2                            0    0      0  normal  1800mV     0mA     0mV     0mV 
+ VRTC                             0    0      0 unknown  2800mV     0mA  2800mV  2800mV 
+ VCAMAF                           0    0      0  normal  2000mV     0mA     0mV     0mV 
+ VIBR                             0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VRF18                            0    0      0  normal  1825mV     0mA  1825mV  1825mV 
+ VM                               0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VIO18                            0    0      0  normal  1800mV     0mA  1800mV  1800mV 
+ VCAMD                            0    0      0  normal  1200mV     0mA     0mV     0mV 
+ VCAMIO                           0    0      0  normal  1800mV     0mA  1800mV  1800mV 
+/sys/kernel/debug/clk/clk_summary
+                                 enable  prepare  protect                                duty  hardware                            connection
+   clock                          count    count    count        rate   accuracy phase  cycle    enable   consumer                         id
+---------------------------------------------------------------------------------------------------------------------------------------------
+ clock-uart                          1       1        0        26000000    0          0     50000      Y   11002000.serial                 no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ clock-rtc                           0       0        0        32000       0          0     50000      Y   deviceless                      no_connection_id         
+ clock-system                        1       1        0        13000000    0          0     50000      Y   timer@10008000                  no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ y2-rtc32k                           1       1        0        32768       0          0     50000      Y   deviceless                      no_connection_id         
+    mm_mutex_32k                     1       1        0        32768       0          0     50000      Y      1400e000.mutex                  no_connection_id         
+                                                                                                              deviceless                      no_connection_id         
+ clk26m                              4       5        1        26000000    0          0     50000      Y   10010000.mipi-tx                no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+    mm_dsi_digital                   1       1        0        26000000    0          0     50000      Y      1400c000.dsi                    digital                  
+                                                                                                              deviceless                      no_connection_id         
+    mipi_tx0_pll                     1       1        1        338000000   0          0     50000      Y      1400c000.dsi                    hs                       
+                                                                                                              deviceless                      no_connection_id         
+    y2-audio                         0       0        0        26000000    0          0     50000      Y      11220000.audio-controller       audio                    
+                                                                                                              deviceless                      no_connection_id         
+    y2-audintbus                     0       0        0        26000000    0          0     50000      Y      11220000.audio-controller       audintbus                
+                                                                                                              deviceless                      no_connection_id         
+       y2-infra-audio                0       0        0        26000000    0          0     50000      Y         11220000.audio-controller       infra_audio              
+                                                                                                                 deviceless                      no_connection_id         
+    y2-msdc1-source                  0       0        0        26000000    0          0     50000      Y      11240000.mmc                    source                   
+                                                                                                              deviceless                      no_connection_id         
+       y2-msdc1                      0       0        0        26000000    0          0     50000      Y         11240000.mmc                    source_cg                
+                                                                                                                 11240000.mmc                    hclk                     
+                                                                                                                 deviceless                      no_connection_id         
+    y2-msdc0-source                  0       0        0        26000000    0          0     50000      Y      11230000.mmc                    source                   
+                                                                                                              deviceless                      no_connection_id         
+       y2-msdc0                      0       0        0        26000000    0          0     50000      Y         11230000.mmc                    source_cg                
+                                                                                                                 11230000.mmc                    hclk                     
+                                                                                                                 deviceless                      no_connection_id         
+    y2-kp                            1       1        0        26000000    0          0     50000      Y      10011000.keypad                 no_connection_id         
+                                                                                                              deviceless                      no_connection_id         
+    y2-pwrap                         1       1        0        26000000    0          0     50000      Y      1000d000.pwrap                  no_connection_id         
+                                                                                                              deviceless                      no_connection_id         
+    y2-axi                           0       3        0        273000000   0          0     50000      Y      deviceless                      no_connection_id         
+       y2-apdma                      0       2        0        273000000   0          0     50000      Y         11008000.i2c                    dma                      
+                                                                                                                 11007000.i2c                    dma                      
+                                                                                                                 deviceless                      no_connection_id         
+       y2-i2c1                       0       1        0        273000000   0          0     50000      Y         11008000.i2c                    main                     
+                                                                                                                 deviceless                      no_connection_id         
+       y2-i2c0                       0       1        0        273000000   0          0     50000      Y         11007000.i2c                    main                     
+                                                                                                                 deviceless                      no_connection_id         
+    y2-msdcpll                       0       0        0        399999542   0          0     50000      Y      deviceless                      no_connection_id         
+    y2-mmpll                         0       0        0        500500000   0          0     50000      Y      deviceless                      no_connection_id         
+    y2-univpll                       0       0        0        1248000000  0          0     50000      Y      deviceless                      no_connection_id         
+    y2-mainpll                       0       0        0        1092000000  0          0     50000      Y      deviceless                      no_connection_id         
+    y2-armpll                        0       0        0        1040000000  0          0     50000      Y      deviceless                      no_connection_id         
+ mm_dpi_engine                       0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_dpi_digital_lane                 0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_dsi_engine                       1       1        0        0           0          0     50000      Y   1400c000.dsi                    engine                   
+                                                                                                           deviceless                      no_connection_id         
+ mm_fake_eng                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_cam_mdp                          0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_bls_26m                      0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_rdma                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_rsz0                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_rsz1                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_wdma                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_wrot                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_mdp_tdshp                        0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_disp_ovl                         1       1        0        0           0          0     50000      Y   14007000.ovl                    no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ mm_disp_rdma                        1       1        0        0           0          0     50000      Y   14008000.rdma                   no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ mm_disp_wdma                        0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_disp_bls                         0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_disp_color                       1       1        0        0           0          0     50000      Y   1400b000.color                  no_connection_id         
+                                                                                                           deviceless                      no_connection_id         
+ mm_mutex                            1       1        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_cmdq                             0       0        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_smi_larb0                        1       1        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+ mm_smi_common                       1       1        0        0           0          0     50000      Y   deviceless                      no_connection_id         
+/sys/kernel/debug/wakeup_sources
+/sys/kernel/debug/gpio
+gpiochip0: 169 GPIOs, parent: platform/10005000.pinctrl, 10005000.pinctrl:
+ gpio-6   (                    |?                   ) in  hi ACTIVE LOW
+ gpio-7   (                    |?                   ) in  hi ACTIVE LOW
+ gpio-8   (                    |speaker-disabled-m3 ) out lo 
+ gpio-9   (                    |?                   ) in  hi ACTIVE LOW
+ gpio-10  (                    |?                   ) in  hi ACTIVE LOW
+ gpio-15  (                    |regulator-dac15     ) out hi 
+ gpio-18  (                    |regulator-dac18     ) out hi 
+ gpio-20  (                    |regulator-dac20     ) out hi 
+ gpio-25  (                    |interrupt           ) in  lo IRQ 
+ gpio-54  (                    |?                   ) in  hi ACTIVE LOW
+ gpio-55  (                    |interrupt           ) in  hi IRQ 
+/sys/kernel/debug/regmap:
+total 0
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 1-0030
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 1000d000.pwrap
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 11220000.audio-controller
+drwxr-xr-x    2 root     root             0 Jan  1 00:00 dummy-syscon@0x14000000
+/sys/class/backlight/y2-backlight/brightness
+32
+/sys/class/backlight/y2-backlight/actual_brightness
+32
+/sys/class/backlight/y2-backlight/bl_power
+0
+/sys/class/backlight/y2-backlight/max_brightness
+32
+/sys/class/drm/card0-DSI-1/status
+connected
+lrwxrwxrwx    1 root     root             0 Jan  1 00:19 /sys/bus/platform/devices/1000d000.pwrap -> ../../../devices/platform/1000d000.pwrap
+lrwxrwxrwx    1 root     root             0 Jan  1 00:19 /sys/bus/platform/devices/1000d000.pwrap:backlight -> ../../../devices/platform/1000d000.pwrap/1000d000.pwrap:backlight
+lrwxrwxrwx    1 root     root             0 Jan  1 00:19 /sys/bus/platform/devices/1000d000.pwrap:pmic -> ../../../devices/platform/1000d000.pwrap/1000d000.pwrap:pmic
+lrwxrwxrwx    1 root     root             0 Jan  1 00:19 /sys/bus/platform/devices/mt6323-keys -> ../../../devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-keys
+lrwxrwxrwx    1 root     root             0 Jan  1 00:19 /sys/bus/platform/devices/mt6323-led -> ../../../devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-led
+lrwxrwxrwx    1 root     root             0 Jan  1 00:19 /sys/bus/platform/devices/mt6323-pwrc -> ../../../devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-pwrc
+lrwxrwxrwx    1 root     root             0 Jan  1 00:19 /sys/bus/platform/devices/mt6323-regulator -> ../../../devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-regulator
+lrwxrwxrwx    1 root     root             0 Jan  1 00:19 /sys/bus/platform/devices/mt6323-rtc -> ../../../devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-rtc
+lrwxrwxrwx    1 root     root             0 Jan  1 00:19 /sys/bus/platform/devices/mt6323-rtc -> ../../../devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-rtc

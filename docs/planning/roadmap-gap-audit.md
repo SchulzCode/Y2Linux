@@ -6,6 +6,39 @@ issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
 
+## M4 integrated power activation — 2026-09-13
+
+Owner explicitly authorizes a complete generic power-platform implementation,
+one integrated candidate and read-only live SSH inspection, then STOP for manual
+BOOTIMG deployment. Entry is local `ae5819f`, ten commits ahead of origin/main.
+Fresh authenticated SSH confirms Storage06, four CPUs, MemTotal 954376 KiB,
+internal p5 root/p7 data and no SD block device. The owner explicitly confirmed
+preserving that current layout; the initial SD-root wording is superseded.
+
+Reviewed the tracked source/config/DT/Buildroot/build/test inventory, local Git
+history, all open issues #16/#27–33, Storage06 boot/SSH evidence, M2 core evidence,
+M3 results and the complete coverage matrix below. GitHub's Storage03/SD-root
+headers are stale compared with local hardware evidence. Canonical ALSA retains
+the tested period-notification fix `137b3f2`; no solved audio path is repeated.
+M3's remaining 48 kHz/LR/repeat and wider storage acceptance stay open, but the
+owner now authorizes M4 progression. Reconnect #27 remains explicitly deferred.
+
+[Current observations and architecture](../knowledge/m4-power-platform.md).
+Only USB presence is currently a power_supply; thermal, cpufreq, cpuidle, RTC
+and suspend interfaces are absent. Regulator/clock summaries report inherited
+VPROC 1.15 V and ARMPLL 1.04 GHz. Source-reviewed, bounded regmap reads show
+charging disabled, configured 70 mA/4.175 V and enabled PMIC thermal calibration;
+these are not measured battery current or a validated charging policy.
+
+**M4 #30 ACTIVE, entry PARTIAL / ready for implementation.** One shared PWRAP
+owner, upstream MFD/regulator/RTC/reset/PM frameworks, checked ADC/thermal and
+charging semantics, safe OPPs/WFI and suspend-to-idle are the coherent scope.
+Unknown calibration/pack/OPP facts restrict the affected feature; they do not
+justify fabricated telemetry or aggressive settings. No hardware success is
+inferred from compiling. M1 complete, M2 narrow successes, all unchanged coverage
+rows, M0 backup/recovery/calibration residuals, M5/M6 gates and application
+deferral are retained. No physical flash or protected-partition write.
+
 ## Storage06 owner boot and SSH correction entry — 2026-09-13
 
 ### Completed owner flash and authenticated acceptance
@@ -1262,7 +1295,9 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 
 ## Coverage matrix
 
-Reassessed after Storage06 owner-key SSH acceptance on 2026-09-13 against the
+Reassessed again at the M4 activation above, including every unchanged row,
+using fresh Storage06 read-only SSH and the complete local implementation.
+Retained comparisons include Storage06 owner-key SSH acceptance against the
 [authenticated internal-boot result](../hardware-evidence/2026-09-13-storage06-owner/ssh-result.json),
 the 21:10:43 corrected physical readback, actual retained stock FM kernel and
 [Storage05 owner result](../hardware-evidence/2026-09-13-storage05-owner/README.md),
@@ -1324,7 +1359,7 @@ new GitHub milestone shells are needed today:
 | M2 Core Hardware | [Y2H-300 #28](https://github.com/SchulzCode/Y2Linux/issues/28) | **Core/Buildroot qualified for M3 progression**; #22–26 satisfied. USB reconnect #27 stays open under #28 for later whole-platform qualification. |
 | M3 Native Audio | [Y2A-300 #29](https://github.com/SchulzCode/Y2Linux/issues/29) | **ACTIVE / NEAR COMPLETION**; clean native S16/44.1kHz headphones. Notification fix deployed/tested. Remaining48kHz, L/R, stop/restart/repeat; #27 deferred. |
 | Production Storage / Installation v1 | #33 storage activation (2026-09-13); #32 lifecycle | **ACTIVE**; internal root/data boot, stock block reads and owner-key SSH confirmed after manual flash. Wider write/stress/recovery qualification remains. |
-| M4 Power Viability | [Y2P-400 #30](https://github.com/SchulzCode/Y2Linux/issues/30) | **NOT STARTED**; follows Production Storage v1 and boundary audit. Full battery/charger/thermal/DVFS/idle/suspend/wake/reboot/poweroff. |
+| M4 Power Viability | [Y2P-400 #30](https://github.com/SchulzCode/Y2Linux/issues/30) | **ACTIVE; entry PARTIAL** by explicit owner authorization after Storage06 live audit. One integrated battery/charger/thermal/DVFS/idle/suspend/wake/RTC/reboot/poweroff candidate, preserving current internal boot. Physical qualification pending. |
 | M5 Connectivity | [Y2N-500 #31](https://github.com/SchulzCode/Y2Linux/issues/31) | **NOT STARTED**; later Wi-Fi/Bluetooth, own firmware/calibration, BlueZ and reconnect/coexistence. |
 | M6 Production Y2Linux | [Y2R-600 #32](https://github.com/SchulzCode/Y2Linux/issues/32) | **PLANNED**; storage/recovery/PM gates and later M18–20 platform release obligations. |
 | M7–M20 application/product phases | Existing blueprint, no native backlog added | **NOT STARTED**; Y2PlayerNative waits for reusable Linux platform and final qualification. |

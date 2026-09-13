@@ -5,6 +5,7 @@
  * Maximum never exceeds the lowest inherited duty; no guessed current ceiling.
  */
 #include <linux/backlight.h>
+#include <linux/mfd/mt6397/core.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -71,10 +72,14 @@ static int y2_bl_read(struct backlight_device *bl)
     mutex_unlock(&b->lock);
     return ret;
 }
-static const struct backlight_ops y2_bl_ops = {.update_status = y2_bl_update, .get_brightness = y2_bl_read};
+static const struct backlight_ops y2_bl_ops = {
+	.options = BL_CORE_SUSPENDRESUME,
+	.update_status = y2_bl_update, .get_brightness = y2_bl_read,
+};
 static int y2_bl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct mt6397_chip *chip = dev_get_drvdata(dev->parent);
 	struct y2_bl *b;
 	struct backlight_device *bl;
 	struct backlight_properties props = {.type = BACKLIGHT_RAW};
@@ -83,9 +88,9 @@ static int y2_bl_probe(struct platform_device *pdev)
 	b = devm_kzalloc(dev, sizeof(*b), GFP_KERNEL);
 	if (!b)
 		return -ENOMEM;
-	b->map = dev_get_regmap(dev->parent, NULL);
-	if (!b->map)
+	if (!chip || !chip->regmap)
 		return -EPROBE_DEFER;
+	b->map = chip->regmap;
 	mutex_init(&b->lock);
 	b->ceiling = 32;
 	ret = regmap_read(b->map, 0x356, &en);

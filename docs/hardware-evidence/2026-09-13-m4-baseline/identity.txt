@@ -1,0 +1,75 @@
+Linux y2linux 6.18.0-y2linux-storage06 #1 SMP @1764542530 armv7l GNU/Linux
+1140.25 4544.54
+rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31
+MemTotal:         954376 kB
+MemFree:          922432 kB
+MemAvailable:     920536 kB
+Buffers:            9372 kB
+Cached:             6400 kB
+SwapCached:            0 kB
+Active:             6736 kB
+Inactive:          10212 kB
+Active(anon):        348 kB
+Inactive(anon):     1264 kB
+Active(file):       6388 kB
+Inactive(file):     8948 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+HighTotal:        228352 kB
+HighFree:         219976 kB
+LowTotal:         726024 kB
+LowFree:          702456 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:                 4 kB
+Writeback:             0 kB
+AnonPages:          1292 kB
+Mapped:             2332 kB
+Shmem:               420 kB
+KReclaimable:       1236 kB
+Slab:               6632 kB
+SReclaimable:       1236 kB
+SUnreclaim:         5396 kB
+KernelStack:         624 kB
+PageTables:          252 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:      477188 kB
+Committed_AS:       4164 kB
+VmallocTotal:     245760 kB
+VmallocUsed:         136 kB
+VmallocChunk:          0 kB
+Percpu:              176 kB
+Balloon:               0 kB
+proc /proc proc rw,relatime 0 0
+sysfs /sys sysfs rw,relatime 0 0
+devtmpfs /dev devtmpfs rw,relatime,size=476140k,nr_inodes=119035,mode=755 0 0
+devpts /dev/pts devpts rw,relatime,gid=5,mode=620,ptmxmode=666 0 0
+tmpfs /run tmpfs rw,nosuid,nodev,relatime,mode=755 0 0
+tmpfs /tmp tmpfs rw,nosuid,nodev,relatime 0 0
+debugfs /sys/kernel/debug debugfs rw,relatime 0 0
+/dev/mmcblk0p5 / ext4 rw,relatime 0 0
+/dev/mmcblk0p7 /data ext4 rw,nosuid,nodev,relatime 0 0
+tmpfs /lib/modules tmpfs rw,nosuid,nodev,relatime,mode=755 0 0
+proc /proc proc rw,relatime 0 0
+tmpfs /dev/shm tmpfs rw,relatime 0 0
+major minor  #blocks  name
+
+ 179        0    7601664 mmcblk0
+ 179        1          1 mmcblk0p1
+ 179        2      10240 mmcblk0p2
+ 179        3      10240 mmcblk0p3
+ 179        4       6144 mmcblk0p4
+ 179        5     839680 mmcblk0p5
+ 179        6     129024 mmcblk0p6
+ 179        7     819200 mmcblk0p7
+ 259        0    5730304 mmcblk0p8
+0-3
+NAME=Buildroot
+VERSION=-g37e4a3f
+ID=buildroot
+VERSION_ID=2025.02.17
+PRETTY_NAME="Buildroot 2025.02.17"
+cat: can't open '/proc/sys/kernel/random/boot_id': No such file or directory

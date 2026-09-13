@@ -1,0 +1,23 @@
+{
+  "source": "own retained stock FM kernel, evidence-private/20260908-ram-map/fm-decompressed.bin and fm-symbols.json",
+  "method": "read-only extraction using retained symbols; 20-byte functions, no stock execution or calibration write",
+  "functions": [
+    {
+      "symbol": "force_get_tbat",
+      "address": "0xc039a8a0",
+      "bytes": 20,
+      "hex": "0dc0a0e100d82de904b04ce21900a0e300a89de8",
+      "sha256": "a3c2a95e290c1984a663a28c1c64319c0b3af0238c6a659ae8d3bb262d5610ed",
+      "return_instruction": "e3a00019: mov r0, #25; unconditional fixed 25 Celsius"
+    },
+    {
+      "symbol": "battery_meter_get_battery_temperature",
+      "address": "0xc039cf24",
+      "bytes": 20,
+      "hex": "0dc0a0e100d82de904b04ce21900a0e300a89de8",
+      "sha256": "a3c2a95e290c1984a663a28c1c64319c0b3af0238c6a659ae8d3bb262d5610ed",
+      "return_instruction": "e3a00019: mov r0, #25; unconditional fixed 25 Celsius"
+    }
+  ],
+  "limitation": "No validated pack thermistor conversion; does not establish physical absence of a thermistor"
+}

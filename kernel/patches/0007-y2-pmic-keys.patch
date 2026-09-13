@@ -1,16 +1,113 @@
 --- a/drivers/input/keyboard/mtk-pmic-keys.c
 +++ b/drivers/input/keyboard/mtk-pmic-keys.c
-@@ -207,7 +207,8 @@
+@@ -141,6 +141,7 @@
+ 	int irq;
+ 	int irq_r; /* optional: release irq if different */
+ 	bool wakeup:1;
++	bool wake_armed, wake_r_armed;
+ };
+ 
+ struct mtk_pmic_keys {
+@@ -207,7 +208,10 @@
  	struct mtk_pmic_keys_info *info = data;
  	u32 key_deb, pressed;
  
 -	regmap_read(info->keys->regmap, info->regs->deb_reg, &key_deb);
-+	if (regmap_read(info->keys->regmap, info->regs->deb_reg, &key_deb))
++	if (regmap_read(info->keys->regmap, info->regs->deb_reg, &key_deb)) {
++		dev_err_ratelimited(info->keys->dev, "power key PMIC read failed\n");
 +		return IRQ_HANDLED;
++	}
  
  	key_deb &= info->regs->deb_mask;
  
-@@ -405,7 +406,11 @@
+@@ -262,36 +266,47 @@
+ 	return 0;
+ }
+ 
++static int mtk_pmic_keys_resume(struct device *dev)
++{
++	struct mtk_pmic_keys *keys = dev_get_drvdata(dev);
++	int i, ret, first = 0;
++	for (i = 0; i < MTK_PMIC_MAX_KEY_COUNT; i++) {
++		struct mtk_pmic_keys_info *k = &keys->keys[i];
++		if (k->wake_armed) {
++			ret = disable_irq_wake(k->irq);
++			if (ret && !first) first = ret;
++			if (!ret) k->wake_armed = false;
++		}
++		if (k->wake_r_armed) {
++			ret = disable_irq_wake(k->irq_r);
++			if (ret && !first) first = ret;
++			if (!ret) k->wake_r_armed = false;
++		}
++	}
++	return first;
++}
+ static int mtk_pmic_keys_suspend(struct device *dev)
+ {
+ 	struct mtk_pmic_keys *keys = dev_get_drvdata(dev);
+-	int index;
+-
+-	for (index = 0; index < MTK_PMIC_MAX_KEY_COUNT; index++) {
+-		if (keys->keys[index].wakeup) {
+-			enable_irq_wake(keys->keys[index].irq);
+-			if (keys->keys[index].irq_r > 0)
+-				enable_irq_wake(keys->keys[index].irq_r);
+-		}
+-	}
+-
++	int i, ret, undo;
++	if (!device_may_wakeup(dev)) return 0;
++	for (i = 0; i < MTK_PMIC_MAX_KEY_COUNT; i++) {
++		struct mtk_pmic_keys_info *k = &keys->keys[i];
++		if (!k->wakeup) continue;
++		ret = enable_irq_wake(k->irq);
++		if (ret) goto fail;
++		k->wake_armed = true;
++		if (k->irq_r > 0) {
++			ret = enable_irq_wake(k->irq_r);
++			if (ret) goto fail;
++			k->wake_r_armed = true;
++		}
++	}
+ 	return 0;
+-}
+-
+-static int mtk_pmic_keys_resume(struct device *dev)
+-{
+-	struct mtk_pmic_keys *keys = dev_get_drvdata(dev);
+-	int index;
+-
+-	for (index = 0; index < MTK_PMIC_MAX_KEY_COUNT; index++) {
+-		if (keys->keys[index].wakeup) {
+-			disable_irq_wake(keys->keys[index].irq);
+-			if (keys->keys[index].irq_r > 0)
+-				disable_irq_wake(keys->keys[index].irq_r);
+-		}
+-	}
+-
+-	return 0;
++fail:
++	undo = mtk_pmic_keys_resume(dev);
++	if (undo) dev_err(dev, "wake rollback failed: %d\n", undo);
++	return ret;
+ }
+ 
+ static DEFINE_SIMPLE_DEV_PM_OPS(mtk_pmic_keys_pm_ops, mtk_pmic_keys_suspend,
+@@ -388,8 +403,11 @@
+ 			return error;
+ 		}
+ 
+-		if (of_property_read_bool(child, "wakeup-source"))
++		if (of_property_read_bool(child, "wakeup-source")) {
+ 			keys->keys[index].wakeup = true;
++			error = device_init_wakeup(&pdev->dev, true);
++			if (error) return error;
++		}
+ 
+ 		error = mtk_pmic_key_setup(keys, &keys->keys[index]);
+ 		if (error)
+@@ -405,7 +423,11 @@
  		return error;
  	}
  

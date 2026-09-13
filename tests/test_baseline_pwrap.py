@@ -3,12 +3,13 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from test_audio import function
 
 ROOT=Path(__file__).resolve().parents[1]
 class Transport(unittest.TestCase):
     def test_regmap_callbacks(self):
         src=(ROOT/'kernel/platform/pwrap.c').read_text()
-        functions=src[src.index('static int wrap_reg_read('):src.index('static const struct regmap_config')]
+        functions=''.join(function(src,n) for n in ('wrap_reg_read','wrap_reg_write'))
         fixture=r'''
 #include <assert.h>
 #include <stdint.h>

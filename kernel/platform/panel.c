@@ -159,13 +159,19 @@ disable_supply:
 static int gc9503v_unprepare(struct drm_panel *panel)
 {
 	struct gc9503v *ctx = to_gc9503v(panel);
+	int ret, sleep_ret, reset_ret;
 
-	mipi_dsi_dcs_set_display_off(ctx->dsi);
-	mipi_dsi_dcs_enter_sleep_mode(ctx->dsi);
+	ret = mipi_dsi_dcs_set_display_off(ctx->dsi);
+	sleep_ret = mipi_dsi_dcs_enter_sleep_mode(ctx->dsi);
 	msleep(120);
 
-	reset_control_assert(ctx->reset);
-	return 0;
+	reset_ret = reset_control_assert(ctx->reset);
+	if (ret < 0 || sleep_ret < 0 || reset_ret)
+		dev_err(&ctx->dsi->dev, "panel power-down: display=%d sleep=%d reset=%d\n", ret, sleep_ret, reset_ret);
+	/* A successful reset assert is the fallback quiescent state even when
+	 * DCS failed. Tell DRM the panel is unprepared so resume replays its full
+	 * initialization instead of skipping it with the panel held in reset. */
+	return reset_ret;
 }
 
 /* LK: 890 x 488 totals at 27.362MHz (~63Hz), active 480x360. */

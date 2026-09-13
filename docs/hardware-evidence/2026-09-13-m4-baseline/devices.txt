@@ -1,0 +1,135 @@
+           CPU0       CPU1       CPU2       CPU3       
+ 24:     114068          0          0          0 MT_SYSIRQ 112 Level     timer@10008000
+ 51:          0          0          0          0  mt-eint  25 Level     mt6397-pmic
+ 81:          3          0          0          0  mt-eint  55 Edge      apt32f-wheel
+197:          0          0          0          0 mt6397-irq   5 Edge      mtk-pmic-keys
+199:          3          0          0          0 MT_SYSIRQ  44 Level     11007000.i2c
+200:         17          0          0          0 MT_SYSIRQ  45 Level     11008000.i2c
+201:          0          0          0          0 MT_SYSIRQ 116 Edge      mt6582-keypad
+202:      20136          0          0          0 MT_SYSIRQ  40 Level     11240000.mmc
+203:       4449          0          0          0 MT_SYSIRQ  39 Level     11230000.mmc
+204:          0          0          0          0 MT_SYSIRQ 104 Level     mt6582-afe
+205:        880          0          0          0 MT_SYSIRQ 153 Level     14007000.ovl
+206:          0          0          0          0 MT_SYSIRQ 152 Level     14008000.rdma
+207:          0          0          0          0 MT_SYSIRQ 157 Level     1400c000.dsi
+208:       4477          0          0          0 MT_SYSIRQ  32 Level     musb-hdrc.2.auto
+IPI0:         0          1          1          1  CPU wakeup interrupts
+IPI1:         0     114056     114050     114044  Timer broadcast interrupts
+IPI2:       155        165        180        167  Rescheduling interrupts
+IPI3:      1080       1792      21434        788  Function call interrupts
+IPI4:         0          0          0          0  CPU stop interrupts
+IPI5:         0          0          0          0  IRQ work interrupts
+IPI6:         0          0          0          0  completion interrupts
+Err:          0
+I: Bus=0019 Vendor=0001 Product=0001 Version=0100
+N: Name="Y2 navigation buttons"
+P: Phys=gpio-keys-polled/input0
+S: Sysfs=/devices/platform/navigation-keys/input/input0
+U: Uniq=
+H: Handlers=kbd event0 
+B: PROP=0
+B: EV=3
+B: KEY=10 40000000 600 0 0 10000000
+
+I: Bus=0019 Vendor=0001 Product=0001 Version=0001
+N: Name="mtk-pmic-keys"
+P: Phys=
+S: Sysfs=/devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-keys/input/input1
+U: Uniq=
+H: Handlers=kbd event1 
+B: PROP=0
+B: EV=3
+B: KEY=100000 0 0 0
+
+I: Bus=0018 Vendor=0000 Product=0000 Version=0000
+N: Name="APT32F click-wheel"
+P: Phys=
+S: Sysfs=/devices/platform/11007000.i2c/i2c-0/0-0051/input/input2
+U: Uniq=
+H: Handlers=kbd event2 
+B: PROP=0
+B: EV=3
+B: KEY=3180 0 0 0
+
+I: Bus=0019 Vendor=0000 Product=0000 Version=0000
+N: Name="mt6582-keypad"
+P: Phys=
+S: Sysfs=/devices/platform/10011000.keypad/input/input3
+U: Uniq=
+H: Handlers=kbd event3 
+B: PROP=0
+B: EV=3
+B: KEY=c0000 0 0 0
+
+I: Bus=0000 Vendor=0000 Product=0000 Version=0000
+N: Name="Y2Audio Headphone"
+P: Phys=ALSA
+S: Sysfs=/devices/platform/sound/sound/card0/input4
+U: Uniq=
+H: Handlers=event4 
+B: PROP=0
+B: EV=21
+B: SW=c4
+
+ 0 [Y2Audio        ]: Y2Audio - Y2Audio
+                      Y2Audio
+00-00: Y2 Headphone Playback (*) :  : playback 1
+/sys/bus/i2c/devices:
+total 0
+lrwxrwxrwx    1 root     root             0 Jan  1 00:19 0-0051 -> ../../../devices/platform/11007000.i2c/i2c-0/0-0051
+lrwxrwxrwx    1 root     root             0 Jan  1 00:19 1-0030 -> ../../../devices/platform/11008000.i2c/i2c-1/1-0030
+lrwxrwxrwx    1 root     root             0 Jan  1 00:19 i2c-0 -> ../../../devices/platform/11007000.i2c/i2c-0
+lrwxrwxrwx    1 root     root             0 Jan  1 00:19 i2c-1 -> ../../../devices/platform/11008000.i2c/i2c-1
+
+/sys/bus/platform/drivers:
+total 0
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 alarmtimer
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 clk-mt6582-mm
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 gated-fixed-clk
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 gpio-clk
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 gpio-keys-polled
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 i2c-mt65xx
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-disp-aal
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-disp-ccorr
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-disp-color
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-disp-ethdr
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-disp-gamma
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-disp-merge
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-disp-ovl
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-disp-ovl-adaptor
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-disp-padding
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-disp-rdma
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-dpi
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-drm
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-mdp-rdma
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-mipi-tx
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mediatek-mutex
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mt6323-regulator
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mt6397
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mt6577-uart
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mt6582-afe
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mt6582-keypad
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mtk-dsi
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mtk-mmsys
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mtk-msdc
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 mtk-pmic-keys
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 musb-hdrc
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 of_fixed_clk
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 of_fixed_factor_clk
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 reg-fixed-voltage
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 serial8250
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 simple-pm-bus
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 soc-audio
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 y2-audio
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 y2-backlight
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 y2-clocks
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 y2-pinctrl
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 y2-pwrap
+drwxr-xr-x    2 root     root             0 Jan  1 00:19 y2-usb
+Y2Audio
+components
+dais
+0
+0
+0
+0

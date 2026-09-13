@@ -29,6 +29,7 @@ static ssize_t y2_text_write(struct file *file, const char __user *buf,
     return count == sizeof(struct y2_text_frame) ? count : -EINVAL;
 }
 static struct y2_platform_snapshot y2_power;
+static struct device *y2_usb_parent;
 
 
 static void y2_power_delay(void *context) { udelay(10); }
@@ -331,7 +332,7 @@ static int y2_musb_exit(struct musb *musb)
     return 0;
 }
 static const struct musb_platform_ops y2_musb_ops={
-    .quirks=MUSB_INDEXED_EP,.init=y2_musb_init,.exit=y2_musb_exit,
+    .quirks=MUSB_INDEXED_EP | MUSB_PRESERVE_SESSION,.init=y2_musb_init,.exit=y2_musb_exit,
     .enable=y2_musb_enable,.disable=y2_musb_disable,.set_mode=y2_musb_mode,
     .readb=y2_musb_readb,.writeb=y2_musb_writeb,.clearb=y2_musb_clearb,
     .readw=y2_musb_readw,.writew=y2_musb_writew,.clearw=y2_musb_clearw,
@@ -357,6 +358,7 @@ static int y2_usb_register(void)
         {.name="mc",.flags=IORESOURCE_IRQ},
     };
     struct platform_device_info info={.name="musb-hdrc",.id=PLATFORM_DEVID_AUTO,
+        .parent=y2_usb_parent,
         .res=resources,.num_res=2,.data=&y2_musb_data,.size_data=sizeof(y2_musb_data)};
     int irq;
     if(!np) return -ENODEV;
@@ -489,7 +491,7 @@ static void y2_usb_worker(struct work_struct *work)
         if(y2_live.configured && y2_live.stage!=Y2_USB_CONFIGURED) y2_usb_phase(Y2_USB_CONFIGURED);
     }
 again:
-    schedule_delayed_work(&y2_usb_work,msecs_to_jiffies(250));
+    queue_delayed_work(system_freezable_wq,&y2_usb_work,msecs_to_jiffies(250));
     return;
 done:
     y2_usb_finish();
@@ -510,7 +512,7 @@ static void y2_usb_begin(void)
     if(!y2_usb_phy) {release_mem_region(Y2_USB_PHY_BASE,Y2_USB_PHY_BYTES);
         y2_usb_fail(-ENOMEM);y2_usb_finish();return;}
     y2_usb_phase(Y2_USB_ATTACH);
-    schedule_delayed_work(&y2_usb_work,msecs_to_jiffies(250));
+    queue_delayed_work(system_freezable_wq,&y2_usb_work,msecs_to_jiffies(250));
 }
 static ssize_t y2_usb_status(char __user *buf)
 {
@@ -547,13 +549,15 @@ static int y2_usb_probe(struct platform_device *pdev)
     dev_t dev=MKDEV(Y2_TEXT_MAJOR,0);
     /* Providers may bind later. A missing provider is not a permanent boot failure. */
     y2_pmic_snapshot(&y2_power.power);
-    if (y2_power.power.result || y2_power.power.valid != 7) return -EPROBE_DEFER;
+    if (y2_power.power.result) return y2_power.power.result;
+    if (y2_power.power.valid != 7) return -EIO;
     ret=register_chrdev_region(dev,1,"y2diag");
     if(ret) return ret;
     cdev_init(&y2_cdev,&y2_fops);
     ret=cdev_add(&y2_cdev,dev,1);
     if(ret) { unregister_chrdev_region(dev,1); return ret; }
     y2_collect_power();
+    y2_usb_parent = &pdev->dev;
     y2_usb_begin();
     dev_info(&pdev->dev,"peripheral USB platform initialized; status is observational\n");
     return 0;
@@ -561,9 +565,23 @@ static int y2_usb_probe(struct platform_device *pdev)
 static const struct of_device_id y2_usb_match[] = {
     { .compatible = "innioasis,y2-usb" }, { }
 };
+static int y2_usb_prepare(struct device *dev)
+{
+    /* Stop PHY/register polling before the MUSB child starts saving state. */
+    cancel_delayed_work_sync(&y2_usb_work);
+    return 0;
+}
+static void y2_usb_complete(struct device *dev)
+{
+    if (y2_usb_started && !y2_usb_finished)
+        queue_delayed_work(system_freezable_wq,&y2_usb_work,msecs_to_jiffies(250));
+}
+static const struct dev_pm_ops y2_usb_pm = {
+    .prepare = y2_usb_prepare, .complete = y2_usb_complete,
+};
 static struct platform_driver y2_usb_driver = {
     .probe = y2_usb_probe,
     .driver = { .name = "y2-usb", .of_match_table = y2_usb_match,
-                .dev_groups = y2_usb_groups, .suppress_bind_attrs = true },
+                .dev_groups = y2_usb_groups, .pm = pm_sleep_ptr(&y2_usb_pm), .suppress_bind_attrs = true },
 };
 builtin_platform_driver(y2_usb_driver);

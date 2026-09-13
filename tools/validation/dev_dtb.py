@@ -1,4 +1,4 @@
-"""Safety and dependency contract for the integrated M2 DT (not hardware proof)."""
+"""Safety and dependency contract for the integrated Y2 DT (not hardware proof)."""
 import struct
 from tools.validation.formats import fdt
 from tools.validation.d08 import require
@@ -30,6 +30,12 @@ IRQS = {'/audio-controller@11220000':(104,8), '/timer@10008000':(112,8), '/seria
  '/keypad@10011000':(116,2), '/mmc@11230000':(39,8), '/mmc@11240000':(40,8),
  '/ovl@14007000':(153,8), '/rdma@14008000':(152,8), '/color@1400b000':(156,8),
  '/mutex@1400e000':(161,8), '/dsi@1400c000':(157,8)}
+POWER_REGS = {
+ '/clock-controller@10000000': (0x10000000,0x1000,0x10003000,0x1000,0x10001000,0x1000,0x10209000,0x600),
+ '/efuse@10206100': (0x10206100,8),
+ '/thermal@1100b000': (0x1100b000,0x100,0x11001000,0x100,0x10209600,8),
+ '/watchdog@10007000': (0x10007000,0x100),
+}
 
 def check(data, initrd_size, production=True):
     nodes,reserved=fdt(data)
@@ -47,9 +53,11 @@ def check(data, initrd_size, production=True):
     args=chosen['bootargs'].decode().rstrip('\0')
     expected_args='rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31'
     require(args==expected_args, 'profile command line')
-    for path,reg in REGS.items(): require(nodes[path]['reg']==cells(*reg),'MMIO mapping '+path)
+    power='/thermal@1100b000' in nodes
+    regs=REGS|POWER_REGS if power else REGS
+    for path,reg in regs.items(): require(nodes[path]['reg']==cells(*reg),'MMIO mapping '+path)
     for path,(irq,flags) in IRQS.items(): require(nodes[path]['interrupts']==cells(0,irq,flags),'IRQ mapping '+path)
-    require({p for p,v in nodes.items() if p.count('/')==1 and 'reg' in v}==set(REGS)|{'/memory@80000000'},'unreviewed MMIO controller')
+    require({p for p,v in nodes.items() if p.count('/')==1 and 'reg' in v}==set(regs)|{'/memory@80000000'},'unreviewed MMIO controller')
     handles={}
     for path,props in nodes.items():
         if 'phandle' in props:
@@ -58,7 +66,8 @@ def check(data, initrd_size, production=True):
         require(not any(k in ('iommus','memory-region','assigned-clock-rates','assigned-clocks') for k in props), 'unreviewed DMA/clock policy')
         if any(k.startswith('regulator-') for k in props):
             require(path in ('/regulator-dac20','/regulator-dac18','/regulator-dac15',
-                            '/pwrap@1000d000/pmic/regulators/ldo_vgp2'), 'unreviewed rail')
+                            '/pwrap@1000d000/pmic/regulators/ldo_vgp2',
+                            '/pwrap@1000d000/pmic/regulators/buck_vproc'), 'unreviewed rail')
         if path.startswith('/i2c@11008000/'):
             require(path == '/i2c@11008000/codec@30', 'unreviewed audio/radio I2C client')
     def handle(path): return struct.unpack('>I',nodes[path]['phandle'])[0]
@@ -69,7 +78,7 @@ def check(data, initrd_size, production=True):
             require(words[i] in handles,'missing clock provider '+path)
             provider,v=handles[words[i]];n=struct.unpack('>I',v['#clock-cells'])[0]
             require(i+1+n<=len(words),'short clock specifier')
-            if n: require(n==1 and words[i+1]<(18 if provider.startswith('/clock-controller') else 23),'invalid clock ID')
+            if n: require(n==1 and words[i+1]<((22 if power else 18) if provider.startswith('/clock-controller') else 23),'invalid clock ID')
             i+=1+n
         for prop in ('pinctrl-0','pinctrl-1','backlight','remote-endpoint','interrupt-parent'):
             if prop in props:
@@ -115,4 +124,40 @@ def check(data, initrd_size, production=True):
             'output-low' in nodes['/pinctrl@10005000/speaker-disable'], 'speaker stays disabled')
     panel=nodes['/dsi@1400c000/panel@0']
     require(panel['resets']==cells(handle('/syscon@14000000'),0) and 'innioasis,lk-powered' in panel,'evidenced panel reset/power')
+    if power: check_power(nodes,handle)
     return {'node_count':len(nodes),'bootargs':args,'memory':RAM,'storage':'internal eMMC: guarded root/data; removable SD optional','evidence':'offline dependencies only'}
+
+def check_power(nodes, handle):
+    pmic='/pwrap@1000d000/pmic'
+    require(nodes['/opp-table']['compatible']==strings('operating-points-v2') and 'opp-shared' in nodes['/opp-table'],'shared OPPs')
+    rates={598000000,747500000,1040000000}
+    require({p for p in nodes if p.startswith('/opp-table/')}=={'/opp-table/opp-'+str(r) for r in rates},'only evidenced CPU OPPs')
+    for rate in rates:
+        p=nodes['/opp-table/opp-'+str(rate)]
+        require(p['opp-hz']==struct.pack('>Q',rate) and p['opp-microvolt']==cells(1150000),'OPP frequency/voltage')
+        require(('opp-suspend' in p)==(rate==598000000),'lowest suspend OPP')
+    for i in range(4):
+        p=nodes['/cpus/cpu@'+str(i)]
+        require(p['clocks']==cells(handle('/clock-controller@10000000'),18) and
+                p['cpu-supply']==cells(handle(pmic+'/regulators/buck_vproc')) and
+                p['operating-points-v2']==cells(handle('/opp-table')),'shared CPU supply/clock/OPPs')
+        require('cpu-idle-states' not in p,'architectural WFI only')
+    p=nodes[pmic+'/regulators/buck_vproc']
+    require(p['regulator-min-microvolt']==p['regulator-max-microvolt']==cells(1150000) and
+            'regulator-always-on' in p,'retain inherited VPROC')
+    require(nodes[pmic+'/charger']['io-channels']==cells(handle(pmic+'/adc'),7),'BATSNS IIO source')
+    require(nodes[pmic+'/backlight']['compatible']==strings('innioasis,y2-backlight') and
+            '/pwrap@1000d000/backlight' not in nodes,'backlight MFD ownership')
+    require(nodes['/efuse@10206100/calibration@0']['reg']==cells(0,8) and
+            'read-only' in nodes['/efuse@10206100'],'own bounded read-only calibration')
+    require(nodes['/thermal@1100b000']['nvmem-cells']==cells(handle('/efuse@10206100/calibration@0')),'SoC calibration dependency')
+    for zone,sensor,trip,temp in [('cpu-thermal','/thermal@1100b000','cpu-critical',120000),
+                                  ('pmic-thermal',pmic+'/adc','pmic-critical',150000)]:
+        path='/thermal-zones/'+zone
+        require(nodes[path]['thermal-sensors']==cells(handle(sensor)),'thermal sensor ownership')
+        require(nodes[path+'/trips/'+trip]['temperature']==cells(temp) and
+                nodes[path+'/trips/'+trip]['type']==strings('critical'),'BSP critical temperature')
+    require(nodes['/thermal-zones/cpu-thermal/trips/cpu-hot']['temperature']==cells(110000),'BSP passive trip')
+    require({p for p,v in nodes.items() if 'wakeup-source' in v}=={pmic+'/keys/power',pmic+'/rtc'},'explicit Power/RTC wake sources')
+    require(nodes[pmic+'/rtc']['compatible']==strings('mediatek,mt6323-rtc') and
+            nodes[pmic+'/power-controller']['compatible']==strings('mediatek,mt6323-pwrc'),'upstream RTC/poweroff')

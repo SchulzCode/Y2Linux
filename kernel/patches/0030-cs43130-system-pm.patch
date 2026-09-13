@@ -1,0 +1,62 @@
+--- a/sound/soc/codecs/cs43130.c
++++ b/sound/soc/codecs/cs43130.c
+@@ -2675,20 +2675,30 @@
+ static int cs43130_runtime_suspend(struct device *dev)
+ {
+ 	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
+-
+-	if (cs43130->xtal_ibias != CS43130_XTAL_UNUSED)
+-		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
++	int ret;
++
++	if (cs43130->xtal_ibias != CS43130_XTAL_UNUSED) {
++		ret = regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
+ 				   CS43130_XTAL_ERR_INT,
+ 				   1 << CS43130_XTAL_ERR_INT_SHIFT);
++		if (ret) return ret;
++	}
+ 
+ 	regcache_cache_only(cs43130->regmap, true);
+ 	regcache_mark_dirty(cs43130->regmap);
+ 
+ 	gpiod_set_value_cansleep(cs43130->reset_gpio, 0);
+ 
+-	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
+-
+-	return 0;
++	ret = regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
++	if (ret) {
++		/* Bulk disable restores prior rails on failure. Restore accessibility
++		 * and abort system suspend instead of claiming the codec is off. */
++		gpiod_set_value_cansleep(cs43130->reset_gpio, 1);
++		usleep_range(2000, 2050);
++		regcache_cache_only(cs43130->regmap, false);
++		dev_err(dev, "Failed to disable supplies: %d\n", ret);
++	}
++	return ret;
+ }
+ 
+ static int cs43130_runtime_resume(struct device *dev)
+@@ -2714,9 +2724,11 @@
+ 		goto err;
+ 	}
+ 
+-	if (cs43130->xtal_ibias != CS43130_XTAL_UNUSED)
+-		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
+-				   CS43130_XTAL_ERR_INT, 0);
++	if (cs43130->xtal_ibias != CS43130_XTAL_UNUSED) {
++		ret = regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
++					 CS43130_XTAL_ERR_INT, 0);
++		if (ret) goto err;
++	}
+ 
+ 	return 0;
+ err:
+@@ -2728,6 +2740,7 @@
+ 
+ static const struct dev_pm_ops cs43130_runtime_pm = {
+ 	RUNTIME_PM_OPS(cs43130_runtime_suspend, cs43130_runtime_resume, NULL)
++	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+ };
+ 
+ #if IS_ENABLED(CONFIG_OF)

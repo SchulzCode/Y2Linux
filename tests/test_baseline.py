@@ -30,7 +30,22 @@ int main(void) {
         else if(r==0x356) assert(mask==15);
         else if(r==0x50c) assert(mask==0x8000);
         else if(r==0x532) assert(mask==0x00e0);
-        else assert(mask==0); /* every rail/charger/reset and alias is blocked */
+        else if(r==0) assert(mask==0x18); /* inhibit only; separate value guard */
+        else if(r==0x758) assert(mask==0x10);
+        else if(r==0x76e) assert(mask==0x88);
+        else if(r>=0x8000 && r<=0x803c) {
+            /* M4 owns scoped RTC time/alarm/trigger fields, no spare state. */
+            if(r==0x8000) assert(mask==65535);
+            else if(r==0x8004) assert(mask==13);
+            else if(r==0x8008) assert(mask==16);
+            else if(r==0x800a||r==0x800c||r==0x8018||r==0x801a) assert(mask==63);
+            else if(r==0x800e||r==0x8010||r==0x801c||r==0x801e) assert(mask==31);
+            else if(r==0x8012||r==0x8020) assert(mask==7);
+            else if(r==0x8014||r==0x8022) assert(mask==15);
+            else if(r==0x8016||r==0x8024) assert(mask==127);
+            else if(r==0x803c) assert(mask==1);
+            else assert(mask==0);
+        } else assert(mask==0); /* every other register and alias stays blocked */
     }
     for(unsigned op=0;op<64;++op) for(unsigned embedded=0;embedded<2;++embedded) {
         assert(!y2_mmc_read_allowed(op,embedded,1,0));

@@ -34,6 +34,8 @@ struct mt6582_keypad {
 	u32 inherited_enable;
 	unsigned short keycodes[MT6582_KP_NBITS];
 	int nkeys;
+	int irq;
+	u32 suspend_enable;
 };
 
 static irqreturn_t mt6582_keypad_irq(int irq, void *dev_id)
@@ -124,6 +126,8 @@ static int mt6582_keypad_probe(struct platform_device *pdev)
 					"mt6582-keypad", kp);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to request irq\n");
+	kp->irq = irq;
+	platform_set_drvdata(pdev, kp);
 
 	return 0;
 }
@@ -134,12 +138,31 @@ static const struct of_device_id mt6582_keypad_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mt6582_keypad_of_match);
 
+static int mt6582_keypad_suspend(struct device *dev)
+{
+	struct mt6582_keypad *kp = dev_get_drvdata(dev);
+	disable_irq(kp->irq);
+	kp->suspend_enable = readl(kp->base + MT6582_KP_EN);
+	writel(kp->suspend_enable & ~BIT(0), kp->base + MT6582_KP_EN);
+	return 0;
+}
+static int mt6582_keypad_resume(struct device *dev)
+{
+	struct mt6582_keypad *kp = dev_get_drvdata(dev);
+	writel(kp->suspend_enable, kp->base + MT6582_KP_EN);
+	mt6582_keypad_irq(kp->irq, kp);
+	enable_irq(kp->irq);
+	return 0;
+}
+static DEFINE_SIMPLE_DEV_PM_OPS(mt6582_keypad_pm, mt6582_keypad_suspend, mt6582_keypad_resume);
+
 static struct platform_driver mt6582_keypad_driver = {
     .probe = mt6582_keypad_probe,
     .driver =
 	{
 	    .name = "mt6582-keypad",
 	    .of_match_table = mt6582_keypad_of_match,
+	    .pm = pm_sleep_ptr(&mt6582_keypad_pm),
 	},
 };
 module_platform_driver(mt6582_keypad_driver);

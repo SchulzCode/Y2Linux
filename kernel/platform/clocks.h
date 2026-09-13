@@ -17,4 +17,8 @@
 #define Y2_CLK_AUDINTBUS 15
 #define Y2_CLK_AUDIO 16
 #define Y2_CLK_INFRA_AUDIO 17
-#define Y2_CLK_NR 18
+#define Y2_CLK_CPU 18
+#define Y2_CLK_THERM 19
+#define Y2_CLK_AUXADC 20
+#define Y2_CLK_EFUSE 21
+#define Y2_CLK_NR 22

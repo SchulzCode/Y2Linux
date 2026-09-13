@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* MT6582 inherited-rate CCF providers. Register provenance: pinned vendor
  * mt_clkmgr.c sdm_pll_vco_calc_op/muxs/grps and mt_pm_init.c mt_get_bus_freq.
- * No PLL, CPU, AXI or multimedia reprogramming. Unknown muxes report zero.
+ * M4 adds the BSP ARMPLL transition through MAINPLL/2; no other PLL retune.
+ * Unknown muxes report zero.
  * CLK_IGNORE_UNUSED preserves loader consumers not yet modeled in Linux.
  */
 #include "clocks.h"
 #include "policy.h"
+#include "power-math.h"
 #include "shared.h"
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
@@ -14,7 +16,7 @@
 #include <linux/platform_device.h>
 struct y2_clock {
 	struct clk_hw hw;
-	void __iomem *pll, *top, *gate;
+	void __iomem *pll, *top, *infra, *gate;
 	unsigned id, bit;
 	bool inherited;
 };
@@ -24,7 +26,7 @@ static const char *const y2_clk_names[] = {
     "y2-armpll", "y2-mainpll", "y2-univpll", "y2-mmpll",	"y2-msdcpll",
     "y2-axi",	 "y2-i2c0",    "y2-i2c1",    "y2-apdma",	"y2-pwrap",
     "y2-kp",	 "y2-msdc0",   "y2-msdc1",   "y2-msdc0-source", "y2-msdc1-source",
-    "y2-audintbus", "y2-audio", "y2-infra-audio"};
+    "y2-audintbus", "y2-audio", "y2-infra-audio", "y2-cpu", "y2-therm", "y2-auxadc", "y2-efuse"};
 static unsigned long y2_pll_rate(void __iomem *base, unsigned id)
 {
 	unsigned con0 = readl(base + 0x200 + id * 16), con1 = readl(base + 0x204 + id * 16);
@@ -53,6 +55,12 @@ static unsigned long y2_axi_rate(struct y2_clock *c)
 static unsigned long y2_rate(struct clk_hw *hw, unsigned long parent)
 {
 	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
+	if (c->id == Y2_CLK_CPU) {
+		unsigned mux = readl(c->infra) & 12, div = readl(c->infra + 8) & 31;
+		unsigned long rate = mux == 4 ? y2_pll_rate(c->pll, 0) :
+			mux == 8 ? y2_pll_rate(c->pll, 1) : mux == 0 ? 26000000 : 0;
+		return div == 0 ? rate : div == 10 ? rate / 2 : 0;
+	}
 	if (c->id < 5)
 		return y2_pll_rate(c->pll, c->id);
 	if (c->id == Y2_CLK_AXI)
@@ -101,6 +109,58 @@ static int y2_peri_enabled(struct clk_hw *hw)
 	return !(readl(c->gate + 16) & BIT(c->bit));
 }
 static const struct clk_ops y2_ro_ops = {.recalc_rate = y2_rate};
+static long y2_cpu_round(struct clk_hw *hw, unsigned long rate, unsigned long *parent)
+{
+	return y2_cpu_pcw(rate) ? rate : -EINVAL;
+}
+static int y2_cpu_set(struct clk_hw *hw, unsigned long rate, unsigned long parent)
+{
+	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
+	unsigned pcw = y2_cpu_pcw(rate), mux, old;
+	unsigned long flags;
+	int ret;
+	if (!IS_ENABLED(CONFIG_Y2_POWER) || !pcw) return -EINVAL;
+	ret = y2_pmic_cpu_voltage_ready();
+	if (ret) return ret;
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	mux = readl(c->infra); old = readl(c->pll + 0x204);
+	/* PLL_HP_CON0 bit0: ARMPLL FHCTL ownership. Never fight it. Also
+	 * require the measured 1092 MHz fallback and the modeled divider state. */
+	if ((readl(c->pll + 0x14) & BIT(0)) || (mux & 12) != 4 ||
+	    readl(c->infra + 8) != 0 || y2_pll_rate(c->pll, 1) != 1092000000 ||
+	    y2_pll_decode(readl(c->pll + 0x200), pcw, 1) != rate) {
+		ret = -EOPNOTSUPP; goto out;
+	}
+	/* BSP non-FHCTL sequence, shared by all four CPUs. Divider first keeps
+	 * MAINPLL at 546 MHz, below every enabled CPU operating point. */
+	writel(0x0a, c->infra + 8);
+	if (readl(c->infra + 8) != 0x0a) { ret = -EIO; goto out; }
+	writel((mux & ~12) | 8, c->infra);
+	if ((readl(c->infra) & 12) != 8) {
+		writel(mux, c->infra);
+		if ((readl(c->infra) & 12) == 4) writel(0, c->infra + 8);
+		ret = -EIO; goto out;
+	}
+	writel(pcw, c->pll + 0x204);
+	mb(); udelay(30);
+	if ((readl(c->pll + 0x204) & 0x071fffff) != (pcw & 0x071fffff)) {
+		writel(old | BIT(31), c->pll + 0x204);
+		mb(); udelay(30);
+		ret = -EIO;
+		/* If restoring ARMPLL fails too, keep the verified MAINPLL/2
+		 * fallback. Never switch CPUs onto an unverified PLL. */
+		if ((readl(c->pll + 0x204) & 0x071fffff) != (old & 0x071fffff)) goto out;
+	}
+	writel(mux, c->infra);
+	writel(0, c->infra + 8);
+	readl(c->infra + 8);
+out:
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
+	return ret;
+}
+static const struct clk_ops y2_cpu_ops = {
+	.recalc_rate = y2_rate, .round_rate = y2_cpu_round, .set_rate = y2_cpu_set,
+};
 static const struct clk_ops y2_infra_ops = {
     .recalc_rate = y2_rate, .enable = y2_enable, .disable = y2_disable, .is_enabled = y2_enabled};
 static const struct clk_ops y2_peri_ops = {.recalc_rate = y2_rate,
@@ -209,7 +269,20 @@ static int y2_clocks_probe(struct platform_device *pdev)
 			return -ENOMEM;
 		c->id = i;
 		c->top = base[0];
+		c->infra = base[2];
 		c->pll = base[3];
+		if (i == Y2_CLK_CPU) { init.ops = &y2_cpu_ops; parent = "y2-armpll"; }
+		if (i == Y2_CLK_THERM || i == Y2_CLK_AUXADC) {
+			c->gate = base[1] + 8;
+			c->bit = i == Y2_CLK_THERM ? 1 : 24;
+			parent = "y2-axi";
+			init.ops = &y2_peri_ops;
+		}
+		if (i == Y2_CLK_EFUSE) {
+			c->gate = base[2] + 0x40;
+			c->bit = 6;
+			init.ops = &y2_infra_ops;
+		}
 		if (i >= 6 && i <= 8) {
 			c->gate = base[1] + 8;
 			c->bit = i == 8 ? 11 : i + 15;
@@ -252,7 +325,7 @@ static int y2_clocks_probe(struct platform_device *pdev)
 		return ret;
 	for (i = 0; i < 4; i++)
 		y2_clock_bases[i] = base[i];
-	dev_info(dev, "CCF inherited PLLs/AXI and M2 gates; AXI=%lu Hz; no PLL retune\n",
+	dev_info(dev, "CCF inherited PLLs/AXI; guarded shared CPU clock; AXI=%lu Hz\n",
 		 clk_hw_get_rate(data->hws[5]));
 	return 0;
 }

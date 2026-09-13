@@ -71,7 +71,7 @@ def stage_userspace(base, build):
     print('PASS reused exact production userspace binaries; Y2ROOT/Y2DATA untouched')
 
 
-def package(build, base, out):
+def package(build, base, out, fallback_package=None):
     from tools.production.validate import validate_manifest, validate_boot_update
     require(out.is_relative_to(PROJECT/'out') and not out.exists(), 'fresh package inside out')
     require(not subprocess.check_output(['git', 'status', '--porcelain'], cwd=PROJECT).strip(),
@@ -81,13 +81,19 @@ def package(build, base, out):
     require(versions['build_git_commit'] == head == (build/'kernel-source-commit').read_text().strip(),
             'kernel build source identity')
     previous = validate_manifest(base)
+    fallback_package = fallback_package or base
+    fallback_manifest = validate_manifest(fallback_package)
+    for field in ('rootfs_version','layout_version','data_schema_version','minimum_compatible_components'):
+        require(fallback_manifest[field] == previous[field], 'fallback installed compatibility '+field)
+    fallback_boot = next(p for p in fallback_manifest['payloads'] if p['target_partition']=='BOOTIMG')
     receipt = json.loads((build/'userspace-source.json').read_text())
     require(receipt['base_manifest_sha256'] == digest(base/'manifest.json'), 'userspace base changed')
     require(versions['rootfs_version'] == previous['rootfs_version'] and
             versions['rootfs_build_git_commit'] == previous['build_git_commit'], 'retained root version')
     out.mkdir();(out/'metadata').mkdir();(out/'fallback').mkdir()
     shutil.copyfile(build/'BOOTIMG.img', out/'BOOTIMG.img')
-    shutil.copyfile(base/'BOOTIMG.img', out/'fallback/BOOTIMG-storage04.img')
+    shutil.copyfile(fallback_package/'BOOTIMG.img', out/'fallback/BOOTIMG-previous.img')
+    shutil.copyfile(fallback_package/'manifest.json', out/'metadata/fallback-manifest.json')
     for name in ('layout.json', 'rescue-manifest.json', 'versions.json', 'kernel-source-commit', 'userspace-source.json'):
         shutil.copyfile(build/name, out/'metadata'/name)
     for name in ('partitions.json', 'buildroot.config', 'kernel-inputs.lock.json',
@@ -117,14 +123,16 @@ def package(build, base, out):
                    'sha256': digest(out/'BOOTIMG.img')}
     boot['spft'] = {'format': 'raw-android-mtk-bootimg', **boot['raw']}
     m['installation_profile'] = 'boot-only'
-    m['status'] = 'offline-validated production candidate; physical boot acceptance pending'
+    m['status'] = 'M4 integrated candidate; physical power/suspend qualification pending'
     m['base_manifest_sha256'] = digest(base/'manifest.json')
     m['installed_components_policy'] = 'reference identities only; preserve ANDROID/USRDATA; no root/data payload packaged'
     m['profiles'] = {scatter: {'sha256': digest(out/scatter), 'selected_partitions': ['BOOTIMG']}}
-    m['fallback'] = {'file': 'fallback/BOOTIMG-storage04.img',
-                     'sha256': digest(out/'fallback/BOOTIMG-storage04.img'),
-                     'size_bytes': (out/'fallback/BOOTIMG-storage04.img').stat().st_size,
-                     'expected_behavior': 'return to owner-observed Storage04 rescue and ACM; not working internal root'}
+    m['fallback'] = {'file': 'fallback/BOOTIMG-previous.img',
+                     'sha256': fallback_boot['raw']['sha256'],
+                     'size_bytes': fallback_boot['raw']['size_bytes'],
+                     'manifest_sha256': digest(out/'metadata/fallback-manifest.json'),
+                     'kernel_version': fallback_manifest['kernel_version'],
+                     'expected_behavior': 'restore the supplied previous BOOTIMG; root/data remain untouched'}
     (out/'manifest.json').write_text(json.dumps(m, indent=2)+'\n')
     (out/'install.md').write_text(
         '# Production BOOTIMG-only update\n\n'
@@ -132,11 +140,12 @@ def package(build, base, out):
         'Every other row, including PRELOADER, MBR, EBR1, EBR2, ANDROID and USRDATA, stays unchecked. '
         'Do not use Format or Firmware Upgrade. Kernel writes remain limited to the two existing root/data spans.\n\n'
         'Boot once without an SD card. Expected: stock-layout=1, offset=23552, disk=15203328, '
-        'sector-zero signature55aa, mmcblk0p5/p7, verified internal ext4 root/data, '
-        'switch_root to Buildroot and normal services. Physical success is not yet established. '
-        'Existing SSH authorization is preserved; the matching client private key was absent at entry.\n\n'
-        'Fallback: same scatter and BOOTIMG-only selection, choosing fallback/BOOTIMG-storage04.img. '
-        'This restores the observed Storage04 rescue/ACM state.\n')
+        'sector-zero signature55aa, mmcblk0p5/p7, internal ext4 root/data, '
+        'switch_root to Buildroot and normal services. M4 power acceptance is pending. '
+        'Existing rootfs, data and SSH authorization are preserved.\n\n'
+        'Fallback: same scatter and BOOTIMG-only selection, choosing fallback/BOOTIMG-previous.img. '
+        'Its exact previous kernel version and identity are recorded in manifest.json. '
+        'See the canonical M4 qualification procedure before suspend/reboot/poweroff tests.\n')
     (out/'SHA256SUMS').write_text(''.join(digest(p)+'  '+str(p.relative_to(out))+'\n'
         for p in sorted(out.rglob('*')) if p.is_file() and p.name != 'SHA256SUMS'))
     validate_boot_update(out, base)
@@ -149,12 +158,14 @@ def main():
     p.add_argument('--build', type=Path)
     p.add_argument('--base', type=Path)
     p.add_argument('--output', type=Path)
+    p.add_argument('--fallback-package',type=Path,help='verified prior package containing the accepted BOOTIMG; defaults to BASE')
     a = p.parse_args()
     if a.stage_userspace:
         stage_userspace(*a.stage_userspace)
     else:
         if not all((a.build, a.base, a.output)):p.error('--build, --base and --output required')
-        package(a.build.resolve(), a.base.resolve(), a.output.resolve())
+        package(a.build.resolve(), a.base.resolve(), a.output.resolve(),
+                a.fallback_package.resolve() if a.fallback_package else None)
 
 
 if __name__ == '__main__':main()

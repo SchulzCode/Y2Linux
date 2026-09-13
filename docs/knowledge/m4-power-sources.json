@@ -1,0 +1,82 @@
+{
+  "upstream": "Linux 6.18 from tools/build/inputs.lock.json",
+  "vendor_commit": "d53dd75c3ff77cac3f5be58fddfe660e94f94d64",
+  "vendor_license": "GPL-2.0-only; Copyright (C) 2011-2014 MediaTek Inc.",
+  "scope": "Power glue and semantics only; Sprout battery profiles are not Y2 calibration",
+  "sources": [
+    {
+      "path": "arch/arm/mach-mt6582/mt_cpufreq.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_cpufreq.c",
+      "sha256": "ee1bca6f97bdfebc662bd9cff0621995abd4f1f278e67446da10fead229d8e21",
+      "bytes": 85299
+    },
+    {
+      "path": "arch/arm/mach-mt6582/include/mach/mt_cpufreq.h",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/include/mach/mt_cpufreq.h",
+      "sha256": "2f52dde9689fe9115300253bb13d67e75da4478c9cd8894180feba2cfa4961db",
+      "bytes": 2250
+    },
+    {
+      "path": "arch/arm/mach-mt6582/mt_freqhopping.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_freqhopping.c",
+      "sha256": "0561f4a47659ed8a16685233ca09a86c7805f8f58042dc599cdccd344984bb92",
+      "bytes": 73338
+    },
+    {
+      "path": "arch/arm/mach-mt6582/include/mach/mt_thermal.h",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/include/mach/mt_thermal.h",
+      "sha256": "dd6dbbe0a16a0a77080c2fec226df11f60598bf7bf6e668e59eb1176c813dff9",
+      "bytes": 9413
+    },
+    {
+      "path": "arch/arm/mach-mt6582/include/mach/mt_reg_base.h",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/include/mach/mt_reg_base.h",
+      "sha256": "95af24b0c480c5a5a46203708ac16f333810a37a49bff348f8b6ebd3885e964d",
+      "bytes": 16370
+    },
+    {
+      "path": "drivers/misc/mediatek/thermal/mt6582/mtk_ts_cpu.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/thermal/mt6582/mtk_ts_cpu.c",
+      "sha256": "8325b4e7685975d9905bc1560e9b831a0728c0fb7cdf11ce30c96991e2efe85e",
+      "bytes": 76386
+    },
+    {
+      "path": "drivers/misc/mediatek/thermal/mt6582/mtk_ts_pmic.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/thermal/mt6582/mtk_ts_pmic.c",
+      "sha256": "04a37a61dc6c58763169497e0660fb660f044f03cfd858efbe9f6bf2684c8f5d",
+      "bytes": 17997
+    },
+    {
+      "path": "drivers/misc/mediatek/power/mt6582/charging_hw_pmic.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/power/mt6582/charging_hw_pmic.c",
+      "sha256": "a51d5e0974316f7f06c70e31fa57b4131acf23a73b5faf3c04dba954a603be8b",
+      "bytes": 10570
+    },
+    {
+      "path": "drivers/misc/mediatek/power/mt6582/battery_meter_hal.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/power/mt6582/battery_meter_hal.c",
+      "sha256": "f0abff44297fa5613cec5e8e74cd0bfe60b67348156e1df6bf36d5b5b453cc0c",
+      "bytes": 9561
+    },
+    {
+      "path": "drivers/misc/mediatek/power/mt6582/upmu_common.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/power/mt6582/upmu_common.c",
+      "sha256": "a2dd06749b8505b31c1ac1922395079f0b0faad4f7294f70f7b696e00a8a1918",
+      "bytes": 535175
+    },
+    {
+      "path": "drivers/misc/mediatek/power/mt6582/pmic_mt6323.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/power/mt6582/pmic_mt6323.c",
+      "sha256": "196b4605c4d367189f6b7b4a6263d617c0c90dfade649020a4e7139acdf27a98",
+      "bytes": 135844,
+      "previously_retained": true
+    },
+    {
+      "path": "arch/arm/mach-mt6582/include/mach/upmu_hw.h",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/include/mach/upmu_hw.h",
+      "sha256": "62eb6f463981dbc8aa901927f977b05e8571988a9984ffbf33d6ad8c8007654e",
+      "bytes": 179803,
+      "previously_retained": true
+    }
+  ]
+}

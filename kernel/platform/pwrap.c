@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <linux/power_supply.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 
@@ -59,12 +58,12 @@ static int wrap_reg_write(void *context, unsigned reg, unsigned val)
 	struct y2_pwrap_io io = wrap_io(w);
 	unsigned state, old, mask = 0;
 	int ret;
-	/* Permanent PMIC register ownership. VGP2 enable/selector belongs to the
-	 * regulator consumer; charger/reset operations have no implemented owner.
-	 * INT_CON/STATUS are the upstream MT6323 MFD's mask/W1C registers.
-	 * Backlight may only lower PWM duty or restore the saved duty, never current. */
+	/* Single MFD ownership; policy.h limits each child to its reviewed fields.
+	 * Charger writes may only inhibit. RTC is separate from charger/AP WDT.
+	 * INT_CON/STATUS are upstream mask/W1C registers. Backlight changes duty,
+	 * never sink current. No VPROC voltage writes or calibration writes. */
 	mask = y2_pmic_write_mask(reg);
-	if (!mask)
+	if (!mask || !y2_pmic_value_allowed(reg, val))
 		return -EPERM;
 	if (mask != 0xffff) {
 		ret = wrap_reg_read(w, reg, &old);
@@ -80,15 +79,43 @@ static int wrap_reg_write(void *context, unsigned reg, unsigned val)
 	writel(BIT(31) | ((reg >> 1) << 16) | (val & 0xffff), w->base + 0x9c);
 	return y2_pwrap_wait(&io, &state, 0);
 }
+static bool wrap_readable(struct device *dev, unsigned reg)
+{
+	return !(reg & 1) && (reg <= 0xffe || (reg >= 0x8000 && reg <= 0x803e));
+}
+static bool wrap_precious(struct device *dev, unsigned reg)
+{
+	return reg == 0x8002; /* RTC_IRQ_STA clears on read; exclude debugfs dumps. */
+}
 static const struct regmap_config wrap_config = {
     .reg_bits = 16,
     .val_bits = 16,
     .reg_stride = 2,
-    .max_register = 0xffe,
+    .max_register = 0x803e,
+    .readable_reg = wrap_readable,
+    .precious_reg = wrap_precious,
+    /* WACS uses bounded MMIO/udelay only. IRQ-safe serialization also permits
+     * the upstream poweroff callback after interrupts have been disabled. */
+    .fast_io = true,
     .reg_read = wrap_reg_read,
     .reg_write = wrap_reg_write,
     .cache_type = REGCACHE_NONE,
 };
+int y2_pmic_cpu_voltage_ready(void)
+{
+	unsigned control, selector;
+	int ret = -EPROBE_DEFER;
+	mutex_lock(&y2_wrap_lock);
+	if (y2_wrap) {
+		ret = regmap_read(y2_wrap->map, 0x216, &control);
+		if (!ret) ret = regmap_read(y2_wrap->map, (control & BIT(1)) ? 0x220 : 0x21e, &selector);
+		/* 700 mV + selector * 6.25 mV. All enabled OPPs require 1.15 V.
+		 * Changing voltage or PMIC/SPM ownership is outside this candidate. */
+		if (!ret && (selector & 0x7f) != 72) ret = -ERANGE;
+	}
+	mutex_unlock(&y2_wrap_lock);
+	return ret;
+}
 int y2_pmic_snapshot(struct y2_pwrap_snapshot *s)
 {
 	int ret = -EPROBE_DEFER;
@@ -119,33 +146,12 @@ int y2_pmic_snapshot(struct y2_pwrap_snapshot *s)
 	mutex_unlock(&y2_wrap_lock);
 	return ret;
 }
-static enum power_supply_property y2_usb_props[] = {POWER_SUPPLY_PROP_ONLINE};
-static int y2_supply_get(struct power_supply *s, enum power_supply_property p,
-			 union power_supply_propval *v)
-{
-	struct y2_wrap *w = power_supply_get_drvdata(s);
-	unsigned value;
-	int ret;
-	if (p != POWER_SUPPLY_PROP_ONLINE)
-		return -EINVAL;
-	ret = regmap_read(w->map, MT6323_CHR_CON0, &value);
-	if (!ret)
-		v->intval = !!(value & BIT(5));
-	return ret;
-}
-static const struct power_supply_desc y2_supply_desc = {.name = "y2-usb-presence",
-							.type = POWER_SUPPLY_TYPE_USB,
-							.properties = y2_usb_props,
-							.num_properties = ARRAY_SIZE(y2_usb_props),
-							.get_property = y2_supply_get};
 static int wrap_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct y2_wrap *w;
 	struct y2_pwrap_snapshot s;
 	struct y2_pwrap_io io;
-	struct power_supply_config cfg = {};
-	struct power_supply *psy;
 	struct clk *clk;
 	int ret;
 	w = devm_kzalloc(dev, sizeof(*w), GFP_KERNEL);
@@ -174,17 +180,15 @@ static int wrap_probe(struct platform_device *pdev)
 	mutex_unlock(&y2_wrap_lock);
 	/* Built-in non-unbindable owner: USB uses this map throughout the window. */
 	platform_set_drvdata(pdev, w);
-	cfg.drv_data = w;
-	cfg.fwnode = dev_fwnode(dev);
-	psy = devm_power_supply_register(dev, &y2_supply_desc, &cfg);
-	if (IS_ERR(psy))
-		dev_warn(dev, "USB presence class: %ld\n", PTR_ERR(psy));
 	ret = devm_of_platform_populate(dev);
-	if (ret)
-		dev_warn(dev, "PMIC children: %d; USB transport remains live\n", ret);
+	if (ret) {
+		mutex_lock(&y2_wrap_lock);
+		y2_wrap = NULL;
+		mutex_unlock(&y2_wrap_lock);
+		return dev_err_probe(dev, ret, "PMIC children\n");
+	}
 	dev_info(dev,
-		 "MT6323 CID=%04x VUSB=%04x CHRDET=%u; serialized regmap; rail/charger/reset "
-		 "writes blocked\n",
+		 "MT6323 CID=%04x VUSB=%04x CHRDET=%u; serialized MFD regmap; scoped power writes\n",
 		 s.cid, s.vusb, !!(s.chrdet & 32));
 	return 0;
 }

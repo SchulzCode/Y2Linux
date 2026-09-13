@@ -1,0 +1,32 @@
+{
+  "captured_utc": "2026-09-13T20:27:51.704705+00:00",
+  "scope": "read-only SSH; no raw register reads, device writes, playback, PM transitions or flashing",
+  "source_commit": "ae5819ffed0dac91f6a32b6c5cad066e31ab2f82",
+  "files": {
+    "identity.txt": {
+      "exit_code": 1,
+      "bytes": 2484,
+      "stored_sha256": "373cab67717b2ae8fd7d2457d978ce6ebd14e2b2c709277acb6802b0ee0a9996"
+    },
+    "power.txt": {
+      "exit_code": 0,
+      "bytes": 19314,
+      "stored_sha256": "c8c9077aca03a31eee86b277d0b1893b7959cd23148991782c9eaf5a44980336"
+    },
+    "devices.txt": {
+      "exit_code": 0,
+      "bytes": 6668,
+      "stored_sha256": "b6d2efd41f981679936d18d396d9112bfbe8f0f1ab73b4dd3cf89eebe6f6622e"
+    },
+    "config.txt": {
+      "exit_code": 1,
+      "bytes": 49,
+      "stored_sha256": "a0c2bac4be955f9cb5143c41261755589e1850c007784e53e7e04d54ea867900"
+    },
+    "dmesg.txt.gz": {
+      "exit_code": 0,
+      "bytes": 1132179,
+      "stored_sha256": "90553de0232beeae22106a3c6a01ee5bcab0fb143bffd2a219c9f4d34062a3e3"
+    }
+  }
+}

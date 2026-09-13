@@ -1,0 +1,1 @@
+zcat: /proc/config.gz: No such file or directory

@@ -13,7 +13,7 @@ Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 | M2 | Core/Buildroot physically qualified for progression; #22–26 closed. USB reconnect #27 remains unresolved/deferred under #28 |
 | M3 | Active / near completion: clean native S16 stereo 44.1-kHz headphones; period-notification fix deployed and tested. 48 kHz, L/R and stop/restart/repeat remain |
 | Production Storage / Installation v1 | Active: internal root/data boot without SD and existing-owner-key SSH confirmed; wider write/stress qualification remains |
-| M4 | Not started; follows Production Storage v1 and boundary audit |
+| M4 | Active: integrated power platform on Storage06; physical qualification pending. [Architecture and limits](docs/knowledge/m4-power-platform.md) |
 | M5 | Not started; Wi-Fi/Bluetooth later |
 
 Current running kernel: `6.18.0-y2linux-storage06`. The owner-flashed correction

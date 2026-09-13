@@ -8,6 +8,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/thermal/thermal.h>
 #include "initrd-size.h"
 #include "/project/kernel/platform/clocks.h"
 #include "/project/kernel/platform/mt6582-clk.h"
@@ -27,8 +28,54 @@
     rtc32k: rtc32k { compatible = "fixed-clock"; #clock-cells = <0>; clock-frequency = <32768>; clock-output-names = "y2-rtc32k"; };
     y2clk: clock-controller@10000000 {
         compatible = "innioasis,y2-clocks";
-        reg = <0x10000000 0x1000>, <0x10003000 0x1000>, <0x10001000 0x1000>, <0x10209000 0x1000>;
+        reg = <0x10000000 0x1000>, <0x10003000 0x1000>, <0x10001000 0x1000>, <0x10209000 0x600>;
         #clock-cells = <1>;
+    };
+    /* Only the documented two read-only thermal calibration words. */
+    efuse@10206100 {
+        compatible = "mediatek,efuse"; reg = <0x10206100 8>;
+        read-only; #address-cells = <1>; #size-cells = <1>;
+        cpu_cal: calibration@0 { reg = <0 8>; };
+    };
+    soc_thermal: thermal@1100b000 {
+        compatible = "mediatek,mt6582-thermal";
+        reg = <0x1100b000 0x100>, <0x11001000 0x100>, <0x10209600 8>;
+        clocks = <&y2clk Y2_CLK_THERM>, <&y2clk Y2_CLK_AUXADC>, <&y2clk Y2_CLK_EFUSE>;
+        clock-names = "therm", "auxadc", "efuse";
+        nvmem-cells = <&cpu_cal>; nvmem-cell-names = "calibration";
+        #thermal-sensor-cells = <0>;
+    };
+    thermal-zones {
+        cpu-thermal {
+            polling-delay-passive = <1000>; polling-delay = <1000>;
+            thermal-sensors = <&soc_thermal>;
+            /* BSP default first trip and get_crit_temp; no guessed limits. */
+            trips {
+                cpu_hot: cpu-hot { temperature = <110000>; hysteresis = <0>; type = "passive"; };
+                cpu-critical { temperature = <120000>; hysteresis = <0>; type = "critical"; };
+            };
+            cooling-maps {
+                map { trip = <&cpu_hot>; cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>; };
+            };
+        };
+        pmic-thermal {
+            polling-delay = <1000>; polling-delay-passive = <1000>;
+            thermal-sensors = <&pmic_adc>;
+            trips { pmic-critical { temperature = <150000>; hysteresis = <0>; type = "critical"; }; };
+        };
+    };
+    cpu_opp: opp-table {
+        compatible = "operating-points-v2"; opp-shared;
+        /* MT6582 normal BSP table without MT6333 low-voltage support.
+         * All use the live inherited 1.15 V. No voltage write is authorized. */
+        opp-598000000 { opp-hz = /bits/ 64 <598000000>; opp-microvolt = <1150000>; clock-latency-ns = <100000>; opp-suspend; };
+        opp-747500000 { opp-hz = /bits/ 64 <747500000>; opp-microvolt = <1150000>; clock-latency-ns = <100000>; };
+        opp-1040000000 { opp-hz = /bits/ 64 <1040000000>; opp-microvolt = <1150000>; clock-latency-ns = <100000>; };
+    };
+    watchdog@10007000 {
+        /* Exact upstream 6.18 mt6582.dtsi compatibility, verified RGU layout. */
+        compatible = "mediatek,mt6582-wdt", "mediatek,mt6589-wdt";
+        reg = <0x10007000 0x100>;
     };
     pio: pinctrl@10005000 {
         compatible = "innioasis,y2-pinctrl";
@@ -112,14 +159,19 @@
         enable-method = "mediatek,mt6589-smp";
         #address-cells = <1>;
         #size-cells = <0>;
-        cpu@0 {
+        cpu0: cpu@0 {
             device_type = "cpu";
             compatible = "arm,cortex-a7";
             reg = <0>;
+            clocks = <&y2clk Y2_CLK_CPU>; cpu-supply = <&vproc>;
+            operating-points-v2 = <&cpu_opp>; #cooling-cells = <2>;
         };
-        cpu@1 { device_type = "cpu"; compatible = "arm,cortex-a7"; reg = <1>; };
-        cpu@2 { device_type = "cpu"; compatible = "arm,cortex-a7"; reg = <2>; };
-        cpu@3 { device_type = "cpu"; compatible = "arm,cortex-a7"; reg = <3>; };
+        cpu@1 { device_type = "cpu"; compatible = "arm,cortex-a7"; reg = <1>;
+            clocks = <&y2clk Y2_CLK_CPU>; cpu-supply = <&vproc>; operating-points-v2 = <&cpu_opp>; };
+        cpu@2 { device_type = "cpu"; compatible = "arm,cortex-a7"; reg = <2>;
+            clocks = <&y2clk Y2_CLK_CPU>; cpu-supply = <&vproc>; operating-points-v2 = <&cpu_opp>; };
+        cpu@3 { device_type = "cpu"; compatible = "arm,cortex-a7"; reg = <3>;
+            clocks = <&y2clk Y2_CLK_CPU>; cpu-supply = <&vproc>; operating-points-v2 = <&cpu_opp>; };
     };
     system_clk: clock-system {
         compatible = "fixed-clock";
@@ -182,8 +234,24 @@
             pinctrl-names = "default"; pinctrl-0 = <&pmic_state>;
             interrupt-parent = <&pio>; interrupts = <25 IRQ_TYPE_LEVEL_HIGH>;
             interrupt-controller; #interrupt-cells = <2>;
-            keys { compatible = "mediatek,mt6323-keys"; power { linux,keycodes = <KEY_POWER>; }; };
+            keys { compatible = "mediatek,mt6323-keys";
+                power { linux,keycodes = <KEY_POWER>; wakeup-source; };
+            };
+            rtc { compatible = "mediatek,mt6323-rtc"; wakeup-source; };
+            power-controller { compatible = "mediatek,mt6323-pwrc"; };
+            pmic_adc: adc { compatible = "mediatek,mt6323-auxadc";
+                #io-channel-cells = <1>; #thermal-sensor-cells = <0>;
+            };
+            charger { compatible = "innioasis,y2-mt6323-charger";
+                io-channels = <&pmic_adc 7>; io-channel-names = "battery-voltage";
+            };
+            backlight: backlight { compatible = "innioasis,y2-backlight"; };
             regulators { compatible = "mediatek,mt6323-regulator";
+                vproc: buck_vproc {
+                    regulator-name = "vproc";
+                    regulator-min-microvolt = <1150000>; regulator-max-microvolt = <1150000>;
+                    regulator-always-on;
+                };
                 vgp2: ldo_vgp2 {
                     regulator-name = "vgp2-audio";
                     regulator-min-microvolt = <1800000>;
@@ -194,7 +262,6 @@
                 };
             };
         };
-        backlight: backlight { compatible = "innioasis,y2-backlight"; };
     };
     i2c0: i2c@11007000 {
         compatible = "mediatek,mt6582-i2c";
