@@ -1,5 +1,17 @@
 # Session handoff — 2026-09-13, Storage05 boot failed
 
+## Current: Storage06 boots internally; prepare owner-key Y2DATA only
+
+Owner flashed the working23552-sector correction. [ACM evidence](../hardware-evidence/2026-09-13-storage06-owner/README.md)
+confirms MBR/EBR55aa, p5/p7, ext4rw internal root/data and Buildroot handover.
+Dropbear is reachable but rejects the existing owner key. Owner selects
+~/.ssh/y2linux_ed25519.pub and confirms only initial state exists on Y2DATA.
+Prepare a validated USRDATA-only initialization; preserve the working BOOTIMG
+and Y2ROOT. No new kernel build or diagnostic path. Never inspect/copy/package
+the private key; authorization stays persistent in Y2DATA across system updates.
+All entries below are history.
+
+
 ## Latest: readback verified; stock address correction in progress
 
 Corrected owner readback at21:10:43 matches all six samples, including intact

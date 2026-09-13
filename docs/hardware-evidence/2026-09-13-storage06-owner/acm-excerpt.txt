@@ -1,0 +1,71 @@
+# Selected lines from private raw.bin; line numbers are not kernel sequence numbers.
+19: PID1 CPUS ONLINE: 0-3                        
+121: MemTotal:         954376 kB
+760: 5,1,0,-;Linux version 6.18.0-y2linux-storage06 (Luca@y2-build) (Alpine clang version 20.1.8, LLD 20.1.8) #1 SMP @1764542530
+981: 6,130,435407,-;mtk-msdc 11230000.mmc: eMMC context: sector-addressed=1 sectors=15269888 PART_CONFIG=48 stock-layout=1 offset=23552 disk=15203328
+985: 6,132,438078,-;mmcblk0: mmc0:0001 FNX2MB 7.25 GiB
+986: 6,133,441794,-;mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+1001: 6,138,444680,-;mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+1007: 6,140,447502,-;mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+1010: 6,141,447562,-; mmcblk0: p1 < p5 p6 p7 p8 > p2 p3 p4
+1011: 4,142,448509,-;mmcblk0: p8 size 4291225599 extends beyond EOD, truncated
+1077: 12,172,763277,-;Y2ROOT: Production Storage v1; internal-only discovery
+1162: 6,203,1663864,-;mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+1165: 6,204,1666851,-;mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+1168: 6,205,1669751,-;mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+1246: 6,229,2456994,-;mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+1249: 6,230,2459980,-;mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+1252: 6,231,2462869,-;mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+1297: 6,245,3249602,-;mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+1421: 6,285,5856595,-;mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+1424: 6,286,5859563,-;mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+1427: 6,287,5862462,-;mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+1433: 12,288,5889360,-;Y2ABI begin: Thumb signal return, kuser helpers, glibc TLS/threads and VFP
+1435: 12,290,5889438,-;Y2ABI Thumb signal delivery/return OK
+1437: 12,292,5889462,-;Y2ABI kuser memory barrier and TLS OK
+1439: 12,294,5896647,-;Y2ABI PASS: glibc thread/TLS, VFP, clock and allocator
+1490: 6,312,6082694,-;EXT4-fs (mmcblk0p5): mounted filesystem 79324c69-6e75-4801-8000-000000000101 ro without journal. Quota mode: disabled.
+1492: 6,314,6237778,-;EXT4-fs (mmcblk0p7): mounted filesystem 79324c69-6e75-4801-8000-000000000102 ro without journal. Quota mode: disabled.
+1542: 3,331,7365674,-;EXT4-fs (mmcblk0p7): Inode 1 ((ptrval)): inode tracked as orphan!
+1608: 4,385,7366461,-; evict from ext4_mb_release+0x2e8/0x3d4
+1609: 4,386,7366478,-; ext4_mb_release from ext4_put_super+0x138/0x2f8
+1626: 3,400,7372588,-;EXT4-fs (mmcblk0p5): Inode 1 ((ptrval)): inode tracked as orphan!
+1689: 4,454,7373371,-; evict from ext4_mb_release+0x2e8/0x3d4
+1690: 4,455,7373388,-; ext4_mb_release from ext4_put_super+0x138/0x2f8
+1706: 12,468,7422836,-;Y2ROOT: clean, 769/32768 files, 11661/131072 blocks
+1723: 12,475,7492611,-;Y2DATA: clean, 23/51296 files, 7587/204800 blocks
+1725: 6,477,7702723,-;EXT4-fs (mmcblk0p5): mounted filesystem 79324c69-6e75-4801-8000-000000000101 r/w with ordered data mode. Quota mode: disabled.
+1726: 6,478,7866324,-;EXT4-fs (mmcblk0p7): mounted filesystem 79324c69-6e75-4801-8000-000000000102 r/w with ordered data mode. Quota mode: disabled.
+1727: 12,479,7878653,-;Y2ROOT: verified /dev/mmcblk0p5 with Y2DATA=/dev/mmcblk0p7; switching to Buildroot
+2568: MemTotal:         954376 kB
+2720: 12,778,26434241,-;Y2NET: usb0 10.42.0.1/24 ready; address persists across cable reconnect
+5771: MemTotal:         954376 kB
+616: SNAPSHOT BEGIN /proc/mounts
+617: proc /proc proc rw,relatime 0 0
+618: sysfs /sys sysfs rw,relatime 0 0
+619: devtmpfs /dev devtmpfs rw,relatime,size=476140k,nr_inodes=119035,mode=755 0 0
+620: devpts /dev/pts devpts rw,relatime,gid=5,mode=620,ptmxmode=666 0 0
+621: tmpfs /run tmpfs rw,nosuid,nodev,relatime,mode=755 0 0
+622: tmpfs /tmp tmpfs rw,nosuid,nodev,relatime 0 0
+623: debugfs /sys/kernel/debug debugfs rw,relatime 0 0
+624: /dev/mmcblk0p5 / ext4 rw,relatime 0 0
+625: /dev/mmcblk0p7 /data ext4 rw,nosuid,nodev,relatime 0 0
+626: tmpfs /lib/modules tmpfs rw,nosuid,nodev,relatime,mode=755 0 0
+627: proc /proc proc rw,relatime 0 0
+628: tmpfs /dev/shm tmpfs rw,relatime 0 0
+629: 
+630: SNAPSHOT END /proc/mounts
+632: SNAPSHOT BEGIN /proc/partitions
+633: major minor  #blocks  name
+634: 
+635:  179        0    7601664 mmcblk0
+636:  179        1          1 mmcblk0p1
+637:  179        2      10240 mmcblk0p2
+638:  179        3      10240 mmcblk0p3
+639:  179        4       6144 mmcblk0p4
+640:  179        5     839680 mmcblk0p5
+641:  179        6     129024 mmcblk0p6
+642:  179        7     819200 mmcblk0p7
+643:  259        0    5730304 mmcblk0p8
+644: 
+645: SNAPSHOT END /proc/partitions

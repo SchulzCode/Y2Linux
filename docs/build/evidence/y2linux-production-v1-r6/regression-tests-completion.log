@@ -1,0 +1,44 @@
+ok
+test_all_protected_boundaries_and_overflow (tests.test_mmc_requests.ProductionMMC.test_all_protected_boundaries_and_overflow) ... ok
+test_read_write_and_companions (tests.test_mmc_requests.ProductionMMC.test_read_write_and_companions) ... ok
+test_standard_initialization_flush_shutdown (tests.test_mmc_requests.ProductionMMC.test_standard_initialization_flush_shutdown) ... ok
+test_switch_fields_and_hardware_areas (tests.test_mmc_requests.ProductionMMC.test_switch_fields_and_hardware_areas) ... ok
+test_initialization_before_card_registration_and_switch_confirmation (tests.test_mmc_context.Context.test_initialization_before_card_registration_and_switch_confirmation) ... ok
+test_actual_block_allocation_and_native_bounds (tests.test_emmc_layout.StockWindow.test_actual_block_allocation_and_native_bounds) ... ok
+test_manifest_and_readback_modes_match_physical_evidence (tests.test_emmc_layout.StockWindow.test_manifest_and_readback_modes_match_physical_evidence) ... ok
+test_real_request_sequence_wire_arguments_and_faults (tests.test_mmc_transport.Transport.test_real_request_sequence_wire_arguments_and_faults) ... PASS production MMC sequencing, sector-zero fixture, wire addresses, FUA, stop, faults and protected writes
+ok
+test_upstream_parser_and_malformed_tables (tests.test_stock_msdos.StockParser.test_upstream_parser_and_malformed_tables) ... ok
+test_recover_connected_passive_and_failures (tests.test_usb_recover.Recover.test_recover_connected_passive_and_failures) ... ok
+test_guarded_single_release (tests.test_usb_wake.UsbWake.test_guarded_single_release) ... ok
+test_guards_and_transition (tests.test_usb_session.Session.test_guards_and_transition) ... ok
+test_guards_widths_and_failures (tests.test_usb_state.UsbStateSnapshot.test_guards_widths_and_failures) ... ok
+test_guards_and_read_failures (tests.test_usb_clock.UsbClockSnapshot.test_guards_and_read_failures) ... ok
+test_owned_controller_lifecycle_and_guards (tests.test_usb_reconnect.Reconnect.test_owned_controller_lifecycle_and_guards) ... ok
+test_poll_failure_survives_teardown (tests.test_usb_failure.UsbFailure.test_poll_failure_survives_teardown) ... ok
+test_real_trigger_irq_and_dma_bounds (tests.test_audio.AFE.test_real_trigger_irq_and_dma_bounds) ... ok
+test_resolved_audio_dt_rejects_unsafe_rails (tests.test_audio.AFE.test_resolved_audio_dt_rejects_unsafe_rails) ... ok
+test_startup_accepts_positive_constraint_success (tests.test_audio.AFE.test_startup_accepts_positive_constraint_success) ... ok
+test_failed_child_keeps_root_handoff_disabled (tests.test_dev_abi.UserspaceABI.test_failed_child_keeps_root_handoff_disabled) ... ok
+test_required_abi_and_framebuffer_support (tests.test_dev_abi.UserspaceABI.test_required_abi_and_framebuffer_support) ... ok
+test_dt_protects_emmc_and_reservations (tests.test_dev_foundation.DevFoundation.test_dt_protects_emmc_and_reservations) ... ok
+test_large_bank_and_packaging_limits (tests.test_dev_foundation.DevFoundation.test_large_bank_and_packaging_limits) ... ok
+test_rescue_archive_and_bad_data (tests.test_dev_foundation.DevFoundation.test_rescue_archive_and_bad_data) ... ok
+test_rescue_only_selects_one_removable_ext4_label (tests.test_dev_foundation.DevFoundation.test_rescue_only_selects_one_removable_ext4_label) ... ok
+test_old_controller_uses_one_wrrd_without_retries (tests.test_dev_i2c.CombinedI2C.test_old_controller_uses_one_wrrd_without_retries) ... ok
+test_regmap_callbacks (tests.test_baseline_pwrap.Transport.test_regmap_callbacks) ... ok
+test_atomic_publication_and_corruption_rejection (tests.test_overlays.OverlayCache.test_atomic_publication_and_corruption_rejection) ... ok
+test_bounded_layout (tests.test_d08.Layout.test_bounded_layout) ... ok
+test_checked_arithmetic (tests.test_d08.Layout.test_checked_arithmetic) ... ok
+test_independent_rejections (tests.test_d08.Layout.test_independent_rejections) ... ok
+test_small_adjustment_preserves_dtb (tests.test_d08.Layout.test_small_adjustment_preserves_dtb) ... ok
+test_roundtrip_and_corruptions (tests.test_bootimg.Bootimg.test_roundtrip_and_corruptions) ... ok
+
+----------------------------------------------------------------------
+Ran 54 tests in 2.270s
+
+OK
+Y2ABI begin: Thumb signal return, kuser helpers, glibc TLS/threads and VFP
+Y2ABI Thumb signal delivery/return OK
+Y2ABI kuser memory barrier and TLS OK
+Y2ABI PASS: glibc thread/TLS, VFP, clock and allocator

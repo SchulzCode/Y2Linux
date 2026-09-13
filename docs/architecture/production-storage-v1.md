@@ -5,8 +5,9 @@ Storage05's physical boot failed, but the corrected owner readback at21:10:43 CE
 proves intact MBR/EBRs and exact flashed ext4 identity prefixes. The actual stock
 FM kernel adds23552 native user sectors and exposes15203328 sectors; the port
 omitted that mapping. Stock geometry/classification below remains unchanged.
-Upstream Linux6.18 parses these tables without a compatibility parser. Corrected
-physical internal-root acceptance remains pending.
+Upstream Linux6.18 parses these tables without a compatibility parser. [Storage06 ACM](../hardware-evidence/2026-09-13-storage06-owner/README.md) now
+confirms internal ext4rw root/data and Buildroot. Authenticated SSH/bounded-write
+acceptance awaits the corrected owner-key data template.
 BOOTIMG now owns loadable modules; rootfs/data and module ownership follow the
 [update contract](update-model.md). No physical success is inferred from builds.
 

@@ -1,0 +1,16 @@
+PASS all 71 DT nodes and reserved regions identical except calculated initrd-end
+PASS kernel configuration identical except LOCALVERSION storage04 -> storage06
+PASS rejected protected MBR selected with matching scatter hash: exact stock geometry and BOOTIMG-only selection
+PASS rejected shifted ANDROID geometry: unchanged root/data image references
+PASS rejected wrong Y2DATA UUID: unchanged root/data image references
+PASS rejected unexpected data payload: root/data must not be update payloads
+PASS rejected mismatched module release: boot module contract
+PASS rejected corrupted BOOTIMG bytes: BOOTIMG identity
+PASS rejected changed runtime write allowlist: retained production contract runtime_kernel_write_allowlist
+PASS rejected wrong native offset: stock logical/native addressing contract
+PASS rejected raw disk capacity accepted: current kernel exports the stock logical capacity only
+PASS rejected native tail exposed: stock logical/native addressing contract
+PASS rejected missing stock window: stock logical/native addressing contract
+PASS rejected readback uses logical offset as physical: readback coordinates/mode must match actual stock addressing
+PASS rejected changed root provenance: independent root provenance
+PASS candidate preserved; mutations were isolated host-only copies

@@ -30,7 +30,11 @@ def validate_addressing(out, m):
     return True
 
 def validate_manifest(out):
-    m=json.loads((out/'manifest.json').read_text());classification=json.loads((out/'metadata/partitions.json').read_text())
+    m=json.loads((out/'manifest.json').read_text())
+    if m.get('installation_profile')=='data-initialization-only':
+        from tools.production.owner_data import validate_package
+        return validate_package(out)
+    classification=json.loads((out/'metadata/partitions.json').read_text())
     if m.get('installation_profile')=='boot-only':return validate_boot_update(out)
     require(m['schema']=='org.schulzcode.y2linux.release/v1' and m['layout_version']==1,'manifest/layout version')
     require(m['hardware_compatibility']['emmc_user_capacity_bytes']==CAPACITY,'layout capacity')
@@ -231,6 +235,6 @@ def validate_rootfs(out,build,m):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('package',type=Path);p.add_argument('--build',type=Path,default=PROJECT/'out/y2linux-production-build-v1-r4');a=p.parse_args()
     m=validate_manifest(a.package)
-    if m.get('installation_profile')!='boot-only':validate_rootfs(a.package,a.build,m)
+    if m.get('installation_profile') not in ('boot-only','data-initialization-only'):validate_rootfs(a.package,a.build,m)
     print('PASS offline Production Storage v1; physical no-SD qualification PENDING')
 if __name__=='__main__':main()

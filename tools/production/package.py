@@ -4,15 +4,15 @@ import argparse, json, os, shutil, subprocess, sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from tools.production.layout import TARGETS, STOCK_SCATTER_SHA256, digest, require, make_scatter, sparse_encode, sparse_identity, addressing_contract, make_readback_plan
+from tools.production.owner_data import public_key, validate_seed
 PROJECT=Path(__file__).resolve().parents[2]
 STOCK=Path('/home/luca/Dokumente/Code/Y2Player/y2_v3.2.0_FM-20260813')
 RESTORE={'boot.img':'5ef1bdf28481ee0bf5f3528c1ddd91cf3f4d2d5f39e4d0ea049a8137a30f6af6','system.img':'5a7a92f3a95374f31abe8b3ddbd68c5c2ce5677547db3d1cbc21653d24c76989','userdata.img':'552e325ecf2faffeb9351022147bbfda3b7cebe25df491b2d732e85c5c68f27c'}
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--build',type=Path,default=PROJECT/'out/y2linux-production-build-v1-r6');p.add_argument('--output',type=Path,default=PROJECT/'out/y2linux-production-v1-r6');p.add_argument('--public-key',type=Path,required=True);p.add_argument('--data-template',type=Path,help='reuse a verified layout-1 data template unchanged');a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--build',type=Path,default=PROJECT/'out/y2linux-production-build-v1-r6');p.add_argument('--output',type=Path,default=PROJECT/'out/y2linux-production-v1-r6');p.add_argument('--public-key',type=Path,default=Path.home()/'.ssh/y2linux_ed25519.pub',help='existing owner public key; never generates an identity');p.add_argument('--data-template',type=Path,help='reuse a verified layout-1 data template unchanged');a=p.parse_args()
     out=a.output.resolve();require(out.is_relative_to(PROJECT/'out') and not out.exists(),'fresh package directory required')
-    require(a.public_key.suffix=='.pub' and not a.public_key.is_symlink(),'explicit public key only')
-    key=a.public_key.read_bytes();require(key.startswith(b'ssh-ed25519 ') and len(key.splitlines())==1,'one ED25519 public key')
+    key=public_key(a.public_key)
     subprocess.run(['ssh-keygen','-lf',str(a.public_key)],check=True)
     versions=json.loads((a.build/'versions.json').read_text());head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PROJECT,text=True).strip()
     require(versions['build_git_commit']==head and (a.build/'kernel-source-commit').read_text().strip()==head,'build commit mismatch')
@@ -69,6 +69,9 @@ def main():
         script.write_text('#!/bin/sh\nset -eu\nchown -R 0:0 '+shlex.quote(str(seed))+'\n'+shlex.join([str(mkfs),'-q','-F','-L','Y2DATA','-U',TARGETS['USRDATA']['uuid'],'-O','^64bit','-E','lazy_itable_init=0,lazy_journal_init=0,hash_seed='+TARGETS['USRDATA']['uuid'],'-d',str(seed),str(image)])+'\n')
         env=os.environ.copy();env['E2FSPROGS_FAKE_TIME']='1787518700';env['FAKEROOTDONTTRYCHOWN']='1'
         subprocess.run([str(fakeroot),'--','sh',str(script)],env=env,check=True)
+    # The key in the finished filesystem must match the selected existing .pub,
+    # including on first initialization. Never publish an unchecked template.
+    validate_seed(out/'Y2DATA.img',key)
     payloads=[]
     for name,target in TARGETS.items():
         raw=out/target['file'];entry={'component':target['type'],'target_partition':name,'region':'EMMC_USER','absolute_start_bytes':target['start'],'scatter_linear_start_bytes':target['linear'],'maximum_size_bytes':target['size'],'partition_relative_offset_bytes':0,'mandatory':name!='USRDATA','preserves_existing_data':False,'install_policy':'initialize-only; NEVER select during preserving reinstall or OTA' if name=='USRDATA' else 'replace','version':versions['kernel_version' if name=='BOOTIMG' else 'rootfs_version' if name=='ANDROID' else 'data_schema_version'],'raw':{'file':raw.name,'size_bytes':raw.stat().st_size,'sha256':digest(raw)}}

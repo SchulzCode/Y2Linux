@@ -93,6 +93,15 @@ def make_boot_scatter(stock):
         blocks[i]=re.sub(r'(?m)^  is_download: .*$', '  is_download: false',blocks[i])
     return ''.join(blocks)
 
+def make_data_scatter(stock):
+    """Explicit data initialization only; never a preserving system update."""
+    blocks=re.split(r'(?m)(?=^- partition_index: )',make_scatter(stock,True))
+    for i in range(1,len(blocks)):
+        if 'partition_name: USRDATA\n' in blocks[i]:continue
+        blocks[i]=re.sub(r'(?m)^  file_name: .*$', '  file_name: NONE',blocks[i])
+        blocks[i]=re.sub(r'(?m)^  is_download: .*$', '  is_download: false',blocks[i])
+    return ''.join(blocks)
+
 def sparse_encode(raw, destination):
     # Android sparse v1 with RAW/FILL only: no DONT_CARE holes left unverified.
     # Logical contents exactly match the raw filesystem, including zero blocks.

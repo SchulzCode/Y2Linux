@@ -1,0 +1,45 @@
+{
+  "reported_by_owner": "flashed new BOOTIMG; seems to work",
+  "candidate_bootimg_sha256": "3ba809e44bd9c945c994209d1d93f41fe0da9259a303487dd6ecf49724bf49a8",
+  "candidate_source_commit": "bea30cd5883f524a252d8b94d7e914d9d2f7cbdb",
+  "kernel_release_observed": "6.18.0-y2linux-storage06",
+  "raw_capture": "evidence-private/20260913-storage06-live/acm/raw.bin",
+  "capture_sha256": "19fa9a817cf406d5c1d23e9523aabd7ac3991c051910c3ffdd7340d4d5e3a9fa",
+  "kmsg_sequences": {
+    "first": 0,
+    "last": 2094,
+    "unique": 2095,
+    "missing": []
+  },
+  "observed": {
+    "logical_disk_sectors": 15203328,
+    "native_user_sectors": 15269888,
+    "native_user_offset_sectors": 23552,
+    "mbr_ebr_signatures": "55aa",
+    "root_device": "/dev/mmcblk0p5",
+    "data_device": "/dev/mmcblk0p7",
+    "mounts": "root and data ext4 rw",
+    "switch_to_buildroot_uptime_us": 7878653,
+    "cpus_online": "0-3",
+    "MemTotal_KiB": 954376,
+    "removable_block_device_in_snapshot": false,
+    "usb_ecm_address": "10.42.0.1/24",
+    "ssh": "Dropbear reached; explicitly selected existing owner key rejected (publickey)"
+  },
+  "limits": [
+    "No full on-device BOOTIMG hash readback",
+    "No authenticated filesystem read/write exercise yet",
+    "Two preflight-unmount warnings involve synthetic ext4 buddy-cache inode1 via ext4_mb_release; both e2fsck checks subsequently report clean; no table corruption inference",
+    "Not repeat/power-fail/stress qualification"
+  ],
+  "owner_key": {
+    "requested_public_file": "~/.ssh/y2linux_ed25519.pub",
+    "requested_public_sha256": "bf9cc937fb5dcee8569514b674fb9b3d5ba25396162efac7e8854f88bfe98c25",
+    "previous_template_public_sha256": "46d122f86bdecb4daf3e435ec6098b5b041575f0869a8e87bb4851ff3a2a4fa8",
+    "matches": false,
+    "owner_confirmed_current_data": "only initial system state"
+  },
+  "assistant_device_writes": false,
+  "assistant_device_request": "LOG1 only; SSH login attempt rejected",
+  "host_network_change": "active USB profile manual10.42.0.2/24, never-default; no device reconnect"
+}

@@ -2,7 +2,9 @@
 
 2026-09-13, entry `d7ee4f2`; physical Storage05 BOOTIMG
 `2af64e0fe0831a038ea681e82b93209bb21360995772a54699b7f0ef6be22efa`.
-Corrected candidate and hardware acceptance are pending at entry.
+The candidate built from bea30cd and the owner flashed it. [ACM confirms internal
+boot](../hardware-evidence/2026-09-13-storage06-owner/README.md). The remaining
+owner-key mismatch is corrected through Y2DATA initialization, with no new kernel.
 
 ## Evidence and root cause
 
