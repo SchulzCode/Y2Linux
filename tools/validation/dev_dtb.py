@@ -35,6 +35,7 @@ POWER_REGS = {
  '/efuse@10206100': (0x10206100,8),
  '/thermal@1100b000': (0x1100b000,0x100,0x11001000,0x100,0x10209600,8),
  '/watchdog@10007000': (0x10007000,0x100),
+ '/power-controller@10006000': (0x10006000,0x1000,0x10208000,4),
 }
 
 def check(data, initrd_size, production=True):
@@ -83,7 +84,7 @@ def check(data, initrd_size, production=True):
         for prop in ('pinctrl-0','pinctrl-1','backlight','remote-endpoint','interrupt-parent'):
             if prop in props:
                 for h in struct.unpack('>'+str(len(props[prop])//4)+'I',props[prop]): require(h in handles,'missing '+prop)
-    require(nodes['/cpus']['enable-method']==strings('mediatek,mt6589-smp'),'SMP release method')
+    require(nodes['/cpus']['enable-method']==strings('innioasis,y2-smp'),'SMP release and hotplug method')
     require({p for p in nodes if p.startswith('/cpus/cpu@')}=={'/cpus/cpu@'+str(i) for i in range(4)},'CPU count')
     for i in range(4): require(nodes['/cpus/cpu@'+str(i)]['reg']==cells(i),'CPU index')
     require(nodes['/usb@11200000']['compatible']==strings('innioasis,y2-usb') and nodes['/usb@11200000']['dr_mode']==strings('peripheral'),'known USB glue/role')
@@ -124,7 +125,10 @@ def check(data, initrd_size, production=True):
             'output-low' in nodes['/pinctrl@10005000/speaker-disable'], 'speaker stays disabled')
     panel=nodes['/dsi@1400c000/panel@0']
     require(panel['resets']==cells(handle('/syscon@14000000'),0) and 'innioasis,lk-powered' in panel,'evidenced panel reset/power')
-    if power: check_power(nodes,handle)
+    if power:
+        require(nodes['/power-controller@10006000']['interrupts']==cells(0,117,8), 'actual Y2 SPM IRQ')
+        require(nodes['/power-controller@10006000']['compatible']==strings('innioasis,y2-spm'), 'sole SPM owner')
+        check_power(nodes,handle)
     return {'node_count':len(nodes),'bootargs':args,'memory':RAM,'storage':'internal eMMC: guarded root/data; removable SD optional','evidence':'offline dependencies only'}
 
 def check_power(nodes, handle):

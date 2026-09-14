@@ -1,0 +1,129 @@
+{
+  "date": "2026-09-14",
+  "kernel": "6.18.0-y2linux-m4-charge-01",
+  "source_commit": "53aa9a6f86e024ae9ad54889facaeb5e24df3783",
+  "raw": {
+    "path": "evidence-private/20260914-m4-70ma-baseline/baseline.txt",
+    "bytes": 87091,
+    "sha256": "7ac52805de2d60bb0e7693e05c9b8c5b57c7daae04407fe269beeb7d1ab395b5"
+  },
+  "method": "Owner-confirmed replacement host key, strictly pinned SSH; bounded read-only production sysfs observer. Backlight set from 32 to 0 at uptime 1431.36s. No charger/current/protection writes.",
+  "active_period_from_same_boot_kernel_log": {
+    "start_uptime_s": 1.122823,
+    "start_battery_uv": 3439819,
+    "end_uptime_s": 1016.930355,
+    "end_battery_uv": 3399829,
+    "configured_charge_ua": 70000,
+    "cv_uv": 4175000,
+    "watchdog_pets": 907,
+    "end_fault": "0x8 = voltage below 3.4V entry guard",
+    "watchdog_fault": false,
+    "thermal_fault": false,
+    "other_charger_fault": false
+  },
+  "observer_samples": 36,
+  "observer_phase": "After the voltage guard had already inhibited charging; not a new active-charging trial.",
+  "phases": [
+    {
+      "backlight": 32,
+      "samples": 12,
+      "first": {
+        "sample": 0,
+        "uptime_s": 1372.1,
+        "battery_uv": 3309960,
+        "baton_raw": 10388,
+        "isense_raw": 15052,
+        "pmic_die_mc": 37526,
+        "input_budget_ua": 500000,
+        "watchdog_pets": 907,
+        "cpu_mc": 6100,
+        "backlight": 32,
+        "fault": "0x8"
+      },
+      "last": {
+        "sample": 11,
+        "uptime_s": 1428.24,
+        "battery_uv": 3297436,
+        "baton_raw": 10387,
+        "isense_raw": 15007,
+        "pmic_die_mc": 37526,
+        "input_budget_ua": 500000,
+        "watchdog_pets": 907,
+        "cpu_mc": 6000,
+        "backlight": 32,
+        "fault": "0x8"
+      },
+      "regression_mV_per_min": -11.658
+    },
+    {
+      "backlight": 0,
+      "samples": 24,
+      "first": {
+        "sample": 12,
+        "uptime_s": 1433.36,
+        "battery_uv": 3309741,
+        "baton_raw": 10388,
+        "isense_raw": 15050,
+        "pmic_die_mc": 37526,
+        "input_budget_ua": 500000,
+        "watchdog_pets": 907,
+        "cpu_mc": 6100,
+        "backlight": 0,
+        "fault": "0x8"
+      },
+      "last": {
+        "sample": 35,
+        "uptime_s": 1550.87,
+        "battery_uv": 3288427,
+        "baton_raw": 10388,
+        "isense_raw": 14976,
+        "pmic_die_mc": 37526,
+        "input_budget_ua": 500000,
+        "watchdog_pets": 907,
+        "cpu_mc": 5400,
+        "backlight": 0,
+        "fault": "0x8"
+      },
+      "regression_mV_per_min": -10.369
+    }
+  ],
+  "ranges": {
+    "battery_uv": [
+      3288427,
+      3310400
+    ],
+    "baton_raw": [
+      10387,
+      10388
+    ],
+    "isense_raw": [
+      14970,
+      15072
+    ],
+    "pmic_die_mc": [
+      37526,
+      37526
+    ],
+    "cpu_mc": [
+      5400,
+      6200
+    ],
+    "input_budget_ua": [
+      500000,
+      500000
+    ],
+    "watchdog_pets": [
+      907,
+      907
+    ]
+  },
+  "conclusion": "FAIL sustained charge gain/useful 70mA operation: same-boot charge start and voltage-fault endpoints fell by 39.990mV over 1015.808s; subsequent monitored voltage continued falling. No calibrated net current or energy measurement is claimed.",
+  "additional_findings": [
+    "CPU Celsius output 5.4\u20136.2C is physically implausible alongside PMIC ~38C; qualification pending, not calibrated-accuracy pass.",
+    "RTC read reports 2082-07-31; set/reboot/alarm/off persistence not yet tested.",
+    "Boot logs contain ext4 inode-1 orphan warnings during ro,noload preflight; automatic journal recovery subsequently reports root/data clean. Requires source review; not yet a no-corruption qualification."
+  ],
+  "ending": "SSH RTC-set/shutdown attempts did not reach the already-disconnected device. Owner explicitly confirmed Y2 switched off. No software BBPU poweroff or RTC-write pass is claimed.",
+  "m4_closed": false,
+  "m5_started": false
+}

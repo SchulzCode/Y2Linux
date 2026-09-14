@@ -9,6 +9,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "../../codecs/cs43130.h"
+#include "/project/kernel/platform/boot.h"
 
 struct y2_audio {
 	struct snd_soc_card card;
@@ -56,6 +57,9 @@ static int y2_audio_probe(struct platform_device *pdev)
 	struct device_node *afe, *codec;
 	struct y2_audio *y2;
 	int ret, i;
+
+	if (IS_ENABLED(CONFIG_Y2_POWER) && !y2_normal_boot_enabled())
+		return -EPROBE_DEFER;
 
 	y2 = devm_kzalloc(dev, sizeof(*y2), GFP_KERNEL);
 	if (!y2)

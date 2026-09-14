@@ -37,6 +37,8 @@ int main(void) {
         else if(r==0x008) assert(mask==0xf);
         else if(r==0x01a) assert(mask==0x11f);
         else if(r==0x01e) assert(mask==3);
+        else if(r==0x024) assert(mask==0xf);
+        else if(r==0x026) assert(mask==0x1ff);
         else if(r==0x028||r==0x02a) assert(mask==0x77);
         else if(r==0x02c) assert(mask==0x3f);
         else if(r==0x02e) assert(mask==0xc4);

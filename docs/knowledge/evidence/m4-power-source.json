@@ -1,0 +1,57 @@
+{
+  "stock_fm_kernel": {
+    "path": "evidence-private/20260908-ram-map/fm-decompressed.bin",
+    "bytes": 10544516,
+    "sha256": "7287acf1b397d243c927dde5c6ef9d5d871c9c158207cdd98e0e820923f4c197"
+  },
+  "bsp_commit": "d53dd75c3ff77cac3f5be58fddfe660e94f94d64",
+  "bsp_files": [
+    {
+      "file": "mt_dormant.c",
+      "bytes": 53412,
+      "sha256": "07559f9d7da36f6a84aadd86110baa15f64f46277f91b5e410dcbe2304ee26bd"
+    },
+    {
+      "file": "mt_sleep.c",
+      "bytes": 9206,
+      "sha256": "ad2fc30e9db99a075f69c1a47d4465154fe598b46611ecf307f4da02ad0fac14"
+    },
+    {
+      "file": "mt_spm_sleep.c",
+      "bytes": 55848,
+      "sha256": "8c28bec107ab5cae4ad79f9c8b98eb7f8ade27c4777ecf7b68ebcf0c792b7cea"
+    },
+    {
+      "file": "mt_spm.c",
+      "bytes": 9683,
+      "sha256": "96522da5d0d6c17d46f5ad9fe5b0df974a78d185d58fe3a68ac458d0c39ffc1d"
+    },
+    {
+      "file": "mt_spm.h",
+      "bytes": 13195,
+      "sha256": "85c1d498a68cbd68136a80f80a6085d41f9000caeecf62ed7a93b57829b67b2c"
+    },
+    {
+      "file": "pmic_chr_type_det.c",
+      "bytes": 9704,
+      "sha256": "cbddf933d953e59a63d874f93d916dd0069823905277023ebe7413db8db22b01"
+    }
+  ],
+  "pcm": [
+    {
+      "program": "suspend",
+      "words": 597,
+      "stock_address": "0xc06f75d8",
+      "sha256": "0ee71194bd3330512e1415c22080cea29942ec7124b77311cfd1bc2215c6ab94",
+      "matches_actual_y2": true
+    },
+    {
+      "program": "normal",
+      "words": 28,
+      "stock_address": "0xc06f7518",
+      "sha256": "cd8fc20b989a95089b0e79901ce3fb5cbef1fbb408e2c4cef9b49e18366fc87d",
+      "matches_actual_y2": true
+    }
+  ],
+  "qualification": "Source reconciliation only. No physical hotplug or suspend pass."
+}

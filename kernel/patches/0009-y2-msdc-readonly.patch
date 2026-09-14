@@ -1,11 +1,12 @@
 --- a/drivers/mmc/host/mtk-sd.c
 +++ b/drivers/mmc/host/mtk-sd.c
-@@ -1,3 +1,4 @@
+@@ -1,3 +1,5 @@
++#include "/project/kernel/platform/boot.h"
 +#include "/project/kernel/platform/storage-policy.h"
  // SPDX-License-Identifier: GPL-2.0-only
  /*
   * Copyright (c) 2014-2015, 2022 MediaTek Inc.
-@@ -465,6 +466,11 @@
+@@ -465,6 +467,11 @@
  };
  
  struct msdc_host {
@@ -17,7 +18,7 @@
  	struct device *dev;
  	const struct mtk_mmc_compatible *dev_comp;
  	int cmd_rsp;
-@@ -692,6 +698,8 @@
+@@ -692,6 +699,8 @@
  };
  
  static const struct of_device_id msdc_of_ids[] = {
@@ -26,7 +27,7 @@
  	{ .compatible = "mediatek,mt2701-mmc", .data = &mt2701_compat},
  	{ .compatible = "mediatek,mt2712-mmc", .data = &mt2712_compat},
  	{ .compatible = "mediatek,mt6779-mmc", .data = &mt6779_compat},
-@@ -1180,7 +1188,7 @@
+@@ -1180,7 +1189,7 @@
  		struct mmc_data *data = cmd->data;
  
  		if (mmc_op_multi(opcode)) {
@@ -35,7 +36,7 @@
  			    !(mrq->sbc->arg & 0xFFFF0000))
  				rawcmd |= BIT(29); /* AutoCMD23 */
  		}
-@@ -1188,7 +1196,9 @@
+@@ -1188,7 +1197,9 @@
  		rawcmd |= ((data->blksz & 0xFFF) << 16);
  		if (data->flags & MMC_DATA_WRITE)
  			rawcmd |= BIT(13);
@@ -46,7 +47,7 @@
  			rawcmd |= BIT(12);
  		else
  			rawcmd |= BIT(11);
-@@ -1276,6 +1286,11 @@
+@@ -1276,6 +1287,11 @@
  
  static void msdc_track_cmd_data(struct msdc_host *host, struct mmc_command *cmd)
  {
@@ -58,7 +59,7 @@
  	if (host->error &&
  	    ((!mmc_op_tuning(cmd->opcode) && !host->hs400_tuning) ||
  	     cmd->error == -ETIMEDOUT))
-@@ -1320,6 +1335,56 @@
+@@ -1320,6 +1336,56 @@
  	host->mrq = NULL;
  	spin_unlock_irqrestore(&host->lock, flags);
  
@@ -115,7 +116,7 @@
  	msdc_track_cmd_data(host, mrq->cmd);
  	if (mrq->data)
  		msdc_unprepare_data(host, mrq->data);
-@@ -1373,7 +1438,9 @@
+@@ -1373,7 +1439,9 @@
  		}
  	}
  
@@ -126,7 +127,7 @@
  		if ((events & MSDC_INT_CMDTMO && !host->hs400_tuning) ||
  		    (!mmc_op_tuning(cmd->opcode) && !host->hs400_tuning))
  			/*
-@@ -1391,6 +1458,14 @@
+@@ -1391,6 +1459,14 @@
  			host->error |= REQ_CMD_TMO;
  		}
  	}
@@ -141,7 +142,7 @@
  	if (cmd->error)
  		dev_dbg(host->dev,
  				"%s: cmd=%d arg=%08X; rsp %08X; cmd_error=%d\n",
-@@ -1461,7 +1536,10 @@
+@@ -1461,7 +1537,10 @@
  	sdr_set_bits(host->base + MSDC_INTEN, cmd_ints_mask);
  	spin_unlock_irqrestore(&host->lock, flags);
  
@@ -153,7 +154,7 @@
  	writel(rawcmd, host->base + SDC_CMD);
  }
  
-@@ -1484,7 +1562,48 @@
+@@ -1484,7 +1563,48 @@
  static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
  {
  	struct msdc_host *host = mmc_priv(mmc);
@@ -203,7 +204,7 @@
  	host->error = 0;
  	WARN_ON(!host->hsq_en && host->mrq);
  	host->mrq = mrq;
-@@ -1507,7 +1626,10 @@
+@@ -1507,7 +1627,10 @@
  	 * if HW option is enabled, and SBC does not have "special" flags,
  	 * use HW option,  otherwise use SW option
  	 */
@@ -215,7 +216,7 @@
  	    (mrq->sbc->arg & 0xFFFF0000)))
  		msdc_start_command(host, mrq, mrq->sbc);
  	else
-@@ -1562,6 +1684,17 @@
+@@ -1562,6 +1685,17 @@
  	     | MSDC_INT_DMA_PROTECT);
  	u32 val;
  	int ret;
@@ -233,7 +234,7 @@
  
  	spin_lock_irqsave(&host->lock, flags);
  	done = !host->data;
-@@ -1581,18 +1714,25 @@
+@@ -1581,18 +1715,25 @@
  
  		ret = readl_poll_timeout_atomic(host->base + MSDC_DMA_CTRL, val,
  						!(val & MSDC_DMA_CTRL_STOP), 1, 20000);
@@ -262,7 +263,7 @@
  			data->bytes_xfered = data->blocks * data->blksz;
  		} else {
  			dev_dbg(host->dev, "interrupt events: %x\n", events);
-@@ -1600,7 +1740,9 @@
+@@ -1600,7 +1741,9 @@
  			host->error |= REQ_DAT_ERR;
  			data->bytes_xfered = 0;
  
@@ -273,7 +274,18 @@
  				data->error = -ETIMEDOUT;
  			else if (events & MSDC_INT_DATCRCERR)
  				data->error = -EILSEQ;
-@@ -2983,6 +3125,9 @@
+@@ -2963,6 +3106,10 @@
+ 	struct msdc_host *host;
+ 	int ret;
+ 
++	if (IS_ENABLED(CONFIG_Y2_POWER) && of_machine_is_compatible("innioasis,y2") &&
++	    !y2_normal_boot_enabled())
++		return -EPROBE_DEFER;
++
+ 	if (!pdev->dev.of_node) {
+ 		dev_err(&pdev->dev, "No DT found\n");
+ 		return -EINVAL;
+@@ -2983,6 +3130,9 @@
  		return PTR_ERR(host->base);
  
  	host->dev_comp = of_device_get_match_data(&pdev->dev);
@@ -283,7 +295,7 @@
  
  	if (host->dev_comp->needs_top_base) {
  		host->top_base = devm_platform_ioremap_resource(pdev, 1);
-@@ -3016,6 +3161,11 @@
+@@ -3016,6 +3166,11 @@
  	if (host->irq < 0)
  		return host->irq;
  
@@ -295,7 +307,7 @@
  	host->pinctrl = devm_pinctrl_get(&pdev->dev);
  	if (IS_ERR(host->pinctrl))
  		return dev_err_probe(&pdev->dev, PTR_ERR(host->pinctrl),
-@@ -3032,6 +3182,8 @@
+@@ -3032,6 +3187,8 @@
  		dev_err(&pdev->dev, "Cannot find pinctrl uhs!\n");
  		return PTR_ERR(host->pins_uhs);
  	}
@@ -304,7 +316,7 @@
  
  	/* Support for SDIO eint irq ? */
  	if ((mmc->pm_caps & MMC_PM_WAKE_SDIO_IRQ) && (mmc->pm_caps & MMC_PM_KEEP_POWER)) {
-@@ -3050,6 +3202,21 @@
+@@ -3050,6 +3207,21 @@
  	msdc_of_property_parse(pdev, host);
  
  	host->dev = &pdev->dev;
@@ -326,7 +338,7 @@
  	host->src_clk_freq = clk_get_rate(host->src_clk);
  	/* Set host parameters to mmc */
  	mmc->ops = &mt_msdc_ops;
-@@ -3072,6 +3239,8 @@
+@@ -3072,6 +3244,8 @@
  		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
  
  	mmc->caps |= MMC_CAP_CMD23;
@@ -335,7 +347,7 @@
  	if (host->cqhci)
  		mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
  	/* MMC core transfer sizes tunable parameters */
-@@ -3132,7 +3301,7 @@
+@@ -3132,7 +3306,7 @@
  		mmc->max_seg_size = 64 * 1024;
  		/* Reduce CIT to 0x40 that corresponds to 2.35us */
  		msdc_cqe_cit_cal(host, 2350);
@@ -344,7 +356,7 @@
  		/* Use HSQ on eMMC/SD (but not on SDIO) if HW CQE not supported */
  		struct mmc_hsq *hsq = devm_kzalloc(&pdev->dev, sizeof(*hsq), GFP_KERNEL);
  		if (!hsq) {
-@@ -3285,6 +3454,16 @@
+@@ -3285,6 +3459,16 @@
  
  	if (host->hsq_en)
  		mmc_hsq_suspend(mmc);
@@ -361,7 +373,7 @@
  
  	msdc_save_reg(host);
  
-@@ -3306,6 +3485,10 @@
+@@ -3306,6 +3490,10 @@
  	struct msdc_host *host = mmc_priv(mmc);
  	int ret;
  

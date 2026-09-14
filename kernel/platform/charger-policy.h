@@ -6,13 +6,16 @@
  * See docs/knowledge/m4-charging.md for exact binary addresses and limits.
  * This is the production sequencer, also exercised by fault-injection tests.
  */
-#define Y2_CHARGE_UA 70000
 #define Y2_CHARGE_UV 4175000
 #define Y2_RECHARGE_UV 4110000
 #define Y2_TOPOFF_UV 4050000
-/* Restrict this first profile to the documented MT6323 operating range.
- * Deeply depleted pack recovery is not inferred from an ADC reading. */
-#define Y2_CHARGE_MIN_UV 3400000
+/* Actual Y2 LK uses 3.2 V for ordinary boot, and modes 8/9 for charging
+ * below that threshold. Stock Linux leaves precharge above 3.4 V. The
+ * inherited PMIC UVLO/ULC and pack-presence protections remain mandatory;
+ * a software 3.4-V entry veto would prevent this recovery path. */
+#define Y2_BOOT_MIN_UV 3200000
+#define Y2_PRECHARGE_UV 3400000
+#define Y2_PRECHARGE_MAX_SECONDS 10800U /* conservative 3h vs stock 24h total */
 #define Y2_CHARGE_MAX_SECONDS 86400U
 #define Y2_CV_MAX_SECONDS 10800U
 #define Y2_CHARGE_ENGINES 0x18U
@@ -90,10 +93,11 @@ static inline int y2_charge_protections(const struct y2_charge_io *io)
 	return ret;
 }
 
-static inline int y2_charge_regulation(const struct y2_charge_io *io)
+static inline int y2_charge_regulation(const struct y2_charge_io *io, unsigned selector)
 {
 	int ret = y2_charge_expect(io, 0x006, 0x001f, 30);
-	if (!ret) ret = y2_charge_expect(io, 0x008, 0x000f, 15);
+	if (selector != 15 && selector != 12 && selector != 10) return -EINVAL;
+	if (!ret) ret = y2_charge_expect(io, 0x008, 0x000f, selector);
 	if (!ret) ret = y2_charge_expect(io, 0x004, 0x000e, 0x000e);
 	if (!ret) ret = y2_charge_expect(io, 0x028, 0x0077, 0x0021);
 	if (!ret) ret = y2_charge_expect(io, 0x02a, 0x0077, 0x0014);
@@ -102,10 +106,12 @@ static inline int y2_charge_regulation(const struct y2_charge_io *io)
 	return ret;
 }
 
-static inline int y2_charge_prepare(const struct y2_charge_io *io)
+static inline int y2_charge_prepare(const struct y2_charge_io *io, unsigned selector)
 {
 	unsigned input, cv;
-	int ret = y2_charge_stop(io);
+	int ret;
+	if (selector != 15 && selector != 12 && selector != 10) return -EINVAL;
+	ret = y2_charge_stop(io);
 	/* Do not raise an unexpectedly lower inherited protection/CV setting. */
 	if (!ret) ret = io->read(io->context, 0x002, &input);
 	if (!ret && (input & 0xf0) != 0xf0 && (input & 0xf0) != 0xb0) ret = -EIO;
@@ -116,22 +122,22 @@ static inline int y2_charge_prepare(const struct y2_charge_io *io)
 	if (!ret) ret = y2_charge_set(io, 0x002, 0x00f0, 0x00b0);
 	if (!ret) ret = y2_charge_set(io, 0x03c, 0x0020, 0x0020);
 	if (!ret) ret = y2_charge_protections(io);
-	if (!ret) ret = y2_charge_set(io, 0x008, 0x000f, 15);
+	if (!ret) ret = y2_charge_set(io, 0x008, 0x000f, selector);
 	if (!ret) ret = y2_charge_set(io, 0x006, 0x001f, 30);
 	if (!ret) ret = y2_charge_set(io, 0x028, 0x0077, 0x0021);
 	if (!ret) ret = y2_charge_set(io, 0x02a, 0x0077, 0x0014);
 	if (!ret) ret = y2_charge_set(io, 0x02c, 0x003f, 1);
 	if (!ret) ret = y2_charge_set(io, 0x02e, 0x00c4, 0x00c4);
 	if (!ret) ret = y2_charge_set(io, 0x004, 0x000a, 0x000a);
-	if (!ret) ret = y2_charge_regulation(io);
+	if (!ret) ret = y2_charge_regulation(io, selector);
 	if (!ret) ret = y2_charge_pet(io);
 	return ret;
 }
 
-static inline int y2_charge_start(const struct y2_charge_io *io)
+static inline int y2_charge_start(const struct y2_charge_io *io, unsigned selector)
 {
 	int ret = y2_charge_protections(io);
-	if (!ret) ret = y2_charge_regulation(io);
+	if (!ret) ret = y2_charge_regulation(io, selector);
 	if (!ret) ret = y2_charge_expect(io, 0x01a, 0x001f, 0x0010);
 	if (!ret) ret = y2_charge_expect(io, 0x01e, 0x0005, 0x0001);
 	if (!ret) ret = y2_charge_expect(io, 0x000, 0x00bd, 0x0021);
@@ -144,19 +150,21 @@ static inline int y2_charge_start(const struct y2_charge_io *io)
 /* Timing is elapsed boottime, never a count of workqueue invocations. USB
  * budget changes, manual inhibit and transient pauses cannot reset budgets. */
 struct y2_charge_cycle {
-	unsigned long long total, cv;
+	unsigned long long total, cv, precharge;
 	unsigned long long confirm_at;
 	unsigned confirmations;
-	int topoff, hold, timed_out;
+	int topoff, hold, full, timed_out;
 };
 
 static inline void y2_charge_account(struct y2_charge_cycle *c,
 				    unsigned long long elapsed, int uv)
 {
 	c->total += elapsed;
+	if (uv <= Y2_PRECHARGE_UV) c->precharge += elapsed;
 	if (uv > Y2_TOPOFF_UV) c->topoff = 1;
 	if (c->topoff) c->cv += elapsed;
-	if (c->total >= Y2_CHARGE_MAX_SECONDS || c->cv >= Y2_CV_MAX_SECONDS)
+	if (c->total >= Y2_CHARGE_MAX_SECONDS || c->cv >= Y2_CV_MAX_SECONDS ||
+	    c->precharge >= Y2_PRECHARGE_MAX_SECONDS)
 		c->timed_out = 1;
 }
 
@@ -175,6 +183,7 @@ static inline int y2_charge_termination(struct y2_charge_cycle *c,
 	if (++c->confirmations < 6) return 0;
 	c->confirmations = 0;
 	c->hold = !c->hold;
+	c->full = c->hold; /* only a completed confirmation sequence earns Full */
 	if (!c->hold) { c->cv = 0; c->topoff = 0; }
 	return 1;
 }

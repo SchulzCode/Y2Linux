@@ -1,6 +1,14 @@
 --- a/drivers/i2c/busses/i2c-mt65xx.c
 +++ b/drivers/i2c/busses/i2c-mt65xx.c
-@@ -522,6 +522,7 @@
+@@ -4,6 +4,7 @@
+  * Author: Xudong Chen <xudong.chen@mediatek.com>
+  */
+ 
++#include "/project/kernel/platform/boot.h"
+ #include <linux/clk.h>
+ #include <linux/completion.h>
+ #include <linux/delay.h>
+@@ -522,6 +523,7 @@
  };
  
  static const struct of_device_id mtk_i2c_of_match[] = {
@@ -8,7 +16,7 @@
  	{ .compatible = "mediatek,mt2712-i2c", .data = &mt2712_compat },
  	{ .compatible = "mediatek,mt6577-i2c", .data = &mt6577_compat },
  	{ .compatible = "mediatek,mt6589-i2c", .data = &mt6589_compat },
-@@ -868,7 +869,7 @@
+@@ -868,7 +870,7 @@
  	return 0;
  }
  
@@ -17,7 +25,7 @@
  {
  	unsigned int clk_src;
  	unsigned int step_cnt;
-@@ -938,6 +939,7 @@
+@@ -938,6 +940,7 @@
  
  		break;
  	}
@@ -25,7 +33,7 @@
  }
  
  static void i2c_dump_register(struct mtk_i2c *i2c)
-@@ -1195,6 +1197,25 @@
+@@ -1195,6 +1198,25 @@
  	ret = wait_for_completion_timeout(&i2c->msg_complete,
  					  i2c->adap.timeout);
  
@@ -51,7 +59,7 @@
  	/* Clear interrupt mask */
  	mtk_i2c_writew(i2c, ~(restart_flag | I2C_HS_NACKERR | I2C_ACKERR |
  			    I2C_ARB_LOST | I2C_TRANSAC_COMP), OFFSET_INTR_MASK);
-@@ -1250,7 +1271,10 @@
+@@ -1250,7 +1272,10 @@
  	i2c->auto_restart = i2c->dev_comp->auto_restart;
  
  	/* checking if we can skip restart and optimize using WRRD mode */
@@ -63,7 +71,18 @@
  		if (!(msgs[0].flags & I2C_M_RD) && (msgs[1].flags & I2C_M_RD) &&
  		    msgs[0].addr == msgs[1].addr) {
  			i2c->auto_restart = 0;
-@@ -1457,7 +1481,10 @@
+@@ -1375,6 +1400,10 @@
+ 	int ret = 0;
+ 	struct mtk_i2c *i2c;
+ 	int i, irq, speed_clk;
++
++	if (IS_ENABLED(CONFIG_Y2_POWER) && of_machine_is_compatible("innioasis,y2") &&
++	    !y2_normal_boot_enabled())
++		return -EPROBE_DEFER;
+ 
+ 	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
+ 	if (!i2c)
+@@ -1457,7 +1486,10 @@
  
  	strscpy(i2c->adap.name, I2C_DRV_NAME, sizeof(i2c->adap.name));
  

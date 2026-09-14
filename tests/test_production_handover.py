@@ -19,13 +19,14 @@ class Handover(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             p=Path(directory)
             for d in ('sbin','bin','dev','proc','sys','run','tmp','newroot/etc/y2linux',
-                      'newroot/sbin','newroot/data','newdata','sys/kernel/debug'):
+                      'newroot/sbin','newroot/data','newdata','sys/kernel/debug','sys/firmware/y2_boot'):
                 (p/d).mkdir(parents=True,exist_ok=True)
             (p/'newroot/etc/y2linux/layout-version').write_text('1\n')
             (p/'newroot/etc/y2linux/platform-contract').write_text('y2-platform-v1\n')
             (p/'newdata/.y2data-schema').write_text('2\n' if failure=='schema' else '1\n')
             (p/'newroot/sbin/init').write_text('#!/bin/sh\nexit 0\n');(p/'newroot/sbin/init').chmod(0o755)
             (p/'proc/cmdline').write_text(cmdline)
+            (p/'sys/firmware/y2_boot/normal_boot').write_text('0\n')
             (p/'display.ko').write_bytes(b'module fixture')
             script=(ROOT/'initramfs/production/init').read_text()
             # Replace the terminal rescue loop with a finite test exit, keeping
@@ -45,12 +46,13 @@ mount) case "$FAILURE:$*" in
   move:'--move '*'/sys '*) exit 1;;
 esac;;
 e2fsck) [ "$FAILURE" != fsck ] || exit 4;;
+y2-offline-charge) [ "$FAILURE" != boot-metadata ] || exit 2;;
 switch_root) [ "$FAILURE" != exec ] || exit 1; echo 'BUILDROOT INIT' >> "$LEDGER";;
 esac
 exit 0
 '''
             for name in ('mount','umount','mknod','sleep','chroot','switch_root','e2fsck',
-                         'y2-platform-start','y2-abi-check','y2-usb-status','y2-status'):
+                         'y2-platform-start','y2-offline-charge','y2-abi-check','y2-usb-status','y2-status'):
                 target=p/('sbin' if name.startswith('y2-') or name=='e2fsck' else 'bin')/name
                 target.write_text('#!/nonexistent-interpreter\n' if name=='switch_root' and failure=='exec' else wrapper)
                 target.chmod(0o755)
@@ -77,7 +79,7 @@ exit 0
         result,events,log=self.exercise()
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertIn('switching to Buildroot',log)
-        sequence=['mount -t ext4 -o ro,noload /dev/mmcblk0p5 /newroot',
+        sequence=['y2-offline-charge', 'mount -t ext4 -o ro,noload /dev/mmcblk0p5 /newroot',
                   'mount -t ext4 -o ro,noload /dev/mmcblk0p7 /newdata',
                   'e2fsck -p /dev/mmcblk0p5','e2fsck -p /dev/mmcblk0p7',
                   'mount -t ext4 -o rw /dev/mmcblk0p5 /newroot',
@@ -92,13 +94,14 @@ exit 0
         self.assertNotIn('mmcblk1',events)
 
     def test_missing_identity_schema_and_fsck_stay_in_rescue(self):
-        for failure in ('missing','schema','fsck'):
+        for failure in ('missing','schema','fsck','boot-metadata'):
             with self.subTest(failure=failure):
                 result,events,_=self.exercise(failure)
                 self.assertEqual(result.returncode,99,result.stderr)
                 self.assertIn('RESCUE ',events)
                 self.assertNotIn('switch_root ',events)
                 self.assertNotIn('mount -t ext4 -o rw ',events)
+                if failure == 'boot-metadata': self.assertNotIn('mount -t ext4',events)
 
     def test_explicit_rescue_never_mounts_a_filesystem(self):
         result,events,_=self.exercise(cmdline='rdinit=/init y2.rescue=1')

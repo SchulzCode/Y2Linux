@@ -14,6 +14,8 @@
 #include <linux/power_supply.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
+#include "boot.h"
+#include "source.h"
 #include "/project/kernel/diagnostic/text.h"
 #include "/project/kernel/diagnostic/usb_wake.h"
 #include "/project/kernel/usb/live.h"
@@ -140,6 +142,64 @@ static bool y2_usb_started, y2_usb_finished;
 static bool y2_usb_detached;
 static struct power_supply *y2_usb_input;
 static unsigned y2_usb_budget_ma;
+static DEFINE_MUTEX(y2_usb_lifecycle);
+static bool y2_usb_data_source;
+
+static bool y2_usb_data_permitted(void)
+{
+#ifdef CONFIG_Y2_POWER
+    /* The offline gadget has ACM only, no userspace listener and no ECM.
+     * It requests an SDP budget; PMIC charging already works without it. */
+    return READ_ONCE(y2_usb_data_source);
+#else
+    return true;
+#endif
+}
+
+int y2_usb_charge_allocation(void)
+{
+    if (READ_ONCE(y2_live.result) || READ_ONCE(y2_usb_finished)) return 0;
+    if (!READ_ONCE(y2_usb_child) || READ_ONCE(y2_usb_detached)) return -1;
+    return READ_ONCE(y2_usb_budget_ma) * 1000;
+}
+
+void y2_usb_source_invalidate(void)
+{
+    WRITE_ONCE(y2_usb_data_source, false);
+}
+
+int y2_usb_bc11_begin(void)
+{
+    unsigned value;
+    int ret = 0;
+    mutex_lock(&y2_usb_lifecycle);
+    if (!y2_usb_phy || y2_usb_finished || READ_ONCE(y2_live.result)) ret = -ENODEV;
+    else if (y2_musb && !y2_usb_detached) ret = -EAGAIN;
+    if (ret) { mutex_unlock(&y2_usb_lifecycle); return ret; }
+    /* Actual Y2 Charger_Detect_Init: USBPHYACR6 BC1.1 switch, bit 7.
+     * The USB clock provider remains enabled throughout this transaction. */
+    value = readb(y2_usb_phy + 0x1a);
+    writeb(value | 0x80, y2_usb_phy + 0x1a);
+    if (readb(y2_usb_phy + 0x1a) != (value | 0x80)) {
+        writeb(value, y2_usb_phy + 0x1a);
+        mutex_unlock(&y2_usb_lifecycle);
+        return -EIO;
+    }
+    udelay(50);
+    return 0;
+}
+
+int y2_usb_bc11_end(bool data_source)
+{
+    unsigned value = readb(y2_usb_phy + 0x1a) & ~0x80;
+    int ret;
+    writeb(value, y2_usb_phy + 0x1a);
+    udelay(1);
+    ret = readb(y2_usb_phy + 0x1a) == value ? 0 : -EIO;
+    WRITE_ONCE(y2_usb_data_source, data_source && !ret);
+    mutex_unlock(&y2_usb_lifecycle);
+    return ret;
+}
 /* USB core calls set_power for configuration, reset, disconnect and bus
  * suspend/resume, sometimes under the MUSB spinlock. Publish only the budget;
  * power_supply's notifier schedules the sleeping charger/regmap owner. */
@@ -490,7 +550,8 @@ static void y2_usb_worker(struct work_struct *work)
 {
     struct y2_pwrap_snapshot power;
     int rc;
-    if(y2_usb_finished) return;
+    mutex_lock(&y2_usb_lifecycle);
+    if(y2_usb_finished) goto out;
     if(READ_ONCE(y2_live.result)) goto done;
     y2_pmic_snapshot(&power);
     ++y2_live.polls;
@@ -503,14 +564,15 @@ static void y2_usb_worker(struct work_struct *work)
     }
     WRITE_ONCE(y2_live.chrdet,power.chrdet);
     y2_usb_supply=power;
-    if(!y2_usb_child && (power.chrdet&0x20)) {
+    if (!(power.chrdet & 0x20)) y2_usb_source_invalidate();
+    if(!y2_usb_child && (power.chrdet&0x20) && y2_usb_data_permitted()) {
         y2_usb_phase(Y2_USB_PREFLIGHT);
         rc=y2_usb_register();
         if(rc) {y2_usb_fail(rc);goto done;}
         y2_usb_phase(Y2_USB_READY);
     }
     if(y2_musb) {
-        if(!(power.chrdet&0x20)) {
+        if(!(power.chrdet&0x20) || !y2_usb_data_permitted()) {
             if(!y2_usb_detached) {
                 y2_usb_detach();
             }
@@ -526,9 +588,11 @@ static void y2_usb_worker(struct work_struct *work)
     }
 again:
     queue_delayed_work(system_freezable_wq,&y2_usb_work,msecs_to_jiffies(250));
-    return;
+    goto out;
 done:
     y2_usb_finish();
+out:
+    mutex_unlock(&y2_usb_lifecycle);
 }
 static void y2_usb_begin(void)
 {

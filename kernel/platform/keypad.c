@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include "boot.h"
 
 #define MT6582_KP_MEM1 0x04
 #define MT6582_KP_EN 0x24 /* bit0 = scan enable */
@@ -70,6 +71,9 @@ static int mt6582_keypad_probe(struct platform_device *pdev)
 	u32 codes[MT6582_KP_NBITS];
 	int i, irq, ret;
 	struct clk *clk;
+
+	if (IS_ENABLED(CONFIG_Y2_POWER) && !y2_normal_boot_enabled())
+		return -EPROBE_DEFER;
 
 	kp = devm_kzalloc(dev, sizeof(*kp), GFP_KERNEL);
 	if (!kp)

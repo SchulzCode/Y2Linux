@@ -1,6 +1,50 @@
 --- a/drivers/usb/gadget/legacy/cdc2.c
 +++ b/drivers/usb/gadget/legacy/cdc2.c
-@@ -130,7 +130,8 @@
+@@ -8,6 +8,9 @@
+ 
+ #include <linux/kernel.h>
+ #include <linux/module.h>
++#ifdef CONFIG_Y2_POWER
++#include "/project/kernel/platform/boot.h"
++#endif
+ 
+ #include "u_ether.h"
+ #include "u_serial.h"
+@@ -82,6 +85,7 @@
+ 
+ static struct usb_function *f_ecm;
+ static struct usb_function_instance *fi_ecm;
++static bool cdc_offline;
+ 
+ /*
+  * We _always_ have both CDC ECM and CDC ACM functions.
+@@ -95,6 +99,8 @@
+ 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+ 	}
+ 
++	if (cdc_offline)
++		goto add_acm;
+ 	f_ecm = usb_get_function(fi_ecm);
+ 	if (IS_ERR(f_ecm)) {
+ 		status = PTR_ERR(f_ecm);
+@@ -105,6 +111,7 @@
+ 	if (status)
+ 		goto err_add_ecm;
+ 
++add_acm:
+ 	f_acm = usb_get_function(fi_serial);
+ 	if (IS_ERR(f_acm)) {
+ 		status = PTR_ERR(f_acm);
+@@ -119,6 +126,8 @@
+ err_add_acm:
+ 	usb_put_function(f_acm);
+ err_get_acm:
++	if (cdc_offline)
++		return status;
+ 	usb_remove_function(c, f_ecm);
+ err_add_ecm:
+ 	usb_put_function(f_ecm);
+@@ -130,7 +139,8 @@
  	.label			= "CDC Composite (ECM + ACM)",
  	.bConfigurationValue	= 1,
  	/* .iConfiguration = DYNAMIC */
@@ -10,3 +54,111 @@
  };
  
  /*-------------------------------------------------------------------------*/
+@@ -141,12 +151,23 @@
+ 	struct f_ecm_opts	*ecm_opts;
+ 	int			status;
+ 
+-	if (!can_support_ecm(cdev->gadget)) {
++#ifdef CONFIG_Y2_POWER
++	cdc_offline = !y2_normal_boot_enabled();
++#endif
++	/* Use the existing Linux CDC-ACM identity for the actual ACM-only
++	 * function. Never advertise the ECM+ACM product ID for another protocol.
++	 * Offline mode runs no tty listener, shell, observer or network service. */
++	device_desc.idProduct = cpu_to_le16(cdc_offline ? 0xa4a7 : CDC_PRODUCT_NUM);
++	strings_dev[USB_GADGET_PRODUCT_IDX].s = cdc_offline ? "Y2 Offline Charging" : DRIVER_DESC;
++	cdc_config_driver.label = cdc_offline ? "Y2 charging (CDC ACM)" : "CDC Composite (ECM + ACM)";
++	if (!cdc_offline && !can_support_ecm(cdev->gadget)) {
+ 		dev_err(&gadget->dev, "controller '%s' not usable\n",
+ 				gadget->name);
+ 		return -EINVAL;
+ 	}
+ 
++	if (cdc_offline)
++		goto serial_instance;
+ 	fi_ecm = usb_get_function_instance("ecm");
+ 	if (IS_ERR(fi_ecm))
+ 		return PTR_ERR(fi_ecm);
+@@ -159,6 +180,7 @@
+ 	if (!gether_set_dev_addr(ecm_opts->net, dev_addr))
+ 		pr_info("using self ethernet address: %s", dev_addr);
+ 
++serial_instance:
+ 	fi_serial = usb_get_function_instance("acm");
+ 	if (IS_ERR(fi_serial)) {
+ 		status = PTR_ERR(fi_serial);
+@@ -205,7 +227,9 @@
+ fail1:
+ 	usb_put_function_instance(fi_serial);
+ fail:
+-	usb_put_function_instance(fi_ecm);
++	if (!IS_ERR_OR_NULL(fi_ecm))
++		usb_put_function_instance(fi_ecm);
++	fi_ecm = NULL;
+ 	return status;
+ }
+ 
+@@ -217,6 +241,10 @@
+ 		usb_put_function(f_ecm);
+ 	if (!IS_ERR_OR_NULL(fi_ecm))
+ 		usb_put_function_instance(fi_ecm);
++	f_acm = NULL;
++	fi_serial = NULL;
++	f_ecm = NULL;
++	fi_ecm = NULL;
+ 	kfree(otg_desc[0]);
+ 	otg_desc[0] = NULL;
+ 
+@@ -232,7 +260,52 @@
+ 	.unbind		= cdc_unbind,
+ };
+ 
++#ifdef CONFIG_Y2_POWER
++static bool cdc_registered;
++static int cdc_normal_boot(struct notifier_block *nb, unsigned long event, void *data)
++{
++	int ret;
++	/* Process context, before rescue switch_root. MUSB remains the same
++	 * provider; USB core disconnects, drops the old budget, and rebinds the
++	 * normal composite. The charger keeps its elapsed-time/fault state. */
++	if (cdc_registered && !cdc_offline)
++		return NOTIFY_OK;
++	if (cdc_registered) {
++		usb_composite_unregister(&cdc_driver);
++		cdc_registered = false;
++	}
++	ret = usb_composite_probe(&cdc_driver);
++	if (!ret)
++		cdc_registered = true;
++	return notifier_from_errno(ret);
++}
++static struct notifier_block cdc_boot_notifier = { .notifier_call = cdc_normal_boot };
++static int __init cdc_init(void)
++{
++	int ret;
++	cdc_offline = !y2_normal_boot_enabled();
++	ret = usb_composite_probe(&cdc_driver);
++	if (ret)
++		return ret;
++	cdc_registered = true;
++	ret = y2_boot_register_notifier(&cdc_boot_notifier);
++	if (ret) {
++		usb_composite_unregister(&cdc_driver);
++		cdc_registered = false;
++	}
++	return ret;
++}
++static void __exit cdc_exit(void)
++{
++	y2_boot_unregister_notifier(&cdc_boot_notifier);
++	if (cdc_registered)
++		usb_composite_unregister(&cdc_driver);
++}
++module_init(cdc_init);
++module_exit(cdc_exit);
++#else
+ module_usb_composite_driver(cdc_driver);
++#endif
+ 
+ MODULE_DESCRIPTION(DRIVER_DESC);
+ MODULE_AUTHOR("David Brownell");

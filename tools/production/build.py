@@ -9,7 +9,7 @@ PROJECT=Path(__file__).resolve().parents[2]
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--output',default='out/y2linux-m4-charge-01-build')
+    p.add_argument('--output',default='out/y2linux-m4-power-02-build')
     p.add_argument('--resume',choices=['kernel','buildroot','artifacts'])
     p.add_argument('--reuse-userspace',type=Path,help='verified production package whose root/data and rescue binaries are retained')
     a=p.parse_args();out=(PROJECT/a.output).resolve()
@@ -18,7 +18,7 @@ def main():
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PROJECT,text=True).strip()
     if subprocess.check_output(['git','status','--porcelain'],cwd=PROJECT,text=True).strip():p.error('commit the reviewed source before building a release candidate')
     localversion=re.search(r'^CONFIG_LOCALVERSION="([^"]+)"$',(PROJECT/'kernel/config/production.config').read_text(),re.M).group(1)
-    versions={'release_version':'0.1.0-m4.charge.1','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-storage.4','data_schema_version':1,'y2player_version':None,'build_git_commit':commit}
+    versions={'release_version':'0.1.0-m4.power.2','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-storage.4','data_schema_version':1,'y2player_version':None,'build_git_commit':commit}
     if a.reuse_userspace:
         from tools.production.validate import validate_manifest
         base=a.reuse_userspace.resolve()
@@ -48,6 +48,8 @@ def main():
         if a.reuse_userspace:
             run(builder+['python3','/project/tools/production/boot_update.py','--stage-userspace',
                          '/project/'+str(base.relative_to(PROJECT)),'/build'],'userspace-reuse.log')
+            from tools.production.rescue_tools import rebuild
+            rebuild(PROJECT, out, run)
         else:
             build_userspace(PROJECT,out,source,run)
     if stage<=2:
@@ -63,6 +65,7 @@ def build_userspace(PROJECT,out,source,run):
         run([cc,'-Os','-Wall','-Wextra','-Werror',*extra,'tools/development/'+name+'.c','-o',str(out/('y2-'+name))],name+'-build.log')
     run([cc,'-Os','-Wall','-Wextra','-Werror','tools/production/usb-status.c','-o',str(out/'y2-usb-status')],'usb-status-build.log')
     run([cc,'-Os','-Wall','-Wextra','-Werror','tools/production/platform-start.c','-o',str(out/'y2-platform-start')],'platform-start-build.log')
+    run([cc,'-Os','-Wall','-Wextra','-Werror','tools/production/offline-charge.c','-o',str(out/'y2-offline-charge')],'offline-charge-build.log')
     run(['python3','tools/development/audio-fixtures.py',str(out/'audio')],'audio-fixtures.log')
     run(br+['-j12','all'],'buildroot-build.log')
 if __name__=='__main__':main()

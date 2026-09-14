@@ -64,7 +64,7 @@
       "path": "arch/arm/mach-mediatek/platsmp.c",
       "patch": "0006-mt6582-smp.patch",
       "base_sha256": "437c79de149466434a7bd3ab0a5210196a43f75f151d896d0e3871c1d37c7145",
-      "result_sha256": "a2b386995774afa64e1ca463c744da98aec0f1021a753ec7d220238619f58fef"
+      "result_sha256": "be3c871e7670d135c4a32525599f2f77ddedc1682649d9220df4ab4b51353b90"
     },
     {
       "path": "drivers/pinctrl/mediatek/Kconfig",
@@ -82,13 +82,13 @@
       "path": "drivers/i2c/busses/i2c-mt65xx.c",
       "patch": "0008-mt6582-i2c.patch",
       "base_sha256": "97a7193f00827341b26f074ed26fb5b4ed7839e45b87b7a2a2c03681c46d7b69",
-      "result_sha256": "1c60bf29cc1f94542a7897c53cbcd518d6b6572facf13ed6f48b897fc7f2a541"
+      "result_sha256": "70717634ed81d3dfb5651432037cd377a22f49e75a94302be28839308b2c09ca"
     },
     {
       "path": "drivers/mmc/host/mtk-sd.c",
       "patch": "0009-y2-msdc-readonly.patch",
       "base_sha256": "8fd10e3a6f6d60e37216de79b2d7a8b8f766c7d7e5cdd5851cccfe375e2536d1",
-      "result_sha256": "27fefdea2c8515540fe60308d8f8ef5be21a61db2781785f382d714a365f915f"
+      "result_sha256": "66a45179d8c0115f56d4a24303d732193f374391eff0c4adca4389a9d369fb04"
     },
     {
       "path": "drivers/gpu/drm/mediatek/mtk_crtc.c",
@@ -112,7 +112,7 @@
       "path": "arch/arm/mach-mediatek/Kconfig",
       "patch": "0002-y2-Kconfig.patch",
       "base_sha256": "61790e35f9fbdb5dd524c658f041739b4cf52d8393962622d6cdb4a0f497506b",
-      "result_sha256": "f12fe18138d2e6f2cb6800665449dfee3ee4359f16adf7b9ea812a5fb0b1ba2a"
+      "result_sha256": "b453e836c401f9b1eafe6acbd38d865721b8faaddaa320060dcdf616731d805b"
     },
     {
       "path": "drivers/gpu/drm/mediatek/mtk_dsi.c",
@@ -184,7 +184,25 @@
       "path": "drivers/usb/gadget/legacy/cdc2.c",
       "patch": "0031-y2-usb-power-budget.patch",
       "base_sha256": "a5508550e99d3db8de44a9d42f2a3e5ee1b97a25faa0e5024852a44c80c3c763",
-      "result_sha256": "9de657169bd3897d8bdd30d63a1bdd04d661f780b7cd96fe210da76458af7376"
+      "result_sha256": "60c5646ff09083bb07b573166eb25f43b72593440119aedbc59395f88062b9ac"
+    },
+    {
+      "path": "fs/ext4/ialloc.c",
+      "patch": "0032-ext4-state-ialloc.patch",
+      "base_sha256": "16345e63e2ff70146b3175d69b29f542a875128fc9900afdb2fd686ca34cf92d",
+      "result_sha256": "3621c3b29d1183cf0c1cce323b57f668dfae9cf1ce074fdde34df727db39357c"
+    },
+    {
+      "path": "fs/ext4/inode.c",
+      "patch": "0033-ext4-state-inode.patch",
+      "base_sha256": "742fbcd0a1b8e601a43be334dc6be22494ad1047e8e689055f065a1f8593fbaa",
+      "result_sha256": "5ec2853244a7671739052792334987f6dc8dd76697cbbf94a565d9219c0bc888"
+    },
+    {
+      "path": "fs/ext4/super.c",
+      "patch": "0034-ext4-state-super.patch",
+      "base_sha256": "9dc9c9de14466c67e09b4d6ac57fca062e0727513da1e6b24a720036d95489de",
+      "result_sha256": "b9da0bdcb14f17549fba5e527f98275a0f894b7cbcbd598f41fc8a5b28a314e6"
     }
   ]
 }

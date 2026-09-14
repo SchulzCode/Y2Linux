@@ -13,6 +13,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "mt6582-afe.h"
+#include "/project/kernel/platform/boot.h"
 
 struct mt6582_afe {
 	struct device *dev;
@@ -337,6 +338,9 @@ static int mt6582_probe(struct platform_device *pdev)
 	struct mt6582_afe *afe;
 	void __iomem *base;
 	int ret;
+
+	if (IS_ENABLED(CONFIG_Y2_POWER) && !y2_normal_boot_enabled())
+		return -EPROBE_DEFER;
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret)

@@ -72,6 +72,12 @@
         opp-747500000 { opp-hz = /bits/ 64 <747500000>; opp-microvolt = <1150000>; clock-latency-ns = <100000>; };
         opp-1040000000 { opp-hz = /bits/ 64 <1040000000>; opp-microvolt = <1150000>; clock-latency-ns = <100000>; };
     };
+    spm: power-controller@10006000 {
+        compatible = "innioasis,y2-spm";
+        reg = <0x10006000 0x1000>, <0x10208000 4>;
+        /* Original FM Y2 MT_SPM_IRQ_ID = GIC hwirq 149. */
+        interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_LOW>;
+    };
     watchdog@10007000 {
         /* Exact upstream 6.18 mt6582.dtsi compatibility, verified RGU layout. */
         compatible = "mediatek,mt6582-wdt", "mediatek,mt6589-wdt";
@@ -156,7 +162,7 @@
         high-owned@bdf00000 { reg = <0xbdf00000 0x02100000>; no-map; };
     };
     cpus {
-        enable-method = "mediatek,mt6589-smp";
+        enable-method = "innioasis,y2-smp";
         #address-cells = <1>;
         #size-cells = <0>;
         cpu0: cpu@0 {

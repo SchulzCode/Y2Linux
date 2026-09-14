@@ -34,6 +34,12 @@ static struct y2_pwrap_snapshot next_power,y2_usb_supply;
 static void *y2_usb_pmic;
 static int y2_usb_child,y2_usb_finished,y2_usb_failure_lock,y2_usb_work;
 static unsigned y2_usb_detached,detached,reconnected;
+static int y2_usb_lifecycle;
+static int classified=1;
+static void mutex_lock(int *l){assert(!*l);*l=1;}
+static void mutex_unlock(int *l){assert(*l);*l=0;}
+static void y2_usb_source_invalidate(void){classified=0;}
+static int y2_usb_data_permitted(void){return classified;}
 static int reconnect_rc;
 static unsigned probes,scheduled,finished,registered;
 static unsigned msecs_to_jiffies(unsigned ms) {return ms;}
@@ -74,7 +80,7 @@ int main(void) {
         if(fault==3) {next_power.result=-110;next_power.valid=3;next_power.after=0x00340023;}
         if(fault==4) next_power.vusb=0x4000;
         y2_usb_worker(NULL);
-        assert(probes==1 && !registered);
+        assert(probes==1 && !registered && !y2_usb_lifecycle);
         assert(y2_usb_status((char*)&status)==sizeof(status));
         assert(status.magic==Y2_USB_LIVE_MAGIC && status.polls==1 && status.stage==Y2_USB_ATTACH);
         if(!fault) {
@@ -97,20 +103,20 @@ int main(void) {
         next_power=(struct y2_pwrap_snapshot){.magic=Y2_PWRAP_MAGIC,.valid=7,.vusb=0xc000,.chrdet=0x21};
         y2_usb_pmic=&next_power;y2_usb_child=1;y2_musb=&musb;y2_usb_finished=0;
         y2_usb_detached=detached=reconnected=0;finished=0;
-        reconnect_rc=fault ? -19 : 0;
+        reconnect_rc=fault ? -19 : 0;classified=1;
         y2_usb_worker(NULL);assert(y2_live.stage==Y2_USB_CONFIGURED);
         next_power.chrdet=1;y2_usb_worker(NULL);
         assert(detached==1 && !finished && y2_live.stage==Y2_USB_DETACHED);
         for(unsigned i=0;i<20;++i) y2_usb_worker(NULL);
         assert(detached==1 && !reconnected && !finished); /* no repeated teardown */
-        next_power.chrdet=0x21;y2_usb_worker(NULL);
+        next_power.chrdet=0x21;classified=1;y2_usb_worker(NULL);
         if(fault) {assert(finished==1 && reconnected==1);continue;}
         assert(reconnected==1 && !y2_usb_detached && !finished && y2_live.stage==Y2_USB_CONFIGURED);
         for(unsigned i=0;i<100;++i) {
             next_power.chrdet=1;y2_usb_worker(NULL);
             for(unsigned idle=0;idle<1300;++idle) y2_usb_worker(NULL);
             assert(!finished && detached==i+2 && reconnected==i+1);
-            next_power.chrdet=0x21;y2_usb_worker(NULL);
+            next_power.chrdet=0x21;classified=1;y2_usb_worker(NULL);
             assert(!finished && reconnected==i+2 && y2_live.stage==Y2_USB_CONFIGURED);
         }
     }

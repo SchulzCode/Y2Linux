@@ -1,10 +1,56 @@
 # Y2Linux roadmap and gap audit
 
+2026-09-14 implementation audit addendum: actual FM Y2 CPU-domain shutdown,
+restart-vector ownership and upstream 32-bit ext4 inode initialization are now
+reconciled in [the active M4 contract](../knowledge/m4-end-user-power.md#cpu-domain-and-suspend-integration-audit-before-implementation).
+The owner-confirmed device is off; the 70-mA net-gain baseline failed. CPU hotplug,
+deep suspend and the new charging policy remain unqualified. This authorizes
+no milestone closure or M5 activation; the current owner request supplies the
+production hardware scope.
+
 Original audit date: **2026-09-09**. Documentation/planning only. No implementation, build,
 BOOTIMG creation, device access or flash. Repository baseline `00b4afa`; GitHub
 issues #1–#27 and M0/M1 inspected before adding five deferred epics #28–#32.
 Y2PlayerNative has no open application issues and its checked-in content remains
 blueprint/planning material; no native platform readiness is inferred from that.
+
+## M4 end-user completion scope — 2026-09-14
+
+Fresh-session audit at local `aacb9a5`, clean at entry, five commits ahead of
+the remotely verified `444e7ed`. Re-read the handoff, M4 code/docs and retained
+stock/ADC/charging evidence, all open issue summaries and epic bodies. The
+owner's physically observed active M4-CHARGE-01 test supersedes the older
+inhibited/pending-deployment statements below. The live USB device independently
+identifies that release; the owner confirmed the changed host key and strictly
+pinned SSH observation succeeded. The same-boot 70-mA trace then demonstrated
+falling voltage until the 3.4-V guard stopped charging. The owner switched the
+Y2 off. This supersedes the initial active-charge report; it is no gain pass.
+
+The owner explicitly authorizes one coherent production completion and physical
+qualification pass, including stock-evidenced normal charging currents,
+PC/wall/power-bank source detection, low-battery recovery, **offline charging in
+the production rescue/initramfs**, deep suspend/same-session resume, device
+restore, RTC, reboot and actual poweroff. Offline charging includes timed native
+UI, status versus deliberate Power-on, removal-to-off, and poweroff-with-charger
+returning offline. This supersedes the earlier fixed-70-mA, configured-host-only
+scope and the former allowance to close M4 with merely bounded charging.
+
+Reassessed every coverage row: internal root/data, Linux/SSH and the M3 audio
+foundation remain confirmed within their retained limits; active charging is
+owner-confirmed but energy gain and final source policies remain unqualified.
+Thermal/frequency/RTC/PM implementations are not physical acceptance. Deep SPM,
+offline-charge routing and early recovery require integrated physical acceptance. No memory
+or storage-layout expansion, loader/calibration changes, M5 activation, or
+broader qualification claim follows from this audit. #30 remains ACTIVE/PARTIAL;
+#29 residuals, #33 wider qualification, #27 reconnect and M0/M6 risks remain.
+
+The [current scope and physical exit matrix](../knowledge/m4-end-user-power.md)
+is authoritative over historical checkpoints below. First observe the installed
+70-mA/4.175-V profile without changing current, finish source/live investigation,
+then build one integrated candidate with preserved fallback. Hardware closure
+requires the complete owner acceptance, including offline charging and genuine
+deep standby. Percent/current/pack-Celsius may be explicit optional follow-ups
+under the owner's conditions; the hard power gates may not.
 
 ## M4 integrated power activation — 2026-09-13
 

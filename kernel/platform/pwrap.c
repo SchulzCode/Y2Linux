@@ -59,7 +59,7 @@ static int wrap_reg_write(void *context, unsigned reg, unsigned val)
 	unsigned state, old, mask = 0;
 	int ret;
 	/* Single MFD ownership; policy.h limits each child to its reviewed fields.
-	 * Charger current/CV are fixed to 70mA/4.175V. RTC and both watchdogs
+	 * Charger current/CV use bounded stock-derived levels / 4.175V. RTC and both watchdogs
 	 * have separate owners.
 	 * INT_CON/STATUS are upstream mask/W1C registers. Backlight changes duty,
 	 * never sink current. No VPROC voltage writes or calibration writes. */
@@ -111,9 +111,40 @@ int y2_pmic_cpu_voltage_ready(void)
 		ret = regmap_read(y2_wrap->map, 0x216, &control);
 		if (!ret) ret = regmap_read(y2_wrap->map, (control & BIT(1)) ? 0x220 : 0x21e, &selector);
 		/* 700 mV + selector * 6.25 mV. All enabled OPPs require 1.15 V.
-		 * Changing voltage or PMIC/SPM ownership is outside this candidate. */
+		 * All running operating points retain the stock 1.15-V requirement. */
 		if (!ret && (selector & 0x7f) != 72) ret = -ERANGE;
 	}
+	mutex_unlock(&y2_wrap_lock);
+	return ret;
+}
+int y2_pmic_spm_prepare(void)
+{
+	unsigned reg, value, control, selector;
+	int ret = -EPROBE_DEFER;
+	mutex_lock(&y2_wrap_lock);
+	if (!y2_wrap) goto out;
+	ret = regmap_read(y2_wrap->map, 0, &value);
+	if (!ret && (value & 0x18)) ret = -EBUSY;
+	if (!ret) ret = regmap_read(y2_wrap->map, 0x01a, &value);
+	if (!ret && (value & 0x10)) ret = -EBUSY;
+	if (!ret) ret = regmap_read(y2_wrap->map, 0x216, &control);
+	if (!ret) ret = regmap_read(y2_wrap->map, control & 2 ? 0x220 : 0x21e, &selector);
+	if (!ret && (selector & 0x7f) != 72) ret = -ERANGE;
+	if (ret) goto out;
+	/* The stock SPM interface uses DVFS slots 5/6/7 at ADR=0x220.
+	 * Own them through the existing wrapper provider. Keep ALL three at
+	 * 1.15 V: the 1.05-V stock sleep value is deliberately not adopted as
+	 * an operating point or a prerequisite for this suspend implementation.
+	 * No arbitration, PMIC selector ownership or normal DVFS slot changes. */
+	for (reg = 0x10c; reg <= 0x11c; reg += 8) {
+		writel(0x220, y2_wrap->base + reg);
+		writel(0x48, y2_wrap->base + reg + 4);
+		if (readl(y2_wrap->base + reg) != 0x220 || readl(y2_wrap->base + reg + 4) != 0x48) {
+			ret = -EIO;
+			break;
+		}
+	}
+out:
 	mutex_unlock(&y2_wrap_lock);
 	return ret;
 }

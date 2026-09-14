@@ -52,13 +52,13 @@ int main(void) {
  }
  assert(y2_charge_ua(12)==450000 && y2_charge_ua(6)==1000000);
  assert(y2_charge_ua(15)==70000 && y2_charge_uv(30)==4175000);
- /* Fixed conservative charging, immutable trims and emergency protection. */
+ /* Bounded stock-derived levels; immutable trims and emergency protection. */
  assert(y2_pmic_value_allowed(0,0x7b));
  assert(!y2_pmic_value_allowed(0,0x7a));
  assert(y2_pmic_value_allowed(0,0x63));
  assert(!y2_pmic_write_mask(0xc) && !y2_pmic_write_mask(0xe));
  for(unsigned v=0;v<32;v++) assert(y2_pmic_value_allowed(6,v)==(v==30));
- for(unsigned v=0;v<16;v++) assert(y2_pmic_value_allowed(8,v)==(v==15));
+ for(unsigned v=0;v<16;v++) assert(y2_pmic_value_allowed(8,v)==(v==15 || v==12 || v==10));
  assert(!y2_pmic_value_allowed(0x3c,0) && !y2_pmic_value_allowed(0x2e,0));
  for(unsigned r=0x600;r<0x700;r+=2) assert(!y2_pmic_write_mask(r));
  assert(y2_pmic_value_allowed(0x8000,0x4300));

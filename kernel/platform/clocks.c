@@ -9,6 +9,7 @@
 #include "policy.h"
 #include "power-math.h"
 #include "shared.h"
+#include "spm.h"
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -22,6 +23,23 @@ struct y2_clock {
 };
 static void __iomem *y2_clock_bases[4];
 static DEFINE_SPINLOCK(y2_clk_lock);
+
+/* Same INFRACFG_AO owner as the CPU mux. Original Y2 secondary hotplug and
+ * dormant code use +0x800/+0x804; never write a loader image or RTC word. */
+int y2_ccf_boot_vector(unsigned long entry)
+{
+	unsigned long flags;
+	void __iomem *infra = y2_clock_bases[2];
+	int ret = 0;
+	if (!infra) return -EPROBE_DEFER;
+	if (entry < 0x80004000 || entry >= 0xbdf00000 || (entry & 3)) return -EINVAL;
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	writel(entry, infra + 0x800);
+	writel(readl(infra + 0x804) | BIT(31), infra + 0x804);
+	if (readl(infra + 0x800) != entry || !(readl(infra + 0x804) & BIT(31))) ret = -EIO;
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
+	return ret;
+}
 static const char *const y2_clk_names[] = {
     "y2-armpll", "y2-mainpll", "y2-univpll", "y2-mmpll",	"y2-msdcpll",
     "y2-axi",	 "y2-i2c0",    "y2-i2c1",    "y2-apdma",	"y2-pwrap",

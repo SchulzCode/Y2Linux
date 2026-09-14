@@ -1,6 +1,18 @@
 --- a/arch/arm/mach-mediatek/platsmp.c
 +++ b/arch/arm/mach-mediatek/platsmp.c
-@@ -57,6 +57,7 @@
+@@ -12,6 +12,11 @@
+ #include <linux/of_address.h>
+ #include <linux/string.h>
+ #include <linux/threads.h>
++#include <asm/cacheflush.h>
++#include <asm/cp15.h>
++#if IS_ENABLED(CONFIG_Y2_POWER)
++#include "../../../drivers/y2/spm.h"
++#endif
+ 
+ #define MTK_MAX_CPU		8
+ #define MTK_SMP_REG_SIZE	0x1000
+@@ -57,6 +62,7 @@
  static const struct of_device_id mtk_smp_boot_infos[] __initconst = {
  	{ .compatible   = "mediatek,mt6572", .data = &mtk_mt6572_boot },
  	{ .compatible   = "mediatek,mt6589", .data = &mtk_mt6589_boot },
@@ -8,3 +20,41 @@
  	{ .compatible   = "mediatek,mt7623", .data = &mtk_mt7623_boot },
  	{ .compatible   = "mediatek,mt7629", .data = &mtk_mt7623_boot },
  	{},
+@@ -76,6 +82,12 @@
+ 	writel_relaxed(mtk_smp_info->core_keys[cpu-1],
+ 		mtk_smp_base + mtk_smp_info->core_regs[cpu-1]);
+ 
++#if IS_ENABLED(CONFIG_Y2_POWER)
++	if (of_machine_is_compatible("innioasis,y2")) {
++		int ret = y2_spm_cpu_boot(cpu, __pa_symbol(secondary_startup_arm));
++		if (ret) return ret;
++	}
++#endif
+ 	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
+ 
+ 	return 0;
+@@ -148,3 +160,24 @@
+ 	.smp_boot_secondary = mtk_boot_secondary,
+ };
+ CPU_METHOD_OF_DECLARE(mt6589_smp, "mediatek,mt6589-smp", &mt6589_smp_ops);
++
++/* Production Y2 hotplug uses actual MTCMOS power removal. The die hook never
++ * returns to a stale Linux stack; reset re-enters secondary_startup_arm. */
++#if IS_ENABLED(CONFIG_Y2_POWER) && defined(CONFIG_HOTPLUG_CPU)
++static void y2_cpu_die(unsigned int cpu)
++{
++	v7_exit_coherency_flush(louis);
++	asm volatile("clrex" : : : "memory");
++	for (;;) asm volatile("dsb sy\n\twfi" : : : "memory");
++}
++#endif
++static const struct smp_operations y2_smp_ops __initconst = {
++	.smp_prepare_cpus = mtk_smp_prepare_cpus,
++	.smp_boot_secondary = mtk_boot_secondary,
++#if IS_ENABLED(CONFIG_Y2_POWER) && defined(CONFIG_HOTPLUG_CPU)
++	.cpu_disable = y2_spm_cpu_disable,
++	.cpu_die = y2_cpu_die,
++	.cpu_kill = y2_spm_cpu_kill,
++#endif
++};
++CPU_METHOD_OF_DECLARE(y2_smp, "innioasis,y2-smp", &y2_smp_ops);

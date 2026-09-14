@@ -4,8 +4,8 @@ Reusable general-purpose Linux platform for the physical Innioasis Y2, using
 Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 **not started** until the platform milestones and whole-system qualification finish.
 
-**Start here:** [Current battery measurements and charging gate](docs/knowledge/m4-battery-acquisition.md).
-[Current ADC kernel package and hashes](docs/build/y2linux-m4-adc-01-deployment.md).
+**Start here:** [Current M4 end-user power scope and hardware gates](docs/knowledge/m4-end-user-power.md).
+[Installed charging-kernel package and hashes](docs/build/y2linux-m4-charge-01-deployment.md).
 [Production architecture handoff](docs/planning/session-handoff-2026-09-13.md).
 [Working Storage06, owner SSH and exact artifact hashes](docs/build/y2linux-production-v1-r6-deployment.md).
 
@@ -18,12 +18,15 @@ Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 | M4 | Active: integrated power platform on Storage06; physical qualification pending. [Architecture and limits](docs/knowledge/m4-power-platform.md) |
 | M5 | Not started; Wi-Fi/Bluetooth later |
 
-Current running kernel: `6.18.0-y2linux-m4-adc-01`, confirmed over SSH after the
-owner's manual deployment. BATON1/ISENSE raw acquisition now works; a 120-sample
-handling test did not establish pack thermometry. [Charging gate and measurements](docs/knowledge/m4-battery-acquisition.md).
-BAT0 and die telemetry are available; charging remains inhibited while the physical battery
-thermistor/current path is investigated. See the
-[charging completion entry](docs/planning/roadmap-gap-audit.md#charging-completion-entry--2026-09-14).
+Last installed kernel: `6.18.0-y2linux-m4-charge-01`, authenticated over SSH.
+The 70-mA baseline failed sustained gain: charging fell from 3.439819 V to
+3.399829 V in about 1016 s, then the old 3.4-V guard inhibited it. Watchdog
+servicing worked. The owner has switched the Y2 off while the integrated
+candidate is prepared. CPU temperature near 6 C and inode-1 ext4 warnings
+require correction/qualification. Pack Celsius, calibrated current and SOC
+remain unavailable. [Current evidence and limits](docs/knowledge/m4-end-user-power.md).
+The earlier ADC-only charging gate is superseded. See the
+[fresh scope audit](docs/planning/roadmap-gap-audit.md#m4-end-user-completion-scope--2026-09-14).
 The retained Storage06 correction
 restores the stock eMMC logical disk window. MBR/EBRs and the complete BOOTIMG
 hash match read-only Linux reads; internal ext4 Y2ROOT/Y2DATA and owner-key SSH
@@ -49,11 +52,11 @@ carry 16-bit samples: native 24/32-bit and higher rates are not implemented.
 - [AUDIO-02 deployment and hashes](docs/build/y2linux-m3-audio-02-deployment.md)
 - [M0 research/recovery](docs/planning/M0-evidence-and-recovery.md) and [evidence index](docs/knowledge/evidence-index.md)
 
-Current work: M4 charging, blocked at physical pack thermometry. The installed
-ADC kernel supports further bounded measurements without another diagnostic
-flash. [Production Storage v1](docs/architecture/production-storage-v1.md) and
+Current work: finish M4 as an end-user power platform, including normal source
+policies, low-battery/offline charging and real deep standby. M4 stays open until
+the physical acceptance matrix passes. [Production Storage v1](docs/architecture/production-storage-v1.md) and
 owner SSH remain deployed; wider qualification and later phase gates stay open.
-The assistant used standard ADC acquisitions with charging inhibited. PRELOADER, LK, tables,
+The installed 70-mA profile is the observation baseline. PRELOADER, LK, tables,
 NVRAM/calibration and all unrelated partitions remain untouched.
 
 Reviewed hardware logs, small manifests and findings belong in Git. Private raw

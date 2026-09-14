@@ -71,7 +71,7 @@ def check(root,project,production=False):
     require(entries['init']==(stat.S_IFREG|0o755,(project/('initramfs/production/init' if production else 'initramfs/rescue/init')).read_bytes()),'rescue PID1 differs from reviewed source')
     require(entries['sbin/y2-observer'][1]==(root/'y2-observer').read_bytes(),'observer archive bytes')
     if production:
-        for name in ('y2-platform-start','y2-usb-status'):
+        for name in ('y2-platform-start','y2-offline-charge','y2-usb-status'):
             require(entries['sbin/'+name][1]==(root/name).read_bytes(),'production tool archive bytes '+name)
         require(entries['sbin/y2-status'][1]==(project/'tools/production/y2-status').read_bytes(),'shared diagnostic tool')
     module=(root/'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko').read_bytes()
@@ -92,7 +92,7 @@ def check(root,project,production=False):
     for name in ('y2_usb_worker','y2_musb_init','y2_musb_interrupt','musb_start','musb_g_disconnect','cdc_bind','ecm_bind','acm_bind','msdc_drv_probe','mtk_i2c_probe'):
         require(kernel.sym(name)>=text,'missing subsystem '+name)
     if config.get('CONFIG_Y2_POWER')=='y':
-        for name in ('y2_adc_probe','y2_charger_probe','y2_thermal_probe','y2_cpu_set','y2_enter_idle','mt6323_irq_suspend'):
+        for name in ('y2_adc_probe','y2_charger_probe','y2_thermal_probe','y2_cpu_set','y2_enter_idle','mt6323_irq_suspend','y2_boot_init','y2_spm_enter','y2_spm_cpu_kill'):
             require(kernel.sym(name)>=text,'missing power subsystem '+name)
     require(not any(name in kernel.syms for name in ('musb_dma_controller_create','dma_controller_irq','musb_host_setup','mtk_musb_init')),'unexpected USB DMA/host/glue')
     payload=z+tree+bytes(-len(tree)%8)
@@ -100,7 +100,7 @@ def check(root,project,production=False):
     layout['artifacts']={name:{'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()} for name,raw in [('Image',image),('zImage',z),('y2.dtb',tree),('zImage-dtb',payload),('initramfs.cpio.gz',rd),('display.ko',module)]}
     layout['status']='PASS offline Production Storage v1; internal boot unqualified' if production else 'PASS offline M3 audio candidate; DEV-02 core physically qualified; audio acceptance pending'
     if config.get('CONFIG_Y2_POWER')=='y':
-        layout['status']='PASS offline Y2LINUX-M4-01; Storage06 retained; physical power qualification pending'
+        layout['status']='PASS offline integrated M4 power candidate; retained root/data; physical qualification pending'
     return layout,payload,rd
 
 

@@ -48,6 +48,7 @@ def build(root, project, production=True):
     binary('sbin/blkid',target/'sbin/blkid')
     if production:
         binary('sbin/y2-platform-start',root/'y2-platform-start')
+        binary('sbin/y2-offline-charge',root/'y2-offline-charge')
         put('sbin/y2-status',stat.S_IFREG|0o755,(project/'tools/production/y2-status').read_bytes())
         binary('sbin/y2-usb-status',root/'y2-usb-status')
         binary('sbin/e2fsck',target/'sbin/e2fsck')

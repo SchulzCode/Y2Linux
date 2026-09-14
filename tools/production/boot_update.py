@@ -123,7 +123,7 @@ def package(build, base, out, fallback_package=None):
                    'sha256': digest(out/'BOOTIMG.img')}
     boot['spft'] = {'format': 'raw-android-mtk-bootimg', **boot['raw']}
     m['installation_profile'] = 'boot-only'
-    m['status'] = 'M4 conservative production charging candidate; attended physical qualification pending'
+    m['status'] = 'M4 integrated production power candidate; physical qualification pending'
     m['base_manifest_sha256'] = digest(base/'manifest.json')
     m['installed_components_policy'] = 'reference identities only; preserve ANDROID/USRDATA; no root/data payload packaged'
     m['profiles'] = {scatter: {'sha256': digest(out/scatter), 'selected_partitions': ['BOOTIMG']}}
@@ -139,17 +139,20 @@ def package(build, base, out, fallback_package=None):
         'Use Download Only and MT6582_BOOTIMG_only_scatter.txt. Select BOOTIMG → BOOTIMG.img only. '
         'Every other row, including PRELOADER, MBR, EBR1, EBR2, ANDROID and USRDATA, stays unchecked. '
         'Do not use Format or Firmware Upgrade. Kernel writes remain limited to the two existing root/data spans.\n\n'
-        'Boot once without an SD card. Expected: stock-layout=1, offset=23552, disk=15203328, '
-        'sector-zero signature55aa, mmcblk0p5/p7, internal ext4 root/data, '
-        'switch_root to Buildroot and normal services. Charging starts automatically only with '
-        'a configured 500mA USB host allowance, valid measurements and checked protections. '
-        'Current/CV stay 70mA/4.175V. Keep this first charge attended. '
-        'BATON1/ISENSE remain raw voltages; battery temperature/current/SOC are unavailable. '
-        'Existing rootfs, data and SSH authorization are preserved.\n\n'
+        'First start: connect a charger with the Y2 off. Expected: offline charging animation, '
+        'screen timeout, no Buildroot or ECM. Brief Power shows status; hold Power for two seconds '
+        'and release requests normal boot once battery voltage is stable above 3.4V. '
+        'Unplug during offline charging requests hardware poweroff. Normal Power boot uses '
+        'the existing internal root/data and preserves SSH authorization.\n\n'
+        'CV stays 4.175V. Recognized CDP/DCP/Apple sources are capped at 650mA; '
+        'SDP uses 450mA after its 500mA configuration, otherwise 70mA within its allowance, '
+        'and inhibits on bus reset/suspend below 100mA. Unknown/nonstandard sources use 70mA. '
+        'Below 3.2V use 70mA; up to 3.4V cap charging at 450mA. '
+        'All new source/current, recovery, suspend and poweroff behavior needs attended physical qualification. '
+        'BATON/ISENSE remain raw, no invented percentage or pack Celsius.\n\n'
         'Fallback: same scatter and BOOTIMG-only selection, choosing fallback/BOOTIMG-previous.img. '
         'Its exact previous kernel version and identity are recorded in manifest.json. '
-        'See docs/build/y2linux-m4-charge-01-deployment.md for the first charging test, '
-        'kernel inhibit command and known input/low-battery/suspend limitations.\n')
+        'See docs/knowledge/m4-end-user-power.md for the current acceptance matrix and limitations.\n')
     (out/'SHA256SUMS').write_text(''.join(digest(p)+'  '+str(p.relative_to(out))+'\n'
         for p in sorted(out.rglob('*')) if p.is_file() and p.name != 'SHA256SUMS'))
     validate_boot_update(out, base)

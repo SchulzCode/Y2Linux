@@ -1,0 +1,16 @@
+From upstream 4091c8206cfd2e3bb529ef260887296b90d9b6a2
+Author: Haibo Chen <haibo.chen@nxp.com>
+Subject: ext4: clear i_state_flags when alloc inode
+
+Exact Linux 6.18 backport; see docs/knowledge/m4-end-user-power.md.
+
+--- a/fs/ext4/ialloc.c
++++ b/fs/ext4/ialloc.c
+@@ -1293,7 +1293,6 @@
+ 		ei->i_csum_seed = ext4_chksum(csum, (__u8 *)&gen, sizeof(gen));
+ 	}
+ 
+-	ext4_clear_state_flags(ei); /* Only relevant on 32-bit archs */
+ 	ext4_set_inode_state(inode, EXT4_STATE_NEW);
+ 
+ 	ei->i_extra_isize = sbi->s_want_extra_isize;

@@ -18,7 +18,22 @@
 struct y2_thermal {
 	void __iomem *base, *adc, *analog;
 	struct y2_soc_cal cal;
+	u32 fuses[2];
 };
+
+/* Read-only acquisition provenance. In particular, a mathematically converted
+ * value alone does not establish a physically calibrated CPU temperature. */
+static ssize_t acquisition_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct y2_thermal *t = dev_get_drvdata(dev);
+	return sysfs_emit(buf, "efuse0=%#x efuse1=%#x sensor0=%#x sensor1=%#x monitor=%#x period=%#x filter=%#x poll=%#x gain=%d offset=%d room0=%d room1=%d degc=%d divisor=%d\n",
+		t->fuses[0], t->fuses[1], readl(t->base + 0x90), readl(t->base + 0x94),
+		readl(t->base), readl(t->base + 8), readl(t->base + 0x38), readl(t->base + 0x40),
+		t->cal.gain, t->cal.offset, t->cal.room[0], t->cal.room[1], t->cal.degc, t->cal.divisor);
+}
+static DEVICE_ATTR_RO(acquisition);
+static struct attribute *y2_thermal_attrs[] = { &dev_attr_acquisition.attr, NULL };
+static const struct attribute_group y2_thermal_group = { .attrs = y2_thermal_attrs };
 static int y2_soc_temp(struct thermal_zone_device *tz, int *temp)
 {
 	struct y2_thermal *t = thermal_zone_device_priv(tz);
@@ -52,7 +67,11 @@ static int y2_thermal_probe(struct platform_device *pdev)
 	if (IS_ERR(cell)) return dev_err_probe(dev, PTR_ERR(cell), "own thermal efuses\n");
 	fuses = nvmem_cell_read(cell, &len);
 	if (IS_ERR(fuses)) return PTR_ERR(fuses);
-	ret = len == 8 ? y2_soc_calibrate(get_unaligned_le32(fuses), get_unaligned_le32(fuses + 4), &t->cal) : -1;
+	if (len == 8) {
+		t->fuses[0] = get_unaligned_le32(fuses);
+		t->fuses[1] = get_unaligned_le32(fuses + 4);
+	}
+	ret = len == 8 ? y2_soc_calibrate(t->fuses[0], t->fuses[1], &t->cal) : -1;
 	kfree(fuses);
 	if (ret) return dev_err_probe(dev, -ENODATA, "no valid SoC calibration; Celsius unavailable\n");
 	t->base = devm_platform_ioremap_resource(pdev, 0);
@@ -73,9 +92,12 @@ static int y2_thermal_probe(struct platform_device *pdev)
 		writel(readl(t->adc) & ~BIT(11), t->adc);
 		writel(BIT(11), t->adc + 0x0c);
 		writel(0x3ff, t->base + 4);
-		writel(0x03ff0000, t->base + 8);
-		writel(0x00ffffff, t->base + 0x40);
-		writel(0, t->base + 0x38);
+		/* Actual retained FM Y2 thermal_reset_and_initial, 0xc0569b50:
+		 * 16-of-18 sample filtering. Do not substitute the BSP's unfiltered
+		 * default branch, which the original Y2 binary did not select. */
+		writel(0x01c001c0, t->base + 8);
+		writel(0x0006fe8b, t->base + 0x40);
+		writel(0x0000016d, t->base + 0x38);
 		writel(0xffffffff, t->base + 0x44);
 		writel(0, t->base + 0x14); writel(0, t->base + 0x18);
 		writel(BIT(11), t->adc + 8);
@@ -94,7 +116,10 @@ static int y2_thermal_probe(struct platform_device *pdev)
 	 * and conversion continue. No deep suspend is advertised by this port. */
 	tz = devm_thermal_of_zone_register(dev, 0, t, &y2_soc_thermal_ops);
 	if (IS_ERR(tz)) return dev_err_probe(dev, PTR_ERR(tz), "CPU thermal zone\n");
-	dev_info(dev, "two calibrated CPU sensors, maximum reported; own read-only efuses; protection retained\n");
+	platform_set_drvdata(pdev, t);
+	ret = devm_device_add_group(dev, &y2_thermal_group);
+	if (ret) return ret;
+	dev_info(dev, "two CPU sensors with own efuse conversion; read-only acquisition diagnostics; protection retained\n");
 	return 0;
 }
 static const struct of_device_id y2_thermal_match[] = { { .compatible = "mediatek,mt6582-thermal" }, {} };

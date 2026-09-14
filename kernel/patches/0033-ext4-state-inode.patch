@@ -1,0 +1,16 @@
+From upstream 4091c8206cfd2e3bb529ef260887296b90d9b6a2
+Author: Haibo Chen <haibo.chen@nxp.com>
+Subject: ext4: clear i_state_flags when alloc inode
+
+Exact Linux 6.18 backport; see docs/knowledge/m4-end-user-power.md.
+
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -5288,7 +5288,6 @@
+ 	ei->i_projid = make_kprojid(&init_user_ns, i_projid);
+ 	set_nlink(inode, le16_to_cpu(raw_inode->i_links_count));
+ 
+-	ext4_clear_state_flags(ei);	/* Only relevant on 32-bit archs */
+ 	ei->i_inline_off = 0;
+ 	ei->i_dir_start_lookup = 0;
+ 	ei->i_dtime = le32_to_cpu(raw_inode->i_dtime);
