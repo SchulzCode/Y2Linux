@@ -190,6 +190,12 @@ def validate_boot_update(out, base=None):
     require(set(listed)=={str(p.relative_to(out)) for p in out.rglob('*') if p.is_file() and p.name!='SHA256SUMS'},'checksum inventory')
     if base:
         require(digest(base/'manifest.json')==m['base_manifest_sha256'],'retained installed package identity')
+        # A prior BOOTIMG-only package intentionally has no ext4 payloads.
+        # Validate that package's complete reference contract; the equality
+        # check above carries its original root/data identities unchanged.
+        if previous.get('installation_profile') == 'boot-only':
+            validate_manifest(base)
+    if base and previous.get('installation_profile') != 'boot-only':
         for entry in installed:
             image=base/entry['raw']['file']
             require(digest(image)==entry['raw']['sha256'] and image.stat().st_size==entry['raw']['size_bytes'],

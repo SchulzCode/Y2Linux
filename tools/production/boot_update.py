@@ -62,6 +62,10 @@ def stage_userspace(base, build):
             path.mkdir(parents=True, exist_ok=True)
         elif stat.S_ISREG(mode):
             require(not path.is_symlink(), 'unexpected staged symlink')
+            # A prior stage preserves read-only archive modes (e.g. .ko).
+            # Only this isolated output copy is made writable for resume.
+            if path.exists():
+                path.chmod(stat.S_IMODE(path.stat().st_mode) | stat.S_IWUSR)
             path.write_bytes(raw)
             path.chmod(stat.S_IMODE(mode))
         elif stat.S_ISLNK(mode):
