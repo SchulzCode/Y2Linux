@@ -1,0 +1,10 @@
+{
+  "command": "python3 tools/build/run.py --output out/y2linux-m4-charge-01-build -- sh -c 'cd /project && export PYTHONPATH=/project/tests Y2_ARTIFACT_TEST_ROOT=/build && python3 -B -m unittest test_charger test_power test_baseline.SharedPolicy.test_clock_decode_and_write_firewalls test_baseline_pwrap.Transport test_usb_failure test_usb_reconnect'",
+  "tests": 14,
+  "skipped": 0,
+  "result": "PASS",
+  "exit_code": 0,
+  "build_git_commit": "53aa9a6f86e024ae9ad54889facaeb5e24df3783",
+  "physical_charging": "NOT TESTED; owner manual deployment pending",
+  "compile_correction": "One missing linux/of.h include corrected; same clean output tree resumed; only one charging BOOTIMG produced."
+}

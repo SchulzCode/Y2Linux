@@ -48,6 +48,13 @@ off-state insertion and recovery below the conservative 3.4 V start floor remain
 unqualified. Source and fault-injection tests do not advance those hardware gates.
 M4 remains ACTIVE/PARTIAL; no new milestone, memory/storage scope or player work.
 
+The final M4-CHARGE-01 candidate is built from `53aa9a6`, reusing Storage06
+userspace with one kernel compilation/header correction and no diagnostic image
+series. Fourteen targeted checks, actual DT/config/layout/rescue ABI and final
+BOOTIMG-only package validation pass. [Build receipt and hashes](../build/evidence/y2linux-m4-charge-01/README.md).
+No hardware acceptance status changes: the next boundary is owner manual flash
+and an attended 70 mA voltage-trend, removal/reconnect and PM regression session.
+
 ### ADC owner boot and charging gate — 2026-09-14
 
 Source `bbd0664dcbc1190a5e16e3b3f5889f2154cb04fd` builds one production
