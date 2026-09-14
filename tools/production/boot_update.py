@@ -21,6 +21,18 @@ from tools.production.layout import (digest, make_boot_scatter, require, TARGETS
                                      CAPACITY, addressing_contract, make_readback_plan)
 
 
+def installed_components(manifest):
+    """Carry original root/data identities through successive BOOTIMG updates."""
+    if manifest.get('installation_profile') == 'boot-only':
+        components = manifest['installed_components']
+    else:
+        components = [p for p in manifest['payloads'] if p['target_partition'] != 'BOOTIMG']
+    require(len(components) == 2 and
+            {p['target_partition'] for p in components} == {'ANDROID', 'USRDATA'},
+            'exact retained root/data component references')
+    return components
+
+
 def stage_userspace(base, build):
     """Recover the hash-checked rescue binaries; do not rebuild or edit ext4."""
     from tools.validation.dev_artifacts import rescue_entries
@@ -64,8 +76,7 @@ def stage_userspace(base, build):
         'base_manifest_sha256': digest(base/'manifest.json'),
         'base_build_git_commit': m['build_git_commit'],
         'rootfs_version': m['rootfs_version'],
-        'retained_images': {p['target_partition']: p['raw'] for p in m['payloads']
-                            if p['target_partition'] != 'BOOTIMG'},
+        'retained_images': {p['target_partition']: p['raw'] for p in installed_components(m)},
         'method': 'reuse verified production rescue binaries; no ext4 writes or rebuild',
     }, indent=2)+'\n')
     print('PASS reused exact production userspace binaries; Y2ROOT/Y2DATA untouched')
@@ -89,7 +100,7 @@ def package(build, base, out, fallback_package=None):
     receipt = json.loads((build/'userspace-source.json').read_text())
     require(receipt['base_manifest_sha256'] == digest(base/'manifest.json'), 'userspace base changed')
     require(versions['rootfs_version'] == previous['rootfs_version'] and
-            versions['rootfs_build_git_commit'] == previous['build_git_commit'], 'retained root version')
+            versions['rootfs_build_git_commit'] == previous.get('rootfs_build_git_commit', previous['build_git_commit']), 'retained root version')
     out.mkdir();(out/'metadata').mkdir();(out/'fallback').mkdir()
     shutil.copyfile(build/'BOOTIMG.img', out/'BOOTIMG.img')
     shutil.copyfile(fallback_package/'BOOTIMG.img', out/'fallback/BOOTIMG-previous.img')
@@ -114,7 +125,7 @@ def package(build, base, out, fallback_package=None):
     m['storage_addressing'] = addressing_contract()
     m['hardware_compatibility']['accepted_linux_user_sector_counts'] = [CAPACITY//512]
     boot = next(p for p in m['payloads'] if p['target_partition'] == 'BOOTIMG')
-    m['installed_components'] = [p for p in m['payloads'] if p['target_partition'] != 'BOOTIMG']
+    m['installed_components'] = copy.deepcopy(installed_components(previous))
     m['payloads'] = [boot]
     boot['version'] = versions['kernel_version']
     boot['modules']['release'] = versions['kernel_version']

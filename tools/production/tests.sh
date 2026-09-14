@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 cd /project
-export Y2_ARTIFACT_TEST_ROOT=/build Y2_PRODUCTION_TEST=1
+export Y2_ARTIFACT_TEST_ROOT=/build Y2_PRODUCTION_TEST=1 PYTHONPATH=/project/tests
 # The locked minimal host has libc headers but no distribution Linux UAPI.
 # Export sanitised host UAPI from our already pinned kernel for native UI tests.
 make -C /src O=/build/host-headers ARCH=x86 headers > /build/test-headers.log 2>&1

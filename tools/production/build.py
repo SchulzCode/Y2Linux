@@ -26,7 +26,7 @@ def main():
         previous=validate_manifest(base)
         if previous['minimum_compatible_components']['rootfs_contract']!='y2-platform-v1':p.error('incompatible existing rootfs')
         versions['rootfs_version']=previous['rootfs_version']
-        versions['rootfs_build_git_commit']=previous['build_git_commit']
+        versions['rootfs_build_git_commit']=previous.get('rootfs_build_git_commit', previous['build_git_commit'])
     if a.resume in ('buildroot','artifacts') and (not (out/'kernel-source-commit').exists() or (out/'kernel-source-commit').read_text().strip()!=commit):p.error('kernel source commit changed; resume kernel first')
     (out/'versions.json').write_text(json.dumps(versions,indent=2)+'\n')
     environment(PROJECT)

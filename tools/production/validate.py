@@ -124,8 +124,9 @@ def validate_boot_update(out, base=None):
         require(m[field]==previous[field],'retained production contract '+field)
     require(m['runtime_kernel_write_allowlist']==['ANDROID','USRDATA'] and
             m['minimum_compatible_components']['kernel_contract']=='y2-platform-v1','production write/module contract')
-    require(m['rootfs_build_git_commit']==previous['build_git_commit'],'independent root provenance')
-    installed=[p for p in previous['payloads'] if p['target_partition']!='BOOTIMG']
+    require(m['rootfs_build_git_commit']==previous.get('rootfs_build_git_commit',previous['build_git_commit']),'independent root provenance')
+    installed=(previous['installed_components'] if previous.get('installation_profile')=='boot-only' else
+               [p for p in previous['payloads'] if p['target_partition']!='BOOTIMG'])
     require(m['installed_components']==installed and {p['target_partition'] for p in installed}=={'ANDROID','USRDATA'},
             'unchanged root/data image references')
     for entry in installed:
