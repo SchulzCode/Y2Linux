@@ -8,6 +8,7 @@
 #include <linux/ktime.h>
 #include <linux/mfd/mt6397/core.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/property.h>
