@@ -1,5 +1,9 @@
 # M4 power platform
 
+Historical checkpoint. The owner’s later charging authorization and the reconstructed
+stock protection architecture are recorded in [M4 charging](m4-charging.md).
+The sensor results below remain valid; the former unconditional BATON gate is superseded.
+
 M4 is ACTIVE by the owner's explicit 2026-09-13 implementation/build request.
 Entry revision: `ae5819f`. This is an integrated candidate workstream, not a
 physical qualification result. The owner alone deploys BOOTIMG; no assistant

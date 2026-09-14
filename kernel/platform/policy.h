@@ -21,8 +21,18 @@ static inline unsigned y2_pll_decode(unsigned con0, unsigned con1, unsigned arm)
 static inline unsigned y2_pmic_write_mask(unsigned reg)
 {
 	switch (reg) {
-	case 0x000: /* Charger owner may only clear CHR_EN/CSDAC_EN (value guard below). */
+	case 0x000: /* Production charger engines; OVP/automode remain immutable. */
 		return 0x0018;
+	case 0x002: return 0x00f0; /* Only the stock 7V input OVP selector. */
+	case 0x004: return 0x000a; /* Current sense + CV comparators. */
+	case 0x006: return 0x001f; /* Only 4.175V CV (value guard below). */
+	case 0x008: return 0x000f; /* Only nominal 70mA. */
+	case 0x01a: return 0x011f; /* Charger watchdog: 4s, enable, service. */
+	case 0x01e: return 0x0003; /* Charger watchdog interrupt/ack, no OUT write. */
+	case 0x028: case 0x02a: return 0x0077; /* Stock CSDAC step parameters. */
+	case 0x02c: return 0x003f; /* Stock low-current debounce. */
+	case 0x02e: return 0x00c4; /* CSDAC mode, HWCV, ULC; never disable ULC. */
+	case 0x03c: return 0x0020; /* Enable stock thermal shutdown, never disable. */
 	case 0x758: /* AUXADC_CON11: voltage buffer, no calibration bits. */
 		return 0x0010;
 	case 0x76e: /* AUXADC_CON22: BATSNS, ISENSE, BATON1 and PMIC die requests. */
@@ -61,7 +71,17 @@ static inline unsigned y2_pmic_write_mask(unsigned reg)
 }
 static inline int y2_pmic_value_allowed(unsigned reg, unsigned value)
 {
-	if (reg == 0 && (value & 0x18)) return 0;
+	if (reg == 0 && (value & 0x18) && ((value & 0x85) != 1)) return 0;
+	if (reg == 0x002 && (value & 0xf0) != 0xb0) return 0;
+	if (reg == 0x004 && (value & 0xa) != 0xa) return 0;
+	if (reg == 0x006 && (value & 0x1f) != 30) return 0;
+	if (reg == 0x008 && (value & 0xf) != 15) return 0;
+	if (reg == 0x01a && (value & 0xf)) return 0;
+	if (reg == 0x028 && (value & 0x77) != 0x21) return 0;
+	if (reg == 0x02a && (value & 0x77) != 0x14) return 0;
+	if (reg == 0x02c && (value & 0x3f) != 1) return 0;
+	if (reg == 0x02e && !(value & 0x80)) return 0;
+	if (reg == 0x03c && !(value & 0x20)) return 0;
 	if (reg == 0x8000 && value != 0x4300) return 0;
 	return y2_pmic_write_mask(reg) != 0;
 }

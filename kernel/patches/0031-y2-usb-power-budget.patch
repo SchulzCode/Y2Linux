@@ -1,0 +1,12 @@
+--- a/drivers/usb/gadget/legacy/cdc2.c
++++ b/drivers/usb/gadget/legacy/cdc2.c
+@@ -130,7 +130,8 @@
+ 	.label			= "CDC Composite (ECM + ACM)",
+ 	.bConfigurationValue	= 1,
+ 	/* .iConfiguration = DYNAMIC */
+-	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
++	.bmAttributes		= 0, /* Y2 consumes VBUS power when charging. */
++	.MaxPower		= 500, /* mA; charger waits for SET_CONFIGURATION. */
+ };
+ 
+ /*-------------------------------------------------------------------------*/

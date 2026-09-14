@@ -217,7 +217,7 @@
         interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
         clocks = <&uart_clk>;
     };
-    usb@11200000 {
+    usb_input: usb@11200000 {
         /* Y2 peripheral-only MUSB controller and integrated PHY.
          * No sibling compatible or fabricated fixed USB clock. */
         compatible = "innioasis,y2-usb";
@@ -243,7 +243,10 @@
                 #io-channel-cells = <1>; #thermal-sensor-cells = <0>;
             };
             charger { compatible = "innioasis,y2-mt6323-charger";
-                io-channels = <&pmic_adc 7>; io-channel-names = "battery-voltage";
+                io-channels = <&pmic_adc 7>, <&pmic_adc 5>, <&pmic_adc 6>, <&pmic_adc 3>;
+                io-channel-names = "battery-voltage", "baton", "isense", "pmic-temperature";
+                power-supplies = <&usb_input>;
+                wakeup-source;
             };
             backlight: backlight { compatible = "innioasis,y2-backlight"; };
             regulators { compatible = "mediatek,mt6323-regulator";

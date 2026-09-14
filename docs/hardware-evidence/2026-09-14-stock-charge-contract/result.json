@@ -1,0 +1,20 @@
+{
+  "date": "2026-09-14",
+  "stock_kernel_sha256": "7287acf1b397d243c927dde5c6ef9d5d871c9c158207cdd98e0e820923f4c197",
+  "extract_manifest_sha256": "814be1462e7c9cd7b73790af63eab065dbc2cb2b2a68a4744f87b79cee7a9874",
+  "extract_count": 111,
+  "installed_release": "6.18.0-y2linux-m4-adc-01",
+  "charging": "inhibited throughout live investigation",
+  "last_battery_uv": 3414990,
+  "pack_temperature": "UNKNOWN",
+  "current_calibration": "UNKNOWN",
+  "stock_thermal": "THR_HWPDN_EN bit5 at 0x003c, actual CID2023 initialization branch",
+  "live_registers_sha256": "c73122e0268fd393350368946b82e12f59dd6de99c44705f710d998dc4be50ad",
+  "stock_battery_temperature": "constant25C; not a measurement",
+  "stock_baton_hot_detection": false,
+  "stock_topoff_uv": 4050000,
+  "stock_recharge_uv": 4110000,
+  "stock_cv_timeout_seconds": 10800,
+  "stock_total_timeout_seconds": 86400,
+  "candidate_physical_status": "UNTESTED; owner manual BOOTIMG deployment required"
+}

@@ -30,7 +30,17 @@ int main(void) {
         else if(r==0x356) assert(mask==15);
         else if(r==0x50c) assert(mask==0x8000);
         else if(r==0x532) assert(mask==0x00e0);
-        else if(r==0) assert(mask==0x18); /* inhibit only; separate value guard */
+        else if(r==0) assert(mask==0x18); /* only engine bits; safety predicates in charger owner */
+        else if(r==0x002) assert(mask==0xf0);
+        else if(r==0x004) assert(mask==0xa);
+        else if(r==0x006) assert(mask==0x1f);
+        else if(r==0x008) assert(mask==0xf);
+        else if(r==0x01a) assert(mask==0x11f);
+        else if(r==0x01e) assert(mask==3);
+        else if(r==0x028||r==0x02a) assert(mask==0x77);
+        else if(r==0x02c) assert(mask==0x3f);
+        else if(r==0x02e) assert(mask==0xc4);
+        else if(r==0x03c) assert(mask==0x20);
         else if(r==0x758) assert(mask==0x10);
         else if(r==0x76e) assert(mask==0xe8);
         else if(r>=0x8000 && r<=0x803c) {

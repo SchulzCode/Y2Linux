@@ -11,6 +11,7 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/power_supply.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include "/project/kernel/diagnostic/text.h"
@@ -137,6 +138,37 @@ static DEFINE_SPINLOCK(y2_usb_failure_lock);
 static struct y2_usb_live y2_live = { .magic=Y2_USB_LIVE_MAGIC,.devctl=0x100 };
 static bool y2_usb_started, y2_usb_finished;
 static bool y2_usb_detached;
+static struct power_supply *y2_usb_input;
+static unsigned y2_usb_budget_ma;
+/* USB core calls set_power for configuration, reset, disconnect and bus
+ * suspend/resume, sometimes under the MUSB spinlock. Publish only the budget;
+ * power_supply's notifier schedules the sleeping charger/regmap owner. */
+static int y2_usb_set_power(struct usb_phy *phy, unsigned ma)
+{
+    WRITE_ONCE(y2_usb_budget_ma, min(ma, 500U));
+    if (y2_usb_input) power_supply_changed(y2_usb_input);
+    return 0;
+}
+static enum power_supply_property y2_usb_input_props[] = {
+    POWER_SUPPLY_PROP_ONLINE, POWER_SUPPLY_PROP_CURRENT_MAX,
+};
+static int y2_usb_input_get(struct power_supply *psy, enum power_supply_property p,
+                            union power_supply_propval *v)
+{
+    bool available = !READ_ONCE(y2_live.result) && !READ_ONCE(y2_usb_finished) &&
+        !READ_ONCE(y2_usb_detached);
+    if (p == POWER_SUPPLY_PROP_CURRENT_MAX)
+        v->intval = available ? READ_ONCE(y2_usb_budget_ma) * 1000 : 0;
+    else if (p == POWER_SUPPLY_PROP_ONLINE)
+        v->intval = available && !!(READ_ONCE(y2_live.chrdet) & 0x20);
+    else return -EINVAL;
+    return 0;
+}
+static const struct power_supply_desc y2_usb_input_desc = {
+    .name = "y2-usb-input", .type = POWER_SUPPLY_TYPE_USB,
+    .properties = y2_usb_input_props, .num_properties = ARRAY_SIZE(y2_usb_input_props),
+    .get_property = y2_usb_input_get,
+};
 static unsigned long y2_irq_tick;
 static unsigned y2_irq_burst;
 static void y2_usb_worker(struct work_struct *work);
@@ -310,7 +342,8 @@ static int y2_musb_init(struct musb *musb)
         if(value!=y2_power.wake.controls[i]) {rc=-EIO;goto fail;}
     }
     y2_xceiv=(struct usb_phy){.dev=musb->controller,.label="Y2 integrated USB2 PHY",
-        .type=USB_PHY_TYPE_USB2,.otg=&y2_otg,.init=y2_phy_init,.last_event=USB_EVENT_VBUS};
+        .type=USB_PHY_TYPE_USB2,.otg=&y2_otg,.init=y2_phy_init,.last_event=USB_EVENT_VBUS,
+        .set_power=y2_usb_set_power};
     y2_otg=(struct usb_otg){.usb_phy=&y2_xceiv,.set_peripheral=y2_set_peripheral};
     ATOMIC_INIT_NOTIFIER_HEAD(&y2_xceiv.notifier);
     musb->xceiv=&y2_xceiv;musb->is_host=false;musb->isr=y2_musb_interrupt;
@@ -375,6 +408,7 @@ static void y2_usb_finish(void)
 {
     unsigned long flags;
     y2_usb_finished=true;
+    y2_usb_set_power(NULL,0);
     if(y2_musb) {
         spin_lock_irqsave(&y2_musb->lock,flags);
         writel(0,y2_musb->mregs+0xa4);
@@ -546,11 +580,14 @@ ATTRIBUTE_GROUPS(y2_usb);
 static int y2_usb_probe(struct platform_device *pdev)
 {
     int ret;
+    struct power_supply_config input_cfg = { .fwnode = dev_fwnode(&pdev->dev) };
     dev_t dev=MKDEV(Y2_TEXT_MAJOR,0);
     /* Providers may bind later. A missing provider is not a permanent boot failure. */
     y2_pmic_snapshot(&y2_power.power);
     if (y2_power.power.result) return y2_power.power.result;
     if (y2_power.power.valid != 7) return -EIO;
+    y2_usb_input=devm_power_supply_register(&pdev->dev,&y2_usb_input_desc,&input_cfg);
+    if(IS_ERR(y2_usb_input)) {ret=PTR_ERR(y2_usb_input);y2_usb_input=NULL;return ret;}
     ret=register_chrdev_region(dev,1,"y2diag");
     if(ret) return ret;
     cdev_init(&y2_cdev,&y2_fops);

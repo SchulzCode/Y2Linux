@@ -145,7 +145,9 @@ def check_power(nodes, handle):
     p=nodes[pmic+'/regulators/buck_vproc']
     require(p['regulator-min-microvolt']==p['regulator-max-microvolt']==cells(1150000) and
             'regulator-always-on' in p,'retain inherited VPROC')
-    require(nodes[pmic+'/charger']['io-channels']==cells(handle(pmic+'/adc'),7),'BATSNS IIO source')
+    require(nodes[pmic+'/charger']['io-channels']==cells(*sum(([handle(pmic+'/adc'),ch] for ch in (7,5,6,3)),[])), 'charger IIO sources')
+    require(nodes[pmic+'/charger']['io-channel-names']==strings('battery-voltage','baton','isense','pmic-temperature'), 'charger channel meanings')
+    require(nodes[pmic+'/charger']['power-supplies']==cells(handle('/usb@11200000')), 'negotiated USB input supply')
     require(nodes[pmic+'/backlight']['compatible']==strings('innioasis,y2-backlight') and
             '/pwrap@1000d000/backlight' not in nodes,'backlight MFD ownership')
     require(nodes['/efuse@10206100/calibration@0']['reg']==cells(0,8) and
@@ -158,6 +160,6 @@ def check_power(nodes, handle):
         require(nodes[path+'/trips/'+trip]['temperature']==cells(temp) and
                 nodes[path+'/trips/'+trip]['type']==strings('critical'),'BSP critical temperature')
     require(nodes['/thermal-zones/cpu-thermal/trips/cpu-hot']['temperature']==cells(110000),'BSP passive trip')
-    require({p for p,v in nodes.items() if 'wakeup-source' in v}=={pmic+'/keys/power',pmic+'/rtc'},'explicit Power/RTC wake sources')
+    require({p for p,v in nodes.items() if 'wakeup-source' in v}=={pmic+'/keys/power',pmic+'/rtc',pmic+'/charger'},'explicit Power/RTC/CHRDET wake sources')
     require(nodes[pmic+'/rtc']['compatible']==strings('mediatek,mt6323-rtc') and
             nodes[pmic+'/power-controller']['compatible']==strings('mediatek,mt6323-pwrc'),'upstream RTC/poweroff')

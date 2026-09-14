@@ -1,39 +1,274 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Read-only power_supply telemetry plus a fail-closed charging inhibit.
- * No known Y2 pack thermistor conversion: keep CHR_EN/CSDAC_EN clear.
- * Never change current/CV/OVP, emergency reset, trim or charger watchdog.
- * Limits are configuration, not measured current. */
+/* MT6323 production charger. All hardware IO uses the parent's sole regmap.
+ * Stock Y2 contract and bounded-profile limitations: docs/knowledge/m4-charging.md.
+ * Pack temperature, measured current and SOC deliberately remain unsupported.
+ */
 #include <linux/iio/consumer.h>
 #include <linux/interrupt.h>
+#include <linux/ktime.h>
 #include <linux/mfd/mt6397/core.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/workqueue.h>
 #include "power-math.h"
+#include "charger-policy.h"
 
+#define Y2_POLL_MS 1000
+#define Y2_PET_LATE_MS 2500
+
+enum y2_charge_fault {
+	Y2_FAULT_IO = BIT(0), Y2_FAULT_ADC = BIT(1), Y2_FAULT_BATTERY = BIT(2),
+	Y2_FAULT_VOLTAGE = BIT(3), Y2_FAULT_OVP = BIT(4), Y2_FAULT_THERMAL = BIT(5),
+	Y2_FAULT_WATCHDOG = BIT(6), Y2_FAULT_PROTECTION = BIT(7),
+	Y2_FAULT_TIMEOUT = BIT(8),
+};
 struct y2_charger {
 	struct device *dev;
 	struct regmap *map;
-	struct iio_channel *battery;
-	struct power_supply *bat, *usb;
+	struct y2_charge_io io;
+	struct iio_channel *battery, *baton, *isense, *die;
+	struct power_supply *bat, *usb, *input;
 	struct delayed_work work;
+	struct workqueue_struct *wq;
+	struct notifier_block input_nb;
+	struct mutex lock;
+	struct y2_charge_cycle cycle;
+	u64 last_account, last_pet_ms, pets;
+	unsigned fault, con0, con4, ov, baton_con, wdt, thr;
+	int uv, baton_raw, isense_raw, die_mc, input_ua, sample_error, stop_error, last_error;
+	int status, behaviour;
+	bool active, paused, stopping, online, present, awake, irq_wake;
+	int irq;
 };
+
+static int y2_charge_read(void *context, unsigned reg, unsigned *value)
+{
+	return regmap_read(context, reg, value);
+}
+static int y2_charge_update(void *context, unsigned reg, unsigned mask,
+			    unsigned value, int force)
+{
+	return force ? regmap_write_bits(context, reg, mask, value) :
+		regmap_update_bits(context, reg, mask, value);
+}
+static void y2_charge_awake(struct y2_charger *c, bool awake)
+{
+	if (c->awake == awake) return;
+	c->awake = awake;
+	if (awake) pm_stay_awake(c->dev);
+	else pm_relax(c->dev);
+}
 static int y2_charger_inhibit(struct y2_charger *c)
 {
-	unsigned val;
-	int ret = regmap_update_bits(c->map, 0, BIT(3) | BIT(4), 0);
-	if (!ret) ret = regmap_read(c->map, 0, &val);
-	if (!ret && (val & (BIT(3) | BIT(4)))) ret = -EIO;
+	int ret = y2_charge_stop(&c->io);
+	if (!ret) ret = regmap_read(c->map, 0x000, &c->con0);
+	if (!ret) ret = regmap_read(c->map, 0x01e, &c->wdt);
+	c->stop_error = ret;
+	if (!ret) {
+		c->active = false;
+		y2_charge_awake(c, false);
+	} else {
+		/* Keep trying, keep the AP awake, and do NOT pet a faulty charger.
+		 * The armed hardware watchdog remains the fallback if PWRAP fails. */
+		c->fault |= Y2_FAULT_IO;
+		c->last_error = ret;
+		y2_charge_awake(c, true);
+		dev_err_ratelimited(c->dev, "charger inhibit not verified: %d\n", ret);
+	}
 	return ret;
 }
+static void y2_charge_account_now(struct y2_charger *c)
+{
+	u64 now = ktime_get_boottime_seconds();
+	if (c->active && now > c->last_account)
+		y2_charge_account(&c->cycle, now - c->last_account, c->uv);
+	c->last_account = now;
+}
+static int y2_charge_sample(struct y2_charger *c)
+{
+	union power_supply_propval v;
+	int ret, raw;
+
+	ret = regmap_read(c->map, 0x000, &c->con0);
+	if (ret) return ret;
+	c->online = !!(c->con0 & BIT(5));
+	ret = regmap_read(c->map, 0x00e, &c->baton_con);
+	if (ret) return ret;
+	c->present = !(c->baton_con & BIT(12)) && (c->baton_con & 5) == 5;
+	ret = regmap_read(c->map, 0x00c, &c->ov);
+	if (!ret) ret = regmap_read(c->map, 0x004, &c->con4);
+	if (!ret) ret = regmap_read(c->map, 0x01e, &c->wdt);
+	if (!ret) ret = regmap_read(c->map, 0x044, &c->thr);
+	if (ret) return ret;
+	ret = power_supply_get_property(c->input, POWER_SUPPLY_PROP_CURRENT_MAX, &v);
+	if (ret) return ret;
+	c->input_ua = v.intval;
+	ret = iio_read_channel_raw(c->battery, &raw);
+	if (ret < 0) return ret;
+	c->uv = y2_battery_uv(raw);
+	ret = iio_read_channel_raw(c->baton, &c->baton_raw);
+	if (ret < 0) return ret;
+	ret = iio_read_channel_raw(c->isense, &c->isense_raw);
+	if (ret < 0) return ret;
+	ret = iio_read_channel_processed(c->die, &c->die_mc);
+	if (ret < 0) return ret;
+	/* These are acquisition validity checks, not a pack-temperature model. */
+	if (c->baton_raw <= 0 || c->baton_raw >= 32767 ||
+	    c->isense_raw <= 0 || c->isense_raw >= 32767) return -ENODATA;
+	return 0;
+}
+
+static void y2_charger_run(struct y2_charger *c)
+{
+	union power_supply_propval v;
+	u64 now_ms = ktime_to_ms(ktime_get_boottime());
+	int ret;
+
+	y2_charge_account_now(c);
+	/* Do not rearm a watchdog after a scheduling stall or expiry. */
+	if (c->active && now_ms - c->last_pet_ms >= Y2_PET_LATE_MS)
+		c->fault |= Y2_FAULT_WATCHDOG;
+	ret = y2_charge_sample(c);
+	c->sample_error = ret;
+	if (ret) {
+		c->last_error = ret;
+		c->fault |= Y2_FAULT_ADC | Y2_FAULT_IO;
+		goto inhibit;
+	}
+	if (!c->online) {
+		if (!y2_charger_inhibit(c)) {
+			/* A real, successfully read CHRDET absence starts a new session.
+			 * USB reset/suspend/configuration events never clear faults. */
+			c->fault = 0;
+			c->last_error = 0;
+			c->cycle = (struct y2_charge_cycle){};
+		}
+		c->status = POWER_SUPPLY_STATUS_DISCHARGING;
+		return;
+	}
+	if (!c->present) c->fault |= Y2_FAULT_BATTERY;
+	if (c->con0 & BIT(7) || c->ov & BIT(6)) c->fault |= Y2_FAULT_OVP;
+	if (c->thr & 0x700 || c->die_mc >= 150000) c->fault |= Y2_FAULT_THERMAL;
+	if (c->uv < Y2_CHARGE_MIN_UV || c->uv >= 4200000)
+		c->fault |= Y2_FAULT_VOLTAGE;
+	if (c->active && (c->wdt & BIT(2))) c->fault |= Y2_FAULT_WATCHDOG;
+	if (c->cycle.timed_out) c->fault |= Y2_FAULT_TIMEOUT;
+	if (c->fault || c->behaviour == POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE ||
+	    c->input_ua < 500000) goto inhibit;
+
+	/* A hardware CV comparator plus six spaced voltage samples stops this
+	 * bounded cycle. It is NOT a measured full-charge or taper decision. */
+	if (c->active || c->cycle.hold)
+		y2_charge_termination(&c->cycle, ktime_get_boottime_seconds(), c->uv,
+				      !!(c->con4 & BIT(6)));
+	if (c->cycle.hold) goto inhibit;
+	if (!c->active && c->uv >= Y2_CHARGE_UV) {
+		c->cycle.hold = 1;
+		c->cycle.confirmations = 0;
+		c->cycle.confirm_at = ktime_get_boottime_seconds();
+		goto inhibit;
+	}
+	if (!c->active) {
+		y2_charge_awake(c, true);
+		/* Timestamp before the service sequence: time spent blocked in IO
+		 * must count against the deadline, including the very first start. */
+		c->last_pet_ms = ktime_to_ms(ktime_get_boottime());
+		ret = y2_charge_prepare(&c->io);
+		/* Recheck external allowance and fresh critical ADCs after prepare,
+		 * immediately before the only charge-enable sequence. */
+		if (!ret) ret = y2_charge_sample(c);
+		if (!ret && (!c->online || c->input_ua < 500000)) goto inhibit;
+		if (!ret && (!c->present || c->uv < Y2_CHARGE_MIN_UV ||
+		    c->uv >= Y2_CHARGE_UV || c->die_mc >= 150000)) ret = -ERANGE;
+		if (!ret && ktime_to_ms(ktime_get_boottime()) - c->last_pet_ms >= Y2_PET_LATE_MS)
+			ret = -ETIME;
+		if (!ret) ret = y2_charge_start(&c->io);
+		if (ret) { c->last_error = ret; c->fault |= Y2_FAULT_PROTECTION; goto inhibit; }
+		c->active = true;
+		c->last_account = ktime_get_boottime_seconds();
+		c->cycle.confirm_at = c->last_account;
+	} else {
+		ret = y2_charge_protections(&c->io);
+		if (!ret) ret = y2_charge_regulation(&c->io);
+		if (!ret) ret = y2_charge_expect(&c->io, 0x000, 0xbd, 0x39);
+		if (!ret) ret = y2_charge_expect(&c->io, 0x01a, 0x1f, 0x10);
+		if (!ret) ret = y2_charge_expect(&c->io, 0x01e, 5, 1);
+		if (ret) { c->last_error = ret; c->fault |= Y2_FAULT_PROTECTION; goto inhibit; }
+	}
+	/* Re-read allowance before the service; the USB notifier also schedules
+	 * immediate inhibition on disconnect/reset/bus suspend. */
+	ret = power_supply_get_property(c->input, POWER_SUPPLY_PROP_CURRENT_MAX, &v);
+	if (ret) { c->last_error = ret; c->fault |= Y2_FAULT_IO; goto inhibit; }
+	c->input_ua = v.intval;
+	if (c->input_ua < 500000) goto inhibit;
+	if (ktime_to_ms(ktime_get_boottime()) - c->last_pet_ms >= Y2_PET_LATE_MS) {
+		c->fault |= Y2_FAULT_WATCHDOG;
+		goto inhibit;
+	}
+	ret = y2_charge_expect(&c->io, 0x01e, 5, 1);
+	if (!ret) ret = y2_charge_expect(&c->io, 0x000, 0xbd, 0x39);
+	now_ms = ktime_to_ms(ktime_get_boottime());
+	if (!ret && now_ms - c->last_pet_ms >= Y2_PET_LATE_MS) ret = -ETIME;
+	if (!ret) ret = y2_charge_pet(&c->io);
+	if (ret) { c->last_error = ret; c->fault |= Y2_FAULT_WATCHDOG; goto inhibit; }
+	c->last_pet_ms = now_ms;
+	c->pets++;
+	ret = regmap_read(c->map, 0x000, &c->con0);
+	if (!ret) ret = regmap_read(c->map, 0x01e, &c->wdt);
+	if (ret) { c->last_error = ret; c->fault |= Y2_FAULT_IO; goto inhibit; }
+	c->status = POWER_SUPPLY_STATUS_CHARGING;
+	return;
+inhibit:
+	if (c->fault || c->input_ua < 500000 ||
+	    c->behaviour == POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE) {
+		c->cycle.confirmations = 0;
+		c->cycle.confirm_at = ktime_get_boottime_seconds();
+	}
+	y2_charger_inhibit(c);
+	c->status = c->stop_error ? POWER_SUPPLY_STATUS_UNKNOWN :
+		c->online ? POWER_SUPPLY_STATUS_NOT_CHARGING : POWER_SUPPLY_STATUS_DISCHARGING;
+}
+static void y2_charger_poll(struct work_struct *work)
+{
+	struct y2_charger *c = container_of(to_delayed_work(work), struct y2_charger, work);
+	unsigned old_fault;
+	int old_status;
+
+	mutex_lock(&c->lock);
+	if (c->paused || c->stopping) goto out;
+	old_fault = c->fault; old_status = c->status;
+	y2_charger_run(c);
+	if (old_fault != c->fault || old_status != c->status) {
+		dev_info(c->dev, "status=%d fault=%#x battery=%duV input=%duA watchdog_pets=%llu\n",
+			 c->status, c->fault, c->uv, c->input_ua, c->pets);
+		power_supply_changed(c->bat);
+	}
+	power_supply_changed(c->usb);
+	queue_delayed_work(c->wq, &c->work, msecs_to_jiffies(Y2_POLL_MS));
+out:
+	mutex_unlock(&c->lock);
+}
+static irqreturn_t y2_charger_irq(int irq, void *arg)
+{
+	struct y2_charger *c = arg;
+	if (!READ_ONCE(c->stopping)) mod_delayed_work(c->wq, &c->work, 0);
+	return IRQ_HANDLED;
+}
+static int y2_charger_input_changed(struct notifier_block *nb, unsigned long event, void *data)
+{
+	struct y2_charger *c = container_of(nb, struct y2_charger, input_nb);
+	if (event == PSY_EVENT_PROP_CHANGED && data == c->input && !READ_ONCE(c->stopping))
+		mod_delayed_work(c->wq, &c->work, 0);
+	return NOTIFY_OK;
+}
+
 static enum power_supply_property y2_bat_props[] = {
-	POWER_SUPPLY_PROP_PRESENT, POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_HEALTH, POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT, POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
+	POWER_SUPPLY_PROP_PRESENT, POWER_SUPPLY_PROP_STATUS, POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW, POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE, POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR,
 };
 static enum power_supply_property y2_usb_props[] = { POWER_SUPPLY_PROP_ONLINE };
 static int y2_bat_get(struct power_supply *psy, enum power_supply_property p,
@@ -41,41 +276,66 @@ static int y2_bat_get(struct power_supply *psy, enum power_supply_property p,
 {
 	struct y2_charger *c = power_supply_get_drvdata(psy);
 	unsigned value;
-	int ret, raw;
+	int ret = 0, raw;
+
+	mutex_lock(&c->lock);
 	switch (p) {
 	case POWER_SUPPLY_PROP_PRESENT:
 		ret = regmap_read(c->map, 0x00e, &value);
-		if (ret) return ret;
-		if ((value & 5) != 5) return -ENODATA; /* BATON_EN, TDET_EN */
-		v->intval = !(value & BIT(12));
-		return 0;
+		if (!ret && (value & 5) != 5) ret = -ENODATA;
+		if (!ret) v->intval = !(value & BIT(12));
+		break;
 	case POWER_SUPPLY_PROP_STATUS:
-		ret = regmap_read(c->map, 0, &value);
-		if (ret) return ret;
-		/* Enabled charge engine does not prove battery current or completion. */
-		v->intval = (value & (BIT(3) | BIT(4))) ? POWER_SUPPLY_STATUS_UNKNOWN :
-			(value & BIT(5)) ? POWER_SUPPLY_STATUS_NOT_CHARGING : POWER_SUPPLY_STATUS_DISCHARGING;
-		return 0;
+		v->intval = c->sample_error || c->stop_error ? POWER_SUPPLY_STATUS_UNKNOWN : c->status;
+		break;
 	case POWER_SUPPLY_PROP_HEALTH:
-		ret = regmap_read(c->map, 0x00c, &value);
-		if (ret) return ret;
-		v->intval = (value & BIT(6)) ? POWER_SUPPLY_HEALTH_OVERVOLTAGE : POWER_SUPPLY_HEALTH_UNKNOWN;
-		return 0;
+		v->intval = c->ov & BIT(6) ? POWER_SUPPLY_HEALTH_OVERVOLTAGE :
+			c->fault & Y2_FAULT_WATCHDOG ? POWER_SUPPLY_HEALTH_WATCHDOG_TIMER_EXPIRE :
+			c->fault & Y2_FAULT_TIMEOUT ? POWER_SUPPLY_HEALTH_SAFETY_TIMER_EXPIRE :
+			c->fault ? POWER_SUPPLY_HEALTH_UNSPEC_FAILURE : POWER_SUPPLY_HEALTH_UNKNOWN;
+		/* Unknown includes unmeasured pack temperature; never claim Good. */
+		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		ret = iio_read_channel_raw(c->battery, &raw);
-		if (ret < 0) return ret;
-		v->intval = y2_battery_uv(raw);
-		return 0;
+		if (ret >= 0) { v->intval = y2_battery_uv(raw); ret = 0; }
+		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 		ret = regmap_read(c->map, 0x008, &value);
 		if (!ret) v->intval = y2_charge_ua(value);
-		return ret;
+		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
 		ret = regmap_read(c->map, 0x006, &value);
 		if (!ret) v->intval = y2_charge_uv(value);
-		return ret;
-	default: return -EINVAL;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR: v->intval = c->behaviour; break;
+	default: ret = -EINVAL;
 	}
+	mutex_unlock(&c->lock);
+	return ret;
+}
+static int y2_bat_set(struct power_supply *psy, enum power_supply_property p,
+		      const union power_supply_propval *v)
+{
+	struct y2_charger *c = power_supply_get_drvdata(psy);
+	int ret = 0;
+	if (p != POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR ||
+	    (v->intval != POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO &&
+	     v->intval != POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE)) return -EINVAL;
+	mutex_lock(&c->lock);
+	c->behaviour = v->intval;
+	y2_charge_account_now(c);
+	if (c->behaviour == POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE) {
+		ret = y2_charger_inhibit(c);
+		c->status = ret ? POWER_SUPPLY_STATUS_UNKNOWN : POWER_SUPPLY_STATUS_NOT_CHARGING;
+	}
+	if (!c->stopping && !c->paused) mod_delayed_work(c->wq, &c->work, 0);
+	mutex_unlock(&c->lock);
+	power_supply_changed(c->bat);
+	return ret;
+}
+static int y2_bat_writeable(struct power_supply *psy, enum power_supply_property p)
+{
+	return p == POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR;
 }
 static int y2_usb_get(struct power_supply *psy, enum power_supply_property p,
 		      union power_supply_propval *v)
@@ -90,55 +350,120 @@ static int y2_usb_get(struct power_supply *psy, enum power_supply_property p,
 }
 static const struct power_supply_desc y2_bat_desc = {
 	.name = "BAT0", .type = POWER_SUPPLY_TYPE_BATTERY,
-	.properties = y2_bat_props, .num_properties = ARRAY_SIZE(y2_bat_props), .get_property = y2_bat_get,
+	.properties = y2_bat_props, .num_properties = ARRAY_SIZE(y2_bat_props),
+	.get_property = y2_bat_get, .set_property = y2_bat_set,
+	.property_is_writeable = y2_bat_writeable,
+	.charge_behaviours = BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO) |
+		BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE),
 };
 static const struct power_supply_desc y2_usb_desc = {
-	/* Existing initramfs ABI: retained while moving ownership under the MFD. */
+	/* Retain the existing production/rescue external-power ABI. */
 	.name = "y2-usb-presence", .type = POWER_SUPPLY_TYPE_USB,
 	.properties = y2_usb_props, .num_properties = ARRAY_SIZE(y2_usb_props), .get_property = y2_usb_get,
 };
-static void y2_charger_poll(struct work_struct *work)
+static ssize_t charging_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct y2_charger *c = container_of(to_delayed_work(work), struct y2_charger, work);
-	int ret = y2_charger_inhibit(c);
-	if (ret) dev_err_ratelimited(c->dev, "cannot verify charging inhibited: %d\n", ret);
-	power_supply_changed(c->bat); power_supply_changed(c->usb);
-	queue_delayed_work(system_freezable_wq, &c->work, msecs_to_jiffies(10000));
+	struct y2_charger *c = power_supply_get_drvdata(dev_get_drvdata(dev));
+	ssize_t n;
+	mutex_lock(&c->lock);
+	n = sysfs_emit(buf, "active=%u online=%u present=%u fault=0x%x sample_error=%d stop_error=%d paused=%u last_error=%d\n"
+		"battery_uv=%d baton_raw=%d isense_raw=%d pmic_die_mc=%d input_budget_ua=%d\n"
+		"chr_con0=0x%04x cv_status=0x%04x battery_ovp=0x%04x baton=0x%04x watchdog=0x%04x thermal=0x%04x\n"
+		"watchdog_pets=%llu last_pet_ms=%llu total_seconds=%llu cv_seconds=%llu hold=%d timeout=%d\n",
+		c->active, c->online, c->present, c->fault, c->sample_error, c->stop_error, c->paused, c->last_error,
+		c->uv, c->baton_raw, c->isense_raw, c->die_mc, c->input_ua,
+		c->con0, c->con4, c->ov, c->baton_con, c->wdt, c->thr,
+		c->pets, c->last_pet_ms, c->cycle.total, c->cycle.cv, c->cycle.hold, c->cycle.timed_out);
+	mutex_unlock(&c->lock);
+	return n;
 }
-static irqreturn_t y2_charger_irq(int irq, void *arg)
+static DEVICE_ATTR_RO(charging_state);
+static struct attribute *y2_charge_attrs[] = { &dev_attr_charging_state.attr, NULL };
+ATTRIBUTE_GROUPS(y2_charge);
+
+static int y2_charger_prepare_pm(struct device *dev)
 {
-	struct y2_charger *c = arg;
-	mod_delayed_work(system_freezable_wq, &c->work, 0);
-	return IRQ_HANDLED;
+	struct y2_charger *c = dev_get_drvdata(dev);
+	int ret;
+	mutex_lock(&c->lock);
+	/* Stock Y2 held a wake lock on USB. Reject system sleep while active,
+	 * including direct `echo mem`, before any provider is suspended. The
+	 * workqueue is not freezable, so watchdog servicing survives PM entry. */
+	if (c->active || c->stop_error) {
+		mutex_unlock(&c->lock);
+		return -EBUSY;
+	}
+	c->paused = true;
+	ret = y2_charger_inhibit(c);
+	if (ret) c->paused = false;
+	mutex_unlock(&c->lock);
+	if (!ret) cancel_delayed_work_sync(&c->work);
+	return ret;
+}
+static void y2_charger_complete_pm(struct device *dev)
+{
+	struct y2_charger *c = dev_get_drvdata(dev);
+	mutex_lock(&c->lock);
+	c->paused = false;
+	if (!c->stopping) mod_delayed_work(c->wq, &c->work, 0);
+	mutex_unlock(&c->lock);
 }
 static int y2_charger_suspend(struct device *dev)
 {
 	struct y2_charger *c = dev_get_drvdata(dev);
 	int ret;
-	cancel_delayed_work_sync(&c->work);
-	ret = y2_charger_inhibit(c);
-	if (ret) queue_delayed_work(system_freezable_wq, &c->work, msecs_to_jiffies(10000));
+	/* Arm before the MFD late-suspend callback applies its selected wake mask. */
+	if (!device_may_wakeup(dev)) return 0;
+	ret = enable_irq_wake(c->irq);
+	if (!ret) c->irq_wake = true;
 	return ret;
 }
 static int y2_charger_resume(struct device *dev)
 {
 	struct y2_charger *c = dev_get_drvdata(dev);
-	int ret = y2_charger_inhibit(c);
-	queue_delayed_work(system_freezable_wq, &c->work, 0);
+	int ret = 0;
+	if (c->irq_wake) {
+		ret = disable_irq_wake(c->irq);
+		if (!ret) c->irq_wake = false;
+	}
 	return ret;
 }
 static void y2_charger_shutdown(struct platform_device *pdev)
 {
 	struct y2_charger *c = platform_get_drvdata(pdev);
-	int ret;
+	mutex_lock(&c->lock);
+	c->stopping = true;
+	mutex_unlock(&c->lock);
 	cancel_delayed_work_sync(&c->work);
-	ret = y2_charger_inhibit(c);
-	if (ret) dev_err(&pdev->dev, "shutdown charger inhibit failed: %d\n", ret);
+	mutex_lock(&c->lock);
+	y2_charger_inhibit(c);
+	mutex_unlock(&c->lock);
 }
-static void y2_charger_cancel(void *data)
+static void y2_charger_release(void *data)
 {
 	struct y2_charger *c = data;
+	WRITE_ONCE(c->stopping, true);
 	cancel_delayed_work_sync(&c->work);
+	y2_charger_inhibit(c);
+	destroy_workqueue(c->wq);
+	if (c->irq_wake) disable_irq_wake(c->irq);
+	device_init_wakeup(c->dev, false);
+}
+static void y2_charger_notifier_release(void *data)
+{
+	struct y2_charger *c = data;
+	power_supply_unreg_notifier(&c->input_nb);
+}
+static void y2_charger_quiesce(void *data)
+{
+	struct y2_charger *c = data;
+	mutex_lock(&c->lock);
+	c->stopping = true;
+	mutex_unlock(&c->lock);
+	cancel_delayed_work_sync(&c->work);
+	mutex_lock(&c->lock);
+	y2_charger_inhibit(c);
+	mutex_unlock(&c->lock);
 }
 static int y2_charger_probe(struct platform_device *pdev)
 {
@@ -146,41 +471,68 @@ static int y2_charger_probe(struct platform_device *pdev)
 	struct mt6397_chip *chip = dev_get_drvdata(dev->parent);
 	struct power_supply_config cfg = {};
 	struct y2_charger *c;
-	unsigned wdt, charge_current, voltage;
 	int ret, irq;
+
 	if (!chip || !chip->regmap) return -EPROBE_DEFER;
 	c = devm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
 	if (!c) return -ENOMEM;
 	c->dev = dev; c->map = chip->regmap;
-	/* Inhibit before any dependency can defer. Watchdog expiry cannot enable
-	 * this engine. A future charging policy must own its 4-second servicing. */
-	ret = y2_charger_inhibit(c);
+	c->io = (struct y2_charge_io){ c->map, y2_charge_read, y2_charge_update };
+	mutex_init(&c->lock);
+	c->status = POWER_SUPPLY_STATUS_UNKNOWN;
+	c->stopping = true; /* notifier cannot queue work until all devres are ready */
+	c->sample_error = -EAGAIN;
+	/* No dependency can defer leaving an inherited charger enabled. */
+	ret = y2_charge_stop(&c->io);
 	if (ret) return dev_err_probe(dev, ret, "charging inhibit\n");
 	c->battery = devm_iio_channel_get(dev, "battery-voltage");
 	if (IS_ERR(c->battery)) return dev_err_probe(dev, PTR_ERR(c->battery), "battery ADC\n");
-	ret = regmap_read(c->map, 0x01a, &wdt);
-	if (!ret) ret = regmap_read(c->map, 0x008, &charge_current);
-	if (!ret) ret = regmap_read(c->map, 0x006, &voltage);
+	c->baton = devm_iio_channel_get(dev, "baton");
+	if (IS_ERR(c->baton)) return dev_err_probe(dev, PTR_ERR(c->baton), "BATON ADC\n");
+	c->isense = devm_iio_channel_get(dev, "isense");
+	if (IS_ERR(c->isense)) return dev_err_probe(dev, PTR_ERR(c->isense), "ISENSE ADC\n");
+	c->die = devm_iio_channel_get(dev, "pmic-temperature");
+	if (IS_ERR(c->die)) return dev_err_probe(dev, PTR_ERR(c->die), "PMIC die ADC\n");
+	c->input = devm_power_supply_get_by_reference(dev, "power-supplies");
+	if (IS_ERR(c->input)) return dev_err_probe(dev, PTR_ERR(c->input), "USB input supply\n");
+	if (!c->input) return -EPROBE_DEFER;
+	if (!device_link_add(dev, c->input->dev.parent, DL_FLAG_AUTOREMOVE_CONSUMER)) return -ENOMEM;
+	c->wq = alloc_ordered_workqueue("y2-charger", WQ_HIGHPRI | WQ_MEM_RECLAIM);
+	if (!c->wq) return -ENOMEM;
+	INIT_DELAYED_WORK(&c->work, y2_charger_poll);
+	ret = device_init_wakeup(dev, true);
+	if (ret) { destroy_workqueue(c->wq); return ret; }
+	ret = devm_add_action_or_reset(dev, y2_charger_release, c);
 	if (ret) return ret;
-	cfg.drv_data = c; cfg.fwnode = dev_fwnode(dev);
+	cfg.drv_data = c; cfg.fwnode = dev_fwnode(dev); cfg.attr_grp = y2_charge_groups;
 	c->bat = devm_power_supply_register(dev, &y2_bat_desc, &cfg);
 	if (IS_ERR(c->bat)) return PTR_ERR(c->bat);
+	cfg.attr_grp = NULL;
 	c->usb = devm_power_supply_register(dev, &y2_usb_desc, &cfg);
 	if (IS_ERR(c->usb)) return PTR_ERR(c->usb);
 	platform_set_drvdata(pdev, c);
-	INIT_DELAYED_WORK(&c->work, y2_charger_poll);
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) return irq;
-	ret = devm_add_action_or_reset(dev, y2_charger_cancel, c);
-	if (ret) return ret;
 	ret = devm_request_threaded_irq(dev, irq, NULL, y2_charger_irq, IRQF_ONESHOT, "mt6323-chrdet", c);
 	if (ret) return ret;
-	queue_delayed_work(system_freezable_wq, &c->work, msecs_to_jiffies(10000));
-	dev_info(dev, "charging INHIBITED: pack thermometry unvalidated; inherited limit=%duA/%duV WDT_CON=%04x unchanged\n",
-		 y2_charge_ua(charge_current), y2_charge_uv(voltage), wdt);
+	c->irq = irq;
+	c->input_nb.notifier_call = y2_charger_input_changed;
+	ret = power_supply_reg_notifier(&c->input_nb);
+	if (ret) return ret;
+	ret = devm_add_action_or_reset(dev, y2_charger_notifier_release, c);
+	if (ret) return ret;
+	/* This action precedes power_supply/IRQ teardown, unlike allocation cleanup. */
+	ret = devm_add_action_or_reset(dev, y2_charger_quiesce, c);
+	if (ret) return ret;
+	WRITE_ONCE(c->stopping, false);
+	queue_delayed_work(c->wq, &c->work, msecs_to_jiffies(Y2_POLL_MS));
+	dev_info(dev, "stock-derived charging: 70mA/4.175V, configured USB 500mA required; pack temp/current/SOC unavailable\n");
 	return 0;
 }
-static DEFINE_SIMPLE_DEV_PM_OPS(y2_charger_pm, y2_charger_suspend, y2_charger_resume);
+static const struct dev_pm_ops y2_charger_pm = {
+	.prepare = y2_charger_prepare_pm, .complete = y2_charger_complete_pm,
+	.suspend = y2_charger_suspend, .resume = y2_charger_resume,
+};
 static const struct of_device_id y2_charger_match[] = { { .compatible = "innioasis,y2-mt6323-charger" }, {} };
 static struct platform_driver y2_charger_driver = {
 	.probe = y2_charger_probe, .shutdown = y2_charger_shutdown,

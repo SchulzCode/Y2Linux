@@ -75,9 +75,12 @@ int main(void) {
   unsigned before=writes;
   assert(wrap_reg_write(&w,0x76e,word^(1U<<bit))==-EPERM&&writes==before);
  }
- /* Adding ADC requests must never relax the charge-enable value guard. */
+ /* Charging must not defeat input OVP, even in the transport guard. */
  unsigned before=writes;
- assert(wrap_reg_write(&w,0x0000,0x007b)==-EPERM&&writes==before);
+ word=0x0062;
+ assert(wrap_reg_write(&w,0x0000,0x007a)==-EPERM&&writes==before);
+ word=0x0063;
+ assert(!wrap_reg_write(&w,0x0000,0x007b)&&writes==before+1);
 
 }
 '''

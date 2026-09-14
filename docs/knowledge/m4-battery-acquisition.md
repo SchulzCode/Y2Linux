@@ -1,5 +1,9 @@
 # M4 charging prerequisite: this Y2's battery sensor
 
+Historical checkpoint. The owner’s later charging authorization and the reconstructed
+stock protection architecture are recorded in [M4 charging](m4-charging.md).
+The sensor results below remain valid; the former unconditional BATON gate is superseded.
+
 2026-09-14. Charging completion is **blocked before the first active charge**.
 The first missing physical fact is whether this Y2's BATON input measures the
 pack temperature with the resistor network assumed by its stock firmware.

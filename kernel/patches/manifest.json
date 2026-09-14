@@ -112,7 +112,7 @@
       "path": "arch/arm/mach-mediatek/Kconfig",
       "patch": "0002-y2-Kconfig.patch",
       "base_sha256": "61790e35f9fbdb5dd524c658f041739b4cf52d8393962622d6cdb4a0f497506b",
-      "result_sha256": "02550fe75476c43fd4d9acf1653212ed3c7a2c2094f7dbc6ce9cad821f14e657"
+      "result_sha256": "f12fe18138d2e6f2cb6800665449dfee3ee4359f16adf7b9ea812a5fb0b1ba2a"
     },
     {
       "path": "drivers/gpu/drm/mediatek/mtk_dsi.c",
@@ -179,6 +179,12 @@
       "patch": "0030-cs43130-system-pm.patch",
       "base_sha256": "e3f2d840943600a6cb9d474ba367b1bb6a225cd98fc502f3c09570a7d6033099",
       "result_sha256": "097ac1ecb34926811dbc5f361ea2301e994bce8955af67bafa0903b0aa833c7c"
+    },
+    {
+      "path": "drivers/usb/gadget/legacy/cdc2.c",
+      "patch": "0031-y2-usb-power-budget.patch",
+      "base_sha256": "a5508550e99d3db8de44a9d42f2a3e5ee1b97a25faa0e5024852a44c80c3c763",
+      "result_sha256": "9de657169bd3897d8bdd30d63a1bdd04d661f780b7cd96fe210da76458af7376"
     }
   ]
 }

@@ -59,7 +59,8 @@ static int wrap_reg_write(void *context, unsigned reg, unsigned val)
 	unsigned state, old, mask = 0;
 	int ret;
 	/* Single MFD ownership; policy.h limits each child to its reviewed fields.
-	 * Charger writes may only inhibit. RTC is separate from charger/AP WDT.
+	 * Charger current/CV are fixed to 70mA/4.175V. RTC and both watchdogs
+	 * have separate owners.
 	 * INT_CON/STATUS are upstream mask/W1C registers. Backlight changes duty,
 	 * never sink current. No VPROC voltage writes or calibration writes. */
 	mask = y2_pmic_write_mask(reg);

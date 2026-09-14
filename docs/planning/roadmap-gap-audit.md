@@ -8,6 +8,46 @@ blueprint/planning material; no native platform readiness is inferred from that.
 
 ## M4 integrated power activation — 2026-09-13
 
+### Stock-equivalent charging scope — 2026-09-14
+
+The owner now explicitly authorizes reconstructing the actual stock Y2 charging
+contract and implementing one conservative production candidate at 70 mA /
+4.175 V. This supersedes treating missing BATON Celsius as an unconditional
+gate: an evidenced alternative stock hardware-protection architecture may
+support charging, while BAT0/temp and current/SOC remain unavailable. It does
+not authorize disabling or guessing protections, higher current/CV, live
+charging before the candidate, or assistant flashing.
+
+Entry `d1ac549` is clean. SSH confirms the installed M4-ADC-01, BAT0 present /
+Not charging, USB online and 3441137 uV at uptime 1243.93 s. The prior 120-sample
+sensor result is retained, not repeated. Reconsidered all coverage rows and
+phase gates against this owner correction, current production source, retained
+stock binary/BSP and all eight open GitHub issues (fresh read, no state change).
+M4 #30 stays ACTIVE/PARTIAL; M3/storage residuals, deferred USB reconnect and
+M5/M6/player gates are unchanged. No memory or storage-layout expansion.
+
+The next implementation gate is the real stock charger enable/watchdog,
+OVP/thermal/presence, USB input and bounded termination contract. Production
+code must check the preserved protections, fail closed on critical faults,
+coordinate USB/PM lifecycle and retain the shared PWRAP/MFD owner. Build one
+BOOTIMG-only charging candidate if that contract is established; physical
+charging success remains pending the owner's manual deployment and monitored
+voltage-trend/removal/reconnect test.
+
+Stock reconciliation now establishes the CID2023 PMIC thermal-shutdown init,
+explicit BATON hot-detector disable, charger enable/WDT sequence, 4050 mV
+stock top-off threshold, 3 h/24 h budgets and 4110 mV recharge. Production code
+implements fixed 70 mA/4.175 V, configured USB budget gating, checked hardware
+protections, fault inhibition, manual standard power_supply policy and PM ordering.
+The latest inherited battery OVP selector remains unchanged. No pack temperature,
+measured current or SOC is claimed. [Contract and limitations](../knowledge/m4-charging.md).
+
+Reconsidered the coverage matrix before creating the integrated candidate:
+charging under load, cable reconnect, physical protection behavior, CHRDET wake,
+off-state insertion and recovery below the conservative 3.4 V start floor remain
+unqualified. Source and fault-injection tests do not advance those hardware gates.
+M4 remains ACTIVE/PARTIAL; no new milestone, memory/storage scope or player work.
+
 ### ADC owner boot and charging gate — 2026-09-14
 
 Source `bbd0664dcbc1190a5e16e3b3f5889f2154cb04fd` builds one production
