@@ -13,6 +13,55 @@ uptime 2074.16 s: BAT0 present, Not charging, 3544189 uV, USB online, configured
 70000 uA / 4175000 uV. No new BATON/ISENSE acquisition or charging occurred.
 The configured current is not a measurement of current flowing into the pack.
 
+## Owner-deployed ADC result — same day
+
+The owner manually booted `6.18.0-y2linux-m4-adc-01`. SSH confirms the new
+channels, CPUs 0–3, 954044 KiB MemTotal, internal p5 root/p7 data and charging
+inhibited. The kernel release matches the built candidate; the flashed BOOTIMG
+was not read back byte for byte in this sensor test.
+
+**120 successful samples in four bounded sets, uptime 119.89–455.24 s:**
+
+| Measurement | Actual result | Interpretation |
+| --- | --- | --- |
+| BATON1 | Raw 10387–10388, nominal 570.575–570.630 mV | Not saturated; request/ready acquisition works. No resolved response to normal handling |
+| ISENSE minus bracketing BATSNS | Mean -0.081 mV, standard deviation 1.638 mV; samples -2.747 to +2.966 mV | Both voltage paths respond; this is neither calibrated charging current nor net battery current |
+| Battery voltage | Lowest sample 3472778 uV; final standard read 3475415 uV | Charging remained off throughout; configured limits stayed 70 mA / 4.175 V |
+
+The owner confirms holding the closed player normally for about 60 seconds,
+then returning it to the surface. Exact handling timestamps and actual pack
+temperature were not independently measured. The BATON means before, during
+the response window and afterward differ by less than one ADC count. This is
+**inconclusive for a thermistor**, not proof of a two-wire battery or an absent
+sensor. A fixed detection resistor and an insulated NTC that did not measurably
+warm remain possible. Applying the stock resistor model would yield roughly
+22.5 C, but that is a hypothesis and is not published as BAT0 temperature.
+
+Read-only register confirmation: CHR_CON0=0x0063 (charge engines off),
+CHR_CON7=0x0005 (BATON/TDET enabled), CHR_CON16=0x0005 (external test-mux
+selectors clear), ADC request register=0x00e8 and BATON1 ready/result=0xa893.
+Inherited trim selector register 0x0756=0x0042 is unchanged. AUXADC_CON19 and
+ADC19 were both zero: the BSP's pending decimation-delay workaround was not
+active in that snapshot. One initially miscalculated debugfs line index read
+0x079a instead of ADC19; it returned zero, was not interpreted, and was corrected
+with the documented 0x073a read. There were no direct PMIC writes.
+
+The complete host capture and original stock extracts are retained under
+`evidence-private/20260914-m4-adc-physical/` with a SHA256 manifest. The public
+[result and samples](../hardware-evidence/2026-09-14-m4-adc/result.json) preserve
+the measured limits. The boot log retains the already tracked synthetic ext4
+inode warnings during initramfs unmount, followed by clean journal recovery
+and normal p5/p7 mounts. This test does not qualify suspend, playback or storage
+stress and does not declare M4 complete.
+
+**Charging remains blocked at pack thermometry.** The next useful evidence is
+BATON-to-pack sensor wiring/NTC identification, or a repeatable response after
+equilibration at two independently measured normal room temperatures. A brief
+closed-case handling test did not establish the actual pack temperature change.
+The existing ADC kernel can record the next response test without another
+diagnostic image. Do not keep sampling an uncharged battery indefinitely, change
+routing selectors by guesswork, or enable charging to warm the pack for a test.
+
 ## Why this needs an owner kernel deployment
 
 The live M4-01 driver exposes only channels 3 and 7. Its built-in PWRAP write
@@ -23,7 +72,7 @@ read-only, and this kernel has no kexec/livepatch route. Rebinding the ADC
 child does not replace its parent's compiled guard. A competing raw WACS
 client or live kernel patch would defeat the intended ownership/protection.
 
-Y2LINUX-M4-ADC-01 is a production sensor extension, still inhibited. It changes
+Y2LINUX-M4-ADC-01 is the now owner-deployed production sensor extension, still inhibited. It changes
 the same ADC driver and admits only two additional request bits (mask 0xe8).
 Current, CV, charger enable, watchdog and protection permissions stay unchanged.
 No NTC constants are installed as board calibration. It is not a charging
@@ -119,8 +168,13 @@ ssh -T -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=yes \
 
 ## Gates remaining even if BATON responds
 
-There is no validated temperature window yet. Extract the actual stock Y2
-temperature policy and reconcile its assumptions against the sensor/pack;
+There is no validated temperature window yet. The actual stock Y2
+`do_batt_temp_state_machine` at 0xc03a0608 rejects the sentinel 255, stops at
+50 C and resumes below 47 C. That compiled function has no cold cutoff, and
+the public temperature provider returns a literal 25 C. This establishes
+compiled upper-limit logic, not a physically validated charging window.
+`BAT_BatteryFullAction` at 0xc03a2328 selects recharge below 4110 mV in the
+stock 4.2 V policy. Neither threshold is installed as a Linux charge rule.
 Sprout's example thresholds are not automatically Y2 limits. Retain the
 conservative 70 mA / 4.175 V target unless contrary physical evidence requires
 stopping. Current sensing and percentage must not block a safely bounded

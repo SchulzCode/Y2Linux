@@ -1,0 +1,9 @@
+{
+  "command": "python3 tools/build/run.py --output out/y2linux-m4-adc-01-build -- sh -c 'cd /project && export PYTHONPATH=/project/tests Y2_ARTIFACT_TEST_ROOT=/build && python3 -B -m unittest test_power test_baseline.SharedPolicy.test_clock_decode_and_write_firewalls test_baseline_pwrap.Transport'",
+  "exit_code": 0,
+  "tests_run": 8,
+  "skipped": 0,
+  "result": "OK",
+  "duration_seconds": 0.605,
+  "earlier_attempt": "A wildcard baseline invocation incorrectly applied the legacy D08 memory fixture to this production DT and failed its expected D08 RAM guard. The explicit production-specific invocation above passes. No memory/DT validation was weakened. An earlier build-environment invocation was blocked by sandbox namespace setup and did not run tests."
+}

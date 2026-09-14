@@ -64,7 +64,7 @@ Storage06 BOOTIMG, SHA256
 
 ## Owner's exact manual deployment
 
-1. In `out/y2linux-m4-01`, verify `sha 256sum -c SHA256SUMS`.
+1. In `out/y2linux-m4-01`, verify `sha256sum -c SHA256SUMS`.
 2. Use the established SPFT/DA procedure, **Download Only**. Load
    `MT6582_BOOTIMG_only_scatter.txt` from that directory.
 3. Select **BOOTIMG → BOOTIMG.img only**. All other rows remain unchecked,

@@ -1,0 +1,31 @@
+{
+  "samples": 120,
+  "BATON_raw_min": 10387,
+  "BATON_raw_max": 10388,
+  "BATON_mV_min": 570.574951171875,
+  "BATON_mV_max": 570.6298828125,
+  "ISENSE_minus_bracketed_BATSNS_mV_mean": -0.08056640625,
+  "ISENSE_minus_bracketed_BATSNS_mV_stdev": 1.637838683468463,
+  "ISENSE_minus_bracketed_BATSNS_mV_min": -2.74658203125,
+  "ISENSE_minus_bracketed_BATSNS_mV_max": 2.96630859375,
+  "battery_uV_min": 3472778,
+  "status_set": [
+    "Not charging"
+  ],
+  "owner_observation": "Owner confirms about 60 seconds normal handling; exact start/end and actual pack temperature not instrumented.",
+  "source_commit": "bbd0664dcbc1190a5e16e3b3f5889f2154cb04fd",
+  "kernel_release": "6.18.0-y2linux-m4-adc-01",
+  "owner_manual_deployment": true,
+  "flashed_BOOTIMG_readback_performed": false,
+  "cpus_online": "0-3",
+  "MemTotal_KiB": 954044,
+  "root": "/dev/mmcblk0p5",
+  "data": "/dev/mmcblk0p7",
+  "configured_charge_current_uA": 70000,
+  "configured_charge_voltage_uV": 4175000,
+  "charging_enabled": false,
+  "thermistor_validated": false,
+  "current_measurement_validated": false,
+  "safety_result": "Charging remains inhibited. Normal closed-case handling did not establish actual pack-temperature change or sensor response. No current/CV/protection/RTC/calibration changes, suspend, reboot, poweroff or assistant flash.",
+  "samples_sha256": "eb4996c91b9a64c37aac9b7f5f8024e13c6cb9b34d7e033865e9533187f7bb6c"
+}

@@ -4,7 +4,9 @@ Reusable general-purpose Linux platform for the physical Innioasis Y2, using
 Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 **not started** until the platform milestones and whole-system qualification finish.
 
-**Start here:** [2026-09-13 production handoff](docs/planning/session-handoff-2026-09-13.md).
+**Start here:** [Current battery measurements and charging gate](docs/knowledge/m4-battery-acquisition.md).
+[Current ADC kernel package and hashes](docs/build/y2linux-m4-adc-01-deployment.md).
+[Production architecture handoff](docs/planning/session-handoff-2026-09-13.md).
 [Working Storage06, owner SSH and exact artifact hashes](docs/build/y2linux-production-v1-r6-deployment.md).
 
 | Milestone | Current status |
@@ -16,8 +18,10 @@ Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 | M4 | Active: integrated power platform on Storage06; physical qualification pending. [Architecture and limits](docs/knowledge/m4-power-platform.md) |
 | M5 | Not started; Wi-Fi/Bluetooth later |
 
-Current running kernel: `6.18.0-y2linux-m4-01`, confirmed over SSH. BAT0 and
-die telemetry work; charging remains inhibited while the physical battery
+Current running kernel: `6.18.0-y2linux-m4-adc-01`, confirmed over SSH after the
+owner's manual deployment. BATON1/ISENSE raw acquisition now works; a 120-sample
+handling test did not establish pack thermometry. [Charging gate and measurements](docs/knowledge/m4-battery-acquisition.md).
+BAT0 and die telemetry are available; charging remains inhibited while the physical battery
 thermistor/current path is investigated. See the
 [charging completion entry](docs/planning/roadmap-gap-audit.md#charging-completion-entry--2026-09-14).
 The retained Storage06 correction
@@ -45,10 +49,11 @@ carry 16-bit samples: native 24/32-bit and higher rates are not implemented.
 - [AUDIO-02 deployment and hashes](docs/build/y2linux-m3-audio-02-deployment.md)
 - [M0 research/recovery](docs/planning/M0-evidence-and-recovery.md) and [evidence index](docs/knowledge/evidence-index.md)
 
-Current work: [Production Storage v1](docs/architecture/production-storage-v1.md).
-The integrated storage/SSH fix is deployed. No further build or flash is required
-for this correction; wider qualification and later phase gates remain open.
-The assistant used read-only device evidence. PRELOADER, LK, tables,
+Current work: M4 charging, blocked at physical pack thermometry. The installed
+ADC kernel supports further bounded measurements without another diagnostic
+flash. [Production Storage v1](docs/architecture/production-storage-v1.md) and
+owner SSH remain deployed; wider qualification and later phase gates stay open.
+The assistant used standard ADC acquisitions with charging inhibited. PRELOADER, LK, tables,
 NVRAM/calibration and all unrelated partitions remain untouched.
 
 Reviewed hardware logs, small manifests and findings belong in Git. Private raw

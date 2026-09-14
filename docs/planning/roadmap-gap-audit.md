@@ -8,6 +8,32 @@ blueprint/planning material; no native platform readiness is inferred from that.
 
 ## M4 integrated power activation — 2026-09-13
 
+### ADC owner boot and charging gate — 2026-09-14
+
+Source `bbd0664dcbc1190a5e16e3b3f5889f2154cb04fd` builds one production
+Y2LINUX-M4-ADC-01 update with unchanged charging inhibition. The owner manually
+booted it before the packaging handoff. Authenticated SSH confirms the release,
+all four CPUs, internal p5/p7 and the added IIO channels. A clean kernel build,
+eight targeted production checks and DT/config/BOOTIMG/package validation pass;
+root/data are reused. [Artifact receipt](../build/evidence/y2linux-m4-adc-01/README.md).
+
+Reconsidered the coverage matrix and phase gates against this new physical
+checkpoint and today's existing issue audit. 120 bounded samples plus the
+owner's normal-handling observation establish raw BATON1/ISENSE acquisition,
+but no resolved BATON temperature response. Both pack-temperature conversion
+and sense-resistor/current calibration remain unvalidated. Charging stays
+blocked at pack thermometry; no production charging policy or final charging
+candidate is claimed. [Measurements and exact next gate](../knowledge/m4-battery-acquisition.md#owner-deployed-adc-result--same-day).
+
+M4 #30 remains ACTIVE/PARTIAL, matching the existing open GitHub epic (read
+again after the samples); no milestone/epic state transition is required.
+No closure, new phase, radio/player scope,
+storage-layout or memory expansion follows. Display/ASoC/PM implementations
+are unchanged; broader physical qualification and existing ext4 boot warnings
+remain tracked. The next sensor experiment can use the installed ADC kernel;
+no further diagnostic image is required to collect readings. The agent did not
+flash, enable charging, change current/CV/protections, or suspend/reboot/poweroff.
+
 ### Charging completion entry — 2026-09-14
 
 Owner explicitly requests one conservative production charging completion pass,
@@ -1399,7 +1425,7 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Removable SD | **CONFIRMED** | DEV-02 SD128 on11240000.mmc at13MHz/one bit; ext4 Y2ROOT boots Buildroot, reads files, accepts verified userspace updates and sync.512MiB filesystem retained; throughput/hotplug/card-removal/power-fail qualification later. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Internal eMMC | **PARTIAL; internal boot CONFIRMED** | Storage06 authenticated reads confirm 15203328 logical sectors, exact p5/p7 geometry, stock MBR/EBR hashes and complete BOOTIMG hash. Offset 23552 restores normal reads; internal ext4 root/data mount rw and Buildroot starts without an SD block device. Owner SSH now works. Deliberate bounded-write/repeat/stress qualification remains. Two synthetic ext4 buddy-cache inode warnings remain; both filesystem checks report clean. | #33 storage; #28/#32. |
 | Development rootfs and filesystem/data layout | **CONFIRMED** | Physical Buildroot2025.02.17/glibc/BusyBox/Dropbear on writable removable Y2ROOT, key authentication and complete command logs. Runtime mount and matching-module index fixes applied. Owner restart validates persistent runtime/module fixes; persistent ALSA tools/config/WAVs now installed from canonical Buildroot output; SD full build-id remains DEV-01 with additive file manifest. Production layout separate. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
-| PMIC/battery/charger telemetry | **PARTIAL** | M4-01 physically boots with serialized MFD ownership, BAT0 voltage/presence/status/health and configured70mA/4.175V, plus USB presence. Charging is inhibited; BATON/ISENSE wiring, actual current, full/SOC and safe input/protection policy remain unproved. | #23; #30 charging completion. |
+| PMIC/battery/charger telemetry | **PARTIAL** | M4-ADC-01 physically boots with serialized MFD ownership, BAT0/USB reporting and configured 70 mA / 4.175 V. 120 BATON/ISENSE acquisitions succeed, but no resolved BATON response to normal handling establishes pack thermometry. Charging remains inhibited; sensor wiring/conversion, current calibration, full/SOC and input/protection policy remain unproved. | #23; #30 charging completion. |
 | Thermal sensors/protection | **PARTIAL** | M4-01 CPU/PMIC die zones produce readings using own calibration. Absolute accuracy and physical protection behavior remain unqualified; neither is battery temperature. BATON hot detection and PMIC hardware power-down enable read clear. | #30; basic reporting dependency for #28. |
 | cpufreq/voltage/OPP and cpuidle | **UNKNOWN** | Minimal config does not establish frequency/voltage transitions or idle states. Shared clocks/rails precede optimization. | #30 with #28. |
 | Runtime PM/suspend/resume/wake | **UNKNOWN** | No native suspend/wake, rail retention, storage resume or screen-off-audio proof. | #30; integrates #28/#29/#31 incrementally. |
