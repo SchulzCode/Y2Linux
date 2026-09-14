@@ -1,0 +1,18 @@
+PASS reused exact production userspace binaries; Y2ROOT/Y2DATA untouched
+Traceback (most recent call last):
+  File "/project/tools/production/boot_update.py", line 189, in <module>
+    if __name__ == '__main__':main()
+                              ^^^^^^
+  File "/project/tools/production/boot_update.py", line 182, in main
+    stage_userspace(*a.stage_userspace)
+  File "/project/tools/production/boot_update.py", line 65, in stage_userspace
+    path.write_bytes(raw)
+  File "/usr/lib/python3.12/pathlib.py", line 1036, in write_bytes
+    with self.open(mode='wb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: '/build/buildroot/target/display.ko'
+PASS reused exact production userspace binaries; Y2ROOT/Y2DATA untouched
+PASS reused exact production userspace binaries; Y2ROOT/Y2DATA untouched

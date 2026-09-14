@@ -4,6 +4,13 @@
 `444e7eda99dc1f7d90d0d591ebda4f3219efe0c9`; the five local charging/source/evidence
 commits are retained. **M4 #30 remains ACTIVE/PARTIAL. M5 is not started.**
 
+The integrated candidate is now built from `83d475e`; 72 production/M4 host
+tests pass and the BOOTIMG-only package is validated. Hardware bytes stayed
+identical through host packaging corrections. The owner has been given the
+[manual offline-charge deployment sequence](../build/y2linux-m4-power-02-deployment.md).
+No new physical pass is recorded yet. The historical entry commit/remote above
+describe session entry, not the current candidate source.
+
 ## Current hardware evidence takes precedence
 
 The owner confirms that the production M4 charging kernel has been installed,

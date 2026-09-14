@@ -1,0 +1,78 @@
+# M4-POWER-02 integrated physical qualification
+
+Source `83d475ef71a3dd84f6e3cc483a7637b13520e4f7` builds one integrated
+production hardware candidate. [Exact build receipt and hashes](evidence/y2linux-m4-power-02/README.md).
+**M4 remains ACTIVE/PARTIAL. No new hardware pass is implied by compilation.**
+The owner switched the previous kernel off after the failed 70-mA baseline.
+
+## Deploy only BOOTIMG
+
+Package: `/home/luca/Dokumente/Code/Y2Linux/out/y2linux-m4-power-02/`.
+Use its `MT6582_BOOTIMG_only_scatter.txt` in the established SP Flash Tool.
+Select Download Only, BOOTIMG only, and the package's `BOOTIMG.img`.
+Keep PRELOADER, LK/UBOOT, all partition tables, recovery, root/data and NVRAM
+unchecked. Never select Format or Firmware Upgrade. The user's authorization
+covers this integrated M4 pass; no bootloader modification is needed.
+
+After a successful flash, disconnect USB and leave the Y2 off. Connect a normal
+wall charger without pressing Power. Record the actual screen text and whether
+the screen blanks automatically. Expected: a charging activity display for
+eight seconds, then darkness; a brief Power press shows status again. A fresh
+two-second Power hold **and release** requests normal boot only once voltage has
+been at least 3.4 V for three samples. Do not hold for the hardware emergency
+reset interval. Charging may continue offline indefinitely through normal
+termination/hold/recharge, without automatically starting Buildroot.
+
+At low battery, remain in offline charging. No SSH/ECM is expected there.
+Minute-spaced kernel records preserve voltage, source, programmed limit,
+watchdog service, PMIC temperature, raw BATON/ISENSE and charge state for later
+retrieval after deliberate normal boot. No development process controls charging.
+
+The prior kernel is preserved at `fallback/BOOTIMG-previous.img`. It restores
+M4-CHARGE-01 and its known limitations, including inhibition below 3.4 V.
+It must not be represented as an empty-battery recovery path.
+
+## One coherent physical session
+
+The agent uses `tools/development/qualify-m4-power.sh` for explicit normal-API
+inventory, root/data sentinels, bounded OPP testing, audio, suspend and power
+phases. Both host shell and the actual production ARM BusyBox syntax check pass.
+It is a qualification helper, never a charger/watchdog or production PM owner.
+
+1. Demonstrate wall-source offline entry, timed blanking and brief status input.
+   Then perform deliberate normal Power-on with the source still connected.
+   Retrieve boot metadata and the retained offline charge history. Establish
+   sustained gain before heavy load or repeated power-transition tests.
+2. Test PC and power-bank source classification/charging, including off-state
+   insertion without normal userspace. Check the PC offline ACM-only descriptor
+   and absence of ECM/SSH. Wall/bank charging must not require enumeration.
+3. In normal userspace retain boot ID, RTC, root/data sentinels, complete power,
+   thermal, clock, regulator and device inventory. Use normal interfaces only.
+   Check fresh thermal acquisition against actual response before any load test.
+4. Qualify each 598/747.5/1040-MHz OPP repeatedly at the retained 1.15 V, bounded
+   load and cooling constraints; verify WFI usage. Do not call fixed-voltage
+   frequency scaling voltage DVFS.
+5. Verify charger-active suspend inhibition while screen-off charging continues.
+   After charging is safely inhibited or disconnected, test s2idle fallback,
+   then SPM deep suspend with Power and RTC wake. Require an unchanged boot ID,
+   actual `cpu_resume` counter advancement and no PCM debug fault. Record real
+   duration and voltage behavior; no calibrated standby current is available.
+6. After resume test display/backlight, Power, volume, navigation/wheel, optional
+   external SD, root/data sentinels, ALSA/CS43131 and the proven 44.1-kHz playback.
+   No mounted-filesystem fsck, raw storage changes or emergency reset cycles.
+   Wider M3 48-kHz/channel/repeat tests and #27 remain separate unless blocking.
+7. Set RTC through its standard API using the recorded host UTC time, preserving
+   any unrelated alarm and all RTC spare/boot words. Check reboot persistence,
+   suspend alarm, deep wake, and hardware-off persistence where supported.
+8. Qualify ordinary reboot and actual BBPU hardware poweroff with the cable
+   removed, subsequent ordinary Power boot, then poweroff while connected
+   returning to offline charging. Offline unplug must turn off; reinsertion
+   must return offline. A black screen alone is not proof of power removal.
+9. Retain the final-current termination and recharge evidence, including the
+   unattended-by-userspace offline path. Low-voltage source entry must show
+   actual recovery; crossing 3.4 V must never automatically boot the full OS.
+
+Every physical result goes into the [current M4 acceptance matrix](../knowledge/m4-end-user-power.md).
+Unrun, failed or unobservable cases remain open. Neither simulated charger
+completion nor a host suspend-sequence test closes a hardware gate. M5 is not
+started during this session.

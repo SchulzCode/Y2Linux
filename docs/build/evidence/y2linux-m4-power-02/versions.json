@@ -1,0 +1,10 @@
+{
+  "release_version": "0.1.0-m4.power.2",
+  "layout_version": 1,
+  "kernel_version": "6.18.0-y2linux-m4-power-02",
+  "rootfs_version": "2025.02.17-storage.4",
+  "data_schema_version": 1,
+  "y2player_version": null,
+  "build_git_commit": "83d475ef71a3dd84f6e3cc483a7637b13520e4f7",
+  "rootfs_build_git_commit": "37e4a3f3062d6b10b9d788199adad6a5cbb2f823"
+}

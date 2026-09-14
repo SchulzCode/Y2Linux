@@ -1,5 +1,16 @@
 # Y2Linux roadmap and gap audit
 
+2026-09-14 candidate boundary review: M4-POWER-02 from `83d475e` passes 72
+production/M4 checks, ARM rescue ABI and package identity/rejection checks.
+BOOTIMG is 5378048 bytes, SHA256
+`1852dfc995953f86ef5c47349515e8d6f06478daa6c1a89efe0f223501c226c9`.
+The [manual qualification sequence](../build/y2linux-m4-power-02-deployment.md)
+and verified prior charging-kernel fallback are prepared. Reconsidered every
+M4 exit row against the latest failed 70-mA baseline, source reconstruction and
+new host results: all new charging/offline/deep-suspend/RTC/poweroff physical
+gates remain open. Root/data layout, calibration and stock loaders remain
+unchanged. No M4 closure or M5 activation follows from this candidate.
+
 2026-09-14 implementation audit addendum: actual FM Y2 CPU-domain shutdown,
 restart-vector ownership and upstream 32-bit ext4 inode initialization are now
 reconciled in [the active M4 contract](../knowledge/m4-end-user-power.md#cpu-domain-and-suspend-integration-audit-before-implementation).

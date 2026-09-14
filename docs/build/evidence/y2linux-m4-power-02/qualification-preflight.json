@@ -1,0 +1,46 @@
+{
+  "source_commit": "83d475ef71a3dd84f6e3cc483a7637b13520e4f7",
+  "bootimg": {
+    "file": "BOOTIMG.img",
+    "size_bytes": 5378048,
+    "sha256": "1852dfc995953f86ef5c47349515e8d6f06478daa6c1a89efe0f223501c226c9"
+  },
+  "fallback": {
+    "file": "fallback/BOOTIMG-previous.img",
+    "sha256": "1c144874577e5cc103ee88aea346ece1e2a20d0b521054560acb7b84d0c4c706",
+    "size_bytes": 5361664,
+    "manifest_sha256": "3f6dd7f642059408cb74804d754e56e0dfcc1d8025c7ab5b5f6bc5b7b3ac325b",
+    "kernel_version": "6.18.0-y2linux-m4-charge-01",
+    "expected_behavior": "restore the supplied previous BOOTIMG; root/data remain untouched"
+  },
+  "production_tests": {
+    "passed": 72,
+    "failed": 0,
+    "skipped": 0
+  },
+  "arm_offline_ui_abi": "PASS qemu-arm Cortex-A7; returns expected metadata-unavailable status 2",
+  "package_rejections": [
+    {
+      "mutation": "root reference",
+      "rejected": true,
+      "reason": "unchanged root/data image references"
+    },
+    {
+      "mutation": "root provenance",
+      "rejected": true,
+      "reason": "independent root provenance"
+    },
+    {
+      "mutation": "fallback identity",
+      "rejected": true,
+      "reason": "observed fallback identity"
+    },
+    {
+      "mutation": "BOOTIMG address",
+      "rejected": true,
+      "reason": "BOOTIMG coordinates"
+    }
+  ],
+  "physical_qualification": "pending owner manual BOOTIMG-only flash",
+  "m4_closed": false
+}

@@ -5,6 +5,9 @@ Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 **not started** until the platform milestones and whole-system qualification finish.
 
 **Start here:** [Current M4 end-user power scope and hardware gates](docs/knowledge/m4-end-user-power.md).
+
+M4-POWER-02 is built and passes 72 host production/M4 checks; manual physical
+qualification is pending. [Candidate, hashes and deployment](docs/build/y2linux-m4-power-02-deployment.md).
 [Installed charging-kernel package and hashes](docs/build/y2linux-m4-charge-01-deployment.md).
 [Production architecture handoff](docs/planning/session-handoff-2026-09-13.md).
 [Working Storage06, owner SSH and exact artifact hashes](docs/build/y2linux-production-v1-r6-deployment.md).
