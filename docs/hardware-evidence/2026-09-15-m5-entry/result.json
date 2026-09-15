@@ -1,0 +1,135 @@
+{
+  "date": "2026-09-15",
+  "entry_git_head": "bbbbbf20e96860089b015c19501b7d39638c5419",
+  "preserved_baseline_commit": "ef285f1",
+  "inventory_saved_at_utc": "2026-09-15T16:29:46.323277+00:00",
+  "method": "Strict authenticated SSH using the exact fingerprint retained after the September 14 owner reinstall; standard read-only interfaces and bounded block reads",
+  "ssh": {
+    "retained_fingerprint_match": true,
+    "independently_owner_confirmed_fingerprint": false,
+    "default_known_hosts_changed": false,
+    "host_key_or_fingerprint_published": false
+  },
+  "kernel_release": "6.18.0-y2linux-m4-power-02",
+  "bootimg_readback": {
+    "source": "/dev/mmcblk0 after MMC host/type/geometry and release checks",
+    "logical_start_bytes": 30932992,
+    "length_bytes": 5378048,
+    "sha256": "1852dfc995953f86ef5c47349515e8d6f06478daa6c1a89efe0f223501c226c9",
+    "matches_retained_package": true,
+    "partition_tail_read": false
+  },
+  "storage": {
+    "controller": "11230000.mmc",
+    "type": "MMC",
+    "logical_sectors": 15203328,
+    "root": {
+      "node": "mmcblk0p5",
+      "start_sectors": 166912,
+      "length_sectors": 1679360,
+      "mount": "/",
+      "type": "ext4",
+      "writable": true
+    },
+    "data": {
+      "node": "mmcblk0p7",
+      "start_sectors": 2104320,
+      "length_sectors": 1638400,
+      "mount": "/data",
+      "type": "ext4",
+      "writable": true
+    },
+    "sd_block_device_observed": false,
+    "filesystem_integrity_requalified": false
+  },
+  "power": {
+    "inspection_uptime_seconds": 1363.1,
+    "charge_status": "Not charging",
+    "active": false,
+    "latched_fault": "0x8",
+    "fault_name": "Y2_FAULT_VOLTAGE",
+    "first_fault_uptime_seconds": 747.328296,
+    "first_fault_battery_uv": 4200073,
+    "software_high_limit_uv": 4200000,
+    "source": "SDP",
+    "configured_charge_limit_ua": 450000,
+    "allocated_input_ua": 500000,
+    "watchdog_pets_at_fault_and_inspection": 646,
+    "fresh_voltage_uv": 4066699,
+    "charge_full": false,
+    "charge_timeout": false,
+    "earlier_ovp_0x10_resolved": false,
+    "policy_or_fault_changed_by_audit": false
+  },
+  "suspend": {
+    "modes": "s2idle [deep]",
+    "spm_state": "SPM_CPU_SHUTDOWN_INFRA_RETAINED",
+    "broken": false,
+    "entries": 0,
+    "resumes": 0,
+    "aborts": 0,
+    "qualified": false
+  },
+  "rtc": {
+    "date_reported": "2082-07-31",
+    "changed": false,
+    "qualified": false
+  },
+  "thermal": {
+    "cpu_mc": 14700,
+    "pmic_mc": 46883,
+    "qualified": false
+  },
+  "cpu": {
+    "online": "0-3",
+    "frequency_khz": 598000,
+    "transitions_tested": false
+  },
+  "usb": {
+    "runtime_control": "on",
+    "runtime_status": "active",
+    "startup_sha256": "3647799ffb982afee5301739654a0d918b41f332b6b942605639de824fab5578",
+    "new_reconnect_test": false
+  },
+  "audio": {
+    "card": "Y2Audio",
+    "new_playback_test": false
+  },
+  "radios": {
+    "net_interfaces": [
+      "lo",
+      "usb0"
+    ],
+    "hci_present": false,
+    "enabled_or_probed": false,
+    "silicon_hvr_fvr": null,
+    "wifi_address_validity": null,
+    "bluetooth_address_validity": null
+  },
+  "calibration_inventory": {
+    "NVRAM": {
+      "logical_start_bytes": 4194304,
+      "bytes_read": 5242880,
+      "nonempty": true,
+      "decoded": false
+    },
+    "PROTECT_F": {
+      "logical_start_bytes": 9437184,
+      "bytes_read": 10485760,
+      "ext_filesystem": true,
+      "md_record_count": 2
+    },
+    "PROTECT_S": {
+      "logical_start_bytes": 19922944,
+      "bytes_read": 10485760,
+      "ext_filesystem": true,
+      "md_record_count": 1
+    },
+    "live_android_nvram_directory_present": false,
+    "protected_partition_writes": false,
+    "live_mount_or_journal_replay": false,
+    "raw_bytes_and_identifying_hashes": "Retained privately only; not published",
+    "production_record_mapping_validated": false
+  },
+  "result": "M4 remains ACTIVE/PARTIAL with a current charging failure. M5 entry audit completed; integrated implementation/deployment blocked. No M5 hardware qualification or new images."
+}

@@ -14,6 +14,16 @@ session entry, not the current candidate source.
 
 ## Current hardware evidence takes precedence
 
+**2026-09-15, fresh M5 entry inspection:** [complete POWER-02 BOOTIMG readback
+and current failure](../hardware-evidence/2026-09-15-m5-entry/README.md)
+confirm the installed image and working internal root/data/SSH. After the earlier
+short reconnect/wall test, PC charging reached 4.200073 V at uptime 747.328296 s
+and latched voltage fault `0x8`; it remains stopped at the 1363.10-s inspection.
+This is the source's 4.2-V software guard, distinct from the earlier OVP `0x10`.
+No fault clear or limit change was performed. SPM entries/resumes are zero on
+this boot; RTC reports 2082 and thermal accuracy remains unresolved. These are
+substantial M4 gates. The requested M5 platform cannot assume M4 completion.
+
 **2026-09-15, M4-POWER-02:** [new physical evidence](../hardware-evidence/2026-09-15-usb-reconnect/README.md)
 shows PC charging active without a fault on the inspected boots. The USB
 reconnect blocker is reproduced as an interrupt-storm shutdown (-75).
@@ -90,9 +100,9 @@ Every row below is required to close M4. A compiled implementation is not a pass
 
 | Area | Entry evidence | Remaining physical acceptance |
 | --- | --- | --- |
-| Charging | Earlier 70-mA gain baseline failed; POWER-02 enables 450 mA then latches OVP after about one second | Resolve OVP trigger; sustained positive voltage trend; useful evidenced current; PC, wall charger and power bank; removal and source changes |
-| Detection | POWER-02 reports BC1.1 SDP and configured-PC 500-mA allocation on this boot | Wall/bank classification independent of gadget enumeration, conservative unknown policy, consistent USB descriptors |
-| Charger lifecycle | POWER-02 inhibits on latched OVP; first-fault detector registers are not retained | Identify OVP cause; final-current termination/recharge, watchdog/fault correctness, precharge/low-battery recovery without Android |
+| Charging | Earlier 70-mA gain failure and POWER-02 OVP remain; latest PC session reaches 4.200073 V then latches voltage fault 0x8. Short DCP interval has no fault | Resolve current voltage-fault/charge-lifecycle behavior and earlier OVP; qualify useful sustained/full charging across PC, wall charger and power bank |
+| Detection | POWER-02 recognizes SDP with 500-mA allocation and briefly DCP independently of enumeration | Sustained wall/bank and source-transition qualification, conservative unknown policy, consistent USB descriptors |
+| Charger lifecycle | Latest voltage fault keeps charging off after battery reading falls; 646 watchdog services before stop. No Full or timeout. Earlier OVP detector snapshot missing | Resolve regulation/termination/recharge and OVP cause without weakening protections; low-battery recovery without Android |
 | Offline charging | Owner reports POWER-02 animation without recovery; earlier wall-session telemetry was lost across stock reinstall | All eleven offline-charge acceptance cases, including screen timeout/status/intentional boot, poweroff while plugged in, unplug/reinsert, completion and recovery |
 | Battery monitoring | BAT0 status/presence/voltage/current and CV setpoints; raw BATON/ISENSE | Truthful telemetry during every power transition; current and pack temperature only if calibrated |
 | Thermal/frequency | Own-efuse conversions implemented, but new CPU readings are implausible; 598/747.5/1040 MHz at 1.15 V | Calibrated physical temperature response, repeated OPP transitions, bounded load and thermal/cooling behavior |

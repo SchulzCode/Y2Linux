@@ -1,5 +1,13 @@
 # Wi-Fi, Bluetooth and firmware evidence
 
+> **2026-09-15:** [fresh M5 entry audit](m5-connectivity-entry.md) supersedes the
+> deferred research wording below. Own retained BTIF/DMA/IRQ and CONSYS_MT6582
+> metadata, exact stock firmware hashes/header order and private read-only
+> NVRAM/PROTECT copies are now recorded. Actual controller stepping, calibration
+> record mapping and radio addresses remain unresolved. Current POWER-02 charging
+> fails; M4 acceptance and the integrated M5 deployment remain blocked. No native
+> Wi-Fi/HCI or connectivity qualification is claimed.
+
 > 2026-09-10: [additional research](reverse-engineering-audit.md) supplies native
 > cold-start/A2DP records with complete modem calibration followed by MD1 off.
 > It also records failed EDR remedies and a Basic Rate workaround. Validate our

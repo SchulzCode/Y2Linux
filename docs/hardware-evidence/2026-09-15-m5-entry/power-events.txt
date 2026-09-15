@@ -1,0 +1,4 @@
+[  719.328249] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4195239uV input=500000uA watchdog_pets=622 source=1 limit=450000uA pmic=49807mC baton_raw=10386 isense_raw=19553 cv=0xae hold=0 full=0
+[  747.328296] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x8 battery=4200073uV input=500000uA watchdog_pets=646 source=1 limit=450000uA pmic=49807mC baton_raw=10386 isense_raw=19545 cv=0x8e hold=0 full=0
+[  807.808680] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x8 battery=4110424uV input=500000uA watchdog_pets=646 source=1 limit=450000uA pmic=48637mC baton_raw=10387 isense_raw=18706 cv=0x8e hold=0 full=0
+[ 1347.652830] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x8 battery=4069116uV input=500000uA watchdog_pets=646 source=1 limit=450000uA pmic=46298mC baton_raw=10387 isense_raw=18518 cv=0x8e hold=0 full=0

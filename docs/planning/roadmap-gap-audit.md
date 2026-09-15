@@ -1,5 +1,50 @@
 # Y2Linux roadmap and gap audit
 
+## M5 fresh-session entry audit — 2026-09-15
+
+**Entry audited; integrated M5 implementation/deployment BLOCKED.** The owner
+authorizes a complete production Wi-Fi/Bluetooth audio platform on the current
+internal-root architecture, with manual deployment only. That supersedes issue
+#31's deferred planning wording. The requested qualified M4 foundation is not
+established: charging/offline/deep-suspend/RTC/thermal gates remain substantial.
+
+Entry HEAD `bbbbbf20e96860089b015c19501b7d39638c5419` equalled origin/main,
+with prior POWER-02 USB/evidence changes, now preserved in `ef285f1`. Read
+current history/handoff, all eight open issue summaries, relevant epic bodies,
+current DT/config/BOOTIMG, Buildroot, power/audio/data architecture, stock
+ramdisk/firmware, own stock radio metadata and pinned donor/RE evidence.
+Reassessed every coverage row below; settled M1/M2/M3 work remains intact.
+
+[Fresh authenticated hardware evidence](../hardware-evidence/2026-09-15-m5-entry/README.md)
+confirms complete image-length POWER-02 BOOTIMG identity, internal p5/p7 ext4
+read-write, owner-key SSH, four CPUs and Y2Audio. Strict host-key access matched
+the exact previously retained September 14 fingerprint; default trust/account
+settings were unchanged. MUSB is `on/active` with the preserved workaround.
+
+**New material failure:** at uptime 747.328296 s charging reached 4.200073 V
+and latched `Y2_FAULT_VOLTAGE=0x8`; it remains off at the fresh inspection.
+Source explains the 4.2-V software guard, not the analog cause or the separate
+September 14 OVP `0x10`. SPM has entries=0/resumes=0 on this boot; RTC reports
+2082 and thermal accuracy is unresolved. #30 stays ACTIVE/PARTIAL. The earlier
+short no-fault interval and pending-deployment wording do not override this.
+The power platform is preserved, not rebuilt under M5.
+
+[The connectivity audit](../knowledge/m5-connectivity-entry.md) records own
+CONSYS_MT6582/BTIF/DMA/IRQ evidence, older-board FM exclusion, five-file stock
+firmware hashes/header order, AHB Wi-Fi and STP/HCI architecture, userspace,
+Y2DATA ownership and hard qualification gates. Own NVRAM/PROTECT_F/PROTECT_S
+were read with bounded normal block reads after identity/geometry checks.
+Raw data and identifying hashes stay private. Record decoding, actual silicon
+HVR/FVR and valid addresses remain unproved; external calibration cannot fill
+that gap. No native radio operation is inferred from source metadata.
+
+Next: resolve #30's charging/qualification failure within M4; reconcile own
+controller/calibration for #31 before an integrated candidate. No M5 kernel,
+DT or rootfs change, build, flash, radio enable, protected write or power-state
+change. No new issue shell or closure. Existing RAM exclusions, storage layout,
+M3 residuals, recovery and later gates remain. Host firmware extraction reused
+established ROM provenance; no unchanged full source/ROM/recovery audit.
+
 ## Charging-test USB blocker — 2026-09-15
 
 At `bbbbbf2` with the existing September 14 evidence edits preserved, the owner
@@ -1540,27 +1585,19 @@ remain unchanged. An epic does not turn unknown hardware into confirmed support.
 
 ## Coverage matrix
 
-Reassessed again at the M4 activation above, including every unchanged row,
-using fresh Storage06 read-only SSH and the complete local implementation.
-Retained comparisons include Storage06 owner-key SSH acceptance against the
-[authenticated internal-boot result](../hardware-evidence/2026-09-13-storage06-owner/ssh-result.json),
-the 21:10:43 corrected physical readback, actual retained stock FM kernel and
-[Storage05 owner result](../hardware-evidence/2026-09-13-storage05-owner/README.md),
-[Storage04 ACM](../hardware-evidence/2026-09-13-storage04-live/README.md),
-[DEV-02 core](../knowledge/y2linux-dev02-live-qualification.md) and
-[AUDIO-02 playback](../knowledge/m3-audio-01-live-result.md); every row reviewed,
-including unchanged later-phase gaps. Storage06 internal boot and owner-key SSH
-supersede Storage05's failure and the initial Storage06 authorization mismatch.
-Status measures our hardware; registration alone never establishes consumer operation.
+Reassessed at the September 15 M5 entry audit using fresh authenticated
+POWER-02 evidence, current sources and retained milestone results. All rows
+were reviewed; unchanged rows retain their stated limits. Driver/interface
+availability and external research do not imply consumer qualification.
 
 | Area | Status | Actual evidence / remaining gap | Durable tracking |
 | --- | --- | --- | --- |
 | Physical Linux + initramfs + native PID1 | **CONFIRMED** | Storage06 switches from rescue to internal Buildroot at 8.728982s and authenticates owner-key SSH with no SD block device. Earlier DEV-02 removable-root and M1 results remain historical. | Closed M1 / #20–21; core stays achieved; #33 internal storage. |
-| Boot/kernel stability and maintenance | **PARTIAL** | DEV-02 live work, bounded RAM and initial SSH operate. First USB reconnect fails before enumeration; post-detach execution/uptime unavailable. Repeated cold/warm boots, long-run stress and maintenance remain later qualification. | Y2H-300 #28; maintenance/release policy #32. |
+| Boot/kernel stability and maintenance | **PARTIAL** | POWER-02 full image-length readback matches; internal boot and SSH work. Two retained reconnects pass with runtime PM held on. Charging failures and broader boot/cycle/stress/maintenance qualification remain. | #28/#30/#32. |
 | RAM and reserved/DMA ownership | **PARTIAL** | 992 MiB bank with exclusions; physical MemTotal954660KiB and HighTotal228352KiB. Completed 256MiB short allocator test passes, substantial HIGHMEM consumed. Full-suite run capped600s; every-page/long-run/inherited-DMA containment is not proved. Narrow expansion #22 satisfied. | #22; #28. Owner-authorized development qualification. |
 | SMP | **CONFIRMED** | Four CPUs online on DEV-02 with advancing cross-CPU/timer IPIs and no interrupt errors; full coherency/PM stress is a later qualification scope. | #28; optional for first wired player. |
 | Clocks, resets, pinctrl/GPIO/IRQ and I2C | **PARTIAL** | DEV-02 CCF/PWRAP/MFD/regulator/core consumers operate; wheel has52IRQ/52I2C completions and both directions, no timeout. Exact full clock rates/unused orphan gates and future consumer reset/rail ownership remain #29/#30 prerequisites. | #23/#24/#28; [research](../knowledge/reverse-engineering-audit.md). |
-| Watchdog and controlled reset | **PARTIAL** | Reviewed early AP_RGU stop and displayed stopped state; no production driver takeover, pet/timeout strategy, deliberate reset or restart qualification. | #28 with #30. Preserve current experiment behavior. |
+| Watchdog and controlled reset | **PARTIAL** | POWER-02 charger watchdog serviced 646 times before voltage-fault inhibition. AP_RGU reset, RTC poweroff and offline routing are implemented; controlled reboot/off/wake acceptance remains open. | #28/#30; no new transition test. |
 | On-device diagnostic channel | **CONFIRMED** | DEV-02 native fbcon and owner-confirmed visible color/checkerboard pattern; supported unblank succeeds. Cursor handling fixes a later shared-buffer checksum mismatch without a kernel change. | #20–21; [result](../knowledge/m1-runtime-hardware-result.md). |
 | Developer host logs / USB | **PARTIAL; reconnect workaround tested** | Storage06/POWER-02 ACM and owner-key SSH over ECM work. POWER-02's first reconnect reproduces an IRQ-storm shutdown (-75). Keeping MUSB runtime PM active passes two physical reconnects on one boot, including wall-source charging; the scoped startup change is installed. Kernel correction with automatic runtime PM, fresh-boot validation of the startup edit, broader reconnect and power qualification remain open. [Result](../hardware-evidence/2026-09-15-usb-reconnect/README.md). | #27, #23, #28; #30 charging blocker; #33 owner SSH. |
 | Physical UART / early crash capture | **UNKNOWN** | UART0 candidate exists; no pad/level/wire capture. Ramoops retention/reader is unproved. USB cannot log hangs before its initialization. | Existing #16; broader crash/debug policy #32. |
@@ -1570,21 +1607,21 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Other buttons/power-key/touch/wake | **PARTIAL** | All five navigation keys, both volume keys and brief Power have balanced DEV-02 evdev events. No redesign; wake/suspend remains M4 and no touchscreen claim. | #24/#28 and #30; [donor audit](../knowledge/donor-audit.md). |
 | Removable SD | **CONFIRMED** | DEV-02 SD128 on11240000.mmc at13MHz/one bit; ext4 Y2ROOT boots Buildroot, reads files, accepts verified userspace updates and sync.512MiB filesystem retained; throughput/hotplug/card-removal/power-fail qualification later. | #26/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Internal eMMC | **PARTIAL; internal boot CONFIRMED** | Storage06 authenticated reads confirm 15203328 logical sectors, exact p5/p7 geometry, stock MBR/EBR hashes and complete BOOTIMG hash. Offset 23552 restores normal reads; internal ext4 root/data mount rw and Buildroot starts without an SD block device. Owner SSH now works. Deliberate bounded-write/repeat/stress qualification remains. Two synthetic ext4 buddy-cache inode warnings remain; both filesystem checks report clean. | #33 storage; #28/#32. |
-| Development rootfs and filesystem/data layout | **CONFIRMED** | Physical Buildroot2025.02.17/glibc/BusyBox/Dropbear on writable removable Y2ROOT, key authentication and complete command logs. Runtime mount and matching-module index fixes applied. Owner restart validates persistent runtime/module fixes; persistent ALSA tools/config/WAVs now installed from canonical Buildroot output; SD full build-id remains DEV-01 with additive file manifest. Production layout separate. | Added #28/#32; owner selects Buildroot/glibc, removable ext4 Y2ROOT and rescue fallback. |
-| PMIC/battery/charger telemetry | **PARTIAL** | M4-ADC-01 physically boots with serialized MFD ownership, BAT0/USB reporting and configured 70 mA / 4.175 V. 120 BATON/ISENSE acquisitions succeed, but no resolved BATON response to normal handling establishes pack thermometry. Charging remains inhibited; sensor wiring/conversion, current calibration, full/SOC and input/protection policy remain unproved. | #23; #30 charging completion. |
-| Thermal sensors/protection | **PARTIAL** | M4-01 CPU/PMIC die zones produce readings using own calibration. Absolute accuracy and physical protection behavior remain unqualified; neither is battery temperature. BATON hot detection and PMIC hardware power-down enable read clear. | #30; basic reporting dependency for #28. |
-| cpufreq/voltage/OPP and cpuidle | **UNKNOWN** | Minimal config does not establish frequency/voltage transitions or idle states. Shared clocks/rails precede optimization. | #30 with #28. |
-| Runtime PM/suspend/resume/wake | **UNKNOWN** | No native suspend/wake, rail retention, storage resume or screen-off-audio proof. | #30; integrates #28/#29/#31 incrementally. |
+| Development rootfs and filesystem/data layout | **CONFIRMED within observed scope** | Current production Buildroot uses internal ext4 Y2ROOT/Y2DATA and BOOTIMG-owned modules. Earlier removable-root results remain history. Live USB startup differs additively from the retained root image. Preserving updates/data remain the production contract. | #28/#32/#33. |
+| PMIC/battery/charger telemetry | **PARTIAL; current charging failure** | POWER-02 stops at 4.200073 V with latched voltage fault 0x8. Earlier OVP 0x10 is separate/unresolved. Brief DCP result is not sustained/full/offline acceptance. Pack thermometry, measured current and SOC remain unavailable. | #30; fresh M5-entry evidence above. |
+| Thermal sensors/protection | **PARTIAL** | Fresh CPU about 14.7 C and PMIC about 46.9 C preserve the accuracy discrepancy. Own-efuse conversions and software trips exist; physical cooling/protection and absolute accuracy remain unqualified. Neither reading is pack temperature. | #30/#28. |
+| cpufreq/voltage/OPP and cpuidle | **PARTIAL** | POWER-02 source offers 598/747.5/1040 MHz at the retained 1.15-V constraint, with WFI fallback. Fresh current frequency is 598 MHz. Repeated OPP/load/cooling and consumption acceptance remain; no voltage-scaling claim. | #30/#28. |
+| Runtime PM/suspend/resume/wake | **PARTIAL** | POWER-02 exposes s2idle/deep and integrated SPM/CPU context. Fresh entries=0/resumes=0; same-session deep restore, intended wake and consumption remain unqualified. USB on/active workaround has unmeasured idle-power cost. | #30; integrates #28/#29/#31. |
 | MT6582 AFE/ASoC/I2S/DMA | **CONFIRMED narrow S16/44.1k path** | AUDIO-02 DL1/CON3/IRQ/ALSA pointer progress and clean headphones; startup fix137b3f2 is deployed/tested. 48kHz, L/R and repeated stop/start remain;24/32-bit/higher rates unimplemented. [Result](../knowledge/m3-audio-01-live-result.md). | #29; shared resources #23/#28/#30. |
 | CS43131 / headphone / amplifier / speaker routing | **PARTIAL; basic headphones CONFIRMED** | Own CS43131 revisionA1 operates through upstream ASoC, VGP2=1.8V, ordered20/18/15 enables; clean44.1kHz audible headphones. SpeakerGPIO8 stays low; amplifier identity/output, jack reporting and precision clock validation separate/unqualified. | #29 with #23/#30. |
-| Wi-Fi | **PARTIAL** | Stock firmware/module names present, not loaded-blob or native-driver evidence. Transport/revision/calibration/regulatory/power contract missing. | Added #31. |
-| Bluetooth | **PARTIAL** | Local WMT/STP metadata; external BTIF/HCI, cold calibration and A2DP records reduce research uncertainty. Own firmware/calibration and cold/link/rate qualification remain open; EDR fallback is a workaround. | #31; audio #29 and power #30. |
-| Firmware and per-device calibration | **PARTIAL** | Names and some hashed artifacts exist; exact selected radio blobs/order/compatibility, loading permissions, redistribution provenance and unique-data retention unresolved. | #31 and #32; private raw data stays private. |
-| FM where physically supported | **PARTIAL** | Donor STP/FM/AFE source exists; owner confirms this older Y2 lacks usable reception hardware. No reception implementation/qualification target for this board; other revisions remain untested. | Conditional #31/M16 reference only; [donor audit](../knowledge/donor-audit.md). |
+| Wi-Fi | **PARTIAL evidence; no native interface** | Own stock CONSYS_MT6582/mt-wifi metadata and matched firmware inventory; donor uses AHB HIF, not SDIO. Native driver, exact stepping/calibration/regulatory handling and end-user WPA2/network/reconnect/coexistence tests remain. | #31 entry audit; #30 prerequisite. |
+| Bluetooth | **PARTIAL evidence; no native HCI** | Own stock BTIF/DMA/wake IRQs corroborate transport. External full cold calibration/A2DP and matching generic modem firmware reduce uncertainty. Own HVR/FVR, calibration/addresses, BlueZ/audio/reconnect/EDR/BLE/coexistence remain unqualified. | #31; #29 audio, #30 PM. |
+| Firmware and per-device calibration | **PARTIAL** | Five own-stock files have exact hashes/headers and patch order; redistribution grant and controller compatibility not established. Own protected copies obtained read-only and retained privately; record mapping and valid addresses unproved. | #31/#32; no blobs/private data distributed. |
+| FM where physically supported | **CONFIRMED scope exclusion on this board** | Owner identifies older board without usable reception; earlier own FM driver reported 0x6627 but reception failed. FM reception is unsupported here and not an M5 gate. Later populated revisions need independent evidence. | Conditional #31/M16 reference only. |
 | Recovery and safe acquisition | **PARTIAL** | Owner-proven SPFT/FM history plus documented BOOTIMG-only Android restoration. Exact current image/per-device backups, consistency and independent retention remain incomplete. [Recovery](../knowledge/recovery.md), [actual trial](../knowledge/first-experiment-result.md). | Open M0; #32 owns continuing production/recovery coverage. |
 | Updates / rollback / production security | **PARTIAL** | V1 release manifest, component versions, allowlists, per-owner SSH provisioning and staged rescue update/installer contract implemented. No OTA/signature implementation; no automatic torn-BOOTIMG rollback, unchanged LK supplies no new verified boot. | #33 architecture/package; #32 future lifecycle/security. |
-| Production rootfs / services / non-root app contract | **PARTIAL** | Storage06 mounts internal Y2ROOT/Y2DATA read-write and starts Buildroot without an SD block device. After the owner-key data initialization, authenticated SSH works and live authorization exactly matches the existing owner public key. BOOTIMG/Y2ROOT remain unchanged. Wider write qualification and non-root app lifecycle remain later. | #33 storage; #32 lifecycle; native app deferred. |
-| Time/RTC, entropy, identity and diagnostic privacy | **PARTIAL** | DEV-02 has no RTC class, starts at1970, and initializes CRNG at153.97s before ED25519 host-key generation. Key persists on SD. Entropy sysctl/boot_id files absent; no insecure entropy-credit workaround. Time/privacy policy remains #31/#32. | #31/#32; added explicit cross-cutting coverage. |
+| Production rootfs / services / non-root app contract | **PARTIAL** | Fresh POWER-02 inventory confirms internal p5/p7 read-write, owner-key SSH and no SD block device. Wider write/recovery/non-root lifecycle remain. Radio services are absent; future mutable configuration/bonds belong in Y2DATA. | #33/#32; radio services #31. |
+| Time/RTC, entropy, identity and diagnostic privacy | **PARTIAL** | POWER-02 RTC exists but reports 2082; persistence/alarm/deep wake unqualified. SSH uses the retained reinstall pin and persistent owner authorization. Radio addresses/calibration remain private and unvalidated. No invented time/entropy/identity defaults. | #30/#31/#32. |
 
 ## Gaps found and minimum additions
 
@@ -1604,8 +1641,8 @@ new GitHub milestone shells are needed today:
 | M2 Core Hardware | [Y2H-300 #28](https://github.com/SchulzCode/Y2Linux/issues/28) | **Core/Buildroot qualified for M3 progression**; #22–26 satisfied. USB reconnect #27 stays open under #28 for later whole-platform qualification. |
 | M3 Native Audio | [Y2A-300 #29](https://github.com/SchulzCode/Y2Linux/issues/29) | **ACTIVE / NEAR COMPLETION**; clean native S16/44.1kHz headphones. Notification fix deployed/tested. Remaining48kHz, L/R, stop/restart/repeat; #27 deferred. |
 | Production Storage / Installation v1 | #33 storage activation (2026-09-13); #32 lifecycle | **ACTIVE**; internal root/data boot, stock block reads and owner-key SSH confirmed after manual flash. Wider write/stress/recovery qualification remains. |
-| M4 Power Viability | [Y2P-400 #30](https://github.com/SchulzCode/Y2Linux/issues/30) | **ACTIVE; entry PARTIAL** by explicit owner authorization after Storage06 live audit. One integrated battery/charger/thermal/DVFS/idle/suspend/wake/RTC/reboot/poweroff candidate, preserving current internal boot. Physical qualification pending. |
-| M5 Connectivity | [Y2N-500 #31](https://github.com/SchulzCode/Y2Linux/issues/31) | **NOT STARTED**; later Wi-Fi/Bluetooth, own firmware/calibration, BlueZ and reconnect/coexistence. |
+| M4 Power Viability | [Y2P-400 #30](https://github.com/SchulzCode/Y2Linux/issues/30) | **ACTIVE/PARTIAL; charging failure**. POWER-02 deployed and hash verified; voltage fault 0x8 now stops charging. Earlier OVP and full/offline/deep-suspend/RTC/thermal acceptance remain open. Preserve implementation; no M4 rewrite under M5. |
+| M5 Connectivity | [Y2N-500 #31](https://github.com/SchulzCode/Y2Linux/issues/31) | **ENTRY AUDITED / BLOCKED**; owner authorizes the end-user platform, but current M4 charging/qualification and own silicon/calibration mapping prevent integrated implementation/deployment. No native radios yet. |
 | M6 Production Y2Linux | [Y2R-600 #32](https://github.com/SchulzCode/Y2Linux/issues/32) | **PLANNED**; storage/recovery/PM gates and later M18–20 platform release obligations. |
 | M7–M20 application/product phases | Existing blueprint, no native backlog added | **NOT STARTED**; Y2PlayerNative waits for reusable Linux platform and final qualification. |
 

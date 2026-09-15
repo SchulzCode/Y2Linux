@@ -1,0 +1,16 @@
+Selected non-identifying fields from own retained Y2Player stock snapshot
+Source: out/hardware-snapshots/2026-07-29_004316
+Not a new stock boot or Linux 6.18 radio qualification.
+
+[mediatek.wlan.chip]: [CONSYS_MT6582]
+[mediatek.wlan.module.postfix]: [_consys_mt6582]
+[ro.hardware]: [mt6582]
+[ro.mediatek.chip_ver]: [S01]
+[ro.mediatek.platform]: [MT6582]
+
+ 82:          0         -  mtk btif irq
+103:       2455         -  mtk btif tx dma irq
+104:       2674         -  mtk btif rx dma irq
+217:        175         -  BTIF_WAKEUP_IRQ
+
+Stock platform device names: mt-wifi, mtk_btif

@@ -4,6 +4,13 @@ Source `83d475ef71a3dd84f6e3cc483a7637b13520e4f7` builds one integrated
 production hardware candidate. [Exact build receipt and hashes](evidence/y2linux-m4-power-02/README.md).
 **M4 remains ACTIVE/PARTIAL. No new hardware pass is implied by compilation.**
 
+**Latest result, 2026-09-15:** [fresh authenticated inspection and full image-length
+readback](../hardware-evidence/2026-09-15-m5-entry/README.md) match this BOOTIMG.
+PC charging subsequently stops at 4.200073 V with latched voltage fault `0x8`
+and remains off after the reading falls. This is separate from the earlier OVP
+failure. SPM entries/resumes remain zero on the inspected boot; M4 is not ready
+to close or serve as a qualified M5 entry. No new deployment is requested.
+
 **Subsequent owner result, 2026-09-14:** wall charging showed animation without
 recovery, requiring stock recharge. After Linux reinstall, [read-only SSH evidence](../hardware-evidence/2026-09-14-m4-power02-charge-fault/README.md)
 confirms POWER-02 starts 450-mA charging from a recognized PC source, then stops

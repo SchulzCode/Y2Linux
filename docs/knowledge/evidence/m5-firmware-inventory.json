@@ -1,0 +1,98 @@
+{
+  "schema": "org.schulzcode.y2linux.connectivity-firmware-inventory/v1",
+  "date": "2026-09-15",
+  "status": "inventory only; no release selection or deployment",
+  "source_package": "Y2Player/y2_v3.2.0_FM-20260813/system.img",
+  "source_provenance": "Existing owner-proven package receipt reused; targeted firmware extraction on host",
+  "source_receipt": "docs/knowledge/handoff-artifacts.tsv",
+  "files": [
+    {
+      "filename": "WIFI_RAM_CODE_MT6582",
+      "bytes": 160368,
+      "sha256": "4def37522e2bfd2d4b78e01bf9f567a37e3f67ab3d7b6646ffb317f5b2b49b82",
+      "source": "Y2Player/y2_v3.2.0_FM-20260813/system.img:/etc/firmware/WIFI_RAM_CODE_MT6582",
+      "redistribution": "not established; not selected for distribution",
+      "function": "MT6582 Wi-Fi fullmac firmware",
+      "proposed_install_path": "/lib/firmware/mediatek/mt6582/WIFI_RAM_CODE_MT6582",
+      "selected_for_release": false,
+      "redistribution_permission_established": false,
+      "device_specific_calibration": false,
+      "compatibility": "Stock MT6582 package and donor selection evidence; own controller HVR/FVR still required"
+    },
+    {
+      "filename": "WMT_SOC.cfg",
+      "bytes": 80,
+      "sha256": "cea0a94b8a88e9c24e6835446ebc3106d7b100c3709ea98e8bb7368689c8a2b5",
+      "source": "Y2Player/y2_v3.2.0_FM-20260813/system.img:/etc/firmware/WMT_SOC.cfg",
+      "redistribution": "not established; not selected for distribution",
+      "text": "coex_wmt_ant_mode=1\n\nwmt_gps_lna_pin=0\nwmt_gps_lna_enable=0\n\nco_clock_flag=1\n\n\n\n",
+      "function": "Board clock and coexistence policy",
+      "proposed_install_path": "/lib/firmware/mediatek/mt6582/WMT_SOC.cfg",
+      "selected_for_release": false,
+      "redistribution_permission_established": false,
+      "device_specific_calibration": false,
+      "compatibility": "Stock MT6582 package and donor selection evidence; own controller HVR/FVR still required"
+    },
+    {
+      "filename": "mt6572_82_patch_e1_0_hdr.bin",
+      "bytes": 33120,
+      "sha256": "fa3be4a92540296de512d64f56272746be10bdfa2db571c8ceada2d40cd616f0",
+      "source": "Y2Player/y2_v3.2.0_FM-20260813/system.img:/etc/firmware/mt6572_82_patch_e1_0_hdr.bin",
+      "redistribution": "not established; not selected for distribution",
+      "header": {
+        "build_time": "20140127172150a",
+        "platform": "ALPS",
+        "hw_version_hex": "8a00",
+        "fw_version_hex": "8a00",
+        "patch_info_hex": "22000600"
+      },
+      "function": "Second WMT partial patch",
+      "proposed_install_path": "/lib/firmware/mediatek/mt6582/mt6572_82_patch_e1_0_hdr.bin",
+      "selected_for_release": false,
+      "redistribution_permission_established": false,
+      "device_specific_calibration": false,
+      "compatibility": "Stock MT6582 package and donor selection evidence; own controller HVR/FVR still required",
+      "patch_count": 2,
+      "download_sequence": 2,
+      "download_address_wire_hex": "00000600"
+    },
+    {
+      "filename": "mt6572_82_patch_e1_1_hdr.bin",
+      "bytes": 17476,
+      "sha256": "96eb25489305bd472805db1da33bcc0acd37b5bb21cceda98d7e88ba1179ca37",
+      "source": "Y2Player/y2_v3.2.0_FM-20260813/system.img:/etc/firmware/mt6572_82_patch_e1_1_hdr.bin",
+      "redistribution": "not established; not selected for distribution",
+      "header": {
+        "build_time": "20140127172150a",
+        "platform": "ALPS",
+        "hw_version_hex": "8a00",
+        "fw_version_hex": "8a00",
+        "patch_info_hex": "21000ef0"
+      },
+      "function": "First WMT partial patch",
+      "proposed_install_path": "/lib/firmware/mediatek/mt6582/mt6572_82_patch_e1_1_hdr.bin",
+      "selected_for_release": false,
+      "redistribution_permission_established": false,
+      "device_specific_calibration": false,
+      "compatibility": "Stock MT6582 package and donor selection evidence; own controller HVR/FVR still required",
+      "patch_count": 2,
+      "download_sequence": 1,
+      "download_address_wire_hex": "00000ef0"
+    },
+    {
+      "filename": "modem_1_2g_n.img",
+      "bytes": 2424376,
+      "sha256": "5059775975cbf6ab74c43978ca8f65d9a274b83585f456134e39b09f6dc7a4f1",
+      "source": "Y2Player/y2_v3.2.0_FM-20260813/system.img:/etc/firmware/modem_1_2g_n.img",
+      "redistribution": "not established; not selected for distribution",
+      "function": "MD1 firmware used by historical cold RF calibration",
+      "proposed_install_path": "/lib/firmware/mediatek/mt6582/modem_1_2g_n.img",
+      "selected_for_release": false,
+      "redistribution_permission_established": false,
+      "device_specific_calibration": false,
+      "compatibility": "Stock MT6582 package and donor selection evidence; own controller HVR/FVR still required"
+    }
+  ],
+  "provisioning_policy": "Owner-supplied/extracted files only until redistribution permission and controller compatibility are established; no boot-time downloads",
+  "calibration_policy": "Own protected-partition copies and identifying hashes remain private; no external per-device fixture is selected"
+}
