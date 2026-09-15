@@ -1,5 +1,31 @@
 # Y2Linux roadmap and gap audit
 
+## M5 implementation authorized — 2026-09-15
+
+The owner reports that POWER-03 works and explicitly accepts M4, then requests
+M5 implementation. This is owner acceptance, not a new agent-run measurement
+series. It supersedes the pending-deployment/M4-only instructions below.
+POWER-03 (`16875c4`, BOOTIMG SHA256
+`66b6ecd5ef54da6f3ea07be2c9deda284d0a7636e9c6da4c5d72d84eca5fc010`)
+is the accepted power-platform baseline and M5 fallback.
+
+Use the completed entry audit at `67cbe8f` without repeating it, as explicitly
+directed by the owner. M5 #31 is ACTIVE / IMPLEMENTING; native radio behavior
+is not yet physically qualified. Implement factory-data decoding, one shared
+connectivity owner, AHB Wi-Fi, BTIF/STP/HCI and persistent standard userspace.
+Preserve M4, the RAM exclusions, protected partitions and Y2DATA. Build one
+integrated BOOTIMG/Y2ROOT candidate and stop for manual owner installation.
+Older-board FM, GPU, Y2PlayerNative and OTA implementation remain out of scope.
+
+Native implementation now includes the shared CONSYS/MD calibration owner,
+BTIF/AP_DMA/STP/HCI, cfg80211 AHB fullmac, read-only factory provider, verified
+owner firmware loading, standard Wi-Fi/BlueZ/BlueALSA userspace, persistent
+preferences and a preserving BOOTIMG+Y2ROOT package. See the
+[implementation and qualification contract](../knowledge/m5-connectivity-implementation.md).
+Source/host checks do not satisfy physical M5 gates; #31 stays open for the
+manual candidate deployment and coherent physical session. The accepted M4
+image remains the fallback; no new M4 physical measurements are claimed.
+
 ## Focused M4 completion — 2026-09-15
 
 The owner's latest direction supersedes M5 implementation scope: **finish M4,

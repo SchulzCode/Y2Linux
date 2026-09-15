@@ -23,7 +23,7 @@ from tools.production.layout import (digest, make_boot_scatter, require, TARGETS
 
 def installed_components(manifest):
     """Carry original root/data identities through successive BOOTIMG updates."""
-    if manifest.get('installation_profile') == 'boot-only':
+    if manifest.get('installation_profile') in ('boot-only','system-update'):
         components = manifest['installed_components']
     else:
         components = [p for p in manifest['payloads'] if p['target_partition'] != 'BOOTIMG']

@@ -112,7 +112,7 @@
       "path": "arch/arm/mach-mediatek/Kconfig",
       "patch": "0002-y2-Kconfig.patch",
       "base_sha256": "61790e35f9fbdb5dd524c658f041739b4cf52d8393962622d6cdb4a0f497506b",
-      "result_sha256": "b453e836c401f9b1eafe6acbd38d865721b8faaddaa320060dcdf616731d805b"
+      "result_sha256": "5c99ca5060ad51a98a2318b0ab57992307ec16163397e36a25b0319749998d1e"
     },
     {
       "path": "drivers/gpu/drm/mediatek/mtk_dsi.c",
@@ -215,6 +215,12 @@
       "patch": "0036-mt6582-efuse-word-access.patch",
       "base_sha256": "94160d968714ac1c288a812c1783c0aa2fb8a16b9350ddab21c4b0a0774b0628",
       "result_sha256": "40b2d05e23ed19439fcd6a4921f48d1b370a0f332196167d15c7a235c376f5a8"
+    },
+    {
+      "path": "drivers/watchdog/mtk_wdt.c",
+      "patch": "0037-mt6582-consys-reset.patch",
+      "base_sha256": "6e8230dff7db590f16bdc83918220da48be57c8a594cd3f0917f4c0e0018da9b",
+      "result_sha256": "b8b5094ad3c86f4082d34fd5e66fc0857fa93158cdbcf2c5eef8064ffc303947"
     }
   ]
 }

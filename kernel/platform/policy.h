@@ -68,6 +68,16 @@ static inline unsigned y2_pmic_write_mask(unsigned reg)
 		return 0x00e0;
 	case 0x356:
 		return 0x000f;
+	/* Stock connectivity clock/rail fields. No charger, VPROC, RTC spare or
+	 * calibration trim write is added for M5. Regulator selectors stay 3.3V. */
+	case 0x102: return 0x8840;
+	case 0x120: return 0x0030;
+	case 0x148: return 0x000a;
+	case 0x402: return 0x0801;
+	case 0x416: return 0x00ac;
+	case 0x418: return 0x5000;
+	case 0x41c: return 0x5000;
+	case 0x512: return 0x4002;
 	default:
 		return 0;
 	}
@@ -87,6 +97,7 @@ static inline int y2_pmic_value_allowed(unsigned reg, unsigned value)
 	if (reg == 0x02e && !(value & 0x80)) return 0;
 	if (reg == 0x03c && !(value & 0x20)) return 0;
 	if (reg == 0x8000 && value != 0x4300) return 0;
+	if (reg == 0x416 && (value & 0xc)) return 0;
 	return y2_pmic_write_mask(reg) != 0;
 }
 /* Command filter precedes any DMA setup. SD CMD6 only changes volatile bus

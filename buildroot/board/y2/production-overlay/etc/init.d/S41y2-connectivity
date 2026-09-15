@@ -1,0 +1,14 @@
+#!/bin/sh
+# Normal Buildroot only: initramfs offline charging never reaches this service.
+case "$1" in
+ start)
+    start-stop-daemon -S -b -m -p /run/y2/connectivity.pid -x /usr/libexec/y2/connectivity
+    ;;
+ stop)
+    y2-radio wifi off-runtime 2>/dev/null || :
+    y2-radio bluetooth off-runtime 2>/dev/null || :
+    start-stop-daemon -K -p /run/y2/connectivity.pid 2>/dev/null || :
+    ;;
+ restart) "$0" stop; "$0" start;;
+esac
+exit 0

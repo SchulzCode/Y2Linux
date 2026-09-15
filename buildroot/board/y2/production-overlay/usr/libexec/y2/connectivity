@@ -1,0 +1,88 @@
+#!/bin/sh
+# Services use native APIs; failure leaves normal boot and wired SSH available.
+set -eu
+umask 077
+exec >>/run/y2/connectivity.log 2>&1
+cleanup() {
+    for name in wifi-action wifi-dhcp wpa reconnect bluealsa calibration; do
+        start-stop-daemon -K -p "/run/y2/$name.pid" 2>/dev/null || :
+    done
+}
+trap cleanup EXIT
+trap 'exit' INT TERM
+if [ ! -f /run/y2/factory/ready ]; then
+    /usr/sbin/y2-factory || exit 1
+fi
+# Kernel open is exclusive. Readiness is published only after obtaining it.
+rm -f /run/y2/calibration-ready
+start-stop-daemon -S -b -m -p /run/y2/calibration.pid -x /usr/sbin/y2-calibration
+for n in $(seq 1 50); do
+    [ ! -f /run/y2/calibration-ready ] || break
+    sleep .1
+done
+[ -f /run/y2/calibration-ready ] || { cleanup; exit 1; }
+case "$(cat /sys/devices/platform/18070000.connectivity/status)" in
+ activated=1*) ;;
+ *) /usr/sbin/y2-radio-activate || { cleanup; exit 1; };;
+esac
+wpa_supplicant -B -u -g /run/wpa_supplicant/global -P /run/y2/wpa.pid
+start-stop-daemon -S -b -m -p /run/y2/bluealsa.pid -x /usr/bin/bluealsa -- -p a2dp-source --loglevel=warning
+start-stop-daemon -S -b -m -p /run/y2/reconnect.pid -x /usr/sbin/y2-bt-reconnect
+[ "$(cat /data/network/enabled)" != 1 ] || y2-radio wifi on-runtime
+if [ "$(cat /data/bluetooth/enabled)" = 1 ]; then
+    # Cold calibration has a kernel deadline; do not serialize Wi-Fi monitoring on HCI open.
+    y2-radio bluetooth on-runtime &
+fi
+attached=0
+health_tick=0
+alive() {
+    [ -r "/run/y2/$1.pid" ] || return 1
+    pid=$(cat "/run/y2/$1.pid")
+    case "$pid" in ''|*[!0-9]*) return 1;; esac
+    [ "$(readlink "/proc/$pid/exe" 2>/dev/null)" = "$(readlink -f "$2")" ] || return 1
+    kill -0 "$pid" 2>/dev/null
+}
+while :; do
+    # A crashed helper can be restarted without restarting the player or
+    # dropping bonds. Bound restart rate; kernel calibration generations
+    # reject a new daemon joining an incomplete exchange.
+    if [ "$health_tick" = 0 ]; then
+        if ! alive calibration /usr/sbin/y2-calibration; then
+            rm -f /run/y2/calibration.pid /run/y2/calibration-ready
+            start-stop-daemon -S -b -m -p /run/y2/calibration.pid -x /usr/sbin/y2-calibration || :
+        fi
+        if ! alive wpa /usr/sbin/wpa_supplicant; then
+            /usr/libexec/y2/wpa-event wlan0 DISCONNECTED
+            start-stop-daemon -K -p /run/y2/wifi-action.pid 2>/dev/null || :
+            rm -f /run/y2/wpa.pid
+            wpa_supplicant -B -u -g /run/wpa_supplicant/global -P /run/y2/wpa.pid || :
+            attached=0
+        fi
+        for pair in bluealsa:/usr/bin/bluealsa reconnect:/usr/sbin/y2-bt-reconnect; do
+            name=${pair%%:*}; binary=${pair#*:}
+            if ! alive "$name" "$binary"; then
+                rm -f "/run/y2/$name.pid"
+                if [ "$name" = bluealsa ]; then
+                    start-stop-daemon -S -b -m -p /run/y2/bluealsa.pid -x "$binary" -- -p a2dp-source --loglevel=warning || :
+                else
+                    start-stop-daemon -S -b -m -p /run/y2/reconnect.pid -x "$binary" || :
+                fi
+            fi
+        done
+    fi
+    health_tick=$(( (health_tick + 1) % 15 ))
+    if [ -d /sys/class/net/wlan0 ]; then
+        if [ "$attached" = 0 ]; then
+            if wpa_cli -g /run/wpa_supplicant/global interface_add wlan0 /data/network/wpa_supplicant.conf nl80211 /run/wpa_supplicant | tail -1 | grep -qx OK; then
+                wpa_cli -i wlan0 -a /usr/libexec/y2/wpa-event -B -P /run/y2/wifi-action.pid
+                attached=1
+            fi
+        fi
+    elif [ "$attached" = 1 ]; then
+        /usr/libexec/y2/wpa-event wlan0 DISCONNECTED
+        start-stop-daemon -K -p /run/y2/wifi-action.pid 2>/dev/null || :
+        wpa_cli -g /run/wpa_supplicant/global interface_remove wlan0 >/dev/null 2>&1 || :
+        attached=0
+    fi
+    sleep 2
+done

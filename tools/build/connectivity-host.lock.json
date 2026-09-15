@@ -1,0 +1,43 @@
+{
+  "purpose": "Host certificates and GNU find for signed cfg80211 regulatory database; no target firmware",
+  "apk_packages": [
+    {
+      "name": "openssl-dev-3.5.8-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/openssl-dev-3.5.8-r0.apk",
+      "sha256": "2f153a06be854681a2162879fca949021ba5db73450966804a6d2174aa9b0953"
+    },
+    {
+      "name": "libcrypto3-3.5.8-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libcrypto3-3.5.8-r0.apk",
+      "sha256": "1d111bc0ad6380fdda22e6513941dc2e7988d6b1621d535bed6b3fa5ef086fae"
+    },
+    {
+      "name": "libssl3-3.5.8-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libssl3-3.5.8-r0.apk",
+      "sha256": "e8d3ea5e9750cb1f4c4b459d172630925fe6bc13c113c590ac36c78013821e62"
+    },
+    {
+      "name": "findutils-4.10.0-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/findutils-4.10.0-r0.apk",
+      "sha256": "0689abcfdd53231f0db7cdb1cc973d4921869151a7817d3527e5ab518aa7c2db"
+    },
+    {
+      "name": "libintl-0.24.1-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/libintl-0.24.1-r0.apk",
+      "sha256": "1e9900a63a851e790b28d201d5c11872a5ff74322fd998c06ac952c6a2ed1ce4"
+    },
+    {
+      "name": "pkgconf-2.4.3-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/pkgconf-2.4.3-r0.apk",
+      "sha256": "32ed811fa76f5f380cda11aa5bdf2f93727760dc4c6d6de5f06dd4c66e3fe3ba"
+    }
+  ],
+  "replace_packages": {
+    "openssl-dev": "3.5.8-r0",
+    "libcrypto3": "3.5.8-r0",
+    "libssl3": "3.5.8-r0",
+    "findutils": "4.10.0-r0",
+    "libintl": "0.24.1-r0",
+    "pkgconf": "2.4.3-r0"
+  }
+}

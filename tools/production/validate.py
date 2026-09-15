@@ -57,7 +57,12 @@ def validate_manifest(out):
         spans.append((start,start+size,name))
     spans.sort()
     for a,b in zip(spans,spans[1:]):require(a[1]<=b[0],'partition overlap')
-    require({p['target_partition'] for p in m['payloads']}==set(TARGETS) and len(m['payloads'])==3,'exact payload allowlist')
+    system_update=m.get('installation_profile')=='system-update'
+    expected_payloads={'BOOTIMG','ANDROID'} if system_update else set(TARGETS)
+    require({p['target_partition'] for p in m['payloads']}==expected_payloads and len(m['payloads'])==len(expected_payloads),'exact payload allowlist')
+    if system_update:
+        from tools.production.system_update import validate_preservation
+        validate_preservation(out,m)
     for payload in m['payloads']:
         name=payload['target_partition'];t=TARGETS[name]
         require(payload['absolute_start_bytes']==t['start'] and payload['maximum_size_bytes']==t['size'] and payload['scatter_linear_start_bytes']==t['linear'],'payload coordinates')
@@ -91,7 +96,7 @@ def validate_manifest(out):
             name=row['partition_name'];r=baseline[name]
             for field,key in [('linear_start_addr','scatter_linear_bytes'),('physical_start_addr','scatter_physical_bytes'),('partition_size','scatter_size_bytes')]:require(int(row[field],16)==int(r[key],16),'stock scatter coordinates changed '+name)
             require(row['region']==r['scatter_region'],'scatter region changed')
-            if name in TARGETS:
+            if name in expected_payloads:
                 p=next(p for p in m['payloads'] if p['target_partition']==name)
                 require(row['file_name']==p['spft']['file'],'scatter image mapping')
                 require(row['type']==('NORMAL_ROM' if name=='BOOTIMG' else 'YAFFS_IMG'),'stock image type')
@@ -125,7 +130,7 @@ def validate_boot_update(out, base=None):
     require(m['runtime_kernel_write_allowlist']==['ANDROID','USRDATA'] and
             m['minimum_compatible_components']['kernel_contract']=='y2-platform-v1','production write/module contract')
     require(m['rootfs_build_git_commit']==previous.get('rootfs_build_git_commit',previous['build_git_commit']),'independent root provenance')
-    installed=(previous['installed_components'] if previous.get('installation_profile')=='boot-only' else
+    installed=(previous['installed_components'] if previous.get('installation_profile') in ('boot-only','system-update') else
                [p for p in previous['payloads'] if p['target_partition']!='BOOTIMG'])
     require(m['installed_components']==installed and {p['target_partition'] for p in installed}=={'ANDROID','USRDATA'},
             'unchanged root/data image references')
@@ -222,15 +227,37 @@ def validate_rootfs(out,build,m):
             raise ValueError('symlink loop')
         require(members['root/.ssh'].issym() and members['root/.ssh'].linkname=='/data/ssh/authorized_keys.d','persistent public authorization')
         require(members['etc/dropbear'].issym() and members['etc/dropbear'].linkname=='/data/ssh/host-keys','persistent generated host keys')
+        dbus_uid=dbus_gid=None
+        for row in read('etc/passwd').decode().splitlines():
+            fields=row.split(':')
+            if fields[0]=='dbus':dbus_uid,dbus_gid=map(int,fields[2:4])
         for name,x in members.items():
             require(not name.startswith(('root/.ssh/','etc/dropbear/')),'packaged SSH material')
             if x.isfile() and x.size<65536:require(b'PRIVATE KEY-----' not in read(name),'private key material')
-            require((x.uid,x.gid)==((33,33) if name=='var/www' else (0,0)),'rootfs ownership')
+            expected=(33,33) if name=='var/www' else (0,0)
+            if dbus_gid is not None and name=='usr/libexec/dbus-daemon-launch-helper':expected=(0,dbus_gid)
+            if dbus_uid is not None and name in ('run/dbus','var/run/dbus'):expected=(dbus_uid,dbus_gid)
+            require((x.uid,x.gid)==expected,'rootfs ownership '+name)
         require(read('etc/y2linux/layout-version')==b'1\n','root layout marker')
         require(read('etc/y2linux/platform-contract')==b'y2-platform-v1\n','root platform contract')
-        require(read('etc/y2linux/build-id')==b'Y2LINUX-STORAGE-04\n','root build identity')
+        connectivity=m.get('installation_profile')=='system-update'
+        require(read('etc/y2linux/build-id')==(b'Y2LINUX-M5-CONNECTIVITY-01\n' if connectivity else b'Y2LINUX-STORAGE-04\n'),'root build identity')
         require(json.loads(read('etc/y2linux/versions.json'))==json.loads((build/'versions.json').read_text()),'versions root/build')
         require(json.loads(read('etc/y2linux/versions.json'))['build_git_commit']==m['build_git_commit'],'manifest root commit')
+        if connectivity:
+            from tools.connectivity.provision import DEFAULTS, INVENTORY
+            files={x['filename']:(x['bytes'],x['sha256']) for x in json.loads(INVENTORY.read_text())['files']}
+            files.update(DEFAULTS)
+            for name,(size,sha) in files.items():
+                content=read('lib/firmware/mediatek/mt6582/'+name)
+                require(len(content)==size and hashlib.sha256(content).hexdigest()==sha,'reviewed owner firmware '+name)
+            for name in members:
+                require(not name.startswith(('data/network/','data/bluetooth/','data/connectivity/','var/lib/bluetooth/','var/lib/bluealsa/')),'no mutable radio state in Y2ROOT')
+            for name in ('usr/sbin/y2-factory','usr/sbin/y2-calibration','usr/sbin/y2-radio-activate',
+                         'usr/sbin/y2-bt-reconnect','usr/sbin/y2-a2dp-check','usr/sbin/wpa_supplicant',
+                         'usr/sbin/iw','usr/libexec/bluetooth/bluetoothd','usr/bin/bluealsa','usr/bin/dbus-daemon'):
+                content=read(name)
+                require(content[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',content,18)[0]==40,'connectivity ARM binary '+name)
         for name in ('bin/busybox','sbin/init','sbin/blkid','sbin/e2fsck','sbin/ip','usr/sbin/dropbear','usr/bin/aplay','usr/bin/amixer','usr/bin/evtest','usr/bin/strace'):
             raw=read(name);require(raw[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',raw,18)[0]==40,'ARM userspace '+name)
             require(struct.unpack_from('<I',raw,36)[0]&0x400,'hard-float '+name)
@@ -240,6 +267,9 @@ def validate_rootfs(out,build,m):
         require('display.ko' not in members and not any('.ko' in n and n.startswith('lib/modules/') for n in members),'kernel modules must be owned by BOOTIMG')
         for name in ('etc/y2linux/layout-version','etc/y2linux/versions.json','etc/y2linux/platform-contract','usr/sbin/y2-platform-start','usr/sbin/y2-status','etc/init.d/S02y2-data','usr/sbin/y2-media','usr/bin/aplay','etc/fstab'):
             require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img'))==read(name),'raw ext4/tar agreement '+name)
+    if m.get('installation_profile')=='system-update':
+        print('PASS new root contents; existing Y2DATA preserved without a data payload')
+        return
     require(run('debugfs','-R','cat /.y2data-schema',str(out/'Y2DATA.img'))==b'1\n','data schema')
     key=run('debugfs','-R','cat /ssh/authorized_keys.d/authorized_keys',str(out/'Y2DATA.img'))
     require(key.startswith(b'ssh-ed25519 ') and hashlib.sha256(key).hexdigest()==m['debug_access']['authorized_public_key_sha256'],'owner-specific data public key')

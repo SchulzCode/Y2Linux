@@ -9,16 +9,24 @@ PROJECT=Path(__file__).resolve().parents[2]
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--output',default='out/y2linux-m4-power-03-build')
+    p.add_argument('--output',default='out/y2linux-m5-connectivity-01-build')
     p.add_argument('--resume',choices=['kernel','buildroot','artifacts'])
     p.add_argument('--reuse-userspace',type=Path,help='verified production package whose root/data and rescue binaries are retained')
+    p.add_argument('--owner-firmware',type=Path,help='explicit local provision.py output; no downloads or calibration inputs')
     a=p.parse_args();out=(PROJECT/a.output).resolve()
     if not out.is_relative_to(PROJECT/'out') or (out.exists() and not a.resume):p.error('fresh directory inside out required')
     out.mkdir(parents=True,exist_ok=True)
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PROJECT,text=True).strip()
     if subprocess.check_output(['git','status','--porcelain'],cwd=PROJECT,text=True).strip():p.error('commit the reviewed source before building a release candidate')
     localversion=re.search(r'^CONFIG_LOCALVERSION="([^"]+)"$',(PROJECT/'kernel/config/production.config').read_text(),re.M).group(1)
-    versions={'release_version':'0.1.0-m4.power.3','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-storage.4','data_schema_version':1,'y2player_version':None,'build_git_commit':commit}
+    versions={'release_version':'0.1.0-m5.connectivity.1','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-connectivity.1','data_schema_version':1,'y2player_version':None,'build_git_commit':commit}
+    if not a.reuse_userspace:
+        if not a.owner_firmware:p.error('M5 requires explicit --owner-firmware local provisioning')
+        from tools.connectivity.provision import verify_provision
+        provisioned=verify_provision(a.owner_firmware.resolve())
+        (out/'owner-firmware.json').write_text(json.dumps({'schema':'org.schulzcode.y2linux.owner-firmware/v1',
+            'redistribution_permission_established':False,'files':{
+                n:{'size_bytes':v[0],'sha256':v[1]} for n,v in provisioned.items()}},indent=2)+'\n')
     if a.reuse_userspace:
         from tools.production.validate import validate_manifest
         base=a.reuse_userspace.resolve()
@@ -33,6 +41,8 @@ def main():
     if not a.reuse_userspace:source,lock=buildroot_source(PROJECT)
     else:lock=json.loads((PROJECT/'buildroot/inputs.lock.json').read_text())
     env=os.environ.copy();env.pop('Y2_PUBLIC_KEY_FILE',None)
+    if a.owner_firmware:env['Y2_OWNER_FIRMWARE']=str(a.owner_firmware.resolve())
+    else:env.pop('Y2_OWNER_FIRMWARE',None)
     env.update(Y2_ARTIFACT_DIR=str(out),BR2_DL_DIR=str(PROJECT/'.cache/buildroot-dl'),SOURCE_DATE_EPOCH=str(lock['source_date_epoch']),E2FSPROGS_FAKE_TIME=str(lock['source_date_epoch']),LC_ALL='C',TZ='UTC')
     if not shutil.which('bc'):
         env['PATH']=str(PROJECT/'.cache/host-tools')+os.pathsep+env['PATH']

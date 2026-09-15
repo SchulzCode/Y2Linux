@@ -5,15 +5,18 @@ Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 **not started** until the platform milestones and whole-system qualification finish.
 
 **Start here:** [September 15 session handoff](docs/planning/session-handoff-2026-09-15.md)
-and [focused M4 corrections](docs/knowledge/m4-end-user-power.md).
+and [M5 implementation and deployment contract](docs/knowledge/m5-connectivity-implementation.md).
 
-[POWER-03 is built and ready for owner BOOTIMG-only deployment](docs/build/y2linux-m4-power-03-deployment.md);
-74 production/M4 tests and 12 package rejection cases pass. Y2ROOT/Y2DATA are preserved.
-POWER-02 remains installed and its full image-length readback matches. Fresh SSH
-finds a latched charging fault; M4 acceptance remains open and there is no M5
-deployment candidate. [Current physical evidence](docs/hardware-evidence/2026-09-15-m5-entry/README.md).
-[POWER-02 package and fallback](docs/build/y2linux-m4-power-02-deployment.md).
-[Working Storage06, owner SSH and exact artifact hashes](docs/build/y2linux-production-v1-r6-deployment.md).
+The owner accepts M4 POWER-03 and authorizes M5 implementation. The current
+read-only SSH baseline reports `6.18.0-y2linux-m4-power-03`. This acceptance
+does not manufacture a new agent-run M4 measurement series. The completed
+M5 entry audit at `67cbe8f` is reused; its earlier blocking status is historical.
+
+Native CONSYS, AHB Wi-Fi, BTIF/STP/HCI, own-data factory/calibration handling
+and Buildroot connectivity services are implemented for an integrated candidate.
+M5 remains open for manual deployment and physical qualification. The
+[accepted POWER-03 package](docs/build/y2linux-m4-power-03-deployment.md)
+is the kernel fallback; existing Y2DATA is preserved.
 
 | Milestone | Current status |
 | --- | --- |
@@ -21,16 +24,14 @@ deployment candidate. [Current physical evidence](docs/hardware-evidence/2026-09
 | M2 | Core/Buildroot physically qualified for progression; #22–26 closed. USB reconnect #27 remains unresolved/deferred under #28 |
 | M3 | Active / near completion: clean native S16 stereo 44.1-kHz headphones; period-notification fix deployed and tested. 48 kHz, L/R and stop/restart/repeat remain |
 | Production Storage / Installation v1 | Active: internal root/data boot without SD and existing-owner-key SSH confirmed; wider write/stress qualification remains |
-| M4 | Active/partial: POWER-02 charging now stopped by voltage fault 0x8; earlier OVP and offline/deep-suspend/RTC/thermal acceptance remain open |
-| M5 | Entry audited; integrated implementation/deployment blocked by M4 acceptance and unresolved own controller/calibration mapping |
+| M4 | POWER-03 accepted by the owner; retained as the M5 power-platform baseline |
+| M5 | Implemented for integrated candidate build; native Wi-Fi/Bluetooth/A2DP and coexistence await physical qualification |
 
-Current kernel: `6.18.0-y2linux-m4-power-02`, authenticated over SSH and matched
-to its BOOTIMG hash. PC charging stopped at 4.200073 V with voltage fault 0x8;
-it remains inactive after the reading falls. Earlier OVP 0x10 is unresolved.
-SPM entries/resumes are zero on this boot, RTC reports 2082 and thermal accuracy
-is unqualified. [Current M4 evidence and limits](docs/knowledge/m4-end-user-power.md).
-The USB runtime-PM workaround passed two earlier reconnects and remains installed;
-fresh-boot, broader reconnect and power-consumption qualification remain open.
+Historical POWER-02 charging, RTC, thermal and suspend failures are retained in
+[the M4 evidence](docs/knowledge/m4-end-user-power.md). POWER-03 corrects those
+observed source failures and is now accepted by the owner. M5 preserves its
+production architecture and must repeat the relevant regression checks after
+connectivity deployment.
 The retained Storage06 correction
 restores the stock eMMC logical disk window. MBR/EBRs and the complete BOOTIMG
 hash match read-only Linux reads; internal ext4 Y2ROOT/Y2DATA and owner-key SSH
@@ -56,12 +57,12 @@ carry 16-bit samples: native 24/32-bit and higher rates are not implemented.
 - [AUDIO-02 deployment and hashes](docs/build/y2linux-m3-audio-02-deployment.md)
 - [M0 research/recovery](docs/planning/M0-evidence-and-recovery.md) and [evidence index](docs/knowledge/evidence-index.md)
 
-Current boundary: the owner requests **M4 completion; do not start M5**.
-POWER-03 corrects the observed charging, RTC, efuse-read and USB PM failures
-within the existing production architecture. Build and manual deployment precede
-one coherent physical qualification; M4 #30 stays open until that passes.
-[Production Storage v1](docs/architecture/production-storage-v1.md),
-owner SSH, stock loaders/tables and protected calibration remain intact.
+Current boundary: build one integrated M5 BOOTIMG + Y2ROOT candidate, then
+stop for the owner's manual installation. Preserve Y2DATA and protected factory
+partitions. After deployment, qualify native networking, Bluetooth audio,
+coexistence and power behavior in one coherent session. Do not start GPU/lima,
+Y2PlayerNative or an OTA updater. [Production Storage v1](docs/architecture/production-storage-v1.md)
+and the existing M4 power architecture remain the foundation.
 
 Reviewed hardware logs, small manifests and findings belong in Git. Private raw
 captures remain in ignored `evidence-private/`; immutable donorSource, `.cache/`

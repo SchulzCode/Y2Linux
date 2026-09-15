@@ -1,1 +1,1 @@
-# Board integration is implemented by the overlay and post-build hook.
+include $(sort $(wildcard $(BR2_EXTERNAL_Y2LINUX_PATH)/package/*/*.mk))

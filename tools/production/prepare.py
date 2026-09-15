@@ -28,6 +28,8 @@ def buildroot_source(project):
 def environment(project):
     if not (project/'.cache/environment/.y2-build-lock').exists():
         subprocess.run(['python3','tools/build/prepare.py'],cwd=project,check=True)
+    from tools.build.prepare import connectivity_environment
+    connectivity_environment(project)
     if not shutil.which('bc'):
         directory=project/'.cache/host-tools';directory.mkdir(exist_ok=True)
         root=project/'.cache/environment'

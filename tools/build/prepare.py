@@ -40,6 +40,44 @@ def installed(root):
     return sorted(result)
 
 
+def connectivity_environment(project, offline=False):
+    """Extend the retained build environment without mutating its M4 cache."""
+    base_lock=project/'tools/build/inputs.lock.json'
+    extra_lock=project/'tools/build/connectivity-host.lock.json'
+    extra=json.loads(extra_lock.read_text())
+    fingerprint=hashlib.sha256(base_lock.read_bytes()+extra_lock.read_bytes()).hexdigest()
+    root=project/'.cache'/('environment-m5-'+fingerprint[:12])
+    expected=dict(p.split('=',1) for p in json.loads(base_lock.read_text())['installed_packages'])
+    expected.update(extra['replace_packages'])
+    for item in extra['apk_packages']:
+        archive=project/'.cache/apks'/item['name']
+        if not archive.exists():
+            if offline: raise SystemExit('Missing locked host input: '+item['name'])
+            temporary=archive.with_suffix('.partial')
+            with urllib.request.urlopen(item['url'],timeout=60) as src,temporary.open('wb') as dst:
+                import shutil
+                shutil.copyfileobj(src,dst)
+            if sha(temporary)!=item['sha256']: raise SystemExit('Host input checksum mismatch')
+            temporary.replace(archive)
+        if sha(archive)!=item['sha256']: raise SystemExit('Host input checksum mismatch')
+    marker=root/'.y2-build-lock'
+    if not root.exists():
+        subprocess.run(['cp','-a','--reflink=auto',str(project/'.cache/environment'),str(root)],check=True)
+        marker.unlink()
+        subprocess.run(['bwrap','--unshare-all','--uid','0','--gid','0','--die-with-parent',
+            '--bind',str(root),'/', '--proc','/proc','--dev','/dev',
+            '--ro-bind',str(project/'.cache/apks'),'/packages','--','/sbin/apk',
+            'add','--no-network','--force-non-repository','--repositories-file','/dev/null',
+            *['/packages/'+x['name'] for x in extra['apk_packages']]],check=True)
+        if installed(root)!=sorted(k+'='+v for k,v in expected.items()):
+            raise SystemExit('Connectivity host inventory mismatch')
+        marker.write_text(fingerprint+'\n')
+    if not marker.exists() or marker.read_text().strip()!=fingerprint:
+        raise SystemExit('Incomplete connectivity build environment')
+    if installed(root)!=sorted(k+'='+v for k,v in expected.items()):
+        raise SystemExit('Connectivity host inventory changed')
+    return root
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--offline', action='store_true', help='require cached archives')
@@ -99,7 +137,8 @@ def main():
         path = kernel / name
         if path.stat().st_size != int(size) or sha(path) != digest:
             raise SystemExit(f'Audited upstream source mismatch: {name}')
-    print('Locked environment and audited v6.18 sources verified.')
+    connectivity_environment(PROJECT,args.offline)
+    print('Locked build environments and audited v6.18 sources verified.')
 
 
 if __name__ == '__main__':

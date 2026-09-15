@@ -1,0 +1,9 @@
+#!/bin/sh
+# A scoped lease for active work, e.g. y2-radio-hold curl --fail --output ... URL.
+# Screen blanking is independent. The fd releases automatically on process exit.
+set -eu
+[ "$#" -gt 0 ] || exit 2
+umask 077
+exec 8>/run/y2/activity.lock
+flock -sn 8 || { echo 'Suspend is in progress.' >&2; exit 1; }
+exec "$@"

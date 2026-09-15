@@ -1,0 +1,23 @@
+--- a/drivers/watchdog/mtk_wdt.c
++++ b/drivers/watchdog/mtk_wdt.c
+@@ -88,6 +88,12 @@
+ 	.toprgu_sw_rst_num = MT2712_TOPRGU_SW_RST_NUM,
+ };
+ 
++/* MT6582 CONSYS reset is SWSYSRST bit 12; the existing RGU owner
++ * serializes it with system restart. No second watchdog mapping. */
++static const struct mtk_wdt_data mt6582_data = {
++	.toprgu_sw_rst_num = 13,
++};
++
+ static const struct mtk_wdt_data mt6735_data = {
+ 	.toprgu_sw_rst_num = MT6735_TOPRGU_RST_NUM,
+ };
+@@ -493,6 +499,7 @@
+ 
+ static const struct of_device_id mtk_wdt_dt_ids[] = {
+ 	{ .compatible = "mediatek,mt2712-wdt", .data = &mt2712_data },
++	{ .compatible = "mediatek,mt6582-wdt", .data = &mt6582_data },
+ 	{ .compatible = "mediatek,mt6589-wdt" },
+ 	{ .compatible = "mediatek,mt6735-wdt", .data = &mt6735_data },
+ 	{ .compatible = "mediatek,mt6795-wdt", .data = &mt6795_data },

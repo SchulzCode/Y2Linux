@@ -1,0 +1,46 @@
+#!/bin/sh
+# Settings convenience only. Network and device management remain the native
+# wpa_supplicant control/D-Bus and BlueZ D-Bus interfaces.
+set -eu
+umask 077
+case "${1:-}" in
+ wifi) state=/data/network/enabled; type=wlan;;
+ bluetooth) state=/data/bluetooth/enabled; type=bluetooth;;
+ *) echo 'Usage: y2-radio wifi|bluetooth on|off|status' >&2; exit 2;;
+esac
+case "${2:-}" in
+ on|on-runtime) enabled=1;;
+ off|off-runtime) enabled=0;;
+ status)
+    if [ "$type" = wlan ]; then wpa_cli -i wlan0 status; else bluetoothctl show; fi
+    exit;;
+ *) exit 2;;
+esac
+case "$2" in *-runtime) ;; *)
+    printf '%s\n' "$enabled" > "$state.new"
+    chmod 600 "$state.new"; mv "$state.new" "$state"
+    sync -f /data
+    ;;
+esac
+if [ "$enabled" = 1 ]; then
+    core=/sys/devices/platform/18070000.connectivity
+    case "$(cat "$core/status")" in
+        *' functions=0 '*' error=0 '*) ;;
+        *' functions=0 '*' error='*)
+            echo 1 > "$core/recover"
+            for n in $(seq 1 150); do
+                case "$(cat "$core/status")" in *' error=0 '*) break;; esac
+                sleep .1
+            done
+            ;;
+    esac
+fi
+if [ "$type" = wlan ]; then
+    if [ "$enabled" = 1 ]; then rfkill unblock wlan; else rfkill block wlan; fi
+else
+    if [ "$enabled" = 1 ]; then
+        timeout 120 bluetoothctl power on
+    else
+        timeout 20 bluetoothctl power off
+    fi
+fi

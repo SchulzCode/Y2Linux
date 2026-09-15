@@ -20,6 +20,7 @@
 #include "spm-suspend-policy.h"
 #include "spm-pcm.h"
 #include "shared.h"
+#include "connectivity/domain.h"
 
 static void __iomem *spm_base;
 static DEFINE_RAW_SPINLOCK(spm_lock);
@@ -41,6 +42,46 @@ static void spm_write(void *context, unsigned reg, unsigned value)
 }
 static void spm_delay(unsigned us) { udelay(us); }
 static struct y2_spm_io spm_io = { .read = spm_read, .write = spm_write, .delay = spm_delay };
+
+int y2_spm_radio_status(unsigned domain)
+{
+	unsigned bit;
+	if (!smp_load_acquire(&spm_base)) return -EPROBE_DEFER;
+	if (domain > 1) return -EINVAL;
+	bit = domain ? 1 : 2;
+	unsigned a = readl(spm_base + 0x60c) & bit, b = readl(spm_base + 0x610) & bit;
+	return a != b ? -EIO : !!a;
+}
+int y2_spm_unstarted_md_off(void)
+{
+	unsigned long flags; int ret;
+	/* Only the MD owner may call this after proving LK left all remaps,
+	 * CCIF control/busy/pending and the MD boot-enable register zero.
+	 * No firmware or bus master has been started in that state. The
+	 * retained MT6582 path can lack protection ACK until MD has run. */
+	if (!smp_load_acquire(&spm_base)) return -EPROBE_DEFER;
+	ret = y2_ccf_radio_protect(1, true);
+	if (ret && ret != -ETIMEDOUT) return ret;
+	raw_spin_lock_irqsave(&spm_lock, flags);
+	ret = y2_radio_domain_sequence(&spm_io, 1, 0);
+	raw_spin_unlock_irqrestore(&spm_lock, flags);
+	return ret;
+}
+int y2_spm_radio_power(unsigned domain, int on)
+{
+	unsigned long flags; int ret;
+	if (domain > 1) return -EINVAL;
+	if (!smp_load_acquire(&spm_base)) return -EPROBE_DEFER;
+	if (!on) {
+		ret = y2_ccf_radio_protect(domain, true);
+		if (ret) return ret;
+	}
+	raw_spin_lock_irqsave(&spm_lock, flags);
+	ret = y2_radio_domain_sequence(&spm_io, domain, on);
+	raw_spin_unlock_irqrestore(&spm_lock, flags);
+	if (!ret && on) ret = y2_ccf_radio_protect(domain, false);
+	return ret;
+}
 
 int y2_spm_cpu_disable(unsigned cpu)
 {

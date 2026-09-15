@@ -13,6 +13,7 @@
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 struct y2_clock {
@@ -44,7 +45,60 @@ static const char *const y2_clk_names[] = {
     "y2-armpll", "y2-mainpll", "y2-univpll", "y2-mmpll",	"y2-msdcpll",
     "y2-axi",	 "y2-i2c0",    "y2-i2c1",    "y2-apdma",	"y2-pwrap",
     "y2-kp",	 "y2-msdc0",   "y2-msdc1",   "y2-msdc0-source", "y2-msdc1-source",
-    "y2-audintbus", "y2-audio", "y2-infra-audio", "y2-cpu", "y2-therm", "y2-auxadc", "y2-efuse"};
+    "y2-audintbus", "y2-audio", "y2-infra-audio", "y2-cpu", "y2-therm", "y2-auxadc", "y2-efuse",
+    "y2-connmcu", "y2-btif"};
+
+/* Shared INFRACFG fields stay with this owner. Callers serialize complete
+ * domain transitions; each RMW is protected against CPU/clock operations. */
+int y2_ccf_radio_protect(unsigned domain, bool protect)
+{
+	void __iomem *infra = y2_clock_bases[2];
+	unsigned mask, value; unsigned long flags;
+	if (!infra) return -EPROBE_DEFER;
+	if (domain > 1) return -EINVAL;
+	mask = domain ? 0xb8 : 0x104; /* MD1 / CONN, stock mt_clkmgr */
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	value = readl(infra + 0x220);
+	writel(protect ? value | mask : value & ~mask, infra + 0x220);
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
+	return readl_poll_timeout(infra + 0x228, value,
+		(value & mask) == (protect ? mask : 0), 10, 10000);
+}
+int y2_ccf_md_unconfigured(void)
+{
+	void __iomem *infra = y2_clock_bases[2];
+	unsigned long flags; unsigned value;
+	if (!infra) return -EPROBE_DEFER;
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	value = readl(infra+0x300) | readl(infra+0x304) |
+		readl(infra+0x308) | readl(infra+0x30c);
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
+	return !value;
+}
+int y2_ccf_radio_remap(unsigned domain)
+{
+	void __iomem *infra = y2_clock_bases[2];
+	unsigned long flags; unsigned value;
+	if (!infra) return -EPROBE_DEFER;
+	if (domain > 1) return -EINVAL;
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	if (!domain) {
+		/* Replace the complete address field; OR-ing a previous loader
+		 * address can redirect firmware into unrelated reserved memory. */
+		value = (readl(infra + 0x1310) & ~0x1fffU) | 0x1bdf;
+		writel(value, infra + 0x1310);
+	} else {
+		/* MD1 ROM 0xbe000000 / shared memory 0xbf600000. Unused 32-MiB
+		 * banks map beyond physical DRAM, as in the retained MD1 boot. */
+		writel(0x53514f3f, infra + 0x300);
+		writel(0x5b595755, infra + 0x304);
+		writel(0x4543413f, infra + 0x308);
+		writel(0x4d4b4947, infra + 0x30c);
+	}
+	mb();
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
+	return 0;
+}
 static unsigned long y2_pll_rate(void __iomem *base, unsigned id)
 {
 	unsigned con0 = readl(base + 0x200 + id * 16), con1 = readl(base + 0x204 + id * 16);
@@ -301,6 +355,14 @@ static int y2_clocks_probe(struct platform_device *pdev)
 			c->bit = 6;
 			init.ops = &y2_infra_ops;
 		}
+		if (i == Y2_CLK_CONNMCU) {
+			c->gate = base[2] + 0x40; c->bit = 12;
+			init.ops = &y2_infra_ops;
+		}
+		if (i == Y2_CLK_BTIF) {
+			c->gate = base[1] + 8; c->bit = 20;
+			init.ops = &y2_peri_ops;
+		}
 		if (i >= 6 && i <= 8) {
 			c->gate = base[1] + 8;
 			c->bit = i == 8 ? 11 : i + 15;
@@ -330,6 +392,9 @@ static int y2_clocks_probe(struct platform_device *pdev)
 		}
 		if (c->gate)
 			c->inherited = init.ops->is_enabled(&c->hw);
+		/* These two gates now have a complete connectivity owner. Their
+		 * balanced CCF references may gate them after an inherited boot. */
+		if (i == Y2_CLK_CONNMCU || i == Y2_CLK_BTIF) c->inherited = false;
 		init.parent_names = &parent;
 		init.num_parents = 1;
 		c->hw.init = &init;

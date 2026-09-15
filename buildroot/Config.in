@@ -1,1 +1,1 @@
-# Y2 uses upstream Buildroot packages.
+source "$BR2_EXTERNAL_Y2LINUX_PATH/package/y2-connectivity/Config.in"

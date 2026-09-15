@@ -47,8 +47,9 @@ def main():
         parser.error('a command is required')
     lock_path = PROJECT / 'tools/build/inputs.lock.json'
     lock = json.loads(lock_path.read_text())
-    rootfs = PROJECT / '.cache/environment'
-    fingerprint = hashlib.sha256(lock_path.read_bytes()).hexdigest()
+    extra_lock = PROJECT / 'tools/build/connectivity-host.lock.json'
+    fingerprint = hashlib.sha256(lock_path.read_bytes()+extra_lock.read_bytes()).hexdigest()
+    rootfs = PROJECT / '.cache' / ('environment-m5-'+fingerprint[:12])
     marker = rootfs / '.y2-build-lock'
     if not marker.exists() or marker.read_text().strip() != fingerprint:
         raise SystemExit('Run tools/build/prepare.py first; environment lock mismatch')

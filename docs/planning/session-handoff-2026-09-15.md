@@ -1,4 +1,26 @@
-# Session handoff — 2026-09-15, M4-POWER-03
+# Session handoff — 2026-09-15, M5 implementation
+
+**Current direction: M4 accepted by the owner; implement M5.** The owner reports
+that POWER-03 works and explicitly authorizes the M5 implementation prompt.
+Use entry audit `67cbe8f`; do not repeat inventory or protected-data acquisition.
+Owner acceptance supersedes the historical pending-deployment instructions
+below. No new agent-run physical M4 results are implied by this acceptance.
+
+M5 work begins at `d6bf241` with the POWER-03 image below as the accepted
+fallback. Factory records remain in the existing private read-only copies.
+Implement a single production connectivity platform, preserve M4/Y2DATA, build
+one integrated candidate, then stop for owner manual BOOTIMG/Y2ROOT deployment.
+
+The integrated implementation is described in
+[M5 connectivity](../knowledge/m5-connectivity-implementation.md). It contains
+native kernel transports/fullmac, a bounded own-data calibration service,
+Buildroot networking/BlueZ/BlueALSA, persistent settings and a system-update
+packager that never creates a Y2DATA payload. The native radios still need
+physical qualification after manual installation. Final source/image identities
+are recorded by the production build and deployment receipt, not inferred from
+the successful compilation workspace.
+
+## Previous POWER-03 handoff (historical)
 
 **POWER-03 built and host-validated. Stop for owner manual BOOTIMG deployment.**
 M4 #30 remains OPEN / ACTIVE / PARTIAL. The latest owner request is focused M4

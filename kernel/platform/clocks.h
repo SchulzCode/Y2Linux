@@ -21,4 +21,6 @@
 #define Y2_CLK_THERM 19
 #define Y2_CLK_AUXADC 20
 #define Y2_CLK_EFUSE 21
-#define Y2_CLK_NR 22
+#define Y2_CLK_CONNMCU 22
+#define Y2_CLK_BTIF 23
+#define Y2_CLK_NR 24

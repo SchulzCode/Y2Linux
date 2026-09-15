@@ -28,7 +28,7 @@
     rtc32k: rtc32k { compatible = "fixed-clock"; #clock-cells = <0>; clock-frequency = <32768>; clock-output-names = "y2-rtc32k"; };
     y2clk: clock-controller@10000000 {
         compatible = "innioasis,y2-clocks";
-        reg = <0x10000000 0x1000>, <0x10003000 0x1000>, <0x10001000 0x1000>, <0x10209000 0x600>;
+        reg = <0x10000000 0x1000>, <0x10003000 0x1000>, <0x10001000 0x2000>, <0x10209000 0x600>;
         #clock-cells = <1>;
     };
     /* Only the documented two read-only thermal calibration words. */
@@ -78,10 +78,11 @@
         /* Original FM Y2 MT_SPM_IRQ_ID = GIC hwirq 149. */
         interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_LOW>;
     };
-    watchdog@10007000 {
+    rgu: watchdog@10007000 {
         /* Exact upstream 6.18 mt6582.dtsi compatibility, verified RGU layout. */
         compatible = "mediatek,mt6582-wdt", "mediatek,mt6589-wdt";
         reg = <0x10007000 0x100>;
+        #reset-cells = <1>;
     };
     pio: pinctrl@10005000 {
         compatible = "innioasis,y2-pinctrl";
@@ -159,7 +160,7 @@
         /* Retain the complete historical LK gap, not an invented heap end. */
         loader@81800000 { reg = <0x81800000 0x02800000>; no-map; };
         /* Both stock and donor connectivity locations stay unavailable. */
-        high-owned@bdf00000 { reg = <0xbdf00000 0x02100000>; no-map; };
+        radio_reserved: high-owned@bdf00000 { reg = <0xbdf00000 0x02100000>; no-map; };
     };
     cpus {
         enable-method = "innioasis,y2-smp";
@@ -232,6 +233,28 @@
         interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_LOW>;
         dr_mode = "peripheral";
     };
+    connectivity: connectivity@18070000 {
+        compatible = "innioasis,y2-mt6582-connectivity";
+        /* Subranges of the existing exclusion; RAM capacity is unchanged. */
+        memory-region = <&radio_reserved>;
+        reg = <0x18070000 0x1000>, <0xbdf00000 0x100000>,
+              <0x1100c000 0x100>, <0x11000780 0x80>, <0x11000800 0x80>,
+              <0x1020a000 0x200>, <0xbe000000 0x1600000>, <0xbf600000 0x1c4000>,
+              <0x20050000 4>, <0x2019379c 4>, <0x20190000 4>, <0x20195488 4>,
+              <0x180f0000 0x5c>;
+        reg-names = "mcu", "conn-emi", "btif", "tx-dma", "rx-dma",
+                    "ccif", "md-rom", "md-smem", "md-wdt", "md-key", "md-vector", "md-enable", "wifi";
+        interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_LOW>, <GIC_SPI 71 IRQ_TYPE_LEVEL_LOW>,
+                     <GIC_SPI 72 IRQ_TYPE_LEVEL_LOW>, <GIC_SPI 185 IRQ_TYPE_LEVEL_LOW>,
+                     <GIC_SPI 100 IRQ_TYPE_LEVEL_LOW>, <GIC_SPI 184 IRQ_TYPE_LEVEL_LOW>;
+        interrupt-names = "btif", "tx-dma", "rx-dma", "wake", "ccif", "wifi";
+        clocks = <&y2clk Y2_CLK_CONNMCU>, <&y2clk Y2_CLK_BTIF>, <&y2clk Y2_CLK_APDMA>;
+        clock-names = "connmcu", "btif", "dma";
+        resets = <&rgu 12>; reset-names = "conn";
+        innioasis,pwrap = <&pwrap>;
+        vcn18-supply = <&vcn18>; vcn28-supply = <&vcn28>;
+        vcn33-bt-supply = <&vcn33_bt>; vcn33-wifi-supply = <&vcn33_wifi>;
+    };
     pwrap: pwrap@1000d000 {
         compatible = "innioasis,y2-pwrap"; reg = <0x1000d000 0x1000>;
         clocks = <&y2clk Y2_CLK_PWRAP>;
@@ -256,6 +279,14 @@
             };
             backlight: backlight { compatible = "innioasis,y2-backlight"; };
             regulators { compatible = "mediatek,mt6323-regulator";
+                vcn18: ldo_vcn18 { regulator-name = "vcn18";
+                    regulator-min-microvolt = <1800000>; regulator-max-microvolt = <1800000>; };
+                vcn28: ldo_vcn28 { regulator-name = "vcn28";
+                    regulator-min-microvolt = <2800000>; regulator-max-microvolt = <2800000>; };
+                vcn33_bt: ldo_vcn33_bt { regulator-name = "vcn33-bt";
+                    regulator-min-microvolt = <3300000>; regulator-max-microvolt = <3300000>; };
+                vcn33_wifi: ldo_vcn33_wifi { regulator-name = "vcn33-wifi";
+                    regulator-min-microvolt = <3300000>; regulator-max-microvolt = <3300000>; };
                 vproc: buck_vproc {
                     regulator-name = "vproc";
                     regulator-min-microvolt = <1150000>; regulator-max-microvolt = <1150000>;
