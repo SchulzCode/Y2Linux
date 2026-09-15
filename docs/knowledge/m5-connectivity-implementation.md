@@ -59,10 +59,11 @@ Protecting Y2DATA preserves a fallback identity and its bonds across updates.
 
 The five firmware filenames, provenance, SHA256 values and compatibility notes
 remain in the [completed inventory](evidence/m5-firmware-inventory.json).
-They are installed under `/lib/firmware/mediatek/mt6582/`:
+They are installed under `/lib/firmware/mediatek/mt6582/`. On the first radio
+startup in a Linux boot, the loading order is:
 
-1. `WMT_SOC.cfg`: shared antenna/co-clock policy is validated before WMT boot.
-2. `modem_1_2g_n.img`: bounded MD1 filesystem/calibration startup, then MD1 off.
+1. `modem_1_2g_n.img`: bounded MD1 filesystem/calibration startup, then MD1 off.
+2. `WMT_SOC.cfg`: shared antenna/co-clock policy is validated before WMT boot.
 3. `mt6572_82_patch_e1_1_hdr.bin`: patch header sequence **1**.
 4. `mt6572_82_patch_e1_0_hdr.bin`: patch header sequence **2**.
 5. `WIFI_RAM_CODE_MT6582`: Wi-Fi function startup, two firmware image sections.
