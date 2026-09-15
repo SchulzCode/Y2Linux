@@ -106,7 +106,7 @@ def package(build, base, fallback_root, out):
     manifest['status']='M5 integrated production candidate; physical radio qualification pending'
     manifest['data_policy']='Preserve existing Y2DATA in place. New private directories are created on first normal boot. No data payload.'
     manifest['owner_firmware']=json.loads((build/'owner-firmware.json').read_text())
-    manifest['fallback']={'policy':'restore accepted POWER-03 BOOTIMG and previous Y2ROOT; preserve Y2DATA',
+    manifest['fallback']={'policy':f"restore previous BOOTIMG ({previous['kernel_version']}) and Y2ROOT ({oldroot['version']}); preserve Y2DATA",
         'images':[{'file':'fallback/'+p['raw']['file'],'size_bytes':p['raw']['size_bytes'],'sha256':p['raw']['sha256']}
                   for p in (next(p for p in previous['payloads'] if p['target_partition']=='BOOTIMG'),oldroot)]}
     scatter='MT6582_preserve_data_scatter.txt'

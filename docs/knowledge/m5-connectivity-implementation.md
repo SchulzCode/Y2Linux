@@ -167,9 +167,9 @@ physical gate; configuration presence is not a coexistence pass.
 
 ## Owner installation
 
-The preserving package contains BOOTIMG + Y2ROOT and a separate accepted
-POWER-03/previous-root fallback. Its manifest records exact source and image
-identities. It contains **no Y2DATA image**.
+The preserving package contains BOOTIMG + Y2ROOT and a separate fallback to
+the selected previous kernel/root pair. Its manifest records exact versions,
+source and image identities. It contains **no Y2DATA image**.
 
 1. On the host, verify the package's `SHA256SUMS`.
 2. Close any other serial/flash tooling, power the Y2 down, and open the
