@@ -1,0 +1,247 @@
+{
+  "date": "2026-09-14",
+  "repository_revision_at_inspection": "bbbbbf20e96860089b015c19501b7d39638c5419",
+  "kernel_release_observed": "6.18.0-y2linux-m4-power-02",
+  "installed_bootimg_hash": null,
+  "artifact_identity_limit": "USB descriptors and SSH uname agree on the release. No physical BOOTIMG readback or hash was taken.",
+  "owner_report": "Wall charger showed the charging animation but did not replenish the battery. Owner restored stock to charge and then restored the prior Linux setup.",
+  "method": "Read-only SSH through the existing production power_supply interfaces; one bounded prefix read through the sole PWRAP regmap debugfs; no charger policy, register, display, storage, RTC or power-state writes.",
+  "ssh_trust": {
+    "address": "10.42.0.1",
+    "direct_host_interface": "enp8s0f3u2",
+    "usb_parent": "5-2",
+    "usb_vid_pid": "0525:a4aa",
+    "method": "Expected key rotation following owner-reported reinstall; target matched to direct USB network and ACM topology and M4-POWER-02 descriptor; temporary explicit pin with StrictHostKeyChecking=yes. Not an independently owner-confirmed fingerprint.",
+    "default_known_hosts_changed": false,
+    "host_fingerprint_retained_privately": true
+  },
+  "raw": {
+    "initial.txt": {
+      "path": "evidence-private/20260914-m4-power02-charge-fault/initial.txt",
+      "bytes": 35485,
+      "sha256": "50e01a0825f6af5b4c93c62ac87e95c8a72f3a112eba271b1513d665892c7308",
+      "captured_by_utc": "2026-09-14T19:04:01.973137+00:00"
+    },
+    "detail.txt": {
+      "path": "evidence-private/20260914-m4-power02-charge-fault/detail.txt",
+      "bytes": 6508,
+      "sha256": "22033f1dbfd7ffe771e5b1066447de33e7457467c25a1ca63e73f4366d6c845a",
+      "captured_by_utc": "2026-09-14T19:06:24.574308+00:00"
+    }
+  },
+  "boot_metadata": {
+    "valid": 1,
+    "boot_mode": 0,
+    "boot_reason": 0,
+    "offline": 0,
+    "normal_boot": 1
+  },
+  "current_usb": {
+    "source": "SDP",
+    "configured_budget_ua": 500000,
+    "programmed_charge_limit_ua": 450000,
+    "programmed_cv_uv": 4175000
+  },
+  "charge_start": {
+    "uptime_s": 15.122924,
+    "status": 1,
+    "fault": "0x0",
+    "battery_uv": 4138110,
+    "input_budget_ua": 500000,
+    "watchdog_pets": 1,
+    "source": 1,
+    "charge_limit_ua": 450000
+  },
+  "first_fault": {
+    "uptime_s": 16.202659,
+    "status": 3,
+    "fault": "0x10",
+    "battery_uv": 4183374,
+    "input_budget_ua": 500000,
+    "watchdog_pets": 1,
+    "source": 1,
+    "charge_limit_ua": 450000
+  },
+  "observed_start_to_fault_s": 1.079735,
+  "driver_accounted_active_seconds": 1,
+  "events": [
+    {
+      "uptime_s": 1.412476,
+      "status": 2,
+      "fault": "0x0",
+      "battery_uv": 4142065,
+      "input_budget_ua": -1,
+      "watchdog_pets": 0,
+      "source": 0,
+      "charge_limit_ua": 0
+    },
+    {
+      "uptime_s": 14.642654,
+      "status": 3,
+      "fault": "0x0",
+      "battery_uv": 4144482,
+      "input_budget_ua": 0,
+      "watchdog_pets": 0,
+      "source": 1,
+      "charge_limit_ua": 70000
+    },
+    {
+      "uptime_s": 15.122924,
+      "status": 1,
+      "fault": "0x0",
+      "battery_uv": 4138110,
+      "input_budget_ua": 500000,
+      "watchdog_pets": 1,
+      "source": 1,
+      "charge_limit_ua": 450000
+    },
+    {
+      "uptime_s": 16.202659,
+      "status": 3,
+      "fault": "0x10",
+      "battery_uv": 4183374,
+      "input_budget_ua": 500000,
+      "watchdog_pets": 1,
+      "source": 1,
+      "charge_limit_ua": 450000
+    },
+    {
+      "uptime_s": 76.683042,
+      "status": 3,
+      "fault": "0x10",
+      "battery_uv": 4134594,
+      "input_budget_ua": 500000,
+      "watchdog_pets": 1,
+      "source": 1,
+      "charge_limit_ua": 450000
+    },
+    {
+      "uptime_s": 136.043507,
+      "status": 3,
+      "fault": "0x10",
+      "battery_uv": 4131079,
+      "input_budget_ua": 500000,
+      "watchdog_pets": 1,
+      "source": 1,
+      "charge_limit_ua": 450000
+    },
+    {
+      "uptime_s": 196.523972,
+      "status": 3,
+      "fault": "0x10",
+      "battery_uv": 4123828,
+      "input_budget_ua": 500000,
+      "watchdog_pets": 1,
+      "source": 1,
+      "charge_limit_ua": 450000
+    },
+    {
+      "uptime_s": 257.004438,
+      "status": 3,
+      "fault": "0x10",
+      "battery_uv": 4119213,
+      "input_budget_ua": 500000,
+      "watchdog_pets": 1,
+      "source": 1,
+      "charge_limit_ua": 450000
+    },
+    {
+      "uptime_s": 316.364895,
+      "status": 3,
+      "fault": "0x10",
+      "battery_uv": 4117016,
+      "input_budget_ua": 500000,
+      "watchdog_pets": 1,
+      "source": 1,
+      "charge_limit_ua": 450000
+    },
+    {
+      "uptime_s": 376.855359,
+      "status": 3,
+      "fault": "0x10",
+      "battery_uv": 4112841,
+      "input_budget_ua": 500000,
+      "watchdog_pets": 1,
+      "source": 1,
+      "charge_limit_ua": 450000
+    }
+  ],
+  "followup_samples": [
+    {
+      "sample": 1,
+      "uptime_s": 530.29,
+      "voltage_now_uv": 4095703,
+      "cached_battery_uv": 4094604,
+      "fault": "0x10",
+      "active": 0,
+      "watchdog_pets": 1
+    },
+    {
+      "sample": 2,
+      "uptime_s": 535.36,
+      "voltage_now_uv": 4099658,
+      "cached_battery_uv": 4099877,
+      "fault": "0x10",
+      "active": 0,
+      "watchdog_pets": 1
+    },
+    {
+      "sample": 3,
+      "uptime_s": 540.39,
+      "voltage_now_uv": 4099218,
+      "cached_battery_uv": 4102294,
+      "fault": "0x10",
+      "active": 0,
+      "watchdog_pets": 1
+    },
+    {
+      "sample": 4,
+      "uptime_s": 545.44,
+      "voltage_now_uv": 4098999,
+      "cached_battery_uv": 4099658,
+      "fault": "0x10",
+      "active": 0,
+      "watchdog_pets": 1
+    },
+    {
+      "sample": 5,
+      "uptime_s": 550.47,
+      "voltage_now_uv": 4101196,
+      "cached_battery_uv": 4099438,
+      "fault": "0x10",
+      "active": 0,
+      "watchdog_pets": 1
+    },
+    {
+      "sample": 6,
+      "uptime_s": 555.53,
+      "voltage_now_uv": 4098120,
+      "cached_battery_uv": 4101196,
+      "fault": "0x10",
+      "active": 0,
+      "watchdog_pets": 1
+    }
+  ],
+  "register_snapshot_uptime_s": 530.26,
+  "protection_registers_after_inhibition": {
+    "0x0000": "0x0063",
+    "0x0002": "0x00b2",
+    "0x000c": "0x0001",
+    "0x001a": "0x0000",
+    "0x001e": "0x0000",
+    "0x003c": "0x0020",
+    "0x0044": "0x0000"
+  },
+  "fault_interpretation": "0x10 is latched when input HV detection (CHR_CON0 bit 7) or battery OV detection (CHR_CON6 bit 6) asserts. Both are clear in the later inhibited snapshot. The first-fault detector registers were not retained, so the exact detector and electrical cause cannot be established from this capture.",
+  "source_comparison": "The actual stock charging_hw_init passes selector 1 to upmu_set_rg_vbat_ov_vth (4.3 V in retained BSP). Linux still has selector 0 at register 0x000c=0x0001 and deliberately preserves it. Its precise threshold is unresolved. This is a diagnostic lead, not permission to raise the protection threshold or proof of the fault cause.",
+  "earlier_wall_session": "Not observable in this boot: offline=0, no Y2CHARGE history, /data/logs empty, /var/log points to volatile /tmp, and no /sys/fs/pstore interface. The owner report remains separate from this PC-connected fault.",
+  "other_observations": {
+    "pmic_die_mc_at_initial_sample": 41620,
+    "cpu_mc_at_initial_sample": 7900,
+    "thermal_accuracy": "Previously recorded implausible CPU-versus-PMIC readings persist; no pack temperature or thermal calibration claim.",
+    "root_and_data": "Internal p5/p7 mounted read-write; no filesystem integrity qualification performed.",
+    "boot_id_interface": "Unavailable; no suspend/reboot continuity test performed."
+  },
+  "milestone": "#30 M4 remains ACTIVE/PARTIAL. Sustained charging failed in this boot; wall/low-battery recovery and other power acceptance remain open.",
+  "next_smallest_blocker": "Distinguish and retain the first input-versus-battery OV trigger and reconcile CV/OVP with actual stock behavior before a correction or further active charging qualification."
+}

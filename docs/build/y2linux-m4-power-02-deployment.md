@@ -3,7 +3,22 @@
 Source `83d475ef71a3dd84f6e3cc483a7637b13520e4f7` builds one integrated
 production hardware candidate. [Exact build receipt and hashes](evidence/y2linux-m4-power-02/README.md).
 **M4 remains ACTIVE/PARTIAL. No new hardware pass is implied by compilation.**
-The owner switched the previous kernel off after the failed 70-mA baseline.
+
+**Subsequent owner result, 2026-09-14:** wall charging showed animation without
+recovery, requiring stock recharge. After Linux reinstall, [read-only SSH evidence](../hardware-evidence/2026-09-14-m4-power02-charge-fault/README.md)
+confirms POWER-02 starts 450-mA charging from a recognized PC source, then stops
+after about one second with latched OVP fault 0x10. Charging qualification has
+failed; the exact detector and earlier wall-session cause remain unresolved.
+The sequence below is the original candidate handoff, not a successful result
+or a new request to repeat flashing. The prior 70-mA gain baseline also failed.
+
+**2026-09-15 runtime workaround:** [two physical USB reconnects now pass](../hardware-evidence/2026-09-15-usb-reconnect/README.md)
+with the MUSB child's runtime-PM policy held at `on`. The matching change is
+installed in `/etc/init.d/S20y2-usb` and scoped to POWER-02; it does not require
+flashing. This is a workaround, not a kernel fix. Added idle consumption is
+unmeasured. The short DCP wall test had no fault, but the prior charging failure
+and full M4 acceptance remain unresolved. A bounded persistent recorder now
+preserves diagnostics when a restart is necessary.
 
 ## Deploy only BOOTIMG
 

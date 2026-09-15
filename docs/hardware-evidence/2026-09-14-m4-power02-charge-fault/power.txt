@@ -1,0 +1,260 @@
+KERNEL 6.18.0-y2linux-m4-power-02
+BOOT_COMMAND_LINE rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31
+ONLINE_CPUS 0-3
+proc /proc proc rw,relatime 0 0
+sysfs /sys sysfs rw,relatime 0 0
+devtmpfs /dev devtmpfs rw,relatime,size=475936k,nr_inodes=118984,mode=755 0 0
+devpts /dev/pts devpts rw,relatime,gid=5,mode=620,ptmxmode=666 0 0
+tmpfs /run tmpfs rw,nosuid,nodev,relatime,mode=755 0 0
+tmpfs /tmp tmpfs rw,nosuid,nodev,relatime 0 0
+debugfs /sys/kernel/debug debugfs rw,relatime 0 0
+/dev/mmcblk0p5 / ext4 rw,relatime 0 0
+/dev/mmcblk0p7 /data ext4 rw,nosuid,nodev,relatime 0 0
+tmpfs /lib/modules tmpfs rw,nosuid,nodev,relatime,mode=755 0 0
+proc /proc proc rw,relatime 0 0
+tmpfs /dev/shm tmpfs rw,relatime 0 0
+SAMPLE 0 UPTIME 412.67 1640.12
+DEVTYPE=power_supply
+OF_NAME=charger
+OF_FULLNAME=/pwrap@1000d000/pmic/charger
+OF_COMPATIBLE_0=innioasis,y2-mt6323-charger
+OF_COMPATIBLE_N=1
+POWER_SUPPLY_NAME=BAT0
+POWER_SUPPLY_TYPE=Battery
+POWER_SUPPLY_STATUS=Not charging
+POWER_SUPPLY_HEALTH=Unspecified failure
+POWER_SUPPLY_PRESENT=1
+POWER_SUPPLY_VOLTAGE_NOW=4108447
+POWER_SUPPLY_CONSTANT_CHARGE_CURRENT=450000
+POWER_SUPPLY_CONSTANT_CHARGE_VOLTAGE=4175000
+POWER_SUPPLY_CHARGE_BEHAVIOUR=auto
+POWER_SUPPLY_TYPE=Battery
+phase=FAULT source=1 source_valid=1 charge_limit_ua=450000
+active=0 online=1 present=1 fault=0x10 sample_error=0 stop_error=0 paused=0 last_error=0
+battery_uv=4101196 baton_raw=10387 isense_raw=18659 pmic_die_mc=41620 input_budget_ua=500000
+chr_con0=0x0063 cv_status=0x008e battery_ovp=0x0001 baton=0x0005 watchdog=0x0000 thermal=0x0000
+watchdog_pets=1 last_pet_ms=15116 total_seconds=1 cv_seconds=1 precharge_seconds=0 hold=0 full=0 timeout=0
+SUPPLY y2-usb-input
+DEVTYPE=power_supply
+OF_NAME=usb
+OF_FULLNAME=/usb@11200000
+OF_COMPATIBLE_0=innioasis,y2-usb
+OF_COMPATIBLE_N=1
+POWER_SUPPLY_NAME=y2-usb-input
+POWER_SUPPLY_TYPE=USB
+POWER_SUPPLY_ONLINE=1
+POWER_SUPPLY_CURRENT_MAX=500000
+POWER_SUPPLY_TYPE=USB
+SUPPLY y2-usb-presence
+DEVTYPE=power_supply
+OF_NAME=charger
+OF_FULLNAME=/pwrap@1000d000/pmic/charger
+OF_COMPATIBLE_0=innioasis,y2-mt6323-charger
+OF_COMPATIBLE_N=1
+POWER_SUPPLY_NAME=y2-usb-presence
+POWER_SUPPLY_TYPE=USB
+POWER_SUPPLY_ONLINE=1
+POWER_SUPPLY_TYPE=USB
+POWER_SUPPLY_USB_TYPE=Unknown [SDP] DCP CDP BrickID
+THERMAL pmic-thermal 41620
+THERMAL cpu-thermal 7900
+CPU_KHZ 598000
+BACKLIGHT 32
+END_SAMPLES 1
+
+CHARGER HISTORY FROM THE SAME BOOT
+[    0.314575] y2-mt6323-charger y2-mt6323-charger: stock-derived BC1.1 charging: 70/450/650mA, 4.175V; pack temp/current/SOC unavailable
+[    1.412476] y2-mt6323-charger y2-mt6323-charger: status=2 fault=0x0 battery=4142065uV input=-1uA watchdog_pets=0 source=0 limit=0uA pmic=36356mC baton_raw=10387 isense_raw=18850 cv=0x4 hold=0 full=0
+[   14.562524] y2-mt6323-charger y2-mt6323-charger: BC1.1 source=1; charging independent of gadget configuration
+[   14.642654] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x0 battery=4144482uV input=0uA watchdog_pets=0 source=1 limit=70000uA pmic=36941mC baton_raw=10387 isense_raw=18852 cv=0x8e hold=0 full=0
+[   15.122924] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4138110uV input=500000uA watchdog_pets=1 source=1 limit=450000uA pmic=37526mC baton_raw=10388 isense_raw=18813 cv=0x8e hold=0 full=0
+[   16.202659] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x10 battery=4183374uV input=500000uA watchdog_pets=1 source=1 limit=450000uA pmic=36941mC baton_raw=10388 isense_raw=19295 cv=0x8e hold=0 full=0
+[   76.683042] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x10 battery=4134594uV input=500000uA watchdog_pets=1 source=1 limit=450000uA pmic=38111mC baton_raw=10388 isense_raw=18816 cv=0x8e hold=0 full=0
+[  136.043507] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x10 battery=4131079uV input=500000uA watchdog_pets=1 source=1 limit=450000uA pmic=38696mC baton_raw=10387 isense_raw=18790 cv=0x8e hold=0 full=0
+[  196.523972] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x10 battery=4123828uV input=500000uA watchdog_pets=1 source=1 limit=450000uA pmic=39280mC baton_raw=10387 isense_raw=18768 cv=0x8e hold=0 full=0
+[  257.004438] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x10 battery=4119213uV input=500000uA watchdog_pets=1 source=1 limit=450000uA pmic=39865mC baton_raw=10387 isense_raw=18745 cv=0x8e hold=0 full=0
+[  316.364895] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x10 battery=4117016uV input=500000uA watchdog_pets=1 source=1 limit=450000uA pmic=40450mC baton_raw=10387 isense_raw=18726 cv=0x8e hold=0 full=0
+[  376.855359] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x10 battery=4112841uV input=500000uA watchdog_pets=1 source=1 limit=450000uA pmic=40450mC baton_raw=10387 isense_raw=18705 cv=0x8e hold=0 full=0
+
+FOLLOW-UP READ-ONLY INSPECTION
+FILE /proc/sys/kernel/random/boot_id
+UNAVAILABLE
+FILE /proc/uptime
+530.26 2109.65
+FILE /sys/firmware/y2_boot/metadata
+valid=1 boot_mode=0 boot_reason=0 offline=0
+FILE /sys/firmware/y2_boot/normal_boot
+1
+CHARGER_REGISTER_PREFIX
+0000: 0063
+0002: 00b2
+0004: 008e
+0006: 001e
+0008: 000c
+000a: 0000
+000c: 0001
+000e: 0005
+0010: 0000
+0012: 0000
+0014: 0060
+0016: 0000
+0018: 0000
+001a: 0000
+001c: 0000
+001e: 0000
+0020: 0005
+0022: 0000
+0024: 0003
+0026: 0000
+0028: 0021
+002a: 0014
+002c: 0001
+002e: 0094
+0030: 0000
+0032: 0000
+0034: 0000
+0036: 0000
+0038: 0055
+003a: 0000
+003c: 0020
+003e: 0000
+0040: 4004
+0042: 0000
+0044: 0000
+0046: 0000
+LOG_DIRECTORY_METADATA
+lrwxrwxrwx    1 root     root             6 Aug 23  2026 /var/log -> ../tmp
+
+/data/logs:
+total 0
+
+/tmp:
+total 52
+-rw-r--r--    1 root     root         51714 Jan  1 00:08 messages
+SAMPLE 1 UPTIME 530.29 2109.74
+DEVTYPE=power_supply
+OF_NAME=charger
+OF_FULLNAME=/pwrap@1000d000/pmic/charger
+OF_COMPATIBLE_0=innioasis,y2-mt6323-charger
+OF_COMPATIBLE_N=1
+POWER_SUPPLY_NAME=BAT0
+POWER_SUPPLY_TYPE=Battery
+POWER_SUPPLY_STATUS=Not charging
+POWER_SUPPLY_HEALTH=Unspecified failure
+POWER_SUPPLY_PRESENT=1
+POWER_SUPPLY_VOLTAGE_NOW=4095703
+POWER_SUPPLY_CONSTANT_CHARGE_CURRENT=450000
+POWER_SUPPLY_CONSTANT_CHARGE_VOLTAGE=4175000
+POWER_SUPPLY_CHARGE_BEHAVIOUR=auto
+POWER_SUPPLY_TYPE=Battery
+phase=FAULT source=1 source_valid=1 charge_limit_ua=450000
+active=0 online=1 present=1 fault=0x10 sample_error=0 stop_error=0 paused=0 last_error=0
+battery_uv=4094604 baton_raw=10387 isense_raw=18636 pmic_die_mc=41620 input_budget_ua=500000
+chr_con0=0x0063 cv_status=0x008e battery_ovp=0x0001 baton=0x0005 watchdog=0x0000 thermal=0x0000
+watchdog_pets=1 last_pet_ms=15116 total_seconds=1 cv_seconds=1 precharge_seconds=0 hold=0 full=0 timeout=0
+SAMPLE 2 UPTIME 535.36 2129.94
+DEVTYPE=power_supply
+OF_NAME=charger
+OF_FULLNAME=/pwrap@1000d000/pmic/charger
+OF_COMPATIBLE_0=innioasis,y2-mt6323-charger
+OF_COMPATIBLE_N=1
+POWER_SUPPLY_NAME=BAT0
+POWER_SUPPLY_TYPE=Battery
+POWER_SUPPLY_STATUS=Not charging
+POWER_SUPPLY_HEALTH=Unspecified failure
+POWER_SUPPLY_PRESENT=1
+POWER_SUPPLY_VOLTAGE_NOW=4099658
+POWER_SUPPLY_CONSTANT_CHARGE_CURRENT=450000
+POWER_SUPPLY_CONSTANT_CHARGE_VOLTAGE=4175000
+POWER_SUPPLY_CHARGE_BEHAVIOUR=auto
+POWER_SUPPLY_TYPE=Battery
+phase=FAULT source=1 source_valid=1 charge_limit_ua=450000
+active=0 online=1 present=1 fault=0x10 sample_error=0 stop_error=0 paused=0 last_error=0
+battery_uv=4099877 baton_raw=10387 isense_raw=18659 pmic_die_mc=41035 input_budget_ua=500000
+chr_con0=0x0063 cv_status=0x008e battery_ovp=0x0001 baton=0x0005 watchdog=0x0000 thermal=0x0000
+watchdog_pets=1 last_pet_ms=15116 total_seconds=1 cv_seconds=1 precharge_seconds=0 hold=0 full=0 timeout=0
+SAMPLE 3 UPTIME 540.39 2150.03
+DEVTYPE=power_supply
+OF_NAME=charger
+OF_FULLNAME=/pwrap@1000d000/pmic/charger
+OF_COMPATIBLE_0=innioasis,y2-mt6323-charger
+OF_COMPATIBLE_N=1
+POWER_SUPPLY_NAME=BAT0
+POWER_SUPPLY_TYPE=Battery
+POWER_SUPPLY_STATUS=Not charging
+POWER_SUPPLY_HEALTH=Unspecified failure
+POWER_SUPPLY_PRESENT=1
+POWER_SUPPLY_VOLTAGE_NOW=4099218
+POWER_SUPPLY_CONSTANT_CHARGE_CURRENT=450000
+POWER_SUPPLY_CONSTANT_CHARGE_VOLTAGE=4175000
+POWER_SUPPLY_CHARGE_BEHAVIOUR=auto
+POWER_SUPPLY_TYPE=Battery
+phase=FAULT source=1 source_valid=1 charge_limit_ua=450000
+active=0 online=1 present=1 fault=0x10 sample_error=0 stop_error=0 paused=0 last_error=0
+battery_uv=4102294 baton_raw=10387 isense_raw=18657 pmic_die_mc=41035 input_budget_ua=500000
+chr_con0=0x0063 cv_status=0x008e battery_ovp=0x0001 baton=0x0005 watchdog=0x0000 thermal=0x0000
+watchdog_pets=1 last_pet_ms=15116 total_seconds=1 cv_seconds=1 precharge_seconds=0 hold=0 full=0 timeout=0
+SAMPLE 4 UPTIME 545.44 2170.15
+DEVTYPE=power_supply
+OF_NAME=charger
+OF_FULLNAME=/pwrap@1000d000/pmic/charger
+OF_COMPATIBLE_0=innioasis,y2-mt6323-charger
+OF_COMPATIBLE_N=1
+POWER_SUPPLY_NAME=BAT0
+POWER_SUPPLY_TYPE=Battery
+POWER_SUPPLY_STATUS=Not charging
+POWER_SUPPLY_HEALTH=Unspecified failure
+POWER_SUPPLY_PRESENT=1
+POWER_SUPPLY_VOLTAGE_NOW=4098999
+POWER_SUPPLY_CONSTANT_CHARGE_CURRENT=450000
+POWER_SUPPLY_CONSTANT_CHARGE_VOLTAGE=4175000
+POWER_SUPPLY_CHARGE_BEHAVIOUR=auto
+POWER_SUPPLY_TYPE=Battery
+phase=FAULT source=1 source_valid=1 charge_limit_ua=450000
+active=0 online=1 present=1 fault=0x10 sample_error=0 stop_error=0 paused=0 last_error=0
+battery_uv=4099658 baton_raw=10387 isense_raw=18666 pmic_die_mc=41035 input_budget_ua=500000
+chr_con0=0x0063 cv_status=0x008e battery_ovp=0x0001 baton=0x0005 watchdog=0x0000 thermal=0x0000
+watchdog_pets=1 last_pet_ms=15116 total_seconds=1 cv_seconds=1 precharge_seconds=0 hold=0 full=0 timeout=0
+SAMPLE 5 UPTIME 550.47 2190.26
+DEVTYPE=power_supply
+OF_NAME=charger
+OF_FULLNAME=/pwrap@1000d000/pmic/charger
+OF_COMPATIBLE_0=innioasis,y2-mt6323-charger
+OF_COMPATIBLE_N=1
+POWER_SUPPLY_NAME=BAT0
+POWER_SUPPLY_TYPE=Battery
+POWER_SUPPLY_STATUS=Not charging
+POWER_SUPPLY_HEALTH=Unspecified failure
+POWER_SUPPLY_PRESENT=1
+POWER_SUPPLY_VOLTAGE_NOW=4101196
+POWER_SUPPLY_CONSTANT_CHARGE_CURRENT=450000
+POWER_SUPPLY_CONSTANT_CHARGE_VOLTAGE=4175000
+POWER_SUPPLY_CHARGE_BEHAVIOUR=auto
+POWER_SUPPLY_TYPE=Battery
+phase=FAULT source=1 source_valid=1 charge_limit_ua=450000
+active=0 online=1 present=1 fault=0x10 sample_error=0 stop_error=0 paused=0 last_error=0
+battery_uv=4099438 baton_raw=10387 isense_raw=18655 pmic_die_mc=41035 input_budget_ua=500000
+chr_con0=0x0063 cv_status=0x008e battery_ovp=0x0001 baton=0x0005 watchdog=0x0000 thermal=0x0000
+watchdog_pets=1 last_pet_ms=15116 total_seconds=1 cv_seconds=1 precharge_seconds=0 hold=0 full=0 timeout=0
+SAMPLE 6 UPTIME 555.53 2210.42
+DEVTYPE=power_supply
+OF_NAME=charger
+OF_FULLNAME=/pwrap@1000d000/pmic/charger
+OF_COMPATIBLE_0=innioasis,y2-mt6323-charger
+OF_COMPATIBLE_N=1
+POWER_SUPPLY_NAME=BAT0
+POWER_SUPPLY_TYPE=Battery
+POWER_SUPPLY_STATUS=Not charging
+POWER_SUPPLY_HEALTH=Unspecified failure
+POWER_SUPPLY_PRESENT=1
+POWER_SUPPLY_VOLTAGE_NOW=4098120
+POWER_SUPPLY_CONSTANT_CHARGE_CURRENT=450000
+POWER_SUPPLY_CONSTANT_CHARGE_VOLTAGE=4175000
+POWER_SUPPLY_CHARGE_BEHAVIOUR=auto
+POWER_SUPPLY_TYPE=Battery
+phase=FAULT source=1 source_valid=1 charge_limit_ua=450000
+active=0 online=1 present=1 fault=0x10 sample_error=0 stop_error=0 paused=0 last_error=0
+battery_uv=4101196 baton_raw=10387 isense_raw=18653 pmic_die_mc=41035 input_budget_ua=500000
+chr_con0=0x0063 cv_status=0x008e battery_ovp=0x0001 baton=0x0005 watchdog=0x0000 thermal=0x0000
+watchdog_pets=1 last_pet_ms=15116 total_seconds=1 cv_seconds=1 precharge_seconds=0 hold=0 full=0 timeout=0
+END_READ_ONLY_INSPECTION

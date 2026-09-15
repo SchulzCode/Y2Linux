@@ -1,0 +1,270 @@
+{
+  "date": "2026-09-15",
+  "repository_head": "bbbbbf20e96860089b015c19501b7d39638c5419",
+  "working_tree_note": "Existing September 14 documentation/evidence edits preserved; scoped USB startup workaround, recorder and current result added.",
+  "observed_kernel_release": "6.18.0-y2linux-m4-power-02",
+  "installed_bootimg_hash": null,
+  "result": "TESTED_RUNTIME_WORKAROUND; kernel root fix and broader qualification remain open",
+  "failure": {
+    "detach_uptime_s": 541.81648,
+    "reentry_armed_uptime_s": 547.327276,
+    "terminal_stop_uptime_s": 547.666738,
+    "error": -75,
+    "errno": "EOVERFLOW",
+    "irq_count": 1167,
+    "source_of_error": "Adapter guard against more than 512 interrupts in one jiffy",
+    "first_offending_irq_registers_retained": false
+  },
+  "runtime_workaround": {
+    "device": "/sys/devices/platform/11200000.usb/musb-hdrc.4.auto",
+    "property": "power/control",
+    "before": "auto",
+    "after": "on",
+    "before_uptime_s": 133.65,
+    "runtime_status_after": "active",
+    "startup_path": "/etc/init.d/S20y2-usb",
+    "startup_sha256": "3647799ffb982afee5301739654a0d918b41f332b6b942605639de824fab5578",
+    "startup_backup": "/data/logs/usb-charge.qbEwnO/S20y2-usb.before",
+    "installed_readback_matches_source": true,
+    "installed_start_path_exercised": true,
+    "fresh_boot_after_startup_edit_tested": false,
+    "increased_idle_consumption_measured": false
+  },
+  "successful_same_boot_cycles": [
+    {
+      "route": "PC-unplug-PC",
+      "detach_s": 207.293995,
+      "reentry_s": 211.574714,
+      "configured_s": 212.094006,
+      "ssh_s": 212.56,
+      "usb_error": 0
+    },
+    {
+      "route": "PC-wall-PC",
+      "detach_s": 332.994893,
+      "reentry_s": 359.256015,
+      "configured_s": 359.775161,
+      "ssh_s": 405.5,
+      "usb_error": 0
+    }
+  ],
+  "wall_charging": {
+    "source": "DCP",
+    "source_code": 4,
+    "start_s": 341.565435,
+    "removal_s": 354.525292,
+    "observed_interval_s": 12.959857,
+    "programmed_limit_ua": 650000,
+    "programmed_cv_uv": 4175000,
+    "measured_battery_current_ua": null,
+    "samples": [
+      {
+        "sample_start_uptime_s": 340.95,
+        "source": 4,
+        "phase": "CONSTANT_CURRENT",
+        "active": 1,
+        "fault": "0x0",
+        "battery_uv": 4096142
+      },
+      {
+        "sample_start_uptime_s": 342.61,
+        "source": 4,
+        "phase": "CONSTANT_CURRENT",
+        "active": 1,
+        "fault": "0x0",
+        "battery_uv": 4182495
+      },
+      {
+        "sample_start_uptime_s": 343.69,
+        "source": 4,
+        "phase": "CONSTANT_CURRENT",
+        "active": 1,
+        "fault": "0x0",
+        "battery_uv": 4182495
+      },
+      {
+        "sample_start_uptime_s": 344.91,
+        "source": 4,
+        "phase": "CONSTANT_CURRENT",
+        "active": 1,
+        "fault": "0x0",
+        "battery_uv": 4189306
+      },
+      {
+        "sample_start_uptime_s": 345.97,
+        "source": 4,
+        "phase": "CONSTANT_CURRENT",
+        "active": 1,
+        "fault": "0x0",
+        "battery_uv": 4186010
+      },
+      {
+        "sample_start_uptime_s": 347.05,
+        "source": 4,
+        "phase": "CONSTANT_CURRENT",
+        "active": 1,
+        "fault": "0x0",
+        "battery_uv": 4186010
+      },
+      {
+        "sample_start_uptime_s": 348.11,
+        "source": 4,
+        "phase": "CONSTANT_CURRENT",
+        "active": 1,
+        "fault": "0x0",
+        "battery_uv": 4193041
+      },
+      {
+        "sample_start_uptime_s": 349.33,
+        "source": 4,
+        "phase": "CONSTANT_CURRENT",
+        "active": 1,
+        "fault": "0x0",
+        "battery_uv": 4187329
+      },
+      {
+        "sample_start_uptime_s": 350.41,
+        "source": 4,
+        "phase": "CONSTANT_CURRENT",
+        "active": 1,
+        "fault": "0x0",
+        "battery_uv": 4187329
+      },
+      {
+        "sample_start_uptime_s": 351.47,
+        "source": 4,
+        "phase": "CONSTANT_CURRENT",
+        "active": 1,
+        "fault": "0x0",
+        "battery_uv": 4195239
+      },
+      {
+        "sample_start_uptime_s": 352.53,
+        "source": 4,
+        "phase": "CONSTANT_CURRENT",
+        "active": 1,
+        "fault": "0x0",
+        "battery_uv": 4193701
+      },
+      {
+        "sample_start_uptime_s": 353.59,
+        "source": 4,
+        "phase": "CONSTANT_CURRENT",
+        "active": 1,
+        "fault": "0x0",
+        "battery_uv": 4194360
+      }
+    ],
+    "all_recorded_charger_faults": [
+      "0x0"
+    ],
+    "limitations": "Sequential sample reads are not atomic. Short interval only; not full/offline charging or sustained net energy qualification. September 14 OVP fault remains unresolved."
+  },
+  "final_readback": {
+    "uptime_s": 504.93,
+    "usb_stage": 6,
+    "usb_error": 0,
+    "usb_configured": 1,
+    "charging_active": 1,
+    "charger_fault": "0x0",
+    "battery_uv": 4177880
+  },
+  "recorder": {
+    "script": "tools/development/record-usb-charge.sh",
+    "sha256": "867f96530cee7a09abd069cc160c13954b0e9532b5e0875815a81e3bad84b22f",
+    "failure_log_survived_owner_restart": true,
+    "sample_count_workaround_run": 335,
+    "stopped_after_test": true,
+    "stop_method": "SIGTERM to the verified recorder process; END exit=1 records deliberate termination"
+  },
+  "validation": [
+    "Host shell syntax",
+    "Target BusyBox shell syntax",
+    "Installed startup SHA256 matches canonical source",
+    "Installed startup path runs and reads back on/active/configured",
+    "Two owner-operated same-boot USB reconnects with SSH recovery",
+    "Short wall-source interval retains fault-free samples",
+    "Persistent failure log recovered after owner restart"
+  ],
+  "kernel_build_or_flash": false,
+  "tracking": {
+    "usb_reconnect": [
+      27,
+      28
+    ],
+    "charging": 30,
+    "milestones_closed": false
+  },
+  "raw_evidence": [
+    {
+      "path": "evidence-private/20260915-usb-reconnect/usb-fix-entry.txt",
+      "bytes": 3835,
+      "sha256": "a1ca725c38e1e7042418f9ab8cb3df883de7313b95fc86f3d0fbf2d628b989a8"
+    },
+    {
+      "path": "evidence-private/20260915-usb-reconnect/failure-recorder.tar",
+      "bytes": 252928,
+      "sha256": "e961a784150cfb2079f2a14643e2e46ee64a0e503ba7e61facaf6e92dda39762"
+    },
+    {
+      "path": "evidence-private/20260915-usb-reconnect/dmesg-latest.txt",
+      "bytes": 35548,
+      "sha256": "6ce4ca5759e02f39c97dcb053ca286c4fec119e26db911b282fef795eaa58e80"
+    },
+    {
+      "path": "evidence-private/20260915-usb-reconnect/samples.txt",
+      "bytes": 178215,
+      "sha256": "31e951a8d33c8104aa3a6fae6d8f22707bdae5698b3a7a58e0d5fc5a009a8e43"
+    },
+    {
+      "path": "evidence-private/20260915-usb-reconnect/after-restart.txt",
+      "bytes": 233,
+      "sha256": "98b912b4bbeaf311adf1af21df87057efe0237187e4a5a5d28cd8e283bad1f6a"
+    },
+    {
+      "path": "evidence-private/20260915-usb-reconnect/runtime-pm-workaround-start.txt",
+      "bytes": 493,
+      "sha256": "89988b2e4e54c2b366087bce634137159410168c6ce991d8a3a06f10f9856a8c"
+    },
+    {
+      "path": "evidence-private/20260915-usb-reconnect/runtime-pm-reconnect.txt",
+      "bytes": 3199,
+      "sha256": "88a21ad70279b798b9ab80a8dc5320c0f701f60afc195a09b46eb79ff49b0f08"
+    },
+    {
+      "path": "evidence-private/20260915-usb-reconnect/runtime-pm-reconnect-stable.txt",
+      "bytes": 577,
+      "sha256": "9ecce4dccfa22d00fee63c6a0e243fe55008d4a6684566c842c966a0c661fca9"
+    },
+    {
+      "path": "evidence-private/20260915-usb-reconnect/startup-workaround-installed.txt",
+      "bytes": 472,
+      "sha256": "068ec938a15a257c0e879dd8155168540c273c0fbef50f2d4c019f0df26c293d"
+    },
+    {
+      "path": "evidence-private/20260915-usb-reconnect/wall-return.txt",
+      "bytes": 6368,
+      "sha256": "3ae85c3e3017a6716365ad2ba5a5a9a937d9e3d439bc2546d777d75b66a683cd"
+    },
+    {
+      "path": "evidence-private/20260915-usb-reconnect/final-readback.txt",
+      "bytes": 723,
+      "sha256": "879b715444ce72a767ac105592522dc16460f6a39500c982e0456eff168db34a"
+    },
+    {
+      "path": "evidence-private/20260915-usb-reconnect/workaround-recorder-final.tar",
+      "bytes": 494592,
+      "sha256": "115cd39ba285482ca7deb8a80160230d49e70434d869cfa6de535d242ef9af3f"
+    },
+    {
+      "path": "evidence-private/20260915-usb-reconnect/host-disconnect.txt",
+      "bytes": 210,
+      "sha256": "3fcfb83602abf0b313d72cb1f302d8e790dd8ebb5e6d3912a225c9e10688fe89"
+    },
+    {
+      "path": "evidence-private/20260915-usb-reconnect/host-events.txt",
+      "bytes": 275,
+      "sha256": "37f258974ba32e09c7a5860b6be9708f51d116a7f4e03f11fd4171f841a22822"
+    }
+  ]
+}

@@ -1,5 +1,47 @@
 # Y2Linux roadmap and gap audit
 
+## Charging-test USB blocker — 2026-09-15
+
+At `bbbbbf2` with the existing September 14 evidence edits preserved, the owner
+requests a focused fix for the first cable reconnect because it prevents M4
+wall-charger observation. Current POWER-02 SSH samples show PC charging active,
+fault=0 and about 4.13–4.15 V; this narrow result does not resolve the earlier
+OVP failure or qualify wall charging. Two inspected boots have different uptime
+histories, and the wall-session log was lost across reboot. An owner-operated
+five-second removal/reconnect again leaves the Y2 absent from host USB while
+the owner reports it remains powered on. The saved device log subsequently
+confirms successful re-entry followed by an IRQ-storm shutdown (`-EOVERFLOW`,
+-75), rather than a PHY admission failure.
+
+Reviewed every coverage row, current source/retained hardware evidence, and the
+eight open issues #16/#27–33. The existing #27/#28 reconnect gap now blocks #30;
+this is a localized repair within the documented M4 test-blocker exception,
+not a new milestone, hardware subsystem or expanded charging policy. A bounded
+recorder now saves existing USB/charging diagnostics to production Y2DATA so a
+required restart need not erase the failure. A standard MUSB `power/control=on`
+workaround then passes two physical reconnects on one boot, including a DCP wall
+session of 12.96 seconds with no charging fault. The exact POWER-02 startup
+workaround is installed and its readback matches source; a fresh boot of that
+startup edit is not tested. This is a tested workaround, not a kernel fix or
+full reconnect/charging qualification. Extra idle power is unmeasured. See
+[the hardware result and limits](../hardware-evidence/2026-09-15-usb-reconnect/README.md).
+All other coverage classifications and phase gates retain their prior limits;
+M4 stays ACTIVE/PARTIAL. No unchanged source/ROM/recovery audit or broad
+qualification is repeated.
+
+2026-09-14 post-deployment read-only result at repository `bbbbbf2`:
+[M4-POWER-02 charging fault](../hardware-evidence/2026-09-14-m4-power02-charge-fault/README.md).
+The owner reports wall-charge animation without recovery, then stock recharge
+and Linux reinstall. USB/SSH identify POWER-02; no physical BOOTIMG hash was
+taken. In the current normal PC-connected boot, SDP/500-mA allocation works,
+but 450-mA charging stops after about one second with latched OVP fault 0x10.
+The earlier wall session is not retained. This supersedes pending-deployment
+statements, not the limits of prior acceptance. M4 #30 remains ACTIVE/PARTIAL;
+the next blocker is the first OVP trigger and stock/Linux protection settings,
+before further charging qualification. Other power, thermal, storage and later
+phase gates are unchanged. This inspection makes no milestone transition or
+hardware-scope expansion; no build, flash or device-state write was performed.
+
 2026-09-14 candidate boundary review: M4-POWER-02 from `83d475e` passes 72
 production/M4 checks, ARM rescue ABI and package identity/rejection checks.
 BOOTIMG is 5378048 bytes, SHA256
@@ -1520,7 +1562,7 @@ Status measures our hardware; registration alone never establishes consumer oper
 | Clocks, resets, pinctrl/GPIO/IRQ and I2C | **PARTIAL** | DEV-02 CCF/PWRAP/MFD/regulator/core consumers operate; wheel has52IRQ/52I2C completions and both directions, no timeout. Exact full clock rates/unused orphan gates and future consumer reset/rail ownership remain #29/#30 prerequisites. | #23/#24/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Watchdog and controlled reset | **PARTIAL** | Reviewed early AP_RGU stop and displayed stopped state; no production driver takeover, pet/timeout strategy, deliberate reset or restart qualification. | #28 with #30. Preserve current experiment behavior. |
 | On-device diagnostic channel | **CONFIRMED** | DEV-02 native fbcon and owner-confirmed visible color/checkerboard pattern; supported unblank succeeds. Cursor handling fixes a later shared-buffer checksum mismatch without a kernel change. | #20–21; [result](../knowledge/m1-runtime-hardware-result.md). |
-| Developer host logs / USB | **PARTIAL** | Storage06 ACM capture and authenticated owner-key SSH over ECM 10.42.0.1 work after owner startup; host USB profile uses 10.42.0.2/24. Historical first reconnect fails before enumeration; no boot-continuity/reconnect qualification is added by the manual flash/startup. | #27, #23, #28; #33 owner SSH. |
+| Developer host logs / USB | **PARTIAL; reconnect workaround tested** | Storage06/POWER-02 ACM and owner-key SSH over ECM work. POWER-02's first reconnect reproduces an IRQ-storm shutdown (-75). Keeping MUSB runtime PM active passes two physical reconnects on one boot, including wall-source charging; the scoped startup change is installed. Kernel correction with automatic runtime PM, fresh-boot validation of the startup edit, broader reconnect and power qualification remain open. [Result](../hardware-evidence/2026-09-15-usb-reconnect/README.md). | #27, #23, #28; #30 charging blocker; #33 owner SSH. |
 | Physical UART / early crash capture | **UNKNOWN** | UART0 candidate exists; no pad/level/wire capture. Ramoops retention/reader is unproved. USB cannot log hangs before its initialization. | Existing #16; broader crash/debug policy #32. |
 | Display/controller/panel | **CONFIRMED** | DEV-02 DSI-1 connected, CRTC55 active, framebuffer56 XR24 480x360/pitch1920, fbcon bound, safe GEM/OVL address match and owner-confirmed pattern. Blank state corrected through sysfs; broader modes/power sequencing remain later. | #25/#28; [research](../knowledge/reverse-engineering-audit.md). |
 | Backlight | **PARTIAL** | DEV-02 brightness/actual/max32 with physically visible panel; native brightness range, PWM/rail transitions and suspend sequencing remain #30. | #25/#23; #28/#30. |

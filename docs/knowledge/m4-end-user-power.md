@@ -8,12 +8,32 @@ The integrated candidate is now built from `83d475e`; 72 production/M4 host
 tests pass and the BOOTIMG-only package is validated. Hardware bytes stayed
 identical through host packaging corrections. The owner has been given the
 [manual offline-charge deployment sequence](../build/y2linux-m4-power-02-deployment.md).
-No new physical pass is recorded yet. The historical entry commit/remote above
-describe session entry, not the current candidate source.
+The owner has since deployed it; the [post-reinstall SSH inspection](../hardware-evidence/2026-09-14-m4-power02-charge-fault/README.md)
+records a charging failure. The historical entry commit/remote above describe
+session entry, not the current candidate source.
 
 ## Current hardware evidence takes precedence
 
-The owner confirms that the production M4 charging kernel has been installed,
+**2026-09-15, M4-POWER-02:** [new physical evidence](../hardware-evidence/2026-09-15-usb-reconnect/README.md)
+shows PC charging active without a fault on the inspected boots. The USB
+reconnect blocker is reproduced as an interrupt-storm shutdown (-75).
+A tested runtime-PM workaround passes two same-boot reconnects and is installed
+for normal POWER-02 startup. A 12.96-second DCP wall interval charges at the
+configured 650-mA limit with twelve fault-free samples. This does not resolve
+the earlier OVP failure or qualify sustained gain, full/offline charging or
+power consumption. The kernel reconnect fix and broader M4 gates remain open.
+
+**2026-09-14, M4-POWER-02:** the owner reports wall-charge animation without battery
+recovery, requiring stock recharge and Linux reinstall. The current normal boot
+identifies POWER-02 and recognizes PC SDP with a 500-mA allocation. Charging at
+450 mA / 4.175 V starts at uptime 15.122924 s, then stops at 16.202659 s with
+latched OVP fault 0x10. Six later samples remain inactive; battery voltage is
+about 4.10 V. The first-fault detector registers and earlier wall-session logs
+are unavailable. The inherited battery-OVP selector differs from actual stock,
+but this is not a proven fault cause. Charging and low-battery recovery remain
+failed/unqualified. No settings were changed during the read-only inspection.
+
+**Earlier, M4-CHARGE-01:** the owner confirms that the charging kernel was installed,
 BAT0 reports Charging at 70 mA / 4.175 V, the first active test was near 3.46 V,
 watchdog servicing worked, and no charger-driver fault was observed in that
 initial test. This supersedes the older M4-01/ADC-01 and CHARGE-01 predeployment
@@ -70,10 +90,10 @@ Every row below is required to close M4. A compiled implementation is not a pass
 
 | Area | Entry evidence | Remaining physical acceptance |
 | --- | --- | --- |
-| Charging | Owner-confirmed 70 mA/4.175 V active charge and watchdog, initial no-fault test | Sustained positive voltage trend; useful evidenced current; PC, wall charger and power bank; removal and source changes |
-| Detection | CHRDET and configured-PC allocation exist; BC1.1 absent | Source classification independent of gadget enumeration, conservative unknown policy, consistent USB descriptors |
-| Charger lifecycle | Checked protections, 4-second WDT, 1-second service, bounded voltage/CV stop and hysteresis implemented | Final-current termination/recharge, watchdog/fault correctness, precharge/low-battery recovery without Android |
-| Offline charging | Owner observes unwanted full-OS boot on charger insertion | All eleven offline-charge acceptance cases, including screen timeout/status/intentional boot, poweroff while plugged in, unplug/reinsert, completion and recovery |
+| Charging | Earlier 70-mA gain baseline failed; POWER-02 enables 450 mA then latches OVP after about one second | Resolve OVP trigger; sustained positive voltage trend; useful evidenced current; PC, wall charger and power bank; removal and source changes |
+| Detection | POWER-02 reports BC1.1 SDP and configured-PC 500-mA allocation on this boot | Wall/bank classification independent of gadget enumeration, conservative unknown policy, consistent USB descriptors |
+| Charger lifecycle | POWER-02 inhibits on latched OVP; first-fault detector registers are not retained | Identify OVP cause; final-current termination/recharge, watchdog/fault correctness, precharge/low-battery recovery without Android |
+| Offline charging | Owner reports POWER-02 animation without recovery; earlier wall-session telemetry was lost across stock reinstall | All eleven offline-charge acceptance cases, including screen timeout/status/intentional boot, poweroff while plugged in, unplug/reinsert, completion and recovery |
 | Battery monitoring | BAT0 status/presence/voltage/current and CV setpoints; raw BATON/ISENSE | Truthful telemetry during every power transition; current and pack temperature only if calibrated |
 | Thermal/frequency | Own-efuse conversions implemented, but new CPU readings are implausible; 598/747.5/1040 MHz at 1.15 V | Calibrated physical temperature response, repeated OPP transitions, bounded load and thermal/cooling behavior |
 | Idle/suspend | WFI/s2idle implemented; active charger keeps watchdog servicing awake | Safe deeper MT6582 standby, low consumption, same-session restore; WFI/s2idle fallback retained |
@@ -156,7 +176,8 @@ This explains the warning path; final filesystem qualification is still needed.
 ## Integrated candidate source contract
 
 The source pass implements the decisions above in the production kernel and
-production rescue image. It has not yet been flashed. The
+production rescue image. It was subsequently owner-deployed; the latest
+charging failure above supersedes the source-only deployment status. The
 [source reconciliation receipt](evidence/m4-power-source.json) binds the exact
 597-word suspend and 28-word normal PCM programs to the retained FM Y2 binary;
 the host sequence comes from the pinned BSP and actual Y2 CPU power functions.

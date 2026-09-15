@@ -1,0 +1,113 @@
+FAILURE BOOT
+[    0.311106] Y2USB recover rc=0 written=1
+[    0.311149] Y2USB stage=1 result=0
+[    0.311177] Y2USB stage=2 result=0
+[    0.324561] y2-mt6323-charger y2-mt6323-charger: stock-derived BC1.1 charging: 70/450/650mA, 4.175V; pack temp/current/SOC unavailable
+[    1.412466] y2-mt6323-charger y2-mt6323-charger: status=2 fault=0x0 battery=4041650uV input=-1uA watchdog_pets=0 source=0 limit=0uA pmic=42789mC baton_raw=10387 isense_raw=18393 cv=0x4 hold=0 full=0
+[   28.832632] y2-mt6323-charger y2-mt6323-charger: BC1.1 source=1; charging independent of gadget configuration
+[   28.832704] Y2USB stage=1 result=0
+[   28.833214] Y2USB stage=1 result=0
+[   28.833257] Y2USB fresh power=0/7 CHR=0063 clock=0/f USB=0/1fffff
+[   28.834194] Y2USB stage=3 result=0
+[   28.834766] Y2USB PHY00 saved=6e session=6e
+[   28.834786] Y2USB PHY05 saved=44 session=44
+[   28.834804] Y2USB PHY15 saved=10 session=10
+[   28.834822] Y2USB PHY1a saved=10 session=10
+[   28.834840] Y2USB PHY1d saved=00 session=00
+[   28.834858] Y2USB PHY22 saved=00 session=00
+[   28.834876] Y2USB PHY63 saved=00 session=00
+[   28.834894] Y2USB stage=4 result=0
+[   28.836755] Y2USB stage=5 result=0
+[   28.912755] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x0 battery=4041430uV input=0uA watchdog_pets=0 source=1 limit=70000uA pmic=42789mC baton_raw=10387 isense_raw=18393 cv=0x8e hold=0 full=0
+[   29.352604] Y2USB stage=6 result=0
+[   29.393144] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4035937uV input=500000uA watchdog_pets=1 source=1 limit=450000uA pmic=43374mC baton_raw=10387 isense_raw=18335 cv=0x8e hold=0 full=0
+[   29.397237] Y2NET: usb0 10.42.0.1/24 ready; address persists across cable reconnect
+[   89.813354] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4124707uV input=500000uA watchdog_pets=55 source=1 limit=450000uA pmic=44543mC baton_raw=10386 isense_raw=19225 cv=0xae hold=0 full=0
+[  149.163812] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4131298uV input=500000uA watchdog_pets=108 source=1 limit=450000uA pmic=45128mC baton_raw=10386 isense_raw=19252 cv=0x8e hold=0 full=0
+[  209.644281] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4135253uV input=500000uA watchdog_pets=162 source=1 limit=450000uA pmic=46298mC baton_raw=10386 isense_raw=19281 cv=0xae hold=0 full=0
+[  270.124744] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4140527uV input=500000uA watchdog_pets=216 source=1 limit=450000uA pmic=46883mC baton_raw=10386 isense_raw=19286 cv=0x8e hold=0 full=0
+[  330.605218] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4140966uV input=500000uA watchdog_pets=270 source=1 limit=450000uA pmic=46883mC baton_raw=10386 isense_raw=19292 cv=0xae hold=0 full=0
+[  391.085694] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4144702uV input=500000uA watchdog_pets=324 source=1 limit=450000uA pmic=47467mC baton_raw=10386 isense_raw=19311 cv=0xae hold=0 full=0
+[  451.566142] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4147998uV input=500000uA watchdog_pets=378 source=1 limit=450000uA pmic=48052mC baton_raw=10386 isense_raw=19328 cv=0xae hold=0 full=0
+[  512.056617] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4151293uV input=500000uA watchdog_pets=432 source=1 limit=450000uA pmic=48637mC baton_raw=10386 isense_raw=19345 cv=0x8e hold=0 full=0
+[  541.606697] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x0 battery=4153930uV input=2000uA watchdog_pets=458 source=1 limit=450000uA pmic=50391mC baton_raw=10386 isense_raw=18616 cv=0xae hold=0 full=0
+[  541.696608] y2-mt6323-charger y2-mt6323-charger: status=2 fault=0x0 battery=4092187uV input=2000uA watchdog_pets=458 source=0 limit=450000uA pmic=49222mC baton_raw=10386 isense_raw=18624 cv=0x4 hold=0 full=0
+[  541.816480] Y2USB stage=8 result=0
+[  541.816661] Y2USB detached; PID1 continues; persistent reconnect enabled
+[  547.326624] y2-mt6323-charger y2-mt6323-charger: BC1.1 source=1; charging independent of gadget configuration
+[  547.327253] Y2USB stage=5 result=0
+[  547.327276] Y2USB reconnect armed; host reset/configuration required
+[  547.416743] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x0 battery=4085156uV input=0uA watchdog_pets=458 source=1 limit=70000uA pmic=48637mC baton_raw=10387 isense_raw=18591 cv=0x8e hold=0 full=0
+[  547.666738] Y2USB stopped stage=5 result=-75 IRQ=1167 events=05
+[  607.007131] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x0 battery=4070874uV input=0uA watchdog_pets=458 source=1 limit=70000uA pmic=46298mC baton_raw=10387 isense_raw=18515 cv=0x8e hold=0 full=0
+[  647.637468] y2-mt6323-charger y2-mt6323-charger: status=2 fault=0x0 battery=4064062uV input=0uA watchdog_pets=458 source=0 limit=70000uA pmic=46298mC baton_raw=10387 isense_raw=18470 cv=0x4 hold=0 full=0
+
+WORKAROUND BOOT
+[    0.310910] Y2USB recover rc=0 written=1
+[    0.310954] Y2USB stage=1 result=0
+[    0.310981] Y2USB stage=2 result=0
+[    0.324635] y2-mt6323-charger y2-mt6323-charger: stock-derived BC1.1 charging: 70/450/650mA, 4.175V; pack temp/current/SOC unavailable
+[    1.412490] y2-mt6323-charger y2-mt6323-charger: status=2 fault=0x0 battery=4058789uV input=-1uA watchdog_pets=0 source=0 limit=0uA pmic=45713mC baton_raw=10387 isense_raw=18470 cv=0x4 hold=0 full=0
+[    6.572524] y2-mt6323-charger y2-mt6323-charger: BC1.1 source=1; charging independent of gadget configuration
+[    6.572575] Y2USB stage=1 result=0
+[    6.573055] Y2USB stage=1 result=0
+[    6.573097] Y2USB fresh power=0/7 CHR=0063 clock=0/f USB=0/1fffff
+[    6.574034] Y2USB stage=3 result=0
+[    6.574605] Y2USB PHY00 saved=6e session=6e
+[    6.574625] Y2USB PHY05 saved=44 session=44
+[    6.574643] Y2USB PHY15 saved=10 session=10
+[    6.574661] Y2USB PHY1a saved=10 session=10
+[    6.574679] Y2USB PHY1d saved=00 session=00
+[    6.574697] Y2USB PHY22 saved=00 session=00
+[    6.574714] Y2USB PHY63 saved=00 session=00
+[    6.574733] Y2USB stage=4 result=0
+[    6.576614] Y2USB stage=5 result=0
+[    6.652630] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x0 battery=4057250uV input=0uA watchdog_pets=0 source=1 limit=70000uA pmic=46298mC baton_raw=10387 isense_raw=18466 cv=0x8e hold=0 full=0
+[    7.092448] Y2USB stage=6 result=0
+[    7.132879] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4056372uV input=500000uA watchdog_pets=1 source=1 limit=450000uA pmic=46298mC baton_raw=10387 isense_raw=18475 cv=0x8e hold=0 full=0
+[   16.099793] Y2NET: usb0 10.42.0.1/24 ready; address persists across cable reconnect
+[   67.563215] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4143823uV input=500000uA watchdog_pets=55 source=1 limit=450000uA pmic=46883mC baton_raw=10386 isense_raw=19312 cv=0xae hold=0 full=0
+[  128.043680] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4151293uV input=500000uA watchdog_pets=109 source=1 limit=450000uA pmic=47467mC baton_raw=10386 isense_raw=19343 cv=0xae hold=0 full=0
+[  188.524164] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4158544uV input=500000uA watchdog_pets=163 source=1 limit=450000uA pmic=48052mC baton_raw=10386 isense_raw=19362 cv=0xae hold=0 full=0
+[  207.194151] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x0 battery=4158105uV input=2000uA watchdog_pets=179 source=1 limit=450000uA pmic=47467mC baton_raw=10386 isense_raw=18648 cv=0xae hold=0 full=0
+[  207.293995] Y2USB stage=8 result=0
+[  207.294212] Y2USB detached; PID1 continues; persistent reconnect enabled
+[  207.304080] y2-mt6323-charger y2-mt6323-charger: status=2 fault=0x0 battery=4096801uV input=2000uA watchdog_pets=179 source=0 limit=450000uA pmic=49222mC baton_raw=10386 isense_raw=18643 cv=0x4 hold=0 full=0
+[  211.574059] y2-mt6323-charger y2-mt6323-charger: BC1.1 source=1; charging independent of gadget configuration
+[  211.574691] Y2USB stage=5 result=0
+[  211.574714] Y2USB reconnect armed; host reset/configuration required
+[  211.654174] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x0 battery=4090869uV input=0uA watchdog_pets=179 source=1 limit=70000uA pmic=48637mC baton_raw=10386 isense_raw=18617 cv=0x8e hold=0 full=0
+[  212.094006] Y2USB stage=6 result=0
+[  212.134443] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4079443uV input=500000uA watchdog_pets=180 source=1 limit=450000uA pmic=49222mC baton_raw=10386 isense_raw=18596 cv=0x8e hold=0 full=0
+[  272.604793] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4164697uV input=500000uA watchdog_pets=234 source=1 limit=450000uA pmic=48637mC baton_raw=10386 isense_raw=19394 cv=0xae hold=0 full=0
+[  294.563032] Y2NET: POWER-02 USB runtime autosuspend disabled for cable reconnect
+[  294.574276] Y2NET: usb0 10.42.0.1/24 ready; address persists across cable reconnect
+[  332.785119] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x0 battery=4167553uV input=2000uA watchdog_pets=287 source=1 limit=450000uA pmic=48052mC baton_raw=10386 isense_raw=18687 cv=0xae hold=0 full=0
+[  332.885045] y2-mt6323-charger y2-mt6323-charger: status=2 fault=0x0 battery=4105590uV input=2000uA watchdog_pets=287 source=0 limit=450000uA pmic=49807mC baton_raw=10386 isense_raw=18683 cv=0x4 hold=0 full=0
+[  332.994893] Y2USB stage=8 result=0
+[  332.995067] Y2USB detached; PID1 continues; persistent reconnect enabled
+[  341.485034] y2-mt6323-charger y2-mt6323-charger: BC1.1 source=4; charging independent of gadget configuration
+[  341.565435] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4096582uV input=-1uA watchdog_pets=288 source=4 limit=650000uA pmic=48637mC baton_raw=10386 isense_raw=18643 cv=0x8e hold=0 full=0
+[  354.525292] y2-mt6323-charger y2-mt6323-charger: status=2 fault=0x0 battery=4110205uV input=-1uA watchdog_pets=300 source=0 limit=650000uA pmic=49807mC baton_raw=10386 isense_raw=18705 cv=0x4 hold=0 full=0
+[  359.255326] y2-mt6323-charger y2-mt6323-charger: BC1.1 source=1; charging independent of gadget configuration
+[  359.255990] Y2USB stage=5 result=0
+[  359.256015] Y2USB reconnect armed; host reset/configuration required
+[  359.335327] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x0 battery=4102514uV input=0uA watchdog_pets=300 source=1 limit=70000uA pmic=49222mC baton_raw=10386 isense_raw=18660 cv=0x8e hold=0 full=0
+[  359.775161] Y2USB stage=6 result=0
+[  359.815579] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4101416uV input=500000uA watchdog_pets=301 source=1 limit=450000uA pmic=49222mC baton_raw=10386 isense_raw=18655 cv=0x8e hold=0 full=0
+[  419.165939] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4173486uV input=500000uA watchdog_pets=354 source=1 limit=450000uA pmic=48637mC baton_raw=10386 isense_raw=19427 cv=0xae hold=0 full=0
+[  479.646396] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4177001uV input=500000uA watchdog_pets=408 source=1 limit=450000uA pmic=48637mC baton_raw=10386 isense_raw=19451 cv=0x8e hold=0 full=0
+
+FINAL READBACK
+2026-09-15T16:15:27.925620+00:00
+Requested recorder stop after completed tests
+POWER_SUPPLY_USB_TYPE=Unknown [SDP] DCP CDP BrickID
+END exit=1
+504.93 1975.05
+stage=6 error=0 configured=1 polls=1935 chrdet=7b irqs=2581 events=5
+recovery=0 writes=1 power=0 clock=0
+phase=CONSTANT_CURRENT source=1 source_valid=1 charge_limit_ua=450000
+active=1 online=1 present=1 fault=0x0 sample_error=0 stop_error=0 paused=0 last_error=0
+battery_uv=4177880 baton_raw=10386 isense_raw=19462 pmic_die_mc=49222 input_budget_ua=500000
+chr_con0=0x007b cv_status=0x008e battery_ovp=0x0001 baton=0x0005 watchdog=0x0001 thermal=0x0000
+watchdog_pets=430 last_pet_ms=504280 total_seconds=145 cv_seconds=145 precharge_seconds=0 hold=0 full=0 timeout=0

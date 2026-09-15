@@ -3,6 +3,21 @@ case "$1" in
  start)
     (
       until ip link show usb0 >/dev/null 2>&1; do sleep 1; done
+      # POWER-02 reconnect succeeds when MUSB runtime PM stays active.
+      # Scope this workaround to that release until its kernel lifecycle is fixed.
+      case "$(uname -r)" in
+        6.18.0-y2linux-m4-power-02)
+          for udc in /sys/class/udc/*; do
+            case "$(readlink -f "$udc/device")" in
+              /sys/devices/platform/11200000.usb/musb-hdrc.*)
+                if echo on > "$udc/device/power/control"; then
+                  echo 'Y2NET: POWER-02 USB runtime autosuspend disabled for cable reconnect' > /dev/kmsg
+                fi
+                ;;
+            esac
+          done
+          ;;
+      esac
       ip address replace 10.42.0.1/24 dev usb0
       ip link set usb0 up
       echo 'Y2NET: usb0 10.42.0.1/24 ready; address persists across cable reconnect' > /dev/kmsg
