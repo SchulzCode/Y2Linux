@@ -79,14 +79,21 @@ int y2_ccf_radio_remap(unsigned domain)
 {
 	void __iomem *infra = y2_clock_bases[2];
 	unsigned long flags; unsigned value;
+	int ret = 0;
 	if (!infra) return -EPROBE_DEFER;
 	if (domain > 1) return -EINVAL;
 	spin_lock_irqsave(&y2_clk_lock, flags);
 	if (!domain) {
+		/* Stock mtk_wcn_consys_hw_init accesses virtual 0xf0001310:
+		 * physical 0x10001310, or +0x310 from this INFRACFG_AO base.
+		 * +0x1310 is relative to the vendor's 0x10000000 TOPCKGEN
+		 * base and would leave CONN's real EMI translation unchanged. */
 		/* Replace the complete address field; OR-ing a previous loader
 		 * address can redirect firmware into unrelated reserved memory. */
-		value = (readl(infra + 0x1310) & ~0x1fffU) | 0x1bdf;
-		writel(value, infra + 0x1310);
+		value = (readl(infra + 0x310) & ~0x1fffU) | 0x1bdf;
+		writel(value, infra + 0x310);
+		/* Never release the remote MCU until its DRAM target is verified. */
+		if ((readl(infra + 0x310) & 0x1fffU) != 0x1bdf) ret = -EIO;
 	} else {
 		/* MD1 ROM 0xbe000000 / shared memory 0xbf600000. Unused 32-MiB
 		 * banks map beyond physical DRAM, as in the retained MD1 boot. */
@@ -97,7 +104,7 @@ int y2_ccf_radio_remap(unsigned domain)
 	}
 	mb();
 	spin_unlock_irqrestore(&y2_clk_lock, flags);
-	return 0;
+	return ret;
 }
 static unsigned long y2_pll_rate(void __iomem *base, unsigned id)
 {

@@ -14,6 +14,59 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class Connectivity(unittest.TestCase):
+    def test_stock_conn_remap_address_and_failed_write(self):
+        source=(ROOT/'kernel/platform/clocks.c').read_text()
+        body=function(source.replace('int y2_ccf_radio_remap(', 'static int y2_ccf_radio_remap('), 'y2_ccf_radio_remap')
+        run_c(r'''
+#include <assert.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#define __iomem
+#define EPROBE_DEFER 517
+static unsigned char regs[0x2000],before[0x2000];
+static void *y2_clock_bases[4];
+static int y2_clk_lock,locked,drop_write,writes;
+#define spin_lock_irqsave(lock,flags) do { (void)(lock);(flags)=0;assert(!locked);locked=1; } while(0)
+#define spin_unlock_irqrestore(lock,flags) do { (void)(lock);(void)(flags);assert(locked);locked=0; } while(0)
+#define mb() ((void)0)
+static unsigned readl(void *p) {
+ unsigned value;assert(locked && (unsigned char *)p>=regs && (unsigned char *)p<=regs+sizeof(regs)-4);
+ memcpy(&value,p,4);return value;
+}
+static void writel(unsigned value,void *p) {
+ assert(locked && (unsigned char *)p>=regs && (unsigned char *)p<=regs+sizeof(regs)-4);
+ writes++;if(!drop_write)memcpy(p,&value,4);
+}
+static unsigned word(unsigned offset) {unsigned v;memcpy(&v,regs+offset,4);return v;}
+''' + body + r'''
+int main(void) {
+ assert(y2_ccf_radio_remap(0)==-EPROBE_DEFER && !writes);
+ y2_clock_bases[2]=regs;
+ assert(y2_ccf_radio_remap(2)==-EINVAL && !writes);
+ /* Stock FM code uses 0xf0001000 + 0x310, physical 0x10001310.
+  * Test stale loader mappings, all high bits and the formerly wrong offset. */
+ const unsigned old[]={0,0x1800,0x1fff,0xbeef1234,0xfffffbdf};
+ for(unsigned i=0;i<sizeof(old)/sizeof(old[0]);i++) {
+  memset(regs,0xa5,sizeof(regs));memcpy(regs+0x310,&old[i],4);memcpy(before,regs,sizeof(regs));
+  writes=0;assert(!y2_ccf_radio_remap(0) && writes==1 && !locked);
+  assert(word(0x310)==((old[i]&~0x1fffU)|0x1bdf));
+  assert(word(0x1310)==0xa5a5a5a5);
+  assert(!memcmp(regs,before,0x310));
+  assert(!memcmp(regs+0x314,before+0x314,sizeof(regs)-0x314));
+ }
+ /* An ignored/rejected remap must prevent a successful power-on result. */
+ memset(regs,0,sizeof(regs));drop_write=1;
+ assert(y2_ccf_radio_remap(0)==-EIO && !locked && !word(0x310));
+ drop_write=0;
+ assert(!y2_ccf_radio_remap(1)); /* Existing MD mapping remains distinct. */
+ assert(word(0x300)==0x53514f3f && word(0x304)==0x5b595755);
+ assert(word(0x308)==0x4543413f && word(0x30c)==0x4d4b4947);
+ assert(!word(0x310) && !word(0x1310));
+}
+''')
+
     def test_factory_open_with_repeated_separators_preserves_seed(self):
         run_c(r'''
 #include <assert.h>

@@ -1,5 +1,21 @@
 # Y2Linux roadmap and gap audit
 
+## CONNECTIVITY-03 startup crash — 2026-09-16
+
+Early SSH verifies CONNECTIVITY-03 kernel/root and the corrected calibration
+helper. This unit now completes the MD gate: `stage=2 FS=841 restore=1 open=0
+result=0 poweroff=0`. Immediately afterward the owner observes kernel faults
+on idle CPUs in interrupt processing, and SSH stops responding. This is not a
+connectivity pass; #31 remains open. CONNECTIVITY-03 is not a working rollback.
+
+Stock FM disassembly confirms a wrong native CONN EMI register offset:
+INFRACFG + `0x1310` instead of `0x310`. The targeted
+[CONNECTIVITY-04 correction](../knowledge/m5-connectivity04-corrections.md)
+fixes the offset and requires readback before CONN power-on. Build a production
+BOOTIMG retaining the corrected CONNECTIVITY-03 root and Y2DATA. No RAM/layout
+expansion, factory write, M4 redesign or repeated entry audit. Physical crash
+elimination and the remaining radio qualification are still required.
+
 ## CONNECTIVITY-02 physical result — 2026-09-16
 
 The owner installed the targeted BOOTIMG correction (`dd84462`). SSH confirms

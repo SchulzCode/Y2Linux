@@ -165,8 +165,9 @@ def package(build, base, out, fallback_package=None):
         'Below 3.2V use 70mA; up to 3.4V cap charging at 450mA. '
         'Charging and power behavior retain the accepted M4 policy. '
         'BATON/ISENSE remain raw, no invented percentage or pack Celsius.\n\n'
-        'Fallback: same scatter and BOOTIMG-only selection, choosing fallback/BOOTIMG-previous.img. '
-        'Its exact previous kernel version and identity are recorded in manifest.json. '
+        'The previous BOOTIMG is retained at fallback/BOOTIMG-previous.img, with exact identity in manifest.json. '
+        'This does not certify it as a working rollback. Follow the candidate deployment handoff for the '
+        'physically working fallback; it may require a matching Y2ROOT as well as BOOTIMG. '
         'For M5 corrections, begin with an SSH check of MD calibration, regulatory loading and radio registration; '
         'then continue the existing connectivity qualification. M5 is not qualified by image construction.\n')
     (out/'SHA256SUMS').write_text(''.join(digest(p)+'  '+str(p.relative_to(out))+'\n'

@@ -99,13 +99,16 @@ static int power_on(struct y2_conn *c)
 	usleep_range(150,250);
 	memset_io(c->emi,0,0x100000);
 	ret = y2_ccf_radio_remap(0);
-	if (!ret) ret = y2_spm_radio_power(0,1);
+	if (ret) goto fail;
+	dev_info(c->dev,"CONN EMI remap verified; starting shared core\n");
+	ret = y2_spm_radio_power(0,1);
 	if (ret) goto fail;
 	c->powered = true;
 	ret = clk_prepare_enable(c->clocks[0].clk);
 	if (ret) goto fail;
 	c->clock_on = true;
 	ret = readl_poll_timeout(c->mcu+8,id,(id & 0xffff)==0x6582,1000,200000);
+	if (!ret) dev_info(c->dev,"CONN chip=%04x; starting BTIF transport\n",id & 0xffff);
 	if (!ret) ret = y2_btif_start(c);
 	if (!ret) ret = reset_control_deassert(c->reset);
 	if (ret) goto fail;
