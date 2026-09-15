@@ -5,7 +5,7 @@ Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 **not started** until the platform milestones and whole-system qualification finish.
 
 **Start here:** [September 15 session handoff](docs/planning/session-handoff-2026-09-15.md)
-and [M5 connectivity entry audit](docs/knowledge/m5-connectivity-entry.md).
+and [focused M4 corrections](docs/knowledge/m4-end-user-power.md).
 
 POWER-02 is installed and its full image-length readback matches. Fresh SSH
 finds a latched charging fault; M4 acceptance remains open and there is no M5
@@ -54,11 +54,11 @@ carry 16-bit samples: native 24/32-bit and higher rates are not implemented.
 - [AUDIO-02 deployment and hashes](docs/build/y2linux-m3-audio-02-deployment.md)
 - [M0 research/recovery](docs/planning/M0-evidence-and-recovery.md) and [evidence index](docs/knowledge/evidence-index.md)
 
-Current boundary: the owner requests the production M5 connectivity platform.
-Its entry audit found material M4 acceptance failures, so no radio candidate is
-ready. Own stock firmware metadata and private read-only calibration copies are
-retained; silicon/record/address mapping remains unresolved. Preserve the M4
-implementation and finish its gates within #30. [Production Storage v1](docs/architecture/production-storage-v1.md),
+Current boundary: the owner requests **M4 completion; do not start M5**.
+POWER-03 corrects the observed charging, RTC, efuse-read and USB PM failures
+within the existing production architecture. Build and manual deployment precede
+one coherent physical qualification; M4 #30 stays open until that passes.
+[Production Storage v1](docs/architecture/production-storage-v1.md),
 owner SSH, stock loaders/tables and protected calibration remain intact.
 
 Reviewed hardware logs, small manifests and findings belong in Git. Private raw

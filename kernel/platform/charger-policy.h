@@ -7,6 +7,7 @@
  * This is the production sequencer, also exercised by fault-injection tests.
  */
 #define Y2_CHARGE_UV 4175000
+#define Y2_CHARGE_SAFETY_UV 4200000
 #define Y2_RECHARGE_UV 4110000
 #define Y2_TOPOFF_UV 4050000
 /* Actual Y2 LK uses 3.2 V for ordinary boot, and modes 8/9 for charging
@@ -82,9 +83,9 @@ static inline int y2_charge_protections(const struct y2_charge_io *io)
 	ret = y2_charge_expect(io, 0x000, 0x0085, 0x0001); /* HV enabled, no HV fault/automode */
 	if (!ret) ret = y2_charge_expect(io, 0x002, 0x00f0, 0x00b0); /* stock 7V input OVP */
 	if (!ret) ret = io->read(io->context, 0x00c, &ov);
-	/* Retain the inherited OVP selector 0, or stock selector 1 (4.3V).
-	 * Selector 0's exact voltage remains unknown: never change it upward. */
-	if (!ret && (ov != 0x0001 && ov != 0x0003)) ret = -EIO;
+	/* Separate emergency OVP from normal CV. The actual Y2 kernel's
+	 * charging_hw_init selects 1 (4.3V), with detection still enabled. */
+	if (!ret && ov != 0x0003) ret = -EIO;
 	if (!ret) ret = y2_charge_expect(io, 0x00e, 0xffff, 0x0005); /* BATON/TDET, present */
 	if (!ret) ret = y2_charge_expect(io, 0x018, 0xffff, 0); /* charger test/reset */
 	if (!ret) ret = y2_charge_expect(io, 0x020, 0xffff, 0x0005); /* normal ADC route/USBDL/UVLO */
@@ -108,7 +109,7 @@ static inline int y2_charge_regulation(const struct y2_charge_io *io, unsigned s
 
 static inline int y2_charge_prepare(const struct y2_charge_io *io, unsigned selector)
 {
-	unsigned input, cv;
+	unsigned input, cv, ov;
 	int ret;
 	if (selector != 15 && selector != 12 && selector != 10) return -EINVAL;
 	ret = y2_charge_stop(io);
@@ -117,10 +118,15 @@ static inline int y2_charge_prepare(const struct y2_charge_io *io, unsigned sele
 	if (!ret && (input & 0xf0) != 0xf0 && (input & 0xf0) != 0xb0) ret = -EIO;
 	if (!ret) ret = io->read(io->context, 0x006, &cv);
 	if (!ret && (cv & 0x1f) != 30 && (cv & 0x1f) != 0) ret = -EIO;
+	if (!ret) ret = io->read(io->context, 0x00c, &ov);
+	/* Only adopt the observed boot setting or the exact stock setting.
+	 * Never clear an asserted detector, disable OVP or accept a higher trim. */
+	if (!ret && ov != 1 && ov != 3) ret = -EIO;
 	/* Change only reconciled fields, with engines off. Hardware protection
 	 * is enabled before arming the charger; OV/UVLO/emergency trims survive. */
 	if (!ret) ret = y2_charge_set(io, 0x002, 0x00f0, 0x00b0);
 	if (!ret) ret = y2_charge_set(io, 0x03c, 0x0020, 0x0020);
+	if (!ret) ret = y2_charge_set(io, 0x00c, 0x000e, 0x0002);
 	if (!ret) ret = y2_charge_protections(io);
 	if (!ret) ret = y2_charge_set(io, 0x008, 0x000f, selector);
 	if (!ret) ret = y2_charge_set(io, 0x006, 0x001f, 30);
@@ -153,7 +159,7 @@ struct y2_charge_cycle {
 	unsigned long long total, cv, precharge;
 	unsigned long long confirm_at;
 	unsigned confirmations;
-	int topoff, hold, full, timed_out;
+	int topoff, hold, full, timed_out, completing, confirm_low;
 };
 
 static inline void y2_charge_account(struct y2_charge_cycle *c,
@@ -169,11 +175,31 @@ static inline void y2_charge_account(struct y2_charge_cycle *c,
 }
 
 static inline int y2_charge_termination(struct y2_charge_cycle *c,
-				      unsigned long long now, int uv, int cv_detected)
+				      unsigned long long now, int uv, int active)
 {
-	int qualifies = c->hold ? uv < Y2_RECHARGE_UV :
-		uv >= Y2_CHARGE_UV && cv_detected;
-	if (!qualifies) {
+	int low = uv < Y2_RECHARGE_UV;
+	/* Voltage-limited termination: stop at the target on the FIRST sample.
+	 * POWER-02 waited for CV confirmations while still feeding the battery,
+	 * then hit the independent 4.2V fault. Never wait above the target or
+	 * raise that safety guard to accommodate ADC/comparator disagreement.
+	 * Full denotes completion of this conservative cycle, not measured SOC
+	 * or a taper-current claim. CV status remains observable separately. */
+	if (!c->hold) {
+		if (uv < Y2_CHARGE_UV) return 0;
+		c->hold = 1;
+		c->full = 0;
+		c->completing = active;
+		c->confirm_low = 0;
+		c->confirmations = 0;
+		c->confirm_at = now;
+		return 1;
+	}
+	if (low != c->confirm_low) {
+		c->confirm_low = low;
+		c->confirm_at = now;
+		c->confirmations = 0;
+	}
+	if ((!low && (!c->completing || c->full)) || uv >= Y2_CHARGE_SAFETY_UV) {
 		c->confirmations = 0;
 		c->confirm_at = now;
 		return 0;
@@ -182,9 +208,13 @@ static inline int y2_charge_termination(struct y2_charge_cycle *c,
 	c->confirm_at = now;
 	if (++c->confirmations < 6) return 0;
 	c->confirmations = 0;
-	c->hold = !c->hold;
-	c->full = c->hold; /* only a completed confirmation sequence earns Full */
-	if (!c->hold) { c->cv = 0; c->topoff = 0; }
+	/* An actually completed cycle may start a fresh maintenance cycle.
+	 * Mere pauses/holds cannot repeatedly evade the charging time budget. */
+	if (low && c->full) { c->total = 0; c->precharge = 0; }
+	c->hold = !low;
+	c->full = !low;
+	c->completing = 0;
+	if (low) { c->cv = 0; c->topoff = 0; }
 	return 1;
 }
 #endif

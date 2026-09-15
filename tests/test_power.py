@@ -56,7 +56,9 @@ int main(void) {
  assert(y2_pmic_value_allowed(0,0x7b));
  assert(!y2_pmic_value_allowed(0,0x7a));
  assert(y2_pmic_value_allowed(0,0x63));
- assert(!y2_pmic_write_mask(0xc) && !y2_pmic_write_mask(0xe));
+ assert(y2_pmic_write_mask(0xc)==14 && !y2_pmic_write_mask(0xe));
+ for(unsigned v=0;v<16;v++)assert(y2_pmic_value_allowed(0xc,v)==(v==3));
+ assert(y2_soc_calibrate(0x73,0xfd,&s));
  for(unsigned v=0;v<32;v++) assert(y2_pmic_value_allowed(6,v)==(v==30));
  for(unsigned v=0;v<16;v++) assert(y2_pmic_value_allowed(8,v)==(v==15 || v==12 || v==10));
  assert(!y2_pmic_value_allowed(0x3c,0) && !y2_pmic_value_allowed(0x2e,0));

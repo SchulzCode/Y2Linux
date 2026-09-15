@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/power_supply.h>
+#include <linux/pm_runtime.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include "boot.h"
@@ -140,6 +141,7 @@ static DEFINE_SPINLOCK(y2_usb_failure_lock);
 static struct y2_usb_live y2_live = { .magic=Y2_USB_LIVE_MAGIC,.devctl=0x100 };
 static bool y2_usb_started, y2_usb_finished;
 static bool y2_usb_detached;
+static bool y2_usb_pm_held;
 static struct power_supply *y2_usb_input;
 static unsigned y2_usb_budget_ma;
 static DEFINE_MUTEX(y2_usb_lifecycle);
@@ -443,6 +445,26 @@ static const struct musb_hdrc_config y2_musb_config={
 static const struct musb_hdrc_platform_data y2_musb_data={
     .mode=MUSB_PERIPHERAL,.config=&y2_musb_config,.platform_ops=&y2_musb_ops,
 };
+/* One reference spans a live USB session. The polling worker and PHY session
+ * transitions must not race MUSB's runtime save/restore of endpoint state.
+ * Release after detach so absence can idle; system suspend still uses the
+ * ordinary MUSB PM callbacks. This replaces the POWER-02 userspace `on` pin. */
+static int y2_usb_runtime_get(void)
+{
+    int ret;
+    if (y2_usb_pm_held) return 0;
+    ret = pm_runtime_resume_and_get(&y2_usb_child->dev);
+    if (ret < 0) return ret;
+    y2_usb_pm_held = true;
+    return 0;
+}
+static void y2_usb_runtime_put(void)
+{
+    if (!y2_usb_pm_held) return;
+    y2_usb_pm_held = false;
+    pm_runtime_mark_last_busy(&y2_usb_child->dev);
+    pm_runtime_put_autosuspend(&y2_usb_child->dev);
+}
 static int y2_usb_register(void)
 {
     struct device_node *np=of_find_compatible_node(NULL,NULL,"innioasis,y2-usb");
@@ -462,14 +484,15 @@ static int y2_usb_register(void)
     y2_usb_child=platform_device_register_full(&info);
     if(IS_ERR(y2_usb_child)) {int rc=PTR_ERR(y2_usb_child);y2_usb_child=NULL;return rc;}
     if(!y2_usb_child->dev.driver || !y2_musb) return -ENODEV;
-    return READ_ONCE(y2_live.result);
+    if (READ_ONCE(y2_live.result)) return READ_ONCE(y2_live.result);
+    return y2_usb_runtime_get();
 }
 static void y2_usb_finish(void)
 {
     unsigned long flags;
     y2_usb_finished=true;
     y2_usb_set_power(NULL,0);
-    if(y2_musb) {
+    if(y2_musb && !y2_usb_runtime_get()) {
         spin_lock_irqsave(&y2_musb->lock,flags);
         writel(0,y2_musb->mregs+0xa4);
         writeb(readb(y2_musb->mregs+MUSB_POWER)&~MUSB_POWER_SOFTCONN,y2_musb->mregs+MUSB_POWER);
@@ -479,6 +502,7 @@ static void y2_usb_finish(void)
     /* Tell PID1 to close ttyGS0 before gadget teardown waits for its user. */
     if(!READ_ONCE(y2_live.result)) y2_usb_phase(Y2_USB_STOPPED);
     if(y2_usb_child) {
+        y2_usb_runtime_put();
         platform_device_unregister(y2_usb_child);
         y2_usb_child=NULL;
     }
@@ -505,6 +529,7 @@ static void y2_usb_detach(void)
     spin_unlock_irqrestore(&y2_musb->lock,flags);
     y2_session_end(&session,&y2_session);
     WRITE_ONCE(y2_live.devctl,readb(y2_musb->mregs+MUSB_DEVCTL));
+    y2_usb_runtime_put();
     pr_info("Y2USB detached; PID1 continues; persistent reconnect enabled\n");
 }
 static int y2_usb_reconnect(void)
@@ -515,6 +540,8 @@ static int y2_usb_reconnect(void)
     unsigned long flags;
     unsigned i;
     int rc;
+    rc = y2_usb_runtime_get();
+    if (rc) return rc;
     fresh.power=y2_usb_supply;
     y2_usb_clock_probe(&clocks,&fresh.power,&fresh.clock);
     if(!y2_usb_state_ready(&fresh) || !(fresh.power.chrdet&0x20)) return -ENODEV;

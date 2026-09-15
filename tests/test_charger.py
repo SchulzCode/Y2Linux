@@ -82,7 +82,7 @@ int main(void){
   /* The worker's failure path always invokes this, including partial start. */
   assert(!y2_charge_stop(&io));
   assert(!(regs[0]&0x18));
-  assert(regs[0xc/2]==1 && regs[0xe/2]==5 && regs[0x20/2]==5);
+  assert((regs[0xc/2]==1 || regs[0xc/2]==3) && regs[0xe/2]==5 && regs[0x20/2]==5);
   assert((regs[6/2]&31)==30 && (regs[8/2]&15)==15);
  }
  reset();assert(!y2_charge_prepare(&io,15));assert(!y2_charge_start(&io,15));
@@ -120,18 +120,27 @@ int main(void){
  c=(struct y2_charge_cycle){0};
  y2_charge_account(&c,86400,3700000);assert(c.timed_out);
  c=(struct y2_charge_cycle){0};
- for(unsigned t=0;t<=100;t++) assert(!y2_charge_termination(&c,t,4175000,0));
- for(unsigned t=101;t<160;t++) assert(!y2_charge_termination(&c,t,4175000,1));
- assert(y2_charge_termination(&c,160,4175000,1) && c.hold && c.full);
- for(unsigned t=170;t<=300;t+=10) assert(!y2_charge_termination(&c,t,4110000,0));
- for(unsigned t=301;t<360;t++) assert(!y2_charge_termination(&c,t,4109999,0));
- assert(y2_charge_termination(&c,360,4109999,0) && !c.hold && !c.full);
- assert(c.total==0 && c.cv==0);
- /* A one-sample spike breaks the consecutive qualification. */
+ /* Stop immediately even when the independent analog CV bit is absent.
+  * Six spaced ENGINE-OFF samples complete the voltage-limited cycle. */
+ assert(y2_charge_termination(&c,100,4175000,1) && c.hold && !c.full);
+ for(unsigned t=101;t<160;t++)assert(!y2_charge_termination(&c,t,4140000,0));
+ assert(y2_charge_termination(&c,160,4140000,0) && c.full);
+ c.total=1234;c.precharge=10;
+ for(unsigned t=170;t<=300;t+=10)assert(!y2_charge_termination(&c,t,4110000,0));
+ for(unsigned t=301;t<361;t++)assert(!y2_charge_termination(&c,t,4109999,0));
+ assert(y2_charge_termination(&c,361,4109999,0) && !c.hold && !c.full);
+ assert(c.total==0 && c.precharge==0 && c.cv==0);
+ /* High voltage at insertion cannot invent a completed charging cycle. */
  c=(struct y2_charge_cycle){0};
- for(unsigned t=10;t<=50;t+=10)assert(!y2_charge_termination(&c,t,4175000,1));
- assert(!y2_charge_termination(&c,55,4170000,1));
- assert(!y2_charge_termination(&c,65,4175000,1) && c.confirmations==1);
+ assert(y2_charge_termination(&c,0,4180000,0));
+ for(unsigned t=1;t<=100;t++)assert(!y2_charge_termination(&c,t,4180000,0));
+ assert(c.hold && !c.full);
+ /* An isolated low sample cannot restart a full battery. */
+ assert(!y2_charge_termination(&c,101,4109999,0));
+ assert(!y2_charge_termination(&c,151,4110000,0));
+ assert(!y2_charge_termination(&c,152,4109999,0));
+ for(unsigned t=153;t<212;t++)assert(!y2_charge_termination(&c,t,4109999,0));
+ assert(y2_charge_termination(&c,212,4109999,0) && !c.hold);
  reset(); /* reference fixture functions under -Werror */
  assert(!io.read(io.context,0,&operations));
 }
@@ -184,7 +193,7 @@ static void pm_relax(struct device *d){d->awake=0;}
 #define dev_info(...) ((void)0)
 ''' + declarations + ''.join(function(s,n) for n in (
             'y2_charge_awake','y2_charger_inhibit','y2_charge_account_now',
-            'y2_charge_sample','y2_wait_source','y2_charger_detect','y2_charger_target','y2_charger_run')) + r'''
+            'y2_charge_sample','y2_wait_source','y2_charger_detect','y2_charger_target','y2_charger_sample_fault','y2_charger_run')) + r'''
 static struct device dev;
 static struct iio_channel bat={17000},baton={10388},isense={17000},die={25000};
 static struct y2_charger charger(void){
@@ -270,14 +279,33 @@ int main(void){
  reset();c=charger();bat.raw=19001;y2_charger_run(&c);
  assert(c.cycle.hold && !c.cycle.full && c.status==POWER_SUPPLY_STATUS_NOT_CHARGING);
  reset();c=charger();bat.raw=17000;y2_charger_run(&c);
- bat.raw=19001;regs[4/2]|=0x40;
- for(unsigned n=0;n<59;n++){clock_ms+=1000;y2_charger_run(&c);assert(c.active);}
+ bat.raw=19001; /* 4.175V ADC crossing, CV comparator deliberately absent */
  clock_ms+=1000;y2_charger_run(&c);
- assert(!c.active && c.cycle.full && c.status==POWER_SUPPLY_STATUS_FULL && !c.fault);
+ assert(!c.active && c.cycle.hold && !c.fault && !c.cycle.full);
+ unsigned cutoff_pets=c.pets;
+ bat.raw=18850; /* relaxes to 4.142V: no charger feed during confirmation */
+ for(unsigned n=0;n<59;n++){clock_ms+=1000;y2_charger_run(&c);assert(!c.active && !c.cycle.full);}
+ clock_ms+=1000;y2_charger_run(&c);
+ assert(!c.active && c.cycle.full && c.status==POWER_SUPPLY_STATUS_FULL && !c.fault && c.pets==cutoff_pets);
  bat.raw=18700;
- for(unsigned n=0;n<59;n++){clock_ms+=1000;y2_charger_run(&c);assert(!c.active);}
- for(unsigned n=0;n<2;n++){clock_ms+=1000;y2_charger_run(&c);}
+ for(unsigned n=0;n<60;n++){clock_ms+=1000;y2_charger_run(&c);assert(!c.active);}
+ clock_ms+=1000;y2_charger_run(&c);
  assert(c.active && !c.cycle.full && !c.cycle.hold && !c.fault);
+ /* The former failure sample is still a genuine safety stop if reached:
+  * no raised guard, no auto clear at lower voltage, no fabricated Full. */
+ bat.raw=19115;clock_ms+=1000;y2_charger_run(&c);
+ assert(!c.active && (c.fault&Y2_FAULT_VOLTAGE) && c.first_uv==4200073);
+ bat.raw=18500;clock_ms+=1000;y2_charger_run(&c);
+ assert(!c.active && c.fault && !c.cycle.full);
+ /* Capture BOTH distinct hardware detector paths before inhibit changes CHR. */
+ for(unsigned which=0;which<2;which++) {
+  reset();c=charger();bat.raw=17000;y2_charger_run(&c);
+  regs[which?0xc/2:0]|=which?0x40:0x80;
+  clock_ms+=1000;y2_charger_run(&c);
+  assert(!c.active && (c.first_fault&Y2_FAULT_OVP));
+  assert(which ? (c.first_ov&0x40) : (c.first_con0&0x80));
+  regs[0]&=~0x20;clock_ms+=1000;y2_charger_run(&c);assert(c.fault);
+ }
  bat.raw=17000;
  reset();c=charger();c.cycle.total=86400;c.cycle.timed_out=1;
  y2_charger_run(&c);assert(!c.active && (c.fault&Y2_FAULT_TIMEOUT));

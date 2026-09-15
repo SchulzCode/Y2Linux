@@ -33,7 +33,7 @@
     };
     /* Only the documented two read-only thermal calibration words. */
     efuse@10206100 {
-        compatible = "mediatek,efuse"; reg = <0x10206100 8>;
+        compatible = "mediatek,mt6582-efuse"; reg = <0x10206100 8>;
         read-only; #address-cells = <1>; #size-cells = <1>;
         cpu_cal: calibration@0 { reg = <0 8>; };
     };

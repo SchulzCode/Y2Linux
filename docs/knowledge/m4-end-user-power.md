@@ -1,5 +1,75 @@
 # M4 end-user power completion
 
+## POWER-03 correction of observed failures — 2026-09-15
+
+The owner explicitly requests M4 completion and **no M5 work**. This focused
+implementation uses the completed entry audit and POWER-02 failures below.
+POWER-02 remains the installed image until manual deployment. No new physical
+charging, thermal, RTC, suspend or shutdown pass is claimed by these changes.
+
+- **Termination:** stop both charge engines at the first BATSNS sample at or
+  above **4.175 V**. Six spaced engine-off confirmations over 60 seconds, staying
+  at or above **4.110 V** and below **4.2 V**, complete a cycle that was actively
+  charging. Insertion at high voltage enters hold without claiming a completed
+  cycle. Recharge requires 60 consecutive seconds below 4.110 V. A boundary
+  crossing restarts the confirmation interval. This is conservative,
+  voltage-limited termination; it does not measure taper current or 100% SOC.
+  The analog CV bit is recorded independently and cannot keep the engine
+  enabled above the software target while waiting for confirmations.
+- **Safety:** the independent **4.2 V software guard remains unchanged** and
+  fail-closed. ADC resolution is about 220 µV; the old 4.200073-V sample alone
+  cannot establish analog overvoltage accuracy. The fix stops earlier, without
+  adding a guessed ADC tolerance or raising the guard. Faults clear only after
+  verified source removal, engine-off, recovered safety inputs and voltage
+  below the target. USB reset, manual auto and voltage relaxation with the
+  cable attached do not clear a real fault. The first fault retains its original
+  CHR, CV, battery OVP, watchdog, thermal and ADC-validity snapshot before stop.
+- **OVP:** adopt the actual stock Y2 `charging_hw_init` call at `0xc04cb1e0`:
+  selector **1 / 4.3 V**, separate from CV. The selector setter at `0xc04b8fe0`
+  writes only register `0x00c[3:1]`; its detector and enable stay immutable.
+  Only the observed inherited value 1 or exact stock value 3 is accepted before
+  this change; an asserted detector or unknown trim rejects preparation.
+  The earlier `0x10` cause is still unproven; the mismatch is corrected and
+  any recurrence will retain the missing detector evidence. PC, dedicated,
+  precharge and unknown-source current ceilings are unchanged.
+- **RTC:** the retained stock `rtc_read_hw_time` at `0xc03c7144` adds 68 to the
+  hardware year. The MT6323-specific driver now uses this 1968 epoch for both
+  time and alarm and the actual 1968–2095 range. The generic RTC range extension
+  had converted stock year 54 to 2082 instead of 2022. Mask reserved bits on
+  reads, preserve them on writes and bound inconsistent read retries. Enable
+  normal RTC-to-system time at boot; setting current UTC remains an explicit
+  standard `date`/`hwclock` qualification operation. No spare/boot word changes.
+- **Thermal:** the fresh running device returns efuse words `0x73`/`0xfd`,
+  zero VTS fields and offset -512, explaining unusable CPU conversion. The
+  generic efuse provider used byte reads. A scoped MT6582 provider uses aligned
+  32-bit reads of the same eight bytes at `0x10206100`, matching stock register
+  width, and preserves all byte lanes in the nvmem result. Reject the observed
+  truncation instead of converting it or substituting factory defaults.
+  Actual post-fix values and response remain physical qualification gates.
+- **USB:** a runtime-PM reference spans each attached MUSB session and all
+  detach/reentry register operations. Release it after detach, allowing idle
+  while absent. Ordinary system-suspend callbacks remain in use. The existing
+  release-scoped POWER-02 userspace pin does not run on POWER-03. Keep the IRQ
+  storm guard. This is a source correction; reconnect/resume needs retesting.
+- **Deep sleep and offline:** retain the integrated SPM CPU/cluster shutdown
+  path, retained infrastructure, s2idle fallback, kernel charger/watchdog,
+  minimal native offline display and intentional Power handover. No new power
+  architecture is introduced. Enable `/proc/sys` and boot ID so qualification
+  can establish same-session resume. The helper now requires actual SPM resume
+  and residency counters, the same process start, mounts and data, and separate
+  Power/RTC wake. All OPPs remain stock-proven **598/747.5/1040 MHz at 1.15 V**;
+  the retained stock tables provide no lower active voltage. Normal `schedutil`
+  and offline `powersave` remain selected.
+
+The current production BOOTIMG is the only deployment target. Y2ROOT/Y2DATA,
+stock loaders, partition layout, audio architecture and protected calibration
+remain preserved. New source regression cases cover cutoff/recharge, real
+faults, original fault snapshots, stock RTC years/alarm/spares, efuse byte lanes
+and runtime-PM failure during reconnect. Host results and artifact identities
+will accompany the manual deployment handoff; they do not close M4.
+
+## POWER-02 history
+
 2026-09-14 entry, source `aacb9a5` on local `main`. GitHub `main` is
 `444e7eda99dc1f7d90d0d591ebda4f3219efe0c9`; the five local charging/source/evidence
 commits are retained. **M4 #30 remains ACTIVE/PARTIAL. M5 is not started.**
@@ -183,7 +253,7 @@ which initializes ext4's dynamic inode state at allocation on 32-bit systems.
 The exact three-file backport is included in the integrated source pass.
 This explains the warning path; final filesystem qualification is still needed.
 
-## Integrated candidate source contract
+## POWER-02 source contract (historical)
 
 The source pass implements the decisions above in the production kernel and
 production rescue image. It was subsequently owner-deployed; the latest

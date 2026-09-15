@@ -47,6 +47,9 @@ static struct y2_pwrap_snapshot y2_usb_supply;
 static struct y2_session y2_session;
 static bool y2_usb_detached;
 static unsigned disconnected,stopped,started,clock_bad,session_bad,fifo_bad,cleared;
+static unsigned pm_held=1,pm_error;
+static int y2_usb_runtime_get(void){if(pm_error)return -5;pm_held=1;return 0;}
+static void y2_usb_runtime_put(void){assert(pm_held);pm_held=0;}
 #define spin_lock_irqsave(lock,flags) do {(flags)=0;assert(!*(lock));*(lock)=1;} while(0)
 #define spin_unlock_irqrestore(lock,flags) do {(void)(flags);assert(*(lock));*(lock)=0;} while(0)
 #define pr_info(...) ((void)0)
@@ -74,12 +77,12 @@ static void session_delay(void *p) {assert(p==y2_musb);}
 static struct y2_session_io y2_session_io(struct musb *p)
 {return (struct y2_session_io){p,session_read,session_write,session_delay};}
 static void musb_g_disconnect(struct musb *p) {
-    assert(p->lock && y2_usb_detached && !(mac[1]&0x40) && y2_live.stage==Y2_USB_DETACHED);
+    assert(pm_held && p->lock && y2_usb_detached && !(mac[1]&0x40) && y2_live.stage==Y2_USB_DETACHED);
     ++disconnected;
 }
 static void musb_stop(struct musb *p) {assert(p->lock && disconnected);++stopped;}
 static void musb_start(struct musb *p) {
-    assert(p->lock && y2_usb_detached && phy[0x6c]==0x2e && phy[0x6d]==0x3e);
+    assert(pm_held && p->lock && y2_usb_detached && phy[0x6c]==0x2e && phy[0x6d]==0x3e);
     ++started;if(fifo_bad)y2_live.result=-5;
 }
 static unsigned y2_musb_clearb(void *p,unsigned r) {(void)p;(void)r;++cleared;return 0;}
@@ -93,16 +96,16 @@ static void reset(void) {
     y2_session=(struct y2_session){.before_c=0x12,.before_d=0,.written=1};
     phy[0x6c]=0x2e;phy[0x6d]=0x3e;phy[0x6b]=2;
     y2_power.wake.after[3]=2;mac[0x60]=0x80;mac[1]=0x60;
-    disconnected=stopped=started=clock_bad=session_bad=fifo_bad=cleared=0;y2_usb_detached=false;
+    pm_held=1;pm_error=0;disconnected=stopped=started=clock_bad=session_bad=fifo_bad=cleared=0;y2_usb_detached=false;
     y2_usb_detach();
-    assert(disconnected==1 && stopped==1 && y2_usb_detached && !y2_session.written);
+    assert(!pm_held && disconnected==1 && stopped==1 && y2_usb_detached && !y2_session.written);
     assert(phy[0x6c]==0x12 && !phy[0x6d] && !(mac[1]&0x40));
     /* A delayed upstream gadget pullup cannot reconnect while absent. */
     y2_musb_writeb(mac,1,0x60);assert(mac[1]==0x20);
     y2_musb_writeb(mac,0x60,3);assert(!mac[0x60]);mac[0x60]=0x80;
 }
 int main(void) {
-    for(unsigned fault=0;fault<29;++fault) {
+    for(unsigned fault=0;fault<30;++fault) {
         reset();
         if(fault==1)clock_bad=1;
         if(fault==2)y2_usb_supply.chrdet=1;
@@ -114,10 +117,11 @@ int main(void) {
         if(fault==21)session_bad=1;
         if(fault==22)fifo_bad=1;
         if(fault==23)y2_usb_supply.valid=3;
-        if(fault>=24) {unsigned offsets[]={0,1,2,3,6};phy[0x68+offsets[fault-24]]^=1;}
+        if(fault>=24 && fault<29) {unsigned offsets[]={0,1,2,3,6};phy[0x68+offsets[fault-24]]^=1;}
+        if(fault==29)pm_error=1;
         int rc=y2_usb_reconnect();
         if(!fault) {
-            assert(!rc && started==1 && cleared==3 && !y2_usb_detached);
+            assert(pm_held && !rc && started==1 && cleared==3 && !y2_usb_detached);
             assert(mac[1]&0x40);assert(y2_live.stage==Y2_USB_READY);
         } else {
             assert(rc<0 && y2_usb_detached && !(mac[1]&0x40));

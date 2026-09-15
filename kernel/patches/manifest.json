@@ -166,7 +166,7 @@
       "path": "drivers/rtc/rtc-mt6397.c",
       "patch": "0028-mt6323-rtc-errors.patch",
       "base_sha256": "fa9fb999e4f22cde90b2a931e8ac547c87d3e267c94be6e6ab48f286fae2881c",
-      "result_sha256": "f79efb8213ab215643f6a00007c688dd17d125d8d8b78ffdca2bfa711dacfe14"
+      "result_sha256": "79f483e3bd1443db1d9a8de316e9f2ada16070082b9dda877395423e92858edb"
     },
     {
       "path": "drivers/mmc/core/mmc.c",
@@ -203,6 +203,18 @@
       "patch": "0034-ext4-state-super.patch",
       "base_sha256": "9dc9c9de14466c67e09b4d6ac57fca062e0727513da1e6b24a720036d95489de",
       "result_sha256": "b9da0bdcb14f17549fba5e527f98275a0f894b7cbcbd598f41fc8a5b28a314e6"
+    },
+    {
+      "path": "include/linux/mfd/mt6397/rtc.h",
+      "patch": "0035-mt6323-rtc-epoch-data.patch",
+      "base_sha256": "6cc6002d16d882c4d5239c5f7dd2b1c7e8e5ade4b6343d9b7011264f2a8486ab",
+      "result_sha256": "4d647579a30f8e52a01d1d181b42475e2af6548a0d1d8966c2b0bd59f7520faf"
+    },
+    {
+      "path": "drivers/nvmem/mtk-efuse.c",
+      "patch": "0036-mt6582-efuse-word-access.patch",
+      "base_sha256": "94160d968714ac1c288a812c1783c0aa2fb8a16b9350ddab21c4b0a0774b0628",
+      "result_sha256": "40b2d05e23ed19439fcd6a4921f48d1b370a0f332196167d15c7a235c376f5a8"
     }
   ]
 }

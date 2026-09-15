@@ -1,5 +1,21 @@
 # Y2Linux roadmap and gap audit
 
+## Focused M4 completion — 2026-09-15
+
+The owner's latest direction supersedes M5 implementation scope: **finish M4,
+do not start M5**. The completed entry audit below is retained; no broad audit
+is repeated. Entry `67cbe8f` is clean. Targeted SSH still finds the same voltage
+fault with the battery now about 3.74 V. The existing SPM, storage, audio and
+minimal offline architecture remain the production foundation.
+
+[POWER-03 source corrections](../knowledge/m4-end-user-power.md#power-03-correction-of-observed-failures--2026-09-15)
+address charge cutoff/hold, the stock OVP setting, first-fault evidence, RTC
+epoch, word-width thermal efuse acquisition and MUSB runtime ownership.
+The candidate must pass the production build/package checks before the owner
+receives a BOOTIMG-only manual deployment handoff. M4 #30 remains ACTIVE/PARTIAL;
+the full physical exit criteria remain open. No memory/layout/current ceiling
+expansion, guessed DVFS voltage, protected write or radio implementation.
+
 ## M5 fresh-session entry audit — 2026-09-15
 
 **Entry audited; integrated M5 implementation/deployment BLOCKED.** The owner

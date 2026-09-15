@@ -27,6 +27,7 @@ static inline unsigned y2_pmic_write_mask(unsigned reg)
 	case 0x004: return 0x000a; /* Current sense + CV comparators. */
 	case 0x006: return 0x001f; /* Only 4.175V CV (value guard below). */
 	case 0x008: return 0x000f; /* Bounded Y2 source policy: 70/450/650mA. */
+	case 0x00c: return 0x000e; /* Stock 4.3V battery OVP; enable/status immutable. */
 	case 0x01a: return 0x011f; /* Charger watchdog: 4s, enable, service. */
 	case 0x01e: return 0x0003; /* Charger watchdog interrupt/ack, no OUT write. */
 	case 0x024: return 0x000f; /* BC1.1 BB/RST/VSRC, comparator read-only. */
@@ -78,6 +79,7 @@ static inline int y2_pmic_value_allowed(unsigned reg, unsigned value)
 	if (reg == 0x004 && (value & 0xa) != 0xa) return 0;
 	if (reg == 0x006 && (value & 0x1f) != 30) return 0;
 	if (reg == 0x008 && (value & 0xf) != 15 && (value & 0xf) != 12 && (value & 0xf) != 10) return 0;
+	if (reg == 0x00c && (value & 0x000f) != 3) return 0;
 	if (reg == 0x01a && (value & 0xf)) return 0;
 	if (reg == 0x028 && (value & 0x77) != 0x21) return 0;
 	if (reg == 0x02a && (value & 0x77) != 0x14) return 0;

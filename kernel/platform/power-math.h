@@ -37,6 +37,8 @@ static inline int y2_soc_calibrate(unsigned a, unsigned b, struct y2_soc_cal *c)
 	unsigned vts[] = { (a >> 17) & 511, (a >> 8) & 511 };
 	int i;
 	if (!(a & 1) || (a == 0xffffffffU && b == 0xffffffffU)) return -1;
+	/* Reject the observed byte-read truncation, never convert it to Celsius. */
+	if (!(a & 0x03ffff00U) || !(b & 0xfffff000U)) return -1;
 	if (!(b & (1 << 9))) slope = 0;
 	c->gain = 10000 + (((int)(b >> 22) - 512) * 10000) / 4096;
 	c->offset = (int)((b >> 12) & 1023) - 512;

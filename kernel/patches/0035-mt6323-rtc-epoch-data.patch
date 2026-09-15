@@ -1,0 +1,10 @@
+--- a/include/linux/mfd/mt6397/rtc.h
++++ b/include/linux/mfd/mt6397/rtc.h
+@@ -65,6 +65,7 @@
+ 
+ struct mtk_rtc_data {
+ 	u32                     wrtgr;
++	u32                     year_offset;
+ };
+ 
+ struct mt6397_rtc {

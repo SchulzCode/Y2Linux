@@ -3,15 +3,18 @@
 # Explicit qualification phases through normal production interfaces.
 # This helper neither controls the watchdog nor writes raw hardware/storage.
 set -eu
-[ "$(uname -r)" = 6.18.0-y2linux-m4-power-02 ] || { echo 'M4-POWER-02 required' >&2; exit 1; }
+[ "$(uname -r)" = 6.18.0-y2linux-m4-power-03 ] || { echo 'M4-POWER-03 required' >&2; exit 1; }
 awk '$2=="/" && $3=="ext4" && $1=="/dev/mmcblk0p5" {ok=1} END {exit !ok}' /proc/mounts
 awk '$2=="/data" && $3=="ext4" && $1=="/dev/mmcblk0p7" {ok=1} END {exit !ok}' /proc/mounts
-record=/data/y2linux-m4-power-02
+record=/data/y2linux-m4-power-03
 policy=/sys/devices/system/cpu/cpufreq/policy0
+spm=/sys/bus/platform/drivers/y2-spm/10006000.power-controller/state
+umask 077
 mkdir -p "$record"
 show() { for f in "$@"; do [ -f "$f" ] || continue; printf '\n%s\n' "$f"; cat "$f" || true; done; }
 check_files() { sha256sum -c "$record/sentinels.sha256"; }
 check_session() { cmp "$record/boot-before" /proc/sys/kernel/random/boot_id; check_files; }
+spm_field() { tr ' ' '\n' < "$spm" | sed -n "s/^$1=//p"; }
 inventory() {
     uname -a; date -u
     show /proc/sys/kernel/random/boot_id /proc/uptime /proc/cmdline /sys/firmware/y2_boot/metadata /sys/firmware/y2_boot/normal_boot
@@ -50,6 +53,17 @@ begin)
     dd if=/dev/urandom of=/root/y2-m4-power-sentinel bs=4096 count=64
     sha256sum "$record/data-sentinel" /root/y2-m4-power-sentinel > "$record/sentinels.sha256"
     sync; inventory > "$record/begin.log" 2>&1; cat "$record/begin.log";;
+rtc-set)
+    # UTC supplied by the agent's host clock, not a baked release timestamp.
+    # Preserve any existing user alarm; this phase runs before test alarms.
+    [ -z "$(cat /sys/class/rtc/rtc0/wakealarm)" ] || { echo 'Existing alarm retained' >&2; exit 1; }
+    case "${2:-}" in ''|*[!0-9]*) echo 'Host UTC epoch seconds required' >&2; exit 2;; esac
+    [ "$2" -ge 1767225600 ] && [ "$2" -lt 3976214400 ]
+    date -u -s "@$2"
+    hwclock -w -u
+    date -u; hwclock -r -u
+    show /sys/class/rtc/rtc0/date /sys/class/rtc/rtc0/time
+    ;;
 audio)
     amixer -c Y2Audio sset Headphone off
     trap 'amixer -c Y2Audio sset Headphone off' EXIT
@@ -83,19 +97,49 @@ frequency)
     dmesg | tail -100;;
 s2idle|deep-power|deep-rtc)
     thermal_guard; check_session
+    # Run detached with its output redirected to Y2DATA. This interval permits
+    # physical USB removal while the SAME shell proceeds into suspend.
+    if [ "${2:-}" = unplug ]; then
+        echo 'Unplug USB within 15 seconds; qualification continues locally.'
+        sleep 15
+        [ "$(cat /sys/class/power_supply/y2-usb-presence/online)" -eq 0 ] || exit 1
+    fi
     [ "$(cat /sys/class/power_supply/BAT0/status)" != Charging ] || { echo 'Active charger must continue watchdog service; no suspend test' >&2; exit 1; }
     mode=deep
     [ "$1" != s2idle ] || mode=s2idle
+    alarm_set=0
+    clear_test_alarm() { [ "$alarm_set" -eq 0 ] || echo 0 > /sys/class/rtc/rtc0/wakealarm; }
+    trap clear_test_alarm EXIT
+    trap 'exit 130' HUP INT TERM
     if [ "$1" = deep-rtc ]; then
         [ -z "$(cat /sys/class/rtc/rtc0/wakealarm)" ] || { echo 'Existing alarm retained' >&2; exit 1; }
         rtcwake -m no -s 20
+        alarm_set=1
     fi
+    before_entries=$(spm_field entries); before_resumes=$(spm_field resumes)
+    # Process start time, open mount table and sentinels augment the boot ID.
+    awk '{print $22}' /proc/$$/stat > "$record/suspend-process-start"
+    awk '$2=="/" || $2=="/data"' /proc/mounts > "$record/suspend-mounts"
+    before_epoch=$(date +%s)
     echo "$mode" > /sys/power/mem_sleep
     show /proc/uptime /sys/bus/platform/drivers/y2-spm/*/state
     sync
     count=$(cat /sys/power/wakeup_count); echo "$count" > /sys/power/wakeup_count
     echo mem > /sys/power/state
     check_session
+    [ "$(awk '{print $22}' /proc/$$/stat)" = "$(cat "$record/suspend-process-start")" ] || exit 1
+    awk '$2=="/" || $2=="/data"' /proc/mounts > "$record/resume-mounts"
+    cmp "$record/suspend-mounts" "$record/resume-mounts"
+    if [ "$mode" = deep ]; then
+        [ "$(spm_field entries)" -eq "$((before_entries+1))" ] &&
+        [ "$(spm_field resumes)" -eq "$((before_resumes+1))" ] &&
+        [ "$(spm_field broken)" -eq 0 ] && [ "$(spm_field result)" -eq 0 ] || exit 1
+        [ "$(spm_field ticks32k)" -ge 65536 ] || { echo 'Immediate/spurious wake, not a deep residency pass' >&2; exit 1; }
+    fi
+    if [ "$1" = deep-rtc ]; then
+        [ "$(($(date +%s)-before_epoch))" -ge 15 ] || exit 1
+        [ -z "$(cat /sys/class/rtc/rtc0/wakealarm)" ] || { echo 'Wake occurred before RTC alarm' >&2; exit 1; }
+    fi
     inventory > "$record/resume-$1.log" 2>&1; cat "$record/resume-$1.log";;
 post-resume) check_session; inventory;;
 reboot)
@@ -115,5 +159,5 @@ poweroff-unplugged)
     sleep 15
     [ "$(cat /sys/class/power_supply/y2-usb-presence/online)" -eq 0 ] || { echo 'Cable still present; retaining current session' >&2; exit 1; }
     hwclock -r -u > "$record/rtc-before-poweroff"; sync; poweroff;;
-*) echo 'inventory | begin | audio | frequency | s2idle | deep-power | deep-rtc | post-resume | reboot | post-reboot | poweroff-connected | poweroff-unplugged' >&2; exit 2;;
+*) echo 'inventory | begin | rtc-set EPOCH | audio | frequency | s2idle [unplug] | deep-power [unplug] | deep-rtc [unplug] | post-resume | reboot | post-reboot | poweroff-connected | poweroff-unplugged' >&2; exit 2;;
 esac

@@ -112,8 +112,8 @@ static int y2_thermal_probe(struct platform_device *pdev)
 		writel(0x10209604, t->base + 0x64);
 		writel(3, t->base + 0x8c); writel(3, t->base);
 	}
-	/* Keep monitor/ADC/clocks powered across s2idle: autonomous protection
-	 * and conversion continue. No deep suspend is advertised by this port. */
+	/* The supported SPM mode retains infrastructure. Keep monitor/ADC clocks
+	 * owned across suspend; do not discard an autonomous protection owner. */
 	tz = devm_thermal_of_zone_register(dev, 0, t, &y2_soc_thermal_ops);
 	if (IS_ERR(tz)) return dev_err_probe(dev, PTR_ERR(tz), "CPU thermal zone\n");
 	platform_set_drvdata(pdev, t);
