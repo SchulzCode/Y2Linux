@@ -1,0 +1,322 @@
+{
+  "schema": "org.schulzcode.y2linux.release/v1",
+  "release_version": "0.1.0-m5.connectivity.2",
+  "layout_version": 1,
+  "kernel_version": "6.18.0-y2linux-m5-connectivity-02",
+  "rootfs_version": "2025.02.17-connectivity.1",
+  "data_schema_version": 1,
+  "y2player_version": null,
+  "build_git_commit": "dd8446259880f60e5eb96125145bb7b623fb5929",
+  "status": "Production BOOTIMG update; physical qualification pending",
+  "hardware_compatibility": {
+    "vendor": "Innioasis",
+    "board": "Y2 eastaeon82_wet_kk",
+    "soc": "MT6582",
+    "emmc_user_capacity_bytes": 7784103936,
+    "capacity_semantics": "stock Android exported layout bound",
+    "emmc_physical_user_capacity_bytes": 7818182656,
+    "accepted_linux_user_sector_counts": [
+      15203328
+    ],
+    "stock_scatter_sha256": "e5fe03e9f3219cc9b5ead27892f2ddb722acc16adce3306d27feb87893cd977e",
+    "other_revisions": "unsupported until their layout and hardware are verified"
+  },
+  "payloads": [
+    {
+      "component": "kernel/boot",
+      "target_partition": "BOOTIMG",
+      "region": "EMMC_USER",
+      "absolute_start_bytes": 30932992,
+      "scatter_linear_start_bytes": 51904512,
+      "maximum_size_bytes": 16777216,
+      "partition_relative_offset_bytes": 0,
+      "mandatory": true,
+      "preserves_existing_data": false,
+      "install_policy": "replace",
+      "version": "6.18.0-y2linux-m5-connectivity-02",
+      "raw": {
+        "file": "BOOTIMG.img",
+        "size_bytes": 6150144,
+        "sha256": "72b17b90d5ab21c2c52f957056f483f3af9949f0607ecc98c4c87c89aa7765f9"
+      },
+      "required_in_profiles": [
+        "boot-only"
+      ],
+      "requires": {
+        "layout_version": 1,
+        "data_schema_version": 1,
+        "platform_contract": "y2-platform-v1"
+      },
+      "modules": {
+        "ownership": "BOOTIMG",
+        "release": "6.18.0-y2linux-m5-connectivity-02",
+        "runtime_mount": "/lib/modules",
+        "ram_source": "/run/y2/modules"
+      },
+      "spft": {
+        "format": "raw-android-mtk-bootimg",
+        "file": "BOOTIMG.img",
+        "size_bytes": 6150144,
+        "sha256": "72b17b90d5ab21c2c52f957056f483f3af9949f0607ecc98c4c87c89aa7765f9"
+      }
+    }
+  ],
+  "normal_update_allowlist": [
+    "BOOTIMG",
+    "ANDROID"
+  ],
+  "data_policy": "Preserve existing Y2DATA in place. New private directories are created on first normal boot. No data payload.",
+  "runtime_kernel_write_allowlist": [
+    "ANDROID",
+    "USRDATA"
+  ],
+  "application": {
+    "name": "Y2PlayerNative",
+    "version": null,
+    "implemented": false,
+    "builtin_path": "/usr/bin/y2player",
+    "future_payload_root": "/data/apps/y2player",
+    "state_root": "/data/y2player",
+    "partition": null
+  },
+  "minimum_compatible_components": {
+    "layout_version": 1,
+    "data_schema_version": 1,
+    "rootfs_abi": "armv7-eabihf-glibc",
+    "kernel_contract": "y2-platform-v1",
+    "rootfs_contract": "y2-platform-v1"
+  },
+  "preserved_paths": [
+    "/data",
+    "external microSD"
+  ],
+  "restoration_sources": [
+    {
+      "target_partition": "BOOTIMG",
+      "source": "/home/luca/Dokumente/Code/Y2Player/y2_v3.2.0_FM-20260813/boot.img",
+      "size_bytes": 5656576,
+      "sha256": "5ef1bdf28481ee0bf5f3528c1ddd91cf3f4d2d5f39e4d0ea049a8137a30f6af6",
+      "kind": "owner-proven FM factory source; not personalized Android backup"
+    },
+    {
+      "target_partition": "ANDROID",
+      "source": "/home/luca/Dokumente/Code/Y2Player/y2_v3.2.0_FM-20260813/system.img",
+      "size_bytes": 518590232,
+      "sha256": "5a7a92f3a95374f31abe8b3ddbd68c5c2ce5677547db3d1cbc21653d24c76989",
+      "kind": "owner-proven FM factory source; not personalized Android backup",
+      "expanded_bytes": 859832320,
+      "dont_care_policy": "stock holes are unspecified; no whole expanded readback hash asserted"
+    },
+    {
+      "target_partition": "USRDATA",
+      "source": "/home/luca/Dokumente/Code/Y2Player/y2_v3.2.0_FM-20260813/userdata.img",
+      "size_bytes": 15290768,
+      "sha256": "552e325ecf2faffeb9351022147bbfda3b7cebe25df491b2d732e85c5c68f27c",
+      "kind": "owner-proven FM factory source; not personalized Android backup",
+      "expanded_bytes": 837812224,
+      "dont_care_policy": "stock holes are unspecified; no whole expanded readback hash asserted"
+    }
+  ],
+  "debug_access": {
+    "scope": "owner-personalized first-install data image; NOT a universal production credential",
+    "authorized_public_key_sha256": "46d122f86bdecb4daf3e435ec6098b5b041575f0869a8e87bb4851ff3a2a4fa8",
+    "private_key_packaged": false,
+    "host_keys": "generated on device and persisted on Y2DATA"
+  },
+  "future_security": {
+    "signature": null,
+    "signing_key_id": null,
+    "update_channel": null,
+    "rollback_index": null
+  },
+  "profiles": {
+    "MT6582_BOOTIMG_only_scatter.txt": {
+      "sha256": "fe45a3f1d94b8cf7a8f127c3120b6b595db7a9644927693b5aecabf656c5b7a1",
+      "selected_partitions": [
+        "BOOTIMG"
+      ]
+    }
+  },
+  "storage_addressing": {
+    "schema": "org.schulzcode.y2linux.stock-emmc-window/v1",
+    "logical_sector_bytes": 512,
+    "native_user_sectors": 15269888,
+    "logical_disk_sectors": 15203328,
+    "logical_to_native_user_offset_sectors": 23552,
+    "excluded_native_tail_sectors": 43008,
+    "required_ext_csd": {
+      "boot_size_mult": 32,
+      "rpmb_size_mult": 4,
+      "gp_size_mult": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "ext_csd_modified": false,
+    "translated_commands": [
+      17,
+      18,
+      24,
+      25
+    ],
+    "write_guard_address_space": "stock logical disk; before translation",
+    "payload_absolute_start_bytes_semantics": "stock logical disk / scatter physical_start_addr; not native EMMC_USER",
+    "legacy_da": {
+      "region": "EMMC_PART_UNKNOWN(0x00)",
+      "address_type": "NUTL_ADDR_LOGICAL",
+      "non_user_prefix_bytes": 8912896,
+      "logical_disk_origin_bytes": 20971520
+    },
+    "targets": {
+      "BOOTIMG": {
+        "logical_start_sector": 60416,
+        "length_sectors": 32768,
+        "native_user_start_bytes": 42991616,
+        "legacy_da_start_bytes": 51904512
+      },
+      "ANDROID": {
+        "logical_start_sector": 166912,
+        "length_sectors": 1679360,
+        "native_user_start_bytes": 97517568,
+        "legacy_da_start_bytes": 106430464
+      },
+      "USRDATA": {
+        "logical_start_sector": 2104320,
+        "length_sectors": 1638400,
+        "native_user_start_bytes": 1089470464,
+        "legacy_da_start_bytes": 1098383360
+      }
+    }
+  },
+  "installed_components": [
+    {
+      "component": "rootfs",
+      "target_partition": "ANDROID",
+      "region": "EMMC_USER",
+      "absolute_start_bytes": 85458944,
+      "scatter_linear_start_bytes": 106430464,
+      "maximum_size_bytes": 859832320,
+      "partition_relative_offset_bytes": 0,
+      "mandatory": true,
+      "preserves_existing_data": false,
+      "install_policy": "replace",
+      "version": "2025.02.17-connectivity.1",
+      "raw": {
+        "file": "Y2ROOT.img",
+        "size_bytes": 536870912,
+        "sha256": "add6b375d33dbfa3f36e505c9784c934c3b31e2073041f514dcd2db524408e67"
+      },
+      "required_in_profiles": [
+        "preserve-data"
+      ],
+      "requires": {
+        "layout_version": 1,
+        "data_schema_version": 1,
+        "platform_contract": "y2-platform-v1"
+      },
+      "filesystem": {
+        "type": "ext4",
+        "label": "Y2ROOT",
+        "uuid": "79324c69-6e75-4801-8000-000000000101"
+      },
+      "spft": {
+        "format": "raw-ext4",
+        "file": "Y2ROOT.img",
+        "size_bytes": 536870912,
+        "sha256": "add6b375d33dbfa3f36e505c9784c934c3b31e2073041f514dcd2db524408e67"
+      }
+    },
+    {
+      "component": "data-template",
+      "target_partition": "USRDATA",
+      "region": "EMMC_USER",
+      "absolute_start_bytes": 1077411840,
+      "scatter_linear_start_bytes": 1098383360,
+      "maximum_size_bytes": 838860800,
+      "partition_relative_offset_bytes": 0,
+      "mandatory": false,
+      "preserves_existing_data": false,
+      "install_policy": "initialize-only; NEVER select during preserving reinstall or OTA",
+      "version": 1,
+      "raw": {
+        "file": "Y2DATA.img",
+        "size_bytes": 838860800,
+        "sha256": "01bcf65da1716081707202af074969e21fc1196540cb1de6ca76ef9098d44079"
+      },
+      "required_in_profiles": [
+        "first-install"
+      ],
+      "requires": {
+        "layout_version": 1,
+        "data_schema_version": 1
+      },
+      "filesystem": {
+        "type": "ext4",
+        "label": "Y2DATA",
+        "uuid": "79324c69-6e75-4801-8000-000000000102"
+      },
+      "spft": {
+        "format": "raw-ext4",
+        "file": "Y2DATA.img",
+        "size_bytes": 838860800,
+        "sha256": "01bcf65da1716081707202af074969e21fc1196540cb1de6ca76ef9098d44079"
+      }
+    }
+  ],
+  "installation_profile": "boot-only",
+  "base_manifest_sha256": "56ff0af70004871217eefc45d00de8147b65cdd9925dae1581426ea95502f3e8",
+  "rootfs_build_git_commit": "022c701010c467904ab6025cd98535d3b861c771",
+  "owner_firmware": {
+    "schema": "org.schulzcode.y2linux.owner-firmware/v1",
+    "redistribution_permission_established": false,
+    "files": {
+      "WIFI_RAM_CODE_MT6582": {
+        "size_bytes": 160368,
+        "sha256": "4def37522e2bfd2d4b78e01bf9f567a37e3f67ab3d7b6646ffb317f5b2b49b82"
+      },
+      "WMT_SOC.cfg": {
+        "size_bytes": 80,
+        "sha256": "cea0a94b8a88e9c24e6835446ebc3106d7b100c3709ea98e8bb7368689c8a2b5"
+      },
+      "mt6572_82_patch_e1_0_hdr.bin": {
+        "size_bytes": 33120,
+        "sha256": "fa3be4a92540296de512d64f56272746be10bdfa2db571c8ceada2d40cd616f0"
+      },
+      "mt6572_82_patch_e1_1_hdr.bin": {
+        "size_bytes": 17476,
+        "sha256": "96eb25489305bd472805db1da33bcc0acd37b5bb21cceda98d7e88ba1179ca37"
+      },
+      "modem_1_2g_n.img": {
+        "size_bytes": 2424376,
+        "sha256": "5059775975cbf6ab74c43978ca8f65d9a274b83585f456134e39b09f6dc7a4f1"
+      },
+      "WIFI.defaults": {
+        "size_bytes": 512,
+        "sha256": "eb5e87224e3a493e825179f547fc13924f564a42730ea821b4359b5b36f4defe"
+      },
+      "BT.defaults": {
+        "size_bytes": 64,
+        "sha256": "f224ff4abfb45a612ef03249e87e4ecfa44b7c1f9f19ee3cc78ae354764d9472"
+      }
+    }
+  },
+  "fallback": {
+    "file": "fallback/BOOTIMG-previous.img",
+    "sha256": "a24b257a795b8ffea198e57344f20a514f4fa5e7148572ac8331afed9e996a96",
+    "size_bytes": 6144000,
+    "manifest_sha256": "56ff0af70004871217eefc45d00de8147b65cdd9925dae1581426ea95502f3e8",
+    "kernel_version": "6.18.0-y2linux-m5-connectivity-01",
+    "expected_behavior": "restore the supplied previous BOOTIMG; root/data remain untouched"
+  },
+  "installed_components_policy": "reference identities only; preserve ANDROID/USRDATA; no root/data payload packaged"
+}

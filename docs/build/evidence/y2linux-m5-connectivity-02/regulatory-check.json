@@ -1,0 +1,20 @@
+{
+  "package": "wireless-regdb-2026.05.30",
+  "archive_sha256": "8a27bfc081bafed8c24dd70fab0d96f098e5a0bfcd08d3da672595f225ab8993",
+  "matches_CONNECTIVITY_01_rootfs": true,
+  "cms_verified_against_linux_6_18_regulatory_certificates": true,
+  "files": {
+    "lib/firmware/regulatory.db": {
+      "bytes": 6380,
+      "sha256": "2fb33ca0074db573e05ef7dd50bb45b63c0ff98b7e852e1105ebad536fae8e6b"
+    },
+    "lib/firmware/regulatory.db.p7s": {
+      "bytes": 1085,
+      "sha256": "c941c08f51c93e46722293b85631604c3740d86c3de0c75f79aef50d2e919179"
+    },
+    "usr/share/licenses/wireless-regdb/LICENSE": {
+      "bytes": 880,
+      "sha256": "678b0df753c86198fc496d1f1033429bbd57f101472132ee7eaaf9f5e0a7fae1"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "release_version": "0.1.0-m5.connectivity.2",
+  "layout_version": 1,
+  "kernel_version": "6.18.0-y2linux-m5-connectivity-02",
+  "rootfs_version": "2025.02.17-connectivity.1",
+  "data_schema_version": 1,
+  "y2player_version": null,
+  "build_git_commit": "dd8446259880f60e5eb96125145bb7b623fb5929",
+  "rootfs_build_git_commit": "022c701010c467904ab6025cd98535d3b861c771"
+}

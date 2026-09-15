@@ -1,5 +1,19 @@
 # Y2Linux roadmap and gap audit
 
+## CONNECTIVITY-02 physical result — 2026-09-16
+
+The owner installed the targeted BOOTIMG correction (`dd84462`). SSH confirms
+53 completed calibration FS exchanges (previously zero), followed by an MD_EX
+firmware exception before readiness. MD shutdown reports success; Wi-Fi and
+BlueZ remain unavailable. The early regulatory-data error is fixed. Internal
+mounts/USB SSH work; PC charging shows fault 0 and voltage-hold recovery.
+[Physical evidence](../hardware-evidence/2026-09-16-m5-connectivity02/README.md)
+and [build checks](../build/evidence/y2linux-m5-connectivity-02/README.md).
+M5 stays ACTIVE / FIRMWARE EXCEPTION / PHYSICALLY UNQUALIFIED. The next work is
+exception/FS-response diagnosis, not a broad entry audit or M4 redesign.
+The image is already installed; earlier awaiting-installation text below is history.
+
+
 ## First M5 physical inspection — 2026-09-16
 
 The owner installed CONNECTIVITY-01. Read-only SSH confirms the M5 kernel/root

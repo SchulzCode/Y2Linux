@@ -5,20 +5,19 @@ Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 **not started** until the platform milestones and whole-system qualification finish.
 
 **Start here:** [September 16 session handoff](docs/planning/session-handoff-2026-09-16.md)
-and [M5 candidate, hashes and manual installation](docs/build/y2linux-m5-connectivity-01-deployment.md).
+and [current M5 image and validation](docs/build/evidence/y2linux-m5-connectivity-02/README.md).
 
-The owner accepts M4 POWER-03 and authorizes M5 implementation. The current
-read-only SSH baseline reports `6.18.0-y2linux-m4-power-03`. This acceptance
-does not manufacture a new agent-run M4 measurement series. The completed
-M5 entry audit at `67cbe8f` is reused; its earlier blocking status is historical.
+M4 POWER-03 is owner-accepted. CONNECTIVITY-02 (`dd84462`) is now running after
+manual installation. Its MD calibration advances through 53 filesystem exchanges,
+then firmware signals an exception; Wi-Fi and BlueZ are not yet usable. The early
+regulatory-data loading error is fixed. Internal root/data, USB SSH and PC charging
+remain available in the short inspection. M5 remains open.
 
-Native CONSYS, AHB Wi-Fi, BTIF/STP/HCI, own-data factory/calibration handling
-and Buildroot connectivity services are built in CONNECTIVITY-01 from `022c701`.
-The candidate passes 81 production/M4/connectivity tests, eight isolated ARM
-userspace checks and 16 package rejection cases. M5 remains open for manual
-deployment and physical qualification. The
-[accepted POWER-03 package](docs/build/y2linux-m4-power-03-deployment.md)
-is the kernel fallback; existing Y2DATA is preserved.
+[Physical result](docs/hardware-evidence/2026-09-16-m5-connectivity02/README.md)
+and [CONNECTIVITY-02 artifacts and validation](docs/build/evidence/y2linux-m5-connectivity-02/README.md).
+The corrected BOOTIMG passed 83 production/M4/connectivity tests and 14 package
+rejection cases. Installed CONNECTIVITY-01 Y2ROOT and user Y2DATA are preserved.
+The completed entry audit at `67cbe8f` remains the starting evidence.
 
 | Milestone | Current status |
 | --- | --- |
@@ -27,7 +26,7 @@ is the kernel fallback; existing Y2DATA is preserved.
 | M3 | Active / near completion: clean native S16 stereo 44.1-kHz headphones; period-notification fix deployed and tested. 48 kHz, L/R and stop/restart/repeat remain |
 | Production Storage / Installation v1 | Active: internal root/data boot without SD and existing-owner-key SSH confirmed; wider write/stress qualification remains |
 | M4 | POWER-03 accepted by the owner; retained as the M5 power-platform baseline |
-| M5 | CONNECTIVITY-01 built and host-validated; awaiting owner BOOTIMG/Y2ROOT installation and physical Wi-Fi/Bluetooth/A2DP/coexistence qualification |
+| M5 | CONNECTIVITY-02 installed; calibration reaches 53 FS exchanges then MD firmware exception; Wi-Fi/Bluetooth/A2DP/coexistence unqualified |
 
 Historical POWER-02 charging, RTC, thermal and suspend failures are retained in
 [the M4 evidence](docs/knowledge/m4-end-user-power.md). POWER-03 corrects those
@@ -59,10 +58,9 @@ carry 16-bit samples: native 24/32-bit and higher rates are not implemented.
 - [AUDIO-02 deployment and hashes](docs/build/y2linux-m3-audio-02-deployment.md)
 - [M0 research/recovery](docs/planning/M0-evidence-and-recovery.md) and [evidence index](docs/knowledge/evidence-index.md)
 
-Current boundary: CONNECTIVITY-01 is ready; stop for the owner's manual
-BOOTIMG + Y2ROOT installation. Preserve Y2DATA and protected factory
-partitions. After deployment, qualify native networking, Bluetooth audio,
-coexistence and power behavior in one coherent session. Do not start GPU/lima,
+Current boundary: CONNECTIVITY-02 is installed and inspected. Target the MD firmware
+exception, preserving Y2DATA and protected factory partitions. After initialization
+works, qualify networking, Bluetooth audio, coexistence and power behavior. Do not start GPU/lima,
 Y2PlayerNative or an OTA updater. [Production Storage v1](docs/architecture/production-storage-v1.md)
 and the existing M4 power architecture remain the foundation.
 

@@ -1,64 +1,49 @@
-# Session handoff — 2026-09-16, M5 candidate ready
+# Session handoff — 2026-09-16, CONNECTIVITY-02 physically inspected
 
-**Latest update: the owner installed CONNECTIVITY-01.** Read-only SSH confirms
-the running kernel/root markers and working internal root/data/USB SSH. Native
-radio startup fails in the MD calibration handshake (`stage=1`, `FS=0`,
-`EPROTO`); BlueZ has no usable adapter and Wi-Fi is absent. See the
-[first physical inspection](../hardware-evidence/2026-09-16-m5-connectivity01/README.md).
-The next work is a targeted startup correction, followed by the physical matrix.
-The original deployment handoff below is retained as history, not a request to
-flash the same candidate again. M5 remains open.
+The owner installed CONNECTIVITY-02. Read-only SSH confirms it is running.
+Calibration now completes **53 FS exchanges instead of zero**, then MD firmware
+signals `MD_EX` (`control=0, id=4, check=0x45584350`). MD shutdown reports success.
+No usable Wi-Fi/BlueZ adapter exists. Early regulatory loading no longer fails.
+[Physical result and limits](../hardware-evidence/2026-09-16-m5-connectivity02/README.md).
+**M5 stays ACTIVE / STARTUP FAILURE / PHYSICALLY UNQUALIFIED.**
 
-**Stop for owner manual BOOTIMG + Y2ROOT installation. M5 remains OPEN.**
-Use the [complete 26-field deployment receipt](../build/y2linux-m5-connectivity-01-deployment.md).
-No assistant flash/deployment or protected write occurred. M4 POWER-03 was
-explicitly accepted by the owner before authorizing this M5 implementation.
-That acceptance does not imply a new agent-run M4 measurement series.
+## Current artifacts
 
-## Exact built state
+- Source: `dd8446259880f60e5eb96125145bb7b623fb5929`.
+- Kernel: `6.18.0-y2linux-m5-connectivity-02`.
+- Package: `out/y2linux-m5-connectivity-02/`; BOOTIMG-only update, already installed
+  by the owner. No new request to flash this same image.
+- BOOTIMG: 6150144 bytes; SHA256 `72b17b90d5ab21c2c52f957056f483f3af9949f0607ecc98c4c87c89aa7765f9`.
+- Root remains `2025.02.17-connectivity.1`, built from `022c701010c467904ab6025cd98535d3b861c771`;
+  image SHA256 `add6b375d33dbfa3f36e505c9784c934c3b31e2073041f514dcd2db524408e67`.
+- Y2DATA is preserved, with networks, bonds, identities and SSH authorization.
+- Immediate fallback: `out/y2linux-m5-connectivity-02/fallback/BOOTIMG-previous.img`,
+  SHA256 `a24b257a795b8ffea198e57344f20a514f4fa5e7148572ac8331afed9e996a96` (CONNECTIVITY-01, bootable but radios fail).
+- Accepted M4 fallback pair remains `out/y2linux-m5-connectivity-01/fallback/`:
+  BOOTIMG `66b6ecd5ef54da6f3ea07be2c9deda284d0a7636e9c6da4c5d72d84eca5fc010`;
+  Y2ROOT `814a5b2543931e01cee2eb6f641c3b6e02317bd6308d2d663aea78f618bd554f`.
 
-- Source: `022c701010c467904ab6025cd98535d3b861c771`.
-- Kernel: `6.18.0-y2linux-m5-connectivity-01`.
-- Buildroot/root version: `2025.02.17-connectivity.1`.
-- Package: `/home/luca/Dokumente/Code/Y2Linux/out/y2linux-m5-connectivity-01/`.
-- BOOTIMG: 6144000 bytes, SHA256
-  `a24b257a795b8ffea198e57344f20a514f4fa5e7148572ac8331afed9e996a96`.
-- Y2ROOT: 536870912 bytes, SHA256
-  `add6b375d33dbfa3f36e505c9784c934c3b31e2073041f514dcd2db524408e67`.
-- Fallback BOOTIMG: accepted POWER-03, SHA256
-  `66b6ecd5ef54da6f3ea07be2c9deda284d0a7636e9c6da4c5d72d84eca5fc010`.
-- Fallback Y2ROOT: previous production root, SHA256
-  `814a5b2543931e01cee2eb6f641c3b6e02317bd6308d2d663aea78f618bd554f`.
-- Exactly BOOTIMG/ANDROID selected by the preserving scatter; no Y2DATA image,
-  data reset, changed storage coordinates or protected payload mapping.
+[Build evidence](../build/evidence/y2linux-m5-connectivity-02/README.md): 83 tests,
+ARM rescue ABI, artifact validation and 14 package rejection checks passed.
+[Targeted correction](../knowledge/m5-connectivity02-corrections.md): bounded MD
+request padding normalization, private-buffer cleanup, failure context and early
+signed regulatory data. No root rebuild or M4 hardware redesign.
 
-[Evidence](../build/evidence/y2linux-m5-connectivity-01/README.md): 81 tests,
-eight isolated ARM userspace checks, 16 package rejection cases and final
-artifact/rootfs checks passed. These are host results, not native radio passes.
+## Continue from this failure
 
-## Implementation and remaining physical work
+The next correction must identify the modem exception cause/last FS operation;
+this build does not expose them. Do not interpret `hci0` registration, partial FS
+progress or an MD exception as successful calibration. Once initialization works,
+continue the [original coherent M5 qualification](../build/y2linux-m5-connectivity-01-deployment.md)
+over existing owner-key SSH at `root@10.42.0.1`.
 
-The [implementation contract](../knowledge/m5-connectivity-implementation.md)
-describes the shared CONSYS owner, BTIF/AP_DMA/STP/HCI, AHB cfg80211 fullmac,
-hash-checked owner firmware and read-only factory provider. A bounded native
-MD calibration/filesystem lifecycle uses only this unit's retained factory
-records; its actual completion gate and radio result remain to be proved.
-No external player's calibration is used. No firmware blobs or identities
-are committed; the owner-local image is not approved for redistribution.
+PC charging has fault 0 and visibly enters/releases voltage hold; internal mounts
+and USB SSH work. No full M4 regression series was run. The RTC/system clock still
+shows 2022-08-01 and needs setting/persistence verification. Raw captures are
+private. No radio toggles, suspend, reboot or protected writes were performed.
 
-Production userspace includes wpa_supplicant 2.12, BlueZ 5.79 and BlueALSA 4.3.1
-with SBC. Credentials, bonds, radio identities and preferred audio peer persist
-on Y2DATA. Standard APIs, a bounded A2DP/AVRCP fixture, reconnect policy and
-radio-off full-suspend/activity-lease policy are implemented.
-
-After the owner reports this candidate running, use existing authenticated SSH
-at `root@10.42.0.1`. Perform the receipt's coherent session: identify silicon and
-calibration, Wi-Fi WPA2/DHCP/DNS/reconnect, multiple Bluetooth audio categories,
-SBC/AVRCP/reconnect, actual EDR/LE reporting, sustained coexistence, repeated radio
-restart/recovery, screen-off work, deep Power/RTC wake and M4 regression. Keep
-raw captures, addresses, credentials and bonds private. Make only targeted fixes
-for concrete failures. Do not claim a physical pass from interface presence.
-
-The completed entry audit is `67cbe8f`; do not repeat it or reacquire protected
-partitions. Older-board FM, GPU/lima, Y2PlayerNative and OTA implementation remain
-out of scope. Close #31 only after physical end-user acceptance.
+M4 POWER-03 remains owner-accepted (#30 closed); #31 stays open. Reuse the completed
+entry audit `67cbe8f`; no repeated inventory or NVRAM acquisition. Preserve this
+unit's factory data. Firmware provenance, standard userspace versions and the
+original installation contract remain in the first deployment receipt.
+Do not start FM on this older board, GPU/lima, Y2PlayerNative or OTA implementation.

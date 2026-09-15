@@ -1,0 +1,5 @@
+Y2ROOT.img: clean ext4, matching label/UUID; Y2ROOT: 1438/32768 files (0.1% non-contiguous), 17357/131072 blocks
+Y2ROOT.img: clean ext4, matching label/UUID; Y2ROOT: 1438/32768 files (0.1% non-contiguous), 17357/131072 blocks
+Y2ROOT.img: clean ext4, matching label/UUID; Y2ROOT: 1438/32768 files (0.1% non-contiguous), 17357/131072 blocks
+PASS production BOOTIMG-only manifest, stock geometry, unchanged root/data, module ABI contract, bounds and hashes
+PASS production BOOTIMG-only package: /home/luca/Dokumente/Code/Y2Linux/out/y2linux-m5-connectivity-02
