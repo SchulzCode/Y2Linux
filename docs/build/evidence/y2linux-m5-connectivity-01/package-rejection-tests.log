@@ -1,0 +1,18 @@
+Y2ROOT.img: clean ext4, matching label/UUID; Y2ROOT: 1438/32768 files (0.1% non-contiguous), 17357/131072 blocks
+PASS rejected additional data payload : exact payload allowlist
+PASS rejected unexpected data image : no data image in a system update
+PASS rejected changed retained data identity : new root plus unchanged data contract
+PASS rejected data schema reset : build version receipt
+PASS rejected protected runtime write : runtime allowlist
+PASS rejected wrong root coordinates : new root plus unchanged data contract
+PASS rejected root image identity lie : new root plus unchanged data contract
+PASS rejected module ABI mismatch : boot module ownership
+PASS rejected unlicensed public firmware claim : owner-only provisioning
+PASS rejected firmware receipt identity lie : reviewed firmware receipt
+PASS rejected root version lie : build version receipt
+PASS rejected fallback metadata identity lie : fallback identity receipt
+PASS rejected fallback image corruption : fallback image identity
+PASS rejected data scatter selection : exact preserving scatter
+PASS rejected unchecked protected image mapping : exact preserving scatter
+PASS rejected fallback data selection : fallback preserves data
+PASS 16 isolated rejection cases; original candidate/fallback images unchanged

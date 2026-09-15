@@ -1,0 +1,40 @@
+{
+  "schema": "org.schulzcode.y2linux.m5-build-evidence/v1",
+  "source_commit": "022c701010c467904ab6025cd98535d3b861c771",
+  "production_test_count": 81,
+  "production_test_suites": [
+    56,
+    25
+  ],
+  "package_rejection_cases": 16,
+  "host_validation": "PASS",
+  "physical_deployment_performed": false,
+  "physical_radio_qualification": "PENDING",
+  "m4_baseline": "POWER-03, accepted by owner before M5; no new M4 measurement series claimed",
+  "m5_closed": false,
+  "artifacts": [
+    {
+      "file": "BOOTIMG.img",
+      "bytes": 6144000,
+      "sha256": "a24b257a795b8ffea198e57344f20a514f4fa5e7148572ac8331afed9e996a96"
+    },
+    {
+      "file": "Y2ROOT.img",
+      "bytes": 536870912,
+      "sha256": "add6b375d33dbfa3f36e505c9784c934c3b31e2073041f514dcd2db524408e67"
+    },
+    {
+      "file": "fallback/BOOTIMG.img",
+      "bytes": 5408768,
+      "sha256": "66b6ecd5ef54da6f3ea07be2c9deda284d0a7636e9c6da4c5d72d84eca5fc010"
+    },
+    {
+      "file": "fallback/Y2ROOT.img",
+      "bytes": 536870912,
+      "sha256": "814a5b2543931e01cee2eb6f641c3b6e02317bd6308d2d663aea78f618bd554f"
+    }
+  ],
+  "data_payload_present": false,
+  "protected_writes_performed": false,
+  "firmware_redistribution_permission_established": false
+}

@@ -1,0 +1,34 @@
+{
+  "schema": "org.schulzcode.y2linux.owner-firmware/v1",
+  "redistribution_permission_established": false,
+  "files": {
+    "WIFI_RAM_CODE_MT6582": {
+      "size_bytes": 160368,
+      "sha256": "4def37522e2bfd2d4b78e01bf9f567a37e3f67ab3d7b6646ffb317f5b2b49b82"
+    },
+    "WMT_SOC.cfg": {
+      "size_bytes": 80,
+      "sha256": "cea0a94b8a88e9c24e6835446ebc3106d7b100c3709ea98e8bb7368689c8a2b5"
+    },
+    "mt6572_82_patch_e1_0_hdr.bin": {
+      "size_bytes": 33120,
+      "sha256": "fa3be4a92540296de512d64f56272746be10bdfa2db571c8ceada2d40cd616f0"
+    },
+    "mt6572_82_patch_e1_1_hdr.bin": {
+      "size_bytes": 17476,
+      "sha256": "96eb25489305bd472805db1da33bcc0acd37b5bb21cceda98d7e88ba1179ca37"
+    },
+    "modem_1_2g_n.img": {
+      "size_bytes": 2424376,
+      "sha256": "5059775975cbf6ab74c43978ca8f65d9a274b83585f456134e39b09f6dc7a4f1"
+    },
+    "WIFI.defaults": {
+      "size_bytes": 512,
+      "sha256": "eb5e87224e3a493e825179f547fc13924f564a42730ea821b4359b5b36f4defe"
+    },
+    "BT.defaults": {
+      "size_bytes": 64,
+      "sha256": "f224ff4abfb45a612ef03249e87e4ecfa44b7c1f9f19ee3cc78ae354764d9472"
+    }
+  }
+}

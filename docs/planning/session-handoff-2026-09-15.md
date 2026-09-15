@@ -1,5 +1,9 @@
 # Session handoff — 2026-09-15, M5 implementation
 
+**Superseded by the [September 16 built-candidate handoff](session-handoff-2026-09-16.md).**
+CONNECTIVITY-01 is ready for manual owner installation; its source, image
+hashes and validation results are in that handoff.
+
 **Current direction: M4 accepted by the owner; implement M5.** The owner reports
 that POWER-03 works and explicitly authorizes the M5 implementation prompt.
 Use entry audit `67cbe8f`; do not repeat inventory or protected-data acquisition.

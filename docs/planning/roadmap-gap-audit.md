@@ -1,5 +1,22 @@
 # Y2Linux roadmap and gap audit
 
+## M5 candidate handoff — 2026-09-16
+
+CONNECTIVITY-01 is built from `022c701010c467904ab6025cd98535d3b861c771`.
+The integrated kernel/rootfs passed 81 production/M4/connectivity tests,
+eight isolated ARM userspace checks, emitted memory/DT/BOOTIMG validation,
+rootfs validation and 16 package rejection cases. The preserving package
+contains new BOOTIMG/Y2ROOT and the accepted POWER-03/previous-root fallback;
+there is no Y2DATA payload. No assistant deployment or protected write occurred.
+
+[Complete manual handoff, image hashes and physical procedure](../build/y2linux-m5-connectivity-01-deployment.md).
+M5 #31 is ACTIVE / AWAITING OWNER INSTALLATION / PHYSICALLY UNQUALIFIED.
+Stop for manual installation, then perform one coherent SSH qualification.
+Silicon stepping, own calibration completion, radio functionality, EDR/BLE,
+coexistence, recovery and M4 regression remain physical gates. FM is excluded
+on this older board. This is a build/implementation update using the completed
+entry audit below, not another broad entry audit or a milestone closure.
+
 ## M5 implementation authorized — 2026-09-15
 
 The owner reports that POWER-03 works and explicitly accepts M4, then requests
