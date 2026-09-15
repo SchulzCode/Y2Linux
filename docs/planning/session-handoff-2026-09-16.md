@@ -1,3 +1,15 @@
+# Latest state — CONNECTIVITY-05 installed, CONNECTIVITY-06 correction
+
+CONNECTIVITY-05 is running after owner installation. MD calibration completes,
+but the 26-byte first WMT command stops after 24 bytes; no TX IRQ is serviced.
+Linux remains responsive with the same boot ID, storage and PC charging working.
+[Physical evidence](../hardware-evidence/2026-09-16-m5-connectivity05/README.md).
+CONNECTIVITY-06 corrects the missing per-transfer TX interrupt rearm and DMA
+submission order. Build a BOOTIMG-only candidate retaining CONNECTIVITY-03 root
+and Y2DATA; stop for manual installation. M5 remains open.
+
+The earlier CONNECTIVITY-04 artifacts and fallbacks below remain historical reference.
+
 # Session handoff — 2026-09-16, CONNECTIVITY-04 physically inspected
 
 The owner installed CONNECTIVITY-04. SSH confirms Linux remains responsive

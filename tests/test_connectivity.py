@@ -14,6 +14,105 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class Connectivity(unittest.TestCase):
+    def test_actual_btif_rearms_tail_irq_for_every_transfer(self):
+        source=(ROOT/'kernel/platform/connectivity/btif.c').read_text()
+        source=source.replace('int y2_btif_send(', 'static int y2_btif_send(')
+        body='\n'.join(function(source,n) for n in ('advance','y2_btif_irq','y2_btif_send'))
+        defines='\n'.join(l for l in source.splitlines() if l.startswith('#define '))
+        run_c(r'''
+#include <assert.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#define Y2_CONN_DMA_SIZE 8192
+#define READ_ONCE(x) (x)
+#define min(a,b) ((a)<(b)?(a):(b))
+#define dma_wmb() ((void)0)
+#define dma_rmb() ((void)0)
+#define IRQ_NONE 0
+#define IRQ_HANDLED 1
+typedef int irqreturn_t;
+struct y2_conn {
+ bool transport_on;int dma_tx,dma_rx,tx_wait,irq[4],failure;
+ unsigned txptr,rxptr;void *txdma,*rxdma,*btif;unsigned char *txbuf,*rxbuf;
+};
+static uint32_t regs[32];
+static unsigned char fifo[8192],wire[8192];
+static unsigned wire_size,writes,bad_enable_order,stuck;
+static void mutex_lock(int *l){assert(!*l);*l=1;}
+static void mutex_unlock(int *l){assert(*l);*l=0;}
+static void wake_up_all(int *w){(void)w;}
+static void y2_conn_failed(struct y2_conn *c,int e){c->failure=e;}
+static void y2_stp_receive(struct y2_conn *c,const unsigned char *p,unsigned n){assert(0);}
+''' + defines + r'''
+#define R(offset) regs[(offset)/4]
+static void update_irq(void){
+ /* MediaTek APDMA one-shot: HW clears INT_EN at the free-space threshold. */
+ if(R(INT_EN) && R(LEFT)>=R(THRESHOLD)){R(INT_FLAG)=1;R(INT_EN)=0;}
+}
+static unsigned readl(void *p){
+ assert((uintptr_t)p>=(uintptr_t)regs && (uintptr_t)p<(uintptr_t)(regs+32));return *(uint32_t *)p;
+}
+static void writel(unsigned v,void *p){
+ unsigned offset=(unsigned)((uintptr_t)p-(uintptr_t)regs);assert(offset<sizeof(regs));writes++;
+ if(offset==WRITE_PTR){
+  if(!R(ENABLE))bad_enable_order++;
+  unsigned n=(v&0xffff)-(R(READ_PTR)&0xffff);
+  if((v^R(READ_PTR))&0x10000)n+=8192;
+  assert(n<=8192);R(VALID)=n;R(LEFT)=8192-n;
+ }
+ if(offset==FLUSH)assert(!R(STOP));
+ R(offset)=v;update_irq();
+}
+static void hardware_step(void){
+ if(stuck || !R(ENABLE))return;
+ unsigned n=R(FLUSH)?R(VALID):(R(VALID)&~7U);
+ unsigned p=R(READ_PTR)&0xffff;assert(wire_size+n<=sizeof(wire));
+ for(unsigned i=0;i<n;i++)wire[wire_size++]=fifo[(p+i)%8192];
+ unsigned next=p+n;R(READ_PTR)=(next%8192)|((R(READ_PTR)^(next>=8192?0x10000:0))&0x10000);
+ R(VALID)-=n;R(LEFT)+=n;
+ if(R(FLUSH)){R(FLUSH)=0;R(ENABLE)=0;}
+ update_irq();
+}
+#define readl_poll_timeout(p,v,condition,delay,timeout) ({ \
+ int rc=-ETIMEDOUT;for(unsigned polls=0;polls<40;polls++){ \
+ (v)=readl(p);if(condition){rc=0;break;}hardware_step();}rc;})
+''' + body + r'''
+static void reset(struct y2_conn *c,unsigned pointer){
+ memset(c,0,sizeof(*c));memset(regs,0,sizeof(regs));memset(fifo,0,sizeof(fifo));
+ c->transport_on=true;c->txdma=regs;c->txbuf=fifo;c->txptr=pointer;c->irq[1]=71;
+ R(READ_PTR)=R(WRITE_PTR)=pointer;R(LEFT)=8192;R(THRESHOLD)=8192-7;
+ wire_size=writes=bad_enable_order=stuck=0;
+}
+static void transfer(struct y2_conn *c,unsigned n){
+ unsigned char input[2048];assert(n<=sizeof(input));for(unsigned i=0;i<n;i++)input[i]=(i*31+n)&255;
+ wire_size=0;
+ assert(!y2_btif_send(c,input,n));
+ hardware_step(); /* The initial VALID read saw all n bytes, before DMA ran. */
+ if(R(INT_FLAG))assert(y2_btif_irq(71,c)==IRQ_HANDLED);
+ hardware_step();
+ assert(!R(VALID) && !R(FLUSH) && wire_size==n && !memcmp(input,wire,n));
+ assert(!bad_enable_order && !c->failure && !c->dma_tx);
+}
+int main(void){
+ struct y2_conn c;
+ reset(&c,0);transfer(&c,26); /* observed failure: 24 sent, two trailer bytes left */
+ transfer(&c,26); /* Interrupt is one-shot, so the second transfer must rearm too. */
+ for(unsigned n=1;n<=37;n++)transfer(&c,n); /* every short-tail residue and exact multiples */
+ for(unsigned i=0;i<40;i++)transfer(&c,1005); /* wrap the coherent FIFO repeatedly */
+ reset(&c,8190);transfer(&c,26);transfer(&c,2048);
+ /* A rejected/blocked transfer cannot publish a new pointer or combine STOP/FLUSH. */
+ unsigned char byte=0;
+ reset(&c,0);c.transport_on=false;assert(y2_btif_send(&c,&byte,1)==-ESHUTDOWN && !writes);
+ reset(&c,0);R(STOP)=1;assert(y2_btif_send(&c,&byte,1)==-ESHUTDOWN && !writes);
+ reset(&c,0);R(FLUSH)=1;stuck=1;
+ assert(y2_btif_send(&c,&byte,1)==-ETIMEDOUT && !writes && !c.txptr);
+ reset(&c,0);R(LEFT)=0;stuck=1;
+ assert(y2_btif_send(&c,&byte,1)==-ETIMEDOUT && !writes && !c.txptr);
+}
+''')
+
     def test_actual_stp_mandatory_bootstrap_and_full_mode_transition(self):
         source=(ROOT/'kernel/platform/connectivity/stp.c').read_text()
         source=source.replace('int y2_stp_send(', 'static int y2_stp_send(')

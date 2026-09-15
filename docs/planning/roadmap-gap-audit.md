@@ -1,5 +1,15 @@
 # Y2Linux roadmap and gap audit
 
+## CONNECTIVITY-05 physical result / CONNECTIVITY-06 correction — 2026-09-16
+
+Owner-installed CONNECTIVITY-05 completes MD calibration and stays responsive,
+but its first WMT command leaves two trailer bytes in TX DMA; no TX IRQ is serviced.
+[Physical result](../hardware-evidence/2026-09-16-m5-connectivity05/README.md).
+CONNECTIVITY-06 restores the stock per-transfer IRQ rearm/submission order,
+verified by a regression reproducing that exact stall. It is a BOOTIMG-only
+correction retaining root/data, memory layout and accepted M4. M5 #31 remains
+ACTIVE / TRANSPORT STARTUP FAILURE / PHYSICALLY UNQUALIFIED. No entry audit is repeated.
+
 ## CONNECTIVITY-04 physical result — 2026-09-16
 
 The owner installed `ac833c8`. SSH confirms CONNECTIVITY-04 kernel, retained

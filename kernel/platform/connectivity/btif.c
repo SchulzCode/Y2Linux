@@ -36,8 +36,8 @@ static irqreturn_t y2_btif_irq(int irq, void *data)
 	if (!READ_ONCE(c->transport_on)) return IRQ_NONE;
 	if (irq == c->irq[1]) {
 		/* TX status is cleared by zero, RX status is write-one-to-clear. */
-		writel(0, c->txdma + INT_FLAG);
 		mutex_lock(&c->dma_tx);
+		writel(0, c->txdma + INT_FLAG);
 		available = readl(c->txdma + VALID);
 		if (available && available < 8 && !(readl(c->txdma + FLUSH) & 1) &&
 		    !(readl(c->txdma + STOP) & 1)) writel(1, c->txdma + FLUSH);
@@ -80,17 +80,24 @@ int y2_btif_send(struct y2_conn *c, const unsigned char *data, unsigned size)
 	ret = readl_poll_timeout(c->txdma + FLUSH, value, !(value & 1), 10, 100000);
 	if (!ret) ret = readl_poll_timeout(c->txdma + LEFT, value, value >= size, 10, 100000);
 	if (ret) goto out;
+	if (readl(c->txdma + STOP) & 1) { ret = -ESHUTDOWN; goto out; }
+	/* TX interrupt enable is hardware-cleared at the free-space threshold.
+	 * Mask while filling, then rearm after EVERY submission (stock sequence).
+	 * Enabling it once on an empty FIFO loses the later <8-byte tail IRQ. */
+	writel(0, c->txdma + INT_EN);
 	offset = c->txptr & 0xffff;
 	first = min(size, Y2_CONN_DMA_SIZE - offset);
 	memcpy(c->txbuf + offset, data, first);
 	if (first != size) memcpy(c->txbuf, data + first, size - first);
 	c->txptr = advance(c->txptr, size);
 	dma_wmb();
-	writel(c->txptr, c->txdma + WRITE_PTR);
 	writel(1, c->txdma + ENABLE);
+	writel(c->txptr, c->txdma + WRITE_PTR);
 	/* Flush short trailing transfers; never combine STOP and FLUSH. */
-	if (readl(c->txdma + VALID) && readl(c->txdma + VALID) < 8)
+	value = readl(c->txdma + VALID);
+	if (value && value < 8)
 		writel(1, c->txdma + FLUSH);
+	writel(1, c->txdma + INT_EN);
 out:
 	mutex_unlock(&c->dma_tx);
 	return ret;
@@ -104,7 +111,7 @@ static void init_dma(void __iomem *base, dma_addr_t address, bool rx)
 	writel(0, base + WRITE_PTR); writel(0, base + READ_PTR);
 	writel(rx ? Y2_CONN_DMA_SIZE * 3 / 4 : Y2_CONN_DMA_SIZE - 7, base + THRESHOLD);
 	writel(rx ? 3 : 0, base + INT_FLAG);
-	writel(rx ? 3 : 1, base + INT_EN);
+	writel(rx ? 3 : 0, base + INT_EN);
 	if (rx) writel(1, base + ENABLE);
 }
 int y2_btif_start(struct y2_conn *c)
@@ -138,9 +145,9 @@ void y2_btif_report_timeout(struct y2_conn *c)
 	 * traffic, factory data or radio identities. */
 	if (!c->dma_active || !READ_ONCE(c->transport_on)) return;
 	mutex_lock(&c->dma_tx);
-	dev_err(c->dev, "BTIF timeout: IER=%x LSR=%x DMA=%x TX en=%x flag=%x wpt=%x rpt=%x valid=%u left=%u flush=%x\n",
+	dev_err(c->dev, "BTIF timeout: IER=%x LSR=%x DMA=%x TX en=%x ien=%x flag=%x wpt=%x rpt=%x valid=%u left=%u flush=%x\n",
 		readl(c->btif+4), readl(c->btif+0x14), readl(c->btif+0x4c),
-		readl(c->txdma+ENABLE), readl(c->txdma+INT_FLAG),
+		readl(c->txdma+ENABLE), readl(c->txdma+INT_EN), readl(c->txdma+INT_FLAG),
 		readl(c->txdma+WRITE_PTR), readl(c->txdma+READ_PTR),
 		readl(c->txdma+VALID), readl(c->txdma+LEFT), readl(c->txdma+FLUSH));
 	mutex_unlock(&c->dma_tx);

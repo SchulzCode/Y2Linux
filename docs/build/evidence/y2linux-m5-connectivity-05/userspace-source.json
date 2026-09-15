@@ -1,0 +1,46 @@
+{
+  "base_manifest_sha256": "04d2435d173822d1cbd975524b0f6bb22057ad97b99dde92fc45f887d5b72dc9",
+  "base_build_git_commit": "ac833c887d81d883827a734700639fa9be7c9f1e",
+  "rootfs_version": "2025.02.17-connectivity.3",
+  "retained_images": {
+    "ANDROID": {
+      "file": "Y2ROOT.img",
+      "size_bytes": 536870912,
+      "sha256": "1495cc1825ca3831fc4607cf25bc04969495f6bdfa7842d634d0917ecb42824e"
+    },
+    "USRDATA": {
+      "file": "Y2DATA.img",
+      "size_bytes": 838860800,
+      "sha256": "01bcf65da1716081707202af074969e21fc1196540cb1de6ca76ef9098d44079"
+    }
+  },
+  "method": "retain verified production libraries; rebuild current rescue programs; no ext4 writes or rebuild",
+  "rescue_toolchain_sha256": "608263bc9dc3eadf0962ddb1165f1c2291001190f9927dee47d464e26374462c",
+  "rebuilt_rescue_programs": {
+    "y2-platform-start": {
+      "source": "tools/production/platform-start.c",
+      "source_sha256": "1efb0c95b62e209c7ccf66b0fe2ff0388024b7acba247c82f6db26a424d0e3c4",
+      "binary_sha256": "4a053c5c08aa7040c9283987a735bbd0069135759c49e756fb6222cba658212f"
+    },
+    "y2-offline-charge": {
+      "source": "tools/production/offline-charge.c",
+      "source_sha256": "49fbe5363e2b2b54a65f86b3566f48c10fd5472193fd81765b82d13a06c8f453",
+      "binary_sha256": "fceb0ef277ae9415875c4b7e2b1bf9f22372ce63b2f2207fc09b967383bdbaef"
+    },
+    "y2-usb-status": {
+      "source": "tools/production/usb-status.c",
+      "source_sha256": "b66c746e4134ce4b2ff43a21b68d6a571c8aeb873425c82ae9a72a44d5b37455",
+      "binary_sha256": "84d354a09f79a8b8e09a5d27e81dd4ed734f898345ca547771658faf01e87756"
+    },
+    "y2-fbtest": {
+      "source": "tools/development/fbtest.c",
+      "source_sha256": "d993b4f864f7f97c72e2dcb806580286903ec4e9fc82bf47fde24b2f0d64487a",
+      "binary_sha256": "77f35da4b0a584b645a4a7f607dbe10620ef04f6dbe2fa632ebbff56a6382d35"
+    },
+    "y2-abi-check": {
+      "source": "tools/development/abi-check.c",
+      "source_sha256": "9466118fa0b87b495390535c112a5106b82234dd24a944216c63a41bcc1ffb4f",
+      "binary_sha256": "9831bd81cad23456d1855252066b718a8d5fdbe58d2c0def7ea639c22b342342"
+    }
+  }
+}
