@@ -14,6 +14,60 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class Connectivity(unittest.TestCase):
+    def test_md_request_transport_padding_keeps_service_abi_strict(self):
+        run_c(r'''
+#include <assert.h>
+#include <string.h>
+#include "connectivity/protocol.h"
+int main(void) {
+ unsigned char data[Y2_FS_STRIDE]={0}; struct y2_fs_packet p;
+ /* Synthetic GetDiskInfo: UTF-16 drive and flags. The mailbox can report
+  * 32 bytes while counted arguments end at 28; replies have no trailer. */
+ y2_conn_put32(data,0x100e);y2_conn_put32(data+4,2);
+ y2_conn_put32(data+8,8);memcpy(data+12,"Z\0:\0\\\0\0",8);
+ y2_conn_put32(data+20,4);y2_conn_put32(data+24,0);
+ y2_conn_put32(data+28,0xa5a5a5a5);
+ assert(y2_fs_request_size(data,32,&p)==28);
+ assert(p.op==0x100e && p.count==2 && p.args[0].size==8 && p.args[1].size==4);
+ assert(y2_fs_parse(data,32,&p));
+ assert(!y2_fs_parse(data,28,&p));
+ for(unsigned n=0;n<28;n++)assert(y2_fs_request_size(data,n,&p)<0);
+ for(unsigned n=29;n<40;n++)if(n!=32)assert(y2_fs_request_size(data,n,&p)<0);
+ /* A zero-argument restore query, ordinary close and a short argument. */
+ for(unsigned count=0;count<2;count++) for(unsigned bytes=1;bytes<=4;bytes++) {
+  memset(data,0,sizeof(data));y2_conn_put32(data,count?0x1005:0x101c);
+  y2_conn_put32(data+4,count);y2_conn_put32(data+8,bytes);
+  unsigned end=count?16:8;
+  for(unsigned pad=0;pad<256;pad++) {
+   memset(data+end,pad,4);
+   assert(y2_fs_request_size(data,end+4,&p)==(int)end);
+   assert(!y2_fs_parse(data,end,&p));
+   assert(y2_fs_parse(data,end+4,&p));
+  }
+ }
+ y2_conn_put32(data+4,17);assert(y2_fs_request_size(data,20,&p)<0);
+ y2_conn_put32(data+4,1);y2_conn_put32(data+8,0xffffffff);
+ assert(y2_fs_request_size(data,20,&p)<0);
+ assert(y2_fs_request_size(data,Y2_FS_STRIDE+4,&p)<0);
+ /* Exhaust the length bound, including the final legal mailbox word. */
+ for(unsigned bytes=0;bytes<=Y2_FS_STRIDE;bytes++) {
+  y2_conn_put32(data+8,bytes);unsigned end=12+((bytes+3)&~3U);
+  if(end<=Y2_FS_STRIDE)assert(y2_fs_request_size(data,end,&p)==(int)end);
+  if(end+4<=Y2_FS_STRIDE)assert(y2_fs_request_size(data,end+4,&p)==(int)end);
+  if(end>Y2_FS_STRIDE)assert(y2_fs_request_size(data,Y2_FS_STRIDE,&p)<0);
+ }
+}
+''')
+
+    def test_early_regulatory_database_is_pinned_and_signed(self):
+        from tools.build import regulatory
+        files=regulatory.load(ROOT)
+        self.assertEqual(set(files),set(regulatory.FILES.values()))
+        self.assertGreater(len(files['lib/firmware/regulatory.db']),1000)
+        self.assertGreater(len(files['lib/firmware/regulatory.db.p7s']),100)
+        with patch.object(Path,'read_bytes',return_value=b'changed archive'), self.assertRaises(ValueError):
+            regulatory.load(ROOT)
+
     @unittest.skipUnless(os.environ.get('Y2_ARTIFACT_TEST_ROOT'), 'requires emitted integrated DT')
     def test_emitted_dt_rejects_radio_ownership_and_power_regressions(self):
         from tools.validation.dev_dtb import check, CONN

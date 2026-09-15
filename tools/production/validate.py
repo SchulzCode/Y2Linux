@@ -195,13 +195,15 @@ def validate_boot_update(out, base=None):
     require(set(listed)=={str(p.relative_to(out)) for p in out.rglob('*') if p.is_file() and p.name!='SHA256SUMS'},'checksum inventory')
     if base:
         require(digest(base/'manifest.json')==m['base_manifest_sha256'],'retained installed package identity')
-        # A prior BOOTIMG-only package intentionally has no ext4 payloads.
-        # Validate that package's complete reference contract; the equality
-        # check above carries its original root/data identities unchanged.
-        if previous.get('installation_profile') == 'boot-only':
+        # Update packages carry retained component references, not a Y2DATA
+        # image. Validate their complete contracts without requiring a data
+        # template or turning an ordinary kernel update into data provisioning.
+        if previous.get('installation_profile') in ('boot-only', 'system-update'):
             validate_manifest(base)
     if base and previous.get('installation_profile') != 'boot-only':
         for entry in installed:
+            if previous.get('installation_profile') == 'system-update' and entry['target_partition'] == 'USRDATA':
+                continue
             image=base/entry['raw']['file']
             require(digest(image)==entry['raw']['sha256'] and image.stat().st_size==entry['raw']['size_bytes'],
                     'retained ext4 bytes unchanged')
@@ -212,7 +214,8 @@ def validate_boot_update(out, base=None):
         root_versions=json.loads(run('debugfs','-R','cat /etc/y2linux/versions.json',str(root)))
         require(root_versions['rootfs_version']==m['rootfs_version'] and
                 root_versions['build_git_commit']==m['rootfs_build_git_commit'],'on-image root provenance')
-        require(run('debugfs','-R','cat /.y2data-schema',str(data))==b'1\n','installed data schema')
+        if previous.get('installation_profile') != 'system-update':
+            require(run('debugfs','-R','cat /.y2data-schema',str(data))==b'1\n','installed data schema')
     print('PASS production BOOTIMG-only manifest, stock geometry, unchanged root/data, module ABI contract, bounds and hashes')
     return m
 

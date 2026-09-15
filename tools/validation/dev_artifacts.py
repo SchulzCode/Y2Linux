@@ -74,6 +74,10 @@ def check(root,project,production=False):
         for name in ('y2-platform-start','y2-offline-charge','y2-usb-status'):
             require(entries['sbin/'+name][1]==(root/name).read_bytes(),'production tool archive bytes '+name)
         require(entries['sbin/y2-status'][1]==(project/'tools/production/y2-status').read_bytes(),'shared diagnostic tool')
+        if 'CONFIG_CFG80211=y' in (root/'kernel/.config').read_text().splitlines():
+            from tools.build.regulatory import load
+            for name, raw in load(project).items():
+                require(entries.get(name)==(stat.S_IFREG|0o644,raw),'early signed regulatory data '+name)
     module=(root/'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko').read_bytes()
     require(entries['display.ko'][1]==module==(root/'display.ko').read_bytes(),'exact DRM module packaging')
     elf=ELFFile(io.BytesIO(module));info=elf.get_section_by_name('.modinfo').data().split(b'\0')

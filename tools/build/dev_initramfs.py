@@ -53,6 +53,10 @@ def build(root, project, production=True):
         binary('sbin/y2-usb-status',root/'y2-usb-status')
         binary('sbin/e2fsck',target/'sbin/e2fsck')
         put('sbin/y2-storage',stat.S_IFREG|0o644,(project/'initramfs/production/storage.sh').read_bytes())
+        if 'CONFIG_CFG80211=y' in (root/'kernel/.config').read_text().splitlines():
+            from tools.build.regulatory import load
+            for name, raw in load(project).items():
+                put(name,stat.S_IFREG|0o644,raw)
     binary('sbin/y2-observer',root/'y2-observer')
     binary('sbin/y2-fbtest',root/'y2-fbtest')
     binary('sbin/y2-abi-check',root/'y2-abi-check')

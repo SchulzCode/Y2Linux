@@ -138,7 +138,7 @@ def package(build, base, out, fallback_package=None):
                    'sha256': digest(out/'BOOTIMG.img')}
     boot['spft'] = {'format': 'raw-android-mtk-bootimg', **boot['raw']}
     m['installation_profile'] = 'boot-only'
-    m['status'] = 'M4 integrated production power candidate; physical qualification pending'
+    m['status'] = 'Production BOOTIMG update; physical qualification pending'
     m['base_manifest_sha256'] = digest(base/'manifest.json')
     m['installed_components_policy'] = 'reference identities only; preserve ANDROID/USRDATA; no root/data payload packaged'
     m['profiles'] = {scatter: {'sha256': digest(out/scatter), 'selected_partitions': ['BOOTIMG']}}
@@ -163,11 +163,12 @@ def package(build, base, out, fallback_package=None):
         'SDP uses 450mA after its 500mA configuration, otherwise 70mA within its allowance, '
         'and inhibits on bus reset/suspend below 100mA. Unknown/nonstandard sources use 70mA. '
         'Below 3.2V use 70mA; up to 3.4V cap charging at 450mA. '
-        'All new source/current, recovery, suspend and poweroff behavior needs attended physical qualification. '
+        'Charging and power behavior retain the accepted M4 policy. '
         'BATON/ISENSE remain raw, no invented percentage or pack Celsius.\n\n'
         'Fallback: same scatter and BOOTIMG-only selection, choosing fallback/BOOTIMG-previous.img. '
         'Its exact previous kernel version and identity are recorded in manifest.json. '
-        'See docs/knowledge/m4-end-user-power.md for the current acceptance matrix and limitations.\n')
+        'For M5 corrections, begin with an SSH check of MD calibration, regulatory loading and radio registration; '
+        'then continue the existing connectivity qualification. M5 is not qualified by image construction.\n')
     (out/'SHA256SUMS').write_text(''.join(digest(p)+'  '+str(p.relative_to(out))+'\n'
         for p in sorted(out.rglob('*')) if p.is_file() and p.name != 'SHA256SUMS'))
     validate_boot_update(out, base)

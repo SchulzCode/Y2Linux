@@ -105,15 +105,21 @@ static int md_send(struct y2_md *m, u32 address, u32 size, u32 channel, u32 inde
 }
 static int md_fs(struct y2_md *m, u32 address, u32 size, u32 index)
 {
-	struct y2_fs_packet parsed; int ret;
+	struct y2_fs_packet parsed; int ret, used;
 	if (index >= 5 || address != Y2_MD_VIEW + Y2_MD_FS_OFFSET + index*Y2_FS_STRIDE ||
 	    size < 8 || size > Y2_FS_STRIDE || m->served >= 4096) return -EPROTO;
 	mutex_lock(&m->packet_lock);
 	memcpy_fromio(m->packet + Y2_CAL_HEADER, m->smem + Y2_MD_FS_OFFSET + index*Y2_FS_STRIDE, size);
-	ret = y2_fs_parse(m->packet + Y2_CAL_HEADER, size, &parsed);
-	if (ret || parsed.op < 0x1001 || parsed.op > 0x1021) {
+	used = y2_fs_request_size(m->packet + Y2_CAL_HEADER, size, &parsed);
+	if (used < 0 || parsed.op < 0x1001 || parsed.op > 0x1021) {
+		/* Header structure only: never dump request contents or filenames. */
+		dev_err(m->conn->dev, "MD FS framing rejected: bytes=%u known_op=%04x args=%u\n",
+			size, parsed.op >= 0x1001 && parsed.op <= 0x1021 ? parsed.op : 0,
+			min(parsed.count, (unsigned)Y2_FS_ARGS + 1));
+		memzero_explicit(m->packet, sizeof(m->packet));
 		mutex_unlock(&m->packet_lock); return -EPROTO;
 	}
+	size = used;
 	m->opcode = parsed.op; m->serial++;
 	y2_conn_put32(m->packet, Y2_CAL_VERSION);
 	y2_conn_put32(m->packet + 4, m->generation);
@@ -180,7 +186,11 @@ static irqreturn_t md_irq(int irq, void *arg)
 		else if (ch == 10 && a == 0xffffffff && !n && index == 1) { }
 		else ret = -EPROTO;
 		WRITE_ONCE(m->activity, jiffies);
-		if (ret) WRITE_ONCE(m->error, ret);
+		if (ret) {
+			dev_err(m->conn->dev, "MD message failed: stage=%u FS=%u channel=%u bytes=%u slot=%u buffer=%u error=%d\n",
+				m->stage, m->served, ch, n, slot, index, ret);
+			WRITE_ONCE(m->error, ret);
+		}
 		wake_up_all(&m->wait);
 	}
 	return IRQ_HANDLED;
@@ -245,6 +255,11 @@ release:
 	WRITE_ONCE(m->active, false); wake_up_all(&m->wait); disable_irq(m->irq);
 stop:
 	WRITE_ONCE(m->active, false);
+	mutex_lock(&m->packet_lock);
+	m->request = m->delivered = m->replied = false;
+	memzero_explicit(m->packet, sizeof(m->packet));
+	memzero_explicit(m->reply, sizeof(m->reply));
+	mutex_unlock(&m->packet_lock);
 	stopped = y2_spm_radio_power(1, 0);
 	if (!stopped) c->md_owned = false;
 	if (stopped) ret = stopped;

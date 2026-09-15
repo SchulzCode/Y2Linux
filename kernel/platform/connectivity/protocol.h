@@ -48,8 +48,8 @@ struct y2_fs_packet {
 	unsigned op, count;
 	struct y2_fs_argument args[Y2_FS_ARGS];
 };
-static inline int y2_fs_parse(const unsigned char *data, unsigned size,
-			    struct y2_fs_packet *packet)
+static inline int y2_fs_parse_prefix(const unsigned char *data, unsigned size,
+				   struct y2_fs_packet *packet)
 {
 	unsigned at = 8, i, n, padded;
 	if (size < 8 || size > Y2_FS_STRIDE) return -1;
@@ -66,7 +66,27 @@ static inline int y2_fs_parse(const unsigned char *data, unsigned size,
 		packet->args[i].size = n;
 		at += padded;
 	}
-	return at == size ? 0 : -1;
+	return at;
+}
+/* The service ABI and AP replies contain only the counted arguments. */
+static inline int y2_fs_parse(const unsigned char *data, unsigned size,
+			    struct y2_fs_packet *packet)
+{
+	int used = y2_fs_parse_prefix(data, size, packet);
+	return used >= 0 && (unsigned)used == size ? 0 : -1;
+}
+/* MT6582 MD requests may include one unused trailing word in the reported
+ * stream length. Stock GetPackInfo follows the argument count/alignment;
+ * it does not interpret that word. Normalize at the transport boundary so
+ * the private service keeps its strict, unchanged ABI. Never accept a
+ * partial argument or arbitrary trailing data, or assume padding is zero. */
+static inline int y2_fs_request_size(const unsigned char *data, unsigned size,
+				     struct y2_fs_packet *packet)
+{
+	int used = y2_fs_parse_prefix(data, size, packet);
+	if (used < 0 || ((unsigned)used != size && (unsigned)used + 4 != size))
+		return -1;
+	return used;
 }
 /* Modem filenames are UTF-16LE Z:\NVRAM\... . Bound the ASCII subset used
  * by its record store; reject traversal, alternate drives, NUL suffixes and
