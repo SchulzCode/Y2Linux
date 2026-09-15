@@ -1,5 +1,17 @@
 # Y2Linux roadmap and gap audit
 
+## First M5 physical inspection — 2026-09-16
+
+The owner installed CONNECTIVITY-01. Read-only SSH confirms the M5 kernel/root
+markers, internal p5/p7 mounts and wired SSH. Radio initialization fails at the
+MD calibration handshake (`stage=1 FS=0 result=-71`), with successful reported
+MD shutdown and no usable BlueZ adapter or Wi-Fi interface. Early regulatory
+database loading also precedes rootfs availability; the clock is unset (2022).
+[Physical snapshot and limits](../hardware-evidence/2026-09-16-m5-connectivity01/README.md).
+M5 remains ACTIVE / STARTUP FAILURE / PHYSICALLY UNQUALIFIED. Make targeted
+corrections from these observations, then continue the coherent qualification.
+No new broad audit or M4 redesign is called for by this inspection.
+
 ## M5 candidate handoff — 2026-09-16
 
 CONNECTIVITY-01 is built from `022c701010c467904ab6025cd98535d3b861c771`.

@@ -1,5 +1,14 @@
 # Session handoff — 2026-09-16, M5 candidate ready
 
+**Latest update: the owner installed CONNECTIVITY-01.** Read-only SSH confirms
+the running kernel/root markers and working internal root/data/USB SSH. Native
+radio startup fails in the MD calibration handshake (`stage=1`, `FS=0`,
+`EPROTO`); BlueZ has no usable adapter and Wi-Fi is absent. See the
+[first physical inspection](../hardware-evidence/2026-09-16-m5-connectivity01/README.md).
+The next work is a targeted startup correction, followed by the physical matrix.
+The original deployment handoff below is retained as history, not a request to
+flash the same candidate again. M5 remains open.
+
 **Stop for owner manual BOOTIMG + Y2ROOT installation. M5 remains OPEN.**
 Use the [complete 26-field deployment receipt](../build/y2linux-m5-connectivity-01-deployment.md).
 No assistant flash/deployment or protected write occurred. M4 POWER-03 was
