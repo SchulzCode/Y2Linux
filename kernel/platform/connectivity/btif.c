@@ -122,6 +122,7 @@ int y2_btif_start(struct y2_conn *c)
 	writel(1, c->btif + 0x6c);
 	writel(0x18, c->btif + 0x60);
 	writel(6, c->btif + 8);
+	writel(0, c->btif + 8); /* Release both FIFO clear bits before enabling DMA. */
 	writel(0, c->btif + 0x48);
 	init_dma(c->txdma, c->txaddr, false); init_dma(c->rxdma, c->rxaddr, true);
 	writel(7, c->btif + 0x4c);
@@ -129,6 +130,25 @@ int y2_btif_start(struct y2_conn *c)
 	for (unsigned i = 0; i < ARRAY_SIZE(c->irq); i++) enable_irq(c->irq[i]);
 	writel(1, c->btif + 4);
 	return 0;
+}
+void y2_btif_report_timeout(struct y2_conn *c)
+{
+	/* WMT's lifecycle owner calls this before shutdown, with clocks held.
+	 * Log only control/status and FIFO offsets, never DMA base addresses,
+	 * traffic, factory data or radio identities. */
+	if (!c->dma_active || !READ_ONCE(c->transport_on)) return;
+	mutex_lock(&c->dma_tx);
+	dev_err(c->dev, "BTIF timeout: IER=%x LSR=%x DMA=%x TX en=%x flag=%x wpt=%x rpt=%x valid=%u left=%u flush=%x\n",
+		readl(c->btif+4), readl(c->btif+0x14), readl(c->btif+0x4c),
+		readl(c->txdma+ENABLE), readl(c->txdma+INT_FLAG),
+		readl(c->txdma+WRITE_PTR), readl(c->txdma+READ_PTR),
+		readl(c->txdma+VALID), readl(c->txdma+LEFT), readl(c->txdma+FLUSH));
+	mutex_unlock(&c->dma_tx);
+	mutex_lock(&c->dma_rx);
+	dev_err(c->dev, "BTIF timeout: RX en=%x flag=%x wpt=%x rpt=%x valid=%u\n",
+		readl(c->rxdma+ENABLE), readl(c->rxdma+INT_FLAG),
+		readl(c->rxdma+WRITE_PTR), readl(c->rxdma+READ_PTR), readl(c->rxdma+VALID));
+	mutex_unlock(&c->dma_rx);
 }
 int y2_btif_stop(struct y2_conn *c)
 {

@@ -14,6 +14,113 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class Connectivity(unittest.TestCase):
+    def test_actual_stp_mandatory_bootstrap_and_full_mode_transition(self):
+        source=(ROOT/'kernel/platform/connectivity/stp.c').read_text()
+        source=source.replace('int y2_stp_send(', 'static int y2_stp_send(')
+        source=source.replace('void y2_stp_receive(', 'static void y2_stp_receive(')
+        body='\n'.join(function(source,n) for n in
+                       ('y2_stp_send','y2_stp_acknowledge','deliver','y2_stp_receive'))
+        run_c(r'''
+#include <assert.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <string.h>
+#include "connectivity/protocol.h"
+#define Y2_CONN_WMT 4
+#define Y2_CONN_BT 0
+#define READ_ONCE(x) (x)
+#define msecs_to_jiffies(x) (x)
+#define wait_event_timeout(q,condition,timeout) ((void)(q),(void)(timeout),!!(condition))
+struct y2_stp_frame {unsigned size;unsigned char data[Y2_STP_MAX_PAYLOAD+6];};
+struct y2_conn {
+ int stp_lock,tx_wait,retry_work,response,failure;
+ bool transport_on,full_stp,wmt_reg_read;
+ unsigned stp_pending,stp_tx,stp_oldest,stp_rx,stp_retries,rx_used,rx_needed,response_size;
+ struct y2_stp_frame window[8];
+ unsigned char rx_frame[Y2_STP_MAX_PAYLOAD+6],response_data[256];
+};
+static struct y2_stp_frame sent[16];
+static unsigned sent_count,timer,bt_packets,completions;
+static int system_wq,send_error;
+static void mutex_lock(int *p){assert(!*p);*p=1;}
+static void mutex_unlock(int *p){assert(*p);*p=0;}
+static void wake_up_all(int *p){(void)p;}
+static void mod_delayed_work(int q,int *w,unsigned time){assert(time==250);timer=1;}
+static void cancel_delayed_work(int *w){timer=0;}
+static void memzero_explicit(void *p,unsigned n){memset(p,0,n);}
+static int completion_done(int *p){return *p;}
+static void complete(int *p){assert(!*p);*p=1;completions++;}
+static void y2_conn_failed(struct y2_conn *c,int error){assert(error<0);c->failure=error;}
+static void y2_hci_receive(struct y2_conn *c,const unsigned char *p,unsigned n){bt_packets++;}
+static int y2_btif_send(struct y2_conn *c,const unsigned char *p,unsigned n){
+ assert(c->stp_lock && n<=sizeof(sent[0].data) && sent_count<16);
+ if(send_error)return send_error;
+ sent[sent_count].size=n;memcpy(sent[sent_count++].data,p,n);return 0;
+}
+''' + body + r'''
+static void reset(struct y2_conn *c){
+ memset(c,0,sizeof(*c));c->transport_on=true;c->wmt_reg_read=true;
+ sent_count=timer=bt_packets=completions=0;send_error=0;
+}
+int main(void){
+ struct y2_conn c;
+ /* Stock wmt_core_reg_rw_raw uses bRawFlag=false. Its first chip read is
+  * a 26-byte mandatory STP packet, never a bare 20-byte WMT command. */
+ const unsigned char request[]={1,8,16,0,2,1,0,1,8,0,0,0x80,0,0,0,0,0xff,0xff,0,0};
+ const unsigned char wire[]={0x80,0x40,20,0,1,8,16,0,2,1,0,1,8,0,0,0x80,0,0,0,0,0xff,0xff,0,0,0,0};
+ reset(&c);assert(!y2_stp_send(&c,Y2_CONN_WMT,request,sizeof(request)));
+ assert(sent_count==1 && sent[0].size==sizeof(wire) && !memcmp(sent[0].data,wire,sizeof(wire)));
+ assert(!c.stp_pending && !c.stp_tx && !c.stp_rx && !timer);
+ assert(y2_stp_send(&c,Y2_CONN_BT,request,sizeof(request))==-EHOSTDOWN);
+ assert(sent_count==1);
+ send_error=-EIO;assert(y2_stp_send(&c,Y2_CONN_WMT,request,sizeof(request))==-EIO);
+ assert(!c.stp_pending && !timer);
+ /* Outer length=16, inner WMT length=4 (stock register-read quirk).
+  * Exercise every DMA split, especially header and trailer boundaries. */
+ const unsigned char reply[]={0x80,0x40,16,0,2,8,4,0,0,0,0,1,8,0,0,0x80,0x82,0x65,0,0,0,0};
+ for(unsigned split=0;split<=sizeof(reply);split++){
+  reset(&c);y2_stp_receive(&c,reply,split);
+  assert(c.response==(split==sizeof(reply)));
+  y2_stp_receive(&c,reply+split,sizeof(reply)-split);
+  assert(!c.failure && c.response && completions==1 && c.response_size==16);
+  assert(!memcmp(c.response_data,reply+4,16) && !c.rx_used && !sent_count && !timer);
+ }
+ reset(&c);for(unsigned i=0;i<sizeof(reply);i++)y2_stp_receive(&c,reply+i,1);
+ assert(c.response && !c.failure);
+ /* Checksums are disabled only during mandatory bootstrap. */
+ unsigned char modified[sizeof(reply)];memcpy(modified,reply,sizeof(reply));
+ modified[3]=0xa5;modified[sizeof(reply)-1]=0x5a;
+ reset(&c);y2_stp_receive(&c,modified,sizeof(modified));assert(c.response && !c.failure);
+ reset(&c);c.wmt_reg_read=false;y2_stp_receive(&c,reply,sizeof(reply));assert(c.failure==-EPROTO);
+ for(unsigned bad=0;bad<5;bad++){
+  reset(&c);memcpy(modified,reply,sizeof(reply));
+  if(bad==0)modified[0]=2; /* Former raw parser must no longer accept this. */
+  if(bad==1)modified[1]=0; /* BT cannot speak before full mode. */
+  if(bad==2)modified[2]=0;
+  if(bad==3){modified[1]=0x41;modified[2]=1;} /* >256-byte WMT reply */
+  if(bad==4)modified[1]|=0x80;
+  y2_stp_receive(&c,modified,sizeof(modified));assert(c.failure && !c.response);
+ }
+ reset(&c);
+ const unsigned char set_reply[]={0x80,0x40,6,0,2,4,2,0,0,3,0,0};
+ y2_stp_receive(&c,set_reply,sizeof(set_reply));assert(c.response && !c.failure);
+ c.full_stp=true;c.response=0;c.wmt_reg_read=false;
+ const unsigned char query[]={1,4,1,0,4};
+ assert(!y2_stp_send(&c,Y2_CONN_WMT,query,sizeof(query)));
+ assert(sent[0].data[0]==0x87 && sent[0].data[3]==0xcc && c.stp_pending==1 && timer);
+ unsigned char full[]={0x80,0x40,10,0xca,2,4,6,0,0,4,0xdf,0x0e,0x68,1,0,0};
+ unsigned crc=y2_stp_crc(full+4,10);full[14]=crc;full[15]=crc>>8;
+ y2_stp_receive(&c,full,sizeof(full));
+ assert(!c.failure && c.response && c.stp_rx==1 && !c.stp_pending && !timer);
+ assert(sent_count==2 && sent[1].size==4 && sent[1].data[0]==0x80);
+ unsigned before=completions;y2_stp_receive(&c,full,sizeof(full));
+ assert(!c.failure && completions==before && sent_count==3); /* duplicate ACK, no duplicate data */
+ reset(&c);c.full_stp=true;full[15]^=1;
+ y2_stp_receive(&c,full,sizeof(full));assert(c.failure==-EBADMSG && !c.response);
+ assert(!bt_packets);
+}
+''')
+
     def test_stock_conn_remap_address_and_failed_write(self):
         source=(ROOT/'kernel/platform/clocks.c').read_text()
         body=function(source.replace('int y2_ccf_radio_remap(', 'static int y2_ccf_radio_remap('), 'y2_ccf_radio_remap')

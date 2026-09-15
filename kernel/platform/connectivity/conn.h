@@ -72,6 +72,7 @@ int y2_btif_start(struct y2_conn *c);
 int y2_btif_stop(struct y2_conn *c);
 int y2_btif_abort(struct y2_conn *c);
 int y2_btif_send(struct y2_conn *c, const unsigned char *data, unsigned size);
+void y2_btif_report_timeout(struct y2_conn *c);
 void y2_stp_init(struct y2_conn *c);
 void y2_stp_reset(struct y2_conn *c);
 void y2_stp_receive(struct y2_conn *c, const unsigned char *data, unsigned size);

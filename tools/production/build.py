@@ -9,7 +9,7 @@ PROJECT=Path(__file__).resolve().parents[2]
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--output',default='out/y2linux-m5-connectivity-04-build')
+    p.add_argument('--output',default='out/y2linux-m5-connectivity-05-build')
     p.add_argument('--resume',choices=['kernel','buildroot','artifacts'])
     p.add_argument('--reuse-userspace',type=Path,help='verified production package whose root/data and rescue binaries are retained')
     p.add_argument('--owner-firmware',type=Path,help='explicit local provision.py output; no downloads or calibration inputs')
@@ -19,7 +19,7 @@ def main():
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PROJECT,text=True).strip()
     if subprocess.check_output(['git','status','--porcelain'],cwd=PROJECT,text=True).strip():p.error('commit the reviewed source before building a release candidate')
     localversion=re.search(r'^CONFIG_LOCALVERSION="([^"]+)"$',(PROJECT/'kernel/config/production.config').read_text(),re.M).group(1)
-    versions={'release_version':'0.1.0-m5.connectivity.4','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-connectivity.4','data_schema_version':1,'y2player_version':None,'build_git_commit':commit}
+    versions={'release_version':'0.1.0-m5.connectivity.5','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-connectivity.5','data_schema_version':1,'y2player_version':None,'build_git_commit':commit}
     if not a.reuse_userspace:
         if not a.owner_firmware:p.error('M5 requires explicit --owner-firmware local provisioning')
         from tools.connectivity.provision import verify_provision

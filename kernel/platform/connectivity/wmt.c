@@ -20,6 +20,9 @@ int y2_conn_wmt(struct y2_conn *c, const unsigned char *request, unsigned size,
 	ret = y2_stp_send(c, Y2_CONN_WMT, request, size);
 	if (ret) goto out;
 	if (!wait_for_completion_timeout(&c->response, msecs_to_jiffies(4000))) {
+		dev_err(c->dev, "WMT opcode=%02x timeout in %s STP mode\n",
+			request[1], c->full_stp ? "full" : "mandatory");
+		y2_btif_report_timeout(c);
 		ret = -ETIMEDOUT; goto out;
 	}
 	if (c->failure) { ret = c->failure; goto out; }

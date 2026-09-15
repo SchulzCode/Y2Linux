@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Production STP full mode: sequence/ACK window and bounded retransmission.
+/* Production STP mandatory bootstrap, then full mode with sequence/ACK window
+ * and bounded retransmission. BTIF ROM commands are framed from the first byte.
  * Wire protocol derived from MediaTek GPL stp_core.c. HCI packet credits stay
  * with the Linux Bluetooth stack; these are separate transport acknowledgments.
  */
@@ -53,7 +54,17 @@ int y2_stp_send(struct y2_conn *c, unsigned channel, const unsigned char *data, 
 	mutex_lock(&c->stp_lock);
 	if (c->failure || !c->transport_on) { ret = -ESHUTDOWN; goto out; }
 	if (!c->full_stp) {
-		ret = channel == Y2_CONN_WMT ? y2_btif_send(c, data, size) : -EHOSTDOWN;
+		if (channel != Y2_CONN_WMT) { ret = -EHOSTDOWN; goto out; }
+		/* Stock wmt_core_stp_init enables BTIF mandatory mode before
+		 * wmt_core_hw_check. Even the first register read has a four-byte
+		 * STP header and two-byte trailer, with checksum/CRC disabled.
+		 * No sequence, ACK window or retry timer exists in this mode. */
+		f = &c->window[0]; f->size = size + 6;
+		f->data[0] = 0x80; f->data[1] = (channel << 4) | (size >> 8);
+		f->data[2] = size; f->data[3] = 0;
+		memcpy(f->data + 4, data, size);
+		f->data[size + 4] = f->data[size + 5] = 0;
+		ret = y2_btif_send(c, f->data, f->size);
 		goto out;
 	}
 	if (c->stp_pending >= Y2_STP_WINDOW) { ret = -EAGAIN; goto out; }
@@ -113,15 +124,19 @@ void y2_stp_receive(struct y2_conn *c, const unsigned char *data, unsigned size)
 				if (y2_stp_header(c->rx_frame, &channel, &length, &seq, &ack)) { ret = -EBADMSG; break; }
 				c->rx_needed = length ? length + 6 : 4;
 			} else {
-				length = y2_conn_le16(c->rx_frame + 2);
-				if (c->rx_frame[0] != 2 || length < 1 || length > 252) { ret = -EPROTO; break; }
-				/* Vendor register-read event declares four bytes but includes
-                 * address/value: accept only this outstanding 16-byte reply. */
-                c->rx_needed = READ_ONCE(c->wmt_reg_read) && c->rx_frame[1]==8 && length==4 ? 16 : length+4;
+				/* Use the outer STP length, including for the WMT register
+				 * event whose inner length field omits address/value. The
+				 * mandatory-mode checksum and CRC bytes are not validated. */
+				channel = (c->rx_frame[1] >> 4) & 7;
+				length = ((c->rx_frame[1] & 15) << 8) | c->rx_frame[2];
+				if (!(c->rx_frame[0] & 0x80) || (c->rx_frame[0] & 0x40) ||
+				    (c->rx_frame[1] & 0x80) || channel != Y2_CONN_WMT ||
+				    !length || length > sizeof(c->response_data)) { ret = -EPROTO; break; }
+				c->rx_needed = length + 6;
 			}
 		}
 		if (c->rx_used < 4 || c->rx_used != c->rx_needed) continue;
-		if (!c->full_stp) ret = deliver(c, Y2_CONN_WMT, c->rx_frame, c->rx_used);
+		if (!c->full_stp) ret = deliver(c, Y2_CONN_WMT, c->rx_frame + 4, c->rx_used - 6);
 		else {
 			ret = y2_stp_header(c->rx_frame, &channel, &length, &seq, &ack);
 			if (ret) break;
