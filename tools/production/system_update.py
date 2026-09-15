@@ -24,6 +24,7 @@ def preserving_scatter(stock):
 
 
 def validate_preservation(out, manifest):
+    from tools.connectivity.provision import DEFAULTS, INVENTORY
     previous = json.loads((out/'metadata/base-manifest.json').read_text())
     require(digest(out/'metadata/base-manifest.json') == manifest['base_manifest_sha256'], 'base identity')
     require(manifest['profiles'].keys() == {'MT6582_preserve_data_scatter.txt'}, 'only preserving update profile')
@@ -31,6 +32,12 @@ def validate_preservation(out, manifest):
     require((out/'MT6582_preserve_data_scatter.txt').read_text() == preserving_scatter(stock), 'exact preserving scatter')
     require(not (out/'Y2DATA.img').exists(), 'no data image in a system update')
     root = next(p for p in manifest['payloads'] if p['target_partition']=='ANDROID')
+    boot = next(p for p in manifest['payloads'] if p['target_partition']=='BOOTIMG')
+    versions = json.loads((out/'metadata/versions.json').read_text())
+    require(all(manifest.get(k)==v for k,v in versions.items()), 'build version receipt')
+    require(manifest['build_git_commit']==manifest['rootfs_build_git_commit']==
+            (out/'metadata/kernel-source-commit').read_text().strip(), 'kernel/root source receipt')
+    require(root['version']==manifest['rootfs_version'] and boot['version']==manifest['kernel_version'], 'component versions')
     data = next(p for p in installed_components(previous) if p['target_partition']=='USRDATA')
     require(manifest['installed_components'] == [root,data], 'new root plus unchanged data contract')
     require(manifest['data_schema_version'] == previous['data_schema_version'] == 1, 'no data schema reset')
@@ -40,8 +47,17 @@ def validate_preservation(out, manifest):
     for old in (oldboot, oldroot):
         path=out/'fallback'/old['raw']['file']
         require(path.stat().st_size == old['raw']['size_bytes'] and digest(path)==old['raw']['sha256'], 'fallback image identity')
+    require(manifest['fallback']['images']==[
+        {'file':'fallback/'+p['raw']['file'],'size_bytes':p['raw']['size_bytes'],'sha256':p['raw']['sha256']}
+        for p in (oldboot,oldroot)], 'fallback identity receipt')
     require((out/'fallback/MT6582_preserve_data_scatter.txt').read_text()==preserving_scatter(stock), 'fallback preserves data')
     require(manifest['owner_firmware']['redistribution_permission_established'] is False, 'owner-only provisioning')
+    files={x['filename']:{'size_bytes':x['bytes'],'sha256':x['sha256']}
+           for x in json.loads(INVENTORY.read_text())['files']}
+    files.update({name:{'size_bytes':v[0],'sha256':v[1]} for name,v in DEFAULTS.items()})
+    require(manifest['owner_firmware']==json.loads((out/'metadata/owner-firmware.json').read_text())==
+            {'schema':'org.schulzcode.y2linux.owner-firmware/v1',
+             'redistribution_permission_established':False,'files':files}, 'reviewed firmware receipt')
 
 
 def package(build, base, fallback_root, out):
