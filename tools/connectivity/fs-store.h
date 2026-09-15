@@ -67,7 +67,11 @@ static int y2_fs_name(const struct y2_fs_packet *p, unsigned i, char *out, int p
 			out[at] = 0; return 0;
 		}
 		if (c == '\\') {
-			if (!component) return -3;
+			/* This firmware opens factory files as X:\\\\MP0D_000.
+			 * FAT/stock fsd collapses repeated separators. Normalize them
+			 * inside the virtual drive; traversal and host paths remain
+			 * invalid, and the canonical name selects the existing seed. */
+			if (!component) continue;
 			out[at++] = '/'; component = 0; continue;
 		}
 		if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||

@@ -25,8 +25,8 @@ esac
 if [ "$enabled" = 1 ]; then
     core=/sys/devices/platform/18070000.connectivity
     case "$(cat "$core/status")" in
-        *' functions=0 '*' error=0 '*) ;;
-        *' functions=0 '*' error='*)
+        *' functions=0 '*' error=0 '*|*' functions=0x0 '*' error=0 '*) ;;
+        *' functions=0 '*' error='*|*' functions=0x0 '*' error='*)
             echo 1 > "$core/recover"
             for n in $(seq 1 150); do
                 case "$(cat "$core/status")" in *' error=0 '*) break;; esac

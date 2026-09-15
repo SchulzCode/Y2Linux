@@ -14,6 +14,60 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class Connectivity(unittest.TestCase):
+    def test_factory_open_with_repeated_separators_preserves_seed(self):
+        run_c(r'''
+#include <assert.h>
+#include "../../tools/connectivity/fs-store.h"
+static unsigned request(unsigned char *b,unsigned op,const void *a,unsigned n,unsigned flags) {
+ struct y2_reply r={b,8,0};memset(b,0,Y2_FS_STRIDE);y2_conn_put32(b,op);
+ y2_fs_arg(&r,a,n);if(op==0x1001)y2_fs_int(&r,flags);return r.size;
+}
+int main(void) {
+ struct y2_store *s=calloc(1,sizeof(*s));assert(s);
+ assert(y2_fs_new(s,"X/",1));assert(y2_fs_new(s,"Z/",1));
+ const unsigned char seed[4]={0x11,0x22,0x33,0x44}; /* synthetic, not factory data */
+ assert(!y2_fs_seed(s,"X/MP0D_000",seed,sizeof(seed)));
+ struct y2_file *factory=y2_fs_lookup(s,"X/MP0D_000");assert(factory);
+ unsigned char in[Y2_FS_STRIDE],out[Y2_FS_STRIDE],word[4],path[256];
+ for(unsigned separators=1;separators<32;separators++) {
+  memset(path,0,sizeof(path));path[0]='X';path[2]=':';
+  unsigned at=4;for(unsigned i=0;i<separators;i++){path[at]='\\';at+=2;}
+  const char *base="MP0D_000";for(unsigned i=0;base[i];i++){path[at]=base[i];at+=2;}at+=2;
+  /* Request 53's operation/flags and doubled separator, with synthetic seed. */
+  unsigned n=request(in,0x1001,path,at,0x1010400);
+  assert(y2_fs_dispatch(s,in,n,out)==16);
+  int h=(int)y2_conn_le32(out+12);assert(h>0 && h<Y2_FS_HANDLES);
+  assert(s->handles[h].file==factory && factory->size==4);
+  assert(!memcmp(factory->data,seed,4) && !memcmp(factory->factory,seed,4));
+  y2_conn_put32(word,h);n=request(in,0x1005,word,4,0);
+  assert(y2_fs_dispatch(s,in,n,out)==16 && !y2_conn_le32(out+12));
+ }
+ /* Canonicalization also applies inside directories, without adding files. */
+ assert(y2_fs_new(s,"Z/NVRAM",1));assert(y2_fs_new(s,"Z/NVRAM/NVD_CORE",1));
+ const char nested[]="Z:\\\\NVRAM\\\\NVD_CORE\\\\TEST";
+ memset(path,0,sizeof(path));for(unsigned i=0;i<sizeof(nested);i++)path[2*i]=nested[i];
+ unsigned n=request(in,0x1001,path,2*sizeof(nested),0x10000);
+ assert(y2_fs_dispatch(s,in,n,out)==16 && (int)y2_conn_le32(out+12)>0);
+ assert(y2_fs_lookup(s,"Z/NVRAM/NVD_CORE/TEST"));
+ /* Empty components are harmless; traversal/host paths/embedded NUL aren't. */
+ const char *bad[]={"X:\\\\..\\MP0D_000","X:\\A\\\\..\\MP0D_000",
+  "X:\\MP0D_000/../BAD","/run/y2/factory/MP0D_000","C:\\MP0D_000", "X:\\.\\MP0D_000"};
+ for(unsigned i=0;i<sizeof(bad)/sizeof(bad[0]);i++) {
+  memset(path,0,sizeof(path));unsigned len=strlen(bad[i])+1;
+  for(unsigned j=0;j<len;j++)path[2*j]=bad[i][j];
+  n=request(in,0x1001,path,2*len,0x1010400);
+  assert(y2_fs_dispatch(s,in,n,out)==16 && (int)y2_conn_le32(out+12)<0);
+ }
+ const char suffix[]="X:\\\\MP0D_000";
+ memset(path,0,sizeof(path));for(unsigned i=0;i<sizeof(suffix);i++)path[2*i]=suffix[i];
+ path[2*sizeof(suffix)]='Q'; /* extra component after the terminating NUL */
+ n=request(in,0x1001,path,2*(sizeof(suffix)+2),0x1010400);
+ assert(y2_fs_dispatch(s,in,n,out)==16 && (int)y2_conn_le32(out+12)<0);
+ assert(factory->factory_size==4 && !memcmp(factory->factory,seed,4));
+ y2_fs_clear(s);free(s);
+}
+''')
+
     def test_md_request_transport_padding_keeps_service_abi_strict(self):
         run_c(r'''
 #include <assert.h>

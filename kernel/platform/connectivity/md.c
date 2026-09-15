@@ -25,6 +25,8 @@ struct y2_md {
 	int irq, error;
 	bool active, request, delivered, replied;
 	unsigned tx, rx, stage, served, generation, serial, packet_size, reply_size, opcode;
+	unsigned last_fs_op;
+	int last_fs_status;
 	unsigned long ready_at, activity;
 	DECLARE_BITMAP(handles,128);
 	bool restore_seen, read_seen, close_seen;
@@ -152,6 +154,7 @@ static int md_fs(struct y2_md *m, u32 address, u32 size, u32 index)
 		if (parsed.op==0x1003 && !status) m->read_seen=true;
 		memcpy_toio(m->smem + Y2_MD_FS_OFFSET + index*Y2_FS_STRIDE, m->reply, m->reply_size);
 		wmb(); ret = md_send(m, address, m->reply_size, 15, index);
+		if (!ret) { m->last_fs_op = parsed.op; m->last_fs_status = status; }
 	}
 replied:
 	m->request = false;
@@ -180,6 +183,13 @@ static irqreturn_t md_irq(int irq, void *arg)
 			ret = md_send(m, 0xffffffff, 0, 1, 0x5555ffff); m->stage = 1;
 		} else if (ch == 0 && !n && m->stage == 1) {
 			m->stage = 2; m->ready_at = jiffies;
+		} else if (ch == 0 && a == 0xffffffff && n == 4 && index == 0x45584350) {
+			/* On the control channel n is a message ID, not a byte count.
+			 * MD_EX is a firmware exception, never successful readiness.
+			 * Record operation/status only; no private arguments or names. */
+			dev_err(m->conn->dev, "MD firmware exception: stage=%u FS=%u last_op=%04x last_status=%d\n",
+				m->stage, m->served, m->last_fs_op, m->last_fs_status);
+			ret = -EPROTO;
 		} else if (ch == 14) ret = md_fs(m, a, n, index);
 		else if ((ch == 23 || ch == 27 || ch == 31) && a == 0xffffffff && !n) { }
 		else if (ch == 4 && a == 0xffffffff && n == 0xaf700000 && !index) { }
@@ -231,6 +241,7 @@ release:
 	writel(1, m->ccif); writel(255, m->ccif + 0x14);
 	memset_io(m->ccif + 0x100, 0, 0x100);
 	m->generation++; m->serial = m->tx = m->rx = m->stage = m->served = 0;
+	m->last_fs_op = 0; m->last_fs_status = 0;
 	bitmap_zero(m->handles,128); m->restore_seen=m->read_seen=m->close_seen=false;
 	m->error = 0; m->request = false; m->activity = jiffies;
 	WRITE_ONCE(m->active, true);
