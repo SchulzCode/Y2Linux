@@ -7,7 +7,9 @@ Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 **Start here:** [September 15 session handoff](docs/planning/session-handoff-2026-09-15.md)
 and [focused M4 corrections](docs/knowledge/m4-end-user-power.md).
 
-POWER-02 is installed and its full image-length readback matches. Fresh SSH
+[POWER-03 is built and ready for owner BOOTIMG-only deployment](docs/build/y2linux-m4-power-03-deployment.md);
+74 production/M4 tests and 12 package rejection cases pass. Y2ROOT/Y2DATA are preserved.
+POWER-02 remains installed and its full image-length readback matches. Fresh SSH
 finds a latched charging fault; M4 acceptance remains open and there is no M5
 deployment candidate. [Current physical evidence](docs/hardware-evidence/2026-09-15-m5-entry/README.md).
 [POWER-02 package and fallback](docs/build/y2linux-m4-power-02-deployment.md).

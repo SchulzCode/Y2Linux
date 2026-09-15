@@ -11,8 +11,10 @@ minimal offline architecture remain the production foundation.
 [POWER-03 source corrections](../knowledge/m4-end-user-power.md#power-03-correction-of-observed-failures--2026-09-15)
 address charge cutoff/hold, the stock OVP setting, first-fault evidence, RTC
 epoch, word-width thermal efuse acquisition and MUSB runtime ownership.
-The candidate must pass the production build/package checks before the owner
-receives a BOOTIMG-only manual deployment handoff. M4 #30 remains ACTIVE/PARTIAL;
+POWER-03 is built from `16875c4` and passes 74 production/M4 tests, ARM rescue
+checks, package validation and 12 rejection cases. The
+[BOOTIMG-only handoff](../build/y2linux-m4-power-03-deployment.md) now stops for
+owner manual deployment. M4 #30 remains ACTIVE/PARTIAL;
 the full physical exit criteria remain open. No memory/layout/current ceiling
 expansion, guessed DVFS voltage, protected write or radio implementation.
 

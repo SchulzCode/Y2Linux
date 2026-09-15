@@ -65,8 +65,9 @@ The current production BOOTIMG is the only deployment target. Y2ROOT/Y2DATA,
 stock loaders, partition layout, audio architecture and protected calibration
 remain preserved. New source regression cases cover cutoff/recharge, real
 faults, original fault snapshots, stock RTC years/alarm/spares, efuse byte lanes
-and runtime-PM failure during reconnect. Host results and artifact identities
-will accompany the manual deployment handoff; they do not close M4.
+and runtime-PM failure during reconnect. [Host results and artifact identities](../build/evidence/y2linux-m4-power-03/README.md)
+now accompany the [manual handoff](../build/y2linux-m4-power-03-deployment.md):
+74 production/M4 tests and 12 package rejection cases pass. They do not close M4.
 
 ## POWER-02 history
 

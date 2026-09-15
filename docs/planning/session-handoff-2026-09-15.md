@@ -1,79 +1,75 @@
-# Session handoff — 2026-09-15, M5 entry audit
+# Session handoff — 2026-09-15, M4-POWER-03
 
-**M5 entry audit completed; no M5 deployment candidate. M4 remains
-ACTIVE/PARTIAL with a current charging failure.** Start with the
-[fresh physical result](../hardware-evidence/2026-09-15-m5-entry/README.md) and
-[complete connectivity entry audit](../knowledge/m5-connectivity-entry.md).
-This supersedes the September 13 handoff and older issue #31 entry wording.
+**POWER-03 built and host-validated. Stop for owner manual BOOTIMG deployment.**
+M4 #30 remains OPEN / ACTIVE / PARTIAL. The latest owner request is focused M4
+completion; **do not start M5**. Its completed entry audit is historical context,
+not the next implementation task. No assistant flash or protected writes.
 
-## Repository and live platform
+## Concrete candidate
 
-Entry HEAD was `bbbbbf20e96860089b015c19501b7d39638c5419`, equal to origin/main,
-with prior POWER-02 USB/evidence changes. Those reviewed changes are preserved
-in `ef285f1`. Configured Git author/committer and authenticated GitHub account
-`SchulzCode` are unchanged. No attribution trailers were added.
-
-Current BOOTIMG is built from `83d475ef71a3dd84f6e3cc483a7637b13520e4f7`:
+Source commit: `16875c4acc813b54c781167883227cf289f4dfcd`.
+Kernel: `6.18.0-y2linux-m4-power-03`.
+Package: `/home/luca/Dokumente/Code/Y2Linux/out/y2linux-m4-power-03/`.
 
 | Artifact | Bytes | SHA256 |
 | --- | ---: | --- |
-| `out/y2linux-m4-power-02/BOOTIMG.img` | 5378048 | `1852dfc995953f86ef5c47349515e8d6f06478daa6c1a89efe0f223501c226c9` |
-| `out/y2linux-m4-power-02/fallback/BOOTIMG-previous.img` | 5361664 | `1c144874577e5cc103ee88aea346ece1e2a20d0b521054560acb7b84d0c4c706` |
-| Retained Storage04/06 `Y2ROOT.img` | 536870912 | `814a5b2543931e01cee2eb6f641c3b6e02317bd6308d2d663aea78f618bd554f` |
+| `BOOTIMG.img` | 5408768 | `66b6ecd5ef54da6f3ea07be2c9deda284d0a7636e9c6da4c5d72d84eca5fc010` |
+| `fallback/BOOTIMG-previous.img` — POWER-02 | 5378048 | `1852dfc995953f86ef5c47349515e8d6f06478daa6c1a89efe0f223501c226c9` |
 
-The first two local files were checked; the complete installed BOOTIMG
-image-length readback also matches. Y2ROOT hash is the retained package identity,
-not a fresh live-root hash: the installed USB startup edit is additive. The
-CHARGE-01 fallback failed net gain at 70 mA; it is not a qualified charging fix.
-No images were rebuilt and no install/flash is requested.
+[Exact deployment and one coherent physical session](../build/y2linux-m4-power-03-deployment.md)
+and [build receipt](../build/evidence/y2linux-m4-power-03/README.md).
+74 production/M4 tests, ARM rescue checks and 12 package rejection cases pass.
+Y2ROOT/Y2DATA require no update or migration. POWER-02 fallback is bootable but
+has the known charging failures; do not label it a low-battery recovery fix.
 
-Live Linux is `6.18.0-y2linux-m4-power-02`, internal p5/p7 ext4 read-write,
-no SD block device, four CPUs, `Y2Audio`, USB ECM/ACM and strict owner-key SSH.
-The apparent host-key change was resolved against the previously retained exact
-September 14 fingerprint; default known_hosts was left untouched. Private pin
-and receipts are in ignored `evidence-private/20260915-m5-entry/`.
+## What changed
 
-## Material new evidence
+- Stop at the first 4.175-V sample, confirm voltage-limited completion while
+  inhibited, recharge below 4.110 V for 60 seconds. The 4.2-V fault guard remains.
+- Program only the actual stock 4.3-V battery OVP selector; keep enable/detector.
+  Save first-fault registers before inhibit overwrites them. Fault recovery
+  requires real unplug, verified stop and safe inputs.
+- MT6323 RTC uses the stock 1968 epoch for time/alarm and preserves spare bits.
+  RTC-to-system time and standard `/proc/sys` boot identity are enabled.
+- Read MT6582 thermal efuses as words; reject POWER-02's observed truncation.
+- Kernel MUSB runtime reference spans attached sessions, with release on detach
+  and resume before reconnect. POWER-02's userspace `on` pin is release-scoped.
+- Preserve existing SPM, minimal offline display/charging and fixed-voltage OPP
+  architecture. Qualification now checks real resume/residency counters plus
+  boot/process/mount/data continuity. No lower active stock OPP voltage is known.
 
-Charging stopped at uptime **747.328296 s**, sample **4.200073 V**, with
-`Y2_FAULT_VOLTAGE=0x8`. At the fresh 1363.10-s inventory it remained inactive;
-voltage was about 4.067 V. Source latches that bit at the 4.2-V software guard.
-No fault clear, charging setting or physical state was changed. This is a
-separate failure from September 14's OVP `0x10`, which is still unexplained.
+[Detailed implementation and safety distinctions](../knowledge/m4-end-user-power.md).
+No physical POWER-03 behavior is yet qualified, including thermal accuracy,
+charging gain/full/recharge, offline poweroff or deep suspend.
 
-SPM `entries=0 resumes=0` on this boot. RTC still reports 2082; CPU/PMIC thermal
-accuracy remains unresolved. Thus M4 is not a completed power platform with one
-small qualification residue. Preserve its implementation and finish its gates
-within #30; do not rebuild the power platform under M5.
+## Live baseline and access
 
-Own stock metadata confirms CONSYS_MT6582/BTIF with TX/RX DMA and wake IRQs.
-The older-board/FM conclusion stands. Silicon HVR/FVR and analog-die stepping
-are not yet confirmed. Relevant five-file stock firmware metadata/hashes are
-recorded; patch `_1` loads before `_0` by header sequence. Generic modem firmware
-matches the external 592-record cold-calibration experiment, but external
-calibration is not usable for this unit.
+Last inspected device is still POWER-02 on internal p5/p7 root/data with owner
+SSH. Its voltage fault 0x8 remained latched; the focused read found battery about
+3.74 V. Earlier OVP 0x10 remains unexplained. The fresh thermal acquisition read
+shows truncated `0x73`/`0xfd` words. The 2082 RTC result follows from the wrong
+epoch. Earlier inspected SPM entries/resumes were both zero. These failures
+supersede older issue wording; never infer physical completion from this build.
 
-Own NVRAM and PROTECT_F/S were acquired read-only after exact image/geometry
-checks; bytes and identifying hashes remain private. Current Y2DATA lacks
-Android `/data/nvram`. The raw backup format/record mapping and valid radio
-addresses are unresolved. Do not assume that missing plaintext paths mean data
-loss. No protected writes, Android boot or external calibration replay occurred.
+SSH: `root@10.42.0.1`, client identity `~/.ssh/y2linux_ed25519`.
+Strict private host pin:
+`evidence-private/20260915-m5-entry/known_hosts`.
+It matches the previously retained September 14 device key; default known_hosts
+was not changed. Keep fingerprints, private/raw logs and calibration out of Git.
+The usual host USB interface is `enp8s0f3u2`, host `10.42.0.2`.
 
-## Continue at the actual boundary
+## After owner reports it running
 
-1. Resolve the current #30 charging failure and retain real M4 acceptance;
-   current evidence does not meet the owner's M5 entry requirement.
-2. Decode this unit's protected calibration records without writing them and
-   establish actual controller/revision/address ownership. Use the retained
-   inventory; do not repeat M1/M2/M3 research or firmware provenance from zero.
-3. The subsequent M5 implementation must use one kernel connectivity owner,
-   AHB/cfg80211 Wi-Fi, STP/BTIF/HCI Bluetooth, BlueZ, a lightweight ALSA audio
-   bridge, persistent Y2DATA state, explicit PM and real coexistence/recovery.
-   Current Buildroot has none of these radio packages enabled.
-4. Only a complete integrated candidate gets the owner's 26-field first
-   deployment handoff. Stop for manual deployment, then one coherent physical
-   qualification session and targeted fixes for observed failures.
+Run the linked qualification as one session through normal interfaces. The
+owner handles SPFT, cables, Power and audible/visible/input observations; the
+agent runs SSH commands and detached Y2DATA recorders. Start with identity,
+offline history, UTC and plausible thermal readings, then sustained charging,
+OPPs, s2idle/deep Power/deep RTC, resume regressions, reboot/hardware-off and
+actual full/recharge/low-battery conditions. Do not reboot and label it resume.
+Make targeted fixes only for concrete failures. Unavailable or unrun mandatory
+gates remain open. Do not close #30 until the hardware passes.
 
-M5 cannot close. FM reception is excluded for this older board. GPU/lima,
-Y2PlayerNative, final UI, streaming apps and OTA implementation remain outside
-this session. All physical flashes belong to the owner.
+Existing root/data, audio, storage, display/input, stock loaders and protected
+calibration must remain intact. M5, GPU/lima, Y2PlayerNative and OTA implementation
+remain outside this session. At genuine M4 completion update final physical
+evidence, roadmap and #30, commit/push main clean, then stop.
