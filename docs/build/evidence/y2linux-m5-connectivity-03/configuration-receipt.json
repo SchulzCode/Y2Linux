@@ -1,0 +1,12 @@
+{
+  "kernel.config": {
+    "artifact_path": "out/y2linux-m5-connectivity-03/metadata/kernel.config",
+    "size_bytes": 109001,
+    "sha256": "61a8ac52c546607f297dfa9f67b9c0d75bdf6f47c9bf18bfbc0c772c73f11ead"
+  },
+  "buildroot.config": {
+    "artifact_path": "out/y2linux-m5-connectivity-03/metadata/buildroot.config",
+    "size_bytes": 130400,
+    "sha256": "7dd13e624d22fd02a90098e7f63d8edde625994cee2e0b373701aff2041389b1"
+  }
+}

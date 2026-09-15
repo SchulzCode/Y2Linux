@@ -1,0 +1,161 @@
+DEV rescue: 4794989 regular bytes; gzip 1951086 bytes; 58 entries
+make: Entering directory '/src'
+make[1]: Entering directory '/build/kernel'
+make[1]: Leaving directory '/build/kernel'
+make: Leaving directory '/src'
+Reviewed kernel configuration matches D08 and platform fragment.
+{
+  "policy": "DEV-01",
+  "inputs": {
+    "z": 4176984,
+    "dtb": 13072,
+    "initramfs": 1951086,
+    "image": 11726528,
+    "kernel_bss": 1137928,
+    "kernel_span": 12864456,
+    "restart": 276,
+    "wont_overwrite": 520,
+    "edata": 4176984,
+    "reloc_code_end": 2364,
+    "stack_top": 4181104,
+    "compressed_bss_start": 4176984,
+    "compressed_bss_end": 4177008,
+    "regular_file_bytes": 4794989
+  },
+  "ram": [
+    [
+      2147483648,
+      3187671040
+    ]
+  ],
+  "reserved": [
+    [
+      2147483648,
+      2147500032
+    ],
+    [
+      2172649472,
+      2214592512
+    ],
+    [
+      3186622464,
+      3221225472
+    ]
+  ],
+  "zimage": [
+    2147516416,
+    2151693400
+  ],
+  "appended_dtb": [
+    2151693400,
+    2151706472
+  ],
+  "image": [
+    2147516416,
+    2159242944
+  ],
+  "resident_kernel": [
+    2147516416,
+    2160380872
+  ],
+  "relocated_copy": [
+    2159245056,
+    2163434880
+  ],
+  "relocated_dtb": [
+    2163421784,
+    2163434856
+  ],
+  "compressed_bss": [
+    2163434856,
+    2163434888
+  ],
+  "stack_top": 2163438976,
+  "malloc": [
+    2163438976,
+    2163504512
+  ],
+  "initramfs": [
+    2214592512,
+    2216543598
+  ],
+  "lk_staging": [
+    2147515904,
+    2153664000
+  ],
+  "staged_initramfs": [
+    2151708672,
+    2153659758
+  ],
+  "bootimg_read_end": 6150144,
+  "relocation_delta": 11728384,
+  "relocation_code_allowance": 2304,
+  "adjusted_image_size": 11726528,
+  "workspace_end": 2163504512,
+  "allocator_before_kernel_bytes": 997179392,
+  "dt": {
+    "node_count": 100,
+    "bootargs": "rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31",
+    "memory": [
+      [
+        2147483648,
+        3187671040
+      ]
+    ],
+    "storage": "internal eMMC: guarded root/data; removable SD optional",
+    "evidence": "offline dependencies only"
+  },
+  "sleep_syscall": {
+    "number": 162,
+    "target": "sys_nanosleep_time32",
+    "entry": "0xc0097b28",
+    "sys_ni_syscall": "0xc0043150",
+    "compat_32bit_time": true,
+    "status": "PASS linked implementation, not ENOSYS"
+  },
+  "kernel_symbols": {
+    "_text": 3221258240,
+    "_edata": 3232984768,
+    "__bss_start": 3232984768,
+    "__bss_stop": 3234122696,
+    "_end": 3234122696
+  },
+  "artifacts": {
+    "Image": {
+      "bytes": 11726528,
+      "sha256": "fa53a45c103ffa77e55f7697b1cc260d61989d53173705c47be9392d8e39ee78"
+    },
+    "zImage": {
+      "bytes": 4176984,
+      "sha256": "6725a2b97e3d96f048bdec361a09cd6f07ff950d560998ce5a199c764d0c9341"
+    },
+    "y2.dtb": {
+      "bytes": 13072,
+      "sha256": "d87a17246c7412155e4c268266799e7de9521ec7f7b1c23005b824c63b65562d"
+    },
+    "zImage-dtb": {
+      "bytes": 4190056,
+      "sha256": "f8d18fc060a3aaf06b5a61f4207084c76a0a63586eb8aa69b3196066a0e8877b"
+    },
+    "initramfs.cpio.gz": {
+      "bytes": 1951086,
+      "sha256": "94596837749304f550f9fa5a2a9a2aabdf4c783534050cb4790b913bf2b58471"
+    },
+    "display.ko": {
+      "bytes": 158300,
+      "sha256": "16ae8c4789d73ba541c053790a510f6c3ff79b13bf9051aeed565c5ea769b498"
+    }
+  },
+  "status": "PASS offline integrated M5 connectivity candidate; preserving system update; physical radio qualification pending",
+  "bootimg": {
+    "bytes": 6150144,
+    "sha256": "d4e53446d95d428292e1f2892207653350c85d5bf8bc56a9d033349e5643cbb0",
+    "android_id_sha1": "65e33970a8ba0db4bd9d848fa3ecfc115ea960f9",
+    "partition_bytes": 16777216,
+    "kernel_wrapper_offset": 2048,
+    "ramdisk_wrapper_offset": 4194304,
+    "lk_complete_read_end": 6150144,
+    "zero_filled_read_tail_bytes": 4242,
+    "authentication": "unsigned image; offline checks do not establish this candidate hardware acceptance"
+  }
+}

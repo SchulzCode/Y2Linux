@@ -1,0 +1,6 @@
+{
+  "requests": 53,
+  "arm_result_matches_corrected_host_results": true,
+  "request_53_new_status": 1,
+  "scope": "Cortex-A7 emulation of actual request prefix; synthetic seed; no physical readiness claim"
+}

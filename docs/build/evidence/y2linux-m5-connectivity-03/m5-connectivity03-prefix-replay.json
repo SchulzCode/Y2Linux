@@ -1,0 +1,9 @@
+{
+  "requests": 53,
+  "old_code_matches_all_53_live_statuses": true,
+  "new_code_first_52_unchanged": true,
+  "request_53_old_status": -2,
+  "request_53_new_status": 1,
+  "test_seed": "synthetic; no factory payload needed before request 54",
+  "scope": "host replay of this unit requests; not a physical startup pass"
+}

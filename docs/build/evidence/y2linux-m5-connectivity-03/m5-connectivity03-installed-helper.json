@@ -1,0 +1,7 @@
+{
+  "rootfs_calibration_binary_matches_final_target": true,
+  "new_sha256": "098c12fbc028d7f3d7f02dc130e7c31c9a0db386df8a88dde81dcb6542ec02da",
+  "previous_sha256": "ba124fca0c633d8ed9ee90a54d663f4431d4469a8b2fafd6035e6c71318c36be",
+  "changed": true,
+  "source_commit": "58642500abeac206c1579a2c7b83f6180c18777c"
+}

@@ -1,0 +1,4 @@
+PASS production BOOTIMG-only manifest, stock geometry, unchanged root/data, module ABI contract, bounds and hashes
+Y2ROOT.img: clean ext4, matching label/UUID; Y2ROOT: 1438/32768 files (0.1% non-contiguous), 17357/131072 blocks
+PASS new root contents; existing Y2DATA preserved without a data payload
+PASS preserving production system update: /home/luca/Dokumente/Code/Y2Linux/out/y2linux-m5-connectivity-03

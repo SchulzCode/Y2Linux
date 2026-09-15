@@ -1,5 +1,20 @@
 # Y2Linux roadmap and gap audit
 
+## CONNECTIVITY-04 physical result — 2026-09-16
+
+The owner installed `ac833c8`. SSH confirms CONNECTIVITY-04 kernel, retained
+CONNECTIVITY-03 root, successful MD completion (`FS=841`) and verified CONN
+remap/chip ID `6582`. Linux stays responsive through 813 seconds with the same
+boot ID and no observed Oops/panic, including one bounded runtime recovery.
+The first WMT command times out; no usable Wi-Fi/BlueZ adapter exists.
+[Physical evidence](../hardware-evidence/2026-09-16-m5-connectivity04/README.md)
+and [85 build checks / 14 package rejection cases](../build/evidence/y2linux-m5-connectivity-04/README.md).
+
+M5 #31 remains ACTIVE / WMT STARTUP TIMEOUT / PHYSICALLY UNQUALIFIED. The next
+correction uses mandatory STP framing from the first BTIF command, as stock
+requires. Preserve the remap fix, corrected helper, M4, Y2ROOT and Y2DATA.
+No scope/memory expansion or repeated entry audit.
+
 ## CONNECTIVITY-03 startup crash — 2026-09-16
 
 Early SSH verifies CONNECTIVITY-03 kernel/root and the corrected calibration

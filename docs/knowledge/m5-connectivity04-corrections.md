@@ -25,8 +25,11 @@ at `0x300`–`0x30c`, memory reservations and M4 ownership remain unchanged.
 Two bounded startup messages identify remap verification and BTIF entry.
 
 The crash timing and multi-CPU faults are consistent with incorrect remote
-memory translation. Its physical elimination still requires the corrected
-candidate; the lost SSH stream does not identify every failing access.
+memory translation. After owner installation, the corrected candidate remains
+responsive through 813 seconds, including a bounded radio recovery, with the
+same boot ID and no captured crash signature. WMT startup still times out;
+see the [physical result](../hardware-evidence/2026-09-16-m5-connectivity04/README.md).
+The lost CONNECTIVITY-03 stream does not identify every failing access.
 
 ## Validation and deployment scope
 
