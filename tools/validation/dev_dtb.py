@@ -37,15 +37,28 @@ POWER_REGS = {
  '/watchdog@10007000': (0x10007000,0x100),
  '/power-controller@10006000': (0x10006000,0x1000,0x10208000,4),
 }
+CONN = '/connectivity@18070000'
+CONN_REGS = {
+ '/clock-controller@10000000': (0x10000000,0x1000,0x10003000,0x1000,0x10001000,0x2000,0x10209000,0x600),
+ CONN: (0x18070000,0x1000,0xbdf00000,0x100000,
+        0x1100c000,0x100,0x11000780,0x80,0x11000800,0x80,
+        0x1020a000,0x200,0xbe000000,0x1600000,0xbf600000,0x1c4000,
+        0x20050000,4,0x2019379c,4,0x20190000,4,0x20195488,4,0x180f0000,0x5c),
+}
+CONN_RAILS = ('ldo_vcn18','ldo_vcn28','ldo_vcn33_bt','ldo_vcn33_wifi')
 
 def check(data, initrd_size, production=True):
     nodes,reserved=fdt(data)
+    connectivity=CONN in nodes
     require(tuple(reserved)==RESERVED[:1], 'DEV low boot reservation changed')
     require(nodes['/']['model']==strings('Innioasis Y2'),'DEV identity')
     expected={'/reserved-memory/loader@81800000':(0x81800000,0x02800000), '/reserved-memory/high-owned@bdf00000':(0xbdf00000,0x02100000)}
     require({p for p in nodes if p.startswith('/reserved-memory/')}==set(expected),'unreviewed reserved region')
     for path,region in expected.items():
-        require(nodes[path]=={'reg':cells(*region),'no-map':b''},'reservation '+path)
+        props=dict(nodes[path])
+        if connectivity and path.endswith('/high-owned@bdf00000'):
+            require(len(props.pop('phandle',b''))==4,'owned radio reservation handle')
+        require(props=={'reg':cells(*region),'no-map':b''},'reservation '+path)
     require(nodes['/memory@80000000']['reg']==cells(0x80000000,0x3e000000), 'DEV physical bank changed')
     chosen=nodes['/chosen']
     require(chosen['linux,initrd-start']==cells(0x84000000) and
@@ -56,6 +69,9 @@ def check(data, initrd_size, production=True):
     require(args==expected_args, 'profile command line')
     power='/thermal@1100b000' in nodes
     regs=REGS|POWER_REGS if power else REGS
+    if connectivity:
+        require(power, 'connectivity requires the accepted power platform')
+        regs=regs|CONN_REGS
     for path,reg in regs.items(): require(nodes[path]['reg']==cells(*reg),'MMIO mapping '+path)
     for path,(irq,flags) in IRQS.items(): require(nodes[path]['interrupts']==cells(0,irq,flags),'IRQ mapping '+path)
     require({p for p,v in nodes.items() if p.count('/')==1 and 'reg' in v}==set(regs)|{'/memory@80000000'},'unreviewed MMIO controller')
@@ -64,11 +80,13 @@ def check(data, initrd_size, production=True):
         if 'phandle' in props:
             h=struct.unpack('>I',props['phandle'])[0]
             require(h and h not in handles,'duplicate phandle');handles[h]=(path,props)
-        require(not any(k in ('iommus','memory-region','assigned-clock-rates','assigned-clocks') for k in props), 'unreviewed DMA/clock policy')
+        require(not any(k in ('iommus','assigned-clock-rates','assigned-clocks') for k in props), 'unreviewed DMA/clock policy')
+        require('memory-region' not in props or (connectivity and path==CONN), 'unreviewed memory owner')
         if any(k.startswith('regulator-') for k in props):
             require(path in ('/regulator-dac20','/regulator-dac18','/regulator-dac15',
                             '/pwrap@1000d000/pmic/regulators/ldo_vgp2',
-                            '/pwrap@1000d000/pmic/regulators/buck_vproc'), 'unreviewed rail')
+                            '/pwrap@1000d000/pmic/regulators/buck_vproc') or
+                    (connectivity and path in tuple('/pwrap@1000d000/pmic/regulators/'+n for n in CONN_RAILS)), 'unreviewed rail')
         if path.startswith('/i2c@11008000/'):
             require(path == '/i2c@11008000/codec@30', 'unreviewed audio/radio I2C client')
     def handle(path): return struct.unpack('>I',nodes[path]['phandle'])[0]
@@ -79,7 +97,7 @@ def check(data, initrd_size, production=True):
             require(words[i] in handles,'missing clock provider '+path)
             provider,v=handles[words[i]];n=struct.unpack('>I',v['#clock-cells'])[0]
             require(i+1+n<=len(words),'short clock specifier')
-            if n: require(n==1 and words[i+1]<((22 if power else 18) if provider.startswith('/clock-controller') else 23),'invalid clock ID')
+            if n: require(n==1 and words[i+1]<((24 if connectivity else 22 if power else 18) if provider.startswith('/clock-controller') else 23),'invalid clock ID')
             i+=1+n
         for prop in ('pinctrl-0','pinctrl-1','backlight','remote-endpoint','interrupt-parent'):
             if prop in props:
@@ -129,7 +147,28 @@ def check(data, initrd_size, production=True):
         require(nodes['/power-controller@10006000']['interrupts']==cells(0,117,8), 'actual Y2 SPM IRQ')
         require(nodes['/power-controller@10006000']['compatible']==strings('innioasis,y2-spm'), 'sole SPM owner')
         check_power(nodes,handle)
+    if connectivity:
+        check_connectivity(nodes,handle)
     return {'node_count':len(nodes),'bootargs':args,'memory':RAM,'storage':'internal eMMC: guarded root/data; removable SD optional','evidence':'offline dependencies only'}
+
+def check_connectivity(nodes, handle):
+    p=nodes[CONN]; pmic='/pwrap@1000d000/pmic'
+    require(p['compatible']==strings('innioasis,y2-mt6582-connectivity'), 'single connectivity owner')
+    require(p['memory-region']==cells(handle('/reserved-memory/high-owned@bdf00000')), 'existing radio exclusion ownership')
+    require(p['reg-names']==strings('mcu','conn-emi','btif','tx-dma','rx-dma','ccif','md-rom','md-smem',
+                                    'md-wdt','md-key','md-vector','md-enable','wifi'), 'connectivity resource order')
+    require(p['interrupts']==cells(*sum(([0,n,8] for n in (50,71,72,185,100,184)),[])), 'actual connectivity IRQs')
+    require(p['interrupt-names']==strings('btif','tx-dma','rx-dma','wake','ccif','wifi'), 'connectivity IRQ roles')
+    require(p['clocks']==cells(*sum(([handle('/clock-controller@10000000'),n] for n in (22,23,8)),[])) and
+            p['clock-names']==strings('connmcu','btif','dma'), 'shared CCF and AP_DMA ownership')
+    require(p['resets']==cells(handle('/watchdog@10007000'),12) and p['reset-names']==strings('conn') and
+            nodes['/watchdog@10007000']['#reset-cells']==cells(1), 'CONN-scoped reset')
+    require(p['innioasis,pwrap']==cells(handle('/pwrap@1000d000')), 'existing PWRAP owner')
+    for node,supply,voltage in zip(CONN_RAILS,('vcn18','vcn28','vcn33-bt','vcn33-wifi'),(1800000,2800000,3300000,3300000)):
+        path=pmic+'/regulators/'+node; rail=nodes[path]
+        require(p[supply+'-supply']==cells(handle(path)), 'connectivity regulator binding')
+        require(rail['regulator-min-microvolt']==rail['regulator-max-microvolt']==cells(voltage), 'evidenced connectivity rail voltage')
+        require('regulator-always-on' not in rail and 'regulator-boot-on' not in rail, 'radio rails can turn off')
 
 def check_power(nodes, handle):
     pmic='/pwrap@1000d000/pmic'

@@ -1,8 +1,11 @@
 """Bounded radio wire formats and explicit owner firmware provisioning."""
 import hashlib
+import copy
+import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 from tools.connectivity.provision import checked, regular, defaults
 from test_power import run_c
 from test_audio import function
@@ -11,6 +14,32 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class Connectivity(unittest.TestCase):
+    @unittest.skipUnless(os.environ.get('Y2_ARTIFACT_TEST_ROOT'), 'requires emitted integrated DT')
+    def test_emitted_dt_rejects_radio_ownership_and_power_regressions(self):
+        from tools.validation.dev_dtb import check, CONN
+        from tools.validation.formats import fdt
+        from tools.validation.dtb import cells
+        build=Path(os.environ['Y2_ARTIFACT_TEST_ROOT'])
+        raw=(build/'y2.dtb').read_bytes();size=(build/'initramfs.cpio.gz').stat().st_size
+        check(raw,size)
+        nodes,reserved=fdt(raw)
+        if CONN not in nodes:self.skipTest('historical pre-connectivity artifact')
+        rail='/pwrap@1000d000/pmic/regulators/ldo_vcn33_bt'
+        cases=[
+            ('/reserved-memory/high-owned@bdf00000','reg',cells(0xbe000000,0x2000000)),
+            (CONN,'memory-region',nodes['/clock-controller@10000000']['phandle']),
+            (CONN,'reg',nodes[CONN]['reg'].replace(cells(0x11000780),cells(0x11000200))),
+            (CONN,'interrupts',nodes[CONN]['interrupts'].replace(cells(71),cells(44))),
+            (CONN,'clocks',nodes[CONN]['clocks'][:-4]+cells(0)),
+            (CONN,'resets',nodes[CONN]['resets'][:-4]+cells(0)),
+            (rail,'regulator-always-on',b''),
+            (rail,'regulator-max-microvolt',cells(3400000)),
+        ]
+        for path,key,value in cases:
+            changed=copy.deepcopy(nodes);changed[path][key]=value
+            with self.subTest(path=path,key=key), patch('tools.validation.dev_dtb.fdt',return_value=(changed,reserved)), self.assertRaises((ValueError,KeyError)):
+                check(raw,size)
+
     def test_actual_hci_fragmentation_and_corrupt_lengths(self):
         source=(ROOT/'kernel/platform/connectivity/hci.c').read_text()
         body=function(source.replace('void y2_hci_receive(', 'static void y2_hci_receive('), 'y2_hci_receive')
