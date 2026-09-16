@@ -1,5 +1,15 @@
 # Y2Linux roadmap and gap audit
 
+## CONNECTIVITY-06 physical result / mounted-eMMC correction — 2026-09-16
+
+Internal eMMC is mmcblk1 on this owner-installed boot. Root/data work; the
+provider's hardcoded mmcblk0 fails before activation. TX rearm is not physically
+exercised yet. [Evidence](../build/evidence/y2linux-m5-connectivity-06/README.md).
+CONNECTIVITY-07 identifies the mounted root/data parent and retains strict MMC,
+partition, node and geometry checks. Rebuild the production helper/Y2ROOT with
+Y2DATA preserved. M5 remains ACTIVE / PROVIDER STARTUP FAILURE / UNQUALIFIED.
+No protected writes, memory/platform expansion or repeated entry audit.
+
 ## CONNECTIVITY-05 physical result / CONNECTIVITY-06 correction — 2026-09-16
 
 Owner-installed CONNECTIVITY-05 completes MD calibration and stays responsive,

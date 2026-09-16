@@ -1,3 +1,12 @@
+# Latest state — CONNECTIVITY-06 installed; mounted-eMMC provider correction
+
+SSH confirms CONNECTIVITY-06. Internal root/data are on mmcblk1; the provider
+hardcodes absent mmcblk0 and fails before radio activation. The TX fix remains
+physically untested. [Evidence](../build/evidence/y2linux-m5-connectivity-06/README.md).
+CONNECTIVITY-07 resolves the validated eMMC parent of mounted root/data.
+This needs BOOTIMG + Y2ROOT, preserving Y2DATA. Build and stop for manual installation.
+M5 #31 stays open; accepted M4 is unchanged. Earlier receipts below are history.
+
 # Latest state — CONNECTIVITY-05 installed, CONNECTIVITY-06 correction
 
 CONNECTIVITY-05 is running after owner installation. MD calibration completes,

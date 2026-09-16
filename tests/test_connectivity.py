@@ -14,6 +14,72 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class Connectivity(unittest.TestCase):
+    def test_factory_disk_follows_mounted_emmc_and_rejects_other_media(self):
+        source=(ROOT/'tools/connectivity/factory.c').read_text()
+        body='\n'.join(function(source,n) for n in ('factory_parent','open_factory_disk'))
+        run_c(r'''
+#define _GNU_SOURCE
+#include <assert.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/sysmacros.h>
+#define BLKGETSIZE64 123
+#define DISK_BYTES 7784103936ULL
+static unsigned index_number,bad,opens,closes;
+static int mock_stat(const char *path,struct stat *st){
+ memset(st,0,sizeof(*st));
+ if(bad==1)return -1;
+ st->st_dev=makedev(179,(!strcmp(path,"/") || bad==2)?5:7);return 0;
+}
+static char *mock_realpath(const char *path,char *out){
+ unsigned part;if(!strcmp(path,"/sys/dev/block/179:5"))part=5;
+ else {assert(!strcmp(path,"/sys/dev/block/179:7"));part=7;}
+ if(bad==3)return NULL;
+ unsigned n=index_number+((bad==4 && part==7)?1:0);
+ snprintf(out,PATH_MAX,"/sys/devices/platform/emmc/block/mmcblk%u/mmcblk%up%u",n,n,part);return out;
+}
+static int factory_sysfs(const char *parent,const char *name,char *out,size_t capacity){
+ if(!strcmp(name,"partition"))snprintf(out,capacity,"%u\n",bad==5?8:parent[strlen(parent)-1]-'0');
+ else if(!strcmp(name,"device/type"))snprintf(out,capacity,"%s\n",bad==6?"SD":"MMC");
+ else {assert(!strcmp(name,"dev"));snprintf(out,capacity,"179:0%s",bad==7?" trailing":"\n");}
+ return 0;
+}
+static int mock_open(const char *path,int flags){
+ char expected[64];snprintf(expected,sizeof(expected),"/dev/mmcblk%u",index_number);
+ assert(!strcmp(path,expected) && flags==(O_RDONLY|O_CLOEXEC|O_NOFOLLOW));
+ opens++;return bad==8?-1:42;
+}
+static int mock_fstat(int fd,struct stat *st){
+ assert(fd==42);memset(st,0,sizeof(*st));st->st_mode=bad==9?S_IFREG:S_IFBLK;
+ st->st_rdev=makedev(179,bad==10?8:0);return 0;
+}
+static int mock_ioctl(int fd,int op,uint64_t *value){
+ assert(fd==42 && op==BLKGETSIZE64);*value=bad==11?7818182656ULL:DISK_BYTES;return bad==12?-1:0;
+}
+static int mock_close(int fd){assert(fd==42);closes++;return 0;}
+#define stat(p,s) mock_stat(p,s)
+#define realpath(p,b) mock_realpath(p,b)
+#define open(p,f) mock_open(p,f)
+#define fstat(f,s) mock_fstat(f,s)
+#define ioctl(f,o,v) mock_ioctl(f,o,v)
+#define close(f) mock_close(f)
+''' + body + r'''
+int main(void){
+ for(index_number=0;index_number<8;index_number++){
+  opens=closes=bad=0;assert(open_factory_disk()==42 && opens==1 && !closes);
+  for(bad=1;bad<=12;bad++){
+   opens=closes=0;assert(open_factory_disk()==-1);
+   assert(opens==(bad>=8));assert(closes==(bad>=9));
+  }
+ }
+}
+''')
+
     def test_actual_btif_rearms_tail_irq_for_every_transfer(self):
         source=(ROOT/'kernel/platform/connectivity/btif.c').read_text()
         source=source.replace('int y2_btif_send(', 'static int y2_btif_send(')

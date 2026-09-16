@@ -1,0 +1,17 @@
+PASS production BOOTIMG-only manifest, stock geometry, unchanged root/data, module ABI contract, bounds and hashes
+PASS production BOOTIMG-only manifest, stock geometry, unchanged root/data, module ABI contract, bounds and hashes
+PASS rejected rootfs version mismatch : retained production contract rootfs_version
+PASS rejected data identity changed : unchanged root/data image references
+PASS rejected protected runtime write : retained production contract runtime_kernel_write_allowlist
+PASS rejected wrong BOOTIMG coordinates : BOOTIMG coordinates
+PASS rejected module version mismatch : boot module contract
+PASS rejected second payload : one boot payload
+PASS rejected rootfs image added : root/data must not be update payloads
+PASS rejected data image added : root/data must not be update payloads
+PASS rejected retained data hash changed : unchanged root/data image references
+PASS rejected non-BOOTIMG scatter selection : exact stock geometry and BOOTIMG-only selection
+PASS rejected fallback incompatible root : fallback compatibility rootfs_version
+PASS rejected fallback corruption : observed fallback identity
+PASS rejected fallback version lie : fallback kernel version
+PASS rejected boot identity lie : BOOTIMG identity
+PASS 14 isolated package rejection cases; original images unchanged; system-update base needs no data image

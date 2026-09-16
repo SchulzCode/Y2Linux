@@ -11,6 +11,7 @@
 #include <ext2fs/ext2fs.h>
 #include <fcntl.h>
 #include <linux/fs.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +22,7 @@
 #include <sys/resource.h>
 #include <sys/prctl.h>
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <sys/wait.h>
 #include <signal.h>
 #include <time.h>
@@ -48,6 +50,54 @@ static void read_exact(int fd, void *data, size_t size, off_t offset)
 		if (n <= 0) fail("bounded factory read failed");
 		p += n; offset += n; size -= n;
 	}
+}
+static int factory_sysfs(const char *parent, const char *name, char *value, size_t capacity)
+{
+	char path[PATH_MAX]; ssize_t n;
+	if (snprintf(path,sizeof(path),"%s/%s",parent,name) >= (int)sizeof(path)) return -1;
+	int fd=open(path,O_RDONLY|O_CLOEXEC|O_NOFOLLOW);
+	if (fd<0) return -1;
+	do { n=read(fd,value,capacity); } while (n<0 && errno==EINTR);
+	close(fd);
+	if (n<=0 || (size_t)n>=capacity) return -1;
+	value[n]=0;
+	return 0;
+}
+static int factory_parent(dev_t device, unsigned partition, char *parent)
+{
+	char link[64], number[16], expected[16], type[16], extra;
+	unsigned index;
+	snprintf(link,sizeof(link),"/sys/dev/block/%u:%u",major(device),minor(device));
+	if (!realpath(link,parent) || factory_sysfs(parent,"partition",number,sizeof(number))) return -1;
+	snprintf(expected,sizeof(expected),"%u\n",partition);
+	if (strcmp(number,expected)) return -1;
+	char *slash=strrchr(parent,'/');
+	if (!slash) return -1;
+	*slash=0;
+	slash=strrchr(parent,'/');
+	if (!slash || sscanf(slash+1,"mmcblk%u%c",&index,&extra)!=1 ||
+	    factory_sysfs(parent,"device/type",type,sizeof(type)) || strcmp(type,"MMC\n")) return -1;
+	return 0;
+}
+static int open_factory_disk(void)
+{
+	/* MMC probe order is not persistent. Identify the whole eMMC through
+	 * mounted Y2ROOT/Y2DATA, then verify its node and geometry before reads. */
+	char parent[PATH_MAX], data_parent[PATH_MAX], device[64], node[64], newline, extra;
+	struct stat root, data, disk;
+	unsigned dev_major,dev_minor; uint64_t size;
+	if (stat("/",&root) || stat("/data",&data) ||
+	    factory_parent(root.st_dev,5,parent) || factory_parent(data.st_dev,7,data_parent) ||
+	    strcmp(parent,data_parent) || factory_sysfs(parent,"dev",device,sizeof(device)) ||
+	    sscanf(device,"%u:%u%c%c",&dev_major,&dev_minor,&newline,&extra)!=3 || newline!='\n') return -1;
+	if (snprintf(node,sizeof(node),"/dev/%s",strrchr(parent,'/')+1) >= (int)sizeof(node)) return -1;
+	int fd=open(node,O_RDONLY|O_CLOEXEC|O_NOFOLLOW);
+	if (fd<0) return -1;
+	if (fstat(fd,&disk) || !S_ISBLK(disk.st_mode) || disk.st_rdev!=makedev(dev_major,dev_minor) ||
+	    ioctl(fd,BLKGETSIZE64,&size) || size!=DISK_BYTES) {
+		close(fd); return -1;
+	}
+	return fd;
 }
 static int private_dir(const char *path)
 {
@@ -227,10 +277,8 @@ int main(int argc, char **argv)
 	if (!nvram || !protect) fail("factory RAM allocation");
 	int disk = -1;
 	if (!images) {
-		uint64_t size;
-		disk = open("/dev/mmcblk0", O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
-		if (disk < 0 || ioctl(disk, BLKGETSIZE64, &size) || size != DISK_BYTES)
-			fail("production logical eMMC geometry mismatch");
+		disk = open_factory_disk();
+		if (disk < 0) fail("mounted production eMMC identity/geometry mismatch");
 		read_exact(disk, nvram, NVRAM_BYTES, 0x400000);
 	} else {
 		char path[512]; snprintf(path, sizeof(path), "%s/NVRAM.bin", images);
