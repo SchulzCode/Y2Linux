@@ -1,0 +1,8 @@
+config BR2_PACKAGE_Y2_GPU_CHECK
+	bool "y2-gpu-check"
+	depends on BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_LIMA
+	depends on BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_KMSRO
+	depends on BR2_PACKAGE_MESA3D_OPENGL_EGL
+	depends on BR2_PACKAGE_MESA3D_OPENGL_ES
+	help
+	  Bounded native DRM/GBM/EGL/GLES2 platform qualification utility.

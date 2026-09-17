@@ -102,6 +102,9 @@ def check(root,project,production=False):
         for name in ('y2_conn_get','y2_conn_put','y2_conn_request_firmware','y2_md_calibrate',
                      'y2_btif_start','y2_stp_send','y2_wmt_boot','y2_hci_register','wlanAdapterStart'):
             require(kernel.sym(name)>=text,'missing connectivity subsystem '+name)
+    if config.get('CONFIG_DRM_LIMA')=='y':
+        for name in ('lima_device_init','lima_mmu_init','lima_sched_timedout_job','y2_mfg_power_on','y2_mfg_power_off','y2_mfg_clock_probe'):
+            require(kernel.sym(name)>=text,'missing GPU subsystem '+name)
     require(not any(name in kernel.syms for name in ('musb_dma_controller_create','dma_controller_irq','musb_host_setup','mtk_musb_init')),'unexpected USB DMA/host/glue')
     payload=z+tree+bytes(-len(tree)%8)
     layout['kernel_symbols']={n:kernel.sym(n) for n in ('_text','_edata','__bss_start','__bss_stop','_end')}
@@ -111,6 +114,8 @@ def check(root,project,production=False):
         layout['status']='PASS offline integrated M4 power candidate; retained root/data; physical qualification pending'
     if config.get('CONFIG_Y2_CONNECTIVITY')=='y':
         layout['status']='PASS offline integrated M5 connectivity candidate; preserving system update; physical radio qualification pending'
+    if config.get('CONFIG_DRM_LIMA')=='y':
+        layout['status']='PASS offline integrated GPU candidate; physical Lima/Mesa qualification pending'
     return layout,payload,rd
 
 

@@ -1,0 +1,26 @@
+--- a/drivers/gpu/drm/lima/lima_drv.c
++++ b/drivers/gpu/drm/lima/lima_drv.c
+@@ -418,6 +418,7 @@
+ 	pm_runtime_mark_last_busy(ldev->dev);
+ 	pm_runtime_set_autosuspend_delay(ldev->dev, 200);
+ 	pm_runtime_use_autosuspend(ldev->dev);
++	pm_runtime_get_noresume(ldev->dev);
+ 	pm_runtime_enable(ldev->dev);
+ 
+ 	/*
+@@ -431,10 +432,15 @@
+ 	if (sysfs_create_bin_file(&ldev->dev->kobj, &lima_error_state_attr))
+ 		dev_warn(ldev->dev, "fail to create error state sysfs\n");
+ 
++	/* Also idle a freshly probed GPU before the first userspace job. */
++	pm_runtime_mark_last_busy(ldev->dev);
++	pm_runtime_put_autosuspend(ldev->dev);
++
+ 	return 0;
+ 
+ err_out3:
+ 	pm_runtime_disable(ldev->dev);
++	pm_runtime_put_noidle(ldev->dev);
+ 	lima_devfreq_fini(ldev);
+ err_out2:
+ 	lima_device_fini(ldev);

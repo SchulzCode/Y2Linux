@@ -221,6 +221,18 @@
       "patch": "0037-mt6582-consys-reset.patch",
       "base_sha256": "6e8230dff7db590f16bdc83918220da48be57c8a594cd3f0917f4c0e0018da9b",
       "result_sha256": "b8b5094ad3c86f4082d34fd5e66fc0857fa93158cdbcf2c5eef8064ffc303947"
+    },
+    {
+      "path": "drivers/gpu/drm/lima/lima_drv.c",
+      "patch": "0038-lima-initial-runtime-idle.patch",
+      "base_sha256": "f690bd317e00ca5c4b87935598ffa473136cf544e50984f47c98fcfe36f8fe46",
+      "result_sha256": "642a879b7e109229856c2c8d2f8888c59680e7aedd7047e9491aeeb507f385e1"
+    },
+    {
+      "path": "Documentation/devicetree/bindings/gpu/arm,mali-utgard.yaml",
+      "patch": "0039-mt6582-mali-binding.patch",
+      "base_sha256": "21bd67c366ebb7cd038f133c63048a630086a2fe74699857d0177d41d4b1a01a",
+      "result_sha256": "a9c5285183549d69a231e1942cbe94393e9ae9a6b899c452895a49daabe1466f"
     }
   ]
 }

@@ -1,0 +1,42 @@
+{
+  "sources": [
+    {
+      "path": "arch/arm/mach-mt6582/mt_spm_mtcmos.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_spm_mtcmos.c",
+      "sha256": "37f2a02b52dd7af08880619e86a0142600972bb7bd559ebd4e95086a2439b1f2",
+      "bytes": 30978
+    },
+    {
+      "path": "arch/arm/mach-mt6582/mt_gpufreq.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_gpufreq.c",
+      "sha256": "83ce705eb25f1edc42773e2a026fcfe24ad734ff8929d561633a1f951ca16ce0",
+      "bytes": 54713
+    },
+    {
+      "path": "drivers/misc/mediatek/gpu/mt6582/mali/mali/platform/platform_pmm.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/gpu/mt6582/mali/mali/platform/platform_pmm.c",
+      "sha256": "d5639eb431d0a08b3475eec73ab5be5ea0b73c4ce70709aa0fe92b421e983fcf",
+      "bytes": 5659
+    },
+    {
+      "path": "drivers/misc/mediatek/gpu/mt6582/mali/mali/platform/platform.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/gpu/mt6582/mali/mali/platform/platform.c",
+      "sha256": "faa468c8ba6f21443ce2d7c8731fac7b747e007b97698d1c913551c6f9904ee5",
+      "bytes": 7405
+    },
+    {
+      "path": "arch/arm/mach-mt6582/mt_pm_init.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_pm_init.c",
+      "sha256": "f888a6e315321732c85056bf070f28f23a592be3dea8d8f3edceb1ccac98fcb0",
+      "bytes": 8740
+    }
+  ],
+  "stock_kernel_reference": "docs/knowledge/evidence/m4-power-source.json",
+  "stock_functions": {
+    "spm_mtcmos_ctrl_mfg": "0xc0035230",
+    "mali_platform_power_mode_change": "0xc059890c",
+    "mali_pmm_init": "0xc0598bdc"
+  },
+  "lima_uapi_sha256": "118eafe604a7811402ab4d254a23038beac454e97d3ea03a7f96bc2382becf4e",
+  "limits": "Not physical GPU rendering or silicon revision evidence. Generic mt_gpufreq table explicitly rejected."
+}

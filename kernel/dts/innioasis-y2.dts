@@ -77,6 +77,27 @@
         reg = <0x10006000 0x1000>, <0x10208000 4>;
         /* Original FM Y2 MT_SPM_IRQ_ID = GIC hwirq 149. */
         interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_LOW>;
+        #power-domain-cells = <0>; /* MFG only; CPUs/radios retain their owners. */
+    };
+    mfgclk: clock-controller@13000000 {
+        compatible = "mediatek,mt6582-mfgcfg";
+        reg = <0x13000000 0x10>;
+        clocks = <&y2clk Y2_CLK_MFG_SRC>;
+        #clock-cells = <0>;
+    };
+    gpu: gpu@13010000 {
+        compatible = "mediatek,mt6582-mali", "arm,mali-400";
+        reg = <0x13010000 0x10000>;
+        /* Actual stock Y2 GP/GP-MMU/PP0/MMU0/PP1/MMU1 hwirqs 202..207. */
+        interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_LOW>, <GIC_SPI 171 IRQ_TYPE_LEVEL_LOW>,
+                     <GIC_SPI 172 IRQ_TYPE_LEVEL_LOW>, <GIC_SPI 173 IRQ_TYPE_LEVEL_LOW>,
+                     <GIC_SPI 174 IRQ_TYPE_LEVEL_LOW>, <GIC_SPI 175 IRQ_TYPE_LEVEL_LOW>;
+        interrupt-names = "gp", "gpmmu", "pp0", "ppmmu0", "pp1", "ppmmu1";
+        clocks = <&mmsys CLK_MM_SMI_COMMON>, <&mfgclk>;
+        clock-names = "bus", "core";
+        power-domains = <&spm>;
+        /* Stock domain owns reset. Supply and PLL retain loader settings;
+         * no per-GPU voltage control, OPP guessing or reserved-memory heap. */
     };
     rgu: watchdog@10007000 {
         /* Exact upstream 6.18 mt6582.dtsi compatibility, verified RGU layout. */

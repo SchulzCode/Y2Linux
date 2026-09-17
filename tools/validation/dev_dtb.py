@@ -37,6 +37,8 @@ POWER_REGS = {
  '/watchdog@10007000': (0x10007000,0x100),
  '/power-controller@10006000': (0x10006000,0x1000,0x10208000,4),
 }
+GPU = '/gpu@13010000'
+GPU_REGS = {GPU:(0x13010000,0x10000), '/clock-controller@13000000':(0x13000000,0x10)}
 CONN = '/connectivity@18070000'
 CONN_REGS = {
  '/clock-controller@10000000': (0x10000000,0x1000,0x10003000,0x1000,0x10001000,0x2000,0x10209000,0x600),
@@ -50,6 +52,7 @@ CONN_RAILS = ('ldo_vcn18','ldo_vcn28','ldo_vcn33_bt','ldo_vcn33_wifi')
 def check(data, initrd_size, production=True):
     nodes,reserved=fdt(data)
     connectivity=CONN in nodes
+    gpu=GPU in nodes
     require(tuple(reserved)==RESERVED[:1], 'DEV low boot reservation changed')
     require(nodes['/']['model']==strings('Innioasis Y2'),'DEV identity')
     expected={'/reserved-memory/loader@81800000':(0x81800000,0x02800000), '/reserved-memory/high-owned@bdf00000':(0xbdf00000,0x02100000)}
@@ -72,6 +75,9 @@ def check(data, initrd_size, production=True):
     if connectivity:
         require(power, 'connectivity requires the accepted power platform')
         regs=regs|CONN_REGS
+    if gpu:
+        require(power and connectivity, 'GPU retains M4/M5 platform')
+        regs=regs|GPU_REGS
     for path,reg in regs.items(): require(nodes[path]['reg']==cells(*reg),'MMIO mapping '+path)
     for path,(irq,flags) in IRQS.items(): require(nodes[path]['interrupts']==cells(0,irq,flags),'IRQ mapping '+path)
     require({p for p,v in nodes.items() if p.count('/')==1 and 'reg' in v}==set(regs)|{'/memory@80000000'},'unreviewed MMIO controller')
@@ -97,11 +103,22 @@ def check(data, initrd_size, production=True):
             require(words[i] in handles,'missing clock provider '+path)
             provider,v=handles[words[i]];n=struct.unpack('>I',v['#clock-cells'])[0]
             require(i+1+n<=len(words),'short clock specifier')
-            if n: require(n==1 and words[i+1]<((24 if connectivity else 22 if power else 18) if provider.startswith('/clock-controller') else 23),'invalid clock ID')
+            if n: require(n==1 and words[i+1]<((25 if gpu else 24 if connectivity else 22 if power else 18) if provider.startswith('/clock-controller') else 23),'invalid clock ID')
             i+=1+n
         for prop in ('pinctrl-0','pinctrl-1','backlight','remote-endpoint','interrupt-parent'):
             if prop in props:
                 for h in struct.unpack('>'+str(len(props[prop])//4)+'I',props[prop]): require(h in handles,'missing '+prop)
+    if gpu:
+        props=nodes[GPU]
+        require(props['compatible']==strings('mediatek,mt6582-mali','arm,mali-400'), 'GPU exact binding')
+        require(props['interrupts']==cells(*[x for irq in range(170,176) for x in (0,irq,8)]), 'GPU active-low IRQ contract')
+        require(props['interrupt-names']==strings('gp','gpmmu','pp0','ppmmu0','pp1','ppmmu1'), 'GPU IRQ ordering')
+        require(props['clocks']==cells(handle('/syscon@14000000'),0,handle('/clock-controller@13000000')), 'GPU clock owners')
+        require(props['clock-names']==strings('bus','core'), 'Lima bus/core clock naming')
+        require(nodes['/clock-controller@13000000']['clocks']==cells(handle('/clock-controller@10000000'),24), 'MFG source owner')
+        require(props['power-domains']==cells(handle('/power-controller@10006000')), 'GPU shared SPM domain')
+        require(nodes['/power-controller@10006000']['#power-domain-cells']==cells(0), 'MFG genpd arity')
+        require(not any(k in props for k in ('resets','mali-supply','operating-points-v2','dma-coherent','memory-region')), 'no guessed GPU resource')
     require(nodes['/cpus']['enable-method']==strings('innioasis,y2-smp'),'SMP release and hotplug method')
     require({p for p in nodes if p.startswith('/cpus/cpu@')}=={'/cpus/cpu@'+str(i) for i in range(4)},'CPU count')
     for i in range(4): require(nodes['/cpus/cpu@'+str(i)]['reg']==cells(i),'CPU index')

@@ -26,7 +26,7 @@ September 15 matrix where statuses differ; unchanged residuals are retained.
 | Wi-Fi | wlan0/cfg80211, scans, disable/re-enable CONFIRMED at CONNECTIVITY-10. WPA2/DHCP/DNS/data and saved-network reconnect UNTESTED; owner elects pending. | #31 |
 | Bluetooth | Standard BlueZ power-on with Wi-Fi CONFIRMED. Peer pairing/SBC/AVRCP/reconnect and sustained coexistence UNTESTED; owner elects pending. | #31 |
 | Firmware, calibration and identity | Working native factory reader, BTIF/AP_DMA, controller 6582/8a01/8a00 and WMT startup CONFIRMED. Preserve private inputs/identities; no reacquisition. | #31 |
-| GPU | Own stock GP + two PP resources/IRQs CONFIRMED; donor reports Mali-400 MP2 Lima. Silicon revision, production Lima/EGL/GLES, runtime PM and rendering UNTESTED. Implement through existing ownership. | New GPU milestone |
+| GPU | Own stock GP + two PP resources/IRQs CONFIRMED; donor reports Mali-400 MP2 Lima. Silicon revision, production Lima/EGL/GLES, runtime PM and rendering UNTESTED. Implement through existing ownership. | [GPU #34](https://github.com/SchulzCode/Y2Linux/issues/34) |
 | FM | CONFIRMED board exclusion, unchanged. | #31 |
 | Recovery/backups, updates/security, privacy/non-root lifecycle | PARTIAL with retained gaps; no OTA/security scope expansion. Existing recovery remains owner's operation. | M0/#32/#33 |
 

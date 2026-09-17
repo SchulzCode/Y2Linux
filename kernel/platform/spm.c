@@ -11,6 +11,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/suspend.h>
+#include <linux/pm_domain.h>
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
 #include <asm/proc-fns.h>
@@ -21,6 +22,7 @@
 #include "spm-pcm.h"
 #include "shared.h"
 #include "connectivity/domain.h"
+#include "gpu-policy.h"
 
 static void __iomem *spm_base;
 static DEFINE_RAW_SPINLOCK(spm_lock);
@@ -29,6 +31,8 @@ static void __iomem *spm_biu;
 static dma_addr_t pcm_address, normal_address;
 static unsigned entries, resumes, aborts, last_wake, last_ticks, last_debug, last_event, last_r13;
 static int last_result;
+static struct generic_pm_domain y2_mfg_domain;
+static bool mfg_broken;
 
 static unsigned spm_read(void *context, unsigned reg)
 {
@@ -42,6 +46,38 @@ static void spm_write(void *context, unsigned reg, unsigned value)
 }
 static void spm_delay(unsigned us) { udelay(us); }
 static struct y2_spm_io spm_io = { .read = spm_read, .write = spm_write, .delay = spm_delay };
+
+int y2_spm_mfg_status(void)
+{
+	unsigned a, b;
+	if (!smp_load_acquire(&spm_base)) return -EPROBE_DEFER;
+	a = readl(spm_base + 0x60c) & BIT(4);
+	b = readl(spm_base + 0x610) & BIT(4);
+	return a != b ? -EIO : !!a;
+}
+static int y2_mfg_power_on(struct generic_pm_domain *domain)
+{
+	unsigned long flags;
+	int ret;
+	raw_spin_lock_irqsave(&spm_lock, flags);
+	ret = mfg_broken ? -EIO : y2_mfg_sequence(&spm_io, 1);
+	/* Never expose partially powered hardware after an acknowledgement fault. */
+	if (ret) mfg_broken = true;
+	raw_spin_unlock_irqrestore(&spm_lock, flags);
+	return ret;
+}
+static int y2_mfg_power_off(struct generic_pm_domain *domain)
+{
+	unsigned long flags;
+	int ret;
+	raw_spin_lock_irqsave(&spm_lock, flags);
+	ret = mfg_broken ? -EIO : y2_mfg_sequence(&spm_io, 0);
+	/* genpd retains its ON state on failure. Restore a usable ON state too;
+	 * if restoration fails, refuse future GPU use, not a whole-system reset. */
+	if (ret && y2_mfg_sequence(&spm_io, 1)) mfg_broken = true;
+	raw_spin_unlock_irqrestore(&spm_lock, flags);
+	return ret;
+}
 
 int y2_spm_radio_status(unsigned domain)
 {
@@ -248,6 +284,17 @@ static int y2_spm_probe(struct platform_device *pdev)
 	smp_store_release(&spm_base, base);
 	ret = devm_device_add_group(&pdev->dev, &y2_spm_group);
 	if (ret) { WRITE_ONCE(spm_base, NULL); return ret; }
+	/* Same SPM mapping/lock as CPU, radio and deep suspend. The MFG reset
+	 * is intrinsic to the stock domain sequence, not an unrelated RGU bit. */
+	y2_mfg_domain.name = "y2-mfg";
+	y2_mfg_domain.power_on = y2_mfg_power_on;
+	y2_mfg_domain.power_off = y2_mfg_power_off;
+	ret = y2_spm_mfg_status();
+	if (ret < 0) return ret;
+	ret = pm_genpd_init(&y2_mfg_domain, NULL, !ret);
+	if (ret) return ret;
+	ret = of_genpd_add_provider_simple(pdev->dev.of_node, &y2_mfg_domain);
+	if (ret) { pm_genpd_remove(&y2_mfg_domain); return ret; }
 	suspend_set_ops(&y2_suspend_ops);
 	dev_info(&pdev->dev, "CPU1-3 MTCMOS and SPM CPU/cluster shutdown, infrastructure retained; power=%#x/%#x\n",
 		spm_read(base, 0x60c), spm_read(base, 0x610));

@@ -46,7 +46,7 @@ static const char *const y2_clk_names[] = {
     "y2-axi",	 "y2-i2c0",    "y2-i2c1",    "y2-apdma",	"y2-pwrap",
     "y2-kp",	 "y2-msdc0",   "y2-msdc1",   "y2-msdc0-source", "y2-msdc1-source",
     "y2-audintbus", "y2-audio", "y2-infra-audio", "y2-cpu", "y2-therm", "y2-auxadc", "y2-efuse",
-    "y2-connmcu", "y2-btif"};
+    "y2-connmcu", "y2-btif", "y2-mfg-source"};
 
 /* Shared INFRACFG fields stay with this owner. Callers serialize complete
  * domain transitions; each RMW is protected against CPU/clock operations. */
@@ -134,6 +134,11 @@ static unsigned long y2_axi_rate(struct y2_clock *c)
 static unsigned long y2_rate(struct clk_hw *hw, unsigned long parent)
 {
 	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
+	/* Own boot snapshot: CLK_CFG_1=0x00010100, MMPLL=500.5 MHz.
+	 * The actual MT6582 stock Mali platform uses this inherited source;
+	 * donor's MMPLL/2 and fixed 286 MHz are not the stock contract. */
+	if (c->id == Y2_CLK_MFG_SRC)
+		return ((readl(c->top + 0x50) >> 16) & 7) == 1 ? parent : 0;
 	if (c->id == Y2_CLK_CPU) {
 		unsigned mux = readl(c->infra) & 12, div = readl(c->infra + 8) & 31;
 		unsigned long rate = mux == 4 ? y2_pll_rate(c->pll, 0) :
@@ -279,6 +284,43 @@ static const struct clk_ops y2_audio_ops = {
 	.recalc_rate = y2_rate, .enable = y2_audio_enable,
 	.disable = y2_audio_disable, .is_enabled = y2_audio_enabled,
 };
+static int y2_mfg_source_enable(struct clk_hw *hw)
+{
+	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
+	unsigned long flags;
+	unsigned value;
+	int ret = 0;
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	value = readl(c->top + 0x50);
+	/* Preserve the proven selector and PLL. Unknown loader state fails
+	 * GPU activation rather than applying an unproven frequency/voltage. */
+	if (((value >> 16) & 7) != 1 || y2_pll_rate(c->pll, Y2_CLK_MMPLL) != 500500000)
+		ret = -EINVAL;
+	else {
+		writel(value & ~BIT(23), c->top + 0x50);
+		if (readl(c->top + 0x50) & BIT(23)) ret = -EIO;
+	}
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
+	return ret;
+}
+static void y2_mfg_source_disable(struct clk_hw *hw)
+{
+	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
+	unsigned long flags;
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	writel(readl(c->top + 0x50) | BIT(23), c->top + 0x50);
+	readl(c->top + 0x50);
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
+}
+static int y2_mfg_source_enabled(struct clk_hw *hw)
+{
+	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
+	return !(readl(c->top + 0x50) & BIT(23));
+}
+static const struct clk_ops y2_mfg_source_ops = {
+	.recalc_rate = y2_rate, .enable = y2_mfg_source_enable,
+	.disable = y2_mfg_source_disable, .is_enabled = y2_mfg_source_enabled,
+};
 /* Called only by the MT6582 MMC variant after checking inherited DMA idle.
  * Source 0 is the documented crystal, giving a real 26MHz rate contract. */
 int y2_msdc_crystal(unsigned id)
@@ -351,6 +393,11 @@ static int y2_clocks_probe(struct platform_device *pdev)
 		c->infra = base[2];
 		c->pll = base[3];
 		if (i == Y2_CLK_CPU) { init.ops = &y2_cpu_ops; parent = "y2-armpll"; }
+		if (i == Y2_CLK_MFG_SRC) {
+			init.ops = &y2_mfg_source_ops;
+			parent = "y2-mmpll";
+			init.flags = CLK_GET_RATE_NOCACHE;
+		}
 		if (i == Y2_CLK_THERM || i == Y2_CLK_AUXADC) {
 			c->gate = base[1] + 8;
 			c->bit = i == Y2_CLK_THERM ? 1 : 24;

@@ -12,4 +12,5 @@ int y2_ccf_md_unconfigured(void);
 int y2_spm_radio_status(unsigned domain);
 int y2_ccf_radio_protect(unsigned domain, bool protect);
 int y2_ccf_radio_remap(unsigned domain);
+int y2_spm_mfg_status(void);
 #endif

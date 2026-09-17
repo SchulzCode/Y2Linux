@@ -103,7 +103,7 @@ def package(build, base, fallback_root, out):
     manifest['installed_components']=[copy.deepcopy(root),copy.deepcopy(next(p for p in components if p['target_partition']=='USRDATA'))]
     manifest['installation_profile']='system-update'
     manifest['base_manifest_sha256']=digest(out/'metadata/base-manifest.json')
-    manifest['status']='M5 integrated production candidate; physical radio qualification pending'
+    manifest['status']='GPU integrated production candidate; physical graphics qualification pending'
     manifest['data_policy']='Preserve existing Y2DATA in place. New private directories are created on first normal boot. No data payload.'
     manifest['owner_firmware']=json.loads((build/'owner-firmware.json').read_text())
     manifest['fallback']={'policy':f"restore previous BOOTIMG ({previous['kernel_version']}) and Y2ROOT ({oldroot['version']}); preserve Y2DATA",
@@ -114,7 +114,7 @@ def package(build, base, fallback_root, out):
     (out/scatter).write_text(preserving_scatter(stock)); (out/'fallback'/scatter).write_text(preserving_scatter(stock))
     manifest['profiles']={scatter:{'sha256':digest(out/scatter),'selected_partitions':['BOOTIMG','ANDROID']}}
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
-    shutil.copyfile(PROJECT/'docs/knowledge/m5-connectivity-implementation.md',out/'install-and-qualification.md')
+    shutil.copyfile(PROJECT/'docs/knowledge/gpu-platform.md',out/'install-and-qualification.md')
     (out/'SHA256SUMS').write_text(''.join(digest(p)+'  '+str(p.relative_to(out))+'\n'
         for p in sorted(out.rglob('*')) if p.is_file() and p.name!='SHA256SUMS'))
     validate_manifest(out); validate_rootfs(out,build,manifest)

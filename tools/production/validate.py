@@ -245,6 +245,8 @@ def validate_rootfs(out,build,m):
         require(read('etc/y2linux/platform-contract')==b'y2-platform-v1\n','root platform contract')
         connectivity=m.get('installation_profile')=='system-update'
         expected_id = ('Y2LINUX-M5-CONNECTIVITY-'+m['rootfs_version'].rsplit('.',1)[-1].zfill(2)+'\n').encode() if connectivity else b'Y2LINUX-STORAGE-04\n'
+        if '-gpu.' in m['rootfs_version']:
+            expected_id=('Y2LINUX-GPU-'+m['rootfs_version'].rsplit('.',1)[-1].zfill(2)+'\n').encode()
         require(read('etc/y2linux/build-id')==expected_id,'root build identity')
         require(json.loads(read('etc/y2linux/versions.json'))==json.loads((build/'versions.json').read_text()),'versions root/build')
         require(json.loads(read('etc/y2linux/versions.json'))['build_git_commit']==m['build_git_commit'],'manifest root commit')
@@ -262,6 +264,11 @@ def validate_rootfs(out,build,m):
                          'usr/sbin/iw','usr/libexec/bluetooth/bluetoothd','usr/bin/bluealsa','usr/bin/dbus-daemon'):
                 content=read(name)
                 require(content[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',content,18)[0]==40,'connectivity ARM binary '+name)
+        if '-gpu.' in m['rootfs_version']:
+            for name in ('usr/bin/y2-gpu-check','usr/lib/libEGL.so.1','usr/lib/libGLESv2.so.2','usr/lib/libgbm.so.1','usr/lib/libdrm.so.2','usr/lib/dri/lima_dri.so','usr/lib/dri/mediatek_dri.so'):
+                content=read(name)
+                require(content[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',content,18)[0]==40,'graphics ARM binary '+name)
+            require(not any(name in members for name in ('usr/lib/dri/swrast_dri.so','usr/bin/Xorg','usr/bin/weston')), 'no software/desktop graphics fallback')
         for name in ('bin/busybox','sbin/init','sbin/blkid','sbin/e2fsck','sbin/ip','usr/sbin/dropbear','usr/bin/aplay','usr/bin/amixer','usr/bin/evtest','usr/bin/strace'):
             raw=read(name);require(raw[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',raw,18)[0]==40,'ARM userspace '+name)
             require(struct.unpack_from('<I',raw,36)[0]&0x400,'hard-float '+name)
