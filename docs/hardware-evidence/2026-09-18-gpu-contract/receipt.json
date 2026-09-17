@@ -1,0 +1,18 @@
+{
+  "kind": "bounded read-only GPU clock/stock-bin contract; NOT a GPU rendering pass",
+  "kernel": "6.18.0-y2linux-m5-connectivity-10",
+  "capture_utc": {
+    "live-clock.txt": "2026-09-17T22:06:07.099468+00:00",
+    "post-inspection.txt": "2026-09-17T22:33:03.988101+00:00",
+    "charger-path.txt": "2026-09-17T22:33:43.474263+00:00",
+    "devinfo-snapshot.txt": "2026-09-17T22:40:07.972507+00:00"
+  },
+  "module_sha256": {
+    "clocks": "fe3b8944e74fd6494180b0134cc4755593dca4342d57dbe588061c7ae9d917fc",
+    "devinfo": "39072f61aaa10739d965346d9c1d2c6b67f7bfba7037dbf86cd7a04c0b7edaa0"
+  },
+  "expected_insmod_exit": 1,
+  "expected_module_init_errno": "EAGAIN after printing; no resident module",
+  "taint_after": 4096,
+  "side_effect": "out-of-tree module taint on inspection boot only; no GPU power-on, register write, reboot or flash"
+}

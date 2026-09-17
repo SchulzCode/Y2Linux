@@ -35,6 +35,24 @@
       "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_clkmgr.c",
       "sha256": "f73bbe0a4c3c07e2831e4c2bc5cabd3de7909c52e2ce572863fabfc46eadbc8d",
       "bytes": 101786
+    },
+    {
+      "path": "arch/arm/mach-mt6582/mt_devs.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_devs.c",
+      "sha256": "082a0defcf2271fb2ae081466e1837d47fc58500cd0fb5765b3f857d8b85743c",
+      "bytes": 77688
+    },
+    {
+      "path": "arch/arm/mach-mt6582/sbchk_base.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/sbchk_base.c",
+      "sha256": "fafeb6e73e9270a63fefc28d2957866372e8b1196cdc715408fb31cccf4ea1d0",
+      "bytes": 11547
+    },
+    {
+      "path": "arch/arm/mach-mt6582/include/mach/mt_devinfo.h",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/include/mach/mt_devinfo.h",
+      "sha256": "cfbf3ead06165ebfb47bc6547c73054e7774661a64742434a33b1815b755c83d",
+      "bytes": 976
     }
   ],
   "stock_kernel_reference": "docs/knowledge/evidence/m4-power-source.json",

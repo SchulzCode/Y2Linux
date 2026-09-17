@@ -1,0 +1,4 @@
+6.18.0-y2linux-m5-connectivity-10
+mode=SPM_CPU_SHUTDOWN_INFRA_RETAINED broken=0 entries=0 resumes=0 aborts=0 result=0 wake=0x0 ticks32k=0 event=0x0 debug=0x0 r13=0x0 power=0x3f4c/0x3f4c
+activated=1 powered=0 functions=0x0 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0
+4096

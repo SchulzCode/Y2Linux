@@ -52,6 +52,9 @@ The generic `arch/arm/mach-mt6582/mt_gpufreq.c` references a different
 CLK_CFG_0/HYD layout and is not compiled into the retained Y2's GPU policy:
 its utilization callback is a no-op. Do not import its 156–476 MHz table.
 The real stock platform also contains a devinfo-index-3 bit-19 UNIVPLL branch;
+reading that single flag from this Y2's bounded retained LK ATAG data returned
+**0**, so its stock driver keeps the MMPLL branch. No raw eFuse, calibration or
+identifier dump was needed. See the [physical contract capture](../hardware-evidence/2026-09-18-gpu-contract/README.md).
 GPU-01 only accepts this observed loader selector-1/MMPLL state. Other selector
 or PLL states fail GPU activation and require a targeted evidence check.
 
@@ -92,7 +95,8 @@ restored through Lima. Normal job timeout/MMU recovery is local to Lima/DRM,
 not a platform reboot. A domain hardware-ACK fault is reported separately.
 
 Buffers use Lima GEM/shmem and normal Linux pages with a 32-bit DMA address
-contract and Utgard GPU VA/page tables. There is no GPU carveout, reserved RAM
+contract, 4-KiB MMU pages and Mali-400's standard `[0, 2^32)` GPU VA range.
+That address range is not an allocation guarantee. There is no GPU carveout, reserved RAM
 change, coherent-DMA claim or loader/radio/display memory reclamation. DMA API
 and PRIME synchronization retain the existing noncoherent ARM cache handling.
 Allocation failures must return cleanly; the utility has bounded textures and
