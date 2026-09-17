@@ -53,6 +53,7 @@ int y2_spm_mfg_status(void)
 {
 	unsigned a, b;
 	if (!smp_load_acquire(&spm_base)) return -EPROBE_DEFER;
+	if (READ_ONCE(mfg_broken)) return -EIO;
 	a = readl(spm_base + 0x60c) & BIT(4);
 	b = readl(spm_base + 0x610) & BIT(4);
 	return a != b ? -EIO : !!a;
@@ -106,7 +107,9 @@ static int y2_mfg_domain_register(struct platform_device *pdev)
 	if (!ret) return 0;
 	pm_genpd_remove(&y2_mfg_domain);
 out:
-	if (on) clk_disable(mfg_source);
+	/* Keep an inherited ON domain's source if provider registration failed;
+	 * the state cannot safely be handed to a GPU consumer in that case. */
+	mfg_broken = true;
 	return ret;
 }
 
@@ -323,7 +326,10 @@ static int y2_spm_probe(struct platform_device *pdev)
 	ret = y2_mfg_domain_register(pdev);
 	/* A GPU provider failure must not unmap the shared, published SPM owner
 	 * used by CPU/radios or remove the established M4 suspend path. */
-	if (ret) dev_err(&pdev->dev, "MFG domain unavailable: %d\n", ret);
+	if (ret) {
+		WRITE_ONCE(mfg_broken, true);
+		dev_err(&pdev->dev, "MFG domain unavailable: %d\n", ret);
+	}
 	suspend_set_ops(&y2_suspend_ops);
 	dev_info(&pdev->dev, "CPU1-3 MTCMOS and SPM CPU/cluster shutdown, infrastructure retained; power=%#x/%#x\n",
 		spm_read(base, 0x60c), spm_read(base, 0x610));
