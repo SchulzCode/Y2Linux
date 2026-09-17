@@ -1,0 +1,8 @@
+{
+  "new_root_binary_matches_rebuilt_target": true,
+  "different_from_connectivity03": true,
+  "old_sha256": "bb131231707f9ec914e6b77e069365594ce1975ddb6a982e59cf3510d34b32c7",
+  "new_sha256": "c3a0550c2ee2bba9dd37f01577ce9fad199ffece61fc3bf5dce7efb07038ffc2",
+  "source_commit": "359f7870859c546290d3a56dcdc601585f05d66f",
+  "inspection": "read-only debugfs extraction; no device or factory access"
+}

@@ -1,0 +1,64 @@
+wpa_supplicant v2.12
+Copyright (c) 2003-2026, Jouni Malinen <j@w1.fi> and contributors
+PASS actual ARM version: /usr/sbin/wpa_supplicant
+5.79
+PASS actual ARM version: /usr/libexec/bluetooth/bluetoothd
+v4.3.1
+PASS actual ARM version: /usr/bin/bluealsa
+iw version 6.9
+PASS actual ARM version: /usr/sbin/iw
+D-Bus Message Bus Daemon 1.14.10
+Copyright (C) 2002, 2003 Red Hat, Inc., CodeFactory AB, and others
+This is free software; see the source for copying conditions.
+There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+PASS actual ARM version: /usr/bin/dbus-daemon
+Usage:
+  /usr/bin/bluealsa -p PROFILE [OPTION]...
+
+Options:
+  -h, --help			print this help and exit
+  -V, --version			print version and exit
+  -S, --syslog			send output to syslog
+  --loglevel=LEVEL		minimum message priority
+  -B, --dbus=NAME		D-Bus service name suffix
+  -i, --device=hciX		HCI device(s) to use
+  -p, --profile=NAME		set enabled BT profiles
+  -c, --codec=NAME		set enabled BT audio codecs
+  --initial-volume=NUM		initial volume level [0-100]
+  --keep-alive=SEC		keep Bluetooth transport alive
+  --io-rt-priority=NUM		real-time priority for IO threads
+  --disable-realtek-usb-fix	disable fix for mSBC on Realtek USB
+  --a2dp-force-mono		try to force monophonic sound
+  --a2dp-force-audio-cd		try to force 44.1 kHz sampling
+  --a2dp-volume			native volume control by default
+  --sbc-quality=MODE		set SBC encoder quality mode
+  --xapl-resp-name=NAME		set product name used by XAPL
+
+Available BT profiles:
+  - a2dp-source	Advanced Audio Source (v1.4)
+  - a2dp-sink	Advanced Audio Sink (v1.4)
+  - hfp-ag	Hands-Free Audio Gateway (v1.9)
+  - hfp-hf	Hands-Free (v1.9)
+  - hsp-ag	Headset Audio Gateway (v1.2)
+  - hsp-hs	Headset (v1.2)
+
+Available BT audio codecs:
+  a2dp-source:	SBC
+  a2dp-sink:	SBC
+  hfp-*:	CVSD
+PASS A2DP Source codec selection: SBC
+null
+    Discard all samples (playback) or generate zero samples (capture)
+samplerate
+    Rate Converter Plugin Using Samplerate Library
+oss
+    Open Sound System
+upmix
+    Plugin for channel upmix (4,6,8)
+vdownmix
+    Plugin for channel downmix (stereo) with a simple spacialization
+PASS ALSA configuration loads inside the isolated target root
+ALSA lib bluealsa-pcm.c:1527:(_snd_pcm_bluealsa_open) Couldn't initialize D-Bus context: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+aplay: main:850: audio open error: No such device
+PASS BlueALSA PCM plugin loads; expected unavailable isolated D-Bus, no radio/audio operation claimed
+PASS 8 isolated ARM userspace checks; no physical devices or network accessed

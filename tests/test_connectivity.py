@@ -185,6 +185,7 @@ int main(void){
         source=source.replace('void y2_stp_receive(', 'static void y2_stp_receive(')
         body='\n'.join(function(source,n) for n in
                        ('y2_stp_send','y2_stp_acknowledge','deliver','y2_stp_receive'))
+        body+='\n'+function((ROOT/'kernel/platform/connectivity/wmt.c').read_text().replace('int y2_conn_wmt(', 'static int y2_conn_wmt('), 'y2_conn_wmt')
         run_c(r'''
 #include <assert.h>
 #include <errno.h>
@@ -194,12 +195,16 @@ int main(void){
 #define Y2_CONN_WMT 4
 #define Y2_CONN_BT 0
 #define READ_ONCE(x) (x)
+#define WRITE_ONCE(x,v) ((x)=(v))
+#define min(x,y) ((x)<(y)?(x):(y))
+#define dev_err(...) ((void)0)
 #define msecs_to_jiffies(x) (x)
 #define wait_event_timeout(q,condition,timeout) ((void)(q),(void)(timeout),!!(condition))
 struct y2_stp_frame {unsigned size;unsigned char data[Y2_STP_MAX_PAYLOAD+6];};
 struct y2_conn {
- int stp_lock,tx_wait,retry_work,response,failure;
- bool transport_on,full_stp,wmt_reg_read;
+ int stp_lock,tx_wait,retry_work,response,failure,command;
+ bool transport_on,full_stp,wmt_reg_read,wmt_rf_calibrate;
+ unsigned chip,hvr,fvr;
  unsigned stp_pending,stp_tx,stp_oldest,stp_rx,stp_retries,rx_used,rx_needed,response_size;
  struct y2_stp_frame window[8];
  unsigned char rx_frame[Y2_STP_MAX_PAYLOAD+6],response_data[256];
@@ -207,6 +212,12 @@ struct y2_conn {
 static struct y2_stp_frame sent[16];
 static unsigned sent_count,timer,bt_packets,completions;
 static int system_wq,send_error;
+static struct y2_conn *active;
+static unsigned char inbound[700];
+static unsigned inbound_size;
+static void reinit_completion(int *p){*p=0;}
+static int wait_for_completion_timeout(int *p,unsigned timeout);
+static void y2_btif_report_timeout(struct y2_conn *c){(void)c;}
 static void mutex_lock(int *p){assert(!*p);*p=1;}
 static void mutex_unlock(int *p){assert(*p);*p=0;}
 static void wake_up_all(int *p){(void)p;}
@@ -223,9 +234,30 @@ static int y2_btif_send(struct y2_conn *c,const unsigned char *p,unsigned n){
  sent[sent_count].size=n;memcpy(sent[sent_count++].data,p,n);return 0;
 }
 ''' + body + r'''
+static int wait_for_completion_timeout(int *p,unsigned timeout){
+ assert(timeout==4000 && active);
+ if(inbound_size)y2_stp_receive(active,inbound,inbound_size);
+ return *p || active->failure;
+}
 static void reset(struct y2_conn *c){
  memset(c,0,sizeof(*c));c->transport_on=true;c->wmt_reg_read=true;
  sent_count=timer=bt_packets=completions=0;send_error=0;
+ c->chip=0x6582;c->hvr=0x8a01;c->fvr=0x8a00;
+ active=c;inbound_size=0;
+}
+/* Synthetic RF data: only the length/header/sequence comes from own hardware.
+ * Never put calibration results or their identifying hash in the repository. */
+static void rf_event(void){
+ inbound_size=636;memset(inbound,0,sizeof(inbound));
+ const unsigned char header[]={0x9b,0x42,0x76,0x53,2,0x14,0x72,2,0,1};
+ memcpy(inbound,header,sizeof(header));
+ for(unsigned i=10;i<634;i++)inbound[i]=(unsigned char)(i*17+31);
+ unsigned crc=y2_stp_crc(inbound+4,630);inbound[634]=crc;inbound[635]=crc>>8;
+}
+static void rf_ready(struct y2_conn *c){
+ reset(c);c->full_stp=true;c->wmt_reg_read=false;c->wmt_rf_calibrate=true;
+ c->stp_rx=c->stp_tx=c->stp_oldest=3;
+ rf_event();
 }
 int main(void){
  struct y2_conn c;
@@ -283,6 +315,68 @@ int main(void){
  reset(&c);c.full_stp=true;full[15]^=1;
  y2_stp_receive(&c,full,sizeof(full));assert(c.failure==-EBADMSG && !c.response);
  assert(!bt_packets);
+ /* All DMA split points, then a byte-at-a-time RF event. */
+ for(unsigned split=0;split<=636;split++){
+  rf_ready(&c);y2_stp_receive(&c,inbound,split);
+  assert(c.response==(split==636));
+  y2_stp_receive(&c,inbound+split,636-split);
+  assert(!c.failure && c.response_size==630 && c.stp_rx==4 && !c.rx_used);
+  assert(!memcmp(c.response_data,inbound+4,6) && c.response_data[6]==0);
+  assert(sent_count==1 && sent[0].size==4 && sent[0].data[0]==0x83);
+ }
+ rf_ready(&c);for(unsigned i=0;i<636;i++)y2_stp_receive(&c,inbound+i,1);
+ assert(!c.failure && c.response_size==630 && completions==1);
+ y2_stp_receive(&c,inbound,636);assert(completions==1 && sent_count==2);
+ /* The complete production WMT path must accept this event and retire its
+  * window entry. The next ordinary command proves trailer/state alignment. */
+ const unsigned char rf_cmd[]={1,0x14,1,0,1},rf_short[]={2,0x14,2,0,0,1};
+ rf_ready(&c);c.wmt_rf_calibrate=false;
+ assert(!y2_conn_wmt(&c,rf_cmd,sizeof(rf_cmd),rf_short,sizeof(rf_short)));
+ assert(c.response_size==630 && !c.wmt_rf_calibrate && !c.stp_pending && !timer);
+ const unsigned char coex_cmd[]={1,0x10,2,0,1,1},coex_reply[]={2,0x10,1,0,0};
+ unsigned char next[]={0xa4,0x40,5,0xe9,2,0x10,1,0,0,0,0};
+ crc=y2_stp_crc(next+4,5);next[9]=crc;next[10]=crc>>8;
+ memcpy(inbound,next,sizeof(next));inbound_size=sizeof(next);
+ assert(!y2_conn_wmt(&c,coex_cmd,sizeof(coex_cmd),coex_reply,sizeof(coex_reply)));
+ assert(c.response_size==5 && c.stp_rx==5 && !c.stp_pending && !c.rx_used);
+ /* Six-byte RF replies keep their existing strict semantics. */
+ rf_ready(&c);memcpy(inbound+4,rf_short,6);inbound[1]=0x40;inbound[2]=6;
+ inbound[3]=inbound[0]+inbound[1]+inbound[2];
+ crc=y2_stp_crc(inbound+4,6);inbound[10]=crc;inbound[11]=crc>>8;inbound_size=12;
+ assert(!y2_conn_wmt(&c,rf_cmd,sizeof(rf_cmd),rf_short,sizeof(rf_short)));
+ /* Reject an unrequested result, other silicon, bad length/status/opcode,
+  * CRC failure, truncation and duplicate new-sequence WMT events. */
+ for(unsigned bad=0;bad<10;bad++){
+  rf_ready(&c);
+  if(bad==0)c.chip=0x6572;
+  if(bad==1)c.hvr=0x8a00;
+  if(bad==2)c.fvr=0x8a01;
+  if(bad==3)inbound[8]=1;
+  if(bad==4)inbound[9]=2;
+  if(bad==5)inbound[5]=0x10;
+  if(bad==6)inbound[6]--;
+  if(bad==7)inbound_size--;
+  crc=y2_stp_crc(inbound+4,630);inbound[634]=crc;inbound[635]=crc>>8;
+  if(bad==8)inbound[635]^=1;
+  int ret=y2_conn_wmt(&c,bad==9?coex_cmd:rf_cmd,bad==9?sizeof(coex_cmd):sizeof(rf_cmd),
+                      bad==9?coex_reply:rf_short,bad==9?sizeof(coex_reply):sizeof(rf_short));
+  assert(ret==(bad==7?-ETIMEDOUT:bad==8?-EBADMSG:-EPROTO));
+  assert(!c.wmt_rf_calibrate && !c.wmt_reg_read && !c.command);
+ }
+ for(unsigned length=629;length<=631;length+=2){
+  rf_ready(&c);inbound[2]=length;inbound[3]=inbound[0]+inbound[1]+inbound[2];
+  inbound[6]=length-4;inbound[7]=(length-4)>>8;
+  crc=y2_stp_crc(inbound+4,length);inbound[4+length]=crc;inbound[5+length]=crc>>8;
+  inbound_size=length+6;
+  assert(y2_conn_wmt(&c,rf_cmd,sizeof(rf_cmd),rf_short,sizeof(rf_short))==-EPROTO);
+ }
+ rf_ready(&c);c.wmt_rf_calibrate=false;y2_stp_receive(&c,inbound,636);
+ assert(c.failure==-EPROTO && !completions);
+ rf_ready(&c);c.response=1;y2_stp_receive(&c,inbound,636);
+ assert(c.failure==-EPROTO && !completions);
+ rf_ready(&c);send_error=-EIO;
+ assert(y2_conn_wmt(&c,rf_cmd,sizeof(rf_cmd),rf_short,sizeof(rf_short))==-EIO);
+ assert(!c.wmt_rf_calibrate && !c.command);
 }
 ''')
 

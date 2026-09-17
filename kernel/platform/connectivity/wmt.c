@@ -11,12 +11,15 @@
 int y2_conn_wmt(struct y2_conn *c, const unsigned char *request, unsigned size,
 	       const unsigned char *expected, unsigned expected_size)
 {
+	static const unsigned char rf_reply[] = {2, 0x14, 2, 0, 0, 1};
 	int ret;
 	if (size < 5 || request[0] != 1 || y2_conn_le16(request + 2) != size - 4)
 		return -EINVAL;
 	mutex_lock(&c->command);
 	reinit_completion(&c->response); c->response_size = 0;
 	WRITE_ONCE(c->wmt_reg_read,request[1]==8 && request[4]==2 && expected_size==16);
+	WRITE_ONCE(c->wmt_rf_calibrate, size == 5 && request[1] == 0x14 && request[4] == 1 &&
+		expected && expected_size == sizeof(rf_reply) && !memcmp(expected, rf_reply, sizeof(rf_reply)));
 	ret = y2_stp_send(c, Y2_CONN_WMT, request, size);
 	if (ret) goto out;
 	if (!wait_for_completion_timeout(&c->response, msecs_to_jiffies(4000))) {
@@ -26,11 +29,19 @@ int y2_conn_wmt(struct y2_conn *c, const unsigned char *request, unsigned size,
 		ret = -ETIMEDOUT; goto out;
 	}
 	if (c->failure) { ret = c->failure; goto out; }
+	if (c->wmt_rf_calibrate &&
+	    y2_wmt_rf_result(c->chip, c->hvr, c->fvr, c->response_data, c->response_size))
+		goto out;
 	if (c->response_size != expected_size || c->response_data[1] != request[1] ||
 	    c->response_data[4] || (expected && memcmp(c->response_data, expected, expected_size)))
 		ret = -EPROTO;
 out:
+	if (ret) dev_err(c->dev,
+		"WMT opcode=%02x parameter=%02x failed: %d mode=%s request=%u response=%u expected=%u prefix=%*ph\n",
+		request[1], request[4], ret, c->full_stp ? "full" : "mandatory",
+		size, c->response_size, expected_size, min(c->response_size, 6U), c->response_data);
 	WRITE_ONCE(c->wmt_reg_read,false);
+	WRITE_ONCE(c->wmt_rf_calibrate,false);
 	mutex_unlock(&c->command);
 	return ret;
 }
@@ -73,7 +84,9 @@ static int patch(struct y2_conn *c, const char *name, unsigned sequence)
 		at += count;
 	}
 	if (!ret) ret = y2_conn_wmt(c, reset, sizeof(reset), reset_reply, sizeof(reset_reply));
+	if (!ret) dev_info(c->dev, "WMT patch %u applied and reset acknowledged\n", sequence);
 out:
+	if (ret) dev_err(c->dev, "WMT patch %u failed: %d\n", sequence, ret);
 	release_firmware(fw);
 	return ret;
 }
@@ -129,6 +142,7 @@ int y2_wmt_boot(struct y2_conn *c)
 	mutex_lock(&c->stp_lock); c->full_stp = true; mutex_unlock(&c->stp_lock);
 	msleep(10);
 	ret = y2_conn_wmt(c, query, sizeof(query), full, sizeof(full));
+	if (!ret) dev_info(c->dev, "WMT full STP mode verified\n");
 	if (!ret) ret = patch(c, Y2_CONN_FW "mt6572_82_patch_e1_1_hdr.bin", 1);
 	if (!ret) ret = patch(c, Y2_CONN_FW "mt6572_82_patch_e1_0_hdr.bin", 2);
 	if (ret) return ret;
@@ -137,6 +151,7 @@ int y2_wmt_boot(struct y2_conn *c)
 	ret = y2_conn_rail(c, 2, true);
 	if (!ret) ret = y2_conn_rail(c, 3, true);
 	if (!ret) ret = y2_conn_wmt(c, calibrate, sizeof(calibrate), calibrated, sizeof(calibrated));
+	if (!ret) dev_info(c->dev, "WMT RF calibration succeeded: event=%u bytes\n", c->response_size);
 	int wifi_off = y2_conn_rail(c, 3, false), bt_off = y2_conn_rail(c, 2, false);
 	if (!ret) ret = wifi_off ? wifi_off : bt_off;
 	if (!ret) ret = y2_conn_wmt(c, coex, sizeof(coex), coex_reply, sizeof(coex_reply));

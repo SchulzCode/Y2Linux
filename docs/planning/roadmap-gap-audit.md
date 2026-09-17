@@ -1,5 +1,24 @@
 # Y2Linux roadmap and gap audit
 
+
+## CONNECTIVITY-07 exact protocol failure / CONNECTIVITY-08 correction — 2026-09-17
+
+Live SSH identifies MT6582/HVR `8a01`/FVR `8a00`. A stopped-buffer snapshot
+proves full STP negotiation, both patch downloads and both resets succeed.
+The next RF calibration event is 630 bytes with valid checksum/CRC and success
+status; the native 256-byte reply limit rejects it as EPROTO. This supersedes
+the provider/TX-pending descriptions below. Factory acquisition, DMA/IRQ and
+identification are settled and are not repeated.
+
+[Physical evidence](../hardware-evidence/2026-09-17-m5-protocol/README.md) and
+[the scoped correction](../knowledge/m5-connectivity08-corrections.md) preserve
+strict framing/status checks and accept only this controller's extended RF
+result during its matching command. Build CONNECTIVITY-08 BOOTIMG-only, retain
+CONNECTIVITY-07 root/data and its BOOTIMG fallback, then use the established
+manual installation boundary before live BlueZ/cfg80211 checks. M5 #31 stays
+ACTIVE / PROTOCOL CORRECTION / PHYSICALLY UNQUALIFIED. M4 remains accepted.
+No milestone transition, RAM/platform expansion, GPU/Reborn or broad audit.
+
 ## CONNECTIVITY-06 physical result / mounted-eMMC correction — 2026-09-16
 
 Internal eMMC is mmcblk1 on this owner-installed boot. Root/data work; the

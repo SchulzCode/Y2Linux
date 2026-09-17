@@ -100,12 +100,21 @@ static void y2_stp_acknowledge(struct y2_conn *c, unsigned ack)
 }
 static int deliver(struct y2_conn *c, unsigned channel, const unsigned char *p, unsigned size)
 {
+	unsigned copy_size = size;
 	if (channel == Y2_CONN_BT) { y2_hci_receive(c, p, size); return 0; }
-	if (channel != Y2_CONN_WMT || size > sizeof(c->response_data) || size < 5 ||
+	if (channel != Y2_CONN_WMT || size < 5 ||
 	    p[0] != 2 || (y2_conn_le16(p + 2) != size - 4 &&
 	    !(READ_ONCE(c->wmt_reg_read) && p[1]==8 && size==16 && y2_conn_le16(p+2)==4))) return -EPROTO;
+	if (size > sizeof(c->response_data)) {
+		if (!c->full_stp || !READ_ONCE(c->wmt_rf_calibrate) ||
+		    !y2_wmt_rf_result(c->chip, c->hvr, c->fvr, p, size)) return -EPROTO;
+		/* The full RF event is already CRC-checked. Keep its real length
+		 * and status prefix; calibration results are neither copied into
+		 * the small command buffer nor logged/persisted as factory data. */
+		copy_size = 6;
+	}
 	if (completion_done(&c->response)) return -EPROTO;
-	memcpy(c->response_data, p, size); c->response_size = size;
+	memcpy(c->response_data, p, copy_size); c->response_size = size;
 	complete(&c->response);
 	return 0;
 }
@@ -160,6 +169,8 @@ void y2_stp_receive(struct y2_conn *c, const unsigned char *data, unsigned size)
 		c->rx_used = c->rx_needed = 0;
 		if (ret) break;
 	}
+	if (ret) dev_err(c->dev, "STP receive failed: %d mode=%s bytes=%u expected=%u\n",
+		ret, c->full_stp ? "full" : "mandatory", c->rx_used, c->rx_needed);
 	mutex_unlock(&c->stp_lock);
 	if (ret) y2_conn_failed(c, ret);
 }

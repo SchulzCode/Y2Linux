@@ -43,6 +43,19 @@ static inline int y2_stp_header(const unsigned char *p, unsigned *channel,
 	*ack = p[0] & 7;
 	return *length <= Y2_STP_MAX_PAYLOAD ? 0 : -1;
 }
+/* This MT6582 E2 / E1-ROM combination returns 624 bytes of RF results after
+ * the six-byte calibration event prefix. The own-unit STP capture has outer
+ * length 630, inner length 626, status=0 and operation=1. Inspect only the
+ * prefix here; STP must validate and consume the entire frame and CRC first.
+ * Do not apply the donor's unconditional opcode-0x14 result-check bypass. */
+#define Y2_WMT_RF_RESULT_SIZE 630
+static inline int y2_wmt_rf_result(unsigned chip, unsigned hvr, unsigned fvr,
+				   const unsigned char *p, unsigned size)
+{
+	return chip == 0x6582 && hvr == 0x8a01 && fvr == 0x8a00 &&
+		size == Y2_WMT_RF_RESULT_SIZE && p[0] == 2 && p[1] == 0x14 &&
+		y2_conn_le16(p + 2) == size - 4 && !p[4] && p[5] == 1;
+}
 struct y2_fs_argument { const unsigned char *data; unsigned size; };
 struct y2_fs_packet {
 	unsigned op, count;

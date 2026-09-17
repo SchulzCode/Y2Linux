@@ -1,3 +1,14 @@
+# Latest state — CONNECTIVITY-07 protocol failure located (2026-09-17)
+
+The provider, DMA/IRQs and controller identification work. The own live capture
+proves both patches/reset replies succeed; native STP rejects a successful
+630-byte RF calibration event as EPROTO. See the
+[physical protocol evidence](../hardware-evidence/2026-09-17-m5-protocol/README.md)
+and [CONNECTIVITY-08 correction](../knowledge/m5-connectivity08-corrections.md).
+Build BOOTIMG-only, preserve current CONNECTIVITY-07 root/data, and continue
+live bring-up after manual owner installation. M5 remains open, M4 intact.
+Earlier provider/TX-blocker text below is historical.
+
 # Latest state — CONNECTIVITY-06 installed; mounted-eMMC provider correction
 
 SSH confirms CONNECTIVITY-06. Internal root/data are on mmcblk1; the provider

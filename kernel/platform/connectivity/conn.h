@@ -53,7 +53,7 @@ struct y2_conn {
 	struct work_struct recovery_work;
 	struct completion response;
 	unsigned response_size;
-	bool wmt_reg_read;
+	bool wmt_reg_read, wmt_rf_calibrate;
 	unsigned char response_data[256];
 	struct hci_dev *hdev;
 	struct sk_buff *hci_rx;
