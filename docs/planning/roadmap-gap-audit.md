@@ -1,5 +1,23 @@
 # Y2Linux roadmap and gap audit
 
+## Wi-Fi exact regulatory failure / CONNECTIVITY-10 correction — 2026-09-17
+
+Targeted -09 SSH diagnostics show Wi-Fi firmware ready and successful RF/BB
+capability queries. The exact failure is the regulatory TX power OID (`0x38`):
+successful transmission frees the no-response command without completing its
+waiter because the producer omits its callback. The subsequent timeout causes
+EIO recovery and interface teardown. [Physical evidence](../hardware-evidence/2026-09-17-m5-wifi/README.md).
+
+[CONNECTIVITY-10](../knowledge/m5-connectivity10-corrections.md) supplies that
+command's standard completion callbacks, with unchanged wire format, power
+policy and transport. Sixteen targeted checks pass, including old-source
+failure replay. Build BOOTIMG-only, retain -07 root/data and working -09
+Bluetooth fallback, then verify after manual owner installation. No new
+hardware/memory scope or major milestone transition. M5 #31 remains ACTIVE /
+BLUETOOTH ADAPTER VERIFIED / WI-FI OID CORRECTION / QUALIFICATION OPEN.
+Both radio preferences remain off; BlueZ power-on/off is rechecked after
+diagnostic cleanup. Accepted M4 remains intact.
+
 
 ## CONNECTIVITY-09 physical result / permanent BlueZ adapter — 2026-09-17
 

@@ -1,4 +1,20 @@
-# Latest state — CONNECTIVITY-09 installed; permanent BlueZ verified (2026-09-17)
+# Latest state — Wi-Fi regulatory completion fixed in source (2026-09-17)
+
+The installed -09 Wi-Fi firmware starts successfully. The exact later failure
+is regulatory TX power command `0x38`: no firmware reply is expected, and the
+producer's missing completion callback leaves its OID waiting until timeout
+and shared recovery. [Physical trace and causal source path](../hardware-evidence/2026-09-17-m5-wifi/README.md).
+
+CONNECTIVITY-10 adds the standard done/timeout callbacks to this one command
+producer, plus small registration/regulatory failure logs. All 16 targeted
+checks pass; replaying the -09 producer fails the regression. Build BOOTIMG-only
+and retain -07 root/data and -09 fallback, then verify stable wlan0/cfg80211
+after manual owner installation. No physical -10 success is claimed yet.
+Debug masks are restored; both radios and saved preferences are off. Idle
+recovery clears the diagnostic EIO, and BlueZ power-on/off still succeeds.
+M4 remains accepted, M5 open, and GPU/Reborn out of scope.
+
+# CONNECTIVITY-09 installed; permanent BlueZ verified (2026-09-17)
 
 Strictly pinned SSH confirms owner-installed `6.18.0-y2linux-m5-connectivity-09`.
 **Standard hci0/BlueZ appears on normal boot and runtime power-on/off succeeds.**

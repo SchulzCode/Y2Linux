@@ -10699,8 +10699,11 @@ wlanoidSetTxPower (
                 TRUE,                       /* fgSetQuery */
                 FALSE,                      /* fgNeedResp */
                 TRUE,                       /* fgIsOid */
-                NULL,                       /* pfCmdDoneHandler*/
-                NULL,                       /* pfCmdTimeoutHandler */
+                /* This set has no firmware response. Complete its OID when
+                 * the command queue successfully transmits it, otherwise
+                 * cfg80211 regulatory setup times out and resets Wi-Fi. */
+                nicCmdEventSetCommon,        /* pfCmdDoneHandler */
+                nicOidCmdTimeoutCommon,     /* pfCmdTimeoutHandler */
                 u4SetBufferLen,             /* u4SetQueryInfoLen */
                 (PUINT_8) pvSetBuffer,      /* pucInfoBuffer */
                 NULL,                       /* pvSetQueryBuffer */

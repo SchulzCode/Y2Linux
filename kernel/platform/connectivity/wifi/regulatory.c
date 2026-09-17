@@ -56,7 +56,10 @@ void y2_wifi_reg_notifier(struct wiphy *wiphy, struct regulatory_request *reques
 		reg.power[n-1]=clamp_t(int,2*ch->max_power,-64,63);
 	}
 	ret=kalIoctl(glue,apply,&reg,sizeof(reg),FALSE,FALSE,TRUE,FALSE,&used);
-	if (ret!=WLAN_STATUS_SUCCESS) y2_wifi_error(glue);
+	if (ret!=WLAN_STATUS_SUCCESS) {
+		dev_err(glue->rHifInfo.Dev,"Wi-Fi regulatory setup failed: status=%#x\n",ret);
+		y2_wifi_error(glue);
+	}
 }
 unsigned y2_wifi_scan_channels(P_ADAPTER_T adapter, P_MSG_SCN_SCAN_REQ scan)
 {

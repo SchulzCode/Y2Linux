@@ -2650,6 +2650,7 @@ static INT_32 wlanProbe(PVOID data)
     ret=wlanNetRegister(y2_wdev);
     if (ret<0) goto fail;
     glue->i4DevIdx=ret;
+    dev_info(glue->rHifInfo.Dev,"Wi-Fi interface %s registered\n",y2_wdev->netdev->name);
     return 0;
 fail:
     wlanRemove();
