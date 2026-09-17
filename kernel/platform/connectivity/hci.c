@@ -8,6 +8,16 @@
 #include <net/bluetooth/hci_core.h>
 #include "conn.h"
 
+static void controller_quirks(struct y2_conn *c)
+{
+	if (c->chip != 0x6582 || c->hvr != 0x8a01 || c->fvr != 0x8a00) return;
+	/* Own E2 trace: page 1 succeeds with max_page=2, but reading page 2
+	 * returns status 0x30. Use the kernel quirk, as the donor does, without
+	 * masking EDR/LE features or supported commands. Also retire a cached
+	 * false maximum if an earlier setup attempt already read it. */
+	hci_set_quirk(c->hdev, HCI_QUIRK_BROKEN_LOCAL_EXT_FEATURES_PAGE_2);
+	c->hdev->max_page = 1;
+}
 static int command(struct hci_dev *hdev, u16 opcode, unsigned n, const void *data)
 {
 	struct sk_buff *reply = __hci_cmd_sync(hdev, opcode, n, data, HCI_CMD_TIMEOUT);
@@ -48,6 +58,7 @@ static int setup(struct hci_dev *hdev)
 	if (!ret) ret = command(hdev, 0xfc93, 3, c->bt_factory + 27);
 	if (!ret) ret = command(hdev, 0xfc7a, 7, c->bt_factory + 18);
 	if (!ret) ret = command(hdev, HCI_OP_RESET, 0, NULL);
+	if (!ret) controller_quirks(c);
 	memzero_explicit(candidate, sizeof(candidate)); memzero_explicit(wire, sizeof(wire));
 	return ret;
 }

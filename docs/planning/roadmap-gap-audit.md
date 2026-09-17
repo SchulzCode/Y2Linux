@@ -1,6 +1,23 @@
 # Y2Linux roadmap and gap audit
 
 
+## CONNECTIVITY-08 physical result / scoped HCI correction — 2026-09-17
+
+Owner-installed -08 accepts the 630-byte RF result; the original EPROTO is
+physically resolved. HCI then fails at `0x1004` page 2 with status `0x30` because
+E2 falsely advertises that page. A bounded runtime application of Linux's
+existing page-2 quirk plus removal of the cached false maximum reaches standard
+hci0/BlueZ and successful runtime power-on. [Physical result](../hardware-evidence/2026-09-17-m5-connectivity08/README.md).
+
+[CONNECTIVITY-09](../knowledge/m5-connectivity09-corrections.md) makes only that
+verified `6582/8a01/8a00` correction permanent. Retain -07 root/data and -08
+BOOTIMG fallback. A runtime Wi-Fi test reaches function enable and Wi-Fi Start
+but recovers with EIO before wlan0; its next exact failure remains open.
+Saved radio preferences remain off; accepted M4 is intact. M5 #31 is ACTIVE /
+BLUETOOTH ADAPTER REACHED / WI-FI STARTUP FAILURE / QUALIFICATION OPEN. No major
+milestone transition or broad audit is implied by this interface checkpoint.
+
+
 ## CONNECTIVITY-07 exact protocol failure / CONNECTIVITY-08 correction — 2026-09-17
 
 Live SSH identifies MT6582/HVR `8a01`/FVR `8a00`. A stopped-buffer snapshot

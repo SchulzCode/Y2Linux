@@ -1,3 +1,18 @@
+# Latest state — CONNECTIVITY-08 inspected; BlueZ reached (2026-09-17)
+
+The owner-installed -08 clears the RF-result EPROTO. HCI next fails at local
+extended feature page 2 (status `0x30`); the scoped Linux quirk and corrected
+cached page limit are physically tested in the running kernel. **Standard
+hci0/BlueZ appears and runtime power-on succeeds.** Wi-Fi still fails after
+Wi-Fi Start without wlan0. Both saved preferences remain off.
+[Complete physical result](../hardware-evidence/2026-09-17-m5-connectivity08/README.md).
+
+Build -09 BOOTIMG-only to make the tested HCI correction permanent; retain -07
+root/data and -08 fallback. Manual owner installation remains the deployment
+boundary. The live -08 quirk is temporary until reboot; no claim of -09 physical
+qualification or full radio/M5 completion. M4 remains accepted. Earlier awaiting
+-08 installation text is history.
+
 # Latest state — CONNECTIVITY-07 protocol failure located (2026-09-17)
 
 The provider, DMA/IRQs and controller identification work. The own live capture

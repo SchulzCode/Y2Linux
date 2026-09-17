@@ -567,6 +567,80 @@ int main(void) {
             with self.subTest(path=path,key=key), patch('tools.validation.dev_dtb.fdt',return_value=(changed,reserved)), self.assertRaises((ValueError,KeyError)):
                 check(raw,size)
 
+    def test_e2_feature_page_quirk_with_actual_kernel_consumer(self):
+        native=(ROOT/'kernel/platform/connectivity/hci.c').read_text()
+        event=(ROOT/'.cache/sources/linux-6.18/net/bluetooth/hci_event.c').read_text()
+        sync=(ROOT/'.cache/sources/linux-6.18/net/bluetooth/hci_sync.c').read_text()
+        body='\n'.join((function(native,'controller_quirks'),
+                        function(event,'hci_cc_read_local_ext_features'),
+                        function(sync,'hci_read_local_ext_features_sync'),
+                        function(sync,'hci_read_local_ext_features_all_sync')))
+        run_c(r"""
+#include <assert.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <string.h>
+typedef unsigned char u8;
+#define HCI_MAX_PAGES 3
+#define HCI_OP_READ_LOCAL_EXT_FEATURES 0x1004
+#define HCI_QUIRK_BROKEN_LOCAL_EXT_FEATURES_PAGE_2 2
+#define HCI_CMD_TIMEOUT 2000
+#define bt_dev_dbg(...) ((void)0)
+#define bt_dev_warn(...) ((void)0)
+struct hci_dev {
+ unsigned quirks;
+ u8 max_page,features[HCI_MAX_PAGES][8],le_features[8],commands[64];
+};
+struct y2_conn {unsigned chip,hvr,fvr;struct hci_dev *hdev;};
+struct sk_buff {int unused;};
+struct hci_cp_read_local_ext_features {u8 page;};
+struct hci_rp_read_local_ext_features {u8 status,page,max_page,features[8];};
+#define hci_set_quirk(h,n) ((h)->quirks |= 1U<<(n))
+#define hci_test_quirk(h,n) (!!((h)->quirks & (1U<<(n))))
+#define lmp_ext_feat_capable(h) ((h)->features[0][7]&0x80)
+static unsigned page2_requests;
+static int __hci_cmd_sync_status(struct hci_dev *h,unsigned op,unsigned n,
+                                 const struct hci_cp_read_local_ext_features *cp,unsigned timeout){
+ assert(op==0x1004 && n==1 && cp->page==2 && timeout==HCI_CMD_TIMEOUT);
+ page2_requests++;return -ENOSYS; /* observed status 0x30 maps to ENOSYS */
+}
+"""+body+r"""
+static void fresh(struct hci_dev *h){
+ memset(h,0,sizeof(*h));h->quirks=1;h->max_page=1;
+ const u8 features[]={0xbf,0x3e,0x8d,0xfe,0xdb,0xff,0x5b,0x87};
+ memcpy(h->features[0],features,8);h->le_features[0]=1;
+ memset(h->commands,0xa5,sizeof(h->commands));page2_requests=0;
+}
+int main(void){
+ struct hci_dev h,before;
+ struct y2_conn c={0x6582,0x8a01,0x8a00,&h};
+ struct hci_rp_read_local_ext_features reply={.page=1,.max_page=2};
+ /* Reproduce the own-unit failure through the actual Linux reply handler
+  * and stage-3 iterator, not a second implementation of the quirk. */
+ fresh(&h);assert(!hci_cc_read_local_ext_features(&h,&reply,NULL));
+ assert(h.max_page==2 && hci_read_local_ext_features_all_sync(&h)==-ENOSYS);
+ assert(page2_requests==1);
+ /* Repair both a fresh and a previously failed HCI instance. Keep all
+  * page-0 EDR/LE features and supported commands exactly as reported. */
+ for(unsigned previous=0;previous<=2;previous++){
+  fresh(&h);h.max_page=previous;before=h;controller_quirks(&c);
+  assert(h.max_page==1 && hci_test_quirk(&h,HCI_QUIRK_BROKEN_LOCAL_EXT_FEATURES_PAGE_2));
+  assert(h.quirks==5 && !memcmp(h.features,before.features,sizeof(h.features)));
+  assert(!memcmp(h.le_features,before.le_features,8) && !memcmp(h.commands,before.commands,64));
+  assert(!hci_cc_read_local_ext_features(&h,&reply,NULL));
+  assert(h.max_page==1 && !hci_read_local_ext_features_all_sync(&h) && !page2_requests);
+  struct hci_rp_read_local_ext_features bad={.status=0x30,.page=2,.max_page=2};
+  assert(hci_cc_read_local_ext_features(&h,&bad,NULL)==0x30); /* no status bypass */
+ }
+ for(unsigned other=0;other<3;other++){
+  c.chip=other==0?0x6572:0x6582;c.hvr=other==1?0x8a00:0x8a01;c.fvr=other==2?0x8a01:0x8a00;
+  fresh(&h);before=h;controller_quirks(&c);assert(!memcmp(&h,&before,sizeof(h)));
+  assert(!hci_cc_read_local_ext_features(&h,&reply,NULL));
+  assert(hci_read_local_ext_features_all_sync(&h)==-ENOSYS && page2_requests==1);
+ }
+}
+""")
+
     def test_actual_hci_fragmentation_and_corrupt_lengths(self):
         source=(ROOT/'kernel/platform/connectivity/hci.c').read_text()
         body=function(source.replace('void y2_hci_receive(', 'static void y2_hci_receive('), 'y2_hci_receive')
