@@ -3,7 +3,7 @@
 The owner explicitly authorizes the production Linux 6.18 / Lima / Mesa GPU
 platform and one integrated **Y2LINUX-GPU-01** candidate. Reborn and M6/OTA
 implementation remain out of scope. Only the owner flashes the Y2. GPU-01 was manually deployed during the session;
-GPU-02 is now the targeted correction to prepare for the next manual boundary. Preserve Y2DATA, all identities/preferences/bonds and RAM
+GPU-02 is built and validated at the next manual deployment boundary. Preserve Y2DATA, all identities/preferences/bonds and RAM
 exclusions. This supersedes the older handoff's GPU deferral.
 
 Entry is clean `c70ff07`. Strict SSH using the retained private host-key pin
@@ -64,8 +64,10 @@ replay old failures and pass after correction; no other hardware policy changes.
 CPUs 0–2, SPM broken=1, taint 0; SSH, root/data, charge watchdog and radios work.
 Temporary test state is restored (pm_test none, charge auto, no RTC alarm,
 radios/preferences off). The assistant has not flashed or replaced installed
-production code. Prepare integrated GPU-02, provide exact artifacts/fallbacks,
-then STOP for owner deployment. Keep GPU-01 artifacts immutable.
+production code. GPU-02 is built from source/evidence commit `7e318afbffe640c6bf9da458f61ac2108f7d5bde`;
+94 tests and nine package rejection checks pass. [Full deployment receipt](../build/y2linux-gpu-02-deployment.md)
+contains exact hashes, unchanged fallback pair and the targeted next procedure.
+STOP for owner manual deployment. GPU-01 artifacts remain immutable.
 
 GPU #34 stays OPEN; NOT READY TO BEGIN REBORN. After GPU-02 installation, run
 only the targeted CPU/suspend/resume/display/input and post-resume regressions.

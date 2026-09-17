@@ -14,6 +14,9 @@ wake. A retained bounded `pm_test=core` trace localizes CPU3 power-off timeout:
 status clears bit 9 while code waits for bit 13. Actual retained Y2 stock and
 pinned GPL source prove CPU1/2/3 masks 0x800/0x400/0x200 and combined 0xe00.
 GPU-02 corrects those ACK/boot/entry tests and the radio zero-format matcher.
+The [integrated GPU-02 package](../build/y2linux-gpu-02-deployment.md) is now built
+from `7e318af`, with 94 tests, nine package rejection cases and exact emitted
+root/DT checks passing. STOP for owner manual deployment; no assistant flash.
 No PCM, voltage, frequency, GPU/display/radio architecture or memory change.
 
 This updates only the observed gap inside the authorized GPU qualification;

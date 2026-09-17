@@ -1,0 +1,9 @@
+{
+  "release_version": "0.1.0-gpu.2",
+  "layout_version": 1,
+  "kernel_version": "6.18.0-y2linux-gpu-02",
+  "rootfs_version": "2025.02.17-gpu.2",
+  "data_schema_version": 1,
+  "y2player_version": null,
+  "build_git_commit": "7e318afbffe640c6bf9da458f61ac2108f7d5bde"
+}

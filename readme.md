@@ -13,7 +13,7 @@ Remaining M5 connection/audio qualification is pending by owner choice. Producti
 GPU-01 physically renders with Linux 6.18 Lima, Mesa EGL/GLES and existing KMS.
 [Physical evidence](docs/hardware-evidence/2026-09-18-gpu01/README.md) confirms
 30 FPS, runtime power-off and clean wired audio. Deep suspend exposes CPU
-status-mask and helper defects; GPU-02 is the targeted correction. Y2Linux is
+status-mask and helper defects; [GPU-02 is built and ready for manual deployment](docs/build/y2linux-gpu-02-deployment.md). Y2Linux is
 not yet ready to begin Reborn.
 Reborn and M6/OTA remain out of scope. Only the owner deploys physical images.
 
@@ -57,8 +57,8 @@ carry 16-bit samples: native 24/32-bit and higher rates are not implemented.
 - [AUDIO-02 deployment and hashes](docs/build/y2linux-m3-audio-02-deployment.md)
 - [M0 research/recovery](docs/planning/M0-evidence-and-recovery.md) and [evidence index](docs/knowledge/evidence-index.md)
 
-Current boundary: prepare corrected Y2LINUX-GPU-02, then stop for owner manual
-deployment and targeted suspend/resume qualification. Preserve M4, CONNECTIVITY-10,
+Current boundary: STOP for owner manual deployment of corrected Y2LINUX-GPU-02,
+then targeted suspend/resume qualification. Preserve M4, CONNECTIVITY-10,
 Y2DATA and all RAM reservations. The
 [Production Storage v1](docs/architecture/production-storage-v1.md) component
 boundaries remain unchanged. Do not start Reborn or M6/OTA.

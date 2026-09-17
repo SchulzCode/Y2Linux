@@ -1,0 +1,10 @@
+PASS rejected added data payload : exact payload allowlist
+PASS rejected protected kernel write : runtime allowlist
+PASS rejected data schema reset : build version receipt
+PASS rejected source mismatch : kernel/root source receipt
+PASS rejected changed data identity : new root plus unchanged data contract
+PASS rejected fallback identity lie : fallback identity receipt
+PASS rejected firmware redistribution claim : owner-only provisioning
+PASS rejected data scatter selection : exact preserving scatter
+PASS rejected unexpected data image : no data image in a system update
+PASS 9 isolated preserving-package rejection cases; image targets were hard links opened only for reading

@@ -1,0 +1,17 @@
+{
+  "usr/sbin/y2-suspend": {
+    "sha256": "05c8c5c80af5c6e0fee4534cf61cb9437ed00d7e3adcd4e86bf17707e4c7ce29",
+    "bytes": 1025,
+    "source_match": "PASS"
+  },
+  "etc/y2linux/build-id": {
+    "sha256": "0b010a4bf6ee709b716e2dd8e8c6d1fe6fbdbba89e19c9ccc98dd4f58738d595",
+    "bytes": 15,
+    "source_match": "PASS"
+  },
+  "etc/y2linux/versions.json": {
+    "sha256": "cb0a0f801dfa5e09fd2124a1c991ef59637f35c46e076af48f1594938b96a62b",
+    "bytes": 269,
+    "source_match": "PASS"
+  }
+}
