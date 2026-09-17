@@ -222,12 +222,13 @@ def validate_boot_update(out, base=None):
 def validate_rootfs(out,build,m):
     with tarfile.open(build/'buildroot/images/rootfs.tar') as tar:
         members={x.name.removeprefix('./').rstrip('/'):x for x in tar.getmembers()}
-        def read(name):
+        def resolve(name):
             for _ in range(16):
                 require(name in members,'missing rootfs '+name);x=members[name]
-                if not (x.issym() or x.islnk()):return tar.extractfile(x).read()
+                if not (x.issym() or x.islnk()):return name
                 name=posixpath.normpath(x.linkname.lstrip('/') if x.linkname.startswith('/') or x.islnk() else posixpath.join(posixpath.dirname(name),x.linkname)).removeprefix('./')
             raise ValueError('symlink loop')
+        def read(name):return tar.extractfile(members[resolve(name)]).read()
         require(members['root/.ssh'].issym() and members['root/.ssh'].linkname=='/data/ssh/authorized_keys.d','persistent public authorization')
         require(members['etc/dropbear'].issym() and members['etc/dropbear'].linkname=='/data/ssh/host-keys','persistent generated host keys')
         dbus_uid=dbus_gid=None
@@ -268,6 +269,8 @@ def validate_rootfs(out,build,m):
             for name in ('usr/bin/y2-gpu-check','usr/lib/libEGL.so.1','usr/lib/libGLESv2.so.2','usr/lib/libgbm.so.1','usr/lib/libdrm.so.2','usr/lib/dri/lima_dri.so','usr/lib/dri/mediatek_dri.so'):
                 content=read(name)
                 require(content[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',content,18)[0]==40,'graphics ARM binary '+name)
+                require(struct.unpack_from('<I',content,36)[0]&0x400,'graphics hard-float '+name)
+                require(run('debugfs','-R','cat /'+resolve(name),str(out/'Y2ROOT.img'))==content,'graphics raw ext4/tar agreement '+name)
             require(not any(name in members for name in ('usr/lib/dri/swrast_dri.so','usr/bin/Xorg','usr/bin/weston')), 'no software/desktop graphics fallback')
         for name in ('bin/busybox','sbin/init','sbin/blkid','sbin/e2fsck','sbin/ip','usr/sbin/dropbear','usr/bin/aplay','usr/bin/amixer','usr/bin/evtest','usr/bin/strace'):
             raw=read(name);require(raw[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',raw,18)[0]==40,'ARM userspace '+name)

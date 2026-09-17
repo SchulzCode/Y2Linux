@@ -86,6 +86,18 @@ def package(build, base, fallback_root, out):
                         (PROJECT/'tools/build/connectivity-host.lock.json','connectivity-host.lock.json'),
                         (PROJECT/'buildroot/inputs.lock.json','buildroot-inputs.lock.json')]:
         shutil.copyfile(source,out/'metadata'/name)
+    if '-gpu.' in versions['rootfs_version']:
+        licenses=out/'metadata/graphics-licenses'; licenses.mkdir()
+        for source,name in [
+                (build/'buildroot/build/mesa3d-24.0.9/docs/license.rst','Mesa-24.0.9-license.rst'),
+                (build/'buildroot/build/libdrm-2.4.124/data/meson.build','libdrm-2.4.124-license.txt'),
+                (PROJECT/'tools/graphics/LICENSE','y2-gpu-check-MIT.txt'),
+                (PROJECT/'tools/graphics/include/lima_drm.h','Linux-6.18-lima-uapi.h'),
+                (PROJECT/'docs/knowledge/evidence/gpu-source-contract.json','gpu-source-contract.json')]:
+            shutil.copyfile(source,licenses/name)
+        for name in ('mesa3d','libdrm'):
+            shutil.copyfile(PROJECT/'.cache/sources/buildroot-2025.02.17/package'/name/(name+'.hash'),
+                            licenses/(name+'-source.hash'))
     manifest=copy.deepcopy(previous); manifest.update(versions)
     for name in ('fallback','userspace_source','rootfs_build_git_commit','installed_components_policy'):
         manifest.pop(name,None)

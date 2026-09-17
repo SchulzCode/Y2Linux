@@ -72,6 +72,10 @@ until after power-off ACKs; Lima gates the G3D child before domain shutdown.
 No duplicate SPM mapping or donor power shim is installed.
 Domain reset is intrinsic to this sequence; no independent reset property is
 needed. SMI_COMMON remains held by the authoritative display clock provider.
+Its inherited bus rate remains unresolved in that existing provider; a zero
+reported bus rate is not a measured stopped clock. GPU integration does not
+retune the display/bus PLL. The GPU core source has the separate 500.5-MHz
+register-derived contract above.
 
 The existing CCF owner controls only MFG's top gate bit 23, preserving the
 selector and all adjacent fields. A separate nonoverlapping MFGCFG CCF provider
@@ -94,6 +98,9 @@ and PRIME synchronization retain the existing noncoherent ARM cache handling.
 Allocation failures must return cleanly; the utility has bounded textures and
 at most the normal GBM front/back buffer set. Larger production limits require
 measurement, not a promise based on the GPU's virtual-address width.
+KMS scanout allocations still require physically contiguous pages; under RAM
+fragmentation those can fail with ENOMEM. At native size they are small (about
+0.7 MiB each). This candidate does not claim arbitrary large allocation success.
 
 ## Graphics userspace and presentation
 
@@ -202,3 +209,6 @@ from the MediaTek GPL source and actual Y2 stock disassembly; the donor is only
 a corroborating lead, not a copied permanent-power shim. No proprietary Mali
 userspace is included. Existing owner-only connectivity firmware/provenance and
 redistribution restrictions are unchanged by the graphics work.
+The candidate includes source archive hashes and the Mesa, libdrm, qualification
+tool and Lima UAPI license texts under `metadata/graphics-licenses` alongside
+the existing Linux/Buildroot receipts.

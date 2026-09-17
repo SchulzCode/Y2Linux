@@ -29,13 +29,21 @@
       "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_pm_init.c",
       "sha256": "f888a6e315321732c85056bf070f28f23a592be3dea8d8f3edceb1ccac98fcb0",
       "bytes": 8740
+    },
+    {
+      "path": "arch/arm/mach-mt6582/mt_clkmgr.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_clkmgr.c",
+      "sha256": "f73bbe0a4c3c07e2831e4c2bc5cabd3de7909c52e2ce572863fabfc46eadbc8d",
+      "bytes": 101786
     }
   ],
   "stock_kernel_reference": "docs/knowledge/evidence/m4-power-source.json",
   "stock_functions": {
     "spm_mtcmos_ctrl_mfg": "0xc0035230",
     "mali_platform_power_mode_change": "0xc059890c",
-    "mali_pmm_init": "0xc0598bdc"
+    "mali_pmm_init": "0xc0598bdc",
+    "clk_enable_locked": "0xc00426f8",
+    "clk_disable_locked": "0xc0042334"
   },
   "lima_uapi_sha256": "118eafe604a7811402ab4d254a23038beac454e97d3ea03a7f96bc2382becf4e",
   "limits": "Not physical GPU rendering or silicon revision evidence. Generic mt_gpufreq table explicitly rejected."
