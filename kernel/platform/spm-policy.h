@@ -4,6 +4,17 @@
  * The caller serializes all SPM operations and owns the MMIO window. */
 #ifndef Y2_SPM_POLICY_H
 #define Y2_SPM_POLICY_H
+/* Stock FC1/FC2/FC3 descend in PWR_STATUS; CPU3 physically clears bit 9. */
+#define Y2_SPM_SECONDARY_CPU_MASK 0x00000e00U
+static inline unsigned y2_spm_cpu_status_mask(unsigned cpu)
+{
+	switch (cpu) {
+	case 1: return 0x800;
+	case 2: return 0x400;
+	case 3: return 0x200;
+	default: return 0;
+	}
+}
 struct y2_spm_io {
 	void *context;
 	unsigned (*read)(void *, unsigned);
@@ -31,7 +42,7 @@ static inline int y2_spm_cpu_power(const struct y2_spm_io *io, unsigned cpu, int
 	int ret;
 	if (cpu < 1 || cpu > 3) return -EINVAL;
 	power = 0x214 + cpu * 4; sram = 0x25c + cpu * 8;
-	bit = 1U << (10 + cpu);
+	bit = y2_spm_cpu_status_mask(cpu);
 	io->write(io->context, 0, 0x0b160001);
 	if (!on) {
 		/* Never isolate a running CPU. Its architectural die hook must

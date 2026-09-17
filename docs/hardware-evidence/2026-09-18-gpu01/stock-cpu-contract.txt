@@ -1,0 +1,389 @@
+
+FUNCTION spm_mtcmos_ctrl_cpu1
+c00347c8 0dc0a0e1 mov      ip, sp
+c00347cc 70d82de9 push     {r4, r5, r6, fp, ip, lr, pc}
+c00347d0 04b04ce2 sub      fp, ip, #4
+c00347d4 0cd04de2 sub      sp, sp, #0xc
+c00347d8 064aa0e3 mov      r4, #0x6000
+c00347dc 00404fe3 movt     r4, #0xf000
+c00347e0 0050a0e1 mov      r5, r0
+c00347e4 0160a0e1 mov      r6, r1
+c00347e8 0130a0e3 mov      r3, #1
+c00347ec 163b40e3 movt     r3, #0xb16
+c00347f0 003084e5 str      r3, [r4]
+c00347f4 4ff07ff5 dsb      sy
+c00347f8 20004be2 sub      r0, fp, #0x20
+c00347fc dbffffeb bl       #0xc0034770 ; spm_mtcmos_cpu_lock
+c0034800 000055e3 cmp      r5, #0
+c0034804 3700001a bne      #0xc00348e8 ; 
+c0034808 000056e3 cmp      r6, #0
+c003480c 2e00001a bne      #0xc00348cc ; 
+c0034810 061aa0e3 mov      r1, #0x6000
+c0034814 00104fe3 movt     r1, #0xf000
+c0034818 183291e5 ldr      r3, [r1, #0x218]
+c003481c 203083e3 orr      r3, r3, #0x20
+c0034820 183281e5 str      r3, [r1, #0x218]
+c0034824 4ff07ff5 dsb      sy
+c0034828 183291e5 ldr      r3, [r1, #0x218]
+c003482c 4030c3e3 bic      r3, r3, #0x40
+c0034830 183281e5 str      r3, [r1, #0x218]
+c0034834 4ff07ff5 dsb      sy
+c0034838 643291e5 ldr      r3, [r1, #0x264]
+c003483c 013083e3 orr      r3, r3, #1
+c0034840 643281e5 str      r3, [r1, #0x264]
+c0034844 4ff07ff5 dsb      sy
+c0034848 643291e5 ldr      r3, [r1, #0x264]
+c003484c 062aa0e3 mov      r2, #0x6000
+c0034850 00204fe3 movt     r2, #0xf000
+c0034854 010c13e3 tst      r3, #0x100
+c0034858 faffff0a beq      #0xc0034848 ; 
+c003485c 183292e5 ldr      r3, [r2, #0x218]
+c0034860 023083e3 orr      r3, r3, #2
+c0034864 183282e5 str      r3, [r2, #0x218]
+c0034868 4ff07ff5 dsb      sy
+c003486c 183292e5 ldr      r3, [r2, #0x218]
+c0034870 1130c3e3 bic      r3, r3, #0x11
+c0034874 103083e3 orr      r3, r3, #0x10
+c0034878 183282e5 str      r3, [r2, #0x218]
+c003487c 4ff07ff5 dsb      sy
+c0034880 183292e5 ldr      r3, [r2, #0x218]
+c0034884 0430c3e3 bic      r3, r3, #4
+c0034888 183282e5 str      r3, [r2, #0x218]
+c003488c 4ff07ff5 dsb      sy
+c0034890 183292e5 ldr      r3, [r2, #0x218]
+c0034894 0830c3e3 bic      r3, r3, #8
+c0034898 183282e5 str      r3, [r2, #0x218]
+c003489c 4ff07ff5 dsb      sy
+c00348a0 0c3692e5 ldr      r3, [r2, #0x60c]
+c00348a4 020b13e3 tst      r3, #0x800
+c00348a8 fcffff1a bne      #0xc00348a0 ; 
+c00348ac 103692e5 ldr      r3, [r2, #0x610]
+c00348b0 020b13e3 tst      r3, #0x800
+c00348b4 f9ffff1a bne      #0xc00348a0 ; 
+c00348b8 20004be2 sub      r0, fp, #0x20
+c00348bc b4ffffeb bl       #0xc0034794 ; spm_mtcmos_cpu_unlock
+c00348c0 0000a0e3 mov      r0, #0
+c00348c4 18d04be2 sub      sp, fp, #0x18
+c00348c8 70a89de8 ldm      sp, {r4, r5, r6, fp, sp, pc}
+c00348cc 203794e5 ldr      r3, [r4, #0x720]
+c00348d0 010813e3 tst      r3, #0x10000
+c00348d4 cdffff1a bne      #0xc0034810 ; 
+c00348d8 203794e5 ldr      r3, [r4, #0x720]
+c00348dc 010813e3 tst      r3, #0x10000
+c00348e0 f9ffff0a beq      #0xc00348cc ; 
+c00348e4 c9ffffea b        #0xc0034810 ; 
+c00348e8 183294e5 ldr      r3, [r4, #0x218]
+c00348ec 043083e3 orr      r3, r3, #4
+c00348f0 183284e5 str      r3, [r4, #0x218]
+c00348f4 4ff07ff5 dsb      sy
+c00348f8 6e030ae3 movw     r0, #0xa36e
+c00348fc 010040e3 movt     r0, #1
+c0034900 e59608eb bl       #0xc025a49c ; __const_udelay
+c0034904 183294e5 ldr      r3, [r4, #0x218]
+c0034908 083083e3 orr      r3, r3, #8
+c003490c 183284e5 str      r3, [r4, #0x218]
+c0034910 4ff07ff5 dsb      sy
+c0034914 0410a0e1 mov      r1, r4
+c0034918 0c2691e5 ldr      r2, [r1, #0x60c]
+c003491c 063aa0e3 mov      r3, #0x6000
+c0034920 00304fe3 movt     r3, #0xf000
+c0034924 020b12e3 tst      r2, #0x800
+c0034928 faffff0a beq      #0xc0034918 ; 
+c003492c 102691e5 ldr      r2, [r1, #0x610]
+c0034930 020b12e3 tst      r2, #0x800
+c0034934 f7ffff0a beq      #0xc0034918 ; 
+c0034938 182293e5 ldr      r2, [r3, #0x218]
+c003493c 1020c2e3 bic      r2, r2, #0x10
+c0034940 182283e5 str      r2, [r3, #0x218]
+c0034944 4ff07ff5 dsb      sy
+c0034948 642293e5 ldr      r2, [r3, #0x264]
+c003494c 0120c2e3 bic      r2, r2, #1
+c0034950 642283e5 str      r2, [r3, #0x264]
+c0034954 4ff07ff5 dsb      sy
+c0034958 641293e5 ldr      r1, [r3, #0x264]
+c003495c 062aa0e3 mov      r2, #0x6000
+c0034960 00204fe3 movt     r2, #0xf000
+c0034964 010c11e3 tst      r1, #0x100
+c0034968 faffff1a bne      #0xc0034958 ; 
+c003496c 183292e5 ldr      r3, [r2, #0x218]
+c0034970 403083e3 orr      r3, r3, #0x40
+c0034974 183282e5 str      r3, [r2, #0x218]
+c0034978 4ff07ff5 dsb      sy
+c003497c 183292e5 ldr      r3, [r2, #0x218]
+c0034980 2030c3e3 bic      r3, r3, #0x20
+c0034984 183282e5 str      r3, [r2, #0x218]
+c0034988 4ff07ff5 dsb      sy
+c003498c 183292e5 ldr      r3, [r2, #0x218]
+c0034990 0230c3e3 bic      r3, r3, #2
+c0034994 183282e5 str      r3, [r2, #0x218]
+c0034998 4ff07ff5 dsb      sy
+c003499c 183292e5 ldr      r3, [r2, #0x218]
+c00349a0 013083e3 orr      r3, r3, #1
+c00349a4 183282e5 str      r3, [r2, #0x218]
+c00349a8 4ff07ff5 dsb      sy
+c00349ac c1ffffea b        #0xc00348b8 ; 
+
+FUNCTION spm_mtcmos_ctrl_cpu2
+c00349b0 0dc0a0e1 mov      ip, sp
+c00349b4 70d82de9 push     {r4, r5, r6, fp, ip, lr, pc}
+c00349b8 04b04ce2 sub      fp, ip, #4
+c00349bc 0cd04de2 sub      sp, sp, #0xc
+c00349c0 064aa0e3 mov      r4, #0x6000
+c00349c4 00404fe3 movt     r4, #0xf000
+c00349c8 0050a0e1 mov      r5, r0
+c00349cc 0160a0e1 mov      r6, r1
+c00349d0 0130a0e3 mov      r3, #1
+c00349d4 163b40e3 movt     r3, #0xb16
+c00349d8 003084e5 str      r3, [r4]
+c00349dc 4ff07ff5 dsb      sy
+c00349e0 20004be2 sub      r0, fp, #0x20
+c00349e4 61ffffeb bl       #0xc0034770 ; spm_mtcmos_cpu_lock
+c00349e8 000055e3 cmp      r5, #0
+c00349ec 3700001a bne      #0xc0034ad0 ; 
+c00349f0 000056e3 cmp      r6, #0
+c00349f4 2e00001a bne      #0xc0034ab4 ; 
+c00349f8 061aa0e3 mov      r1, #0x6000
+c00349fc 00104fe3 movt     r1, #0xf000
+c0034a00 1c3291e5 ldr      r3, [r1, #0x21c]
+c0034a04 203083e3 orr      r3, r3, #0x20
+c0034a08 1c3281e5 str      r3, [r1, #0x21c]
+c0034a0c 4ff07ff5 dsb      sy
+c0034a10 1c3291e5 ldr      r3, [r1, #0x21c]
+c0034a14 4030c3e3 bic      r3, r3, #0x40
+c0034a18 1c3281e5 str      r3, [r1, #0x21c]
+c0034a1c 4ff07ff5 dsb      sy
+c0034a20 6c3291e5 ldr      r3, [r1, #0x26c]
+c0034a24 013083e3 orr      r3, r3, #1
+c0034a28 6c3281e5 str      r3, [r1, #0x26c]
+c0034a2c 4ff07ff5 dsb      sy
+c0034a30 6c3291e5 ldr      r3, [r1, #0x26c]
+c0034a34 062aa0e3 mov      r2, #0x6000
+c0034a38 00204fe3 movt     r2, #0xf000
+c0034a3c 010c13e3 tst      r3, #0x100
+c0034a40 faffff0a beq      #0xc0034a30 ; 
+c0034a44 1c3292e5 ldr      r3, [r2, #0x21c]
+c0034a48 023083e3 orr      r3, r3, #2
+c0034a4c 1c3282e5 str      r3, [r2, #0x21c]
+c0034a50 4ff07ff5 dsb      sy
+c0034a54 1c3292e5 ldr      r3, [r2, #0x21c]
+c0034a58 1130c3e3 bic      r3, r3, #0x11
+c0034a5c 103083e3 orr      r3, r3, #0x10
+c0034a60 1c3282e5 str      r3, [r2, #0x21c]
+c0034a64 4ff07ff5 dsb      sy
+c0034a68 1c3292e5 ldr      r3, [r2, #0x21c]
+c0034a6c 0430c3e3 bic      r3, r3, #4
+c0034a70 1c3282e5 str      r3, [r2, #0x21c]
+c0034a74 4ff07ff5 dsb      sy
+c0034a78 1c3292e5 ldr      r3, [r2, #0x21c]
+c0034a7c 0830c3e3 bic      r3, r3, #8
+c0034a80 1c3282e5 str      r3, [r2, #0x21c]
+c0034a84 4ff07ff5 dsb      sy
+c0034a88 0c3692e5 ldr      r3, [r2, #0x60c]
+c0034a8c 010b13e3 tst      r3, #0x400
+c0034a90 fcffff1a bne      #0xc0034a88 ; 
+c0034a94 103692e5 ldr      r3, [r2, #0x610]
+c0034a98 010b13e3 tst      r3, #0x400
+c0034a9c f9ffff1a bne      #0xc0034a88 ; 
+c0034aa0 20004be2 sub      r0, fp, #0x20
+c0034aa4 3affffeb bl       #0xc0034794 ; spm_mtcmos_cpu_unlock
+c0034aa8 0000a0e3 mov      r0, #0
+c0034aac 18d04be2 sub      sp, fp, #0x18
+c0034ab0 70a89de8 ldm      sp, {r4, r5, r6, fp, sp, pc}
+c0034ab4 203794e5 ldr      r3, [r4, #0x720]
+c0034ab8 020813e3 tst      r3, #0x20000
+c0034abc cdffff1a bne      #0xc00349f8 ; 
+c0034ac0 203794e5 ldr      r3, [r4, #0x720]
+c0034ac4 020813e3 tst      r3, #0x20000
+c0034ac8 f9ffff0a beq      #0xc0034ab4 ; 
+c0034acc c9ffffea b        #0xc00349f8 ; 
+c0034ad0 1c3294e5 ldr      r3, [r4, #0x21c]
+c0034ad4 043083e3 orr      r3, r3, #4
+c0034ad8 1c3284e5 str      r3, [r4, #0x21c]
+c0034adc 4ff07ff5 dsb      sy
+c0034ae0 6e030ae3 movw     r0, #0xa36e
+c0034ae4 010040e3 movt     r0, #1
+c0034ae8 6b9608eb bl       #0xc025a49c ; __const_udelay
+c0034aec 1c3294e5 ldr      r3, [r4, #0x21c]
+c0034af0 083083e3 orr      r3, r3, #8
+c0034af4 1c3284e5 str      r3, [r4, #0x21c]
+c0034af8 4ff07ff5 dsb      sy
+c0034afc 0410a0e1 mov      r1, r4
+c0034b00 0c2691e5 ldr      r2, [r1, #0x60c]
+c0034b04 063aa0e3 mov      r3, #0x6000
+c0034b08 00304fe3 movt     r3, #0xf000
+c0034b0c 010b12e3 tst      r2, #0x400
+c0034b10 faffff0a beq      #0xc0034b00 ; 
+c0034b14 102691e5 ldr      r2, [r1, #0x610]
+c0034b18 010b12e3 tst      r2, #0x400
+c0034b1c f7ffff0a beq      #0xc0034b00 ; 
+c0034b20 1c2293e5 ldr      r2, [r3, #0x21c]
+c0034b24 1020c2e3 bic      r2, r2, #0x10
+c0034b28 1c2283e5 str      r2, [r3, #0x21c]
+c0034b2c 4ff07ff5 dsb      sy
+c0034b30 6c2293e5 ldr      r2, [r3, #0x26c]
+c0034b34 0120c2e3 bic      r2, r2, #1
+c0034b38 6c2283e5 str      r2, [r3, #0x26c]
+c0034b3c 4ff07ff5 dsb      sy
+c0034b40 6c1293e5 ldr      r1, [r3, #0x26c]
+c0034b44 062aa0e3 mov      r2, #0x6000
+c0034b48 00204fe3 movt     r2, #0xf000
+c0034b4c 010c11e3 tst      r1, #0x100
+c0034b50 faffff1a bne      #0xc0034b40 ; 
+c0034b54 1c3292e5 ldr      r3, [r2, #0x21c]
+c0034b58 403083e3 orr      r3, r3, #0x40
+c0034b5c 1c3282e5 str      r3, [r2, #0x21c]
+c0034b60 4ff07ff5 dsb      sy
+c0034b64 1c3292e5 ldr      r3, [r2, #0x21c]
+c0034b68 2030c3e3 bic      r3, r3, #0x20
+c0034b6c 1c3282e5 str      r3, [r2, #0x21c]
+c0034b70 4ff07ff5 dsb      sy
+c0034b74 1c3292e5 ldr      r3, [r2, #0x21c]
+c0034b78 0230c3e3 bic      r3, r3, #2
+c0034b7c 1c3282e5 str      r3, [r2, #0x21c]
+c0034b80 4ff07ff5 dsb      sy
+c0034b84 1c3292e5 ldr      r3, [r2, #0x21c]
+c0034b88 013083e3 orr      r3, r3, #1
+c0034b8c 1c3282e5 str      r3, [r2, #0x21c]
+c0034b90 4ff07ff5 dsb      sy
+c0034b94 c1ffffea b        #0xc0034aa0 ; 
+
+FUNCTION spm_mtcmos_ctrl_cpu3
+c0034b98 0dc0a0e1 mov      ip, sp
+c0034b9c 70d82de9 push     {r4, r5, r6, fp, ip, lr, pc}
+c0034ba0 04b04ce2 sub      fp, ip, #4
+c0034ba4 0cd04de2 sub      sp, sp, #0xc
+c0034ba8 064aa0e3 mov      r4, #0x6000
+c0034bac 00404fe3 movt     r4, #0xf000
+c0034bb0 0050a0e1 mov      r5, r0
+c0034bb4 0160a0e1 mov      r6, r1
+c0034bb8 0130a0e3 mov      r3, #1
+c0034bbc 163b40e3 movt     r3, #0xb16
+c0034bc0 003084e5 str      r3, [r4]
+c0034bc4 4ff07ff5 dsb      sy
+c0034bc8 20004be2 sub      r0, fp, #0x20
+c0034bcc e7feffeb bl       #0xc0034770 ; spm_mtcmos_cpu_lock
+c0034bd0 000055e3 cmp      r5, #0
+c0034bd4 3700001a bne      #0xc0034cb8 ; 
+c0034bd8 000056e3 cmp      r6, #0
+c0034bdc 2e00001a bne      #0xc0034c9c ; 
+c0034be0 061aa0e3 mov      r1, #0x6000
+c0034be4 00104fe3 movt     r1, #0xf000
+c0034be8 203291e5 ldr      r3, [r1, #0x220]
+c0034bec 203083e3 orr      r3, r3, #0x20
+c0034bf0 203281e5 str      r3, [r1, #0x220]
+c0034bf4 4ff07ff5 dsb      sy
+c0034bf8 203291e5 ldr      r3, [r1, #0x220]
+c0034bfc 4030c3e3 bic      r3, r3, #0x40
+c0034c00 203281e5 str      r3, [r1, #0x220]
+c0034c04 4ff07ff5 dsb      sy
+c0034c08 743291e5 ldr      r3, [r1, #0x274]
+c0034c0c 013083e3 orr      r3, r3, #1
+c0034c10 743281e5 str      r3, [r1, #0x274]
+c0034c14 4ff07ff5 dsb      sy
+c0034c18 743291e5 ldr      r3, [r1, #0x274]
+c0034c1c 062aa0e3 mov      r2, #0x6000
+c0034c20 00204fe3 movt     r2, #0xf000
+c0034c24 010c13e3 tst      r3, #0x100
+c0034c28 faffff0a beq      #0xc0034c18 ; 
+c0034c2c 203292e5 ldr      r3, [r2, #0x220]
+c0034c30 023083e3 orr      r3, r3, #2
+c0034c34 203282e5 str      r3, [r2, #0x220]
+c0034c38 4ff07ff5 dsb      sy
+c0034c3c 203292e5 ldr      r3, [r2, #0x220]
+c0034c40 1130c3e3 bic      r3, r3, #0x11
+c0034c44 103083e3 orr      r3, r3, #0x10
+c0034c48 203282e5 str      r3, [r2, #0x220]
+c0034c4c 4ff07ff5 dsb      sy
+c0034c50 203292e5 ldr      r3, [r2, #0x220]
+c0034c54 0430c3e3 bic      r3, r3, #4
+c0034c58 203282e5 str      r3, [r2, #0x220]
+c0034c5c 4ff07ff5 dsb      sy
+c0034c60 203292e5 ldr      r3, [r2, #0x220]
+c0034c64 0830c3e3 bic      r3, r3, #8
+c0034c68 203282e5 str      r3, [r2, #0x220]
+c0034c6c 4ff07ff5 dsb      sy
+c0034c70 0c3692e5 ldr      r3, [r2, #0x60c]
+c0034c74 020c13e3 tst      r3, #0x200
+c0034c78 fcffff1a bne      #0xc0034c70 ; 
+c0034c7c 103692e5 ldr      r3, [r2, #0x610]
+c0034c80 020c13e3 tst      r3, #0x200
+c0034c84 f9ffff1a bne      #0xc0034c70 ; 
+c0034c88 20004be2 sub      r0, fp, #0x20
+c0034c8c c0feffeb bl       #0xc0034794 ; spm_mtcmos_cpu_unlock
+c0034c90 0000a0e3 mov      r0, #0
+c0034c94 18d04be2 sub      sp, fp, #0x18
+c0034c98 70a89de8 ldm      sp, {r4, r5, r6, fp, sp, pc}
+c0034c9c 203794e5 ldr      r3, [r4, #0x720]
+c0034ca0 010713e3 tst      r3, #0x40000
+c0034ca4 cdffff1a bne      #0xc0034be0 ; 
+c0034ca8 203794e5 ldr      r3, [r4, #0x720]
+c0034cac 010713e3 tst      r3, #0x40000
+c0034cb0 f9ffff0a beq      #0xc0034c9c ; 
+c0034cb4 c9ffffea b        #0xc0034be0 ; 
+c0034cb8 203294e5 ldr      r3, [r4, #0x220]
+c0034cbc 043083e3 orr      r3, r3, #4
+c0034cc0 203284e5 str      r3, [r4, #0x220]
+c0034cc4 4ff07ff5 dsb      sy
+c0034cc8 6e030ae3 movw     r0, #0xa36e
+c0034ccc 010040e3 movt     r0, #1
+c0034cd0 f19508eb bl       #0xc025a49c ; __const_udelay
+c0034cd4 203294e5 ldr      r3, [r4, #0x220]
+c0034cd8 083083e3 orr      r3, r3, #8
+c0034cdc 203284e5 str      r3, [r4, #0x220]
+c0034ce0 4ff07ff5 dsb      sy
+c0034ce4 0410a0e1 mov      r1, r4
+c0034ce8 0c2691e5 ldr      r2, [r1, #0x60c]
+c0034cec 063aa0e3 mov      r3, #0x6000
+c0034cf0 00304fe3 movt     r3, #0xf000
+c0034cf4 020c12e3 tst      r2, #0x200
+c0034cf8 faffff0a beq      #0xc0034ce8 ; 
+c0034cfc 102691e5 ldr      r2, [r1, #0x610]
+c0034d00 020c12e3 tst      r2, #0x200
+c0034d04 f7ffff0a beq      #0xc0034ce8 ; 
+c0034d08 202293e5 ldr      r2, [r3, #0x220]
+c0034d0c 1020c2e3 bic      r2, r2, #0x10
+c0034d10 202283e5 str      r2, [r3, #0x220]
+c0034d14 4ff07ff5 dsb      sy
+c0034d18 742293e5 ldr      r2, [r3, #0x274]
+c0034d1c 0120c2e3 bic      r2, r2, #1
+c0034d20 742283e5 str      r2, [r3, #0x274]
+c0034d24 4ff07ff5 dsb      sy
+c0034d28 741293e5 ldr      r1, [r3, #0x274]
+c0034d2c 062aa0e3 mov      r2, #0x6000
+c0034d30 00204fe3 movt     r2, #0xf000
+c0034d34 010c11e3 tst      r1, #0x100
+c0034d38 faffff1a bne      #0xc0034d28 ; 
+c0034d3c 203292e5 ldr      r3, [r2, #0x220]
+c0034d40 403083e3 orr      r3, r3, #0x40
+c0034d44 203282e5 str      r3, [r2, #0x220]
+c0034d48 4ff07ff5 dsb      sy
+c0034d4c 203292e5 ldr      r3, [r2, #0x220]
+c0034d50 2030c3e3 bic      r3, r3, #0x20
+c0034d54 203282e5 str      r3, [r2, #0x220]
+c0034d58 4ff07ff5 dsb      sy
+c0034d5c 203292e5 ldr      r3, [r2, #0x220]
+c0034d60 0230c3e3 bic      r3, r3, #2
+c0034d64 203282e5 str      r3, [r2, #0x220]
+c0034d68 4ff07ff5 dsb      sy
+c0034d6c 203292e5 ldr      r3, [r2, #0x220]
+c0034d70 013083e3 orr      r3, r3, #1
+c0034d74 203282e5 str      r3, [r2, #0x220]
+c0034d78 4ff07ff5 dsb      sy
+c0034d7c c1ffffea b        #0xc0034c88 ; 
+
+FUNCTION spm_cpusys_can_power_down
+c0034da8 0dc0a0e1 mov      ip, sp
+c0034dac 00d82de9 push     {fp, ip, lr, pc}
+c0034db0 04b04ce2 sub      fp, ip, #4
+c0034db4 063aa0e3 mov      r3, #0x6000
+c0034db8 00304fe3 movt     r3, #0xf000
+c0034dbc 0c2693e5 ldr      r2, [r3, #0x60c]
+c0034dc0 0e0c12e3 tst      r2, #0xe00
+c0034dc4 0400001a bne      #0xc0034ddc ; 
+c0034dc8 103693e5 ldr      r3, [r3, #0x610]
+c0034dcc 0e0c13e3 tst      r3, #0xe00
+c0034dd0 0000a013 movne    r0, #0
+c0034dd4 0100a003 moveq    r0, #1
+c0034dd8 00a89de8 ldm      sp, {fp, sp, pc}
+c0034ddc 0000a0e3 mov      r0, #0
+c0034de0 00a89de8 ldm      sp, {fp, sp, pc}

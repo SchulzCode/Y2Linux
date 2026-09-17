@@ -1,0 +1,192 @@
+activated=1 powered=0 functions=0x0 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0
+Simple mixer control 'Master',0
+  Capabilities: pvolume
+  Playback channels: Front Left - Front Right
+  Limits: Playback 0 - 255
+  Mono:
+  Front Left: Playback 207 [81%] [-24.00dB]
+  Front Right: Playback 207 [81%] [-24.00dB]
+Simple mixer control 'Master DSD',0
+  Capabilities: pvolume
+  Playback channels: Front Left - Front Right
+  Limits: Playback 0 - 255
+  Mono:
+  Front Left: Playback 135 [53%] [-60.00dB]
+  Front Right: Playback 135 [53%] [-60.00dB]
+Simple mixer control 'Headphone',0
+  Capabilities: pswitch pswitch-joined
+  Playback channels: Mono
+  Mono: Playback [on]
+Simple mixer control 'PCM Ch Select',0
+  Capabilities: enum
+  Items: 'Left-Right Ch' 'Left-Left Ch' 'Right-Left Ch' 'Right-Right Ch'
+  Item0: 'Left-Right Ch'
+Simple mixer control 'PCM De-emphasis Filter',0
+  Capabilities: pswitch pswitch-joined
+  Playback channels: Mono
+  Mono: Playback [off]
+Simple mixer control 'PCM Filter Speed',0
+  Capabilities: enum
+  Items: 'Fast' 'Slow'
+  Item0: 'Fast'
+Simple mixer control 'PCM High-pass Filter',0
+  Capabilities: pswitch pswitch-joined
+  Playback channels: Mono
+  Mono: Playback [on]
+Simple mixer control 'PCM Nonoversample Emulate',0
+  Capabilities: pswitch pswitch-joined
+  Playback channels: Mono
+  Mono: Playback [off]
+Simple mixer control 'PCM Phase Compensation',0
+  Capabilities: pswitch pswitch-joined
+  Playback channels: Mono
+  Mono: Playback [off]
+Simple mixer control 'Bypass',0
+  Capabilities: enum
+  Items: 'Internal' 'Alternative'
+  Item0: 'Internal'
+Simple mixer control 'DSD Phase Modulation',0
+  Capabilities: enum
+  Items: 'Off' 'BCKA Mode' 'BCKD Mode'
+  Item0: 'Off'
+state: RUNNING
+owner_pid   : 3581
+trigger_time: 619.290373190
+tstamp      : 0.000000000
+delay       : 8156
+avail       : 36
+avail_max   : 7168
+-----
+hw_ptr      : 32844
+appl_ptr    : 41000
+access: RW_INTERLEAVED
+format: S16_LE
+subformat: STD
+channels: 2
+rate: 44100 (44100/1)
+period_size: 1024
+buffer_size: 8192
+Playing WAVE '/usr/share/y2linux/audio/headphone-44100.wav' : Signed 16 bit Little Endian, Rate 44100 Hz, Stereo
+state: RUNNING
+owner_pid   : 3587
+trigger_time: 622.419722190
+tstamp      : 0.000000000
+delay       : 7940
+avail       : 252
+avail_max   : 7168
+-----
+hw_ptr      : 41252
+appl_ptr    : 49192
+access: RW_INTERLEAVED
+format: S16_LE
+subformat: STD
+channels: 2
+rate: 44100 (44100/1)
+period_size: 1024
+buffer_size: 8192
+Playing WAVE '/usr/share/y2linux/audio/headphone-44100.wav' : Signed 16 bit Little Endian, Rate 44100 Hz, Stereo
+state: RUNNING
+owner_pid   : 3592
+trigger_time: 625.539603037
+tstamp      : 0.000000000
+delay       : 7488
+avail       : 704
+avail_max   : 7168
+-----
+hw_ptr      : 41700
+appl_ptr    : 49188
+access: RW_INTERLEAVED
+format: S16_LE
+subformat: STD
+channels: 2
+rate: 44100 (44100/1)
+period_size: 1024
+buffer_size: 8192
+Playing WAVE '/usr/share/y2linux/audio/headphone-44100.wav' : Signed 16 bit Little Endian, Rate 44100 Hz, Stereo
+state: RUNNING
+owner_pid   : 3610
+trigger_time: 628.659635883
+tstamp      : 0.000000000
+delay       : 7488
+avail       : 704
+avail_max   : 7168
+-----
+hw_ptr      : 41700
+appl_ptr    : 49188
+access: RW_INTERLEAVED
+format: S16_LE
+subformat: STD
+channels: 2
+rate: 44100 (44100/1)
+period_size: 1024
+buffer_size: 8192
+Playing WAVE '/usr/share/y2linux/audio/headphone-44100.wav' : Signed 16 bit Little Endian, Rate 44100 Hz, Stereo
+state: RUNNING
+owner_pid   : 3615
+trigger_time: 631.779673960
+tstamp      : 0.000000000
+delay       : 7484
+avail       : 708
+avail_max   : 7168
+-----
+hw_ptr      : 41704
+appl_ptr    : 49188
+access: RW_INTERLEAVED
+format: S16_LE
+subformat: STD
+channels: 2
+rate: 44100 (44100/1)
+period_size: 1024
+buffer_size: 8192
+Playing WAVE '/usr/share/y2linux/audio/headphone-44100.wav' : Signed 16 bit Little Endian, Rate 44100 Hz, Stereo
+state: RUNNING
+owner_pid   : 3621
+trigger_time: 634.899727191
+tstamp      : 0.000000000
+delay       : 7492
+avail       : 700
+avail_max   : 7168
+-----
+hw_ptr      : 41696
+appl_ptr    : 49188
+access: RW_INTERLEAVED
+format: S16_LE
+subformat: STD
+channels: 2
+rate: 44100 (44100/1)
+period_size: 1024
+buffer_size: 8192
+Playing WAVE '/usr/share/y2linux/audio/headphone-44100.wav' : Signed 16 bit Little Endian, Rate 44100 Hz, Stereo
+closed
+AUDIO_SEQUENCE_PASS
+
+DRM_RENDER=/dev/dri/renderD128 driver=lima
+LIMA_GPU_ID=0x1
+LIMA_PP_CORES=0x2
+LIMA_GP_VERSION=0xb070101
+LIMA_PP_VERSION=0xcd070101
+DRM_KMS=/dev/dri/card1 driver=mediatek
+EGL_VENDOR=Mesa Project
+EGL_VERSION=1.4
+EGL_APIS=OpenGL OpenGL_ES 
+GL_VENDOR=Mesa
+GL_RENDERER=Mali400
+GL_VERSION=OpenGL ES 2.0 Mesa 24.0.9
+GL_MAX_TEXTURE_SIZE=4096 texture_units=16
+GL_EXTENSIONS=GL_EXT_blend_minmax GL_EXT_multi_draw_arrays GL_EXT_texture_compression_s3tc GL_EXT_texture_compression_dxt1 GL_EXT_texture_format_BGRA8888 GL_OES_compressed_ETC1_RGB8_texture GL_OES_depth24 GL_OES_element_index_uint GL_OES_fbo_render_mipmap GL_OES_mapbuffer GL_OES_rgb8_rgba8 GL_OES_standard_derivatives GL_OES_stencil8 GL_OES_texture_3D GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_texture_npot GL_OES_vertex_half_float GL_OES_EGL_image GL_OES_depth_texture GL_OES_packed_depth_stencil GL_OES_get_program_binary GL_APPLE_texture_max_level GL_EXT_discard_framebuffer GL_EXT_read_format_bgra GL_NV_pack_subimage GL_NV_texture_barrier GL_EXT_frag_depth GL_NV_fbo_color_attachments GL_OES_EGL_image_external GL_OES_EGL_sync GL_OES_vertex_array_object GL_ANGLE_pack_reverse_row_order GL_ANGLE_texture_compression_dxt3 GL_ANGLE_texture_compression_dxt5 GL_EXT_texture_rg GL_EXT_unpack_subimage GL_NV_draw_buffers GL_NV_read_buffer GL_NV_read_depth GL_NV_read_depth_stencil GL_NV_read_stencil GL_APPLE_sync GL_EXT_draw_buffers GL_EXT_map_buffer_range GL_KHR_debug GL_KHR_texture_compression_astc_ldr GL_NV_generate_mipmap_sRGB GL_NV_pixel_buffer_object GL_OES_required_internalformat GL_OES_surfaceless_context GL_EXT_debug_label GL_EXT_separate_shader_objects GL_EXT_compressed_ETC1_RGB8_sub_texture GL_EXT_draw_elements_base_vertex GL_EXT_texture_border_clamp GL_KHR_context_flush_control GL_OES_draw_elements_base_vertex GL_OES_texture_border_clamp GL_EXT_blend_func_extended GL_KHR_no_error GL_KHR_texture_compression_astc_sliced_3d GL_EXT_multisampled_render_to_texture GL_EXT_multisampled_render_to_texture2 GL_EXT_texture_compression_s3tc_srgb GL_EXT_clip_control GL_KHR_parallel_shader_compile GL_MESA_sampler_objects GL_MESA_bgra 
+EGL_CONFIG=7 scanout=XRGB8888 linear alpha_bits=0 texture_alpha=RGBA8888 GLES_blending=enabled
+PRESENTATION=GBM/kmsro PRIME dma-buf -> existing Mediatek KMS; no CPU copy
+MODE=480x360 refresh=63 fps_cap=30 static=0
+PROGRESS frames=61 flips=60 last_sequence=13124 elapsed=2.024
+PROGRESS frames=122 flips=121 last_sequence=13255 elapsed=4.042
+PROGRESS frames=182 flips=181 last_sequence=13385 elapsed=6.045
+PROGRESS frames=242 flips=241 last_sequence=13515 elapsed=8.048
+PROGRESS frames=302 flips=301 last_sequence=13645 elapsed=10.051
+PROGRESS frames=362 flips=361 last_sequence=13775 elapsed=12.054
+PROGRESS frames=423 flips=422 last_sequence=13906 elapsed=14.073
+PROGRESS frames=483 flips=482 last_sequence=14036 elapsed=16.076
+PROGRESS frames=543 flips=542 last_sequence=14166 elapsed=18.079
+PROGRESS frames=603 flips=602 last_sequence=14296 elapsed=20.082
+PROGRESS frames=664 flips=663 last_sequence=14428 elapsed=22.116
+RESULT frames=706 page_flips=705 elapsed_s=23.518 fps=30.02 submit_present_ms_p50=9.256 p95=16.252 max=17.289 cpu_pct=3.36 maxrss_kib=12604
+EXIT status=0 KMS_restored=1

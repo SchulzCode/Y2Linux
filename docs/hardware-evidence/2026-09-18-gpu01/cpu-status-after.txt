@@ -1,0 +1,11 @@
+test_bc11_all_classifications_io_failures_and_removal (tests.test_power_policy.PowerPolicy.test_bc11_all_classifications_io_failures_and_removal) ... ok
+test_cpu_domain_sequence_and_bounded_failed_acks (tests.test_power_policy.PowerPolicy.test_cpu_domain_sequence_and_bounded_failed_acks) ... ok
+test_loader_tags_and_malformed_metadata (tests.test_power_policy.PowerPolicy.test_loader_tags_and_malformed_metadata) ... ok
+test_spm_suspend_prerequisites_and_cleanup (tests.test_power_policy.PowerPolicy.test_spm_suspend_prerequisites_and_cleanup) ... ok
+test_current_and_legacy_all_off_status_allow_suspend (tests.test_suspend_policy.SuspendPolicy.test_current_and_legacy_all_off_status_allow_suspend) ... ok
+test_power_or_live_function_prevents_suspend (tests.test_suspend_policy.SuspendPolicy.test_power_or_live_function_prevents_suspend) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 1.692s
+
+OK

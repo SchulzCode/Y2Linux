@@ -1,0 +1,33 @@
+MemAvailable:     914400 kB
+Slab:               8564 kB
+RESULT frames=90 page_flips=89 elapsed_s=3.008 fps=29.92 submit_present_ms_p50=9.159 p95=16.301 max=17.484 cpu_pct=3.37 maxrss_kib=12732
+EXIT status=0 KMS_restored=1
+suspended
+RESULT frames=90 page_flips=89 elapsed_s=3.001 fps=29.99 submit_present_ms_p50=9.097 p95=16.240 max=16.736 cpu_pct=3.26 maxrss_kib=12740
+EXIT status=0 KMS_restored=1
+suspended
+RESULT frames=90 page_flips=89 elapsed_s=3.000 fps=30.00 submit_present_ms_p50=9.357 p95=16.195 max=16.903 cpu_pct=3.21 maxrss_kib=13124
+EXIT status=0 KMS_restored=1
+suspended
+RESULT frames=90 page_flips=89 elapsed_s=3.002 fps=29.98 submit_present_ms_p50=9.337 p95=16.073 max=16.772 cpu_pct=3.28 maxrss_kib=12732
+EXIT status=0 KMS_restored=1
+suspended
+RESULT frames=90 page_flips=89 elapsed_s=3.000 fps=30.00 submit_present_ms_p50=11.144 p95=15.795 max=16.711 cpu_pct=3.25 maxrss_kib=12928
+EXIT status=0 KMS_restored=1
+suspended
+RESULT frames=86 page_flips=85 elapsed_s=2.864 fps=30.03 submit_present_ms_p50=10.501 p95=14.940 max=16.059 cpu_pct=3.35 maxrss_kib=12660
+EXIT status=0 KMS_restored=1
+kill_exit=137
+Killed
+suspended
+RESULT frames=90 page_flips=89 elapsed_s=3.001 fps=29.99 submit_present_ms_p50=9.161 p95=16.295 max=17.093 cpu_pct=3.32 maxrss_kib=12732
+EXIT status=0 KMS_restored=1
+MemAvailable:     909636 kB
+Slab:               8604 kB
+0
+domain                          status          children        performance
+    /device                         runtime status                  managed by
+------------------------------------------------------------------------------
+y2-mfg                          off-0                           0
+    13010000.gpu                    suspended                   0           SW
+mode=SPM_CPU_SHUTDOWN_INFRA_RETAINED broken=0 entries=0 resumes=0 aborts=0 result=0 wake=0x0 ticks32k=0 event=0x0 debug=0x0 r13=0x0 power=0x3f4c/0x3f4c

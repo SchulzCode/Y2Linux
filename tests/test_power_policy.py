@@ -100,9 +100,11 @@ int main(void){
 #include <string.h>
 #include "spm-policy.h"
 static unsigned regs[1024], delays, writes, cpu, stuck;
+/* Independent stock FC1/FC2/FC3 masks, also observed when CPU3 cleared bit 9. */
+static const unsigned cpu_mask[] = {0, 0x800, 0x400, 0x200};
 static unsigned rd(void *ctx,unsigned reg){(void)ctx;assert(reg<sizeof regs);return regs[reg/4];}
 static void wr(void *ctx,unsigned reg,unsigned value){
- (void)ctx;writes++;unsigned power=0x214+cpu*4,sram=0x25c+cpu*8,bit=1U<<(10+cpu);
+ (void)ctx;writes++;unsigned power=0x214+cpu*4,sram=0x25c+cpu*8,bit=cpu_mask[cpu];
  assert(reg==0 || reg==power || reg==sram);
  if(reg==0)assert(value==0xb160001);
  if(reg==power && (value&1) && !(regs[reg/4]&1)){
@@ -118,14 +120,14 @@ static void wr(void *ctx,unsigned reg,unsigned value){
 static void wait(unsigned us){assert(us==1);delays++;assert(delays<=20001);}
 static struct y2_spm_io io={0,rd,wr,wait};
 static void reset(void){memset(regs,0,sizeof regs);delays=writes=stuck=0;
- regs[(0x214+cpu*4)/4]=0x4d;regs[0x60c/4]=regs[0x610/4]=1U<<(10+cpu);
+ regs[(0x214+cpu*4)/4]=0x4d;regs[0x60c/4]=regs[0x610/4]=cpu_mask[cpu];
  regs[0x720/4]=1U<<(15+cpu);
 }
 int main(void){
  assert(y2_spm_cpu_power(&io,0,0)==-EINVAL && !writes);
  for(cpu=1;cpu<=3;cpu++){
   reset();assert(!y2_spm_cpu_power(&io,cpu,0));
-  assert(!(regs[0x60c/4]&(1U<<(10+cpu))) && !delays);
+  assert(!(regs[0x60c/4]&(cpu_mask[cpu])) && !delays);
   assert(!y2_spm_cpu_power(&io,cpu,1));assert(regs[(0x214+cpu*4)/4]==0x4d);
   reset();regs[0x720/4]=0;assert(y2_spm_cpu_power(&io,cpu,0)==-ETIMEDOUT);
   assert(writes==1 && delays==10000 && regs[(0x214+cpu*4)/4]==0x4d);
@@ -176,7 +178,7 @@ static void reset(void){memset(regs,0,sizeof regs);writes=delay_us=fetched=armed
  regs[SPM_POWER_ON_VAL1/4]=0x15820;regs[SPM_PCM_REG13_DATA/4]=R13_UART_CLK_OFF_ACK;
 }
 int main(void){
- for(unsigned copy=SPM_PWR_STATUS;copy<=SPM_PWR_STATUS_S;copy+=4)for(unsigned bit=11;bit<=13;bit++){
+ for(unsigned copy=SPM_PWR_STATUS;copy<=SPM_PWR_STATUS_S;copy+=4)for(unsigned bit=9;bit<=11;bit++){
   reset();regs[copy/4]=1U<<bit;
   assert(y2_spm_suspend_arm(&io,0x81000000)==-EBUSY && !writes && !armed);
  }
@@ -184,7 +186,9 @@ int main(void){
  assert(y2_spm_suspend_arm(&io,0x81000000)==-EBUSY && !armed && delay_us==100);
  assert(!(regs[SPM_POWER_ON_VAL1/4]&R7_UART_CLK_OFF_REQ));
  reset();bad_read=1;assert(y2_spm_suspend_arm(&io,0x81000000)==-EIO && !armed);
- reset();assert(!y2_spm_suspend_arm(&io,0x81000000) && armed==1);
+ /* CPU0/debug/MCU status bits remain powered; they are not secondary CPUs. */
+ reset();regs[SPM_PWR_STATUS/4]=regs[SPM_PWR_STATUS_S/4]=0x314c;
+ assert(!y2_spm_suspend_arm(&io,0x81000000) && armed==1);
  y2_spm_suspend_clean(&io);
  assert(!(regs[SPM_PCM_CON1/4]&(CON1_PCM_WDT_EN|CON1_PCM_TIMER_EN)));
  assert(!regs[SPM_PCM_PWR_IO_EN/4]);

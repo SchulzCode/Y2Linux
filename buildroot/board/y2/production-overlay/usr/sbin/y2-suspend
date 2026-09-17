@@ -16,12 +16,12 @@ y2-radio wifi off-runtime
 y2-radio bluetooth off-runtime
 for n in $(seq 1 150); do
     case "$(cat /sys/devices/platform/18070000.connectivity/status)" in
-      *'powered=0 functions=0 '*) break;;
+      *'powered=0 functions=0x0 '*|*'powered=0 functions=0 '*) break;;
     esac
     sleep .1
 done
 case "$(cat /sys/devices/platform/18070000.connectivity/status)" in
- *'powered=0 functions=0 '*) ;;
+ *'powered=0 functions=0x0 '*|*'powered=0 functions=0 '*) ;;
  *) echo 'Radios did not stop; suspend refused.' >&2; exit 1;;
 esac
 sync

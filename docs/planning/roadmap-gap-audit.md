@@ -1,5 +1,54 @@
 # Y2Linux roadmap and gap audit
 
+## GPU-01 physical result and targeted GPU-02 correction — 2026-09-18
+
+Owner-deployed `7c43557` proves Mali-400 MP2 r1p1, mainline Lima render node,
+Mesa 24.0.9 hardware EGL 1.4/GLES 2.0, visible native 480x360 PRIME/KMS rendering,
+30.00 FPS at 3.36% CPU, static runtime/domain off, application termination
+recovery, clean wired audio and GPU + Wi-Fi scans/concurrent Bluetooth power
+with zero radio errors/recoveries. [Physical receipts](../hardware-evidence/2026-09-18-gpu01/README.md).
+
+**GPU #34 remains OPEN; NOT READY TO BEGIN REBORN.** Actual sleep qualification
+finds an all-off radio-status formatting refusal, then a failed same-session
+wake. A retained bounded `pm_test=core` trace localizes CPU3 power-off timeout:
+status clears bit 9 while code waits for bit 13. Actual retained Y2 stock and
+pinned GPL source prove CPU1/2/3 masks 0x800/0x400/0x200 and combined 0xe00.
+GPU-02 corrects those ACK/boot/entry tests and the radio zero-format matcher.
+No PCM, voltage, frequency, GPU/display/radio architecture or memory change.
+
+This updates only the observed gap inside the authorized GPU qualification;
+it is not a new M5 entry audit or a milestone closure. M4 remains the
+owner-accepted foundation, with this pre-existing CPU-mask defect now recorded
+as a targeted residual exposed by GPU qualification. Live fault containment
+leaves CPUs 0–2 online, SPM broken=1 and prevents another sleep attempt on that
+boot; charging, storage and radios remain operational. Requalification must
+use the owner-installed corrected candidate, not an attempted runtime kernel patch.
+
+Remaining: same-session deep RTC/Power wake, retained-context and fresh rendering,
+no-client suspend, display/backlight/offline-charge regression, strict input
+and animation overlap, and targeted post-resume state. M5 connection/peer/audio
+and sustained/full traffic coexistence stay pending by owner choice. Reborn,
+M6/OTA and unrelated milestone residuals remain out of scope.
+
+
+## GPU-01 candidate — 2026-09-18
+
+Implementation and host validation are complete for the authorized GPU scope:
+source `7c43557a38fac6bbdb0ab5628cffe131ebda6360`, Linux 6.18 Lima, Mesa 24.0.9
+Lima/kmsro, existing KMS, owned CCF/SPM runtime power and standard GBM/EGL/GLES.
+Own hardware/stock evidence identifies Mali-400 MP2 and the 500.5-MHz MMPLL
+branch, including this unit's retained devinfo selector flag. Silicon revision
+and every physical graphics acceptance gate remain pending.
+
+[GPU-01 deployment receipt](../build/y2linux-gpu-01-deployment.md): one integrated
+BOOTIMG/Y2ROOT package, preserved Y2DATA and RAM exclusions, exact known fallback
+pair, 92 passing regression tests, nine preservation rejection cases, emitted
+DT validation and ARM/root checks. Stop for owner deployment; no assistant flash.
+GPU #34 stays OPEN; **not yet ready to begin Reborn**. M4/CONNECTIVITY-10 remain
+the physical baseline and remaining M5 connection/audio tests stay pending.
+This is implementation progress within the already reviewed scope below, not
+a new M5 audit or a physical milestone closure.
+
 
 ## GPU activation boundary — 2026-09-18
 

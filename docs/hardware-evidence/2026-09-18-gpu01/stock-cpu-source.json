@@ -1,0 +1,14 @@
+{
+  "source_url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_spm_mtcmos.c",
+  "source_sha256": "37f2a02b52dd7af08880619e86a0142600972bb7bd559ebd4e95086a2439b1f2",
+  "stock_binary_sha256": "7287acf1b397d243c927dde5c6ef9d5d871c9c158207cdd98e0e820923f4c197",
+  "cpu1_status_mask": "0x800",
+  "cpu2_status_mask": "0x400",
+  "cpu3_status_mask": "0x200",
+  "secondary_cpu_mask": "0xe00",
+  "physical_cpu3_off_status_transition": [
+    "0x3f4c",
+    "0x3d4c"
+  ],
+  "physical_wait_result": -110
+}

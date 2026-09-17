@@ -1,0 +1,41 @@
+dc6d812e-78ae-4c21-ba23-55b904d26275
+97.62 336.26
+0
+freeze_filesystems
+mem_sleep
+pm_async
+pm_debug_messages
+pm_freeze_timeout
+pm_print_times
+pm_test
+pm_wakeup_irq
+state
+suspend_stats
+sync_on_suspend
+wakeup_count
+phase=HOLD source=1 source_valid=1 charge_limit_ua=450000
+active=0 online=1 present=1 fault=0x0 sample_error=0 stop_error=0 paused=0 last_error=0
+battery_uv=4101196 baton_raw=10387 isense_raw=18654 pmic_die_mc=44543 input_budget_ua=500000
+chr_con0=0x0063 cv_status=0x008e battery_ovp=0x0003 baton=0x0005 watchdog=0x0000 thermal=0x0000
+watchdog_pets=68 last_pet_ms=77714 total_seconds=76 cv_seconds=76 precharge_seconds=0 hold=1 full=0 timeout=0
+first_fault=0x0 at_ms=0 battery_uv=0 sample_error=0 chr=0x0 cv=0x0 ovp=0x0 watchdog=0x0 thermal=0x0
+32
+mode=SPM_CPU_SHUTDOWN_INFRA_RETAINED broken=0 entries=0 resumes=0 aborts=0 result=0 wake=0x0 ticks32k=0 event=0x0 debug=0x0 r13=0x0 power=0x3f4c/0x3f4c
+activated=1 powered=0 functions=0x0 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0
+0
+0
+proc /proc proc rw,relatime 0 0
+sysfs /sys sysfs rw,relatime 0 0
+devtmpfs /dev devtmpfs rw,relatime,size=475108k,nr_inodes=118777,mode=755 0 0
+devpts /dev/pts devpts rw,relatime,gid=5,mode=620,ptmxmode=666 0 0
+tmpfs /run tmpfs rw,nosuid,nodev,relatime,mode=755 0 0
+tmpfs /tmp tmpfs rw,nosuid,nodev,relatime 0 0
+debugfs /sys/kernel/debug debugfs rw,relatime 0 0
+/dev/mmcblk0p5 / ext4 rw,relatime 0 0
+/dev/mmcblk0p7 /data ext4 rw,nosuid,nodev,relatime 0 0
+tmpfs /lib/modules tmpfs rw,nosuid,nodev,relatime,mode=755 0 0
+proc /proc proc rw,relatime 0 0
+tmpfs /dev/shm tmpfs rw,relatime 0 0
+/dev/mmcblk0p7 /var/lib/bluetooth ext4 rw,nosuid,nodev,relatime 0 0
+/dev/mmcblk0p7 /var/lib/bluealsa ext4 rw,nosuid,nodev,relatime 0 0
+/dev/mmcblk0p7 /tmp/dbus ext4 rw,nosuid,nodev,relatime 0 0

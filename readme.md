@@ -10,7 +10,11 @@ M4 POWER-03 is owner-accepted. CONNECTIVITY-10 is installed: native Wi-Fi scanni
 radio restart and BlueZ power-on alongside Wi-Fi work with zero errors/recoveries.
 [Physical evidence](docs/hardware-evidence/2026-09-17-m5-connectivity10/README.md).
 Remaining M5 connection/audio qualification is pending by owner choice. Production
-GPU implementation is now authorized using Linux 6.18, Lima, Mesa and existing KMS.
+GPU-01 physically renders with Linux 6.18 Lima, Mesa EGL/GLES and existing KMS.
+[Physical evidence](docs/hardware-evidence/2026-09-18-gpu01/README.md) confirms
+30 FPS, runtime power-off and clean wired audio. Deep suspend exposes CPU
+status-mask and helper defects; GPU-02 is the targeted correction. Y2Linux is
+not yet ready to begin Reborn.
 Reborn and M6/OTA remain out of scope. Only the owner deploys physical images.
 
 | Milestone | Current status |
@@ -21,7 +25,7 @@ Reborn and M6/OTA remain out of scope. Only the owner deploys physical images.
 | Production Storage / Installation v1 | Active: internal root/data boot without SD and existing-owner-key SSH confirmed; wider write/stress qualification remains |
 | M4 | POWER-03 accepted by the owner; retained as the M5 power-platform baseline |
 | M5 | Native Wi-Fi scans/restart and concurrent BlueZ power verified; connection/audio/reconnect/coexistence qualification pending |
-| GPU | Active: production Lima/Mesa implementation; first integrated candidate pending |
+| GPU | Hardware rendering/runtime PM confirmed; targeted suspend correction and physical resume qualification open |
 
 Historical POWER-02 charging, RTC, thermal and suspend failures are retained in
 [the M4 evidence](docs/knowledge/m4-end-user-power.md). POWER-03 corrects those
@@ -53,9 +57,9 @@ carry 16-bit samples: native 24/32-bit and higher rates are not implemented.
 - [AUDIO-02 deployment and hashes](docs/build/y2linux-m3-audio-02-deployment.md)
 - [M0 research/recovery](docs/planning/M0-evidence-and-recovery.md) and [evidence index](docs/knowledge/evidence-index.md)
 
-Current boundary: implement and validate one Y2LINUX-GPU-01 candidate while
-preserving M4, CONNECTIVITY-10, Y2DATA and all RAM reservations. Stop for owner
-manual deployment, then perform the coherent GPU qualification. The
+Current boundary: prepare corrected Y2LINUX-GPU-02, then stop for owner manual
+deployment and targeted suspend/resume qualification. Preserve M4, CONNECTIVITY-10,
+Y2DATA and all RAM reservations. The
 [Production Storage v1](docs/architecture/production-storage-v1.md) component
 boundaries remain unchanged. Do not start Reborn or M6/OTA.
 

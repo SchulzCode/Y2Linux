@@ -1,0 +1,53 @@
+test_cpu_domain_sequence_and_bounded_failed_acks (tests.test_power_policy.PowerPolicy.test_cpu_domain_sequence_and_bounded_failed_acks) ... test: /tmp/tmpz_tmi8da/test.c:35: int main(void): Assertion `!y2_spm_cpu_power(&io,cpu,1)' failed.
+ERROR
+test_spm_suspend_prerequisites_and_cleanup (tests.test_power_policy.PowerPolicy.test_spm_suspend_prerequisites_and_cleanup) ... test: /tmp/tmpp86gx475/test.c:40: int main(void): Assertion `y2_spm_suspend_arm(&io,0x81000000)==-EBUSY && !writes && !armed' failed.
+ERROR
+
+======================================================================
+ERROR: test_cpu_domain_sequence_and_bounded_failed_acks (tests.test_power_policy.PowerPolicy.test_cpu_domain_sequence_and_bounded_failed_acks)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/luca/Dokumente/Code/Y2Linux/tests/test_power_policy.py", line 97, in test_cpu_domain_sequence_and_bounded_failed_acks
+            run_c(r'''
+            ~~~~~^^^^^
+    #include <assert.h>
+    ^^^^^^^^^^^^^^^^^^^
+    ...<41 lines>...
+    }
+    ^
+    ''')
+    ^^^^
+  File "/home/luca/Dokumente/Code/Y2Linux/tests/test_power.py", line 21, in run_c
+    subprocess.run([str(p/'test')], check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/tmp/tmpz_tmi8da/test']' died with <Signals.SIGABRT: 6>.
+
+======================================================================
+ERROR: test_spm_suspend_prerequisites_and_cleanup (tests.test_power_policy.PowerPolicy.test_spm_suspend_prerequisites_and_cleanup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/luca/Dokumente/Code/Y2Linux/tests/test_power_policy.py", line 144, in test_spm_suspend_prerequisites_and_cleanup
+            run_c(r'''
+            ~~~~~^^^^^
+    #include <assert.h>
+    ^^^^^^^^^^^^^^^^^^^
+    ...<54 lines>...
+    }
+    ^
+    ''')
+    ^^^^
+  File "/home/luca/Dokumente/Code/Y2Linux/tests/test_power.py", line 21, in run_c
+    subprocess.run([str(p/'test')], check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/tmp/tmpp86gx475/test']' died with <Signals.SIGABRT: 6>.
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.218s
+
+FAILED (errors=2)

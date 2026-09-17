@@ -1,0 +1,6 @@
+y2-gpu-check [--seconds 1..300] [--fps 1..60] [--static]
+Native 480x360 Lima/GBM/EGL/GLES2 qualification. Default 20s/30fps.
+--static draws once, then sleeps; SIGUSR1 requests one redraw.
+SIGINT/SIGTERM restores KMS and exits. No software renderer accepted.
+Duration/FPS outside bounded range
+PASS_ARM_GRAPHICS_ABI_AND_BOUNDED_ARGUMENTS

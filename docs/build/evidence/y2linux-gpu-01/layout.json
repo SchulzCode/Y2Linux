@@ -1,0 +1,155 @@
+{
+  "policy": "DEV-01",
+  "inputs": {
+    "z": 4230352,
+    "dtb": 13602,
+    "initramfs": 1951066,
+    "image": 11842400,
+    "kernel_bss": 1141736,
+    "kernel_span": 12984136,
+    "restart": 276,
+    "wont_overwrite": 520,
+    "edata": 4230352,
+    "reloc_code_end": 2364,
+    "stack_top": 4234472,
+    "compressed_bss_start": 4230352,
+    "compressed_bss_end": 4230376,
+    "regular_file_bytes": 4794989
+  },
+  "ram": [
+    [
+      2147483648,
+      3187671040
+    ]
+  ],
+  "reserved": [
+    [
+      2147483648,
+      2147500032
+    ],
+    [
+      2172649472,
+      2214592512
+    ],
+    [
+      3186622464,
+      3221225472
+    ]
+  ],
+  "zimage": [
+    2147516416,
+    2151746768
+  ],
+  "appended_dtb": [
+    2151746768,
+    2151760376
+  ],
+  "image": [
+    2147516416,
+    2159358816
+  ],
+  "resident_kernel": [
+    2147516416,
+    2160500552
+  ],
+  "relocated_copy": [
+    2159361024,
+    2163604736
+  ],
+  "relocated_dtb": [
+    2163591120,
+    2163604728
+  ],
+  "compressed_bss": [
+    2163604728,
+    2163604760
+  ],
+  "stack_top": 2163608848,
+  "malloc": [
+    2163608848,
+    2163674384
+  ],
+  "initramfs": [
+    2214592512,
+    2216543578
+  ],
+  "lk_staging": [
+    2147515904,
+    2153717248
+  ],
+  "staged_initramfs": [
+    2151761920,
+    2153712986
+  ],
+  "bootimg_read_end": 6203392,
+  "relocation_delta": 11844352,
+  "relocation_code_allowance": 2304,
+  "adjusted_image_size": 11842400,
+  "workspace_end": 2163674384,
+  "allocator_before_kernel_bytes": 997179392,
+  "dt": {
+    "node_count": 102,
+    "bootargs": "rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31",
+    "memory": [
+      [
+        2147483648,
+        3187671040
+      ]
+    ],
+    "storage": "internal eMMC: guarded root/data; removable SD optional",
+    "evidence": "offline dependencies only"
+  },
+  "sleep_syscall": {
+    "number": 162,
+    "target": "sys_nanosleep_time32",
+    "entry": "0xc0097b28",
+    "sys_ni_syscall": "0xc0043150",
+    "compat_32bit_time": true,
+    "status": "PASS linked implementation, not ENOSYS"
+  },
+  "kernel_symbols": {
+    "_text": 3221258240,
+    "_edata": 3233100640,
+    "__bss_start": 3233100640,
+    "__bss_stop": 3234242376,
+    "_end": 3234242376
+  },
+  "artifacts": {
+    "Image": {
+      "bytes": 11842400,
+      "sha256": "8a9d8f111d12b3fd8a7ffe64f84f4f22aecbf40075c8511830bdf23b2ad807b6"
+    },
+    "zImage": {
+      "bytes": 4230352,
+      "sha256": "21bc5bb7b7a1719bd69f636aaea1efce3a900c38af39154d6e7328f97b8d6182"
+    },
+    "y2.dtb": {
+      "bytes": 13602,
+      "sha256": "c988d2d9316ca3cb8529ae39e576c502d0d2b2f373acc2667c9ea86282b69c6b"
+    },
+    "zImage-dtb": {
+      "bytes": 4243960,
+      "sha256": "c6ebf49936cf8b8672d9b7f53e5f238d4b79f496ad91762e39a3b9df7eacf5db"
+    },
+    "initramfs.cpio.gz": {
+      "bytes": 1951066,
+      "sha256": "a46c07d41b18f4e380a3d78b1c5fe5b0ebea0c1d3d050099a2aadd636c67b9f5"
+    },
+    "display.ko": {
+      "bytes": 158300,
+      "sha256": "80f68b7f68d6ac44fa97e4bb8d8c7ec4c4aa4abf4742241326059ad7abd869db"
+    }
+  },
+  "status": "PASS offline integrated GPU candidate; physical Lima/Mesa qualification pending",
+  "bootimg": {
+    "bytes": 6203392,
+    "sha256": "c8a27f021ddea92ffb9e97beaa3c327c53f1141b2d7e47d8f63060ea7c02adce",
+    "android_id_sha1": "17d19983237e0aa1e30c1afd9687cfcd2e93e1b9",
+    "partition_bytes": 16777216,
+    "kernel_wrapper_offset": 2048,
+    "ramdisk_wrapper_offset": 4247552,
+    "lk_complete_read_end": 6203392,
+    "zero_filled_read_tail_bytes": 4262,
+    "authentication": "unsigned image; offline checks do not establish this candidate hardware acceptance"
+  }
+}

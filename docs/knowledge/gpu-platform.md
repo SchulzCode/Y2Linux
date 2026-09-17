@@ -1,7 +1,9 @@
 # Y2 production GPU platform
 
-Implementation for GPU #34, not a physical acceleration pass. Reborn is not
-implemented. The owner deploys one BOOTIMG/Y2ROOT candidate; Y2DATA is preserved.
+**GPU-01 physically renders with Lima/Mesa; GPU #34 remains open for the failed
+suspend gate.** [Physical evidence and exact corrections](../hardware-evidence/2026-09-18-gpu01/README.md).
+GPU-02 carries only the observed CPU-status-mask/suspend-helper fixes and release
+identity. Reborn is not implemented. Only the owner deploys; Y2DATA is preserved.
 M4 and CONNECTIVITY-10 are the accepted foundations. M5 network/peer/audio tests
 remain pending by owner choice and do not block this implementation.
 
@@ -33,8 +35,8 @@ through the existing sysirq provider. Compatible is
 SoC compatible without changing the mainline Lima match. There is no fictional
 `arm,mali-utgard` fallback, PMU IRQ, RGU reset number or external IOMMU.
 
-**GPU silicon revision is not yet read.** GP/PP version ioctls and kernel probe
-logs must establish it on GPU-01. The old stock driver version is not a GPU
+**GPU-01 proves Mali-400 MP2 r1p1.** Probe and standard GET_PARAM return GP
+`0x0b070101`, PP `0x0cd070101`, two PP cores; all three probe versions are 1.1. The old stock driver version is not a GPU
 revision. Utgard GP/PP MMUs have no separately identified revision register in
 the supported interface; report their self-tests and paging behavior, not an
 invented MMU revision. Mainline Lima performs the DTE mask test, hard reset and
@@ -120,8 +122,8 @@ The GPU renders into those buffers and the existing OVL/RDMA/DSI/panel path
 scans them out directly. This allocation direction is essential: arbitrary
 page-backed Lima allocations cannot be imported into this display engine unless
 DMA-contiguous. There is no CPU framebuffer copy, glReadPixels presentation,
-new display driver, CMA or large reserved-memory pool. Physical zero-copy
-render/scanout compatibility is a GPU-01 gate, not yet a proven result.
+new display driver, CMA or large reserved-memory pool. GPU-01 physically confirms this render/scanout path at 480x360, with
+owner-visible correct textures/blending and 3599 page flips in the 120-second run.
 
 `y2-gpu-check` locates drivers by DRM identity, never by a fixed card number.
 It queries mainline Lima identity, opens the existing KMS device, selects its
@@ -181,7 +183,7 @@ actual failure and make a targeted correction. Do not repeat the entry review.
     errors/recoveries and charger health. Return radios to their starting state,
     preserve preferences/bonds and record which physical gates actually passed.
 
-## Reborn API contract (provisional until physical qualification)
+## Reborn API contract (rendering proven; system resume still open)
 
 Use DRM/KMS + GBM + EGL + GLES2. Open KMS and the Mesa-selected render node;
 never depend on Mali registers, physical addresses, proprietary ioctls or SoC
@@ -190,16 +192,23 @@ RGBA8888 textures and GLES source-alpha blending provide layered UI composition;
 scanout need not have an alpha channel. Query the actual EGL config and maximum
 texture size. POT RGBA8888 is the baseline; non-power-of-two and compressed
 formats are permitted only when the actual GL extension/capability query allows
-that use. Exact version/renderer/config IDs and practical texture limits await
-GPU-01 and must be added to the final contract.
+that use. GPU-01 reports EGL **1.4 / Mesa Project**, **OpenGL ES 2.0 Mesa 24.0.9**,
+GL vendor **Mesa**, renderer **Mali400**, EGL config **7** (scanout alpha **0**),
+maximum texture edge **4096** and **16** texture units. Query capabilities at
+runtime instead of hardcoding config IDs. RGBA8888 and linear filtering are
+physically exercised; ETC1, NPOT and other reported extensions are capabilities,
+not an exhaustive format-performance qualification. Ordinary UI textures should
+stay far below the maximum edge; allocation/fragmentation stress remains untested.
 
 Present through DRM page-flip events/atomic KMS semantics, waiting for completion
 before releasing the previous GBM front buffer. Default UI animation cap is
 30 FPS, at most panel refresh when justified by measurement. Static content
 submits no work; wake on damage/input. Quiesce rendering before system suspend;
 retain a context only if the qualified driver restores it. Handle standard
-EGL_CONTEXT_LOST by recreating EGL resources and reuploading textures. After
-physical qualification document whether ordinary deep resume requires that path.
+EGL_CONTEXT_LOST by recreating EGL resources and reuploading textures. GPU-01 does not establish context retention across real deep suspend: the
+CPU-hotplug status-mask defect blocks qualification. Preserve this as a pending
+GPU-02 test, including standard EGL recreation handling; do not promise seamless
+resume from the runtime-PM success alone.
 
 ## Licenses and provenance
 

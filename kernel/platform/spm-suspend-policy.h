@@ -42,7 +42,7 @@ static inline int y2_spm_suspend_arm(const struct y2_spm_io *io, unsigned addres
 {
 	unsigned val, settle, n;
 	/* Exact Y2 spm_cpusys_can_power_down: both copies must show CPUs1-3 off. */
-	if ((io->read(io->context, SPM_PWR_STATUS) | io->read(io->context, SPM_PWR_STATUS_S)) & 0x3800)
+	if ((io->read(io->context, SPM_PWR_STATUS) | io->read(io->context, SPM_PWR_STATUS_S)) & Y2_SPM_SECONDARY_CPU_MASK)
 		return -EBUSY;
 	y2_spm_update(io, SPM_CLK_CON, CC_SYSSETTLE_SEL, CC_SYSSETTLE_SEL);
 	io->write(io->context, SPM_CLK_SETTLE, 0);

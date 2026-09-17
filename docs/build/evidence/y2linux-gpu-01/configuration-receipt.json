@@ -1,0 +1,46 @@
+{
+  "source_commit": "7c43557a38fac6bbdb0ab5628cffe131ebda6360",
+  "kernel_release": "6.18.0-y2linux-gpu-01",
+  "kernel": {
+    "CONFIG_DRM_LIMA": "y",
+    "CONFIG_DRM_GEM_SHMEM_HELPER": "y",
+    "CONFIG_DRM_SCHED": "y",
+    "CONFIG_PM_GENERIC_DOMAINS": "y",
+    "CONFIG_PM_GENERIC_DOMAINS_OF": "y",
+    "CONFIG_PM_GENERIC_DOMAINS_SLEEP": "y",
+    "CONFIG_HIGHMEM": "y",
+    "CONFIG_CMA": "n",
+    "CONFIG_DMA_CMA": "n"
+  },
+  "buildroot": "2025.02.17",
+  "mesa": "24.0.9",
+  "libdrm": "2.4.124",
+  "mesa_meson": {
+    "dri3": "disabled",
+    "egl": "enabled",
+    "gallium-drivers": [
+      "lima",
+      "kmsro"
+    ],
+    "gbm": "enabled",
+    "gles1": "enabled",
+    "gles2": "enabled",
+    "glx": "disabled",
+    "llvm": "disabled",
+    "opengl": true,
+    "osmesa": false,
+    "platforms": [],
+    "shader-cache": "auto",
+    "shared-glapi": "enabled",
+    "vulkan-drivers": []
+  },
+  "physical_gpu_result": "PENDING OWNER DEPLOYMENT",
+  "gpu_revision": "UNKNOWN until Lima hardware probe",
+  "m5_connection_audio_tests": "PENDING BY OWNER CHOICE",
+  "tests": {
+    "regression_tests_passed": 92,
+    "package_rejections_passed": 9,
+    "emitted_gpu_dtb_schema": "PASS",
+    "arm_utility_abi": "PASS; not a hardware EGL result"
+  }
+}

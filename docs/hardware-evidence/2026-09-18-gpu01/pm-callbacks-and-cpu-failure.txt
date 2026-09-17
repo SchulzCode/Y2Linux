@@ -1,0 +1,883 @@
+152.15 553.34
+mode=SPM_CPU_SHUTDOWN_INFRA_RETAINED broken=0 entries=0 resumes=0 aborts=0 result=0 wake=0x0 ticks32k=0 event=0x0 debug=0x0 r13=0x0 power=0x3f4c/0x3f4c
+suspended
+none [core] processors platform devices freezer
+Changing power off succeeded
+pm_core_test_exit=1
+1
+DRM_RENDER=/dev/dri/renderD128 driver=lima
+LIMA_GPU_ID=0x1
+LIMA_PP_CORES=0x2
+LIMA_GP_VERSION=0xb070101
+LIMA_PP_VERSION=0xcd070101
+DRM_KMS=/dev/dri/card1 driver=mediatek
+EGL_VENDOR=Mesa Project
+EGL_VERSION=1.4
+EGL_APIS=OpenGL OpenGL_ES 
+GL_VENDOR=Mesa
+GL_RENDERER=Mali400
+GL_VERSION=OpenGL ES 2.0 Mesa 24.0.9
+GL_MAX_TEXTURE_SIZE=4096 texture_units=16
+GL_EXTENSIONS=GL_EXT_blend_minmax GL_EXT_multi_draw_arrays GL_EXT_texture_compression_s3tc GL_EXT_texture_compression_dxt1 GL_EXT_texture_format_BGRA8888 GL_OES_compressed_ETC1_RGB8_texture GL_OES_depth24 GL_OES_element_index_uint GL_OES_fbo_render_mipmap GL_OES_mapbuffer GL_OES_rgb8_rgba8 GL_OES_standard_derivatives GL_OES_stencil8 GL_OES_texture_3D GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_texture_npot GL_OES_vertex_half_float GL_OES_EGL_image GL_OES_depth_texture GL_OES_packed_depth_stencil GL_OES_get_program_binary GL_APPLE_texture_max_level GL_EXT_discard_framebuffer GL_EXT_read_format_bgra GL_NV_pack_subimage GL_NV_texture_barrier GL_EXT_frag_depth GL_NV_fbo_color_attachments GL_OES_EGL_image_external GL_OES_EGL_sync GL_OES_vertex_array_object GL_ANGLE_pack_reverse_row_order GL_ANGLE_texture_compression_dxt3 GL_ANGLE_texture_compression_dxt5 GL_EXT_texture_rg GL_EXT_unpack_subimage GL_NV_draw_buffers GL_NV_read_buffer GL_NV_read_depth GL_NV_read_depth_stencil GL_NV_read_stencil GL_APPLE_sync GL_EXT_draw_buffers GL_EXT_map_buffer_range GL_KHR_debug GL_KHR_texture_compression_astc_ldr GL_NV_generate_mipmap_sRGB GL_NV_pixel_buffer_object GL_OES_required_internalformat GL_OES_surfaceless_context GL_EXT_debug_label GL_EXT_separate_shader_objects GL_EXT_compressed_ETC1_RGB8_sub_texture GL_EXT_draw_elements_base_vertex GL_EXT_texture_border_clamp GL_KHR_context_flush_control GL_OES_draw_elements_base_vertex GL_OES_texture_border_clamp GL_EXT_blend_func_extended GL_KHR_no_error GL_KHR_texture_compression_astc_sliced_3d GL_EXT_multisampled_render_to_texture GL_EXT_multisampled_render_to_texture2 GL_EXT_texture_compression_s3tc_srgb GL_EXT_clip_control GL_KHR_parallel_shader_compile GL_MESA_sampler_objects GL_MESA_bgra 
+EGL_CONFIG=7 scanout=XRGB8888 linear alpha_bits=0 texture_alpha=RGBA8888 GLES_blending=enabled
+PRESENTATION=GBM/kmsro PRIME dma-buf -> existing Mediatek KMS; no CPU copy
+MODE=480x360 refresh=63 fps_cap=30 static=1
+STATIC_READY frames=1 GPU may runtime-idle; SIGUSR1 redraws
+RESULT frames=1 page_flips=0 elapsed_s=0.617 fps=1.62 submit_present_ms_p50=190.094 p95=190.094 max=190.094 cpu_pct=1.37 maxrss_kib=12320
+EXIT status=0 KMS_restored=1
+[    0.000000] Booting Linux on physical CPU 0x0
+[    0.000000] Linux version 6.18.0-y2linux-gpu-01 (Luca@y2-build) (Alpine clang version 20.1.8, LLD 20.1.8) #1 SMP @1764542530
+[    0.000000] CPU: ARMv7 Processor [410fc073] revision 3 (ARMv7), cr=10c5387d
+[    0.000000] CPU: PIPT / VIPT nonaliasing data cache, VIPT aliasing instruction cache
+[    0.000000] OF: fdt: Machine model: Innioasis Y2
+[    0.000000] earlycon: mtk8250 at MMIO32 0x11002000 (options '')
+[    0.000000] printk: legacy bootconsole [mtk8250] enabled
+[    0.000000] Memory policy: Data cache writealloc
+[    0.000000] Zone ranges:
+[    0.000000]   Normal   [mem 0x0000000080000000-0x00000000afffffff]
+[    0.000000]   HighMem  [mem 0x00000000b0000000-0x00000000bdffffff]
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000080000000-0x00000000817fffff]
+[    0.000000]   node   0: [mem 0x0000000081800000-0x0000000083ffffff]
+[    0.000000]   node   0: [mem 0x0000000084000000-0x00000000bdefffff]
+[    0.000000]   node   0: [mem 0x00000000bdf00000-0x00000000bdffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x00000000bdffffff]
+[    0.000000] OF: reserved mem: 0x81800000..0x83ffffff (40960 KiB) nomap non-reusable loader@81800000
+[    0.000000] OF: reserved mem: 0xbdf00000..0xbfffffff (33792 KiB) nomap non-reusable high-owned@bdf00000
+[    0.000000] percpu: Embedded 12 pages/cpu s19340 r8192 d21620 u49152
+[    0.000000] pcpu-alloc: s19340 r8192 d21620 u49152 alloc=12*4096
+[    0.000000] pcpu-alloc: [0] 0 [0] 1 [0] 2 [0] 3 
+[    0.000000] Kernel command line: rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31
+[    0.000000] printk: log buffer data + meta data: 1048576 + 3276800 = 4325376 bytes
+[    0.000000] Dentry cache hash table entries: 131072 (order: 7, 524288 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 253952
+[    0.000000] mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=1
+[    0.000000] rcu: Hierarchical RCU implementation.
+[    0.000000] rcu: RCU calculated value of scheduler-enlistment delay is 10 jiffies.
+[    0.000000] NR_IRQS: 16, nr_irqs: 16, preallocated irqs: 16
+[    0.000000] rcu: srcu_init: Setting srcu_struct sizes based on contention.
+[    0.000000] clocksource: timer: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 147020034397 ns
+[    0.000001] sched_clock: 32 bits at 13MHz, resolution 76ns, wraps every 165191050201ns
+[    0.000176] Console: colour dummy device 80x30
+[    0.000202] printk: legacy console [tty0] enabled
+[    0.000214] printk: legacy bootconsole [mtk8250] disabled
+[    0.000273] Calibrating delay loop... 2079.12 BogoMIPS (lpj=10395648)
+[    0.060050] CPU: Testing write buffer coherency: ok
+[    0.060103] pid_max: default: 32768 minimum: 301
+[    0.060279] Mount-cache hash table entries: 2048 (order: 1, 8192 bytes, linear)
+[    0.060303] Mountpoint-cache hash table entries: 2048 (order: 1, 8192 bytes, linear)
+[    0.061802] Setting up static identity map for 0x800081c0 - 0x80008218
+[    0.061957] rcu: Hierarchical SRCU implementation.
+[    0.061968] rcu: 	Max phase no-delay instances is 1000.
+[    0.062180] Timer migration: 1 hierarchy levels; 8 children per group; 1 crossnode level
+[    0.062523] smp: Bringing up secondary CPUs ...
+[    0.242467] smp: Brought up 1 node, 4 CPUs
+[    0.242491] SMP: Total of 4 processors activated (8296.85 BogoMIPS).
+[    0.243026] Memory: 948072K/1015808K available (6061K kernel code, 3348K rwdata, 1684K rodata, 240K init, 1114K bss, 65588K reserved, 0K cma-reserved, 228352K highmem)
+[    0.243568] devtmpfs: initialized
+[    0.247192] VFP support v0.3: implementor 41 architecture 2 part 30 variant 7 rev 3
+[    0.247426] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+[    0.247461] posixtimers hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.247564] futex hash table entries: 1024 (65536 bytes on 1 NUMA nodes, total 64 KiB, linear).
+[    0.247640] pinctrl core: initialized pinctrl subsystem
+[    0.248862] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.249193] DMA: preallocated 256 KiB pool for atomic coherent allocations
+[    0.249976] thermal_sys: Registered thermal governor 'step_wise'
+[    0.250064] cpuidle: using governor menu
+[    0.257527] /dsi@1400c000: Fixed dependency cycle(s) with /dsi@1400c000/panel@0
+[    0.257690] /dsi@1400c000/panel@0: Fixed dependency cycle(s) with /dsi@1400c000
+[    0.260346] y2-clocks 10000000.clock-controller: CCF inherited PLLs/AXI; guarded shared CPU clock; AXI=273000000 Hz
+[    0.266743] y2-pinctrl 10005000.pinctrl: minimal pinctrl/GPIO; EINT parent high, PMIC25 high/wheel55 falling
+[    0.267690] y2-pwrap 1000d000.pwrap: MT6323 CID=2023 VUSB=c000 CHRDET=1; serialized MFD regmap; scoped power writes
+[    0.267915] Y2BOOT: loader metadata valid=1 mode=0 reason=0 offline=0; userspace handover pending
+[    0.268018] Advanced Linux Sound Architecture Driver Initialized.
+[    0.268462] Bluetooth: Core ver 2.22
+[    0.268512] NET: Registered PF_BLUETOOTH protocol family
+[    0.268521] Bluetooth: HCI device and connection manager initialized
+[    0.268537] Bluetooth: HCI socket layer initialized
+[    0.268548] Bluetooth: L2CAP socket layer initialized
+[    0.268566] Bluetooth: SCO socket layer initialized
+[    0.269278] clocksource: Switched to clocksource timer
+[    0.272358] Clockevents: could not switch to one-shot mode:
+[    0.272358] Clockevents: could not switch to one-shot mode:
+[    0.272358] Clockevents: could not switch to one-shot mode:
+[    0.272358] Clockevents: could not switch to one-shot mode:
+[    0.272370]  dummy_timer is not functional.
+[    0.272369]  dummy_timer is not functional.
+[    0.272370]  dummy_timer is not functional.
+[    0.272382]  dummy_timer is not functional.
+[    0.278025] NET: Registered PF_INET protocol family
+[    0.278253] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[    0.280200] tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes, linear)
+[    0.280232] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.280257] TCP established hash table entries: 8192 (order: 3, 32768 bytes, linear)
+[    0.280340] TCP bind hash table entries: 8192 (order: 5, 131072 bytes, linear)
+[    0.280540] TCP: Hash tables configured (established 8192 bind 8192)
+[    0.280647] UDP hash table entries: 512 (order: 3, 28672 bytes, linear)
+[    0.280717] UDP-Lite hash table entries: 512 (order: 3, 28672 bytes, linear)
+[    0.280920] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.283912] Initialise system trusted keyrings
+[    0.284123] workingset: timestamp_bits=30 max_order=18 bucket_order=0
+[    0.284388] Unpacking initramfs...
+[    0.392594] Freeing initrd memory: 1908K
+[    0.484533] Key type asymmetric registered
+[    0.484548] Asymmetric key parser 'x509' registered
+[    0.485330] mediatek-mipi-tx 10010000.mipi-tx: can't get nvmem_cell_get, ignore it
+[    0.486837] Serial: 8250/16550 driver, 1 ports, IRQ sharing disabled
+[    0.487816] printk: legacy console [ttyS0] disabled
+[    0.488258] 11002000.serial: ttyS0 at MMIO 0x11002000 (irq = 195, base_baud = 1625000) is a 16550A
+[    0.488313] printk: legacy console [ttyS0] enabled
+[    0.489162] cacheinfo: Unable to detect cache hierarchy for CPU 0
+[    0.489410] y2-pinctrl 10005000.pinctrl: pin25 mode=0 function=eint
+[    0.490775] mt6323-led: Failed to locate of_node [id: -1]
+[    0.491612] UDC core: g_cdc: couldn't find an available UDC
+[    0.492023] input: Y2 navigation buttons as /devices/platform/navigation-keys/input/input0
+[    0.492531] mt6323-regulator mt6323-regulator: Chip ID = 0x2023
+[    0.493246] input: mtk-pmic-keys as /devices/platform/1000d000.pwrap/1000d000.pwrap:pmic/mt6323-keys/input/input1
+[    0.493562] vcn33-bt: Bringing 3600000uV into 3300000-3300000uV
+[    0.494808] mt6397-rtc mt6323-rtc: registered as rtc0
+[    0.494951] mt6397-rtc mt6323-rtc: setting system clock to 2022-08-01T00:17:03 UTC (1659313023)
+[    0.495055] i2c_dev: i2c /dev entries driver
+[    0.495300] y2-pinctrl 10005000.pinctrl: before pin84 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.495323] y2-pinctrl 10005000.pinctrl: pin84 mode=1 function=i2c0
+[    0.495340] y2-pinctrl 10005000.pinctrl: before pin85 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.495359] y2-pinctrl 10005000.pinctrl: pin85 mode=1 function=i2c0
+[    0.495461] y2-pinctrl 10005000.pinctrl: before pin86 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.495484] y2-pinctrl 10005000.pinctrl: pin86 mode=1 function=i2c1
+[    0.495500] y2-pinctrl 10005000.pinctrl: before pin87 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.495519] y2-pinctrl 10005000.pinctrl: pin87 mode=1 function=i2c1
+[    0.495532] vgp2-audio: Bringing 2500000uV into 1800000-1800000uV
+[    0.496457] mtk-wdt 10007000.watchdog: Watchdog enabled (timeout=31 sec, nowayout=0)
+[    0.498958] y2-pinctrl 10005000.pinctrl: pin124 mode=1 function=msdc1
+[    0.498997] y2-pinctrl 10005000.pinctrl: pin125 mode=1 function=msdc1
+[    0.499023] y2-pinctrl 10005000.pinctrl: pin126 mode=1 function=msdc1
+[    0.499048] y2-pinctrl 10005000.pinctrl: pin127 mode=1 function=msdc1
+[    0.499073] y2-pinctrl 10005000.pinctrl: pin128 mode=1 function=msdc1
+[    0.499098] y2-pinctrl 10005000.pinctrl: pin129 mode=1 function=msdc1
+[    0.499937] y2-backlight y2-backlight: four ISINK PWM; max duty=32/32 inherited current step=5 unchanged
+[    0.502203] Y2USB recover rc=0 written=1
+[    0.502240] Y2USB stage=1 result=0
+[    0.502265] Y2USB stage=2 result=0
+[    0.502289] y2-usb 11200000.usb: peripheral USB platform initialized; status is observational
+[    0.512486] mt6323-auxadc mt6323-auxadc: BATSNS/ISENSE 15-bit 1.8 V x4; BATON1 1.8 V; die calibration=1; pack temperature/current/SOC unvalidated
+[    0.514579] y2-mt6323-charger y2-mt6323-charger: stock-derived BC1.1 charging: 70/450/650mA, 4.175V; pack temp/current/SOC unavailable
+[    0.515211] thermal thermal_zone1: Temperature check failed (-61)
+[    0.515253] mt6582-thermal 1100b000.thermal: two CPU sensors with own efuse conversion; read-only acquisition diagnostics; protection retained
+[    0.516288] y2-spm 10006000.power-controller: CPU1-3 MTCMOS and SPM CPU/cluster shutdown, infrastructure retained; power=0x3f4d/0x3f4d
+[    0.520572] y2-connectivity 18070000.connectivity: MT6582 connectivity owner ready; radios await normal-boot factory provider
+[    0.521631] y2-pinctrl 10005000.pinctrl: pin43 mode=4 function=i2s-lk
+[    0.521666] y2-pinctrl 10005000.pinctrl: pin44 mode=4 function=i2s-lk
+[    0.521691] y2-pinctrl 10005000.pinctrl: pin46 mode=3 function=i2s-lk
+[    0.522471] NET: Registered PF_PACKET protocol family
+[    0.522653] Bluetooth: RFCOMM socket layer initialized
+[    0.522696] Bluetooth: RFCOMM ver 1.11
+[    0.522905] Registering SWP/SWPB emulation handler
+[    0.532202] Loading compiled-in X.509 certificates
+[    0.547468] lima 13010000.gpu: gp - mali400 version major 1 minor 1
+[    0.547655] lima 13010000.gpu: pp0 - mali400 version major 1 minor 1
+[    0.547819] lima 13010000.gpu: pp1 - mali400 version major 1 minor 1
+[    0.547900] lima 13010000.gpu: l2_cache0 64K, 4-way, 64byte cache line, 128bit external bus
+[    0.548966] lima 13010000.gpu: bus rate = 0
+[    0.549003] lima 13010000.gpu: mod rate = 500500000
+[    0.549695] [drm] Initialized lima 1.1.0 for 13010000.gpu on minor 0
+[    0.550056] y2-pinctrl 10005000.pinctrl: before pin84 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.550094] y2-pinctrl 10005000.pinctrl: pin84 mode=1 function=i2c0
+[    0.550121] y2-pinctrl 10005000.pinctrl: before pin85 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.550153] y2-pinctrl 10005000.pinctrl: pin85 mode=1 function=i2c0
+[    0.550478] y2-pinctrl 10005000.pinctrl: before pin86 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.550515] y2-pinctrl 10005000.pinctrl: pin86 mode=1 function=i2c1
+[    0.550542] y2-pinctrl 10005000.pinctrl: before pin87 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.550574] y2-pinctrl 10005000.pinctrl: pin87 mode=1 function=i2c1
+[    0.551390] y2-pinctrl 10005000.pinctrl: pin43 mode=4 function=i2s-lk
+[    0.551420] y2-pinctrl 10005000.pinctrl: pin44 mode=4 function=i2s-lk
+[    0.551444] y2-pinctrl 10005000.pinctrl: pin46 mode=3 function=i2s-lk
+[    0.552279] y2-pinctrl 10005000.pinctrl: before pin84 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.552321] y2-pinctrl 10005000.pinctrl: pin84 mode=1 function=i2c0
+[    0.552347] y2-pinctrl 10005000.pinctrl: before pin85 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.552428] y2-pinctrl 10005000.pinctrl: pin85 mode=1 function=i2c0
+[    0.552585] y2-pinctrl 10005000.pinctrl: pin124 mode=1 function=msdc1
+[    0.552616] y2-pinctrl 10005000.pinctrl: pin125 mode=1 function=msdc1
+[    0.552643] y2-pinctrl 10005000.pinctrl: pin126 mode=1 function=msdc1
+[    0.552668] y2-pinctrl 10005000.pinctrl: pin127 mode=1 function=msdc1
+[    0.552692] y2-pinctrl 10005000.pinctrl: pin128 mode=1 function=msdc1
+[    0.552717] y2-pinctrl 10005000.pinctrl: pin129 mode=1 function=msdc1
+[    0.552743] y2-pinctrl 10005000.pinctrl: before pin86 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.552778] y2-pinctrl 10005000.pinctrl: pin86 mode=1 function=i2c1
+[    0.552805] y2-pinctrl 10005000.pinctrl: before pin87 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.552837] y2-pinctrl 10005000.pinctrl: pin87 mode=1 function=i2c1
+[    0.553404] y2-pinctrl 10005000.pinctrl: pin43 mode=4 function=i2s-lk
+[    0.553434] y2-pinctrl 10005000.pinctrl: pin44 mode=4 function=i2s-lk
+[    0.553459] y2-pinctrl 10005000.pinctrl: pin46 mode=3 function=i2s-lk
+[    0.554050] y2-pinctrl 10005000.pinctrl: before pin84 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.554087] y2-pinctrl 10005000.pinctrl: pin84 mode=1 function=i2c0
+[    0.554114] y2-pinctrl 10005000.pinctrl: before pin85 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.554146] y2-pinctrl 10005000.pinctrl: pin85 mode=1 function=i2c0
+[    0.554942] y2-pinctrl 10005000.pinctrl: before pin86 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.554980] y2-pinctrl 10005000.pinctrl: pin86 mode=1 function=i2c1
+[    0.555007] y2-pinctrl 10005000.pinctrl: before pin87 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.555039] y2-pinctrl 10005000.pinctrl: pin87 mode=1 function=i2c1
+[    0.555574] y2-pinctrl 10005000.pinctrl: pin43 mode=4 function=i2s-lk
+[    0.555602] y2-pinctrl 10005000.pinctrl: pin44 mode=4 function=i2s-lk
+[    0.555626] y2-pinctrl 10005000.pinctrl: pin46 mode=3 function=i2s-lk
+[    0.556130] y2-pinctrl 10005000.pinctrl: before pin84 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.556165] y2-pinctrl 10005000.pinctrl: pin84 mode=1 function=i2c0
+[    0.556192] y2-pinctrl 10005000.pinctrl: before pin85 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.556224] y2-pinctrl 10005000.pinctrl: pin85 mode=1 function=i2c0
+[    0.556546] y2-pinctrl 10005000.pinctrl: pin124 mode=1 function=msdc1
+[    0.556576] y2-pinctrl 10005000.pinctrl: pin125 mode=1 function=msdc1
+[    0.556602] y2-pinctrl 10005000.pinctrl: pin126 mode=1 function=msdc1
+[    0.556627] y2-pinctrl 10005000.pinctrl: pin127 mode=1 function=msdc1
+[    0.556651] y2-pinctrl 10005000.pinctrl: pin128 mode=1 function=msdc1
+[    0.556676] y2-pinctrl 10005000.pinctrl: pin129 mode=1 function=msdc1
+[    0.557327] cfg80211: Loading compiled-in X.509 certificates for regulatory database
+[    0.561662] Loaded X.509 cert 'sforshee: 00b28ddf47aef9cea7'
+[    0.565036] Loaded X.509 cert 'wens: 61c038651aabdcf94bd0ac7ff06c7248db18c600'
+[    0.565089] clk: Disabling unused clocks
+[    0.565143] PM: genpd: Disabling unused power domains
+[    0.565180] ALSA device list:
+[    0.565197]   No soundcards found.
+[    0.572868] Freeing unused kernel image (initmem) memory: 240K
+[    0.572900] Kernel memory protection not selected by kernel config.
+[    0.572930] Run /init as init process
+[    0.572945]   with arguments:
+[    0.572958]     /init
+[    0.572971]   with environment:
+[    0.572984]     HOME=/
+[    0.572998]     TERM=linux
+[    0.664366] Y2DISPLAY: production module initialization on CPU1
+[    0.670349] y2-pinctrl 10005000.pinctrl: before pin86 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.670406] y2-pinctrl 10005000.pinctrl: pin86 mode=1 function=i2c1
+[    0.670433] y2-pinctrl 10005000.pinctrl: before pin87 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.670466] y2-pinctrl 10005000.pinctrl: pin87 mode=1 function=i2c1
+[    0.671141] y2-pinctrl 10005000.pinctrl: pin43 mode=4 function=i2s-lk
+[    0.671172] y2-pinctrl 10005000.pinctrl: pin44 mode=4 function=i2s-lk
+[    0.671197] y2-pinctrl 10005000.pinctrl: pin46 mode=3 function=i2s-lk
+[    0.671680] y2-pinctrl 10005000.pinctrl: before pin84 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.671739] y2-pinctrl 10005000.pinctrl: pin84 mode=1 function=i2c0
+[    0.671784] y2-pinctrl 10005000.pinctrl: before pin85 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.671849] y2-pinctrl 10005000.pinctrl: pin85 mode=1 function=i2c0
+[    0.672780] y2-pinctrl 10005000.pinctrl: pin124 mode=1 function=msdc1
+[    0.672841] y2-pinctrl 10005000.pinctrl: pin125 mode=1 function=msdc1
+[    0.672871] y2-pinctrl 10005000.pinctrl: pin126 mode=1 function=msdc1
+[    0.672896] y2-pinctrl 10005000.pinctrl: pin127 mode=1 function=msdc1
+[    0.672921] y2-pinctrl 10005000.pinctrl: pin128 mode=1 function=msdc1
+[    0.672946] y2-pinctrl 10005000.pinctrl: pin129 mode=1 function=msdc1
+[    0.676477] mediatek-drm mediatek-drm.2.auto: Adding component match for /ovl@14007000
+[    0.676645] mediatek-drm mediatek-drm.2.auto: Adding component match for /rdma@14008000
+[    0.676784] mediatek-drm mediatek-drm.2.auto: Adding component match for /color@1400b000
+[    0.677053] mediatek-drm mediatek-drm.2.auto: Adding component match for /dsi@1400c000
+[    0.678604] y2-pinctrl 10005000.pinctrl: before pin86 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.678652] y2-pinctrl 10005000.pinctrl: pin86 mode=1 function=i2c1
+[    0.678679] y2-pinctrl 10005000.pinctrl: before pin87 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.678711] y2-pinctrl 10005000.pinctrl: pin87 mode=1 function=i2c1
+[    0.679410] y2-pinctrl 10005000.pinctrl: pin43 mode=4 function=i2s-lk
+[    0.679439] y2-pinctrl 10005000.pinctrl: pin44 mode=4 function=i2s-lk
+[    0.679463] y2-pinctrl 10005000.pinctrl: pin46 mode=3 function=i2s-lk
+[    0.679940] y2-pinctrl 10005000.pinctrl: before pin84 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.679975] y2-pinctrl 10005000.pinctrl: pin84 mode=1 function=i2c0
+[    0.680002] y2-pinctrl 10005000.pinctrl: before pin85 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.680034] y2-pinctrl 10005000.pinctrl: pin85 mode=1 function=i2c0
+[    0.680585] mtk-dsi 1400c000.dsi: handoff: acquire PHY
+[    0.680615] mediatek-mipi-tx 10010000.mipi-tx: PHY entry CON0=00000011 CON1=00000003 CON2=3c000000 PWR=00000101 CON=00000403 lanes=00000001
+[    0.680650] mediatek-mipi-tx 10010000.mipi-tx: adopting live LK PHY unchanged; inherited rate unknown
+[    0.680684] mtk-dsi 1400c000.dsi: handoff: clocks on; park video
+[    0.680919] y2-pinctrl 10005000.pinctrl: pin124 mode=1 function=msdc1
+[    0.680950] y2-pinctrl 10005000.pinctrl: pin125 mode=1 function=msdc1
+[    0.680975] y2-pinctrl 10005000.pinctrl: pin126 mode=1 function=msdc1
+[    0.681000] y2-pinctrl 10005000.pinctrl: pin127 mode=1 function=msdc1
+[    0.681025] y2-pinctrl 10005000.pinctrl: pin128 mode=1 function=msdc1
+[    0.681050] y2-pinctrl 10005000.pinctrl: pin129 mode=1 function=msdc1
+[    0.683696] y2-pinctrl 10005000.pinctrl: pin43 mode=4 function=i2s-lk
+[    0.683738] y2-pinctrl 10005000.pinctrl: pin44 mode=4 function=i2s-lk
+[    0.683763] y2-pinctrl 10005000.pinctrl: pin46 mode=3 function=i2s-lk
+[    0.684265] mt6582-afe 11220000.audio-controller: DL1 -> I05/I06 -> O00/O01 -> second I2S CON3; DMA32, stereo S16 44.1/48k
+[    0.685225] y2-pinctrl 10005000.pinctrl: before pin84 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.685267] y2-pinctrl 10005000.pinctrl: pin84 mode=1 function=i2c0
+[    0.685294] y2-pinctrl 10005000.pinctrl: before pin85 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.685326] y2-pinctrl 10005000.pinctrl: pin85 mode=1 function=i2c0
+[    0.686170] y2-pinctrl 10005000.pinctrl: before pin86 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.686213] y2-pinctrl 10005000.pinctrl: pin86 mode=1 function=i2c1
+[    0.686240] y2-pinctrl 10005000.pinctrl: before pin87 mux=1 dir=0 pull=1/1 input=1 IES=0000ffff
+[    0.686272] y2-pinctrl 10005000.pinctrl: pin87 mode=1 function=i2c1
+[    0.687332] y2-pinctrl 10005000.pinctrl: pin55 mode=0 function=eint
+[    0.687648] input: APT32F click-wheel as /devices/platform/11007000.i2c/i2c-0/0-0051/input/input2
+[    0.689123] input: mt6582-keypad as /devices/platform/10011000.keypad/input/input3
+[    0.692429] mtk-dsi 1400c000.dsi: inherited DSI parked; releasing PHY before Linux modeset
+[    0.692486] mtk-dsi 1400c000.dsi: handoff: released PHY, result=0
+[    0.692561] mtk-dsi 1400c000.dsi: handoff: register host/panel
+[    0.692735] /dsi@1400c000: Fixed dependency cycle(s) with /dsi@1400c000/panel@0
+[    0.693010] /dsi@1400c000/panel@0: Fixed dependency cycle(s) with /dsi@1400c000
+[    0.693436] y2-pinctrl 10005000.pinctrl: before pin112 mux=1 dir=1 pull=0/0 input=1 IES=0000ffff
+[    0.693474] y2-pinctrl 10005000.pinctrl: pin112 mode=1 function=lcm-reset
+[    0.694295] mediatek-drm mediatek-drm.2.auto: bound 14007000.ovl (ops mtk_disp_ovl_component_ops [mediatek_drm])
+[    0.694495] mediatek-drm mediatek-drm.2.auto: bound 14008000.rdma (ops mtk_disp_rdma_component_ops [mediatek_drm])
+[    0.694615] mediatek-drm mediatek-drm.2.auto: bound 1400b000.color (ops mtk_disp_color_component_ops [mediatek_drm])
+[    0.694778] mediatek-drm mediatek-drm.2.auto: bound 1400c000.dsi (ops mtk_dsi_component_ops [mediatek_drm])
+[    0.696176] [drm] Initialized mediatek 1.0.0 for mediatek-drm.2.auto on minor 1
+[    0.697408] mediatek-mipi-tx 10010000.mipi-tx: PHY entry CON0=00000000 CON1=00000003 CON2=3c000000 PWR=00000002 CON=00000400 lanes=00000000
+[    0.718485] mediatek-mipi-tx 10010000.mipi-tx: Linux PHY powered at 338000000Hz
+[    0.718518] mtk-dsi 1400c000.dsi: modeset: PHY/clocks ready, initialize DSI
+[    0.718537] mtk-dsi 1400c000.dsi: modeset: DSI command engine ready
+[    0.718579] (NULL device *): Y2SCAN inherited mutex0 en=00000001 get=00000000 mod=00000488 sof=00000001; clear parked ownership
+[    0.732614] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84a00000 allocation=692224 expected=84a00000 live=84a00000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=03ff0001
+[    0.745860] Console: switching to colour frame buffer device 60x45
+[    0.746017] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84a00000 allocation=692224 expected=84a00000 live=84a00000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=03ff0001
+[    0.763145] mediatek-drm mediatek-drm.2.auto: [drm] fb0: mediatekdrmfb frame buffer device
+[    0.764695] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84a00000 allocation=692224 expected=84a00000 live=84a00000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00080001
+[    0.765538] Y2DISPLAY: module result=0 errno=0
+[    0.803134] mtk-msdc 11230000.mmc: MSDC 26MHz crystal; inherited rails; policy=ANDROID/USRDATA writable; protected regions read-only
+[    0.842746] y2-pinctrl 10005000.pinctrl: pin124 mode=1 function=msdc1
+[    0.842782] y2-pinctrl 10005000.pinctrl: pin125 mode=1 function=msdc1
+[    0.842809] y2-pinctrl 10005000.pinctrl: pin126 mode=1 function=msdc1
+[    0.842834] y2-pinctrl 10005000.pinctrl: pin127 mode=1 function=msdc1
+[    0.842859] y2-pinctrl 10005000.pinctrl: pin128 mode=1 function=msdc1
+[    0.842884] y2-pinctrl 10005000.pinctrl: pin129 mode=1 function=msdc1
+[    0.843533] mtk-msdc 11240000.mmc: MSDC 26MHz crystal; inherited rails; policy=removable media
+[    0.875390] cs43130 1-0030: Cirrus Logic CS43130 (43131), Revision: A1
+[    0.882774] UDC core: g_cdc: couldn't find an available UDC
+[    0.884575] Y2ROOT: Production Storage v1; internal-only discovery
+[    0.945714] mtk-msdc 11230000.mmc: eMMC context: sector-addressed=1 sectors=15269888 PART_CONFIG=48 stock-layout=1 offset=23552 disk=15203328
+[    0.947371] mmc0: new MMC card at address 0001
+[    0.949201] mmcblk0: mmc0:0001 FNX2MB 7.25 GiB
+[    0.953597] mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    0.956850] mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    0.959796] mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    0.959919]  mmcblk0: p1 < p5 p6 p7 p8 > p2 p3 p4
+[    0.961527] mmcblk0: p8 size 4291225599 extends beyond EOD, truncated
+[    0.962345] mmcblk0rpmb: mmc0:0001 FNX2MB 512 KiB, chardev (248:0)
+[    0.992507] mtk-dsi 1400c000.dsi: Y2SCAN sample=0 vblank=18 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+[    0.992568] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84a00000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+[    0.992629] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+[    1.068038] input: Y2Audio Headphone as /devices/platform/sound/sound/card0/input4
+[    2.002469] mtk-dsi 1400c000.dsi: Y2SCAN sample=1 vblank=83 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+[    2.002552] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84a00000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+[    2.002610] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+[    2.122574] y2-mt6323-charger y2-mt6323-charger: BC1.1 source=1; charging independent of gadget configuration
+[    2.122634] Y2USB stage=1 result=0
+[    2.123133] Y2USB stage=1 result=0
+[    2.123174] Y2USB fresh power=0/7 CHR=0063 clock=0/f USB=0/1fffff
+[    2.124111] Y2USB stage=3 result=0
+[    2.124683] Y2USB PHY00 saved=6e session=6e
+[    2.124704] Y2USB PHY05 saved=44 session=44
+[    2.124723] Y2USB PHY15 saved=10 session=10
+[    2.124741] Y2USB PHY1a saved=10 session=10
+[    2.124760] Y2USB PHY1d saved=00 session=00
+[    2.124779] Y2USB PHY22 saved=00 session=00
+[    2.124797] Y2USB PHY63 saved=02 session=02
+[    2.124816] Y2USB stage=4 result=0
+[    2.126473] g_cdc gadget.0: HOST MAC <redacted-address>
+[    2.126506] g_cdc gadget.0: MAC <redacted-address>
+[    2.126619] g_cdc gadget.0: CDC Composite Gadget, version: King Kamehameha Day 2008
+[    2.126646] g_cdc gadget.0: g_cdc ready
+[    2.126887] Y2USB stage=5 result=0
+[    2.202667] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x0 battery=4087792uV input=0uA watchdog_pets=0 source=1 limit=70000uA pmic=42789mC baton_raw=10387 isense_raw=18595 cv=0x8e hold=0 full=0
+[    2.642520] Y2USB stage=6 result=0
+[    2.682910] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4086694uV input=500000uA watchdog_pets=1 source=1 limit=450000uA pmic=42789mC baton_raw=10387 isense_raw=18588 cv=0x8e hold=0 full=0
+[    2.878821] mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+[    2.881990] mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    2.885045] mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    3.042432] mtk-dsi 1400c000.dsi: Y2SCAN sample=2 vblank=151 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+[    3.042503] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84a00000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+[    3.042560] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+[    3.680058] mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+[    3.683172] mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    3.686193] mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    4.082447] mtk-dsi 1400c000.dsi: Y2SCAN sample=3 vblank=218 DSI irq=0 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+[    4.082521] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84a00000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+[    4.082578] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101
+[    4.481551] mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+[    6.439481] msdc_request_done: 5 callbacks suppressed
+[    6.439518] mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+[    6.442621] mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    6.445637] mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    7.242190] mtk-msdc 11230000.mmc: partition read CMD18 sector=0 bytes=16384 signature=55aa SBC=32/00000900 R1=00000900
+[    7.245326] mtk-msdc 11230000.mmc: partition read CMD18 sector=1024 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    7.248346] mtk-msdc 11230000.mmc: partition read CMD18 sector=145408 bytes=4096 signature=55aa SBC=8/00000900 R1=00000900
+[    7.290544] Y2ABI begin: Thumb signal return, kuser helpers, glibc TLS/threads and VFP
+
+[    7.290765] Y2ABI Thumb signal delivery/return OK
+
+[    7.290806] Y2ABI kuser memory barrier and TLS OK
+
+[    7.302502] Y2ABI PASS: glibc thread/TLS, VFP, clock and allocator
+
+[    7.492793] EXT4-fs (mmcblk0p5): orphan cleanup on readonly fs
+[    7.493387] EXT4-fs (mmcblk0p5): mounted filesystem 79324c69-6e75-4801-8000-000000000101 ro without journal. Quota mode: disabled.
+[    7.660766] EXT4-fs (mmcblk0p7): orphan cleanup on readonly fs
+[    7.661541] EXT4-fs (mmcblk0p7): mounted filesystem 79324c69-6e75-4801-8000-000000000102 ro without journal. Quota mode: disabled.
+[    8.871120] EXT4-fs (mmcblk0p7): unmounting filesystem 79324c69-6e75-4801-8000-000000000102.
+[    8.880693] EXT4-fs (mmcblk0p5): unmounting filesystem 79324c69-6e75-4801-8000-000000000101.
+[    8.944323] Y2ROOT: clean, 1472/32768 files, 20480/131072 blocks
+
+[    9.024170] Y2DATA: clean, 51/51296 files, 7792/204800 blocks
+
+[    9.239867] EXT4-fs (mmcblk0p5): mounted filesystem 79324c69-6e75-4801-8000-000000000101 r/w with ordered data mode. Quota mode: disabled.
+[    9.420236] EXT4-fs (mmcblk0p7): mounted filesystem 79324c69-6e75-4801-8000-000000000102 r/w with ordered data mode. Quota mode: disabled.
+[    9.496757] Y2ROOT: verified /dev/mmcblk0p5 with Y2DATA=/dev/mmcblk0p7; switching to Buildroot
+[   11.442563] EXT4-fs (mmcblk0p5): re-mounted 79324c69-6e75-4801-8000-000000000101.
+[   12.705965] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84a00000 allocation=692224 expected=84a00000 live=84a00000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00050001
+[   13.196624] Y2NET: usb0 10.42.0.1/24 ready; address persists across cable reconnect
+[   15.502502] random: crng init done
+[   24.401826] regulator regulator.9: regulator VCAMA doesn't support get_mode
+[   24.402498] regulator regulator.21: regulator VRTC doesn't support get_mode
+[   24.404714] backlight y2-backlight: Y2SCAN backlight enable=00ff pwm=1f00 current=5000
+[   46.942797] y2-connectivity 18070000.connectivity: MD1 calibration boot: stage=2 FS=841 restore=1 open=0 result=0 poweroff=0
+[   46.953801] y2-connectivity 18070000.connectivity: CONN EMI remap verified; starting shared core
+[   46.962769] y2-connectivity 18070000.connectivity: CONN chip=6582; starting BTIF transport
+[   46.988410] y2-connectivity 18070000.connectivity: CONSYS chip=6582 HVR=8a01 FVR=8a00
+[   47.003499] y2-connectivity 18070000.connectivity: WMT full STP mode verified
+[   47.110145] y2-connectivity 18070000.connectivity: WMT patch 1 applied and reset acknowledged
+[   47.303629] y2-connectivity 18070000.connectivity: WMT patch 2 applied and reset acknowledged
+[   47.613572] y2-connectivity 18070000.connectivity: WMT RF calibration succeeded: event=630 bytes
+[   48.112937] y2-connectivity 18070000.connectivity: Bluetooth identity: persistent per-device Y2DATA fallback
+[   48.881498] Bluetooth: hci0: broken local ext features page 2
+[   49.271947] Bluetooth: MGMT ver 1.23
+[   62.043264] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4169970uV input=500000uA watchdog_pets=54 source=1 limit=450000uA pmic=44543mC baton_raw=10387 isense_raw=19424 cv=0x8e hold=0 full=0
+[   78.843257] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x0 battery=4175244uV input=500000uA watchdog_pets=68 source=1 limit=450000uA pmic=45128mC baton_raw=10387 isense_raw=19442 cv=0xae hold=1 full=0
+[   97.656049] backlight y2-backlight: Y2SCAN backlight enable=00ff pwm=1f00 current=5000
+[  138.203626] y2-mt6323-charger y2-mt6323-charger: status=3 fault=0x0 battery=4090649uV input=500000uA watchdog_pets=68 source=1 limit=450000uA pmic=43959mC baton_raw=10387 isense_raw=18617 cv=0x8e hold=1 full=0
+[  140.483972] y2-mt6323-charger y2-mt6323-charger: status=1 fault=0x0 battery=4090429uV input=500000uA watchdog_pets=69 source=1 limit=450000uA pmic=43959mC baton_raw=10387 isense_raw=18615 cv=0x8e hold=0 full=0
+[  158.021929] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x86b00000 allocation=708608 expected=86b00000 live=86b00000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00010001
+[  158.061103] PM: suspend entry (deep)
+[  158.095381] Filesystems sync: 0.034 seconds
+[  158.131912] Freezing user space processes
+[  158.133674] Freezing user space processes completed (elapsed 0.001 seconds)
+[  158.133709] OOM killer disabled.
+[  158.133724] Freezing remaining freezable tasks
+[  158.143661] Freezing remaining freezable tasks completed (elapsed 0.009 seconds)
+[  158.143691] printk: Suspending console(s) (use no_console_suspend to debug)
+[  158.155550] panel-gc9503v 1400c000.dsi.0: Skipping unprepare of already unprepared panel
+[  158.157616] GFP mask restricted
+[  158.157976] rfkill rfkill1: PM: calling rfkill_suspend @ 526, parent: y2-mt6582-wifi
+[  158.158022] rfkill rfkill1: PM: rfkill_suspend returned 0 after 3 usecs
+[  158.158055] y2-mt6582-wifi y2-mt6582-wifi: PM: calling platform_pm_suspend @ 526, parent: 18070000.connectivity
+[  158.158091] y2-mt6582-wifi y2-mt6582-wifi: PM: platform_pm_suspend returned 0 after 1 usecs
+[  158.158124] rfkill rfkill0: PM: calling rfkill_suspend @ 526, parent: hci0
+[  158.158150] rfkill rfkill0: PM: rfkill_suspend returned 0 after 2 usecs
+[  158.158197] musb-hdrc musb-hdrc.4.auto: PM: calling platform_pm_suspend @ 526, parent: 11200000.usb
+[  158.158271] musb-hdrc musb-hdrc.4.auto: PM: platform_pm_suspend returned 0 after 44 usecs
+[  158.158314] input input4: PM: calling input_dev_suspend @ 526, parent: card0
+[  158.158340] input input4: PM: input_dev_suspend returned 0 after 2 usecs
+[  158.158367] sound pcmC0D0p: PM: calling do_pcm_suspend @ 526, parent: card0
+[  158.158397] sound pcmC0D0p: PM: do_pcm_suspend returned 0 after 1 usecs
+[  158.158479] y2-audio sound: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.158572] y2-audio sound: PM: platform_pm_suspend returned 0 after 61 usecs
+[  158.158631] panel-gc9503v 1400c000.dsi.0: PM: calling pm_generic_suspend @ 526, parent: 1400c000.dsi
+[  158.158660] panel-gc9503v 1400c000.dsi.0: PM: pm_generic_suspend returned 0 after 0 usecs
+[  158.158694] input input3: PM: calling input_dev_suspend @ 526, parent: 10011000.keypad
+[  158.158719] input input3: PM: input_dev_suspend returned 0 after 2 usecs
+[  158.158749] input input2: PM: calling input_dev_suspend @ 526, parent: 0-0051
+[  158.158774] input input2: PM: input_dev_suspend returned 0 after 1 usecs
+[  158.158861] mmcblk mmc0:0001: PM: calling mmc_bus_suspend @ 36, parent: mmc0
+[  158.158942] cs43130 1-0030: PM: calling pm_runtime_force_suspend @ 540, parent: i2c-1
+[  158.159417] apt32f-wheel 0-0051: PM: calling apt32f_suspend @ 541, parent: i2c-0
+[  158.159469] apt32f-wheel 0-0051: PM: apt32f_suspend returned 0 after 9 usecs
+[  158.159664] cs43130 1-0030: PM: pm_runtime_force_suspend returned 0 after 685 usecs
+[  158.159760] i2c-mt65xx 11008000.i2c: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.159797] i2c-mt65xx 11008000.i2c: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.163712] mmcblk mmc0:0001: PM: mmc_bus_suspend returned 0 after 4819 usecs
+[  158.163797] mtk-msdc 11230000.mmc: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.163842] mtk-msdc 11230000.mmc: PM: platform_pm_suspend returned 0 after 8 usecs
+[  158.163880] mtk-msdc 11240000.mmc: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.163912] mtk-msdc 11240000.mmc: PM: platform_pm_suspend returned 0 after 1 usecs
+[  158.163948] i2c-mt65xx 11007000.i2c: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.163978] i2c-mt65xx 11007000.i2c: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.164013] mt6582-afe 11220000.audio-controller: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.164044] mt6582-afe 11220000.audio-controller: PM: platform_pm_suspend returned 0 after 1 usecs
+[  158.164080] mt6582-keypad 10011000.keypad: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.164117] mt6582-keypad 10011000.keypad: PM: platform_pm_suspend returned 0 after 7 usecs
+[  158.164153] mtk-dsi 1400c000.dsi: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.164183] mtk-dsi 1400c000.dsi: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.164220] regulator regulator.31: PM: calling regulator_suspend @ 526, parent: regulator-dac15
+[  158.164256] regulator regulator.31: PM: regulator_suspend returned 0 after 2 usecs
+[  158.164290] regulator regulator.30: PM: calling regulator_suspend @ 526, parent: regulator-dac18
+[  158.164320] regulator regulator.30: PM: regulator_suspend returned 0 after 0 usecs
+[  158.164354] reg-fixed-voltage regulator-dac15: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.164385] reg-fixed-voltage regulator-dac15: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.164420] reg-fixed-voltage regulator-dac18: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.164450] reg-fixed-voltage regulator-dac18: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.164491] regulator regulator.29: PM: calling regulator_suspend @ 526, parent: regulator-dac20
+[  158.164522] regulator regulator.29: PM: regulator_suspend returned 0 after 0 usecs
+[  158.164558] lima 13010000.gpu: PM: calling pm_runtime_force_suspend @ 526, parent: platform
+[  158.164611] lima 13010000.gpu: PM: pm_runtime_force_suspend returned 0 after 23 usecs
+[  158.164647] mediatek-mutex 1400e000.mutex: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.164677] mediatek-mutex 1400e000.mutex: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.164713] reg-fixed-voltage regulator-dac20: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.164743] reg-fixed-voltage regulator-dac20: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.164789] y2-connectivity 18070000.connectivity: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.164821] y2-connectivity 18070000.connectivity: PM: platform_pm_suspend returned 0 after 1 usecs
+[  158.164878] regulator regulator.28: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.164910] regulator regulator.28: PM: regulator_suspend returned 0 after 1 usecs
+[  158.164944] regulator regulator.27: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.164975] regulator regulator.27: PM: regulator_suspend returned 0 after 1 usecs
+[  158.165008] regulator regulator.26: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.165038] regulator regulator.26: PM: regulator_suspend returned 0 after 1 usecs
+[  158.165071] regulator regulator.25: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.165101] regulator regulator.25: PM: regulator_suspend returned 0 after 1 usecs
+[  158.165135] regulator regulator.24: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.165165] regulator regulator.24: PM: regulator_suspend returned 0 after 1 usecs
+[  158.165198] regulator regulator.23: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.165228] regulator regulator.23: PM: regulator_suspend returned 0 after 1 usecs
+[  158.165261] regulator regulator.22: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.165291] regulator regulator.22: PM: regulator_suspend returned 0 after 1 usecs
+[  158.165324] regulator regulator.21: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.165354] regulator regulator.21: PM: regulator_suspend returned 0 after 1 usecs
+[  158.165387] regulator regulator.20: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.165417] regulator regulator.20: PM: regulator_suspend returned 0 after 1 usecs
+[  158.165451] regulator regulator.19: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.165480] regulator regulator.19: PM: regulator_suspend returned 0 after 1 usecs
+[  158.165513] regulator regulator.18: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.165543] regulator regulator.18: PM: regulator_suspend returned 0 after 1 usecs
+[  158.165579] regulator regulator.17: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.165609] regulator regulator.17: PM: regulator_suspend returned 0 after 1 usecs
+[  158.165646] regulator regulator.16: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.165676] regulator regulator.16: PM: regulator_suspend returned 0 after 1 usecs
+[  158.165716] backlight y2-backlight: PM: calling backlight_suspend @ 526, parent: y2-backlight
+[  158.165829] backlight y2-backlight: PM: backlight_suspend returned 0 after 86 usecs
+[  158.165876] regulator regulator.15: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.165907] regulator regulator.15: PM: regulator_suspend returned 0 after 1 usecs
+[  158.165941] regulator regulator.14: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.165971] regulator regulator.14: PM: regulator_suspend returned 0 after 1 usecs
+[  158.166004] regulator regulator.13: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.166034] regulator regulator.13: PM: regulator_suspend returned 0 after 1 usecs
+[  158.166067] regulator regulator.12: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.166097] regulator regulator.12: PM: regulator_suspend returned 0 after 1 usecs
+[  158.166130] regulator regulator.11: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.166160] regulator regulator.11: PM: regulator_suspend returned 0 after 1 usecs
+[  158.166193] regulator regulator.10: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.166223] regulator regulator.10: PM: regulator_suspend returned 0 after 1 usecs
+[  158.166257] alarmtimer alarmtimer.3.auto: PM: calling platform_pm_suspend @ 526, parent: rtc0
+[  158.166290] alarmtimer alarmtimer.3.auto: PM: platform_pm_suspend returned 0 after 3 usecs
+[  158.166324] regulator regulator.9: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.166354] regulator regulator.9: PM: regulator_suspend returned 0 after 1 usecs
+[  158.166388] rtc rtc0: PM: calling rtc_suspend @ 526, parent: mt6323-rtc
+[  158.166520] rtc rtc0: PM: rtc_suspend returned 0 after 105 usecs
+[  158.166551] regulator regulator.8: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.166581] regulator regulator.8: PM: regulator_suspend returned 0 after 1 usecs
+[  158.166613] regulator regulator.7: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.166643] regulator regulator.7: PM: regulator_suspend returned 0 after 1 usecs
+[  158.166676] regulator regulator.6: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.166706] regulator regulator.6: PM: regulator_suspend returned 0 after 1 usecs
+[  158.166739] regulator regulator.5: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.166769] regulator regulator.5: PM: regulator_suspend returned 0 after 1 usecs
+[  158.166805] regulator regulator.4: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.166836] regulator regulator.4: PM: regulator_suspend returned 0 after 1 usecs
+[  158.166870] input input1: PM: calling input_dev_suspend @ 526, parent: mt6323-keys
+[  158.166895] input input1: PM: input_dev_suspend returned 0 after 2 usecs
+[  158.166921] regulator regulator.3: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.166952] regulator regulator.3: PM: regulator_suspend returned 0 after 1 usecs
+[  158.166985] regulator regulator.2: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.167014] regulator regulator.2: PM: regulator_suspend returned 0 after 1 usecs
+[  158.167047] regulator regulator.1: PM: calling regulator_suspend @ 526, parent: mt6323-regulator
+[  158.167077] regulator regulator.1: PM: regulator_suspend returned 0 after 1 usecs
+[  158.167114] input input0: PM: calling input_dev_suspend @ 526, parent: navigation-keys
+[  158.167137] input input0: PM: input_dev_suspend returned 0 after 1 usecs
+[  158.167165] mt6323-pwrc mt6323-pwrc: PM: calling platform_pm_suspend @ 526, parent: 1000d000.pwrap:pmic
+[  158.167196] mt6323-pwrc mt6323-pwrc: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.167230] mtk-pmic-keys mt6323-keys: PM: calling platform_pm_suspend @ 526, parent: 1000d000.pwrap:pmic
+[  158.167304] mtk-pmic-keys mt6323-keys: PM: platform_pm_suspend returned 0 after 44 usecs
+[  158.167339] platform mt6323-led: PM: calling platform_pm_suspend @ 526, parent: 1000d000.pwrap:pmic
+[  158.167369] platform mt6323-led: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.167419] mt6323-regulator mt6323-regulator: PM: calling platform_pm_suspend @ 526, parent: 1000d000.pwrap:pmic
+[  158.167449] mt6323-regulator mt6323-regulator: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.167484] mt6397-rtc mt6323-rtc: PM: calling platform_pm_suspend @ 526, parent: 1000d000.pwrap:pmic
+[  158.167540] mt6397-rtc mt6323-rtc: PM: platform_pm_suspend returned 0 after 26 usecs
+[  158.167576] y2-backlight y2-backlight: PM: calling platform_pm_suspend @ 526, parent: 1000d000.pwrap:pmic
+[  158.167606] y2-backlight y2-backlight: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.167641] y2-mt6323-charger y2-mt6323-charger: PM: calling platform_pm_suspend @ 526, parent: 1000d000.pwrap:pmic
+[  158.167698] y2-mt6323-charger y2-mt6323-charger: PM: platform_pm_suspend returned 0 after 27 usecs
+[  158.167736] mt6323-auxadc mt6323-auxadc: PM: calling platform_pm_suspend @ 526, parent: 1000d000.pwrap:pmic
+[  158.167766] mt6323-auxadc mt6323-auxadc: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.167804] port 11002000.serial:0.0: PM: calling pm_runtime_force_suspend @ 526, parent: 11002000.serial:0
+[  158.167834] port 11002000.serial:0.0: PM: pm_runtime_force_suspend returned 0 after 1 usecs
+[  158.167871] serial8250 serial8250: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.167902] serial8250 serial8250: PM: platform_pm_suspend returned 0 after 1 usecs
+[  158.167940] mediatek-drm mediatek-drm.2.auto: PM: calling platform_pm_suspend @ 526, parent: 14000000.syscon
+[  158.167970] mediatek-drm mediatek-drm.2.auto: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.168004] clk-mt6582-mm clk-mt6582-mm.1.auto: PM: calling platform_pm_suspend @ 526, parent: 14000000.syscon
+[  158.168035] clk-mt6582-mm clk-mt6582-mm.1.auto: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.168318] mt6397 1000d000.pwrap:pmic: PM: calling platform_pm_suspend @ 526, parent: 1000d000.pwrap
+[  158.168352] mt6397 1000d000.pwrap:pmic: PM: platform_pm_suspend returned 0 after 1 usecs
+[  158.168389] gpio-keys-polled navigation-keys: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.168419] gpio-keys-polled navigation-keys: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.168457] mt6582-thermal 1100b000.thermal: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.168488] mt6582-thermal 1100b000.thermal: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.168524] platform mtk-socinfo.0.auto: PM: calling platform_pm_suspend @ 526, parent: 10206100.efuse
+[  158.168553] platform mtk-socinfo.0.auto: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.168598] mediatek-mipi-tx 10010000.mipi-tx: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.168628] mediatek-mipi-tx 10010000.mipi-tx: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.168663] mediatek-disp-color 1400b000.color: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.168693] mediatek-disp-color 1400b000.color: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.168727] mediatek-disp-rdma 14008000.rdma: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.168757] mediatek-disp-rdma 14008000.rdma: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.168792] mediatek-disp-ovl 14007000.ovl: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.168823] mediatek-disp-ovl 14007000.ovl: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.168859] mtk-mmsys 14000000.syscon: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.168889] mtk-mmsys 14000000.syscon: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.168923] y2-pwrap 1000d000.pwrap: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.168952] y2-pwrap 1000d000.pwrap: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.168988] y2-usb 11200000.usb: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.169018] y2-usb 11200000.usb: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.169052] mt6577-uart 11002000.serial: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.169204] mt6577-uart 11002000.serial: PM: platform_pm_suspend returned 0 after 118 usecs
+[  158.169252] platform 10008000.timer: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.169283] platform 10008000.timer: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.169321] y2-pinctrl 10005000.pinctrl: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.169352] y2-pinctrl 10005000.pinctrl: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.169387] mtk-wdt 10007000.watchdog: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.169418] mtk-wdt 10007000.watchdog: PM: platform_pm_suspend returned 0 after 1 usecs
+[  158.169452] y2-mfg-clock 13000000.clock-controller: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.169482] y2-mfg-clock 13000000.clock-controller: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.169517] y2-spm 10006000.power-controller: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.169547] y2-spm 10006000.power-controller: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.169583] mediatek,efuse 10206100.efuse: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.169613] mediatek,efuse 10206100.efuse: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.169648] y2-clocks 10000000.clock-controller: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.169678] y2-clocks 10000000.clock-controller: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.169715] cpufreq-dt cpufreq-dt: PM: calling platform_pm_suspend @ 526, parent: platform
+[  158.169745] cpufreq-dt cpufreq-dt: PM: platform_pm_suspend returned 0 after 0 usecs
+[  158.169780] regulator regulator.0: PM: calling regulator_suspend @ 526, parent: reg-dummy
+[  158.169811] regulator regulator.0: PM: regulator_suspend returned 0 after 1 usecs
+[  158.169892] PM: suspend of devices complete after 12.259 msecs
+[  158.169910] PM: start suspend of devices complete after 26.105 msecs
+[  158.170872] mt6397 1000d000.pwrap:pmic: PM: calling mt6323_irq_suspend @ 526, parent: 1000d000.pwrap
+[  158.170943] mt6397 1000d000.pwrap:pmic: PM: mt6323_irq_suspend returned 0 after 31 usecs
+[  158.171086] PM: late suspend of devices complete after 1.094 msecs
+[  158.171678] i2c-mt65xx 11008000.i2c: PM: calling mtk_i2c_suspend_noirq @ 526, parent: platform
+[  158.171720] i2c-mt65xx 11008000.i2c: PM: mtk_i2c_suspend_noirq returned 0 after 6 usecs
+[  158.171791] i2c-mt65xx 11007000.i2c: PM: calling mtk_i2c_suspend_noirq @ 526, parent: platform
+[  158.171824] i2c-mt65xx 11007000.i2c: PM: mtk_i2c_suspend_noirq returned 0 after 4 usecs
+[  158.171882] lima 13010000.gpu: PM: calling genpd_suspend_noirq @ 526, parent: platform
+[  158.171923] lima 13010000.gpu: PM: genpd_suspend_noirq returned 0 after 15 usecs
+[  158.172312] y2-pinctrl 10005000.pinctrl: PM: calling pins_suspend @ 526, parent: platform
+[  158.172346] y2-pinctrl 10005000.pinctrl: PM: pins_suspend returned 0 after 2 usecs
+[  158.172429] PM: noirq suspend of devices complete after 1.131 msecs
+[  158.172546] Disabling non-boot CPUs ...
+[  158.189474] Y2SPM: CPU3 power-off result=-110
+[  158.189500] CPU3: unable to kill
+[  158.191642] Error taking CPU2 down: -95
+[  158.191669] Non-boot CPUs are not disabled
+[  158.191679] Enabling non-boot CPUs ...
+[  158.191776] CPU3: failed to boot: -5
+[  158.191959] Error taking CPU3 up: -5
+[  158.192167] y2-pinctrl 10005000.pinctrl: PM: calling pins_resume @ 526, parent: platform
+[  158.192209] y2-pinctrl 10005000.pinctrl: PM: pins_resume returned 0 after 2 usecs
+[  158.192658] lima 13010000.gpu: PM: calling genpd_resume_noirq @ 526, parent: platform
+[  158.192710] lima 13010000.gpu: PM: genpd_resume_noirq returned 0 after 21 usecs
+[  158.192772] i2c-mt65xx 11007000.i2c: PM: calling mtk_i2c_resume_noirq @ 526, parent: platform
+[  158.192864] i2c-mt65xx 11007000.i2c: PM: mtk_i2c_resume_noirq returned 0 after 64 usecs
+[  158.192914] i2c-mt65xx 11008000.i2c: PM: calling mtk_i2c_resume_noirq @ 526, parent: platform
+[  158.192998] i2c-mt65xx 11008000.i2c: PM: mtk_i2c_resume_noirq returned 0 after 58 usecs
+[  158.193315] PM: noirq resume of devices complete after 1.336 msecs
+[  158.193805] mt6397 1000d000.pwrap:pmic: PM: calling mt6323_irq_resume @ 526, parent: 1000d000.pwrap
+[  158.193879] mt6397 1000d000.pwrap:pmic: PM: mt6323_irq_resume returned 0 after 33 usecs
+[  158.194564] PM: early resume of devices complete after 1.017 msecs
+[  158.194677] regulator regulator.0: PM: calling regulator_resume @ 526, parent: reg-dummy
+[  158.194714] regulator regulator.0: PM: regulator_resume returned 0 after 1 usecs
+[  158.194748] cpufreq-dt cpufreq-dt: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.194780] cpufreq-dt cpufreq-dt: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.194814] y2-clocks 10000000.clock-controller: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.194844] y2-clocks 10000000.clock-controller: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.194880] mediatek,efuse 10206100.efuse: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.194910] mediatek,efuse 10206100.efuse: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.194944] y2-spm 10006000.power-controller: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.194974] y2-spm 10006000.power-controller: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.195007] y2-mfg-clock 13000000.clock-controller: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.195037] y2-mfg-clock 13000000.clock-controller: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.195070] mtk-wdt 10007000.watchdog: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.195101] mtk-wdt 10007000.watchdog: PM: platform_pm_resume returned 0 after 1 usecs
+[  158.195134] y2-pinctrl 10005000.pinctrl: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.195164] y2-pinctrl 10005000.pinctrl: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.195212] platform 10008000.timer: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.195244] platform 10008000.timer: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.195276] mt6577-uart 11002000.serial: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.195469] mt6577-uart 11002000.serial: PM: platform_pm_resume returned 0 after 160 usecs
+[  158.195511] y2-usb 11200000.usb: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.195543] y2-usb 11200000.usb: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.195577] y2-pwrap 1000d000.pwrap: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.195607] y2-pwrap 1000d000.pwrap: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.195640] mtk-mmsys 14000000.syscon: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.195671] mtk-mmsys 14000000.syscon: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.195707] mediatek-disp-ovl 14007000.ovl: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.195737] mediatek-disp-ovl 14007000.ovl: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.195769] mediatek-disp-rdma 14008000.rdma: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.195799] mediatek-disp-rdma 14008000.rdma: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.195832] mediatek-disp-color 1400b000.color: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.195862] mediatek-disp-color 1400b000.color: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.195894] mediatek-mipi-tx 10010000.mipi-tx: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.195923] mediatek-mipi-tx 10010000.mipi-tx: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.195962] platform mtk-socinfo.0.auto: PM: calling platform_pm_resume @ 526, parent: 10206100.efuse
+[  158.195993] platform mtk-socinfo.0.auto: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.196025] mt6582-thermal 1100b000.thermal: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.196055] mt6582-thermal 1100b000.thermal: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.196089] gpio-keys-polled navigation-keys: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.196119] gpio-keys-polled navigation-keys: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.196152] mt6397 1000d000.pwrap:pmic: PM: calling platform_pm_resume @ 526, parent: 1000d000.pwrap
+[  158.196182] mt6397 1000d000.pwrap:pmic: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.196368] clk-mt6582-mm clk-mt6582-mm.1.auto: PM: calling platform_pm_resume @ 526, parent: 14000000.syscon
+[  158.196401] clk-mt6582-mm clk-mt6582-mm.1.auto: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.196435] mediatek-drm mediatek-drm.2.auto: PM: calling platform_pm_resume @ 526, parent: 14000000.syscon
+[  158.196465] mediatek-drm mediatek-drm.2.auto: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.196500] serial8250 serial8250: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.196531] serial8250 serial8250: PM: platform_pm_resume returned 0 after 1 usecs
+[  158.196566] port 11002000.serial:0.0: PM: calling pm_runtime_force_resume @ 526, parent: 11002000.serial:0
+[  158.196599] port 11002000.serial:0.0: PM: pm_runtime_force_resume returned 0 after 2 usecs
+[  158.196632] mt6323-auxadc mt6323-auxadc: PM: calling platform_pm_resume @ 526, parent: 1000d000.pwrap:pmic
+[  158.196662] mt6323-auxadc mt6323-auxadc: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.196697] y2-mt6323-charger y2-mt6323-charger: PM: calling platform_pm_resume @ 526, parent: 1000d000.pwrap:pmic
+[  158.196770] y2-mt6323-charger y2-mt6323-charger: PM: platform_pm_resume returned 0 after 41 usecs
+[  158.196807] y2-backlight y2-backlight: PM: calling platform_pm_resume @ 526, parent: 1000d000.pwrap:pmic
+[  158.196837] y2-backlight y2-backlight: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.196870] mt6397-rtc mt6323-rtc: PM: calling platform_pm_resume @ 526, parent: 1000d000.pwrap:pmic
+[  158.196927] mt6397-rtc mt6323-rtc: PM: platform_pm_resume returned 0 after 26 usecs
+[  158.196962] mt6323-regulator mt6323-regulator: PM: calling platform_pm_resume @ 526, parent: 1000d000.pwrap:pmic
+[  158.196992] mt6323-regulator mt6323-regulator: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.197063] platform mt6323-led: PM: calling platform_pm_resume @ 526, parent: 1000d000.pwrap:pmic
+[  158.197096] platform mt6323-led: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.197128] mtk-pmic-keys mt6323-keys: PM: calling platform_pm_resume @ 526, parent: 1000d000.pwrap:pmic
+[  158.197185] mtk-pmic-keys mt6323-keys: PM: platform_pm_resume returned 0 after 27 usecs
+[  158.197220] mt6323-pwrc mt6323-pwrc: PM: calling platform_pm_resume @ 526, parent: 1000d000.pwrap:pmic
+[  158.197250] mt6323-pwrc mt6323-pwrc: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.197282] input input0: PM: calling input_dev_resume @ 526, parent: navigation-keys
+[  158.197307] input input0: PM: input_dev_resume returned 0 after 1 usecs
+[  158.197335] regulator regulator.1: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.197367] regulator regulator.1: PM: regulator_resume returned 0 after 1 usecs
+[  158.197400] regulator regulator.2: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.197430] regulator regulator.2: PM: regulator_resume returned 0 after 0 usecs
+[  158.197462] regulator regulator.3: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.197492] regulator regulator.3: PM: regulator_resume returned 0 after 0 usecs
+[  158.197524] input input1: PM: calling input_dev_resume @ 526, parent: mt6323-keys
+[  158.197547] input input1: PM: input_dev_resume returned 0 after 0 usecs
+[  158.197573] regulator regulator.4: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.197604] regulator regulator.4: PM: regulator_resume returned 0 after 1 usecs
+[  158.197638] regulator regulator.5: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.197668] regulator regulator.5: PM: regulator_resume returned 0 after 0 usecs
+[  158.197700] regulator regulator.6: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.197730] regulator regulator.6: PM: regulator_resume returned 0 after 0 usecs
+[  158.197762] regulator regulator.7: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.197793] regulator regulator.7: PM: regulator_resume returned 0 after 0 usecs
+[  158.197825] regulator regulator.8: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.197856] regulator regulator.8: PM: regulator_resume returned 0 after 1 usecs
+[  158.197889] rtc rtc0: PM: calling rtc_resume @ 526, parent: mt6323-rtc
+[  158.197916] rtc rtc0: PM: rtc_resume returned 0 after 1 usecs
+[  158.197944] regulator regulator.9: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.197975] regulator regulator.9: PM: regulator_resume returned 0 after 0 usecs
+[  158.198007] alarmtimer alarmtimer.3.auto: PM: calling platform_pm_resume @ 526, parent: rtc0
+[  158.198041] alarmtimer alarmtimer.3.auto: PM: platform_pm_resume returned 0 after 2 usecs
+[  158.198074] regulator regulator.10: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.198105] regulator regulator.10: PM: regulator_resume returned 0 after 0 usecs
+[  158.198137] regulator regulator.11: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.198167] regulator regulator.11: PM: regulator_resume returned 0 after 0 usecs
+[  158.198199] regulator regulator.12: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.198229] regulator regulator.12: PM: regulator_resume returned 0 after 0 usecs
+[  158.198261] regulator regulator.13: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.198291] regulator regulator.13: PM: regulator_resume returned 0 after 0 usecs
+[  158.198323] regulator regulator.14: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.198353] regulator regulator.14: PM: regulator_resume returned 0 after 0 usecs
+[  158.198385] regulator regulator.15: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.198415] regulator regulator.15: PM: regulator_resume returned 0 after 0 usecs
+[  158.198455] backlight y2-backlight: PM: calling backlight_resume @ 526, parent: y2-backlight
+[  158.198569] backlight y2-backlight: PM: backlight_resume returned 0 after 86 usecs
+[  158.198603] regulator regulator.16: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.198633] regulator regulator.16: PM: regulator_resume returned 0 after 0 usecs
+[  158.198668] regulator regulator.17: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.198698] regulator regulator.17: PM: regulator_resume returned 0 after 1 usecs
+[  158.198732] regulator regulator.18: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.198762] regulator regulator.18: PM: regulator_resume returned 0 after 0 usecs
+[  158.198794] regulator regulator.19: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.198824] regulator regulator.19: PM: regulator_resume returned 0 after 0 usecs
+[  158.198856] regulator regulator.20: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.198886] regulator regulator.20: PM: regulator_resume returned 0 after 0 usecs
+[  158.198918] regulator regulator.21: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.198948] regulator regulator.21: PM: regulator_resume returned 0 after 0 usecs
+[  158.198980] regulator regulator.22: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.199009] regulator regulator.22: PM: regulator_resume returned 0 after 0 usecs
+[  158.199041] regulator regulator.23: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.199071] regulator regulator.23: PM: regulator_resume returned 0 after 1 usecs
+[  158.199103] regulator regulator.24: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.199133] regulator regulator.24: PM: regulator_resume returned 0 after 0 usecs
+[  158.199165] regulator regulator.25: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.199195] regulator regulator.25: PM: regulator_resume returned 0 after 0 usecs
+[  158.199227] regulator regulator.26: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.199257] regulator regulator.26: PM: regulator_resume returned 0 after 0 usecs
+[  158.199288] regulator regulator.27: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.199318] regulator regulator.27: PM: regulator_resume returned 0 after 0 usecs
+[  158.199350] regulator regulator.28: PM: calling regulator_resume @ 526, parent: mt6323-regulator
+[  158.199380] regulator regulator.28: PM: regulator_resume returned 0 after 0 usecs
+[  158.199425] y2-connectivity 18070000.connectivity: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.199457] y2-connectivity 18070000.connectivity: PM: platform_pm_resume returned 0 after 2 usecs
+[  158.199498] reg-fixed-voltage regulator-dac20: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.199528] reg-fixed-voltage regulator-dac20: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.199562] mediatek-mutex 1400e000.mutex: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.199591] mediatek-mutex 1400e000.mutex: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.199624] lima 13010000.gpu: PM: calling pm_runtime_force_resume @ 526, parent: platform
+[  158.199653] lima 13010000.gpu: PM: pm_runtime_force_resume returned 0 after 1 usecs
+[  158.199685] regulator regulator.29: PM: calling regulator_resume @ 526, parent: regulator-dac20
+[  158.199716] regulator regulator.29: PM: regulator_resume returned 0 after 1 usecs
+[  158.199752] reg-fixed-voltage regulator-dac18: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.199783] reg-fixed-voltage regulator-dac18: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.199816] reg-fixed-voltage regulator-dac15: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.199846] reg-fixed-voltage regulator-dac15: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.199879] regulator regulator.30: PM: calling regulator_resume @ 526, parent: regulator-dac18
+[  158.199910] regulator regulator.30: PM: regulator_resume returned 0 after 1 usecs
+[  158.199943] regulator regulator.31: PM: calling regulator_resume @ 526, parent: regulator-dac15
+[  158.199973] regulator regulator.31: PM: regulator_resume returned 0 after 0 usecs
+[  158.200006] mtk-dsi 1400c000.dsi: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.200036] mtk-dsi 1400c000.dsi: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.200069] mt6582-keypad 10011000.keypad: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.200105] mt6582-keypad 10011000.keypad: PM: platform_pm_resume returned 0 after 5 usecs
+[  158.200139] mt6582-afe 11220000.audio-controller: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.200170] mt6582-afe 11220000.audio-controller: PM: platform_pm_resume returned 0 after 1 usecs
+[  158.200203] i2c-mt65xx 11007000.i2c: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.200233] i2c-mt65xx 11007000.i2c: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.200272] mtk-msdc 11240000.mmc: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.200304] mtk-msdc 11240000.mmc: PM: platform_pm_resume returned 0 after 2 usecs
+[  158.200340] mtk-msdc 11230000.mmc: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.200371] mtk-msdc 11230000.mmc: PM: platform_pm_resume returned 0 after 1 usecs
+[  158.200408] i2c-mt65xx 11008000.i2c: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.200438] i2c-mt65xx 11008000.i2c: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.200566] mmcblk mmc0:0001: PM: calling mmc_bus_resume @ 35, parent: mmc0
+[  158.200608] mmcblk mmc0:0001: PM: mmc_bus_resume returned 0 after 11 usecs
+[  158.200650] apt32f-wheel 0-0051: PM: calling apt32f_resume @ 52, parent: i2c-0
+[  158.200687] apt32f-wheel 0-0051: PM: apt32f_resume returned 0 after 4 usecs
+[  158.200748] input input2: PM: calling input_dev_resume @ 526, parent: 0-0051
+[  158.200775] input input2: PM: input_dev_resume returned 0 after 0 usecs
+[  158.200805] input input3: PM: calling input_dev_resume @ 526, parent: 10011000.keypad
+[  158.200828] input input3: PM: input_dev_resume returned 0 after 0 usecs
+[  158.200858] panel-gc9503v 1400c000.dsi.0: PM: calling pm_generic_resume @ 526, parent: 1400c000.dsi
+[  158.200885] panel-gc9503v 1400c000.dsi.0: PM: pm_generic_resume returned 0 after 0 usecs
+[  158.200936] cs43130 1-0030: PM: calling pm_runtime_force_resume @ 57, parent: i2c-1
+[  158.388595] cs43130 1-0030: PM: pm_runtime_force_resume returned 0 after 187621 usecs
+[  158.388661] y2-audio sound: PM: calling platform_pm_resume @ 526, parent: platform
+[  158.388712] y2-audio sound: PM: platform_pm_resume returned 0 after 14 usecs
+[  158.388788] input input4: PM: calling input_dev_resume @ 526, parent: card0
+[  158.388813] input input4: PM: input_dev_resume returned 0 after 1 usecs
+[  158.388844] musb-hdrc musb-hdrc.4.auto: PM: calling platform_pm_resume @ 526, parent: 11200000.usb
+[  158.388922] musb-hdrc musb-hdrc.4.auto: PM: platform_pm_resume returned 0 after 47 usecs
+[  158.388970] rfkill rfkill0: PM: calling rfkill_resume @ 526, parent: hci0
+[  158.388998] rfkill rfkill0: PM: rfkill_resume returned 0 after 2 usecs
+[  158.389025] y2-mt6582-wifi y2-mt6582-wifi: PM: calling platform_pm_resume @ 526, parent: 18070000.connectivity
+[  158.389055] y2-mt6582-wifi y2-mt6582-wifi: PM: platform_pm_resume returned 0 after 0 usecs
+[  158.389088] rfkill rfkill1: PM: calling rfkill_resume @ 526, parent: y2-mt6582-wifi
+[  158.389112] rfkill rfkill1: PM: rfkill_resume returned 0 after 0 usecs
+[  158.389136] PM: resume of devices complete after 194.547 msecs
+[  158.389171] GFP mask restored
+[  158.389563] mediatek-mipi-tx 10010000.mipi-tx: PHY entry CON0=00000000 CON1=00000003 CON2=34000000 PWR=00000002 CON=00000400 lanes=00000000
+[  158.410606] mediatek-mipi-tx 10010000.mipi-tx: Linux PHY powered at 338000000Hz
+[  158.410638] mtk-dsi 1400c000.dsi: modeset: PHY/clocks ready, initialize DSI
+[  158.410660] mtk-dsi 1400c000.dsi: modeset: DSI command engine ready
+[  158.410687] (NULL device *): Y2SCAN inherited mutex0 en=00000000 get=00000000 mod=00000000 sof=00000000; clear parked ownership
+[  158.423928] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x86b00000 allocation=708608 expected=86b00000 live=86b00000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00010001
+[  158.440578] OOM killer enabled.
+[  158.440596] Restarting tasks: Starting
+[  158.441527] Restarting tasks: Done
+[  158.447745] random: crng reseeded on system resumption
+[  158.447789] PM: suspend exit
+[  158.459506] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84a00000 allocation=692224 expected=84a00000 live=84a00000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00010001
+[  158.515063] mediatek-disp-ovl 14007000.ovl: Y2SCAN FB format=XR24 little-endian (0x34325258) size=480x360 pitch=1920 GEM-DMA=0x84a00000 allocation=692224 expected=84a00000 live=84a00000 match=1 ctrl=00000001 src=00000001 roi=016801e0 layer=000040ff pitch-live=00000780 size-live=016801e0 offset=00000000 rdma=00010001
+[  158.683802] mtk-dsi 1400c000.dsi: Y2SCAN sample=0 vblank=900 DSI irq=1 mode=00000001 start=00000001 con=00000002 inten=0000000b status=80000000 txrx=0000000c ps=000305a0 vactive=360 lcc=00000001 ld0=00000000
+[  158.683871] mtk-dsi 1400c000.dsi: Y2SCAN OVL en=00000001 irq=00000010 src=00000001 addr=84a00000 con=000040ff pitch=00000780 RDMA con=00000101 irq=00000027 size=00b001e0/00000168 fifo=01000010 COLOR cfg=00002080 en=00000001 size=480/360
+[  158.683927] mtk-dsi 1400c000.dsi: Y2SCAN MMSYS mout30=00000001 out4c=00000000 dsi50=00000000 reset=00000001 CG=00000000/00000040 MUTEX en=00000001 get=00000000 mod=00000488 sof=00000001 GPIO112 mux=1 dir=1 out=1 in=1 PHY con=00000403 pll=00000009/00000003/34000000 pwr=00000101

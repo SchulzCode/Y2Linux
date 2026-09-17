@@ -1,0 +1,6 @@
+2026-09-18: Owner reports manually flashing the new build.
+Owner confirms the two-minute GPU animation looks correct, answering the question about colored patches, moving checkerboard shapes, translucent panels, tearing and corruption.
+Owner confirms headphones connected and ready for quiet wired-audio check.
+Owner reports wheel/navigation/volume/brief-Power sequence done. Machine event capture must determine which controls fell within the window.
+Owner confirms clean quiet wired tones in both channels, with no clicks or unexpected dropouts.
+Owner repeats both volume buttons and a brief Power tap; second evdev capture records press/release events for all three.

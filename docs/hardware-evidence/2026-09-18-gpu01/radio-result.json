@@ -1,0 +1,13 @@
+{
+  "wifi_scan_bss_count": 19,
+  "wifi_plus_bluetooth_power_scan_bss_count": 23,
+  "status_observations": [
+    "activated=1 powered=1 functions=0x9 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0",
+    "activated=1 powered=0 functions=0x0 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0"
+  ],
+  "saved_wifi_enabled": 0,
+  "saved_bluetooth_enabled": 0,
+  "preferences_checksum_verification": "PASS",
+  "connection_pairing_audio_traffic_tests": "PENDING by owner choice",
+  "note": "First harness scan preceded wpa_supplicant interface-UP readiness and returned ENETDOWN. Repeating after PONG readiness passed; no radio driver change or recovery."
+}

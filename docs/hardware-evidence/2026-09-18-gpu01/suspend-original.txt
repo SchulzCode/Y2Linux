@@ -1,0 +1,65 @@
+751.01 2913.04
+910f0f1b-4a58-4e6c-9c45-c44ca6f88f70
+mode=SPM_CPU_SHUTDOWN_INFRA_RETAINED broken=0 entries=0 resumes=0 aborts=0 result=0 wake=0x0 ticks32k=0 event=0x0 debug=0x0 r13=0x0 power=0x3f4c/0x3f4c
+suspended
+198458
+domain                          status          children        performance
+    /device                         runtime status                  managed by
+------------------------------------------------------------------------------
+y2-mfg                          off-0                           0
+    13010000.gpu                    suspended                   0           SW
+206:          0          0          0          0 MT_SYSIRQ 171 Level     gpmmu
+207:          0          0          0          0 MT_SYSIRQ 173 Level     ppmmu0
+208:          0          0          0          0 MT_SYSIRQ 175 Level     ppmmu1
+209:       7786          0          0          0 MT_SYSIRQ 170 Level     gp
+210:       5879          0          0          0 MT_SYSIRQ 172 Level     pp0
+211:       5879          0          0          0 MT_SYSIRQ 174 Level     pp1
+756.05 2933.02
+910f0f1b-4a58-4e6c-9c45-c44ca6f88f70
+mode=SPM_CPU_SHUTDOWN_INFRA_RETAINED broken=0 entries=0 resumes=0 aborts=0 result=0 wake=0x0 ticks32k=0 event=0x0 debug=0x0 r13=0x0 power=0x3f4c/0x3f4c
+suspended
+198458
+domain                          status          children        performance
+    /device                         runtime status                  managed by
+------------------------------------------------------------------------------
+y2-mfg                          off-0                           0
+    13010000.gpu                    suspended                   0           SW
+206:          0          0          0          0 MT_SYSIRQ 171 Level     gpmmu
+207:          0          0          0          0 MT_SYSIRQ 173 Level     ppmmu0
+208:          0          0          0          0 MT_SYSIRQ 175 Level     ppmmu1
+209:       7786          0          0          0 MT_SYSIRQ 170 Level     gp
+210:       5879          0          0          0 MT_SYSIRQ 172 Level     pp0
+211:       5879          0          0          0 MT_SYSIRQ 174 Level     pp1
+STATIC_READY frames=2 GPU may runtime-idle; SIGUSR1 redraws
+phase=HOLD source=1 source_valid=1 charge_limit_ua=450000
+active=0 online=1 present=1 fault=0x0 sample_error=0 stop_error=0 paused=0 last_error=0
+battery_uv=4085815 baton_raw=10386 isense_raw=18637 pmic_die_mc=44543 input_budget_ua=500000
+chr_con0=0x0063 cv_status=0x008e battery_ovp=0x0003 baton=0x0005 watchdog=0x0000 thermal=0x0000
+watchdog_pets=293 last_pet_ms=718278 total_seconds=329 cv_seconds=46 precharge_seconds=0 hold=1 full=0 timeout=0
+first_fault=0x0 at_ms=0 battery_uv=0 sample_error=0 chr=0x0 cv=0x0 ovp=0x0 watchdog=0x0 thermal=0x0
+TEST static_context_deep_rtc
+rtcwake: assuming RTC uses UTC ...
+rtcwake: wakeup using /dev/rtc0 at Mon Aug  1 00:13:02 2022
+1659312782
+759.25 2945.63
+910f0f1b-4a58-4e6c-9c45-c44ca6f88f70
+mode=SPM_CPU_SHUTDOWN_INFRA_RETAINED broken=0 entries=0 resumes=0 aborts=0 result=0 wake=0x0 ticks32k=0 event=0x0 debug=0x0 r13=0x0 power=0x3f4c/0x3f4c
+suspended
+198697
+domain                          status          children        performance
+    /device                         runtime status                  managed by
+------------------------------------------------------------------------------
+y2-mfg                          off-0                           0
+    13010000.gpu                    suspended                   0           SW
+206:          0          0          0          0 MT_SYSIRQ 171 Level     gpmmu
+207:          0          0          0          0 MT_SYSIRQ 173 Level     ppmmu0
+208:          0          0          0          0 MT_SYSIRQ 175 Level     ppmmu1
+209:       7787          0          0          0 MT_SYSIRQ 170 Level     gp
+210:       5880          0          0          0 MT_SYSIRQ 172 Level     pp0
+211:       5880          0          0          0 MT_SYSIRQ 174 Level     pp1
+Changing power off succeeded
+Radios did not stop; suspend refused.
+static_suspend_exit=1
+1
+[auto] inhibit-charge
+activated=1 powered=0 functions=0x0 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0

@@ -179,7 +179,7 @@ int y2_spm_cpu_boot(unsigned cpu, unsigned long entry)
 	 * powered cores. Only subsequent hotplug transitions use MTCMOS. */
 	if (!smp_load_acquire(&spm_base)) return 0;
 	if (cpu < 1 || cpu > 3 || READ_ONCE(spm_broken)) return -EIO;
-	bit = BIT(10 + cpu);
+	bit = y2_spm_cpu_status_mask(cpu);
 	raw_spin_lock_irqsave(&spm_lock, flags);
 	if ((spm_read(spm_base, 0x60c) & bit) && (spm_read(spm_base, 0x610) & bit)) ret = 0;
 	else {

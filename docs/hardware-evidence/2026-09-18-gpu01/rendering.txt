@@ -1,0 +1,109 @@
+DRM_RENDER=/dev/dri/renderD128 driver=lima
+LIMA_GPU_ID=0x1
+LIMA_PP_CORES=0x2
+LIMA_GP_VERSION=0xb070101
+LIMA_PP_VERSION=0xcd070101
+DRM_KMS=/dev/dri/card1 driver=mediatek
+EGL_VENDOR=Mesa Project
+EGL_VERSION=1.4
+EGL_APIS=OpenGL OpenGL_ES 
+GL_VENDOR=Mesa
+GL_RENDERER=Mali400
+GL_VERSION=OpenGL ES 2.0 Mesa 24.0.9
+GL_MAX_TEXTURE_SIZE=4096 texture_units=16
+GL_EXTENSIONS=GL_EXT_blend_minmax GL_EXT_multi_draw_arrays GL_EXT_texture_compression_s3tc GL_EXT_texture_compression_dxt1 GL_EXT_texture_format_BGRA8888 GL_OES_compressed_ETC1_RGB8_texture GL_OES_depth24 GL_OES_element_index_uint GL_OES_fbo_render_mipmap GL_OES_mapbuffer GL_OES_rgb8_rgba8 GL_OES_standard_derivatives GL_OES_stencil8 GL_OES_texture_3D GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_texture_npot GL_OES_vertex_half_float GL_OES_EGL_image GL_OES_depth_texture GL_OES_packed_depth_stencil GL_OES_get_program_binary GL_APPLE_texture_max_level GL_EXT_discard_framebuffer GL_EXT_read_format_bgra GL_NV_pack_subimage GL_NV_texture_barrier GL_EXT_frag_depth GL_NV_fbo_color_attachments GL_OES_EGL_image_external GL_OES_EGL_sync GL_OES_vertex_array_object GL_ANGLE_pack_reverse_row_order GL_ANGLE_texture_compression_dxt3 GL_ANGLE_texture_compression_dxt5 GL_EXT_texture_rg GL_EXT_unpack_subimage GL_NV_draw_buffers GL_NV_read_buffer GL_NV_read_depth GL_NV_read_depth_stencil GL_NV_read_stencil GL_APPLE_sync GL_EXT_draw_buffers GL_EXT_map_buffer_range GL_KHR_debug GL_KHR_texture_compression_astc_ldr GL_NV_generate_mipmap_sRGB GL_NV_pixel_buffer_object GL_OES_required_internalformat GL_OES_surfaceless_context GL_EXT_debug_label GL_EXT_separate_shader_objects GL_EXT_compressed_ETC1_RGB8_sub_texture GL_EXT_draw_elements_base_vertex GL_EXT_texture_border_clamp GL_KHR_context_flush_control GL_OES_draw_elements_base_vertex GL_OES_texture_border_clamp GL_EXT_blend_func_extended GL_KHR_no_error GL_KHR_texture_compression_astc_sliced_3d GL_EXT_multisampled_render_to_texture GL_EXT_multisampled_render_to_texture2 GL_EXT_texture_compression_s3tc_srgb GL_EXT_clip_control GL_KHR_parallel_shader_compile GL_MESA_sampler_objects GL_MESA_bgra 
+EGL_CONFIG=7 scanout=XRGB8888 linear alpha_bits=0 texture_alpha=RGBA8888 GLES_blending=enabled
+PRESENTATION=GBM/kmsro PRIME dma-buf -> existing Mediatek KMS; no CPU copy
+MODE=480x360 refresh=63 fps_cap=30 static=0
+PROGRESS frames=60 flips=59 last_sequence=1000 elapsed=2.029
+PROGRESS frames=121 flips=120 last_sequence=1131 elapsed=4.048
+PROGRESS frames=181 flips=180 last_sequence=1261 elapsed=6.051
+PROGRESS frames=241 flips=240 last_sequence=1391 elapsed=8.054
+PROGRESS frames=301 flips=300 last_sequence=1521 elapsed=10.057
+PROGRESS frames=361 flips=360 last_sequence=1651 elapsed=12.060
+PROGRESS frames=422 flips=421 last_sequence=1782 elapsed=14.078
+PROGRESS frames=482 flips=481 last_sequence=1912 elapsed=16.081
+PROGRESS frames=542 flips=541 last_sequence=2042 elapsed=18.084
+RESULT frames=599 page_flips=598 elapsed_s=20.015 fps=29.93 submit_present_ms_p50=9.132 p95=16.119 max=72.272 cpu_pct=3.22 maxrss_kib=14216
+EXIT status=0 KMS_restored=1
+renderer_exit=0
+
+DRM_RENDER=/dev/dri/renderD128 driver=lima
+LIMA_GPU_ID=0x1
+LIMA_PP_CORES=0x2
+LIMA_GP_VERSION=0xb070101
+LIMA_PP_VERSION=0xcd070101
+DRM_KMS=/dev/dri/card1 driver=mediatek
+EGL_VENDOR=Mesa Project
+EGL_VERSION=1.4
+EGL_APIS=OpenGL OpenGL_ES 
+GL_VENDOR=Mesa
+GL_RENDERER=Mali400
+GL_VERSION=OpenGL ES 2.0 Mesa 24.0.9
+GL_MAX_TEXTURE_SIZE=4096 texture_units=16
+GL_EXTENSIONS=GL_EXT_blend_minmax GL_EXT_multi_draw_arrays GL_EXT_texture_compression_s3tc GL_EXT_texture_compression_dxt1 GL_EXT_texture_format_BGRA8888 GL_OES_compressed_ETC1_RGB8_texture GL_OES_depth24 GL_OES_element_index_uint GL_OES_fbo_render_mipmap GL_OES_mapbuffer GL_OES_rgb8_rgba8 GL_OES_standard_derivatives GL_OES_stencil8 GL_OES_texture_3D GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_texture_npot GL_OES_vertex_half_float GL_OES_EGL_image GL_OES_depth_texture GL_OES_packed_depth_stencil GL_OES_get_program_binary GL_APPLE_texture_max_level GL_EXT_discard_framebuffer GL_EXT_read_format_bgra GL_NV_pack_subimage GL_NV_texture_barrier GL_EXT_frag_depth GL_NV_fbo_color_attachments GL_OES_EGL_image_external GL_OES_EGL_sync GL_OES_vertex_array_object GL_ANGLE_pack_reverse_row_order GL_ANGLE_texture_compression_dxt3 GL_ANGLE_texture_compression_dxt5 GL_EXT_texture_rg GL_EXT_unpack_subimage GL_NV_draw_buffers GL_NV_read_buffer GL_NV_read_depth GL_NV_read_depth_stencil GL_NV_read_stencil GL_APPLE_sync GL_EXT_draw_buffers GL_EXT_map_buffer_range GL_KHR_debug GL_KHR_texture_compression_astc_ldr GL_NV_generate_mipmap_sRGB GL_NV_pixel_buffer_object GL_OES_required_internalformat GL_OES_surfaceless_context GL_EXT_debug_label GL_EXT_separate_shader_objects GL_EXT_compressed_ETC1_RGB8_sub_texture GL_EXT_draw_elements_base_vertex GL_EXT_texture_border_clamp GL_KHR_context_flush_control GL_OES_draw_elements_base_vertex GL_OES_texture_border_clamp GL_EXT_blend_func_extended GL_KHR_no_error GL_KHR_texture_compression_astc_sliced_3d GL_EXT_multisampled_render_to_texture GL_EXT_multisampled_render_to_texture2 GL_EXT_texture_compression_s3tc_srgb GL_EXT_clip_control GL_KHR_parallel_shader_compile GL_MESA_sampler_objects GL_MESA_bgra 
+EGL_CONFIG=7 scanout=XRGB8888 linear alpha_bits=0 texture_alpha=RGBA8888 GLES_blending=enabled
+PRESENTATION=GBM/kmsro PRIME dma-buf -> existing Mediatek KMS; no CPU copy
+MODE=480x360 refresh=63 fps_cap=30 static=0
+PROGRESS frames=61 flips=60 last_sequence=2629 elapsed=2.020
+PROGRESS frames=121 flips=120 last_sequence=2759 elapsed=4.023
+PROGRESS frames=182 flips=181 last_sequence=2890 elapsed=6.042
+PROGRESS frames=242 flips=241 last_sequence=3020 elapsed=8.045
+PROGRESS frames=302 flips=301 last_sequence=3150 elapsed=10.048
+PROGRESS frames=362 flips=361 last_sequence=3280 elapsed=12.051
+PROGRESS frames=422 flips=421 last_sequence=3410 elapsed=14.054
+PROGRESS frames=483 flips=482 last_sequence=3541 elapsed=16.072
+PROGRESS frames=543 flips=542 last_sequence=3671 elapsed=18.075
+PROGRESS frames=603 flips=602 last_sequence=3801 elapsed=20.078
+PROGRESS frames=663 flips=662 last_sequence=3931 elapsed=22.081
+PROGRESS frames=723 flips=722 last_sequence=4061 elapsed=24.084
+PROGRESS frames=784 flips=783 last_sequence=4193 elapsed=26.118
+PROGRESS frames=844 flips=843 last_sequence=4323 elapsed=28.121
+PROGRESS frames=904 flips=903 last_sequence=4453 elapsed=30.124
+PROGRESS frames=965 flips=964 last_sequence=4584 elapsed=32.143
+PROGRESS frames=1025 flips=1024 last_sequence=4714 elapsed=34.146
+PROGRESS frames=1085 flips=1084 last_sequence=4844 elapsed=36.149
+PROGRESS frames=1145 flips=1144 last_sequence=4974 elapsed=38.152
+PROGRESS frames=1206 flips=1205 last_sequence=5105 elapsed=40.171
+PROGRESS frames=1266 flips=1265 last_sequence=5235 elapsed=42.174
+PROGRESS frames=1326 flips=1325 last_sequence=5365 elapsed=44.177
+PROGRESS frames=1386 flips=1385 last_sequence=5495 elapsed=46.180
+PROGRESS frames=1446 flips=1445 last_sequence=5625 elapsed=48.183
+PROGRESS frames=1507 flips=1506 last_sequence=5757 elapsed=50.217
+PROGRESS frames=1567 flips=1566 last_sequence=5887 elapsed=52.220
+PROGRESS frames=1627 flips=1626 last_sequence=6017 elapsed=54.223
+PROGRESS frames=1688 flips=1687 last_sequence=6148 elapsed=56.241
+PROGRESS frames=1748 flips=1747 last_sequence=6278 elapsed=58.244
+PROGRESS frames=1808 flips=1807 last_sequence=6408 elapsed=60.247
+PROGRESS frames=1868 flips=1867 last_sequence=6538 elapsed=62.250
+PROGRESS frames=1928 flips=1927 last_sequence=6668 elapsed=64.253
+PROGRESS frames=1989 flips=1988 last_sequence=6799 elapsed=66.272
+PROGRESS frames=2049 flips=2048 last_sequence=6929 elapsed=68.275
+PROGRESS frames=2109 flips=2108 last_sequence=7059 elapsed=70.278
+PROGRESS frames=2169 flips=2168 last_sequence=7189 elapsed=72.281
+PROGRESS frames=2229 flips=2228 last_sequence=7319 elapsed=74.284
+PROGRESS frames=2290 flips=2289 last_sequence=7451 elapsed=76.318
+PROGRESS frames=2350 flips=2349 last_sequence=7581 elapsed=78.321
+PROGRESS frames=2410 flips=2409 last_sequence=7711 elapsed=80.324
+PROGRESS frames=2471 flips=2470 last_sequence=7842 elapsed=82.343
+PROGRESS frames=2531 flips=2530 last_sequence=7972 elapsed=84.346
+PROGRESS frames=2591 flips=2590 last_sequence=8102 elapsed=86.349
+PROGRESS frames=2651 flips=2650 last_sequence=8232 elapsed=88.352
+PROGRESS frames=2711 flips=2710 last_sequence=8362 elapsed=90.355
+PROGRESS frames=2772 flips=2771 last_sequence=8493 elapsed=92.373
+PROGRESS frames=2832 flips=2831 last_sequence=8623 elapsed=94.376
+PROGRESS frames=2892 flips=2891 last_sequence=8753 elapsed=96.379
+PROGRESS frames=2952 flips=2951 last_sequence=8883 elapsed=98.382
+PROGRESS frames=3013 flips=3012 last_sequence=9015 elapsed=100.416
+PROGRESS frames=3073 flips=3072 last_sequence=9145 elapsed=102.419
+PROGRESS frames=3133 flips=3132 last_sequence=9275 elapsed=104.422
+PROGRESS frames=3194 flips=3193 last_sequence=9406 elapsed=106.441
+PROGRESS frames=3254 flips=3253 last_sequence=9536 elapsed=108.444
+PROGRESS frames=3314 flips=3313 last_sequence=9666 elapsed=110.447
+PROGRESS frames=3374 flips=3373 last_sequence=9796 elapsed=112.450
+PROGRESS frames=3434 flips=3433 last_sequence=9926 elapsed=114.453
+PROGRESS frames=3495 flips=3494 last_sequence=10057 elapsed=116.472
+PROGRESS frames=3555 flips=3554 last_sequence=10187 elapsed=118.475
+RESULT frames=3600 page_flips=3599 elapsed_s=120.009 fps=30.00 submit_present_ms_p50=9.272 p95=16.191 max=20.276 cpu_pct=3.36 maxrss_kib=13076
+EXIT status=0 KMS_restored=1
+load_exit=0

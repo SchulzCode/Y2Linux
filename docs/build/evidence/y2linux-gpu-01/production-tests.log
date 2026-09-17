@@ -1,0 +1,109 @@
+test_data_partition_geometry_identity_and_number_independence (tests.test_production_storage.RootResolver.test_data_partition_geometry_identity_and_number_independence) ... ok
+test_exact_internal_geometry_without_fixed_number (tests.test_production_storage.RootResolver.test_exact_internal_geometry_without_fixed_number) ... ok
+test_full_physical_disk_capacity (tests.test_production_storage.RootResolver.test_full_physical_disk_capacity) ... ok
+test_mismatched_capacity (tests.test_production_storage.RootResolver.test_mismatched_capacity) ... ok
+test_removable_clone_never_selected (tests.test_production_storage.RootResolver.test_removable_clone_never_selected) ... ok
+test_shifted_partition (tests.test_production_storage.RootResolver.test_shifted_partition) ... ok
+test_wrong_identity_and_duplicates (tests.test_production_storage.RootResolver.test_wrong_identity_and_duplicates) ... ok
+test_wrong_size (tests.test_production_storage.RootResolver.test_wrong_size) ... ok
+test_ext_csd_cannot_select_boot_rpmb_or_change_boot_config (tests.test_production_storage.StorageGuard.test_ext_csd_cannot_select_boot_rpmb_or_change_boot_config) ... ok
+test_real_request_guard_completes_hsq_rejections (tests.test_production_storage.StorageGuard.test_real_request_guard_completes_hsq_rejections) ... ok
+test_write_bounds_and_protected_exclusions (tests.test_production_storage.StorageGuard.test_write_bounds_and_protected_exclusions) ... ok
+test_boot_only_profile_preserves_all_stock_fields (tests.test_production_storage.Transport.test_boot_only_profile_preserves_all_stock_fields) ... ok
+test_classified_partitions_and_target_math (tests.test_production_storage.Transport.test_classified_partitions_and_target_math) ... ok
+test_sparse_defined_bytes_and_truncation (tests.test_production_storage.Transport.test_sparse_defined_bytes_and_truncation) ... ok
+test_spft_scatter_maps_raw_images_only (tests.test_production_storage.Transport.test_spft_scatter_maps_raw_images_only) ... ok
+test_explicit_rescue_never_mounts_a_filesystem (tests.test_production_handover.Handover.test_explicit_rescue_never_mounts_a_filesystem) ... ok
+test_failed_exec_restores_mounts_and_enters_rescue (tests.test_production_handover.Handover.test_failed_exec_restores_mounts_and_enters_rescue) ... ok
+test_failed_mount_move_rolls_back_before_rescue (tests.test_production_handover.Handover.test_failed_mount_move_rolls_back_before_rescue) ... ok
+test_missing_identity_schema_and_fsck_stay_in_rescue (tests.test_production_handover.Handover.test_missing_identity_schema_and_fsck_stay_in_rescue) ... ok
+test_no_sd_root_data_mounts_then_switch_root (tests.test_production_handover.Handover.test_no_sd_root_data_mounts_then_switch_root) ... ok
+test_preserve_data_and_first_install_have_distinct_expectations (tests.test_readback_profiles.Readback.test_preserve_data_and_first_install_have_distinct_expectations) ... ok
+test_data_reset_profile_never_changes_normal_preserving_update (tests.test_owner_data.OwnerData.test_data_reset_profile_never_changes_normal_preserving_update) ... ok
+test_private_paths_and_symlinks_are_refused_before_read (tests.test_owner_data.OwnerData.test_private_paths_and_symlinks_are_refused_before_read) ... ok
+test_all_protected_boundaries_and_overflow (tests.test_mmc_requests.ProductionMMC.test_all_protected_boundaries_and_overflow) ... ok
+test_read_write_and_companions (tests.test_mmc_requests.ProductionMMC.test_read_write_and_companions) ... ok
+test_standard_initialization_flush_shutdown (tests.test_mmc_requests.ProductionMMC.test_standard_initialization_flush_shutdown) ... ok
+test_switch_fields_and_hardware_areas (tests.test_mmc_requests.ProductionMMC.test_switch_fields_and_hardware_areas) ... ok
+test_initialization_before_card_registration_and_switch_confirmation (tests.test_mmc_context.Context.test_initialization_before_card_registration_and_switch_confirmation) ... ok
+test_actual_block_allocation_and_native_bounds (tests.test_emmc_layout.StockWindow.test_actual_block_allocation_and_native_bounds) ... ok
+test_manifest_and_readback_modes_match_physical_evidence (tests.test_emmc_layout.StockWindow.test_manifest_and_readback_modes_match_physical_evidence) ... ok
+test_real_request_sequence_wire_arguments_and_faults (tests.test_mmc_transport.Transport.test_real_request_sequence_wire_arguments_and_faults) ... PASS production MMC sequencing, sector-zero fixture, wire addresses, FUA, stop, faults and protected writes
+ok
+test_upstream_parser_and_malformed_tables (tests.test_stock_msdos.StockParser.test_upstream_parser_and_malformed_tables) ... ok
+test_recover_connected_passive_and_failures (tests.test_usb_recover.Recover.test_recover_connected_passive_and_failures) ... ok
+test_guarded_single_release (tests.test_usb_wake.UsbWake.test_guarded_single_release) ... ok
+test_guards_and_transition (tests.test_usb_session.Session.test_guards_and_transition) ... ok
+test_guards_widths_and_failures (tests.test_usb_state.UsbStateSnapshot.test_guards_widths_and_failures) ... ok
+test_guards_and_read_failures (tests.test_usb_clock.UsbClockSnapshot.test_guards_and_read_failures) ... ok
+test_owned_controller_lifecycle_and_guards (tests.test_usb_reconnect.Reconnect.test_owned_controller_lifecycle_and_guards) ... ok
+test_poll_failure_survives_teardown (tests.test_usb_failure.UsbFailure.test_poll_failure_survives_teardown) ... ok
+test_real_trigger_irq_and_dma_bounds (tests.test_audio.AFE.test_real_trigger_irq_and_dma_bounds) ... ok
+test_resolved_audio_dt_rejects_unsafe_rails (tests.test_audio.AFE.test_resolved_audio_dt_rejects_unsafe_rails) ... ok
+test_startup_accepts_positive_constraint_success (tests.test_audio.AFE.test_startup_accepts_positive_constraint_success) ... ok
+test_failed_child_keeps_root_handoff_disabled (tests.test_dev_abi.UserspaceABI.test_failed_child_keeps_root_handoff_disabled) ... ok
+test_required_abi_and_framebuffer_support (tests.test_dev_abi.UserspaceABI.test_required_abi_and_framebuffer_support) ... ok
+test_dt_protects_emmc_and_reservations (tests.test_dev_foundation.DevFoundation.test_dt_protects_emmc_and_reservations) ... ok
+test_large_bank_and_packaging_limits (tests.test_dev_foundation.DevFoundation.test_large_bank_and_packaging_limits) ... ok
+test_rescue_archive_and_bad_data (tests.test_dev_foundation.DevFoundation.test_rescue_archive_and_bad_data) ... ok
+test_rescue_only_selects_one_removable_ext4_label (tests.test_dev_foundation.DevFoundation.test_rescue_only_selects_one_removable_ext4_label) ... ok
+test_old_controller_uses_one_wrrd_without_retries (tests.test_dev_i2c.CombinedI2C.test_old_controller_uses_one_wrrd_without_retries) ... ok
+test_regmap_callbacks (tests.test_baseline_pwrap.Transport.test_regmap_callbacks) ... ok
+test_atomic_publication_and_corruption_rejection (tests.test_overlays.OverlayCache.test_atomic_publication_and_corruption_rejection) ... ok
+test_bounded_layout (tests.test_d08.Layout.test_bounded_layout) ... ok
+test_checked_arithmetic (tests.test_d08.Layout.test_checked_arithmetic) ... ok
+test_independent_rejections (tests.test_d08.Layout.test_independent_rejections) ... ok
+test_small_adjustment_preserves_dtb (tests.test_d08.Layout.test_small_adjustment_preserves_dtb) ... ok
+test_roundtrip_and_corruptions (tests.test_bootimg.Bootimg.test_roundtrip_and_corruptions) ... ok
+
+----------------------------------------------------------------------
+Ran 56 tests in 2.280s
+
+OK
+test_actual_adc_transaction_failures_and_buffer_restore (tests.test_power.Power.test_actual_adc_transaction_failures_and_buffer_restore) ... ok
+test_actual_emmc_suspend_drains_without_losing_storage06_state (tests.test_power.Power.test_actual_emmc_suspend_drains_without_losing_storage06_state) ... ok
+test_actual_pmic_wake_mask_failure_and_restore (tests.test_power.Power.test_actual_pmic_wake_mask_failure_and_restore) ... ok
+test_actual_shared_cpu_transition_and_rejection (tests.test_power.Power.test_actual_shared_cpu_transition_and_rejection) ... ok
+test_conversion_units_calibration_and_protection (tests.test_power.Power.test_conversion_units_calibration_and_protection) ... ok
+test_power_dt_rejects_unreviewed_voltage_wake_and_calibration (tests.test_power.Power.test_power_dt_rejects_unreviewed_voltage_wake_and_calibration) ... ok
+test_actual_worker_faults_usb_removal_suspend_budget_and_manual_inhibit (tests.test_charger.Charger.test_actual_worker_faults_usb_removal_suspend_budget_and_manual_inhibit) ... ok
+test_elapsed_time_confirmation_and_no_invented_full (tests.test_charger.Charger.test_elapsed_time_confirmation_and_no_invented_full) ... ok
+test_sequence_every_io_failure_and_preserved_protections (tests.test_charger.Charger.test_sequence_every_io_failure_and_preserved_protections) ... ok
+test_usb_allowance_and_pm_entry_use_real_callbacks (tests.test_charger.Charger.test_usb_allowance_and_pm_entry_use_real_callbacks) ... ok
+test_bc11_all_classifications_io_failures_and_removal (tests.test_power_policy.PowerPolicy.test_bc11_all_classifications_io_failures_and_removal) ... ok
+test_cpu_domain_sequence_and_bounded_failed_acks (tests.test_power_policy.PowerPolicy.test_cpu_domain_sequence_and_bounded_failed_acks) ... ok
+test_loader_tags_and_malformed_metadata (tests.test_power_policy.PowerPolicy.test_loader_tags_and_malformed_metadata) ... ok
+test_spm_suspend_prerequisites_and_cleanup (tests.test_power_policy.PowerPolicy.test_spm_suspend_prerequisites_and_cleanup) ... ok
+test_button_requires_deliberate_fresh_press_and_safe_sample (tests.test_offline_charging.OfflineCharging.test_button_requires_deliberate_fresh_press_and_safe_sample) ... ok
+test_framebuffer_bounds_and_no_percentage (tests.test_offline_charging.OfflineCharging.test_framebuffer_bounds_and_no_percentage) ... ok
+test_rtc_stock_epoch_time_alarm_and_spare_preservation (tests.test_power03.Power03.test_rtc_stock_epoch_time_alarm_and_spare_preservation) ... ok
+test_word_efuse_read_preserves_upper_lanes_and_bounds (tests.test_power03.Power03.test_word_efuse_read_preserves_upper_lanes_and_bounds) ... ok
+test_actual_btif_rearms_tail_irq_for_every_transfer (tests.test_connectivity.Connectivity.test_actual_btif_rearms_tail_irq_for_every_transfer) ... ok
+test_actual_domain_ack_failure_and_dma_pointer_rollover (tests.test_connectivity.Connectivity.test_actual_domain_ack_failure_and_dma_pointer_rollover) ... ok
+test_actual_hci_fragmentation_and_corrupt_lengths (tests.test_connectivity.Connectivity.test_actual_hci_fragmentation_and_corrupt_lengths) ... ok
+test_actual_stp_mandatory_bootstrap_and_full_mode_transition (tests.test_connectivity.Connectivity.test_actual_stp_mandatory_bootstrap_and_full_mode_transition) ... ok
+test_calibration_runtime_layout_and_ram_filesystem (tests.test_connectivity.Connectivity.test_calibration_runtime_layout_and_ram_filesystem) ... ok
+test_e2_feature_page_quirk_with_actual_kernel_consumer (tests.test_connectivity.Connectivity.test_e2_feature_page_quirk_with_actual_kernel_consumer) ... ok
+test_early_regulatory_database_is_pinned_and_signed (tests.test_connectivity.Connectivity.test_early_regulatory_database_is_pinned_and_signed) ... ok
+test_emitted_dt_rejects_radio_ownership_and_power_regressions (tests.test_connectivity.Connectivity.test_emitted_dt_rejects_radio_ownership_and_power_regressions) ... ok
+test_factory_disk_follows_mounted_emmc_and_rejects_other_media (tests.test_connectivity.Connectivity.test_factory_disk_follows_mounted_emmc_and_rejects_other_media) ... ok
+test_factory_open_with_repeated_separators_preserves_seed (tests.test_connectivity.Connectivity.test_factory_open_with_repeated_separators_preserves_seed) ... ok
+test_md_request_transport_padding_keeps_service_abi_strict (tests.test_connectivity.Connectivity.test_md_request_transport_padding_keeps_service_abi_strict) ... ok
+test_owner_files_reject_symlink_wrong_hash_and_size (tests.test_connectivity.Connectivity.test_owner_files_reject_symlink_wrong_hash_and_size) ... ok
+test_stock_conn_remap_address_and_failed_write (tests.test_connectivity.Connectivity.test_stock_conn_remap_address_and_failed_write) ... ok
+test_stp_crc_headers_and_fs_bounds (tests.test_connectivity.Connectivity.test_stp_crc_headers_and_fs_bounds) ... ok
+test_system_update_never_selects_or_maps_data (tests.test_connectivity.Connectivity.test_system_update_never_selects_or_maps_data) ... ok
+test_domain_handshakes_and_fault_containment (tests.test_gpu.GPU.test_domain_handshakes_and_fault_containment) ... ok
+test_emitted_gpu_dt_rejects_bad_irq_and_memory (tests.test_gpu.GPU.test_emitted_gpu_dt_rejects_bad_irq_and_memory) ... ok
+test_standard_uapi_is_exact_upstream (tests.test_gpu.GPU.test_standard_uapi_is_exact_upstream) ... ok
+
+----------------------------------------------------------------------
+Ran 36 tests in 3.621s
+
+OK
+Y2ABI begin: Thumb signal return, kuser helpers, glibc TLS/threads and VFP
+Y2ABI Thumb signal delivery/return OK
+Y2ABI kuser memory barrier and TLS OK
+Y2ABI PASS: glibc thread/TLS, VFP, clock and allocator
+aplay: version 1.2.13 by Jaroslav Kysela <perex@perex.cz>
+amixer version 1.2.13
