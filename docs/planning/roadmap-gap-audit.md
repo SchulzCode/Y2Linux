@@ -1,5 +1,22 @@
 # Y2Linux roadmap and gap audit
 
+## CONNECTIVITY-10 physical Wi-Fi result — 2026-09-17
+
+Owner-installed -10 exposes stable wlan0/cfg80211, and two scans return 23 and
+12 BSS entries. Runtime Wi-Fi restart and BlueZ power-on with Wi-Fi active
+succeed. Core/transport errors and recoveries remain 0, kernel taint is 0,
+and no diagnostic module or runtime correction is used.
+[Physical result](../hardware-evidence/2026-09-17-m5-connectivity10/README.md).
+
+The missing completion callback on regulatory TX power command `0x38` was
+the exact -09 blocker. Its targeted correction is now physically verified.
+The [installed BOOTIMG and -09 fallback](../build/y2linux-m5-connectivity-10-deployment.md)
+retain -07 root/data, Bluetooth fixes and M4. Both radios and saved preferences
+are returned off. No network is configured; association/DHCP/data and broader
+Bluetooth/coexistence qualification remain open. M5 #31 is ACTIVE / WI-FI AND
+BLUETOOTH ADAPTERS VERIFIED / CONNECTION AND RADIO QUALIFICATION OPEN.
+This remains an interface checkpoint within M5, with no major boundary crossed.
+
 ## Wi-Fi exact regulatory failure / CONNECTIVITY-10 correction — 2026-09-17
 
 Targeted -09 SSH diagnostics show Wi-Fi firmware ready and successful RF/BB

@@ -1,0 +1,2 @@
+test: /tmp/tmpbzjqsdm5/test.c:543: int main(void): Assertion `sent==1 && freed==1 && glue.completions==1 && glue.status==WLAN_STATUS_SUCCESS' failed.
+PASS: unmodified CONNECTIVITY-09 producer fails the completion assertion after successful TX

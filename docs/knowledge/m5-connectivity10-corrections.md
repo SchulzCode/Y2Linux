@@ -22,10 +22,12 @@ The new regression executes the actual producer, queue consumer, queue macros
 and callbacks, reproduces the missing completion, and checks successful TX,
 TX error, credit starvation/retry, timeout and non-OID behavior. Replaying the
 unmodified -09 producer fails its successful-completion assertion. All 16
-targeted Wi-Fi/connectivity checks pass using the current emitted -09 DT.
+targeted Wi-Fi/connectivity checks pass against the final emitted -10 artifacts.
 
-Build a normal CONNECTIVITY-10 BOOTIMG retaining CONNECTIVITY-07 root/data and
-the verified CONNECTIVITY-09 Bluetooth-capable BOOTIMG as fallback. Installation
-remains manual. Verify a stable wlan0/cfg80211 interface and regulatory setup
-after installation, then continue bounded scan/connect testing as available.
-This source fix is not a claim of physical -10 success or M5 qualification.
+The owner-installed CONNECTIVITY-10 BOOTIMG now verifies stable wlan0/cfg80211,
+successful scans, runtime restart and BlueZ power-on while Wi-Fi is active.
+Core errors/recoveries remain 0 and kernel taint is 0; no runtime correction or
+diagnostic module is needed. [Physical -10 result](../hardware-evidence/2026-09-17-m5-connectivity10/README.md).
+CONNECTIVITY-07 root/data and the verified -09 BOOTIMG fallback are retained.
+No network is configured, so association/DHCP/data traffic remain untested.
+M5 qualification remains open; both saved radio preferences stay off.

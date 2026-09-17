@@ -1,4 +1,24 @@
-# Latest state — Wi-Fi regulatory completion fixed in source (2026-09-17)
+# Latest state — CONNECTIVITY-10 installed; Wi-Fi scans verified (2026-09-17)
+
+Strictly pinned SSH confirms `6.18.0-y2linux-m5-connectivity-10`. **wlan0/cfg80211
+stays registered and scans succeed**, returning 23 then 12 BSS entries. Runtime
+Wi-Fi restart works; standard BlueZ powers on with Wi-Fi active. Core/transport
+errors and recoveries remain 0, kernel taint is 0, and no diagnostic module or
+runtime correction is used. [Physical result](../hardware-evidence/2026-09-17-m5-connectivity10/README.md).
+
+Both radios and saved preferences are returned off. No saved network exists,
+so association/authentication/DHCP/data remain untested. Bluetooth pairing,
+audio and sustained coexistence remain open. M4 stays accepted, M5 stays open,
+and GPU/Reborn remain out of scope. The next useful Wi-Fi step is an owner
+network connection check, not renewed firmware/factory/DMA investigation.
+
+Final source `206f1da`, BOOTIMG 6150144 bytes, SHA256
+`d7fbb0808db953a7c8d26f3846815b7b5fbc67caa1b86248d7f992dba51f30a7`.
+All 16 targeted checks, artifact/package checks and package SHA256 checks pass.
+Retain -07 root/data and verified -09 fallback. [Installed image receipt](../build/y2linux-m5-connectivity-10-deployment.md).
+Earlier installation-pending text below is history; no repeat flash is required.
+
+# Wi-Fi regulatory completion fixed in source (2026-09-17)
 
 The installed -09 Wi-Fi firmware starts successfully. The exact later failure
 is regulatory TX power command `0x38`: no firmware reply is expected, and the

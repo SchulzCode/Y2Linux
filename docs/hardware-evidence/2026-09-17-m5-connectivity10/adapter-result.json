@@ -1,0 +1,70 @@
+{
+  "source": "Own Y2 CONNECTIVITY-10 over strictly pinned SSH, 2026-09-17 UTC",
+  "kernel": "6.18.0-y2linux-m5-connectivity-10",
+  "source_commit": "206f1da29d50a4a22cf01331a49b4519cd7a925f",
+  "bootimg_sha256": "d7fbb0808db953a7c8d26f3846815b7b5fbc67caa1b86248d7f992dba51f30a7",
+  "physical_bootimg_readback_performed": false,
+  "diagnostic_module_loaded": false,
+  "saved_network_blocks": 0,
+  "observations": {
+    "first_enable": {
+      "wlan0_present": true,
+      "core_status": "activated=1 powered=1 functions=0x8 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0",
+      "saved_wifi_preference": 0,
+      "saved_bluetooth_preference": 0,
+      "kernel_taint": 0
+    },
+    "first_scan": {
+      "wlan0_present": true,
+      "core_status": "activated=1 powered=1 functions=0x8 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0",
+      "saved_wifi_preference": 0,
+      "saved_bluetooth_preference": 0,
+      "kernel_taint": 0,
+      "scan_exit": 0,
+      "bss_entries": 23,
+      "frequency_min_mhz": 2412,
+      "frequency_max_mhz": 2462
+    },
+    "first_disable": {
+      "wlan0_present": false,
+      "core_status": "activated=1 powered=0 functions=0x0 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0",
+      "saved_wifi_preference": 0,
+      "saved_bluetooth_preference": 0,
+      "kernel_taint": 0
+    },
+    "second_enable": {
+      "wlan0_present": true,
+      "core_status": "activated=1 powered=1 functions=0x8 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0",
+      "saved_wifi_preference": 0,
+      "saved_bluetooth_preference": 0,
+      "kernel_taint": 0
+    },
+    "scan_with_bluetooth": {
+      "wlan0_present": true,
+      "core_status": "activated=1 powered=1 functions=0x9 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0",
+      "saved_wifi_preference": 0,
+      "saved_bluetooth_preference": 0,
+      "kernel_taint": 0,
+      "scan_exit": 0,
+      "bss_entries": 12,
+      "frequency_min_mhz": 2422,
+      "frequency_max_mhz": 2462
+    },
+    "restored": {
+      "wlan0_present": false,
+      "core_status": "activated=1 powered=0 functions=0x0 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0",
+      "saved_wifi_preference": 0,
+      "saved_bluetooth_preference": 0,
+      "kernel_taint": 0
+    }
+  },
+  "same_boot_confirmed": true,
+  "last_snapshot_uptime_seconds": 265.42,
+  "bluez_power_on_with_wifi_succeeded": true,
+  "bluez_adapter_visible_after_restore": true,
+  "limits": [
+    "association, authentication, DHCP, DNS and data transfer untested: no configured network",
+    "both radios powered and Wi-Fi scanning is not sustained traffic/audio coexistence qualification",
+    "M5 remains open; no full M4 requalification"
+  ]
+}

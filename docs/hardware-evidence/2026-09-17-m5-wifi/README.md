@@ -5,6 +5,10 @@ pinned USB SSH. Bluetooth normal-boot availability is already verified in the
 [-09 receipt](../2026-09-17-m5-connectivity09/README.md). This session investigates
 the remaining Wi-Fi failure without repeating factory/DMA/identification work.
 
+The later [owner-installed CONNECTIVITY-10 verification](../2026-09-17-m5-connectivity10/README.md)
+confirms stable wlan0, successful scans and no recovery. The -09 diagnosis
+below is the causal failure record.
+
 ## Exact failure
 
 The driver's existing debug masks initially suppress all Wi-Fi diagnostics.
