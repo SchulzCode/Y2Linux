@@ -1,5 +1,43 @@
 # Y2Linux roadmap and gap audit
 
+
+## GPU activation boundary — 2026-09-18
+
+Owner authorization explicitly activates production GPU implementation alongside
+pending M5 qualification. This is the GPU scope review required by the standing
+rule, **not another M5 entry audit**. Entry: clean `c70ff07`; current native
+CONNECTIVITY-10 hardware evidence overrides every older startup-blocked row.
+The [current handoff](session-handoff-2026-09-18.md) records the live SSH snapshot,
+GPU evidence and manual-deployment boundary. No builds, flashes, radio operations,
+new protected-data acquisition or repeated provenance checks occur in this review.
+
+All coverage areas below were reviewed. This table supersedes the historical
+September 15 matrix where statuses differ; unchanged residuals are retained.
+
+| Coverage | Current classification and evidence / next gap | Tracking |
+| --- | --- | --- |
+| Boot, PID1, SMP, core buses, RAM | CONFIRMED narrow production boot; PARTIAL broader stability. CONNECTIVITY-10 live, 952480 KiB; identical exclusions. No RAM expansion. | #28 |
+| Internal/removable storage, root/data | Internal boot and persistent data CONFIRMED; broader storage/recovery qualification PARTIAL and unchanged. BOOTIMG/Y2ROOT may change; Y2DATA preserved. | #33 |
+| Display, panel, backlight | Visible existing DRM/KMS and 480x360 panel CONFIRMED. GPU sharing, page flips and resume with GPU UNTESTED. Keep the same display owner. | #25/#28; GPU |
+| Wheel/navigation/volume/Power | Existing balanced events CONFIRMED; response during GPU workloads UNTESTED. | #24/#28; GPU |
+| M4 PMIC, charging/watchdog, thermal, CPU DVFS/idle, suspend/wake/RTC | POWER-03 owner-accepted, #30 CLOSED. Latest CPU/PMIC readings plausible; no new suspend/charging stress claimed. Preserve protection and run targeted GPU coexistence checks. No separate GPU sensor identified. | #30; GPU |
+| Wired audio and analog routing | Clean S16/44.1-kHz headphones CONFIRMED. Other retained M3 residuals remain PARTIAL; GPU/audio coexistence UNTESTED. | #29; GPU |
+| USB/SSH and physical UART | Current pinned USB SSH CONFIRMED. Broader reconnect PARTIAL; physical UART UNKNOWN. Do not reopen unrelated work. | #27/#28/#16 |
+| Wi-Fi | wlan0/cfg80211, scans, disable/re-enable CONFIRMED at CONNECTIVITY-10. WPA2/DHCP/DNS/data and saved-network reconnect UNTESTED; owner elects pending. | #31 |
+| Bluetooth | Standard BlueZ power-on with Wi-Fi CONFIRMED. Peer pairing/SBC/AVRCP/reconnect and sustained coexistence UNTESTED; owner elects pending. | #31 |
+| Firmware, calibration and identity | Working native factory reader, BTIF/AP_DMA, controller 6582/8a01/8a00 and WMT startup CONFIRMED. Preserve private inputs/identities; no reacquisition. | #31 |
+| GPU | Own stock GP + two PP resources/IRQs CONFIRMED; donor reports Mali-400 MP2 Lima. Silicon revision, production Lima/EGL/GLES, runtime PM and rendering UNTESTED. Implement through existing ownership. | New GPU milestone |
+| FM | CONFIRMED board exclusion, unchanged. | #31 |
+| Recovery/backups, updates/security, privacy/non-root lifecycle | PARTIAL with retained gaps; no OTA/security scope expansion. Existing recovery remains owner's operation. | M0/#32/#33 |
+
+**Ready for authorized GPU implementation; not physically qualified.** M5 stays
+open but is no longer an implementation gate for GPU. One integrated candidate
+must include exact artifacts, fallback pair and a coherent qualification sequence.
+Reborn starts only after the GPU acceptance decision; Reborn and M6 are excluded
+from this session. No diagnostic Mali stack, Android EGL, second display owner,
+raw-MMIO userspace or permanent GPU power-on is authorized as the product path.
+
+
 ## CONNECTIVITY-10 physical Wi-Fi result — 2026-09-17
 
 Owner-installed -10 exposes stable wlan0/cfg80211, and two scans return 23 and

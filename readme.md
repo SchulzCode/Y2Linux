@@ -4,15 +4,14 @@ Reusable general-purpose Linux platform for the physical Innioasis Y2, using
 Linux 6.18, Buildroot and standard Linux interfaces. Y2PlayerNative remains
 **not started** until the platform milestones and whole-system qualification finish.
 
-**Start here:** [September 16 session handoff](docs/planning/session-handoff-2026-09-16.md)
-and [installed M5 image and validation](docs/build/evidence/y2linux-m5-connectivity-05/README.md).
+**Start here:** [September 18 GPU handoff](docs/planning/session-handoff-2026-09-18.md).
 
-M4 POWER-03 is owner-accepted. CONNECTIVITY-05 is installed; MD calibration
-completes and Linux remains responsive. Radio startup still fails: the first
-26-byte WMT command leaves two bytes in TX DMA without a completion interrupt.
-CONNECTIVITY-06 corrects the per-transfer interrupt rearm and submission order.
-[Physical result](docs/hardware-evidence/2026-09-16-m5-connectivity05/README.md).
-M5 remains open. CONNECTIVITY-03 Y2ROOT and all Y2DATA are preserved.
+M4 POWER-03 is owner-accepted. CONNECTIVITY-10 is installed: native Wi-Fi scanning,
+radio restart and BlueZ power-on alongside Wi-Fi work with zero errors/recoveries.
+[Physical evidence](docs/hardware-evidence/2026-09-17-m5-connectivity10/README.md).
+Remaining M5 connection/audio qualification is pending by owner choice. Production
+GPU implementation is now authorized using Linux 6.18, Lima, Mesa and existing KMS.
+Reborn and M6/OTA remain out of scope. Only the owner deploys physical images.
 
 | Milestone | Current status |
 | --- | --- |
@@ -21,7 +20,8 @@ M5 remains open. CONNECTIVITY-03 Y2ROOT and all Y2DATA are preserved.
 | M3 | Active / near completion: clean native S16 stereo 44.1-kHz headphones; period-notification fix deployed and tested. 48 kHz, L/R and stop/restart/repeat remain |
 | Production Storage / Installation v1 | Active: internal root/data boot without SD and existing-owner-key SSH confirmed; wider write/stress qualification remains |
 | M4 | POWER-03 accepted by the owner; retained as the M5 power-platform baseline |
-| M5 | CONNECTIVITY-05 installed; first WMT command stalls on DMA tail; CONNECTIVITY-06 targets TX interrupt rearm; physical qualification pending |
+| M5 | Native Wi-Fi scans/restart and concurrent BlueZ power verified; connection/audio/reconnect/coexistence qualification pending |
+| GPU | Active: production Lima/Mesa implementation; first integrated candidate pending |
 
 Historical POWER-02 charging, RTC, thermal and suspend failures are retained in
 [the M4 evidence](docs/knowledge/m4-end-user-power.md). POWER-03 corrects those
@@ -53,11 +53,11 @@ carry 16-bit samples: native 24/32-bit and higher rates are not implemented.
 - [AUDIO-02 deployment and hashes](docs/build/y2linux-m3-audio-02-deployment.md)
 - [M0 research/recovery](docs/planning/M0-evidence-and-recovery.md) and [evidence index](docs/knowledge/evidence-index.md)
 
-Current boundary: correct CONNECTIVITY-05 TX DMA completion, preserving Y2DATA
-and protected factory partitions. After initialization
-works, qualify networking, Bluetooth audio, coexistence and power behavior. Do not start GPU/lima,
-Y2PlayerNative or an OTA updater. [Production Storage v1](docs/architecture/production-storage-v1.md)
-and the existing M4 power architecture remain the foundation.
+Current boundary: implement and validate one Y2LINUX-GPU-01 candidate while
+preserving M4, CONNECTIVITY-10, Y2DATA and all RAM reservations. Stop for owner
+manual deployment, then perform the coherent GPU qualification. The
+[Production Storage v1](docs/architecture/production-storage-v1.md) component
+boundaries remain unchanged. Do not start Reborn or M6/OTA.
 
 Reviewed hardware logs, small manifests and findings belong in Git. Private raw
 captures remain in ignored `evidence-private/`; immutable donorSource, `.cache/`
