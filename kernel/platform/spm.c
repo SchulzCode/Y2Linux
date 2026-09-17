@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/suspend.h>
 #include <linux/pm_domain.h>
+#include <linux/clk.h>
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
 #include <asm/proc-fns.h>
@@ -33,6 +34,7 @@ static unsigned entries, resumes, aborts, last_wake, last_ticks, last_debug, las
 static int last_result;
 static struct generic_pm_domain y2_mfg_domain;
 static bool mfg_broken;
+static struct clk *mfg_source;
 
 static unsigned spm_read(void *context, unsigned reg)
 {
@@ -59,23 +61,52 @@ static int y2_mfg_power_on(struct generic_pm_domain *domain)
 {
 	unsigned long flags;
 	int ret;
+	if (mfg_broken) return -EIO;
+	/* Stock clkmgr enables the source before MTCMOS and keeps it running
+	 * through SRAM/power acknowledgements. Lima separately owns G3D. */
+	ret = clk_enable(mfg_source);
+	if (ret) return ret;
 	raw_spin_lock_irqsave(&spm_lock, flags);
-	ret = mfg_broken ? -EIO : y2_mfg_sequence(&spm_io, 1);
+	ret = y2_mfg_sequence(&spm_io, 1);
 	/* Never expose partially powered hardware after an acknowledgement fault. */
 	if (ret) mfg_broken = true;
 	raw_spin_unlock_irqrestore(&spm_lock, flags);
+	/* Retain the source on an ambiguous power state; report the fault. */
 	return ret;
 }
 static int y2_mfg_power_off(struct generic_pm_domain *domain)
 {
 	unsigned long flags;
 	int ret;
+	if (mfg_broken) return -EIO;
 	raw_spin_lock_irqsave(&spm_lock, flags);
-	ret = mfg_broken ? -EIO : y2_mfg_sequence(&spm_io, 0);
+	ret = y2_mfg_sequence(&spm_io, 0);
 	/* genpd retains its ON state on failure. Restore a usable ON state too;
 	 * if restoration fails, refuse future GPU use, not a whole-system reset. */
 	if (ret && y2_mfg_sequence(&spm_io, 1)) mfg_broken = true;
 	raw_spin_unlock_irqrestore(&spm_lock, flags);
+	if (!ret) clk_disable(mfg_source);
+	return ret;
+}
+
+static int y2_mfg_domain_register(struct platform_device *pdev)
+{
+	int ret, on = y2_spm_mfg_status();
+	if (on < 0) return on;
+	if (on) {
+		ret = clk_enable(mfg_source);
+		if (ret) return ret;
+	}
+	y2_mfg_domain.name = "y2-mfg";
+	y2_mfg_domain.power_on = y2_mfg_power_on;
+	y2_mfg_domain.power_off = y2_mfg_power_off;
+	ret = pm_genpd_init(&y2_mfg_domain, NULL, !on);
+	if (ret) goto out;
+	ret = of_genpd_add_provider_simple(pdev->dev.of_node, &y2_mfg_domain);
+	if (!ret) return 0;
+	pm_genpd_remove(&y2_mfg_domain);
+out:
+	if (on) clk_disable(mfg_source);
 	return ret;
 }
 
@@ -256,6 +287,9 @@ static int y2_spm_probe(struct platform_device *pdev)
 	void *pcm;
 	int irq, ret;
 	if (!of_machine_is_compatible("innioasis,y2")) return -ENODEV;
+	/* Prepare outside the domain's noirq callbacks; enable only around MFG. */
+	mfg_source = devm_clk_get_prepared(&pdev->dev, "mfg");
+	if (IS_ERR(mfg_source)) return PTR_ERR(mfg_source);
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base)) return PTR_ERR(base);
 	spm_biu = devm_platform_ioremap_resource(pdev, 1);
@@ -286,15 +320,10 @@ static int y2_spm_probe(struct platform_device *pdev)
 	if (ret) { WRITE_ONCE(spm_base, NULL); return ret; }
 	/* Same SPM mapping/lock as CPU, radio and deep suspend. The MFG reset
 	 * is intrinsic to the stock domain sequence, not an unrelated RGU bit. */
-	y2_mfg_domain.name = "y2-mfg";
-	y2_mfg_domain.power_on = y2_mfg_power_on;
-	y2_mfg_domain.power_off = y2_mfg_power_off;
-	ret = y2_spm_mfg_status();
-	if (ret < 0) return ret;
-	ret = pm_genpd_init(&y2_mfg_domain, NULL, !ret);
-	if (ret) return ret;
-	ret = of_genpd_add_provider_simple(pdev->dev.of_node, &y2_mfg_domain);
-	if (ret) { pm_genpd_remove(&y2_mfg_domain); return ret; }
+	ret = y2_mfg_domain_register(pdev);
+	/* A GPU provider failure must not unmap the shared, published SPM owner
+	 * used by CPU/radios or remove the established M4 suspend path. */
+	if (ret) dev_err(&pdev->dev, "MFG domain unavailable: %d\n", ret);
 	suspend_set_ops(&y2_suspend_ops);
 	dev_info(&pdev->dev, "CPU1-3 MTCMOS and SPM CPU/cluster shutdown, infrastructure retained; power=%#x/%#x\n",
 		spm_read(base, 0x60c), spm_read(base, 0x610));

@@ -67,7 +67,9 @@ The sole existing SPM driver now provides the MFG genpd. Power-on sets both
 rails, checks both status words, releases clock isolation/reset and wakes SRAM
 with an ACK. Power-off follows the exact stock reverse sequence after Lima
 quiescence and CCF gating, including SRAM ACK and both power-off ACKs. Every
-poll is bounded. No duplicate SPM mapping or donor power shim is installed.
+poll is bounded. The domain holds the MFG source clock from before power-on
+until after power-off ACKs; Lima gates the G3D child before domain shutdown.
+No duplicate SPM mapping or donor power shim is installed.
 Domain reset is intrinsic to this sequence; no independent reset property is
 needed. SMI_COMMON remains held by the authoritative display clock provider.
 

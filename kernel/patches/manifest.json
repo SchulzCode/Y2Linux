@@ -112,7 +112,7 @@
       "path": "arch/arm/mach-mediatek/Kconfig",
       "patch": "0002-y2-Kconfig.patch",
       "base_sha256": "61790e35f9fbdb5dd524c658f041739b4cf52d8393962622d6cdb4a0f497506b",
-      "result_sha256": "5c99ca5060ad51a98a2318b0ab57992307ec16163397e36a25b0319749998d1e"
+      "result_sha256": "157c7e071a48c9e4e732651dd8d6880c2b5de6bf7a6efd9fd69c6633411599f5"
     },
     {
       "path": "drivers/gpu/drm/mediatek/mtk_dsi.c",

@@ -78,6 +78,8 @@
         /* Original FM Y2 MT_SPM_IRQ_ID = GIC hwirq 149. */
         interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_LOW>;
         #power-domain-cells = <0>; /* MFG only; CPUs/radios retain their owners. */
+        clocks = <&y2clk Y2_CLK_MFG_SRC>;
+        clock-names = "mfg";
     };
     mfgclk: clock-controller@13000000 {
         compatible = "mediatek,mt6582-mfgcfg";

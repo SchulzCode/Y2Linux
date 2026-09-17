@@ -118,6 +118,8 @@ def check(data, initrd_size, production=True):
         require(nodes['/clock-controller@13000000']['clocks']==cells(handle('/clock-controller@10000000'),24), 'MFG source owner')
         require(props['power-domains']==cells(handle('/power-controller@10006000')), 'GPU shared SPM domain')
         require(nodes['/power-controller@10006000']['#power-domain-cells']==cells(0), 'MFG genpd arity')
+        require(nodes['/power-controller@10006000']['clocks']==cells(handle('/clock-controller@10000000'),24) and
+                nodes['/power-controller@10006000']['clock-names']==strings('mfg'), 'MFG source held throughout domain transition')
         require(not any(k in props for k in ('resets','mali-supply','operating-points-v2','dma-coherent','memory-region')), 'no guessed GPU resource')
     require(nodes['/cpus']['enable-method']==strings('innioasis,y2-smp'),'SMP release and hotplug method')
     require({p for p in nodes if p.startswith('/cpus/cpu@')}=={'/cpus/cpu@'+str(i) for i in range(4)},'CPU count')

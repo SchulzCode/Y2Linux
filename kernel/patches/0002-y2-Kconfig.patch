@@ -1,6 +1,6 @@
 --- a/arch/arm/mach-mediatek/Kconfig
 +++ b/arch/arm/mach-mediatek/Kconfig
-@@ -10,6 +10,41 @@
+@@ -10,6 +10,42 @@
  	  Support for Mediatek MT65xx & MT81xx SoCs
  
  if ARCH_MEDIATEK
@@ -26,6 +26,7 @@
 + bool "Innioasis Y2 integrated power platform"
 + depends on Y2_PLATFORM && IIO && THERMAL_OF && CPU_IDLE && NVMEM && POWER_SUPPLY
 + select ARM_CPU_SUSPEND
++ select PM_GENERIC_DOMAINS if PM
 + help
 +   MT6323 source detection, bounded charging, rescue boot metadata and
 +   thermal telemetry. MT6582 WFI, CPU hotplug and SPM suspend with Linux
