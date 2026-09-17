@@ -57,7 +57,7 @@ void y2_wifi_reg_notifier(struct wiphy *wiphy, struct regulatory_request *reques
 	}
 	ret=kalIoctl(glue,apply,&reg,sizeof(reg),FALSE,FALSE,TRUE,FALSE,&used);
 	if (ret!=WLAN_STATUS_SUCCESS) {
-		dev_err(glue->rHifInfo.Dev,"Wi-Fi regulatory setup failed: status=%#x\n",ret);
+		dev_err(glue->rHifInfo.Dev,"Wi-Fi regulatory setup failed: status=%#x\n",(u32)ret);
 		y2_wifi_error(glue);
 	}
 }
