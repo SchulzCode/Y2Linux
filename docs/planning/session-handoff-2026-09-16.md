@@ -9,6 +9,12 @@ Build BOOTIMG-only, preserve current CONNECTIVITY-07 root/data, and continue
 live bring-up after manual owner installation. M5 remains open, M4 intact.
 Earlier provider/TX-blocker text below is historical.
 
+CONNECTIVITY-08 is ready: [manual BOOTIMG-only installation](../build/y2linux-m5-connectivity-08-deployment.md),
+source `8b18ca3`, SHA256
+`5b8e333cdb9fff7bf314abf905ad11a7f26d23e8dab4fd4a4cf78a0bd58b0d78`.
+All 14 targeted connectivity checks and emitted artifact/package checks pass.
+The new kernel has not yet been physically tested; continue SSH after installation.
+
 # Latest state — CONNECTIVITY-06 installed; mounted-eMMC provider correction
 
 SSH confirms CONNECTIVITY-06. Internal root/data are on mmcblk1; the provider

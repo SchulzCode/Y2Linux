@@ -1,0 +1,1 @@
+125 frames; 60 full-mode payloads; all header checksums, CRCs and payload sequences valid.

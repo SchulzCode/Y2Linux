@@ -1,0 +1,2 @@
+test: /tmp/tmpso_qc5f9/test.c:284: int main(void): Assertion `!c.failure && c.response_size==630 && c.stp_rx==4 && !c.rx_used' failed.
+PASS: unchanged CONNECTIVITY-07 fails the new 630-byte RF event assertion

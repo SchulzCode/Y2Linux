@@ -1,0 +1,6 @@
+test_emitted_dt_rejects_radio_ownership_and_power_regressions (test_connectivity.Connectivity.test_emitted_dt_rejects_radio_ownership_and_power_regressions) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.007s
+
+OK

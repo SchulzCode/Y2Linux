@@ -19,6 +19,12 @@ manual installation boundary before live BlueZ/cfg80211 checks. M5 #31 stays
 ACTIVE / PROTOCOL CORRECTION / PHYSICALLY UNQUALIFIED. M4 remains accepted.
 No milestone transition, RAM/platform expansion, GPU/Reborn or broad audit.
 
+CONNECTIVITY-08 is now built from `8b18ca3`: BOOTIMG 6150144 bytes, SHA256
+`5b8e333cdb9fff7bf314abf905ad11a7f26d23e8dab4fd4a4cf78a0bd58b0d78`.
+Fourteen targeted connectivity checks, original-failure replay, emitted artifact
+and BOOTIMG-only package validation pass. [Ready manual handoff](../build/y2linux-m5-connectivity-08-deployment.md).
+New hardware progress remains pending installation; no radio readiness is inferred.
+
 ## CONNECTIVITY-06 physical result / mounted-eMMC correction — 2026-09-16
 
 Internal eMMC is mmcblk1 on this owner-installed boot. Root/data work; the

@@ -1,0 +1,19 @@
+test_actual_btif_rearms_tail_irq_for_every_transfer (test_connectivity.Connectivity.test_actual_btif_rearms_tail_irq_for_every_transfer) ... ok
+test_actual_domain_ack_failure_and_dma_pointer_rollover (test_connectivity.Connectivity.test_actual_domain_ack_failure_and_dma_pointer_rollover) ... ok
+test_actual_hci_fragmentation_and_corrupt_lengths (test_connectivity.Connectivity.test_actual_hci_fragmentation_and_corrupt_lengths) ... ok
+test_actual_stp_mandatory_bootstrap_and_full_mode_transition (test_connectivity.Connectivity.test_actual_stp_mandatory_bootstrap_and_full_mode_transition) ... ok
+test_calibration_runtime_layout_and_ram_filesystem (test_connectivity.Connectivity.test_calibration_runtime_layout_and_ram_filesystem) ... ok
+test_early_regulatory_database_is_pinned_and_signed (test_connectivity.Connectivity.test_early_regulatory_database_is_pinned_and_signed) ... ok
+test_emitted_dt_rejects_radio_ownership_and_power_regressions (test_connectivity.Connectivity.test_emitted_dt_rejects_radio_ownership_and_power_regressions) ... skipped 'requires emitted integrated DT'
+test_factory_disk_follows_mounted_emmc_and_rejects_other_media (test_connectivity.Connectivity.test_factory_disk_follows_mounted_emmc_and_rejects_other_media) ... ok
+test_factory_open_with_repeated_separators_preserves_seed (test_connectivity.Connectivity.test_factory_open_with_repeated_separators_preserves_seed) ... ok
+test_md_request_transport_padding_keeps_service_abi_strict (test_connectivity.Connectivity.test_md_request_transport_padding_keeps_service_abi_strict) ... ok
+test_owner_files_reject_symlink_wrong_hash_and_size (test_connectivity.Connectivity.test_owner_files_reject_symlink_wrong_hash_and_size) ... ok
+test_stock_conn_remap_address_and_failed_write (test_connectivity.Connectivity.test_stock_conn_remap_address_and_failed_write) ... ok
+test_stp_crc_headers_and_fs_bounds (test_connectivity.Connectivity.test_stp_crc_headers_and_fs_bounds) ... ok
+test_system_update_never_selects_or_maps_data (test_connectivity.Connectivity.test_system_update_never_selects_or_maps_data) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.817s
+
+OK (skipped=1)
