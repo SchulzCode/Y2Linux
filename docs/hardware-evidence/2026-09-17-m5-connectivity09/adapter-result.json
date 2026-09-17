@@ -1,0 +1,54 @@
+{
+  "source": "Own Y2 CONNECTIVITY-09, strictly pinned SSH, 2026-09-17 UTC",
+  "kernel": "6.18.0-y2linux-m5-connectivity-09",
+  "source_commit": "f55fff48926c578fcfcd84ef8074d0693b3442e3",
+  "owner_installed": true,
+  "physical_bootimg_readback_performed": false,
+  "controller": {
+    "chip": "6582",
+    "hvr": "8a01",
+    "fvr": "8a00"
+  },
+  "normal_boot": {
+    "full_stp_verified_seconds": 52.773595,
+    "patch1_reset_acknowledged_seconds": 52.880290,
+    "patch2_reset_acknowledged_seconds": 53.073883,
+    "rf_calibration_succeeded_seconds": 53.383731,
+    "rf_calibration_event_bytes": 630,
+    "hci_page2_quirk_logged_seconds": 53.939164,
+    "bluetooth_mgmt_seconds": 53.966589,
+    "bluetooth_mgmt_version": "1.23",
+    "hci0_present": true,
+    "bluez_controller_visible": true,
+    "kernel_taint": 0,
+    "loaded_modules": ["mediatek_drm"],
+    "diagnostic_module_loaded": false,
+    "runtime_correction_applied": false,
+    "core_status": "activated=1 powered=0 functions=0x0 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0"
+  },
+  "power_on": {
+    "control": "y2-radio bluetooth on-runtime",
+    "succeeded": true,
+    "bluez_powered": true,
+    "core_status": "activated=1 powered=1 functions=0x1 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0"
+  },
+  "restored": {
+    "control": "y2-radio bluetooth off-runtime",
+    "succeeded": true,
+    "bluez_controller_visible": true,
+    "bluez_powered": false,
+    "core_status": "activated=1 powered=0 functions=0x0 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=0 recoveries=0",
+    "wifi_soft_blocked": true,
+    "wifi_interface_present": false,
+    "saved_wifi_preference": 0,
+    "saved_bluetooth_preference": 0,
+    "kernel_taint": 0,
+    "same_boot_confirmed": true,
+    "observed_uptime_seconds": 262.67
+  },
+  "limits": [
+    "no pairing, discovery, BLE, EDR data, audio or coexistence qualification",
+    "Wi-Fi not retried; last -08 test failed after Wi-Fi Start without wlan0",
+    "no full M4 regression or M5 milestone qualification"
+  ]
+}

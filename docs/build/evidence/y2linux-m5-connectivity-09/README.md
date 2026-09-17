@@ -19,7 +19,9 @@ No Y2ROOT/Y2DATA rebuild, new firmware input or broad M4/source/ROM qualificatio
 
 [The live -08 runtime correction](../../../hardware-evidence/2026-09-17-m5-connectivity08/README.md)
 already reaches standard hci0/BlueZ and successful power-on. This -09 BOOTIMG
-makes the same controller-specific correction in the driver; its normal-boot
-result is pending owner installation. No test module is packaged.
+makes the same controller-specific correction in the driver. After owner
+installation, [normal boot and standard BlueZ power-on/off are verified](../../../hardware-evidence/2026-09-17-m5-connectivity09/README.md),
+with zero core errors/recoveries and kernel taint 0. No test module is packaged
+or loaded for that verification.
 
 [Installation and continued SSH check](../../y2linux-m5-connectivity-09-deployment.md).

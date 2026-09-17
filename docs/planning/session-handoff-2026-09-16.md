@@ -1,22 +1,26 @@
-# Latest state — CONNECTIVITY-08 inspected; BlueZ reached (2026-09-17)
+# Latest state — CONNECTIVITY-09 installed; permanent BlueZ verified (2026-09-17)
 
-The owner-installed -08 clears the RF-result EPROTO. HCI next fails at local
-extended feature page 2 (status `0x30`); the scoped Linux quirk and corrected
-cached page limit are physically tested in the running kernel. **Standard
-hci0/BlueZ appears and runtime power-on succeeds.** Wi-Fi still fails after
-Wi-Fi Start without wlan0. Both saved preferences remain off.
-[Complete physical result](../hardware-evidence/2026-09-17-m5-connectivity08/README.md).
+Strictly pinned SSH confirms owner-installed `6.18.0-y2linux-m5-connectivity-09`.
+**Standard hci0/BlueZ appears on normal boot and runtime power-on/off succeeds.**
+Both patches/resets, RF calibration with a 630-byte result, and the scoped HCI
+page correction succeed. Core errors, transport errors and recoveries remain
+0; kernel taint is 0. No diagnostic module or runtime correction is used.
+[Complete physical result](../hardware-evidence/2026-09-17-m5-connectivity09/README.md).
 
-Build -09 BOOTIMG-only to make the tested HCI correction permanent; retain -07
-root/data and -08 fallback. Manual owner installation remains the deployment
-boundary. The live -08 quirk is temporary until reboot; no claim of -09 physical
-qualification or full radio/M5 completion. M4 remains accepted. Earlier awaiting
--08 installation text is history.
+The original RF-result EPROTO and subsequent `0x1004` page-2/status-`0x30`
+failure are resolved in the installed production image. Both radios and saved
+preferences are returned off. Wi-Fi's last active test remains the -08 failure
+after Wi-Fi Start without wlan0; its next exact failure still needs diagnosis.
+Pairing, BLE/EDR data, audio and coexistence remain unqualified. M5 stays open;
+M4 remains accepted. Do not repeat factory/DMA/identification work or start
+GPU/Reborn. Earlier installation-pending descriptions below are history.
 
-CONNECTIVITY-09 is built from `f55fff4`, BOOTIMG 6150144 bytes, SHA256
-`200346dff20ea1ffe769278bc8c52a19402d850a380c2054f6e93d1ef167de7a`. Fifteen targeted checks and emitted artifact/package checks
-pass. [Ready BOOTIMG-only handoff](../build/y2linux-m5-connectivity-09-deployment.md).
-The live -08 HCI correction works; normal -09 boot still awaits owner installation.
+CONNECTIVITY-09 source `f55fff4`, BOOTIMG 6150144 bytes, SHA256
+`200346dff20ea1ffe769278bc8c52a19402d850a380c2054f6e93d1ef167de7a`.
+Fifteen targeted checks and emitted artifact/package checks pass.
+[Installed BOOTIMG receipt](../build/y2linux-m5-connectivity-09-deployment.md).
+Retain -07 root/data and -08 fallback. The normal-boot SSH verification is
+complete; another installation is not needed for this checkpoint.
 
 # Latest state — CONNECTIVITY-07 protocol failure located (2026-09-17)
 

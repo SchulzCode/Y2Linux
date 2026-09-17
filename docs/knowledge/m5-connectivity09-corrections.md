@@ -20,9 +20,11 @@ unfixed page-2 `-ENOSYS`, verifies fresh and previously failed HCI state, retain
 all feature/command bytes and unrelated quirks, preserves negative status,
 and leaves other controller triples untouched.
 
-The live -08 diagnostic with this same bounded correction reaches standard
-hci0/BlueZ and accepts runtime power-on. The new -09 production BOOTIMG makes
-that correction durable; it still requires the established manual owner
-installation. Reuse CONNECTIVITY-07 Y2ROOT/Y2DATA and retain the -08 BOOTIMG
-fallback. No Wi-Fi fix or full pairing/audio/coexistence qualification is
-implied; M5 remains open. Do not repeat settled identification/factory/DMA work.
+The live -08 diagnostic first reached standard hci0/BlueZ and accepted runtime
+power-on. The owner-installed -09 production BOOTIMG now verifies the same
+result on normal boot, without any diagnostic module or runtime correction.
+Standard BlueZ power-on/off succeeds with zero core errors/recoveries and
+kernel taint 0. [Physical -09 result](../hardware-evidence/2026-09-17-m5-connectivity09/README.md).
+CONNECTIVITY-07 Y2ROOT/Y2DATA and the -08 BOOTIMG fallback are retained.
+No Wi-Fi fix or full pairing/audio/coexistence qualification is implied;
+M5 remains open. Do not repeat settled identification/factory/DMA work.

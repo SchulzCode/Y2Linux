@@ -1,27 +1,30 @@
 # Y2Linux roadmap and gap audit
 
 
-## CONNECTIVITY-08 physical result / scoped HCI correction — 2026-09-17
+## CONNECTIVITY-09 physical result / permanent BlueZ adapter — 2026-09-17
 
-Owner-installed -08 accepts the 630-byte RF result; the original EPROTO is
-physically resolved. HCI then fails at `0x1004` page 2 with status `0x30` because
-E2 falsely advertises that page. A bounded runtime application of Linux's
-existing page-2 quirk plus removal of the cached false maximum reaches standard
-hci0/BlueZ and successful runtime power-on. [Physical result](../hardware-evidence/2026-09-17-m5-connectivity08/README.md).
+Owner-installed -09 reaches standard hci0/BlueZ on normal boot. Both patch
+downloads/resets, the 630-byte RF calibration result and HCI initialization
+succeed. Standard runtime BlueZ power-on/off works with zero core errors,
+transport errors or recoveries. No diagnostic module or runtime correction is
+used; kernel taint is 0. [Physical result](../hardware-evidence/2026-09-17-m5-connectivity09/README.md).
 
-[CONNECTIVITY-09](../knowledge/m5-connectivity09-corrections.md) makes only that
-verified `6582/8a01/8a00` correction permanent. Retain -07 root/data and -08
-BOOTIMG fallback. A runtime Wi-Fi test reaches function enable and Wi-Fi Start
-but recovers with EIO before wlan0; its next exact failure remains open.
-Saved radio preferences remain off; accepted M4 is intact. M5 #31 is ACTIVE /
-BLUETOOTH ADAPTER REACHED / WI-FI STARTUP FAILURE / QUALIFICATION OPEN. No major
-milestone transition or broad audit is implied by this interface checkpoint.
+The original EPROTO was rejection of the successful RF result. The later
+`0x1004` page-2/status-`0x30` defect is corrected only for `6582/8a01/8a00`
+using the existing Linux quirk and verified page limit. The
+[-08 trace and controlled test](../hardware-evidence/2026-09-17-m5-connectivity08/README.md)
+remain the causal evidence. Its Wi-Fi test reached function enable and Wi-Fi
+Start but recovered with EIO before wlan0; that exact next failure remains open.
 
-
-CONNECTIVITY-09 is built from `f55fff4`, BOOTIMG 6150144 bytes, SHA256
-`200346dff20ea1ffe769278bc8c52a19402d850a380c2054f6e93d1ef167de7a`. Fifteen targeted checks and emitted artifact/package checks
-pass. [Ready BOOTIMG-only handoff](../build/y2linux-m5-connectivity-09-deployment.md).
-The live -08 HCI correction works; normal -09 boot still awaits owner installation.
+CONNECTIVITY-09 is installed from `f55fff4`, BOOTIMG 6150144 bytes, SHA256
+`200346dff20ea1ffe769278bc8c52a19402d850a380c2054f6e93d1ef167de7a`.
+Fifteen targeted checks and emitted artifact/package checks pass.
+[Deployment receipt](../build/y2linux-m5-connectivity-09-deployment.md).
+Retain -07 root/data and -08 BOOTIMG fallback. Both radios and saved preferences
+are returned off. Accepted M4 is intact; pairing/audio/coexistence remain open.
+M5 #31 is ACTIVE / BLUETOOTH ADAPTER VERIFIED / WI-FI STARTUP FAILURE /
+QUALIFICATION OPEN. No major milestone transition or broad audit is implied.
+Installation-pending descriptions below are historical.
 
 ## CONNECTIVITY-07 exact protocol failure / CONNECTIVITY-08 correction — 2026-09-17
 
