@@ -18,6 +18,11 @@ BLUETOOTH ADAPTER REACHED / WI-FI STARTUP FAILURE / QUALIFICATION OPEN. No major
 milestone transition or broad audit is implied by this interface checkpoint.
 
 
+CONNECTIVITY-09 is built from `f55fff4`, BOOTIMG 6150144 bytes, SHA256
+`200346dff20ea1ffe769278bc8c52a19402d850a380c2054f6e93d1ef167de7a`. Fifteen targeted checks and emitted artifact/package checks
+pass. [Ready BOOTIMG-only handoff](../build/y2linux-m5-connectivity-09-deployment.md).
+The live -08 HCI correction works; normal -09 boot still awaits owner installation.
+
 ## CONNECTIVITY-07 exact protocol failure / CONNECTIVITY-08 correction — 2026-09-17
 
 Live SSH identifies MT6582/HVR `8a01`/FVR `8a00`. A stopped-buffer snapshot

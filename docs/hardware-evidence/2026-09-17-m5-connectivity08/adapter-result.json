@@ -1,0 +1,46 @@
+{
+  "source": "Own Y2 CONNECTIVITY-08, strictly pinned SSH and btmon, 2026-09-17 UTC",
+  "controller": {
+    "chip": "6582",
+    "hvr": "8a01",
+    "fvr": "8a00",
+    "hci_version": 6,
+    "manufacturer": 70
+  },
+  "baseline": {
+    "feature_pages_requested": [
+      "1",
+      "2"
+    ],
+    "page1_status": 0,
+    "page1_advertised_maximum": 2,
+    "page2_status": 48,
+    "linux_error": -38
+  },
+  "runtime_correction": {
+    "kernel_quirk": "HCI_QUIRK_BROKEN_LOCAL_EXT_FEATURES_PAGE_2",
+    "cached_max_page": 1,
+    "feature_bitmap_masks": false,
+    "supported_command_masks": false,
+    "resident_diagnostic_module": false
+  },
+  "corrected": {
+    "feature_pages_requested": [
+      "1"
+    ],
+    "management_index_added": true,
+    "bluez_controller_visible": true,
+    "power_on_succeeded": true,
+    "powered_yes": true
+  },
+  "restored": {
+    "bluez_controller_visible": true,
+    "powered_no": true,
+    "core_status": "activated=1 powered=0 functions=0x0 calibrated=1 chip=6582 hvr=8a01 fvr=8a00 error=0 transport_errors=4 recoveries=4"
+  },
+  "limits": [
+    "temporary on installed -08 until reboot; durable -09 candidate being built",
+    "no pairing, scan, BLE, EDR data, audio or coexistence qualification",
+    "Wi-Fi Start followed by EIO recovery; wlan0 absent"
+  ]
+}

@@ -13,6 +13,11 @@ boundary. The live -08 quirk is temporary until reboot; no claim of -09 physical
 qualification or full radio/M5 completion. M4 remains accepted. Earlier awaiting
 -08 installation text is history.
 
+CONNECTIVITY-09 is built from `f55fff4`, BOOTIMG 6150144 bytes, SHA256
+`200346dff20ea1ffe769278bc8c52a19402d850a380c2054f6e93d1ef167de7a`. Fifteen targeted checks and emitted artifact/package checks
+pass. [Ready BOOTIMG-only handoff](../build/y2linux-m5-connectivity-09-deployment.md).
+The live -08 HCI correction works; normal -09 boot still awaits owner installation.
+
 # Latest state — CONNECTIVITY-07 protocol failure located (2026-09-17)
 
 The provider, DMA/IRQs and controller identification work. The own live capture
