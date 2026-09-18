@@ -1,0 +1,127 @@
+{
+  "etc/default/syslogd": {
+    "old": null,
+    "new": [
+      "0",
+      420,
+      "",
+      "c7adac5c9ab197c8afd1740401b7950a51dcaa03052c04a1138cfab404a1bb09"
+    ]
+  },
+  "etc/init.d/S25y2-display": {
+    "old": [
+      "0",
+      493,
+      "",
+      "7d696a3bce2fbff4316316f5b9fad8d700998508b6f6728130910d06dc57ea5a"
+    ],
+    "new": [
+      "0",
+      493,
+      "",
+      "6307a1e0431329849cb9d7602840e6c222828c1664ef239396d53049693321f0"
+    ]
+  },
+  "etc/inittab": {
+    "old": [
+      "0",
+      420,
+      "",
+      "de610f2a6dc06ede3e56add231db99b45a11f221f0dab11957b6199a6654f22e"
+    ],
+    "new": [
+      "0",
+      420,
+      "",
+      "024f99d559f60f5f4f4a176fc4c9783f1893230112cd5449488cddc7a1cfb14e"
+    ]
+  },
+  "etc/y2linux/build-id": {
+    "old": [
+      "0",
+      420,
+      "",
+      "358dc7b6d5754227d5c2879428411288c98517d1f1da6834b19d6aa2d1ae34ec"
+    ],
+    "new": [
+      "0",
+      420,
+      "",
+      "bef332af4448515eec6b24da74403d2db11a1ffb3790e65d24955d4a84f46196"
+    ]
+  },
+  "etc/y2linux/versions.json": {
+    "old": [
+      "0",
+      420,
+      "",
+      "f345fec9a0145b58de30d7c80df888272673071b1b4c00fe08a7f1f98a56c0ec"
+    ],
+    "new": [
+      "0",
+      420,
+      "",
+      "9be0664e5fe1d0bbb257815e8c139b7bd2dfde2fb129dbb2ffd4e3724fc574f1"
+    ]
+  },
+  "usr/bin/reborn": {
+    "old": [
+      "0",
+      493,
+      "",
+      "39859d6c5f45b87705e7927f54270fe54b89935b0818e93aa03f87409e3c5de3"
+    ],
+    "new": [
+      "0",
+      493,
+      "",
+      "7380190f336fb069e1ce0f0ea8ec70ecb51ac8e95c822b1827cf93108cc27464"
+    ]
+  },
+  "usr/bin/rebornctl": {
+    "old": [
+      "0",
+      493,
+      "",
+      "7dcccecb750f1b53d20b52fb89f5ddeebe8820357e6e02ee7b05cd184b38a0c0"
+    ],
+    "new": [
+      "0",
+      493,
+      "",
+      "c94b095d38aac1e47f7f5b32ac56cd38f19d7cf7e38a893ee01e0eae7ce8b4a2"
+    ]
+  },
+  "usr/lib/os-release": {
+    "old": [
+      "0",
+      420,
+      "",
+      "cda9e334fcd02b318af636076a7617235acd4862c3388d2f1836cf25d9f8f18d"
+    ],
+    "new": [
+      "0",
+      420,
+      "",
+      "fa21dce5b698e1d99cdd89334c7354e833b2bc473cbe4443da918e7d01c370e3"
+    ]
+  },
+  "usr/libexec/reborn-boot-services": {
+    "old": null,
+    "new": [
+      "0",
+      493,
+      "",
+      "ed7153dde655bb22416b3e484e7063c308e979ddb1eb8f184403da90476f8b38"
+    ]
+  },
+  "usr/libexec/reborn-splash": {
+    "old": null,
+    "new": [
+      "0",
+      493,
+      "",
+      "28b9bc31597e845fcc80a6865b33e0563342ae13c38447f934d17f824f3e40b2"
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "build_reborn_commit": "6209f48402a00a077759df042916f0ae2c89783a",
+  "build_integration_commit": "1e0888795008cc57de92c47a3a241e45cb91e420",
+  "rust_tests": 50,
+  "clippy_warnings_denied": true,
+  "host_daemon_checks": 20,
+  "splash_native_tests": 9,
+  "boot_unit_tests": 5,
+  "arm_application_checks": 8,
+  "arm_early_helper_shell_checks": 5,
+  "production_build_network_disabled": true,
+  "raw_ext4_checks": true,
+  "kernel_display_offline_charger_unchanged": true,
+  "root_changed_paths": 10,
+  "splash_physical": "owner reports working; explicit handoff seen via SSH",
+  "radio_physical": "scan/service tests pass; UI status defect recorded"
+}

@@ -1,0 +1,44 @@
+{
+  "schema": "org.reborn.splash-01/v1",
+  "status": "HOST_VALIDATED_PHYSICAL_PENDING",
+  "reborn_commit": "6209f48402a00a077759df042916f0ae2c89783a",
+  "integration_commit": "1e0888795008cc57de92c47a3a241e45cb91e420",
+  "kernel_source_commit": "7e318afbffe640c6bf9da458f61ac2108f7d5bde",
+  "bootimg_changed": true,
+  "kernel_unchanged": true,
+  "offline_charging_binary_unchanged": true,
+  "rootfs_changed_paths": [
+    "etc/default/syslogd",
+    "etc/init.d/S25y2-display",
+    "etc/inittab",
+    "etc/y2linux/build-id",
+    "etc/y2linux/versions.json",
+    "usr/bin/reborn",
+    "usr/bin/rebornctl",
+    "usr/lib/os-release",
+    "usr/libexec/reborn-boot-services",
+    "usr/libexec/reborn-splash"
+  ],
+  "data_policy": "preserve Y2DATA; no format or payload",
+  "payloads": {
+    "BOOTIMG.img": {
+      "bytes": 6244352,
+      "sha256": "8671de2900fd05cc80a9eb7a3541d5bbdab7e5dd96c18f73f44ca1b13beb19a5"
+    },
+    "Y2ROOT.img": {
+      "bytes": 536870912,
+      "sha256": "d40e9337e3a1149d12fdd240a59918b0d2c48e4e6a9974ab5b470685250d900c"
+    },
+    "fallback/BOOTIMG.img": {
+      "bytes": 6203392,
+      "sha256": "2e5f7e785e80dfc646e57d0ccfadff683d54a2c5303671c819ea4e42863089a9"
+    },
+    "fallback/Y2ROOT.img": {
+      "bytes": 536870912,
+      "sha256": "c353152dea44a554486e024a4d8a8105fbbdfd1310db5749b28d7e5b8e5c8012"
+    }
+  },
+  "root_used_bytes": 89882624,
+  "root_used_bytes_delta": 28672,
+  "splash_binary_bytes": 17724
+}

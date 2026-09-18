@@ -1,0 +1,10 @@
+test_roundtrip_and_corruptions (tests.test_bootimg.Bootimg.test_roundtrip_and_corruptions) ... ok
+test_bounded_layout (tests.test_d08.Layout.test_bounded_layout) ... ok
+test_checked_arithmetic (tests.test_d08.Layout.test_checked_arithmetic) ... ok
+test_independent_rejections (tests.test_d08.Layout.test_independent_rejections) ... ok
+test_small_adjustment_preserves_dtb (tests.test_d08.Layout.test_small_adjustment_preserves_dtb) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+OK

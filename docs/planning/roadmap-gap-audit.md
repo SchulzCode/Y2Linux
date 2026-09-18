@@ -1,5 +1,28 @@
 # Y2Linux roadmap and gap audit
 
+## Reborn splash installed and radio inspection — 2026-09-18
+
+The owner reports the manually flashed startup update works and requests SSH
+inspection because Reborn displays radio unavailability. No new install, reboot,
+pairing, network connection or milestone expansion is authorized by this report.
+The [splash receipt](../build/reborn-splash-01-deployment.md) retains matched
+BOOTIMG/root/fallback hashes and the unchanged kernel/display/charging evidence.
+
+SSH confirms installed Reborn `6209f48`, root `Y2LINUX-REBORN-SPLASH-01`, Mali400,
+and explicit splash release/presentation at boot 49.448/49.456 seconds. All ten
+safe application baseline checks pass. Both radio services are present but both
+radios start off. Explicit bounded Reborn scan tests pass: Wi-Fi finds 28 networks;
+Bluetooth powers/discovers successfully with no discoverable peer; BlueALSA is
+available. Tests restore prior radio state. Same boot/session, no new radio or
+GPU-context errors and zero kernel connectivity errors/recoveries.
+
+Reborn conflates disabled Wi-Fi with unavailable and writes its error into a
+global UI notice that persists on the Bluetooth screen. This is an application
+status defect, not evidence that the underlying radio stack failed. Capture is
+in Y2Reborn `docs/validation/2026-09-18-radio-inspection.md`. No radio/UI fix was
+installed during this inspection. Association/DHCP, pairing/A2DP, charging and
+suspend acceptance remain pending; GPU #34/M5 #31 and full Baseline 01 stay open.
+
 ## Reborn splash-only boundary — 2026-09-18
 
 The owner reports deployed REBORN-BASELINE-01 working and authorizes only startup

@@ -1,0 +1,46 @@
+{
+  "passed": true,
+  "physical_test": false,
+  "kernel_unchanged_sha256": "c88693aa70250f02bdbb8b94367fd32e6046b1821487eaff61ab206b21f3b41c",
+  "display_module_unchanged_sha256": "6269c81e9ca34608e857b32360c89b6e715909c4089c7bcfb3cf4b7ad87e3a72",
+  "offline_charger_unchanged_sha256": "fceb0ef277ae9415875c4b7e2b1bf9f22372ce63b2f2207fc09b967383bdbaef",
+  "initramfs_changed_entries": [
+    "init"
+  ],
+  "initramfs_added_entries": [
+    "sbin/reborn-splash",
+    "usr/lib/libdrm.so.2"
+  ],
+  "unchanged_entry_count": 57,
+  "dt_changed_fields": [
+    "/chosen/linux,initrd-end"
+  ],
+  "bootimg": {
+    "bytes": 6244352,
+    "sha256": "8671de2900fd05cc80a9eb7a3541d5bbdab7e5dd96c18f73f44ca1b13beb19a5",
+    "android_id_sha1": "b04af719ec33d7a6c583d5c0f30edd9db1c33fdb",
+    "partition_bytes": 16777216,
+    "kernel_wrapper_offset": 2048,
+    "ramdisk_wrapper_offset": 4247552,
+    "lk_complete_read_end": 6244352,
+    "zero_filled_read_tail_bytes": 4327,
+    "authentication": "unsigned image; offline checks do not establish this candidate hardware acceptance"
+  },
+  "initramfs_inputs": {
+    "z": 4230608,
+    "dtb": 13602,
+    "initramfs": 1991961,
+    "image": 11842400,
+    "kernel_bss": 1141736,
+    "kernel_span": 12984136,
+    "restart": 276,
+    "wont_overwrite": 520,
+    "edata": 4230608,
+    "reloc_code_end": 2364,
+    "stack_top": 4234728,
+    "compressed_bss_start": 4230608,
+    "compressed_bss_end": 4230632,
+    "regular_file_bytes": 4892113
+  },
+  "arm_splash_and_shell_checks": 5
+}

@@ -42,6 +42,28 @@ int main(int argc,char **argv) {
 ''')
         cls.client_binary = Path(cls.build.name) / 'client'
         subprocess.run(['cc', '-Wall', '-Wextra', '-Werror', str(driver), '-o', str(cls.client_binary)], check=True)
+        picture = Path(cls.build.name) / 'picture.c'
+        picture.write_text('#define main splash_entry\n#include "' + str(ROOT / 'tools/graphics/reborn-splash.c') + '''"
+#undef main
+#include <assert.h>
+int main(int argc,char **argv) {
+ (void)argv;
+ Display d={.fd=-1,.width=480,.height=360,.pitch=1920,.size=1920*360};
+ d.pixels=malloc(d.size+64);assert(d.pixels);memset(d.pixels,0xaa,d.size+64);
+ draw(&d,argc>1,900,true);
+ for(size_t i=d.size;i<d.size+64;i++)assert(d.pixels[i]==0xaa);
+ assert(*(uint32_t *)d.pixels==BG);
+ unsigned accent=0;
+ for(unsigned i=0;i<480*360;i++)accent+=((uint32_t *)d.pixels)[i]==ACCENT;
+ assert(accent>1000);
+ printf("P6\\n480 360\\n255\\n");
+ for(unsigned i=0;i<480*360;i++) {uint32_t p=((uint32_t *)d.pixels)[i];unsigned char rgb[3]={p>>16,p>>8,p};if(fwrite(rgb,1,3,stdout)!=3)return 1;}
+ free(d.pixels);return 0;
+}
+''')
+        cls.picture_binary = Path(cls.build.name) / 'picture'
+        subprocess.run(['cc', '-Os', '-Wall', '-Wextra', '-Werror', str(picture), *flags,
+                        '-o', str(cls.picture_binary)], check=True)
 
     @classmethod
     def tearDownClass(cls):
@@ -139,6 +161,16 @@ int main(int argc,char **argv) {
         self.assertNotIn('system(', source)
         display = (ROOT / 'buildroot/board/y2/overlay/etc/init.d/S25y2-display').read_text()
         self.assertLess(display.index('reborn-splash'), display.index('echo 0'))
+
+    def test_splash_pixels_and_draw_bounds(self):
+        normal = subprocess.check_output([str(self.picture_binary)])
+        failed = subprocess.check_output([str(self.picture_binary), 'failure'])
+        self.assertTrue(normal.startswith(b'P6\n480 360\n255\n'))
+        self.assertEqual(len(normal), len(b'P6\n480 360\n255\n') + 480*360*3)
+        self.assertNotEqual(normal, failed)
+        if destination := os.environ.get('REBORN_SPLASH_PREVIEWS'):
+            p = Path(destination); p.mkdir(parents=True, exist_ok=True)
+            (p / 'loading.ppm').write_bytes(normal); (p / 'failure.ppm').write_bytes(failed)
 
 
 if __name__ == '__main__': unittest.main()

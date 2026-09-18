@@ -1,0 +1,14 @@
+test_client_rejects_wrong_reply (tests.test_reborn_splash.Splash.test_client_rejects_wrong_reply) ... ok
+test_disconnect_during_handoff_reclaims_display (tests.test_reborn_splash.Splash.test_disconnect_during_handoff_reclaims_display) ... ok
+test_early_quiet_precedes_display_and_splash_follows_charger_gate (tests.test_reborn_splash.Splash.test_early_quiet_precedes_display_and_splash_follows_charger_gate) ... ok
+test_malformed_and_oversized_requests_do_not_release_kms (tests.test_reborn_splash.Splash.test_malformed_and_oversized_requests_do_not_release_kms) ... ok
+test_native_client_explicit_ready_then_presented (tests.test_reborn_splash.Splash.test_native_client_explicit_ready_then_presented) ... ok
+test_no_service_is_a_compatible_renderer_fallback (tests.test_reborn_splash.Splash.test_no_service_is_a_compatible_renderer_fallback) ... ok
+test_slow_client_deadline_and_singleton (tests.test_reborn_splash.Splash.test_slow_client_deadline_and_singleton) ... ok
+test_splash_pixels_and_draw_bounds (tests.test_reborn_splash.Splash.test_splash_pixels_and_draw_bounds) ... ok
+test_timeout_is_static_failure_but_late_ready_still_works (tests.test_reborn_splash.Splash.test_timeout_is_static_failure_but_late_ready_still_works) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 3.625s
+
+OK
