@@ -34,6 +34,15 @@ an independently justified platform correction becomes necessary. Public remote
 issue changes are deferred to an authorized publishing step; local audit is
 updated here. No physical success is claimed by host or emulated tests.
 
+The [REBORN-BASELINE-01 candidate](../build/reborn-baseline-01-deployment.md) now
+passes 50 Rust tests, 20 daemon checks, 3 tooling tests, 8 ARM runtime/shell checks
+and the retained 94 platform regressions. An offline production rootfs build and
+root-only preservation checks pass. Reborn source `77e6732`, integration `08b0e7d`;
+BOOTIMG is byte-unchanged and fallback is the exact GPU-02 root. Read-only live
+BlueALSA ObjectManager inspection succeeds with no peer PCM present. This closes
+the first implementation/build boundary only. STOP for owner installation;
+Reborn, GPU resume and M5 physical qualification remain open.
+
 ## GPU-01 physical result and targeted GPU-02 correction — 2026-09-18
 
 Owner-deployed `7c43557` proves Mali-400 MP2 r1p1, mainline Lima render node,

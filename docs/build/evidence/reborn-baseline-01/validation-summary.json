@@ -1,0 +1,13 @@
+{
+  "candidate": "REBORN-BASELINE-01",
+  "physical_acceptance": false,
+  "rust_tests": 50,
+  "host_daemon_checks": 20,
+  "tooling_tests": 3,
+  "arm_runtime_checks": 8,
+  "platform_regressions": 94,
+  "clippy": "passed -D warnings",
+  "offline_build": "passed inside bwrap --unshare-net",
+  "package_checks": "passed",
+  "bootimg_changed": false
+}

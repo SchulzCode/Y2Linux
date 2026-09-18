@@ -1,0 +1,202 @@
+make: Entering directory '/home/luca/Dokumente/Code/Y2Linux/.cache/sources/buildroot-2025.02.17'
+rm -Rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01
+>>> reborn 0.1.0-baseline.01 Syncing from source dir /home/luca/Dokumente/Code/Y2Linux/buildroot/../../Y2Reborn
+rsync -au --chmod=u=rwX,go=rX --exclude=/target --exclude=/out --exclude=/.git --exclude .svn --exclude .git --exclude .hg --exclude .bzr --exclude CVS /home/luca/Dokumente/Code/Y2Linux/buildroot/../../Y2Reborn/ /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01
+>>> reborn 0.1.0-baseline.01 Configuring
+>>> reborn 0.1.0-baseline.01 Building
+cd /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01 && PATH="/home/luca/.cargo/bin/:"/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin:/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/sbin:/home/luca/.cargo/bin:/home/luca/Dokumente/Code/Y2Linux/.cache/host-tools:/usr/bin:/bin"" REBORN_BUILD_ID="77e673232a586e1f027538861bcbbec3466b36fd" Y2_BUILDROOT_OUTPUT="/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot" sh tools/build/cross.sh
+   Compiling pkg-config v0.3.32
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling libc v0.2.177
+   Compiling serde_core v1.0.228
+   Compiling shlex v1.3.0
+   Compiling bitflags v2.13.2
+   Compiling rustix v1.1.3
+   Compiling cfg-if v1.0.5
+   Compiling find-msvc-tools v0.1.12
+   Compiling crc32fast v1.5.2
+   Compiling linux-raw-sys v0.11.0
+   Compiling serde v1.0.228
+   Compiling serde_json v1.0.145
+   Compiling ryu v1.0.23
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling adler2 v2.0.1
+   Compiling cc v1.2.41
+   Compiling simd-adler32 v0.3.10
+   Compiling vcpkg v0.2.15
+   Compiling foldhash v0.1.5
+   Compiling smallvec v1.16.1
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling fallible-iterator v0.3.0
+   Compiling miniz_oxide v0.8.9
+   Compiling hashbrown v0.15.5
+   Compiling font8x8 v0.3.1
+   Compiling libdbus-sys v0.2.7
+   Compiling libsqlite3-sys v0.35.0
+   Compiling flate2 v1.1.5
+   Compiling syn v2.0.119
+   Compiling hashlink v0.10.0
+   Compiling reborn-media v0.1.0 (/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/crates/reborn-media)
+   Compiling reborn-graphics v0.1.0 (/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/crates/reborn-graphics)
+   Compiling reborn-audio v0.1.0 (/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/crates/reborn-audio)
+   Compiling rusqlite v0.37.0
+   Compiling filetime v0.2.29
+   Compiling dbus v0.9.9
+   Compiling xattr v1.6.1
+   Compiling tar v0.4.44
+   Compiling serde_derive v1.0.228
+   Compiling reborn-observability v0.1.0 (/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/crates/reborn-observability)
+   Compiling reborn-core v0.1.0 (/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/crates/reborn-core)
+   Compiling reborn-control v0.1.0 (/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/crates/reborn-control)
+   Compiling reborn-platform v0.1.0 (/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/crates/reborn-platform)
+   Compiling reborn-ui v0.1.0 (/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/crates/reborn-ui)
+   Compiling reborn-library v0.1.0 (/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/crates/reborn-library)
+   Compiling reborn v0.1.0 (/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/app/reborn)
+    Finished `release` profile [optimized] target(s) in 6.69s
+>>> reborn 0.1.0-baseline.01 Installing to target
+/usr/bin/install -D -m 0755 /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/target/armv7-unknown-linux-gnueabihf/release/reborn /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/bin/reborn
+/usr/bin/install -D -m 0755 /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/target/armv7-unknown-linux-gnueabihf/release/rebornctl /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/bin/rebornctl
+mkdir -p /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/reborn/fixtures
+cp /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/assets/fixtures/tone.* /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/assets/fixtures/artwork.flac /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/assets/fixtures/manifest.json /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/reborn/fixtures/
+/usr/bin/install -D -m 0644 /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/docs/architecture/dependencies.json /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/reborn/dependencies.json
+/usr/bin/install -D -m 0644 /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/reborn-0.1.0-baseline.01/LICENSE /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/reborn/LICENSE
+/usr/bin/install -D -m 0755 /home/luca/Dokumente/Code/Y2Linux/buildroot/package/reborn/reborn-supervise /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/libexec/reborn-supervise
+/usr/bin/install -D -m 0755 /home/luca/Dokumente/Code/Y2Linux/buildroot/package/reborn/S60reborn /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/init.d/S60reborn
+>>>   Finalizing host directory
+>>>   Finalizing target directory
+mkdir -p /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/etc/meson
+sed -e "s%@TARGET_CFLAGS@%'-D_LARGEFILE_SOURCE', '-D_LARGEFILE64_SOURCE', '-D_FILE_OFFSET_BITS=64', '-O2', '-g0', '-D_FORTIFY_SOURCE=1'@PKG_TARGET_CFLAGS@%g" -e "s%@TARGET_LDFLAGS@%@PKG_TARGET_LDFLAGS@%g" -e "s%@TARGET_CXXFLAGS@%'-D_LARGEFILE_SOURCE', '-D_LARGEFILE64_SOURCE', '-D_FILE_OFFSET_BITS=64', '-O2', '-g0', '-D_FORTIFY_SOURCE=1'@PKG_TARGET_CXXFLAGS@%g" -e "s%@TARGET_FCFLAGS@%'-O2', '-g0'@PKG_TARGET_FCFLAGS@%g"         -e "s%@TARGET_CC@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/arm-linux-gcc%g" -e "s%@TARGET_CXX@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/arm-linux-g++%g" -e "s%@TARGET_AR@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/arm-linux-gcc-ar%g" -e "s%@TARGET_FC@%/bin/false%g" -e "s%@TARGET_STRIP@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/arm-linux-strip%g" -e "s%@TARGET_ARCH@%arm%g" -e "s%@TARGET_CPU@%cortex-a7%g" -e "s%@TARGET_ENDIAN@%little%g" -e "s%@TARGET_FCFLAGS@%%g" -e "s%@TARGET_CFLAGS@%%g" -e "s%@TARGET_LDFLAGS@%%g" -e "s%@TARGET_CXXFLAGS@%%g" -e "s%@BR2_CMAKE@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/cmake%g" -e "s%@PKGCONF_HOST_BINARY@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/pkgconf%g" -e "s%@HOST_DIR@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host%g" -e "s%@STAGING_DIR@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/arm-buildroot-linux-gnueabihf/sysroot%g" -e "s%@STATIC@%false%g" /home/luca/Dokumente/Code/Y2Linux/.cache/sources/buildroot-2025.02.17/support/misc/cross-compilation.conf.in > /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/etc/meson/cross-compilation.conf.in
+sed         -e "s%@TARGET_CC@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/arm-linux-gcc%g" -e "s%@TARGET_CXX@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/arm-linux-g++%g" -e "s%@TARGET_AR@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/arm-linux-gcc-ar%g" -e "s%@TARGET_FC@%/bin/false%g" -e "s%@TARGET_STRIP@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/arm-linux-strip%g" -e "s%@TARGET_ARCH@%arm%g" -e "s%@TARGET_CPU@%cortex-a7%g" -e "s%@TARGET_ENDIAN@%little%g" -e "s%@TARGET_FCFLAGS@%'-O2', '-g0'%g" -e "s%@TARGET_CFLAGS@%'-D_LARGEFILE_SOURCE', '-D_LARGEFILE64_SOURCE', '-D_FILE_OFFSET_BITS=64', '-O2', '-g0', '-D_FORTIFY_SOURCE=1'%g" -e "s%@TARGET_LDFLAGS@%%g" -e "s%@TARGET_CXXFLAGS@%'-D_LARGEFILE_SOURCE', '-D_LARGEFILE64_SOURCE', '-D_FILE_OFFSET_BITS=64', '-O2', '-g0', '-D_FORTIFY_SOURCE=1'%g" -e "s%@BR2_CMAKE@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/cmake%g" -e "s%@PKGCONF_HOST_BINARY@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/pkgconf%g" -e "s%@HOST_DIR@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host%g" -e "s%@STAGING_DIR@%/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/arm-buildroot-linux-gnueabihf/sysroot%g" -e "s%@STATIC@%false%g" /home/luca/Dokumente/Code/Y2Linux/.cache/sources/buildroot-2025.02.17/support/misc/cross-compilation.conf.in > /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/etc/meson/cross-compilation.conf
+/usr/bin/sed -i -e '/# GENERIC_SERIAL$/s~^.*#~#ttyS0::respawn:/sbin/getty -L ttyS0 115200 vt100 #~' /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/inittab
+/usr/bin/sed -i -e '/^#.*-o remount,rw \/$/s~^#\+~~' /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/inittab
+if grep -q CONFIG_ASH=y /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/busybox-1.37.0/.config; then grep -qsE '^/bin/ash$' /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/shells || echo "/bin/ash" >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/shells; fi
+if grep -q CONFIG_HUSH=y /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/busybox-1.37.0/.config; then grep -qsE '^/bin/hush$' /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/shells || echo "/bin/hush" >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/shells; fi
+# Remove any existing certificates under /etc/ssl/certs
+rm -f /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/ssl/certs/*
+# Create symlinks to certificates under /etc/ssl/certs
+# and generate the bundle
+cd /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target ; for i in `find usr/share/ca-certificates -name "*.crt" | LC_COLLATE=C sort` ; do ln -sf ../../../$i etc/ssl/certs/`basename ${i} .crt`.pem ; cat $i ; done >/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/ca-certificates.crt
+# Create symlinks to the certificates by their hash values
+/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/c_rehash /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/ssl/certs
+Doing /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/ssl/certs
+# Install the certificates bundle
+/usr/bin/install -D -m 644 /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/ca-certificates.crt /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/ssl/certs/ca-certificates.crt
+rm -f /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/glib-2.0/schemas/*.xml /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/glib-2.0/schemas/*.dtd
+/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/glib-compile-schemas /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/arm-buildroot-linux-gnueabihf/sysroot/usr/share/glib-2.0/schemas --targetdir=/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/glib-2.0/schemas
+No schema files found: doing nothing.
+mkdir -p /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc
+echo "y2linux" > /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/hostname
+/usr/bin/sed -i -e '$a \127.0.1.1\ty2linux' -e '/^127.0.1.1/d' /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/hosts
+mkdir -p /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc
+echo "Y2Linux Production Storage v1 (Buildroot)" > /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/issue
+/usr/bin/sed -i -e s,^root:[^:]*:,root:"`/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/mkpasswd -m "sha-256" "!"`":, /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/shadow
+grep -qsE '^/bin/sh$' /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/shells || echo "/bin/sh" >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/shells
+if [ -x /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/sbin/swapon -a -x /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/sbin/swapoff ]; then /usr/bin/sed -i -e '/^#.*\/sbin\/swap/s/^#\+[[:blank:]]*//' /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/inittab; else /usr/bin/sed -i -e '/^[^#].*\/sbin\/swap/s/^/#/' /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/inittab; fi
+printf '%s\n' C en_US locale-archive > /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/locales.nopurge
+for dir in /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/locale /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/X11/locale /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/lib/locale; do if [ ! -d $dir ]; then continue; fi; for langdir in $dir/*; do if [ -e "${langdir}" ]; then grep -qx "${langdir##*/}" /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/locales.nopurge || rm -rf $langdir; fi done; done
+if [ -d /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/X11/locale ]; then for lang in C en_US; do if [ -f /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/X11/locale/$lang/XLC_LOCALE ]; then echo "$lang/XLC_LOCALE: $lang"; fi done > /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/X11/locale/locale.dir; fi
+rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/include /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/aclocal \
+	/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/lib/pkgconfig /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/pkgconfig \
+	/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/lib/cmake /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/cmake \
+	/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/lib/rpm /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/doc
+find /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/{lib,share}/ -name '*.cmake' -print0 | xargs -0 rm -f
+find /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/lib/ /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/lib/ /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/libexec/ \
+	\( -name '*.a' -o -name '*.la' -o -name '*.prl' \) -print0 | xargs -0 rm -f
+rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/gdb
+rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/bash-completion
+rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/bash_completion.d
+rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/zsh
+rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/man /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/man
+rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/info /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/info
+rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/doc /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/doc
+rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share/gtk-doc
+rmdir /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/share 2>/dev/null || true
+rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/lib/debug /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/lib/debug
+find /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target   -type f \( -perm /111 -o -name '*.so*' \) -not \( -name 'libpthread*.so*' -o -name 'ld-*.so*' -o -name '*.ko' \) -print0 | xargs -0 /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/arm-linux-strip --remove-section=.comment --remove-section=.note 2>/dev/null || true
+find /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target   \( -name 'ld-*.so*' -o -name 'libpthread*.so*' \) -print0 | xargs -0 -r /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/arm-linux-strip --remove-section=.comment --remove-section=.note --strip-debug 2>/dev/null || true
+test -f /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/ld.so.conf && \
+	{ echo "ERROR: we shouldn't have a /etc/ld.so.conf file"; exit 1; } || true
+test -d /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc/ld.so.conf.d && \
+	{ echo "ERROR: we shouldn't have a /etc/ld.so.conf.d directory"; exit 1; } || true
+mkdir -p /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc
+( \
+	echo "NAME=Buildroot"; \
+	echo "VERSION=-g08b0e7d"; \
+	echo "ID=buildroot"; \
+	echo "VERSION_ID=2025.02.17"; \
+	echo "PRETTY_NAME=\"Buildroot 2025.02.17\"" \
+) >  /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr/lib/os-release
+ln -sf ../usr/lib/os-release /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/etc
+>>>   Sanitizing RPATH in target tree
+PARALLEL_JOBS=17 \
+	PER_PACKAGE_DIR=/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/per-package \
+	/home/luca/Dokumente/Code/Y2Linux/.cache/sources/buildroot-2025.02.17/support/scripts/fix-rpath target
+>>>   Copying overlay /home/luca/Dokumente/Code/Y2Linux/buildroot/board/y2/overlay
+>>>   Copying overlay /home/luca/Dokumente/Code/Y2Linux/buildroot/board/y2/production-overlay
+>>>   Executing post-build script /home/luca/Dokumente/Code/Y2Linux/buildroot/board/y2/post-build-production.sh
+touch /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/usr
+>>>   Generating root filesystems common tables
+rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs
+mkdir -p /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs
+printf '   	dbus -1 dbus -1 * /run/dbus - dbus DBus messagebus user\n\n' >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/full_users_table.txt
+printf '   	/bin/busybox                     f 4755 0  0 - - - - -\n 	/usr/libexec/dbus-daemon-launch-helper f 4750 0 dbus - - - - -\n\n' > /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/full_devices_table.txt
+cat system/device_table.txt >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/full_devices_table.txt
+>>>   Generating filesystem image rootfs.ext2
+mkdir -p /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/images
+rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2
+mkdir -p /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2
+rsync -auH --exclude=/THIS_IS_NOT_YOUR_ROOT_FILESYSTEM /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/ /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/target
+echo '#!/bin/sh' > /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/fakeroot
+echo "set -e" >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/fakeroot
+echo "chown -h -R 0:0 /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/target" >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/fakeroot
+PATH="/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin:/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/sbin:/home/luca/.cargo/bin:/home/luca/Dokumente/Code/Y2Linux/.cache/host-tools:/usr/bin:/bin" /home/luca/Dokumente/Code/Y2Linux/.cache/sources/buildroot-2025.02.17/support/scripts/mkusers /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/full_users_table.txt /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/target >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/fakeroot
+echo "/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/makedevs -d /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/full_devices_table.txt /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/target" >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/fakeroot
+printf '   	rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/target/usr/lib/udev/hwdb.d/ /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/target/etc/udev/hwdb.d/\n' >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/fakeroot
+echo "find /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/target/run/ -mindepth 1 -prune -print0 | xargs -0r rm -rf --" >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/fakeroot
+echo "find /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/target/tmp/ -mindepth 1 -prune -print0 | xargs -0r rm -rf --" >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/fakeroot
+printf '   	find /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/target -print0 | xargs -0 -r touch -hd @1787518700\n' >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/fakeroot
+printf '   \n' >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/fakeroot
+printf '   	rm -f /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/images/rootfs.ext2\n	/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/sbin/mkfs.ext4 -d /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/target -N 0 -m 5 -L "Y2ROOT" -I 256 -O ^64bit -U 79324c69-6e75-4801-8000-000000000101 -E lazy_itable_init=0,lazy_journal_init=0,hash_seed=79324c69-6e75-4801-8000-000000000101 /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/images/rootfs.ext2 "512M" || { ret=$?; echo "*** Maybe you need to increase the filesystem size (BR2_TARGET_ROOTFS_EXT2_SIZE)" 1>&2; exit $ret; }\n' >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/fakeroot
+chmod a+x /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/fakeroot
+PATH="/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin:/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/sbin:/home/luca/.cargo/bin:/home/luca/Dokumente/Code/Y2Linux/.cache/host-tools:/usr/bin:/bin" FAKEROOTDONTTRYCHOWN=1 /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/fakeroot -- /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/fakeroot
+rootdir=/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/ext2/target
+table='/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/full_devices_table.txt'
+mke2fs 1.47.2 (1-Jan-2025)
+Creating regular file /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/images/rootfs.ext2
+64-bit filesystem support is not enabled.  The larger fields afforded by this feature enable full-strength checksumming.  Pass -O 64bit to rectify.
+Creating filesystem with 131072 4k blocks and 32768 inodes
+Filesystem UUID: 79324c69-6e75-4801-8000-000000000101
+Superblock backups stored on blocks: 
+	32768, 98304
+
+Allocating group tables: 0/4   done                            
+Writing inode tables: 0/4   done                            
+Creating journal (4096 blocks): done
+Copying files into the device: done
+Writing superblocks and filesystem accounting information: 0/4   done
+
+ln -sf rootfs.ext2 /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/images/rootfs.ext4
+>>>   Generating filesystem image rootfs.tar
+mkdir -p /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/images
+rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar
+mkdir -p /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar
+rsync -auH --exclude=/THIS_IS_NOT_YOUR_ROOT_FILESYSTEM /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/target/ /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/target
+echo '#!/bin/sh' > /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/fakeroot
+echo "set -e" >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/fakeroot
+echo "chown -h -R 0:0 /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/target" >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/fakeroot
+PATH="/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin:/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/sbin:/home/luca/.cargo/bin:/home/luca/Dokumente/Code/Y2Linux/.cache/host-tools:/usr/bin:/bin" /home/luca/Dokumente/Code/Y2Linux/.cache/sources/buildroot-2025.02.17/support/scripts/mkusers /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/full_users_table.txt /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/target >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/fakeroot
+echo "/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/makedevs -d /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/full_devices_table.txt /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/target" >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/fakeroot
+printf '   	rm -rf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/target/usr/lib/udev/hwdb.d/ /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/target/etc/udev/hwdb.d/\n' >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/fakeroot
+echo "find /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/target/run/ -mindepth 1 -prune -print0 | xargs -0r rm -rf --" >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/fakeroot
+echo "find /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/target/tmp/ -mindepth 1 -prune -print0 | xargs -0r rm -rf --" >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/fakeroot
+printf '   	find /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/target -print0 | xargs -0 -r touch -hd @1787518700\n' >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/fakeroot
+printf '   \n' >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/fakeroot
+printf '   	(cd /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/target; find -print0 | LC_ALL=C sort -z | tar  --pax-option=exthdr.name=%%d/PaxHeaders/%%f,atime:=0,ctime:=0 -cf /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/images/rootfs.tar --null --xattrs-include='\''*'\'' --no-recursion -T - --numeric-owner)\n' >> /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/fakeroot
+chmod a+x /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/fakeroot
+PATH="/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin:/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/sbin:/home/luca/.cargo/bin:/home/luca/Dokumente/Code/Y2Linux/.cache/host-tools:/usr/bin:/bin" FAKEROOTDONTTRYCHOWN=1 /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/host/bin/fakeroot -- /home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/fakeroot
+rootdir=/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/tar/target
+table='/home/luca/Dokumente/Code/Y2Linux/out/reborn-baseline-01-build/buildroot/build/buildroot-fs/full_devices_table.txt'
+make: Leaving directory '/home/luca/Dokumente/Code/Y2Linux/.cache/sources/buildroot-2025.02.17'
