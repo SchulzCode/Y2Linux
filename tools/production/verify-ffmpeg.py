@@ -122,11 +122,22 @@ def check_buildroot(output: Path) -> list[str]:
             direct = sorted(name for name in player_needed if name.startswith("libav"))
             if direct:
                 failures.append(f"Reborn directly loads FFmpeg libraries: {', '.join(direct)}")
-            required = {f"{name}.so.{version}" for name, version in EXPECTED_LIBRARIES.items()}
-            missing = sorted(required - membrane_needed)
+            # FFmpeg installs the full 9.0.1 filename in the target, but the
+            # ELF SONAME intentionally contains only the ABI major version.
+            # Verify both boundaries instead of comparing those two names as
+            # if they were interchangeable.
+            required_sonames = {
+                f"{name}.so.{version.split('.')[0]}"
+                for name, version in EXPECTED_LIBRARIES.items()
+            }
+            missing = sorted(required_sonames - membrane_needed)
             if missing:
                 failures.append(f"media membrane missing FFmpeg libraries: {', '.join(missing)}")
-            unexpected = sorted(name for name in membrane_needed if name.startswith("libav") and name not in required)
+            unexpected = sorted(
+                name
+                for name in membrane_needed
+                if name.startswith("libav") and name not in required_sonames
+            )
             if unexpected:
                 failures.append(f"media membrane has unexpected FFmpeg libraries: {', '.join(unexpected)}")
         except (OSError, subprocess.CalledProcessError, RuntimeError) as error:
