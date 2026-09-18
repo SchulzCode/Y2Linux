@@ -1,0 +1,30 @@
+{
+  "schema": "org.reborn.radio-ui-01/v1",
+  "status": "HOST_VALIDATED_PHYSICAL_PENDING",
+  "reborn_commit": "a8ae8b6723311b677662759082c55ad226441669",
+  "integration_commit": "640ecb828af1ba48edcc6203701edb89f66eb0ac",
+  "root": {
+    "sha256": "79b12172645c4755fdf3219fc6f99971d94de62c42f807a3613a43516d1f7df8",
+    "bytes": 536870912,
+    "used_bytes": 89935872,
+    "used_bytes_delta": 53248
+  },
+  "fallback": {
+    "sha256": "d40e9337e3a1149d12fdd240a59918b0d2c48e4e6a9974ab5b470685250d900c",
+    "file": "fallback/Y2ROOT.img"
+  },
+  "bootimg_changed": false,
+  "required_installed_bootimg_sha256": "8671de2900fd05cc80a9eb7a3541d5bbdab7e5dd96c18f73f44ca1b13beb19a5",
+  "data_policy": "preserve Y2DATA; no formatting or data payload",
+  "binary_sizes": {
+    "reborn": 1879004,
+    "rebornctl": 445356
+  },
+  "changed_paths": [
+    "etc/y2linux/build-id",
+    "etc/y2linux/versions.json",
+    "usr/bin/reborn",
+    "usr/bin/rebornctl",
+    "usr/lib/os-release"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "passed": true,
+  "physical_qualification": false,
+  "reborn_commit": "a8ae8b6723311b677662759082c55ad226441669",
+  "integration_commit": "640ecb828af1ba48edcc6203701edb89f66eb0ac",
+  "rust_tests": 64,
+  "host_daemon_checks": 20,
+  "host_tooling_tests": 4,
+  "arm_application_shell_checks": 8,
+  "clippy_warnings_denied": true,
+  "build_network_disabled": true,
+  "root_changed_paths": [
+    "etc/y2linux/build-id",
+    "etc/y2linux/versions.json",
+    "usr/bin/reborn",
+    "usr/bin/rebornctl",
+    "usr/lib/os-release"
+  ],
+  "bootimg_unchanged_sha256": "8671de2900fd05cc80a9eb7a3541d5bbdab7e5dd96c18f73f44ca1b13beb19a5",
+  "fallback_sha256": "d40e9337e3a1149d12fdd240a59918b0d2c48e4e6a9974ab5b470685250d900c",
+  "device_install_performed": false,
+  "remaining": [
+    "Owner root-only installation",
+    "SSH qualification of actual UI scan workers",
+    "Visible progress/results and discoverable Bluetooth peer"
+  ]
+}

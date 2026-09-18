@@ -1,0 +1,7 @@
+[
+  "etc/y2linux/build-id",
+  "etc/y2linux/versions.json",
+  "usr/bin/reborn",
+  "usr/bin/rebornctl",
+  "usr/lib/os-release"
+]

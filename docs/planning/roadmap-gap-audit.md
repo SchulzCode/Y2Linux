@@ -18,6 +18,16 @@ D-Bus tests must distinguish progress, completion, errors and power-off; they
 do not establish physical pairing or association. No software is installed over
 SSH and no live radio configuration changes are needed for this source fix.
 
+The [root-only candidate](../build/reborn-radio-ui-01-deployment.md) is now built
+from Reborn `a8ae8b6` / integration `640ecb8`: 64 Rust tests, 20 host daemon checks,
+four tooling tests, eight ARM application/shell checks and Clippy pass. Offline
+Buildroot and raw rootfs comparisons pass; exactly five application/identity
+files change, used root space increases 52 KiB, and the splash BOOTIMG remains
+byte-identical. The installed splash root is the exact root-only fallback.
+STOP for owner manual installation, then qualify the actual UI-worker commands
+over SSH before requesting visible scan/peer confirmation. Physical success for
+this correction, association/pairing and broader Baseline 01 gates remain open.
+
 ## Reborn splash installed and radio inspection — 2026-09-18
 
 The owner reports the manually flashed startup update works and requests SSH
