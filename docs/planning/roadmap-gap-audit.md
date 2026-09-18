@@ -1,5 +1,34 @@
 # Y2Linux roadmap and gap audit
 
+## Reborn startup-latency inspection — 2026-09-18
+
+This audit is repeated before a targeted production startup correction using
+the owner-installed audio candidate and current real-device evidence. Read-only
+SSH identifies the running boot as Linux `6.18.0-y2linux-gpu-02`, with Mali400
+EGL/GLES active and the current FFmpeg runtime reporting `9.0.1`. The retained
+boot trace shows the splash visible at `0.828 s` and released/presented at
+`52.047/52.060 s`; Y2ROOT completes its handoff at `12.246 s`.
+
+The Reborn session trace and `/proc` task start times localize the delay: the
+process is created near `19.5 s`, its first application log appears near
+`41.0 s`, and the first frame is presented near `52.1 s`. The cold process
+startup is currently coupled to direct FFmpeg shared-library loading before
+`main`; Reborn then spends about `3.5 s` reaching the scan worker and `6.2 s`
+creating the GPU context. The SD card also reports a dirty FAT volume and
+remains an independent storage-health issue.
+
+This authorizes a bounded Reborn/Y2Linux startup optimization: keep FFmpeg as
+the only decode/DSP implementation, load its shared media membrane after the
+UI process is alive, retain bounded worker behavior, and add phase timing to
+the existing diagnostics. The implementation boundary also starts Reborn
+after `S02y2-data` and before optional radio/network services, whose Reborn
+workers already retry until their providers appear, and opens the GPU context
+before the library scan while the splash retains KMS ownership until the first
+frame. It does not authorize flashing, protected or
+calibration writes, Y2DATA replacement, hardware qualification, or changes to
+the physical audio sink profile. Existing GPU, radio, storage, power and
+audio qualification gaps remain open.
+
 ## Reborn audio-stack architecture boundary — 2026-09-18
 
 This audit is repeated before the requested production audio architecture

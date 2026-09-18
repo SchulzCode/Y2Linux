@@ -1,5 +1,6 @@
 #!/bin/sh
-# Offline charging stays in initramfs and never reaches this service.
+# Reborn only needs Y2DATA, prepared by S02y2-data. Its radio workers retry
+# until D-Bus, BlueZ and wpa_supplicant become available later in rcS.
 case "$1" in
  start)
     mountpoint -q /data || exit 1

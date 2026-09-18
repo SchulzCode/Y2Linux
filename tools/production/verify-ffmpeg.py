@@ -3,6 +3,8 @@
 import argparse
 import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 REQUIRED_DEMUXERS = {"flac", "mp3", "mov", "ogg", "wav", "aac", "aiff", "ape", "wv"}
@@ -71,6 +73,16 @@ def configured_components(path: Path, suffix: str) -> set[str]:
     }
 
 
+def needed_libraries(path: Path) -> set[str]:
+    readelf = shutil.which("readelf")
+    if not readelf:
+        raise RuntimeError("readelf is required for FFmpeg ELF boundary verification")
+    result = subprocess.run(
+        [readelf, "-d", str(path)], capture_output=True, text=True, check=True
+    )
+    return set(re.findall(r"Shared library: \[([^]]+)\]", result.stdout))
+
+
 def check_buildroot(output: Path) -> list[str]:
     """Verify the generated FFmpeg build itself before image packaging.
 
@@ -97,6 +109,28 @@ def check_buildroot(output: Path) -> list[str]:
             failures.append(f"unexpected target CLI {name}")
     if list((target / "usr/lib").glob("libavdevice.so*")):
         failures.append("unexpected target libavdevice")
+    player = target / "usr/bin/reborn"
+    membrane = target / "usr/lib/reborn/libreborn_media.so"
+    if not player.is_file():
+        failures.append(f"missing Reborn player ELF: {player}")
+    if not membrane.is_file():
+        failures.append(f"missing lazy FFmpeg media membrane: {membrane}")
+    if player.is_file() and membrane.is_file():
+        try:
+            player_needed = needed_libraries(player)
+            membrane_needed = needed_libraries(membrane)
+            direct = sorted(name for name in player_needed if name.startswith("libav"))
+            if direct:
+                failures.append(f"Reborn directly loads FFmpeg libraries: {', '.join(direct)}")
+            required = {f"{name}.so.{version}" for name, version in EXPECTED_LIBRARIES.items()}
+            missing = sorted(required - membrane_needed)
+            if missing:
+                failures.append(f"media membrane missing FFmpeg libraries: {', '.join(missing)}")
+            unexpected = sorted(name for name in membrane_needed if name.startswith("libav") and name not in required)
+            if unexpected:
+                failures.append(f"media membrane has unexpected FFmpeg libraries: {', '.join(unexpected)}")
+        except (OSError, subprocess.CalledProcessError, RuntimeError) as error:
+            failures.append(f"cannot inspect Reborn FFmpeg ELF boundary: {error}")
     try:
         config_text = config.read_text()
         if re.search(r"^#define CONFIG_(?:NETWORK|AVDEVICE|PROGRAMS) 1$", config_text, re.M):

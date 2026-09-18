@@ -26,12 +26,18 @@ define REBORN_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(REBORN_PKGDIR)/syslogd.conf $(TARGET_DIR)/etc/default/syslogd
 	$(INSTALL) -D -m 0755 $(@D)/target/armv7-unknown-linux-gnueabihf/release/reborn $(TARGET_DIR)/usr/bin/reborn
 	$(INSTALL) -D -m 0755 $(@D)/target/armv7-unknown-linux-gnueabihf/release/rebornctl $(TARGET_DIR)/usr/bin/rebornctl
+	media_so=$$(find $(@D)/target/armv7-unknown-linux-gnueabihf/release/build -type f -name libreborn_media.so -print -quit); \
+	[ -n "$$media_so" ] || { echo 'missing lazy FFmpeg media membrane' >&2; exit 1; }; \
+	$(INSTALL) -D -m 0755 "$$media_so" $(TARGET_DIR)/usr/lib/reborn/libreborn_media.so
 	mkdir -p $(TARGET_DIR)/usr/share/reborn/fixtures
 	cp -a $(@D)/assets/fixtures/. $(TARGET_DIR)/usr/share/reborn/fixtures/
 	$(INSTALL) -D -m 0644 $(@D)/docs/architecture/dependencies.json $(TARGET_DIR)/usr/share/reborn/dependencies.json
 	$(INSTALL) -D -m 0644 $(@D)/LICENSE $(TARGET_DIR)/usr/share/reborn/LICENSE
 	$(INSTALL) -D -m 0755 $(REBORN_PKGDIR)/reborn-supervise $(TARGET_DIR)/usr/libexec/reborn-supervise
-	$(INSTALL) -D -m 0755 $(REBORN_PKGDIR)/S60reborn $(TARGET_DIR)/etc/init.d/S60reborn
+	# Y2DATA is prepared by S02y2-data. Start Reborn before optional radio and
+	# network services; those workers retry until their providers are ready.
+	rm -f $(TARGET_DIR)/etc/init.d/S60reborn
+	$(INSTALL) -D -m 0755 $(REBORN_PKGDIR)/S05reborn $(TARGET_DIR)/etc/init.d/S05reborn
 endef
 
 $(eval $(generic-package))
