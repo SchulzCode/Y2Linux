@@ -21,7 +21,7 @@ define REBORN_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/target/armv7-unknown-linux-gnueabihf/release/reborn $(TARGET_DIR)/usr/bin/reborn
 	$(INSTALL) -D -m 0755 $(@D)/target/armv7-unknown-linux-gnueabihf/release/rebornctl $(TARGET_DIR)/usr/bin/rebornctl
 	mkdir -p $(TARGET_DIR)/usr/share/reborn/fixtures
-	cp $(@D)/assets/fixtures/tone.* $(@D)/assets/fixtures/manifest.json $(TARGET_DIR)/usr/share/reborn/fixtures/
+	cp $(@D)/assets/fixtures/tone.* $(@D)/assets/fixtures/artwork.flac $(@D)/assets/fixtures/manifest.json $(TARGET_DIR)/usr/share/reborn/fixtures/
 	$(INSTALL) -D -m 0644 $(@D)/docs/architecture/dependencies.json $(TARGET_DIR)/usr/share/reborn/dependencies.json
 	$(INSTALL) -D -m 0644 $(@D)/LICENSE $(TARGET_DIR)/usr/share/reborn/LICENSE
 	$(INSTALL) -D -m 0755 $(REBORN_PKGDIR)/reborn-supervise $(TARGET_DIR)/usr/libexec/reborn-supervise
