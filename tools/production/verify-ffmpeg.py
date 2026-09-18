@@ -24,6 +24,10 @@ EXPECTED_LIBRARIES = {
 EXPECTED_DEMUXERS = REQUIRED_DEMUXERS
 EXPECTED_PARSERS = REQUIRED_PARSERS
 EXPECTED_FILTERS = REQUIRED_FILTERS - {"abuffer", "abuffersink"}
+# FFmpeg's WebP decoder is implemented on top of its VP8 decoder. VP8 is an
+# intentional artwork-only dependency; VP9 and all other video decoders remain
+# disabled.
+ALLOWED_ARTWORK_DEPENDENCY_DECODERS = {"vp8", "webp_anim"}
 
 
 def check(value: dict) -> list[str]:
@@ -117,7 +121,7 @@ def check_buildroot(output: Path) -> list[str]:
         missing = sorted(required - actual[name])
         if missing:
             failures.append(f"generated FFmpeg missing {name}: {', '.join(missing)}")
-    allowed_decoders = REQUIRED_DECODERS | REQUIRED_ARTWORK | {"webp_anim"}
+    allowed_decoders = REQUIRED_DECODERS | REQUIRED_ARTWORK | ALLOWED_ARTWORK_DEPENDENCY_DECODERS
     missing_decoders = sorted((REQUIRED_DECODERS | REQUIRED_ARTWORK) - actual["decoders"])
     if missing_decoders:
         failures.append(f"generated FFmpeg missing decoders: {', '.join(missing_decoders)}")

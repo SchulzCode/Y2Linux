@@ -16,6 +16,10 @@ and `libavdevice` absence after Buildroot finishes. The ARM runtime manifest is
 checked by `Y2Reborn/tools/build/qemu-check.py`; it records the actual FFmpeg
 and library versions rather than trusting the Buildroot defconfig.
 
+FFmpeg's WebP decoder requires its VP8 decoder, so `vp8` is the sole
+intentional video-codec dependency. VP9 and other video codecs remain
+disabled.
+
 The ALSA qualification profile intentionally prefers `S32_LE` but currently
 allows only the owner-confirmed `S16_LE`, stereo, 44.1 kHz wired combination.
 The MT6582 driver and CS43131 path have not been physically qualified for
