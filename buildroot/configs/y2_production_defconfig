@@ -110,6 +110,7 @@ BR2_PACKAGE_FFMPEG_PARSERS="flac mpegaudio aac opus vorbis"
 BR2_PACKAGE_FFMPEG_BSFS=""
 BR2_PACKAGE_FFMPEG_PROTOCOLS="file"
 BR2_PACKAGE_FFMPEG_FILTERS=""
+BR2_PACKAGE_FFMPEG_EXTRACONF="--disable-avfilter --disable-avdevice --disable-network --disable-autodetect"
 # BR2_PACKAGE_FFMPEG_INDEVS is not set
 # BR2_PACKAGE_FFMPEG_OUTDEVS is not set
 BR2_PACKAGE_SQLITE=y

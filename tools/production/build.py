@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from tools.production.prepare import buildroot_source, environment
+from tools.production.ffmpeg9 import apply as apply_ffmpeg9
 PROJECT=Path(__file__).resolve().parents[2]
 
 def main():
@@ -19,7 +20,7 @@ def main():
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PROJECT,text=True).strip()
     if subprocess.check_output(['git','status','--porcelain'],cwd=PROJECT,text=True).strip():p.error('commit the reviewed source before building a release candidate')
     localversion=re.search(r'^CONFIG_LOCALVERSION="([^"]+)"$',(PROJECT/'kernel/config/production.config').read_text(),re.M).group(1)
-    versions={'release_version':'0.1.0-gpu.2','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-gpu.2','data_schema_version':1,'y2player_version':None,'build_git_commit':commit}
+    versions={'release_version':'0.1.0-reborn.1','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-reborn.1','data_schema_version':1,'y2player_version':None,'build_git_commit':commit}
     if not a.reuse_userspace:
         if not a.owner_firmware:p.error('M5 requires explicit --owner-firmware local provisioning')
         from tools.connectivity.provision import verify_provision
@@ -40,6 +41,8 @@ def main():
     environment(PROJECT)
     if not a.reuse_userspace:source,lock=buildroot_source(PROJECT)
     else:lock=json.loads((PROJECT/'buildroot/inputs.lock.json').read_text())
+    if not a.reuse_userspace:
+        apply_ffmpeg9(source, PROJECT/'.cache/buildroot-dl')
     env=os.environ.copy();env.pop('Y2_PUBLIC_KEY_FILE',None)
     if a.owner_firmware:env['Y2_OWNER_FIRMWARE']=str(a.owner_firmware.resolve())
     else:env.pop('Y2_OWNER_FIRMWARE',None)

@@ -248,6 +248,8 @@ def validate_rootfs(out,build,m):
         expected_id = ('Y2LINUX-M5-CONNECTIVITY-'+m['rootfs_version'].rsplit('.',1)[-1].zfill(2)+'\n').encode() if connectivity else b'Y2LINUX-STORAGE-04\n'
         if '-gpu.' in m['rootfs_version']:
             expected_id=('Y2LINUX-GPU-'+m['rootfs_version'].rsplit('.',1)[-1].zfill(2)+'\n').encode()
+        if '-reborn.' in m['rootfs_version']:
+            expected_id=b'Y2LINUX-REBORN-RADIO-UI-01\n'
         require(read('etc/y2linux/build-id')==expected_id,'root build identity')
         require(json.loads(read('etc/y2linux/versions.json'))==json.loads((build/'versions.json').read_text()),'versions root/build')
         require(json.loads(read('etc/y2linux/versions.json'))['build_git_commit']==m['build_git_commit'],'manifest root commit')
