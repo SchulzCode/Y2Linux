@@ -7,6 +7,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from tools.production.prepare import buildroot_source, environment
 from tools.production.ffmpeg9 import apply as apply_ffmpeg9
 PROJECT=Path(__file__).resolve().parents[2]
+REBORN=PROJECT.parent/'Y2Reborn'
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
@@ -19,8 +20,10 @@ def main():
     out.mkdir(parents=True,exist_ok=True)
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PROJECT,text=True).strip()
     if subprocess.check_output(['git','status','--porcelain'],cwd=PROJECT,text=True).strip():p.error('commit the reviewed source before building a release candidate')
+    if not REBORN.is_dir() or subprocess.check_output(['git','status','--porcelain'],cwd=REBORN,text=True).strip():p.error('commit the reviewed Y2Reborn source before building a release candidate')
+    reborn_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=REBORN,text=True).strip()
     localversion=re.search(r'^CONFIG_LOCALVERSION="([^"]+)"$',(PROJECT/'kernel/config/production.config').read_text(),re.M).group(1)
-    versions={'release_version':'0.1.0-reborn.1','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-reborn.1','data_schema_version':1,'y2player_version':None,'build_git_commit':commit}
+    versions={'release_version':'0.1.0-reborn.1','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-reborn.1','data_schema_version':1,'y2player_version':None,'build_git_commit':commit,'reborn_source_commit':reborn_commit}
     if not a.reuse_userspace:
         if not a.owner_firmware:p.error('M5 requires explicit --owner-firmware local provisioning')
         from tools.connectivity.provision import verify_provision
@@ -74,7 +77,7 @@ def build_userspace(PROJECT,out,source,run):
     run(br+['y2_production_defconfig'],'buildroot-configure.log')
     # Buildroot's local-package stamps do not track edits in this repository.
     # Rebuild these small native helpers when resuming an existing workspace.
-    run(br+['y2-connectivity-dirclean','y2-gpu-check-dirclean'],'local-package-rebuild.log')
+    run(br+['y2-connectivity-dirclean','y2-gpu-check-dirclean','reborn-dirclean'],'local-package-rebuild.log')
     run(br+['-j12','toolchain'],'buildroot-toolchain.log')
     cc=str(out/'buildroot/host/bin/arm-linux-gcc')
     for name,extra in [('fbtest',[]),('abi-check',['-mcpu=cortex-a7','-mfpu=neon-vfpv4','-mfloat-abi=hard','-marm','-pthread'])]:
