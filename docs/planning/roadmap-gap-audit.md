@@ -30,6 +30,31 @@ protected/calibration partition, or Y2DATA write is authorized by this audit.
 The next physical action is owner installation and qualification of the
 candidate; no physical success is claimed by host or emulated tests.
 
+## Reborn audio production-candidate qualification boundary — 2026-09-18
+
+This standing audit is repeated before closing the requested audio-stack
+implementation boundary. The real-device evidence is unchanged: the retained
+GPU-01 receipt confirms clean wired CS43131 playback only for stereo `S16_LE`
+at 44.1 kHz under the recorded workload. It does not qualify `S32_LE`,
+48/88.2/96 kHz, Bluetooth A2DP, or high-resolution analog output. The MT6582
+driver's 32-bit slot and rate-table evidence remains implementation evidence,
+not physical acceptance.
+
+The candidate now has the required committed Y2Linux/Y2Reborn source pair,
+actual FFmpeg 9.0.1 build and runtime manifests, deterministic format/artwork/
+corruption/gapless fixtures, host workspace tests, ARM-emulated runtime checks,
+rootfs preservation validation, and a preserving manual-install package. The
+software boundary is therefore ready for owner review. The candidate's audio
+profile prefers `S32_LE` and source-native rates, but the shipped qualification
+profile activates only the physically evidenced `S16_LE`/44.1 kHz wired
+combination and logs an explicit fallback for unqualified sink combinations.
+
+This closes the offline implementation and packaging boundary only. Manual
+installation and real-device qualification remain the next owner action;
+S32 transport, additional rates, Bluetooth playback, and CPU/RAM measurements
+on MT6582 remain open. No flash, protected/calibration partition write,
+Y2DATA overwrite, or hardware acceptance is inferred from this candidate.
+
 ## Reborn radio scan UI correction — 2026-09-18
 
 Following the installed splash inspection, the owner reports that pressing Scan
