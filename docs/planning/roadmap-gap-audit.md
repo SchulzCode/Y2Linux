@@ -1,5 +1,39 @@
 # Y2Linux roadmap and gap audit
 
+## Reborn Baseline 01 implementation boundary — 2026-09-18
+
+The owner now explicitly requests native Reborn implementation, Buildroot integration,
+host/cross validation and a manual-install handoff. This supersedes the older
+Reborn implementation exclusion; it does not close GPU #34 or M5 #31.
+Entry is platform `16b2fb8`, Reborn `93454b5`. The initial SSH attempt timed out.
+The owner subsequently reports GPU-02 installed and connects USB. Read-only SSH
+using the retained September 15 host-key pin confirms Linux 6.18.0-y2linux-gpu-02,
+Y2LINUX-GPU-02, Y2Audio, evdev names, DRM nodes and power/backlight classes.
+Reborn retains the capture in docs/validation/evidence/platform-entry.txt.
+No suspend, radio connection or playback qualification is inferred from inspection.
+
+| Coverage | Current evidence and remaining qualification |
+| --- | --- |
+| Boot/SMP/RAM/core buses | Narrow production boot confirmed; preserve memory exclusions; broader stability pending (#28). |
+| Internal/SD storage and recovery | Y2ROOT/Y2DATA confirmed; SD uses explicit y2-media mount policy; Reborn hotplug pending (#33). Recovery/factory inputs unchanged. |
+| Display/GPU | 480x360 Mediatek KMS + Lima/GBM/EGL/GLES confirmed in GPU-01; GPU-02 resume unqualified (#34). |
+| Input | Evdev wheel/buttons confirmed; application mapping/overlap pending (#24/#34). |
+| Power/RTC/charging | M4 owner accepted; CPU ACK correction built in GPU-02, same-session resume still pending (#30/#34). No live suspend authorized by this implementation step. |
+| Wired audio | S16 stereo 44.1 kHz CS43131 confirmed; Reborn/FFmpeg path pending (#29). |
+| USB/SSH | Pinned owner SSH and live GPU-02 interface inventory confirmed (#27). |
+| Wi-Fi | Scans/radio startup confirmed; association/DHCP/reconnect pending (#31). |
+| Bluetooth | BlueZ adapter and concurrent radio power confirmed; pairing/A2DP/BlueALSA pending (#31). |
+| Firmware/calibration/identity | Existing owner provisioning retained; no new acquisition or protected writes (#31). |
+| FM | Board exclusion retained. |
+| Updates/security/privacy | Existing owner SSH and manual installation retained; no OTA/M6 expansion (#32). |
+
+Reborn implementation is authorized; physical acceptance is pending. The next
+boundary is a tested application/rootfs candidate with exact provenance and a
+manual owner installation. BOOTIMG and known fallbacks must be preserved unless
+an independently justified platform correction becomes necessary. Public remote
+issue changes are deferred to an authorized publishing step; local audit is
+updated here. No physical success is claimed by host or emulated tests.
+
 ## GPU-01 physical result and targeted GPU-02 correction — 2026-09-18
 
 Owner-deployed `7c43557` proves Mali-400 MP2 r1p1, mainline Lima render node,

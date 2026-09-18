@@ -1,0 +1,21 @@
+#!/bin/sh
+# Offline charging stays in initramfs and never reaches this service.
+case "$1" in
+ start)
+    mountpoint -q /data || exit 1
+    [ "$(cat /data/.y2data-schema 2>/dev/null)" = 1 ] || exit 1
+    umask 077
+    [ ! -L /data/reborn ] || exit 1
+    for dir in /data/reborn /data/reborn/state /data/reborn/cache /data/reborn/logs /data/reborn/diagnostics /run/reborn; do
+        [ ! -L "$dir" ] || exit 1
+        mkdir -p "$dir" || exit 1
+        chmod 700 "$dir"
+    done
+    start-stop-daemon -S -b -m -p /run/reborn/supervisor.pid -x /usr/libexec/reborn-supervise
+    ;;
+ stop)
+    start-stop-daemon -K -p /run/reborn/supervisor.pid 2>/dev/null || :
+    ;;
+ restart) "$0" stop; sleep 2; "$0" start;;
+ *) exit 2;;
+esac

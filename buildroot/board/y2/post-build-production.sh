@@ -20,7 +20,11 @@ ln -s /data/ssh/host-keys "$target/etc/dropbear"
 ln -s /data/ssh/authorized_keys.d "$target/root/.ssh"
 mkdir -p "$target/data" "$target/media/sd" "$target/etc/y2linux"
 printf '%s\n' 1 > "$target/etc/y2linux/layout-version"
-printf '%s\n' Y2LINUX-GPU-02 > "$target/etc/y2linux/build-id"
+if [ -x "$target/usr/bin/reborn" ]; then
+    printf '%s\n' Y2LINUX-REBORN-BASELINE-01 > "$target/etc/y2linux/build-id"
+else
+    printf '%s\n' Y2LINUX-GPU-02 > "$target/etc/y2linux/build-id"
+fi
 cp "$Y2_ARTIFACT_DIR/versions.json" "$target/etc/y2linux/versions.json"
 install -m 644 "$project/initramfs/production/storage.sh" "$target/usr/lib/y2-storage.sh"
 # Never package host private keys, device calibration, or a universal login key.
