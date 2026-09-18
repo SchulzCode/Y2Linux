@@ -1,5 +1,35 @@
 # Y2Linux roadmap and gap audit
 
+## Reborn audio-stack architecture boundary — 2026-09-18
+
+This audit is repeated before the requested production audio architecture
+change. The latest retained real-device evidence is
+`docs/hardware-evidence/2026-09-18-gpu01/audio.txt` and its README: the
+owner-confirmed wired CS43131 path is clean for stereo `S16_LE` at 44.1 kHz,
+with no XRUNs during the GPU workload. That evidence does not qualify
+`S32_LE`, 48/88.2/96 kHz, Bluetooth A2DP playback, or high-resolution analog
+output. The retained audio architecture also records the driver-side 8–48 kHz
+rate table and 32-bit slots as source/driver evidence, not physical acceptance.
+
+The requested Reborn change is authorized as a host/cross-build application and
+rootfs implementation boundary. Y2Reborn owns one FFmpeg 9.0.1 decode,
+libavfilter DSP, and libswresample conversion pipeline; Y2Linux owns the pinned
+Buildroot component set, runtime verification, ALSA capability probe, and
+production packaging. The software qualification profile therefore starts with
+the physically evidenced wired rate and refuses to advertise unqualified sink
+combinations. S32 transport and additional rates remain pending until the owner
+manually installs the candidate and captures real `Y2Audio` ALSA hardware
+capabilities and playback results. Bluetooth remains a separate physical gate,
+but must consume the same processed PCM stream in source.
+
+Required exit evidence for this boundary is a committed pair of source trees,
+actual FFmpeg 9.0.1 library/version and component manifests from the built
+rootfs, deterministic source/DSP/gapless fixtures, host and ARM-emulated tests,
+rootfs/package preservation checks, and a manual-install receipt. No BOOTIMG,
+protected/calibration partition, or Y2DATA write is authorized by this audit.
+The next physical action is owner installation and qualification of the
+candidate; no physical success is claimed by host or emulated tests.
+
 ## Reborn radio scan UI correction — 2026-09-18
 
 Following the installed splash inspection, the owner reports that pressing Scan

@@ -1,0 +1,12 @@
+{
+  "schema": "org.y2linux.audio-qualification/v1",
+  "card": "Y2Audio",
+  "device": "hw:CARD=Y2Audio,DEV=0",
+  "preferred_format": "S32_LE",
+  "qualified_formats": ["S16_LE"],
+  "qualified_rates": [44100],
+  "unqualified_driver_rates": [48000],
+  "channels": 2,
+  "evidence": "2026-09-18-gpu01/audio.txt",
+  "note": "S16_LE stereo 44.1 kHz is physically confirmed. S32_LE and other rates require owner qualification before activation."
+}

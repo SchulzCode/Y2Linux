@@ -84,4 +84,6 @@ def build_userspace(PROJECT,out,source,run):
     run([cc,'-Os','-Wall','-Wextra','-Werror','tools/production/offline-charge.c','-o',str(out/'y2-offline-charge')],'offline-charge-build.log')
     run(['python3','tools/development/audio-fixtures.py',str(out/'audio')],'audio-fixtures.log')
     run(br+['-j12','all'],'buildroot-build.log')
+    run(['python3','tools/production/verify-ffmpeg.py','--buildroot-output',str(out/'buildroot')],
+        'ffmpeg-verify.log')
 if __name__=='__main__':main()

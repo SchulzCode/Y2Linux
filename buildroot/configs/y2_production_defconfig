@@ -96,21 +96,21 @@ BR2_PACKAGE_MESA3D_OPENGL_ES=y
 BR2_PACKAGE_MESA3D_GBM=y
 BR2_PACKAGE_Y2_GPU_CHECK=y
 
-# Reborn Baseline 01; local audio and artwork only, no FFmpeg CLI/encoders/network.
+# Reborn audio stack; local music/artwork only, no FFmpeg CLI/encoders/network.
 BR2_PACKAGE_REBORN=y
 BR2_PACKAGE_FFMPEG=y
 # BR2_PACKAGE_FFMPEG_FFMPEG is not set
 # BR2_PACKAGE_FFMPEG_FFPROBE is not set
 BR2_PACKAGE_FFMPEG_SWSCALE=y
 BR2_PACKAGE_FFMPEG_ENCODERS=""
-BR2_PACKAGE_FFMPEG_DECODERS="flac mp3 mp3float aac vorbis opus pcm_s16le pcm_s16be pcm_s24le pcm_s24be pcm_s32le pcm_s32be pcm_f32le pcm_f64le mjpeg png"
+BR2_PACKAGE_FFMPEG_DECODERS="flac mp3 mp3float aac alac vorbis opus ape wavpack pcm_s16le pcm_s16be pcm_s24le pcm_s24be pcm_s32le pcm_s32be pcm_f32le pcm_f32be mjpeg png webp"
 BR2_PACKAGE_FFMPEG_MUXERS=""
-BR2_PACKAGE_FFMPEG_DEMUXERS="flac mp3 mov ogg wav aac"
+BR2_PACKAGE_FFMPEG_DEMUXERS="flac mp3 mov ogg wav aac aiff ape wv"
 BR2_PACKAGE_FFMPEG_PARSERS="flac mpegaudio aac opus vorbis"
 BR2_PACKAGE_FFMPEG_BSFS=""
 BR2_PACKAGE_FFMPEG_PROTOCOLS="file"
-BR2_PACKAGE_FFMPEG_FILTERS=""
-BR2_PACKAGE_FFMPEG_EXTRACONF="--disable-avfilter --disable-avdevice --disable-network --disable-autodetect"
+BR2_PACKAGE_FFMPEG_FILTERS="aformat aresample volume equalizer alimiter acrossfade amix atrim afade asetnsamples"
+BR2_PACKAGE_FFMPEG_EXTRACONF="--disable-programs --disable-avdevice --disable-network --disable-autodetect --disable-hwaccels --disable-devices --disable-postproc"
 # BR2_PACKAGE_FFMPEG_INDEVS is not set
 # BR2_PACKAGE_FFMPEG_OUTDEVS is not set
 BR2_PACKAGE_SQLITE=y
