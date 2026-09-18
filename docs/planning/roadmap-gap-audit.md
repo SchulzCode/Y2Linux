@@ -1,5 +1,23 @@
 # Y2Linux roadmap and gap audit
 
+## Reborn radio scan UI correction — 2026-09-18
+
+Following the installed splash inspection, the owner reports that pressing Scan
+in either radio screen shows no progress or devices. The observed on/off/scan
+events and source confirm that Scan did not enable an off radio, Wi-Fi lacked
+completion state, and neither radio rendered discovery progress. This authorizes
+a targeted application correction and root-only candidate, not a radio-driver,
+kernel, splash, charging or platform redesign. Existing splash BOOTIMG and exact
+installed splash root fallback are preserved; stop for owner installation.
+
+Implement explicit bounded worker scan state, radio activation on Scan, results
+and empty/error feedback, screen-local radio status, and suppression of repeated
+Select activation while a key is held. SSH radio commands must use the same
+workers as the UI for subsequent qualification. Host mock supplicant/private
+D-Bus tests must distinguish progress, completion, errors and power-off; they
+do not establish physical pairing or association. No software is installed over
+SSH and no live radio configuration changes are needed for this source fix.
+
 ## Reborn splash installed and radio inspection — 2026-09-18
 
 The owner reports the manually flashed startup update works and requests SSH
