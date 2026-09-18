@@ -11,6 +11,9 @@ REBORN_CARGO ?= $(HOME)/.cargo/bin/cargo
 REBORN_OVERRIDE_SRCDIR_RSYNC_EXCLUSIONS = --exclude=/target --exclude=/out --exclude=/.git
 
 define REBORN_BUILD_CMDS
+	$(TARGET_CC) $(TARGET_CFLAGS) -Os -Wall -Wextra -Werror -I$(STAGING_DIR)/usr/include/libdrm \
+		$(BR2_EXTERNAL_Y2LINUX_PATH)/../tools/graphics/reborn-splash.c \
+		$(TARGET_LDFLAGS) -Wl,-z,relro,-z,now -ldrm -o $(@D)/reborn-splash
 	cd $(@D) && PATH="$(dir $(REBORN_CARGO)):$(BR_PATH)" \
 		REBORN_BUILD_ID="$(shell git -C $(REBORN_SITE) rev-parse HEAD)" \
 		Y2_BUILDROOT_OUTPUT="$(BASE_DIR)" \
@@ -18,6 +21,9 @@ define REBORN_BUILD_CMDS
 endef
 
 define REBORN_INSTALL_TARGET_CMDS
+	$(INSTALL) -D -m 0755 $(@D)/reborn-splash $(TARGET_DIR)/usr/libexec/reborn-splash
+	$(INSTALL) -D -m 0755 $(REBORN_PKGDIR)/reborn-boot-services $(TARGET_DIR)/usr/libexec/reborn-boot-services
+	$(INSTALL) -D -m 0644 $(REBORN_PKGDIR)/syslogd.conf $(TARGET_DIR)/etc/default/syslogd
 	$(INSTALL) -D -m 0755 $(@D)/target/armv7-unknown-linux-gnueabihf/release/reborn $(TARGET_DIR)/usr/bin/reborn
 	$(INSTALL) -D -m 0755 $(@D)/target/armv7-unknown-linux-gnueabihf/release/rebornctl $(TARGET_DIR)/usr/bin/rebornctl
 	mkdir -p $(TARGET_DIR)/usr/share/reborn/fixtures

@@ -15,6 +15,9 @@ release=$(uname -r)
 mkdir -p "/run/y2/modules/$release/kernel"
 cp /display.ko "/run/y2/modules/$release/kernel/mediatek-drm.ko"
 printf '%s\n' 'kernel/mediatek-drm.ko:' > "/run/y2/modules/$release/modules.dep"
+# Suppress only panel text before fbcon attaches. This does not lower printk
+# verbosity and never starts a splash owner during the charging-only path.
+if [ -x /sbin/reborn-splash ]; then /sbin/reborn-splash --quiet-if-normal || :; fi
 /sbin/y2-platform-start
 observer=
 start_observer() {
@@ -47,6 +50,7 @@ esac
 # This process stays in the RAM rescue environment for a charger-triggered
 # boot. It cannot reach root/data discovery until intentional normal power-on.
 /sbin/y2-offline-charge || rescue 'offline charging decision failed'
+if [ -x /sbin/reborn-splash ]; then /sbin/reborn-splash --start || :; fi
 echo 1 > /sys/firmware/y2_boot/normal_boot || rescue 'normal peripheral handover failed'
 # Rescue charging uses the lowest OPP; the normal platform adapts to load.
 if [ -w /sys/devices/system/cpu/cpufreq/policy0/scaling_governor ]; then

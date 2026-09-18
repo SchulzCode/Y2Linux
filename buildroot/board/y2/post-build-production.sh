@@ -20,7 +20,10 @@ ln -s /data/ssh/host-keys "$target/etc/dropbear"
 ln -s /data/ssh/authorized_keys.d "$target/root/.ssh"
 mkdir -p "$target/data" "$target/media/sd" "$target/etc/y2linux"
 printf '%s\n' 1 > "$target/etc/y2linux/layout-version"
-if [ -x "$target/usr/bin/reborn" ]; then
+if [ -x "$target/usr/libexec/reborn-splash" ]; then
+    printf '%s\n' Y2LINUX-REBORN-SPLASH-01 > "$target/etc/y2linux/build-id"
+    sed -i 's@::sysinit:/etc/init.d/rcS@::sysinit:/usr/libexec/reborn-boot-services@' "$target/etc/inittab"
+elif [ -x "$target/usr/bin/reborn" ]; then
     printf '%s\n' Y2LINUX-REBORN-BASELINE-01 > "$target/etc/y2linux/build-id"
 else
     printf '%s\n' Y2LINUX-GPU-02 > "$target/etc/y2linux/build-id"

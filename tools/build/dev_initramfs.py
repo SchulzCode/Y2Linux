@@ -47,6 +47,8 @@ def build(root, project, production=True):
     binary('bin/busybox',target/'bin/busybox')
     binary('sbin/blkid',target/'sbin/blkid')
     if production:
+        if (target/'usr/libexec/reborn-splash').is_file():
+            binary('sbin/reborn-splash',target/'usr/libexec/reborn-splash')
         binary('sbin/y2-platform-start',root/'y2-platform-start')
         binary('sbin/y2-offline-charge',root/'y2-offline-charge')
         put('sbin/y2-status',stat.S_IFREG|0o755,(project/'tools/production/y2-status').read_bytes())

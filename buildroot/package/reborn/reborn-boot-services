@@ -1,0 +1,10 @@
+#!/bin/sh
+# All normal boot messages remain in dmesg, bounded persistent syslog and SSH.
+# The early initramfs splash normally already owns the display; --start is
+# idempotent and also permits a deliberate service recovery without a reboot.
+umask 077
+if mountpoint -q /data && [ ! -L /data/logs ]; then
+    mkdir -p /data/logs
+fi
+/usr/libexec/reborn-splash --start >/dev/kmsg 2>&1 || :
+exec /etc/init.d/rcS >/dev/kmsg 2>&1

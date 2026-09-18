@@ -1,6 +1,9 @@
 #!/bin/sh
 # Production display readiness; explicit test patterns remain a userspace tool.
 [ "$1" = start ] || exit 0
+# Reborn's KMS splash owns normal display initialization. A fbdev unblank here
+# would restore its unrelated console framebuffer during the explicit handoff.
+[ ! -x /usr/libexec/reborn-splash ] || exit 0
 (
     for attempt in $(seq 1 30); do
         if [ -e /sys/class/graphics/fb0/blank ]; then

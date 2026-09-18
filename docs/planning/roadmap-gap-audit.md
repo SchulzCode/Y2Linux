@@ -1,5 +1,27 @@
 # Y2Linux roadmap and gap audit
 
+## Reborn splash-only boundary — 2026-09-18
+
+The owner reports deployed REBORN-BASELINE-01 working and authorizes only startup
+UX: retain the stock logo, hide panel console, show a lightweight loading screen,
+and explicitly hand display ownership to the first Reborn frame. Read-only SSH
+confirms root marker Y2LINUX-REBORN-BASELINE-01, source 77e6732, Mali400/EGL and
+overall health ok. This is not acceptance of previously pending audio/radio/
+suspend gates and does not authorize Reborn 02.
+
+Live boot evidence makes a BOOTIMG initramfs change necessary: framebuffer console
+attaches at 0.745889s; switch_root occurs at 9.213802s. Y2ROOT alone cannot hide
+that interval. Preserve the exact GPU-02 kernel, display module, charging program,
+boot arguments, partition geometry, firmware and Y2DATA. Change only early normal
+boot display policy/helper, matching root splash integration, and the DT initrd
+end address required by the new archive size. Charging remains in its existing
+initramfs path. No live install, reboot or display takeover during development.
+
+The candidate must prove unchanged kernel/module/charging bytes, bounded protocol
+and timeout recovery, offline cross build, root/initramfs consistency, D08/BOOTIMG
+bounds and exact Baseline-01 fallback. Stop for owner manual installation, then
+qualify actual visible boot/handoff. Existing GPU #34/M5 #31 gates remain open.
+
 ## Reborn Baseline 01 implementation boundary — 2026-09-18
 
 The owner now explicitly requests native Reborn implementation, Buildroot integration,
