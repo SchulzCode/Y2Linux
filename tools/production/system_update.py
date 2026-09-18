@@ -115,9 +115,19 @@ def package(build, base, fallback_root, out):
     manifest['installed_components']=[copy.deepcopy(root),copy.deepcopy(next(p for p in components if p['target_partition']=='USRDATA'))]
     manifest['installation_profile']='system-update'
     manifest['base_manifest_sha256']=digest(out/'metadata/base-manifest.json')
-    manifest['status']='GPU integrated production candidate; physical graphics qualification pending'
+    manifest['status']='Reborn FFmpeg 9 audio production candidate; physical audio qualification pending'
     manifest['data_policy']='Preserve existing Y2DATA in place. New private directories are created on first normal boot. No data payload.'
     manifest['owner_firmware']=json.loads((build/'owner-firmware.json').read_text())
+    manifest['audio_stack']={
+        'ffmpeg_version':'9.0.1',
+        'canonical_sample_format':'fltp',
+        'preferred_output_format':'S32_LE',
+        'physically_qualified_output_formats':['S16_LE'],
+        'physically_qualified_rates_hz':[44100],
+        'unqualified_output_formats':['S32_LE'],
+        'unqualified_rates_hz':[48000,88200,96000],
+        'qualification_evidence':'docs/hardware-evidence/2026-09-18-gpu01/audio.txt',
+    }
     manifest['fallback']={'policy':f"restore previous BOOTIMG ({previous['kernel_version']}) and Y2ROOT ({oldroot['version']}); preserve Y2DATA",
         'images':[{'file':'fallback/'+p['raw']['file'],'size_bytes':p['raw']['size_bytes'],'sha256':p['raw']['sha256']}
                   for p in (next(p for p in previous['payloads'] if p['target_partition']=='BOOTIMG'),oldroot)]}
@@ -126,7 +136,8 @@ def package(build, base, fallback_root, out):
     (out/scatter).write_text(preserving_scatter(stock)); (out/'fallback'/scatter).write_text(preserving_scatter(stock))
     manifest['profiles']={scatter:{'sha256':digest(out/scatter),'selected_partitions':['BOOTIMG','ANDROID']}}
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
-    shutil.copyfile(PROJECT/'docs/knowledge/gpu-platform.md',out/'install-and-qualification.md')
+    shutil.copyfile(PROJECT/'docs/architecture/production-install.md',out/'install.md')
+    shutil.copyfile(PROJECT/'docs/architecture/reborn-ffmpeg9-build.md',out/'audio-qualification.md')
     (out/'SHA256SUMS').write_text(''.join(digest(p)+'  '+str(p.relative_to(out))+'\n'
         for p in sorted(out.rglob('*')) if p.is_file() and p.name!='SHA256SUMS'))
     validate_manifest(out); validate_rootfs(out,build,manifest)
