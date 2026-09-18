@@ -43,9 +43,10 @@ static void event(const char *name, int error) {
     char b[256];
     int n = snprintf(b, sizeof(b), "{\"subsystem\":\"startup\",\"event\":\"splash_%s\",\"mono_ms\":%llu,\"sequence\":%u,\"errno\":%d}\n",
                      name, (unsigned long long)now_ms(), ++sequence, error);
-    if (logfd >= 0) (void)write(logfd, b, (size_t)n);
+    if (logfd >= 0 && write(logfd, b, (size_t)n) != n) { close(logfd); logfd=-1; }
     if (journal >= 0 && log_bytes + (unsigned)n <= 8192) {
-        (void)write(journal, b, (size_t)n); log_bytes += (unsigned)n;
+        if (write(journal, b, (size_t)n) != n) { close(journal); journal=-1; }
+        log_bytes += (unsigned)n;
     }
 }
 static void state(const char *name) {
