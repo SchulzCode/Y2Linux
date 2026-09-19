@@ -9,6 +9,13 @@ from tools.production.ffmpeg9 import apply as apply_ffmpeg9
 PROJECT=Path(__file__).resolve().parents[2]
 REBORN=PROJECT.parent/'Y2Reborn'
 
+def dirty_source(path):
+    """Return reviewed source changes, excluding reference-only UI assets."""
+    status=subprocess.check_output(
+        ['git','status','--porcelain=v1'],cwd=path,text=True
+    ).splitlines()
+    return [line for line in status if line not in {'?? UI Examaples/'}]
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--output',default='out/y2linux-gpu-02-build')
@@ -19,8 +26,8 @@ def main():
     if not out.is_relative_to(PROJECT/'out') or (out.exists() and not a.resume):p.error('fresh directory inside out required')
     out.mkdir(parents=True,exist_ok=True)
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PROJECT,text=True).strip()
-    if subprocess.check_output(['git','status','--porcelain'],cwd=PROJECT,text=True).strip():p.error('commit the reviewed source before building a release candidate')
-    if not REBORN.is_dir() or subprocess.check_output(['git','status','--porcelain'],cwd=REBORN,text=True).strip():p.error('commit the reviewed Y2Reborn source before building a release candidate')
+    if dirty_source(PROJECT):p.error('commit the reviewed source before building a release candidate')
+    if not REBORN.is_dir() or dirty_source(REBORN):p.error('commit the reviewed Y2Reborn source before building a release candidate')
     reborn_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=REBORN,text=True).strip()
     localversion=re.search(r'^CONFIG_LOCALVERSION="([^"]+)"$',(PROJECT/'kernel/config/production.config').read_text(),re.M).group(1)
     versions={'release_version':'0.1.0-premium.1','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-premium.1','data_schema_version':1,'y2player_version':None,'build_git_commit':commit,'reborn_source_commit':reborn_commit}
