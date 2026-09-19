@@ -252,13 +252,20 @@ int main(void){
   reset();c=charger();y2_charger_run(&c);regs[faultregs[i]/2]|=faultbits[i];
   clock_ms+=1000;y2_charger_run(&c);assert(!c.active && c.fault);
  }
+ /* A configured 500 mA host keeps the validated 450 mA PMIC profile
+  * below 3.2 V; the old 70 mA deep-discharge clamp is forbidden. */
+ bat.raw=14000;source_kind=0;supply.budget=500000;
+ reset();c=charger();y2_charger_run(&c);
+ assert(c.active && c.charge_ua==Y2_DEEP_DISCHARGE_MAX_UA);
+ bat.raw=17000;
  reset();c=charger();y2_charger_run(&c);persistent=1;
  clock_ms+=1000;y2_charger_run(&c);
  assert(c.stop_error && dev.awake && (regs[0x1a/2]&0x10)); /* never disable watchdog on unknown engine */
  persistent=0;clock_ms+=1000;y2_charger_run(&c);assert(!c.active && !dev.awake);
- /* Dedicated source ignores USB data budget, but caps precharge. */
+ /* Dedicated source ignores USB data budget, but uses the same 450 mA
+  * deep-discharge/precharge ceiling until the normal 650 mA profile is safe. */
  source_kind=4;supply.budget=0;
- int raws[]={14000,15000,17000};unsigned levels[]={70000,450000,650000};
+ int raws[]={14000,15000,17000};unsigned levels[]={450000,450000,650000};
  for(unsigned i=0;i<3;i++) {
   reset();c=charger();bat.raw=raws[i];y2_charger_run(&c);
   assert(c.active && c.source==Y2_SOURCE_DCP && c.charge_ua==levels[i]);

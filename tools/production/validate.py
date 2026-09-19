@@ -249,7 +249,7 @@ def validate_rootfs(out,build,m):
         if '-gpu.' in m['rootfs_version']:
             expected_id=('Y2LINUX-GPU-'+m['rootfs_version'].rsplit('.',1)[-1].zfill(2)+'\n').encode()
         if '-premium.' in m['rootfs_version']:
-            expected_id=b'Y2LINUX-REBORN-PREMIUM-01\n'
+            expected_id=('Y2LINUX-REBORN-PREMIUM-'+m['rootfs_version'].rsplit('.',1)[-1].zfill(2)+'\n').encode()
         elif '-reborn.' in m['rootfs_version']:
             expected_id=b'Y2LINUX-REBORN-RADIO-UI-01\n'
         require(read('etc/y2linux/build-id')==expected_id,'root build identity')

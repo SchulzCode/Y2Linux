@@ -36,7 +36,7 @@ def main():
     if not REBORN.is_dir() or dirty_source(REBORN):p.error('commit the reviewed Y2Reborn source before building a release candidate')
     reborn_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=REBORN,text=True).strip()
     localversion=re.search(r'^CONFIG_LOCALVERSION="([^"]+)"$',(PROJECT/'kernel/config/production.config').read_text(),re.M).group(1)
-    versions={'release_version':'0.1.0-premium.1','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-premium.1','data_schema_version':1,'y2player_version':None,'build_git_commit':commit,'reborn_source_commit':reborn_commit}
+    versions={'release_version':'0.1.0-premium.2','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-premium.2','data_schema_version':1,'y2player_version':None,'build_git_commit':commit,'reborn_source_commit':reborn_commit}
     if not a.reuse_userspace:
         if not a.owner_firmware:p.error('M5 requires explicit --owner-firmware local provisioning')
         from tools.connectivity.provision import verify_provision

@@ -162,7 +162,7 @@ def package(build, base, out, fallback_package=None):
         'CV stays 4.175V. Recognized CDP/DCP/Apple sources are capped at 650mA; '
         'SDP uses 450mA after its 500mA configuration, otherwise 70mA within its allowance, '
         'and inhibits on bus reset/suspend below 100mA. Unknown/nonstandard sources use 70mA. '
-        'Below 3.2V use 70mA; up to 3.4V cap charging at 450mA. '
+        'Below 3.2V now keeps the validated 450mA low-voltage profile; up to 3.4V charging is capped at 450mA. '
         'Charging and power behavior retain the accepted M4 policy. '
         'BATON/ISENSE remain raw, no invented percentage or pack Celsius.\n\n'
         'The previous BOOTIMG is retained at fallback/BOOTIMG-previous.img, with exact identity in manifest.json. '

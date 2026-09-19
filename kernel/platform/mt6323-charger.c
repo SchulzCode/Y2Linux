@@ -177,11 +177,13 @@ static unsigned y2_charger_target(struct y2_charger *c)
 	unsigned ua;
 	if (!c->source_valid || READ_ONCE(c->source_changed) || !c->online) return 0;
 	ua = y2_source_charge_ua(c->source, c->input_ua);
-	/* LK's low-voltage setup uses 450 mA. Below its normal boot threshold
-	 * take the already supported 70-mA level; never exceed the source limit.
-	 * Full userspace stays out until an explicit, adequately powered boot. */
-	if (c->uv < Y2_BOOT_MIN_UV) ua = min(ua, 70000U);
-	else if (c->uv <= Y2_PRECHARGE_UV) ua = min(ua, 450000U);
+	/* Keep the validated configured-host profile through deep discharge. The
+	 * source policy's 500 mA SDP request is the PMIC's 450 mA selector; do not
+	 * fall back to 70 mA below LK's 3.2 V boot threshold. Never exceed the
+	 * source allowance, and keep full userspace out until an explicit,
+	 * adequately powered boot. */
+	if (c->uv <= Y2_PRECHARGE_UV)
+		ua = min(ua, Y2_DEEP_DISCHARGE_MAX_UA);
 	return ua;
 }
 

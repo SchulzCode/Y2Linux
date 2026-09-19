@@ -6,6 +6,23 @@ flash, suspend, reboot, calibration or RTC writes occurred in this pass.
 The owner's revised instruction permits the actual stock hardware protection
 architecture without a fabricated BATON temperature. M4 remains ACTIVE/PARTIAL.
 
+## Premium-02 low-voltage policy update
+
+The Premium-02 kernel candidate removes the former 70 mA clamp below 3.2 V.
+When the source is eligible for the configured 500 mA host profile, the MT6323
+now keeps its validated 450 mA selector throughout deep-discharge recovery and
+the 3.2–3.4 V precharge range. The PMIC does not have a validated exact-500 mA
+selector in this board policy, so this is intentionally 450 mA at the hardware
+current-limit register, not an invented 500 mA claim. The source allowance,
+watchdog, input/battery OVP, 4.175 V charge target, 4.2 V safety guard, ADC and
+thermal checks remain unchanged. Dedicated sources retain their existing policy;
+unknown or insufficiently negotiated sources remain conservative/inhibited.
+
+This is a host-validated source change only. Positive net battery gain from a
+depleted pack, charger stability and the historical overvoltage report still
+require attended physical qualification; the package must not be treated as
+proof that the battery or charger hardware is healthy.
+
 ## Actual stock Y2 reference
 
 Primary behavioral evidence is the retained Y2 kernel, decompressed SHA256

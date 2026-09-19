@@ -16,6 +16,10 @@
  * a software 3.4-V entry veto would prevent this recovery path. */
 #define Y2_BOOT_MIN_UV 3200000
 #define Y2_PRECHARGE_UV 3400000
+/* The configured 500 mA host profile maps to the MT6323's validated 450 mA
+ * selector. Keep the same bounded profile during deep-discharge recovery;
+ * there is no validated exact-500 mA selector on this board. */
+#define Y2_DEEP_DISCHARGE_MAX_UA 450000U
 #define Y2_PRECHARGE_MAX_SECONDS 10800U /* conservative 3h vs stock 24h total */
 #define Y2_CHARGE_MAX_SECONDS 86400U
 #define Y2_CV_MAX_SECONDS 10800U
