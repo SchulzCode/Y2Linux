@@ -14,7 +14,13 @@ def dirty_source(path):
     status=subprocess.check_output(
         ['git','status','--porcelain=v1'],cwd=path,text=True
     ).splitlines()
-    return [line for line in status if line not in {'?? UI Examaples/'}]
+    return [
+        line for line in status
+        if not (
+            line.startswith('?? ')
+            and line[3:].strip('"') == 'UI Examaples/'
+        )
+    ]
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
