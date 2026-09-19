@@ -29,8 +29,13 @@
 #define SOCKET_PATH "/run/reborn-splash/control.sock"
 #define TIMEOUT_MS 60000
 #define HANDOFF_MS 3000
-#define BG 0x090c12
-#define ACCENT 0x83e3b8
+#define BG 0x080b10
+#define ACCENT 0xf0c36c
+#define PRIMARY 0xf4f1eb
+#define SECONDARY 0xb2b7c0
+#define MUTED 0x657180
+#define SURFACE 0x121920
+#define RIDGE 0x1a242d
 static int dirfd = -1, devfd = -1, logfd = -1, journal = -1;
 static unsigned log_bytes, sequence;
 static volatile sig_atomic_t stopped;
@@ -137,20 +142,83 @@ static void text(Display *d, const char *s, unsigned y, unsigned scale, uint32_t
         for (unsigned col=0; col<8; col++) if (rb_font[(unsigned char)s[c]&127][row] & (1U<<col))
             rect(d,x+(unsigned)c*8*scale+col*scale,y+row*scale,scale,scale,color);
 }
-static void draw(Display *d, bool failure, uint64_t elapsed, bool full) {
-    unsigned mid=d->height/2;
-    if (full) {
-        rect(d,0,0,d->width,d->height,BG);
-        text(d,"REBORN",mid-68,4,ACCENT);
-        text(d,failure ? "Startup needs attention" : "Starting your music",mid,2,0xd9e4ee);
-        if (failure) text(d,"Diagnostics available over USB",mid+58,1,0xaac1d5);
+static void text_at(Display *d, const char *s, unsigned x, unsigned y, unsigned scale, uint32_t color) {
+    size_t n=strlen(s); if (!n || x+(unsigned)n*8*scale>d->width) return;
+    for (size_t c=0; c<n; c++) for (unsigned row=0; row<8; row++)
+        for (unsigned col=0; col<8; col++) if (rb_font[(unsigned char)s[c]&127][row] & (1U<<col))
+            rect(d,x+(unsigned)c*8*scale+col*scale,y+row*scale,scale,scale,color);
+}
+static void spaced_text(Display *d, const char *s, unsigned y, unsigned scale, unsigned gap, uint32_t color) {
+    size_t n=strlen(s); if (!n) return;
+    unsigned width=(unsigned)n*8*scale+(unsigned)(n-1)*gap;
+    if (width>d->width) return;
+    unsigned x=(d->width-width)/2;
+    for (size_t c=0; c<n; c++) {
+        char glyph[2]={s[c],0};
+        text_at(d,glyph,x,y,scale,color);
+        x+=8*scale+gap;
     }
-    if (!failure) {
+}
+static void circle_fill(Display *d, unsigned cx, unsigned cy, unsigned radius, uint32_t color) {
+    int r=(int)radius;
+    for (int y=-r; y<=r; y++) {
+        int span=0, squared=r*r-y*y;
+        while ((span+1)*(span+1)<=squared) span++;
+        int row=(int)cy+y;
+        if (cx >= (unsigned)span && cx+span<d->width && row>=0 && row<(int)d->height)
+            rect(d,cx-(unsigned)span,(unsigned)row,(unsigned)(span*2+1),1,color);
+    }
+}
+static void mountain(Display *d, unsigned peak_x, unsigned peak_y, unsigned base_y, unsigned half_width, uint32_t color) {
+    if (base_y<=peak_y || peak_x>=d->width) return;
+    for (unsigned y=peak_y; y<base_y && y<d->height; y++) {
+        unsigned spread=(unsigned)(((uint64_t)(y-peak_y)*half_width)/(base_y-peak_y));
+        unsigned left=peak_x>spread ? peak_x-spread : 0;
+        unsigned right=peak_x+spread<d->width ? peak_x+spread : d->width-1;
+        rect(d,left,y,right-left+1,1,color);
+    }
+}
+static void scenic_background(Display *d) {
+    for (unsigned y=0; y<d->height; y++) {
+        unsigned t=(unsigned)(((uint64_t)y*255)/(d->height ? d->height : 1));
+        unsigned r=8+(t*8)/255, g=11+(t*12)/255, b=16+(t*15)/255;
+        rect(d,0,y,d->width,1,(r<<16)|(g<<8)|b);
+    }
+    /* The lower third is a quiet lake, leaving the same generous negative
+     * space as the product UI instead of turning the boot screen into a
+     * diagnostic console. */
+    rect(d,0,d->height*57/100,d->width,d->height*43/100,0x101b24);
+    circle_fill(d,d->width*78/100,d->height*23/100,d->height*9/100,0xd8c99f);
+    mountain(d,d->width*48/100,d->height*29/100,d->height*76/100,d->width*48/100,0x101820);
+    mountain(d,d->width*74/100,d->height*38/100,d->height*76/100,d->width*31/100,0x162129);
+    mountain(d,d->width*22/100,d->height*43/100,d->height*76/100,d->width*30/100,0x1b2730);
+    mountain(d,d->width*49/100,d->height*48/100,d->height*76/100,d->width*18/100,0x26343b);
+    rect(d,d->width*12/100,d->height*75/100,d->width*76/100,1,ACCENT);
+    for (unsigned row=0; row<10; row++) {
+        unsigned inset=row*7;
+        unsigned y=d->height*78/100+row*3;
+        if (y<d->height && d->width>inset*2)
+            rect(d,inset,y,d->width-inset*2,1,row<2 ? 0x44505a : 0x26343b);
+    }
+}
+static void draw(Display *d, bool failure, uint64_t elapsed, bool full) {
+    (void)full;
+    scenic_background(d);
+    unsigned mid=d->height/2;
+    text(d,"REBORN | Y2",mid-93,2,PRIMARY);
+    spaced_text(d,"LISTEN DEEPER",mid-54,1,3,ACCENT);
+    if (failure) {
+        text(d,"STARTUP NEEDS ATTENTION",mid+41,1,PRIMARY);
+        text(d,"DIAGNOSTICS AVAILABLE OVER USB",mid+59,1,SECONDARY);
+    } else {
         unsigned phase=(unsigned)(elapsed%2400)*2;
         unsigned position=(phase>2400 ? 4800-phase : phase)*160/2400;
-        rect(d,d->width/2-96,mid+48,192,4,0x26394a);
+        rect(d,d->width/2-96,mid+48,192,4,0x26343b);
         rect(d,d->width/2-96+position,mid+48,32,4,ACCENT);
+        spaced_text(d,"INITIALIZING MUSIC EXPERIENCE",mid+66,1,1,PRIMARY);
     }
+    text_at(d,"REBORN AUDIO SYSTEMS",18,d->height-24,1,MUTED);
+    text_at(d,"Y2 / 2026",d->width-8*9-18,d->height-24,1,MUTED);
 }
 static int show(Display *d) {
     return drmModeSetCrtc(d->fd,d->crtc,d->fb,0,0,&d->connector,1,&d->mode);
