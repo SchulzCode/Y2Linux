@@ -1,5 +1,47 @@
 # Y2Linux roadmap and gap audit
 
+## Reborn software correctness closure entry — 2026-09-22
+
+This entry records the owner-authorized, software-only correctness closure
+boundary before implementation. Entry revisions are Y2Linux
+`8e5b53bc9fb934e1f668b9e7e9e34f0fc5e4130e` and Y2Reborn
+`8a1443daa25419834c800a7f9d707e66f80e0f90`. Y2Linux was clean; Y2Reborn had
+pre-existing untracked `docs/audit/`, `docs/review/`, and
+`docs/architecture/bluetooth-codecs.md`, which are retained. The latest
+independent source review is Y2Reborn `docs/review/CURRENT_PROJECT_STATE.md`
+and `LUNA_STABILIZATION_REVIEW.md`; it recommends keeping this base and lists
+R1–R10 as the finite software correction scope. This user instruction now
+authorizes that scope and targeted tests; it does not authorize physical work
+or a platform milestone closure.
+
+The latest retained real-device evidence remains from the earlier GPU-01 and
+CONNECTIVITY-10 boots, not these revisions. GPU-01 records Mali-400/Lima
+rendering and clean wired stereo `S16_LE` 44.1-kHz playback during its bounded
+workload, while its deep-suspend trial failed and GPU #34 remains open.
+CONNECTIVITY-10 records Wi-Fi scans and concurrent adapter power with no core
+errors; association, DHCP, DNS, Bluetooth pairing/A2DP, and sustained radio
+coexistence remain unqualified. M4 has owner acceptance recorded, not a new
+charging/thermal series. Storage #33 still lacks the remaining owner physical
+acceptance. No physical result is inferred for current Reborn, the current
+userspace stack, Bluetooth audio, current sink reconfiguration, or these
+software fixes.
+
+The current open platform issues were read from the repository's issue tracker:
+#27, #28, #29, #31, #32, #33, and #34 remain open, as does #16. Their existing
+platform scopes and gates are unchanged. This pass introduces no kernel,
+memory, partition, charger, suspend, radio-policy, or audio-hardware change;
+stock preloader/LK, protected storage, Y2DATA preservation, and platform
+ownership remain as reviewed. There is no reason to repeat unchanged ROM,
+recovery, or physical provenance checks.
+
+Authorized next boundary: correct Reborn R1–R10 at their software failure
+boundaries, add targeted host tests, record partial/physical limitations, and
+prepare an exact preserving candidate only if all required fresh software,
+ARM, FFmpeg, and package checks pass. Stop before physical qualification. The
+next hardware step remains owner-controlled use of that exact candidate, with
+power/charging/suspend separately scoped; no platform milestone is closed by
+this implementation or a successful build.
+
 ## Reborn startup-latency inspection — 2026-09-18
 
 This audit is repeated before a targeted production startup correction using
