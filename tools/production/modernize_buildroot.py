@@ -155,9 +155,16 @@ def apply(buildroot_source: Path) -> None:
         "alsa-lib-1.2.13.tar.bz2",
         f"sha256  {ALSA_LIB_SHA256}  alsa-lib-{ALSA_LIB_VERSION}.tar.bz2",
     )
-    patch = alsa_lib / "0002-configure-Make-sequencer-dependent-on-rawmidi.patch"
-    if patch.exists():
-        patch.unlink()
+    # The remaining Buildroot patch targets no-MMU platforms. Y2's Cortex-A7
+    # build has an MMU, and its old context no longer applies to ALSA 1.2.16.1.
+    # Do not carry an unrelated no-MMU delta into this target package.
+    for patch_name in (
+        "0001-Don-t-use-fork-on-noMMU-platforms.patch",
+        "0002-configure-Make-sequencer-dependent-on-rawmidi.patch",
+    ):
+        patch = alsa_lib / patch_name
+        if patch.exists():
+            patch.unlink()
 
     replace_once(alsa_utils / "alsa-utils.mk", "ALSA_UTILS_VERSION = 1.2.13", f"ALSA_UTILS_VERSION = {ALSA_UTILS_VERSION}")
     alsa_utils_text = alsa_utils.joinpath("alsa-utils.mk").read_text()
