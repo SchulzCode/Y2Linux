@@ -71,7 +71,8 @@ def main():
     env=os.environ.copy();env.pop('Y2_PUBLIC_KEY_FILE',None)
     if a.owner_firmware:env['Y2_OWNER_FIRMWARE']=str(a.owner_firmware.resolve())
     else:env.pop('Y2_OWNER_FIRMWARE',None)
-    env.update(Y2_ARTIFACT_DIR=str(out),BR2_DL_DIR=str(PROJECT/'.cache/buildroot-dl'),SOURCE_DATE_EPOCH=str(lock['source_date_epoch']),E2FSPROGS_FAKE_TIME=str(lock['source_date_epoch']),LC_ALL='C',TZ='UTC')
+    build_id = 'Y2LINUX-REBORN-PREMIUM-' + versions['rootfs_version'].rsplit('.', 1)[-1].zfill(2)
+    env.update(Y2_ARTIFACT_DIR=str(out),BR2_DL_DIR=str(PROJECT/'.cache/buildroot-dl'),SOURCE_DATE_EPOCH=str(lock['source_date_epoch']),E2FSPROGS_FAKE_TIME=str(lock['source_date_epoch']),Y2_BUILD_ID=build_id,LC_ALL='C',TZ='UTC')
     if not shutil.which('bc'):
         env['PATH']=str(PROJECT/'.cache/host-tools')+os.pathsep+env['PATH']
     def run(argv,log):
