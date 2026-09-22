@@ -10,6 +10,10 @@ from tools.production import validate as production_validate
 
 
 class RebornReceipts(unittest.TestCase):
+    def test_locked_build_source_override_is_supported(self):
+        with patch.dict('os.environ', {'Y2_REBORN_SOURCE': '/tmp/Y2Reborn'}):
+            self.assertEqual(ffmpeg9.reborn_source(), Path('/tmp/Y2Reborn'))
+
     def test_reborn_source_version_comes_from_workspace_package(self):
         self.assertEqual(
             application.source_version((ffmpeg9.REBORN / 'Cargo.toml').read_text()),

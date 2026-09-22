@@ -7,7 +7,11 @@ from pathlib import Path
 from urllib.request import urlopen
 
 PROJECT = Path(__file__).resolve().parents[2]
-REBORN = PROJECT.parent / "Y2Reborn"
+def reborn_source() -> Path:
+    return Path(os.environ.get("Y2_REBORN_SOURCE", PROJECT.parent / "Y2Reborn"))
+
+
+REBORN = reborn_source()
 VERSION = (REBORN / "FFMPEG_VERSION").read_text().strip()
 ARCHIVE = f"ffmpeg-{VERSION}.tar.xz"
 ARCHIVE_URL = f"https://ffmpeg.org/releases/{ARCHIVE}"
