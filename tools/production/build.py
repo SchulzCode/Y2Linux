@@ -6,6 +6,8 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from tools.production.prepare import buildroot_source, environment
 from tools.production.ffmpeg9 import apply as apply_ffmpeg9
+from tools.production.application import (source_version as reborn_source_version,
+                                         source_version_at_commit)
 from tools.production.modernize_buildroot import apply as apply_buildroot_modernization
 PROJECT=Path(__file__).resolve().parents[2]
 REBORN=PROJECT.parent/'Y2Reborn'
@@ -26,6 +28,7 @@ def dirty_source(path):
                 line[3:].strip('"') == 'UI Examaples/'
                 or line[3:].strip('"') in reference_only
                 or line[3:].strip('"').startswith('docs/audit/')
+                or line[3:].strip('"').startswith('docs/review/')
             )
         )
     ]
@@ -43,8 +46,9 @@ def main():
     if dirty_source(PROJECT):p.error('commit the reviewed source before building a release candidate')
     if not REBORN.is_dir() or dirty_source(REBORN):p.error('commit the reviewed Y2Reborn source before building a release candidate')
     reborn_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=REBORN,text=True).strip()
+    reborn_version=reborn_source_version((REBORN/'Cargo.toml').read_text())
     localversion=re.search(r'^CONFIG_LOCALVERSION="([^"]+)"$',(PROJECT/'kernel/config/production.config').read_text(),re.M).group(1)
-    versions={'release_version':'0.1.0-premium.3','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.18-premium.3','data_schema_version':1,'y2player_version':None,'build_git_commit':commit,'reborn_source_commit':reborn_commit}
+    versions={'release_version':'0.1.0-premium.3','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.18-premium.3','data_schema_version':1,'reborn_version':reborn_version,'build_git_commit':commit,'reborn_source_commit':reborn_commit}
     if not a.reuse_userspace:
         if not a.owner_firmware:p.error('M5 requires explicit --owner-firmware local provisioning')
         from tools.connectivity.provision import verify_provision
@@ -60,6 +64,17 @@ def main():
         if previous['minimum_compatible_components']['rootfs_contract']!='y2-platform-v1':p.error('incompatible existing rootfs')
         versions['rootfs_version']=previous['rootfs_version']
         versions['rootfs_build_git_commit']=previous.get('rootfs_build_git_commit', previous['build_git_commit'])
+        installed_reborn_version=previous.get('reborn_version', previous.get('application',{}).get('version'))
+        installed_reborn_commit=previous.get('reborn_source_commit')
+        if not installed_reborn_version and installed_reborn_commit:
+            try:
+                installed_reborn_version=source_version_at_commit(REBORN, installed_reborn_commit)
+            except (ValueError, subprocess.CalledProcessError) as error:
+                p.error(f'cannot resolve retained Reborn identity from its recorded source: {error}')
+        if not installed_reborn_version:
+            p.error('cannot package a retained rootfs without an identifiable Reborn version')
+        versions['reborn_version']=installed_reborn_version
+        versions['reborn_source_commit']=installed_reborn_commit
     if a.resume in ('buildroot','artifacts') and (not (out/'kernel-source-commit').exists() or (out/'kernel-source-commit').read_text().strip()!=commit):p.error('kernel source commit changed; resume kernel first')
     (out/'versions.json').write_text(json.dumps(versions,indent=2)+'\n')
     environment(PROJECT)

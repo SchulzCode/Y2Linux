@@ -126,6 +126,8 @@ def package(build, base, out, fallback_package=None):
     (out/scatter).write_text(make_boot_scatter(stock))
     m = copy.deepcopy(previous)
     m.update(versions)
+    from tools.production.application import receipt as reborn_application
+    m['application'] = reborn_application(versions.get('reborn_version'))
     m['storage_addressing'] = addressing_contract()
     m['hardware_compatibility']['accepted_linux_user_sector_counts'] = [CAPACITY//512]
     boot = next(p for p in m['payloads'] if p['target_partition'] == 'BOOTIMG')

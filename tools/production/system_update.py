@@ -12,6 +12,7 @@ import subprocess
 import sys
 
 PROJECT = Path(__file__).resolve().parents[2]
+REBORN = PROJECT.parent / 'Y2Reborn'
 sys.path.insert(0, str(PROJECT))
 from tools.production.layout import TARGETS, digest, require, make_scatter
 from tools.production.boot_update import installed_components
@@ -64,6 +65,8 @@ def validate_preservation(out, manifest):
 
 def package(build, base, fallback_root, out):
     from tools.production.validate import validate_manifest, validate_rootfs
+    from tools.production.application import receipt as reborn_application
+    ffmpeg_version=(REBORN/'FFMPEG_VERSION').read_text().strip()
     require(out.is_relative_to(PROJECT/'out') and not out.exists(), 'fresh package inside out')
     require(not subprocess.check_output(['git','status','--porcelain'],cwd=PROJECT).strip(), 'commit reviewed source before packaging')
     head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PROJECT,text=True).strip()
@@ -116,12 +119,13 @@ def package(build, base, fallback_root, out):
     manifest['payloads']=[boot,root]
     manifest['installed_components']=[copy.deepcopy(root),copy.deepcopy(next(p for p in components if p['target_partition']=='USRDATA'))]
     manifest['installation_profile']='system-update'
+    manifest['application']=reborn_application(versions['reborn_version'])
     manifest['base_manifest_sha256']=digest(out/'metadata/base-manifest.json')
-    manifest['status']='Reborn FFmpeg 9.0.2 audio production candidate; physical audio qualification pending'
+    manifest['status']=f'Reborn FFmpeg {ffmpeg_version} audio production candidate; physical audio qualification pending'
     manifest['data_policy']='Preserve existing Y2DATA in place. New private directories are created on first normal boot. No data payload.'
     manifest['owner_firmware']=json.loads((build/'owner-firmware.json').read_text())
     manifest['audio_stack']={
-        'ffmpeg_version':'9.0.2',
+        'ffmpeg_version':ffmpeg_version,
         'canonical_sample_format':'fltp',
         'preferred_output_format':'S32_LE',
         'physically_qualified_output_formats':['S16_LE'],

@@ -6,9 +6,12 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 
 PROJECT = Path(__file__).resolve().parents[2]
+REBORN = PROJECT.parent / 'Y2Reborn'
+sys.path.insert(0, str(PROJECT))
 
 
 def prepare_overlay(project, spec):
@@ -65,6 +68,7 @@ def main():
     env = {
         'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LC_ALL': 'C', 'TZ': 'UTC',
         'ARCH': 'arm', 'LLVM': '1', 'CROSS_COMPILE': 'arm-linux-gnueabi-',
+        'Y2_ARTIFACT_DIR': '/build', 'Y2_REBORN_SOURCE': '/tmp/Y2Reborn',
         'SOURCE_DATE_EPOCH': str(lock['source_date_epoch']),
         'KBUILD_BUILD_TIMESTAMP': '@' + str(lock['source_date_epoch']),
         'KBUILD_BUILD_USER': lock['build_user'], 'KBUILD_BUILD_HOST': lock['build_host'],
@@ -77,7 +81,15 @@ def main():
         '--tmpfs', '/tmp', '--ro-bind', str(PROJECT), '/project',
         '--ro-bind', str(PROJECT / '.cache/sources/linux-6.18'), '/src',
         '--bind', str(output), '/build', '--chdir', '/build',
+        '--ro-bind', str(REBORN), '/tmp/Y2Reborn',
     ]
+    owner_firmware = os.environ.get('Y2_OWNER_FIRMWARE')
+    if owner_firmware:
+        owner_firmware = Path(owner_firmware).resolve()
+        from tools.connectivity.provision import verify_provision
+        verify_provision(owner_firmware)
+        invocation += ['--ro-bind', str(owner_firmware), '/tmp/Y2OwnerFirmware']
+        env['Y2_OWNER_FIRMWARE'] = '/tmp/Y2OwnerFirmware'
     # A private parent mount permits adding Y2 sources without creating files
     # in the locked upstream tree or replacing another platform's directory.
     invocation += ['--tmpfs', '/src/drivers']

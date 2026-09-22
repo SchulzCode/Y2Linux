@@ -1,23 +1,51 @@
 #!/usr/bin/env python3
 """Pin the Buildroot FFmpeg package to the reviewed FFmpeg 9 source."""
 import hashlib
+import os
 import re
 from pathlib import Path
+from urllib.request import urlopen
 
-VERSION = "9.0.2"
+PROJECT = Path(__file__).resolve().parents[2]
+REBORN = PROJECT.parent / "Y2Reborn"
+VERSION = (REBORN / "FFMPEG_VERSION").read_text().strip()
 ARCHIVE = f"ffmpeg-{VERSION}.tar.xz"
+ARCHIVE_URL = f"https://ffmpeg.org/releases/{ARCHIVE}"
 ARCHIVE_SHA256 = "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e"
+
+
+def ensure_archive(download_dir: Path) -> Path:
+    """Acquire the one pinned upstream archive and atomically retain its hash."""
+    archive = download_dir / "ffmpeg" / ARCHIVE
+    if archive.is_file():
+        actual = hashlib.sha256(archive.read_bytes()).hexdigest()
+        if actual != ARCHIVE_SHA256:
+            raise ValueError(f"FFmpeg {VERSION} archive hash mismatch: {archive}")
+        return archive
+
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    temporary = archive.with_name(archive.name + f".part-{os.getpid()}")
+    digest = hashlib.sha256()
+    try:
+        with urlopen(ARCHIVE_URL, timeout=120) as response, temporary.open("wb") as output:
+            while chunk := response.read(1024 * 1024):
+                digest.update(chunk)
+                output.write(chunk)
+            output.flush()
+            os.fsync(output.fileno())
+        if digest.hexdigest() != ARCHIVE_SHA256:
+            raise ValueError(f"downloaded FFmpeg {VERSION} archive hash mismatch")
+        os.replace(temporary, archive)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return archive
 
 
 def apply(buildroot_source: Path, download_dir: Path) -> None:
     package = buildroot_source / "package/ffmpeg"
     mk = package / "ffmpeg.mk"
     hashes = package / "ffmpeg.hash"
-    archive = download_dir / "ffmpeg" / ARCHIVE
-    if not archive.is_file():
-        raise FileNotFoundError(f"missing locked FFmpeg archive: {archive}")
-    if hashlib.sha256(archive.read_bytes()).hexdigest() != ARCHIVE_SHA256:
-        raise ValueError(f"FFmpeg {VERSION} archive hash mismatch")
+    ensure_archive(download_dir)
     mk_text = mk.read_text()
     mk_text = re.sub(r"FFMPEG_VERSION = [0-9.]+", f"FFMPEG_VERSION = {VERSION}", mk_text, count=1)
     mk_text = re.sub(r"\n\t(?:--disable-crystalhd|--disable-dxva2|--enable-runtime-cpudetect|--disable-hardcoded-tables|--disable-mipsdspr2|--disable-mipsdsp|--disable-msa|--disable-postproc) \\\n", "\n", mk_text)

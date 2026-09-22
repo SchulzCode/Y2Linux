@@ -7,9 +7,14 @@ from tools.production.layout import (TARGETS, CAPACITY, digest, require, scatter
                                      sparse_identity, make_boot_scatter,
                                      addressing_contract, make_readback_plan)
 PROJECT=Path(__file__).resolve().parents[2]
+from tools.production.application import receipt as reborn_application, validate as validate_application
 
 def run(*argv):
     return subprocess.run(argv,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout
+
+def run_debugfs(image, command):
+    return subprocess.run(['debugfs','-R',command,str(image)],check=True,
+                          stdout=subprocess.PIPE,stderr=subprocess.STDOUT).stdout
 
 def validate_addressing(out, m):
     # Retained historical packages describe the pre-correction port. Never
@@ -29,6 +34,17 @@ def validate_addressing(out, m):
             'readback coordinates/mode must match actual stock addressing')
     return True
 
+def require_reborn_root_image(out):
+    root=out/'Y2ROOT.img'
+    require(root.is_file(),'production root image exists')
+    for path in ('/usr/bin/reborn','/usr/bin/rebornctl','/usr/lib/reborn/libreborn_media.so'):
+        info=run_debugfs(root,'stat '+path).decode(errors='replace')
+        require('Inode:' in info and 'File not found' not in info,
+                'installed Reborn file '+path)
+    legacy=run_debugfs(root,'stat /usr/bin/y2player').decode(errors='replace')
+    require('File not found by ext2_lookup' in legacy and 'Inode:' not in legacy,
+            'obsolete Y2PlayerNative path is absent')
+
 def validate_manifest(out):
     m=json.loads((out/'manifest.json').read_text())
     if m.get('installation_profile')=='data-initialization-only':
@@ -36,6 +52,11 @@ def validate_manifest(out):
         return validate_package(out)
     classification=json.loads((out/'metadata/partitions.json').read_text())
     if m.get('installation_profile')=='boot-only':return validate_boot_update(out)
+    if 'reborn_version' in m:
+        try:current_application=validate_application(m)
+        except ValueError as e:raise ValueError(str(e)) from e
+        require(current_application,'current Reborn application receipt')
+    require_reborn_root_image(out)
     require(m['schema']=='org.schulzcode.y2linux.release/v1' and m['layout_version']==1,'manifest/layout version')
     require(m['hardware_compatibility']['emmc_user_capacity_bytes']==CAPACITY,'layout capacity')
     mapped=validate_addressing(out,m)
@@ -45,7 +66,6 @@ def validate_manifest(out):
     require(m['normal_update_allowlist']==['BOOTIMG','ANDROID'],'OTA allowlist excludes data initialization')
     require(m['runtime_kernel_write_allowlist']==['ANDROID','USRDATA'],'runtime allowlist')
     require(m['minimum_compatible_components']['layout_version']==1 and m['minimum_compatible_components']['data_schema_version']==1,'minimum compatibility')
-    require(m['application']['partition'] is None and not m['application']['implemented'],'no app firmware partition')
     require(not m['debug_access']['private_key_packaged'],'no packaged private key')
     require(len(m['build_git_commit'])==40 and all(c in '0123456789abcdef' for c in m['build_git_commit']),'build commit')
     baseline={r['name']:r for r in classification['partitions']}
@@ -125,8 +145,12 @@ def validate_boot_update(out, base=None):
     require(m['hardware_compatibility']==expected_hardware,'retained hardware; corrected stock disk view')
     for field in ('layout_version','data_schema_version','rootfs_version',
                   'normal_update_allowlist','runtime_kernel_write_allowlist','minimum_compatible_components',
-                  'debug_access','application'):
+                  'debug_access'):
         require(m[field]==previous[field],'retained production contract '+field)
+    installed_reborn_version=previous.get('reborn_version',previous.get('application',{}).get('version'))
+    require(m.get('reborn_version')==installed_reborn_version and
+            m['application']==reborn_application(installed_reborn_version),
+            'retained Reborn identity describes the installed rootfs')
     require(m['runtime_kernel_write_allowlist']==['ANDROID','USRDATA'] and
             m['minimum_compatible_components']['kernel_contract']=='y2-platform-v1','production write/module contract')
     require(m['rootfs_build_git_commit']==previous.get('rootfs_build_git_commit',previous['build_git_commit']),'independent root provenance')
@@ -229,6 +253,11 @@ def validate_rootfs(out,build,m):
                 name=posixpath.normpath(x.linkname.lstrip('/') if x.linkname.startswith('/') or x.islnk() else posixpath.join(posixpath.dirname(name),x.linkname)).removeprefix('./')
             raise ValueError('symlink loop')
         def read(name):return tar.extractfile(members[resolve(name)]).read()
+        for name in ('usr/bin/reborn','usr/bin/rebornctl','usr/lib/reborn/libreborn_media.so'):
+            raw=read(name)
+            require(raw[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',raw,18)[0]==40,
+                    'Reborn ARM application file '+name)
+        require('usr/bin/y2player' not in members,'no obsolete Y2PlayerNative executable assertion')
         require(members['root/.ssh'].issym() and members['root/.ssh'].linkname=='/data/ssh/authorized_keys.d','persistent public authorization')
         require(members['etc/dropbear'].issym() and members['etc/dropbear'].linkname=='/data/ssh/host-keys','persistent generated host keys')
         dbus_uid=dbus_gid=None
