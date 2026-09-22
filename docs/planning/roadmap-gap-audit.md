@@ -1,5 +1,58 @@
 # Y2Linux roadmap and gap audit
 
+## Reborn software-correctness candidate boundary — 2026-09-23
+
+This repeat audit precedes packaging the focused Reborn correctness closure as
+an owner-controlled physical-qualification candidate. The reviewed code heads
+are Y2Linux `df1bccf` and Y2Reborn `dde3c53`; neither repository contains
+uncommitted product-source changes at this point. The Y2Reborn worktree's
+pre-existing untracked `docs/audit/`, `docs/review/`, and
+`docs/architecture/bluetooth-codecs.md` remain user-owned and untouched. The
+software closure log is
+[`LUNA-CORRECTNESS-CLOSURE-01.md`](../../Y2Reborn/docs/validation/LUNA-CORRECTNESS-CLOSURE-01.md).
+
+No new physical evidence is claimed or sought: the device was not accessed.
+The latest retained device evidence remains the 2026-09-18 GPU-01 receipt and
+2026-09-17 CONNECTIVITY-10 receipt below. GPU-01 supports narrow Mali-400/Lima
+rendering, S16 stereo 44.1-kHz wired playback and bounded Wi-Fi scan/radio
+coexistence; it records a failed deep-suspend attempt, so GPU #34 stays open.
+CONNECTIVITY-10 supports Wi-Fi discovery and concurrent adapter power only;
+association, DHCP/DNS, Bluetooth pairing/A2DP and sustained coexistence remain
+untested. Neither receipt qualifies this Reborn revision, its corrected PCM
+conversion, sink failures, scan behavior, Bluetooth transport epoch, or the
+candidate package. Software and QEMU evidence below cannot replace those
+owner-run checks.
+
+The GitHub issue state was read on 2026-09-23: #16, #27, #28, #29, #31, #32,
+#33 and #34 are open; #30 is closed. Storage / Installation milestone 3 remains
+active under #33. No issue, milestone, or physical gate is closed by this
+candidate. The existing platform phase dependencies and protected-storage,
+backup/calibration, recovery, power and radio limits are unchanged.
+
+| Coverage row | Current evidence and remaining boundary |
+| --- | --- |
+| Boot, core and memory | Existing narrow production boot remains the recorded baseline; the closure changes no kernel, memory reservation, preloader or LK. Broader stability remains #28. |
+| Internal/removable storage and recovery | Existing internal root/data identity is retained; SD mount identity now gates Reborn pruning in software. Physical SD removal/reinsert and broader recovery remain #33. |
+| Display and GPU | GPU-01's narrow rendering result is retained; deep resume is still failed/unqualified under #34. No display/GPU changes here. |
+| Buttons, wheel and input | Prior device event capture remains evidence only for physical event delivery. R8 cancellation is host-tested; current Reborn hardware mapping/hold behavior still needs owner qualification. |
+| Power, RTC and charging | M4 #30 is closed per the issue tracker; GPU-01's failed same-session suspend remains a separate open #34 gate. No policy or hardware changes here. |
+| Wired audio | Only the recorded S16 stereo 44.1-kHz physical result is accepted. R2's S24-in-32 behavior is software-tested and does not authorize higher-resolution output. |
+| USB/SSH | Existing pinned USB path remains; reconnect issue #27 is open. This pass does not change USB ownership. |
+| Wi-Fi | Scan/interface startup remains the narrow physical result. WPA association, DHCP, DNS, reconnect and sustained operation remain open under #31. |
+| Bluetooth | Adapter power is the narrow retained result. Pairing/SBC playback/reconnect/coexistence are unqualified under #31; R9 transport epoch invalidation is software evidence only and plug-hidden negotiated-format verification remains partial. |
+| Firmware, calibration and identity | Existing owner-supplied files are hash-verified for this offline build. No new firmware, calibration, NVRAM or protected-storage access occurred. |
+| GPU/power interactions | No candidate test qualifies suspend, charging, thermal behavior or deep resume; issue #34 stays open. |
+| FM and unrequested features | Existing board exclusion remains. USB Audio, high-resolution wired output, optional codecs, OTA/A-B, exFAT and UI redesign remain out of scope. |
+| Updates, security and privacy | The generated update preserves Y2DATA and selects only approved system partitions; broader recovery/update contract remains #32/#33. |
+
+The candidate boundary is **software-ready for owner review only** once the
+fresh ARM build, runtime/component checks and preserving-package validations
+listed in the closure log pass. It does not activate or close a platform
+milestone. The next smallest evidence boundary is manual installation of the
+exact hash-verified preserving candidate, followed by the ordered owner
+qualification checklist in the closure log. Power/charging/suspend remains a
+separate safety-scoped activity. No GitHub status transition is warranted.
+
 ## Reborn software correctness closure entry — 2026-09-22
 
 This entry records the owner-authorized, software-only correctness closure
