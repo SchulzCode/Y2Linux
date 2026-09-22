@@ -20,8 +20,8 @@ REQUIRED_FILTERS = {
     "acrossfade", "amix", "atrim", "afade", "asetnsamples",
 }
 EXPECTED_LIBRARIES = {
-    "libavcodec": "63.1.101", "libavformat": "63.1.101", "libavutil": "61.1.101",
-    "libavfilter": "12.1.101", "libswresample": "7.1.101", "libswscale": "10.1.101",
+    "libavcodec": "63.1.102", "libavformat": "63.1.102", "libavutil": "61.1.102",
+    "libavfilter": "12.1.102", "libswresample": "7.1.102", "libswscale": "10.1.102",
 }
 EXPECTED_DEMUXERS = REQUIRED_DEMUXERS
 EXPECTED_PARSERS = REQUIRED_PARSERS
