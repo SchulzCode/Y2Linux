@@ -104,6 +104,25 @@ def apply(buildroot_source: Path) -> None:
         if marker not in text:
             raise ValueError("BlueALSA configure option anchor missing")
         (bluealsa / "bluez-alsa.mk").write_text(text.replace(marker, disables + marker, 1))
+    # BlueALSA 5.0.0 places -static in AM_CFLAGS. With Buildroot's normal
+    # shared D-Bus/ALSA/BlueZ stack that flag reaches the bluealsad link and
+    # makes the ARM build reject dynamic libraries. Keep the stack dynamic and
+    # carry this narrowly scoped, source-pinned integration fix.
+    (bluealsa / "0001-bluealsad-use-shared-system-libraries.patch").write_text(
+        """--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -171,8 +171,7 @@
+\t@MPG123_CFLAGS@ \\
+\t@OPUS_CFLAGS@ \\
+\t@SBC_CFLAGS@ \\
+-\t@SPANDSP_CFLAGS@ \\
+-\t-static
++\t@SPANDSP_CFLAGS@
+
+ libbluealsad_la_LIBADD = \\
+\tshared/libshared.la \\
+"""
+    )
     replace_hash(
         bluealsa / "bluez-alsa.hash",
         "bluez-alsa-4.3.1.tar.gz",
