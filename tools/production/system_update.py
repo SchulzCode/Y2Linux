@@ -16,6 +16,8 @@ sys.path.insert(0, str(PROJECT))
 from tools.production.layout import TARGETS, digest, require, make_scatter
 from tools.production.boot_update import installed_components
 
+BUILDROOT_SOURCE = PROJECT/'.cache/sources' / ('buildroot-' + json.loads((PROJECT/'buildroot/inputs.lock.json').read_text())['version'])
+
 
 def preserving_scatter(stock):
     text = make_scatter(stock, False)
@@ -96,7 +98,7 @@ def package(build, base, fallback_root, out):
                 (PROJECT/'docs/knowledge/evidence/gpu-source-contract.json','gpu-source-contract.json')]:
             shutil.copyfile(source,licenses/name)
         for name in ('mesa3d','libdrm'):
-            shutil.copyfile(PROJECT/'.cache/sources/buildroot-2025.02.17/package'/name/(name+'.hash'),
+            shutil.copyfile(BUILDROOT_SOURCE/'package'/name/(name+'.hash'),
                             licenses/(name+'-source.hash'))
     manifest=copy.deepcopy(previous); manifest.update(versions)
     for name in ('fallback','userspace_source','rootfs_build_git_commit','installed_components_policy'):
@@ -115,11 +117,11 @@ def package(build, base, fallback_root, out):
     manifest['installed_components']=[copy.deepcopy(root),copy.deepcopy(next(p for p in components if p['target_partition']=='USRDATA'))]
     manifest['installation_profile']='system-update'
     manifest['base_manifest_sha256']=digest(out/'metadata/base-manifest.json')
-    manifest['status']='Reborn FFmpeg 9 audio production candidate; physical audio qualification pending'
+    manifest['status']='Reborn FFmpeg 9.0.2 audio production candidate; physical audio qualification pending'
     manifest['data_policy']='Preserve existing Y2DATA in place. New private directories are created on first normal boot. No data payload.'
     manifest['owner_firmware']=json.loads((build/'owner-firmware.json').read_text())
     manifest['audio_stack']={
-        'ffmpeg_version':'9.0.1',
+        'ffmpeg_version':'9.0.2',
         'canonical_sample_format':'fltp',
         'preferred_output_format':'S32_LE',
         'physically_qualified_output_formats':['S16_LE'],

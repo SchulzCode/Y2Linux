@@ -6,11 +6,15 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from tools.production.prepare import buildroot_source, environment
 from tools.production.ffmpeg9 import apply as apply_ffmpeg9
+from tools.production.modernize_buildroot import apply as apply_buildroot_modernization
 PROJECT=Path(__file__).resolve().parents[2]
 REBORN=PROJECT.parent/'Y2Reborn'
 
 def dirty_source(path):
-    """Return reviewed source changes, excluding reference-only UI assets."""
+    """Return reviewed source changes, excluding reference-only inputs."""
+    reference_only = {
+        'docs/architecture/bluetooth-codecs.md',
+    }
     status=subprocess.check_output(
         ['git','status','--porcelain=v1'],cwd=path,text=True
     ).splitlines()
@@ -18,7 +22,11 @@ def dirty_source(path):
         line for line in status
         if not (
             line.startswith('?? ')
-            and line[3:].strip('"') == 'UI Examaples/'
+            and (
+                line[3:].strip('"') == 'UI Examaples/'
+                or line[3:].strip('"') in reference_only
+                or line[3:].strip('"').startswith('docs/audit/')
+            )
         )
     ]
 
@@ -36,7 +44,7 @@ def main():
     if not REBORN.is_dir() or dirty_source(REBORN):p.error('commit the reviewed Y2Reborn source before building a release candidate')
     reborn_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=REBORN,text=True).strip()
     localversion=re.search(r'^CONFIG_LOCALVERSION="([^"]+)"$',(PROJECT/'kernel/config/production.config').read_text(),re.M).group(1)
-    versions={'release_version':'0.1.0-premium.2','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.17-premium.2','data_schema_version':1,'y2player_version':None,'build_git_commit':commit,'reborn_source_commit':reborn_commit}
+    versions={'release_version':'0.1.0-premium.3','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.18-premium.3','data_schema_version':1,'y2player_version':None,'build_git_commit':commit,'reborn_source_commit':reborn_commit}
     if not a.reuse_userspace:
         if not a.owner_firmware:p.error('M5 requires explicit --owner-firmware local provisioning')
         from tools.connectivity.provision import verify_provision
@@ -58,6 +66,7 @@ def main():
     if not a.reuse_userspace:source,lock=buildroot_source(PROJECT)
     else:lock=json.loads((PROJECT/'buildroot/inputs.lock.json').read_text())
     if not a.reuse_userspace:
+        apply_buildroot_modernization(source)
         apply_ffmpeg9(source, PROJECT/'.cache/buildroot-dl')
     env=os.environ.copy();env.pop('Y2_PUBLIC_KEY_FILE',None)
     if a.owner_firmware:env['Y2_OWNER_FIRMWARE']=str(a.owner_firmware.resolve())

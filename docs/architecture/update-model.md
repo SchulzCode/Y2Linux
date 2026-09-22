@@ -1,7 +1,7 @@
 # Y2Linux update model — layout v1
 
 This is an architecture contract, not an implemented OTA updater. Buildroot
-2025.02.17 remains the canonical userspace builder; Linux6.18, glibc, BusyBox,
+2025.02.18 remains the canonical userspace builder; Linux6.18, glibc, BusyBox,
 Dropbear, ALSA and current platform services work without Y2PlayerNative.
 No remote downloading, signing, server, checks, automatic install or app code
 is implemented here. The release package is an unsigned manual-test candidate.

@@ -199,7 +199,7 @@ The production design to implement after entry dependencies are resolved is:
 | AVRCP/metadata | BlueZ Media1 player registration with a standard MPRIS player object | Aliases/preferences in Y2DATA; future player supplies real metadata/controls |
 | LE/GATT/battery | BlueZ standard interfaces, only for capabilities actually reported and verified | Bonds on Y2DATA; battery exposed only when reported |
 
-[BlueALSA's versioned daemon documentation](https://github.com/arkq/bluez-alsa/blob/v4.3.1/doc/bluealsa.8.rst)
+[BlueALSA's versioned daemon documentation](https://github.com/arkq/bluez-alsa/blob/v5.0.0/doc/bluealsad.8.rst)
 supports the lightweight ALSA bridge evaluation. BlueZ's
 [Media API](https://bluez.readthedocs.io/en/latest/media-api/) supplies endpoint
 and player registration. Installing an audio bridge alone does not implement

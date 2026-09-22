@@ -1,7 +1,7 @@
 {
-  "version": "2025.02.17",
-  "url": "https://buildroot.org/downloads/buildroot-2025.02.17.tar.xz",
-  "sha256": "13618704563ad0b928a4564aaa73e2db97e12e8df0ed5ae874744a83964a023a",
-  "source_date_epoch": 1787518700,
+  "version": "2025.02.18",
+  "url": "https://buildroot.org/downloads/buildroot-2025.02.18.tar.xz",
+  "sha256": "e38ad1df6ea0479fff6419a87a64535d02131674d463be154a763ef725b55321",
+  "source_date_epoch": 1789074862,
   "toolchain": "Bootlin armv7-eabihf glibc stable 2024.05-1 (Buildroot hash checked)"
 }

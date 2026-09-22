@@ -21,7 +21,10 @@ def buildroot_source(project):
     source=project/'.cache/sources'/('buildroot-'+lock['version'])
     if not source.exists():
         source.parent.mkdir(parents=True,exist_ok=True)
-        with tarfile.open(archive) as t:t.extractall(source.parent,filter='data')
+        # The archive has been verified against the locked SHA-256 above. It
+        # contains Buildroot's intentional absolute init symlinks, which
+        # Python 3.14 rejects under the generic data filter.
+        with tarfile.open(archive) as t:t.extractall(source.parent,filter='fully_trusted')
     if not (source/'Makefile').is_file():raise ValueError('Buildroot source missing Makefile')
     return source,lock
 

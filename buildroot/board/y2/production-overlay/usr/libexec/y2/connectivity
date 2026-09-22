@@ -26,7 +26,7 @@ case "$(cat /sys/devices/platform/18070000.connectivity/status)" in
  *) /usr/sbin/y2-radio-activate || { cleanup; exit 1; };;
 esac
 wpa_supplicant -B -u -g /run/wpa_supplicant/global -P /run/y2/wpa.pid
-start-stop-daemon -S -b -m -p /run/y2/bluealsa.pid -x /usr/bin/bluealsa -- -p a2dp-source --loglevel=warning
+start-stop-daemon -S -b -m -p /run/y2/bluealsa.pid -x /usr/bin/bluealsad -- -p a2dp-source --loglevel=warning
 start-stop-daemon -S -b -m -p /run/y2/reconnect.pid -x /usr/sbin/y2-bt-reconnect
 [ "$(cat /data/network/enabled)" != 1 ] || y2-radio wifi on-runtime
 if [ "$(cat /data/bluetooth/enabled)" = 1 ]; then
@@ -58,7 +58,7 @@ while :; do
             wpa_supplicant -B -u -g /run/wpa_supplicant/global -P /run/y2/wpa.pid || :
             attached=0
         fi
-        for pair in bluealsa:/usr/bin/bluealsa reconnect:/usr/sbin/y2-bt-reconnect; do
+        for pair in bluealsa:/usr/bin/bluealsad reconnect:/usr/sbin/y2-bt-reconnect; do
             name=${pair%%:*}; binary=${pair#*:}
             if ! alive "$name" "$binary"; then
                 rm -f "/run/y2/$name.pid"

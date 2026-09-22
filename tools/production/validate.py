@@ -266,7 +266,7 @@ def validate_rootfs(out,build,m):
                 require(not name.startswith(('data/network/','data/bluetooth/','data/connectivity/','var/lib/bluetooth/','var/lib/bluealsa/')),'no mutable radio state in Y2ROOT')
             for name in ('usr/sbin/y2-factory','usr/sbin/y2-calibration','usr/sbin/y2-radio-activate',
                          'usr/sbin/y2-bt-reconnect','usr/sbin/y2-a2dp-check','usr/sbin/wpa_supplicant',
-                         'usr/sbin/iw','usr/libexec/bluetooth/bluetoothd','usr/bin/bluealsa','usr/bin/dbus-daemon'):
+                         'usr/sbin/iw','usr/libexec/bluetooth/bluetoothd','usr/bin/bluealsad','usr/bin/dbus-daemon'):
                 content=read(name)
                 require(content[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',content,18)[0]==40,'connectivity ARM binary '+name)
         if '-gpu.' in m['rootfs_version']:

@@ -34,8 +34,8 @@ ALLOWED_ARTWORK_DEPENDENCY_DECODERS = {"vp8", "webp_anim"}
 
 def check(value: dict) -> list[str]:
     failures: list[str] = []
-    if "9.0.1" not in value.get("version", ""):
-        failures.append(f"runtime version is {value.get('version')!r}, expected FFmpeg 9.0.1")
+    if "9.0.2" not in value.get("version", ""):
+        failures.append(f"runtime version is {value.get('version')!r}, expected FFmpeg 9.0.2")
     libraries = value.get("libraries", {})
     for name, version in EXPECTED_LIBRARIES.items():
         if libraries.get(name) != version:
@@ -87,11 +87,11 @@ def check_buildroot(output: Path) -> list[str]:
     """Verify the generated FFmpeg build itself before image packaging.
 
     This is intentionally independent of the Buildroot .config: it reads the
-    FFmpeg 9.0.1 generated component header and the target rootfs libraries.
+    FFmpeg 9.0.2 generated component header and the target rootfs libraries.
     The ARM runtime manifest is checked separately by the Reborn QEMU test.
     """
     failures: list[str] = []
-    source = output / "build/ffmpeg-9.0.1"
+    source = output / "build/ffmpeg-9.0.2"
     components = source / "config_components.h"
     config = source / "config.h"
     if not components.is_file() or not config.is_file():
@@ -122,7 +122,7 @@ def check_buildroot(output: Path) -> list[str]:
             direct = sorted(name for name in player_needed if name.startswith("libav"))
             if direct:
                 failures.append(f"Reborn directly loads FFmpeg libraries: {', '.join(direct)}")
-            # FFmpeg installs the full 9.0.1 filename in the target, but the
+            # FFmpeg installs the full 9.0.2 filename in the target, but the
             # ELF SONAME intentionally contains only the ABI major version.
             # Verify both boundaries instead of comparing those two names as
             # if they were interchangeable.

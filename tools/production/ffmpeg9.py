@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Pin the Buildroot FFmpeg package to the Reborn FFmpeg 9.0.1 source."""
+"""Pin the Buildroot FFmpeg package to the reviewed FFmpeg 9 source."""
 import hashlib
 import re
 from pathlib import Path
 
-VERSION = "9.0.1"
+VERSION = "9.0.2"
 ARCHIVE = f"ffmpeg-{VERSION}.tar.xz"
-ARCHIVE_SHA256 = "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635"
+ARCHIVE_SHA256 = "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e"
 
 
 def apply(buildroot_source: Path, download_dir: Path) -> None:
@@ -17,9 +17,9 @@ def apply(buildroot_source: Path, download_dir: Path) -> None:
     if not archive.is_file():
         raise FileNotFoundError(f"missing locked FFmpeg archive: {archive}")
     if hashlib.sha256(archive.read_bytes()).hexdigest() != ARCHIVE_SHA256:
-        raise ValueError("FFmpeg 9.0.1 archive hash mismatch")
+        raise ValueError(f"FFmpeg {VERSION} archive hash mismatch")
     mk_text = mk.read_text()
-    mk_text = mk_text.replace("FFMPEG_VERSION = 6.1.5", f"FFMPEG_VERSION = {VERSION}")
+    mk_text = re.sub(r"FFMPEG_VERSION = [0-9.]+", f"FFMPEG_VERSION = {VERSION}", mk_text, count=1)
     mk_text = re.sub(r"\n\t(?:--disable-crystalhd|--disable-dxva2|--enable-runtime-cpudetect|--disable-hardcoded-tables|--disable-mipsdspr2|--disable-mipsdsp|--disable-msa|--disable-postproc) \\\n", "\n", mk_text)
     mk_text = re.sub(r"\t--disable-small.*?\n\t--enable-hwaccels", "\t--disable-small \\\n\t--enable-hwaccels", mk_text, flags=re.S)
     mk_text = mk_text.replace("FFMPEG_CONF_OPTS += --disable-postproc\n", "")
@@ -29,7 +29,7 @@ def apply(buildroot_source: Path, download_dir: Path) -> None:
     mk.write_text(mk_text)
     hash_text = hashes.read_text()
     if ARCHIVE not in hash_text:
-        old = next(line for line in hash_text.splitlines() if "ffmpeg-6.1.5.tar.xz" in line)
+        old = next(line for line in hash_text.splitlines() if "ffmpeg-" in line and line.endswith(".tar.xz"))
         hashes.write_text(hash_text.replace(old, f"sha256  {ARCHIVE_SHA256}  {ARCHIVE}"))
     # Buildroot 2025.02 carries fixes for the 6.1 branch. FFmpeg 9 already
     # contains those fixes, and several target unrelated hardware paths that
