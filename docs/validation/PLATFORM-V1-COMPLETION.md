@@ -64,3 +64,19 @@ old recipe installed `lib/*.h` after upstream moved headers to `lib/bluetooth`.
 The pinned modernization adapter now updates that path. This failed build is
 retained at `out/platform-v1-observation-build/buildroot-build.log`; it is not an
 ARM userspace pass. Validation resumes after the focused recipe correction.
+
+### Space, SD lifecycle and storage benchmark tools
+
+DONE_SOFTWARE / HOST_VALIDATED: platform mount claims, failed unmount handling,
+read-only unmounted checks, low/critical admission reserves, bounded disposable
+cleanup and descriptor-pinned scratch measurements. Added Linux exFAT and pinned
+exfatprogs; no controller/electrical change. `python3 -m unittest
+tests.test_platform_storage_tools tests.test_platform_contract -v`: 19 pass,
+including actual scratch I/O, generation loss, readback, ENOSPC error propagation,
+failed eject, exFAT selection, symlink refusal and cleanup exclusions. Tests use
+host files and fake mount command responses, not physical block devices.
+
+ARM/image validation is pending for this stream. Physical card lifecycle,
+throughput/latency, flush semantics and endurance remain PHYSICAL_GATE. SQLite,
+Reborn scaling and long-run resource collection follow; no database policy was
+optimized without measurements. Detailed contract: `architecture/platform-storage-v1.md`.

@@ -6,7 +6,7 @@
   "capabilities": {
     "telemetry": {"implemented": true, "enabled": true, "qualified": false},
     "health": {"implemented": true, "enabled": true, "qualified": false},
-    "storage": {"implemented": true, "enabled": true, "qualified": false, "data_root": "/data", "media_root": "/media/sd", "filesystems": ["ext4", "vfat"], "mount_identity": "boot_id:mount_id:device_id plus UUID", "automatic_music_deletion": false},
+    "storage": {"implemented": true, "enabled": true, "qualified": false, "data_root": "/data", "media_root": "/media/sd", "filesystems": ["ext4", "vfat", "exfat"], "mount_identity": "boot_id:mount_id:device_id plus UUID and platform mount claim", "automatic_music_deletion": false, "space_policy": true, "scratch_benchmarks": true},
     "wifi": {"implemented": true, "enabled": false, "enabled_source": "/data/network/enabled", "qualified": false, "readiness_requires": ["authenticated", "address", "default_route", "recent_dns_probe"]},
     "bluetooth": {"implemented": true, "enabled": false, "enabled_source": "/data/bluetooth/enabled", "qualified": false, "baseline_codec": "SBC", "optional_codecs": [], "automatic_connection_owner": "y2-bt-reconnect"},
     "usb_device": {"implemented": true, "enabled": true, "qualified": false, "functions": ["ACM", "ECM"], "ssh_bind": "10.42.0.1:22"},

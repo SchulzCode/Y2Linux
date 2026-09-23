@@ -24,6 +24,16 @@ def main():
     caps.add_argument('--json', action='store_true')
     boot = sub.add_parser('boot-stage')
     boot.add_argument('stage')
+    media = sub.add_parser('media')
+    media.add_argument('action', choices=['mount', 'unmount', 'check', 'status'])
+    media.add_argument('--json', action='store_true')
+    bench = sub.add_parser('bench-storage')
+    bench.add_argument('--volume', choices=['/data', '/media/sd'], default='/data')
+    bench.add_argument('--size-mib', type=int, default=16)
+    bench.add_argument('--operations', type=int, default=64)
+    bench.add_argument('--seconds', type=int, default=300)
+    space = sub.add_parser('space')
+    space.add_argument('--cleanup', action='store_true')
     args = parser.parse_args()
     ctx = Context()
     if args.command == 'status':
@@ -35,6 +45,15 @@ def main():
                       result['system']['usb'] if args.section == 'usb' else result[args.section]}
     elif args.command == 'health':
         result = check(ctx, args.full)
+    elif args.command == 'space':
+        from .space import policy
+        result = policy(ctx, args.cleanup)
+    elif args.command == 'media':
+        from .media import operation
+        result = operation(ctx, args.action)
+    elif args.command == 'bench-storage':
+        from .bench import storage_benchmark
+        result = storage_benchmark(ctx, args.volume, args.size_mib, args.operations, args.seconds)
     elif args.command == 'boot-stage':
         from .boot import mark
         result = mark(ctx, args.stage)
@@ -45,7 +64,11 @@ def main():
             if name in result.get('capabilities', {}):
                 result['capabilities'][name]['enabled'] = ctx.read(path) == '1'
     print(json.dumps(result, sort_keys=True, allow_nan=False))
-    return 1 if args.command == 'health' and result['state'] == 'FAILED' else 0
+    failed = (args.command == 'health' and result['state'] == 'FAILED' or
+              args.command == 'media' and (result['state'] in ('Failed', 'Degraded') or
+                                          args.action == 'mount' and result['state'] != 'Ready') or
+              args.command == 'bench-storage' and result['record']['result'] == 'FAILED')
+    return 1 if failed else 0
 
 
 if __name__ == '__main__':

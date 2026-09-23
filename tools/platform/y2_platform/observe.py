@@ -171,6 +171,12 @@ def storage(ctx):
                              '/data': '79324c69-6e75-4801-8000-000000000102'}.get(target)
             if not item['uuid'] or (expected_uuid and item['uuid'] != expected_uuid):
                 item.update(state='Failed', reason='filesystem_identity_invalid')
+            if target == '/media/sd':
+                claim = ctx.json('/run/y2/media-mount.json', {})
+                if not all(claim.get(k) == v for k, v in
+                           (('boot_id', boot_id), ('mount_id', item['mount_id']),
+                            ('device_id', item['device_id']), ('uuid', item['uuid']))):
+                    item.update(state='Failed', reason='mount_claim_changed_or_missing')
         readonly = 'ro' in item['options'] or 'ro' in item['super_options']
         try:
             vfs = os.statvfs(ctx.path(target))
