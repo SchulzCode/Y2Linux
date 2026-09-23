@@ -1,7 +1,10 @@
 # Platform v1 completion ledger
 
-Started 2026-09-23. Work is in progress; **Platform v1 Candidate is not yet
-declared**. No physical Y2 activity is authorized or performed.
+Started 2026-09-23. **Y2Linux Platform v1 Candidate is declared as a software
+candidate**, following the final standing boundary audit and current-source
+validation. PHYSICALLY_QUALIFIED and ENDURANCE_QUALIFIED remain false for this
+candidate. No Y2 was contacted or flashed; no protected partition, calibration,
+NVRAM, loader, memory reservation or electrical limit was changed.
 
 | Repository | Starting HEAD | Entry worktree |
 | --- | --- | --- |
@@ -22,6 +25,117 @@ and endurance evidence. DONE_SOFTWARE / HOST_VALIDATED / ARM_VALIDATED /
 IMAGE_VALIDATED are workflow labels; PHYSICAL_GATE / BLOCKED_BY_EVIDENCE /
 DEFERRED retain their literal limits. No previous image's physical qualification
 is transferred to the new candidate.
+
+## Final candidate and validation
+
+The built source pair is Y2Linux `d04b95aaff713edf943042d97a4c6134ca19fc24`
+and Reborn `6c8aa128550ec80addd08ef3145e9d5a846ddf2e`. Later repository HEADs
+contain only the closing documentation; the candidate's
+`metadata/final-heads.json` records those separately from compiled source.
+The [60-capability report](PLATFORM-V1-CAPABILITY-REPORT.md) and
+[machine ledger](platform-v1-capabilities.json) record starting state,
+implementation, tests, commits, ARM/image results, physical gates and remaining
+risk. Unsupported capabilities do not inherit validation from their gate-reporting
+tools. The [freeze audit](../planning/roadmap-gap-audit.md#platform-v1-software-freeze-boundary--2026-09-23-utc)
+reconciles every coverage area with retained real hardware evidence.
+
+Candidate: `out/y2linux-platform-v1-candidate/`. Build/validation workspace:
+`out/y2linux-platform-v1-build/`. Release `1.0.0-candidate.1`, rootfs
+`2025.02.18-platform-v1.1`, build ID `Y2LINUX-PLATFORM-V1-CANDIDATE-01`,
+kernel `6.18.0-y2linux-platform-v1-candidate-01`, platform API/layout/data schema 1.
+
+| Final check | Result and actual scope |
+| --- | --- |
+| Kernel/config/modules/ABI, rescue/DT/BOOTIMG | PASS current source, existing size/layout/protected-region contracts |
+| Buildroot ARM + Reborn ARM | PASS current paired source; fresh final workspace, resumed after concrete packaging metadata fixes |
+| Host platform/maintenance/update/qualification | 64 passed, no skips; real fault/control contracts |
+| Locked platform suite | 56 cases: 54 passed, two native GIO/ALSA development-dependency skips covered by the host suite and installed ARM checks |
+| Production tooling/kernel contracts | 68 passed |
+| Power/radio/USB/GPU/suspend subsystem contracts | 39 passed |
+| Reborn host workspace | 155 passed; formatting and strict all-target clippy passed |
+| QEMU Cortex-A7 userspace | 8 passed; no physical hardware emulation claim |
+| ARM native updater faults | 7 passed on private regular files; signature/device/schema, corruption, reserve, interrupted write, readback, missing health, revocation and rescue containment |
+| Installed ARM SFTP | 3 protocol checks: write/close/readback, reserve refusal, interrupted session |
+| Installed ARM platform/application tools | 20 Python modules import, unavailable fixture health, SQLite WAL/checkpoint, OpenSSL, readonly ALSA null constraints, actual defaults and 1k database/scanner/UI benchmark pass |
+| Installed production ARM updater | Full signed 512 MiB root payload accepted; corrupted signature rejected before payload; no queue/block-device mutation |
+| FFmpeg/ELF/dependencies/package | PASS exact versions, ARM/hard-float, ext4/tar agreement, no fixture writer, candidate qualified flags false, USB-only SSH and preserve-data package |
+| Source and license inventory | 102 selected nonvirtual packages, 87 remote inputs with strong hashes; Buildroot legal-info passes with documented local/external-package collection warnings |
+
+These suites overlap; counts are not added into a marketing total. QEMU null
+ALSA constraints do not validate Y2's wider formats. Synthetic ARM/host library
+results do not establish target timing budgets. The actual installed updater is
+separately tested from the explicitly test-compiled file fault harness.
+
+Final packaging fixed an unanchored BlueZ `start()` guard that also matched
+`restart()`, and a validator that mistook the existing Dropbear `ssh` alias for
+an extra OpenSSH client. Both have targeted regression cases. FFmpeg's license
+hash now matches the pinned 9.0.2 archive. The supplicant top-level license pin
+was reverified and preserved after distinguishing it from the different nested
+README. The initial preflight and intermediate receipts remain labelled by their
+old source pairs; none substitutes for the final receipts. Host UID/ALSA config
+namespace and verifier-output harness mismatches were corrected without changing
+product behavior. No failed intermediate run is presented as a pass.
+
+The installed tree contains 88,666,583 unique regular-file bytes. The inventory's
+439,025,495 pathname-summed bytes include 32 repeated hard-link names, chiefly
+Mesa aliases; they are not that much unique storage. The 512 MiB root image uses
+28,676 × 4096-byte ext4 blocks (about 112 MiB), including filesystem metadata.
+No package was removed from an ELF-reference guess. Buildroot legal-info omits
+some local/external license collections; Git bundles retain local licensed
+sources, and pinned Buildroot/Bootlin inputs remain documented. This is not a
+claim of exhaustive legal review, public firmware redistribution permission,
+byte-identical rebuilding or absence of all security defects.
+
+## Exact artifacts and owner handoff
+
+The package contains current BOOTIMG/Y2ROOT, one preserve-data scatter, verified
+previous BOOTIMG/Y2ROOT fallback, manifest and hashes, signed development root OTA,
+source bundles, build/package/license inventories, validation receipts, benchmark
+and qualification tools, precision fixtures and owner sessions. **No replacement
+Y2DATA image** is supplied. The fallback is the older correctness-closure software
+package, not a physically qualified fallback; it predates the current Reborn
+integration. Rescue's verified backup of the actually installed previous root is
+separate from those manual fallback files.
+
+| File | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `BOOTIMG.img` | 6756352 | `f7b4a950a0504a411ad72db0aac9398f04dc1ccabd6a6a0a3a7fdab198ca2622` |
+| `Y2ROOT.img` | 536870912 | `970330d24f6a0bddb0cb685d37232b298566c5cd7025a45990566f03c3f66fa3` |
+| `updates/development-v1/rootfs.ext4.gz` | 36852721 | `28a3f46883de71d3687920b5583ea54673a3470b9e02163bb49c834aa5c8ce23` |
+
+`SHA256SUMS` covers the complete assembled package; `manifest.json` binds the
+manual image pair and `updates/development-v1/manifest.json` is separately signed
+with Ed25519. Key ID `platform-v1-development-20260923` is development trust,
+sequence 1, with explicit signed development downgrade and rollback permission.
+The private key remains outside repositories/artifacts/device in the owner's
+private signing directory; only its public registry is packaged. A release-key
+transition or revocation in old rescue requires separately controlled trusted
+BOOTIMG maintenance. Root-only OTA requires this exact kernel and is not a
+first-install substitute. Automatic BOOTIMG updates remain excluded because a
+torn single-slot write can destroy rescue availability.
+
+Owner next actions are precisely grouped in
+[PLATFORM-V1-OWNER-QUALIFICATION.md](PLATFORM-V1-OWNER-QUALIFICATION.md): preserve
+state/recovery and verify hashes, review the paired manual preserve-data install,
+then Session A core/recovery/UI/input/S16/USB; B storage/SD/SQLite/library/resources;
+C Wi-Fi IP/route/DNS/throughput/reconnect; D manual SBC/AVRCP/coexistence. E power
+and G OTA are separately controlled after their prerequisites. F wider audio
+remains blocked by missing AFE packing/clock evidence. Complete short sessions
+before the corresponding 8-hour/cycle workloads. No threshold, watchdog, deep
+suspend, unsupported rate or VBUS path is enabled automatically.
+
+After owner acceptance of the advertised core, return feature development to
+Y2Reborn and maintain the platform contract. All current-candidate hardware and
+endurance rows remain PHYSICAL_GATE until exact owner evidence promotes them.
+The read-only tracker inventory remains #16/#27/#28/#29/#31/#32/#33/#34 open and
+prior #30 closed; no remote issue, branch, account or Git identity was changed.
+
+## Historical implementation checkpoints
+
+The remaining entries preserve the order in which work was implemented and
+validated. Their contemporary pending notes are superseded by the final pair
+and evidence table above where the code was subsequently completed; they do not
+reopen fixed issues or grant higher evidence to an unimplemented hardware path.
 
 ## Entry audit
 

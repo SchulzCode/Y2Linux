@@ -1,0 +1,1621 @@
+{
+  "schema": "org.y2linux.completion-ledger/v1",
+  "candidate_declared": true,
+  "source_pair": {
+    "y2linux": "d04b95aaff713edf943042d97a4c6134ca19fc24",
+    "reborn": "6c8aa128550ec80addd08ef3145e9d5a846ddf2e"
+  },
+  "evidence_rule": "IMPLEMENTED, HOST_TESTED, ARM_BUILT, IMAGE_VALIDATED, PHYSICALLY_QUALIFIED, ENDURANCE_QUALIFIED are independent; no previous image promotes this candidate",
+  "capabilities": [
+    {
+      "area": "CORE",
+      "capability": "boot/startup/readiness",
+      "starting_state": "Guarded boot and narrow old-image hardware evidence; fragmented service state",
+      "implementation": "Boot stages, actual first frame/PID readiness, supervised independent services; preserve identity/fsck/rescue gates",
+      "commits": [
+        "6c9b991",
+        "f4b83b7",
+        "648fbea"
+      ],
+      "tests": "production handover; platform contracts; Reborn runtime; fresh kernel/ARM/QEMU",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Exact candidate boot/UI/input/library readiness and boot timing: PHYSICAL_GATE"
+    },
+    {
+      "area": "CORE",
+      "capability": "rescue",
+      "starting_state": "Existing stock-loader-compatible BOOTIMG rescue",
+      "implementation": "Native authenticated root updater, torn-root restore ordering, preserved explicit RAM rescue",
+      "commits": [
+        "1c2451e"
+      ],
+      "tests": "6 handover tests; actual C update faults",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "BOOTIMG replacement is non-atomic and remains manual; physical rescue/restore: PHYSICAL_GATE"
+    },
+    {
+      "area": "CORE",
+      "capability": "telemetry",
+      "starting_state": "Mixed subsystem tools",
+      "implementation": "Versioned standard Linux CPU/memory/thermal/power/storage/radio/system observations and identity records",
+      "commits": [
+        "6c9b991",
+        "9f347cf",
+        "5ee63a7",
+        "52f9272"
+      ],
+      "tests": "11 observation cases; measurement and private D-Bus observer tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Sampling cost, device sensors and exact target measurements: PHYSICAL_GATE"
+    },
+    {
+      "area": "CORE",
+      "capability": "health",
+      "starting_state": "No coherent platform health contract",
+      "implementation": "Bounded quick/query-only full checks; explicit OK/DEGRADED/FAILED/UNAVAILABLE; malformed counters/profiles fail closed",
+      "commits": [
+        "6c9b991",
+        "be4688d",
+        "19ef9c2"
+      ],
+      "tests": "observation/evidence tests including unreadable counters and wrong ALSA card",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Node/interface presence is not hardware qualification: PHYSICAL_GATE"
+    },
+    {
+      "area": "CORE",
+      "capability": "capability/version API",
+      "starting_state": "Implicit application assumptions",
+      "implementation": "JSON v1 implemented/enabled/qualified separation; typed Reborn reader; disabled/gated capabilities explicit",
+      "commits": [
+        "6c9b991",
+        "f4b83b7",
+        "41b67a1"
+      ],
+      "tests": "schema/default-false and installed package consistency tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Qualification flags remain false; owner evidence must bind exact release"
+    },
+    {
+      "area": "CORE",
+      "capability": "service readiness",
+      "starting_state": "PID existence insufficient",
+      "implementation": "Storage health; Wi-Fi auth/IP/route/DNS; BlueZ/BlueALSA owners; audio profile; update journal; SSH binding",
+      "commits": [
+        "80dc891",
+        "5ee63a7",
+        "ba3ac58",
+        "f4b83b7",
+        "4e4eb24"
+      ],
+      "tests": "network epoch/timeouts; D-Bus owner loss; SSH prerequisites; app generation",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Service recovery under physical faults: PHYSICAL_GATE"
+    },
+    {
+      "area": "CORE",
+      "capability": "reset/crash diagnostics",
+      "starting_state": "No reliable reset-cause diagnosis",
+      "implementation": "Durable eight-boot journal/count/last stage, bounded private previous-log tails, taint/watchdog/pstore observations",
+      "commits": [
+        "6c9b991",
+        "648fbea",
+        "52f9272"
+      ],
+      "tests": "unclean history, corrupt state, symlink/early-boundary/bounds tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Reset register/panic retention remain unknown; no reboot loops: PHYSICAL_GATE"
+    },
+    {
+      "area": "STORAGE",
+      "capability": "eMMC/root/data",
+      "starting_state": "Storage06 identity/geometry/fsck physically narrow",
+      "implementation": "Preserve existing split, controller/UUID guards and protected partitions; standard errors/I/O/space observation",
+      "commits": [
+        "6c9b991",
+        "24a4afa",
+        "1c2451e"
+      ],
+      "tests": "production MMC/layout/handover suites",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Current-image durability/long I/O tails/endurance: PHYSICAL_GATE"
+    },
+    {
+      "area": "STORAGE",
+      "capability": "SD lifecycle",
+      "starting_state": "Application inferred mount availability",
+      "implementation": "Platform owner, boot/mount/UUID/sysfs instance claims, bounded failed unmount, disappearance/replacement rejection",
+      "commits": [
+        "24a4afa",
+        "80dc891",
+        "17dd464",
+        "ce55f89"
+      ],
+      "tests": "disappearance, reused minor, stale generation, failed eject and reinsertion fixtures",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Actual cards, surprise removal and hardware errors: PHYSICAL_GATE"
+    },
+    {
+      "area": "STORAGE",
+      "capability": "ext4/FAT/exFAT",
+      "starting_state": "ext4/FAT baseline; exFAT absent",
+      "implementation": "In-tree exFAT plus pinned GPL exfatprogs; private noexec/nodev/nosuid mount policy",
+      "commits": [
+        "24a4afa"
+      ],
+      "tests": "filesystem selection and source/bus identity tests; image package inventory",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Card compatibility/flush semantics: PHYSICAL_GATE"
+    },
+    {
+      "area": "STORAGE",
+      "capability": "free-space policy",
+      "starting_state": "Competing data users without shared budget",
+      "implementation": "Normal/Low/Critical/ReadOnlyRisk/Failed, 96MiB cache/OTA/transfer and 32MiB state reserve, bounded known-disposable cleanup",
+      "commits": [
+        "24a4afa",
+        "ba3ac58"
+      ],
+      "tests": "reserve/ENOSPC/generation/symlink/cleanup exclusion and native SFTP WRITE tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Admission is advisory against concurrent writers; actual near-full behavior: PHYSICAL_GATE"
+    },
+    {
+      "area": "STORAGE",
+      "capability": "storage benchmarks",
+      "starting_state": "No coherent scratch suite",
+      "implementation": "Pinned fresh scratch; 4/16/64KiB/1MiB sequential/random, metadata and fsync/fdatasync/rename/dirsync with latency quantiles",
+      "commits": [
+        "24a4afa"
+      ],
+      "tests": "real scratch/readback/fault paths",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "No physical throughput or electrical durability claimed: PHYSICAL_GATE"
+    },
+    {
+      "area": "STORAGE",
+      "capability": "SQLite workloads/faults",
+      "starting_state": "Existing single writer, WAL/NORMAL",
+      "implementation": "Actual Reborn 1k/10k/20k schema/query/scan benchmarks; ENOSPC WAL/checkpoint and process-crash fault tooling",
+      "commits": [
+        "8732287",
+        "9f347cf"
+      ],
+      "tests": "real SQLite pwrite ENOSPC, lock/read-only/corruption and abrupt exit tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Process-crash durability differs from power loss; target latency: PHYSICAL_GATE"
+    },
+    {
+      "area": "STORAGE",
+      "capability": "Reborn library scaling",
+      "starting_state": "Track cloning/full-row work dominated host wheel cost",
+      "implementation": "Borrow catalog; count/filter IDs and format visible page; no ORM or extra cache authority",
+      "commits": [
+        "17dd464"
+      ],
+      "tests": "20k UI identity/bounds tests; host before/after 1k/10k/20k",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "20k wheel p50 2.713\u21920.033ms on host only; target UI/memory: PHYSICAL_GATE"
+    },
+    {
+      "area": "PERFORMANCE",
+      "capability": "CPU/OPPs/scheduler/NO_HZ",
+      "starting_state": "Existing fixed-voltage OPPs and WFI",
+      "implementation": "Observe current governors/frequencies/residencies/per-core load/interrupt/context-switch counters; HZ100/NO_HZ_IDLE preserved",
+      "commits": [
+        "6c9b991",
+        "9f347cf"
+      ],
+      "tests": "counter reversal/CPU sampling and production power tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "598MHz sufficiency, core count and schedutil workload budgets need measurement: PHYSICAL_GATE"
+    },
+    {
+      "area": "PERFORMANCE",
+      "capability": "memory/LOWMEM/HIGHMEM",
+      "starting_state": "Guarded reserved map; incomplete workload budgets",
+      "implementation": "RSS/PSS/cache/slab/reclaim/threads; bounded per-boot/PID growth after warmup; no reserved-memory reclaim",
+      "commits": [
+        "6c9b991",
+        "9f347cf",
+        "52f9272"
+      ],
+      "tests": "growth/PID reuse/boot segmentation tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Observed slope is not a leak diagnosis; target pressure/endurance: PHYSICAL_GATE"
+    },
+    {
+      "area": "PERFORMANCE",
+      "capability": "thermal/wakeups",
+      "starting_state": "CPU/PMIC sensors and cooling interfaces exist",
+      "implementation": "Repeatable die-temperature/cooling/frequency/wakeup collection, no trip changes or pack-temperature inference",
+      "commits": [
+        "6c9b991",
+        "9f347cf"
+      ],
+      "tests": "missing sensor and units/counter tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Actual workload thermal envelope/idle power: PHYSICAL_GATE"
+    },
+    {
+      "area": "PERFORMANCE",
+      "capability": "deeper cpuidle",
+      "starting_state": "WFI only",
+      "implementation": "Pinned vendor research finds unestablished board-specific deep-idle dependencies; no guessed SPM sequence",
+      "commits": [
+        "5430eb4",
+        "648fbea"
+      ],
+      "tests": "source inventory with hashes",
+      "workflow_status": [
+        "BLOCKED_BY_EVIDENCE",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "BLOCKED_BY_EVIDENCE / PHYSICAL_GATE; WFI remains enabled"
+    },
+    {
+      "area": "POWER",
+      "capability": "battery observation/charging",
+      "starting_state": "Voltage/source/configured limits; no current/SOC/pack sensor",
+      "implementation": "Truthful normal/offline observations; configured current remains distinct from measured current",
+      "commits": [
+        "6c9b991",
+        "820faa8"
+      ],
+      "tests": "power missing-sensor and existing charger subsystem tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Current charger envelope, pack identity and source qualification: PHYSICAL_GATE"
+    },
+    {
+      "area": "POWER",
+      "capability": "low-battery mechanism",
+      "starting_state": "Runtime platform owner missing",
+      "implementation": "Independent supervised hysteresis/debounce mechanism and bounded shutdown; thresholds/config disabled by default",
+      "commits": [
+        "820faa8",
+        "ba55b18"
+      ],
+      "tests": "ignored app, stale ACK, deadline, sensor and synthetic policy tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Numeric thresholds/reserve require pack/load evidence: PHYSICAL_GATE"
+    },
+    {
+      "area": "POWER",
+      "capability": "general shutdown/reboot",
+      "starting_state": "Scattered initiation",
+      "implementation": "One credential-checked intent/ACK contract; Reborn save/stop/checkpoint/close; bounded platform continuation",
+      "commits": [
+        "820faa8",
+        "ba55b18"
+      ],
+      "tests": "actual SQLite checkpoint/close and hung app/init/sync failure tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Kernel D-state/final physical power transition cannot be guaranteed by userspace: PHYSICAL_GATE"
+    },
+    {
+      "area": "POWER",
+      "capability": "suspend/wake/leases",
+      "starting_state": "Same-boot resume failed; later CPU3 fix unqualified",
+      "implementation": "Existing shared ALSA/activity leases documented; default suspend refuses; explicit owner qualification path retained",
+      "commits": [
+        "648fbea"
+      ],
+      "tests": "actual suspend helper status/lease policy tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Deep resume and RTC alarm wake: PHYSICAL_GATE; no automatic suspend"
+    },
+    {
+      "area": "POWER",
+      "capability": "RTC/clock/NTP/TLS",
+      "starting_state": "RTC can be implausible; no complete clock strategy",
+      "implementation": "Boot sanity floor, standard NTP when online, bounded freshness/TLS readiness; RTC writes gated",
+      "commits": [
+        "80dc891"
+      ],
+      "tests": "bad time/stale anchor/network epoch tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "RTC retention/alarm and real network sync: PHYSICAL_GATE; NTP unauthenticated"
+    },
+    {
+      "area": "POWER",
+      "capability": "entropy",
+      "starting_state": "Persistent per-device seed incomplete",
+      "implementation": "Standard seedrng on data, kernel CRNG gates SSH/update/security; no universal image seed",
+      "commits": [
+        "80dc891",
+        "ba3ac58",
+        "1c2451e"
+      ],
+      "tests": "CRNG unavailable/ready and image seed/private-key exclusions",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Early boot entropy latency on target: PHYSICAL_GATE"
+    },
+    {
+      "area": "POWER",
+      "capability": "AP watchdog/pstore",
+      "starting_state": "Driver available, early watchdog stopped; no proven reset retention",
+      "implementation": "Observation and source-backed qualification procedure; recovery not armed, no reserved RAM guessed",
+      "commits": [
+        "648fbea"
+      ],
+      "tests": "production watchdog emitted-code checks; boot-loop journal tests",
+      "workflow_status": [
+        "BLOCKED_BY_EVIDENCE",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "BLOCKED_BY_EVIDENCE / PHYSICAL_GATE for safe reset/retention/rescue escalation"
+    },
+    {
+      "area": "NETWORK",
+      "capability": "Wi-Fi/DHCP/DNS",
+      "starting_state": "Only adapters/scans physically proven",
+      "implementation": "Complete detailed states, one DHCP owner, lease epochs, recent matching DNS, distinct credential/AP/auth/DHCP/DNS errors",
+      "commits": [
+        "80dc891",
+        "ce55f89"
+      ],
+      "tests": "DHCP timeout/stale lease/DNS loss/readiness fixtures",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Physical AP/credentials/DHCP/DNS: PHYSICAL_GATE"
+    },
+    {
+      "area": "NETWORK",
+      "capability": "Wi-Fi reconnect",
+      "starting_state": "Supplicant architecture present",
+      "implementation": "Keep wpa_supplicant sole retry owner; service epochs invalidate stale readiness; no competing app retry",
+      "commits": [
+        "80dc891",
+        "ce55f89"
+      ],
+      "tests": "service restart and stale epoch tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "AP loss/reappearance and reboot reconnect: PHYSICAL_GATE"
+    },
+    {
+      "area": "NETWORK",
+      "capability": "throughput/coexistence tools",
+      "starting_state": "Ad hoc scan tools",
+      "implementation": "Pinned iperf3, bound TCP/ping helper, integrated counters/thermal/CPU/XRUN capture",
+      "commits": [
+        "80dc891",
+        "52f9272"
+      ],
+      "tests": "bounded helper and capture source/gap tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Real throughput/SBC coexistence/endurance: PHYSICAL_GATE; no synthetic loss metrics"
+    },
+    {
+      "area": "BLUETOOTH",
+      "capability": "pair/trust/bond/connect/disconnect",
+      "starting_state": "BlueZ/BlueALSA adapters; later Reborn lifetime fixes already present",
+      "implementation": "Coordinate explicit operations with single reconnect owner and persistent unknown-completion inhibition",
+      "commits": [
+        "f2db217",
+        "7892115"
+      ],
+      "tests": "operation locking/peer loss/owner generation host cases",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Fresh peer pairing/trust/bonds and transport audio: PHYSICAL_GATE"
+    },
+    {
+      "area": "BLUETOOTH",
+      "capability": "SBC baseline/exact PCM",
+      "starting_state": "Built SBC, no paired physical acceptance",
+      "implementation": "Pinned built/runtime inventory, native actual negotiated codec/PCM format/rate/channels and lifetime observation",
+      "commits": [
+        "5ee63a7",
+        "f2db217"
+      ],
+      "tests": "native private D-Bus and PCM/owner loss tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "SBC peer qualification remains PHYSICAL_GATE; XQ is only SBC quality mode"
+    },
+    {
+      "area": "BLUETOOTH",
+      "capability": "AVRCP",
+      "starting_state": "Missing Reborn MediaPlayer integration",
+      "implementation": "Current BlueZ owner registers semantic Play/Pause/Next/Previous and projects existing model metadata",
+      "commits": [
+        "c916034"
+      ],
+      "tests": "real private D-Bus registration, controls/properties and sender rejection",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Remote controls/peer restart: PHYSICAL_GATE"
+    },
+    {
+      "area": "BLUETOOTH",
+      "capability": "Auto codec policy",
+      "starting_state": "Codec distinctions/eligibility not represented",
+      "implementation": "Typed built/runtime/mutual/distribution/qualification gates, bounded visited candidates and generation/PCM exclusion",
+      "commits": [
+        "87a46cb",
+        "f91709d"
+      ],
+      "tests": "eligibility/fallback/deadline/unknown completion and real file-lock tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "No production-eligible codec yet; manual SBC for qualification: PHYSICAL_GATE"
+    },
+    {
+      "area": "BLUETOOTH",
+      "capability": "AAC A2DP encoder",
+      "starting_state": "Optional encoder unbuilt",
+      "implementation": "Intentionally absent; capability inventory prevents accidental enablement or negotiation claims",
+      "commits": [
+        "f91709d"
+      ],
+      "tests": "negative build inventory/Auto eligibility tests",
+      "workflow_status": [
+        "DEFERRED",
+        "BLOCKED_BY_EVIDENCE",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Source/library/distribution decision plus ARM/PCM/peer qualification required; file decoding is separate"
+    },
+    {
+      "area": "BLUETOOTH",
+      "capability": "aptX A2DP encoder",
+      "starting_state": "Optional encoder unbuilt",
+      "implementation": "Intentionally absent; capability inventory prevents accidental enablement or negotiation claims",
+      "commits": [
+        "f91709d"
+      ],
+      "tests": "negative build inventory/Auto eligibility tests",
+      "workflow_status": [
+        "DEFERRED",
+        "BLOCKED_BY_EVIDENCE",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Source/library/distribution decision plus ARM/PCM/peer qualification required; file decoding is separate"
+    },
+    {
+      "area": "BLUETOOTH",
+      "capability": "aptX HD A2DP encoder",
+      "starting_state": "Optional encoder unbuilt",
+      "implementation": "Intentionally absent; capability inventory prevents accidental enablement or negotiation claims",
+      "commits": [
+        "f91709d"
+      ],
+      "tests": "negative build inventory/Auto eligibility tests",
+      "workflow_status": [
+        "DEFERRED",
+        "BLOCKED_BY_EVIDENCE",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Source/library/distribution decision plus ARM/PCM/peer qualification required; file decoding is separate"
+    },
+    {
+      "area": "BLUETOOTH",
+      "capability": "LDAC A2DP encoder",
+      "starting_state": "Optional encoder unbuilt",
+      "implementation": "Intentionally absent; capability inventory prevents accidental enablement or negotiation claims",
+      "commits": [
+        "f91709d"
+      ],
+      "tests": "negative build inventory/Auto eligibility tests",
+      "workflow_status": [
+        "DEFERRED",
+        "BLOCKED_BY_EVIDENCE",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Source/library/distribution decision plus ARM/PCM/peer qualification required; file decoding is separate"
+    },
+    {
+      "area": "BLUETOOTH",
+      "capability": "LE Audio/LC3 ISO, aptX Adaptive/Lossless",
+      "starting_state": "Unsupported on this path",
+      "implementation": "Explicitly excluded, no capability claim",
+      "commits": [
+        "f91709d"
+      ],
+      "tests": "negative capability inventory",
+      "workflow_status": [
+        "DEFERRED"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Not Platform v1 scope"
+    },
+    {
+      "area": "USB",
+      "capability": "device ACM/ECM/SSH",
+      "starting_state": "Existing device path and PM-reference fix",
+      "implementation": "Preserve driver fix; supervise key-only USB-address/interface-bound listener with CRNG/readiness",
+      "commits": [
+        "ba3ac58"
+      ],
+      "tests": "native subsystem and existing USB PM/session/reconnect host tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "PC reconnect/runtime PM/host sleep and cross-OS driver behavior: PHYSICAL_GATE"
+    },
+    {
+      "area": "USB",
+      "capability": "PC file transfer",
+      "starting_state": "SSH present, no product transfer policy",
+      "implementation": "Standard SFTP only; per-write reserve; private stage/size/hash/descriptor generation/durable no-replace publication",
+      "commits": [
+        "ba3ac58",
+        "6128dd0"
+      ],
+      "tests": "native/ARM actual SFTP protocol, low-space and kill tests; target transfer faults",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "End-to-end throughput/interruption on real USB and Windows ECM setup: PHYSICAL_GATE"
+    },
+    {
+      "area": "USB",
+      "capability": "host/OTG/UAC host",
+      "starting_state": "Board ID/role/VBUS/current unestablished",
+      "implementation": "No unknown VBUS path or mass-storage gadget enabled; feasibility gates explicit",
+      "commits": [
+        "648fbea"
+      ],
+      "tests": "source/DT/vendor audit",
+      "workflow_status": [
+        "BLOCKED_BY_EVIDENCE",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "PHYSICAL_GATE / BLOCKED_BY_EVIDENCE; HID/storage/UAC host unavailable"
+    },
+    {
+      "area": "AUDIO",
+      "capability": "S16 stereo 44.1 kHz",
+      "starting_state": "Prior GPU-01 narrow physical evidence",
+      "implementation": "Preserve allowlisted ALSA/AFE/CS43131 path; native readonly constraint query; no decoder/DSP authority change",
+      "commits": [
+        "648fbea"
+      ],
+      "tests": "kernel audio C/clock tests; FFmpeg/QEMU; ALSA null query",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Current candidate wired audio/XRUN/rate transitions: PHYSICAL_GATE"
+    },
+    {
+      "area": "AUDIO",
+      "capability": "48 kHz",
+      "starting_state": "Kernel direct constraint exists, product not qualified",
+      "implementation": "Reported as driver capability; product allowlist remains 44.1 kHz",
+      "commits": [
+        "648fbea"
+      ],
+      "tests": "kernel constraints/clock source tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "PHYSICAL_GATE; not enabled in product profile"
+    },
+    {
+      "area": "AUDIO",
+      "capability": "S24_LE internal output",
+      "starting_state": "Not established end-to-end",
+      "implementation": "Exact offline precision/channel fixtures and source trace; no format-mask-only enablement",
+      "commits": [
+        "648fbea"
+      ],
+      "tests": "real fixture byte/channel tests; vendor source inventory",
+      "workflow_status": [
+        "BLOCKED_BY_EVIDENCE",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "AFE fetch/interconnect/clock-family evidence missing before physical word/clock/audio qualification"
+    },
+    {
+      "area": "AUDIO",
+      "capability": "S32_LE internal output",
+      "starting_state": "Not established end-to-end",
+      "implementation": "Exact offline precision/channel fixtures and source trace; no format-mask-only enablement",
+      "commits": [
+        "648fbea"
+      ],
+      "tests": "real fixture byte/channel tests; vendor source inventory",
+      "workflow_status": [
+        "BLOCKED_BY_EVIDENCE",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "AFE fetch/interconnect/clock-family evidence missing before physical word/clock/audio qualification"
+    },
+    {
+      "area": "AUDIO",
+      "capability": "preserved 24-bit internal precision",
+      "starting_state": "Not established end-to-end",
+      "implementation": "Exact offline precision/channel fixtures and source trace; no format-mask-only enablement",
+      "commits": [
+        "648fbea"
+      ],
+      "tests": "real fixture byte/channel tests; vendor source inventory",
+      "workflow_status": [
+        "BLOCKED_BY_EVIDENCE",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "AFE fetch/interconnect/clock-family evidence missing before physical word/clock/audio qualification"
+    },
+    {
+      "area": "AUDIO",
+      "capability": "88.2 kHz",
+      "starting_state": "Not established end-to-end",
+      "implementation": "Exact offline precision/channel fixtures and source trace; no format-mask-only enablement",
+      "commits": [
+        "648fbea"
+      ],
+      "tests": "real fixture byte/channel tests; vendor source inventory",
+      "workflow_status": [
+        "BLOCKED_BY_EVIDENCE",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "AFE fetch/interconnect/clock-family evidence missing before physical word/clock/audio qualification"
+    },
+    {
+      "area": "AUDIO",
+      "capability": "96 kHz",
+      "starting_state": "Not established end-to-end",
+      "implementation": "Exact offline precision/channel fixtures and source trace; no format-mask-only enablement",
+      "commits": [
+        "648fbea"
+      ],
+      "tests": "real fixture byte/channel tests; vendor source inventory",
+      "workflow_status": [
+        "BLOCKED_BY_EVIDENCE",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "AFE fetch/interconnect/clock-family evidence missing before physical word/clock/audio qualification"
+    },
+    {
+      "area": "AUDIO",
+      "capability": "CS43131 advanced features",
+      "starting_state": "Upstream volume/filter support; no proven load topology",
+      "implementation": "Keep existing controls; no guessed impedance measurement or automatic gain",
+      "commits": [
+        "648fbea"
+      ],
+      "tests": "upstream pinned source and Y2 topology review",
+      "workflow_status": [
+        "DEFERRED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Advanced load/power/gain policy DEFERRED / PHYSICAL_GATE"
+    },
+    {
+      "area": "UPDATE",
+      "capability": "OTA check/stage/download",
+      "starting_state": "Signed OTA absent",
+      "implementation": "HTTPS/local signed manifest check before payload, private bounded staging/hash/compatibility/space checks",
+      "commits": [
+        "1c2451e"
+      ],
+      "tests": "invalid sig/device/schema/kernel, partial/corrupt download and staging faults",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Real network/download/staging power behavior: PHYSICAL_GATE"
+    },
+    {
+      "area": "UPDATE",
+      "capability": "signatures/key lifecycle/replay",
+      "starting_state": "No signed update trust",
+      "implementation": "Established libsodium Ed25519; key IDs, active/revoked/dev/release/sequence policy and deliberate rotation boundary",
+      "commits": [
+        "1c2451e"
+      ],
+      "tests": "actual C authentication/revocation/downgrade/sequence cases",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Development trust only; production key deployment DEFERRED; old rescue revocation needs owner BOOTIMG"
+    },
+    {
+      "area": "UPDATE",
+      "capability": "offline install/readback/rollback",
+      "starting_state": "Manual root replacement/fallback only",
+      "implementation": "Geometry/exclusive offline root guard; verified compressed prior root before write; readback; restore on interrupted install/missing health",
+      "commits": [
+        "1c2451e"
+      ],
+      "tests": "actual native and ARM file-backed interruption/readback/backup/rescue faults",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Electrical interruption and actual eMMC/rescue access: PHYSICAL_GATE; 800MiB data reserve can refuse backup"
+    },
+    {
+      "area": "UPDATE",
+      "capability": "boot-health acknowledgement",
+      "starting_state": "No actual app readiness contract",
+      "implementation": "Exact boot/source/PID/first-frame/core checks, 180-second health window, next owner reboot rollback, no auto reboot loop",
+      "commits": [
+        "1c2451e",
+        "f4b83b7",
+        "19ef9c2"
+      ],
+      "tests": "missing health restores in native ARM tests; real ext4 failed-app fixture preparation",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Owner failed-app derivative cycle and post-update health: PHYSICAL_GATE"
+    },
+    {
+      "area": "UPDATE",
+      "capability": "automatic BOOTIMG OTA",
+      "starting_state": "Single rescue slot can tear",
+      "implementation": "Excluded; separately controlled manual pair and hash-verified fallback retained",
+      "commits": [
+        "1c2451e"
+      ],
+      "tests": "allowlist/package/protected partition tests",
+      "workflow_status": [
+        "DEFERRED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [],
+      "arm_build": "No new implemented target capability to qualify; unavailable/gate reporting is packaged",
+      "image_validation": "Unavailable or disabled as documented; no functionality qualification claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "PHYSICAL_GATE; single-slot write is not atomic"
+    },
+    {
+      "area": "UPDATE",
+      "capability": "scoped reset/full-user reset",
+      "starting_state": "No coherent reset scopes",
+      "implementation": "Separate settings/network/bonds/library/cache/full-user plan/confirmation/quarantine/resume/purge; preserve protected/system identity",
+      "commits": [
+        "df7d3a8",
+        "41214d0"
+      ],
+      "tests": "exact settings, full preservation, process/mount gates, interruption and symlink purge tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Logical reset, not secure erasure; quarantined/exported old data remains until explicit purge: PHYSICAL_GATE"
+    },
+    {
+      "area": "UPDATE",
+      "capability": "backup/export",
+      "starting_state": "Useful state export incomplete",
+      "implementation": "Private atomic session/queue/preference archive; optional consistent SQLite backup and separately opted-in network credentials",
+      "commits": [
+        "df7d3a8"
+      ],
+      "tests": "real WAL online backup/quick_check and credential exclusion tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Per-file/DB consistency, not cross-file transaction; physical storage/restore workflow: PHYSICAL_GATE"
+    },
+    {
+      "area": "RELEASE",
+      "capability": "source reproducibility/identity",
+      "starting_state": "Pinned pieces; stale labels and incomplete pair receipts",
+      "implementation": "Explicit Platform v1 identities, paired bundles, Buildroot/package/Rust hashes, patches/owner-firmware and installed inventory",
+      "commits": [
+        "41b67a1",
+        "6128dd0",
+        "62e1eb8",
+        "d04b95a"
+      ],
+      "tests": "fresh source builds, package/ELF/FFmpeg/dependency checks",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Byte-identical reproducibility not proven; host tools still affect userspace build"
+    },
+    {
+      "area": "RELEASE",
+      "capability": "security",
+      "starting_state": "Root services and owner USB SSH; OTA unauthenticated",
+      "implementation": "USB-bound key-only no-forwarding SSH/SFTP; CRNG gates, signed root updates, private exports and protected partition boundaries",
+      "commits": [
+        "ba3ac58",
+        "1c2451e",
+        "df7d3a8"
+      ],
+      "tests": "authentication/binding/space/signature/path/production fixture exclusion tests",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Most hardware/app services remain root; privilege separation DEFERRED; no secure-boot claim"
+    },
+    {
+      "area": "RELEASE",
+      "capability": "rootfs/library optimization",
+      "starting_state": "No measured reason to remove packages",
+      "implementation": "Footprint/ELF reference inventory and deliberate diagnostic package cost; no speculative removals",
+      "commits": [
+        "41b67a1"
+      ],
+      "tests": "installed-file/source hash inventory and ELF verification",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED"
+      ],
+      "arm_build": "Not applicable to the host inventory tool; its inputs are final ARM artifacts",
+      "image_validation": "Final image inventory inspected; no package removal or optimization success claimed",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Unreferenced SONAME is not unused; startup/dlopen/target costs need physical measurement"
+    },
+    {
+      "area": "RELEASE",
+      "capability": "endurance tooling",
+      "starting_state": "No integrated orchestration",
+      "implementation": "Passive bounded profiles for all requested soak/cycle cases, exact candidate binding, gaps/reset counters/PID memory series",
+      "commits": [
+        "52f9272"
+      ],
+      "tests": "transport gaps, identity mismatch, reset/PID/boot bounds and actual resource fixtures",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS ARM target collector and status imports; host USB orchestrator is HOST_TESTED, not an ARM program",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "All actual long runs remain PHYSICAL_GATE; ENDURANCE_QUALIFIED is false"
+    },
+    {
+      "area": "RELEASE",
+      "capability": "Platform v1 Candidate",
+      "starting_state": "No coherent platform freeze",
+      "implementation": "Core contracts implemented; final paired ARM/image/package checks passed, preserve-data candidate with signed root update and owner sessions A\u2013G",
+      "commits": [
+        "d04b95a",
+        "6c8aa12"
+      ],
+      "tests": "64 host platform; 56 locked platform (2 separately covered skips); 68 production; 39 subsystem; 155 Reborn; 8 QEMU; 7 ARM updater faults; 3 SFTP faults; installed ARM tools; signed full payload and bad signature; package/source/license validation",
+      "workflow_status": [
+        "DONE_SOFTWARE",
+        "HOST_VALIDATED",
+        "ARM_VALIDATED",
+        "IMAGE_VALIDATED",
+        "PHYSICAL_GATE"
+      ],
+      "evidence_levels": [
+        "IMPLEMENTED",
+        "HOST_TESTED",
+        "ARM_BUILT",
+        "IMAGE_VALIDATED"
+      ],
+      "arm_build": "PASS final paired Buildroot/kernel/Reborn build; target interfaces/helpers packaged, QEMU is userspace only",
+      "image_validation": "PASS final preserve-data package, ext4/tar identity, ABI/ELF/FFmpeg and installed tool checks",
+      "physically_qualified": false,
+      "endurance_qualified": false,
+      "remaining_risk": "Software candidate only; owner Sessions A\u2013G and endurance remain PHYSICAL_GATE; explicit optional exclusions retained"
+    }
+  ],
+  "candidate_path": "out/y2linux-platform-v1-candidate",
+  "build_receipts": "out/y2linux-platform-v1-build",
+  "final_heads_receipt": "out/y2linux-platform-v1-candidate/metadata/final-heads.json",
+  "physical_qualification_performed": false,
+  "endurance_qualification_performed": false
+}

@@ -1,5 +1,73 @@
 # Y2Linux roadmap and gap audit
 
+## Platform v1 software freeze boundary — 2026-09-23 UTC
+
+Final built pair: Linux `d04b95aaff713edf943042d97a4c6134ca19fc24` /
+Reborn `6c8aa128550ec80addd08ef3145e9d5a846ddf2e`. This review precedes the
+software candidate declaration. The owner's completion request permits a v1
+with explicit unavailable hardware features; it supersedes older all-features
+phase ordering, without turning an old experiment into production acceptance.
+
+Re-read the actual [Storage06 owner result](../hardware-evidence/2026-09-13-storage06-owner/README.md),
+[GPU-01 result and failed same-boot resume](../hardware-evidence/2026-09-18-gpu01/README.md),
+[CONNECTIVITY-10 adapter/scan result](../hardware-evidence/2026-09-17-m5-connectivity10/README.md)
+and [two USB workaround reconnects](../hardware-evidence/2026-09-15-usb-reconnect/README.md).
+Their original image/source identities and limits remain authoritative. No new
+physical evidence, repeated ROM provenance, device access or flash occurred.
+The already-present USB PM reference correction was preserved, not duplicated.
+
+Current source passed kernel/config/ABI/artifact, Buildroot ARM, Reborn ARM,
+FFmpeg/ELF, 64 host platform cases, 56 locked platform cases (two dependency
+skips covered by separate host/ARM checks), 68 production, 39 subsystem and eight
+QEMU userspace checks. Reborn's unchanged final source passed 155 host tests,
+formatting and strict all-target clippy. Seven actual ARM updater fault tests,
+three installed SFTP protocol cases, installed ARM Python/ALSA/default-settings/
+1k library checks, full production ARM signed-payload verification and bad
+signature refusal passed. The preserve-data package and root ext4 contents pass.
+These are IMPLEMENTED/HOST_TESTED/ARM_BUILT/IMAGE_VALIDATED evidence only.
+
+This table refreshes every coverage area; the older matrices below are history.
+PARTIAL means candidate physical or endurance qualification remains open.
+
+| Coverage | Current classification and next boundary | Tracking |
+| --- | --- | --- |
+| Boot, native PID1, rescue, root handover | PARTIAL: guarded layout/fsck/ABI and rescue retained; current software/image checks pass. Storage06's 8.729 s handover is old-image evidence; exact candidate boot/rescue next. | #28/#32/#33 |
+| Kernel stability and maintenance | PARTIAL: source-bound checks and bounded boot/crash records; repeated boot/soak still physical. | #28/#32 |
+| RAM, reserved/DMA ownership and SMP | PARTIAL: existing four-core/LOWMEM/HIGHMEM map retained; no reserved-memory reclamation. Measurement/growth tools added; target pressure/endurance remains. | #28 |
+| Clocks, resets, pinctrl/GPIO/IRQ, I2C/PWRAP/regulators | PARTIAL: existing Linux ownership preserved; no new voltage or electrical sequence. Existing narrow transport proof does not qualify all power transitions. | #28/#29/#30 |
+| AP reset/watchdog and early UART/panic retention | PARTIAL/UNKNOWN: bounded previous-boot evidence is implemented; AP watchdog recovery is disabled, exact retained reset cause/pstore/UART remains unproved. Charger watchdog is separate. | #16/#28/#32 |
+| Display, framebuffer, backlight, DRM/KMS/Lima | PARTIAL: GPU-01's narrow rendering/runtime-PM proof retained; candidate first-frame readiness is truthful. Current UI/panel/recovery and longer runs await owner. | #28/#34 |
+| Wheel/buttons/evdev, Power key and wake | PARTIAL: prior balanced events retained; candidate interaction and wake remain separate, no touchscreen claim. | #28/#30/#34 |
+| SD and ext4/FAT/exFAT | PARTIAL: implemented generation/UUID/controller-instance lifecycle, safe removal/error handling and scratch tools; old SD boot proof is not hotplug/full-card/endurance proof. | #28/#33 |
+| Internal eMMC and root/data layout | PARTIAL: original geometry/identity preserved; reserves, SQLite faults and signed offline root recovery implemented. Physical write tails/electrical durability remain. | #28/#32/#33 |
+| PMIC, battery, charging and thermal | PARTIAL: voltage/source/configured limits and die sensors exposed. No guessed pack temperature/current/SOC or new charger setting; thresholds, reserve and current charging envelope require evidence. | #28/#30 |
+| CPU OPP/governor/tick/idle | PARTIAL: existing 598/747.5/1040 MHz fixed-voltage/WFI policy retained; counters/workload tools added. No deeper-idle/SPM/voltage experiment. | #28/#30 |
+| Runtime PM, suspend/resume and RTC wake | PARTIAL: prior normal GPU runtime PM retained; failed same-boot deep resume and later unqualified CPU mask correction preserved. Deep suspend defaults off; leases/query tools do not prove resume. | #30/#34 |
+| AFE/ASoC/ALSA/I2S and CS43131 analog path | PARTIAL: S16 stereo 44.1 baseline; direct 48 constraints exist but product profile stays 44.1. S24/S32/24-bit precision/88.2/96 and advanced analog policy remain evidence-gated. | #29 |
+| Wi-Fi, Bluetooth and coexistence | PARTIAL: full readiness/DHCP/DNS, single reconnect ownership, SBC/PCM/AVRCP and qualified Auto foundations implemented. Actual association/peer audio/coexistence remains physical; optional encoders deferred. | #31 |
+| Firmware, per-device calibration and FM | PARTIAL/explicit exclusion: matched owner firmware hashes retained, redistribution not established; no protected calibration write. FM remains unsupported on this board. | #31/#32 |
+| USB device, transfer and host role | PARTIAL: USB-bound owner SSH/SFTP, reserve/hash publication and protocol faults pass; current reconnect/PC sleep/throughput needs qualification. Host/OTG/VBUS/UAC host unavailable pending board proof. | #27/#28/#32 |
+| RTC, time, entropy, identity and private diagnostics | PARTIAL: standard NTP/clock/CRNG/persistent-seed contracts implemented; RTC retention/wake and real boot timing remain physical. No fabricated reset cause or authenticated-time claim. | #28/#30/#32 |
+| Production userspace, shutdown and privilege | PARTIAL: bounded independent shutdown, maintenance holds and service readiness implemented. Most services/app remain root; broad privilege separation deferred. | #28/#32 |
+| Update, rollback, recovery, reset and backup | PARTIAL: signed root-only staging/offline verified backup/write/readback/restore and boot-health timeout implemented; scoped reset/export pass faults. BOOTIMG stays manual/non-atomic; electrical update recovery remains physical. | #32/#33 |
+| Build, security and release | PARTIAL: exact paired sources, source/hash/license inventory, ARM/image validation and owner sessions ready. Development trust only; byte-identical reproducibility, production key deployment and product endurance are not established. | #32/#33 |
+
+Readonly GitHub inventory still has #16/#27/#28/#29/#31/#32/#33/#34 OPEN and
+#30 CLOSED. The prior narrow M4 acceptance is preserved alongside later adverse
+evidence. No milestone closure, remote comment, account/identity change or push
+is needed or performed for this local software freeze. Unresolved owner backup,
+calibration retention and trusted-power requirements still apply before physical
+maintenance; no repeated acquisition is implied by this documentation audit.
+
+Decision: **ready for Y2Linux Platform v1 Candidate software freeze**, partially
+ready for owner qualification, not a physically qualified release. Core contracts
+are implemented and validated; excluded capabilities stay explicit. The next
+smallest boundary is owner Session A on the exact hashes, followed by B–D and
+separately controlled E/G. Session F's wider formats remain blocked until complete
+AFE/clock evidence. After the advertised core is physically accepted, return
+general development to Reborn and keep Y2Linux in maintenance. Any later hardware,
+memory or production-scope extension requires another standing audit.
+
 ## Platform v1 release/endurance implementation boundary — 2026-09-23
 
 At Linux `648fbea` / Reborn `41214d0`, phases 1–7 have implemented software

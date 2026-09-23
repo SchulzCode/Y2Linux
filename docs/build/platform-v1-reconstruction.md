@@ -63,6 +63,24 @@ a direct DT_NEEDED reference. No rootfs size optimization is claimed without
 runtime evidence. Diagnostic tools remain deliberate candidate qualification
 cost, including Python, iperf3, ALSA/DRM queries, strace and scratch benchmarks.
 
+The final `metadata/release-inventory.json` covers 102 selected nonvirtual
+packages and 87 strongly hashed remote download inputs. `metadata/legal-info`
+contains the Buildroot license texts/manifests and its explicit warnings. The
+legal-info pass succeeds; its generic collector does not save the Buildroot
+source itself, Bootlin's external license files or a separate license file for
+the local connectivity/updater packages. The pinned Buildroot/toolchain archives
+remain reconstructable inputs, and the paired Git bundles plus repository/kernel
+licenses retain the local source and SPDX declarations. Do not present these
+collection warnings as a completed public-distribution legal review.
+FFmpeg's `LICENSE.md` hash is pinned to the actual 9.0.2 archive; supplicant's
+top-level README retains its original LTS hash (the nested README is different).
+
+The footprint inventory sums bytes per regular pathname. Mesa's 32 repeated
+hard-link names account for most of the difference between 439,025,495 reported
+pathname bytes and 88,666,583 unique regular-file bytes. The 512 MiB final ext4
+image uses about 112 MiB including filesystem metadata. Neither an alias nor a
+library absent from DT_NEEDED is by itself evidence that a package is disposable.
+
 `system_update.py` packages a fresh current-source pair with the established
 preserve-data scatter and a hash-verified previous BOOTIMG/Y2ROOT fallback. It
 refuses a dirty or mismatched source and emits no data image. The outer manual
