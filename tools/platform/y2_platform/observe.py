@@ -330,6 +330,10 @@ def system(ctx):
             'application_readiness': ctx.json('/run/y2/application-ready.json'),
             'boot_stages': stages,
             'reset_cause': None, 'reset_cause_reason': 'no_qualified_retained_register',
+            'kernel_taint': ctx.integer('/proc/sys/kernel/tainted'),
+            'kernel_warning_count': None,
+            'kernel_warning_reason': 'no_dedicated_counter; retain_bounded_owner_dmesg_capture',
+            'radio_core': ctx.read('/sys/devices/platform/18070000.connectivity/status'),
             'watchdogs': [{f: read(p / f) for f in ('identity', 'state', 'bootstatus', 'status', 'timeout')}
                           for p in ctx.glob('/sys/class/watchdog/watchdog*')],
             'pstore_files': [p.name for p in ctx.glob('/sys/fs/pstore/*')],

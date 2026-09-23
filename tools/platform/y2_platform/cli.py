@@ -17,6 +17,7 @@ def main():
     status.add_argument('--json', action='store_true', help='JSON is the default output')
     status.add_argument('--pid', action='append', type=int, default=[])
     status.add_argument('--pss', action='store_true')
+    status.add_argument('--reborn', action='store_true', help='observe current Reborn PID and bounded metrics')
     status.add_argument('--interval', type=float, default=0)
     health = sub.add_parser('health')
     health.add_argument('--json', action='store_true')
@@ -181,7 +182,14 @@ def main():
     if args.command == 'status':
         if not 0 <= args.interval <= 10 or 0 < args.interval < 0.1 or len(args.pid) > 32:
             parser.error('interval must be zero or 0.1–10 seconds; at most 32 PIDs')
+        if args.reborn:
+            from .power import process_identity
+            current = process_identity(ctx, 'process', '/usr/bin/reborn')
+            args.pid = list(dict.fromkeys([*args.pid, *([current['pid']] if current else [])]))[:32]
         result = snapshot(ctx, args.pid, args.pss, args.interval)
+        if args.reborn:
+            from .collect import metrics
+            result['reborn_metrics'] = metrics(ctx)
         if args.section:
             result = {'schema': result['schema'], 'record': result['record'], args.section:
                       result['system']['usb'] if args.section == 'usb' else result[args.section]}

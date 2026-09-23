@@ -70,3 +70,15 @@ installed. Files are size-bounded, PID requests capped at 32, and subprocesses
 have output caps and deadlines. A kernel task stuck in uninterruptible I/O cannot
 be made time-bounded by a userspace timeout. Full status is an on-demand tool,
 not a high-frequency polling daemon; benchmark records include collection cost.
+
+`--reborn --pss` observes the current service PID/start-time and bounded Reborn
+metrics; collection follows restarts as separate memory series. Boot evidence is
+captured before the current logger starts. Status contains only previous-log
+metadata/hashes, while `y2-platform boot-evidence` is private owner retrieval.
+Kernel taint and actual CONSYS status are observations; no kernel warning count
+or packet-loss number is synthesized from log text or application XRUNs.
+
+The [owner qualification plan](../validation/PLATFORM-V1-OWNER-QUALIFICATION.md)
+uses `tools/platform/qualify.py`: local plan by default, explicit readonly USB
+collection, exact source-pair matching, bounded gaps and no automatic hardware
+actions. Capture completion and qualification acceptance are separate states.

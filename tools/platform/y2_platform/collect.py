@@ -32,6 +32,15 @@ class Growth:
                 'interpretation': 'growth_observation_not_leak_diagnosis'}
 
 
+def metrics(ctx):
+    answer = ctx.command(['/usr/bin/rebornctl', 'metrics', '--json'], timeout=1)
+    try:
+        value = json.loads(answer['output']) if answer['ok'] else None
+        return value if isinstance(value, dict) else None
+    except (TypeError, ValueError):
+        return None
+
+
 def collect(ctx, stream, seconds=60, interval=5, pids=(), pss=False,
             workload='idle', warmup=60, reborn=False, sampler=snapshot, sleep=time.sleep):
     if not 1 <= seconds <= 86400 or not 1 <= interval <= 300 or not 0 <= warmup <= seconds or len(pids) > 32:
@@ -46,18 +55,20 @@ def collect(ctx, stream, seconds=60, interval=5, pids=(), pss=False,
     output_bytes = 0
     while time.monotonic() < deadline:
         sample_start = time.monotonic()
-        value = sampler(ctx, pids, pss)
+        observed_pids = list(pids)
+        if reborn:
+            from .power import process_identity
+            current = process_identity(ctx, 'process', '/usr/bin/reborn')
+            if current and current['pid'] not in observed_pids:
+                observed_pids = [*observed_pids, current['pid']][:32]
+        value = sampler(ctx, observed_pids, pss)
         value['record']['workload'] = workload
         value['record']['parameters'].update(interval_seconds=interval, duration_seconds=seconds,
                                              pss=pss, warmup_seconds=warmup)
         if previous and previous['record']['boot_id'] == value['record']['boot_id']:
             value['cpu']['utilization_percent'] = utilization(previous['cpu']['ticks'], value['cpu']['ticks'])
         if reborn:
-            answer = ctx.command(['/usr/bin/rebornctl', 'metrics', '--json'], timeout=1)
-            try:
-                value['reborn_metrics'] = json.loads(answer['output']) if answer['ok'] else None
-            except (TypeError, ValueError):
-                value['reborn_metrics'] = None
+            value['reborn_metrics'] = metrics(ctx)
         age = time.monotonic() - start
         if age >= warmup:
             for process in value['memory']['processes']:

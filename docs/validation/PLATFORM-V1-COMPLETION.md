@@ -249,3 +249,20 @@ private keys and Bluetooth bonds are excluded. Five meaningful host tests pass,
 plus the seven updater tests. Reborn `41214d0` exposes its own settings defaults
 and refuses normal startup during unfinished maintenance; 27 runtime tests pass.
 ARM/image validation follows separately. See platform-maintenance-v1.md.
+
+### Integrated endurance and candidate reconstruction
+
+DONE_SOFTWARE / HOST_VALIDATED: owner-controlled passive qualification profiles,
+exact pair checks, USB disconnect gaps, PID/boot/source generation separation,
+resource/counter analysis and no automatic physical/endurance acceptance. Reborn
+PID selection follows restarts; telemetry exposes actual CONSYS/taint without
+inventing warning/loss counts. Six qualification/measurement tests pass, including
+actual SQLite faults; 30 combined focused release/evidence/receipt cases pass.
+The sessions A–G plan is `PLATFORM-V1-OWNER-QUALIFICATION.md`.
+
+Release identity, package contract validation, pinned Rust archive inventory and
+full selected-package/source/footprint inventory are prepared for the final fresh
+build. No package was removed on a guessed dependency or image-size basis.
+Byte-for-byte reproducibility, current-image physical and endurance qualification
+remain unclaimed. `build/platform-v1-reconstruction.md` records the exact source,
+owner firmware, signing, privilege and distribution boundaries.
