@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -53,9 +54,9 @@ ssize_t pwrite(int fd, const void *buffer, size_t count, off_t offset)
     return next(fd, buffer, count, offset);
 }
 
-ssize_t pwrite64(int fd, const void *buffer, size_t count, off64_t offset)
+ssize_t pwrite64(int fd, const void *buffer, size_t count, int64_t offset)
 {
-    static ssize_t (*next)(int, const void *, size_t, off64_t);
+    static ssize_t (*next)(int, const void *, size_t, int64_t);
     if (fail_write(fd)) return -1;
     if (!next) next = dlsym(RTLD_NEXT, "pwrite64");
     return next(fd, buffer, count, offset);
