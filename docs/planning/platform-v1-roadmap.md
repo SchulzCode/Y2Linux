@@ -18,8 +18,8 @@ evidence level.
 | 3 | Shutdown, low battery, clock/entropy, Wi-Fi (#28/#30/#31) | Implemented/host tested: independent bounded shutdown, disabled thresholds, DHCP/DNS and clock/entropy; phase-3 ARM/QEMU passed | Thresholds/reserve, charging, RTC retention, DHCP/DNS/reconnect |
 | 4 | Bluetooth baseline, AVRCP, codec policy (#31) | Implemented/host tested: observed PCM, bounded reconnect, AVRCP, explicit qualified Auto; fresh ARM build complete; production/QEMU pending | SBC peers/coexistence; optional codecs need distribution and peer evidence |
 | 5 | USB transfer/reliability/host feasibility (#27/#28/#32) | Implemented/host tested: authenticated USB-only SFTP, reserve and verified publication; ARM pending | Reconnect/PC sleep, transfer performance; host VBUS/role wiring |
-| 6 | Signed staged root updates/recovery, reset/backup (#32/#33) | ACTIVE: authenticity, key lifecycle, journal, offline root writer, restore | Interruption/recovery; automatic BOOTIMG writes excluded |
-| 7 | CPU/idle/suspend and high-resolution audio (#28/#29/#34) | Queued: source-backed feasibility and conservative implementation only | No speculative SPM/voltage/packing; exact clock/sample/resume proof |
+| 6 | Signed staged root updates/recovery, reset/backup (#32/#33) | Implemented/host tested: signed staging/key policy/offline backup-write-readback/restore; reset/export; fresh ARM build in progress | Interruption/recovery; automatic BOOTIMG writes excluded |
+| 7 | CPU/idle/suspend and high-resolution audio (#28/#29/#34) | ACTIVE: source-backed feasibility and conservative implementation only | No speculative SPM/voltage/packing; exact clock/sample/resume proof |
 | 8 | Release/security/endurance/candidate (#32/#33) | Queued: fresh paired-source builds and exact candidate receipts | Owner sessions A–G and qualified operating envelope |
 
 Stock preloader/LK, BOOTIMG rescue, root/data split, protected partition policy,

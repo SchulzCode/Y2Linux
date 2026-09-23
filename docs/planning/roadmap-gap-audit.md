@@ -1,5 +1,32 @@
 # Y2Linux roadmap and gap audit
 
+## Platform v1 low-power/audio evidence boundary — 2026-09-23
+
+Linux `df7d3a8` / Reborn `41214d0`: signed root-only rescue and scoped maintenance
+are implemented and host tested. The fresh USB/update build at `1c2451e` /
+`f4b83b7` is in progress; subsequent reset/export source has no ARM receipt yet.
+No physical work occurred. Re-read the exact GPU-01 rendering/audio and adverse
+suspend receipt: clean S16/44.1 audio is narrow evidence; same-boot resume failed,
+and later CPU3 mask correction has source/host evidence, not a physical pass.
+
+All coverage rows remain accounted for: boot/rescue/crash, RAM/reservations/SMP,
+clocks/interrupts/regulators, eMMC/SD, display/input/GPU, wired audio, power/thermal/
+RTC/idle/suspend, radios, USB, time/security and release. Software updates now
+have authenticated offline recovery foundations, not electrical durability proof.
+#16/#27/#28/#29/#31/#32/#33/#34 stay open; the earlier narrow #30 acceptance is
+preserved. No remote issue changes or new hardware authorization are inferred.
+
+Phase 7 may inspect pinned MT6582/Y2/vendor and upstream sources, add safe
+observation/qualification tools, and change a driver only where complete packing,
+clock/power and board evidence support it. The known WFI-only idle state is not
+permission to copy a donor SPM program. Existing corrected suspend remains an
+owner-controlled PHYSICAL_GATE. A 32-bit I2S slot is not 24/32-bit DMA precision;
+S32/rate masks must remain closed unless the entire fetch/interconnect/clock
+path is established. No reserved memory, voltage, trip point or VBUS change.
+The next independent work is exact source-backed feasibility plus qualification
+fixtures, then integrated release/endurance hardening and current-source builds.
+
+
 ## Platform v1 signed recovery implementation boundary — 2026-09-23
 
 Linux `ba3ac58` / Reborn `87a46cb`: USB owner transfer has focused host fault
