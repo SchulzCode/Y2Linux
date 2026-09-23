@@ -1,5 +1,76 @@
 # Y2Linux roadmap and gap audit
 
+## Platform v1 completion entry — 2026-09-23
+
+The owner now authorizes a major software completion pass, including kernel
+changes only where evidence supports them, focused local commits and fresh
+candidate builds. No physical Y2 activity is authorized. Entry heads are Linux
+`5f6b446` and Reborn `d9ba054`; supplied uncommitted review documents are preserved
+in the [completion ledger](../validation/PLATFORM-V1-COMPLETION.md). Current
+source and later correctness closure supersede older repaired findings.
+
+The real-device evidence is unchanged: Storage06 proves narrow internal boot
+and identities; GPU-01 proves narrow rendering/runtime PM and S16 stereo 44.1 kHz,
+but records failed deep resume; CONNECTIVITY-10 proves scans and simultaneous
+adapter power, not IP or A2DP; POWER-02's two USB reconnects used a workaround.
+The subsequent session PM-reference fix already exists and will not be duplicated.
+No current-source physical or endurance acceptance is inferred. Prior M4 owner
+acceptance is retained without extending it to the later charger revision.
+
+| Coverage / issue | Boundary decision |
+| --- | --- |
+| Boot/recovery/diagnostics #16/#28/#32/#33 | Software telemetry, health, boot stages/history and bounded readiness may proceed; reset registers/retained panic and whole-system watchdog need evidence. |
+| Memory/CPU #28 | Observe existing HIGHMEM, reservations, fixed-voltage OPPs and WFI; no reserved-memory reclamation, voltage scaling or guessed SPM programming. |
+| Storage/SD #33 | Implement identity/generation, space policy and scratch/SQLite tooling; no raw-device benchmarks, music deletion or repartition. |
+| Display/input/GPU #34 | Preserve current DRM/Lima/evdev; same-boot deep wake remains PHYSICAL_GATE. |
+| Battery/thermal/RTC #30/#28 | Implement mechanisms and truthful die telemetry; low-battery thresholds and charging acceptance remain PHYSICAL_GATE. |
+| Wired audio #29 | Qualified product profile stays S16/44.1; packing/clock evidence precedes any wider-format implementation, and physical precision proof remains mandatory. |
+| Wi-Fi/Bluetooth #31 | Finish service readiness and application integration; one reconnect owner; codec provenance/distribution and physical eligibility stay explicit. |
+| USB #27/#28 | Productize USB-only authenticated transfer; retain PM fix; unknown host VBUS/role wiring remains PHYSICAL_GATE. |
+| Updates/security #32/#33 | Signed, staged, rescue-assisted Y2ROOT implementation may proceed; no mounted-root writes or automatic BOOTIMG replacement. |
+| Calibration/firmware/FM | Owner-provided provisioning and protected exclusions retained; no new calibration access or FM scope. |
+| Build/release/endurance #32/#33 | Fresh current-source software/ARM/image checks and exact owner qualification package; no physical closure. |
+
+Read-only tracker inventory still shows #16/#27/#28/#29/#31/#32/#33/#34 open and
+#30 closed. No milestone/epic status change is justified; remote writes are
+outside this local implementation pass. The [software roadmap](platform-v1-roadmap.md)
+is updated before activation. Phase 1 is ready for software implementation;
+later phases advance in dependency order. Physical gates stop only their own
+workstreams. No unchanged ROM/recovery provenance is repeated.
+
+## Whole-platform owner review — 2026-09-23
+
+The documentation-only [current platform review](../CURRENT_PLATFORM_STATE.md)
+and [evidence ledger](platform-review-evidence-2026-09-23.md) reassess boot,
+recovery/updates, storage/SQLite, CPU/RAM, thermal/battery/power, suspend,
+connectivity/USB, diagnostics, endurance and release maintenance as shared
+application contracts. Reviewed heads are Y2Linux `5f6b446` and Y2Reborn
+`d9ba054` (packaged Reborn code `dde3c53`). Existing physical receipts were read
+first; current source and the candidate metadata were then inspected. No new
+physical observation, test, build or unchanged ROM/recovery revalidation occurred.
+
+Retained Storage06/DEV-02, GPU-01, CONNECTIVITY-10 and older Reborn observations
+support narrow internal boot, core/input/display, wired audio, GPU runtime PM
+and radio discovery. The latest candidate remains physically unqualified.
+Deep resume, current charging-policy measurements, complete network/audio
+services, storage performance/durability and integrated endurance remain open.
+Current USB session-PM ownership and Reborn receipt/storage/trust fixes are
+recognized as implemented; their presence does not establish physical closure.
+
+GitHub was read: #16/#27/#28/#29/#31/#32/#33/#34 remain open and #30 closed.
+Storage milestone 3 remains active; M4 owner acceptance is preserved alongside
+the later power/suspend evidence limits. No tracker or milestone state changes.
+Protected storage, reserved RAM, firmware/calibration ownership, manual deployment
+and existing recovery limits remain authoritative.
+
+The proposed order is observable/recoverable reference platform, durable storage
+and resource budgets, qualified power lifecycle, complete connectivity, then
+maintainable releases and recoverable updates/OTA. These are recommendations
+under existing epics, not phase activation or hardware/implementation authority.
+The next proposed work is shared telemetry, storage/SQLite characterization and
+the normal-runtime low-battery contract. Any implementation or physical milestone
+boundary must repeat this audit with its exact scope and hardware evidence.
+
 ## Reborn software-correctness candidate boundary — 2026-09-23
 
 This repeat audit precedes packaging the focused Reborn correctness closure as
