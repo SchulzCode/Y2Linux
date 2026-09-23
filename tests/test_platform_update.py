@@ -46,6 +46,7 @@ class UpdateTests(unittest.TestCase):
         public = keygen(self.private)
         self.base = self.root / 'data/updates'
         self.base.mkdir(parents=True, mode=0o700)
+        (self.root/'data/.y2data-schema').write_text('1')
         (self.root / 'newdata').symlink_to('data')
         for name in ('etc/y2linux', 'proc/sys/kernel/random', 'run/y2'):
             (self.root / name).mkdir(parents=True)

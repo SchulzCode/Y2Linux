@@ -3,6 +3,7 @@
 # until D-Bus, BlueZ and wpa_supplicant become available later in rcS.
 case "$1" in
  start)
+    [ ! -e /data/system/platform/maintenance-pending ] || exit 1
     mountpoint -q /data || exit 1
     [ "$(cat /data/.y2data-schema 2>/dev/null)" = 1 ] || exit 1
     umask 077

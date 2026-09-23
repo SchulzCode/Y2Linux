@@ -27,7 +27,9 @@ RESERVE = 96 * 1024**2
 def status(ctx):
     value = ctx.json('/data/updates/state.json')
     if value is None and not ctx.path('/data/updates/state.json').exists() and not ctx.path('/data/updates/state.json').is_symlink():
-        value = {'schema': 1, 'state': 'Idle'}
+        ready = ctx.read('/data/.y2data-schema') == '1' and ctx.path('/data/updates').is_dir()
+        value = {'schema': 1, 'state': 'Idle' if ready else 'Unavailable',
+                 'failure': None if ready else 'data_state_unavailable'}
     if not isinstance(value, dict) or value.get('schema') != 1:
         return {'schema': 1, 'state': 'Failed', 'failure': 'journal_unreadable'}
     return {**value, 'download': ctx.json('/data/updates/download.json'),
@@ -123,6 +125,8 @@ def stage(ctx, source=None, url=None, check_only=False):
     if bool(source) == bool(url):
         raise ValueError('exactly_one_local_package_or_HTTPS_manifest_required')
     volume = data_volume(ctx)
+    if ctx.path('/data/system/platform/maintenance-pending').exists():
+        raise ValueError('maintenance_in_progress')
     root = private_directory(ctx.path('/data/updates'))
     fd = os.open(root / '.stage.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     token = '.incoming-' + uuid.uuid4().hex

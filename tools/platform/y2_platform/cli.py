@@ -36,6 +36,15 @@ def main():
     transfer.add_argument('--name')
     transfer.add_argument('--bytes', type=int)
     transfer.add_argument('--sha256')
+    reset = sub.add_parser('reset')
+    reset.add_argument('action', choices=['plan', 'execute', 'resume', 'purge'])
+    reset.add_argument('--scope', choices=['settings','network','bluetooth-bonds','library','caches','full-user'])
+    reset.add_argument('--confirm')
+    reset.add_argument('--id')
+    reset.add_argument('--erase-user-music', action='store_true')
+    export = sub.add_parser('export-state')
+    export.add_argument('--include-database', action='store_true')
+    export.add_argument('--include-network', action='store_true')
     update = sub.add_parser('update')
     update.add_argument('action', choices=['status', 'check', 'stage', 'apply', 'rollback', 'cancel', 'health-ack'])
     update.add_argument('--url', help='exact HTTPS manifest.json URL; no redirects')
@@ -80,6 +89,22 @@ def main():
     collect.add_argument('--reborn', action='store_true')
     args = parser.parse_args()
     ctx = Context()
+    if args.command in ('reset', 'export-state'):
+        from . import maintenance
+        try:
+            if args.command == 'export-state':
+                result = maintenance.export(ctx, args.include_database, args.include_network)
+            elif args.action == 'plan':
+                result = maintenance.plan(ctx, args.scope)
+            elif args.action == 'purge':
+                result = maintenance.purge(ctx, args.id or '', args.confirm)
+            else:
+                result = maintenance.execute(ctx, args.confirm, args.erase_user_music, args.action == 'resume')
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        except (OSError, ValueError, TimeoutError) as error:
+            print(json.dumps({'state':'Failed','failure':str(error)}))
+            return 1
     if args.command == 'update':
         from . import update
         try:

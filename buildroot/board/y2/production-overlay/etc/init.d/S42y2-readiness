@@ -1,6 +1,6 @@
 #!/bin/sh
 case "$1" in
- start) start-stop-daemon -S -b -m -p /run/y2/readiness-supervisor.pid -x /usr/libexec/y2/readiness-supervise ;;
+ start) [ ! -e /data/system/platform/maintenance-pending ] || exit 1; start-stop-daemon -S -b -m -p /run/y2/readiness-supervisor.pid -x /usr/libexec/y2/readiness-supervise ;;
  stop) start-stop-daemon -K -p /run/y2/readiness-supervisor.pid 2>/dev/null || : ;;
  *) exit 2 ;;
 esac

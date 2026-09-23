@@ -216,3 +216,16 @@ Reborn ARM, FFmpeg/artifact checks, eight QEMU userspace checks and production
 suites: 38 platform cases (one host dependency case skipped in the locked host;
 covered separately on the maintainer host), 67 production and 38 subsystem cases.
 This receipt is `out/platform-v1-bluetooth-build`; USB/OTA code is newer.
+
+### Scoped maintenance and private export
+
+DONE_SOFTWARE / HOST_VALIDATED: distinct settings/network/bonds/library/cache/full
+logical user reset; confirmation bound to exact scope and inode inventory,
+quiescent consumer checks, durable quarantine, interrupted-reset startup hold,
+new-boot resume and explicit bounded purge. SSH/entropy/update/factory/unknown
+state is preserved. Full logical reset is not secure erasure. Private export
+includes consistent SQLite backup optionally; WPA credentials require a flag,
+private keys and Bluetooth bonds are excluded. Five meaningful host tests pass,
+plus the seven updater tests. Reborn `41214d0` exposes its own settings defaults
+and refuses normal startup during unfinished maintenance; 27 runtime tests pass.
+ARM/image validation follows separately. See platform-maintenance-v1.md.

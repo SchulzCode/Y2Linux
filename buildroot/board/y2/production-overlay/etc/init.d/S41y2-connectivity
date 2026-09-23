@@ -2,6 +2,7 @@
 # Normal Buildroot only: initramfs offline charging never reaches this service.
 case "$1" in
  start)
+    [ ! -e /data/system/platform/maintenance-pending ] || exit 1
     start-stop-daemon -S -b -m -p /run/y2/connectivity.pid -x /usr/libexec/y2/connectivity
     ;;
  stop)
