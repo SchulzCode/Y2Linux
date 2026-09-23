@@ -16,6 +16,15 @@ def run_debugfs(image, command):
     return subprocess.run(['debugfs','-R',command,str(image)],check=True,
                           stdout=subprocess.PIPE,stderr=subprocess.STDOUT).stdout
 
+def validate_ssh_programs(members):
+    require(not any(n in members for n in ('usr/sbin/sshd','usr/bin/sftp')),
+            'only selected OpenSSH SFTP subsystem installed')
+    # Buildroot's existing Dropbear multicall client is an alias, not an
+    # additional OpenSSH client. Reject any replacement executable/target.
+    client = members.get('usr/bin/ssh')
+    require(client is None or (client.issym() and client.linkname == '../sbin/dropbear'),
+            'SSH client is only the existing Dropbear alias')
+
 def validate_addressing(out, m):
     # Retained historical packages describe the pre-correction port. Never
     # rewrite their manifests or mistake their capacity allowance for current IO.
@@ -321,7 +330,7 @@ def validate_rootfs(out,build,m):
             caps=json.loads(read('etc/y2linux/capabilities.json'))
             require(caps['schema']=='org.y2linux.capabilities/v1' and caps['api_version']==1,'platform API identity')
             require(all(v.get('qualified') is False for v in caps['capabilities'].values()),'candidate does not inherit physical qualification')
-            require(not any(n in members for n in ('usr/sbin/sshd','usr/bin/ssh','usr/bin/sftp')),'only selected SFTP subsystem installed')
+            validate_ssh_programs(members)
             require(b'-l usb0' in read('etc/default/dropbear'),'SSH explicitly bound to USB interface')
         for name in ('bin/busybox','sbin/init','sbin/blkid','sbin/e2fsck','sbin/ip','usr/sbin/dropbear','usr/bin/aplay','usr/bin/amixer','usr/bin/evtest','usr/bin/strace'):
             raw=read(name);require(raw[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',raw,18)[0]==40,'ARM userspace '+name)

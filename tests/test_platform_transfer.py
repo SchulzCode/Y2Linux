@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+import tarfile
 import unittest
 from unittest.mock import patch
 
@@ -11,9 +12,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'tools/platform'))
 from y2_platform.common import Context
 from y2_platform.ssh import entropy_ready, prerequisites
 from y2_platform.transfer import begin, commit, discard
+from tools.production.validate import validate_ssh_programs
 
 
 class Transfer(unittest.TestCase):
+    def test_package_accepts_only_existing_dropbear_client_alias(self):
+        alias = tarfile.TarInfo('usr/bin/ssh')
+        alias.type = tarfile.SYMTYPE
+        alias.linkname = '../sbin/dropbear'
+        validate_ssh_programs({'usr/bin/ssh': alias})
+        validate_ssh_programs({})
+        for name in ('usr/sbin/sshd', 'usr/bin/sftp', 'usr/bin/ssh'):
+            with self.assertRaises(ValueError):
+                validate_ssh_programs({name: tarfile.TarInfo(name)})
+        alias.linkname = '../bin/unreviewed-client'
+        with self.assertRaises(ValueError):
+            validate_ssh_programs({'usr/bin/ssh': alias})
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.ctx = Context(self.tmp.name)
