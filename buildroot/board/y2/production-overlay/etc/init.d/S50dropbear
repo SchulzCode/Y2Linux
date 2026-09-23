@@ -1,0 +1,7 @@
+#!/bin/sh
+case "$1" in
+ start) start-stop-daemon -S -b -m -p /run/y2/ssh-supervisor.pid -x /usr/libexec/y2/ssh-supervise ;;
+ stop) start-stop-daemon -K -p /run/y2/ssh-supervisor.pid 2>/dev/null || : ;;
+ restart) "$0" stop; "$0" start ;;
+ *) exit 2 ;;
+esac

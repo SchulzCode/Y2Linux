@@ -306,6 +306,9 @@ def bluetooth(ctx):
 def system(ctx):
     from .timekeeping import status as time_status
     clock = time_status(ctx)
+    ssh = ctx.json('/run/y2/ssh.json', {})
+    if ssh.get('boot_id') != ctx.read('/proc/sys/kernel/random/boot_id') or not isinstance(ssh.get('monotonic_s'), (int, float)) or not 0 <= time.monotonic() - ssh['monotonic_s'] < 10:
+        ssh = {'state': 'Unavailable', 'reason': 'ssh_record_stale_or_absent'}
     stages = []
     for line in (ctx.read('/run/y2/boot-stages.jsonl') or '').splitlines()[-32:]:
         try:
@@ -326,7 +329,7 @@ def system(ctx):
             'watchdogs': [{f: read(p / f) for f in ('identity', 'state', 'bootstatus', 'status', 'timeout')}
                           for p in ctx.glob('/sys/class/watchdog/watchdog*')],
             'pstore_files': [p.name for p in ctx.glob('/sys/fs/pstore/*')],
-            'rtc': rtcs, 'time': clock,
+            'rtc': rtcs, 'time': clock, 'ssh': ssh,
             'entropy_available_bits': ctx.integer('/proc/sys/kernel/random/entropy_avail'),
             'crng_ready': clock['entropy_ready'], 'usb': {'mode': 'peripheral', 'udcs': udcs},
             'update': ctx.json('/data/updates/state.json', {'state': 'Unavailable'}),

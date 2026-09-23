@@ -29,6 +29,13 @@ def main():
     bt_power.add_argument('value', choices=['on', 'off'])
     sub.add_parser('power-daemon')
     sub.add_parser('service-daemon')
+    sub.add_parser('ssh-daemon')
+    transfer = sub.add_parser('transfer')
+    transfer.add_argument('action', choices=['begin', 'commit', 'status', 'discard'])
+    transfer.add_argument('--id')
+    transfer.add_argument('--name')
+    transfer.add_argument('--bytes', type=int)
+    transfer.add_argument('--sha256')
     sub.add_parser('time-bootstrap')
     sub.add_parser('time')
     ntp = sub.add_parser('ntp-event')
@@ -69,6 +76,18 @@ def main():
     collect.add_argument('--reborn', action='store_true')
     args = parser.parse_args()
     ctx = Context()
+    if args.command == 'transfer':
+        from .transfer import begin, commit, inspect, discard
+        if args.action == 'begin':
+            result = begin(ctx, args.name, args.bytes, args.sha256 or '')
+        else:
+            result = {'commit': commit, 'status': inspect, 'discard': discard}[args.action](ctx, args.id or '')
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    if args.command == 'ssh-daemon':
+        from .ssh import serve
+        serve(ctx)
+        return 0
     if args.command == 'bluetooth-power':
         from .bt_control import power
         result = power(ctx, args.value)

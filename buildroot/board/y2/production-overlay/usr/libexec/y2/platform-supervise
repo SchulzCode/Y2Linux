@@ -1,6 +1,6 @@
 #!/bin/sh
 # Bounded, independent service supervision.
-case "$1:$2" in power:power-daemon|readiness:service-daemon) name=$1; command=$2;; *) exit 2;; esac
+case "$1:$2" in power:power-daemon|readiness:service-daemon|ssh:ssh-daemon) name=$1; command=$2;; *) exit 2;; esac
 umask 077
 child=
 stop() { [ -z "$child" ] || kill -TERM "$child" 2>/dev/null || :; exit 0; }

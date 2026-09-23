@@ -1,0 +1,3 @@
+#!/bin/sh
+# Authenticated owner SFTP over the USB-only Dropbear listener.
+exec /usr/libexec/y2-sftp-server -d /data/music -u 0022 -P symlink,hardlink,copy-data

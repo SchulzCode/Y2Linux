@@ -67,7 +67,13 @@
         "ACM",
         "ECM"
       ],
-      "ssh_bind": "10.42.0.1:22"
+      "ssh_bind": "10.42.0.1:22",
+      "ssh_interface": "usb0",
+      "transfer_protocol": "SFTP",
+      "authenticated_owner_only": true,
+      "atomic_verified_uploads": true,
+      "filesystem_mass_storage": false,
+      "sftp_reserve_bytes": 100663296
     },
     "usb_host": {
       "implemented": false,

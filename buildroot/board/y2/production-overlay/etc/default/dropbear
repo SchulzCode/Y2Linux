@@ -1,0 +1,2 @@
+# Owner public-key SSH/SFTP, restricted at both address and interface.
+DROPBEAR_ARGS="-s -g -j -k -p 10.42.0.1:22 -l usb0 -K 10 -I 600"

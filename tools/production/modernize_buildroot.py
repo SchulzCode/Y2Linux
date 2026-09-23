@@ -210,6 +210,10 @@ def apply(buildroot_source: Path) -> None:
         "dropbear-2026.93.tar.bz2",
         f"sha256  {DROPBEAR_SHA256}  dropbear-{DROPBEAR_VERSION}.tar.bz2",
     )
+    # Local product-policy patches follow the pinned package security fixes.
+    for package in ('dropbear', 'openssh'):
+        for policy in (Path(__file__).resolve().parents[2] / 'buildroot/patches' / package).glob('*.patch'):
+            (buildroot_source / 'package' / package / policy.name).write_bytes(policy.read_bytes())
     patch = dropbear / "0001-scp-fix-build-with-gcc-14.x.patch"
     if patch.exists():
         patch.unlink()

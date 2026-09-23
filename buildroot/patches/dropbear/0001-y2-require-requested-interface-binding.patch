@@ -1,0 +1,14 @@
+Y2 owner SSH must not fall back to a listener reachable on another interface.
+
+--- a/src/netio.c
++++ b/src/netio.c
+@@ -621,6 +621,9 @@
+ #ifdef SO_BINDTODEVICE
+ 		if(interface && setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, interface, strlen(interface)) < 0) {
+ 			dropbear_log(LOG_WARNING, "Couldn't set SO_BINDTODEVICE");
++			err = errno;
++			close(sock);
++			continue; /* Explicit interface restriction must fail closed. */
+ 			TRACE(("Failed setsockopt with errno failure, %d %s", errno, strerror(errno)))
+ 		}
+ #endif

@@ -1,0 +1,23 @@
+Y2 file transfer leaves 96 MiB and 128 inodes for state/database/recovery.
+Applied after the pinned Buildroot LTS security patches.
+
+--- a/sftp-server.c
++++ b/sftp-server.c
+@@ -866,6 +866,17 @@
+ 	debug("request %u: write \"%s\" (handle %d) off %llu len %zu",
+ 	    id, handle_to_name(handle), handle, (unsigned long long)off, len);
+ 	fd = handle_to_fd(handle);
++
++	/* Leave platform state/SQLite/shutdown reserve before every write. */
++	struct statvfs space;
++	if (fd >= 0 && (fstatvfs(fd, &space) != 0 || space.f_frsize == 0 ||
++	    space.f_frsize > 16777216 ||
++	    space.f_bavail < (100663296ULL + len + space.f_frsize - 1) / space.f_frsize ||
++	    (space.f_files && space.f_favail < 128))) {
++		send_status_errmsg(id, SSH2_FX_FAILURE, "Y2 storage reserve or filesystem unavailable");
++		free(data);
++		return;
++	}
+ 
+ 	if (fd < 0)
+ 		status = SSH2_FX_FAILURE;

@@ -181,3 +181,15 @@ exercise gate/fallback/peer generation/deadline/unknown-completion bounds; the
 real file-lock test proves open PCM and selection exclude each other. Requested
 codec never overwrites negotiated PCM. Optional codecs remain unbuilt and
 distribution-gated, not claimed implemented. See platform-bluetooth-v1.md.
+
+### USB owner transfer and listener security
+
+DONE_SOFTWARE / HOST_VALIDATED: supervised USB-interface-bound key-only SSH,
+kernel-CRNG startup gate, pinned OpenSSH SFTP subsystem with per-write reserve,
+private staged/hash-verified/durable/no-replace upload helper. Four contract tests
+cover interruption/hash/space/identity/symlink/old-FD mutation and SSH prerequisites.
+The actual patched native SFTP server passed protocol write/close/readback,
+injected low-space refusal and abrupt session termination. Receipt:
+/tmp/y2linux-platform-v1-pass/sftp-host-check.json (to be retained in candidate).
+ARM/image checks follow. ECM cross-OS, reconnect/sleep/transfer and VBUS/role
+hardware remain PHYSICAL_GATE. No USB mass-storage or host path is enabled.
