@@ -10,7 +10,7 @@ HELPER = ROOT / 'buildroot/board/y2/production-overlay/usr/sbin/y2-suspend'
 
 
 class SuspendPolicy(unittest.TestCase):
-    def run_status(self, powered, functions):
+    def run_status(self, powered, functions, qualify=True):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for name in ('run/y2', 'data/network', 'data/bluetooth', 'sys/power',
@@ -34,9 +34,15 @@ class SuspendPolicy(unittest.TestCase):
                 mock.write_text('#!/bin/sh\nexit 0\n')
                 mock.chmod(0o755)
             env = dict(os.environ, PATH=str(root / 'bin') + ':' + os.environ['PATH'])
-            result = subprocess.run(['sh', str(script)], env=env, capture_output=True,
+            result = subprocess.run(['sh', str(script), *(['--owner-qualify'] if qualify else [])], env=env, capture_output=True,
                                     text=True, timeout=5)
             return result, state.read_text()
+
+    def test_unqualified_default_never_enters_suspend(self):
+        result, state = self.run_status('0', '0', qualify=False)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(state, '')
+        self.assertIn('PHYSICAL_GATE', result.stderr)
 
     def test_current_and_legacy_all_off_status_allow_suspend(self):
         for functions in ('0x0', '0'):

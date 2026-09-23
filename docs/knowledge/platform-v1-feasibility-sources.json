@@ -1,0 +1,42 @@
+{
+  "vendor_commit": "d53dd75c3ff77cac3f5be58fddfe660e94f94d64",
+  "role": "read-only source research, no new register programming adopted",
+  "sources": [
+    {
+      "path": "drivers/misc/mediatek/sound/mt6582/AudDrv_Afe.h",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/sound/mt6582/AudDrv_Afe.h",
+      "bytes": 21313,
+      "sha256": "1a472e5e1c213a0e7e7663f63e4ea65365b00a221ad5b3bec4794b0122633a61"
+    },
+    {
+      "path": "drivers/misc/mediatek/sound/mt6582/AudDrv_Afe.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/sound/mt6582/AudDrv_Afe.c",
+      "bytes": 12725,
+      "sha256": "fc70a6bab18ac6b9f3bb618c7676cd06c4a7c21dcd1ac9d844e85015150d081a"
+    },
+    {
+      "path": "drivers/misc/mediatek/sound/mt6582/AudDrv_Kernel.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/sound/mt6582/AudDrv_Kernel.c",
+      "bytes": 167310,
+      "sha256": "272b616ac2f4e333d926d61c6480373713a8d27b7a463f7f27241581da820d75"
+    },
+    {
+      "path": "drivers/misc/mediatek/sound/mt6582/AudDrv_Clk.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/sound/mt6582/AudDrv_Clk.c",
+      "bytes": 19747,
+      "sha256": "0fbb7abf87d53b754268b0363d73b3cf93259c225bb1fd79b09ec95aed7f8260"
+    },
+    {
+      "path": "arch/arm/mach-mt6582/mt_idle.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_idle.c",
+      "bytes": 27251,
+      "sha256": "9a29393212df8a87a6060b8ca2a675f239523eb083ed7aeeebb08bf012ba31a2"
+    },
+    {
+      "path": "arch/arm/mach-mt6582/mt_spm_sleep.c",
+      "url": "https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/mt_spm_sleep.c",
+      "bytes": 55848,
+      "sha256": "8c28bec107ab5cae4ad79f9c8b98eb7f8ade27c4777ecf7b68ebcf0c792b7cea"
+    }
+  ]
+}

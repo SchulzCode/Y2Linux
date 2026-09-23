@@ -52,7 +52,7 @@ def serve(ctx):
                 ready = ctx.json('/run/y2/application-ready.json', {})
                 journal = ctx.json('/data/system/platform/boot.json', {})
                 if (ready.get('boot_id') == ctx.read('/proc/sys/kernel/random/boot_id') and
-                        ready.get('first_frame') is True and journal.get('last_stage') == 'platform_start'):
+                        ready.get('first_frame') is True and journal.get('last_stage') in ('platform_start', 'services_started')):
                     ctx.command(['/usr/sbin/y2-platform', 'boot-stage', 'application_ready'], timeout=2)
             time.sleep(max(.05, 3 - (time.monotonic() - before)))
     finally:

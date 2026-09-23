@@ -305,6 +305,7 @@ def bluetooth(ctx):
 
 def system(ctx):
     from .update import status as update_status
+    from .boot import evidence_status
     from .timekeeping import status as time_status
     clock = time_status(ctx)
     ssh = ctx.json('/run/y2/ssh.json', {})
@@ -325,6 +326,8 @@ def system(ctx):
     return {'uptime_seconds': (ctx.read('/proc/uptime') or '').split(' ')[0] or None,
             'versions': ctx.json('/etc/y2linux/versions.json'),
             'boot_history': ctx.json('/data/system/platform/boot.json'),
+            'previous_boot_evidence': evidence_status(ctx),
+            'application_readiness': ctx.json('/run/y2/application-ready.json'),
             'boot_stages': stages,
             'reset_cause': None, 'reset_cause_reason': 'no_qualified_retained_register',
             'watchdogs': [{f: read(p / f) for f in ('identity', 'state', 'bootstatus', 'status', 'timeout')}

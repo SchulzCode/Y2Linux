@@ -36,6 +36,26 @@ authorization.
 
 ## Implementation and validation
 
+### Low-power/audio boundaries and early evidence
+
+DONE_SOFTWARE / HOST_VALIDATED: readonly native ALSA combination query, exact
+24-bit precision/channel fixtures, once-per-boot bounded private previous-log
+retention and default refusal of unqualified deep suspend. Sixteen targeted
+evidence/suspend/observation tests pass. No driver masks, voltage, trip point,
+reserved RAM or SPM code changed. The pinned vendor review and exact remaining
+proof are in `knowledge/platform-v1-hardware-gates.md`. ARM/image coverage for
+these new tools follows in the final fresh build.
+
+The USB/update pair `1c2451e` / `f4b83b7` completed fresh kernel, Buildroot ARM,
+Reborn ARM, FFmpeg/ELF/artifact checks, 42 platform cases (one native host
+dependency case covered separately), 67 production and 38 subsystem tests,
+plus eight QEMU userspace checks. Seven actual ARM updater fault tests passed
+under Cortex-A7 QEMU. The installed ARM SFTP subsystem passed real protocol
+write/readback, reserve refusal and interrupted-session checks. Host UID and
+locked-host compiler harness mismatches were resolved without product changes.
+Receipts: `out/platform-v1-update-build`. These are not physical update/USB proof,
+and do not cover newer maintenance or phase-7 source.
+
 ### Telemetry, health, capability and boot record foundation
 
 DONE_SOFTWARE / HOST_VALIDATED for the implemented observation contracts.

@@ -5,6 +5,7 @@
 if mountpoint -q /data && [ ! -L /data/logs ]; then
     mkdir -p /data/logs
 fi
+/usr/sbin/y2-platform boot-evidence >/dev/null 2>&1 || echo "Y2: previous boot evidence unavailable" >/dev/kmsg
 /usr/libexec/reborn-splash --start >/dev/kmsg 2>&1 || :
 /etc/init.d/rcS >/dev/kmsg 2>&1
 result=$?

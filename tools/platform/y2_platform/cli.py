@@ -23,6 +23,7 @@ def main():
     health.add_argument('--full', action='store_true')
     caps = sub.add_parser('capabilities')
     caps.add_argument('--json', action='store_true')
+    sub.add_parser('boot-evidence')
     boot = sub.add_parser('boot-stage')
     boot.add_argument('stage')
     bt_power = sub.add_parser('bluetooth-power')
@@ -89,6 +90,10 @@ def main():
     collect.add_argument('--reborn', action='store_true')
     args = parser.parse_args()
     ctx = Context()
+    if args.command == 'boot-evidence':
+        from .boot import capture_previous
+        print(json.dumps(capture_previous(ctx), sort_keys=True))
+        return 0
     if args.command in ('reset', 'export-state'):
         from . import maintenance
         try:

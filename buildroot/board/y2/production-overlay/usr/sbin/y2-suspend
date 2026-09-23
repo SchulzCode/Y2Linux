@@ -1,6 +1,10 @@
 #!/bin/sh
 # Explicit full-suspend policy. Display blanking alone never calls this helper.
 set -eu
+[ "$#" -eq 1 ] && [ "$1" = --owner-qualify ] || {
+    echo 'PHYSICAL_GATE: same-boot deep resume is unqualified; owner qualification requires --owner-qualify.' >&2
+    exit 2
+}
 umask 077
 exec 9>/run/y2/suspend.lock
 flock -n 9 || { echo 'Suspend already in progress.' >&2; exit 1; }

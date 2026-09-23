@@ -42,7 +42,7 @@ def check(ctx, full=False):
                    'Failed': 'FAILED', 'Unavailable': 'UNAVAILABLE'}[item['state']], item['reason'])
     if full:
         # Queries only: no render master takeover, ALSA playback, radio action or reboot.
-        for name, argv in [('alsa_query', ['aplay', '-l']), ('render_query', ['modetest', '-M', 'mediatek', '-c'])]:
+        for name, argv in [('alsa_query', ['y2-audio-contract']), ('render_query', ['modetest', '-M', 'mediatek', '-c'])]:
             answer = ctx.command(argv, timeout=2)
             add(name, 'OK' if answer['ok'] else 'UNAVAILABLE', answer['reason'] or 'query_completed')
     priority = ('FAILED', 'DEGRADED', 'UNAVAILABLE', 'OK')

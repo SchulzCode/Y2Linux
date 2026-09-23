@@ -78,3 +78,79 @@ def mark(ctx, stage):
         return value
     finally:
         os.close(fd)
+
+
+def capture_previous(ctx):
+    """Snapshot existing bounded syslog before this boot's logging starts.
+
+    No new logger/poll loop, retained-RAM allocation or guessed reset register.
+    A panic may stop userspace before logging; absence of a marker proves nothing.
+    """
+    import hashlib
+    import json
+    if ctx.read('/data/.y2data-schema') != '1':
+        raise ValueError('data_schema_unavailable')
+    from .observe import mountinfo
+    mounts = [m for m in mountinfo(ctx.read('/proc/self/mountinfo')) if m['path'] == '/data']
+    if len(mounts) != 1 or mounts[0]['source'] != ctx.read('/run/y2-data-device'):
+        raise ValueError('verified_data_mount_unavailable')
+    root = private_directory(ctx.path('/data/system/platform'))
+    boot = ctx.read('/proc/sys/kernel/random/boot_id')
+    if not boot:
+        raise ValueError('boot_id_unavailable')
+    previous = ctx.json('/data/system/platform/previous-boot-evidence.json', {})
+    if previous.get('captured_on_boot_id') == boot:
+        return previous
+    journal = ctx.json('/data/system/platform/boot.json', {})
+    if journal.get('boot_id') == boot:
+        raise ValueError('previous_boot_capture_missed_early_boundary')
+    result = {'schema': 1, 'captured_on_boot_id': boot, 'previous_boot_id': journal.get('boot_id'),
+              'previous_last_stage': journal.get('last_stage'), 'previous_orderly_shutdown': journal.get('orderly_shutdown'),
+              'reset_cause': None, 'reset_cause_reason': 'no_qualified_retained_register_or_pstore_backend',
+              'kernel_panic_retention_guaranteed': False, 'logs_are_private': True,
+              'record': ctx.record('previous-boot-evidence'), 'logs': []}
+    data = os.open(ctx.path('/data'), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    logs = None
+    try:
+        try:
+            logs = os.open('logs', os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=data)
+        except FileNotFoundError:
+            logs = None
+        if logs is not None:
+            if os.fstat(logs).st_dev != os.fstat(data).st_dev:
+                raise ValueError('log_submount_refused')
+            for name in ('system.log.0', 'system.log'):
+                try:
+                    fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=logs)
+                except FileNotFoundError:
+                    continue
+                with os.fdopen(fd, 'rb') as stream:
+                    info = os.fstat(stream.fileno())
+                    if not stat.S_ISREG(info.st_mode):
+                        raise ValueError('invalid_log_file')
+                    stream.seek(max(0, info.st_size - 65536))
+                    raw = stream.read(65536)
+                lines = [line[:500] for line in raw.decode(errors='replace').splitlines()[-32:]]
+                result['logs'].append({'name': name, 'tail_sha256': hashlib.sha256(raw).hexdigest(),
+                                       'source_bytes_at_capture': info.st_size, 'tail_lines': lines,
+                                       'bounded_tail_not_complete_log': True})
+        while len(json.dumps(result).encode()) > 96000:
+            largest = max(result['logs'], key=lambda item: len(item['tail_lines']))
+            largest['tail_lines'].pop(0)
+        atomic_json(root/'previous-boot-evidence.json', result, durable=True)
+        return result
+    finally:
+        if logs is not None: os.close(logs)
+        os.close(data)
+
+
+def evidence_status(ctx):
+    value = ctx.json('/data/system/platform/previous-boot-evidence.json', {})
+    if not value:
+        return {'state': 'Unavailable', 'reason': 'no_previous_boot_record'}
+    return {k: value.get(k) for k in ('captured_on_boot_id', 'previous_boot_id',
+            'previous_last_stage', 'previous_orderly_shutdown', 'reset_cause',
+            'reset_cause_reason', 'kernel_panic_retention_guaranteed')} | {
+            'private_record': '/data/system/platform/previous-boot-evidence.json',
+            'log_tails': [{k: log.get(k) for k in ('name','tail_sha256','source_bytes_at_capture')}
+                          for log in value.get('logs',[])]}

@@ -42,3 +42,8 @@ blocked database and sync failure first with synthetic host fixtures. Only then,
 under the separate owner-controlled power session, qualify selected thresholds,
 poweroff/reboot and the behavior of USB-connected low voltage. Do not discharge
 an unknown pack to infer a limit.
+
+Suspend remains disabled for ordinary operation. See the explicit
+[hardware gates and existing scoped activity lease](../knowledge/platform-v1-hardware-gates.md).
+The owner qualification helper requires `y2-suspend --owner-qualify`; this flag
+does not confer qualification. Screen blanking never invokes it.
