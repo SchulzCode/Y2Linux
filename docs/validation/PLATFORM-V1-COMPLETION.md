@@ -57,3 +57,10 @@ observation, richer service fault counters, time readiness and update readiness
 remain implementation work in their dependent streams. Persistent early crash
 cause and AP watchdog recovery remain PHYSICAL_GATE / BLOCKED_BY_EVIDENCE;
 unclean shutdown is never labelled panic or watchdog without evidence.
+
+The first fresh phase-1 build completed the kernel and ARM ABI selftest, then
+exposed an unexercised BlueZ 5.87 headers-only recipe: Python selects it, but the
+old recipe installed `lib/*.h` after upstream moved headers to `lib/bluetooth`.
+The pinned modernization adapter now updates that path. This failed build is
+retained at `out/platform-v1-observation-build/buildroot-build.log`; it is not an
+ARM userspace pass. Validation resumes after the focused recipe correction.

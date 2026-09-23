@@ -59,6 +59,9 @@ def apply(buildroot_source: Path) -> None:
 
     replace_once(bluez / "bluez5_utils.mk", "BLUEZ5_UTILS_VERSION = 5.79", f"BLUEZ5_UTILS_VERSION = {BLUEZ_VERSION}")
     replace_once(headers / "bluez5_utils-headers.mk", "BLUEZ5_UTILS_HEADERS_VERSION = 5.79", f"BLUEZ5_UTILS_HEADERS_VERSION = {BLUEZ_VERSION}")
+    # BlueZ 5.87 moved public headers under lib/bluetooth. Python's socket
+    # module selects this headers-only package, unlike the earlier image.
+    replace_once(headers / "bluez5_utils-headers.mk", "$(@D)/lib/*.h", "$(@D)/lib/bluetooth/*.h")
     replace_hash(
         bluez / "bluez5_utils.hash",
         "bluez-5.79.tar.xz",
