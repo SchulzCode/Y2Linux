@@ -1,5 +1,43 @@
 # Y2Linux roadmap and gap audit
 
+## Platform v1 Bluetooth software activation — 2026-09-23
+
+Boundary source Linux `80dc891`, Reborn `ce55f89`. Phase-2 Linux `5049761` /
+Reborn `17dd464` built kernel/ARM/rootfs; installed QEMU app checks and the actual
+1k library/scanner/UI benchmark passed. The production suite stopped on the
+host-only shim's off64_t portability error; `44cf4ac` fixes it, rerun pending.
+Phase-3 shutdown/network/time/media changes have focused host evidence; Reborn
+workspace tests passed. They await their own ARM build, not inherited proof.
+
+All September 23 coverage rows remain physically unchanged: core boot/rescue,
+identity/storage, RAM/SMP/reservations, clocks/regulators/IRQs, display/input,
+S16 wired audio, USB, power/thermal/idle/suspend, radios, firmware, updates,
+security/time/entropy and recovery retain their narrow prior evidence or gaps.
+The software advances are now independent shutdown/media policy, truthful
+IP/DNS readiness, clock strategy and per-device entropy persistence. No new
+voltage, PMIC, reserved-memory or hardware scope is introduced.
+
+Re-read own CONNECTIVITY-10 summary: adapter power and simultaneous Wi-Fi scan
+passed, but zero saved networks and no paired peer/SBC data were tested. The
+codec audit is a design source, not hardware authorization. Current source
+supersedes its older findings: BlueZ 5.87/BlueALSA 5.0.0/libsbc 2.2 are pinned;
+Reborn already sets Trusted after successful owner-initiated pairing, observes
+Format/Rate and invalidates transport generations. Do not reimplement those fixes.
+
+Next software boundary under #31/#29/#32 is typed D-Bus observation, bounded
+single-owner reconnect coordination, Reborn AVRCP semantic actions and codec Auto
+eligibility. Production Auto requires build/runtime/remote/distribution AND
+qualification gates; current integrated SBC qualification is absent. Optional
+encoders can be researched and built in explicit experimental profiles where
+source/license evidence permits, never advertised as qualified. AAC patent,
+aptX trademark/library and LDAC certification/distribution limits remain separate
+from source availability. LE Audio/ISO, Adaptive/Lossless stay unsupported.
+
+#16/#27/#28/#29/#31/#32/#33/#34 remain open; accepted #30 is preserved. No remote
+milestone closure/update is warranted by these software-only increments. Physical
+pairing/SBC/reconnect/AVRCP/coexistence and codec qualification remain PHYSICAL_GATE;
+continue authorized software work and exact qualification preparation.
+
 ## Platform v1 power/time/network software activation — 2026-09-23
 
 Boundary source: Linux `9f347cf`, Reborn `17dd464`. Observation ARM/QEMU receipts
