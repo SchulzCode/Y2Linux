@@ -1,0 +1,5 @@
+#!/bin/sh
+# Only durable boot bookkeeping here. Radio and Reborn keep their existing owners.
+case "$1" in
+ start) /usr/sbin/y2-platform boot-stage platform_start >/dev/kmsg 2>&1 || : ;;
+esac

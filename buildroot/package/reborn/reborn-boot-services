@@ -6,4 +6,7 @@ if mountpoint -q /data && [ ! -L /data/logs ]; then
     mkdir -p /data/logs
 fi
 /usr/libexec/reborn-splash --start >/dev/kmsg 2>&1 || :
-exec /etc/init.d/rcS >/dev/kmsg 2>&1
+/etc/init.d/rcS >/dev/kmsg 2>&1
+result=$?
+/usr/sbin/y2-platform boot-stage services_started >/dev/kmsg 2>&1 || :
+exit "$result"

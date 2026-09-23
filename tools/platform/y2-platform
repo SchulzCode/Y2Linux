@@ -1,0 +1,5 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+export PYTHONPATH=/usr/lib/y2-platform
+export PYTHONDONTWRITEBYTECODE=1
+exec /usr/bin/python3 -I /usr/lib/y2-platform/main.py "$@"

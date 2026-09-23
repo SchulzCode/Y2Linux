@@ -36,5 +36,24 @@ authorization.
 
 ## Implementation and validation
 
-Pending. Exact commands, results, commits, artifact identity and remaining risks
-are recorded here as each capability is completed.
+### Telemetry, health, capability and boot record foundation
+
+DONE_SOFTWARE / HOST_VALIDATED for the implemented observation contracts.
+`tools/platform/y2_platform` provides versioned JSON, CPU/residency/VM/PSS,
+die thermal/power, mount identity/space, Wi-Fi readiness, audio/USB/update state,
+capabilities, bounded queries and boot history. Rescue's stale charging statement
+is corrected without adding a Python dependency to rescue. Initramfs stages are
+instrumented, without removing any identity, fsck or recovery gate.
+
+`python3 -m unittest tests.test_platform_contract -v`: 10 pass, exercising source
+disappearance/reinsertion, counter reset, missing measurements, DHCP timeout,
+stale DNS epochs, corrupt records, space reserves, previous boot retention,
+symlink refusal and subprocess deadlines/output bounds. Full health currently
+adds query-only checks; scratch/SQLite integration follows in phase 2.
+
+ARM_BUILT and IMAGE_VALIDATED are pending a fresh build. No physical/endurance
+claims. Python target footprint/collection cost need measurement. D-Bus transport
+observation, richer service fault counters, time readiness and update readiness
+remain implementation work in their dependent streams. Persistent early crash
+cause and AP watchdog recovery remain PHYSICAL_GATE / BLOCKED_BY_EVIDENCE;
+unclean shutdown is never labelled panic or watchdog without evidence.

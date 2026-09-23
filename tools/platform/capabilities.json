@@ -1,0 +1,23 @@
+{
+  "schema": "org.y2linux.capabilities/v1",
+  "platform_version": "1.0.0-candidate-dev",
+  "api_version": 1,
+  "qualification_scope": "No integrated physical or endurance qualification for this candidate",
+  "capabilities": {
+    "telemetry": {"implemented": true, "enabled": true, "qualified": false},
+    "health": {"implemented": true, "enabled": true, "qualified": false},
+    "storage": {"implemented": true, "enabled": true, "qualified": false, "data_root": "/data", "media_root": "/media/sd", "filesystems": ["ext4", "vfat"], "mount_identity": "boot_id:mount_id:device_id plus UUID", "automatic_music_deletion": false},
+    "wifi": {"implemented": true, "enabled": false, "enabled_source": "/data/network/enabled", "qualified": false, "readiness_requires": ["authenticated", "address", "default_route", "recent_dns_probe"]},
+    "bluetooth": {"implemented": true, "enabled": false, "enabled_source": "/data/bluetooth/enabled", "qualified": false, "baseline_codec": "SBC", "optional_codecs": [], "automatic_connection_owner": "y2-bt-reconnect"},
+    "usb_device": {"implemented": true, "enabled": true, "qualified": false, "functions": ["ACM", "ECM"], "ssh_bind": "10.42.0.1:22"},
+    "usb_host": {"implemented": false, "enabled": false, "qualified": false, "gate": "PHYSICAL_GATE", "reason": "board_role_and_vbus_unproven"},
+    "audio": {"implemented": true, "enabled": true, "qualified": false, "enabled_formats": ["S16_LE"], "enabled_rates_hz": [44100], "channels": 2, "prior_narrow_evidence": "2026-09-18-gpu01/audio.txt", "s32": false, "preserved_24bit": false},
+    "power_observation": {"implemented": true, "enabled": true, "qualified": false, "measured_current": false, "soc": false, "pack_temperature": false},
+    "low_battery_shutdown": {"implemented": false, "enabled": false, "qualified": false, "gate": "PHYSICAL_GATE", "reason": "thresholds_and_shutdown_reserve_require_measurement"},
+    "deep_suspend": {"implemented": true, "enabled": false, "qualified": false, "gate": "PHYSICAL_GATE", "reason": "same_boot_resume_unqualified"},
+    "cpuidle": {"implemented": true, "enabled": true, "qualified": false, "states": ["WFI"]},
+    "system_watchdog": {"implemented": true, "enabled": false, "qualified": false, "gate": "PHYSICAL_GATE", "reason": "AP_watchdog_driver_available_recovery_policy_unqualified"},
+    "ota": {"implemented": false, "enabled": false, "qualified": false},
+    "automatic_bootimg_update": {"implemented": false, "enabled": false, "qualified": false, "reason": "single_slot_rescue_can_be_lost"}
+  }
+}

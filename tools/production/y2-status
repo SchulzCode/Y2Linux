@@ -24,12 +24,14 @@ case "${1:-storage}" in
     ;;
  audio) cat /proc/asound/cards; cat /proc/asound/pcm;;
  power)
-    echo 'Battery charging management is not implemented or qualified.'
-    echo 'USB presence does not establish charging.'
+    echo 'Native charging policy is implemented; qualification is image-specific.'
+    echo 'Configured current is not measured current; SOC and pack temperature unavailable.'
     for supply in /sys/class/power_supply/*; do
         [ -f "$supply/type" ] || continue
         echo "${supply##*/}: $(cat "$supply/type")"
-        [ ! -f "$supply/online" ] || cat "$supply/online"
+        for field in online present status health usb_type voltage_now constant_charge_current constant_charge_voltage input_current_limit; do
+            [ ! -f "$supply/$field" ] || echo "$field=$(cat "$supply/$field")"
+        done
     done;;
  *) echo 'Usage: y2-status storage|usb|audio|power' >&2; exit 2;;
 esac

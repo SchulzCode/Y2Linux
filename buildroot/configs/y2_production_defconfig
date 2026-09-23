@@ -114,3 +114,11 @@ BR2_PACKAGE_FFMPEG_EXTRACONF="--disable-programs --disable-avdevice --disable-ne
 # BR2_PACKAGE_FFMPEG_INDEVS is not set
 # BR2_PACKAGE_FFMPEG_OUTDEVS is not set
 BR2_PACKAGE_SQLITE=y
+
+# Shared platform diagnostics, bounded policy and maintenance tools; no pip.
+BR2_PACKAGE_PYTHON3=y
+BR2_PACKAGE_PYTHON3_PY_ONLY=y
+BR2_PACKAGE_PYTHON3_SQLITE=y
+BR2_PACKAGE_PYTHON3_SSL=y
+BR2_PACKAGE_PYTHON3_ZLIB=y
+BR2_PACKAGE_LIBOPENSSL_BIN=y

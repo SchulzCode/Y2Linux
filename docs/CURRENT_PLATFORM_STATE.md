@@ -1,5 +1,13 @@
 # Current Y2Linux platform state
 
+**Completion-pass update, 23 September 2026:** owner-authorized software work is
+active. The [Platform v1 ledger](validation/PLATFORM-V1-COMPLETION.md) and
+[roadmap](planning/platform-v1-roadmap.md) now track implementation and evidence.
+Telemetry, health, capabilities and boot-history foundations have new source and
+targeted host tests; fresh ARM/image qualification is pending. No physical device
+was accessed. The original owner review below remains the entry baseline, not a
+claim that subsequent software work is absent.
+
 **23 September 2026 — owner review, no implementation or hardware activity.**
 Reviewed Y2Linux `5f6b446` and Y2Reborn `d9ba054`; the latest packaged Reborn
 code is `dde3c53`. Existing audits and physical receipts were reviewed before

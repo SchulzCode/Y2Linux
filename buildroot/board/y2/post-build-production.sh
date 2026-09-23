@@ -33,6 +33,13 @@ install -m 644 "$project/initramfs/production/storage.sh" "$target/usr/lib/y2-st
 # Never package host private keys, device calibration, or a universal login key.
 install -m 755 "$Y2_ARTIFACT_DIR/y2-platform-start" "$target/usr/sbin/y2-platform-start"
 install -m 755 "$project/tools/production/y2-status" "$target/usr/sbin/y2-status"
+mkdir -p "$target/usr/lib/y2-platform/y2_platform"
+install -m 644 "$project"/tools/platform/y2_platform/*.py "$target/usr/lib/y2-platform/y2_platform/"
+install -m 644 "$project/tools/platform/main.py" "$target/usr/lib/y2-platform/main.py"
+for command in y2-platform y2-status y2-health; do
+    install -m 755 "$project/tools/platform/$command" "$target/usr/sbin/$command"
+done
+install -m 644 "$project/tools/platform/capabilities.json" "$target/etc/y2linux/capabilities.json"
 install -m 755 "$Y2_ARTIFACT_DIR/y2-usb-status" "$target/usr/sbin/y2-usb-status"
 printf '%s\n' y2-platform-v1 > "$target/etc/y2linux/platform-contract"
 # Explicit owner provisioning is a build input, never a boot-time download.
