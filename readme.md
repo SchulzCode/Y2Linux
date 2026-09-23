@@ -84,8 +84,9 @@ The [Platform v1 roadmap](docs/planning/platform-v1-roadmap.md) and
 [standing milestone audit](docs/planning/roadmap-gap-audit.md#standing-milestone-boundary-rule)
 govern later scope changes. After owner acceptance of the advertised core,
 feature development returns to Reborn and Y2Linux moves into platform maintenance.
-Older milestone handoffs remain historical evidence; the current ledger records
-which findings have been superseded.
+The [documentation index](docs/README.md) separates current contracts from retained
+historical knowledge and evidence. Superseded session task lists have been
+consolidated into the linked records.
 
 Reviewed evidence belongs in Git. Private captures, owner firmware, generated
 images and caches remain outside tracked source. Never commit private signing or

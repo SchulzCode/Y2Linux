@@ -1,6 +1,11 @@
 # Unknowns and architecture decisions
 
-**Current checkpoint:** [session handoff](../planning/session-handoff-2026-09-10.md).
+**Current platform state:** [Platform v1 candidate](../CURRENT_PLATFORM_STATE.md).
+The dated unknowns and decisions below retain their original evidence scope;
+current implementation and qualification gaps are tracked in that state and its
+linked ledger.
+
+**Historical checkpoint — 2026-09-10:**
 M1 complete; M2 core/Buildroot physically qualified for progression; M3 AUDIO-02
 has clean44.1kHz headphones and a deployed/tested notification fix. USB reconnect
 #27 remains unresolved. M4/M5/Y2PlayerNative are not started. Earlier unknowns
@@ -91,7 +96,7 @@ Y2B-201 through Y2B-235 deliver a reproducible, strictly validated offline candi
 
 ## Current core result and next planning boundary
 
-[M1 runtime result](m1-runtime-hardware-result.md) supersedes historical claims above that no Linux hardware execution or heartbeat has been observed. The sleep ENOSYS failure is historical; increasing BEAT and working sleep are now reported. Physical UART, exact image lineage and broader DMA/power/peripheral questions remain separate. Exactly five research issues are queued in [execution order](../planning/next-five-platform-foundations.md); no implementation or M2 execution occurred today.
+[M1 runtime result](m1-runtime-hardware-result.md) supersedes historical claims above that no Linux hardware execution or heartbeat has been observed. The sleep ENOSYS failure is historical; increasing BEAT and working sleep are now reported. Physical UART, exact image lineage and broader DMA/power/peripheral questions remain separate. Exactly five research issues are queued in [the historical execution order](../planning/M1-first-boot.md#historical-foundation-research-queue); no implementation or M2 execution occurred today.
 
 ## USB log-channel planning, 2026-09-09
 

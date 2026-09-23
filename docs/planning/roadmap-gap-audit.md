@@ -360,7 +360,7 @@ uncommitted product-source changes at this point. The Y2Reborn worktree's
 pre-existing untracked `docs/audit/`, `docs/review/`, and
 `docs/architecture/bluetooth-codecs.md` remain user-owned and untouched. The
 software closure log is
-[`LUNA-CORRECTNESS-CLOSURE-01.md`](../../Y2Reborn/docs/validation/LUNA-CORRECTNESS-CLOSURE-01.md).
+[`LUNA-CORRECTNESS-CLOSURE-01.md`](https://github.com/SchulzCode/Y2Reborn/blob/main/docs/validation/LUNA-CORRECTNESS-CLOSURE-01.md).
 
 No new physical evidence is claimed or sought: the device was not accessed.
 The latest retained device evidence remains the 2026-09-18 GPU-01 receipt and
@@ -705,9 +705,11 @@ Owner authorization explicitly activates production GPU implementation alongside
 pending M5 qualification. This is the GPU scope review required by the standing
 rule, **not another M5 entry audit**. Entry: clean `c70ff07`; current native
 CONNECTIVITY-10 hardware evidence overrides every older startup-blocked row.
-The [current handoff](session-handoff-2026-09-18.md) records the live SSH snapshot,
-GPU evidence and manual-deployment boundary. No builds, flashes, radio operations,
-new protected-data acquisition or repeated provenance checks occur in this review.
+The [retained GPU inspection](../hardware-evidence/2026-09-18-gpu-contract/README.md)
+records the live hardware contract; the [GPU-02 receipt](../build/y2linux-gpu-02-deployment.md)
+retains the subsequent correction and manual-deployment boundary. No builds,
+flashes, radio operations, new protected-data acquisition or repeated provenance
+checks occur in this review.
 
 All coverage areas below were reviewed. This table supersedes the historical
 September 15 matrix where statuses differ; unchanged residuals are retained.
@@ -1760,7 +1762,7 @@ memory log, while this closeout performs no device inventory. Physical bank is
 
 [Current physical audio result](../knowledge/m3-audio-01-live-result.md) ·
 [Core qualification](../knowledge/y2linux-dev02-live-qualification.md) ·
-[Exact next-session handoff](session-handoff-2026-09-10.md).
+[AUDIO-02 qualification procedure](../build/y2linux-m3-audio-02-deployment.md).
 
 Native24/32-bit and higher rates are not implemented.32-bit I2S slots carry16-bit
 PCM. These are later enhancements; amp/speaker identity/output, jack and precision

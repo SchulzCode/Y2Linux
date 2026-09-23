@@ -23,7 +23,8 @@ results establish bounded Linux stability, not M5 completion or full M4 retestin
 The package's mechanically retained previous BOOTIMG is CONNECTIVITY-03, SHA256
 `d4e53446d95d428292e1f2892207653350c85d5bf8bc56a9d033349e5643cbb0`;
 **it crashes and is not a recovery recommendation**. Earlier matched root/kernel
-fallback pairs are recorded in the [session handoff](../../../planning/session-handoff-2026-09-16.md).
+fallback pairs are recorded in the [CONNECTIVITY-03 build receipt](../y2linux-m5-connectivity-03/README.md)
+and [CONNECTIVITY-01 deployment receipt](../../y2linux-m5-connectivity-01-deployment.md).
 
 Reproduce the isolated package rejection checks:
 

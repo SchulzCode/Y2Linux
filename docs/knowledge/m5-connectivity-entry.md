@@ -9,7 +9,7 @@ M4 is not rebuilt under M5. Neither issue #30 nor #31 can close.
 
 [Fresh hardware evidence](../hardware-evidence/2026-09-15-m5-entry/README.md) ·
 [Roadmap](../planning/roadmap-gap-audit.md) ·
-[Latest handoff](../planning/session-handoff-2026-09-15.md).
+[Subsequent POWER-03 correction and qualification](../build/y2linux-m4-power-03-deployment.md).
 
 ## Actual entry state
 

@@ -47,6 +47,6 @@ Physical UART remains unverified and is not required to acknowledge this result.
 
 Only evidence and planning were updated today. No device access, implementation,
 Linux build, BOOTIMG creation or flash was performed in this session. No M2
-execution has begun. [Exactly five queued foundation research issues](../planning/next-five-platform-foundations.md)
+execution has begun. [The five historical foundation research issues](../planning/M1-first-boot.md#historical-foundation-research-queue)
 prepare later implementation one evidence boundary at a time; the native player,
 audio, networking and persistent rootfs remain outside this wave.

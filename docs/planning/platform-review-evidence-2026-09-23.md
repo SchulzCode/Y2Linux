@@ -53,7 +53,7 @@ or owner acceptance is not a repeatable endurance test.
 | CPU/cpufreq/idle/scheduler | SMP, three fixed-voltage OPPs, schedutil, WFI | Targeted clock/power policy | Yes | Four cores; sampled frequencies [D], [G] | Frequency snapshots, GPU utility CPU use | None found | Residency, latency under contention, IRQ/wakeup cost and whole-device energy |
 | RAM and pressure | HIGHMEM/reservations; bounded app queues | Layout/allocator bounds and software cases | Yes | Short 256 MiB allocator pass [D] | Old MemTotal/zone snapshots; narrow utility RSS | None found; full memory run capped | Current RSS/PSS, lowmem pressure, reclaim/OOM recovery, DMA stress |
 | Thermal | CPU/PMIC acquisition, calibration, trips/cooling interface | Conversion/provenance/policy tests | Yes | Die readings during GPU run [G] | Two-minute trace, no external accuracy check | None found | Steady combined load, cooling response, absolute accuracy and pack temperature |
-| Battery/charging/offline boot | Source policy, protections, watchdog, offline UI/boot guard | Fault injection and sequencing | Yes | Older POWER-03 owner acceptance; earlier adverse measurements [P] | Voltage/status/limits; not calibrated current/SOC | None found | Current 450 mA depleted-pack change, real charge gain/runtime, cell thermal envelope |
+| Battery/charging/offline boot | Source policy, protections, watchdog, offline UI/boot guard | Fault injection and sequencing | Yes | Older POWER-03 owner acceptance [P]; earlier adverse measurements [P2] | Voltage/status/limits; not calibrated current/SOC | None found | Current 450 mA depleted-pack change, real charge gain/runtime, cell thermal envelope |
 | Normal low-battery shutdown | No complete platform policy | No complete flow | No complete flow | No | No shutdown reserve measurement | None | Warning, admission limits, checkpoint deadline, service stop and shutdown |
 | Suspend/wake/runtime PM | SPM, leases, refusal rules and source corrections | Targeted CPU/domain/suspend tests | Yes | GPU runtime idle/redraw; deep suspend failed [G] | Domain states/counters; failed CPU ACK trace | None found | Repeated same-boot Power/RTC wake and restored storage/display/audio/radios |
 | Wi-Fi complete service | Driver, supplicant, DHCP hook, persistence and retries | Selected driver paths; mocked application control | Yes | Interface/scan/restart only [W], [B] | Scan counts/timing; no throughput | None found | WPA/IP/routes/DNS, AP loss, DHCP renewal, reconnect and useful traffic |
@@ -324,7 +324,8 @@ executed for this review.
 [G]: ../hardware-evidence/2026-09-18-gpu01/README.md
 [W]: ../hardware-evidence/2026-09-17-m5-connectivity10/README.md
 [U]: ../hardware-evidence/2026-09-15-usb-reconnect/README.md
-[P]: session-handoff-2026-09-16.md
+[P]: ../build/y2linux-m5-connectivity-01-deployment.md
+[P2]: ../hardware-evidence/2026-09-14-m4-power02-charge-fault/README.md
 [F]: ../hardware-evidence/2026-09-14-m4-70ma-baseline/result.json
 [B]: ../../../Y2Reborn/docs/validation/2026-09-18-radio-inspection.md
 [L]: ../../../Y2Reborn/docs/validation/REBORN-STARTUP-02.md

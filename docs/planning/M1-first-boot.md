@@ -1,5 +1,9 @@
 # M1 — Linux 6.18 First Boot
 
+Historical milestone record. For current platform status and work ordering, use
+[CURRENT_PLATFORM_STATE.md](../CURRENT_PLATFORM_STATE.md) and the
+[Platform v1 roadmap](platform-v1-roadmap.md).
+
 Canonical [milestone 2](https://github.com/SchulzCode/Y2Linux/milestone/2).
 **Core objective achieved on the physical Y2: Linux 6.18 + initramfs + native PID1.**
 The M1 milestone is closed for this core objective. Physical UART research #16
@@ -13,7 +17,7 @@ uncertainties](../knowledge/m1-runtime-hardware-result.md). This supersedes the
 historical sleep -38 and hardware-pending status below. It does not certify
 unreported counters, run duration, expanded RAM or unrelated peripherals.
 
-[Next five foundation issues](next-five-platform-foundations.md) are planning
+[The historical foundation queue](#historical-foundation-research-queue) was planning
 only. No new code/build/flash or M2 execution occurred in this session. M1 core
 success does not require another build or retrospective full-suite run: today's
 change records hardware evidence, not a new release-candidate certification.
@@ -71,3 +75,26 @@ Y2B-250 is built and validated offline: [candidate and focused results](../build
 ## Post-core roadmap audit, 2026-09-09
 
 [Full coverage and remaining phase gates](roadmap-gap-audit.md). M1 core remains achieved. Broader exact-artifact boot repeatability, timing accuracy and long-run qualification remain under Y2H-300 #28 rather than being silently inferred from the successful screen. Five later-phase epics are deferred; no new implementation or hardware test was performed.
+
+## Historical foundation research queue
+
+The September 8–10 queue followed the initial M1 runtime result. Its order and
+bounded research goals are retained here after removing the superseded rolling
+"next five" task list. These are historical scopes; the current implementation,
+qualification gaps and next work are in the [Platform v1 roadmap](platform-v1-roadmap.md).
+The original detailed specifications remain in `issues/`.
+
+| Order | Stable issue | One deliverable | Dependency interpretation |
+| --- | --- | --- | --- |
+| 1 | [Y2E-155 / #22 — Specify one safe static RAM expansion step](https://github.com/SchulzCode/Y2Linux/issues/22) | One exact additional-RAM policy or a precise NO-GO | Uses Y2E-130, Y2B-250 and current hardware evidence; D08 unchanged until a reviewed successor. |
+| 2 | [Y2E-160 / #23 — Establish the MT6323 power and supply prerequisite map](https://github.com/SchulzCode/Y2Linux/issues/23) | Minimal PMIC transport/supply ownership contract | Follows the RAM decision; does not require actual expansion. |
+| 3 | [Y2E-165 / #24 — Resolve the wheel and select-button event path](https://github.com/SchulzCode/Y2Linux/issues/24) | CW/CCW/select evdev implementation contract or bounded blocker | Uses supply/transport findings; full input and power drivers are not prerequisites for research. |
+| 4 | [Y2E-170 / #25 — Specify a safe display handoff and backlight ownership boundary](https://github.com/SchulzCode/Y2Linux/issues/25) | One standard-interface takeover decision preserving observation | Uses power ownership and proven D13/D14; follows input research without requiring its driver. |
+| 5 | [Y2E-175 / #26 — Specify a read-only removable-SD controller proof](https://github.com/SchulzCode/Y2Linux/issues/26) | One slot/controller read-only test contract or first missing prerequisite | Uses RAM, power and inherited display-DMA exclusions; keeps eMMC disabled. |
+
+The ordering put RAM headroom before shared power, local controls, display and
+removable storage. Removable SD was the smaller initial storage surface than
+internal eMMC; inherited pixels did not establish a display-driver contract.
+The later [DEV-02 qualification](../knowledge/y2linux-dev02-live-qualification.md)
+records the narrow achieved scope. Source availability and external hardware
+success did not authorize RAM expansion or substitute for this unit's evidence.
