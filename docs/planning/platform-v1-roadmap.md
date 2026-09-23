@@ -13,9 +13,9 @@ evidence level.
 
 | Order | Workstream / tracking | Software boundary | Hardware boundary |
 | --- | --- | --- | --- |
-| 1 | Telemetry, health, capability/readiness, boot history (#16/#28/#32) | ACTIVE: bounded JSON observation, honest missing data, retained boot stages | Collection overhead, current devices, reset-cause retention |
-| 2 | Space, SD, scratch/SQLite/library benchmarks (#28/#29/#33) | ACTIVE: stable mount identities, budgets, real workload/fault tools; phase 1 fresh ARM build in progress against isolated sources | SD loss, I/O tails, electrical durability, 1k/10k/20k target performance |
-| 3 | Shutdown, low battery, clock/entropy, Wi-Fi (#28/#30/#31) | Queued: independent bounded mechanism; thresholds disabled pending evidence | Thresholds/reserve, charging, RTC retention, DHCP/DNS/reconnect |
+| 1 | Telemetry, health, capability/readiness, boot history (#16/#28/#32) | Implemented/host tested; phase-1 ARM/QEMU passed: bounded JSON observation, honest missing data, retained boot stages | Collection overhead, current devices, reset-cause retention |
+| 2 | Space, SD, scratch/SQLite/library benchmarks (#28/#29/#33) | Implemented/host tested: stable mount identities, budgets, scratch/library/resource and syscall-fault tools; fresh phase-2 ARM build next | SD loss, I/O tails, electrical durability, 1k/10k/20k target performance |
+| 3 | Shutdown, low battery, clock/entropy, Wi-Fi (#28/#30/#31) | ACTIVE: independent bounded mechanism; thresholds disabled pending evidence | Thresholds/reserve, charging, RTC retention, DHCP/DNS/reconnect |
 | 4 | Bluetooth baseline, AVRCP, codec policy (#31) | Queued: one reconnect owner, observed PCM, bounded Auto, explicit eligibility | SBC peers/coexistence; optional codecs need distribution and peer evidence |
 | 5 | USB transfer/reliability/host feasibility (#27/#28/#32) | Queued: authenticated USB-only standard protocol and lifecycle | Reconnect/PC sleep, transfer performance; host VBUS/role wiring |
 | 6 | Signed staged root updates/recovery, reset/backup (#32/#33) | Queued: authenticity, key lifecycle, journal, offline root writer, restore | Interruption/recovery; automatic BOOTIMG writes excluded |

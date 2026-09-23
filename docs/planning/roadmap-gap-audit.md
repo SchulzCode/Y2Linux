@@ -1,5 +1,36 @@
 # Y2Linux roadmap and gap audit
 
+## Platform v1 power/time/network software activation — 2026-09-23
+
+Boundary source: Linux `9f347cf`, Reborn `17dd464`. Observation ARM/QEMU receipts
+are for `82da3f9` / `d9ba054`; subsequent SD/space/library/resource code has host
+evidence and awaits the next paired build. The 22 platform and focused Reborn
+tests cover the new software contracts. No hardware acceptance is added.
+
+Coverage is refreshed against all rows of the September 23 evidence ledger:
+boot/rescue and identity, RAM/SMP/reservations, clocks/IRQ/regulator ownership,
+display/input, audio, USB, eMMC/SD, power/thermal/idle, radios, firmware, updates,
+security/time/entropy and recovery retain their physical classifications. The
+only advances are software observation, mount claims/space policy, exFAT tooling,
+benchmarks, resource logging and reduced Reborn navigation allocation. Kernel
+SD support is source-only until rebuilt. No memory/electrical scope changes.
+
+Re-read CONNECTIVITY-10's own interface/scan result (no saved network, WPA/IP/DNS
+or peer audio test), GPU-01 owner audio/input observations and retained charging
+state (450 mA is a programmed limit, not battery current). Later low-voltage
+charger source remains unqualified; historical wrong RTC date and deep-resume
+failure remain adverse evidence. M4 #30 owner acceptance is preserved. Issue
+ownership remains #28/#30/#31/#32/#33, with #16 early evidence and #27 USB open;
+no remote tracker mutation or new physical milestone is appropriate.
+
+Phase 3 is ready for software: a UI-independent bounded shutdown handshake,
+disabled-by-default threshold mechanism, sane-clock/TLS readiness and standard
+NTP, and one DHCP/DNS lifecycle under the existing supplicant owner. No charge
+limit, RTC register algorithm, SPM sequence or battery cutoff is invented.
+Thresholds/reserve, RTC retention, poweroff/reboot, association/DHCP/DNS and
+reconnect remain PHYSICAL_GATE. Proceed with software and fake-environment
+failure tests; physical sessions remain owner-controlled.
+
 ## Platform v1 storage/measurement activation — 2026-09-23
 
 Before phase 2, source `6c9b991` has 24 passing targeted telemetry, handover and
