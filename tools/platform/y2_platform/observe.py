@@ -363,7 +363,7 @@ def readiness(status):
         'wifi': item({'Online': 'Ready', 'Off': 'Unavailable', 'Failed': 'Failed',
                       'Authenticated': 'Degraded'}.get(wifi['state'], 'Starting'), wifi['reason']),
         'bluetooth': item(status['bluetooth']['state'], status['bluetooth'].get('reason')),
-        'audio': item('Ready' if re.search(r'^\s*\d+\s+\[', status['audio']['cards'] or '', re.M)
+        'audio': item('Ready' if re.search(r'^\s*\d+\s+\[Y2Audio\s*\]', status['audio']['cards'] or '', re.M)
                       and audio_profile_valid
                       else 'Unavailable', 'profile_does_not_imply_current_physical_acceptance'),
         'update': item({'Idle': 'Ready', 'Acknowledged': 'Ready', 'RolledBack': 'Degraded',

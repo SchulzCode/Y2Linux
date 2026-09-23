@@ -206,14 +206,36 @@ contains no BOOTIMG/data payload and is not a first-install substitute.
    reboot contract. Rescue validates everything, creates/verifies the previous
    root, writes offline and verifies readback. Normal boot must publish exact
    first-frame/process readiness and acknowledge health within the bounded window.
-4. On a disposable qualification cycle, suppress application readiness through
-   the controlled application-failure procedure; timeout should queue rollback.
+4. On a disposable qualification cycle, use the explicit missing-application
+   derivative below; timeout should queue rollback.
    The next owner reboot restores the verified previous root. There is no automatic
    reboot loop. `RescueRequired` must remain in rescue rather than retry forever.
 5. Demonstrate explicit verified rollback and fallback recovery, then restore
    normal services. An electrical interruption during root writing is a separate
    owner-approved destructive qualification after all local protections pass.
    It is never simulated by pretending a process-kill test is power loss.
+
+Prepare that failure **on the host**, in a fresh private output directory:
+
+```sh
+python3 tools/update/qualification_root.py \
+  --candidate out/y2linux-platform-v1-candidate --output PRIVATE_FAULT_DIRECTORY
+```
+
+This checks the original root hash, copies only to a new regular file, deliberately
+removes `/usr/bin/reborn`, updates the derived rootfs identity and checks ext4.
+It never installs or signs anything and never alters the original. Inspect
+`fixture.json` and `e2fsck.log`. The resulting `INTENTIONALLY-BROKEN-APP.ext4`
+is not a release. Only for the approved recovery session, the owner can use
+`tools/update/package.py package` with that image, `fault-versions.json`, a fresh
+output, an off-device trusted development key/key ID, an allowed sequence greater
+than the current accepted sequence and `--rollback-allowed`. Stage/apply that
+signed package through the normal commands. Keep USB/power/recovery available;
+the app is intentionally absent. Wait for `RollbackPending`, save status and use
+the normal platform reboot to restore the verified previous root. Bind its
+capture to `fault-versions.json`; start a separate capture after restoration.
+The real host ext4 fixture test proves preparation/preservation only, not recovery
+on physical flash. Do not distribute or install this fixture as ordinary firmware.
 
 A torn BOOTIMG cannot be fixed by root-only OTA. Development downgrade permission
 is signed/key-policy controlled; production replay policy, release keys and trust

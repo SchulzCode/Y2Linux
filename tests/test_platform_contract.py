@@ -152,6 +152,12 @@ class PlatformContract(unittest.TestCase):
         self.put('/sys/fs/ext4/fixture/errors_count','1')
         health = check(self.ctx)
         self.assertEqual(next(c for c in health['checks'] if c['name']=='filesystem_errors')['state'],'FAILED')
+        profile = {'schema':'org.y2linux.audio-qualification/v1','card':'Y2Audio','channels':2,
+                   'qualified_formats':['S16_LE'],'qualified_rates':[44100]}
+        self.put('/etc/y2linux/audio-qualified.json',json.dumps(profile))
+        self.assertEqual(snapshot(self.ctx)['readiness']['audio']['state'],'Ready')
+        self.put('/proc/asound/cards',' 0 [OtherCard ]: unrelated card')
+        self.assertEqual(snapshot(self.ctx)['readiness']['audio']['state'],'Unavailable')
 
     def test_boot_history_preserves_previous_failure_and_bounds_retention(self):
         record = None
