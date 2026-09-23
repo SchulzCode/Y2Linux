@@ -1,5 +1,33 @@
 # Y2Linux roadmap and gap audit
 
+## Platform v1 signed recovery implementation boundary — 2026-09-23
+
+Linux `ba3ac58` / Reborn `87a46cb`: USB owner transfer has focused host fault
+coverage; the earlier pair `1f54bd0` / `87a46cb` completed a fresh ARM build,
+with production/QEMU checks in progress. USB changes are not covered by that
+build. No new physical evidence exists. Re-read Storage06's owner identity,
+fsck/handover and SSH receipt and CONNECTIVITY-10's adapter/scan receipt: neither
+proves update interruption, root write durability, network readiness or SBC.
+
+The full coverage matrix retains its physical classifications and limitations:
+boot/rescue/reset, memory/reservations/SMP, clocks/regulators/interrupts,
+storage/SD, display/input/GPU, audio, battery/thermal/RTC/idle/suspend, radios,
+USB, time/security and release. Software USB authentication/reserve/atomic
+publication advances; host role/VBUS remains gated. No protected partition,
+reserved memory, charger, SPM or regulator scope changes. Existing open
+#16/#27/#28/#29/#31/#32/#33/#34 and accepted narrow #30 remain; no remote changes.
+
+Phase 6 proceeds under the owner's explicit software authorization: signed
+root-only staging, a small independently trusted rescue verifier/writer, verified
+previous-root backup, readback and bounded boot-health acknowledgement. Rescue
+size budgets stay unchanged. Private signing material stays off-device/outside
+repositories. Key rotation/revocation must account for the immutable BOOTIMG
+trust store; automatic BOOTIMG replacement remains excluded. Host file faults
+and current-source ARM/image validation precede offering a candidate. Electrical
+interruption, rescue access and rollback are PHYSICAL_GATE. No real device is
+contacted, and no documentation or build receipt supplies hardware authorization.
+
+
 ## Platform v1 USB and recovery software activation — 2026-09-23
 
 Boundary: Linux codec/reconnect sources follow `f2db217`; Reborn follows
