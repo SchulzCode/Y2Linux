@@ -349,6 +349,13 @@ def readiness(status):
         return {'state': state, 'reason': reason}
     volumes = status['storage']['volumes']
     wifi = status['wifi']
+    profile = status['audio']['qualified_profile']
+    audio_profile_valid = (isinstance(profile, dict) and
+        profile.get('schema') == 'org.y2linux.audio-qualification/v1' and
+        profile.get('card') == 'Y2Audio' and profile.get('channels') == 2 and
+        isinstance(profile.get('qualified_formats'), list) and 'S16_LE' in profile['qualified_formats'] and
+        isinstance(profile.get('qualified_rates'), list) and any(type(rate) is int and rate == 44100
+                                                               for rate in profile['qualified_rates']))
     return {
         'storage': item(('Ready' if all(v['space_state'] == 'Normal' for v in volumes[:2]) else 'Degraded')
                         if all(v['state'] == 'Ready' for v in volumes[:2]) else 'Failed',
@@ -357,7 +364,7 @@ def readiness(status):
                       'Authenticated': 'Degraded'}.get(wifi['state'], 'Starting'), wifi['reason']),
         'bluetooth': item(status['bluetooth']['state'], status['bluetooth'].get('reason')),
         'audio': item('Ready' if re.search(r'^\s*\d+\s+\[', status['audio']['cards'] or '', re.M)
-                      and status['audio']['qualified_profile']
+                      and audio_profile_valid
                       else 'Unavailable', 'profile_does_not_imply_current_physical_acceptance'),
         'update': item({'Idle': 'Ready', 'Acknowledged': 'Ready', 'RolledBack': 'Degraded',
                         'Queued': 'Starting', 'PendingHealth': 'Starting', 'RollbackPending': 'Degraded',

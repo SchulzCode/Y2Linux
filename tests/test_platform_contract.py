@@ -141,6 +141,18 @@ class PlatformContract(unittest.TestCase):
         self.assertEqual(space_state(200 * mib, 800 * mib, readonly=True), 'ReadOnlyRisk')
         self.assertEqual(space_state(200 * mib, 800 * mib, error=True), 'Failed')
 
+    def test_unreadable_filesystem_counter_and_invalid_audio_profile_are_not_ready(self):
+        self.put('/sys/fs/ext4/fixture/errors_count', 'not a readable counter')
+        self.put('/proc/asound/cards', ' 0 [Y2Audio ]: fixture')
+        self.put('/etc/y2linux/audio-qualified.json', '{"note":"a nonempty corrupt profile"}')
+        result = snapshot(self.ctx)
+        self.assertEqual(result['readiness']['audio']['state'], 'Unavailable')
+        health = check(self.ctx)
+        self.assertEqual(next(c for c in health['checks'] if c['name']=='filesystem_errors')['state'],'UNAVAILABLE')
+        self.put('/sys/fs/ext4/fixture/errors_count','1')
+        health = check(self.ctx)
+        self.assertEqual(next(c for c in health['checks'] if c['name']=='filesystem_errors')['state'],'FAILED')
+
     def test_boot_history_preserves_previous_failure_and_bounds_retention(self):
         record = None
         for n in range(15):

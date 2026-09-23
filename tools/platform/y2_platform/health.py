@@ -17,14 +17,19 @@ def check(ctx, full=False):
             state = 'DEGRADED'
         add(name, state, volume.get('reason') or volume['space_state'])
     fs_errors = []
+    unreadable = []
     error_sources = ctx.glob('/sys/fs/ext4/*/errors_count')
     for path in error_sources:
         from .common import number, read
         count = number(read(path))
-        if count:
+        if count is None or count < 0:
+            unreadable.append(path.parent.name)
+        elif count:
             fs_errors.append({'filesystem': path.parent.name, 'errors': count})
-    add('filesystem_errors', 'FAILED' if fs_errors else ('OK' if error_sources else 'UNAVAILABLE'),
-        'kernel_reported_errors' if fs_errors else ('no_reported_ext4_errors' if error_sources else 'counter_unavailable'), errors=fs_errors)
+    available = bool(error_sources) and not unreadable
+    add('filesystem_errors', 'FAILED' if fs_errors else ('OK' if available else 'UNAVAILABLE'),
+        'kernel_reported_errors' if fs_errors else ('no_reported_ext4_errors' if available else 'counter_unavailable'),
+        errors=fs_errors, unreadable=unreadable)
     for name, present in (
         ('render_node', bool(ctx.glob('/dev/dri/renderD*'))),
         ('display', bool(ctx.glob('/dev/dri/card*'))),
