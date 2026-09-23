@@ -57,6 +57,13 @@ def apply(buildroot_source: Path) -> None:
     alsa_utils = buildroot_source / "package/alsa-utils"
     dropbear = buildroot_source / "package/dropbear"
 
+    # The locked LTS recipe pins wpa_supplicant 2.12 but retains the previous
+    # README hash. This is the unchanged BSD license/copyright-2026 README
+    # from its already pinned and verified 2.12 archive.
+    replace_once(buildroot_source / "package/wpa_supplicant/wpa_supplicant.hash",
+                 "83be1b142c59ccf0d6c5dde0695d8f84dfba109bea058e78ec2942389ccf327f  README",
+                 "29631e03453491eeefe2ae894b8af47d7e38e64ef3495837e7b8529c6bbf2e2f  README")
+
     replace_once(bluez / "bluez5_utils.mk", "BLUEZ5_UTILS_VERSION = 5.79", f"BLUEZ5_UTILS_VERSION = {BLUEZ_VERSION}")
     replace_once(headers / "bluez5_utils-headers.mk", "BLUEZ5_UTILS_HEADERS_VERSION = 5.79", f"BLUEZ5_UTILS_HEADERS_VERSION = {BLUEZ_VERSION}")
     # BlueZ 5.87 moved public headers under lib/bluetooth. Python's socket

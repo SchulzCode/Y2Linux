@@ -16,6 +16,8 @@ VERSION = (REBORN / "FFMPEG_VERSION").read_text().strip()
 ARCHIVE = f"ffmpeg-{VERSION}.tar.xz"
 ARCHIVE_URL = f"https://ffmpeg.org/releases/{ARCHIVE}"
 ARCHIVE_SHA256 = "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e"
+# LICENSE.md from that same hash-verified 9.0.2 archive, not the old 6.1 text.
+LICENSE_SHA256 = "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af"
 
 
 def ensure_archive(download_dir: Path) -> Path:
@@ -62,7 +64,12 @@ def apply(buildroot_source: Path, download_dir: Path) -> None:
     hash_text = hashes.read_text()
     if ARCHIVE not in hash_text:
         old = next(line for line in hash_text.splitlines() if "ffmpeg-" in line and line.endswith(".tar.xz"))
-        hashes.write_text(hash_text.replace(old, f"sha256  {ARCHIVE_SHA256}  {ARCHIVE}"))
+        hash_text = hash_text.replace(old, f"sha256  {ARCHIVE_SHA256}  {ARCHIVE}")
+    hash_text, count = re.subn(r'^sha256\s+[0-9a-f]{64}\s+LICENSE\.md$',
+                              f'sha256  {LICENSE_SHA256}  LICENSE.md', hash_text, flags=re.M)
+    if count != 1:
+        raise ValueError('expected FFmpeg license hash missing')
+    hashes.write_text(hash_text)
     # Buildroot 2025.02 carries fixes for the 6.1 branch. FFmpeg 9 already
     # contains those fixes, and several target unrelated hardware paths that
     # are disabled in the Y2 audio-only configuration.
