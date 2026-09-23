@@ -174,3 +174,10 @@ Reconnect now has bounded attempts, persistent same-boot inhibition, shared
 user/automatic operation exclusion, and unknown-completion containment. Native
 host compilation and six Bluetooth tests pass; Reborn's 34 platform tests pass.
 These newer Bluetooth changes still need the next fresh ARM/image receipt.
+
+Codec Auto has a typed eligibility/session policy and actual SelectCodec control
+path through Reborn, plus stopped-playback/shared-PCM exclusion. Two policy tests
+exercise gate/fallback/peer generation/deadline/unknown-completion bounds; the
+real file-lock test proves open PCM and selection exclude each other. Requested
+codec never overwrites negotiated PCM. Optional codecs remain unbuilt and
+distribution-gated, not claimed implemented. See platform-bluetooth-v1.md.

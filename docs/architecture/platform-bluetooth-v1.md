@@ -57,3 +57,31 @@ Linux lock interoperability is covered by an actual competing file-descriptor
 lock test and the pinned Rust implementation's [Unix flock semantics](https://doc.rust-lang.org/std/fs/struct.File.html#method.try_lock).
 This policy is HOST_VALIDATED; headset disappearance, daemon restart, intentional
 disconnect and reconnect after long absence remain owner qualification cases.
+
+`rebornctl bluetooth codec Auto|SBC ADDRESS` implements explicit stopped-playback
+codec selection. Auto requires every inventory/runtime/mutual/distribution/physical
+gate. Two preferred candidates (LDAC, aptX-HD, aptX, AAC in that fixed order) and
+conformant SBC consume at most three attempts, with a 12-second attempt-start
+window and bounded D-Bus calls. This is a deterministic initial policy, not a
+measured quality ranking. All current Auto candidates are physically unqualified:
+the command reports the gate, never silently calls SBC qualified. Manual SBC is
+the qualification baseline. No automatic promotion/flapping or Device.Connect
+loop is added. SBC XQ, live bitrate and LE Audio remain unsupported.
+
+A shared PCM lifetime lease excludes selection while a Reborn probe/handle exists,
+even when paused. Selection checks unique daemon owners, peer connection, PCM
+connection sequence/direction and supported stereo 44.1/48 rates. A pending record
+precedes mutation; ambiguous completion or app death blocks new PCM opens until
+BlueALSA owner replacement. Actual PCM remains separate from requested/selected
+codec. The control/API surface is implemented; preference UI is deferred.
+
+Optional encoders are deliberately excluded from this candidate. FDK-AAC's
+[NOTICE](https://raw.githubusercontent.com/mstorsjo/fdk-aac/master/NOTICE) grants no
+patent license; the [libfreeaptx LGPL source](https://github.com/regularhunter/libfreeaptx)
+is a better future linked-library candidate than mixing GPL-3 libopenaptx with
+FDK; [AOSP LDAC NOTICE](https://android.googlesource.com/platform/external/libldac/+/2efdd91222c4c5f929335f34cbc3b576343cf1d2/NOTICE)
+requests product certification. Public distribution approval is not evidenced.
+No source/binary integration or ARM proof is claimed for AAC/aptX/HD/LDAC. These
+remain BLOCKED_BY_EVIDENCE for production approval and DEFERRED for experimental
+profiles; SBC peer/CPU/coexistence qualification takes priority. This does not
+claim that source licensing prohibits private experiments.

@@ -104,7 +104,7 @@ static void control(void)
 			} else if(!g_strcmp0(operation,"disconnect") || !g_strcmp0(operation,"forget") ||
 				!g_strcmp0(operation,"power_off") || !g_strcmp0(operation,"pair") ||
 				!g_strcmp0(operation,"uncertain") || !g_strcmp0(operation,"connect_pending") ||
-				!g_strcmp0(operation,"power_pending")) inhibited=TRUE;
+				!g_strcmp0(operation,"power_pending") || !g_strcmp0(operation,"codec")) inhibited=TRUE;
 			control_sequence=sequence;control_until=until;record();
 		}
 		g_free(boot);g_free(operation);

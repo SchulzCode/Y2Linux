@@ -49,7 +49,15 @@
       "qualified": false,
       "baseline_codec": "SBC",
       "optional_codecs": [],
-      "automatic_connection_owner": "y2-bt-reconnect"
+      "automatic_connection_owner": "y2-bt-reconnect",
+      "avrcp": true,
+      "codec_auto": {
+        "implemented": true,
+        "enabled": true,
+        "qualified": false,
+        "eligible_codecs": [],
+        "interface": "rebornctl bluetooth codec Auto|SBC ADDRESS"
+      }
     },
     "usb_device": {
       "implemented": true,
