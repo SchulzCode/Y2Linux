@@ -1,5 +1,39 @@
 # Y2Linux roadmap and gap audit
 
+## Platform v1 USB and recovery software activation — 2026-09-23
+
+Boundary: Linux codec/reconnect sources follow `f2db217`; Reborn follows
+`7892115`. The fresh phase-3 pair `ea50d53` / `ce55f89` passed kernel/ARM,
+production/platform/subsystem suites and eight QEMU userspace checks. New
+Bluetooth observer/reconnect/AVRCP/Auto code has focused host evidence, with its
+own paired ARM build pending. Optional encoders are unbuilt/distribution-gated.
+
+Re-read USB POWER-02's own two reconnect records and CONNECTIVITY-10's own
+adapter/scan receipt. The former is a runtime-PM workaround result, not proof
+of the later already-present session-reference source fix; the latter still has
+no network association or paired audio evidence. Storage06's narrow verified
+root/data identity and rescue access do not qualify interrupted updates.
+No new physical results are inferred from software builds.
+
+All coverage rows remain accounted for: boot/rescue/reset, RAM/reservations/SMP,
+clocks/regulators/interrupts, storage/SD, display/input/GPU, audio, power/thermal/
+RTC/idle/suspend, radios/firmware, USB, updates/security/time and releases. Their
+retained physical evidence and gates are unchanged. No controller/PHY/VBUS,
+charger, memory, SPM or protected-partition change is authorized. #16/#27/#28/
+#29/#31/#32/#33/#34 stay open, prior #30 acceptance stays narrow; no remote
+tracker changes. Roadmap entries 5–6 now proceed as software under owner scope.
+
+USB work is authenticated USB-interface-only file transfer and bounded standard
+protocol tooling. Host role/VBUS stays PHYSICAL_GATE until board wiring/current
+proof. Rescue work may add signed root-only staging/offline install/readback,
+health acknowledgement/restore, scoped reset and backup. BOOTIMG remains manual:
+single-slot rescue replacement cannot be made atomic by software policy. Fake
+files/devices must cover interrupted writes before any installation is offered.
+No active mounted root write, ordinary Y2DATA replacement, calibration access or
+physical qualification is included. Builds/packages retain explicit evidence
+levels and exact source identities; software progress does not close milestones.
+
+
 ## Platform v1 Bluetooth software activation — 2026-09-23
 
 Boundary source Linux `80dc891`, Reborn `ce55f89`. Phase-2 Linux `5049761` /

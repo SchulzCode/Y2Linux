@@ -1,3 +1,10 @@
+Platform v1 progress (2026-09-23): phase-3 kernel/ARM/rootfs and QEMU checks
+passed at `ea50d53` / `ce55f89`. Bluetooth observation, bounded reconnect, AVRCP
+and qualified Auto are now host-tested; their ARM proof follows separately.
+Optional codecs remain absent and distribution/physical gates remain explicit.
+USB transfer and signed rescue-root update implementation are next. No device
+access or physical qualification occurred. See the completion ledger for scope.
+
 # Current Y2Linux platform state
 
 Platform v1 completion progress (software only): versioned telemetry/health,
