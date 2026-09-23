@@ -6,6 +6,7 @@ reuse old rescue executables when their production sources change.
 import hashlib
 import json
 import tarfile
+import subprocess
 
 TOOLCHAIN = 'armv7-eabihf--glibc--stable-2024.05-1'
 # Buildroot 2025.02.17 toolchain-external-bootlin.hash, same production toolchain.
@@ -33,6 +34,19 @@ def rebuild(project, out, run):
         'y2-fbtest': ('tools/development/fbtest.c', []),
         'y2-abi-check': ('tools/development/abi-check.c', ['-pthread']),
     }
+    # Reusing a rescue verifier with changed source/trust would produce an
+    # unreviewed updater. Retained images lack development headers; require a
+    # full paired build whenever this small trust boundary changes.
+    receipt = out/'userspace-source.json'
+    retained = json.loads(receipt.read_text())
+    commit = retained['base_build_git_commit']
+    for source in ('tools/update/core.c', 'tools/update/trust.json'):
+        try:
+            previous = subprocess.check_output(['git','show',commit+':'+source],cwd=project,stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError as error:
+            raise ValueError('base predates signed rescue; full paired build required') from error
+        if previous != (project/source).read_bytes():
+            raise ValueError('signed rescue source/trust changed; full paired build required')
     built = {}
     for name, (source, extra) in sources.items():
         run([cc, '-Os', '-Wall', '-Wextra', '-Werror', '-mcpu=cortex-a7',

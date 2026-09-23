@@ -1,9 +1,11 @@
-Platform v1 progress (2026-09-23): phase-3 kernel/ARM/rootfs and QEMU checks
-passed at `ea50d53` / `ce55f89`. Bluetooth observation, bounded reconnect, AVRCP
-and qualified Auto are now host-tested; their ARM proof follows separately.
-Optional codecs remain absent and distribution/physical gates remain explicit.
-USB transfer and signed rescue-root update implementation are next. No device
-access or physical qualification occurred. See the completion ledger for scope.
+Platform v1 progress (2026-09-23): phase-4 Bluetooth kernel/ARM/rootfs and
+QEMU checks passed at `1f54bd0` / `87a46cb`. USB-only authenticated SFTP and
+signed root-only staging/rescue/verified rollback now have host fault coverage;
+new ARM/image checks follow. Reborn publishes actual first-frame/process readiness.
+Current candidate physical qualification is absent. Low-battery thresholds,
+optional codecs, USB host, deep suspend and high-resolution packing remain gated.
+See the completion ledger and current architecture contracts for implemented
+software; the owner review below is the preserved entry baseline.
 
 # Current Y2Linux platform state
 

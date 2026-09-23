@@ -1,0 +1,8 @@
+config BR2_PACKAGE_Y2_UPDATE
+	bool "Y2 signed rescue root updater"
+	select BR2_PACKAGE_LIBSODIUM
+	select BR2_PACKAGE_JSON_C
+	select BR2_PACKAGE_ZLIB
+	help
+	  Detached Ed25519 verification and offline Y2ROOT backup/install/restore.
+	  No BOOTIMG, partition table or protected partition writes.

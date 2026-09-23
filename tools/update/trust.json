@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "keys": [
+    {
+      "id": "platform-v1-development-20260923",
+      "purpose": "development",
+      "status": "active",
+      "public_key_hex": "7fc854750abbc8a94104832207db767fbc433eaf855b21c16006d8f296fa03e2",
+      "minimum_sequence": 1,
+      "maximum_sequence": 2147483647,
+      "allow_downgrade": true
+    }
+  ]
+}

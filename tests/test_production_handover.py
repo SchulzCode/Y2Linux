@@ -28,6 +28,9 @@ class Handover(unittest.TestCase):
             (p/'proc/cmdline').write_text(cmdline)
             (p/'sys/firmware/y2_boot/normal_boot').write_text('0\n')
             (p/'display.ko').write_bytes(b'module fixture')
+            if failure in ('torn-update','restore-fails'):
+                (p/'newdata/updates').mkdir()
+                (p/'newdata/updates/state.json').write_text('{"schema":1,"state":"Installing"}')
             script=(ROOT/'initramfs/production/init').read_text()
             # Replace the terminal rescue loop with a finite test exit, keeping
             # every call site and root handover branch as production implements it.
@@ -47,17 +50,22 @@ mount) case "$FAILURE:$*" in
 esac;;
 e2fsck) [ "$FAILURE" != fsck ] || exit 4;;
 y2-offline-charge) [ "$FAILURE" != boot-metadata ] || exit 2;;
+y2-update-core)
+  [ "$1" != rescue-needed ] || exit 11
+  [ "$FAILURE" != restore-fails ] || exit 1
+  touch "$LEDGER.restored";;
 switch_root) [ "$FAILURE" != exec ] || exit 1; echo 'BUILDROOT INIT' >> "$LEDGER";;
 esac
 exit 0
 '''
             for name in ('mount','umount','mknod','sleep','chroot','switch_root','e2fsck',
-                         'y2-platform-start','y2-offline-charge','y2-abi-check','y2-usb-status','y2-status'):
+                         'y2-platform-start','y2-offline-charge','y2-abi-check','y2-usb-status','y2-status','y2-update-core'):
                 target=p/('sbin' if name.startswith('y2-') or name=='e2fsck' else 'bin')/name
                 target.write_text('#!/nonexistent-interpreter\n' if name=='switch_root' and failure=='exec' else wrapper)
                 target.chmod(0o755)
             (p/'sbin/y2-storage').write_text('''y2_find_partition() {
  [ "$FAILURE" != missing ] || return 1
+ if [ "$1" = Y2ROOT ] && [ "$FAILURE" = torn-update ] && [ ! -e "$LEDGER.restored" ]; then return 1; fi
  case "$1" in Y2ROOT) echo /dev/mmcblk0p5;; Y2DATA) echo /dev/mmcblk0p7;; esac
 }
 ''')
@@ -79,8 +87,8 @@ exit 0
         result,events,log=self.exercise()
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertIn('switching to Buildroot',log)
-        sequence=['y2-offline-charge', 'mount -t ext4 -o ro,noload /dev/mmcblk0p5 /newroot',
-                  'mount -t ext4 -o ro,noload /dev/mmcblk0p7 /newdata',
+        sequence=['y2-offline-charge', 'mount -t ext4 -o ro,noload /dev/mmcblk0p7 /newdata',
+                  'umount /newdata', 'mount -t ext4 -o ro,noload /dev/mmcblk0p5 /newroot',
                   'e2fsck -p /dev/mmcblk0p5','e2fsck -p /dev/mmcblk0p7',
                   'mount -t ext4 -o rw /dev/mmcblk0p5 /newroot',
                   'mount -t ext4 -o rw,nosuid,nodev /dev/mmcblk0p7 /newroot/data',
@@ -102,6 +110,16 @@ exit 0
                 self.assertNotIn('switch_root ',events)
                 self.assertNotIn('mount -t ext4 -o rw ',events)
                 if failure == 'boot-metadata': self.assertNotIn('mount -t ext4',events)
+
+    def test_torn_root_recovery_precedes_normal_identity_and_failed_restore_stays_in_ram(self):
+        result, events, _ = self.exercise('torn-update')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertLess(events.index('y2-update-core rescue'),events.index('mount -t ext4 -o ro,noload /dev/mmcblk0p5 /newroot'))
+        self.assertLess(events.index('e2fsck -p /dev/mmcblk0p7'),events.index('y2-update-core rescue\n'))
+        result, events, _ = self.exercise('restore-fails')
+        self.assertEqual(result.returncode,99,result.stderr)
+        self.assertNotIn('switch_root ',events)
+        self.assertNotIn('mount -t ext4 -o rw /dev/mmcblk0p5',events)
 
     def test_explicit_rescue_never_mounts_a_filesystem(self):
         result,events,_=self.exercise(cmdline='rdinit=/init y2.rescue=1')

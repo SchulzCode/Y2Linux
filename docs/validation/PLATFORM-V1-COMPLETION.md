@@ -193,3 +193,26 @@ injected low-space refusal and abrupt session termination. Receipt:
 /tmp/y2linux-platform-v1-pass/sftp-host-check.json (to be retained in candidate).
 ARM/image checks follow. ECM cross-OS, reconnect/sleep/transfer and VBUS/role
 hardware remain PHYSICAL_GATE. No USB mass-storage or host path is enabled.
+
+### Signed staged root update and verified rescue restore
+
+DONE_SOFTWARE / HOST_VALIDATED: native Ed25519/json-c/gzip verification in normal
+system and immutable rescue; strict root-only/kernel/schema/key policy; bounded
+HTTPS/local private staging; controller/geometry/exclusive offline writer;
+actual previous-root backup verified before mutation; fsync/readback, durable
+journal, exact boot/source/first-frame health and next-boot rollback. Development
+public trust provisioned; private key exists only outside repositories/artifacts.
+No BOOTIMG writer. Key rotation/revocation explicitly requires the trusted rescue
+boundary. See `architecture/platform-update-v1.md` for limitations and commands.
+
+Seven actual C/authentication/stream/staging host fault tests pass, plus ten
+observation and six PID1 handover tests (including torn-root recovery ordering).
+Reborn's readiness/capability source passed 37 platform and 27 runtime tests and
+the library benchmark CLI test. No physical/block device was opened. ARM/image
+validation for USB/OTA/readiness is pending a new paired build.
+
+The Bluetooth build at `1f54bd0` / `87a46cb` completed kernel, Buildroot ARM,
+Reborn ARM, FFmpeg/artifact checks, eight QEMU userspace checks and production
+suites: 38 platform cases (one host dependency case skipped in the locked host;
+covered separately on the maintainer host), 67 production and 38 subsystem cases.
+This receipt is `out/platform-v1-bluetooth-build`; USB/OTA code is newer.

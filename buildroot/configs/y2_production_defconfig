@@ -128,3 +128,6 @@ BR2_PACKAGE_PYTHON3_SQLITE=y
 BR2_PACKAGE_PYTHON3_SSL=y
 BR2_PACKAGE_PYTHON3_ZLIB=y
 BR2_PACKAGE_LIBOPENSSL_BIN=y
+
+# Small native verifier/writer also installed in immutable rescue.
+BR2_PACKAGE_Y2_UPDATE=y

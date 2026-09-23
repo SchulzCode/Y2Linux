@@ -1,3 +1,4 @@
 source "$BR2_EXTERNAL_Y2LINUX_PATH/package/y2-connectivity/Config.in"
 source "$BR2_EXTERNAL_Y2LINUX_PATH/package/y2-gpu-check/Config.in"
 source "$BR2_EXTERNAL_Y2LINUX_PATH/package/reborn/Config.in"
+source "$BR2_EXTERNAL_Y2LINUX_PATH/package/y2-update/Config.in"

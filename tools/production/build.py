@@ -115,7 +115,7 @@ def build_userspace(PROJECT,out,source,run):
     run(br+['y2_production_defconfig'],'buildroot-configure.log')
     # Buildroot's local-package stamps do not track edits in this repository.
     # Rebuild these small native helpers when resuming an existing workspace.
-    run(br+['y2-connectivity-dirclean','y2-gpu-check-dirclean','reborn-dirclean'],'local-package-rebuild.log')
+    run(br+['y2-connectivity-dirclean','y2-gpu-check-dirclean','y2-update-dirclean','reborn-dirclean'],'local-package-rebuild.log')
     run(br+['-j12','toolchain'],'buildroot-toolchain.log')
     cc=str(out/'buildroot/host/bin/arm-linux-gcc')
     for name,extra in [('fbtest',[]),('abi-check',['-mcpu=cortex-a7','-mfpu=neon-vfpv4','-mfloat-abi=hard','-marm','-pthread'])]:

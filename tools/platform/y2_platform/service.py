@@ -48,6 +48,12 @@ def serve(ctx):
                 # Run slow fs/stat/cleanup outside this readiness process. A
                 # kernel D-state does not block Wi-Fi or the power daemon.
                 ctx.command(['/usr/sbin/y2-platform', 'space', '--cleanup'], timeout=2)
+                ctx.command(['/usr/sbin/y2-platform', 'update', 'health-ack'], timeout=8)
+                ready = ctx.json('/run/y2/application-ready.json', {})
+                journal = ctx.json('/data/system/platform/boot.json', {})
+                if (ready.get('boot_id') == ctx.read('/proc/sys/kernel/random/boot_id') and
+                        ready.get('first_frame') is True and journal.get('last_stage') == 'platform_start'):
+                    ctx.command(['/usr/sbin/y2-platform', 'boot-stage', 'application_ready'], timeout=2)
             time.sleep(max(.05, 3 - (time.monotonic() - before)))
     finally:
         monitor.close()

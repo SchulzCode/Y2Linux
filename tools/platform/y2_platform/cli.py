@@ -36,6 +36,10 @@ def main():
     transfer.add_argument('--name')
     transfer.add_argument('--bytes', type=int)
     transfer.add_argument('--sha256')
+    update = sub.add_parser('update')
+    update.add_argument('action', choices=['status', 'check', 'stage', 'apply', 'rollback', 'cancel', 'health-ack'])
+    update.add_argument('--url', help='exact HTTPS manifest.json URL; no redirects')
+    update.add_argument('--package', help='owner-supplied local signed package directory')
     sub.add_parser('time-bootstrap')
     sub.add_parser('time')
     ntp = sub.add_parser('ntp-event')
@@ -76,6 +80,23 @@ def main():
     collect.add_argument('--reborn', action='store_true')
     args = parser.parse_args()
     ctx = Context()
+    if args.command == 'update':
+        from . import update
+        try:
+            if args.action in ('check', 'stage'):
+                url = args.url or (ctx.json('/data/updates/channel.json', {}).get('manifest_url') if not args.package else None)
+                result = update.stage(ctx, args.package, url, args.action == 'check')
+            elif args.action in ('apply', 'rollback'):
+                result = update.apply(ctx, args.action == 'rollback')
+            elif args.action == 'cancel':
+                result = update.core(ctx, 'cancel')
+            else:
+                result = update.health_ack(ctx) if args.action == 'health-ack' else update.status(ctx)
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        except (OSError, ValueError, TimeoutError) as error:
+            print(json.dumps({'state': 'Failed', 'failure': str(error)}))
+            return 1
     if args.command == 'transfer':
         from .transfer import begin, commit, inspect, discard
         if args.action == 'begin':

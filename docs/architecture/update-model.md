@@ -1,6 +1,13 @@
 # Y2Linux update model — layout v1
 
-This is an architecture contract, not an implemented OTA updater. Buildroot
+Historical layout rationale. The implemented Platform v1 software OTA contract
+is [signed rescue updates](platform-update-v1.md), which supersedes this page's
+older statements about missing downloads/signatures/automatic installation.
+Manual preserving BOOTIMG/root packages remain distinct. The new OTA path is
+root-only and requires exact kernel compatibility; a manual qualified kernel-only
+package may still use the broader ABI contract described below.
+
+Original architecture context: Buildroot
 2025.02.18 remains the canonical userspace builder; Linux6.18, glibc, BusyBox,
 Dropbear, ALSA and current platform services work without Y2PlayerNative.
 No remote downloading, signing, server, checks, automatic install or app code

@@ -74,6 +74,13 @@ def check(root,project,production=False):
         for name in ('y2-platform-start','y2-offline-charge','y2-usb-status'):
             require(entries['sbin/'+name][1]==(root/name).read_bytes(),'production tool archive bytes '+name)
         require(entries['sbin/y2-status'][1]==(project/'tools/production/y2-status').read_bytes(),'shared diagnostic tool')
+        update=root/'buildroot/target/usr/sbin/y2-update-core'
+        if not update.exists(): update=root/'buildroot/target/sbin/y2-update-core'
+        require(entries['sbin/y2-update-core'][1]==update.read_bytes(),'exact signed rescue updater')
+        require(b'Y2_TEST_ROOT' not in entries['sbin/y2-update-core'][1] and
+                b'Y2_TEST_FAULT' not in entries['sbin/y2-update-core'][1], 'no test writer in rescue')
+        for name in ('update-trust.json','update-compat.json'):
+            require(entries['etc/y2linux/'+name][1]==(root/'buildroot/target/etc/y2linux'/name).read_bytes(),'rescue trust/compatibility identity')
         if 'CONFIG_CFG80211=y' in (root/'kernel/.config').read_text().splitlines():
             from tools.build.regulatory import load
             for name, raw in load(project).items():

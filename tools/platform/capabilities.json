@@ -135,9 +135,18 @@
       "reason": "AP_watchdog_driver_available_recovery_policy_unqualified"
     },
     "ota": {
-      "implemented": false,
-      "enabled": false,
-      "qualified": false
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "targets": [
+        "Y2ROOT"
+      ],
+      "kernel_compatibility": "exact",
+      "signature": "Ed25519",
+      "trust": "development",
+      "rollback": "verified previous root; next boot on missing health",
+      "health_deadline_seconds": 180,
+      "physical_gate": "rescue installation/interruption/readback/restore"
     },
     "automatic_bootimg_update": {
       "implemented": false,

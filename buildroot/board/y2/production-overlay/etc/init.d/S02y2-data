@@ -6,7 +6,7 @@ set -eu
 for dir in settings apps y2player logs cache ssh/authorized_keys.d ssh/host-keys updates music; do
     mkdir -p "/data/$dir"
 done
-chmod 700 /data/ssh /data/ssh/authorized_keys.d /data/ssh/host-keys
+chmod 700 /data/updates /data/ssh /data/ssh/authorized_keys.d /data/ssh/host-keys
 # Application payload area intentionally permits execution; root updates run in rescue.
 
 # Connectivity additions preserve the existing schema and all saved user data.

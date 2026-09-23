@@ -304,6 +304,7 @@ def bluetooth(ctx):
 
 
 def system(ctx):
+    from .update import status as update_status
     from .timekeeping import status as time_status
     clock = time_status(ctx)
     ssh = ctx.json('/run/y2/ssh.json', {})
@@ -332,7 +333,7 @@ def system(ctx):
             'rtc': rtcs, 'time': clock, 'ssh': ssh,
             'entropy_available_bits': ctx.integer('/proc/sys/kernel/random/entropy_avail'),
             'crng_ready': clock['entropy_ready'], 'usb': {'mode': 'peripheral', 'udcs': udcs},
-            'update': ctx.json('/data/updates/state.json', {'state': 'Unavailable'}),
+            'update': update_status(ctx),
             'reborn_supervisor': ctx.json('/data/reborn/logs/supervisor-last.json')}
 
 
@@ -351,7 +352,10 @@ def readiness(status):
         'audio': item('Ready' if re.search(r'^\s*\d+\s+\[', status['audio']['cards'] or '', re.M)
                       and status['audio']['qualified_profile']
                       else 'Unavailable', 'profile_does_not_imply_current_physical_acceptance'),
-        'update': item('Ready' if status['system']['update'].get('state') == 'idle' else 'Unavailable'),
+        'update': item({'Idle': 'Ready', 'Acknowledged': 'Ready', 'RolledBack': 'Degraded',
+                        'Queued': 'Starting', 'PendingHealth': 'Starting', 'RollbackPending': 'Degraded',
+                        'Failed': 'Failed', 'RescueRequired': 'Failed'}.get(status['system']['update'].get('state'), 'Unavailable'),
+                       status['system']['update'].get('failure')),
     }
 
 

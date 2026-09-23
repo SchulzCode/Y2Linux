@@ -54,6 +54,13 @@ def build(root, project, production=True):
         put('sbin/y2-status',stat.S_IFREG|0o755,(project/'tools/production/y2-status').read_bytes())
         binary('sbin/y2-usb-status',root/'y2-usb-status')
         binary('sbin/e2fsck',target/'sbin/e2fsck')
+        update=target/'usr/sbin/y2-update-core'
+        if not update.exists(): update=target/'sbin/y2-update-core'
+        require(update.is_file(), 'base lacks signed rescue updater; build a full paired release')
+        binary('sbin/y2-update-core',update)
+        for name in ('update-trust.json','update-compat.json'):
+            put('etc/y2linux/'+name,stat.S_IFREG|0o644,(target/'etc/y2linux'/name).read_bytes())
+        put('etc/y2linux/rescue-update',stat.S_IFREG|0o644,b'1\n')
         put('sbin/y2-storage',stat.S_IFREG|0o644,(project/'initramfs/production/storage.sh').read_bytes())
         if 'CONFIG_CFG80211=y' in (root/'kernel/.config').read_text().splitlines():
             from tools.build.regulatory import load

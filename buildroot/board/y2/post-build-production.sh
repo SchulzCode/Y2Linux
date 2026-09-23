@@ -56,6 +56,14 @@ done
 install -m 755 "$Y2_ARTIFACT_DIR/y2-usb-status" "$target/usr/sbin/y2-usb-status"
 printf '%s\n' y2-platform-v1 > "$target/etc/y2linux/platform-contract"
 install -m 755 "$Y2_ARTIFACT_DIR/buildroot/build/openssh-9.9p2/sftp-server" "$target/usr/libexec/y2-sftp-server"
+install -m 644 "$project/tools/update/trust.json" "$target/etc/y2linux/update-trust.json"
+python3 - "$target/etc/y2linux" <<'PYUPDATE'
+import json, pathlib, sys
+root=pathlib.Path(sys.argv[1]); versions=json.loads((root/'versions.json').read_text())
+(root/'update-compat.json').write_text(json.dumps(dict(schema=1, product='Y2',
+    hardware_revision='innioasis-y2-mt6582', kernel=versions['kernel_version'],
+    rootfs_contract='y2-platform-v1', sequence=0), separators=(',',':')))
+PYUPDATE
 # Explicit owner provisioning is a build input, never a boot-time download.
 [ -n "${Y2_OWNER_FIRMWARE:-}" ]
 PYTHONPATH="$project" python3 - "$Y2_OWNER_FIRMWARE" "$target" <<'PY'
