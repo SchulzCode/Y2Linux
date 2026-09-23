@@ -1,5 +1,38 @@
 # Y2Linux roadmap and gap audit
 
+## Platform v1 release/endurance implementation boundary — 2026-09-23
+
+At Linux `648fbea` / Reborn `41214d0`, phases 1–7 have implemented software
+contracts or explicit evidence gates. The fresh USB/update pair `1c2451e` /
+`f4b83b7` passed kernel/ARM/image/FFmpeg checks, production suites, eight QEMU
+userspace checks, seven ARM updater fault cases and the actual ARM SFTP protocol
+fault check. New maintenance/evidence code still awaits the final fresh build.
+
+Re-read Storage06's authenticated identity/fsck/handover receipt, GPU-01's narrow
+rendering/S16 result and failed same-boot resume, CONNECTIVITY-10's scan/adapter
+receipt, and the two earlier USB workaround cycles. None supplies candidate
+physical, network connection, SBC, electrical update or endurance qualification.
+The later USB PM fix already exists; no duplicate fix is needed. Original ROM,
+calibration and recovery provenance is unchanged and is not repeated.
+
+All coverage remains explicit: boot/rescue/crash; RAM/SMP/reservations; clock,
+regulator and interrupt ownership; eMMC/SD; display/GPU/input; wired audio;
+battery/thermal/RTC/idle/suspend; Wi-Fi/Bluetooth; USB; time/security; update and
+build/release. Optional codecs, deeper idle, high-resolution AFE, AP watchdog
+recovery and host VBUS do not have sufficient implementation/qualification
+proof. No speculative hardware change is warranted. #16/#27/#28/#29/#31/#32/
+#33/#34 remain open; #30's prior narrow acceptance remains distinct. No tracker
+mutation or hardware authorization is inferred.
+
+Phase 8 is ready for software: integrated passive endurance orchestration,
+source/footprint/security inventory, exact-source fresh qualification and a
+preserve-data candidate package. Physical sessions A–G remain owner-controlled.
+Freeze requires a second boundary audit and passing final receipts; it is not
+already declared. Automatic BOOTIMG OTA, production signing authority, battery
+thresholds and deep suspend remain excluded or gated. No flash or real device
+connection occurs during this work.
+
+
 ## Platform v1 low-power/audio evidence boundary — 2026-09-23
 
 Linux `df7d3a8` / Reborn `41214d0`: signed root-only rescue and scoped maintenance
