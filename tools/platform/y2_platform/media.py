@@ -4,7 +4,7 @@ import fcntl
 import json
 import os
 from .common import atomic_json, read
-from .observe import mountinfo
+from .observe import mountinfo, device_instance
 
 
 def candidates(ctx):
@@ -90,7 +90,8 @@ def operation(ctx, action):
                     current = mounts(ctx)
                     if result['ok'] and len(current) == 1 and current[0]['source'] == card['device']:
                         state.update(state='Ready', mount_id=current[0]['mount_id'],
-                                     device_id=current[0]['device_id'])
+                                     device_id=current[0]['device_id'],
+                                     source_instance=device_instance(ctx, current[0]['device_id']))
                         if candidates(ctx) != available:
                             state.update(state='Failed', reason='source_changed_during_mount')
                         else:

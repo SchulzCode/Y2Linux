@@ -60,11 +60,12 @@ def atomic_json(path, value, durable=False, mode=0o600):
             pass
 
 
-def command(argv, timeout=1.0, limit=65536):
+def command(argv, timeout=1.0, limit=65536, pass_fds=()):
     """No shell, bounded output/deadline; kill the process group on overrun."""
     try:
         process = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                    stderr=subprocess.DEVNULL, start_new_session=True,
+                                   pass_fds=pass_fds,
                                    env={'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LC_ALL': 'C'})
     except OSError:
         return {'ok': False, 'reason': 'command_unavailable', 'output': None}

@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/platform'))
 from y2_platform.boot import mark, transition
 from y2_platform.common import Context, atomic_json, command
 from y2_platform.health import check
-from y2_platform.observe import snapshot, space_state, storage, utilization, wifi
+from y2_platform.observe import snapshot, space_state, storage, utilization, wifi, device_instance
 
 
 class PlatformContract(unittest.TestCase):
@@ -41,7 +41,8 @@ class PlatformContract(unittest.TestCase):
         self.ctx.path('/media/sd').mkdir(parents=True, exist_ok=True)
         self.ctx.runner = lambda *a, **k: {'ok': True, 'output': 'card-one', 'reason': None}
         self.put('/run/y2/media-mount.json', json.dumps({'boot_id': self.ctx.read('/proc/sys/kernel/random/boot_id'),
-                 'mount_id': generation, 'device_id': '179:9', 'uuid': 'card-one'}))
+                 'mount_id': generation, 'device_id': '179:9', 'uuid': 'card-one',
+                 'source_instance': device_instance(self.ctx, '179:9')}))
         return device
 
     def test_disappeared_source_never_looks_like_an_empty_healthy_card(self):

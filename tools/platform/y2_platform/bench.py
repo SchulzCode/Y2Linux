@@ -8,8 +8,10 @@ import random
 import stat
 import time
 import uuid
+import json
+import shutil
 from .common import read
-from .observe import mountinfo, storage
+from .observe import mountinfo, storage, device_instance
 
 
 class Scratch:
@@ -22,6 +24,7 @@ class Scratch:
         self.volume_fd = self.base_fd = self.fd = None
         self.name = 'run-' + uuid.uuid4().hex
         self.files = set()
+        self.child_outputs = False
         self.initial = self.identity()
         if guard is None:
             item = next(v for v in storage(ctx)['volumes'] if v['path'] == volume)
@@ -61,7 +64,8 @@ class Scratch:
         m = found[0]
         if not self.ctx.path('/sys/dev/block/' + m['device_id']).exists() or 'ro' in m['options']:
             raise OSError(errno.ENODEV, 'source_unavailable')
-        return (self.ctx.read('/proc/sys/kernel/random/boot_id'), m['mount_id'], m['device_id'])
+        return (self.ctx.read('/proc/sys/kernel/random/boot_id'), m['mount_id'], m['device_id'],
+                device_instance(self.ctx, m['device_id']))
 
     def ensure(self):
         if self.identity() != self.initial:
@@ -96,6 +100,17 @@ class Scratch:
     def close(self):
         # Descriptor-relative cleanup can never touch a replacement filesystem.
         if self.fd is not None:
+            if self.child_outputs:
+                # Only known outputs in our new private run, with fd-relative
+                # symlink-safe removal. Never recurse from /data or /media/sd.
+                for directory in ('scan-media', 'logs'):
+                    try:
+                        shutil.rmtree(directory, dir_fd=self.fd)
+                    except OSError:
+                        pass
+                for name in ('library.sqlite', 'library.sqlite-wal', 'library.sqlite-shm',
+                             'scan.sqlite', 'scan.sqlite-wal', 'scan.sqlite-shm'):
+                    self.files.add(name)
             for name in self.files:
                 try:
                     os.unlink(name, dir_fd=self.fd)
@@ -242,4 +257,30 @@ def storage_benchmark(ctx, volume='/data', size_mib=16, operations=64, seconds=3
     except (OSError, ValueError, TimeoutError) as error:
         result['record'].update(result='FAILED', failure={'type': type(error).__name__,
                                                          'reason': str(error), 'errno': getattr(error, 'errno', None)})
+    return result
+
+
+def library_benchmark(ctx, volume='/data', tracks=1000, scan=False):
+    if tracks not in (1000, 10000, 20000):
+        raise ValueError('tracks_must_be_1000_10000_20000')
+    record = ctx.record('reborn-library', {'volume': volume, 'tracks': tracks, 'scan': scan})
+    record['units'] = {'latency': 'ms', 'memory': 'KiB', 'size': 'bytes'}
+    result = {'schema': 'org.y2linux.benchmark/v1', 'record': record, 'measurements': None}
+    try:
+        with Scratch(ctx, volume, tracks * 8192 + 32 * 1024**2) as scratch:
+            vfs = os.fstatvfs(scratch.fd)
+            if scan and vfs.f_files and vfs.f_favail < tracks + 2048:
+                raise ValueError('insufficient_scratch_inode_reserve')
+            scratch.child_outputs = True
+            argv = ['/usr/bin/reborn-bench', '--scratch-fd', str(scratch.fd), '--tracks', str(tracks)]
+            if scan:
+                argv.append('--scan')
+            answer = ctx.command(argv, timeout=1800, limit=131072, pass_fds=(scratch.fd,))
+            scratch.ensure()
+            if not answer['ok']:
+                raise RuntimeError(answer['reason'])
+            result['measurements'] = json.loads(answer['output'])
+            record['result'] = 'OK'
+    except (OSError, ValueError, RuntimeError) as error:
+        record.update(result='FAILED', failure=str(error))
     return result

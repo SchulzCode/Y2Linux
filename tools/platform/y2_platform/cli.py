@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 import argparse
 import json
+import sys
 from .common import Context
 from .health import check
 from .observe import snapshot
@@ -34,8 +35,25 @@ def main():
     bench.add_argument('--seconds', type=int, default=300)
     space = sub.add_parser('space')
     space.add_argument('--cleanup', action='store_true')
+    library = sub.add_parser('bench-library')
+    library.add_argument('--volume', choices=['/data', '/media/sd'], default='/data')
+    library.add_argument('--tracks', type=int, choices=[1000, 10000, 20000], default=1000)
+    library.add_argument('--scan', action='store_true')
+    collect = sub.add_parser('collect')
+    collect.add_argument('--seconds', type=int, default=60)
+    collect.add_argument('--interval', type=int, default=5)
+    collect.add_argument('--warmup', type=int, default=0)
+    collect.add_argument('--workload', default='idle')
+    collect.add_argument('--pid', action='append', type=int, default=[])
+    collect.add_argument('--pss', action='store_true')
+    collect.add_argument('--reborn', action='store_true')
     args = parser.parse_args()
     ctx = Context()
+    if args.command == 'collect':
+        from .collect import collect
+        collect(ctx, sys.stdout, args.seconds, args.interval, args.pid, args.pss,
+                args.workload, args.warmup, args.reborn)
+        return 0
     if args.command == 'status':
         if not 0 <= args.interval <= 10 or 0 < args.interval < 0.1 or len(args.pid) > 32:
             parser.error('interval must be zero or 0.1–10 seconds; at most 32 PIDs')
@@ -45,6 +63,9 @@ def main():
                       result['system']['usb'] if args.section == 'usb' else result[args.section]}
     elif args.command == 'health':
         result = check(ctx, args.full)
+    elif args.command == 'bench-library':
+        from .bench import library_benchmark
+        result = library_benchmark(ctx, args.volume, args.tracks, args.scan)
     elif args.command == 'space':
         from .space import policy
         result = policy(ctx, args.cleanup)
@@ -67,7 +88,7 @@ def main():
     failed = (args.command == 'health' and result['state'] == 'FAILED' or
               args.command == 'media' and (result['state'] in ('Failed', 'Degraded') or
                                           args.action == 'mount' and result['state'] != 'Ready') or
-              args.command == 'bench-storage' and result['record']['result'] == 'FAILED')
+              args.command in ('bench-storage', 'bench-library') and result['record']['result'] == 'FAILED')
     return 1 if failed else 0
 
 

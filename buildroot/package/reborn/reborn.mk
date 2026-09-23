@@ -26,6 +26,7 @@ define REBORN_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(REBORN_PKGDIR)/syslogd.conf $(TARGET_DIR)/etc/default/syslogd
 	$(INSTALL) -D -m 0755 $(@D)/target/armv7-unknown-linux-gnueabihf/release/reborn $(TARGET_DIR)/usr/bin/reborn
 	$(INSTALL) -D -m 0755 $(@D)/target/armv7-unknown-linux-gnueabihf/release/rebornctl $(TARGET_DIR)/usr/bin/rebornctl
+	$(INSTALL) -D -m 0755 $(@D)/target/armv7-unknown-linux-gnueabihf/release/reborn-bench $(TARGET_DIR)/usr/bin/reborn-bench
 	media_so=$$(find $(@D)/target/armv7-unknown-linux-gnueabihf/release/build -type f -name libreborn_media.so -print -quit); \
 	[ -n "$$media_so" ] || { echo 'missing lazy FFmpeg media membrane' >&2; exit 1; }; \
 	$(INSTALL) -D -m 0755 "$$media_so" $(TARGET_DIR)/usr/lib/reborn/libreborn_media.so

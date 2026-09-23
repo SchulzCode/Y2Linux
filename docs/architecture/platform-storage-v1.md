@@ -60,3 +60,12 @@ These are measurement tools, not target measurements. Physical SD removal,
 full media, filesystem errors, card compatibility, long I/O tails and flush /
 electrical power-loss durability remain PHYSICAL_GATE. Host process-crash
 recovery must never be presented as electrical durability.
+
+
+Resource/library collection: `y2-platform bench-library --tracks 20000 --scan`
+uses only a new `/data/.y2-bench/run-*` directory (or explicit `--volume /media/sd`).
+`y2-platform collect --seconds 28800 --interval 10 --warmup 300 --pid PID --pss
+--reborn --workload wired-playback` streams records to stdout. Redirect output on
+the SSH host, not onto nearly full Y2DATA. The collector does not start playback.
+A process in uninterruptible kernel I/O can outlive a userspace deadline; mount
+identity checks and FD-relative cleanup prevent writing to its replacement.

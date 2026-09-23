@@ -80,3 +80,40 @@ ARM/image validation is pending for this stream. Physical card lifecycle,
 throughput/latency, flush semantics and endurance remain PHYSICAL_GATE. SQLite,
 Reborn scaling and long-run resource collection follow; no database policy was
 optimized without measurements. Detailed contract: `architecture/platform-storage-v1.md`.
+
+### Fresh observation build and measurement continuation
+
+The recipe correction completed the phase-1 build at Linux `82da3f9` / Reborn
+`d9ba054`. `out/platform-v1-observation-build` retains kernel/ABI, Buildroot ARM,
+Reborn/FFmpeg verification, artifact validation, production tests and an eight
+check QEMU userspace pass (`hardware_validation: false`). ARM Python 3.12.14
+loaded SQLite 3.53.4/OpenSSL 3.5.8 and exercised fixture status under Cortex-A7
+QEMU. Installed target is approximately 74 MiB, including 15 MiB Python standard
+library. This receipt does not cover subsequent phase-2 source changes or declare
+a final installation package/image qualified.
+
+DONE_SOFTWARE / HOST_VALIDATED: `y2-platform bench-library` invokes the actual
+Reborn database, scanner and UI through an inherited, private scratch directory
+FD. It supports 1k/10k/20k tracks, optional generated short WAV scanning and
+reserve/inode/deadline checks. Reborn commits `8732287`, `17dd464` implement the
+benchmark and remove full Track cloning/per-wheel row allocations; track screens
+build only visible rows. SQLite schema/cache/checkpoint policy is unchanged.
+Host raw records are in `out/platform-v1-host-measurements`: 20k short-WAV scan
+11.7 s, incremental 411 ms; wheel p50 before 2.713 ms / after 0.033 ms (1k:
+0.129 / 0.002 ms; 10k: 1.334 / 0.016 ms). Host page cache was uncontrolled;
+these are neither cold-device nor Y2 budgets. Reborn library benchmark test,
+13 UI + 27 runtime tests and four storage tests passed.
+
+`collect` emits bounded JSONL for CPU/residency/memory/thermal/wakeups/services
+and optional Reborn metrics. Memory growth starts after a chosen warmup and uses
+boot/PID/start-time identity; its slope is not a leak diagnosis. No workload,
+radio, suspend or power transition is triggered by collection. The output limit
+is 64 MiB; retain output on the owner host for long physical runs.
+
+22 platform tests pass, including real SQLite WAL and checkpoint ENOSPC at an
+injected pwrite boundary and recovery of committed rows after abrupt process
+exit. The test-only preload shim targets one new private scratch database and
+is never installed in the image. This is syscall fault injection, not electrical
+power-loss durability. Prior Reborn operational-error/corruption tests remain
+applicable; storage replacement tests protect the replacement card via pinned
+FDs. SD device-instance identity additionally rejects reused block minors.

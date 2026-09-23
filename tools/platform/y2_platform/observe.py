@@ -26,6 +26,15 @@ def mountinfo(text):
     return result
 
 
+def device_instance(ctx, device_id):
+    try:
+        path = ctx.path('/sys/dev/block/' + device_id).resolve(strict=True)
+        meta = path.stat()
+        return f'{meta.st_ino}:{meta.st_ctime_ns}'
+    except OSError:
+        return None
+
+
 def cpu(ctx):
     stat = ctx.read('/proc/stat')
     ticks = {}
@@ -83,8 +92,10 @@ def memory(ctx, pids=(), pss=False):
         if not isinstance(pid, int) or not 1 <= pid <= 4194304:
             raise ValueError('invalid pid')
         status = key_values(ctx.read(f'/proc/{pid}/status'))
+        stat_fields = (ctx.read(f'/proc/{pid}/stat') or '').rsplit(') ', 1)[-1].split()
         smaps = key_values(ctx.read(f'/proc/{pid}/smaps_rollup')) if pss else {}
         processes.append({'pid': pid, 'name': status.get('Name'),
+                          'start_ticks': number(stat_fields[19]) if len(stat_fields) > 19 else None,
                           'rss_kib': number(status.get('VmRSS', '').split(' ')[0]),
                           'pss_kib': number(smaps.get('Pss', '').split(' ')[0]),
                           'threads': number(status.get('Threads')),
@@ -160,6 +171,7 @@ def storage(ctx):
         real = str(device.resolve())
         expected = '11240000.mmc' if target == '/media/sd' else '11230000.mmc'
         device_exists = device.exists()
+        item['source_instance'] = device_instance(ctx, item['device_id'])
         item['controller_valid'] = expected in real and device_exists
         item['state'] = 'Ready' if item['controller_valid'] else 'Failed'
         item['reason'] = None if item['controller_valid'] else 'source_missing_or_wrong_controller'
@@ -177,6 +189,8 @@ def storage(ctx):
                            (('boot_id', boot_id), ('mount_id', item['mount_id']),
                             ('device_id', item['device_id']), ('uuid', item['uuid']))):
                     item.update(state='Failed', reason='mount_claim_changed_or_missing')
+                if claim.get('source_instance') != item['source_instance']:
+                    item.update(state='Failed', reason='block_instance_changed')
         readonly = 'ro' in item['options'] or 'ro' in item['super_options']
         try:
             vfs = os.statvfs(ctx.path(target))
