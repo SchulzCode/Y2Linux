@@ -5,21 +5,27 @@ set -u
 umask 077
 child=
 cleanup() {
-    [ -z "$child" ] || { kill -TERM "$child" 2>/dev/null || :; wait "$child" 2>/dev/null || :; }
+    if [ -n "$child" ]; then
+        kill -TERM "$child" 2>/dev/null || :
+        for n in 1 2; do kill -0 "$child" 2>/dev/null || break; sleep 1; done
+        kill -KILL "$child" 2>/dev/null || :
+        # Do not wait forever on uninterruptible kernel I/O.
+    fi
     rm -f /run/reborn/supervisor.pid /run/reborn/process.pid
 }
 trap cleanup EXIT
 trap 'exit 0' INT TERM
 attempt=0
 while [ "$attempt" -lt 5 ]; do
-    started=$(date +%s)
+    read started rest </proc/uptime; started=${started%%.*}
     /usr/bin/reborn 2>/data/reborn/logs/startup-last.jsonl &
     child=$!
     printf '%s\n' "$child" >/run/reborn/process.pid
     wait "$child"; result=$?
     child=
+    [ ! -s /run/y2/shutdown.json ] || exit 0
     [ "$result" -ne 0 ] || exit 0
-    ended=$(date +%s)
+    read ended rest </proc/uptime; ended=${ended%%.*}
     if [ $((ended - started)) -ge 60 ]; then attempt=0; fi
     attempt=$((attempt + 1))
     printf '{"event":"process_exit","status":%s,"attempt":%s}\n' "$result" "$attempt" >/data/reborn/logs/supervisor-last.json

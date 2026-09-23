@@ -25,6 +25,10 @@ def main():
     caps.add_argument('--json', action='store_true')
     boot = sub.add_parser('boot-stage')
     boot.add_argument('stage')
+    sub.add_parser('power-daemon')
+    shutdown = sub.add_parser('shutdown')
+    shutdown.add_argument('action', choices=['poweroff', 'reboot'])
+    shutdown.add_argument('--reason', choices=['user', 'service', 'update'], default='user')
     media = sub.add_parser('media')
     media.add_argument('action', choices=['mount', 'unmount', 'check', 'status'])
     media.add_argument('--json', action='store_true')
@@ -49,6 +53,14 @@ def main():
     collect.add_argument('--reborn', action='store_true')
     args = parser.parse_args()
     ctx = Context()
+    if args.command == 'power-daemon':
+        from .power import serve
+        serve(ctx)
+        return 0
+    if args.command == 'shutdown':
+        from .power import rpc
+        print(json.dumps(rpc(ctx, {'action': args.action, 'reason': args.reason})))
+        return 0
     if args.command == 'collect':
         from .collect import collect
         collect(ctx, sys.stdout, args.seconds, args.interval, args.pid, args.pss,

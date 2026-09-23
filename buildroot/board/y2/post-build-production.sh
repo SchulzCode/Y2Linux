@@ -40,6 +40,10 @@ for command in y2-platform y2-status y2-health; do
     install -m 755 "$project/tools/platform/$command" "$target/usr/sbin/$command"
 done
 install -m 644 "$project/tools/platform/capabilities.json" "$target/etc/y2linux/capabilities.json"
+for command in poweroff reboot; do
+    rm -f "$target/sbin/$command"
+    install -m 755 "$project/tools/platform/y2-power-command" "$target/sbin/$command"
+done
 install -m 755 "$Y2_ARTIFACT_DIR/y2-usb-status" "$target/usr/sbin/y2-usb-status"
 printf '%s\n' y2-platform-v1 > "$target/etc/y2linux/platform-contract"
 # Explicit owner provisioning is a build input, never a boot-time download.

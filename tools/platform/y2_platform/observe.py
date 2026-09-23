@@ -132,11 +132,16 @@ def power(ctx):
         supply = {f: read(path / f) for f in fields}
         supply['name'] = path.name
         supplies.append(supply)
+    policy = ctx.json('/run/y2/power.json', {})
+    if (policy.get('boot_id') != ctx.read('/proc/sys/kernel/random/boot_id') or
+            not isinstance(policy.get('monotonic_ns'), int) or
+            not 0 <= time.monotonic_ns() - policy['monotonic_ns'] < 5 * 10**9):
+        policy = {'state': 'Unavailable', 'reason': 'policy_not_running_or_stale'}
     return {'supplies': supplies, 'units': {'voltage': 'uV', 'configured_current': 'uA'},
             'measured_current_ua': None, 'soc_percent': None, 'pack_temperature': None,
             'unavailable_reason': 'not_exposed_by_qualified_y2_battery_driver',
             'normal_boot': ctx.integer('/sys/firmware/y2_boot/normal_boot'),
-            'low_battery': ctx.json('/run/y2/power.json', {'state': 'Unavailable', 'reason': 'policy_not_running'})}
+            'low_battery': policy}
 
 
 def space_state(available, total, readonly=False, error=False):

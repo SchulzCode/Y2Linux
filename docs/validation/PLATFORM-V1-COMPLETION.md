@@ -117,3 +117,16 @@ is never installed in the image. This is syscall fault injection, not electrical
 power-loss durability. Prior Reborn operational-error/corruption tests remain
 applicable; storage replacement tests protect the replacement card via pinned
 FDs. SD device-instance identity additionally rejects reused block minors.
+
+### Shutdown and normal low-battery mechanism
+
+DONE_SOFTWARE / HOST_VALIDATED: independent supervised power owner, private
+credential-checked request/ack socket, immutable monotonic deadline, bounded
+service/journal/sync steps and BusyBox init handoff. Reborn acknowledges only
+after audio/session/SQLite shutdown; ordinary commands share the platform path.
+Three focused platform tests exercise ignored app, failed sync/init, stale/PID
+reuse acknowledgements, daemon restart and synthetic debounce/hysteresis. Reborn
+runtime/library/platform suites passed, plus a real database checkpoint/close
+acknowledgement test. No final voltage thresholds or charger changes are made.
+ARM/image validation is pending. Threshold/reserve and physical power transitions
+remain PHYSICAL_GATE; see `architecture/platform-power-v1.md`.
