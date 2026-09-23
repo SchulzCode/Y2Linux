@@ -66,15 +66,7 @@ root=pathlib.Path(sys.argv[1]); versions=json.loads((root/'versions.json').read_
 PYUPDATE
 # Keep bond writers stopped when an owner reset was interrupted. Match the
 # pinned upstream service's explicit function, and reject an unknown structure.
-python3 - "$target/etc/init.d/S40bluetoothd" <<'PYMAINT'
-from pathlib import Path
-import sys
-p=Path(sys.argv[1]); s=p.read_text()
-guard='\t[ ! -e /data/system/platform/maintenance-pending ] || return 1\n'
-if guard not in s:
-    if s.count('start() {\n') != 1: raise SystemExit('unknown bluetoothd service structure')
-    p.write_text(s.replace('start() {\n','start() {\n'+guard))
-PYMAINT
+python3 "$project/tools/production/service_guards.py" "$target/etc/init.d/S40bluetoothd"
 # Explicit owner provisioning is a build input, never a boot-time download.
 [ -n "${Y2_OWNER_FIRMWARE:-}" ]
 PYTHONPATH="$project" python3 - "$Y2_OWNER_FIRMWARE" "$target" <<'PY'

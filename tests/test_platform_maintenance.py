@@ -11,8 +11,19 @@ from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools/platform'))
 from y2_platform.common import Context
 from y2_platform import maintenance as m
+from tools.production.service_guards import bluetooth_maintenance_guard
 
 class Maintenance(unittest.TestCase):
+    def test_bluez_guard_distinguishes_start_from_restart_and_is_idempotent(self):
+        source = '#!/bin/sh\nstart() {\n\tstart-stop-daemon --start\n}\nrestart() {\n\tstop\n\tstart\n}\n'
+        result = bluetooth_maintenance_guard(source)
+        self.assertIn('start() {\n\t[ ! -e /data/system/platform/maintenance-pending ] || return 1\n', result)
+        self.assertIn('restart() {\n\tstop\n\tstart\n}', result)
+        self.assertEqual(bluetooth_maintenance_guard(result), result)
+        for unknown in ('restart() {\n}\n', source + 'start() {\n}\n'):
+            with self.assertRaisesRegex(ValueError, 'structure'):
+                bluetooth_maintenance_guard(unknown)
+
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.root=Path(self.tmp.name);self.ctx=Context(self.root)
