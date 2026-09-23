@@ -148,3 +148,19 @@ out/platform-v1-storage-build; eight QEMU userspace checks and the installed ARM
 locked host libc's lack of the obsolete off64_t name in the test-only ENOSPC shim;
 `44cf4ac` uses the explicit 64-bit ABI type. Rerun is required and recorded below.
 Phase-3 sources are not covered by this earlier ARM receipt.
+
+### Bluetooth observation and AVRCP foundation
+
+DONE_SOFTWARE / HOST_VALIDATED: native read-only D-Bus observer, typed exact PCM
+and runtime/mutual capability distinctions, generated build codec inventory that
+rejects unexpected optional encoder enablement. Four focused host tests pass,
+including native C compilation/private D-Bus missing-owner execution, peer loss,
+wrong direction, owner change, unsupported format and accidental AAC enablement.
+AVRCP in Reborn routes only approved BlueZ calls through semantic Actions; two
+host tests include real private D-Bus registration, control delivery, metadata
+projection and unauthorized-sender rejection. ARM/image proof follows later.
+
+The phase-2 production rerun with current host/tooling source passed 32 platform,
+67 production and 38 subsystem tests, plus ARM ABI/ALSA utility smoke. This does
+not promote phase-3 sources to ARM_BUILT: their separate fresh build is ongoing at
+Linux `ea50d53` / Reborn `ce55f89`, out/platform-v1-services-build.

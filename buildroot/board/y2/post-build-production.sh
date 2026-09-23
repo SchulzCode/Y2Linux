@@ -48,6 +48,7 @@ for command in y2-platform y2-status y2-health; do
     install -m 755 "$project/tools/platform/$command" "$target/usr/sbin/$command"
 done
 install -m 644 "$project/tools/platform/capabilities.json" "$target/etc/y2linux/capabilities.json"
+python3 "$project/tools/platform/codec_manifest.py" "$Y2_ARTIFACT_DIR/buildroot/build/bluez-alsa-5.0.0" > "$target/etc/y2linux/bluetooth-codecs.json"
 for command in poweroff reboot; do
     rm -f "$target/sbin/$command"
     install -m 755 "$project/tools/platform/y2-power-command" "$target/sbin/$command"

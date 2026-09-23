@@ -289,11 +289,12 @@ def wifi(ctx):
 
 
 def bluetooth(ctx):
-    result = ctx.command(['/usr/sbin/y2-bt-observe'])
+    result = ctx.command(['/usr/sbin/y2-bt-observe'], timeout=3, limit=262144)
     try:
         observed = json.loads(result['output'] or '')
         if isinstance(observed, dict) and observed.get('schema') == 1:
-            return observed
+            from .bluetooth import normalize
+            return normalize(ctx, observed)
     except (ValueError, TypeError):
         pass
     return {'state': 'Unavailable', 'reason': 'dbus_observation_unavailable',
