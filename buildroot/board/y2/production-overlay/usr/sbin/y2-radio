@@ -39,8 +39,8 @@ if [ "$type" = wlan ]; then
     if [ "$enabled" = 1 ]; then rfkill unblock wlan; else rfkill block wlan; fi
 else
     if [ "$enabled" = 1 ]; then
-        timeout 120 bluetoothctl power on
+        y2-platform bluetooth-power on
     else
-        timeout 20 bluetoothctl power off
+        y2-platform bluetooth-power off
     fi
 fi

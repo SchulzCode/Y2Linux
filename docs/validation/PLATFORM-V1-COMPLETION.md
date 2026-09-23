@@ -164,3 +164,13 @@ The phase-2 production rerun with current host/tooling source passed 32 platform
 67 production and 38 subsystem tests, plus ARM ABI/ALSA utility smoke. This does
 not promote phase-3 sources to ARM_BUILT: their separate fresh build is ongoing at
 Linux `ea50d53` / Reborn `ce55f89`, out/platform-v1-services-build.
+
+The phase-3 services build (`ea50d53` / `ce55f89`) completed fresh kernel,
+Buildroot ARM, Reborn ARM, FFmpeg/package/ELF validation. Its 32 platform,
+67 production, 38 subsystem tests and eight QEMU userspace checks passed.
+Receipts are in out/platform-v1-services-build. No physical qualification.
+
+Reconnect now has bounded attempts, persistent same-boot inhibition, shared
+user/automatic operation exclusion, and unknown-completion containment. Native
+host compilation and six Bluetooth tests pass; Reborn's 34 platform tests pass.
+These newer Bluetooth changes still need the next fresh ARM/image receipt.

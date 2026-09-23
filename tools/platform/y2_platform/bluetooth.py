@@ -1,6 +1,7 @@
 """Normalize actual D-Bus observations, never codec requests, for platform clients."""
 # SPDX-License-Identifier: GPL-2.0-only
 import re
+import time
 
 
 def normalize(ctx, raw):
@@ -14,6 +15,9 @@ def normalize(ctx, raw):
               'reconnect_owner': 'y2-bt-reconnect',
               'reconnect': ctx.json('/run/y2/bt-reconnect.json'),
               'codec_inventory': ctx.json('/etc/y2linux/bluetooth-codecs.json')}
+    reconnect = result['reconnect']
+    if not isinstance(reconnect, dict) or reconnect.get('boot_id') != ctx.read('/proc/sys/kernel/random/boot_id') or not isinstance(reconnect.get('monotonic_us'), int) or not 0 <= time.monotonic() * 1e6 - reconnect['monotonic_us'] < 10_000_000:
+        result['reconnect'] = {'state': 'Unavailable', 'reason': 'reconnect_record_stale_or_absent'}
     if not isinstance(raw, dict) or raw.get('schema') != 1 or not raw.get('stable_owners'):
         return result
     bluez, bluealsa = raw.get('bluez'), raw.get('bluealsa')

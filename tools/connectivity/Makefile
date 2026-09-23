@@ -12,7 +12,7 @@ $(Y2_RADIO_OUTPUT)/y2-radio-activate: $(Y2_RADIO_SOURCE)/activate.c
 	$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@
 $(Y2_RADIO_OUTPUT)/y2-a2dp-check: $(Y2_RADIO_SOURCE)/a2dp-check.c
 	$(CC) $(CFLAGS) $(shell $(PKG_CONFIG) --cflags gio-2.0 gio-unix-2.0 alsa) $< $(LDFLAGS) $(shell $(PKG_CONFIG) --libs gio-2.0 gio-unix-2.0 alsa) -o $@
-$(Y2_RADIO_OUTPUT)/y2-bt-reconnect: $(Y2_RADIO_SOURCE)/reconnect.c
+$(Y2_RADIO_OUTPUT)/y2-bt-reconnect: $(Y2_RADIO_SOURCE)/reconnect.c $(Y2_RADIO_SOURCE)/reconnect-policy.h
 	$(CC) $(CFLAGS) $(shell $(PKG_CONFIG) --cflags gio-2.0 gio-unix-2.0) $< $(LDFLAGS) $(shell $(PKG_CONFIG) --libs gio-2.0 gio-unix-2.0) -o $@
 $(Y2_RADIO_OUTPUT)/y2-bt-observe: $(Y2_RADIO_SOURCE)/bt-observe.c
 	$(CC) $(CFLAGS) $(shell $(PKG_CONFIG) --cflags gio-2.0) $< $(LDFLAGS) $(shell $(PKG_CONFIG) --libs gio-2.0) -o $@

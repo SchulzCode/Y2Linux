@@ -1,4 +1,5 @@
 import copy
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,7 @@ sys.path.insert(0, str(ROOT / 'tools/platform'))
 from y2_platform.bluetooth import normalize
 from y2_platform.common import Context
 from codec_manifest import manifest
+from y2_platform.bt_control import power
 
 
 class BluetoothObservation(unittest.TestCase):
@@ -83,6 +85,46 @@ class BluetoothObservation(unittest.TestCase):
             self.assertEqual(normalize(self.ctx, raw)['state'], 'Unavailable')
         finally:
             daemon.terminate();daemon.communicate(timeout=3)
+
+    def test_manual_operation_cannot_overlap_auto_and_unknown_completion_inhibits(self):
+        directory = self.ctx.path('/run/y2'); directory.mkdir(parents=True)
+        boot = self.ctx.path('/proc/sys/kernel/random/boot_id')
+        boot.parent.mkdir(parents=True)
+        boot.write_text('11111111-1111-1111-1111-111111111111')
+        calls = []
+        def run(argv, **kwargs):
+            calls.append(argv)
+            return {'ok': False, 'reason': 'command_timeout', 'output': None}
+        self.ctx.runner = run
+        with (directory/'bt-operation.lock').open('w') as automatic:
+            fcntl.flock(automatic, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.assertEqual(power(self.ctx, 'on')['reason'], 'platform_bluetooth_operation_in_progress')
+            self.assertEqual(calls, [])
+        self.assertFalse(power(self.ctx, 'on')['ok'])
+        self.assertEqual(len(calls), 1)
+        self.assertIn('operation=uncertain', (directory/'bt-control.ini').read_text())
+
+    def test_native_reconnect_budget_does_not_retry_forever_or_reset_on_poll(self):
+        source = Path(self.temp.name)/'budget.c'
+        source.write_text('''#include <assert.h>
+#include "reconnect-policy.h"
+int main(void) {
+ struct y2_reconnect_budget b={0};
+ assert(y2_reconnect_attempt(&b,100));
+ for(int i=0;i<1000;i++) assert(!y2_reconnect_attempt(&b,101+i));
+ assert(y2_reconnect_attempt(&b,2000100));
+ assert(!y2_reconnect_attempt(&b,999999999));
+ /* Restoring the same budget after daemon restart cannot replenish it. */
+ struct y2_reconnect_budget restored=b;
+ assert(!y2_reconnect_attempt(&restored,1000000000));
+ y2_reconnect_reset(&b);
+ assert(y2_reconnect_attempt(&b,1000000001));
+ assert(!y2_reconnect_attempt(&b,1025000001));
+ return 0;
+}''')
+        binary = source.with_suffix('')
+        subprocess.run(['cc','-Wall','-Wextra','-Werror','-I',str(ROOT/'tools/connectivity'),str(source),'-o',str(binary)],check=True)
+        subprocess.run([str(binary)],check=True,timeout=2)
 
 
 if __name__ == '__main__': unittest.main()

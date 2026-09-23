@@ -41,3 +41,19 @@ src/bluealsa-dbus.c (GetCodecs filtering); pinned BlueZ 5.87 profiles/audio/medi
 [BlueZ Media API](https://github.com/bluez/bluez/blob/master/doc/org.bluez.Media.rst).
 Optional codec provenance/distribution and Auto/reconnect implementation are
 tracked separately in the completion ledger; an audit is not a release approval.
+
+Automatic Device connection remains solely owned by y2-bt-reconnect. One episode
+allows at most two 10-second calls within a 25-second start window; successful
+connected observation for 30 seconds resets a later link-loss episode. Same-boot
+budget, explicit disconnect inhibition and unknown outstanding calls survive
+helper restart. A local/client timeout inhibits further automatic requests.
+A new explicit connect/power-on intent can re-arm; periodic polling cannot.
+Reborn and y2-radio hold a common Linux flock through each user operation.
+Pending intents inhibit recovery even if that client dies; only an observed
+successful explicit operation re-arms. No pairing is automatic. Runtime records
+are private, boot-bound and status rejects stale observations.
+
+Linux lock interoperability is covered by an actual competing file-descriptor
+lock test and the pinned Rust implementation's [Unix flock semantics](https://doc.rust-lang.org/std/fs/struct.File.html#method.try_lock).
+This policy is HOST_VALIDATED; headset disappearance, daemon restart, intentional
+disconnect and reconnect after long absence remain owner qualification cases.

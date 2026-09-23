@@ -25,6 +25,8 @@ def main():
     caps.add_argument('--json', action='store_true')
     boot = sub.add_parser('boot-stage')
     boot.add_argument('stage')
+    bt_power = sub.add_parser('bluetooth-power')
+    bt_power.add_argument('value', choices=['on', 'off'])
     sub.add_parser('power-daemon')
     sub.add_parser('service-daemon')
     sub.add_parser('time-bootstrap')
@@ -67,6 +69,11 @@ def main():
     collect.add_argument('--reborn', action='store_true')
     args = parser.parse_args()
     ctx = Context()
+    if args.command == 'bluetooth-power':
+        from .bt_control import power
+        result = power(ctx, args.value)
+        print(json.dumps(result))
+        return 0 if result['ok'] else 1
     if args.command == 'network-check':
         from .network_check import check
         result = check(ctx, args.peer, args.seconds, args.throughput, args.interface)
