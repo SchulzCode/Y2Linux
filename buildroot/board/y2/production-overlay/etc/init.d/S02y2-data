@@ -11,11 +11,13 @@ chmod 700 /data/ssh /data/ssh/authorized_keys.d /data/ssh/host-keys
 
 # Connectivity additions preserve the existing schema and all saved user data.
 umask 077
-for dir in network bluetooth bluetooth/bluez bluetooth/bluealsa connectivity system system/dbus; do
+for dir in network bluetooth bluetooth/bluez bluetooth/bluealsa connectivity system system/dbus system/entropy; do
+    [ ! -L "/data/$dir" ] || exit 1
     mkdir -p "/data/$dir"
 done
 chmod 700 /data/network /data/bluetooth /data/bluetooth/bluez /data/bluetooth/bluealsa /data/connectivity /data/system
 chmod 755 /data/system/dbus
+chmod 700 /data/system/entropy
 mkdir -p /run/y2/factory /run/y2/leases /run/wpa_supplicant
 chmod 700 /run/y2/factory /run/y2/leases /run/wpa_supplicant
 for path in /data/network/enabled /data/bluetooth/enabled; do

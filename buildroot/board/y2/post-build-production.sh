@@ -29,6 +29,14 @@ else
     printf '%s\n' Y2LINUX-GPU-02 > "$target/etc/y2linux/build-id"
 fi
 cp "$Y2_ARTIFACT_DIR/versions.json" "$target/etc/y2linux/versions.json"
+git -C "$project" show -s --format=%ct HEAD > "$target/etc/y2linux/build-epoch"
+rm -f "$target/etc/resolv.conf"
+ln -s /run/y2/resolv.conf "$target/etc/resolv.conf"
+# Data is already identity-checked and mounted before switch_root. Generate
+# per-device seeds there; never ship a seed shared by multiple devices.
+mkdir -p "$target/etc/default"
+printf '%s\n' 'SEEDRNG_ARGS="--seed-dir=/data/system/entropy"' > "$target/etc/default/seedrng"
+mv "$target/etc/init.d/S01seedrng" "$target/etc/init.d/S03seedrng" 2>/dev/null || :
 install -m 644 "$project/initramfs/production/storage.sh" "$target/usr/lib/y2-storage.sh"
 # Never package host private keys, device calibration, or a universal login key.
 install -m 755 "$Y2_ARTIFACT_DIR/y2-platform-start" "$target/usr/sbin/y2-platform-start"

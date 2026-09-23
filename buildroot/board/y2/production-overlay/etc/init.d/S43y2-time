@@ -1,0 +1,11 @@
+#!/bin/sh
+# Started by network readiness; no NTP server listener and no DHCP-supplied peers.
+case "$1" in
+ start)
+    grep -q '"state":"Online"' /run/y2/network.json 2>/dev/null || exit 0
+    if [ -s /run/y2/ntp.pid ] && kill -0 "$(cat /run/y2/ntp.pid)" 2>/dev/null; then exit 0; fi
+    start-stop-daemon -S -b -m -p /run/y2/ntp.pid -x /bin/busybox -- ntpd -n -S /usr/libexec/y2/ntp-event -p 0.pool.ntp.org -p 1.pool.ntp.org -p 2.pool.ntp.org
+    ;;
+ stop) start-stop-daemon -K -p /run/y2/ntp.pid 2>/dev/null || : ;;
+ *) exit 2 ;;
+esac

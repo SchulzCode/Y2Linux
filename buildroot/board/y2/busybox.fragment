@@ -1,3 +1,7 @@
 # Standard bounded diagnostics and complete normal kernel log records.
 CONFIG_TIMEOUT=y
 CONFIG_FEATURE_SYSLOGD_READ_BUFFER_SIZE=2048
+CONFIG_NTPD=y
+# CONFIG_FEATURE_NTPD_SERVER is not set
+CONFIG_FEATURE_NTPD_CONF=y
+CONFIG_RTCWAKE=y

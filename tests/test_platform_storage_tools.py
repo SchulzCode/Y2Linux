@@ -10,7 +10,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/platform'))
 from y2_platform.bench import Scratch, distribution, storage_benchmark
 from y2_platform.common import Context
-from y2_platform.media import operation
+from y2_platform.media import operation, reconcile
 from y2_platform.observe import storage
 from y2_platform.space import admission, disposable_cleanup
 
@@ -128,6 +128,32 @@ class StorageTools(unittest.TestCase):
         operation(self.ctx, 'mount')
         self.assertEqual(operation(self.ctx, 'check')['reason'], 'already_mounted')
         self.assertEqual(sum(c[0] == 'fsck.exfat' for c in calls), 1)
+
+    def test_removed_card_can_be_unmounted_only_with_its_retained_claim(self):
+        calls = self.card_fixture()
+        operation(self.ctx, 'mount')
+        self.ctx.path('/sys/dev/block/179:9').unlink()
+        old_runner = self.ctx.runner
+        def runner(argv, **kw):
+            if argv[0] == 'umount':
+                self.put('/proc/self/mountinfo', '')
+                return {'ok': True, 'reason': None, 'output': ''}
+            return old_runner(argv, **kw)
+        self.ctx.runner = runner
+        self.assertEqual(operation(self.ctx, 'unmount')['reason'], 'ejected')
+        self.put('/proc/self/mountinfo', '52 1 179:10 / /media/sd rw - ext4 /dev/unknown rw')
+        self.assertEqual(operation(self.ctx, 'unmount')['reason'], 'mounted_source_not_sd')
+
+    def test_automatic_mount_runs_once_per_insertion_and_failed_eject_is_bounded(self):
+        self.card_fixture()
+        self.assertEqual(reconcile(self.ctx)['state'], 'Ready')
+        self.assertEqual(reconcile(self.ctx)['attempts'], 1)
+        self.ctx.path('/sys/class/block/mmcblk1p1').unlink()
+        for _ in range(8):
+            value = reconcile(self.ctx)
+        self.assertEqual(value['attempts'], 5)
+        self.assertFalse(value['retry'])
+        self.assertEqual(value['reason'], 'source_change_unmount_failed')
 
     def test_low_space_denies_disposable_writes_but_reserves_checkpoint_budget(self):
         volume = {'space_state': 'LowSpace', 'available_bytes': 80 * 1024**2}

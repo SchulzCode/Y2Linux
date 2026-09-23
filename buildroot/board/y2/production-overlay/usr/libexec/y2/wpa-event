@@ -4,15 +4,14 @@
 umask 077
 case "$2" in
  CONNECTED)
-    if [ -f /run/y2/wifi-dhcp.pid ] && kill -0 "$(cat /run/y2/wifi-dhcp.pid)" 2>/dev/null; then
-        kill -USR1 "$(cat /run/y2/wifi-dhcp.pid)"
-    else
-        udhcpc -b -R -i wlan0 -p /run/y2/wifi-dhcp.pid -t 3 -T 3 -A 10 >>/run/y2/wifi-dhcp.log 2>&1
-    fi
+    start-stop-daemon -K -p /run/y2/wifi-dhcp.pid 2>/dev/null || :
+    /usr/sbin/y2-platform wifi-event CONNECTED || exit 1
+    export Y2_DHCP_GENERATION=$(cat /run/y2/wifi-epoch)
+    udhcpc -b -R -i wlan0 -p /run/y2/wifi-dhcp.pid -s /usr/libexec/y2/dhcp-event -t 3 -T 3 -A 10 >/run/y2/wifi-dhcp.log 2>&1
     ;;
  DISCONNECTED)
     start-stop-daemon -K -p /run/y2/wifi-dhcp.pid 2>/dev/null || :
     rm -f /run/y2/wifi-dhcp.pid
-    ip address flush dev wlan0 scope global 2>/dev/null || :
+    /usr/sbin/y2-platform wifi-event DISCONNECTED
     ;;
 esac

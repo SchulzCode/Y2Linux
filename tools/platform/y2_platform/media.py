@@ -32,6 +32,56 @@ def mounts(ctx):
     return [m for m in mountinfo(ctx.read('/proc/self/mountinfo')) if m['path'] == '/media/sd']
 
 
+def owned_mount(ctx, mounted):
+    device = ctx.path('/sys/dev/block/' + mounted['device_id'])
+    if device.exists():
+        return '/11240000.mmc/' in str(device.resolve())
+    claim = ctx.json('/run/y2/media-mount.json', {})
+    # Removed cards no longer have a sysfs controller path. The retained claim
+    # permits only the exact mount we created, never an arbitrary mountpoint.
+    return (claim.get('boot_id') == ctx.read('/proc/sys/kernel/random/boot_id') and
+            claim.get('mount_id') == mounted['mount_id'] and
+            claim.get('device_id') == mounted['device_id'] and
+            claim.get('device') == mounted['source'])
+
+
+def inventory(ctx):
+    result = []
+    for entry in ctx.glob('/sys/class/block/mmcblk*'):
+        try:
+            if '/11240000.mmc/' in str(entry.resolve()):
+                meta = entry.stat()
+                result.append((entry.name, meta.st_ino, meta.st_ctime_ns))
+        except OSError:
+            pass
+    return result
+
+
+def reconcile(ctx):
+    """Insertion/removal work; no automatic retry storm or remount after eject."""
+    runtime = ctx.path('/run/y2')
+    runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
+    current = [list(v) for v in inventory(ctx)]
+    previous = ctx.json('/run/y2/media-lifecycle.json', {})
+    if previous.get('inventory') == current and not previous.get('retry'):
+        return previous
+    attempts = previous.get('attempts', 0) if previous.get('inventory') == current else 0
+    attempts = attempts if isinstance(attempts, int) else 0
+    result = {'schema': 1, 'inventory': current, 'attempts': attempts + 1, 'retry': False}
+    if mounts(ctx):
+        result.update(operation(ctx, 'unmount'))
+        if mounts(ctx):
+            result.update(retry=attempts < 4, reason='source_change_unmount_failed')
+            atomic_json(runtime / 'media-lifecycle.json', result)
+            return result
+    if current:
+        result.update(operation(ctx, 'mount'))
+    else:
+        result.update(state='Unavailable', reason='no_card')
+    atomic_json(runtime / 'media-lifecycle.json', result)
+    return result
+
+
 def operation(ctx, action):
     if action not in ('mount', 'unmount', 'check', 'status'):
         raise ValueError('unknown_media_action')
@@ -46,7 +96,7 @@ def operation(ctx, action):
         state = {'schema': 1, 'action': action, 'state': 'Starting', 'reason': None,
                  'boot_id': ctx.read('/proc/sys/kernel/random/boot_id')}
         old = mounts(ctx)
-        if old and any('/11240000.mmc/' not in str(ctx.path('/sys/dev/block/' + m['device_id']).resolve()) for m in old):
+        if old and any(not owned_mount(ctx, m) for m in old):
             state.update(state='Failed', reason='mounted_source_not_sd')
             atomic_json(runtime / 'media.json', state)
             return state

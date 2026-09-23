@@ -1,5 +1,14 @@
 # Current Y2Linux platform state
 
+Platform v1 completion progress (software only): versioned telemetry/health,
+space/SD lifecycle, scratch/library/resource measurement, bounded shutdown,
+configurable disabled low-battery policy, Wi-Fi DHCP/DNS/readiness and clock/entropy
+contracts are now implemented with focused host tests. Separate fresh ARM receipts
+exist for the observation and storage source pairs. Later changes still need a
+fresh build. The detailed [completion ledger](validation/PLATFORM-V1-COMPLETION.md)
+supersedes this review's missing-software findings where explicitly recorded;
+physical findings and adverse evidence below remain unchanged. No device flashed.
+
 **Completion-pass update, 23 September 2026:** owner-authorized software work is
 active. The [Platform v1 ledger](validation/PLATFORM-V1-COMPLETION.md) and
 [roadmap](planning/platform-v1-roadmap.md) now track implementation and evidence.

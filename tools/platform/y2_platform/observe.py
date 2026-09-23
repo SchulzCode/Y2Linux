@@ -253,6 +253,12 @@ def wifi(ctx):
     radio = ctx.path('/sys/class/net/wlan0').exists()
     wpa = ctx.command(['wpa_cli', '-i', 'wlan0', 'status']) if radio else {'output': None}
     properties = key_values(wpa['output'], '=')
+    failure = ctx.json('/run/y2/wifi-failure.json', {})
+    failed_time = failure.get('monotonic_s')
+    if (failure.get('boot_id') == ctx.read('/proc/sys/kernel/random/boot_id') and
+            isinstance(failed_time, (int, float)) and 0 <= time.monotonic() - failed_time < 120 and
+            failure.get('error')):
+        properties['failure_reason'] = failure['error']
     ip = ctx.command(['ip', '-j', '-4', 'addr', 'show', 'dev', 'wlan0']) if radio else {'output': None}
     routes = ctx.command(['ip', '-j', '-4', 'route', 'show', 'default', 'dev', 'wlan0']) if radio else {'output': None}
     try:
@@ -269,13 +275,14 @@ def wifi(ctx):
                  dns.get('address') in addresses and dns.get('bssid') == properties.get('bssid') and
                  0 <= time.monotonic() - dns_time < 120)
     dhcp = ctx.json('/run/y2/dhcp.json', {})
-    error = dhcp.get('error') if dhcp.get('boot_id') == boot else None
+    error = dhcp.get('error') if dhcp.get('boot_id') == boot and dhcp.get('epoch') == ctx.read('/run/y2/wifi-epoch') else None
     state, reason = wifi_state(radio, properties, addresses, default_route, dns_ready, error)
     stats = {p.name: number(read(p)) for p in ctx.glob('/sys/class/net/wlan0/statistics/*')}
     signal_poll = ctx.command(['wpa_cli', '-i', 'wlan0', 'signal_poll']) if radio else {'output': None}
     signal_values = key_values(signal_poll['output'], '=')
     return {'state': state, 'reason': reason, 'radio_present': radio,
-            'association': properties.get('wpa_state'), 'ip_addresses': addresses,
+            'association': properties.get('wpa_state'), 'association_id': properties.get('bssid'),
+            'ip_addresses': addresses,
             'default_route': default_route, 'dns_ready': dns_ready,
             'rssi_dbm': number(signal_values.get('RSSI')), 'traffic_counters': stats,
             'events': ctx.json('/run/y2/wifi-events.json'), 'reconnect_owner': 'wpa_supplicant'}
@@ -296,6 +303,8 @@ def bluetooth(ctx):
 
 
 def system(ctx):
+    from .timekeeping import status as time_status
+    clock = time_status(ctx)
     stages = []
     for line in (ctx.read('/run/y2/boot-stages.jsonl') or '').splitlines()[-32:]:
         try:
@@ -316,9 +325,9 @@ def system(ctx):
             'watchdogs': [{f: read(p / f) for f in ('identity', 'state', 'bootstatus', 'status', 'timeout')}
                           for p in ctx.glob('/sys/class/watchdog/watchdog*')],
             'pstore_files': [p.name for p in ctx.glob('/sys/fs/pstore/*')],
-            'rtc': rtcs, 'time': ctx.json('/run/y2/time.json'),
+            'rtc': rtcs, 'time': clock,
             'entropy_available_bits': ctx.integer('/proc/sys/kernel/random/entropy_avail'),
-            'crng_ready': None, 'usb': {'mode': 'peripheral', 'udcs': udcs},
+            'crng_ready': clock['entropy_ready'], 'usb': {'mode': 'peripheral', 'udcs': udcs},
             'update': ctx.json('/data/updates/state.json', {'state': 'Unavailable'}),
             'reborn_supervisor': ctx.json('/data/reborn/logs/supervisor-last.json')}
 

@@ -1,0 +1,4 @@
+#!/bin/sh
+case "$1" in
+ start) /usr/sbin/y2-platform time-bootstrap >/run/y2/time-boot.log 2>&1 || : ;;
+esac

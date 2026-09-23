@@ -53,6 +53,7 @@ while :; do
         fi
         if ! alive wpa /usr/sbin/wpa_supplicant; then
             /usr/libexec/y2/wpa-event wlan0 DISCONNECTED
+            /usr/sbin/y2-platform wifi-event SERVICE_RESTART || :
             start-stop-daemon -K -p /run/y2/wifi-action.pid 2>/dev/null || :
             rm -f /run/y2/wpa.pid
             wpa_supplicant -B -u -g /run/wpa_supplicant/global -P /run/y2/wpa.pid || :

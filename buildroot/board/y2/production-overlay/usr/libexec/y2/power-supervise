@@ -1,23 +1,2 @@
 #!/bin/sh
-# A bounded restart budget keeps the battery owner independent of the UI.
-umask 077
-child=
-stop() { [ -z "$child" ] || kill -TERM "$child" 2>/dev/null || :; exit 0; }
-trap stop TERM INT
-attempt=0
-while [ "$attempt" -lt 5 ]; do
-    read start rest </proc/uptime; start=${start%%.*}
-    /usr/sbin/y2-platform power-daemon >/run/y2/power-last.log 2>&1 &
-    child=$!
-    printf '%s\n' "$child" >/run/y2/power.pid
-    wait "$child"; result=$?
-    child=
-    [ "$result" -ne 0 ] || exit 0
-    read end rest </proc/uptime; end=${end%%.*}
-    [ $((end-start)) -lt 60 ] || attempt=0
-    attempt=$((attempt+1))
-    printf '{"exits":%s,"last_status":%s}\n' "$attempt" "$result" >/run/y2/power-supervisor.json
-    sleep $((attempt*2))
-done
-printf '{"state":"Failed","reason":"restart_budget_exhausted","exits":5}\n' >/run/y2/power-supervisor.json
-exit 1
+exec /usr/libexec/y2/platform-supervise power power-daemon

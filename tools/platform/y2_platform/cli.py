@@ -26,11 +26,25 @@ def main():
     boot = sub.add_parser('boot-stage')
     boot.add_argument('stage')
     sub.add_parser('power-daemon')
+    sub.add_parser('service-daemon')
+    sub.add_parser('time-bootstrap')
+    sub.add_parser('time')
+    ntp = sub.add_parser('ntp-event')
+    ntp.add_argument('event', choices=['step', 'stratum', 'periodic', 'unsync'])
+    wifi_event = sub.add_parser('wifi-event')
+    wifi_event.add_argument('event', choices=['CONNECTED', 'DISCONNECTED', 'SERVICE_RESTART'])
+    dhcp_event = sub.add_parser('dhcp-event')
+    dhcp_event.add_argument('event', choices=['deconfig', 'leasefail', 'nak', 'bound', 'renew'])
+    network_check = sub.add_parser('network-check')
+    network_check.add_argument('--peer', required=True)
+    network_check.add_argument('--seconds', type=int, default=10)
+    network_check.add_argument('--throughput', action='store_true')
+    network_check.add_argument('--interface', choices=['wlan0', 'usb0'], default='wlan0')
     shutdown = sub.add_parser('shutdown')
     shutdown.add_argument('action', choices=['poweroff', 'reboot'])
     shutdown.add_argument('--reason', choices=['user', 'service', 'update'], default='user')
     media = sub.add_parser('media')
-    media.add_argument('action', choices=['mount', 'unmount', 'check', 'status'])
+    media.add_argument('action', choices=['mount', 'unmount', 'check', 'status', 'reconcile'])
     media.add_argument('--json', action='store_true')
     bench = sub.add_parser('bench-storage')
     bench.add_argument('--volume', choices=['/data', '/media/sd'], default='/data')
@@ -53,6 +67,27 @@ def main():
     collect.add_argument('--reborn', action='store_true')
     args = parser.parse_args()
     ctx = Context()
+    if args.command == 'network-check':
+        from .network_check import check
+        result = check(ctx, args.peer, args.seconds, args.throughput, args.interface)
+        print(json.dumps(result, sort_keys=True))
+        return 0 if result['record']['result'] == 'OK' else 1
+    if args.command in ('time', 'time-bootstrap', 'ntp-event'):
+        from .timekeeping import status, bootstrap, ntp_event
+        import os
+        result = status(ctx) if args.command == 'time' else bootstrap(ctx) if args.command == 'time-bootstrap' else ntp_event(ctx, args.event, os.environ)
+        print(json.dumps(result))
+        return 0
+    if args.command in ('wifi-event', 'dhcp-event'):
+        from .network import lease_event, dhcp_event
+        import os
+        result = lease_event(ctx, args.event) if args.command == 'wifi-event' else dhcp_event(ctx, args.event, os.environ)
+        print(json.dumps(result))
+        return 0
+    if args.command == 'service-daemon':
+        from .service import serve
+        serve(ctx)
+        return 0
     if args.command == 'power-daemon':
         from .power import serve
         serve(ctx)
@@ -82,8 +117,8 @@ def main():
         from .space import policy
         result = policy(ctx, args.cleanup)
     elif args.command == 'media':
-        from .media import operation
-        result = operation(ctx, args.action)
+        from .media import operation, reconcile
+        result = reconcile(ctx) if args.action == 'reconcile' else operation(ctx, args.action)
     elif args.command == 'bench-storage':
         from .bench import storage_benchmark
         result = storage_benchmark(ctx, args.volume, args.size_mib, args.operations, args.seconds)

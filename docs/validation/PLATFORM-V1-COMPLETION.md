@@ -130,3 +130,21 @@ runtime/library/platform suites passed, plus a real database checkpoint/close
 acknowledgement test. No final voltage thresholds or charger changes are made.
 ARM/image validation is pending. Threshold/reserve and physical power transitions
 remain PHYSICAL_GATE; see `architecture/platform-power-v1.md`.
+
+### Wi-Fi, time/entropy and platform lifecycle integration
+
+DONE_SOFTWARE / HOST_VALIDATED: epoch-checked DHCP configuration, passive Wi-Fi
+failure monitoring, bounded DNS probes and fresh service readiness, standard NTP,
+clock/TLS readiness, persistent per-device seedrng and owner network/throughput
+helper. Reborn distinguishes authenticated from Online and rejects stale records.
+SD lifecycle now runs independently of Reborn, including removed-device claim
+validation and five-attempt failed-unmount bounds. Four network/time and two new
+SD tests pass; the new Reborn freshness and SD-instance tests pass. This does not
+qualify RTC, Wi-Fi connections, SD removal or performance on Y2.
+
+Fresh phase-2 ARM build at Linux `5049761` / Reborn `17dd464` completed under
+out/platform-v1-storage-build; eight QEMU userspace checks and the installed ARM
+1k database/scanner/UI benchmark pass. Its first production test run exposed the
+locked host libc's lack of the obsolete off64_t name in the test-only ENOSPC shim;
+`44cf4ac` uses the explicit 64-bit ABI type. Rerun is required and recorded below.
+Phase-3 sources are not covered by this earlier ARM receipt.
