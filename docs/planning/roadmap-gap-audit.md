@@ -1,5 +1,26 @@
 # Y2Linux roadmap and gap audit
 
+## Platform v1 storage/measurement activation — 2026-09-23
+
+Before phase 2, source `6c9b991` has 24 passing targeted telemetry, handover and
+splash tests; its fresh kernel/Buildroot build is running against unchanged
+sources. Isolated local worktrees keep later implementation out of that receipt.
+No physical evidence changed: Storage06 remains narrow mount/readback proof;
+DEV-02's memory test and GPU-01's audio/render trace are not storage benchmarks.
+The same open #16/#27/#28/#29/#31/#32/#33/#34 and accepted #30 apply. No remote
+status transition is warranted. All entry coverage rows and exclusions remain.
+
+Phase 2 is ready for software work: descriptor-relative scratch-only I/O,
+space reserves and disposable-cache policy, SD mount identity/generation,
+read-only filesystem checks and Reborn's real SQLite/scanner measurements.
+Linux 6.18 already includes exFAT; pinned Buildroot supplies GPL exfatprogs.
+Enabling this maintained filesystem does not change controller clocks, voltages,
+partitioning or recovery policy. Card/media-loss/durability/performance are
+PHYSICAL_GATE. No automatic filesystem repair or user music deletion. Measurement
+tools do not authorize their unattended use on the Y2. Software benchmark results
+will distinguish cache state, process crashes and actual electrical durability.
+High-resolution audio and deeper idle research remain separate evidence gates.
+
 ## Platform v1 completion entry — 2026-09-23
 
 The owner now authorizes a major software completion pass, including kernel
