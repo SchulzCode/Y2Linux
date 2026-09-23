@@ -281,6 +281,8 @@ def validate_rootfs(out,build,m):
             expected_id=('Y2LINUX-REBORN-PREMIUM-'+m['rootfs_version'].rsplit('.',1)[-1].zfill(2)+'\n').encode()
         elif '-reborn.' in m['rootfs_version']:
             expected_id=b'Y2LINUX-REBORN-RADIO-UI-01\n'
+        if m.get('build_id'):
+            expected_id=(m['build_id']+'\n').encode()
         require(read('etc/y2linux/build-id')==expected_id,'root build identity')
         require(json.loads(read('etc/y2linux/versions.json'))==json.loads((build/'versions.json').read_text()),'versions root/build')
         require(json.loads(read('etc/y2linux/versions.json'))['build_git_commit']==m['build_git_commit'],'manifest root commit')
@@ -298,13 +300,29 @@ def validate_rootfs(out,build,m):
                          'usr/sbin/iw','usr/libexec/bluetooth/bluetoothd','usr/bin/bluealsad','usr/bin/dbus-daemon'):
                 content=read(name)
                 require(content[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',content,18)[0]==40,'connectivity ARM binary '+name)
-        if '-gpu.' in m['rootfs_version']:
+        if '-gpu.' in m['rootfs_version'] or m.get('platform_api_version') == 1:
             for name in ('usr/bin/y2-gpu-check','usr/lib/libEGL.so.1','usr/lib/libGLESv2.so.2','usr/lib/libgbm.so.1','usr/lib/libdrm.so.2','usr/lib/dri/lima_dri.so','usr/lib/dri/mediatek_dri.so'):
                 content=read(name)
                 require(content[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',content,18)[0]==40,'graphics ARM binary '+name)
                 require(struct.unpack_from('<I',content,36)[0]&0x400,'graphics hard-float '+name)
                 require(run('debugfs','-R','cat /'+resolve(name),str(out/'Y2ROOT.img'))==content,'graphics raw ext4/tar agreement '+name)
             require(not any(name in members for name in ('usr/lib/dri/swrast_dri.so','usr/bin/Xorg','usr/bin/weston')), 'no software/desktop graphics fallback')
+        if m.get('platform_api_version') == 1:
+            for name in ('usr/sbin/y2-update-core','usr/sbin/y2-audio-contract','usr/libexec/y2-sftp-server',
+                         'usr/sbin/y2-bt-observe','usr/bin/reborn-bench'):
+                content=read(name)
+                require(content[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',content,18)[0]==40,'platform ARM binary '+name)
+                require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img'))==content,'platform ext4/tar agreement '+name)
+            for name in ('etc/y2linux/capabilities.json','etc/y2linux/update-trust.json','etc/y2linux/update-compat.json',
+                         'etc/y2linux/bluetooth-codecs.json','usr/lib/y2-platform/y2_platform/update.py',
+                         'usr/lib/y2-platform/y2_platform/maintenance.py','usr/libexec/reborn-boot-services'):
+                require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img'))==read(name),'platform contract ext4/tar agreement '+name)
+            require(b'Y2_TEST_ROOT' not in read('usr/sbin/y2-update-core') and b'Y2_TEST_FAULT' not in read('usr/sbin/y2-update-core'),'production updater has no fixture writer')
+            caps=json.loads(read('etc/y2linux/capabilities.json'))
+            require(caps['schema']=='org.y2linux.capabilities/v1' and caps['api_version']==1,'platform API identity')
+            require(all(v.get('qualified') is False for v in caps['capabilities'].values()),'candidate does not inherit physical qualification')
+            require(not any(n in members for n in ('usr/sbin/sshd','usr/bin/ssh','usr/bin/sftp')),'only selected SFTP subsystem installed')
+            require(b'-l usb0' in read('etc/default/dropbear'),'SSH explicitly bound to USB interface')
         for name in ('bin/busybox','sbin/init','sbin/blkid','sbin/e2fsck','sbin/ip','usr/sbin/dropbear','usr/bin/aplay','usr/bin/amixer','usr/bin/evtest','usr/bin/strace'):
             raw=read(name);require(raw[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',raw,18)[0]==40,'ARM userspace '+name)
             require(struct.unpack_from('<I',raw,36)[0]&0x400,'hard-float '+name)

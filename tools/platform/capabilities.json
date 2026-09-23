@@ -1,6 +1,6 @@
 {
   "schema": "org.y2linux.capabilities/v1",
-  "platform_version": "1.0.0-candidate-dev",
+  "platform_version": "1.0.0-candidate.1",
   "api_version": 1,
   "qualification_scope": "No integrated physical or endurance qualification for this candidate",
   "capabilities": {
@@ -95,7 +95,12 @@
       "channels": 2,
       "prior_narrow_evidence": "2026-09-18-gpu01/audio.txt",
       "s32": false,
-      "preserved_24bit": false
+      "preserved_24bit": false,
+      "constraint_query": "y2-audio-contract",
+      "driver_rates_hz": [
+        44100,
+        48000
+      ]
     },
     "power_observation": {
       "implemented": true,
@@ -117,7 +122,8 @@
       "enabled": false,
       "qualified": false,
       "gate": "PHYSICAL_GATE",
-      "reason": "same_boot_resume_unqualified"
+      "reason": "same_boot_resume_unqualified",
+      "qualification_command": "y2-suspend --owner-qualify"
     },
     "cpuidle": {
       "implemented": true,
@@ -132,7 +138,8 @@
       "enabled": false,
       "qualified": false,
       "gate": "PHYSICAL_GATE",
-      "reason": "AP_watchdog_driver_available_recovery_policy_unqualified"
+      "reason": "AP_watchdog_driver_available_recovery_policy_unqualified",
+      "recovery_policy_implemented": false
     },
     "ota": {
       "implemented": true,

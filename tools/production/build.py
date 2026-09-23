@@ -35,7 +35,7 @@ def dirty_source(path):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--output',default='out/y2linux-gpu-02-build')
+    p.add_argument('--output',default='out/y2linux-platform-v1-build')
     p.add_argument('--resume',choices=['kernel','buildroot','artifacts'])
     p.add_argument('--reuse-userspace',type=Path,help='verified production package whose root/data and rescue binaries are retained')
     p.add_argument('--owner-firmware',type=Path,help='explicit local provision.py output; no downloads or calibration inputs')
@@ -48,7 +48,7 @@ def main():
     reborn_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=REBORN,text=True).strip()
     reborn_version=reborn_source_version((REBORN/'Cargo.toml').read_text())
     localversion=re.search(r'^CONFIG_LOCALVERSION="([^"]+)"$',(PROJECT/'kernel/config/production.config').read_text(),re.M).group(1)
-    versions={'release_version':'0.1.0-premium.3','layout_version':1,'kernel_version':'6.18.0'+localversion,'rootfs_version':'2025.02.18-premium.3','data_schema_version':1,'reborn_version':reborn_version,'build_git_commit':commit,'reborn_source_commit':reborn_commit}
+    versions={**json.loads((PROJECT/'tools/production/release.json').read_text()),'layout_version':1,'kernel_version':'6.18.0'+localversion,'data_schema_version':1,'reborn_version':reborn_version,'build_git_commit':commit,'reborn_source_commit':reborn_commit}
     if not a.reuse_userspace:
         if not a.owner_firmware:p.error('M5 requires explicit --owner-firmware local provisioning')
         from tools.connectivity.provision import verify_provision
@@ -63,6 +63,10 @@ def main():
         previous=validate_manifest(base)
         if previous['minimum_compatible_components']['rootfs_contract']!='y2-platform-v1':p.error('incompatible existing rootfs')
         versions['rootfs_version']=previous['rootfs_version']
+        # A reused root keeps its actual build identity and API metadata.
+        for field in ('build_id','platform_api_version'):
+            versions.pop(field,None)
+            if field in previous: versions[field]=previous[field]
         versions['rootfs_build_git_commit']=previous.get('rootfs_build_git_commit', previous['build_git_commit'])
         installed_reborn_version=previous.get('reborn_version', previous.get('application',{}).get('version'))
         installed_reborn_commit=previous.get('reborn_source_commit')
@@ -86,7 +90,7 @@ def main():
     env=os.environ.copy();env.pop('Y2_PUBLIC_KEY_FILE',None)
     if a.owner_firmware:env['Y2_OWNER_FIRMWARE']=str(a.owner_firmware.resolve())
     else:env.pop('Y2_OWNER_FIRMWARE',None)
-    build_id = 'Y2LINUX-REBORN-PREMIUM-' + versions['rootfs_version'].rsplit('.', 1)[-1].zfill(2)
+    build_id = versions.get('build_id', 'Y2LINUX-REBORN-PREMIUM-' + versions['rootfs_version'].rsplit('.', 1)[-1].zfill(2))
     env.update(Y2_ARTIFACT_DIR=str(out),BR2_DL_DIR=str(PROJECT/'.cache/buildroot-dl'),SOURCE_DATE_EPOCH=str(lock['source_date_epoch']),E2FSPROGS_FAKE_TIME=str(lock['source_date_epoch']),Y2_BUILD_ID=build_id,LC_ALL='C',TZ='UTC')
     if not shutil.which('bc'):
         env['PATH']=str(PROJECT/'.cache/host-tools')+os.pathsep+env['PATH']

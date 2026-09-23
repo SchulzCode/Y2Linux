@@ -91,7 +91,7 @@ def package(build, base, fallback_root, out):
                         (PROJECT/'tools/build/connectivity-host.lock.json','connectivity-host.lock.json'),
                         (PROJECT/'buildroot/inputs.lock.json','buildroot-inputs.lock.json')]:
         shutil.copyfile(source,out/'metadata'/name)
-    if '-gpu.' in versions['rootfs_version']:
+    if '-gpu.' in versions['rootfs_version'] or versions.get('platform_api_version') == 1:
         licenses=out/'metadata/graphics-licenses'; licenses.mkdir()
         for source,name in [
                 (build/'buildroot/build/mesa3d-24.0.9/docs/license.rst','Mesa-24.0.9-license.rst'),
@@ -121,16 +121,17 @@ def package(build, base, fallback_root, out):
     manifest['installation_profile']='system-update'
     manifest['application']=reborn_application(versions['reborn_version'])
     manifest['base_manifest_sha256']=digest(out/'metadata/base-manifest.json')
-    manifest['status']=f'Reborn FFmpeg {ffmpeg_version} audio production candidate; physical audio qualification pending'
+    manifest['status']='Y2Linux Platform v1 software candidate; all current-candidate physical/endurance qualification pending' if versions.get('platform_api_version')==1 else f'Reborn FFmpeg {ffmpeg_version} audio production candidate; physical audio qualification pending'
     manifest['data_policy']='Preserve existing Y2DATA in place. New private directories are created on first normal boot. No data payload.'
     manifest['owner_firmware']=json.loads((build/'owner-firmware.json').read_text())
     manifest['audio_stack']={
         'ffmpeg_version':ffmpeg_version,
         'canonical_sample_format':'fltp',
-        'preferred_output_format':'S32_LE',
-        'physically_qualified_output_formats':['S16_LE'],
-        'physically_qualified_rates_hz':[44100],
-        'unqualified_output_formats':['S32_LE'],
+        'preferred_output_format':'S16_LE',
+        'candidate_physically_qualified_output_formats':[],
+        'prior_narrow_output_formats':['S16_LE'],
+        'prior_narrow_rates_hz':[44100],
+        'unimplemented_output_formats':['S24_LE','S32_LE'],
         'unqualified_rates_hz':[48000,88200,96000],
         'qualification_evidence':'docs/hardware-evidence/2026-09-18-gpu01/audio.txt',
     }
