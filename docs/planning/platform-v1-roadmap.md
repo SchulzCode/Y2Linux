@@ -46,3 +46,8 @@ navigation; native music/queue screens; service-backed connectivity/system/advan
 observations; focus/error/visual tests; fresh host/ARM/package validation; preserving
 UI candidate for owner review. No platform architecture or hardware expansion.
 Candidate creation and closure require another evidence audit. No flash.
+
+The [bounded graphics memory review](roadmap-gap-audit.md#reborn-ui-v1-bounded-graphics-memory-review--2026-09-24)
+permits a shared 4 MiB application font atlas and bounded collection-art worker,
+cache and texture. Target RSS/PSS, navigation latency and audio coexistence remain
+owner qualification items. Platform reservations and hardware gates are unchanged.

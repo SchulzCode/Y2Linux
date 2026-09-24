@@ -1,5 +1,29 @@
 # Y2Linux roadmap and gap audit
 
+## Reborn UI v1 bounded graphics memory review — 2026-09-24
+
+Before further artwork integration and candidate production, repeat the activation
+coverage audit above the frozen platform boundary. Re-read the retained GPU-01
+480×360 Lima/input/wired evidence and Storage06 internal-boot evidence: neither
+qualifies the new UI font footprint or collection-art decoding on this candidate.
+The remaining radio, USB, power, suspend and update evidence limits in the
+activation matrix remain unchanged; no new hardware evidence was collected.
+
+The application uses one shared 1024×1024 RGBA font texture (4 MiB), replacing
+two small ASCII atlases, to provide readable proportional Latin/Greek/Cyrillic
+text and bounded replacement glyphs. A separate 160×160 collection-art texture
+(100 KiB), a bounded four-entry decoded-art cache (400 KiB) and one bounded
+worker are permitted within the owner-authorized application rebuild. No RAM
+reservation, DMA, kernel, graphics-driver or platform memory policy changes.
+This is application allocation scope only. Decoding must remain off the UI
+thread, responses must be matched to route/source identity, and no music-sized
+textures or unbounded caches are permitted.
+
+Decision: proceed with these explicit bounded application allocations, retain
+all hardware epics and qualification gates, and measure target RSS/PSS, input
+latency and audio underruns during owner review. Host tests and previews are
+not target memory/thermal/endurance qualification. Audit again at packaging.
+
 ## Reborn UI v1 application activation — 2026-09-24
 
 Starting pair: Linux `8959c3439a2305934151141c7346c455460e0be7` /
