@@ -1,5 +1,49 @@
 # Y2Linux roadmap and gap audit
 
+## Reborn UI v1 software candidate handoff — 2026-09-24
+
+Boundary: close the owner-authorized application implementation and preserving
+candidate work, without accepting Platform v1 hardware or authorizing installation.
+Reborn compiled source is `155608393f6acfc6657f2f2e23cd07d0533479c6`; the platform
+inside the image remains `d04b95aaff713edf943042d97a4c6134ca19fc24` with the existing
+Platform v1 kernel/rootfs. Linux changes for this task are these audits only.
+
+Re-read the actual Storage06 identity/internal-boot receipt, GPU-01 native
+480×360 Lima/S16/input results and failed same-boot deep resume, CONNECTIVITY-10
+adapter/scan-only result, and two old-policy USB reconnect observations linked
+below. No new hardware evidence, device access, ROM provenance repetition or
+physical test occurred. Refresh every coverage row in the freeze matrix: all
+remain PARTIAL, with existing UNKNOWN/BLOCKED_BY_EVIDENCE/DEFERRED extensions.
+Boot/rescue, memory/DMA/SMP, clocks/reset/watchdog, display/input/wake, SD/eMMC,
+power/thermal/idle/suspend, wired audio/radios/calibration, USB, clock/entropy,
+userspace/shutdown, update/reset/export and release retain their exact prior gates.
+The 4 MiB font atlas and bounded art allocations add application measurement work;
+they do not change platform memory ownership or establish target resource limits.
+
+Fresh software receipts: 177 Rust tests (29 UI), warning-free all-target Clippy,
+format checks, 54 relevant Platform v1 regressions, 20 host daemon checks, eight
+packaged ARM userspace QEMU checks, 1k/10k/20k host and ARM-emulated library runs,
+69 native-size reviewed previews, and a fresh Cortex-A7 ARMv7 hard-float build.
+ELF/GLES/media dependencies, embedded assets/provenance, exact root readback,
+ext4 checks, unchanged critical platform files and ANDROID-only selection pass.
+These establish HOST_TESTED/ARM_BUILT/IMAGE_VALIDATED only.
+
+Candidate: `out/y2linux-reborn-ui-v1-candidate/`; root SHA-256
+`edcecfaae26b8102c071000b5d2e9e5f84626ad08e3ff5818b050174f301a044`.
+An exact previous root is retained in `fallback/`. No BOOTIMG or Y2DATA payload,
+erase/format instruction, protected partition or calibration operation is included.
+The required already-installed Platform v1 BOOTIMG remains SHA-256
+`f7b4a950a0504a411ad72db0aac9398f04dc1ccabd6a6a0a3a7fdab198ca2622`.
+
+Readonly GitHub reconciliation still finds #16/#27/#28/#29/#31/#32/#33/#34 OPEN
+and historical #30 CLOSED; no remote mutation or milestone promotion is warranted.
+Backup/calibration/recovery/trusted-power prerequisites and development-key limits
+remain. Next smallest boundary is owner Session A with the exact root/BOOT pair,
+physical UI legibility/focus/wake, RSS/PSS and audio coexistence, followed by relevant
+B–G sessions. Reset execution remains the platform's authenticated stopped-service
+maintenance flow. Decision: **software candidate ready for owner-controlled review;
+physical qualification pending**. No flash, push, or platform feature expansion.
+
 ## Reborn UI v1 candidate build admission — 2026-09-24
 
 Reconcile the owner UI brief with the implemented application, the activation
