@@ -36,3 +36,13 @@ or memory scope is authorized by this document. Advance each boundary only after
 updating the audit using retained physical evidence; do not repeat unchanged
 ROM/recovery provenance. Existing #30 acceptance is preserved, with later adverse
 suspend evidence and unqualified charger changes explicitly retained.
+
+## Reborn UI v1 application work — 2026-09-24
+
+The owner now authorizes Reborn UI implementation against the frozen Platform v1
+contract before physical platform acceptance. The [activation audit](roadmap-gap-audit.md#reborn-ui-v1-application-activation--2026-09-24)
+retains every physical gate and issue status above. Work order: design/input and
+navigation; native music/queue screens; service-backed connectivity/system/advanced
+observations; focus/error/visual tests; fresh host/ARM/package validation; preserving
+UI candidate for owner review. No platform architecture or hardware expansion.
+Candidate creation and closure require another evidence audit. No flash.

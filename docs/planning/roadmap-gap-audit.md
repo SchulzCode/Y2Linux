@@ -1,5 +1,46 @@
 # Y2Linux roadmap and gap audit
 
+## Reborn UI v1 application activation — 2026-09-24
+
+Starting pair: Linux `8959c3439a2305934151141c7346c455460e0be7` /
+Reborn `5bab207ae662dafe31544fe5948f68e702ea33fa`. The owner explicitly
+requests the complete application UI candidate on Platform v1, local commits and
+preserving packaging, with no flashing. This later decision authorizes application
+work before physical Platform v1 acceptance; it does not accept those hardware
+gates or authorize platform expansion.
+
+Re-read the retained Storage06, GPU-01, CONNECTIVITY-10 and USB reconnect
+owner evidence linked in the freeze audit below. Storage06 establishes old-image
+internal identity/boot/SSH; GPU-01 establishes 480×360 Lima, balanced input and
+S16/44.1 audio under bounded load, with failed same-boot deep resume; radio scans
+establish adapters, not association or peer audio; two USB workaround reconnects
+are narrow old-policy evidence. No new device access or evidence is claimed.
+The Platform v1 completion/capability/owner ledgers and actual Reborn source are
+the application contract; older Reborn audit proposals are superseded only by
+source-backed correctness and Platform v1 implementations.
+
+Every coverage row in the freeze matrix below was reviewed: boot/rescue, kernel,
+RAM/DMA/SMP, clocks/regulators, reset/watchdog, display/GPU, wheel/Power, SD,
+eMMC/layout, power/charging/thermal, CPU/idle, suspend, wired audio, radios,
+firmware/calibration, USB, clock/entropy, userspace/shutdown, update/reset/export,
+and build/release remain **PARTIAL**, with the exact existing UNKNOWN,
+BLOCKED_BY_EVIDENCE and DEFERRED extensions retained. UI changes can add
+IMPLEMENTED/HOST_TESTED/ARM_BUILT/IMAGE_VALIDATED application evidence only.
+No memory reservation, hardware policy, calibration, encoder or partition change.
+
+Readonly GitHub inventory confirms #16/#27/#28/#29/#31/#32/#33/#34 OPEN;
+#30's narrow historical acceptance remains CLOSED with the later adverse suspend
+evidence preserved. No issue or milestone qualification status changes, remote
+messages or new epics are needed for this local application task. Existing
+backup/calibration/trusted-power conditions remain owner prerequisites for later
+physical work. Unchanged ROM/recovery provenance is not repeated.
+
+Decision: **ready for bounded application implementation**. Keep semantic input,
+AppModel/effects/workers, actual platform observations, GLES dirty rendering and
+queue occurrence identities. Audit again before candidate packaging/closure.
+The next physical boundary remains owner Session A, then relevant B–G on exact
+candidate hashes. A UI screenshot is not physical or endurance qualification.
+
 ## Platform v1 software freeze boundary — 2026-09-23 UTC
 
 Final built pair: Linux `d04b95aaff713edf943042d97a4c6134ca19fc24` /
