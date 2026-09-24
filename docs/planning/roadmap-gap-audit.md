@@ -1,5 +1,30 @@
 # Y2Linux roadmap and gap audit
 
+## Reborn UI v1 candidate build admission — 2026-09-24
+
+Reconcile the owner UI brief with the implemented application, the activation
+and graphics-memory audits, the retained Storage06/GPU-01/CONNECTIVITY-10/USB
+results, and the Platform v1 capability/owner-qualification ledgers. Every
+hardware coverage row remains PARTIAL with its existing blocked/deferred
+extensions; issue statuses and backup/calibration/trusted-power prerequisites
+remain unchanged. No new physical observation or qualification is claimed.
+
+UI-specific and full Rust workspace host checks pass; the 54 relevant Platform
+v1 contract, Bluetooth, network/time, power, update, transfer, storage and reset
+regressions pass. Native 480×360 previews have received repeated visual review.
+These admit the next software step, not a release or hardware acceptance.
+
+Decision: ready for a fresh ARMv7 application build using the existing Platform
+v1 SDK, then a preserving application-only root candidate if all checks pass.
+Reuse the exact manifest-verified Platform v1 root and required BOOTIMG; replace
+only application ELFs and application release metadata. Retain platform source,
+rootfs and kernel identities, recording the UI package identity separately.
+No kernel/Buildroot/DT/boot/hardware policy rebuild or extension is required.
+Select ANDROID/Y2ROOT only; include neither BOOTIMG nor Y2DATA payload, and retain
+an exact root fallback. Inspect ELF dependencies, media ABI, image contents,
+filesystem, scatter selection and artifact hashes before declaring a candidate.
+Owner review still requires the exact Platform v1 BOOTIMG as a prerequisite.
+
 ## Reborn UI v1 bounded graphics memory review — 2026-09-24
 
 Before further artwork integration and candidate production, repeat the activation

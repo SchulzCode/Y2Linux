@@ -51,3 +51,8 @@ The [bounded graphics memory review](roadmap-gap-audit.md#reborn-ui-v1-bounded-g
 permits a shared 4 MiB application font atlas and bounded collection-art worker,
 cache and texture. Target RSS/PSS, navigation latency and audio coexistence remain
 owner qualification items. Platform reservations and hardware gates are unchanged.
+
+The [UI candidate admission audit](roadmap-gap-audit.md#reborn-ui-v1-candidate-build-admission--2026-09-24)
+authorizes fresh ARM application compilation and preserving root packaging after
+host checks. Final image and runtime receipts remain required. Platform v1
+compiled identities remain distinct from the application/package review heads.
