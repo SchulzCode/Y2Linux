@@ -146,8 +146,8 @@ def main():
         print(json.dumps(result))
         return 0 if result['ok'] else 1
     if args.command == 'network-check':
-        from .network_check import check
-        result = check(ctx, args.peer, args.seconds, args.throughput, args.interface)
+        from .network_check import check as network_check
+        result = network_check(ctx, args.peer, args.seconds, args.throughput, args.interface)
         print(json.dumps(result, sort_keys=True))
         return 0 if result['record']['result'] == 'OK' else 1
     if args.command in ('time', 'time-bootstrap', 'ntp-event'):

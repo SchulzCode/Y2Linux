@@ -1,5 +1,112 @@
 # Y2Linux roadmap and gap audit
 
+## Platform v1 telemetry repair entry — 2026-09-25
+
+The owner now authorizes the proposed corrective software pass and a new
+candidate, with flashing still prohibited. Reuse the physical stop evidence
+below: CLI health dispatch crashes; the status reader blocks in
+pm_get_wakeup_count while charging; warnings remain explicitly unwaived.
+The current installed pair and every hardware coverage classification remain
+unchanged. No device access, hardware-policy change or new hardware subsystem is
+needed for this repair. The existing issue inventory and ownership remain valid.
+
+Scope: correct CLI name resolution, bound the wakeup-counter query and report
+unavailable data honestly, add focused regressions exercising the real failure
+boundaries, review warning origins, and prepare a fresh preserving root-only
+candidate from the exact UI candidate. Retain the unchanged Reborn binaries,
+BOOTIMG requirement, Y2DATA and hardware policy. Record the corrected platform
+source/root identity distinctly. Validate host and packaged ARM Python behavior,
+exact image changes, filesystem, scatter and fallback before handoff. Re-audit
+at candidate closure; no physical gate is promoted by host/emulated checks.
+
+## Platform v1 physical qualification stop — 2026-09-25
+
+**Session A FAIL; B/C/D NOT_TESTED. No milestone closure or physical promotion.**
+The owner clarified the installed UI candidate after the initial plain-candidate
+source mismatch. Its exact Linux/Reborn metadata matches the entry record below,
+and all four installed Reborn ELF hashes match the UI candidate manifest.
+Boot ID `083d4abb-a447-4ac6-a063-e8898c150bca` remained unchanged through the final
+14:36:05 UTC evidence capture. No firmware/code/policy change or reboot occurred.
+
+Fresh narrow evidence: internal eMMC on `11230000.mmc`, expected Y2ROOT/Y2DATA
+UUIDs/geometry, distinct read-write mounts, clean boot fsck and zero ext4 error
+counters. Boot stages record switch_root 9.73 s, first frame 57.785 s and
+application_ready 64.718 s. The owner sees the main menu and reports normal
+warmth. One snapshot reads CPU 48.500°C / PMIC 46.298°C. USB owner-key SSH remains
+available. These observations do not establish repeated boot, library readiness,
+input/audio operation, durability, performance, radio connections or endurance.
+
+Two installed-platform defects prevent the mandatory baseline: CLI-local
+`network_check.check` shadows health's `check`, raising UnboundLocalError; and
+the observer reads `/sys/power/wakeup_count` synchronously, blocking in
+`pm_get_wakeup_count` with a charger wakeup source active. Source hashes match
+the inspected repository files. No charger/wakeup-policy change is justified.
+The exact orphaned diagnostic query was stopped after its evidence was saved;
+final process inspection finds no leftover query. No production service was
+restarted, source fixed or replacement installed.
+
+Before/after dmesg retains 28 warning/error-priority entries, including repeated
+rate-limit notices, timer/cache descriptions, the PMIC LED node lookup,
+memory-protection configuration, retained p8 clipping, regulator get_mode and
+Bluetooth extended-feature messages. These are not 28 independent faults.
+No retained WARN stack/Oops/panic/ext4-I/O error is found; taint stays 0. The
+owner's kernel-warning rule still stops Session A without silently exempting
+historical warnings. Detailed owning areas and all limitations are in the
+[physical report](../validation/PLATFORM-V1-PHYSICAL-QUALIFICATION.md).
+
+Refresh every freeze-matrix area from this evidence: boot/storage/display/USB
+gain the narrow observations above but remain PARTIAL; telemetry/readiness now
+has observed failures. RAM/DMA/SMP, buses/clocks/reset, input, power/idle/suspend,
+audio, SD, radios/calibration, time/entropy, updates/backup and release retain
+all prior untested/blocked boundaries. No reserved-memory, hardware, production
+or protected-data scope changes. Fresh read-only GitHub inventory retains
+#16/#27/#28/#29/#31/#32/#33/#34 OPEN and #30 CLOSED; no remote mutation.
+
+Next smallest blocker: separate corrective software work for telemetry plus
+source-backed review of the recorded warning classes, then repeat Session A on
+the exact resulting installed pair. This qualification request does not itself
+authorize implementing, rebuilding or installing fixes. Session B–D workloads,
+endurance and separately controlled E/F/G do not advance. Seven passive long-run
+plans are prepared locally with the clarified identity; none was executed.
+No unchanged source/ROM/calibration provenance or build was repeated.
+
+## Platform v1 physical qualification entry — 2026-09-25
+
+The owner authorizes supervised Sessions A–D with no flash, rebuild, production
+code change, protected-data write or hardware-policy change. Following an exact
+identity mismatch against the original Platform v1 package, the owner clarified
+that the installed/intended package is `out/y2linux-reborn-ui-v1-candidate/`.
+Bind this run to its versions file; preserve the original mismatch as evidence.
+Long runs and Sessions E/F/G remain separately gated.
+
+Fresh authenticated USB identity at 14:23:49 UTC, boot
+`083d4abb-a447-4ac6-a063-e8898c150bca`, matches that package's complete versions
+metadata: Platform v1 Linux `d04b95aaff713edf943042d97a4c6134ca19fc24`, Reborn
+`155608393f6acfc6657f2f2e23cd07d0533479c6`, kernel
+`6.18.0-y2linux-platform-v1-candidate-01`, rootfs `2025.02.18-platform-v1.1`.
+Local package checksums pass 133/133; installed whole-image hashes were not
+read. The owner authorized updating the stale host-key pin after a direct USB
+topology check; strict checking and the existing owner login key are retained.
+The trust record explicitly states that the fingerprint was not independently
+read from a device console.
+
+Re-read Storage06, GPU-01, CONNECTIVITY-10 and USB reconnect hardware receipts
+and every September 23 freeze coverage row. Boot/rescue, kernel, RAM/DMA/SMP,
+buses/clocks/reset, display/input, SD/eMMC, power/thermal/idle/suspend, audio,
+radios/calibration, USB, time/entropy, userspace/shutdown, update/backup and
+release retain their physical gates. Fresh enumeration and metadata reads do
+not promote a subsystem. No unchanged ROM/calibration acquisition or build was
+repeated. Existing issue ownership remains; no milestone or remote status changes.
+
+Entry limitation: `y2-status system --json` timed out after 50.050 seconds with
+no output, while a simple authenticated identity query subsequently succeeded.
+Obtain the required baseline and diagnose this observation before workloads or
+reboot/recovery tests. Stop on the owner's fault conditions. No source fix or
+workaround is authorized merely to pass a test. The
+[physical report](../validation/PLATFORM-V1-PHYSICAL-QUALIFICATION.md) and private
+receipts retain exact commands, identities and limits. Repository review head:
+`d6811ffed028e73d90a8b146e576310319734187`. No physical acceptance is declared.
+
 ## Reborn UI v1 software candidate handoff — 2026-09-24
 
 Boundary: close the owner-authorized application implementation and preserving

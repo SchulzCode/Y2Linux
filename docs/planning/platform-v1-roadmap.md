@@ -63,3 +63,31 @@ The [UI candidate admission audit](roadmap-gap-audit.md#reborn-ui-v1-candidate-b
 authorizes fresh ARM application compilation and preserving root packaging after
 host checks. Final image and runtime receipts remain required. Platform v1
 compiled identities remain distinct from the application/package review heads.
+
+## Physical qualification entry — 2026-09-25
+
+The owner identifies `out/y2linux-reborn-ui-v1-candidate/` as the installed and
+intended qualification package. Authenticated versions metadata matches Linux
+`d04b95aaff713edf943042d97a4c6134ca19fc24` / Reborn
+`155608393f6acfc6657f2f2e23cd07d0533479c6`; local package integrity passes.
+The [entry audit](roadmap-gap-audit.md#platform-v1-physical-qualification-entry--2026-09-25)
+retains all hardware gates and the original plain-candidate identity mismatch.
+The [stop audit](roadmap-gap-audit.md#platform-v1-physical-qualification-stop--2026-09-25)
+records **Session A FAIL; B/C/D NOT_TESTED**. Health CLI dispatch crashes and
+status observation blocks on wakeup_count; retained kernel warnings trigger the
+owner's stop rule. Narrow root/data identity, clean counters, first-frame/main
+menu and USB SSH observations are retained in the
+[physical qualification report](../validation/PLATFORM-V1-PHYSICAL-QUALIFICATION.md).
+Next boundary: separately authorized corrective telemetry work and warning
+review, followed by Session A with the exact resulting installed identity.
+No production code/build/policy changes, flash, long unattended run or Session
+E/F/G operation is authorized by this entry; no capability is promoted.
+
+## Telemetry repair — 2026-09-25
+
+The owner authorizes the [focused repair](roadmap-gap-audit.md#platform-v1-telemetry-repair-entry--2026-09-25):
+health CLI dispatch, bounded wakeup-counter observation, targeted regressions,
+warning review and a preserving root-only candidate. Flashing remains prohibited.
+Reborn, kernel, hardware policy and all physical acceptance gates remain unchanged.
+Next handoff requires host/ARM userspace and root-image preservation receipts;
+the installed candidate's failed qualification record remains historical evidence.

@@ -60,13 +60,23 @@ def cpu(ctx):
                      'name': read(path / 'name'), 'time_us': number(read(path / 'time')),
                      'usage': number(read(path / 'usage')), 'disabled': number(read(path / 'disable'))})
     totals = counters(stat)
+    # This sysfs read is a suspend handshake: it blocks while a wakeup source
+    # is active, even with O_NONBLOCK. Keep it outside the observer process and
+    # use the existing bounded runner to kill/reap an interruptible stalled read.
+    wakeup = ctx.command(['/bin/cat', str(ctx.path('/sys/power/wakeup_count'))],
+                         timeout=0.1, limit=64)
+    wakeup_count = number(wakeup['output']) if wakeup['ok'] else None
+    if wakeup_count is not None and wakeup_count < 0:
+        wakeup_count = None
     return {'online': ctx.read('/sys/devices/system/cpu/online'),
             'load_average': ctx.read('/proc/loadavg'), 'ticks': ticks or None,
             'ticks_unit': 'USER_HZ_ticks', 'utilization_percent': None,
             'policies': policies, 'idle': idle,
             'counters': {k: totals.get(k) for k in ('ctxt', 'intr', 'softirq', 'processes',
                                                    'procs_running', 'procs_blocked')},
-            'wakeup_count': ctx.integer('/sys/power/wakeup_count'),
+            'wakeup_count': wakeup_count,
+            'wakeup_count_reason': None if wakeup_count is not None else
+                                   (wakeup.get('reason') or 'counter_unavailable'),
             'throttling_reason': None}
 
 
