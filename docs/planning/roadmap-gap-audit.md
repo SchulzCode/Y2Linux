@@ -1,5 +1,34 @@
 # Y2Linux roadmap and gap audit
 
+## Platform v1 telemetry candidate handoff — 2026-09-25
+
+Close only the owner-authorized corrective software/package pass. Source
+`814c2f3470566021c1a9c43037fd868de8b2df9c` fixes health dispatch and bounds the
+wakeup reader; 67 host and 5 packaged ARM/QEMU tests pass. The fresh preserving
+root in `out/y2linux-platform-v1-telemetry-01-candidate/` has SHA256
+`4a8e520946ad1aaa00df46e9f302463341e4408bba063f43728b8cb8f68bb092`. Five expected
+files changed; whole-tree bytes/links/modes and image ownership/flags checks,
+clean e2fsck, root-only scatter/geometry, unchanged BOOTIMG requirement, unchanged
+Reborn ELFs and exact original UI fallback pass. The
+[repair report](../validation/PLATFORM-V1-TELEMETRY-01.md) retains test limitations
+and source-backed warning classification. No kernel warning was suppressed.
+
+Re-audit against the physical stop boot below and retained Storage06, GPU-01,
+CONNECTIVITY-10 and USB evidence. Every freeze coverage row keeps its physical
+classification: boot/rescue, memory/DMA/SMP, buses/clocks/reset, display/input,
+SD/eMMC, power/thermal/idle/suspend, audio/radios/calibration, USB, time/entropy,
+userspace/shutdown and update/backup/release remain PARTIAL with their existing
+UNKNOWN/BLOCKED_BY_EVIDENCE/DEFERRED extensions. No new device evidence was
+collected. The installed source remains d04b95a / Reborn 1556083, Session A FAIL,
+B–D NOT_TESTED; no PHYSICALLY_QUALIFIED or endurance promotion.
+
+Existing issue ownership and status stay unchanged: #16/#27/#28/#29/#31/#32/#33/
+#34 OPEN and historical #30 CLOSED, with later adverse evidence retained. No
+remote mutation, hardware/memory scope change, calibration acquisition or
+repeat of unchanged ROM provenance. Next boundary remains separately authorized
+installation and Session A, with the owner's warning/fault stop rules intact.
+Timer/cache and hardening review are open; E/F/G and unattended runs remain gated.
+
 ## Platform v1 telemetry repair entry — 2026-09-25
 
 The owner now authorizes the proposed corrective software pass and a new

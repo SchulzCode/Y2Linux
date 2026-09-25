@@ -29,8 +29,12 @@ Host validation: `python3 -m unittest discover -s tests -p 'test_platform*.py' -
 passes **67 tests**. Four new regressions exercise quick/full failing health,
 network dispatch, a real blocked FIFO reader with termination/reaping, and
 zero/valid/invalid/missing counters. Receipts are under
-`out/y2linux-platform-v1-telemetry-01-build/`. Packaged ARM userspace and image
-validation are required before candidate handoff. Neither proves behavior on
+`out/y2linux-platform-v1-telemetry-01-build/`. All **5 packaged ARM/QEMU tests**
+also pass using the actual image's Python, modules and BusyBox reader, including
+the full system-section CLI with a blocked counter. The initial extra smoke
+test expected an unfiltered CPU key in section-filtered JSON; that harness
+assertion was corrected and the initial failure is recorded. No production or
+image change was needed. Neither host nor emulated checks prove behavior on
 the charging Y2; the first physical check after a separately authorized install
 must repeat the mandatory baseline and inspect for leftover readers.
 
@@ -68,7 +72,40 @@ items before restarting later sessions; stop again on the owner's fault rules.
 
 ## Candidate handoff
 
-Pending image and ARM receipts. Intended scope is a preserving root overlay of
-the exact UI candidate: two Python files and explicit release/source metadata,
-with unchanged Reborn binaries, hardware policies and required BOOTIMG. The
-fallback must be the original UI root, not an older plain Platform candidate.
+Candidate: `out/y2linux-platform-v1-telemetry-01-candidate/`, status
+**IMAGE_VALIDATED_PHYSICAL_PENDING**, never installed during this pass.
+
+| Identity | Value |
+| --- | --- |
+| Corrected platform source | `814c2f3470566021c1a9c43037fd868de8b2df9c` |
+| Build ID | `Y2LINUX-PLATFORM-V1-TELEMETRY-01` |
+| Release / rootfs | `1.0.0-candidate.2` / `2025.02.18-platform-v1.2` |
+| Retained kernel/base source | `d04b95aaff713edf943042d97a4c6134ca19fc24` |
+| Retained kernel | `6.18.0-y2linux-platform-v1-candidate-01` |
+| Retained Reborn source | `155608393f6acfc6657f2f2e23cd07d0533479c6` |
+| New root SHA256, 536870912 bytes | `4a8e520946ad1aaa00df46e9f302463341e4408bba063f43728b8cb8f68bb092` |
+| Original UI fallback SHA256, 536870912 bytes | `edcecfaae26b8102c071000b5d2e9e5f84626ad08e3ff5818b050174f301a044` |
+| Required unchanged BOOTIMG SHA256, 6756352 bytes | `f7b4a950a0504a411ad72db0aac9398f04dc1ccabd6a6a0a3a7fdab198ca2622` |
+
+Fresh regular-file/debugfs overlay: exactly `cli.py`, `observe.py`,
+`/etc/y2linux/versions.json`, `/etc/y2linux/build-id` and `/usr/lib/os-release`
+changed. Whole-tree comparison covers 2,266 entries, including file hashes,
+symlink targets and modes. Image-inode comparison covers 2,267 entries including
+the root, preserving type, mode, flags, UID/GID/project, ACL pointer and link
+count. Unprivileged extraction reports expected chown failures; image inode
+checks establish ownership independently. No other extraction errors occurred.
+
+All four Reborn ELF hashes remain exact. Label/UUID and 512 MiB image size pass;
+`e2fsck -fn` exits 0. The scatter bytes match the original root-only UI scatter,
+selecting only ANDROID and preserving all stock geometry. The original UI image
+is included as fallback and its hash rechecked. The unchanged local BOOTIMG
+requirement is hash-verified; no BOOTIMG or Y2DATA payload is included. Source
+bundles, reproducible overlay script, test receipts and checksums accompany the
+candidate. It is a root-only review package, not a signed OTA update.
+
+Next physical boundary: separately authorized installation, verify this exact
+new identity, repeat the mandatory Session A baseline while charging, and check
+that status/health return without leftover readers. Health may correctly report
+real failures. The existing warning rule and unresolved review gates remain;
+Sessions B–D, endurance and E/F/G have not advanced. No core acceptance follows
+from this repair.

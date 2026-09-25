@@ -91,3 +91,13 @@ warning review and a preserving root-only candidate. Flashing remains prohibited
 Reborn, kernel, hardware policy and all physical acceptance gates remain unchanged.
 Next handoff requires host/ARM userspace and root-image preservation receipts;
 the installed candidate's failed qualification record remains historical evidence.
+
+The [candidate handoff audit](roadmap-gap-audit.md#platform-v1-telemetry-candidate-handoff--2026-09-25)
+now records 67 host and 5 packaged ARM/QEMU passes, exact five-file image changes,
+filesystem/scatter/inode preservation and the original UI fallback. Source
+`814c2f3`, release `1.0.0-candidate.2`, is packaged at
+`out/y2linux-platform-v1-telemetry-01-candidate/`. The
+[warning review and repair report](../validation/PLATFORM-V1-TELEMETRY-01.md)
+retains unresolved timer/cache/hardening and physical gates. Nothing was flashed;
+the installed image and its qualification status remain unchanged. Next is the
+separately authorized installation/Session A boundary, with stop rules intact.

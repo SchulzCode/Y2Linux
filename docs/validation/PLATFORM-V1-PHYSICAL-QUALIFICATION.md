@@ -14,6 +14,11 @@ acceptance is declared. Sessions E/F/G and unattended long runs remain unstarted
 and separately gated. Recommended next step: corrective software work and
 warning review, then repeat Session A under the resulting exact identity.
 
+Subsequent owner-authorized [telemetry repair](PLATFORM-V1-TELEMETRY-01.md) is
+complete at host/ARM/image scope. Its new candidate has not been installed.
+This physical record describes the original image and remains unchanged in
+result; software checks do not supersede its failures or missing physical tests.
+
 ## Identity
 
 Authenticated identity read: 2026-09-25 14:23:49 UTC. Boot ID:
