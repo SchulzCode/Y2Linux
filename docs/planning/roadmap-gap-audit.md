@@ -1,5 +1,40 @@
 # Y2Linux roadmap and gap audit
 
+
+## Hardware 02 candidate handoff — 2026-09-26
+
+This is the candidate/admission boundary for the owner's existing hardware
+ceiling authorization. Installed Physical 01 remains Linux `198fa7c` / Reborn
+`feb530f`. Recovered receipts 49–52, all earlier matched benchmarks, source
+`76bc822` / Reborn `95747e0`, exact image hashes, final release checks and the
+open issue inventory support this review. No source/ROM/SPFT provenance is
+repeated where unchanged. The recovered evidence explicitly supersedes the
+lost SSH stream; no platform closure or electrical waiver follows from it.
+
+| Coverage / issues | Classification and decision |
+| --- | --- |
+| Boot/recovery/security #16/#28/#32 | NARROW PHYSICAL PASS: fresh owner Power Menu reboot restores pinned USB SSH, exact old image identity, taint 0 and clean root/data/SD counters. New package has the exact Physical 01 pair as fallback. IMAGE VALIDATED; new boot/recovery remains PHYSICAL PENDING. |
+| eMMC/SD/filesystems #28/#33 | NARROW PHYSICAL PASS: 8/4-bit 13 MHz, repeated checked data and durable workloads. IMPLEMENTED/HOST TESTED: source-backed 25 MHz initial SDR cap, 13/25/50 MHz bounded controls, crystal fallback, failed-clock restoration and fatal pre-I/O rejection. Faster modes/card lifecycle need actual-unit measurements; preserve protected regions. |
+| Library/application #32/#33 | NARROW PHYSICAL PASS: matched 1k/10k/20k counts/integrity and query gains, with measured index write/scan costs. No new library optimization. Candidate app/1k ARM scan checks pass; interactive envelope and endurance open. |
+| USB device/host #27/#32 | IMPLEMENTED/HOST TESTED: Inventra DMA and fault teardown, first-overflow snapshot, PIO boot/allocation fallback. Existing PIO throughput measured; devices pm_test exposed overflow. DMA speed/PM/reconnect remain PHYSICAL PENDING. NCM compatibility research does not qualify a gadget. VBUS topology/current limit unknown: powered host BLOCKED. |
+| CPU/core/timer/idle #28/#34 | NARROW PHYSICAL PASS: existing OPPs, manual 1–4 core cycles, CPU3/2/1 processor-stage return, isolated GPT6/PPI29 counter/IRQ diagnostic. Integrated local timer/highres/NO_HZ HOST BUILT, physical continuity/hotplug pending. Higher stock OPPs await regulator transition contract; deeper SPM states remain PLANNED. |
+| GPU/display/input/memory #28/#34 | NARROW PHYSICAL PASS: responsive menu/input, 500.5 MHz GPU and screen-off runtime suspend. Memory/layout/DMA compile and release checks pass without reservation changes. Load, pressure, PM and endurance pending. |
+| Charging/battery/low battery #30/#34 | PARTIAL: configured SDP charging and voltage observed; meter unavailable. Measured current/energy, pack calibration, SOC, thresholds/reserve remain EVIDENCE GATED. No unsupported current or percentage introduced. |
+| Suspend/RTC/time #30/#34 | PARTIAL/FAILED RESTORE: freezer/devices/platform/processors return, but USB overflow and radio timeout invalidate full resume. Helper now propagates restore failure; no root-cause fix claim. RTC UTC write/read/ticking pass after synchronized network time; prior automatic writes were gated. Reboot/full-power retention, alarm and core/SPM wake remain PHYSICAL PENDING. |
+| Audio/DAC #29 | NARROW PHYSICAL PASS: S16 44.1/48 direct and switching; fixed temporary Reborn SBC playback owner-confirmed. Paired root includes tested sink contract repair. Long native-48 qualification, true DL1 24-bit/high rates and DAC topology/features remain PLANNED/EVIDENCE GATED. |
+| Wi-Fi/BT/codecs #31 | NARROW PHYSICAL PASS: checked DNS/TCP/NTP, current bond/SBC and owner Reborn play/pause. Transient supplicant observer timeout remains (receipt 50 DEGRADED despite passing DNS). Pair/reconnect/endurance/coexistence and compiled/negotiated optional codecs remain PHYSICAL PENDING. |
+| OTA/firmware/endurance #31/#32/#33 | IMPLEMENTED, PHYSICAL PENDING: root signed-update/rollback path; no automatic BOOTIMG changes. Exact owner firmware inventory unchanged, redistribution unestablished. Broken-app experiment still requires controlled owner approval. No full endurance or final ceiling freeze. |
+| Packaging/validation #28/#32/#33 | IMAGE VALIDATED: 170 passing locked tests plus three native-dependency skips covered on host; 180 Reborn tests; eight ARM app checks, installed modules/SQLite/null-ALSA/1k scan and three ARM SFTP cases. D08/BOOTIMG/root/modules/DT/layout/fallback/protected-storage checks pass. Source/license/inventory records retained; byte-identical userspace reproduction not claimed. |
+
+Decision: **READY for one owner-performed preserving Hardware 02 flash** once
+the packaged checksum inventory is checked. [Concrete artifact and hashes](../validation/PLATFORM-V1-HARDWARE-02.md)
+define the scope. User data remains in place and the exact old pair is available
+for recovery. Post-install identity/regression precedes clock/performance
+promotion. Suspend runs one persistent stage at a time with explicit radio,
+storage, display and host recovery checks. Ordinary failures are retained and
+diagnosed; actual corruption, unsafe electrical/thermal behavior or recovery
+loss stops the affected experiment. Final platform acceptance remains PARTIAL.
+
 ## Hardware Batch 2 build admission — 2026-09-26
 
 The owner continues the entire capability-ceiling campaign. Fresh private

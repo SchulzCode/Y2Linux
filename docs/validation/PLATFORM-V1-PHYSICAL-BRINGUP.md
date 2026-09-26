@@ -21,6 +21,13 @@ Core/SPM entry and deep wake remain unproven. See the [ceiling report](PLATFORM-
 and [Hardware Batch 2 audit](../planning/roadmap-gap-audit.md#hardware-batch-2-build-admission--2026-09-26)
 for corrected evidence, failure handling and the coherent build boundary.
 
+[Hardware 02 candidate](PLATFORM-V1-HARDWARE-02.md) is built and release-validated
+from Linux `76bc822` / Reborn `95747e0`, with the exact installed Physical 01
+pair retained as fallback. It is ready for one preserving owner flash, not yet
+installed or physically qualified. Receipts `50`–`52` additionally confirm
+normal DNS and RTC UTC write/read/ticking; transient Wi-Fi observer readiness,
+RTC retention and all new batch modes remain open.
+
 ## Physical 01 regression baseline — 2026-09-26
 
 Fresh pinned USB SSH at 18:42 UTC identifies build

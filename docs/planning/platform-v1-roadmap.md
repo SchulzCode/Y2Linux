@@ -2,17 +2,20 @@
 
 ## Active hardware capability ceiling campaign — 2026-09-26
 
-Current boundary: [Hardware Batch 2 build admission](roadmap-gap-audit.md#hardware-batch-2-build-admission--2026-09-26).
-Grouped storage SDR steps, Inventra DMA, measured GPT6/PPI29 timer integration
-and the Reborn sink-contract repair are ready for host build/validation.
-The bounded timer experiment passed, followed by a clean normal reboot and
-separated SFTP measurements. Owner confirms Reborn AirPods audio and play/pause.
-**Recovered pm_test log shows freezer/devices/platform/processors returned,
-but USB interrupt overflow and radio timeout prevent full restore.** Fresh
-Power Menu reboot restores pinned SSH, unchanged versions and clean health.
-USB failure observation and honest radio-restore status join this batch.
-No production image from this batch is built or installed yet. Older continuation
-notes below describe the evidence available at their respective boundaries.
+Current boundary: [Hardware 02 candidate handoff](roadmap-gap-audit.md#hardware-02-candidate-handoff--2026-09-26).
+[Concrete package](../validation/PLATFORM-V1-HARDWARE-02.md) is built and release
+validated from Linux `76bc822` / Reborn `95747e0`: source-backed SDR steps,
+Inventra DMA, GPT6/PPI29 local timer, tested Reborn sink repair, bounded failure
+handling and diagnostics. It is ready for one preserving owner flash with the
+exact installed Physical 01 pair as fallback. No new mode is physically accepted.
+
+Recovered suspend evidence proves freezer/devices/platform/processors return,
+including CPU3/2/1; USB overflow and radio timeout prevent full restore. A fresh
+Power Menu reboot restored pinned SSH and clean storage/taint. RTC standard
+UTC write/read/ticking now pass; automatic-write policy, retention and alarm
+remain separate gates. Ordinary DNS works while one transient Wi-Fi observer
+timeout remains. Post-flash regression and measured 25→50 MHz qualification
+precede any capability promotion. Older notes retain their historical boundaries.
 
 The owner's platform-wide ceiling request supersedes incremental feature
 bring-up. [Fresh entry audit](roadmap-gap-audit.md#hardware-capability-ceiling-entry--2026-09-26)

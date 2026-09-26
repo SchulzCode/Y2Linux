@@ -1947,6 +1947,76 @@
     "49-suspend-recovered-new-boot.stdout": {
       "bytes": 136907,
       "sha256": "b3dd3b1d505ef2d27098a11e108168126e6b70a94cd6905e89e26e75f9824875"
+    },
+    "50-recovered-network-rtc-health.stdout": {
+      "bytes": 3898,
+      "sha256": "137ed98d462a530956dee6ca0a2d962e3ae6ad9dc03d740548dde87217e2a44d"
+    },
+    "51-rtc-ntp-state.stdout": {
+      "bytes": 1681,
+      "sha256": "ec9626cbfd8e0aca7e0dbd53f40e0cf2141346a504162a8a931896c493c7a359"
+    },
+    "52-rtc-ticking-after-write.stdout": {
+      "bytes": 645,
+      "sha256": "b61bd21cb03bcca9606da56b6d1823d6315b189d85f989281e09683264898836"
+    }
+  },
+  "post_recovery": {
+    "boot_id": "fffb5ac5-fba4-4729-967f-858e6d4aaf17",
+    "normal_dns": {
+      "example.com": {
+        "ok": true,
+        "seconds": 0.03549691699993218
+      },
+      "pool.ntp.org": {
+        "ok": true,
+        "seconds": 0.01606249399992521
+      }
+    },
+    "radio_core": {
+      "functions_hex": "9",
+      "error": 0,
+      "transport_errors": 0,
+      "recoveries": 0
+    },
+    "health_50": "DEGRADED: transient supplicant_unavailable while ordinary DNS succeeds; PHY-020 remains open",
+    "rtc": {
+      "initial_date": "2022-08-01",
+      "ntp_system_time_valid": true,
+      "automatic_write_policy": "not enabled pending qualification",
+      "manual_systohc_utc_rc": 0,
+      "readback_utc": "2026-09-26 21:15:09",
+      "ticking_samples": [
+        {
+          "sample": 0,
+          "system_before": 1790457367.17522,
+          "rtc_epoch": 1790457366,
+          "system_after": 1790457367.1762173,
+          "offset_seconds": -1.1757187843322754,
+          "boot_id": "fffb5ac5-fba4-4729-967f-858e6d4aaf17",
+          "taint": "0"
+        },
+        {
+          "sample": 1,
+          "system_before": 1790457369.1840036,
+          "rtc_epoch": 1790457368,
+          "system_after": 1790457369.1851296,
+          "offset_seconds": -1.1845664978027344,
+          "boot_id": "fffb5ac5-fba4-4729-967f-858e6d4aaf17",
+          "taint": "0"
+        },
+        {
+          "sample": 2,
+          "system_before": 1790457371.193965,
+          "rtc_epoch": 1790457370,
+          "system_after": 1790457371.1950653,
+          "offset_seconds": -1.1945152282714844,
+          "boot_id": "fffb5ac5-fba4-4729-967f-858e6d4aaf17",
+          "taint": "0"
+        }
+      ],
+      "reboot_retention_qualified": false,
+      "alarm_wake_qualified": false
     }
   }
 }

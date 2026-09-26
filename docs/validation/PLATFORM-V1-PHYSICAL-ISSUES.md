@@ -67,6 +67,13 @@ radio restore failures. Root causes and a successful complete resume remain
 open; one detached, persistently logged stage plus host recovery verification
 is required before advancing. #16/#28/#34
 
+RTC follow-up, receipts `50`–`52`: automatic NTP-to-RTC writes are still gated by
+`rtc-policy.json`; this explains the 2022 date despite a synchronized system
+clock. Standard UTC write/read succeeds and later samples tick correctly.
+Retention/alarm wake are untested, rather than a proven RTC hardware failure.
+PHY-020 remains open: ordinary checked DNS passes while one observer sample
+reports supplicant_unavailable/DEGRADED after recovery. #28/#34
+
 Core hotplug receipt `16` successfully steps 4→3→2→1→2→3→4 online cores,
 with five-second idle and checked SHA-256 load windows at each count. CPU3/2/1
 power-off and restart all succeed; final SPM broken=0, four cores online,

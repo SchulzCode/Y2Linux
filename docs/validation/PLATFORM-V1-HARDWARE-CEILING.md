@@ -27,7 +27,7 @@ exit codes and host UTC are retained under
 | USB host | No electrical acceptance | Role/connector/VBUS switch/current limit unknown; do not energize VBUS. HID/storage/UAC depend on that proof |
 | CPU | Four cores online; 598/747.5/1040 MHz at existing 1.15 V policy | Exact bin selects stock table 0: 1196 MHz/1.20 V, 1300 MHz/1.25 V; regulator/SPM transition and per-OPP qualification required |
 | Core/idle | WFI; GPT 100 Hz with broadcast to dummy local clockevents | Manual 1–4-core cycles pass. GPT6 13 MHz/PPI29 physical diagnostic passes; integrated high-resolution/tickless and deeper SPM states remain unqualified |
-| Suspend/RTC | RTC accessible; NTP synchronized; deep mode compiled | Recovered log: freezer/devices/platform/processors return; USB IRQ overflow after devices and radio restart failure after processors. Fresh reboot restores health. Core/SPM and Power/RTC wake remain open |
+| Suspend/RTC | RTC UTC write/read/ticking pass; NTP synchronized; deep mode compiled | Recovered log: freezer/devices/platform/processors return; USB IRQ overflow after devices and radio restart failure after processors. Fresh reboot restores health. Core/SPM and Power/RTC wake remain open |
 | GPU | 500.5 MHz, matching prior exact stock branch; screen-off runtime suspended | Load/frame-time/temperature/resume/endurance; no unsupported clock expansion |
 | Memory | 952288 KiB usable, HIGHMEM retained, process PSS readable | Throughput/latency/pressure and DMA review; preserve reserved regions |
 | Charging | SDP allocation 500 mA, configured 450 mA; CC/HOLD/recharge behavior and battery voltage observed | Owner has no external meter presently. Input/pack current and positive energy balance are unmeasured; source/load curves and pack evidence required |
@@ -118,7 +118,9 @@ the underlying interrupt/radio failure.
 ## Hardware Batch 2 implementation boundary
 
 [Full admission audit](../planning/roadmap-gap-audit.md#hardware-batch-2-build-admission--2026-09-26)
-admits a grouped host build. None of these new modes is physically qualified:
+admits a grouped host build. [Hardware 02](PLATFORM-V1-HARDWARE-02.md) now passes
+release validation and is ready for one owner flash. None of its new modes is
+physically qualified:
 
 - Storage: 8/4-bit SDR high speed at existing 3.3 V, inherited stock source,
   initial 25 MHz cap; root-only `y2_clock_limit_hz` on the host accepts only
@@ -196,3 +198,22 @@ matrix on this gadget. [Apple Accessory Design Guidelines](https://developer.app
 NCM remains a deliberate later profile with ECM fallback, subject to actual
 Windows/Linux/macOS enumeration, raw TCP/CPU measurements, transfers and
 reconnect/PM tests. It is not enabled in Hardware 02 without those results.
+
+## Recovered network and RTC follow-up
+
+Receipts 50–52 retain exact Physical 01 identity on boot `fffb5ac5`. Ordinary
+DNS succeeds in 16–35 ms and shared radio status has both functions active,
+error/transport_errors/recoveries 0. The observer nevertheless reports one
+`supplicant_unavailable` sample and DEGRADED health. This preserves PHY-020;
+it does not erase receipt 49's earlier OK or equate the observer timeout with
+failed DNS/association.
+
+The RTC still carried 2022 while the system clock was NTP-synchronized. Source
+inspection explains the missing automatic update: `ntp_event` requires an
+explicit RTC write qualification policy, which is not enabled. A standard
+`hwclock -w -u` now succeeds and reads back 2026-09-26 21:15:09 UTC. Three later
+samples advance by two seconds each, about 1.18 seconds behind the system
+clock; the short sample and integer RTC resolution do not establish drift.
+No RTC register workaround is needed from this observation. Reboot/full-power
+retention and alarm wake remain pending, and the earlier date is not evidence
+of a failed retention test because no prior qualified write was established.
