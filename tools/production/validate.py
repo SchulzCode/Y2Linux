@@ -262,6 +262,11 @@ def validate_rootfs(out,build,m):
                 name=posixpath.normpath(x.linkname.lstrip('/') if x.linkname.startswith('/') or x.islnk() else posixpath.join(posixpath.dirname(name),x.linkname)).removeprefix('./')
             raise ValueError('symlink loop')
         def read(name):return tar.extractfile(members[resolve(name)]).read()
+        if m.get('platform_api_version') == 1:
+            from tools.build.regulatory import load as early_regulatory
+            regulatory=early_regulatory(PROJECT)
+            for name in ('lib/firmware/regulatory.db','lib/firmware/regulatory.db.p7s'):
+                require(read(name)==regulatory[name], 'same early/root signed regulatory database '+name)
         for name in ('usr/bin/reborn','usr/bin/rebornctl','usr/lib/reborn/libreborn_media.so'):
             raw=read(name)
             require(raw[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',raw,18)[0]==40,

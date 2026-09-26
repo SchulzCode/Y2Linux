@@ -538,6 +538,12 @@ int main(void) {
         self.assertEqual(set(files),set(regulatory.FILES.values()))
         self.assertGreater(len(files['lib/firmware/regulatory.db']),1000)
         self.assertGreater(len(files['lib/firmware/regulatory.db.p7s']),100)
+        build=os.environ.get('Y2_ARTIFACT_TEST_ROOT')
+        if build and (Path(build)/'buildroot/target/lib/firmware/regulatory.db').exists():
+            for name in ('regulatory.db','regulatory.db.p7s'):
+                self.assertEqual(files['lib/firmware/'+name],
+                    (Path(build)/'buildroot/target/lib/firmware'/name).read_bytes(),
+                    'early and normal userspace must use the same signed regulatory database')
         with patch.object(Path,'read_bytes',return_value=b'changed archive'), self.assertRaises(ValueError):
             regulatory.load(ROOT)
 

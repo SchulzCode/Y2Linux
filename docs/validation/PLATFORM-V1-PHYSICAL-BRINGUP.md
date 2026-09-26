@@ -370,3 +370,32 @@ owns geometry; an overlay is not promoted to a full release manifest. An actual
 ext4 fixture verifies acceptance and nine mismatched input cases. The retained
 current root (`4a8e520946ad1aaa00df46e9f302463341e4408bba063f43728b8cb8f68bb092`)
 passes this check. This prepares a coherent fallback; no flashing is performed.
+
+The first isolated ARM pass compiled kernel and rootfs, then artifact assembly
+stopped because cache symlinks pointed outside the device-isolated build mount.
+The worktree now has local source/download cache directories. Inspection also
+found the early regulatory archive still pinned to 2026.05.30 while locked
+Buildroot 2025.02.18 installs 2026.09.03. Align the early archive to Buildroot's
+reviewed SHA256 and require byte-identical signed databases in early/root
+userspace. This is a packaging consistency correction, not an explanation for
+the independently isolated Wi-Fi checksum fault. Resume the full build from
+the final committed source pair, including the additional UI fix.
+
+## Additional bounded decoder measurements
+
+Receipts `53`/`54`, unchanged boot: all 25 decoder fixtures pass, including
+24-bit/96-kHz input, six artwork cases and three corrupt/truncated cases. ALSA
+stays closed. At each existing cpufreq maximum, three warm-cache repetitions
+pass; residency confirms the imposed caps. No OPP or voltage is changed.
+
+| Maximum | Suite median | 1-s FLAC median | 0.25-s 24/96 FLAC median, resampled to 48 kHz |
+| --- | --- | --- | --- |
+| 598 MHz | 1,885 ms | 56 ms | 41 ms |
+| 747.5 MHz | 1,531 ms | 48 ms | 33 ms |
+| 1,040 MHz | 1,142 ms | 34 ms | 25 ms |
+
+These short fixtures show substantial decoder headroom at 598 MHz (24/96 input
+about 6.1 times real time). They do not qualify sustained playback, EQ/crossfade,
+radio coexistence or preserved-24 output. Original schedutil and 1,040-MHz
+maximum are restored; internal ext4 errors and taint remain zero. A governor
+policy change needs end-to-end workload evidence, not only this microbenchmark.
