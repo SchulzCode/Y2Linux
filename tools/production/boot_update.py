@@ -173,7 +173,7 @@ def package(build, base, out, fallback_package=None):
         'For M5 corrections, begin with an SSH check of MD calibration, regulatory loading and radio registration; '
         'then continue the existing connectivity qualification. M5 is not qualified by image construction.\n')
     (out/'SHA256SUMS').write_text(''.join(digest(p)+'  '+str(p.relative_to(out))+'\n'
-        for p in sorted(out.rglob('*')) if p.is_file() and p.name != 'SHA256SUMS'))
+        for p in sorted(out.rglob('*')) if p.is_file() and p != out/'SHA256SUMS'))
     validate_boot_update(out, base)
     print('PASS production BOOTIMG-only package:', out)
 

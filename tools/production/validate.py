@@ -16,6 +16,18 @@ def run_debugfs(image, command):
     return subprocess.run(['debugfs','-R',command,str(image)],check=True,
                           stdout=subprocess.PIPE,stderr=subprocess.STDOUT).stdout
 
+def validate_checksums(out):
+    """Only the top-level checksum file is self-excluded from the inventory."""
+    listed={}
+    for line in (out/'SHA256SUMS').read_text().splitlines():
+        sha,name=line.split('  ',1)
+        require(name not in listed and not Path(name).is_absolute() and '..' not in Path(name).parts,
+                'checksum path/duplicate')
+        require(digest(out/name)==sha,'package checksum '+name)
+        listed[name]=sha
+    require(set(listed)=={str(p.relative_to(out)) for p in out.rglob('*')
+                         if p.is_file() and p != out/'SHA256SUMS'}, 'checksum inventory')
+
 def validate_ssh_programs(members):
     require(not any(n in members for n in ('usr/sbin/sshd','usr/bin/sftp')),
             'only selected OpenSSH SFTP subsystem installed')
@@ -134,11 +146,7 @@ def validate_manifest(out):
         expected=['BOOTIMG','ANDROID','USRDATA'] if filename=='MT6582_Android_scatter.txt' else ['BOOTIMG','ANDROID']
         require(selected==expected==profile['selected_partitions'],'selected rows')
     # SHA256SUMS covers every deliverable, including the manifest and both profiles.
-    listed={}
-    for line in (out/'SHA256SUMS').read_text().splitlines():
-        sha,name=line.split('  ',1);require(name not in listed and not Path(name).is_absolute() and '..' not in Path(name).parts,'checksum path/duplicate')
-        require(digest(out/name)==sha,'package checksum '+name);listed[name]=sha
-    require(set(listed)=={str(f.relative_to(out)) for f in out.rglob('*') if f.is_file() and f.name!='SHA256SUMS'},'checksum inventory')
+    validate_checksums(out)
     return m
 
 def validate_boot_update(out, base=None):
@@ -225,7 +233,7 @@ def validate_boot_update(out, base=None):
         sha,name=line.split('  ',1)
         require(name not in listed and not Path(name).is_absolute() and '..' not in Path(name).parts,'checksum path')
         require(digest(out/name)==sha,'package checksum '+name);listed[name]=sha
-    require(set(listed)=={str(p.relative_to(out)) for p in out.rglob('*') if p.is_file() and p.name!='SHA256SUMS'},'checksum inventory')
+    require(set(listed)=={str(p.relative_to(out)) for p in out.rglob('*') if p.is_file() and p != out/'SHA256SUMS'},'checksum inventory')
     if base:
         require(digest(base/'manifest.json')==m['base_manifest_sha256'],'retained installed package identity')
         # Update packages carry retained component references, not a Y2DATA

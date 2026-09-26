@@ -133,7 +133,7 @@ def inside(commit):
     (out/'manifest.json').write_text(json.dumps(report, indent=2)+'\n')
     shutil.copyfile(PROJECT/'docs/build/storage-diagnostic-install.md', out/'install.md')
     (out/'SHA256SUMS').write_text(''.join(digest(p)+'  '+str(p.relative_to(out))+'\n'
-        for p in sorted(out.rglob('*')) if p.is_file() and p.name != 'SHA256SUMS'))
+        for p in sorted(out.rglob('*')) if p.is_file() and p != out/'SHA256SUMS'))
     print('PASS exact base kernel/module; changed rescue + two DT fields only')
     print('PASS newc, DT equality, D08 memory, BOOTIMG bounds/hash and BOOTIMG-only scatter')
     print(json.dumps(report, indent=2))

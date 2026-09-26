@@ -9,9 +9,29 @@ import unittest
 
 from tools.production.layout import TARGETS, digest
 from tools.production.system_update import overlay_fallback
+from tools.production.validate import validate_checksums
 
 
 class OverlayFallback(unittest.TestCase):
+    def test_nested_checksum_receipts_are_deliverables_too(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            (root/'evidence').mkdir()
+            nested=root/'evidence/SHA256SUMS'
+            nested.write_text('retained evidence receipt\n')
+            (root/'manifest.json').write_text('{}\n')
+            sums=root/'SHA256SUMS'
+            sums.write_text(''.join(digest(p)+'  '+str(p.relative_to(root))+'\n'
+                                   for p in (nested,root/'manifest.json')))
+            validate_checksums(root)
+            nested.write_text('altered evidence receipt\n')
+            with self.assertRaises(ValueError):
+                validate_checksums(root)
+            # Omitting the nested receipt must also fail, even if the rest matches.
+            sums.write_text(digest(root/'manifest.json')+'  manifest.json\n')
+            with self.assertRaises(ValueError):
+                validate_checksums(root)
+
     @unittest.skipUnless(all(shutil.which(name) for name in ('mke2fs', 'debugfs', 'e2fsck', 'blkid')),
                          'requires native e2fsprogs/blkid; run explicitly on the packaging host')
     def test_real_image_versions_and_compatible_boot_are_required(self):

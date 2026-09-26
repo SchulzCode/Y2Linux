@@ -199,7 +199,7 @@ def package(build, base, fallback_root, out, fallback_overlay=None):
     shutil.copyfile(PROJECT/'docs/architecture/production-install.md',out/'install.md')
     shutil.copyfile(PROJECT/'docs/architecture/reborn-ffmpeg9-build.md',out/'audio-qualification.md')
     (out/'SHA256SUMS').write_text(''.join(digest(p)+'  '+str(p.relative_to(out))+'\n'
-        for p in sorted(out.rglob('*')) if p.is_file() and p.name!='SHA256SUMS'))
+        for p in sorted(out.rglob('*')) if p.is_file() and p != out/'SHA256SUMS'))
     validate_manifest(out); validate_rootfs(out,build,manifest)
     print('PASS preserving production system update:',out)
 

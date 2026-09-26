@@ -371,6 +371,13 @@ ext4 fixture verifies acceptance and nine mismatched input cases. The retained
 current root (`4a8e520946ad1aaa00df46e9f302463341e4408bba063f43728b8cb8f68bb092`)
 passes this check. This prepares a coherent fallback; no flashing is performed.
 
+Packaging the retained base exposed a checksum-inventory validator defect: it
+excluded every file named SHA256SUMS, including nested evidence receipts that
+the package correctly lists. All their hashes already verified. Correct the
+writers/validators to exclude only the top-level self-inventory; nested-receipt
+acceptance, tampering and omission now have a regression test. The original
+base package remains unchanged and validates with this correction.
+
 The first isolated ARM pass compiled kernel and rootfs, then artifact assembly
 stopped because cache symlinks pointed outside the device-isolated build mount.
 The worktree now has local source/download cache directories. Inspection also

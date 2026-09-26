@@ -121,7 +121,7 @@ def validate_package(out, owner_public_key=None):
                 'checksum path/inventory')
         require(digest(out/filename) == sha, 'package checksum '+filename)
         listed[filename] = sha
-    require(set(listed) == {str(p.relative_to(out)) for p in out.rglob('*') if p.is_file() and p.name != 'SHA256SUMS'},
+    require(set(listed) == {str(p.relative_to(out)) for p in out.rglob('*') if p.is_file() and p != out/'SHA256SUMS'},
             'complete package inventory')
     print('PASS owner public key matches Y2DATA exactly; clean ext4, stock bounds, data-only selection, BOOTIMG/Y2ROOT preserved')
     return m
@@ -191,7 +191,7 @@ def package(base, system, out, owner_public_key):
         '`ssh -i ~/.ssh/y2linux_ed25519 root@10.42.0.1`. '
         'The owner private key is neither read nor packaged by these tools.\n')
     (out/'SHA256SUMS').write_text(''.join(digest(p)+'  '+str(p.relative_to(out))+'\n'
-        for p in sorted(out.rglob('*')) if p.is_file() and p.name != 'SHA256SUMS'))
+        for p in sorted(out.rglob('*')) if p.is_file() and p != out/'SHA256SUMS'))
     validate_package(out, owner_public_key)
     print('Prepared:', out)
 
