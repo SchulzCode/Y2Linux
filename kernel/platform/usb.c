@@ -269,6 +269,14 @@ static const struct power_supply_desc y2_usb_input_desc = {
 };
 static unsigned long y2_irq_tick;
 static unsigned y2_irq_burst;
+/* Preserve the first overflow's sampled status before terminal teardown.
+ * MT6582 status is W1C; these reads neither acknowledge nor reset it. */
+static struct {
+    u32 l1_status, l1_mask;
+    u16 tx, tx_mask, rx, rx_mask;
+    u8 usb, usb_mask, power, devctl;
+} y2_irq_fault;
+static bool y2_irq_fault_valid;
 static void y2_usb_worker(struct work_struct *work);
 static DECLARE_DELAYED_WORK(y2_usb_work,y2_usb_worker);
 
@@ -360,9 +368,27 @@ static irqreturn_t y2_musb_interrupt(int irq,void *context)
     if(y2_irq_tick!=jiffies) {y2_irq_tick=jiffies;y2_irq_burst=0;}
     ++y2_live.irqs;
     if(++y2_irq_burst>512) {
+        y2_irq_fault.l1_status = readl(musb->mregs + 0xa0);
+        y2_irq_fault.l1_mask = readl(musb->mregs + 0xa4);
+        y2_irq_fault.tx = readw(musb->mregs + MUSB_INTRTX);
+        y2_irq_fault.tx_mask = readw(musb->mregs + MUSB_INTRTXE);
+        y2_irq_fault.rx = readw(musb->mregs + MUSB_INTRRX);
+        y2_irq_fault.rx_mask = readw(musb->mregs + MUSB_INTRRXE);
+        y2_irq_fault.usb = readb(musb->mregs + MUSB_INTRUSB);
+        y2_irq_fault.usb_mask = readb(musb->mregs + MUSB_INTRUSBE);
+        y2_irq_fault.power = readb(musb->mregs + MUSB_POWER);
+        y2_irq_fault.devctl = readb(musb->mregs + MUSB_DEVCTL);
+        smp_store_release(&y2_irq_fault_valid, true);
         writel(0,musb->mregs+0xa4);
         disable_irq_nosync(irq);
         y2_usb_fail(-EOVERFLOW);
+        dev_err(musb->controller,
+            "Y2USB IRQ overflow: l1=%x/%x usb=%x/%x tx=%x/%x rx=%x/%x power=%x devctl=%x\n",
+            y2_irq_fault.l1_status, y2_irq_fault.l1_mask,
+            y2_irq_fault.usb, y2_irq_fault.usb_mask,
+            y2_irq_fault.tx, y2_irq_fault.tx_mask,
+            y2_irq_fault.rx, y2_irq_fault.rx_mask,
+            y2_irq_fault.power, y2_irq_fault.devctl);
         return IRQ_HANDLED;
     }
     spin_lock_irqsave(&musb->lock,flags);
@@ -728,6 +754,14 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
     n += sysfs_emit_at(buf, n, "transfer=%s dma_irqs=%u dma_errors=%u dma_boot_disabled=%u\n",
         READ_ONCE(y2_usb_dma_active) ? "inventra_dma" : "pio",
         READ_ONCE(y2_usb_dma_irqs), READ_ONCE(y2_usb_dma_errors), y2_usb_dma_disabled);
+    if (smp_load_acquire(&y2_irq_fault_valid))
+        n += sysfs_emit_at(buf, n,
+            "irq_overflow_l1=%x/%x usb=%x/%x tx=%x/%x rx=%x/%x power=%x devctl=%x\n",
+            y2_irq_fault.l1_status, y2_irq_fault.l1_mask,
+            y2_irq_fault.usb, y2_irq_fault.usb_mask,
+            y2_irq_fault.tx, y2_irq_fault.tx_mask,
+            y2_irq_fault.rx, y2_irq_fault.rx_mask,
+            y2_irq_fault.power, y2_irq_fault.devctl);
     for (i=0; i<Y2_USB_STATE_COUNT; i++)
         n += sysfs_emit_at(buf,n,"initial_%08x=%x valid=%u\n",y2_usb_registers[i].address,
             y2_power.usb.values[i],!!(y2_power.usb.valid & (1U<<i)));

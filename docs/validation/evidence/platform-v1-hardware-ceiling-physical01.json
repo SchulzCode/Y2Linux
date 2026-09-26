@@ -12,7 +12,7 @@
     "External module O taint cleared by normal reboot; no runtime timer integration qualification yet.",
     "SFTP includes connection setup, 16 MiB per run; download DONTNEED is advisory, not a proven cold-media state.",
     "Owner reports clean AirPods playback and play/pause; retained control trace did not capture an incoming AVRCP command.",
-    "pm_test devices lost recovery before completion; no SPM-entry or failing-callback conclusion."
+    "Recovered persistent log supersedes the lost SSH stream: freezer/devices/platform/processors returned, but USB overflow and radio restoration fail. No core-test or SPM-entry receipt."
   ],
   "library_matched": [
     {
@@ -1841,12 +1841,75 @@
   "suspend": {
     "boot_id": "b3d92d70-521e-41d7-bca7-69b4badf00c1",
     "freezer": "PASS_SAME_BOOT",
-    "devices": "NO_COMPLETION_RECOVERY_LOST",
-    "platform": "NOT_TESTED",
-    "processors": "NOT_TESTED",
-    "core": "NOT_TESTED",
-    "deep_entry": "NOT_TESTED",
-    "owner_restart": "REBORN_VISIBLE_USB_RECOVERY_PENDING"
+    "devices": "RETURNED_SAME_BOOT_USB_OVERFLOW_RECOVERY_FAILED",
+    "platform": "RETURNED_SAME_BOOT_WITH_USB_ALREADY_UNAVAILABLE",
+    "processors": "CPU3_2_1_OFF_ON_SAME_BOOT_RADIO_RESTORE_FAILED",
+    "core": "NO_RECEIPT",
+    "deep_entry": "NO_RECEIPT",
+    "stages": [
+      {
+        "stage": "freezer",
+        "rc": 0,
+        "elapsed_s": 11.168866614999956,
+        "same_boot": true,
+        "taint": "0",
+        "online": "0-3"
+      },
+      {
+        "stage": "devices",
+        "rc": 0,
+        "elapsed_s": 10.56123126700004,
+        "same_boot": true,
+        "taint": "0",
+        "online": "0-3"
+      },
+      {
+        "stage": "platform",
+        "rc": 0,
+        "elapsed_s": 9.228285551999988,
+        "same_boot": true,
+        "taint": "0",
+        "online": "0-3"
+      },
+      {
+        "stage": "processors",
+        "rc": 0,
+        "elapsed_s": 11.459270443000037,
+        "same_boot": true,
+        "taint": "0",
+        "online": "0-3"
+      }
+    ],
+    "usb_failure": {
+      "errno": -75,
+      "irqs": 477827,
+      "events_hex": "05",
+      "kernel_time_s": 822.38899,
+      "root_cause": "UNKNOWN"
+    },
+    "radio_failure": {
+      "errno": -110,
+      "opcode_hex": "08",
+      "parameter_hex": "02",
+      "kernel_time_s": 848.809019,
+      "root_cause": "UNKNOWN"
+    },
+    "helper_limitation": "Old helper swallowed radio restoration failures; zero exit status does not establish subsystem restoration.",
+    "recovery": {
+      "method": "Owner Reborn Power Menu Reboot, fresh boot splash, then USB reconnect",
+      "boot_id": "fffb5ac5-fba4-4729-967f-858e6d4aaf17",
+      "taint": 0,
+      "pm_test": "[none] core processors platform devices freezer",
+      "online": "0-3",
+      "filesystem_errors": {
+        "mmcblk1p1": 0,
+        "mmcblk0p7": 0,
+        "mmcblk0p5": 0
+      },
+      "physical01_versions_match": true,
+      "usb_ssh": "PASS_PINNED_IDENTITY",
+      "health": "OK"
+    }
   },
   "private_receipt_digests": {
     "17-library-matched-ab.stdout": {
@@ -1880,6 +1943,10 @@
     "43-suspend-pm-test-stages.stdout": {
       "bytes": 16297,
       "sha256": "862d6218e22f01c7f899e14dd3d937c66f1293d649c812f5a04a82f9347aad11"
+    },
+    "49-suspend-recovered-new-boot.stdout": {
+      "bytes": 136907,
+      "sha256": "b3dd3b1d505ef2d27098a11e108168126e6b70a94cd6905e89e26e75f9824875"
     }
   }
 }

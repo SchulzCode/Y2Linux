@@ -7,8 +7,10 @@ Grouped storage SDR steps, Inventra DMA, measured GPT6/PPI29 timer integration
 and the Reborn sink-contract repair are ready for host build/validation.
 The bounded timer experiment passed, followed by a clean normal reboot and
 separated SFTP measurements. Owner confirms Reborn AirPods audio and play/pause.
-**pm_test freezer passes; devices leaves the unit black/unresponsive with no
-USB recovery.** Recover the unit and progress log before further suspend work.
+**Recovered pm_test log shows freezer/devices/platform/processors returned,
+but USB interrupt overflow and radio timeout prevent full restore.** Fresh
+Power Menu reboot restores pinned SSH, unchanged versions and clean health.
+USB failure observation and honest radio-restore status join this batch.
 No production image from this batch is built or installed yet. Older continuation
 notes below describe the evidence available at their respective boundaries.
 
@@ -21,13 +23,15 @@ counters are zero. The initial regression gate passes, including checked Wi-Fi
 DNS/TCP, owner-confirmed wired audio and clean replacement-card workloads.
 Physical 01 is the working baseline; no final ceiling or freeze is accepted. Earlier current-target descriptions below are historical.
 
-Continuation receipts `17`–`47` separate storage/query performance, identify
+Continuation receipts `17`–`49` separate storage/query performance, identify
 stock CPU table 0 and physically prove GPT6/PPI29. The bounded probe restored
 controls and normal reboot returned taint 0. Reborn's PCM metadata repair passes
 host regression and temporary ARM SBC playback; owner confirms play/pause.
-Original binaries/session were restored. The later devices-stage suspend
-failure supersedes the earlier recovery state; retrieve progress after owner
-restart before further suspend experiments.
+Original binaries/session were restored. Receipt 49 supersedes the incomplete
+SSH-stream interpretation: CPU3/2/1 restart works, while USB and radio restore
+fail. The recovered unit is healthy after a confirmed fresh reboot; core/SPM
+entry remains unproven. Advance future suspend stages only after local and host
+recovery checks.
 
 1. Retain the verified Physical-01 regression baseline; complete matched library,
    RAM/storage transfer, lifecycle and endurance measurements.

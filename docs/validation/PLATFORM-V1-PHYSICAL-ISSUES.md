@@ -54,14 +54,18 @@ and delivers 12 PPI29 one-shots, restores controls and unloads. Clean reboot
 `39`–`41` returns taint 0. Integrated tickless/high-resolution/deeper idle still
 unqualified; source/host-build work is grouped into Hardware Batch 2. #28/#34
 
-Suspend follow-up (PHY-006, residual cause UNKNOWN): on clean reboot `b3d92d70`,
-`pm_test freezer` passes with four cores online and taint 0. `devices` begins at
-uptime 813.50 s and no completion is captured; USB is lost, Wi-Fi SSH refused,
-Power/cable reconnect leaves the screen black/unresponsive. Owner restart now
-restores visible Reborn, but USB/log retrieval is pending. Later stages were not
-run. This is a device-stage recovery failure, not evidence of SPM entry or of a
-particular callback. Preserve `/data/system/platform/ceiling-pm-test.jsonl` and
-obtain callback evidence before another suspend attempt. #16/#28/#34
+Suspend follow-up (PHY-006, residual causes UNKNOWN): recovered receipt `49`
+supersedes the incomplete SSH stream `43`. Freezer/devices/platform/processors
+all return on boot `b3d92d70`, taint 0; CPU3/2/1 shut down and return. USB
+terminates after devices with -EOVERFLOW (`IRQ=477827 events=05`), and WMT/radio
+restart times out (-110) after processors. The old helper masks radio restore
+failure, so rc=0 is not an acceptance result. Core and SPM entry have no receipt.
+The owner-confirmed fresh Power Menu reboot recovers pinned SSH on `fffb5ac5`,
+unchanged Physical 01, taint 0, pm_test none, all CPUs online, clean filesystem
+counters and health OK. Hardware 02 adds USB overflow diagnostics and propagates
+radio restore failures. Root causes and a successful complete resume remain
+open; one detached, persistently logged stage plus host recovery verification
+is required before advancing. #16/#28/#34
 
 Core hotplug receipt `16` successfully steps 4→3→2→1→2→3→4 online cores,
 with five-second idle and checked SHA-256 load windows at each count. CPU3/2/1

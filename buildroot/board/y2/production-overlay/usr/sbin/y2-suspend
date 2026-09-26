@@ -11,8 +11,20 @@ flock -n 9 || { echo 'Suspend already in progress.' >&2; exit 1; }
 exec 8>/run/y2/activity.lock
 flock -xn 8 || { echo 'An active radio operation holds a suspend lease.' >&2; exit 1; }
 restore() {
-    [ "$(cat /data/network/enabled)" != 1 ] || y2-radio wifi on-runtime || :
-    [ "$(cat /data/bluetooth/enabled)" != 1 ] || y2-radio bluetooth on-runtime || :
+    suspend_rc=$?
+    trap - EXIT
+    restore_rc=0
+    if [ "$(cat /data/network/enabled)" = 1 ]; then
+        y2-radio wifi on-runtime || restore_rc=1
+    fi
+    if [ "$(cat /data/bluetooth/enabled)" = 1 ]; then
+        y2-radio bluetooth on-runtime || restore_rc=1
+    fi
+    if [ "$restore_rc" != 0 ]; then
+        echo 'Radio restoration failed; suspend/resume qualification did not pass.' >&2
+        [ "$suspend_rc" != 0 ] || suspend_rc=1
+    fi
+    exit "$suspend_rc"
 }
 trap restore EXIT
 trap 'exit 1' INT TERM

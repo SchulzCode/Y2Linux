@@ -27,7 +27,7 @@ exit codes and host UTC are retained under
 | USB host | No electrical acceptance | Role/connector/VBUS switch/current limit unknown; do not energize VBUS. HID/storage/UAC depend on that proof |
 | CPU | Four cores online; 598/747.5/1040 MHz at existing 1.15 V policy | Exact bin selects stock table 0: 1196 MHz/1.20 V, 1300 MHz/1.25 V; regulator/SPM transition and per-OPP qualification required |
 | Core/idle | WFI; GPT 100 Hz with broadcast to dummy local clockevents | Manual 1–4-core cycles pass. GPT6 13 MHz/PPI29 physical diagnostic passes; integrated high-resolution/tickless and deeper SPM states remain unqualified |
-| Suspend/RTC | RTC accessible; NTP synchronized; deep mode compiled | Freezer passes; devices loses USB and leaves black/unresponsive screen. Owner restart restores Reborn; recover USB/log before further stages. Power/RTC wake and retention remain open |
+| Suspend/RTC | RTC accessible; NTP synchronized; deep mode compiled | Recovered log: freezer/devices/platform/processors return; USB IRQ overflow after devices and radio restart failure after processors. Fresh reboot restores health. Core/SPM and Power/RTC wake remain open |
 | GPU | 500.5 MHz, matching prior exact stock branch; screen-off runtime suspended | Load/frame-time/temperature/resume/endurance; no unsupported clock expansion |
 | Memory | 952288 KiB usable, HIGHMEM retained, process PSS readable | Throughput/latency/pressure and DMA review; preserve reserved regions |
 | Charging | SDP allocation 500 mA, configured 450 mA; CC/HOLD/recharge behavior and battery voltage observed | Owner has no external meter presently. Input/pack current and positive energy balance are unmeasured; source/load curves and pack evidence required |
@@ -88,14 +88,32 @@ library were restored; only the qualification fixture was deleted.
 
 Normal reboot after diagnostics passed in about 14.5 seconds to recovered SSH,
 with taint 0, unchanged versions, clean root/data/SD error counters, 8/4-bit
-13 MHz legacy buses and ordinary checked DNS. The subsequent staged suspend
-run passed `freezer` on the same boot, then lost USB during `devices`. No end
-receipt exists for that stage in the host capture. Power and cable reconnect
-left the screen black/unresponsive; the owner then restarted and sees Reborn.
-USB recovery and the persistent `/data/system/platform/ceiling-pm-test.jsonl`
-are still pending. Platform/processors/core/SPM/Power-key/RTC-wake stages were
-not reached. This failure is not evidence identifying a particular callback or
-SPM issue. Further suspend work requires recovery and better callback evidence.
+13 MHz legacy buses and ordinary checked DNS. The host stream then lost USB
+while `pm_test devices` was running. **Receipt 49 retrieves the persistent log
+and supersedes the initial incomplete interpretation**: freezer, devices,
+platform and processors all returned on the same boot with taint 0. The
+processors stage records CPU3/2/1 power-off result 0 and all three coming back.
+No core-stage or actual SPM-entry receipt exists.
+
+Return from `pm_test` did not restore the platform. At uptime 822.388990 s,
+after devices, `Y2USB stopped stage=6 result=-75 IRQ=477827 events=05` records
+the driver's interrupt-burst guard terminating USB. After processors, WMT
+opcode 08 parameter 02 times out with -110 and Wi-Fi enable fails. These are
+specific failure locations, not established root causes. The old suspend helper
+swallows radio restore errors, so its rc=0 is insufficient. The SSH-bound staged
+harness also advanced without checking USB health; future qualification must
+run one stage at a time with a persistent local result and host recovery check.
+
+Power/cable attempts did not recover access. The owner's first reported restart
+was not confirmed by boot identity. Reborn's Power Menu → Reboot then produced
+a fresh splash and restored pinned USB SSH: boot
+`fffb5ac5-fba4-4729-967f-858e6d4aaf17`, unchanged exact Physical 01 versions,
+taint 0, pm_test none, all four CPUs online, root/data/SD error counters 0,
+unchanged 8/4-bit 13 MHz IOS and quick health OK. Further suspend requires
+observability and correction/qualification of the restore path, not a guessed
+SPM register change. Hardware 02 adds a first-overflow register snapshot and
+makes radio-restore errors fail the helper; neither change claims to repair
+the underlying interrupt/radio failure.
 
 ## Hardware Batch 2 implementation boundary
 
@@ -162,3 +180,19 @@ Ordinary test failures stay recorded while independent investigation continues.
 Data corruption, unsafe thermal/electrical behavior or loss of recovery stops
 the affected experiment. No higher clock, voltage, unknown VBUS path or memory
 reclamation is justified by the campaign name alone.
+
+## USB networking compatibility decision
+
+ECM remains the recoverable installed profile while Inventra DMA is qualified.
+NCM can aggregate frames, but a class name alone does not prove better Y2
+throughput or host compatibility. The pinned Linux source contains both the
+`f_ncm` gadget and `cdc_ncm` host driver. Microsoft's current USB class-driver
+matrix lists `UsbNcm.sys` for Windows 11 and Windows Server 2022; it does not
+establish Windows 10 support. [Microsoft USB class drivers](https://learn.microsoft.com/en-us/windows-hardware/drivers/usbcon/supported-usb-classes).
+Apple's 2026-09-21 accessory guide, section 38, specifies NCM 1.0 for Ethernet
+over USB; that is source support for investigation, not a tested macOS version
+matrix on this gadget. [Apple Accessory Design Guidelines](https://developer.apple.com/accessories/Accessory-Design-Guidelines.pdf).
+
+NCM remains a deliberate later profile with ECM fallback, subject to actual
+Windows/Linux/macOS enumeration, raw TCP/CPU measurements, transfers and
+reconnect/PM tests. It is not enabled in Hardware 02 without those results.

@@ -7,18 +7,19 @@ This is not a completed platform qualification or a hardware ceiling freeze.
 [Current audit](../planning/roadmap-gap-audit.md#hardware-capability-ceiling-entry--2026-09-26).
 [Master issue table](PLATFORM-V1-PHYSICAL-ISSUES.md).
 
-Continuation through receipts `17`–`47`: matched library and separated SFTP
+Continuation through receipt `49`: matched library and separated SFTP
 measurements are complete; the bounded GPT6/13 MHz/PPI29 test passes on all four
 cores. A temporary fixed Reborn app resolves the native PCM-name contract bug;
 owner confirms clean AirPods audio and working play/pause. Original app/session
-were restored, then normal reboot returned taint 0 and clean storage. The
-subsequent `pm_test` freezer stage passes, but **devices loses USB and leaves
-the screen black/unresponsive**. Owner forced restart restores visible Reborn;
-USB recovery and persistent progress retrieval remain pending. No deeper stage
-or SPM entry is established. [Hardware Batch 2 build admission](../planning/roadmap-gap-audit.md#hardware-batch-2-build-admission--2026-09-26)
-allows coherent host build/validation while the affected physical experiment
-remains stopped. See the [ceiling report](PLATFORM-V1-HARDWARE-CEILING.md) for
-numeric results, source limits and the current qualification boundary.
+were restored, then normal reboot returned taint 0 and clean storage.
+The host lost USB during staged suspend. **Recovered persistent evidence now
+shows freezer/devices/platform/processors returned**, including CPU3/2/1
+shutdown/restart; USB overflow and later radio timeout invalidate full restore.
+The owner's fresh Power Menu reboot restores pinned USB SSH, unchanged Physical
+01, taint 0, clean filesystem counters and health on boot `fffb5ac5`.
+Core/SPM entry and deep wake remain unproven. See the [ceiling report](PLATFORM-V1-HARDWARE-CEILING.md)
+and [Hardware Batch 2 audit](../planning/roadmap-gap-audit.md#hardware-batch-2-build-admission--2026-09-26)
+for corrected evidence, failure handling and the coherent build boundary.
 
 ## Physical 01 regression baseline — 2026-09-26
 

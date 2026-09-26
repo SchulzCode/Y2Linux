@@ -10,14 +10,15 @@ HELPER = ROOT / 'buildroot/board/y2/production-overlay/usr/sbin/y2-suspend'
 
 
 class SuspendPolicy(unittest.TestCase):
-    def run_status(self, powered, functions, qualify=True):
+    def run_status(self, powered, functions, qualify=True, enabled=False,
+                   fail_radio=None):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for name in ('run/y2', 'data/network', 'data/bluetooth', 'sys/power',
                          'sys/devices/platform/18070000.connectivity', 'bin'):
                 (root / name).mkdir(parents=True)
             for name in ('network', 'bluetooth'):
-                (root / 'data' / name / 'enabled').write_text('0\n')
+                (root / 'data' / name / 'enabled').write_text('1\n' if enabled else '0\n')
             state = root / 'sys/power/state'
             state.write_text('')
             (root / 'sys/devices/platform/18070000.connectivity/status').write_text(
@@ -33,9 +34,18 @@ class SuspendPolicy(unittest.TestCase):
                 mock = root / 'bin' / command
                 mock.write_text('#!/bin/sh\nexit 0\n')
                 mock.chmod(0o755)
+            calls = root / 'radio-calls'
+            (root / 'bin/y2-radio').write_text(
+                '#!/bin/sh\n'
+                f'echo "$*" >> "{calls}"\n'
+                '[ "$1:$2" != "${FAIL_RADIO}:on-runtime" ]\n')
             env = dict(os.environ, PATH=str(root / 'bin') + ':' + os.environ['PATH'])
+            env['FAIL_RADIO'] = fail_radio or ''
             result = subprocess.run(['sh', str(script), *(['--owner-qualify'] if qualify else [])], env=env, capture_output=True,
                                     text=True, timeout=5)
+            if enabled and qualify:
+                self.assertIn('wifi on-runtime', calls.read_text())
+                self.assertIn('bluetooth on-runtime', calls.read_text())
             return result, state.read_text()
 
     def test_unqualified_default_never_enters_suspend(self):
@@ -59,6 +69,26 @@ class SuspendPolicy(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertEqual(state, '')
                 self.assertIn('Radios did not stop', result.stderr)
+
+    def test_restore_failure_is_not_a_passing_suspend(self):
+        for failed in ('wifi', 'bluetooth'):
+            with self.subTest(failed=failed):
+                result, state = self.run_status('0', '0x0', enabled=True,
+                                                fail_radio=failed)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(state, 'mem\n')
+                self.assertIn('Radio restoration failed', result.stderr)
+
+    def test_restore_success_preserves_original_failure(self):
+        result, state = self.run_status('1', '0x0', enabled=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(state, '')
+        self.assertIn('Radios did not stop', result.stderr)
+
+    def test_restore_success_allows_a_successful_stage(self):
+        result, state = self.run_status('0', '0x0', enabled=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(state, 'mem\n')
 
 
 if __name__ == '__main__':

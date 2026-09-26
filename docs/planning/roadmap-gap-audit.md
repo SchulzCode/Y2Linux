@@ -9,29 +9,36 @@ Physical 01 remains Linux `198fa7c` / Reborn `feb530f`; host base is `cc73853`.
 The temporary app and timer modules were removed. Normal reboot `39`–`41`
 returned the original binaries, taint 0, eight/four-bit 13 MHz buses, clean
 ext4 counters and checked DNS on boot `b3d92d70-521e-41d7-bca7-69b4badf00c1`.
-Subsequently, **pm_test devices lost recovery**: freezer returned on the same
-boot, devices has a flushed begin record but no completion receipt; USB did
-not return, Wi-Fi SSH refused and the owner reports a black/unresponsive
-screen after Power and cable reconnect. Owner restart is required. This is
-not proof of SPM entry or the identity of a failing device callback.
+The initial lost SSH stream was interpreted as a devices-stage nonreturn.
+**Receipt 49 corrects that interpretation:** persistent freezer/devices/platform/
+processors end records all exist on the same boot, taint 0; CPU3/2/1 power-off
+and restart succeed. USB's interrupt-burst guard terminates access after devices
+(-75), and WMT/radio restore times out (-110) after processors. The old helper
+masks restore failure. There is no core/SPM-entry receipt. Owner Power Menu
+reboot with fresh splash restores pinned USB SSH on `fffb5ac5`, unchanged
+Physical 01, taint 0, pm_test none, four CPUs, clean root/data/SD counters and
+quick health OK. First attempted restart was not proven by boot identity.
+This update retains the same batch boundary, adds diagnostic failure context
+and corrects helper failure reporting; no speculative hardware fix is admitted.
 
 | Coverage / issues | Evidence and current decision |
 | --- | --- |
-| Boot/recovery/security #16/#28/#32 | Regression and normal reboot passed before devices-stage failure. Preserve the installed fallback and pinned SSH identity. Further suspend experiments are BLOCKED pending recovery and diagnosis. Host build/validation may continue. |
+| Boot/recovery/security #16/#28/#32 | Regression and normal reboot passed before devices-stage failure. Preserve the installed fallback and pinned SSH identity. Recovery is verified by receipt 49. Further suspend needs one persisted stage at a time, explicit subsystem/host recovery checks and failure diagnosis; host build/validation continues. |
 | eMMC/SD/filesystems #28/#33 | Widths and guarded read/write/fsync/metadata pass with zero errors. Exact LK selects MSDC source 1; stock host source is 200 MHz and inherited MSDCPLL is ~400 MHz. Source admits only SDR high speed at 3.3 V, default 25 MHz cap, deliberate 13/25/50 MHz host-owned steps and legacy/crystal boot fallback. Faster modes remain unmeasured; normal card-capability fallback is retained, automatic CRC downshift is not claimed. |
 | Library/application #32/#33 | Isolated matched old/new binaries at 1k/10k/20k pass counts/integrity. Wider bus reduces large commit tails; queries reduce 20k page p50 93.435→2.080 ms on the same bus. New indexes increase population/scan cost. No additional library optimization or final envelope claim. |
 | USB device/host #27/#32 | Three TCP repeats and separated verified 16 MiB SFTP runs recorded. Exact stock integrated DMA/IRQ layout supports implementation using upstream Inventra and 32-bit DMA addressing. Allocation/boot PIO fallback, error teardown and counters are required; no physical DMA result yet. Connector/VBUS switch/current limit remain unknown: powered host/UAC BLOCKED. |
 | CPU/core/timer/idle #28/#34 | Exact unit selects stock table 0, but 1196/1300 MHz require 1.20/1.25 V and an established regulator/SPM transition contract. Existing OPPs stay. Manual 1–4-core cycles pass. GPT6 counter measured 12,999,956–13,000,027 Hz and all 12 PPI29 one-shots delivered; probe restores controls. Integrate GPT6 through its existing owner, guard ARM timer registration, retain GPT fallback. Effective NO_HZ, long counter continuity, hotplug and idle residency remain post-install gates; no deeper SPM state added. |
 | GPU/display/input/RAM #28/#34 | Menu/input and 500.5 MHz GPU baseline remain; screen-off runtime suspend observed. No GPU clock change or memory-reservation reclamation. New DMA/timer integration requires broader memory/layout/build checks and physical load/PM regression. |
 | Charging/battery/low battery #30/#34 | Existing SDP 450 mA configuration and voltage/CV cycling observed. No external meter; input/pack current, pack temperature, positive energy balance, SOC and shutdown reserve remain unqualified. No charger-limit, fabricated percentage or low-battery enablement. |
-| Suspend/RTC/time #30/#34 | NTP and freezer test pass. Devices-stage recovery failure stops subsequent platform/processors/core/deep tests. Recover persistent progress, check filesystems and add callback evidence before another attempt. Power/RTC same-boot wake and retention remain open. |
+| Suspend/RTC/time #30/#34 | NTP and freezer pass; recovered devices/platform/processors return, including CPU3/2/1 restart. USB overflow and radio timeout prevent full restore. Core/deep tests have no receipt. Propagate restore errors and capture first USB-overflow status before another one-stage test. Power/RTC same-boot wake and retention remain open. |
 | Audio/CS43131 #29 | Direct S16 44.1/48 and switching owner-confirmed clean. A real native ALSA metadata omission rejected valid Reborn sinks; regression reproduces it, seven tests pass after repair. Temporary fixed ARM app played clean SBC >3 minutes. Product native-48 endurance, true DL1 24-bit packing/high rates and DAC load/IRQ features remain distinct gates. |
 | Wi-Fi/Bluetooth/codecs #31 | Checked DNS/NTP/TCP and boot reconnect pass; owner confirms Reborn AirPods audio and play/pause after the sink fix. The retained trace captured no incoming AVRCP command, so owner and trace evidence are distinguished. Fresh pairing, reconnect/endurance/coexistence and actual optional encoders remain open; SBC fallback retained. |
 | Firmware/OTA/endurance #31/#32/#33 | Existing owner provision/calibration and recovery provenance remain unchanged. No missing result is inferred from historical closed #30. Signed root install/readback/health/rollback and controlled broken-app approval remain pending; no automatic BOOTIMG update or platform freeze. |
 
 Decision: **READY for one coherent Hardware Batch 2 host build and validation**
 of storage SDR steps, USB DMA, local timer/NO_HZ and the measured Reborn sink
-repair. Physical admission remains PARTIAL until recovery, a concrete validated
+repair, USB failure observation and truthful suspend-helper status. Recovery is
+now verified; physical admission remains PARTIAL until a concrete validated
 artifact and its safe fallback are available; owner performs one manual flash.
 The new paths are candidates, not qualified ceilings. Broader release checks
 apply because timer and DMA ownership change. Preserve unrelated worktree edits.
