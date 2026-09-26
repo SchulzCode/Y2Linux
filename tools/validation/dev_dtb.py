@@ -129,13 +129,29 @@ def check(data, initrd_size, production=True):
         v=nodes[path]
         width = (8 if path == '/mmc@11230000' else 4) if production else 1
         require(v['bus-width']==cells(width),'reviewed Y2 storage data-pin width')
+        require(v['max-frequency']==cells(50000000 if production else 13000000),
+                'reviewed storage qualification ceiling')
         if path=='/mmc@11230000':
             require(v['status']==strings('okay') and v['compatible']==strings('innioasis,y2-mmc'),'internal eMMC firewall')
-            require(v['max-frequency']==cells(13000000),'internal legacy frequency')
         else:
-            require(v['compatible']==strings('innioasis,y2-sd') and v['max-frequency']==cells(13000000),'removable SD contract')
+            require(v['compatible']==strings('innioasis,y2-sd'),'removable SD contract')
             require('non-removable' not in v and 'no-mmc' in v,'SD removable only')
+        highspeed='cap-mmc-highspeed' if path=='/mmc@11230000' else 'cap-sd-highspeed'
+        require((highspeed in v)==production, 'SDR high-speed admission')
+        require(not any(k.startswith(('sd-uhs-', 'mmc-hs200-', 'mmc-hs400-', 'mmc-ddr-'))
+                        for k in v), 'unqualified storage voltage/DDR mode')
         require('no-sdio' in v and not any(k.endswith('-supply') for k in v),'MMC rail/radio activation')
+    if production:
+        timer=nodes.get('/local-timer', {})
+        require(timer.get('compatible')==strings('arm,armv7-timer') and
+                timer.get('interrupt-parent')==cells(handle('/interrupt-controller@10211000')) and
+                timer.get('interrupts')==cells(1,13,0xf04) and
+                timer.get('clock-frequency')==cells(13000000), 'measured physical local timer')
+        require('arm,cpu-registers-not-fw-configured' in timer and
+                'arm,no-tick-in-suspend' in timer and 'always-on' not in timer,
+                'local timer firmware/power contract')
+    else:
+        require('/local-timer' not in nodes, 'minimal timer fallback')
     for path in ('/i2c@11007000','/i2c@11008000'):
         require(nodes[path]['clock-div']==cells(16) and nodes[path]['clock-frequency']==cells(100000),'I2C clock contract')
     for path,irq in (('/pwrap@1000d000/pmic',(25,4)),('/i2c@11007000/wheel@51',(55,2))):

@@ -1,0 +1,21 @@
+--- a/drivers/clocksource/arm_arch_timer.c
++++ b/drivers/clocksource/arm_arch_timer.c
+@@ -9,6 +9,7 @@
+ #define pr_fmt(fmt) 	"arch_timer: " fmt
+ 
+ #include <linux/init.h>
++#include "/project/kernel/platform/local-timer.h"
+ #include <linux/kernel.h>
+ #include <linux/device.h>
+ #include <linux/smp.h>
+@@ -1132,6 +1133,10 @@
+ 	u32 rate;
+ 	bool has_names;
+ 
++	/* Never install a clockevent/clocksource over a stopped Y2 counter. */
++	if (of_machine_is_compatible("innioasis,y2") && !y2_local_timer_ready())
++		return -ENODEV;
++
+ 	if (arch_timer_evt) {
+ 		pr_warn("multiple nodes in dt, skipping\n");
+ 		return 0;

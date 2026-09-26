@@ -45,7 +45,7 @@ class ProductionMMC(unittest.TestCase):
     def test_switch_fields_and_hardware_areas(self):
         for index in range(256):
             for value in (0,1,2,3,4,5,6,0x40,0x48,0xff):
-                allowed={32:{1},33:{0,1},34:{1,2,3},161:{0,1},175:{1},183:{0,1,2},185:{0}}.get(index,set())
+                allowed={32:{1},33:{0,1},34:{1,2,3},161:{0,1},175:{1},183:{0,1,2},185:{0,1}}.get(index,set())
                 self.assertEqual(self.allowed(opcode=6,arg=0x03000001|(index<<16)|(value<<8)),value in allowed,(index,value))
         for before in range(256):
             self.assertTrue(self.allowed(opcode=6,arg=0x03b30001|((before&~7)<<8),part_config=before,identified=1))

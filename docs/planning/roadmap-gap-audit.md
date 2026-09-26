@@ -1,5 +1,163 @@
 # Y2Linux roadmap and gap audit
 
+## Hardware Batch 2 build admission — 2026-09-26
+
+The owner continues the entire capability-ceiling campaign. Fresh private
+receipts `17`, `26`–`45`, owner listening/control replies, current source diff
+and a fresh GitHub inventory refresh every coverage area below. Installed
+Physical 01 remains Linux `198fa7c` / Reborn `feb530f`; host base is `cc73853`.
+The temporary app and timer modules were removed. Normal reboot `39`–`41`
+returned the original binaries, taint 0, eight/four-bit 13 MHz buses, clean
+ext4 counters and checked DNS on boot `b3d92d70-521e-41d7-bca7-69b4badf00c1`.
+Subsequently, **pm_test devices lost recovery**: freezer returned on the same
+boot, devices has a flushed begin record but no completion receipt; USB did
+not return, Wi-Fi SSH refused and the owner reports a black/unresponsive
+screen after Power and cable reconnect. Owner restart is required. This is
+not proof of SPM entry or the identity of a failing device callback.
+
+| Coverage / issues | Evidence and current decision |
+| --- | --- |
+| Boot/recovery/security #16/#28/#32 | Regression and normal reboot passed before devices-stage failure. Preserve the installed fallback and pinned SSH identity. Further suspend experiments are BLOCKED pending recovery and diagnosis. Host build/validation may continue. |
+| eMMC/SD/filesystems #28/#33 | Widths and guarded read/write/fsync/metadata pass with zero errors. Exact LK selects MSDC source 1; stock host source is 200 MHz and inherited MSDCPLL is ~400 MHz. Source admits only SDR high speed at 3.3 V, default 25 MHz cap, deliberate 13/25/50 MHz host-owned steps and legacy/crystal boot fallback. Faster modes remain unmeasured; normal card-capability fallback is retained, automatic CRC downshift is not claimed. |
+| Library/application #32/#33 | Isolated matched old/new binaries at 1k/10k/20k pass counts/integrity. Wider bus reduces large commit tails; queries reduce 20k page p50 93.435→2.080 ms on the same bus. New indexes increase population/scan cost. No additional library optimization or final envelope claim. |
+| USB device/host #27/#32 | Three TCP repeats and separated verified 16 MiB SFTP runs recorded. Exact stock integrated DMA/IRQ layout supports implementation using upstream Inventra and 32-bit DMA addressing. Allocation/boot PIO fallback, error teardown and counters are required; no physical DMA result yet. Connector/VBUS switch/current limit remain unknown: powered host/UAC BLOCKED. |
+| CPU/core/timer/idle #28/#34 | Exact unit selects stock table 0, but 1196/1300 MHz require 1.20/1.25 V and an established regulator/SPM transition contract. Existing OPPs stay. Manual 1–4-core cycles pass. GPT6 counter measured 12,999,956–13,000,027 Hz and all 12 PPI29 one-shots delivered; probe restores controls. Integrate GPT6 through its existing owner, guard ARM timer registration, retain GPT fallback. Effective NO_HZ, long counter continuity, hotplug and idle residency remain post-install gates; no deeper SPM state added. |
+| GPU/display/input/RAM #28/#34 | Menu/input and 500.5 MHz GPU baseline remain; screen-off runtime suspend observed. No GPU clock change or memory-reservation reclamation. New DMA/timer integration requires broader memory/layout/build checks and physical load/PM regression. |
+| Charging/battery/low battery #30/#34 | Existing SDP 450 mA configuration and voltage/CV cycling observed. No external meter; input/pack current, pack temperature, positive energy balance, SOC and shutdown reserve remain unqualified. No charger-limit, fabricated percentage or low-battery enablement. |
+| Suspend/RTC/time #30/#34 | NTP and freezer test pass. Devices-stage recovery failure stops subsequent platform/processors/core/deep tests. Recover persistent progress, check filesystems and add callback evidence before another attempt. Power/RTC same-boot wake and retention remain open. |
+| Audio/CS43131 #29 | Direct S16 44.1/48 and switching owner-confirmed clean. A real native ALSA metadata omission rejected valid Reborn sinks; regression reproduces it, seven tests pass after repair. Temporary fixed ARM app played clean SBC >3 minutes. Product native-48 endurance, true DL1 24-bit packing/high rates and DAC load/IRQ features remain distinct gates. |
+| Wi-Fi/Bluetooth/codecs #31 | Checked DNS/NTP/TCP and boot reconnect pass; owner confirms Reborn AirPods audio and play/pause after the sink fix. The retained trace captured no incoming AVRCP command, so owner and trace evidence are distinguished. Fresh pairing, reconnect/endurance/coexistence and actual optional encoders remain open; SBC fallback retained. |
+| Firmware/OTA/endurance #31/#32/#33 | Existing owner provision/calibration and recovery provenance remain unchanged. No missing result is inferred from historical closed #30. Signed root install/readback/health/rollback and controlled broken-app approval remain pending; no automatic BOOTIMG update or platform freeze. |
+
+Decision: **READY for one coherent Hardware Batch 2 host build and validation**
+of storage SDR steps, USB DMA, local timer/NO_HZ and the measured Reborn sink
+repair. Physical admission remains PARTIAL until recovery, a concrete validated
+artifact and its safe fallback are available; owner performs one manual flash.
+The new paths are candidates, not qualified ceilings. Broader release checks
+apply because timer and DMA ownership change. Preserve unrelated worktree edits.
+No guessed fix for the suspend failure is admitted by this review.
+
+## GPT6/local-timer diagnostic boundary — 2026-09-26
+
+The complete baseline/coverage audit immediately below remains current for all
+unchanged subsystems. Fresh receipts `17`, `26`–`32` add matched library tests,
+same-boot recovery/clean filesystems, a localized Reborn playback fix and actual
+CPU/timer reads. The read-only observer deliberately failed init and left no
+module; this boot now has documented O taint (4096). Normal reboot and zero-taint
+verification are required; no new kernel fault is inferred from O alone.
+
+| Coverage / issues | Refreshed decision |
+| --- | --- |
+| CPU #28/#34 | Retained ATAG devinfo3 low2=2, devinfo15 bits30:28=0 select exact stock table 0: 1300 MHz/1.25 V, 1196 MHz/1.20 V, existing three at 1.15 V. Voltage/regulator/SPM transition contract remains required; no OPP activation. |
+| Timer/idle/suspend #34 | CNTFRQ=0 and physical counter delta=0 on all cores in three 53–60 ms observations. Stock starts GPT6 as the CP15 system counter; installed upstream driver starts GPT1/2 only. A bare architectural-timer DT/Kconfig enable would be incorrect. |
+| Application/audio/radio #29/#31 | ALSA constructor omitted the returned PCM name, causing valid playback rejection. Regression reproduces it; seven audio tests pass after metadata repair with contract checks retained. Temporary RAM-mounted ARM app plays SBC over three minutes with zero XRUN/recovery/decode/playback errors. No incoming AVRCP command in this trace; control acceptance stays open. Original app/session restoration recorded separately. |
+| Storage/application #32/#33 | All matched 1k/10k/20k integrity/count checks pass. Wider-bus commit gains and query gains separate; new indexes have measurable write/scan cost. No errors or clock increases. |
+| USB/host, GPU/display/input, RAM #27/#28/#32/#34 | Prior partial results retained. No DMA/role/VBUS/PLL or reservation changes. Powered host remains blocked by missing electrical evidence. |
+| Power/battery, RTC, firmware/security, OTA/recovery/endurance #30–#34 | Prior gates retained, including no external meter, no current/SOC inference, staged suspend, physical OTA rollback and long runs. No missing physical result is inferred from diagnostics. |
+
+Exact stock `mt_gpt_init` at `c001d83c`, extract SHA-256
+`bac9c513d975dbda913dc76b7aae60f077f043bc50a12784412615e42a3f9809`, starts
+GPT6 free-running. Pinned MT6582 BSP `mt_gpt.c` confirms GPT6/13 MHz/DIV1.
+Decision: READY for `tools/development/y2-local-timer-probe.c`, a bounded test
+on this exact kernel. It refuses an existing PPI29 mapping, enabled CNTP, or
+non-idle GPT6/its interrupt. It starts only source-backed GPT6, checks three
+counter-rate samples per CPU against 13 MHz, then requests PPI29 and tests three
+one-shot deliveries per core. GPT1/2 remain Linux timekeepers. Waits are bounded;
+the handler immediately masks/stops CNTP. Original timer compare/control and
+GPT6 control/clock are restored, IRQ resources freed, and init deliberately
+fails. The previously unused counter advances; it is not reset or made a Linux
+clocksource. No voltage, PLL, storage, VBUS, PMIC or power-state register changes.
+This is diagnostic evidence, not NO_HZ/suspend/deep-idle acceptance. Failure
+stops the affected experiment while independent work continues. Hardware Batch
+2 remains PARTIALLY READY pending these results, integration and fallback tests.
+
+## Physical 01 baseline and ceiling diagnostics boundary — 2026-09-26
+
+Refresh from the same exact Physical 01 identity/boot as the entry below, private
+receipts `00`–`16`, owner listening/card/menu replies and the unchanged open issue
+inventory. Linux worktree still preserves pre-existing documentation edits and
+Reborn's unrelated asset/document changes. The initial regression gate passes;
+Physical 01 is the working baseline. No final platform or subsystem ceiling is
+declared. [Current report](../validation/PLATFORM-V1-HARDWARE-CEILING.md).
+
+| Coverage / issue | Refreshed decision |
+| --- | --- |
+| Boot/recovery/protected storage #16/#28/#32/#33 | READY for bounded diagnostics: exact installed metadata, same boot, pinned USB SSH, taint 0 and all three ext4 error counters 0. No partition/protected-area or recovery-policy change. Reboot/rescue/OTA cycles still pending. |
+| eMMC/SD/filesystems #28/#33 | Width regression passes: IOS 8/4 at 13 MHz legacy, verified direct/random I/O, three SD passes, full guarded fsync/metadata/readback. Clean replacement card confirmed. Old suspect FAT card remains isolated; multi-card/removal/faster-mode acceptance pending. |
+| SQLite/application/storage #32/#33 | Exact 1k/10k/20k counts/quick checks pass, browse p50 ~2.08 ms; matched old/new binary comparison running serially to separate query cost and transport gains. No new library optimization before these measurements. |
+| CPU/core/idle/clocks/RAM #28/#34 | Manual 4→3→2→1→2→3→4 hotplug and checked hash load succeed; same boot, SPM broken=0, final four online. Current OPPs/reservations unchanged. Local clockevents remain dummy; no tickless/deeper-idle acceptance. |
+| Display/GPU/input #28/#34 | Owner menu visible, Mali400 active and 500.5 MHz source retained; screen-off runtime suspended. Full UI/PM/thermal endurance pending. |
+| Charging/battery/low battery #30 | Configured 450 mA under 500 mA SDP allocation; voltage and die temperatures observed, no current/SOC/pack-temperature inference. Owner has no external meter. Pack evidence/charge balance and shutdown reserve remain gates. |
+| Suspend/RTC/time #30/#34 | NTP now synchronizes through ordinary checked Wi-Fi. Correct core masks pass manual hotplug; pm_test, SPM entry, same-boot Power/RTC wake, restoration and retention remain unqualified. |
+| Wired/precision/CS43131 #29 | Owner confirms clean S16 44.1/48 one-minute tests and switches, no reported XRUN. Longer Reborn/native-48 profile, true DL1 packing, high rates and codec IRQ/load features remain distinct gates. |
+| Wi-Fi/Bluetooth/codecs #31 | WPA2/DHCP/DNS/NTP and 45–47 Mb/s TCP work. Bonded/trusted SBC PCM produces clean owner-confirmed tones. Fixture AVRCP fails; trace Reborn's addressed player next. Fresh pair/reconnect/coexistence/codecs still pending. |
+| USB device/host #27/#32 | ECM/PIO TCP ~40 Mb/s receive/~47 transmit; reproducible upload retransmissions open. DMA source review proceeds; no DMA, role or VBUS activation yet. Unknown VBUS switch/current limit continues to block powered host operation. |
+| Firmware/security/updates/endurance #31/#32/#33 | Existing owner calibration/provisioning, SSH identity and fallback retained. No repeated unchanged provenance acquisition, no keys/bonds in public evidence. Signed root apply/rollback, broken-app approval and long runs remain open. |
+
+Next diagnostic admission: a short GPL module built against this exact installed
+kernel may read the architectural physical counter/control/frequency on each
+core and only the five relevant CPU-bin bits from the already reserved LK ATAG
+page. Userspace timer access traps; this is why a privileged observation is
+needed. It writes no timer, clock, power, MMIO or loader state, and deliberately
+returns `-EAGAIN` so it leaves no resident module. As in the earlier GPU-bin
+inspection, external-module loading sets taint O (4096); preserve the clean
+baseline receipt, label that diagnostic boot explicitly and verify a fresh
+normal boot afterwards. This is not timer interrupt/wake acceptance, a voltage
+increase or permission to guess efuse addresses. A timer interrupt experiment
+requires its own bounded restore/cleanup review after these reads.
+
+Decision: READY for the bounded observation and existing supported-state
+qualification; PARTIALLY READY for Hardware Batch 2. Final batch admission
+still requires exact clock/timing/DMA/timer contracts, conservative fallback and
+targeted failure tests. No production image build or flash is implied by this
+diagnostic boundary.
+
+## Hardware capability ceiling entry — 2026-09-26
+
+The owner authorizes a platform-wide evidence-backed ceiling campaign, broad
+investigation before rebuilding, coherent hardware batches and physical tests.
+This supersedes incremental feature admission and the earlier headphone deferral.
+It does not authorize guessed overclock/overvoltage, unknown VBUS activation,
+reserved-memory reclamation or fabricated audio/SOC capability. Owner performs
+manual flashes; deliberately broken app OTA retains explicit owner approval.
+
+Fresh pinned USB SSH at 18:42 UTC identifies installed Physical 01 exactly:
+Linux `198fa7cfd54a93826b54e3c0c4fab4d32e84acec`, Reborn
+`feb530fae2cdf785c764d619e8df22798c8e524c`, candidate.3, kernel
+`6.18.0-y2linux-platform-v1-physical-01`, boot
+`4991ba2c-0571-4649-9f7c-9e0318abb952`. Complete versions JSON matches the
+candidate metadata; no whole installed-image readback is claimed. Local heads
+are Linux `cc73853` and Reborn `feb530f`; existing unrelated worktree edits stay
+intact. Private receipts: `out/platform-v1-hardware-ceiling/20260926T184237Z-physical01/`.
+Read-only GitHub inventory confirms #16/#27–#29/#31–#34 OPEN, historical #30
+CLOSED. That historical state is not physical power acceptance.
+
+| Coverage / issue owner | Fresh evidence and next boundary |
+| --- | --- |
+| Boot/rescue/protected storage #16/#28/#32/#33 | PARTIAL: exact candidate boots, authenticated USB SSH works, fsck stages complete and root/data mount rw. Existing fallback retained; current rescue/reboot/rollback cycles pending. No protected-area or geometry changes. |
+| Kernel/RAM/DMA #28/#34 | PARTIAL: taint 0, ~930 MiB usable RAM, HIGHMEM retained, Reborn PSS now readable (21359 KiB at this observation). No panic/Oops or transfer-corruption signature. Pressure/endurance pending; reservations unchanged. |
+| eMMC #28/#33 | PARTIAL: actual IOS eight bits, 13 MHz, legacy, 3.3 V; root/data ext4 error counters 0. Repeat exact guarded direct-I/O, metadata and library workloads before any higher-clock experiment. EXT_CSD/controller/stock-clock evidence must support subsequent steps. |
+| SD #33 | PARTIAL: present SD128 card, four bits/13 MHz/legacy, mounted ext4 with error counter 0. This differs from the isolated bad FAT card; owner confirmation/clean-card provenance and lifecycle still pending. No card repair/reformat. |
+| Library/SQLite #32/#33 | PARTIAL: compiled index/scanner fixes installed; exact 1k/10k/20k rerun pending. Isolate bus and query effects where matched evidence permits; no further speculative optimization. |
+| CPU/core/idle/clocks #28/#30/#34 | PARTIAL: four cores online, 598/747.5/1040 MHz available, dummy local clockevents and broadcast IPIs persist. Stock timer/OPP/binning/voltage review precedes activation; no unsupported voltage increase. |
+| Display/GPU/input #28/#34 | PARTIAL: current Reborn first-frame record and GPU/display queries pass. Physical menu/input confirmation, source-backed GPU ceiling and workload/runtime-PM measurements pending. |
+| Charging/battery/thermal #30 | PARTIAL: SDP allocation 500 mA, configured charge current 450 mA, ~4.08–4.10 V, currently Not charging; CPU/PMIC 47.1/46.883°C at entry. External meter requested; no measured pack current, SOC, pack temperature or low-battery reserve. Diagnose before changing limits. |
+| Suspend/RTC/time #30/#34 | PARTIAL: RTC query works; current per-CPU clockevent gap and historical CPU3 shutdown/resume issue retained. Controlled pm_test, same-boot resume and Power/RTC wake required; no guessed SPM sequence. |
+| Wired/precision audio #29 | PARTIAL: ALSA query succeeds; closed PCM and truthful unavailable jack telemetry. Owner listening and longer 44.1/48 regression pending; DL1 packing/clock evidence required before S32/preserved-24/high rates. |
+| Wi-Fi #31 | PARTIAL: address/default route present but current status says supplicant_unavailable. Diagnose current control interface and test ordinary checked DNS/TCP before acceptance of PHY-001. No checksum-bypass diagnostic as acceptance. |
+| Bluetooth/codecs/coexistence #31 | PARTIAL: controller powered, peer not bonded/connected, SBC only. Physical stable SBC precedes expanded codecs and Auto policy. Owner peer availability requested. |
+| USB device/host #27/#32 | PARTIAL: high-speed peripheral SSH works. Separate RAM/storage TCP/SFTP measurements and source-backed DMA review next. Host role/VBUS remains BLOCKED_BY_EVIDENCE until switch/current-limit/wiring proof. |
+| Firmware/calibration/security #31/#32 | Existing private provisioning and SSH identity retained; no renewed acquisition or secret publication. No provenance repetition absent a relevant change. |
+| OTA/maintenance/endurance #32/#33 | PARTIAL: candidate installed by owner, retained data and recovery package; no physical signed-root apply/ack/rollback acceptance or long-run freeze. Storage/power/core prerequisite gates remain. |
+
+Decision: READY for regression measurements and broad source investigation;
+PARTIALLY READY for Hardware Batch 2 selection. Physical 01 is not yet promoted
+as a complete baseline. Ordinary subsystem failures do not stop independent
+work. Corruption, dangerous electrical/thermal behavior and lost recovery stop
+the affected experiment; unstable storage prohibits clock escalation. Group
+supported storage/USB/timer/telemetry changes only after evidence review, then
+build and validate one coherent candidate with fallback before owner flashing.
+
 ## Physical Fix Batch 1 packaging boundary — 2026-09-26
 
 Real-device receipts 49–56 refresh the admission audit below. The installed

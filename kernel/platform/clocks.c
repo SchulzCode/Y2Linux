@@ -152,7 +152,11 @@ static unsigned long y2_rate(struct clk_hw *hw, unsigned long parent)
 	if (c->id == Y2_CLK_MSDC0_SRC || c->id == Y2_CLK_MSDC1_SRC) {
 		unsigned r = readl(c->top + (c->id == Y2_CLK_MSDC0_SRC ? 0x60 : 0x70));
 		unsigned shift = c->id == Y2_CLK_MSDC0_SRC ? 24 : 0;
-		return ((r >> shift) & 7) == 0 ? 26000000 : 0;
+		switch ((r >> shift) & 7) {
+		case 0: return 26000000;
+		case 1: return y2_pll_rate(c->pll, Y2_CLK_MSDCPLL) / 2;
+		default: return 0;
+		}
 	}
 	if (c->id == Y2_CLK_AUDINTBUS || c->id == Y2_CLK_AUDIO) {
 		unsigned shift = c->id == Y2_CLK_AUDIO ? 16 : 24;
@@ -322,18 +326,30 @@ static const struct clk_ops y2_mfg_source_ops = {
 	.disable = y2_mfg_source_disable, .is_enabled = y2_mfg_source_enabled,
 };
 /* Called only by the MT6582 MMC variant after checking inherited DMA idle.
- * Source 0 is the documented crystal, giving a real 26MHz rate contract. */
-int y2_msdc_crystal(unsigned id)
+ * Source 0 is the 26 MHz crystal; source 1 is the retained stock selection. */
+int y2_msdc_source(unsigned id, bool highspeed)
 {
 	unsigned long flags;
-	unsigned off = id ? 0x70 : 0x60, shift = id ? 0 : 24, v;
+	unsigned off = id ? 0x70 : 0x60, shift = id ? 0 : 24, v, selector = 0;
+	unsigned long pll;
 	if (!y2_clock_bases[0] || id > 1)
 		return -EPROBE_DEFER;
+	/* Retained Y2 LK 81e155ac..81e155d4 selects 1 for MSDC0/1.
+	 * Exact stock host hclks[0]=200 MHz; inherited MSDCPLL is 400 MHz.
+	 * No PLL retune. An unexpected PLL retains the known crystal fallback. */
+	pll = y2_pll_rate(y2_clock_bases[3], Y2_CLK_MSDCPLL);
+	if (highspeed && pll >= 398000000 && pll <= 402000000)
+		selector = 1;
 	spin_lock_irqsave(&y2_clk_lock, flags);
 	v = readl(y2_clock_bases[0] + off);
 	v &= ~(0x87U << shift);
+	v |= selector << shift;
 	writel(v, y2_clock_bases[0] + off);
 	spin_unlock_irqrestore(&y2_clk_lock, flags);
+	if (((readl(y2_clock_bases[0] + off) >> shift) & 0x87) != selector)
+		return -EIO;
+	pr_info("Y2MSDC%u: source=%s inherited_pll=%lu\n", id,
+		selector ? "stock-msdcpll-div2" : "26MHz-crystal", pll);
 	return 0;
 }
 int y2_ccf_usb_read(unsigned address, unsigned *value)

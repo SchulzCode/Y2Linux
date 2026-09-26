@@ -60,7 +60,7 @@ static inline int y2_emmc_request_allowed(const struct y2_emmc_request *r)
         /* Stock Y2 MSDC0 has eight data pins. Allow SDR 1/4/8-bit selection
          * and fallback only; DDR and enhanced-strobe encodings stay denied. */
         case 183: return value <= 2;
-        case 185: return value == 0;                /* supported legacy timing */
+        case 185: return value <= 1; /* legacy or SDR high-speed; no DDR/HS200/400 */
         default: return 0;
         }
     }

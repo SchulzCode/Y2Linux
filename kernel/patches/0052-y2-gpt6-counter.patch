@@ -1,0 +1,19 @@
+--- a/drivers/clocksource/timer-mediatek.c
++++ b/drivers/clocksource/timer-mediatek.c
+@@ -16,6 +16,7 @@
+ #include <linux/sched_clock.h>
+ #include <linux/slab.h>
+ #include "timer-of.h"
++#include "/project/kernel/platform/local-timer.h"
+ 
+ #define TIMER_CLK_EVT           (1)
+ #define TIMER_CLK_SRC           (2)
+@@ -335,6 +336,8 @@
+ 
+ 	mtk_gpt_enable_irq(&to, TIMER_CLK_EVT);
+ 
++	y2_local_timer_prepare(timer_of_base(&to), timer_of_rate(&to));
++
+ 	return 0;
+ }
+ TIMER_OF_DECLARE(mtk_mt6577, "mediatek,mt6577-timer", mtk_gpt_init);

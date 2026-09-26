@@ -1,15 +1,65 @@
 # Platform v1 physical bring-up campaign
 
-Started 2026-09-26. ACTIVE: broad census and first root-cause cluster complete;
-Fix Batch 1 built and image-validated; owner installation and broad retest pending. This is not a completed platform
-qualification. [Entry audit](../planning/roadmap-gap-audit.md#complete-physical-bring-up-campaign-entry--2026-09-26).
+Started 2026-09-26. ACTIVE: the owner installed Physical 01; its exact identity
+and initial regression gate are verified. Work continues as the **hardware
+capability ceiling campaign**, with broad investigation and coherent batches.
+This is not a completed platform qualification or a hardware ceiling freeze.
+[Current audit](../planning/roadmap-gap-audit.md#hardware-capability-ceiling-entry--2026-09-26).
 [Master issue table](PLATFORM-V1-PHYSICAL-ISSUES.md).
 
-## Fix Batch 1 candidate handoff
+Continuation through receipts `17`–`47`: matched library and separated SFTP
+measurements are complete; the bounded GPT6/13 MHz/PPI29 test passes on all four
+cores. A temporary fixed Reborn app resolves the native PCM-name contract bug;
+owner confirms clean AirPods audio and working play/pause. Original app/session
+were restored, then normal reboot returned taint 0 and clean storage. The
+subsequent `pm_test` freezer stage passes, but **devices loses USB and leaves
+the screen black/unresponsive**. Owner forced restart restores visible Reborn;
+USB recovery and persistent progress retrieval remain pending. No deeper stage
+or SPM entry is established. [Hardware Batch 2 build admission](../planning/roadmap-gap-audit.md#hardware-batch-2-build-admission--2026-09-26)
+allows coherent host build/validation while the affected physical experiment
+remains stopped. See the [ceiling report](PLATFORM-V1-HARDWARE-CEILING.md) for
+numeric results, source limits and the current qualification boundary.
+
+## Physical 01 regression baseline — 2026-09-26
+
+Fresh pinned USB SSH at 18:42 UTC identifies build
+`Y2LINUX-PLATFORM-V1-PHYSICAL-01`, Linux `198fa7c`, Reborn `feb530f`,
+candidate.3 / rootfs platform-v1.3, and kernel
+`6.18.0-y2linux-platform-v1-physical-01`. Complete running versions JSON equals
+the candidate metadata below. Boot ID is
+`4991ba2c-0571-4649-9f7c-9e0318abb952`; no whole installed-image readback is claimed.
+
+Private raw receipts live in
+`out/platform-v1-hardware-ceiling/20260926T184237Z-physical01/`.
+The [ceiling report](PLATFORM-V1-HARDWARE-CEILING.md) tracks measured limits,
+remaining experiments and batch admission. Earlier sections below describe the
+preceding Telemetry 01 boot and historical handoff, not the current installation.
+
+| Regression gate | Physical 01 evidence |
+| --- | --- |
+| Boot, root/data, recovery access | Normal boot, separate rw ext4 root/data, fsck stages complete, pinned USB SSH maintained; root/data/clean replacement SD error counters all zero through receipt `14`. |
+| Kernel and storage safety | Taint 0; no captured MMC CRC/timeout or filesystem corruption signature. Protected areas unchanged. |
+| eMMC | Actual IOS eight bits, 13 MHz, legacy, 3.3 V. Guarded O_DIRECT sequential/random writes and verified reads pass; large sequential read/write approximately 10.64/10.65 MB/s (`03`). This is a baseline, not the eMMC ceiling. |
+| SD | Owner confirms a different known-good card. Actual IOS four bits, 13 MHz, legacy, 3.3 V. Three guarded direct-I/O passes verify every read; large sequential read 5.87–5.89 and write 5.52–5.81 MB/s (`10`). The card has a small ext4 test filesystem; no resize/reformat. |
+| Wi-Fi | WPA2-PSK/CCMP, DHCP, ordinary checksummed DNS through router and public resolver, NTP and bidirectional TCP work (`02`, `13`). Three local TCP repeats reach 45.15–45.60 Mb/s receive and 46.35–46.56 Mb/s transmit. Reconnect/coexistence remain separate gates. |
+| USB | High-speed ECM/PIO, pinned SSH retained. Three TCP repeats reach 39.56–39.65 Mb/s receive and 46.56–46.66 Mb/s transmit. Uploads show 592–611 sender retransmissions per measured run; investigate rather than declare a ceiling. |
+| Reborn/display | Owner confirms visible menu. Mali400/EGL rendering active; GPU clock observed 500.5 MHz and runtime power suspended with screen off. |
+| Wired S16 | Direct hardware S16_LE stereo at 44.1 and 48 kHz: one minute each and six more rate switches, all rc=0, no reported XRUN; owner confirms both channels clean without clicks/dropouts (`09`). First segment overlapped SD load; longer Reborn qualification remains. |
+| Bluetooth | Bonded/trusted/connected AirPods, actual SBC/S16 stereo 48 kHz, approximately three minutes of fixture playback, zero write/recovery errors; owner hears clean tones (`07`). Direct-fixture play/pause failed; later fixed Reborn playback/control passes by owner report (`29`), with trace limitation recorded separately. |
+| CPU/memory/thermal | Four online cores, 598/747.5/1040 MHz OPPs, readable frequency/idle/thermal telemetry; 952288 KiB MemTotal and readable Reborn PSS. No new clock/voltage policy. |
+
+Physical 01 is the working regression baseline. This promotion accepts the
+observed width and checked-network repairs; it does not close outstanding
+AVRCP, USB retransmission, timer, power, lifecycle or endurance qualification.
+No higher storage clock is enabled before source/controller/card evidence and
+repeated data-integrity checks justify that specific mode.
+
+## Fix Batch 1 candidate handoff (historical)
 
 Package: `out/y2linux-platform-v1-physical-01-candidate/`.
-Status: **IMAGE_VALIDATED_PHYSICAL_PENDING**. The owner deferred headphones;
-that session remains deferred. Nothing in this campaign has flashed the device.
+Handoff status was **IMAGE_VALIDATED_PHYSICAL_PENDING**. The owner has since
+installed it and supplied both wired and AirPods listening observations above.
+The agent has not flashed the device.
 
 | Identity | Value |
 | --- | --- |
@@ -39,10 +89,8 @@ the known Buildroot/Bootlin/local-package collection limitations are retained.
 Byte-identical rebuilding is not claimed. Raw intermediate failures are retained
 privately; no failed attempt is substituted for a final passing receipt.
 
-Next physical action is the owner's manual installation following `install.md`.
-After confirmation, repeat exact identity/safety first, then broadly regress
-storage/SQLite, Wi-Fi DNS/TCP/time, telemetry/memory, USB and short audio/power
-workloads. Resume AirPods and other owner-assisted sessions when available.
+The handoff's requested owner installation and first regression measurements
+have now occurred. Continue the ceiling campaign from that verified installation.
 
 ## Exact starting target
 

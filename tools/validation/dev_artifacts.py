@@ -112,7 +112,18 @@ def check(root,project,production=False):
     if config.get('CONFIG_DRM_LIMA')=='y':
         for name in ('lima_device_init','lima_mmu_init','lima_sched_timedout_job','y2_mfg_power_on','y2_mfg_power_off','y2_mfg_clock_probe'):
             require(kernel.sym(name)>=text,'missing GPU subsystem '+name)
-    require(not any(name in kernel.syms for name in ('musb_dma_controller_create','dma_controller_irq','musb_host_setup','mtk_musb_init')),'unexpected USB DMA/host/glue')
+    require(not any(name in kernel.syms for name in ('musb_host_setup','mtk_musb_init')),
+            'unexpected USB host/alternate glue')
+    if production and config.get('CONFIG_USB_INVENTRA_DMA') == 'y':
+        for name in ('musbhs_dma_controller_create_noirq', 'dma_controller_irq',
+                     'y2_musb_dma_init', 'y2_musb_dma_exit'):
+            require(kernel.sym(name) >= text, 'missing reviewed DMA path '+name)
+    else:
+        require('dma_controller_irq' not in kernel.syms, 'unexpected USB DMA')
+    if production and config.get('CONFIG_ARM_ARCH_TIMER') == 'y':
+        for name in ('y2_local_timer_prepare', 'y2_local_timer_ready',
+                     'arch_timer_of_init', 'mtk_gpt_init'):
+            require(kernel.sym(name) >= text, 'missing guarded timer path '+name)
     payload=z+tree+bytes(-len(tree)%8)
     layout['kernel_symbols']={n:kernel.sym(n) for n in ('_text','_edata','__bss_start','__bss_stop','_end')}
     layout['artifacts']={name:{'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()} for name,raw in [('Image',image),('zImage',z),('y2.dtb',tree),('zImage-dtb',payload),('initramfs.cpio.gz',rd),('display.ko',module)]}

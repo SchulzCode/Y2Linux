@@ -1,0 +1,12 @@
+--- a/drivers/usb/musb/musbhsdma.c
++++ b/drivers/usb/musb/musbhsdma.c
+@@ -227,7 +227,8 @@
+ 	int offset;
+ 	u16 csr;
+ 
+-	if (channel->status == MUSB_DMA_STATUS_BUSY) {
++	if (channel->status == MUSB_DMA_STATUS_BUSY ||
++	    channel->status == MUSB_DMA_STATUS_BUS_ABORT) {
+ 		if (musb_channel->transmit) {
+ 			offset = musb->io.ep_offset(musb_channel->epnum,
+ 						MUSB_TXCSR);

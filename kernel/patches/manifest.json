@@ -88,7 +88,7 @@
       "path": "drivers/mmc/host/mtk-sd.c",
       "patch": "0009-y2-msdc-readonly.patch",
       "base_sha256": "8fd10e3a6f6d60e37216de79b2d7a8b8f766c7d7e5cdd5851cccfe375e2536d1",
-      "result_sha256": "66a45179d8c0115f56d4a24303d732193f374391eff0c4adca4389a9d369fb04"
+      "result_sha256": "1bf6969fd56cbcf646a87464d7c22328fc7e49c04b26bb3d3fd430612750220a"
     },
     {
       "path": "drivers/gpu/drm/mediatek/mtk_crtc.c",
@@ -233,6 +233,30 @@
       "patch": "0039-mt6582-mali-binding.patch",
       "base_sha256": "21bd67c366ebb7cd038f133c63048a630086a2fe74699857d0177d41d4b1a01a",
       "result_sha256": "a9c5285183549d69a231e1942cbe94393e9ae9a6b899c452895a49daabe1466f"
+    },
+    {
+      "path": "drivers/clocksource/timer-mediatek.c",
+      "patch": "0052-y2-gpt6-counter.patch",
+      "base_sha256": "15f499b5abefc9bab004ef1a9ca55180582e48bba8dd5429b1e7a0cbdf1988e7",
+      "result_sha256": "b8c76ba84b1b79a3e1006f4533d10302895f72965af3286bdbd6d3b6234497a3"
+    },
+    {
+      "path": "drivers/clocksource/arm_arch_timer.c",
+      "patch": "0053-y2-local-timer-guard.patch",
+      "base_sha256": "0613e2f5d21a736e98fb993db17e8db5c8e050b813c59035fb5bd4a696dd7ead",
+      "result_sha256": "d8e0da6c909beb84734584ba8b730373d403f69085c5d4668e02e6adcb26640b"
+    },
+    {
+      "path": "drivers/usb/musb/Kconfig",
+      "patch": "0054-y2-inventra-dma.patch",
+      "base_sha256": "799615aba275600620ab07aa8a1a29cb179effc5ce3d7916602764550a73c49e",
+      "result_sha256": "8c6c9492652243eb7c7ffd733cdc8523c543e8eca78681f8e9bb680889d63fc4"
+    },
+    {
+      "path": "drivers/usb/musb/musbhsdma.c",
+      "patch": "0055-musb-abort-bus-error.patch",
+      "base_sha256": "45ee5dacef39ff755e5bd9b8c4f895b534f5a28014b0ecd7b4f06d527097fc40",
+      "result_sha256": "0c528a1f125168273b333857f6583a625b7712fef1f9447151ec0291e0bcff85"
     }
   ]
 }

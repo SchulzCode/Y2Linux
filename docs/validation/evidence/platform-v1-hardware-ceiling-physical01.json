@@ -1,0 +1,1885 @@
+{
+  "schema": "org.y2linux.hardware-ceiling.physical01/v1",
+  "date": "2026-09-26",
+  "installed": {
+    "linux": "198fa7cfd54a93826b54e3c0c4fab4d32e84acec",
+    "reborn": "feb530fae2cdf785c764d619e8df22798c8e524c",
+    "release": "1.0.0-candidate.3"
+  },
+  "evidence_limits": [
+    "Benchmarks run on the actual Y2; cache state and short samples do not establish endurance or an absolute ceiling.",
+    "Temporary fixed Reborn app was removed and the original session restored.",
+    "External module O taint cleared by normal reboot; no runtime timer integration qualification yet.",
+    "SFTP includes connection setup, 16 MiB per run; download DONTNEED is advisory, not a proven cold-media state.",
+    "Owner reports clean AirPods playback and play/pause; retained control trace did not capture an incoming AVRCP command.",
+    "pm_test devices lost recovery before completion; no SPM-entry or failing-callback conclusion."
+  ],
+  "library_matched": [
+    {
+      "tracks": 1000,
+      "binary": "old",
+      "elapsed_s": 6.160782898999969,
+      "database": {
+        "quick_check": {
+          "passed": true,
+          "quick_check": "ok",
+          "schema": 1,
+          "tracks": 1000,
+          "write_test": "rolled_back"
+        },
+        "measurements": [
+          {
+            "elapsed_ms": 51.170725,
+            "max_ms": 51.170725,
+            "operation": "database_create_open",
+            "operations_per_second": 19.54242391523669,
+            "p50_ms": 51.170725,
+            "p95_ms": 51.170725,
+            "p99_ms": 51.170725,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 80.331915,
+            "max_ms": 5.8659,
+            "operation": "batch_commit_64",
+            "operations_per_second": 199.17364101179461,
+            "p50_ms": 5.507055,
+            "p95_ms": 5.8659,
+            "p99_ms": 5.8659,
+            "samples": 16
+          },
+          {
+            "elapsed_ms": 92.299411,
+            "max_ms": 92.299411,
+            "operation": "initial_population",
+            "operations_per_second": 10.83430532400689,
+            "p50_ms": 92.299411,
+            "p95_ms": 92.299411,
+            "p99_ms": 92.299411,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 76.918779,
+            "max_ms": 5.074749,
+            "operation": "incremental_upsert_batch_64",
+            "operations_per_second": 208.01162223336905,
+            "p50_ms": 4.90775,
+            "p95_ms": 5.074749,
+            "p99_ms": 5.074749,
+            "samples": 16
+          },
+          {
+            "elapsed_ms": 221.184522,
+            "max_ms": 7.427356,
+            "operation": "list_page",
+            "operations_per_second": 144.67558448777893,
+            "p50_ms": 6.89505,
+            "p95_ms": 7.125742,
+            "p99_ms": 7.427356,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 157.195236,
+            "max_ms": 5.176442,
+            "operation": "artist_lookup",
+            "operations_per_second": 203.56851018055025,
+            "p50_ms": 4.892827,
+            "p95_ms": 5.072827,
+            "p99_ms": 5.176442,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 93.666252,
+            "max_ms": 3.08668,
+            "operation": "album_lookup",
+            "operations_per_second": 341.6385231257038,
+            "p50_ms": 2.920758,
+            "p95_ms": 3.043373,
+            "p99_ms": 3.08668,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 195.778627,
+            "max_ms": 7.38251,
+            "operation": "folder_lookup",
+            "operations_per_second": 163.44991529642303,
+            "p50_ms": 5.886438,
+            "p95_ms": 7.032896,
+            "p99_ms": 7.38251,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 3.551447,
+            "max_ms": 0.221076,
+            "operation": "indexed_identity_lookup",
+            "operations_per_second": 9010.411812424625,
+            "p50_ms": 0.105923,
+            "p95_ms": 0.125384,
+            "p99_ms": 0.221076,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 22.962215,
+            "max_ms": 0.84515,
+            "operation": "search_like_query",
+            "operations_per_second": 1393.5937800425613,
+            "p50_ms": 0.705151,
+            "p95_ms": 0.785381,
+            "p99_ms": 0.84515,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 230.538723,
+            "max_ms": 230.538723,
+            "operation": "wal_checkpoint_truncate",
+            "operations_per_second": 4.3376660848425015,
+            "p50_ms": 230.538723,
+            "p95_ms": 230.538723,
+            "p99_ms": 230.538723,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 12.201568,
+            "max_ms": 12.201568,
+            "operation": "reopen_first_connection",
+            "operations_per_second": 81.95667966608882,
+            "p50_ms": 12.201568,
+            "p95_ms": 12.201568,
+            "p99_ms": 12.201568,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 12.164414,
+            "max_ms": 12.164414,
+            "operation": "reopen_warm_connection",
+            "operations_per_second": 82.20700150455254,
+            "p50_ms": 12.164414,
+            "p95_ms": 12.164414,
+            "p99_ms": 12.164414,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 34.516405,
+            "max_ms": 34.516405,
+            "operation": "startup_full_library_load",
+            "operations_per_second": 28.971730978356522,
+            "p50_ms": 34.516405,
+            "p95_ms": 34.516405,
+            "p99_ms": 34.516405,
+            "samples": 1
+          }
+        ],
+        "journal_mode": "WAL",
+        "synchronous": "NORMAL",
+        "cache_state": "OS page cache uncontrolled; reopen is not cold-device evidence",
+        "db_bytes": 348160,
+        "wal_bytes_before_checkpoint": 1775752
+      },
+      "scan": {
+        "results": [
+          {
+            "operation": "initial_scan",
+            "result": {
+              "complete": true,
+              "discovered": 1000,
+              "elapsed_ms": 3900,
+              "failures": 0,
+              "rescanned": 1000,
+              "reused": 0,
+              "tracks_per_sec": 256.4069674320634
+            }
+          },
+          {
+            "operation": "incremental_scan",
+            "result": {
+              "complete": true,
+              "discovered": 1000,
+              "elapsed_ms": 154,
+              "failures": 0,
+              "rescanned": 0,
+              "reused": 1000,
+              "tracks_per_sec": 6469.833540628956
+            }
+          }
+        ],
+        "workload": "synthetic short WAV metadata, not audio decode throughput"
+      },
+      "ui": [
+        {
+          "elapsed_ms": 4.360137,
+          "max_ms": 2.371914,
+          "operation": "album_listing",
+          "operations_per_second": 3669.609464106288,
+          "p50_ms": 0.128615,
+          "p95_ms": 2.371914,
+          "p99_ms": 2.371914,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 0.716459,
+          "max_ms": 0.662689,
+          "operation": "artist_listing",
+          "operations_per_second": 22332.052497072407,
+          "p50_ms": 0.003539,
+          "p95_ms": 0.662689,
+          "p99_ms": 0.662689,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 14.829785,
+          "max_ms": 12.735104,
+          "operation": "folder_listing",
+          "operations_per_second": 1078.9097751585743,
+          "p50_ms": 0.139614,
+          "p95_ms": 12.735104,
+          "p99_ms": 12.735104,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 30.59696,
+          "max_ms": 3.080142,
+          "operation": "track_listing",
+          "operations_per_second": 522.927767987408,
+          "p50_ms": 1.824839,
+          "p95_ms": 3.080142,
+          "p99_ms": 3.080142,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 0.536453,
+          "max_ms": 0.016308,
+          "operation": "wheel_navigation",
+          "operations_per_second": 238604.31389143132,
+          "p50_ms": 0.004077,
+          "p95_ms": 0.004385,
+          "p99_ms": 0.005,
+          "samples": 128
+        },
+        {
+          "elapsed_ms": 3.441832,
+          "max_ms": 3.441832,
+          "operation": "queue_construction",
+          "operations_per_second": 290.5429434092077,
+          "p50_ms": 3.441832,
+          "p95_ms": 3.441832,
+          "p99_ms": 3.441832,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tracks": 1000,
+      "binary": "new",
+      "elapsed_s": 6.5958608779999395,
+      "database": {
+        "quick_check": {
+          "passed": true,
+          "quick_check": "ok",
+          "schema": 1,
+          "tracks": 1000,
+          "write_test": "rolled_back"
+        },
+        "measurements": [
+          {
+            "elapsed_ms": 88.205968,
+            "max_ms": 88.205968,
+            "operation": "database_create_open",
+            "operations_per_second": 11.337101362574469,
+            "p50_ms": 88.205968,
+            "p95_ms": 88.205968,
+            "p99_ms": 88.205968,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 97.41378,
+            "max_ms": 6.98382,
+            "operation": "batch_commit_64",
+            "operations_per_second": 164.24780970413016,
+            "p50_ms": 6.155976,
+            "p95_ms": 6.98382,
+            "p99_ms": 6.98382,
+            "samples": 16
+          },
+          {
+            "elapsed_ms": 109.545271,
+            "max_ms": 109.545271,
+            "operation": "initial_population",
+            "operations_per_second": 9.128646000611017,
+            "p50_ms": 109.545271,
+            "p95_ms": 109.545271,
+            "p99_ms": 109.545271,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 116.62455,
+            "max_ms": 7.752662,
+            "operation": "incremental_upsert_batch_64",
+            "operations_per_second": 137.19238359333434,
+            "p50_ms": 7.441356,
+            "p95_ms": 7.752662,
+            "p99_ms": 7.752662,
+            "samples": 16
+          },
+          {
+            "elapsed_ms": 77.484318,
+            "max_ms": 2.859758,
+            "operation": "list_page",
+            "operations_per_second": 412.98679301791105,
+            "p50_ms": 2.383914,
+            "p95_ms": 2.684374,
+            "p99_ms": 2.859758,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 85.638051,
+            "max_ms": 4.399137,
+            "operation": "artist_lookup",
+            "operations_per_second": 373.6656734516296,
+            "p50_ms": 2.566836,
+            "p95_ms": 3.900216,
+            "p99_ms": 4.399137,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 44.060749,
+            "max_ms": 1.620224,
+            "operation": "album_lookup",
+            "operations_per_second": 726.269996000295,
+            "p50_ms": 1.349456,
+            "p95_ms": 1.588378,
+            "p99_ms": 1.620224,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 88.032738,
+            "max_ms": 2.990065,
+            "operation": "folder_lookup",
+            "operations_per_second": 363.50113295351554,
+            "p50_ms": 2.735605,
+            "p95_ms": 2.925527,
+            "p99_ms": 2.990065,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 3.917522,
+            "max_ms": 0.251845,
+            "operation": "indexed_identity_lookup",
+            "operations_per_second": 8168.428920118381,
+            "p50_ms": 0.116154,
+            "p95_ms": 0.149691,
+            "p99_ms": 0.251845,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 24.308831,
+            "max_ms": 0.953304,
+            "operation": "search_like_query",
+            "operations_per_second": 1316.3940298075213,
+            "p50_ms": 0.758305,
+            "p95_ms": 0.818458,
+            "p99_ms": 0.953304,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 353.778794,
+            "max_ms": 353.778794,
+            "operation": "wal_checkpoint_truncate",
+            "operations_per_second": 2.82662504638421,
+            "p50_ms": 353.778794,
+            "p95_ms": 353.778794,
+            "p99_ms": 353.778794,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 9.047196,
+            "max_ms": 9.047196,
+            "operation": "reopen_first_connection",
+            "operations_per_second": 110.53148400896808,
+            "p50_ms": 9.047196,
+            "p95_ms": 9.047196,
+            "p99_ms": 9.047196,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 9.232964,
+            "max_ms": 9.232964,
+            "operation": "reopen_warm_connection",
+            "operations_per_second": 108.30758140072895,
+            "p50_ms": 9.232964,
+            "p95_ms": 9.232964,
+            "p99_ms": 9.232964,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 21.964916,
+            "max_ms": 21.964916,
+            "operation": "startup_full_library_load",
+            "operations_per_second": 45.527148840450835,
+            "p50_ms": 21.964916,
+            "p95_ms": 21.964916,
+            "p99_ms": 21.964916,
+            "samples": 1
+          }
+        ],
+        "journal_mode": "WAL",
+        "synchronous": "NORMAL",
+        "cache_state": "OS page cache uncontrolled; reopen is not cold-device evidence",
+        "db_bytes": 487424,
+        "wal_bytes_before_checkpoint": 2645072
+      },
+      "scan": {
+        "results": [
+          {
+            "operation": "initial_scan",
+            "result": {
+              "complete": true,
+              "discovered": 1000,
+              "elapsed_ms": 4154,
+              "failures": 0,
+              "rescanned": 1000,
+              "reused": 0,
+              "tracks_per_sec": 240.7036896497106
+            }
+          },
+          {
+            "operation": "incremental_scan",
+            "result": {
+              "complete": true,
+              "discovered": 1000,
+              "elapsed_ms": 192,
+              "failures": 0,
+              "rescanned": 0,
+              "reused": 1000,
+              "tracks_per_sec": 5202.45672492447
+            }
+          }
+        ],
+        "workload": "synthetic short WAV metadata, not audio decode throughput"
+      },
+      "ui": [
+        {
+          "elapsed_ms": 4.319522,
+          "max_ms": 2.405452,
+          "operation": "album_listing",
+          "operations_per_second": 3704.1135570093174,
+          "p50_ms": 0.127384,
+          "p95_ms": 2.405452,
+          "p99_ms": 2.405452,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 0.711306,
+          "max_ms": 0.656767,
+          "operation": "artist_listing",
+          "operations_per_second": 22493.83528326768,
+          "p50_ms": 0.003538,
+          "p95_ms": 0.656767,
+          "p99_ms": 0.656767,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 15.612554,
+          "max_ms": 13.492486,
+          "operation": "folder_listing",
+          "operations_per_second": 1024.8163112838554,
+          "p50_ms": 0.140614,
+          "p95_ms": 13.492486,
+          "p99_ms": 13.492486,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 32.692257,
+          "max_ms": 3.522525,
+          "operation": "track_listing",
+          "operations_per_second": 489.4125235831836,
+          "p50_ms": 1.948531,
+          "p95_ms": 3.522525,
+          "p99_ms": 3.522525,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 0.579999,
+          "max_ms": 0.026615,
+          "operation": "wheel_navigation",
+          "operations_per_second": 220690.0356724753,
+          "p50_ms": 0.004307,
+          "p95_ms": 0.005,
+          "p99_ms": 0.006,
+          "samples": 128
+        },
+        {
+          "elapsed_ms": 3.915369,
+          "max_ms": 3.915369,
+          "operation": "queue_construction",
+          "operations_per_second": 255.40376909558205,
+          "p50_ms": 3.915369,
+          "p95_ms": 3.915369,
+          "p99_ms": 3.915369,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tracks": 10000,
+      "binary": "old",
+      "elapsed_s": 64.90967776499997,
+      "database": {
+        "quick_check": {
+          "passed": true,
+          "quick_check": "ok",
+          "schema": 1,
+          "tracks": 10000,
+          "write_test": "rolled_back"
+        },
+        "measurements": [
+          {
+            "elapsed_ms": 82.771068,
+            "max_ms": 82.771068,
+            "operation": "database_create_open",
+            "operations_per_second": 12.081516212887333,
+            "p50_ms": 82.771068,
+            "p95_ms": 82.771068,
+            "p99_ms": 82.771068,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 1914.306861,
+            "max_ms": 603.753239,
+            "operation": "batch_commit_64",
+            "operations_per_second": 82.01401938139948,
+            "p50_ms": 4.407599,
+            "p95_ms": 7.440587,
+            "p99_ms": 566.758993,
+            "samples": 157
+          },
+          {
+            "elapsed_ms": 2035.236012,
+            "max_ms": 2035.236012,
+            "operation": "initial_population",
+            "operations_per_second": 0.49134350714309194,
+            "p50_ms": 2035.236012,
+            "p95_ms": 2035.236012,
+            "p99_ms": 2035.236012,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 2110.611203,
+            "max_ms": 634.882818,
+            "operation": "incremental_upsert_batch_64",
+            "operations_per_second": 74.38603556014574,
+            "p50_ms": 5.637979,
+            "p95_ms": 8.542275,
+            "p99_ms": 572.935897,
+            "samples": 157
+          },
+          {
+            "elapsed_ms": 1465.794676,
+            "max_ms": 49.378198,
+            "operation": "list_page",
+            "operations_per_second": 21.83116129697281,
+            "p50_ms": 45.232828,
+            "p95_ms": 48.149279,
+            "p99_ms": 49.378198,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 654.929828,
+            "max_ms": 20.753383,
+            "operation": "artist_lookup",
+            "operations_per_second": 48.86019636289951,
+            "p50_ms": 20.453692,
+            "p95_ms": 20.735306,
+            "p99_ms": 20.753383,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 590.908685,
+            "max_ms": 18.976466,
+            "operation": "album_lookup",
+            "operations_per_second": 54.153883353398335,
+            "p50_ms": 18.383392,
+            "p95_ms": 18.771852,
+            "p99_ms": 18.976466,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 943.635356,
+            "max_ms": 31.32442,
+            "operation": "folder_lookup",
+            "operations_per_second": 33.9114042267827,
+            "p50_ms": 29.315813,
+            "p95_ms": 30.529115,
+            "p99_ms": 31.32442,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 3.810371,
+            "max_ms": 0.376614,
+            "operation": "indexed_identity_lookup",
+            "operations_per_second": 8398.132360339714,
+            "p50_ms": 0.10823,
+            "p95_ms": 0.152769,
+            "p99_ms": 0.376614,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 22.951216,
+            "max_ms": 0.833843,
+            "operation": "search_like_query",
+            "operations_per_second": 1394.261637379039,
+            "p50_ms": 0.703997,
+            "p95_ms": 0.785766,
+            "p99_ms": 0.833843,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 316.340651,
+            "max_ms": 316.340651,
+            "operation": "wal_checkpoint_truncate",
+            "operations_per_second": 3.161149213162617,
+            "p50_ms": 316.340651,
+            "p95_ms": 316.340651,
+            "p99_ms": 316.340651,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 73.736798,
+            "max_ms": 73.736798,
+            "operation": "reopen_first_connection",
+            "operations_per_second": 13.561749725015181,
+            "p50_ms": 73.736798,
+            "p95_ms": 73.736798,
+            "p99_ms": 73.736798,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 54.460717,
+            "max_ms": 54.460717,
+            "operation": "reopen_warm_connection",
+            "operations_per_second": 18.361858878942044,
+            "p50_ms": 54.460717,
+            "p95_ms": 54.460717,
+            "p99_ms": 54.460717,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 332.765051,
+            "max_ms": 332.765051,
+            "operation": "startup_full_library_load",
+            "operations_per_second": 3.005123275400697,
+            "p50_ms": 332.765051,
+            "p95_ms": 332.765051,
+            "p99_ms": 332.765051,
+            "samples": 1
+          }
+        ],
+        "journal_mode": "WAL",
+        "synchronous": "NORMAL",
+        "cache_state": "OS page cache uncontrolled; reopen is not cold-device evidence",
+        "db_bytes": 3264512,
+        "wal_bytes_before_checkpoint": 4177712
+      },
+      "scan": {
+        "results": [
+          {
+            "operation": "initial_scan",
+            "result": {
+              "complete": true,
+              "discovered": 10000,
+              "elapsed_ms": 46380,
+              "failures": 0,
+              "rescanned": 10000,
+              "reused": 0,
+              "tracks_per_sec": 215.60914055157588
+            }
+          },
+          {
+            "operation": "incremental_scan",
+            "result": {
+              "complete": true,
+              "discovered": 10000,
+              "elapsed_ms": 3752,
+              "failures": 0,
+              "rescanned": 0,
+              "reused": 10000,
+              "tracks_per_sec": 2664.695526722272
+            }
+          }
+        ],
+        "workload": "synthetic short WAV metadata, not audio decode throughput"
+      },
+      "ui": [
+        {
+          "elapsed_ms": 53.537258,
+          "max_ms": 31.964341,
+          "operation": "album_listing",
+          "operations_per_second": 298.8572929902387,
+          "p50_ms": 1.44661,
+          "p95_ms": 31.964341,
+          "p99_ms": 31.964341,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 9.897809,
+          "max_ms": 9.135889,
+          "operation": "artist_listing",
+          "operations_per_second": 1616.519373125911,
+          "p50_ms": 0.050384,
+          "p95_ms": 9.135889,
+          "p99_ms": 9.135889,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 225.918301,
+          "max_ms": 201.683547,
+          "operation": "folder_listing",
+          "operations_per_second": 70.82206235253159,
+          "p50_ms": 1.618686,
+          "p95_ms": 201.683547,
+          "p99_ms": 201.683547,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 357.75642,
+          "max_ms": 38.906315,
+          "operation": "track_listing",
+          "operations_per_second": 44.72316667301177,
+          "p50_ms": 21.20292,
+          "p95_ms": 38.906315,
+          "p99_ms": 38.906315,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 0.608078,
+          "max_ms": 0.039154,
+          "operation": "wheel_navigation",
+          "operations_per_second": 210499.31094366184,
+          "p50_ms": 0.004461,
+          "p95_ms": 0.004846,
+          "p99_ms": 0.005538,
+          "samples": 128
+        },
+        {
+          "elapsed_ms": 35.602943,
+          "max_ms": 35.602943,
+          "operation": "queue_construction",
+          "operations_per_second": 28.087565682421253,
+          "p50_ms": 35.602943,
+          "p95_ms": 35.602943,
+          "p99_ms": 35.602943,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tracks": 10000,
+      "binary": "new",
+      "elapsed_s": 74.41848431200015,
+      "database": {
+        "quick_check": {
+          "passed": true,
+          "quick_check": "ok",
+          "schema": 1,
+          "tracks": 10000,
+          "write_test": "rolled_back"
+        },
+        "measurements": [
+          {
+            "elapsed_ms": 306.907145,
+            "max_ms": 306.907145,
+            "operation": "database_create_open",
+            "operations_per_second": 3.2583144976960376,
+            "p50_ms": 306.907145,
+            "p95_ms": 306.907145,
+            "p99_ms": 306.907145,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 3310.565552,
+            "max_ms": 583.023712,
+            "operation": "batch_commit_64",
+            "operations_per_second": 47.42392124063279,
+            "p50_ms": 6.040671,
+            "p95_ms": 10.250118,
+            "p99_ms": 578.579884,
+            "samples": 157
+          },
+          {
+            "elapsed_ms": 3434.218115,
+            "max_ms": 3434.218115,
+            "operation": "initial_population",
+            "operations_per_second": 0.29118709601821546,
+            "p50_ms": 3434.218115,
+            "p95_ms": 3434.218115,
+            "p99_ms": 3434.218115,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 2464.753178,
+            "max_ms": 627.348565,
+            "operation": "incremental_upsert_batch_64",
+            "operations_per_second": 63.69806169695098,
+            "p50_ms": 7.804588,
+            "p95_ms": 10.492271,
+            "p99_ms": 588.525468,
+            "samples": 157
+          },
+          {
+            "elapsed_ms": 66.853305,
+            "max_ms": 2.428299,
+            "operation": "list_page",
+            "operations_per_second": 478.6599555549273,
+            "p50_ms": 2.066915,
+            "p95_ms": 2.172992,
+            "p99_ms": 2.428299,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 69.284524,
+            "max_ms": 2.220146,
+            "operation": "artist_lookup",
+            "operations_per_second": 461.86360463413155,
+            "p50_ms": 2.156069,
+            "p95_ms": 2.216608,
+            "p99_ms": 2.220146,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 45.66653,
+            "max_ms": 1.764224,
+            "operation": "album_lookup",
+            "operations_per_second": 700.7320240885392,
+            "p50_ms": 1.464764,
+            "p95_ms": 1.732763,
+            "p99_ms": 1.764224,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 80.086106,
+            "max_ms": 3.277142,
+            "operation": "folder_lookup",
+            "operations_per_second": 399.56993289198005,
+            "p50_ms": 2.367761,
+            "p95_ms": 3.252835,
+            "p99_ms": 3.277142,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 3.678291,
+            "max_ms": 0.210845,
+            "operation": "indexed_identity_lookup",
+            "operations_per_second": 8699.692329943444,
+            "p50_ms": 0.108538,
+            "p95_ms": 0.147076,
+            "p99_ms": 0.210845,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 20.940236,
+            "max_ms": 0.743382,
+            "operation": "search_like_query",
+            "operations_per_second": 1528.1585174111697,
+            "p50_ms": 0.644383,
+            "p95_ms": 0.716536,
+            "p99_ms": 0.743382,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 513.942274,
+            "max_ms": 513.942274,
+            "operation": "wal_checkpoint_truncate",
+            "operations_per_second": 1.9457438132438976,
+            "p50_ms": 513.942274,
+            "p95_ms": 513.942274,
+            "p99_ms": 513.942274,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 80.173334,
+            "max_ms": 80.173334,
+            "operation": "reopen_first_connection",
+            "operations_per_second": 12.472975116639155,
+            "p50_ms": 80.173334,
+            "p95_ms": 80.173334,
+            "p99_ms": 80.173334,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 63.644392,
+            "max_ms": 63.644392,
+            "operation": "reopen_warm_connection",
+            "operations_per_second": 15.712303450082452,
+            "p50_ms": 63.644392,
+            "p95_ms": 63.644392,
+            "p99_ms": 63.644392,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 216.757087,
+            "max_ms": 216.757087,
+            "operation": "startup_full_library_load",
+            "operations_per_second": 4.613459305254458,
+            "p50_ms": 216.757087,
+            "p95_ms": 216.757087,
+            "p99_ms": 216.757087,
+            "samples": 1
+          }
+        ],
+        "journal_mode": "WAL",
+        "synchronous": "NORMAL",
+        "cache_state": "OS page cache uncontrolled; reopen is not cold-device evidence",
+        "db_bytes": 4599808,
+        "wal_bytes_before_checkpoint": 4194192
+      },
+      "scan": {
+        "results": [
+          {
+            "operation": "initial_scan",
+            "result": {
+              "complete": true,
+              "discovered": 10000,
+              "elapsed_ms": 52553,
+              "failures": 0,
+              "rescanned": 10000,
+              "reused": 0,
+              "tracks_per_sec": 190.28079773951475
+            }
+          },
+          {
+            "operation": "incremental_scan",
+            "result": {
+              "complete": true,
+              "discovered": 10000,
+              "elapsed_ms": 7666,
+              "failures": 0,
+              "rescanned": 0,
+              "reused": 10000,
+              "tracks_per_sec": 1304.4430407306795
+            }
+          }
+        ],
+        "workload": "synthetic short WAV metadata, not audio decode throughput"
+      },
+      "ui": [
+        {
+          "elapsed_ms": 53.27189,
+          "max_ms": 31.776043,
+          "operation": "album_listing",
+          "operations_per_second": 300.34601738365205,
+          "p50_ms": 1.426918,
+          "p95_ms": 31.776043,
+          "p99_ms": 31.776043,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 9.939041,
+          "max_ms": 9.183506,
+          "operation": "artist_listing",
+          "operations_per_second": 1609.8132606556308,
+          "p50_ms": 0.049846,
+          "p95_ms": 9.183506,
+          "p99_ms": 9.183506,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 226.603361,
+          "max_ms": 202.720521,
+          "operation": "folder_listing",
+          "operations_per_second": 70.60795536920567,
+          "p50_ms": 1.583072,
+          "p95_ms": 202.720521,
+          "p99_ms": 202.720521,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 325.953242,
+          "max_ms": 37.523792,
+          "operation": "track_listing",
+          "operations_per_second": 49.08679509314406,
+          "p50_ms": 19.139779,
+          "p95_ms": 37.523792,
+          "p99_ms": 37.523792,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 0.586464,
+          "max_ms": 0.048693,
+          "operation": "wheel_navigation",
+          "operations_per_second": 218257.21612920827,
+          "p50_ms": 0.004154,
+          "p95_ms": 0.004616,
+          "p99_ms": 0.006076,
+          "samples": 128
+        },
+        {
+          "elapsed_ms": 38.346558,
+          "max_ms": 38.346558,
+          "operation": "queue_construction",
+          "operations_per_second": 26.077959852354937,
+          "p50_ms": 38.346558,
+          "p95_ms": 38.346558,
+          "p99_ms": 38.346558,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tracks": 20000,
+      "binary": "old",
+      "elapsed_s": 142.10688382900025,
+      "database": {
+        "quick_check": {
+          "passed": true,
+          "quick_check": "ok",
+          "schema": 1,
+          "tracks": 20000,
+          "write_test": "rolled_back"
+        },
+        "measurements": [
+          {
+            "elapsed_ms": 307.027438,
+            "max_ms": 307.027438,
+            "operation": "database_create_open",
+            "operations_per_second": 3.2570378937924107,
+            "p50_ms": 307.027438,
+            "p95_ms": 307.027438,
+            "p99_ms": 307.027438,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 4407.580241,
+            "max_ms": 603.673537,
+            "operation": "batch_commit_64",
+            "operations_per_second": 71.01402195436513,
+            "p50_ms": 4.454445,
+            "p95_ms": 7.602434,
+            "p99_ms": 579.30693,
+            "samples": 313
+          },
+          {
+            "elapsed_ms": 4639.869264,
+            "max_ms": 4639.869264,
+            "operation": "initial_population",
+            "operations_per_second": 0.2155233139344764,
+            "p50_ms": 4639.869264,
+            "p95_ms": 4639.869264,
+            "p99_ms": 4639.869264,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 3731.953046,
+            "max_ms": 665.186484,
+            "operation": "incremental_upsert_batch_64",
+            "operations_per_second": 83.87029422448956,
+            "p50_ms": 5.615596,
+            "p95_ms": 8.792892,
+            "p99_ms": 19.640853,
+            "samples": 313
+          },
+          {
+            "elapsed_ms": 2998.689145,
+            "max_ms": 97.4775,
+            "operation": "list_page",
+            "operations_per_second": 10.671329521886804,
+            "p50_ms": 93.435438,
+            "p95_ms": 97.275195,
+            "p99_ms": 97.4775,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 1359.973116,
+            "max_ms": 44.615611,
+            "operation": "artist_lookup",
+            "operations_per_second": 23.529876895007682,
+            "p50_ms": 42.122466,
+            "p95_ms": 43.974075,
+            "p99_ms": 44.615611,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 1339.210892,
+            "max_ms": 44.318843,
+            "operation": "album_lookup",
+            "operations_per_second": 23.894668264092942,
+            "p50_ms": 41.511161,
+            "p95_ms": 43.899538,
+            "p99_ms": 44.318843,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 1959.654407,
+            "max_ms": 63.695853,
+            "operation": "folder_lookup",
+            "operations_per_second": 16.329409862113508,
+            "p50_ms": 61.187861,
+            "p95_ms": 62.968933,
+            "p99_ms": 63.695853,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 4.457753,
+            "max_ms": 0.417306,
+            "operation": "indexed_identity_lookup",
+            "operations_per_second": 7178.5045066426965,
+            "p50_ms": 0.126461,
+            "p95_ms": 0.198384,
+            "p99_ms": 0.417306,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 26.722213,
+            "max_ms": 0.976842,
+            "operation": "search_like_query",
+            "operations_per_second": 1197.5056107815622,
+            "p50_ms": 0.827997,
+            "p95_ms": 0.95992,
+            "p99_ms": 0.976842,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 604.590951,
+            "max_ms": 604.590951,
+            "operation": "wal_checkpoint_truncate",
+            "operations_per_second": 1.654010861965415,
+            "p50_ms": 604.590951,
+            "p95_ms": 604.590951,
+            "p99_ms": 604.590951,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 119.90581,
+            "max_ms": 119.90581,
+            "operation": "reopen_first_connection",
+            "operations_per_second": 8.339879443706689,
+            "p50_ms": 119.90581,
+            "p95_ms": 119.90581,
+            "p99_ms": 119.90581,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 108.196773,
+            "max_ms": 108.196773,
+            "operation": "reopen_warm_connection",
+            "operations_per_second": 9.242419827068225,
+            "p50_ms": 108.196773,
+            "p95_ms": 108.196773,
+            "p99_ms": 108.196773,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 680.039996,
+            "max_ms": 680.039996,
+            "operation": "startup_full_library_load",
+            "operations_per_second": 1.470501743841549,
+            "p50_ms": 680.039996,
+            "p95_ms": 680.039996,
+            "p99_ms": 680.039996,
+            "samples": 1
+          }
+        ],
+        "journal_mode": "WAL",
+        "synchronous": "NORMAL",
+        "cache_state": "OS page cache uncontrolled; reopen is not cold-device evidence",
+        "db_bytes": 6516736,
+        "wal_bytes_before_checkpoint": 4177712
+      },
+      "scan": {
+        "results": [
+          {
+            "operation": "initial_scan",
+            "result": {
+              "complete": true,
+              "discovered": 20000,
+              "elapsed_ms": 98253,
+              "failures": 0,
+              "rescanned": 20000,
+              "reused": 0,
+              "tracks_per_sec": 203.55525268821918
+            }
+          },
+          {
+            "operation": "incremental_scan",
+            "result": {
+              "complete": true,
+              "discovered": 20000,
+              "elapsed_ms": 12789,
+              "failures": 0,
+              "rescanned": 0,
+              "reused": 20000,
+              "tracks_per_sec": 1563.750081728714
+            }
+          }
+        ],
+        "workload": "synthetic short WAV metadata, not audio decode throughput"
+      },
+      "ui": [
+        {
+          "elapsed_ms": 105.904011,
+          "max_ms": 69.32191,
+          "operation": "album_listing",
+          "operations_per_second": 151.0802079063842,
+          "p50_ms": 2.426684,
+          "p95_ms": 69.32191,
+          "p99_ms": 69.32191,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 19.324626,
+          "max_ms": 17.902553,
+          "operation": "artist_listing",
+          "operations_per_second": 827.9591025461502,
+          "p50_ms": 0.094231,
+          "p95_ms": 17.902553,
+          "p99_ms": 17.902553,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 481.883001,
+          "max_ms": 444.242441,
+          "operation": "folder_listing",
+          "operations_per_second": 33.20308034688279,
+          "p50_ms": 2.513299,
+          "p95_ms": 444.242441,
+          "p99_ms": 444.242441,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 763.574323,
+          "max_ms": 77.019576,
+          "operation": "track_listing",
+          "operations_per_second": 20.954083339441993,
+          "p50_ms": 45.791993,
+          "p95_ms": 77.019576,
+          "p99_ms": 77.019576,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 0.577152,
+          "max_ms": 0.024923,
+          "operation": "wheel_navigation",
+          "operations_per_second": 221778.66489243734,
+          "p50_ms": 0.004308,
+          "p95_ms": 0.004693,
+          "p99_ms": 0.005615,
+          "samples": 128
+        },
+        {
+          "elapsed_ms": 78.098573,
+          "max_ms": 78.098573,
+          "operation": "queue_construction",
+          "operations_per_second": 12.804331264797886,
+          "p50_ms": 78.098573,
+          "p95_ms": 78.098573,
+          "p99_ms": 78.098573,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tracks": 20000,
+      "binary": "new",
+      "elapsed_s": 161.05046821199994,
+      "database": {
+        "quick_check": {
+          "passed": true,
+          "quick_check": "ok",
+          "schema": 1,
+          "tracks": 20000,
+          "write_test": "rolled_back"
+        },
+        "measurements": [
+          {
+            "elapsed_ms": 270.223321,
+            "max_ms": 270.223321,
+            "operation": "database_create_open",
+            "operations_per_second": 3.7006428471804624,
+            "p50_ms": 270.223321,
+            "p95_ms": 270.223321,
+            "p99_ms": 270.223321,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 7130.778097,
+            "max_ms": 575.464904,
+            "operation": "batch_commit_64",
+            "operations_per_second": 43.894228055095795,
+            "p50_ms": 6.202285,
+            "p95_ms": 19.60716,
+            "p99_ms": 562.51342,
+            "samples": 313
+          },
+          {
+            "elapsed_ms": 7387.706162,
+            "max_ms": 7387.706162,
+            "operation": "initial_population",
+            "operations_per_second": 0.1353600127118862,
+            "p50_ms": 7387.706162,
+            "p95_ms": 7387.706162,
+            "p99_ms": 7387.706162,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 5080.503829,
+            "max_ms": 631.935723,
+            "operation": "incremental_upsert_batch_64",
+            "operations_per_second": 61.608063006146395,
+            "p50_ms": 7.804972,
+            "p95_ms": 12.77357,
+            "p99_ms": 612.914093,
+            "samples": 313
+          },
+          {
+            "elapsed_ms": 67.499296,
+            "max_ms": 2.448299,
+            "operation": "list_page",
+            "operations_per_second": 474.07901854265265,
+            "p50_ms": 2.080454,
+            "p95_ms": 2.259915,
+            "p99_ms": 2.448299,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 71.43597,
+            "max_ms": 2.521837,
+            "operation": "artist_lookup",
+            "operations_per_second": 447.95360096601195,
+            "p50_ms": 2.1843,
+            "p95_ms": 2.464376,
+            "p99_ms": 2.521837,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 36.501024,
+            "max_ms": 1.55284,
+            "operation": "album_lookup",
+            "operations_per_second": 876.687733472902,
+            "p50_ms": 1.102227,
+            "p95_ms": 1.280688,
+            "p99_ms": 1.55284,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 76.014725,
+            "max_ms": 2.464529,
+            "operation": "folder_lookup",
+            "operations_per_second": 420.9710684344382,
+            "p50_ms": 2.370068,
+            "p95_ms": 2.432607,
+            "p99_ms": 2.464529,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 3.862677,
+            "max_ms": 0.205845,
+            "operation": "indexed_identity_lookup",
+            "operations_per_second": 8284.410008913508,
+            "p50_ms": 0.111307,
+            "p95_ms": 0.162307,
+            "p99_ms": 0.205845,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 24.576066,
+            "max_ms": 1.03215,
+            "operation": "search_like_query",
+            "operations_per_second": 1302.0798365368973,
+            "p50_ms": 0.744228,
+            "p95_ms": 0.978535,
+            "p99_ms": 1.03215,
+            "samples": 32
+          },
+          {
+            "elapsed_ms": 437.114275,
+            "max_ms": 437.114275,
+            "operation": "wal_checkpoint_truncate",
+            "operations_per_second": 2.2877312803385337,
+            "p50_ms": 437.114275,
+            "p95_ms": 437.114275,
+            "p99_ms": 437.114275,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 129.106228,
+            "max_ms": 129.106228,
+            "operation": "reopen_first_connection",
+            "operations_per_second": 7.745559726212433,
+            "p50_ms": 129.106228,
+            "p95_ms": 129.106228,
+            "p99_ms": 129.106228,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 125.209397,
+            "max_ms": 125.209397,
+            "operation": "reopen_warm_connection",
+            "operations_per_second": 7.986621004172714,
+            "p50_ms": 125.209397,
+            "p95_ms": 125.209397,
+            "p99_ms": 125.209397,
+            "samples": 1
+          },
+          {
+            "elapsed_ms": 437.068815,
+            "max_ms": 437.068815,
+            "operation": "startup_full_library_load",
+            "operations_per_second": 2.2879692297424605,
+            "p50_ms": 437.068815,
+            "p95_ms": 437.068815,
+            "p99_ms": 437.068815,
+            "samples": 1
+          }
+        ],
+        "journal_mode": "WAL",
+        "synchronous": "NORMAL",
+        "cache_state": "OS page cache uncontrolled; reopen is not cold-device evidence",
+        "db_bytes": 9179136,
+        "wal_bytes_before_checkpoint": 4194192
+      },
+      "scan": {
+        "results": [
+          {
+            "operation": "initial_scan",
+            "result": {
+              "complete": true,
+              "discovered": 20000,
+              "elapsed_ms": 114573,
+              "failures": 0,
+              "rescanned": 20000,
+              "reused": 0,
+              "tracks_per_sec": 174.56006459114383
+            }
+          },
+          {
+            "operation": "incremental_scan",
+            "result": {
+              "complete": true,
+              "discovered": 20000,
+              "elapsed_ms": 18251,
+              "failures": 0,
+              "rescanned": 0,
+              "reused": 20000,
+              "tracks_per_sec": 1095.7738692535625
+            }
+          }
+        ],
+        "workload": "synthetic short WAV metadata, not audio decode throughput"
+      },
+      "ui": [
+        {
+          "elapsed_ms": 101.098639,
+          "max_ms": 67.32599,
+          "operation": "album_listing",
+          "operations_per_second": 158.26127985758544,
+          "p50_ms": 2.243454,
+          "p95_ms": 67.32599,
+          "p99_ms": 67.32599,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 19.79162,
+          "max_ms": 18.322088,
+          "operation": "artist_listing",
+          "operations_per_second": 808.4229588078186,
+          "p50_ms": 0.097153,
+          "p95_ms": 18.322088,
+          "p99_ms": 18.322088,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 482.73796,
+          "max_ms": 443.18541,
+          "operation": "folder_listing",
+          "operations_per_second": 33.144275623155885,
+          "p50_ms": 2.604991,
+          "p95_ms": 443.18541,
+          "p99_ms": 443.18541,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 767.864861,
+          "max_ms": 76.780878,
+          "operation": "track_listing",
+          "operations_per_second": 20.836999858494632,
+          "p50_ms": 45.837144,
+          "p95_ms": 76.780878,
+          "p99_ms": 76.780878,
+          "samples": 16
+        },
+        {
+          "elapsed_ms": 0.556235,
+          "max_ms": 0.024538,
+          "operation": "wheel_navigation",
+          "operations_per_second": 230118.5649950111,
+          "p50_ms": 0.004154,
+          "p95_ms": 0.004538,
+          "p99_ms": 0.005615,
+          "samples": 128
+        },
+        {
+          "elapsed_ms": 77.533876,
+          "max_ms": 77.533876,
+          "operation": "queue_construction",
+          "operations_per_second": 12.89758814585769,
+          "p50_ms": 77.533876,
+          "p95_ms": 77.533876,
+          "p99_ms": 77.533876,
+          "samples": 1
+        }
+      ]
+    }
+  ],
+  "sftp": [
+    {
+      "storage": "ram",
+      "direction": "upload",
+      "repeat": 0,
+      "bytes": 16777216,
+      "elapsed_s": 4.556877249000536,
+      "MB_s": 3.6817353383130436,
+      "sha256_match": true,
+      "fsync_upload": true,
+      "download_cache": "tmpfs"
+    },
+    {
+      "storage": "ram",
+      "direction": "download",
+      "repeat": 0,
+      "bytes": 16777216,
+      "elapsed_s": 3.0768972449986904,
+      "MB_s": 5.452640976968063,
+      "sha256_match": true,
+      "fsync_upload": true,
+      "download_cache": "tmpfs"
+    },
+    {
+      "storage": "ram",
+      "direction": "upload",
+      "repeat": 1,
+      "bytes": 16777216,
+      "elapsed_s": 4.680115207000199,
+      "MB_s": 3.5847869674032333,
+      "sha256_match": true,
+      "fsync_upload": true,
+      "download_cache": "tmpfs"
+    },
+    {
+      "storage": "ram",
+      "direction": "download",
+      "repeat": 1,
+      "bytes": 16777216,
+      "elapsed_s": 3.822255982002389,
+      "MB_s": 4.389349138047739,
+      "sha256_match": true,
+      "fsync_upload": true,
+      "download_cache": "tmpfs"
+    },
+    {
+      "storage": "ram",
+      "direction": "upload",
+      "repeat": 2,
+      "bytes": 16777216,
+      "elapsed_s": 4.513266538000607,
+      "MB_s": 3.7173111445424105,
+      "sha256_match": true,
+      "fsync_upload": true,
+      "download_cache": "tmpfs"
+    },
+    {
+      "storage": "ram",
+      "direction": "download",
+      "repeat": 2,
+      "bytes": 16777216,
+      "elapsed_s": 3.0965047210011107,
+      "MB_s": 5.4181141356619245,
+      "sha256_match": true,
+      "fsync_upload": true,
+      "download_cache": "tmpfs"
+    },
+    {
+      "storage": "storage",
+      "direction": "upload",
+      "repeat": 0,
+      "bytes": 16777216,
+      "elapsed_s": 6.218402739999874,
+      "MB_s": 2.697994437073135,
+      "sha256_match": true,
+      "fsync_upload": true,
+      "download_cache": "DONTNEED requested"
+    },
+    {
+      "storage": "storage",
+      "direction": "download",
+      "repeat": 0,
+      "bytes": 16777216,
+      "elapsed_s": 3.435709176999808,
+      "MB_s": 4.883188633169034,
+      "sha256_match": true,
+      "fsync_upload": true,
+      "download_cache": "DONTNEED requested"
+    },
+    {
+      "storage": "storage",
+      "direction": "upload",
+      "repeat": 1,
+      "bytes": 16777216,
+      "elapsed_s": 6.130466956001328,
+      "MB_s": 2.736694630345605,
+      "sha256_match": true,
+      "fsync_upload": true,
+      "download_cache": "DONTNEED requested"
+    },
+    {
+      "storage": "storage",
+      "direction": "download",
+      "repeat": 1,
+      "bytes": 16777216,
+      "elapsed_s": 3.0966565479975543,
+      "MB_s": 5.417848489154843,
+      "sha256_match": true,
+      "fsync_upload": true,
+      "download_cache": "DONTNEED requested"
+    },
+    {
+      "storage": "storage",
+      "direction": "upload",
+      "repeat": 2,
+      "bytes": 16777216,
+      "elapsed_s": 6.144649887999549,
+      "MB_s": 2.7303778581047826,
+      "sha256_match": true,
+      "fsync_upload": true,
+      "download_cache": "DONTNEED requested"
+    },
+    {
+      "storage": "storage",
+      "direction": "download",
+      "repeat": 2,
+      "bytes": 16777216,
+      "elapsed_s": 3.2458673200017074,
+      "MB_s": 5.168792912949743,
+      "sha256_match": true,
+      "fsync_upload": true,
+      "download_cache": "DONTNEED requested"
+    }
+  ],
+  "timer_probe": {
+    "calibration": [
+      {
+        "trial": 0,
+        "cpu": 0,
+        "ticks": 733205,
+        "ns": 56400264,
+        "hz": 13000027
+      },
+      {
+        "trial": 0,
+        "cpu": 1,
+        "ticks": 733202,
+        "ns": 56400264,
+        "hz": 12999974
+      },
+      {
+        "trial": 0,
+        "cpu": 2,
+        "ticks": 733201,
+        "ns": 56399956,
+        "hz": 13000027
+      },
+      {
+        "trial": 0,
+        "cpu": 3,
+        "ticks": 733184,
+        "ns": 56398956,
+        "hz": 12999956
+      },
+      {
+        "trial": 1,
+        "cpu": 0,
+        "ticks": 778373,
+        "ns": 59874953,
+        "hz": 12999976
+      },
+      {
+        "trial": 1,
+        "cpu": 1,
+        "ticks": 778379,
+        "ns": 59875414,
+        "hz": 12999976
+      },
+      {
+        "trial": 1,
+        "cpu": 2,
+        "ticks": 778376,
+        "ns": 59875030,
+        "hz": 13000010
+      },
+      {
+        "trial": 1,
+        "cpu": 3,
+        "ticks": 778368,
+        "ns": 59874415,
+        "hz": 13000010
+      },
+      {
+        "trial": 2,
+        "cpu": 0,
+        "ticks": 778776,
+        "ns": 59905953,
+        "hz": 12999976
+      },
+      {
+        "trial": 2,
+        "cpu": 1,
+        "ticks": 778774,
+        "ns": 59905645,
+        "hz": 13000010
+      },
+      {
+        "trial": 2,
+        "cpu": 2,
+        "ticks": 778779,
+        "ns": 59906107,
+        "hz": 12999993
+      },
+      {
+        "trial": 2,
+        "cpu": 3,
+        "ticks": 778766,
+        "ns": 59904952,
+        "hz": 13000027
+      }
+    ],
+    "ppi29": [
+      {
+        "trial": 0,
+        "cpu": 0,
+        "count": 1,
+        "ctl": 5,
+        "delay_ns": 10002376
+      },
+      {
+        "trial": 0,
+        "cpu": 1,
+        "count": 1,
+        "ctl": 5,
+        "delay_ns": 10001607
+      },
+      {
+        "trial": 0,
+        "cpu": 2,
+        "count": 1,
+        "ctl": 5,
+        "delay_ns": 10002299
+      },
+      {
+        "trial": 0,
+        "cpu": 3,
+        "count": 1,
+        "ctl": 5,
+        "delay_ns": 10003223
+      },
+      {
+        "trial": 1,
+        "cpu": 0,
+        "count": 1,
+        "ctl": 5,
+        "delay_ns": 10001761
+      },
+      {
+        "trial": 1,
+        "cpu": 1,
+        "count": 1,
+        "ctl": 5,
+        "delay_ns": 10001377
+      },
+      {
+        "trial": 1,
+        "cpu": 2,
+        "count": 1,
+        "ctl": 5,
+        "delay_ns": 10002069
+      },
+      {
+        "trial": 1,
+        "cpu": 3,
+        "count": 1,
+        "ctl": 5,
+        "delay_ns": 10002992
+      },
+      {
+        "trial": 2,
+        "cpu": 0,
+        "count": 1,
+        "ctl": 5,
+        "delay_ns": 10002454
+      },
+      {
+        "trial": 2,
+        "cpu": 1,
+        "count": 1,
+        "ctl": 5,
+        "delay_ns": 10001761
+      },
+      {
+        "trial": 2,
+        "cpu": 2,
+        "count": 1,
+        "ctl": 5,
+        "delay_ns": 10001684
+      },
+      {
+        "trial": 2,
+        "cpu": 3,
+        "count": 1,
+        "ctl": 5,
+        "delay_ns": 10003376
+      }
+    ],
+    "restored": true,
+    "resident_module": false
+  },
+  "suspend": {
+    "boot_id": "b3d92d70-521e-41d7-bca7-69b4badf00c1",
+    "freezer": "PASS_SAME_BOOT",
+    "devices": "NO_COMPLETION_RECOVERY_LOST",
+    "platform": "NOT_TESTED",
+    "processors": "NOT_TESTED",
+    "core": "NOT_TESTED",
+    "deep_entry": "NOT_TESTED",
+    "owner_restart": "REBORN_VISIBLE_USB_RECOVERY_PENDING"
+  },
+  "private_receipt_digests": {
+    "17-library-matched-ab.stdout": {
+      "bytes": 77716,
+      "sha256": "1bff9f7b71573b32447480ad3ba03c8c4f1f75cea73331dbd85a27af67b58853"
+    },
+    "29-reborn-fixed-avrcp.stdout": {
+      "bytes": 16206693,
+      "sha256": "ab222ee883fdfd332bc017510e3bd6d6659d0cea67c14b86d99c9c8bacae864b"
+    },
+    "31-cpu-bin-timer-readonly.stdout": {
+      "bytes": 11508,
+      "sha256": "e2593c05fa2833f76af86fe2e6519e88b6023eaefee06416375fd51acbd5b525"
+    },
+    "34-gpt6-local-timer-bounded.stdout": {
+      "bytes": 7963,
+      "sha256": "b23ea98f1fa02347fb4f492424926cf7ad58d0823a67f1cb918fcb7b298134ab"
+    },
+    "37-reborn-fixture-restore-complete.stdout": {
+      "bytes": 4349,
+      "sha256": "2c45ca29b11f440424ca97965224735f9a4febe7e11cf1bbe6e0b1e33caa1f52"
+    },
+    "41-clean-boot-health.stdout": {
+      "bytes": 17019,
+      "sha256": "2fdcf3c8ec5588766f81b344c963fac63f633c7cef4ced344cd0594d25ad5440"
+    },
+    "42-sftp-summary.json": {
+      "bytes": 3090,
+      "sha256": "b3d8980d7e3627306709378a3a7d03dcda0f564c097ede8677c9a3247f591c15"
+    },
+    "43-suspend-pm-test-stages.stdout": {
+      "bytes": 16297,
+      "sha256": "862d6218e22f01c7f899e14dd3d937c66f1293d649c812f5a04a82f9347aad11"
+    }
+  }
+}

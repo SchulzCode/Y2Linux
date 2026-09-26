@@ -1,5 +1,53 @@
 # Platform v1 software completion roadmap
 
+## Active hardware capability ceiling campaign — 2026-09-26
+
+Current boundary: [Hardware Batch 2 build admission](roadmap-gap-audit.md#hardware-batch-2-build-admission--2026-09-26).
+Grouped storage SDR steps, Inventra DMA, measured GPT6/PPI29 timer integration
+and the Reborn sink-contract repair are ready for host build/validation.
+The bounded timer experiment passed, followed by a clean normal reboot and
+separated SFTP measurements. Owner confirms Reborn AirPods audio and play/pause.
+**pm_test freezer passes; devices leaves the unit black/unresponsive with no
+USB recovery.** Recover the unit and progress log before further suspend work.
+No production image from this batch is built or installed yet. Older continuation
+notes below describe the evidence available at their respective boundaries.
+
+The owner's platform-wide ceiling request supersedes incremental feature
+bring-up. [Fresh entry audit](roadmap-gap-audit.md#hardware-capability-ceiling-entry--2026-09-26)
+binds the work to installed Physical 01 (Linux `198fa7c`, Reborn `feb530f`,
+candidate.3, boot `4991ba2c-0571-4649-9f7c-9e0318abb952`). Exact versions match;
+IOS reads eight-bit eMMC and four-bit SD at 13 MHz/legacy, taint and ext4 error
+counters are zero. The initial regression gate passes, including checked Wi-Fi
+DNS/TCP, owner-confirmed wired audio and clean replacement-card workloads.
+Physical 01 is the working baseline; no final ceiling or freeze is accepted. Earlier current-target descriptions below are historical.
+
+Continuation receipts `17`–`47` separate storage/query performance, identify
+stock CPU table 0 and physically prove GPT6/PPI29. The bounded probe restored
+controls and normal reboot returned taint 0. Reborn's PCM metadata repair passes
+host regression and temporary ARM SBC playback; owner confirms play/pause.
+Original binaries/session were restored. The later devices-stage suspend
+failure supersedes the earlier recovery state; retrieve progress after owner
+restart before further suspend experiments.
+
+1. Retain the verified Physical-01 regression baseline; complete matched library,
+   RAM/storage transfer, lifecycle and endurance measurements.
+2. Investigate all hardware ceilings against retained stock/vendor and current
+   physical evidence before selecting changes; preserve conservative fallbacks.
+3. Hardware Batch 2: supported eMMC/SD timing, USB transfer/DMA, working local
+   timer and observation. Hardware Batch 3: core/idle/suspend/RTC dependencies.
+4. Coherent power, radio and audio batches follow their measured prerequisites:
+   meter/pack evidence; stable SBC; real DL1 bit transport before higher rates.
+5. Build/validate each coherent batch, then one owner flash and broad regression.
+   Root OTA/rollback and endurance follow stable storage/power/core. Freeze only
+   after the final report distinguishes qualified ceilings from evidence gates.
+
+The owner confirmed menu, clean wired/AirPods tones and a known-good replacement
+SD card; Reborn AirPods play/pause works by owner report. No external USB meter
+is available presently.
+The [ceiling report](../validation/PLATFORM-V1-HARDWARE-CEILING.md) tracks these
+limits. Independent investigation continues. Existing issue owners
+remain; historical closed #30 does not mean physical power qualification.
+
 ## Active physical bring-up campaign — 2026-09-26
 
 The owner's complete campaign supersedes the earlier passive qualification

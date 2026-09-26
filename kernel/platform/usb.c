@@ -10,6 +10,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/mutex.h>
 #include <linux/power_supply.h>
 #include <linux/pm_runtime.h>
@@ -127,6 +128,7 @@ static const struct file_operations y2_fops = {
 #include <linux/of_irq.h>
 #include <linux/usb/phy.h>
 #include "/src/drivers/usb/musb/musb_core.h"
+#include "/src/drivers/usb/musb/musb_dma.h"
 #include "/project/kernel/usb/session.h"
 
 
@@ -146,6 +148,40 @@ static struct power_supply *y2_usb_input;
 static unsigned y2_usb_budget_ma;
 static DEFINE_MUTEX(y2_usb_lifecycle);
 static bool y2_usb_data_source;
+static bool y2_usb_dma_disabled;
+static bool y2_usb_dma_active;
+static unsigned int y2_usb_dma_irqs, y2_usb_dma_errors;
+
+static int __init y2_usb_dma_option(char *value)
+{
+    /* Boot-time choice only: never change DMA ownership under live requests. */
+    y2_usb_dma_disabled = strcmp(value, "on") != 0;
+    return 1;
+}
+__setup("y2.usb_dma=", y2_usb_dma_option);
+
+#if IS_ENABLED(CONFIG_USB_INVENTRA_DMA)
+static struct dma_controller *y2_musb_dma_init(struct musb *musb, void __iomem *base)
+{
+    struct dma_controller *dma;
+    if (y2_usb_dma_disabled) return NULL;
+    dma = musbhs_dma_controller_create_noirq(musb, base);
+    if (IS_ERR_OR_NULL(dma)) {
+        pr_warn("Y2USB: DMA allocation failed, retaining PIO\n");
+        return NULL;
+    }
+    /* Exact MT6582 stock DMA unmask/ack; status is sampled byte W1C later.
+     * Channel enable preflight already ran in y2_musb_init. */
+    writel(0xff0000ff, base + 0x200);
+    WRITE_ONCE(y2_usb_dma_active, true);
+    return dma;
+}
+static void y2_musb_dma_exit(struct dma_controller *dma)
+{
+    musbhs_dma_controller_destroy(dma);
+    WRITE_ONCE(y2_usb_dma_active, false);
+}
+#endif
 
 static bool y2_usb_data_permitted(void)
 {
@@ -310,8 +346,9 @@ static int y2_musb_fifos(struct musb *musb)
 static void y2_musb_enable(struct musb *musb)
 {
     if(!y2_musb_fifos(musb)) y2_usb_fail(-EIO);
-    /* Gate before SOFTCONN; DMA/IDDIG interrupt sources remain masked. */
-    writel(READ_ONCE(y2_live.result) ? 0 : 7,musb->mregs+0xa4);
+    /* Gate before SOFTCONN; ID/role interrupts remain masked. */
+    writel(READ_ONCE(y2_live.result) ? 0 :
+        (musb->dma_controller ? 15 : 7),musb->mregs+0xa4);
 }
 static irqreturn_t y2_musb_interrupt(int irq,void *context)
 {
@@ -348,6 +385,28 @@ static irqreturn_t y2_musb_interrupt(int irq,void *context)
         else rc=IRQ_HANDLED; /* owned sampled status was acknowledged */
     }
     spin_unlock_irqrestore(&musb->lock,flags);
+#if IS_ENABLED(CONFIG_USB_INVENTRA_DMA)
+    /* The upstream DMA handler takes musb->lock itself. */
+    if ((pending & BIT(3)) && musb->dma_controller) {
+        unsigned int channel;
+        ++y2_usb_dma_irqs;
+        if (dma_controller_irq(irq, musb->dma_controller) == IRQ_HANDLED)
+            rc = IRQ_HANDLED;
+        spin_lock_irqsave(&musb->lock, flags);
+        for (channel = 0; channel < 8; channel++) {
+            if (readw(musb->mregs + 0x204 + 16 * channel) & BIT(8)) {
+                ++y2_usb_dma_errors;
+                writel(0, musb->mregs + 0xa4);
+                y2_usb_fail(-EIO);
+                /* Existing worker performs orderly gadget/DMA teardown.
+                 * PIO is available on the next boot, never halfway through
+                 * a request whose transfer outcome is now uncertain. */
+                break;
+            }
+        }
+        spin_unlock_irqrestore(&musb->lock, flags);
+    }
+#endif
     return rc;
 }
 static int y2_set_peripheral(struct usb_otg *otg,struct usb_gadget *gadget)
@@ -427,7 +486,12 @@ static int y2_musb_exit(struct musb *musb)
     return 0;
 }
 static const struct musb_platform_ops y2_musb_ops={
-    .quirks=MUSB_INDEXED_EP | MUSB_PRESERVE_SESSION,.init=y2_musb_init,.exit=y2_musb_exit,
+    .quirks=MUSB_INDEXED_EP | MUSB_PRESERVE_SESSION |
+        (IS_ENABLED(CONFIG_USB_INVENTRA_DMA) ? MUSB_DMA_INVENTRA : 0),
+    .init=y2_musb_init,.exit=y2_musb_exit,
+#if IS_ENABLED(CONFIG_USB_INVENTRA_DMA)
+    .dma_init=y2_musb_dma_init,.dma_exit=y2_musb_dma_exit,
+#endif
     .enable=y2_musb_enable,.disable=y2_musb_disable,.set_mode=y2_musb_mode,
     .readb=y2_musb_readb,.writeb=y2_musb_writeb,.clearb=y2_musb_clearb,
     .readw=y2_musb_readw,.writew=y2_musb_writew,.clearw=y2_musb_clearw,
@@ -474,6 +538,7 @@ static int y2_usb_register(void)
     };
     struct platform_device_info info={.name="musb-hdrc",.id=PLATFORM_DEVID_AUTO,
         .parent=y2_usb_parent,
+        .dma_mask=DMA_BIT_MASK(32),
         .res=resources,.num_res=2,.data=&y2_musb_data,.size_data=sizeof(y2_musb_data)};
     int irq;
     if(!np) return -ENODEV;
@@ -660,6 +725,9 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
         READ_ONCE(y2_live.polls), READ_ONCE(y2_live.chrdet), READ_ONCE(y2_live.irqs), READ_ONCE(y2_live.events));
     n += sysfs_emit_at(buf, n, "recovery=%d writes=%u power=%d clock=%d\n",
         y2_power.wake.result, y2_power.wake.written, y2_power.power.result, y2_power.clock.result);
+    n += sysfs_emit_at(buf, n, "transfer=%s dma_irqs=%u dma_errors=%u dma_boot_disabled=%u\n",
+        READ_ONCE(y2_usb_dma_active) ? "inventra_dma" : "pio",
+        READ_ONCE(y2_usb_dma_irqs), READ_ONCE(y2_usb_dma_errors), y2_usb_dma_disabled);
     for (i=0; i<Y2_USB_STATE_COUNT; i++)
         n += sysfs_emit_at(buf,n,"initial_%08x=%x valid=%u\n",y2_usb_registers[i].address,
             y2_power.usb.values[i],!!(y2_power.usb.valid & (1U<<i)));
