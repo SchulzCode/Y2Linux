@@ -27,6 +27,13 @@ static void response(u32 status) {
 int main(int argc,char **argv) {
     assert(argc==2);FILE *file=fopen(argv[1],"rb");assert(file);
     assert(fread(factory_mbr,1,512,file)==512);fclose(file);
+    /* A failed clock restoration must reject both hosts before any DMA or
+     * command preparation, including a filesystem write. */
+    for (unsigned sd=0;sd<2;sd++) {
+        setup(25,2104320,8,true);host.y2_emmc=!sd;host.y2_sd=sd;
+        host.y2_clock_error=-EIO;msdc_ops_request(&mmc,&mrq);
+        assert(done==1&&cmd.error==-EIO&&!ncommands&&!prepared&&!started);
+    }
     /* Without the Y2 mapping, a raw sector-zero read sees the reserved prefix. */
     setup(17,0,1,false);host.y2_emmc=false;msdc_ops_request(&mmc,&mrq);
     assert(arguments[0]==0);response(0);

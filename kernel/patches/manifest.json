@@ -88,7 +88,7 @@
       "path": "drivers/mmc/host/mtk-sd.c",
       "patch": "0009-y2-msdc-readonly.patch",
       "base_sha256": "8fd10e3a6f6d60e37216de79b2d7a8b8f766c7d7e5cdd5851cccfe375e2536d1",
-      "result_sha256": "1bf6969fd56cbcf646a87464d7c22328fc7e49c04b26bb3d3fd430612750220a"
+      "result_sha256": "03fc2468a1e22531fe294f50f26bd71a86b27437079924040f2b2a22c69690d8"
     },
     {
       "path": "drivers/gpu/drm/mediatek/mtk_crtc.c",

@@ -105,7 +105,10 @@ admits a grouped host build. None of these new modes is physically qualified:
 - Storage: 8/4-bit SDR high speed at existing 3.3 V, inherited stock source,
   initial 25 MHz cap; root-only `y2_clock_limit_hz` on the host accepts only
   13/25/50 MHz caps while owning the idle host. Negotiated card speed stays an
-  upper bound; actual IOS frequency must be measured. `y2.mmc_safe=1` preserves
+  upper bound; actual IOS frequency must be measured. Clock stability waits
+  are bounded at 20 ms; failed changes restore the preceding clock and cap.
+  Failed restoration rejects subsequent requests before command/DMA preparation
+  and requires reboot into the safe profile. `y2.mmc_safe=1` preserves
   the 26 MHz crystal / 13 MHz legacy fallback. No DDR/UHS/HS200/voltage change;
   no automatic CRC downshift claim.
 - USB: upstream Inventra DMA via the source-backed shared interrupt, 32-bit
