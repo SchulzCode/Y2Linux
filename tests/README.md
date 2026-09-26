@@ -15,6 +15,9 @@ remain available for focused runs, but are not treated as a current production
 qualification result merely because broad unittest discovery collected them.
 `test_system_update_fallback` uses a real temporary ext4 image to check the
 root-overlay fallback's kernel, filesystem, version and preservation contract.
+It requires native e2fsprogs and blkid on the packaging host. The locked kernel
+environment lacks these tools; its explicit skip must be accompanied by a
+passing packaging-host run, plus validation of the actual fallback image.
 In particular, `test_baseline*`, `test_dev*`, and profile-named hardware
 contracts preserve evidence for their named source/profile boundaries.
 

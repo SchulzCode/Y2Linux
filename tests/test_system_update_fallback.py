@@ -2,6 +2,7 @@
 import copy
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -11,6 +12,8 @@ from tools.production.system_update import overlay_fallback
 
 
 class OverlayFallback(unittest.TestCase):
+    @unittest.skipUnless(all(shutil.which(name) for name in ('mke2fs', 'debugfs', 'e2fsck', 'blkid')),
+                         'requires native e2fsprogs/blkid; run explicitly on the packaging host')
     def test_real_image_versions_and_compatible_boot_are_required(self):
         with tempfile.TemporaryDirectory() as directory:
             area = Path(directory)
