@@ -13,6 +13,8 @@ they validate the package path. The retained top-level test modules outside
 that list are subsystem or historical/profile-specific regression tests. They
 remain available for focused runs, but are not treated as a current production
 qualification result merely because broad unittest discovery collected them.
+`test_system_update_fallback` uses a real temporary ext4 image to check the
+root-overlay fallback's kernel, filesystem, version and preservation contract.
 In particular, `test_baseline*`, `test_dev*`, and profile-named hardware
 contracts preserve evidence for their named source/profile boundaries.
 

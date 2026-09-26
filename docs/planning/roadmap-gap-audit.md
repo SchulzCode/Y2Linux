@@ -2,6 +2,15 @@
 
 ## Physical Fix Batch 1 admission — 2026-09-26
 
+Batch refinement from receipts 49–52: include the Bluetooth UI's false
+Connected→Paired inference in the existing radio repair. Owner deferred the
+next headphone session; Pairable was explicitly closed. The fallback packaging
+path must bind the physically running Telemetry 01 root-overlay receipt to its
+unchanged original BOOTIMG, while retaining the full release's geometry and
+data contract. Exact image/version/filesystem checks and rejection tests now
+cover this extension. These are within the admitted batch, with no additional
+hardware activation or milestone closure; artifact and physical gates remain.
+
 Owner authority is the complete physical bring-up request, including coherent
 kernel/platform/application fixes and later manual installation. Repository heads
 remain Linux `e88d044` and Reborn `9125788`; installed Telemetry 01 identity and

@@ -26,6 +26,48 @@ def preserving_scatter(stock):
     return text.replace('file_name: Y2DATA.img', 'file_name: NONE')
 
 
+def overlay_fallback(previous, overlay, image):
+    """Verify a reviewed root overlay against its unchanged BOOTIMG and image.
+
+    The geometry/data contract still comes from the full production manifest.
+    An overlay receipt is never treated as a full release manifest.
+    """
+    from tools.production.validate import run
+    require(overlay.get('schema') == 'org.y2linux.telemetry-root-overlay/v1',
+            'supported root overlay receipt')
+    versions = overlay['platform_versions']
+    oldboot = next(p for p in previous['payloads'] if p['target_partition'] == 'BOOTIMG')
+    oldroot = copy.deepcopy(next(p for p in installed_components(previous)
+                                 if p['target_partition'] == 'ANDROID'))
+    require(overlay.get('required_installed_bootimg') == oldboot['raw'],
+            'overlay requires the exact fallback BOOTIMG')
+    for field in ('kernel_version', 'layout_version', 'data_schema_version', 'platform_api_version'):
+        require(versions.get(field) == previous.get(field), 'overlay compatibility ' + field)
+    require(versions.get('kernel_source_commit') == overlay.get('base_platform_source_commit') ==
+            previous['build_git_commit'], 'overlay retained kernel provenance')
+    source = overlay.get('source_commit', '')
+    require(len(source) == 40 and all(c in '0123456789abcdef' for c in source) and
+            versions.get('build_git_commit') == source, 'overlay root source identity')
+    require(overlay.get('selected_partitions') == ['ANDROID'] and
+            overlay.get('bootimg_payload_included') is False, 'root-only overlay scope')
+    root = overlay['root']
+    require(root['file'] == 'Y2ROOT.img' and root['bytes'] == oldroot['raw']['size_bytes'],
+            'overlay root filename and geometry')
+    require(image.stat().st_size == root['bytes'] and digest(image) == root['sha256'],
+            'overlay fallback image identity')
+    on_image = json.loads(run('debugfs', '-R', 'cat /etc/y2linux/versions.json', str(image)))
+    require(on_image == versions, 'overlay on-image version identity')
+    identity = run('blkid', '-p', '-o', 'export', str(image)).decode()
+    for key, value in [('TYPE', 'ext4'), ('LABEL', oldroot['filesystem']['label']),
+                       ('UUID', oldroot['filesystem']['uuid'])]:
+        require(key + '=' + value + '\n' in identity, 'overlay filesystem ' + key)
+    run('e2fsck', '-f', '-n', str(image))
+    oldroot['version'] = versions['rootfs_version']
+    oldroot['raw'] = {'file': root['file'], 'size_bytes': root['bytes'], 'sha256': root['sha256']}
+    oldroot['spft'] = {'format': 'raw-ext4', **oldroot['raw']}
+    return oldroot
+
+
 def validate_preservation(out, manifest):
     from tools.connectivity.provision import DEFAULTS, INVENTORY
     previous = json.loads((out/'metadata/base-manifest.json').read_text())
@@ -47,6 +89,11 @@ def validate_preservation(out, manifest):
     require(manifest['minimum_compatible_components'] == previous['minimum_compatible_components'], 'platform compatibility')
     oldroot = next(p for p in installed_components(previous) if p['target_partition']=='ANDROID')
     oldboot = next(p for p in previous['payloads'] if p['target_partition']=='BOOTIMG')
+    if 'overlay_manifest_sha256' in manifest['fallback']:
+        receipt = out/'metadata/fallback-overlay-manifest.json'
+        require(digest(receipt) == manifest['fallback']['overlay_manifest_sha256'],
+                'fallback overlay receipt identity')
+        oldroot = overlay_fallback(previous, json.loads(receipt.read_text()), out/'fallback/Y2ROOT.img')
     for old in (oldboot, oldroot):
         path=out/'fallback'/old['raw']['file']
         require(path.stat().st_size == old['raw']['size_bytes'] and digest(path)==old['raw']['sha256'], 'fallback image identity')
@@ -63,7 +110,7 @@ def validate_preservation(out, manifest):
              'redistribution_permission_established':False,'files':files}, 'reviewed firmware receipt')
 
 
-def package(build, base, fallback_root, out):
+def package(build, base, fallback_root, out, fallback_overlay=None):
     from tools.production.validate import validate_manifest, validate_rootfs
     from tools.production.application import receipt as reborn_application
     ffmpeg_version=(REBORN/'FFMPEG_VERSION').read_text().strip()
@@ -75,6 +122,8 @@ def package(build, base, fallback_root, out):
     previous=validate_manifest(base)
     components=installed_components(previous)
     oldroot=next(p for p in components if p['target_partition']=='ANDROID')
+    if fallback_overlay is not None:
+        oldroot=overlay_fallback(previous,json.loads(fallback_overlay.read_text()),fallback_root)
     require(fallback_root.stat().st_size==oldroot['raw']['size_bytes'] and digest(fallback_root)==oldroot['raw']['sha256'], 'accepted root fallback')
     out.mkdir(); (out/'metadata').mkdir(); (out/'fallback').mkdir()
     shutil.copyfile(build/'BOOTIMG.img',out/'BOOTIMG.img')
@@ -82,6 +131,8 @@ def package(build, base, fallback_root, out):
     shutil.copyfile(base/'BOOTIMG.img',out/'fallback/BOOTIMG.img')
     subprocess.run(['cp','--sparse=always',str(fallback_root),str(out/'fallback/Y2ROOT.img')],check=True)
     shutil.copyfile(base/'manifest.json',out/'metadata/base-manifest.json')
+    if fallback_overlay is not None:
+        shutil.copyfile(fallback_overlay,out/'metadata/fallback-overlay-manifest.json')
     for name in ('partitions.json','storage-addressing.json','readback-plan.json','kernel-COPYING','Buildroot-COPYING'):
         shutil.copyfile(base/'metadata'/name,out/'metadata'/name)
     for name in ('versions.json','layout.json','rescue-manifest.json','kernel-source-commit','owner-firmware.json'):
@@ -138,6 +189,8 @@ def package(build, base, fallback_root, out):
     manifest['fallback']={'policy':f"restore previous BOOTIMG ({previous['kernel_version']}) and Y2ROOT ({oldroot['version']}); preserve Y2DATA",
         'images':[{'file':'fallback/'+p['raw']['file'],'size_bytes':p['raw']['size_bytes'],'sha256':p['raw']['sha256']}
                   for p in (next(p for p in previous['payloads'] if p['target_partition']=='BOOTIMG'),oldroot)]}
+    if fallback_overlay is not None:
+        manifest['fallback']['overlay_manifest_sha256']=digest(out/'metadata/fallback-overlay-manifest.json')
     scatter='MT6582_preserve_data_scatter.txt'
     stock=(PROJECT/'tests/fixtures/production/MT6582_Android_scatter.txt').read_text()
     (out/scatter).write_text(preserving_scatter(stock)); (out/'fallback'/scatter).write_text(preserving_scatter(stock))
@@ -156,9 +209,12 @@ def main():
     parser.add_argument('--build',type=Path,required=True)
     parser.add_argument('--base',type=Path,required=True)
     parser.add_argument('--fallback-rootfs',type=Path,required=True)
+    parser.add_argument('--fallback-overlay-manifest',type=Path,
+                        help='reviewed root-overlay receipt for the exact fallback root and unchanged base BOOTIMG')
     parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args()
-    package(args.build.resolve(),args.base.resolve(),args.fallback_rootfs.resolve(),args.output.resolve())
+    package(args.build.resolve(),args.base.resolve(),args.fallback_rootfs.resolve(),args.output.resolve(),
+            args.fallback_overlay_manifest.resolve() if args.fallback_overlay_manifest else None)
 
 
 if __name__=='__main__': main()

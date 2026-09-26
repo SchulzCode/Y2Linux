@@ -334,6 +334,16 @@ D-Bus test covers missing bonds, authentication rejection, successful ordering
 and cancellation. y2-bt-reconnect remains the sole automatic connection owner.
 No SBC, AVRCP, reconnect or coexistence pass is claimed yet.
 
+Receipts `49`/`50` again show Connected=true with Paired=false, Bonded=false
+and no PCM. The UI independently collapses Connected into Paired, hiding
+Pair & Connect and enabling Use for Audio without a transport. The same batch
+now carries explicit paired/bonded/connected/audio-ready presentation fields;
+an incomplete link retains Pair & Connect, and audio selection requires the
+observed playback PCM. Regression cases include a transport disappearing while
+the menu is open. A bounded retry window (`51`) was closed (`52`, Pairable=false)
+when the owner requested postponing headphone testing. No further pairing or
+listening action is currently requested.
+
 ## Fix Batch 1 source and host gate
 
 The [admission audit](../planning/roadmap-gap-audit.md#physical-fix-batch-1-admission--2026-09-26)
@@ -344,10 +354,19 @@ bind capabilities to installed release identity, and mark jack observation null
 until codec IRQ qualification. No charger current, voltage, trip, SOC/shutdown,
 timer/SPM, VBUS or audio format expansion is included.
 
-Current-source Reborn workspace: 178 tests pass. Platform targeted suite: 84
+Current-source Reborn workspace: 179 tests pass after the UI regression. Platform targeted suite: 84
 pass, one emitted-DT case pending actual ARM artifact (not silently accepted).
 The initial standalone connectivity test invocation lacked its documented
 PYTHONPATH; the corrected invocation passes. New meaningful cases cover every
 filter combination/migration, Bluetooth failure/cleanup and unavailable-vs-I/O
 fault cache advice. Full production artifact tests, ARM build and physical
 regression remain required before candidate acceptance.
+
+The preserving system packager now accepts an explicit, separately validated
+Telemetry 01 root-overlay receipt for fallback. It checks the exact old BOOTIMG,
+root hash/size, on-image versions, filesystem label/UUID/cleanliness, kernel
+provenance and unchanged layout/data schema. The full production manifest still
+owns geometry; an overlay is not promoted to a full release manifest. An actual
+ext4 fixture verifies acceptance and nine mismatched input cases. The retained
+current root (`4a8e520946ad1aaa00df46e9f302463341e4408bba063f43728b8cb8f68bb092`)
+passes this check. This prepares a coherent fallback; no flashing is performed.
