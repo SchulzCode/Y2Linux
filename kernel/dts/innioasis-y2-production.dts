@@ -1,3 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Compatibility filename: one canonical Y2 hardware description. */
+/* One canonical hardware description; production candidate scope below. */
 #include "innioasis-y2.dts"
+
+/* Physical campaign PHY-002: exact stock Y2 msdc_hw data specifies 8/4 data
+ * pins. Retain the existing 13 MHz, 3.3 V and legacy timing. MMC core verifies
+ * read-only EXT_CSD fields after widening and falls back on a mismatch.
+ * The minimal first-boot profile retains its conservative one-bit setting. */
+&mmc0 { bus-width = <8>; };
+&mmc1 { bus-width = <4>; };

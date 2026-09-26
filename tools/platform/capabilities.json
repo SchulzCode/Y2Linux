@@ -1,6 +1,6 @@
 {
   "schema": "org.y2linux.capabilities/v1",
-  "platform_version": "1.0.0-candidate.1",
+  "platform_version": null,
   "api_version": 1,
   "qualification_scope": "No integrated physical or endurance qualification for this candidate",
   "capabilities": {

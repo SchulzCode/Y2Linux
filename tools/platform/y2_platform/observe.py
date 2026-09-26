@@ -396,6 +396,8 @@ def snapshot(ctx, pids=(), pss=False, interval=0):
               'power': power(ctx), 'storage': storage(ctx), 'wifi': wifi(ctx),
               'bluetooth': bluetooth(ctx), 'system': system(ctx),
               'audio': {'cards': ctx.read('/proc/asound/cards'), 'pcm': ctx.read('/proc/asound/pcm'),
+                        'headphone_jack_present': None,
+                        'headphone_jack_reason': 'codec_irq_not_qualified',
                         'qualified_profile': ctx.json('/etc/y2linux/audio-qualified.json'),
                         'hw_params': {str(p.relative_to(ctx.root)): read(p)
                                       for p in ctx.glob('/proc/asound/card*/pcm*/sub*/hw_params')}}}

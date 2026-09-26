@@ -1,5 +1,34 @@
 # Platform v1 software completion roadmap
 
+## Active physical bring-up campaign — 2026-09-26
+
+The owner's complete campaign supersedes the earlier passive qualification
+scope. The [entry audit](roadmap-gap-audit.md#complete-physical-bring-up-campaign-entry--2026-09-26)
+reconciles current Telemetry 01 hardware evidence with every coverage area.
+Order: broad bounded census → root-cause clusters → coherent fixes → host/ARM/
+candidate validation → necessary owner installation → broad regression; repeat.
+Independent tests continue after ordinary failures. Only the named safety and
+recovery conditions stop all hardware work. No planning row authorizes guessed
+SPM, storage clocks, charger limits, VBUS or audio formats.
+
+Current physical target: Linux userspace `814c2f3`, kernel/base `d04b95a`, Reborn
+`1556083`, Telemetry 01; newer repository heads and original candidate are distinct.
+All historical failures and limited passes below remain evidence, with old
+authorization restrictions superseded only by this new explicit owner scope.
+The [bring-up report](../validation/PLATFORM-V1-PHYSICAL-BRINGUP.md) and
+[master issue table](../validation/PLATFORM-V1-PHYSICAL-ISSUES.md) track progress.
+Existing issues stay open; no platform/endurance acceptance is declared.
+
+The [Fix Batch 1 admission audit](roadmap-gap-audit.md#physical-fix-batch-1-admission--2026-09-26)
+refreshes all coverage after the broad real-device census. Implement the measured
+Wi-Fi checksum, legacy storage-width, benchmark/PSS, library query and Bluetooth
+pair/connect fixes as one candidate, then regress the whole baseline. Stock Y2
+evidence supports eight/four data lines at the existing storage clock; higher
+clocks, timer/SPM activation, charger changes, USB VBUS and wider audio remain
+gated. The removed inconsistent FAT card stays isolated. Physical SBC pairing
+diagnosis continues with a bounded standard Pairable window while source work
+proceeds; no pass is inferred from ACL Connected alone.
+
 2026-09-23. Owner-authorized software implementation, local commits only; no
 physical-device access or flashing. This roadmap does not close hardware epics.
 Entry revisions: Linux `5f6b4468fb43605ca1da679420823afa72cea73f`, Reborn

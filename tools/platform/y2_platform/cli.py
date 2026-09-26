@@ -213,6 +213,9 @@ def main():
     else:
         result = ctx.json('/etc/y2linux/capabilities.json', {
             'schema': 'org.y2linux.capabilities/v1', 'state': 'Unavailable'})
+        # A root overlay may retain an older capability template. Runtime
+        # identity always comes from the installed release, never the template.
+        result['platform_version'] = ctx.json('/etc/y2linux/versions.json', {}).get('release_version')
         for name, path in [('wifi', '/data/network/enabled'), ('bluetooth', '/data/bluetooth/enabled')]:
             if name in result.get('capabilities', {}):
                 result['capabilities'][name]['enabled'] = ctx.read(path) == '1'

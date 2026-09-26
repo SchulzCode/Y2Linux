@@ -60,6 +60,9 @@ install -m 644 "$project/tools/update/trust.json" "$target/etc/y2linux/update-tr
 python3 - "$target/etc/y2linux" <<'PYUPDATE'
 import json, pathlib, sys
 root=pathlib.Path(sys.argv[1]); versions=json.loads((root/'versions.json').read_text())
+caps=json.loads((root/'capabilities.json').read_text())
+caps['platform_version']=versions['release_version']
+(root/'capabilities.json').write_text(json.dumps(caps, indent=2)+'\n')
 (root/'update-compat.json').write_text(json.dumps(dict(schema=1, product='Y2',
     hardware_revision='innioasis-y2-mt6582', kernel=versions['kernel_version'],
     rootfs_contract='y2-platform-v1', sequence=0), separators=(',',':')))

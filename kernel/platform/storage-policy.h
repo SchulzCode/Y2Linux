@@ -57,7 +57,9 @@ static inline int y2_emmc_request_allowed(const struct y2_emmc_request *r)
         case 161: return value <= 1;                /* HPI management */
         case 175: return value == 1;                /* ERASE_GROUP_DEF */
         case 179: return r->identified && value == (r->part_config & ~7U);
-        case 183: return value == 0;                /* supported one-bit bus */
+        /* Stock Y2 MSDC0 has eight data pins. Allow SDR 1/4/8-bit selection
+         * and fallback only; DDR and enhanced-strobe encodings stay denied. */
+        case 183: return value <= 2;
         case 185: return value == 0;                /* supported legacy timing */
         default: return 0;
         }

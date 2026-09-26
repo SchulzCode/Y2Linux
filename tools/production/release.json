@@ -1,6 +1,6 @@
 {
-  "release_version": "1.0.0-candidate.1",
-  "rootfs_version": "2025.02.18-platform-v1.1",
-  "build_id": "Y2LINUX-PLATFORM-V1-CANDIDATE-01",
+  "release_version": "1.0.0-candidate.3",
+  "rootfs_version": "2025.02.18-platform-v1.3",
+  "build_id": "Y2LINUX-PLATFORM-V1-PHYSICAL-01",
   "platform_api_version": 1
 }

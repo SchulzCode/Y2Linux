@@ -81,6 +81,24 @@ class StorageTools(unittest.TestCase):
         self.assertEqual(result['MB_per_second'], 100)
         self.assertEqual(result['operations_per_second'], 400)
 
+    def test_missing_cache_advice_preserves_readback_without_cold_read_claim(self):
+        with patch('y2_platform.bench.os.posix_fadvise', side_effect=OSError(errno.EINVAL, 'unavailable')):
+            result = storage_benchmark(self.ctx, size_mib=1, operations=1, guard=lambda: 'mount1')
+        self.assertEqual(result['record']['result'], 'OK')
+        self.assertEqual(len(result['cache_advice']), 8)
+        self.assertTrue(all(a['state'] == 'unavailable' and a['errno'] == errno.EINVAL
+                            for a in result['cache_advice']))
+        self.assertEqual(result['record']['parameters']['cold_read'], 'not_guaranteed')
+        self.assertTrue(any(m['operation'] == 'random_read_1048576' for m in result['measurements']))
+        self.assertEqual(list(self.ctx.path('/data/.y2-bench').iterdir()), [])
+
+    def test_cache_advice_io_fault_is_not_downgraded_to_unavailable(self):
+        with patch('y2_platform.bench.os.posix_fadvise', side_effect=OSError(errno.EIO, 'media fault')):
+            result = storage_benchmark(self.ctx, size_mib=1, operations=1, guard=lambda: 'mount1')
+        self.assertEqual(result['record']['result'], 'FAILED')
+        self.assertEqual(result['record']['failure']['errno'], errno.EIO)
+        self.assertFalse(any('read_' in m['operation'] for m in result['measurements']))
+
     def card_fixture(self):
         partition = self.ctx.path('/sys/devices/platform/11240000.mmc/block/mmcblk1/mmcblk1p1')
         partition.mkdir(parents=True)

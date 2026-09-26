@@ -127,7 +127,8 @@ def check(data, initrd_size, production=True):
     require(nodes['/usb@11200000']['compatible']==strings('innioasis,y2-usb') and nodes['/usb@11200000']['dr_mode']==strings('peripheral'),'known USB glue/role')
     for path in ('/mmc@11230000','/mmc@11240000'):
         v=nodes[path]
-        require(v['bus-width']==cells(1),'SD conservative width')
+        width = (8 if path == '/mmc@11230000' else 4) if production else 1
+        require(v['bus-width']==cells(width),'reviewed Y2 storage data-pin width')
         if path=='/mmc@11230000':
             require(v['status']==strings('okay') and v['compatible']==strings('innioasis,y2-mmc'),'internal eMMC firewall')
             require(v['max-frequency']==cells(13000000),'internal legacy frequency')

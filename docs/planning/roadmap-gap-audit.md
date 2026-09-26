@@ -1,5 +1,99 @@
 # Y2Linux roadmap and gap audit
 
+## Physical Fix Batch 1 admission — 2026-09-26
+
+Owner authority is the complete physical bring-up request, including coherent
+kernel/platform/application fixes and later manual installation. Repository heads
+remain Linux `e88d044` and Reborn `9125788`; installed Telemetry 01 identity and
+boot are unchanged from the entry audit. Private receipts `00`–`45` and the
+[physical report](../validation/PLATFORM-V1-PHYSICAL-BRINGUP.md) supply this review.
+Existing unrelated dirty documentation/assets remain preserved. No milestone or
+issue closure is warranted; the existing #16/#27–#29/#31–#34 owners remain.
+
+| Coverage | Refreshed hardware evidence / remaining boundary |
+| --- | --- |
+| Boot/recovery, firmware, protected storage (#16/#28/#31/#33) | PARTIAL: same boot and pinned SSH throughout; internal ext4 errors 0/0 and taint 0. Existing paired fallback must accompany the candidate. No loader, calibration, NVRAM, protected-area or partition-layout change. |
+| eMMC/buses (#28/#33) | PARTIAL: verified O_DIRECT throughput 1.25–1.60 MB/s at one-bit 13 MHz. Exact retained stock Y2 platform data proves MSDC0 eight data pins and MSDC1 four; stock and current SDC_CFG width encodings agree. Admit width-only 8/4-bit software change at the existing 13 MHz/3.3 V/legacy timing. Standard MMC EXT_CSD read comparison/fallback remains mandatory; no clock/voltage/DDR expansion. Physical acceptance is pending. |
+| SD/filesystems (#33) | PARTIAL: real FAT32 card has zero serial, no blkid UUID, dirty flag and inconsistent label metadata. Global stop was honored; owner removed the unmounted card, internal checks then allowed resumption. Card remains gated. Stable serial-less identity and clean-card lifecycle are subsequent implementation/physical work, not a pass. |
+| SQLite/library (#32/#33) | PARTIAL: actual ARM 1k/10k/20k scans, queries, WAL/checkpoint/reopen and RSS measured; quick_check passes. Exact 20k query/index A/B reproduces sorting cost and substantial improvement with unchanged results. Admit measured indexing/predicate changes; preserve schema compatibility and measure write cost. |
+| RAM/DMA/SMP/telemetry (#16/#28/#34) | PARTIAL: no observed OOM/corruption; PSS unavailable from missing PROC_PAGE_MONITOR. Admit this observation facility and ADVISE_SYSCALLS, required by the failed real benchmark. Reservations, DMA ownership and CPU topology remain unchanged. |
+| CPU/idle/display/GPU/input (#28/#34) | PARTIAL: four cores, three OPPs, screen-off GPU suspend and WFI residency measured. Stock local timer PPI29 is a lead, not proof of current firmware routing/rate. Deeper idle and local-timer activation remain BLOCKED_BY_EVIDENCE; no invented clockevent/SPM sequence. |
+| Charging/battery/thermal (#30) | PARTIAL: observed charging voltage gain and normal owner-reported warmth; die temperatures roughly 50–57°C in measured workloads. No pack-current/temperature/SOC calibration or controlled charge/discharge curve. Existing limits and disabled shutdown thresholds remain; meter/pack evidence and supervised physical tests required. |
+| Suspend/RTC/time (#30/#34) | PARTIAL: RTC reads/ticks but is dated 2022; system time uses the release floor. NTP blocked by Wi-Fi DNS. Prior CPU3 ACK failure/correction still requires controlled same-boot resume, power-key and later RTC wake. No suspend activation in this batch. |
+| Wired/high-resolution audio (#29) | PARTIAL: owner hears six clean alternating S16/44.1/48-kHz stereo tones, correct hw_params and no XRUN. Jack telemetry lacks codec IRQ and is not physically truthful. Long playback, IRQ routing, preserved-24 and high-rate clock evidence remain gates. |
+| Wi-Fi/Bluetooth/codecs (#31) | PARTIAL: WPA2/DHCP/route/ping pass; DNS succeeds only in a diagnostic that bypasses the falsely advertised TX checksum offload. Admit software-checksum fix. AirPods ACL appears, but no bond/PCM; trace and exact kernel code expose non-bondable authentication, and Reborn omits Connect after Pair. Admit bounded pairable lifecycle, verified bond and explicit connect sequencing. Sole automatic reconnect owner remains y2-bt-reconnect. SBC/AVRCP/coexistence and all optional codecs remain physical gates. |
+| USB device/host (#27/#32) | PARTIAL: 129 SFTP files pass both-direction hashes; durable 64-MiB upload 1.327 MB/s, warm-cache download 5.727 MB/s. Cable/PC cycles pending. Host role/VBUS remains BLOCKED_BY_EVIDENCE. |
+| Userspace/shutdown/OTA/reset/endurance (#32/#33) | PARTIAL: short independent workloads are measured. No real root-update/rollback, full reset, shutdown reserve or endurance acceptance. Safe package/backup checks precede separately approved destructive/update/power sessions. |
+
+Decision: READY for coherent source implementation and host/ARM validation;
+PARTIALLY READY for candidate qualification after fresh packaging audit and
+owner installation. First batch addresses measured transport, observation and
+application faults together. It does not require completion of gated SD, battery,
+suspend, USB-host or precision-audio work before repairing the usable baseline.
+No generic stock platform or speculative register value substitutes for Y2
+evidence. Recovery and broad physical regression remain candidate exit gates.
+
+## Complete physical bring-up campaign entry — 2026-09-26
+
+The owner explicitly authorizes a broad physical census, source diagnosis and
+coherent software/kernel fixes, candidate builds and repeated qualification.
+This supersedes the September 25 passive/fail-fast scope: ordinary warnings and
+individual subsystem failures are recorded while independent work continues.
+Global stops are unsafe kernel panic/Oops, filesystem corruption, protected
+partition access, uncontrolled repeated reboot, dangerous charger/battery/heat,
+lost recovery, or destructive writes outside dedicated test areas. Manual flashes,
+OTA apply/rollback experiments, card swaps/surprise removal, full-user reset and
+long unattended power/suspend work retain the owner's explicit action gates.
+
+Entry repository heads: Linux `e88d0444d7365ffc539f013bdb4f3177160bf8e9`, Reborn
+`912578848f3094dd276d8cdb6e030c8ae10f71a9`. Existing Linux documentation edits
+and Reborn asset deletions/untracked review/assets are preserved. Git identity,
+authenticated account and remote issue status are unchanged. Read-only tracker
+inventory still reports #16/#27/#28/#29/#31/#32/#33/#34 OPEN, historical #30 CLOSED.
+
+Fresh authenticated USB evidence at 14:31–14:33 UTC binds this campaign to
+Telemetry 01: Linux userspace `814c2f3`, kernel/base `d04b95a`, Reborn `1556083`,
+release `1.0.0-candidate.2`, rootfs `2025.02.18-platform-v1.2`, API 1, boot
+`09de0586-278c-4d37-a68f-17ac9952740c`. Complete versions metadata matches
+`out/y2linux-platform-v1-telemetry-01-candidate/`, not the older original package
+named in the brief. Both comparisons are retained; the current installed
+candidate is the expressly requested target. Whole installed images were not
+read back. Strict existing SSH pin/login key remain in use.
+
+Re-read retained Storage06, GPU-01, CONNECTIVITY-10 and USB reconnect receipts,
+the September 23 review/capability/owner ledgers and September 25 physical results.
+Refresh the full coverage matrix before admitting workloads:
+
+| Coverage / owner | Evidence at entry and remaining boundary |
+| --- | --- |
+| Boot/rescue #16/#28/#32 | PARTIAL: current normal boot, first-frame record and USB shell; prior manual recovery evidence. Current rescue rehearsal/repeated boots pending. |
+| Kernel/diagnostics #16/#28 | PARTIAL: taint 0, no retained panic/Oops/WARN-stack or ext4 I/O corruption signature; ordinary warnings need classification, not global stop. |
+| RAM/DMA/SMP #28/#34 | PARTIAL: prior four-core/short allocator evidence; current pressure/PSS/growth and timer behavior to measure. Reservations unchanged. |
+| Clocks/buses/reset #28 | PARTIAL: current probes; constrained MSDC and dummy local timers need source/hardware correlation. No speculative timing or SPM changes. |
+| Display/GPU/input #28/#34 | PARTIAL: earlier Lima/input/runtime-PM pass, current first-frame process; owner view/input and workload/resume regression pending. |
+| Internal storage #28/#33 | PARTIAL: separate rw root/data, ext4 errors 0/0. Safe scratch measurements and bus evidence next. |
+| Removable SD #33 | PARTIAL: controller implementation; current health not mounted. Card identity/lifecycle/filesystem performance pending. |
+| SQLite/library #32/#33 | PARTIAL: host/ARM software contracts; 1k/10k/20k target measurement next. |
+| Power/charging/SOC #30 | PARTIAL: current Charging, 3.854 V, configured 450 mA on SDP; retained voltage gain is not measured pack current. Pack/thermal/SOC evidence missing. |
+| CPU/idle/thermal #28/#30 | PARTIAL: WFI/three OPP implementation; fresh CPU/PMIC 54.4/50.391°C snapshot, no operating-envelope claim. Deeper idle BLOCKED_BY_EVIDENCE. |
+| Suspend/wake/RTC #30/#34 | PARTIAL: prior GPU-01 failed same-boot resume, later mask fix unqualified; staged supervised tests follow recovery prerequisites. Clock currently wrong. |
+| Wired audio #29 | PARTIAL: old S16/44.1 pass; current native query works. S16/48 physical gate; S32/preserved-24/high rates BLOCKED_BY_EVIDENCE. |
+| Wi-Fi #31 | PARTIAL: previous WPA/IP/routing pass; fresh dns_unavailable. Diagnose all layers alongside unrelated tests. |
+| Bluetooth/codecs #31 | PARTIAL: adapter/software available, currently off. Pair/SBC/AVRCP/coexistence physical gates; optional codecs follow stable SBC individually. |
+| Firmware/calibration #31 | Existing private provisioning retained; no reacquisition, protected reads or exported secrets. |
+| USB device/host #27/#32 | PARTIAL: current pinned SSH works; SFTP/throughput/reconnect pending. Host role/VBUS BLOCKED_BY_EVIDENCE. |
+| Time/entropy/telemetry #28/#32 | PARTIAL: status/full-health now return; device wall time inaccurate. Collection cost, DNS/NTP and truthful capability version need review. |
+| Userspace/shutdown/update/reset #32/#33 | PARTIAL: implemented contracts; no OTA apply/full reset. Backup, scratch-only maintenance, normal shutdown and rescue precede explicit update approval. |
+| Release/endurance #32/#33 | PARTIAL: exact installed software identity; no integrated physical/endurance acceptance. Build coherent measured fixes, preserve existing recovery artifacts. |
+
+Decision: READY for the broad bounded census and dedicated scratch benchmarks;
+PARTIALLY READY for physical actions as prerequisites and owner responses arrive.
+No hardware gate is promoted and no new electrical limit is authorized. Raw
+private evidence: `out/platform-v1-physical-bringup/20260926T143142Z-census/`.
+The [campaign report](../validation/PLATFORM-V1-PHYSICAL-BRINGUP.md) and
+[master issues](../validation/PLATFORM-V1-PHYSICAL-ISSUES.md) own ongoing results.
+Re-audit before candidate packaging, new hardware implementation and closure.
+
 ## Platform v1 telemetry candidate handoff — 2026-09-25
 
 Close only the owner-authorized corrective software/package pass. Source

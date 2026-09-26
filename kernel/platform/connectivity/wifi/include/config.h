@@ -979,8 +979,11 @@
     #define CFG_WHQL_SAFE_MODE_ENABLED              1
 
 #else
-    #define CFG_TCP_IP_CHKSUM_OFFLOAD               1 /* !< 1: Enable TCP/IP header checksum offload
-                                                            0: Disable */
+    /* Y2 never enables the firmware checksum flags through
+     * wlanoidSetCSUMOffload. Advertising HW_CSUM in that state puts incomplete
+     * TCP/UDP checksums on air (physical PHY-001). Use Linux checksums until
+     * the firmware offload setup and descriptor path are qualified together. */
+    #define CFG_TCP_IP_CHKSUM_OFFLOAD               0
     #define CFG_TCP_IP_CHKSUM_OFFLOAD_NDIS_60       0
     #define CFG_TX_MAX_PKT_SIZE                     1600
     #define CFG_NATIVE_802_11                       0

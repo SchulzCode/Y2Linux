@@ -329,6 +329,8 @@ def validate_rootfs(out,build,m):
             require(b'Y2_TEST_ROOT' not in read('usr/sbin/y2-update-core') and b'Y2_TEST_FAULT' not in read('usr/sbin/y2-update-core'),'production updater has no fixture writer')
             caps=json.loads(read('etc/y2linux/capabilities.json'))
             require(caps['schema']=='org.y2linux.capabilities/v1' and caps['api_version']==1,'platform API identity')
+            require(caps.get('platform_version') == json.loads(read('etc/y2linux/versions.json'))['release_version'],
+                    'capability identity matches the installed release')
             require(all(v.get('qualified') is False for v in caps['capabilities'].values()),'candidate does not inherit physical qualification')
             validate_ssh_programs(members)
             require(b'-l usb0' in read('etc/default/dropbear'),'SSH explicitly bound to USB interface')

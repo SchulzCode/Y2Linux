@@ -168,13 +168,28 @@ def storage_benchmark(ctx, volume='/data', size_mib=16, operations=64, seconds=3
     result = {'schema': 'org.y2linux.benchmark/v1',
               'record': ctx.record('storage', {'volume': volume, 'size_mib': size_mib,
                                              'operations': operations, 'deadline_seconds': seconds,
-                                             'io': 'buffered', 'cold_read': 'file_fadvise_advisory_only',
+                                             'io': 'buffered', 'cold_read': 'not_guaranteed',
                                              'seed': 6582}), 'measurements': [],
-              'volume': None}
+              'volume': None, 'cache_advice': []}
     result['record']['units'] = {'latency': 'ms', 'throughput': 'MB/s (decimal)', 'rate': 'operations/s'}
     rng = random.Random(6582)
     # A repeatable nonzero 1-MiB pattern prepared outside timed I/O.
     block = rng.randbytes(1024**2)
+
+    def advise_read(fd, operation):
+        advice = {'before': operation, 'state': 'unavailable', 'errno': None}
+        if hasattr(os, 'posix_fadvise'):
+            try:
+                os.posix_fadvise(fd, 0, size, os.POSIX_FADV_DONTNEED)
+                advice['state'] = 'requested_advisory_only'
+            except OSError as error:
+                # Older Y2 kernels omit ADVISE_SYSCALLS (EINVAL on ARM).
+                # Preserve verified readback while explicitly refusing a cold
+                # or media-throughput claim. Genuine I/O faults still fail.
+                if error.errno not in (errno.EINVAL, errno.ENOSYS, errno.EOPNOTSUPP):
+                    raise
+                advice['errno'] = error.errno
+        result['cache_advice'].append(advice)
 
     def ensure(scratch):
         if time.monotonic() >= deadline:
@@ -207,8 +222,7 @@ def storage_benchmark(ctx, volume='/data', size_mib=16, operations=64, seconds=3
                     measure(f'sequential_write_{bs}', count,
                             lambda n: write_all(fd, block[:bs], n * bs), bs,
                             finalize=lambda: os.fdatasync(fd))
-                    if hasattr(os, 'posix_fadvise'):
-                        os.posix_fadvise(fd, 0, size, os.POSIX_FADV_DONTNEED)
+                    advise_read(fd, f'sequential_read_{bs}')
                     def verify(n):
                         if os.pread(fd, bs, n * bs) != block[:bs]:
                             raise OSError(errno.EIO, 'readback_mismatch')
@@ -217,8 +231,7 @@ def storage_benchmark(ctx, volume='/data', size_mib=16, operations=64, seconds=3
                     measure(f'random_write_{bs}', len(offsets),
                             lambda n: write_all(fd, block[:bs], offsets[n]), bs,
                             finalize=lambda: os.fdatasync(fd))
-                    if hasattr(os, 'posix_fadvise'):
-                        os.posix_fadvise(fd, 0, size, os.POSIX_FADV_DONTNEED)
+                    advise_read(fd, f'random_read_{bs}')
                     def verify_random(n):
                         if os.pread(fd, bs, offsets[n]) != block[:bs]:
                             raise OSError(errno.EIO, 'readback_mismatch')
