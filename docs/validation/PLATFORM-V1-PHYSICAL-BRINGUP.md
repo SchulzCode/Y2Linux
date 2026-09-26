@@ -1,9 +1,48 @@
 # Platform v1 physical bring-up campaign
 
 Started 2026-09-26. ACTIVE: broad census and first root-cause cluster complete;
-Fix Batch 1 source validation/build in progress. This is not a completed platform
+Fix Batch 1 built and image-validated; owner installation and broad retest pending. This is not a completed platform
 qualification. [Entry audit](../planning/roadmap-gap-audit.md#complete-physical-bring-up-campaign-entry--2026-09-26).
 [Master issue table](PLATFORM-V1-PHYSICAL-ISSUES.md).
+
+## Fix Batch 1 candidate handoff
+
+Package: `out/y2linux-platform-v1-physical-01-candidate/`.
+Status: **IMAGE_VALIDATED_PHYSICAL_PENDING**. The owner deferred headphones;
+that session remains deferred. Nothing in this campaign has flashed the device.
+
+| Identity | Value |
+| --- | --- |
+| Linux build source | `198fa7cfd54a93826b54e3c0c4fab4d32e84acec` |
+| Reborn build source | `feb530fae2cdf785c764d619e8df22798c8e524c` |
+| Build / release | `Y2LINUX-PLATFORM-V1-PHYSICAL-01` / `1.0.0-candidate.3` |
+| Kernel / rootfs | `6.18.0-y2linux-platform-v1-physical-01` / `2025.02.18-platform-v1.3` |
+| BOOTIMG, 6,768,640 bytes | `f3309fd98e204da9013636c67a3cff9ab359cf92eae6f320d8c536853115a151` |
+| Y2ROOT, 536,870,912 bytes | `e21ee81570a1beef7ea007bb992abcebfb78992686c66124aa3b0f357fcb2840` |
+| Fallback BOOTIMG | `f7b4a950a0504a411ad72db0aac9398f04dc1ccabd6a6a0a3a7fdab198ca2622` |
+| Fallback Y2ROOT (current Telemetry 01) | `4a8e520946ad1aaa00df46e9f302463341e4408bba063f43728b8cb8f68bb092` |
+
+One preserving scatter selects BOOTIMG and ANDROID only; Y2DATA is retained.
+The package's `install.md` is specific to this initialized device and replaces
+the generic historical first-install text. Its `fallback/` holds the verified
+current pair, and `sources/` contains both build-commit bundles and exact batch
+diffs from campaign entry (`e88d044` Linux / `9125788` Reborn).
+
+Final validation: 179 Reborn host tests; locked production groups 2/58/68/39,
+with three explicit environment skips all covered by native host receipts;
+eight ARM/QEMU application checks; 20 installed ARM module imports, SQLite
+WAL/checkpoint, defaults, null-ALSA constraint query and actual 1k ARM benchmark;
+three installed ARM SFTP protocol/reserve/interruption checks. Kernel/config,
+device tree/rescue/BOOTIMG, root ext4/tar agreement, exact image/fallback hashes
+and preserving manifest pass. License inventory covers 102 selected packages;
+the known Buildroot/Bootlin/local-package collection limitations are retained.
+Byte-identical rebuilding is not claimed. Raw intermediate failures are retained
+privately; no failed attempt is substituted for a final passing receipt.
+
+Next physical action is the owner's manual installation following `install.md`.
+After confirmation, repeat exact identity/safety first, then broadly regress
+storage/SQLite, Wi-Fi DNS/TCP/time, telemetry/memory, USB and short audio/power
+workloads. Resume AirPods and other owner-assisted sessions when available.
 
 ## Exact starting target
 
@@ -229,6 +268,16 @@ Long WAL stalls implicate the constrained storage path. Listing latency scales
 linearly, while indexed identity lookup stays around 0.1 ms, motivating a
 separate exact-query/index A/B measurement before changing SQL.
 
+Archived original-candidate host receipts provide context, not a matched-hardware
+experiment (they do not embed host hardware/revision and have `scan: null`).
+Their 1k/10k/20k population times are 2.533/26.407/51.552 ms versus this Y2's
+88.648/7,689.380/20,229.702 ms. Page p50 is 0.186/1.191/2.767 ms on the host
+versus 6.921/45.589/93.632 ms on Y2. At 20k, checkpoint is 0.764 ms versus
+1,063.489 ms. Host success is therefore not a useful device latency budget;
+the direct-I/O limit and exact device SQL A/B provide the actionable diagnosis.
+Archived receipt location:
+`out/y2linux-platform-v1-candidate/validation/host-library-before-after/`.
+
 ## Metadata and durability calls
 
 Receipt `23-metadata`: 64 samples each, dedicated guarded scratch. Each sync
@@ -406,3 +455,37 @@ about 6.1 times real time). They do not qualify sustained playback, EQ/crossfade
 radio coexistence or preserved-24 output. Original schedutil and 1,040-MHz
 maximum are restored; internal ext4 errors and taint remain zero. A governor
 policy change needs end-to-end workload evidence, not only this microbenchmark.
+
+Receipt `55` exercises the actual installed export flow, including online SQLite
+backup: 2,296-byte archive, three member hashes verified, one-track database
+quick_check passes. A hash-identical private copy is saved on the host. Network
+credentials, bonds and private keys are excluded. No reset or library deletion
+occurred. Receipt `56` confirms the same boot, zero taint/ext4 errors, restored
+governor/max, closed PCM and closed Pairable window; no btmon process remains.
+
+## Remaining physical and evidence gates
+
+These are campaign work still outstanding, not waived features or completed
+qualification. Baseline measurements and old narrow passes remain tied to the
+installed Telemetry 01 identity; the new candidate requires broad regression.
+
+| Boundary | Exact next evidence or measurement | Reason for gate |
+| --- | --- | --- |
+| New boot/recovery/storage | Owner installs the paired images; verify identity, eight-bit ios, scratch readback/hashes at all sizes, metadata/sync and error deltas; retain exact current fallback | Kernel/storage changes require real board validation before acceptance |
+| SD | Owner supplies a clean card or explicitly approves repair; establish stable CID/partition identity for zero-serial media, then filesystem/mount/busy-unmount/swap tests | Removed FAT medium has metadata inconsistencies; current UUID-only service rejects it independently |
+| Wi-Fi | On repaired kernel, normal DNS/TCP/NTP, timing/throughput, reconnect and wrong-password/AP/DHCP/DNS failure cases | Diagnostic SO_NO_CHECK success does not qualify ordinary traffic or service recovery |
+| SBC/AVRCP/coexistence/codecs | Owner resumes AirPods pairing/listening; prove Paired+Bonded+Trusted, A2DP PCM and actual SBC, headset controls/metadata/restarts; then concurrent Wi-Fi | ACL-only Connected is insufficient. Optional encoders remain disabled until SBC is physically stable |
+| CPU/display/memory/thermal | Full app playback, 24/96 downsampling, EQ/crossfade, scan and transfers, screen on/off; new PSS plus frequency/idle/wakeup/XRUN and temperature series | Short decoder fixtures establish headroom only; no sustained power or memory-growth claim |
+| Timer/deeper idle | Reconcile stock PPI29 physical-timer frequency/security/routing; exact Y2 deep-idle PCM/PMIC variant, UART/CIRQ/context/timer entry/exit and clock exclusions, bounded fallback | Stock timer calibration differs from a simple CNTFRQ assumption. Full-suspend PCM is not deep-idle proof; WFI stays enabled |
+| Deep suspend | After candidate recovery/storage checks, owner-present pm_test stages including CPU3/2/1 restoration, then Power wake with identical boot ID; RTC alarm later | GPU-01 failed before SPM entry on the wrong CPU3 ACK bit; corrected masks need physical retest before actual sleep |
+| Charging/SOC/low battery | External USB meter under identified source, idle/screen/playback voltage/load series; identify pack and BATON/ISENSE wiring/offset/resistor; supervised safe charge/discharge/rest curves | Stock FG current/coulomb paths are stubs, temperature provider returns 25°C, and 68-mΩ sense assumption is not board calibration. USB input current is not pack current; no defensible SOC or shutdown reserve yet |
+| RTC/time | Network synchronization after DNS repair, RTC write/read, then owner reboot/power-cycle retention; alarm only in controlled suspend | RTC ticks but carries a 2022 date; current system release-floor time is not synchronized time |
+| USB device/host | Owner cable and PC sleep/wake cycles for device mode; board connector ID/role wiring, VBUS switch/limit and safe source topology before any host-mode activation | MUSB host capability and stock B-device observations do not prove safely powered USB host hardware |
+| Wired/high-resolution output | Longer direct S16/48 switching/playback and app profile regression; for S32, exact MT6582 DL1 fetch/packing/interconnect evidence plus low-bit DMA/I2S capture; then clock-family measurements | 32-bit I2S slots and CS43131 codec capability do not establish preserved 24-bit data or 88.2/96-kHz AFE clocks |
+| OTA/reset/endurance | After physical core regression, signed package check/staging; explicit owner approval for root apply/rescue/readback/health and failed-app rollback. Scoped reset on safe state, then approved long workloads/cycles | Export is measured; updater apply/rollback, reset and long unattended power/suspend are separate unperformed gates |
+
+The detailed retained [hardware boundaries](../knowledge/platform-v1-hardware-gates.md),
+[battery acquisition](../knowledge/m4-battery-acquisition.md) and
+[GPU-01 failure](../hardware-evidence/2026-09-18-gpu01/README.md) remain primary
+local evidence for these experiments. No charger-limit, deeper-idle, suspend,
+VBUS, watchdog or wider-output activation is included in Fix Batch 1.

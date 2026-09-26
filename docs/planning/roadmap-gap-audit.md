@@ -1,5 +1,33 @@
 # Y2Linux roadmap and gap audit
 
+## Physical Fix Batch 1 packaging boundary — 2026-09-26
+
+Real-device receipts 49–56 refresh the admission audit below. The installed
+Telemetry 01 boot remains `09de0586-278c-4d37-a68f-17ac9952740c`; taint and both
+internal ext4 error counters remain zero. CPU/PMIC readings at the last check
+are 55.4/52.731°C, battery 4.028 V and Charging, ALSA closed. USB SSH remains
+usable. Full health still correctly reports Wi-Fi DNS degradation; controller
+presence is not SBC acceptance. Owner postponed further AirPods actions and the
+pairable window is closed. This admits packaging, not physical acceptance.
+
+| Coverage | Boundary disposition |
+| --- | --- |
+| Boot/recovery, firmware, protected storage | Exact current root-overlay fallback verified against its original BOOTIMG; new kernel/rescue/DT/BOOTIMG checks pass. No device installation, partition geometry or protected-area operation. Fresh physical boot/recovery remains mandatory. |
+| eMMC/SD/filesystems | Width-only 8/4-bit implementation retains 13 MHz/3.3 V/legacy; baseline direct-I/O hashes and internal error checks pass. SD remains removed/unrepaired; clean-card lifecycle and serial-less identity remain separate gates. |
+| SQLite/library | Real 1k/10k/20k baseline and exact-query A/B justify indexes; full current application tests pass. New candidate scan/WAL/durable-write retest pending. Actual settings/database export passes archive hashes and SQLite integrity; no reset performed. |
+| CPU/idle/RAM/DMA | Nine bounded decoder suites pass across all three existing OPP caps, with residency proving the caps; original schedutil/max restored. No topology, voltage, DMA, reservation or timer/SPM change. PSS/advice facilities are compiled; sustained app workloads and growth remain unqualified. |
+| Display/GPU/input/wired/high-resolution audio | Menu/normal warmth and short stereo 44.1/48 listening evidence retained. No new listening claim. 24/96 decoding passes; preserved-24 output/clock/IRQ evidence remains missing. |
+| Charging/battery/thermal | Rising observed voltage supports charging observation only; no measured current, pack temperature, SOC or shutdown reserve. No limits/trips/threshold changes. Meter and supervised load/curve work pending. |
+| Suspend/RTC/time/watchdog | No suspend or watchdog experiment. RTC tick evidence retained, network time blocked by DNS. Same-boot Power/RTC wake and power-cycle retention require controlled physical sessions. |
+| Wi-Fi/Bluetooth/codecs | Checksum, bonding/connect/error/UI fixes compiled; early/root signed regulatory bytes aligned. Neither Online nor SBC/AVRCP/reconnect/coexistence is accepted before physical regression. Optional codecs remain off. |
+| USB device/host | Existing bidirectional SFTP hash/throughput evidence retained; cable/PC cycles pending. No role or VBUS activation; connector/switch/current evidence still required. |
+| Updates/maintenance/endurance | Export measured; destructive reset, root OTA apply/rollback, repeated reboot, SD cycles and long power/endurance remain gated. No automatic BOOTIMG update. |
+| Source/release | Final build pair: Linux `198fa7c`, Reborn `feb530f`; 179 host application tests and native fallback fixture pass. ARM/QEMU/production/package/license receipts must accompany the candidate, with environment exclusions stated explicitly. Existing unrelated documentation/assets remain preserved. |
+
+Decision: package the coherent batch with exact fallback and source identities;
+request owner installation only after final checks and hashes exist. Do not close
+Platform v1, change issue acceptance or carry old physical passes onto new code.
+
 ## Physical Fix Batch 1 admission — 2026-09-26
 
 Batch refinement from receipts 49–52: include the Bluetooth UI's false

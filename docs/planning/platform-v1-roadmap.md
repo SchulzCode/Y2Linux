@@ -26,8 +26,16 @@ pair/connect fixes as one candidate, then regress the whole baseline. Stock Y2
 evidence supports eight/four data lines at the existing storage clock; higher
 clocks, timer/SPM activation, charger changes, USB VBUS and wider audio remain
 gated. The removed inconsistent FAT card stays isolated. Physical SBC pairing
-diagnosis continues with a bounded standard Pairable window while source work
-proceeds; no pass is inferred from ACL Connected alone.
+diagnosis is deferred at the owner's request and the Pairable window is closed;
+no pass is inferred from ACL Connected alone.
+
+The [packaging boundary audit](roadmap-gap-audit.md#physical-fix-batch-1-packaging-boundary--2026-09-26)
+refreshes all areas with receipts through 56. Linux `198fa7c` / Reborn `feb530f`
+compile as one candidate; verify final host/ARM/package receipts and the exact
+running-image fallback before owner handoff. The new UI distinguishes a link,
+saved bond and audio readiness. Nine decoder suites also pass at the existing
+frequency caps, with original policy restored; this does not qualify sustained
+playback or justify governor changes. No milestone is closed.
 
 2026-09-23. Owner-authorized software implementation, local commits only; no
 physical-device access or flashing. This roadmap does not close hardware epics.
