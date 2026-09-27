@@ -35,7 +35,8 @@ POWER_REGS = {
  '/efuse@10206100': (0x10206100,8),
  '/thermal@1100b000': (0x1100b000,0x100,0x11001000,0x100,0x10209600,8),
  '/watchdog@10007000': (0x10007000,0x100),
- '/power-controller@10006000': (0x10006000,0x1000,0x10208000,4),
+ '/power-controller@10006000': (0x10006000,0x1000,0x10208000,4,0x10200000,4),
+ '/interrupt-latch@10204000': (0x10204000,0x400),
 }
 GPU = '/gpu@13010000'
 GPU_REGS = {GPU:(0x13010000,0x10000), '/clock-controller@13000000':(0x13000000,0x10)}
@@ -180,6 +181,10 @@ def check(data, initrd_size, production=True):
     panel=nodes['/dsi@1400c000/panel@0']
     require(panel['resets']==cells(handle('/syscon@14000000'),0) and 'innioasis,lk-powered' in panel,'evidenced panel reset/power')
     if power:
+        latch = nodes['/interrupt-latch@10204000']
+        require(latch['compatible']==strings('innioasis,y2-cirq') and
+                not any(k in latch for k in ('interrupt-controller','#interrupt-cells','interrupts')),
+                'CIRQ latch owner, not a second IRQ domain')
         require(nodes['/power-controller@10006000']['interrupts']==cells(0,117,8), 'actual Y2 SPM IRQ')
         require(nodes['/power-controller@10006000']['compatible']==strings('innioasis,y2-spm'), 'sole SPM owner')
         check_power(nodes,handle)

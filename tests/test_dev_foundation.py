@@ -22,7 +22,10 @@ class DevFoundation(unittest.TestCase):
                         (struct.pack('>II',0x81800000,0x2800000),struct.pack('>II',0x81800000,0x1800000)),
                         (struct.pack('>II',0xbdf00000,0x2100000),struct.pack('>II',0xbe000000,0x2000000)),
                         (struct.pack('>I',13000000),struct.pack('>I',52000000)),
-                        (b'innioasis,y2-sd\0',b'innioasis,y2-xx\0')]:
+                        (b'innioasis,y2-sd\0',b'innioasis,y2-xx\0'),
+                        (struct.pack('>II',0x10204000,0x400),struct.pack('>II',0x10204000,0x800)),
+                        (struct.pack('>II',0x10200000,4),struct.pack('>II',0x10200000,8)),
+                        (b'innioasis,y2-cirq\0',b'innioasis,y2-xxxx\0')]:
             self.assertIn(old,data)
             with self.subTest(old=old), self.assertRaises((ValueError,KeyError)):check_dtb(data.replace(old,new),size)
     def test_rescue_archive_and_bad_data(self):
