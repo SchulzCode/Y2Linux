@@ -174,6 +174,7 @@ static struct {
 static atomic64_t y2_dma_allocations, y2_dma_alloc_failures, y2_dma_releases;
 static atomic64_t y2_dma_programs[2], y2_dma_programmed_bytes[2];
 static atomic64_t y2_dma_program_failures, y2_dma_aborts, y2_dma_abort_failures;
+static atomic64_t y2_dma_alignment_rejects;
 static atomic_t y2_dma_allocated;
 
 static struct dma_channel *y2_dma_alloc(struct dma_controller *controller,
@@ -218,6 +219,7 @@ static int y2_dma_program(struct dma_channel *channel, u16 packet, u8 mode,
     unsigned int i;
     if (!ret) {
         atomic64_inc(&y2_dma_program_failures);
+        if (address & 3) atomic64_inc(&y2_dma_alignment_rejects);
         return ret;
     }
     for (i = 0; i < ARRAY_SIZE(y2_dma_channels); i++) {
@@ -257,6 +259,12 @@ static struct dma_controller *y2_musb_dma_init(struct musb *musb, void __iomem *
     dma->channel_release = y2_dma_release;
     dma->channel_program = y2_dma_program;
     dma->channel_abort = y2_dma_abort;
+    /* Same gadget quirk as MUSB_G_NO_SKB_RESERVE, selected only after DMA
+     * allocation. u_ether's NET_IP_ALIGN=2 otherwise makes every RX buffer
+     * fail Inventra's four-byte address check. ARMv7 permits unaligned IP
+     * access; its partial checksum routine explicitly aligns the input.
+     * y2.usb_dma=off/allocation failure retain the original PIO skb layout. */
+    musb->g.quirk_avoids_skb_reserve = 1;
     writel(0xff0000ff, base + 0x200);
     WRITE_ONCE(y2_usb_dma_active, true);
     return dma;
@@ -855,6 +863,8 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
         "dma_program_failures=%lld dma_aborts=%lld dma_abort_failures=%lld\n",
         atomic64_read(&y2_dma_program_failures), atomic64_read(&y2_dma_aborts),
         atomic64_read(&y2_dma_abort_failures));
+    n += sysfs_emit_at(buf, n, "dma_alignment_rejects=%lld\n",
+        atomic64_read(&y2_dma_alignment_rejects));
 #endif
     if (smp_load_acquire(&y2_irq_fault_valid))
         n += sysfs_emit_at(buf, n,

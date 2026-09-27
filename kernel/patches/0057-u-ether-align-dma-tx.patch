@@ -1,0 +1,37 @@
+--- a/drivers/usb/gadget/function/u_ether.c
++++ b/drivers/usb/gadget/function/u_ether.c
+@@ -451,6 +451,25 @@
+ 	return ret;
+ }
+ 
++/* Inventra-style controllers require a word-aligned USB DMA address. Keep
++ * the network stack's skb layout intact until after protocol wrapping, then
++ * copy only when necessary. Allocation failure keeps the original request;
++ * the controller's existing alignment rejection falls back to PIO.
++ */
++static struct sk_buff *eth_align_dma(struct sk_buff *skb, bool required)
++{
++	struct sk_buff *aligned;
++
++	if (!required || IS_ALIGNED((unsigned long)skb->data, 4))
++		return skb;
++	aligned = skb_copy_expand(skb, ALIGN(skb_headroom(skb), 4),
++				  skb_tailroom(skb), GFP_ATOMIC);
++	if (!aligned)
++		return skb;
++	dev_kfree_skb_any(skb);
++	return aligned;
++}
++
+ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
+ 					struct net_device *net)
+ {
+@@ -549,6 +568,8 @@
+ 			goto drop;
+ 		}
+ 	}
++
++	skb = eth_align_dma(skb, dev->no_skb_reserve);
+ 
+ 	length = skb->len;
+ 	req->buf = skb->data;

@@ -28,6 +28,49 @@ def run_c(program):
 
 
 class HardwareCeiling(unittest.TestCase):
+    def test_usb_tx_alignment_preserves_original_on_allocation_failure(self):
+        text = source('drivers/usb/gadget/function/u_ether.c')
+        body = text[text.index('static struct sk_buff *eth_align_dma'):]
+        body = body[:body.index('static netdev_tx_t eth_start_xmit')]
+        run_c(r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#define GFP_ATOMIC 1
+#define IS_ALIGNED(v,a) (((v)&((a)-1))==0)
+#define ALIGN(v,a) (((v)+(a)-1)&~((a)-1))
+struct sk_buff { unsigned char storage[2048]; unsigned char *data; unsigned len; int checksum; };
+static unsigned copies,frees;
+static int fail;
+static unsigned skb_headroom(struct sk_buff *s) { return s->data-s->storage; }
+static unsigned skb_tailroom(struct sk_buff *s) { return sizeof(s->storage)-skb_headroom(s)-s->len; }
+static struct sk_buff *skb_copy_expand(struct sk_buff *s,unsigned h,unsigned t,int flags) {
+ assert(flags==GFP_ATOMIC && !(h&3) && h>=skb_headroom(s));
+ assert(t==skb_tailroom(s));copies++;
+ if(fail)return NULL;
+ struct sk_buff *n=calloc(1,sizeof(*n));assert(n);
+ n->data=n->storage+h;n->len=s->len;n->checksum=s->checksum;
+ memcpy(n->data,s->data,s->len);return n;
+}
+static void dev_kfree_skb_any(struct sk_buff *s) { frees++;free(s); }
+''' + body + r'''
+int main(void) {
+ struct sk_buff *s=calloc(1,sizeof(*s));assert(s);
+ s->data=s->storage+34;s->len=1514;s->checksum=12345;
+ for(unsigned i=0;i<s->len;i++)s->data[i]=i;
+ assert(eth_align_dma(s,false)==s && !copies && !frees);
+ fail=1;assert(eth_align_dma(s,true)==s && copies==1 && !frees);
+ assert(s->data==s->storage+34 && s->checksum==12345);
+ fail=0;struct sk_buff *n=eth_align_dma(s,true);
+ assert(n!=s && copies==2 && frees==1 && !( (unsigned long)n->data&3));
+ assert(n->checksum==12345 && n->len==1514);
+ for(unsigned i=0;i<n->len;i++)assert(n->data[i]==(unsigned char)i);
+ assert(eth_align_dma(n,true)==n && copies==2 && frees==1);
+ free(n);
+}
+''')
+
     def test_clock_cap_requires_idle_ownership_and_a_present_negotiated_card(self):
         text = source('drivers/mmc/host/mtk-sd.c')
         body = text[text.index('static ssize_t y2_clock_limit_hz_store'):]
@@ -220,7 +263,7 @@ static struct dma_channel *allocate(struct dma_controller *c,struct musb_hw_ep *
 }
 static void release(struct dma_channel *c) { used&=~(1U<<c->id);releases++; }
 static int program(struct dma_channel *c,u16 p,u8 m,dma_addr_t a,u32 n) {
- assert(p==512 && a==0x12345678 && (m==0 || m==1)); programs++;return program_result;
+ assert(p==512 && (a==0x12345678 || a==0x1234567a) && (m==0 || m==1)); programs++;return program_result;
 }
 static int abort_channel(struct dma_channel *c) { aborts++;return abort_result; }
 ''' + body + r'''
@@ -239,6 +282,8 @@ int main(void) {
  assert(y2_dma_program(tx,512,1,0x12345678,4096)==0);
  assert(programs==4 && y2_dma_program_failures==1 && y2_dma_programs[1]==1);
  assert(y2_dma_programmed_bytes[1]==512);
+ assert(y2_dma_program(tx,512,1,0x1234567a,1514)==0);
+ assert(y2_dma_alignment_rejects==1 && y2_dma_program_failures==2);
  assert(y2_dma_abort(tx)==0);abort_result=-5;
  assert(y2_dma_abort(rx)==-5);
  assert(aborts==2 && y2_dma_aborts==2 && y2_dma_abort_failures==1);
