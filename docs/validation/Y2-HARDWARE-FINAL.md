@@ -1,5 +1,9 @@
 # Y2 Hardware Final
 
+**Paused at owner request,2026-09-27.** The [handoff](Y2-HARDWARE-FINAL-HANDOFF.md)
+supersedes provisional progress below and records restoration, completed fixes,
+owner-confirmed volume repair and all outstanding validation. No final image.
+
 ACTIVE engineering campaign, 2026-09-27. One final candidate is authorized;
 Hardware 03/04/05 are consolidated. No final candidate or installation is yet
 claimed. [Entry audit](../planning/roadmap-gap-audit.md#hardware-final-campaign-activation--2026-09-27).

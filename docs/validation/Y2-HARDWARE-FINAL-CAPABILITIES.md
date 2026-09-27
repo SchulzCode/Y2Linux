@@ -1,5 +1,9 @@
 # Y2 Hardware Final capability ledger
 
+**Paused at owner request,2026-09-27.** The [handoff](Y2-HARDWARE-FINAL-HANDOFF.md)
+supersedes provisional progress below and records restoration, completed fixes,
+owner-confirmed volume repair and all outstanding validation. No final image.
+
 ACTIVE/provisional,2026-09-27. Status describes the explicit measured scope in
 each row, not blanket final-platform acceptance. Only owner physical evidence
 can promote final-source changes. MB/s is decimal bytes; Mb/s decimal bits.

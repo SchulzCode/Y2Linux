@@ -1,5 +1,9 @@
 # Current Y2Linux platform state
 
+**Hardware Final paused at owner request.** [Resume handoff](validation/Y2-HARDWARE-FINAL-HANDOFF.md).
+Original Hardware02 restored, healthy; source fixes committed, including physically
+confirmed live volume. No final build, flash, push or platform closure.
+
 **Hardware Final is active on the physically installed Hardware02 baseline.**
 The owner combines CPU/power, battery and radio/audio completion into one final
 engineering campaign and one preserving candidate. Current physical metadata:

@@ -1,5 +1,9 @@
 # Y2 Hardware Final qualification
 
+**Paused at owner request,2026-09-27.** The [handoff](Y2-HARDWARE-FINAL-HANDOFF.md)
+supersedes provisional progress below and records restoration, completed fixes,
+owner-confirmed volume repair and all outstanding validation. No final image.
+
 ACTIVE,2026-09-27. One final preserving candidate and one owner-controlled
 installation/qualification cycle. No automatic root OTA apply, flash, loader
 write, Y2DATA replacement or full discharge is authorized by a test checklist.
