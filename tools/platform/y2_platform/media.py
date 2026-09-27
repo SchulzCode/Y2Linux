@@ -3,8 +3,25 @@
 import fcntl
 import json
 import os
+import hashlib
 from .common import atomic_json, read
 from .observe import mountinfo, device_instance
+
+
+def media_identity(entry, filesystem, uuid):
+    """CID/partition geometry supplies identity when a legal FAT UUID is absent."""
+    device = entry.resolve()
+    partition = read(entry / 'partition')
+    if partition is not None:
+        device = device.parent
+    cid = read(device / 'device/cid')
+    geometry = {'partition': partition, 'start': read(entry / 'start'), 'size': read(entry / 'size')}
+    if not uuid and (not cid or any(geometry[k] is None or not geometry[k].isdigit()
+                                  for k in ('start', 'size'))):
+        return None
+    identity = dict(cid=cid, geometry=geometry, filesystem=filesystem, uuid=uuid)
+    identity['id'] = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+    return identity
 
 
 def candidates(ctx):
@@ -18,13 +35,13 @@ def candidates(ctx):
         if not answer['ok']:
             continue
         props = dict(line.split('=', 1) for line in answer['output'].splitlines() if '=' in line)
-        if props.get('TYPE') not in ('ext4', 'vfat', 'exfat') or not props.get('UUID'):
+        if props.get('TYPE') not in ('ext4', 'vfat', 'exfat'):
             continue
-        device = entry.resolve()
-        if (entry / 'partition').is_file():
-            device = device.parent
+        identity = media_identity(entry, props['TYPE'], props.get('UUID'))
+        if identity is None:
+            continue
         result.append({'device': '/dev/' + entry.name, 'filesystem': props['TYPE'],
-                       'uuid': props['UUID'], 'cid': read(device / 'device/cid')})
+                       'uuid': props.get('UUID'), 'cid': identity['cid'], 'identity': identity})
     return result
 
 

@@ -147,8 +147,12 @@ def power(ctx):
             not isinstance(policy.get('monotonic_ns'), int) or
             not 0 <= time.monotonic_ns() - policy['monotonic_ns'] < 5 * 10**9):
         policy = {'state': 'Unavailable', 'reason': 'policy_not_running_or_stale'}
+    battery = policy.get('battery', {})
     return {'supplies': supplies, 'units': {'voltage': 'uV', 'configured_current': 'uA'},
-            'measured_current_ua': None, 'soc_percent': None, 'pack_temperature': None,
+            'battery': battery,
+            'measured_current_ua': battery.get('current_ua'), 'soc_percent': battery.get('percent'),
+            'soc_source': battery.get('source'), 'soc_confidence': battery.get('confidence'),
+            'pack_temperature': battery.get('temperature_millicelsius'),
             'unavailable_reason': 'not_exposed_by_qualified_y2_battery_driver',
             'normal_boot': ctx.integer('/sys/firmware/y2_boot/normal_boot'),
             'low_battery': policy}
@@ -193,17 +197,22 @@ def storage(ctx):
         item['uuid'] = None
         if item['controller_valid']:
             answer = ctx.command(['blkid', '-p', '-s', 'UUID', '-o', 'value', item['source']])
-            item['uuid'] = answer['output'] if answer['ok'] else None
+            item['uuid'] = (answer['output'] or None) if answer['ok'] else None
             expected_uuid = {'/': '79324c69-6e75-4801-8000-000000000101',
                              '/data': '79324c69-6e75-4801-8000-000000000102'}.get(target)
-            if not item['uuid'] or (expected_uuid and item['uuid'] != expected_uuid):
+            if expected_uuid and item['uuid'] != expected_uuid:
                 item.update(state='Failed', reason='filesystem_identity_invalid')
             if target == '/media/sd':
+                from .media import media_identity
+                identity = media_identity(device, item['filesystem'], item['uuid'])
+                item['identity'] = identity
                 claim = ctx.json('/run/y2/media-mount.json', {})
                 if not all(claim.get(k) == v for k, v in
                            (('boot_id', boot_id), ('mount_id', item['mount_id']),
                             ('device_id', item['device_id']), ('uuid', item['uuid']))):
                     item.update(state='Failed', reason='mount_claim_changed_or_missing')
+                if item['state'] == 'Ready' and (identity is None or (claim.get('identity') is not None and claim['identity'] != identity)):
+                    item.update(state='Failed', reason='media_identity_changed_or_missing')
                 if claim.get('source_instance') != item['source_instance']:
                     item.update(state='Failed', reason='block_instance_changed')
         readonly = 'ro' in item['options'] or 'ro' in item['super_options']

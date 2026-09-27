@@ -139,6 +139,22 @@ class StorageTools(unittest.TestCase):
         self.ctx.runner = lambda *a, **k: {'ok': True, 'output': 'new-card-uuid', 'reason': None}
         self.assertEqual(storage(self.ctx)['volumes'][2]['reason'], 'mount_claim_changed_or_missing')
 
+    def test_uuidless_fat_identity_needs_geometry_and_detects_replacement(self):
+        self.card_fixture()
+        entry = self.ctx.path('/sys/class/block/mmcblk1p1')
+        (entry / 'start').write_text('2048')
+        (entry / 'size').write_text('1000000')
+        old = self.ctx.runner
+        def runner(argv, **kw):
+            if argv[0] == 'blkid':
+                return {'ok': True, 'reason': None, 'output': '' if 'UUID' in argv else 'TYPE=exfat'}
+            return old(argv, **kw)
+        self.ctx.runner = runner
+        self.assertEqual(operation(self.ctx, 'mount')['state'], 'Ready')
+        self.assertEqual(storage(self.ctx)['volumes'][2]['state'], 'Ready')
+        (entry / 'size').write_text('999999')
+        self.assertEqual(storage(self.ctx)['volumes'][2]['reason'], 'media_identity_changed_or_missing')
+
     def test_fsck_is_read_only_and_never_checks_mounted_media(self):
         calls = self.card_fixture()
         self.assertEqual(operation(self.ctx, 'check')['state'], 'Ready')
