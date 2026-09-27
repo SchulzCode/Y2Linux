@@ -11,7 +11,7 @@ HELPER = ROOT / 'buildroot/board/y2/production-overlay/usr/sbin/y2-suspend'
 
 class SuspendPolicy(unittest.TestCase):
     def run_status(self, powered, functions, qualify=True, enabled=False,
-                   fail_radio=None):
+                   fail_radio=None, fail_restore_record=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for name in ('run/y2', 'data/network', 'data/bluetooth', 'sys/power',
@@ -41,6 +41,9 @@ class SuspendPolicy(unittest.TestCase):
                 '[ "$1:$2" != "${FAIL_RADIO}:on-runtime" ]\n')
             env = dict(os.environ, PATH=str(root / 'bin') + ':' + os.environ['PATH'])
             env['FAIL_RADIO'] = fail_radio or ''
+            if fail_restore_record:
+                (root / 'bin/y2-suspend-record').write_text(
+                    '#!/bin/sh\n[ "$1" != restoring_radios ]\n')
             result = subprocess.run(['sh', str(script), *(['--owner-qualify'] if qualify else [])], env=env, capture_output=True,
                                     text=True, timeout=5)
             if enabled and qualify:
@@ -84,6 +87,12 @@ class SuspendPolicy(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(state, '')
         self.assertIn('Radios did not stop', result.stderr)
+
+    def test_failed_resume_receipt_still_restores_both_radios(self):
+        result, state = self.run_status('0', '0x0', enabled=True,
+                                       fail_restore_record=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(state, 'mem\n')
 
     def test_restore_success_allows_a_successful_stage(self):
         result, state = self.run_status('0', '0x0', enabled=True)

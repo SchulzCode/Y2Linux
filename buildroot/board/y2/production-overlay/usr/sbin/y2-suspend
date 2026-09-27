@@ -18,7 +18,7 @@ restore() {
     suspend_rc=$?
     trap - EXIT
     restore_rc=0
-    stage restoring_radios "$suspend_rc"
+    stage restoring_radios "$suspend_rc" || { [ "$suspend_rc" != 0 ] || suspend_rc=1; }
     [ ! -w /sys/firmware/y2_pm/stage ] || printf 'RADIOS_RESTORING\n' > /sys/firmware/y2_pm/stage
     if [ "$(cat /data/network/enabled)" = 1 ]; then
         y2-radio wifi on-runtime || restore_rc=1

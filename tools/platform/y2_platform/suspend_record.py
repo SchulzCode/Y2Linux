@@ -1,6 +1,6 @@
 """Durable suspend receipts, called only before entry or after Linux returns."""
 # SPDX-License-Identifier: GPL-2.0-only
-from .common import Context, atomic_json
+from .common import Context, atomic_json, read
 import os
 import json
 import socket
@@ -22,7 +22,9 @@ def record(ctx, stage, result=None):
     value.update(stage=stage, result=result, updated=time.time(),
                  current_boot_id=ctx.read('/proc/sys/kernel/random/boot_id'),
                  persistent_kernel=ctx.read('/sys/firmware/y2_pm/state'),
-                 usb_restore=ctx.read('/run/y2/usb-state'),
+                 usb_restore={'controllers': {p.parent.name: read(p, limit=8192)
+                     for p in ctx.glob('/sys/bus/platform/drivers/y2-usb/*/status')},
+                     'udcs': {p.name: read(p/'state') for p in ctx.glob('/sys/class/udc/*')}},
                  radio_restore=ctx.read('/sys/devices/platform/18070000.connectivity/status'))
     value.setdefault('stages', []).append({'stage': stage, 'time': time.time(), 'result': result})
     value['stages'] = value['stages'][-32:]

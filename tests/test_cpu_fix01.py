@@ -201,7 +201,10 @@ int main(void){
         from y2_platform.observe import timer_runtime
         with tempfile.TemporaryDirectory() as root:
             ctx=Context(root)
+            usb=ctx.path('/sys/bus/platform/drivers/y2-usb/11200000.usb/status')
+            usb.parent.mkdir(parents=True);usb.write_text('pm_suspends=1 pm_restores=1\n')
             value=record(ctx,'quiescing_radios',0)
+            self.assertIn('pm_restores=1',value['usb_restore']['controllers']['11200000.usb'])
             record(ctx,'kernel_suspend',0)
             self.assertEqual(ctx.json('/data/system/platform/suspend-last.json')['stage'],'kernel_suspend')
             self.assertEqual(value['requested_mode'],'deep')
