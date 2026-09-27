@@ -13,10 +13,32 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/platform'))
 from y2_platform import cli
 from y2_platform.common import Context, command
-from y2_platform.observe import cpu
+from y2_platform.observe import cpu, wifi
 
 
 class TelemetryRegressions(unittest.TestCase):
+    def test_supplicant_timeout_is_observation_failure_not_disconnect_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+            def runner(argv, **kwargs):
+                calls.append((argv, kwargs))
+                if argv == ['wpa_cli', '-i', 'wlan0', 'status']:
+                    return {'ok': False, 'reason': 'command_timeout', 'output': None}
+                return {'ok': True, 'reason': None, 'output': '[]'}
+            ctx = Context(directory, runner)
+            ctx.path('/sys/class/net/wlan0').mkdir(parents=True)
+            with patch('y2_platform.observe.time.monotonic_ns', side_effect=[10, 1_000_000_010]):
+                result = wifi(ctx)
+            self.assertEqual(result['reason'], 'supplicant_unavailable')
+            self.assertEqual(result['supplicant_observation'],
+                             {'ok': False, 'reason': 'command_timeout', 'duration_ns': 1_000_000_000})
+            self.assertIsNone(result['events'])
+            self.assertEqual(calls[0][1], {})  # Preserve the existing bounded timeout.
+            ctx.path('/sys/class/net/wlan0').rmdir()
+            result = wifi(ctx)
+            self.assertEqual(result['supplicant_observation'],
+                             {'ok': None, 'reason': 'radio_off', 'duration_ns': None})
+
     def test_health_cli_dispatches_quick_and_full_checks_and_preserves_failure(self):
         with tempfile.TemporaryDirectory() as directory:
             ctx = Context(directory)

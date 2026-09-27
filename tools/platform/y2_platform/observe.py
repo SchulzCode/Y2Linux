@@ -261,7 +261,9 @@ def wifi_state(radio, wpa, address, route, dns, dhcp_error=None):
 
 def wifi(ctx):
     radio = ctx.path('/sys/class/net/wlan0').exists()
+    status_started = time.monotonic_ns()
     wpa = ctx.command(['wpa_cli', '-i', 'wlan0', 'status']) if radio else {'output': None}
+    status_duration_ns = time.monotonic_ns() - status_started if radio else None
     properties = key_values(wpa['output'], '=')
     failure = ctx.json('/run/y2/wifi-failure.json', {})
     failed_time = failure.get('monotonic_s')
@@ -291,6 +293,11 @@ def wifi(ctx):
     signal_poll = ctx.command(['wpa_cli', '-i', 'wlan0', 'signal_poll']) if radio else {'output': None}
     signal_values = key_values(signal_poll['output'], '=')
     return {'state': state, 'reason': reason, 'radio_present': radio,
+            # A missed control query does not prove a radio disconnect. Preserve
+            # the actual failure and latency separately from event counters.
+            'supplicant_observation': {'ok': wpa.get('ok') if radio else None,
+                                      'reason': wpa.get('reason') if radio else 'radio_off',
+                                      'duration_ns': status_duration_ns},
             'association': properties.get('wpa_state'), 'association_id': properties.get('bssid'),
             'ip_addresses': addresses,
             'default_route': default_route, 'dns_ready': dns_ready,
