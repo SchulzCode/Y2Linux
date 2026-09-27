@@ -69,7 +69,9 @@
         "enabled": true,
         "qualified": false,
         "eligible_codecs": [],
-        "interface": "rebornctl bluetooth codec Auto|SBC|SBC-XQ|AAC|aptX|aptX-HD|LDAC ADDRESS"
+        "interface": "rebornctl bluetooth codec Auto|SBC|SBC-XQ|AAC|aptX|aptX-HD|LDAC ADDRESS",
+        "experimental": false,
+        "reason": "Production qualification flags or explicit owner Experimental policy; negotiation observed separately"
       },
       "experimental": false,
       "reason": "physical qualification of this exact candidate pending"
@@ -149,11 +151,11 @@
       "implemented": true,
       "enabled": true,
       "qualified": false,
-      "gate": "PHYSICAL_GATE",
       "reason": "conservative stock-boundary voltage floor; provisional SOC only warns",
       "experimental": false,
       "provisional": true,
-      "policy_schema": 2
+      "policy_schema": 2,
+      "threshold_tuning_pending": true
     },
     "deep_suspend": {
       "implemented": true,

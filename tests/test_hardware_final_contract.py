@@ -9,7 +9,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'tools/platform'))
 from y2_platform.common import Context
-from y2_platform.observe import timer_runtime, storage
+from y2_platform.observe import timer_runtime, storage, system
 from y2_platform.timekeeping import alarm, ntp_event
 from y2_platform.capabilities import status
 from tools.build.dev_initramfs import boot_module_paths
@@ -42,6 +42,12 @@ class HardwareFinalContract(unittest.TestCase):
         self.put('/sys/bus/platform/devices/11230000.mmc/y2_performance',
                  'cap_hz=25000000 actual_hz=25000000 transport_errors=2 fallbacks=1 clock_error=0\n')
         self.assertEqual(storage(self.ctx)['controllers'][0]['fallbacks'], 1)
+        self.put('/sys/bus/platform/drivers/y2-usb/11200000.usb/status',
+                 'transfer=inventra_dma dma_irqs=12 dma_rx_programmed_bytes=1024 dma_errors=1\n')
+        dma = system(self.ctx)['usb']['dma']
+        self.assertEqual(dma['transfer'], 'inventra_dma')
+        self.assertEqual(dma['dma_rx_programmed_bytes'], 1024)
+        self.assertEqual(dma['dma_errors'], 1)
 
     def test_experimental_enablement_does_not_promote_qualification(self):
         self.put('/etc/y2linux/capabilities.json', (ROOT/'tools/platform/capabilities.json').read_text())

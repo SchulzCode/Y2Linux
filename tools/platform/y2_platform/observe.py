@@ -380,6 +380,12 @@ def system(ctx):
             for p in ctx.glob('/sys/class/udc/*')]
     rtcs = [{f: read(p / f) for f in ('name', 'date', 'time', 'since_epoch', 'wakealarm')}
             for p in ctx.glob('/sys/class/rtc/rtc*')]
+    dma = None
+    sources = ctx.glob('/sys/bus/platform/drivers/y2-usb/*/status')
+    if len(sources) == 1:
+        text = read(sources[0], limit=8192) or ''
+        fields = dict(re.findall(r'\b(transfer|dma_[a-z_]+)=([a-z_]+|-?\d+)\b', text))
+        dma = {key: value if key == 'transfer' else number(value) for key, value in fields.items()}
     return {'uptime_seconds': (ctx.read('/proc/uptime') or '').split(' ')[0] or None,
             'versions': ctx.json('/etc/y2linux/versions.json'),
             'boot_history': ctx.json('/data/system/platform/boot.json'),
@@ -396,7 +402,7 @@ def system(ctx):
             'pstore_files': [p.name for p in ctx.glob('/sys/fs/pstore/*')],
             'rtc': rtcs, 'time': clock, 'ssh': ssh,
             'entropy_available_bits': ctx.integer('/proc/sys/kernel/random/entropy_avail'),
-            'crng_ready': clock['entropy_ready'], 'usb': {'mode': 'peripheral', 'udcs': udcs},
+            'crng_ready': clock['entropy_ready'], 'usb': {'mode': 'peripheral', 'udcs': udcs, 'dma': dma},
             'update': update_status(ctx),
             'reborn_supervisor': ctx.json('/data/reborn/logs/supervisor-last.json')}
 
@@ -446,6 +452,7 @@ def snapshot(ctx, pids=(), pss=False, interval=0):
                         'headphone_jack_present': None,
                         'headphone_jack_reason': 'codec_irq_not_qualified',
                         'qualified_profile': ctx.json('/etc/y2linux/audio-qualified.json'),
+                        'enabled_profile': ctx.json('/etc/y2linux/audio-enabled.json'),
                         'hw_params': {str(p.relative_to(ctx.root)): read(p)
                                       for p in ctx.glob('/proc/asound/card*/pcm*/sub*/hw_params')}}}
     result['readiness'] = readiness(result)
