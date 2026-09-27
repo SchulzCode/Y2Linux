@@ -1,5 +1,38 @@
 # Y2Linux roadmap and gap audit
 
+## CPU Final candidate boundary — 2026-09-27
+
+Owner's concentrated implementation scope is complete at the source/candidate
+boundary: Linux `ff586df`, Reborn `afcf9ff`. Exact original Hardware02
+`76bc822` / `95747e0`, boot prefix `b93cda16`, remains the retained real-hardware
+baseline. Hardware Final handoff receipts12/16 prove four local timers,
+highres/NO_HZ, GPT6 rollover and checked hotplug; older receipt49 proves CPU3/2/1
+restoration but records USB overflow and mandatory-STP radio timeout. CPU Final
+corrects those software paths without replacing the historical failed result.
+No device was accessed. ROM/recovery/calibration provenance and reserved memory
+are unchanged; no repeat acquisition or physical qualification campaign applies.
+Fresh complete software validation uses the exact pair above; existing unrelated
+worktree documentation/assets stay outside the candidate source checkout.
+
+| Coverage / existing issues | Refreshed classification and boundary decision |
+| --- | --- |
+| Boot/recovery/security #16/#28/#32 | NARROW PHYSICAL PASS retained; CPU recovery options IMPLEMENTED/HOST TESTED. Loader and protected areas unchanged, exact accepted Hardware02 pair retained as fallback. New boot is independently unqualified. |
+| Storage/filesystems #28/#33 | Retained narrow unit results unchanged. BOOTIMG/Y2ROOT-only scatter, no USRDATA image, no Y2DATA reset or schema change. Local package validation is the final preservation gate. |
+| CPU/timers/idle #28/#34 | IMPLEMENTED/HOST TESTED: GPT6 stable counter, PPI29 per-CPU events, GPT4 Linux broadcast, highres/NO_HZ lifecycle, CNTFRQ/CPU PM context, automatic preflight SLIDLE, distinct stock dormant PCM/CIRQ/GIC/coherency. Dormant is experimental/default off, CPU0 with others physically off; stricter media/clock preflight stays binding. |
+| DVFS/thermal/power #30/#34 | IMPLEMENTED/HOST TESTED: exact bin0/voltage admission, transition ordering/rollback, schedutil, expiring QoS/boosts and thermal maximum authority. Unknown bins/faults retain conservative stock OPPs. Battery/current/pack-sensor limitations unchanged. |
+| USB #27/#32 | IMPLEMENTED/HOST TESTED: system gadget disconnect/DMA refusal, sampled stale W1C cleanup, endpoint-before-gate restore, preserved runtime/live-DMA completion status and terminal fault masks. No new physical resume or VBUS qualification. |
+| Suspend/Power/RTC #30/#34 | IMPLEMENTED/HOST TESTED: CIRQ bracket, Linux CPU/cluster context, normal PCM reinstall, Power/RTC wake masks, helper stage/error restoration. Full same-boot resume remains independently unqualified; explicit existing qualification interface remains default. |
+| GPU/display/input/memory #28/#34 | Working GPU01 corrections/reservations preserved. CPU low-power preflight honors domain/clock ownership; no forced peripheral clock loss, no memory reclaim or new physical load claim. |
+| Audio/DAC #29 | Existing ALSA/AFE/CS43131 PM/volume ownership retained; QoS latency leases bound heavy playback and thermal remains authoritative. New suspend audio quality and unrelated wider native transport remain unqualified. |
+| Wi-Fi/BT/codecs #31 | IMPLEMENTED/HOST TESTED: one isolated controller boot retry after complete power/DMA/rail/clock teardown; firmware/interface readiness before success, radio errors propagate. y2-bt-reconnect remains sole automatic reconnect owner; prior peer/codec qualifications unchanged. |
+| Reborn/library/platform #32/#33 | IMPLEMENTED/HOST TESTED: scoped artwork workload, independent coalesced interaction lease, immediate screen-off release, semantic API with crash/expiry cleanup. Host tests/fmt/strict Clippy and fresh ARM build/QEMU are release-facing software gates. |
+| Packaging/updates/endurance #32/#33 | One preserving candidate, exact fallback and source/license/validation handoff; no flash/push or OTA application. Existing open epics #16/#27/#28/#29/#31/#32/#33/#34 stay open; no hardware milestone or qualification promotion. |
+
+Decision: **READY to seal the single CPU Final software candidate** after the fresh
+build and release checks. Local package/data/fallback validation is the final gate.
+Implementation, admission and physical qualification are separate flags. No new
+hardware authorization, measurements or successful suspend receipt is inferred.
+
 ## CPU Final implementation admission — 2026-09-27
 
 Owner explicitly authorizes a concentrated CPU/timer/DVFS/idle/suspend implementation
