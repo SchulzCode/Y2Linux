@@ -228,8 +228,8 @@ def main():
         from .boot import mark
         result = mark(ctx, args.stage)
     else:
-        result = ctx.json('/etc/y2linux/capabilities.json', {
-            'schema': 'org.y2linux.capabilities/v1', 'state': 'Unavailable'})
+        from .capabilities import status as capability_status
+        result = capability_status(ctx)
         # A root overlay may retain an older capability template. Runtime
         # identity always comes from the installed release, never the template.
         result['platform_version'] = ctx.json('/etc/y2linux/versions.json', {}).get('release_version')

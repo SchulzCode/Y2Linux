@@ -12,6 +12,7 @@ class StorageRecovery(unittest.TestCase):
 #include <assert.h>
 #include <stddef.h>
 #include <stdbool.h>
+typedef unsigned u32;
 #define READ_ONCE(x) (x)
 #define container_of(p,t,m) ((t *)((char *)(p)-offsetof(t,m)))
 struct work_struct{int unused;};struct delayed_work{struct work_struct work;};
@@ -38,7 +39,7 @@ int main(void){
  y2_msdc_clock_recovery(&h.y2_clock_recovery.work);assert(programs==2);
  h.y2_clock_limit=50000000;clock_error=-5;
  y2_msdc_clock_recovery(&h.y2_clock_recovery.work);assert(h.y2_clock_error==-5 && !claimed);
- h.y2_recovery_abort=1;unsigned previous=gets;
+ h.y2_recovery_abort=1;int previous=gets;
  y2_msdc_clock_recovery(&h.y2_clock_recovery.work);assert(gets==previous && !claimed);
 }
 ''')

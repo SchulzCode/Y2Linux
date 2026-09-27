@@ -1,0 +1,12 @@
+{
+  "schema": "org.y2linux.audio-enablement/v1",
+  "card": "Y2Audio",
+  "enabled_formats": ["S16_LE"],
+  "enabled_rates": [44100, 48000],
+  "channels": 2,
+  "experimental": false,
+  "qualified": false,
+  "source": "MT6582 DL1/second I2S driver and prior short 48k playback; final physical qualification pending",
+  "conversion_source_rates": [44100, 48000, 88200, 96000],
+  "fallback": "S16_LE; 44.1 or 48k family conversion, then 44.1k if opening fails"
+}

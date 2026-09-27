@@ -7,12 +7,16 @@
     "telemetry": {
       "implemented": true,
       "enabled": true,
-      "qualified": false
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification of this exact candidate pending"
     },
     "health": {
       "implemented": true,
       "enabled": true,
-      "qualified": false
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification of this exact candidate pending"
     },
     "storage": {
       "implemented": true,
@@ -28,7 +32,9 @@
       "mount_identity": "boot_id:mount_id:device_id plus UUID and platform mount claim",
       "automatic_music_deletion": false,
       "space_policy": true,
-      "scratch_benchmarks": true
+      "scratch_benchmarks": true,
+      "experimental": false,
+      "reason": "physical qualification of this exact candidate pending"
     },
     "wifi": {
       "implemented": true,
@@ -40,7 +46,9 @@
         "address",
         "default_route",
         "recent_dns_probe"
-      ]
+      ],
+      "experimental": false,
+      "reason": "physical qualification of this exact candidate pending"
     },
     "bluetooth": {
       "implemented": true,
@@ -48,7 +56,12 @@
       "enabled_source": "/data/bluetooth/enabled",
       "qualified": false,
       "baseline_codec": "SBC",
-      "optional_codecs": [],
+      "optional_codecs": [
+        "AAC",
+        "aptX",
+        "aptX-HD",
+        "LDAC"
+      ],
       "automatic_connection_owner": "y2-bt-reconnect",
       "avrcp": true,
       "codec_auto": {
@@ -56,8 +69,10 @@
         "enabled": true,
         "qualified": false,
         "eligible_codecs": [],
-        "interface": "rebornctl bluetooth codec Auto|SBC ADDRESS"
-      }
+        "interface": "rebornctl bluetooth codec Auto|SBC|SBC-XQ|AAC|aptX|aptX-HD|LDAC ADDRESS"
+      },
+      "experimental": false,
+      "reason": "physical qualification of this exact candidate pending"
     },
     "usb_device": {
       "implemented": true,
@@ -73,14 +88,22 @@
       "authenticated_owner_only": true,
       "atomic_verified_uploads": true,
       "filesystem_mass_storage": false,
-      "sftp_reserve_bytes": 100663296
+      "sftp_reserve_bytes": 100663296,
+      "experimental": false,
+      "reason": "physical qualification of this exact candidate pending"
     },
     "usb_host": {
-      "implemented": false,
+      "implemented": true,
       "enabled": false,
       "qualified": false,
-      "gate": "PHYSICAL_GATE",
-      "reason": "board_role_and_vbus_unproven"
+      "experimental": true,
+      "reason": "VBUS physical validation pending; host role refused before session or VBUS write",
+      "physical_gate": "vbus",
+      "classes": [
+        "snd-usb-audio",
+        "usb-storage",
+        "usbhid"
+      ]
     },
     "audio": {
       "implemented": true,
@@ -90,7 +113,8 @@
         "S16_LE"
       ],
       "enabled_rates_hz": [
-        44100
+        44100,
+        48000
       ],
       "channels": 2,
       "prior_narrow_evidence": "2026-09-18-gpu01/audio.txt",
@@ -100,22 +124,36 @@
       "driver_rates_hz": [
         44100,
         48000
-      ]
+      ],
+      "experimental": false,
+      "reason": "S16 44.1/48 enabled independently of qualification; high source rates convert with explicit fallback",
+      "internal_source_rates_hz": [
+        44100,
+        48000,
+        88200,
+        96000
+      ],
+      "native_high_rates": false
     },
     "power_observation": {
       "implemented": true,
       "enabled": true,
       "qualified": false,
       "measured_current": false,
-      "soc": false,
-      "pack_temperature": false
+      "soc": true,
+      "pack_temperature": false,
+      "experimental": false,
+      "reason": "SOC estimate available; pack current/temperature remain unavailable unless real BAT0 properties exist"
     },
     "low_battery_shutdown": {
       "implemented": true,
-      "enabled": false,
+      "enabled": true,
       "qualified": false,
       "gate": "PHYSICAL_GATE",
-      "reason": "thresholds_and_shutdown_reserve_require_measurement"
+      "reason": "conservative stock-boundary voltage floor; provisional SOC only warns",
+      "experimental": false,
+      "provisional": true,
+      "policy_schema": 2
     },
     "deep_suspend": {
       "implemented": true,
@@ -123,13 +161,20 @@
       "qualified": false,
       "gate": "PHYSICAL_GATE",
       "reason": "same_boot_resume_unqualified",
-      "qualification_command": "y2-suspend --owner-qualify"
+      "qualification_command": "y2-suspend --owner-qualify",
+      "experimental": false
     },
     "cpuidle": {
       "implemented": true,
       "enabled": true,
       "qualified": false,
       "states": [
+        "WFI",
+        "SLIDLE"
+      ],
+      "experimental": false,
+      "reason": "physical qualification of this exact candidate pending",
+      "default_states": [
         "WFI"
       ]
     },
@@ -139,7 +184,8 @@
       "qualified": false,
       "gate": "PHYSICAL_GATE",
       "reason": "AP_watchdog_driver_available_recovery_policy_unqualified",
-      "recovery_policy_implemented": false
+      "recovery_policy_implemented": false,
+      "experimental": false
     },
     "ota": {
       "implemented": true,
@@ -153,20 +199,388 @@
       "trust": "development",
       "rollback": "verified previous root; next boot on missing health",
       "health_deadline_seconds": 180,
-      "physical_gate": "rescue installation/interruption/readback/restore"
+      "physical_gate": "rescue installation/interruption/readback/restore",
+      "experimental": false,
+      "reason": "physical qualification of this exact candidate pending"
     },
     "automatic_bootimg_update": {
       "implemented": false,
       "enabled": false,
       "qualified": false,
-      "reason": "single_slot_rescue_can_be_lost"
+      "reason": "single_slot_rescue_can_be_lost",
+      "experimental": false
     },
     "shutdown": {
       "implemented": true,
       "enabled": true,
       "qualified": false,
       "application_grace_seconds": 10,
-      "interface": "/run/y2/power.sock"
+      "interface": "/run/y2/power.sock",
+      "experimental": false,
+      "reason": "physical qualification of this exact candidate pending"
+    },
+    "emmc": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "width": 8,
+      "max_standard_clock_hz": 50000000,
+      "timings": [
+        "legacy",
+        "MMC_HS_SDR"
+      ],
+      "fallback_clock_hz": [
+        25000000,
+        13000000
+      ],
+      "automatic_fault_fallback": true
+    },
+    "sd": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "width": 4,
+      "max_standard_clock_hz": 50000000,
+      "timings": [
+        "legacy",
+        "SD_HS"
+      ],
+      "fallback_clock_hz": [
+        25000000,
+        13000000
+      ],
+      "uuid_required": false
+    },
+    "usb_dma": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "fallback": "PIO",
+      "boot_fallback": "y2.usb_dma=off",
+      "telemetry": "directional programmed bytes and bus faults; not delivered-byte counters"
+    },
+    "usb_ncm": {
+      "implemented": true,
+      "enabled": false,
+      "qualified": false,
+      "experimental": true,
+      "reason": "module compiled; ECM remains recovery default; NCM activation and FIFO integration pending",
+      "fallback": "ECM"
+    },
+    "local_timer": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "fallback": "GPT/dummy broadcast",
+      "boot_fallback": "y2.local_timer=off",
+      "frequency_hz": 13000000
+    },
+    "high_resolution_timers": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "fallback": "legacy clockevent"
+    },
+    "no_hz_idle": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "fallback": "periodic tick"
+    },
+    "cpufreq": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "governor": "schedutil",
+      "default_max_khz": 1040000,
+      "opp_khz": [
+        598000,
+        747500,
+        1040000,
+        1196000,
+        1300000
+      ]
+    },
+    "dvfs": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": true,
+      "reason": "stock-bin voltage control implemented; high stock OPPs default gated",
+      "stock_high_opp_enabled": false,
+      "voltage_floor_uv": 1150000
+    },
+    "workload_qos": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "interface": "/dev/y2-workload",
+      "classes": [
+        "Idle",
+        "PlaybackNormal",
+        "PlaybackHeavy",
+        "Interactive",
+        "LibraryScan",
+        "NetworkTransfer",
+        "Maintenance"
+      ],
+      "interactive_ms": 250,
+      "lease_max_ms": 30000,
+      "provisional": true
+    },
+    "cpu_hotplug": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "automatic_offlining": false,
+      "cores": 4
+    },
+    "slow_idle": {
+      "implemented": true,
+      "enabled": false,
+      "qualified": false,
+      "experimental": true,
+      "reason": "stock slow-idle wrapper implemented; single-CPU clock preflight and physical tuning pending",
+      "fallback": "WFI",
+      "default_disabled": true
+    },
+    "cpu_power_down_idle": {
+      "implemented": false,
+      "enabled": false,
+      "qualified": false,
+      "experimental": true,
+      "reason": "runtime dormant/CIRQ/GPT deadline integration remains a technical gap; suspend PCM is not runtime idle"
+    },
+    "charging": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "source_classes": [
+        "SDP",
+        "CDP",
+        "DCP",
+        "Apple",
+        "nonstandard"
+      ],
+      "configured_current_steps_ua": [
+        70000,
+        450000,
+        650000
+      ],
+      "max_configured_voltage_uv": 4175000
+    },
+    "battery_soc": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "provisional": true,
+      "sources": [
+        "fuel_gauge",
+        "hybrid",
+        "voltage_estimate"
+      ],
+      "default_source": "voltage_estimate",
+      "profile_schema": 1
+    },
+    "rtc_time": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "ntp_sync_default": true
+    },
+    "rtc_alarm": {
+      "implemented": true,
+      "enabled": false,
+      "qualified": false,
+      "experimental": true,
+      "reason": "alarm software implemented; same-boot suspend wake pending",
+      "interface": "y2-platform rtc-alarm SECONDS"
+    },
+    "wifi_power_save": {
+      "implemented": true,
+      "enabled": false,
+      "qualified": false,
+      "experimental": true,
+      "reason": "off/standard/automatic implemented; automatic defaults conservatively off",
+      "interface": "y2-platform wifi-power-policy"
+    },
+    "radio_coexistence": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "instrumentation and policy hooks implemented; no final bitrate overrides",
+      "provisional": true
+    },
+    "bluetooth_sbc": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "runtime enablement uses compiled inventory and explicit Experimental gate; physical qualification pending",
+      "fallback": "SBC"
+    },
+    "bluetooth_sbc_xq": {
+      "implemented": true,
+      "enabled": false,
+      "qualified": false,
+      "experimental": true,
+      "reason": "runtime enablement uses compiled inventory and explicit Experimental gate; physical qualification pending",
+      "fallback": "SBC"
+    },
+    "bluetooth_aac": {
+      "implemented": true,
+      "enabled": false,
+      "qualified": false,
+      "experimental": true,
+      "reason": "runtime enablement uses compiled inventory and explicit Experimental gate; physical qualification pending",
+      "fallback": "SBC"
+    },
+    "bluetooth_aptx": {
+      "implemented": true,
+      "enabled": false,
+      "qualified": false,
+      "experimental": true,
+      "reason": "runtime enablement uses compiled inventory and explicit Experimental gate; physical qualification pending",
+      "fallback": "SBC"
+    },
+    "bluetooth_aptx_hd": {
+      "implemented": true,
+      "enabled": false,
+      "qualified": false,
+      "experimental": true,
+      "reason": "runtime enablement uses compiled inventory and explicit Experimental gate; physical qualification pending",
+      "fallback": "SBC"
+    },
+    "bluetooth_ldac": {
+      "implemented": true,
+      "enabled": false,
+      "qualified": false,
+      "experimental": true,
+      "reason": "runtime enablement uses compiled inventory and explicit Experimental gate; physical qualification pending",
+      "fallback": "SBC"
+    },
+    "wired_48": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "source-backed native S16 path enabled; full candidate qualification pending",
+      "fallback": "S16/44.1"
+    },
+    "audio_rate_conversion": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "source_rates_hz": [
+        44100,
+        48000,
+        88200,
+        96000
+      ],
+      "sink_rates_hz": [
+        44100,
+        48000
+      ],
+      "fallback": "S16/44.1"
+    },
+    "wired_s32": {
+      "implemented": false,
+      "enabled": false,
+      "qualified": false,
+      "experimental": true,
+      "reason": "exact MT6582 DL1 wide-fetch/high-rate register path not defined in inspected pinned sources; source-backed conversion fallback implemented"
+    },
+    "wired_native_88200": {
+      "implemented": false,
+      "enabled": false,
+      "qualified": false,
+      "experimental": true,
+      "reason": "exact MT6582 DL1 wide-fetch/high-rate register path not defined in inspected pinned sources; source-backed conversion fallback implemented"
+    },
+    "wired_native_96000": {
+      "implemented": false,
+      "enabled": false,
+      "qualified": false,
+      "experimental": true,
+      "reason": "exact MT6582 DL1 wide-fetch/high-rate register path not defined in inspected pinned sources; source-backed conversion fallback implemented"
+    },
+    "cs43131_controls": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "automatic_high_gain": false,
+      "controls": [
+        "hardware volume",
+        "digital filters",
+        "power/DAPM"
+      ]
+    },
+    "gpu_runtime_pm": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending"
+    },
+    "display_off": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending"
+    },
+    "memory_telemetry": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending",
+      "reclaimed_reserved_regions": false,
+      "metrics": [
+        "PSS",
+        "LOWMEM",
+        "HIGHMEM",
+        "cache",
+        "slab",
+        "growth"
+      ]
+    },
+    "diagnostics": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": false,
+      "reason": "physical qualification pending"
     }
-  }
+  },
+  "feature_contract_version": 2
 }
