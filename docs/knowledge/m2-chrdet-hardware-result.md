@@ -1,5 +1,10 @@
 # M2-CHRDET-01 physical result
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-09, implementation `de1a6d0`. The owner supplied three photographs in
 `out/m2-chrdet-01/` and reports no error when starting without USB, but error
 `-19` when starting with USB connected. All show M2-CHRDET-01 and Linux

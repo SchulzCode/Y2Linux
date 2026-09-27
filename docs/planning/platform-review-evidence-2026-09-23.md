@@ -1,5 +1,10 @@
 # Whole-platform evidence ledger — 2026-09-23
 
+<!-- knowledge-base-scope: decision-log-/-historical-roadmap -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Companion to [the owner review](../CURRENT_PLATFORM_STATE.md). This is a
 documentation-only assessment of application-facing platform behavior, not a
 milestone closure, implementation authorization or new physical qualification.

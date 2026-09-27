@@ -1,5 +1,10 @@
 # M2-USBACM-04 — one bounded disconnect/reconnect trial
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-09, baseline `7ee780a`. **Offline validated; hardware test pending.**
 The successful [USBACM-03 capture](../knowledge/m2-usbacm-hardware-result.md#usbacm-03-kernel-and-pid1-capture-confirmed)
 is already pushed. #27 stays open until this robustness evidence is reviewed.

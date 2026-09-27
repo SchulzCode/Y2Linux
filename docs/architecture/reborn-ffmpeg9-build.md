@@ -1,5 +1,10 @@
 # Reborn FFmpeg 9.0.2 production build
 
+<!-- knowledge-base-scope: source-contract -->
+> **Source-contract scope.** This page describes software ownership and
+> interface behavior. See [current state](../CURRENT_PLATFORM_STATE.md) for the exact latest image
+> and physical limits; implemented or enabled does not mean qualified.
+
 Y2Linux pins the Reborn media build to FFmpeg **9.0.2**. Buildroot supplies
 `libavformat`, `libavcodec`, `libavutil`, `libavfilter`, `libswresample` and
 `libswscale`; the FFmpeg command line tools, `libavdevice`, network protocols,

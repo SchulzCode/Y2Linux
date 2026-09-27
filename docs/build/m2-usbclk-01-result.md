@@ -1,5 +1,10 @@
 # M2-USBCLK-01 — ready for owner device test
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > Returned [physical photos](../knowledge/m2-usb-clock-hardware-result.md) now
 > confirm CLOCK RC=0/VALID=15, increasing timer IRQ counts and BEAT 50 with no
 > reported errors. Exact flashed hash and restoration remain unreported.

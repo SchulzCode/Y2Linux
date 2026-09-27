@@ -1,5 +1,10 @@
 # Partition map and acquisition boundary
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **2026-09-13 clarification:** the actual FM kernel implements a23552-sector
 translation from this stock logical disk to native EMMC_USER. Corrected owner
 readback confirms all tables and flashed ext4 identity prefixes.

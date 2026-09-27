@@ -1,5 +1,10 @@
 # Hardware 02 — coherent hardware ceiling candidate
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 IMAGE_VALIDATED_PHYSICAL_PENDING, 2026-09-26. The installed unit still runs
 Physical 01. This is a single preserving BOOTIMG + root update, not a frozen
 hardware platform or a qualified performance ceiling.

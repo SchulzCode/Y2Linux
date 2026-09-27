@@ -1,5 +1,10 @@
 # CONNECTIVITY-08: consume the MT6582 E2 RF calibration result
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 The [own-unit CONNECTIVITY-07 capture](../hardware-evidence/2026-09-17-m5-protocol/README.md)
 locates EPROTO at opcode `0x14`, after both patches/reset replies, when a valid
 630-byte RF calibration result exceeds the 256-byte WMT response buffer.

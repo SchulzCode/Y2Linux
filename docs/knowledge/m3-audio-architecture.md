@@ -1,5 +1,10 @@
 # M3 headphone-first architecture and source review
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-10; qualified core baseline `d76e57f`; current deployed candidate
 Y2LINUX-M3-AUDIO-02 (`8f93e44`), including notification fix `137b3f2`.
 [Owner-authorized activation audit](../planning/roadmap-gap-audit.md#m3-activation-audit--2026-09-10).

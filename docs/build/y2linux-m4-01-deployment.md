@@ -1,5 +1,10 @@
 # Y2LINUX-M4-01 — integrated power candidate, manual deployment pending
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 This BOOTIMG retains the physically accepted Storage06 internal boot layout:
 Y2ROOT on eMMC p5, Y2DATA on p7, existing SSH identity and Buildroot userspace.
 No rootfs/data update is required. An SD card is optional. This is an M4 test

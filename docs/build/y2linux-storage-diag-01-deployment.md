@@ -1,5 +1,10 @@
 # Storage02 DIAG01 deployment
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 The installed Storage02 rescue reports missing/invalid internal Y2ROOT or Y2DATA.
 Linux USB remains absent, including after the latest reported restart/attachment.
 This temporary diagnostic shows the cached USB state, internal block identity,

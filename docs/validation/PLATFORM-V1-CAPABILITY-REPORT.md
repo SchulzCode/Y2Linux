@@ -1,5 +1,10 @@
 # Platform v1 capability report
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Y2Linux Platform v1 Candidate: source `d04b95a` / Reborn `6c8aa12`.
 No current-candidate physical or endurance qualification is claimed.
 The [machine ledger](platform-v1-capabilities.json) retains starting state, implementation, commits, tests and independent evidence levels for each row.

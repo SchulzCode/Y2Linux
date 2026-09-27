@@ -1,5 +1,10 @@
 # Y2B-240 result — Linux PID1 evidence and Android recovery
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-08. The single diagnostic candidate transfer completed and the owner
 observed a solid green Y2 display. Android was restored through a second BOOTIMG-only
 transfer and the owner reports normal operation. **Linux 6.18 boot to initramfs PID1 is established by the reported

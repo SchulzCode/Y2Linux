@@ -1,5 +1,10 @@
 # Y2LINUX-GPU-01 — manual deployment receipt
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Owner deployed; hardware rendering passed, deep suspend failed qualification.** Source commit
 `7c43557a38fac6bbdb0ab5628cffe131ebda6360`. One integrated BOOTIMG/Y2ROOT
 candidate is at `/home/luca/Dokumente/Code/Y2Linux/out/y2linux-gpu-01`.

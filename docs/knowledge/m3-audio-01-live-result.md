@@ -1,5 +1,10 @@
 # Native audio physical result — AUDIO-02 supersedes AUDIO-01
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Current result, 2026-09-10: **clean native headphone output at S16 stereo 44.1 kHz**.
 Owner reports "perfect, no clicking!" after manually flashing AUDIO-02. M3 is
 **active / near completion**, with focused 48 kHz, L/R and stop/restart/repeat checks

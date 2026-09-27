@@ -1,5 +1,12 @@
 # CPU Final Fix 01 implementation and candidate receipt
 
+**Latest physical result:** The [2026-09-27 Fix01 qualification](Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md)
+passes timer architecture/highres/NO_HZ and all real workload classes, but fails
+normal CPU-platform acceptance. SLIDLE has zero entries, high OPPs fail later
+PWRAP readiness, a devices-stage request loses recovery and loaded USB stress
+loses the connection. The software checks and package hashes below remain valid
+for their scope; they are not physical passes for unentered voltage/C3/full wake.
+
 Owner-authorized correction of the five integration failures in the completed
 [physical qualification](Y2-CPU-FINAL-PHYSICAL-QUALIFICATION.md). This pass changes
 software, produces one preserving candidate and does not access or flash a Y2.

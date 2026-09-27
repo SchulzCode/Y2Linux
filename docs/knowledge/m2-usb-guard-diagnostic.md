@@ -1,5 +1,10 @@
 # M2-USBGUARD-01 — expose the refused USB handoff
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Current next test: [M2-USBACM-01](m2-usb-enumeration.md), a combined guarded
 enumeration/logging attempt requested by the owner. USBGUARD remains untested
 and retained as an optional fallback; no additional guard-only test is required.

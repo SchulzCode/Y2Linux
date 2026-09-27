@@ -1,5 +1,10 @@
 # M2-USBGUARD-01 — ready for owner device test
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Superseded as the immediate next test by [M2-USBACM-01](m2-usbacm-01-result.md)**
 at the owner's request to combine enumeration and logging. This image remains
 an untested diagnostic fallback; the procedure below is its historical handoff.

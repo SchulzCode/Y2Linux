@@ -1,5 +1,10 @@
 # M3-AUDIO-01 integrated candidate — offline result
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Historical build result.** AUDIO-01 was deployed and exposed a PCM notification
 bug. AUDIO-02 fixes it and now has clean44.1kHz physical playback. See the
 [current audio result](../knowledge/m3-audio-01-live-result.md). The original

@@ -1,5 +1,10 @@
 # CONNECTIVITY-04: verify the real CONN EMI remap before startup
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 CONNECTIVITY-03 now passes the native MD completion gate on this Y2:
 `stage=2 FS=841 restore=1 open=0 result=0 poweroff=0`, at uptime 48.502808 s.
 The owner reports a crash shortly afterward. Photos show faults on idle CPUs

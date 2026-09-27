@@ -1,5 +1,10 @@
 # Platform v1 telemetry repair — 2026-09-25
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Subsequent owner-installed retest: both repairs now pass their narrow physical
 checks on boot `3194fa9d-2dee-4105-86f0-4021580bf8d0`. Status/health return; no
 reader remains after a bounded counter timeout while charging. See the

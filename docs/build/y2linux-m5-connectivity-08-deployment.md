@@ -1,5 +1,10 @@
 # CONNECTIVITY-08 — targeted RF calibration protocol correction
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 The candidate fixes the verified host rejection of this MT6582 E2 controller's
 630-byte RF calibration event. Full STP negotiation, both patch downloads and
 both resets already succeed. The new kernel preserves strict length, CRC,

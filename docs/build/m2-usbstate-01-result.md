@@ -1,5 +1,10 @@
 # M2-USBSTATE-01 — ready for owner device test
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > Returned [physical photos](../knowledge/m2-usb-state-hardware-result.md) confirm
 > all 21 reads, zero DMA control words and BEAT 50 without reported errors.
 > The original pending-test handoff below is historical.

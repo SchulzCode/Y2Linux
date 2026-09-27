@@ -1,5 +1,10 @@
 # Y2 hardware evidence baseline
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > Current hardware result: [owner-observed M1 runtime success](m1-runtime-hardware-result.md) confirms Linux 6.18, native PID1, increasing BEAT/uptime, working sleep, proc/sysfs mounts, CPU0, D08 RAM visibility, framebuffer diagnostics and stopped-watchdog status. **M1 core achieved.** Exact flashed hash and unreported diagnostic fields remain unverified. Earlier dated statements below are historical.
 
 > Y2B-240 hardware result: the owner reports **solid green**, which the implemented state machine reaches through initramfs `/init` running as PID1. M1's Linux 6.18 plus PID1 boot objective is achieved. No heartbeat/checkerboard success is claimed. [Y2B-245 / D14](on-screen-diagnostics.md) is the offline follow-up for readable runtime diagnostics.

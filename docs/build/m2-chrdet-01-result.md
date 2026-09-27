@@ -1,5 +1,10 @@
 # M2-CHRDET-01 — owner result received
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-09 update: [returned photos](../knowledge/m2-chrdet-hardware-result.md)
 confirm successful CHRDET reads in both reported cable-at-startup conditions.
 Connected startup returns a guarded PHY refusal (6a=BE, W0), while no-USB

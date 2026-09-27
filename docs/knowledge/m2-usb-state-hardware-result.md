@@ -1,5 +1,10 @@
 # M2-USBSTATE-01 physical result
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-09. Owner-supplied 10.jpg / 50.jpg in out/m2-usbstate-01; both identify
 M2-USBSTATE-01 and Linux 6.18.0-y2-m2-usbstate1. Private originals/manifest:
 evidence-private/20260909-m2-usbstate-result/.

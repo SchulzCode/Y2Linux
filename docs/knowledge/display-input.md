@@ -1,5 +1,10 @@
 # Display and input evidence
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > 2026-09-10: [historical experiment audit](reverse-engineering-audit.md) finds a
 > dated correction to 480×360 and cold-display PHY/GPIO112 reset failures.
 > v6.18 already avoids the old OVL pitch/address and PMIC single-key bugs.

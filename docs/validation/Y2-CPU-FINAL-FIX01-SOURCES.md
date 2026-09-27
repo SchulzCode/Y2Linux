@@ -1,5 +1,10 @@
 # CPU Final Fix01 source and binary ledger
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Retained sources are read without reacquiring ROM/recovery/calibration. New
 bounded analysis receipts reside privately in `out/cpu-final-fix01/source/` and
 are included in the personal candidate's source collection.

@@ -1,5 +1,10 @@
 # Y2 CPU Final
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 CPU Final implementation candidate, 2026-09-27. No device access, flash or push.
 This supersedes the Hardware Final software gaps for dormant/CIRQ/deadline
 ownership; it does not supersede historical hardware failures with invented passes.

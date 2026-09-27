@@ -1,5 +1,14 @@
 # Platform v1 source and hardware boundaries
 
+**Latest physical boundary:** [CPU Final Fix01](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md)
+on 2026-09-27 physically verifies GPT6/GPT4/PPI29, highres/NO_HZ, real Reborn
+QoS, lower OPPs, hotplug and WFI. SLIDLE is blocked by MSDC0/1 runtime clocks,
+1196/1300 fail PWRAP readiness, first devices-stage suspend loses recovery,
+and loaded USB loses the connection. The 2026-09-23 review below records the
+older Platform v1 source gate; its WFI-only/100-Hz and disabled-threshold wording
+does **not** describe this latest Fix01 image. See [current state](../CURRENT_PLATFORM_STATE.md)
+for enabled provisional low-voltage policy and precise remaining gates.
+
 2026-09-23 software review; no physical access. Exact primary-source URLs and
 hashes are in [the research inventory](platform-v1-feasibility-sources.json).
 The retained [GPU-01 receipt](../hardware-evidence/2026-09-18-gpu01/README.md)

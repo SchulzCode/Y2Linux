@@ -1,5 +1,10 @@
 # M2-PWRAP-01 — USB power prerequisite ready for device test
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > Subsequent [physical photographs](../knowledge/m2-pwrap-hardware-result.md) confirm PWRAP RC=0, CID=0x2023, VUSB=0xc000 and BEAT 50.
 > Timer IRQ reporting returns -61; source-backed parser diagnosis is recorded.
 > Exact flashed hash and restoration outcome remain unreported. Original handoff below is historical.

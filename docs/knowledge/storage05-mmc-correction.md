@@ -1,5 +1,10 @@
 # Storage05 integrated production MMC correction
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **2026-09-13 update:** Superseded addressing conclusion: the21:10:43 corrected physical readback matches every expected table/image prefix. The actual FM binary has a23552-sector offset absent from the public donor. [Storage06 evidence and correction](storage06-addressing-correction.md) supersedes zero-offset claims below; Storage05 still fails internal boot.
 
 ## Latest physical result: still in rescue

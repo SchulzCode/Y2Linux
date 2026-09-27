@@ -1,5 +1,10 @@
 # Y2 Hardware Final implementation candidate
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Implementation-first continuation of Astra's `022e6ee` handoff, 2026-09-27.
 Software implementation, runtime enablement and physical qualification are
 independent. This pass does not contact, reboot or flash the Y2. The device

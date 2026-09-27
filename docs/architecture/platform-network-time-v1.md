@@ -1,5 +1,10 @@
 # Network, clock and entropy contract v1
 
+<!-- knowledge-base-scope: source-contract -->
+> **Source-contract scope.** This page describes software ownership and
+> interface behavior. See [current state](../CURRENT_PLATFORM_STATE.md) for the exact latest image
+> and physical limits; implemented or enabled does not mean qualified.
+
 wpa_supplicant remains the only saved-network association/reconnect owner.
 The platform's action hook owns one udhcpc process. Every connection, loss or
 service restart changes the lease epoch. The DHCP hook accepts only wlan0 and the

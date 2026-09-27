@@ -1,5 +1,10 @@
 # Platform v1 physical master issues
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Campaign started 2026-09-26. Evidence and target identity:
 [bring-up report](PLATFORM-V1-PHYSICAL-BRINGUP.md). Confidence describes the
 root cause, not the certainty of an observed symptom. Allowed confidence values:

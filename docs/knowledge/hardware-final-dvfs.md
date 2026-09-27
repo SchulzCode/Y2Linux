@@ -1,5 +1,13 @@
 # Hardware Final: stock CPU DVFS admission and qualification
 
+**Latest physical correction boundary, 2026-09-27:** Fix01 recognizes the
+actual software VOSEL bank `0x21e`, selector/NI feedback `0x48` at 1.15 V.
+1196/1300 MHz still fail admission at `pwrap_readiness` (-95); the three raw
+predicate operands were not available. No voltage-changing transition was
+physically exercised. The old `0x220` bank and admission design below document
+the stock-kernel path, not the current loader's selected software bank.
+[Current source/physical comparison](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md#opps-dvfs-and-thermal-authority).
+
 2026-09-27. This is the pre-implementation scope audit for the owner's combined
 Hardware Final campaign. The campaign authorizes source-backed stock DVFS;
 neither the earlier planning epic nor this audit qualifies a new operating point.

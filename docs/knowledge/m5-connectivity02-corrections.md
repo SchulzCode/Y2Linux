@@ -1,5 +1,10 @@
 # CONNECTIVITY-02: correction of the first startup failure
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 CONNECTIVITY-01 physically stopped with `stage=1 FS=0 result=-71`; MD shutdown
 succeeded. SSH inspection reconfirmed that state. The first candidate did not
 record the rejected message, so its exact rejection site remains unproven until

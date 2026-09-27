@@ -1,5 +1,10 @@
 # Production v1 restoration
 
+<!-- knowledge-base-scope: historical-design-/-runbook -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Keep the working SD and `out/y2linux-m3-audio-02/BOOTIMG.img` unchanged. Its
 4816896-byte image SHA256 is
 b9dbf6b528e4afbee2a5ffb2fc65df7f6a076564e92960332e24cee3809b5842.

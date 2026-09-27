@@ -1,5 +1,10 @@
 # M4 charging prerequisite: this Y2's battery sensor
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Historical checkpoint. The owner’s later charging authorization and the reconstructed
 stock protection architecture are recorded in [M4 charging](m4-charging.md).
 The sensor results below remain valid; the former unconditional BATON gate is superseded.

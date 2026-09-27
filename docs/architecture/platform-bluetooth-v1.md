@@ -1,5 +1,14 @@
 # Bluetooth platform v1 contract
 
+**2026-09-28 source/physical scope:** The candidate's private experiment
+profile compiles optional encoder libraries, but normal BlueALSA service starts
+with optional endpoints disabled and SBC as the baseline. The earlier source
+review's "no ARM proof/source integration" wording below applies to the
+pre-campaign configuration and is superseded by the
+[Hardware Final codec source work](../validation/Y2-HARDWARE-FINAL-RADIO-AUDIO.md).
+Fix01 physically proves a bounded isolated CONSYS retry, not headset audio or
+Auto qualification. [Current state](../CURRENT_PLATFORM_STATE.md).
+
 CONSYS/HCI, BlueZ 5.87 and BlueALSA 5.0.0 remain the control/transport/encoder
 owners. Reborn retains FFmpeg decode/DSP and one final conversion. Pairing trust,
 Rate/Format observation and transport generation invalidation were already fixed
@@ -23,9 +32,11 @@ already does. A snapshot cannot prove no removal occurred between snapshots.
 The image's codec inventory is generated from the configured, built BlueALSA
 source, with pinned source/configuration hashes. It fails packaging on an
 unexpected optional encoder. Build, runtime, remote/mutual, distribution and
-qualification states are separate. Current normal image: conformant SBC high
-quality, no XQ or optional encoder. All integrated codec physical qualification
-is still absent. Production Auto must not promote an unqualified codec.
+qualification states are separate. Current normal runtime starts conformant SBC
+high quality only; XQ remains unsupported. The owner-private experiment profile
+also compiles optional encoders, with their endpoints disabled at normal start.
+No optional peer codec is physically qualified for Fix01. Production Auto must
+not promote an unqualified codec.
 
 Reborn exports /org/reborn/player and registers it with BlueZ Media1. A bounded
 eight-command queue accepts calls from the current BlueZ unique owner only.
@@ -75,13 +86,15 @@ precedes mutation; ambiguous completion or app death blocks new PCM opens until
 BlueALSA owner replacement. Actual PCM remains separate from requested/selected
 codec. The control/API surface is implemented; preference UI is deferred.
 
-Optional encoders are deliberately excluded from this candidate. FDK-AAC's
+Optional encoders in the private experiment profile are not normal-runtime
+endpoints or approved public product features. FDK-AAC's
 [NOTICE](https://raw.githubusercontent.com/mstorsjo/fdk-aac/master/NOTICE) grants no
 patent license; the [libfreeaptx LGPL source](https://github.com/regularhunter/libfreeaptx)
 is a better future linked-library candidate than mixing GPL-3 libopenaptx with
 FDK; [AOSP LDAC NOTICE](https://android.googlesource.com/platform/external/libldac/+/2efdd91222c4c5f929335f34cbc3b576343cf1d2/NOTICE)
 requests product certification. Public distribution approval is not evidenced.
-No source/binary integration or ARM proof is claimed for AAC/aptX/HD/LDAC. These
-remain BLOCKED_BY_EVIDENCE for production approval and DEFERRED for experimental
-profiles; SBC peer/CPU/coexistence qualification takes priority. This does not
-claim that source licensing prohibits private experiments.
+Their source integration and ARM/QEMU execution are described in the
+[later source receipt](../validation/Y2-HARDWARE-FINAL-RADIO-AUDIO.md). Actual
+peer audio, CPU/coexistence, Auto promotion and public distribution approval
+remain BLOCKED_BY_EVIDENCE. SBC peer qualification is a separate physical gate;
+private source builds are not production authorization.

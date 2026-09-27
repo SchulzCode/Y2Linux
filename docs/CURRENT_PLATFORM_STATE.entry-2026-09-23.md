@@ -1,3 +1,8 @@
+<!-- knowledge-base-scope: current-entry-/-index -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > Archived owner entry review. Current software findings are in [CURRENT_PLATFORM_STATE.md](CURRENT_PLATFORM_STATE.md); retained physical evidence is unchanged.
 
 # Current Y2Linux platform state

@@ -1,5 +1,13 @@
 # Platform v1 software completion roadmap
 
+**Current scope, 2026-09-28:** See [platform state](../CURRENT_PLATFORM_STATE.md)
+and [Fix01 physical result](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md).
+The owner-flashed Fix01 passes timers and real QoS but fails acceptance because
+SLIDLE/high OPP admission and recovery remain open. One coherent Fix02 is the
+next *plan*, not an implemented candidate or release. This roadmap retains
+earlier Platform v1/Hardware Final/CPU Final boundary decisions as history;
+their "ready" and "next" language is scoped to those earlier packages.
+
 ## CPU Final Fix01 physical sweep — 2026-09-27
 
 [Admission audit](roadmap-gap-audit.md#cpu-final-fix01-physical-admission--2026-09-27)

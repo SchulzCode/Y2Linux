@@ -1,5 +1,10 @@
 # CONNECTIVITY-10: complete Wi-Fi regulatory TX power requests
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 The own Y2 trace places the remaining -09 Wi-Fi failure after firmware ready,
 successful RF/baseband capability queries and the interface registration path.
 The regulatory notifier sends domain `0x13` and TX power `0x38` commands; TX

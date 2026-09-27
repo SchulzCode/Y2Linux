@@ -1,5 +1,10 @@
 # Production Storage v1 — Storage03 manual correction candidate
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 All three payloads are rebuilt/generated and validated offline. Physical boot,
 USB enumeration and power-entry correction are NOT established. The owner cannot
 provide further device data; no additional evidence request is required to build

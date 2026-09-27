@@ -1,5 +1,11 @@
 # Hardware Final USB DMA observations
 
+**Latest physical boundary, 2026-09-27:** Fix01's first small SHA-checked
+USB transfer passes, but the next transfer loses connectivity while UI remains
+usable. These lifetime counters do not reveal the failed interval after the
+owner's restart. Loaded transfer recovery and full suspend restoration remain
+unqualified. [Actual result](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md#playback-connectivity-and-recovery).
+
 The sole active peripheral adapter is `kernel/platform/usb.c`. Hardware 02's
 physical census on 2026-09-27 reports Inventra DMA active, advancing DMA IRQs
 and zero DMA errors. This establishes activity, not the throughput ceiling,

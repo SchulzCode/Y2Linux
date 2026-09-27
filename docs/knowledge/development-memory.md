@@ -1,5 +1,10 @@
 # DEV-01 practical RAM reconciliation
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 ## Physical DEV-02 result — 2026-09-10
 
 [Live qualification](y2linux-dev02-live-qualification.md) measures MemTotal954660KiB

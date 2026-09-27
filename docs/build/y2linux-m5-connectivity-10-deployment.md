@@ -1,5 +1,10 @@
 # CONNECTIVITY-10 — installed Wi-Fi regulatory completion correction
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **The owner-installed image exposes stable wlan0/cfg80211 and scans successfully.**
 Two scans return 23 and 12 BSS entries. Runtime Wi-Fi restart and standard BlueZ
 power-on with Wi-Fi active succeed, with zero core/transport errors or recoveries.

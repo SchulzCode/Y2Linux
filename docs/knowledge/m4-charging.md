@@ -1,5 +1,10 @@
 # M4 production charging contract
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-14. **Implemented candidate; active charging is not physically qualified.**
 The current owner-installed M4-ADC-01 remains inhibited. No live charger writes,
 flash, suspend, reboot, calibration or RTC writes occurred in this pass.

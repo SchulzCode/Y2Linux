@@ -1,5 +1,10 @@
 # Hardware Final radio and audio source work
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-27. This supplement records source/host/ARM work; the coordinated
 campaign owns physical receipts and the final capability table. Temporary
 userspace probes do not replace the installed Hardware 02 kernel or authorize

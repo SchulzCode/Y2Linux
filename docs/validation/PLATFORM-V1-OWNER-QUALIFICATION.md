@@ -1,5 +1,10 @@
 # Platform v1 owner qualification
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 This plan is for the exact pair in the candidate's `metadata/versions.json` and
 `manifest.json`, with image identities in `SHA256SUMS`. No physical test has been
 performed by the completion pass. Record each result as PHYSICALLY_QUALIFIED

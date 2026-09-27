@@ -1,5 +1,10 @@
 # M4-POWER-02 integrated physical qualification
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Source `83d475ef71a3dd84f6e3cc483a7637b13520e4f7` builds one integrated
 production hardware candidate. [Exact build receipt and hashes](evidence/y2linux-m4-power-02/README.md).
 **M4 remains ACTIVE/PARTIAL. No new hardware pass is implied by compilation.**

@@ -1,5 +1,10 @@
 # Y2B-245 — Real screen result and sleep failure
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > Historical failed iteration. The owner subsequently reports [successful periodic PID1 execution](m1-runtime-hardware-result.md); retain the -38 screen below as the evidence that led to the time32 fix.
 
 Owner-reported hardware evidence, recorded 2026-09-08 in

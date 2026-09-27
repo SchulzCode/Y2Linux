@@ -1,5 +1,10 @@
 # M2-USBACM-03 — wait for PMIC synchronization before commands
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > [Owner capture-03](../knowledge/m2-usbacm-hardware-result.md#usbacm-03-kernel-and-pid1-capture-confirmed)
 > now confirms 11754 bytes of kernel/PID1 logs, kernel sequence 0–77 and beats
 > 1–43, with no captured relay gaps/errors. Normal 45-second capture exit: 0.

@@ -1,5 +1,10 @@
 # CPU Final source and register provenance
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-27. Source downloads and hashes are retained in private
 `out/cpu-final/source/{manifest,huawei-manifest}.json`. No binary dump, per-device
 identifier or protected calibration file is published here. Existing stock source

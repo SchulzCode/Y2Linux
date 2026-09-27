@@ -1,5 +1,10 @@
 # Storage03 correction candidate
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 The owner's 2026-09-13 DIAG01 photos show Linux alive, internal MMC at 15269888
 sectors, no exported partitions, and both filesystem resolvers absent/rejected.
 The storage warning's command/argument is outside the photographed 60-column

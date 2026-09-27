@@ -1,5 +1,10 @@
 # M2-BASELINE-03 — keep the log reader ahead of display probing
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Owner-tested: logging responds through display initialization; screen remains
 black.** M1 COMPLETE, M2 ACTIVE. The 180-second capture-02 contains all kernel
 records0–605 and PID1 through heartbeat184. DRM/fb0/module initialization returns

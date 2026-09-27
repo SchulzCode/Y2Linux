@@ -1,5 +1,10 @@
 # Y2LINUX-DEV-01 integrated development candidate
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Built and offline validated; stop at owner manual deployment.** Latest physical
 result remains `2efcdc1` / M2-BASELINE-03 capture-02: Linux and USB healthy through
 180 seconds, all 606 kernel records, black physical display after successful DRM,

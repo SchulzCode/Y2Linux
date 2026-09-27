@@ -1,9 +1,14 @@
 # Unknowns and architecture decisions
 
-**Current platform state:** [Platform v1 candidate](../CURRENT_PLATFORM_STATE.md).
-The dated unknowns and decisions below retain their original evidence scope;
-current implementation and qualification gaps are tracked in that state and its
-linked ledger.
+**Current unresolved CPU/transport group, 2026-09-27:** exact PWRAP readiness
+operand; MMC runtime clock gating without storage/card regression; a sustained,
+useful system-idle interval; first kernel suspend boundary and SRAM journal
+retention; loaded USB fault/recovery. C3/full RTC/Power wake and high-voltage
+transitions remain NOT_TESTED. GPT6/GPT4/PPI29, highres/NO_HZ and all real
+Reborn workload classes pass narrowly. These latest facts are in the
+[current platform state](../CURRENT_PLATFORM_STATE.md) and
+[Fix01 physical report](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md).
+The much older M0/M1 unknown list below is a dated discovery record.
 
 **Historical checkpoint — 2026-09-10:**
 M1 complete; M2 core/Buildroot physically qualified for progression; M3 AUDIO-02

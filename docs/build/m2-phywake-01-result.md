@@ -1,5 +1,10 @@
 # M2-PHYWAKE-01 — build and owner test handoff
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-09, active M2 #28, USB prerequisite #27/#23.
 **Superseded test status:** the owner has now supplied a successful
 [same-boot physical result](../knowledge/m2-phy-wake-hardware-result.md).

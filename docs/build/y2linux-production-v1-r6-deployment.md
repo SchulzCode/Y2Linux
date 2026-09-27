@@ -1,5 +1,10 @@
 # Storage06 internal boot and owner SSH — accepted on hardware
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 The owner flashed the single corrected Storage06 BOOTIMG, then the corrected
 initial Y2DATA image. SSH now authenticates with the existing
 `~/.ssh/y2linux_ed25519` identity. Internal Y2ROOT and Y2DATA mount read-write

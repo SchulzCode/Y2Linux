@@ -1,5 +1,10 @@
 # Production Storage / Installation v1 — issue 33
 
+<!-- knowledge-base-scope: historical-issue-specification -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 ACTIVE, wider qualification pending. **Storage06 internal boot and owner SSH
 are physically confirmed.** The former Storage03 pending-flash body is
 superseded by the local Storage06 source and hardware evidence.

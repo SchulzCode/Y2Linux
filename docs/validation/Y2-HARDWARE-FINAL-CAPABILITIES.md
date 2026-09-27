@@ -37,6 +37,11 @@ ownership/coordinator reachability and loaded USB recovery. No Fix02 was built.
 
 # CPU Final continuation — 2026-09-27
 
+The following CPU Final and Hardware Final inventory is a **historical software
+scope**. The physical Fix01 table above takes precedence for current observed
+behavior. See [current platform state](../CURRENT_PLATFORM_STATE.md) for overall
+acceptance and remaining gates.
+
 The CPU rows below now describe [CPU Final](Y2-CPU-FINAL.md) source implementation.
 The Hardware Final package remains immutable; CPU Final has its own candidate.
 CPU Final software checks and its single preserving package now pass at runtime

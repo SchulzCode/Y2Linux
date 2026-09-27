@@ -1,5 +1,10 @@
 # Y2LINUX-M4-ADC-01 — owner boot confirmed, charging inhibited
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 The owner has already deployed this kernel; **no repeat flash is requested**.
 It adds production IIO raw BATON1/ISENSE acquisition under the existing PMIC
 owner. [Physical result and charging gate](../knowledge/m4-battery-acquisition.md).

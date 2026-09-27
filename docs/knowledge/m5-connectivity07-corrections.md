@@ -1,5 +1,10 @@
 # CONNECTIVITY-07: identify factory storage through mounted root/data
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 CONNECTIVITY-06 is running, but this boot assigns internal eMMC `mmcblk1`.
 Mounted Y2ROOT/Y2DATA and logical capacity are correct; the factory provider
 assumes `mmcblk0` and exits before radio activation. This is a device-enumeration

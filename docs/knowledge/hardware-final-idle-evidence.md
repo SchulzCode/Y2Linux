@@ -1,5 +1,15 @@
 # Hardware Final idle source boundary
 
+**Latest physical correction boundary, 2026-09-27:** Fix01 admits local timers
+and actually enables highres/NO_HZ, yet SLIDLE records zero entries. CPU0-only,
+598-MHz, radios-off testing leaves `0x3000` = MSDC0/eMMC and MSDC1/SD.
+Both hosts report runtime-suspended with their source/gate clocks enabled;
+the Y2 early return in `0009-y2-msdc-readonly.patch` bypasses ordinary runtime
+clock gating. The coordinator did not park any core during 120/160-second
+screen-off windows; its eligibility was not sustained. DORMANT and CIRQ/GPT4
+handoff remain NOT_TESTED. The source research below describes the earlier
+pre-implementation boundary. [Actual result and limits](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md#idle-blocker-ownership-and-coordinator).
+
 The current `mt6582-wfi` driver registers one architectural WFI state. Local
 PPI29 timers and high-resolution/tickless operation do not themselves authorize
 bus clock changes, dormant CPU context loss or SPM runtime idle.

@@ -1,5 +1,10 @@
 # M2-USBCLK-01 — inherited USB clock state
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > [Physical result](m2-usb-clock-hardware-result.md): all four clock reads pass,
 > timer reporting works, and BEAT 50 is photographed without errors. The next
 > bounded step is [read-only USB state observation](m2-usb-state-probe.md).

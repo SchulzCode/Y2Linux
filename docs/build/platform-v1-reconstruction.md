@@ -1,5 +1,10 @@
 # Platform v1 source reconstruction and release boundary
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 The candidate records an exact Y2Linux/Y2Reborn Git pair, kernel/rootfs release,
 build ID, configurations, source archive hashes, patches, package versions,
 ELF/FFmpeg checks and owner-provisioned firmware hashes. This is reconstructable

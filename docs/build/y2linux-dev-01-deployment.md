@@ -1,5 +1,10 @@
 # Y2LINUX-DEV-01 — owner manual deployment
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Candidate files: `/home/luca/Dokumente/Code/Y2Linux/out/y2linux-dev-01/`.
 Linux 6.18, Buildroot 2025.02.17, rescue BOOTIMG and 512 MiB ext4 root filesystem.
 This candidate has passed offline validation; it has not been physically booted.

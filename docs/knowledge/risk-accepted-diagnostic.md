@@ -1,5 +1,10 @@
 # D11 — Risk-accepted first diagnostic boot policy
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-08; Y2E-150 [#18](https://github.com/SchulzCode/Y2Linux/issues/18).
 The owner's latest instruction supersedes the absolute authentication, exact
 installed BOOTIMG backup, and complete inherited DMA/secure-state gates in the

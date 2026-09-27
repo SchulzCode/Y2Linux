@@ -1,5 +1,10 @@
 # Platform v1 completion ledger
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Started 2026-09-23. **Y2Linux Platform v1 Candidate is declared as a software
 candidate**, following the final standing boundary audit and current-source
 validation. PHYSICALLY_QUALIFIED and ENDURANCE_QUALIFIED remain false for this

@@ -1,5 +1,14 @@
 # USB device and owner file transfer v1
 
+**2026-09-28 physical update:** The [Fix01 run](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md)
+passed one 256-KiB bidirectional SHA roundtrip, then lost USB connection during
+the next transfer while the Y2 UI stayed usable. The owner restarted. The
+failed-interval observer did not survive, so controller/IRQ/DMA cause is
+unknown. The protocol and access contract below remains implemented, but loaded
+transfer reliability, independent recovery and full-suspend restoration are
+not qualified. Normal Dropbear remains USB-bound; the run's temporary key-only
+Wi-Fi SSH recovery listener was removed afterward.
+
 DONE_SOFTWARE / HOST_VALIDATED. ACM + ECM stay on the existing peripheral-only
 MUSB/PHY path. The session runtime-PM reference correction already exists; this
 pass does not duplicate it. USB host/OTG and USB Audio host remain PHYSICAL_GATE:
@@ -65,7 +74,7 @@ publish contract. They still receive reserve-write failures.
 
 ## Qualification
 
-No physical action has been run. For the exact candidate, capture y2-status USB,
+For a future exact candidate, capture y2-status USB,
 SFTP/SSH readiness and hashes before/after: unplug/reconnect on one boot, PC
 sleep/wake, upload interrupt, one large file and many small files, concurrent
 playback, near-full data refusal, and unauthorized/incorrect host-key rejection.

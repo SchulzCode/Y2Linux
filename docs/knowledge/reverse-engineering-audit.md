@@ -1,5 +1,10 @@
 # Additional Y2 reverse-engineering evidence
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-10; canonical baseline **e4a0a81**. **M1 complete; M2 active, exit
 incomplete.** The blueprint, Linux **6.18**, our recovery policy and physical
 results remain authoritative. This audit changes research/porting decisions,

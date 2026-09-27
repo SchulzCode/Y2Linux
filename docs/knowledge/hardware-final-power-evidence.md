@@ -1,5 +1,15 @@
 # Hardware Final power evidence and remaining physical gates
 
+**Latest physical correction boundary, 2026-09-27:** Fix01's first devices-stage
+request lost recovery; Power once did not help and the owner restarted. Durable
+receipt reaches `kernel_suspend`; current/previous SRAM records are invalid, so
+SPM/RTC/CIRQ/vector values and the exact kernel boundary remain unknown. No full
+RTC/Power deep-wake test was run on Fix01. An awake RTC alarm and PMIC IRQ did
+pass. USB was attached but BAT0 reported Not charging/hold, leaving active
+charger-refusal unwind NOT_TESTED. The older source review below remains useful
+for stock PMIC/SPM provenance, not Fix01 suspend acceptance.
+[Physical report](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md#suspend-retained-evidence-and-awake-rtc).
+
 2026-09-27. This source review accompanies the coordinated campaign; it does
 not close power qualification. Private current-device receipts are under
 `out/hardware-final/20260927T122702Z-hardware02/`. Historical contradictory stock

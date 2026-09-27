@@ -1,5 +1,10 @@
 # M2-USBACM-01 — ready for owner enumeration test
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > Subsequent [owner photograph](../knowledge/m2-usbacm-hardware-result.md) shows
 > successful unplugged-start PHY wake, then US:2 RC:-16 from a live PWRAP poll.
 > No enumeration result. The original handoff below is retained as history;

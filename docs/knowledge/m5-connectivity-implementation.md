@@ -1,5 +1,10 @@
 # M5 production connectivity candidate
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Implementation continues from owner-accepted M4 POWER-03 and the completed
 entry audit `67cbe8f1df439a25eb542fc5c6f35fc57b758430`. This document describes
 the implementation and deployment contract. **No native radio result is yet

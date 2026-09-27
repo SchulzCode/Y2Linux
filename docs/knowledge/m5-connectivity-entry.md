@@ -1,5 +1,10 @@
 # M5 connectivity entry audit — 2026-09-15
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **M5 entry audit completed; integrated implementation/deployment blocked.**
 The owner's connectivity scope is authorized. Its prerequisite of an intact,
 qualified M4 platform is not established: the installed POWER-02 has a current

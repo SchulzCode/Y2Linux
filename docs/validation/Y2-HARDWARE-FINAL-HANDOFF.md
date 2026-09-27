@@ -1,5 +1,10 @@
 # Hardware Final implementation-first continuation, 2026-09-27
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 The owner resumed Astra's `022e6ee` handoff with implementation before physical
 qualification. This continuation overrides the paused/measurement-first next
 steps below; Astra's completed evidence, failed experiments and source index are

@@ -1,5 +1,10 @@
 # Y2 donor audit and Linux 6.18 integration decision
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > 2026-09-10: [additional reverse-engineering audit](reverse-engineering-audit.md)
 > supplies experiment history and selected captures for this exact donor.
 > It resolves the stale 368-line claim, explains cold display/audio failures and

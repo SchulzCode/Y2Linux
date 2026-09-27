@@ -1,5 +1,10 @@
 # Host-readable USB logging — minimal path and controller gate
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Current next test: [USBACM-04 bounded robustness handoff](../build/m2-usbacm-04-result.md).
 USBACM-03 basic logging is confirmed and pushed; late-open/non-reading host,
 offline heartbeat and controller reconnect/replay remain hardware-unqualified.

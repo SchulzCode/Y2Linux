@@ -1,5 +1,10 @@
 # Y2LINUX-M4-CHARGE-01: manual BOOTIMG handoff
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Candidate, not physical charging acceptance.** The installed M4-ADC-01 was
 inspected read-only. Owner manual flashing is the next boundary. No root/data
 image changes or Buildroot update: retain Storage06 Y2ROOT/p5 and Y2DATA/p7,

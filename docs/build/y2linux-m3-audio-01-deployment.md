@@ -1,5 +1,10 @@
 # Y2LINUX-M3-AUDIO-01 — owner deployment
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 This is an **unqualified audio candidate**, not an M3 completion claim. The
 qualified DEV-02 core configuration and RAM reservations are retained. USB
 reconnect remains deferred as #27; do not cycle the development cable in this pass.

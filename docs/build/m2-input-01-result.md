@@ -1,5 +1,10 @@
 # M2-INPUT-01 — GPIO navigation through evdev and USB logs
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-09, baseline `8ebc800`. **Offline validated; physical input test pending.**
 The [donor audit](../knowledge/donor-audit.md) and
 [scope review](../planning/roadmap-gap-audit.md#donor-adoption-and-gpio-input-scope--baseline-8ebc800)

@@ -1,5 +1,10 @@
 # Signed root-only update contract v1
 
+<!-- knowledge-base-scope: source-contract -->
+> **Source-contract scope.** This page describes software ownership and
+> interface behavior. See [current state](../CURRENT_PLATFORM_STATE.md) for the exact latest image
+> and physical limits; implemented or enabled does not mean qualified.
+
 Software implementation; **PHYSICAL_GATE** for this integrated candidate. Do not
 use on Y2 until the owner installs the exact candidate and runs session G. The
 initial rescue BOOTIMG must be installed through the existing owner-controlled

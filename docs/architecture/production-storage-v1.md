@@ -1,5 +1,10 @@
 # Production Storage / Installation v1 partition audit
 
+<!-- knowledge-base-scope: historical-design-/-runbook -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Current correction: [stock Y2 eMMC address compatibility](../knowledge/storage06-addressing-correction.md).
 Storage05's physical boot failed, but the corrected owner readback at21:10:43 CEST
 proves intact MBR/EBRs and exact flashed ext4 identity prefixes. The actual stock

@@ -1,5 +1,10 @@
 # M2-PWRAP-01 physical result
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-09, owner-supplied photographs `10.jpg` and `50.jpg`. Originals are
 under `out/m1-y2b250-time32/`, but both screens identify **M2-PWRAP-01**, kernel
 `6.18.0-y2-m2-pwrap1`. Retained private copies/manifest:

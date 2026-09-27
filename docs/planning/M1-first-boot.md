@@ -1,5 +1,10 @@
 # M1 — Linux 6.18 First Boot
 
+<!-- knowledge-base-scope: decision-log-/-historical-roadmap -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Historical milestone record. For current platform status and work ordering, use
 [CURRENT_PLATFORM_STATE.md](../CURRENT_PLATFORM_STATE.md) and the
 [Platform v1 roadmap](platform-v1-roadmap.md).

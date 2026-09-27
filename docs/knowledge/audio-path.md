@@ -1,5 +1,12 @@
 # Audio and FM evidence
 
+**Latest bounded physical result, 2026-09-27:** Fix01 played silent S16 44.1
+and 24/96 -> 48 fixtures with zero XRUN/decode/filter errors. This adds
+software/device operation evidence; it does not prove audible fidelity, real
+end-of-track crossfade, native wide/high-rate output, Bluetooth peer playback
+or endurance. The historical AUDIO-02 checkpoint below remains its own
+earlier test. [Fix01 result](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md#playback-connectivity-and-recovery).
+
 **Current physical checkpoint:** AUDIO-02 now produces owner-confirmed clean
 S16 stereo44.1kHz headphones. The notification fix is deployed and tested.
 [Current result and exact limits](m3-audio-01-live-result.md) supersede the

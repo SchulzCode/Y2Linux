@@ -1,5 +1,10 @@
 # M2-USBCLK-01 physical result
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-09, owner supplied `out/m2-usbclk-01/{10,50}.jpg` and reports no errors.
 Both photos identify M2-USBCLK-01 / Linux 6.18.0-y2-m2-usbclk1. Copies and hashes
 are retained in `evidence-private/20260909-m2-usbclk-result/manifest.json`.

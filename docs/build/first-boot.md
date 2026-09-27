@@ -1,5 +1,10 @@
 # Reproduce the offline first-boot artifact
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Current M2 integration uses [M2-BASELINE-01](m2-baseline-01-result.md) and
 `tools/build/baseline.sh` with its targeted suite. The original first-boot
 workflow and historical suite below do not qualify the combined baseline.

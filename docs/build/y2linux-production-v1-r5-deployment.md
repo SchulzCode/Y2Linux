@@ -1,5 +1,10 @@
 # Storage05 production BOOTIMG-only correction
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Physical result: FAILED internal boot.** The owner's
 [Storage05 photograph](../hardware-evidence/2026-09-13-storage05-owner/README.md)
 shows sector-zero signature0000 and missing root/data after the manual flash.

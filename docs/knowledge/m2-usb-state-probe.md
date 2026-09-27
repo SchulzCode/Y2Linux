@@ -1,5 +1,10 @@
 # M2-USBSTATE-01 — inherited USB state, read only
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > [Physical result](m2-usb-state-hardware-result.md): all reads pass, with PHY
 > force_suspendm still set. [Next guarded release](m2-phy-wake-probe.md).
 

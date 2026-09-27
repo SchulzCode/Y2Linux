@@ -1,5 +1,13 @@
 # Wi-Fi, Bluetooth and firmware evidence
 
+**Latest bounded physical result, 2026-09-27:** Fix01 independently verified
+four small Wi-Fi hash roundtrips totaling 1 MiB in each direction. An isolated
+CONSYS retry after a mandatory WMT timeout restored firmware, RF calibration,
+WLAN and HCI. Full suspend restoration and peer Bluetooth audio were NOT_TESTED;
+the final health check still reported supplicant_unavailable despite association,
+route and working TCP. Earlier radio discovery notes below retain their
+original scope. [Fix01 result](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md#playback-connectivity-and-recovery).
+
 > **2026-09-15:** [fresh M5 entry audit](m5-connectivity-entry.md) supersedes the
 > deferred research wording below. Own retained BTIF/DMA/IRQ and CONSYS_MT6582
 > metadata, exact stock firmware hashes/header order and private read-only

@@ -1,5 +1,10 @@
 # Platform v1 physical bring-up campaign
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Started 2026-09-26. ACTIVE: the owner installed Physical 01; its exact identity
 and initial regression gate are verified. Work continues as the **hardware
 capability ceiling campaign**, with broad investigation and coherent batches.

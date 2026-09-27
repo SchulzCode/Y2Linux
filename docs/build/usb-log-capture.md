@@ -1,5 +1,10 @@
 # Capture Y2 CDC ACM logs
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Current integrated candidate: [M2-BASELINE-03 handoff](m2-baseline-03-result.md).
 Baseline captures default to 180 seconds; the owner power-on limit is 300 seconds.
 The older USBACM-04 procedure below retains its historical 60-second boundary.

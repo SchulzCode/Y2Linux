@@ -1,5 +1,10 @@
 # Y2 hardware capability ceiling campaign
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 ACTIVE, started 2026-09-26. This report records the exact unit's measured
 capabilities, source-backed next steps and unresolved limits. A supported mode,
 compiled feature or short passing test is not a final qualified ceiling.

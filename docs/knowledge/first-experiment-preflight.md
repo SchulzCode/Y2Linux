@@ -1,5 +1,10 @@
 # Y2B-240 authorized preflight — 2026-09-08
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 The owner explicitly authorized issue #19 as specified: one diagnostic
 BOOTIMG-only download, one normal boot observed for no more than 60 seconds,
 then FM BOOTIMG-only restoration and stock function checks. Authorization is

@@ -1,5 +1,10 @@
 # Risk-accepted first-boot diagnostic result
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-08, Y2E-150 [#18](https://github.com/SchulzCode/Y2Linux/issues/18).
 **GO for one risk-accepted BOOTIMG-only diagnostic experiment, pending separate
 owner hardware authorization. No flash, DA upload, experimental boot, physical

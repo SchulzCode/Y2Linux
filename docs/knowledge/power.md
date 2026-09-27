@@ -1,5 +1,10 @@
 # Power evidence and reporting discrepancy
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > 2026-09-10: [additional evidence](reverse-engineering-audit.md) explains the
 > donor wrapper-IRQ omission as an unresolved storm workaround, separate from
 > PMIC EINT25. Final donor DT includes an MFD despite older minimal-PMIC prose.

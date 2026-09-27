@@ -1,5 +1,10 @@
 # Evidence provenance and review
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Date: 2026-09-08. Research task: [Y2E-101](https://github.com/SchulzCode/Y2Linux/issues/1). Capture ID: `20260908-provenance`. Status: bounded historical provenance audit complete. The later [Y2E-125 recovery update](recovery.md) accepts owner-observed successful same-device flashing and identifies the FM fallback/tool. Earlier unproven-recovery statements below describe the original evidence boundary.
 
 Reference root: `/home/luca/Dokumente/Code/Y2Player`, Git revision `870f2b33e49129990bc0a98eeb34d58ed42542b6`. The source tree was clean when inspected. Ignored binaries/captures are not authenticated by that revision. All 24 top-level regular files in `OriginalFirmware/` were hashed without modification; see [artifact-manifest.tsv](artifact-manifest.tsv). Vendor origin, package download provenance and current-device compatibility remain UNKNOWN. A directory called OriginalFirmware is not proof of authenticity or a per-device backup.

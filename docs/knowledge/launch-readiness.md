@@ -1,5 +1,10 @@
 # First BOOTIMG-only experiment: launch readiness
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > **Current: [risk-accepted diagnostic GO](../build/risk-diagnostic-result.md), pending separate flash authorization.** The earlier candidate/assessment below is retained as history.
 
 > Current policy: [D11–D13 risk-accepted diagnostic](risk-accepted-diagnostic.md) supersedes the earlier absolute authentication/current-backup/full-handoff gates below. This document retains the historical assessment; watchdog, observation, verified recovery and BOOTIMG-only scope remain mandatory. No flash authorized.

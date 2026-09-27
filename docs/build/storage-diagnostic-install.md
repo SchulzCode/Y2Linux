@@ -1,5 +1,10 @@
 # Storage02 DIAG01 — manual BOOTIMG-only observation
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 This is a temporary rescue diagnostic for the current Y2 whose production root
 resolver fails and whose Linux USB gadget does not enumerate. It reuses the
 exact Storage02 kernel, internal-storage guard, hardware DT and display module.

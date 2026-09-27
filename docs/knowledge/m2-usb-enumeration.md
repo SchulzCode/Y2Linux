@@ -1,5 +1,10 @@
 # M2-USBACM-01 — guarded first controller ownership and logging
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > USBACM-03 now has successful physical kernel/PID1 logging evidence.
 > [USBACM-04](../build/m2-usbacm-04-result.md) extends the original first-detach
 > stop below to one guarded reconnect; it is offline validated and untested on

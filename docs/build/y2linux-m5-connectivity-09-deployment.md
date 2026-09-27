@@ -1,5 +1,10 @@
 # CONNECTIVITY-09 — permanent MT6582 E2 HCI page correction
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Owner-installed CONNECTIVITY-09 reaches standard hci0/BlueZ on normal boot,
 and normal BlueZ power-on/off succeeds.** No diagnostic module or runtime
 correction is needed; core errors/recoveries and kernel taint remain 0.

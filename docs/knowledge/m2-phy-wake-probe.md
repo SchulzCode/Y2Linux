@@ -1,5 +1,10 @@
 # M2-PHYWAKE-01 — bounded suspend-force release
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-09, #27/#23 prerequisite. The [physical state](m2-usb-state-hardware-result.md)
 shows clocks/supply usable, MAC disconnected/B-device, DMA controls zero and
 PHY suspendm forced low. This is a diagnostic wake step, not USB enumeration.

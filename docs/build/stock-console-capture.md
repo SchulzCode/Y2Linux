@@ -1,5 +1,10 @@
 # Stock console capture runbook
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 [Y2E-140 research and unresolved physical gate](../knowledge/observation-path.md) is authoritative. **This procedure is prepared, not performed on Y2 serial hardware.** Current installed software selects UART0; 921600 8N1 is the firmware-supported starting setting, and native SoC logic is expected to be 1.8 V. Exposed board pads, pad voltage, adapter and actual stock serial baud are not yet verified.
 
 ## Before any connection

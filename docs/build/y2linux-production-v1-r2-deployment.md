@@ -1,5 +1,10 @@
 # Production Storage v1 — Storage02 manual retry
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > Post-flash observation: the owner reached rescue, which reports missing/invalid
 > internal Y2ROOT or Y2DATA; normal boot remains unqualified. USB instruction
 > correction: disconnect after flashing, boot unplugged, then attach once at

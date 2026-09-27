@@ -1,5 +1,10 @@
 # CONNECTIVITY-05: frame the first WMT command over BTIF
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 CONNECTIVITY-04 completes this unit's MD calibration (`FS=841`, restore and
 shutdown successful), verifies the corrected EMI remap and reads CONN chip
 `6582`. It remains alive over 813 seconds, including a bounded runtime recovery,

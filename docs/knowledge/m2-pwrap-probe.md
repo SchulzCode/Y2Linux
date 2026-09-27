@@ -1,5 +1,10 @@
 # M2 PWRAP/VUSB prerequisite — bounded read-only PMIC probe
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 ## USBACM-03 pre-command sync wait — 2026-09-09
 
 The [USBACM-02 photo](m2-usbacm-hardware-result.md#usbacm-02-result) establishes

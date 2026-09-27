@@ -1,5 +1,10 @@
 # M2 USB ACM hardware results
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 ## USBACM-03 kernel and PID1 capture confirmed
 
 2026-09-09. The owner completed the privileged host capture into

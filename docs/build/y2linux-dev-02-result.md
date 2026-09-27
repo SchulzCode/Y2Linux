@@ -1,5 +1,10 @@
 # Y2LINUX-DEV-02 — root handoff ABI and wheel transaction corrections
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Built and physically booted; live core qualification retained, USB reconnect fails.**
 [DEV-02 live qualification](../knowledge/y2linux-dev02-live-qualification.md).
 Four CPUs, expanded RAM/short memory test, Buildroot Y2ROOT, input, visible display

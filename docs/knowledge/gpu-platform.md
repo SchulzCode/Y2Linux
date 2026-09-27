@@ -1,5 +1,10 @@
 # Y2 production GPU platform
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **GPU-01 physically renders with Lima/Mesa; GPU #34 remains open for the failed
 suspend gate.** [Physical evidence and exact corrections](../hardware-evidence/2026-09-18-gpu01/README.md).
 GPU-02 carries only the observed CPU-status-mask/suspend-helper fixes and release

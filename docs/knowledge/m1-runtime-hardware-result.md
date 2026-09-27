@@ -1,5 +1,10 @@
 # M1 — Continued native PID1 execution on the physical Y2
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Recorded 2026-09-08 from the owner's explicit report of today's real Y2B-245
 diagnostic hardware test. This is owner-observed hardware evidence, not a host
 fixture, synthetic preview or a device observation made during this documentation

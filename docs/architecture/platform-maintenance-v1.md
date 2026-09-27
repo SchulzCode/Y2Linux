@@ -1,5 +1,10 @@
 # Owner reset and state export
 
+<!-- knowledge-base-scope: source-contract -->
+> **Source-contract scope.** This page describes software ownership and
+> interface behavior. See [current state](../CURRENT_PLATFORM_STATE.md) for the exact latest image
+> and physical limits; implemented or enabled does not mean qualified.
+
 Software contract; target filesystem/flush/reboot qualification remains
 PHYSICAL_GATE. No maintenance command has been run on Y2 during this pass.
 Commands operate only on identity-checked Y2DATA. They never format it or touch

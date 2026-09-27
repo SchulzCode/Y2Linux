@@ -1,5 +1,10 @@
 # Y2Linux update model — layout v1
 
+<!-- knowledge-base-scope: historical-design-/-runbook -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Historical layout rationale. The implemented Platform v1 software OTA contract
 is [signed rescue updates](platform-update-v1.md), which supersedes this page's
 older statements about missing downloads/signatures/automatic installation.

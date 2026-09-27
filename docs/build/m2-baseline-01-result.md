@@ -1,5 +1,10 @@
 # M2-BASELINE-01 — integrated Linux 6.18 core development baseline
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-10, starting from clean main **4dde305**. **Owner tested; partial core
 success, DSI handoff failed.** See the [physical results](../knowledge/m2-baseline-hardware-result.md).
 The original offline report and flash procedure below are historical. M1 remains COMPLETE, M2 ACTIVE. This

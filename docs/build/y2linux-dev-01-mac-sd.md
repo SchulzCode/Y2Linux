@@ -1,5 +1,10 @@
 # DEV-01 SD preparation from the owner's Mac
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 The owner has a USB-C card reader usable on the Mac, not the Linux host.
 The already flashed BOOTIMG can remain while the prepared ext4 filesystem is
 transferred and installed. No storage target has yet been identified on the Mac;

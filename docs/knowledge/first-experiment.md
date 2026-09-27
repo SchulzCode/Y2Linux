@@ -1,5 +1,10 @@
 # Y2B-240 — One risk-accepted BOOTIMG-only diagnostic experiment
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Experiment concluded on 2026-09-08: owner-observed green PID1 stage,
 successful BOOTIMG-only Android recovery. Timed heartbeats and 60-second
 cutoff were not verified; actual restore image differed from the planned FM

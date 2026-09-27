@@ -1,5 +1,10 @@
 # Persistent ALSA development tools on Y2ROOT
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 On 2026-09-10 the owner requested permanent tools instead of restoring the
 isolated `/tmp` bundle after each boot. The Y2 now runs `6.18.0-y2linux-m3audio02`.
 The existing DEV-01 SD received an additive audio-only update over SSH.

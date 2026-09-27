@@ -1,5 +1,10 @@
 # M2-CHRDET-01 — PMIC charger-presence observation
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Result received: [CHRDET follows reported startup cable state](m2-chrdet-hardware-result.md).
 The connected-start PHY guard refuses before writing; the next step exposes
 its original inputs in [M2-USBGUARD-01](m2-usb-guard-diagnostic.md).

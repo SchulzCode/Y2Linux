@@ -1,5 +1,10 @@
 # Initial Linux RAM policy
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > DEV-01 supersedes D08 for the owner-authorized integrated development candidate.
 > See [practical RAM reconciliation](development-memory.md) for the built 992 MiB
 > bank, explicit reservations, HIGHMEM and remaining physical qualification.

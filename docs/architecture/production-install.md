@@ -1,5 +1,10 @@
 # Manual first installation — Production Storage v1
 
+<!-- knowledge-base-scope: historical-design-/-runbook -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Current initialized device:** the address compatibility correction is
 BOOTIMG-only; preserve ANDROID/USRDATA. Follow the generated BOOTIMG-only
 package's install.md. The first-install procedure below is for a fresh device.

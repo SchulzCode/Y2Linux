@@ -1,5 +1,10 @@
 # Storage lifecycle, space and measurements
 
+<!-- knowledge-base-scope: source-contract -->
+> **Source-contract scope.** This page describes software ownership and
+> interface behavior. See [current state](../CURRENT_PLATFORM_STATE.md) for the exact latest image
+> and physical limits; implemented or enabled does not mean qualified.
+
 `/data` is persistent internal Y2DATA; `/media/sd` is optional removable media.
 The root/data identity checks and partition geometry remain unchanged. All SD
 mounts use the existing 11240000.mmc controller, one unique supported filesystem,

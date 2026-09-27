@@ -1,5 +1,10 @@
 # M5-CONNECTIVITY-01 — manual deployment handoff
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **The integrated candidate is built and host-validated. M5 remains OPEN pending
 owner installation and physical qualification.** POWER-03 is the owner-accepted
 M4 baseline. No fresh entry audit, private partition reacquisition, physical

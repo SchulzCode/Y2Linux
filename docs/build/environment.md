@@ -1,5 +1,10 @@
 # Locked offline build environment
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Y2B-201 pins upstream Linux v6.18 (`7d0a66e4bb9081d75c82ec4957c50034cb0ea449`) and the official kernel.org release archive in `tools/build/inputs.lock.json`. Archive SHA-256 is `9106a4605da9e31ff17659d958782b815f9591ab308d03b0ee21aad6c7dced4b`; the 31 previously audited source files are checked independently. Checksums were obtained through official HTTPS endpoints; no independent OpenPGP verification is claimed.
 
 The isolated x86_64 userspace is Alpine 3.22.1 plus 64 individually hashed official APK archives (79 installed packages including the base). Its ARM compiler/linker are Clang/LLD 20.1.8; host tools include GCC 14.2.0, GNU Make 4.4.1, Python 3.12.14 and pyelftools 0.32. All package revisions and URLs are in the lock. Host requirements: Linux, Python 3.12 or newer, bubblewrap and enabled unprivileged user namespaces. Neither a Docker daemon nor host package installation is needed.

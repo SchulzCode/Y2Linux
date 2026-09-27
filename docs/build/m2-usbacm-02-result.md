@@ -1,5 +1,10 @@
 # M2-USBACM-02 — retain the failed PMIC poll
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > Subsequent [owner test](../knowledge/m2-usbacm-hardware-result.md#usbacm-02-result)
 > shows the prompt followed by poll-5 sync-only refusal before cable attachment.
 > The original validated handoff below is historical; USBACM-03 addresses the

@@ -1,5 +1,10 @@
 # First manual Production Storage v1 deployment
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > Withdrawn from retry use: ANDROID sparse transfer failed 3154. Use the [Storage02 retry checklist](y2linux-production-v1-r2-deployment.md). Everything below records the historical first package; it is not current deployment guidance.
 
 **READY at the manual package boundary; NOT physically qualified.** No assistant

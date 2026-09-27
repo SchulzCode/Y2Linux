@@ -1,5 +1,10 @@
 # Current non-root system baseline
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Date: 2026-09-08. Task: [Y2E-105](https://github.com/SchulzCode/Y2Linux/issues/2). Capture: `20260908-stock`. One authorized USB target was selected explicitly for all remote commands; its serial and full properties remain private. No device state was intentionally changed.
 
 ## Method and status

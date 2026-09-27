@@ -1,5 +1,10 @@
 # M2-PHYWAKE-01 physical result
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-09, implementation 305f8f9. The owner reports flashing the new build and
 supplied **10 new.jpg / 50 new.jpg from a confirmed same boot with USB connected**.
 Both identify M2-PHYWAKE-01 / Linux 6.18.0-y2-m2-phywake1. The second photograph

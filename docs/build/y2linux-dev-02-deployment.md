@@ -1,5 +1,10 @@
 # DEV-02: BOOTIMG-only correction for the existing SD root
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Use `/home/luca/Dokumente/Code/Y2Linux/out/y2linux-dev-02/BOOTIMG.img`.
 It is 4,683,776 bytes, SHA-256:
 `3afbc15950e75d0477036709aabf32ceb2101ff090a6625ba5e9f7d5e840df05`.

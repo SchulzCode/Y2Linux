@@ -1,5 +1,10 @@
 # Stock boot structure and loader handoff
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > 2026-09-08 hardware update: [Y2B-240 result](first-experiment-result.md) records owner-observed green PID1 evidence and successful BOOTIMG-only Android recovery using the owner-selected boot-adb image. Timed heartbeats, cutoff and exact FM restoration were not verified. Historical pre-launch unknowns below must be read with this narrower new evidence.
 
 Date: 2026-09-08. [Y2E-125](https://github.com/SchulzCode/Y2Linux/issues/6) extends [Y2E-115](https://github.com/SchulzCode/Y2Linux/issues/4). Status: package loader contract CONFIRMED by static analysis; Linux launch INFERRED, not tested. Captures: `20260908-boot`, `20260908-handoff`. Original image analysis below is retained with its original package scope.

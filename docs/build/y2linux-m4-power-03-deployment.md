@@ -1,5 +1,10 @@
 # M4-POWER-03 — manual deployment and physical qualification
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Built and host-validated; M4 remains OPEN. No physical deployment was performed.**
 The owner requested this focused M4 completion pass. M5 stays stopped.
 

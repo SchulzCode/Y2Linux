@@ -1,5 +1,10 @@
 # Platform API v1
 
+<!-- knowledge-base-scope: source-contract -->
+> **Source-contract scope.** This page describes software ownership and
+> interface behavior. See [current state](../CURRENT_PLATFORM_STATE.md) for the exact latest image
+> and physical limits; implemented or enabled does not mean qualified.
+
 The machine interface is `y2-status --json` (or `y2-platform status`),
 `y2-health --json`, and `y2-platform capabilities`. JSON is the default; the
 `--json` flag is accepted for explicit clients. Schema names carry `/v1`.

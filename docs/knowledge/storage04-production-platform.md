@@ -1,5 +1,10 @@
 # Storage04: one production platform
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Storage03 was manually flashed but failed internal-root discovery and USB startup.
 Its latest owner photograph shows rescue alive, no partition rows and USB recovery
 -19 before any write. Storage04 is its uniquely versioned successor, not another

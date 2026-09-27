@@ -1,5 +1,13 @@
 # Hardware Final: ECM request alignment and Inventra DMA
 
+**Latest physical boundary, 2026-09-27:** Fix01 passes one 256-KiB
+bidirectional hash transfer, then loses USB connectivity during the next
+transfer while the display/UI remains usable. The failed-interval DMA/IRQ
+observer was lost and the precise transport cause is unknown. Do not infer
+that the earlier alignment correction failed, that the old IRQ storm returned,
+or that sustained DMA/recovery qualified from a single small transfer.
+[Fix01 physical report](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md#playback-connectivity-and-recovery).
+
 2026-09-27 source correction; physical execution of the new kernel remains
 pending. Hardware 02 reported an allocated Inventra controller while its DMA
 IRQ counter stayed at six over large bidirectional ECM transfers. USB throughput

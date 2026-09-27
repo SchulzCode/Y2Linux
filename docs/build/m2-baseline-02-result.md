@@ -1,5 +1,10 @@
 # M2-BASELINE-02 — correct live display PHY handoff
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Owner tested: black/grey screen and no responding log relay.**
 The [hardware result](../knowledge/m2-baseline-hardware-result.md) supersedes the
 original offline handoff below. M1 COMPLETE, M2 ACTIVE.

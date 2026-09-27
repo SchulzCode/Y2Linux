@@ -1,5 +1,10 @@
 # Y2 first-boot observation path
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > Current visual runtime success is recorded in [M1 hardware evidence](m1-runtime-hardware-result.md). [USB host logging research](usb-logging.md) now selects CDC ACM plus a nonblocking PID1 relay, gated on MT6582 controller/PHY/clocks. No USB implementation or device observation occurred in this session.
 
 > The owner authorized a temporary alternative in Y2E-150: [D13 guarded inherited-framebuffer diagnostics](risk-accepted-diagnostic.md). UART0 remains compiled as an additional path. Physical UART/stock serial capture below remains unproved, but is no longer required for this risk-accepted visual experiment. Display persistence and visible stages still require the first board trial.

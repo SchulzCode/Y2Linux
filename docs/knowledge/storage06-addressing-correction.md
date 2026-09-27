@@ -1,5 +1,10 @@
 # Production stock eMMC address compatibility
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-13, entry `d7ee4f2`; physical Storage05 BOOTIMG
 `2af64e0fe0831a038ea681e82b93209bb21360995772a54699b7f0ef6be22efa`.
 The candidate built from bea30cd and the owner flashed it. [ACM confirms internal

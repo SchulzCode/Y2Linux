@@ -1,5 +1,10 @@
 # DEV-02 live platform qualification — 2026-09-10
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 The physical Y2 runs Buildroot successfully with expanded RAM, four CPUs,
 removable-SD root, native display and all tested controls. **USB reconnect fails:
 the first unplug removes both ACM and Ethernet, and reconnect does not enumerate.**

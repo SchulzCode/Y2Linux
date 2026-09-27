@@ -1,5 +1,10 @@
 # Y2 Hardware Final physical qualification
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 One structured campaign for the assembled, software-validated candidate
 (Linux `067003f` / Reborn `5b5d23b`). No test in this document has been executed by this
 implementation pass. Device remains on original Hardware02; this checklist does

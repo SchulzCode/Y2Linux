@@ -1,5 +1,11 @@
 # Platform power contract v1
 
+**2026-09-28 status:** This page describes software behavior, with current
+hardware limits in [platform state](../CURRENT_PLATFORM_STATE.md). Fix01's first
+devices-stage suspend request lost recovery; charger refusal was not truly
+exercised because BAT0 was Not charging. Full RTC/Power same-boot wake is
+NOT_TESTED. Do not read the contract below as a passed suspend qualification.
+
 Normal `/sbin/poweroff`, `/sbin/reboot`, Reborn user requests and future update
 reboots enter `y2-platform shutdown poweroff|reboot --reason user|service|update`.
 A private Unix socket uses SO_PEERCRED. Only root may request a transition; only
@@ -25,15 +31,20 @@ no intent is replayed across boots. Journal orderly_shutdown means orderly
 software preparation reached its final record, not observed hardware power loss.
 
 Battery observation uses BAT0 voltage_now/present. USB presence is not assumed to
-supply positive net battery current. Default: thresholds disabled, PHYSICAL_GATE.
-No numeric production threshold is provided. An owner-qualified private
-`/data/system/platform/power-policy.json` may supply schema=1, enabled=true,
-critical_uv < low_uv < recover_uv, critical_samples (1–60), grace_seconds (3–30),
-and qualification_reference. The latter is an evidence reference, not software
-certification. Restart the policy service after deliberate configuration. Missing
-or invalid sensors/configuration report Unavailable, never fabricated SOC or
-battery temperature. Debounce/hysteresis implement Normal/Low/Critical/
-ShutdownPending; no charger limits are changed.
+supply positive net battery current. The **current shipped schema-2 policy is
+enabled but provisional**: critical/low/recover values are 3.4/3.5/3.6 V, five
+critical samples and ten-second grace. Its source text explicitly identifies a
+conservative stock-boundary floor, not a measured discharge curve. Provisional
+voltage-derived SOC is not calibrated pack current/capacity. A private
+`/data/system/platform/power-policy.json` can override the shipped policy; the
+loader accepts schema 1 or 2 with ordered voltage thresholds, critical_samples
+(1–60), grace_seconds (3–30) and an evidence reference/source. Schema 2 also
+validates ordered warning/critical/shutdown SOC values; SOC-triggered shutdown
+requires hardware or calibrated-estimate confidence. An evidence string is not
+software certification. Missing/invalid sensors report Unavailable. Debounce/
+hysteresis implement Normal/Low/Critical/ShutdownPending; no charger limit
+changes. [Power evidence](../knowledge/hardware-final-power-evidence.md) explains
+missing pack current, pack temperature and measured reserve qualification.
 
 Owner qualification must establish pack identity, safe observation conditions,
 voltage sag under representative peak load, warning and shutdown reserve,

@@ -1,5 +1,10 @@
 # M4 end-user power completion
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 ## POWER-03 correction of observed failures — 2026-09-15
 
 The owner explicitly requests M4 completion and **no M5 work**. This focused

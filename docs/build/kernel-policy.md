@@ -1,5 +1,10 @@
 # First-boot kernel and console policy
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Current diagnostic overlay: [D11–D13](../knowledge/risk-accepted-diagnostic.md) adds a board-specific early watchdog stop and guarded inherited-video writes. The general watchdog/display driver stacks remain disabled; D08 RAM and UART0 remain exact. Older no-display/no-watchdog artifact descriptions below refer to the prior candidate.
 
 D08 is unchanged. Configuration starts from allnoconfig and `kernel/config/first-boot.config`; resolved configuration is checked, never trusted merely because a fragment requested an option. The ARMv7 generic DT machine fallback handles `mediatek,mt6582`; no false MT6589 board compatible is added. ARCH_MEDIATEK supplies GIC, sysirq, common clocks and MTK GPT support. No arch timer/SMP/PSCI startup is selected.

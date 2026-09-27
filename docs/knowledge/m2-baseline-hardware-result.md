@@ -1,5 +1,10 @@
 # M2 integrated baseline — physical results, 2026-09-10
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 ## Latest: BASELINE-03 logs the display handoff; screen remains black
 
 Owner reports LK logo followed by black in **BASELINE-03 capture-02**, starting

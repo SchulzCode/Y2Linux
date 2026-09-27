@@ -1,5 +1,10 @@
 # REBORN-BASELINE-01 root-only deployment candidate
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 Native Rust Reborn implementation is ready for owner installation. It is not
 physically accepted. The [boundary audit](../planning/roadmap-gap-audit.md) records
 the new owner authorization while preserving GPU #34 and M5 #31 physical gates.

@@ -1,5 +1,10 @@
 # CONNECTIVITY-09: MT6582 E2 local extended feature page limit
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 CONNECTIVITY-08 physically clears the RF-result EPROTO. The next exact failure
 is HCI Read Local Extended Features (`0x1004`) page 2: this controller's page-1
 reply advertises maximum 2, but page 2 returns status `0x30`. Linux maps that

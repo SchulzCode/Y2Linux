@@ -1,5 +1,10 @@
 # Y2LINUX-GPU-02 — targeted suspend correction
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Built and validated; STOP for owner manual deployment.** Source commit
 `7e318afbffe640c6bf9da458f61ac2108f7d5bde`. The integrated package is
 `/home/luca/Dokumente/Code/Y2Linux/out/y2linux-gpu-02`.

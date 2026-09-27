@@ -1,5 +1,10 @@
 # Platform v1 physical qualification
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 ## Owner-connected Wi-Fi check — 2026-09-25
 
 **PARTIAL: Wi-Fi association, DHCP, default route, router and Internet-IP

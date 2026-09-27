@@ -1,5 +1,14 @@
 # Y2Linux roadmap and gap audit
 
+**Current reading order, 2026-09-28:** The
+[Fix01 physical closing boundary](#cpu-final-fix01-physical-closing-boundary--2026-09-27)
+and [current platform state](../CURRENT_PLATFORM_STATE.md) supersede older
+candidate admission/"next" text below for today's acceptance. The
+[knowledge-base maintenance receipt](#knowledge-base-reconciliation--2026-09-28)
+changes navigation and source/physical summaries only; it does not open a
+hardware, memory, production or milestone boundary. Older audit entries remain
+in their original sequence for evidence and permission history.
+
 ## CPU Final Fix 01 implementation admission — 2026-09-27
 
 Owner authorizes one focused correction and one preserving candidate, no flash or
@@ -3647,3 +3656,43 @@ gates remain blocked/partial; no external epic/milestone was closed or modified.
 No new issues are needed for these already tracked gaps. Backup/calibration,
 protected storage, exact fallback and existing production obligations remain
 unchanged; this audit does not redo ROM/source recovery provenance.
+
+## Knowledge-base reconciliation — 2026-09-28
+
+This is a **documentation-only evidence/gap audit**, using the already completed
+[Fix01 real-device report](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md).
+No new hardware test, architecture review, package build, flash, protected-state
+access, source/ROM/recovery provenance acquisition, milestone activation or scope
+promotion occurred. At entry both `main` trees were clean and synced: Y2Linux
+`a605c884aed7705a93293299628ef95d5f0219f8`, Y2Reborn
+`b5d1f4f985ffcbb14da013e7d56c098285496b46`. Exact running candidate
+remains Linux `0de6e95` / Reborn `36db186`, kernel
+`6.18.0-y2linux-cpu-final-fix01`, root `2025.02.18-platform-v1.7`; Git HEADs
+are not image identities.
+
+The platform and Reborn entry pages had still presented Platform v1 or Hardware
+Final as current. This reconciliation updates both READMEs/current-state pages,
+the capability/evidence navigation and selected power, audio, radio, timer,
+idle, DVFS and USB summaries. It indexes all first-party Markdown pages and
+adds scope notices to historical records. It repairs a local link into ignored
+private `out/` without deleting the historical reference, and retains original
+physical/build captures and candidate/fallback images. The newer source
+configuration is explicit: 44.1/48 S16 enablement, a provisional enabled
+schema-2 low-voltage policy, and optional codec compilation with normal-runtime
+endpoints disabled. None is elevated to blanket physical qualification.
+
+| Coverage / existing gate | Current decision from real evidence |
+| --- | --- |
+| CPU timer/QoS and lower OPPs, #28/#30/#34 | Narrow PASS; preserve GPT6/GPT4/PPI29, highres/NO_HZ, eight real leases, hotplug/WFI, thermal priority |
+| Deeper idle and voltage, #30/#34 | C2 entry FAIL; coordinator PARTIAL; high-bin admission FAIL at PWRAP readiness; voltage transitions/C3 NOT_TESTED |
+| Suspend/wake, #30/#34 | devices attempt FAIL; invalid SRAM prevents exact boundary; other staged/full RTC/Power wake NOT_TESTED |
+| Audio/Reborn and radio, #29/#31/#32 | bounded wired fixtures, producer leases, Wi-Fi hashes and CONSYS retry PASS; peer audio, full resume, fidelity/endurance NOT_TESTED |
+| USB/recovery/storage, #27/#28/#32/#33 | first small USB hash PASS then loaded connection loss; recovered root/data/SD rw and ext4 error 0; exact failed-interval cause unavailable |
+| Production/security, #16/#32/#33 | immutable fallback/preserve-data contract and private owner assets remain; no release, OTA, production trust or milestone promotion |
+
+The one coherent Fix02 plan remains PM diagnostic safety, genuine PWRAP
+readiness, MMC runtime clock ownership/system-idle reachability and loaded USB
+recovery. It is not implementation authorization from a planning document.
+Existing epics/gates remain open at their previously recorded status; no issue
+was created or externally changed. Current-state pages and complete catalogs
+are the first reading point; older task permissions/"ready" claims remain dated.

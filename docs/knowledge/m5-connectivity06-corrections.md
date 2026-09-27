@@ -1,5 +1,10 @@
 # CONNECTIVITY-06: rearm APDMA TX completion for each transfer
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 CONNECTIVITY-05 physically leaves the final two bytes of its first 26-byte
 STP/WMT command in TX DMA (`wpt=0x1a rpt=0x18 valid=2 flush=0`). RX stays empty
 and no TX interrupt is serviced. MD calibration and Linux stability remain intact.

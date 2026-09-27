@@ -1,5 +1,10 @@
 # CONNECTIVITY-03: factory-path normalization
 
+<!-- knowledge-base-scope: retained-research-/-scoped-evidence -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 The CONNECTIVITY-02 exception is now narrowed to a concrete service error using
 the installed strace and one bounded radio restart through the production core.
 The raw request/reply capture stays private under

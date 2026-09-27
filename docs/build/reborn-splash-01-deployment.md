@@ -1,5 +1,10 @@
 # REBORN-SPLASH-01 startup update
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 **Owner installed and reports working, 2026-09-18.** Subsequent SSH inspection
 confirms the expected build and splash-to-Reborn handoff. The owner installed
 before the written handoff was finished; this document retains the exact package

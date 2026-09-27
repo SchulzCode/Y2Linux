@@ -1,5 +1,10 @@
 # Y2 CPU Final physical qualification
 
+<!-- knowledge-base-scope: scoped-validation-record -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 2026-09-27, real Y2. This is the first observation sweep of the owner-flashed
 candidate; no implementation source edits, rebuild or flash. Private raw evidence:
 `out/cpu-final-physical-qualification/20260927T161145Z/`. Commands, stdout/stderr,

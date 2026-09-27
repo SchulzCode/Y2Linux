@@ -1,5 +1,10 @@
 # Y2B-245 — Offline on-screen diagnostic candidate
 
+<!-- knowledge-base-scope: historical-build/deployment-receipt -->
+> **Historical record.** The dates, candidate identity, "current" claims,
+> next steps and permissions below belong to this recorded boundary. See
+> [current state](../CURRENT_PLATFORM_STATE.md) for the latest physically observed result.
+
 > Subsequent owner hardware report confirms working sleep and increasing BEAT/uptime. [M1 core result and exact evidence limits](../knowledge/m1-runtime-hardware-result.md). The report does not independently pin the flashed candidate hash; offline artifact identities below remain unchanged.
 
 2026-09-08. Original offline build record. **Subsequent owner-reported hardware trial reached the text screen and stopped at sleep -38 / ENOSYS.**
