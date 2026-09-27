@@ -65,8 +65,22 @@ static inline int y2_dvfs_transition(const struct y2_dvfs_io *io,
 	if (target < (unsigned)old) {
 		ret = io->voltage_set(io->context, target);
 		if (ret) {
-			/* Frequency is already safely reduced. Preserve CCF's new
-			 * frequency accounting, latch the voltage fault separately. */
+			/* A failed write is not proof that voltage remained high.
+			 * Restore the previous source-backed selector if readback is
+			 * below the new OPP or unavailable. Never use unknown readback
+			 * as a reason to allow a high clock. */
+			int observed = io->voltage_get(io->context);
+			if (observed < (int)target) {
+				io->voltage_set(io->context, old);
+				observed = io->voltage_get(io->context);
+				if (observed < (int)target) {
+					/* Lowest known clock is the containment path if the
+					 * PMIC itself cannot restore a supported selector. */
+					io->clock_set(io->context, 598000000);
+					io->fault(io->context);
+					return -ERANGE;
+				}
+			}
 			io->fault(io->context);
 			return 0;
 		}
