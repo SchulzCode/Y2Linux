@@ -7,8 +7,9 @@ are included in the personal candidate's source collection.
 | Reference | Narrow use |
 | --- | --- |
 | [Sprout d53dd75c](https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/arch/arm/mach-mt6582/) | mt_gpt, generic timer, mt_idle single-CPU/clock eligibility, sleep/normal PCM, CIRQ and dormant ordering |
-| [Independent MT6582 revision3be93a68](https://android.googlesource.com/kernel/mediatek/+/3be93a68c209393cfe24a842e2d5896a17ea37dc/arch/arm/mach-mt6582/) | Cross-check GPT6 ownership, SLIDLE masks, suspend vs dormant topology and wake sequencing |
+| [Additional MT6582 revision3be93a68](https://android.googlesource.com/kernel/mediatek/+/3be93a68c209393cfe24a842e2d5896a17ea37dc/arch/arm/mach-mt6582/) | Cross-check GPT6 ownership, SLIDLE masks, suspend vs dormant topology and wake sequencing |
 | [Huawei3fec42dd](https://github.com/ferhung-mtk/android_kernel_huawei_h30t00/tree/3fec42ddadbefcf95c8fea4a10affb1c0abf5231/kernel-3.4/mediatek/platform/mt6582/kernel/core) | Independent clock group bit IDs, MT6323 VPROC_CON5/VOSEL/VOSEL_ON/NI feedback, stock OPP and SPM/PWRAP commands |
+| [BQ/Ubuntu krillin874057f3](https://github.com/ubports/kernel_krillin/tree/874057f3c28735d606385361fb9a4cd4545ceba6/mediatek/platform/mt6582/kernel/core) | Fourth independently retained board BSP: GPT6 system counter/13MHz GPT4 reference, stock single-CPU SLIDLE/peripheral bit map, VPROC/PWRAP and KP/EINT suspend wake sources; source SHA256 manifest included |
 | Exact retained Y2 FM kernel SHA2567287acf1b397d243c927dde5c6ef9d5d871c9c158207cdd98e0e820923f4c197 | mt_gpt_init, generic_timer_setup, CPU shutdown/dormant, sleep PCM, PMIC initialization and SRAM map. Existing bounded extracts plus new mt_map_io/ram_console/CPU/reset extracts; addresses below |
 | Exact Y2 preloader and LK | Raw bounded extracts and SHA256s in source/stock/bootloader-extracts.json. GPT4 initialization at0020f8f8 and retained-console guard at0020b9ce; LK GPT4 count reads at81e08a1c |
 | [Linux6.18](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/?h=v6.18) | Locked local source: arm_arch_timer CPUHP/CPU PM, clockevents/tick highres/NO_HZ, ARM suspend.c/sleep.S/proc-v7.S, device PM GFP unwind, RTC/MFD/EINT, MMC/I²C runtime PM. Overlay base/result hashes remain exact |
@@ -42,3 +43,9 @@ Source inspections establish register/software contracts. Fresh software builds
 and synthetic tests establish reproducibility and error handling. Only the next
 owner-controlled physical receipts can establish actual timer/idle/DVFS/wake
 behavior of this exact candidate.
+
+The BQ board independently retains PERI0 SLIDLE mask00f00800 and the same
+bit11/12/13/14/21/22/23 clock IDs. Its stock cpufreq selects board-specific voltage
+variants and sleep voltages; these do not override exact Y2 FM values. No BQ
+low-voltage or PCM payload is imported into Y2Linux. The two Google revisions,
+Huawei and BQ sources are all bundled with pinned identities/hashes.

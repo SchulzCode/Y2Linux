@@ -7,7 +7,9 @@ Use the owner's existing SSH config (including pinned host keys and key/account)
 """
 # SPDX-License-Identifier: GPL-2.0-only
 import argparse
+import base64
 import datetime
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -36,6 +38,14 @@ def ctl(*args):
 
 def snapshot():
  return json.loads(subprocess.check_output(['y2-platform','status','cpu'],timeout=15))['cpu']
+
+def resume_receipt(directory):
+ result=read(directory+'/result')
+ value={'result':result,'boot':read('/proc/sys/kernel/random/boot_id'),'journal':read('/sys/firmware/y2_pm/state')}
+ if result:
+  for name in ('before-dmesg','dmesg','before-interrupts','interrupts','output'):
+   value[name]=read(directory+'/'+name)
+ return value
 
 def key(name,code):
  devices=list(P('/sys/class/input').glob('event*/device/name'))
@@ -70,6 +80,18 @@ def hint_test():
  finally:
   stop.set();worker.join()
  return {'samples':samples,'screen_off':screen_off,'initial':initial,'audio':ctl('audio')}
+
+def playback_measurement():
+ with sqlite3.connect('file:/data/reborn/library.db?mode=ro',uri=True) as db:
+  track=db.execute('select tracks.id from tracks join sources on sources.id=tracks.source_id where deleted=0 and sources.online=1 limit 1').fetchone()
+ if not track:return {'measured':False,'reason':'no_online_library_track'}
+ samples=[]
+ try:
+  ctl('output','wired');ctl('play',str(track[0]))
+  for _ in range(6):
+   time.sleep(5);samples.append({'audio':ctl('audio'),'metrics':ctl('metrics'),'cpu':snapshot()})
+ finally:ctl('stop')
+ return {'measured':True,'track_id':track[0],'samples':samples,'health':ctl('health')}
 
 def dvfs_test():
  policy=P('/sys/devices/system/cpu/cpufreq/policy0')
@@ -111,7 +133,10 @@ class Run:
                                       input=code,text=True,capture_output=True,timeout=timeout)
                 stem.with_suffix('.stdout').write_text(result.stdout)
                 stem.with_suffix('.stderr').write_text(result.stderr)
-                if result.returncode==0:return json.loads(result.stdout)
+                if result.returncode==0:
+                    value=json.loads(result.stdout)
+                    stem.with_suffix('.host').write_text(host+'\n')
+                    return value
                 failures.append({'host':host,'code':result.returncode,'stderr':result.stderr})
             except (subprocess.TimeoutExpired,ValueError) as error:
                 failures.append({'host':host,'error':str(error)})
@@ -128,6 +153,29 @@ class Run:
         value=self.remote(REMOTE+'\nprint(json.dumps(snapshot()))\n')
         return self.evaluate(label,value)
 
+    def integrity(self,label,host):
+        payload=bytes(range(256))*1024
+        encoded=base64.b64encode(payload).decode('ascii')
+        path='/data/system/platform/fix01-transfer-'+uuid.uuid4().hex
+        source=REMOTE+f'''
+import base64,hashlib
+data=base64.b64decode({encoded!r});path=P({path!r})
+try:
+ with path.open('xb') as stream:stream.write(data);stream.flush();os.fsync(stream.fileno())
+ result=path.read_bytes()
+ print(json.dumps({{'sha256':hashlib.sha256(result).hexdigest(),'returned':base64.b64encode(result).decode('ascii')}}))
+finally:
+ path.unlink(missing_ok=True)
+'''
+        previous=self.hosts
+        try:
+            self.hosts=[host]
+            result=self.remote(source,timeout=60)
+        finally:self.hosts=previous
+        assert result['sha256']==hashlib.sha256(payload).hexdigest()
+        assert base64.b64decode(result.pop('returned'))==payload
+        return self.evaluate(label,{'host':host,'bytes_each_direction':len(payload),**result})
+
     def suspend(self,mode,alarm=True,expect_refusal=False,power=False):
         token=uuid.uuid4().hex
         directory='/data/system/platform/fix01-'+token
@@ -135,6 +183,10 @@ class Run:
 umask 077
 before=$(cat /proc/sys/kernel/random/boot_id)
 taint_before=$(cat /proc/sys/kernel/tainted)
+dmesg > DIR/before-dmesg
+cat /proc/interrupts > DIR/before-interrupts
+# Allow the launching SSH command to return before radios are quiesced.
+sleep 2
 grep -q '\\[none\\]' /sys/power/pm_test || exit 2
 restore_test() { printf 'none\\n' > /sys/power/pm_test; }
 trap restore_test EXIT
@@ -142,6 +194,8 @@ printf '%s\\n' MODE > /sys/power/pm_test
 y2-suspend --owner-qualify
 rc=$?
 restore_test
+dmesg > DIR/dmesg
+cat /proc/interrupts > DIR/interrupts
 printf '%s %s %s %s %s\\n' "$rc" "$before" "$(cat /proc/sys/kernel/random/boot_id)" "$taint_before" "$(cat /proc/sys/kernel/tainted)" > DIR/result
 '''.replace('MODE',shlex.quote(mode)).replace('DIR',shlex.quote(directory))
         code=REMOTE+f'''
@@ -162,7 +216,7 @@ script=directory/'run.sh';script.write_text({script!r})
             if power and not pressed and time.monotonic()-started >= 35:
                 input('Power wake test: press Power ONCE now, then press Enter. ')
                 pressed=True
-            answer=self.remote(REMOTE+f"\nprint(json.dumps({{'result':read({directory!r}+'/result'),'boot':read('/proc/sys/kernel/random/boot_id'),'journal':read('/sys/firmware/y2_pm/state')}}))\n",required=False)
+            answer=self.remote(REMOTE+f"\nprint(json.dumps(resume_receipt({directory!r})))\n",required=False)
             if answer and answer['boot']!=self.boot:raise RuntimeError('New boot is not resume: '+json.dumps(answer))
             if answer and answer['result']:break
         if (not answer or not answer.get('result')) and mode!='none':
@@ -175,7 +229,7 @@ script=directory/'run.sh';script.write_text({script!r})
             deadline=time.monotonic()+90
             while time.monotonic()<deadline:
                 time.sleep(3)
-                answer=self.remote(REMOTE+f"\nprint(json.dumps({{'result':read({directory!r}+'/result'),'boot':read('/proc/sys/kernel/random/boot_id'),'journal':read('/sys/firmware/y2_pm/state')}}))\n",required=False)
+                answer=self.remote(REMOTE+f"\nprint(json.dumps(resume_receipt({directory!r})))\n",required=False)
                 if answer and answer['result']:break
         self.evaluate('suspend-'+('power-' if power else 'rtc-' if alarm else '')+mode+'-'+token,{'receipt':answer,'automatic_return':automatic,'host_elapsed_s':time.monotonic()-started})
         if not answer or not answer.get('result'):raise RuntimeError('No wake; retained stage must be collected after owner recovery')
@@ -183,12 +237,30 @@ script=directory/'run.sh';script.write_text({script!r})
         if before!=after or after!=self.boot or taint_before!=taint_after:
             raise RuntimeError('Suspend boot/taint regression')
         if (rc=='0')==expect_refusal:raise RuntimeError('Unexpected suspend result '+rc)
+        if expect_refusal:
+            previous=set((answer.get('before-dmesg') or '').splitlines())
+            fresh='\n'.join(line for line in (answer.get('dmesg') or '').splitlines() if line not in previous)
+            if 'y2_charger_prepare_pm returns -16' not in fresh:
+                raise RuntimeError('Failure was not the expected fresh charger -EBUSY refusal')
         if mode=='none' and not power and (not automatic or time.monotonic()-started < 100):
             raise RuntimeError('RTC wake was not demonstrated; same-boot Power recovery is recorded separately')
         if power and (not pressed or time.monotonic()-started >= 115):
             raise RuntimeError('Power wake was not distinguished from RTC recovery alarm')
+        if mode=='none':
+            label='mtk-pmic-keys' if power else 'mt6397-rtc'
+            if irq_count(answer.get('interrupts'),label)<=irq_count(answer.get('before-interrupts'),label):
+                raise RuntimeError('Expected wake IRQ was not serviced: '+label)
         return answer
 
+
+def irq_count(text,label):
+    total=0
+    for line in (text or '').splitlines():
+        if label not in line:continue
+        for field in line.split()[1:]:
+            if not field.isdigit():break
+            total+=int(field)
+    return total
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
@@ -232,6 +304,11 @@ def main():
     # Power test uses one deliberate Power press; RTC remains a recovery backstop.
     run.suspend('none',power=True)
     run.capture('power-resume')
+    run.integrity('wifi-post-resume-integrity',args.wifi_host)
+    input('Reconnect USB for ECM/ACM restoration checks, then press Enter. ')
+    run.integrity('usb-post-resume-integrity',args.host)
+    run.capture('usb-radio-restored')
+    run.evaluate('bounded-playback',run.remote(REMOTE+'\nprint(json.dumps(playback_measurement()))\n',timeout=60))
     run.evaluate('workload-measurements',run.remote(REMOTE+"\nprint(json.dumps({'audio':ctl('audio'),'metrics':ctl('metrics'),'health':ctl('health'),'cpu':snapshot()}))\n"))
     print('Receipts: '+str(run.output)+'. Inspect measured counters/wake reasons; no inferred hardware passes.')
 

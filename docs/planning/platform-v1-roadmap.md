@@ -17,6 +17,21 @@ Proceed with fresh broad software qualification; next physical run alone may
 accept highres/NO_HZ, actual SLIDLE/high OPP entry and same-boot RTC/Power wake.
 
 
+Fresh software qualification is complete for runtime Linux0de6e95/Reborn36db186:
+215 locked passes plus12 host native tests,192 Rust passes/fmt/strict Clippy,
+ARM/QEMU,382 ELF files/1396 dependency edges and105 pinned source packages.
+Seal one preserving BOOTIMG/Y2ROOT package with the exact Hardware02 fallback;
+physical acceptance remains pending the one SSH qualification sequence.
+
+
+COMPLETE at software-candidate scope: one coherent CPU Final Fix01, BOOTIMG82b38fd3
+and Y2ROOT26aa01ce, preserving validation/exact fallback PASS. See the
+[implementation/validation receipt](../validation/Y2-CPU-FINAL-FIX01.md).
+Close this correction pass before owner-controlled flashing. Highres/NO_HZ,
+SLIDLE/high OPP entry, full RTC/Power wake and SRAM retention remain physical
+checks; no epic, automatic sleep or C3 qualification is promoted.
+
+
 
 ## CPU Final candidate boundary — 2026-09-27
 

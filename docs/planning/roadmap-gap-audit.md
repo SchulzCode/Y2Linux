@@ -40,6 +40,25 @@ Buildroot/ARM/Reborn and broad software/package qualification from isolated clea
 commits. Preserve exact accepted Hardware02 fallback. No physical success, C3
 activation, automatic full-suspend promotion or new hardware scope is inferred.
 
+Candidate seal admission: the same physical failure/pass inventory remains the
+hardware authority. Fresh code Linux0de6e95/Reborn36db186 passes kernel/config/
+DT/modules/ARM ABI, fresh Buildroot/ARM and Reborn ARM,215 locked regressions
+(218 total;3 native cases covered by12 fresh host tests),192 Reborn tests/fmt/
+strict Clippy, installed ARM benchmark,382 ELF files/1396 dependency edges,
+105 pinned source packages and license collection. New runtime objects passW=1
+without warnings. Admit the single preserving package seal after successful
+package/ext4/on-image validation; exact Hardware02 fallback hashes remain
+b2a2c3bc/63dbd0a1. No highres/SLIDLE/high-OPP/full-wake electrical acceptance is
+inferred. Host SSH qualification tools check same boot/taint, actual serviced wake
+IRQs, bounded playback and USB/WLAN round-trip hashes; no device execution here.
+
+Closing software boundary: preserving package/ext4/on-image validation now PASS;
+BOOTIMG82b38fd3/Y2ROOT26aa01ce are the single Fix01 payload pair. Close the focused
+software implementation/candidate qualification scope, retain full physical
+acceptance pending owner installation and one prioritized SSH run. Exact initial
+user diffs and roadmap text are preserved; no flash/push/device access or identity
+configuration changes. Existing conservative/hardware qualifications stand alone.
+
 Unrelated user documentation/assets are retained. Source/ROM/recovery provenance
 is unchanged and is not reacquired. This admission does not reopen architecture,
 qualify high OPPs/full wake, or authorize a planning epic as hardware work.

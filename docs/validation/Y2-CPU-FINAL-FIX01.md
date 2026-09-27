@@ -71,7 +71,7 @@ and blocker; no DMA engine is reset to improve idle counters. Gate operations
 now share the bus transition lock. Exact bus value is restored on both entry
 failure and wake; readback failure disables SLIDLE and falls back to WFI.
 
-All three pinned MT6582 trees require hotplug_cpu_count1 for stock SLIDLE.
+All four pinned MT6582 references require hotplug_cpu_count1 for stock SLIDLE.
 The conservative coordinator waits for screen-off, no live non-Idle lease,
 <=10% activity,598MHz and admitted local events. Following a60second restore
 hold and30seconds quiet it parks one secondary at most every5seconds. Input,
@@ -140,7 +140,9 @@ Markers cover request/sync/devices/secondaries/CIRQ/RTC/UART/PCM/context/SPM
 entry/return/normal PCM/timer/CIRQ replay/CPU/device/radio/Reborn/complete. The
 reset stamp distinguishes Boot ROM dispatch from context return. Snapshots include
 wake reason/raw status, PCM pointer/length/control, mask/timers/watchdog,
-CIRQ control, vector/enable, CPU power copies and CA7 cache configuration. Radio
+CIRQ control, vector/enable, CPU power copies and CA7 cache configuration. USB receipts read actual controller suspend/restore counters and UDC state,
+not an absent runtime file. A failed post-resume receipt cannot prevent either
+radio from being restored. Radio
 restore failures remain errors; a fresh Reborn control response is required before
 its ready marker. Diagnostics expose current, previous and durable receipts.
 
@@ -161,3 +163,103 @@ has a separate deliberate press and RTC recovery backstop. No flash/reboot code.
 Current-source validation results, built identities, artifact hashes, preserving
 allowlist and exact fallback are recorded in the final candidate manifest and
 validation receipts. Software tests do not claim physical qualification.
+
+Fresh Reborn validation also exposed an existing live-volume test boundary race:
+a target update may meet one already-rendered73-frame partial write before the
+five-millisecond ramp. The test now asserts the exact target after that combined
+bound, retaining frame/sink continuity checks and a stricter final-volume window.
+Playback implementation is unchanged. Full workspace tests/fmt/strict Clippy pass.
+
+## Final software receipt
+
+| Identity | Commit/version |
+| --- | --- |
+| Starting Linux | aadcaa40a486cda555c859f131a2dcdb664b2233 |
+| Starting Reborn | afcf9ffa1bc45073e97520d592c0284ce73fefcf |
+| Final built Linux runtime | 0de6e951b438bf0f2d701e23e476d2b2405ba3c6 |
+| Final Reborn | 36db1869c6bab1ad2d00b7d8e7807ea6ef5b3803 |
+| Kernel | 6.18.0-y2linux-cpu-final-fix01 |
+| Root | 2025.02.18-platform-v1.7 |
+
+A later host-harness/documentation commit seals this receipt; it changes no built
+kernel or installed userspace. Its full identity is in the candidate's
+sources/campaign-docs-commit.txt and validation/summary.json. The source bundle
+contains both runtime and sealing commits. Git identities/configuration and the
+authenticated GitHub account are preserved; no model attribution or push.
+
+Implementation commits: Linux b077bb9 (combined five-cluster correction),2099352
+(independent GPT6 progress/IRQ verification),0de6e95 (actual USB receipts and
+radio unwind despite receipt failure). Reborn7fa9969 (atomic writes/independent
+producers),36db186 (precise partial-write/ramp regression bound).
+
+| Fresh check | Result |
+| --- | --- |
+| Kernel/config/modules, DT and BOOTIMG/memory bounds | PASS; BOOTIMG7186432bytes, kernel span13482888bytes within established memory contract |
+| Targeted ARM W=1 CPU/timer/idle/PMIC/suspend/MFD objects | PASS, no warnings |
+| Production/platform/CPU regressions | 218tests:215PASS,3explicit native-dependency skips covered separately |
+| Native dependency regressions | 12PASS, no skips; includes actual ALSA null constraints, private D-Bus/reconnect and fallback ext4 checks |
+| Reborn workspace | 192PASS; cargo fmt and strict Clippy all-targets -D warnings PASS |
+| Fresh Buildroot ARM/Reborn ARM and QEMU | PASS; ARM Thumb signal/kuser/TLS/thread/VFP ABI tests PASS |
+| Installed ARM | 25Python modules, SQLite/OpenSSL, Reborn control/decoder,1000-track scan/library benchmark and ALSA constraints PASS |
+| ELF dependency closure | 382ARM ELF files/1396dependency edges PASS; no build RPATH |
+| FFmpeg/ALSA | Fresh FFmpeg9.0.1 source/runtime feature contract and ALSA1.2.16/constraints PASS |
+| Locked source/release inventory | 105packages verified; legal/source collection retained with existing recipe-metadata limits |
+| Preserving package/fallback | PASS ext4/on-image identity and contents, BOOTIMG/Y2ROOT selection, unchanged Y2DATA contract and exact accepted fallback |
+| SSH qualification harness, offline | 12PASS: same-boot RTC/Power/staged checks, serviced IRQs, exact charger refusal, taint/new-boot/early-wake rejection, scoped transport integrity and scratch cleanup |
+
+Added tests exercise inherited GPT6 and GPT4 reclaim/fallback, CNTFRQ and actual
+upstream registration cleanup, highres/NO_HZ observation, all seven blocker bits
+and exact bus restore, both PMIC selector banks/feedback/order/fault/thermal
+ceilings, atomic requests for all eight classes and descriptor lifetimes,
+renewal/expiry/overlapping kernel leases, actual torn-write journal commits,
+RTC/Power masks and read failures, real GFP prepare/refusal unwind, durable
+receipts and radio restoration despite a receipt failure. Existing USB context,
+CONSYS isolation/retry, storage, audio, scheduler and hotplug checks remain in
+the production profile. Synthetic/QEMU tests do not qualify physical hardware.
+
+The fresh artifact phase initially could not see a locked regulatory archive
+through an external cache symlink inside the isolated build. Materializing the
+same input cache within the clean checkout resolved it; final artifact/config/DT
+validation passes. No regulatory payload or source was changed to bypass it.
+
+Candidate: /home/luca/Dokumente/Code/Y2Linux/out/y2linux-cpu-final-fix01-candidate/
+
+| Payload | SHA256 |
+| --- | --- |
+| BOOTIMG.img | 82b38fd31549f6a2aa84c10c11e4cc42015a225fddc7ded7d40feb3145a0ab25 |
+| Y2ROOT.img | 26aa01ce84cc012e08309269a464e609e4d9dc1a9a837528eecbbe9e99a1d1f5 |
+| fallback/BOOTIMG.img | b2a2c3bcb7cc7783828882e447e8b867453cb5b65846ce63577076b1ca4afeea |
+| fallback/Y2ROOT.img | 63dbd0a198cd86e847c10ed163fd14b2cbe269595fa1988c99ac8393160bb547 |
+
+Fallback is the accepted Hardware02 pair: Linux76bc8229580ec8d101008c5bad47419f2c110eae,
+Reborn95747e0a36c7b27beb44b8cdd54feda1813f2f3a, kernel6.18.0-y2linux-hardware-02,
+root2025.02.18-platform-v1.4. It is copied from that candidate's primary payloads,
+matching the existing CPU Final fallback exactly. No preloader/LK/NVRAM/PROTECT/
+calibration/factory/data partition payload is present. Binary research consists
+only of bounded source-reference excerpts, not flashing payloads.
+
+Owner next action: verify SHA256SUMS, install only BOOTIMG and ANDROID/Y2ROOT using
+MT6582_preserve_data_scatter.txt with the existing preserving owner workflow,
+then run the one SSH sequence with existing pinned USB and Wi-Fi aliases:
+
+```sh
+python3 tools/development/qualify-cpu-fix01.py --run --host y2 --wifi-host OWNER_WIFI_ALIAS
+```
+
+The default invocation prints the plan without contacting a device. The run pins
+installed identities, prioritizes timers/highres/NO_HZ and real app leases, waits
+for eligible SLIDLE, exercises only admitted DVFS, records C3 prerequisites without
+activation, checks charger/staged regressions, automatic RTC and separate Power
+wake, reconnects and checks USB/WLAN256KiB round trips and bounded30second wired
+playback metrics. It asks for charging USB removal and reconnection; an RTC failure
+asks for one Power press only after timeout. Separate Power qualification needs
+one deliberate press. A new boot, changed taint, absent wake IRQ, missing automatic
+RTC wake or radio/USB failure cannot be accepted as full resume. Persistent previous
+stages and durable receipts must be retained after any recovery.
+
+No device access, flash or push occurred. Lower OPPs/schedutil/hotplug, C1, thermal
+QoS authority, audio, USB and CONSYS source paths are preserved. The old full-sleep
+failure's exact instruction remains unknown because its original breadcrumbs were
+absent. Fix01 repairs the identified selector/timer/wake/vector/unwind integrations
+and makes the next warm-reset failure boundary observable; actual full wake and
+SRAM electrical retention are intentionally not inferred from software tests.
