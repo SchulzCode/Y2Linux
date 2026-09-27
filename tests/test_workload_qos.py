@@ -15,6 +15,7 @@ class WorkloadQos(unittest.TestCase):
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#define loff_t off_t
 #define __user
 #define PM_QOS_DEFAULT_VALUE -1
 struct freq_qos_request{int value;};
