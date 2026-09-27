@@ -131,3 +131,6 @@ BR2_PACKAGE_LIBOPENSSL_BIN=y
 
 # Small native verifier/writer also installed in immutable rescue.
 BR2_PACKAGE_Y2_UPDATE=y
+
+# Owner-private encoder qualification; normal radio service remains SBC-only.
+BR2_PACKAGE_Y2_CODEC_EXPERIMENTS=y

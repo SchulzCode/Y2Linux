@@ -1,0 +1,6 @@
+config BR2_PACKAGE_LIBFREEAPTX
+	bool "libfreeaptx"
+	depends on !BR2_STATIC_LIBS
+	help
+	  LGPL-2.1-or-later aptX and aptX HD encoder/decoder library.
+	  https://github.com/regularhunter/libfreeaptx

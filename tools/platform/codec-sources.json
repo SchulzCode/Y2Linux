@@ -1,0 +1,37 @@
+{
+  "fdk-aac": {
+    "version": "2.0.3",
+    "url": "https://downloads.sourceforge.net/project/opencore-amr/fdk-aac/fdk-aac-2.0.3.tar.gz",
+    "sha256": "829b6b89eef382409cda6857fd82af84fabb63417b08ede9ea7a553f811cb79e",
+    "license": "FDK-AAC license",
+    "license_files": {
+      "NOTICE": "95ec80da40b4af12ad4c4f3158c9cfb80f2479f3246e4260cb600827cc8c7836"
+    },
+    "distribution_limit": "Copyright license requires notice and corresponding source; no patent license granted. Public product approval not established."
+  },
+  "libfreeaptx": {
+    "version": "0.2.2",
+    "upstream_commit": "6dee419f934ec781e531f885f7e8e740752e67d1",
+    "url": "https://github.com/regularhunter/libfreeaptx/archive/0.2.2/libfreeaptx-0.2.2.tar.gz",
+    "sha256": "5ab5ebddf3f2eb7ce47a505b87460b00fc1ede99c70010796d3575ab31ea80bf",
+    "license": "LGPL-2.1-or-later",
+    "license_files": {
+      "COPYING": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+    },
+    "distribution_limit": "Use shared library and retain corresponding source/license. Codec trademark/patent product clearance not established; no Adaptive or Lossless claim."
+  },
+  "libldac": {
+    "version": "2.0.2.3",
+    "packaging_commit": "fbffba45d15d959da6ee04eafe14c0d4721f6030",
+    "libldac_commit": "82b6a1abee84787b8fa167efe20290073f60db2d",
+    "url": "https://github.com/EHfive/ldacBT/releases/download/v2.0.2.3/ldacBT-2.0.2.3.tar.gz",
+    "sha256": "4bd8eece78bb5c1361fab95743e7100506e2408a25c4a592a0f8d349746dc5b4",
+    "license": "Apache-2.0",
+    "license_files": {
+      "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "libldac/LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "libldac/NOTICE": "2fdf859264d3d799cef9eb2e3cf3effc99d2782667eae1fd518d70d121cbac59"
+    },
+    "distribution_limit": "AOSP NOTICE requires certification for product use. Product certification and public distribution approval not established."
+  }
+}

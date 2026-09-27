@@ -68,6 +68,33 @@ class BluetoothObservation(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'not_approved'):
             manifest(root)
 
+    def test_private_profile_requires_complete_encoder_set_and_keeps_auto_closed(self):
+        root = Path(self.temp.name)
+        (root/'src').mkdir(); (root/'src/bluealsad').touch()
+        config = '#define PACKAGE_VERSION "v5.0.0"\n#define WITH_LIBFREEAPTX 1\n'
+        config += ''.join('#define ENABLE_' + codec + ' 1\n'
+                          for codec in ('AAC', 'APTX', 'APTX_HD', 'LDAC'))
+        (root/'config.h').write_text(config)
+        result = manifest(root, 'owner-private-experiments')
+        self.assertEqual(set(result['optional_encoder_provenance']), {'fdk-aac', 'libfreeaptx', 'libldac'})
+        for name, codec in result['codecs'].items():
+            self.assertTrue(codec['compiled_locally'])
+            self.assertFalse(codec['platform_qualified'])
+            self.assertEqual(codec['default_runtime_enabled'], name == 'SBC')
+            self.assertEqual(codec['distribution_approved'], name == 'SBC')
+        args = root/'daemon.args'
+        subprocess.run([sys.executable, str(ROOT/'tools/platform/codec_manifest.py'), str(root),
+                        '--profile', 'owner-private-experiments', '--daemon-args', str(args)],
+                       check=True, capture_output=True)
+        self.assertEqual(args.read_text().split(),
+                         ['--codec=-AAC', '--codec=-aptX', '--codec=-aptX-HD', '--codec=-LDAC'])
+        for invalid, message in ((config.replace('#define ENABLE_LDAC 1', ''), 'incomplete'),
+                                 (config + '#define ENABLE_OPUS 1\n', 'not_approved'),
+                                 (config.replace('WITH_LIBFREEAPTX', 'WITH_LIBOPENAPTX'), 'library_mismatch')):
+            (root/'config.h').write_text(invalid)
+            with self.assertRaisesRegex(ValueError, message):
+                manifest(root, 'owner-private-experiments')
+
     def test_native_observer_private_bus_with_missing_owners_is_not_ready(self):
         result = subprocess.run(['pkg-config','--cflags','--libs','gio-2.0'], capture_output=True, text=True)
         if result.returncode:

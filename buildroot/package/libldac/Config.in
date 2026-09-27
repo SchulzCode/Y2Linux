@@ -1,0 +1,8 @@
+config BR2_PACKAGE_LIBLDAC
+	bool "libldac encoder and ABR"
+	depends on !BR2_STATIC_LIBS
+	help
+	  Sony LDAC encoder and ABR, with EHfive's Linux CMake packaging.
+	  AOSP NOTICE requires product certification; private qualification
+	  is not public distribution approval.
+	  https://github.com/EHfive/ldacBT

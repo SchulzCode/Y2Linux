@@ -1,0 +1,13 @@
+config BR2_PACKAGE_Y2_CODEC_EXPERIMENTS
+	bool "Y2 owner-private Bluetooth encoder qualification"
+	depends on BR2_PACKAGE_BLUEZ_ALSA
+	depends on BR2_PACKAGE_FDK_AAC_ARCH_SUPPORTS
+	depends on BR2_INSTALL_LIBSTDCPP
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_FDK_AAC
+	select BR2_PACKAGE_LIBFREEAPTX
+	select BR2_PACKAGE_LIBLDAC
+	help
+	  Build AAC, aptX, aptX HD and LDAC for owner-private experiments.
+	  The normal service still enables only SBC. No public distribution
+	  approval or physical qualification is implied; Auto stays gated.

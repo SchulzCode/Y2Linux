@@ -3,6 +3,21 @@
 set -eu
 umask 077
 exec >>/run/y2/connectivity.log 2>&1
+start_bluealsa() {
+    # Generated from the exact configured encoder set. AAC otherwise starts
+    # enabled by upstream default. Fail closed if the build contract is absent.
+    [ -r /etc/y2linux/bluetooth-daemon.args ] || return 1
+    codec_args=$(cat /etc/y2linux/bluetooth-daemon.args)
+    # Only immutable build-generated disable switches are accepted, never eval.
+    set -f
+    set -- $codec_args
+    for arg do
+        case "$arg" in --codec=-AAC|--codec=-aptX|--codec=-aptX-HD|--codec=-LDAC) ;;
+            *) return 1;; esac
+    done
+    start-stop-daemon -S -b -m -p /run/y2/bluealsa.pid -x /usr/bin/bluealsad -- \
+        -p a2dp-source --loglevel=warning "$@"
+}
 cleanup() {
     for name in wifi-action wifi-dhcp wpa reconnect bluealsa calibration; do
         start-stop-daemon -K -p "/run/y2/$name.pid" 2>/dev/null || :
@@ -26,7 +41,7 @@ case "$(cat /sys/devices/platform/18070000.connectivity/status)" in
  *) /usr/sbin/y2-radio-activate || { cleanup; exit 1; };;
 esac
 wpa_supplicant -B -u -g /run/wpa_supplicant/global -P /run/y2/wpa.pid
-start-stop-daemon -S -b -m -p /run/y2/bluealsa.pid -x /usr/bin/bluealsad -- -p a2dp-source --loglevel=warning
+start_bluealsa
 start-stop-daemon -S -b -m -p /run/y2/reconnect.pid -x /usr/sbin/y2-bt-reconnect
 [ "$(cat /data/network/enabled)" != 1 ] || y2-radio wifi on-runtime
 if [ "$(cat /data/bluetooth/enabled)" = 1 ]; then
@@ -64,7 +79,7 @@ while :; do
             if ! alive "$name" "$binary"; then
                 rm -f "/run/y2/$name.pid"
                 if [ "$name" = bluealsa ]; then
-                    start-stop-daemon -S -b -m -p /run/y2/bluealsa.pid -x "$binary" -- -p a2dp-source --loglevel=warning || :
+                    start_bluealsa || :
                 else
                     start-stop-daemon -S -b -m -p /run/y2/reconnect.pid -x "$binary" || :
                 fi

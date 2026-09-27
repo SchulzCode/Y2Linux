@@ -107,6 +107,27 @@ def apply(buildroot_source: Path) -> None:
         if marker not in text:
             raise ValueError("BlueALSA configure option anchor missing")
         (bluealsa / "bluez-alsa.mk").write_text(text.replace(marker, disables + marker, 1))
+    # Explicit owner-private qualification profile. Keep this after the stock
+    # option branches: independently selecting another library must never enable
+    # an unreviewed encoder or mix GPL-3 libopenaptx with FDK-AAC.
+    recipe = bluealsa / "bluez-alsa.mk"
+    text = recipe.read_text()
+    experiment_options = """# Y2 owner-private optional encoder profile
+ifeq ($(BR2_PACKAGE_Y2_CODEC_EXPERIMENTS),y)
+ifeq ($(BR2_PACKAGE_LIBOPENAPTX),y)
+$(error Y2 codec profile requires libfreeaptx, not libopenaptx)
+endif
+BLUEZ_ALSA_DEPENDENCIES += fdk-aac libfreeaptx libldac
+BLUEZ_ALSA_CONF_OPTS := $(filter-out --disable-aac --disable-aptx --disable-aptx-hd --disable-ldac,$(BLUEZ_ALSA_CONF_OPTS))
+BLUEZ_ALSA_CONF_OPTS += --enable-aac --with-libfreeaptx --enable-aptx --enable-aptx-hd --enable-ldac
+endif
+
+"""
+    if "# Y2 owner-private optional encoder profile" not in text:
+        anchor = "$(eval $(autotools-package))"
+        if anchor not in text:
+            raise ValueError("BlueALSA package evaluation anchor missing")
+        recipe.write_text(text.replace(anchor, experiment_options + anchor, 1))
     # BlueALSA 5.0.0 places -static in AM_CFLAGS. With Buildroot's normal
     # shared D-Bus/ALSA/BlueZ stack that flag reaches the bluealsad link and
     # makes the ARM build reject dynamic libraries. Keep the stack dynamic and

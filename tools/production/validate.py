@@ -336,7 +336,8 @@ def validate_rootfs(out,build,m):
                 require(content[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',content,18)[0]==40,'platform ARM binary '+name)
                 require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img'))==content,'platform ext4/tar agreement '+name)
             for name in ('etc/y2linux/capabilities.json','etc/y2linux/update-trust.json','etc/y2linux/update-compat.json',
-                         'etc/y2linux/bluetooth-codecs.json','usr/lib/y2-platform/y2_platform/update.py',
+                         'etc/y2linux/bluetooth-codecs.json','etc/y2linux/bluetooth-daemon.args',
+                         'usr/lib/y2-platform/y2_platform/update.py',
                          'usr/lib/y2-platform/y2_platform/maintenance.py','usr/libexec/reborn-boot-services'):
                 require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img'))==read(name),'platform contract ext4/tar agreement '+name)
             require(b'Y2_TEST_ROOT' not in read('usr/sbin/y2-update-core') and b'Y2_TEST_FAULT' not in read('usr/sbin/y2-update-core'),'production updater has no fixture writer')
