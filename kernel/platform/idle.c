@@ -13,6 +13,12 @@
 static unsigned long slow_entries, slow_aborts, slow_failures;
 static bool slow_broken;
 static atomic_t dormant_aborts = ATOMIC_INIT(0);
+static int dormant_aborts_get(char *buf, const struct kernel_param *kp)
+{
+	return sysfs_emit(buf, "%d\n", atomic_read(&dormant_aborts));
+}
+static const struct kernel_param_ops dormant_aborts_ops = { .get = dormant_aborts_get };
+module_param_cb(dormant_aborts, &dormant_aborts_ops, NULL, 0400);
 static int last_error;
 module_param(slow_entries, ulong, 0400);
 module_param(slow_aborts, ulong, 0400);

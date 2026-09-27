@@ -7,6 +7,29 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class CpuFinal(unittest.TestCase):
+    def test_broadcast_and_dormant_abort_observations_are_explicit(self):
+        import sys
+        import tempfile
+        sys.path.insert(0, str(ROOT/'tools/platform'))
+        from y2_platform.common import Context
+        from y2_platform.observe import cpu
+        with tempfile.TemporaryDirectory() as directory:
+            ctx = Context(directory)
+            self.assertIsNone(cpu(ctx)['timer']['broadcast_clockevent'])
+            for name, value in (
+                ('/sys/devices/system/clockevents/broadcast/current_device', 'y2-gpt4-broadcast'),
+                ('/sys/module/idle/parameters/dormant_aborts', '7'),
+                ('/sys/module/idle/parameters/last_error', '-62'),
+            ):
+                path = ctx.path(name)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(value)
+            result = cpu(ctx)
+            self.assertEqual(result['timer']['broadcast_clockevent'], 'y2-gpt4-broadcast')
+            self.assertEqual(result['idle_diagnostics']['dormant_aborts'], '7')
+            self.assertEqual(result['idle_diagnostics']['last_error'], '-62')
+            self.assertIsNone(result['timer']['highres_active'])
+
     def test_runtime_pcm_protocol_distinct_from_suspend_and_bounded_uart(self):
         run_c(r'''
 #include <assert.h>

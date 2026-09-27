@@ -111,7 +111,8 @@ Failure descends C3 -> C2 -> C1; MMIO/timeout faults disable the affected deep p
 Linux cpuidle counts usage/time/rejection for the actual returned state. Additional
 SPM entry/resume/abort/failure counts, last stage/error and clock blocker masks
 explain preflight failure. Dormant is opt-in through existing cpuidle state disable
-attributes; no app-level performance mode or MHz picker is required.
+attributes; the separate atomic dormant-abort count includes deadline rejections.
+No app-level performance mode or MHz picker is required.
 
 ## CIRQ and wake
 

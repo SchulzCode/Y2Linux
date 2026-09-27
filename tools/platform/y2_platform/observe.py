@@ -117,6 +117,7 @@ def cpu(ctx):
                              'interactive_max_ms': 500,
                              'leases': ctx.read('/sys/module/workload/parameters/leases')},
             'timer': {**timer_runtime(ctx), 'clocksource': ctx.read('/sys/devices/system/clocksource/clocksource0/current_clocksource'),
+                      'broadcast_clockevent': ctx.read('/sys/devices/system/clockevents/broadcast/current_device'),
                       'clockevents': {p.parent.name: read(p) for p in ctx.glob('/sys/devices/system/clockevents/clockevent*/current_device')}}}
 
 
