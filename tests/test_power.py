@@ -136,7 +136,7 @@ int main(void){
 struct clk_hw {int unused;};
 struct y2_clock {struct clk_hw hw; void *pll,*infra;};
 #define container_of(p,t,m) ((t *)((char *)(p)-offsetof(t,m)))
-static unsigned pll[384], infra[16], writes, delay, fail_pcw;
+static unsigned pll[384], infra[16], writes, delay, fail_pcw, fail_restore_mux;
 static int y2_clk_lock;
 static unsigned readl(void *p){
  if(p==pll+0x204/4 && writes==3 && fail_pcw){fail_pcw=0;return 0;}
@@ -147,6 +147,7 @@ static void writel(unsigned v,void *p){
  if(writes==1)assert(p==infra+2 && v==10);
  if(writes==2)assert(p==infra && (v&12)==8);
  if(p==pll+0x204/4)assert((infra[0]&12)==8 && infra[2]==10);
+ if(fail_restore_mux && p==infra && (v&12)==4)return;
  *(unsigned *)p=v;
 }
 static void udelay(unsigned us){assert(us>=30);delay++;}
@@ -174,6 +175,9 @@ int main(void){
  pll[0x204/4]=y2_cpu_pcw(1040000000);writes=delay=0;fail_pcw=1;
  assert(y2_cpu_pll_set(&c.hw,598000000,0)==-EIO && delay==2);
  assert(y2_pll_rate(pll,0)==1040000000 && infra[0]==4 && infra[2]==0);
+ writes=delay=0;fail_restore_mux=1;
+ assert(y2_cpu_pll_set(&c.hw,598000000,0)==-EIO && writes==4);
+ assert(infra[0]==8 && infra[2]==10); /* MAINPLL stays divided: 546 MHz. */
 }
 ''')
 

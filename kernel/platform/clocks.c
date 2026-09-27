@@ -241,6 +241,9 @@ static int y2_cpu_pll_set(struct clk_hw *hw, unsigned long rate, unsigned long p
 		if ((readl(c->pll + 0x204) & 0x071fffff) != (old & 0x071fffff)) goto out;
 	}
 	writel(mux, c->infra);
+	/* Never remove MAINPLL's /2 divider before ARMPLL ownership is
+	 * confirmed: failed mux restoration must retain the 546-MHz fallback. */
+	if ((readl(c->infra) & 12) != 4) { ret = -EIO; goto out; }
 	writel(0, c->infra + 8);
 	if (readl(c->infra + 8) || (readl(c->infra) & 12) != 4)
 		ret = -EIO;
