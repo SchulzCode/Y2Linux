@@ -27,6 +27,10 @@ struct y2_clock {
 };
 static void __iomem *y2_clock_bases[4];
 static DEFINE_SPINLOCK(y2_clk_lock);
+static unsigned slow_blockers, deep_peri_blockers, deep_infra_blockers;
+module_param(slow_blockers, uint, 0400);
+module_param(deep_peri_blockers, uint, 0400);
+module_param(deep_infra_blockers, uint, 0400);
 
 /* Exact stock SLIDLE bus DCM sequence, serialized with every CCF gate/mux.
  * The caller keeps IRQs disabled; the local clockevent bounds WFI residency.
@@ -42,7 +46,8 @@ int y2_ccf_slow_idle(void)
 	saved = readl(top + 4);
 	/* Stock PERI blocker mask includes APDMA and I2C; additionally retain
 	 * every MSDC blocker. CG bits read as one when the clock is disabled. */
-	if (saved != 0x0f || ((~readl(peri + 0x18)) & (0x00f00800 | 0x00007800))) {
+	slow_blockers = (~readl(peri + 0x18)) & (0x00f00800 | 0x00007800);
+	if (saved != 0x0f || slow_blockers) {
 		ret = -EBUSY; goto out;
 	}
 	writel(0x8f, top + 4);
@@ -54,6 +59,47 @@ restore:
 	dsb(sy);
 	if (readl(top + 4) != saved) ret = -EIO;
 out:
+	spin_unlock(&y2_clk_lock);
+	return ret;
+}
+
+/* Deep idle transaction retains the clock-owner lock through WFI. No new
+ * clock consumer can start DMA/AFE while system clocks are handed to PCM. */
+static unsigned idle_bus, idle_audio;
+int y2_ccf_deep_idle_begin(void)
+{
+	void __iomem *top = y2_clock_bases[0], *peri = y2_clock_bases[1];
+	void __iomem *infra = y2_clock_bases[2];
+	if (!top || !peri || !infra) return -ENODEV;
+	if (!spin_trylock(&y2_clk_lock)) return -EBUSY;
+	/* Exact stock PERI/INFRA masks, plus all MSDC and AFE blockers. Other
+	 * groups are checked as powered-off domains by SPM before this call. */
+	deep_peri_blockers = ~readl(peri + 0x18) & (0x02fe87fdU | 0x7800U);
+	deep_infra_blockers = ~readl(infra + 0x40) & (0x0000a080U | BIT(5));
+	if (deep_peri_blockers || deep_infra_blockers) goto busy;
+	idle_bus = readl(top + 4);
+	idle_audio = readl(top + 0x70);
+	if (idle_bus != 0x0f) goto busy;
+	writel(0x8f, top + 4);
+	writel(idle_audio & 0xf8ffffff, top + 0x70);
+	dsb(sy);
+	if (readl(top + 4) != 0x8f || readl(top + 0x70) != (idle_audio & 0xf8ffffff)) {
+		y2_ccf_deep_idle_end();
+		return -EIO;
+	}
+	return 0;
+busy:
+	spin_unlock(&y2_clk_lock);
+	return -EBUSY;
+}
+int y2_ccf_deep_idle_end(void)
+{
+	void __iomem *top = y2_clock_bases[0];
+	int ret = 0;
+	writel(idle_audio, top + 0x70);
+	writel(idle_bus, top + 4);
+	dsb(sy);
+	if (readl(top + 4) != idle_bus || readl(top + 0x70) != idle_audio) ret = -EIO;
 	spin_unlock(&y2_clk_lock);
 	return ret;
 }

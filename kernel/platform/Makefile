@@ -8,3 +8,5 @@ obj-$(CONFIG_Y2_POWER) += local-timer.o
 obj-$(CONFIG_Y2_POWER) += cpu-dvfs.o
 obj-$(CONFIG_Y2_POWER) += workload.o
 obj-$(CONFIG_Y2_CONNECTIVITY) += connectivity/
+obj-$(CONFIG_Y2_POWER) += cirq.o
+obj-$(CONFIG_Y2_POWER) += cpu-options.o

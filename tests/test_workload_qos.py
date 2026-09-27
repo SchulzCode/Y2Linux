@@ -16,12 +16,14 @@ class WorkloadQos(unittest.TestCase):
 #include <string.h>
 #include <sys/types.h>
 #define loff_t off_t
+#define strscpy(a,b,n) snprintf(a,n,"%s",b)
+static unsigned long jiffies;
 #define __user
 #define PM_QOS_DEFAULT_VALUE -1
 struct freq_qos_request{int value;};
 struct pm_qos_request{int value;};
 struct delayed_work{unsigned delay;};
-struct y2_workload{struct freq_qos_request minimum;struct pm_qos_request latency;struct delayed_work expiry;int lock;};
+struct y2_workload{char name[32];unsigned long deadline;struct freq_qos_request minimum;struct pm_qos_request latency;struct delayed_work expiry;int lock;};
 struct file{void *private_data;};
 static int system_wq,fail;
 static int copy_from_user(void *a,const void *b,unsigned n){memcpy(a,b,n);return 0;}
@@ -40,6 +42,7 @@ int main(void){
  assert(y2_workload_write(&file,"Interactive 250\n",16,0)==16);
  assert(hint.minimum.value==747500 && hint.latency.value==1000 && hint.expiry.delay==250);
  y2_workload_idle(&hint);assert(!hint.minimum.value && hint.latency.value==-1);
+ assert(y2_workload_write(&file,"ArtworkDecode 1000",18,0)==18 && hint.minimum.value==747500);
  assert(y2_workload_write(&file,"PlaybackNormal 1000",19,0)==19 && !hint.minimum.value);
  assert(y2_workload_write(&file,"LibraryScan 30000",17,0)==17 && hint.minimum.value==747500);
  fail=1;assert(y2_workload_write(&file,"Idle 100",8,0)==-EIO && hint.minimum.value==747500);

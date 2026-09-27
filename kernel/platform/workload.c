@@ -10,8 +10,15 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
+#include <linux/list.h>
+#include <linux/jiffies.h>
 
+static LIST_HEAD(leases);
+static DEFINE_MUTEX(leases_lock);
 struct y2_workload {
+	struct list_head node;
+	char name[32];
+	unsigned long deadline;
 	struct cpufreq_policy *policy;
 	struct freq_qos_request minimum, maximum;
 	struct pm_qos_request latency;
@@ -21,6 +28,8 @@ struct y2_workload {
 
 static void y2_workload_idle(struct y2_workload *hint)
 {
+	strscpy(hint->name, "Idle", sizeof(hint->name));
+	hint->deadline = 0;
 	freq_qos_update_request(&hint->minimum, 0);
 	cpu_latency_qos_update_request(&hint->latency, PM_QOS_DEFAULT_VALUE);
 }
@@ -29,7 +38,9 @@ static void y2_workload_expire(struct work_struct *work)
 {
 	struct y2_workload *hint = container_of(to_delayed_work(work), struct y2_workload, expiry);
 	mutex_lock(&hint->lock);
-	y2_workload_idle(hint);
+	if (hint->deadline && time_before(jiffies, hint->deadline))
+		mod_delayed_work(system_wq, &hint->expiry, hint->deadline - jiffies);
+	else y2_workload_idle(hint);
 	mutex_unlock(&hint->lock);
 }
 
@@ -43,11 +54,15 @@ static int y2_workload_open(struct inode *inode, struct file *file)
 	if (!hint->policy) { ret = -EAGAIN; goto free; }
 	ret = freq_qos_add_request(&hint->policy->constraints, &hint->minimum, FREQ_QOS_MIN, 0);
 	if (ret < 0) goto put;
-	ret = freq_qos_add_request(&hint->policy->constraints, &hint->maximum, FREQ_QOS_MAX, 1040000);
+	ret = freq_qos_add_request(&hint->policy->constraints, &hint->maximum, FREQ_QOS_MAX, FREQ_QOS_MAX_DEFAULT_VALUE);
 	if (ret < 0) goto minimum;
 	mutex_init(&hint->lock);
 	INIT_DELAYED_WORK(&hint->expiry, y2_workload_expire);
 	cpu_latency_qos_add_request(&hint->latency, PM_QOS_DEFAULT_VALUE);
+	strscpy(hint->name, "Idle", sizeof(hint->name));
+	mutex_lock(&leases_lock);
+	list_add_tail(&hint->node, &leases);
+	mutex_unlock(&leases_lock);
 	file->private_data = hint;
 	return nonseekable_open(inode, file);
 minimum:
@@ -73,8 +88,8 @@ static ssize_t y2_workload_write(struct file *file, const char __user *buffer,
 		return -EINVAL;
 	if (!strcmp(name, "Idle") || !strcmp(name, "PlaybackNormal")) {
 		/* No unmeasured playback floor. schedutil follows actual demand. */
-	} else if (!strcmp(name, "Interactive")) {
-		if (ms > 500) return -EINVAL;
+	} else if (!strcmp(name, "Interactive") || !strcmp(name, "ArtworkDecode")) {
+		if (!strcmp(name, "Interactive") && ms > 500) return -EINVAL;
 		floor = 747500; latency = 1000;
 	} else if (!strcmp(name, "PlaybackHeavy")) {
 		floor = 747500; latency = 1000;
@@ -86,6 +101,8 @@ static ssize_t y2_workload_write(struct file *file, const char __user *buffer,
 	mutex_lock(&hint->lock);
 	ret = freq_qos_update_request(&hint->minimum, floor);
 	if (ret >= 0) {
+		strscpy(hint->name, name, sizeof(hint->name));
+		hint->deadline = jiffies + msecs_to_jiffies(ms);
 		cpu_latency_qos_update_request(&hint->latency, latency);
 		mod_delayed_work(system_wq, &hint->expiry, msecs_to_jiffies(ms));
 	}
@@ -96,6 +113,9 @@ static ssize_t y2_workload_write(struct file *file, const char __user *buffer,
 static int y2_workload_release(struct inode *inode, struct file *file)
 {
 	struct y2_workload *hint = file->private_data;
+	mutex_lock(&leases_lock);
+	list_del(&hint->node);
+	mutex_unlock(&leases_lock);
 	cancel_delayed_work_sync(&hint->expiry);
 	cpu_latency_qos_remove_request(&hint->latency);
 	freq_qos_remove_request(&hint->minimum);
@@ -105,6 +125,24 @@ static int y2_workload_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int leases_get(char *buf, const struct kernel_param *kp)
+{
+	struct y2_workload *hint;
+	int used = 0;
+	mutex_lock(&leases_lock);
+	list_for_each_entry(hint, &leases, node) {
+		if (used > PAGE_SIZE - 128) break;
+		mutex_lock(&hint->lock);
+		used += scnprintf(buf + used, PAGE_SIZE - used, "%s remaining_ms=%u min_khz=%d\n",
+			hint->name, hint->deadline && time_before(jiffies, hint->deadline) ?
+			jiffies_to_msecs(hint->deadline - jiffies) : 0, hint->minimum.pnode.prio);
+		mutex_unlock(&hint->lock);
+	}
+	mutex_unlock(&leases_lock);
+	return used;
+}
+static const struct kernel_param_ops leases_ops = { .get = leases_get };
+module_param_cb(leases, &leases_ops, NULL, 0400);
 static const struct file_operations y2_workload_ops = {
 	.owner = THIS_MODULE, .open = y2_workload_open, .write = y2_workload_write,
 	.release = y2_workload_release,

@@ -1,0 +1,41 @@
+--- a/drivers/usb/musb/musb_core.c
++++ b/drivers/usb/musb/musb_core.c
+@@ -80,6 +80,7 @@
+ #include <linux/usb/of.h>
+ 
+ #include "musb_core.h"
++#include "/project/kernel/platform/usb-pm.h"
+ #include "musb_trace.h"
+ 
+ #define TA_WAIT_BCON(m) max_t(int, (m)->a_wait_bcon, OTG_TIME_A_WAIT_BCON)
+@@ -2733,6 +2734,7 @@
+ 	void __iomem *epio;
+ 	u8 power;
+ 
++	y2_musb_before_restore(musb);
+ 	musb_writew(musb_base, MUSB_FRAME, musb->context.frame);
+ 	musb_writeb(musb_base, MUSB_TESTMODE, musb->context.testmode);
+ 	musb_writeb(musb_base, MUSB_ULPI_BUSCONTROL, musb->context.busctl);
+@@ -2822,6 +2824,14 @@
+ 		;
+ 	musb->flush_irq_work = false;
+ 
++	ret = y2_musb_system_quiesce(musb);
++	if (ret) {
++		musb_enable_interrupts(musb);
++		musb_platform_enable(musb);
++		pm_runtime_put(dev);
++		return ret;
++	}
++
+ 	if (!(musb->ops->quirks & MUSB_PRESERVE_SESSION))
+ 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
+ 
+@@ -2840,6 +2850,7 @@
+ 	}
+ 
+ 	musb_save_context(musb);
++	y2_musb_system_saved(musb);
+ 
+ 	spin_unlock_irqrestore(&musb->lock, flags);
+ 	return 0;

@@ -1,3 +1,10 @@
+# CPU Final continuation — 2026-09-27
+
+The CPU rows below now describe [CPU Final](Y2-CPU-FINAL.md) source implementation.
+The Hardware Final package remains immutable; CPU Final has its own candidate.
+Physical qualification remains false. Other capability rows retain Hardware Final
+semantics. Runtime telemetry reports actual admission and fallback state.
+
 # Y2 Hardware Final capability ledger
 
 Built implementation/default inventory, Linux `067003f` / Reborn `5b5d23b`, 2026-09-27.
@@ -36,8 +43,8 @@ separately. Actual timer and storage state is in `y2-platform status`.
 | `dvfs` | true | true | false | true | stock-bin voltage control implemented; high stock OPPs default gated |
 | `workload_qos` | true | true | false | false | physical qualification pending |
 | `cpu_hotplug` | true | true | false | false | physical qualification pending |
-| `slow_idle` | true | false | false | true | stock slow-idle wrapper implemented; single-CPU clock preflight and physical tuning pending |
-| `cpu_power_down_idle` | false | false | false | true | runtime dormant/CIRQ/GPT deadline integration remains a technical gap; suspend PCM is not runtime idle |
+| `slow_idle` | true | true | false | true | automatic stock single-CPU/clock preflight, readback and WFI fallback; residency unqualified |
+| `cpu_power_down_idle` | true | false | false | true | CPU Final adds stock runtime PCM, Linux context, CIRQ replay and GPT4 broadcast; conservative single-CPU/media-domain preflight |
 | `charging` | true | true | false | false | physical qualification pending |
 | `battery_soc` | true | true | false | false | physical qualification pending |
 | `rtc_time` | true | true | false | false | physical qualification pending |
@@ -68,8 +75,8 @@ separately. Actual timer and storage state is in `y2-platform status`.
 | eMMC / SD | Standard SDR automatic maximum 50 MHz; faults lower to 25/13; 8/4-bit. No DDR/UHS/HS200. CID/geometry identity accepts missing UUID. | Matched scratch readback/durable tests, multi-card/removal, maximum stable clock, fault counters, endurance. |
 | USB | Inventra DMA; `y2.usb_dma=off` PIO. ECM/ACM USB-only key-auth SFTP; reserves and durable publication retained. | DMA delivered throughput versus programmed counters, RX/TX, reconnect/suspend, retransmits and ENOSPC publication. |
 | Host / NCM | Host stack/classes compiled, role refused before VBUS. NCM/dependency and host audio/dependencies carried by BOOTIMG within unchanged size limits; default built-in ECM remains. | Exact VBUS topology before host activation. NCM needs a reviewed gadget-selection/FIFO integration; compilation alone is not active NCM. |
-| CPU / timer | schedutil, 598/747.5/1040 MHz table; bin-checked 1196/1300 gated; voltage floor 1.15 V. Per-open expiring QoS, interaction 250 ms. GPT6/PPI29 with legacy fallback. | OPP transitions/readback, scheduler/QoS, thermal limits, all-core hotplug and timer continuity/broadcast/highres/tickless residency. Floors/durations provisional. |
-| Idle / suspend | WFI; compiled SLIDLE defaults off, single CPU/gated peripherals/clock rollback. Deep suspend explicit existing owner qualification path and pm_test. | SLIDLE entry/abort counters/residency/wake. Suspend staged failure snapshot, CPU/USB/radio/DRM/ALSA restoration, Power and RTC same-boot wake. |
+| CPU / timer | schedutil, 598/747.5/1040 MHz table; bin-checked 1196/1300 automatically admitted after voltage handshake; voltage floor 1.15 V. Per-open expiring QoS, interaction 250 ms. GPT6/PPI29 with legacy fallback. | OPP transitions/readback, scheduler/QoS, thermal limits, all-core hotplug and timer continuity/broadcast/highres/tickless residency. Floors/durations provisional. |
+| Idle / suspend | WFI/automatic preflight SLIDLE; experimental DORMANT adds distinct PCM/CIRQ/GPT4/context. Deep suspend explicit existing owner qualification path and pm_test. | SLIDLE entry/abort counters/residency/wake. Suspend staged failure snapshot, CPU/USB/radio/DRM/ALSA restoration, Power and RTC same-boot wake. |
 | Charging | Source-aware BC1.1, stock protections, 4.175 V; supported 70/450/650 mA configurable ceiling. No arbitrary charger voltage/current. | Real external current, source class/USB enumeration, pack ceiling, thermal behavior, termination/recharge/watchdog. |
 | Battery | Estimated table in `/etc/y2linux/battery-profile.json`; private owner override in `/data/system/platform`. Hardware/hybrid takes precedence when real. Sensors absent -> null/state-only. | Rest/charge/load/discharge calibration replaces provisional curve, qualified current/resistor/NTC only if actual hardware path exists. |
 | Low battery | Provisional SOC warns; independent 3.4 V floor after five samples, ten-second grace; schema-1 owner policy retained. | Reserve, load-sag immunity, warning/countdown/recovery, SOC trust and final thresholds. No synthetic shutdown demonstration here. |
@@ -85,10 +92,10 @@ separately. Actual timer and storage state is in `y2-platform status`.
 Native S32/24-bit preservation and native 88.2/96 lack an exact MT6582 DL1 fetch,
 interconnect and clock programming path in the inspected pinned source. The
 conversion architecture is implemented; native modes are honestly false.
-Runtime CPU power-down needs dormant context, CIRQ and GPT deadline ownership,
-which cannot be substituted by suspend PCM. NCM is compiled/packaged with
-activation integration pending. Deep suspend software exists but the captured
-failure remains unresolved; same-boot restoration is not declared complete.
+CPU Final implements runtime dormant context, CIRQ replay and Linux GPT4 broadcast
+with the distinct stock runtime PCM; experimental entry remains conservatively gated. NCM is compiled/packaged with
+activation integration pending. CPU Final adds MUSB quiesce/stale-status ordering and isolated bounded CONSYS boot
+retry for captured restoration faults; new same-boot restoration is unqualified.
 Actual net battery current/charge counter and pack temperature remain absent
 when no hardware property exists. These are substantive limits, not merely
 `qualified=false` labels for nonexistent implementations.

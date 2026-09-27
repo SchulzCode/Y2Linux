@@ -6,6 +6,7 @@
 #if IS_ENABLED(CONFIG_Y2_POWER)
 unsigned long y2_cpu_dvfs_max(void);
 void y2_cpu_dvfs_fault(void);
+void y2_cpu_dvfs_ready(void);
 int y2_spm_cpu_voltage_request(unsigned slot);
 #else
 static inline unsigned long y2_cpu_dvfs_max(void) { return 1040000000; }

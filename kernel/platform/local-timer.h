@@ -8,8 +8,10 @@
 #if IS_ENABLED(CONFIG_Y2_POWER)
 void __init y2_local_timer_prepare(void __iomem *gpt, unsigned long rate);
 bool y2_local_timer_ready(void);
+int y2_local_timer_cpu_init(void);
 #else
 static inline void y2_local_timer_prepare(void __iomem *gpt, unsigned long rate) {}
 static inline bool y2_local_timer_ready(void) { return false; }
+static inline int y2_local_timer_cpu_init(void) { return 0; }
 #endif
 #endif

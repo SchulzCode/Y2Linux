@@ -58,6 +58,8 @@ struct freq_qos_request{bool active;};
 static struct freq_qos_request ceiling;
 static unsigned qualification_max_khz=1040000,hardware_prepares,qos_value;
 static bool bin_supported,voltage_fault;
+static bool y2_dvfs_disabled(void){return false;}
+static bool y2_cpu_safe(void){return false;}
 static int qualification_lock,prepare_error,qos_error;
 static void mutex_lock(int *p){assert(!*p);*p=1;}
 static void mutex_unlock(int *p){assert(*p);*p=0;}

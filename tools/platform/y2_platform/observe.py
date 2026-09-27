@@ -69,7 +69,7 @@ def cpu(ctx):
         fields = {name: read(path / name) for name in (
             'affected_cpus', 'scaling_governor', 'scaling_cur_freq',
             'scaling_min_freq', 'scaling_max_freq', 'scaling_available_frequencies',
-            'cpuinfo_min_freq', 'cpuinfo_max_freq')}
+            'cpuinfo_min_freq', 'cpuinfo_max_freq', 'cpuinfo_cur_freq', 'scaling_driver')}
         fields['name'] = path.name
         fields['time_in_state'] = counters(read(path / 'stats/time_in_state')) or None
         fields['time_in_state_unit'] = 'USER_HZ_ticks'
@@ -79,7 +79,10 @@ def cpu(ctx):
     for path in ctx.glob('/sys/devices/system/cpu/cpu[0-9]*/cpuidle/state*'):
         idle.append({'cpu': path.parent.parent.name, 'state': path.name,
                      'name': read(path / 'name'), 'time_us': number(read(path / 'time')),
-                     'usage': number(read(path / 'usage')), 'disabled': number(read(path / 'disable'))})
+                     'usage': number(read(path / 'usage')),
+                     'exit_latency_us': number(read(path / 'latency')),
+                     'target_residency_us': number(read(path / 'residency')),
+                     'rejected': number(read(path / 'rejected')), 'disabled': number(read(path / 'disable'))})
     totals = counters(stat)
     # This sysfs read is a suspend handshake: it blocks while a wakeup source
     # is active, even with O_NONBLOCK. Keep it outside the observer process and
@@ -93,6 +96,17 @@ def cpu(ctx):
             'load_average': ctx.read('/proc/loadavg'), 'ticks': ticks or None,
             'ticks_unit': 'USER_HZ_ticks', 'utilization_percent': None,
             'policies': policies, 'idle': idle,
+            'voltage_uv': ctx.integer('/sys/module/pwrap/parameters/cpu_voltage_uv'),
+            'stock_bin': ctx.read('/sys/module/cpu_dvfs/parameters/bin_supported'),
+            'dvfs_ceiling_khz': ctx.integer('/sys/module/cpu_dvfs/parameters/qualification_max_khz'),
+            'dvfs_fault': ctx.read('/sys/module/cpu_dvfs/parameters/voltage_fault'),
+            'spm': ctx.read('/sys/devices/platform/10006000.power-controller/state'),
+            'cirq': ctx.read('/sys/devices/platform/10204000.interrupt-latch/state'),
+            'suspend_stage': ctx.read('/run/y2/suspend-stage'),
+            'radio_boot_retries': ctx.integer('/sys/devices/platform/18070000.connectivity/boot_retries'),
+            'clock_blockers': {p.name: read(p) for p in ctx.glob('/sys/module/clocks/parameters/*blockers')},
+            'idle_diagnostics': {p.name: read(p) for p in ctx.glob('/sys/module/idle/parameters/*')},
+            'recovery_options': {p.name: read(p) for p in ctx.glob('/sys/module/cpu_options/parameters/*')},
             'counters': {k: totals.get(k) for k in ('ctxt', 'intr', 'softirq', 'processes',
                                                    'procs_running', 'procs_blocked')},
             'wakeup_count': wakeup_count,
@@ -100,7 +114,8 @@ def cpu(ctx):
                                    (wakeup.get('reason') or 'counter_unavailable'),
             'throttling_reason': None,
             'workload_qos': {'implemented': ctx.path('/dev/y2-workload').exists(), 'lease_max_ms': 30000,
-                             'interactive_max_ms': 500},
+                             'interactive_max_ms': 500,
+                             'leases': ctx.read('/sys/module/workload/parameters/leases')},
             'timer': {**timer_runtime(ctx), 'clocksource': ctx.read('/sys/devices/system/clocksource/clocksource0/current_clocksource'),
                       'clockevents': {p.parent.name: read(p) for p in ctx.glob('/sys/devices/system/clockevents/clockevent*/current_device')}}}
 

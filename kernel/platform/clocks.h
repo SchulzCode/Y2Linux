@@ -27,4 +27,6 @@
 #define Y2_CLK_NR 25
 #ifndef __DTS__
 int y2_ccf_slow_idle(void);
+int y2_ccf_deep_idle_begin(void);
+int y2_ccf_deep_idle_end(void);
 #endif

@@ -21,6 +21,14 @@
 #include "spm-policy.h"
 #include "spm-suspend-policy.h"
 #include "spm-pcm.h"
+#include "spm-idle-pcm.h"
+#include "spm-idle-policy.h"
+#include "cirq.h"
+#include "clocks.h"
+#include "local-timer.h"
+#include "cpu-options.h"
+#include <linux/cpufreq.h>
+#include <linux/ktime.h>
 #include "shared.h"
 #include "connectivity/domain.h"
 #include "gpu-policy.h"
@@ -29,7 +37,13 @@
 static void __iomem *spm_base;
 static DEFINE_RAW_SPINLOCK(spm_lock);
 static bool spm_broken;
-static void __iomem *spm_biu;
+static void __iomem *spm_biu, *spm_cache;
+static dma_addr_t idle_address;
+static unsigned dormant_entries, dormant_resumes, dormant_aborts, dormant_failures;
+static int dormant_result;
+static bool dormant_broken;
+static char *dormant_stage = "never_entered";
+static u64 resume_restore_ns;
 static dma_addr_t pcm_address, normal_address;
 static unsigned entries, resumes, aborts, last_wake, last_ticks, last_debug, last_event, last_r13;
 static int last_result;
@@ -242,12 +256,14 @@ static int y2_spm_finish(unsigned long unused)
 static int y2_spm_prepare_suspend(void)
 {
 	if (!smp_load_acquire(&spm_base) || READ_ONCE(spm_broken)) return -EIO;
+	if (y2_suspend_disabled() || !y2_cirq_ready()) return -EOPNOTSUPP;
 	return y2_pmic_spm_prepare();
 }
 static int y2_spm_enter(suspend_state_t state)
 {
 	unsigned long flags;
 	unsigned biu;
+	u64 restore_start = 0;
 	int ret;
 	if (state != PM_SUSPEND_MEM || num_online_cpus() != 1 ||
 	    smp_processor_id() != 0 || READ_ONCE(spm_broken)) return -EBUSY;
@@ -255,14 +271,17 @@ static int y2_spm_enter(suspend_state_t state)
 	entries++;
 	ret = y2_ccf_boot_vector(__pa_symbol(cpu_resume_arm));
 	if (ret) goto unlock;
+	ret = y2_cirq_begin();
+	if (ret) goto unlock;
 	biu = readl(spm_biu); /* actual Y2 MCU_BIU_CONTROL retention context */
 	ret = cpu_pm_enter();
-	if (ret) goto unlock;
+	if (ret) goto exit_cirq;
 	ret = cpu_cluster_pm_enter();
 	if (ret) goto exit_cpu;
 	ret = y2_spm_suspend_arm(&spm_io, pcm_address);
 	if (!ret) {
 		ret = cpu_suspend(0, y2_spm_finish);
+		restore_start = ktime_get_mono_fast_ns();
 		writel(biu, spm_biu);
 		last_wake = spm_read(spm_base, SPM_PCM_REG9_DATA);
 		last_ticks = spm_read(spm_base, SPM_PCM_TIMER_OUT);
@@ -273,20 +292,104 @@ static int y2_spm_enter(suspend_state_t state)
 		if (last_debug) { WRITE_ONCE(spm_broken, true); ret = -EIO; }
 	}
 	y2_spm_suspend_clean(&spm_io);
-	if (ret) y2_spm_normal(&spm_io, normal_address);
+	y2_spm_normal(&spm_io, normal_address);
 	cpu_cluster_pm_exit();
 exit_cpu:
 	cpu_pm_exit();
+exit_cirq:
+	y2_cirq_end();
 unlock:
 	if (ret) aborts++;
 	last_result = ret;
+	if (restore_start) resume_restore_ns = ktime_get_mono_fast_ns() - restore_start;
 	raw_spin_unlock_irqrestore(&spm_lock, flags);
 	pr_info("Y2SPM: suspend result=%d resumes=%u wake=%#x ticks32k=%u event=%#x debug=%#x r13=%#x\n",
 		ret, resumes, last_wake, last_ticks, last_event, last_debug, last_r13);
 	return ret;
 }
+/* Runtime DORMANT uses its own stock PCM and leaves infrastructure/DDRPHY
+ * powered. Only CPU0 with CPUs1-3 physically off can execute this program.
+ * No automatic hot-unplug is used merely to force entry. */
+int y2_spm_dormant_idle(void)
+{
+	unsigned power, biu, cache;
+	int ret, restore;
+	if (y2_deep_idle_disabled() || !y2_local_timer_ready() ||
+	    !smp_load_acquire(&spm_base) || !y2_cirq_ready()) return -ENODEV;
+	if (num_online_cpus() != 1 || smp_processor_id()) return -EBUSY;
+	if (READ_ONCE(spm_broken) || READ_ONCE(dormant_broken)) return -EIO;
+	/* Replaces Android early-suspend voltage admission. Low OPPs share the
+	 * source-backed 1.15 V floor; CCF lock excludes an in-flight transition. */
+	if (cpufreq_quick_get(0) > 747500) return -EBUSY;
+	if (!raw_spin_trylock(&spm_lock)) return -EBUSY;
+	dormant_stage = "domains";
+	power = spm_read(spm_base, SPM_PWR_STATUS) | spm_read(spm_base, SPM_PWR_STATUS_S);
+	/* Exact subsystem power bits from mt_clkmgr. Requiring these domains off
+	 * is stricter than vendor clock masks and avoids reads of powered-off MMIO. */
+	if (power & (Y2_SPM_SECONDARY_CPU_MASK | BIT(0) | BIT(1) | BIT(3) |
+		     BIT(4) | BIT(5) | BIT(7))) { ret = -EBUSY; goto unlock_idle; }
+	ret = y2_ccf_boot_vector(__pa_symbol(cpu_resume_arm));
+	if (ret) goto unlock_idle;
+	dormant_stage = "clocks";
+	ret = y2_ccf_deep_idle_begin();
+	if (ret) goto unlock_idle;
+	dormant_stage = "cirq";
+	ret = y2_cirq_begin();
+	if (ret) goto restore_clocks;
+	biu = readl(spm_biu);
+	cache = readl(spm_cache);
+	ret = cpu_pm_enter();
+	if (ret) goto restore_cirq;
+	ret = cpu_cluster_pm_enter();
+	if (ret) goto restore_cpu;
+	/* MT6582 retains L2 in DORMANT: suppress reset invalidation, restore on
+	 * both reset-resume and aborted WFI. Linux owns CP15/MMU, VFP and GIC. */
+	writel(cache | BIT(4), spm_cache);
+	dsb(sy);
+	if (readl(spm_cache) != (cache | BIT(4))) { ret = -EIO; goto restore_cluster; }
+	dormant_stage = "uart_pcm";
+	ret = y2_spm_idle_arm(&spm_io, idle_address);
+	if (!ret) {
+		dormant_stage = "cpu_suspend";
+		dormant_entries++;
+		ret = cpu_suspend(0, y2_spm_finish);
+		writel(biu, spm_biu);
+		last_wake = spm_read(spm_base, SPM_PCM_REG9_DATA);
+		last_debug = spm_read(spm_base, SPM_PCM_REG_DATA_INI);
+		if (!ret) dormant_resumes++;
+		if (last_debug) ret = -EIO;
+	}
+	y2_spm_suspend_clean(&spm_io);
+	y2_spm_normal(&spm_io, normal_address);
+restore_cluster:
+	writel(cache, spm_cache);
+	dsb(sy);
+	if (readl(spm_cache) != cache) ret = -EIO;
+	cpu_cluster_pm_exit();
+restore_cpu:
+	cpu_pm_exit();
+restore_cirq:
+	y2_cirq_end();
+restore_clocks:
+	restore = y2_ccf_deep_idle_end();
+	if (restore) ret = restore;
+unlock_idle:
+	if (!ret) dormant_stage = "resumed";
+	dormant_result = ret;
+	if (ret) dormant_aborts++;
+	if (ret == -EIO || ret == -ETIMEDOUT) {
+		dormant_failures++;
+		WRITE_ONCE(dormant_broken, true);
+	}
+	raw_spin_unlock(&spm_lock);
+	return ret;
+}
+static int y2_suspend_valid(suspend_state_t state)
+{
+	return !y2_suspend_disabled() && suspend_valid_only_mem(state);
+}
 static const struct platform_suspend_ops y2_suspend_ops = {
-	.valid = suspend_valid_only_mem,
+	.valid = y2_suspend_valid,
 	.prepare = y2_spm_prepare_suspend,
 	.enter = y2_spm_enter,
 };
@@ -310,6 +413,9 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr, cha
 	ret = sysfs_emit(buf, "mode=SPM_CPU_SHUTDOWN_INFRA_RETAINED broken=%u entries=%u resumes=%u aborts=%u result=%d wake=%#x ticks32k=%u event=%#x debug=%#x r13=%#x power=%#x/%#x\n",
 		spm_broken, entries, resumes, aborts, last_result, last_wake, last_ticks,
 		last_event, last_debug, last_r13, spm_read(spm_base, 0x60c), spm_read(spm_base, 0x610));
+	ret += sysfs_emit_at(buf, ret, "dormant_entries=%u dormant_resumes=%u dormant_aborts=%u dormant_failures=%u dormant_result=%d dormant_broken=%u\n",
+		dormant_entries, dormant_resumes, dormant_aborts, dormant_failures, dormant_result, dormant_broken);
+	ret += sysfs_emit_at(buf, ret, "dormant_stage=%s resume_restore_ns=%llu\n", dormant_stage, resume_restore_ns);
 	raw_spin_unlock_irqrestore(&spm_lock, flags);
 	return ret;
 }
@@ -330,14 +436,18 @@ static int y2_spm_probe(struct platform_device *pdev)
 	if (IS_ERR(base)) return PTR_ERR(base);
 	spm_biu = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(spm_biu)) return PTR_ERR(spm_biu);
+	spm_cache = devm_platform_ioremap_resource(pdev, 2);
+	if (IS_ERR(spm_cache)) return PTR_ERR(spm_cache);
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret) return ret;
-	pcm = dmam_alloc_coherent(&pdev->dev, sizeof(y2_pcm_suspend) + sizeof(y2_pcm_normal),
+	pcm = dmam_alloc_coherent(&pdev->dev, sizeof(y2_pcm_suspend) + sizeof(y2_pcm_normal) + sizeof(y2_pcm_dpidle),
 		&pcm_address, GFP_KERNEL);
 	if (!pcm) return -ENOMEM;
 	memcpy(pcm, y2_pcm_suspend, sizeof(y2_pcm_suspend));
 	memcpy(pcm + sizeof(y2_pcm_suspend), y2_pcm_normal, sizeof(y2_pcm_normal));
 	normal_address = pcm_address + sizeof(y2_pcm_suspend);
+	idle_address = normal_address + sizeof(y2_pcm_normal);
+	memcpy(pcm + sizeof(y2_pcm_suspend) + sizeof(y2_pcm_normal), y2_pcm_dpidle, sizeof(y2_pcm_dpidle));
 	dma_wmb();
 	/* Mask inherited pending SPM interrupts before requesting this sole
 	 * owner. PMIC/Power/RTC level wake remains owned by their IRQ hierarchy. */
@@ -364,6 +474,7 @@ static int y2_spm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "MFG domain unavailable: %d\n", ret);
 	}
 	suspend_set_ops(&y2_suspend_ops);
+	y2_cpu_dvfs_ready();
 	dev_info(&pdev->dev, "CPU1-3 MTCMOS and SPM CPU/cluster shutdown, infrastructure retained; power=%#x/%#x\n",
 		spm_read(base, 0x60c), spm_read(base, 0x610));
 	return 0;

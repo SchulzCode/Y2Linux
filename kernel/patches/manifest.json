@@ -238,13 +238,13 @@
       "path": "drivers/clocksource/timer-mediatek.c",
       "patch": "0052-y2-gpt6-counter.patch",
       "base_sha256": "15f499b5abefc9bab004ef1a9ca55180582e48bba8dd5429b1e7a0cbdf1988e7",
-      "result_sha256": "b8c76ba84b1b79a3e1006f4533d10302895f72965af3286bdbd6d3b6234497a3"
+      "result_sha256": "207463827e98c1b86f80ff54dca46068862123f83c13e1de4cbc1b9e88c1a77e"
     },
     {
       "path": "drivers/clocksource/arm_arch_timer.c",
       "patch": "0053-y2-local-timer-guard.patch",
       "base_sha256": "0613e2f5d21a736e98fb993db17e8db5c8e050b813c59035fb5bd4a696dd7ead",
-      "result_sha256": "d8e0da6c909beb84734584ba8b730373d403f69085c5d4668e02e6adcb26640b"
+      "result_sha256": "e8d61b9ff21f498f9eea0046365b46cb3d17c3732ddbd00f5c125495ad5ec4ba"
     },
     {
       "path": "drivers/usb/musb/Kconfig",
@@ -269,6 +269,12 @@
       "patch": "0057-u-ether-align-dma-tx.patch",
       "base_sha256": "cf9156698d5ed1a75c8c40ca65e0edb352ffb99bb39def6eef11cda2295e1768",
       "result_sha256": "8ca9208e4c91ff188fc4e0855872fb7bb8b5077f6c4ff24d5fa5b728defe3a90"
+    },
+    {
+      "path": "drivers/usb/musb/musb_core.c",
+      "patch": "0058-y2-musb-sleep-lifecycle.patch",
+      "base_sha256": "0b8be0783e244d987284f10d6e87e6173bc29c91458cc7c5f2fe58057b0d63fc",
+      "result_sha256": "55777c790fcdb116919c03d2f66a11838b3ba533b376fd7013cacb039dd16dd4"
     }
   ]
 }

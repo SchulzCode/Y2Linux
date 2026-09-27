@@ -1,5 +1,16 @@
 # Platform v1 software completion roadmap
 
+## CPU Final — implementation pass, 2026-09-27
+
+[Admission audit](roadmap-gap-audit.md#cpu-final-implementation-admission--2026-09-27)
+uses retained real Hardware02 receipts. Owner authorizes complete CPU/timer/DVFS/
+cpuidle/dormant/CIRQ/GPT/suspend software, Reborn semantic hints, bounded fallback
+and one fresh `out/y2linux-cpu-final-candidate/` BOOTIMG/Y2ROOT package. Preserve
+Hardware Final work and Y2DATA; no flash/push. Implement and source-test independent
+paths before full build/package validation. Physical qualification stays independent;
+no long qualification campaign or hardware evidence acquisition is part of this pass.
+
+
 ## Hardware Final — single campaign, 2026-09-27
 
 The [activation audit](roadmap-gap-audit.md#hardware-final-campaign-activation--2026-09-27)

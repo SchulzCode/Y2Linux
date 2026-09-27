@@ -78,7 +78,7 @@ static int power_off(struct y2_conn *c)
 	for (int i=3;i>=0;i--) { result=y2_conn_rail(c,i,false); if (!ret) ret=result; }
 	return ret;
 }
-static int power_on(struct y2_conn *c)
+static int power_on_once(struct y2_conn *c)
 {
 	unsigned id; int ret;
 	if (!y2_normal_boot_enabled() || !c->factory_ready || c->removing) return -EHOSTDOWN;
@@ -120,6 +120,22 @@ fail:
 	dev_err(c->dev,"connectivity start failed: %d\n",ret);
 	int stopped = power_off(c);
 	return stopped ? stopped : ret;
+}
+/* Retained processor-stage receipt: mandatory-STP opcode 08 timed out on
+ * the first restart, and the subsequent complete restart succeeded. Bound
+ * recovery here, before HCI/WLAN consumers observe an interface as ready. */
+static unsigned boot_retries;
+static int power_on(struct y2_conn *c)
+{
+	int ret = power_on_once(c);
+	if ((ret == -ETIMEDOUT || ret == -EIO) && !c->powered && !c->dma_active &&
+	    !c->clock_on && !c->rail_on[0] && !c->rail_on[1] && !c->rail_on[2] && !c->rail_on[3]) {
+		boot_retries++;
+		dev_warn(c->dev, "controller boot failed %d; isolated, retrying once\n", ret);
+		msleep(20);
+		ret = power_on_once(c);
+	}
+	return ret;
 }
 static int runtime_resume(struct device *dev)
 {
@@ -288,6 +304,11 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 		c->activated,c->powered,c->functions,c->calibrated,c->chip,c->hvr,c->fvr,
 		c->failure,c->transport_errors,c->recoveries);
 }
+static ssize_t boot_retries_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%u\n", READ_ONCE(boot_retries));
+}
+static DEVICE_ATTR_RO(boot_retries);
 static DEVICE_ATTR_WO(activate);
 static DEVICE_ATTR_RO(status);
 static ssize_t recover_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t n)
@@ -304,7 +325,7 @@ static ssize_t recover_store(struct device *dev, struct device_attribute *attr, 
 	return n;
 }
 static DEVICE_ATTR_WO(recover);
-static struct attribute *attrs[]={&dev_attr_activate.attr,&dev_attr_status.attr,&dev_attr_recover.attr,NULL};
+static struct attribute *attrs[]={&dev_attr_activate.attr,&dev_attr_status.attr,&dev_attr_recover.attr,&dev_attr_boot_retries.attr,NULL};
 static const struct bin_attribute *const bin_attrs[]={&bin_attr_factory,NULL};
 static const struct attribute_group group={.attrs=attrs,.bin_attrs=bin_attrs};
 static int suspend(struct device *dev)

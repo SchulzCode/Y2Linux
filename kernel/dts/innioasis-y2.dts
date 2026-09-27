@@ -66,17 +66,21 @@
     };
     cpu_opp: opp-table {
         compatible = "operating-points-v2"; opp-shared;
-        /* Stock bin-0 table; runtime qualification QoS defaults to 1040 MHz.
-         * The CCF/SPM/PWRAP owners sequence higher voltage only after opt-in. */
+        /* Stock bin-0 table; automatic admission checks loader bin and VPROC.
+         * CCF/SPM/PWRAP own sequencing; failed admission retains 1040 MHz. */
         opp-598000000 { opp-hz = /bits/ 64 <598000000>; opp-microvolt = <1150000>; clock-latency-ns = <100000>; opp-suspend; };
         opp-747500000 { opp-hz = /bits/ 64 <747500000>; opp-microvolt = <1150000>; clock-latency-ns = <100000>; };
         opp-1040000000 { opp-hz = /bits/ 64 <1040000000>; opp-microvolt = <1150000>; clock-latency-ns = <100000>; };
         opp-1196000000 { opp-hz = /bits/ 64 <1196000000>; opp-microvolt = <1200000>; clock-latency-ns = <600000>; };
         opp-1300000000 { opp-hz = /bits/ 64 <1300000000>; opp-microvolt = <1250000>; clock-latency-ns = <600000>; };
     };
+    cirq: interrupt-latch@10204000 {
+        compatible = "innioasis,y2-cirq";
+        reg = <0x10204000 0x400>;
+    };
     spm: power-controller@10006000 {
         compatible = "innioasis,y2-spm";
-        reg = <0x10006000 0x1000>, <0x10208000 4>;
+        reg = <0x10006000 0x1000>, <0x10208000 4>, <0x10200000 4>;
         /* Original FM Y2 MT_SPM_IRQ_ID = GIC hwirq 149. */
         interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_LOW>;
         #power-domain-cells = <0>; /* MFG only; CPUs/radios retain their owners. */

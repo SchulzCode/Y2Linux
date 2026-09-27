@@ -1,19 +1,30 @@
 --- a/drivers/clocksource/timer-mediatek.c
 +++ b/drivers/clocksource/timer-mediatek.c
-@@ -16,6 +16,7 @@
+@@ -16,8 +16,11 @@
  #include <linux/sched_clock.h>
  #include <linux/slab.h>
  #include "timer-of.h"
+-
+-#define TIMER_CLK_EVT           (1)
 +#include "/project/kernel/platform/local-timer.h"
- 
- #define TIMER_CLK_EVT           (1)
++
++/* Y2: GPT4 owns broadcast; GPT1 remains the legacy fallback. */
++static u8 y2_event_timer = 1;
++#define TIMER_CLK_EVT           y2_event_timer
  #define TIMER_CLK_SRC           (2)
-@@ -335,6 +336,8 @@
  
- 	mtk_gpt_enable_irq(&to, TIMER_CLK_EVT);
+ #define TIMER_SYNC_TICKS        (3)
+@@ -328,6 +331,13 @@
+ 	gpt_sched_reg = timer_of_base(&to) + GPT_CNT_REG(TIMER_CLK_SRC);
+ 	sched_clock_register(mtk_gpt_read_sched_clock, 32, timer_of_rate(&to));
  
 +	y2_local_timer_prepare(timer_of_base(&to), timer_of_rate(&to));
++	if (y2_local_timer_ready()) {
++		mtk_gpt_clkevt_time_stop(&to, 1);
++		y2_event_timer = 4;
++		to.clkevt.name = "y2-gpt4-broadcast";
++	}
 +
- 	return 0;
- }
- TIMER_OF_DECLARE(mtk_mt6577, "mediatek,mt6577-timer", mtk_gpt_init);
+ 	/* Configure clock event */
+ 	mtk_gpt_setup(&to, TIMER_CLK_EVT, GPT_CTRL_OP_REPEAT);
+ 	clockevents_config_and_register(&to.clkevt, timer_of_rate(&to),

@@ -8,6 +8,7 @@
 #include <linux/workqueue.h>
 #include "cpu-dvfs.h"
 #include "cpu-dvfs-policy.h"
+#include "cpu-options.h"
 
 static DEFINE_MUTEX(qualification_lock);
 static struct freq_qos_request ceiling;
@@ -20,7 +21,7 @@ static void fault_ceiling_work(struct work_struct *work)
 {
 	mutex_lock(&qualification_lock);
 	if (freq_qos_request_active(&ceiling))
-		freq_qos_update_request(&ceiling, 1040000);
+		freq_qos_update_request(&ceiling, y2_cpu_safe() ? 598000 : 1040000);
 	WRITE_ONCE(qualification_max_khz, 1040000);
 	mutex_unlock(&qualification_lock);
 }
@@ -28,6 +29,7 @@ static DECLARE_WORK(fault_work, fault_ceiling_work);
 
 unsigned long y2_cpu_dvfs_max(void)
 {
+	if (y2_cpu_safe()) return 598000000;
 	if (READ_ONCE(voltage_fault)) return 1040000000;
 	return READ_ONCE(qualification_max_khz) * 1000UL;
 }
@@ -50,6 +52,7 @@ static int qualification_set(const char *value, const struct kernel_param *kp)
 	old = qualification_max_khz;
 	if (!freq_qos_request_active(&ceiling)) { ret = -EAGAIN; goto out; }
 	if (target > 1040000) {
+		if (y2_dvfs_disabled()) { ret = -EOPNOTSUPP; goto out; }
 		if (!bin_supported || READ_ONCE(voltage_fault)) { ret = -EOPNOTSUPP; goto out; }
 		ret = y2_pmic_cpu_dvfs_prepare();
 		if (ret) goto out;
@@ -68,8 +71,29 @@ static const struct kernel_param_ops qualification_ops = {
 	.set = qualification_set, .get = param_get_uint,
 };
 module_param_cb(qualification_max_khz, &qualification_ops, &qualification_max_khz, 0600);
-MODULE_PARM_DESC(qualification_max_khz, "Owner qualification only: 1040000 default, 1196000 or 1300000 kHz");
+MODULE_PARM_DESC(qualification_max_khz, "Stock-bin automatic ceiling; optional owner ceiling within stock OPPs");
 
+/* Both policy creation and SPM publication can be last. A bounded asynchronous
+ * admission pass avoids calling PMIC/CCF under cpufreq's transition locks. */
+static void stock_admission_work(struct work_struct *work)
+{
+	int ret;
+	mutex_lock(&qualification_lock);
+	if (!bin_supported || READ_ONCE(voltage_fault) || y2_dvfs_disabled() ||
+	    !freq_qos_request_active(&ceiling)) goto out;
+	ret = y2_pmic_cpu_dvfs_prepare();
+	if (!ret) {
+		WRITE_ONCE(qualification_max_khz, 1300000);
+		ret = freq_qos_update_request(&ceiling, 1300000);
+		if (ret < 0) WRITE_ONCE(qualification_max_khz, 1040000);
+	}
+	pr_info("Y2DVFS: stock-bin automatic admission result=%d ceiling=%u kHz\n",
+		ret, qualification_max_khz);
+out:
+	mutex_unlock(&qualification_lock);
+}
+static DECLARE_WORK(stock_work, stock_admission_work);
+void y2_cpu_dvfs_ready(void) { schedule_work(&stock_work); }
 static int policy_notify(struct notifier_block *nb, unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
@@ -78,7 +102,9 @@ static int policy_notify(struct notifier_block *nb, unsigned long event, void *d
 	mutex_lock(&qualification_lock);
 	if (event == CPUFREQ_CREATE_POLICY) {
 		WRITE_ONCE(qualification_max_khz, 1040000);
-		ret = freq_qos_add_request(&policy->constraints, &ceiling, FREQ_QOS_MAX, 1040000);
+		ret = freq_qos_add_request(&policy->constraints, &ceiling, FREQ_QOS_MAX,
+			y2_cpu_safe() ? 598000 : 1040000);
+		y2_cpu_dvfs_ready();
 		if (ret < 0) y2_cpu_dvfs_fault();
 	} else if (event == CPUFREQ_REMOVE_POLICY && freq_qos_request_active(&ceiling)) {
 		freq_qos_remove_request(&ceiling);

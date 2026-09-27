@@ -172,12 +172,14 @@
       "qualified": false,
       "states": [
         "WFI",
-        "SLIDLE"
+        "SLIDLE",
+        "DORMANT"
       ],
       "experimental": false,
       "reason": "physical qualification of this exact candidate pending",
       "default_states": [
-        "WFI"
+        "WFI",
+        "SLIDLE"
       ]
     },
     "system_watchdog": {
@@ -281,9 +283,10 @@
       "qualified": false,
       "experimental": false,
       "reason": "physical qualification pending",
-      "fallback": "GPT/dummy broadcast",
+      "fallback": "GPT1 legacy clockevent with dummy per-CPU broadcast",
       "boot_fallback": "y2.local_timer=off",
-      "frequency_hz": 13000000
+      "frequency_hz": 13000000,
+      "broadcast": "GPT4 when counter validation succeeds"
     },
     "high_resolution_timers": {
       "implemented": true,
@@ -308,23 +311,25 @@
       "experimental": false,
       "reason": "physical qualification pending",
       "governor": "schedutil",
-      "default_max_khz": 1040000,
+      "default_max_khz": 1300000,
       "opp_khz": [
         598000,
         747500,
         1040000,
         1196000,
         1300000
-      ]
+      ],
+      "conservative_max_khz": 1040000
     },
     "dvfs": {
       "implemented": true,
       "enabled": true,
       "qualified": false,
       "experimental": true,
-      "reason": "stock-bin voltage control implemented; high stock OPPs default gated",
-      "stock_high_opp_enabled": false,
-      "voltage_floor_uv": 1150000
+      "reason": "automatic exact-bin admission after PMIC/SPM readback; failure retains 1040 MHz",
+      "stock_high_opp_enabled": true,
+      "voltage_floor_uv": 1150000,
+      "stock_high_opp_condition": "exact bin0 plus PMIC/SPM readback"
     },
     "workload_qos": {
       "implemented": true,
@@ -338,6 +343,7 @@
         "PlaybackNormal",
         "PlaybackHeavy",
         "Interactive",
+        "ArtworkDecode",
         "LibraryScan",
         "NetworkTransfer",
         "Maintenance"
@@ -357,19 +363,20 @@
     },
     "slow_idle": {
       "implemented": true,
-      "enabled": false,
+      "enabled": true,
       "qualified": false,
       "experimental": true,
-      "reason": "stock slow-idle wrapper implemented; single-CPU clock preflight and physical tuning pending",
+      "reason": "automatic stock clock/CPU preflight; aborts to WFI",
       "fallback": "WFI",
-      "default_disabled": true
+      "default_disabled": false
     },
     "cpu_power_down_idle": {
-      "implemented": false,
+      "implemented": true,
       "enabled": false,
       "qualified": false,
       "experimental": true,
-      "reason": "runtime dormant/CIRQ/GPT deadline integration remains a technical gap; suspend PCM is not runtime idle"
+      "reason": "stock 480-word runtime PCM, Linux context, CIRQ replay and GPT4 broadcast; experimental CPU0/other cores physically off",
+      "default_disabled": true
     },
     "charging": {
       "implemented": true,

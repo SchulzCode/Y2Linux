@@ -8,7 +8,18 @@
  #include <linux/kernel.h>
  #include <linux/device.h>
  #include <linux/smp.h>
-@@ -1132,6 +1133,10 @@
+@@ -828,6 +829,10 @@
+ 	struct clock_event_device *clk = this_cpu_ptr(arch_timer_evt);
+ 	u32 flags;
+ 
++	if (of_machine_is_compatible("innioasis,y2")) {
++		int ret = y2_local_timer_cpu_init();
++		if (ret) return ret;
++	}
+ 	__arch_timer_setup(clk);
+ 
+ 	flags = check_ppi_trigger(arch_timer_ppi[arch_timer_uses_ppi]);
+@@ -1132,6 +1137,10 @@
  	u32 rate;
  	bool has_names;
  

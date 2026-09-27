@@ -10,10 +10,14 @@ exec 9>/run/y2/suspend.lock
 flock -n 9 || { echo 'Suspend already in progress.' >&2; exit 1; }
 exec 8>/run/y2/activity.lock
 flock -xn 8 || { echo 'An active radio operation holds a suspend lease.' >&2; exit 1; }
+stage() {
+    printf '%s\n' "$1" > /run/y2/suspend-stage
+}
 restore() {
     suspend_rc=$?
     trap - EXIT
     restore_rc=0
+    stage restoring_radios
     if [ "$(cat /data/network/enabled)" = 1 ]; then
         y2-radio wifi on-runtime || restore_rc=1
     fi
@@ -24,10 +28,12 @@ restore() {
         echo 'Radio restoration failed; suspend/resume qualification did not pass.' >&2
         [ "$suspend_rc" != 0 ] || suspend_rc=1
     fi
+    stage "complete_result_$suspend_rc"
     exit "$suspend_rc"
 }
 trap restore EXIT
 trap 'exit 1' INT TERM
+stage quiescing_radios
 y2-radio wifi off-runtime
 y2-radio bluetooth off-runtime
 for n in $(seq 1 150); do
@@ -40,5 +46,7 @@ case "$(cat /sys/devices/platform/18070000.connectivity/status)" in
  *'powered=0 functions=0x0 '*|*'powered=0 functions=0 '*) ;;
  *) echo 'Radios did not stop; suspend refused.' >&2; exit 1;;
 esac
+stage syncing
 sync
+stage kernel_suspend
 printf 'mem\n' > /sys/power/state

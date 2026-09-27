@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#include "usb-pm.h"
 /* Y2 peripheral platform driver. Cached legacy observation ABI is read-only. */
 #include <linux/cdev.h>
 #include <linux/atomic.h>
@@ -609,6 +610,74 @@ static int y2_musb_exit(struct musb *musb)
     y2_musb=NULL;
     return 0;
 }
+/* System sleep deliberately disconnects this recovery gadget. Completing
+ * endpoint requests through the gadget owner aborts DMA before context save;
+ * resume re-enumerates ECM/ACM instead of reviving stale endpoint transfers. */
+static bool y2_pm_disconnect;
+static unsigned y2_pm_suspends, y2_pm_restores, y2_pm_stale;
+static void y2_musb_clear_stale(struct musb *musb)
+{
+	void __iomem *base = musb->mregs;
+	u8 usb = readb(base + MUSB_INTRUSB);
+	u16 tx = readw(base + MUSB_INTRTX), rx = readw(base + MUSB_INTRRX);
+	/* Exact Y2 sampled W1C; never write an invented all-ones clear mask. */
+	writeb(usb, base + MUSB_INTRUSB);
+	writew(tx, base + MUSB_INTRTX);
+	writew(rx, base + MUSB_INTRRX);
+#if IS_ENABLED(CONFIG_USB_INVENTRA_DMA)
+	if (musb->dma_controller) {
+		u8 pending = readb(base + 0x200);
+		writeb(pending, base + 0x200);
+		if (pending) y2_pm_stale++;
+	}
+#endif
+	if (usb || tx || rx) y2_pm_stale++;
+	y2_irq_tick = jiffies;
+	y2_irq_burst = 0;
+	dsb(sy);
+}
+int y2_musb_system_quiesce(struct musb *musb)
+{
+	unsigned long flags;
+	unsigned i;
+	int ret = 0;
+	if (musb != READ_ONCE(y2_musb)) return 0;
+	spin_lock_irqsave(&musb->lock, flags);
+	y2_pm_disconnect = !!(readb(musb->mregs + MUSB_POWER) & MUSB_POWER_SOFTCONN);
+	writeb(readb(musb->mregs + MUSB_POWER) & ~MUSB_POWER_SOFTCONN, musb->mregs + MUSB_POWER);
+	musb_g_disconnect(musb);
+	for (i = 0; i < 8; i++) {
+		/* Gadget disconnect must have retired every channel. Refuse sleep
+		 * while a DMA enable remains; do not reset a live DMA buffer. */
+		if (readw(musb->mregs + 0x204 + i * 16) & BIT(0)) ret = -EBUSY;
+	}
+	y2_musb_clear_stale(musb);
+	if (!ret) y2_pm_suspends++;
+	else if (y2_pm_disconnect) writeb(readb(musb->mregs + MUSB_POWER) |
+		MUSB_POWER_SOFTCONN, musb->mregs + MUSB_POWER);
+	spin_unlock_irqrestore(&musb->lock, flags);
+	return ret;
+}
+void y2_musb_system_saved(struct musb *musb)
+{
+	if (musb != READ_ONCE(y2_musb)) return;
+	/* Status/FADDR/DMA are intentionally not resurrected by context restore. */
+	if (y2_pm_disconnect) musb->context.power |= MUSB_POWER_SOFTCONN;
+}
+void y2_musb_before_restore(struct musb *musb)
+{
+	unsigned long flags;
+	if (musb != READ_ONCE(y2_musb)) return;
+	spin_lock_irqsave(&musb->lock, flags);
+	writel(0, musb->mregs + 0xa4);
+	writeb(0, musb->mregs + MUSB_INTRUSBE);
+	writew(0, musb->mregs + MUSB_INTRTXE);
+	writew(0, musb->mregs + MUSB_INTRRXE);
+	y2_musb_clear_stale(musb);
+	y2_pm_restores++;
+	spin_unlock_irqrestore(&musb->lock, flags);
+}
+
 static const struct musb_platform_ops y2_musb_ops={
     .quirks=MUSB_INDEXED_EP | MUSB_PRESERVE_SESSION |
         (IS_ENABLED(CONFIG_USB_INVENTRA_DMA) ? MUSB_DMA_INVENTRA : 0),
@@ -847,6 +916,7 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
     n = sysfs_emit(buf, "stage=%u error=%d configured=%u polls=%u chrdet=%x irqs=%u events=%x\n",
         READ_ONCE(y2_live.stage), READ_ONCE(y2_live.result), READ_ONCE(y2_live.configured),
         READ_ONCE(y2_live.polls), READ_ONCE(y2_live.chrdet), READ_ONCE(y2_live.irqs), READ_ONCE(y2_live.events));
+    n += sysfs_emit_at(buf, n, "pm_suspends=%u pm_restores=%u pm_stale=%u\n", y2_pm_suspends, y2_pm_restores, y2_pm_stale);
     n += sysfs_emit_at(buf, n, "recovery=%d writes=%u power=%d clock=%d\n",
         y2_power.wake.result, y2_power.wake.written, y2_power.power.result, y2_power.clock.result);
     n += sysfs_emit_at(buf, n, "transfer=%s dma_irqs=%u dma_errors=%u dma_boot_disabled=%u\n",

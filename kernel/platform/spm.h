@@ -2,6 +2,7 @@
 #ifndef Y2_SPM_H
 #define Y2_SPM_H
 #include <linux/types.h>
+int y2_spm_dormant_idle(void);
 int y2_spm_cpu_disable(unsigned cpu);
 int y2_spm_cpu_kill(unsigned cpu);
 int y2_spm_cpu_boot(unsigned cpu, unsigned long entry);

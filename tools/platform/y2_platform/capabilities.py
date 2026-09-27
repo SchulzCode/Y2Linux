@@ -26,4 +26,8 @@ def status(ctx):
                                                and policy.get('sbc_quality') in ('xq', 'xq+'))
     if 'wifi_power_save' in caps:
         caps['wifi_power_save']['enabled'] = ctx.json('/run/y2/wifi-power.json', {}).get('enabled') is True
+    if 'dvfs' in caps:
+        maximum = ctx.integer('/sys/module/cpu_dvfs/parameters/qualification_max_khz')
+        caps['dvfs']['stock_high_opp_enabled'] = maximum is not None and maximum > 1040000
+        caps['dvfs']['runtime_ceiling_khz'] = maximum
     return result

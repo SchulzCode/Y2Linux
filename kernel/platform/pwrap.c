@@ -209,6 +209,14 @@ out:
 	mutex_unlock(&y2_wrap_lock);
 	return ret;
 }
+static int cpu_voltage_get(char *buffer, const struct kernel_param *kp)
+{
+	int selector = y2_pmic_cpu_voltage_get();
+	return scnprintf(buffer, PAGE_SIZE, "%d\n", selector < 0 ? selector :
+		700000 + selector * 6250);
+}
+static const struct kernel_param_ops cpu_voltage_ops = { .get = cpu_voltage_get };
+module_param_cb(cpu_voltage_uv, &cpu_voltage_ops, NULL, 0400);
 int y2_pmic_spm_prepare(void)
 {
 	unsigned reg, value, control, selector;

@@ -1,5 +1,32 @@
 # Y2Linux roadmap and gap audit
 
+## CPU Final implementation admission — 2026-09-27
+
+Owner explicitly authorizes a concentrated CPU/timer/DVFS/idle/suspend implementation
+and one preserving candidate; no flash/push or new physical campaign. Entry Linux
+`0b0e3e0`, Reborn `5b5d23b`; unrelated documentation/assets remain preserved.
+Real receipts from Hardware02 (`76bc822` / `95747e0`, boot `b93cda16`) remain the
+hardware baseline: four local clockevents, highres/NO_HZ on four cores, GPT6 rollover
+continuity, checked 1–4-core hotplug, clean filesystems and taint0. Historical
+processor-stage secondary restoration passed; devices-stage USB overflow and
+radio timeout are failures requiring implementation corrections, not qualification.
+Unchanged ROM/recovery/source provenance is retained without repeating acquisition.
+
+| Coverage / owner | Boundary decision |
+| --- | --- |
+| CPU/timer/idle #28/#34 | IMPLEMENTED/PARTIAL: finish dormant CPU context, runtime PCM, CIRQ and GPT broadcast integration; use distinct timer owners and Linux CPU PM. |
+| DVFS/thermal #30/#34 | Source-backed stock bin0 and voltage sequencing already present; automatic supported-bin admission and fault/recovery policy within stock limits authorized. |
+| Suspend/radio/USB/audio/GPU #27/#29/#30/#31 | Preserve GPU01 and device ownership; correct restoration ordering using retained failure receipts. Physical same-boot wake remains independently unqualified. |
+| Boot/storage/memory/recovery #16/#28/#32/#33 | Preserve loader, reserved memory, Y2DATA and protected partitions. Single BOOTIMG/Y2ROOT candidate plus exact Hardware02 fallback; no hardware operation. |
+| Qualification/release | Build/tests/package validate software only. No epic closure, external status promotion or claim of new hardware success. |
+
+READY for CPU Final implementation under explicit owner direction. Retained
+physical evidence supplies the audit; absence of new hardware confirmation does
+not prevent independent source implementation. Architecture/package changes get
+full final software validation. The prior qualification-first sequencing is
+superseded for this pass; hardware qualifications remain separate flags.
+
+
 ## Hardware Final campaign activation — 2026-09-27
 
 Owner explicitly combines Hardware 03–05 into one engineering campaign and one
