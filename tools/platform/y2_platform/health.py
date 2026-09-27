@@ -45,6 +45,11 @@ def check(ctx, full=False):
         item = status['readiness'][name]
         add(name, {'Ready': 'OK', 'Starting': 'DEGRADED', 'Degraded': 'DEGRADED',
                    'Failed': 'FAILED', 'Unavailable': 'UNAVAILABLE'}[item['state']], item['reason'])
+    timers = status['cpu']['timer']
+    for name, key in [('highres_timer', 'highres_active'), ('tickless_idle', 'no_hz_active')]:
+        active = timers[key]
+        add(name, 'OK' if active is True else 'DEGRADED' if active is False else 'UNAVAILABLE',
+            'runtime_observed' if active is True else 'legacy_fallback' if active is False else 'runtime_unavailable')
     if full:
         # Queries only: no render master takeover, ALSA playback, radio action or reboot.
         for name, argv in [('alsa_query', ['y2-audio-contract']), ('render_query', ['modetest', '-M', 'mediatek', '-c'])]:

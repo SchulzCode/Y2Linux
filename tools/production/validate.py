@@ -359,6 +359,15 @@ def validate_rootfs(out,build,m):
             require(caps.get('platform_version') == json.loads(read('etc/y2linux/versions.json'))['release_version'],
                     'capability identity matches the installed release')
             require(all(v.get('qualified') is False for v in caps['capabilities'].values()),'candidate does not inherit physical qualification')
+            if m.get('feature_contract_version') == 2:
+                from tools.production.system_update import configuration_inventory
+                require(m['hardware_configuration'] == configuration_inventory(build/'buildroot/target'),
+                        'Hardware Final configuration inventory')
+                for name, record in m['hardware_configuration']['files'].items():
+                    content=read('etc/y2linux/'+name)
+                    require(hashlib.sha256(content).hexdigest()==record['sha256'], 'configuration tar identity '+name)
+                    require(run('debugfs','-R','cat /etc/y2linux/'+name,str(out/'Y2ROOT.img'))==content,
+                            'configuration ext4 identity '+name)
             validate_ssh_programs(members)
             require(b'-l usb0' in read('etc/default/dropbear'),'SSH explicitly bound to USB interface')
         for name in ('bin/busybox','sbin/init','sbin/blkid','sbin/e2fsck','sbin/ip','usr/sbin/dropbear','usr/bin/aplay','usr/bin/amixer','usr/bin/evtest','usr/bin/strace'):

@@ -89,8 +89,8 @@ def ntp_event(ctx, event, env, now=None):
         if not isinstance(previous_time, (int, float)) or abs(now - previous_time) >= 3600:
             directory = private_directory(ctx.path('/data/system/platform'))
             atomic_json(directory / 'time-last.json', value, durable=True)
-        # RTC writes require an explicit qualification receipt; wrong retained
-        # dates must not silently become a new RTC programming experiment.
+        # Source-backed default or an owner receipt admits normal NTP -> RTC
+        # synchronization. Mutable owner policy still takes precedence.
         rtc = ctx.json('/data/system/platform/rtc-policy.json', ctx.json('/etc/y2linux/rtc-policy.json', {}))
         if rtc.get('write_enabled') is True and (rtc.get('qualification_reference') or rtc.get('source')):
             value['rtc_write'] = ctx.command(['/bin/busybox', 'hwclock', '-w', '-u'], timeout=3)['ok']

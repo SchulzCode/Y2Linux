@@ -71,7 +71,10 @@ caps['platform_version']=versions['release_version']
 (root/'capabilities.json').write_text(json.dumps(caps, indent=2)+'\n')
 (root/'update-compat.json').write_text(json.dumps(dict(schema=1, product='Y2',
     hardware_revision='innioasis-y2-mt6582', kernel=versions['kernel_version'],
-    rootfs_contract='y2-platform-v1', sequence=0), separators=(',',':')))
+    rootfs_contract='y2-platform-v1', sequence=0,
+    feature_contract_version=versions.get('feature_contract_version', 1),
+    battery_profile_schema=versions.get('battery_profile_schema', 1),
+    low_battery_policy_schema=versions.get('low_battery_policy_schema', 1)), separators=(',',':')))
 PYUPDATE
 # Keep bond writers stopped when an owner reset was interrupted. Match the
 # pinned upstream service's explicit function, and reject an unknown structure.

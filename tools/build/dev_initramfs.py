@@ -5,6 +5,17 @@ from elftools.elf.elffile import ELFFile
 from tools.validation.d08 import require
 
 
+def boot_module_paths(root):
+    """Fixed reviewed module allowlist; BOOTIMG remains their sole owner."""
+    config = (root/'kernel/.config').read_text().splitlines()
+    paths = ['drivers/gpu/drm/mediatek/mediatek-drm']
+    if 'CONFIG_USB_G_NCM=m' in config:
+        paths += ['drivers/usb/gadget/function/usb_f_ncm', 'drivers/usb/gadget/legacy/g_ncm']
+    require((root/'kernel/modules.order').read_text().splitlines() ==
+            [path + '.o' for path in paths], 'unexpected loadable kernel module')
+    return paths
+
+
 def encode(entries):
     result=bytearray()
     ordered=sorted(entries.items(),key=lambda item:(item[0].count('/'),item[0]))
@@ -71,6 +82,16 @@ def build(root, project, production=True):
     binary('sbin/y2-abi-check',root/'y2-abi-check')
     module=(root/'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko').read_bytes()
     put('display.ko',stat.S_IFREG|0o400,module);(root/'display.ko').write_bytes(module)
+    release=(root/'kernel/include/config/kernel.release').read_text().strip()
+    dependencies=[]
+    for path in boot_module_paths(root):
+        filename=Path(path).name+'.ko'
+        raw=(root/'kernel'/(path+'.ko')).read_bytes()
+        if filename != 'mediatek-drm.ko':
+            put('boot-modules/'+release+'/kernel/'+filename,stat.S_IFREG|0o400,raw)
+        dependencies.append('kernel/'+filename+(':' if filename!='g_ncm.ko' else ': kernel/usb_f_ncm.ko'))
+    put('boot-modules/'+release+'/modules.dep',stat.S_IFREG|0o644,
+        ('\n'.join(dependencies)+'\n').encode())
     for applet in ('sh','mount','mkdir','mknod','sleep','readlink','chroot','umount','switch_root','kill','cat','dmesg','grep','tail','cp','uname'):
         put('bin/'+applet,stat.S_IFLNK|0o777,b'busybox')
     regular=sum(len(v[1]) for v in entries.values() if stat.S_ISREG(v[0]))

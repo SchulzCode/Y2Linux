@@ -20,6 +20,30 @@ from tools.production.boot_update import installed_components
 BUILDROOT_SOURCE = PROJECT/'.cache/sources' / ('buildroot-' + json.loads((PROJECT/'buildroot/inputs.lock.json').read_text())['version'])
 
 
+CONFIGURATION_FILES = ('capabilities.json', 'battery-profile.json', 'power-policy.json',
+                       'audio-enabled.json', 'rtc-policy.json', 'bluetooth-codecs.json',
+                       'update-compat.json')
+
+
+def configuration_inventory(target):
+    directory = target/'etc/y2linux'
+    records = {}
+    for name in CONFIGURATION_FILES:
+        path = directory/name
+        value = json.loads(path.read_text())
+        require(isinstance(value, dict) and 'schema' in value, 'configuration schema '+name)
+        records[name] = {'path': '/etc/y2linux/'+name, 'schema': value['schema'],
+                         'sha256': digest(path), 'size_bytes': path.stat().st_size}
+    caps = json.loads((directory/'capabilities.json').read_text())
+    require(caps.get('feature_contract_version') == 2, 'capability contract version')
+    for name, value in caps['capabilities'].items():
+        require(all(type(value.get(key)) is bool for key in ('implemented', 'enabled', 'qualified', 'experimental'))
+                and isinstance(value.get('reason'), str), 'independent capability states '+name)
+        require(not value['qualified'], 'new candidate physical qualification pending '+name)
+    return {'schema': 'org.y2linux.hardware-configuration/v1', 'feature_contract_version': 2,
+            'owner_overrides_preserved': True, 'files': records}
+
+
 def preserving_scatter(stock):
     text = make_scatter(stock, False)
     # No stale data-image filename even on an unchecked row.
@@ -108,6 +132,15 @@ def validate_preservation(out, manifest):
     require(manifest['owner_firmware']==json.loads((out/'metadata/owner-firmware.json').read_text())==
             {'schema':'org.schulzcode.y2linux.owner-firmware/v1',
              'redistribution_permission_established':False,'files':files}, 'reviewed firmware receipt')
+    if manifest.get('feature_contract_version') == 2:
+        configuration = manifest['hardware_configuration']
+        require(configuration == json.loads((out/'metadata/hardware-configuration.json').read_text()),
+                'hardware configuration receipt')
+        for name, record in configuration['files'].items():
+            require(name in CONFIGURATION_FILES, 'configuration allowlist')
+            path = out/'metadata/hardware-configuration'/name
+            require(digest(path) == record['sha256'] and path.stat().st_size == record['size_bytes'],
+                    'configuration identity '+name)
 
 
 def package(build, base, fallback_root, out, fallback_overlay=None):
@@ -175,6 +208,14 @@ def package(build, base, fallback_root, out, fallback_overlay=None):
     manifest['status']='Y2Linux Platform v1 software candidate; all current-candidate physical/endurance qualification pending' if versions.get('platform_api_version')==1 else f'Reborn FFmpeg {ffmpeg_version} audio production candidate; physical audio qualification pending'
     manifest['data_policy']='Preserve existing Y2DATA in place. New private directories are created on first normal boot. No data payload.'
     manifest['owner_firmware']=json.loads((build/'owner-firmware.json').read_text())
+    if versions.get('feature_contract_version') == 2:
+        manifest['hardware_configuration'] = configuration_inventory(build/'buildroot/target')
+        directory = out/'metadata/hardware-configuration'
+        directory.mkdir()
+        for name in CONFIGURATION_FILES:
+            shutil.copyfile(build/'buildroot/target/etc/y2linux'/name, directory/name)
+        (out/'metadata/hardware-configuration.json').write_text(
+            json.dumps(manifest['hardware_configuration'], indent=2)+'\n')
     manifest['audio_stack']={
         'ffmpeg_version':ffmpeg_version,
         'canonical_sample_format':'fltp',

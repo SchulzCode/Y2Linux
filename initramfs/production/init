@@ -22,6 +22,9 @@ release=$(uname -r)
 mkdir -p "/run/y2/modules/$release/kernel"
 cp /display.ko "/run/y2/modules/$release/kernel/mediatek-drm.ko"
 printf '%s\n' 'kernel/mediatek-drm.ko:' > "/run/y2/modules/$release/modules.dep"
+if [ -d /boot-modules ]; then
+    cp -a /boot-modules/. /run/y2/modules/ || exit 1
+fi
 # Suppress only panel text before fbcon attaches. This does not lower printk
 # verbosity and never starts a splash owner during the charging-only path.
 if [ -x /sbin/reborn-splash ]; then /sbin/reborn-splash --quiet-if-normal || :; fi

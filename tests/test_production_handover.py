@@ -28,6 +28,9 @@ class Handover(unittest.TestCase):
             (p/'proc/cmdline').write_text(cmdline)
             (p/'sys/firmware/y2_boot/normal_boot').write_text('0\n')
             (p/'display.ko').write_bytes(b'module fixture')
+            (p/'boot-modules/fixture/kernel').mkdir(parents=True)
+            (p/'boot-modules/fixture/kernel/g_ncm.ko').write_bytes(b'NCM fixture')
+            (p/'boot-modules/fixture/modules.dep').write_text('kernel/g_ncm.ko: kernel/usb_f_ncm.ko\n')
             if failure in ('torn-update','restore-fails'):
                 (p/'newdata/updates').mkdir()
                 (p/'newdata/updates/state.json').write_text('{"schema":1,"state":"Installing"}')
@@ -36,7 +39,7 @@ class Handover(unittest.TestCase):
             # every call site and root handover branch as production implements it.
             start=script.index('rescue() {');end=script.index('\ncase ',start)
             script=script[:start]+"rescue() { echo \"RESCUE $*\" >> \"$LEDGER\"; exit 99; }\n"+script[end:]
-            script=re.sub(r'(?<![A-Za-z0-9_./])/(?:sbin|bin|dev|proc|sys|run|tmp|newroot|newdata|display\.ko)(?=[/\s"\']|$)',
+            script=re.sub(r'(?<![A-Za-z0-9_./])/(?:sbin|bin|dev|proc|sys|run|tmp|newroot|newdata|boot-modules|display\.ko)(?=[/\s"\']|$)',
                           lambda m:str(p)+m.group(),script)
             script=re.sub(r'^export PATH=.*$',f'export PATH={p}/bin:{p}/sbin:/usr/bin:/bin',script,flags=re.M)
             script=script.replace('exec switch_root ',f'exec {p}/bin/switch_root ')
@@ -79,6 +82,7 @@ exit 0
                        str(ROOT/'.cache/environment/bin/busybox'),'sh']
             result=subprocess.run(shell+['-c',script],env=os.environ|{'LEDGER':str(ledger),'FAILURE':failure},
                                   text=True,capture_output=True,timeout=5)
+            self.assertEqual((p/'run/y2/modules/fixture/kernel/g_ncm.ko').read_bytes(), b'NCM fixture')
             events=ledger.read_text().replace(str(p),'')
             log=(p/'dev/kmsg').read_text() if (p/'dev/kmsg').exists() else ''
             return result,events,log

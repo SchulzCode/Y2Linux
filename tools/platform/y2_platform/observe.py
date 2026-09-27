@@ -35,6 +35,27 @@ def device_instance(ctx, device_id):
         return None
 
 
+def timer_runtime(ctx):
+    if ctx.root == Path('/'):
+        result = ctx.command(['/bin/cat', '/proc/timer_list'], timeout=0.2, limit=262144)
+        text = result.get('output') if result['ok'] else None
+    else:
+        text = ctx.read('/proc/timer_list', limit=262144)
+    cpus = []
+    for block in re.split(r'^cpu:\s*', text or '', flags=re.M)[1:]:
+        first = block.splitlines()[0]
+        if not first.isdigit():
+            continue
+        fields = dict(re.findall(r'^\s*\.(hres_active|nohz|tick_stopped|nr_hangs)\s*:\s*(\d+)\s*$', block, flags=re.M))
+        cpus.append({'cpu': int(first), **{key: int(value) for key, value in fields.items()}})
+    def observed(key):
+        values = [core.get(key) for core in cpus]
+        return all(value == 1 for value in values) if values and all(value is not None for value in values) else None
+    return {'per_cpu': cpus, 'highres_active': observed('hres_active'),
+            'no_hz_active': observed('nohz'), 'source': '/proc/timer_list',
+            'reason': None if cpus else 'runtime_timer_state_unavailable'}
+
+
 def cpu(ctx):
     stat = ctx.read('/proc/stat')
     ticks = {}
@@ -80,7 +101,7 @@ def cpu(ctx):
             'throttling_reason': None,
             'workload_qos': {'implemented': ctx.path('/dev/y2-workload').exists(), 'lease_max_ms': 30000,
                              'interactive_max_ms': 500},
-            'timer': {'clocksource': ctx.read('/sys/devices/system/clocksource/clocksource0/current_clocksource'),
+            'timer': {**timer_runtime(ctx), 'clocksource': ctx.read('/sys/devices/system/clocksource/clocksource0/current_clocksource'),
                       'clockevents': {p.parent.name: read(p) for p in ctx.glob('/sys/devices/system/clockevents/clockevent*/current_device')}}}
 
 
@@ -246,7 +267,11 @@ def storage(ctx):
                        'type': read(path / 'device/type'), 'name_id': read(path / 'device/name'),
                        'cid': read(path / 'device/cid'), 'serial': read(path / 'device/serial'),
                        'io_error_count': number(read(path / 'device/ioerr_cnt'))})
-    return {'volumes': volumes, 'blocks': blocks,
+    controllers = []
+    for path in ctx.glob('/sys/bus/platform/devices/*.mmc/y2_performance'):
+        values = dict(re.findall(r'(cap_hz|actual_hz|transport_errors|fallbacks|clock_error)=(-?\d+)', read(path) or ''))
+        controllers.append({'name': path.parent.name, **{key: int(value) for key, value in values.items()}})
+    return {'volumes': volumes, 'blocks': blocks, 'controllers': controllers,
             'bus_parameters': ctx.read('/sys/kernel/debug/mmc0/ios'),
             'sd_bus_parameters': ctx.read('/sys/kernel/debug/mmc1/ios')}
 
