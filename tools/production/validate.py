@@ -336,10 +336,23 @@ def validate_rootfs(out,build,m):
                 require(content[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',content,18)[0]==40,'platform ARM binary '+name)
                 require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img'))==content,'platform ext4/tar agreement '+name)
             for name in ('etc/y2linux/capabilities.json','etc/y2linux/update-trust.json','etc/y2linux/update-compat.json',
-                         'etc/y2linux/bluetooth-codecs.json','etc/y2linux/bluetooth-daemon.args',
-                         'usr/lib/y2-platform/y2_platform/update.py',
+                         'etc/y2linux/bluetooth-codecs.json','usr/lib/y2-platform/y2_platform/update.py',
                          'usr/lib/y2-platform/y2_platform/maintenance.py','usr/libexec/reborn-boot-services'):
                 require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img'))==read(name),'platform contract ext4/tar agreement '+name)
+            codec_inventory = json.loads(read('etc/y2linux/bluetooth-codecs.json'))
+            # Historical SBC-only fallback images predate explicit codec
+            # profiles and have no args file. New profiles must carry the
+            # matching runtime disable list in both filesystem representations.
+            if 'profile' in codec_inventory:
+                require(codec_inventory['profile'] in ('sbc-only', 'owner-private-experiments'),
+                        'known Bluetooth codec profile')
+                name = 'etc/y2linux/bluetooth-daemon.args'
+                codec_args = read(name)
+                require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img')) == codec_args,
+                        'Bluetooth daemon args ext4/tar agreement')
+                expected = {'--codec=-' + codec for codec, entry in codec_inventory['codecs'].items()
+                            if codec != 'SBC' and entry['compiled_locally']}
+                require(set(codec_args.decode().split()) == expected, 'default Bluetooth endpoints remain SBC-only')
             require(b'Y2_TEST_ROOT' not in read('usr/sbin/y2-update-core') and b'Y2_TEST_FAULT' not in read('usr/sbin/y2-update-core'),'production updater has no fixture writer')
             caps=json.loads(read('etc/y2linux/capabilities.json'))
             require(caps['schema']=='org.y2linux.capabilities/v1' and caps['api_version']==1,'platform API identity')
