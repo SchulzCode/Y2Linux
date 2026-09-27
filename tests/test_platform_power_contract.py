@@ -81,6 +81,21 @@ class PowerContract(unittest.TestCase):
         self.assertEqual(battery.observe(configured, 9, 1), 'ShutdownPending')
         self.assertEqual(battery.observe(None, 9, 1), 'Unavailable')
 
+    def test_idle_waits_for_observation_but_never_past_shutdown_deadline(self):
+        c = Coordinator(self.ctx, lambda: self.now)
+        # One observation wake each second instead of four accept timeouts.
+        self.assertEqual(c.wait_seconds(self.now + 10**9), 1)
+        intent = c.request('poweroff', 'low_battery', 3)
+        self.now = intent['deadline_monotonic_ns'] - 125000000
+        self.assertEqual(c.wait_seconds(self.now + 10**9), .125)
+        self.now += 125000000
+        self.assertEqual(c.wait_seconds(self.now + 10**9), 0)
+        self.assertTrue(c.due())
+        c.execute()
+        # A failed init request must not turn an expired deadline into a spin.
+        self.assertEqual(c.wait_seconds(self.now + 10**9), 1)
+        self.assertEqual(c.wait_seconds(self.now - 1), 0)
+
 
 if __name__ == '__main__':
     unittest.main()

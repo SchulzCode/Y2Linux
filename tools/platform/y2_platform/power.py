@@ -133,6 +133,15 @@ class Coordinator:
         return (self.clock() >= self.intent['deadline_monotonic_ns'] or
                 bool(ack and ack['outcome'] == 'Ready'))
 
+    def wait_seconds(self, next_sample_ns):
+        # Socket activity wakes accept immediately. Only observation and a
+        # pending shutdown need timed wakes; polling four times per second
+        # provides neither faster requests nor better battery observations.
+        deadline = next_sample_ns
+        if self.intent and self.intent['state'] == 'ShutdownPending':
+            deadline = min(deadline, self.intent['deadline_monotonic_ns'])
+        return max(0, deadline - self.clock()) / 10**9
+
     def execute(self):
         # Only the actual daemon entry point calls this; fixture contexts can
         # never signal a host process or execute host power commands.
@@ -209,11 +218,10 @@ def serve(ctx):
         server.bind(str(address))
         os.chmod(address, 0o600)
         server.listen(4)
-        server.settimeout(.25)
         next_sample = 0
         while running[0]:
-            if time.monotonic() >= next_sample:
-                next_sample = time.monotonic() + 1
+            if coordinator.clock() >= next_sample:
+                next_sample = coordinator.clock() + 10**9
                 voltage = ctx.integer('/sys/class/power_supply/BAT0/voltage_now')
                 state = battery.observe(policy, voltage, ctx.integer('/sys/class/power_supply/BAT0/present'))
                 if state == 'ShutdownPending' and not coordinator.intent:
@@ -225,6 +233,10 @@ def serve(ctx):
                             'shutdown': coordinator.intent})
             if coordinator.due():
                 coordinator.execute()
+            wait = coordinator.wait_seconds(next_sample)
+            if not wait:
+                continue
+            server.settimeout(wait)
             try:
                 client, _ = server.accept()
             except socket.timeout:
