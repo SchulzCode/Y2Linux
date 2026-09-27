@@ -241,6 +241,38 @@ int main(void){
 }
 ''')
 
+    def test_failed_decrease_checks_actual_voltage_and_contains_unknown_readback(self):
+        run_c(r'''
+#include <assert.h>
+#include <errno.h>
+#include "cpu-dvfs-policy.h"
+static int observed, restore_failure, reads;
+static unsigned writes, faults;
+static unsigned long rate;
+static int getv(void *c){return reads++ ? observed : 88;}
+static int setv(void *c,unsigned selector){
+ writes++;
+ if(selector==88 && !restore_failure){observed=88;return 0;}
+ return -EIO;
+}
+static int setf(void *c,unsigned long hz){rate=hz;return 0;}
+static unsigned long getf(void *c){return rate;}
+static void broken(void *c){faults++;}
+int main(void){
+ struct y2_dvfs_io io={0,getv,setv,setf,getf,broken};
+ int values[]={72,80,88,71,-EIO,89};
+ for(unsigned i=0;i<6;i++)for(restore_failure=0;restore_failure<2;restore_failure++){
+  rate=1300000000;observed=values[i];reads=writes=faults=0;
+  int safe=observed==72 || observed==80 || observed==88;
+  int ret=y2_dvfs_transition(&io,1040000000,1300000000);
+  assert(faults==1);
+  assert(writes==(safe?1:2));
+  if(!safe && restore_failure){assert(ret==-ERANGE && rate==598000000);}
+  else{assert(!ret && rate==1040000000 && observed>=72);}
+ }
+}
+''')
+
     def test_actual_spm_request_bounds_and_ownership(self):
         source = (ROOT / 'kernel/platform/spm.c').read_text().replace(
             'int y2_spm_cpu_voltage_request(', 'static int y2_spm_cpu_voltage_request(')

@@ -70,10 +70,12 @@ static inline int y2_dvfs_transition(const struct y2_dvfs_io *io,
 			 * below the new OPP or unavailable. Never use unknown readback
 			 * as a reason to allow a high clock. */
 			int observed = io->voltage_get(io->context);
-			if (observed < (int)target) {
+			if ((observed != 72 && observed != 80 && observed != 88) ||
+			    observed < (int)target) {
 				io->voltage_set(io->context, old);
 				observed = io->voltage_get(io->context);
-				if (observed < (int)target) {
+				if ((observed != 72 && observed != 80 && observed != 88) ||
+				    observed < (int)target) {
 					/* Lowest known clock is the containment path if the
 					 * PMIC itself cannot restore a supported selector. */
 					io->clock_set(io->context, 598000000);
