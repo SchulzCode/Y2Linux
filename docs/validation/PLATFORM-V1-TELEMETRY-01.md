@@ -1,5 +1,12 @@
 # Platform v1 telemetry repair — 2026-09-25
 
+Subsequent owner-installed retest: both repairs now pass their narrow physical
+checks on boot `3194fa9d-2dee-4105-86f0-4021580bf8d0`. Status/health return; no
+reader remains after a bounded counter timeout while charging. See the
+[latest physical report](PLATFORM-V1-PHYSICAL-QUALIFICATION.md) for exact identity,
+timings and evidence. Remaining kernel warnings stop Session A and Wi-Fi health
+is failed/degraded. This does not promote Platform v1 or waive any physical gate.
+
 This is the separately owner-authorized corrective pass following the
 [physical qualification stop](PLATFORM-V1-PHYSICAL-QUALIFICATION.md). No repair
 was applied during qualification. The installed image and its Session A FAIL /

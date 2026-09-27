@@ -64,6 +64,81 @@ is unchanged and is not reacquired. This admission does not reopen architecture,
 qualify high OPPs/full wake, or authorize a planning epic as hardware work.
 
 
+## CPU Final physical qualification boundary — 2026-09-27
+
+Standing boundary audit uses the fresh physical report and private receipts under
+`out/cpu-final-physical-qualification/20260927T161145Z/`, not software-test claims.
+Exact installed Linux ff586df/Reborn afcf9ff and all declared release fields match.
+Original boot18248d38-f426-4090-add7-a99a7a3a067d; after the first full RTC sleep
+failed to return and lost recovery, owner restart yields
+2aff9ecf-dac0-4479-913e-46dc343964d0. Fresh recovery taint0, root/data/SD rw/error0,
+all4 online, schedutil598–1040MHz, C3 disabled, no alarm/pm_test/load left.
+
+| Coverage / existing issues | Real result / remaining production gap |
+| --- | --- |
+| CPU/timer/idle #28/#34 | Lower OPP/hotplug/WFI bounded PASS. GPT6/GPT4/PPI29 boot admission FAIL; highres/NO_HZ inactive; C2 blocked0xe07800, C3/deadline/CIRQ replay unqualified. |
+| Power/DVFS/thermal #30/#34 | PMIC216=0 blocks hardware-selector admission, high bins gated; lower stock voltage/readback PASS; thermal cooling cap overrides QoS. No voltage-transition/high-bin electrical qualification. |
+| Workload/Reborn #29/#32/#34 | Kernel leases/expiry/thermal interaction PASS; actual Reborn partial formatted device writes getEINVAL, semantic hints FAIL. |
+| Suspend/USB/radio #27/#31/#34 | Freezer and battery devices/platform/processors/core PASS; quiescent MUSB4suspends/8restores, no IRQ storm. Core radio mandatory-STP timeout isolated and second boot succeeds. Full RTC suspend FAIL/nonreturn, no same-boot wake. Attached charging.prepare refusal unwind WARN remains. |
+| Audio/GPU/display #29/#32 | Silent44.1/24-96 resampled native playback no XRUN; screen-off GPU gating and staged DSI restoration observed. Full post-resume/audio/peer quality unqualified. |
+| Storage/recovery/security #16/#28/#32/#33 | Recovery SSH and clean filesystem checks PASS after restart; no panic/reset cause retained. Original media/protected regions preserved, only owned fixtures removed. Recovery boot options present, not reboot-qualified individually. |
+| Acceptance/production #32/#34 | Observation sweep complete subject to owner stop rule for recovery loss; candidate NOT accepted as normal CPU Final. One prioritized coherent fix batch documented; no blanket production capability/epic promotion. |
+
+[Physical result](../validation/Y2-CPU-FINAL-PHYSICAL-QUALIFICATION.md) distinguishes
+implementation, observed runtime and qualification. Scope did not add hardware,
+memory layout, package/loader writes or calibration acquisition. Unchanged ROM,
+recovery and release provenance is not repeated. Existing external inventory was
+refreshed read-only at activation; cited issues remain open, no external mutation.
+
+Decision: close this first observation sweep, keep automatic suspend/C3 at existing
+qualification/default-off gates, preserve successful runtime fallbacks and pursue
+the documented single CPU Final Fix Batch separately. Loss of USB/Wi-Fi recovery
+stopped further full-suspend/C3/stress testing; owner restart is not a wake pass.
+No implementation edits, builds, flashes, commits/pushes or identity changes in
+this physical sweep. Documentation-only closure requires targeted diff/evidence
+validation, not a kernel build or another unchanged hardware campaign.
+
+## CPU Final physical qualification activation — 2026-09-27
+
+Owner confirms CPU Final already flashed and explicitly authorizes one autonomous,
+bounded real-device sweep, including hotplug, admitted OPPs, workload/idle tests,
+staged suspend and guarded RTC/Power wake. No implementation source changes,
+build, flash, protected-region access, calibration acquisition or data reset.
+Pinned USB SSH receipt `00-identity-boot` under
+`out/cpu-final-physical-qualification/20260927T161145Z/` verifies Linux
+`ff586dfff2b5e7abd28af339c055375307308f1f`, Reborn
+`afcf9ffa1bc45073e97520d592c0284ce73fefcf`, kernel
+`6.18.0-y2linux-cpu-final`, root `2025.02.18-platform-v1.6`, release
+`1.0.0-cpu-final-candidate.1`, API1 and boot
+`18248d38-f426-4090-add7-a99a7a3a067d`. Taint0; root/data/SD rw,
+all ext4 error counters0. CPU55C/PMIC53.315C at admission.
+
+| Coverage / existing issue | Real admission evidence / next boundary |
+| --- | --- |
+| CPU/timer/idle #28/#34 | Exact candidate boot observed; GPT6 boot preflight rejects, legacy timer/dummy events selected, highres/nohz inactive. Preserve fallback and continue independent runtime tests. C2 enabled with busy aborts; C3 default off. |
+| DVFS/thermal/power #30/#34 | Bin0 admitted as silicon, automatic voltage admission returns -95, ceiling1040MHz, voltage1.15V, no voltage fault. Exercise admitted lower OPPs only; no manual high-bin override/overheating. |
+| USB/radio/suspend #27/#31/#34 | SSH works; CIRQ ready but never entered. Historical USB overflow/WMT failure remains until tested. Guard staged suspend, reconnect automatically; stop whole sweep only for owner's severe safety/recovery conditions. |
+| Audio/GPU/display/Reborn #29/#32 | Preserve native device/app ownership. Use supported controls and existing fixtures; physical observations requested only when unavoidable. |
+| Storage/recovery/security #16/#28/#32/#33 | Clean rw filesystem admission; preserve all user data/keys/protected regions and exact accepted fallback. No root/package/loader writes. |
+| Qualification/production #32/#34 | ACTIVE for this exact candidate, no blanket capability promotion/epic closure. Capture commands/outputs/status/timing/identity privately; record PASS/FAIL/PARTIAL/NOT_TESTED separately from implementation. |
+
+Continuation receipt20: freezer PASS, devices refused at charger.prepare with
+-16 while charging, then PM unwind WARN/taint512; same boot and clean filesystems,
+USB/CPU/controller restoration retained. No MUSB/SPM entry occurred in this test.
+The charger has an explicit source-backed active-USB sleep guard; do not bypass it.
+Owner's battery/RTC/Power qualification now needs the unavoidable physical USB
+unplug, with private persistent local logs, RTC recovery alarms, local thermal/
+filesystem/boot guards and Wi-Fi status observation. Abort further suspend stages
+on any failed local stage; USB replug is the recovery/log retrieval path. No source
+change, charger override or new electrical assumption. This is within the owner's
+explicit testing authorization. External inventory refreshed read-only: existing
+#16/#27/#28/#29/#31/#32/#33/#34 remain OPEN.
+
+Decision: READY for independent bounded physical tests with existing timer and
+OPP fallbacks active. Timer/high-bin failures are observations, not a reason to
+stop the whole sweep. End audit will use collected results and propose one fix
+batch if needed. Existing external epics remain open; no external mutation.
+
 ## CPU Final candidate boundary — 2026-09-27
 
 Owner's concentrated implementation scope is complete at the source/candidate
@@ -123,7 +198,6 @@ physical evidence supplies the audit; absence of new hardware confirmation does
 not prevent independent source implementation. Architecture/package changes get
 full final software validation. The prior qualification-first sequencing is
 superseded for this pass; hardware qualifications remain separate flags.
-
 
 ## Hardware Final campaign activation — 2026-09-27
 
@@ -492,6 +566,92 @@ private evidence: `out/platform-v1-physical-bringup/20260926T143142Z-census/`.
 The [campaign report](../validation/PLATFORM-V1-PHYSICAL-BRINGUP.md) and
 [master issues](../validation/PLATFORM-V1-PHYSICAL-ISSUES.md) own ongoing results.
 Re-audit before candidate packaging, new hardware implementation and closure.
+
+## Owner-requested Wi-Fi connection check — 2026-09-25
+
+Result, same Telemetry 01 boot `3194fa9d-2dee-4105-86f0-4021580bf8d0`: direct
+supplicant COMPLETED/WPA2-PSK, matching DHCP address and wlan0 default route,
+5/5 router ping replies (1.532 ms mean) and 3/3 Internet-IP replies (11.846 ms
+mean). Both configured-resolver lookups, pool.ntp.org and example.com, fail with
+EAI_AGAIN; the platform's DNS probe also fails. The native control query succeeds
+while the observer intermittently reports supplicant_unavailable. Refine Wi-Fi
+coverage to PARTIAL with actual association/DHCP/routing/IP evidence; DNS FAIL,
+full Online/Session C acceptance absent, no throughput/reconnect/endurance claim.
+Source/image, hardware policy and all other physical gates stay unchanged.
+Private evidence: `20260925T154016Z-owner-wifi-check`. Next narrow blocker is
+DNS-path and status-query diagnosis, not an assumed need to reflash.
+
+The owner now reports connecting to their router and explicitly requests a
+narrow Wi-Fi check. Verify unchanged Telemetry 01 identity, association, address,
+default route and DNS, with bounded router reachability if the platform admits
+it. This does not restart the full Session C plan or waive Session A's retained
+kernel-warning gate. No network credentials, service/radio configuration,
+throughput/reconnect workload, source or hardware policy is changed. Existing
+physical coverage remains as recorded until fresh observations support a
+limited update; retain before/after baseline and private command receipts.
+
+## Telemetry 01 physical baseline stop — 2026-09-25
+
+Subsequent read-only diagnosis, same boot, privately retained under
+`20260925T152936Z-readonly-triage`: supplicant answers PONG/DISCONNECTED and has
+zero configured networks. No authentication failure is established without a
+configured network. Intermittent query delay versus the observer's one-second
+deadline remains unresolved; two explicit deadline probes both succeeded.
+Timer state confirms periodic MediaTek broadcast to four dummy local devices,
+10 ms resolution and no active highres/nohz mode, consistent with HZ=100 and
+HIGH_RES_TIMERS unset in the retained kernel config. Do not change timer or
+hardening scope solely to silence a warning. The next decision is a separately
+authorized correction pass or explicit disposition of named known limitations
+before short tests; the existing stop rule and session results stay in force.
+
+Fresh USB SSH evidence, 15:20:36–15:22:44 UTC, boot
+`3194fa9d-2dee-4105-86f0-4021580bf8d0`: complete installed versions and all five
+replacement/four Reborn ELF hashes match Telemetry 01, Linux source `814c2f3` /
+Reborn `1556083`. Source identity is corrected; retained kernel remains d04b95a.
+Status now returns (2.692/3.550 s including SSH); full health returns valid JSON
+(3.525/3.576 s), preserving FAILED/DEGRADED Wi-Fi readiness. A passive platform
+collection reports null/command_timeout for wakeup_count while Charging; the
+final process table has no leftover reader. Both targeted repairs pass in this
+narrow physical observation; this is not whole-platform physical qualification.
+
+The kernel repeats 14 warning/error-priority entries from the already reviewed
+classes. No new Oops/panic/WARN-stack/ext4-I/O signature; taint 0, both ext4 error
+counters 0. The original warning stop rule still applies: **A FAIL, B–D NOT_TESTED**.
+No reboot/rescue/workload, service/radio action, code change, flash or hardware
+policy modification was performed. Wi-Fi changes from not_authenticated to
+supplicant_unavailable; do not infer a connected network or silently restart it.
+
+Coverage refresh: root/data identities and separate rw mounts pass narrowly;
+normal_boot=1 and first-frame process identity match; owner sees main menu and
+reports normal warmth. CPU/PMIC snapshot 48.800/45.713°C, Reborn RSS 23,532 KiB /
+16 threads, PSS unavailable, cumulative frequency/WFI counters retained without
+workload qualification. Boot/rescue, memory/DMA/SMP, buses/clocks/reset,
+display/input, SD/eMMC, power/thermal/idle/suspend, audio/radios/calibration, USB,
+time/entropy, userspace/shutdown, update/backup and release retain all earlier
+PARTIAL/UNKNOWN/BLOCKED_BY_EVIDENCE/DEFERRED limits. No milestone or issue status
+changes; existing owners remain as recorded in the preceding audit.
+
+The [current physical report](../validation/PLATFORM-V1-PHYSICAL-QUALIFICATION.md)
+and private `20260925T151959Z-telemetry01` receipts retain both baselines, manual
+observation, exact commands, identities, hashes and limitations. Next smallest
+boundary is warning disposition and Wi-Fi readiness investigation, then resuming
+Session A under its explicit stop rules. No physical gate is promoted; E/F/G and
+unattended endurance remain separately controlled.
+
+## Telemetry 01 physical re-entry — 2026-09-25
+
+The owner reports installing the corrective root candidate and resumes the
+original supervised qualification scope. Expected source is `814c2f3` with
+Reborn `1556083`; running identity must match the candidate before testing.
+Re-read the owner plan, preceding failed physical run, repair/warning review,
+and candidate handoff. All coverage rows and issue ownership retain the prior
+physical gates until fresh evidence changes a narrow observation. Begin with
+the mandatory status/capabilities/full-health baseline and kernel capture;
+stop on mismatch or the existing fault/warning rules. No automatic exception
+is granted for a previously classified warning. No build, source change,
+flashing, hardware policy, long run, or Session E/F/G action is part of this
+physical re-entry. Update this audit and the report with the actual boot and
+results before crossing to another session.
 
 ## Platform v1 telemetry candidate handoff — 2026-09-25
 
@@ -3422,3 +3582,68 @@ subsystems, milestone qualification and release candidates use the appropriate
 full verification boundary. Do not rehash the unchanged entire source tree or
 redo ROM/SPFT provenance without relevant cause. A documentation-only request
 never triggers a build or hardware operation to fill a missing audit datum.
+
+
+## CPU Final Fix01 physical admission — 2026-09-27
+
+Owner authorizes the already-flashed Fix01 physical sweep, including bounded
+CPU/timer/QoS/idle/DVFS stress and guarded C3/full suspend. USB SSH reads match
+Linux0de6e951/Reborn36db1869, kernel6.18.0-y2linux-cpu-final-fix01,
+root2025.02.18-platform-v1.7, bootd3f4d265-ced8-4b53-8037-84637d765a89,
+taint0. Previous CPU Final qualification remains the authoritative before-state:
+conservative OPPs/hotplug/WFI/staged suspend/data/audio work; timer/app leases,
+SLIDLE/high voltage admission and full RTC resume fail. Software Fix01 receipt
+is not physical acceptance. Coverage gates remain unpromoted until this sweep.
+Existing recovery/fallback/protected partition and memory contracts unchanged.
+Proceed with existing SSH harness and targeted supplementation; ordinary failures
+retain independent testing, safety/integrity loss stops risky testing. No source
+patches, builds, flashing, push, external epic closure or architecture research.
+Private evidence: out/cpu-final-fix01-physical-qualification/.
+
+## CPU Final Fix01 physical closing boundary — 2026-09-27
+
+Owner-authorized already-flashed qualification is complete at the safe observation
+boundary; **normal CPU platform acceptance FAILS**. Installed source identity is
+Linux `0de6e951b438bf0f2d701e23e476d2b2405ba3c6` / Reborn
+`36db1869c6bab1ad2d00b7d8e7807ea6ef5b3803`, kernel
+`6.18.0-y2linux-cpu-final-fix01`, root `2025.02.18-platform-v1.7`. Host HEADs remain
+Linux `a5598918` / Reborn `36db1869`; no implementation changes, build, flash,
+push or commit in this pass. Existing user work/identity remain intact.
+
+The [physical report](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md)
+and restricted `out/cpu-final-fix01-physical-qualification/20260927T205514Z/`
+retain command receipts, measurements, both immediate recovery captures and
+owner confirmation. Three boot IDs are d3f4d265-ced8-4b53-8037-84637d765a89,
+1807c573-b7c2-469e-9a16-5645b4d25ecb and
+81e422f3-43cd-4ad6-877f-692eb1191b36. Owner Power once and two manual restarts
+are distinct; second restart follows USB loss with UI alive, not a spontaneous
+SoC reboot. Ordinary defects retained independent testing after safe recovery.
+
+| Coverage / existing owner | Updated real-device state | Next gate |
+| --- | --- | --- |
+| CPU timer/performance, M4 #30 | PASS GPT6/GPT4/PPI29, actual highres/NO_HZ, eight real QoS classes, lower OPPs, hotplug, WFI, thermal priority | preserve these narrow successes |
+| Deeper CPU idle, M4 #30 | FAIL C2 entry, PARTIAL coordinator, C3 NOT_TESTED | MSDC0/MSDC1 runtime clocks stay enabled; separate retention from runtime gate, qualify sustained inactivity |
+| High-bin voltage, M4 #30 | software VOSEL recognition PASS; high admission FAIL at pwrap_readiness | expose exact raw predicate then correct real board contract, no bypass |
+| PM/wake, M4 #30 | devices request FAIL, later staged/full RTC/Power NOT_TESTED | prove early journal safety/retention; durable kernel_suspend only, invalid SRAM cannot identify SPM boundary |
+| Native audio, M3 #29 | PASS bounded 44.1 and 24/96->48, zero XRUN/decode/filter errors | no promotion of perceptual quality, blend transition or full resume |
+| Transport, M2 #28/#27 and M5 #31 | Wi-Fi bounded hashes PASS; USB first hash PASS then transport loss; CONSYS single isolated retry PASS | capture loaded USB IRQ/DMA/carrier and independent recovery before restart |
+| Storage/runtime, M6 #32 | final rw root/data/SD, errors 0, taint 0 | failed interval/full restoration still unqualified; accepted preserve-data/fallback/protected partitions unchanged |
+| Telemetry, existing platform scope | timer states useful; SRAM invalid and health supplicant discrepancy retained | diagnostic availability is not a hardware pass |
+
+Roadmap and capability ledger now reflect these observations. Earlier software
+completion and previous candidate staged successes are historical, not Fix01
+physical acceptance. Root-cause confidence differs: MMC runtime early returns
+are source-backed; PWRAP predicate group is exact but operand unknown; staged PM
+and USB failing instructions remain unknown. Do not claim full PCM or CPU-vector
+causation from invalid SRAM. No charging-refusal certification: USB online did
+not mean BAT0 actively charging in this run.
+
+Next boundary is the single coherent Fix02 correction plan in the report,
+covering PM diagnostic safety/readiness, PWRAP ownership, MMC runtime clocks and
+coordinator reachability, and loaded USB recovery. It preserves now-working
+timers/QoS/conservative/audio/radio retry, does not expand hardware or memory
+scope, and does not activate another architecture review. M4/M5/M6 release
+gates remain blocked/partial; no external epic/milestone was closed or modified.
+No new issues are needed for these already tracked gaps. Backup/calibration,
+protected storage, exact fallback and existing production obligations remain
+unchanged; this audit does not redo ROM/source recovery provenance.

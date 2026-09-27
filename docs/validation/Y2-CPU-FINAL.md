@@ -232,3 +232,32 @@ the explicit existing qualification entry point. No new four-core dormant, full
 same-boot suspend, Power/RTC wake or device-resume hardware pass is claimed.
 Y2DATA/protected regions, Git identity/account and unrelated worktree edits are
 preserved; no device access, flash, push or external epic closure occurred.
+
+
+## Physical CPU Final result — 2026-09-27
+
+The owner-flashed exact pair above was verified on real Y2. See
+[Y2 CPU Final physical qualification](Y2-CPU-FINAL-PHYSICAL-QUALIFICATION.md) for
+per-feature PASS/FAIL/PARTIAL/NOT_TESTED, private receipts, measurements and one
+prioritized fix batch. These observations supersede any implied runtime success
+from the software implementation description; source implementation and physical
+qualification remain separate.
+
+GPT6/GPT4/PPI29 admission rejects at boot; actual legacy GPT/dummy local events
+have highres0/nohz0. Lower598/747.5/1040MHz scaling, bounded hotplug, schedutil,
+kernel QoS/thermal priority and WFI work. PMIC216=0 blocks voltage/high-bin
+admission;1196/1300MHz and voltage sequencing remain unqualified. Actual Reborn
+formatted workload writes split parser requests and getEINVAL. SLIDLE is enabled
+but always blocked; dormant remains disabled with its timer prerequisite failed.
+
+Freezer and battery devices/platform/processors/core pm_test return on the same
+boot, secondary CPUs recover and quiescent MUSB context resumes without storm.
+A mandatory-STP CONSYS timeout is followed by a successful isolated retry.
+The first full RTC suspend loses USB/Wi-Fi recovery and never returns before
+owner restart; no controlled Power wake or full device restoration PASS.
+Original boot18248d38-f426-4090-add7-a99a7a3a067d; recovered boot
+2aff9ecf-dac0-4479-913e-46dc343964d0. Filesystems remain rw/error0, original media
+and installed pair preserved. No implementation source change/rebuild/flash was
+made during the sweep. **CPU Final is not accepted as the normal CPU platform;**
+automatic deep suspend and C3 must retain their existing qualification/default-off
+controls. The successful fallback runtime is distinguished from failed new paths.

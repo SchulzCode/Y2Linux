@@ -1,5 +1,31 @@
 # Platform v1 software completion roadmap
 
+## CPU Final Fix01 physical sweep — 2026-09-27
+
+[Admission audit](roadmap-gap-audit.md#cpu-final-fix01-physical-admission--2026-09-27)
+records exact already-flashed runtime identity through USB SSH, taint0. Owner
+authorizes one observation/stress sweep using the existing harness, automatic
+independent continuation and bounded C3/suspend only after prerequisites.
+No implementation source edits, builds, flashes or pushes. The observation sweep
+is now **COMPLETE at safe physical-test scope, FAILED for CPU Final Fix01
+acceptance**. See the [physical report](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md)
+and [closing audit](roadmap-gap-audit.md#cpu-final-fix01-physical-closing-boundary--2026-09-27).
+GPT6/GPT4/PPI29/highres/NO_HZ and all real QoS producers pass. Conservative
+OPPs/hotplug/WFI/playback/thermal authority remain functional. SLIDLE stays blocked
+by retained MMC runtime clocks; automatic parking is not observed. High OPPs now
+pass selector-mode recognition but fail PWRAP readiness. First devices-stage
+request loses recovery and SRAM does not identify the kernel boundary; later
+USB stress loses connectivity while UI remains usable. Two owner restarts occur,
+not demonstrated spontaneous resets. C3/full RTC/Power wake remain NOT_TESTED.
+No whole-platform promotion or external epic closure. Preserve exact fallback.
+
+Next smallest boundary is one coherent **Fix02 plan**: prove early retained PM
+diagnostic safety, resolve actual PWRAP readiness, correct MMC runtime ownership
+without changing card rails/storage safety, reassess sustained-idle coordination,
+and fix the captured loaded USB recovery defect. The plan is not a new build,
+flash, memory-layout change or architecture workstream authorization.
+
+
 ## CPU Final Fix 01 — focused implementation, 2026-09-27
 
 [Admission audit](roadmap-gap-audit.md#cpu-final-fix-01-implementation-admission--2026-09-27)
@@ -33,6 +59,24 @@ checks; no epic, automatic sleep or C3 qualification is promoted.
 
 
 
+## CPU Final physical qualification — 2026-09-27
+
+[Closing boundary audit](roadmap-gap-audit.md#cpu-final-physical-qualification-boundary--2026-09-27)
+and [physical report](../validation/Y2-CPU-FINAL-PHYSICAL-QUALIFICATION.md) record
+COMPLETE observation sweep, FAILED CPU Final acceptance. Exact flashed pair
+ff586df/afcf9ff matches; lower OPPs/schedutil/hotplug/WFI/kernel QoS, native silent
+playback and USB/WLAN data work. New GPT6/GPT4/PPI29 admission fails, highres/NO_HZ
+are inactive, Reborn device hint writes fail, high-bin voltage admission is gated,
+SLIDLE remains blocked and dormant/deadline/CIRQ entry unqualified.
+
+Freezer and battery devices/platform/processors/core pass. Quiescent MUSB resume
+avoids storm; isolated CONSYS retry succeeds after a captured mandatory-STP
+failure. First full RTC suspend never returns; loss of USB/Wi-Fi recovery ends
+risky testing, owner restart restores clean filesystems and baseline runtime.
+No same-boot Power/RTC full wake or full device-restoration pass. Keep existing
+suspend qualification/C3-default-off controls, retain fallbacks, address the one
+prioritized fix batch. No source fixes/build/flash/push or external epic closure.
+
 ## CPU Final candidate boundary — 2026-09-27
 
 [Boundary audit](roadmap-gap-audit.md#cpu-final-candidate-boundary--2026-09-27)
@@ -58,7 +102,6 @@ and one fresh `out/y2linux-cpu-final-candidate/` BOOTIMG/Y2ROOT package. Preserv
 Hardware Final work and Y2DATA; no flash/push. Implement and source-test independent
 paths before full build/package validation. Physical qualification stays independent;
 no long qualification campaign or hardware evidence acquisition is part of this pass.
-
 
 ## Hardware Final — single campaign, 2026-09-27
 
@@ -276,3 +319,33 @@ filesystem/scatter/inode preservation and the original UI fallback. Source
 retains unresolved timer/cache/hardening and physical gates. Nothing was flashed;
 the installed image and its qualification status remain unchanged. Next is the
 separately authorized installation/Session A boundary, with stop rules intact.
+
+The owner subsequently reports installing Telemetry 01. The
+[physical re-entry audit](roadmap-gap-audit.md#telemetry-01-physical-re-entry--2026-09-25)
+resumes identity/baseline verification under the original test limits. Software
+receipts do not pre-approve the installed image or exempt existing warnings.
+
+Fresh [physical baseline evidence](roadmap-gap-audit.md#telemetry-01-physical-baseline-stop--2026-09-25)
+now verifies exact Telemetry 01 metadata/nine file hashes and both telemetry
+repairs on boot `3194fa9d-2dee-4105-86f0-4021580bf8d0`. Status/health return and no
+wakeup reader remains. Root/data counters are clean and the owner sees the main
+menu with normal warmth. The retained kernel warning rule stops Session A;
+Wi-Fi health is FAILED/DEGRADED, so **A FAIL; B–D NOT_TESTED** remains the current
+session result. No platform physical/endurance acceptance; next resolve warning
+and Wi-Fi readiness gates without assuming new hardware or source authorization.
+
+Read-only follow-up confirms no configured Wi-Fi networks, a responsive
+supplicant, and the existing 100 Hz periodic broadcast timer configuration.
+Intermittent Wi-Fi query delay remains unresolved. These findings refine the
+warning/readiness diagnosis without authorizing a build or changing acceptance.
+
+The owner subsequently connected to their router and requests the
+[narrow connection check](roadmap-gap-audit.md#owner-requested-wi-fi-connection-check--2026-09-25).
+Association/IP/route/DNS and bounded router reachability may be observed without
+advancing the full qualification sessions or changing the network configuration.
+
+That check now observes WPA2 association, a DHCP address/default route, 5/5
+router and 3/3 Internet-IP ping replies. DNS queries for two hostnames fail;
+the platform observer also retains intermittent supplicant_unavailable. Wi-Fi
+coverage is PARTIAL with DNS FAIL, not Online or full Session C acceptance.
+Next diagnose DNS/readiness; no network settings or production code were changed.

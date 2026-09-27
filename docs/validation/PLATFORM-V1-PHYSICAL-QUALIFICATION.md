@@ -1,5 +1,198 @@
 # Platform v1 physical qualification
 
+## Owner-connected Wi-Fi check — 2026-09-25
+
+**PARTIAL: Wi-Fi association, DHCP, default route, router and Internet-IP
+reachability PASS; DNS FAIL.** The owner connected to their router and explicitly
+requested this narrow check. It does not waive the retained Session A warning
+gate or complete Session C. Current coverage is A FAIL, B NOT_TESTED, C PARTIAL
+with the DNS failure below, D NOT_TESTED. No configuration, credentials, service,
+firmware or hardware policy was changed, and no throughput/reconnect test ran.
+
+Installed identity is unchanged: Linux
+`814c2f3470566021c1a9c43037fd868de8b2df9c`, Reborn
+`155608393f6acfc6657f2f2e23cd07d0533479c6`, build
+`Y2LINUX-PLATFORM-V1-TELEMETRY-01`, rootfs `2025.02.18-platform-v1.2`, retained
+kernel `6.18.0-y2linux-platform-v1-candidate-01`. Boot ID remains
+`3194fa9d-2dee-4105-86f0-4021580bf8d0`. Full versions match before and after.
+Expected image hashes are the Telemetry 01 hashes below; no whole-image readback
+is claimed. Host timestamps, complete commands and raw results are private in
+`evidence-private/platform-v1-physical-qualification/20260925T154016Z-owner-wifi-check/`.
+The owner reports connecting to the router; no other manual observation was
+requested. The automatic checks below have no separate manual observation.
+
+| Test / command | Measured result | Status | Evidence basename |
+| --- | --- | --- | --- |
+| `y2-status system --json`; capabilities; full health; `dmesg -r` before/after | Exact same candidate/boot; complete mandatory captures; remaining readiness/warning limits retained | PARTIAL | `01`–`04`, `13`–`16`, `20`–`23` receipts |
+| `wpa_cli -i wlan0 status` | COMPLETED, WPA2-PSK/CCMP, 2422 MHz, 20 MHz channel | PASS (association only) | `06-wpa-status` |
+| `ip -j -4 addr show dev wlan0`; DHCP record | Address `192.168.123.136`; matching lease, no DHCP error, 86400-second lease | PASS | `07-address`, `09-dhcp-dns` |
+| `ip -j -4 route show` | Default via `192.168.123.1` on wlan0, metric 100 | PASS | `08-route` |
+| `y2-platform network-check --peer 192.168.123.1 --seconds 5` | Refused with wifi_not_online; no throughput requested | FAIL (platform admission) | `10-platform-network-check` |
+| `ping -I wlan0 -c 5 -W 2 192.168.123.1` | 5/5 replies, sample loss 0%; RTT min/avg/max 1.332/1.532/1.776 ms | PASS (bounded router reachability) | `11-router-ping` |
+| Isolated Python `socket.getaddrinfo("pool.ntp.org", None, AF_INET)` using configured resolver | EAI_AGAIN / temporary name-resolution failure after 2.026 s | FAIL | `12-dns-query` |
+| Same resolver query for `example.com` | EAI_AGAIN after 2.028 s | FAIL | `18-dns-second-host` |
+| `ping -I wlan0 -c 3 -W 2 1.1.1.1` | 3/3 replies, sample loss 0%; RTT min/avg/max 11.528/11.846/12.275 ms | PASS (bounded Internet-IP reachability) | `19-internet-ip-ping` |
+
+DHCP supplied DNS server `192.168.123.1`; resolv.conf names that server. The
+platform's DNS probe also reports failure. These checks demonstrate working
+Wi-Fi/IP routing and a resolver-path failure; they do not isolate whether the
+cause is the router DNS service, DNS packet handling or resolver behavior on Y2.
+No alternate DNS server was configured. Native supplicant status succeeds while
+the platform observer still reports Starting/supplicant_unavailable, retaining
+the separate intermittent query/readiness problem. Online is **not** accepted
+without DNS. No speed, sustained loss, reconnect, TLS or endurance claim follows
+from these eight ping replies. The next focused diagnosis is the DNS path and
+readiness reporting; no new image has yet been shown necessary by this check.
+
+Before/after kernel buffers each contain 67 priority 0–4 entries: the previous
+14 plus 53 display log rate-limit notices accumulated before this connection
+check. No new critical Oops/panic/WARN-stack/ext4-I/O signature was found during
+the check. Existing warning and broader physical-acceptance gates remain open.
+
+## Latest attempt: installed Telemetry 01 — 2026-09-25
+
+Read-only follow-up on the same boot: `wpa_cli ping` returns PONG, status returns
+DISCONNECTED, and list_networks has **zero network rows**. No connection has been
+configured, so not_authenticated alone is not a demonstrated Wi-Fi defect.
+The three direct SSH queries took 2.08–2.12 s, while a subsequent on-device
+comparison using the installed command runner returned successfully in 0.118 s
+at a 1-second deadline and 0.012 s at 4 seconds. The observer's 1-second query
+deadline can miss slower responses, but this comparison did not reproduce a
+timeout or establish its cause. Closing health remains DEGRADED with
+supplicant_unavailable. No credentials, network selection or restart occurred.
+
+Timer inspection shows four dummy per-CPU clockevents backed by the real
+`mtk-clkevt` periodic broadcast timer, broadcast mask `f`, 10,000,000 ns timer
+resolution, highres=0 and nohz=0. The retained candidate configuration has
+CONFIG_HZ=100 and CONFIG_HIGH_RES_TIMERS unset. This narrows the warning to the
+current periodic-timer limitation; it does not mean the Y2 has no working timer.
+Enabling high-resolution/tickless behavior or strict kernel RWX is a separate
+kernel validation scope. The original warning stop rule remains unchanged;
+continuing with named limitations requires explicit owner disposition, and
+software changes require a separately authorized repair pass.
+
+Follow-up evidence:
+`evidence-private/platform-v1-physical-qualification/20260925T152936Z-readonly-triage/`.
+Before/after status/capabilities/health/dmesg and per-command receipts are retained.
+The `/proc/488/stack` read was unavailable; the later wchan was do_select. A
+single earlier D-state process snapshot does not establish a persistent hang.
+No new Session A workload or Session C test was activated by this diagnosis.
+
+**Telemetry repairs PASS in this observed scope. Session A FAIL at the retained
+kernel-warning gate; B/C/D NOT_TESTED. No physical or endurance promotion.**
+The owner installed the corrective image, then authorized continuation of the
+original qualification. No source, firmware, service, radio or hardware-policy
+change was made by this retest. No reboot, rescue transition or workload started.
+
+The exact installed metadata and nine file hashes match
+`out/y2linux-platform-v1-telemetry-01-candidate/`. New boot ID:
+`3194fa9d-2dee-4105-86f0-4021580bf8d0`. Identity:
+
+| Field | Observed value |
+| --- | --- |
+| Y2Linux source | `814c2f3470566021c1a9c43037fd868de8b2df9c` |
+| Build / release | `Y2LINUX-PLATFORM-V1-TELEMETRY-01` / `1.0.0-candidate.2` |
+| Rootfs / Buildroot source marker | `2025.02.18-platform-v1.2` / `VERSION=-g814c2f3` |
+| Kernel | `6.18.0-y2linux-platform-v1-candidate-01` |
+| Retained kernel/base source | `d04b95aaff713edf943042d97a4c6134ca19fc24` |
+| Reborn source / version | `155608393f6acfc6657f2f2e23cd07d0533479c6` / `0.1.0-ui-v1-candidate.1` |
+| Expected local root SHA256 | `4a8e520946ad1aaa00df46e9f302463341e4408bba063f43728b8cb8f68bb092` |
+| Expected unchanged BOOTIMG SHA256 | `f7b4a950a0504a411ad72db0aac9398f04dc1ccabd6a6a0a3a7fdab198ca2622` |
+
+Hash comparison covers the five replacement files and four Reborn ELFs; it is
+not whole installed-image readback. `uname -a` is the exact same kernel string
+recorded in the earlier attempt below. The saved owner-authorized host pin and
+existing login key still work; the prior independent-console-verification
+limitation remains. Host UTC below is authoritative: device wall time is still
+anchored to the September 23 build floor, NTP is not established and TLS readiness
+is false. RTC reads August 2022; no retention claim is made.
+
+Private evidence (mode 0700, Git ignored):
+`evidence-private/platform-v1-physical-qualification/20260925T151959Z-telemetry01/`.
+Every command has UTC/arguments/exit/duration/raw-output receipts. The test
+register supplies full source/image identity, boot ID, observation, status and
+limits for every attempted test and remaining gate. The original run's sealed
+evidence is preserved separately. All rows below use the identity/boot above.
+
+| Host UTC | Command / observation | Measured result | Status | Evidence basename |
+| --- | --- | --- | --- | --- |
+| 15:20:36 | `y2-status system --json` | Valid exact-identity JSON; exit 0; 2.692 s including SSH | PASS | `01-system` |
+| 15:20:38 | `y2-platform capabilities` | Exit 0; 0.755 s; declarations captured | PASS (query) | `02-capabilities` |
+| 15:20:39 | `y2-health --full --json` | Valid JSON; 3.525 s; exit 1, FAILED for Wi-Fi `not_authenticated`; no exception | FAIL (readiness), PASS (dispatch repair) | `03-health-full` |
+| 15:20:43 | `uname -a`, boot ID, versions, build ID and os-release reads | Full metadata matches candidate; new boot ID | PASS | `04-uname` through `07-release` |
+| 15:20:43 | `dmesg -r` | 14 kernel facility priority 0–4 entries; stop rule applies | FAIL (warning gate) | `08-dmesg` |
+| Owner reply on this boot | Look at screen and assess warmth; no control action | “Main menu visible; normal warmth” | PARTIAL | `owner-observations.json` |
+| 15:22:27 | `y2-platform collect --seconds 1 --interval 1 --warmup 0 --reborn --pss --workload session-a-stop-baseline` | One passive sample; actual collector duration 2.852 s, SSH total 3.687 s; values below | PARTIAL | `09-stop-collection` |
+| 15:22:31 | `sha256sum` of five replacement files and four Reborn ELFs | All nine match; 4.595 s | PASS | `10-installed-hashes`, `installed-hash-comparison.json` |
+| 15:22:35 | `y2-status system --json` | Valid same-boot JSON; exit 0; 3.550 s | PASS | `11-post-system` |
+| 15:22:39 | `y2-platform capabilities` | Exit 0; 0.763 s | PASS (query) | `12-post-capabilities` |
+| 15:22:39 | `y2-health --full --json` | Valid JSON; exit 0; 3.576 s; DEGRADED, Wi-Fi `supplicant_unavailable` | PARTIAL | `13-post-health-full` |
+| 15:22:43 | `dmesg -r` | Same 14 kernel entries; no new warning class | FAIL (warning gate) | `14-post-dmesg`, `kernel-review.json` |
+| 15:22:43 | Boot/uptime/taint/normal_boot, Reborn proc identity, process/wakeup-source table, ext4 counters | Same boot, taint 0, normal_boot 1, both ext4 error counters 0; no leftover status/wakeup reader | PASS (narrow context) | `15-final-context` |
+
+The wakeup counter correctly reports **null / `command_timeout`** while BAT0
+reports Charging and the charger wakeup source is active. The final process
+table contains no lingering counter reader or `pm_get_wakeup_count` wait. This
+proves the repaired observation path on this boot, not long-run collection.
+Health now reports actual readiness, including failures, instead of crashing.
+The Wi-Fi reason changes from `not_authenticated` to `supplicant_unavailable`;
+no service restart, password entry, AP test or radio action was performed. Its
+cause and end-to-end connectivity remain unqualified.
+
+Both root and data are Ready, separate read-write ext4 mounts with the expected
+UUIDs and `11230000.mmc` controller. On this boot they enumerate as
+`/dev/mmcblk0p5` and `/dev/mmcblk0p7`; names changed with enumeration, controller
+and UUID identity did not. Boot fsck reports both clean. An SD device enumerates
+but `/media/sd` is unavailable; no mount/removal/benchmark was attempted.
+
+Normal-boot markers show switch_root 9.740 s, first frame 62.785 s, and
+application_ready 70.058 s. Reborn PID 363, start ticks 2824 and `/usr/bin/reborn`
+match the first-frame record. Previous boot `083d4abb-a447-4ac6-a063-e8898c150bca`
+is recorded as orderly shutdown_complete, with previous-log tail metadata
+retained; this is not one of the three requested controlled reboot trials.
+Library readiness, rescue entry/return and all input/playback checks remain open.
+
+Snapshot: CPU 48.800°C, PMIC 45.713°C; battery 4,024,072 µV. MemTotal 952,304 KiB,
+MemAvailable 865,868, LOWMEM 723,952, HIGHMEM 228,352, cache 56,684, slab 11,004.
+Reborn RSS 23,532 KiB, 16 threads; requested PSS remains **null**, not zero.
+Frequency time-in-state counters are 20,643 / 164 / 7,214 USER_HZ ticks at
+598 / 747.5 / 1040 MHz. Per-core WFI cumulative time is approximately
+249.569 / 249.092 / 256.292 / 250.001 seconds. These are mixed-boot counters,
+not idle/playback/scan workload utilization, power savings or endurance results.
+No governor/OPP/voltage change occurred. ALSA hw_params is `closed`; no sound
+or XRUN-under-playback result is inferred.
+
+The 14 kernel entries repeat the previously reviewed timer/cache, LED-node,
+hardening, stock p8 clipping, regulator get_mode, Bluetooth feature quirk,
+Wi-Fi logging and rate-limit classes. Another 31 warning-priority lines have
+non-kernel facility (for example raw PRI 12) and are counted separately. No new
+Oops/panic/WARN-stack/ext4/I/O signature was found; taint remains zero. None of
+these observations waives the owner's kernel-warning stop rule. See the
+[source-backed warning review](PLATFORM-V1-TELEMETRY-01.md#warning-review).
+
+### Latest requested result ledger
+
+| Requested result | Current result |
+| --- | --- |
+| 1–2: Exact Linux and Reborn identities | Full identities above; metadata and nine file hashes match |
+| 3–6: Sessions A / B / C / D | FAIL at warning gate / NOT_TESTED / NOT_TESTED / NOT_TESTED |
+| 7–9: eMMC speeds, SD speeds, fsync p50/p95/p99 | NOT_TESTED |
+| 10–11: SQLite 1k/10k/20k and Reborn 20k navigation | NOT_TESTED at each size |
+| 12: Idle/playback/scan CPU | NOT_TESTED for each workload |
+| 13: Frequency residency | PARTIAL: cumulative counters above, no workload interval |
+| 14: Memory/RSS/PSS | PARTIAL: system/RSS/thread snapshot above; PSS unavailable |
+| 15: CPU/PMIC temperatures | PARTIAL: 48.800°C / 45.713°C and normal-warmth report; no load/accuracy qualification |
+| 16–20: Wi-Fi association, DHCP, DNS, throughput, reconnect | NOT_TESTED as controlled Session C tests; baseline Wi-Fi readiness failed/degraded |
+| 21–26: Bluetooth pair/trust, SBC PCM/sound, reconnect, AVRCP, coexistence | NOT_TESTED; radio reported off |
+| 27: USB/SSH/SFTP | PARTIAL: configured high-speed peripheral, saved-pin owner-key SSH and SFTP/USB-only readiness declaration; SFTP transaction and Wi-Fi/password exclusion probes NOT_TESTED |
+| 28: Kernel/storage/audio warnings | 14 retained kernel messages; clean ext4 counters; no audio playback test |
+| 29: Software fixes | Both telemetry repairs observed working; warning disposition and Wi-Fi readiness still need investigation; PSS remains unavailable |
+| 30: Physical gates | Controlled reboots/rescue, library/input/audio, USB negative probes, B–D, endurance; E/F/G remain separately gated |
+| 31: Acceptable as Platform v1 Core? | **Not yet**; Session A warning gate and incomplete required tests |
+| 32: Recommended next work | Resolve the remaining warning/readiness gates before resuming Session A; no automatic rebuild, flash or policy change |
+
+## Earlier attempt: original UI candidate
+
 2026-09-25 UTC. Owner-supervised qualification of the already-installed
 `out/y2linux-reborn-ui-v1-candidate/`, clarified by the owner after the initial
 identity check found a different Reborn from the original plain Platform v1

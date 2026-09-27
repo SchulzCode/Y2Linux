@@ -1,3 +1,40 @@
+# CPU Final Fix01 physical observations — 2026-09-27
+
+The [Fix01 physical report](Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md) is the
+current CPU evidence for installed Linux `0de6e951` / Reborn `36db1869`, kernel
+`6.18.0-y2linux-cpu-final-fix01`, root `2025.02.18-platform-v1.7`. It supersedes
+only matching older CPU observations below; the immutable Hardware Final inventory
+is preserved as history. Overall Fix01 acceptance is **FAIL**, not production
+qualification. No runtime capability flags or implementation source were changed.
+
+| Capability / observed scope | Physical state | Evidence limit |
+| --- | --- | --- |
+| GPT6/GPT4/PPI29, local timer | PASS | all CPUs, CNTFRQ 13 MHz, hotplug continuity, sole GPT4 broadcast ownership |
+| High-resolution timers / NO_HZ | PASS | actual timer_list state, stopped ticks, ~1.09-ms requested 1-ms sleeps |
+| Conservative cpufreq / schedutil | PASS | 598/747.5/1040 MHz exercised; bounded CPU/memory integrity |
+| Thermal authority over QoS | PASS | cooling cap overrides real heavy lease; not an induced heat trip |
+| Workload QoS / Reborn producers | PASS | all eight real classes, renew/expiry, screen-off interaction release |
+| CPU1–3 hotplug / C1 WFI | PASS | repeated transitions, advancing local IRQs and WFI residency |
+| C2 SLIDLE | FAIL | zero entries; MSDC0/MSDC1 clock ownership remains after runtime suspend |
+| System-idle coordinator | PARTIAL | no automatic parking in 120/160-s observations; sustained eligibility unproven |
+| High-bin admission / voltage DVFS | PARTIAL | software VOSEL recognized at 1.15 V; PWRAP readiness rejects high OPPs; voltage changes NOT_TESTED |
+| C3 DORMANT / CIRQ deadline handoff | NOT_TESTED | disabled; clock/domain prerequisites and recovery gates unmet |
+| Suspend devices-stage attempt | FAIL | no same-boot recovery; owner Power ineffective, restart required |
+| Charger clean refusal / other staged levels | NOT_TESTED | attached USB was not active charging; no further PM entry after failure |
+| Full RTC/Power wake / full restoration | NOT_TESTED | no successful staged basis; new boots are not resumes |
+| Persistent suspend diagnostics | PARTIAL | durable kernel_suspend survives; SRAM records invalid, exact kernel boundary unavailable |
+| Awake RTC alarm/PMIC IRQ | PASS | bounded alarm while awake; not deep wake qualification |
+| Native fixture playback | PASS | bounded 44.1 and 24/96->48, zero XRUN/decode/filter errors; no perceptual fidelity claim |
+| Wi-Fi data | PASS | four small SHA-verified roundtrips; final health has supplicant telemetry discrepancy |
+| CONSYS bounded isolation/retry | PASS | independent radio restart reproduces exactly one timeout/retry then WLAN/HCI/calibration success |
+| USB data / sustained recovery | PARTIAL | first hash roundtrip passes; next transfer loses connection while UI remains usable; owner restart |
+| Filesystem safety / recovered runtime health | PASS | rw root/data/SD, ext4 counters 0, taint 0; not failed-interval panic proof |
+
+Timers and performance leases are now narrow physical successes. M4 power,
+M2/M5 transport recovery and M6 production gates remain open. The coherent Fix02
+plan in the report covers PM diagnostic safety, PWRAP readiness, MMC runtime
+ownership/coordinator reachability and loaded USB recovery. No Fix02 was built.
+
 # CPU Final continuation — 2026-09-27
 
 The CPU rows below now describe [CPU Final](Y2-CPU-FINAL.md) source implementation.
