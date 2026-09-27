@@ -21,6 +21,9 @@ def serve(ctx):
     signal.signal(signal.SIGINT, lambda *_: running.__setitem__(0, False))
     next_probe = next_maintenance = next_ntp = 0
     associating_since = None
+    from .radio_policy import Coexistence, wifi_policy
+    coexistence = Coexistence()
+    next_radio_policy = 0
     try:
         while running[0]:
             before = time.monotonic()
@@ -38,6 +41,10 @@ def serve(ctx):
                 value = wifi(ctx)
             value.update(schema=1, boot_id=ctx.read('/proc/sys/kernel/random/boot_id'), monotonic_s=time.monotonic())
             atomic_json(runtime / 'network.json', value)
+            activity = coexistence.observe(ctx, value, before)
+            if before >= next_radio_policy and value['association'] == 'COMPLETED':
+                next_radio_policy = before + 30
+                wifi_policy(ctx, activity)
             atomic_json(runtime / 'time-status.json', time_status(ctx))
             ctx.command(['/usr/sbin/y2-platform', 'media', 'reconcile'], timeout=7)
             if value['state'] == 'Online' and before >= next_ntp:

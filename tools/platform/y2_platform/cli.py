@@ -31,6 +31,8 @@ def main():
     bt_power.add_argument('value', choices=['on', 'off'])
     sub.add_parser('power-daemon')
     sub.add_parser('service-daemon')
+    sub.add_parser('codec-runtime')
+    sub.add_parser('wifi-power-policy')
     sub.add_parser('ssh-daemon')
     transfer = sub.add_parser('transfer')
     transfer.add_argument('action', choices=['begin', 'commit', 'status', 'discard'])
@@ -91,6 +93,15 @@ def main():
     collect.add_argument('--reborn', action='store_true')
     args = parser.parse_args()
     ctx = Context()
+    if args.command == 'codec-runtime':
+        from .radio_policy import codec_runtime
+        print(' '.join(codec_runtime(ctx)))
+        return 0
+    if args.command == 'wifi-power-policy':
+        from .radio_policy import wifi_policy
+        result = wifi_policy(ctx)
+        print(json.dumps(result))
+        return 0 if result.get('state') == 'Ready' else 1
     if args.command == 'boot-evidence':
         from .boot import capture_previous
         print(json.dumps(capture_previous(ctx), sort_keys=True))

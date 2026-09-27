@@ -77,7 +77,11 @@ def cpu(ctx):
             'wakeup_count': wakeup_count,
             'wakeup_count_reason': None if wakeup_count is not None else
                                    (wakeup.get('reason') or 'counter_unavailable'),
-            'throttling_reason': None}
+            'throttling_reason': None,
+            'workload_qos': {'implemented': ctx.path('/dev/y2-workload').exists(), 'lease_max_ms': 30000,
+                             'interactive_max_ms': 500},
+            'timer': {'clocksource': ctx.read('/sys/devices/system/clocksource/clocksource0/current_clocksource'),
+                      'clockevents': {p.parent.name: read(p) for p in ctx.glob('/sys/devices/system/clockevents/clockevent*/current_device')}}}
 
 
 def utilization(before, after):
@@ -311,7 +315,9 @@ def wifi(ctx):
             'ip_addresses': addresses,
             'default_route': default_route, 'dns_ready': dns_ready,
             'rssi_dbm': number(signal_values.get('RSSI')), 'traffic_counters': stats,
-            'events': ctx.json('/run/y2/wifi-events.json'), 'reconnect_owner': 'wpa_supplicant'}
+            'events': ctx.json('/run/y2/wifi-events.json'), 'reconnect_owner': 'wpa_supplicant',
+            'power_save': ctx.json('/run/y2/wifi-power.json'),
+            'coexistence': ctx.json('/run/y2/coexistence.json')}
 
 
 def bluetooth(ctx):

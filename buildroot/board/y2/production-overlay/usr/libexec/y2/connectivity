@@ -7,12 +7,12 @@ start_bluealsa() {
     # Generated from the exact configured encoder set. AAC otherwise starts
     # enabled by upstream default. Fail closed if the build contract is absent.
     [ -r /etc/y2linux/bluetooth-daemon.args ] || return 1
-    codec_args=$(cat /etc/y2linux/bluetooth-daemon.args)
+    codec_args=$(/usr/sbin/y2-platform codec-runtime) || return 1
     # Only immutable build-generated disable switches are accepted, never eval.
     set -f
     set -- $codec_args
     for arg do
-        case "$arg" in --codec=-AAC|--codec=-aptX|--codec=-aptX-HD|--codec=-LDAC) ;;
+        case "$arg" in --codec=-AAC|--codec=-aptX|--codec=-aptX-HD|--codec=-LDAC|--codec=AAC|--codec=aptX|--codec=aptX-HD|--codec=LDAC|--sbc-quality=high|--sbc-quality=xq|--sbc-quality=xq+|--ldac-quality=mobile|--ldac-quality=standard|--ldac-quality=high|--ldac-abr) ;;
             *) return 1;; esac
     done
     start-stop-daemon -S -b -m -p /run/y2/bluealsa.pid -x /usr/bin/bluealsad -- \
