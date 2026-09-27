@@ -15,6 +15,7 @@
 #include <linux/mutex.h>
 #include <linux/power_supply.h>
 #include <linux/pm_runtime.h>
+#include <linux/usb/role.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include "boot.h"
@@ -144,6 +145,7 @@ static DEFINE_SPINLOCK(y2_usb_failure_lock);
 static struct y2_usb_live y2_live = { .magic=Y2_USB_LIVE_MAGIC,.devctl=0x100 };
 static bool y2_usb_started, y2_usb_finished;
 static bool y2_usb_detached;
+static enum usb_role y2_requested_role = USB_ROLE_DEVICE;
 static bool y2_usb_pm_held;
 static struct power_supply *y2_usb_input;
 static unsigned y2_usb_budget_ma;
@@ -779,14 +781,14 @@ static void y2_usb_worker(struct work_struct *work)
     WRITE_ONCE(y2_live.chrdet,power.chrdet);
     y2_usb_supply=power;
     if (!(power.chrdet & 0x20)) y2_usb_source_invalidate();
-    if(!y2_usb_child && (power.chrdet&0x20) && y2_usb_data_permitted()) {
+    if(!y2_usb_child && y2_requested_role == USB_ROLE_DEVICE && (power.chrdet&0x20) && y2_usb_data_permitted()) {
         y2_usb_phase(Y2_USB_PREFLIGHT);
         rc=y2_usb_register();
         if(rc) {y2_usb_fail(rc);goto done;}
         y2_usb_phase(Y2_USB_READY);
     }
     if(y2_musb) {
-        if(!(power.chrdet&0x20) || !y2_usb_data_permitted()) {
+        if(y2_requested_role != USB_ROLE_DEVICE || !(power.chrdet&0x20) || !y2_usb_data_permitted()) {
             if(!y2_usb_detached) {
                 y2_usb_detach();
             }
@@ -882,6 +884,29 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 static DEVICE_ATTR_RO(status);
 static struct attribute *y2_usb_attrs[] = { &dev_attr_status.attr, NULL };
 ATTRIBUTE_GROUPS(y2_usb);
+static int y2_role_set(struct usb_role_switch *sw, enum usb_role role)
+{
+    /* Host core/classes are compiled. This is the electrical boundary:
+     * there is no verified board VBUS provider or connector ID routing.
+     * No host session or VBUS register is written on a rejected request. */
+    if (role == USB_ROLE_HOST) return -EACCES;
+    if (role != USB_ROLE_DEVICE && role != USB_ROLE_NONE) return -EINVAL;
+    mutex_lock(&y2_usb_lifecycle);
+    if (READ_ONCE(y2_live.result)) {
+        mutex_unlock(&y2_usb_lifecycle);
+        return -EIO;
+    }
+    WRITE_ONCE(y2_requested_role, role);
+    if (role == USB_ROLE_NONE && y2_musb && !y2_usb_detached)
+        y2_usb_detach();
+    mutex_unlock(&y2_usb_lifecycle);
+    return 0;
+}
+static enum usb_role y2_role_get(struct usb_role_switch *sw)
+{
+    return READ_ONCE(y2_requested_role);
+}
+static void y2_role_release(void *sw) { usb_role_switch_unregister(sw); }
 static int y2_usb_probe(struct platform_device *pdev)
 {
     int ret;
@@ -901,6 +926,16 @@ static int y2_usb_probe(struct platform_device *pdev)
     y2_collect_power();
     y2_usb_parent = &pdev->dev;
     y2_usb_begin();
+    if (IS_ENABLED(CONFIG_USB_ROLE_SWITCH)) {
+        struct usb_role_switch_desc role = {
+            .name = "y2-usb", .set = y2_role_set, .get = y2_role_get,
+            .allow_userspace_control = true,
+        };
+        struct usb_role_switch *sw = usb_role_switch_register(&pdev->dev, &role);
+        /* Loss of the optional role interface must not lose recovery USB. */
+        if (IS_ERR(sw)) dev_warn(&pdev->dev, "role interface unavailable: %ld\n", PTR_ERR(sw));
+        else devm_add_action_or_reset(&pdev->dev, y2_role_release, sw);
+    }
     dev_info(&pdev->dev,"peripheral USB platform initialized; status is observational\n");
     return 0;
 }
