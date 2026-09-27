@@ -55,6 +55,8 @@ def main():
     update.add_argument('--package', help='owner-supplied local signed package directory')
     sub.add_parser('time-bootstrap')
     sub.add_parser('time')
+    rtc_alarm = sub.add_parser('rtc-alarm')
+    rtc_alarm.add_argument('seconds', type=int, help='seconds from RTC now; zero disables; does not suspend')
     ntp = sub.add_parser('ntp-event')
     ntp.add_argument('event', choices=['step', 'stratum', 'periodic', 'unsync'])
     wifi_event = sub.add_parser('wifi-event')
@@ -93,6 +95,10 @@ def main():
     collect.add_argument('--reborn', action='store_true')
     args = parser.parse_args()
     ctx = Context()
+    if args.command == 'rtc-alarm':
+        from .timekeeping import alarm
+        print(json.dumps(alarm(ctx, args.seconds)))
+        return 0
     if args.command == 'codec-runtime':
         from .radio_policy import codec_runtime
         print(' '.join(codec_runtime(ctx)))

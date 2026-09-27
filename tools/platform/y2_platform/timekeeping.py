@@ -91,9 +91,40 @@ def ntp_event(ctx, event, env, now=None):
             atomic_json(directory / 'time-last.json', value, durable=True)
         # RTC writes require an explicit qualification receipt; wrong retained
         # dates must not silently become a new RTC programming experiment.
-        rtc = ctx.json('/data/system/platform/rtc-policy.json', {})
-        if rtc.get('write_enabled') is True and rtc.get('qualification_reference'):
+        rtc = ctx.json('/data/system/platform/rtc-policy.json', ctx.json('/etc/y2linux/rtc-policy.json', {}))
+        if rtc.get('write_enabled') is True and (rtc.get('qualification_reference') or rtc.get('source')):
             value['rtc_write'] = ctx.command(['/bin/busybox', 'hwclock', '-w', '-u'], timeout=3)['ok']
+        return value
+    finally:
+        os.close(fd)
+
+
+def alarm(ctx, seconds):
+    """Kernel RTC alarm plumbing; arming an alarm does not enter suspend."""
+    if type(seconds) is not int or not 0 <= seconds <= 604800:
+        raise ValueError('rtc_alarm_seconds_out_of_range')
+    runtime = private_directory(ctx.path('/run/y2'))
+    fd = os.open(runtime / 'rtc-alarm.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        now = ctx.integer('/sys/class/rtc/rtc0/since_epoch')
+        if now is None or now <= 0:
+            raise ValueError('rtc_time_unavailable')
+        path = ctx.path('/sys/class/rtc/rtc0/wakealarm')
+        # Linux requires disabling an existing alarm before replacement.
+        path.write_text('0\n')
+        target = now + seconds if seconds else 0
+        if target:
+            path.write_text(str(target) + '\n')
+        observed = ctx.integer('/sys/class/rtc/rtc0/wakealarm')
+        valid = observed == target or (target == 0 and observed is None)
+        if not valid:
+            path.write_text('0\n')
+            raise ValueError('rtc_alarm_readback_mismatch')
+        value = {'schema': 1, 'boot_id': ctx.read('/proc/sys/kernel/random/boot_id'),
+                 'alarm_epoch': target or None, 'state': 'Armed' if target else 'Disabled',
+                 'qualified': False, 'reason': 'same_boot_alarm_wake_PHYSICAL_PENDING'}
+        atomic_json(runtime / 'rtc-alarm.json', value)
         return value
     finally:
         os.close(fd)

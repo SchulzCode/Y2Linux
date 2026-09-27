@@ -12,6 +12,7 @@ class SlowIdle(unittest.TestCase):
 #include <assert.h>
 #include <errno.h>
 #include <stddef.h>
+#define __iomem
 static unsigned top[64],peri[64],online=1,cpu,entries,writes,fail;
 static void *y2_clock_bases[]={top,peri};static int y2_clk_lock;
 static unsigned num_online_cpus(void){return online;}
