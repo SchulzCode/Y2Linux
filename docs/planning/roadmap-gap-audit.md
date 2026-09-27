@@ -1,5 +1,42 @@
 # Y2Linux roadmap and gap audit
 
+## Hardware Final campaign activation — 2026-09-27
+
+Owner explicitly combines Hardware 03–05 into one engineering campaign and one
+final preserving candidate. This supersedes the sequential batch/flash plan.
+Entry source Linux `c53963b`, Reborn `95747e0`; pre-existing documentation and
+asset changes are retained separately. Private receipt `00-identity-census` in
+`out/hardware-final/20260927T122702Z-hardware02/` verifies installed Linux
+`76bc822` / Reborn `95747e0`, Hardware 02 candidate.4, boot
+`b93cda16-4e08-4ead-a74a-c85f4cccaa11`. Pinned USB SSH works; taint 0,
+root/data/SD ext4 counters 0, quick health OK. GitHub open inventory refreshed:
+#16/#27/#28/#29/#31/#32/#33/#34 remain open; historical #30 is not a broad pass.
+Unchanged ROM/recovery/source provenance is not repeated.
+
+| Coverage / issues | Evidence and admission |
+| --- | --- |
+| Boot/recovery/security #16/#28/#32 | Hardware 02 exact metadata and clean boot observed. Preserve installed pair/fallback, keys, loaders, protected partitions and Y2DATA. OTA apply still requires explicit owner approval. |
+| eMMC/SD/filesystems #28/#33 | Real IOS 8/4-bit high-speed SDR, actual 24,999,971 Hz at 3.3 V; requested 50 MHz differs from capped actual rate. Admit bounded 13/25/50 controls and guarded scratch measurements; no DDR/UHS claim. |
+| USB #27/#32 | Inventra DMA active, six DMA IRQs, zero DMA errors at census; not a throughput qualification. Compare separated RAM/storage transfers and retain PIO boot fallback. Host VBUS remains evidence gated. |
+| CPU/timer/idle #28/#34 | Four arch_sys_timer clockevents, arch_sys_counter clocksource, GPT6 13 MHz calibration logged. Continuity/hotplug/effective NO_HZ, voltage sequencing and deeper states still need evidence. |
+| GPU/display/input/memory #28/#34 | Health observes render/display/input; retained stock-backed 500.5 MHz and reservations unchanged. Current load/power/memory/endurance still open. |
+| Battery/charging/low battery #30/#34 | Current sensors observed; historical limits/ADC evidence retained. No measured current/SOC/pack temperature or calibrated shutdown reserve. Source and load-curve investigation authorized; no guessed values. |
+| Suspend/RTC #30/#34 | pm_test none; earlier USB overflow/radio restore failures remain unsuperseded. One persistent stage plus recovery verification before advancing; Power/RTC same-boot wake unqualified. |
+| Audio/DAC #29 | Hardware 02 carries native ALSA sink fix. S16/44.1 and short 48 kHz historical results retained; current product listening/endurance, wider DL1, clocks and DAC topology require evidence. |
+| Wi-Fi/BT/codecs #31 | Current health OK; prior checked DNS/TCP/SBC narrow passes retained. Full peer/AVRCP/coexistence/optional-codec qualification and distribution review remain open. |
+| Library/OTA/endurance #32/#33 | Existing matched 1k/10k/20k baselines retained. Rerun at measured final storage setting. Root install/rollback and long workloads not qualified by health. |
+| Build/package | One current-source host/ARM/Buildroot/image validation boundary after accumulated corrections. No candidate built at activation; no stale binaries certify new source. |
+
+Decision: **READY for coordinated census, independent source investigation and
+evidence-backed implementation**, not hardware closure. All independent work
+continues after ordinary subsystem failures. An intermediate image is allowed
+only for an identified physical kernel dependency that blocks remaining work;
+record why existing source/host/QEMU evidence cannot answer it. Final package is
+`out/y2linux-hardware-final-candidate/`, BOOTIMG + Y2ROOT only, with one owner
+installation/qualification boundary. Current electrical and physical gates stay
+binding. No issue is closed or external status promoted by this audit.
+
+
 
 ## Hardware 02 candidate handoff — 2026-09-26
 

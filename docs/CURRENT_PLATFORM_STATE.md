@@ -1,5 +1,31 @@
 # Current Y2Linux platform state
 
+**Hardware Final is active on the physically installed Hardware02 baseline.**
+The owner combines CPU/power, battery and radio/audio completion into one final
+engineering campaign and one preserving candidate. Current physical metadata:
+Linux `76bc822` / Reborn `95747e0`, kernel `6.18.0-y2linux-hardware-02`,
+candidate.4. USB SSH, clean ext4 counters/taint,8/4-bit high-speed storage and
+four real local timers are observed. This is not final-platform acceptance.
+
+Follow [Hardware Final](validation/Y2-HARDWARE-FINAL.md),
+[capability limits](validation/Y2-HARDWARE-FINAL-CAPABILITIES.md),
+[qualification](validation/Y2-HARDWARE-FINAL-QUALIFICATION.md) and
+[the refreshed roadmap](planning/platform-v1-roadmap.md#hardware-final--single-campaign-2026-09-27).
+Private raw physical evidence stays outside these reports. Source work accumulates
+on local `hardware-final` branches; no push or new firmware installation.
+
+Early findings: all supported storage clock steps pass bounded readback/durable
+workloads; integrated highres/NO_HZ is active; owner confirms SBC and temporary
+AAC through AirPodsPro2. Volume keys unnecessarily restart audio; a tested source
+repair is awaiting physical retest. ECM still falls back to PIO on unaligned
+buffers despite an available DMA controller. Neither a compiled feature nor a
+short test qualifies final endurance, voltage, VBUS, SOC or wider audio.
+
+## Historical Platform v1 software candidate boundary
+
+The following records the earlier software handoff; its installed-image and
+not-contacted statements do not describe the active Hardware Final campaign.
+
 **Y2Linux Platform v1 Candidate is ready for owner-controlled physical
 qualification.** Core software contracts are implemented, host tested, ARM built
 and image validated at Linux `d04b95a` / Reborn `6c8aa12`. Closing repository

@@ -1,5 +1,28 @@
 # Platform v1 software completion roadmap
 
+## Hardware Final — single campaign, 2026-09-27
+
+The [activation audit](roadmap-gap-audit.md#hardware-final-campaign-activation--2026-09-27)
+confirms installed Hardware 02 (Linux `76bc822` / Reborn `95747e0`) through real
+USB SSH evidence. This owner direction supersedes Hardware 03/04/05 and older
+per-batch build/flash sequencing. No final capability is inferred from availability.
+
+1. Complete Hardware 02 physical census and broad bounded measurements.
+2. Investigate CPU/power/battery, storage/USB, radio/audio and recovery in parallel;
+   implement all independently justified corrections on `hardware-final`.
+3. Collect required physical actions while independent work continues. Preserve
+   truthful electrical/calibration blockers and bounded fallbacks.
+4. Audit accumulated changes, run complete current-source host/ARM/image checks,
+   and create one `y2linux-hardware-final-candidate` preserving Y2DATA.
+5. Stop for one owner installation/qualification cycle; destructive root OTA
+   application requires explicit approval. Long endurance and unperformed physical
+   cases remain explicit pending evidence, never assumed passes.
+
+[Campaign](../validation/Y2-HARDWARE-FINAL.md),
+[capability ledger](../validation/Y2-HARDWARE-FINAL-CAPABILITIES.md), and
+[qualification](../validation/Y2-HARDWARE-FINAL-QUALIFICATION.md) own the new scope.
+Existing epics remain open. No intermediate image is justified at entry.
+
 ## Active hardware capability ceiling campaign — 2026-09-26
 
 Current boundary: [Hardware 02 candidate handoff](roadmap-gap-audit.md#hardware-02-candidate-handoff--2026-09-26).
