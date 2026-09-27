@@ -257,6 +257,18 @@
       "patch": "0055-musb-abort-bus-error.patch",
       "base_sha256": "45ee5dacef39ff755e5bd9b8c4f895b534f5a28014b0ecd7b4f06d527097fc40",
       "result_sha256": "0c528a1f125168273b333857f6583a625b7712fef1f9447151ec0291e0bcff85"
+    },
+    {
+      "path": "drivers/cpufreq/cpufreq-dt.c",
+      "patch": "0056-y2-cpufreq-voltage-owner.patch",
+      "base_sha256": "a0ee2ef7866e2882116a3f66c605ae5df6161448d7bf33c87020099bde0b2d25",
+      "result_sha256": "ad90a8609ab537624a0ff872ab77312fbb2fcc6754f1ded5890066583c94da78"
+    },
+    {
+      "path": "drivers/usb/gadget/function/u_ether.c",
+      "patch": "0057-u-ether-align-dma-tx.patch",
+      "base_sha256": "cf9156698d5ed1a75c8c40ca65e0edb352ffb99bb39def6eef11cda2295e1768",
+      "result_sha256": "8ca9208e4c91ff188fc4e0855872fb7bb8b5077f6c4ff24d5fa5b728defe3a90"
     }
   ]
 }

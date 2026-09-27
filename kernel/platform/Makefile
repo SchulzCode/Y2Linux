@@ -5,4 +5,5 @@ obj-y += usb.o
 obj-$(CONFIG_Y2_POWER) += boot.o mt6323-adc.o mt6323-charger.o thermal.o idle.o spm.o
 obj-$(CONFIG_Y2_POWER) += mfg-clock.o
 obj-$(CONFIG_Y2_POWER) += local-timer.o
+obj-$(CONFIG_Y2_POWER) += cpu-dvfs.o
 obj-$(CONFIG_Y2_CONNECTIVITY) += connectivity/

@@ -10,6 +10,8 @@
 #include "power-math.h"
 #include "shared.h"
 #include "spm.h"
+#include "cpu-dvfs.h"
+#include "cpu-dvfs-policy.h"
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -201,15 +203,14 @@ static long y2_cpu_round(struct clk_hw *hw, unsigned long rate, unsigned long *p
 {
 	return y2_cpu_pcw(rate) ? rate : -EINVAL;
 }
-static int y2_cpu_set(struct clk_hw *hw, unsigned long rate, unsigned long parent)
+static int y2_cpu_pll_set(struct clk_hw *hw, unsigned long rate, unsigned long parent)
 {
 	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
 	unsigned pcw = y2_cpu_pcw(rate), mux, old;
 	unsigned long flags;
 	int ret;
 	if (!IS_ENABLED(CONFIG_Y2_POWER) || !pcw) return -EINVAL;
-	ret = y2_pmic_cpu_voltage_ready();
-	if (ret) return ret;
+	ret = 0;
 	spin_lock_irqsave(&y2_clk_lock, flags);
 	mux = readl(c->infra); old = readl(c->pll + 0x204);
 	/* PLL_HP_CON0 bit0: ARMPLL FHCTL ownership. Never fight it. Also
@@ -241,10 +242,28 @@ static int y2_cpu_set(struct clk_hw *hw, unsigned long rate, unsigned long paren
 	}
 	writel(mux, c->infra);
 	writel(0, c->infra + 8);
-	readl(c->infra + 8);
+	if (readl(c->infra + 8) || (readl(c->infra) & 12) != 4)
+		ret = -EIO;
 out:
 	spin_unlock_irqrestore(&y2_clk_lock, flags);
 	return ret;
+}
+static int y2_dvfs_voltage_get(void *context) { return y2_pmic_cpu_voltage_get(); }
+static int y2_dvfs_voltage_set(void *context, unsigned value) { return y2_pmic_cpu_voltage_set(value); }
+static int y2_dvfs_clock_set(void *context, unsigned long rate) { return y2_cpu_pll_set(context, rate, 0); }
+static unsigned long y2_dvfs_clock_get(void *context) { return y2_rate(context, 0); }
+static void y2_dvfs_fault(void *context) { y2_cpu_dvfs_fault(); }
+static int y2_cpu_set(struct clk_hw *hw, unsigned long rate, unsigned long parent)
+{
+	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
+	struct y2_dvfs_io io = { hw, y2_dvfs_voltage_get, y2_dvfs_voltage_set,
+		y2_dvfs_clock_set, y2_dvfs_clock_get, y2_dvfs_fault };
+	/* Reject an unowned PLL or unknown fallback before raising any rail.
+	 * The PLL operation repeats these checks under its register lock. */
+	if ((readl(c->pll + 0x14) & BIT(0)) || (readl(c->infra) & 12) != 4 ||
+	    readl(c->infra + 8) || y2_pll_rate(c->pll, 1) != 1092000000)
+		return -EOPNOTSUPP;
+	return y2_dvfs_transition(&io, rate, y2_cpu_dvfs_max());
 }
 static const struct clk_ops y2_cpu_ops = {
 	.recalc_rate = y2_rate, .round_rate = y2_cpu_round, .set_rate = y2_cpu_set,

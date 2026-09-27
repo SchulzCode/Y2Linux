@@ -66,11 +66,13 @@
     };
     cpu_opp: opp-table {
         compatible = "operating-points-v2"; opp-shared;
-        /* MT6582 normal BSP table without MT6333 low-voltage support.
-         * All use the live inherited 1.15 V. No voltage write is authorized. */
+        /* Stock bin-0 table; runtime qualification QoS defaults to 1040 MHz.
+         * The CCF/SPM/PWRAP owners sequence higher voltage only after opt-in. */
         opp-598000000 { opp-hz = /bits/ 64 <598000000>; opp-microvolt = <1150000>; clock-latency-ns = <100000>; opp-suspend; };
         opp-747500000 { opp-hz = /bits/ 64 <747500000>; opp-microvolt = <1150000>; clock-latency-ns = <100000>; };
         opp-1040000000 { opp-hz = /bits/ 64 <1040000000>; opp-microvolt = <1150000>; clock-latency-ns = <100000>; };
+        opp-1196000000 { opp-hz = /bits/ 64 <1196000000>; opp-microvolt = <1200000>; clock-latency-ns = <600000>; };
+        opp-1300000000 { opp-hz = /bits/ 64 <1300000000>; opp-microvolt = <1250000>; clock-latency-ns = <600000>; };
     };
     spm: power-controller@10006000 {
         compatible = "innioasis,y2-spm";
@@ -193,15 +195,15 @@
             device_type = "cpu";
             compatible = "arm,cortex-a7";
             reg = <0>;
-            clocks = <&y2clk Y2_CLK_CPU>; cpu-supply = <&vproc>;
+            clocks = <&y2clk Y2_CLK_CPU>;
             operating-points-v2 = <&cpu_opp>; #cooling-cells = <2>;
         };
         cpu@1 { device_type = "cpu"; compatible = "arm,cortex-a7"; reg = <1>;
-            clocks = <&y2clk Y2_CLK_CPU>; cpu-supply = <&vproc>; operating-points-v2 = <&cpu_opp>; };
+            clocks = <&y2clk Y2_CLK_CPU>; operating-points-v2 = <&cpu_opp>; };
         cpu@2 { device_type = "cpu"; compatible = "arm,cortex-a7"; reg = <2>;
-            clocks = <&y2clk Y2_CLK_CPU>; cpu-supply = <&vproc>; operating-points-v2 = <&cpu_opp>; };
+            clocks = <&y2clk Y2_CLK_CPU>; operating-points-v2 = <&cpu_opp>; };
         cpu@3 { device_type = "cpu"; compatible = "arm,cortex-a7"; reg = <3>;
-            clocks = <&y2clk Y2_CLK_CPU>; cpu-supply = <&vproc>; operating-points-v2 = <&cpu_opp>; };
+            clocks = <&y2clk Y2_CLK_CPU>; operating-points-v2 = <&cpu_opp>; };
     };
     system_clk: clock-system {
         compatible = "fixed-clock";
@@ -312,7 +314,9 @@
                     regulator-min-microvolt = <3300000>; regulator-max-microvolt = <3300000>; };
                 vproc: buck_vproc {
                     regulator-name = "vproc";
-                    regulator-min-microvolt = <1150000>; regulator-max-microvolt = <1150000>;
+                    /* Readable stock envelope; generic VPROC writes remain
+                     * blocked. Only the sole PWRAP/SPM DVFS owner writes. */
+                    regulator-min-microvolt = <1150000>; regulator-max-microvolt = <1250000>;
                     regulator-always-on;
                 };
                 vgp2: ldo_vgp2 {

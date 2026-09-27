@@ -1,0 +1,30 @@
+--- a/drivers/cpufreq/cpufreq-dt.c
++++ b/drivers/cpufreq/cpufreq-dt.c
+@@ -23,6 +23,9 @@
+ #include <linux/thermal.h>
+ 
+ #include "cpufreq-dt.h"
++#if IS_ENABLED(CONFIG_Y2_POWER)
++#include "/project/kernel/platform/cpu-dvfs.h"
++#endif
+ 
+ struct private_data {
+ 	struct list_head node;
+@@ -282,6 +285,17 @@
+ 	struct cpufreq_dt_platform_data *data = dev_get_platdata(&pdev->dev);
+ 	int ret, cpu;
+ 
++#if IS_ENABLED(CONFIG_Y2_POWER)
++	/* Y2 voltage sequencing belongs to its CPU clock/SPM owner, not the
++	 * generic regulator path. Preserve probe ordering after removing the
++	 * CPU supply link; an initial governor must never outrun PWRAP. */
++	if (of_machine_is_compatible("innioasis,y2")) {
++		ret = y2_pmic_cpu_voltage_get();
++		if (ret < 0)
++			return dev_err_probe(&pdev->dev, ret, "Y2 CPU voltage owner not ready\n");
++	}
++#endif
++
+ 	/* Request resources early so we can return in case of -EPROBE_DEFER */
+ 	for_each_present_cpu(cpu) {
+ 		ret = dt_cpufreq_early_init(&pdev->dev, cpu);

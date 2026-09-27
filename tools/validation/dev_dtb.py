@@ -209,21 +209,23 @@ def check_connectivity(nodes, handle):
 def check_power(nodes, handle):
     pmic='/pwrap@1000d000/pmic'
     require(nodes['/opp-table']['compatible']==strings('operating-points-v2') and 'opp-shared' in nodes['/opp-table'],'shared OPPs')
-    rates={598000000,747500000,1040000000}
+    rates={598000000:1150000,747500000:1150000,1040000000:1150000,
+           1196000000:1200000,1300000000:1250000}
     require({p for p in nodes if p.startswith('/opp-table/')}=={'/opp-table/opp-'+str(r) for r in rates},'only evidenced CPU OPPs')
     for rate in rates:
         p=nodes['/opp-table/opp-'+str(rate)]
-        require(p['opp-hz']==struct.pack('>Q',rate) and p['opp-microvolt']==cells(1150000),'OPP frequency/voltage')
+        require(p['opp-hz']==struct.pack('>Q',rate) and p['opp-microvolt']==cells(rates[rate]),'OPP frequency/voltage')
         require(('opp-suspend' in p)==(rate==598000000),'lowest suspend OPP')
     for i in range(4):
         p=nodes['/cpus/cpu@'+str(i)]
         require(p['clocks']==cells(handle('/clock-controller@10000000'),18) and
-                p['cpu-supply']==cells(handle(pmic+'/regulators/buck_vproc')) and
+                'cpu-supply' not in p and
                 p['operating-points-v2']==cells(handle('/opp-table')),'shared CPU supply/clock/OPPs')
         require('cpu-idle-states' not in p,'architectural WFI only')
     p=nodes[pmic+'/regulators/buck_vproc']
-    require(p['regulator-min-microvolt']==p['regulator-max-microvolt']==cells(1150000) and
-            'regulator-always-on' in p,'retain inherited VPROC')
+    require(p['regulator-min-microvolt']==cells(1150000) and
+            p['regulator-max-microvolt']==cells(1250000) and
+            'regulator-always-on' in p,'stock VPROC envelope; sole SPM DVFS writer')
     require(nodes[pmic+'/charger']['io-channels']==cells(*sum(([handle(pmic+'/adc'),ch] for ch in (7,5,6,3)),[])), 'charger IIO sources')
     require(nodes[pmic+'/charger']['io-channel-names']==strings('battery-voltage','baton','isense','pmic-temperature'), 'charger channel meanings')
     require(nodes[pmic+'/charger']['power-supplies']==cells(handle('/usb@11200000')), 'negotiated USB input supply')

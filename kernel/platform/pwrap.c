@@ -6,6 +6,7 @@
 #include "/project/kernel/diagnostic/pwrap.h"
 #include "policy.h"
 #include "shared.h"
+#include "cpu-dvfs.h"
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -23,6 +24,7 @@ struct y2_wrap {
 };
 static DEFINE_MUTEX(y2_wrap_lock);
 static struct y2_wrap *y2_wrap;
+static bool cpu_dvfs_prepared;
 static unsigned wrap_read(void *p, unsigned off) { return readl(p + off); }
 static void wrap_write(void *p, unsigned off, unsigned val) { writel(val, p + off); }
 static void wrap_delay(void *p) { udelay(10); }
@@ -62,7 +64,8 @@ static int wrap_reg_write(void *context, unsigned reg, unsigned val)
 	 * Charger current/CV use bounded stock-derived levels / 4.175V. RTC and both watchdogs
 	 * have separate owners.
 	 * INT_CON/STATUS are upstream mask/W1C registers. Backlight changes duty,
-	 * never sink current. No VPROC voltage writes or calibration writes. */
+	 * never sink current. No direct WACS VPROC or calibration writes. CPU
+	 * voltage requests use only the separately guarded stock SPM slots. */
 	mask = y2_pmic_write_mask(reg);
 	if (!mask || !y2_pmic_value_allowed(reg, val))
 		return -EPERM;
@@ -114,6 +117,95 @@ int y2_pmic_cpu_voltage_ready(void)
 		 * All running operating points retain the stock 1.15-V requirement. */
 		if (!ret && (selector & 0x7f) != 72) ret = -ERANGE;
 	}
+	mutex_unlock(&y2_wrap_lock);
+	return ret;
+}
+static int y2_pmic_cpu_selector(struct y2_wrap *w)
+{
+	unsigned control, selector;
+	int ret = regmap_read(w->map, 0x216, &control);
+	if (!ret) ret = regmap_read(w->map, (control & BIT(1)) ? 0x220 : 0x21e, &selector);
+	if (ret) return ret;
+	selector &= 0x7f; /* Baseline read retains the established field mask. */
+	if (!(control & BIT(1)) && selector != 72) return -EOPNOTSUPP;
+	return selector == 72 || selector == 80 || selector == 88 ? selector : -ERANGE;
+}
+int y2_pmic_cpu_voltage_get(void)
+{
+	int ret;
+	mutex_lock(&y2_wrap_lock);
+	ret = y2_wrap ? y2_pmic_cpu_selector(y2_wrap) : -EPROBE_DEFER;
+	mutex_unlock(&y2_wrap_lock);
+	return ret;
+}
+int y2_pmic_cpu_dvfs_prepare(void)
+{
+	static const unsigned selectors[] = {88, 80, 72};
+	unsigned slot, reg, control;
+	int ret = -EPROBE_DEFER;
+	mutex_lock(&y2_wrap_lock);
+	if (!y2_wrap) goto out;
+	ret = y2_pmic_cpu_selector(y2_wrap);
+	if (ret < 0) goto out;
+	if (ret != 72) { ret = -EBUSY; goto out; }
+	ret = regmap_read(y2_wrap->map, 0x216, &control);
+	if (ret) goto out;
+	if (!(control & BIT(1))) { ret = -EOPNOTSUPP; goto out; }
+	ret = regmap_read(y2_wrap->map, 0x220, &control);
+	if (ret) goto out;
+	/* Slot writes replace this complete word, unlike baseline field reads. */
+	if (control & ~0x7fU) { ret = -EOPNOTSUPP; goto out; }
+	/* Require the inherited, fully enabled arbitration contract; never
+	 * rewrite arbitration to make a DVFS request appear possible. */
+	if (readl(y2_wrap->base) || readl(y2_wrap->base + 4) != 1 ||
+	    readl(y2_wrap->base + 0x50) != 0x1ff) { ret = -EOPNOTSUPP; goto out; }
+	for (slot = 0; slot < 3; slot++) {
+		reg = 0xe4 + slot * 8;
+		writel(0x220, y2_wrap->base + reg);
+		writel(selectors[slot], y2_wrap->base + reg + 4);
+		if (readl(y2_wrap->base + reg) != 0x220 ||
+		    readl(y2_wrap->base + reg + 4) != selectors[slot]) {
+			ret = -EIO; goto out;
+		}
+	}
+	/* Baseline request proves the normal PCM handshake without raising VPROC. */
+	ret = y2_spm_cpu_voltage_request(2);
+	if (!ret && y2_pmic_cpu_selector(y2_wrap) != 72) ret = -EIO;
+	if (!ret) cpu_dvfs_prepared = true;
+out:
+	mutex_unlock(&y2_wrap_lock);
+	if (ret == -EIO || ret == -ETIMEDOUT) y2_cpu_dvfs_fault();
+	return ret;
+}
+int y2_pmic_cpu_voltage_set(unsigned selector)
+{
+	unsigned slot, reg, control;
+	int ret = -EPROBE_DEFER;
+	if (selector == 88) slot = 0;
+	else if (selector == 80) slot = 1;
+	else if (selector == 72) slot = 2;
+	else return -EINVAL;
+	mutex_lock(&y2_wrap_lock);
+	if (!y2_wrap) goto out;
+	if (!cpu_dvfs_prepared) { ret = -EACCES; goto out; }
+	ret = y2_pmic_cpu_selector(y2_wrap);
+	if (ret < 0) goto out;
+	ret = regmap_read(y2_wrap->map, 0x216, &control);
+	if (ret) goto out;
+	if (!(control & BIT(1))) { ret = -EOPNOTSUPP; goto out; }
+	ret = regmap_read(y2_wrap->map, 0x220, &control);
+	if (ret) goto out;
+	if (control & ~0x7fU) { ret = -EOPNOTSUPP; goto out; }
+	reg = 0xe4 + slot * 8;
+	if (readl(y2_wrap->base + reg) != 0x220 ||
+	    readl(y2_wrap->base + reg + 4) != selector ||
+	    readl(y2_wrap->base + 0x50) != 0x1ff) { ret = -EIO; goto out; }
+	ret = y2_spm_cpu_voltage_request(slot);
+	/* The source requires 40 us before any frequency increase. Waiting on
+	 * decreases too is conservative and keeps readback after settling. */
+	udelay(40);
+	if (!ret && y2_pmic_cpu_selector(y2_wrap) != (int)selector) ret = -EIO;
+out:
 	mutex_unlock(&y2_wrap_lock);
 	return ret;
 }

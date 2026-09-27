@@ -1,0 +1,84 @@
+# Hardware Final: stock CPU DVFS admission and qualification
+
+2026-09-27. This is the pre-implementation scope audit for the owner's combined
+Hardware Final campaign. The campaign authorizes source-backed stock DVFS;
+neither the earlier planning epic nor this audit qualifies a new operating point.
+Default maximum remains 1040 MHz. No intermediate image is planned.
+
+The retained physical Hardware 02 predecessor census identifies this unit's
+`devinfo[3] & 3 = 2`, `devinfo[15] >> 28 & 7 = 0` (Hardware Ceiling receipts
+32–34). Exact stock `PTP_get_ptp_level` at `0xc0045e90` maps those fields to
+table 0. Runtime admission must independently parse the bounded, reserved LK
+ATAG area and require those same fields; no private fuse array is exported.
+The known baseline is 598/747.5/1040 MHz at 1.15 V. Physical timer, hotplug and
+suspend results remain separate gates.
+
+The retained stock kernel's `mt_cpufreq_pdrv_probe` at `0xc0036378` and
+`mt_cpufreq_volt_set` at `0xc00361f8` establish the table-0 levels:
+
+| Frequency | VPROC target | MT6323 selector | PWRAP slot |
+| --- | --- | --- | --- |
+| 598 / 747.5 / 1040 MHz | 1.15 V | 72 | 2 |
+| 1196 MHz | 1.20 V | 80 | 1 |
+| 1300 MHz | 1.25 V | 88 | 0 |
+
+The sole PWRAP owner programs slots at `0xe4 + 8 * slot` with PMIC address
+`0x220`; each data value is `700 mV + selector * 6.25 mV`. This is not an
+unrestricted regmap VPROC write permission. The sole SPM owner requests the slot
+through `SPM_AP_DVFS_CON_SET` (`0x604`, bits 2:0), waits 5 microseconds and polls
+bit 31 with the stock bounded 100-by-5-microsecond acknowledgement budget.
+The exact stock `spm_dvfs_ctrl_volt` at `0xc0032cb4` matches that sequence.
+The pinned BSP's `mt_cpufreq_set` requires a further 40-microsecond voltage
+settle before raising frequency, and 30 microseconds after PLL programming.
+Higher rates use the existing MAINPLL/2 transition, with PCWs `0x800b8000`
+and `0x800c8000`. No FHCTL takeover, calibration or overclock is admitted.
+
+Implementation admission requires a root-only runtime qualification control,
+an initial cpufreq QoS ceiling of 1040 MHz, exact own-bin validation, inherited
+SPM/PWRAP ownership checks, selected VPROC bank validation, slot/readback checks
+and a latched fault on uncertain transitions. Raise voltage before frequency;
+lower only after the lower frequency is verified. On an ambiguous PLL rollback,
+retain the higher voltage and refuse high OPPs. Preserve the existing sleep
+slots at 1.15 V and suspend operating point at 598 MHz. Generic WACS VPROC
+writes, 1.05-V operating OPPs and unmeasured undervolting remain prohibited.
+
+The CPU nodes retain their shared OPP table but no longer attach cpufreq-dt
+to the generic MT6323 regulator. That regulator cannot independently request
+voltage through WACS: it remains always-on with the stock 1.15–1.25-V envelope.
+The CPU clock operation owns voltage sequencing through the existing wrapper
+and SPM owners. This also prevents two competing transition sequences.
+The Y2-only cpufreq-dt probe guard preserves the PMIC-readiness dependency
+before initial governor startup. A missing PWRAP owner defers the probe;
+it does not leave a prematurely started policy without voltage access.
+
+Runtime controls are root-only under `/sys/module/cpu_dvfs/parameters/`:
+`qualification_max_khz` accepts 1040000, 1196000 or 1300000; `bin_supported`
+and `voltage_fault` report admission and the latched failure. Return to the
+1040-MHz ceiling and verify a baseline running frequency before admitting a
+new maximum; qualification requires the active selector to be 72. Every high
+admission verifies slots and exercises a baseline 1.15-V SPM request first.
+The command requests a ceiling, not a current frequency. Use cpufreq's normal
+governor/userspace controls for bounded workloads, then read the actual rate.
+A latched transition fault refuses all high requests until a clean reboot.
+
+Source and host fault tests cannot establish actual rail voltage, stable CPU
+operation, thermal margin or power benefit. The final candidate must first
+qualify 1196 MHz, then 1300 MHz, with the owner's existing 60°C test stop bound,
+readback/error checks and CPU/FFmpeg/SQLite/scan/radio/USB/GPU mixed workloads.
+Restore the 1040-MHz qualification ceiling after each bounded test. Final
+promotion depends on real measurements; these OPPs are physical-pending.
+
+Targeted validation uses the production C functions in host fault fixtures:
+all 25 OPP transitions, raising/lowering failures, failed PLL rollback, invalid
+and truncated bin data, wrapper slot corruption, PMIC read failures, wrong
+bank/arbitration, SPM ownership, missing ACK and its exact timeout bound.
+The shared PLL test covers the five source frequencies and retained fallback.
+All four ARM objects compile in the locked production environment. The current
+production DT validates with a retained baseline initrd-size input; that is a
+DT-only check, not certification of a new image or stale final binary.
+
+Private source extracts remain in `out/hardware-final-power-source/` and the
+retained `out/platform-v1-hardware-ceiling/stock-reference/`; the original
+kernel provenance is unchanged. The standing campaign roadmap audit is owned
+by the coordinating agent; this document records the precise voltage scope
+admission before implementation, without closing a milestone.

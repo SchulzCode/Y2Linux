@@ -60,6 +60,8 @@ static inline unsigned y2_cpu_pcw(unsigned long hz)
 	case 598000000: return 0x810b8000;
 	case 747500000: return 0x810e6000;
 	case 1040000000: return 0x800a0000;
+	case 1196000000: return 0x800b8000;
+	case 1300000000: return 0x800c8000;
 	default: return 0;
 	}
 }

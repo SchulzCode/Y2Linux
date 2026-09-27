@@ -24,6 +24,7 @@
 #include "shared.h"
 #include "connectivity/domain.h"
 #include "gpu-policy.h"
+#include "cpu-dvfs.h"
 
 static void __iomem *spm_base;
 static DEFINE_RAW_SPINLOCK(spm_lock);
@@ -48,6 +49,38 @@ static void spm_write(void *context, unsigned reg, unsigned value)
 }
 static void spm_delay(unsigned us) { udelay(us); }
 static struct y2_spm_io spm_io = { .read = spm_read, .write = spm_write, .delay = spm_delay };
+
+int y2_spm_cpu_voltage_request(unsigned slot)
+{
+	unsigned long flags;
+	unsigned n, pointer, length;
+	int ret = 0;
+	if (slot > 2) return -EINVAL;
+	if (!smp_load_acquire(&spm_base)) return -EPROBE_DEFER;
+	raw_spin_lock_irqsave(&spm_lock, flags);
+	pointer = spm_read(spm_base, SPM_PCM_IM_PTR);
+	length = spm_read(spm_base, SPM_PCM_IM_LEN);
+	/* The suspend PCM includes the normal loop after wake. A timer/WDT
+	 * still armed means it has not returned to the runtime contract. */
+	if (READ_ONCE(spm_broken) ||
+	    !((pointer == normal_address && length == 27) ||
+	      (pointer == pcm_address && length == 596)) ||
+	    (spm_read(spm_base, SPM_PCM_CON1) & (CON1_PCM_WDT_EN | CON1_PCM_TIMER_EN))) {
+		ret = -EBUSY; goto out;
+	}
+	spm_write(spm_base, 0x604, (spm_read(spm_base, 0x604) & ~7U) | slot);
+	udelay(5);
+	for (n = 0; n <= 100; n++) {
+		unsigned value = spm_read(spm_base, 0x604);
+		if ((value & 7) != slot) { ret = -EIO; goto out; }
+		if (value & BIT(31)) goto out;
+		if (n != 100) udelay(5);
+	}
+	ret = -ETIMEDOUT;
+out:
+	raw_spin_unlock_irqrestore(&spm_lock, flags);
+	return ret;
+}
 
 int y2_spm_mfg_status(void)
 {

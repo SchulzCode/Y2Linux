@@ -137,8 +137,7 @@ struct clk_hw {int unused;};
 struct y2_clock {struct clk_hw hw; void *pll,*infra;};
 #define container_of(p,t,m) ((t *)((char *)(p)-offsetof(t,m)))
 static unsigned pll[384], infra[16], writes, delay, fail_pcw;
-static int voltage_error, y2_clk_lock;
-static int y2_pmic_cpu_voltage_ready(void){return voltage_error;}
+static int y2_clk_lock;
 static unsigned readl(void *p){
  if(p==pll+0x204/4 && writes==3 && fail_pcw){fail_pcw=0;return 0;}
  return *(unsigned *)p;
@@ -154,26 +153,26 @@ static void udelay(unsigned us){assert(us>=30);delay++;}
 #define mb() ((void)0)
 #define spin_lock_irqsave(p,f) do{assert(!*(p));*(p)=1;f=0;}while(0)
 #define spin_unlock_irqrestore(p,f) do{assert(*(p));*(p)=0;(void)f;}while(0)
-''' + function(src, 'y2_pll_rate') + function(src, 'y2_cpu_set') + r'''
+''' + function(src, 'y2_pll_rate') + function(src, 'y2_cpu_pll_set') + r'''
 int main(void){
  struct y2_clock c={.pll=pll,.infra=infra};
- unsigned rates[]={598000000,747500000,1040000000};
+ unsigned rates[]={598000000,747500000,1040000000,1196000000,1300000000};
  pll[0x200/4]=pll[0x210/4]=1;pll[0x214/4]=0xa8000;
- for(unsigned from=0;from<3;from++)for(unsigned to=0;to<3;to++){
+ for(unsigned from=0;from<5;from++)for(unsigned to=0;to<5;to++){
   pll[0x204/4]=y2_cpu_pcw(rates[from]);infra[0]=0xabcd0004;infra[2]=0;writes=delay=0;
-  assert(!y2_cpu_set(&c.hw,rates[to],0));
+  assert(!y2_cpu_pll_set(&c.hw,rates[to],0));
   assert(y2_pll_rate(pll,0)==rates[to] && infra[0]==0xabcd0004 && infra[2]==0);
   assert(writes==5 && delay==1 && !y2_clk_lock);
  }
- for(unsigned error=0;error<4;error++){
-  writes=0;voltage_error=error==0?-EIO:0;
+ for(unsigned error=1;error<4;error++){
+  writes=0;
   pll[0x14/4]=error==1;infra[2]=error==2?3:0;infra[0]=error==3?8:4;
-  assert(y2_cpu_set(&c.hw,598000000,0)<0 && !writes && !y2_clk_lock);
+  assert(y2_cpu_pll_set(&c.hw,598000000,0)<0 && !writes && !y2_clk_lock);
  }
- pll[0x14/4]=0;infra[0]=4;infra[2]=0;voltage_error=0;
- assert(y2_cpu_set(&c.hw,1300000000,0)==-EINVAL && !writes);
+ pll[0x14/4]=0;infra[0]=4;infra[2]=0;
+ assert(y2_cpu_pll_set(&c.hw,1400000000,0)==-EINVAL && !writes);
  pll[0x204/4]=y2_cpu_pcw(1040000000);writes=delay=0;fail_pcw=1;
- assert(y2_cpu_set(&c.hw,598000000,0)==-EIO && delay==2);
+ assert(y2_cpu_pll_set(&c.hw,598000000,0)==-EIO && delay==2);
  assert(y2_pll_rate(pll,0)==1040000000 && infra[0]==4 && infra[2]==0);
 }
 ''')
