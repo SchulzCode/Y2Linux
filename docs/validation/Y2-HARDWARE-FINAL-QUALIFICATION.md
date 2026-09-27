@@ -1,7 +1,7 @@
 # Y2 Hardware Final physical qualification
 
-One structured campaign after the consolidated candidate is assembled and
-software validated. No test in this document has been executed by this
+One structured campaign for the assembled, software-validated candidate
+(Linux `067003f` / Reborn `5b5d23b`). No test in this document has been executed by this
 implementation pass. Device remains on original Hardware02; this checklist does
 not flash it. Candidate and fallback identities are bound by package manifest.
 

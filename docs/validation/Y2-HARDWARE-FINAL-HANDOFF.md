@@ -11,8 +11,10 @@ source-backed charger ceiling, Wi-Fi power policy/coexistence, experimental
 codec selection, native S16 48/family fallback, RTC alarm/sync and independent
 capability/configuration contracts. The volume and other Astra fixes remain.
 
-One candidate is being built from clean paired checkouts. Final exact identities
-and completed validation will be recorded here and in the package manifest.
+One preserving candidate is built and software validated from Linux `067003f8988042a832181e935128ea93e26070a7`
+and Reborn `5b5d23b89952d88faf3155cf680ccce918f1b099`. Kernel `6.18.0-y2linux-hardware-final`; root
+`2025.02.18-platform-v1.5`. Exact images/configuration/source pair are bound by
+`out/y2linux-hardware-final-candidate/manifest.json`.
 No flash or push. Original Hardware02 remains the physical baseline. User docs
 and UI assets remain preserved outside the candidate checkout; preexisting Rust
 formatting was reproduced independently from committed source for strict fmt.
@@ -23,6 +25,28 @@ and [one later qualification campaign](Y2-HARDWARE-FINAL-QUALIFICATION.md).
 Native S32/88.2/96, runtime CPU power-down, NCM activation and successful deep
 suspend remain explicit technical gaps. Missing current/pack temperature stays
 unavailable. Software presence is never inferred from a qualification label.
+
+
+## Completed software validation, 2026-09-27
+
+Built pair: Linux `067003f8988042a832181e935128ea93e26070a7` / Reborn `5b5d23b89952d88faf3155cf680ccce918f1b099`. Kernel/config/DT and
+BOOTIMG memory/partition limits pass without extending any reservation. Buildroot
+ARM and Reborn ARM, 202 production tests, 189 Reborn workspace tests, fmt/strict
+Clippy, QEMU application/FFmpeg/ABI checks, installed ARM platform/SQLite/ALSA
+checks, and 382 ELF files / 1396 dependency edges pass. Signed update/preserving
+package and exact Hardware02 BOOTIMG/Y2ROOT fallback validation pass. Source
+inventory covers 105 selected packages and their pinned hashes.
+
+Package includes source bundles, locked kernel/Buildroot archives, Buildroot
+source/license collection and qualification tools. Legal collection warnings for
+external-toolchain/local-package recipe metadata are retained, with local source
+and GPL text supplied separately. Optional codec certification/public distribution
+remains unapproved; this is a local owner package. Byte-identical rebuilds are not
+claimed. No device access, flash, push or physical/endurance qualification occurred.
+
+The source pair above is the actual built pair. A later documentation-only commit
+records these results and is archived separately; it does not change firmware
+provenance. The engineering campaign remains open for the structured later phase.
 
 ## Astra handoff at 022e6ee (preserved)
 

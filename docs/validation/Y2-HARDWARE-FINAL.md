@@ -6,7 +6,7 @@ independent. This pass does not contact, reboot or flash the Y2. The device
 remains on restored original Hardware02. Existing volume, pairing, checksum,
 timer and DMA fixes are retained. No repeated campaign audit was performed.
 
-One consolidated candidate is being assembled at
+One consolidated candidate is software validated at
 `out/y2linux-hardware-final-candidate/`. Exact built source identities and final
 validation results belong to its manifest and `validation/summary.json`.
 Current source implementation is complete up to the documented technical and
@@ -84,3 +84,24 @@ User documentation/assets remain outside the candidate source checkout.
 
 The next activity is one [physical qualification campaign](Y2-HARDWARE-FINAL-QUALIFICATION.md)
 on this assembled platform. Failed or absent evidence never promotes a flag.
+
+## Completed software validation, 2026-09-27
+
+Built pair: Linux `067003f8988042a832181e935128ea93e26070a7` / Reborn `5b5d23b89952d88faf3155cf680ccce918f1b099`. Kernel/config/DT and
+BOOTIMG memory/partition limits pass without extending any reservation. Buildroot
+ARM and Reborn ARM, 202 production tests, 189 Reborn workspace tests, fmt/strict
+Clippy, QEMU application/FFmpeg/ABI checks, installed ARM platform/SQLite/ALSA
+checks, and 382 ELF files / 1396 dependency edges pass. Signed update/preserving
+package and exact Hardware02 BOOTIMG/Y2ROOT fallback validation pass. Source
+inventory covers 105 selected packages and their pinned hashes.
+
+Package includes source bundles, locked kernel/Buildroot archives, Buildroot
+source/license collection and qualification tools. Legal collection warnings for
+external-toolchain/local-package recipe metadata are retained, with local source
+and GPL text supplied separately. Optional codec certification/public distribution
+remains unapproved; this is a local owner package. Byte-identical rebuilds are not
+claimed. No device access, flash, push or physical/endurance qualification occurred.
+
+The source pair above is the actual built pair. A later documentation-only commit
+records these results and is archived separately; it does not change firmware
+provenance. The engineering campaign remains open for the structured later phase.

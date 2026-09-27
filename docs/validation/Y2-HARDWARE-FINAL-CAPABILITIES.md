@@ -1,6 +1,6 @@
 # Y2 Hardware Final capability ledger
 
-Implementation/default inventory for the consolidated candidate, 2026-09-27.
+Built implementation/default inventory, Linux `067003f` / Reborn `5b5d23b`, 2026-09-27.
 Every flag describes this candidate, not historical Hardware02 evidence.
 `implemented`, `enabled`, `qualified` and `experimental` are independent.
 Runtime `y2-platform capabilities` resolves radio and codec enablement from the
@@ -67,7 +67,7 @@ separately. Actual timer and storage state is in `y2-platform status`.
 | --- | --- | --- |
 | eMMC / SD | Standard SDR automatic maximum 50 MHz; faults lower to 25/13; 8/4-bit. No DDR/UHS/HS200. CID/geometry identity accepts missing UUID. | Matched scratch readback/durable tests, multi-card/removal, maximum stable clock, fault counters, endurance. |
 | USB | Inventra DMA; `y2.usb_dma=off` PIO. ECM/ACM USB-only key-auth SFTP; reserves and durable publication retained. | DMA delivered throughput versus programmed counters, RX/TX, reconnect/suspend, retransmits and ENOSPC publication. |
-| Host / NCM | Host stack/classes compiled, role refused before VBUS. NCM/dependency carried by BOOTIMG; default built-in ECM remains. | Exact VBUS topology before host activation. NCM needs a reviewed gadget-selection/FIFO integration; compilation alone is not active NCM. |
+| Host / NCM | Host stack/classes compiled, role refused before VBUS. NCM/dependency and host audio/dependencies carried by BOOTIMG within unchanged size limits; default built-in ECM remains. | Exact VBUS topology before host activation. NCM needs a reviewed gadget-selection/FIFO integration; compilation alone is not active NCM. |
 | CPU / timer | schedutil, 598/747.5/1040 MHz table; bin-checked 1196/1300 gated; voltage floor 1.15 V. Per-open expiring QoS, interaction 250 ms. GPT6/PPI29 with legacy fallback. | OPP transitions/readback, scheduler/QoS, thermal limits, all-core hotplug and timer continuity/broadcast/highres/tickless residency. Floors/durations provisional. |
 | Idle / suspend | WFI; compiled SLIDLE defaults off, single CPU/gated peripherals/clock rollback. Deep suspend explicit existing owner qualification path and pm_test. | SLIDLE entry/abort counters/residency/wake. Suspend staged failure snapshot, CPU/USB/radio/DRM/ALSA restoration, Power and RTC same-boot wake. |
 | Charging | Source-aware BC1.1, stock protections, 4.175 V; supported 70/450/650 mA configurable ceiling. No arbitrary charger voltage/current. | Real external current, source class/USB enumeration, pack ceiling, thermal behavior, termination/recharge/watchdog. |

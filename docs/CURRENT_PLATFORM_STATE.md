@@ -5,11 +5,11 @@ Hardware Final is active in **implementation-first** mode from Astra handoff
 this pass. Software changes accumulate as focused local `hardware-final`
 commits; no push, flash or repeated campaign audit.
 
-The consolidated Hardware Final candidate is being built at
+The consolidated Hardware Final candidate is built and software validated at
 `out/y2linux-hardware-final-candidate/`. Implementation, enablement and physical
 qualification are separate flags, with Experimental gates, conservative
-configuration and existing safe fallbacks. Exact build identities/results will
-be carried in the package manifest and validation receipt.
+configuration and existing safe fallbacks. Built Linux `067003f` / Reborn `5b5d23b`; exact identities and
+results are carried in the package manifest and validation receipt.
 
 New implementation covers automatic SDR storage recovery, UUID-less SD identity,
 USB host/classes/NCM software boundary, schedutil/workload QoS, gated stock slow
