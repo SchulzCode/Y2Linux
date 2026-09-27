@@ -90,17 +90,19 @@ def check(root,project,production=False):
     elf=ELFFile(io.BytesIO(module));info=elf.get_section_by_name('.modinfo').data().split(b'\0')
     release=(root/'kernel/include/config/kernel.release').read_text().strip()
     require(b'depends=' in info and any(x.startswith(('vermagic='+release+' ').encode()) for x in info),'module ABI/dependencies')
-    from tools.build.dev_initramfs import boot_module_paths
+    from tools.build.dev_initramfs import boot_module_paths, boot_module_dependencies
     paths=boot_module_paths(root)
+    dependencies=boot_module_dependencies(root, paths)
     for path in paths:
         raw=(root/'kernel'/(path+'.ko')).read_bytes()
         name='display.ko' if path.endswith('/mediatek-drm') else 'boot-modules/'+release+'/kernel/'+Path(path).name+'.ko'
         require(entries.get(name)==(stat.S_IFREG|0o400,raw),'exact BOOTIMG module '+path)
         extra=ELFFile(io.BytesIO(raw))
         details=extra.get_section_by_name('.modinfo').data().split(b'\0')
-        depends=b'depends=usb_f_ncm' if path.endswith('/g_ncm') else b'depends='
-        require(depends in details and any(x.startswith(('vermagic='+release+' ').encode()) for x in details),
+        require(any(x.startswith(('vermagic='+release+' ').encode()) for x in details),
                 'module ABI/dependencies '+path)
+    expected='\n'.join('kernel/'+name+':'+''.join(' kernel/'+dep for dep in dependencies[name]) for name in dependencies)+'\n'
+    require(entries['boot-modules/'+release+'/modules.dep'][1]==expected.encode(), 'exact module dependency graph')
     for name in ('bin/busybox','sbin/blkid','sbin/y2-observer','sbin/y2-fbtest','sbin/y2-abi-check','lib/ld-linux-armhf.so.3','lib/libc.so.6'):
         elf=ELFFile(io.BytesIO(entries[name][1]));require(elf.elfclass==32 and elf.little_endian and elf['e_machine']=='EM_ARM','rescue ARM ABI '+name)
     require(b'Y2LINUX-PLATFORM' in entries['sbin/y2-observer'][1],'observer identity')

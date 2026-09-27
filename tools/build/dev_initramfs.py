@@ -11,9 +11,33 @@ def boot_module_paths(root):
     paths = ['drivers/gpu/drm/mediatek/mediatek-drm']
     if 'CONFIG_USB_G_NCM=m' in config:
         paths += ['drivers/usb/gadget/function/usb_f_ncm', 'drivers/usb/gadget/legacy/g_ncm']
-    require((root/'kernel/modules.order').read_text().splitlines() ==
-            [path + '.o' for path in paths], 'unexpected loadable kernel module')
+    if 'CONFIG_SND_USB_AUDIO=m' in config:
+        paths += ['sound/core/snd-hwdep', 'sound/core/snd-rawmidi',
+                  'sound/usb/snd-usb-audio', 'sound/usb/snd-usbmidi-lib']
+    actual=(root/'kernel/modules.order').read_text().splitlines()
+    require(len(actual)==len(paths) and set(actual)=={path+'.o' for path in paths},
+            'unexpected loadable kernel module')
     return paths
+
+
+def boot_module_dependencies(root, paths):
+    """Read actual modpost dependencies, reject modules outside the allowlist."""
+    release=(root/'kernel/include/config/kernel.release').read_text().strip()
+    names={Path(path).name.replace('-', '_'): Path(path).name+'.ko' for path in paths}
+    records={}
+    for path in paths:
+        raw=(root/'kernel'/(path+'.ko')).read_bytes()
+        elf=ELFFile(io.BytesIO(raw))
+        require(elf.elfclass==32 and elf.little_endian and elf['e_machine']=='EM_ARM', 'module ARM ABI '+path)
+        info=elf.get_section_by_name('.modinfo').data().split(b'\0')
+        versions=[v for v in info if v.startswith(b'vermagic=')]
+        require(len(versions)==1 and versions[0].startswith(('vermagic='+release+' ').encode()), 'module release '+path)
+        dependency=[v.removeprefix(b'depends=').decode() for v in info if v.startswith(b'depends=')]
+        require(len(dependency)==1, 'module dependency metadata '+path)
+        deps=dependency[0].split(',') if dependency[0] else []
+        require(all(name.replace('-', '_') in names for name in deps), 'unpackaged module dependency '+path)
+        records[Path(path).name+'.ko']=[names[name.replace('-', '_')] for name in deps]
+    return records
 
 
 def encode(entries):
@@ -83,15 +107,22 @@ def build(root, project, production=True):
     module=(root/'kernel/drivers/gpu/drm/mediatek/mediatek-drm.ko').read_bytes()
     put('display.ko',stat.S_IFREG|0o400,module);(root/'display.ko').write_bytes(module)
     release=(root/'kernel/include/config/kernel.release').read_text().strip()
-    dependencies=[]
-    for path in boot_module_paths(root):
+    paths=boot_module_paths(root)
+    records=boot_module_dependencies(root, paths)
+    dependencies=[]; aliases=[]
+    for path in paths:
         filename=Path(path).name+'.ko'
         raw=(root/'kernel'/(path+'.ko')).read_bytes()
         if filename != 'mediatek-drm.ko':
             put('boot-modules/'+release+'/kernel/'+filename,stat.S_IFREG|0o400,raw)
-        dependencies.append('kernel/'+filename+(':' if filename!='g_ncm.ko' else ': kernel/usb_f_ncm.ko'))
+        dependencies.append('kernel/'+filename+':'+''.join(' kernel/'+name for name in records[filename]))
+        info=ELFFile(io.BytesIO(raw)).get_section_by_name('.modinfo').data().split(b'\0')
+        aliases += ['alias '+value.removeprefix(b'alias=').decode()+' '+Path(path).name.replace('-', '_')
+                    for value in info if value.startswith(b'alias=')]
     put('boot-modules/'+release+'/modules.dep',stat.S_IFREG|0o644,
         ('\n'.join(dependencies)+'\n').encode())
+    put('boot-modules/'+release+'/modules.alias',stat.S_IFREG|0o644,
+        ('\n'.join(aliases)+'\n').encode())
     for applet in ('sh','mount','mkdir','mknod','sleep','readlink','chroot','umount','switch_root','kill','cat','dmesg','grep','tail','cp','uname'):
         put('bin/'+applet,stat.S_IFLNK|0o777,b'busybox')
     regular=sum(len(v[1]) for v in entries.values() if stat.S_ISREG(v[0]))
