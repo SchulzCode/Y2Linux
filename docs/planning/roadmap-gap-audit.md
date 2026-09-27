@@ -28,8 +28,9 @@ worktree documentation/assets stay outside the candidate source checkout.
 | Reborn/library/platform #32/#33 | IMPLEMENTED/HOST TESTED: scoped artwork workload, independent coalesced interaction lease, immediate screen-off release, semantic API with crash/expiry cleanup. Host tests/fmt/strict Clippy and fresh ARM build/QEMU are release-facing software gates. |
 | Packaging/updates/endurance #32/#33 | One preserving candidate, exact fallback and source/license/validation handoff; no flash/push or OTA application. Existing open epics #16/#27/#28/#29/#31/#32/#33/#34 stay open; no hardware milestone or qualification promotion. |
 
-Decision: **READY to seal the single CPU Final software candidate** after the fresh
-build and release checks. Local package/data/fallback validation is the final gate.
+Decision: **READY for the single CPU Final software-candidate handoff**. Fresh
+build/release checks and local package/data/exact-fallback validation all pass.
+The package is `out/y2linux-cpu-final-candidate/`; its receipts identify the built pair.
 Implementation, admission and physical qualification are separate flags. No new
 hardware authorization, measurements or successful suspend receipt is inferred.
 

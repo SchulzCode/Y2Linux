@@ -2,6 +2,9 @@
 
 The CPU rows below now describe [CPU Final](Y2-CPU-FINAL.md) source implementation.
 The Hardware Final package remains immutable; CPU Final has its own candidate.
+CPU Final software checks and its single preserving package now pass at runtime
+source Linux `ff586df` / Reborn `afcf9ff`; exact receipts are in the CPU Final report.
+This changes implementation/default reporting, not physical qualification.
 Physical qualification remains false. Other capability rows retain Hardware Final
 semantics. Runtime telemetry reports actual admission and fallback state.
 

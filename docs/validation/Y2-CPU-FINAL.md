@@ -192,3 +192,43 @@ Final current-source kernel/config/DT, Buildroot/Reborn ARM, modules/ABI, produc
 and Reborn tests, fmt/strict Clippy, QEMU, ELF/package/data/fallback receipts belong
 to the candidate validation directory. Unrelated user documentation/assets stay
 outside its source checkout. No stale root image is accepted as a new build.
+
+## Final candidate receipt
+
+Built runtime pair: Linux `ff586dfff2b5e7abd28af339c055375307308f1f`,
+Reborn `afcf9ffa1bc45073e97520d592c0284ce73fefcf`. Linux release is
+`6.18.0-y2linux-cpu-final`; root is `2025.02.18-platform-v1.6`,
+`1.0.0-cpu-final-candidate.1`. The kernel/modules and all target Buildroot/Reborn
+binaries were built in a fresh output, with no reused root or target binaries.
+The later `3f86af2` changes only the DT validator/rejection tests: exact CIRQ and
+MCU cache context mappings, no changed compiled runtime code. The isolated cache
+symlink and host bc PATH failures were corrected; failed attempts and final passes
+remain in the logs. No hardware result is inferred from their software resolution.
+
+| Final check | Result |
+| --- | --- |
+| Fresh kernel/config, modules, DT, rescue/BOOTIMG, memory/partition bounds | PASS; reservations unchanged |
+| Fresh Buildroot, paired Reborn ARM, ABI, FFmpeg/ALSA | PASS |
+| Locked production regressions | 208 run, 205 passed, 3 explicit native dependency skips |
+| Native dependency coverage | 12 passed, no skips; covers all 3 locked prerequisites |
+| Reborn workspace, fmt, strict Clippy | 189 passed; format/Clippy pass |
+| ARM/QEMU application and installed platform modules | PASS; 8 app checks, 23 Python modules, 1k database/scan fixture |
+| ARM ELF/interpreter/dependency closure | 382 files, 1396 dependency edges, no build RPATH |
+| CPU C/MMIO fault injection, recovery/options, stock auto-admission, ARM W=1 | PASS; no new CPU warnings |
+| Pinned source inventory and legal/source collection | 105 packages; hashes verified, retained recipe metadata limits recorded |
+| Package, preserving scatter, root filesystem/data contract, exact fallback | PASS; BOOTIMG/Y2ROOT only |
+
+The package is `out/y2linux-cpu-final-candidate/`. Its `validation/summary.json`,
+`manifest.json`, source bundles and top-level checksums are authoritative.
+
+- `BOOTIMG.img`: 7178240 bytes, SHA-256 `ab9a1621ffd3e650ac65be0e26a4f76f104bc5c5be77a496d1d699dd1790221f`.
+
+- `Y2ROOT.img`: 536870912 bytes, SHA-256 `68134c6c9712d4d88770694000a30d6f3f13d0f480a7a53bf5c2ba4883c7691b`.
+
+Hardware02 stays the retained physical baseline; CPU Final qualifications are
+independent and false. Dormant is implemented/experimental/default off with the
+source-backed single-CPU and domain/clock constraints above. Deep suspend retains
+the explicit existing qualification entry point. No new four-core dormant, full
+same-boot suspend, Power/RTC wake or device-resume hardware pass is claimed.
+Y2DATA/protected regions, Git identity/account and unrelated worktree edits are
+preserved; no device access, flash, push or external epic closure occurred.

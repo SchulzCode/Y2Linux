@@ -8,7 +8,8 @@ Fresh kernel/config/modules, Buildroot/ARM, DT/BOOTIMG/memory, 205 locked regres
 plus 12 native dependency tests, 189 Reborn tests/fmt/strict Clippy, ARM/QEMU,
 ELF/dependency and pinned source inventory pass. The DT validation-only correction
 `3f86af2` enforces CIRQ/MCU context resources and changes no compiled runtime code.
-READY to seal one preserving candidate after the local package/fallback gate.
+COMPLETE at software-candidate scope: `out/y2linux-cpu-final-candidate/`. The local
+package/data/exact-Hardware02-fallback checks pass; no new hardware qualification.
 C1/C2/C3, stock-bin automatic DVFS, QoS, timer/context/CIRQ, suspend/device restore,
 diagnostics and recovery options are implemented. C3 remains experimental/default
 off, CPU0 with other cores physically off; the exact source report records all
