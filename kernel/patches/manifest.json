@@ -274,7 +274,7 @@
       "path": "drivers/usb/musb/musb_core.c",
       "patch": "0058-y2-musb-sleep-lifecycle.patch",
       "base_sha256": "0b8be0783e244d987284f10d6e87e6173bc29c91458cc7c5f2fe58057b0d63fc",
-      "result_sha256": "55777c790fcdb116919c03d2f66a11838b3ba533b376fd7013cacb039dd16dd4"
+      "result_sha256": "fdebf1b432213350804b9fac12c1063a86d2dba37c0037da6de2202bcd6c1ea7"
     }
   ]
 }

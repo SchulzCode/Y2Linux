@@ -16,10 +16,19 @@
  	musb_writew(musb_base, MUSB_FRAME, musb->context.frame);
  	musb_writeb(musb_base, MUSB_TESTMODE, musb->context.testmode);
  	musb_writeb(musb_base, MUSB_ULPI_BUSCONTROL, musb->context.busctl);
-@@ -2822,6 +2824,14 @@
+@@ -2800,6 +2802,7 @@
+ 				musb->context.index_regs[i].rxhubport);
+ 	}
+ 	musb_writeb(musb_base, MUSB_INDEX, musb->context.index);
++	y2_musb_after_restore(musb);
+ }
+ 
+ static int musb_suspend(struct device *dev)
+@@ -2821,6 +2824,14 @@
+ 	while (flush_delayed_work(&musb->irq_work))
  		;
  	musb->flush_irq_work = false;
- 
++
 +	ret = y2_musb_system_quiesce(musb);
 +	if (ret) {
 +		musb_enable_interrupts(musb);
@@ -27,11 +36,10 @@
 +		pm_runtime_put(dev);
 +		return ret;
 +	}
-+
+ 
  	if (!(musb->ops->quirks & MUSB_PRESERVE_SESSION))
  		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
- 
-@@ -2840,6 +2850,7 @@
+@@ -2840,6 +2851,7 @@
  	}
  
  	musb_save_context(musb);

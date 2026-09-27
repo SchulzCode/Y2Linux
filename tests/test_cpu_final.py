@@ -116,6 +116,7 @@ int main(void){struct y2_workload h={0};h.deadline=1250;jiffies=1000;
         s = s.replace('int y2_musb_system_quiesce(', 'static int y2_musb_system_quiesce(')
         s = s.replace('void y2_musb_system_saved(', 'static void y2_musb_system_saved(')
         s = s.replace('void y2_musb_before_restore(', 'static void y2_musb_before_restore(')
+        s = s.replace('void y2_musb_after_restore(', 'static void y2_musb_after_restore(')
         run_c(r'''
 #include <assert.h>
 #include <stdbool.h>
@@ -138,19 +139,21 @@ typedef uint8_t u8;typedef uint16_t u16;
 #define MUSB_POWER_SOFTCONN 0x40
 struct musb{void *mregs;void *dma_controller;int lock;struct{unsigned power;}context;};
 static unsigned char regs[0x300];static struct musb *y2_musb;
-static bool y2_pm_disconnect;static unsigned y2_pm_suspends,y2_pm_restores,y2_pm_stale,y2_irq_burst,y2_irq_tick,jiffies;
+static bool y2_pm_disconnect;static unsigned y2_pm_suspends,y2_pm_restores,y2_pm_stale,y2_irq_burst,y2_irq_tick,jiffies,y2_pm_l1_mask;
+static struct {int result;} y2_live;
 static void lock(int *l){assert(!*l);*l=1;}
 #define spin_lock_irqsave(p,f) do{(f)=0;lock(p);}while(0)
 #define spin_unlock_irqrestore(p,f) do{*(p)=0;(void)(f);}while(0)
 static u8 readb(void *p){return *(u8 *)p;}
 static u16 readw(void *p){return *(u16 *)p;}
+static unsigned readl(void *p){return *(unsigned *)p;}
 static void writeb(u8 v,void *p){unsigned off=(u8 *)p-regs;
  if(off==MUSB_INTRUSB || off==0x200)*(u8 *)p&=~v;else *(u8 *)p=v;}
 static void writew(u16 v,void *p){unsigned off=(u8 *)p-regs;
  if(off==MUSB_INTRTX || off==MUSB_INTRRX)*(u16 *)p&=~v;else *(u16 *)p=v;}
 static void writel(unsigned v,void *p){*(unsigned *)p=v;}
 static void musb_g_disconnect(struct musb *m){assert(m->lock);}
-''' + function(s,'y2_musb_clear_stale') + function(s,'y2_musb_system_quiesce') + function(s,'y2_musb_system_saved') + function(s,'y2_musb_before_restore') + r'''
+''' + function(s,'y2_musb_clear_stale') + function(s,'y2_musb_system_quiesce') + function(s,'y2_musb_system_saved') + function(s,'y2_musb_before_restore') + function(s,'y2_musb_after_restore') + r'''
 int main(void){struct musb m={regs,(void *)1,0,{0}};y2_musb=&m;
  regs[MUSB_POWER]=MUSB_POWER_SOFTCONN;regs[MUSB_INTRUSB]=7;regs[0x200]=0xff;
  *(u16 *)(regs+MUSB_INTRTX)=0xff;*(u16 *)(regs+MUSB_INTRRX)=0xaa;
@@ -161,6 +164,9 @@ int main(void){struct musb m={regs,(void *)1,0,{0}};y2_musb=&m;
  regs[MUSB_INTRUSB]=1;*(unsigned *)(regs+0xa4)=15;
  y2_musb_before_restore(&m);assert(!*(unsigned *)(regs+0xa4) && !regs[MUSB_INTRUSB]);
  assert(y2_pm_restores==1);
+ y2_musb_after_restore(&m);assert(*(unsigned *)(regs+0xa4)==15);
+ y2_musb_before_restore(&m);y2_live.result=-EIO;
+ y2_musb_after_restore(&m);assert(!*(unsigned *)(regs+0xa4));
  regs[MUSB_POWER]=0x40;*(u16 *)(regs+0x204)=1;
  assert(y2_musb_system_quiesce(&m)==-EBUSY && (regs[MUSB_POWER]&0x40));
  assert(y2_pm_suspends==1 && !m.lock);

@@ -147,6 +147,8 @@ sampled stale USB/TX/RX/DMA W1C status, saves quiescent endpoints and clears sta
 conditions before restored interrupt enables. ECM/ACM re-enumerate on system resume.
 The IRQ burst window resets with this lifecycle; the terminal fault guard remains.
 Runtime context restoration also clears stale status before interrupt restoration.
+The exact runtime top-level IRQ gate returns after endpoint restoration; system
+resume enables its gate through the platform hook. A terminal fault stays masked.
 
 CONSYS retries one failed boot only after complete power/DMA/clock/rail isolation,
 matching the retained timeout followed by a successful second start. No DMA buffer

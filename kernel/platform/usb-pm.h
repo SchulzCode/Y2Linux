@@ -7,9 +7,11 @@ struct musb;
 int y2_musb_system_quiesce(struct musb *musb);
 void y2_musb_system_saved(struct musb *musb);
 void y2_musb_before_restore(struct musb *musb);
+void y2_musb_after_restore(struct musb *musb);
 #else
 static inline int y2_musb_system_quiesce(struct musb *musb) { return 0; }
 static inline void y2_musb_system_saved(struct musb *musb) { }
 static inline void y2_musb_before_restore(struct musb *musb) { }
+static inline void y2_musb_after_restore(struct musb *musb) { }
 #endif
 #endif

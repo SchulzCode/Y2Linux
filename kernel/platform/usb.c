@@ -615,6 +615,7 @@ static int y2_musb_exit(struct musb *musb)
  * resume re-enumerates ECM/ACM instead of reviving stale endpoint transfers. */
 static bool y2_pm_disconnect;
 static unsigned y2_pm_suspends, y2_pm_restores, y2_pm_stale;
+static unsigned y2_pm_l1_mask;
 static void y2_musb_clear_stale(struct musb *musb)
 {
 	void __iomem *base = musb->mregs;
@@ -669,12 +670,25 @@ void y2_musb_before_restore(struct musb *musb)
 	unsigned long flags;
 	if (musb != READ_ONCE(y2_musb)) return;
 	spin_lock_irqsave(&musb->lock, flags);
+	y2_pm_l1_mask = readl(musb->mregs + 0xa4);
 	writel(0, musb->mregs + 0xa4);
 	writeb(0, musb->mregs + MUSB_INTRUSBE);
 	writew(0, musb->mregs + MUSB_INTRTXE);
 	writew(0, musb->mregs + MUSB_INTRRXE);
 	y2_musb_clear_stale(musb);
 	y2_pm_restores++;
+	spin_unlock_irqrestore(&musb->lock, flags);
+}
+void y2_musb_after_restore(struct musb *musb)
+{
+	unsigned long flags;
+	if (musb != READ_ONCE(y2_musb)) return;
+	spin_lock_irqsave(&musb->lock, flags);
+	/* Runtime resume has no platform_enable callback. Return its exact gate
+	 * only after endpoint/IRQ context is valid; never revive a terminal fault.
+	 * System suspend saved a zero gate and enables it through its own hook. */
+	writel(READ_ONCE(y2_live.result) ? 0 : y2_pm_l1_mask, musb->mregs + 0xa4);
+	dsb(sy);
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 
