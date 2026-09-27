@@ -3,6 +3,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from test_audio import function
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -17,6 +18,7 @@ class UsbFailure(unittest.TestCase):
 #include <assert.h>
 #include <string.h>
 #include <stddef.h>
+#include <errno.h>
 #include "live.h"
 #define __user
 #define READ_ONCE(x) (x)
@@ -27,6 +29,9 @@ class UsbFailure(unittest.TestCase):
 #define USB_STATE_CONFIGURED 7
 typedef long ssize_t;
 struct work_struct { int unused; };
+struct usb_role_switch { int unused; };
+enum usb_role { USB_ROLE_NONE, USB_ROLE_HOST, USB_ROLE_DEVICE };
+static enum usb_role y2_requested_role = USB_ROLE_DEVICE;
 struct musb { unsigned char *mregs; struct {unsigned state;} g; };
 static struct musb *y2_musb;
 static struct y2_usb_live y2_live;
@@ -62,7 +67,7 @@ static void y2_usb_finish(void) {++finished;y2_usb_finished=1;y2_usb_pmic=NULL;}
 static int copy_to_user(void *dest,const void *src,unsigned n)
 {assert(!y2_usb_failure_lock);memcpy(dest,src,n);return 0;}
 '''
-        source += worker + status + r'''
+        source += worker + status + function(adapter, 'y2_role_set') + r'''
 int main(void) {
     assert(sizeof(struct y2_usb_live)==88);
     for(unsigned fault=0;fault<5;++fault) {
@@ -119,6 +124,17 @@ int main(void) {
             next_power.chrdet=0x21;classified=1;y2_usb_worker(NULL);
             assert(!finished && reconnected==i+2 && y2_live.stage==Y2_USB_CONFIGURED);
         }
+        unsigned connections=reconnected,detachments=detached;
+        assert(y2_role_set(NULL,USB_ROLE_HOST)==-EACCES);
+        assert(y2_requested_role==USB_ROLE_DEVICE && detached==detachments);
+        assert(!y2_role_set(NULL,USB_ROLE_NONE) && detached==detachments+1);
+        for(unsigned i=0;i<20;i++) y2_usb_worker(NULL);
+        assert(reconnected==connections && y2_usb_detached);
+        assert(!y2_role_set(NULL,USB_ROLE_DEVICE));
+        y2_usb_worker(NULL);
+        assert(reconnected==connections+1 && !y2_usb_detached);
+        y2_live.result=-EIO;
+        assert(y2_role_set(NULL,USB_ROLE_NONE)==-EIO && y2_requested_role==USB_ROLE_DEVICE);
     }
 }
 '''
