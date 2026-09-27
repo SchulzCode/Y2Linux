@@ -3,8 +3,8 @@
 #include "innioasis-y2.dts"
 
 /* Physical 01 verified 8/4 pins. Exact stock LK/MSDC data supports SDR HS
- * from the inherited 200 MHz source. Start qualification at 25 MHz; the
- * host's bounded y2_clock_limit_hz control permits later 50 MHz testing.
+ * from the inherited 200 MHz source. Negotiate standard SDR up to 50 MHz;
+ * transport faults lower the cap and y2_clock_limit_hz retains owner control.
  * Keep 3.3 V, no DDR/UHS/HS200, and normal card-capability fallback. */
 &mmc0 { bus-width = <8>; max-frequency = <50000000>; cap-mmc-highspeed; };
 &mmc1 { bus-width = <4>; max-frequency = <50000000>; cap-sd-highspeed; };

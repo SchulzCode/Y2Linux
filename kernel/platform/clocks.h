@@ -25,4 +25,6 @@
 #define Y2_CLK_BTIF 23
 #define Y2_CLK_MFG_SRC 24
 #define Y2_CLK_NR 25
+#ifndef __DTS__
 int y2_ccf_slow_idle(void);
+#endif

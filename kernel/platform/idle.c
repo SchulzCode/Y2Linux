@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Architectural Cortex-A7 WFI only. No CPU power-down, SPM or lost context.
- * cpuidle-arm requires a deeper DT state; this driver registers WFI alone. */
+/* Cortex-A7 WFI and gated stock bus DCM slow idle. Neither state loses CPU
+ * context or powers down a core; dormant CPU idle needs a separate handoff. */
 #include <linux/cpuidle.h>
 #include <linux/module.h>
 #include <linux/of.h>
