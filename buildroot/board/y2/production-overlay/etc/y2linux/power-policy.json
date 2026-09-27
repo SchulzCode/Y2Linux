@@ -1,0 +1,14 @@
+{
+  "schema": 2,
+  "enabled": true,
+  "provisional": true,
+  "source": "conservative 3.4V floor at stock precharge boundary; reserve qualification pending",
+  "critical_uv": 3400000,
+  "low_uv": 3500000,
+  "recover_uv": 3600000,
+  "critical_samples": 5,
+  "grace_seconds": 10,
+  "warning_soc": 20,
+  "critical_soc": 10,
+  "shutdown_soc": 5
+}

@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "source": "estimated Li-ion curve within Y2 stock 3.4V precharge and 4.175V CV bounds; not a measured discharge curve",
+  "provisional": true,
+  "voltage_soc": [[3400000, 0], [3500000, 5], [3600000, 10], [3700000, 25], [3800000, 45], [3900000, 65], [4000000, 80], [4100000, 95], [4175000, 100]],
+  "filter_seconds": 30,
+  "rest_seconds": 120,
+  "rest_band_uv": 15000,
+  "charging_offset_uv": 75000,
+  "seconds_per_percent": 60
+}

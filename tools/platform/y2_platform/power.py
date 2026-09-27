@@ -18,18 +18,22 @@ POLICY = '/data/system/platform/power-policy.json'
 
 
 def load_policy(ctx):
-    value = ctx.json(POLICY, {})
+    value = ctx.json(POLICY, ctx.json('/etc/y2linux/power-policy.json', {}))
     # No derived or fallback voltage thresholds. A reference records who/what
     # qualified the policy; software cannot certify that physical evidence.
-    if value.get('schema') != 1 or value.get('enabled') is not True:
+    if value.get('schema') not in (1, 2) or value.get('enabled') is not True:
         return None, 'thresholds_disabled_PHYSICAL_GATE'
     keys = ('critical_uv', 'low_uv', 'recover_uv', 'critical_samples', 'grace_seconds')
     if any(type(value.get(k)) is not int for k in keys):
         return None, 'invalid_policy'
     if not (0 < value['critical_uv'] < value['low_uv'] < value['recover_uv'] and
             1 <= value['critical_samples'] <= 60 and 3 <= value['grace_seconds'] <= 30 and
-            isinstance(value.get('qualification_reference'), str) and
-            1 <= len(value['qualification_reference']) <= 256):
+            isinstance(value.get('qualification_reference') or value.get('source'), str) and
+            1 <= len(value.get('qualification_reference') or value.get('source')) <= 256):
+        return None, 'invalid_policy'
+    if value['schema'] == 2 and not (
+            all(type(value.get(k)) is int for k in ('warning_soc', 'critical_soc', 'shutdown_soc')) and
+            0 <= value['shutdown_soc'] < value['critical_soc'] < value['warning_soc'] <= 50):
         return None, 'invalid_policy'
     return value, None
 
@@ -38,7 +42,7 @@ class LowBattery:
     def __init__(self):
         self.state, self.samples = 'Unavailable', 0
 
-    def observe(self, policy, voltage, present):
+    def observe(self, policy, voltage, present, soc=None):
         if policy is None:
             self.state, self.samples = 'Unavailable', 0
             return self.state
@@ -47,14 +51,21 @@ class LowBattery:
             return self.state
         # USB presence does not prove positive net pack current. The same
         # qualified voltage guard applies while connected to a source.
-        if voltage <= policy['critical_uv']:
+        soc = soc or {}
+        percent = soc.get('percent')
+        valid_soc = type(percent) is int and 0 <= percent <= 100
+        trustworthy = valid_soc and soc.get('confidence') in ('hardware', 'calibrated_estimate')
+        soc_shutdown = (policy.get('schema') == 2 and trustworthy and percent <= policy['shutdown_soc'])
+        if voltage <= policy['critical_uv'] or soc_shutdown:
             self.samples += 1
             self.state = 'Critical'
             if self.samples >= policy['critical_samples']:
                 self.state = 'ShutdownPending'
         else:
             self.samples = 0
-            if voltage <= policy['low_uv']:
+            if policy.get('schema') == 2 and valid_soc and percent <= policy['critical_soc']:
+                self.state = 'Critical'
+            elif voltage <= policy['low_uv'] or (policy.get('schema') == 2 and valid_soc and percent <= policy['warning_soc']):
                 self.state = 'Low'
             elif voltage >= policy['recover_uv'] or self.state == 'Unavailable':
                 self.state = 'Normal'
@@ -210,6 +221,8 @@ def serve(ctx):
         address.unlink()
     coordinator = Coordinator(ctx)
     battery = LowBattery()
+    from .battery import Soc, load_profile, sample
+    soc = Soc(load_profile(ctx))
     policy, reason = load_policy(ctx)
     running = [True]
     signal.signal(signal.SIGTERM, lambda *_: running.__setitem__(0, False))
@@ -223,12 +236,14 @@ def serve(ctx):
             if coordinator.clock() >= next_sample:
                 next_sample = coordinator.clock() + 10**9
                 voltage = ctx.integer('/sys/class/power_supply/BAT0/voltage_now')
-                state = battery.observe(policy, voltage, ctx.integer('/sys/class/power_supply/BAT0/present'))
+                battery_status = sample(ctx, soc, coordinator.clock() / 10**9)
+                state = battery.observe(policy, voltage, ctx.integer('/sys/class/power_supply/BAT0/present'), battery_status)
                 if state == 'ShutdownPending' and not coordinator.intent:
                     coordinator.request('poweroff', 'low_battery', policy['grace_seconds'])
                 atomic_json(runtime / 'power.json', {'schema': 1, 'boot_id': coordinator.boot_id,
                             'monotonic_ns': time.monotonic_ns(), 'state': state, 'voltage_uv': voltage,
                             'reason': reason, 'thresholds_enabled': policy is not None,
+                            'battery': battery_status,
                             'qualification_reference': policy.get('qualification_reference') if policy else None,
                             'shutdown': coordinator.intent})
             if coordinator.due():
