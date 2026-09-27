@@ -18,6 +18,7 @@
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <asm/proc-fns.h>
 struct y2_clock {
 	struct clk_hw hw;
 	void __iomem *pll, *top, *infra, *gate;
@@ -26,6 +27,36 @@ struct y2_clock {
 };
 static void __iomem *y2_clock_bases[4];
 static DEFINE_SPINLOCK(y2_clk_lock);
+
+/* Exact stock SLIDLE bus DCM sequence, serialized with every CCF gate/mux.
+ * The caller keeps IRQs disabled; the local clockevent bounds WFI residency.
+ * No PCM or context loss, and no activation on an unknown inherited value. */
+int y2_ccf_slow_idle(void)
+{
+	void __iomem *top = y2_clock_bases[0], *peri = y2_clock_bases[1];
+	unsigned saved;
+	int ret = 0;
+	if (!top || !peri) return -ENODEV;
+	if (num_online_cpus() != 1 || smp_processor_id() != 0) return -EBUSY;
+	if (!spin_trylock(&y2_clk_lock)) return -EBUSY;
+	saved = readl(top + 4);
+	/* Stock PERI blocker mask includes APDMA and I2C; additionally retain
+	 * every MSDC blocker. CG bits read as one when the clock is disabled. */
+	if (saved != 0x0f || ((~readl(peri + 0x18)) & (0x00f00800 | 0x00007800))) {
+		ret = -EBUSY; goto out;
+	}
+	writel(0x8f, top + 4);
+	if (readl(top + 4) != 0x8f) { ret = -EIO; goto restore; }
+	dsb(sy);
+	cpu_do_idle();
+restore:
+	writel(saved, top + 4);
+	dsb(sy);
+	if (readl(top + 4) != saved) ret = -EIO;
+out:
+	spin_unlock(&y2_clk_lock);
+	return ret;
+}
 
 /* Same INFRACFG_AO owner as the CPU mux. Original Y2 secondary hotplug and
  * dormant code use +0x800/+0x804; never write a loader image or RTC word. */
