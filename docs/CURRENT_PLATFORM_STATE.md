@@ -1,29 +1,35 @@
 # Current Y2Linux platform state
 
-**Hardware Final paused at owner request.** [Resume handoff](validation/Y2-HARDWARE-FINAL-HANDOFF.md).
-Original Hardware02 restored, healthy; source fixes committed, including physically
-confirmed live volume. No final build, flash, push or platform closure.
+Hardware Final is active in **implementation-first** mode from Astra handoff
+`022e6ee`. Original Hardware02 remains physically installed and untouched by
+this pass. Software changes accumulate as focused local `hardware-final`
+commits; no push, flash or repeated campaign audit.
 
-**Hardware Final is active on the physically installed Hardware02 baseline.**
-The owner combines CPU/power, battery and radio/audio completion into one final
-engineering campaign and one preserving candidate. Current physical metadata:
-Linux `76bc822` / Reborn `95747e0`, kernel `6.18.0-y2linux-hardware-02`,
-candidate.4. USB SSH, clean ext4 counters/taint,8/4-bit high-speed storage and
-four real local timers are observed. This is not final-platform acceptance.
+The consolidated Hardware Final candidate is being built at
+`out/y2linux-hardware-final-candidate/`. Implementation, enablement and physical
+qualification are separate flags, with Experimental gates, conservative
+configuration and existing safe fallbacks. Exact build identities/results will
+be carried in the package manifest and validation receipt.
 
-Follow [Hardware Final](validation/Y2-HARDWARE-FINAL.md),
-[capability limits](validation/Y2-HARDWARE-FINAL-CAPABILITIES.md),
-[qualification](validation/Y2-HARDWARE-FINAL-QUALIFICATION.md) and
-[the refreshed roadmap](planning/platform-v1-roadmap.md#hardware-final--single-campaign-2026-09-27).
-Private raw physical evidence stays outside these reports. Source work accumulates
-on local `hardware-final` branches; no push or new firmware installation.
+New implementation covers automatic SDR storage recovery, UUID-less SD identity,
+USB host/classes/NCM software boundary, schedutil/workload QoS, gated stock slow
+idle, charging ceilings, provisional SOC/percentage and low-battery integration,
+Wi-Fi PS/coexistence, optional codec runtime/Auto, native 44.1/48 plus high-source
+rate conversion, RTC synchronization/alarm and versioned capabilities/configs.
 
-Early findings: all supported storage clock steps pass bounded readback/durable
-workloads; integrated highres/NO_HZ is active; owner confirms SBC and temporary
-AAC through AirPodsPro2. Volume keys unnecessarily restart audio; a tested source
-repair is awaiting physical retest. ECM still falls back to PIO on unaligned
-buffers despite an available DMA controller. Neither a compiled feature nor a
-short test qualifies final endurance, voltage, VBUS, SOC or wider audio.
+Native wide/high-rate MT6582 DL1 output and runtime dormant idle lack a complete
+exact-controller path; NCM activation and the captured deep-suspend failure
+remain technical gaps. Host VBUS stays electrically gated. Battery current and
+pack temperature are unavailable unless an actual BAT0 measurement path exists.
+The candidate must not be represented as universally feature-complete or
+physically qualified.
+
+See [campaign](validation/Y2-HARDWARE-FINAL.md),
+[capabilities/defaults/fallbacks](validation/Y2-HARDWARE-FINAL-CAPABILITIES.md),
+[handoff](validation/Y2-HARDWARE-FINAL-HANDOFF.md) and
+[next physical qualification](validation/Y2-HARDWARE-FINAL-QUALIFICATION.md).
+Historical candidate descriptions below retain their original scope and do not
+override the current Hardware Final software state.
 
 ## Historical Platform v1 software candidate boundary
 

@@ -1,60 +1,86 @@
-# Y2 Hardware Final
+# Y2 Hardware Final implementation candidate
 
-**Paused at owner request,2026-09-27.** The [handoff](Y2-HARDWARE-FINAL-HANDOFF.md)
-supersedes provisional progress below and records restoration, completed fixes,
-owner-confirmed volume repair and all outstanding validation. No final image.
+Implementation-first continuation of Astra's `022e6ee` handoff, 2026-09-27.
+Software implementation, runtime enablement and physical qualification are
+independent. This pass does not contact, reboot or flash the Y2. The device
+remains on restored original Hardware02. Existing volume, pairing, checksum,
+timer and DMA fixes are retained. No repeated campaign audit was performed.
 
-ACTIVE engineering campaign, 2026-09-27. One final candidate is authorized;
-Hardware 03/04/05 are consolidated. No final candidate or installation is yet
-claimed. [Entry audit](../planning/roadmap-gap-audit.md#hardware-final-campaign-activation--2026-09-27).
+One consolidated candidate is being assembled at
+`out/y2linux-hardware-final-candidate/`. Exact built source identities and final
+validation results belong to its manifest and `validation/summary.json`.
+Current source implementation is complete up to the documented technical and
+electrical boundaries; this is not a claim that every desired native hardware
+mode is implemented. See [capabilities](Y2-HARDWARE-FINAL-CAPABILITIES.md).
 
-Installed baseline: Hardware 02, Linux `76bc8229580ec8d101008c5bad47419f2c110eae`,
-Reborn `95747e0a36c7b27beb44b8cdd54feda1813f2f3a`, candidate.4, kernel
-`6.18.0-y2linux-hardware-02`, boot `b93cda16-4e08-4ead-a74a-c85f4cccaa11`.
-Receipt00 matches exact metadata, pinned SSH, taint0, all ext4 counters0 and
-quick health OK. Source entry Linux `c53963b`; both repositories use local
-`hardware-final` branches. Pre-existing documentation/assets are preserved.
+## Implemented in this continuation
 
-Private raw commands/results are under
-`out/hardware-final/20260927T122702Z-hardware02/`; these include device identifiers
-and must not be copied wholesale into public docs or the candidate. Numerical
-summaries and receipt digests belong in the public evidence ledger.
+- Automatic standard SDR storage negotiation up to 50 MHz with asynchronous
+  50 -> 25 -> 13 MHz transport-fault containment; no implicit replay of writes.
+  UUID-less SD uses CID, partition geometry and filesystem identity while keeping
+  mount generation/inode replacement protection. FAT, exFAT and ext4 remain.
+- Dual-role MUSB host core, USB audio/storage/HID classes and NCM modules compile.
+  The role interface refuses host activation before session/VBUS writes. ECM
+  remains the built-in recovery gadget; NCM is packaged but cannot replace that
+  built-in gadget at runtime. DMA and `y2.usb_dma=off` PIO fallback are retained.
+- schedutil, existing source-backed DVFS and stock-bin high OPP gates; failed
+  voltage decrease now checks actual readback and attempts restoration, then
+  contains unknown/unsafe readback at the lowest known clock. Reborn publishes
+  bounded per-client workload and 250 ms interaction leases, never per-core MHz.
+- Stock SLIDLE bus DCM/WFI wrapper with shared clock ownership, eligible single
+  CPU and peripheral gate preflight, readback/rollback, abort/failure counters and
+  WFI fallback. It is compiled and disabled by default. Runtime CPU power-down
+  idle is a separate unresolved context/CIRQ/deadline integration.
+- Configurable source-backed charging ceiling (70/450/650 mA supported selectors;
+  per-source limits still apply), stock precharge/CV/termination/recharge/watchdog
+  protections retained. Voltage is not raised beyond the 4.175 V source default.
+- Battery SOC chooses hardware capacity, calibrated hybrid or filtered voltage
+  estimation. An estimated, provisional profile is separate from code. Filtering,
+  rest/sag handling, charge/discharge hysteresis, bounded monotonic smoothing,
+  full/empty corrections and missing-sensor fallback are implemented. Real BAT0
+  current/counter/temperature are consumed only if exposed; no fake pack sensors.
+- Reborn battery percentage and source/confidence diagnostics. Schema-2 low
+  battery warning/critical/shutdown support preserves schema-1 owner policies.
+  Provisional SOC warns; only measured/calibrated SOC can independently shut
+  down. Conservative voltage floor remains independent, with bounded countdown.
+- Standard Wi-Fi off/standard/automatic power save with actual readback; automatic
+  defaults off. Coexistence traffic/CPU/link observations expose future policy
+  hooks without guessing final bitrate rules. Existing DHCP/DNS/reconnect and
+  single-owner Bluetooth reconnect/AVRCP remain.
+- Pinned optional AAC, aptX, aptX HD and LDAC encoder builds are integrated into
+  the full root. Explicit owner Experimental policy enables optional endpoints;
+  production Auto still consumes qualification/distribution flags. Peer support,
+  request, negotiation and active PCM remain distinct. SBC/XQ, LDAC standard/
+  mobile/high and ABR policy are implemented; SBC is the fallback. This is an
+  owner-private package, not certification or public distribution approval.
+- Native S16 44.1/48 admission and application rate switches, 88.2 -> 44.1 and
+  96 -> 48 family conversion, then S16/44.1 fallback if opening fails. Inspected
+  exact MT6582 sources do not define native wide DL1 fetch or >48 kHz clocks;
+  no guessed register layout or false S32/native-high-rate claim was added.
+- Source-backed NTP -> RTC synchronization with durable trusted-time floor and
+  owner disable precedence; bounded alarm replacement/cancel/readback API.
+- Versioned capability, battery/power/audio/codec configuration receipts tied to
+  update compatibility and checked against both root tar and ext4 image. Runtime
+  per-CPU highres/NO_HZ and storage error/fallback telemetry are added.
 
-## Physical evidence so far
+Existing Linux suspend/pm_test, Power/RTC wake routing, USB/radio restoration,
+GPU/runtime display PM, codec controls, memory diagnostics, signed root OTA,
+recovery and endurance tooling are retained. Deep suspend remains gated because
+Astra did not obtain a successful same-boot resume or a discriminating first
+failure snapshot. This pass does not invent a fix for that unresolved failure.
 
-- MMC IOS8/4-bit, high-speed SDR,3.3V and actual24,999,971Hz at entry. Requested
-  clock50MHz is distinct from actual clock. Bounded13/25/50 steps are running
-  with guarded scratch, direct random/sequential readback and durable workloads.
-- GPT6 calibrates13MHz; all four CPUs have arch_sys_timer and arch_sys_counter
-  is active. timer_list reports hres_active/highres/nohz1 and idle_sleeps on
-  every CPU. Long continuity, effective idle and hotplug tests remain explicit.
-- USB reports Inventra DMA, zero DMA errors at entry. Directional counters
-  are added to final source; programmed bytes are not successful delivered bytes.
-- RTC standard UTC write/read/ticking pass again after checked NTP. Existing
-  RTC synchronization policy is enabled with receipt05; reboot/off retention
-  and same-boot alarm wake are separate unperformed cases.
-- AirPods Pro2 bond reconnects with actual SBC stereo44.1kHz. Owner confirms
-  clean sound in both ears and working stem Play/Pause during receipt11.
-  Volume keys cause a roughly one-second restarting-audio interruption; this
-  is an observed product bug, not an SBC acceptance waiver.
-- Idle thread observation found control~98, audio~99, Bluetooth~51, main~65
-  voluntary context switches/s. Source fixes remove empty-control100Hz polling,
-  idle-audio100Hz polling and power-daemon4Hz polling. Physical A/B still pending.
-- Owner has no USB power meter. No input-current, net-battery-current or charge
-  energy claim is made. Pack thermistor/current calibration/SOC gates remain.
+## Validation and package boundary
 
-## Consolidated implementation and boundaries
+Kernel/config/DT, platform host tests, Buildroot and Reborn ARM, Reborn host tests,
+fmt/strict Clippy, QEMU/installed ARM, FFmpeg/ALSA, package/ELF/dependency,
+source/license, preserving-data and exact Hardware02 fallback checks are required
+before the candidate handoff. Results are recorded as they complete; physical
+qualification is not a prerequisite for producing the package.
 
-[Capabilities](Y2-HARDWARE-FINAL-CAPABILITIES.md) distinguish narrow prior physical
-results from final-source availability and blockers. [Qualification](Y2-HARDWARE-FINAL-QUALIFICATION.md)
-records the outstanding execution order. Higher stock OPPs require the guarded
-[DVFS contract](../knowledge/hardware-final-dvfs.md), default1040MHz cap, runtime
-opt-in and physical qualification. No overclock or automatic high-voltage default.
-Codec libraries are owner-private source/build experiments with explicit normal
-SBC fallback and no unqualified Auto preference. Public distribution is separate.
+No Y2DATA image, partition migration, firmware download on-device, reserved RAM
+reclaim, NVRAM/calibration write, automatic BOOTIMG OTA or flash is included.
+Both repositories retain local `hardware-final` commits and configured identity.
+User documentation/assets remain outside the candidate source checkout.
 
-No intermediate firmware is justified: temporary userspace experiments can run
-on Hardware02; new kernel paths can be gated in the one final candidate. Deep
-suspend, VBUS, pack calibration and wider DL1 are not fabricated from build flags.
-Protected regions, loaders and Y2DATA remain unchanged. Actual root OTA apply
-requires explicit owner approval after a concrete package and stable core.
+The next activity is one [physical qualification campaign](Y2-HARDWARE-FINAL-QUALIFICATION.md)
+on this assembled platform. Failed or absent evidence never promotes a flag.

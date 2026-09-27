@@ -1,3 +1,31 @@
+# Hardware Final implementation-first continuation, 2026-09-27
+
+The owner resumed Astra's `022e6ee` handoff with implementation before physical
+qualification. This continuation overrides the paused/measurement-first next
+steps below; Astra's completed evidence, failed experiments and source index are
+preserved verbatim as historical context. No full audit or new device session.
+
+Current local branches contain SOC/low-battery/UI, UUID-less SD, automatic SDR
+fallback, schedutil/workload leases, guarded USB host/classes/NCM, slow idle,
+source-backed charger ceiling, Wi-Fi power policy/coexistence, experimental
+codec selection, native S16 48/family fallback, RTC alarm/sync and independent
+capability/configuration contracts. The volume and other Astra fixes remain.
+
+One candidate is being built from clean paired checkouts. Final exact identities
+and completed validation will be recorded here and in the package manifest.
+No flash or push. Original Hardware02 remains the physical baseline. User docs
+and UI assets remain preserved outside the candidate checkout; preexisting Rust
+formatting was reproduced independently from committed source for strict fmt.
+
+Read [implementation](Y2-HARDWARE-FINAL.md),
+[truthful capability/default/fallback ledger](Y2-HARDWARE-FINAL-CAPABILITIES.md)
+and [one later qualification campaign](Y2-HARDWARE-FINAL-QUALIFICATION.md).
+Native S32/88.2/96, runtime CPU power-down, NCM activation and successful deep
+suspend remain explicit technical gaps. Missing current/pack temperature stays
+unavailable. Software presence is never inferred from a qualification label.
+
+## Astra handoff at 022e6ee (preserved)
+
 # Hardware Final handoff — 2026-09-27
 
 **PAUSED at the owner's request to reduce token use and continue with another

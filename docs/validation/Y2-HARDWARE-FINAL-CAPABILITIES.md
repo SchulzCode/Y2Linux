@@ -1,51 +1,99 @@
 # Y2 Hardware Final capability ledger
 
-**Paused at owner request,2026-09-27.** The [handoff](Y2-HARDWARE-FINAL-HANDOFF.md)
-supersedes provisional progress below and records restoration, completed fixes,
-owner-confirmed volume repair and all outstanding validation. No final image.
+Implementation/default inventory for the consolidated candidate, 2026-09-27.
+Every flag describes this candidate, not historical Hardware02 evidence.
+`implemented`, `enabled`, `qualified` and `experimental` are independent.
+Runtime `y2-platform capabilities` resolves radio and codec enablement from the
+installed inventory and explicit owner policy; active codec/PCM is observed
+separately. Actual timer and storage state is in `y2-platform status`.
 
-ACTIVE/provisional,2026-09-27. Status describes the explicit measured scope in
-each row, not blanket final-platform acceptance. Only owner physical evidence
-can promote final-source changes. MB/s is decimal bytes; Mb/s decimal bits.
-See [campaign](Y2-HARDWARE-FINAL.md) and [qualification](Y2-HARDWARE-FINAL-QUALIFICATION.md).
+| Capability | Implemented | Default enabled | Qualified | Experimental | Reason / limit |
+| --- | --- | --- | --- | --- | --- |
+| `telemetry` | true | true | false | false | physical qualification of this exact candidate pending |
+| `health` | true | true | false | false | physical qualification of this exact candidate pending |
+| `storage` | true | true | false | false | physical qualification of this exact candidate pending |
+| `wifi` | true | false | false | false | physical qualification of this exact candidate pending |
+| `bluetooth` | true | false | false | false | physical qualification of this exact candidate pending |
+| `usb_device` | true | true | false | false | physical qualification of this exact candidate pending |
+| `usb_host` | true | false | false | true | VBUS physical validation pending; host role refused before session or VBUS write |
+| `audio` | true | true | false | false | S16 44.1/48 enabled independently of qualification; high source rates convert with explicit fallback |
+| `power_observation` | true | true | false | false | SOC estimate available; pack current/temperature remain unavailable unless real BAT0 properties exist |
+| `low_battery_shutdown` | true | true | false | false | conservative stock-boundary voltage floor; provisional SOC only warns |
+| `deep_suspend` | true | false | false | false | same_boot_resume_unqualified |
+| `cpuidle` | true | true | false | false | physical qualification of this exact candidate pending |
+| `system_watchdog` | true | false | false | false | AP_watchdog_driver_available_recovery_policy_unqualified |
+| `ota` | true | true | false | false | physical qualification of this exact candidate pending |
+| `automatic_bootimg_update` | false | false | false | false | single_slot_rescue_can_be_lost |
+| `shutdown` | true | true | false | false | physical qualification of this exact candidate pending |
+| `emmc` | true | true | false | false | physical qualification pending |
+| `sd` | true | true | false | false | physical qualification pending |
+| `usb_dma` | true | true | false | false | physical qualification pending |
+| `usb_ncm` | true | false | false | true | module compiled; ECM remains recovery default; NCM activation and FIFO integration pending |
+| `local_timer` | true | true | false | false | physical qualification pending |
+| `high_resolution_timers` | true | true | false | false | physical qualification pending |
+| `no_hz_idle` | true | true | false | false | physical qualification pending |
+| `cpufreq` | true | true | false | false | physical qualification pending |
+| `dvfs` | true | true | false | true | stock-bin voltage control implemented; high stock OPPs default gated |
+| `workload_qos` | true | true | false | false | physical qualification pending |
+| `cpu_hotplug` | true | true | false | false | physical qualification pending |
+| `slow_idle` | true | false | false | true | stock slow-idle wrapper implemented; single-CPU clock preflight and physical tuning pending |
+| `cpu_power_down_idle` | false | false | false | true | runtime dormant/CIRQ/GPT deadline integration remains a technical gap; suspend PCM is not runtime idle |
+| `charging` | true | true | false | false | physical qualification pending |
+| `battery_soc` | true | true | false | false | physical qualification pending |
+| `rtc_time` | true | true | false | false | physical qualification pending |
+| `rtc_alarm` | true | false | false | true | alarm software implemented; same-boot suspend wake pending |
+| `wifi_power_save` | true | false | false | true | off/standard/automatic implemented; automatic defaults conservatively off |
+| `radio_coexistence` | true | true | false | false | instrumentation and policy hooks implemented; no final bitrate overrides |
+| `bluetooth_sbc` | true | true | false | false | runtime enablement uses compiled inventory and explicit Experimental gate; physical qualification pending |
+| `bluetooth_sbc_xq` | true | false | false | true | runtime enablement uses compiled inventory and explicit Experimental gate; physical qualification pending |
+| `bluetooth_aac` | true | false | false | true | runtime enablement uses compiled inventory and explicit Experimental gate; physical qualification pending |
+| `bluetooth_aptx` | true | false | false | true | runtime enablement uses compiled inventory and explicit Experimental gate; physical qualification pending |
+| `bluetooth_aptx_hd` | true | false | false | true | runtime enablement uses compiled inventory and explicit Experimental gate; physical qualification pending |
+| `bluetooth_ldac` | true | false | false | true | runtime enablement uses compiled inventory and explicit Experimental gate; physical qualification pending |
+| `wired_48` | true | true | false | false | source-backed native S16 path enabled; full candidate qualification pending |
+| `audio_rate_conversion` | true | true | false | false | physical qualification pending |
+| `wired_s32` | false | false | false | true | exact MT6582 DL1 wide-fetch/high-rate register path not defined in inspected pinned sources; source-backed conversion fallback implemented |
+| `wired_native_88200` | false | false | false | true | exact MT6582 DL1 wide-fetch/high-rate register path not defined in inspected pinned sources; source-backed conversion fallback implemented |
+| `wired_native_96000` | false | false | false | true | exact MT6582 DL1 wide-fetch/high-rate register path not defined in inspected pinned sources; source-backed conversion fallback implemented |
+| `cs43131_controls` | true | true | false | false | physical qualification pending |
+| `gpu_runtime_pm` | true | true | false | false | physical qualification pending |
+| `display_off` | true | true | false | false | physical qualification pending |
+| `memory_telemetry` | true | true | false | false | physical qualification pending |
+| `diagnostics` | true | true | false | false | physical qualification pending |
 
-| Capability | Status | Evidence / precise limit |
+## Defaults, fallbacks and tuning
+
+| Group | Default and fallback | Physical qualification / tuning |
 | --- | --- | --- |
-| eMMC width/clock/timing | QUALIFIED_WITH_LIMIT | 8-bit, actual49,999,942Hz high-speed SDR3.3V; bounded13/25/50 sweep and direct/durable readback pass. Repeats/library/endurance pending. |
-| eMMC measured read/write | QUALIFIED_WITH_LIMIT | First50MHz 1MiB direct read33.08/write26.44MB/s; workload/cache/CPU limits retained. Not an endurance maximum. |
-| SD width/clock/mode/read/write | QUALIFIED_WITH_LIMIT | One known-good SD128:4-bit SD high-speed3.3V; first50MHz read19.19/write17.95MB/s. Multi-card/removal lifecycle remains open. |
-| USB PIO/DMA | FAILED | Device ECM works; DMA controller exists but DMA IRQ count stays6 across large transfers. Source aligns ECM buffers2mod4 while Inventra requires4-byte alignment; final fix in investigation. |
-| USB raw TCP/SFTP/reconnect | QUALIFIED_WITH_LIMIT | Hardware02 TCP~38Mb/s into unit/~46Mb/s out, RX retransmissions; current separated SFTP and reconnect pending. Historical PIO results are comparison only. |
-| CPU frequency/OPPs/voltage | IMPLEMENTED_PHYSICAL_PENDING | Baseline598/747.5/1040MHz1.15V. Guarded exact-bin stock1196MHz1.20V/1300MHz1.25V opt-in under implementation; default1040MHz cap. No qualified high-OPP claim. |
-| CPU core policy | QUALIFIED_WITH_LIMIT | Four online default; earlier bounded1–4-core cycles passed. Hardware02 playback/hotplug repeat and measured power benefit pending; no automatic hotplug. |
-| Local timer/highres/NO_HZ | QUALIFIED_WITH_LIMIT | Four arch_sys_timer/PPI29 clockevents, arch_sys_counter13MHz; hres_active/nohz1 and idle_sleeps observed. Continuity, load, hotplug and effective idle deltas retained separately. |
-| Cpuidle states/residency | BLOCKED_BY_HARDWARE_EVIDENCE | WFI only. Exact stock slidle/dpidle found; deeper state ownership/eligibility and power/latency proof absent. Do not use suspend PCM as runtime idle. |
-| Suspend Power wake/cycles | FAILED | Prior persistent devices/platform/processors return but USB overflow and radio restore fail; no same-boot deep wake acceptance. Current staged test pending. |
-| Suspend RTC wake | BLOCKED_BY_HARDWARE_EVIDENCE | Requires restored deep suspend then same-boot alarm/wake-source/drift receipt. |
-| GPU clock/runtime PM | QUALIFIED_WITH_LIMIT | Inherited stock branch500.5MHz, Mali400MP2; current renderer active, historical screen-off runtime suspend. No evidence-backed higher clock; new endurance/resume pending. |
-| Charging behavior/limits/thermal | QUALIFIED_WITH_LIMIT | SDP500mA allocation/configured450mA,4.175V target, real voltage/state/die temperatures. No USB meter; load energy balance/current/full behavior unmeasured. |
-| Battery current | BLOCKED_BY_HARDWARE_EVIDENCE | Stock FG stubs; ISENSE-BATSNS topology/resistor/calibration unproved. No net-current property. |
-| Battery SOC/percentage | BLOCKED_BY_HARDWARE_EVIDENCE | Hardware coulomb integration unestablished, calibrated rest/discharge/charge curves absent. No invented percentage or precision. |
-| Battery temperature | BLOCKED_BY_HARDWARE_EVIDENCE | BATON stable~10387; NTC versus fixed detection resistor unresolved. Die temperatures never substitute. |
-| Low-battery warning/critical/shutdown | BLOCKED_BY_HARDWARE_EVIDENCE | Mechanism implemented but thresholds disabled; measured safe reserve/load sag and shutdown exercise required. |
-| Wi-Fi throughput/reconnect/power save | QUALIFIED_WITH_LIMIT | WPA2/DHCP/DNS/NTP/TCP baseline works. Current throughput/coexistence measured separately. Observation timeout metrics bug identified; AP-loss/reboot/PS/endurance pending. |
-| Bluetooth SBC | QUALIFIED_WITH_LIMIT | Hardware02 AirPodsPro2: negotiated stereo44.1k S16, owner clean listening and stem Play/Pause. Volume-key restart bug requires retest; longer endurance/fresh bond pending. |
-| Bluetooth SBC XQ | IMPLEMENTED_PHYSICAL_PENDING | libsbc/BlueALSA support exists; no XQ bitpool/peer/coexistence qualification, normal HQ fallback retained. |
-| Bluetooth AVRCP | QUALIFIED_WITH_LIMIT | Owner confirms Play/Pause; captured MPRIS Play/Pause from BlueZ. Next/Previous/metadata need distinct observations. |
-| Bluetooth AAC | QUALIFIED_WITH_LIMIT | Temporary owner-private ARM FDK/BlueALSA bundle negotiates AAC,S16 stereo48k; owner clean listening. CPU/coexistence/long endurance and final image remain separate gates. |
-| Bluetooth aptX/aptX HD | IMPLEMENTED_PHYSICAL_PENDING | Pinned LGPL libfreeaptx ARM builds; available AirPods do not establish peer support. No Adaptive/Lossless claim; public product clearance unestablished. |
-| Bluetooth LDAC | IMPLEMENTED_PHYSICAL_PENDING | Pinned encoder+ABR ARM builds. No suitable peer for330/660/990/ABR; certification/public distribution unestablished. No990default. |
-| Bluetooth Auto | IMPLEMENTED_PHYSICAL_PENDING | Existing typed policy remains gated by actual compiled/peer/qualification evidence; preference is never active codec. SBC fallback retained. |
-| Wi-Fi/BT coexistence | IMPLEMENTED_PHYSICAL_PENDING | SBC/AAC samples and checked TCP scheduled with exact codec/timestamps; scans/reconnect/other-codec peers and long duration outstanding. |
-| Wired S16/44.1 | QUALIFIED_WITH_LIMIT | Prior owner-confirmed native baseline; current final application regressions/listening remain separate. |
-| Wired S16/48 | IMPLEMENTED_PHYSICAL_PENDING | Prior short direct48k clean; normal product profile44.1 only until longer product/screen-off/switching evidence. |
-| Wired S24/S32/preserved24-bit | BLOCKED_BY_HARDWARE_EVIDENCE | Exact MT6582 DL1 wide fetch/interconnect packing not established; donor hd_reg=-1. CS43131/32-bit I2S slots are insufficient. |
-| Wired88.2/96kHz | BLOCKED_BY_HARDWARE_EVIDENCE | Complete DL1 format/AFE clock-family path and measured clocks missing; fallback resampling retained. |
-| USB host/HID/storage/USB Audio | BLOCKED_BY_HARDWARE_EVIDENCE | Connector ID routing, VBUS source switch, current limit/protection unestablished. Need board tracing/electrical measurement; never energize guessed VBUS. |
-| CS43131 additional features | QUALIFIED_WITH_LIMIT | Existing DAC volume/filter controls available; load/IRQ/jack topology not qualified. No automatic high gain or impedance policy. |
-| RTC read/write/tick/NTP | QUALIFIED_WITH_LIMIT | Receipt05 UTC write/read/tick passes and NTP sync policy enabled. Reboot/full-power-off retention not yet proved. |
-| RTC alarm wake | BLOCKED_BY_HARDWARE_EVIDENCE | Alarm register availability is not wake proof; depends on same-boot deep resume. |
-| Display/memory | QUALIFIED_WITH_LIMIT | Render/display/input observed; HIGHMEM/reservations retained, PSS available. Screen-off/GPU/load/leak pressure/endurance still bounded tests. |
-| OTA update/rollback | IMPLEMENTED_PHYSICAL_PENDING | Signed root/rescue/readback/health/rollback code; destructive apply requires explicit owner approval after final stable candidate. No bootloader corruption. |
-| Recovery/reboot/power cycles | IMPLEMENTED_PHYSICAL_PENDING | Hardware02 boots and pinned SSH works; final repeated cycles and controlled userspace-failure receipts pending. |
-| Endurance | IMPLEMENTED_PHYSICAL_PENDING | Short workload measurements only; no8h wired/BT or full combined endurance completion claimed. |
+| eMMC / SD | Standard SDR automatic maximum 50 MHz; faults lower to 25/13; 8/4-bit. No DDR/UHS/HS200. CID/geometry identity accepts missing UUID. | Matched scratch readback/durable tests, multi-card/removal, maximum stable clock, fault counters, endurance. |
+| USB | Inventra DMA; `y2.usb_dma=off` PIO. ECM/ACM USB-only key-auth SFTP; reserves and durable publication retained. | DMA delivered throughput versus programmed counters, RX/TX, reconnect/suspend, retransmits and ENOSPC publication. |
+| Host / NCM | Host stack/classes compiled, role refused before VBUS. NCM/dependency carried by BOOTIMG; default built-in ECM remains. | Exact VBUS topology before host activation. NCM needs a reviewed gadget-selection/FIFO integration; compilation alone is not active NCM. |
+| CPU / timer | schedutil, 598/747.5/1040 MHz table; bin-checked 1196/1300 gated; voltage floor 1.15 V. Per-open expiring QoS, interaction 250 ms. GPT6/PPI29 with legacy fallback. | OPP transitions/readback, scheduler/QoS, thermal limits, all-core hotplug and timer continuity/broadcast/highres/tickless residency. Floors/durations provisional. |
+| Idle / suspend | WFI; compiled SLIDLE defaults off, single CPU/gated peripherals/clock rollback. Deep suspend explicit existing owner qualification path and pm_test. | SLIDLE entry/abort counters/residency/wake. Suspend staged failure snapshot, CPU/USB/radio/DRM/ALSA restoration, Power and RTC same-boot wake. |
+| Charging | Source-aware BC1.1, stock protections, 4.175 V; supported 70/450/650 mA configurable ceiling. No arbitrary charger voltage/current. | Real external current, source class/USB enumeration, pack ceiling, thermal behavior, termination/recharge/watchdog. |
+| Battery | Estimated table in `/etc/y2linux/battery-profile.json`; private owner override in `/data/system/platform`. Hardware/hybrid takes precedence when real. Sensors absent -> null/state-only. | Rest/charge/load/discharge calibration replaces provisional curve, qualified current/resistor/NTC only if actual hardware path exists. |
+| Low battery | Provisional SOC warns; independent 3.4 V floor after five samples, ten-second grace; schema-1 owner policy retained. | Reserve, load-sag immunity, warning/countdown/recovery, SOC trust and final thresholds. No synthetic shutdown demonstration here. |
+| Wi-Fi / coexistence | Retained checksum repair. Standard power-save callback, automatic conservatively off, off fallback. Traffic and CPU/link hooks, no bitrate override. | Association/DHCP/DNS/NTP/reboot/AP-loss, PS readback/power/latency, isolated throughput and all-codec heavy coexistence. |
+| Bluetooth | SBC default. Experimental policy enables compiled private optional codecs and XQ; qualified production Auto separate. LDAC standard/ABR, 990 not mandatory. | Peer/negotiated/active PCM agreement, every codec, AVRCP, reconnect/screen-off/endurance and CPU/radio pressure. Source/license inventory retained. |
+| Wired / CS43131 | Native S16 44.1/48; high source rates convert by family then 44.1 fallback. Existing hardware volume/filters/DAPM; no automatic high gain/load work. | Rate switching, low bits, I2S clocks, clicks/volume/screen-off; load sensing needs verified board measurement path. |
+| RTC | UTC read/write/persistent floor; NTP sync source-backed, owner override; bounded alarm API doesn't enter suspend. | Retention across reboot/off, alarm interrupt and same-boot wake, bad-time recovery. |
+| GPU / memory | Existing renderer/display/runtime PM and PSS/LOWMEM/HIGHMEM/cache/slab/growth observation. Reserved regions unchanged. | 480x360 smoothness, screen-off/wake power and repeated memory-growth tests. |
+| OTA / recovery | Platform v1 root-only signed OTA/exact kernel; configuration contract v2 and battery/power schemas included. BOOTIMG remains preserving manual update. | Interrupted update/recovery/health/rollback later. This package includes only BOOTIMG/Y2ROOT and exact Hardware02 fallback, no data image. |
+
+## Technical gaps, separate from qualification
+
+Native S32/24-bit preservation and native 88.2/96 lack an exact MT6582 DL1 fetch,
+interconnect and clock programming path in the inspected pinned source. The
+conversion architecture is implemented; native modes are honestly false.
+Runtime CPU power-down needs dormant context, CIRQ and GPT deadline ownership,
+which cannot be substituted by suspend PCM. NCM is compiled/packaged with
+activation integration pending. Deep suspend software exists but the captured
+failure remains unresolved; same-boot restoration is not declared complete.
+Actual net battery current/charge counter and pack temperature remain absent
+when no hardware property exists. These are substantive limits, not merely
+`qualified=false` labels for nonexistent implementations.
+
+Astra's physical evidence and exact source/provenance index remain in
+[the handoff](Y2-HARDWARE-FINAL-HANDOFF.md). Optional codec provenance/licensing
+and native-audio register analysis remain in
+[the source review](Y2-HARDWARE-FINAL-RADIO-AUDIO.md).
