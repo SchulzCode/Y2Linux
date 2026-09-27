@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Y2 peripheral platform driver. Cached legacy observation ABI is read-only. */
 #include <linux/cdev.h>
+#include <linux/atomic.h>
 #include <linux/platform_device.h>
 #include <linux/sysfs.h>
 #include <linux/of.h>
@@ -161,6 +162,83 @@ static int __init y2_usb_dma_option(char *value)
 __setup("y2.usb_dma=", y2_usb_dma_option);
 
 #if IS_ENABLED(CONFIG_USB_INVENTRA_DMA)
+/* Observe the upstream allocator/programmer without changing its decisions.
+ * Bytes below are accepted DMA programming, NOT USB delivery or TCP goodput.
+ * Atomic counters keep 64-bit snapshots coherent on this 32-bit platform.
+ * Channel ownership follows the existing MUSB lock/lifecycle serialization. */
+static struct dma_controller y2_dma_original;
+static struct {
+    struct dma_channel *channel;
+    bool transmit;
+} y2_dma_channels[8];
+static atomic64_t y2_dma_allocations, y2_dma_alloc_failures, y2_dma_releases;
+static atomic64_t y2_dma_programs[2], y2_dma_programmed_bytes[2];
+static atomic64_t y2_dma_program_failures, y2_dma_aborts, y2_dma_abort_failures;
+static atomic_t y2_dma_allocated;
+
+static struct dma_channel *y2_dma_alloc(struct dma_controller *controller,
+                                      struct musb_hw_ep *ep, u8 transmit)
+{
+    struct dma_channel *channel = y2_dma_original.channel_alloc(controller, ep, transmit);
+    unsigned int i;
+    if (!channel) {
+        atomic64_inc(&y2_dma_alloc_failures);
+        return NULL;
+    }
+    for (i = 0; i < ARRAY_SIZE(y2_dma_channels); i++) {
+        if (!y2_dma_channels[i].channel) {
+            y2_dma_channels[i].channel = channel;
+            y2_dma_channels[i].transmit = !!transmit;
+            break;
+        }
+    }
+    atomic64_inc(&y2_dma_allocations);
+    atomic_inc(&y2_dma_allocated);
+    return channel;
+}
+
+static void y2_dma_release(struct dma_channel *channel)
+{
+    unsigned int i;
+    y2_dma_original.channel_release(channel);
+    for (i = 0; i < ARRAY_SIZE(y2_dma_channels); i++) {
+        if (y2_dma_channels[i].channel == channel) {
+            y2_dma_channels[i].channel = NULL;
+            atomic_dec(&y2_dma_allocated);
+            break;
+        }
+    }
+    atomic64_inc(&y2_dma_releases);
+}
+
+static int y2_dma_program(struct dma_channel *channel, u16 packet, u8 mode,
+                         dma_addr_t address, u32 length)
+{
+    int ret = y2_dma_original.channel_program(channel, packet, mode, address, length);
+    unsigned int i;
+    if (!ret) {
+        atomic64_inc(&y2_dma_program_failures);
+        return ret;
+    }
+    for (i = 0; i < ARRAY_SIZE(y2_dma_channels); i++) {
+        if (y2_dma_channels[i].channel == channel) {
+            unsigned int direction = y2_dma_channels[i].transmit;
+            atomic64_inc(&y2_dma_programs[direction]);
+            atomic64_add(length, &y2_dma_programmed_bytes[direction]);
+            break;
+        }
+    }
+    return ret;
+}
+
+static int y2_dma_abort(struct dma_channel *channel)
+{
+    int ret = y2_dma_original.channel_abort(channel);
+    atomic64_inc(&y2_dma_aborts);
+    if (ret) atomic64_inc(&y2_dma_abort_failures);
+    return ret;
+}
+
 static struct dma_controller *y2_musb_dma_init(struct musb *musb, void __iomem *base)
 {
     struct dma_controller *dma;
@@ -172,6 +250,13 @@ static struct dma_controller *y2_musb_dma_init(struct musb *musb, void __iomem *
     }
     /* Exact MT6582 stock DMA unmask/ack; status is sampled byte W1C later.
      * Channel enable preflight already ran in y2_musb_init. */
+    y2_dma_original = *dma;
+    memset(y2_dma_channels, 0, sizeof(y2_dma_channels));
+    atomic_set(&y2_dma_allocated, 0);
+    dma->channel_alloc = y2_dma_alloc;
+    dma->channel_release = y2_dma_release;
+    dma->channel_program = y2_dma_program;
+    dma->channel_abort = y2_dma_abort;
     writel(0xff0000ff, base + 0x200);
     WRITE_ONCE(y2_usb_dma_active, true);
     return dma;
@@ -179,6 +264,9 @@ static struct dma_controller *y2_musb_dma_init(struct musb *musb, void __iomem *
 static void y2_musb_dma_exit(struct dma_controller *dma)
 {
     musbhs_dma_controller_destroy(dma);
+    /* Upstream stop may release leftover channels directly. */
+    memset(y2_dma_channels, 0, sizeof(y2_dma_channels));
+    atomic_set(&y2_dma_allocated, 0);
     WRITE_ONCE(y2_usb_dma_active, false);
 }
 #endif
@@ -754,6 +842,20 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
     n += sysfs_emit_at(buf, n, "transfer=%s dma_irqs=%u dma_errors=%u dma_boot_disabled=%u\n",
         READ_ONCE(y2_usb_dma_active) ? "inventra_dma" : "pio",
         READ_ONCE(y2_usb_dma_irqs), READ_ONCE(y2_usb_dma_errors), y2_usb_dma_disabled);
+#if IS_ENABLED(CONFIG_USB_INVENTRA_DMA)
+    n += sysfs_emit_at(buf, n,
+        "dma_allocations=%lld dma_alloc_failures=%lld dma_releases=%lld dma_allocated=%d\n",
+        atomic64_read(&y2_dma_allocations), atomic64_read(&y2_dma_alloc_failures),
+        atomic64_read(&y2_dma_releases), atomic_read(&y2_dma_allocated));
+    n += sysfs_emit_at(buf, n,
+        "dma_rx_programs=%lld dma_rx_programmed_bytes=%lld dma_tx_programs=%lld dma_tx_programmed_bytes=%lld\n",
+        atomic64_read(&y2_dma_programs[0]), atomic64_read(&y2_dma_programmed_bytes[0]),
+        atomic64_read(&y2_dma_programs[1]), atomic64_read(&y2_dma_programmed_bytes[1]));
+    n += sysfs_emit_at(buf, n,
+        "dma_program_failures=%lld dma_aborts=%lld dma_abort_failures=%lld\n",
+        atomic64_read(&y2_dma_program_failures), atomic64_read(&y2_dma_aborts),
+        atomic64_read(&y2_dma_abort_failures));
+#endif
     if (smp_load_acquire(&y2_irq_fault_valid))
         n += sysfs_emit_at(buf, n,
             "irq_overflow_l1=%x/%x usb=%x/%x tx=%x/%x rx=%x/%x power=%x devctl=%x\n",

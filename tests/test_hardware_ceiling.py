@@ -184,3 +184,72 @@ int main(void) {
  writes=0;assert(dma_channel_abort(&d)==0);assert(!writes);
 }
 ''')
+
+
+    def test_dma_observer_counts_accepted_programming_without_changing_results(self):
+        text = (ROOT / 'kernel/platform/usb.c').read_text()
+        body = text[text.index('static struct dma_controller y2_dma_original;'):]
+        body = body[:body.index('static struct dma_controller *y2_musb_dma_init')]
+        run_c(r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+typedef uint8_t u8; typedef uint16_t u16; typedef uint32_t u32;
+typedef uint32_t dma_addr_t;
+typedef long long atomic64_t; typedef int atomic_t;
+#define atomic64_inc(p) (++*(p))
+#define atomic64_add(v,p) (*(p)+=(v))
+#define atomic_inc(p) (++*(p))
+#define atomic_dec(p) (--*(p))
+#define ARRAY_SIZE(a) (sizeof(a)/sizeof((a)[0]))
+struct dma_channel { int id; };
+struct musb_hw_ep { int id; };
+struct dma_controller {
+ struct dma_channel *(*channel_alloc)(struct dma_controller *,struct musb_hw_ep *,u8);
+ void (*channel_release)(struct dma_channel *);
+ int (*channel_program)(struct dma_channel *,u16,u8,dma_addr_t,u32);
+ int (*channel_abort)(struct dma_channel *);
+};
+static struct dma_channel channels[8];
+static unsigned used, programs, releases, aborts;
+static int program_result=1,abort_result;
+static struct dma_channel *allocate(struct dma_controller *c,struct musb_hw_ep *e,u8 tx) {
+ for(unsigned i=0;i<8;i++)if(!(used&(1U<<i))) { used|=1U<<i;channels[i].id=i;return &channels[i]; }
+ return NULL;
+}
+static void release(struct dma_channel *c) { used&=~(1U<<c->id);releases++; }
+static int program(struct dma_channel *c,u16 p,u8 m,dma_addr_t a,u32 n) {
+ assert(p==512 && a==0x12345678 && (m==0 || m==1)); programs++;return program_result;
+}
+static int abort_channel(struct dma_channel *c) { aborts++;return abort_result; }
+''' + body + r'''
+int main(void) {
+ struct musb_hw_ep ep={0};struct dma_controller original={allocate,release,program,abort_channel};
+ y2_dma_original=original;
+ struct dma_channel *rx=y2_dma_alloc(&original,&ep,0),*tx=y2_dma_alloc(&original,&ep,1);
+ assert(rx==&channels[0] && tx==&channels[1] && y2_dma_allocated==2);
+ /* Direction is allocation direction, not the DMA mode parameter. */
+ assert(y2_dma_program(rx,512,1,0x12345678,0xffffffff)==1);
+ assert(y2_dma_program(rx,512,0,0x12345678,1024)==1);
+ assert(y2_dma_program(tx,512,0,0x12345678,512)==1);
+ assert(y2_dma_programs[0]==2 && y2_dma_programmed_bytes[0]==0x1000003ffLL);
+ assert(y2_dma_programs[1]==1 && y2_dma_programmed_bytes[1]==512);
+ program_result=0;
+ assert(y2_dma_program(tx,512,1,0x12345678,4096)==0);
+ assert(programs==4 && y2_dma_program_failures==1 && y2_dma_programs[1]==1);
+ assert(y2_dma_programmed_bytes[1]==512);
+ assert(y2_dma_abort(tx)==0);abort_result=-5;
+ assert(y2_dma_abort(rx)==-5);
+ assert(aborts==2 && y2_dma_aborts==2 && y2_dma_abort_failures==1);
+ for(unsigned i=2;i<8;i++)assert(y2_dma_alloc(&original,&ep,i%2)==&channels[i]);
+ assert(y2_dma_alloc(&original,&ep,0)==NULL);
+ assert(y2_dma_allocations==8 && y2_dma_alloc_failures==1 && y2_dma_allocated==8);
+ y2_dma_release(rx);assert(releases==1 && y2_dma_releases==1 && y2_dma_allocated==7);
+ assert(y2_dma_alloc(&original,&ep,1)==rx);
+ program_result=1;assert(y2_dma_program(rx,512,0,0x12345678,64)==1);
+ assert(y2_dma_programs[1]==2 && y2_dma_programmed_bytes[1]==576);
+ for(unsigned i=0;i<8;i++)y2_dma_release(&channels[i]);
+ assert(!used && !y2_dma_allocated && releases==9 && y2_dma_releases==9);
+}
+''')
