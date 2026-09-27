@@ -27,7 +27,7 @@ static char broadcast_admission[64] = "gpt1_foundation_fallback";
 module_param_string(broadcast_admission, broadcast_admission, sizeof(broadcast_admission), 0400);
 static char admission[64] = "not_attempted";
 static unsigned pre_control, pre_clock, pre_irq, pre_gpt4_control, pre_gpt4_clock;
-static unsigned reference_ticks;
+static unsigned reference_ticks, gpt6_ticks;
 static unsigned long long counter_ticks;
 static bool counter_adopted;
 module_param_string(admission, admission, sizeof(admission), 0400);
@@ -37,6 +37,7 @@ module_param(pre_irq, uint, 0400);
 module_param(pre_gpt4_control, uint, 0400);
 module_param(pre_gpt4_clock, uint, 0400);
 module_param(reference_ticks, uint, 0400);
+module_param(gpt6_ticks, uint, 0400);
 module_param(counter_ticks, ullong, 0400);
 module_param(counter_adopted, bool, 0400);
 module_param_named(ready, y2_timer_ready, bool, 0400);
@@ -121,7 +122,7 @@ bool __init y2_local_timer_resource(struct device_node *node)
 }
 void __init y2_local_timer_prepare(void __iomem *gpt, unsigned long rate)
 {
-	u32 reference, delta = 0, pfr1;
+	u32 reference, delta = 0, pfr1, gpt6_begin, gpt6_delta;
 	u64 begin, elapsed;
 	unsigned int tries;
 	const char *reason;
@@ -145,6 +146,9 @@ void __init y2_local_timer_prepare(void __iomem *gpt, unsigned long rate)
 	 * GPT6's inherited IRQ is masked; GPT4 belongs to the broadcast owner.
 	 * A legitimate running counter is never reset or briefly stopped. */
 	writel(pre_irq & ~BIT(5), gpt);
+	if (readl(gpt) & BIT(5)) {
+		reason = "gpt6_irq_mask_readback"; goto fallback;
+	}
 	counter_adopted = y2_gpt6_adopt(pre_control, pre_clock);
 	if (!counter_adopted) {
 		writel(pre_control & ~1U, gpt + 0x60);
@@ -158,6 +162,7 @@ void __init y2_local_timer_prepare(void __iomem *gpt, unsigned long rate)
 	if ((readl(gpt + 0x20) & ~2U) != 0x31 || readl(gpt + 0x24)) {
 		reason = "gpt2_reference_control_clock"; goto fallback;
 	}
+	gpt6_begin = readl(gpt + 0x68);
 	reference = readl(gpt + 0x28);
 	begin = y2_physical_count();
 	for (tries = 0; tries < 100000; tries++) {
@@ -166,14 +171,18 @@ void __init y2_local_timer_prepare(void __iomem *gpt, unsigned long rate)
 		cpu_relax();
 	}
 	elapsed = y2_physical_count() - begin;
-	reference_ticks = delta; counter_ticks = elapsed;
+	gpt6_delta = readl(gpt + 0x68) - gpt6_begin;
+	reference_ticks = delta; counter_ticks = elapsed; gpt6_ticks = gpt6_delta;
 	if (tries == 100000) { reason = "gpt2_reference_timeout"; goto fallback; }
+	if (!y2_gpt_rate_matches(delta, gpt6_delta)) {
+		reason = "gpt6_gpt2_rate_mismatch"; goto fallback;
+	}
 	if (!y2_gpt_rate_matches(delta, elapsed)) {
 		reason = "cntp_gpt2_rate_mismatch"; goto fallback;
 	}
 	y2_timer_ready = true;
 	strscpy(admission, counter_adopted ? "adopted_13mhz" : "prepared_13mhz", sizeof(admission));
-	pr_info("Y2TIMER: %s GPT2=%u CNTP=%llu, GPT4 inherited independently\n", admission, delta, elapsed);
+	pr_info("Y2TIMER: %s GPT2=%u GPT6=%u CNTP=%llu, GPT4 inherited independently\n", admission, delta, gpt6_delta, elapsed);
 	return;
 fallback:
 	if (changed) {
@@ -184,9 +193,9 @@ fallback:
 	writel(pre_irq, gpt);
 rejected:
 	strscpy(admission, reason, sizeof(admission));
-	pr_warn("Y2TIMER: admission=%s GPT6=%#x/%#x GPT2=%#x/%#x IRQ=%#x reference=%u counter=%llu; legacy fallback\n",
+	pr_warn("Y2TIMER: admission=%s GPT6=%#x/%#x GPT2=%#x/%#x IRQ=%#x reference=%u gpt6=%u counter=%llu; legacy fallback\n",
 		admission, readl(gpt + 0x60), readl(gpt + 0x64), readl(gpt + 0x20),
-		readl(gpt + 0x24), readl(gpt), reference_ticks, counter_ticks);
+		readl(gpt + 0x24), readl(gpt), reference_ticks, gpt6_ticks, counter_ticks);
 }
 bool __init y2_local_timer_broadcast_prepare(void __iomem *gpt)
 {

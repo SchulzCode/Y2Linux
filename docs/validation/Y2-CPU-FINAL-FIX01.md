@@ -19,7 +19,7 @@ physical register attempt printed addresses without values, so it is not claimed
 as a retrospective live GPT4 readback.
 
 GPT6 now has separate DT/resource, feature, reserved-bit, control readback,
-GPT2 reference and counter-rate predicates with names and register snapshots.
+GPT2 reference, GPT6 rate and CNTP counter-rate predicates with names and register snapshots.
 A valid running13MHz GPT6 is adopted without clearing/stopping its counter;
 known stopped/other valid control states are safely prepared. Reserved state
 and real counter mismatch still fail. On failure modified state is restored.
