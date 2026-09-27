@@ -614,6 +614,7 @@ static int y2_musb_exit(struct musb *musb)
  * endpoint requests through the gadget owner aborts DMA before context save;
  * resume re-enumerates ECM/ACM instead of reviving stale endpoint transfers. */
 static bool y2_pm_disconnect;
+static bool y2_pm_system_saved;
 static unsigned y2_pm_suspends, y2_pm_restores, y2_pm_stale;
 static unsigned y2_pm_l1_mask;
 static void y2_musb_clear_stale(struct musb *musb)
@@ -652,8 +653,7 @@ int y2_musb_system_quiesce(struct musb *musb)
 		 * while a DMA enable remains; do not reset a live DMA buffer. */
 		if (readw(musb->mregs + 0x204 + i * 16) & BIT(0)) ret = -EBUSY;
 	}
-	y2_musb_clear_stale(musb);
-	if (!ret) y2_pm_suspends++;
+	if (!ret) { y2_musb_clear_stale(musb); y2_pm_suspends++; }
 	else if (y2_pm_disconnect) writeb(readb(musb->mregs + MUSB_POWER) |
 		MUSB_POWER_SOFTCONN, musb->mregs + MUSB_POWER);
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -663,6 +663,7 @@ void y2_musb_system_saved(struct musb *musb)
 {
 	if (musb != READ_ONCE(y2_musb)) return;
 	/* Status/FADDR/DMA are intentionally not resurrected by context restore. */
+	y2_pm_system_saved = true;
 	if (y2_pm_disconnect) musb->context.power |= MUSB_POWER_SOFTCONN;
 }
 void y2_musb_before_restore(struct musb *musb)
@@ -675,7 +676,9 @@ void y2_musb_before_restore(struct musb *musb)
 	writeb(0, musb->mregs + MUSB_INTRUSBE);
 	writew(0, musb->mregs + MUSB_INTRTXE);
 	writew(0, musb->mregs + MUSB_INTRRXE);
-	y2_musb_clear_stale(musb);
+	/* Runtime resume can carry a valid endpoint/DMA completion. Only a
+	 * completed system disconnect proves that sampled status is stale. */
+	if (y2_pm_system_saved) y2_musb_clear_stale(musb);
 	y2_pm_restores++;
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
@@ -688,6 +691,7 @@ void y2_musb_after_restore(struct musb *musb)
 	 * only after endpoint/IRQ context is valid; never revive a terminal fault.
 	 * System suspend saved a zero gate and enables it through its own hook. */
 	writel(READ_ONCE(y2_live.result) ? 0 : y2_pm_l1_mask, musb->mregs + 0xa4);
+	y2_pm_system_saved = false;
 	dsb(sy);
 	spin_unlock_irqrestore(&musb->lock, flags);
 }

@@ -147,7 +147,9 @@ MUSB now disconnects through its gadget owner, refuses live DMA, acknowledges
 sampled stale USB/TX/RX/DMA W1C status, saves quiescent endpoints and clears stale
 conditions before restored interrupt enables. ECM/ACM re-enumerate on system resume.
 The IRQ burst window resets with this lifecycle; the terminal fault guard remains.
-Runtime context restoration also clears stale status before interrupt restoration.
+Runtime restoration preserves pending transfer events; stale acknowledgements are
+limited to successful system quiescence and its saved context. Failed DMA quiesce
+also preserves pending completion status.
 The exact runtime top-level IRQ gate returns after endpoint restoration; system
 resume enables its gate through the platform hook. A terminal fault stays masked.
 
