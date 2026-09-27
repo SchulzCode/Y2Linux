@@ -197,7 +197,7 @@ static void pm_relax(struct device *d){d->awake=0;}
 static struct device dev;
 static struct iio_channel bat={17000},baton={10388},isense={17000},die={25000};
 static struct y2_charger charger(void){
- return (struct y2_charger){.dev=&dev,.io=io,.battery=&bat,.baton=&baton,.isense=&isense,.die=&die,.input=&supply};
+ return (struct y2_charger){.charge_ceiling_ua=650000,.dev=&dev,.io=io,.battery=&bat,.baton=&baton,.isense=&isense,.die=&die,.input=&supply};
 }
 int main(void){
  reset();struct y2_charger c=charger();

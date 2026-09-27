@@ -45,7 +45,7 @@ struct y2_charger {
 	u64 first_fault_ms;
 	unsigned first_fault, first_con0, first_cv, first_ov, first_wdt, first_thr;
 	int first_uv, first_sample_error;
-	unsigned charge_ua, selector;
+	unsigned charge_ua, selector, charge_ceiling_ua;
 	enum y2_source_type source;
 	int uv, baton_raw, isense_raw, die_mc, input_ua, sample_error, stop_error, last_error;
 	int status, behaviour;
@@ -184,7 +184,7 @@ static unsigned y2_charger_target(struct y2_charger *c)
 	 * adequately powered boot. */
 	if (c->uv <= Y2_PRECHARGE_UV)
 		ua = min(ua, Y2_DEEP_DISCHARGE_MAX_UA);
-	return ua;
+	return min(ua, c->charge_ceiling_ua);
 }
 
 static unsigned y2_charger_sample_fault(struct y2_charger *c)
@@ -377,6 +377,7 @@ static enum power_supply_property y2_bat_props[] = {
 	POWER_SUPPLY_PROP_PRESENT, POWER_SUPPLY_PROP_STATUS, POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW, POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE, POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 };
 static enum power_supply_property y2_usb_props[] = {
 	POWER_SUPPLY_PROP_ONLINE, POWER_SUPPLY_PROP_USB_TYPE,
@@ -418,6 +419,7 @@ static int y2_bat_get(struct power_supply *psy, enum power_supply_property p,
 		if (!ret) v->intval = y2_charge_uv(value);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR: v->intval = c->behaviour; break;
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX: v->intval = c->charge_ceiling_ua; break;
 	default: ret = -EINVAL;
 	}
 	mutex_unlock(&c->lock);
@@ -428,6 +430,17 @@ static int y2_bat_set(struct power_supply *psy, enum power_supply_property p,
 {
 	struct y2_charger *c = power_supply_get_drvdata(psy);
 	int ret = 0;
+	if (p == POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX) {
+		/* Only the already supported stock selectors; cap, never allocation. */
+		if (v->intval != 70000 && v->intval != 450000 && v->intval != 650000) return -EINVAL;
+		mutex_lock(&c->lock);
+		if (v->intval < c->charge_ua) ret = y2_charger_inhibit(c);
+		if (!ret) c->charge_ceiling_ua = v->intval;
+		if (!c->stopping && !c->paused) mod_delayed_work(c->wq, &c->work, 0);
+		mutex_unlock(&c->lock);
+		power_supply_changed(c->bat);
+		return ret;
+	}
 	if (p != POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR ||
 	    (v->intval != POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO &&
 	     v->intval != POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE)) return -EINVAL;
@@ -445,7 +458,7 @@ static int y2_bat_set(struct power_supply *psy, enum power_supply_property p,
 }
 static int y2_bat_writeable(struct power_supply *psy, enum power_supply_property p)
 {
-	return p == POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR;
+	return p == POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR || p == POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX;
 }
 static int y2_usb_get(struct power_supply *psy, enum power_supply_property p,
 		      union power_supply_propval *v)
@@ -626,6 +639,10 @@ static int y2_charger_probe(struct platform_device *pdev)
 	/* No dependency can defer leaving an inherited charger enabled. */
 	ret = y2_charge_stop(&c->io);
 	if (ret) return dev_err_probe(dev, ret, "charging inhibit\n");
+	c->charge_ceiling_ua = 650000;
+	of_property_read_u32(dev->of_node, "innioasis,max-charge-current-microamp", &c->charge_ceiling_ua);
+	if (c->charge_ceiling_ua != 70000 && c->charge_ceiling_ua != 450000 && c->charge_ceiling_ua != 650000)
+		return dev_err_probe(dev, -EINVAL, "unsupported source-backed charge ceiling\n");
 	c->battery = devm_iio_channel_get(dev, "battery-voltage");
 	if (IS_ERR(c->battery)) return dev_err_probe(dev, PTR_ERR(c->battery), "battery ADC\n");
 	c->baton = devm_iio_channel_get(dev, "baton");
