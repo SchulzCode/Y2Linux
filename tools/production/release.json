@@ -1,7 +1,7 @@
 {
-  "release_version": "1.0.0-cpu-final-candidate.1",
-  "rootfs_version": "2025.02.18-platform-v1.6",
-  "build_id": "Y2LINUX-CPU-FINAL",
+  "release_version": "1.0.0-cpu-final-fix01-candidate.1",
+  "rootfs_version": "2025.02.18-platform-v1.7",
+  "build_id": "Y2LINUX-CPU-FINAL-FIX01",
   "platform_api_version": 1,
   "feature_contract_version": 2,
   "battery_profile_schema": 1,

@@ -44,7 +44,8 @@ install -m 755 "$project/tools/production/y2-status" "$target/usr/sbin/y2-status
 mkdir -p "$target/usr/lib/y2-platform/y2_platform"
 install -m 644 "$project"/tools/platform/y2_platform/*.py "$target/usr/lib/y2-platform/y2_platform/"
 install -m 644 "$project/tools/platform/main.py" "$target/usr/lib/y2-platform/main.py"
-for command in y2-platform y2-status y2-health; do
+install -m 644 "$project/tools/platform/suspend-record.py" "$target/usr/lib/y2-platform/suspend-record.py"
+for command in y2-platform y2-status y2-health y2-suspend-record; do
     install -m 755 "$project/tools/platform/$command" "$target/usr/sbin/$command"
 done
 install -m 644 "$project/tools/platform/capabilities.json" "$target/etc/y2linux/capabilities.json"

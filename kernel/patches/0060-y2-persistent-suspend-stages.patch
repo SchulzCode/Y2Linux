@@ -1,0 +1,66 @@
+--- a/kernel/power/suspend.c
++++ b/kernel/power/suspend.c
+@@ -24,6 +24,7 @@
+ #include <linux/slab.h>
+ #include <linux/export.h>
+ #include <linux/suspend.h>
++#include "/project/kernel/platform/pm-journal.h"
+ #include <linux/syscore_ops.h>
+ #include <linux/swait.h>
+ #include <linux/ftrace.h>
+@@ -444,6 +445,7 @@
+ 	}
+ 
+ 	error = pm_sleep_disable_secondary_cpus();
++	y2_pm_mark(Y2_PM_SECONDARIES_OFF, error);
+ 	if (error || suspend_test(TEST_CPUS))
+ 		goto Enable_cpus;
+ 
+@@ -465,6 +467,7 @@
+ 			error = -EBUSY;
+ 		}
+ 		syscore_resume();
++		y2_pm_mark(Y2_PM_TIMER_RESTORED, error);
+ 	}
+ 
+ 	system_state = SYSTEM_RUNNING;
+@@ -474,6 +477,7 @@
+ 
+  Enable_cpus:
+ 	pm_sleep_enable_secondary_cpus();
++	y2_pm_mark(Y2_PM_SECONDARIES_ON, error);
+ 
+  Platform_wake:
+ 	platform_resume_noirq(state);
+@@ -518,6 +522,7 @@
+ 		pr_err("Some devices failed to suspend, or early wake event detected\n");
+ 		goto Recover_platform;
+ 	}
++	y2_pm_mark(Y2_PM_DEVICES_SUSPENDED, 0);
+ 	suspend_test_finish("suspend devices");
+ 	if (suspend_test(TEST_DEVICES))
+ 		goto Recover_platform;
+@@ -527,6 +532,7 @@
+ 	} while (!error && !wakeup && platform_suspend_again(state));
+ 
+  Resume_devices:
++	y2_pm_mark(Y2_PM_DEVICES_RESUMING, error);
+ 	suspend_test_start();
+ 	dpm_resume_end(PMSG_RESUME);
+ 	suspend_test_finish("resume devices");
+@@ -590,6 +596,7 @@
+ 	if (sync_on_suspend_enabled) {
+ 		trace_suspend_resume(TPS("sync_filesystems"), 0, true);
+ 		ksys_sync_helper();
++		y2_pm_mark(Y2_PM_FILESYSTEM_SYNCED, 0);
+ 		trace_suspend_resume(TPS("sync_filesystems"), 0, false);
+ 	}
+ 
+@@ -629,6 +636,7 @@
+ 	if (state <= PM_SUSPEND_ON || state >= PM_SUSPEND_MAX)
+ 		return -EINVAL;
+ 
++	y2_pm_mark(Y2_PM_SUSPEND_REQUEST, 0);
+ 	pr_info("suspend entry (%s)\n", mem_sleep_labels[state]);
+ 	error = enter_state(state);
+ 	dpm_save_errno(error);

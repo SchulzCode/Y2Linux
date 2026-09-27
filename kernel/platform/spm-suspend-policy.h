@@ -7,7 +7,7 @@
 #ifndef Y2_SPM_SUSPEND_POLICY_H
 #define Y2_SPM_SUSPEND_POLICY_H
 #include "spm-regs.h"
-#define Y2_SPM_WAKE (WAKE_SRC_EINT | WAKE_SRC_USB_CD | WAKE_SRC_THERM | WAKE_SRC_SYSPWREQ)
+#define Y2_SPM_WAKE (WAKE_SRC_KP | WAKE_SRC_EINT | WAKE_SRC_USB_CD | WAKE_SRC_THERM | WAKE_SRC_SYSPWREQ)
 #define Y2_SPM_TIMER (600U * 32768U)
 
 static inline void y2_spm_reset_pcm(const struct y2_spm_io *io)
@@ -82,6 +82,9 @@ static inline int y2_spm_suspend_arm(const struct y2_spm_io *io, unsigned addres
 	io->write(io->context, SPM_APMCU_PWRCTL, 0); /* no MT6333 */
 	io->write(io->context, SPM_AP_STANBY_CON, (3U << 19) | (1U << 4));
 	for (n = SPM_CORE0_WFI_SEL; n <= SPM_CORE3_WFI_SEL; n += 4) io->write(io->context, n, 1);
+	/* Clear only the software CPU wake request before arming, never an RTC
+	 * or EINT pending bit. Source wake polarity remains IRQ-owner defined. */
+	io->write(io->context, SPM_SLEEP_CPU_WAKEUP_EVENT, 0);
 	io->write(io->context, SPM_PCM_TIMER_VAL, Y2_SPM_TIMER);
 	y2_spm_update(io, SPM_PCM_CON1, 0, CON1_CFG_KEY | CON1_PCM_TIMER_EN);
 	io->write(io->context, SPM_SLEEP_WAKEUP_EVENT_MASK, ~Y2_SPM_WAKE);
@@ -95,6 +98,12 @@ static inline int y2_spm_suspend_arm(const struct y2_spm_io *io, unsigned addres
 	y2_spm_update(io, SPM_CLK_CON, 0, CC_SRCLKENA_MASK);
 	io->write(io->context, SPM_PCM_WDT_TIMER_VAL, Y2_SPM_TIMER + 30U * 32768U);
 	y2_spm_update(io, SPM_PCM_CON1, CON1_PCM_WDT_WAKE_MODE, CON1_CFG_KEY | CON1_PCM_WDT_EN);
+	/* Refuse a dropped control write before any CPU/cluster power removal. */
+	if (io->read(io->context, SPM_SLEEP_WAKEUP_EVENT_MASK) != ~Y2_SPM_WAKE ||
+	    io->read(io->context, SPM_PCM_TIMER_VAL) != Y2_SPM_TIMER ||
+	    io->read(io->context, SPM_PCM_WDT_TIMER_VAL) != Y2_SPM_TIMER + 30U * 32768U ||
+	    io->read(io->context, SPM_PCM_PWR_IO_EN) != (PCM_PWRIO_EN_R0 | PCM_PWRIO_EN_R7) ||
+	    !(io->read(io->context, SPM_PCM_CON1) & CON1_PCM_WDT_EN)) return -EIO;
 	io->write(io->context, SPM_PCM_CON0, CON0_CFG_KEY | CON0_IM_SLEEP_DVS | CON0_PCM_KICK);
 	io->write(io->context, SPM_PCM_CON0, CON0_CFG_KEY | CON0_IM_SLEEP_DVS);
 	return 0;

@@ -4,6 +4,7 @@ Reset moves only reviewed user paths into a private recovery directory. Purge is
 a separate confirmed, bounded operation. SSH/entropy/update/factory state stays.
 """
 # SPDX-License-Identifier: GPL-2.0-only
+from .workload import workload
 import contextlib
 import fcntl
 import hashlib
@@ -294,6 +295,7 @@ def execute(ctx, confirmation, erase_music=False, resume=False):
             if fd is not None: os.close(fd)
 
 
+@workload("Maintenance")
 def purge(ctx, token, confirmation, limit=256):
     if not re.fullmatch('[0-9a-f]{32}', token):
         raise ValueError('invalid_reset_id')
@@ -344,6 +346,7 @@ def purge(ctx, token, confirmation, limit=256):
         os.close(top)
 
 
+@workload("Maintenance")
 def export(ctx, include_database=False, include_network=False):
     volume = data_volume(ctx)
     directory = private_directory(ctx.path('/data/exports'))

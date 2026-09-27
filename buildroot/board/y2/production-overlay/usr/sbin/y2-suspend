@@ -12,12 +12,14 @@ exec 8>/run/y2/activity.lock
 flock -xn 8 || { echo 'An active radio operation holds a suspend lease.' >&2; exit 1; }
 stage() {
     printf '%s\n' "$1" > /run/y2/suspend-stage
+    y2-suspend-record "$1" "${2:-0}"
 }
 restore() {
     suspend_rc=$?
     trap - EXIT
     restore_rc=0
-    stage restoring_radios
+    stage restoring_radios "$suspend_rc"
+    [ ! -w /sys/firmware/y2_pm/stage ] || printf 'RADIOS_RESTORING\n' > /sys/firmware/y2_pm/stage
     if [ "$(cat /data/network/enabled)" = 1 ]; then
         y2-radio wifi on-runtime || restore_rc=1
     fi
@@ -28,7 +30,10 @@ restore() {
         echo 'Radio restoration failed; suspend/resume qualification did not pass.' >&2
         [ "$suspend_rc" != 0 ] || suspend_rc=1
     fi
-    stage "complete_result_$suspend_rc"
+    stage "complete_result_$suspend_rc" "$suspend_rc" || suspend_rc=1
+    if [ "$suspend_rc" = 0 ] && [ -w /sys/firmware/y2_pm/stage ]; then
+        printf 'COMPLETE\n' > /sys/firmware/y2_pm/stage
+    fi
     exit "$suspend_rc"
 }
 trap restore EXIT

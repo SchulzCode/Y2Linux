@@ -1,5 +1,6 @@
 """Verified owner uploads: private staging, identity/space checks, durable no-replace publish."""
 # SPDX-License-Identifier: GPL-2.0-only
+from .workload import workload
 import fcntl
 import hashlib
 import os
@@ -74,6 +75,7 @@ def open_directory(parent, component, create=False):
     return fd
 
 
+@workload("NetworkTransfer")
 def commit(ctx, token):
     stage_path(ctx, token)  # validate before any path access
     volume = data_volume(ctx)

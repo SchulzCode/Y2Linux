@@ -14,6 +14,8 @@ static DEFINE_MUTEX(qualification_lock);
 static struct freq_qos_request ceiling;
 static unsigned qualification_max_khz = 1040000;
 static bool bin_supported, voltage_fault;
+static int admission_error;
+module_param(admission_error, int, 0400);
 module_param(bin_supported, bool, 0400);
 module_param(voltage_fault, bool, 0400);
 
@@ -87,6 +89,7 @@ static void stock_admission_work(struct work_struct *work)
 		ret = freq_qos_update_request(&ceiling, 1300000);
 		if (ret < 0) WRITE_ONCE(qualification_max_khz, 1040000);
 	}
+	admission_error = ret;
 	pr_info("Y2DVFS: stock-bin automatic admission result=%d ceiling=%u kHz\n",
 		ret, qualification_max_khz);
 out:

@@ -194,10 +194,10 @@ int main(void){
 #include <errno.h>
 typedef uint16_t u16;
 #define MT6323_CHIP_ID 0x23
-struct regmap {unsigned r[512];};
+struct regmap {unsigned r[0x9000/2];};
 struct device {void *data;};
 struct mt6397_chip {struct regmap *regmap;unsigned chip_id;int irqlock,irq;
- u16 int_con[3],wake_mask[3],irq_masks_cur[3];bool irq_suspended,irq_wake_enabled;};
+ u16 int_con[3],int_status[3],wake_mask[3],irq_masks_cur[3];bool irq_suspended,irq_wake_enabled;};
 static void *dev_get_drvdata(struct device *d){return d->data;}
 static int op,fail,wake_fail,depth,locked;
 static void mutex_lock(int *l){assert(!locked);locked=1;}
@@ -207,6 +207,14 @@ static int regmap_write(struct regmap *m,unsigned r,unsigned v){
 }
 static int enable_irq_wake(int i){if(wake_fail)return -EINVAL;depth++;return 0;}
 static int disable_irq_wake(int i){assert(depth==1);depth--;return 0;}
+static int regmap_read(struct regmap *m,unsigned r,unsigned *v){
+ assert(r!=0x8002); if(++op==fail)return -EIO;*v=m->r[r/2];return 0;
+}
+#define BIT(x) (1U<<(x))
+#define Y2_PM_RTC_ARMED 7
+static unsigned rtc_armed;
+static void y2_pm_mark(unsigned stage,int error){assert(stage==7 && !error);rtc_armed++;}
+static void y2_pm_pmic_snapshot(unsigned a,unsigned b,unsigned c,unsigned d,unsigned e){}
 #define dev_err(...) ((void)0)
 ''' + ''.join(function(source,n) for n in ('mt6323_write_masks','mt6323_irq_suspend','mt6323_irq_resume')) + r'''
 int main(void){
@@ -217,16 +225,18 @@ int main(void){
  assert(m.r[0x160/2]==0 && m.r[0x166/2]==0);
  assert(!mt6323_irq_resume(&d));
  /* Children select Power + RTC before the MFD late callback runs. */
- c.wake_mask[0]=0x20;c.wake_mask[1]=0x10;
- assert(!mt6323_irq_suspend(&d) && depth==1 && c.irq_suspended);
+ c.wake_mask[0]=0x20;c.wake_mask[1]=0x10;m.r[0x8004/2]=1;
+ assert(!mt6323_irq_suspend(&d) && depth==1 && c.irq_suspended && rtc_armed);
  assert(m.r[0x160/2]==0x20 && m.r[0x166/2]==0x10);
  assert(!mt6323_irq_resume(&d) && !depth && !c.irq_suspended);
  assert(m.r[0x160/2]==0x420 && m.r[0x166/2]==0x10);
- for(fail=1;fail<=2;fail++){
+ for(fail=1;fail<=5;fail++){
   op=0;assert(mt6323_irq_suspend(&d)==-EIO && !c.irq_suspended && !depth);
   assert(m.r[0x160/2]==0x420 && m.r[0x166/2]==0x10);
  }
- fail=0;wake_fail=1;
+ fail=0;c.wake_mask[1]=0;
+ assert(mt6323_irq_suspend(&d)==-EINVAL && !depth && !c.irq_suspended);
+ c.wake_mask[1]=0x10;wake_fail=1;
  assert(mt6323_irq_suspend(&d)==-EINVAL && !depth && !c.irq_suspended && !locked);
  assert(m.r[0x160/2]==0x420 && m.r[0x166/2]==0x10);
 }

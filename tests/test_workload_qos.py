@@ -26,6 +26,7 @@ struct delayed_work{unsigned delay;};
 struct y2_workload{char name[32];unsigned long deadline;struct freq_qos_request minimum;struct pm_qos_request latency;struct delayed_work expiry;int lock;};
 struct file{void *private_data;};
 static int system_wq,fail;
+static int y2_system_idle_restore(void){return 0;}
 static int copy_from_user(void *a,const void *b,unsigned n){memcpy(a,b,n);return 0;}
 static void mutex_lock(int *p){assert(!*p);*p=1;}
 static void mutex_unlock(int *p){assert(*p);*p=0;}
@@ -45,7 +46,38 @@ int main(void){
  assert(y2_workload_write(&file,"ArtworkDecode 1000",18,0)==18 && hint.minimum.value==747500);
  assert(y2_workload_write(&file,"PlaybackNormal 1000",19,0)==19 && !hint.minimum.value);
  assert(y2_workload_write(&file,"LibraryScan 30000",17,0)==17 && hint.minimum.value==747500);
- fail=1;assert(y2_workload_write(&file,"Idle 100",8,0)==-EIO && hint.minimum.value==747500);
+ assert(y2_workload_write(&file,"PlaybackHeavy 3000\n",19,0)==19 && hint.minimum.value==747500);
+ assert(y2_workload_write(&file,"NetworkTransfer 3000\n",21,0)==21 && hint.minimum.value==598000);
+ assert(y2_workload_write(&file,"Maintenance 3000\n",17,0)==17 && hint.minimum.value==598000);
+ fail=1;assert(y2_workload_write(&file,"Idle 100",8,0)==-EIO && hint.minimum.value==598000);
  assert(!hint.lock);
+}
+''')
+
+    def test_close_or_process_exit_releases_only_the_owned_lease(self):
+        source = (Path(__file__).resolve().parents[1] / 'kernel/platform/workload.c').read_text()
+        run_c(r'''
+#include <assert.h>
+#include <stdbool.h>
+struct request{bool active;};struct node{bool member;};
+struct y2_workload{struct node node;bool expiry,latency,freed;struct request minimum,maximum;int *policy;};
+struct inode{int unused;};struct file{void *private_data;};static int leases_lock;
+static struct y2_workload *closing;
+static void mutex_lock(int *l){assert(!*l);*l=1;}
+static void mutex_unlock(int *l){assert(*l);*l=0;}
+static void list_del(struct node *n){assert(leases_lock && n->member);n->member=false;}
+static void cancel_delayed_work_sync(bool *work){assert(!closing->node.member && !leases_lock);*work=false;}
+static void cpu_latency_qos_remove_request(bool *p){assert(!closing->expiry);*p=false;}
+static void freq_qos_remove_request(struct request *p){assert(p->active);p->active=false;}
+static void cpufreq_cpu_put(int *p){(*p)--;}
+static void kfree(struct y2_workload *p){p->freed=true;}
+''' + function(source,'y2_workload_release') + r'''
+int main(void){
+ int users=2;struct y2_workload a={{true},true,true,false,{true},{true},&users},b=a;
+ struct file f={&a};struct inode inode={0};closing=&a;
+ assert(!y2_workload_release(&inode,&f));
+ assert(a.freed && !a.minimum.active && !a.maximum.active && !a.latency && !a.expiry && users==1);
+ assert(b.node.member && b.minimum.active && b.maximum.active && b.latency && b.expiry);
+ f.private_data=&b;closing=&b;assert(!y2_workload_release(&inode,&f) && users==0 && b.freed);
 }
 ''')

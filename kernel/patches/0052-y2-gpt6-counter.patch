@@ -14,13 +14,35 @@
  #define TIMER_CLK_SRC           (2)
  
  #define TIMER_SYNC_TICKS        (3)
-@@ -328,6 +331,13 @@
+@@ -208,7 +211,12 @@
+ 	struct clock_event_device *clkevt = (struct clock_event_device *)dev_id;
+ 	struct timer_of *to = to_timer_of(clkevt);
+ 
+-	/* Acknowledge timer0 irq */
++	/* GPT4 shares the GPT parent, never manufacture a deadline for another
++	 * channel's pending IRQ. The original non-Y2 semantics are unchanged. */
++	if (of_machine_is_compatible("innioasis,y2") &&
++	    !(readl(timer_of_base(to) + 4) & GPT_IRQ_ACK(TIMER_CLK_EVT)))
++		return IRQ_NONE;
++	/* Acknowledge selected deadline irq */
+ 	writel(GPT_IRQ_ACK(TIMER_CLK_EVT), timer_of_base(to) + GPT_IRQ_ACK_REG);
+ 	clkevt->event_handler(clkevt);
+ 
+@@ -316,6 +324,7 @@
+ 	to.clkevt.resume = mtk_gpt_resume;
+ 	to.of_irq.handler = mtk_gpt_interrupt;
+ 
++	if (!y2_local_timer_resource(node)) return -EINVAL;
+ 	ret = timer_of_init(node, &to);
+ 	if (ret)
+ 		return ret;
+@@ -328,6 +337,13 @@
  	gpt_sched_reg = timer_of_base(&to) + GPT_CNT_REG(TIMER_CLK_SRC);
  	sched_clock_register(mtk_gpt_read_sched_clock, 32, timer_of_rate(&to));
  
 +	y2_local_timer_prepare(timer_of_base(&to), timer_of_rate(&to));
-+	if (y2_local_timer_ready()) {
-+		mtk_gpt_clkevt_time_stop(&to, 1);
++	if (y2_local_timer_ready() &&
++	    y2_local_timer_broadcast_prepare(timer_of_base(&to))) {
 +		y2_event_timer = 4;
 +		to.clkevt.name = "y2-gpt4-broadcast";
 +	}

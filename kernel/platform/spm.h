@@ -6,6 +6,7 @@ int y2_spm_dormant_idle(void);
 int y2_spm_cpu_disable(unsigned cpu);
 int y2_spm_cpu_kill(unsigned cpu);
 int y2_spm_cpu_boot(unsigned cpu, unsigned long entry);
+void y2_ccf_boot_state(unsigned *vector, unsigned *enable);
 int y2_ccf_boot_vector(unsigned long entry);
 int y2_spm_radio_power(unsigned domain, int on);
 int y2_spm_unstarted_md_off(void);

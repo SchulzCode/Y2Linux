@@ -30,7 +30,7 @@ class SuspendPolicy(unittest.TestCase):
                 source = source.replace(prefix, str(root) + prefix)
             script = root / 'suspend.sh'
             script.write_text(source)
-            for command in ('y2-radio', 'sleep', 'sync'):
+            for command in ('y2-radio', 'sleep', 'sync', 'y2-suspend-record'):
                 mock = root / 'bin' / command
                 mock.write_text('#!/bin/sh\nexit 0\n')
                 mock.chmod(0o755)

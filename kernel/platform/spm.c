@@ -27,6 +27,7 @@
 #include "clocks.h"
 #include "local-timer.h"
 #include "cpu-options.h"
+#include "pm-journal.h"
 #include <linux/cpufreq.h>
 #include <linux/ktime.h>
 #include "shared.h"
@@ -60,6 +61,11 @@ static void spm_write(void *context, unsigned reg, unsigned value)
 	writel(value, context + reg);
 	/* Stock mt65xx_reg_sync_writel ordering, including command strobes. */
 	dsb(sy);
+	if (system_state == SYSTEM_SUSPEND && reg == SPM_POWER_ON_VAL1 && (value & R7_UART_CLK_OFF_REQ))
+		y2_pm_mark(Y2_PM_UART_REQUEST, 0);
+	if (system_state == SYSTEM_SUSPEND && reg == SPM_PCM_CON0 &&
+	    (value & CON0_PCM_KICK) && readl(context + SPM_PCM_IM_LEN) == 596)
+		y2_pm_mark(Y2_PM_UART_ACK, 0);
 }
 static void spm_delay(unsigned us) { udelay(us); }
 static struct y2_spm_io spm_io = { .read = spm_read, .write = spm_write, .delay = spm_delay };
@@ -238,8 +244,32 @@ int y2_spm_cpu_boot(unsigned cpu, unsigned long entry)
 	return ret;
 }
 
+static void y2_spm_journal_snapshot(void)
+{
+	unsigned vector, enable;
+	y2_pm_entry_snapshot(spm_read(spm_base,SPM_PCM_TIMER_VAL),
+		spm_read(spm_base,SPM_PCM_WDT_TIMER_VAL), spm_read(spm_base,SPM_PCM_CON1),
+		spm_read(spm_base,SPM_CLK_CON),readl(spm_cache));
+	y2_ccf_boot_state(&vector, &enable);
+	y2_pm_spm_snapshot(spm_read(spm_base, SPM_PCM_REG9_DATA),
+		spm_read(spm_base, SPM_PCM_REG13_DATA), spm_read(spm_base, SPM_SLEEP_ISR_RAW_STA),
+		spm_read(spm_base, SPM_PCM_IM_PTR), spm_read(spm_base, SPM_PCM_IM_LEN),
+		spm_read(spm_base, SPM_SLEEP_WAKEUP_EVENT_MASK), vector, enable,
+		y2_cirq_snapshot(), spm_read(spm_base, SPM_PCM_FSM_STA),
+		spm_read(spm_base, SPM_PWR_STATUS), spm_read(spm_base, SPM_PWR_STATUS_S));
+}
 static int y2_spm_finish(unsigned long unused)
 {
+	unsigned vector, enable;
+	y2_ccf_boot_state(&vector, &enable);
+	if (vector != __pa_symbol(y2_cpu_resume) || !(enable & BIT(31))) {
+		y2_pm_mark(Y2_PM_BEFORE_SPM_ENTRY, -EIO);
+		return -EIO;
+	}
+	if (!unused) {
+		y2_spm_journal_snapshot();
+		y2_pm_mark(Y2_PM_BEFORE_SPM_ENTRY, 0);
+	}
 	/* Linux has saved its architectural/MMU/VFP/GIC context. Flush all
 	 * cache levels before the PCM may remove CPU0 and cluster power. */
 	v7_exit_coherency_flush(all);
@@ -256,7 +286,7 @@ static int y2_spm_finish(unsigned long unused)
 static int y2_spm_prepare_suspend(void)
 {
 	if (!smp_load_acquire(&spm_base) || READ_ONCE(spm_broken)) return -EIO;
-	if (y2_suspend_disabled() || !y2_cirq_ready()) return -EOPNOTSUPP;
+	if (y2_suspend_disabled() || !y2_cirq_ready() || !y2_pm_journal_ready()) return -EOPNOTSUPP;
 	return y2_pmic_spm_prepare();
 }
 static int y2_spm_enter(suspend_state_t state)
@@ -269,18 +299,27 @@ static int y2_spm_enter(suspend_state_t state)
 	    smp_processor_id() != 0 || READ_ONCE(spm_broken)) return -EBUSY;
 	raw_spin_lock_irqsave(&spm_lock, flags);
 	entries++;
-	ret = y2_ccf_boot_vector(__pa_symbol(cpu_resume_arm));
+	/* Boot ROM fetches uncached physical instructions after CPU0 reset. */
+	__cpuc_flush_dcache_area((void *)y2_cpu_resume, 64);
+	ret = y2_ccf_boot_vector(__pa_symbol(y2_cpu_resume));
 	if (ret) goto unlock;
 	ret = y2_cirq_begin();
 	if (ret) goto unlock;
+	y2_pm_mark(Y2_PM_CIRQ_CLONED, 0);
 	biu = readl(spm_biu); /* actual Y2 MCU_BIU_CONTROL retention context */
 	ret = cpu_pm_enter();
 	if (ret) goto exit_cirq;
 	ret = cpu_cluster_pm_enter();
 	if (ret) goto exit_cpu;
 	ret = y2_spm_suspend_arm(&spm_io, pcm_address);
+	y2_spm_journal_snapshot();
 	if (!ret) {
+		y2_pm_mark(Y2_PM_PCM_INSTALLED, 0);
+		y2_pm_mark(Y2_PM_WAKE_MASK_PROGRAMMED, 0);
+		y2_pm_mark(Y2_PM_CPU_CONTEXT_SAVING, 0);
 		ret = cpu_suspend(0, y2_spm_finish);
+		y2_pm_mark(Y2_PM_AFTER_SPM_RETURN, ret);
+		y2_pm_mark(Y2_PM_CPU_CONTEXT_RESTORED, ret);
 		restore_start = ktime_get_mono_fast_ns();
 		writel(biu, spm_biu);
 		last_wake = spm_read(spm_base, SPM_PCM_REG9_DATA);
@@ -288,18 +327,29 @@ static int y2_spm_enter(suspend_state_t state)
 		last_debug = spm_read(spm_base, SPM_PCM_REG_DATA_INI);
 		last_event = spm_read(spm_base, SPM_PCM_EVENT_REG_STA);
 		last_r13 = spm_read(spm_base, SPM_PCM_REG13_DATA);
+		y2_spm_journal_snapshot();
 		if (!ret) resumes++; /* only return through real cpu_resume counts */
 		if (last_debug) { WRITE_ONCE(spm_broken, true); ret = -EIO; }
 	}
 	y2_spm_suspend_clean(&spm_io);
 	y2_spm_normal(&spm_io, normal_address);
+	y2_pm_mark(Y2_PM_NORMAL_PCM_RESTORED, ret);
 	cpu_cluster_pm_exit();
 exit_cpu:
 	cpu_pm_exit();
+	y2_pm_mark(Y2_PM_TIMER_RESTORED, ret);
 exit_cirq:
 	y2_cirq_end();
+	y2_pm_mark(Y2_PM_CIRQ_REPLAYED, ret);
 unlock:
-	if (ret) aborts++;
+	if (ret) {
+		/* Normal firmware is mandatory on every abort, including CPU PM
+		 * notifier refusal before the suspend PCM was installed. */
+		y2_spm_suspend_clean(&spm_io);
+		y2_spm_normal(&spm_io, normal_address);
+		y2_pm_mark(Y2_PM_ABORTED, ret);
+		aborts++;
+	}
 	last_result = ret;
 	if (restore_start) resume_restore_ns = ktime_get_mono_fast_ns() - restore_start;
 	raw_spin_unlock_irqrestore(&spm_lock, flags);
@@ -314,7 +364,7 @@ int y2_spm_dormant_idle(void)
 {
 	unsigned power, biu, cache;
 	int ret, restore;
-	if (y2_deep_idle_disabled() || !y2_local_timer_ready() ||
+	if (y2_deep_idle_disabled() || !y2_local_events_ready() ||
 	    !smp_load_acquire(&spm_base) || !y2_cirq_ready()) return -ENODEV;
 	if (num_online_cpus() != 1 || smp_processor_id()) return -EBUSY;
 	if (READ_ONCE(spm_broken) || READ_ONCE(dormant_broken)) return -EIO;
@@ -328,7 +378,9 @@ int y2_spm_dormant_idle(void)
 	 * is stricter than vendor clock masks and avoids reads of powered-off MMIO. */
 	if (power & (Y2_SPM_SECONDARY_CPU_MASK | BIT(0) | BIT(1) | BIT(3) |
 		     BIT(4) | BIT(5) | BIT(7))) { ret = -EBUSY; goto unlock_idle; }
-	ret = y2_ccf_boot_vector(__pa_symbol(cpu_resume_arm));
+	/* Boot ROM fetches uncached physical instructions after CPU0 reset. */
+	__cpuc_flush_dcache_area((void *)y2_cpu_resume, 64);
+	ret = y2_ccf_boot_vector(__pa_symbol(y2_cpu_resume));
 	if (ret) goto unlock_idle;
 	dormant_stage = "clocks";
 	ret = y2_ccf_deep_idle_begin();
@@ -352,7 +404,7 @@ int y2_spm_dormant_idle(void)
 	if (!ret) {
 		dormant_stage = "cpu_suspend";
 		dormant_entries++;
-		ret = cpu_suspend(0, y2_spm_finish);
+		ret = cpu_suspend(1, y2_spm_finish);
 		writel(biu, spm_biu);
 		last_wake = spm_read(spm_base, SPM_PCM_REG9_DATA);
 		last_debug = spm_read(spm_base, SPM_PCM_REG_DATA_INI);

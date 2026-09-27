@@ -1,0 +1,16 @@
+--- a/drivers/base/power/main.c
++++ b/drivers/base/power/main.c
+@@ -2258,10 +2258,12 @@
+ 	int error;
+ 
+ 	error = dpm_prepare(state);
++	/* dpm_resume_end restores this on both failed prepare and suspend.
++	 * Keep prepare callbacks unrestricted and balance the abort path. */
++	pm_restrict_gfp_mask();
+ 	if (error)
+ 		dpm_save_failed_step(SUSPEND_PREPARE);
+ 	else {
+-		pm_restrict_gfp_mask();
+ 		error = dpm_suspend(state);
+ 	}
+ 

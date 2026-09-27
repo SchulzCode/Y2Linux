@@ -1,5 +1,50 @@
 # Y2Linux roadmap and gap audit
 
+## CPU Final Fix 01 implementation admission — 2026-09-27
+
+Owner authorizes one focused correction and one preserving candidate, no flash or
+push. Starting source Linux `aadcaa40a486cda555c859f131a2dcdb664b2233`, Reborn
+`afcf9ffa1bc45073e97520d592c0284ce73fefcf`. The authoritative physical pair is
+Linux `ff586df` / Reborn `afcf9ff`, kernel6.18.0-y2linux-cpu-final, root2025.02.18-platform-v1.6.
+Evidence is the completed [physical qualification](../validation/Y2-CPU-FINAL-PHYSICAL-QUALIFICATION.md)
+and private receipts20260927T161145Z; no new device access is needed for admission.
+Open GitHub inventory refreshed read-only: #16/#27/#28/#29/#31/#32/#33/#34 remain OPEN.
+
+| Coverage / existing issue | Physical evidence and authorized correction |
+| --- | --- |
+| CPU/timer/idle #28/#34 | GPT6 preflight FAIL, legacy/dummy highres0/nohz0; lower OPPs/hotplug/WFI PASS. Fix inherited ownership, precise predicates, GPT4/PPI29 lifecycle; preserve fallback. SLIDLE blocker0xe07800 and single-CPU topology require source-backed clock lifecycle/coordinator correction, not deleted guards. |
+| DVFS/thermal #28/#34 | bin0 identified,216=0/21e=48/1.15V; high admission-95. Reconcile software versus hardware selector with exact stock evidence; preserve sequencing, readback/fault/thermal ceilings. |
+| Reborn/QoS/audio #29/#32 | Kernel leases/thermal and bounded no-XRUN playback PASS; fragmented app writes EINVAL. Fix one complete payload and producer/lifetime integration; no application MHz policy. |
+| Suspend/USB/radio #27/#31/#34 | Battery freezer/devices/platform/processors/core PASS, USB quiescent restore and isolated CONSYS retry PASS. Full RTC nonreturn FAIL; preserve those paths, repair wake/context and persist unsafe-interval stage diagnostics. Charging refusal remains, PM unwind WARN must be corrected. |
+| Storage/recovery/security #16/#28/#32/#33 | Recovery after owner restart has clean filesystems/new boot; no reset cause. Exact known-good fallback remains immutable; BOOTIMG/Y2ROOT only, no Y2DATA/protected/loader writes or memory reservation changes. |
+| Acceptance #32/#34 | READY for focused implementation and complete current-source candidate validation. Hardware success remains pending one owner-controlled Fix01 qualification; automatic deep suspend/C3 gates remain. |
+
+Retained-diagnostic memory audit: exact stock `mt_map_io` descriptor maps
+physical0x00100000/64KiB and `ram_console_early_init` reserves
+0x0010dc00..0x0010f7ff for reset-retained console evidence. Fix01 uses only260
+bytes of this existing, otherwise unowned SRAM allocation. No DRAM carveout,
+ROM/LK/preloader, PMIC spare or boot-mode field changes. Two checksum slots and a
+stackless resume stamp are paired with filesystem receipts outside noirq.
+Reset retention remains an explicit next-device check; cold power cannot retain
+SRAM. This narrowly scoped diagnostic owner is admitted, not a new memory plan.
+
+Candidate-build boundary audit: the same physical evidence remains authoritative.
+Retained Y2 preloader/LK now identifies legitimate GPT4 control0x31 as the old
+combined admission conflict; stock PMIC initialization explains216 mode0 versus
+stock kernel mode1. All seven0xe07800 owners are decoded; balanced CCF and a
+slow system-idle coordinator preserve real blockers. Full entry gains stock SRAM
+stages, exact wake/vector checks and balanced charger refusal unwind. Focused
+current-source tests pass (70 tests, one native-dependency case deferred to the
+full host profile); Reborn192 tests/fmt/strict Clippy pass. Admit one fresh kernel,
+Buildroot/ARM/Reborn and broad software/package qualification from isolated clean
+commits. Preserve exact accepted Hardware02 fallback. No physical success, C3
+activation, automatic full-suspend promotion or new hardware scope is inferred.
+
+Unrelated user documentation/assets are retained. Source/ROM/recovery provenance
+is unchanged and is not reacquired. This admission does not reopen architecture,
+qualify high OPPs/full wake, or authorize a planning epic as hardware work.
+
+
 ## CPU Final candidate boundary — 2026-09-27
 
 Owner's concentrated implementation scope is complete at the source/candidate

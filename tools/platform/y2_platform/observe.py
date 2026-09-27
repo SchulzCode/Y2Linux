@@ -50,7 +50,7 @@ def timer_runtime(ctx):
         cpus.append({'cpu': int(first), **{key: int(value) for key, value in fields.items()}})
     def observed(key):
         values = [core.get(key) for core in cpus]
-        return all(value == 1 for value in values) if values and all(value is not None for value in values) else None
+        return all(value > 0 if key == 'nohz' else value == 1 for value in values) if values and all(value is not None for value in values) else None
     return {'per_cpu': cpus, 'highres_active': observed('hres_active'),
             'no_hz_active': observed('nohz'), 'source': '/proc/timer_list',
             'reason': None if cpus else 'runtime_timer_state_unavailable'}
@@ -70,6 +70,11 @@ def cpu(ctx):
             'affected_cpus', 'scaling_governor', 'scaling_cur_freq',
             'scaling_min_freq', 'scaling_max_freq', 'scaling_available_frequencies',
             'cpuinfo_min_freq', 'cpuinfo_max_freq', 'cpuinfo_cur_freq', 'scaling_driver')}
+        ceiling = ctx.integer('/sys/module/cpu_dvfs/parameters/qualification_max_khz')
+        maximum = number(fields['scaling_max_freq'])
+        admitted = min(ceiling, maximum) if ceiling is not None and maximum is not None else None
+        fields['admitted_opp_khz'] = [int(value) for value in (fields['scaling_available_frequencies'] or '').split()
+                                      if value.isdigit() and admitted is not None and int(value) <= admitted]
         fields['name'] = path.name
         fields['time_in_state'] = counters(read(path / 'stats/time_in_state')) or None
         fields['time_in_state_unit'] = 'USER_HZ_ticks'
@@ -103,6 +108,13 @@ def cpu(ctx):
             'spm': ctx.read('/sys/devices/platform/10006000.power-controller/state'),
             'cirq': ctx.read('/sys/devices/platform/10204000.interrupt-latch/state'),
             'suspend_stage': ctx.read('/run/y2/suspend-stage'),
+            'suspend_persistent': {'current': ctx.read('/sys/firmware/y2_pm/state'),
+                                   'previous_boot': ctx.read('/sys/firmware/y2_pm/previous'),
+                                   'durable': ctx.json('/data/system/platform/suspend-last.json', None)},
+            'dvfs_diagnostics': {p.name: read(p) for p in ctx.glob('/sys/module/cpu_dvfs/parameters/*')},
+            'voltage_ownership': ctx.read('/sys/module/pwrap/parameters/cpu_voltage_state'),
+            'slidle_clock_owners': ctx.read('/sys/module/clocks/parameters/slow_blocker_names'),
+            'system_idle': {p.name: read(p) for p in ctx.glob('/sys/module/system_idle/parameters/*')},
             'radio_boot_retries': ctx.integer('/sys/devices/platform/18070000.connectivity/boot_retries'),
             'clock_blockers': {p.name: read(p) for p in ctx.glob('/sys/module/clocks/parameters/*blockers')},
             'idle_diagnostics': {p.name: read(p) for p in ctx.glob('/sys/module/idle/parameters/*')},
@@ -116,7 +128,7 @@ def cpu(ctx):
             'workload_qos': {'implemented': ctx.path('/dev/y2-workload').exists(), 'lease_max_ms': 30000,
                              'interactive_max_ms': 500,
                              'leases': ctx.read('/sys/module/workload/parameters/leases')},
-            'timer': {**timer_runtime(ctx), 'clocksource': ctx.read('/sys/devices/system/clocksource/clocksource0/current_clocksource'),
+            'timer': {**timer_runtime(ctx), 'admission': {p.name: read(p) for p in ctx.glob('/sys/module/local_timer/parameters/*')}, 'clocksource': ctx.read('/sys/devices/system/clocksource/clocksource0/current_clocksource'),
                       'broadcast_clockevent': ctx.read('/sys/devices/system/clockevents/broadcast/current_device'),
                       'clockevents': {p.parent.name: read(p) for p in ctx.glob('/sys/devices/system/clockevents/clockevent*/current_device')}}}
 

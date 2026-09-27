@@ -5,10 +5,13 @@
  * Maximum never exceeds the lowest inherited duty; no guessed current ceiling.
  */
 #include <linux/backlight.h>
+#include "system-idle.h"
 #include <linux/mfd/mt6397/core.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+static bool screen_dark;
+bool y2_backlight_dark(void) { return READ_ONCE(screen_dark); }
 struct y2_bl {
 	struct regmap *map;
 	struct mutex lock;
@@ -21,6 +24,10 @@ static int y2_bl_update(struct backlight_device *bl)
 	int ret;
 	if (level > b->ceiling)
 		return -EINVAL;
+	if (level) {
+		ret = y2_system_idle_restore();
+		if (ret) return ret;
+	}
 	mutex_lock(&b->lock);
 	ret = regmap_read(b->map, 0x356, &en);
 	if (ret)
@@ -53,6 +60,7 @@ rollback:
 	if (regmap_update_bits(b->map, 0x356, 15, en & 15))
 		dev_err(&bl->dev, "backlight restore failed; remain dark\n");
 out:
+	if (!ret) WRITE_ONCE(screen_dark, !level);
 	mutex_unlock(&b->lock);
 	return ret;
 }

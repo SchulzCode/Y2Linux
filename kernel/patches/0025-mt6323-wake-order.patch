@@ -1,6 +1,14 @@
 --- a/drivers/mfd/mt6397-irq.c
 +++ b/drivers/mfd/mt6397-irq.c
-@@ -28,14 +28,13 @@
+@@ -3,6 +3,7 @@
+ // Copyright (c) 2019 MediaTek Inc.
+ 
+ #include <linux/interrupt.h>
++#include "/project/kernel/platform/pm-journal.h"
+ #include <linux/irq.h>
+ #include <linux/irqdomain.h>
+ #include <linux/module.h>
+@@ -28,14 +29,13 @@
  static void mt6397_irq_sync_unlock(struct irq_data *data)
  {
  	struct mt6397_chip *mt6397 = irq_data_get_irq_chip_data(data);
@@ -22,7 +30,7 @@
  
  	mutex_unlock(&mt6397->irqlock);
  }
-@@ -101,7 +100,8 @@
+@@ -101,7 +101,8 @@
  		}
  	}
  
@@ -32,7 +40,7 @@
  }
  
  static irqreturn_t mt6397_irq_thread(int irq, void *data)
-@@ -167,6 +167,49 @@
+@@ -167,6 +168,66 @@
  	}
  
  	return NOTIFY_DONE;
@@ -61,7 +69,24 @@
 +	if (ret) {
 +		restore = mt6323_write_masks(chip, chip->irq_masks_cur);
 +		if (restore) dev_err(dev, "failed to restore PMIC IRQ masks: %d\n", restore);
-+	} else chip->irq_suspended = true;
++	} else {
++		unsigned rtc_enable = 0, status0 = 0, status1 = 0;
++		chip->irq_suspended = true;
++		/* RTC_IRQ_STA (8002) clears on read: never consume the alarm here. */
++		ret = regmap_read(chip->regmap, 0x8004, &rtc_enable);
++		if (!ret) ret = regmap_read(chip->regmap, chip->int_status[0], &status0);
++		if (!ret) ret = regmap_read(chip->regmap, chip->int_status[1], &status1);
++		y2_pm_pmic_snapshot(rtc_enable, chip->wake_mask[0], chip->wake_mask[1], status0, status1);
++		if (!ret && (rtc_enable & 1) && !(chip->wake_mask[1] & BIT(4))) ret = -EINVAL;
++		if (!ret && (rtc_enable & 1) && (chip->wake_mask[1] & BIT(4)))
++			y2_pm_mark(Y2_PM_RTC_ARMED, 0);
++		/* Snapshot IO failure must unwind the parent's selected mask. */
++		if (ret) {
++			chip->irq_suspended = false;
++			mt6323_write_masks(chip, chip->irq_masks_cur);
++			if (chip->irq_wake_enabled && !disable_irq_wake(chip->irq)) chip->irq_wake_enabled = false;
++		}
++	}
 +	mutex_unlock(&chip->irqlock);
 +	return ret;
 +}
@@ -82,7 +107,7 @@
  }
  
  int mt6397_irq_init(struct mt6397_chip *chip)
-@@ -210,10 +253,8 @@
+@@ -210,10 +271,8 @@
  	}
  
  	/* Mask all interrupt sources */
@@ -95,7 +120,7 @@
  
  	chip->pm_nb.notifier_call = mt6397_irq_pm_notifier;
  	chip->irq_domain = irq_domain_create_linear(dev_fwnode(chip->dev), MT6397_IRQ_NR,
-@@ -232,6 +273,7 @@
+@@ -232,6 +291,7 @@
  		return ret;
  	}
  

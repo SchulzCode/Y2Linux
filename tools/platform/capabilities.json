@@ -589,6 +589,13 @@
       "qualified": false,
       "experimental": false,
       "reason": "physical qualification pending"
+    },
+    "system_idle_coordinator": {
+      "implemented": true,
+      "enabled": true,
+      "qualified": false,
+      "experimental": true,
+      "reason": "screen-off, no workload lease, <=10% activity, 598MHz, local events ready; 60s restore hold, 30s quiet, 5s park steps; demand restores owned cores"
     }
   },
   "feature_contract_version": 2

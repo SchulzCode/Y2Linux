@@ -10,7 +10,7 @@
 #include "clocks.h"
 #include "spm.h"
 #include "cpu-options.h"
-static unsigned long slow_entries, slow_aborts, slow_failures;
+static unsigned long slow_entries, slow_aborts, slow_failures, slow_attempts;
 static bool slow_broken;
 static atomic_t dormant_aborts = ATOMIC_INIT(0);
 static int dormant_aborts_get(char *buf, const struct kernel_param *kp)
@@ -20,6 +20,7 @@ static int dormant_aborts_get(char *buf, const struct kernel_param *kp)
 static const struct kernel_param_ops dormant_aborts_ops = { .get = dormant_aborts_get };
 module_param_cb(dormant_aborts, &dormant_aborts_ops, NULL, 0400);
 static int last_error;
+module_param(slow_attempts, ulong, 0400);
 module_param(slow_entries, ulong, 0400);
 module_param(slow_aborts, ulong, 0400);
 module_param(slow_failures, ulong, 0400);
@@ -27,12 +28,15 @@ module_param(slow_broken, bool, 0400);
 module_param(last_error, int, 0400);
 static int y2_enter_slow_idle(struct cpuidle_device *dev, struct cpuidle_driver *drv, int index)
 {
-	int ret = READ_ONCE(slow_broken) || y2_idle_disabled() ? -EIO : y2_ccf_slow_idle();
+	bool already_broken = READ_ONCE(slow_broken);
+	int ret;
+	if (!smp_processor_id()) slow_attempts++;
+	ret = READ_ONCE(slow_broken) || y2_idle_disabled() ? -EIO : y2_ccf_slow_idle();
 	/* Stock SLIDLE is CPU0 only, so these counters have a single writer. */
 	if (!ret) { slow_entries++; return index; }
 	if (!smp_processor_id()) {
 		slow_aborts++;
-		if (ret == -EIO) { slow_failures++; WRITE_ONCE(slow_broken, true); }
+		if (ret == -EIO && !already_broken) { slow_failures++; WRITE_ONCE(slow_broken, true); }
 	}
 	WRITE_ONCE(last_error, ret);
 	cpu_do_idle();

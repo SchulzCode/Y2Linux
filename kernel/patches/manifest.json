@@ -148,7 +148,7 @@
       "path": "drivers/mfd/mt6397-irq.c",
       "patch": "0025-mt6323-wake-order.patch",
       "base_sha256": "c0826e3f3aeb76de998746f0f6f0cf20dcd514f3a87e46aba3fc11a3a5606d51",
-      "result_sha256": "7b0e8e42b50ada2ec2583944f34152cf92879dd40ea2a8ec5ec6a34f93c5460f"
+      "result_sha256": "b59f94e3181fafba56463bc93950854bf36e6d62b1ed792d31148556f22bdec9"
     },
     {
       "path": "include/linux/mfd/mt6397/core.h",
@@ -238,13 +238,13 @@
       "path": "drivers/clocksource/timer-mediatek.c",
       "patch": "0052-y2-gpt6-counter.patch",
       "base_sha256": "15f499b5abefc9bab004ef1a9ca55180582e48bba8dd5429b1e7a0cbdf1988e7",
-      "result_sha256": "207463827e98c1b86f80ff54dca46068862123f83c13e1de4cbc1b9e88c1a77e"
+      "result_sha256": "5c5b513d69f7bb10a641afeac052f3d3a385ae76fa961fd5a21ca009698beb50"
     },
     {
       "path": "drivers/clocksource/arm_arch_timer.c",
       "patch": "0053-y2-local-timer-guard.patch",
       "base_sha256": "0613e2f5d21a736e98fb993db17e8db5c8e050b813c59035fb5bd4a696dd7ead",
-      "result_sha256": "e8d61b9ff21f498f9eea0046365b46cb3d17c3732ddbd00f5c125495ad5ec4ba"
+      "result_sha256": "fcf462109e07438e8067ab113b152428e5a54b5e0bfc3e08da1371c523afebfd"
     },
     {
       "path": "drivers/usb/musb/Kconfig",
@@ -275,6 +275,18 @@
       "patch": "0058-y2-musb-sleep-lifecycle.patch",
       "base_sha256": "0b8be0783e244d987284f10d6e87e6173bc29c91458cc7c5f2fe58057b0d63fc",
       "result_sha256": "fdebf1b432213350804b9fac12c1063a86d2dba37c0037da6de2202bcd6c1ea7"
+    },
+    {
+      "path": "drivers/base/power/main.c",
+      "patch": "0059-pm-balance-prepare-refusal.patch",
+      "base_sha256": "ab16c504cce725a92d7af7d005e41d44e56ff476aa58faa0a8e412f6a8961a76",
+      "result_sha256": "4a386a9e04199ed3fa019f6a53ec4b34e7ffe8a706a9138eb219ec804c67fc15"
+    },
+    {
+      "path": "kernel/power/suspend.c",
+      "patch": "0060-y2-persistent-suspend-stages.patch",
+      "base_sha256": "0f5cd354b1523364549e8cfc6dc4bbd781edc207b58a664617c4b971c119ae24",
+      "result_sha256": "14a6d4f2e5d8d7addb56ea55058421d8e9e1a6898b9c1c0914e45e318f1090e0"
     }
   ]
 }

@@ -1,5 +1,23 @@
 # Platform v1 software completion roadmap
 
+## CPU Final Fix 01 — focused implementation, 2026-09-27
+
+[Admission audit](roadmap-gap-audit.md#cpu-final-fix-01-implementation-admission--2026-09-27)
+activates the owner's single correction batch using completed physical qualification.
+Fix GPT6/GPT4/PPI29 admission, complete Reborn QoS writes, decoded clock ownership
+and useful SLIDLE eligibility, actual Y2 PMIC selector mode, full suspend/wake and
+persistent stages. Preserve conservative paths and bounded CONSYS retry. Build one
+fresh `out/y2linux-cpu-final-fix01-candidate/` preserving BOOTIMG/Y2ROOT package with
+exact fallback; no flash/push. No hardware acceptance or external epic closure.
+
+Implementation now reaches the single-candidate build boundary: timer ownership,
+Reborn/worker leases, clock lifecycle/coordinator, both legitimate PMIC banks,
+persistent suspend stages and clean charger unwind have focused passing tests.
+Proceed with fresh broad software qualification; next physical run alone may
+accept highres/NO_HZ, actual SLIDLE/high OPP entry and same-boot RTC/Power wake.
+
+
+
 ## CPU Final candidate boundary — 2026-09-27
 
 [Boundary audit](roadmap-gap-audit.md#cpu-final-candidate-boundary--2026-09-27)

@@ -82,6 +82,10 @@ void y2_cirq_end(void)
 	active = false;
 	flushes++;
 }
+unsigned y2_cirq_snapshot(void)
+{
+	return cirq ? readl(cirq + 0x300) : 0;
+}
 static ssize_t state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sysfs_emit(buf, "ready=%u active=%u entries=%u flushes=%u pending=%#x range=64-218\n",

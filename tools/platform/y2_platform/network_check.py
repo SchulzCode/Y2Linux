@@ -1,10 +1,12 @@
 """Explicit owner-run IP and throughput qualification, never run during boot."""
 # SPDX-License-Identifier: GPL-2.0-only
+from .workload import workload
 import ipaddress
 import json
 from .observe import snapshot
 
 
+@workload("NetworkTransfer")
 def check(ctx, peer, seconds=10, throughput=False, interface='wlan0'):
     peer = str(ipaddress.IPv4Address(peer))
     if interface not in ('wlan0', 'usb0') or not 1 <= seconds <= 600:

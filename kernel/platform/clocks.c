@@ -6,6 +6,7 @@
  * CLK_IGNORE_UNUSED preserves loader consumers not yet modeled in Linux.
  */
 #include "clocks.h"
+#include "idle-clock-policy.h"
 #include "policy.h"
 #include "power-math.h"
 #include "shared.h"
@@ -27,10 +28,28 @@ struct y2_clock {
 };
 static void __iomem *y2_clock_bases[4];
 static DEFINE_SPINLOCK(y2_clk_lock);
-static unsigned slow_blockers, deep_peri_blockers, deep_infra_blockers;
+static unsigned slow_blockers, deep_peri_blockers, deep_infra_blockers, slow_restore_failures;
+module_param(slow_restore_failures, uint, 0400);
 module_param(slow_blockers, uint, 0400);
 module_param(deep_peri_blockers, uint, 0400);
 module_param(deep_infra_blockers, uint, 0400);
+
+/* PERI0 group bits from exact MT6582 mt_clkmgr.h, not adjacent SoCs. */
+static const char *const slow_owners[24] = {
+ [11]="APDMA:y2-apdma/I2C-DMA", [12]="MSDC0:eMMC", [13]="MSDC1:SD",
+ [14]="MSDC2:unused-controller", [20]="BTIF:connectivity",
+ [21]="I2C0:wheel", [22]="I2C1:DAC", [23]="I2C2:unused-controller"
+};
+static int slow_names_get(char *buf, const struct kernel_param *kp)
+{
+ unsigned mask = READ_ONCE(slow_blockers), bit; int length = 0;
+ for (bit=0;bit<ARRAY_SIZE(slow_owners);bit++)
+  if ((mask & BIT(bit)) && slow_owners[bit])
+   length += scnprintf(buf+length,PAGE_SIZE-length,"bit%u=%s ",bit,slow_owners[bit]);
+ return length + scnprintf(buf+length,PAGE_SIZE-length,"\n");
+}
+static const struct kernel_param_ops slow_names_ops={.get=slow_names_get};
+module_param_cb(slow_blocker_names,&slow_names_ops,NULL,0400);
 
 /* Exact stock SLIDLE bus DCM sequence, serialized with every CCF gate/mux.
  * The caller keeps IRQs disabled; the local clockevent bounds WFI residency.
@@ -57,7 +76,7 @@ int y2_ccf_slow_idle(void)
 restore:
 	writel(saved, top + 4);
 	dsb(sy);
-	if (readl(top + 4) != saved) ret = -EIO;
+	if (readl(top + 4) != saved) { slow_restore_failures++; ret = -EIO; }
 out:
 	spin_unlock(&y2_clk_lock);
 	return ret;
@@ -120,12 +139,18 @@ int y2_ccf_boot_vector(unsigned long entry)
 	spin_unlock_irqrestore(&y2_clk_lock, flags);
 	return ret;
 }
+void y2_ccf_boot_state(unsigned *vector, unsigned *enable)
+{
+	void __iomem *infra = y2_clock_bases[2];
+	*vector = infra ? readl(infra + 0x800) : 0;
+	*enable = infra ? readl(infra + 0x804) : 0;
+}
 static const char *const y2_clk_names[] = {
     "y2-armpll", "y2-mainpll", "y2-univpll", "y2-mmpll",	"y2-msdcpll",
     "y2-axi",	 "y2-i2c0",    "y2-i2c1",    "y2-apdma",	"y2-pwrap",
     "y2-kp",	 "y2-msdc0",   "y2-msdc1",   "y2-msdc0-source", "y2-msdc1-source",
     "y2-audintbus", "y2-audio", "y2-infra-audio", "y2-cpu", "y2-therm", "y2-auxadc", "y2-efuse",
-    "y2-connmcu", "y2-btif", "y2-mfg-source"};
+    "y2-connmcu", "y2-btif", "y2-mfg-source", "y2-msdc2-unused", "y2-i2c2-unused"};
 
 /* Shared INFRACFG fields stay with this owner. Callers serialize complete
  * domain transitions; each RMW is protected against CPU/clock operations. */
@@ -247,16 +272,20 @@ static unsigned long y2_rate(struct clk_hw *hw, unsigned long parent)
 static int y2_enable(struct clk_hw *hw)
 {
 	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
-	if (c->gate)
-		writel(BIT(c->bit), c->gate + 4); /* CLR: infra44/peri10 */
+	unsigned long flags;
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	if (c->gate) writel(BIT(c->bit), c->gate + 4); /* infra CLR */
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
 	return 0;
 }
 static void y2_disable(struct clk_hw *hw)
 {
 	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
-	/* Do not remove inherited clocks from still-unmodeled loader consumers. */
-	if (c->gate && !c->inherited)
-		writel(BIT(c->bit), c->gate);
+	unsigned long flags;
+	/* Retain only genuinely unmodeled loader consumers. */
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	if (c->gate && !c->inherited) writel(BIT(c->bit), c->gate);
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
 }
 static int y2_enabled(struct clk_hw *hw)
 {
@@ -267,7 +296,10 @@ static int y2_enabled(struct clk_hw *hw)
 static int y2_peri_enable(struct clk_hw *hw)
 {
 	struct y2_clock *c = container_of(hw, struct y2_clock, hw);
+	unsigned long flags;
+	spin_lock_irqsave(&y2_clk_lock, flags);
 	writel(BIT(c->bit), c->gate + 8);
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
 	return 0;
 }
 static int y2_peri_enabled(struct clk_hw *hw)
@@ -559,11 +591,35 @@ static int y2_clocks_probe(struct platform_device *pdev)
 			parent = "y2-audintbus";
 			init.ops = &y2_infra_ops;
 		}
-		if (c->gate)
+		if (i == Y2_CLK_MSDC2 || i == Y2_CLK_I2C2) {
+			void __iomem *controller, *dma = NULL;
+			bool busy = false;
+			c->gate = base[1] + 8;
+			c->bit = i == Y2_CLK_MSDC2 ? 14 : 23;
+			parent = "y2-axi"; init.ops = &y2_peri_ops;
+			if (!(readl(base[1] + 0x18) & BIT(c->bit))) {
+				controller = devm_ioremap(dev, i == Y2_CLK_MSDC2 ? 0x11250000 : 0x11009000, 0x100);
+				if (!controller) return -ENOMEM;
+				if (i == Y2_CLK_I2C2) {
+					dma = devm_ioremap(dev, 0x11000300, 0x80);
+					if (!dma) return -ENOMEM;
+					busy = y2_unused_clock_busy(0, readl(controller + 0x24), readl(dma + 8));
+				} else busy = y2_unused_clock_busy(1, readl(controller + 0x3c), readl(controller + 0x9c));
+			}
+			/* No DT/Linux consumer on Y2. Preserve a genuinely active LK
+			 * engine; never reset DMA merely to remove an idle blocker. */
+			if (!busy) init.flags &= ~CLK_IGNORE_UNUSED;
+			else dev_warn(dev, "%s retained: inherited controller/DMA active\n", init.name);
+			c->inherited = busy;
+		}
+		if (c->gate && i != Y2_CLK_MSDC2 && i != Y2_CLK_I2C2)
 			c->inherited = init.ops->is_enabled(&c->hw);
-		/* These two gates now have a complete connectivity owner. Their
-		 * balanced CCF references may gate them after an inherited boot. */
-		if (i == Y2_CLK_CONNMCU || i == Y2_CLK_BTIF) c->inherited = false;
+		/* Linux now owns these controllers, including their complete DMA and
+		 * runtime-PM lifecycle. Retaining the loader gate after CCF reaches
+		 * zero leaked every I2C transaction and MSDC autosuspend. */
+		if (i == Y2_CLK_CONNMCU || i == Y2_CLK_BTIF ||
+		    i == Y2_CLK_I2C0 || i == Y2_CLK_I2C1 || i == Y2_CLK_APDMA ||
+		    i == Y2_CLK_MSDC0 || i == Y2_CLK_MSDC1) c->inherited = false;
 		init.parent_names = &parent;
 		init.num_parents = 1;
 		c->hw.init = &init;

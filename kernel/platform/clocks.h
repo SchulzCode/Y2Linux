@@ -24,7 +24,9 @@
 #define Y2_CLK_CONNMCU 22
 #define Y2_CLK_BTIF 23
 #define Y2_CLK_MFG_SRC 24
-#define Y2_CLK_NR 25
+#define Y2_CLK_MSDC2 25
+#define Y2_CLK_I2C2 26
+#define Y2_CLK_NR 27
 #ifndef __DTS__
 int y2_ccf_slow_idle(void);
 int y2_ccf_deep_idle_begin(void);

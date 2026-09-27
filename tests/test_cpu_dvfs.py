@@ -103,6 +103,9 @@ static unsigned wrapper[128],pmic[1024],operations,fail_at,writes,requests,fault
 static unsigned corrupt_slot,request_failure,readback_failure;
 static int y2_wrap_lock;
 static bool cpu_dvfs_prepared;
+static unsigned cpu_selector_address;
+static int cpu_voltage_error,cpu_voltage_first_error;
+static const char *cpu_voltage_stage,*cpu_voltage_first_stage;
 struct y2_wrap {void *base,*map;};
 static struct y2_wrap device={wrapper,pmic},*y2_wrap=&device;
 static void mutex_lock(int *p){assert(!*p);*p=1;}
@@ -120,8 +123,10 @@ static void writel(unsigned value,void *p){
 static int y2_spm_cpu_voltage_request(unsigned slot){
  assert(y2_wrap_lock && slot<=2);requests++;
  if(request_failure)return -ETIMEDOUT;
- assert(wrapper[(0xe4+8*slot)/4]==0x220);
- pmic[0x220/2]=wrapper[(0xe8+8*slot)/4]^(readback_failure?1:0);
+ unsigned address=wrapper[(0xe4+8*slot)/4];
+ assert(address==((pmic[0x216/2]&2)?0x220:0x21e));
+ pmic[address/2]=wrapper[(0xe8+8*slot)/4]^(readback_failure?1:0);
+ pmic[0x224/2]=pmic[address/2];
  return 0;
 }
 static void y2_cpu_dvfs_fault(void){faults++;}
@@ -130,7 +135,8 @@ static void udelay(unsigned n){assert(n==40);settled++;}
 static void reset(void){
  memset(wrapper,0,sizeof wrapper);memset(pmic,0,sizeof pmic);
  wrapper[4/4]=1;wrapper[0x50/4]=0x1ff;
- pmic[0x216/2]=2;pmic[0x220/2]=pmic[0x21e/2]=72;
+ pmic[0x216/2]=2;pmic[0x220/2]=pmic[0x21e/2]=pmic[0x224/2]=72;
+ cpu_selector_address=0;cpu_voltage_error=0;
  for(unsigned r=0x10c/4;r<=0x120/4;r++)wrapper[r]=0xdeadbeef;
  operations=fail_at=writes=requests=faults=settled=0;
  corrupt_slot=request_failure=readback_failure=cpu_dvfs_prepared=0;
@@ -143,7 +149,7 @@ int main(void){
   unsigned selectors[]={88,80,72};unsigned v=selectors[n];
   assert(!y2_pmic_cpu_voltage_set(v) && y2_pmic_cpu_voltage_get()==(int)v);
  }
- assert(settled==3 && writes==6);
+ assert(settled==4 && writes==6);
  assert(y2_pmic_cpu_voltage_set(71)==-EINVAL);
  unsigned count;
  reset();assert(!y2_pmic_cpu_dvfs_prepare());count=operations;
@@ -152,7 +158,11 @@ int main(void){
   assert(pmic[0x220/2]==72 && !y2_wrap_lock);
  }
  reset();pmic[0x216/2]=0;assert(y2_pmic_cpu_voltage_get()==72);
- assert(y2_pmic_cpu_dvfs_prepare()==-EOPNOTSUPP && !writes && !requests);
+ assert(!y2_pmic_cpu_dvfs_prepare() && cpu_selector_address==0x21e);
+ assert(!y2_pmic_cpu_voltage_set(88) && pmic[0x21e/2]==88 && pmic[0x220/2]==72);
+ assert(!y2_pmic_cpu_voltage_set(80) && y2_pmic_cpu_voltage_get()==80);
+ assert(!y2_pmic_cpu_voltage_set(72));
+ reset();pmic[0x224/2]=71;assert(y2_pmic_cpu_dvfs_prepare()==-ERANGE && !writes);
  reset();pmic[0x220/2]=80;assert(y2_pmic_cpu_dvfs_prepare()==-EBUSY && !writes);
  reset();pmic[0x220/2]=0x148;assert(y2_pmic_cpu_voltage_get()==72);
  assert(y2_pmic_cpu_dvfs_prepare()==-EOPNOTSUPP && !writes);
@@ -164,7 +174,7 @@ int main(void){
  reset();assert(!y2_pmic_cpu_dvfs_prepare());wrapper[0xe8/4]=89;
  assert(y2_pmic_cpu_voltage_set(88)==-EIO && requests==1 && pmic[0x220/2]==72);
  reset();assert(!y2_pmic_cpu_dvfs_prepare());pmic[0x216/2]=0;
- assert(y2_pmic_cpu_voltage_set(88)==-EOPNOTSUPP && requests==1);
+ assert(y2_pmic_cpu_voltage_set(88)==-EIO && requests==1);
  reset();assert(!y2_pmic_cpu_dvfs_prepare());request_failure=1;
  assert(y2_pmic_cpu_voltage_set(88)==-ETIMEDOUT && pmic[0x220/2]==72);
  reset();assert(!y2_pmic_cpu_dvfs_prepare());readback_failure=1;

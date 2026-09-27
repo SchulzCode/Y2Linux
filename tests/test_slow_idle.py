@@ -13,7 +13,7 @@ class SlowIdle(unittest.TestCase):
 #include <errno.h>
 #include <stddef.h>
 #define __iomem
-static unsigned top[64],peri[64],online=1,cpu,entries,writes,fail,slow_blockers;
+static unsigned top[64],peri[64],online=1,cpu,entries,writes,fail,slow_blockers,slow_restore_failures;
 static void *y2_clock_bases[]={top,peri};static int y2_clk_lock;
 static unsigned num_online_cpus(void){return online;}
 static unsigned smp_processor_id(void){return cpu;}
@@ -35,6 +35,6 @@ int main(void){
  peri[0x18/4]=~0U;top[1]=0x1234;
  assert(y2_ccf_slow_idle()==-EBUSY && top[1]==0x1234);
  top[1]=15;writes=0;fail=1;assert(y2_ccf_slow_idle()==-EIO && top[1]==15);
- writes=0;fail=2;assert(y2_ccf_slow_idle()==-EIO && top[1]==0x8f);
+ writes=0;fail=2;assert(y2_ccf_slow_idle()==-EIO && top[1]==0x8f && slow_restore_failures==1);
 }
 ''')

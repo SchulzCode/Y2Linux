@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Per-open bounded QoS leases. Linux cpufreq/thermal retain final authority. */
 #include <linux/cpufreq.h>
+#include "system-idle.h"
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
@@ -98,6 +99,12 @@ static ssize_t y2_workload_write(struct file *file, const char __user *buffer,
 	} else if (!strcmp(name, "NetworkTransfer") || !strcmp(name, "Maintenance")) {
 		floor = 598000;
 	} else return -EINVAL;
+	/* Restore available cores before acknowledging a real workload lease.
+	 * Never hold hint/QoS locks across the hotplug transition. */
+	if (strcmp(name, "Idle")) {
+		ret = y2_system_idle_restore();
+		if (ret) return ret;
+	}
 	mutex_lock(&hint->lock);
 	ret = freq_qos_update_request(&hint->minimum, floor);
 	if (ret >= 0) {
@@ -125,6 +132,19 @@ static int y2_workload_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+bool y2_workload_active(void)
+{
+	struct y2_workload *hint; bool active = false;
+	mutex_lock(&leases_lock);
+	list_for_each_entry(hint, &leases, node) {
+		mutex_lock(&hint->lock);
+		active = hint->deadline && time_before(jiffies, hint->deadline) && strcmp(hint->name, "Idle");
+		mutex_unlock(&hint->lock);
+		if (active) break;
+	}
+	mutex_unlock(&leases_lock);
+	return active;
+}
 static int leases_get(char *buf, const struct kernel_param *kp)
 {
 	struct y2_workload *hint;

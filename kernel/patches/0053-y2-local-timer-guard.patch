@@ -19,13 +19,48 @@
  	__arch_timer_setup(clk);
  
  	flags = check_ppi_trigger(arch_timer_ppi[arch_timer_uses_ppi]);
-@@ -1132,6 +1137,10 @@
+@@ -1062,6 +1067,7 @@
+ 				arch_timer_starting_cpu, arch_timer_dying_cpu);
+ 	if (err)
+ 		goto out_unreg_cpupm;
++	if (of_machine_is_compatible("innioasis,y2")) y2_local_timer_registration(0);
+ 	return 0;
+ 
+ out_unreg_cpupm:
+@@ -1077,6 +1083,7 @@
+ 	free_percpu(arch_timer_evt);
+ 	arch_timer_evt = NULL;
+ out:
++	if (of_machine_is_compatible("innioasis,y2")) y2_local_timer_registration(err);
+ 	return err;
+ }
+ 
+@@ -1132,6 +1139,29 @@
  	u32 rate;
  	bool has_names;
  
 +	/* Never install a clockevent/clocksource over a stopped Y2 counter. */
 +	if (of_machine_is_compatible("innioasis,y2") && !y2_local_timer_ready())
 +		return -ENODEV;
++	if (of_machine_is_compatible("innioasis,y2")) {
++		struct of_phandle_args descriptor;
++		bool valid;
++		u32 frequency;
++		ret = of_irq_parse_one(np, 0, &descriptor);
++		if (ret) { y2_local_timer_registration(ret); return ret; }
++		valid = descriptor.args_count == 3 && descriptor.args[0] == 1 &&
++			descriptor.args[1] == 13 && (descriptor.args[2] & 15) == IRQ_TYPE_LEVEL_HIGH;
++		of_node_put(descriptor.np);
++		if (!valid || !of_property_read_bool(np, "arm,cpu-registers-not-fw-configured")) {
++			pr_err("Y2TIMER: PPI29 physical level-high DT identity required\n");
++			y2_local_timer_registration(-EINVAL); return -EINVAL;
++		}
++		if (of_property_read_u32(np, "clock-frequency", &frequency) || frequency != 13000000) {
++			pr_err("Y2TIMER: DT CNTFRQ must be 13000000\n");
++			y2_local_timer_registration(-ERANGE);
++			return -ERANGE;
++		}
++	}
 +
  	if (arch_timer_evt) {
  		pr_warn("multiple nodes in dt, skipping\n");

@@ -25,6 +25,10 @@ struct y2_wrap {
 static DEFINE_MUTEX(y2_wrap_lock);
 static struct y2_wrap *y2_wrap;
 static bool cpu_dvfs_prepared;
+static unsigned cpu_selector_address;
+static int cpu_voltage_error, cpu_voltage_first_error;
+static const char *cpu_voltage_stage = "not_attempted", *cpu_voltage_first_stage = "none";
+
 static unsigned wrap_read(void *p, unsigned off) { return readl(p + off); }
 static void wrap_write(void *p, unsigned off, unsigned val) { writel(val, p + off); }
 static void wrap_delay(void *p) { udelay(10); }
@@ -127,7 +131,6 @@ static int y2_pmic_cpu_selector(struct y2_wrap *w)
 	if (!ret) ret = regmap_read(w->map, (control & BIT(1)) ? 0x220 : 0x21e, &selector);
 	if (ret) return ret;
 	selector &= 0x7f; /* Baseline read retains the established field mask. */
-	if (!(control & BIT(1)) && selector != 72) return -EOPNOTSUPP;
 	return selector == 72 || selector == 80 || selector == 88 ? selector : -ERANGE;
 }
 int y2_pmic_cpu_voltage_get(void)
@@ -141,45 +144,69 @@ int y2_pmic_cpu_voltage_get(void)
 int y2_pmic_cpu_dvfs_prepare(void)
 {
 	static const unsigned selectors[] = {88, 80, 72};
-	unsigned slot, reg, control;
+	unsigned slot, reg, control, address, actual;
 	int ret = -EPROBE_DEFER;
 	mutex_lock(&y2_wrap_lock);
 	if (!y2_wrap) goto out;
+	cpu_voltage_stage = "active_selector";
 	ret = y2_pmic_cpu_selector(y2_wrap);
 	if (ret < 0) goto out;
 	if (ret != 72) { ret = -EBUSY; goto out; }
+	cpu_voltage_stage = "selector_mode";
 	ret = regmap_read(y2_wrap->map, 0x216, &control);
 	if (ret) goto out;
-	if (!(control & BIT(1))) { ret = -EOPNOTSUPP; goto out; }
-	ret = regmap_read(y2_wrap->map, 0x220, &control);
+	address = (control & BIT(1)) ? 0x220 : 0x21e;
+	if (cpu_dvfs_prepared && address != cpu_selector_address) { ret = -EIO; goto out; }
+	ret = regmap_read(y2_wrap->map, address, &control);
 	if (ret) goto out;
 	/* Slot writes replace this complete word, unlike baseline field reads. */
 	if (control & ~0x7fU) { ret = -EOPNOTSUPP; goto out; }
+	cpu_voltage_stage = "pwrap_readiness";
 	/* Require the inherited, fully enabled arbitration contract; never
 	 * rewrite arbitration to make a DVFS request appear possible. */
 	if (readl(y2_wrap->base) || readl(y2_wrap->base + 4) != 1 ||
 	    readl(y2_wrap->base + 0x50) != 0x1ff) { ret = -EOPNOTSUPP; goto out; }
+	/* MT6323 VPROC_CON5 bit1 selects VOSEL_ON (220) versus software
+	 * VOSEL (21e). Y2 physically boots in software mode. Route the same
+	 * stock SPM/PWRAP protocol to the active bank; never flip selector mode
+	 * or admit an inactive bank. Generic MFD writes remain prohibited. */
+	cpu_voltage_stage = "baseline_active_feedback";
+	ret = regmap_read(y2_wrap->map, 0x224, &actual); /* NI_VPROC_VOSEL */
+	if (ret) goto out;
+	if ((actual & 0x7f) != 72) { ret = -ERANGE; goto out; }
+	cpu_voltage_stage = "pwrap_slots";
 	for (slot = 0; slot < 3; slot++) {
 		reg = 0xe4 + slot * 8;
-		writel(0x220, y2_wrap->base + reg);
+		writel(address, y2_wrap->base + reg);
 		writel(selectors[slot], y2_wrap->base + reg + 4);
-		if (readl(y2_wrap->base + reg) != 0x220 ||
+		if (readl(y2_wrap->base + reg) != address ||
 		    readl(y2_wrap->base + reg + 4) != selectors[slot]) {
 			ret = -EIO; goto out;
 		}
 	}
 	/* Baseline request proves the normal PCM handshake without raising VPROC. */
+	cpu_voltage_stage = "baseline_spm_handshake_and_readback";
 	ret = y2_spm_cpu_voltage_request(2);
+	udelay(40);
 	if (!ret && y2_pmic_cpu_selector(y2_wrap) != 72) ret = -EIO;
-	if (!ret) cpu_dvfs_prepared = true;
+	if (!ret) ret = regmap_read(y2_wrap->map, 0x224, &actual);
+	if (!ret && (actual & 0x7f) != 72) ret = -EIO;
+	if (!ret) {
+		cpu_selector_address = address;
+		cpu_dvfs_prepared = true;
+	}
 out:
+	cpu_voltage_error = ret;
+	if (ret < 0 && ret != -EPROBE_DEFER && ret != -EBUSY && !cpu_voltage_first_error) {
+		cpu_voltage_first_error = ret; cpu_voltage_first_stage = cpu_voltage_stage;
+	}
 	mutex_unlock(&y2_wrap_lock);
 	if (ret == -EIO || ret == -ETIMEDOUT) y2_cpu_dvfs_fault();
 	return ret;
 }
 int y2_pmic_cpu_voltage_set(unsigned selector)
 {
-	unsigned slot, reg, control;
+	unsigned slot, reg, control, actual;
 	int ret = -EPROBE_DEFER;
 	if (selector == 88) slot = 0;
 	else if (selector == 80) slot = 1;
@@ -188,24 +215,35 @@ int y2_pmic_cpu_voltage_set(unsigned selector)
 	mutex_lock(&y2_wrap_lock);
 	if (!y2_wrap) goto out;
 	if (!cpu_dvfs_prepared) { ret = -EACCES; goto out; }
+	cpu_voltage_stage = "active_selector";
 	ret = y2_pmic_cpu_selector(y2_wrap);
 	if (ret < 0) goto out;
+	cpu_voltage_stage = "selector_mode";
 	ret = regmap_read(y2_wrap->map, 0x216, &control);
 	if (ret) goto out;
-	if (!(control & BIT(1))) { ret = -EOPNOTSUPP; goto out; }
-	ret = regmap_read(y2_wrap->map, 0x220, &control);
+	if (((control & BIT(1)) ? 0x220 : 0x21e) != cpu_selector_address) {
+		ret = -EIO; goto out;
+	}
+	ret = regmap_read(y2_wrap->map, cpu_selector_address, &control);
 	if (ret) goto out;
 	if (control & ~0x7fU) { ret = -EOPNOTSUPP; goto out; }
 	reg = 0xe4 + slot * 8;
-	if (readl(y2_wrap->base + reg) != 0x220 ||
+	if (readl(y2_wrap->base + reg) != cpu_selector_address ||
 	    readl(y2_wrap->base + reg + 4) != selector ||
 	    readl(y2_wrap->base + 0x50) != 0x1ff) { ret = -EIO; goto out; }
+	cpu_voltage_stage = "voltage_spm_handshake_and_readback";
 	ret = y2_spm_cpu_voltage_request(slot);
 	/* The source requires 40 us before any frequency increase. Waiting on
 	 * decreases too is conservative and keeps readback after settling. */
 	udelay(40);
 	if (!ret && y2_pmic_cpu_selector(y2_wrap) != (int)selector) ret = -EIO;
+	if (!ret) ret = regmap_read(y2_wrap->map, 0x224, &actual);
+	if (!ret && (actual & 0x7f) != selector) ret = -EIO;
 out:
+	cpu_voltage_error = ret;
+	if (ret < 0 && ret != -EPROBE_DEFER && ret != -EBUSY && !cpu_voltage_first_error) {
+		cpu_voltage_first_error = ret; cpu_voltage_first_stage = cpu_voltage_stage;
+	}
 	mutex_unlock(&y2_wrap_lock);
 	return ret;
 }
@@ -217,9 +255,27 @@ static int cpu_voltage_get(char *buffer, const struct kernel_param *kp)
 }
 static const struct kernel_param_ops cpu_voltage_ops = { .get = cpu_voltage_get };
 module_param_cb(cpu_voltage_uv, &cpu_voltage_ops, NULL, 0400);
+static int cpu_voltage_state_get(char *buffer, const struct kernel_param *kp)
+{
+	unsigned mode = 0, selector = 0, actual = 0;
+	int ret = -EPROBE_DEFER;
+	mutex_lock(&y2_wrap_lock);
+	if (y2_wrap) {
+		ret = regmap_read(y2_wrap->map, 0x216, &mode);
+		if (!ret) ret = regmap_read(y2_wrap->map, mode & 2 ? 0x220 : 0x21e, &selector);
+		if (!ret) ret = regmap_read(y2_wrap->map, 0x224, &actual);
+	}
+	mutex_unlock(&y2_wrap_lock);
+	return sysfs_emit(buffer, "owner=SPM_PWRAP mode=%s control=%#x address=%#x selector=%#x active_selector=%#x prepared=%u prepared_address=%#x last_error=%d read_error=%d stage=%s first_error=%d first_stage=%s\n",
+		mode & 2 ? "hardware_VOSEL_ON" : "software_VOSEL", mode,
+		mode & 2 ? 0x220 : 0x21e, selector, actual, cpu_dvfs_prepared,
+		cpu_selector_address, cpu_voltage_error, ret, cpu_voltage_stage, cpu_voltage_first_error, cpu_voltage_first_stage);
+}
+static const struct kernel_param_ops voltage_state_ops = { .get = cpu_voltage_state_get };
+module_param_cb(cpu_voltage_state, &voltage_state_ops, NULL, 0400);
 int y2_pmic_spm_prepare(void)
 {
-	unsigned reg, value, control, selector;
+	unsigned reg, value, control = 0, selector, address;
 	int ret = -EPROBE_DEFER;
 	mutex_lock(&y2_wrap_lock);
 	if (!y2_wrap) goto out;
@@ -228,18 +284,21 @@ int y2_pmic_spm_prepare(void)
 	if (!ret) ret = regmap_read(y2_wrap->map, 0x01a, &value);
 	if (!ret && (value & 0x10)) ret = -EBUSY;
 	if (!ret) ret = regmap_read(y2_wrap->map, 0x216, &control);
-	if (!ret) ret = regmap_read(y2_wrap->map, control & 2 ? 0x220 : 0x21e, &selector);
-	if (!ret && (selector & 0x7f) != 72) ret = -ERANGE;
+	address = (control & BIT(1)) ? 0x220 : 0x21e;
+	if (!ret) ret = regmap_read(y2_wrap->map, address, &selector);
+	if (!ret && selector != 72) ret = -ERANGE;
+	if (!ret) ret = regmap_read(y2_wrap->map, 0x224, &value);
+	if (!ret && (value & 0x7f) != 72) ret = -ERANGE;
 	if (ret) goto out;
-	/* The stock SPM interface uses DVFS slots 5/6/7 at ADR=0x220.
+	/* Stock SPM sleep slots 5/6/7 use the currently selected VPROC bank.
 	 * Own them through the existing wrapper provider. Keep ALL three at
 	 * 1.15 V: the 1.05-V stock sleep value is deliberately not adopted as
 	 * an operating point or a prerequisite for this suspend implementation.
 	 * No arbitration, PMIC selector ownership or normal DVFS slot changes. */
 	for (reg = 0x10c; reg <= 0x11c; reg += 8) {
-		writel(0x220, y2_wrap->base + reg);
+		writel(address, y2_wrap->base + reg);
 		writel(0x48, y2_wrap->base + reg + 4);
-		if (readl(y2_wrap->base + reg) != 0x220 || readl(y2_wrap->base + reg + 4) != 0x48) {
+		if (readl(y2_wrap->base + reg) != address || readl(y2_wrap->base + reg + 4) != 0x48) {
 			ret = -EIO;
 			break;
 		}
