@@ -1,12 +1,13 @@
 --- a/drivers/mmc/host/mtk-sd.c
 +++ b/drivers/mmc/host/mtk-sd.c
-@@ -1,3 +1,5 @@
+@@ -1,3 +1,6 @@
 +#include "/project/kernel/platform/boot.h"
 +#include "/project/kernel/platform/storage-policy.h"
++#include "/project/kernel/platform/msdc-rpm-policy.h"
  // SPDX-License-Identifier: GPL-2.0-only
  /*
   * Copyright (c) 2014-2015, 2022 MediaTek Inc.
-@@ -33,6 +35,8 @@
+@@ -33,6 +36,8 @@
  #include <linux/mmc/sdio.h>
  #include <linux/mmc/slot-gpio.h>
  
@@ -15,7 +16,7 @@
  #include "cqhci.h"
  #include "mmc_hsq.h"
  
-@@ -465,6 +469,17 @@
+@@ -465,6 +470,24 @@
  };
  
  struct msdc_host {
@@ -30,10 +31,17 @@
 +	bool y2_removing;
 +	atomic_t y2_recovery_abort;
 +	int y2_clock_error;
++	/* Runtime clock ownership: MT6582 register image and bounded counters. */
++	u32 y2_rpm_saved[Y2_MSDC_RETAINED];
++	bool y2_rpm_gated;
++	u32 y2_rpm_suspends, y2_rpm_resumes, y2_rpm_retained, y2_rpm_restored;
++	u32 y2_rpm_refused[Y2_MSDC_BUSY_REASONS];
++	u32 y2_rpm_last_mismatch;
++	int y2_rpm_error;
  	struct device *dev;
  	const struct mtk_mmc_compatible *dev_comp;
  	int cmd_rsp;
-@@ -692,6 +707,8 @@
+@@ -692,6 +715,8 @@
  };
  
  static const struct of_device_id msdc_of_ids[] = {
@@ -42,7 +50,52 @@
  	{ .compatible = "mediatek,mt2701-mmc", .data = &mt2701_compat},
  	{ .compatible = "mediatek,mt2712-mmc", .data = &mt2712_compat},
  	{ .compatible = "mediatek,mt6779-mmc", .data = &mt6779_compat},
-@@ -984,7 +1001,52 @@
+@@ -950,6 +975,44 @@
+ 				  (val & MSDC_CFG_CKSTB), 1, 20000);
+ }
+ 
++/* Y2 clock enable only, mirroring msdc_gate_clock; absent optional clocks are
++ * NULL. The caller rewrites MSDC_CFG (SD/MMC mode) and then waits for CKSTB. */
++static int msdc_ungate_clock_only(struct msdc_host *host)
++{
++	int ret;
++
++	ret = clk_prepare_enable(host->h_clk);
++	if (ret)
++		return ret;
++	ret = clk_prepare_enable(host->bus_clk);
++	if (ret)
++		goto h_clk;
++	ret = clk_prepare_enable(host->src_clk);
++	if (ret)
++		goto bus_clk;
++	ret = clk_prepare_enable(host->src_clk_cg);
++	if (ret)
++		goto src_clk;
++	ret = clk_prepare_enable(host->crypto_clk);
++	if (ret)
++		goto src_clk_cg;
++	ret = clk_bulk_prepare_enable(MSDC_NR_CLOCKS, host->bulk_clks);
++	if (ret)
++		goto crypto_clk;
++	return 0;
++crypto_clk:
++	clk_disable_unprepare(host->crypto_clk);
++src_clk_cg:
++	clk_disable_unprepare(host->src_clk_cg);
++src_clk:
++	clk_disable_unprepare(host->src_clk);
++bus_clk:
++	clk_disable_unprepare(host->bus_clk);
++h_clk:
++	clk_disable_unprepare(host->h_clk);
++	return ret;
++}
++
+ static void msdc_new_tx_setting(struct msdc_host *host)
+ {
+ 	u32 val;
+@@ -984,7 +1047,52 @@
  	writel(val, host->top_base + LOOP_TEST_CONTROL);
  }
  
@@ -96,7 +149,7 @@
  {
  	struct mmc_host *mmc = mmc_from_priv(host);
  	u32 mode;
-@@ -994,13 +1056,23 @@
+@@ -994,13 +1102,23 @@
  	u32 tune_reg = host->dev_comp->pad_tune_reg;
  	u32 val;
  	bool timing_changed;
@@ -121,7 +174,7 @@
  	}
  
  	if (host->timing != timing)
-@@ -1008,6 +1080,8 @@
+@@ -1008,6 +1126,8 @@
  	else
  		timing_changed = false;
  
@@ -130,7 +183,7 @@
  	flags = readl(host->base + MSDC_INTEN);
  	sdr_clr_bits(host->base + MSDC_INTEN, flags);
  	if (host->dev_comp->clk_div_bits == 8)
-@@ -1069,8 +1143,15 @@
+@@ -1069,8 +1189,15 @@
  			      MSDC_CFG_CKMOD_EXTRA | MSDC_CFG_CKDIV_EXTRA,
  			      (mode << 12) | div);
  
@@ -148,7 +201,7 @@
  	sdr_set_bits(host->base + MSDC_CFG, MSDC_CFG_CKPDN);
  	mmc->actual_clock = sclk;
  	host->mclk = hz;
-@@ -1119,6 +1200,33 @@
+@@ -1119,6 +1246,33 @@
  
  	dev_dbg(host->dev, "sclk: %d, timing: %d\n", mmc->actual_clock,
  		timing);
@@ -182,7 +235,7 @@
  }
  
  static inline u32 msdc_cmd_find_resp(struct msdc_host *host,
-@@ -1180,7 +1288,7 @@
+@@ -1180,7 +1334,7 @@
  		struct mmc_data *data = cmd->data;
  
  		if (mmc_op_multi(opcode)) {
@@ -191,7 +244,7 @@
  			    !(mrq->sbc->arg & 0xFFFF0000))
  				rawcmd |= BIT(29); /* AutoCMD23 */
  		}
-@@ -1188,7 +1296,9 @@
+@@ -1188,7 +1342,9 @@
  		rawcmd |= ((data->blksz & 0xFFF) << 16);
  		if (data->flags & MMC_DATA_WRITE)
  			rawcmd |= BIT(13);
@@ -202,7 +255,7 @@
  			rawcmd |= BIT(12);
  		else
  			rawcmd |= BIT(11);
-@@ -1276,6 +1386,11 @@
+@@ -1276,6 +1432,11 @@
  
  static void msdc_track_cmd_data(struct msdc_host *host, struct mmc_command *cmd)
  {
@@ -214,7 +267,7 @@
  	if (host->error &&
  	    ((!mmc_op_tuning(cmd->opcode) && !host->hs400_tuning) ||
  	     cmd->error == -ETIMEDOUT))
-@@ -1294,6 +1409,13 @@
+@@ -1294,6 +1455,13 @@
  	 * path will go here!
  	 */
  	cancel_delayed_work(&host->req_timeout);
@@ -228,7 +281,7 @@
  
  	/*
  	 * If the request was handled from Host Software Queue, there's almost
-@@ -1320,6 +1442,56 @@
+@@ -1320,6 +1488,56 @@
  	host->mrq = NULL;
  	spin_unlock_irqrestore(&host->lock, flags);
  
@@ -285,7 +338,7 @@
  	msdc_track_cmd_data(host, mrq->cmd);
  	if (mrq->data)
  		msdc_unprepare_data(host, mrq->data);
-@@ -1373,7 +1545,9 @@
+@@ -1373,7 +1591,9 @@
  		}
  	}
  
@@ -296,7 +349,7 @@
  		if ((events & MSDC_INT_CMDTMO && !host->hs400_tuning) ||
  		    (!mmc_op_tuning(cmd->opcode) && !host->hs400_tuning))
  			/*
-@@ -1391,6 +1565,14 @@
+@@ -1391,6 +1611,14 @@
  			host->error |= REQ_CMD_TMO;
  		}
  	}
@@ -311,7 +364,7 @@
  	if (cmd->error)
  		dev_dbg(host->dev,
  				"%s: cmd=%d arg=%08X; rsp %08X; cmd_error=%d\n",
-@@ -1461,7 +1643,10 @@
+@@ -1461,7 +1689,10 @@
  	sdr_set_bits(host->base + MSDC_INTEN, cmd_ints_mask);
  	spin_unlock_irqrestore(&host->lock, flags);
  
@@ -323,7 +376,7 @@
  	writel(rawcmd, host->base + SDC_CMD);
  }
  
-@@ -1484,7 +1669,54 @@
+@@ -1484,7 +1715,54 @@
  static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
  {
  	struct msdc_host *host = mmc_priv(mmc);
@@ -379,7 +432,7 @@
  	host->error = 0;
  	WARN_ON(!host->hsq_en && host->mrq);
  	host->mrq = mrq;
-@@ -1507,7 +1739,10 @@
+@@ -1507,7 +1785,10 @@
  	 * if HW option is enabled, and SBC does not have "special" flags,
  	 * use HW option,  otherwise use SW option
  	 */
@@ -391,7 +444,7 @@
  	    (mrq->sbc->arg & 0xFFFF0000)))
  		msdc_start_command(host, mrq, mrq->sbc);
  	else
-@@ -1562,6 +1797,17 @@
+@@ -1562,6 +1843,17 @@
  	     | MSDC_INT_DMA_PROTECT);
  	u32 val;
  	int ret;
@@ -409,7 +462,7 @@
  
  	spin_lock_irqsave(&host->lock, flags);
  	done = !host->data;
-@@ -1581,18 +1827,25 @@
+@@ -1581,18 +1873,25 @@
  
  		ret = readl_poll_timeout_atomic(host->base + MSDC_DMA_CTRL, val,
  						!(val & MSDC_DMA_CTRL_STOP), 1, 20000);
@@ -438,7 +491,7 @@
  			data->bytes_xfered = data->blocks * data->blksz;
  		} else {
  			dev_dbg(host->dev, "interrupt events: %x\n", events);
-@@ -1600,7 +1853,9 @@
+@@ -1600,7 +1899,9 @@
  			host->error |= REQ_DAT_ERR;
  			data->bytes_xfered = 0;
  
@@ -449,7 +502,7 @@
  				data->error = -ETIMEDOUT;
  			else if (events & MSDC_INT_DATCRCERR)
  				data->error = -EILSEQ;
-@@ -2957,11 +3212,66 @@
+@@ -2957,11 +3258,79 @@
  	return 0;
  }
  
@@ -502,6 +555,19 @@
 +  host->y2_clock_fallbacks, host->y2_clock_error);
 +}
 +static DEVICE_ATTR_RO(y2_performance);
++/* Counters only: reading this attribute never touches a gated controller. */
++static ssize_t y2_runtime_pm_show(struct device *dev, struct device_attribute *attr, char *buf)
++{
++ struct msdc_host *host = mmc_priv(dev_get_drvdata(dev));
++ int n = sysfs_emit(buf, "gated=%u suspends=%u resumes=%u retained=%u restored=%u last_mismatch=%#x error=%d",
++  READ_ONCE(host->y2_rpm_gated), host->y2_rpm_suspends, host->y2_rpm_resumes,
++  host->y2_rpm_retained, host->y2_rpm_restored, host->y2_rpm_last_mismatch, host->y2_rpm_error);
++ unsigned int i;
++ for (i = 1; i < Y2_MSDC_BUSY_REASONS; i++)
++  n += sysfs_emit_at(buf, n, " refused_%s=%u", y2_msdc_busy_names[i], host->y2_rpm_refused[i]);
++ return n + sysfs_emit_at(buf, n, "\n");
++}
++static DEVICE_ATTR_RO(y2_runtime_pm);
 +
 +
  static int msdc_drv_probe(struct platform_device *pdev)
@@ -516,7 +582,7 @@
  
  	if (!pdev->dev.of_node) {
  		dev_err(&pdev->dev, "No DT found\n");
-@@ -2983,6 +3293,9 @@
+@@ -2983,6 +3352,9 @@
  		return PTR_ERR(host->base);
  
  	host->dev_comp = of_device_get_match_data(&pdev->dev);
@@ -526,7 +592,7 @@
  
  	if (host->dev_comp->needs_top_base) {
  		host->top_base = devm_platform_ioremap_resource(pdev, 1);
-@@ -3016,6 +3329,11 @@
+@@ -3016,6 +3388,11 @@
  	if (host->irq < 0)
  		return host->irq;
  
@@ -538,7 +604,7 @@
  	host->pinctrl = devm_pinctrl_get(&pdev->dev);
  	if (IS_ERR(host->pinctrl))
  		return dev_err_probe(&pdev->dev, PTR_ERR(host->pinctrl),
-@@ -3032,6 +3350,8 @@
+@@ -3032,6 +3409,8 @@
  		dev_err(&pdev->dev, "Cannot find pinctrl uhs!\n");
  		return PTR_ERR(host->pins_uhs);
  	}
@@ -547,7 +613,7 @@
  
  	/* Support for SDIO eint irq ? */
  	if ((mmc->pm_caps & MMC_PM_WAKE_SDIO_IRQ) && (mmc->pm_caps & MMC_PM_KEEP_POWER)) {
-@@ -3050,7 +3370,33 @@
+@@ -3050,7 +3429,33 @@
  	msdc_of_property_parse(pdev, host);
  
  	host->dev = &pdev->dev;
@@ -581,7 +647,7 @@
  	/* Set host parameters to mmc */
  	mmc->ops = &mt_msdc_ops;
  	if (host->dev_comp->clk_div_bits == 8)
-@@ -3072,6 +3418,8 @@
+@@ -3072,6 +3477,8 @@
  		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
  
  	mmc->caps |= MMC_CAP_CMD23;
@@ -590,7 +656,7 @@
  	if (host->cqhci)
  		mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
  	/* MMC core transfer sizes tunable parameters */
-@@ -3102,6 +3450,8 @@
+@@ -3102,6 +3509,8 @@
  	}
  	msdc_init_gpd_bd(host, &host->dma);
  	INIT_DELAYED_WORK(&host->req_timeout, msdc_request_timeout);
@@ -599,7 +665,7 @@
  	spin_lock_init(&host->lock);
  
  	platform_set_drvdata(pdev, mmc);
-@@ -3132,7 +3482,7 @@
+@@ -3132,7 +3541,7 @@
  		mmc->max_seg_size = 64 * 1024;
  		/* Reduce CIT to 0x40 that corresponds to 2.35us */
  		msdc_cqe_cit_cal(host, 2350);
@@ -608,7 +674,7 @@
  		/* Use HSQ on eMMC/SD (but not on SDIO) if HW CQE not supported */
  		struct mmc_hsq *hsq = devm_kzalloc(&pdev->dev, sizeof(*hsq), GFP_KERNEL);
  		if (!hsq) {
-@@ -3160,9 +3510,25 @@
+@@ -3160,9 +3569,32 @@
  
  	if (ret)
  		goto end;
@@ -625,6 +691,13 @@
 +			mmc_remove_host(mmc);
 +			goto end;
 +		}
++		ret = device_create_file(&pdev->dev, &dev_attr_y2_runtime_pm);
++		if (ret) {
++			device_remove_file(&pdev->dev, &dev_attr_y2_performance);
++			device_remove_file(&pdev->dev, &dev_attr_y2_clock_limit_hz);
++			mmc_remove_host(mmc);
++			goto end;
++		}
 +	}
  	return 0;
  end:
@@ -635,7 +708,7 @@
  	pm_runtime_disable(host->dev);
  release:
  	msdc_deinit_hw(host);
-@@ -3189,6 +3555,14 @@
+@@ -3189,6 +3621,15 @@
  
  	mmc = platform_get_drvdata(pdev);
  	host = mmc_priv(mmc);
@@ -646,35 +719,117 @@
 +	if (host->y2_emmc || host->y2_sd) {
 +		device_remove_file(&pdev->dev, &dev_attr_y2_clock_limit_hz);
 +		device_remove_file(&pdev->dev, &dev_attr_y2_performance);
++		device_remove_file(&pdev->dev, &dev_attr_y2_runtime_pm);
 +	}
  
  	pm_runtime_get_sync(host->dev);
  
-@@ -3285,6 +3659,16 @@
+@@ -3278,6 +3719,86 @@
+ 		__msdc_enable_sdio_irq(host, 1);
+ }
+ 
++/* A pending request, DMA, controller/FIFO activity or unserviced interrupt
++ * refuses the gate; the runtime core retries at the next autosuspend expiry. */
++static int y2_msdc_runtime_suspend(struct device *dev, struct mmc_host *mmc,
++				   struct msdc_host *host)
++{
++	enum y2_msdc_rpm_busy busy;
++	unsigned int i;
++
++	busy = y2_msdc_rpm_busy(!!READ_ONCE(host->mrq),
++		readl(host->base + Y2_MSDC_DMA_CFG), readl(host->base + Y2_SDC_STS),
++		readl(host->base + Y2_MSDC_FIFOCS), readl(host->base + Y2_MSDC_INT),
++		readl(host->base + Y2_MSDC_INTEN));
++	if (busy != Y2_MSDC_IDLE) {
++		host->y2_rpm_refused[busy]++;
++		if (host->hsq_en && mmc_hsq_resume(mmc))
++			dev_err(dev, "HSQ rollback failed\n");
++		return -EBUSY;
++	}
++	for (i = 0; i < Y2_MSDC_RETAINED; i++)
++		host->y2_rpm_saved[i] = readl(host->base + y2_msdc_retained[i]);
++	/* Exact stock order: MS mode, then PERI MSDC CG. */
++	writel(host->y2_rpm_saved[0] & ~(Y2_MSDC_CFG_MODE | Y2_MSDC_CFG_VOLATILE),
++	       host->base + Y2_MSDC_CFG);
++	msdc_gate_clock(host);
++	host->y2_rpm_gated = true;
++	host->y2_rpm_suspends++;
++	return 0;
++}
++
++static int y2_msdc_runtime_resume(struct mmc_host *mmc, struct msdc_host *host)
++{
++	u32 now[Y2_MSDC_RETAINED], mismatch, val;
++	unsigned int i;
++	int ret;
++
++	if (!host->y2_rpm_gated)
++		return host->hsq_en ? mmc_hsq_resume(mmc) : 0;
++	ret = msdc_ungate_clock_only(host);
++	if (ret)
++		goto fail;
++	udelay(10);
++	for (i = 0; i < Y2_MSDC_RETAINED; i++)
++		now[i] = readl(host->base + y2_msdc_retained[i]);
++	mismatch = y2_msdc_mismatch(host->y2_rpm_saved, now);
++	if (mismatch) {
++		/* Retention is expected on a clock gate; any loss is restored
++		 * from the MT6582 register image and verified, never guessed. */
++		for (i = 1; i < Y2_MSDC_RETAINED; i++)
++			if (mismatch & BIT(i))
++				writel(host->y2_rpm_saved[i], host->base + y2_msdc_retained[i]);
++		for (i = 0; i < Y2_MSDC_RETAINED; i++)
++			now[i] = readl(host->base + y2_msdc_retained[i]);
++		host->y2_rpm_last_mismatch = mismatch;
++		host->y2_rpm_restored++;
++		if (y2_msdc_mismatch(host->y2_rpm_saved, now)) {
++			ret = -EIO;
++			goto fail;
++		}
++	} else {
++		host->y2_rpm_retained++;
++	}
++	/* SD/MMC mode and the saved divider/mode; stock waits for CKSTB. */
++	writel(y2_msdc_cfg_restore(host->y2_rpm_saved[0]), host->base + Y2_MSDC_CFG);
++	ret = readl_poll_timeout(host->base + Y2_MSDC_CFG, val, val & Y2_MSDC_CFG_CKSTB, 1, 20000);
++	if (ret)
++		goto fail;
++	host->y2_rpm_gated = false;
++	host->y2_rpm_resumes++;
++	host->y2_rpm_error = 0;
++	if (host->hsq_en)
++		mmc_hsq_resume(mmc);
++	return 0;
++fail:
++	/* Leave the clock enabled: a failed resume never re-gates a live host,
++	 * and the runtime core reports the error to every new request. */
++	host->y2_rpm_error = ret;
++	dev_err(host->dev, "Y2 runtime resume failed %d mismatch=%#x\n", ret, host->y2_rpm_last_mismatch);
++	return ret;
++}
++
+ static int msdc_runtime_suspend(struct device *dev)
+ {
+ 	struct mmc_host *mmc = dev_get_drvdata(dev);
+@@ -3285,6 +3806,12 @@
  
  	if (host->hsq_en)
  		mmc_hsq_suspend(mmc);
-+	/* Core has quiesced requests. Retain the proven MT6582 register, clock
-+	 * and rootfs power state; no sibling-SoC restore sequence on s2idle. */
-+	if (IS_ENABLED(CONFIG_Y2_POWER) && (host->y2_emmc || host->y2_sd)) {
-+		if (READ_ONCE(host->mrq) || (readl(host->base + MSDC_DMA_CFG) & MSDC_DMA_CFG_STS)) {
-+			if (host->hsq_en && mmc_hsq_resume(mmc))
-+				dev_err(dev, "HSQ rollback failed\n");
-+			return -EBUSY;
-+		}
-+		return 0;
-+	}
++	/* Fix02: runtime and system sleep share one MT6582 clock owner. Fix01
++	 * returned early here, so an autosuspended idle host kept its PERI CG
++	 * enabled and permanently blocked SLIDLE. Card power, rails, card state
++	 * and addressing are never touched; only an idle controller is gated. */
++	if (IS_ENABLED(CONFIG_Y2_POWER) && (host->y2_emmc || host->y2_sd))
++		return y2_msdc_runtime_suspend(dev, mmc, host);
  
  	msdc_save_reg(host);
  
-@@ -3306,6 +3690,10 @@
+@@ -3306,6 +3833,8 @@
  	struct msdc_host *host = mmc_priv(mmc);
  	int ret;
  
-+	if (IS_ENABLED(CONFIG_Y2_POWER) && (host->y2_emmc || host->y2_sd)) {
-+		if (host->hsq_en) return mmc_hsq_resume(mmc);
-+		return 0;
-+	}
++	if (IS_ENABLED(CONFIG_Y2_POWER) && (host->y2_emmc || host->y2_sd))
++		return y2_msdc_runtime_resume(mmc, host);
  	ret = msdc_ungate_clock(host);
  	if (ret)
  		return ret;
