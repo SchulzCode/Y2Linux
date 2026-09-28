@@ -106,6 +106,7 @@ def cpu(ctx):
             'dvfs_ceiling_khz': ctx.integer('/sys/module/cpu_dvfs/parameters/qualification_max_khz'),
             'dvfs_fault': ctx.read('/sys/module/cpu_dvfs/parameters/voltage_fault'),
             'spm': ctx.read('/sys/devices/platform/10006000.power-controller/state'),
+            'dormant_preflight': ctx.read('/sys/devices/platform/10006000.power-controller/dormant_preflight'),
             'cirq': ctx.read('/sys/devices/platform/10204000.interrupt-latch/state'),
             'suspend_stage': ctx.read('/run/y2/suspend-stage'),
             'suspend_persistent': {'current': ctx.read('/sys/firmware/y2_pm/state'),

@@ -475,7 +475,38 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr, cha
 	return ret;
 }
 static DEVICE_ATTR_RO(state);
-static struct attribute *y2_spm_attrs[] = { &dev_attr_state.attr, NULL };
+/* C3 stays experimental and default off (CPUIDLE_FLAG_OFF), so its entry
+ * preflight never runs. This evaluates the same prerequisites read-only, in
+ * entry order, without entering, arming PCM, touching the boot vector or
+ * taking clock ownership, and reports every unmet one. */
+static ssize_t dormant_preflight_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	unsigned power = 0, peri = 0, infra = 0, bus = 0, khz = cpufreq_quick_get(0);
+	bool mapped = smp_load_acquire(&spm_base);
+	int clocks = y2_ccf_deep_idle_blockers(&peri, &infra, &bus);
+	ssize_t n;
+	if (mapped)
+		power = spm_read(spm_base, SPM_PWR_STATUS) | spm_read(spm_base, SPM_PWR_STATUS_S);
+	n = sysfs_emit(buf, "deep_idle_enabled=%u local_events=%u cirq=%u online=%u cpu_khz=%u spm_broken=%u dormant_broken=%u\n",
+		!y2_deep_idle_disabled(), y2_local_events_ready(), y2_cirq_ready(), num_online_cpus(), khz,
+		READ_ONCE(spm_broken), READ_ONCE(dormant_broken));
+	n += sysfs_emit_at(buf, n, "power_status=%#x domain_blockers=%#x clocks=%d peri_blockers=%#x infra_blockers=%#x bus=%#x\n",
+		power, power & (Y2_SPM_SECONDARY_CPU_MASK | BIT(0) | BIT(1) | BIT(3) | BIT(4) | BIT(5) | BIT(7)),
+		clocks, peri, infra, bus);
+	n += sysfs_emit_at(buf, n, "unmet=%s%s%s%s%s%s%s%s%s\n",
+		y2_deep_idle_disabled() ? "disabled," : "",
+		!y2_local_events_ready() ? "local_events," : "",
+		!y2_cirq_ready() ? "cirq," : "",
+		num_online_cpus() != 1 ? "topology," : "",
+		khz > 747500 ? "frequency," : "",
+		(READ_ONCE(spm_broken) || READ_ONCE(dormant_broken)) ? "broken," : "",
+		power & (Y2_SPM_SECONDARY_CPU_MASK | BIT(0) | BIT(1) | BIT(3) | BIT(4) | BIT(5) | BIT(7)) ? "domains," : "",
+		(clocks || peri || infra) ? "clocks," : "",
+		bus != 0x0f ? "bus," : "");
+	return n;
+}
+static DEVICE_ATTR_RO(dormant_preflight);
+static struct attribute *y2_spm_attrs[] = { &dev_attr_state.attr, &dev_attr_dormant_preflight.attr, NULL };
 static const struct attribute_group y2_spm_group = { .attrs = y2_spm_attrs };
 
 static int y2_spm_probe(struct platform_device *pdev)

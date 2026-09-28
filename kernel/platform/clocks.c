@@ -141,6 +141,20 @@ busy:
 	spin_unlock(&y2_clk_lock);
 	return -EBUSY;
 }
+/* Read-only DORMANT clock prerequisites (same masks as deep_idle_begin);
+ * never takes ownership, writes a gate or holds the lock beyond the reads. */
+int y2_ccf_deep_idle_blockers(unsigned *peri, unsigned *infra, unsigned *bus)
+{
+	void __iomem *top = y2_clock_bases[0], *p = y2_clock_bases[1], *i = y2_clock_bases[2];
+	unsigned long flags;
+	if (!top || !p || !i) return -ENODEV;
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	*peri = ~readl(p + 0x18) & (0x02fe87fdU | 0x7800U);
+	*infra = ~readl(i + 0x40) & (0x0000a080U | BIT(5));
+	*bus = readl(top + 4);
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
+	return 0;
+}
 int y2_ccf_deep_idle_end(void)
 {
 	void __iomem *top = y2_clock_bases[0];

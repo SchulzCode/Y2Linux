@@ -852,3 +852,27 @@ class Fix02Harness(unittest.TestCase):
         self.assertEqual(h.usb_loss_verdict({'boot': 'a'}, {'boot': 'a', 'status': {}})['classification'], 'usb_transport_unattributed')
         self.assertFalse(h.usb_loss_verdict(None, None)['lost'])
         self.assertEqual(h.irq_count('20: 3 4 0 0 mt6397-rtc\n21: 1 0 mtk-pmic-keys', 'mt6397-rtc'), 7)
+
+
+class DormantReadiness(unittest.TestCase):
+    def test_c3_default_off_and_preflight_is_read_only(self):
+        idle = (ROOT/'kernel/platform/idle.c').read_text()
+        self.assertIn('CPUIDLE_FLAG_TIMER_STOP | CPUIDLE_FLAG_OFF', idle)  # experimental, default off
+        spm = (ROOT/'kernel/platform/spm.c').read_text()
+        pre = function(spm, 'dormant_preflight_show')
+        for forbidden in ('spm_write', 'writel', 'y2_ccf_boot_vector', 'y2_ccf_deep_idle_begin', 'y2_cirq_begin',
+                          'cpu_suspend', 'y2_spm_idle_arm', 'raw_spin_lock'):
+            self.assertNotIn(forbidden, pre)
+        entry = function(spm.replace('int y2_spm_dormant_idle(', 'static int y2_spm_dormant_idle('), 'y2_spm_dormant_idle')
+        # Same prerequisites, same masks, as the real entry path.
+        self.assertIn('BIT(0) | BIT(1) | BIT(3) |\n\t\t     BIT(4) | BIT(5) | BIT(7)', entry)
+        self.assertIn('BIT(0) | BIT(1) | BIT(3) | BIT(4) | BIT(5) | BIT(7)', pre)
+        self.assertIn('cpufreq_quick_get(0) > 747500', entry)
+        self.assertIn('khz > 747500', pre)
+        clocks = (ROOT/'kernel/platform/clocks.c').read_text()
+        begin = function(clocks.replace('int y2_ccf_deep_idle_begin(', 'static int y2_ccf_deep_idle_begin('), 'y2_ccf_deep_idle_begin')
+        blockers = function(clocks.replace('int y2_ccf_deep_idle_blockers(', 'static int y2_ccf_deep_idle_blockers('), 'y2_ccf_deep_idle_blockers')
+        for mask in ('0x02fe87fdU | 0x7800U', '0x0000a080U | BIT(5)'):
+            self.assertIn(mask, begin)
+            self.assertIn(mask, blockers)
+        self.assertNotIn('writel', blockers)

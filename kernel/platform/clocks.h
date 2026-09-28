@@ -31,4 +31,5 @@
 int y2_ccf_slow_idle(void);
 int y2_ccf_deep_idle_begin(void);
 int y2_ccf_deep_idle_end(void);
+int y2_ccf_deep_idle_blockers(unsigned *peri, unsigned *infra, unsigned *bus);
 #endif
