@@ -125,25 +125,21 @@ int main(void){
 #include <errno.h>
 #include "system-idle-policy.h"
 #define BIT(n) (1U<<(n))
-#define msecs_to_jiffies(n) (n)
-static unsigned parked_mask,restore_count,quiet_since,hold_until,jiffies,online=1,refuse;
-static int last_error;static bool broken;
+#define hweight32(x) __builtin_popcount(x)
+static unsigned parked_mask,restore_count,jiffies,online=1,refuse;
+static int last_error;static bool broken;static struct y2_idle_state state;
+static unsigned now_ms(void){return jiffies;}
 static int cpu_online(unsigned c){return online & BIT(c);}
 static int add_cpu(unsigned c){if(refuse==c)return -EIO;online|=BIT(c);return 0;}
 ''' + function(s,'restore_locked') + r'''
 int main(void){
- assert(!y2_system_quiet(29999,0,1,0,1,598000));
- assert(y2_system_quiet(30000,10,1,0,1,598000));
- assert(!y2_system_quiet(90000,11,1,0,1,598000));
- assert(!y2_system_quiet(90000,0,0,0,1,598000));
- assert(!y2_system_quiet(90000,0,1,1,1,598000));
- assert(!y2_system_quiet(90000,0,1,0,0,598000));
- assert(!y2_system_quiet(90000,0,1,0,1,1040000));
- parked_mask=BIT(2)|BIT(3);jiffies=20;
- assert(!restore_locked() && online==13 && !parked_mask && hold_until==60020);
+ /* Fix02 superseded the per-sample quiet predicate; see test_cpu_fix02. */
+ y2_idle_init(&state,0);
+ parked_mask=BIT(2)|BIT(3);jiffies=20;state.parked=2;state.parked_since_ms=10;
+ assert(!restore_locked(false) && online==13 && !parked_mask && state.hold_until_ms==60020 && !state.parked);
  /* CPU1 was manually offline and must remain so. */
  parked_mask=BIT(2);online=1;refuse=2;
- assert(restore_locked()==-EIO && broken && parked_mask==BIT(2));
+ assert(restore_locked(false)==-EIO && broken && parked_mask==BIT(2) && state.parked==1);
 }
 ''')
 

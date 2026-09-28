@@ -324,3 +324,200 @@ int main(void){
  assert(!(y2_msdc_cfg_restore(0xffffffff)&(Y2_MSDC_CFG_RST|Y2_MSDC_CFG_CKSTB|Y2_MSDC_CFG_BV18PSS)));
 }
 ''')
+
+
+COORDINATOR = r'''
+#include <assert.h>
+#include <string.h>
+#include "system-idle-policy.h"
+static struct y2_idle_state st;
+static unsigned t, online = 4, parks[4096], nparks, restores, pressure_restores_seen;
+static int lease, dark = 1, demand;
+static enum y2_idle_action step(unsigned busy, unsigned khz)
+{
+	struct y2_idle_sample in = { t, 250, busy, online, khz, dark, lease, 1, 1, demand };
+	enum y2_idle_reason why;
+	enum y2_idle_action a = y2_idle_decide(&st, &in, &why);
+	demand = 0;
+	if (a == Y2_IDLE_PARK) { parks[nparks++] = online - 1; online--; y2_idle_parked(&st, t); }
+	if (a == Y2_IDLE_RESTORE) { online = 4; restores++; pressure_restores_seen += why == Y2_IDLE_BURST; y2_idle_restored(&st, t, why == Y2_IDLE_BURST); }
+	t += 250;
+	return a;
+}
+/* Measured screen-off background: mostly idle with a quarter-second burst
+ * (up to 31%) and a transient 1040-MHz raise every three seconds. */
+static __attribute__((unused)) void background(unsigned seconds)
+{
+	for (unsigned i = 0; i < seconds * 4; i++)
+		step(i % 12 == 0 ? 310 : 30, i % 12 == 0 ? 1040000 : 598000);
+}
+'''
+
+
+class Coordinator(unittest.TestCase):
+    def test_sustained_idle_parks_despite_harmless_bursts_in_order(self):
+        run_c(COORDINATOR + r'''
+int main(void){
+ y2_idle_init(&st, 0);
+ background(59); assert(!nparks); /* initial restore hold */
+ background(20); assert(!nparks); /* quiet window and averages still settling */
+ background(120);
+ assert(nparks == 3 && parks[0] == 3 && parks[1] == 2 && parks[2] == 1 && online == 1);
+ assert(parks[0] && !restores && st.parked == 3);
+ /* Steps are at least five seconds apart: one core at a time. */
+ assert(st.longest_quiet_ms >= Y2_SYSTEM_QUIET_MS);
+ /* Continued harmless background keeps CPU0 alone (no oscillation). */
+ unsigned before = restores; background(300); assert(restores == before && online == 1);
+}
+''')
+
+    def test_real_demand_restores_and_hysteresis(self):
+        run_c(COORDINATOR + r'''
+static void park_all(void){ y2_idle_init(&st, t); background(200); assert(online == 1); }
+int main(void){
+ /* Workload lease: immediate restore, reason lease, then hold. */
+ park_all(); lease = 1; assert(step(10, 598000) == Y2_IDLE_RESTORE && online == 4 && st.last_reset == Y2_IDLE_LEASE);
+ background(30); assert(online == 4); lease = 0;
+ /* Display wake. */
+ park_all(); dark = 0; assert(step(10, 598000) == Y2_IDLE_RESTORE && st.last_reset == Y2_IDLE_SCREEN); dark = 1;
+ /* Explicit input/workload demand. */
+ park_all(); demand = 1; assert(step(10, 598000) == Y2_IDLE_RESTORE && st.last_reset == Y2_IDLE_DEMAND);
+ /* Hysteresis: nothing parks during the 60-s restore hold. */
+ unsigned n = nparks; background(59); assert(nparks == n && online == 4);
+ /* Short saturation (<1 s) on the lone CPU is harmless. */
+ park_all(); step(1000, 1040000); step(1000, 1040000); step(1000, 1040000); step(20, 598000);
+ assert(online == 1);
+ /* One second of saturation is real demand: restore under pressure. */
+ unsigned hold = st.hold_ms;
+ for (int i = 0; i < 4; i++) step(1000, 1040000);
+ assert(online == 4 && st.last_reset == Y2_IDLE_BURST && st.hold_ms == hold * 2 && st.pressure_restores == 1);
+}
+''')
+
+    def test_no_oscillation_under_recurring_pressure(self):
+        run_c(COORDINATOR + r'''
+int main(void){
+ y2_idle_init(&st, 0);
+ unsigned cycles = 0;
+ /* Every minute a real 1.5-s burst: parking may happen, but each pressure
+  * restore doubles the hold so park/restore cycles become rare. */
+ for (unsigned minute = 0; minute < 120; minute++) {
+  background(58);
+  for (int i = 0; i < 6; i++) step(1000, 1040000);
+  cycles = pressure_restores_seen;
+ }
+ assert(st.hold_ms == Y2_SYSTEM_HOLD_MAX_MS);
+ /* Four escalations, then at most one cycle per capped hold + quiet window. */
+ assert(cycles <= 4 + (120 * 60000) / (Y2_SYSTEM_HOLD_MAX_MS + Y2_SYSTEM_QUIET_MS) + 1);
+ /* A long stable parked period resets the hold on the next restore. */
+ background(1200); assert(online == 1);
+ dark = 0; step(10, 598000); dark = 1;
+ assert(st.hold_ms == Y2_SYSTEM_RESTORE_HOLD_MS);
+}
+''')
+
+    def test_sustained_load_never_parks(self):
+        run_c(COORDINATOR + r'''
+int main(void){
+ y2_idle_init(&st, 0);
+ /* 15% of four cores sustained: above the 10% sustained threshold. */
+ for (unsigned i = 0; i < 4 * 600; i++) step(150, 598000);
+ assert(!nparks && online == 4);
+ /* Sustained high frequency without much load also blocks parking. */
+ y2_idle_init(&st, t);
+ for (unsigned i = 0; i < 4 * 600; i++) step(40, i % 2 ? 1040000 : 598000);
+ assert(!nparks);
+ /* Disabled/timer gates always win. */
+ struct y2_idle_sample in = { t, 250, 0, 4, 598000, 1, 0, 0, 1, 0 }; enum y2_idle_reason why;
+ assert(y2_idle_decide(&st, &in, &why) == Y2_IDLE_WAIT && why == Y2_IDLE_TIMER);
+ in.timer = 1; in.allowed = 0; assert(y2_idle_decide(&st, &in, &why) == Y2_IDLE_WAIT && why == Y2_IDLE_DISABLED);
+ /* Wrapping millisecond clock. */
+ assert(y2_idle_after(5, 0xfffffff0U) && !y2_idle_after(0xfffffff0U, 5));
+}
+''')
+
+    def test_driver_uses_policy_and_frequency_is_not_demand(self):
+        s = (ROOT/'kernel/platform/system-idle.c').read_text()
+        freq = function(s, 'frequency_event')
+        self.assertNotIn('y2_system_idle_activity', freq)
+        self.assertIn('atomic_inc(&frequency_raises)', freq)
+        self.assertIn('DECLARE_DEFERRABLE_WORK(sample_work', s)
+        self.assertIn('restore_locked(why == Y2_IDLE_BURST)', s)
+        # Workload and display restores stay synchronous.
+        self.assertIn('ret = y2_system_idle_restore();', (ROOT/'kernel/platform/workload.c').read_text())
+        self.assertIn('y2_system_idle_restore();', (ROOT/'kernel/platform/backlight.c').read_text())
+
+
+class ScreenOffBackground(unittest.TestCase):
+    """Userspace sources found for the recurring screen-off bursts."""
+    def setUp(self):
+        import sys
+        import tempfile
+        sys.path.insert(0, str(ROOT/'tools/platform'))
+        from y2_platform.common import Context
+        from y2_platform import service
+        self.service = service
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.ctx = Context(self.temp.name)
+        self.root = Path(self.temp.name)
+
+    def card(self, present):
+        block = self.root/'sys/class/block'
+        block.mkdir(parents=True, exist_ok=True)
+        target = self.root/'sys/devices/platform/11240000.mmc/mmc_host/mmc1/mmc1:0001/block/mmcblk1'
+        target.mkdir(parents=True, exist_ok=True)
+        link = block/'mmcblk1'
+        if present and not link.is_symlink():
+            link.symlink_to(target)
+        if not present and link.is_symlink():
+            link.unlink()
+
+    def lifecycle(self, value):
+        path = self.root/'run/y2/media-lifecycle.json'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(value))
+
+    def test_media_reconcile_spawns_only_when_its_own_noop_is_false(self):
+        from y2_platform.media import inventory
+        self.assertTrue(self.service.media_reconcile_needed(self.ctx))  # first run
+        self.card(True)
+        current = [list(v) for v in inventory(self.ctx)]
+        self.assertEqual(len(current), 1)
+        self.lifecycle({'schema': 1, 'inventory': current, 'retry': False})
+        self.assertFalse(self.service.media_reconcile_needed(self.ctx))
+        self.lifecycle({'schema': 1, 'inventory': current, 'retry': True})
+        self.assertTrue(self.service.media_reconcile_needed(self.ctx))  # bounded retry kept
+        self.lifecycle({'schema': 1, 'inventory': current, 'retry': False})
+        self.card(False)
+        self.assertTrue(self.service.media_reconcile_needed(self.ctx))  # removal
+        self.lifecycle({'schema': 1, 'inventory': [], 'retry': False})
+        self.assertFalse(self.service.media_reconcile_needed(self.ctx))
+        self.card(True)
+        self.assertTrue(self.service.media_reconcile_needed(self.ctx))  # insertion
+
+    def test_dark_cadence_keeps_network_fresh_and_health_deadline_safe(self):
+        light = self.root/'sys/class/backlight/y2/brightness'
+        self.assertFalse(self.service.display_dark(self.ctx))  # unknown is not dark
+        light.parent.mkdir(parents=True)
+        light.write_text('7\n')
+        self.assertFalse(self.service.display_dark(self.ctx))
+        light.write_text('0\n')
+        self.assertTrue(self.service.display_dark(self.ctx))
+        self.assertEqual(self.service.cadence(False, True), (3, 30))
+        self.assertEqual(self.service.cadence(True, False), (10, 30))  # pending health keeps 30 s
+        self.assertEqual(self.service.cadence(True, True), (10, 300))
+        self.assertLess(self.service.DARK_INTERVAL_S + 3, 15)  # Reborn stale limit
+        settled = self.service.health_settled
+        self.assertFalse(settled(None))
+        self.assertFalse(settled({'ok': False, 'output': '{"state":"Idle"}'}))
+        self.assertFalse(settled({'ok': True, 'output': '{"state":"PendingHealth"}'}))
+        self.assertFalse(settled({'ok': True, 'output': 'garbage'}))
+        self.assertTrue(settled({'ok': True, 'output': '{"state":"Idle"}'}))
+
+    def test_service_loop_uses_gated_reconcile_and_cadence(self):
+        s = (ROOT/'tools/platform/y2_platform/service.py').read_text()
+        loop = s[s.index('def serve('):]
+        self.assertIn("if media_reconcile_needed(ctx):\n                ctx.command(['/usr/sbin/y2-platform', 'media', 'reconcile']", loop)
+        self.assertIn('next_maintenance = before + maintenance', loop)
+        self.assertIn('interval - (time.monotonic() - before)', loop)

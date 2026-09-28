@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Slow stock-topology coordinator. schedutil and cpuidle still own policy.
  * Only coordinator-owned offlines are restored; manual topology is preserved.
- * Playback/scan/transfer leases prevent parking. Input and frequency demand
- * schedule an immediate high-priority restore, and a workload producer restores
- * synchronously before its request is acknowledged. */
+ * Playback/scan/transfer leases prevent parking. Input schedules an immediate
+ * high-priority restore, a workload producer or display wake restores
+ * synchronously before acknowledgement, and one second of sustained CPU
+ * saturation restores with an escalating anti-oscillation hold. Parking needs
+ * a sustained (time-weighted) quiet window, not 120 perfect 250-ms samples. */
+#include <linux/bitops.h>
 #include <linux/cpu.h>
 #include <linux/math64.h>
 #include <linux/slab.h>
@@ -25,9 +28,10 @@ static struct workqueue_struct *idle_wq;
 static bool enabled = true, paused, broken;
 static unsigned parked_mask, park_count, restore_count, busy_percent;
 static int last_error;
-static unsigned long quiet_since, hold_until, last_park;
 static u64 sample_idle[4], sample_wall[4];
-static atomic_t demand = ATOMIC_INIT(0);
+static atomic_t demand = ATOMIC_INIT(0), frequency_raises = ATOMIC_INIT(0);
+static struct y2_idle_state state;
+static unsigned long last_sample;
 static const struct kernel_param_ops enable_ops;
 module_param_cb(enabled, &enable_ops, &enabled, 0600);
 module_param(parked_mask, uint, 0400);
@@ -36,7 +40,12 @@ module_param(restore_count, uint, 0400);
 module_param(busy_percent, uint, 0400);
 module_param(last_error, int, 0400);
 module_param(broken, bool, 0400);
-static int restore_locked(void)
+static unsigned now_ms(void)
+{
+	return jiffies_to_msecs(jiffies);
+}
+/* Restores only coordinator-owned CPUs. Manual offlines are never claimed. */
+static int restore_locked(bool pressure)
 {
 	unsigned cpu;
 	int ret, first = 0;
@@ -52,8 +61,8 @@ static int restore_locked(void)
 				restore_count++;
 			}
 		}
-	quiet_since = 0;
-	hold_until = jiffies + msecs_to_jiffies(Y2_SYSTEM_RESTORE_HOLD_MS);
+	y2_idle_restored(&state, now_ms(), pressure);
+	state.parked = hweight32(parked_mask);
 	last_error = first;
 	return first;
 }
@@ -64,7 +73,7 @@ int y2_system_idle_restore(void)
 		return 0;
 	atomic_set(&demand, 1);
 	mutex_lock(&idle_lock);
-	ret = restore_locked();
+	ret = restore_locked(false);
 	mutex_unlock(&idle_lock);
 	return ret;
 }
@@ -79,6 +88,7 @@ void y2_system_idle_activity(void)
 	if (idle_wq && READ_ONCE(parked_mask))
 		queue_work(idle_wq, &restore_work);
 }
+/* Busy per-mille of the online capacity since the previous sample. */
 static unsigned sample_busy(void)
 {
 	unsigned cpu;
@@ -88,7 +98,7 @@ static unsigned sample_busy(void)
 			continue;
 		value = get_cpu_idle_time_us(cpu, &wall);
 		if (value == -1ULL)
-			return 100;
+			return 1000;
 		if (sample_wall[cpu] && wall > sample_wall[cpu]) {
 			delta = wall - sample_wall[cpu];
 			total += delta;
@@ -97,60 +107,88 @@ static unsigned sample_busy(void)
 		sample_idle[cpu] = value;
 		sample_wall[cpu] = wall;
 	}
-	return total ? div64_u64((total - idle) * 100, total) : 100;
+	return total ? div64_u64((total - idle) * 1000, total) : 1000;
 }
 static void sample_work_fn(struct work_struct *work);
-static DECLARE_DELAYED_WORK(sample_work, sample_work_fn);
+/* Deferrable: a fully idle CPU is not woken merely to observe idleness; any
+ * real load wakes a CPU and runs the sample with a time-weighted interval. */
+static DECLARE_DEFERRABLE_WORK(sample_work, sample_work_fn);
 static void sample_work_fn(struct work_struct *work)
 {
-	unsigned cpu, frequency;
-	bool eligible;
+	struct y2_idle_sample in;
+	enum y2_idle_reason why;
+	unsigned cpu, busy;
 	mutex_lock(&idle_lock);
-	busy_percent = sample_busy();
-	frequency = cpufreq_quick_get(0);
-	eligible = enabled && !broken && !paused && y2_normal_boot_enabled() &&
-		   !y2_cpu_safe() && !y2_idle_disabled() &&
-		   y2_local_events_ready() && y2_backlight_dark() &&
-		   !y2_workload_active() && busy_percent <= 10 && frequency &&
-		   frequency <= 598000;
-	if (atomic_xchg(&demand, 0) || !eligible) {
-		quiet_since = 0;
-		if (parked_mask)
-			restore_locked();
-	} else if (time_after_eq(jiffies, hold_until)) {
-		if (!quiet_since)
-			quiet_since = jiffies;
-		if (y2_system_quiet(jiffies_to_msecs(jiffies - quiet_since),
-				    busy_percent, true, false, true,
-				    frequency) &&
-		    time_after_eq(
-			    jiffies,
-			    last_park +
-				    msecs_to_jiffies(Y2_SYSTEM_PARK_STEP_MS))) {
-			/* Recheck producer demand before each slow offline. A race during
-    * remove_cpu immediately schedules restoration after it returns. */
-			for (cpu = 3; cpu > 0; cpu--)
-				if (cpu_online(cpu)) {
-					if (atomic_read(&demand))
-						break;
-					last_error = remove_cpu(cpu);
-					if (last_error < 0) {
-						broken = true;
-						restore_locked();
-						break;
-					}
-					parked_mask |= BIT(cpu);
-					park_count++;
-					last_park = jiffies;
-					if (atomic_read(&demand))
-						restore_locked();
+	busy = sample_busy();
+	busy_percent = busy / 10;
+	in = (struct y2_idle_sample){
+		.now_ms = now_ms(),
+		.dt_ms = last_sample ? jiffies_to_msecs(jiffies - last_sample) : 250,
+		.busy_permille = busy,
+		.online = min(num_online_cpus(), 4U),
+		.khz = cpufreq_quick_get(0),
+		.dark = y2_backlight_dark(),
+		.lease = y2_workload_active(),
+		.timer = y2_local_events_ready(),
+		.allowed = enabled && !broken && !paused && y2_normal_boot_enabled() &&
+			   !y2_cpu_safe() && !y2_idle_disabled(),
+		.demand = atomic_xchg(&demand, 0),
+	};
+	last_sample = jiffies;
+	switch (y2_idle_decide(&state, &in, &why)) {
+	case Y2_IDLE_RESTORE:
+		restore_locked(why == Y2_IDLE_BURST);
+		break;
+	case Y2_IDLE_PARK:
+		/* One CPU per step, highest first. Recheck producer demand before the
+		 * slow offline; a race during remove_cpu restores immediately after. */
+		for (cpu = 3; cpu > 0; cpu--)
+			if (cpu_online(cpu)) {
+				if (atomic_read(&demand))
+					break;
+				last_error = remove_cpu(cpu);
+				if (last_error < 0) {
+					broken = true;
+					restore_locked(false);
 					break;
 				}
-		}
+				parked_mask |= BIT(cpu);
+				park_count++;
+				y2_idle_parked(&state, in.now_ms);
+				if (atomic_read(&demand))
+					restore_locked(false);
+				break;
+			}
+		break;
+	case Y2_IDLE_WAIT:
+		break;
 	}
 	mutex_unlock(&idle_lock);
 	queue_delayed_work(idle_wq, &sample_work, msecs_to_jiffies(250));
 }
+/* Why the coordinator is (not) parking: sustained averages, window state and
+ * every quiet-window reset by reason, for physical source attribution. */
+static int state_get(char *buffer, const struct kernel_param *kp)
+{
+	unsigned i, now;
+	int n;
+	mutex_lock(&idle_lock);
+	now = now_ms();
+	n = sysfs_emit(buffer, "quiet=%d quiet_ms=%u longest_quiet_ms=%u load_mc=%u high_freq_permille=%u burst_ms=%u hold_ms=%u hold_remaining_ms=%u parked=%u parked_mask=%#x last_reset=%s pressure_restores=%u frequency_raises=%u",
+		state.quiet, state.quiet ? now - state.quiet_start_ms : 0,
+		state.longest_quiet_ms, state.load_mc, state.high_permille,
+		state.burst_ms, state.hold_ms,
+		y2_idle_after(now, state.hold_until_ms) ? 0 : state.hold_until_ms - now,
+		state.parked, parked_mask, y2_idle_reason_names[state.last_reset],
+		state.pressure_restores, atomic_read(&frequency_raises));
+	for (i = 1; i < Y2_IDLE_REASONS; i++)
+		n += sysfs_emit_at(buffer, n, " reset_%s=%u", y2_idle_reason_names[i], state.resets[i]);
+	n += sysfs_emit_at(buffer, n, "\n");
+	mutex_unlock(&idle_lock);
+	return n;
+}
+static const struct kernel_param_ops state_ops = { .get = state_get };
+module_param_cb(state, &state_ops, NULL, 0400);
 static int enabled_set(const char *value, const struct kernel_param *kp)
 {
 	int ret = param_set_bool(value, kp);
@@ -164,8 +202,10 @@ static int frequency_event(struct notifier_block *nb, unsigned long event,
 			   void *data)
 {
 	struct cpufreq_freqs *f = data;
+	/* A transient schedutil/iowait raise is not demand by itself; sustained
+	 * saturation is measured by the sampler. Counted for attribution only. */
 	if (event == CPUFREQ_PRECHANGE && f->new > 598000)
-		y2_system_idle_activity();
+		atomic_inc(&frequency_raises);
 	return NOTIFY_OK;
 }
 static struct notifier_block frequency_nb = { .notifier_call =
@@ -177,14 +217,12 @@ static int suspend_event(struct notifier_block *nb, unsigned long event,
 	if (event == PM_SUSPEND_PREPARE) {
 		mutex_lock(&idle_lock);
 		paused = true;
-		ret = restore_locked();
+		ret = restore_locked(false);
 		mutex_unlock(&idle_lock);
 	} else if (event == PM_POST_SUSPEND) {
 		mutex_lock(&idle_lock);
 		paused = false;
-		quiet_since = 0;
-		hold_until =
-			jiffies + msecs_to_jiffies(Y2_SYSTEM_RESTORE_HOLD_MS);
+		y2_idle_restored(&state, now_ms(), false);
 		mutex_unlock(&idle_lock);
 	}
 	return ret ? NOTIFY_BAD : NOTIFY_OK;
@@ -249,7 +287,7 @@ static int __init system_idle_init(void)
 	ret = input_register_handler(&input_handler);
 	if (ret)
 		goto pm;
-	hold_until = jiffies + msecs_to_jiffies(Y2_SYSTEM_RESTORE_HOLD_MS);
+	y2_idle_init(&state, now_ms());
 	queue_delayed_work(idle_wq, &sample_work, msecs_to_jiffies(250));
 	return 0;
 pm:

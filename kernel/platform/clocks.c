@@ -33,6 +33,26 @@ module_param(slow_restore_failures, uint, 0400);
 module_param(slow_blockers, uint, 0400);
 module_param(deep_peri_blockers, uint, 0400);
 module_param(deep_infra_blockers, uint, 0400);
+/* SLIDLE refusal attribution (CPU0 is the only writer). Topology refusals
+ * happen before any clock read, so slow_blockers alone cannot prove idle
+ * clocks; slow_blockers_single retains the last mask read with one CPU. */
+static unsigned long slow_reject_topology, slow_reject_lock, slow_reject_bus, slow_reject_clock;
+static unsigned slow_blockers_single, slow_blocker_bits[24];
+module_param(slow_reject_topology, ulong, 0400);
+module_param(slow_reject_lock, ulong, 0400);
+module_param(slow_reject_bus, ulong, 0400);
+module_param(slow_reject_clock, ulong, 0400);
+module_param(slow_blockers_single, uint, 0400);
+static int slow_bits_get(char *buf, const struct kernel_param *kp)
+{
+ unsigned bit; int length = 0;
+ for (bit = 0; bit < ARRAY_SIZE(slow_blocker_bits); bit++)
+  if (slow_blocker_bits[bit])
+   length += scnprintf(buf + length, PAGE_SIZE - length, "bit%u=%u ", bit, READ_ONCE(slow_blocker_bits[bit]));
+ return length + scnprintf(buf + length, PAGE_SIZE - length, "\n");
+}
+static const struct kernel_param_ops slow_bits_ops = {.get = slow_bits_get};
+module_param_cb(slow_blocker_counts, &slow_bits_ops, NULL, 0400);
 
 /* PERI0 group bits from exact MT6582 mt_clkmgr.h, not adjacent SoCs. */
 static const char *const slow_owners[24] = {
@@ -60,13 +80,23 @@ int y2_ccf_slow_idle(void)
 	unsigned saved;
 	int ret = 0;
 	if (!top || !peri) return -ENODEV;
-	if (num_online_cpus() != 1 || smp_processor_id() != 0) return -EBUSY;
-	if (!spin_trylock(&y2_clk_lock)) return -EBUSY;
+	if (smp_processor_id() != 0) return -EBUSY;
+	if (num_online_cpus() != 1) { slow_reject_topology++; return -EBUSY; }
+	if (!spin_trylock(&y2_clk_lock)) { slow_reject_lock++; return -EBUSY; }
 	saved = readl(top + 4);
 	/* Stock PERI blocker mask includes APDMA and I2C; additionally retain
 	 * every MSDC blocker. CG bits read as one when the clock is disabled. */
 	slow_blockers = (~readl(peri + 0x18)) & (0x00f00800 | 0x00007800);
-	if (saved != 0x0f || slow_blockers) {
+	slow_blockers_single = slow_blockers;
+	if (slow_blockers) {
+		unsigned bit;
+		for (bit = 0; bit < ARRAY_SIZE(slow_blocker_bits); bit++)
+			if (slow_blockers & BIT(bit)) slow_blocker_bits[bit]++;
+		slow_reject_clock++;
+		ret = -EBUSY; goto out;
+	}
+	if (saved != 0x0f) {
+		slow_reject_bus++;
 		ret = -EBUSY; goto out;
 	}
 	writel(0x8f, top + 4);
