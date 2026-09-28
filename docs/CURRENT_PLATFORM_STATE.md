@@ -11,6 +11,12 @@ clock ownership/idle, PWRAP readiness, early PM diagnostics/recovery and loaded
 USB recovery. The [physical report](validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md)
 is authoritative for actual behavior, ahead of software receipts.
 
+**Software candidate, 2026-09-28:** one CPU Final Fix02 preserving candidate
+(Linux `1a1a6693`, Reborn `77cf83e0`, BOOTIMG `a621e270…`, Y2ROOT `5010d839…`)
+is built and software-validated but **not flashed or physically qualified**;
+see the [Fix02 receipt](validation/Y2-CPU-FINAL-FIX02.md). The Fix01 physical
+result below remains the latest observed hardware state.
+
 ## Latest physically observed identity
 
 | Field | Exact identity, observed 2026-09-27 |

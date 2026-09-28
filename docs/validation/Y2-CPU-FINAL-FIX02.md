@@ -212,4 +212,56 @@ USB-failure and USB-reconnect fixtures were updated to the new contracts.
 
 ## Final software receipt
 
-Filled from the sealed candidate; see the table and validation logs below.
+| Identity | Commit/version |
+| --- | --- |
+| Starting Linux / Reborn | 0b8f810926c09510773eb76d1bf967a136b00f08 / 6ddc553dd69a0158c9121df959ef135c50814a13 |
+| Built Linux runtime | 1a1a6693dcd82f62daecd4c1491ef512823a86c5 |
+| Built Reborn | 77cf83e09a18f82a867040e72d35b6e70b26fa85 |
+| Kernel / root | 6.18.0-y2linux-cpu-final-fix02 / 2025.02.18-platform-v1.8 |
+| Release / build | 1.0.0-cpu-final-fix02-candidate.1 / Y2LINUX-CPU-FINAL-FIX02 |
+
+A later documentation commit seals this receipt; it changes no built kernel or
+userspace (recorded in the candidate's `sources/campaign-docs-commit.txt`).
+Git identity/configuration and the authenticated account are unchanged; no
+model attribution; no push.
+
+| Fresh check (isolated checkouts at the built commits) | Result |
+| --- | --- |
+| Kernel/config/modules, production DT, BOOTIMG/memory bounds (artifact validation) | PASS; BOOTIMG 7196672 bytes |
+| Targeted ARM W=1 of every changed object (pm-journal, usb, spm, clocks, system-idle, pwrap, mtk-sd, mtk_wdt, PM core, suspend) | PASS, no warnings |
+| Production/platform/CPU regressions (incl. test_cpu_fix02) | 241 tests: 238 PASS, 3 explicit native-dependency skips |
+| Native dependency tests on the packaging host | 12 PASS, no skips |
+| Reborn workspace | 193 PASS; cargo fmt and strict Clippy all-targets -D warnings PASS |
+| Buildroot ARM, Reborn ARM and QEMU | PASS |
+| Installed ARM (Python modules, SQLite/OpenSSL, Reborn, ALSA) | PASS, 26 modules |
+| ELF dependency closure | 382 ARM ELF files / 1396 edges PASS; no build RPATH |
+| FFmpeg/ALSA | fresh FFmpeg feature contract and ALSA constraints PASS |
+| Locked source/release inventory, legal-info | 105 packages hash-verified; legal-info collected with existing recipe-metadata limits |
+| Recovery options and automatic-admission fault containment | PASS |
+| Preserving package / fallback | PASS clean ext4 and on-image identity, BOOTIMG/Y2ROOT only, no Y2DATA payload, exact Hardware02 fallback |
+| Qualification harness offline | plan-only default, --wifi-host required, evaluation helpers PASS |
+| Documentation links/catalog | 0 problems |
+
+Host-only modules needing `elftools` and a stale local GPU artifact were
+compared against the starting commit; they are environment-only and pass in
+the isolated production run.
+
+Candidate: /home/luca/Dokumente/Code/Y2Linux/out/y2linux-cpu-final-fix02-candidate/
+
+| Payload | SHA256 |
+| --- | --- |
+| BOOTIMG.img | a621e270038356056ec21cb332a6592a18373e075e4df8a1f32beaca3b8fdd5e |
+| Y2ROOT.img | 5010d839766f52ebce9934f07ee6e4189c3318eacc460021f156a92b9ea27835 |
+| fallback/BOOTIMG.img | b2a2c3bcb7cc7783828882e447e8b867453cb5b65846ce63577076b1ca4afeea |
+| fallback/Y2ROOT.img | 63dbd0a198cd86e847c10ed163fd14b2cbe269595fa1988c99ac8393160bb547 |
+
+Fallback is the accepted Hardware02 pair (Linux 76bc8229, Reborn 95747e0a,
+kernel 6.18.0-y2linux-hardware-02, root 2025.02.18-platform-v1.4), identical to
+the Fix01 fallback. No preloader/LK/NVRAM/PROTECT/calibration/factory/data
+payload. No device access, flash or push occurred.
+
+Owner next action: verify SHA256SUMS, install only BOOTIMG and ANDROID/Y2ROOT
+with `MT6582_preserve_data_scatter.txt` through the existing preserving
+workflow, then run
+`python3 tools/development/qualify-cpu-fix02.py --run --host y2 --wifi-host OWNER_WIFI_ALIAS`
+(optionally `--allow-warm-reboot`).
