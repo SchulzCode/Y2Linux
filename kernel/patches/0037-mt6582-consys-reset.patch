@@ -13,7 +13,65 @@
  static const struct mtk_wdt_data mt6735_data = {
  	.toprgu_sw_rst_num = MT6735_TOPRGU_RST_NUM,
  };
-@@ -493,6 +499,7 @@
+@@ -338,6 +344,43 @@
+ 	return 0;
+ }
+ 
++#if IS_ENABLED(CONFIG_Y2_POWER)
++#include "/project/kernel/platform/pm-journal.h"
++/* Y2 owner-qualification backstop. The RGU counts only while a staged PM
++ * request is in flight (or a full request outside SPM); expiry is the same
++ * RGU reset as Linux reboot and preserves the retained PM journal. It is
++ * refused while userspace owns /dev/watchdog and is invisible to the
++ * watchdog core, so suspend/resume never start or stop it implicitly. */
++static struct mtk_wdt_dev *y2_backstop;
++static int y2_backstop_start(unsigned int seconds)
++{
++	struct watchdog_device *wdd = &y2_backstop->wdt_dev;
++	unsigned int saved = wdd->timeout;
++	int ret;
++
++	if (watchdog_active(wdd) || seconds < WDT_MIN_TIMEOUT || seconds > WDT_MAX_TIMEOUT)
++		return -EBUSY;
++	wdd->timeout = seconds;
++	ret = mtk_wdt_start(wdd);
++	wdd->timeout = saved;
++	if (!ret)
++		ret = mtk_wdt_ping(wdd);
++	return ret;
++}
++static void y2_backstop_ping(void)
++{
++	mtk_wdt_ping(&y2_backstop->wdt_dev);
++}
++static void y2_backstop_stop(void)
++{
++	if (!watchdog_active(&y2_backstop->wdt_dev))
++		mtk_wdt_stop(&y2_backstop->wdt_dev);
++}
++static const struct y2_pm_backstop_ops y2_backstop_ops = {
++	.start = y2_backstop_start, .ping = y2_backstop_ping, .stop = y2_backstop_stop,
++};
++#endif
++
+ static int mtk_wdt_set_pretimeout(struct watchdog_device *wdd,
+ 				  unsigned int timeout)
+ {
+@@ -466,6 +509,13 @@
+ 	mtk_wdt->reset_by_toprgu =
+ 		of_property_read_bool(dev->of_node, "mediatek,reset-by-toprgu");
+ 
++#if IS_ENABLED(CONFIG_Y2_POWER)
++	if (of_device_is_compatible(dev->of_node, "mediatek,mt6582-wdt") &&
++	    of_machine_is_compatible("innioasis,y2") && !mtk_wdt->wdt_dev.pretimeout) {
++		y2_backstop = mtk_wdt;
++		y2_pm_backstop_register(&y2_backstop_ops);
++	}
++#endif
+ 	return 0;
+ }
+ 
+@@ -493,6 +543,7 @@
  
  static const struct of_device_id mtk_wdt_dt_ids[] = {
  	{ .compatible = "mediatek,mt2712-wdt", .data = &mt2712_data },

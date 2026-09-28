@@ -38,6 +38,8 @@ restore() {
 }
 trap restore EXIT
 trap 'exit 1' INT TERM
+# Retained SRAM breadcrumb before any radio or kernel PM work (Fix02).
+[ ! -w /sys/firmware/y2_pm/stage ] || printf 'HELPER_REQUEST\n' > /sys/firmware/y2_pm/stage
 stage quiescing_radios
 y2-radio wifi off-runtime
 y2-radio bluetooth off-runtime

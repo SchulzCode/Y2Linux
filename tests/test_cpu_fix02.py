@@ -521,3 +521,205 @@ class ScreenOffBackground(unittest.TestCase):
         self.assertIn("if media_reconcile_needed(ctx):\n                ctx.command(['/usr/sbin/y2-platform', 'media', 'reconcile']", loop)
         self.assertIn('next_maintenance = before + maintenance', loop)
         self.assertIn('interval - (time.monotonic() - before)', loop)
+
+
+JOURNAL_FIXTURE = r'''
+#pragma clang diagnostic ignored "-Wunused-variable"
+#pragma clang diagnostic ignored "-Wunused-function"
+#pragma clang diagnostic ignored "-Wunused-const-variable"
+#include <assert.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+#include "pm-journal-policy.h"
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+#define __iomem
+#define READ_ONCE(x) (x)
+#define WRITE_ONCE(x, v) ((x) = (v))
+#define wmb() ((void)0)
+#define raw_spin_lock_irqsave(l, f) ((void)(f), assert(!*(l)), *(l) = 1)
+#define raw_spin_unlock_irqrestore(l, f) (assert(*(l)), *(l) = 0)
+#undef static_assert
+#define static_assert(x) _Static_assert(x, #x)
+#define Y2_PM_PHYS 0x0010dc00
+static unsigned xchg_u(unsigned *p, unsigned v) { unsigned o = *p; *p = v; return o; }
+#define xchg(p, v) xchg_u(p, v)
+enum { Y2_PM_NONE, Y2_PM_SUSPEND_REQUEST, Y2_PM_FILESYSTEM_SYNCED, Y2_PM_DEVICES_SUSPENDED,
+ Y2_PM_SECONDARIES_OFF, Y2_PM_CIRQ_CLONED, Y2_PM_WAKE_MASK_PROGRAMMED, Y2_PM_RTC_ARMED,
+ Y2_PM_PCM_INSTALLED, Y2_PM_CPU_CONTEXT_SAVING, Y2_PM_BEFORE_SPM_ENTRY, Y2_PM_AFTER_SPM_RETURN,
+ Y2_PM_CPU_CONTEXT_RESTORED, Y2_PM_CIRQ_REPLAYED, Y2_PM_TIMER_RESTORED, Y2_PM_SECONDARIES_ON,
+ Y2_PM_DEVICES_RESUMING, Y2_PM_RADIOS_RESTORING, Y2_PM_REBORN_READY, Y2_PM_COMPLETE,
+ Y2_PM_UART_REQUEST, Y2_PM_UART_ACK, Y2_PM_NORMAL_PCM_RESTORED, Y2_PM_ABORTED,
+ Y2_PM_HELPER_REQUEST, Y2_PM_TASKS_FROZEN, Y2_PM_PLATFORM_BEGIN, Y2_PM_DPM_PREPARE_BEGIN,
+ Y2_PM_DPM_PREPARED, Y2_PM_LATE_SUSPENDED, Y2_PM_NOIRQ_SUSPENDED, Y2_PM_SECONDARIES_DISABLING,
+ Y2_PM_SYSCORE_SUSPENDED, Y2_PM_PLATFORM_ENTER, Y2_PM_TEST_RETURN, Y2_PM_SELFTEST_A,
+ Y2_PM_SELFTEST_B, Y2_PM_BACKSTOP_STARTED, Y2_PM_EXIT, Y2_PM_STAGE_COUNT };
+struct y2_pm_backstop_ops { int (*start)(unsigned); void (*ping)(void); void (*stop)(void); };
+struct kobject; struct kobj_attribute;
+static unsigned sram[Y2_PM_REGION / 4], drop_offset = ~0U, stuck_offset = ~0U;
+static void *journal = sram;
+static int journal_lock;
+static unsigned journal_record[Y2_PM_WORDS], previous[Y2_PM_WORDS], slot, previous_reset_entry;
+static unsigned ring_sequence, previous_scratch[Y2_PM_SELFTEST_WORDS];
+static unsigned previous_ring_header[8];
+static const struct y2_pm_backstop_ops *backstop_ops;
+static unsigned backstop_armed, backstop_seconds;
+static bool backstop_running, backstop_paused, backstop_staged;
+static int backstop_error;
+static unsigned starts, pings, stops, start_fail;
+static int start(unsigned s) { if (start_fail) return -EBUSY; starts++; assert(s >= 10 && s <= 30); return 0; }
+static void ping(void) { pings++; }
+static void stop(void) { stops++; }
+static const struct y2_pm_backstop_ops ops = { start, ping, stop };
+static void writel(unsigned v, void *p)
+{
+	unsigned off = (unsigned char *)p - (unsigned char *)sram;
+	assert(off < Y2_PM_REGION);
+	if (off == drop_offset || off == stuck_offset) return;
+	*(unsigned *)p = v;
+}
+static unsigned readl(const void *p) { return *(const unsigned *)p; }
+static int sysfs_emit(char *buf, const char *fmt, ...) { va_list a; va_start(a, fmt); int n = vsnprintf(buf, 4096, fmt, a); va_end(a); return n; }
+static void y2_pm_backstop_ping(void);
+'''
+
+
+class RetainedJournal(unittest.TestCase):
+    def source(self):
+        return (ROOT/'kernel/platform/pm-journal.c').read_text()
+
+    def functions(self, *names):
+        s = public(self.source(), 'y2_pm_mark', 'y2_pm_backstop_begin', 'y2_pm_backstop_ping',
+                   'y2_pm_backstop_pause', 'y2_pm_backstop_end', 'y2_pm_backstop_register')
+        body = s[s.index('static const char *const names[]'):s.index('static const char *stage_name')]
+        return body + ''.join(function(s, n) for n in names)
+
+    def test_awake_selftest_proves_write_readback_sequence_slots_stamp_and_ring(self):
+        run_c(JOURNAL_FIXTURE + self.functions(
+            'stage_name', 'commit', 'ring_reset', 'ring_write', 'y2_pm_mark', 'y2_pm_backstop_ping',
+            'words_equal', 'scratch_pattern', 'selftest', 'retention_show') + r'''
+int main(void){
+ unsigned sa, sb, a, b;
+ /* An existing valid record: the self-test begins a new cycle after it. */
+ y2_pm_mark(Y2_PM_SUSPEND_REQUEST, 0); y2_pm_mark(Y2_PM_DEVICES_SUSPENDED, -16);
+ assert(journal_record[3] == Y2_PM_DEVICES_SUSPENDED && (int)journal_record[4] == -16);
+ unsigned before = journal_record[1];
+ sram[Y2_PM_STAMP / 4] = 0x59325253;
+ assert(!selftest(sram, &sa, &sb, &a, &b));
+ assert(sa == before + 1 && sb == before + 2 && a != b);
+ assert(y2_pm_valid(sram + Y2_PM_SLOT(a) / 4) && sram[Y2_PM_SLOT(a) / 4 + 2] == Y2_PM_SELFTEST_A);
+ assert(y2_pm_valid(sram + Y2_PM_SLOT(b) / 4) && sram[Y2_PM_SLOT(b) / 4 + 2] == Y2_PM_SELFTEST_B);
+ assert(!journal_record[4]);                      /* a fresh record, old error cleared */
+ assert(sram[Y2_PM_STAMP / 4] == 0x59325253);     /* stamp restored exactly */
+ assert(sram[Y2_PM_RING_HEADER / 4] == Y2_PM_RING_MAGIC && ring_sequence);
+ /* The next boot sees SELFTEST_B plus the scratch pattern: retention report. */
+ memcpy(previous, sram + Y2_PM_SLOT(b) / 4, sizeof(previous));
+ memcpy(previous_scratch, sram + Y2_PM_SELFTEST / 4, sizeof(previous_scratch));
+ char text[512]; retention_show(0, 0, text);
+ assert(strstr(text, "previous_stage=SELFTEST_B") && strstr(text, "selftest_scratch=retained"));
+ previous_scratch[3] ^= 1; retention_show(0, 0, text); assert(strstr(text, "selftest_scratch=absent"));
+ memset(previous, 0, sizeof(previous)); retention_show(0, 0, text); assert(strstr(text, "previous_valid=0"));
+ /* Failure injection: a write that never lands in SRAM is detected. */
+ drop_offset = Y2_PM_SLOT(slot ^ 1) + 4; assert(!strcmp(selftest(sram, &sa, &sb, &a, &b), "stage_a_readback"));
+ drop_offset = ~0U; stuck_offset = Y2_PM_STAMP; assert(!strcmp(selftest(sram, &sa, &sb, &a, &b), "reset_stamp"));
+ stuck_offset = Y2_PM_SELFTEST + 8; assert(!strcmp(selftest(sram, &sa, &sb, &a, &b), "scratch"));
+ stuck_offset = Y2_PM_RING_HEADER; sram[Y2_PM_RING_HEADER / 4] = 0; assert(!strcmp(selftest(sram, &sa, &sb, &a, &b), "ring"));
+ stuck_offset = ~0U;
+ /* A stale RAM-console magic in slot 0 must never be accepted as retained. */
+ assert(y2_pm_valid(sram) || !y2_pm_valid(sram));
+}
+''')
+
+    def test_stage_progression_helper_record_ring_and_torn_entries(self):
+        run_c(JOURNAL_FIXTURE + self.functions(
+            'stage_name', 'commit', 'ring_reset', 'ring_write', 'y2_pm_mark', 'y2_pm_backstop_ping') + r'''
+int main(void){
+ /* Helper request starts the cycle; the kernel request continues it. */
+ y2_pm_mark(Y2_PM_HELPER_REQUEST, 0); unsigned seq = journal_record[1];
+ ring_write("musb-hdrc.0", 2, 0, false);
+ y2_pm_mark(Y2_PM_SUSPEND_REQUEST, 0);
+ assert(journal_record[2] == Y2_PM_SUSPEND_REQUEST && journal_record[1] == seq + 1);
+ assert(ring_sequence && sram[y2_pm_ring_offset(ring_sequence) / 4] == ring_sequence); /* ring kept */
+ unsigned stages[] = { Y2_PM_FILESYSTEM_SYNCED, Y2_PM_TASKS_FROZEN, Y2_PM_PLATFORM_BEGIN, Y2_PM_DPM_PREPARE_BEGIN,
+  Y2_PM_DPM_PREPARED, Y2_PM_DEVICES_SUSPENDED, Y2_PM_LATE_SUSPENDED, Y2_PM_NOIRQ_SUSPENDED,
+  Y2_PM_SECONDARIES_DISABLING, Y2_PM_SECONDARIES_OFF, Y2_PM_SYSCORE_SUSPENDED, Y2_PM_PLATFORM_ENTER };
+ for (unsigned i = 0; i < ARRAY_SIZE(stages); i++) {
+  y2_pm_mark(stages[i], i == 7 ? -5 : 0);
+  unsigned *cur = sram + Y2_PM_SLOT(slot) / 4, *old = sram + Y2_PM_SLOT(slot ^ 1) / 4;
+  assert(y2_pm_valid(cur) && cur[2] == stages[i] && y2_pm_valid(old) && y2_pm_newer(cur[1], old[1]));
+ }
+ assert(journal_record[3] == Y2_PM_NOIRQ_SUSPENDED && (int)journal_record[4] == -5); /* first failure kept */
+ /* A kernel request without a helper request starts a fresh cycle and ring. */
+ y2_pm_mark(Y2_PM_SUSPEND_REQUEST, 0);
+ assert(!journal_record[4] && !sram[Y2_PM_STAMP / 4] && sram[Y2_PM_RING_HEADER / 4 + 2] == 0);
+ /* Device callbacks: enter/leave with result; names keep 20 bytes. */
+ ring_write("11230000.mmc", 2, 0, false); ring_write("11230000.mmc", 2, -16, true);
+ unsigned *e = sram + y2_pm_ring_offset(ring_sequence) / 4;
+ assert(e[0] == ring_sequence && (e[1] & 1) && (int)e[2] == -16 && !memcmp(e + 3, "11230000.mmc", 12));
+ /* A torn entry (sequence not yet written) never looks complete. */
+ unsigned next = y2_pm_ring_next(ring_sequence);
+ drop_offset = y2_pm_ring_offset(next); ring_write("mt6582-afe", 4, 0, false); drop_offset = ~0U;
+ assert(sram[y2_pm_ring_offset(next) / 4] == 0);
+ /* The ring wraps without losing order; sequence never becomes zero. */
+ for (unsigned i = 0; i < 3 * Y2_PM_RING_ENTRIES; i++) ring_write("x", 1, 0, i & 1);
+ assert(y2_pm_ring_next(~0U) == 1);
+ unsigned words[5]; y2_pm_ring_name(words, "abcdefghijklmnopqrstuvwxyz"); assert(!memcmp(words, "abcdefghijklmnopqrst", 20));
+}
+''')
+
+    def test_backstop_is_one_shot_pings_on_progress_and_pauses_for_spm(self):
+        run_c(JOURNAL_FIXTURE + self.functions(
+            'stage_name', 'commit', 'ring_reset', 'ring_write', 'y2_pm_mark', 'y2_pm_backstop_register',
+            'y2_pm_backstop_begin', 'y2_pm_backstop_ping', 'y2_pm_backstop_pause', 'y2_pm_backstop_end') + r'''
+int main(void){
+ /* No provider: arming cannot start anything and reports the error. */
+ backstop_armed = 30; y2_pm_backstop_begin(true); assert(!backstop_running && backstop_error == -ENODEV && !backstop_armed);
+ y2_pm_backstop_register(&ops);
+ /* Not armed: a normal suspend never touches the watchdog. */
+ y2_pm_backstop_begin(false); assert(!starts && !backstop_running);
+ /* Armed staged request: started, pinged on each stage, stopped at exit. */
+ backstop_armed = 30; y2_pm_mark(Y2_PM_SUSPEND_REQUEST, 0); y2_pm_backstop_begin(true);
+ assert(starts == 1 && backstop_running && backstop_staged && journal_record[2] == Y2_PM_BACKSTOP_STARTED);
+ unsigned p = pings; y2_pm_mark(Y2_PM_DEVICES_SUSPENDED, 0); assert(pings == p + 1);
+ y2_pm_backstop_end(); assert(stops == 1 && !backstop_running);
+ /* One-shot: the next request is not covered. */
+ y2_pm_backstop_begin(true); assert(starts == 1);
+ /* Full sleep: paused (stopped) only around SPM, restarted after return. */
+ backstop_armed = 20; y2_pm_backstop_begin(false); assert(starts == 2 && !backstop_staged);
+ y2_pm_backstop_pause(true); assert(stops == 2 && backstop_paused);
+ p = pings; y2_pm_mark(Y2_PM_AFTER_SPM_RETURN, 0); assert(pings == p); /* never pinged while paused */
+ y2_pm_backstop_pause(false); assert(starts == 3 && !backstop_paused);
+ y2_pm_backstop_end(); assert(stops == 3);
+ /* Pause is inert when not running (runtime dormant path). */
+ y2_pm_backstop_pause(true); assert(stops == 3);
+ /* Provider refusal (userspace owns /dev/watchdog) leaves nothing running. */
+ start_fail = 1; backstop_armed = 30; y2_pm_backstop_begin(true); assert(!backstop_running && backstop_error == -EBUSY);
+}
+''')
+
+    def test_core_breadcrumbs_and_callback_ring_are_wired(self):
+        suspend = overlay('kernel/power/suspend.c')
+        for mark in ('Y2_PM_TASKS_FROZEN', 'Y2_PM_PLATFORM_BEGIN', 'Y2_PM_LATE_SUSPENDED', 'Y2_PM_NOIRQ_SUSPENDED',
+                     'Y2_PM_SECONDARIES_DISABLING', 'Y2_PM_SYSCORE_SUSPENDED', 'Y2_PM_PLATFORM_ENTER',
+                     'Y2_PM_TEST_RETURN', 'Y2_PM_EXIT'):
+            self.assertIn('y2_pm_mark(' + mark, suspend)
+        self.assertIn('y2_pm_backstop_begin(pm_test_level != TEST_NONE);', suspend)
+        self.assertLess(suspend.index('y2_pm_mark(Y2_PM_SUSPEND_REQUEST'), suspend.index('y2_pm_backstop_begin(pm_test_level'))
+        self.assertLess(suspend.index('y2_pm_mark(Y2_PM_EXIT'), suspend.index('y2_pm_backstop_end();'))
+        main = overlay('drivers/base/power/main.c')
+        run = function(main, 'dpm_run_callback')
+        self.assertLess(run.index('y2_pm_device(dev, y2_pm_callback_phase(info, state), 0, false)'), run.index('error = cb(dev);'))
+        self.assertLess(run.index('error = cb(dev);'), run.index('y2_pm_callback_phase(info, state), error, true'))
+        self.assertIn('y2_pm_device(dev, Y2_PM_PHASE_PREPARE, error, true);', main)
+        self.assertIn('y2_pm_device(dev, Y2_PM_PHASE_COMPLETE, 0, true);', main)
+        spm = (ROOT/'kernel/platform/spm.c').read_text()
+        finish = function(spm, 'y2_spm_finish')
+        self.assertLess(finish.index('y2_pm_backstop_pause(true)'), finish.index('v7_exit_coherency_flush'))
+        self.assertIn('ret = cpu_suspend(0, y2_spm_finish);\n\t\ty2_pm_backstop_pause(false);', spm)
+        wdt = overlay('drivers/watchdog/mtk_wdt.c')
+        self.assertIn('if (watchdog_active(wdd) || seconds < WDT_MIN_TIMEOUT', wdt)
+        self.assertIn('y2_pm_backstop_register(&y2_backstop_ops);', wdt)
+        # Upstream suspend/resume still act only on a core-owned active watchdog.
+        self.assertIn('if (watchdog_active(&mtk_wdt->wdt_dev))\n\t\tmtk_wdt_stop', function(wdt, 'mtk_wdt_suspend'))

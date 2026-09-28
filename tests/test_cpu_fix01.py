@@ -81,9 +81,11 @@ static void dpm_save_failed_step(int state){}
 static void dpm_show_time(int a,int b,int c,const char *d){}
 static void dpm_resume(int state){assert(depth==1);resumed++;}
 static void dpm_complete(int state){assert(!depth);completed++;}
+enum{Y2_PM_DPM_PREPARE_BEGIN=1,Y2_PM_DPM_PREPARED=2};static int marks[3],mark_error;
+static void y2_pm_mark(unsigned stage,int error){assert(stage==1?prepared==marks[2]:prepared==marks[1]);marks[stage]++;if(stage==2)mark_error=error;}
 ''' + function(s,'dpm_suspend_start') + function(s,'dpm_resume_end') + r'''
 int main(void){
- refusal=-EBUSY;assert(dpm_suspend_start(1)==-EBUSY && !suspended);
+ refusal=-EBUSY;assert(dpm_suspend_start(1)==-EBUSY && !suspended && marks[1]==1 && marks[2]==1 && mark_error==-EBUSY);
  dpm_resume_end(1);assert(!depth && resumed==1 && completed==1);
  refusal=0;assert(!dpm_suspend_start(1) && suspended==1);
  dpm_resume_end(1);assert(!depth && prepared==2 && completed==2);

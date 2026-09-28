@@ -1,9 +1,70 @@
 --- a/drivers/base/power/main.c
 +++ b/drivers/base/power/main.c
-@@ -2258,10 +2258,12 @@
+@@ -33,6 +33,7 @@
+ #include <trace/events/power.h>
+ #include <linux/cpufreq.h>
+ #include <linux/devfreq.h>
++#include "/project/kernel/platform/pm-journal.h"
+ #include <linux/timer.h>
+ 
+ #include "../base.h"
+@@ -482,6 +483,19 @@
+ 		  usecs / USEC_PER_MSEC, usecs % USEC_PER_MSEC);
+ }
+ 
++/* Retained Y2 callback ring phase from the core's own callback labels. */
++static unsigned y2_pm_callback_phase(const char *info, pm_message_t state)
++{
++	bool resume = state.event & (PM_EVENT_RESUME | PM_EVENT_THAW | PM_EVENT_RESTORE | PM_EVENT_RECOVER);
++	if (info && !strncmp(info, "noirq", 5))
++		return resume ? Y2_PM_PHASE_RESUME_NOIRQ : Y2_PM_PHASE_NOIRQ;
++	if (info && !strncmp(info, "late", 4))
++		return Y2_PM_PHASE_LATE;
++	if (info && !strncmp(info, "early", 5))
++		return Y2_PM_PHASE_EARLY;
++	return resume ? Y2_PM_PHASE_RESUME : Y2_PM_PHASE_SUSPEND;
++}
++
+ static int dpm_run_callback(pm_callback_t cb, struct device *dev,
+ 			    pm_message_t state, const char *info)
+ {
+@@ -495,7 +509,9 @@
+ 
+ 	pm_dev_dbg(dev, state, info);
+ 	trace_device_pm_callback_start(dev, info, state.event);
++	y2_pm_device(dev, y2_pm_callback_phase(info, state), 0, false);
+ 	error = cb(dev);
++	y2_pm_device(dev, y2_pm_callback_phase(info, state), error, true);
+ 	trace_device_pm_callback_end(dev, error);
+ 	suspend_report_result(dev, cb, error);
+ 
+@@ -1257,7 +1273,9 @@
+ 		mutex_unlock(&dpm_list_mtx);
+ 
+ 		trace_device_pm_callback_start(dev, "", state.event);
++		y2_pm_device(dev, Y2_PM_PHASE_COMPLETE, 0, false);
+ 		device_complete(dev, state);
++		y2_pm_device(dev, Y2_PM_PHASE_COMPLETE, 0, true);
+ 		trace_device_pm_callback_end(dev, 0);
+ 
+ 		put_device(dev);
+@@ -2218,7 +2236,9 @@
+ 		mutex_unlock(&dpm_list_mtx);
+ 
+ 		trace_device_pm_callback_start(dev, "", state.event);
++		y2_pm_device(dev, Y2_PM_PHASE_PREPARE, 0, false);
+ 		error = device_prepare(dev, state);
++		y2_pm_device(dev, Y2_PM_PHASE_PREPARE, error, true);
+ 		trace_device_pm_callback_end(dev, error);
+ 
+ 		mutex_lock(&dpm_list_mtx);
+@@ -2257,11 +2277,15 @@
+ 	ktime_t starttime = ktime_get();
  	int error;
  
++	y2_pm_mark(Y2_PM_DPM_PREPARE_BEGIN, 0);
  	error = dpm_prepare(state);
++	y2_pm_mark(Y2_PM_DPM_PREPARED, error);
 +	/* dpm_resume_end restores this on both failed prepare and suspend.
 +	 * Keep prepare callbacks unrestricted and balance the abort path. */
 +	pm_restrict_gfp_mask();

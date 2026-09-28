@@ -220,7 +220,7 @@
       "path": "drivers/watchdog/mtk_wdt.c",
       "patch": "0037-mt6582-consys-reset.patch",
       "base_sha256": "6e8230dff7db590f16bdc83918220da48be57c8a594cd3f0917f4c0e0018da9b",
-      "result_sha256": "b8b5094ad3c86f4082d34fd5e66fc0857fa93158cdbcf2c5eef8064ffc303947"
+      "result_sha256": "094d15aff7847b4399a3a05dda22e5c1cf53dc48ff0b85c25fc10325e88a7d91"
     },
     {
       "path": "drivers/gpu/drm/lima/lima_drv.c",
@@ -280,13 +280,13 @@
       "path": "drivers/base/power/main.c",
       "patch": "0059-pm-balance-prepare-refusal.patch",
       "base_sha256": "ab16c504cce725a92d7af7d005e41d44e56ff476aa58faa0a8e412f6a8961a76",
-      "result_sha256": "4a386a9e04199ed3fa019f6a53ec4b34e7ffe8a706a9138eb219ec804c67fc15"
+      "result_sha256": "7a8ac3c10f9e248e06c7b07f549a60edaee53aaa30a5884fcbcb4e2aef2d46a9"
     },
     {
       "path": "kernel/power/suspend.c",
       "patch": "0060-y2-persistent-suspend-stages.patch",
       "base_sha256": "0f5cd354b1523364549e8cfc6dc4bbd781edc207b58a664617c4b971c119ae24",
-      "result_sha256": "14a6d4f2e5d8d7addb56ea55058421d8e9e1a6898b9c1c0914e45e318f1090e0"
+      "result_sha256": "e7600261d66cbf627de9422310537eb5d488d53382245adece532b223fbe0f51"
     }
   ]
 }

@@ -269,6 +269,8 @@ static int y2_spm_finish(unsigned long unused)
 	if (!unused) {
 		y2_spm_journal_snapshot();
 		y2_pm_mark(Y2_PM_BEFORE_SPM_ENTRY, 0);
+		/* An owner-armed RGU backstop never counts inside SPM sleep. */
+		y2_pm_backstop_pause(true);
 	}
 	/* Linux has saved its architectural/MMU/VFP/GIC context. Flush all
 	 * cache levels before the PCM may remove CPU0 and cluster power. */
@@ -318,6 +320,7 @@ static int y2_spm_enter(suspend_state_t state)
 		y2_pm_mark(Y2_PM_WAKE_MASK_PROGRAMMED, 0);
 		y2_pm_mark(Y2_PM_CPU_CONTEXT_SAVING, 0);
 		ret = cpu_suspend(0, y2_spm_finish);
+		y2_pm_backstop_pause(false);
 		y2_pm_mark(Y2_PM_AFTER_SPM_RETURN, ret);
 		y2_pm_mark(Y2_PM_CPU_CONTEXT_RESTORED, ret);
 		restore_start = ktime_get_mono_fast_ns();
