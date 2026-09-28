@@ -515,11 +515,12 @@ static ssize_t selftest_store(struct kobject *k, struct kobj_attribute *a,
 	unsigned sa = 0, sb = 0, slot_a = 0, slot_b = 0;
 	void __iomem *alias;
 	const char *failure;
+	unsigned int sleep_flags;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	if (!sysfs_streq(buf, "run"))
 		return -EINVAL;
-	lock_system_sleep();
+	sleep_flags = lock_system_sleep();
 	mutex_lock(&selftest_lock);
 	alias = ioremap(Y2_PM_PHYS, Y2_PM_REGION);
 	failure = alias ? selftest(alias, &sa, &sb, &slot_a, &slot_b) : "alias_mapping";
@@ -531,7 +532,7 @@ static ssize_t selftest_store(struct kobject *k, struct kobj_attribute *a,
 		 sa, sb, slot_a, slot_b, failure ? "unverified" : "restored",
 		 failure ? "unverified" : "verified");
 	mutex_unlock(&selftest_lock);
-	unlock_system_sleep();
+	unlock_system_sleep(sleep_flags);
 	return failure ? -EIO : size;
 }
 static struct kobj_attribute state_attr = __ATTR_RO(state),

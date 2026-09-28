@@ -491,7 +491,7 @@ static ssize_t dormant_preflight_show(struct device *dev, struct device_attribut
 		!y2_deep_idle_disabled(), y2_local_events_ready(), y2_cirq_ready(), num_online_cpus(), khz,
 		READ_ONCE(spm_broken), READ_ONCE(dormant_broken));
 	n += sysfs_emit_at(buf, n, "power_status=%#x domain_blockers=%#x clocks=%d peri_blockers=%#x infra_blockers=%#x bus=%#x\n",
-		power, power & (Y2_SPM_SECONDARY_CPU_MASK | BIT(0) | BIT(1) | BIT(3) | BIT(4) | BIT(5) | BIT(7)),
+		power, power & (unsigned)(Y2_SPM_SECONDARY_CPU_MASK | BIT(0) | BIT(1) | BIT(3) | BIT(4) | BIT(5) | BIT(7)),
 		clocks, peri, infra, bus);
 	n += sysfs_emit_at(buf, n, "unmet=%s%s%s%s%s%s%s%s%s\n",
 		y2_deep_idle_disabled() ? "disabled," : "",

@@ -71,11 +71,13 @@ static inline void y2_idle_init(struct y2_idle_state *s, unsigned now_ms)
 	s->hold_ms = Y2_SYSTEM_RESTORE_HOLD_MS;
 	s->hold_until_ms = now_ms + Y2_SYSTEM_RESTORE_HOLD_MS;
 }
+/* Operands are bounded (<= 4000 milli-cores, <= 30000 ms): 32-bit signed
+ * arithmetic cannot overflow and avoids a 64-bit division on ARMv7. */
 static inline unsigned y2_idle_ewma(unsigned avg, unsigned value, unsigned dt_ms)
 {
-	unsigned w = dt_ms < Y2_SYSTEM_TAU_MS ? dt_ms : Y2_SYSTEM_TAU_MS;
-	long long delta = (long long)value - avg;
-	return (unsigned)((long long)avg + delta * w / Y2_SYSTEM_TAU_MS);
+	int w = dt_ms < Y2_SYSTEM_TAU_MS ? (int)dt_ms : Y2_SYSTEM_TAU_MS;
+	int delta = (int)value - (int)avg;
+	return (unsigned)((int)avg + delta * w / Y2_SYSTEM_TAU_MS);
 }
 static inline void y2_idle_reset(struct y2_idle_state *s, enum y2_idle_reason why)
 {
