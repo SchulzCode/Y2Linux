@@ -775,3 +775,80 @@ int main(void){
         # DMA and PIO fallbacks are unchanged: y2.usb_dma and allocation failure.
         self.assertIn('__setup("y2.usb_dma=", y2_usb_dma_option);', s)
         self.assertIn('Y2USB: DMA allocation failed, retaining PIO', s)
+
+
+def harness():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('qualify_fix02', ROOT/'tools/development/qualify-cpu-fix02.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class Fix02Harness(unittest.TestCase):
+    def test_charger_presence_is_not_charging(self):
+        import sys
+        sys.path.insert(0, str(ROOT/'tools/platform'))
+        from y2_platform.charger_state import classify
+        hold = 'phase=HOLD source=1 source_valid=1 charge_limit_ua=70000\nactive=0 online=1 present=1 fault=0x0 sample_error=0 stop_error=0 paused=0 last_error=0'
+        self.assertEqual(classify(hold, True, 'Not charging')['category'], 'charger_hold')
+        self.assertFalse(classify(hold, True, 'Not charging')['expect_refusal'])  # the Fix01 physical state
+        active = hold.replace('phase=HOLD', 'phase=CONSTANT_CURRENT').replace('active=0', 'active=1')
+        self.assertTrue(classify(active, True, 'Charging')['expect_refusal'])
+        self.assertTrue(classify(active, True, 'Charging')['phase_consistent'])
+        failed = hold.replace('stop_error=0', 'stop_error=-5')
+        self.assertEqual(classify(failed, True, 'Not charging')['category'], 'charger_stop_error')
+        inhibited = hold.replace('phase=HOLD', 'phase=INHIBITED')
+        self.assertEqual(classify(inhibited, True, 'Not charging')['category'], 'usb_present_not_charging')
+        self.assertEqual(classify(inhibited.replace('online=1', 'online=0'), False, 'Discharging')['category'], 'no_usb')
+        self.assertEqual(classify(None, True, None)['category'], 'unknown')
+
+    def test_plan_is_offline_and_run_requires_independent_observer(self):
+        import subprocess
+        tool = str(ROOT/'tools/development/qualify-cpu-fix02.py')
+        plan = subprocess.run(['python3', tool], capture_output=True, text=True, timeout=30)
+        self.assertEqual(plan.returncode, 0)
+        self.assertIn('only if all awake checks passed', plan.stdout)
+        refused = subprocess.run(['python3', tool, '--run'], capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn('--wifi-host is required', refused.stderr)
+        text = (ROOT/'tools/development/qualify-cpu-fix02.py').read_text()
+        self.assertNotIn('flash', text.split('def main')[1].lower())
+        self.assertEqual(text.count("'reboot'") + text.count('; reboot'), 1)  # only the opt-in retention proof
+        self.assertIn('if ok and self.args.allow_warm_reboot:', text)
+        # Suspend is only reachable after every awake check and the journal self-test.
+        main = text.split('def main')[1]
+        self.assertLess(main.index('if not (all(awake) and selftest):'), main.index("run.suspend('devices'"))
+
+    def test_evaluation_helpers(self):
+        h = harness()
+        rest = 'gated=1 suspends=9 resumes=8 retained=8 restored=0 last_mismatch=0 error=0'
+        before = {'11230000.mmc': 'gated=0 suspends=2 resumes=2 error=0', '11240000.mmc': 'gated=1 suspends=1 resumes=0 error=0'}
+        io = {'11230000.mmc': 'gated=0 suspends=9 resumes=9 error=0', '11240000.mmc': rest}
+        self.assertTrue(h.mmc_verdict(before, {k: rest for k in before}, io)['pass'])
+        self.assertFalse(h.mmc_verdict(before, {k: rest.replace('gated=1', 'gated=0') for k in before}, io)['pass'])
+        self.assertFalse(h.mmc_verdict(before, {k: rest for k in before}, {k: 'resumes=10 error=-5' for k in before})['pass'])
+        state = 'quiet=1 parked=3 parked_mask=0xe last_reset=screen load_mc=120 high_freq_permille=40'
+        self.assertTrue(h.coordinator_verdict(state, {'slow_entries': '12'}, '0')['pass'])
+        self.assertFalse(h.coordinator_verdict(state, {'slow_entries': '0'}, '0')['pass'])
+        self.assertFalse(h.coordinator_verdict(state.replace('0xe', '0x8'), {'slow_entries': '5'}, '0-2')['pass'])
+        attr = h.background_attribution({'1': {'name': 'init', 'ticks': 5}},
+                                        {'1': {'name': 'init', 'ticks': 7}, '9': {'name': 'python3', 'ticks': 40}}, 20)
+        self.assertEqual(attr['top'][0]['name'], 'python3')
+        self.assertEqual(attr['processes_started'], 1)
+        ring = ('ring=valid cycle=4 last=9 backstop_s=30\n1 phase=2 enter result=0 device=11230000.mmc\n'
+                '2 phase=2 leave result=0 device=11230000.mmc\n3 phase=2 enter result=0 device=musb-hdrc.0.auto\n'
+                '4 phase=1 leave result=-16 device=mt6323-charger\n')
+        self.assertEqual(h.open_callback(ring), {'phase': 2, 'device': 'musb-hdrc.0.auto', 'sequence': 3})
+        self.assertIsNone(h.open_callback(ring.replace('3 phase=2 enter', '3 phase=2 leave')))
+        self.assertEqual(h.refused_prepare(ring), ['mt6323-charger'])
+        good = h.receipt_verdict('0 a a 0 0', 'a')
+        self.assertTrue(good['same_boot'] and good['taint_unchanged'] and good['rc'] == 0)
+        self.assertFalse(h.receipt_verdict('0 a b 0 0', 'a')['same_boot'])
+        self.assertFalse(h.receipt_verdict('0 a a 0 512', 'a')['taint_unchanged'])
+        lost = h.usb_loss_verdict({'boot': 'a'}, {'boot': 'a', 'status': {'x': 'stage=9 error=-5 fault_reason=dma_bus_error'}})
+        self.assertEqual(lost['classification'], 'usb_transport_dma_bus_error')
+        self.assertEqual(h.usb_loss_verdict({'boot': 'a'}, None)['classification'], 'device_unreachable')
+        self.assertEqual(h.usb_loss_verdict({'boot': 'a'}, {'boot': 'a', 'status': {}})['classification'], 'usb_transport_unattributed')
+        self.assertFalse(h.usb_loss_verdict(None, None)['lost'])
+        self.assertEqual(h.irq_count('20: 3 4 0 0 mt6397-rtc\n21: 1 0 mtk-pmic-keys', 'mt6397-rtc'), 7)
