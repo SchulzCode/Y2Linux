@@ -26,8 +26,11 @@ DARK_MAINTENANCE_S = 300
 
 
 def display_dark(ctx):
-    values = [read(path) for path in ctx.glob('/sys/class/backlight/*/brightness')]
-    return bool(values) and all(value == '0' for value in values)
+    """Same meaning as the kernel's backlight_is_blank(): Reborn blanks with
+    bl_power=4 (FB_BLANK_POWERDOWN) and leaves brightness unchanged."""
+    devices = ctx.glob('/sys/class/backlight/*')
+    states = [(read(path / 'bl_power'), read(path / 'brightness')) for path in devices]
+    return bool(states) and all(power not in (None, '0') or brightness == '0' for power, brightness in states)
 
 
 def media_reconcile_needed(ctx):

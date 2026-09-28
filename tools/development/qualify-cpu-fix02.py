@@ -308,7 +308,9 @@ screen(True);before=mmc_state();errors=ext4_errors();time.sleep(8);rest=mmc_stat
 data=os.urandom(1<<20);path=P('/data/system/platform/fix02-mmc-'+os.urandom(6).hex())
 try:
  with path.open('xb') as f:f.write(data);f.flush();os.fsync(f.fileno())
- os.posix_fadvise(os.open(path,os.O_RDONLY),0,0,os.POSIX_FADV_DONTNEED)
+ fd=os.open(path,os.O_RDONLY)
+ try:os.posix_fadvise(fd,0,0,os.POSIX_FADV_DONTNEED)
+ finally:os.close(fd)
  ok=hashlib.sha256(path.read_bytes()).hexdigest()==hashlib.sha256(data).hexdigest()
 finally:path.unlink(missing_ok=True)
 sd=None
@@ -399,7 +401,8 @@ print(json.dumps({'readiness':read('/sys/module/pwrap/parameters/pwrap_readiness
     def journal(self):
         value = self.remote(r'''
 before={n:read('/sys/firmware/y2_pm/'+n) for n in ('state','previous','retention')}
-write('/sys/firmware/y2_pm/selftest','run')
+try:write('/sys/firmware/y2_pm/selftest','run')
+except OSError as error:print(json.dumps({'write_error':str(error)}),file=sys.stderr)
 print(json.dumps({'before':before,'selftest':read('/sys/firmware/y2_pm/selftest'),'state':read('/sys/firmware/y2_pm/state'),'devices':read('/sys/firmware/y2_pm/devices',16384)}))''')
         ok = field(value['selftest'], 'result') == 'pass'
         self.record('journal-awake-selftest', value, 'PASS' if ok else 'FAIL')

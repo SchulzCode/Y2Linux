@@ -498,12 +498,20 @@ class ScreenOffBackground(unittest.TestCase):
 
     def test_dark_cadence_keeps_network_fresh_and_health_deadline_safe(self):
         light = self.root/'sys/class/backlight/y2/brightness'
+        power = light.parent/'bl_power'
         self.assertFalse(self.service.display_dark(self.ctx))  # unknown is not dark
         light.parent.mkdir(parents=True)
         light.write_text('7\n')
+        power.write_text('0\n')
         self.assertFalse(self.service.display_dark(self.ctx))
+        power.write_text('4\n')  # Reborn ScreenSleep: FB_BLANK_POWERDOWN, brightness kept
+        self.assertTrue(self.service.display_dark(self.ctx))
+        power.write_text('0\n')
         light.write_text('0\n')
         self.assertTrue(self.service.display_dark(self.ctx))
+        reborn = (ROOT.parent/'Y2Reborn/crates/reborn-platform/src/power.rs')
+        if reborn.exists():
+            self.assertIn('bl_power', reborn.read_text())
         self.assertEqual(self.service.cadence(False, True), (3, 30))
         self.assertEqual(self.service.cadence(True, False), (10, 30))  # pending health keeps 30 s
         self.assertEqual(self.service.cadence(True, True), (10, 300))
