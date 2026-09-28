@@ -723,3 +723,55 @@ int main(void){
         self.assertIn('y2_pm_backstop_register(&y2_backstop_ops);', wdt)
         # Upstream suspend/resume still act only on a core-owned active watchdog.
         self.assertIn('if (watchdog_active(&mtk_wdt->wdt_dev))\n\t\tmtk_wdt_stop', function(wdt, 'mtk_wdt_suspend'))
+
+
+class UsbTransportAttribution(unittest.TestCase):
+    def test_tolerance_is_bounded_and_write_free_only(self):
+        run_c(r'''
+#include <assert.h>
+#include "../usb/fault.h"
+int main(void){
+ struct y2_usb_tolerance t = {0};
+ /* Transient PMIC/PWRAP observation failures do not end the session. */
+ for (int i = 0; i < Y2_USB_MONITOR_TOLERANCE - 1; i++) assert(!y2_usb_monitor_terminal(&t, 0));
+ assert(!y2_usb_monitor_terminal(&t, 1) && !t.monitor_failures && t.monitor_transients == 3);
+ /* A persistent (one second) failure remains terminal. */
+ for (int i = 0; i < Y2_USB_MONITOR_TOLERANCE - 1; i++) assert(!y2_usb_monitor_terminal(&t, 0));
+ assert(y2_usb_monitor_terminal(&t, 0));
+ /* Reconnect: a refusal after any write is terminal immediately. */
+ struct y2_usb_tolerance r = {0};
+ assert(y2_usb_reconnect_terminal(&r, -5, 1));
+ /* Write-free refusals retry for a bounded budget, success resets it. */
+ r = (struct y2_usb_tolerance){0};
+ for (int i = 0; i < Y2_USB_RECONNECT_ATTEMPTS - 1; i++) assert(!y2_usb_reconnect_terminal(&r, -19, 0));
+ assert(!y2_usb_reconnect_terminal(&r, 0, 1) && !r.reconnect_failures);
+ for (int i = 0; i < Y2_USB_RECONNECT_ATTEMPTS - 1; i++) assert(!y2_usb_reconnect_terminal(&r, -19, 0));
+ assert(y2_usb_reconnect_terminal(&r, -19, 0));
+ assert(Y2_USB_RECONNECT_ATTEMPTS * 250 == 10000 && Y2_USB_MONITOR_TOLERANCE * 250 == 1000);
+ for (int i = 0; i < Y2_USB_REASON_COUNT; i++) assert(y2_usb_reason_names[i]);
+}
+''')
+
+    def test_every_terminal_site_is_attributed_and_snapshot_is_read_only(self):
+        s = (ROOT/'kernel/platform/usb.c').read_text()
+        self.assertEqual(s.count('y2_usb_fail('), 2)  # definition and the single attributed call
+        for reason in ('FIFO_LAYOUT', 'IRQ_OVERFLOW', 'DMA_BUS_ERROR', 'INIT', 'SUPPLY_MONITOR', 'REGISTER',
+                       'RECONNECT', 'PREFLIGHT', 'PHY_REGION'):
+            self.assertIn('Y2_USB_REASON_' + reason, s)
+        capture = function(s, 'y2_usb_fail_at')
+        # Only INDEX is written, and it is restored; sampled W1C status is not cleared.
+        self.assertEqual(capture.count('writeb('), 2)
+        self.assertIn('writeb(f.index,b+MUSB_INDEX);', capture)
+        self.assertNotIn('writew(', capture)
+        self.assertNotIn('writel(', capture)
+        self.assertIn('y2_pm_note(note,rc);', capture)
+        irq = function(s, 'y2_musb_interrupt')
+        self.assertLess(irq.index('Y2_USB_REASON_DMA_BUS_ERROR'), irq.index('writel(0, musb->mregs + 0xa4);'))
+        # The reconnect path marks a write before the first session write.
+        reconnect = function(s, 'y2_usb_reconnect')
+        self.assertLess(reconnect.index('*wrote=true;'), reconnect.index('y2_session_start('))
+        worker = function(s, 'y2_usb_worker')
+        self.assertIn('if(!y2_usb_monitor_terminal(&y2_tolerance,0)) goto again;', worker)
+        # DMA and PIO fallbacks are unchanged: y2.usb_dma and allocation failure.
+        self.assertIn('__setup("y2.usb_dma=", y2_usb_dma_option);', s)
+        self.assertIn('Y2USB: DMA allocation failed, retaining PIO', s)

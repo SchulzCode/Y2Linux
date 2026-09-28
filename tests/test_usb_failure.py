@@ -19,7 +19,9 @@ class UsbFailure(unittest.TestCase):
 #include <string.h>
 #include <stddef.h>
 #include <errno.h>
+#include <stdbool.h>
 #include "live.h"
+#include "fault.h"
 #define __user
 #define READ_ONCE(x) (x)
 #define WRITE_ONCE(x,v) ((x)=(v))
@@ -53,12 +55,19 @@ static void spin_unlock(int *lock) {assert(*lock);*lock=0;}
 /* Inject the canonical serialized PMIC provider's public result. */
 static int y2_pmic_snapshot(struct y2_pwrap_snapshot *out)
 {++probes;*out=next_power;return out->result;}
-static void y2_usb_fail(int rc) {if(!y2_live.result)y2_live.result=rc;}
+static struct y2_usb_tolerance y2_tolerance;
+static bool y2_usb_pm_held;
+static unsigned last_reason;
+typedef unsigned long ulong_flags;
+#define spin_lock_irqsave(l,f) ((void)(f))
+#define spin_unlock_irqrestore(l,f) ((void)(f))
+static void y2_usb_fail_at(struct musb *m,unsigned reason,int rc,bool registers)
+{(void)m;(void)registers;if(!y2_live.result){y2_live.result=rc;last_reason=reason;}}
 static void y2_usb_phase(unsigned stage) {y2_live.stage=stage;}
 static int y2_usb_register(void) {++registered;return 0;}
 static unsigned readb(void *p) {(void)p;return 0x98;}
 static void y2_usb_detach(void) {++detached;y2_usb_detached=1;y2_usb_phase(Y2_USB_DETACHED);}
-static int y2_usb_reconnect(void) {++reconnected;if(!reconnect_rc)y2_usb_detached=0;return reconnect_rc;}
+static int y2_usb_reconnect(bool *wrote) {++reconnected;*wrote=false;if(!reconnect_rc)y2_usb_detached=0;return reconnect_rc;}
 static int freezable_queue;
 #define system_freezable_wq (&freezable_queue)
 static void queue_delayed_work(int *queue,int *work,unsigned delay)
@@ -76,7 +85,7 @@ int main(void) {
             .wrap=1,.arb=0x1ff,.channel=1,.init=1,.before=0x00300001,.after=0x00300001,
             .cid=0x2023,.vusb=0xc000,.chrdet=1};
         y2_usb_pmic=&next_power;y2_usb_finished=0;
-        probes=scheduled=finished=registered=0;
+        probes=scheduled=finished=registered=0;y2_tolerance=(struct y2_usb_tolerance){0};
         struct y2_usb_live status;
         assert(y2_usb_status((char*)&status)==sizeof(status));
         assert(!status.power_failure.magic); /* no invented failure before polling */
@@ -84,10 +93,19 @@ int main(void) {
         if(fault==2) {next_power.result=-16;next_power.valid=0;next_power.before=next_power.after=0x00360001;}
         if(fault==3) {next_power.result=-110;next_power.valid=3;next_power.after=0x00340023;}
         if(fault==4) next_power.vusb=0x4000;
+        /* Fix02: a PMIC/PWRAP observation failure is retried; only a
+         * persistent one (four polls, one second) is terminal. */
+        for(unsigned poll=1;fault && poll<Y2_USB_MONITOR_TOLERANCE;++poll) {
+            y2_usb_worker(NULL);
+            assert(!finished && scheduled==poll && y2_tolerance.monitor_transients==poll && !y2_live.result);
+        }
+        probes=scheduled=0;
         y2_usb_worker(NULL);
         assert(probes==1 && !registered && !y2_usb_lifecycle);
         assert(y2_usb_status((char*)&status)==sizeof(status));
-        assert(status.magic==Y2_USB_LIVE_MAGIC && status.polls==1 && status.stage==Y2_USB_ATTACH);
+        assert(status.magic==Y2_USB_LIVE_MAGIC && status.stage==Y2_USB_ATTACH);
+        assert(status.polls==(fault ? Y2_USB_MONITOR_TOLERANCE : 1));
+        if(fault) assert(last_reason==Y2_USB_REASON_SUPPLY_MONITOR);
         if(!fault) {
             assert(!finished && scheduled==1 && !status.result && status.chrdet==1);
             assert(!status.power_failure.magic);
@@ -107,7 +125,7 @@ int main(void) {
         y2_live=(struct y2_usb_live){.magic=Y2_USB_LIVE_MAGIC};
         next_power=(struct y2_pwrap_snapshot){.magic=Y2_PWRAP_MAGIC,.valid=7,.vusb=0xc000,.chrdet=0x21};
         y2_usb_pmic=&next_power;y2_usb_child=1;y2_musb=&musb;y2_usb_finished=0;
-        y2_usb_detached=detached=reconnected=0;finished=0;
+        y2_usb_detached=detached=reconnected=0;finished=0;y2_tolerance=(struct y2_usb_tolerance){0};
         reconnect_rc=fault ? -19 : 0;classified=1;
         y2_usb_worker(NULL);assert(y2_live.stage==Y2_USB_CONFIGURED);
         next_power.chrdet=1;y2_usb_worker(NULL);
@@ -115,7 +133,14 @@ int main(void) {
         for(unsigned i=0;i<20;++i) y2_usb_worker(NULL);
         assert(detached==1 && !reconnected && !finished); /* no repeated teardown */
         next_power.chrdet=0x21;classified=1;y2_usb_worker(NULL);
-        if(fault) {assert(finished==1 && reconnected==1);continue;}
+        if(fault) {
+            /* Write-free reconnect refusals retry for ten seconds, then end. */
+            assert(!finished && reconnected==1 && y2_tolerance.reconnect_retries==1);
+            for(unsigned i=2;i<Y2_USB_RECONNECT_ATTEMPTS;++i) {y2_usb_worker(NULL);assert(!finished);}
+            y2_usb_worker(NULL);
+            assert(finished==1 && reconnected==Y2_USB_RECONNECT_ATTEMPTS && last_reason==Y2_USB_REASON_RECONNECT);
+            continue;
+        }
         assert(reconnected==1 && !y2_usb_detached && !finished && y2_live.stage==Y2_USB_CONFIGURED);
         for(unsigned i=0;i<100;++i) {
             next_power.chrdet=1;y2_usb_worker(NULL);

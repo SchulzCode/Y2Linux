@@ -119,7 +119,10 @@ int main(void) {
         if(fault==23)y2_usb_supply.valid=3;
         if(fault>=24 && fault<29) {unsigned offsets[]={0,1,2,3,6};phy[0x68+offsets[fault-24]]^=1;}
         if(fault==29)pm_error=1;
-        int rc=y2_usb_reconnect();
+        bool wrote=false;
+        int rc=y2_usb_reconnect(&wrote);
+        /* Fix02: only refusals before any session write may be retried. */
+        assert(wrote==(!fault || fault==21 || fault==22));
         if(!fault) {
             assert(pm_held && !rc && started==1 && cleared==3 && !y2_usb_detached);
             assert(mac[1]&0x40);assert(y2_live.stage==Y2_USB_READY);

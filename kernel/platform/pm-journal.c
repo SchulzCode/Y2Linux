@@ -127,6 +127,17 @@ static void ring_write(const char *name, unsigned phase, int result, bool leave)
 	writel(ring_sequence, journal + Y2_PM_RING_HEADER + 8);
 	readl(journal + offset);
 }
+/* Out-of-band platform fault (phase 0xff), e.g. the first terminal USB fault,
+ * so it survives an owner restart together with the PM callback trail. */
+void y2_pm_note(const char *name, int result)
+{
+	unsigned long flags;
+	if (!journal)
+		return;
+	raw_spin_lock_irqsave(&journal_lock, flags);
+	ring_write(name, 0xff, result, true);
+	raw_spin_unlock_irqrestore(&journal_lock, flags);
+}
 void y2_pm_device(const struct device *dev, unsigned phase, int result, bool leave)
 {
 	unsigned long flags;

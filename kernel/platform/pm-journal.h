@@ -76,6 +76,7 @@ void y2_pm_spm_snapshot(unsigned wake, unsigned r13, unsigned raw,
 void y2_pm_pmic_snapshot(unsigned rtc_enable, unsigned mask0, unsigned mask1,
 			 unsigned status0, unsigned status1);
 void y2_pm_device(const struct device *dev, unsigned phase, int result, bool leave);
+void y2_pm_note(const char *name, int result);
 void y2_pm_backstop_register(const struct y2_pm_backstop_ops *ops);
 void y2_pm_backstop_begin(bool staged);
 void y2_pm_backstop_ping(void);
@@ -85,6 +86,9 @@ extern void y2_cpu_resume(void);
 #else
 static inline void y2_pm_device(const struct device *dev, unsigned phase,
 				int result, bool leave)
+{
+}
+static inline void y2_pm_note(const char *name, int result)
 {
 }
 static inline void y2_pm_backstop_register(const struct y2_pm_backstop_ops *ops)
