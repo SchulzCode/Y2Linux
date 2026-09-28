@@ -8,6 +8,17 @@ next *plan*, not an implemented candidate or release. This roadmap retains
 earlier Platform v1/Hardware Final/CPU Final boundary decisions as history;
 their "ready" and "next" language is scoped to those earlier packages.
 
+## CPU Final Fix02 — single correction candidate, 2026-09-28
+
+[Implementation boundary](roadmap-gap-audit.md#cpu-final-fix02-implementation-boundary--2026-09-28)
+implements the Fix02 plan without restarting the CPU architecture: MSDC runtime
+clock ownership, sustained-idle parking and removal of the recurring
+screen-off background work, reconciled PWRAP readiness for 1196/1300 MHz,
+awake-proven retained PM diagnostics with a warm-reset backstop, charger-state
+discrimination and attributed USB transport faults. One preserving
+`out/y2linux-cpu-final-fix02-candidate/` BOOTIMG/Y2ROOT package with the exact
+Hardware02 fallback; no flash/push. Next: the owner's single Fix02 run.
+
 ## CPU Final Fix01 physical sweep — 2026-09-27
 
 [Admission audit](roadmap-gap-audit.md#cpu-final-fix01-physical-admission--2026-09-27)

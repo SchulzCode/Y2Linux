@@ -300,6 +300,9 @@ Indexed pages: **266**. Explicit historical/contract scope notices:
 | [Platform v1 physical master issues](validation/PLATFORM-V1-PHYSICAL-ISSUES.md) | Scoped validation record |
 | [Platform v1 physical qualification](validation/PLATFORM-V1-PHYSICAL-QUALIFICATION.md) | Scoped validation record |
 | [Platform v1 telemetry repair — 2026-09-25](validation/PLATFORM-V1-TELEMETRY-01.md) | Scoped validation record |
+| [CPU Final Fix 02 implementation and candidate receipt](validation/Y2-CPU-FINAL-FIX02.md) | Current software candidate receipt |
+| [CPU Final Fix02 source and binary ledger](validation/Y2-CPU-FINAL-FIX02-SOURCES.md) | Scoped validation record |
+| [Y2 CPU Final Fix02 physical qualification — prepared, not run](validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md) | Prepared owner run; no hardware result |
 | [Y2 CPU Final Fix01 physical qualification — 2026-09-27](validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md) | Latest CPU physical record |
 | [CPU Final Fix01 source and binary ledger](validation/Y2-CPU-FINAL-FIX01-SOURCES.md) | Scoped validation record |
 | [CPU Final Fix 01 implementation and candidate receipt](validation/Y2-CPU-FINAL-FIX01.md) | Scoped validation record |

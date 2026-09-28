@@ -1,13 +1,39 @@
 # Y2Linux roadmap and gap audit
 
 **Current reading order, 2026-09-28:** The
+[Fix02 implementation boundary](#cpu-final-fix02-implementation-boundary--2026-09-28),
 [Fix01 physical closing boundary](#cpu-final-fix01-physical-closing-boundary--2026-09-27)
 and [current platform state](../CURRENT_PLATFORM_STATE.md) supersede older
-candidate admission/"next" text below for today's acceptance. The
+candidate admission/"next" text below for today's acceptance. Fix01's physical
+report remains the authoritative hardware result until Fix02 receipts exist. The
 [knowledge-base maintenance receipt](#knowledge-base-reconciliation--2026-09-28)
 changes navigation and source/physical summaries only; it does not open a
 hardware, memory, production or milestone boundary. Older audit entries remain
 in their original sequence for evidence and permission history.
+
+## CPU Final Fix02 implementation boundary — 2026-09-28
+
+The owner activates the single coherent Fix02 correction planned by the Fix01
+closing boundary, using that real-hardware evidence. The standing audit is
+repeated narrowly: scope is unchanged hardware (no new subsystem), unchanged
+memory contract and the same preserve-data BOOTIMG/Y2ROOT production scope; it
+activates implementation and one candidate, not hardware acceptance or an
+external milestone closure. Starting Linux `0b8f810` / Reborn `6ddc553`.
+
+| Coverage / owner | Fix02 software change | Remaining physical gate |
+| --- | --- | --- |
+| Deeper CPU idle, M4 #30 | MSDC runtime early return removed; MT6582-only register image verified across PERI CG gating; SLIDLE refusal attribution; read-only C3 prerequisites | gating, C2 entries/residency, C3 stays default off |
+| Coordinator, M4 #30 | sustained time-weighted quiet, 1-s saturation demand, escalating hold; readiness-service Python spawn per 3 s removed; Reborn screen-off loop 50 ms | parking 3→2→1 and restore on the device |
+| High-bin voltage, M4 #30 | PWRAP predicate reconciled: preloader writes 0x1ff, 7-bit arbiter reads 0x7f (M2-PWRAP-01 photo); raw operands exposed | 1196/1300 MHz voltage readback |
+| PM/wake, M4 #30 | awake SRAM self-test and retention report, earlier stages, device-callback ring, owner-armed RGU warm-reset backstop, charger classification | staged, RTC and Power same-boot wake |
+| Transport, M2 #28 / M5 #31 | terminal USB fault attribution with snapshot; 1-s supply and 10-s write-free reconnect tolerance; DMA/PIO fallbacks unchanged | repeated loaded transfers with Wi-Fi observer |
+
+Receipt: [Fix02 implementation](../validation/Y2-CPU-FINAL-FIX02.md),
+[source ledger](../validation/Y2-CPU-FINAL-FIX02-SOURCES.md) and the prepared
+[physical qualification](../validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md).
+Preserved: timers/highres/NO_HZ, hotplug, conservative OPPs, schedutil, eight
+QoS classes, thermal authority, WFI, bounded playback and CONSYS isolated retry.
+No flash or push. M4/M5/M6 gates remain open until the owner's single run.
 
 ## CPU Final Fix 01 implementation admission — 2026-09-27
 
