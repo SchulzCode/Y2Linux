@@ -7,6 +7,7 @@
 #include "policy.h"
 #include "shared.h"
 #include "cpu-dvfs.h"
+#include "pwrap-readiness-policy.h"
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -28,6 +29,21 @@ static bool cpu_dvfs_prepared;
 static unsigned cpu_selector_address;
 static int cpu_voltage_error, cpu_voltage_first_error;
 static const char *cpu_voltage_stage = "not_attempted", *cpu_voltage_first_stage = "none";
+/* Raw readiness operands of the last admission/request, retained for diagnostics. */
+static unsigned ready_mux, ready_wrap, ready_arb;
+static const char *ready_reason = "not_read";
+static bool wrap_dvfs_ready(struct y2_wrap *w)
+{
+	ready_mux = readl(w->base);
+	ready_wrap = readl(w->base + 4);
+	ready_arb = readl(w->base + 0x50);
+	ready_reason = y2_pwrap_dvfs_unready(ready_mux, ready_wrap, ready_arb);
+	if (!ready_reason) {
+		ready_reason = "ready";
+		return true;
+	}
+	return false;
+}
 
 static unsigned wrap_read(void *p, unsigned off) { return readl(p + off); }
 static void wrap_write(void *p, unsigned off, unsigned val) { writel(val, p + off); }
@@ -164,8 +180,7 @@ int y2_pmic_cpu_dvfs_prepare(void)
 	cpu_voltage_stage = "pwrap_readiness";
 	/* Require the inherited, fully enabled arbitration contract; never
 	 * rewrite arbitration to make a DVFS request appear possible. */
-	if (readl(y2_wrap->base) || readl(y2_wrap->base + 4) != 1 ||
-	    readl(y2_wrap->base + 0x50) != 0x1ff) { ret = -EOPNOTSUPP; goto out; }
+	if (!wrap_dvfs_ready(y2_wrap)) { ret = -EOPNOTSUPP; goto out; }
 	/* MT6323 VPROC_CON5 bit1 selects VOSEL_ON (220) versus software
 	 * VOSEL (21e). Y2 physically boots in software mode. Route the same
 	 * stock SPM/PWRAP protocol to the active bank; never flip selector mode
@@ -228,9 +243,11 @@ int y2_pmic_cpu_voltage_set(unsigned selector)
 	if (ret) goto out;
 	if (control & ~0x7fU) { ret = -EOPNOTSUPP; goto out; }
 	reg = 0xe4 + slot * 8;
+	cpu_voltage_stage = "pwrap_readiness";
+	if (!wrap_dvfs_ready(y2_wrap)) { ret = -EIO; goto out; }
+	cpu_voltage_stage = "pwrap_slot_readback";
 	if (readl(y2_wrap->base + reg) != cpu_selector_address ||
-	    readl(y2_wrap->base + reg + 4) != selector ||
-	    readl(y2_wrap->base + 0x50) != 0x1ff) { ret = -EIO; goto out; }
+	    readl(y2_wrap->base + reg + 4) != selector) { ret = -EIO; goto out; }
 	cpu_voltage_stage = "voltage_spm_handshake_and_readback";
 	ret = y2_spm_cpu_voltage_request(slot);
 	/* The source requires 40 us before any frequency increase. Waiting on
@@ -273,6 +290,38 @@ static int cpu_voltage_state_get(char *buffer, const struct kernel_param *kp)
 }
 static const struct kernel_param_ops voltage_state_ops = { .get = cpu_voltage_state_get };
 module_param_cb(cpu_voltage_state, &voltage_state_ops, NULL, 0400);
+/* Read-only wrapper ownership: live MUX_SEL/WRAP_EN/HIPRIO_ARB_EN/WACS2
+ * operands, the retained operands of the last admission and all DVFS slots.
+ * MMIO reads only; the WACS2 FSM and PMIC are not touched. */
+static int pwrap_readiness_get(char *buffer, const struct kernel_param *kp)
+{
+	unsigned mux = 0, wrap = 0, arb = 0, wacs2 = 0, init = 0, rdata = 0, slot[16] = {0}, i;
+	const char *live = "no_wrapper";
+	int n;
+	mutex_lock(&y2_wrap_lock);
+	if (y2_wrap) {
+		mux = readl(y2_wrap->base);
+		wrap = readl(y2_wrap->base + 4);
+		arb = readl(y2_wrap->base + 0x50);
+		wacs2 = readl(y2_wrap->base + 0x94);
+		init = readl(y2_wrap->base + 0x98);
+		rdata = readl(y2_wrap->base + 0xa0);
+		for (i = 0; i < 16; i++)
+			slot[i] = readl(y2_wrap->base + 0xe4 + i * 4);
+		live = y2_pwrap_dvfs_unready(mux, wrap, arb);
+		if (!live) live = "ready";
+	}
+	n = sysfs_emit(buffer, "mux=%#x wrap_en=%#x hiprio_arb_en=%#x implemented=%#x wacs2_en=%#x init_done2=%#x wacs2_rdata=%#x live=%s last_mux=%#x last_wrap_en=%#x last_arb=%#x last=%s",
+		mux, wrap, arb, Y2_PWRAP_ARB_IMPLEMENTED, wacs2, init, rdata, live,
+		ready_mux, ready_wrap, ready_arb, ready_reason);
+	for (i = 0; i < 8; i++)
+		n += sysfs_emit_at(buffer, n, " slot%u=%#x:%#x", i, slot[i * 2], slot[i * 2 + 1]);
+	n += sysfs_emit_at(buffer, n, "\n");
+	mutex_unlock(&y2_wrap_lock);
+	return n;
+}
+static const struct kernel_param_ops pwrap_readiness_ops = { .get = pwrap_readiness_get };
+module_param_cb(pwrap_readiness, &pwrap_readiness_ops, NULL, 0400);
 int y2_pmic_spm_prepare(void)
 {
 	unsigned reg, value, control = 0, selector, address;
