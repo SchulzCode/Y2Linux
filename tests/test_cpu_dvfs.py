@@ -99,6 +99,8 @@ int main(void){
 #include <string.h>
 #define EPROBE_DEFER 517
 #define BIT(n) (1U<<(n))
+#include "pwrap-readiness-policy.h"
+static unsigned ready_mux,ready_wrap,ready_arb;static const char *ready_reason;
 static unsigned wrapper[128],pmic[1024],operations,fail_at,writes,requests,faults,settled;
 static unsigned corrupt_slot,request_failure,readback_failure;
 static int y2_wrap_lock;
@@ -131,10 +133,10 @@ static int y2_spm_cpu_voltage_request(unsigned slot){
 }
 static void y2_cpu_dvfs_fault(void){faults++;}
 static void udelay(unsigned n){assert(n==40);settled++;}
-''' + ''.join(function(source, name) for name in names) + r'''
+''' + function(source, 'wrap_dvfs_ready') + ''.join(function(source, name) for name in names) + r'''
 static void reset(void){
  memset(wrapper,0,sizeof wrapper);memset(pmic,0,sizeof pmic);
- wrapper[4/4]=1;wrapper[0x50/4]=0x1ff;
+ wrapper[4/4]=1;wrapper[0x50/4]=0x7f; /* physical M2-PWRAP-01 readback */
  pmic[0x216/2]=2;pmic[0x220/2]=pmic[0x21e/2]=pmic[0x224/2]=72;
  cpu_selector_address=0;cpu_voltage_error=0;
  for(unsigned r=0x10c/4;r<=0x120/4;r++)wrapper[r]=0xdeadbeef;
