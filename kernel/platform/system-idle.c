@@ -74,6 +74,7 @@ int y2_system_idle_restore(void)
 	atomic_set(&demand, 1);
 	mutex_lock(&idle_lock);
 	ret = restore_locked(false);
+	y2_idle_wake(&state, now_ms());
 	mutex_unlock(&idle_lock);
 	return ret;
 }
@@ -135,6 +136,8 @@ static void sample_work_fn(struct work_struct *work)
 		.demand = atomic_xchg(&demand, 0),
 	};
 	last_sample = jiffies;
+	if (in.demand)
+		y2_idle_wake(&state, in.now_ms);
 	switch (y2_idle_decide(&state, &in, &why)) {
 	case Y2_IDLE_RESTORE:
 		restore_locked(why == Y2_IDLE_BURST);
@@ -183,7 +186,7 @@ static int state_get(char *buffer, const struct kernel_param *kp)
 		state.pressure_restores, atomic_read(&frequency_raises));
 	for (i = 1; i < Y2_IDLE_REASONS; i++)
 		n += sysfs_emit_at(buffer, n, " reset_%s=%u", y2_idle_reason_names[i], state.resets[i]);
-	n += sysfs_emit_at(buffer, n, "\n");
+	n += sysfs_emit_at(buffer, n, " wake_reclassified=%u\n", state.wake_reclassified);
 	mutex_unlock(&idle_lock);
 	return n;
 }

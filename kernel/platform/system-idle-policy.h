@@ -25,6 +25,12 @@
 #define Y2_SYSTEM_BURST_PERMILLE 850
 #define Y2_SYSTEM_BURST_MS 1000
 #define Y2_SYSTEM_LOW_KHZ 598000
+/* Fix03: a user wake's own render/start-up burst on the single parked CPU can
+ * cross the 1-s saturation threshold before the display or input restore
+ * lands (physically ~0.6 s earlier). An explicit display, workload or input
+ * restore within this grace period names that cause and undoes the one
+ * escalation; sustained load with no wake still doubles the hold. */
+#define Y2_SYSTEM_WAKE_GRACE_MS 2000
 
 enum y2_idle_reason {
 	Y2_IDLE_NONE,
@@ -58,6 +64,9 @@ struct y2_idle_state {
 	enum y2_idle_reason last_reset;
 	unsigned resets[Y2_IDLE_REASONS];
 	unsigned pressure_restores;
+	/* Last escalation, revertible by an explicit wake within the grace. */
+	int pressure_pending;
+	unsigned pressure_ms, pressure_hold_ms, wake_reclassified;
 };
 static inline int y2_idle_after(unsigned now, unsigned then)
 {
@@ -93,6 +102,9 @@ static inline void y2_idle_restored(struct y2_idle_state *s, unsigned now_ms, in
 	if (s->parked) {
 		int stable = !y2_idle_after(s->parked_since_ms + Y2_SYSTEM_STABLE_PARK_MS, now_ms);
 		if (pressure && !stable) {
+			s->pressure_pending = 1;
+			s->pressure_ms = now_ms;
+			s->pressure_hold_ms = s->hold_ms;
 			s->hold_ms = s->hold_ms >= Y2_SYSTEM_HOLD_MAX_MS / 2 ?
 				Y2_SYSTEM_HOLD_MAX_MS : s->hold_ms * 2;
 			s->pressure_restores++;
@@ -103,6 +115,20 @@ static inline void y2_idle_restored(struct y2_idle_state *s, unsigned now_ms, in
 	s->parked = 0;
 	s->quiet = 0;
 	s->hold_until_ms = now_ms + s->hold_ms;
+}
+/* An explicit display/workload/input restore. If it closely follows a
+ * pressure restore, that burst was the wake itself: undo its escalation.
+ * The reset attribution (reset_burst) stays as observed. */
+static inline void y2_idle_wake(struct y2_idle_state *s, unsigned now_ms)
+{
+	if (s->pressure_pending &&
+	    !y2_idle_after(now_ms, s->pressure_ms + Y2_SYSTEM_WAKE_GRACE_MS + 1)) {
+		s->hold_ms = s->pressure_hold_ms;
+		s->hold_until_ms = now_ms + s->hold_ms;
+		s->pressure_restores--;
+		s->wake_reclassified++;
+	}
+	s->pressure_pending = 0;
 }
 static inline void y2_idle_parked(struct y2_idle_state *s, unsigned now_ms)
 {
