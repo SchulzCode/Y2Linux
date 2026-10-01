@@ -9,8 +9,8 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **271**. Explicit historical/contract scope notices:
-**184**.
+Indexed pages: **272**. Explicit historical/contract scope notices:
+**185**.
 
 ## Entry
 
@@ -249,6 +249,7 @@ Indexed pages: **271**. Explicit historical/contract scope notices:
 
 | Page | Scope |
 | --- | --- |
+| [Handoff for 2026-10-02 — documentation and repository catch-up](planning/HANDOFF-2026-10-02.md) | Current working handoff |
 | [Production Storage / Installation v1 — issue 33](planning/issues/production-storage-v1.md) | Historical issue specification |
 | [Y2A-300 — M3 current state, 2026-09-10](planning/issues/Y2A-300.md) | Historical issue specification |
 | [Y2B-201 — Pin and reproduce the ARMv7 build environment](planning/issues/Y2B-201.md) | Historical issue specification |
