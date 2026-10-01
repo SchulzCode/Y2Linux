@@ -245,7 +245,9 @@ typedef long long atomic64_t; typedef int atomic_t;
 #define atomic64_add(v,p) (*(p)+=(v))
 #define atomic_inc(p) (++*(p))
 #define atomic_dec(p) (--*(p))
+#define WRITE_ONCE(x,v) ((x)=(v))
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof((a)[0]))
+static unsigned int y2_usb_progress;
 struct dma_channel { int id; };
 struct musb_hw_ep { int id; };
 struct dma_controller {
@@ -281,6 +283,7 @@ int main(void) {
  program_result=0;
  assert(y2_dma_program(tx,512,1,0x12345678,4096)==0);
  assert(programs==4 && y2_dma_program_failures==1 && y2_dma_programs[1]==1);
+ assert(y2_usb_progress==3); /* Fix03 storm-guard progress: accepted programming only */
  assert(y2_dma_programmed_bytes[1]==512);
  assert(y2_dma_program(tx,512,1,0x1234567a,1514)==0);
  assert(y2_dma_alignment_rejects==1 && y2_dma_program_failures==2);
