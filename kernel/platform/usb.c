@@ -157,6 +157,8 @@ static bool y2_usb_data_source;
 static bool y2_usb_dma_disabled;
 static bool y2_usb_dma_active;
 static unsigned int y2_usb_dma_irqs, y2_usb_dma_errors;
+/* Accepted DMA programming: forward progress for the interrupt storm guard. */
+static unsigned int y2_usb_progress;
 
 static int __init y2_usb_dma_option(char *value)
 {
@@ -227,6 +229,7 @@ static int y2_dma_program(struct dma_channel *channel, u16 packet, u8 mode,
         if (address & 3) atomic64_inc(&y2_dma_alignment_rejects);
         return ret;
     }
+    WRITE_ONCE(y2_usb_progress, y2_usb_progress + 1);
     for (i = 0; i < ARRAY_SIZE(y2_dma_channels); i++) {
         if (y2_dma_channels[i].channel == channel) {
             unsigned int direction = y2_dma_channels[i].transmit;
@@ -368,8 +371,8 @@ static const struct power_supply_desc y2_usb_input_desc = {
     .properties = y2_usb_input_props, .num_properties = ARRAY_SIZE(y2_usb_input_props),
     .get_property = y2_usb_input_get,
 };
-static unsigned long y2_irq_tick;
-static unsigned y2_irq_burst, y2_irq_max_burst, y2_irq_unexplained;
+static struct y2_usb_irq_guard y2_irq_guard;
+static unsigned y2_irq_unexplained;
 static unsigned y2_dma_bus_errors[8];
 static DEFINE_RAW_SPINLOCK(y2_fault_lock);
 static struct y2_usb_fault y2_fault;
@@ -401,7 +404,7 @@ static void y2_usb_fail_at(struct musb *musb,unsigned reason,int rc,bool registe
 {
     struct y2_usb_fault f={.valid=1,.reason=reason,.rc=rc,.ms=jiffies_to_msecs(jiffies),
         .irqs=READ_ONCE(y2_live.irqs),.dma_irqs=READ_ONCE(y2_usb_dma_irqs),
-        .max_burst=READ_ONCE(y2_irq_max_burst)};
+        .max_burst=READ_ONCE(y2_irq_guard.max_burst)};
     bool first=!READ_ONCE(y2_live.result);
     unsigned long flags;
     unsigned i;
@@ -514,11 +517,10 @@ static irqreturn_t y2_musb_interrupt(int irq,void *context)
     unsigned long flags;
     u32 pending;
     irqreturn_t rc=IRQ_NONE;
-    /* Bound a stuck interrupt even when no core status bit explains it. */
-    if(y2_irq_tick!=jiffies) {y2_irq_tick=jiffies;y2_irq_burst=0;}
+    /* Bound a stuck interrupt even when no core status bit explains it:
+     * only interrupts without new DMA programming count as a storm. */
     ++y2_live.irqs;
-    if(++y2_irq_burst>y2_irq_max_burst) y2_irq_max_burst=y2_irq_burst;
-    if(y2_irq_burst>Y2_USB_IRQ_BURST_LIMIT) {
+    if(y2_usb_irq_storm(&y2_irq_guard,jiffies,READ_ONCE(y2_usb_progress))) {
         y2_irq_fault.l1_status = readl(musb->mregs + 0xa0);
         y2_irq_fault.l1_mask = readl(musb->mregs + 0xa4);
         y2_irq_fault.tx = readw(musb->mregs + MUSB_INTRTX);
@@ -690,8 +692,9 @@ static void y2_musb_clear_stale(struct musb *musb)
 	}
 #endif
 	if (usb || tx || rx) y2_pm_stale++;
-	y2_irq_tick = jiffies;
-	y2_irq_burst = 0;
+	y2_irq_guard.tick = jiffies;
+	y2_irq_guard.burst = 0;
+	y2_irq_guard.jiffy = 0;
 	dsb(sy);
 }
 int y2_musb_system_quiesce(struct musb *musb)
@@ -1033,9 +1036,11 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 #endif
     n += sysfs_emit_at(buf, n,
         "irq_max_burst=%u irq_burst_limit=%u irq_unexplained=%u dma_bus_errors=%u,%u,%u,%u,%u,%u,%u,%u\n",
-        READ_ONCE(y2_irq_max_burst), Y2_USB_IRQ_BURST_LIMIT, READ_ONCE(y2_irq_unexplained),
+        READ_ONCE(y2_irq_guard.max_burst), Y2_USB_IRQ_BURST_LIMIT, READ_ONCE(y2_irq_unexplained),
         y2_dma_bus_errors[0], y2_dma_bus_errors[1], y2_dma_bus_errors[2], y2_dma_bus_errors[3],
         y2_dma_bus_errors[4], y2_dma_bus_errors[5], y2_dma_bus_errors[6], y2_dma_bus_errors[7]);
+    n += sysfs_emit_at(buf, n, "irq_max_jiffy=%u irq_jiffy_limit=%u irq_progress=%u\n",
+        READ_ONCE(y2_irq_guard.max_jiffy), Y2_USB_IRQ_JIFFY_LIMIT, READ_ONCE(y2_usb_progress));
     n += sysfs_emit_at(buf, n,
         "monitor_transients=%u monitor_failures=%u reconnect_retries=%u reconnect_failures=%u detached=%u runtime_held=%u runtime_status=%d\n",
         y2_tolerance.monitor_transients, y2_tolerance.monitor_failures,
