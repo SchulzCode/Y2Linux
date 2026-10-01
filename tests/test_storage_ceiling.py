@@ -1,5 +1,6 @@
 """Storage ceiling: capability parsing, negotiation ladder and every fallback,
 exercised on the real policy header and the real patched MSDC driver code."""
+import os
 from pathlib import Path
 import re
 import shutil
@@ -421,6 +422,22 @@ class StorageDeviceTree(unittest.TestCase):
             text = (ROOT / 'kernel/dts' / name).read_text()
             for rail in ('ldo_vmc', 'ldo_vmch', 'ldo_vio18', 'ldo_vemc3v3'):
                 self.assertNotIn(rail, text, (name, rail))
+
+    @unittest.skipUnless(os.environ.get('Y2_ARTIFACT_TEST_ROOT'), 'needs actual build')
+    def test_built_dtb_admits_only_the_reviewed_storage_modes_and_rails(self):
+        from tools.validation.dev_dtb import check
+        build = Path(os.environ['Y2_ARTIFACT_TEST_ROOT'])
+        data = (build / 'y2.dtb').read_bytes()
+        size = (build / 'initramfs.cpio.gz').stat().st_size
+        check(data, size, production=True)
+        for old, new in ((b'mmc-hs200-1_8v', b'mmc-hs400-1_8v'),       # no data strobe
+                         (b'sd-uhs-sdr104', b'sd-uhs-sdr105'),         # unreviewed mode
+                         (b'vqmmc-supply', b'vmmc-supply\0'[:12]),     # eMMC supply ownership
+                         (b'regulator-always-on', b'regulator-always-xx')):
+            with self.subTest(old=old):
+                self.assertIn(old, data)
+                with self.assertRaises((ValueError, KeyError)):
+                    check(data.replace(old, new, 1), size, production=True)
 
 
 if __name__ == '__main__':

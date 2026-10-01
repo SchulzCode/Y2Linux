@@ -50,6 +50,24 @@ CONN_REGS = {
 }
 CONN_RAILS = ('ldo_vcn18','ldo_vcn28','ldo_vcn33_bt','ldo_vcn33_wifi')
 
+# Storage rails as the stock kernel powers them: VMCH 3.3 V SD card supply,
+# VMC 3.3/1.8 V SD IO supply, fixed always-on VIO18 eMMC IO. VEMC_3V3 (the
+# root card supply) is deliberately never declared.
+STORAGE_RAILS = ('ldo_vmch','ldo_vmc','ldo_vio18')
+STORAGE_EMMC_MODES = {'mmc-ddr-1_8v','mmc-hs200-1_8v'}
+STORAGE_SD_MODES = {'sd-uhs-sdr12','sd-uhs-sdr25','sd-uhs-sdr50','sd-uhs-ddr50','sd-uhs-sdr104'}
+
+def check_storage(nodes, handle):
+    rails='/pwrap@1000d000/pmic/regulators/'
+    require(not any(p.startswith(rails+'ldo_vemc') for p in nodes), 'root eMMC card supply stays undeclared')
+    for node,low,high,always in (('ldo_vmch',3300000,3300000,False),('ldo_vmc',1800000,3300000,False),('ldo_vio18',1800000,1800000,True)):
+        rail=nodes[rails+node]
+        require(rail['regulator-min-microvolt']==cells(low) and rail['regulator-max-microvolt']==cells(high), 'evidenced storage rail voltage')
+        require(('regulator-always-on' in rail)==always, 'only the eMMC IO rail is always on')
+    emmc,sd=nodes['/mmc@11230000'],nodes['/mmc@11240000']
+    require(emmc['vqmmc-supply']==cells(handle(rails+'ldo_vio18')), 'eMMC IO on VIO18')
+    require(sd['vmmc-supply']==cells(handle(rails+'ldo_vmch')) and sd['vqmmc-supply']==cells(handle(rails+'ldo_vmc')), 'SD card/IO rails')
+
 def check(data, initrd_size, production=True):
     nodes,reserved=fdt(data)
     connectivity=CONN in nodes
@@ -93,7 +111,8 @@ def check(data, initrd_size, production=True):
             require(path in ('/regulator-dac20','/regulator-dac18','/regulator-dac15',
                             '/pwrap@1000d000/pmic/regulators/ldo_vgp2',
                             '/pwrap@1000d000/pmic/regulators/buck_vproc') or
-                    (connectivity and path in tuple('/pwrap@1000d000/pmic/regulators/'+n for n in CONN_RAILS)), 'unreviewed rail')
+                    (connectivity and path in tuple('/pwrap@1000d000/pmic/regulators/'+n for n in CONN_RAILS)) or
+                    (production and path in tuple('/pwrap@1000d000/pmic/regulators/'+n for n in STORAGE_RAILS)), 'unreviewed rail')
         if path.startswith('/i2c@11008000/'):
             require(path == '/i2c@11008000/codec@30', 'unreviewed audio/radio I2C client')
     def handle(path): return struct.unpack('>I',nodes[path]['phandle'])[0]
@@ -130,8 +149,8 @@ def check(data, initrd_size, production=True):
         v=nodes[path]
         width = (8 if path == '/mmc@11230000' else 4) if production else 1
         require(v['bus-width']==cells(width),'reviewed Y2 storage data-pin width')
-        require(v['max-frequency']==cells(50000000 if production else 13000000),
-                'reviewed storage qualification ceiling')
+        require(v['max-frequency']==cells(200000000 if production else 13000000),
+                'reviewed storage source ceiling (docs/validation/Y2-STORAGE-CEILING.md)')
         if path=='/mmc@11230000':
             require(v['status']==strings('okay') and v['compatible']==strings('innioasis,y2-mmc'),'internal eMMC firewall')
         else:
@@ -139,9 +158,17 @@ def check(data, initrd_size, production=True):
             require('non-removable' not in v and 'no-mmc' in v,'SD removable only')
         highspeed='cap-mmc-highspeed' if path=='/mmc@11230000' else 'cap-sd-highspeed'
         require((highspeed in v)==production, 'SDR high-speed admission')
-        require(not any(k.startswith(('sd-uhs-', 'mmc-hs200-', 'mmc-hs400-', 'mmc-ddr-'))
-                        for k in v), 'unqualified storage voltage/DDR mode')
-        require('no-sdio' in v and not any(k.endswith('-supply') for k in v),'MMC rail/radio activation')
+        modes={k for k in v if k.startswith(('sd-uhs-', 'mmc-hs200-', 'mmc-hs400-', 'mmc-ddr-'))}
+        supplies={k for k in v if k.endswith('-supply')}
+        if production:
+            emmc=path=='/mmc@11230000'
+            require(modes==(STORAGE_EMMC_MODES if emmc else STORAGE_SD_MODES), 'reviewed storage voltage/DDR mode')
+            require(supplies==({'vqmmc-supply'} if emmc else {'vmmc-supply','vqmmc-supply'}), 'reviewed storage rails')
+        else:
+            require(not modes and not supplies, 'first boot keeps legacy storage without rails')
+        require('no-sdio' in v,'MMC radio activation')
+    if production:
+        check_storage(nodes, handle)
     if production:
         timer=nodes.get('/local-timer', {})
         require(timer.get('compatible')==strings('arm,armv7-timer') and
