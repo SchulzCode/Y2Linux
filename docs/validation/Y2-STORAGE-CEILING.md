@@ -5,7 +5,7 @@
 > stock Y2 binaries, the MT6582 BSP source, the installed eMMC's EXT_CSD and
 > the MT6323 regulator tables. The implementation is software-validated.
 > **No bus mode above 50 MHz has run on a Y2 under Linux yet.** The candidate
-> section says what was built. Physical results belong in a separate report.
+> section records what was built. Physical results belong in a separate report.
 
 Before this pass both hosts ran at 50 MHz SDR. The eMMC used 8-bit HS52 and
 the SD used 4-bit SD High Speed at 3.3 V. That limit came from our own
@@ -136,3 +136,62 @@ Diagnostics shows it as plain text. No register decoding is needed.
 | `tests/test_mmc_requests.py` | CMD21 is the only new read; CMD6 183/185 admitted values |
 | `tests/test_mmc_context.py` | EXT_CSD identity copy saved at legacy timing only |
 | Existing storage and overlay tests | Unchanged contracts still pass |
+
+## Candidate receipt
+
+| Field | Value |
+| --- | --- |
+| Linux built source | `540ae029b13940d4b2dfe21902bed71b89cb117a` (later commit `2c1ab53` changes only `tests/test_storage_recovery.py`; validation ran there) |
+| Reborn built source | `b92d312cc2dc4b74f57a1a9a7b1407e34707137a` (0.2.0) |
+| Kernel | `6.18.0-y2linux-storage-ceiling` |
+| Root / release / build | `2025.02.18-platform-v1.11` / `1.0.0-storage-ceiling-candidate.1` / `Y2LINUX-STORAGE-CEILING` |
+| Base | Reborn Product UI v2 candidate (Linux `5cfe04cb`, Reborn `bd8436dd`) |
+| Fallback | Exact Hardware02 pair (`6.18.0-y2linux-hardware-02`, `2025.02.18-platform-v1.4`) |
+
+The shipped DTB declares mmc0 `mmc-ddr-1_8v`, `mmc-hs200-1_8v` and
+vqmmc→VIO18 (1.8 V, always-on). It declares mmc1 `sd-uhs-sdr12/25/50/104` and
+`sd-uhs-ddr50` with vmmc→VMCH (3.3 V) and vqmmc→VMC (1.8–3.3 V). Both hosts
+allow 200 MHz. No VEMC_3V3 node exists.
+
+| Check | Result |
+| --- | --- |
+| Kernel build (`mtk-sd.c`, `pinctrl.c` also W=1) | PASS, no warnings in storage sources |
+| DT gate (`dev_dtb.py`, reviewed storage rails/modes) | PASS on the built DTB; mutation test rejects HS400, unknown modes, changed supply, switchable eMMC IO |
+| Production/platform regression (`tools/production/tests.sh`, container) | PASS, 281 tests, 3 explicit native-dependency skips |
+| Native host-dependency tests (`test_system_update_fallback`) | PASS |
+| Reborn `cargo fmt --check`, `clippy --workspace --all-targets --locked -D warnings`, `cargo test --workspace --locked` | PASS, 212 tests |
+| Reborn ARM QEMU check, installed ARM modules, ELF closure | PASS |
+| Release inventory (at the built commit), legal-info | PASS |
+| Preserving package (`system_update.py`) | PASS: clean ext4, BOOTIMG/Y2ROOT only, no Y2DATA payload, exact Hardware02 fallback |
+
+The first build, from `0e62046`, was stopped by the DT gate. That gate still
+pinned 50 MHz and admitted no MMC supply. `540ae02` taught the gate the
+reviewed set. The first container run then failed one stale test, which
+`2c1ab53` fixed. Logs are kept in `out/storage-ceiling/superseded-*`.
+
+`out/y2linux-storage-ceiling-candidate/`: `MT6582_preserve_data_scatter.txt`
+selects only **BOOTIMG** and **ANDROID/Y2ROOT**. Nothing was flashed or pushed.
+
+| File | SHA-256 |
+| --- | --- |
+| `BOOTIMG.img` | `4332d4f284e9ee76b4d76985480c184ebaacd7c674a3656925ff290ef3cd501c` |
+| `Y2ROOT.img` | `72eab34a39255a1b7f2eba0fe0a6abd891a0b089f8fb847cf42ad8eec033ba72` |
+| `fallback/BOOTIMG.img` | `b2a2c3bcb7cc7783828882e447e8b867453cb5b65846ce63577076b1ca4afeea` |
+| `fallback/Y2ROOT.img` | `63dbd0a198cd86e847c10ed163fd14b2cbe269595fa1988c99ac8393160bb547` |
+
+## First boot checks for the owner
+
+1. `cat /sys/bus/platform/devices/11230000.mmc/y2_storage` should show
+   `level=HS200 timing=hs200 width=8 actual_hz=200000000 signal_mv=1800
+   tuning=pass verify=pass` with all `*_events=0`. Reborn shows the same
+   under Diagnostics → Storage.
+2. With a UHS-I card inserted, `11240000.mmc/y2_storage` should show
+   `level=SDR104` (or `DDR50`/`SDR50`, as the card supports) with
+   `signal_mv=1800` and `voltage_switches` ≥ 1. With a non-UHS card it should
+   show `HS` at 3300 mV.
+3. Run the existing storage hash rounds on `/data` and `/media/sd`. Then
+   remove the card and insert another; the SD level should start from the
+   ceiling again.
+4. Any `fallbacks` > 0 names the failing level and event in the kernel log
+   (`Y2 storage fallback <from> -> <to> (<event>)`). If boot itself fails, boot the fallback pair, or add
+   `y2.emmc_mode=HS52 y2.sd_mode=HS` (previous modes) or `y2.mmc_safe=1`.

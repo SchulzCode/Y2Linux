@@ -10,7 +10,19 @@ are full-suspend resume completion, the SLIDLE bus-DCM predicate and loaded
 USB upload. The [Fix02 physical report](validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md)
 is authoritative for actual behavior, ahead of software receipts.
 
-**Product candidate, 2026-10-01 (supersedes Fix03 as the candidate to flash):**
+**Storage ceiling candidate, 2026-10-01 (supersedes Product UI v2 as the
+candidate to flash):** `out/y2linux-storage-ceiling-candidate/` is the Product
+UI v2 candidate plus the storage hardware ceiling pass. eMMC goes from 50 MHz
+HS52 to **HS200** (8-bit, 200 MHz, fixed 1.8 V VIO18 IO, CMD21 tuning). SD goes
+from 50 MHz SD HS at 3.3 V to **UHS-I up to SDR104** (4-bit, 200 MHz, MT6323
+VMC 3.3→1.8 V switch, CMD19 tuning). Both have automatic fallback ladders and
+readback verification. Linux `540ae029`, Reborn `b92d312c`, kernel
+`6.18.0-y2linux-storage-ceiling`, root `2025.02.18-platform-v1.11`, BOOTIMG
+`4332d4f2…`, Y2ROOT `72eab34a…`. Software-validated; **not flashed or
+physically qualified; no mode above 50 MHz has run on a Y2 yet**. See the
+[storage ceiling record](validation/Y2-STORAGE-CEILING.md).
+
+**Product candidate, 2026-10-01 (superseded by the storage ceiling candidate):**
 `out/y2linux-reborn-product-ui-v2-candidate/` is the Fix03 platform (same
 kernel) plus Reborn Product UI v2, a Reborn-mark splash and a platform
 backlight-off step before power-down. Linux `5cfe04cb`, Reborn `bd8436dd`,
