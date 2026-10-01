@@ -17,7 +17,7 @@ class RebornReceipts(unittest.TestCase):
     def test_reborn_source_version_comes_from_workspace_package(self):
         self.assertEqual(
             application.source_version((ffmpeg9.REBORN / 'Cargo.toml').read_text()),
-            '0.1.0',
+            '0.2.0',
         )
 
     def test_retained_reborn_version_comes_from_recorded_source_commit(self):
