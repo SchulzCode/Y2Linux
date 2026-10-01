@@ -2,12 +2,50 @@
 /* One canonical hardware description; production candidate scope below. */
 #include "innioasis-y2.dts"
 
-/* Physical 01 verified 8/4 pins. Exact stock LK/MSDC data supports SDR HS
- * from the inherited 200 MHz source. Negotiate standard SDR up to 50 MHz;
- * transport faults lower the cap and y2_clock_limit_hz retains owner control.
- * Keep 3.3 V, no DDR/UHS/HS200, and normal card-capability fallback. */
-&mmc0 { bus-width = <8>; max-frequency = <50000000>; cap-mmc-highspeed; };
-&mmc1 { bus-width = <4>; max-frequency = <50000000>; cap-sd-highspeed; };
+/* Storage ceiling (docs/validation/Y2-STORAGE-CEILING.md). Exact stock board
+ * records give both MSDC hosts MSDC_HIGHSPEED|MSDC_UHS1|MSDC_DDR; the source
+ * is MSDCPLL 400 MHz / 2 = 200 MHz.
+ *
+ * eMMC: 8 data pins; card type 0x57 (HS200 1.8 V, DDR52). MSDC0 IO and the
+ * card's VCCQ are the fixed 1.8 V VIO18 rail (stock powers only VEMC_3V3, the
+ * card VCC, and treats the eMMC voltage switch as a no-op). HS200 at 200 MHz
+ * with CMD21 tuning, then DDR52, HS52, 25 and 13 MHz. VEMC_3V3 is not declared:
+ * the root device is never power-cycled. HS400 needs a data strobe the MT6582
+ * host lacks.
+ *
+ * SD: 4 data pins. MT6323 VMCH is the card rail (3.3 V) and VMC the IO rail;
+ * stock msdc_sd_power_switch moves VMC to 1.8 V with the board's 1.8 V drive
+ * table. UHS-I SDR104 (200 MHz) / DDR50 / SDR50 with CMD19 tuning, then 3.3 V
+ * High Speed, 25 and 13 MHz.
+ *
+ * Every mode is negotiated against the card; tuning, voltage, CRC, timeout,
+ * controller and readback faults move down one level. y2.mmc_safe=1 keeps
+ * the 26 MHz crystal and 13 MHz legacy; y2.emmc_mode=/y2.sd_mode= set lower
+ * boot ceilings by level name. */
+&mmc0 {
+    bus-width = <8>; max-frequency = <200000000>;
+    cap-mmc-highspeed; mmc-ddr-1_8v; mmc-hs200-1_8v;
+    vqmmc-supply = <&vio18>;
+};
+&mmc1 {
+    bus-width = <4>; max-frequency = <200000000>;
+    cap-sd-highspeed; sd-uhs-sdr12; sd-uhs-sdr25; sd-uhs-sdr50; sd-uhs-ddr50; sd-uhs-sdr104;
+    vmmc-supply = <&vmch_sd>; vqmmc-supply = <&vmc_sd>;
+};
+
+/* Only the production profile declares these rails, and each has its MSDC
+ * consumer: an unconsumed PMIC rail would be switched off at late cleanup. */
+&pmic {
+    regulators {
+        vmch_sd: ldo_vmch { regulator-name = "vmch-sd-card";
+            regulator-min-microvolt = <3300000>; regulator-max-microvolt = <3300000>; };
+        vmc_sd: ldo_vmc { regulator-name = "vmc-sd-io";
+            regulator-min-microvolt = <1800000>; regulator-max-microvolt = <3300000>; };
+        vio18: ldo_vio18 { regulator-name = "vio18-emmc-io";
+            regulator-min-microvolt = <1800000>; regulator-max-microvolt = <1800000>;
+            regulator-always-on; regulator-boot-on; };
+    };
+};
 
 / {
     /* Stock and Physical 01 diagnostic: secure physical timer is PPI29;
