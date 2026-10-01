@@ -1,7 +1,7 @@
 {
-  "release_version": "1.0.0-storage-ceiling-candidate.1",
-  "rootfs_version": "2025.02.18-platform-v1.11",
-  "build_id": "Y2LINUX-STORAGE-CEILING",
+  "release_version": "1.0.0-storage-ceiling-candidate.2",
+  "rootfs_version": "2025.02.18-platform-v1.12",
+  "build_id": "Y2LINUX-STORAGE-CEILING-02",
   "platform_api_version": 1,
   "feature_contract_version": 2,
   "battery_profile_schema": 1,
