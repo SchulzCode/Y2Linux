@@ -50,12 +50,19 @@ int main(int argc,char **argv) {
  (void)argv;
  Display d={.fd=-1,.width=480,.height=360,.pitch=1920,.size=1920*360};
  d.pixels=malloc(d.size+64);assert(d.pixels);memset(d.pixels,0xaa,d.size+64);
- draw(&d,argc>1,900,true);
+ draw(&d,argc>1,0,true);
  for(size_t i=d.size;i<d.size+64;i++)assert(d.pixels[i]==0xaa);
  assert(*(uint32_t *)d.pixels==BG);
- unsigned accent=0;
- for(unsigned i=0;i<480*360;i++)accent+=((uint32_t *)d.pixels)[i]==ACCENT;
- assert(accent>1000);
+ unsigned accent=0, ink=0;
+ for(unsigned i=0;i<480*360;i++){uint32_t p=((uint32_t *)d.pixels)[i];accent+=p==ACCENT;ink+=p!=BG;}
+ /* Full-strength rule only while loading; the mark is always present. */
+ assert(argc>1 ? accent==0 : accent==RB_RULE_WIDTH*RB_RULE_HEIGHT);
+ assert(ink>400);
+ /* The pulse dims the rule but never below 55 % and never touches the mark. */
+ draw(&d,false,800,false);
+ uint32_t dim=((uint32_t *)d.pixels)[RB_RULE_Y*480+RB_RULE_X];
+ assert(dim!=ACCENT && dim!=BG && ((dim>>16)&0xff) > 0x60);
+ draw(&d,argc>1,0,false);
  printf("P6\\n480 360\\n255\\n");
  for(unsigned i=0;i<480*360;i++) {uint32_t p=((uint32_t *)d.pixels)[i];unsigned char rgb[3]={p>>16,p>>8,p};if(fwrite(rgb,1,3,stdout)!=3)return 1;}
  free(d.pixels);return 0;
@@ -161,6 +168,19 @@ int main(int argc,char **argv) {
         self.assertNotIn('system(', source)
         display = (ROOT / 'buildroot/board/y2/overlay/etc/init.d/S25y2-display').read_text()
         self.assertLess(display.index('reborn-splash'), display.index('echo 0'))
+
+    def test_splash_is_pixel_identical_to_reborn_handoff_frame(self):
+        reference = REBORN / 'docs/ui/previews/v2/01-boot-splash.png'
+        if not reference.exists():
+            self.skipTest('Reborn v2 preview not present')
+        from PIL import Image
+        normal = subprocess.check_output([str(self.picture_binary)])
+        header = len(b'P6\n480 360\n255\n')
+        splash = Image.frombytes('RGB', (480, 360), normal[header:])
+        reborn = Image.open(reference).convert('RGB')
+        a, b = splash.tobytes(), reborn.tobytes()
+        differing = sum(a[i:i + 3] != b[i:i + 3] for i in range(0, len(a), 3))
+        self.assertEqual(differing, 0, f'{differing} pixels differ from the hand-off frame')
 
     def test_splash_pixels_and_draw_bounds(self):
         normal = subprocess.check_output([str(self.picture_binary)])
