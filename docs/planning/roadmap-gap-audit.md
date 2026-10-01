@@ -1,15 +1,45 @@
 # Y2Linux roadmap and gap audit
 
-**Current reading order, 2026-09-28:** The
-[Fix02 implementation boundary](#cpu-final-fix02-implementation-boundary--2026-09-28),
-[Fix01 physical closing boundary](#cpu-final-fix01-physical-closing-boundary--2026-09-27)
+**Current reading order, 2026-10-01:** The
+[Fix03 implementation boundary](#cpu-final-fix03-implementation-boundary--2026-10-01),
+the [Fix02 physical report](../validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md)
 and [current platform state](../CURRENT_PLATFORM_STATE.md) supersede older
-candidate admission/"next" text below for today's acceptance. Fix01's physical
-report remains the authoritative hardware result until Fix02 receipts exist. The
+candidate admission/"next" text below for today's acceptance. The Fix02 physical
+report is the authoritative hardware result until Fix03 receipts exist. The
 [knowledge-base maintenance receipt](#knowledge-base-reconciliation--2026-09-28)
 changes navigation and source/physical summaries only; it does not open a
 hardware, memory, production or milestone boundary. Older audit entries remain
 in their original sequence for evidence and permission history.
+
+## CPU Final Fix03 implementation boundary — 2026-10-01
+
+The owner activates the single Fix03 correction batch planned by the Fix02
+physical run (2026-09-29, private evidence
+`out/cpu-final-fix02-physical-qualification/20260929T152328Z/`, 460 sealed
+files). The standing audit is repeated narrowly from that real-hardware
+evidence. There is no new hardware subsystem. The retained-SRAM window,
+DRAM layout and boot partitions are unchanged, and production scope remains the
+same preserve-data BOOTIMG/Y2ROOT pair with the exact Hardware02 fallback. This
+activates implementation and one candidate, not hardware acceptance, a flash or
+an external milestone closure. Starting Linux `19ab970` / Reborn `77cf83e`.
+Open issues refreshed read-only: #16/#27/#28/#29/#31/#32/#33/#34 OPEN; M4 #30
+is closed, and its remaining physical gates are tracked here and in the Fix02 report.
+
+| Coverage / owner | Fix02 physical evidence | Fix03 scope (nothing broader) |
+| --- | --- | --- |
+| Full suspend, M4 #30 | SPM wake `0x20`, resume stamp, every device complete; reset 30 s later before `Y2_PM_EXIT` | Mark and ping the backstop after `dpm_resume_end`, console resume, `platform_resume_end`, thaw and `PM_POST_SUSPEND`; ms stamps and stage entries in the retained ring; RGU status decoded into `boot.json`. The next RTC attempt names the stalled call. The call is fixed only after that. |
+| SLIDLE, M4 #30 | Clock mask 0 radios-off; `slow_reject_bus` 0 → 20809; TOPCKGEN+4 reads `0x0` | Accept the source-backed bus-DCM baseline {`0x00` reset default, `0x0f` after stock `bus_dcm_disable`}; keep the verified `0x8f` write and exact restore; same predicate for deep idle and the read-only preflight |
+| Loaded USB, M2 #28 / M5 #31 | 0/10, `irq_overflow` at 513 per 10-ms jiffy; ISR, DMA-IRQ and DMA-program counts match one interrupt per packet event | Progress-aware storm guard: count only interrupts without new DMA programming, plus a hard per-jiffy ceiling above the HS bulk maximum; still terminal |
+| Coordinator / SD / DVFS label | Wake render burst doubled the hold; `drop_caches` remounted `/media/sd`; `admission_error=1` is success | A display/workload/input restore right after a pressure restore undoes that escalation; SD inventory keyed on dev_t, `diskseq` and CID; admission reports 0 on success |
+
+Preserved as regression requirements: all Fix02 physical passes (timers,
+highres/NO_HZ, hotplug, QoS, thermal authority, WFI, MMC gating, parking,
+1196/1300-MHz DVFS, SRAM self-test/retention, staged PM, charger refusal).
+C3 stays default off. The screen-off frequency ceiling and the BSP 110/120 °C
+trips are recorded as owner decisions, not defects, and are not changed. The
+next physical gate is a regression run, SLIDLE radios-off, USB 10 × 1 MiB, then
+RTC → Power → 5 cycles. Ready for implementation; hardware acceptance is still
+blocked on that owner run.
 
 ## CPU Final Fix02 implementation boundary — 2026-09-28
 
