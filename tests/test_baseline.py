@@ -30,6 +30,11 @@ int main(void) {
         else if(r==0x356) assert(mask==15);
         else if(r==0x50c) assert(mask==0x8000);
         else if(r==0x532) assert(mask==0x00e0);
+        else if(r==0x504) assert(mask==0x1000); /* VMC enable */
+        else if(r==0x506) assert(mask==0x4000); /* VMCH enable */
+        else if(r==0x52a) assert(mask==0x0010); /* VMC 1.8/3.3 V */
+        else if(r==0x52c) assert(mask==0x0080); /* VMCH 3.3 V */
+        else if(r==0x508||r==0x52e) assert(mask==0); /* VEMC_3V3 root supply */
         else if(r==0) assert(mask==0x18); /* only engine bits; safety predicates in charger owner */
         else if(r==0x002) assert(mask==0xf0);
         else if(r==0x004) assert(mask==0xa);

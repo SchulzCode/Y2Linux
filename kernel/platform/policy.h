@@ -66,6 +66,13 @@ static inline unsigned y2_pmic_write_mask(unsigned reg)
 		return 0x8000;
 	case 0x532: /* DIGLDO_CON29: VGP2 selector only. */
 		return 0x00e0;
+	/* SD rails as stock msdc_sd_power/msdc_sd_power_switch drive them
+	 * (docs/validation/Y2-STORAGE-CEILING.md). VEMC_3V3, the root eMMC
+	 * card supply, stays unwritable. */
+	case 0x504: return 0x1000; /* DIGLDO_CON3: VMC (SD IO) enable only. */
+	case 0x506: return 0x4000; /* DIGLDO_CON5: VMCH (SD card) enable only. */
+	case 0x52a: return 0x0010; /* DIGLDO_CON24: VMC 1.8/3.3 V selector. */
+	case 0x52c: return 0x0080; /* DIGLDO_CON26: VMCH selector, 3.3 V only. */
 	case 0x356:
 		return 0x000f;
 	/* Stock connectivity clock/rail fields. No charger, VPROC, RTC spare or
@@ -98,6 +105,7 @@ static inline int y2_pmic_value_allowed(unsigned reg, unsigned value)
 	if (reg == 0x03c && !(value & 0x20)) return 0;
 	if (reg == 0x8000 && value != 0x4300) return 0;
 	if (reg == 0x416 && (value & 0xc)) return 0;
+	if (reg == 0x52c && !(value & 0x80)) return 0; /* VMCH never 3.0 V */
 	return y2_pmic_write_mask(reg) != 0;
 }
 /* Command filter precedes any DMA setup. SD CMD6 only changes volatile bus

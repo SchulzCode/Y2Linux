@@ -67,6 +67,21 @@ int main(void) {
  phase=polls=delays=commands=writes=acks=0;word=0xff1f;
  assert(!wrap_reg_write(&w,0x532,0xff5f)&&word==0xff5f&&writes==1);
  assert(wrap_reg_write(&w,0x532,0xfe5f)==-EPERM); /* selector, not adjacent rail */
+ /* SD rails, as mt6323-regulator drives them for MSDC1 power and UHS-I. */
+ phase=polls=delays=commands=writes=acks=0;word=0x1002;
+ assert(!wrap_reg_write(&w,0x504,0x0002)&&word==0x0002&&writes==1); /* VMC off */
+ assert(!wrap_reg_write(&w,0x504,0x1002)&&word==0x1002&&writes==2); /* VMC on */
+ assert(wrap_reg_write(&w,0x504,0x1000)==-EPERM); /* not the mode bit */
+ phase=polls=delays=commands=writes=acks=0;word=0x4002;
+ assert(!wrap_reg_write(&w,0x506,0x0002)&&!wrap_reg_write(&w,0x506,0x4002)&&writes==2); /* VMCH cycle */
+ phase=polls=delays=commands=writes=acks=0;word=0x0010;
+ assert(!wrap_reg_write(&w,0x52a,0x0000)&&word==0&&writes==1); /* VMC 3.3 -> 1.8 V */
+ assert(!wrap_reg_write(&w,0x52a,0x0010)&&word==0x10&&writes==2); /* and back */
+ assert(wrap_reg_write(&w,0x52a,0x0018)==-EPERM); /* adjacent field */
+ phase=polls=delays=commands=writes=acks=0;word=0x0080;
+ assert(!wrap_reg_write(&w,0x52c,0x0080)&&writes==1);  /* VMCH 3.3 V */
+ assert(wrap_reg_write(&w,0x52c,0x0000)==-EPERM&&writes==1); /* never 3.0 V */
+ word=0x4000;assert(wrap_reg_write(&w,0x508,0x0000)==-EPERM&&wrap_reg_write(&w,0x52e,0)==-EPERM); /* VEMC_3V3 */
 
  phase=polls=delays=commands=writes=acks=0;word=0x0088;
  assert(!wrap_reg_write(&w,0x76e,0x00e8)&&word==0x00e8&&writes==1);
