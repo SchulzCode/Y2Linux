@@ -27,7 +27,11 @@ typedef uint32_t u32;typedef uint8_t u8;
 struct mmc_command {unsigned opcode,arg,resp[4];int error;};
 struct mmc_data {int error;unsigned flags,bytes_xfered,sg_len;void *sg;};
 struct mmc_request {struct mmc_command *cmd;struct mmc_data *data;};
-struct msdc_host {bool y2_emmc,y2_blockaddr,y2_identified,y2_switch_pending;unsigned y2_partition,y2_pending_partition,y2_sectors;void *dev;};
+struct msdc_host {bool y2_emmc,y2_blockaddr,y2_identified,y2_switch_pending,y2_ext_id_saved;unsigned y2_partition,y2_pending_partition,y2_sectors;u8 y2_ext_id[512];void *dev;};
+#define MMC_TIMING_LEGACY 0
+struct mmc_host {struct {unsigned timing;} ios;};
+static struct mmc_host the_mmc;
+static struct mmc_host *mmc_from_priv(struct msdc_host *h){(void)h;return &the_mmc;}
 static unsigned owned,logs,copies;
 static void dma_sync_sg_for_cpu(void *d,void *s,unsigned n,unsigned dir){(void)d;(void)s;assert(n==1&&dir==2&&!owned);owned=1;}
 static void dma_sync_sg_for_device(void *d,void *s,unsigned n,unsigned dir){(void)d;(void)s;assert(n==1&&dir==2&&owned);owned=0;}
@@ -48,6 +52,11 @@ int main(void) {
  data.error=0;c.error=-5;complete(&h,&r);assert(!h.y2_identified&&!copies);
  c.error=0;complete(&h,&r);assert(h.y2_identified&&h.y2_sectors==15269888&&h.y2_partition==0x49&&copies==1&&!owned);
  assert(!memcmp(original,ext,512)); /* never spoof the card's real EXT_CSD */
+ /* The identification copy (legacy timing) is what later readbacks verify. */
+ assert(h.y2_ext_id_saved&&!memcmp(h.y2_ext_id,ext,512));
+ the_mmc.ios.timing=9;ext[196]^=0x10;complete(&h,&r);ext[196]^=0x10;
+ assert(!memcmp(h.y2_ext_id,original,512)); /* a high-speed read never replaces it */
+ the_mmc.ios.timing=MMC_TIMING_LEGACY;complete(&h,&r);assert(h.y2_identified);
  const unsigned geometry_bytes[]={212,213,214,215,226,168,143,144,145,146,147,148,149,150,151,152,153,154};
  for(unsigned i=0;i<sizeof(geometry_bytes)/sizeof(*geometry_bytes);i++) {
   unsigned at=geometry_bytes[i];ext[at]^=1;complete(&h,&r);assert(!h.y2_identified);

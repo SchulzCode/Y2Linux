@@ -44,8 +44,8 @@ class ProductionMMC(unittest.TestCase):
             self.assertFalse(self.io(arg=sector,blocks=count));self.assertFalse(self.io(True,arg=sector,blocks=count))
     def test_switch_fields_and_hardware_areas(self):
         for index in range(256):
-            for value in (0,1,2,3,4,5,6,0x40,0x48,0xff):
-                allowed={32:{1},33:{0,1},34:{1,2,3},161:{0,1},175:{1},183:{0,1,2},185:{0,1}}.get(index,set())
+            for value in (0,1,2,3,4,5,6,0x40,0x48,0x82,0x86,0xff):
+                allowed={32:{1},33:{0,1},34:{1,2,3},161:{0,1},175:{1},183:{0,1,2,5,6},185:{0,1,2}}.get(index,set())
                 self.assertEqual(self.allowed(opcode=6,arg=0x03000001|(index<<16)|(value<<8)),value in allowed,(index,value))
         for before in range(256):
             self.assertTrue(self.allowed(opcode=6,arg=0x03b30001|((before&~7)<<8),part_config=before,identified=1))
@@ -61,3 +61,12 @@ class ProductionMMC(unittest.TestCase):
         self.assertTrue(self.allowed(opcode=6,arg=0x03200101)) # FLUSH_CACHE used by block fsync
         self.assertFalse(self.allowed(opcode=0,arg=0xf0f0f0f0))
         for op in (23,24,25,26,27,28,29,35,36,38,42,56,60):self.assertFalse(self.allowed(opcode=op,user_area=1))
+    def test_hs200_tuning_block_is_the_only_new_read(self):
+        for size in (64,128):
+            self.assertTrue(self.allowed(opcode=21,direction=512,blocks=1,blksz=size))
+        for change in (dict(arg=1),dict(blocks=2),dict(blksz=512),dict(direction=256),dict(has_stop=1,stop_opcode=12)):
+            request=dict(opcode=21,direction=512,blocks=1,blksz=128);request.update(change)
+            self.assertFalse(self.allowed(**request),change)
+        # HS400 timing, non-default driver strength and enhanced strobe stay denied.
+        for value in (3,0x12,0x22,0x86):
+            self.assertFalse(self.allowed(opcode=6,arg=0x03b90001|(value<<8)),value)
