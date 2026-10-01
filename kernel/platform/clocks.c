@@ -95,12 +95,12 @@ int y2_ccf_slow_idle(void)
 		slow_reject_clock++;
 		ret = -EBUSY; goto out;
 	}
-	if (saved != 0x0f) {
+	if (!y2_bus_dcm_baseline(saved)) {
 		slow_reject_bus++;
 		ret = -EBUSY; goto out;
 	}
-	writel(0x8f, top + 4);
-	if (readl(top + 4) != 0x8f) { ret = -EIO; goto restore; }
+	writel(Y2_BUS_DCM_IDLE, top + 4);
+	if (readl(top + 4) != Y2_BUS_DCM_IDLE) { ret = -EIO; goto restore; }
 	dsb(sy);
 	cpu_do_idle();
 restore:
@@ -128,11 +128,11 @@ int y2_ccf_deep_idle_begin(void)
 	if (deep_peri_blockers || deep_infra_blockers) goto busy;
 	idle_bus = readl(top + 4);
 	idle_audio = readl(top + 0x70);
-	if (idle_bus != 0x0f) goto busy;
-	writel(0x8f, top + 4);
+	if (!y2_bus_dcm_baseline(idle_bus)) goto busy;
+	writel(Y2_BUS_DCM_IDLE, top + 4);
 	writel(idle_audio & 0xf8ffffff, top + 0x70);
 	dsb(sy);
-	if (readl(top + 4) != 0x8f || readl(top + 0x70) != (idle_audio & 0xf8ffffff)) {
+	if (readl(top + 4) != Y2_BUS_DCM_IDLE || readl(top + 0x70) != (idle_audio & 0xf8ffffff)) {
 		y2_ccf_deep_idle_end();
 		return -EIO;
 	}

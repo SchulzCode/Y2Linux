@@ -25,6 +25,7 @@
 #include "spm-idle-policy.h"
 #include "cirq.h"
 #include "clocks.h"
+#include "idle-clock-policy.h"
 #include "local-timer.h"
 #include "cpu-options.h"
 #include "pm-journal.h"
@@ -502,7 +503,7 @@ static ssize_t dormant_preflight_show(struct device *dev, struct device_attribut
 		(READ_ONCE(spm_broken) || READ_ONCE(dormant_broken)) ? "broken," : "",
 		power & (Y2_SPM_SECONDARY_CPU_MASK | BIT(0) | BIT(1) | BIT(3) | BIT(4) | BIT(5) | BIT(7)) ? "domains," : "",
 		(clocks || peri || infra) ? "clocks," : "",
-		bus != 0x0f ? "bus," : "");
+		!y2_bus_dcm_baseline(bus) ? "bus," : "");
 	return n;
 }
 static DEVICE_ATTR_RO(dormant_preflight);

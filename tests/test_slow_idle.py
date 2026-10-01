@@ -12,6 +12,7 @@ class SlowIdle(unittest.TestCase):
 #include <assert.h>
 #include <errno.h>
 #include <stddef.h>
+#include "idle-clock-policy.h"
 #define __iomem
 static unsigned top[64],peri[64],online=1,cpu,entries,writes,fail,slow_blockers,slow_restore_failures,slow_blockers_single,slow_blocker_bits[24];
 static unsigned long slow_reject_topology,slow_reject_lock,slow_reject_bus,slow_reject_clock;
