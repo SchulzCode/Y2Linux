@@ -43,6 +43,24 @@ class PowerContract(unittest.TestCase):
         self.assertEqual(c.intent['state'], 'Failed')
         self.assertFalse(c.due())
 
+    def test_backlight_is_off_before_init_powers_down_even_without_reborn(self):
+        self.put('/sys/class/backlight/panel/bl_power', '0\n')
+        c = Coordinator(self.ctx, lambda: self.now)
+        c.request('reboot', 'user', 3)
+        self.now += 3 * 10**9
+        c.execute()
+        self.assertEqual(self.ctx.read('/sys/class/backlight/panel/bl_power'), '4')
+        self.assertEqual(c.intent['stop_results']['backlight'], {'ok': True, 'reason': None})
+        self.assertEqual(self.calls[-1][0], ['/bin/busybox', 'reboot'])
+
+    def test_missing_backlight_is_recorded_not_fatal(self):
+        c = Coordinator(self.ctx, lambda: self.now)
+        c.request('poweroff', 'user', 3)
+        self.now += 3 * 10**9
+        c.execute()
+        self.assertEqual(c.intent['stop_results']['backlight']['reason'], 'no_backlight')
+        self.assertEqual(self.calls[-1][0], ['/bin/busybox', 'poweroff'])
+
     def test_ack_requires_same_request_pid_start_time_and_boot(self):
         self.put('/run/reborn/process.pid', '123')
         self.put('/proc/123/stat', '123 (reborn) S ' + ' '.join(['0'] * 18 + ['900']))

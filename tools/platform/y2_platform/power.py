@@ -176,6 +176,11 @@ class Coordinator:
                         os.close(fd)
                 except (OSError, AttributeError):
                     pass
+        # Reborn presents its shutdown transition, ends on a black frame and
+        # turns the backlight off before acknowledging. If it crashed, hung or
+        # was killed, the DRM last-close restores the fbdev buffer (stale,
+        # console or white). Never hand init a lit panel.
+        results['backlight'] = backlight_off(self.ctx)
         results['sync'] = self.ctx.command(['/bin/busybox', 'sync'], timeout=5)
         if results['sync']['ok']:
             results['journal_complete'] = self.ctx.command(
@@ -188,6 +193,22 @@ class Coordinator:
             self.intent.update(state='Failed', failure='init_shutdown_request_failed')
             self.publish()
         return result
+
+
+def backlight_off(ctx):
+    """Power down every panel backlight; bounded, never raises."""
+    nodes = [d / 'bl_power' for d in ctx.glob('/sys/class/backlight/*')]
+    nodes = [n for n in nodes if n.exists()]
+    if not nodes:
+        return {'ok': False, 'reason': 'no_backlight'}
+    failed = 0
+    for node in nodes:
+        try:
+            with open(node, 'w') as f:
+                f.write('4\n')
+        except OSError:
+            failed += 1
+    return {'ok': not failed, 'reason': 'write_failed' if failed else None}
 
 
 def rpc(ctx, request):
