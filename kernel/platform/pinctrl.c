@@ -3,7 +3,8 @@
  * GPIO/EINT access layout adapted from Chris Hendrickson's gpio-mt6582.c,
  * artificery-dev/linux f0d149a2a325c0790eb816be71314ebdcaa8ee99.
  * Mux/bias layout from MediaTek GPL mt_gpio_base.c (2011-2014).
- * Only reviewed M2 functions exposed; no guessed pad drive strength.
+ * Only reviewed M2 functions exposed. MSDC pad drive strengths are the exact
+ * stock board values (storage-modes.h), never guessed.
  */
 #include <linux/gpio/driver.h>
 #include "../pinctrl/mediatek/mtk-eint.h"
@@ -14,6 +15,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
+#include "storage-modes.h"
 struct y2_pins {
 	struct gpio_chip gpio;
 	struct pinctrl_desc desc;
@@ -251,6 +253,32 @@ static const struct mtk_eint_xt eint_xlate = {
     .get_gpio_n = eint_gpio, .get_gpio_state = eint_state, .set_gpio_as_eint = eint_set};
 static const struct mtk_eint_hw eint_hw = {
     .port_mask = 7, .ports = 6, .ap_num = 169, .db_cnt = 16, .db_time = debounce_time_mt2701};
+static struct y2_pins *y2_pins_owner;
+/* Program the stock MSDC clk/cmd/dat drive for the host's signal voltage.
+ * `before` receives the previous drive values (for diagnostics). The MSDC
+ * pad cells live in this GPIO block; the pin lock serialises their RMW. */
+int y2_msdc_pad_drive(unsigned id, bool v18, unsigned *before)
+{
+	struct y2_pins *p = READ_ONCE(y2_pins_owner);
+	const struct y2_msdc_drive *d;
+	unsigned long flags;
+	unsigned i, old;
+	if (id > 1)
+		return -EINVAL;
+	if (!p)
+		return -EPROBE_DEFER;
+	d = &y2_msdc_drives[id];
+	spin_lock_irqsave(&p->lock, flags);
+	for (i = 0; i < 3; i++) {
+		old = readl(p->base + d->offset[i]);
+		if (before)
+			before[i] = (old & Y2_MSDC_DRIVE_MASK) >> Y2_MSDC_DRIVE_SHIFT;
+		writel(y2_msdc_drive_value(old, v18 ? d->v18[i] : d->v33[i]),
+		       p->base + d->offset[i]);
+	}
+	spin_unlock_irqrestore(&p->lock, flags);
+	return 0;
+}
 static int pins_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -312,6 +340,7 @@ static int pins_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "EINT init\n");
 	platform_set_drvdata(pdev, p);
+	WRITE_ONCE(y2_pins_owner, p);
 	dev_info(dev, "minimal pinctrl/GPIO; EINT parent high, PMIC25 high/wheel55 falling\n");
 	return 0;
 }
