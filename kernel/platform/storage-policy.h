@@ -43,9 +43,12 @@ static inline int y2_emmc_request_allowed(const struct y2_emmc_request *r)
         return r->opcode == (write ? 25U : 18U) ||
                (r->blocks == 1 && r->opcode == (write ? 24U : 17U));
     }
-    /* EXT_CSD is a standard read during identification, before host->card exists. */
-    if (read) return r->opcode == 8 && !r->arg &&
-                     r->blksz == 512 && r->blocks == 1 && !r->has_stop;
+    /* EXT_CSD is a standard read during identification, before host->card exists.
+     * CMD21 is the HS200 tuning pattern: one 64/128-byte block, no address. */
+    if (read) return (r->opcode == 8 && !r->arg &&
+                      r->blksz == 512 && r->blocks == 1 && !r->has_stop) ||
+                     (r->opcode == 21 && !r->arg && r->blocks == 1 && !r->has_stop &&
+                      (r->blksz == 64 || r->blksz == 128));
     if (r->blocks || r->blksz || r->has_sbc || r->has_stop) return 0;
     if (r->opcode == 6) {
         if ((r->arg & 0xff0000ffU) != 0x03000001U) return 0;
@@ -57,10 +60,13 @@ static inline int y2_emmc_request_allowed(const struct y2_emmc_request *r)
         case 161: return value <= 1;                /* HPI management */
         case 175: return value == 1;                /* ERASE_GROUP_DEF */
         case 179: return r->identified && value == (r->part_config & ~7U);
-        /* Stock Y2 MSDC0 has eight data pins. Allow SDR 1/4/8-bit selection
-         * and fallback only; DDR and enhanced-strobe encodings stay denied. */
-        case 183: return value <= 2;
-        case 185: return value <= 1; /* legacy or SDR high-speed; no DDR/HS200/400 */
+        /* Stock Y2 MSDC0 has eight data pins: SDR 1/4/8-bit and the DDR52
+         * 4/8-bit encodings. Enhanced strobe (HS400) needs a data strobe the
+         * MT6582 host does not have and stays denied. */
+        case 183: return value <= 2 || value == 5 || value == 6;
+        /* Legacy, HS52 or HS200 with the default driver strength. HS400 (3)
+         * and non-default driver types are not host capabilities. */
+        case 185: return value <= 2;
         default: return 0;
         }
     }
