@@ -240,6 +240,21 @@ def space_state(available, total, readonly=False, error=False):
     return 'Normal'
 
 
+def storage_mode(text):
+    """The driver's negotiated-mode line as typed fields; absent on older kernels."""
+    if not text:
+        return None
+    mode = {}
+    for key, value in re.findall(r'([a-z0-9_]+)=(\S+)', text):
+        if re.fullmatch(r'-?\d+', value):
+            mode[key] = int(value)
+        elif re.fullmatch(r'0x[0-9a-f]+', value):
+            mode[key] = int(value, 16)
+        else:
+            mode[key] = value
+    return mode
+
+
 def storage(ctx):
     mounts = mountinfo(ctx.read('/proc/self/mountinfo'))
     boot_id = ctx.read('/proc/sys/kernel/random/boot_id')
@@ -312,7 +327,8 @@ def storage(ctx):
     controllers = []
     for path in ctx.glob('/sys/bus/platform/devices/*.mmc/y2_performance'):
         values = dict(re.findall(r'(cap_hz|actual_hz|transport_errors|fallbacks|clock_error)=(-?\d+)', read(path) or ''))
-        controllers.append({'name': path.parent.name, **{key: int(value) for key, value in values.items()}})
+        controllers.append({'name': path.parent.name, **{key: int(value) for key, value in values.items()},
+                            'mode': storage_mode(read(path.parent / 'y2_storage', limit=4096))})
     return {'volumes': volumes, 'blocks': blocks, 'controllers': controllers,
             'bus_parameters': ctx.read('/sys/kernel/debug/mmc0/ios'),
             'sd_bus_parameters': ctx.read('/sys/kernel/debug/mmc1/ios')}

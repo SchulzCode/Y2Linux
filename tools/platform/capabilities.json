@@ -232,17 +232,31 @@
       "experimental": false,
       "reason": "physical qualification pending",
       "width": 8,
-      "max_standard_clock_hz": 50000000,
+      "max_standard_clock_hz": 200000000,
       "timings": [
         "legacy",
-        "MMC_HS_SDR"
+        "MMC_HS_SDR",
+        "MMC_DDR52",
+        "MMC_HS200"
       ],
       "fallback_clock_hz": [
+        50000000,
         25000000,
         13000000
       ],
       "automatic_fault_fallback": true,
-      "runtime_clock_gating": "MT6582 register image verified across PERI CG gating; no card command/reset/rail change"
+      "runtime_clock_gating": "MT6582 register image verified across PERI CG gating; no card command/reset/rail change",
+      "signal_voltage_mv": 1800,
+      "ceiling": "HS200 (8-bit, 200 MHz, fixed VIO18 1.8 V IO, CMD21 tuning); HS400 card-only, MT6582 has no data strobe",
+      "fallback_ladder": [
+        "HS200",
+        "DDR52",
+        "HS52",
+        "HS-25MHz",
+        "legacy-13MHz"
+      ],
+      "boot_ceiling": "y2.emmc_mode=<level>; y2.mmc_safe=1 keeps legacy 13 MHz",
+      "status": "/sys/bus/platform/devices/11230000.mmc/y2_storage"
     },
     "sd": {
       "implemented": true,
@@ -251,16 +265,37 @@
       "experimental": false,
       "reason": "physical qualification pending",
       "width": 4,
-      "max_standard_clock_hz": 50000000,
+      "max_standard_clock_hz": 200000000,
       "timings": [
         "legacy",
-        "SD_HS"
+        "SD_HS",
+        "UHS_SDR50",
+        "UHS_DDR50",
+        "UHS_SDR104"
       ],
       "fallback_clock_hz": [
+        100000000,
+        50000000,
         25000000,
         13000000
       ],
-      "uuid_required": false
+      "uuid_required": false,
+      "signal_voltage_mv": [
+        3300,
+        1800
+      ],
+      "ceiling": "SDR104 (4-bit, 200 MHz, MT6323 VMC 3.3->1.8 V switch, stock 1.8 V pad drive, CMD19 tuning)",
+      "fallback_ladder": [
+        "SDR104",
+        "DDR50",
+        "SDR50",
+        "HS",
+        "HS-25MHz",
+        "legacy-13MHz"
+      ],
+      "boot_ceiling": "y2.sd_mode=<level>; y2.mmc_safe=1 keeps legacy 13 MHz",
+      "status": "/sys/bus/platform/devices/11240000.mmc/y2_storage",
+      "automatic_fault_fallback": true
     },
     "usb_dma": {
       "implemented": true,
