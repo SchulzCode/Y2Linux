@@ -63,12 +63,20 @@ def owned_mount(ctx, mounted):
 
 
 def inventory(ctx):
+    """SD presence by stable kernel identity, never by kernfs inode/ctime.
+
+    Page-cache drops and ordinary memory pressure reclaim kernfs inodes, so a
+    recreated inode is not a new card. dev_t and the disk sequence number stay
+    fixed for one gendisk; every re-enumeration allocates a new diskseq, which
+    also distinguishes a reinserted identical card (same CID)."""
     result = []
     for entry in ctx.glob('/sys/class/block/mmcblk*'):
         try:
-            if '/11240000.mmc/' in str(entry.resolve()):
-                meta = entry.stat()
-                result.append((entry.name, meta.st_ino, meta.st_ctime_ns))
+            device = entry.resolve()
+            if '/11240000.mmc/' in str(device):
+                disk = device.parent if read(entry / 'partition') is not None else device
+                result.append((entry.name, read(entry / 'dev'), read(disk / 'diskseq'),
+                               read(disk / 'device/cid')))
         except OSError:
             pass
     return result
