@@ -9,7 +9,7 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **269**. Explicit historical/contract scope notices:
+Indexed pages: **270**. Explicit historical/contract scope notices:
 **183**.
 
 ## Entry
@@ -301,6 +301,7 @@ Indexed pages: **269**. Explicit historical/contract scope notices:
 | [Platform v1 physical qualification](validation/PLATFORM-V1-PHYSICAL-QUALIFICATION.md) | Scoped validation record |
 | [Platform v1 telemetry repair — 2026-09-25](validation/PLATFORM-V1-TELEMETRY-01.md) | Scoped validation record |
 | [CPU Final Fix 03 implementation and candidate receipt](validation/Y2-CPU-FINAL-FIX03.md) | Current software candidate receipt |
+| [Reborn Product UI v2 candidate receipt](validation/Y2-REBORN-PRODUCT-UI-V2.md) | Current software candidate receipt |
 | [CPU Final Fix03 source and evidence ledger](validation/Y2-CPU-FINAL-FIX03-SOURCES.md) | Scoped validation record |
 | [Y2 CPU Final Fix03 physical qualification — prepared, not run](validation/Y2-CPU-FINAL-FIX03-PHYSICAL-QUALIFICATION.md) | Prepared owner run; no hardware result |
 | [CPU Final Fix 02 implementation and candidate receipt](validation/Y2-CPU-FINAL-FIX02.md) | Scoped validation record (flashed and physically qualified 2026-09-29) |

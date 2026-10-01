@@ -10,6 +10,14 @@ are full-suspend resume completion, the SLIDLE bus-DCM predicate and loaded
 USB upload. The [Fix02 physical report](validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md)
 is authoritative for actual behavior, ahead of software receipts.
 
+**Product candidate, 2026-10-01 (supersedes Fix03 as the candidate to flash):**
+`out/y2linux-reborn-product-ui-v2-candidate/` is the Fix03 platform (same
+kernel) plus Reborn Product UI v2, a Reborn-mark splash and a platform
+backlight-off step before power-down. Linux `5cfe04cb`, Reborn `bd8436dd`,
+root `2025.02.18-platform-v1.10`, BOOTIMG `8a974cb5…`, Y2ROOT `a5c2914e…`.
+Software-validated; **not flashed or physically qualified**. See the
+[Product UI v2 receipt](validation/Y2-REBORN-PRODUCT-UI-V2.md).
+
 **Software candidate, 2026-10-01:** one CPU Final Fix03 preserving candidate
 (Linux `76a5d41d`, Reborn `77cf83e0`, BOOTIMG `c55b2640…`, Y2ROOT `04cafd4b…`)
 is built and software-validated, but **not flashed or physically qualified**.
