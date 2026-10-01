@@ -1,12 +1,26 @@
 # Platform v1 software completion roadmap
 
-**Current scope, 2026-09-28:** See [platform state](../CURRENT_PLATFORM_STATE.md)
-and [Fix01 physical result](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md).
-The owner-flashed Fix01 passes timers and real QoS but fails acceptance because
-SLIDLE/high OPP admission and recovery remain open. One coherent Fix02 is the
-next *plan*, not an implemented candidate or release. This roadmap retains
-earlier Platform v1/Hardware Final/CPU Final boundary decisions as history;
-their "ready" and "next" language is scoped to those earlier packages.
+**Current scope, 2026-10-01:** See [platform state](../CURRENT_PLATFORM_STATE.md)
+and the [Fix02 physical result](../validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md).
+The owner-flashed Fix02 qualifies the awake CPU platform, but fails acceptance
+on full-suspend resume completion, SLIDLE and loaded USB upload. One Fix03
+correction candidate is built for the owner's next run; it is not a release.
+This roadmap keeps earlier Platform v1/Hardware Final/CPU Final boundary
+decisions as history. Their "ready" and "next" language belongs to those
+earlier packages.
+
+## CPU Final Fix03 — single correction candidate, 2026-10-01
+
+The [implementation boundary](roadmap-gap-audit.md#cpu-final-fix03-implementation-boundary--2026-10-01)
+implements exactly the Fix02 handoff batch. It adds timed resume-window marks
+up to `pm_suspend` exit, with the decoded RGU reset cause. It reconciles the
+stock bus-DCM baseline for SLIDLE and deep idle, makes the USB storm guard
+progress-aware (the Fix02 storm was legitimate throughput), and fixes three
+policy defects: wake escalation, SD identity and the DVFS label. The output is
+one preserving `out/y2linux-cpu-final-fix03-candidate/` BOOTIMG/Y2ROOT package
+with the exact Hardware02 fallback; no flash or push. Next: the owner's single
+Fix03 run, then one targeted correction for whichever resume call the timed
+ring names.
 
 ## CPU Final Fix02 — single correction candidate, 2026-09-28
 

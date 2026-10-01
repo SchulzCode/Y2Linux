@@ -10,6 +10,15 @@ are full-suspend resume completion, the SLIDLE bus-DCM predicate and loaded
 USB upload. The [Fix02 physical report](validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md)
 is authoritative for actual behavior, ahead of software receipts.
 
+**Software candidate, 2026-10-01:** one CPU Final Fix03 preserving candidate
+(Linux `76a5d41d`, Reborn `77cf83e0`, BOOTIMG `c55b2640…`, Y2ROOT `04cafd4b…`)
+is built and software-validated, but **not flashed or physically qualified**.
+It reconciles the SLIDLE bus-DCM baseline and makes the USB storm guard
+progress-aware. It fixes wake escalation, SD identity and the DVFS label, and
+instruments the resume window so the next RTC attempt names the stalled call.
+See the [Fix03 receipt](validation/Y2-CPU-FINAL-FIX03.md). The Fix02 result
+below remains the latest observed hardware state.
+
 ## Latest physically observed identity
 
 | Field | Exact identity, observed 2026-09-29 |
@@ -73,11 +82,12 @@ and [Reborn state](../../Y2Reborn/docs/CURRENT_REBORN_STATE.md) retain other lim
 
 ## Next smallest correction boundary
 
-**CPU Final Fix03 is a plan, not an implemented candidate.** Mark and ping the
-backstop from `dpm_resume_end` to PM exit and name the stalled resume call;
-reconcile the TOPCKGEN+4 bus-DCM baseline for SLIDLE/deep idle; correct EP1 RX
-DMA completion and re-arm; stop wake restores from escalating the parking hold;
-key SD inventory on stable identity. Preserve all Fix02 physical passes. Do not
+**CPU Final Fix03 is an implemented, unflashed candidate.** The owner's single
+Fix03 run (prepared in [Fix03 physical qualification](validation/Y2-CPU-FINAL-FIX03-PHYSICAL-QUALIFICATION.md))
+checks the regression gate, SLIDLE with radios off, USB 10 × 1 MiB, then
+RTC → Power → 5 cycles. If resume still stalls, the timed ring names the one
+call to correct next. The Fix02 EP1 "IRQ storm" was legitimate throughput
+tripping the guard, not a re-arm defect. Preserve all Fix02 physical passes. Do not
 bypass guards or restart CPU architecture. The
 [roadmap](planning/platform-v1-roadmap.md) and
 [standing audit](planning/roadmap-gap-audit.md#standing-milestone-boundary-rule)

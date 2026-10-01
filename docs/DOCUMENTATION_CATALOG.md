@@ -1,6 +1,6 @@
 # Y2Linux complete document catalog
 
-Updated 2026-09-28. Every project-owned Markdown page in this repository
+Updated 2026-10-01. Every project-owned Markdown page in this repository
 is listed once; vendored upstream package documentation is excluded.
 Start with the current-state page; a historical
 report records its own build/session, not the presently installed image.
@@ -9,8 +9,8 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **266**. Explicit historical/contract scope notices:
-**182**.
+Indexed pages: **269**. Explicit historical/contract scope notices:
+**183**.
 
 ## Entry
 
@@ -300,10 +300,13 @@ Indexed pages: **266**. Explicit historical/contract scope notices:
 | [Platform v1 physical master issues](validation/PLATFORM-V1-PHYSICAL-ISSUES.md) | Scoped validation record |
 | [Platform v1 physical qualification](validation/PLATFORM-V1-PHYSICAL-QUALIFICATION.md) | Scoped validation record |
 | [Platform v1 telemetry repair — 2026-09-25](validation/PLATFORM-V1-TELEMETRY-01.md) | Scoped validation record |
-| [CPU Final Fix 02 implementation and candidate receipt](validation/Y2-CPU-FINAL-FIX02.md) | Current software candidate receipt |
+| [CPU Final Fix 03 implementation and candidate receipt](validation/Y2-CPU-FINAL-FIX03.md) | Current software candidate receipt |
+| [CPU Final Fix03 source and evidence ledger](validation/Y2-CPU-FINAL-FIX03-SOURCES.md) | Scoped validation record |
+| [Y2 CPU Final Fix03 physical qualification — prepared, not run](validation/Y2-CPU-FINAL-FIX03-PHYSICAL-QUALIFICATION.md) | Prepared owner run; no hardware result |
+| [CPU Final Fix 02 implementation and candidate receipt](validation/Y2-CPU-FINAL-FIX02.md) | Scoped validation record (flashed and physically qualified 2026-09-29) |
 | [CPU Final Fix02 source and binary ledger](validation/Y2-CPU-FINAL-FIX02-SOURCES.md) | Scoped validation record |
-| [Y2 CPU Final Fix02 physical qualification — 2026-09-29](validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md) | Physical result: awake CPU qualified; SLIDLE, full suspend and loaded USB FAIL; Fix03 batch |
-| [Y2 CPU Final Fix01 physical qualification — 2026-09-27](validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md) | Latest CPU physical record |
+| [Y2 CPU Final Fix02 physical qualification — 2026-09-29](validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md) | Latest CPU physical record: awake CPU qualified; SLIDLE, full suspend and loaded USB FAIL |
+| [Y2 CPU Final Fix01 physical qualification — 2026-09-27](validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md) | Scoped validation record |
 | [CPU Final Fix01 source and binary ledger](validation/Y2-CPU-FINAL-FIX01-SOURCES.md) | Scoped validation record |
 | [CPU Final Fix 01 implementation and candidate receipt](validation/Y2-CPU-FINAL-FIX01.md) | Scoped validation record |
 | [Y2 CPU Final physical qualification](validation/Y2-CPU-FINAL-PHYSICAL-QUALIFICATION.md) | Scoped validation record |
