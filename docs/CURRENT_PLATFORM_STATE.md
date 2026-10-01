@@ -10,8 +10,15 @@ are full-suspend resume completion, the SLIDLE bus-DCM predicate and loaded
 USB upload. The [Fix02 physical report](validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md)
 is authoritative for actual behavior, ahead of software receipts.
 
-**Storage ceiling candidate, 2026-10-01 (supersedes Product UI v2 as the
-candidate to flash):** `out/y2linux-storage-ceiling-candidate/` is the Product
+**Storage ceiling candidate 2, 2026-10-01 (the candidate to flash):**
+`out/y2linux-storage-ceiling-02-candidate/`, Linux `4db6d6de`, kernel
+`6.18.0-y2linux-storage-ceiling-02`, BOOTIMG `5c17f744…`, Y2ROOT `dc611011…`.
+Candidate 1 booted: eMMC ran HS200 cleanly (~133 MB/s read), but no SD card
+initialised because the PMIC write gate refused the SD rail writes.
+Candidate 2 admits exactly those fields. SD at the ceiling is not yet
+observed on hardware.
+
+**Storage ceiling candidate 1, 2026-10-01 (superseded):** `out/y2linux-storage-ceiling-candidate/` is the Product
 UI v2 candidate plus the storage hardware ceiling pass. eMMC goes from 50 MHz
 HS52 to **HS200** (8-bit, 200 MHz, fixed 1.8 V VIO18 IO, CMD21 tuning). SD goes
 from 50 MHz SD HS at 3.3 V to **UHS-I up to SDR104** (4-bit, 200 MHz, MT6323

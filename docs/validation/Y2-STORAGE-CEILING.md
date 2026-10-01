@@ -195,3 +195,33 @@ selects only **BOOTIMG** and **ANDROID/Y2ROOT**. Nothing was flashed or pushed.
 4. Any `fallbacks` > 0 names the failing level and event in the kernel log
    (`Y2 storage fallback <from> -> <to> (<event>)`). If boot itself fails, boot the fallback pair, or add
    `y2.emmc_mode=HS52 y2.sd_mode=HS` (previous modes) or `y2.mmc_safe=1`.
+
+## First device check and candidate 2
+
+The first candidate booted on 2026-10-01.
+- **eMMC:** works at HS200. Status showed 8-bit, 199 999 771 Hz, 1.8 V; tuning
+  passed on the first run and the readback passed. There were no CRC/timeout
+  events and no fallbacks. A read-only 128 MiB direct read took 0.96 s
+  (~133 MB/s).
+- **SD:** no card initialised. The PWRAP PMIC write gate
+  (`kernel/platform/policy.h`) refused every VMC/VMCH write with `-EPERM`
+  (`vmch-sd-card: failed to disable: -1`, `could not set regulator OCR (-1)`).
+  The 1.8 V switch failed, and so did the 3.3 V power cycle used for the
+  fallback.
+
+Commit `61a353b` admits only VMC enable (DIGLDO_CON3 bit 12), VMCH enable
+(CON5 bit 14), the VMC 1.8/3.3 V selector (CON24 bit 4) and the VMCH
+selector pinned to 3.3 V (CON26 bit 7). VEMC_3V3 stays unwritable. A PWRAP
+test drives the exact regulator writes through the gate.
+
+| Field | Value |
+| --- | --- |
+| Linux built source | `4db6d6dee8e8b21d85f4f7dfa8e6b7aac82d5e56` |
+| Reborn built source | `b92d312cc2dc4b74f57a1a9a7b1407e34707137a` |
+| Kernel / root / release / build | `6.18.0-y2linux-storage-ceiling-02` / `2025.02.18-platform-v1.12` / `1.0.0-storage-ceiling-candidate.2` / `Y2LINUX-STORAGE-CEILING-02` |
+| Validation | Production/platform 281 tests PASS (3 native skips); Reborn ARM QEMU, installed ARM, ELF, release inventory, legal-info, preserving package PASS |
+| `BOOTIMG.img` | `5c17f744a0569feb16f6954531024ae7dcafee10bf14cbdb2eb18ba5d083fd36` |
+| `Y2ROOT.img` | `dc611011ce6f129cf18a61a28f9435e2504ade1d416f0b78d6db26764fd20a59` |
+
+Package: `out/y2linux-storage-ceiling-02-candidate/`. It supersedes the first
+candidate. Not flashed by this pass.
