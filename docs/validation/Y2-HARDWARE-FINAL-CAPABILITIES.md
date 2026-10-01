@@ -1,3 +1,26 @@
+# CPU Final Fix02 physical observations — 2026-09-29
+
+The [Fix02 physical report](Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md) is the
+current CPU evidence for installed Linux `1a1a6693` / Reborn `77cf83e0`, kernel
+`6.18.0-y2linux-cpu-final-fix02`, root `2025.02.18-platform-v1.8`. It supersedes
+matching Fix01 rows below. Overall Fix02 acceptance is **FAIL**, not production
+qualification. No runtime capability flags or implementation source were changed.
+
+| Capability / observed scope | Physical state | Evidence limit |
+| --- | --- | --- |
+| Timers, highres/NO_HZ, hotplug, schedutil, eight QoS classes, thermal override, C1 | PASS | regression gate; no natural thermal trip induced |
+| MSDC0/MSDC1 runtime clock gating | PASS | gated at rest, CCF 0, 16/16 hash rounds with caches dropped, no errors |
+| C2 SLIDLE | FAIL | zero entries; clock mask 0 radios-off, refused by TOPCKGEN+4 `0x0` ≠ `0x0f` |
+| System-idle coordinator | PASS | parks 3→2→1 and restores on display wake; wake counted as pressure restore |
+| High-bin admission / voltage DVFS | PASS | 1196 @ 1.20 V, 1300 @ 1.25 V readback; sampled ordering; bounded integrity |
+| C3 DORMANT | NOT_TESTED | preflight unmet: topology, frequency, domains, clocks, bus |
+| SRAM journal self-test / warm retention | PASS | one ordinary warm reboot |
+| Charger refusal / staged PM levels | PASS | active charging `-EBUSY`; all five pm_test levels same boot |
+| Full RTC suspend | FAIL | SPM return proven; backstop reset after device resume, before PM exit |
+| Power wake / RTC cycles / resume restoration | NOT_TESTED | no same-boot full resume |
+| USB loaded transfer | FAIL | 0/10 1-MiB rounds; EP1 RX DMA IRQ storm, reproducible, attributed |
+| SD media lifecycle | FAIL | kernfs-keyed inventory remounts after inode reclaim (non-CPU) |
+
 # CPU Final Fix01 physical observations — 2026-09-27
 
 The [Fix01 physical report](Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md) is the

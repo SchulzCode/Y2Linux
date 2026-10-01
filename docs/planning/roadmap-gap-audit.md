@@ -33,7 +33,10 @@ Receipt: [Fix02 implementation](../validation/Y2-CPU-FINAL-FIX02.md),
 [physical qualification](../validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md).
 Preserved: timers/highres/NO_HZ, hotplug, conservative OPPs, schedutil, eight
 QoS classes, thermal authority, WFI, bounded playback and CONSYS isolated retry.
-No flash or push. M4/M5/M6 gates remain open until the owner's single run.
+No flash or push. The owner run on 2026-09-29 passed timers/QoS, MMC gating,
+parking, 1196/1300-MHz DVFS, SRAM retention and staged PM, and failed SLIDLE
+(bus-DCM predicate), full RTC resume completion and loaded USB upload; M4/M5/M6
+gates remain open.
 
 ## CPU Final Fix 01 implementation admission — 2026-09-27
 
