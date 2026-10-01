@@ -119,7 +119,9 @@ def cpu(ctx):
                                    'selftest': ctx.read('/sys/firmware/y2_pm/selftest'),
                                    'backstop': ctx.read('/sys/firmware/y2_pm/backstop_s'),
                                    'device_callbacks': ctx.read('/sys/firmware/y2_pm/devices', limit=16384),
-                                   'device_callbacks_previous_boot': ctx.read('/sys/firmware/y2_pm/devices_previous', limit=16384)},
+                                   'device_callbacks_previous_boot': ctx.read('/sys/firmware/y2_pm/devices_previous', limit=16384),
+                                   # Fix03: decoded RGU cause of the reset that started this boot.
+                                   'reset_status': ctx.read('/sys/firmware/y2_pm/reset_status')},
             'dvfs_diagnostics': {p.name: read(p) for p in ctx.glob('/sys/module/cpu_dvfs/parameters/*')},
             'voltage_ownership': ctx.read('/sys/module/pwrap/parameters/cpu_voltage_state'),
             'slidle_clock_owners': ctx.read('/sys/module/clocks/parameters/slow_blocker_names'),
@@ -402,7 +404,7 @@ def bluetooth(ctx):
 
 def system(ctx):
     from .update import status as update_status
-    from .boot import evidence_status
+    from .boot import RESET_STATUS, evidence_status, reset_cause
     from .timekeeping import status as time_status
     clock = time_status(ctx)
     ssh = ctx.json('/run/y2/ssh.json', {})
@@ -432,7 +434,7 @@ def system(ctx):
             'previous_boot_evidence': evidence_status(ctx),
             'application_readiness': ctx.json('/run/y2/application-ready.json'),
             'boot_stages': stages,
-            'reset_cause': None, 'reset_cause_reason': 'no_qualified_retained_register',
+            **reset_cause(ctx.read(RESET_STATUS), 'no_qualified_retained_register'),
             'kernel_taint': ctx.integer('/proc/sys/kernel/tainted'),
             'kernel_warning_count': None,
             'kernel_warning_reason': 'no_dedicated_counter; retain_bounded_owner_dmesg_capture',

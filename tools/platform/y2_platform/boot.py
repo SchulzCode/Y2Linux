@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 import os
 from pathlib import Path
+import re
 import stat
 import time
 from .common import atomic_json
@@ -21,7 +22,25 @@ def private_directory(path):
     return path
 
 
-def transition(previous, boot_id, stage, identity, now_ns):
+RESET_STATUS = '/sys/firmware/y2_pm/reset_status'
+
+
+def reset_cause(text, missing_reason='not_observed'):
+    """Decoded MT6582 RGU WDT_STATUS that the watchdog driver read at probe,
+    before its first write: the cause of the reset that started this boot.
+    Zero, unknown bits or an absent file never prove a power-on reset."""
+    fields = dict(re.findall(r'(\w+)=(\S+)', text or ''))
+    if fields.get('valid') != '1':
+        return {'reset_cause': None, 'reset_cause_reason': missing_reason, 'reset_status_raw': None}
+    cause = fields.get('cause')
+    if cause in ('watchdog_timeout', 'software_reset', 'watchdog_irq', 'debug_reset', 'spm_watchdog'):
+        return {'reset_cause': cause, 'reset_cause_reason': 'rgu_wdt_status_at_probe',
+                'reset_status_raw': fields.get('raw')}
+    return {'reset_cause': None, 'reset_cause_reason': 'rgu_status_' + str(cause or 'unreadable'),
+            'reset_status_raw': fields.get('raw')}
+
+
+def transition(previous, boot_id, stage, identity, now_ns, reset=None):
     if not boot_id:
         raise ValueError('boot_id_unavailable')
     if not isinstance(previous, dict) or previous.get('schema') != 1:
@@ -44,7 +63,7 @@ def transition(previous, boot_id, stage, identity, now_ns):
             'last_stage': stage, 'stage_monotonic_ns': now_ns,
             'orderly_shutdown': stage == 'shutdown_complete',
             'consecutive_unclean': unclean, 'recovery_recommended': unclean >= 3,
-            'reset_cause': None, 'reset_cause_reason': 'not_observed',
+            **(reset or reset_cause(None)),
             'history': history, 'identity': identity}
 
 
@@ -64,7 +83,8 @@ def mark(ctx, stage):
         fcntl.flock(fd, fcntl.LOCK_EX)
         value = transition(ctx.json('/data/system/platform/boot.json'),
                            ctx.read('/proc/sys/kernel/random/boot_id'), stage,
-                           ctx.json('/etc/y2linux/versions.json'), time.monotonic_ns())
+                           ctx.json('/etc/y2linux/versions.json'), time.monotonic_ns(),
+                           reset_cause(ctx.read(RESET_STATUS)))
         atomic_json(path, value, durable=True)
         runtime = ctx.path('/run/y2/boot-stages.jsonl')
         runtime.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -108,7 +128,10 @@ def capture_previous(ctx):
               'previous_last_stage': journal.get('last_stage'), 'previous_orderly_shutdown': journal.get('orderly_shutdown'),
               'reset_cause': None, 'reset_cause_reason': 'no_qualified_retained_register_or_pstore_backend',
               'kernel_panic_retention_guaranteed': False, 'logs_are_private': True,
+              'reset_status_raw': None,
               'record': ctx.record('previous-boot-evidence'), 'logs': []}
+    if ctx.read(RESET_STATUS) is not None:
+        result.update(reset_cause(ctx.read(RESET_STATUS)))
     data = os.open(ctx.path('/data'), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     logs = None
     try:
@@ -150,7 +173,7 @@ def evidence_status(ctx):
         return {'state': 'Unavailable', 'reason': 'no_previous_boot_record'}
     return {k: value.get(k) for k in ('captured_on_boot_id', 'previous_boot_id',
             'previous_last_stage', 'previous_orderly_shutdown', 'reset_cause',
-            'reset_cause_reason', 'kernel_panic_retention_guaranteed')} | {
+            'reset_cause_reason', 'reset_status_raw', 'kernel_panic_retention_guaranteed')} | {
             'private_record': '/data/system/platform/previous-boot-evidence.json',
             'log_tails': [{k: log.get(k) for k in ('name','tail_sha256','source_bytes_at_capture')}
                           for log in value.get('logs',[])]}

@@ -16,6 +16,8 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/suspend.h>
+#include <linux/math64.h>
+#include <linux/sched/clock.h>
 #include "pm-journal.h"
 #include "pm-journal-policy.h"
 #define Y2_PM_PHYS 0x0010dc00
@@ -36,6 +38,9 @@ static const struct y2_pm_backstop_ops *backstop_ops;
 static unsigned backstop_armed, backstop_seconds;
 static bool backstop_running, backstop_paused, backstop_staged;
 static int backstop_error;
+/* RGU WDT_STATUS as the watchdog driver found it at probe (this boot). */
+static unsigned rgu_status;
+static bool rgu_status_valid;
 bool y2_pm_journal_ready(void)
 {
 	return ready;
@@ -78,7 +83,14 @@ static const char *const names[] = { "NONE",
 				     "SELFTEST_A",
 				     "SELFTEST_B",
 				     "BACKSTOP_STARTED",
-				     "EXIT" };
+				     "EXIT",
+				     "DEVICES_RESUMED",
+				     "CONSOLE_RESUMED",
+				     "PLATFORM_ENDED",
+				     "TASKS_THAWED",
+				     "FILESYSTEMS_THAWED",
+				     "POST_SUSPEND_NOTIFIED",
+				     "CONSOLE_RESTORED" };
 static_assert(ARRAY_SIZE(names) == Y2_PM_STAGE_COUNT);
 static const char *stage_name(unsigned stage)
 {
@@ -110,15 +122,22 @@ static void ring_reset(void)
 	writel(0, journal + Y2_PM_RING_HEADER + 8);
 	writel(backstop_armed, journal + Y2_PM_RING_HEADER + 12);
 }
+/* sched_clock milliseconds: safe in noirq and around SPM; it holds its
+ * suspend epoch while syscore has it suspended, so stamps stay monotonic. */
+static unsigned ring_ms(void)
+{
+	return (unsigned)div_u64(local_clock(), NSEC_PER_MSEC);
+}
 /* Caller holds journal_lock. Sequence is stored last; torn entries read 0. */
-static void ring_write(const char *name, unsigned phase, int result, bool leave)
+static void ring_put(unsigned control, int result, const char *name)
 {
 	unsigned words[Y2_PM_RING_WORDS] = { 0 }, offset, i;
 	ring_sequence = y2_pm_ring_next(ring_sequence);
 	offset = y2_pm_ring_offset(ring_sequence);
-	words[1] = phase << 8 | leave;
+	words[1] = control;
 	words[2] = result;
 	y2_pm_ring_name(words + 3, name);
+	words[7] = ring_ms();
 	writel(0, journal + offset);
 	for (i = 1; i < Y2_PM_RING_WORDS; i++)
 		writel(words[i], journal + offset + i * 4);
@@ -126,6 +145,10 @@ static void ring_write(const char *name, unsigned phase, int result, bool leave)
 	writel(ring_sequence, journal + offset);
 	writel(ring_sequence, journal + Y2_PM_RING_HEADER + 8);
 	readl(journal + offset);
+}
+static void ring_write(const char *name, unsigned phase, int result, bool leave)
+{
+	ring_put(phase << 8 | leave, result, name);
 }
 /* Out-of-band platform fault (phase 0xff), e.g. the first terminal USB fault,
  * so it survives an owner restart together with the PM callback trail. */
@@ -135,7 +158,7 @@ void y2_pm_note(const char *name, int result)
 	if (!journal)
 		return;
 	raw_spin_lock_irqsave(&journal_lock, flags);
-	ring_write(name, 0xff, result, true);
+	ring_write(name, Y2_PM_PHASE_NOTE, result, true);
 	raw_spin_unlock_irqrestore(&journal_lock, flags);
 }
 void y2_pm_device(const struct device *dev, unsigned phase, int result, bool leave)
@@ -153,6 +176,9 @@ void y2_pm_device(const struct device *dev, unsigned phase, int result, bool lea
 	raw_spin_lock_irqsave(&journal_lock, flags);
 	ring_write(name, phase, result, leave);
 	raw_spin_unlock_irqrestore(&journal_lock, flags);
+	/* Callback progress extends the backstop too: only a single stalled
+	 * call (no progress for its full period) resets, not a long phase. */
+	y2_pm_backstop_ping();
 }
 void y2_pm_mark(unsigned stage, int error)
 {
@@ -178,6 +204,8 @@ void y2_pm_mark(unsigned stage, int error)
 		journal_record[4] = error;
 	}
 	commit();
+	/* Timed stage entry interleaved with the callback trail. */
+	ring_put(stage << 16 | Y2_PM_PHASE_MARK << 8 | 1, error, NULL);
 	raw_spin_unlock_irqrestore(&journal_lock, flags);
 	/* Stage progress extends the backstop; a stall of its full period resets. */
 	y2_pm_backstop_ping();
@@ -357,13 +385,30 @@ static ssize_t backstop_store(struct kobject *k, struct kobj_attribute *a,
 	WRITE_ONCE(backstop_armed, seconds);
 	return size;
 }
+void y2_pm_reset_status(unsigned raw)
+{
+	WRITE_ONCE(rgu_status, raw);
+	smp_store_release(&rgu_status_valid, true);
+}
+static ssize_t reset_status_show(struct kobject *k, struct kobj_attribute *a, char *buf)
+{
+	bool valid = smp_load_acquire(&rgu_status_valid);
+	unsigned raw = valid ? READ_ONCE(rgu_status) : 0;
+	return sysfs_emit(buf, "valid=%u raw=%#x cause=%s hw_watchdog=%u sw_reset=%u irq_watchdog=%u debug_reset=%u spm_watchdog=%u source=rgu_wdt_status_at_probe\n",
+		valid, raw, valid ? y2_rgu_cause(raw) : "not_read",
+		!!(raw & Y2_RGU_HW_WATCHDOG), !!(raw & Y2_RGU_SW_RESET),
+		!!(raw & Y2_RGU_IRQ_WATCHDOG), !!(raw & Y2_RGU_DEBUG_RESET),
+		!!(raw & Y2_RGU_SPM_WATCHDOG));
+}
 static ssize_t emit_ring(char *buf, unsigned (*entries)[Y2_PM_RING_WORDS],
 			 const unsigned *header)
 {
 	unsigned order[Y2_PM_RING_ENTRIES], count = 0, i, j, t;
 	int n;
 	n = sysfs_emit(buf, "ring=%s cycle=%u last=%u backstop_s=%u\n",
-		header[0] == Y2_PM_RING_MAGIC ? "valid" : "absent", header[1], header[2], header[3]);
+		header[0] == Y2_PM_RING_MAGIC ? "valid" :
+		header[0] == Y2_PM_RING_MAGIC_FIX02 ? "fix02_layout" : "absent",
+		header[1], header[2], header[3]);
 	if (header[0] != Y2_PM_RING_MAGIC)
 		return n;
 	for (i = 0; i < Y2_PM_RING_ENTRIES; i++)
@@ -374,12 +419,16 @@ static ssize_t emit_ring(char *buf, unsigned (*entries)[Y2_PM_RING_WORDS],
 			t = order[j]; order[j] = order[j - 1]; order[j - 1] = t;
 		}
 	for (i = 0; i < count; i++) {
-		unsigned *e = entries[order[i]];
+		unsigned *e = entries[order[i]], phase = e[1] >> 8 & 0xff;
 		char name[Y2_PM_RING_NAME + 1];
 		memcpy(name, e + 3, Y2_PM_RING_NAME);
 		name[Y2_PM_RING_NAME] = 0;
-		n += sysfs_emit_at(buf, n, "%u phase=%u %s result=%d device=%s\n", e[0],
-			e[1] >> 8, (e[1] & 1) ? "leave" : "enter", (int)e[2], name);
+		if (phase == Y2_PM_PHASE_MARK)
+			n += sysfs_emit_at(buf, n, "%u phase=%u mark result=%d ms=%u stage=%s\n", e[0],
+				phase, (int)e[2], e[7], stage_name(e[1] >> 16));
+		else
+			n += sysfs_emit_at(buf, n, "%u phase=%u %s result=%d ms=%u device=%s\n", e[0],
+				phase, (e[1] & 1) ? "leave" : "enter", (int)e[2], e[7], name);
 	}
 	return n;
 }
@@ -424,7 +473,8 @@ static ssize_t retention_show(struct kobject *k, struct kobj_attribute *a, char 
 	return sysfs_emit(buf, "phys=%#x size=%#x previous_valid=%u previous_sequence=%u previous_stage=%s selftest_scratch=%s previous_ring=%s previous_reset_entry=%#x\n",
 		Y2_PM_PHYS, Y2_PM_REGION, y2_pm_valid(previous), previous[1],
 		stage_name(previous[2]), match ? "retained" : "absent",
-		previous_ring_header[0] == Y2_PM_RING_MAGIC ? "valid" : "absent",
+		previous_ring_header[0] == Y2_PM_RING_MAGIC ? "valid" :
+		previous_ring_header[0] == Y2_PM_RING_MAGIC_FIX02 ? "fix02_layout" : "absent",
 		previous_reset_entry);
 }
 static int words_equal(void __iomem *base, unsigned offset, const unsigned *words, unsigned count)
@@ -539,7 +589,8 @@ static struct kobj_attribute state_attr = __ATTR_RO(state),
 			     previous_attr = __ATTR_RO(previous),
 			     devices_attr = __ATTR_RO(devices),
 			     devices_previous_attr = __ATTR_RO(devices_previous),
-			     retention_attr = __ATTR_RO(retention);
+			     retention_attr = __ATTR_RO(retention),
+			     reset_status_attr = __ATTR_RO(reset_status);
 static struct kobj_attribute stage_attr =
 	__ATTR(stage, 0200, NULL, stage_store);
 static struct kobj_attribute selftest_attr =
@@ -549,7 +600,8 @@ static struct kobj_attribute backstop_attr =
 static struct attribute *attrs[] = { &state_attr.attr, &previous_attr.attr,
 				     &stage_attr.attr, &devices_attr.attr,
 				     &devices_previous_attr.attr, &retention_attr.attr,
-				     &selftest_attr.attr, &backstop_attr.attr, NULL };
+				     &selftest_attr.attr, &backstop_attr.attr,
+				     &reset_status_attr.attr, NULL };
 static const struct attribute_group group = { .attrs = attrs };
 static int __init journal_init(void)
 {

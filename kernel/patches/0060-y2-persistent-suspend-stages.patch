@@ -94,15 +94,41 @@
  	suspend_test_finish("suspend devices");
  	if (suspend_test(TEST_DEVICES))
  		goto Recover_platform;
-@@ -527,6 +540,7 @@
+@@ -527,15 +540,19 @@
  	} while (!error && !wakeup && platform_suspend_again(state));
  
   Resume_devices:
 +	y2_pm_mark(Y2_PM_DEVICES_RESUMING, error);
  	suspend_test_start();
  	dpm_resume_end(PMSG_RESUME);
++	y2_pm_mark(Y2_PM_DEVICES_RESUMED, error);
  	suspend_test_finish("resume devices");
-@@ -590,6 +604,7 @@
+ 	trace_suspend_resume(TPS("console_resume_all"), state, true);
+ 	console_resume_all();
++	y2_pm_mark(Y2_PM_CONSOLE_RESUMED, error);
+ 	trace_suspend_resume(TPS("console_resume_all"), state, false);
+ 
+  Close:
+ 	platform_resume_end(state);
++	y2_pm_mark(Y2_PM_PLATFORM_ENDED, error);
+ 	pm_suspend_target_state = PM_SUSPEND_ON;
+ 	return error;
+ 
+@@ -553,9 +570,13 @@
+ static void suspend_finish(void)
+ {
+ 	suspend_thaw_processes();
++	y2_pm_mark(Y2_PM_TASKS_THAWED, 0);
+ 	filesystems_thaw();
++	y2_pm_mark(Y2_PM_FILESYSTEMS_THAWED, 0);
+ 	pm_notifier_call_chain(PM_POST_SUSPEND);
++	y2_pm_mark(Y2_PM_POST_SUSPEND_NOTIFIED, 0);
+ 	pm_restore_console();
++	y2_pm_mark(Y2_PM_CONSOLE_RESTORED, 0);
+ }
+ 
+ /**
+@@ -590,6 +611,7 @@
  	if (sync_on_suspend_enabled) {
  		trace_suspend_resume(TPS("sync_filesystems"), 0, true);
  		ksys_sync_helper();
@@ -110,7 +136,7 @@
  		trace_suspend_resume(TPS("sync_filesystems"), 0, false);
  	}
  
-@@ -629,8 +644,16 @@
+@@ -629,8 +651,16 @@
  	if (state <= PM_SUSPEND_ON || state >= PM_SUSPEND_MAX)
  		return -EINVAL;
  

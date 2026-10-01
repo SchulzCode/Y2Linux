@@ -552,6 +552,10 @@ JOURNAL_FIXTURE = r'''
 #undef static_assert
 #define static_assert(x) _Static_assert(x, #x)
 #define Y2_PM_PHYS 0x0010dc00
+#define NSEC_PER_MSEC 1000000ULL
+static unsigned long long clock_ns;
+static unsigned long long local_clock(void) { return clock_ns += 1500000ULL; }
+static unsigned long long div_u64(unsigned long long a, unsigned long long b) { return a / b; }
 static unsigned xchg_u(unsigned *p, unsigned v) { unsigned o = *p; *p = v; return o; }
 #define xchg(p, v) xchg_u(p, v)
 enum { Y2_PM_NONE, Y2_PM_SUSPEND_REQUEST, Y2_PM_FILESYSTEM_SYNCED, Y2_PM_DEVICES_SUSPENDED,
@@ -563,7 +567,9 @@ enum { Y2_PM_NONE, Y2_PM_SUSPEND_REQUEST, Y2_PM_FILESYSTEM_SYNCED, Y2_PM_DEVICES
  Y2_PM_HELPER_REQUEST, Y2_PM_TASKS_FROZEN, Y2_PM_PLATFORM_BEGIN, Y2_PM_DPM_PREPARE_BEGIN,
  Y2_PM_DPM_PREPARED, Y2_PM_LATE_SUSPENDED, Y2_PM_NOIRQ_SUSPENDED, Y2_PM_SECONDARIES_DISABLING,
  Y2_PM_SYSCORE_SUSPENDED, Y2_PM_PLATFORM_ENTER, Y2_PM_TEST_RETURN, Y2_PM_SELFTEST_A,
- Y2_PM_SELFTEST_B, Y2_PM_BACKSTOP_STARTED, Y2_PM_EXIT, Y2_PM_STAGE_COUNT };
+ Y2_PM_SELFTEST_B, Y2_PM_BACKSTOP_STARTED, Y2_PM_EXIT, Y2_PM_DEVICES_RESUMED, Y2_PM_CONSOLE_RESUMED,
+ Y2_PM_PLATFORM_ENDED, Y2_PM_TASKS_THAWED, Y2_PM_FILESYSTEMS_THAWED, Y2_PM_POST_SUSPEND_NOTIFIED,
+ Y2_PM_CONSOLE_RESTORED, Y2_PM_STAGE_COUNT };
 struct y2_pm_backstop_ops { int (*start)(unsigned); void (*ping)(void); void (*stop)(void); };
 struct kobject; struct kobj_attribute;
 static unsigned sram[Y2_PM_REGION / 4], drop_offset = ~0U, stuck_offset = ~0U;
@@ -606,7 +612,7 @@ class RetainedJournal(unittest.TestCase):
 
     def test_awake_selftest_proves_write_readback_sequence_slots_stamp_and_ring(self):
         run_c(JOURNAL_FIXTURE + self.functions(
-            'stage_name', 'commit', 'ring_reset', 'ring_write', 'y2_pm_mark', 'y2_pm_backstop_ping',
+            'stage_name', 'commit', 'ring_reset', 'ring_ms', 'ring_put', 'ring_write', 'y2_pm_mark', 'y2_pm_backstop_ping',
             'words_equal', 'scratch_pattern', 'selftest', 'retention_show') + r'''
 int main(void){
  unsigned sa, sb, a, b;
@@ -642,7 +648,7 @@ int main(void){
 
     def test_stage_progression_helper_record_ring_and_torn_entries(self):
         run_c(JOURNAL_FIXTURE + self.functions(
-            'stage_name', 'commit', 'ring_reset', 'ring_write', 'y2_pm_mark', 'y2_pm_backstop_ping') + r'''
+            'stage_name', 'commit', 'ring_reset', 'ring_ms', 'ring_put', 'ring_write', 'y2_pm_mark', 'y2_pm_backstop_ping') + r'''
 int main(void){
  /* Helper request starts the cycle; the kernel request continues it. */
  y2_pm_mark(Y2_PM_HELPER_REQUEST, 0); unsigned seq = journal_record[1];
@@ -661,8 +667,12 @@ int main(void){
  assert(journal_record[3] == Y2_PM_NOIRQ_SUSPENDED && (int)journal_record[4] == -5); /* first failure kept */
  /* A kernel request without a helper request starts a fresh cycle and ring. */
  y2_pm_mark(Y2_PM_SUSPEND_REQUEST, 0);
- assert(!journal_record[4] && !sram[Y2_PM_STAMP / 4] && sram[Y2_PM_RING_HEADER / 4 + 2] == 0);
- /* Device callbacks: enter/leave with result; names keep 20 bytes. */
+ assert(!journal_record[4] && !sram[Y2_PM_STAMP / 4]);
+ /* Fix03: the fresh ring starts with the timed stage entry itself. */
+ unsigned *m = sram + y2_pm_ring_offset(ring_sequence) / 4;
+ assert(sram[Y2_PM_RING_HEADER / 4 + 2] == ring_sequence && (m[1] >> 8 & 0xff) == Y2_PM_PHASE_MARK &&
+        m[1] >> 16 == Y2_PM_SUSPEND_REQUEST && m[7]);
+ /* Device callbacks: enter/leave with result; names keep 16 bytes (Fix03). */
  ring_write("11230000.mmc", 2, 0, false); ring_write("11230000.mmc", 2, -16, true);
  unsigned *e = sram + y2_pm_ring_offset(ring_sequence) / 4;
  assert(e[0] == ring_sequence && (e[1] & 1) && (int)e[2] == -16 && !memcmp(e + 3, "11230000.mmc", 12));
@@ -673,13 +683,13 @@ int main(void){
  /* The ring wraps without losing order; sequence never becomes zero. */
  for (unsigned i = 0; i < 3 * Y2_PM_RING_ENTRIES; i++) ring_write("x", 1, 0, i & 1);
  assert(y2_pm_ring_next(~0U) == 1);
- unsigned words[5]; y2_pm_ring_name(words, "abcdefghijklmnopqrstuvwxyz"); assert(!memcmp(words, "abcdefghijklmnopqrst", 20));
+ unsigned words[4]; y2_pm_ring_name(words, "abcdefghijklmnopqrstuvwxyz"); assert(!memcmp(words, "abcdefghijklmnop", 16));
 }
 ''')
 
     def test_backstop_is_one_shot_pings_on_progress_and_pauses_for_spm(self):
         run_c(JOURNAL_FIXTURE + self.functions(
-            'stage_name', 'commit', 'ring_reset', 'ring_write', 'y2_pm_mark', 'y2_pm_backstop_register',
+            'stage_name', 'commit', 'ring_reset', 'ring_ms', 'ring_put', 'ring_write', 'y2_pm_mark', 'y2_pm_backstop_register',
             'y2_pm_backstop_begin', 'y2_pm_backstop_ping', 'y2_pm_backstop_pause', 'y2_pm_backstop_end') + r'''
 int main(void){
  /* No provider: arming cannot start anything and reports the error. */

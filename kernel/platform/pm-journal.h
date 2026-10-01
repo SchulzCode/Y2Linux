@@ -44,6 +44,16 @@ enum y2_pm_stage {
 	Y2_PM_SELFTEST_B,
 	Y2_PM_BACKSTOP_STARTED,
 	Y2_PM_EXIT,
+	/* Fix03: the Fix02 RTC attempt stopped between dpm_resume_end and
+	 * Y2_PM_EXIT with no mark. Every call in that window is now bracketed;
+	 * appended to keep old records. */
+	Y2_PM_DEVICES_RESUMED,
+	Y2_PM_CONSOLE_RESUMED,
+	Y2_PM_PLATFORM_ENDED,
+	Y2_PM_TASKS_THAWED,
+	Y2_PM_FILESYSTEMS_THAWED,
+	Y2_PM_POST_SUSPEND_NOTIFIED,
+	Y2_PM_CONSOLE_RESTORED,
 	Y2_PM_STAGE_COUNT
 };
 /* Device PM callback phases recorded in the retained callback ring. */
@@ -77,6 +87,7 @@ void y2_pm_pmic_snapshot(unsigned rtc_enable, unsigned mask0, unsigned mask1,
 			 unsigned status0, unsigned status1);
 void y2_pm_device(const struct device *dev, unsigned phase, int result, bool leave);
 void y2_pm_note(const char *name, int result);
+void y2_pm_reset_status(unsigned raw);
 void y2_pm_backstop_register(const struct y2_pm_backstop_ops *ops);
 void y2_pm_backstop_begin(bool staged);
 void y2_pm_backstop_ping(void);
@@ -89,6 +100,9 @@ static inline void y2_pm_device(const struct device *dev, unsigned phase,
 {
 }
 static inline void y2_pm_note(const char *name, int result)
+{
+}
+static inline void y2_pm_reset_status(unsigned raw)
 {
 }
 static inline void y2_pm_backstop_register(const struct y2_pm_backstop_ops *ops)

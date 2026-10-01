@@ -57,7 +57,22 @@
  static int mtk_wdt_set_pretimeout(struct watchdog_device *wdd,
  				  unsigned int timeout)
  {
-@@ -466,6 +509,13 @@
+@@ -412,6 +455,14 @@
+ 	if (IS_ERR(mtk_wdt->wdt_base))
+ 		return PTR_ERR(mtk_wdt->wdt_base);
+ 
++#if IS_ENABLED(CONFIG_Y2_POWER)
++	/* WDT_STATUS (+0x0c, exact MT6582 mt_wdt.h) before any WDT_MODE write:
++	 * the previous reset's RGU cause for the boot journal. Read only. */
++	if (of_device_is_compatible(dev->of_node, "mediatek,mt6582-wdt") &&
++	    of_machine_is_compatible("innioasis,y2"))
++		y2_pm_reset_status(readl(mtk_wdt->wdt_base + 0x0c));
++#endif
++
+ 	irq = platform_get_irq_optional(pdev, 0);
+ 	if (irq > 0) {
+ 		err = devm_request_irq(&pdev->dev, irq, mtk_wdt_isr, 0, "wdt_bark",
+@@ -466,6 +517,13 @@
  	mtk_wdt->reset_by_toprgu =
  		of_property_read_bool(dev->of_node, "mediatek,reset-by-toprgu");
  
@@ -71,7 +86,7 @@
  	return 0;
  }
  
-@@ -493,6 +543,7 @@
+@@ -493,6 +551,7 @@
  
  static const struct of_device_id mtk_wdt_dt_ids[] = {
  	{ .compatible = "mediatek,mt2712-wdt", .data = &mt2712_data },
