@@ -87,7 +87,9 @@ static void stock_admission_work(struct work_struct *work)
 	if (!ret) {
 		WRITE_ONCE(qualification_max_khz, 1300000);
 		ret = freq_qos_update_request(&ceiling, 1300000);
+		/* 1 means the constraint changed: success, not an error code. */
 		if (ret < 0) WRITE_ONCE(qualification_max_khz, 1040000);
+		else ret = 0;
 	}
 	admission_error = ret;
 	pr_info("Y2DVFS: stock-bin automatic admission result=%d ceiling=%u kHz\n",
