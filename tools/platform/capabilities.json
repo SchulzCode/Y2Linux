@@ -166,7 +166,7 @@
       "reason": "same_boot_resume_unqualified",
       "qualification_command": "y2-suspend --owner-qualify",
       "experimental": false,
-      "diagnostics": "retained SRAM PM journal with awake self-test, device-callback ring and owner-armed RGU warm-reset backstop"
+      "diagnostics": "retained SRAM PM journal with awake self-test, timed device-callback and stage ring through pm_suspend exit, owner-armed RGU warm-reset backstop and decoded RGU reset cause"
     },
     "cpuidle": {
       "implemented": true,
@@ -270,7 +270,7 @@
       "reason": "physical qualification pending",
       "fallback": "PIO",
       "boot_fallback": "y2.usb_dma=off",
-      "telemetry": "directional programmed bytes and bus faults; not delivered-byte counters; first terminal fault reason and read-only controller/DMA snapshot"
+      "telemetry": "directional programmed bytes and bus faults; not delivered-byte counters; first terminal fault reason and read-only controller/DMA snapshot; storm guard counts only interrupts without DMA progress"
     },
     "usb_ncm": {
       "implemented": true,
@@ -369,7 +369,7 @@
       "enabled": true,
       "qualified": false,
       "experimental": true,
-      "reason": "automatic stock clock/CPU preflight with MSDC runtime clock gating; per-reason refusal counters; aborts to WFI",
+      "reason": "automatic stock clock/CPU preflight with MSDC runtime clock gating and the stock bus-DCM baseline (0x00/0x0f); per-reason refusal counters; aborts to WFI",
       "fallback": "WFI",
       "default_disabled": false
     },
@@ -598,7 +598,7 @@
       "enabled": true,
       "qualified": false,
       "experimental": true,
-      "reason": "screen-off, no workload lease, timers admitted; sustained (tau 30 s) load <=10% of four cores and <=25% time above 598 MHz; 60s restore hold, 30s quiet, 5s one-core park steps; input/display/workload restore synchronously, 1 s saturation restores with escalating hold"
+      "reason": "screen-off, no workload lease, timers admitted; sustained (tau 30 s) load <=10% of four cores and <=25% time above 598 MHz; 60s restore hold, 30s quiet, 5s one-core park steps; input/display/workload restore synchronously, 1 s saturation restores with escalating hold unless a wake follows within 2 s"
     }
   },
   "feature_contract_version": 2
