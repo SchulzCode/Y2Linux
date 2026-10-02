@@ -45,7 +45,7 @@ def delivered(build, manifest):
         'CONFIG_DRM_LIMA': ('gpu_runtime_pm',),
     }
     symbol_for = {name: symbol for symbol,names in bindings.items() for name in names}
-    modules = {'telemetry':'observe.py','health':'health.py','shutdown':'shutdown.py',
+    modules = {'telemetry':'observe.py','health':'health.py','shutdown':'power.py',
                'low_battery_shutdown':'power.py','battery_soc':'battery.py','ota':'update.py',
                'diagnostics':'diagnostics.py','memory_telemetry':'observe.py'}
     codec_names = {'bluetooth_sbc':'SBC','bluetooth_sbc_xq':'SBC','bluetooth_aac':'AAC',
@@ -163,4 +163,3 @@ def validate(out, manifest):
             manifest.get('distribution_intent') == 'public' and not distribution['public_distribution_ready']):
         raise ValueError('release_composition_distribution')
     release_tree(out, manifest)
-

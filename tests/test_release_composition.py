@@ -69,6 +69,19 @@ class Composition(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'enabled_capability_not_compiled:usb_dma'):
                 c.delivered(build,manifest)
 
+    def test_shutdown_binds_to_installed_power_coordinator(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            build,_,manifest = self.fixture(Path(temporary))
+            path = build/'buildroot/target/etc/y2linux/capabilities.json'
+            value = json.loads(path.read_text())
+            value['capabilities']['shutdown'] = dict(implemented=True, enabled=True, experimental=False, reason='test')
+            path.write_text(json.dumps(value))
+            with self.assertRaisesRegex(ValueError, 'shutdown'):
+                c.delivered(build,manifest)
+            module = build/'buildroot/target/usr/lib/y2-platform/y2_platform/power.py'
+            module.parent.mkdir(parents=True);module.write_text('# installed coordinator')
+            self.assertTrue(c.delivered(build,manifest)['capabilities']['shutdown']['compiled'])
+
     def test_rehashed_misleading_receipts_are_rejected(self):
         changes = [
             ('release-composition.json',lambda value: value.update(y2linux_commit='f'*40),'identity'),
