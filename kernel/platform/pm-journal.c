@@ -274,7 +274,7 @@ static ssize_t emit_record(char *buf, unsigned *record, unsigned reset)
 		record[7], record[8], record[9], record[10], record[11],
 		record[12], record[13], record[14], record[15], record[16],
 		record[17], record[18], record[19], record[20], record[21],
-		reset, record[22], record[23], record[24], record[25],
+		y2_pm_resume_stamp(reset), record[22], record[23], record[24], record[25],
 		record[26]);
 }
 static ssize_t state_show(struct kobject *k, struct kobj_attribute *a,
@@ -404,11 +404,12 @@ static ssize_t emit_ring(char *buf, unsigned (*entries)[Y2_PM_RING_WORDS],
 			 const unsigned *header)
 {
 	unsigned order[Y2_PM_RING_ENTRIES], count = 0, i, j, t;
+	bool present = header[0] == Y2_PM_RING_MAGIC || header[0] == Y2_PM_RING_MAGIC_FIX02;
 	int n;
 	n = sysfs_emit(buf, "ring=%s cycle=%u last=%u backstop_s=%u\n",
 		header[0] == Y2_PM_RING_MAGIC ? "valid" :
 		header[0] == Y2_PM_RING_MAGIC_FIX02 ? "fix02_layout" : "absent",
-		header[1], header[2], header[3]);
+		present ? header[1] : 0, present ? header[2] : 0, present ? header[3] : 0);
 	if (header[0] != Y2_PM_RING_MAGIC)
 		return n;
 	for (i = 0; i < Y2_PM_RING_ENTRIES; i++)
@@ -475,7 +476,7 @@ static ssize_t retention_show(struct kobject *k, struct kobj_attribute *a, char 
 		stage_name(previous[2]), match ? "retained" : "absent",
 		previous_ring_header[0] == Y2_PM_RING_MAGIC ? "valid" :
 		previous_ring_header[0] == Y2_PM_RING_MAGIC_FIX02 ? "fix02_layout" : "absent",
-		previous_reset_entry);
+		y2_pm_resume_stamp(previous_reset_entry));
 }
 static int words_equal(void __iomem *base, unsigned offset, const unsigned *words, unsigned count)
 {

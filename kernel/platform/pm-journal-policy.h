@@ -28,6 +28,13 @@ static inline int y2_pm_newer(unsigned a, unsigned b)
 #define Y2_PM_REGION 0x500
 #define Y2_PM_SLOT(n) ((n) * 0x80)
 #define Y2_PM_STAMP 0x100
+#define Y2_PM_RESUME_STAMP 0x59325253U
+/* Cold SRAM is undefined; only the exact stackless resume-vector stamp is
+ * evidence that Boot ROM dispatched Linux resume. */
+static inline unsigned y2_pm_resume_stamp(unsigned raw)
+{
+	return raw == Y2_PM_RESUME_STAMP ? raw : 0;
+}
 #define Y2_PM_SELFTEST 0x140
 #define Y2_PM_SELFTEST_WORDS 16
 #define Y2_PM_RING_HEADER 0x180
