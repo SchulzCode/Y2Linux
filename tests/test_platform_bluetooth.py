@@ -59,6 +59,18 @@ class BluetoothObservation(unittest.TestCase):
         self.raw['stable_owners'] = False
         self.assertIsNone(normalize(self.ctx, self.raw)['pcm'])
 
+    def test_invalid_saved_codec_preferences_do_not_hide_observed_transport(self):
+        path = self.ctx.path('/data/bluetooth/codec-policy.json')
+        path.parent.mkdir(parents=True)
+        for invalid in ({'schema': 99}, {'schema': 1, 'ldac_abr': 'yes'}):
+            original = json.dumps(invalid)
+            path.write_text(original)
+            result = normalize(self.ctx, self.raw)
+            self.assertEqual(result['negotiated_codec'], 'SBC')
+            self.assertEqual(result['pcm']['format'], 'S16_LE')
+            self.assertEqual(result['codec_settings']['state'], 'Failed')
+            self.assertEqual(path.read_text(), original)
+
     def test_build_manifest_rejects_accidental_optional_encoder_enablement(self):
         root = Path(self.temp.name)
         (root/'src').mkdir(); (root/'src/bluealsad').touch()
