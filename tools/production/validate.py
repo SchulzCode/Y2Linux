@@ -104,6 +104,8 @@ def validate_manifest(out):
     if system_update:
         from tools.production.system_update import validate_preservation
         validate_preservation(out,m)
+        from tools.production.composition import validate as validate_composition
+        validate_composition(out, m)
     for payload in m['payloads']:
         name=payload['target_partition'];t=TARGETS[name]
         require(payload['absolute_start_bytes']==t['start'] and payload['maximum_size_bytes']==t['size'] and payload['scatter_linear_start_bytes']==t['linear'],'payload coordinates')
@@ -344,15 +346,21 @@ def validate_rootfs(out,build,m):
             # profiles and have no args file. New profiles must carry the
             # matching runtime disable list in both filesystem representations.
             if 'profile' in codec_inventory:
-                require(codec_inventory['profile'] in ('sbc-only', 'owner-private-experiments'),
+                require(codec_inventory['profile'] in ('sbc-only', 'owner-private-experiments', 'owner-private-integration'),
                         'known Bluetooth codec profile')
+                if codec_inventory['profile'] == 'owner-private-integration':
+                    require(codec_inventory.get('private_integration_enabled') is True,
+                            'private integration endpoints require explicit scope')
+                    require(all(not value.get('distribution_approved') and not value.get('platform_qualified')
+                                for codec, value in codec_inventory['codecs'].items() if codec != 'SBC'),
+                            'private integration never implies distribution or physical qualification')
                 name = 'etc/y2linux/bluetooth-daemon.args'
                 codec_args = read(name)
                 require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img')) == codec_args,
                         'Bluetooth daemon args ext4/tar agreement')
                 expected = {'--codec=-' + codec for codec, entry in codec_inventory['codecs'].items()
                             if codec != 'SBC' and entry['compiled_locally']}
-                require(set(codec_args.decode().split()) == expected, 'default Bluetooth endpoints remain SBC-only')
+                require(set(codec_args.decode().split()) == expected, 'immutable Bluetooth codec disable baseline matches compiled set')
             require(b'Y2_TEST_ROOT' not in read('usr/sbin/y2-update-core') and b'Y2_TEST_FAULT' not in read('usr/sbin/y2-update-core'),'production updater has no fixture writer')
             caps=json.loads(read('etc/y2linux/capabilities.json'))
             require(caps['schema']=='org.y2linux.capabilities/v1' and caps['api_version']==1,'platform API identity')

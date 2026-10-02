@@ -143,9 +143,21 @@ def validate_preservation(out, manifest):
                     'configuration identity '+name)
 
 
-def package(build, base, fallback_root, out, fallback_overlay=None):
+def distribution_gate(build, public):
+    from tools.production.privacy import public_distribution
+    build = Path(build)
+    manifest = {'owner_firmware': json.loads((build/'owner-firmware.json').read_text())}
+    codecs = json.loads((build/'buildroot/target/etc/y2linux/bluetooth-codecs.json').read_text())
+    state = public_distribution(manifest, codecs)
+    if public:
+        require(state['public_distribution_ready'], 'public distribution unresolved: '+', '.join(state['blockers']))
+    return state
+
+
+def package(build, base, fallback_root, out, fallback_overlay=None, public=False):
     from tools.production.validate import validate_manifest, validate_rootfs
     from tools.production.application import receipt as reborn_application
+    distribution_gate(build, public)  # Fail before creating any public package.
     ffmpeg_version=(REBORN/'FFMPEG_VERSION').read_text().strip()
     require(out.is_relative_to(PROJECT/'out') and not out.exists(), 'fresh package inside out')
     require(not subprocess.check_output(['git','status','--porcelain'],cwd=PROJECT).strip(), 'commit reviewed source before packaging')
@@ -158,6 +170,9 @@ def package(build, base, fallback_root, out, fallback_overlay=None):
     if fallback_overlay is not None:
         oldroot=overlay_fallback(previous,json.loads(fallback_overlay.read_text()),fallback_root)
     require(fallback_root.stat().st_size==oldroot['raw']['size_bytes'] and digest(fallback_root)==oldroot['raw']['sha256'], 'accepted root fallback')
+    from tools.production.privacy import ext4
+    privacy = {'new_root': ext4(build/'buildroot/images/rootfs.ext4'),
+               'fallback_root': ext4(fallback_root), 'private_state_found': False}
     out.mkdir(); (out/'metadata').mkdir(); (out/'fallback').mkdir()
     shutil.copyfile(build/'BOOTIMG.img',out/'BOOTIMG.img')
     subprocess.run(['cp','--sparse=always',str(build/'buildroot/images/rootfs.ext4'),str(out/'Y2ROOT.img')],check=True)
@@ -203,6 +218,7 @@ def package(build, base, fallback_root, out, fallback_overlay=None):
     manifest['payloads']=[boot,root]
     manifest['installed_components']=[copy.deepcopy(root),copy.deepcopy(next(p for p in components if p['target_partition']=='USRDATA'))]
     manifest['installation_profile']='system-update'
+    manifest['distribution_intent'] = 'public' if public else 'owner-local'
     manifest['application']=reborn_application(versions['reborn_version'])
     manifest['base_manifest_sha256']=digest(out/'metadata/base-manifest.json')
     manifest['status']='Y2Linux Platform v1 software candidate; all current-candidate physical/endurance qualification pending' if versions.get('platform_api_version')==1 else f'Reborn FFmpeg {ffmpeg_version} audio production candidate; physical audio qualification pending'
@@ -236,6 +252,8 @@ def package(build, base, fallback_root, out, fallback_overlay=None):
     stock=(PROJECT/'tests/fixtures/production/MT6582_Android_scatter.txt').read_text()
     (out/scatter).write_text(preserving_scatter(stock)); (out/'fallback'/scatter).write_text(preserving_scatter(stock))
     manifest['profiles']={scatter:{'sha256':digest(out/scatter),'selected_partitions':['BOOTIMG','ANDROID']}}
+    from tools.production.composition import write as write_composition
+    manifest['release_composition'] = write_composition(build, out, manifest, privacy)
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
     shutil.copyfile(PROJECT/'docs/architecture/production-install.md',out/'install.md')
     shutil.copyfile(PROJECT/'docs/architecture/reborn-ffmpeg9-build.md',out/'audio-qualification.md')
@@ -253,9 +271,11 @@ def main():
     parser.add_argument('--fallback-overlay-manifest',type=Path,
                         help='reviewed root-overlay receipt for the exact fallback root and unchanged base BOOTIMG')
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--public',action='store_true',
+                        help='require resolved firmware and codec distribution receipts; default is owner-local')
     args=parser.parse_args()
     package(args.build.resolve(),args.base.resolve(),args.fallback_rootfs.resolve(),args.output.resolve(),
-            args.fallback_overlay_manifest.resolve() if args.fallback_overlay_manifest else None)
+            args.fallback_overlay_manifest.resolve() if args.fallback_overlay_manifest else None, public=args.public)
 
 
 if __name__=='__main__': main()
