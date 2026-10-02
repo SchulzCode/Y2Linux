@@ -19,7 +19,7 @@ struct work_struct{int unused;};struct delayed_work{struct work_struct work;};
 #define to_delayed_work(p) container_of(p,struct delayed_work,work)
 typedef struct{int counter;}atomic_t;
 static int atomic_xchg(atomic_t *a,int v){int o=a->counter;a->counter=v;return o;}
-enum y2_storage_event{Y2_EVENT_CRC,Y2_EVENT_TIMEOUT,Y2_EVENT_CONTROLLER};
+enum y2_storage_event{Y2_EVENT_CRC,Y2_EVENT_TIMEOUT,Y2_EVENT_CONTROLLER,Y2_EVENT_TUNING};
 struct mmc_host;
 struct msdc_host {struct delayed_work y2_clock_recovery;struct mmc_host *mmc;int y2_removing,y2_recovery_abort,y2_clock_error;
  atomic_t y2_pending_event;unsigned y2_level_strikes;void *dev;};
@@ -31,6 +31,7 @@ static void mmc_release_host(struct mmc_host *m){assert(claimed);claimed=0;}
 static int pm_runtime_resume_and_get(void *d){gets++;return pm_error;}
 static void pm_runtime_mark_last_busy(void *d){}
 static void pm_runtime_put_autosuspend(void *d){puts++;}
+static void y2_reconcile_tuning(struct msdc_host *h){assert(claimed);}
 static bool y2_tuned_timing(unsigned t){return t==9;}
 static void y2_downgrade(struct msdc_host *h,enum y2_storage_event e,bool reset){assert(claimed);downgrades++;last_event=e;last_reset=reset;}
 ''' + function(s, 'y2_msdc_clock_recovery') + r'''

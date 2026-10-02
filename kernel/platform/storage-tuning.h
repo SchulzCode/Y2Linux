@@ -29,7 +29,7 @@
 /* Characterization interface (sysfs y2_lab on the SD host). Diagnostic
  * candidates only: production images build with 0. */
 #ifndef Y2_MSDC_LAB
-#define Y2_MSDC_LAB 1
+#define Y2_MSDC_LAB 0
 #endif
 
 #define Y2_MSDC_DATCRC_STS 0x60U
@@ -110,9 +110,12 @@ struct y2_tune_choice {
 static inline struct y2_tune_window y2_tune_widest(unsigned map, unsigned taps, int circular,
 						   unsigned *windows)
 {
-	struct y2_tune_window list[Y2_TUNE_MAX_WINDOWS], best = { 0, 0 };
-	unsigned found = y2_tune_windows(map, taps, circular, list, Y2_TUNE_MAX_WINDOWS);
-	unsigned i, stored = found < Y2_TUNE_MAX_WINDOWS ? found : Y2_TUNE_MAX_WINDOWS;
+	/* A 32-tap map can have 16 islands. Diagnostic output is capped at
+	 * eight, but that output budget must never truncate the selection. */
+	struct y2_tune_window list[Y2_TUNE_TAPS / 2], best = { 0, 0 };
+	unsigned capacity = sizeof(list) / sizeof(list[0]);
+	unsigned found = y2_tune_windows(map, taps, circular, list, capacity);
+	unsigned i, stored = found < capacity ? found : capacity;
 
 	for (i = 0; i < stored; i++)
 		if (list[i].len > best.len)

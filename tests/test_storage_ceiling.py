@@ -281,6 +281,7 @@ static int pm_runtime_resume_and_get(void *d) { return 0; }
 static void pm_runtime_mark_last_busy(void *d) {}
 static void pm_runtime_put_autosuspend(void *d) {}
 static int downgrades, last_event;
+static void y2_reconcile_tuning(struct msdc_host *h) {}
 static bool y2_tuned_timing(unsigned char t) { return t == MMC_TIMING_MMC_HS200 || t == MMC_TIMING_UHS_SDR104 || t == MMC_TIMING_UHS_SDR50; }
 static void y2_downgrade(struct msdc_host *h, enum y2_storage_event e, bool r) { downgrades++; last_event = e; h->y2_level_strikes = 0; }
 struct worker_host { struct msdc_host h; int y2_pending_event, y2_removing, y2_recovery_abort; };

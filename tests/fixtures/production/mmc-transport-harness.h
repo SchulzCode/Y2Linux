@@ -41,7 +41,7 @@ struct mmc_data {unsigned flags,blocks,blksz,bytes_xfered;int error;
 struct mmc_request {struct mmc_command *cmd,*sbc,*stop;struct mmc_data *data;};
 struct msdc_host;
 struct mmc_card {bool is_mmc;};
-struct mmc_host {struct mmc_card *card;struct msdc_host *priv;};
+struct mmc_host {struct mmc_card *card;struct msdc_host *priv;struct {unsigned timing;} ios;};
 struct msdc_host {bool y2_emmc,y2_sd,hsq_en,y2_identified,y2_blockaddr,y2_switch_pending,hs400_tuning;
     int y2_clock_error;
     unsigned y2_sectors,y2_partition,y2_pending_partition,error,timeout_ns,timeout_clks;
@@ -55,6 +55,9 @@ static struct mmc_host *mmc_from_priv(struct msdc_host *h) {return h->mmc;}
 static struct msdc_host *mmc_priv(struct mmc_host *m) {return m->priv;}
 static bool mmc_card_mmc(struct mmc_card *c) {assert(c);return c->is_mmc;}
 static bool mmc_op_multi(unsigned op) {return op==18 || op==25;}
+/* This transport fixture starts in an admitted mode; rejected-mode races
+ * execute the real capability predicate in test_storage_runtime_tuning. */
+static bool y2_timing_admitted(struct mmc_host *m,unsigned timing) {return true;}
 static bool mmc_op_tuning(unsigned op) {return op==19 || op==21;}
 static u32 readl(void *address) {u32 v;memcpy(&v,address,4);return v;}
 static void writel(u32 v,void *address) {

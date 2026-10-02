@@ -54,6 +54,19 @@ int main(void) {
  return 0;
 }''')
 
+    def test_widest_eye_is_not_limited_by_diagnostic_window_budget(self):
+        run_tuning_c(r'''
+#include <assert.h>
+int main(void) {
+ /* Eight isolated low taps then a ninth, wide eye. Only diagnostics may
+  * truncate; production must select the high eye and preserve its margin. */
+ unsigned map[2] = { 0xffff5555u, 0 };
+ struct y2_tune_choice c = y2_tune_choose(map, 1, 32, 0, 4);
+ assert(c.valid && c.windows[0] == 9 && c.start == 16 && c.len == 16);
+ assert(c.delay == 23 && c.margin_lo == 7 && c.margin_hi == 8);
+ return 0;
+}''')
+
     def test_midpoint_selection_and_margins(self):
         run_tuning_c(r'''
 #include <assert.h>
@@ -462,8 +475,10 @@ int main(void) {
  assert(pad() == 0x00001300u && io() == 0x4);
  /* a data stage without an eye fails the same way */
  reset(); eye_cmd[0] = 0xffffffffu; eye_cmd[1] = 0xffffffffu; eye_data[0] = 0; eye_data[1] = 0x3;
+ regs[MSDC_PATCH_BIT / 4] = 0x13570000u; host.latch_ck = 5;
  assert(y2_sd_execute_tuning(&mmc, 19) == -EIO && !host.y2_tune_last.data.pick.valid);
  assert(pad() == 0 && io() == 0);
+ assert(regs[MSDC_PATCH_BIT / 4] == 0x13570000u);
  return 0;
 }''')
 
@@ -600,7 +615,8 @@ int main(void) {
         self.assertIn('static DEVICE_ATTR(y2_lab, 0600, y2_lab_show, y2_lab_store);', t)
         self.assertIn('#if Y2_MSDC_LAB', t)
         header = (PLATFORM / 'storage-tuning.h').read_text()
-        self.assertIn('#define Y2_MSDC_LAB 1', header)
+        self.assertIn('#define Y2_MSDC_LAB 0', header)
+        self.assertIn('static DEVICE_ATTR_RO(y2_clock_limit_hz);', t)
 
 
 if __name__ == '__main__':

@@ -9,7 +9,7 @@ static unsigned char buffer[4096];
 static void setup(unsigned op,unsigned sector,unsigned count,bool use_sbc) {
     memset(registers,0,sizeof(registers));memset(buffer,0,sizeof(buffer));
     ncommands=prepared=started=done=resets=poll_fault=0;
-    card=(struct mmc_card){true};mmc=(struct mmc_host){&card,&host};
+    card=(struct mmc_card){true};mmc=(struct mmc_host){.card=&card,.priv=&host};
     host=(struct msdc_host){.y2_emmc=true,.y2_identified=true,.y2_blockaddr=true,
         .y2_sectors=15269888,.mmc=&mmc,.base=registers};
     cmd=(struct mmc_command){.opcode=op,.arg=sector,.flags=MMC_RSP_R1|MMC_CMD_ADTC,.data=&data};
