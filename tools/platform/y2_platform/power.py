@@ -160,6 +160,13 @@ class Coordinator:
         self.publish()
         results = {'journal_pending': self.ctx.command(
             ['/usr/sbin/y2-platform', 'boot-stage', 'shutdown_pending'], timeout=1)}
+        # Reborn normally ends on its dark frame with the backlight already off
+        # before it acknowledges. If it never did (hung, crashed, deadline
+        # reached) the light goes out before the kill: dropping DRM master would
+        # otherwise restore the stale fbdev/console buffer on a lit panel.
+        acknowledgement = self.intent.get('acknowledgement') or {}
+        if acknowledgement.get('outcome') != 'Ready':
+            results['backlight_early'] = backlight_off(self.ctx)
         for name in ('S05reborn', 'S41y2-connectivity'):
             results[name] = self.ctx.command(['/etc/init.d/' + name, 'stop'], timeout=3)
         # Stop/reap failure cannot extend the battery grace indefinitely.

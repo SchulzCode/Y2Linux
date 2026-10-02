@@ -13,6 +13,9 @@ y2_stage() {
     # Names are fixed internal constants. Monotonic clock remains valid without RTC.
     read up rest < /proc/uptime
     printf '{"stage":"%s","monotonic_s":%s}\n' "$1" "$up" >> /run/y2/boot-stages.jsonl
+    # The early splash maps the same milestone names to its progress bar and
+    # status line. It owns this directory; before it exists nothing is written.
+    [ ! -d /run/reborn-splash ] || printf '%s\n' "$1" > /run/reborn-splash/phase
 }
 y2_stage initramfs
 mount -t debugfs debugfs /sys/kernel/debug

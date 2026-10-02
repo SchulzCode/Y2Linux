@@ -1,10 +1,18 @@
 /* SPDX-License-Identifier: MIT
  * Early normal-boot KMS owner. One CPU-mapped dumb buffer; no GPU/context,
  * framebuffer-console rendering, shell backend, radio or storage operations.
- * /run and /dev directory fds survive initramfs switch_root/mount moves. */
+ * /run and /dev directory fds survive initramfs switch_root/mount moves.
+ *
+ * It shows the Reborn wordmark, one thin bar and one status line. The bar and
+ * status follow real startup milestones: producers (the initramfs, Reborn)
+ * write a milestone name to /run/reborn-splash/phase; names map to coarse bar
+ * positions through the generated table in reborn-splash-mark.h. The bar only
+ * moves forward, never advances on a timer and redraws only while it moves.
+ * Reborn's READY completes the bar and hands the display over at once. */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/inotify.h>
 #include <linux/kd.h>
 #include <poll.h>
 #include <signal.h>
@@ -24,17 +32,15 @@
 #include <drm_fourcc.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include "reborn-splash-font.h"
 #include "reborn-splash-mark.h"
 
 #define SOCKET_PATH "/run/reborn-splash/control.sock"
 #define TIMEOUT_MS 60000
 #define HANDOFF_MS 3000
-/* Reborn product palette (Y2Reborn crates/reborn-ui/src/theme.rs). */
-#define BG 0x090b0d
-#define ACCENT 0xe7c98b
-#define SECONDARY 0xa7a9ac
-#define MUTED 0x858b93
+#define BG RB_BG
+/* The bar glides at least 1/4 px per tick and a quarter-eighth of its distance. */
+#define FILL_UNIT 256u
+#define TICK_MS 33
 static int dirfd = -1, devfd = -1, logfd = -1, journal = -1;
 static unsigned log_bytes, sequence;
 static volatile sig_atomic_t stopped;
@@ -47,6 +53,16 @@ static void event(const char *name, int error) {
     char b[256];
     int n = snprintf(b, sizeof(b), "{\"subsystem\":\"startup\",\"event\":\"splash_%s\",\"mono_ms\":%llu,\"sequence\":%u,\"errno\":%d}\n",
                      name, (unsigned long long)now_ms(), ++sequence, error);
+    if (logfd >= 0 && write(logfd, b, (size_t)n) != n) { close(logfd); logfd=-1; }
+    if (journal >= 0 && log_bytes + (unsigned)n <= 8192) {
+        if (write(journal, b, (size_t)n) != n) { close(journal); journal=-1; }
+        log_bytes += (unsigned)n;
+    }
+}
+static void phase_event(const char *name, const char *phase) {
+    char b[256];
+    int n = snprintf(b, sizeof(b), "{\"subsystem\":\"startup\",\"event\":\"splash_%s\",\"phase\":\"%s\",\"mono_ms\":%llu,\"sequence\":%u}\n",
+                     name, phase, (unsigned long long)now_ms(), ++sequence);
     if (logfd >= 0 && write(logfd, b, (size_t)n) != n) { close(logfd); logfd=-1; }
     if (journal >= 0 && log_bytes + (unsigned)n <= 8192) {
         if (write(journal, b, (size_t)n) != n) { close(journal); journal=-1; }
@@ -134,62 +150,116 @@ static void rect(Display *d, unsigned x, unsigned y, unsigned w, unsigned h, uin
         for (unsigned col=0; col<w; col++) p[col]=rgb;
     }
 }
-static void text(Display *d, const char *s, unsigned y, unsigned scale, uint32_t color) {
-    size_t n=strlen(s); if (!n || n*8*scale>d->width) return;
-    unsigned x=(d->width-(unsigned)n*8*scale)/2;
-    for (size_t c=0; c<n; c++) for (unsigned row=0; row<8; row++)
-        for (unsigned col=0; col<8; col++) if (rb_font[(unsigned char)s[c]&127][row] & (1U<<col))
-            rect(d,x+(unsigned)c*8*scale+col*scale,y+row*scale,scale,scale,color);
-}
-/* The Reborn mark, decoded from Reborn's own rendered boot frame so the
- * hand-off to Reborn's first frame is pixel-identical. Centered on panels
- * that are not 480x360. */
-static void mark(Display *d) {
+/* An image decoded from Reborn's own rendered screens (RGB888 runs), so the
+ * hand-off to Reborn's first frame is pixel-identical. Coordinates are those of
+ * the 480x360 screen, centered on panels that are not 480x360. */
+static void blit(Display *d, const rb_image *image) {
     unsigned ox = (d->width - 480) / 2, oy = (d->height - 360) / 2;
+    const unsigned char *rle = rb_art_rle + image->offset;
     size_t offset = 0;
     unsigned remaining = 0;
     uint32_t rgb = BG;
-    for (unsigned y = 0; y < RB_MARK_HEIGHT; y++) {
-        uint32_t *row = (uint32_t *)(d->pixels + (size_t)(oy + RB_MARK_Y + y) * d->pitch);
-        for (unsigned x = 0; x < RB_MARK_WIDTH; x++) {
+    for (unsigned y = 0; y < image->h; y++) {
+        uint32_t *row = (uint32_t *)(d->pixels + (size_t)(oy + image->y + y) * d->pitch);
+        for (unsigned x = 0; x < image->w; x++) {
             if (!remaining) {
-                if (offset + 4 > rb_mark_rle_len) return;
-                remaining = rb_mark_rle[offset];
-                rgb = (uint32_t)rb_mark_rle[offset + 1] << 16 |
-                      (uint32_t)rb_mark_rle[offset + 2] << 8 | rb_mark_rle[offset + 3];
+                if (offset + 4 > image->length) return;
+                remaining = rle[offset];
+                rgb = (uint32_t)rle[offset + 1] << 16 | (uint32_t)rle[offset + 2] << 8 | rle[offset + 3];
                 offset += 4;
             }
-            row[ox + RB_MARK_X + x] = rgb;
+            row[ox + image->x + x] = rgb;
             remaining--;
         }
     }
 }
-/* A slow breath of the accent rule while startup continues: 1.6 s from full
- * to 55 % and back. It starts at full, matching Reborn's hand-off frame. */
-static uint32_t pulse(uint64_t elapsed) {
-    unsigned phase = (unsigned)(elapsed % 1600);
-    unsigned distance = phase < 800 ? phase : 1600 - phase;
-    unsigned level = 100 - distance * 45 / 800;
+/* Startup progress: the furthest real milestone reached and the animated bar
+ * position, in 1/FILL_UNIT pixels, easing toward that milestone's position. */
+typedef struct { unsigned phase, shown, target; bool failed; } Progress;
+static unsigned fill_units(unsigned phase) {
+    return (unsigned)((uint64_t)rb_phases[phase].fill * RB_BAR_W * FILL_UNIT / 1000);
+}
+static int phase_find(const char *name) {
+    for (unsigned i = 0; i < RB_PHASE_COUNT; i++) if (!strcmp(rb_phases[i].token, name)) return (int)i;
+    return -1;
+}
+static bool phase_fails(const char *name) {
+    for (unsigned i = 0; i < RB_FAILURE_TOKEN_COUNT; i++) if (!strcmp(rb_failure_tokens[i], name)) return true;
+    return false;
+}
+/* Milestone names are short lowercase identifiers; anything else is ignored. */
+static bool phase_clean(char *name) {
+    size_t n = strlen(name);
+    while (n && (name[n - 1] == '\n' || name[n - 1] == '\r' || name[n - 1] == ' ')) name[--n] = 0;
+    if (!n || n > 39) return false;
+    for (size_t i = 0; i < n; i++)
+        if (!((name[i] >= 'a' && name[i] <= 'z') || (name[i] >= '0' && name[i] <= '9') || name[i] == '_')) return false;
+    return true;
+}
+/* Apply one reported milestone. Unknown names, repeats and anything earlier
+ * than the furthest milestone are ignored, so the bar can never regress and a
+ * missing milestone just leaves it where it is until a later one arrives. */
+static bool progress_report(Progress *p, const char *name) {
+    if (phase_fails(name)) {
+        if (p->failed) return false;
+        p->failed = true;
+        return true;
+    }
+    int i = phase_find(name);
+    if (i < 0 || (unsigned)i <= p->phase) return false;
+    p->phase = (unsigned)i; p->target = fill_units(p->phase);
+    return true;
+}
+/* One animation tick toward the target; false once there. */
+static bool progress_step(Progress *p) {
+    if (p->shown >= p->target) return false;
+    unsigned delta = p->target - p->shown, step = delta / 8;
+    if (step < FILL_UNIT / 4) step = FILL_UNIT / 4;
+    p->shown = delta <= step ? p->target : p->shown + step;
+    return true;
+}
+/* Reborn is ready: complete the bar at once; a late start is no longer a failure. */
+static void progress_finish(Progress *p) {
+    p->phase = RB_PHASE_COUNT - 1; p->shown = p->target = fill_units(p->phase);
+    p->failed = false;
+}
+static uint32_t mix(uint32_t from, uint32_t to, unsigned level /* 0..255 */) {
     uint32_t out = 0;
     for (unsigned shift = 0; shift <= 16; shift += 8) {
-        unsigned bg = (BG >> shift) & 0xff, fg = (ACCENT >> shift) & 0xff;
-        out |= (uint32_t)((bg * (100 - level) + fg * level) / 100) << shift;
+        unsigned a = (from >> shift) & 0xff, b = (to >> shift) & 0xff;
+        out |= (uint32_t)((a * (255 - level) + b * level + 127) / 255) << shift;
     }
     return out;
 }
-static void draw(Display *d, bool failure, uint64_t elapsed, bool full) {
-    if (!d->pixels || d->width < 480 || d->height < 360) return;
+/* The thin track with its fill from the left; the leading pixel is blended so
+ * the fill advances smoothly in sub-pixel steps. */
+static void bar(Display *d, unsigned shown) {
     unsigned ox = (d->width - 480) / 2, oy = (d->height - 360) / 2;
-    if (full) {
-        rect(d, 0, 0, d->width, d->height, BG);
-        mark(d);
-        if (failure) {
-            text(d, "REBORN COULD NOT START", oy + 232, 1, SECONDARY);
-            text(d, "RESTART THE PLAYER", oy + 250, 1, MUTED);
-        }
+    unsigned whole = shown / FILL_UNIT, fraction = shown % FILL_UNIT;
+    for (unsigned row = 0; row < RB_BAR_H; row++) {
+        uint32_t *p = (uint32_t *)(d->pixels + (size_t)(oy + RB_BAR_Y + row) * d->pitch) + ox + RB_BAR_X;
+        for (unsigned x = 0; x < RB_BAR_W; x++)
+            p[x] = x < whole ? RB_BAR_FILL : x == whole && fraction ? mix(RB_BAR_TRACK, RB_BAR_FILL, fraction) : RB_BAR_TRACK;
     }
-    rect(d, ox + RB_RULE_X, oy + RB_RULE_Y, RB_RULE_WIDTH, RB_RULE_HEIGHT,
-         failure ? MUTED : pulse(elapsed));
+}
+static void status(Display *d, unsigned phase) {
+    unsigned ox = (d->width - 480) / 2, oy = (d->height - 360) / 2;
+    rect(d, ox + RB_LABEL_X, oy + RB_LABEL_Y, RB_LABEL_W, RB_LABEL_H, BG);
+    blit(d, &rb_labels[rb_phases[phase].label]);
+}
+static bool label_changed(unsigned from, unsigned to) {
+    return rb_phases[from].label != rb_phases[to].label;
+}
+static void draw(Display *d, const Progress *p, bool failure) {
+    if (!d->pixels || d->width < 480 || d->height < 360) return;
+    rect(d, 0, 0, d->width, d->height, BG);
+    blit(d, &rb_mark);
+    if (failure) {
+        for (unsigned i = 0; i < RB_FAILURE_LABEL_COUNT; i++) blit(d, &rb_labels[rb_failure_labels[i]]);
+    } else {
+        bar(d, p->shown);
+        status(d, p->phase);
+    }
 }
 static int show(Display *d) {
     return drmModeSetCrtc(d->fd,d->crtc,d->fb,0,0,&d->connector,1,&d->mode);
@@ -202,32 +272,84 @@ static int release(Display *d) { (void)d; event("test_release",0); return 0; }
 static int claim(Display *d) { return d->fd < 0 ? 0 : drmSetMaster(d->fd); }
 static int release(Display *d) { return d->fd < 0 ? 0 : drmDropMaster(d->fd); }
 #endif
-static int serve(int listener, unsigned timeout, bool test) {
+/* The latest milestone a producer reported, or false if there is none. */
+static bool read_phase(char *name, size_t size) {
+    int fd = openat(dirfd, "phase", O_RDONLY|O_CLOEXEC|O_NOFOLLOW);
+    if (fd < 0) return false;
+    ssize_t n = read(fd, name, size - 1);
+    close(fd);
+    if (n <= 0) return false;
+    name[n] = 0;
+    return phase_clean(name);
+}
+static void drain_notifications(int notify) {
+    char buffer[512] __attribute__((aligned(__alignof__(struct inotify_event))));
+    while (read(notify, buffer, sizeof(buffer)) > 0) {}
+}
+static int serve(int listener, int notify, unsigned timeout, bool test) {
     Display d={.fd=-1};
+    Progress progress={0};
     int client=-1;
     bool released=false, failure=false, painted=false;
-    size_t used=0; char request[32];
-    uint64_t start=now_ms(), deadline=0, retry=0;
+    size_t used=0; char request[32], reported[48], ignored[48]={0};
+    /* The failure timeout is a stall timeout: it counts from the last accepted
+     * milestone, so a slow but progressing startup is never called a failure. */
+    uint64_t start=now_ms(), deadline=0, retry=0, tick=0, progressed=start;
     state("loading"); event("started",0);
+    bool check_phase=true;
     while (!stopped) {
         uint64_t now=now_ms();
         if (!released && !test && d.fd<0 && now>=retry && now-start<20000) {
             retry=now+100;
             if (!display_open(&d)) {
-                draw(&d,failure,now-start,true);
+                draw(&d,&progress,failure);
                 if (show(&d)) display_close(&d);
                 else { painted=true; event("visible",0); }
             }
         }
-        if (!failure && now-start>=timeout) {
-            failure=true; state("timeout"); event("timeout",0);
-            if (!released) draw(&d,true,now-start,true);
+        if (check_phase) {
+            check_phase=false;
+            if (read_phase(reported,sizeof(reported))) {
+                unsigned before=progress.phase; bool was_failed=progress.failed;
+                if (progress_report(&progress,reported)) {
+                    phase_event("phase",reported);
+                    if (progress.failed && !was_failed) {
+                        failure=true; state("failed");
+                        if (!released && painted) { draw(&d,&progress,true); }
+                    } else if (progress.phase!=before) {
+                        tick=now; progressed=now;
+                        if (!released && painted && !failure && label_changed(before,progress.phase))
+                            status(&d,progress.phase);
+                    }
+                } else if (strcmp(reported,ignored) && phase_find(reported)!=(int)progress.phase) {
+                    /* Unknown, or earlier than the furthest milestone: ignored once. */
+                    snprintf(ignored,sizeof(ignored),"%s",reported);
+                    phase_event("phase_ignored",reported);
+                }
+            }
         }
-        if (!released && !failure && painted) draw(&d,false,now-start,false);
-        struct pollfd p[2]={{.fd=listener,.events=POLLIN},{.fd=client,.events=POLLIN}};
-        int wait=(failure || released) ? 250 : 50;
-        int result=poll(p,2,wait);
+        if (!failure && now-progressed>=timeout) {
+            failure=true; state("timeout"); event("timeout",0);
+            if (!released) draw(&d,&progress,true);
+        }
+        /* The bar only redraws while it is still moving toward a milestone. */
+        bool animating=!released && !failure && painted && progress.shown<progress.target;
+        if (animating && now>=tick) {
+            progress_step(&progress); bar(&d,progress.shown); tick=now+TICK_MS;
+            animating=progress.shown<progress.target;
+        }
+        int64_t wait=-1;
+#define SOONER(at) do { int64_t m_=(int64_t)(at)-(int64_t)now_ms(); if (m_<0) m_=0; if (wait<0||m_<wait) wait=m_; } while (0)
+        if (animating) SOONER(tick);
+        if (!released && !test && d.fd<0 && now-start<20000) SOONER(retry);
+        if (!failure) SOONER(progressed+timeout);
+        if (client>=0) SOONER(deadline);
+        if (notify<0) { if (wait<0||wait>100) wait=100; check_phase=true; }
+#undef SOONER
+        struct pollfd p[3]={{.fd=listener,.events=POLLIN},{.fd=client,.events=POLLIN},{.fd=notify,.events=POLLIN}};
+        int result=poll(p,3,wait>INT32_MAX?INT32_MAX:(int)wait);
         if (result<0 && errno!=EINTR) break;
+        if (p[2].revents&POLLIN) { drain_notifications(notify); check_phase=true; }
         if (p[0].revents&POLLIN) {
             int fd=accept4(listener,NULL,NULL,SOCK_NONBLOCK|SOCK_CLOEXEC);
             struct ucred cred; socklen_t n=sizeof(cred);
@@ -241,7 +363,19 @@ static int serve(int listener, unsigned timeout, bool test) {
             if (n>0) {
                 used+=(size_t)n; request[used]=0;
                 if (strchr(request,'\n')) {
-                    if (!released && !strcmp(request,"READY 1\n") && !release(&d)) {
+                    bool ready=!released && !strcmp(request,"READY 1\n");
+                    /* Complete the bar and status, then release: the first
+                     * Reborn frame is exactly this screen. No further wait. */
+                    if (ready) {
+                        unsigned before=progress.phase; bool failed=failure;
+                        progress_finish(&progress); failure=false; check_phase=false;
+                        if (painted && failed) draw(&d,&progress,false);
+                        else if (painted) {
+                            bar(&d,progress.shown);
+                            if (label_changed(before,progress.phase)) status(&d,progress.phase);
+                        }
+                    }
+                    if (ready && !release(&d)) {
                         released=true; state("handoff"); event("released",0);
                         if (send(client,"RELEASED 1\n",11,MSG_NOSIGNAL)!=11) deadline=0;
                         else deadline=now_ms()+HANDOFF_MS;
@@ -263,7 +397,7 @@ static int serve(int listener, unsigned timeout, bool test) {
         }
         if (released && client<0 && !claim(&d)) {
             released=false; failure=true; state("handoff_failed");
-            draw(&d,true,now_ms()-start,true);
+            draw(&d,&progress,true);
             if (!test && painted) (void)show(&d);
         }
     }
@@ -345,6 +479,10 @@ int main(int argc, char **argv) {
         if (null>=0) { for (int i=0;i<3;i++) dup2(null,i); if (null>2) close(null); }
     }
     signal(SIGTERM,signal_stop); signal(SIGINT,signal_stop);
-    int result=serve(listener,timeout,test);
+    /* Producers write the phase file; watching the directory costs nothing
+     * while startup is quiet. Without inotify the loop falls back to a poll. */
+    int notify=inotify_init1(IN_NONBLOCK|IN_CLOEXEC);
+    if (notify>=0 && inotify_add_watch(notify,directory,IN_CLOSE_WRITE|IN_MOVED_TO)<0) { close(notify); notify=-1; }
+    int result=serve(listener,notify,timeout,test);
     unlinkat(dirfd,"control.sock",0); close(listener); return result;
 }

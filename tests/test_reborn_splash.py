@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import socket
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -42,32 +43,7 @@ int main(int argc,char **argv) {
 ''')
         cls.client_binary = Path(cls.build.name) / 'client'
         subprocess.run(['cc', '-Wall', '-Wextra', '-Werror', str(driver), '-o', str(cls.client_binary)], check=True)
-        picture = Path(cls.build.name) / 'picture.c'
-        picture.write_text('#define main splash_entry\n#include "' + str(ROOT / 'tools/graphics/reborn-splash.c') + '''"
-#undef main
-#include <assert.h>
-int main(int argc,char **argv) {
- (void)argv;
- Display d={.fd=-1,.width=480,.height=360,.pitch=1920,.size=1920*360};
- d.pixels=malloc(d.size+64);assert(d.pixels);memset(d.pixels,0xaa,d.size+64);
- draw(&d,argc>1,0,true);
- for(size_t i=d.size;i<d.size+64;i++)assert(d.pixels[i]==0xaa);
- assert(*(uint32_t *)d.pixels==BG);
- unsigned accent=0, ink=0;
- for(unsigned i=0;i<480*360;i++){uint32_t p=((uint32_t *)d.pixels)[i];accent+=p==ACCENT;ink+=p!=BG;}
- /* Full-strength rule only while loading; the mark is always present. */
- assert(argc>1 ? accent==0 : accent==RB_RULE_WIDTH*RB_RULE_HEIGHT);
- assert(ink>400);
- /* The pulse dims the rule but never below 55 % and never touches the mark. */
- draw(&d,false,800,false);
- uint32_t dim=((uint32_t *)d.pixels)[RB_RULE_Y*480+RB_RULE_X];
- assert(dim!=ACCENT && dim!=BG && ((dim>>16)&0xff) > 0x60);
- draw(&d,argc>1,0,false);
- printf("P6\\n480 360\\n255\\n");
- for(unsigned i=0;i<480*360;i++) {uint32_t p=((uint32_t *)d.pixels)[i];unsigned char rgb[3]={p>>16,p>>8,p};if(fwrite(rgb,1,3,stdout)!=3)return 1;}
- free(d.pixels);return 0;
-}
-''')
+        picture = ROOT / 'tests/splash_picture.c'
         cls.picture_binary = Path(cls.build.name) / 'picture'
         subprocess.run(['cc', '-Os', '-Wall', '-Wextra', '-Werror', str(picture), *flags,
                         '-o', str(cls.picture_binary)], check=True)
@@ -169,28 +145,230 @@ int main(int argc,char **argv) {
         display = (ROOT / 'buildroot/board/y2/overlay/etc/init.d/S25y2-display').read_text()
         self.assertLess(display.index('reborn-splash'), display.index('echo 0'))
 
-    def test_splash_is_pixel_identical_to_reborn_handoff_frame(self):
-        reference = REBORN / 'docs/ui/previews/v2/01-boot-splash.png'
+    # ---- real milestone -> progress mapping -------------------------------------------------
+
+    def picture(self, *args):
+        out = subprocess.check_output([str(self.picture_binary), *args])
+        header = b'P6\n480 360\n255\n'
+        self.assertTrue(out.startswith(header))
+        self.assertEqual(len(out), len(header) + 480 * 360 * 3)
+        from PIL import Image
+        return Image.frombytes('RGB', (480, 360), out[len(header):])
+
+    def report(self, *tokens):
+        lines = subprocess.check_output([str(self.picture_binary), 'report', *tokens], text=True).splitlines()
+        return [dict(item.split('=') for item in line.split()[1:]) for line in lines]
+
+    def layout(self):
+        path = REBORN / 'docs/ui/previews/v2/boot-layout.json'
+        if not path.exists():
+            self.skipTest('Reborn boot layout not present')
+        return json.loads(path.read_text())
+
+    def test_progress_table_is_generated_from_reborns_phases(self):
+        layout = self.layout()
+        table = [line.split() for line in subprocess.check_output([str(self.picture_binary), 'table'], text=True).splitlines()]
+        self.assertEqual([(t, int(f)) for t, f, _ in table],
+                         [(p['token'], p['fill_permille']) for p in layout['phases']])
+        fills = [int(f) for _, f, _ in table]
+        self.assertEqual((fills[0], fills[-1]), (0, 1000))
+        self.assertEqual(fills, sorted(set(fills)), 'strictly increasing coarse positions')
+        generated = Path(self.build.name) / 'regenerated.h'
+        subprocess.run([sys.executable, str(ROOT / 'tools/graphics/make-splash-mark.py'),
+                        str(REBORN / 'docs/ui/previews/v2/boot-layout.json'), str(generated),
+                        '--reborn', str(REBORN)], check=True, capture_output=True)
+        self.assertEqual(generated.read_text(), (ROOT / 'tools/graphics/reborn-splash-mark.h').read_text(),
+                         'reborn-splash-mark.h is stale: rerun tools/graphics/make-splash-mark.py')
+
+    def test_every_milestone_a_producer_reports_is_in_the_table(self):
+        tokens = {p['token'] for p in self.layout()['phases']}
+        init = (ROOT / 'initramfs/production/init').read_text()
+        import re
+        stages = set(re.findall(r'^\s*y2_stage (\w+)', init, re.M))
+        known = tokens | set(self.layout()['failure_tokens'])
+        # Stages the splash does not show: before it exists, or after Reborn owns the screen.
+        self.assertEqual(stages - known, {'initramfs'})
+        self.assertIn('rescue', stages)
+        main = (REBORN / 'app/reborn/src/main.rs').read_text()
+        reported = set(re.findall(r'startup_phase\(&log, process_started, "(\w+)"\)', main))
+        self.assertEqual(reported - tokens, set(), 'Reborn reports a milestone the splash does not know')
+        self.assertTrue({'graphics_ready', 'storage_ready', 'library_workers_ready', 'core_services_ready',
+                         'audio_ready', 'radio_workers_ready', 'runtime_ready'} <= reported)
+        self.assertIn('boot_milestone("ready")', main)
+
+    def test_progress_never_regresses_and_ignores_unknown_names(self):
+        states = self.report('fsck_complete', 'storage_discovery', 'bogus', 'graphics_ready', 'switch_root',
+                             'graphics_ready', 'audio_ready', 'x' * 100, 'Rescue', 'ready')
+        targets = [int(s['target']) for s in states]
+        self.assertEqual(targets, sorted(targets), 'bar target never decreases')
+        changed = [s['changed'] for s in states]
+        self.assertEqual(changed, ['1', '0', '0', '1', '0', '0', '1', '0', '0', '1'])
+        self.assertEqual({s['failed'] for s in states}, {'0'})
+
+    def test_a_missing_milestone_waits_and_a_later_one_jumps_forward(self):
+        only_start, skipped = self.report('storage_discovery'), self.report('storage_discovery', 'graphics_ready')
+        self.assertEqual(only_start[0]['target'], skipped[0]['target'])
+        self.assertGreater(int(skipped[1]['target']), int(skipped[0]['target']))
+        # With no report at all the bar never moves on a timer: nothing to step toward.
+        out = subprocess.check_output([str(self.picture_binary), 'steps'], text=True)
+        self.assertEqual(out.strip(), 'ticks=0 shown=0 target=0')
+
+    def test_failed_milestone_is_reported_once_and_sticks(self):
+        states = self.report('storage_discovery', 'rescue', 'rescue', 'graphics_ready')
+        self.assertEqual([s['failed'] for s in states], ['0', '1', '1', '1'])
+        self.assertEqual([s['changed'] for s in states], ['1', '1', '0', '1'])
+
+    def test_bar_glides_forward_and_settles_quickly(self):
+        for tokens, limit in (['ready'], 50), (['radio_workers_ready', 'runtime_ready'], 40), (['storage_discovery'], 24):
+            out = subprocess.check_output([str(self.picture_binary), 'steps', *tokens], text=True)
+            fields = dict(item.split('=') for item in out.split())
+            self.assertEqual(fields['shown'], fields['target'])
+            self.assertGreater(int(fields['ticks']), 1, 'smooth, not a jump')
+            self.assertLessEqual(int(fields['ticks']), limit, f'{tokens} settles within {limit * 33} ms')
+
+    # ---- pixels --------------------------------------------------------------------------------
+
+    def test_splash_is_pixel_identical_to_reborns_boot_screens(self):
+        from PIL import Image
+        cases = [('01-boot-splash', ['start']), ('01b-boot-25', ['fsck_complete']),
+                 ('01c-boot-60', ['graphics_ready']), ('01d-boot-final-phase', ['runtime_ready']),
+                 ('02-boot-handoff', ['ready'])]
+        for name, tokens in cases:
+            reference = REBORN / f'docs/ui/previews/v2/{name}.png'
+            if not reference.exists():
+                self.skipTest('Reborn v2 preview not present')
+            splash, reborn = self.picture('frame', *tokens), Image.open(reference).convert('RGB')
+            a, b = splash.tobytes(), reborn.tobytes()
+            differing = sum(a[i:i + 3] != b[i:i + 3] for i in range(0, len(a), 3))
+            self.assertEqual(differing, 0, f'{name}: {differing} pixels differ from Reborn')
+
+    def test_ready_repaints_only_what_changed_and_equals_a_full_redraw(self):
+        final = self.picture('frame', 'ready').tobytes()
+        for earlier in ('start', 'storage_discovery', 'graphics_ready', 'audio_ready', 'runtime_ready'):
+            self.assertEqual(self.picture('finish', earlier).tobytes(), final, earlier)
+
+    def test_failure_screen_is_pixel_identical_and_has_no_bar(self):
+        reference = REBORN / 'docs/ui/previews/v2/03b-boot-failed.png'
         if not reference.exists():
             self.skipTest('Reborn v2 preview not present')
         from PIL import Image
-        normal = subprocess.check_output([str(self.picture_binary)])
-        header = len(b'P6\n480 360\n255\n')
-        splash = Image.frombytes('RGB', (480, 360), normal[header:])
-        reborn = Image.open(reference).convert('RGB')
-        a, b = splash.tobytes(), reborn.tobytes()
-        differing = sum(a[i:i + 3] != b[i:i + 3] for i in range(0, len(a), 3))
-        self.assertEqual(differing, 0, f'{differing} pixels differ from the hand-off frame')
+        self.assertEqual(self.picture('failure').tobytes(), Image.open(reference).convert('RGB').tobytes())
 
-    def test_splash_pixels_and_draw_bounds(self):
-        normal = subprocess.check_output([str(self.picture_binary)])
-        failed = subprocess.check_output([str(self.picture_binary), 'failure'])
-        self.assertTrue(normal.startswith(b'P6\n480 360\n255\n'))
-        self.assertEqual(len(normal), len(b'P6\n480 360\n255\n') + 480*360*3)
-        self.assertNotEqual(normal, failed)
-        if destination := os.environ.get('REBORN_SPLASH_PREVIEWS'):
-            p = Path(destination); p.mkdir(parents=True, exist_ok=True)
-            (p / 'loading.ppm').write_bytes(normal); (p / 'failure.ppm').write_bytes(failed)
+    def test_subpixel_leading_edge_is_a_blend_and_nothing_else_changes(self):
+        layout = self.layout()
+        bar = layout['bar']
+        track, fill = bar['track'], bar['fill']
+        y = int(bar['y'])
+        half = self.picture('mid', str(int(36.5 * 256)), 'fsck_complete').load()
+        x0 = int(bar['x'])
+        self.assertEqual(half[x0 + 35, y], tuple(fill.to_bytes(3, 'big')))
+        edge = half[x0 + 36, y]
+        low, high = tuple(track.to_bytes(3, 'big')), tuple(fill.to_bytes(3, 'big'))
+        self.assertTrue(all(min(l, h) <= e <= max(l, h) for l, e, h in zip(low, edge, high)) and edge not in (low, high))
+        self.assertEqual(half[x0 + 37, y], low)
+        self.assertEqual(half[x0 + 36, y + 1], edge, 'both rows of the thin bar agree')
+
+    def test_no_yellow_and_only_the_current_bar_state_is_drawn(self):
+        gold = {(0xe7, 0xc9, 0x8b), (0xff, 0xe2, 0xa4), (0x7d, 0x63, 0x37)}
+        for args in (['frame', 'start'], ['frame', 'graphics_ready'], ['frame', 'ready'], ['failure']):
+            pixels = set(self.picture(*args).getdata())
+            self.assertFalse(pixels & gold, f'{args}: accent colour present')
+            self.assertFalse([p for p in pixels if p[0] - p[2] > 0x30], f'{args}: yellow-ish pixel')
+        source = (ROOT / 'tools/graphics/reborn-splash.c').read_text()
+        for word in ('ACCENT', 'pulse'):
+            self.assertNotIn(word, source)
+        self.assertNotIn('0xe7c98b', (ROOT / 'tools/graphics/reborn-splash-mark.h').read_text())
+
+    def test_status_text_never_exposes_technical_names(self):
+        for phase in self.layout()['phases']:
+            for word in ('switch_root', 'systemd', 'drm', 'alsa', 'mount', '/', '_', '%'):
+                self.assertNotIn(word, phase['label'].lower())
+
+    # ---- daemon -------------------------------------------------------------------------------
+
+    def write_phase(self, name):
+        tmp = self.root / 'phase.tmp'
+        tmp.write_text(name + '\n')
+        (self.root / 'phase').write_bytes(tmp.read_bytes())
+
+    def phase_events(self, kind='splash_phase'):
+        return [json.loads(s) for s in (self.root / 'events.jsonl').read_text().splitlines()
+                if json.loads(s)['event'] == kind]
+
+    def test_daemon_follows_reported_milestones_and_ignores_regression(self):
+        self.write_phase('storage_discovery')
+        self.wait(lambda: len(self.phase_events()) == 1)
+        self.write_phase('fsck_complete')
+        self.wait(lambda: len(self.phase_events()) == 2)
+        self.write_phase('storage_discovery')
+        self.wait(lambda: len(self.phase_events('splash_phase_ignored')) == 1)
+        self.write_phase('nonsense')
+        self.wait(lambda: len(self.phase_events('splash_phase_ignored')) == 2)
+        self.assertEqual([e['phase'] for e in self.phase_events()], ['storage_discovery', 'fsck_complete'])
+
+    def test_rescue_milestone_shows_failure_without_waiting_for_the_timeout(self):
+        # A fresh daemon that already finds the rescue milestone in its phase file.
+        other = tempfile.TemporaryDirectory(prefix='rs-')
+        self.addCleanup(other.cleanup)
+        root = Path(other.name)
+        (root / 'phase').write_text('rescue\n')
+        process = subprocess.Popen([str(self.binary), '--test', str(root), str(root / 'control.sock')])
+        def stop():
+            process.terminate()
+            process.wait(timeout=3)
+        self.addCleanup(stop)
+        end = time.monotonic() + 2
+        state = None
+        while time.monotonic() < end and state != 'failed':
+            try:
+                state = json.loads((root / 'state.json').read_text())['state']
+            except (OSError, ValueError):
+                pass
+            time.sleep(.005)
+        self.assertEqual(state, 'failed')
+        self.assertLess(time.monotonic() - (end - 2), .2, 'well before the 250 ms test timeout would matter')
+
+    def test_ready_then_presented_leaves_no_splash_behind_and_does_not_wait(self):
+        self.write_phase('graphics_ready')
+        self.wait(lambda: len(self.phase_events()) == 1)
+        with self.connect() as s:
+            started = time.monotonic()
+            s.sendall(b'READY 1\n')
+            self.assertEqual(s.recv(32), b'RELEASED 1\n')
+            self.assertLess(time.monotonic() - started, .2, 'release is not delayed by the bar')
+            released = time.monotonic()
+            s.sendall(b'PRESENTED 1\n')
+            self.assertEqual(self.process.wait(timeout=1), 0)
+            self.assertLess(time.monotonic() - released, .3, 'the splash exits as soon as it is acknowledged')
+        self.assertTrue((self.root / 'done').exists())
+        self.assertFalse(self.sock.exists(), 'no stale control socket survives the hand-off')
+
+    def test_timeout_counts_from_the_last_milestone_not_from_the_start(self):
+        # The test daemon times out 250 ms after its last milestone.
+        end = time.monotonic() + 1.0
+        for token in ('storage_discovery', 'rescue_update', 'storage_preflight', 'fsck_start',
+                      'fsck_complete', 'root_data_mounted', 'switch_root', 'model_restored'):
+            self.write_phase(token)
+            time.sleep(.08)
+        self.assertGreater(time.monotonic() - (end - 1.0), .5, 'longer than one timeout in total')
+        self.assertNotIn('splash_timeout', self.events(), 'a progressing startup is not a failure')
+        self.wait(lambda: 'splash_timeout' in self.events())
+
+    def test_idle_splash_does_not_wake_up_to_animate(self):
+        self.wait(lambda: 'splash_timeout' in self.events())
+        def switches():
+            fields = dict(line.split(':', 1) for line in Path(f'/proc/{self.process.pid}/status').read_text().splitlines()
+                          if 'ctxt_switches' in line)
+            return sum(int(v) for v in fields.values())
+        before = switches()
+        time.sleep(.8)
+        self.assertLessEqual(switches() - before, 3, 'no polling loop while startup is quiet')
+
+    def test_a_dropped_phase_file_is_not_followed_through_symlinks(self):
+        (self.root / 'phase').symlink_to('/etc/hostname')
+        time.sleep(.2)
+        self.assertEqual(self.phase_events(), [])
+        self.assertIsNone(self.process.poll())
 
 
 if __name__ == '__main__': unittest.main()

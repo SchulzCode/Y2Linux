@@ -53,6 +53,34 @@ class PowerContract(unittest.TestCase):
         self.assertEqual(c.intent['stop_results']['backlight'], {'ok': True, 'reason': None})
         self.assertEqual(self.calls[-1][0], ['/bin/busybox', 'reboot'])
 
+    def test_unacknowledged_shutdown_blanks_the_panel_before_reborn_is_killed(self):
+        # Reborn hung or crashed: the deadline fires without an acknowledgement.
+        order = []
+        self.put('/sys/class/backlight/panel/bl_power', '0\n')
+        def runner(argv, **kwargs):
+            order.append(('stop' if argv[-1] == 'stop' else argv[0], self.ctx.read('/sys/class/backlight/panel/bl_power')))
+            return {'ok': True, 'reason': None, 'output': None}
+        self.ctx.runner = runner
+        c = Coordinator(self.ctx, lambda: self.now)
+        c.request('poweroff', 'user', 3)
+        self.now += 3 * 10**9
+        c.execute()
+        first_stop = next(i for i, (name, _) in enumerate(order) if name == 'stop')
+        self.assertEqual(order[first_stop][1], '4', 'panel is already dark when Reborn is stopped')
+        self.assertEqual(c.intent['stop_results']['backlight_early'], {'ok': True, 'reason': None})
+
+    def test_acknowledged_shutdown_leaves_reborns_dark_frame_alone_until_the_end(self):
+        self.put('/run/reborn/process.pid', '123')
+        self.put('/proc/123/stat', '123 (reborn) S ' + ' '.join(['0'] * 18 + ['900']))
+        self.ctx.path('/proc/123/exe').symlink_to(self.ctx.path('/usr/bin/reborn'))
+        self.put('/sys/class/backlight/panel/bl_power', '4\n')
+        c = Coordinator(self.ctx, lambda: self.now)
+        intent = c.request('poweroff', 'user', 3)
+        c.ack(intent['id'], 123, 'Ready')
+        c.execute()
+        self.assertNotIn('backlight_early', c.intent['stop_results'])
+        self.assertEqual(c.intent['stop_results']['backlight'], {'ok': True, 'reason': None})
+
     def test_missing_backlight_is_recorded_not_fatal(self):
         c = Coordinator(self.ctx, lambda: self.now)
         c.request('poweroff', 'user', 3)
