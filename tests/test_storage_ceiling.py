@@ -75,6 +75,7 @@ struct msdc_host {
  bool y2_emmc, y2_sd; unsigned y2_level, y2_ceiling; u32 y2_dt_caps, y2_dt_caps2;
  u32 y2_clock_limit, y2_level_strikes, y2_clock_fallbacks, y2_resets; int y2_reset_error;
  int y2_clock_error, y2_verify_result; u32 y2_events[Y2_EVENT_COUNT];
+ unsigned y2_fb_from; int y2_fb_event; u32 y2_fb_tuning_runs, y2_tuning_runs;
  struct mmc_host mmc; void *dev; };
 static struct mmc_host *mmc_from_priv(struct msdc_host *h) { return &h->mmc; }
 static int mmc_card_removed(struct mmc_card *c) { return c->removed; }

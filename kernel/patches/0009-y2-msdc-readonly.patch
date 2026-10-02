@@ -1,14 +1,15 @@
 --- a/drivers/mmc/host/mtk-sd.c
 +++ b/drivers/mmc/host/mtk-sd.c
-@@ -1,3 +1,7 @@
+@@ -1,3 +1,8 @@
 +#include "/project/kernel/platform/boot.h"
 +#include "/project/kernel/platform/storage-policy.h"
 +#include "/project/kernel/platform/msdc-rpm-policy.h"
 +#include "/project/kernel/platform/storage-modes.h"
++#include "/project/kernel/platform/storage-tuning.h"
  // SPDX-License-Identifier: GPL-2.0-only
  /*
   * Copyright (c) 2014-2015, 2022 MediaTek Inc.
-@@ -33,6 +37,10 @@
+@@ -33,6 +38,10 @@
  #include <linux/mmc/sdio.h>
  #include <linux/mmc/slot-gpio.h>
  
@@ -19,7 +20,7 @@
  #include "cqhci.h"
  #include "mmc_hsq.h"
  
-@@ -465,6 +473,43 @@
+@@ -465,6 +474,56 @@
  };
  
  struct msdc_host {
@@ -60,10 +61,23 @@
 +	int y2_verify_result;	/* 1 pass, 0 none/pending, <0 failure */
 +	unsigned y2_verified_timing;
 +	struct delayed_work y2_verify;
++	/* SD ceiling diagnostics: tuning sweeps, faults, probe, fallback cause. */
++	struct y2_tune_log y2_tune_first, y2_tune_last;
++	u32 y2_tune_count;
++	struct y2_fault_log y2_fault;
++	u32 y2_irq_error, y2_irq_dcrc;
++	u32 y2_probe_pad_mask, y2_probe_rddly0_mask, y2_probe_rddly1_mask;
++	u32 y2_ver_main, y2_ver_eco;
++	bool y2_probed, y2_rxdlysel_requested, y2_rxdlysel_actual;
++	unsigned y2_fb_from;
++	int y2_fb_event;
++	u32 y2_fb_tuning_runs;
++	struct y2_lab_scan y2_lab_scan;
++	int y2_lab_status;
  	struct device *dev;
  	const struct mtk_mmc_compatible *dev_comp;
  	int cmd_rsp;
-@@ -692,6 +737,8 @@
+@@ -692,6 +751,8 @@
  };
  
  static const struct of_device_id msdc_of_ids[] = {
@@ -72,7 +86,7 @@
  	{ .compatible = "mediatek,mt2701-mmc", .data = &mt2701_compat},
  	{ .compatible = "mediatek,mt2712-mmc", .data = &mt2712_compat},
  	{ .compatible = "mediatek,mt6779-mmc", .data = &mt6779_compat},
-@@ -950,6 +997,44 @@
+@@ -950,6 +1011,44 @@
  				  (val & MSDC_CFG_CKSTB), 1, 20000);
  }
  
@@ -117,7 +131,7 @@
  static void msdc_new_tx_setting(struct msdc_host *host)
  {
  	u32 val;
-@@ -984,7 +1069,174 @@
+@@ -984,7 +1083,174 @@
  	writel(val, host->top_base + LOOP_TEST_CONTROL);
  }
  
@@ -293,7 +307,7 @@
  {
  	struct mmc_host *mmc = mmc_from_priv(host);
  	u32 mode;
-@@ -994,13 +1246,23 @@
+@@ -994,13 +1260,23 @@
  	u32 tune_reg = host->dev_comp->pad_tune_reg;
  	u32 val;
  	bool timing_changed;
@@ -318,7 +332,7 @@
  	}
  
  	if (host->timing != timing)
-@@ -1008,6 +1270,8 @@
+@@ -1008,6 +1284,8 @@
  	else
  		timing_changed = false;
  
@@ -327,7 +341,7 @@
  	flags = readl(host->base + MSDC_INTEN);
  	sdr_clr_bits(host->base + MSDC_INTEN, flags);
  	if (host->dev_comp->clk_div_bits == 8)
-@@ -1069,8 +1333,15 @@
+@@ -1069,8 +1347,15 @@
  			      MSDC_CFG_CKMOD_EXTRA | MSDC_CFG_CKDIV_EXTRA,
  			      (mode << 12) | div);
  
@@ -345,7 +359,7 @@
  	sdr_set_bits(host->base + MSDC_CFG, MSDC_CFG_CKPDN);
  	mmc->actual_clock = sclk;
  	host->mclk = hz;
-@@ -1119,6 +1390,189 @@
+@@ -1119,6 +1404,233 @@
  
  	dev_dbg(host->dev, "sclk: %d, timing: %d\n", mmc->actual_clock,
  		timing);
@@ -390,6 +404,11 @@
 +		if (!ret)
 +			break;
 +		event = Y2_EVENT_CONTROLLER;	/* failed in the lower mode too */
++	}
++	if (host->y2_level != from) {
++		host->y2_fb_from = from;
++		host->y2_fb_event = event;
++		host->y2_fb_tuning_runs = host->y2_tuning_runs;
 +	}
 +	dev_warn(host->dev, "Y2 storage fallback %s -> %s (%s) cap=%u actual=%u timing=%s ret=%d\n",
 +		 ladder[from].name, ladder[host->y2_level].name, y2_storage_event_names[event],
@@ -532,10 +551,49 @@
 +	pm_runtime_put_autosuspend(host->dev);
 +release:
 +	mmc_release_host(mmc);
++}
++
++/* Candidate 3: record one failed request by what failed (command or data), the
++ * controller's own error bits and, for a data CRC, the failing data lanes.
++ * Counters are cumulative; only the first failure is logged. */
++static void y2_record_fault(struct msdc_host *host, struct mmc_request *mrq)
++{
++	struct mmc_host *mmc = mmc_from_priv(host);
++	struct y2_fault_rec rec = { 0 };
++	u32 irq = host->y2_irq_error, dcrc = host->y2_irq_dcrc;
++	enum y2_fault_kind kind;
++
++	host->y2_irq_error = 0;
++	host->y2_irq_dcrc = 0;
++	if (mmc_op_tuning(mrq->cmd->opcode) || !mmc->card)
++		return;
++	kind = y2_fault_kind(mrq->sbc ? mrq->sbc->error : 0, mrq->cmd->error,
++			     mrq->data ? mrq->data->error : 0, mrq->stop ? mrq->stop->error : 0);
++	if (kind == Y2_FAULT_NONE)
++		return;
++	rec.uptime_ms = ktime_to_ms(ktime_get_boottime());
++	rec.kind = kind;
++	rec.opcode = mrq->cmd->opcode;
++	rec.arg = mrq->cmd->arg;
++	rec.dir = mrq->data ? (mrq->data->flags & MMC_DATA_WRITE ? 'w' : 'r') : '-';
++	rec.blksz = mrq->data ? mrq->data->blksz : 0;
++	rec.blocks = mrq->data ? mrq->data->blocks : 0;
++	rec.irq_events = irq;
++	rec.dcrc = dcrc;
++	rec.level = host->y2_level;
++	rec.timing = mmc->ios.timing;
++	rec.pad_tune = readl(host->base + host->dev_comp->pad_tune_reg);
++	rec.iocon = readl(host->base + MSDC_IOCON);
++	rec.patch0 = readl(host->base + Y2_MSDC_PATCH_BIT0_REG);
++	if (!host->y2_fault.have_first)
++		dev_warn(host->dev, "Y2 storage first fault: %s CMD%u arg=%#x blocks=%u dcrc=%#x irq=%#x timing=%s tune_pad=%#x\n",
++			 y2_fault_kind_names[kind], rec.opcode, rec.arg, rec.blocks, dcrc, irq,
++			 y2_timing_name(mmc->ios.timing), rec.pad_tune);
++	y2_fault_account(&host->y2_fault, &rec);
  }
  
  static inline u32 msdc_cmd_find_resp(struct msdc_host *host,
-@@ -1180,7 +1634,7 @@
+@@ -1180,7 +1692,7 @@
  		struct mmc_data *data = cmd->data;
  
  		if (mmc_op_multi(opcode)) {
@@ -544,7 +602,7 @@
  			    !(mrq->sbc->arg & 0xFFFF0000))
  				rawcmd |= BIT(29); /* AutoCMD23 */
  		}
-@@ -1188,7 +1642,9 @@
+@@ -1188,7 +1700,9 @@
  		rawcmd |= ((data->blksz & 0xFFF) << 16);
  		if (data->flags & MMC_DATA_WRITE)
  			rawcmd |= BIT(13);
@@ -555,7 +613,7 @@
  			rawcmd |= BIT(12);
  		else
  			rawcmd |= BIT(11);
-@@ -1276,6 +1732,14 @@
+@@ -1276,6 +1790,14 @@
  
  static void msdc_track_cmd_data(struct msdc_host *host, struct mmc_command *cmd)
  {
@@ -570,7 +628,7 @@
  	if (host->error &&
  	    ((!mmc_op_tuning(cmd->opcode) && !host->hs400_tuning) ||
  	     cmd->error == -ETIMEDOUT))
-@@ -1294,6 +1758,13 @@
+@@ -1294,6 +1816,15 @@
  	 * path will go here!
  	 */
  	cancel_delayed_work(&host->req_timeout);
@@ -580,11 +638,13 @@
 +		if (event >= 0)
 +			y2_storage_event(host, event);
 +	}
++	if (host->y2_emmc || host->y2_sd)
++		y2_record_fault(host, mrq);
 +
  
  	/*
  	 * If the request was handled from Host Software Queue, there's almost
-@@ -1320,6 +1791,62 @@
+@@ -1320,6 +1851,62 @@
  	host->mrq = NULL;
  	spin_unlock_irqrestore(&host->lock, flags);
  
@@ -647,7 +707,7 @@
  	msdc_track_cmd_data(host, mrq->cmd);
  	if (mrq->data)
  		msdc_unprepare_data(host, mrq->data);
-@@ -1373,7 +1900,9 @@
+@@ -1373,7 +1960,9 @@
  		}
  	}
  
@@ -658,7 +718,7 @@
  		if ((events & MSDC_INT_CMDTMO && !host->hs400_tuning) ||
  		    (!mmc_op_tuning(cmd->opcode) && !host->hs400_tuning))
  			/*
-@@ -1391,6 +1920,14 @@
+@@ -1391,6 +1980,14 @@
  			host->error |= REQ_CMD_TMO;
  		}
  	}
@@ -673,7 +733,7 @@
  	if (cmd->error)
  		dev_dbg(host->dev,
  				"%s: cmd=%d arg=%08X; rsp %08X; cmd_error=%d\n",
-@@ -1461,7 +1998,10 @@
+@@ -1461,7 +2058,10 @@
  	sdr_set_bits(host->base + MSDC_INTEN, cmd_ints_mask);
  	spin_unlock_irqrestore(&host->lock, flags);
  
@@ -685,10 +745,11 @@
  	writel(rawcmd, host->base + SDC_CMD);
  }
  
-@@ -1484,7 +2024,54 @@
+@@ -1484,7 +2084,54 @@
  static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
  {
  	struct msdc_host *host = mmc_priv(mmc);
+-
 +	if ((host->y2_emmc || host->y2_sd) && host->y2_clock_error) {
 +		mrq->cmd->error = host->y2_clock_error;
 +		if (!host->hsq_en || !mmc_hsq_finalize_request(mmc, mrq))
@@ -724,7 +785,7 @@
 +			return;
 +		}
 +	}
- 
++
 +	if (host->y2_emmc && mrq->cmd->opcode == MMC_GO_IDLE_STATE) {
 +		host->y2_identified = false;
 +		host->y2_blockaddr = false;
@@ -740,7 +801,7 @@
  	host->error = 0;
  	WARN_ON(!host->hsq_en && host->mrq);
  	host->mrq = mrq;
-@@ -1507,7 +2094,10 @@
+@@ -1507,7 +2154,10 @@
  	 * if HW option is enabled, and SBC does not have "special" flags,
  	 * use HW option,  otherwise use SW option
  	 */
@@ -752,7 +813,7 @@
  	    (mrq->sbc->arg & 0xFFFF0000)))
  		msdc_start_command(host, mrq, mrq->sbc);
  	else
-@@ -1562,6 +2152,17 @@
+@@ -1562,6 +2212,17 @@
  	     | MSDC_INT_DMA_PROTECT);
  	u32 val;
  	int ret;
@@ -770,7 +831,7 @@
  
  	spin_lock_irqsave(&host->lock, flags);
  	done = !host->data;
-@@ -1581,18 +2182,25 @@
+@@ -1581,18 +2242,25 @@
  
  		ret = readl_poll_timeout_atomic(host->base + MSDC_DMA_CTRL, val,
  						!(val & MSDC_DMA_CTRL_STOP), 1, 20000);
@@ -799,7 +860,7 @@
  			data->bytes_xfered = data->blocks * data->blksz;
  		} else {
  			dev_dbg(host->dev, "interrupt events: %x\n", events);
-@@ -1600,7 +2208,9 @@
+@@ -1600,7 +2268,9 @@
  			host->error |= REQ_DAT_ERR;
  			data->bytes_xfered = 0;
  
@@ -810,7 +871,7 @@
  				data->error = -ETIMEDOUT;
  			else if (events & MSDC_INT_DATCRCERR)
  				data->error = -EILSEQ;
-@@ -1654,14 +2264,34 @@
+@@ -1654,14 +2324,34 @@
  		if (ret < 0) {
  			dev_dbg(host->dev, "Regulator set error %d (%d)\n",
  				ret, ios->signal_voltage);
@@ -822,14 +883,15 @@
 +			}
  			return ret;
  		}
-+		if (host->y2_emmc || host->y2_sd) {
-+			bool v18 = ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180;
- 
+-
 -		/* Apply different pinctrl settings for different signal voltage */
 -		if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180)
 -			pinctrl_select_state(host->pinctrl, host->pins_uhs);
 -		else
 -			pinctrl_select_state(host->pinctrl, host->pins_default);
++		if (host->y2_emmc || host->y2_sd) {
++			bool v18 = ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180;
++
 +			host->y2_signal_mv = v18 ? 1800 : 3300;
 +			if (host->y2_sd) {
 +				/* Exact stock MSDC1 drive table for the new IO voltage. */
@@ -850,7 +912,85 @@
  	}
  	return 0;
  }
-@@ -2146,8 +2776,13 @@
+@@ -1840,6 +2530,19 @@
+ 
+ 		dev_dbg(host->dev, "%s: events=%08X\n", __func__, events);
+ 
++		if (host->y2_emmc || host->y2_sd) {
++			/* Keep the controller's own error bits for the fault record; the
++			 * data CRC lane status is only valid before the reset below. */
++			u32 bad = events & (MSDC_INT_RSPCRCERR | MSDC_INT_CMDTMO |
++					    MSDC_INT_ACMDCRCERR | MSDC_INT_ACMDTMO |
++					    MSDC_INT_DATCRCERR | MSDC_INT_DATTMO);
++
++			if (bad) {
++				host->y2_irq_error |= bad;
++				if (bad & MSDC_INT_DATCRCERR)
++					host->y2_irq_dcrc = readl(host->base + Y2_MSDC_DATCRC_STS);
++			}
++		}
+ 		if (cmd)
+ 			msdc_cmd_done(host, events, mrq, cmd);
+ 		else if (data)
+@@ -1847,6 +2550,28 @@
+ 	}
+ 
+ 	return IRQ_HANDLED;
++}
++
++/* Candidate 3: what the MT6582 tuning registers actually implement. Run once
++ * at init with the controller idle and clocked: write ones, read back what
++ * sticks, clear again. A bit that never reads back is not implemented, which
++ * answers the RXDLYSEL question on the hardware instead of by analogy. */
++static void y2_probe_tuning_registers(struct msdc_host *host)
++{
++	u32 tune_reg = host->dev_comp->pad_tune_reg;
++
++	writel(0xffffffff, host->base + tune_reg);
++	host->y2_probe_pad_mask = readl(host->base + tune_reg);
++	writel(0, host->base + tune_reg);
++	writel(0xffffffff, host->base + Y2_MSDC_DAT_RDDLY0);
++	host->y2_probe_rddly0_mask = readl(host->base + Y2_MSDC_DAT_RDDLY0);
++	writel(0, host->base + Y2_MSDC_DAT_RDDLY0);
++	writel(0xffffffff, host->base + Y2_MSDC_DAT_RDDLY0 + 4);
++	host->y2_probe_rddly1_mask = readl(host->base + Y2_MSDC_DAT_RDDLY0 + 4);
++	writel(0, host->base + Y2_MSDC_DAT_RDDLY0 + 4);
++	host->y2_ver_main = readl(host->base + Y2_MSDC_MAIN_VER);
++	host->y2_ver_eco = readl(host->base + Y2_MSDC_ECO_VER);
++	host->y2_probed = true;
+ }
+ 
+ static void msdc_init_hw(struct msdc_host *host)
+@@ -1904,6 +2629,8 @@
+ 	}
+ 	writel(0, host->base + MSDC_IOCON);
+ 	sdr_set_field(host->base + MSDC_IOCON, MSDC_IOCON_DDLSEL, 0);
++	if (host->y2_emmc || host->y2_sd)
++		y2_probe_tuning_registers(host);
+ 
+ 	/*
+ 	 * Patch bit 0 and 1 are completely rewritten, but for patch bit 2
+@@ -2027,9 +2754,18 @@
+ 		if (host->top_base)
+ 			sdr_set_bits(host->top_base + EMMC_TOP_CONTROL,
+ 				     PAD_RXDLY_SEL);
+-		else
++		else if (host->y2_emmc || host->y2_sd) {
++			/* RXDLYSEL is requested only if the probe saw the bit stick; the
++			 * MT6582 vendor driver never touches PAD_TUNE bits 13/15/21. */
++			host->y2_rxdlysel_requested = true;
++			if (y2_rxdlysel_supported(host->y2_probe_pad_mask))
++				sdr_set_bits(host->base + tune_reg, MSDC_PAD_TUNE_RXDLYSEL);
++			host->y2_rxdlysel_actual = !!(readl(host->base + tune_reg) &
++						      MSDC_PAD_TUNE_RXDLYSEL);
++		} else {
+ 			sdr_set_bits(host->base + tune_reg,
+ 				     MSDC_PAD_TUNE_RXDLYSEL);
++		}
+ 	}
+ 
+ 	if (mmc->caps2 & MMC_CAP2_NO_SDIO) {
+@@ -2146,8 +2882,13 @@
  		}
  		break;
  	case MMC_POWER_OFF:
@@ -865,7 +1005,7 @@
  
  		if (!IS_ERR(mmc->supply.vqmmc) && host->vqmmc_enabled) {
  			regulator_disable(mmc->supply.vqmmc);
-@@ -2158,6 +2793,11 @@
+@@ -2158,6 +2899,11 @@
  		break;
  	}
  
@@ -877,14 +1017,595 @@
  	if (host->mclk != ios->clock || host->timing != ios->timing)
  		msdc_set_mclk(host, ios->timing, ios->clock);
  }
-@@ -2585,6 +3225,28 @@
- 	return ret;
- }
- 
+@@ -2581,6 +3327,605 @@
+ 				EMMC_TOP_CONTROL);
+ 		host->saved_tune_para.emmc_top_cmd = readl(host->top_base +
+ 				EMMC_TOP_CMD);
++	}
++	return ret;
++}
++
++#define Y2_PATCH0_CKGEN_DLY GENMASK(14, 10)
++
++/* ---- SD tuning (candidate 3) -----------------------------------------------
++ * MT6582 has 32-tap, 5-bit, linear delay lines; mainline sized the sweep from
++ * MMC_CAP2_NO_MMC (64 steps) and wrote the upper half into DAT_RDDLY0 and
++ * past CMDRRDLY into CLKTXDLY. Here every sweep is exactly Y2_TUNE_TAPS wide,
++ * writes only its own field, scans both sampling edges, requires every try of
++ * a tap to pass and records the complete pass maps for diagnostics. */
++static void y2_set_cmd_delay(struct msdc_host *host, unsigned tap)
++{
++	sdr_set_field(host->base + host->dev_comp->pad_tune_reg, MSDC_PAD_TUNE_CMDRDLY,
++		      tap & (Y2_TUNE_TAPS - 1));
++}
++
++static void y2_set_data_delay(struct msdc_host *host, unsigned tap)
++{
++	sdr_set_field(host->base + host->dev_comp->pad_tune_reg, MSDC_PAD_TUNE_DATRRDLY,
++		      tap & (Y2_TUNE_TAPS - 1));
++}
++
++static void y2_set_cmd_int_delay(struct msdc_host *host, unsigned tap)
++{
++	sdr_set_field(host->base + host->dev_comp->pad_tune_reg, MSDC_PAD_TUNE_CMDRRDLY,
++		      tap & (Y2_TUNE_TAPS - 1));
++}
++
++enum y2_sweep_kind { Y2_SWEEP_CMD, Y2_SWEEP_CMD_INT, Y2_SWEEP_DATA };
++
++/* One pass over every tap for one edge. A tap is "all" if every try passed and
++ * "any" if at least one did; a command sweep judges the command only, a data
++ * sweep the whole tuning block. */
++static void y2_tune_sweep(struct msdc_host *host, struct mmc_host *mmc, u32 opcode,
++			  enum y2_sweep_kind kind, unsigned edge, unsigned tries,
++			  struct y2_tune_phase *ph)
++{
++	unsigned tap, attempt, all = 0, any = 0;
++
++	/* The command-internal sweep keeps the response edge already chosen. */
++	if (kind == Y2_SWEEP_DATA) {
++		msdc_set_data_sample_edge(host, !edge);
++	} else if (kind == Y2_SWEEP_CMD) {
++		if (edge)
++			sdr_set_bits(host->base + MSDC_IOCON, MSDC_IOCON_RSPL);
++		else
++			sdr_clr_bits(host->base + MSDC_IOCON, MSDC_IOCON_RSPL);
++	}
++	for (tap = 0; tap < Y2_TUNE_TAPS; tap++) {
++		bool pass_all = true, pass_any = false;
++
++		if (kind == Y2_SWEEP_CMD)
++			y2_set_cmd_delay(host, tap);
++		else if (kind == Y2_SWEEP_CMD_INT)
++			y2_set_cmd_int_delay(host, tap);
++		else
++			y2_set_data_delay(host, tap);
++		for (attempt = 0; attempt < tries; attempt++) {
++			int cmd_error = 0;
++			int err = mmc_send_tuning(mmc, opcode, &cmd_error);
++			bool ok = kind == Y2_SWEEP_DATA ? !err : !cmd_error;
++
++			if (ok)
++				pass_any = true;
++			else
++				pass_all = false;
++		}
++		if (pass_all)
++			all |= BIT(tap);
++		if (pass_any)
++			any |= BIT(tap);
++	}
++	ph->all[edge] = all;
++	ph->any[edge] = any;
++	ph->scanned |= BIT(edge);
++}
++
++static void y2_tune_snapshot(struct msdc_host *host, struct y2_tune_log *log)
++{
++	log->iocon = readl(host->base + MSDC_IOCON);
++	log->pad_tune = readl(host->base + host->dev_comp->pad_tune_reg);
++	log->rddly0 = readl(host->base + Y2_MSDC_DAT_RDDLY0);
++	log->rddly1 = readl(host->base + Y2_MSDC_DAT_RDDLY0 + 4);
++	log->patch0 = readl(host->base + Y2_MSDC_PATCH_BIT0_REG);
++	log->patch1 = readl(host->base + Y2_MSDC_PATCH_BIT1_REG);
++	log->patch2 = readl(host->base + MSDC_PATCH_BIT2);
++}
++
++/* SD tuning: command delay and edge first (the data stage needs a working
++ * command path), then the optional command-internal delay, then the data
++ * read delay and edge. Each stage applies the widest eye over both edges;
++ * a stage without an eye of Y2_TUNE_MIN_WIDTH taps fails the whole tuning and
++ * the ladder steps down instead of running on a guess. */
++static int y2_sd_execute_tuning(struct mmc_host *mmc, u32 opcode)
++{
++	struct msdc_host *host = mmc_priv(mmc);
++	struct y2_tune_log *log = &host->y2_tune_last;
++	u32 saved_iocon = readl(host->base + MSDC_IOCON);
++	u32 saved_pad = readl(host->base + host->dev_comp->pad_tune_reg);
++	int ret = 0;
++	unsigned edge;
++
++	memset(log, 0, sizeof(*log));
++	log->timing = mmc->ios.timing;
++	sdr_set_field(host->base + host->dev_comp->pad_tune_reg, MSDC_PAD_TUNE_CMDRRDLY,
++		      host->hs200_cmd_int_delay & (Y2_TUNE_TAPS - 1));
++	for (edge = 0; edge < Y2_TUNE_EDGES; edge++)
++		y2_tune_sweep(host, mmc, opcode, Y2_SWEEP_CMD, edge, Y2_TUNE_TRIES, &log->cmd);
++	y2_tune_phase_choose(&log->cmd, Y2_TUNE_TAPS);
++	if (!log->cmd.pick.valid) {
++		ret = -EIO;
++		goto out;
++	}
++	if (log->cmd.pick.edge)
++		sdr_set_bits(host->base + MSDC_IOCON, MSDC_IOCON_RSPL);
++	else
++		sdr_clr_bits(host->base + MSDC_IOCON, MSDC_IOCON_RSPL);
++	y2_set_cmd_delay(host, log->cmd.pick.delay);
++
++	/* Command-internal delay: applied only when it proves to carry an eye;
++	 * an all-pass sweep says nothing, so the stock value (0) stays. */
++	y2_tune_sweep(host, mmc, opcode, Y2_SWEEP_CMD_INT, 0, Y2_TUNE_TRIES, &log->cmd_int);
++	y2_tune_phase_choose(&log->cmd_int, Y2_TUNE_TAPS);
++	y2_set_cmd_int_delay(host, log->cmd_int.pick.valid && !log->cmd_int.pick.open ?
++			     log->cmd_int.pick.delay : host->hs200_cmd_int_delay);
++
++	sdr_set_field(host->base + MSDC_PATCH_BIT, MSDC_INT_DAT_LATCH_CK_SEL, host->latch_ck);
++	for (edge = 0; edge < Y2_TUNE_EDGES; edge++)
++		y2_tune_sweep(host, mmc, opcode, Y2_SWEEP_DATA, edge, Y2_TUNE_TRIES, &log->data);
++	y2_tune_phase_choose(&log->data, Y2_TUNE_TAPS);
++	if (!log->data.pick.valid) {
++		ret = -EIO;
++		goto out;
++	}
++	msdc_set_data_sample_edge(host, !log->data.pick.edge);
++	y2_set_data_delay(host, log->data.pick.delay);
++out:
++	if (ret) {
++		/* Never leave a half-swept delay for the next, lower level. */
++		writel(saved_iocon, host->base + MSDC_IOCON);
++		writel(saved_pad, host->base + host->dev_comp->pad_tune_reg);
++	}
++	log->result = ret;
++	log->valid = 1;
++	y2_tune_snapshot(host, log);
++	if (!host->y2_tune_count++)
++		host->y2_tune_first = *log;
++	dev_info(host->dev,
++		 "Y2 SD tuning %s: cmd edge=%u delay=%u eye=%u data edge=%u delay=%u eye=%u open=%u/%u\n",
++		 ret ? "FAILED" : "ok", log->cmd.pick.edge, log->cmd.pick.delay, log->cmd.pick.len,
++		 log->data.pick.edge, log->data.pick.delay, log->data.pick.len,
++		 log->cmd.pick.open, log->data.pick.open);
++	return ret;
++}
++
++/* ---- Candidate 3 diagnostics -------------------------------------------------
++ * y2_storage keeps its one-line contract. These attributes are `key=value`
++ * lines (first '=' or ': ' separates), safe to parse line by line:
++ *   y2_storage_diag  state, registers, pad cells, probe, faults, fallback
++ *   y2_tune_diag     every tuning sweep: pass maps, windows, picks (SD host)
++ */
++static const char *const y2_edge_name[Y2_TUNE_EDGES] = { "rise", "fall" };
++
++static int y2_diag_windows(char *buf, int n, unsigned map)
++{
++	struct y2_tune_window w[Y2_TUNE_MAX_WINDOWS];
++	unsigned found = y2_tune_windows(map, Y2_TUNE_TAPS, Y2_TUNE_CIRCULAR, w, ARRAY_SIZE(w));
++	unsigned i;
++
++	if (!found)
++		n += sysfs_emit_at(buf, n, "none");
++	for (i = 0; i < found && i < ARRAY_SIZE(w); i++)
++		n += sysfs_emit_at(buf, n, "%s%u-%u", i ? "," : "", w[i].start,
++				   w[i].start + w[i].len - 1);
++	return n;
++}
++
++static int y2_diag_phase(char *buf, int n, const char *log, const char *phase,
++			 const struct y2_tune_phase *p)
++{
++	const struct y2_tune_choice *c = &p->pick;
++	unsigned e;
++
++	n += sysfs_emit_at(buf, n,
++		"tune.%s.%s.pick: valid=%u edge=%s delay=%u window=%u-%u eye=%u margin=%u/%u open=%u clipped=%u/%u windows=%u/%u legacy=%u/%u\n",
++		log, phase, c->valid, y2_edge_name[c->edge & 1], c->delay, c->start,
++		c->start + (c->len ? c->len - 1 : 0), c->len, c->margin_lo, c->margin_hi, c->open,
++		c->clipped_lo, c->clipped_hi, c->windows[0], c->windows[1], p->legacy[0], p->legacy[1]);
++	for (e = 0; e < Y2_TUNE_EDGES; e++) {
++		if (!(p->scanned & BIT(e)))
++			continue;
++		n += sysfs_emit_at(buf, n, "tune.%s.%s.%s: all=%08x any=%08x windows=", log, phase,
++				   y2_edge_name[e], p->all[e], p->any[e]);
++		n = y2_diag_windows(buf, n, p->all[e]);
++		n += sysfs_emit_at(buf, n, "\n");
++	}
++	return n;
++}
++
++static int y2_diag_log(char *buf, int n, const char *name, const struct y2_tune_log *log)
++{
++	if (!log->valid)
++		return n + sysfs_emit_at(buf, n, "tune.%s: none\n", name);
++	n += sysfs_emit_at(buf, n,
++		"tune.%s: result=%d timing=%s iocon=%#x pad_tune=%#x rddly0=%#x rddly1=%#x patch0=%#x patch1=%#x patch2=%#x\n",
++		name, log->result, y2_timing_name(log->timing), log->iocon, log->pad_tune,
++		log->rddly0, log->rddly1, log->patch0, log->patch1, log->patch2);
++	n += sysfs_emit_at(buf, n,
++		"tune.%s.regs: cmdrdly=%u cmdrrdly=%u datrrdly=%u datwrdly=%u clktxdly=%u latch_ck=%u ckgen_dly=%u cmd_rsp=%u wrdat_crcs=%u rspl=%u dspl=%u wdspl=%u ddlsel=%u\n",
++		name, y2_pad_tune_cmdrd(log->pad_tune), y2_pad_tune_cmdrr(log->pad_tune),
++		y2_pad_tune_datrd(log->pad_tune), y2_pad_tune_datwr(log->pad_tune),
++		y2_pad_tune_clktx(log->pad_tune), y2_patch0_latch_ck(log->patch0),
++		y2_patch0_ckgen_dly(log->patch0), y2_patch1_cmd_rsp(log->patch1),
++		y2_patch1_wrdat_crcs(log->patch1), !!(log->iocon & MSDC_IOCON_RSPL),
++		!!(log->iocon & MSDC_IOCON_DSPL), !!(log->iocon & MSDC_IOCON_W_DSPL),
++		!!(log->iocon & MSDC_IOCON_DDLSEL));
++	n = y2_diag_phase(buf, n, name, "cmd", &log->cmd);
++	n = y2_diag_phase(buf, n, name, "cmd_int", &log->cmd_int);
++	return y2_diag_phase(buf, n, name, "data", &log->data);
++}
++
++static ssize_t y2_tune_diag_show(struct device *dev, struct device_attribute *attr, char *buf)
++{
++	struct msdc_host *host = mmc_priv(dev_get_drvdata(dev));
++	int n = sysfs_emit(buf, "tune.taps=%u tune.circular=%d tune.tries=%u tune.min_eye=%u tune.step=%u tune.count=%u tune.runs=%u tune.failures=%u\n",
++			   Y2_TUNE_TAPS, Y2_TUNE_CIRCULAR, Y2_TUNE_TRIES, Y2_TUNE_MIN_WIDTH,
++			   host->tuning_step, host->y2_tune_count, host->y2_tuning_runs,
++			   host->y2_tuning_failures);
++
++	n = y2_diag_log(buf, n, "first", &host->y2_tune_first);
++	return y2_diag_log(buf, n, "last", &host->y2_tune_last);
++}
++static DEVICE_ATTR_RO(y2_tune_diag);
++
++static int y2_diag_fault(char *buf, int n, const char *name, const struct y2_fault_rec *r)
++{
++	return n + sysfs_emit_at(buf, n,
++		"fault.%s: seq=%u t_ms=%llu kind=%s cmd=%u dir=%c blksz=%u blocks=%u arg=%#x irq=%#x dcrc=%#x level=%u timing=%s pad_tune=%#x iocon=%#x patch0=%#x\n",
++		name, r->seq, r->uptime_ms, y2_fault_kind_names[r->kind % Y2_FAULT_KINDS], r->opcode,
++		r->dir ? r->dir : '-', r->blksz, r->blocks, r->arg, r->irq_events, r->dcrc, r->level,
++		y2_timing_name(r->timing), r->pad_tune, r->iocon, r->patch0);
++}
++
++static ssize_t y2_storage_diag_show(struct device *dev, struct device_attribute *attr, char *buf)
++{
++	struct mmc_host *mmc = dev_get_drvdata(dev);
++	struct msdc_host *host = mmc_priv(mmc);
++	const struct y2_fault_log *f = &host->y2_fault;
++	const struct y2_storage_level *ladder;
++	const unsigned char *req = NULL;
++	unsigned count, cells[4] = { 0 }, i;
++	u32 iocon = 0, pad = 0, rd0 = 0, rd1 = 0, p0 = 0, p1 = 0, p2 = 0, cfg = 0, sdc_cfg = 0, ps = 0;
++	int n, live = 0, pad_error, vmmc_mv = -1, vqmmc_mv = -1;
++
++	ladder = y2_storage_ladder(host->y2_sd, &count);
++	if (pm_runtime_resume_and_get(host->dev) >= 0) {
++		live = 1;
++		iocon = readl(host->base + MSDC_IOCON);
++		pad = readl(host->base + host->dev_comp->pad_tune_reg);
++		rd0 = readl(host->base + Y2_MSDC_DAT_RDDLY0);
++		rd1 = readl(host->base + Y2_MSDC_DAT_RDDLY0 + 4);
++		p0 = readl(host->base + Y2_MSDC_PATCH_BIT0_REG);
++		p1 = readl(host->base + Y2_MSDC_PATCH_BIT1_REG);
++		p2 = readl(host->base + MSDC_PATCH_BIT2);
++		cfg = readl(host->base + MSDC_CFG);
++		sdc_cfg = readl(host->base + SDC_CFG);
++		ps = readl(host->base + MSDC_PS);
++		pm_runtime_mark_last_busy(host->dev);
++		pm_runtime_put_autosuspend(host->dev);
++	}
++	pad_error = y2_msdc_pad_cells(host->y2_sd, cells);
++	if (!IS_ERR(mmc->supply.vqmmc)) {
++		int uv = regulator_get_voltage(mmc->supply.vqmmc);
++
++		vqmmc_mv = uv > 0 ? uv / 1000 : uv;
++	}
++	if (!IS_ERR(mmc->supply.vmmc)) {
++		int uv = regulator_get_voltage(mmc->supply.vmmc);
++
++		vmmc_mv = uv > 0 ? uv / 1000 : uv;
++	}
++	req = host->y2_sd ? (host->y2_signal_mv == 1800 ? y2_msdc_drives[1].v18 : y2_msdc_drives[1].v33)
++			  : y2_msdc_drives[0].v18;
++	n = sysfs_emit(buf,
++		"host=%s mode=%s timing=%s level=%s ceiling=%s width=%u clock_hz=%u actual_hz=%u cap_hz=%u live_regs=%d\n",
++		host->y2_emmc ? "emmc" : "sd", ladder[host->y2_level].name, y2_timing_name(mmc->ios.timing),
++		ladder[host->y2_level].name, ladder[host->y2_ceiling].name, 1U << mmc->ios.bus_width,
++		mmc->ios.clock, mmc->actual_clock, host->y2_clock_limit, live);
++	n += sysfs_emit_at(buf, n,
++		"signal: ios_mv=%d state_mv=%d vqmmc_mv=%d vqmmc_enabled=%d vmmc_mv=%d voltage_switches=%u signal_voltage=%u vdd=%u\n",
++		mmc->ios.signal_voltage == MMC_SIGNAL_VOLTAGE_180 ? 1800 :
++		mmc->ios.signal_voltage == MMC_SIGNAL_VOLTAGE_120 ? 1200 : 3300,
++		host->y2_signal_mv, vqmmc_mv, host->vqmmc_enabled, vmmc_mv, host->y2_voltage_switches,
++		mmc->ios.signal_voltage, mmc->ios.vdd);
++	if (mmc->card)
++		n += sysfs_emit_at(buf, n,
++			"card: name=%.8s manfid=%#x hwrev=%u fwrev=%u sd3_bus_mode=%#x sd3_drv_type=%#x uhs_max_dtr=%u\n",
++			mmc->card->cid.prod_name, mmc->card->cid.manfid, mmc->card->cid.hwrev,
++			mmc->card->cid.fwrev, mmc->card->sw_caps.sd3_bus_mode,
++			mmc->card->sw_caps.sd3_drv_type, mmc->card->sw_caps.uhs_max_dtr);
++	n += sysfs_emit_at(buf, n,
++		"fallback: previous_mode=%s current_mode=%s reason=%s count=%u resets=%u reset_error=%d tuning_runs_at_fallback=%u retunes=%u\n",
++		host->y2_clock_fallbacks ? ladder[host->y2_fb_from].name : "none", ladder[host->y2_level].name,
++		host->y2_clock_fallbacks ? y2_storage_event_names[host->y2_fb_event] : "none",
++		host->y2_clock_fallbacks, host->y2_resets, host->y2_reset_error,
++		host->y2_fb_tuning_runs, host->y2_tuning_runs ? host->y2_tuning_runs - 1 : 0);
++	n += sysfs_emit_at(buf, n,
++		"regs: iocon=%#x pad_tune=%#x rddly0=%#x rddly1=%#x patch0=%#x patch1=%#x patch2=%#x msdc_cfg=%#x sdc_cfg=%#x ps=%#x\n",
++		iocon, pad, rd0, rd1, p0, p1, p2, cfg, sdc_cfg, ps);
++	n += sysfs_emit_at(buf, n,
++		"regs.tune: cmdrdly=%u cmdrrdly=%u datrrdly=%u datwrdly=%u clktxdly=%u latch_ck=%u ckgen_dly=%u cmd_rsp=%u wrdat_crcs=%u rspl=%u dspl=%u wdspl=%u ddlsel=%u\n",
++		y2_pad_tune_cmdrd(pad), y2_pad_tune_cmdrr(pad), y2_pad_tune_datrd(pad),
++		y2_pad_tune_datwr(pad), y2_pad_tune_clktx(pad), y2_patch0_latch_ck(p0),
++		y2_patch0_ckgen_dly(p0), y2_patch1_cmd_rsp(p1), y2_patch1_wrdat_crcs(p1),
++		!!(iocon & MSDC_IOCON_RSPL), !!(iocon & MSDC_IOCON_DSPL), !!(iocon & MSDC_IOCON_W_DSPL),
++		!!(iocon & MSDC_IOCON_DDLSEL));
++	n += sysfs_emit_at(buf, n,
++		"probe: pad_tune_writable=%#x rddly0_writable=%#x rddly1_writable=%#x main_ver=%#x eco_ver=%#x probed=%d\n",
++		host->y2_probe_pad_mask, host->y2_probe_rddly0_mask, host->y2_probe_rddly1_mask,
++		host->y2_ver_main, host->y2_ver_eco, host->y2_probed);
++	n += sysfs_emit_at(buf, n, "rxdlysel: supported=%s requested=%d actual=%d\n",
++		!host->y2_probed ? "unknown" : y2_rxdlysel_supported(host->y2_probe_pad_mask) ? "yes" : "no",
++		host->y2_rxdlysel_requested, host->y2_rxdlysel_actual);
++	n += sysfs_emit_at(buf, n,
++		"pad: error=%d clk=%#x cmd=%#x dat=%#x pad=%#x\n", pad_error, cells[0], cells[1], cells[2], cells[3]);
++	n += sysfs_emit_at(buf, n,
++		"pad.clk: drive=%u slew=%u smt=%u pull=%#x requested_drive=%u\n"
++		"pad.cmd: drive=%u slew=%u smt=%u pull=%#x requested_drive=%u\n"
++		"pad.dat: drive=%u slew=%u smt=%u pull=%#x requested_drive=%u\n"
++		"pad.pad: rdsel=%u tdsel=%u\n",
++		y2_pad_cell_drive(cells[0]), y2_pad_cell_slew(cells[0]), y2_pad_cell_smt(cells[0]),
++		y2_pad_cell_pull(cells[0]), req[0],
++		y2_pad_cell_drive(cells[1]), y2_pad_cell_slew(cells[1]), y2_pad_cell_smt(cells[1]),
++		y2_pad_cell_pull(cells[1]), req[1],
++		y2_pad_cell_drive(cells[2]), y2_pad_cell_slew(cells[2]), y2_pad_cell_smt(cells[2]),
++		y2_pad_cell_pull(cells[2]), req[2], y2_pad_rdsel(cells[3]), y2_pad_tdsel(cells[3]));
++	n += sysfs_emit_at(buf, n, "pad.drive: before=%u/%u/%u error=%d\n", host->y2_drive_before[0],
++		host->y2_drive_before[1], host->y2_drive_before[2], host->y2_drive_error);
++	n += sysfs_emit_at(buf, n, "fault.total=%u", f->total);
++	for (i = 1; i < Y2_FAULT_KINDS; i++)
++		n += sysfs_emit_at(buf, n, " %s=%u", y2_fault_kind_names[i], f->count[i]);
++	n += sysfs_emit_at(buf, n, " timeouts=%u\n", f->count[Y2_FAULT_CMD_TIMEOUT] + f->count[Y2_FAULT_DATA_TIMEOUT]);
++	n += sysfs_emit_at(buf, n, "fault.lanes: pos=%u,%u,%u,%u,%u,%u,%u,%u neg=%u,%u,%u,%u,%u,%u,%u,%u\n",
++		f->lane_pos[0], f->lane_pos[1], f->lane_pos[2], f->lane_pos[3], f->lane_pos[4],
++		f->lane_pos[5], f->lane_pos[6], f->lane_pos[7], f->lane_neg[0], f->lane_neg[1],
++		f->lane_neg[2], f->lane_neg[3], f->lane_neg[4], f->lane_neg[5], f->lane_neg[6],
++		f->lane_neg[7]);
++	if (f->have_first) {
++		n = y2_diag_fault(buf, n, "first", &f->first);
++		n = y2_diag_fault(buf, n, "last", &f->last);
++	}
++	return n;
++}
++static DEVICE_ATTR_RO(y2_storage_diag);
++
++#if Y2_MSDC_LAB
++/* ---- Characterization interface (SD host, diagnostic candidates only) -------
++ * Commands (one per write; unmount the card first, a marginal point can fail
++ * reads):
++ *   set name=value ...   write one register field (names below) or a pad
++ *                        drive/slew (drv_clk|drv_cmd|drv_dat|sr_clk|sr_cmd|sr_dat)
++ *   scan [tries=N] [latchck=L] [ckgen=C]
++ *                        sweep every tap on both edges for command and data at
++ *                        the given PATCH_BIT0 fields; the registers are
++ *                        restored afterwards
++ *   retune               run the production SD tuning again
++ *   level NAME           renegotiate the card at ladder level NAME
++ * Reading shows the last command status, the last scan and the registers. */
++struct y2_lab_field {
++	const char *name;
++	unsigned reg, shift, bits;
++};
++static const struct y2_lab_field y2_lab_fields[] = {
++	{ "cmdrdly", MSDC_PAD_TUNE, 16, 5 }, { "cmdrrdly", MSDC_PAD_TUNE, 22, 5 },
++	{ "datrrdly", MSDC_PAD_TUNE, 8, 5 }, { "datwrdly", MSDC_PAD_TUNE, 0, 5 },
++	{ "clktxdly", MSDC_PAD_TUNE, 27, 5 },
++	{ "rspl", MSDC_IOCON, 1, 1 }, { "dspl", MSDC_IOCON, 2, 1 },
++	{ "ddlsel", MSDC_IOCON, 3, 1 }, { "wdspl", MSDC_IOCON, 8, 1 },
++	{ "latchck", MSDC_PATCH_BIT, 7, 3 }, { "ckgen", MSDC_PATCH_BIT, 10, 5 },
++	{ "wrcrcs", MSDC_PATCH_BIT1, 0, 3 }, { "cmdta", MSDC_PATCH_BIT1, 3, 3 },
++	{ "rddly0", Y2_MSDC_DAT_RDDLY0, 0, 32 }, { "rddly1", Y2_MSDC_DAT_RDDLY0 + 4, 0, 32 },
++};
++static const struct { const char *name; unsigned line; bool slew; } y2_lab_pads[] = {
++	{ "drv_clk", 0, false }, { "drv_cmd", 1, false }, { "drv_dat", 2, false },
++	{ "sr_clk", 0, true }, { "sr_cmd", 1, true }, { "sr_dat", 2, true },
++};
++
++static int y2_lab_set(struct msdc_host *host, char *args)
++{
++	char *item;
++
++	while (args && (item = strsep(&args, " "))) {
++		char *eq = strchr(item, '=');
++		unsigned value, i;
++		bool done = false;
++
++		if (!*item)
++			continue;
++		if (!eq || kstrtouint(eq + 1, 0, &value))
++			return -EINVAL;
++		*eq = 0;
++		for (i = 0; i < ARRAY_SIZE(y2_lab_fields); i++) {
++			const struct y2_lab_field *f = &y2_lab_fields[i];
++			u32 mask = f->bits >= 32 ? 0xffffffffU : (BIT(f->bits) - 1) << f->shift;
++			u32 reg;
++
++			if (strcmp(item, f->name))
++				continue;
++			if (f->bits < 32 && value >= BIT(f->bits))
++				return -ERANGE;
++			reg = readl(host->base + f->reg);
++			reg = (reg & ~mask) | ((value << f->shift) & mask);
++			writel(reg, host->base + f->reg);
++			done = true;
++			break;
++		}
++		for (i = 0; !done && i < ARRAY_SIZE(y2_lab_pads); i++) {
++			if (strcmp(item, y2_lab_pads[i].name))
++				continue;
++			if (value > (y2_lab_pads[i].slew ? 1U : 7U))
++				return -ERANGE;
++			if (y2_msdc_pad_set(1, y2_lab_pads[i].line, y2_lab_pads[i].slew ? -1 : (int)value,
++					    y2_lab_pads[i].slew ? (int)value : -1))
++				return -EIO;
++			done = true;
++		}
++		if (!done)
++			return -ENOENT;
++	}
++	return 0;
++}
++
++static int y2_lab_scan(struct msdc_host *host, struct mmc_host *mmc, char *args)
++{
++	struct y2_lab_scan *scan = &host->y2_lab_scan;
++	u32 saved_iocon = readl(host->base + MSDC_IOCON);
++	u32 saved_pad = readl(host->base + host->dev_comp->pad_tune_reg);
++	u32 saved_p0 = readl(host->base + MSDC_PATCH_BIT);
++	unsigned tries = Y2_TUNE_TRIES, latch = y2_patch0_latch_ck(saved_p0);
++	unsigned ckgen = y2_patch0_ckgen_dly(saved_p0), edge;
++	char *item;
++
++	while (args && (item = strsep(&args, " "))) {
++		char *eq = strchr(item, '=');
++		unsigned value;
++
++		if (!*item)
++			continue;
++		if (!eq || kstrtouint(eq + 1, 0, &value))
++			return -EINVAL;
++		*eq = 0;
++		if (!strcmp(item, "tries") && value >= 1 && value <= 16)
++			tries = value;
++		else if (!strcmp(item, "latchck") && value < 8)
++			latch = value;
++		else if (!strcmp(item, "ckgen") && value < 32)
++			ckgen = value;
++		else
++			return -EINVAL;
++	}
++	if (!y2_tuned_timing(mmc->ios.timing))
++		return -EINVAL;
++	memset(scan, 0, sizeof(*scan));
++	sdr_set_field(host->base + MSDC_PATCH_BIT, MSDC_INT_DAT_LATCH_CK_SEL, latch);
++	sdr_set_field(host->base + MSDC_PATCH_BIT, Y2_PATCH0_CKGEN_DLY, ckgen);
++	for (edge = 0; edge < Y2_TUNE_EDGES; edge++)
++		y2_tune_sweep(host, mmc, MMC_SEND_TUNING_BLOCK, Y2_SWEEP_CMD, edge, tries, &scan->cmd);
++	/* The data stage needs the command setting that was in effect. */
++	writel(saved_iocon, host->base + MSDC_IOCON);
++	writel(saved_pad, host->base + host->dev_comp->pad_tune_reg);
++	for (edge = 0; edge < Y2_TUNE_EDGES; edge++)
++		y2_tune_sweep(host, mmc, MMC_SEND_TUNING_BLOCK, Y2_SWEEP_DATA, edge, tries, &scan->data);
++	writel(saved_iocon, host->base + MSDC_IOCON);
++	writel(saved_pad, host->base + host->dev_comp->pad_tune_reg);
++	writel(saved_p0, host->base + MSDC_PATCH_BIT);
++	scan->valid = true;
++	scan->latch = latch;
++	scan->ckgen = ckgen;
++	scan->tries = tries;
++	return 0;
++}
++
++static int y2_lab_level(struct msdc_host *host, struct mmc_host *mmc, char *name)
++{
++	int level = name ? y2_storage_level_named(1, name) : -1;
++	int ret;
++
++	if (level < 0)
++		return -EINVAL;
++	y2_apply_level(host, level);
++	host->y2_verify_result = 0;
++	host->y2_resets++;
++	ret = mmc_hw_reset(mmc->card);
++	host->y2_reset_error = ret;
++	return ret;
++}
++
++static ssize_t y2_lab_store(struct device *dev, struct device_attribute *attr,
++			    const char *buf, size_t count)
++{
++	struct mmc_host *mmc = dev_get_drvdata(dev);
++	struct msdc_host *host = mmc_priv(mmc);
++	char line[160], *args, *command;
++	int ret;
++
++	if (!count || count >= sizeof(line))
++		return -E2BIG;
++	memcpy(line, buf, count);
++	line[count] = 0;
++	args = strim(line);
++	command = strsep(&args, " ");
++	mmc_claim_host(mmc);
++	if (!mmc->card || mmc_card_removed(mmc->card) || mmc->ios.power_mode != MMC_POWER_ON) {
++		ret = -ENODEV;
++		goto out;
++	}
++	ret = pm_runtime_resume_and_get(host->dev);
++	if (ret < 0)
++		goto out;
++	if (!strcmp(command, "set"))
++		ret = y2_lab_set(host, args);
++	else if (!strcmp(command, "scan"))
++		ret = y2_lab_scan(host, mmc, args);
++	else if (!strcmp(command, "retune"))
++		ret = y2_sd_execute_tuning(mmc, MMC_SEND_TUNING_BLOCK);
++	else if (!strcmp(command, "level"))
++		ret = y2_lab_level(host, mmc, args);
++	else
++		ret = -EINVAL;
++	pm_runtime_mark_last_busy(host->dev);
++	pm_runtime_put_autosuspend(host->dev);
++out:
++	host->y2_lab_status = ret;
++	mmc_release_host(mmc);
++	return ret ? ret : count;
++}
++
++static ssize_t y2_lab_show(struct device *dev, struct device_attribute *attr, char *buf)
++{
++	struct msdc_host *host = mmc_priv(dev_get_drvdata(dev));
++	const struct y2_lab_scan *scan = &host->y2_lab_scan;
++	unsigned e;
++	int n = sysfs_emit(buf, "lab.status=%d lab.scan_valid=%d scan.latchck=%u scan.ckgen=%u scan.tries=%u\n",
++			   host->y2_lab_status, scan->valid, scan->latch, scan->ckgen, scan->tries);
++
++	if (!scan->valid)
++		return n;
++	for (e = 0; e < Y2_TUNE_EDGES; e++) {
++		n += sysfs_emit_at(buf, n, "scan.cmd.%s: all=%08x any=%08x windows=", y2_edge_name[e],
++				   scan->cmd.all[e], scan->cmd.any[e]);
++		n = y2_diag_windows(buf, n, scan->cmd.all[e]);
++		n += sysfs_emit_at(buf, n, "\n");
++	}
++	for (e = 0; e < Y2_TUNE_EDGES; e++) {
++		n += sysfs_emit_at(buf, n, "scan.data.%s: all=%08x any=%08x windows=", y2_edge_name[e],
++				   scan->data.all[e], scan->data.any[e]);
++		n = y2_diag_windows(buf, n, scan->data.all[e]);
++		n += sysfs_emit_at(buf, n, "\n");
++	}
++	return n;
++}
++static DEVICE_ATTR(y2_lab, 0600, y2_lab_show, y2_lab_store);
++#endif
++
++static struct attribute *y2_emmc_diag_attrs[] = {
++	&dev_attr_y2_storage_diag.attr,
++	NULL,
++};
++static const struct attribute_group y2_emmc_diag_group = { .attrs = y2_emmc_diag_attrs };
++static struct attribute *y2_sd_diag_attrs[] = {
++	&dev_attr_y2_storage_diag.attr,
++	&dev_attr_y2_tune_diag.attr,
++#if Y2_MSDC_LAB
++	&dev_attr_y2_lab.attr,
++#endif
++	NULL,
++};
++static const struct attribute_group y2_sd_diag_group = { .attrs = y2_sd_diag_attrs };
++
 +static int y2_msdc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 +{
 +	struct msdc_host *host = mmc_priv(mmc);
-+	int ret = msdc_execute_tuning(mmc, opcode);
++	int ret = host->y2_sd ? y2_sd_execute_tuning(mmc, opcode) : msdc_execute_tuning(mmc, opcode);
 +
 +	if (!host->y2_emmc && !host->y2_sd)
 +		return ret;
@@ -899,14 +1620,10 @@
 +		host->y2_tuning_failures++;
 +		host->y2_events[Y2_EVENT_TUNING]++;
 +		y2_downgrade(host, Y2_EVENT_TUNING, false);
-+	}
-+	return ret;
-+}
-+
- static int msdc_prepare_hs400_tuning(struct mmc_host *mmc, struct mmc_ios *ios)
- {
- 	struct msdc_host *host = mmc_priv(mmc);
-@@ -2850,7 +3512,7 @@
+ 	}
+ 	return ret;
+ }
+@@ -2850,7 +4195,7 @@
  	.ack_sdio_irq = msdc_ack_sdio_irq,
  	.start_signal_voltage_switch = msdc_ops_switch_volt,
  	.card_busy = msdc_card_busy,
@@ -915,7 +1632,7 @@
  	.prepare_hs400_tuning = msdc_prepare_hs400_tuning,
  	.execute_hs400_tuning = msdc_execute_hs400_tuning,
  	.card_hw_reset = msdc_hw_reset,
-@@ -2957,12 +3619,136 @@
+@@ -2957,11 +4302,135 @@
  	return 0;
  }
  
@@ -1044,15 +1761,14 @@
  	struct mmc_host *mmc;
  	struct msdc_host *host;
  	int ret;
- 
++
 +	if (IS_ENABLED(CONFIG_Y2_POWER) && of_machine_is_compatible("innioasis,y2") &&
 +	    !y2_normal_boot_enabled())
 +		return -EPROBE_DEFER;
-+
+ 
  	if (!pdev->dev.of_node) {
  		dev_err(&pdev->dev, "No DT found\n");
- 		return -EINVAL;
-@@ -2983,6 +3769,9 @@
+@@ -2983,6 +4452,9 @@
  		return PTR_ERR(host->base);
  
  	host->dev_comp = of_device_get_match_data(&pdev->dev);
@@ -1062,7 +1778,7 @@
  
  	if (host->dev_comp->needs_top_base) {
  		host->top_base = devm_platform_ioremap_resource(pdev, 1);
-@@ -3016,6 +3805,11 @@
+@@ -3016,6 +4488,11 @@
  	if (host->irq < 0)
  		return host->irq;
  
@@ -1074,17 +1790,23 @@
  	host->pinctrl = devm_pinctrl_get(&pdev->dev);
  	if (IS_ERR(host->pinctrl))
  		return dev_err_probe(&pdev->dev, PTR_ERR(host->pinctrl),
-@@ -3033,6 +3827,8 @@
+@@ -3032,6 +4509,8 @@
+ 		dev_err(&pdev->dev, "Cannot find pinctrl uhs!\n");
  		return PTR_ERR(host->pins_uhs);
  	}
- 
-+ }
 +
++ }
+ 
  	/* Support for SDIO eint irq ? */
  	if ((mmc->pm_caps & MMC_PM_WAKE_SDIO_IRQ) && (mmc->pm_caps & MMC_PM_KEEP_POWER)) {
- 		host->eint_irq = platform_get_irq_byname_optional(pdev, "sdio_wakeup");
-@@ -3050,7 +3846,54 @@
+@@ -3048,9 +4527,60 @@
+ 	}
+ 
  	msdc_of_property_parse(pdev, host);
++	/* MT6582 delay lines are 32 taps. Mainline sizes the sweep from NO_MMC (64
++	 * for the SD host), which re-tests tap 31 and writes DAT_RDDLY0/CLKTXDLY. */
++	if (host->y2_emmc || host->y2_sd)
++		host->tuning_step = Y2_TUNE_TAPS;
  
  	host->dev = &pdev->dev;
 +	if (IS_ENABLED(CONFIG_Y2_PLATFORM) && (host->y2_emmc || host->y2_sd)) {
@@ -1138,7 +1860,7 @@
  	/* Set host parameters to mmc */
  	mmc->ops = &mt_msdc_ops;
  	if (host->dev_comp->clk_div_bits == 8)
-@@ -3072,6 +3915,8 @@
+@@ -3072,6 +4602,8 @@
  		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
  
  	mmc->caps |= MMC_CAP_CMD23;
@@ -1147,7 +1869,7 @@
  	if (host->cqhci)
  		mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
  	/* MMC core transfer sizes tunable parameters */
-@@ -3102,6 +3947,10 @@
+@@ -3102,6 +4634,10 @@
  	}
  	msdc_init_gpd_bd(host, &host->dma);
  	INIT_DELAYED_WORK(&host->req_timeout, msdc_request_timeout);
@@ -1158,7 +1880,7 @@
  	spin_lock_init(&host->lock);
  
  	platform_set_drvdata(pdev, mmc);
-@@ -3132,7 +3981,7 @@
+@@ -3132,7 +4668,7 @@
  		mmc->max_seg_size = 64 * 1024;
  		/* Reduce CIT to 0x40 that corresponds to 2.35us */
  		msdc_cqe_cit_cal(host, 2350);
@@ -1167,7 +1889,7 @@
  		/* Use HSQ on eMMC/SD (but not on SDIO) if HW CQE not supported */
  		struct mmc_hsq *hsq = devm_kzalloc(&pdev->dev, sizeof(*hsq), GFP_KERNEL);
  		if (!hsq) {
-@@ -3160,9 +4009,41 @@
+@@ -3160,9 +4696,51 @@
  
  	if (ret)
  		goto end;
@@ -1199,6 +1921,16 @@
 +			mmc_remove_host(mmc);
 +			goto end;
 +		}
++		ret = sysfs_create_group(&pdev->dev.kobj,
++					 host->y2_sd ? &y2_sd_diag_group : &y2_emmc_diag_group);
++		if (ret) {
++			device_remove_file(&pdev->dev, &dev_attr_y2_storage);
++			device_remove_file(&pdev->dev, &dev_attr_y2_runtime_pm);
++			device_remove_file(&pdev->dev, &dev_attr_y2_performance);
++			device_remove_file(&pdev->dev, &dev_attr_y2_clock_limit_hz);
++			mmc_remove_host(mmc);
++			goto end;
++		}
 +	}
  	return 0;
  end:
@@ -1210,7 +1942,7 @@
  	pm_runtime_disable(host->dev);
  release:
  	msdc_deinit_hw(host);
-@@ -3189,6 +4070,17 @@
+@@ -3189,6 +4767,19 @@
  
  	mmc = platform_get_drvdata(pdev);
  	host = mmc_priv(mmc);
@@ -1220,6 +1952,8 @@
 +	cancel_delayed_work_sync(&host->y2_clock_recovery);
 +	cancel_delayed_work_sync(&host->y2_verify);
 +	if (host->y2_emmc || host->y2_sd) {
++		sysfs_remove_group(&pdev->dev.kobj,
++				   host->y2_sd ? &y2_sd_diag_group : &y2_emmc_diag_group);
 +		device_remove_file(&pdev->dev, &dev_attr_y2_storage);
 +		device_remove_file(&pdev->dev, &dev_attr_y2_clock_limit_hz);
 +		device_remove_file(&pdev->dev, &dev_attr_y2_performance);
@@ -1228,7 +1962,7 @@
  
  	pm_runtime_get_sync(host->dev);
  
-@@ -3278,6 +4170,86 @@
+@@ -3278,6 +4869,86 @@
  		__msdc_enable_sdio_irq(host, 1);
  }
  
@@ -1315,7 +2049,7 @@
  static int msdc_runtime_suspend(struct device *dev)
  {
  	struct mmc_host *mmc = dev_get_drvdata(dev);
-@@ -3285,6 +4257,12 @@
+@@ -3285,6 +4956,12 @@
  
  	if (host->hsq_en)
  		mmc_hsq_suspend(mmc);
@@ -1328,7 +2062,7 @@
  
  	msdc_save_reg(host);
  
-@@ -3306,6 +4284,8 @@
+@@ -3306,6 +4983,8 @@
  	struct msdc_host *host = mmc_priv(mmc);
  	int ret;
  

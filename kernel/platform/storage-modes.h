@@ -162,8 +162,16 @@ static inline unsigned y2_msdc_drive_value(unsigned old, unsigned drive)
 {
 	return (old & ~Y2_MSDC_DRIVE_MASK) | ((drive & 7U) << Y2_MSDC_DRIVE_SHIFT);
 }
+/* All four MSDC pad cells per host: CLK, CMD, DAT and the PAD cell (RDSEL and
+ * TDSEL). Read back after programming; never decoded by guesswork. */
+static const unsigned short y2_msdc_pad_offsets[2][4] = {
+	{ 0xc00, 0xc10, 0xc20, 0xc30 },
+	{ 0xc40, 0xc50, 0xc60, 0xc70 },
+};
 #ifdef __KERNEL__
 /* drivers/y2/pinctrl.c: the GPIO block owner programs the MSDC pad cells. */
 int y2_msdc_pad_drive(unsigned id, bool v18, unsigned *before);
+int y2_msdc_pad_cells(unsigned id, unsigned cells[4]);
+int y2_msdc_pad_set(unsigned id, unsigned line, int drive, int slew);
 #endif
 #endif

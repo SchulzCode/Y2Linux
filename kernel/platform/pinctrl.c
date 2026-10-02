@@ -279,6 +279,43 @@ int y2_msdc_pad_drive(unsigned id, bool v18, unsigned *before)
 	spin_unlock_irqrestore(&p->lock, flags);
 	return 0;
 }
+/* Raw MSDC pad cells CLK, CMD, DAT, PAD (for readback diagnostics). */
+int y2_msdc_pad_cells(unsigned id, unsigned cells[4])
+{
+	struct y2_pins *p = READ_ONCE(y2_pins_owner);
+	unsigned long flags;
+	unsigned i;
+	if (id > 1)
+		return -EINVAL;
+	if (!p)
+		return -ENODEV;
+	spin_lock_irqsave(&p->lock, flags);
+	for (i = 0; i < 4; i++)
+		cells[i] = readl(p->base + y2_msdc_pad_offsets[id][i]);
+	spin_unlock_irqrestore(&p->lock, flags);
+	return 0;
+}
+/* Characterization only (Y2_MSDC_LAB): set one line's drive strength [10:8]
+ * and/or slew rate [12]; a negative value leaves the field unchanged. */
+int y2_msdc_pad_set(unsigned id, unsigned line, int drive, int slew)
+{
+	struct y2_pins *p = READ_ONCE(y2_pins_owner);
+	unsigned long flags;
+	unsigned v;
+	if (id > 1 || line > 2 || drive > 7 || slew > 1)
+		return -EINVAL;
+	if (!p)
+		return -ENODEV;
+	spin_lock_irqsave(&p->lock, flags);
+	v = readl(p->base + y2_msdc_pad_offsets[id][line]);
+	if (drive >= 0)
+		v = y2_msdc_drive_value(v, (unsigned)drive);
+	if (slew >= 0)
+		v = (v & ~(1U << 12)) | ((unsigned)slew << 12);
+	writel(v, p->base + y2_msdc_pad_offsets[id][line]);
+	spin_unlock_irqrestore(&p->lock, flags);
+	return 0;
+}
 static int pins_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
