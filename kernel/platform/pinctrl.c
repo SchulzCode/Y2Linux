@@ -273,8 +273,13 @@ int y2_msdc_pad_drive(unsigned id, bool v18, unsigned *before)
 		old = readl(p->base + d->offset[i]);
 		if (before)
 			before[i] = (old & Y2_MSDC_DRIVE_MASK) >> Y2_MSDC_DRIVE_SHIFT;
-		writel(y2_msdc_drive_value(old, v18 ? d->v18[i] : d->v33[i]),
-		       p->base + d->offset[i]);
+		writel(y2_msdc_drive_value(old, v18 ? d->v18[i] : d->v33[i]) |
+		       (id == 1 ? Y2_MSDC_CELL_SMT : 0), p->base + d->offset[i]);
+	}
+	if (id == 1) {
+		/* Stock SD power-on and 1.8 V switch: RDSEL = TDSEL = 0. */
+		old = readl(p->base + y2_msdc_pad_offsets[1][3]);
+		writel(old & ~Y2_MSDC_PAD_RDTD_MASK, p->base + y2_msdc_pad_offsets[1][3]);
 	}
 	spin_unlock_irqrestore(&p->lock, flags);
 	return 0;
@@ -295,26 +300,24 @@ int y2_msdc_pad_cells(unsigned id, unsigned cells[4])
 	spin_unlock_irqrestore(&p->lock, flags);
 	return 0;
 }
-/* Characterization only (Y2_MSDC_LAB): set one line's drive strength [10:8]
- * and/or slew rate [12]; a negative value leaves the field unchanged. */
-int y2_msdc_pad_set(unsigned id, unsigned line, int drive, int slew)
+/* Characterization only (Y2_MSDC_LAB): replace one pad field. */
+int y2_msdc_pad_field(unsigned id, unsigned line, enum y2_pad_field field, unsigned value)
 {
 	struct y2_pins *p = READ_ONCE(y2_pins_owner);
 	unsigned long flags;
-	unsigned v;
-	if (id > 1 || line > 2 || drive > 7 || slew > 1)
+	unsigned v, updated;
+	int ret;
+	if (id > 1)
 		return -EINVAL;
 	if (!p)
 		return -ENODEV;
 	spin_lock_irqsave(&p->lock, flags);
-	v = readl(p->base + y2_msdc_pad_offsets[id][line]);
-	if (drive >= 0)
-		v = y2_msdc_drive_value(v, (unsigned)drive);
-	if (slew >= 0)
-		v = (v & ~(1U << 12)) | ((unsigned)slew << 12);
-	writel(v, p->base + y2_msdc_pad_offsets[id][line]);
+	v = readl(p->base + y2_msdc_pad_offsets[id][line > 3 ? 0 : line]);
+	ret = y2_pad_field_update(v, line, field, value, &updated);
+	if (!ret)
+		writel(updated, p->base + y2_msdc_pad_offsets[id][line]);
 	spin_unlock_irqrestore(&p->lock, flags);
-	return 0;
+	return ret ? -EINVAL : 0;
 }
 static int pins_probe(struct platform_device *pdev)
 {

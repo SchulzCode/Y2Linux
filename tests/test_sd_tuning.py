@@ -190,15 +190,14 @@ int main(void) {
  return 0;
 }''')
 
-    def test_pad_cells_read_back_and_set_through_the_real_pinctrl_code(self):
-        text = (PLATFORM / 'pinctrl.c').read_text()
-        body = between(text, 'int y2_msdc_pad_cells(', 'static int pins_probe(')
-        run_c(r'''
+    PINS = r'''
 #include <assert.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <string.h>
 #include "storage-modes.h"
+#include "storage-tuning.h"
+#define EPROBE_DEFER 517
 struct y2_pins { char *base; int lock; };
 static struct y2_pins *y2_pins_owner;
 #define READ_ONCE(x) (x)
@@ -206,31 +205,80 @@ static struct y2_pins *y2_pins_owner;
 #define spin_unlock_irqrestore(l, f) ((void)(f))
 static unsigned readl(const void *p) { unsigned v; memcpy(&v, p, 4); return v; }
 static void writel(unsigned v, void *p) { memcpy(p, &v, 4); }
-''' + body + r'''
+'''
+
+    def test_pad_cells_read_back_and_fields_set_through_the_real_pinctrl_code(self):
+        text = (PLATFORM / 'pinctrl.c').read_text()
+        body = between(text, 'int y2_msdc_pad_cells(', 'static int pins_probe(')
+        run_c(self.PINS + body + r'''
 int main(void) {
  static char mmio[0x1000]; struct y2_pins pins = { mmio, 0 };
- unsigned cells[4], i;
+ unsigned cells[4];
  assert(y2_msdc_pad_cells(1, cells) == -ENODEV);          /* no pin owner yet */
  y2_pins_owner = &pins;
  writel(0x00000100, mmio + 0xc40); writel(0x00000100, mmio + 0xc50);
  writel(0x00000100, mmio + 0xc60); writel(0x00000033, mmio + 0xc70);
- assert(y2_msdc_pad_cells(1, cells) == 0);
- assert(cells[0] == 0x100 && cells[3] == 0x33);
+ assert(y2_msdc_pad_cells(1, cells) == 0 && cells[0] == 0x100 && cells[3] == 0x33);
  assert(y2_msdc_pad_cells(2, cells) == -EINVAL);
- /* drive keeps every other bit; slew touches only bit 12 */
+ /* each field keeps every other bit */
  writel(0xffffffff, mmio + 0xc50);
- assert(y2_msdc_pad_set(1, 1, 4, -1) == 0 && readl(mmio + 0xc50) == 0xfffffcff);
- assert(y2_msdc_pad_set(1, 1, -1, 0) == 0 && readl(mmio + 0xc50) == 0xffffecff);
- assert(y2_msdc_pad_set(1, 1, 7, 1) == 0 && readl(mmio + 0xc50) == 0xffffffff);
- assert(y2_msdc_pad_set(1, 1, 0, 0) == 0 && readl(mmio + 0xc50) == 0xffffe8ff);
- assert(y2_msdc_pad_set(1, 3, 1, 0) == -EINVAL && y2_msdc_pad_set(1, 0, 8, 0) == -EINVAL);
- /* the readback is the register, whatever was requested */
- writel(0x700, mmio + 0xc40);
- y2_msdc_pad_cells(1, cells);
- assert(y2_pad_cell_drive_check(cells[0]) == 7);
- for (i = 0; i < 4; i++) (void)cells[i];
+ assert(y2_msdc_pad_field(1, 1, Y2_PAD_DRIVE, 4) == 0 && readl(mmio + 0xc50) == 0xfffffcff);
+ assert(y2_msdc_pad_field(1, 1, Y2_PAD_SLEW, 0) == 0 && readl(mmio + 0xc50) == 0xffffecff);
+ assert(y2_msdc_pad_field(1, 1, Y2_PAD_SMT, 0) == 0 && readl(mmio + 0xc50) == 0xffffccff);
+ assert(y2_msdc_pad_field(1, 1, Y2_PAD_PULL, 0x20) == 0 && readl(mmio + 0xc50) == 0xffffcc20);
+ writel(0xffffffff, mmio + 0xc70);
+ assert(y2_msdc_pad_field(1, 3, Y2_PAD_RDSEL, 0) == 0 && readl(mmio + 0xc70) == 0xfffffc0f);
+ assert(y2_msdc_pad_field(1, 3, Y2_PAD_TDSEL, 5) == 0 && readl(mmio + 0xc70) == 0xfffffc05 + 0);
+ /* range and line checks reject without touching the register */
+ unsigned before = readl(mmio + 0xc70);
+ assert(y2_msdc_pad_field(1, 3, Y2_PAD_RDSEL, 64) == -EINVAL && readl(mmio + 0xc70) == before);
+ assert(y2_msdc_pad_field(1, 1, Y2_PAD_RDSEL, 1) == -EINVAL);    /* RDSEL lives in the PAD cell */
+ assert(y2_msdc_pad_field(1, 3, Y2_PAD_DRIVE, 1) == -EINVAL);
+ assert(y2_msdc_pad_field(1, 0, Y2_PAD_DRIVE, 8) == -EINVAL && y2_msdc_pad_field(2, 0, Y2_PAD_DRIVE, 1) == -EINVAL);
  return 0;
-}'''.replace('y2_pad_cell_drive_check(cells[0])', '((cells[0] >> 8) & 7)'))
+}''')
+
+    def test_sd_pads_get_the_stock_schmitt_input_and_zero_rdsel_tdsel(self):
+        text = (PLATFORM / 'pinctrl.c').read_text()
+        body = between(text, 'int y2_msdc_pad_drive(', 'int y2_msdc_pad_cells(')
+        run_c(self.PINS + body + r'''
+int main(void) {
+ static char mmio[0x1000]; struct y2_pins pins = { mmio, 0 }; unsigned before[3];
+ y2_pins_owner = &pins;
+ /* LK state candidate 3 found: drive 1, SMT 0, RDSEL 12, TDSEL 5 */
+ for (int i = 0; i < 3; i++) writel(0x4010 | (1u << 8), mmio + y2_msdc_pad_offsets[1][i]);
+ writel(0xc5, mmio + 0xc70);
+ assert(y2_msdc_pad_drive(1, true, before) == 0 && before[0] == 1);
+ for (int i = 0; i < 3; i++) {
+  unsigned v = readl(mmio + y2_msdc_pad_offsets[1][i]);
+  assert(y2_pad_cell_drive(v) == 4 && y2_pad_cell_smt(v) == 1 && (v & 0x4010) == 0x4010);
+ }
+ assert(readl(mmio + 0xc70) == 0);                        /* stock RDSEL = TDSEL = 0 */
+ /* 3.3 V uses the 7/7/7 drive and the same input pad settings */
+ assert(y2_msdc_pad_drive(1, false, NULL) == 0);
+ assert(y2_pad_cell_drive(readl(mmio + 0xc50)) == 7 && y2_pad_cell_smt(readl(mmio + 0xc50)) == 1);
+ /* the eMMC pad cells are not touched beyond their drive */
+ writel(0xc5, mmio + 0xc30); writel(0x0, mmio + 0xc00);
+ assert(y2_msdc_pad_drive(0, true, NULL) == 0);
+ assert(readl(mmio + 0xc30) == 0xc5 && y2_pad_cell_smt(readl(mmio + 0xc00)) == 0);
+ return 0;
+}''')
+
+    def test_pad_field_update_is_pure_and_bounded(self):
+        run_tuning_c(r'''
+#include <assert.h>
+#include "storage-modes.h"
+int main(void) {
+ unsigned out;
+ assert(y2_pad_field_update(0, 0, Y2_PAD_DRIVE, 7, &out) == 0 && out == 0x700);
+ assert(y2_pad_field_update(0xffffffffu, 2, Y2_PAD_SMT, 0, &out) == 0 && out == 0xffffdfffu);
+ assert(y2_pad_field_update(0, 3, Y2_PAD_RDSEL, 63, &out) == 0 && out == 0x3f0);
+ assert(y2_pad_field_update(0, 3, Y2_PAD_TDSEL, 15, &out) == 0 && out == 0xf);
+ assert(y2_pad_field_update(0, 3, Y2_PAD_TDSEL, 16, &out) == -1);
+ assert(y2_pad_field_update(0, 4, Y2_PAD_DRIVE, 1, &out) == -1);
+ assert(Y2_MSDC_PAD_RDTD_MASK == 0x3ff && Y2_MSDC_CELL_SMT == 0x2000);
+ return 0;
+}''')
 
     def test_rxdlysel_is_unsupported_when_the_bit_never_sticks(self):
         run_tuning_c(r'''
@@ -507,6 +555,39 @@ int main(void) {
         self.assertIn('mmc_op_tuning(mrq->cmd->opcode)', record)     # tuning sweeps are not faults
         self.assertIn('!host->y2_fault.have_first', record)          # only the first is logged
         self.assertEqual(record.count('dev_warn('), 1)
+
+    def test_card_driver_type_defaults_to_b_and_follows_the_lab_request(self):
+        code = between(self.text, 'static int y2_select_drive_strength(', 'static int y2_msdc_execute_tuning(')
+        run_c(r'''
+#include <assert.h>
+#include <stdbool.h>
+#define SD_DRIVER_TYPE_B 0x01
+#define SD_DRIVER_TYPE_A 0x02
+#define SD_DRIVER_TYPE_C 0x04
+#define SD_DRIVER_TYPE_D 0x08
+#define READ_ONCE(x) (x)
+struct msdc_host { bool y2_sd; unsigned y2_drv_type; };
+struct mmc_host { struct msdc_host *h; };
+struct mmc_card { struct mmc_host *host; };
+static struct msdc_host *mmc_priv(struct mmc_host *m) { return m->h; }
+''' + code + r'''
+int main(void) {
+ struct msdc_host h = { .y2_sd = true }; struct mmc_host m = { &h }; struct mmc_card c = { &m };
+ int type = 9, all = 0xf;
+ assert(y2_select_drive_strength(&c, 208000000, all, all, &type) == 0 && type == 0);   /* B */
+ h.y2_drv_type = 1; assert(y2_select_drive_strength(&c, 0, all, all, &type) == 1 && type == 1);   /* A */
+ h.y2_drv_type = 2; assert(y2_select_drive_strength(&c, 0, all, all, &type) == 2 && type == 2);   /* C */
+ h.y2_drv_type = 3; assert(y2_select_drive_strength(&c, 0, all, all, &type) == 3 && type == 3);   /* D */
+ /* a type the card does not offer falls back to B */
+ assert(y2_select_drive_strength(&c, 0, all, SD_DRIVER_TYPE_B | SD_DRIVER_TYPE_A, &type) == 0 && type == 0);
+ /* a type the host does not advertise falls back to B */
+ assert(y2_select_drive_strength(&c, 0, SD_DRIVER_TYPE_B, all, &type) == 0);
+ h.y2_drv_type = 9; assert(y2_select_drive_strength(&c, 0, all, all, &type) == 0);
+ h.y2_drv_type = 1; h.y2_sd = false; assert(y2_select_drive_strength(&c, 0, all, all, &type) == 0);   /* eMMC */
+ return 0;
+}''')
+        self.assertIn('.select_drive_strength = y2_select_drive_strength', self.text)
+        self.assertIn('MMC_CAP_DRIVER_TYPE_A | MMC_CAP_DRIVER_TYPE_C | MMC_CAP_DRIVER_TYPE_D', self.text)
 
     def test_candidate_diagnostics_do_not_change_the_one_line_status_contract(self):
         t = self.text

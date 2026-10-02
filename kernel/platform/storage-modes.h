@@ -168,10 +168,52 @@ static const unsigned short y2_msdc_pad_offsets[2][4] = {
 	{ 0xc00, 0xc10, 0xc20, 0xc30 },
 	{ 0xc40, 0xc50, 0xc60, 0xc70 },
 };
+/* Stock msdc_set_smt / msdc_set_rdtdsel (disassembled; both bic-only, so
+ * they write zero) for MSDC1 at 3.3 V and at 1.8 V: Schmitt trigger input on
+ * CLK/CMD/DAT (bit 13) and RDSEL[9:4] = TDSEL[3:0] = 0 in the PAD cell
+ * (0xc70). LK leaves SMT = 0, RDSEL = 12, TDSEL = 5. */
+#define Y2_MSDC_CELL_SMT (1U << 13)
+#define Y2_MSDC_PAD_RDTD_MASK 0x3ffU
+
+/* One writable field of an MSDC pad cell (lab and diagnostics). Lines 0..2 are
+ * the CLK, CMD, DAT cells; line 3 is the PAD cell. */
+enum y2_pad_field {
+	Y2_PAD_DRIVE,	/* cell [10:8], 0..7 */
+	Y2_PAD_SLEW,	/* cell [12] */
+	Y2_PAD_SMT,	/* cell [13] */
+	Y2_PAD_PULL,	/* cell [7:0], raw pull/bias byte */
+	Y2_PAD_RDSEL,	/* PAD cell [9:4], 0..63 */
+	Y2_PAD_TDSEL,	/* PAD cell [3:0], 0..15 */
+	Y2_PAD_FIELDS,
+};
+/* New cell value with one field replaced; -1 if the line/value is invalid. */
+static inline int y2_pad_field_update(unsigned old, unsigned line, enum y2_pad_field field,
+				      unsigned value, unsigned *out)
+{
+	unsigned shift, bits;
+
+	if (line > 3)
+		return -1;
+	switch (field) {
+	case Y2_PAD_DRIVE: shift = 8; bits = 3; break;
+	case Y2_PAD_SLEW: shift = 12; bits = 1; break;
+	case Y2_PAD_SMT: shift = 13; bits = 1; break;
+	case Y2_PAD_PULL: shift = 0; bits = 8; break;
+	case Y2_PAD_RDSEL: shift = 4; bits = 6; break;
+	case Y2_PAD_TDSEL: shift = 0; bits = 4; break;
+	default: return -1;
+	}
+	if ((field == Y2_PAD_RDSEL || field == Y2_PAD_TDSEL) != (line == 3))
+		return -1;
+	if (value >> bits)
+		return -1;
+	*out = (old & ~(((1U << bits) - 1) << shift)) | (value << shift);
+	return 0;
+}
 #ifdef __KERNEL__
 /* drivers/y2/pinctrl.c: the GPIO block owner programs the MSDC pad cells. */
 int y2_msdc_pad_drive(unsigned id, bool v18, unsigned *before);
 int y2_msdc_pad_cells(unsigned id, unsigned cells[4]);
-int y2_msdc_pad_set(unsigned id, unsigned line, int drive, int slew);
+int y2_msdc_pad_field(unsigned id, unsigned line, enum y2_pad_field field, unsigned value);
 #endif
 #endif
