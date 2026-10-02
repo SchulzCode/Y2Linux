@@ -5,8 +5,9 @@
 > real Y2 and fell back to DDR50 under sustained reads. This page records why
 > the old tuning could not have found a stable operating point, what the
 > MT6582 controller actually implements, and what diagnostic candidate 3 adds.
-> **Candidate 3 has not been flashed. Nothing here is a hardware result.**
-> Physical characterization and the final fix belong in a separate report.
+> Candidate 3 was flashed on 2026-10-02 and characterized over SSH; the
+> measurements are in "Physical characterization of candidate 3". Candidate 4
+> follows from them and has not been flashed.
 
 ## Evidence from the installed candidate 2
 
@@ -133,27 +134,97 @@ point can fail reads.
 
 | Command | Effect |
 | --- | --- |
-| `set name=value ...` | Writes one field: `cmdrdly cmdrrdly datrrdly datwrdly clktxdly rspl dspl wdspl ddlsel latchck ckgen wrcrcs cmdta rddly0 rddly1`, or a pad `drv_clk drv_cmd drv_dat` (0 to 7), `sr_clk sr_cmd sr_dat` (0 or 1) |
+| `set name=value ...` | Writes one field: `cmdrdly cmdrrdly datrrdly datwrdly clktxdly rspl dspl wdspl ddlsel latchck ckgen wrcrcs cmdta rddly0 rddly1`; a pad field `drv_*` (0 to 7), `sr_*`, `smt_*` (0 or 1), `pull_*` (byte), `rdsel` (0 to 63), `tdsel` (0 to 15) with `*` = `clk`, `cmd`, `dat`; or `drvtype` (0 B, 1 A, 2 C, 3 D) for the next `level` (candidate 4) |
 | `scan [tries=N] [latchck=L] [ckgen=C]` | Sweeps every tap, both edges, command and data at the given `PATCH_BIT0` fields; restores the registers; reading `y2_lab` returns the maps and windows |
 | `retune` | Runs the production SD tuning again |
 | `level NAME` | Renegotiates at a ladder level (e.g. back to `SDR104` after a fallback) |
 
-## Planned characterization (after the owner flashes candidate 3)
+## Physical characterization of candidate 3
 
-1. Capture identity, card, mode, clock, voltage, tuning maps, edges, drive
-   readback and counters.
-2. Reproduce the workload: 128 MiB, then 1 GiB, then repeated multi-GiB direct
-   reads of the raw device, hashed for integrity.
-3. Use the evidence to pick the dimension: a thin or open eye, command or data
-   CRC only, drive not sticking, an invalid RXDLYSEL assumption, or good
-   windows with sustained errors (thermal, voltage, signal integrity).
-4. Implement the correction the evidence supports, then qualify with repeated
-   multi-GiB reads, runtime suspend and resume, idle and wake, repeated mode
-   setup and reboot negotiation, with zero CRC, timeouts, resets and fallbacks.
+Flashed 2026-10-02 (`6.18.0-y2linux-sd-sdr104-diag-03`), SD128 119 GiB UHS-I
+card, SDR104 at 199 999 771 Hz, 1.8 V (`vqmmc_mv=1800`, `vmmc_mv=3300`).
+Read-only raw reads of `/dev/mmcblk1`, `iflag=direct`.
+
+**What the new diagnostics showed**
+
+| Item | Result |
+| --- | --- |
+| RXDLYSEL | **Does not exist on MT6582.** `pad_tune_writable=0xffdf1f1f`: bits 13, 15 and 21 never stick; only the five delay fields do. `supported=no requested=1 actual=0`. Controller `MAIN_VER=0x20120911`, `ECO_VER=1` |
+| Pad drive readback | The 4/4/4 write **does take effect** (`pad.clk/cmd/dat drive=4`). Candidate 2 only recorded the values before it |
+| Other pad cells | LK state: `SMT=0` on CLK/CMD/DAT, `RDSEL=12`, `TDSEL=5`, slew 0. The stock kernel sets `SMT=1` and `RDSEL=TDSEL=0` for MSDC1 |
+| Tuning maps | Command rising edge: all 32 taps pass. Command falling edge: fails taps 9 to 15. Data rising edge: taps 0 to 30 pass. Data falling edge: fails taps 5 to 19 and passes 0 to 4 and 20 to 31. The command-internal delay passes taps 0 to 23. The rising-edge sweeps are (almost) open eyes, so "the pick is centred" says little |
+| Faults | Every failure is a **data CRC** on `CMD18` reads. **Zero command CRCs and zero timeouts.** Lanes DAT0 to DAT3 all fail on the rising edge (DAT0 most often); in the DDR50 stage the falling-edge lanes fail too |
+
+**What does not fix SDR104.** Each point renegotiates SDR104 through `y2_lab`
+(`level SDR104`), applies the setting, then reads raw 16 MiB chunks and stops
+at the first CRC:
+
+| Dimension swept | Values | Result |
+| --- | --- | --- |
+| Data read delay, rising edge | 0, 6, 12, 18, 24, 31 | all fail within 16 to 32 MiB |
+| Data read delay, falling edge | 0, 3, 22, 26, 31 | all fail within 16 MiB |
+| Clock TX delay | 1, 2, 4, 8, 16 | all fail within 16 MiB |
+| Clock-generator delay | 0, 3, 6, 10, 16, 24, 31 | all fail within 16 MiB (16 was worse: 11 faults) |
+| Internal latch clock | 1 to 7 | all fail within 16 MiB |
+| Pad drive strength, all lines | 1, 2, 3, 5, 6, 7 | all fail (7: 48 MiB) |
+| Drive on data or clock only | 1, 7 | all fail |
+| Slew rate | all lines, data only | all fail |
+| **Host clock capped at 100 MHz, SDR104 timing** | | **2 GiB, 0 faults, 42 MB/s** |
+| Host clock 200 MHz | | 64 MiB, 2 faults |
+
+So the failure is a 200 MHz signal-margin problem that no sampling-phase
+setting recovers: all four data lanes fail, on both edges, at any delay. SDR50
+(100 MHz) and SDR104 timing capped at 100 MHz are clean and run at about
+42 MB/s, the same as DDR50. The clock tree offers nothing between 100 and
+200 MHz (the shared MSDCPLL is the only source).
+
+## Candidate 4
+
+Two untested dimensions remain, both backed by evidence rather than guesses:
+
+1. **Host input pads.** The stock `msdc_set_smt` / `msdc_set_rdtdsel` (bic-only,
+   so they write zero) leave MSDC1 with Schmitt inputs on CLK/CMD/DAT and
+   `RDSEL = TDSEL = 0` at both voltages. Linux leaves LK's `SMT=0, RDSEL=12,
+   TDSEL=5`. Candidate 4 programs the stock values for the SD host together
+   with the drive, at the same two places (probe and the 1.8 V switch). The
+   eMMC pads are unchanged.
+2. **Card output driver type.** The host had no `select_drive_strength` hook, so
+   the core always used type B. Candidate 4 adds the hook and advertises types
+   A, C and D for the SD host. The default is still B; `y2_lab` can request
+   A, C or D for the next negotiation (`set drvtype=1|2|3`, then `level SDR104`).
+
+`y2_lab` also gains `smt_clk|cmd|dat`, `pull_clk|cmd|dat`, `rdsel` and `tdsel`, so
+the LK values can be restored for an A/B comparison on the same boot.
+
+## Characterization plan
+
+1. For each setting, `level SDR104`, set the field, read raw chunks to the first
+   CRC (the harness above), and record the registers before reading.
+2. If a setting reaches multi-GiB with zero faults, repeat on other offsets and
+   for much longer, with hashes, then run the full qualification list:
+   repeated multi-GiB reads, runtime suspend and resume, idle and wake,
+   repeated mode setup and reboot negotiation, zero CRC, timeouts, resets and
+   unexpected fallbacks.
+3. If nothing reaches 200 MHz, the production ceiling is the 100 MHz modes
+   (SDR50, or SDR104 timing capped at 100 MHz), with DDR50 behind them.
+
+## Candidate 4 receipt
+
+| Field | Value |
+| --- | --- |
+| Linux built source | `dcbd7d1` (code `3920a54`) |
+| Reborn built source | `b92d312cc2dc4b74f57a1a9a7b1407e34707137a`, unchanged |
+| Kernel / root / release / build | `6.18.0-y2linux-sd-sdr104-diag-04` / `2025.02.18-platform-v1.14` / `1.0.0-sd-sdr104-diag-candidate.4` / `Y2LINUX-SD-SDR104-DIAG-04` |
+| Validation | Production/platform suite 304 tests PASS; Reborn ARM QEMU, installed ARM, ELF closure, release inventory, legal-info PASS; `mtk-sd.c` and `pinctrl.c` build with `W=1` without warnings, lab interface on and off |
+| Package | `out/y2linux-sd-sdr104-diag04-candidate/`: only **BOOTIMG** and **ANDROID/Y2ROOT**; no Y2DATA, USRDATA, preloader, LK, NVRAM, PROTECT, calibration or factory image; fallback is the exact Hardware02 pair |
+| `BOOTIMG.img` | `139e1d05fb7d5bdada4a499eb2fbfebf21467317fd01a2ee1189763284aecd19` |
+| `Y2ROOT.img` | `a88aa8395dc9dcd53e2700a4cc60bcb4ac81940d95d4fc7871c218222e629384` |
+
+Not flashed, not pushed, no physical result.
 
 ## Tests
 
-`tests/test_sd_tuning.py` (20 tests): window detection, wrap-around on a
+`tests/test_sd_tuning.py` (23 tests): window detection, wrap-around on a
 circular line only, midpoint and margins, the open eye, multiple windows,
 narrow-eye rejection, edge selection, command and data CRC classification,
 fault log first/last and lane histogram, pad cell decoding, pad readback and
