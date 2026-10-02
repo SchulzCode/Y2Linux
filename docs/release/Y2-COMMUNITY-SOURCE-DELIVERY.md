@@ -49,3 +49,10 @@ AAC/aptX/aptX-HD/LDAC redistribution/certification questions from the existing
 codec ledger; complete external-toolchain source delivery; release signing/channel
 ownership. The owner-local candidate does not remove these features to hide the
 questions.
+
+The integration collector completed with explicit warnings for the external
+Bootlin toolchain and local `y2-connectivity`/`y2-update` package license fields,
+and for Buildroot itself. The package separately supplies the pinned Buildroot
+archive and both exact project source archives; the collector warning README is
+retained. Complete external-toolchain delivery and final local-package notice
+review remain open public-release obligations.

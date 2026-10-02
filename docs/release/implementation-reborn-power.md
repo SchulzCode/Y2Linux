@@ -55,12 +55,15 @@ UI `{lib,pages,screens,components,diagnostics,tests}.rs`;
 `docs/ui/REBORN-FEATURE-COMPLETION.md` and platform boundary documentation.
 No additional direct Y2 filesystem/shell access exists outside reborn-platform.
 
-Validation: fresh fmt check and strict workspace clippy passed. At product
-freeze the combined workspace passed **233 tests** (including concurrent audio
-agent changes); the parent's final build records any subsequent added tests.
+Validation: final current-source fmt check and strict workspace clippy passed.
+The combined workspace passed **238 tests**, zero failures/ignored, including
+codec discovery/history/reconnect and complete product regressions. A concurrent
+fork/CLOEXEC fixture race in the PCM lease test was corrected by using the same
+bounded reacquire wait already used earlier in that test; production lock
+semantics remain unchanged.
 Host preview generated **69** 480×360 states; new EQ/picker/sleep/LDAC cases
 were visually inspected. Output is `Y2Reborn/out/feature-completion-previews/`;
-workspace log is `Y2Reborn/out/feature-completion-workspace-tests.log`.
+final logs are `Y2Reborn/out/feature-completion-final-{fmt,clippy,workspace}.log`.
 
 Remaining physical proof: actual sleep restoration, new-control wheel and
 playback behavior on the panel, codec peers/qualities/ABR, audio output,

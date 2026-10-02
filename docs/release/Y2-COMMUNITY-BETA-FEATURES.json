@@ -18,22 +18,22 @@
       "reborn": "b92d312cc2dc4b74f57a1a9a7b1407e34707137a"
     },
     "source_baseline": {
-      "linux": "e2dd583c95fd42782f6e03a6b4d765d5bb571a94",
-      "reborn": "b92d312cc2dc4b74f57a1a9a7b1407e34707137a"
+      "linux": "02eb7359cff1d1e6eec725d496078338d1e7d601",
+      "reborn": "72e94b2d8eb13dcb7e2677bff2846edec3ddf81a"
     },
     "latest_built_candidate": {
-      "name": "Y2LINUX-SD-SDR104-DIAG-04",
-      "source_linux": "dcbd7d1b8ad502e574e5a4f7b927d62b45ac81dd",
-      "code_linux": "3920a54",
-      "rootfs": "2025.02.18-platform-v1.14",
-      "release": "1.0.0-sd-sdr104-diag-candidate.4",
+      "name": "Y2LINUX-FEATURE-COMPLETION-01",
+      "source_linux": "02eb7359cff1d1e6eec725d496078338d1e7d601",
+      "source_reborn": "72e94b2d8eb13dcb7e2677bff2846edec3ddf81a",
+      "rootfs": "2025.02.18-platform-v1.16",
+      "release": "1.0.0-feature-completion-candidate.1",
       "build_state": "SEALED_SOFTWARE_VALIDATED",
-      "physical_state": "PHYSICALLY_OBSERVED_NOT_QUALIFIED",
+      "physical_state": "NOT_TESTED",
       "sealed_image_hashes": {
-        "BOOTIMG.img": "139e1d05fb7d5bdada4a499eb2fbfebf21467317fd01a2ee1189763284aecd19",
-        "Y2ROOT.img": "a88aa8395dc9dcd53e2700a4cc60bcb4ac81940d95d4fc7871c218222e629384"
+        "BOOTIMG.img": "060145e3931e1d23f0b9805c0f12417d47f1589cf4489010705876a1ade7b098",
+        "Y2ROOT.img": "2039d61e30bd02d0f3fd8006808e7dbc95bbaabce7f1834fa12d57bcccd81995"
       },
-      "software_receipt": "docs/validation/Y2-SD-SDR104-DIAG.md at e2dd583:304 tests PASS"
+      "software_receipt": "docs/release/Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md"
     },
     "latest_reported_installed_candidate": {
       "name": "Y2LINUX-SD-SDR104-DIAG-04",
@@ -53,20 +53,20 @@
       "physical_scope": "2026-10-01 quick read-only storage check documented in HANDOFF; no fresh device read in this audit"
     },
     "newest_source_candidate": {
-      "name": "Y2LINUX-SD-SDR104-DIAG-04",
-      "source_linux": "dcbd7d1b8ad502e574e5a4f7b927d62b45ac81dd",
-      "code_linux": "3920a54",
-      "rootfs": "2025.02.18-platform-v1.14",
-      "release": "1.0.0-sd-sdr104-diag-candidate.4",
+      "name": "Y2LINUX-FEATURE-COMPLETION-01",
+      "source_linux": "02eb7359cff1d1e6eec725d496078338d1e7d601",
+      "source_reborn": "72e94b2d8eb13dcb7e2677bff2846edec3ddf81a",
+      "rootfs": "2025.02.18-platform-v1.16",
+      "release": "1.0.0-feature-completion-candidate.1",
       "build_state": "SEALED_SOFTWARE_VALIDATED",
       "physical_state": "NOT_TESTED",
       "sealed_image_hashes": {
-        "BOOTIMG.img": "139e1d05fb7d5bdada4a499eb2fbfebf21467317fd01a2ee1189763284aecd19",
-        "Y2ROOT.img": "a88aa8395dc9dcd53e2700a4cc60bcb4ac81940d95d4fc7871c218222e629384"
+        "BOOTIMG.img": "060145e3931e1d23f0b9805c0f12417d47f1589cf4489010705876a1ade7b098",
+        "Y2ROOT.img": "2039d61e30bd02d0f3fd8006808e7dbc95bbaabce7f1834fa12d57bcccd81995"
       },
-      "software_receipt": "docs/validation/Y2-SD-SDR104-DIAG.md at e2dd583:304 tests PASS"
+      "software_receipt": "docs/release/Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md"
     },
-    "concurrent_work_note": "Reclassification reads current e2dd583 receipt; candidate4 is sealed/unflashed. Candidate3 remains latest reported installed/physically observed; Fix02 latest broad qualification. No new build/flash/test by this task.",
+    "concurrent_work_note": "Implementation campaign sealed fresh software-tested integration candidate; not flashed. Candidate4 read-only identity is latest installed; Fix02 remains latest broad qualification.",
     "concurrent_draft_report": {
       "path": "docs/validation/Y2-SD-SDR104-DIAG.md",
       "sha256_at_snapshot": "299269f8ef8cc4e07e675dbf1a742a658ff0201dc4d828ce6a0cc1e83c9cac67",
@@ -197,6 +197,20 @@
     "implementation_start": {
       "linux": "9ac2c0b7018ce707ec15f8845daf58ce38ec18a0",
       "reborn": "eb64b8b21058eacb1ef183f7570cca8100cbbb46"
+    },
+    "previous_built_candidate": {
+      "name": "Y2LINUX-SD-SDR104-DIAG-04",
+      "source_linux": "dcbd7d1b8ad502e574e5a4f7b927d62b45ac81dd",
+      "code_linux": "3920a54",
+      "rootfs": "2025.02.18-platform-v1.14",
+      "release": "1.0.0-sd-sdr104-diag-candidate.4",
+      "build_state": "SEALED_SOFTWARE_VALIDATED",
+      "physical_state": "PHYSICALLY_OBSERVED_NOT_QUALIFIED",
+      "sealed_image_hashes": {
+        "BOOTIMG.img": "139e1d05fb7d5bdada4a499eb2fbfebf21467317fd01a2ee1189763284aecd19",
+        "Y2ROOT.img": "a88aa8395dc9dcd53e2700a4cc60bcb4ac81940d95d4fc7871c218222e629384"
+      },
+      "software_receipt": "docs/validation/Y2-SD-SDR104-DIAG.md at e2dd583:304 tests PASS"
     }
   },
   "state_definitions": {
@@ -612,7 +626,7 @@
         "tests/test_bootimg.py",
         "tests/test_production_handover.py"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Boot source-specific counters/logs; see subsystem section",
       "known_limitation": "Empty first-owner seed generator implemented; physical first install and firmware/public-distribution permission remain pending.",
       "failure_mode": "New owner boots to missing Y2DATA or has no authorized SSH key",
@@ -2067,7 +2081,7 @@
         "tests/test_cpu_fix02.py",
         "tests/test_cpu_fix03.py"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Suspend source-specific counters/logs; see subsystem section",
       "known_limitation": "Typed sleep states and same-boot/kernel EXIT/Reborn verification implemented; ordinary product sleep still safely refused pending actual full-resume repair.",
       "failure_mode": "Silent player or black screen after resume",
@@ -2123,7 +2137,7 @@
         "tests/test_cpu_fix02.py",
         "tests/test_cpu_fix03.py"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Suspend source-specific counters/logs; see subsystem section",
       "known_limitation": "Cold invalid SRAM ring/stamp reporting corrected; current4 read-only journal absent, so no new suspend localization.",
       "failure_mode": "Lost final crash boundary",
@@ -2860,7 +2874,7 @@
         "tests/test_storage_recovery.py",
         "tests/test_mmc_requests.py"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Storage source-specific counters/logs; see subsystem section",
       "known_limitation": "Storage lab mutation compiled out by default and clock limit read-only; explicit internal diagnostic build can retain lab controls.",
       "failure_mode": "Owner can destabilize live media",
@@ -2918,7 +2932,7 @@
         "tests/test_storage_recovery.py",
         "tests/test_mmc_requests.py"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Storage source-specific counters/logs; see subsystem section",
       "known_limitation": "Runtime retune failure now reconciles actual lower bus timing and rejects payloads before DMA while recovery runs; widest-eye and exact latch-clock restore fixed.",
       "failure_mode": "Reset/reinit loses card or I/O",
@@ -4293,7 +4307,7 @@
       "evidence": "UNTESTED",
       "physical_evidence": "No established MT6582 DL1 wider fetch/interconnect contract",
       "automated_tests": [],
-      "automated_test_result": "Source investigation and existing conversion tests; native hardware path not implemented or validated.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Not applicable; no implemented capability",
       "known_limitation": "Exact MT6582 known fetch path remains S16; no proven compatible wide-fetch register path. Reborn S32 ALSA support is not evidence of meaningful wired24.",
       "failure_mode": "False high-resolution claim or distorted samples if forced",
@@ -4357,7 +4371,7 @@
       "evidence": "UNTESTED",
       "physical_evidence": "No established higher AFE rate clock path",
       "automated_tests": [],
-      "automated_test_result": "Source investigation and existing conversion tests; native hardware path not implemented or validated.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Not applicable; no implemented capability",
       "known_limitation": "Exact native MT6582 clock/rate route above48k remains unproven; family conversion stays44.1/48.",
       "failure_mode": "False native-rate claim",
@@ -5297,7 +5311,7 @@
         "Y2Reborn:app/reborn/src/playback.rs",
         "Y2Reborn:app/reborn/src/volume.rs"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and DSP source-specific counters/logs; see subsystem section",
       "known_limitation": "Existing EQ DSP now exposed through wheel-friendly Productv2 editor; audible/headroom/endurance acceptance pending.",
       "failure_mode": "Unexpected gain if manually configured",
@@ -6169,7 +6183,7 @@
         "tests/test_platform_bluetooth.py",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Codecs source-specific counters/logs; see subsystem section",
       "known_limitation": "SBC XQ quality policy/control and actual bitpool/bitrate telemetry integrated; peer/mode/audible proof pending.",
       "failure_mode": "Negotiates ordinary SBC or cannot apply request",
@@ -6242,7 +6256,7 @@
         "tests/test_platform_bluetooth.py",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Codecs source-specific counters/logs; see subsystem section",
       "known_limitation": "AAC endpoint enabled in explicit private integration profile; peer/CPU/thermal/reconnect and redistribution proof pending.",
       "failure_mode": "Unsupported negotiation/CPU/dropout",
@@ -6316,7 +6330,7 @@
         "tests/test_platform_bluetooth.py",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Codecs source-specific counters/logs; see subsystem section",
       "known_limitation": "aptX endpoint enabled in explicit private integration profile; peer/load/reconnect and redistribution proof pending.",
       "failure_mode": "Codec unavailable or unstable",
@@ -6390,7 +6404,7 @@
         "tests/test_platform_bluetooth.py",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Codecs source-specific counters/logs; see subsystem section",
       "known_limitation": "aptX-HD endpoint enabled independently in explicit private integration profile; physical/distribution proof pending.",
       "failure_mode": "Codec unavailable or unstable",
@@ -6464,7 +6478,7 @@
         "tests/test_platform_bluetooth.py",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Codecs source-specific counters/logs; see subsystem section",
       "known_limitation": "LDAC endpoint enabled in explicit private integration profile; actual encoder telemetry added; peer/distribution proof pending.",
       "failure_mode": "High-load dropout",
@@ -6538,7 +6552,7 @@
         "tests/test_platform_bluetooth.py",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Codecs source-specific counters/logs; see subsystem section",
       "known_limitation": "Rate-family LDAC quality controls integrated with requested versus applied/startup state; peer proof pending.",
       "failure_mode": "990 may overload radio/coexistence",
@@ -6612,7 +6626,7 @@
         "tests/test_platform_bluetooth.py",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Codecs source-specific counters/logs; see subsystem section",
       "known_limitation": "LDAC ABR controls and actual encoder bitrate/quality transition telemetry implemented; no adaptation observed physically.",
       "failure_mode": "Quality oscillation/dropout",
@@ -10687,7 +10701,7 @@
         "tests/test_platform_telemetry_regressions.py",
         "Y2Reborn:app/reborn/tests/architecture_guard.rs"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Platform source-specific counters/logs; see subsystem section",
       "known_limitation": "Backward-compatible typed sleep, codec quality and redacted diagnostic export added to APIv1; current candidate physical integration pending.",
       "failure_mode": "Stale UI/status or API mismatch",
@@ -11119,7 +11133,7 @@
         "tests/test_platform_measurement.py",
         "Y2Reborn:crates/reborn-observability/src/lib.rs"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Diagnostics source-specific counters/logs; see subsystem section",
       "known_limitation": "Separate redacted tester export, reserve/privacy tests, Reborn action and hash-verified computer retrieval implemented.",
       "failure_mode": "Tester submits private DB or cannot retrieve useful logs",
@@ -11808,7 +11822,7 @@
         "tests/test_owner_data.py",
         "tests/test_platform_update.py"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Security source-specific counters/logs; see subsystem section",
       "known_limitation": "Fresh empty Y2DATA initialization tool requires only owner public key and validated paired system package; no maintainer seed or private key input.",
       "failure_mode": "All devices trust maintainer or expose someone else's credentials",
@@ -12192,7 +12206,7 @@
         "tests/test_owner_data.py",
         "tests/test_reborn_receipts.py"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Release source-specific counters/logs; see subsystem section",
       "known_limitation": "Exact release composition/capability generation and actual-image private-state rejection added; fresh integration build/package pending.",
       "failure_mode": "Mismatch boots wrong app/kernel or missing library",
@@ -12426,7 +12440,7 @@
         "tests/test_owner_data.py",
         "tests/test_reborn_receipts.py"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Release source-specific counters/logs; see subsystem section",
       "known_limitation": "Tester guide and standalone Linux first-owner generator/transfer/export/recovery workflow present; new-owner and cross-host rehearsals pending.",
       "failure_mode": "Tester erases data or cannot boot/copy/recover",
@@ -12860,7 +12874,7 @@
         "tests/test_platform_qualification.py",
         "tests/test_platform_measurement.py"
       ],
-      "automated_test_result": "Targeted implementation tests pass; fresh integrated build/validation is pending. See implementation pass receipt.",
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
       "diagnostics": "Platform status/health and Qualification source-specific counters/logs; see subsystem section",
       "known_limitation": "One integrated qualification entrypoint plus tester guide and redacted bug export implemented; physical cases remain explicit.",
       "failure_mode": "Bad report, wrong instructions, tester confusion",
@@ -98478,7 +98492,7 @@
   },
   "release_goal": "All intended major capabilities present, with safe bounded operation; bugs/peer-card limits may remain. Omission requires demonstrated hardware limit, unresolved lawful distribution constraint, or genuinely nonessential experiment. Difficulty or a safe fallback is not an exclusion.",
   "implementation_pass": {
-    "status": "IN_PROGRESS",
+    "status": "SOURCE_PASS_SEALED_HARDWARE_PENDING",
     "changed_features": [
       "F007",
       "F034",
@@ -98502,7 +98516,42 @@
       "F224",
       "F232"
     ],
-    "verdict": "FEATURE COMPLETION IN PROGRESS",
-    "report": "docs/release/Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md"
+    "verdict": "READY FOR HARDWARE DECISION RUN",
+    "report": "docs/release/Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md",
+    "candidate": {
+      "name": "Y2LINUX-FEATURE-COMPLETION-01",
+      "source_linux": "02eb7359cff1d1e6eec725d496078338d1e7d601",
+      "source_reborn": "72e94b2d8eb13dcb7e2677bff2846edec3ddf81a",
+      "rootfs": "2025.02.18-platform-v1.16",
+      "release": "1.0.0-feature-completion-candidate.1",
+      "build_state": "SEALED_SOFTWARE_VALIDATED",
+      "physical_state": "NOT_TESTED",
+      "sealed_image_hashes": {
+        "BOOTIMG.img": "060145e3931e1d23f0b9805c0f12417d47f1589cf4489010705876a1ade7b098",
+        "Y2ROOT.img": "2039d61e30bd02d0f3fd8006808e7dbc95bbaabce7f1834fa12d57bcccd81995"
+      },
+      "software_receipt": "docs/release/Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md"
+    },
+    "software_validation": {
+      "production_pass": 345,
+      "production_skip": 5,
+      "reborn_host_tests": 238,
+      "checks": {
+        "production-tests": 0,
+        "reborn-arm-qemu": 0,
+        "installed-arm": 0,
+        "elf": 0,
+        "release-inventory": 0,
+        "legal-info": 0,
+        "reborn-host-fmt": 0,
+        "reborn-host-clippy": 0,
+        "reborn-host-workspace-238": 0,
+        "host-supplemental-5": 0,
+        "package-preservation-privacy": 0,
+        "public-distribution-refusal": 0
+      }
+    },
+    "physical_qualification": false,
+    "public_distribution_ready": false
   }
 }

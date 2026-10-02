@@ -1,5 +1,9 @@
 # Y2Linux + Reborn Community Beta 1 — feature-completion plan
 
+## Sealed feature-completion integration — 2026-10-02
+
+**READY FOR HARDWARE DECISION RUN**. The [implementation pass](Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md) records the ten-workstream results, fresh build/tests, exact hashes and single owner handoff.233features and their release requirements remain. Native wired24/high-rate programming and full-resume closure remain unresolved; physical qualification and public distribution are separate open gates. No flash or push. Older snapshots below are historical.
+
 ## Active implementation campaign — 2026-10-02
 
 The owner now explicitly authorizes implementation, fresh validation and one

@@ -1,5 +1,9 @@
 # Y2Linux + Reborn Community Beta — complete current-state feature audit
 
+## Sealed feature-completion integration — 2026-10-02
+
+**READY FOR HARDWARE DECISION RUN**. The [implementation pass](Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md) records the ten-workstream results, fresh build/tests, exact hashes and single owner handoff.233features and their release requirements remain. Native wired24/high-rate programming and full-resume closure remain unresolved; physical qualification and public distribution are separate open gates. No flash or push. Older snapshots below are historical.
+
 <!-- knowledge-base-scope: current-state-audit -->
 
 Audit date: **2026-10-02, Europe/Berlin**. This is the master factual inventory and feature-complete planning baseline for Community Beta 1. It does **not** authorize implementation, a build, a flash, a hardware test, a milestone closure or publication. The separate [feature-completion beta plan](Y2-COMMUNITY-BETA-PLAN.md) defines the proposed next pass. [Machine-readable inventory](Y2-COMMUNITY-BETA-FEATURES.json) contains identical feature rows, all active kernel patches, repository heads/history, tracked-text census, marker classifications and gate declarations.
