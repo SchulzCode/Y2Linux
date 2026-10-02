@@ -98,6 +98,17 @@ class SleepProduct(unittest.TestCase):
             value = record(self.ctx, 'restoring_radios', 0)
             self.assertEqual(value['product']['wake_reason'], source)
 
+    def test_terminal_previous_boot_success_or_refusal_does_not_report_current_failure(self):
+        for state in ('restored', 'refused'):
+            value = {'product': {'state': state, 'request_boot_id': 'boot-old',
+                                 'kernel_completed': state == 'restored', 'wake_reason': 'rtc'}}
+            current = product(value, 'boot-new')
+            self.assertEqual(current['state'], 'idle')
+            self.assertIsNone(current['same_boot'])
+            self.assertFalse(current['kernel_completed'])
+        self.assertEqual(product({'product': {'state': 'restore_failed', 'request_boot_id': 'boot-old'}},
+                                 'boot-new')['state'], 'restore_failed')
+
     def test_reset_is_not_same_boot_resume(self):
         record(self.ctx, 'quiescing_radios', 0)
         record(self.ctx, 'kernel_suspend', 0)

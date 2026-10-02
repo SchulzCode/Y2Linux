@@ -20,6 +20,9 @@ def product(value, boot_id):
     result['boot_id'] = boot_id
     request_boot = result.get('request_boot_id')
     result['same_boot'] = bool(request_boot == boot_id) if request_boot and boot_id else None
+    if result['state'] in {'restored', 'refused'} and result['same_boot'] is False:
+        result.update(state='idle', reason=None, request_boot_id=None, same_boot=None,
+                      kernel_completed=False, wake_reason='unknown')
     if result['state'] in {'requested', 'sleeping', 'restoring'} and result['same_boot'] is False:
         result.update(state='restore_failed', reason='boot_changed_before_restoration', kernel_completed=False)
     return result

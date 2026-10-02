@@ -74,8 +74,9 @@ GPT4 deadline handoff.
 **Current4 observation:** online CPU0, local events and CIRQ ready, but C3
 preflight reported1300MHz, domain blockers0xa and live clocks; APDMA and BTIF
 remain legitimate C2 blockers while radios are active. Neither counter is proof
-of entry. This installed image reports `deep_idle_enabled=1`; older planning
-wording that C3 was always default off is not current runtime evidence.
+of entry. This installed image reports the global eligibility option
+`deep_idle_enabled=1`, while C3 retains `CPUIDLE_FLAG_OFF`: its cpuidle state is
+still disabled by default. The option readback alone does not enable C3.
 
 **Implementation:** no predicate weakening, forced parking/frequency, guessed
 register write or rewrite. Tests preserve both accepted bus baselines, exact
