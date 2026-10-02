@@ -154,6 +154,16 @@ def distribution_gate(build, public):
     return state
 
 
+def build_root_image(build):
+    # Buildroot names ext4 output through its rootfs.ext2 alias. Resolve only
+    # inside this build's images directory; arbitrary input links remain banned.
+    directory = (Path(build)/'buildroot/images').resolve(strict=True)
+    image = (directory/'rootfs.ext4').resolve(strict=True)
+    require(image.parent == directory and image.name in ('rootfs.ext2', 'rootfs.ext4'),
+            'generated root image must remain inside build images')
+    return image
+
+
 def package(build, base, fallback_root, out, fallback_overlay=None, public=False):
     from tools.production.validate import validate_manifest, validate_rootfs
     from tools.production.application import receipt as reborn_application
@@ -171,7 +181,7 @@ def package(build, base, fallback_root, out, fallback_overlay=None, public=False
         oldroot=overlay_fallback(previous,json.loads(fallback_overlay.read_text()),fallback_root)
     require(fallback_root.stat().st_size==oldroot['raw']['size_bytes'] and digest(fallback_root)==oldroot['raw']['sha256'], 'accepted root fallback')
     from tools.production.privacy import ext4
-    privacy = {'new_root': ext4(build/'buildroot/images/rootfs.ext4'),
+    privacy = {'new_root': ext4(build_root_image(build)),
                'fallback_root': ext4(fallback_root), 'private_state_found': False}
     out.mkdir(); (out/'metadata').mkdir(); (out/'fallback').mkdir()
     shutil.copyfile(build/'BOOTIMG.img',out/'BOOTIMG.img')

@@ -7,6 +7,18 @@ from tools.production import system_update as u
 
 
 class Composition(unittest.TestCase):
+    def test_buildroot_generated_alias_cannot_escape_images(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            build = Path(temporary)
+            images = build/'buildroot/images'; images.mkdir(parents=True)
+            image = images/'rootfs.ext2'; image.write_bytes(b'fixture')
+            alias = images/'rootfs.ext4'; alias.symlink_to('rootfs.ext2')
+            self.assertEqual(u.build_root_image(build), image)
+            alias.unlink(); (build/'outside').write_bytes(b'fixture')
+            alias.symlink_to(build/'outside')
+            with self.assertRaisesRegex(ValueError, 'inside build images'):
+                u.build_root_image(build)
+
     def fixture(self, root):
         build, out = root/'build', root/'package'
         installed = build/'buildroot/target/etc/y2linux'
