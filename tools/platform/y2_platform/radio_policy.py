@@ -50,9 +50,10 @@ class Coexistence:
         return value
 
 
-def codec_runtime(ctx):
+def codec_runtime(ctx, record=False):
     inventory = ctx.json('/etc/y2linux/bluetooth-codecs.json', {})
-    policy = ctx.json('/data/bluetooth/codec-policy.json', {'schema': 1, 'experimental': False})
+    from .codec_controls import requested, validate
+    policy = validate(requested(ctx))
     if inventory.get('schema') != 1 or policy.get('schema') != 1:
         raise ValueError('codec_policy_or_inventory_unavailable')
     experimental = policy.get('experimental') is True
@@ -75,4 +76,8 @@ def codec_runtime(ctx):
         args.append('--ldac-quality=' + ldac)
         if policy.get('ldac_abr', True) is True:
             args.append('--ldac-abr')
+    if record:
+        atomic_json(ctx.path('/run/y2/codec-runtime.json'), {
+            'boot_id': ctx.read('/proc/sys/kernel/random/boot_id'),
+            'settings': policy, 'arguments': args})
     return args

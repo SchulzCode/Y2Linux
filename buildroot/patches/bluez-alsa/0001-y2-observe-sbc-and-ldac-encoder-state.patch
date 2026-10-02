@@ -1,0 +1,143 @@
+Expose read-only SBC/LDAC encoder state and real ABR transitions.
+
+The stats are bounded atomic observations; no D-Bus events or filesystem writes
+run on the audio thread. Active clears on encoder cleanup, and consumers must
+also bind observations to the active PCM/daemon lifetime. Other codecs retain
+zero/unknown telemetry. This does not qualify any physical link or codec.
+
+--- a/src/ba-transport-pcm.h
++++ b/src/ba-transport-pcm.h
+@@ -115,6 +115,11 @@
+ 	uint16_t format;
+ 	/* number of audio channels */
+ 	unsigned int channels;
++	/* Y2 encoder observations, never requested quality. Access via GLib
++	 * atomic integer operations across encoder and D-Bus threads. */
++	int encoder_active, encoder_bitrate_kbps, encoder_quality;
++	int encoder_bitpool, encoder_abr, encoder_adjustments, encoder_errors;
++
+ 	/* PCM sample rate */
+ 	unsigned int rate;
+ 
+--- a/src/ba-transport-pcm.c
++++ b/src/ba-transport-pcm.c
+@@ -224,6 +224,7 @@
+ /**
+  * Transport IO thread cleanup function for pthread cleanup. */
+ void ba_transport_pcm_thread_cleanup(struct ba_transport_pcm *pcm) {
++	g_atomic_int_set(&pcm->encoder_active, 0);
+ 
+ 	struct ba_transport *t = pcm->t;
+ 
+--- a/src/bluealsa-dbus.c
++++ b/src/bluealsa-dbus.c
+@@ -949,6 +949,21 @@
+ 	struct ba_device *d = pcm->t->d;
+ 	GVariant *value;
+ 
++	if (strcmp(property, "EncoderStats") == 0) {
++		GVariantBuilder stats;
++		g_variant_builder_init(&stats, G_VARIANT_TYPE_VARDICT);
++#define Y2_STAT(key, field) g_variant_builder_add(&stats, "{sv}", key, \
++			g_variant_new_int32(g_atomic_int_get(&pcm->field)))
++		Y2_STAT("Active", encoder_active);
++		Y2_STAT("BitrateKbps", encoder_bitrate_kbps);
++		Y2_STAT("QualityIndex", encoder_quality);
++		Y2_STAT("Bitpool", encoder_bitpool);
++		Y2_STAT("AbrEnabled", encoder_abr);
++		Y2_STAT("AbrAdjustments", encoder_adjustments);
++		Y2_STAT("Errors", encoder_errors);
++#undef Y2_STAT
++		return g_variant_builder_end(&stats);
++	}
+ 	if (strcmp(property, "Device") == 0)
+ 		return ba_variant_new_device_path(d);
+ 	if (strcmp(property, "Sequence") == 0)
+--- a/src/dbus/org.bluealsa.xml
++++ b/src/dbus/org.bluealsa.xml
+@@ -30,6 +30,7 @@
+ 		<property name="ChannelMap" type="as" access="read" />
+ 		<property name="Rate" type="u" access="read" />
+ 		<property name="Codec" type="s" access="read" />
++		<property name="EncoderStats" type="a{sv}" access="read" />
+ 		<property name="CodecConfiguration" type="ay" access="read" />
+ 		<property name="Delay" type="q" access="read" />
+ 		<property name="ClientDelay" type="n" access="readwrite" />
+--- a/src/a2dp-ldac.c
++++ b/src/a2dp-ldac.c
+@@ -16,6 +16,7 @@
+ #include <sys/ioctl.h>
+ #include <unistd.h>
+ 
++#include <glib.h>
+ #include <ldacBT.h>
+ #include <ldacBT_abr.h>
+ 
+@@ -136,6 +137,11 @@
+ 	const size_t sample_size = BA_TRANSPORT_PCM_FORMAT_BYTES(t_pcm->format);
+ 	const unsigned int channels = t_pcm->channels;
+ 	const unsigned int rate = t_pcm->rate;
++	g_atomic_int_set(&t_pcm->encoder_active, 0);
++	g_atomic_int_set(&t_pcm->encoder_adjustments, 0);
++	g_atomic_int_set(&t_pcm->encoder_errors, 0);
++	g_atomic_int_set(&t_pcm->encoder_bitpool, 0);
++	g_atomic_int_set(&t_pcm->encoder_abr, config.ldac_abr);
+ 	const size_t ldac_frame_pcm_samples = LDACBT_ENC_LSU * channels;
+ 
+ 	if (ldacBT_init_handle_encode(handle, t->mtu_write, config.ldac_eqmid,
+@@ -255,8 +261,18 @@
+ 					 * arbitrary big value. */
+ 					queued_bytes = 1024 * 16;
+ 
+-				if (config.ldac_abr)
+-					ldac_ABR_Proc(handle, handle_abr, queued_bytes / t->mtu_write, 1);
++				/* Read encoder state after a successful packet; do not infer
++				 * adaptation merely because the ABR library was linked. */
++				const int before_eqmid = ldacBT_get_eqmid(handle);
++				if (config.ldac_abr) {
++					if (ldac_ABR_Proc(handle, handle_abr, queued_bytes / t->mtu_write, 1) < 0)
++						g_atomic_int_inc(&t_pcm->encoder_errors);
++					if (ldacBT_get_eqmid(handle) != before_eqmid)
++						g_atomic_int_inc(&t_pcm->encoder_adjustments);
++				}
++				g_atomic_int_set(&t_pcm->encoder_quality, ldacBT_get_eqmid(handle));
++				g_atomic_int_set(&t_pcm->encoder_bitrate_kbps, ldacBT_get_bitrate(handle));
++				g_atomic_int_set(&t_pcm->encoder_active, 1);
+ 
+ 			}
+ 
+--- a/src/a2dp-sbc.c
++++ b/src/a2dp-sbc.c
+@@ -19,6 +19,7 @@
+ #include <sys/param.h>
+ #include <sys/types.h>
+ 
++#include <glib.h>
+ #include <sbc/sbc.h>
+ 
+ #include "a2dp.h"
+@@ -146,6 +147,15 @@
+ 
+ 	/* initialize SBC encoder bit-pool */
+ 	sbc.bitpool = sbc_a2dp_get_bitpool(configuration, config.sbc_quality);
++	g_atomic_int_set(&t_pcm->encoder_active, 0);
++	g_atomic_int_set(&t_pcm->encoder_adjustments, 0);
++	g_atomic_int_set(&t_pcm->encoder_errors, 0);
++	g_atomic_int_set(&t_pcm->encoder_abr, 0);
++	g_atomic_int_set(&t_pcm->encoder_quality, config.sbc_quality);
++	g_atomic_int_set(&t_pcm->encoder_bitpool, sbc.bitpool);
++	g_atomic_int_set(&t_pcm->encoder_bitrate_kbps,
++		8 * sbc_get_frame_length(&sbc) * rate /
++		(sbc_frame_pcm_samples / channels) / 1000);
+ 	/* ensure libsbc uses little-endian PCM on all architectures */
+ 	sbc.endian = SBC_LE;
+ 
+@@ -256,6 +266,8 @@
+ 					error("BT write error: %s", strerror(errno));
+ 				goto fail;
+ 			}
++
++			g_atomic_int_set(&t_pcm->encoder_active, 1);
+ 
+ 			if (!io.initiated) {
+ 				/* Get the codec processing delay, which is a time spent in the

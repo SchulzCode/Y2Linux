@@ -10,6 +10,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 from pathlib import Path
 import struct
 import wave
@@ -49,6 +50,55 @@ def generate(directory, frames=4096):
     return result
 
 
+def verify_capture(path, rate, first_frame=0):
+    """Check normalized signed 24-bit I2S decoder CSV; never play or claim qualification.
+
+    The capture must contain time_s,left_s24,right_s24. Values describe DAC
+    payload, after the analyzer's I2S one-bit delay and slot alignment handling.
+    Caller retains the original analyzer capture and clock/voltage evidence.
+    """
+    if rate not in (44100, 48000, 88200, 96000) or first_frame < 0:
+        raise ValueError('invalid_capture_rate_or_alignment')
+    with Path(path).open(newline='') as stream:
+        rows = list(csv.DictReader(stream))
+    if not 64 <= len(rows) <= 1_000_000:
+        raise ValueError('capture_needs_64_to_1000000_frames')
+    mismatches = []; times = []; below16 = 0
+    for index, row in enumerate(rows):
+        stamp = float(row['time_s'])
+        if not math.isfinite(stamp) or (times and stamp <= times[-1]):
+            raise ValueError('nonmonotonic_capture_time')
+        times.append(stamp)
+        frame = first_frame + index
+        expected = (PATTERN[frame % len(PATTERN)], PATTERN[(frame + 5) % len(PATTERN)])
+        actual = (int(row['left_s24'], 0), int(row['right_s24'], 0))
+        if any(not -8388608 <= value <= 8388607 for value in actual):
+            raise ValueError('capture_payload_not_signed24')
+        below16 += sum((value & 255) != 0 for value in actual)
+        if actual != expected and len(mismatches) < 16:
+            mismatches.append({'frame': frame, 'expected': expected, 'actual': actual})
+    observed_rate = (len(rows) - 1) / (times[-1] - times[0])
+    error_ppm = (observed_rate / rate - 1) * 1e6
+    return {'schema': 'org.y2linux.audio-capture-check/v1',
+            'state': 'MATCH' if not mismatches and below16 and abs(error_ppm) <= 1000 else 'MISMATCH',
+            'frames': len(rows), 'payload_low_bit_samples': below16,
+            'expected_rate_hz': rate, 'captured_rate_hz': observed_rate,
+            'clock_error_ppm': error_ppm, 'mismatches': mismatches,
+            'physical_qualification': False,
+            'evidence_scope': 'normalized_capture_only; retain original analyzer data and board/boot identity'}
+
+
 if __name__=='__main__':
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('output',type=Path)
-    print(json.dumps(generate(parser.parse_args().output),indent=2))
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('output',type=Path, nargs='?')
+    parser.add_argument('--verify-capture',type=Path)
+    parser.add_argument('--rate',type=int)
+    parser.add_argument('--first-frame',type=int,default=0)
+    args=parser.parse_args()
+    if args.verify_capture:
+        result=verify_capture(args.verify_capture,args.rate,args.first_frame)
+        print(json.dumps(result,indent=2))
+        raise SystemExit(0 if result['state']=='MATCH' else 1)
+    if not args.output:
+        parser.error('output directory or --verify-capture required')
+    print(json.dumps(generate(args.output),indent=2))

@@ -9,5 +9,6 @@ config BR2_PACKAGE_Y2_CODEC_EXPERIMENTS
 	select BR2_PACKAGE_LIBLDAC
 	help
 	  Build AAC, aptX, aptX HD and LDAC for owner-private experiments.
-	  The normal service still enables only SBC. No public distribution
-	  approval or physical qualification is implied; Auto stays gated.
+	  Private integration images enable these endpoints experimentally.
+	  SBC remains the bounded fallback. No public distribution approval
+	  or physical qualification is implied; public packaging rejects this profile.

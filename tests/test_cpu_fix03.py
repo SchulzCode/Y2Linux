@@ -323,6 +323,12 @@ int main(void){
  assert(strstr(last, "stage=CONSOLE_RESUMED"));
  unsigned *a = sram + y2_pm_ring_offset(ring_sequence - 1) / 4, *b = sram + y2_pm_ring_offset(ring_sequence) / 4;
  assert(a[7] && b[7] > a[7]);
+ /* Undefined cold SRAM is not a cycle, sequence or watchdog duration. */
+ header[0] = 0x81ac5412; header[1] = 2335119373U; header[2] = 2131687023U; header[3] = 3564306235U;
+ emit_ring(text, entries, header);
+ assert(!strcmp(text, "ring=absent cycle=0 last=0 backstop_s=0\n"));
+ assert(!y2_pm_resume_stamp(0x367e3baa) && !y2_pm_resume_stamp(0));
+ assert(y2_pm_resume_stamp(Y2_PM_RESUME_STAMP) == 0x59325253U);
  /* Fix02-layout rings are recognized, not misdecoded. */
  header[0] = Y2_PM_RING_MAGIC_FIX02; emit_ring(text, entries, header);
  assert(strstr(text, "ring=fix02_layout") && !strstr(text, "phase="));

@@ -19,3 +19,10 @@ $(Y2_RADIO_OUTPUT)/y2-bt-observe: $(Y2_RADIO_SOURCE)/bt-observe.c
 
 $(Y2_RADIO_OUTPUT)/y2-audio-contract: $(Y2_RADIO_SOURCE)/audio-contract.c
 	$(CC) $(CFLAGS) $(shell $(PKG_CONFIG) --cflags alsa) $< $(LDFLAGS) $(shell $(PKG_CONFIG) --libs alsa) -o $@
+
+ifeq ($(Y2_CODEC_TESTS),1)
+all: $(Y2_RADIO_OUTPUT)/y2-codec-software-contract
+endif
+$(Y2_RADIO_OUTPUT)/y2-codec-software-contract: $(Y2_RADIO_SOURCE)/codec-software-contract.c
+	# FDK headers define unused static helpers; all project warnings stay errors.
+	$(CC) $(CFLAGS) -Wno-unused-function $(shell $(PKG_CONFIG) --cflags sbc fdk-aac libfreeaptx ldacBT-enc ldacBT-abr) $< $(LDFLAGS) $(shell $(PKG_CONFIG) --libs sbc fdk-aac libfreeaptx ldacBT-enc ldacBT-abr) -o $@

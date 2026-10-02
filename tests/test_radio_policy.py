@@ -66,3 +66,77 @@ class RadioPolicy(unittest.TestCase):
         value = observe.observe(self.ctx, {'state': 'Online', 'traffic_counters': {'rx_bytes': 3000000}}, 2)
         self.assertTrue(value['wifi_heavy_transfer'])
         self.assertIsNone(value['codec_bitrate_override'])
+
+class CodecQuality(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.ctx = Context(self.temp.name)
+        self.ctx.path('/run/y2').mkdir(parents=True)
+        self.ctx.path('/data/bluetooth').mkdir(parents=True)
+        self.ctx.path('/etc/y2linux').mkdir(parents=True)
+        self.ctx.path('/proc/sys/kernel/random').mkdir(parents=True)
+        self.ctx.path('/proc/sys/kernel/random/boot_id').write_text('current-boot')
+        self.ctx.path('/etc/y2linux/bluetooth-codecs.json').write_text(json.dumps({
+            'schema': 1, 'private_integration_enabled': True,
+            'codecs': {name: {'compiled_locally': True, 'owner_private_experiment': True}
+                       for name in ('AAC', 'aptX', 'aptX-HD', 'LDAC')}}))
+
+    def test_private_integration_enables_all_endpoints_without_qualification_claim(self):
+        from y2_platform.codec_controls import configure
+        args = codec_runtime(self.ctx, record=True)
+        self.ctx.path('/run/y2/bluealsa.pid').write_text('123')
+        self.ctx.path('/proc/123').mkdir()
+        self.ctx.path('/proc/123/cmdline').write_text('\0'.join(['/usr/bin/bluealsad', *args]) + '\0')
+        for name in ('AAC', 'aptX', 'aptX-HD', 'LDAC'):
+            self.assertIn('--codec=' + name, args)
+        self.assertFalse(configure(self.ctx)['pending_restart'])
+        changed = configure(self.ctx, ldac_quality='high', ldac_abr=False)
+        self.assertTrue(changed['pending_restart'])
+        self.assertEqual(changed['effective']['ldac_quality'], 'standard')
+        self.assertTrue(changed['effective']['ldac_abr'])
+        self.assertFalse(changed['requested']['ldac_abr'])
+        args = codec_runtime(self.ctx, record=True)
+        self.assertNotIn('--ldac-abr', args)
+        self.ctx.path('/proc/123/cmdline').write_text('\0'.join(['/usr/bin/bluealsad', *args]) + '\0')
+        self.assertFalse(configure(self.ctx)['pending_restart'])
+        self.ctx.path('/proc/sys/kernel/random/boot_id').write_text('next-boot')
+        self.assertIsNone(configure(self.ctx)['effective'])
+
+    def test_invalid_preferences_never_modify_saved_settings(self):
+        from y2_platform.codec_controls import configure
+        for value in ('unknown', '', ';reboot'):
+            with self.assertRaises(ValueError): configure(self.ctx, ldac_quality=value)
+        with self.assertRaises(ValueError): configure(self.ctx, ldac_abr='yes')
+        self.assertFalse(self.ctx.path('/data/bluetooth/codec-policy.json').exists())
+
+    def test_sbc_xq_requires_negotiated_mode_and_actual_bitpool(self):
+        from y2_platform.codec_observation import quality
+        pcm = {'Running': True, 'Rate': 44100, 'CodecConfiguration': [0x24, 0x15, 2, 53],
+               'EncoderStats': {'Active': 1, 'Bitpool': 38, 'BitrateKbps': 452}}
+        self.assertEqual(quality('SBC', pcm, {})['sbc_quality'], 'xq')
+        pcm['EncoderStats']['Bitpool'] = 35
+        self.assertEqual(quality('SBC', pcm, {})['sbc_quality'], 'standard')
+        pcm['EncoderStats']['Bitpool'] = 47
+        self.assertEqual(quality('SBC', pcm, {})['sbc_quality'], 'xq+')
+        pcm['CodecConfiguration'][0] = 0x21
+        self.assertEqual(quality('SBC', pcm, {})['sbc_quality'], 'standard')
+        pcm['Running'] = False
+        self.assertIsNone(quality('SBC', pcm, {})['sbc_quality'])
+
+    def test_ldac_abr_is_observed_only_from_active_encoder_transitions(self):
+        from y2_platform.codec_observation import quality
+        pcm = {'Running': True, 'Rate': 44100,
+               'EncoderStats': {'Active': 1, 'BitrateKbps': 606, 'QualityIndex': 1,
+                                'AbrEnabled': 1, 'AbrAdjustments': 0}}
+        first = quality('LDAC', pcm, {})
+        self.assertEqual(first['ldac_nominal_choices_kbps'], [303, 606, 909])
+        self.assertFalse(first['ldac_abr_adaptation_observed'])
+        pcm['EncoderStats']['AbrAdjustments'] = 2
+        pcm['Rate'] = 48000
+        next_value = quality('LDAC', pcm, {})
+        self.assertEqual(next_value['ldac_nominal_choices_kbps'], [330, 660, 990])
+        self.assertTrue(next_value['ldac_abr_adaptation_observed'])
+        pcm['EncoderStats']['Active'] = 0
+        self.assertIsNone(quality('LDAC', pcm, {})['bitrate_bps'])
+        self.assertFalse(quality('LDAC', pcm, {})['ldac_abr_adaptation_observed'])

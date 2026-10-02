@@ -200,6 +200,7 @@ def thermal(ctx):
 
 
 def power(ctx):
+    from .sleep import status as sleep_status
     supplies = []
     fields = ('type', 'status', 'health', 'online', 'present', 'usb_type',
               'voltage_now', 'voltage_min_design', 'voltage_max_design',
@@ -222,7 +223,7 @@ def power(ctx):
             'pack_temperature': battery.get('temperature_millicelsius'),
             'unavailable_reason': 'not_exposed_by_qualified_y2_battery_driver',
             'normal_boot': ctx.integer('/sys/firmware/y2_boot/normal_boot'),
-            'low_battery': policy}
+            'low_battery': policy, 'sleep': sleep_status(ctx)}
 
 
 def space_state(available, total, readonly=False, error=False):

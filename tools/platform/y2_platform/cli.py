@@ -29,9 +29,16 @@ def main():
     boot.add_argument('stage')
     bt_power = sub.add_parser('bluetooth-power')
     bt_power.add_argument('value', choices=['on', 'off'])
+    sleep = sub.add_parser('sleep')
+    sleep.add_argument('action', choices=['request', 'status'])
     sub.add_parser('power-daemon')
     sub.add_parser('service-daemon')
-    sub.add_parser('codec-runtime')
+    codec_runtime = sub.add_parser('codec-runtime')
+    codec_runtime.add_argument('--record', action='store_true')
+    codec_settings = sub.add_parser('codec-settings')
+    codec_settings.add_argument('--sbc-quality', choices=['high', 'xq', 'xq+'])
+    codec_settings.add_argument('--ldac-quality', choices=['mobile', 'standard', 'high'])
+    codec_settings.add_argument('--ldac-abr', choices=['on', 'off'])
     sub.add_parser('wifi-power-policy')
     sub.add_parser('ssh-daemon')
     transfer = sub.add_parser('transfer')
@@ -46,6 +53,7 @@ def main():
     reset.add_argument('--confirm')
     reset.add_argument('--id')
     reset.add_argument('--erase-user-music', action='store_true')
+    sub.add_parser('export-diagnostics')
     export = sub.add_parser('export-state')
     export.add_argument('--include-database', action='store_true')
     export.add_argument('--include-network', action='store_true')
@@ -95,13 +103,28 @@ def main():
     collect.add_argument('--reborn', action='store_true')
     args = parser.parse_args()
     ctx = Context()
+    if args.command == 'sleep':
+        from . import sleep
+        result = sleep.request(ctx) if args.action == 'request' else sleep.status(ctx)
+        print(json.dumps(result, sort_keys=True))
+        return 0
     if args.command == 'rtc-alarm':
         from .timekeeping import alarm
         print(json.dumps(alarm(ctx, args.seconds)))
         return 0
+    if args.command == 'codec-settings':
+        from .codec_controls import configure
+        try:
+            result = configure(ctx, sbc_quality=args.sbc_quality, ldac_quality=args.ldac_quality,
+                               ldac_abr=None if args.ldac_abr is None else args.ldac_abr == 'on')
+        except (ValueError, OSError) as error:
+            print(json.dumps({'schema': 'org.y2linux.codec-settings/v1', 'failure': str(error)}))
+            return 1
+        print(json.dumps(result))
+        return 0
     if args.command == 'codec-runtime':
         from .radio_policy import codec_runtime
-        print(' '.join(codec_runtime(ctx)))
+        print(' '.join(codec_runtime(ctx, record=args.record)))
         return 0
     if args.command == 'wifi-power-policy':
         from .radio_policy import wifi_policy
@@ -112,6 +135,15 @@ def main():
         from .boot import capture_previous
         print(json.dumps(capture_previous(ctx), sort_keys=True))
         return 0
+    if args.command == 'export-diagnostics':
+        from .diagnostics import export
+        try:
+            result = export(ctx)
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        except (OSError, ValueError, TimeoutError):
+            print(json.dumps({'state': 'Failed', 'failure': 'diagnostic_export_failed'}))
+            return 1
     if args.command in ('reset', 'export-state'):
         from . import maintenance
         try:

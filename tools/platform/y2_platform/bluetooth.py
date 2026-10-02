@@ -5,6 +5,15 @@ import time
 
 
 def normalize(ctx, raw):
+    from .codec_controls import status as codec_settings
+    try:
+        settings = codec_settings(ctx)
+    except ValueError as error:
+        # Invalid saved preferences must not hide a live radio/PCM observation.
+        # The mutation/startup path still refuses this policy without changing it.
+        settings = {'schema': 'org.y2linux.codec-settings/v1', 'state': 'Failed',
+                    'reason': str(error), 'requested': None, 'effective': None,
+                    'pending_restart': False, 'supported': {}}
     result = {'state': 'Unavailable', 'reason': 'dbus_observation_unavailable',
               'adapter': None, 'selected_peer': None, 'transport': None,
               'negotiated_codec': None, 'pcm': None,
@@ -14,7 +23,8 @@ def normalize(ctx, raw):
               'actual_bitrate_bps': None, 'packet_loss': None,
               'reconnect_owner': 'y2-bt-reconnect',
               'reconnect': ctx.json('/run/y2/bt-reconnect.json'),
-              'codec_inventory': ctx.json('/etc/y2linux/bluetooth-codecs.json')}
+              'codec_inventory': ctx.json('/etc/y2linux/bluetooth-codecs.json'),
+              'codec_settings': settings}
     reconnect = result['reconnect']
     if not isinstance(reconnect, dict) or reconnect.get('boot_id') != ctx.read('/proc/sys/kernel/random/boot_id') or not isinstance(reconnect.get('monotonic_us'), int) or not 0 <= time.monotonic() * 1e6 - reconnect['monotonic_us'] < 10_000_000:
         result['reconnect'] = {'state': 'Unavailable', 'reason': 'reconnect_record_stale_or_absent'}
@@ -83,6 +93,9 @@ def normalize(ctx, raw):
                      'valid_bits': fmt[1] if fmt else None, 'physical_bits': fmt[2] if fmt else None,
                      'rate_hz': rate, 'channels': channels}
     result['negotiated_codec'] = pcm.get('Codec') if isinstance(pcm.get('Codec'), str) else None
+    from .codec_observation import quality
+    result['encoder'] = quality(result['negotiated_codec'], pcm, result['codec_settings'])
+    result['actual_bitrate_bps'] = result['encoder']['bitrate_bps']
     result['transport'] = {'object': path, 'bluealsa_owner': raw['bluealsa_owner'],
                            'connection_sequence': pcm.get('Sequence'), 'running': pcm.get('Running'),
                            'lifetime_note': 'snapshot; use ObjectManager removal signals for per-open lifetime'}
