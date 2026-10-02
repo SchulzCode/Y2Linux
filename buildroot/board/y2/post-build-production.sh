@@ -51,7 +51,7 @@ done
 install -m 644 "$project/tools/platform/capabilities.json" "$target/etc/y2linux/capabilities.json"
 codec_profile=sbc-only
 if grep -qx 'BR2_PACKAGE_Y2_CODEC_EXPERIMENTS=y' "$Y2_ARTIFACT_DIR/buildroot/.config"; then
-    codec_profile=owner-private-experiments
+    codec_profile=owner-private-integration
 fi
 python3 "$project/tools/platform/codec_manifest.py" "$Y2_ARTIFACT_DIR/buildroot/build/bluez-alsa-5.0.0" \
     --profile "$codec_profile" --daemon-args "$target/etc/y2linux/bluetooth-daemon.args" \

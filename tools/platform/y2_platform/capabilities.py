@@ -8,7 +8,8 @@ def status(ctx):
         if name in caps:
             caps[name]['enabled'] = ctx.integer(path) == 1
     inventory = ctx.json('/etc/y2linux/bluetooth-codecs.json', {})
-    policy = ctx.json('/data/bluetooth/codec-policy.json', {})
+    from .codec_controls import requested
+    policy = requested(ctx)
     mapping = {'sbc': 'SBC', 'aac': 'AAC', 'aptx': 'aptX', 'aptx_hd': 'aptX-HD', 'ldac': 'LDAC'}
     for key, name in mapping.items():
         cap = caps.get('bluetooth_' + key)

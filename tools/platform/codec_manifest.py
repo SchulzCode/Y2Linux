@@ -9,21 +9,25 @@ import sys
 
 
 def manifest(build, profile='sbc-only'):
-    if profile not in ('sbc-only', 'owner-private-experiments'):
+    if profile not in ('sbc-only', 'owner-private-experiments', 'owner-private-integration'):
         raise ValueError('unknown_codec_profile')
-    experiments = profile == 'owner-private-experiments'
+    experiments = profile != 'sbc-only'
+    integration = profile == 'owner-private-integration'
     config = (build / 'config.h').read_text()
     if '#define PACKAGE_VERSION "v5.0.0"' not in config:
         raise ValueError('unexpected_bluealsa_api_version')
     if not (build / 'src/bluealsad').is_file():
         raise ValueError('bluealsad_not_built')
+    telemetry_source = build / 'src/dbus/org.bluealsa.xml'
+    telemetry = telemetry_source.is_file() and 'EncoderStats' in telemetry_source.read_text()
     codecs = {}
     for name, flag in [('SBC', None), ('AAC', 'AAC'), ('aptX', 'APTX'), ('aptX-HD', 'APTX_HD'), ('LDAC', 'LDAC')]:
         compiled = flag is None or bool(re.search(r'^#define ENABLE_' + flag + r' 1$', config, re.M))
         codecs[name] = {'compiled_locally': compiled, 'distribution_approved': name == 'SBC',
                         'platform_qualified': False,
                         'owner_private_experiment': experiments and compiled and name != 'SBC',
-                        'default_runtime_enabled': name == 'SBC',
+                        'default_runtime_enabled': name == 'SBC' or (integration and compiled),
+                        'experimental': integration and name != 'SBC',
                         'gate': 'PHYSICAL_GATE' if name == 'SBC' else 'PUBLIC_DISTRIBUTION_AND_PHYSICAL_GATE'}
     unexpected = re.findall(r'^#define ENABLE_(AAC|APTX|APTX_HD|LDAC|LHDC|MPEG|OPUS|LC3PLUS|FASTSTREAM|ASHA) 1$', config, re.M)
     allowed = {'AAC', 'APTX', 'APTX_HD', 'LDAC'} if experiments else set()
@@ -34,12 +38,13 @@ def manifest(build, profile='sbc-only'):
     if experiments and ('#define WITH_LIBFREEAPTX 1' not in config or
                         '#define WITH_LIBOPENAPTX 1' in config):
         raise ValueError('owner_private_codec_library_mismatch')
-    return {'schema': 1, 'profile': profile, 'bluealsa_version': '5.0.0', 'sbc_version': '2.2',
+    return {'schema': 1, 'profile': profile, 'private_integration_enabled': integration, 'bluealsa_version': '5.0.0', 'sbc_version': '2.2',
             'bluealsa_source_sha256': 'e1249cbebd24925c977814f62adab71f2ebd771e28e6a4ac58bb1ac97ce3beb5',
             'sbc_source_sha256': 'a1ada76ef35e5af9c2fbd063754dc9e37a8d989417c6eb1ecebb089b1383ae9e',
             'config_sha256': hashlib.sha256(config.encode()).hexdigest(), 'codecs': codecs,
             'sbc_quality': 'conformant_default_high', 'sbc_xq_enabled': False,
-            'live_bitrate_observation': False, 'le_audio_iso_supported': False,
+            'encoder_observation': 'SBC_bitpool_and_LDAC_ABR_when_EncoderStats_present',
+            'live_bitrate_observation': telemetry, 'le_audio_iso_supported': False,
             'optional_encoder_provenance': json.loads((Path(__file__).with_name('codec-sources.json')).read_text())
                 if experiments else {}}
 
@@ -48,7 +53,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('build', type=Path)
-    parser.add_argument('--profile', choices=('sbc-only', 'owner-private-experiments'), default='sbc-only')
+    parser.add_argument('--profile', choices=('sbc-only', 'owner-private-experiments', 'owner-private-integration'), default='sbc-only')
     parser.add_argument('--daemon-args', type=Path)
     args = parser.parse_args()
     result = manifest(args.build, args.profile)

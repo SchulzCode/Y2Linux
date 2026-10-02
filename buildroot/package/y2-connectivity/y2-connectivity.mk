@@ -9,7 +9,8 @@ Y2_CONNECTIVITY_DEPENDENCIES = e2fsprogs libglib2 alsa-lib bluez5_utils host-pkg
 
 define Y2_CONNECTIVITY_BUILD_CMDS
 	$(TARGET_MAKE_ENV) $(TARGET_CONFIGURE_OPTS) $(MAKE) -f $(Y2_CONNECTIVITY_SITE)/Makefile \
-		Y2_RADIO_SOURCE=$(abspath $(Y2_CONNECTIVITY_SITE)) Y2_RADIO_OUTPUT=$(@D)
+		Y2_RADIO_SOURCE=$(abspath $(Y2_CONNECTIVITY_SITE)) Y2_RADIO_OUTPUT=$(@D) \
+		Y2_CODEC_TESTS=$(if $(BR2_PACKAGE_Y2_CODEC_EXPERIMENTS),1,0)
 endef
 
 define Y2_CONNECTIVITY_INSTALL_TARGET_CMDS
@@ -21,5 +22,13 @@ define Y2_CONNECTIVITY_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/y2-bt-observe $(TARGET_DIR)/usr/sbin/y2-bt-observe
 	$(INSTALL) -D -m 0755 $(@D)/y2-audio-contract $(TARGET_DIR)/usr/sbin/y2-audio-contract
 endef
+
+ifeq ($(BR2_PACKAGE_Y2_CODEC_EXPERIMENTS),y)
+Y2_CONNECTIVITY_DEPENDENCIES += sbc fdk-aac libfreeaptx libldac
+define Y2_CONNECTIVITY_INSTALL_CODEC_CONTRACT
+	$(INSTALL) -D -m 0755 $(@D)/y2-codec-software-contract $(TARGET_DIR)/usr/sbin/y2-codec-software-contract
+endef
+Y2_CONNECTIVITY_POST_INSTALL_TARGET_HOOKS += Y2_CONNECTIVITY_INSTALL_CODEC_CONTRACT
+endif
 
 $(eval $(generic-package))

@@ -68,6 +68,21 @@ class BluetoothObservation(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'not_approved'):
             manifest(root)
 
+    def test_private_integration_scope_never_claims_physical_or_public_approval(self):
+        root = Path(self.temp.name)
+        (root/'src/dbus').mkdir(parents=True)
+        (root/'src/bluealsad').touch()
+        (root/'src/dbus/org.bluealsa.xml').write_text('<property name="EncoderStats"/>')
+        (root/'config.h').write_text('#define PACKAGE_VERSION "v5.0.0"\n#define WITH_LIBFREEAPTX 1\n' +
+            ''.join('#define ENABLE_' + codec + ' 1\n' for codec in ('AAC', 'APTX', 'APTX_HD', 'LDAC')))
+        result = manifest(root, 'owner-private-integration')
+        self.assertTrue(result['private_integration_enabled'])
+        self.assertTrue(result['live_bitrate_observation'])
+        for name, codec in result['codecs'].items():
+            self.assertTrue(codec['default_runtime_enabled'])
+            self.assertFalse(codec['platform_qualified'])
+            self.assertEqual(codec['distribution_approved'], name == 'SBC')
+
     def test_private_profile_requires_complete_encoder_set_and_keeps_auto_closed(self):
         root = Path(self.temp.name)
         (root/'src').mkdir(); (root/'src/bluealsad').touch()
