@@ -65,7 +65,7 @@ def inspect(data, relative):
 
 
 def services(scope):
-    value = ['S05reborn', 'S42y2-readiness']
+    value = ['S90reborn', 'S42y2-readiness']
     if scope in ('network', 'bluetooth-bonds', 'full-user'):
         value += ['S41y2-connectivity', 'S40bluetoothd']
     return value

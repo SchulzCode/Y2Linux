@@ -24,11 +24,13 @@ SIZE = (480, 360)
 # (file, caption, source, argument)
 SHEET = [
     ('01-boot-early', 'boot: early, bar empty', 'splash', ['frame', 'start']),
-    ('02-boot-25', 'boot: ~25 % (storage checked)', 'splash', ['frame', 'fsck_complete']),
-    ('03-boot-60', 'boot: ~60 % (display up)', 'splash', ['frame', 'graphics_ready']),
+    ('02-boot-25', 'boot: ~25 % (setting the clock)', 'splash', ['frame', 'rc_time']),
+    ('03-boot-60', 'boot: ~60 % (radios up)', 'splash', ['frame', 'conn_wifi']),
     ('04-boot-final-phase', 'boot: final startup phase', 'splash', ['frame', 'runtime_ready']),
     ('05-boot-handoff', 'hand-off: first Reborn frame', 'splash', ['frame', 'ready']),
-    ('06-fade-into-reborn', 'fade into Reborn (mid-dissolve)', 'quads', '03-boot-fade'),
+    ('06a-reveal-bar-out', 'reveal: bar and status out', 'quads', '03a-boot-fade-bar-out'),
+    ('06b-reveal-dissolve', 'reveal: wordmark lifts, UI in', 'quads', '03-boot-fade'),
+    ('06c-reveal-almost', 'reveal: nearly done', 'quads', '03c-boot-fade-lift'),
     ('07-shutdown-saving', 'shutdown: saving', 'quads', '90-shutdown-b-saving'),
     ('08-shutdown-closing', 'shutdown: shutting down', 'quads', '90-shutdown-c-closing'),
     ('09-final-black', 'final black frame (then backlight off)', 'quads', '94-shutdown-final-black'),

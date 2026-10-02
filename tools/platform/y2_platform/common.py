@@ -7,7 +7,6 @@ from pathlib import Path
 import selectors
 import signal
 import subprocess
-import tempfile
 import time
 
 
@@ -37,7 +36,10 @@ def json_read(path, default=None):
 def atomic_json(path, value, durable=False, mode=0o600):
     """Publish one complete record. Caller owns/trusts the parent directory."""
     path = Path(path)
-    fd, name = tempfile.mkstemp(prefix='.' + path.name + '.', dir=path.parent)
+    # A unique name without randomness: tempfile.mkstemp seeds a PRNG from
+    # os.urandom, which blocks early in boot until the kernel CRNG is ready.
+    name = path.parent / ('.%s.%d.%d.tmp' % (path.name, os.getpid(), time.monotonic_ns()))
+    fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
     try:
         with os.fdopen(fd, 'w') as stream:
             os.fchmod(stream.fileno(), mode)

@@ -42,7 +42,7 @@ state and must be handled separately before handing the device to another owner.
 `y2-platform reset plan --scope settings` first reports consumers that must be
 stopped. It never stops hardware or deletes files automatically. Stop the listed
 init services with a bounded owner command (for example `timeout 10
-/etc/init.d/S05reborn stop`) and run plan again. If a process remains in kernel
+/etc/init.d/S90reborn stop`) and run plan again. If a process remains in kernel
 I/O, execution refuses rather than proceeding. The plan returns exact paths,
 identities, preserved state and a five-minute confirmation digest.
 

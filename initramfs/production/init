@@ -74,16 +74,18 @@ start_observer
 echo 'Y2ROOT: Production Storage v1; internal-only discovery' > /dev/kmsg
 y2_stage storage_discovery
 # Allow asynchronous controller discovery; no media card is needed or inspected.
+# The internal eMMC partitions usually appear within ~0.2 s of this point, so poll
+# in 50 ms steps (up to ~40 s) instead of a whole second per attempt.
 n=0
-while [ "$n" -lt 40 ]; do
+while [ "$n" -lt 800 ]; do
     rootdev=$(y2_find_partition Y2ROOT 79324c69-6e75-4801-8000-000000000101 166912 1679360)
     datadev=$(y2_find_partition Y2DATA 79324c69-6e75-4801-8000-000000000102 2104320 1638400)
     [ -n "$datadev" ] && break
     n=$((n+1))
-    if [ "$n" = 10 ]; then
+    if [ "$n" = 200 ]; then
         printf '\nY2Linux Storage06: locating internal root/data\nNo SD card required.\n' > /dev/tty0
     fi
-    sleep 1
+    sleep 0.05
 done
 [ -n "$datadev" ] || rescue 'missing/invalid internal Y2DATA'
 # Inspect the trusted data identity before requiring an intact root. A torn
@@ -143,6 +145,13 @@ done
 y2_stage fsck_complete
 mount -t ext4 -o rw "$rootdev" /newroot || rescue 'root writable mount failed'
 mount -t ext4 -o rw,nosuid,nodev "$datadev" /newroot/data || rescue 'data writable mount failed'
+# Credit this device's stored random seed now. Without it the kernel needs ~6 s
+# to gather entropy on this CPU and the first process that waits for randomness
+# (the platform helper's temporary file names) blocks until then. Same per-device
+# seed directory and tool as S03seedrng; absent on a first boot, which then waits.
+if [ -d /newroot/data/system/entropy ]; then
+    /bin/busybox timeout 10 /bin/busybox seedrng --seed-dir=/newroot/data/system/entropy > /dev/kmsg 2>&1 || :
+fi
 y2_stage root_data_mounted
 mkdir -p /newroot/lib/modules
 mount --bind /run/y2/modules /newroot/lib/modules || rescue 'module handover failed'

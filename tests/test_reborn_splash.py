@@ -181,20 +181,26 @@ int main(int argc,char **argv) {
                          'reborn-splash-mark.h is stale: rerun tools/graphics/make-splash-mark.py')
 
     def test_every_milestone_a_producer_reports_is_in_the_table(self):
-        tokens = {p['token'] for p in self.layout()['phases']}
-        init = (ROOT / 'initramfs/production/init').read_text()
         import re
+        layout = self.layout()
+        tokens = {p['token'] for p in layout['phases']}
+        init = (ROOT / 'initramfs/production/init').read_text()
         stages = set(re.findall(r'^\s*y2_stage (\w+)', init, re.M))
-        known = tokens | set(self.layout()['failure_tokens'])
-        # Stages the splash does not show: before it exists, or after Reborn owns the screen.
+        known = tokens | set(layout['failure_tokens'])
+        # Stages the splash does not show: before it exists.
         self.assertEqual(stages - known, {'initramfs'})
         self.assertIn('rescue', stages)
+        overlay = ROOT / 'buildroot/board/y2/production-overlay'
+        rcs = set(re.findall(r'milestone=(\w+)', (overlay / 'etc/init.d/rcS').read_text()))
+        gate = set(re.findall(r'\bmilestone ([a-z][a-z_]*)', (overlay / 'usr/libexec/y2/boot-gate').read_text()))
+        self.assertEqual((rcs | gate) - tokens, set(), 'a shell producer reports a milestone the splash does not know')
         main = (REBORN / 'app/reborn/src/main.rs').read_text()
         reported = set(re.findall(r'startup_phase\(&log, process_started, "(\w+)"\)', main))
         self.assertEqual(reported - tokens, set(), 'Reborn reports a milestone the splash does not know')
-        self.assertTrue({'graphics_ready', 'storage_ready', 'library_workers_ready', 'core_services_ready',
-                         'audio_ready', 'radio_workers_ready', 'runtime_ready'} <= reported)
         self.assertIn('boot_milestone("ready")', main)
+        # Every milestone the table promises has a producer; nothing is a dead entry.
+        produced = (stages | rcs | gate | reported | {'start', 'ready'}) - {'initramfs'}
+        self.assertEqual(tokens - produced, set(), 'table entries nobody reports')
 
     def test_progress_never_regresses_and_ignores_unknown_names(self):
         states = self.report('fsck_complete', 'storage_discovery', 'bogus', 'graphics_ready', 'switch_root',
@@ -230,8 +236,8 @@ int main(int argc,char **argv) {
 
     def test_splash_is_pixel_identical_to_reborns_boot_screens(self):
         from PIL import Image
-        cases = [('01-boot-splash', ['start']), ('01b-boot-25', ['fsck_complete']),
-                 ('01c-boot-60', ['graphics_ready']), ('01d-boot-final-phase', ['runtime_ready']),
+        cases = [('01-boot-splash', ['start']), ('01b-boot-25', ['rc_time']),
+                 ('01c-boot-60', ['conn_wifi']), ('01d-boot-final-phase', ['runtime_ready']),
                  ('02-boot-handoff', ['ready'])]
         for name, tokens in cases:
             reference = REBORN / f'docs/ui/previews/v2/{name}.png'

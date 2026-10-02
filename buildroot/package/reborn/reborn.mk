@@ -35,10 +35,10 @@ define REBORN_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/docs/architecture/dependencies.json $(TARGET_DIR)/usr/share/reborn/dependencies.json
 	$(INSTALL) -D -m 0644 $(@D)/LICENSE $(TARGET_DIR)/usr/share/reborn/LICENSE
 	$(INSTALL) -D -m 0755 $(REBORN_PKGDIR)/reborn-supervise $(TARGET_DIR)/usr/libexec/reborn-supervise
-	# Y2DATA is prepared by S02y2-data. Start Reborn before optional radio and
-	# network services; those workers retry until their providers are ready.
-	rm -f $(TARGET_DIR)/etc/init.d/S60reborn
-	$(INSTALL) -D -m 0755 $(REBORN_PKGDIR)/S05reborn $(TARGET_DIR)/etc/init.d/S05reborn
+	# Y2DATA is prepared by S02y2-data. Reborn starts last, after the platform
+	# services and (when enabled) the radios are up; S90reborn waits for them.
+	rm -f $(TARGET_DIR)/etc/init.d/S05reborn $(TARGET_DIR)/etc/init.d/S60reborn
+	$(INSTALL) -D -m 0755 $(REBORN_PKGDIR)/S90reborn $(TARGET_DIR)/etc/init.d/S90reborn
 endef
 
 $(eval $(generic-package))

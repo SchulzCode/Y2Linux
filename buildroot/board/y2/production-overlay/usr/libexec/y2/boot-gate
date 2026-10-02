@@ -1,0 +1,55 @@
+#!/bin/sh
+# Wait, bounded, until everything Reborn depends on is up, so that its first
+# frame is a complete system. Each real step is reported to the early splash as
+# a boot milestone. Radios are only waited for when the user has them enabled.
+# The wait never blocks boot for good: after the limit Reborn starts anyway.
+limit=${1:-45}
+phase=/run/reborn-splash/phase
+milestone() { [ ! -d /run/reborn-splash ] || printf '%s\n' "$1" > "$phase"; }
+read -r up _ < /proc/uptime; up=${up%.*}; deadline=$((up + limit))
+wait_for() {
+    # wait_for DESCRIPTION TEST...: poll TEST every 50 ms until it passes.
+    description=$1; shift
+    while ! "$@"; do
+        read -r up _ < /proc/uptime; up=${up%.*}
+        if [ "$up" -ge "$deadline" ]; then
+            echo "Y2: boot gate gave up waiting for $description" > /dev/kmsg
+            return 1
+        fi
+        sleep 0.05
+    done
+}
+# read only an existing file; a missing one means "not enabled" / "not there yet".
+enabled() { value=; [ -r "$1" ] && read -r value < "$1"; [ "$value" = 1 ]; }
+platform_up() { [ -S /run/y2/power.sock ] && [ -s /run/y2/power.json ] && [ -s /run/y2/network.json ]; }
+bus_up() { [ -S /run/dbus/system_bus_socket ]; }
+connectivity_alive() { pid=; [ -r /run/y2/connectivity.pid ] && read -r pid < /run/y2/connectivity.pid; [ -n "$pid" ] && [ -d "/proc/$pid" ]; }
+# Each radio step also stops waiting when the connectivity service has died.
+factory_ready() { [ -f /run/y2/factory/ready ] || ! connectivity_alive; }
+calibration_ready() { [ -f /run/y2/calibration-ready ] || ! connectivity_alive; }
+radio_active() {
+    state=; [ -r /sys/devices/platform/18070000.connectivity/status ] && read -r state < /sys/devices/platform/18070000.connectivity/status
+    case "$state" in activated=1*) return 0;; esac
+    ! connectivity_alive
+}
+wifi_up() { { [ -S /run/wpa_supplicant/global ] && [ -d /sys/class/net/wlan0 ]; } || ! connectivity_alive; }
+bluetooth_up() { { [ -d /sys/class/bluetooth/hci0 ] && [ -s /run/y2/bluealsa.pid ]; } || ! connectivity_alive; }
+
+if wait_for 'platform services' platform_up && wait_for 'system bus' bus_up; then
+    milestone platform_ready
+fi
+if enabled /data/network/enabled || enabled /data/bluetooth/enabled; then
+    wait_for 'radio factory records' factory_ready && milestone conn_factory
+    wait_for 'radio calibration' calibration_ready && milestone conn_calibration
+    wait_for 'radio activation' radio_active && milestone conn_activated
+    if enabled /data/network/enabled; then
+        milestone conn_wifi_wait
+        wait_for 'Wi-Fi' wifi_up && milestone conn_wifi
+    fi
+    if enabled /data/bluetooth/enabled; then
+        milestone conn_bluetooth_wait
+        wait_for 'Bluetooth' bluetooth_up && milestone conn_bluetooth
+    fi
+fi
+milestone system_ready
+exit 0

@@ -167,7 +167,7 @@ class Coordinator:
         acknowledgement = self.intent.get('acknowledgement') or {}
         if acknowledgement.get('outcome') != 'Ready':
             results['backlight_early'] = backlight_off(self.ctx)
-        for name in ('S05reborn', 'S41y2-connectivity'):
+        for name in ('S90reborn', 'S41y2-connectivity'):
             results[name] = self.ctx.command(['/etc/init.d/' + name, 'stop'], timeout=3)
         # Stop/reap failure cannot extend the battery grace indefinitely.
         for name, executable in (('process', '/usr/bin/reborn'),

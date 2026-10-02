@@ -1,0 +1,44 @@
+#!/bin/sh
+#
+# Start all init scripts in /etc/init.d in numerical order. Each service that
+# matters to the user is a boot milestone for the early splash, and every script
+# is timed into /run/y2/boot-trace.jsonl (uptime seconds before and after).
+#
+trace=/run/y2/boot-trace.jsonl
+for i in /etc/init.d/S??*; do
+
+	# Ignore dangling symlinks (if any).
+	[ ! -f "$i" ] && continue
+
+	name=${i##*/}
+	milestone=
+	case "$name" in
+		S02y2-data) milestone=rc_data ;;
+		S03y2-time) milestone=rc_time ;;
+		S04y2-power) milestone=rc_power ;;
+		S40bluetoothd) milestone=rc_bluetooth ;;
+		S41y2-connectivity) milestone=rc_connectivity ;;
+		S42y2-readiness) milestone=rc_readiness ;;
+	esac
+	[ -z "$milestone" ] || [ ! -d /run/reborn-splash ] || printf '%s\n' "$milestone" > /run/reborn-splash/phase
+	read -r began _ < /proc/uptime
+
+	case "$i" in
+		*.sh)
+			# Source shell script for speed.
+			(
+				trap - INT QUIT TSTP
+				set start
+				# shellcheck source=/dev/null
+				. "$i"
+			)
+			;;
+		*)
+			# No sh extension, so fork subprocess.
+			"$i" start
+			;;
+	esac
+
+	read -r ended _ < /proc/uptime
+	printf '{"script":"%s","start_s":%s,"end_s":%s}\n' "$name" "$began" "$ended" >> "$trace"
+done
