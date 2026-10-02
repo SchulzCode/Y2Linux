@@ -1,7 +1,7 @@
 {
-  "release_version": "1.0.0-sd-sdr104-diag-candidate.4",
-  "rootfs_version": "2025.02.18-platform-v1.14",
-  "build_id": "Y2LINUX-SD-SDR104-DIAG-04",
+  "release_version": "1.0.0-reborn-boot-polish-candidate.1",
+  "rootfs_version": "2025.02.18-platform-v1.15",
+  "build_id": "Y2LINUX-REBORN-BOOT-POLISH-01",
   "platform_api_version": 1,
   "feature_contract_version": 2,
   "battery_profile_schema": 1,
