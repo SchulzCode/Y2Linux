@@ -142,8 +142,15 @@ def public_distribution(manifest, codecs):
     blockers = []
     if manifest.get('owner_firmware', {}).get('redistribution_permission_established') is not True:
         blockers.append('firmware_redistribution_unresolved')
-    for name, value in codecs.get('codecs', {}).items():
-        if value.get('compiled_locally') and value.get('distribution_approved', name == 'SBC') is not True:
+    records = codecs.get('codecs') if isinstance(codecs, dict) else None
+    if (not isinstance(codecs, dict) or codecs.get('schema') != 1 or
+            not isinstance(records, dict) or set(records) != {'SBC', 'AAC', 'aptX', 'aptX-HD', 'LDAC'} or
+            any(not isinstance(value, dict) or any(type(value.get(key)) is not bool
+                for key in ('compiled_locally', 'distribution_approved')) for value in records.values())):
+        blockers.append('codec_distribution_inventory_invalid')
+        records = {}
+    for name, value in records.items():
+        if value['compiled_locally'] and not value['distribution_approved']:
             blockers.append('codec_distribution_unresolved:'+name)
     return {'public_distribution_ready': not blockers, 'blockers': blockers,
             'interpretation': 'Packaging gate, not a legal opinion.'}

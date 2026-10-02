@@ -28,6 +28,16 @@ class Privacy(unittest.TestCase):
         self.assertFalse(result['public_distribution_ready'])
         self.assertEqual(len(result['blockers']), 2)
 
+    def test_public_gate_requires_complete_typed_codec_inventory(self):
+        manifest = {'owner_firmware': {'redistribution_permission_established': True}}
+        records = {name: {'compiled_locally': name == 'SBC', 'distribution_approved': name == 'SBC'}
+                   for name in ('SBC', 'AAC', 'aptX', 'aptX-HD', 'LDAC')}
+        self.assertTrue(p.public_distribution(manifest, {'schema': 1, 'codecs': records})['public_distribution_ready'])
+        for value in ({}, None, {'schema': 1, 'codecs': {}}, {'codecs': records}):
+            self.assertFalse(p.public_distribution(manifest, value)['public_distribution_ready'])
+        records['LDAC']['compiled_locally'] = 'false'
+        self.assertFalse(p.public_distribution(manifest, {'schema': 1, 'codecs': records})['public_distribution_ready'])
+
     def test_tree_does_not_follow_live_data_links(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)/'root'; root.mkdir()

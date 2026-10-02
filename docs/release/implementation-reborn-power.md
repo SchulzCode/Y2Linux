@@ -34,9 +34,15 @@ Implementation:
   controls reflect supported runtime settings; requested/effective settings
   and pending restart remain distinct. Quality labels include both LDAC rate
   families. CLI help and parser tests cover every viable Classic preference.
+  Final integration review fixed initial read-only capability discovery (audio
+  lane), saved-preference application once per observed peer connection, and
+  SBC-only quality visibility. Selection waits for paused/stopped playback and
+  a non-running PCM; PCM replacement cannot trigger repeated Auto selection.
+  Accepted CLI preferences also persist to ordinary player settings.
 - Diagnostics exposes a separate redacted report export, immediately shows
   its archive path/retrieval instructions, and labels state export private.
-  Failed operations cannot display a successful export message.
+  Failed operations cannot display a successful export message. Opening the
+  result retains the previous page/focus, so Back returns to Diagnostics.
 - Estimated SOC is named on the Battery page. Long modal lists now account for
   description height, fixing focus rows outside the panel.
 - Ready-frame splash, shutdown save/audio stop/SQLite close/black frame/
