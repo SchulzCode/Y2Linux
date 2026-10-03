@@ -99,6 +99,7 @@ class Harness(unittest.TestCase):
         q.config = {}
         q.cmd = lambda *a: ''
         q.save = lambda: None
+        q.wait_for_c3_topology = lambda: {'pass': True}
         writes = []
         state = {'dormant_entries': '0', 'dormant_resumes': '0', 'dormant_successes': '0',
                  'dormant_residency_us': '0', 'dormant_restore_failures': '0', 'dormant_failures': '0',
@@ -119,6 +120,54 @@ class Harness(unittest.TestCase):
         self.assertIn((DEVICE.C3, 1), writes)
         self.assertIn((DEVICE.BUDGET, 0), writes)
         self.assertEqual(writes[-1], (role, 'device'))
+
+    def test_c3_waits_for_owned_parking_and_both_physical_power_copies(self):
+        q = object.__new__(DEVICE.Qualification)
+        q.result = {'start_boot': 'boot'}
+        saves = []
+        q.save = lambda: saves.append(clock[0])
+        clock = [0]
+        rows = [('0-3', '0', '0x3f4c/0x3f4c'),
+                ('0', '0', '0x314c/0x314c'),
+                ('0', '14', '0x314c/0x334c'),
+                ('0', '14', '0x314c/0x314c')]
+        def row():
+            return rows[min(clock[0]//10, len(rows)-1)]
+        def sleep(seconds):
+            clock[0] += seconds
+        with patch.object(DEVICE.time, 'monotonic', side_effect=lambda: clock[0]), \
+             patch.object(DEVICE.time, 'sleep', side_effect=sleep), \
+             patch.object(DEVICE, 'boot', return_value='boot'), \
+             patch.object(DEVICE, 'read', side_effect=lambda p: row()[0]), \
+             patch.object(DEVICE, 'params', side_effect=lambda m: {'parked_mask': row()[1]}), \
+             patch.object(DEVICE, 'spm', side_effect=lambda: 'power='+row()[2]), \
+             patch.object(DEVICE, 'write', side_effect=AssertionError('must not force topology')):
+            result = q.wait_for_c3_topology(timeout=100)
+        self.assertTrue(result['pass'])
+        self.assertEqual(clock[0], 50)
+        self.assertEqual(len(result['trace']), 6)
+        self.assertEqual(saves, [0])
+
+    def test_c3_topology_timeout_and_reset_never_arm_entry(self):
+        q = object.__new__(DEVICE.Qualification)
+        q.result = {'start_boot': 'boot'}
+        q.save = lambda: None
+        clock = [0]
+        def sleep(seconds):
+            clock[0] += seconds
+        with patch.object(DEVICE.time, 'monotonic', side_effect=lambda: clock[0]), \
+             patch.object(DEVICE.time, 'sleep', side_effect=sleep), \
+             patch.object(DEVICE, 'boot', return_value='boot'), \
+             patch.object(DEVICE, 'read', return_value='0'), \
+             patch.object(DEVICE, 'params', return_value={'parked_mask': '14'}), \
+             patch.object(DEVICE, 'spm', return_value='power=unavailable'), \
+             patch.object(DEVICE, 'write', side_effect=AssertionError('must not arm entry')):
+            with self.assertRaisesRegex(RuntimeError, 'did not settle'):
+                q.wait_for_c3_topology(timeout=10)
+        with patch.object(DEVICE, 'boot', return_value='changed-boot'), \
+             patch.object(DEVICE, 'write', side_effect=AssertionError('must not arm entry')):
+            with self.assertRaisesRegex(RuntimeError, 'boot changed'):
+                q.wait_for_c3_topology()
 
 
 if __name__ == '__main__':

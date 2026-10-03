@@ -1,5 +1,31 @@
 # Y2Linux + Reborn Community Beta 1 — feature-completion plan
 
+## CPU idle candidate02 hardware boundary — 2026-10-03
+
+The owner-installed candidate02 is physically tested at Linuxdb0234e/Rebornb71b4688,
+kernelidle-02/rootv1.19, unchanged boot`f155196b-64d4-45a4-88b3-27755a1a8926`.
+**C1 and C2 WORKING; C3 remains blocked before entry by UART1.** C2 spends
+50.669913s of60.048084s in SLIDLE (6772 entries,84.38%), restore failures0.
+Normal parking/demand restore, timers/hotplug/all five OPPs, both media integrity,
+screen/playback and USB/independent Wi-Fi observation pass. SPI0 releases; an
+actual settled CPU0/747.5MHz preflight isolates UART1 PERI0x20000 alone.
+
+CPU idle completion remains unaccepted: no dormant call, actual context return,
+CIRQ/GPT4 wake or20-cycle result. Bounded exact-kernel UART observations do not
+prove safe gating of LSR0/nonzero-divisor UART1, nor any hardware impossibility.
+Keep C3 disabled and close its exact clock-owner dependency before another
+guarded trial. The harness now rechecks natural parking after synced storage;
+targeted100 locked CPU/idle/suspend/workload tests pass. No new kernel/root image
+or owner flash is required for this harness/evidence change. Historical02
+NOT_RUN/owner-flash instructions below are superseded.
+
+Main qualification taint0; removed diagnostic probes leave expected flag4096,
+recorded in the final restored same boot. Full-system suspend, electrical battery
+benefit, SD-absent and radio endurance stay separate/unqualified. No external
+issue/milestone closure, production activation, protected-partition write, flash
+or push. See [current physical result](../validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md)
+and [source record](../validation/Y2-CPU-IDLE-COMPLETION.md).
+
 ## CPU idle candidate02 software boundary — 2026-10-03
 
 Installed01 C1/C2/parking regressions pass; C3 UART1/SPI0 preflight fails with

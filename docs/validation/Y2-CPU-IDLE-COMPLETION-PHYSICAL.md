@@ -1,5 +1,200 @@
 # Y2 CPU idle completion physical qualification
 
+## Candidate02 hardware qualification — 2026-10-03
+
+**C1 WORKING; C2 WORKING; C3 BLOCKED BEFORE ENTRY BY UART1. Overall CPU idle
+qualification FAILS.** The owner flashed candidate02 and authorized these tests.
+The installed SPI0 correction is observed: SPI0 is quiet and released. UART1
+still prevents dormant admission. No physical C3 call, context loss, forced gate,
+reboot, flashing or push occurred. This section supersedes candidate02 NOT_RUN
+and owner-flash instructions in the historical sections below.
+
+Private raw evidence: `out/cpu-idle-completion-physical/20261003T144857Z-candidate02/`.
+SSH receipts retain host UTC, installed source identity, boot ID, command,
+stdout/stderr and exit status. `qualification/result.json` is the full harness
+result; `settled-preflight-result.json` isolates the remaining C3 blocker;
+`final-snapshot.json` and `final-verdict.json` record the restored device.
+
+### Exact installed identity
+
+All candidate manifest axes, running kernel and Reborn build match:
+
+| Axis | Installed value |
+| --- | --- |
+| Kernel | `6.18.0-y2linux-cpu-idle-02` |
+| Linux source | `db0234e7519c559031da6f427869ab683ffe0f3c` |
+| Reborn source | `b71b468860233faa0a42b8448ec5777fa952b8e3` |
+| Rootfs | `2025.02.18-platform-v1.19` |
+| Release / build | `1.0.0-cpu-idle-completion-candidate.2` / `Y2LINUX-CPU-IDLE-COMPLETION-02` |
+| Boot ID throughout | `f155196b-64d4-45a4-88b3-27755a1a8926` |
+
+Source checkout HEAD at admission was `76567e5`, a later documentation commit;
+it is not the installed kernel source. Reborn remains unchanged. Cmdline is
+`rdinit=/init earlycon console=ttyS0,921600n8 console=tty0 loglevel=3 panic=0 log_buf_len=1M user_debug=31`.
+Package `out/y2linux-cpu-idle-completion-02-candidate/` is unchanged. Fresh hashes:
+
+| Payload | Bytes | SHA256 |
+| --- | ---: | --- |
+| BOOTIMG.img | 7213056 | `aa371ce343801c41b0908aa85f7c11d7ae6de91cbbe93420ce1f7d29a5b0caa2` |
+| Y2ROOT.img | 536870912 | `54b799fbcd6c85ef4b61c4210e68e1ee19efa8e6079fd2c96bf238e16d728f15` |
+
+### C1, natural parking and useful C2 residency
+
+All four WFI states are enabled; entries and residency advance with no rejection.
+Wake observations are elapsed times for requested 1ms sleeps, not direct silicon
+exit-latency measurements. Each core completes 100 bounded sleeps.
+
+| CPU | Additional WFI entries | Residency, us | Rejections | Median / p95 wake, ms |
+| --- | ---: | ---: | ---: | --- |
+| 0 | 725 | 12170037 | 0 | 1.084885 / 1.104192 |
+| 1 | 923 | 12210872 | 0 | 1.084423 / 1.116499 |
+| 2 | 1695 | 11737138 | 0 | 1.085116 / 1.090577 |
+| 3 | 669 | 12282932 | 0 | 1.085578 / 1.139421 |
+
+Maximum sampled wake1.522331ms; MONOTONIC/RAW drift−410237ns in12.076045s.
+C1 needs no redesign. Three Linux hotplug cycles pass all18 transitions,
+CPU3→2→1 off and1→2→3 on, with exact secondary bits checked in both SPM power
+copies. Natural coordinator parking reaches CPU0/owner0xe after141.129531s.
+Ten-second observer sampling does not time every intermediate automatic step;
+the existing one-core policy and physical hotplug checks remain intact. Screen
+and real playback demand restore all four cores, with no ownership error.
+
+With screen off, radios runtime-off and natural CPU0-only topology, SLIDLE adds
+**6,772 entries and50,669,913us in60.048084272s: 84.38% C2 residency**.
+SLIDLE failures0, brokenN, exact clock restore failures0, bus rejections0;
+the final single-core blocker mask is0. CPU0 WFI also adds3.858558s in the metrics
+window. Pre/post clock, bus, timer, MMC, IRQ, CPU and coordinator snapshots are
+retained. APDMA bit11/BTIF bit20 legitimately block when Wi-Fi is active; MSDC
+bits12/13 appear during actual I/O. No blocker mask is weakened.
+
+| Window | Seconds | CPU utilization | CPUs | CPU0 WFI, s | C2, s | IRQ/s | Context switches/s |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| Screen on idle | 20.062027 | 3.66% | 0–3 | 19.416767 | 0 | 445.82 | 511.02 |
+| Screen off before parking | 20.077351 | 2.89% | 0–3 | 19.567692 | 0 | 352.89 | 399.46 |
+| Screen off, parked, C2 enabled | 60.048084 | 8.04% | 0 | 3.858558 | 50.669913 | 184.84 | 340.11 |
+
+C2-window MONOTONIC/RAW drift−694347ns; ending temperatures39.865/40.4°C.
+CPU utilization is aggregated over online cores. There is no electrical
+measurement or battery-life claim. The earlier baseline enabled/disabled
+comparison remains separate evidence; it was not repeated in this run.
+
+### C3: initial topology race, then exact settled preflight
+
+The full harness initially rejects topology, secondary power and UART1 clocks:
+fsynced storage work has correctly restored four cores after the C2 window.
+This exposes a harness sequencing defect, not failed Linux hotplug. The device
+helper now waits again for normal CPU0-only parking, owner0xe, both physical
+secondary power copies clear and20s stability after sync/USB detach. It never
+forces topology or arms C3 while waiting. Durable progress saves are limited to
+once per60s to reduce observer I/O; timeout/boot change fail safely. New guard
+tests cover ownership, both power copies, timeout and reset. The supplementary
+physical run demonstrates the same settled topology rule; the edited complete
+harness was not rerun because UART1 still blocks entry.
+
+The settled run uses only supported owners: screen off, no workload, radios
+runtime-off, USB role none,747.5MHz and natural parking. C3 stays disabled;
+budget1 and the10s RGU backstop are armed only to expose read-only preflight,
+then cleared. Results:
+
+| Prerequisite | Settled physical result |
+| --- | --- |
+| CPU topology / secondary power / domains | CPU0 only, owner0xe; both power copies0x314c; secondary/domain masks0 |
+| Frequency / screen / workload | 747500kHz; screen off; no disallowed lease |
+| System / boot policy / SPM / broken state | All report ready; no broken latch |
+| Local events / CIRQ / context availability | All report ready; actual deep restore unexercised |
+| Runtime budget / qualification backstop / USB restore owner | All report ready in bounded preflight; cleared/restored afterward |
+| INFRA / display / bus clocks | All blocker masks0 |
+| PERI clocks | **0x00020000: UART1 bit17; clocks prerequisite fails** |
+| Runtime PCM | Exact MT6582 d53dd75c DPIDLE PCM,480words |
+| Resume/context diagnostics | Vector0x80012000, expected0x804833c0, enable0x80000000; stash0x81433140, context_last0; actual programming not exercised |
+| Architectural/GPT4 deadline | Future >2ms /26000ticks at13MHz rule present; dynamic admission/finisher not exercised |
+
+Every exposed static prerequisite except clocks passes. `unmet=clocks,`.
+Installed handoff diagnostics show UART1 LCR/IER/LSR/DMA0,
+`reason=tx_not_drained retained=1`; UART2/3 LSR0x60 release, SPI0
+COMMAND0/STATUS1=1 quiet/released. Rechecks advance without CCF failures.
+
+**Dormant attempts, entries, resumes, successes and residency all remain0.**
+CIRQ entry/replay, GPT4 dormant handoff and local timer context save/restore are
+unexercised. Thus CPU0 context loss/return, GIC/MMU/VFP/cache/coherency restore,
+near-boundary deadline trials and20 repeated wake cycles are not qualified.
+C3 stays off. This is neither a C3 success nor proof of an exact hardware limit.
+
+### Targeted UART1 evidence; no unsafe clock forcing
+
+Two temporary diagnostic modules are built for the exact installed ARM kernel,
+with actual-function native guard/failure tests under UBSAN (8+11 cases pass).
+They use the fixed source-pinned MT6582 windows and normal balanced CCF borrow/
+release, require UART1 already clocked, and skip live/unknown/aliased states.
+Both return EAGAIN after cleanup, so expected `insmod` exit1 leaves no resident
+module. No userspace MMIO or UART FIFO/data/baud/IRQ/DMA/GPIO/reset writes occur.
+
+The read-only snapshot reports PERI reset0/0, UART sleep0, FCR_RD0, ACTIVE_EN0,
+IRQ/DMA0 and LSR0. It excludes a held PERI reset/enabled sleep-control explanation;
+these names/default-like values do not prove transmitter idle. A second bounded
+transaction follows the exact MT6582 BSP divisor-save sequence, temporarily
+selecting LCR.DLAB0x80, reading DLL1/DLH0, then restoring LCR0 and verifying it.
+It requires CPU0, all four cores, coordinator disabled and both radio power
+copies off. Its first invocation safely skips a still-active radio power domain;
+the settled invocation succeeds with gates unchanged. LSR remains0. The UART
+has a nonzero divisor; no source-backed proof justifies accepting LSR0 or gating
+this retained engine. The production guard is preserved.
+
+Exact sources: [MT6582 UART definitions](https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/uart/mt6582/platform_uart.h),
+[platform UART](https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/uart/mt6582/platform_uart.c),
+[common UART save/baud code](https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/uart/uart.c).
+Pinned local vendor/retained Y2 provenance remains in the source record. Register
+inferences are restricted to exact MT6582 evidence; no adjacent-SoC transplant.
+
+The main qualification and settled preflight ran at taint0. Diagnostic module
+loading then truthfully sets out-of-tree flag4096, which remains until a normal
+owner reboot; it is not hidden or cleared. Final evidence records that expected
+flag, no resident probes, no new critical kernel errors and the same boot.
+
+### Independent regressions, software checks and final state
+
+Both eMMC11230000.mmc and inserted SD11240000.mmc pass16 fsynced uncached128KiB
+SHA256 rounds per medium, split before/after the **failed C3 preflight**, not a
+dormant wake. Ext4 errors remain0 on rootmmcblk0p7, datammcblk0p5 and SDmmcblk1p1;
+MMC errors/mismatches0. Final clocks gated on both hosts; retained context
+advances (eMMC633/632 suspends/resumes, SD4149/4148). No live-media reset, CRC,
+timeout or DMA corruption observed. SD absent is not physically tested.
+
+All five OPPs pass before and after preflight:598/747.5/1040MHz at1.15V,
+1196MHz at1.20V and1300MHz at1.25V. PWRAP readiness/readback and thermal authority
+pass; no lowered ceiling. GPT6 free-running13MHz, GPT4 sole broadcast, PPI29,
+all four CNTFRQ13MHz, highres/NO_HZ and bounded timer continuity pass with per-core
+timer errors0. None of these observations proves dormant timer restoration.
+
+Real Reborn/FFmpeg/ALSA silent playback adds352256 decoded frames, with errors,
+xruns and recoveries unchanged0; PlaybackNormal demand restores all cores.
+Screen restore passes through normal Reborn/DRM ownership. Three bidirectional
+1MiB USB rounds match host/device SHA256; the pinned independent Wi-Fi observer
+responds on the same boot. Actual transport failover, radio throughput/endurance,
+manual button edges, full-system suspend and electrical battery benefit are
+unobserved. Independent phase results pass; overall CPU idle acceptance fails C3.
+
+Fresh locked-host checks:90 CPU tests,8 slow-idle/suspend-policy tests and2
+workload QoS tests pass; the dedicated harness/completion21 host cases also
+pass. The prior sealed
+kernel/root/config/DT/ABI/package validation stays valid: no production kernel
+or rootfs source change is made this turn. Changed tracked files are the device
+helper/tests and validation/release/roadmap records. No empty replacement image.
+
+Final C3disable1, budget0, RGU disarmed; coordinatorY, schedutil598000–1300000,
+USB device, Wi-Fi on/Bluetooth off and original screen-off policy restored.
+Temporary observer/probe files and modules are absent; cleanup errors0. Playback
+is stopped. Its original paused selection was an already deleted historical
+qualification fixture, so it cannot be resumed through the normal owner API;
+the invalid preexisting selection is recorded, not silently replaced by music.
+Y2DATA and protected partitions remain intact. Issues#16/#27/#28/#29/#31/#32/
+#33/#34 stay OPEN; no release milestone is closed.
+
+**Next boundary:** resolve UART1 ownership with exact source/hardware evidence
+before another guarded C3 entry. There is no newly built image to flash, no
+request to reflash candidate02 and no safe supported live control that proves
+this retained UART can be gated. C1/C2 remain usable; C3 remains disabled.
+
 ## Candidate01 hardware qualification — 2026-10-03
 
 **C1 WORKING; C2 WORKING; C3 BLOCKED BEFORE PHYSICAL ENTRY.** The owner installed

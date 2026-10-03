@@ -1,5 +1,125 @@
 # Platform v1 software completion roadmap
 
+## Candidate02 physical closing audit — 2026-10-03
+
+Owner-installed candidate02 is verified at Linuxdb0234e/Rebornb71b4688,
+kernelcpu-idle-02/rootv1.19/releasecandidate.2, unchanged boot
+`f155196b-64d4-45a4-88b3-27755a1a8926`. Repo HEAD at admission76567e5 is a
+later receipt, not the installed source. Fresh raw SSH/source/issue evidence:
+`out/cpu-idle-completion-physical/20261003T144857Z-candidate02/`.
+Blueprint/owner scope remains real C1/C2/C3 with no fake guards/counters, no
+flash/push and unchanged memory/partition/recovery contracts. The existing
+#16/#27/#28/#29/#31/#32/#33/#34 refresh remains OPEN; no epic is activated/closed.
+
+| Dependency / coverage | Candidate02 actual evidence | Boundary |
+| --- | --- | --- |
+| C1/GPT6/GPT4/PPI29/highres/NO_HZ, #28 | All four states/wakes/residency, timer continuity and13MHz readbacks pass | Preserve working architecture |
+| C2/parking/MMC, #28/#33 | Natural CPU0/owner0xe;6772entries/50.669913s in60.048084s (84.38%); restores0; both media integrity/errors pass | Working narrow behavior; SD absent/electrical energy unobserved |
+| Hotplug/DVFS/display/USB/radios, #27/#29/#31/#34 |18 exact physical hotplug transitions, five OPPs, screen/playback/USB and independent Wi-Fi observer pass | Carry qualified regressions; radio endurance/actual failover not claimed |
+| C3/retained clock owner, #28/#31/#34 | SPI0 released; settled CPU0/747.5MHz/both power copies clear; only UART1 PERI0x20000 fails; actual dormant calls0 | Blocked; close exact UART ownership before bounded dormant trial |
+| Dormant context/CIRQ/GPT4/cache/coherency | Static readiness/software checks only; first/repeated deep wake not exercised | Unqualified; no hardware-limit proof |
+| Full-system suspend/electrical battery/other release gates | Prior failures/missing measurements retained | No promotion or waiver |
+
+Main qualification/settled preflight taint0. Two bounded exact-kernel probes
+then record UART1 reset/sleep/IRQ/DMA/LSR0, DLL1/DLH0, exact LCR restore and
+balanced CCF refs; they do not prove safe gating. Expected out-of-tree taint4096
+remains truthfully until owner reboot, with no resident probes or new critical
+errors. No C3 trial under diagnostic scope. Final same-boot controls: C3 off,
+budget0/RGU disarmed, schedutil598000–1300000/coordinatorY, USB device, original
+screen/radio policy restored, ext4/MMCerrors0, temporary observers/files removed.
+Playback stays stopped because its initial paused fixture was already deleted.
+
+The harness now waits for normal parking again after synced storage, checks
+owner and both power copies for20s, and keeps progress saves sparse. Fresh locked
+CPU90+slow-idle/suspend8+workload2 cases pass;19 native probe guard cases pass.
+No production kernel/root changes or new image; sealed02 hashes still match.
+Preserve the six preexisting owner documentation edits and unchanged provenance.
+The physical pass is complete, but CPU idle completion/release acceptance is
+**blocked by UART1**, not closed. Current candidate02 receipt supersedes its
+historical NOT_RUN/owner-flash instruction below. See
+[physical record](../validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md) and
+[source/harness record](../validation/Y2-CPU-IDLE-COMPLETION.md).
+
+## Candidate02 bounded UART1 divisor snapshot admission — 2026-10-03 15:34 UTC
+
+The first nonresident exact-kernel probe retains UART1 gate0 before/after normal
+CCF borrow/release, reset0/0, sleep0, FCR_RD0, ACTIVE_EN0, IRQ/DMA0, LSR0;
+source-pinned non-destructive operands are captured in the current physical run.
+This disproves a held PERI reset or enabled sleep-control explanation; it does
+not establish transmitter-idle or a hardware limit. Same installed pair/boot,
+C3 disabled/budget0, expected external-module taint4096, no resident probe.
+
+The next existing-UART observation uses the exact MT6582 BSP
+`mtk_uart_save`/`mtk_uart_cal_baud` LCR.DLAB select/read DLL+DLH/restore sequence.
+It changes only the saved register-bank selector and checks its restoration;
+never writes baud, FIFO, data, IRQ, DMA, GPIO, or reset. Host disables the normal
+coordinator, waits for all four cores, and switches radios off through their
+owners; both physical power copies must have MD/CONN off. Module requires CPU0,
+all four cores, UART1 already clocked, LCR0, and IRQ/DMA disabled before its
+bounded IRQ-disabled bank transaction. This excludes concurrent unused-clock
+handoff (its worker requires enabled coordinator/one core). Unknown/live/banked
+states are skipped. Exact ARM build and11 actual-function guard/cleanup tests
+pass; module returns EAGAIN and is not resident. The existing expected4096 taint
+is retained truthfully. Radio/coordinator settings restore in finally. No C3
+entry, guard relaxation, live-media reset, memory/partition change, flash/push,
+external milestone activation/closure, or unrelated release promotion.
+Raw evidence remains `out/cpu-idle-completion-physical/20261003T144857Z-candidate02/`;
+#28/#31/#34 remain the clock-owner dependencies.
+
+## Candidate02 UART1 read-only diagnostic admission — 2026-10-03 15:20 UTC
+
+Fresh settled preflight in boot `f155196b-64d4-45a4-88b3-27755a1a8926` at
+Linuxdb0234e/Rebornb71b4688 proves CPU0-only, owner0xe, both secondary power
+copies0, domains0,747.5MHz, CIRQ/timer/context/PCM prerequisites available;
+only `clocks` fails, PERI0x00020000/UART1. SPI0 is correctly released. LCR/IER/
+DMA/LSR remain0 after repeated clocked rechecks. No C3 call occurs. Supported
+USB/radio/DVFS/screen/coordinator settings restore, same boot/taint0/ext4errors0;
+new live admission verifies C3 disabled/budget0/backstop0 and exact installed pair.
+
+The existing #28/#31/#34 clock-owner dependency needs UART reset/sleep operands,
+which the installed handoff diagnostic does not expose. A bounded, source-pinned
+read-only kernel probe is admitted for this existing subsystem. It accepts only
+the exact Y2 CCF UART1 handle and fixed MT6582 register windows, requires its gate
+already on, borrows/releases through normal CCF, skips alternate banks and live
+IRQ/DMA LSR, and never writes UART/GPIO/IRQ/DMA/reset controls. All eight actual
+probe guard/ref-cleanup fault cases and its exact installed-kernel ARM build pass.
+It returns EAGAIN after cleanup, leaves no resident module, and truthfully leaves
+the expected external-module taint until the next owner boot. Qualification
+results obtained beforehand retain their original taint0 receipt. No C3 entry
+will be attempted under this diagnostic scope. This is not production activation,
+hardware-limit proof, a blocker-mask relaxation, memory/partition expansion,
+flash/push, or an unrelated release closure. Full-system suspend remains excluded.
+Raw source/build/fault/live receipts stay in the candidate02 physical session.
+
+## Candidate02 post-flash hardware admission — 2026-10-03 14:50 UTC
+
+Owner reports installing the sealed follow-up02 and requests physical tests.
+Fresh authenticated USB SSH verifies Linux `db0234e7519c559031da6f427869ab683ffe0f3c`,
+Reborn `b71b468860233faa0a42b8448ec5777fa952b8e3`, kernel
+`6.18.0-y2linux-cpu-idle-02`, root `2025.02.18-platform-v1.19`, release
+`1.0.0-cpu-idle-completion-candidate.2`, and boot
+`f155196b-64d4-45a4-88b3-27755a1a8926`. All manifest identity checks match;
+taint0 and mounted ext4 error counts0. Raw commands/exit codes/timestamps:
+`out/cpu-idle-completion-physical/20261003T144857Z-candidate02/`.
+Read-only issue refresh retains #16/#27/#28/#29/#31/#32/#33/#34 OPEN.
+
+| Dependency | Current hardware admission | Required fresh result |
+| --- | --- | --- |
+| C1/timers, #28 | All four 13MHz timers admitted, C1 registered; prior01 physical pass retained | Four-core residency/wake and GPT6/GPT4/PPI29/highres/NO_HZ continuity |
+| C2/parking/storage, #28/#33 | C2 registered; current Wi-Fi APDMA/BTIF clocks legitimately block; both MMC hosts gated/error0 | Normal radio policy/quiet parking, useful residency, exact restore, integrity |
+| C3/clock owners, #28/#31/#34 | SPI0 quiet/released, UART1 retained with LSR0; C3 disabled/budget0, actual entries0 | Guarded late handoff and individual preflight; only then one bounded wake, 20 only after success |
+| DVFS/display/USB/radios, #27/#29/#31/#34 | Guarded1300MHz ceiling and display handoff preserved | All five OPPs, screen/playback, USB and independent Wi-Fi regressions |
+| Full-system suspend/electrical battery/other release gates | Separate failures or missing evidence retained | Excluded; no unsupported promotion |
+
+The prepared durable device-side runner uses supported owners and restores
+screen/radio/DVFS/coordinator settings. Playback state is recorded before normal
+stop. It does not force busy UART/DMA/IRQ gates, weaken masks, reset live media,
+perform userspace MMIO, flash, push, change memory/partition scope, or close
+external milestones. C3 remains disabled on any failed prerequisite or wake;
+normal enablement requires repeated physical success and remaining regressions.
+The physical phase is admitted, not accepted. Preserve owner documentation edits
+and the sealed packages; unchanged ROM/recovery provenance needs no recapture.
+
 ## CPU idle hardware closing / candidate02 owner-flash boundary — 2026-10-03
 
 Fresh final SSH receipt after build/sealing retains installed01 Linux3dfb5f5/

@@ -1676,9 +1676,9 @@
       "owner": "Kernel",
       "implementation_state": "IMPLEMENTED_ENABLED",
       "enabled_by_default": "Yes",
-      "actually_used": "Yes: installed baseline four-core WFI repeatedly observed on2026-10-03.",
+      "actually_used": "Yes: installed candidate02 four-core WFI repeatedly observed on2026-10-03.",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "2026-10-03 installed candidate01 all four enabled WFI states: entries +1271/+1050/+990/+612, residency advances, rejections0, same boot/timer continuity.",
+      "physical_evidence": "2026-10-03 installed candidate02 all four WFI states enabled: entries +725/+923/+1695/+669, residency advances, rejections0, same boot/timer continuity.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
@@ -1687,7 +1687,7 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "2026-10-03 follow-up02 db0234e: production366 cases with all five native prerequisites covered by30 host cases; CPU owner/fault100; Reborn238; fresh kernel/root ARM/config/DT/modules/ABI/QEMU/dependencies/preserving-package pass. Physical evidence belongs to installed01; follow-up02 NOT_RUN.",
+      "automated_test_result": "2026-10-03 sealed02 db0234e: production366/native prerequisites, CPU owner/fault100, Reborn238, fresh ARM kernel/root/config/DT/modules/ABI/QEMU/dependencies/package pass. Installed02 physical C1/C2/parking and independent regressions pass; C3 preflight UART1 fails. Fresh harness guard change: locked CPU90+idle/suspend8+workload2 cases pass, dedicated host21 and native exact-kernel probe19 cases pass.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
       "known_limitation": "No electrical battery-duration claim",
       "failure_mode": "Higher awake drain if idle blocked",
@@ -1704,7 +1704,7 @@
         "docs/validation/Y2-CPU-FINAL-FIX03.md",
         "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
       ],
-      "current_candidate_physically_qualified": false,
+      "current_candidate_physically_qualified": true,
       "legacy_release_classification": {
         "beta_state": "BETA_READY",
         "beta_priority": "E",
@@ -1724,7 +1724,7 @@
       "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
       "fallback_is_release_waiver": false,
       "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION",
-      "installed_candidate_linux": "3dfb5f5cc731ec5dac88a778290819c23dba6067",
+      "installed_candidate_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
       "installed_candidate_physically_qualified": true
     },
     {
@@ -1735,9 +1735,9 @@
       "owner": "Kernel",
       "implementation_state": "IMPLEMENTED_ENABLED",
       "enabled_by_default": "Yes when prerequisites clear",
-      "actually_used": "Candidate01 natural CPU0-only screen-off/radios-off idle on2026-10-03.",
+      "actually_used": "Candidate02 natural CPU0-only screen-off/radios-off idle on2026-10-03.",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "2026-10-03 candidate01: +7040 SLIDLE entries; +49674049 us in60.047964546 s (82.72%); restore failures0, both mounted media integrity/errors pass; same boot.",
+      "physical_evidence": "2026-10-03 candidate02: +6772 SLIDLE entries; +50669913 us in60.048084272 s (84.38%); restore failures0, both mounted media integrity/errors pass; same boot.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
@@ -1746,9 +1746,9 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "2026-10-03 follow-up02 db0234e: production366 cases with all five native prerequisites covered by30 host cases; CPU owner/fault100; Reborn238; fresh kernel/root ARM/config/DT/modules/ABI/QEMU/dependencies/preserving-package pass. Physical evidence belongs to installed01; follow-up02 NOT_RUN.",
+      "automated_test_result": "2026-10-03 sealed02 db0234e: production366/native prerequisites, CPU owner/fault100, Reborn238, fresh ARM kernel/root/config/DT/modules/ABI/QEMU/dependencies/package pass. Installed02 physical C1/C2/parking and independent regressions pass; C3 preflight UART1 fails. Fresh harness guard change: locked CPU90+idle/suspend8+workload2 cases pass, dedicated host21 and native exact-kernel probe19 cases pass.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
-      "known_limitation": "Follow-up02 regression pending; SD-absent/electrical energy not measured.",
+      "known_limitation": "SD-absent/electrical energy not measured; active radio/storage clocks legitimately prevent eligibility.",
       "failure_mode": "More consumption or clock restore fault",
       "safe_fallback": "WFI; y2.cpuidle=off disables board idle states. y2.deep_idle=off only removes C3, not C2",
       "source_paths": [
@@ -1763,7 +1763,7 @@
         "docs/validation/Y2-CPU-FINAL-FIX03.md",
         "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
       ],
-      "current_candidate_physically_qualified": false,
+      "current_candidate_physically_qualified": true,
       "legacy_release_classification": {
         "beta_state": "BETA_READY_WITH_LIMITATION",
         "beta_priority": "C",
@@ -1774,8 +1774,8 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Follow-up02 regression pending; SD-absent/electrical energy not measured.",
-      "next_action": "Preserve C2; qualify follow-up02 after owner flash.",
+      "current_limitation": "SD-absent/electrical energy not measured; active radio/storage clocks legitimately prevent eligibility.",
+      "next_action": "Preserve physically working C2 and normal clock/runtime-PM ownership.",
       "release_completion_groups": [
         "B"
       ],
@@ -1783,7 +1783,7 @@
       "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
       "fallback_is_release_waiver": false,
       "completion_status": "PENDING_RELEASE_ACCEPTANCE",
-      "installed_candidate_linux": "3dfb5f5cc731ec5dac88a778290819c23dba6067",
+      "installed_candidate_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
       "installed_candidate_physically_qualified": true
     },
     {
@@ -1794,9 +1794,9 @@
       "owner": "Kernel",
       "implementation_state": "IMPLEMENTED_ENABLED",
       "enabled_by_default": "Yes",
-      "actually_used": "Candidate01 natural parking and screen/playback demand restore observed.",
+      "actually_used": "Candidate02 natural parking and screen/playback demand restore observed.",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "2026-10-03 candidate01 natural parking: CPU3 at252s, CPU0/owner0xe at262s; supported18 hotplug transitions prove physical power copies; screen/playback restore all four.",
+      "physical_evidence": "2026-10-03 candidate02 natural CPU0/owner0xe parking after141.129531s;18 supported hotplug transitions prove exact bits in both physical power copies; screen/playback restore all four.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
@@ -1805,9 +1805,9 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "2026-10-03 follow-up02 db0234e: production366 cases with all five native prerequisites covered by30 host cases; CPU owner/fault100; Reborn238; fresh kernel/root ARM/config/DT/modules/ABI/QEMU/dependencies/preserving-package pass. Physical evidence belongs to installed01; follow-up02 NOT_RUN.",
+      "automated_test_result": "2026-10-03 sealed02 db0234e: production366/native prerequisites, CPU owner/fault100, Reborn238, fresh ARM kernel/root/config/DT/modules/ABI/QEMU/dependencies/package pass. Installed02 physical C1/C2/parking and independent regressions pass; C3 preflight UART1 fails. Fresh harness guard change: locked CPU90+idle/suspend8+workload2 cases pass, dedicated host21 and native exact-kernel probe19 cases pass.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
-      "known_limitation": "Fine-grained automatic transition timing not sampled; follow-up02 regression pending.",
+      "known_limitation": "Fine-grained intermediate automatic transition timing not sampled.",
       "failure_mode": "Delayed parking after wakes or delayed interaction",
       "safe_fallback": "Restore all cores on demand",
       "source_paths": [
@@ -1822,7 +1822,7 @@
         "docs/validation/Y2-CPU-FINAL-FIX03.md",
         "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
       ],
-      "current_candidate_physically_qualified": false,
+      "current_candidate_physically_qualified": true,
       "legacy_release_classification": {
         "beta_state": "BETA_READY_WITH_LIMITATION",
         "beta_priority": "C",
@@ -1833,8 +1833,8 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Fine-grained automatic transition timing not sampled; follow-up02 regression pending.",
-      "next_action": "Test screen cycles without policy redesign",
+      "current_limitation": "Fine-grained intermediate automatic transition timing not sampled.",
+      "next_action": "Preserve parking ownership/hysteresis/demand restore; updated C3 harness waits again after synced storage.",
       "release_completion_groups": [
         "B"
       ],
@@ -1842,7 +1842,7 @@
       "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
       "fallback_is_release_waiver": false,
       "completion_status": "PENDING_RELEASE_ACCEPTANCE",
-      "installed_candidate_linux": "3dfb5f5cc731ec5dac88a778290819c23dba6067",
+      "installed_candidate_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
       "installed_candidate_physically_qualified": true
     },
     {
@@ -1855,7 +1855,7 @@
       "enabled_by_default": "C3 default off; prerequisite checks present",
       "actually_used": "No",
       "evidence": "SOFTWARE_VALIDATED",
-      "physical_evidence": "2026-10-03 candidate01 preflight: CPU0,747.5MHz, secondary/domain masks0, INFRA/DISP/bus0 and USB detached; UART1/SPI0 PERI0x02020000 remain. No actual dormant call; retained clocks have zero references/no consumer. Raw busy operands unavailable.",
+      "physical_evidence": "2026-10-03 installed candidate02 settled preflight: CPU0/owner0xe,747.5MHz, both secondary/domain masks0, INFRA/DISP/bus0, radios off/USB detached; only UART1 PERI0x20000 remains. SPI0 quiet/released. No dormant call. Exact-kernel probes observe LSR0/IRQ0/DMA0/DLL1 and exact LCR restore; no proof of safe UART gating.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
@@ -1864,9 +1864,9 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "2026-10-03 follow-up02 db0234e: production366 cases with all five native prerequisites covered by30 host cases; CPU owner/fault100; Reborn238; fresh kernel/root ARM/config/DT/modules/ABI/QEMU/dependencies/preserving-package pass. Physical evidence belongs to installed01; follow-up02 NOT_RUN.",
+      "automated_test_result": "2026-10-03 sealed02 db0234e: production366/native prerequisites, CPU owner/fault100, Reborn238, fresh ARM kernel/root/config/DT/modules/ABI/QEMU/dependencies/package pass. Installed02 physical C1/C2/parking and independent regressions pass; C3 preflight UART1 fails. Fresh harness guard change: locked CPU90+idle/suspend8+workload2 cases pass, dedicated host21 and native exact-kernel probe19 cases pass.",
       "diagnostics": "status cpu idle_completion: individual prerequisites/decoded clock owners, budget, actual wake result/stage, PCM/CIRQ/timer/context/restore counters and retained bounded qualification stages.",
-      "known_limitation": "C3 NOT WORKING on installed01; clocks block entry. Follow-up02 source-correct SPI/UART decisions and diagnostics require owner flash; actual context/timer/CIRQ wake remains unobserved.",
+      "known_limitation": "C3 NOT WORKING on installed02; UART1 blocks admission. Actual context/timer/CIRQ/GIC/cache wake and20 cycles unobserved. No exact hardware limit established.",
       "failure_mode": "Context loss or missed deadline",
       "safe_fallback": "Keep C3 off; WFI/SLIDLE",
       "source_paths": [
@@ -1896,8 +1896,8 @@
       "release_required": "REQUIRED_IF_HARDWARE_SUPPORTED",
       "release_requirement": "REQUIRED_IF_HARDWARE_SUPPORTS_IT",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "C3 NOT WORKING on installed01; clocks block entry. Follow-up02 source-correct SPI/UART decisions and diagnostics require owner flash; actual context/timer/CIRQ wake remains unobserved.",
-      "next_action": "Owner install candidate02 BOOTIMG/Y2ROOT preserving Y2DATA; run one guarded SSH qualification without forcing retained clocks.",
+      "current_limitation": "C3 NOT WORKING on installed02; UART1 blocks admission. Actual context/timer/CIRQ/GIC/cache wake and20 cycles unobserved. No exact hardware limit established.",
+      "next_action": "Close exact UART1 ownership with source/hardware evidence before another guarded C3 trial; keep C3 disabled and preserve all guards. No new image/flash action this turn.",
       "release_completion_groups": [
         "C",
         "A",
@@ -1920,7 +1920,7 @@
       ],
       "fallback_is_release_waiver": false,
       "completion_status": "PENDING_HARDWARE_DECISION",
-      "installed_candidate_linux": "3dfb5f5cc731ec5dac88a778290819c23dba6067",
+      "installed_candidate_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
       "installed_candidate_physically_qualified": false
     },
     {
@@ -98576,18 +98576,18 @@
   },
   "cpu_idle_completion": {
     "date": "2026-10-03",
-    "installed_linux": "3dfb5f5cc731ec5dac88a778290819c23dba6067",
+    "installed_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
     "installed_reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
-    "boot_id": "e0eb2f36-7c1f-4007-99e2-81d2eae047d4",
+    "boot_id": "f155196b-64d4-45a4-88b3-27755a1a8926",
     "C1": "WORKING",
     "C2": "WORKING",
-    "C3": "BLOCKED_BEFORE_ENTRY_BY_UART1_SPI0",
+    "C3": "BLOCKED_BEFORE_ENTRY_BY_UART1",
     "record": "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md",
-    "scope": "Candidate01 real same-boot qualification: C1/C2 pass, C3 clocks reject; follow-up02 software fixes need build and owner flash; full-suspend/electrical energy remain separate.",
+    "scope": "Candidate02 real same-boot qualification: C1/C2/parking and independent regressions pass; settled C3 preflight fails only UART1 clocks, actual dormant calls0. Full-system suspend/electrical energy remain separate.",
     "candidate": {
       "path": "out/y2linux-cpu-idle-completion-02-candidate",
       "build_state": "SEALED_SOFTWARE_VALIDATED",
-      "physical_state": "NOT_RUN",
+      "physical_state": "FAIL_C3_PREFLIGHT_UART1",
       "kernel": "6.18.0-y2linux-cpu-idle-02",
       "rootfs": "2025.02.18-platform-v1.19",
       "reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
@@ -98595,10 +98595,29 @@
       "release": "1.0.0-cpu-idle-completion-candidate.2",
       "BOOTIMG_SHA256": "aa371ce343801c41b0908aa85f7c11d7ae6de91cbbe93420ce1f7d29a5b0caa2",
       "Y2ROOT_SHA256": "54b799fbcd6c85ef4b61c4210e68e1ee19efa8e6079fd2c96bf238e16d728f15",
-      "C3_category": "SOFTWARE_READY_NEEDS_NEW_FLASH"
+      "C3_category": "BLOCKED_BEFORE_ENTRY_BY_UART1",
+      "boot_id": "f155196b-64d4-45a4-88b3-27755a1a8926",
+      "physical_evidence": "out/cpu-idle-completion-physical/20261003T144857Z-candidate02/qualification/result.json",
+      "settled_preflight_evidence": "out/cpu-idle-completion-physical/20261003T144857Z-candidate02/settled-preflight-result.json"
     },
     "software_receipt": "docs/validation/Y2-CPU-IDLE-COMPLETION.md",
     "installed_candidate": {
+      "path": "out/y2linux-cpu-idle-completion-02-candidate",
+      "build_state": "SEALED_SOFTWARE_VALIDATED",
+      "physical_state": "FAIL_C3_PREFLIGHT_UART1",
+      "kernel": "6.18.0-y2linux-cpu-idle-02",
+      "rootfs": "2025.02.18-platform-v1.19",
+      "reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
+      "linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
+      "release": "1.0.0-cpu-idle-completion-candidate.2",
+      "BOOTIMG_SHA256": "aa371ce343801c41b0908aa85f7c11d7ae6de91cbbe93420ce1f7d29a5b0caa2",
+      "Y2ROOT_SHA256": "54b799fbcd6c85ef4b61c4210e68e1ee19efa8e6079fd2c96bf238e16d728f15",
+      "C3_category": "BLOCKED_BEFORE_ENTRY_BY_UART1",
+      "boot_id": "f155196b-64d4-45a4-88b3-27755a1a8926",
+      "physical_evidence": "out/cpu-idle-completion-physical/20261003T144857Z-candidate02/qualification/result.json",
+      "settled_preflight_evidence": "out/cpu-idle-completion-physical/20261003T144857Z-candidate02/settled-preflight-result.json"
+    },
+    "prior_candidate01": {
       "path": "out/y2linux-cpu-idle-completion-candidate",
       "linux": "3dfb5f5cc731ec5dac88a778290819c23dba6067",
       "reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
@@ -98610,6 +98629,15 @@
       "BOOTIMG_SHA256": "3303cad8d0b73a78653f58d80ede2d1583ed7ef89a48f781f8aaf1669240092d",
       "Y2ROOT_SHA256": "816b9a271633c96fd937fa71ef1ac1f93e74436fbd8e97c9d0491470cc4babbb",
       "physical_evidence": "out/cpu-idle-completion-physical/20261003T130848Z-candidate/qualification/result.json"
+    },
+    "diagnostic_scope": {
+      "main_qualification_taint": 0,
+      "settled_preflight_taint": 0,
+      "final_expected_out_of_tree_taint": 4096,
+      "resident_probe": false,
+      "C3_enabled": false,
+      "dormant_entries": 0,
+      "final_receipt": "out/cpu-idle-completion-physical/20261003T144857Z-candidate02/final-verdict.json"
     }
   }
 }

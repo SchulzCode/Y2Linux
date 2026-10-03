@@ -1,5 +1,30 @@
 # Y2Linux + Reborn Community Beta — complete current-state feature audit
 
+## CPU idle candidate02 hardware result — 2026-10-03
+
+Candidate02 is flashed and tested at Linuxdb0234e/Rebornb71b4688, kernelidle-02,
+rootv1.19, unchanged boot`f155196b-64d4-45a4-88b3-27755a1a8926`.
+**C1/C2/parking WORKING; C3 BLOCKED BEFORE ENTRY BY UART1. Overall CPU idle
+acceptance FAILS C3.** This supersedes candidate02 NOT_RUN and flash instructions
+in older sections. C2+6772 entries/50.669913s of60.048084s (84.38%), restore
+failures0. All four C1 states, hotplug/power copies, five OPPs, timer continuity,
+eMMC/inserted-SD integrity, screen/playback and USB/Wi-Fi observer pass.
+
+SPI0 now releases correctly; settled CPU0/747.5MHz preflight has only UART1
+PERI0x20000 unmet, all other exposed static categories ready. Exact-kernel UART
+probes retain LSR0 and observe nonzero divisor1; they do not establish safe
+gating. No actual dormant entry/context/CIRQ/GPT4 deep wake, repeated cycles or
+hardware-limit proof. C3 stays off. Main qualification taint0; removed diagnostic
+probes leave expected out-of-tree taint4096 in the final same boot. The harness
+now waits again for natural parking after synced storage; targeted100 locked
+CPU/idle/suspend/workload tests pass. No kernel/root image change this turn.
+
+No electrical battery benefit or full-system suspend qualification; SD-absent and
+radio endurance remain unobserved. No flash/push/protected-partition write,
+milestone activation/closure or unrelated release promotion. See the
+[current physical receipt](../validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md)
+and [source/harness record](../validation/Y2-CPU-IDLE-COMPLETION.md).
+
 ## CPU idle candidate02 software boundary — 2026-10-03
 
 Installed01 C1/C2/parking regressions pass; C3 UART1/SPI0 preflight fails with

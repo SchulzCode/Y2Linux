@@ -313,6 +313,35 @@ class Qualification:
                 'trace': trace, 'before': a, 'after': b, 'entries': entries, 'residency_us': residency,
                 'window': window, 'idle_dmesg': self.cmd('dmesg')}
 
+    def wait_for_c3_topology(self, timeout=1200):
+        """Storage/sync can restore parked cores; let their real owner settle."""
+        end = time.monotonic()+timeout
+        stable = None
+        last_save = None
+        trace = []
+        while time.monotonic() < end:
+            if boot() != self.result['start_boot']:
+                raise RuntimeError('boot changed while waiting for C3 topology')
+            now = time.monotonic()
+            row = {'time': now, 'online': read(CPU/'online'),
+                   'coordinator': params('system_idle'), 'spm': spm()}
+            trace.append(row)
+            copies = fields(row['spm']).get('power', '').split('/')
+            quiet = (row['online'] == '0' and
+                     number(row['coordinator'].get('parked_mask')) == 0xe and
+                     len(copies) == 2 and all(number(v) & 0xe00 == 0 for v in copies))
+            stable = (now if stable is None else stable) if quiet else None
+            self.result['c3_topology_progress'] = row
+            if stable is not None and now-stable >= 20:
+                return {'pass': True, 'trace': trace}
+            # A durable observer receipt need not generate fsynced storage work
+            # every sample. Keep the owner quiet while still recording progress.
+            if last_save is None or now-last_save >= 60:
+                self.save()
+                last_save = now
+            time.sleep(10)
+        raise RuntimeError('natural C3 topology did not settle: '+repr(trace[-1]))
+
     def c3_cycles(self):
         self.cmd('sync')
         write(POLICY/'scaling_min_freq', 598000)
@@ -323,6 +352,7 @@ class Qualification:
         try:
             write(role, 'none')
             time.sleep(6)
+            self.result['c3_topology'] = self.wait_for_c3_topology()
             write(BACKSTOP, 10)
             write(BUDGET, 1)
             preflight = spm('dormant_preflight')

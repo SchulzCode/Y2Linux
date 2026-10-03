@@ -1,5 +1,64 @@
 # Y2 CPU idle completion
 
+## Candidate02 installed hardware result — 2026-10-03
+
+The owner-installed candidate02 is now physically tested. **C1 WORKING,
+C2 WORKING; C3 BLOCKED BEFORE ENTRY BY UART1. Overall acceptance FAILS C3.**
+This supersedes candidate02 NOT_RUN/SOFTWARE_READY_NEEDS_NEW_FLASH and its
+installation instruction below; the sealed images have already been flashed.
+No exact hardware limit is established and no dormant success is claimed.
+
+Installed Linux`db0234e7519c559031da6f427869ab683ffe0f3c`,
+Reborn`b71b468860233faa0a42b8448ec5777fa952b8e3`,
+kernel`6.18.0-y2linux-cpu-idle-02`, root`2025.02.18-platform-v1.19`, release
+`1.0.0-cpu-idle-completion-candidate.2`; unchanged boot
+`f155196b-64d4-45a4-88b3-27755a1a8926`. Every installed manifest axis matches.
+The [physical receipt](Y2-CPU-IDLE-COMPLETION-PHYSICAL.md) contains full counters,
+individual prerequisites, sources, limitations and restored state. Raw evidence:
+`out/cpu-idle-completion-physical/20261003T144857Z-candidate02/`.
+
+- Four-core WFI entries+725/+923/+1695/+669, residency advances, rejections0.
+- Natural CPU0/owner0xe parking; C2+6772 entries/+50.669913s in60.048084s
+  (84.38%), clock restore failures0.
+- Three hotplug cycles/18 physically checked transitions; all five OPPs before/
+  after preflight, timer continuity, both media integrity, screen/playback and
+  USB/independent Wi-Fi observation pass.
+- Installed SPI0 STATUS1=1 now correctly releases the gate. Settled C3 preflight
+  has only PERI UART1 bit17/0x20000 unmet; CPU0, both physical secondary power
+  copies, domains,747.5MHz and all other exposed static predicates pass.
+- Actual dormant calls/entries/resumes/residency0. GPT4 dormant deadline,
+  CIRQ/GIC/context/MMU/VFP/cache/coherency return and20 wake cycles unexercised.
+
+The full harness first caught a second issue: synced storage demand restores
+cores after its C2 window, so C3 must wait for normal parking again. The device
+helper now requires CPU0/owner0xe/both secondary power copies clear for20s after
+sync/USB detach, before budget/backstop/preflight. It uses sparse durable progress
+writes and rejects timeout/boot change without arming entry. Two new behavioral
+tests cover ownership, both physical copies and safe failures; the existing
+first-failed-cycle quarantine test remains. Fresh locked-host CPU90,
+slow-idle/suspend-policy8 and workload QoS2 cases pass; dedicated host
+harness/completion21 cases pass. The supplementary physical settled run validates
+the topology requirement, while the edited full harness is not repeated against
+the known UART1 blocker.
+
+Exact-kernel, nonresident diagnostic probes establish UART1 reset0/0,
+sleep/FCR_RD/ACTIVE_EN/IRQ/DMA/LSR0 and DLL1/DLH0; the temporary divisor bank
+selection restores LCR exactly. Their native guard/failure19 cases and ARM
+builds pass. These observations do not justify treating LSR0 as drained or
+forcing its clock off. No production clock guard/reset changes follow. Normal
+CCF references balance, no resident probe remains; the final expected diagnostic
+out-of-tree taint4096 is recorded. Main qualification/settled preflight were
+taint0; no C3 trial occurs under diagnostic scope.
+
+Only the host/device qualification helper, its tests and evidence/roadmap/release
+records change this turn. Kernel/rootfs binaries and sealed package are unchanged;
+fresh payload recheck matches the hashes below. No new candidate, flash or push.
+Normal controls restore, C3 off/budget0/backstop disarmed, ext4/MMC errors0.
+Playback stays stopped because the original paused selection referenced an
+already deleted historical fixture. Full-system suspend and electrical battery
+benefit remain unqualified. Next boundary is exact safe UART1 ownership closure
+before any bounded dormant trial; there is no new owner flash action this turn.
+
 ## Candidate02 sealed software handoff — 2026-10-03
 
 Hardware tests are complete on installed candidate01: **C1 WORKING, C2 WORKING,
