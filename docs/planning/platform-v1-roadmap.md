@@ -1,5 +1,36 @@
 # Platform v1 software completion roadmap
 
+## CPU idle hardware closing / candidate02 owner-flash boundary — 2026-10-03
+
+Fresh final SSH receipt after build/sealing retains installed01 Linux3dfb5f5/
+Rebornb71b4688, boot `e0eb2f36-7c1f-4007-99e2-81d2eae047d4`, taint0, mounted
+ext4 errors0. Screen off, Wi-Fi online/Bluetooth off, USB device, original DVFS/
+coordinator restored; C3 disabled/budget0; temporary observer removed. Active
+issues#16/#27/#28/#29/#31/#32/#33/#34 refresh read-only and remain OPEN.
+
+| Dependency | Installed01 actual evidence | Follow-up02 boundary |
+| --- | --- | --- |
+| C1/GPT6/GPT4/PPI29/highres/NO_HZ, #28 | Four-core WFI/wake/timer continuity passes, failures0 | Preserve; candidate02 repeat |
+| C2/parking/MMC, #28/#33 | 7040entries/49.674049s of60.047965s; restores0, both media integrity/errors pass | Preserve; candidate02 repeat |
+| Display/USB/demand/OPPs, #27/#29/#34 | Screen/playback/five OPPs/USB/Wi-Fi passes; clocks release normally | Candidate02 affected regressions |
+| C3/clock owners, #28/#31/#34 | UART1/SPI0 PERI0x02020000 preflight reject; no actual entry | Source-correct checks and guarded late handoff/operands; actual guards/wake unknown until owner flash |
+| Full-system suspend/electrical battery/other release gates | Prior failures or missing evidence retained | No promotion or external closure |
+
+Candidate02 source db0234e/b71b4688 is freshly built and sealed, kernelcpu-idle-02/
+rootv1.19. CPU owner/fault100, production366 with native skips covered, Reborn238/
+fmt/clippy, fresh ARM kernel/root, config/DT/modules/ABI, QEMU/dependencies/
+inventory/legal-info and preserving/root/source/checksum checks pass. C3 category
+**SOFTWARE_READY_NEEDS_NEW_FLASH** means ready for bounded qualification, not
+proof both clocks clear. One guarded entry and then19 more only on first success
+remain mandatory. Latest package:`out/y2linux-cpu-idle-completion-02-candidate/`;
+installed01 package remains unchanged. No reused root image; all affected/local
+ARM components rebuilt after final source cutoff. Exact Hardware02 fallback,
+Y2DATA/protected partitions, memory ABI and unchanged ROM/recovery provenance
+remain preserved. No unsafe MMIO/IRQ/DMA/reset forcing, guard-mask reduction,
+flash/push or unrelated release closure. Owner-controlled installation is the
+remaining boundary; see [source/hashes/action](../validation/Y2-CPU-IDLE-COMPLETION.md)
+and [physical result](../validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md).
+
 ## CPU idle candidate hardware result and follow-up admission — 2026-10-03
 
 Fresh candidate01 run at Linux3dfb5f5/Rebornb71b4688, boot

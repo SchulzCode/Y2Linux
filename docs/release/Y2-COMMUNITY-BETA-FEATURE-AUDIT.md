@@ -1,5 +1,17 @@
 # Y2Linux + Reborn Community Beta — complete current-state feature audit
 
+## CPU idle candidate02 software boundary — 2026-10-03
+
+Installed01 C1/C2/parking regressions pass; C3 UART1/SPI0 preflight fails with
+zero actual dormant entries. Follow-up02 is sealed at Linuxdb0234e/Rebornb71b4688,
+with100 CPU owner/fault cases,366 production cases/native prerequisites,238
+Reborn cases, fresh ARM kernel/root, QEMU/dependencies and preserving-package
+checks passing. Candidate02 is NOT_RUN physically, C3 SOFTWARE_READY_NEEDS_NEW_FLASH;
+raw UART/SPI decisions and actual deep wake still require the owner flash. No
+full-suspend/battery-energy/unrelated release promotion, no flash/push. See
+[exact source/hashes/handoff](../validation/Y2-CPU-IDLE-COMPLETION.md).
+
+
 ## CPU idle candidate01 hardware result — 2026-10-03
 
 Owner-installed Linux3dfb5f5/Rebornb71b4688 is now tested on unchanged boot

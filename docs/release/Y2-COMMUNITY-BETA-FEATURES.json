@@ -1687,7 +1687,7 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "2026-10-03 final source3dfb5f5: production364 cases with all five native prerequisites completed; CPU owner/fault98 cases; fresh ARM/kernel/config/DT/modules/ABI/QEMU/package checks pass. Candidate01 physical qualification: C1/C2/parking pass; C3 rejects UART1/SPI0 before entry. Follow-up02 software validation pending.",
+      "automated_test_result": "2026-10-03 follow-up02 db0234e: production366 cases with all five native prerequisites covered by30 host cases; CPU owner/fault100; Reborn238; fresh kernel/root ARM/config/DT/modules/ABI/QEMU/dependencies/preserving-package pass. Physical evidence belongs to installed01; follow-up02 NOT_RUN.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
       "known_limitation": "No electrical battery-duration claim",
       "failure_mode": "Higher awake drain if idle blocked",
@@ -1746,7 +1746,7 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "2026-10-03 final source3dfb5f5: production364 cases with all five native prerequisites completed; CPU owner/fault98 cases; fresh ARM/kernel/config/DT/modules/ABI/QEMU/package checks pass. Candidate01 physical qualification: C1/C2/parking pass; C3 rejects UART1/SPI0 before entry. Follow-up02 software validation pending.",
+      "automated_test_result": "2026-10-03 follow-up02 db0234e: production366 cases with all five native prerequisites covered by30 host cases; CPU owner/fault100; Reborn238; fresh kernel/root ARM/config/DT/modules/ABI/QEMU/dependencies/preserving-package pass. Physical evidence belongs to installed01; follow-up02 NOT_RUN.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
       "known_limitation": "Follow-up02 regression pending; SD-absent/electrical energy not measured.",
       "failure_mode": "More consumption or clock restore fault",
@@ -1805,7 +1805,7 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "2026-10-03 final source3dfb5f5: production364 cases with all five native prerequisites completed; CPU owner/fault98 cases; fresh ARM/kernel/config/DT/modules/ABI/QEMU/package checks pass. Candidate01 physical qualification: C1/C2/parking pass; C3 rejects UART1/SPI0 before entry. Follow-up02 software validation pending.",
+      "automated_test_result": "2026-10-03 follow-up02 db0234e: production366 cases with all five native prerequisites covered by30 host cases; CPU owner/fault100; Reborn238; fresh kernel/root ARM/config/DT/modules/ABI/QEMU/dependencies/preserving-package pass. Physical evidence belongs to installed01; follow-up02 NOT_RUN.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
       "known_limitation": "Fine-grained automatic transition timing not sampled; follow-up02 regression pending.",
       "failure_mode": "Delayed parking after wakes or delayed interaction",
@@ -1864,7 +1864,7 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "2026-10-03 final source3dfb5f5: production364 cases with all five native prerequisites completed; CPU owner/fault98 cases; fresh ARM/kernel/config/DT/modules/ABI/QEMU/package checks pass. Candidate01 physical qualification: C1/C2/parking pass; C3 rejects UART1/SPI0 before entry. Follow-up02 software validation pending.",
+      "automated_test_result": "2026-10-03 follow-up02 db0234e: production366 cases with all five native prerequisites covered by30 host cases; CPU owner/fault100; Reborn238; fresh kernel/root ARM/config/DT/modules/ABI/QEMU/dependencies/preserving-package pass. Physical evidence belongs to installed01; follow-up02 NOT_RUN.",
       "diagnostics": "status cpu idle_completion: individual prerequisites/decoded clock owners, budget, actual wake result/stage, PCM/CIRQ/timer/context/restore counters and retained bounded qualification stages.",
       "known_limitation": "C3 NOT WORKING on installed01; clocks block entry. Follow-up02 source-correct SPI/UART decisions and diagnostics require owner flash; actual context/timer/CIRQ wake remains unobserved.",
       "failure_mode": "Context loss or missed deadline",
@@ -1897,7 +1897,7 @@
       "release_requirement": "REQUIRED_IF_HARDWARE_SUPPORTS_IT",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
       "current_limitation": "C3 NOT WORKING on installed01; clocks block entry. Follow-up02 source-correct SPI/UART decisions and diagnostics require owner flash; actual context/timer/CIRQ wake remains unobserved.",
-      "next_action": "Build/validate one follow-up02 preserving candidate, then owner flash and single guarded harness; no force/gate masking.",
+      "next_action": "Owner install candidate02 BOOTIMG/Y2ROOT preserving Y2DATA; run one guarded SSH qualification without forcing retained clocks.",
       "release_completion_groups": [
         "C",
         "A",
@@ -98585,6 +98585,20 @@
     "record": "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md",
     "scope": "Candidate01 real same-boot qualification: C1/C2 pass, C3 clocks reject; follow-up02 software fixes need build and owner flash; full-suspend/electrical energy remain separate.",
     "candidate": {
+      "path": "out/y2linux-cpu-idle-completion-02-candidate",
+      "build_state": "SEALED_SOFTWARE_VALIDATED",
+      "physical_state": "NOT_RUN",
+      "kernel": "6.18.0-y2linux-cpu-idle-02",
+      "rootfs": "2025.02.18-platform-v1.19",
+      "reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
+      "linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
+      "release": "1.0.0-cpu-idle-completion-candidate.2",
+      "BOOTIMG_SHA256": "aa371ce343801c41b0908aa85f7c11d7ae6de91cbbe93420ce1f7d29a5b0caa2",
+      "Y2ROOT_SHA256": "54b799fbcd6c85ef4b61c4210e68e1ee19efa8e6079fd2c96bf238e16d728f15",
+      "C3_category": "SOFTWARE_READY_NEEDS_NEW_FLASH"
+    },
+    "software_receipt": "docs/validation/Y2-CPU-IDLE-COMPLETION.md",
+    "installed_candidate": {
       "path": "out/y2linux-cpu-idle-completion-candidate",
       "linux": "3dfb5f5cc731ec5dac88a778290819c23dba6067",
       "reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
@@ -98596,15 +98610,6 @@
       "BOOTIMG_SHA256": "3303cad8d0b73a78653f58d80ede2d1583ed7ef89a48f781f8aaf1669240092d",
       "Y2ROOT_SHA256": "816b9a271633c96fd937fa71ef1ac1f93e74436fbd8e97c9d0491470cc4babbb",
       "physical_evidence": "out/cpu-idle-completion-physical/20261003T130848Z-candidate/qualification/result.json"
-    },
-    "software_receipt": "docs/validation/Y2-CPU-IDLE-COMPLETION.md",
-    "follow_up": {
-      "path": "out/y2linux-cpu-idle-completion-02-candidate",
-      "build_state": "PREPARED_SOURCE",
-      "physical_state": "NOT_RUN",
-      "kernel": "6.18.0-y2linux-cpu-idle-02",
-      "rootfs": "2025.02.18-platform-v1.19",
-      "reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3"
     }
   }
 }

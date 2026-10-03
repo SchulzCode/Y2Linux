@@ -1,5 +1,62 @@
 # Y2 CPU idle completion
 
+## Candidate02 sealed software handoff — 2026-10-03
+
+Hardware tests are complete on installed candidate01: **C1 WORKING, C2 WORKING,
+C3 blocked before entry by UART1/SPI0**. No C3 entry/resume/restoration success
+is claimed. Same boot`e0eb2f36-7c1f-4007-99e2-81d2eae047d4`, taint0, mounted
+media errors0; final receipt restores screen/radio/USB/DVFS/coordinator state.
+The failed clock preflight led to the guarded source fixes below and one coherent
+follow-up. Candidate02 C3 category: **SOFTWARE_READY_NEEDS_NEW_FLASH**. This means
+ready for controlled qualification; whether its guards clear both retained
+engines remains unobserved. It is not proof of a hardware limit or C3 acceptance.
+
+Latest candidate: **`out/y2linux-cpu-idle-completion-02-candidate/`**. The installed
+candidate01 at`out/y2linux-cpu-idle-completion-candidate/` remains unchanged.
+Built source Linux`db0234e7519c559031da6f427869ab683ffe0f3c`, Reborn
+`b71b468860233faa0a42b8448ec5777fa952b8e3`. Kernel`6.18.0-y2linux-cpu-idle-02`,
+root`2025.02.18-platform-v1.19`, release`1.0.0-cpu-idle-completion-candidate.2`.
+All current integrated code is included; later source HEAD changes are receipts.
+
+| New payload | Bytes | SHA256 |
+| --- | ---: | --- |
+| BOOTIMG.img | 7213056 | `aa371ce343801c41b0908aa85f7c11d7ae6de91cbbe93420ce1f7d29a5b0caa2` |
+| Y2ROOT.img | 536870912 | `54b799fbcd6c85ef4b61c4210e68e1ee19efa8e6079fd2c96bf238e16d728f15` |
+
+Fresh kernel/config/DT/modules/ARM ABI and Buildroot/Reborn ARM pass. The fresh
+full build preceded the final late-handoff review; all affected components and
+local ARM packages were rebuilt from frozen db0234e afterward, with a new root
+image and matching identities. No reused userspace/root image. Production366
+cases:361 pass in the locked host, five explicit native prerequisite skips;
+all five are covered by30 native packaging/evidence cases with no skips.
+CPU/idle source owner/fault suite100 pass; Reborn238 pass/0ignored, fmt/clippy
+pass. ARM/QEMU,31 platform imports, null-ALSA constraints/1000-track benchmark,
+383 ARM ELF files/1403 dependency edges, inventory/legal-info, preserving/root/
+package composition/privacy/source/checksum validation pass. Unchanged pinned
+third-party inputs are retained; software checks do not establish C3 hardware.
+Receipts:`out/cpu-idle-completion-02-validation/` and package`validation/`.
+The unsealed inventory initially rejected newly attached harness files; it was
+refreshed before successful source sealing and final validation. No rejected
+staging package was handed off or flashed.
+
+Only BOOTIMG+ANDROID/Y2ROOT are new payloads. Y2DATA remains in place; no
+preloader/LK/NVRAM/PROTECT/calibration/factory/table payload. Exact Hardware02
+fallback is retained. New source files in this follow-up: clocks.c/clocks.h,
+idle-clock-policy.h/system-idle.c, production config/release metadata,
+observe.py and test_cpu_idle_completion.py, plus the linked validation/release/
+roadmap records. Preexisting six owner documentation edits remain separate.
+Local source commits:`143fab1` (SPI/UART decisions/diagnostics/physical record),
+`db0234e` (late handoff/clear-on-read protection/CCF fault tests). Reborn is
+unchanged from the integrated b71b4688 DRM ownership fix.
+
+**Exact next owner action:** install only this candidate02's BOOTIMG and
+ANDROID/Y2ROOT using its preserving scatter, keep USRDATA/Y2DATA unselected,
+then report installation. The agent will run the bundled guarded SSH harness
+once: all prerequisite checks, one bounded entry, then19 further cycles only
+on success, failure quarantine and independent regressions. The package's
+`CPU-IDLE-OWNER-HANDOFF.md` also provides the one-command option. No flash/push
+was performed. Full-system suspend and electrical battery benefit stay separate.
+
 ## Candidate01 hardware result and candidate02 follow-up — 2026-10-03
 
 The installed candidate01 is now physically tested, Linux3dfb5f5/Rebornb71b4688,
