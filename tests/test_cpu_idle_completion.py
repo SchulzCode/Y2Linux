@@ -62,6 +62,15 @@ int main(void) {
             self.assertEqual(result['C3']['unmet'], ['frequency'])
             self.assertEqual([x['clock'] for x in result['C3']['blocker_owners']], ['USB0', 'L2C_SRAM', 'MDP_WROT', 'DPI_ENGINE'])
 
+    def test_dt_authorizes_only_the_exact_new_usb_and_existing_consumers(self):
+        from tools.validation.dev_dtb import clock_id_allowed
+        top = '/clock-controller@10000000'
+        for clock in range(46):
+            self.assertEqual(clock_id_allowed(top, '/usb@11200000', 1, clock, True, True, True), clock == 44)
+            self.assertEqual(clock_id_allowed(top, '/i2c@11007000', 1, clock, True, True, True), clock < 25)
+        self.assertFalse(clock_id_allowed('/syscon@14000000', '/usb@11200000', 1, 0, True, True, True))
+        self.assertFalse(clock_id_allowed(top, '/usb@11200000', 2, 44, True, True, True))
+
     def test_legitimate_unused_controller_activity_is_preserved(self):
         run_c(r'''
 #include <assert.h>
@@ -266,6 +275,7 @@ int main(void){
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
 #include <errno.h>
 #include "idle-completion-policy.h"
 #define BIT(x) (1U<<(x))
@@ -289,11 +299,12 @@ static unsigned dormant_attempts,dormant_entries,dormant_resumes,dormant_success
 static unsigned dormant_aborts,dormant_failures,dormant_restore_failures;
 static unsigned dormant_wake,dormant_debug,dormant_event,dormant_r13;
 static bool spm_broken,dormant_broken;
-static int dormant_result,dormant_budget;
+static int dormant_result,dormant_budget,dormant_wake_result;
+static const char *dormant_wake_stage;
 static bool dormant_qualification;
 #define SYSTEM_RUNNING 0
 static int system_state;
-enum {Y2_PM_DORMANT_BEGIN,Y2_PM_DORMANT_CONTEXT,Y2_PM_DORMANT_RETURN,Y2_PM_DORMANT_COMPLETE,Y2_PM_DORMANT_ABORTED};
+enum {Y2_PM_DORMANT_BEGIN,Y2_PM_DORMANT_CONTEXT,Y2_PM_DORMANT_RETURN,Y2_PM_DORMANT_COMPLETE,Y2_PM_DORMANT_ABORTED,Y2_PM_DORMANT_RESTORE_PCM,Y2_PM_DORMANT_RESTORE_CONTEXT,Y2_PM_DORMANT_RESTORE_CIRQ,Y2_PM_DORMANT_RESTORE_CLOCKS};
 static bool backstop_ready=true,backstop_running;
 static bool y2_pm_dormant_backstop_ready(void){return backstop_ready;}
 static bool y2_pm_dormant_backstop_running(void){return backstop_running;}
@@ -366,9 +377,11 @@ int main(void){
  assert(y2_spm_dormant_idle()==-EACCES && suspends==1); /* never hammer a failed first test */
  dormant_budget=1;finish_error=0;
  assert(!y2_spm_dormant_idle() && dormant_resumes==1 && dormant_successes==1 && dormant_residency_us==5000);
+ assert(!dormant_wake_result && dormant_wake_stage);
+ assert(y2_spm_dormant_idle()==-EACCES && dormant_result==-EACCES && !dormant_wake_result);
  dormant_budget=1;restore_error=-EIO;
  assert(y2_spm_dormant_idle()==-EIO && dormant_resumes==2 && dormant_successes==1);
- assert(dormant_broken && dormant_restore_failures==1 && !clocks_owned && !spm_lock);
+ assert(dormant_broken && dormant_wake_result==-EIO && dormant_restore_failures==1 && !clocks_owned && !spm_lock);
  dormant_budget=-1;assert(y2_spm_dormant_idle()==-EIO && suspends==3);
 }
 ''')

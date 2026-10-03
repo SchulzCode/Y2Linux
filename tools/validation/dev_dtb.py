@@ -5,6 +5,18 @@ from tools.validation.d08 import require
 from tools.validation.dev_memory import RAM, RESERVED
 from tools.validation.dtb import cells, strings
 
+
+def clock_id_allowed(provider, consumer, arity, clock_id, power, connectivity, gpu):
+    if arity != 1:
+        return False
+    # Append-only USB0 ownership. Unconsumed idle/test gates are not DT
+    # authorization for arbitrary devices; existing profile limits stay strict.
+    if consumer == '/usb@11200000':
+        return provider == '/clock-controller@10000000' and clock_id == 44
+    ceiling = ((25 if gpu else 24 if connectivity else 22 if power else 18)
+               if provider.startswith('/clock-controller') else 23)
+    return clock_id < ceiling
+
 # Reviewed controller address/size and GIC SPI/type (MT6582, not sibling IRQs).
 REGS = {
  '/audio-controller@11220000': (0x11220000,0x1000),
@@ -123,7 +135,7 @@ def check(data, initrd_size, production=True):
             require(words[i] in handles,'missing clock provider '+path)
             provider,v=handles[words[i]];n=struct.unpack('>I',v['#clock-cells'])[0]
             require(i+1+n<=len(words),'short clock specifier')
-            if n: require(n==1 and words[i+1]<((25 if gpu else 24 if connectivity else 22 if power else 18) if provider.startswith('/clock-controller') else 23),'invalid clock ID')
+            if n: require(clock_id_allowed(provider, path, n, words[i+1], power, connectivity, gpu), 'invalid clock ID')
             i+=1+n
         for prop in ('pinctrl-0','pinctrl-1','backlight','remote-endpoint','interrupt-parent'):
             if prop in props:
@@ -145,6 +157,12 @@ def check(data, initrd_size, production=True):
     require({p for p in nodes if p.startswith('/cpus/cpu@')}=={'/cpus/cpu@'+str(i) for i in range(4)},'CPU count')
     for i in range(4): require(nodes['/cpus/cpu@'+str(i)]['reg']==cells(i),'CPU index')
     require(nodes['/usb@11200000']['compatible']==strings('innioasis,y2-usb') and nodes['/usb@11200000']['dr_mode']==strings('peripheral'),'known USB glue/role')
+    require(nodes['/usb@11200000']['clocks']==cells(handle('/clock-controller@10000000'),44) and
+            nodes['/usb@11200000']['clock-names']==strings('usb'), 'USB0 bus clock owner')
+    require(nodes['/mutex@1400e000']['clocks']==cells(*sum(
+            ([handle('/syscon@14000000'),n] for n in (18,0,1,3)),[])) and
+            nodes['/mutex@1400e000']['clock-names']==strings('32k','smi-common','smi-larb0','mutex'),
+            'MT6582 mutex/shared bus clock owners')
     for path in ('/mmc@11230000','/mmc@11240000'):
         v=nodes[path]
         width = (8 if path == '/mmc@11230000' else 4) if production else 1

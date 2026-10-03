@@ -92,7 +92,9 @@ static const char *const names[] = { "NONE",
 				     "POST_SUSPEND_NOTIFIED",
 				     "CONSOLE_RESTORED", "DORMANT_BEGIN", "DORMANT_CONTEXT",
 				     "DORMANT_FINISH", "DORMANT_RETURN", "DORMANT_COMPLETE",
-				     "DORMANT_ABORTED" };
+				     "DORMANT_ABORTED", "DORMANT_RESTORE_PCM",
+				     "DORMANT_RESTORE_CONTEXT", "DORMANT_RESTORE_CIRQ",
+				     "DORMANT_RESTORE_CLOCKS" };
 static_assert(ARRAY_SIZE(names) == Y2_PM_STAGE_COUNT);
 static const char *stage_name(unsigned stage)
 {

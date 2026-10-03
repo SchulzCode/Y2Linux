@@ -59,11 +59,11 @@ class Harness(unittest.TestCase):
         a = {k: '0' for k in ('dormant_entries', 'dormant_resumes', 'dormant_successes',
                              'dormant_residency_us', 'dormant_restore_failures', 'dormant_failures')}
         b = {**a, 'dormant_entries': '1', 'dormant_resumes': '1', 'dormant_successes': '1',
-             'dormant_residency_us': '4000', 'dormant_broken': '0', 'dormant_result': '0'}
+             'dormant_residency_us': '4000', 'dormant_broken': '0', 'dormant_result': '-13', 'dormant_wake_result': '0'}
         self.assertTrue(DEVICE.dormant_verdict(a, b)['pass'])
         for k, value in (('dormant_successes', '0'), ('dormant_residency_us', '0'),
                          ('dormant_restore_failures', '1'), ('dormant_broken', '1'),
-                         ('dormant_entries', '2'), ('dormant_result', '-5')):
+                         ('dormant_entries', '2'), ('dormant_wake_result', '-5')):
             self.assertFalse(DEVICE.dormant_verdict(a, {**b, k: value})['pass'], k)
         with self.assertRaises(RuntimeError):
             DEVICE.delta({}, {}, 'dormant_successes')
@@ -83,7 +83,7 @@ class Harness(unittest.TestCase):
         writes = []
         state = {'dormant_entries': '0', 'dormant_resumes': '0', 'dormant_successes': '0',
                  'dormant_residency_us': '0', 'dormant_restore_failures': '0', 'dormant_failures': '0',
-                 'dormant_broken': '0', 'dormant_result': '-16'}
+                 'dormant_broken': '0', 'dormant_result': '-13', 'dormant_wake_result': '-16'}
         snaps = {'spm': ' '.join(k+'='+v for k, v in state.items()), 'taint': '0',
                  'metrics': {'states': {'cpu0/cpuidle/state2': {'usage': '0', 'time': '0'}}}}
         role = types.SimpleNamespace()

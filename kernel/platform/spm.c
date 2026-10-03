@@ -49,6 +49,9 @@ static void __iomem *spm_biu, *spm_cache;
 static dma_addr_t idle_address;
 static unsigned dormant_entries, dormant_resumes, dormant_aborts, dormant_failures;
 static int dormant_result;
+/* Admission refusals after a bounded trial must not erase its wake result. */
+static int dormant_wake_result = -ENODATA;
+static const char *dormant_wake_stage = "never_entered";
 static bool dormant_broken;
 static char *dormant_stage = "never_entered";
 /* Paired with normal cpuidle state2/disable. Zero quarantines entry;
@@ -319,11 +322,14 @@ static int y2_spm_finish(unsigned long unused)
 			y2_spm_journal_snapshot();
 			y2_pm_mark(Y2_PM_DORMANT_FINISH, 0);
 		}
+		dormant_stage = "finisher_deadline";
 		int ret = y2_local_timer_dormant_check();
 		if (ret) return ret;
 		/* cpu_suspend has now filled Linux's CPU0 stash. Validate the actual
 		 * resume buffer before removing coherency, not a duplicate context. */
+		dormant_stage = "finisher_context";
 		if (!y2_dormant_context_ready()) return -EIO;
+		dormant_stage = "finisher_buffer";
 		dormant_context_phys = READ_ONCE(sleep_save_sp.save_ptr_stash[0]);
 		if ((dormant_context_phys & 3) ||
 		    !pfn_valid(dormant_context_phys >> PAGE_SHIFT) ||
@@ -425,6 +431,8 @@ int y2_spm_dormant_idle(void)
 	unsigned power, biu, cache;
 	u64 start = 0;
 	int ret, restore;
+	bool entered = false;
+	const char *failure_stage = NULL;
 	if (smp_processor_id()) return -EBUSY;
 	dormant_attempts++;
 	dormant_stage = "system_state";
@@ -474,12 +482,15 @@ int y2_spm_dormant_idle(void)
 	if (dormant_qualification) y2_pm_mark(Y2_PM_DORMANT_BEGIN, 0);
 	biu = readl(spm_biu);
 	cache = readl(spm_cache);
+	dormant_stage = "cpu_pm_enter";
 	ret = cpu_pm_enter();
 	if (ret) goto restore_cirq;
+	dormant_stage = "cluster_pm_enter";
 	ret = cpu_cluster_pm_enter();
 	if (ret) goto restore_cpu;
 	/* MT6582 retains L2 in DORMANT: suppress reset invalidation, restore on
 	 * both reset-resume and aborted WFI. Linux owns CP15/MMU, VFP and GIC. */
+	dormant_stage = "cache_prepare";
 	writel(cache | BIT(4), spm_cache);
 	dsb(sy);
 	if (readl(spm_cache) != (cache | BIT(4))) { ret = -EIO; goto restore_cluster; }
@@ -493,6 +504,7 @@ int y2_spm_dormant_idle(void)
 		dormant_stage = "cpu_suspend";
 		if (READ_ONCE(dormant_budget) > 0) WRITE_ONCE(dormant_budget, READ_ONCE(dormant_budget) - 1);
 		dormant_entries++;
+		entered = true;
 		start = ktime_get_mono_fast_ns();
 		if (dormant_qualification) y2_pm_mark(Y2_PM_DORMANT_CONTEXT, 0);
 		ret = cpu_suspend(1, y2_spm_finish);
@@ -500,29 +512,43 @@ int y2_spm_dormant_idle(void)
 		if (!ret) dormant_resumes++; /* real reset return, even if later restore fails */
 		writel(biu, spm_biu);
 		dsb(sy);
-		if (readl(spm_biu) != biu) { dormant_restore_failures++; ret = -EIO; }
+		if (readl(spm_biu) != biu) { dormant_restore_failures++; ret = -EIO; failure_stage = "restore_biu"; }
 		dormant_wake = spm_read(spm_base, SPM_PCM_REG9_DATA);
 		dormant_debug = spm_read(spm_base, SPM_PCM_REG_DATA_INI);
 		dormant_event = spm_read(spm_base, SPM_PCM_EVENT_REG_STA);
 		dormant_r13 = spm_read(spm_base, SPM_PCM_REG13_DATA);
-		if (dormant_debug) ret = -EIO;
+		if (dormant_debug) { ret = -EIO; failure_stage = "pcm_debug"; }
 	}
+	if (ret && !failure_stage) failure_stage = dormant_stage;
+	dormant_stage = "restore_pcm";
+	if (dormant_qualification) y2_pm_mark(Y2_PM_DORMANT_RESTORE_PCM, ret);
 	restore = y2_spm_idle_restore(&spm_io, normal_address);
-	if (restore) { dormant_restore_failures++; ret = restore; }
+	if (restore) { dormant_restore_failures++; ret = restore; failure_stage = dormant_stage; }
 restore_cluster:
+	if (ret && !failure_stage) failure_stage = dormant_stage;
+	dormant_stage = "restore_cache_gic";
+	if (dormant_qualification) y2_pm_mark(Y2_PM_DORMANT_RESTORE_CONTEXT, ret);
 	writel(cache, spm_cache);
 	dsb(sy);
-	if (readl(spm_cache) != cache) { dormant_restore_failures++; ret = -EIO; }
+	if (readl(spm_cache) != cache) { dormant_restore_failures++; ret = -EIO; failure_stage = dormant_stage; }
 	cpu_cluster_pm_exit();
 restore_cpu:
+	if (ret && !failure_stage) failure_stage = dormant_stage;
+	dormant_stage = "restore_timer_context";
 	cpu_pm_exit();
-	if (!y2_local_timer_context_ok()) { dormant_restore_failures++; ret = -EIO; }
+	if (!y2_local_timer_context_ok()) { dormant_restore_failures++; ret = -EIO; failure_stage = dormant_stage; }
 restore_cirq:
+	if (ret && !failure_stage) failure_stage = dormant_stage;
+	dormant_stage = "restore_cirq";
+	if (dormant_qualification) y2_pm_mark(Y2_PM_DORMANT_RESTORE_CIRQ, ret);
 	y2_cirq_end();
-	if (!y2_cirq_restore_ok()) { dormant_restore_failures++; ret = -EIO; }
+	if (!y2_cirq_restore_ok()) { dormant_restore_failures++; ret = -EIO; failure_stage = dormant_stage; }
 restore_clocks:
+	if (ret && !failure_stage) failure_stage = dormant_stage;
+	dormant_stage = "restore_clocks";
+	if (dormant_qualification) y2_pm_mark(Y2_PM_DORMANT_RESTORE_CLOCKS, ret);
 	restore = y2_ccf_deep_idle_end();
-	if (restore) { dormant_restore_failures++; ret = restore; }
+	if (restore) { dormant_restore_failures++; ret = restore; failure_stage = dormant_stage; }
 	if (dormant_qualification) {
 		y2_pm_mark(ret ? Y2_PM_DORMANT_ABORTED : Y2_PM_DORMANT_COMPLETE, ret);
 		y2_pm_backstop_end();
@@ -536,7 +562,13 @@ out_idle:
 		dormant_successes++;
 		dormant_residency_us += div_u64(ktime_get_mono_fast_ns() - start, 1000);
 	}
+	if (ret && !failure_stage) failure_stage = dormant_stage;
+	if (failure_stage) dormant_stage = (char *)failure_stage;
 	dormant_result = ret;
+	if (entered) {
+		dormant_wake_result = ret;
+		dormant_wake_stage = dormant_stage;
+	}
 	if (ret) dormant_aborts++;
 	if (ret == -EIO || ret == -ETIMEDOUT) {
 		dormant_failures++;
@@ -576,6 +608,8 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr, cha
 	ret += sysfs_emit_at(buf, ret, "dormant_entries=%u dormant_resumes=%u dormant_aborts=%u dormant_failures=%u dormant_result=%d dormant_broken=%u\n",
 		dormant_entries, dormant_resumes, dormant_aborts, dormant_failures, dormant_result, dormant_broken);
 	ret += sysfs_emit_at(buf, ret, "dormant_stage=%s resume_restore_ns=%llu\n", dormant_stage, resume_restore_ns);
+	ret += sysfs_emit_at(buf, ret, "dormant_wake_result=%d dormant_wake_stage=%s\n",
+		dormant_wake_result, dormant_wake_stage);
 	ret += sysfs_emit_at(buf, ret, "dormant_attempts=%u dormant_successes=%u dormant_residency_us=%llu dormant_restore_failures=%u dormant_budget=%d dormant_wake=%#x dormant_debug=%#x dormant_event=%#x dormant_r13=%#x pcm_words=480 pcm_origin=MT6582_d53dd75c_dpidle\n",
 		dormant_attempts, dormant_successes, dormant_residency_us, dormant_restore_failures,
 		READ_ONCE(dormant_budget), dormant_wake, dormant_debug, dormant_event, dormant_r13);

@@ -111,3 +111,11 @@ partner register read), counted/quarantined CIRQ enable-readback failure, and
 all-five-OPP qualification again after C3 before restoring schedutil for the
 actual playback test. Native dropped-clone/enable writes and partial coupled
 clock fixtures pass. These refinements precede final packaging/qualification.
+
+The final hardware harness distinguishes stable dormant_wake_result/stage from
+subsequent admission refusals: a spent positive budget may legitimately refuse
+more idle attempts without erasing the observed wake. Native tests explicitly
+cover successful reset return followed by budget refusal, and restoration faults.
+DT validation now admits only exact USB0 ID44 on the USB consumer, preserving
+existing profile ceilings for every other consumer and requiring the four exact
+MT6582 mutex/shared-clock specifiers. Invalid IDs/providers remain rejected.

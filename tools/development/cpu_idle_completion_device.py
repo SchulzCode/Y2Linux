@@ -107,7 +107,7 @@ def dormant_verdict(a, b):
                     changes['dormant_successes'] == 1 and
                     changes['dormant_residency_us'] > 0 and
                     changes['dormant_restore_failures'] == changes['dormant_failures'] == 0 and
-                    number(b.get('dormant_broken')) == 0 and number(b.get('dormant_result')) == 0,
+                    number(b.get('dormant_broken')) == 0 and number(b.get('dormant_wake_result')) == 0,
             'changes': changes}
 
 
