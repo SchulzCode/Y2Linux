@@ -20,11 +20,13 @@ static inline int y2_bus_dcm_baseline(unsigned value)
 {
 	return value == 0x00 || value == 0x0f;
 }
-/* Exact MT6582 idle operands; unknown/active engines remain blockers. */
+/* Exact MT6582 platform_uart.h: DMA_EN[1:0] enables RX/TX DMA;
+ * bit2 only resets its timeout counter. Keep every other unknown bit busy.
+ * IER, DLAB, RX data, incomplete TX and line/FIFO errors remain blockers. */
 static inline int y2_unused_uart_busy(unsigned lcr, unsigned ier,
 		unsigned lsr, unsigned dma)
 {
-	return (lcr & 0x80) || ier || dma || (lsr & 0x61) != 0x60;
+	return (lcr & 0x80) || ier || (dma & ~4U) || lsr != 0x60;
 }
 static inline int y2_unused_nfi_busy(unsigned control, unsigned status,
 		unsigned master, unsigned fifo)
@@ -34,6 +36,10 @@ static inline int y2_unused_nfi_busy(unsigned control, unsigned status,
 }
 static inline int y2_unused_spi_busy(unsigned command, unsigned status)
 {
-	return (command & 0xc03) || status;
+	/* Exact d53/3be93a68/krillin MT6582 spi_is_busy: STATUS1[0]=1
+	 * means idle. Zero is busy, not a quiet reset default. Reject reset,
+	 * pause, ACT/RESUME, DMA and unknown status; do not read STATUS0,
+	 * whose read acknowledges an interrupt. */
+	return (command & 0xc17) || status != 1;
 }
 #endif

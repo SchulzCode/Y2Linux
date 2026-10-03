@@ -43,12 +43,15 @@ int main(void) {
             self.assertFalse(result['C1']['registered'])
             self.assertIsNone(result['C1']['entries'])
             self.assertIsNone(result['C2']['blocker_owners'])
+            self.assertIsNone(result['C3']['unused_clock_handoff'])
             for path, value in (
                 ('/sys/module/clocks/parameters/slow_blockers', str((1 << 11) | (1 << 12))),
                 ('/sys/bus/platform/devices/18070000.connectivity/power/runtime_status', 'active'),
                 ('/sys/bus/platform/devices/11230000.mmc/power/runtime_status', 'suspended'),
                 ('/sys/devices/platform/10006000.power-controller/dormant_preflight',
                  'peri_blockers=0x400 infra_blockers=0x80 disp0=0x400 disp1=0x8 prerequisite_topology=1 prerequisite_frequency=0 unmet=frequency,'),
+                ('/sys/module/clocks/parameters/unused_handoff',
+                 'UART1 sampled=1 lcr=3 ier=0 lsr=0x60 dma=4 reason=quiet retained=0\nSPI0 sampled=1 command=0 status1=1 reason=quiet retained=0'),
             ):
                 p = ctx.path(path)
                 p.parent.mkdir(parents=True, exist_ok=True)
@@ -60,6 +63,7 @@ int main(void) {
             self.assertEqual([x['clock'] for x in result['C2']['blocker_owners']], ['APDMA', 'MSDC0'])
             self.assertEqual([x['runtime_status'] for x in result['C2']['blocker_owners']], ['active', 'suspended'])
             self.assertEqual(result['C3']['unmet'], ['frequency'])
+            self.assertIn('dma=4 reason=quiet', result['C3']['unused_clock_handoff'])
             self.assertEqual([x['clock'] for x in result['C3']['blocker_owners']], ['USB0', 'L2C_SRAM', 'MDP_WROT', 'DPI_ENGINE'])
 
     def test_dt_authorizes_only_the_exact_new_usb_and_existing_consumers(self):
@@ -82,14 +86,70 @@ int main(void) {
  assert(y2_unused_uart_busy(0,0,0x61,0));
  assert(y2_unused_uart_busy(0,0,0x40,0));
  assert(y2_unused_uart_busy(0,0,0x60,1));
+ assert(!y2_unused_uart_busy(3,0,0x60,4)); /* timeout counter metadata */
+ for(unsigned bit=0;bit<32;bit++) {
+  if(bit!=2) assert(y2_unused_uart_busy(3,0,0x60,1U<<bit));
+  if(bit!=5 && bit!=6) assert(y2_unused_uart_busy(3,0,0x60|(1U<<bit),0));
+ }
  assert(!y2_unused_nfi_busy(0,0,0,0));
  assert(y2_unused_nfi_busy(0x100,0,0,0));
  assert(y2_unused_nfi_busy(0,1,0,0));
  assert(y2_unused_nfi_busy(0,0,1,0));
  assert(y2_unused_nfi_busy(0,0,0,1));
- assert(!y2_unused_spi_busy(0,0));
- assert(y2_unused_spi_busy(1,0) && y2_unused_spi_busy(0x400,0));
- assert(y2_unused_spi_busy(0,1));
+ assert(!y2_unused_spi_busy(0,1)); /* MT6582 STATUS1 idle polarity */
+ assert(y2_unused_spi_busy(0,0));
+ assert(!y2_unused_spi_busy(0x13020,1)); /* configuration is not activity */
+ for(unsigned bit=0;bit<32;bit++) {
+  if((1U<<bit)&0xc17) assert(y2_unused_spi_busy(1U<<bit,1));
+  if(bit) assert(y2_unused_spi_busy(0,1|(1U<<bit)));
+ }
+}
+''')
+
+    def test_unused_owner_preserves_partial_clocks_and_captures_real_decision(self):
+        source = (ROOT/'kernel/platform/clocks.c').read_text()
+        run_c(r'''
+#include <assert.h>
+#include <errno.h>
+#include <stddef.h>
+#include "idle-clock-policy.h"
+#define __iomem
+#define BIT(x) (1U<<(x))
+struct device {int unused;};
+struct y2_unused_handoff {
+ unsigned sampled,lcr,ier,lsr,dma,command,status;int busy;
+};
+static struct y2_unused_handoff unused_handoff[4];
+static const unsigned y2_unused_bits[]={0,2,3,4,5,6,7,8,9,15,17,18,19,25,7,13,15};
+static unsigned registers[0x220/4], reads, maps, address, map_failure;
+static void *devm_ioremap(struct device *d,unsigned a,unsigned size) {
+ assert(size<=sizeof(registers));maps++;address=a;
+ return map_failure?NULL:registers;
+}
+static unsigned readl(void *p){reads++;return *(unsigned *)p;}
+''' + function(source, 'y2_unused_busy') + r'''
+int main(void) {
+ struct device dev;
+ /* A partial inherited NAND/PWM handoff retains a gate, never aborts the
+  * shared CCF provider or accesses an unclocked register partner. */
+ assert(y2_unused_busy(&dev,0,BIT(15))==1 && !reads && !maps);
+ assert(y2_unused_busy(&dev,9,BIT(0))==1 && !reads && !maps);
+ assert(y2_unused_busy(&dev,1,BIT(9))==1 && !reads && !maps);
+ registers[0x14/4]=0x60;registers[0x4c/4]=4;
+ assert(!y2_unused_busy(&dev,10,0) && address==0x11003000);
+ assert(unused_handoff[0].sampled && unused_handoff[0].dma==4 && !unused_handoff[0].busy);
+ registers[4/4]=1;
+ assert(y2_unused_busy(&dev,11,0) && address==0x11004000);
+ assert(unused_handoff[1].ier==1 && unused_handoff[1].busy);
+ registers[0x20/4]=1;registers[0x18/4]=0;
+ assert(!y2_unused_busy(&dev,13,0) && address==0x1100a000);
+ assert(unused_handoff[3].sampled && unused_handoff[3].status==1 && !unused_handoff[3].busy);
+ /* STATUS0 is clear-on-read; the diagnostic never touches it. */
+ assert(reads==10);
+ registers[0xc/4]=0xbf;
+ assert(y2_unused_busy(&dev,12,0) && reads==11); /* no aliased IER/LSR access */
+ assert(unused_handoff[2].lcr==0xbf && unused_handoff[2].busy);
+ map_failure=1;assert(y2_unused_busy(&dev,12,0)==-ENOMEM && reads==11);
 }
 ''')
 

@@ -1,5 +1,72 @@
 # Platform v1 software completion roadmap
 
+## CPU idle candidate hardware result and follow-up admission — 2026-10-03
+
+Fresh candidate01 run at Linux3dfb5f5/Rebornb71b4688, boot
+`e0eb2f36-7c1f-4007-99e2-81d2eae047d4`, completes with **CPU idle acceptance FAIL**:
+C1 passes all four cores; natural parking reaches CPU0/owner0xe; C2 adds
+7,040 entries and49.674049s/60.047965s (82.72%), restore failures0. Both mounted
+media pass16 fsynced checksum cycles each across the two storage phases, ext4
+counts0. Three hotplug cycles, all five OPPs before/after preflight, screen wake,
+real playback and bidirectional USB/independent Wi-Fi integrity pass. Same boot,
+taint0, owner screen/radio/DVFS/coordinator restored; C3 off/budget0/backstop0.
+
+C3 is **not physically working**: preflight rejects PERI0x02020000, exact UART1
+bit17 and SPI0 bit25, after normal radio-off/USB-role-none, CPU0-only topology,
+747.5MHz cap and an armed RGU backstop. Every other reported static predicate
+passes; no actual cpu_suspend call occurs. Boot warnings and CCF summary show
+both retained, zero references, no Linux consumer. Installed diagnostics omit
+raw handoff operands; do not infer UART's exact busy field or fake C3 success.
+
+Pinned exact MT6582 d53/3be93a68/krillin SPI source identifies STATUS1[0]=1 as
+idle; the installed predicate instead accepts0/rejects1. UART platform source
+identifies DMA_EN bit2 as timeout-counter metadata, unlike RX/TX bits0/1.
+Correct those source-backed decisions, retain unknown/live engines, capture
+read-only clocked handoff operands, and preserve aliased UART banks. Partial
+NAND/PWM handoff must retain its gate without aborting the shared CCF provider.
+No blocker masks, timer/context/PCM/CIRQ/OPP algorithms or memory ABI change.
+
+Existing#28/#31/#34 track this next owner dependency; all refreshed issues remain
+OPEN. The original autonomous completion instruction authorizes safe source
+fixes and one coherent follow-up preserving candidate. Candidate02 gets a fresh
+kernel/root build and affected/full production verification; no reused root
+image, no flash/push, no external closure, no unrelated qualification claim.
+Current candidate01 hardware evidence stays attached to its actual source pair;
+candidate02 will remain physically unqualified until owner flash. Full-system
+suspend and electrical battery improvement remain separate unresolved gates.
+[Physical record](../validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md), private raw
+`out/cpu-idle-completion-physical/20261003T130848Z-candidate/`.
+
+## CPU idle candidate physical admission — 2026-10-03 13:13 UTC
+
+Owner reports installing the sealed CPU idle BOOTIMG/Y2ROOT and explicitly
+requests hardware qualification. Fresh authorized USB SSH verifies actual
+Linux3dfb5f5/Rebornb71b4688, kernel6.18.0-y2linux-cpu-idle-01,
+root2025.02.18-platform-v1.18/releasecpu-idle-completion-candidate.1,
+boot `e0eb2f36-7c1f-4007-99e2-81d2eae047d4`, taint0; all identity axes match the candidate manifest.
+Raw admission/status/health/dmesg/timer/IRQ receipts: `out/cpu-idle-completion-physical/20261003T130848Z-candidate/`.
+Active issues#16/#27/#28/#29/#31/#32/#33/#34 are refreshed read-only; remain OPEN.
+
+| Coverage/dependency | Real current evidence | Qualification boundary |
+| --- | --- | --- |
+| GPT6/GPT4/PPI29/highres/NO_HZ | Admitted13MHz/per-core errors0, no critical dmesg lines | Fresh bounded continuity and four-core wake |
+| C1/C2/parking | Registered; natural CPU0/secondary bits0, prior baseline passes historical | Fresh counters/residency/restore and supported hotplug |
+| Display/INFRA owner fixes | Current screen off: DISP0/1 blockers0, INFRA blockers0 | Screen restore/playback/USB regressions |
+| C3 | Disabled, real entries0; current frequency/radio/USB/PERI/policy guards reject | Resolve through real supported owners; one RGU-backed entry only after prerequisites, then20 only on success |
+| Storage/DVFS/thermal | Mounted eMMC/SD ext4 counts0, temperatures42.8–42.9°C | Fsynced integrity/runtime PM/all five OPP readbacks |
+| Full system suspend/unrelated release gates | Historical failures and unqualified scope retained | Excluded from this CPU qualification; no promotion |
+
+Pause/session state is recorded before normal playback stop. This pass uses the
+prepared durable device-side SSH harness with independent Wi-Fi observation,
+supported radio/USB/CPU controls, normal-policy parking, failure quarantine and
+owner-setting restoration. Ordinary C3 is retained only after repeated bounded
+success and the remaining regressions. No guards are weakened, no userspace
+MMIO or live-media reset, no flash/push, no memory/partition/calibration change,
+no unchanged ROM/recovery recapture or external milestone closure. The physical
+phase is admitted; acceptance is pending fresh evidence. Preserve the preexisting
+owner documentation edits and exact Hardware02 fallback.
+
+
 ## CPU idle owner-flash boundary — 2026-10-03 11:07 UTC
 
 Repeated standing gap audit uses final current-boot receipts21–23 and read-only

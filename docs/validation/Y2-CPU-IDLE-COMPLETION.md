@@ -1,9 +1,64 @@
 # Y2 CPU idle completion
 
+## Candidate01 hardware result and candidate02 follow-up — 2026-10-03
+
+The installed candidate01 is now physically tested, Linux3dfb5f5/Rebornb71b4688,
+boot `e0eb2f36-7c1f-4007-99e2-81d2eae047d4`. **C1 and C2 WORKING; C3 blocked
+before entry by UART1/SPI0 clocks. Overall qualification FAIL.** C2 adds7,040
+entries/49.674049s in60.047965s (82.72%); restore/storage errors0. Hotplug,
+parking, all five OPPs, screen/workload wake, real playback and USB/Wi-Fi pass.
+Detailed [physical record](Y2-CPU-IDLE-COMPLETION-PHYSICAL.md) supersedes the old
+"not run" handoff statement below. No actual dormant entry or battery measurement.
+
+The clock owners retained two unsupported loader engines, with no Linux
+consumer/CCF reference. Candidate01 exposes neither raw handoff decision. We
+cannot infer UART's exact field or prove that software fixes below release both
+clocks until another owner flash. No supported installed control owns those
+engines, so no safe runtime clock forcing is available or attempted.
+
+Source-backed candidate02 changes are limited to the existing unused-clock
+owner, diagnostics and regression tests:
+
+- SPI CMD+0x18/STATUS1+0x20: the pinned MT6582 vendor `spi_is_busy` helper says
+  STATUS1 bit0=1 is idle. Candidate01 wrongly rejected all nonzero status and
+  accepted0. Accept exactly1 only with no ACT/RESUME/reset/pause/DMA operands;
+  keep unknown status/active engines. STATUS0+0x1c is clear-on-read and is never
+  sampled. The corroborating helper is commented in these BSPs; this is source
+  interpretation, not an observed Y2 status value or completed physical fix.
+- UART DMA_EN+0x4c: exact MT6582 defines RX/TX DMA bits0/1 and timeout-counter
+  auto-reset metadata bit2. Metadata alone no longer falsely implies DMA.
+  IRQ-enabled, DLAB/alternate bank, RX data, incomplete TX, line/FIFO errors and
+  unknown DMA/status bits remain blocked. No UART interrupt/FIFO/DMA reset/write.
+- Sample known operands only while their inherited clock is enabled, retain
+  them in a read-only `clocks/unused_handoff` diagnostic with reason names, and
+  surface it in `y2-platform status cpu`. DLAB/alternate banks are retained
+  without reading aliased IER/LSR fields; already gated engines are not read.
+- Partial NAND/PWM clock handoff retains its gate rather than returning a
+  probe-aborting error for the entire shared CCF provider. Real allocation/
+  mapping errors still fail provider registration.
+
+Masks, C1/C2 algorithms, MMC high-speed/runtime PM, timer broadcast, PCM,
+CIRQ/context/coherency, coordinator hysteresis, guarded OPPs and ABI remain
+unchanged. New tests exercise genuine busy/unknown/metadata/idle states, aliased
+banks, clear-on-read avoidance and partial provider handoff. Candidate02 uses
+kernel`6.18.0-y2linux-cpu-idle-02`, root`2025.02.18-platform-v1.19`, release
+`1.0.0-cpu-idle-completion-candidate.2`, build`Y2LINUX-CPU-IDLE-COMPLETION-02`.
+Fresh build/qualification and exact candidate hashes are recorded at sealing.
+
+Primary source references (pinned MT6582; no adjacent-SoC transplant):
+[UART platform definitions](https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/uart/mt6582/platform_uart.h),
+[UART platform lifecycle](https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/uart/mt6582/platform_uart.c),
+[SPI d53 source](https://android.googlesource.com/kernel/mediatek/+/d53dd75c3ff77cac3f5be58fddfe660e94f94d64/drivers/misc/mediatek/spi/mt6582/spi.c),
+[SPI 3be93a68 cross-check](https://android.googlesource.com/kernel/mediatek/+/3be93a68c209393cfe24a842e2d5896a17ea37dc/drivers/misc/mediatek/spi/mt6582/spi.c),
+[krillin MT6582 cross-check](https://github.com/ubports/kernel_krillin/blob/874057f3c28735d606385361fb9a4cd4545ceba6/mediatek/platform/mt6582/kernel/drivers/spi/spi.c).
+Private source downloads and hashes remain under `out/cpu-idle-completion-research/`.
+
+## Historical candidate01 software handoff
+
 Owner-authorized CPU completion pass,2026-10-03. Entry baseline Linux
 `131ee4621cd583c955182f994adac5a594fb823f` / Reborn
 `7f9df397ab3809d52e2f1073ca93a305246e0c3a` is verified against the installed
-kernel/root/release and sealed package. Current boot
+kernel/root/release and sealed package. Entry boot
 `cee326c1-a5b0-447a-8eb0-dc3f39f7e2c2`, taint0. No flash or push is permitted.
 Preexisting owner documentation changes are preserved separately from this pass.
 

@@ -1,5 +1,25 @@
 # Y2Linux + Reborn Community Beta — complete current-state feature audit
 
+## CPU idle candidate01 hardware result — 2026-10-03
+
+Owner-installed Linux3dfb5f5/Rebornb71b4688 is now tested on unchanged boot
+`e0eb2f36-7c1f-4007-99e2-81d2eae047d4`, taint0. C1 and C2 are WORKING; C2
+adds7,040 entries/49.674049s in60.047965s (82.72%), restores/media errors0.
+Natural parking, three hotplug cycles, all five OPPs before/after preflight,
+screen/workload wake, real playback and USB/independent Wi-Fi integrity pass.
+**Overall CPU idle qualification FAILS:** C3 preflight retains UART1/SPI0,
+PERI0x02020000, and no physical dormant call occurs. Other reported static
+prerequisites pass. C3 remains off; dynamic deadline/context/CIRQ wake unobserved.
+
+Exact MT6582 source follow-up corrects SPI idle polarity/UART DMA metadata,
+retains unknown/live/aliased engines and adds read-only handoff operands.
+Candidate02 requires a fresh preserving build and owner flash; no claim that it
+already releases both clocks. Electrical battery benefit and full-system suspend
+remain unqualified. No flash/push, protected-data write, external issue closure
+or unrelated release promotion. See [physical result](../validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md)
+and [source follow-up](../validation/Y2-CPU-IDLE-COMPLETION.md).
+
+
 ## CPU idle software handoff — 2026-10-03
 
 One fresh preserving CPU idle candidate is sealed and software validated at

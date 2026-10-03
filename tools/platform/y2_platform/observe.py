@@ -90,6 +90,7 @@ def idle_completion(ctx, states):
         {'name': node, 'runtime_status': ctx.read('/sys/bus/platform/devices/'+node+'/power/runtime_status')}
         for node in ('18070000.connectivity', '11007000.i2c', '11008000.i2c')]
     result['C3']['preflight'] = ctx.read('/sys/devices/platform/10006000.power-controller/dormant_preflight')
+    result['C3']['unused_clock_handoff'] = ctx.read('/sys/module/clocks/parameters/unused_handoff')
     result['C3']['context'] = ctx.read('/sys/devices/platform/10006000.power-controller/state')
     result['C3']['entry_budget'] = ctx.integer('/sys/module/spm/parameters/dormant_budget')
     result['C3']['display_idle'] = {p.name: read(p) for p in ctx.glob('/sys/module/mm_clocks/parameters/*')}

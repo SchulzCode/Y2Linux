@@ -1,6 +1,125 @@
 # Y2 CPU idle completion physical qualification
 
-Current installed baseline was qualified on 2026-10-03. Private raw evidence:
+## Candidate01 hardware qualification — 2026-10-03
+
+**C1 WORKING; C2 WORKING; C3 BLOCKED BEFORE PHYSICAL ENTRY.** The owner installed
+the sealed images and authorized this hardware run. The automated overall
+qualification **FAILS** because C3 cannot pass its real clock prerequisites.
+Independent regressions completed; no reset, corruption or forced entry occurred.
+Earlier baseline results below are historical and do not substitute for this run.
+
+Private evidence: `out/cpu-idle-completion-physical/20261003T130848Z-candidate/`.
+Admission, source/boot-tagged SSH command/stdout/stderr/exit receipts, durable
+qualification job and result, post-run state and summary are retained. Installed
+identity matches every candidate axis: Linux
+`3dfb5f5cc731ec5dac88a778290819c23dba6067`, Reborn
+`b71b468860233faa0a42b8448ec5777fa952b8e3`, kernel
+`6.18.0-y2linux-cpu-idle-01`, root `2025.02.18-platform-v1.18`, release
+`1.0.0-cpu-idle-completion-candidate.1`, build
+`Y2LINUX-CPU-IDLE-COMPLETION-01`. Boot
+`e0eb2f36-7c1f-4007-99e2-81d2eae047d4` stays unchanged; taint0 throughout.
+
+### C1, parking and C2
+
+All four WFI states are present and enabled. During the bounded qualification:
+
+| CPU | Additional entries | Residency, us | Rejections | Median / p95 wake, ms |
+| --- | ---: | ---: | ---: | --- |
+| 0 | 1271 | 11972491 | 0 | 1.083999 / 1.095614 |
+| 1 | 1050 | 12207881 | 0 | 1.084691 / 1.110306 |
+| 2 | 990 | 12337826 | 0 | 1.084306 / 1.093922 |
+| 3 | 612 | 12244397 | 0 | 1.084306 / 1.091383 |
+
+Maximum sampled1ms wake1.706998ms; MONOTONIC/RAW drift-9575ns in12.068182s.
+Three supported hotplug cycles pass all18 transitions and both physical power
+copies, CPU3→2→1 off and1→2→3 on. Automatic parking subsequently honors its
+pressure hold: first CPU3 parked at252s, CPU0/owner0xe at262s. Ten-second observer
+sampling does not individually time CPU2/CPU1; supported hotplug/source tests
+prove their exact physical bits and one-core policy. Screen wake and real
+PlaybackNormal demand restore all four cores without ownership errors.
+
+Screen off and radios runtime-off make C2 naturally eligible. SLIDLE adds
+**7,040 entries and49,674,049us in60.047964546s (82.72%)**, with WFI4.061876s.
+SLIDLE failures0, bus rejections0, clock restore failures0, final blocker0 in
+this window. Active APDMA/BTIF are legitimate blockers when Wi-Fi returns;
+MMC request blockers appear during real I/O and disappear afterward.
+
+| Window | Seconds | CPU utilization | CPUs | CPU0 WFI, s | CPU0 C2, s | IRQ/s | Context switches/s |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| Screen on idle | 20.076549 | 3.58% | 0–3 | 18.649760 | 0 | 452.82 | 529.22 |
+| Screen off before parking | 20.070139 | 3.41% | 0–3 | 19.450031 | 0 | 351.67 | 403.19 |
+| Screen off, parked, C2 enabled | 60.047965 | 9.47% | 0 | 4.061876 | 49.674049 | 187.72 | 343.06 |
+
+C2-window MONOTONIC/RAW drift218003ns. CPU utilization is aggregated over online
+cores; this is not an electrical comparison. Temperatures stay below the
+75°C test guard (observed CPU about38–44.7°C). No measured battery-life claim.
+
+### C3 preflight failure and exact remaining owners
+
+Normal controls stop playback, turn radios runtime-off, detach USB through its
+role owner, cap747.5MHz, use automatic CPU0-only topology and arm the existing
+10s RGU backstop with budget1. Preflight then reports:
+
+- Power copies0x314c/0x314c; secondary mask0, blocked domains0.
+- PERI blockers**0x02020000 = UART1 bit17 + SPI0 bit25**.
+- INFRA blockers0, DISP0/1 blockers0, bus0.
+- Every other exposed static prerequisite category passes; only clocks fails.
+- Runtime PCM480words, originMT6582_d53dd75c_dpidle; CIRQ ready and inactive.
+- Dynamic architectural/GPT4 deadline and actual context/vector programming
+  were not exercised: no actual dormant call was admitted.
+
+Boot warnings identify both as retained active/unknown loader engines. CCF
+summary shows zero enable/prepare references and no consumer for both. Only
+UART0 at0x11002000 is Linux's serial owner; UART1's sampled window is0x11003000,
+SPI0's0x1100a000. Installed diagnostics do not expose the boot-time raw operands,
+so the exact UART busy field and observed SPI status value remain **unknown**.
+No userspace MMIO, register forcing, driver reset, guard bypass or fake counter.
+
+SPM dormant attempts/entries/resumes/successes/residency remain0. CIRQ entries/
+flushes and local timer context saves/restores remain0; no error in those counters
+is proof of dormant restoration. Near-boundary and20-cycle trials correctly do
+not run after failed preflight. C3 remains disabled, budget0, backstop disarmed.
+This is a software/clock ownership gap, **not evidence of a hardware limit**.
+
+Source follow-up corrects the SPI predicate that treats the vendor's nonzero
+idle indication as busy, distinguishes UART timeout metadata from real DMA,
+retains error/unknown/aliased UART states, and adds boot-time read-only operands
+and reason names. See [the source record](Y2-CPU-IDLE-COMPLETION.md). A follow-up
+candidate must physically prove these decisions before any C3 success claim.
+
+### Independent regressions and restored state
+
+Both eMMC and inserted SD pass8 fsynced, uncached128KiB SHA256 rounds in each
+storage phase (16 per medium total). Ext4 errors remain0 for current root/data
+`mmcblk0p7`/`mmcblk0p5` and SD`mmcblk1p1`; driver errors/mismatches0. Runtime
+suspend/resume/retained-context counts advance and clocks gate afterward. SD
+absent is not observed. No mounted media reset or calibration access.
+
+Both OPP sweeps reach598/747.5/1040MHz at1.15V,1196MHz at1.20V,1300MHz at1.25V,
+with original schedutil598000–1300000 policy restored. The second sweep follows
+C3 **preflight**, not dormant wake. GPT6 free-running13MHz, GPT4 sole broadcast,
+architectural PPI29/highres/NO_HZ and all four CNTFRQ readbacks remain intact;
+per-core timer errors0 and bounded continuity pass. Actual dormant timer handoff
+and CIRQ/GIC/MMU/VFP/cache restoration remain unobserved.
+
+The real Reborn/FFmpeg/ALSA silent44.1kHz stereo test adds356,352 decoded frames,
+with decode/filter/playback errors0 and xruns0. Screen restore/all-core demand
+wake pass. Three1MiB USB bidirectional transfers match SHA256 on host/device;
+the separately pinned Wi-Fi observer responds on the same boot. Automatic
+USB→Wi-Fi fallback was not required during sparse polls; both may intentionally
+be unavailable while legitimate radio-off/USB detach controls run locally.
+
+Finally screen off/Wi-Fi online/Bluetooth off/coordinator enabled/original DVFS
+and USB role are restored. Temporary test files and owned Wi-Fi listener are
+removed. The initial paused selection referred to an already deleted historical
+qualification fixture (track414), so it cannot safely be resumed; playback is
+left stopped. No new filesystem/IRQ fault, same boot, taint0. Full-system suspend
+is excluded because its historic resume failure remains a separate gate.
+No flash or push occurred.
+
+## Historical installed baseline qualification
+
+The previous installed baseline was qualified on 2026-10-03. Private raw evidence:
 `out/cpu-idle-completion-physical/20261003T074026Z/`. Every SSH receipt includes
 host UTC time, exact command, output, exit code, compiled source identities and
 boot identity. The automated candidate qualification is a separate run after

@@ -223,6 +223,49 @@ static const char *const y2_clk_names[] = {
  * INFRA bits7/13/15 are the BSP cg_bootup_pdn 0xb0e0 idle/test clocks, not
  * CA7_CACHE_CONFIG, CPU power, coherency or the cache's SRAM retention control. */
 static const unsigned y2_unused_bits[] = {0,2,3,4,5,6,7,8,9,15,17,18,19,25,7,13,15};
+/* Capture the actual boot-time decision, not a later unclocked read. These
+ * unsupported engines have no DT/Linux consumer; their configured IRQ/DMA or
+ * unknown loader state remains protected. UART0 console is never sampled. */
+struct y2_unused_handoff {
+	unsigned sampled, lcr, ier, lsr, dma, command, status;
+	int busy;
+};
+static struct y2_unused_handoff unused_handoff[4];
+static int unused_handoff_get(char *buf, const struct kernel_param *kp)
+{
+	unsigned i;
+	int n = 0;
+	for (i = 0; i < ARRAY_SIZE(unused_handoff); i++) {
+		struct y2_unused_handoff *h = &unused_handoff[i];
+		if (!h->sampled) {
+			n += scnprintf(buf + n, PAGE_SIZE - n,
+				"%s%u sampled=0 reason=already_gated retained=0\n",
+				i < 3 ? "UART" : "SPI", i < 3 ? i + 1 : 0);
+			continue;
+		}
+		if (i < 3 && (h->lcr & 0x80))
+			n += scnprintf(buf + n, PAGE_SIZE - n,
+				"UART%u sampled=1 lcr=%#x reason=alternate_bank ier=unavailable lsr=unavailable dma=unavailable retained=1\n",
+				i + 1, h->lcr);
+		else if (i < 3)
+			n += scnprintf(buf + n, PAGE_SIZE - n,
+				"UART%u sampled=1 lcr=%#x ier=%#x lsr=%#x dma=%#x reason=%s retained=%d\n",
+				i + 1, h->lcr, h->ier, h->lsr, h->dma,
+				h->ier ? "irq_enabled" : h->dma & 3 ? "dma_enabled" :
+				h->dma & ~7U ? "unknown_dma_bits" : h->lsr & 1 ? "rx_data" :
+				(h->lsr & 0x60) != 0x60 ? "tx_not_drained" :
+				h->lsr != 0x60 ? "line_or_unknown_status" : "quiet", h->busy);
+		else
+			n += scnprintf(buf + n, PAGE_SIZE - n,
+				"SPI0 sampled=1 command=%#x status1=%#x reason=%s retained=%d\n",
+				h->command, h->status, h->command & 0xc17 ? "command_or_dma" :
+				!h->status ? "not_idle" : h->status != 1 ? "unknown_status" :
+				"quiet", h->busy);
+	}
+	return n;
+}
+static const struct kernel_param_ops unused_handoff_ops = {.get = unused_handoff_get};
+module_param_cb(unused_handoff, &unused_handoff_ops, NULL, 0400);
 static int y2_unused_busy(struct device *dev, unsigned index, unsigned peri)
 {
 	void __iomem *r;
@@ -232,28 +275,45 @@ static int y2_unused_busy(struct device *dev, unsigned index, unsigned peri)
 		/* NAND accesses require both stock NFI/NLI clocks. An unknown
 		 * partial loader handoff is retained, never read unclocked. */
 		if (peri & (BIT(0) | BIT(15)))
-			return -EBUSY;
+			return 1; /* retain this gate; keep the shared provider alive */
 		r = devm_ioremap(dev, 0x1100d000, 0x214);
 		if (!r) return -ENOMEM;
 		return y2_unused_nfi_busy(readl(r + 8), readl(r + 0x60),
 			readl(r + 0x210), readl(r + 0x64));
 	}
 	if (index <= 8) {
-		if (peri & BIT(9)) return -EBUSY; /* PWM register clock is off */
+		if (peri & BIT(9)) return 1; /* retain: PWM register clock is off */
 		r = devm_ioremap(dev, 0x11006000, 0x210);
 		if (!r) return -ENOMEM;
 		/* Include sequencer/test/3D modes; never break a live PWM source. */
 		return readl(r) || readl(r + 0x1d0);
 	}
 	if (index <= 12) {
+		struct y2_unused_handoff *h = &unused_handoff[index - 10];
 		r = devm_ioremap(dev, 0x11002000 + (bit - 16) * 0x1000, 0x80);
 		if (!r) return -ENOMEM;
-		return y2_unused_uart_busy(readl(r + 0xc), readl(r + 4),
-			readl(r + 0x14), readl(r + 0x4c));
+		h->lcr = readl(r + 0xc);
+		if (h->lcr & 0x80) {
+			/* +4 aliases DLH; the enhanced bank also aliases LSR. */
+			h->sampled = 1;
+			h->busy = 1;
+			return 1;
+		}
+		h->ier = readl(r + 4);
+		h->lsr = readl(r + 0x14);
+		h->dma = readl(r + 0x4c);
+		h->busy = y2_unused_uart_busy(h->lcr, h->ier, h->lsr, h->dma);
+		h->sampled = 1;
+		return h->busy;
 	}
 	r = devm_ioremap(dev, 0x1100a000, 0x30);
 	if (!r) return -ENOMEM;
-	return y2_unused_spi_busy(readl(r + 0x18), readl(r + 0x20));
+	unused_handoff[3].command = readl(r + 0x18);
+	unused_handoff[3].status = readl(r + 0x20);
+	unused_handoff[3].busy = y2_unused_spi_busy(unused_handoff[3].command,
+		unused_handoff[3].status);
+	unused_handoff[3].sampled = 1;
+	return unused_handoff[3].busy;
 }
 
 /* Shared INFRACFG fields stay with this owner. Callers serialize complete
