@@ -445,9 +445,12 @@ class Qualification:
             raise RuntimeError('identity changed before device job; no hardware mutation')
         saved = {'screen': bool(self.ctl('status')['screen_off']), 'coordinator': read(COORD),
                  'policy': {n: read(POLICY/n) for n in ('scaling_governor', 'scaling_min_freq', 'scaling_max_freq')},
-                 'c3': read(C3), 'budget': read(BUDGET), 'backstop': read(BACKSTOP),
+                 'c3': read(C3), 'budget': read(BUDGET),
+                 'backstop': number(fields(read(BACKSTOP)).get('armed_s')),
                  'radio': self.config.get('original_radio') or {'wifi': P('/sys/class/net/wlan0').exists(),
                            'bluetooth': json.loads(self.cmd('y2-platform', 'status'))['bluetooth'].get('runtime_enabled') is True}}
+        if saved['backstop'] is None:
+            raise RuntimeError('RGU qualification control missing; no mutation')
         self.result['saved'] = saved
         self.result['initial'] = snapshot()
         self.result['initial_dmesg'] = self.cmd('dmesg')

@@ -68,6 +68,11 @@ class Harness(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             DEVICE.delta({}, {}, 'dormant_successes')
 
+    def test_rgu_readback_is_restored_as_its_integer_control(self):
+        for seconds in (0, 10, 30):
+            text = 'provider=1 armed_s=%d running=0 paused=0 staged=0 seconds=0 error=0' % seconds
+            self.assertEqual(DEVICE.number(DEVICE.fields(text).get('armed_s')), seconds)
+
     def test_first_failed_cycle_disables_c3_and_stops_repetition(self):
         # Exercise the actual trial loop, not a duplicate state machine.
         q = object.__new__(DEVICE.Qualification)
