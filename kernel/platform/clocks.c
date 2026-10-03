@@ -7,6 +7,7 @@
  */
 #include "clocks.h"
 #include "idle-clock-policy.h"
+#include <linux/errno.h>
 #include "uart-idle-policy.h"
 #include "policy.h"
 #include "power-math.h"
