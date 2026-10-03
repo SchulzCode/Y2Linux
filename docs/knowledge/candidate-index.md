@@ -1,5 +1,16 @@
 # Candidate and fallback identity index
 
+## Baseline02 preparation precedence — 2026-10-03
+
+Newest requested package: `out/y2linux-baseline-02-candidate/`, build
+Y2LINUX-BASELINE-02, kernel6.18.0-y2linux-baseline-02/rootv1.21. Fresh integrated
+build/seal pending; owner-selected automatic guarded CPU0 C3 boot policy.
+New-image physical qualification remains NOT_RUN. Installed and exact rollback
+pair is UART01, Linuxe9e8d63/Rebornb71b4688, with physically working C1/C2/C3.
+See [baseline record](../validation/Y2-BASELINE-02.md) and
+[hardware qualification](../validation/Y2-CPU-C3-UART-PHYSICAL.md).
+Older precedence and candidate roles below are historical, superseded here.
+
 Updated 2026-10-01. This is an index to retained manifests and physical reports,
 not a new package validation or a live-device read. The exact owner-flashed
 Fix02 pair was observed on 2026-09-29. Later documentation HEADs are not the

@@ -80,6 +80,7 @@ def metrics():
 
 def snapshot():
     return {'boot': boot(), 'metrics': metrics(), 'taint': read('/proc/sys/kernel/tainted'),
+            'boot_policy': json.loads(read('/run/y2/cpu-idle-policy.json') or '{}'),
             'cirq': fields(read('/sys/devices/platform/10204000.interrupt-latch/state')),
             'modules': {m: params(m) for m in
                         ('idle', 'clocks', 'local_timer', 'cirq', 'system_idle', 'cpu_dvfs', 'pwrap', 'mm_clocks')},
@@ -90,6 +91,15 @@ def snapshot():
             'clock_summary': read('/sys/kernel/debug/clk/clk_summary'),
             'journal': {n: read('/sys/firmware/y2_pm/'+n) for n in
                         ('state', 'previous', 'devices', 'devices_previous', 'backstop_s', 'retention', 'reset_status')}}
+
+
+def boot_policy_verdict(record, current_boot, budget, disabled):
+    """Cold-boot selection must be observed before qualification changes it."""
+    return {'pass': (record.get('schema') == 'org.y2linux.cpu-idle-policy/v1' and
+                     record.get('boot_id') == current_boot and record.get('state') == 'Enabled' and
+                     record.get('budget') == budget == '-1' and
+                     record.get('disabled') == disabled == '0'),
+            'record': record, 'budget': budget, 'disabled': disabled}
 
 
 def delta(a, b, key):
@@ -592,6 +602,12 @@ class Qualification:
         self.result['initial'] = snapshot()
         self.result['initial_dmesg'] = self.cmd('dmesg')
         foundation = self.config.get('unentered_foundation') or self.config.get('qualified_first_entry')
+        if not foundation and self.config.get('expected_c3_boot_policy') == 'automatic_qualified_CPU0_after_foundations':
+            checked = boot_policy_verdict(self.result['initial']['boot_policy'], boot(), saved['budget'], saved['c3'])
+            self.result['boot_policy_admission'] = checked
+            if not checked['pass']:
+                self.save()
+                raise RuntimeError('automatic C3 boot policy not observed; see boot_policy_admission')
         if foundation:
             actual = fields(self.result['initial']['spm'])
             if (foundation['boot'] != boot() or foundation['source'] != self.result['source'] or

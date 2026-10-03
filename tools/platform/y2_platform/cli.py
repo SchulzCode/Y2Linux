@@ -27,6 +27,8 @@ def main():
     sub.add_parser('boot-evidence')
     boot = sub.add_parser('boot-stage')
     boot.add_argument('stage')
+    idle_policy = sub.add_parser('cpu-idle-policy')
+    idle_policy.add_argument('action', choices=['start', 'stop'])
     bt_power = sub.add_parser('bluetooth-power')
     bt_power.add_argument('value', choices=['on', 'off'])
     sleep = sub.add_parser('sleep')
@@ -103,6 +105,11 @@ def main():
     collect.add_argument('--reborn', action='store_true')
     args = parser.parse_args()
     ctx = Context()
+    if args.command == 'cpu-idle-policy':
+        from .cpu_idle import apply
+        result = apply(ctx, args.action)
+        print(json.dumps(result, sort_keys=True))
+        return 1 if result['state'] == 'Failed' else 0
     if args.command == 'sleep':
         from . import sleep
         result = sleep.request(ctx) if args.action == 'request' else sleep.status(ctx)

@@ -274,6 +274,7 @@ print(json.dumps({'address':address,'pid':p.pid,'pid_file':pid}))
                 raise RuntimeError('Wi-Fi alias must point to the current device address '+listener['address'])
         config = {'device_directory': '/data/system/platform/cpu-idle-qualification/'+uuid.uuid4().hex,
                   'enable_qualified_runtime': self.args.enable_qualified_runtime,
+                  'expected_c3_boot_policy': manifest.get('cpu_idle_qualification', {}).get('C3_boot_policy'),
                   'expected_boot': self.start_boot, 'expected_versions': self.source, 'original_radio':{**actual['radio'], 'wifi':True}}
         if foundation:
             config['qualified_first_entry' if repeat else 'unentered_foundation'] = foundation

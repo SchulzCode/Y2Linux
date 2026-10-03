@@ -649,8 +649,8 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr, cha
 	return ret;
 }
 static DEVICE_ATTR_RO(state);
-/* C3 stays experimental and default off (CPUIDLE_FLAG_OFF), so its entry
- * preflight never runs. This evaluates the same prerequisites read-only, in
+/* C3 starts quarantined (CPUIDLE_FLAG_OFF) until the qualified userspace boot
+ * policy or an owner trial enables it. Evaluate the prerequisites read-only, in
  * entry order, without entering, arming PCM, touching the boot vector or
  * taking clock ownership, and reports every unmet one. */
 static ssize_t dormant_preflight_show(struct device *dev, struct device_attribute *attr, char *buf)

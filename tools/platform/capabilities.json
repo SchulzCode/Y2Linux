@@ -178,11 +178,14 @@
         "DORMANT"
       ],
       "experimental": false,
-      "reason": "physical qualification of this exact candidate pending",
+      "reason": "C1/C2/C3 physically qualified on preceding UART01 architecture; new Baseline02 boot policy/image physical qualification pending",
       "default_states": [
         "WFI",
-        "SLIDLE"
-      ]
+        "SLIDLE",
+        "DORMANT"
+      ],
+      "dormant_boot_policy": "CPU0 enabled once by qualified boot policy after static foundations pass; all dynamic kernel admission and failure guards retained",
+      "dormant_recovery": "y2.deep_idle=off or y2.cpu_safe=1; y2-platform cpu-idle-policy stop for this boot"
     },
     "system_watchdog": {
       "implemented": true,

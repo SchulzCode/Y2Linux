@@ -1,5 +1,15 @@
 # Current Y2Linux platform state
 
+## Baseline02 preparation precedence — 2026-10-03
+
+Installed UART01 is physically qualified for C1/C2/C3 on Linuxe9e8d63/Rebornb71b4688,
+with3647 real C3 returns and clean restores, same boot/taint0. Earlier summaries
+below are historical. Owner requests a latest integrated Baseline02 preserving
+candidate and selects automatic qualified C3 boot policy. Source tests/live ARM
+control transaction pass; fresh build/seal and new-image physical checks are
+separate boundaries. See [Baseline02](validation/Y2-BASELINE-02.md) and
+[UART01 hardware](validation/Y2-CPU-C3-UART-PHYSICAL.md).
+
 Updated 2026-09-29 from the **CPU Final Fix02 physical qualification**. This
 documentation update made no source repair, build or flash.
 

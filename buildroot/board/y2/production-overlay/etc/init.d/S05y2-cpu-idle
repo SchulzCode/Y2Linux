@@ -1,0 +1,6 @@
+#!/bin/sh
+# Select qualified CPU0 C3 policy once; kernel guards own actual admission.
+case "$1" in
+ start|stop) /usr/sbin/y2-platform cpu-idle-policy "$1" >/dev/kmsg 2>&1 || : ;;
+ *) exit 2 ;;
+esac

@@ -90,6 +90,7 @@ def idle_completion(ctx, states):
         {'name': node, 'runtime_status': ctx.read('/sys/bus/platform/devices/'+node+'/power/runtime_status')}
         for node in ('18070000.connectivity', '11007000.i2c', '11008000.i2c')]
     result['C3']['preflight'] = ctx.read('/sys/devices/platform/10006000.power-controller/dormant_preflight')
+    result['C3']['boot_policy'] = ctx.json('/run/y2/cpu-idle-policy.json', {})
     result['C3']['unused_clock_handoff'] = ctx.read('/sys/module/clocks/parameters/unused_handoff')
     result['C3']['context'] = ctx.read('/sys/devices/platform/10006000.power-controller/state')
     result['C3']['uart_clock_handoff'] = ctx.read('/sys/module/clocks/parameters/uart_sleep_handoff')

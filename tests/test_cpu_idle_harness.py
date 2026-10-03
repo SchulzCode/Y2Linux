@@ -23,6 +23,17 @@ DEVICE = load('cpu_idle_device', 'cpu_idle_completion_device.py')
 
 
 class Harness(unittest.TestCase):
+    def test_automatic_boot_policy_requires_current_receipt_and_real_control_readbacks(self):
+        record = {'schema': 'org.y2linux.cpu-idle-policy/v1', 'boot_id': 'boot',
+                  'state': 'Enabled', 'budget': '-1', 'disabled': '0'}
+        self.assertTrue(DEVICE.boot_policy_verdict(record, 'boot', '-1', '0')['pass'])
+        for key, value in (('schema', 'unknown'), ('boot_id', 'previous-boot'),
+                           ('state', 'Skipped'), ('budget', '0'), ('disabled', '1')):
+            self.assertFalse(DEVICE.boot_policy_verdict({**record, key: value}, 'boot', '-1', '0')['pass'])
+        self.assertFalse(DEVICE.boot_policy_verdict(record, 'boot', '0', '0')['pass'])
+        self.assertFalse(DEVICE.boot_policy_verdict(record, 'boot', '-1', '1')['pass'])
+        self.assertFalse(DEVICE.boot_policy_verdict({}, 'boot', '-1', '0')['pass'])
+
     def checked_cycle(self):
         counts = ('dormant_attempts', 'dormant_entries', 'dormant_resumes', 'dormant_successes',
                   'dormant_residency_us', 'dormant_restore_failures', 'dormant_failures', 'dormant_aborts',

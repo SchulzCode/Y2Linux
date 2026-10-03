@@ -1,5 +1,42 @@
 # Y2Linux roadmap and gap audit
 
+## Baseline02 automatic C3 policy source check — 2026-10-03
+
+The owner-selected once-per-boot CPU0 policy passes isolated foundation, identity,
+manual ownership, readback/rollback, failed receipt and stop tests. Live ARM
+execution on installed UART01 also passes: quarantined budget0/state-disabled
+then budget-1/CPU0 enable readbacks, repeated-start refusal, same boot/taint0.
+Original already-qualified runtime controls are restored and owned /run test
+files removed. This verifies the control transaction on the existing image;
+new Baseline02 cold-boot execution is still NOT_RUN. C1/C2 and kernel admission/
+UART ACK/context/clock/timer/restore logic are unchanged. Only the SPM explanatory
+comment changes. The harness now verifies the actual automatic boot receipt and
+controls before altering qualification policy. Freeze this coherent source pair,
+then build fresh kernel/Buildroot/Reborn ARM and preserve-data package. No flash,
+push, milestone closure or protected/memory/data change. Raw control receipt:
+`out/baseline-02-validation/live-policy-control.json`.
+
+## Baseline02 qualified C3 boot-policy admission — 2026-10-03
+
+Owner selects **Enable qualified C3 automatically** for this new baseline.
+This supersedes the default-off packaging choice in the admission below, not
+its hardware evidence. Same installed UART01 source/boot,3647 real C3 returns
+and clean checked restores underpin the decision. Add a once-per-boot userspace
+policy using existing CPU0 cpuidle disable and SPM budget controls. Kernel starts
+quarantined, then normal startup verifies identity and static context/timer/CIRQ/
+SPM foundations before budget-1/CPU0 enable. Leave dynamic screen/workload/
+radio/USB/topology/OPP/deadline/clock/UART ACK guards intact. No forced parking,
+frequency/radio change or clock gate. Retain y2.deep_idle=off/CPU-safe recovery
+and manual stop; repeated service startup must not undo an owner's disable.
+
+Targeted isolated fault tests and a bounded live policy-control/readback test
+precede source freeze. Then one final fresh integrated baseline build and full
+candidate checks. The interrupted default-off draft produced no package; it is
+not a delivered candidate. New persistent cold-boot behavior remains NOT_RUN
+until owner installs Baseline02. Full suspend/endurance/electrical evidence and
+#28/#31/#34 dependencies remain OPEN; no new hardware/memory/partition scope,
+flash or push. Current boundary receipts: `out/baseline-02-validation/`.
+
 ## Baseline02 integrated candidate admission — 2026-10-03
 
 Owner requests a fresh integrated baseline after UART01 physical qualification.
