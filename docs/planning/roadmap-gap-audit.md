@@ -1,5 +1,118 @@
 # Y2Linux roadmap and gap audit
 
+## UART01 C3 hardware closing audit — 2026-10-03
+
+**C1 WORKING; C2 WORKING; C3 WORKING_AND_REPEATEDLY_OBSERVED** on installed
+Linuxe9e8d63/Rebornb71b4688, kernel `6.18.0-y2linux-cpu-c3-uart-01`, rootv1.20,
+unchanged boot `fd955840-35d9-47db-83e0-ff47d6bb2d2b`, taint0. Fresh physical
+foundation checks pass: four-core C1,18 normal hotplug transitions, all five
+OPPs, GPT6/GPT4/PPI29/13MHz/highres/NO_HZ, natural owned parking, C2+6971
+entries/+50.654676s in60.054881s (84.35%), zero clock restore failures.
+C3 proves21 budget1/RGU/SRAM checked reset returns, then+3624 normal-policy
+entries/+39.204662s in60.088344s (65.25%). Final entries=resumes=successes=
+UART attempts=ACKs=CIRQ transactions/flushes=timer saves/restores=3647.
+No UART timeout, restore/context/clock/media/IRQ fault or reboot. eMMC/SD,
+five OPPs, screen/workload/playback, USB and Wi-Fi postwake regressions pass.
+
+UART1 remains clocked: conditional exact MT6582 PIO ownership and global
+SPM request/ACK resolve admission without forced gating. No kernel/image
+changes after installation; locally committed c8ae170 fixes observer fsync
+sequencing and accounts safe guard refusals separately from actual entries.
+33 targeted tests pass. Original failed observer verdicts are retained and
+independently rechecked against stronger UART/SRAM/context/media guards.
+Authoritative joined proof: `out/cpu-c3-uart-physical/20261003T183259Z-uart01/final-verdict.json`;
+[hardware record](../validation/Y2-CPU-C3-UART-PHYSICAL.md).
+
+F027/F028/F030 may advance to this bounded same-boot physical qualification.
+The UART C3 blocker is closed. No new flash is required. C3 is intentionally
+runtime-enabled/budget-1 for THIS BOOT, RGU disarmed and original radios,
+screen, schedutil598–1300MHz and coordinator restored. Fresh boot still uses
+image default-off/budget0; no persistent default-on policy is claimed or
+changed. Full system suspend, new wake-source coverage, endurance, electrical
+battery measurement and other #28/#31/#34 dependencies remain OPEN. No general
+milestone closure, memory/partition/protected-data change, flash or push.
+Six preexisting owner documentation edits remain preserved separately.
+
+## UART01 physical trial admission — 2026-10-03
+
+Owner confirms the new candidate installed and authorizes the prepared hardware
+qualification. Read-only SSH verifies Linuxe9e8d63/Rebornb71b4688, kernel
+`6.18.0-y2linux-cpu-c3-uart-01`, rootv1.20/buildY2LINUX-CPU-C3-UART-01,
+boot `fd955840-35d9-47db-83e0-ff47d6bb2d2b`, taint0. Checkout55db6d3 is a later
+receipt, not installed source. C3 remains disabled/budget0 and actual dormant/
+UART handshake counters0. UART0 sleep enable1 and UART1 conditional deferred
+bit0x20000 are now physically observed. UART1 is no longer a mandatory gate
+prerequisite; global SPM ACK and context return remain unobserved. Current
+normal Wi-Fi/USB/1300MHz adds legitimate dynamic blockers, not a new settled
+UART diagnosis. Existing candidate02 C1/C2 qualification stays authoritative
+until regression checks on this image complete. Raw evidence:
+`out/cpu-c3-uart-physical/20261003T183259Z-uart01/`.
+
+Dependencies #28/#31/#34 stay OPEN; no milestone closure or hardware-limit
+claim. Proceed with normal C1/C2/timer/hotplug/storage/five-OPP regressions,
+then natural quiet CPU0/low OPP/radios-off/USB-detached topology. One budget1
+RGU/SRAM/timer-wake trial must show real request/ACK and checked same-boot
+return before20 further bounded cycles. Failure disables C3 and stops trials;
+observe the precise stage, retain independent regressions and fix that cause.
+Stop paused playback through the existing authorized owner control. No forced
+UART gate, arbitrary MMIO/probe, memory/partition change, flash or push; preserve
+six preexisting owner documentation edits. No general CPU redesign, full-system
+suspend or electrical battery claim is authorized by this narrow trial.
+
+The installed UART01 regression pass now proves four-core C1, natural parking,
+C2 +6,971 entries/+50,654,676us over60.0549s with zero restore failures, all
+five OPPs, hotplug, timers, eMMC/inserted SD, screen/workload/playback and
+USB/Wi-Fi integrity. Same boot/taint0, no filesystem/IRQ faults. Its first C3
+window stopped at legitimate MSDC0 bit12 (0x1000), not UART1: the harness
+fsynced its durable arm receipt after the clean preflight, waking eMMC. Actual
+UART requests/ACK attempts, CIRQ transactions, CPU context entries and returns
+all remain0. Therefore this is an observer sequencing defect, not a failed
+deep-idle experiment. Preserve the kernel/storage guard. Targeted harness fix
+saves before a read-only two-second stable admission window, checking the real
+MMC gates, all exposed prerequisites and owned physical CPU0 topology; no
+storage writes occur between that window and enabling C3. A C3-only continuation
+requires the exact clean same-boot regression receipt and zero actual UART/CPU
+entries both in that receipt and on-device immediately before mutation. Any
+real UART/context refusal stops repeats; first checked entry must still precede
+20 further cycles. Thirty targeted harness/CPU/UART tests pass. Scope remains
+unchanged; dependencies stay open pending real hardware ACK/context results.
+
+UART01 FIRST REAL DORMANT RETURN is now physically proved on the same boot.
+Corrected observer sequencing reached global UART request/ACK1, exact POWER1
+0x15820→0x15821→0x15820, R13 ACK0x8140000, one CPU entry/resume/success,
+8,065us SPM/9,363us cpuidle residency, GPT wake0x10, CIRQ clone/flush1/1 and
+local timer context save/restore1/1. SRAM records UART_REQUEST→UART_ACK→
+DORMANT_CONTEXT→DORMANT_FINISH→DORMANT_RETURN→DORMANT_COMPLETE with actual
+reset-resume assembly marker0x59325253; no restore/context/media/IRQ fault,
+taint0 and unchanged fd955840 boot. The harness incorrectly rejected the
+otherwise successful trial because spm.c counts every admission before the
+budget check: +3 admissions included +2 safe -EACCES budget refusals after the
+single physical entry. Fix measurement to require EXACTLY one physical entry/
+return/success/ACK, account all extra admissions as aborts, require final budget
+refusal and every original restore guard plus SRAM reset marker. Original raw
+FAIL receipt remains intact; independent first-entry recheck is attached.
+33 targeted tests pass. Continue ONLY20 further budget1 guarded cycles after
+rechecking the same-boot first-entry and original regression receipt hashes;
+no retry of any actual hardware failure. C3 stays disabled/budget0 between
+trials. Full repeatability/policy qualification and dependency closure remain
+pending; no kernel build or image changes are needed for these harness fixes.
+
+Repeatability now physically proves18 UART ACKs/CPU reset entries/resumes/
+successes on unchanged fd955840 boot, positive residency and zero UART/CIRQ/
+timer/clock/context/media faults. Sixteen further cycles passed directly;
+cycle17 also genuinely succeeded, but the checker overrequired the LAST
+admission to be budget-refused when its two safe guard refusals preceded
+the successful entry. Correct verdict permits last resumed/result0 as well
+as budget/-EACCES, still accounting every refusal and requiring exactly one
+new physical entry/ACK/checked reset return and every restore. Independently
+rechecked all18 raw cycles (original FAIL receipts retained with their SHA256).
+Continue only the remaining3 bounded cycles, then near-deadline fallback and
+60s normal-policy residency. Any real failure still stops; ordinary policy
+may stay enabled for THIS BOOT only after all21 checked cycles and postwake
+regressions pass. Fresh boots retain image default-off/budget0; no persistent
+policy/image/default-on change is implied. No general CPU or suspend milestone
+closure; release claims may advance only to the actual bounded idle evidence.
+
 ## C3 UART sealed candidate boundary — 2026-10-03
 
 Exact MT6582 PIO-owner admission/global UART request-ACK integration is fixed;

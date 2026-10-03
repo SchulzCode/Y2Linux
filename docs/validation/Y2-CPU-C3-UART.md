@@ -1,5 +1,57 @@
 # Y2 C3 MT6582 UART admission correction
 
+## UART01 installed hardware result — 2026-10-03
+
+**C1 WORKING; C2 WORKING; C3 WORKING_AND_REPEATEDLY_OBSERVED.** The owner
+installed UART01; exact manifest/running identity matches Linux
+`e9e8d63f9c94232c2b6627881e0967583e202dac`, Reborn
+`b71b468860233faa0a42b8448ec5777fa952b8e3`, kernel
+`6.18.0-y2linux-cpu-c3-uart-01`, root `2025.02.18-platform-v1.20`, release
+`1.0.0-cpu-c3-uart-candidate.1`, build `Y2LINUX-CPU-C3-UART-01`.
+Boot `fd955840-35d9-47db-83e0-ff47d6bb2d2b` and taint0 remain unchanged.
+Source HEADc8ae170 is a later harness fix; installed kernel/source archives and
+both sealed payload hashes are unchanged. No new images or flash are needed.
+
+- C1: all four enabled states enter/reside,400 requested1ms wakes return;
+  entry deltas+1573/+521/+1343/+271, rejections0.
+- C2: natural owned CPU0 parking, +6971 entries/+50.654676s in60.054881s,
+  **84.35% residency**, zero exact clock restore failures.
+- C3: first checked reset return then20 further budget1/RGU/SRAM cycles;
+  +3624 entries/+39.204662s in60.088344s under normal policy,
+  **65.25% DORMANT residency**. Final3647 entries/resumes/successes/UART ACKs,
+  no UART timeout or clock/CIRQ/timer/context restore fault.
+- All five OPPs,18 hotplug transitions, eMMC/inserted-SD checksums, screen/
+  workload/playback wake and USB/independent Wi-Fi integrity pass; no new
+  filesystem/IRQ fault. GPT6/GPT4/PPI29/CNTFRQ13MHz/highres/NO_HZ remain valid.
+
+UART1 remains clocked: source-backed PIO sleep ownership/global SPM request/
+ACK permits real DPIDLE without forcing its PERI gate. Two observer defects
+were corrected locally: fsynced evidence must precede a read-only stable MMC/
+prerequisite window; admission counters also include safe pre/post-entry guard
+refusals. EXACTLY one real entry/return/ACK per bounded cycle is still required,
+with stronger SRAM reset marker and all original restore guards. Original raw
+FAIL receipts are retained alongside independent successful rechecks.
+33 targeted harness/CPU/UART tests pass; no kernel rebuild is needed for these
+host qualification corrections. Fresh candidate build validation remains375
+integrated/source109/native host/Reborn238/ARM/QEMU/config/DT/modules/ABI/ELF/
+package checks as recorded in the historical handoff below.
+
+C3 is enabled with normal budget-1 **for the current boot**. Original screen,
+Wi-Fi/BT, schedutil598–1300MHz and coordinator settings are restored; RGU is
+unarmed. Fresh boots retain image default-off/budget0. Persistent default-on,
+full system suspend, endurance, additional wake sources and electrical battery
+improvement are not qualified by this pass. No flash/push or owner-data wipe.
+
+Authoritative raw/joined evidence:
+`out/cpu-c3-uart-physical/20261003T183259Z-uart01/`;
+`final-verdict.json`, `guarded-21-cycles.json`, `final-snapshot.json`,
+`qualification/result.json`, `final-c3/qualification/result.json` and numbered
+SSH command/UTC/source/boot/exit/output receipts. Detailed current qualification:
+[Y2-CPU-C3-UART-PHYSICAL.md](Y2-CPU-C3-UART-PHYSICAL.md).
+
+The following sealed handoff and candidate02 sections are **historical**; their
+NOT_RUN/never-entered/owner-flash statements do not describe the current device.
+
 ## UART01 sealed software handoff — 2026-10-03
 
 **C3 SOFTWARE_READY_NEEDS_NEW_FLASH. New candidate physical NOT_RUN.**
