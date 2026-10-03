@@ -1676,7 +1676,7 @@
       "owner": "Kernel",
       "implementation_state": "IMPLEMENTED_ENABLED",
       "enabled_by_default": "Yes",
-      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "actually_used": "Yes: installed baseline four-core WFI repeatedly observed on2026-10-03.",
       "evidence": "PHYSICALLY_QUALIFIED",
       "physical_evidence": "2026-10-03 installed baseline: CPU0/1/2/3 WFI entries +1123/+916/+649/+1214; residency advances; rejections0, same boot/timer continuity.",
       "automated_tests": [
@@ -1687,7 +1687,7 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "2026-10-03 final source3dfb5f5: production364 cases with all five native prerequisites completed; CPU owner/fault98 cases; fresh ARM/kernel/config/DT/modules/ABI/QEMU/package checks pass. Candidate physical qualification NOT_RUN.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
       "known_limitation": "No electrical battery-duration claim",
       "failure_mode": "Higher awake drain if idle blocked",
@@ -1744,7 +1744,7 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "2026-10-03 final source3dfb5f5: production364 cases with all five native prerequisites completed; CPU owner/fault98 cases; fresh ARM/kernel/config/DT/modules/ABI/QEMU/package checks pass. Candidate physical qualification NOT_RUN.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
       "known_limitation": "New coherent candidate must repeat baseline qualification; SD-absent scenario not observed.",
       "failure_mode": "More consumption or clock restore fault",
@@ -1790,7 +1790,7 @@
       "owner": "Kernel",
       "implementation_state": "IMPLEMENTED_ENABLED",
       "enabled_by_default": "Yes",
-      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "actually_used": "Yes: installed baseline natural CPU0 parking/owner0xe and playback demand restore observed on2026-10-03.",
       "evidence": "PHYSICALLY_QUALIFIED",
       "physical_evidence": "2026-10-03 baseline natural parking reaches CPU0/owner0xe after genuine pressure hold; 3 hotplug cycles prove both physical power copies; playback demand restores all4.",
       "automated_tests": [
@@ -1801,7 +1801,7 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "2026-10-03 final source3dfb5f5: production364 cases with all five native prerequisites completed; CPU owner/fault98 cases; fresh ARM/kernel/config/DT/modules/ABI/QEMU/package checks pass. Candidate physical qualification NOT_RUN.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
       "known_limitation": "New candidate screen wake and fine-grained transition tracing pending.",
       "failure_mode": "Delayed parking after wakes or delayed interaction",
@@ -1858,8 +1858,8 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
-      "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
+      "automated_test_result": "2026-10-03 final source3dfb5f5: production364 cases with all five native prerequisites completed; CPU owner/fault98 cases; fresh ARM/kernel/config/DT/modules/ABI/QEMU/package checks pass. Candidate physical qualification NOT_RUN.",
+      "diagnostics": "status cpu idle_completion: individual prerequisites/decoded clock owners, budget, actual wake result/stage, PCM/CIRQ/timer/context/restore counters and retained bounded qualification stages.",
       "known_limitation": "Software/stock PCM exists, no physical acceptance",
       "failure_mode": "Context loss or missed deadline",
       "safe_fallback": "Keep C3 off; WFI/SLIDLE",
@@ -98575,6 +98575,19 @@
     "C2": "WORKING",
     "C3": "SOFTWARE_READY_NEEDS_NEW_FLASH",
     "record": "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md",
-    "scope": "Current baseline bounded CPU/storage/playback evidence; new source requires owner flash; unrelated full-suspend failure retained."
+    "scope": "Current baseline bounded CPU/storage/playback evidence; new source requires owner flash; unrelated full-suspend failure retained.",
+    "candidate": {
+      "path": "out/y2linux-cpu-idle-completion-candidate",
+      "linux": "3dfb5f5cc731ec5dac88a778290819c23dba6067",
+      "reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
+      "kernel": "6.18.0-y2linux-cpu-idle-01",
+      "rootfs": "2025.02.18-platform-v1.18",
+      "release": "1.0.0-cpu-idle-completion-candidate.1",
+      "build_state": "SEALED_SOFTWARE_VALIDATED",
+      "physical_state": "NOT_RUN",
+      "BOOTIMG_SHA256": "3303cad8d0b73a78653f58d80ede2d1583ed7ef89a48f781f8aaf1669240092d",
+      "Y2ROOT_SHA256": "816b9a271633c96fd937fa71ef1ac1f93e74436fbd8e97c9d0491470cc4babbb"
+    },
+    "software_receipt": "docs/validation/Y2-CPU-IDLE-COMPLETION.md"
   }
 }

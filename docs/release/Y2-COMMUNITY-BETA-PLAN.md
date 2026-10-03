@@ -1,5 +1,20 @@
 # Y2Linux + Reborn Community Beta 1 — feature-completion plan
 
+## CPU idle software handoff — 2026-10-03
+
+One fresh preserving CPU idle candidate is sealed and software validated at
+Linux3dfb5f5/Rebornb71b4688. Kernel/config/DT/modules/ABI, Buildroot/Reborn ARM,
+production364 cases with native prerequisites completed, Reborn238 cases,
+QEMU/ELF/dependencies and package validation pass. C1/C2 are physically WORKING
+on the verified installed baseline; C2 shows useful84% residency and a
+controlled enabled/disabled comparison. C3 is SOFTWARE_READY_NEEDS_NEW_FLASH,
+with no actual dormant entry claimed. Candidate hardware acceptance remains
+NOT_RUN; the single automated SSH qualification follows owner-only flash.
+No flash/push, Y2DATA or protected-partition write, milestone closure or
+unrelated release-gate promotion. Exact hashes, source ledger, changes and owner
+command: [completion record](../validation/Y2-CPU-IDLE-COMPLETION.md).
+
+
 CPU idle update,2026-10-03: installed baseline C1 and C2 are now physically
 working (C2+7182 entries/+50.763741s of60.404076s, restores/storage errors0).
 C3 source and one coherent candidate target the owner-flash boundary; no actual

@@ -125,3 +125,47 @@ Receipt14 found no old retained fixtures and is explicitly not a playback pass.
 Receipts17/18: normal Reborn screen-on/off transitions return on the same boot;
 three bidirectional1MiB USB SHA256 rounds pass with independent Wi-Fi SSH ready.
 These awake results do not qualify the candidate's new bus-clock gate yet.
+
+## Controlled residency comparison
+
+Receipt21 completes a device-side comparison without host polling during each
+window; initial screen/radio/C2 policy restored in finally, same boot, taint0.
+No C3 control was changed. Frequency residency and temperatures are retained
+alongside each raw before/after snapshot.
+
+| Condition | Wall seconds | CPU utilization | Online CPUs | CPU0 WFI, s | CPU0 SLIDLE entries / seconds | IRQ/s | Context switches/s |
+| --- | ---: | ---: | --- | ---: | --- | ---: | ---: |
+| Screen on idle | 20.083 | 4.25% | 0–3 | 19.084 | 0 / 0 | 444.75 | 518.34 |
+| Screen off before parking | 20.070 | 3.08% | 0–3 | 19.500 | 0 / 0 | 315.69 | 397.46 |
+| Parked, C2 enabled | 30.062 | 9.39% | 0 | 1.942 | 3448 / 25.022727 | 168.42 | 337.24 |
+| Parked, C2 disabled | 30.048 | 8.80% | 0 | 27.109 | 0 / 0 | 166.97 | 335.10 |
+| Parked, C2 re-enabled | 30.048 | 9.23% | 0 | 1.964 | 3437 / 25.015727 | 167.96 | 338.02 |
+
+SLIDLE occupies83.2% and83.3% of the enabled windows; disabling it shifts
+residency to WFI and re-enabling restores real deeper residency. CPU utilization
+is aggregated across the online cores, so the four-core and one-core percentages
+are not an energy comparison. The raw OPP time-in-state deltas show the unchanged
+schedutil policy, including short active high-frequency bursts. No new
+cpuidle rejection appears. MONOTONIC/RAW drift is between-74211 and-124163ns.
+CPU/PMIC temperatures are roughly39.9–45.1°C; conditions include external USB
+power and radio state changes. No battery-life or electrical-power claim follows.
+
+Receipt22 final status/health/dmesg confirms the original installed identity,
+USB device role, schedutil598000–1300000kHz, C2 enabled, C3 disabled, same boot,
+taint0 and all three mounted ext4 error counts0. Normal Wi-Fi is online; the
+original screen is off and policy owns parking. Receipt23 stops only this pass's
+verified temporary Dropbear listener; ordinary USB SSH remains available.
+
+The exact physical hotplug power mapping in receipt11 is CPU1=0x800,
+CPU2=0x400, CPU3=0x200 in both status copies. CPU3-off produces0x3d4e,
+then CPU2-off0x394e, then CPU1-off0x314e; restoration reverses these values.
+The kernel already used this descending MT6582 mapping. The new harness now
+checks these exact operands and has a regression fixture for a mismatched
+second status copy. An earlier unsealed package was rejected before handoff
+while that harness correction was incorporated; no device flash occurred.
+
+Receipt25 runs the final candidate harness against this still-installed baseline.
+It rejects mismatched kernel, Linux, Reborn, rootfs, release and build identities
+before any device mutation; only two read-only SSH operations occur. Receipt26
+reconfirms same boot/taint0, C2 enabled, C3 disabled, normal owner policies and
+mounted ext4 error counts0 at handoff.

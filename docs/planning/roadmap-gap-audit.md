@@ -1,5 +1,46 @@
 # Y2Linux roadmap and gap audit
 
+## CPU idle owner-flash boundary — 2026-10-03 11:07 UTC
+
+Repeated standing gap audit uses final current-boot receipts21–23 and read-only
+GitHub receipt24, alongside the complete CPU evidence and the fresh committed
+build pair. Installed baseline remains Linux131ee462/Reborn7f9df397, boot
+cee326c1-a5b0-447a-8eb0-dc3f39f7e2c2, taint0. C1 is WORKING on all four cores.
+Natural CPU0 parking plus C2 adds7182 entries/50.763741s in60.404076s; controlled
+30-second enabled/disabled/re-enabled windows add25.023/0/25.016s SLIDLE,
+respectively. eMMC/inserted SD ext4 errors remain0. Owner screen/radio/DVFS/USB
+policy is restored; the temporary owned Wi-Fi observer is stopped.
+
+| Coverage/dependency | Current classification | Next boundary |
+| --- | --- | --- |
+| C1/timer foundation, #28 | WORKING on installed baseline; frozen algorithm | Candidate regression through single automated SSH harness |
+| C2/parking/MMC, #28/#33 | WORKING after legitimate quiet/pressure hold; storage integrity/restore pass | Preserve guards; qualify unchanged paths with new clock owners |
+| C3/clock/context/CIRQ, #28/#31/#34 | SOFTWARE_READY_NEEDS_NEW_FLASH; no real entry observed | Owner installs one preserving candidate; one guarded entry, then20 only after success |
+| Active DVFS/hotplug, #28/#29 | WORKING in bounded baseline tests, all five OPPs/three cycles | Candidate pre/post-dormant voltage/topology/thermal regression |
+| Display/USB owner dependencies, #34/#27 | SOURCE_IMPLEMENTED and SOFTWARE_VALIDATED; baseline USB0 leak observed | Real screen-off clock release and USB runtime restore after owner flash |
+| Full-system suspend, audio/radio/GPU/storage ceiling/endurance | Prior narrow evidence and unresolved gates retained | No unrelated closure or promotion from CPU idle evidence |
+
+Fresh clean paired source 3dfb5f5/b71b4688 produces kernel6.18.0-y2linux-cpu-idle-01
+and root2025.02.18-platform-v1.18. Kernel/config/DT/modules/ABI, fresh Buildroot/
+Reborn ARM, production regression364 cases (five locked-host prerequisites
+covered by25 packaging-host cases), Reborn238 host cases/clippy/fmt, installed
+ARM/QEMU,383 ELF files/1403 dependency edges and release inventory/legal-info
+complete. Software evidence is not current-candidate hardware acceptance.
+Preserving-package/root/composition/checksum validation and final hash seal pass;
+owner-flash handoff is ready. No reuse-userspace.
+
+Active issues#16/#27/#28/#29/#31/#32/#33/#34 remain OPEN; no external status is
+changed. CPU work maps to existing#28, owner dependencies to#27/#31/#33/#34.
+The next phase is software-ready, physically unqualified until owner flash.
+Recovery/fallback uses the exact Hardware02 BOOTIMG/Y2ROOT pair. Memory, ROM/
+recovery provenance, partition layout, factory/calibration protection and Y2DATA
+preservation remain unchanged. No hardware limitation is inferred from an
+untested prerequisite. No milestone is closed, no default-on C3 patch, no flash
+or push. See [implementation](../validation/Y2-CPU-IDLE-COMPLETION.md) and
+[physical record](../validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md).
+
+
+
 ## CPU idle completion admission — 2026-10-03
 ### CPU idle dependency audit — 2026-10-03 08:05 UTC
 

@@ -31,7 +31,7 @@ playback pass. Historical full-system suspend failure remains a separate gate.
 |C3 runtime control|Default C3 remains off; positive dormant_budget permits that many actual cpu_suspend calls; -1 is deliberately qualified normal policy|Qualification budget requires owner-armed existing RGU10–30s; journal captures exact stage; bounded first failure cannot be repeatedly hammered|
 |Opaque admission/context|Read-only preflight exposes every static prerequisite and real topology/OPP/clock/domain/PCM/vector/stash operand; status cpu decodes C2 and C3 owners|Dynamic deadline checked at actual admission and finisher; unknown/missing counters are not success|
 |Timer handoff|Linux remains sole GPT4 broadcast programmer; require13MHz one-shot, IRQ armed, not pending, compare in future, at least26000ticks|64-bit ticks*1000/13 conversion, past/wrapped/near/repeating/incorrect-clock rejection; no second clockevent owner|
-|Local timer context|Per-CPU save-valid state rejects incorrect CNTFRQ; restore disables CNTP, restores13MHz/future64-bit compare/control and verifies writable state|Unentered CPU_PM_ENTER_FAILED does not restore an uninitialized buffer; restore faults quarantine C3|
+|Local timer context|Per-CPU save-valid state rejects incorrect CNTFRQ; restore disables CNTP, restores13MHz and saved64-bit compare/control before Linux reprograms the local event and verifies writable state|Unentered CPU_PM_ENTER_FAILED does not restore an uninitialized buffer; restore faults quarantine C3|
 |CIRQ correctness|Exact155 interrupts64–218, five banks/tail0x07ffffff; clone mask/sensitivity/polarity readback before GIC masking; replay pending after Linux GIC restore; verify masks and disable|Exact MT6582 offsets and enable/edge-only ordering; no newer-SoC FLUSH layout; clone/restore faults quarantine C3|
 |CPU/cache/context|Linux cpu_suspend/cpu_resume owns registers, CP15/MMU/idmap/VFP/GIC; validate its actual CPU0 stash/physical buffer, resume vector and PCM storage; retain/restore CA7_CACHE_CONFIG bit4 and MCU_BIU with readback|A7 integrated coherency, existing stock-backed Linux hotplug; no A9 SCU transplant or arbitrary power writes|
 |Runtime PCM/restore|Keep independently stock-matched480-word DPIDLE program, retained INFRA/DDRPHY; verify arm operands and restore normal28-word program after entry/abort|No invented instructions or system-suspend PCM substitution; real reset return and fully successful restore counted separately|
@@ -91,14 +91,45 @@ its historical resume defect is a separate owner scope and hardware gate.
 
 ## Software qualification and package
 
-Fresh targeted native owner/fault tests pass; fresh Reborn workspace tests and
-clippy pass. Production kernel/config/DT/modules/ABI, Buildroot/Reborn ARM,
-QEMU/ELF/dependencies, complete regression suite and preserving-package receipts
-will be appended after the clean, committed build. One coherent fresh candidate,
-no reuse-userspace, retains only BOOTIMG and Y2ROOT payloads and unchanged Y2DATA.
-The exact Hardware02 fallback remains required. C3 physical category at handoff:
-**SOFTWARE_READY_NEEDS_NEW_FLASH**; entry/success/residency remain unobserved until
-that candidate is installed and the harness runs.
+Final clean source pair **3dfb5f5cc731ec5dac88a778290819c23dba6067 / b71b468860233faa0a42b8448ec5777fa952b8e3** produces
+kernel `6.18.0-y2linux-cpu-idle-01`, root `2025.02.18-platform-v1.18`, release
+`1.0.0-cpu-idle-completion-candidate.1` and build `Y2LINUX-CPU-IDLE-COMPLETION-01`. Kernel/config/DT/module/
+rescue/ARM ABI validation, fresh Buildroot/Reborn ARM, FFmpeg verification,
+QEMU, installed ARM tools, ELF/dependencies, complete regression suite and
+preserving-package validation pass. No baseline userspace binaries were reused.
+
+Production runner: **364 cases**:359 pass in the locked
+host and five explicit native prerequisite skips. All five skipped assertions
+pass in the packaging-host follow-up (25 cases, no skips), yielding364 covered
+production cases. Reborn workspace **238 pass,0 ignored**, clippy/fmt pass;
+source owner/fault suite98 pass. Installed ARM imports31 platform modules,
+SQLite3.53.4/OpenSSL3.5.8, null-device audio constraints12 combinations, real
+1000-track ARM library benchmark and eight Reborn control/QEMU checks pass.
+ELF verification covers383 ARM files and1403 dependency edges without build
+RPATHs. QEMU and null-device checks are software evidence, not Y2 hardware tests.
+
+Actual receipts/logs: `out/cpu-idle-completion-validation/` and the sealed
+package's `validation/`. Pinned source hashes/dependency inventory, notices and
+exact committed source archives are included. Buildroot legal-info succeeds;
+its existing local-package/external-toolchain notice omissions are retained
+explicitly in the receipt, with paired source/licenses and pinned inventory.
+Owner-local distribution scope is unchanged; no public distribution is asserted.
+
+Final preserving package: **`out/y2linux-cpu-idle-completion-candidate/`**.
+Only BOOTIMG and ANDROID/Y2ROOT are supplied as new flash payloads; Y2DATA is
+preserved in place. The exact Hardware02 fallback is retained. Full ext4/root
+content, module/identity/dependency, scatter/preservation/composition/privacy
+and complete checksum inventory checks pass. No flash or push occurred.
+
+| Payload | Bytes | SHA256 |
+| --- | ---: | --- |
+| BOOTIMG.img | 7208960 | `3303cad8d0b73a78653f58d80ede2d1583ed7ef89a48f781f8aaf1669240092d` |
+| Y2ROOT.img | 536870912 | `816b9a271633c96fd937fa71ef1ac1f93e74436fbd8e97c9d0491470cc4babbb` |
+
+C3 physical category: **SOFTWARE_READY_NEEDS_NEW_FLASH**. Current installed
+DORMANT entry/success/residency remain0; no actual CPU0 power-off/resume has
+been observed. Source-ready software does not promote the candidate's physical
+acceptance. The baseline C1/C2 results stay attached to their real identities.
 
 Fresh ARM linking caught a64-bit diagnostic division using an unavailable
 userspace runtime symbol; the kernel variant now uses div_u64 while native
@@ -119,3 +150,176 @@ cover successful reset return followed by budget refusal, and restoration faults
 DT validation now admits only exact USB0 ID44 on the USB consumer, preserving
 existing profile ceilings for every other consumer and requiring the four exact
 MT6582 mutex/shared-clock specifiers. Invalid IDs/providers remain rejected.
+
+The bounded dormant journal appends restoration stages for PCM, CPU/cache/GIC,
+CIRQ and clocks without changing existing stage IDs, retained record layout or
+memory ownership. Normal unlimited idle does not pay qualification journal/
+watchdog overhead. The host harness checks the physically demonstrated descending
+MT6582 secondary power bits0x800/0x400/0x200; the kernel mapping was already correct.
+
+## Completion handoff record
+
+1. **Installed baseline.** Kernel6.18.0-y2linux-baseline-01; Linux
+   131ee4621cd583c955182f994adac5a594fb823f; Reborn
+   7f9df397ab3809d52e2f1073ca93a305246e0c3a; boot
+   cee326c1-a5b0-447a-8eb0-dc3f39f7e2c2. Rootv1.17/releasebaseline.1 match
+   the sealed baseline package. Both Git status/HEAD/log80 snapshots precede changes.
+2. **C1.** Stock WFI and existing Linux cpuidle fallback preserved. All four
+   cores registered/enabled;3902 new entries and48.146279 aggregate core-seconds,
+   rejections0. Per-core results and wake percentiles are in the physical record.
+3. **C2.** Initial live mask0x100800: APDMA bit11 and BTIF bit20 owned by active
+   connectivity, legitimate with Wi-Fi running. Initial MMC references are
+   real I/O and drain normally; no new MMC ownership leak exists in this baseline.
+   Radio runtime-off removes these blockers; natural pressure-hold expiry gives
+   CPU0 eligibility. Existing Fix03 exact0/0x0f bus DCM save/0x8f/restore remains.
+   No blocker mask was removed.7182 new entries/50.763741s, restore failures0;
+   enabled/disabled/re-enabled comparison proves meaningful residency.
+4. **Core parking.** Existing sustained-load/high-frequency/30-second quiet
+   policy, pressure hysteresis, leases/screen/input demand and owner mask retained.
+   Natural CPU3→2→1 parking reaches CPU0/owner0xe; owner-only1→2→3 restoration
+   and actual PlaybackNormal demand restore all cores. Three hotplug cycles
+   verify CPU1/2/3 physical bits0x800/0x400/0x200 in both copies.
+5. **C3 software.** Every preflight predicate is exposed: system_running,
+   boot_policy, spm, local_events, cirq, topology, frequency, screen_off,
+   workload, runtime_budget, qualification_backstop, linux_context,
+   timer_context, usb_restore, broken, clocks, display_clocks and bus;
+   secondary_power and domains are decoded separately. The actual entry also
+   checks CPU0 identity, future deadline/GPT4 arm, serialization, resume-vector
+   readback, runtime PCM and finisher's actual Linux context buffer. Baseline
+   failures were topology/frequency/domains/clocks; display/shared/audio/USB0
+   and inherited PERI/INFRA owners are corrected by their real lifecycles.
+   Powered DISP is permitted only by exact stock clock quiescence; other
+   domains and physical secondary-off masks remain strict. Active unknown
+   devices remain blockers. Runtime480-word DPIDLE PCM is retained, not SODI
+   or597-word system suspend; normal28-word PCM restored/read back. Exact
+   CIRQ155 interrupt mapping/clone/enable/replay/disable is verified. Linux
+   GPT4 owns the13MHz one-shot deadline,≥26000ticks, checked at admission and
+   finisher. OPP is exactly598000/747500; active1300000 remains available.
+   cpu_suspend/cpu_resume supplies MMU/CP15/general/VFP/GIC context; A7
+   coherency/L2-retention/MCU_BIU/local timer state are saved and checked.
+   Restore faults quarantine C3; bounded qualification uses retained stages
+   and10-second RGU backstop, with no unlimited-runtime journal overhead.
+6. **C3 physical state: SOFTWARE_READY_NEEDS_NEW_FLASH.** No hardware limit
+   is inferred. No C3 entry is claimed from a software test. Default remains
+   off; the one-shot/20-cycle harness uses normal experimental runtime controls.
+7. **Timer regression.** GPT6/GPT4/PPI29/13MHz/highres/NO_HZ baseline evidence,
+   pinned per-core1ms wake and MONOTONIC/RAW continuity pass. Native deadline
+   boundaries,64-bit conversion, timer compare/control/CNTFRQ faults, aborted
+   context and fallback pass. Actual post-dormant continuity awaits owner flash.
+8. **DVFS regression.** All five OPPs598/747.5/1040/1196/1300MHz physically
+   reached;1.15/1.15/1.15/1.20/1.25V readbacks pass, faultN/PWRAPerrors0.
+   Schedutil/QoS/thermal/voltage order/ceiling preserved. Harness repeats all
+   five before and after C3.
+9. **Storage regression.** eMMC plus inserted SD each pass eight fsynced,
+   uncached checksums per radio-off run; request/DMA/FIFO/controller drain,
+   retained-context/runtime resume/gate and media access pass; mismatch/error0,
+   mounted ext4 errors0. Candidate retains reviewed high-speed MMC transport.
+   SD-absent is unobserved; no live media reset/removal was synthesized.
+10. **Tests.** Fresh qualification numbers and artifact receipts above; CPU,
+    timer, idle, clock, coordinator, hotplug, suspend-related, MMC/USB,
+    thermal/DVFS and existing tests pass. All native prerequisites completed.
+    Candidate package/root/preservation/fallback checks pass. The new host
+    harness was also run against the actual old baseline: receipt25 refuses
+    all mismatched identities before mutation, without starting C3 or radios.
+11. **Research.** Exact pinned MT6582 Google/independent BSPs, retained Y2
+    source/disassembly/PCM, Linuxv6.18 and Cortex-A7 TRM. Full primary URLs,
+    function/register relevance, confidence and explicit inference are in
+    the source ledger above and CPU-FINAL-SOURCES. Narrow downloads retain SHA256.
+12. **Files changed.** Exact lists follow. Preexisting owner edits in six
+    documentation files remain unstaged; they are not included as this pass's
+    modifications or in the built source archive.
+13. **Local commits.** Linux implementation/fault/harness commits below;
+    Rebornb71b468 adds owned DRM screen sleep/wake. A following documentation
+    receipt commit records the final seal; it changes no compiled source.
+    Git identity and authenticated GitHub account remain unchanged; no push.
+14. **Candidate path.** `/home/luca/Dokumente/Code/Y2Linux/out/y2linux-cpu-idle-completion-candidate/`.
+15. **BOOTIMG SHA256.** `3303cad8d0b73a78653f58d80ede2d1583ed7ef89a48f781f8aaf1669240092d`.
+16. **Y2ROOT SHA256.** `816b9a271633c96fd937fa71ef1ac1f93e74436fbd8e97c9d0491470cc4babbb`.
+17. **Exact next owner action.** Install BOOTIMG+ANDROID through the included
+    preserving scatter/Download Only, retaining Y2DATA and all protected
+    partitions. Boot with existing USB SSH and stopped playback, then run the
+    single command below. It records one first entry and stops C3 on failure;
+    only successful repeated qualification enables ordinary runtime C3.
+
+```sh
+cd /home/luca/Dokumente/Code/Y2Linux
+python3 tools/development/qualify-cpu-idle-completion.py \
+  --run --enable-qualified-runtime \
+  --package out/y2linux-cpu-idle-completion-candidate \
+  --ssh-config out/cpu-final-fix02-physical-qualification/20260929T152328Z/ssh-config \
+  --host y2 --wifi-host y2-owner-wifi
+```
+
+The package's CPU-IDLE-OWNER-HANDOFF.md contains the same owner action and
+fallback. Electrical battery life, SD absence and physical external-peer/input
+edge behavior are not claimed. Full-system suspend's separate failure and
+unrelated release acceptance gates remain open.
+
+### Changed Linux files
+
+```text
+docs/planning/platform-v1-roadmap.md
+docs/planning/roadmap-gap-audit.md
+docs/release/Y2-COMMUNITY-BETA-FEATURE-AUDIT.md
+docs/release/Y2-COMMUNITY-BETA-FEATURES.json
+docs/release/Y2-COMMUNITY-BETA-PLAN.md
+docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md
+docs/validation/Y2-CPU-IDLE-COMPLETION.md
+kernel/config/production.config
+kernel/dts/innioasis-y2.dts
+kernel/patches/0011-mt6582-mutex.patch
+kernel/patches/0058-y2-musb-sleep-lifecycle.patch
+kernel/patches/manifest.json
+kernel/platform/cirq.c
+kernel/platform/cirq.h
+kernel/platform/clocks.c
+kernel/platform/clocks.h
+kernel/platform/idle-clock-policy.h
+kernel/platform/idle-completion-policy.h
+kernel/platform/idle.c
+kernel/platform/local-timer.c
+kernel/platform/local-timer.h
+kernel/platform/mm-clocks.c
+kernel/platform/pm-journal.c
+kernel/platform/pm-journal.h
+kernel/platform/spm-idle-policy.h
+kernel/platform/spm.c
+kernel/platform/spm.h
+kernel/platform/system-idle.h
+kernel/platform/usb-pm.h
+kernel/platform/usb.c
+kernel/platform/workload.c
+tests/test_cpu_final.py
+tests/test_cpu_fix02.py
+tests/test_cpu_fix03.py
+tests/test_cpu_idle_completion.py
+tests/test_cpu_idle_harness.py
+tests/test_workload_qos.py
+tools/development/cpu_idle_completion_device.py
+tools/development/qualify-cpu-idle-completion.py
+tools/platform/y2_platform/diagnostic_fields.py
+tools/platform/y2_platform/observe.py
+tools/production/release.json
+tools/production/tests.sh
+tools/validation/dev_dtb.py
+```
+
+### Changed Reborn files
+
+```text
+app/reborn/src/main.rs
+crates/reborn-graphics/native/graphics.c
+crates/reborn-graphics/src/native.rs
+```
+
+### Built source commits
+
+```text
+be38f81 Complete guarded CPU idle clock ownership, context checks and qualification harness
+49249dc Use kernel ARM division and keep failed idle qualification disabled
+8ba3a91 Guard partial display handoff and failed CIRQ enable before dormant qualification
+60f05b6 Restore the RGU qualification control using its decoded armed value
+c82d4e9 Preserve actual dormant wake results and journal checked restore stages
+3dfb5f5 Check exact descending MT6582 CPU power bits in physical harness
+b71b468 Release owned DRM scanout during screen sleep and restore it on wake
+```
