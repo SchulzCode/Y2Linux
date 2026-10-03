@@ -1,8 +1,26 @@
 # Community tester installation, use and recovery
 
-This feature-completion candidate is an **owner-local engineering build**. It is
-not publicly cleared or physically qualified. The firmware and optional-codec
+**Baseline02 is the newest sealed owner-local engineering candidate.** Its
+fresh software checks pass; new-image and automatic cold-boot hardware remain
+PHYSICAL_NOT_RUN. The preceding exact UART01 pair proves bounded C1/C2/C3 and
+affected I/O behavior. This candidate is not publicly cleared. The firmware and optional-codec
 redistribution questions remain independent of working source/build support.
+
+## Current package and automatic idle
+
+Use [Baseline02 versions/hashes](../validation/Y2-BASELINE-02.md) and the
+[qualified paired fallback](../knowledge/candidate-index.md). Only the owner
+installs BOOTIMG and ANDROID/Y2ROOT. An existing device update preserves Y2DATA;
+the first-initialization seed below is **only for an intended first installation**.
+
+Qualified CPU0 C3 policy activates once after static boot checks; every entry
+still obeys topology, workload, OPP, clocks, timer and UART ACK guards. Check
+`y2-platform status cpu` for the boot-policy result. `y2-platform cpu-idle-policy
+stop` disables C3 for this boot; recovery boot options `y2.deep_idle=off` or
+`y2.cpu_safe=1` retain safe fallback. Runtime deep idle is separate from full
+system suspend and does not prove battery-life savings. After owner installation,
+the packaged guarded SSH harness checks exact identity/automatic startup before
+bounded C3 trials and wake/storage regressions.
 
 ## Before installing
 
@@ -33,7 +51,7 @@ SHA256SUMS before using the separately documented owner flash procedure.
 
    ```sh
    python3 tools/production/first_owner.py \
-     --system out/y2linux-community-beta-feature-completion-candidate \
+     --system out/y2linux-baseline-02-candidate \
      --public-key ~/.ssh/y2linux_ed25519.pub \
      --output out/my-y2-first-initialization
    ```
@@ -136,7 +154,7 @@ for USB and the independently authorized Wi-Fi observer:
 
 ```sh
 python3 tools/development/qualify-feature-completion.py \
-  --package out/y2linux-community-beta-feature-completion-candidate \
+  --package out/y2linux-baseline-02-candidate \
   --host y2 --wifi-host y2-wifi --run --exercise --sleep
 ```
 

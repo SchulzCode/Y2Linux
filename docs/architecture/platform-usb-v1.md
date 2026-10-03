@@ -1,13 +1,16 @@
 # USB device and owner file transfer v1
 
-**2026-09-28 physical update:** The [Fix01 run](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md)
-passed one 256-KiB bidirectional SHA roundtrip, then lost USB connection during
-the next transfer while the Y2 UI stayed usable. The owner restarted. The
-failed-interval observer did not survive, so controller/IRQ/DMA cause is
-unknown. The protocol and access contract below remains implemented, but loaded
-transfer reliability, independent recovery and full-suspend restoration are
-not qualified. Normal Dropbear remains USB-bound; the run's temporary key-only
-Wi-Fi SSH recovery listener was removed afterward.
+<!-- knowledge-base-scope: source-contract; baseline02-sync 2026-10-03 -->
+
+**Current bounded evidence:** UART01 passes three 1 MiB bidirectional USB checksum
+rounds with an independent Wi-Fi observer after CPU idle qualification, same
+boot and no filesystem errors. The repaired device/transfer path is retained in
+Baseline02. New-image acceptance and large-transfer/cable/host-sleep endurance
+remain pending; USB host/VBUS and full-suspend restoration remain separate.
+Normal Dropbear is USB-bound. The temporary owner-authorized Wi-Fi observer is a
+qualification fallback, not a new persistent listener. See
+[UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) and
+[Baseline02](../validation/Y2-BASELINE-02.md).
 
 DONE_SOFTWARE / HOST_VALIDATED. ACM + ECM stay on the existing peripheral-only
 MUSB/PHY path. The session runtime-PM reference correction already exists; this
@@ -15,7 +18,8 @@ pass does not duplicate it. USB host/OTG and USB Audio host remain PHYSICAL_GATE
 MT6582 MAC host capability is not board ID/role wiring, VBUS sourcing, current
 limit or connector proof. No host/VBUS path is enabled. Retained evidence is
 M2 passive B-device state and POWER-02's two workaround reconnects; neither
-qualifies the current source or PC sleep/wake/large-transfer endurance.
+establishes PC sleep/wake/large-transfer endurance; the newer bounded UART01
+checksum proof is scoped above.
 
 ## Protocol and access
 
@@ -83,3 +87,14 @@ route to 10.42.0.1). Use externally verified host keys; never disable host-key
 checking. Record client OS/driver, negotiated USB speed, elapsed bytes/time,
 boot ID, kernel warnings, data-space state and Reborn XRUNs. Owner controls cable
 and power actions. No throughput figure or electrical durability is claimed.
+
+## Historical physical note — 2026-09-28
+
+**2026-09-28 physical update:** The [Fix01 run](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md)
+passed one 256-KiB bidirectional SHA roundtrip, then lost USB connection during
+the next transfer while the Y2 UI stayed usable. The owner restarted. The
+failed-interval observer did not survive, so controller/IRQ/DMA cause is
+unknown. The protocol and access contract below remains implemented, but loaded
+transfer reliability, independent recovery and full-suspend restoration are
+not qualified. Normal Dropbear remains USB-bound; the run's temporary key-only
+Wi-Fi SSH recovery listener was removed afterward.

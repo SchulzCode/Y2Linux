@@ -1,3 +1,25 @@
+# Current unknowns and historical architecture decisions
+
+<!-- knowledge-base-scope: maintained-summary; baseline02-sync 2026-10-03 -->
+
+## Current Baseline02 / UART01 scope
+
+Resolved CPU blockers: MMC runtime clock ownership, useful automatic parking, all five guarded OPPs, C2 entry/restore and UART1/global-ACK C3 admission. UART01 proves real repeated C3 CPU reset/return. Current open CPU boundary is Baseline02 new-image and automatic cold-boot qualification. Full system suspend/Power+RTC resume, injected CIRQ pending-edge coverage, wider endurance/charging thermal envelope and electrical battery measurements remain separate. Native 24-bit/high-rate audio, optional Bluetooth peers/codecs, exhaustive storage ceiling/host/recovery/distribution questions also remain open; the old M0/M1 discovery list below is history.
+
+[Baseline02 seal](../validation/Y2-BASELINE-02.md),
+[UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) and
+[current state](../CURRENT_PLATFORM_STATE.md) carry exact identities, counters and limits.
+
+
+## Historical source research and physical checkpoints
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
 # Unknowns and architecture decisions
 
 **Current unresolved CPU/transport group, 2026-09-27:** exact PWRAP readiness

@@ -1,5 +1,27 @@
 # Audio and FM evidence
 
+<!-- knowledge-base-scope: maintained-summary; baseline02-sync 2026-10-03 -->
+
+## Current Baseline02 / UART01 scope
+
+UART01 bounded real FFmpeg/ALSA fixture playback and demand wake pass with no recorded decode/filter/XRUN errors. Wired hardware output remains S16 stereo 44.1/48 kHz; native wider/high-rate output, perceptual fidelity and endurance remain separate. Baseline02 retains the paired current Reborn source and ARM checks.
+
+[Baseline02 seal](../validation/Y2-BASELINE-02.md),
+[UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) and
+[current state](../CURRENT_PLATFORM_STATE.md) carry exact identities, counters and limits.
+
+
+## Historical source research and physical checkpoints
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
+# Audio and FM evidence
+
 **Latest bounded physical result, 2026-09-27:** Fix01 played silent S16 44.1
 and 24/96 -> 48 fixtures with zero XRUN/decode/filter errors. This adds
 software/device operation evidence; it does not prove audible fidelity, real

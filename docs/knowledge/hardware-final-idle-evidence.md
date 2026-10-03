@@ -1,3 +1,25 @@
+# Idle source evidence and current hardware result
+
+<!-- knowledge-base-scope: maintained-summary; baseline02-sync 2026-10-03 -->
+
+## Current Baseline02 / UART01 scope
+
+UART01 proves C1, C2 and C3 working. C2: 6,971 entries / 84.3473% residency, clock restore failures 0. C3: 21 guarded actual reset-and-return trials, then 3,624 normal-policy entries / 65.2450% residency; final 3,647 checked returns, same boot and zero restore faults. The current driver is mt6582-idle, with exact MT6582 UART ownership/global ACK, CIRQ, GPT4 and Linux context machinery. Baseline02 adds automatic guarded CPU0 C3 startup; new-image cold boot remains NOT_RUN.
+
+[Baseline02 seal](../validation/Y2-BASELINE-02.md),
+[UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) and
+[current state](../CURRENT_PLATFORM_STATE.md) carry exact identities, counters and limits.
+
+
+## Historical source research and physical checkpoints
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
 # Hardware Final idle source boundary
 
 **Latest physical correction boundary, 2026-09-27:** Fix01 admits local timers

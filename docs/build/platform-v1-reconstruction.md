@@ -1,5 +1,62 @@
 # Platform v1 source reconstruction and release boundary
 
+## Current Baseline02 reconstruction — 2026-10-03
+
+Use the sealed `out/y2linux-baseline-02-candidate/` manifest and
+`metadata/versions.json` for the exact compiled pair: Linux `8584ccd85f052f351fe51650b2348c83ca894ed4`,
+Reborn `b71b468860233faa0a42b8448ec5777fa952b8e3`. The package contains project
+**source tar archives**, not Git bundles: `sources/Y2Linux.tar.gz` and
+`sources/Y2Reborn.tar.gz`; upstream archives are `sources/linux-6.18.tar.xz` and
+`sources/buildroot-2025.02.18.tar.xz`. `sources/manifest.json` records material
+hashes; `sources/Buildroot-legal-info/` retains source/license collector warnings.
+Package inventory is `validation/release-inventory.json`.
+
+Prepare clean adjacent Y2Linux/Y2Reborn checkouts at the recorded commits when
+those objects are available in the owner repositories. Keep current unrelated
+work outside those checkouts. Source archives provide content without history;
+if using them alone, identify the reconstruction as the recorded snapshot and
+do not fabricate the original Git commit object. Build/packaging identity checks
+must describe the actual reconstruction source. A newer document commit or
+published branch tip is not a substitute for the compiled pair.
+
+Preserve the locked inputs in `tools/build/inputs.lock.json`,
+`buildroot/inputs.lock.json`, Reborn Cargo.lock/vendor/toolchain files and the
+**49 active overlays** in `kernel/patches/manifest.json`. Owner-provisioned matched
+radio firmware and signing inputs remain separate private inputs; do not import
+another device's calibration. Use the standard locked build environment from
+[environment.md](environment.md). Example fresh build in the exact clean pair:
+
+```sh
+python3 tools/production/build.py --output out/baseline02-rebuild \
+  --owner-firmware OWNER_PROVISION_DIRECTORY
+python3 tools/build/run.py --output out/baseline02-rebuild -- \
+  sh /project/tools/production/tests.sh
+```
+
+These are reconstruction instructions, not a build executed by this documentation
+update. Validate fresh kernel/config/DT/modules/ABI, ARM userspace/Reborn,
+QEMU/ELF/dependencies, inventory/privacy and preserving/fallback package before
+sealing. The current sealed receipts are in [Baseline02](../validation/Y2-BASELINE-02.md).
+Source identity is reconstructable; **byte-identical image reproducibility has not
+been demonstrated**. Collector PASS is not public-distribution permission.
+Only BOOTIMG and ANDROID/Y2ROOT are payloads; preserve Y2DATA/protected partitions.
+Only the owner flashes. [Source delivery](../release/Y2-COMMUNITY-SOURCE-DELIVERY.md).
+
+The following older counts, bundle names, footprint and runtime descriptions
+are receipts for an earlier package, not Baseline02 build inputs or measurements.
+
+
+## Historical reconstruction and packaging receipt
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
+# Platform v1 source reconstruction and release boundary
+
 <!-- knowledge-base-scope: historical-build/deployment-receipt -->
 > **Historical record.** The dates, candidate identity, "current" claims,
 > next steps and permissions below belong to this recorded boundary. See

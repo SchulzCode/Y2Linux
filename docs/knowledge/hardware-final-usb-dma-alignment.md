@@ -1,3 +1,25 @@
+# USB DMA alignment evidence and current regression
+
+<!-- knowledge-base-scope: maintained-summary; baseline02-sync 2026-10-03 -->
+
+## Current Baseline02 / UART01 scope
+
+UART01 passes three 1 MiB bidirectional USB checksum rounds with an independent Wi-Fi observer, after idle qualification, same boot and no filesystem errors. The current source retains alignment and progress-aware DMA protections. Earlier failed transfers remain historical evidence for those images; bounded success does not qualify large-transfer/reconnect/host-sleep endurance or USB host/VBUS.
+
+[Baseline02 seal](../validation/Y2-BASELINE-02.md),
+[UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) and
+[current state](../CURRENT_PLATFORM_STATE.md) carry exact identities, counters and limits.
+
+
+## Historical source research and physical checkpoints
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
 # Hardware Final: ECM request alignment and Inventra DMA
 
 **Latest physical boundary, 2026-09-27:** Fix01 passes one 256-KiB

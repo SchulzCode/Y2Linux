@@ -1,3 +1,40 @@
+# Roadmap gap audit
+
+## Baseline02 documentation synchronization — 2026-10-03
+
+This is a documentation-only boundary review using the already retained
+Baseline02 seal and UART01 hardware receipt; no build, flash, device test,
+remote issue update or repeat of unchanged ROM/recovery provenance occurs.
+The [current state](../CURRENT_PLATFORM_STATE.md),
+[Baseline02 receipt](../validation/Y2-BASELINE-02.md) and
+[UART01 physical report](../validation/Y2-CPU-C3-UART-PHYSICAL.md) govern the
+current source/runtime distinction.
+
+The C1/C2/C3 implementation and bounded UART01 hardware gates are closed.
+UART1 ownership and the exact MT6582 sleep ACK no longer block C3. Baseline02
+is sealed and software-tested from Linux `8584ccd85f052f351fe51650b2348c83ca894ed4` and
+Reborn `b71b468860233faa0a42b8448ec5777fa952b8e3`. Owner-selected
+once-per-boot automatic CPU0 C3 policy is included, with unchanged dynamic guards.
+**New-image/cold-boot physical qualification remains PHYSICAL_NOT_RUN.**
+
+Next CPU boundary: owner-preserving Baseline02 installation, exact identity and
+automatic boot-policy proof, guarded first C3 reset-and-return plus 20 cycles,
+then runtime/wake/storage regression. No C1/C2 redesign or generic CPU audit is
+needed. Full system suspend/Power+RTC wake, wider endurance/thermal conditions,
+electrical battery measurement, native high-resolution audio and public release
+permissions retain their independent gates. Planning epics #28/#31/#34 remain
+open; this documentation review does not close or authorize their remaining work.
+
+
+## Historical roadmap and boundary reviews
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
 # Y2Linux roadmap and gap audit
 
 ## Baseline02 sealed candidate boundary — 2026-10-03
@@ -652,6 +689,65 @@ All unrelated full-suspend/storage-ceiling/audio/distribution gates remain open.
 One coherent CPU idle preserving candidate and its automated20-cycle harness
 are the next deliverables. CPU hardware completion remains pending owner flash.
 
+## Integration build boundary — 2026-10-02
+
+Handoff closure: fresh source `02eb735` / `72e94b2` is now sealed as
+`Y2LINUX-FEATURE-COMPLETION-01`,350 production and238 Reborn tests passed,
+ARM/QEMU/package checks passed. **READY FOR HARDWARE DECISION RUN** only.
+Installed Candidate4 and retained Fix02 physical evidence below are unchanged;
+no new physical qualification, public distribution or milestone closure.
+
+The read-only connected-device receipt establishes installed Candidate4 Linux
+`dcbd7d1` / Reborn `b92d312`, boot `159f7c81-ab89-4440-bc89-df827dd8bc34`,
+taint0. Current storage negotiates HS200/SDR104 near200MHz; this narrow idle
+observation is not endurance acceptance. PM records are invalid/no-attempt; C2
+has no observed entries and C3 remains disabled. Fix02 remains the broad physical
+qualification, with full-resume/C2/loaded-USB failures unresolved physically.
+
+The authorized fresh build uses Linux `02eb735` and Reborn `72e94b2`, including
+source-backed tuning recovery, truthful PM evidence, codec integration, Productv2
+and tester/release safety. No partition/memory/voltage scope expansion, physical
+qualification or milestone closure. Only one preserving owner-local integration
+candidate is admitted; all existing hardware and public-distribution gates remain.
+No flash or push. The implementation pass records final software/build outcomes.
+
+## Feature completion implementation admission — 2026-10-02
+
+The owner now explicitly authorizes the ten-lane implementation campaign and one
+fresh preserving candidate; the earlier planning-only limit is superseded. Starting
+Linux `9ac2c0b7018ce707ec15f8845daf58ce38ec18a0`, Reborn
+`eb64b8b21058eacb1ef183f7570cca8100cbbb46`. Existing dirty planning documentation is
+preserved. The 233-feature inventory remains the work queue; no fresh broad audit
+or unchanged ROM/recovery provenance acquisition is substituted for implementation.
+
+Standing boundary review uses the retained Fix02 real hardware result (awake
+timers/OPPs/parking/MMC/staged PM pass; full resume, C2 and loaded USB fail),
+candidate3 storage measurements (200 MHz CRCs, bounded 100 MHz read pass), and
+candidate4 source/304-test receipt (not hardware acceptance). Boot polish source
+is newer than the planning snapshot; its build is unfinished, not a sealed receipt.
+GitHub #16/#27/#28/#29/#31/#32/#33/#34 refreshed read-only and remain OPEN.
+Every existing coverage classification is carried forward: no new physical pass
+or milestone closure follows from this activation. Scope maps platform to
+#27/#28/#33, audio/radio to #29/#31, product/release to #16/#32/#34.
+
+No memory-map, partition, voltage or clock-limit change is admitted. Preserve
+BOOTIMG/Y2ROOT-only installation, Y2DATA and exact Hardware02 fallback. Current
+SSH identity is attempted read-only; absence of access does not invalidate retained
+evidence. Parallel source lanes continue across independent blockers. Source-ready
+changes require targeted tests, then fresh integrated software/build/package checks.
+Hardware acceptance and public redistribution remain separate gates. No flashing,
+push, destructive device operation or external issue mutation. Track findings in
+[the implementation pass](../release/Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md).
+
+## Community beta planning audit — 2026-10-02
+
+**Later owner decision supersedes the initial minimal-subset proposal:** the first community beta must be polished and feature-complete. [Master factual audit](../release/Y2-COMMUNITY-BETA-FEATURE-AUDIT.md), [three-pass/seven-day plan](../release/Y2-COMMUNITY-BETA-PLAN.md), and [233-row inventory](../release/Y2-COMMUNITY-BETA-FEATURES.json) preserve implementation/evidence while91 old C/D rows become required or hardware-conditional. This is a documentation-only planning boundary, not hardware/memory/production implementation authorization or milestone closure.
+
+Retained hardware basis: Fix02 awake CPU/timer/DVFS/MMC and staged PM passes, loaded USB/full-resume failures; candidate3 reported200MHz SD CRCs and bounded100MHz read pass. Current Linux `e2dd583` records candidate4 built from `dcbd7d1`,304 software tests PASS, not flashed; Reborn `b92d312` unchanged. Candidate3 is latest reported installed; no new live device observation or unchanged ROM/recovery provenance acquisition. Exact AFE fetch/rate evidence, C3 entry, final same-boot wake, optional codec peer/load evidence and public distribution remain open.
+
+Source, owner target and retained physical evidence now require native meaningful24-bit/rates where supported, viable Classic codecs, C2/conditional C3, full sleep/wake, admitted1196/1300MHz, highest robust storage, DMA USB, battery/charging and polished Productv2. Fallback existence does not close these features. New independent product/maturity/distribution axes replace old priority meanings; unresolved required features delay release rather than silently reverting scope. Three coherent passes precede one integrated RC and qualification/endurance.
+
+Existing issue context remains the prior read-only snapshot #16/#27/#28/#29/#31/#32/#33/#34; not refreshed or mutated during this reclassification. Map platform completion to #27/#28/#33 and retained M4#30 physical gates, audio/Bluetooth to #29/#31, product/release to #16/#32/#34. Historical M4 closure is not new physical acceptance. Before later implementation/hardware admission, reconcile current issue state and affected boundaries separately; this plan authorizes none. No external milestone, issue, Git identity or source was changed.
 
 **Current reading order, 2026-10-01:** The
 [Fix03 implementation boundary](#cpu-final-fix03-implementation-boundary--2026-10-01),

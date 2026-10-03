@@ -2,7 +2,8 @@
 
 ## Sealed build receipt — 2026-10-03
 
-PASS for fresh build and software/package validation. Exact new-image hardware
+PASS for fresh build and software/package validation. The compiled source and
+artifact identities below are the current sealed Baseline02 record. Exact new-image hardware
 and automatic cold-boot qualification remain **NOT_RUN**. Prior UART01 C1/C2/C3
 architecture remains physically qualified; it is the unchanged paired rollback.
 
@@ -20,16 +21,16 @@ architecture remains physically qualified; it is the unchanged paired rollback.
 | SHA256SUMS SHA256 | `e50c83d37712649466e10188e1eded6b6ccec5f830f86881b028ea86d5d3a654` |
 
 Package: `out/y2linux-baseline-02-candidate/`.
-[Exact owner handoff](../../out/y2linux-baseline-02-candidate/BASELINE-02-OWNER-HANDOFF.md),
-[seal and check exits](../../out/baseline-02-validation/final-seal.json),
-[installed boot-policy bytes](../../out/baseline-02-validation/boot-policy-installed.json),
-[live ARM control proof](../../out/baseline-02-validation/live-policy-control.json),
-[closing installed-device read](../../out/baseline-02-validation/closing-hardware.json).
+Exact owner handoff (`out/y2linux-baseline-02-candidate/BASELINE-02-OWNER-HANDOFF.md`, local-only),
+seal and check exits (`out/baseline-02-validation/final-seal.json`, local-only),
+installed boot-policy bytes (`out/baseline-02-validation/boot-policy-installed.json`, local-only),
+live ARM control proof (`out/baseline-02-validation/live-policy-control.json`, local-only),
+closing installed-device read (`out/baseline-02-validation/closing-hardware.json`, local-only).
 
-Fresh kernel/config/DT/modules/ABI and ARM Buildroot/Reborn pass.391 integrated
-production cases pass with5 minimal-environment dependency skips separately
-covered by27 native filesystem/GIO,3 ALSA and installed ARM checks.125 focused
-source tests and238 Reborn tests/fmt/lint pass, as do Cortex-A7 QEMU, installed
+Fresh kernel/config/DT/modules/ABI and ARM Buildroot/Reborn pass. The integrated
+suite has 391 cases: 386 passed and 5 minimal-environment dependency skips,
+covered separately by 27 native filesystem/GIO, 3 ALSA and installed ARM checks.
+All 125 focused source tests and 238 Reborn tests/fmt/lint pass, as do Cortex-A7 QEMU, installed
 ARM platform/application/codecs, ELF/dependencies, source/license collection,
 filesystem/privacy, preservation and final sealed-package checks. Collector
 limitations and owner-local distribution status remain explicit in the package.
@@ -58,6 +59,32 @@ source-era package documentation are superseded by this sealed receipt and the
 packaged manifest/owner handoff. The interrupted default-off draft made no package;
 its logs remain under validation/draft-default-off/. Initial native test-path
 probe history is preserved under pre-freeze-probes/; final fresh checks pass.
+
+## Repository documentation synchronization — 2026-10-03
+
+Entry pages, current state/candidate/capability summaries, roadmap, power/API
+contracts, maintained knowledge, release guides and the 233-feature Markdown/JSON
+inventory now follow this sealed baseline and the exact UART01 hardware proof.
+The catalog indexes all 289 Linux Markdown pages; 4,329 local links have zero
+problems. The adjacent Reborn check also passes (58 pages / 563 links).
+
+All 27 documentation/structure/preservation checks pass, including matrix/JSON
+parity, feature enums/references, 49 overlays against the active manifest,
+historical census retention, all-page scope, preexisting owner edits and raw
+capture preservation. `git diff --check` passes. Baseline02 manifest/checksum
+inventory hashes remain identical to the seal. Private check receipt:
+`out/docs-baseline02-sync/validation.json` (local-only).
+
+This update changes no implementation, package bytes, runtime flags or physical
+acceptance. No build, device test, flash, push or repeat of unchanged stock/recovery
+provenance occurs. Historical reports remain at their original paths and retain
+their exact-image PASS/FAIL/NOT_RUN results.
+
+## Historical preparation snapshot — superseded by the sealed receipt
+
+The following preparation text records the pre-seal plan. “Pending”, “will”
+and harness-order statements below are historical; the sealed receipt above
+and packaged harness govern current behavior.
 
 Owner requested a new latest-source baseline on2026-10-03 after UART01
 hardware qualification. Candidate preparation is authorized; flashing and

@@ -1,3 +1,25 @@
+# Stock CPU DVFS evidence and current admission
+
+<!-- knowledge-base-scope: maintained-summary; baseline02-sync 2026-10-03 -->
+
+## Current Baseline02 / UART01 scope
+
+UART01 before/after C3 readback passes all five guarded OPPs: 598/747.5/1040 MHz at 1.15 V, 1196 at 1.20 V and 1300 at 1.25 V. The earlier PWRAP admission failure is resolved. Current source retains the source-backed software VOSEL bank 0x21e, ordering, silicon/PWRAP checks and thermal authority; the older 0x220 stock analysis below is historical. Worst-case endurance/charging comfort and natural thermal-trip qualification remain open.
+
+[Baseline02 seal](../validation/Y2-BASELINE-02.md),
+[UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) and
+[current state](../CURRENT_PLATFORM_STATE.md) carry exact identities, counters and limits.
+
+
+## Historical source research and physical checkpoints
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
 # Hardware Final: stock CPU DVFS admission and qualification
 
 **Latest physical correction boundary, 2026-09-27:** Fix01 recognizes the

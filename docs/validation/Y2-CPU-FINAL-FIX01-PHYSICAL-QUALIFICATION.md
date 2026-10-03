@@ -1,5 +1,12 @@
 # Y2 CPU Final Fix01 physical qualification — 2026-09-27
 
+<!-- knowledge-base-scope: historical-validation-receipt; baseline02-sync 2026-10-03 -->
+
+> **Historical exact-image receipt.** This report retains its named Fix image
+> and dated result. It does not describe Baseline02 or negate the newer bounded
+> UART01 C1/C2/C3 passes. See [Baseline02](Y2-BASELINE-02.md)
+> and [latest CPU-idle hardware proof](Y2-CPU-C3-UART-PHYSICAL.md).
+
 **Verdict: FAIL for acceptance as the normal Y2 CPU platform.** The safe
 observation sweep is complete. GPT6/GPT4/PPI29, actual highres/NO_HZ, real workload
 leases, conservative OPPs, hotplug, WFI and bounded native playback pass. SLIDLE

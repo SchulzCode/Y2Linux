@@ -1,5 +1,30 @@
 # Platform API v1
 
+<!-- knowledge-base-scope: source-contract; baseline02-sync 2026-10-03 -->
+
+## Baseline02 additive CPU-idle interface
+
+API v1 remains unchanged; clients ignore unknown added keys.
+`y2-platform cpu-idle-policy start|stop` selects the existing qualified CPU0 C3
+controls. Boot init calls start once; stop quarantines C3 for the current boot
+and prevents another start from overriding the owner. It does not change C1/C2,
+force topology/frequency or bypass entry guards.
+
+`y2-platform status cpu` adds `idle_completion.C3.boot_policy`, read from
+`/run/y2/cpu-idle-policy.json`, schema `org.y2linux.cpu-idle-policy/v1`.
+It reports boot ID, policy, Enabled / Skipped / Failed / Disabled, reasons,
+budget/state readbacks and rollback errors when present. Absent evidence is not
+successful activation. Capabilities may enable qualified DORMANT policy while
+current-image physical qualification remains false: preceding UART01 proves the
+architecture, Baseline02 automatic cold boot is NOT_RUN.
+
+The qualification harness explicitly arms the existing RGU backstop for bounded
+C3 trials; ordinary status collection does not arm it. Full system suspend is a
+separate gate. [Power ownership](platform-power-v1.md),
+[Baseline02 receipt](../validation/Y2-BASELINE-02.md),
+[UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md).
+
+
 <!-- knowledge-base-scope: source-contract -->
 > **Source-contract scope.** This page describes software ownership and
 > interface behavior. See [current state](../CURRENT_PLATFORM_STATE.md) for the exact latest image

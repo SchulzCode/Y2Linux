@@ -1,5 +1,12 @@
 # Y2 CPU Final Fix02 physical qualification — 2026-09-29
 
+<!-- knowledge-base-scope: historical-validation-receipt; baseline02-sync 2026-10-03 -->
+
+> **Historical exact-image receipt.** This report retains its named Fix image
+> and dated result. It does not describe Baseline02 or negate the newer bounded
+> UART01 C1/C2/C3 passes. See [Baseline02](Y2-BASELINE-02.md)
+> and [latest CPU-idle hardware proof](Y2-CPU-C3-UART-PHYSICAL.md).
+
 **Verdict: FAIL for acceptance as the normal Y2 CPU platform; the awake CPU
 platform is substantially qualified.** Timers, hotplug, QoS, thermal authority,
 MMC runtime clock gating, automatic core parking, PWRAP readiness and 1196/1300

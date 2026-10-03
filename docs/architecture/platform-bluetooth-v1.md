@@ -1,5 +1,46 @@
 # Bluetooth platform v1 contract
 
+<!-- knowledge-base-scope: source-contract; baseline02-sync 2026-10-03 -->
+
+## Current Baseline02 source and qualification scope
+
+CONSYS/HCI, BlueZ 5.87 and BlueALSA 5.0.0 remain radio/transport/encoder owners;
+Reborn retains decode/DSP and final conversion. Calibration, bonds and owner data
+stay private. `y2-bt-reconnect` remains the sole automatic connection owner.
+Requested preference, mutual availability, negotiated PCM and qualification
+remain separate; observation does not activate a radio or certify a peer.
+
+The current owner-private integration profile builds and enables optional
+AAC/aptX/aptX-HD/LDAC endpoints through validated codec policy. SBC remains the
+baseline. Quality defaults are SBC high, LDAC standard and requested LDAC ABR;
+private SBC xq/xq+ controls are available. Compiled library, configured quality
+and requested ABR do not prove active negotiated output or adaptation. The
+public/SBC-only and earlier optional-disabled experiment profiles are separate
+configurations; neither is the current private Baseline02 default.
+
+Private integration does not grant public redistribution or qualified Auto
+promotion. Earlier bounded owner-confirmed SBC peer playback remains its named
+receipt. The UART01 CPU-idle campaign uses a Wi-Fi observer with radios off for
+C3 entry; it does not qualify optional Bluetooth peer/CPU/coexistence/endurance.
+Baseline02's new-image/cold-boot tests are pending. Current source/API references:
+[codec inventory](../../tools/platform/codec_manifest.py),
+[quality controls](../../tools/platform/y2_platform/codec_controls.py),
+[Bluetooth observation](../../tools/platform/y2_platform/bluetooth.py),
+[service arguments](../../buildroot/board/y2/production-overlay/usr/libexec/y2/connectivity),
+[feature inventory](../release/Y2-COMMUNITY-BETA-FEATURE-AUDIT.md) and
+[Baseline02](../validation/Y2-BASELINE-02.md).
+
+## Historical source contract and physical notes
+
+The retained description below belongs to earlier profiles/source cuts.
+Optional-disabled, XQ-unsupported and preference-UI-deferred statements below are
+historical. Use the current source/feature inventory for active policy; retain
+the earlier ownership/lifecycle and evidence records for traceability.
+
+---
+
+# Bluetooth platform v1 contract
+
 **2026-09-28 source/physical scope:** The candidate's private experiment
 profile compiles optional encoder libraries, but normal BlueALSA service starts
 with optional endpoints disabled and SBC as the baseline. The earlier source

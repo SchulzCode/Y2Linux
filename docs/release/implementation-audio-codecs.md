@@ -1,5 +1,13 @@
 # Feature completion: wired audio and Classic Bluetooth
 
+<!-- knowledge-base-scope: historical-implementation-receipt; baseline02-sync 2026-10-03 -->
+
+> **Dated implementation receipt.** The campaign identities, test counts and
+> pending actions below belong to the recorded source cut. The newest sealed
+> integrated candidate is [Baseline02](../validation/Y2-BASELINE-02.md).
+> [UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) now proves bounded C1/C2/C3.
+> Baseline02 new-image/automatic cold boot and unrelated release gates remain open.
+
 <!-- knowledge-base-scope: implementation-report -->
 
 Implementation pass, 2026-10-02; Linux starting `9ac2c0b7018ce707ec15f8845daf58ce38ec18a0`, Reborn starting `eb64b8b`. This report covers priorities 5–7. No device configuration, flash, acoustic test or electrical measurement was performed. Qualification remains independent of source and software validation.

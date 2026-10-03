@@ -1,5 +1,19 @@
 # Y2 CPU idle completion physical qualification
 
+<!-- knowledge-base-scope: exact-image-validation-receipt; baseline02-sync 2026-10-03 -->
+
+## Baseline02 scope and current evidence
+
+[Baseline02](Y2-BASELINE-02.md) is now the newest sealed candidate with automatic qualified CPU0 C3
+startup. New-image/cold-boot hardware remains PHYSICAL_NOT_RUN. The
+[UART01 physical receipt](Y2-CPU-C3-UART-PHYSICAL.md) proves bounded C1/C2/C3 on its exact installed pair.
+Default-off, UART blocker, pending-flash and harness preparation statements
+below retain their recorded image/session scope. They do not describe the new
+Baseline02 startup policy or reopen the solved UART01 architecture. This report's
+original exact-image evidence is preserved; full system suspend and battery
+measurements remain separate.
+
+
 ## UART01 installed hardware result — 2026-10-03
 
 **C1 WORKING; C2 WORKING; C3 WORKING_AND_REPEATEDLY_OBSERVED.** The owner

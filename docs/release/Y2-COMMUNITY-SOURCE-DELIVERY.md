@@ -1,5 +1,34 @@
 # Source delivery and distribution gate
 
+<!-- knowledge-base-scope: maintained; baseline02-sync 2026-10-03 -->
+
+## Current Baseline02 delivery — 2026-10-03
+
+Sealed package: `out/y2linux-baseline-02-candidate/` (local-only).
+Compiled pair: Linux `8584ccd85f052f351fe51650b2348c83ca894ed4` / Reborn
+`b71b468860233faa0a42b8448ec5777fa952b8e3`. Current exact inputs are recorded
+in `metadata/versions.json`, `manifest.json` and `sources/manifest.json`.
+
+| Delivered material | Package-relative path |
+| --- | --- |
+| Exact project source snapshots | `sources/Y2Linux.tar.gz`, `sources/Y2Reborn.tar.gz` |
+| Locked upstream sources | `sources/linux-6.18.tar.xz`, `sources/buildroot-2025.02.18.tar.xz` |
+| Collector sources/manifests/licenses and warnings | `sources/Buildroot-legal-info/` |
+| Source pair and material hashes | `sources/manifest.json` |
+| Actual selected package/build inventory | `validation/release-inventory.json` |
+| Validation exit codes | `validation/validation-exit-codes.json` |
+
+The current package supplies source tar archives, not the historical Git bundles.
+They retain source content; they do not carry Git history or prove possession of
+the original commit objects. Use the exact recorded commits in available local
+repositories, or identify unpacked source snapshots honestly when reconstructing.
+The fallback is the exact qualified UART01 BOOTIMG/Y2ROOT pair. Collector PASS
+retains explicit Bootlin/local-package/Buildroot limitations; legal review is
+incomplete and distribution remains owner-local. No byte-identical rebuild is
+claimed. See [Baseline02](../validation/Y2-BASELINE-02.md) and
+[current reconstruction](../build/platform-v1-reconstruction.md).
+
+
 This pass distinguishes technical codec support, local engineering packaging and
 permission to publish. No public-distribution approval is inferred from successful
 compilation, an OSS library license, a disabled endpoint or a legal-info archive.

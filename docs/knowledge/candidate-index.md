@@ -1,5 +1,56 @@
 # Candidate and fallback identity index
 
+## Current sealed baseline — 2026-10-03
+
+| Field | Sealed Baseline02 |
+| --- | --- |
+| Build | `Y2LINUX-BASELINE-02` |
+| Candidate | `out/y2linux-baseline-02-candidate/` |
+| Kernel | `6.18.0-y2linux-baseline-02` |
+| Rootfs / release | `2025.02.18-platform-v1.21` / `1.0.0-baseline-candidate.2` |
+| Compiled Linux | `8584ccd85f052f351fe51650b2348c83ca894ed4` |
+| Compiled Reborn | `b71b468860233faa0a42b8448ec5777fa952b8e3` |
+| ABI / feature contract / layout / data | 1 / 2 / 1 / 1 |
+| Software / package | PASS |
+| New-image hardware / automatic cold boot | PHYSICAL_NOT_RUN |
+
+| Artifact | SHA256 |
+| --- | --- |
+| Baseline02 BOOTIMG | `5d8a2999368a04b23b898d2106b465eb6b028c2314da1a39c66c6b26dc8c41a3` |
+| Baseline02 Y2ROOT | `3148bea2b6d78be34afcbb9cd933502f14416e81c8053324ff6c9ea151ee3892` |
+| Baseline02 manifest | `122d6f5d73f3416a2608f770b1d05af5b0ba81db27c315639f56458833cc5654` |
+| UART01 fallback BOOTIMG | `a35e7ccb11dfcc642089e422d48a274ab2c700dbba15d00b21cce7b463e4006a` |
+| UART01 fallback Y2ROOT | `d3a8282a9f5d1b0046283bce1b595eb5797b62c2bff90a62260e80bbfafb5d98` |
+
+The latest hardware receipt is **UART01**, kernel
+`6.18.0-y2linux-cpu-c3-uart-01`, Linux `e9e8d63f9c94232c2b6627881e0967583e202dac`,
+Reborn `b71b468860233faa0a42b8448ec5777fa952b8e3`, root
+`2025.02.18-platform-v1.20`, boot
+`fd955840-35d9-47db-83e0-ff47d6bb2d2b`, taint 0.
+C1, C2 and C3 are physically working on that image. Baseline02 retains that
+kernel architecture; its new image and automatic cold-boot activation remain
+**PHYSICAL_NOT_RUN** until owner installation and the guarded checks.
+
+The exact UART01 pair is included under `fallback/` in the Baseline02 package.
+The package selects BOOTIMG and ANDROID/Y2ROOT; it does not replace Y2DATA or
+protected partitions. Hashes are copied from retained seal receipts, not a new
+build or physical readback. See [Baseline02](../validation/Y2-BASELINE-02.md),
+[UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) and
+[current state](../CURRENT_PLATFORM_STATE.md). Historical candidate paths below
+remain immutable and are not the current installation recommendation.
+
+
+## Historical snapshots
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
+# Candidate and fallback identity index
+
 ## Baseline02 sealed precedence — 2026-10-03
 
 | Role | Exact source and artifact | Evidence |
@@ -22,6 +73,10 @@ pair is UART01, Linuxe9e8d63/Rebornb71b4688, with physically working C1/C2/C3.
 See [baseline record](../validation/Y2-BASELINE-02.md) and
 [hardware qualification](../validation/Y2-CPU-C3-UART-PHYSICAL.md).
 Older precedence and candidate roles below are historical, superseded here.
+
+## Current audit precedence — 2026-10-02
+
+The [master audit baseline](../release/Y2-COMMUNITY-BETA-FEATURE-AUDIT.md#2-exact-source--runtime-baseline) supersedes the older role labels below. At17:49:54 CEST: Linux `dcbd7d1` identifies candidate4 (build activity, no sealed/physical receipt reviewed); candidate3 `c5f0eec` is sealed and reported flashed/characterized in a concurrent draft; candidate2 is the prior installed pair; Fix02 remains the latest broad physical qualification. Reborn `b92d312` is unchanged. Exact hashes, source history and draft disagreements are in the audit; original historical receipts remain intact.
 
 Updated 2026-10-01. This is an index to retained manifests and physical reports,
 not a new package validation or a live-device read. The exact owner-flashed

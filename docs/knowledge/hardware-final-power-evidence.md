@@ -1,3 +1,25 @@
+# Power evidence and runtime-idle scope
+
+<!-- knowledge-base-scope: maintained-summary; baseline02-sync 2026-10-03 -->
+
+## Current Baseline02 / UART01 scope
+
+UART01 proves bounded same-boot runtime C3 reset/restore with SRAM/RGU evidence. This is separate from full system suspend: Power/RTC wake through complete device/userspace resume remains an open gate. Baseline02 automatically admits qualified CPU0 runtime C3 while ordinary system suspend stays guarded. Estimated SOC/voltage shutdown is provisional; pack-current/temperature/calibration, electrical savings and endurance remain unmeasured.
+
+[Baseline02 seal](../validation/Y2-BASELINE-02.md),
+[UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) and
+[current state](../CURRENT_PLATFORM_STATE.md) carry exact identities, counters and limits.
+
+
+## Historical source research and physical checkpoints
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
 # Hardware Final power evidence and remaining physical gates
 
 **Latest physical correction boundary, 2026-09-27:** Fix01's first devices-stage

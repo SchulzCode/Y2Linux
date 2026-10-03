@@ -1,3 +1,43 @@
+# Current platform capability evidence
+
+<!-- knowledge-base-scope: maintained-capability-summary; baseline02-sync 2026-10-03 -->
+
+## Baseline02 source and UART01 hardware — 2026-10-03
+
+Baseline02 is sealed/software-tested and enables qualified CPU0 C3 automatically
+through guarded boot policy. Its new-image/cold-boot hardware state remains
+PHYSICAL_NOT_RUN. Latest physically verified pair is UART01, Linux `e9e8d63f9c94232c2b6627881e0967583e202dac`
+and Reborn `b71b468860233faa0a42b8448ec5777fa952b8e3`, same boot
+`fd955840-35d9-47db-83e0-ff47d6bb2d2b`, taint 0.
+
+| Capability | Exact bounded UART01 evidence | Limit |
+| --- | --- | --- |
+| C1 WFI | Four cores, advancing entries/residency, rejected 0, 400 bounded wakes | Baseline02 regression pending |
+| C2 SLIDLE | +6,971 entries / 84.3473% residency; clock restore failures 0 | Endurance/SD-absent variant separate |
+| C3 DORMANT | 21 guarded reset-and-return trials; +3,624 normal entries / 65.2450%; final 3,647 checked returns | New automatic cold boot, injected CIRQ edge coverage and endurance separate |
+| Timers / hotplug / parking | GPT6/GPT4/PPI29/CNTFRQ/highres/NO_HZ; 18 hotplug transitions; natural CPU0/owner 0xe | No new timer architecture |
+| Guarded active DVFS | All five 598 / 747.5 / 1040 / 1196 / 1300 MHz OPP readbacks before/after C3 | Mixed charging/endurance/natural thermal trips not established |
+| Storage idle/wake | eMMC and inserted SD: eight fsynced checksum rounds each after C2 and after C3; errors 0 | Not every high-speed mode/fault/endurance |
+| Demand wake / playback / USB | Screen/workload restore, real FFmpeg/ALSA fixture, three USB 1 MiB bidirectional hash rounds with independent Wi-Fi observer | Not perceptual fidelity/optional BT/host/reconnect endurance |
+| Full system suspend / Power+RTC wake | No new acceptance | Remains a separate open gate |
+| Battery SOC / savings | Provisional policy; no new electrical measurement | No battery-life improvement claim |
+
+This documentation ledger does not set runtime capability qualification flags.
+[Baseline02 receipt](Y2-BASELINE-02.md), [UART01 physical record](Y2-CPU-C3-UART-PHYSICAL.md),
+[feature inventory](../release/Y2-COMMUNITY-BETA-FEATURE-AUDIT.md) and
+[current state](../CURRENT_PLATFORM_STATE.md) govern current summaries. Earlier
+Fix01/Fix02 FAIL/NOT_TESTED rows below remain valid for their own images.
+
+
+## Historical exact-image capability ledgers
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
 # CPU Final Fix02 physical observations — 2026-09-29
 
 The [Fix02 physical report](Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md) is the

@@ -1,3 +1,25 @@
+# Current source and hardware boundaries
+
+<!-- knowledge-base-scope: maintained-summary; baseline02-sync 2026-10-03 -->
+
+## Current Baseline02 / UART01 scope
+
+UART01 closes bounded C1/C2/C3 architecture: timer/context/CIRQ/clock restore, natural parking, hotplug, five guarded OPPs and affected storage/playback/USB regressions pass. Baseline02 is sealed with automatic qualified CPU0 C3 policy; new-image cold boot is PHYSICAL_NOT_RUN. Retain all entry and fault guards. Full system suspend, native high-resolution audio, wider radio/USB/storage/endurance, electrical battery calibration and public distribution retain independent gates. Historical fixed-voltage/WFI-only recommendations below do not describe the current runtime architecture.
+
+[Baseline02 seal](../validation/Y2-BASELINE-02.md),
+[UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) and
+[current state](../CURRENT_PLATFORM_STATE.md) carry exact identities, counters and limits.
+
+
+## Historical source research and physical checkpoints
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
 # Platform v1 source and hardware boundaries
 
 **Latest physical boundary:** [CPU Final Fix01](../validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md)

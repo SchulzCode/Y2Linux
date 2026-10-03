@@ -1,5 +1,13 @@
 # Community beta feature completion implementation pass
 
+<!-- knowledge-base-scope: historical-implementation-receipt; baseline02-sync 2026-10-03 -->
+
+> **Dated implementation receipt.** The campaign identities, test counts and
+> pending actions below belong to the recorded source cut. The newest sealed
+> integrated candidate is [Baseline02](../validation/Y2-BASELINE-02.md).
+> [UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) now proves bounded C1/C2/C3.
+> Baseline02 new-image/automatic cold boot and unrelated release gates remain open.
+
 Started 2026-10-02. This is an owner-authorized implementation campaign, not a
 release qualification. No flash, device mutation, push or Git identity change.
 Existing unrelated dirty documentation is preserved. All233 feature records and

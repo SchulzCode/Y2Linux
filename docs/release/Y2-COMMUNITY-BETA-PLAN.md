@@ -1,5 +1,58 @@
 # Y2Linux + Reborn Community Beta 1 — feature-completion plan
 
+## Current baseline and next boundary — 2026-10-03
+
+**FEATURE COMPLETION IN PROGRESS.** Baseline02 is the latest sealed integrated,
+owner-local candidate: Linux `8584ccd85f052f351fe51650b2348c83ca894ed4`,
+Reborn `b71b468860233faa0a42b8448ec5777fa952b8e3`, kernel
+`6.18.0-y2linux-baseline-02`, root `2025.02.18-platform-v1.21`, release
+`1.0.0-baseline-candidate.2`. Fresh software/package validation passes;
+**new-image and automatic cold-boot hardware qualification are NOT_RUN**.
+See [Baseline02](../validation/Y2-BASELINE-02.md) and
+[the current feature inventory](Y2-COMMUNITY-BETA-FEATURE-AUDIT.md).
+
+The preceding UART01 image proves C1/C2/C3 physically working, including natural
+parking, 21 guarded actual C3 reset-and-return trials and 3,624 normal-policy C3
+entries at 65.2450% residency. The UART1 ownership/global SPM sleep ACK issue is
+resolved. C2 has 6,971 entries at 84.3473% residency and zero clock restore
+failures. Timers/hotplug/all five guarded OPPs and bounded storage/playback/USB
+regressions pass. [Authoritative hardware report](../validation/Y2-CPU-C3-UART-PHYSICAL.md).
+
+Baseline02 adds the owner-selected automatic qualified CPU0 C3 startup policy,
+with static admission/readback/rollback and unchanged dynamic guards. The next
+CPU action is owner-preserving installation and the included exact-image SSH
+harness: cold-boot policy proof, C1/C2/timer/hotplug/storage/OPP regression, one
+guarded C3 trial plus 20 cycles, normal runtime and wake/I/O checks. Preserve
+Y2DATA and protected partitions; only BOOTIMG and ANDROID/Y2ROOT are payloads.
+No C1/C2 redesign or repeat of the solved UART blocker is planned.
+
+## Remaining release work
+
+The 233-feature target remains. Carry forward bounded successes and test affected
+paths on the integrated candidate. Full same-boot system suspend/Power+RTC wake,
+wider thermal/charging/endurance conditions, measured electrical battery benefit,
+native meaningful 24-bit/high-rate wired output, optional Bluetooth peer/codec
+acceptance and distribution/source/signing/first-owner release decisions remain
+separate gates. Runtime C3 is not full system sleep or a measured battery result.
+
+Prior day-by-day schedules and candidate labels below are dated planning history.
+They do not turn closed C1/C2/C3 implementation into new work, authorize another
+flash or change the current feature inventory. Review remaining scope at the
+[standing milestone boundary](../planning/roadmap-gap-audit.md#standing-milestone-boundary-rule)
+before activating or closing a new milestone; no GitHub issue is closed here.
+
+
+## Historical plans and CPU candidate boundaries
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
+# Y2Linux + Reborn Community Beta 1 — feature-completion plan
+
 ## CPU idle candidate02 hardware boundary — 2026-10-03
 
 The owner-installed candidate02 is physically tested at Linuxdb0234e/Rebornb71b4688,

@@ -1,5 +1,12 @@
 # Y2 CPU Final Fix03 physical qualification — prepared, not run
 
+<!-- knowledge-base-scope: historical-validation-receipt; baseline02-sync 2026-10-03 -->
+
+> **Historical exact-image receipt.** This report retains its named Fix image
+> and dated result. It does not describe Baseline02 or negate the newer bounded
+> UART01 C1/C2/C3 passes. See [Baseline02](Y2-BASELINE-02.md)
+> and [latest CPU-idle hardware proof](Y2-CPU-C3-UART-PHYSICAL.md).
+
 **Status: NOT_RUN.** This page prepares the single owner-controlled acceptance
 run of the [Fix03 candidate](Y2-CPU-FINAL-FIX03.md). Nothing here is a hardware
 result. Every row stays NOT_TESTED until a receipt from the installed Fix03

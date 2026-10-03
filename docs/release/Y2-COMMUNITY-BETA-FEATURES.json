@@ -1,48 +1,63 @@
 {
   "schema": "org.y2linux.community-beta-feature-audit/v2",
   "baseline": {
-    "audit_date": "2026-10-02",
+    "audit_date": "2026-10-03",
     "timezone": "Europe/Berlin",
-    "scope": "Owner-authorized feature implementation and software qualification; no flash/push. Historical audit/census fields retain their original cutoff.",
+    "scope": "Documentation-only synchronization to sealed Baseline02 and retained UART01 bounded qualification; no new census, build, hardware test, flash or push",
     "candidate_3_user_confirmation": "User during audit: candidate 3 is building right now and newest baseline, not tested yet.",
     "latest_broad_physical_qualification": {
       "name": "CPU Final Fix02",
       "date": "2026-09-29",
       "linux": "1a1a6693dcd82f62daecd4c1491ef512823a86c5",
       "reborn": "77cf83e09a18f82a867040e72d35b6e70b26fa85",
-      "overall_result": "FAIL; bounded awake subsystem passes retained"
+      "overall_result": "FAIL; bounded awake subsystem passes retained",
+      "scope": "Historical Fix02 full-system-suspend attempt; latest CPU-idle and affected I/O hardware evidence is UART01. This earlier failure is not current runtime C3 evidence."
     },
-    "snapshot_closed_at": "2026-10-02T18:14:11+02:00",
+    "snapshot_closed_at": "2026-10-03T21:15:34.288006+00:00",
     "entry_source_baseline": {
       "linux": "c5f0eecf51901f51f16f80a3291a7a8630cc75ba",
       "reborn": "b92d312cc2dc4b74f57a1a9a7b1407e34707137a"
     },
     "source_baseline": {
-      "linux": "02eb7359cff1d1e6eec725d496078338d1e7d601",
-      "reborn": "72e94b2d8eb13dcb7e2677bff2846edec3ddf81a"
+      "Y2Linux": "8584ccd85f052f351fe51650b2348c83ca894ed4",
+      "Y2Reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
+      "scope": "Compiled Baseline02 source pair, independent of later documentation HEADs"
     },
     "latest_built_candidate": {
-      "name": "Y2LINUX-FEATURE-COMPLETION-01",
-      "source_linux": "02eb7359cff1d1e6eec725d496078338d1e7d601",
-      "source_reborn": "72e94b2d8eb13dcb7e2677bff2846edec3ddf81a",
-      "rootfs": "2025.02.18-platform-v1.16",
-      "release": "1.0.0-feature-completion-candidate.1",
+      "name": "Y2LINUX-BASELINE-02",
+      "path": "out/y2linux-baseline-02-candidate/",
+      "source_linux": "8584ccd85f052f351fe51650b2348c83ca894ed4",
+      "source_reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
+      "kernel": "6.18.0-y2linux-baseline-02",
+      "rootfs": "2025.02.18-platform-v1.21",
+      "release": "1.0.0-baseline-candidate.2",
       "build_state": "SEALED_SOFTWARE_VALIDATED",
-      "physical_state": "NOT_TESTED",
+      "physical_state": "PHYSICAL_NOT_RUN",
       "sealed_image_hashes": {
-        "BOOTIMG.img": "060145e3931e1d23f0b9805c0f12417d47f1589cf4489010705876a1ade7b098",
-        "Y2ROOT.img": "2039d61e30bd02d0f3fd8006808e7dbc95bbaabce7f1834fa12d57bcccd81995"
+        "BOOTIMG.img": "5d8a2999368a04b23b898d2106b465eb6b028c2314da1a39c66c6b26dc8c41a3",
+        "Y2ROOT.img": "3148bea2b6d78be34afcbb9cd933502f14416e81c8053324ff6c9ea151ee3892"
       },
-      "software_receipt": "docs/release/Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md"
+      "software_receipt": "docs/validation/Y2-BASELINE-02.md",
+      "boot_policy": "Automatic qualified CPU0 DORMANT after static foundations and readback; entry/fault guards unchanged; new-image cold boot NOT_RUN"
     },
     "latest_reported_installed_candidate": {
-      "name": "Y2LINUX-SD-SDR104-DIAG-04",
-      "linux": "dcbd7d1b8ad502e574e5a4f7b927d62b45ac81dd",
-      "reborn": "b92d312cc2dc4b74f57a1a9a7b1407e34707137a",
-      "boot_id": "159f7c81-ab89-4440-bc89-df827dd8bc34",
+      "name": "Y2LINUX-CPU-C3-UART-01",
+      "path": "out/y2linux-cpu-c3-uart-candidate/",
+      "linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
+      "kernel": "6.18.0-y2linux-cpu-c3-uart-01",
+      "rootfs": "2025.02.18-platform-v1.20",
+      "release": "1.0.0-cpu-c3-uart-candidate.1",
+      "boot_id": "fd955840-35d9-47db-83e0-ff47d6bb2d2b",
       "taint": 0,
-      "evidence": "read-only SSH during implementation; no stress/suspend/physical qualification",
-      "private_receipt": "out/feature-completion/device-readonly.txt"
+      "physical_state": "C1_C2_WORKING_C3_WORKING_AND_REPEATEDLY_OBSERVED",
+      "physical_receipt": "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md",
+      "private_receipt": "out/cpu-c3-uart-physical/20261003T183259Z-uart01/final-verdict.json",
+      "sealed_image_hashes": {
+        "BOOTIMG.img": "a35e7ccb11dfcc642089e422d48a274ab2c700dbba15d00b21cce7b463e4006a",
+        "Y2ROOT.img": "d3a8282a9f5d1b0046283bce1b595eb5797b62c2bff90a62260e80bbfafb5d98"
+      },
+      "scope": "Latest retained installed read, not a new device connection in this documentation-only pass. UART01 remains the exact paired fallback; Baseline02 installation is not confirmed."
     },
     "previous_built_and_installed_candidate": {
       "name": "Y2LINUX-STORAGE-CEILING-02",
@@ -53,20 +68,23 @@
       "physical_scope": "2026-10-01 quick read-only storage check documented in HANDOFF; no fresh device read in this audit"
     },
     "newest_source_candidate": {
-      "name": "Y2LINUX-FEATURE-COMPLETION-01",
-      "source_linux": "02eb7359cff1d1e6eec725d496078338d1e7d601",
-      "source_reborn": "72e94b2d8eb13dcb7e2677bff2846edec3ddf81a",
-      "rootfs": "2025.02.18-platform-v1.16",
-      "release": "1.0.0-feature-completion-candidate.1",
+      "name": "Y2LINUX-BASELINE-02",
+      "path": "out/y2linux-baseline-02-candidate/",
+      "source_linux": "8584ccd85f052f351fe51650b2348c83ca894ed4",
+      "source_reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
+      "kernel": "6.18.0-y2linux-baseline-02",
+      "rootfs": "2025.02.18-platform-v1.21",
+      "release": "1.0.0-baseline-candidate.2",
       "build_state": "SEALED_SOFTWARE_VALIDATED",
-      "physical_state": "NOT_TESTED",
+      "physical_state": "PHYSICAL_NOT_RUN",
       "sealed_image_hashes": {
-        "BOOTIMG.img": "060145e3931e1d23f0b9805c0f12417d47f1589cf4489010705876a1ade7b098",
-        "Y2ROOT.img": "2039d61e30bd02d0f3fd8006808e7dbc95bbaabce7f1834fa12d57bcccd81995"
+        "BOOTIMG.img": "5d8a2999368a04b23b898d2106b465eb6b028c2314da1a39c66c6b26dc8c41a3",
+        "Y2ROOT.img": "3148bea2b6d78be34afcbb9cd933502f14416e81c8053324ff6c9ea151ee3892"
       },
-      "software_receipt": "docs/release/Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md"
+      "software_receipt": "docs/validation/Y2-BASELINE-02.md",
+      "boot_policy": "Automatic qualified CPU0 DORMANT after static foundations and readback; entry/fault guards unchanged; new-image cold boot NOT_RUN"
     },
-    "concurrent_work_note": "Implementation campaign sealed fresh software-tested integration candidate; not flashed. Candidate4 read-only identity is latest installed; Fix02 remains latest broad qualification.",
+    "concurrent_work_note": "Baseline02 sealed; UART01 is latest physically verified installed image. Old snapshot/campaign entries remain historical and do not describe current source or installation.",
     "concurrent_draft_report": {
       "path": "docs/validation/Y2-SD-SDR104-DIAG.md",
       "sha256_at_snapshot": "299269f8ef8cc4e07e675dbf1a742a658ff0201dc4d828ce6a0cc1e83c9cac67",
@@ -211,6 +229,25 @@
         "Y2ROOT.img": "a88aa8395dc9dcd53e2700a4cc60bcb4ac81940d95d4fc7871c218222e629384"
       },
       "software_receipt": "docs/validation/Y2-SD-SDR104-DIAG.md at e2dd583:304 tests PASS"
+    },
+    "latest_cpu_idle_physical_qualification": {
+      "name": "Y2LINUX-CPU-C3-UART-01",
+      "path": "out/y2linux-cpu-c3-uart-candidate/",
+      "linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
+      "kernel": "6.18.0-y2linux-cpu-c3-uart-01",
+      "rootfs": "2025.02.18-platform-v1.20",
+      "release": "1.0.0-cpu-c3-uart-candidate.1",
+      "boot_id": "fd955840-35d9-47db-83e0-ff47d6bb2d2b",
+      "taint": 0,
+      "physical_state": "C1_C2_WORKING_C3_WORKING_AND_REPEATEDLY_OBSERVED",
+      "physical_receipt": "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md",
+      "private_receipt": "out/cpu-c3-uart-physical/20261003T183259Z-uart01/final-verdict.json",
+      "sealed_image_hashes": {
+        "BOOTIMG.img": "a35e7ccb11dfcc642089e422d48a274ab2c700dbba15d00b21cce7b463e4006a",
+        "Y2ROOT.img": "d3a8282a9f5d1b0046283bce1b595eb5797b62c2bff90a62260e80bbfafb5d98"
+      },
+      "scope": "Latest retained installed read, not a new device connection in this documentation-only pass. UART01 remains the exact paired fallback; Baseline02 installation is not confirmed."
     }
   },
   "state_definitions": {
@@ -1252,14 +1289,14 @@
       "enabled_by_default": "Yes, schedutil",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "Fix02 clock and 1.15 V readback/integrity pass",
+      "physical_evidence": "Fix02 clock and 1.15 V readback/integrity pass; UART01 bounded regression before/after C3 passes all five OPP readbacks: 598/747.5/1040 MHz at 1.15 V, 1196 at 1.20 V, 1300 at 1.25 V; source guards unchanged in Baseline02.",
       "automated_tests": [
         "tests/test_cpu_dvfs.py",
         "tests/test_workload_qos.py",
         "tests/test_cpu_fix02.py",
         "tests/test_cpu_fix03.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and CPU source-specific counters/logs; see subsystem section",
       "known_limitation": "Board-specific stock-bin evidence",
       "failure_mode": "DVFS fault or thermal cap limits performance",
@@ -1272,7 +1309,9 @@
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1286,14 +1325,16 @@
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
       "current_limitation": "Board-specific stock-bin evidence",
-      "next_action": "Preserve qualified lower range",
+      "next_action": "Carry forward qualified DVFS/thermal-authority behavior; run affected Baseline02 regression. Natural thermal trips, mixed charging load and endurance remain separate.",
       "release_completion_groups": [
         "B"
       ],
       "priority_changed": false,
       "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
       "fallback_is_release_waiver": false,
-      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION"
+      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true
     },
     {
       "id": "F020",
@@ -1305,14 +1346,14 @@
       "enabled_by_default": "Conditional silicon/PWRAP admission",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "Fix02 30-step sequence; 18604 integrity iterations, peak 71.5 C",
+      "physical_evidence": "Fix02 30-step sequence; 18604 integrity iterations, peak 71.5 C; UART01 bounded regression before/after C3 passes all five OPP readbacks: 598/747.5/1040 MHz at 1.15 V, 1196 at 1.20 V, 1300 at 1.25 V; source guards unchanged in Baseline02.",
       "automated_tests": [
         "tests/test_cpu_dvfs.py",
         "tests/test_workload_qos.py",
         "tests/test_cpu_fix02.py",
         "tests/test_cpu_fix03.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and CPU source-specific counters/logs; see subsystem section",
       "known_limitation": "Bounded electrical observation, no endurance envelope",
       "failure_mode": "Heat or voltage fault under sustained load",
@@ -1325,7 +1366,9 @@
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1339,14 +1382,16 @@
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
       "current_limitation": "Bounded electrical observation, no endurance envelope",
-      "next_action": "Retain1196MHz with existing silicon/voltage/thermal admission; qualify endurance, mixed load and charging comfort, not optionality.",
+      "next_action": "Carry forward qualified DVFS/thermal-authority behavior; run affected Baseline02 regression. Natural thermal trips, mixed charging load and endurance remain separate.",
       "release_completion_groups": [
         "B"
       ],
       "priority_changed": true,
       "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
       "fallback_is_release_waiver": false,
-      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true
     },
     {
       "id": "F021",
@@ -1358,14 +1403,14 @@
       "enabled_by_default": "Conditional silicon/PWRAP admission",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "Fix02 2-worker 5247 iterations pass; 4 workers hit 75 C guard in 16.8 s",
+      "physical_evidence": "Fix02 2-worker 5247 iterations pass; 4 workers hit 75 C guard in 16.8 s; UART01 bounded regression before/after C3 passes all five OPP readbacks: 598/747.5/1040 MHz at 1.15 V, 1196 at 1.20 V, 1300 at 1.25 V; source guards unchanged in Baseline02.",
       "automated_tests": [
         "tests/test_cpu_dvfs.py",
         "tests/test_workload_qos.py",
         "tests/test_cpu_fix02.py",
         "tests/test_cpu_fix03.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and CPU source-specific counters/logs; see subsystem section",
       "known_limitation": "No natural 110/120 C trip test; not sustained thermal qualification",
       "failure_mode": "Hot device under combined workloads",
@@ -1378,7 +1423,9 @@
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1392,14 +1439,16 @@
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
       "current_limitation": "No natural 110/120 C trip test; not sustained thermal qualification",
-      "next_action": "Retain1300MHz within admitted bounded envelope; measure mixed-load/charging thermals and sustained behavior; preserve throttling and safe fallback.",
+      "next_action": "Carry forward qualified DVFS/thermal-authority behavior; run affected Baseline02 regression. Natural thermal trips, mixed charging load and endurance remain separate.",
       "release_completion_groups": [
         "B"
       ],
       "priority_changed": true,
       "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
       "fallback_is_release_waiver": false,
-      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true
     },
     {
       "id": "F022",
@@ -1411,14 +1460,14 @@
       "enabled_by_default": "Yes; unknown bin gates high OPPs",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "Bin0, selectors 0x48/0x50/0x58 and sampled ordering pass",
+      "physical_evidence": "Bin0, selectors 0x48/0x50/0x58 and sampled ordering pass; UART01 bounded regression before/after C3 passes all five OPP readbacks: 598/747.5/1040 MHz at 1.15 V, 1196 at 1.20 V, 1300 at 1.25 V; source guards unchanged in Baseline02.",
       "automated_tests": [
         "tests/test_cpu_dvfs.py",
         "tests/test_workload_qos.py",
         "tests/test_cpu_fix02.py",
         "tests/test_cpu_fix03.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and CPU source-specific counters/logs; see subsystem section",
       "known_limitation": "Sampled ordering is not oscilloscope trace",
       "failure_mode": "Bad readback clamps or faults DVFS",
@@ -1431,7 +1480,9 @@
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1445,14 +1496,16 @@
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
       "current_limitation": "Sampled ordering is not oscilloscope trace",
-      "next_action": "Keep sequencing and thermal authority",
+      "next_action": "Carry forward qualified DVFS/thermal-authority behavior; run affected Baseline02 regression. Natural thermal trips, mixed charging load and endurance remain separate.",
       "release_completion_groups": [
         "B"
       ],
       "priority_changed": false,
       "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
       "fallback_is_release_waiver": false,
-      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION"
+      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true
     },
     {
       "id": "F023",
@@ -1464,14 +1517,14 @@
       "enabled_by_default": "Yes",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "Fix02 eight classes, producer leases, thermal override; input lease ~22 ms",
+      "physical_evidence": "Fix02 eight classes, producer leases, thermal override; input lease ~22 ms; UART01 bounded regression before/after C3 passes all five OPP readbacks: 598/747.5/1040 MHz at 1.15 V, 1196 at 1.20 V, 1300 at 1.25 V; source guards unchanged in Baseline02.",
       "automated_tests": [
         "tests/test_cpu_dvfs.py",
         "tests/test_workload_qos.py",
         "tests/test_cpu_fix02.py",
         "tests/test_cpu_fix03.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and CPU source-specific counters/logs; see subsystem section",
       "known_limitation": "Artwork and heavy workloads differ; hint is not direct MHz control",
       "failure_mode": "Stale hint raises consumption",
@@ -1484,7 +1537,9 @@
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1498,14 +1553,16 @@
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
       "current_limitation": "Artwork and heavy workloads differ; hint is not direct MHz control",
-      "next_action": "Freeze API; check v2 app hints in RC",
+      "next_action": "Carry forward qualified DVFS/thermal-authority behavior; run affected Baseline02 regression. Natural thermal trips, mixed charging load and endurance remain separate.",
       "release_completion_groups": [
         "B"
       ],
       "priority_changed": false,
       "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
       "fallback_is_release_waiver": false,
-      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION"
+      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true
     },
     {
       "id": "F024",
@@ -1517,14 +1574,14 @@
       "enabled_by_default": "Yes",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "CPU/PMIC sensors and injected cooling cap pass",
+      "physical_evidence": "CPU/PMIC sensors and injected cooling cap pass; UART01 bounded regression before/after C3 passes all five OPP readbacks: 598/747.5/1040 MHz at 1.15 V, 1196 at 1.20 V, 1300 at 1.25 V; source guards unchanged in Baseline02.",
       "automated_tests": [
         "tests/test_cpu_dvfs.py",
         "tests/test_workload_qos.py",
         "tests/test_cpu_fix02.py",
         "tests/test_cpu_fix03.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and CPU source-specific counters/logs; see subsystem section",
       "known_limitation": "CPU 110/120 C BSP trips; PMIC 150 C; no measured pack temp",
       "failure_mode": "Sustained heat may exceed comfort before trip",
@@ -1537,7 +1594,9 @@
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1551,14 +1610,16 @@
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
       "current_limitation": "CPU 110/120 C BSP trips; PMIC 150 C; no measured pack temp",
-      "next_action": "Attended combined-load thermal gate; no guessed thresholds",
+      "next_action": "Carry forward qualified DVFS/thermal-authority behavior; run affected Baseline02 regression. Natural thermal trips, mixed charging load and endurance remain separate.",
       "release_completion_groups": [
         "B"
       ],
       "priority_changed": true,
       "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
       "fallback_is_release_waiver": false,
-      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true
     },
     {
       "id": "F025",
@@ -1570,16 +1631,16 @@
       "enabled_by_default": "Yes after independent preflight",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "Fix02 per-CPU 13 MHz, 1 ms sleep medians ~1.09 ms",
+      "physical_evidence": "UART01: GPT6 free-running basis, architectural timers/CNTFRQ 13 MHz and PPI29 all four cores pass before and after actual C3; same boot and timer continuity.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
         "tests/test_cpu_fix02.py",
         "tests/test_cpu_fix03.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
-      "known_limitation": "Current candidate continuity regression pending",
+      "known_limitation": "Baseline02 new-image/cold-boot regression pending; no rewrite of qualified timer architecture.",
       "failure_mode": "Preflight rejects to coarse timer",
       "safe_fallback": "Legacy GPT/dummy fallback",
       "source_paths": [
@@ -1591,7 +1652,9 @@
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1604,15 +1667,17 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Current candidate continuity regression pending",
-      "next_action": "Freeze timer architecture",
+      "current_limitation": "Baseline02 new-image/cold-boot regression pending; no rewrite of qualified timer architecture.",
+      "next_action": "Preserve architecture; run included exact-image timer regression after owner installation.",
       "release_completion_groups": [
         "B"
       ],
       "priority_changed": false,
       "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
       "fallback_is_release_waiver": false,
-      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION"
+      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true
     },
     {
       "id": "F026",
@@ -1624,16 +1689,16 @@
       "enabled_by_default": "Yes",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "Fix02 sole GPT4 and hres/nohz=1 all cores pass",
+      "physical_evidence": "UART01: GPT4 sole broadcast, highres/NO_HZ all cores, 21 guarded actual C3 wakes; future GPT4 deadlines 3.471384–18.392615 ms. The 2 ms / 26000 tick guard remains.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
         "tests/test_cpu_fix02.py",
         "tests/test_cpu_fix03.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
-      "known_limitation": "Deep-idle deadline handoff separate",
+      "known_limitation": "20 requested 1 ms probes produced no C3 entry; receipt does not isolate governor versus individual guard. Wider deadline/endurance coverage and Baseline02 cold boot remain.",
       "failure_mode": "Tickless not admitted; more wakeups",
       "safe_fallback": "Legacy periodic clockevents",
       "source_paths": [
@@ -1645,7 +1710,9 @@
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1658,15 +1725,17 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Deep-idle deadline handoff separate",
-      "next_action": "Smoke counters; no timer rewrite",
+      "current_limitation": "20 requested 1 ms probes produced no C3 entry; receipt does not isolate governor versus individual guard. Wider deadline/endurance coverage and Baseline02 cold boot remain.",
+      "next_action": "Carry forward broadcast/deadline architecture; run guarded Baseline02 timer checks.",
       "release_completion_groups": [
         "B"
       ],
       "priority_changed": false,
       "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
       "fallback_is_release_waiver": false,
-      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION"
+      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true
     },
     {
       "id": "F027",
@@ -1678,7 +1747,7 @@
       "enabled_by_default": "Yes",
       "actually_used": "Yes: installed candidate02 four-core WFI repeatedly observed on2026-10-03.",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "2026-10-03 installed candidate02 all four WFI states enabled: entries +725/+923/+1695/+669, residency advances, rejections0, same boot/timer continuity.",
+      "physical_evidence": "UART01: four enabled WFI states; entry deltas 1573/521/1343/271, residency deltas 11919284/12104878/12348263/12302521 us; rejections 0; 400 requested 1 ms wakes.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
@@ -1687,9 +1756,9 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "2026-10-03 sealed02 db0234e: production366/native prerequisites, CPU owner/fault100, Reborn238, fresh ARM kernel/root/config/DT/modules/ABI/QEMU/dependencies/package pass. Installed02 physical C1/C2/parking and independent regressions pass; C3 preflight UART1 fails. Fresh harness guard change: locked CPU90+idle/suspend8+workload2 cases pass, dedicated host21 and native exact-kernel probe19 cases pass.",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
-      "known_limitation": "No electrical battery-duration claim",
+      "known_limitation": "No electrical battery-duration claim; Baseline02 exact-image regression pending.",
       "failure_mode": "Higher awake drain if idle blocked",
       "safe_fallback": "Normal scheduler idle",
       "source_paths": [
@@ -1702,9 +1771,11 @@
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
         "docs/validation/Y2-CPU-FINAL-FIX03.md",
-        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
+        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
-      "current_candidate_physically_qualified": true,
+      "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
         "beta_state": "BETA_READY",
         "beta_priority": "E",
@@ -1715,8 +1786,8 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "No electrical battery-duration claim",
-      "next_action": "Preserve",
+      "current_limitation": "No electrical battery-duration claim; Baseline02 exact-image regression pending.",
+      "next_action": "Freeze C1 implementation; run included foundation smoke after owner installation.",
       "release_completion_groups": [
         "B"
       ],
@@ -1724,8 +1795,9 @@
       "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
       "fallback_is_release_waiver": false,
       "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION",
-      "installed_candidate_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
-      "installed_candidate_physically_qualified": true
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true,
+      "current_candidate_qualification_scope": "Baseline02 new-image acceptance PHYSICAL_NOT_RUN; prior flag preserved in historical_feature_records_before_baseline02_sync."
     },
     {
       "id": "F028",
@@ -1737,7 +1809,7 @@
       "enabled_by_default": "Yes when prerequisites clear",
       "actually_used": "Candidate02 natural CPU0-only screen-off/radios-off idle on2026-10-03.",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "2026-10-03 candidate02: +6772 SLIDLE entries; +50669913 us in60.048084272 s (84.38%); restore failures0, both mounted media integrity/errors pass; same boot.",
+      "physical_evidence": "UART01: +6971 SLIDLE entries / 50654676 us in 60.054880715 s = 84.3473% residency; clock restore failures 0, both media integrity clean.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
@@ -1746,9 +1818,9 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "2026-10-03 sealed02 db0234e: production366/native prerequisites, CPU owner/fault100, Reborn238, fresh ARM kernel/root/config/DT/modules/ABI/QEMU/dependencies/package pass. Installed02 physical C1/C2/parking and independent regressions pass; C3 preflight UART1 fails. Fresh harness guard change: locked CPU90+idle/suspend8+workload2 cases pass, dedicated host21 and native exact-kernel probe19 cases pass.",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
-      "known_limitation": "SD-absent/electrical energy not measured; active radio/storage clocks legitimately prevent eligibility.",
+      "known_limitation": "SD-absent variant and wider endurance not exercised in this bounded UART01 run; Baseline02 regression pending.",
       "failure_mode": "More consumption or clock restore fault",
       "safe_fallback": "WFI; y2.cpuidle=off disables board idle states. y2.deep_idle=off only removes C3, not C2",
       "source_paths": [
@@ -1761,9 +1833,11 @@
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
         "docs/validation/Y2-CPU-FINAL-FIX03.md",
-        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
+        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
-      "current_candidate_physically_qualified": true,
+      "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
         "beta_state": "BETA_READY_WITH_LIMITATION",
         "beta_priority": "C",
@@ -1774,8 +1848,8 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "SD-absent/electrical energy not measured; active radio/storage clocks legitimately prevent eligibility.",
-      "next_action": "Preserve physically working C2 and normal clock/runtime-PM ownership.",
+      "current_limitation": "SD-absent variant and wider endurance not exercised in this bounded UART01 run; Baseline02 regression pending.",
+      "next_action": "Preserve C2 lifecycle/guards; run affected idle/clock/storage checks after owner installation.",
       "release_completion_groups": [
         "B"
       ],
@@ -1783,8 +1857,9 @@
       "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
       "fallback_is_release_waiver": false,
       "completion_status": "PENDING_RELEASE_ACCEPTANCE",
-      "installed_candidate_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
-      "installed_candidate_physically_qualified": true
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true,
+      "current_candidate_qualification_scope": "Baseline02 new-image acceptance PHYSICAL_NOT_RUN; prior flag preserved in historical_feature_records_before_baseline02_sync."
     },
     {
       "id": "F029",
@@ -1796,7 +1871,7 @@
       "enabled_by_default": "Yes",
       "actually_used": "Candidate02 natural parking and screen/playback demand restore observed.",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "2026-10-03 candidate02 natural CPU0/owner0xe parking after141.129531s;18 supported hotplug transitions prove exact bits in both physical power copies; screen/playback restore all four.",
+      "physical_evidence": "UART01: natural screen-off parking reaches CPU0, owner mask 0xe and both physical secondary power copies 0; 18 supported hotplug transitions; order 3→2→1 off / 1→2→3 on, screen/playback demand restore.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
@@ -1805,9 +1880,9 @@
         "tests/test_cpu_idle_completion.py",
         "tests/test_cpu_idle_harness.py"
       ],
-      "automated_test_result": "2026-10-03 sealed02 db0234e: production366/native prerequisites, CPU owner/fault100, Reborn238, fresh ARM kernel/root/config/DT/modules/ABI/QEMU/dependencies/package pass. Installed02 physical C1/C2/parking and independent regressions pass; C3 preflight UART1 fails. Fresh harness guard change: locked CPU90+idle/suspend8+workload2 cases pass, dedicated host21 and native exact-kernel probe19 cases pass.",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
-      "known_limitation": "Fine-grained intermediate automatic transition timing not sampled.",
+      "known_limitation": "Background activity legitimately resets eligibility; no forced perfect-zero or arbitrary power writes. Baseline02 regression pending.",
       "failure_mode": "Delayed parking after wakes or delayed interaction",
       "safe_fallback": "Restore all cores on demand",
       "source_paths": [
@@ -1820,9 +1895,11 @@
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
         "docs/validation/Y2-CPU-FINAL-FIX03.md",
-        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
+        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
-      "current_candidate_physically_qualified": true,
+      "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
         "beta_state": "BETA_READY_WITH_LIMITATION",
         "beta_priority": "C",
@@ -1833,8 +1910,8 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Fine-grained intermediate automatic transition timing not sampled.",
-      "next_action": "Preserve parking ownership/hysteresis/demand restore; updated C3 harness waits again after synced storage.",
+      "current_limitation": "Background activity legitimately resets eligibility; no forced perfect-zero or arbitrary power writes. Baseline02 regression pending.",
+      "next_action": "Preserve coordinator hysteresis/ownership/order; check natural parking and demand restore on Baseline02.",
       "release_completion_groups": [
         "B"
       ],
@@ -1842,8 +1919,9 @@
       "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
       "fallback_is_release_waiver": false,
       "completion_status": "PENDING_RELEASE_ACCEPTANCE",
-      "installed_candidate_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
-      "installed_candidate_physically_qualified": true
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true,
+      "current_candidate_qualification_scope": "Baseline02 new-image acceptance PHYSICAL_NOT_RUN; prior flag preserved in historical_feature_records_before_baseline02_sync."
     },
     {
       "id": "F030",
@@ -1851,24 +1929,26 @@
       "feature": "C3 DORMANT / CIRQ / runtime deadline handoff",
       "user_visible": false,
       "owner": "Kernel",
-      "implementation_state": "IMPLEMENTED_DISABLED",
-      "enabled_by_default": "C3 default off; prerequisite checks present",
-      "actually_used": "No",
-      "evidence": "SOFTWARE_VALIDATED",
-      "physical_evidence": "2026-10-03 installed candidate02 settled preflight: CPU0/owner0xe,747.5MHz, both secondary/domain masks0, INFRA/DISP/bus0, radios off/USB detached; only UART1 PERI0x20000 remains. SPI0 quiet/released. No dormant call. Exact-kernel probes observe LSR0/IRQ0/DMA0/DLL1 and exact LCR restore; no proof of safe UART gating.",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Baseline02 S05y2-cpu-idle automatically enables qualified CPU0 C3 after static foundations/readback; kernel starts disabled/budget 0; CPU1–3 C3 stays off.",
+      "actually_used": "UART01 real runtime entries observed; Baseline02 automatic cold boot PHYSICAL_NOT_RUN.",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "UART01: 21 guarded budget-1-entry reset-and-return trials with SRAM/RGU proof; then +3624 normal-policy entries / 39204662 us in 60.088343522 s = 65.2450%. Final 3647 entries=resumes=successes=UART ACKs=CIRQ clone/flushes=timer context save/restores, all restore failures 0; same boot fd955840-35d9-47db-83e0-ff47d6bb2d2b, taint 0.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
         "tests/test_cpu_fix02.py",
         "tests/test_cpu_fix03.py",
         "tests/test_cpu_idle_completion.py",
-        "tests/test_cpu_idle_harness.py"
+        "tests/test_cpu_idle_harness.py",
+        "tests/test_cpu_c3_uart.py",
+        "tests/test_cpu_idle_boot_policy.py"
       ],
-      "automated_test_result": "2026-10-03 sealed02 db0234e: production366/native prerequisites, CPU owner/fault100, Reborn238, fresh ARM kernel/root/config/DT/modules/ABI/QEMU/dependencies/package pass. Installed02 physical C1/C2/parking and independent regressions pass; C3 preflight UART1 fails. Fresh harness guard change: locked CPU90+idle/suspend8+workload2 cases pass, dedicated host21 and native exact-kernel probe19 cases pass.",
-      "diagnostics": "status cpu idle_completion: individual prerequisites/decoded clock owners, budget, actual wake result/stage, PCM/CIRQ/timer/context/restore counters and retained bounded qualification stages.",
-      "known_limitation": "C3 NOT WORKING on installed02; UART1 blocks admission. Actual context/timer/CIRQ/GIC/cache wake and20 cycles unobserved. No exact hardware limit established.",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
+      "diagnostics": "status cpu idle_completion.C3: individual prerequisites, boot_policy receipt, entry budget, UART request/ACK/timeout/power operands, physical topology, GPT4 deadline, PCM/CIRQ/context stages and restore failures.",
+      "known_limitation": "Baseline02 exact-image/automatic cold boot PHYSICAL_NOT_RUN. Injected CIRQ pending-edge replay, wider endurance, electrical battery benefit and full system suspend remain separate.",
       "failure_mode": "Context loss or missed deadline",
-      "safe_fallback": "Keep C3 off; WFI/SLIDLE",
+      "safe_fallback": "Automatic write/readback/receipt failure rolls back to budget 0 and disabled C3; entry/context/restore failures close admission; y2-platform cpu-idle-policy stop, y2.deep_idle=off or y2.cpu_safe=1 preserve C2/WFI.",
       "source_paths": [
         "kernel/platform/idle.c",
         "kernel/platform/local-timer.c",
@@ -1878,12 +1958,17 @@
         "kernel/platform/spm.c",
         "kernel/platform/spm-idle-policy.h",
         "kernel/platform/spm-idle-pcm.h",
-        "kernel/platform/resume-vector.S"
+        "kernel/platform/resume-vector.S",
+        "kernel/patches/0061-mt6582-uart-pio-sleep.patch",
+        "tools/platform/y2_platform/cpu_idle.py",
+        "buildroot/board/y2/production-overlay/etc/init.d/S05y2-cpu-idle"
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
         "docs/validation/Y2-CPU-FINAL-FIX03.md",
-        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
+        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1896,17 +1981,16 @@
       "release_required": "REQUIRED_IF_HARDWARE_SUPPORTED",
       "release_requirement": "REQUIRED_IF_HARDWARE_SUPPORTS_IT",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "C3 NOT WORKING on installed02; UART1 blocks admission. Actual context/timer/CIRQ/GIC/cache wake and20 cycles unobserved. No exact hardware limit established.",
-      "next_action": "Close exact UART1 ownership with source/hardware evidence before another guarded C3 trial; keep C3 disabled and preserve all guards. No new image/flash action this turn.",
+      "current_limitation": "Baseline02 exact-image/automatic cold boot PHYSICAL_NOT_RUN. Injected CIRQ pending-edge replay, wider endurance, electrical battery benefit and full system suspend remain separate.",
+      "next_action": "Owner-preserving Baseline02 installation; included harness proves automatic startup, quarantines for foundations, then one bounded C3 trial plus 20 checked cycles and runtime/wake/I/O regression.",
       "release_completion_groups": [
         "C",
-        "A",
         "B"
       ],
       "priority_changed": true,
       "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
-      "hardware_question": "Can exact stock runtime DORMANT PCM reliably retain/restore CPU0/L2 with secondaries physically off, CIRQ and GPT4 deadline handoff on this board?",
-      "proof_required": "Read-only dormant_preflight closure at <=747.5MHz, >2ms future deadline; actual entry/resume counters, same-boot timer/GIC/MMU/VFP integrity, boundary deadlines, repeated wake and measured benefit versus C2+parking.",
+      "hardware_question": "Exact MT6582/Y2 runtime C3 viability is proven by UART01; does the new Baseline02 automatic boot policy preserve that behavior after a cold boot?",
+      "proof_required": "Exact Baseline02 installed identity and boot-policy receipt, controls/readback, guarded actual CPU reset-and-return, same-boot timer/GIC/CIRQ/MMU/cache/coherency/VFP/storage integrity and repeated bounded cycles; no battery claim without electrical measurement.",
       "investigation_source_paths": [
         "kernel/platform/idle.c",
         "kernel/platform/local-timer.c",
@@ -1919,9 +2003,10 @@
         "kernel/platform/resume-vector.S"
       ],
       "fallback_is_release_waiver": false,
-      "completion_status": "PENDING_HARDWARE_DECISION",
-      "installed_candidate_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
-      "installed_candidate_physically_qualified": false
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true,
+      "hardware_support_result": "SUPPORTED_AND_BOUNDED_PHYSICALLY_QUALIFIED_ON_UART01"
     },
     {
       "id": "F031",
@@ -1932,17 +2017,17 @@
       "implementation_state": "IMPLEMENTED_ENABLED",
       "enabled_by_default": "Yes; not system sleep",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
-      "evidence": "PHYSICALLY_OBSERVED",
-      "physical_evidence": "Fix02 330 s: 2.71% of four-core capacity, 171 IRQ/s; one online core",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "UART01 settled normal policy: CPU0 only; C3 65.2450%, C2 9.572727 s and C1 3.865243 s in 60.088343522 s; utilization 10.28%, IRQ 163.36/s, context switches 332.04/s, die about 37.5 C.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
         "tests/test_cpu_fix02.py",
         "tests/test_cpu_fix03.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
-      "known_limitation": "Radios/USB/charging included; no measured battery-life gain",
+      "known_limitation": "Runtime indicators establish useful deeper idle, not battery-current/lifetime or full-system-sleep qualification.",
       "failure_mode": "Battery still drains while screen dark",
       "safe_fallback": "User Power Off; optional radio off",
       "source_paths": [
@@ -1954,7 +2039,9 @@
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1967,15 +2054,17 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Radios/USB/charging included; no measured battery-life gain",
-      "next_action": "Retain efficient screen-off playback/runtime fallback; measure its drain separately. It does not satisfy required deep sleep.",
+      "current_limitation": "Runtime indicators establish useful deeper idle, not battery-current/lifetime or full-system-sleep qualification.",
+      "next_action": "Carry forward useful runtime idle; verify Baseline02 policy, measure electrical benefit separately.",
       "release_completion_groups": [
         "B"
       ],
       "priority_changed": true,
       "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
       "fallback_is_release_waiver": false,
-      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true
     },
     {
       "id": "F032",
@@ -2427,16 +2516,16 @@
       "enabled_by_default": "Yes",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "Fix02 16 combined MMC hash rounds; retained state matches and CCF gates",
+      "physical_evidence": "Fix02 16 combined MMC hash rounds; retained state matches and CCF gates; UART01 eMMC and inserted SD each pass eight fsynced checksum rounds after C2 and after C3; CRC/timeouts/ext4 errors 0.",
       "automated_tests": [
         "tests/test_storage_ceiling.py",
         "tests/test_sd_tuning.py",
         "tests/test_storage_recovery.py",
         "tests/test_mmc_requests.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and Storage source-specific counters/logs; see subsystem section",
-      "known_limitation": "Higher timing retention differs from baseline",
+      "known_limitation": "Higher timing retention differs from baseline Bounded idle/wake integrity does not qualify injected storage-fault recovery, every high-speed mode or endurance.",
       "failure_mode": "I/O after clock gating fails",
       "safe_fallback": "Existing conservative mode + paired recovery",
       "source_paths": [
@@ -2450,7 +2539,9 @@
         "docs/validation/Y2-STORAGE-CEILING.md",
         "docs/planning/HANDOFF-2026-10-02.md",
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-SD-SDR104-DIAG.md"
+        "docs/validation/Y2-SD-SDR104-DIAG.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -2463,15 +2554,17 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Higher timing retention differs from baseline",
-      "next_action": "Retain bounded gate/ungate integrity smoke",
+      "current_limitation": "Higher timing retention differs from baseline Bounded idle/wake integrity does not qualify injected storage-fault recovery, every high-speed mode or endurance.",
+      "next_action": "Carry forward idle/clock/media integrity; run affected Baseline02 storage regression. Keep negotiated-mode/fallback/endurance decisions separate.",
       "release_completion_groups": [
         "B"
       ],
       "priority_changed": false,
       "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
       "fallback_is_release_waiver": false,
-      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION"
+      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true
     },
     {
       "id": "F041",
@@ -2945,16 +3038,16 @@
       "enabled_by_default": "Yes",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_OBSERVED",
-      "physical_evidence": "Candidate2 SDR104 fault and automatic DDR50 fallback observed",
+      "physical_evidence": "Candidate2 SDR104 fault and automatic DDR50 fallback observed; UART01 eMMC and inserted SD each pass eight fsynced checksum rounds after C2 and after C3; CRC/timeouts/ext4 errors 0.",
       "automated_tests": [
         "tests/test_storage_ceiling.py",
         "tests/test_sd_tuning.py",
         "tests/test_storage_recovery.py",
         "tests/test_mmc_requests.py"
       ],
-      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and Storage source-specific counters/logs; see subsystem section",
-      "known_limitation": "Runtime retune failure now reconciles actual lower bus timing and rejects payloads before DMA while recovery runs; widest-eye and exact latch-clock restore fixed.",
+      "known_limitation": "Runtime retune failure now reconciles actual lower bus timing and rejects payloads before DMA while recovery runs; widest-eye and exact latch-clock restore fixed. Bounded idle/wake integrity does not qualify injected storage-fault recovery, every high-speed mode or endurance.",
       "failure_mode": "Reset/reinit loses card or I/O",
       "safe_fallback": "Cap before faults; lower rungs; fail clearly",
       "source_paths": [
@@ -2969,7 +3062,9 @@
         "docs/planning/HANDOFF-2026-10-02.md",
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
         "docs/validation/Y2-SD-SDR104-DIAG.md",
-        "docs/release/implementation-platform.md"
+        "docs/release/implementation-platform.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -2982,8 +3077,8 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Runtime retune failure now reconciles actual lower bus timing and rejects payloads before DMA while recovery runs; widest-eye and exact latch-clock restore fixed.",
-      "next_action": "Prove automatic retune/fallback/integrity under actual eMMC/SD faults at negotiated modes.",
+      "current_limitation": "Runtime retune failure now reconciles actual lower bus timing and rejects payloads before DMA while recovery runs; widest-eye and exact latch-clock restore fixed. Bounded idle/wake integrity does not qualify injected storage-fault recovery, every high-speed mode or endurance.",
+      "next_action": "Carry forward idle/clock/media integrity; run affected Baseline02 storage regression. Keep negotiated-mode/fallback/endurance decisions separate.",
       "release_completion_groups": [
         "B"
       ],
@@ -2991,7 +3086,9 @@
       "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
       "fallback_is_release_waiver": false,
       "completion_status": "PENDING_RELEASE_ACCEPTANCE",
-      "implementation_pass": "2026-10-02-feature-completion"
+      "implementation_pass": "2026-10-02-feature-completion",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": false
     },
     {
       "id": "F050",
@@ -7210,17 +7307,17 @@
       "implementation_state": "IMPLEMENTED_ENABLED",
       "enabled_by_default": "Yes",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
-      "evidence": "PHYSICALLY_OBSERVED",
-      "physical_evidence": "Repeated enumeration and owner SSH; Physical01 PIO TCP ~40/47 Mb/s",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "UART01 bounded USB regression: three 1 MiB bidirectional checksum rounds pass with independent Wi-Fi observer; filesystem errors 0 and same boot. This supersedes the older Fix02/Fix01 loaded-transfer failure for this exact repaired source.",
       "automated_tests": [
         "tests/test_usb_failure.py",
         "tests/test_cpu_fix03.py",
         "tests/test_platform_transfer.py",
         "tests/test_usb_reconnect.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and USB source-specific counters/logs; see subsystem section",
-      "known_limitation": "Host OS setup required; no universal Windows plug-and-play proof",
+      "known_limitation": "Bounded integrity on the supported owner host is not large-transfer endurance, ten cable/host-sleep cycles, USB host/VBUS or generic SFTP atomic-publication proof.",
       "failure_mode": "Device disappears or cannot enumerate",
       "safe_fallback": "Cable/reboot / known PIO package",
       "source_paths": [
@@ -7234,7 +7331,9 @@
       "evidence_docs": [
         "docs/architecture/platform-usb-v1.md",
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -7247,15 +7346,17 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Host OS setup required; no universal Windows plug-and-play proof",
-      "next_action": "Check one supported host OS and ten cable cycles",
+      "current_limitation": "Bounded integrity on the supported owner host is not large-transfer endurance, ten cable/host-sleep cycles, USB host/VBUS or generic SFTP atomic-publication proof.",
+      "next_action": "Carry forward repaired device/transfer path; run included Baseline02 USB integrity checks, then separately qualify wider host/reconnect/endurance.",
       "release_completion_groups": [
         "B"
       ],
       "priority_changed": true,
       "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
       "fallback_is_release_waiver": false,
-      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true
     },
     {
       "id": "F127",
@@ -7266,17 +7367,17 @@
       "implementation_state": "IMPLEMENTED_ENABLED",
       "enabled_by_default": "DMA default, PIO escape exists",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
-      "evidence": "PHYSICALLY_OBSERVED",
-      "physical_evidence": "Fix02 0/10 1 MiB uploads, EP1 RX DMA overflow513; Fix03 progress-aware repair untested",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "UART01 bounded USB regression: three 1 MiB bidirectional checksum rounds pass with independent Wi-Fi observer; filesystem errors 0 and same boot. This supersedes the older Fix02/Fix01 loaded-transfer failure for this exact repaired source.",
       "automated_tests": [
         "tests/test_usb_failure.py",
         "tests/test_cpu_fix03.py",
         "tests/test_platform_transfer.py",
         "tests/test_usb_reconnect.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and USB source-specific counters/logs; see subsystem section",
-      "known_limitation": "Later diagnosis supersedes re-arm speculation; failure result still stands",
+      "known_limitation": "Bounded integrity on the supported owner host is not large-transfer endurance, ten cable/host-sleep cycles, USB host/VBUS or generic SFTP atomic-publication proof.",
       "failure_mode": "USB terminal fault, cannot copy/recover over USB",
       "safe_fallback": "y2.usb_dma=off with verified package; independent manual recovery",
       "source_paths": [
@@ -7290,7 +7391,9 @@
       "evidence_docs": [
         "docs/architecture/platform-usb-v1.md",
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -7303,15 +7406,17 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Later diagnosis supersedes re-arm speculation; failure result still stands",
-      "next_action": "Qualify existing progress-aware DMA fix under repeated integrity/throughput loads and reconnect/host sleep; fix reproduced failure, retain validated PIO fallback.",
+      "current_limitation": "Bounded integrity on the supported owner host is not large-transfer endurance, ten cable/host-sleep cycles, USB host/VBUS or generic SFTP atomic-publication proof.",
+      "next_action": "Carry forward repaired device/transfer path; run included Baseline02 USB integrity checks, then separately qualify wider host/reconnect/endurance.",
       "release_completion_groups": [
         "B"
       ],
       "priority_changed": false,
       "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
       "fallback_is_release_waiver": false,
-      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true
     },
     {
       "id": "F128",
@@ -7378,17 +7483,17 @@
       "implementation_state": "IMPLEMENTED_ENABLED",
       "enabled_by_default": "Requires per-owner public key",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
-      "evidence": "SOFTWARE_VALIDATED",
-      "physical_evidence": "Host/native ARM protocol, path/reserve/fault tests; short physical SSH pass",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "UART01 bounded USB regression: three 1 MiB bidirectional checksum rounds pass with independent Wi-Fi observer; filesystem errors 0 and same boot. This supersedes the older Fix02/Fix01 loaded-transfer failure for this exact repaired source.",
       "automated_tests": [
         "tests/test_usb_failure.py",
         "tests/test_cpu_fix03.py",
         "tests/test_platform_transfer.py",
         "tests/test_usb_reconnect.py"
       ],
-      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and USB source-specific counters/logs; see subsystem section",
-      "known_limitation": "Transport failure separate; generic SFTP lacks atomic publication",
+      "known_limitation": "Bounded integrity on the supported owner host is not large-transfer endurance, ten cable/host-sleep cycles, USB host/VBUS or generic SFTP atomic-publication proof.",
       "failure_mode": "Partial music file after generic client interruption",
       "safe_fallback": "Verified helper staging/hash/fsync; no overwrite",
       "source_paths": [
@@ -7402,7 +7507,9 @@
       "evidence_docs": [
         "docs/architecture/platform-usb-v1.md",
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -7415,15 +7522,17 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Transport failure separate; generic SFTP lacks atomic publication",
-      "next_action": "End-to-end file hash test on selected USB mode",
+      "current_limitation": "Bounded integrity on the supported owner host is not large-transfer endurance, ten cable/host-sleep cycles, USB host/VBUS or generic SFTP atomic-publication proof.",
+      "next_action": "Carry forward repaired device/transfer path; run included Baseline02 USB integrity checks, then separately qualify wider host/reconnect/endurance.",
       "release_completion_groups": [
         "B"
       ],
       "priority_changed": true,
       "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
       "fallback_is_release_waiver": false,
-      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": true
     },
     {
       "id": "F130",
@@ -11797,7 +11906,7 @@
         "buildroot/configs/y2_production_defconfig",
         "tools/platform/y2_platform/ssh.py",
         "buildroot/patches/dropbear/0001-y2-require-requested-interface-binding.patch",
-        "buildroot/package/reborn/S05reborn",
+        "buildroot/package/reborn/S90reborn",
         "kernel/config/production.config"
       ],
       "evidence_docs": [
@@ -11851,7 +11960,7 @@
         "buildroot/configs/y2_production_defconfig",
         "tools/platform/y2_platform/ssh.py",
         "buildroot/patches/dropbear/0001-y2-require-requested-interface-binding.patch",
-        "buildroot/package/reborn/S05reborn",
+        "buildroot/package/reborn/S90reborn",
         "kernel/config/production.config"
       ],
       "evidence_docs": [
@@ -11908,7 +12017,7 @@
         "buildroot/configs/y2_production_defconfig",
         "tools/platform/y2_platform/ssh.py",
         "buildroot/patches/dropbear/0001-y2-require-requested-interface-binding.patch",
-        "buildroot/package/reborn/S05reborn",
+        "buildroot/package/reborn/S90reborn",
         "kernel/config/production.config"
       ],
       "evidence_docs": [
@@ -11958,7 +12067,7 @@
         "buildroot/configs/y2_production_defconfig",
         "tools/platform/y2_platform/ssh.py",
         "buildroot/patches/dropbear/0001-y2-require-requested-interface-binding.patch",
-        "buildroot/package/reborn/S05reborn",
+        "buildroot/package/reborn/S90reborn",
         "kernel/config/production.config"
       ],
       "evidence_docs": [
@@ -12012,7 +12121,7 @@
         "buildroot/configs/y2_production_defconfig",
         "tools/platform/y2_platform/ssh.py",
         "buildroot/patches/dropbear/0001-y2-require-requested-interface-binding.patch",
-        "buildroot/package/reborn/S05reborn",
+        "buildroot/package/reborn/S90reborn",
         "kernel/config/production.config"
       ],
       "evidence_docs": [
@@ -12066,7 +12175,7 @@
         "buildroot/configs/y2_production_defconfig",
         "tools/platform/y2_platform/ssh.py",
         "buildroot/patches/dropbear/0001-y2-require-requested-interface-binding.patch",
-        "buildroot/package/reborn/S05reborn",
+        "buildroot/package/reborn/S90reborn",
         "kernel/config/production.config"
       ],
       "evidence_docs": [
@@ -12950,9 +13059,9 @@
         "tests/test_storage_recovery.py",
         "tests/test_mmc_requests.py"
       ],
-      "automated_test_result": "Candidate4 receipt at e2dd583:304 production/platform tests PASS; ARM QEMU/installed ARM/ELF/inventory/legal-info PASS; W=1 lab on/off builds. No physical test.",
+      "automated_test_result": "Baseline02 retained fresh receipts: 391 production cases (386 pass, 5 dependency skips covered by native 27 filesystem/GIO, 3 ALSA and ARM checks); 125 focused source and 238 Reborn tests; kernel/config/DT/modules/ABI, Buildroot/Reborn ARM, QEMU/ELF/dependencies/preserving package PASS. Documentation synchronization does not rerun these tests.",
       "diagnostics": "Platform status/health and Storage source-specific counters/logs; see subsystem section",
-      "known_limitation": "Candidate4 software receipt complete; stock input pads and card driver type still physically unqualified",
+      "known_limitation": "Inherited candidate4 source controls remain available; bounded UART01 inserted-SD integrity passes, but exhaustive pad/card-drive/ceiling qualification is not established by CPU-idle tests.",
       "failure_mode": "SD instability or regression despite stock-derived setting; unsafe lab setting",
       "safe_fallback": "Retain verified HS3.3V50MHz recovery fallback; choose fastest robust final ceiling after qualification; public lab controls gated",
       "source_paths": [
@@ -12962,7 +13071,9 @@
         "tests/test_sd_tuning.py"
       ],
       "evidence_docs": [
-        "docs/validation/Y2-SD-SDR104-DIAG.md"
+        "docs/validation/Y2-SD-SDR104-DIAG.md",
+        "docs/validation/Y2-BASELINE-02.md",
+        "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -12976,8 +13087,8 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Candidate4 software receipt complete; stock input pads and card driver type still physically unqualified",
-      "next_action": "Physically evaluate sealed candidate4 stock SD input pads/card drive selection; use results to select fastest robust ceiling and retain fallbacks.",
+      "current_limitation": "Inherited candidate4 source controls remain available; bounded UART01 inserted-SD integrity passes, but exhaustive pad/card-drive/ceiling qualification is not established by CPU-idle tests.",
+      "next_action": "Evaluate the inherited stock SD input/card-drive controls only in a separately scoped mode campaign if needed; preserve current negotiated mode/fallback. Baseline02 idle integrity does not qualify every SD ceiling.",
       "release_completion_groups": [
         "A",
         "B"
@@ -12986,7 +13097,9 @@
       "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
       "previous_evidence": "UNTESTED",
       "fallback_is_release_waiver": false,
-      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE",
+      "installed_candidate_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "installed_candidate_physically_qualified": false
     }
   ],
   "kernel_patches": [
@@ -13072,7 +13185,7 @@
       "purpose": "MT6582 secondary-core boot and checked hotplug",
       "current_state": "Active manifest overlay; not retired",
       "risk": "High",
-      "evidence": "Fix02 bounded physical CPU/timer/DVFS PASS; candidate3 not qualified",
+      "evidence": "UART01 bounded timer/hotplug/five-OPP and real C3 return regression PASS; inherited kernel architecture in Baseline02, new-image automatic boot pending. No isolated per-patch proof inferred.",
       "tests": [
         "tests/test_cpu_dvfs.py",
         "tests/test_workload_qos.py",
@@ -13119,7 +13232,7 @@
       "purpose": "MSDC addressing/write firewall, PM, ceilings, tuning, CRC fallback and lab diagnostics; filename readonly is historical",
       "current_state": "Active manifest overlay; not retired",
       "risk": "High",
-      "evidence": "Candidate3 reported200MHz CRC failures and bounded100MHz pass; candidate4 source pads/driver-hook extension has no physical acceptance",
+      "evidence": "UART01 eMMC and inserted-SD fsynced integrity after C2/C3 passes, no errors. This does not qualify every high-speed/card-drive/fault scenario.",
       "tests": [
         "tests/test_storage_ceiling.py",
         "tests/test_sd_tuning.py",
@@ -13528,7 +13641,7 @@
       "purpose": "MT6582 efuse word access for silicon identity",
       "current_state": "Active manifest overlay; not retired",
       "risk": "Medium",
-      "evidence": "Fix02 bounded physical CPU/timer/DVFS PASS; candidate3 not qualified",
+      "evidence": "UART01 bounded timer/hotplug/five-OPP and real C3 return regression PASS; inherited kernel architecture in Baseline02, new-image automatic boot pending. No isolated per-patch proof inferred.",
       "tests": [
         "tests/test_cpu_dvfs.py",
         "tests/test_workload_qos.py",
@@ -13587,7 +13700,7 @@
       "purpose": "GPT6 counter initialization and ownership",
       "current_state": "Active manifest overlay; not retired",
       "risk": "High",
-      "evidence": "Fix02 bounded physical CPU/timer/DVFS PASS; candidate3 not qualified",
+      "evidence": "UART01 bounded timer/hotplug/five-OPP and real C3 return regression PASS; inherited kernel architecture in Baseline02, new-image automatic boot pending. No isolated per-patch proof inferred.",
       "tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
@@ -13603,7 +13716,7 @@
       "purpose": "Guard and calibrate local architectural timer admission",
       "current_state": "Active manifest overlay; not retired",
       "risk": "High",
-      "evidence": "Fix02 bounded physical CPU/timer/DVFS PASS; candidate3 not qualified",
+      "evidence": "UART01 bounded timer/hotplug/five-OPP and real C3 return regression PASS; inherited kernel architecture in Baseline02, new-image automatic boot pending. No isolated per-patch proof inferred.",
       "tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
@@ -13619,7 +13732,7 @@
       "purpose": "Compile Inventra DMA for Y2 MUSB",
       "current_state": "Active manifest overlay; not retired",
       "risk": "Medium",
-      "evidence": "DMA compiled/observed; Fix02 loaded USB FAIL; Fix03 progress guard awaits physical retest",
+      "evidence": "UART01 repaired USB path passes three 1 MiB bidirectional checksum rounds with independent Wi-Fi observer; broader endurance and Baseline02 new-image checks remain. Earlier loaded failure is historical.",
       "tests": [
         "tests/test_usb_failure.py",
         "tests/test_cpu_fix03.py",
@@ -13635,7 +13748,7 @@
       "purpose": "Abort DMA bus error safely",
       "current_state": "Active manifest overlay; not retired",
       "risk": "High",
-      "evidence": "DMA compiled/observed; Fix02 loaded USB FAIL; Fix03 progress guard awaits physical retest",
+      "evidence": "UART01 repaired USB path passes three 1 MiB bidirectional checksum rounds with independent Wi-Fi observer; broader endurance and Baseline02 new-image checks remain. Earlier loaded failure is historical.",
       "tests": [
         "tests/test_usb_failure.py",
         "tests/test_cpu_fix03.py",
@@ -13651,7 +13764,7 @@
       "purpose": "Use platform-owned safe voltage sequencing for cpufreq-dt",
       "current_state": "Active manifest overlay; not retired",
       "risk": "High",
-      "evidence": "Fix02 bounded physical CPU/timer/DVFS PASS; candidate3 not qualified",
+      "evidence": "UART01 bounded timer/hotplug/five-OPP and real C3 return regression PASS; inherited kernel architecture in Baseline02, new-image automatic boot pending. No isolated per-patch proof inferred.",
       "tests": [
         "tests/test_cpu_dvfs.py",
         "tests/test_workload_qos.py",
@@ -13667,7 +13780,7 @@
       "purpose": "Align Ethernet gadget DMA transmit buffers",
       "current_state": "Active manifest overlay; not retired",
       "risk": "High",
-      "evidence": "DMA compiled/observed; Fix02 loaded USB FAIL; Fix03 progress guard awaits physical retest",
+      "evidence": "UART01 repaired USB path passes three 1 MiB bidirectional checksum rounds with independent Wi-Fi observer; broader endurance and Baseline02 new-image checks remain. Earlier loaded failure is historical.",
       "tests": [
         "tests/test_usb_failure.py",
         "tests/test_cpu_fix03.py",
@@ -13721,6 +13834,19 @@
         "tests/test_cpu_fix03.py"
       ],
       "obsolete_assessment": "No evidence of obsolescence; retain until an upstream/base change proves replacement"
+    },
+    {
+      "path": "kernel/patches/0061-mt6582-uart-pio-sleep.patch",
+      "upstream_path": "drivers/tty/serial/8250/8250_mtk.c",
+      "subsystem": "UART / C3",
+      "purpose": "Exact MT6582 normal PIO UART SleepEN ownership for source-backed global SPM clock-off request/ACK; no forced PERI gate",
+      "current_state": "Active manifest overlay; physically exercised on UART01 and retained in Baseline02",
+      "risk": "High",
+      "evidence": "UART01 3647 global UART sleep ACKs with zero timeout/restore failures and actual CPU dormant returns",
+      "tests": [
+        "tests/test_cpu_c3_uart.py"
+      ],
+      "obsolete_assessment": "No evidence of obsolescence; keep exact MT6582 ownership and bounded ACK guards"
     }
   ],
   "repositories": {
@@ -98072,49 +98198,35 @@
       "declaration": "__setup(\"y2.usb_dma=\", y2_usb_dma_option);"
     }
   ],
-  "census_note": "Every tracked text file lexically scanned, including vendor and historical evidence; this is not a claim of line-by-line formal verification. Generated out/ trees inspected selectively for candidate/physical receipts and excluded from source census. No raw secrets or device records embedded. Census is an earlier lexical snapshot; concurrent candidate4 delta is separately recorded in F233 and baseline. No claim later user edits were scanned.",
+  "census_note": "Every tracked text file lexically scanned, including vendor and historical evidence; this is not a claim of line-by-line formal verification. Generated out/ trees inspected selectively for candidate/physical receipts and excluded from source census. No raw secrets or device records embedded. Census is an earlier lexical snapshot; concurrent candidate4 delta is separately recorded in F233 and baseline. No claim later user edits were scanned. Baseline02 synchronization preserves these dated census arrays and their original counts; current patch/feature deltas and exact-image evidence are recorded separately.",
   "audit_validation": {
     "feature_rows": 233,
-    "active_patch_rows": 48,
-    "unique_ids_enums_counts_reference_paths": "PASS",
-    "requested_sections": 25,
-    "documentation_checker": {
-      "linux_pages": 278,
-      "linux_links": 3978,
-      "reborn_pages": 56,
-      "reborn_links": 559,
-      "problems": 0
-    },
-    "diff_whitespace": "PASS",
+    "active_patch_rows": 49,
+    "scope": "Documentation-only Baseline02 synchronization; see out/docs-baseline02-sync/validation.json for fresh documentation/structure checks",
     "implementation_tests_executed_by_audit": false,
     "build_or_flash_by_audit": false,
-    "reclassification_validation": "PASS",
-    "reclassification_checks": {
-      "feature_ids_preserved": 233,
-      "kernel_patch_entries_preserved": 48,
-      "all_implementation_states_preserved": true,
-      "physical_evidence_and_failure_modes_preserved": true,
-      "original_test_evidence_and_source_references_retained": true,
-      "evidence_corrections": [
-        "F233: UNTESTED to SOFTWARE_VALIDATED from candidate4 receipt at e2dd583"
-      ],
-      "product_scope_promotions": 91,
-      "former_priority_breakdown": {
-        "C": 62,
-        "D": 29
-      },
-      "required_fields_enums_counts_matrix_and_completion_groups": "PASS",
-      "hardware_conditional_questions_and_proof": "PASS",
-      "documentation_checker": {
-        "linux_pages": 278,
-        "linux_links": 4005,
-        "reborn_pages": 56,
-        "reborn_links": 559,
+    "physical_tests_executed_by_audit": false,
+    "historical_reclassification_receipt": "historical_audit_validation_before_baseline02_sync",
+    "documentation_checker": {
+      "Y2Linux": {
+        "pages": 289,
+        "local_links": 4329,
         "problems": 0
       },
-      "diff_whitespace": "PASS",
-      "implementation_or_build_or_flash_or_physical_test_or_push": false
-    }
+      "Y2Reborn": {
+        "pages": 58,
+        "local_links": 563,
+        "problems": 0
+      }
+    },
+    "unique_ids_enums_counts_reference_paths": "PASS",
+    "matrix_json_and_completion_groups": "PASS",
+    "active_overlay_manifest": "PASS",
+    "owner_work_and_raw_evidence_preserved": "PASS",
+    "sealed_metadata_unchanged": "PASS",
+    "diff_whitespace": "PASS",
+    "documentation_check_count": 27,
+    "private_receipt": "out/docs-baseline02-sync/validation.json"
   },
   "prior_audit_baseline": {
     "audit_date": "2026-10-02",
@@ -98207,7 +98319,6 @@
     "A": [
       "F006",
       "F007",
-      "F030",
       "F032",
       "F033",
       "F034",
@@ -98572,9 +98683,284 @@
       }
     },
     "physical_qualification": false,
-    "public_distribution_ready": false
+    "public_distribution_ready": false,
+    "scope": "Historical 2026-10-02 ten-workstream implementation receipt; its image and test counts are not the current Baseline02 build."
   },
   "cpu_idle_completion": {
+    "date": "2026-10-03",
+    "installed_linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+    "installed_reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
+    "boot_id": "fd955840-35d9-47db-83e0-ff47d6bb2d2b",
+    "C1": "WORKING",
+    "C2": "WORKING",
+    "C3": "WORKING_AND_REPEATEDLY_OBSERVED",
+    "record": "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md",
+    "scope": "Bounded exact UART01 hardware evidence; Baseline02 new-image/automatic cold boot pending. Full system suspend/endurance/electrical energy separate.",
+    "candidate": {
+      "name": "Y2LINUX-BASELINE-02",
+      "path": "out/y2linux-baseline-02-candidate/",
+      "source_linux": "8584ccd85f052f351fe51650b2348c83ca894ed4",
+      "source_reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
+      "kernel": "6.18.0-y2linux-baseline-02",
+      "rootfs": "2025.02.18-platform-v1.21",
+      "release": "1.0.0-baseline-candidate.2",
+      "build_state": "SEALED_SOFTWARE_VALIDATED",
+      "physical_state": "PHYSICAL_NOT_RUN",
+      "sealed_image_hashes": {
+        "BOOTIMG.img": "5d8a2999368a04b23b898d2106b465eb6b028c2314da1a39c66c6b26dc8c41a3",
+        "Y2ROOT.img": "3148bea2b6d78be34afcbb9cd933502f14416e81c8053324ff6c9ea151ee3892"
+      },
+      "software_receipt": "docs/validation/Y2-BASELINE-02.md",
+      "boot_policy": "Automatic qualified CPU0 DORMANT after static foundations and readback; entry/fault guards unchanged; new-image cold boot NOT_RUN"
+    },
+    "installed_candidate": {
+      "name": "Y2LINUX-CPU-C3-UART-01",
+      "path": "out/y2linux-cpu-c3-uart-candidate/",
+      "linux": "e9e8d63f9c94232c2b6627881e0967583e202dac",
+      "reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
+      "kernel": "6.18.0-y2linux-cpu-c3-uart-01",
+      "rootfs": "2025.02.18-platform-v1.20",
+      "release": "1.0.0-cpu-c3-uart-candidate.1",
+      "boot_id": "fd955840-35d9-47db-83e0-ff47d6bb2d2b",
+      "taint": 0,
+      "physical_state": "C1_C2_WORKING_C3_WORKING_AND_REPEATEDLY_OBSERVED",
+      "physical_receipt": "docs/validation/Y2-CPU-C3-UART-PHYSICAL.md",
+      "private_receipt": "out/cpu-c3-uart-physical/20261003T183259Z-uart01/final-verdict.json",
+      "sealed_image_hashes": {
+        "BOOTIMG.img": "a35e7ccb11dfcc642089e422d48a274ab2c700dbba15d00b21cce7b463e4006a",
+        "Y2ROOT.img": "d3a8282a9f5d1b0046283bce1b595eb5797b62c2bff90a62260e80bbfafb5d98"
+      },
+      "scope": "Latest retained installed read, not a new device connection in this documentation-only pass. UART01 remains the exact paired fallback; Baseline02 installation is not confirmed."
+    },
+    "software_receipt": "docs/validation/Y2-BASELINE-02.md",
+    "C2_entries_delta": 6971,
+    "C2_residency_us_delta": 50654676,
+    "C2_window_seconds": 60.054880715,
+    "C2_clock_restore_failures": 0,
+    "C3_bounded_cycles": 21,
+    "C3_runtime_entries_delta": 3624,
+    "C3_runtime_residency_us_delta": 39204662,
+    "C3_runtime_window_seconds": 60.088343522,
+    "C3_final_entries_resumes_successes_uart_acks": 3647,
+    "restore_failures": 0,
+    "uart_admission": "Conditional exact MT6582 PIO ownership and normal SleepEN state; SPM R7_UART_CLK_OFF_REQ bit 0 / R13_UART_CLK_OFF_ACK bit 20, bounded ACK checked before power-run/WFI. No manual peripheral gate.",
+    "boot_policy": "Baseline02 automatic qualified CPU0 startup; static foundations and write/readback/receipt fail closed; all dynamic entry guards unchanged.",
+    "next_action": "Owner preserving install, then exact-image guarded automated SSH qualification."
+  },
+  "historical_baseline_before_baseline02_sync": {
+    "audit_date": "2026-10-02",
+    "timezone": "Europe/Berlin",
+    "scope": "Owner-authorized feature implementation and software qualification; no flash/push. Historical audit/census fields retain their original cutoff.",
+    "candidate_3_user_confirmation": "User during audit: candidate 3 is building right now and newest baseline, not tested yet.",
+    "latest_broad_physical_qualification": {
+      "name": "CPU Final Fix02",
+      "date": "2026-09-29",
+      "linux": "1a1a6693dcd82f62daecd4c1491ef512823a86c5",
+      "reborn": "77cf83e09a18f82a867040e72d35b6e70b26fa85",
+      "overall_result": "FAIL; bounded awake subsystem passes retained"
+    },
+    "snapshot_closed_at": "2026-10-02T18:14:11+02:00",
+    "entry_source_baseline": {
+      "linux": "c5f0eecf51901f51f16f80a3291a7a8630cc75ba",
+      "reborn": "b92d312cc2dc4b74f57a1a9a7b1407e34707137a"
+    },
+    "source_baseline": {
+      "linux": "02eb7359cff1d1e6eec725d496078338d1e7d601",
+      "reborn": "72e94b2d8eb13dcb7e2677bff2846edec3ddf81a"
+    },
+    "latest_built_candidate": {
+      "name": "Y2LINUX-FEATURE-COMPLETION-01",
+      "source_linux": "02eb7359cff1d1e6eec725d496078338d1e7d601",
+      "source_reborn": "72e94b2d8eb13dcb7e2677bff2846edec3ddf81a",
+      "rootfs": "2025.02.18-platform-v1.16",
+      "release": "1.0.0-feature-completion-candidate.1",
+      "build_state": "SEALED_SOFTWARE_VALIDATED",
+      "physical_state": "NOT_TESTED",
+      "sealed_image_hashes": {
+        "BOOTIMG.img": "060145e3931e1d23f0b9805c0f12417d47f1589cf4489010705876a1ade7b098",
+        "Y2ROOT.img": "2039d61e30bd02d0f3fd8006808e7dbc95bbaabce7f1834fa12d57bcccd81995"
+      },
+      "software_receipt": "docs/release/Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md"
+    },
+    "latest_reported_installed_candidate": {
+      "name": "Y2LINUX-SD-SDR104-DIAG-04",
+      "linux": "dcbd7d1b8ad502e574e5a4f7b927d62b45ac81dd",
+      "reborn": "b92d312cc2dc4b74f57a1a9a7b1407e34707137a",
+      "boot_id": "159f7c81-ab89-4440-bc89-df827dd8bc34",
+      "taint": 0,
+      "evidence": "read-only SSH during implementation; no stress/suspend/physical qualification",
+      "private_receipt": "out/feature-completion/device-readonly.txt"
+    },
+    "previous_built_and_installed_candidate": {
+      "name": "Y2LINUX-STORAGE-CEILING-02",
+      "linux": "4db6d6dee8e8b21d85f4f7dfa8e6b7aac82d5e56",
+      "reborn": "b92d312cc2dc4b74f57a1a9a7b1407e34707137a",
+      "bootimg_sha256": "5c17f744a0569feb16f6954531024ae7dcafee10bf14cbdb2eb18ba5d083fd36",
+      "y2root_sha256": "dc611011ce6f129cf18a61a28f9435e2504ade1d416f0b78d6db26764fd20a59",
+      "physical_scope": "2026-10-01 quick read-only storage check documented in HANDOFF; no fresh device read in this audit"
+    },
+    "newest_source_candidate": {
+      "name": "Y2LINUX-FEATURE-COMPLETION-01",
+      "source_linux": "02eb7359cff1d1e6eec725d496078338d1e7d601",
+      "source_reborn": "72e94b2d8eb13dcb7e2677bff2846edec3ddf81a",
+      "rootfs": "2025.02.18-platform-v1.16",
+      "release": "1.0.0-feature-completion-candidate.1",
+      "build_state": "SEALED_SOFTWARE_VALIDATED",
+      "physical_state": "NOT_TESTED",
+      "sealed_image_hashes": {
+        "BOOTIMG.img": "060145e3931e1d23f0b9805c0f12417d47f1589cf4489010705876a1ade7b098",
+        "Y2ROOT.img": "2039d61e30bd02d0f3fd8006808e7dbc95bbaabce7f1834fa12d57bcccd81995"
+      },
+      "software_receipt": "docs/release/Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md"
+    },
+    "concurrent_work_note": "Implementation campaign sealed fresh software-tested integration candidate; not flashed. Candidate4 read-only identity is latest installed; Fix02 remains latest broad qualification.",
+    "concurrent_draft_report": {
+      "path": "docs/validation/Y2-SD-SDR104-DIAG.md",
+      "sha256_at_snapshot": "299269f8ef8cc4e07e675dbf1a742a658ff0201dc4d828ce6a0cc1e83c9cac67",
+      "status": "Now committed report at e2dd583; candidate3 historical unflashed footer remains seal-time wording, newer physical section establishes reported observation",
+      "disagreement": "Physical section reports candidate3 flashed; old receipt footer still says not flashed. Newer physical section used as reported observation, not independent qualification."
+    },
+    "reclassification_at": "2026-10-02T18:14:11+02:00",
+    "legacy_counts": {
+      "BETA_READY": 39,
+      "BETA_READY_WITH_LIMITATION": 132,
+      "BETA_BLOCKER": 17,
+      "OPTIONAL_POST_BETA": 45
+    },
+    "legacy_priority_counts": {
+      "E": 39,
+      "C": 69,
+      "A": 17,
+      "B": 63,
+      "D": 45
+    },
+    "product_target_counts": {
+      "CORE_RELEASE_FEATURE": 146,
+      "FEATURE_COMPLETE_TARGET": 59,
+      "EXPERIMENTAL_POST_BETA": 15,
+      "CONDITIONAL_ON_HARDWARE": 5,
+      "ACCEPTABLE_BETA_LIMITATION": 7,
+      "UNSUPPORTED_HARDWARE": 1
+    },
+    "priority_changed_count": 91,
+    "priority_changed_ids": [
+      "F002",
+      "F005",
+      "F008",
+      "F009",
+      "F014",
+      "F015",
+      "F016",
+      "F017",
+      "F020",
+      "F021",
+      "F024",
+      "F028",
+      "F029",
+      "F030",
+      "F031",
+      "F032",
+      "F033",
+      "F034",
+      "F037",
+      "F038",
+      "F039",
+      "F042",
+      "F043",
+      "F044",
+      "F045",
+      "F046",
+      "F047",
+      "F049",
+      "F051",
+      "F052",
+      "F053",
+      "F056",
+      "F065",
+      "F071",
+      "F075",
+      "F076",
+      "F078",
+      "F079",
+      "F080",
+      "F081",
+      "F082",
+      "F083",
+      "F084",
+      "F085",
+      "F086",
+      "F087",
+      "F088",
+      "F089",
+      "F093",
+      "F094",
+      "F095",
+      "F096",
+      "F098",
+      "F102",
+      "F107",
+      "F110",
+      "F111",
+      "F112",
+      "F113",
+      "F114",
+      "F115",
+      "F116",
+      "F117",
+      "F120",
+      "F126",
+      "F128",
+      "F129",
+      "F132",
+      "F133",
+      "F136",
+      "F138",
+      "F142",
+      "F143",
+      "F147",
+      "F149",
+      "F180",
+      "F183",
+      "F184",
+      "F188",
+      "F190",
+      "F191",
+      "F196",
+      "F198",
+      "F199",
+      "F202",
+      "F203",
+      "F216",
+      "F217",
+      "F226",
+      "F231",
+      "F233"
+    ],
+    "priority_change_count_rule": "Count prior C (known limitation) or D (post-beta) rows now REQUIRED or REQUIRED_IF_HARDWARE_SUPPORTED; all233 rows receive new independent axes. Historical A/B/E requirements are not counted as promotions.",
+    "planning_snapshot": {
+      "linux": "e2dd583c95fd42782f6e03a6b4d765d5bb571a94",
+      "reborn": "b92d312cc2dc4b74f57a1a9a7b1407e34707137a"
+    },
+    "implementation_start": {
+      "linux": "9ac2c0b7018ce707ec15f8845daf58ce38ec18a0",
+      "reborn": "eb64b8b21058eacb1ef183f7570cca8100cbbb46"
+    },
+    "previous_built_candidate": {
+      "name": "Y2LINUX-SD-SDR104-DIAG-04",
+      "source_linux": "dcbd7d1b8ad502e574e5a4f7b927d62b45ac81dd",
+      "code_linux": "3920a54",
+      "rootfs": "2025.02.18-platform-v1.14",
+      "release": "1.0.0-sd-sdr104-diag-candidate.4",
+      "build_state": "SEALED_SOFTWARE_VALIDATED",
+      "physical_state": "PHYSICALLY_OBSERVED_NOT_QUALIFIED",
+      "sealed_image_hashes": {
+        "BOOTIMG.img": "139e1d05fb7d5bdada4a499eb2fbfebf21467317fd01a2ee1189763284aecd19",
+        "Y2ROOT.img": "a88aa8395dc9dcd53e2700a4cc60bcb4ac81940d95d4fc7871c218222e629384"
+      },
+      "software_receipt": "docs/validation/Y2-SD-SDR104-DIAG.md at e2dd583:304 tests PASS"
+    }
+  },
+  "historical_cpu_idle_completion_before_uart01": {
     "date": "2026-10-03",
     "installed_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
     "installed_reborn": "b71b468860233faa0a42b8448ec5777fa952b8e3",
@@ -98638,6 +99024,1288 @@
       "C3_enabled": false,
       "dormant_entries": 0,
       "final_receipt": "out/cpu-idle-completion-physical/20261003T144857Z-candidate02/final-verdict.json"
+    }
+  },
+  "historical_feature_records_before_baseline02_sync": {
+    "F019": {
+      "id": "F019",
+      "subsystem": "CPU",
+      "feature": "598 MHz / 747.5 MHz / 1040 MHz stock OPPs",
+      "user_visible": false,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Yes, schedutil",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "Fix02 clock and 1.15 V readback/integrity pass",
+      "automated_tests": [
+        "tests/test_cpu_dvfs.py",
+        "tests/test_workload_qos.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "diagnostics": "Platform status/health and CPU source-specific counters/logs; see subsystem section",
+      "known_limitation": "Board-specific stock-bin evidence",
+      "failure_mode": "DVFS fault or thermal cap limits performance",
+      "safe_fallback": "Guarded lower OPP / y2.dvfs=off",
+      "source_paths": [
+        "kernel/platform/cpu-dvfs.c",
+        "kernel/platform/cpu-dvfs-policy.h",
+        "kernel/platform/workload.c",
+        "kernel/dts/innioasis-y2.dts"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY",
+        "beta_priority": "E",
+        "recommended_next_action": "Preserve qualified lower range"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Board-specific stock-bin evidence",
+      "next_action": "Preserve qualified lower range",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": false,
+      "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
+      "fallback_is_release_waiver": false,
+      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION"
+    },
+    "F020": {
+      "id": "F020",
+      "subsystem": "CPU",
+      "feature": "1196 MHz / 1.20 V",
+      "user_visible": false,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Conditional silicon/PWRAP admission",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "Fix02 30-step sequence; 18604 integrity iterations, peak 71.5 C",
+      "automated_tests": [
+        "tests/test_cpu_dvfs.py",
+        "tests/test_workload_qos.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "diagnostics": "Platform status/health and CPU source-specific counters/logs; see subsystem section",
+      "known_limitation": "Bounded electrical observation, no endurance envelope",
+      "failure_mode": "Heat or voltage fault under sustained load",
+      "safe_fallback": "Existing frequency QoS cap / lower stock OPP",
+      "source_paths": [
+        "kernel/platform/cpu-dvfs.c",
+        "kernel/platform/cpu-dvfs-policy.h",
+        "kernel/platform/workload.c",
+        "kernel/dts/innioasis-y2.dts"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY_WITH_LIMITATION",
+        "beta_priority": "C",
+        "recommended_next_action": "Retain evidence; qualify selected beta envelope"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Bounded electrical observation, no endurance envelope",
+      "next_action": "Retain1196MHz with existing silicon/voltage/thermal admission; qualify endurance, mixed load and charging comfort, not optionality.",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": true,
+      "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
+      "fallback_is_release_waiver": false,
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+    },
+    "F021": {
+      "id": "F021",
+      "subsystem": "CPU",
+      "feature": "1300 MHz / 1.25 V",
+      "user_visible": false,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Conditional silicon/PWRAP admission",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "Fix02 2-worker 5247 iterations pass; 4 workers hit 75 C guard in 16.8 s",
+      "automated_tests": [
+        "tests/test_cpu_dvfs.py",
+        "tests/test_workload_qos.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "diagnostics": "Platform status/health and CPU source-specific counters/logs; see subsystem section",
+      "known_limitation": "No natural 110/120 C trip test; not sustained thermal qualification",
+      "failure_mode": "Hot device under combined workloads",
+      "safe_fallback": "Existing bounded max policy if RC heat demands it",
+      "source_paths": [
+        "kernel/platform/cpu-dvfs.c",
+        "kernel/platform/cpu-dvfs-policy.h",
+        "kernel/platform/workload.c",
+        "kernel/dts/innioasis-y2.dts"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY_WITH_LIMITATION",
+        "beta_priority": "C",
+        "recommended_next_action": "Do not expand ceiling; test realistic charging/playback workload"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "No natural 110/120 C trip test; not sustained thermal qualification",
+      "next_action": "Retain1300MHz within admitted bounded envelope; measure mixed-load/charging thermals and sustained behavior; preserve throttling and safe fallback.",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": true,
+      "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
+      "fallback_is_release_waiver": false,
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+    },
+    "F022": {
+      "id": "F022",
+      "subsystem": "CPU",
+      "feature": "Silicon bin / voltage owner / feedback containment",
+      "user_visible": false,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Yes; unknown bin gates high OPPs",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "Bin0, selectors 0x48/0x50/0x58 and sampled ordering pass",
+      "automated_tests": [
+        "tests/test_cpu_dvfs.py",
+        "tests/test_workload_qos.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "diagnostics": "Platform status/health and CPU source-specific counters/logs; see subsystem section",
+      "known_limitation": "Sampled ordering is not oscilloscope trace",
+      "failure_mode": "Bad readback clamps or faults DVFS",
+      "safe_fallback": "Fail-closed admission / divided fallback",
+      "source_paths": [
+        "kernel/platform/cpu-dvfs.c",
+        "kernel/platform/cpu-dvfs-policy.h",
+        "kernel/platform/workload.c",
+        "kernel/dts/innioasis-y2.dts"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY",
+        "beta_priority": "E",
+        "recommended_next_action": "Keep sequencing and thermal authority"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Sampled ordering is not oscilloscope trace",
+      "next_action": "Keep sequencing and thermal authority",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": false,
+      "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
+      "fallback_is_release_waiver": false,
+      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION"
+    },
+    "F023": {
+      "id": "F023",
+      "subsystem": "CPU",
+      "feature": "Scheduler / schedutil / workload QoS / interaction boost",
+      "user_visible": false,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Yes",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "Fix02 eight classes, producer leases, thermal override; input lease ~22 ms",
+      "automated_tests": [
+        "tests/test_cpu_dvfs.py",
+        "tests/test_workload_qos.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "diagnostics": "Platform status/health and CPU source-specific counters/logs; see subsystem section",
+      "known_limitation": "Artwork and heavy workloads differ; hint is not direct MHz control",
+      "failure_mode": "Stale hint raises consumption",
+      "safe_fallback": "Bounded expiry; file close releases lease",
+      "source_paths": [
+        "kernel/platform/cpu-dvfs.c",
+        "kernel/platform/cpu-dvfs-policy.h",
+        "kernel/platform/workload.c",
+        "kernel/dts/innioasis-y2.dts"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY",
+        "beta_priority": "E",
+        "recommended_next_action": "Freeze API; check v2 app hints in RC"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Artwork and heavy workloads differ; hint is not direct MHz control",
+      "next_action": "Freeze API; check v2 app hints in RC",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": false,
+      "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
+      "fallback_is_release_waiver": false,
+      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION"
+    },
+    "F024": {
+      "id": "F024",
+      "subsystem": "CPU",
+      "feature": "Thermal sensors / cooling authority",
+      "user_visible": false,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Yes",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "CPU/PMIC sensors and injected cooling cap pass",
+      "automated_tests": [
+        "tests/test_cpu_dvfs.py",
+        "tests/test_workload_qos.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "diagnostics": "Platform status/health and CPU source-specific counters/logs; see subsystem section",
+      "known_limitation": "CPU 110/120 C BSP trips; PMIC 150 C; no measured pack temp",
+      "failure_mode": "Sustained heat may exceed comfort before trip",
+      "safe_fallback": "Stop workload / existing cap; poweroff",
+      "source_paths": [
+        "kernel/platform/cpu-dvfs.c",
+        "kernel/platform/cpu-dvfs-policy.h",
+        "kernel/platform/workload.c",
+        "kernel/dts/innioasis-y2.dts"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY_WITH_LIMITATION",
+        "beta_priority": "C",
+        "recommended_next_action": "Attended combined-load thermal gate; no guessed thresholds"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "CPU 110/120 C BSP trips; PMIC 150 C; no measured pack temp",
+      "next_action": "Attended combined-load thermal gate; no guessed thresholds",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": true,
+      "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
+      "fallback_is_release_waiver": false,
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+    },
+    "F025": {
+      "id": "F025",
+      "subsystem": "Idle",
+      "feature": "GPT6 / CNTFRQ 13 MHz / architectural timer / PPI29",
+      "user_visible": false,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Yes after independent preflight",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "Fix02 per-CPU 13 MHz, 1 ms sleep medians ~1.09 ms",
+      "automated_tests": [
+        "tests/test_cpu_final.py",
+        "tests/test_slow_idle.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
+      "known_limitation": "Current candidate continuity regression pending",
+      "failure_mode": "Preflight rejects to coarse timer",
+      "safe_fallback": "Legacy GPT/dummy fallback",
+      "source_paths": [
+        "kernel/platform/idle.c",
+        "kernel/platform/local-timer.c",
+        "kernel/platform/system-idle.c",
+        "kernel/platform/cirq.c",
+        "kernel/platform/clocks.c"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY",
+        "beta_priority": "E",
+        "recommended_next_action": "Freeze timer architecture"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Current candidate continuity regression pending",
+      "next_action": "Freeze timer architecture",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": false,
+      "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
+      "fallback_is_release_waiver": false,
+      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION"
+    },
+    "F026": {
+      "id": "F026",
+      "subsystem": "Idle",
+      "feature": "GPT4 sole broadcast / highres / NO_HZ",
+      "user_visible": false,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Yes",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "Fix02 sole GPT4 and hres/nohz=1 all cores pass",
+      "automated_tests": [
+        "tests/test_cpu_final.py",
+        "tests/test_slow_idle.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
+      "known_limitation": "Deep-idle deadline handoff separate",
+      "failure_mode": "Tickless not admitted; more wakeups",
+      "safe_fallback": "Legacy periodic clockevents",
+      "source_paths": [
+        "kernel/platform/idle.c",
+        "kernel/platform/local-timer.c",
+        "kernel/platform/system-idle.c",
+        "kernel/platform/cirq.c",
+        "kernel/platform/clocks.c"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY",
+        "beta_priority": "E",
+        "recommended_next_action": "Smoke counters; no timer rewrite"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Deep-idle deadline handoff separate",
+      "next_action": "Smoke counters; no timer rewrite",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": false,
+      "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
+      "fallback_is_release_waiver": false,
+      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION"
+    },
+    "F027": {
+      "id": "F027",
+      "subsystem": "Idle",
+      "feature": "C1 WFI",
+      "user_visible": false,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Yes",
+      "actually_used": "Yes: installed candidate02 four-core WFI repeatedly observed on2026-10-03.",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "2026-10-03 installed candidate02 all four WFI states enabled: entries +725/+923/+1695/+669, residency advances, rejections0, same boot/timer continuity.",
+      "automated_tests": [
+        "tests/test_cpu_final.py",
+        "tests/test_slow_idle.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py",
+        "tests/test_cpu_idle_completion.py",
+        "tests/test_cpu_idle_harness.py"
+      ],
+      "automated_test_result": "2026-10-03 sealed02 db0234e: production366/native prerequisites, CPU owner/fault100, Reborn238, fresh ARM kernel/root/config/DT/modules/ABI/QEMU/dependencies/package pass. Installed02 physical C1/C2/parking and independent regressions pass; C3 preflight UART1 fails. Fresh harness guard change: locked CPU90+idle/suspend8+workload2 cases pass, dedicated host21 and native exact-kernel probe19 cases pass.",
+      "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
+      "known_limitation": "No electrical battery-duration claim",
+      "failure_mode": "Higher awake drain if idle blocked",
+      "safe_fallback": "Normal scheduler idle",
+      "source_paths": [
+        "kernel/platform/idle.c",
+        "kernel/platform/local-timer.c",
+        "kernel/platform/system-idle.c",
+        "kernel/platform/cirq.c",
+        "kernel/platform/clocks.c"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
+      ],
+      "current_candidate_physically_qualified": true,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY",
+        "beta_priority": "E",
+        "recommended_next_action": "Preserve"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "No electrical battery-duration claim",
+      "next_action": "Preserve",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": false,
+      "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
+      "fallback_is_release_waiver": false,
+      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION",
+      "installed_candidate_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
+      "installed_candidate_physically_qualified": true
+    },
+    "F028": {
+      "id": "F028",
+      "subsystem": "Idle",
+      "feature": "C2 SLIDLE bus-clock idle",
+      "user_visible": false,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Yes when prerequisites clear",
+      "actually_used": "Candidate02 natural CPU0-only screen-off/radios-off idle on2026-10-03.",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "2026-10-03 candidate02: +6772 SLIDLE entries; +50669913 us in60.048084272 s (84.38%); restore failures0, both mounted media integrity/errors pass; same boot.",
+      "automated_tests": [
+        "tests/test_cpu_final.py",
+        "tests/test_slow_idle.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py",
+        "tests/test_cpu_idle_completion.py",
+        "tests/test_cpu_idle_harness.py"
+      ],
+      "automated_test_result": "2026-10-03 sealed02 db0234e: production366/native prerequisites, CPU owner/fault100, Reborn238, fresh ARM kernel/root/config/DT/modules/ABI/QEMU/dependencies/package pass. Installed02 physical C1/C2/parking and independent regressions pass; C3 preflight UART1 fails. Fresh harness guard change: locked CPU90+idle/suspend8+workload2 cases pass, dedicated host21 and native exact-kernel probe19 cases pass.",
+      "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
+      "known_limitation": "SD-absent/electrical energy not measured; active radio/storage clocks legitimately prevent eligibility.",
+      "failure_mode": "More consumption or clock restore fault",
+      "safe_fallback": "WFI; y2.cpuidle=off disables board idle states. y2.deep_idle=off only removes C3, not C2",
+      "source_paths": [
+        "kernel/platform/idle.c",
+        "kernel/platform/local-timer.c",
+        "kernel/platform/system-idle.c",
+        "kernel/platform/cirq.c",
+        "kernel/platform/clocks.c"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
+      ],
+      "current_candidate_physically_qualified": true,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY_WITH_LIMITATION",
+        "beta_priority": "C",
+        "recommended_next_action": "Check opportunistically; do not make C2 success a beta gate"
+      },
+      "product_target": "FEATURE_COMPLETE_TARGET",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "SD-absent/electrical energy not measured; active radio/storage clocks legitimately prevent eligibility.",
+      "next_action": "Preserve physically working C2 and normal clock/runtime-PM ownership.",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": true,
+      "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
+      "fallback_is_release_waiver": false,
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE",
+      "installed_candidate_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
+      "installed_candidate_physically_qualified": true
+    },
+    "F029": {
+      "id": "F029",
+      "subsystem": "Idle",
+      "feature": "Automatic core parking / display restore",
+      "user_visible": false,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Yes",
+      "actually_used": "Candidate02 natural parking and screen/playback demand restore observed.",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "2026-10-03 candidate02 natural CPU0/owner0xe parking after141.129531s;18 supported hotplug transitions prove exact bits in both physical power copies; screen/playback restore all four.",
+      "automated_tests": [
+        "tests/test_cpu_final.py",
+        "tests/test_slow_idle.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py",
+        "tests/test_cpu_idle_completion.py",
+        "tests/test_cpu_idle_harness.py"
+      ],
+      "automated_test_result": "2026-10-03 sealed02 db0234e: production366/native prerequisites, CPU owner/fault100, Reborn238, fresh ARM kernel/root/config/DT/modules/ABI/QEMU/dependencies/package pass. Installed02 physical C1/C2/parking and independent regressions pass; C3 preflight UART1 fails. Fresh harness guard change: locked CPU90+idle/suspend8+workload2 cases pass, dedicated host21 and native exact-kernel probe19 cases pass.",
+      "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
+      "known_limitation": "Fine-grained intermediate automatic transition timing not sampled.",
+      "failure_mode": "Delayed parking after wakes or delayed interaction",
+      "safe_fallback": "Restore all cores on demand",
+      "source_paths": [
+        "kernel/platform/idle.c",
+        "kernel/platform/local-timer.c",
+        "kernel/platform/system-idle.c",
+        "kernel/platform/cirq.c",
+        "kernel/platform/clocks.c"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
+      ],
+      "current_candidate_physically_qualified": true,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY_WITH_LIMITATION",
+        "beta_priority": "C",
+        "recommended_next_action": "Test screen cycles without policy redesign"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Fine-grained intermediate automatic transition timing not sampled.",
+      "next_action": "Preserve parking ownership/hysteresis/demand restore; updated C3 harness waits again after synced storage.",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": true,
+      "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
+      "fallback_is_release_waiver": false,
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE",
+      "installed_candidate_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
+      "installed_candidate_physically_qualified": true
+    },
+    "F030": {
+      "id": "F030",
+      "subsystem": "Idle",
+      "feature": "C3 DORMANT / CIRQ / runtime deadline handoff",
+      "user_visible": false,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_DISABLED",
+      "enabled_by_default": "C3 default off; prerequisite checks present",
+      "actually_used": "No",
+      "evidence": "SOFTWARE_VALIDATED",
+      "physical_evidence": "2026-10-03 installed candidate02 settled preflight: CPU0/owner0xe,747.5MHz, both secondary/domain masks0, INFRA/DISP/bus0, radios off/USB detached; only UART1 PERI0x20000 remains. SPI0 quiet/released. No dormant call. Exact-kernel probes observe LSR0/IRQ0/DMA0/DLL1 and exact LCR restore; no proof of safe UART gating.",
+      "automated_tests": [
+        "tests/test_cpu_final.py",
+        "tests/test_slow_idle.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py",
+        "tests/test_cpu_idle_completion.py",
+        "tests/test_cpu_idle_harness.py"
+      ],
+      "automated_test_result": "2026-10-03 sealed02 db0234e: production366/native prerequisites, CPU owner/fault100, Reborn238, fresh ARM kernel/root/config/DT/modules/ABI/QEMU/dependencies/package pass. Installed02 physical C1/C2/parking and independent regressions pass; C3 preflight UART1 fails. Fresh harness guard change: locked CPU90+idle/suspend8+workload2 cases pass, dedicated host21 and native exact-kernel probe19 cases pass.",
+      "diagnostics": "status cpu idle_completion: individual prerequisites/decoded clock owners, budget, actual wake result/stage, PCM/CIRQ/timer/context/restore counters and retained bounded qualification stages.",
+      "known_limitation": "C3 NOT WORKING on installed02; UART1 blocks admission. Actual context/timer/CIRQ/GIC/cache wake and20 cycles unobserved. No exact hardware limit established.",
+      "failure_mode": "Context loss or missed deadline",
+      "safe_fallback": "Keep C3 off; WFI/SLIDLE",
+      "source_paths": [
+        "kernel/platform/idle.c",
+        "kernel/platform/local-timer.c",
+        "kernel/platform/system-idle.c",
+        "kernel/platform/cirq.c",
+        "kernel/platform/clocks.c",
+        "kernel/platform/spm.c",
+        "kernel/platform/spm-idle-policy.h",
+        "kernel/platform/spm-idle-pcm.h",
+        "kernel/platform/resume-vector.S"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "OPTIONAL_POST_BETA",
+        "beta_priority": "D",
+        "recommended_next_action": "Freeze disabled; no pre-beta C3 campaign"
+      },
+      "product_target": "CONDITIONAL_ON_HARDWARE",
+      "hardware_conditional": true,
+      "release_required": "REQUIRED_IF_HARDWARE_SUPPORTED",
+      "release_requirement": "REQUIRED_IF_HARDWARE_SUPPORTS_IT",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "C3 NOT WORKING on installed02; UART1 blocks admission. Actual context/timer/CIRQ/GIC/cache wake and20 cycles unobserved. No exact hardware limit established.",
+      "next_action": "Close exact UART1 ownership with source/hardware evidence before another guarded C3 trial; keep C3 disabled and preserve all guards. No new image/flash action this turn.",
+      "release_completion_groups": [
+        "C",
+        "A",
+        "B"
+      ],
+      "priority_changed": true,
+      "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
+      "hardware_question": "Can exact stock runtime DORMANT PCM reliably retain/restore CPU0/L2 with secondaries physically off, CIRQ and GPT4 deadline handoff on this board?",
+      "proof_required": "Read-only dormant_preflight closure at <=747.5MHz, >2ms future deadline; actual entry/resume counters, same-boot timer/GIC/MMU/VFP integrity, boundary deadlines, repeated wake and measured benefit versus C2+parking.",
+      "investigation_source_paths": [
+        "kernel/platform/idle.c",
+        "kernel/platform/local-timer.c",
+        "kernel/platform/system-idle.c",
+        "kernel/platform/cirq.c",
+        "kernel/platform/clocks.c",
+        "kernel/platform/spm.c",
+        "kernel/platform/spm-idle-policy.h",
+        "kernel/platform/spm-idle-pcm.h",
+        "kernel/platform/resume-vector.S"
+      ],
+      "fallback_is_release_waiver": false,
+      "completion_status": "PENDING_HARDWARE_DECISION",
+      "installed_candidate_linux": "db0234e7519c559031da6f427869ab683ffe0f3c",
+      "installed_candidate_physically_qualified": false
+    },
+    "F031": {
+      "id": "F031",
+      "subsystem": "Idle",
+      "feature": "Screen-off efficient runtime idle",
+      "user_visible": false,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Yes; not system sleep",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "PHYSICALLY_OBSERVED",
+      "physical_evidence": "Fix02 330 s: 2.71% of four-core capacity, 171 IRQ/s; one online core",
+      "automated_tests": [
+        "tests/test_cpu_final.py",
+        "tests/test_slow_idle.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
+      "known_limitation": "Radios/USB/charging included; no measured battery-life gain",
+      "failure_mode": "Battery still drains while screen dark",
+      "safe_fallback": "User Power Off; optional radio off",
+      "source_paths": [
+        "kernel/platform/idle.c",
+        "kernel/platform/local-timer.c",
+        "kernel/platform/system-idle.c",
+        "kernel/platform/cirq.c",
+        "kernel/platform/clocks.c"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY_WITH_LIMITATION",
+        "beta_priority": "C",
+        "recommended_next_action": "Measure 2 h idle voltage trend; label screen-off honestly"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Radios/USB/charging included; no measured battery-life gain",
+      "next_action": "Retain efficient screen-off playback/runtime fallback; measure its drain separately. It does not satisfy required deep sleep.",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": true,
+      "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
+      "fallback_is_release_waiver": false,
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+    },
+    "F040": {
+      "id": "F040",
+      "subsystem": "Storage",
+      "feature": "eMMC DMA / runtime PM / retention",
+      "user_visible": true,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Yes",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "Fix02 16 combined MMC hash rounds; retained state matches and CCF gates",
+      "automated_tests": [
+        "tests/test_storage_ceiling.py",
+        "tests/test_sd_tuning.py",
+        "tests/test_storage_recovery.py",
+        "tests/test_mmc_requests.py"
+      ],
+      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "diagnostics": "Platform status/health and Storage source-specific counters/logs; see subsystem section",
+      "known_limitation": "Higher timing retention differs from baseline",
+      "failure_mode": "I/O after clock gating fails",
+      "safe_fallback": "Existing conservative mode + paired recovery",
+      "source_paths": [
+        "kernel/patches/0009-y2-msdc-readonly.patch",
+        "kernel/platform/storage-modes.h",
+        "kernel/platform/storage-tuning.h",
+        "kernel/platform/storage-policy.h",
+        "kernel/dts/innioasis-y2-production.dts"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-STORAGE-CEILING.md",
+        "docs/planning/HANDOFF-2026-10-02.md",
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-SD-SDR104-DIAG.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY",
+        "beta_priority": "E",
+        "recommended_next_action": "Retain bounded gate/ungate integrity smoke"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Higher timing retention differs from baseline",
+      "next_action": "Retain bounded gate/ungate integrity smoke",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": false,
+      "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
+      "fallback_is_release_waiver": false,
+      "completion_status": "CARRY_FORWARD_WITH_AFFECTED_REGRESSION"
+    },
+    "F049": {
+      "id": "F049",
+      "subsystem": "Storage",
+      "feature": "Storage CRC / timeout / readback fallback",
+      "user_visible": true,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Yes",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "PHYSICALLY_OBSERVED",
+      "physical_evidence": "Candidate2 SDR104 fault and automatic DDR50 fallback observed",
+      "automated_tests": [
+        "tests/test_storage_ceiling.py",
+        "tests/test_sd_tuning.py",
+        "tests/test_storage_recovery.py",
+        "tests/test_mmc_requests.py"
+      ],
+      "automated_test_result": "Fresh integration software checks pass; see implementation-pass receipt. This does not promote physical evidence or unresolved native wired hardware support.",
+      "diagnostics": "Platform status/health and Storage source-specific counters/logs; see subsystem section",
+      "known_limitation": "Runtime retune failure now reconciles actual lower bus timing and rejects payloads before DMA while recovery runs; widest-eye and exact latch-clock restore fixed.",
+      "failure_mode": "Reset/reinit loses card or I/O",
+      "safe_fallback": "Cap before faults; lower rungs; fail clearly",
+      "source_paths": [
+        "kernel/patches/0009-y2-msdc-readonly.patch",
+        "kernel/platform/storage-modes.h",
+        "kernel/platform/storage-tuning.h",
+        "kernel/platform/storage-policy.h",
+        "kernel/dts/innioasis-y2-production.dts"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-STORAGE-CEILING.md",
+        "docs/planning/HANDOFF-2026-10-02.md",
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-SD-SDR104-DIAG.md",
+        "docs/release/implementation-platform.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY_WITH_LIMITATION",
+        "beta_priority": "C",
+        "recommended_next_action": "Hash/write/fsync test safe profile; no automatic speed promotion"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Runtime retune failure now reconciles actual lower bus timing and rejects payloads before DMA while recovery runs; widest-eye and exact latch-clock restore fixed.",
+      "next_action": "Prove automatic retune/fallback/integrity under actual eMMC/SD faults at negotiated modes.",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": true,
+      "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
+      "fallback_is_release_waiver": false,
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE",
+      "implementation_pass": "2026-10-02-feature-completion"
+    },
+    "F126": {
+      "id": "F126",
+      "subsystem": "USB",
+      "feature": "MUSB peripheral ACM + ECM USB networking",
+      "user_visible": true,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Yes",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "PHYSICALLY_OBSERVED",
+      "physical_evidence": "Repeated enumeration and owner SSH; Physical01 PIO TCP ~40/47 Mb/s",
+      "automated_tests": [
+        "tests/test_usb_failure.py",
+        "tests/test_cpu_fix03.py",
+        "tests/test_platform_transfer.py",
+        "tests/test_usb_reconnect.py"
+      ],
+      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "diagnostics": "Platform status/health and USB source-specific counters/logs; see subsystem section",
+      "known_limitation": "Host OS setup required; no universal Windows plug-and-play proof",
+      "failure_mode": "Device disappears or cannot enumerate",
+      "safe_fallback": "Cable/reboot / known PIO package",
+      "source_paths": [
+        "kernel/platform/usb.c",
+        "kernel/patches/0054-y2-inventra-dma.patch",
+        "kernel/patches/0055-musb-abort-bus-error.patch",
+        "kernel/patches/0057-u-ether-align-dma-tx.patch",
+        "tools/platform/y2_platform/ssh.py",
+        "tools/platform/y2_platform/transfer.py"
+      ],
+      "evidence_docs": [
+        "docs/architecture/platform-usb-v1.md",
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY_WITH_LIMITATION",
+        "beta_priority": "C",
+        "recommended_next_action": "Check one supported host OS and ten cable cycles"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Host OS setup required; no universal Windows plug-and-play proof",
+      "next_action": "Check one supported host OS and ten cable cycles",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": true,
+      "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
+      "fallback_is_release_waiver": false,
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+    },
+    "F127": {
+      "id": "F127",
+      "subsystem": "USB",
+      "feature": "Inventra DMA / loaded transfer storm guard",
+      "user_visible": true,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "DMA default, PIO escape exists",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "PHYSICALLY_OBSERVED",
+      "physical_evidence": "Fix02 0/10 1 MiB uploads, EP1 RX DMA overflow513; Fix03 progress-aware repair untested",
+      "automated_tests": [
+        "tests/test_usb_failure.py",
+        "tests/test_cpu_fix03.py",
+        "tests/test_platform_transfer.py",
+        "tests/test_usb_reconnect.py"
+      ],
+      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "diagnostics": "Platform status/health and USB source-specific counters/logs; see subsystem section",
+      "known_limitation": "Later diagnosis supersedes re-arm speculation; failure result still stands",
+      "failure_mode": "USB terminal fault, cannot copy/recover over USB",
+      "safe_fallback": "y2.usb_dma=off with verified package; independent manual recovery",
+      "source_paths": [
+        "kernel/platform/usb.c",
+        "kernel/patches/0054-y2-inventra-dma.patch",
+        "kernel/patches/0055-musb-abort-bus-error.patch",
+        "kernel/patches/0057-u-ether-align-dma-tx.patch",
+        "tools/platform/y2_platform/ssh.py",
+        "tools/platform/y2_platform/transfer.py"
+      ],
+      "evidence_docs": [
+        "docs/architecture/platform-usb-v1.md",
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_BLOCKER",
+        "beta_priority": "A",
+        "recommended_next_action": "Require repeated hashed transfer pass; choose PIO if DMA still fails"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Later diagnosis supersedes re-arm speculation; failure result still stands",
+      "next_action": "Qualify existing progress-aware DMA fix under repeated integrity/throughput loads and reconnect/host sleep; fix reproduced failure, retain validated PIO fallback.",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": false,
+      "priority_change_reason": "Axes migrated; existing required/safe foundation or genuinely nonessential disposition retained",
+      "fallback_is_release_waiver": false,
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+    },
+    "F129": {
+      "id": "F129",
+      "subsystem": "USB",
+      "feature": "USB SSH / SFTP transfer integrity and reserve",
+      "user_visible": true,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_ENABLED",
+      "enabled_by_default": "Requires per-owner public key",
+      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
+      "evidence": "SOFTWARE_VALIDATED",
+      "physical_evidence": "Host/native ARM protocol, path/reserve/fault tests; short physical SSH pass",
+      "automated_tests": [
+        "tests/test_usb_failure.py",
+        "tests/test_cpu_fix03.py",
+        "tests/test_platform_transfer.py",
+        "tests/test_usb_reconnect.py"
+      ],
+      "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
+      "diagnostics": "Platform status/health and USB source-specific counters/logs; see subsystem section",
+      "known_limitation": "Transport failure separate; generic SFTP lacks atomic publication",
+      "failure_mode": "Partial music file after generic client interruption",
+      "safe_fallback": "Verified helper staging/hash/fsync; no overwrite",
+      "source_paths": [
+        "kernel/platform/usb.c",
+        "kernel/patches/0054-y2-inventra-dma.patch",
+        "kernel/patches/0055-musb-abort-bus-error.patch",
+        "kernel/patches/0057-u-ether-align-dma-tx.patch",
+        "tools/platform/y2_platform/ssh.py",
+        "tools/platform/y2_platform/transfer.py"
+      ],
+      "evidence_docs": [
+        "docs/architecture/platform-usb-v1.md",
+        "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
+        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "BETA_READY_WITH_LIMITATION",
+        "beta_priority": "C",
+        "recommended_next_action": "End-to-end file hash test on selected USB mode"
+      },
+      "product_target": "CORE_RELEASE_FEATURE",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Transport failure separate; generic SFTP lacks atomic publication",
+      "next_action": "End-to-end file hash test on selected USB mode",
+      "release_completion_groups": [
+        "B"
+      ],
+      "priority_changed": true,
+      "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
+      "fallback_is_release_waiver": false,
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+    },
+    "F233": {
+      "id": "F233",
+      "subsystem": "Storage",
+      "feature": "Candidate4 SD stock input pads / selectable card driver / expanded lab",
+      "user_visible": true,
+      "owner": "Kernel",
+      "implementation_state": "IMPLEMENTED_EXPERIMENTAL",
+      "enabled_by_default": "Source: SD Schmitt enabled and RDSEL/TDSEL zero; card type B default; A/C/D lab-selectable",
+      "actually_used": "Sealed candidate4 source dcbd7d1; not reported flashed",
+      "evidence": "SOFTWARE_VALIDATED",
+      "physical_evidence": "No candidate4 physical qualification; candidate3 pad readback motivates code, not proof of its result",
+      "automated_tests": [
+        "tests/test_storage_ceiling.py",
+        "tests/test_sd_tuning.py",
+        "tests/test_storage_recovery.py",
+        "tests/test_mmc_requests.py"
+      ],
+      "automated_test_result": "Candidate4 receipt at e2dd583:304 production/platform tests PASS; ARM QEMU/installed ARM/ELF/inventory/legal-info PASS; W=1 lab on/off builds. No physical test.",
+      "diagnostics": "Platform status/health and Storage source-specific counters/logs; see subsystem section",
+      "known_limitation": "Candidate4 software receipt complete; stock input pads and card driver type still physically unqualified",
+      "failure_mode": "SD instability or regression despite stock-derived setting; unsafe lab setting",
+      "safe_fallback": "Retain verified HS3.3V50MHz recovery fallback; choose fastest robust final ceiling after qualification; public lab controls gated",
+      "source_paths": [
+        "kernel/platform/pinctrl.c",
+        "kernel/platform/storage-modes.h",
+        "kernel/patches/0009-y2-msdc-readonly.patch",
+        "tests/test_sd_tuning.py"
+      ],
+      "evidence_docs": [
+        "docs/validation/Y2-SD-SDR104-DIAG.md"
+      ],
+      "current_candidate_physically_qualified": false,
+      "legacy_release_classification": {
+        "beta_state": "OPTIONAL_POST_BETA",
+        "beta_priority": "D",
+        "recommended_next_action": "Keep ceiling characterization separate; do not make successful200MHz a beta dependency",
+        "safe_fallback_wording": "Conservative HS3.3V50MHz selected and verified on RC; lab compiled out"
+      },
+      "product_target": "FEATURE_COMPLETE_TARGET",
+      "hardware_conditional": false,
+      "release_required": "REQUIRED",
+      "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
+      "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
+      "current_limitation": "Candidate4 software receipt complete; stock input pads and card driver type still physically unqualified",
+      "next_action": "Physically evaluate sealed candidate4 stock SD input pads/card drive selection; use results to select fastest robust ceiling and retain fallbacks.",
+      "release_completion_groups": [
+        "A",
+        "B"
+      ],
+      "priority_changed": true,
+      "priority_change_reason": "Former limitation/post-beta priority now required or hardware-conditional under owner feature-complete target",
+      "previous_evidence": "UNTESTED",
+      "fallback_is_release_waiver": false,
+      "completion_status": "PENDING_RELEASE_ACCEPTANCE"
+    }
+  },
+  "repositories_snapshot_scope": "Historical 2026-10-02 lexical scan and Git inventory, preserved verbatim; compiled/current candidate pair is in baseline. No new full tracked-file/source census performed.",
+  "historical_audit_validation_before_baseline02_sync": {
+    "feature_rows": 233,
+    "active_patch_rows": 48,
+    "unique_ids_enums_counts_reference_paths": "PASS",
+    "requested_sections": 25,
+    "documentation_checker": {
+      "linux_pages": 278,
+      "linux_links": 3978,
+      "reborn_pages": 56,
+      "reborn_links": 559,
+      "problems": 0
+    },
+    "diff_whitespace": "PASS",
+    "implementation_tests_executed_by_audit": false,
+    "build_or_flash_by_audit": false,
+    "reclassification_validation": "PASS",
+    "reclassification_checks": {
+      "feature_ids_preserved": 233,
+      "kernel_patch_entries_preserved": 48,
+      "all_implementation_states_preserved": true,
+      "physical_evidence_and_failure_modes_preserved": true,
+      "original_test_evidence_and_source_references_retained": true,
+      "evidence_corrections": [
+        "F233: UNTESTED to SOFTWARE_VALIDATED from candidate4 receipt at e2dd583"
+      ],
+      "product_scope_promotions": 91,
+      "former_priority_breakdown": {
+        "C": 62,
+        "D": 29
+      },
+      "required_fields_enums_counts_matrix_and_completion_groups": "PASS",
+      "hardware_conditional_questions_and_proof": "PASS",
+      "documentation_checker": {
+        "linux_pages": 278,
+        "linux_links": 4005,
+        "reborn_pages": 56,
+        "reborn_links": 559,
+        "problems": 0
+      },
+      "diff_whitespace": "PASS",
+      "implementation_or_build_or_flash_or_physical_test_or_push": false
+    }
+  },
+  "baseline02_validation": {
+    "report": "docs/validation/Y2-BASELINE-02.md",
+    "private_seal": "out/baseline-02-validation/final-seal.json",
+    "production_cases": 391,
+    "production_passed": 386,
+    "production_dependency_skips": 5,
+    "native_filesystem_gio_cases": 27,
+    "native_alsa_cases": 3,
+    "focused_source_cases": 125,
+    "reborn_cases": 238,
+    "fresh_kernel_buildroot_reborn_arm": "PASS",
+    "kernel_config_dt_modules_abi": "PASS",
+    "qemu_arm_elf_dependency_package": "PASS",
+    "new_image_physical": "PHYSICAL_NOT_RUN",
+    "automatic_cold_boot": "NOT_RUN",
+    "public_distribution_ready": false,
+    "executed_by_documentation_sync": false
+  },
+  "historical_patch_records_before_baseline02_sync": {
+    "kernel/patches/0006-mt6582-smp.patch": {
+      "path": "kernel/patches/0006-mt6582-smp.patch",
+      "upstream_path": "arch/arm/mach-mediatek/platsmp.c",
+      "subsystem": "CPU",
+      "purpose": "MT6582 secondary-core boot and checked hotplug",
+      "current_state": "Active manifest overlay; not retired",
+      "risk": "High",
+      "evidence": "Fix02 bounded physical CPU/timer/DVFS PASS; candidate3 not qualified",
+      "tests": [
+        "tests/test_cpu_dvfs.py",
+        "tests/test_workload_qos.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "obsolete_assessment": "No evidence of obsolescence; retain until an upstream/base change proves replacement"
+    },
+    "kernel/patches/0009-y2-msdc-readonly.patch": {
+      "path": "kernel/patches/0009-y2-msdc-readonly.patch",
+      "upstream_path": "drivers/mmc/host/mtk-sd.c",
+      "subsystem": "Storage",
+      "purpose": "MSDC addressing/write firewall, PM, ceilings, tuning, CRC fallback and lab diagnostics; filename readonly is historical",
+      "current_state": "Active manifest overlay; not retired",
+      "risk": "High",
+      "evidence": "Candidate3 reported200MHz CRC failures and bounded100MHz pass; candidate4 source pads/driver-hook extension has no physical acceptance",
+      "tests": [
+        "tests/test_storage_ceiling.py",
+        "tests/test_sd_tuning.py",
+        "tests/test_storage_recovery.py",
+        "tests/test_mmc_requests.py"
+      ],
+      "obsolete_assessment": "No removal justified by this audit; 0009 name is stale, not its functionality"
+    },
+    "kernel/patches/0036-mt6582-efuse-word-access.patch": {
+      "path": "kernel/patches/0036-mt6582-efuse-word-access.patch",
+      "upstream_path": "drivers/nvmem/mtk-efuse.c",
+      "subsystem": "CPU",
+      "purpose": "MT6582 efuse word access for silicon identity",
+      "current_state": "Active manifest overlay; not retired",
+      "risk": "Medium",
+      "evidence": "Fix02 bounded physical CPU/timer/DVFS PASS; candidate3 not qualified",
+      "tests": [
+        "tests/test_cpu_dvfs.py",
+        "tests/test_workload_qos.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "obsolete_assessment": "No evidence of obsolescence; retain until an upstream/base change proves replacement"
+    },
+    "kernel/patches/0052-y2-gpt6-counter.patch": {
+      "path": "kernel/patches/0052-y2-gpt6-counter.patch",
+      "upstream_path": "drivers/clocksource/timer-mediatek.c",
+      "subsystem": "Idle",
+      "purpose": "GPT6 counter initialization and ownership",
+      "current_state": "Active manifest overlay; not retired",
+      "risk": "High",
+      "evidence": "Fix02 bounded physical CPU/timer/DVFS PASS; candidate3 not qualified",
+      "tests": [
+        "tests/test_cpu_final.py",
+        "tests/test_slow_idle.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "obsolete_assessment": "No evidence of obsolescence; retain until an upstream/base change proves replacement"
+    },
+    "kernel/patches/0053-y2-local-timer-guard.patch": {
+      "path": "kernel/patches/0053-y2-local-timer-guard.patch",
+      "upstream_path": "drivers/clocksource/arm_arch_timer.c",
+      "subsystem": "Idle",
+      "purpose": "Guard and calibrate local architectural timer admission",
+      "current_state": "Active manifest overlay; not retired",
+      "risk": "High",
+      "evidence": "Fix02 bounded physical CPU/timer/DVFS PASS; candidate3 not qualified",
+      "tests": [
+        "tests/test_cpu_final.py",
+        "tests/test_slow_idle.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "obsolete_assessment": "No evidence of obsolescence; retain until an upstream/base change proves replacement"
+    },
+    "kernel/patches/0054-y2-inventra-dma.patch": {
+      "path": "kernel/patches/0054-y2-inventra-dma.patch",
+      "upstream_path": "drivers/usb/musb/Kconfig",
+      "subsystem": "USB",
+      "purpose": "Compile Inventra DMA for Y2 MUSB",
+      "current_state": "Active manifest overlay; not retired",
+      "risk": "Medium",
+      "evidence": "DMA compiled/observed; Fix02 loaded USB FAIL; Fix03 progress guard awaits physical retest",
+      "tests": [
+        "tests/test_usb_failure.py",
+        "tests/test_cpu_fix03.py",
+        "tests/test_platform_transfer.py",
+        "tests/test_usb_reconnect.py"
+      ],
+      "obsolete_assessment": "No evidence of obsolescence; retain until an upstream/base change proves replacement"
+    },
+    "kernel/patches/0055-musb-abort-bus-error.patch": {
+      "path": "kernel/patches/0055-musb-abort-bus-error.patch",
+      "upstream_path": "drivers/usb/musb/musbhsdma.c",
+      "subsystem": "USB",
+      "purpose": "Abort DMA bus error safely",
+      "current_state": "Active manifest overlay; not retired",
+      "risk": "High",
+      "evidence": "DMA compiled/observed; Fix02 loaded USB FAIL; Fix03 progress guard awaits physical retest",
+      "tests": [
+        "tests/test_usb_failure.py",
+        "tests/test_cpu_fix03.py",
+        "tests/test_platform_transfer.py",
+        "tests/test_usb_reconnect.py"
+      ],
+      "obsolete_assessment": "No evidence of obsolescence; retain until an upstream/base change proves replacement"
+    },
+    "kernel/patches/0056-y2-cpufreq-voltage-owner.patch": {
+      "path": "kernel/patches/0056-y2-cpufreq-voltage-owner.patch",
+      "upstream_path": "drivers/cpufreq/cpufreq-dt.c",
+      "subsystem": "CPU",
+      "purpose": "Use platform-owned safe voltage sequencing for cpufreq-dt",
+      "current_state": "Active manifest overlay; not retired",
+      "risk": "High",
+      "evidence": "Fix02 bounded physical CPU/timer/DVFS PASS; candidate3 not qualified",
+      "tests": [
+        "tests/test_cpu_dvfs.py",
+        "tests/test_workload_qos.py",
+        "tests/test_cpu_fix02.py",
+        "tests/test_cpu_fix03.py"
+      ],
+      "obsolete_assessment": "No evidence of obsolescence; retain until an upstream/base change proves replacement"
+    },
+    "kernel/patches/0057-u-ether-align-dma-tx.patch": {
+      "path": "kernel/patches/0057-u-ether-align-dma-tx.patch",
+      "upstream_path": "drivers/usb/gadget/function/u_ether.c",
+      "subsystem": "USB",
+      "purpose": "Align Ethernet gadget DMA transmit buffers",
+      "current_state": "Active manifest overlay; not retired",
+      "risk": "High",
+      "evidence": "DMA compiled/observed; Fix02 loaded USB FAIL; Fix03 progress guard awaits physical retest",
+      "tests": [
+        "tests/test_usb_failure.py",
+        "tests/test_cpu_fix03.py",
+        "tests/test_platform_transfer.py",
+        "tests/test_usb_reconnect.py"
+      ],
+      "obsolete_assessment": "No evidence of obsolescence; retain until an upstream/base change proves replacement"
     }
   }
 }

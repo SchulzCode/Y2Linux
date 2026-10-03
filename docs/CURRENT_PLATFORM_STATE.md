@@ -1,5 +1,117 @@
 # Current Y2Linux platform state
 
+Updated 2026-10-03 from the sealed Baseline02 receipts and retained UART01
+hardware evidence. This synchronization changes documentation only; it does
+not build, flash, push or run a new physical qualification.
+
+## Current candidate and installed evidence
+
+| Field | Sealed Baseline02 |
+| --- | --- |
+| Build | `Y2LINUX-BASELINE-02` |
+| Candidate | `out/y2linux-baseline-02-candidate/` |
+| Kernel | `6.18.0-y2linux-baseline-02` |
+| Rootfs / release | `2025.02.18-platform-v1.21` / `1.0.0-baseline-candidate.2` |
+| Compiled Linux | `8584ccd85f052f351fe51650b2348c83ca894ed4` |
+| Compiled Reborn | `b71b468860233faa0a42b8448ec5777fa952b8e3` |
+| ABI / feature contract / layout / data | 1 / 2 / 1 / 1 |
+| Software / package | PASS |
+| New-image hardware / automatic cold boot | PHYSICAL_NOT_RUN |
+
+The latest hardware receipt is **UART01**, kernel
+`6.18.0-y2linux-cpu-c3-uart-01`, Linux `e9e8d63f9c94232c2b6627881e0967583e202dac`,
+Reborn `b71b468860233faa0a42b8448ec5777fa952b8e3`, root
+`2025.02.18-platform-v1.20`, boot
+`fd955840-35d9-47db-83e0-ff47d6bb2d2b`, taint 0.
+C1, C2 and C3 are physically working on that image. Baseline02 retains that
+kernel architecture; its new image and automatic cold-boot activation remain
+**PHYSICAL_NOT_RUN** until owner installation and the guarded checks.
+
+See the [sealed receipt](validation/Y2-BASELINE-02.md),
+[exact candidate and fallback identities](knowledge/candidate-index.md) and
+[authoritative hardware report](validation/Y2-CPU-C3-UART-PHYSICAL.md).
+Compiled source identity comes from the manifest; a later documentation HEAD
+or published branch tip does not identify the installed kernel/rootfs.
+
+## CPU hardware results carried forward
+
+| Behavior | Exact UART01 bounded result |
+| --- | --- |
+| C1 WFI | All four CPUs enabled; entry/residency advance; rejected 0; 400 bounded wakes |
+| C2 SLIDLE | +6,971 entries; 50.654676 s / 60.054881 s = 84.3473%; clock restore failures 0 |
+| C3 DORMANT | 21 guarded reset-and-return trials, then +3,624 entries; 39.204662 s / 60.088344 s = 65.2450% |
+| Final C3 accounting | 3,647 entries = resumes = successes = UART ACKs; timer/context/CIRQ/clock restore failures 0 |
+| Core parking | Natural CPU0-only topology; owned mask 0xe; both secondary power status copies 0 |
+| Hotplug | 18 supported transitions; park 3→2→1, restore 1→2→3 |
+| Timers | GPT6, GPT4 sole broadcast, 13 MHz CNTFRQ, PPI29 on all cores, highres and NO_HZ pass |
+| DVFS | 598 / 747.5 / 1040 / 1196 / 1300 MHz guarded readback before and after C3 passes |
+| Storage | eMMC and inserted SD: eight fsynced checksum rounds each after C2 and after C3; ext4 errors 0 |
+| Wake and I/O | Workload/screen demand restore, real FFmpeg/ALSA playback, bounded USB transfer and independent Wi-Fi observer pass |
+
+UART1's retained clock is handled by the exact MT6582 UART sleep request/ACK
+contract and Linux UART ownership. It is no longer an unresolved C3 blocker.
+No forced UART peripheral gate or weakened admission guard was used.
+
+## Baseline02 boot policy
+
+Baseline02 enables qualified **CPU0 C3 automatically after boot** through
+`S05y2-cpu-idle`. The kernel initially registers C3 disabled with budget 0.
+The once-per-boot service checks identity, taint and static SPM/CIRQ/timer/context
+foundations, sets budget -1, enables CPU0 state2 and reads both controls back.
+Failures roll back; CPU1–3 C3 remains disabled. Dynamic topology, frequency,
+screen/workload/radio/USB, clock/domain, future-deadline, UART ACK and restore
+fault guards remain intact. The service does not force parking or gate UART1.
+
+`y2-platform cpu-idle-policy stop` disables C3 for the current boot and prevents
+another start from overriding that choice. Recovery boot options
+`y2.deep_idle=off` and `y2.cpu_safe=1` retain the safe fallback. Runtime C3 is
+separate from full system suspend.
+
+## Software validation and release limits
+
+Fresh kernel/config/DT/module/ABI, Buildroot ARM and Reborn ARM checks pass.
+The integrated suite has **391 cases: 386 passed and 5 dependency skips**;
+27 native filesystem/GIO and 3 ALSA checks plus installed ARM checks cover the
+missing minimal-environment dependencies. All **125 focused source tests** and
+**238 Reborn tests**, formatting/lint, Cortex-A7 QEMU, installed ARM applications,
+ELF/dependencies and preserving-package checks pass. These are retained build
+receipts, not tests rerun by this documentation update.
+
+Full system suspend with same-boot Power/RTC wake remains open. This pass does
+not qualify additional CIRQ edge injection, long endurance, electrical battery
+savings, native 24-bit/high-rate wired output, optional Bluetooth peer/codec
+behavior, USB host/VBUS, a calibrated battery gauge or public binary distribution.
+All five guarded active OPPs remain available; a C3 entry cap of 747.5 MHz does
+not lower the active CPU ceiling.
+
+Source/license collection passed with recorded collector limitations. The
+package remains owner-local; successful collection is not redistribution
+permission or a byte-identical rebuild demonstration. The
+[community feature audit](release/Y2-COMMUNITY-BETA-FEATURE-AUDIT.md) retains
+233 features and the separate unresolved release gates.
+
+## Next owner boundary
+
+Verify the sealed package and use `MT6582_preserve_data_scatter.txt` in
+Download Only mode, selecting **BOOTIMG and ANDROID/Y2ROOT only**. Preserve
+USRDATA/Y2DATA and every protected partition. After owner installation, the
+packaged SSH harness verifies exact identity and real cold-boot activation,
+quarantines C3 for foundation tests, runs one guarded C3 trial plus 20 cycles,
+and checks normal runtime, wake and I/O regressions. No installation is inferred
+from the user's earlier confirmation for UART01.
+
+
+## Historical snapshots
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
+# Current Y2Linux platform state
+
 ## Baseline02 sealed precedence — 2026-10-03
 
 New latest-source preserving candidate is sealed at `out/y2linux-baseline-02-candidate/`:
@@ -22,6 +134,10 @@ candidate and selects automatic qualified C3 boot policy. Source tests/live ARM
 control transaction pass; fresh build/seal and new-image physical checks are
 separate boundaries. See [Baseline02](validation/Y2-BASELINE-02.md) and
 [UART01 hardware](validation/Y2-CPU-C3-UART-PHYSICAL.md).
+
+## Current audit precedence — 2026-10-02
+
+The [community beta master audit](release/Y2-COMMUNITY-BETA-FEATURE-AUDIT.md) now reconciles source, builds and hardware across both repositories; the [RC1 plan](release/Y2-COMMUNITY-BETA-PLAN.md) defines the shortest proposed beta path. At its17:49:54 CEST cutoff: Linux `dcbd7d1` candidate4 source/build activity, Reborn `b92d312`; latest sealed/reported installed candidate3, with narrow SD characterization in a concurrently edited draft; latest broad physical report remains Fix02. The exact baseline and conflicting older “unflashed” text are documented there. Earlier summaries below are historical and must not override that baseline. No hardware acceptance is created by this documentation update.
 
 Updated 2026-09-29 from the **CPU Final Fix02 physical qualification**. This
 documentation update made no source repair, build or flash.

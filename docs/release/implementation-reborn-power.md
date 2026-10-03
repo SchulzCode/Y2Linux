@@ -1,5 +1,13 @@
 # Implementation lane: Reborn product and battery
 
+<!-- knowledge-base-scope: historical-implementation-receipt; baseline02-sync 2026-10-03 -->
+
+> **Dated implementation receipt.** The campaign identities, test counts and
+> pending actions below belong to the recorded source cut. The newest sealed
+> integrated candidate is [Baseline02](../validation/Y2-BASELINE-02.md).
+> [UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) now proves bounded C1/C2/C3.
+> Baseline02 new-image/automatic cold boot and unrelated release gates remain open.
+
 Entry: Linux `9ac2c0b7018ce707ec15f8845daf58ce38ec18a0`, Reborn
 `eb64b8b21058eacb1ef183f7570cca8100cbbb46`. Existing dirty Linux documentation
 was preserved. No device writes, flash, push or Git identity changes occurred.

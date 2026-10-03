@@ -1,10 +1,38 @@
 # Platform power contract v1
 
-**2026-09-28 status:** This page describes software behavior, with current
-hardware limits in [platform state](../CURRENT_PLATFORM_STATE.md). Fix01's first
-devices-stage suspend request lost recovery; charger refusal was not truly
-exercised because BAT0 was Not charging. Full RTC/Power same-boot wake is
-NOT_TESTED. Do not read the contract below as a passed suspend qualification.
+<!-- knowledge-base-scope: source-contract; baseline02-sync 2026-10-03 -->
+
+## Baseline02 runtime idle and system suspend
+
+Baseline02 enables qualified **CPU0 C3 automatically after boot** through
+`S05y2-cpu-idle`. The kernel initially registers C3 disabled with budget 0.
+The once-per-boot service checks identity, taint and static SPM/CIRQ/timer/context
+foundations, sets budget -1, enables CPU0 state2 and reads both controls back.
+Failures roll back; CPU1–3 C3 remains disabled. Dynamic topology, frequency,
+screen/workload/radio/USB, clock/domain, future-deadline, UART ACK and restore
+fault guards remain intact. The service does not force parking or gate UART1.
+
+`y2-platform cpu-idle-policy stop` disables C3 for the current boot and prevents
+another start from overriding that choice. Recovery boot options
+`y2.deep_idle=off` and `y2.cpu_safe=1` retain the safe fallback. Runtime C3 is
+separate from full system suspend.
+
+`y2-platform status cpu` publishes `idle_completion.C3.boot_policy`, sourced from
+`/run/y2/cpu-idle-policy.json` (schema `org.y2linux.cpu-idle-policy/v1`). It carries
+boot ID, state, reasons and control readbacks; failed activation includes rollback
+errors. States are Enabled / Skipped / Failed / Disabled. Missing/stale evidence
+is not successful activation. A start runs once per boot, respects explicit owner
+controls and never overrides a later stop; this service adds no polling loop.
+
+C1/C2/C3 are physically qualified on preceding UART01. Baseline02's new image and
+automatic cold boot remain NOT_RUN. Full system suspend is still disabled for
+ordinary use pending same-boot Power/RTC acceptance. Screen blanking allows
+runtime idle; it does not invoke full system suspend. See
+[Baseline02](../validation/Y2-BASELINE-02.md),
+[UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) and
+[current state](../CURRENT_PLATFORM_STATE.md).
+
+## Shutdown and battery ownership
 
 Normal `/sbin/poweroff`, `/sbin/reboot`, Reborn user requests and future update
 reboots enter `y2-platform shutdown poweroff|reboot --reason user|service|update`.
@@ -58,3 +86,11 @@ Suspend remains disabled for ordinary operation. See the explicit
 [hardware gates and existing scoped activity lease](../knowledge/platform-v1-hardware-gates.md).
 The owner qualification helper requires `y2-suspend --owner-qualify`; this flag
 does not confer qualification. Screen blanking never invokes it.
+
+## Historical physical note — 2026-09-28
+
+**2026-09-28 status:** This page describes software behavior, with current
+hardware limits in [platform state](../CURRENT_PLATFORM_STATE.md). Fix01's first
+devices-stage suspend request lost recovery; charger refusal was not truly
+exercised because BAT0 was Not charging. Full RTC/Power same-boot wake is
+NOT_TESTED. Do not read the contract below as a passed suspend qualification.

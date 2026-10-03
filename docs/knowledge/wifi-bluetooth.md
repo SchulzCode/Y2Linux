@@ -1,5 +1,27 @@
 # Wi-Fi, Bluetooth and firmware evidence
 
+<!-- knowledge-base-scope: maintained-summary; baseline02-sync 2026-10-03 -->
+
+## Current Baseline02 / UART01 scope
+
+UART01 uses an independent Wi-Fi observer and bounded transport integrity alongside USB checks. Radios are off for guarded C3 entry windows. This does not qualify Bluetooth peer playback, optional Auto/ABR/codecs, radio endurance or full-system-suspend restoration. Baseline02 preserves matched firmware/provisioning and the current private experiment software; qualification and public distribution remain separate.
+
+[Baseline02 seal](../validation/Y2-BASELINE-02.md),
+[UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) and
+[current state](../CURRENT_PLATFORM_STATE.md) carry exact identities, counters and limits.
+
+
+## Historical source research and physical checkpoints
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
+# Wi-Fi, Bluetooth and firmware evidence
+
 **Latest bounded physical result, 2026-09-27:** Fix01 independently verified
 four small Wi-Fi hash roundtrips totaling 1 MiB in each direction. An isolated
 CONSYS retry after a mandatory WMT timeout restored firmware, RF calibration,

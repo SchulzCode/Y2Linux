@@ -1,7 +1,9 @@
 # Y2Linux complete document catalog
 
-Updated 2026-10-01. Every project-owned Markdown page in this repository
+Updated 2026-10-03 for Baseline02. Every project-owned Markdown page in this repository
 is listed once; vendored upstream package documentation is excluded.
+The newest sealed candidate is Baseline02; latest bounded CPU-idle hardware
+proof is UART01. Baseline02 new-image/cold-boot qualification remains NOT_RUN.
 Start with the current-state page; a historical
 report records its own build/session, not the presently installed image.
 Raw hardware and build evidence is preserved unchanged. The catalogs
@@ -9,8 +11,7 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **273**. Explicit historical/contract scope notices:
-**186**.
+Indexed pages: **289**. Explicit scope notices: **220**.
 
 ## Entry
 
@@ -306,24 +307,48 @@ Indexed pages: **273**. Explicit historical/contract scope notices:
 | [Y2 storage hardware ceiling — eMMC and SD bus modes](validation/Y2-STORAGE-CEILING.md) | Current software candidate receipt; storage ceiling evidence and implementation |
 | [Y2 SD SDR104 stability — research and diagnostic candidate 3](validation/Y2-SD-SDR104-DIAG.md) | Scoped validation record |
 | [CPU Final Fix03 source and evidence ledger](validation/Y2-CPU-FINAL-FIX03-SOURCES.md) | Scoped validation record |
-| [Y2 CPU Final Fix03 physical qualification — prepared, not run](validation/Y2-CPU-FINAL-FIX03-PHYSICAL-QUALIFICATION.md) | Prepared owner run; no hardware result |
+| [Y2 CPU Final Fix03 physical qualification — prepared, not run](validation/Y2-CPU-FINAL-FIX03-PHYSICAL-QUALIFICATION.md) | Historical prepared Fix03 owner run; no result for that exact image |
 | [CPU Final Fix 02 implementation and candidate receipt](validation/Y2-CPU-FINAL-FIX02.md) | Scoped validation record (flashed and physically qualified 2026-09-29) |
 | [CPU Final Fix02 source and binary ledger](validation/Y2-CPU-FINAL-FIX02-SOURCES.md) | Scoped validation record |
-| [Y2 CPU Final Fix02 physical qualification — 2026-09-29](validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md) | Latest CPU physical record: awake CPU qualified; SLIDLE, full suspend and loaded USB FAIL |
+| [Y2 CPU Final Fix02 physical qualification — 2026-09-29](validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md) | Historical Fix02 CPU/system-suspend record; UART01 supersedes runtime-idle/affected I/O gaps |
 | [Y2 CPU Final Fix01 physical qualification — 2026-09-27](validation/Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md) | Scoped validation record |
 | [CPU Final Fix01 source and binary ledger](validation/Y2-CPU-FINAL-FIX01-SOURCES.md) | Scoped validation record |
 | [CPU Final Fix 01 implementation and candidate receipt](validation/Y2-CPU-FINAL-FIX01.md) | Scoped validation record |
 | [Y2 CPU Final physical qualification](validation/Y2-CPU-FINAL-PHYSICAL-QUALIFICATION.md) | Scoped validation record |
 | [CPU Final source and register provenance](validation/Y2-CPU-FINAL-SOURCES.md) | Scoped validation record |
 | [Y2 CPU Final](validation/Y2-CPU-FINAL.md) | Scoped validation record |
-| [CPU Final Fix01 physical capability ledger](validation/Y2-HARDWARE-FINAL-CAPABILITIES.md) | Current observed ledger / historical inventories |
+| [Current capability evidence and historical ledgers](validation/Y2-HARDWARE-FINAL-CAPABILITIES.md) | Current Baseline02 source / UART01 bounded hardware; historical exact-image inventories |
 | [Hardware Final implementation-first continuation, 2026-09-27](validation/Y2-HARDWARE-FINAL-HANDOFF.md) | Scoped validation record |
 | [Y2 Hardware Final physical qualification](validation/Y2-HARDWARE-FINAL-QUALIFICATION.md) | Scoped validation record |
 | [Hardware Final radio and audio source work](validation/Y2-HARDWARE-FINAL-RADIO-AUDIO.md) | Scoped validation record |
 | [Y2 Hardware Final implementation candidate](validation/Y2-HARDWARE-FINAL.md) | Scoped validation record |
+
+| [Baseline02 sealed integrated preserving candidate](validation/Y2-BASELINE-02.md) | Current seal/source/software receipt; new-image and automatic cold boot PHYSICAL_NOT_RUN |
+| [CPU idle completion implementation and candidate progression](validation/Y2-CPU-IDLE-COMPLETION.md) | Dated source/candidate progression; latest UART01 architecture qualified, newest baseline linked |
+| [CPU idle completion physical progression](validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md) | Exact-image progression; points to authoritative UART01 C1/C2/C3 result |
+| [C3 MT6582 UART admission and ownership fix](validation/Y2-CPU-C3-UART.md) | Exact MT6582 source/software receipt; current Baseline02 carries qualified implementation |
+| [UART01 C1/C2/C3 physical qualification](validation/Y2-CPU-C3-UART-PHYSICAL.md) | Latest exact CPU-idle hardware proof: C3 21 bounded cycles plus normal runtime; not new-image cold boot |
 
 ## Tests
 
 | Page | Scope |
 | --- | --- |
 | [Y2Linux host test profiles](../tests/README.md) | Test reference |
+
+## Community beta release planning
+
+| Page | Scope |
+| --- | --- |
+| [Community beta complete feature audit](release/Y2-COMMUNITY-BETA-FEATURE-AUDIT.md) | Current-state audit; exact snapshot, not hardware acceptance |
+| [Community beta selective RC1 plan](release/Y2-COMMUNITY-BETA-PLAN.md) | Proposed release plan; no implementation authorization |
+
+## Feature completion implementation
+
+| Page | Scope |
+| --- | --- |
+| [Feature completion implementation pass](release/Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md) | Current campaign and exact candidate handoff |
+| [Platform implementation](release/implementation-platform.md) | Suspend/idle/storage/USB source fixes and physical gates |
+| [Audio and codecs implementation](release/implementation-audio-codecs.md) | Precision, Classic codecs, software proofs and unresolved hardware |
+| [Reborn and battery implementation](release/implementation-reborn-power.md) | Productv2 controls, power and exact sensor evidence |
+| [Community tester guide](release/Y2-COMMUNITY-TESTER-GUIDE.md) | First install, transfer, redacted report, update/recovery |
+| [Source delivery and distribution gate](release/Y2-COMMUNITY-SOURCE-DELIVERY.md) | Composition, privacy, sources and public-distribution blockers |

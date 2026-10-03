@@ -1,3 +1,25 @@
+# USB DMA observations and current scope
+
+<!-- knowledge-base-scope: maintained-summary; baseline02-sync 2026-10-03 -->
+
+## Current Baseline02 / UART01 scope
+
+UART01 bounded USB checksum regression passes three 1 MiB bidirectional rounds with an independent Wi-Fi observer. Baseline02 retains that repaired source. Lifetime allocation/program counters still do not prove payload completion or wire throughput. The earlier source/guard descriptions and failure notes below belong to their exact snapshots; use current kernel source and the UART01 receipt for current behavior. Endurance, host-sleep/reconnect and full-suspend restoration remain separate.
+
+[Baseline02 seal](../validation/Y2-BASELINE-02.md),
+[UART01 hardware](../validation/Y2-CPU-C3-UART-PHYSICAL.md) and
+[current state](../CURRENT_PLATFORM_STATE.md) carry exact identities, counters and limits.
+
+
+## Historical source research and physical checkpoints
+
+The following text retains earlier dated decisions and results. Its “current”,
+“next” and candidate labels belong to those sessions; the Baseline02 summary
+above takes precedence. Historical failures and seal-time NOT_RUN receipts
+remain evidence for their exact images.
+
+---
+
 # Hardware Final USB DMA observations
 
 **Latest physical boundary, 2026-09-27:** Fix01's first small SHA-checked

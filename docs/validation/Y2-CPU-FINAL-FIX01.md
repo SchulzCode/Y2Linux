@@ -1,5 +1,12 @@
 # CPU Final Fix 01 implementation and candidate receipt
 
+<!-- knowledge-base-scope: historical-validation-receipt; baseline02-sync 2026-10-03 -->
+
+> **Historical exact-image receipt.** This report retains its named Fix image
+> and dated result. It does not describe Baseline02 or negate the newer bounded
+> UART01 C1/C2/C3 passes. See [Baseline02](Y2-BASELINE-02.md)
+> and [latest CPU-idle hardware proof](Y2-CPU-C3-UART-PHYSICAL.md).
+
 **Latest physical result:** The [2026-09-27 Fix01 qualification](Y2-CPU-FINAL-FIX01-PHYSICAL-QUALIFICATION.md)
 passes timer architecture/highres/NO_HZ and all real workload classes, but fails
 normal CPU-platform acceptance. SLIDLE has zero entries, high OPPs fail later
