@@ -1,5 +1,24 @@
 # Platform v1 roadmap
 
+## Baseline02 source integration into main — 2026-10-03
+
+Owner-authorized integration carries `cpu-idle-completion` at `acb5bb3` into
+remote `main` at `131ee46` by fast-forward, following the
+[integration gap review](roadmap-gap-audit.md#baseline02-source-integration-into-main--2026-10-03).
+The current source/documentation line is ready for publication. The sealed
+Baseline02 still identifies compiled Linux `8584ccd8` / Reborn `b71b4688`;
+later publication/documentation revisions do not change package bytes.
+
+Retained [UART01 hardware evidence](../validation/Y2-CPU-C3-UART-PHYSICAL.md)
+proves bounded C1/C2/C3, natural parking, timers, five guarded OPPs and affected
+I/O behavior. [Baseline02](../validation/Y2-BASELINE-02.md) is software/package
+validated; new-image and automatic cold-boot qualification remain PHYSICAL_NOT_RUN.
+The next CPU boundary is still owner installation followed by exact identity,
+boot-policy readback and the guarded one-plus-twenty C3 trials/runtime regression.
+Full system suspend, wider endurance/thermal conditions, electrical battery
+measurements and public distribution remain independent gates. #28/#31/#34
+remain OPEN after read-only refresh; this integration closes no hardware milestone.
+
 ## Baseline02 documentation synchronization — 2026-10-03
 
 This is a documentation-only boundary review using the already retained

@@ -1,5 +1,37 @@
 # Roadmap gap audit
 
+## Baseline02 source integration into main — 2026-10-03
+
+The owner authorizes merging and publishing the current Baseline02 source and
+documentation on `main`. Admission compares remote `main` at `131ee4621cd583c955182f994adac5a594fb823f`
+with `cpu-idle-completion` at `acb5bb3e8fb3a0cdc07a6d31fc64b6e83118ccbc`:
+the former is an ancestor, the working tree is clean, and integration can
+fast-forward without source reconciliation. This review precedes that operation.
+
+Hardware authority remains the retained [UART01 physical receipt](../validation/Y2-CPU-C3-UART-PHYSICAL.md):
+Linux `e9e8d63f9c94232c2b6627881e0967583e202dac`, Reborn `b71b468860233faa0a42b8448ec5777fa952b8e3`,
+boot `fd955840-35d9-47db-83e0-ff47d6bb2d2b`, taint 0. C1/C2/C3 pass their
+bounded scope; 21 guarded C3 trials and 3,647 final checked returns preserve
+timer/context/CIRQ/clock/media integrity. The [sealed Baseline02 receipt](../validation/Y2-BASELINE-02.md)
+records compiled Linux `8584ccd85f052f351fe51650b2348c83ca894ed4`, fresh software/package
+checks and automatic qualified CPU0 C3 policy. Its new-image/cold-boot hardware
+qualification remains PHYSICAL_NOT_RUN; publishing source does not change that.
+
+| Coverage | Classification | Evidence and remaining boundary |
+| --- | --- | --- |
+| CPU/timers/idle/storage; #28 | CONFIRMED, bounded UART01 scope; PARTIAL, new-image acceptance | Bounded UART01 hardware qualified; Baseline02 software validated. Owner installation and exact-image/cold-boot qualification remain next. |
+| Radio/USB; #31 | PARTIAL | Bounded UART01 observer/transfer regression passes; peer codecs, coexistence, full-suspend restoration and endurance retain separate gates. |
+| GPU/display; #34 | CONFIRMED, awake scope; PARTIAL, full resume | Existing awake rendering/runtime-PM evidence carries forward; full system-suspend restoration remains separate. |
+| Release/power | PARTIAL | Full system suspend, electrical battery measurements, wider endurance and public distribution remain open; no milestone acceptance is promoted. |
+
+GitHub #28/#31/#34 were refreshed read-only and remain OPEN. Source integration
+is ready; the next hardware boundary still requires owner-preserving installation
+and the existing guarded harness. BOOTIMG/Y2ROOT bytes, Y2DATA, protected partitions,
+memory layout and runtime policy are unchanged by this merge. No build, flash or
+repeat of unchanged ROM/recovery provenance is required. The roadmap records the
+same boundary before integration; the later documentation revision is not the
+source revision compiled into the sealed images.
+
 ## Baseline02 documentation synchronization — 2026-10-03
 
 This is a documentation-only boundary review using the already retained
