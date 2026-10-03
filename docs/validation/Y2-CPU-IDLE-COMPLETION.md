@@ -105,3 +105,9 @@ userspace runtime symbol; the kernel variant now uses div_u64 while native
 fixtures retain identical13MHz arithmetic. This was corrected before a complete
 build or candidate was packaged. Baseline receipt18 adds three bidirectional
 1MiB USB SHA256 passes with an independently reachable Wi-Fi observer.
+
+Final source fault review adds fail-closed partial-DPI handoff (no unclocked
+partner register read), counted/quarantined CIRQ enable-readback failure, and
+all-five-OPP qualification again after C3 before restoring schedutil for the
+actual playback test. Native dropped-clone/enable writes and partial coupled
+clock fixtures pass. These refinements precede final packaging/qualification.

@@ -490,6 +490,10 @@ class Qualification:
             time.sleep(2)
             self.phase('screen_wake', lambda: {'pass': read(CPU/'online') == '0-3',
                                               'online': read(CPU/'online'), 'status': self.ctl('status')})
+            self.phase('DVFS_after_C3', self.dvfs)
+            write(POLICY/'scaling_min_freq', 598000)
+            write(POLICY/'scaling_max_freq', saved['policy']['scaling_max_freq'])
+            write(POLICY/'scaling_governor', 'schedutil')
             self.phase('playback_workload_wake', self.playback)
         except Exception as e:
             self.result['error'] = repr(e)

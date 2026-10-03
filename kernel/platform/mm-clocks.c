@@ -137,6 +137,12 @@ static bool y2_mm_unused_quiet(unsigned id)
 		/* MT6582 FAKE_ENG_BASE=0x15002000, CAM=ISP. No unpowered read. */
 		return y2_spm_isp_status() == 0;
 	case CLK_MM_DPI_DIGITAL_LANE: case CLK_MM_DPI_ENGINE:
+		/* A partial loader handoff does not justify reading an unclocked
+		 * partner's operands. Retain the remaining gate conservatively. */
+		if (!mm_idle_clocks[CLK_MM_DPI_DIGITAL_LANE] ||
+		    !mm_idle_clocks[CLK_MM_DPI_ENGINE] ||
+		    !__clk_is_enabled(mm_idle_clocks[CLK_MM_DPI_DIGITAL_LANE]) ||
+		    !__clk_is_enabled(mm_idle_clocks[CLK_MM_DPI_ENGINE])) return false;
 		return !(readl(r + 0xd000) & 1) && !(readl(r + 0xd040) & 1);
 	default: return false; /* Linux-owned live pipeline is never reclaimed */
 	}

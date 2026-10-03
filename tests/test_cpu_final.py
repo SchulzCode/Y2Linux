@@ -83,7 +83,12 @@ static bool y2_cirq_ready(void){return true;}
 static bool irqs_disabled(void){return true;}
 static unsigned num_online_cpus(void){return online;}
 static unsigned smp_processor_id(void){return cpu;}
-static unsigned readl(void *addr){return *(unsigned *)addr;}
+static unsigned fault;
+static unsigned readl(void *addr){
+ if(fault==1 && addr==(void *)(c+0x80/4))return *(unsigned *)addr^1;
+ if(fault==2 && addr==(void *)(c+0x300/4) && (*(unsigned *)addr&1))return 0;
+ return *(unsigned *)addr;
+}
 static void writel(unsigned v,void *addr){
  unsigned off;
  if(addr>=(void *)g && addr<(void *)(g+sizeof(g)/4)){
@@ -120,6 +125,13 @@ int main(void){
  assert(y2_cirq_sensitivity(0xaaaaaaaa,0xaaaaaaaa)==0);
  assert(y2_cirq_sensitivity(0,0)==~0U);
  assert(y2_cirq_ack_mask(3,1,~0U)==~1U);
+ for(unsigned b=1;b<7;b++)g[0x200/4+b]=0;
+ fault=1;assert(y2_cirq_begin()==-EIO && clone_failures==1 && !active);
+ for(unsigned b=1;b<7;b++)assert(g[0x100/4+b]==0xa5a5a5a5);
+ fault=0;assert(y2_cirq_begin()==-EIO); /* fail closed until reset */
+ clone_failures=0;fault=2;assert(y2_cirq_begin()==-EIO && clone_failures==1 && !active && !restore_failures);
+ for(unsigned b=1;b<7;b++)assert(g[0x100/4+b]==0xa5a5a5a5);
+ assert(!(c[0x300/4]&1));
 }
 ''')
 

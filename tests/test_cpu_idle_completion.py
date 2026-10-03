@@ -129,6 +129,9 @@ int main(void){
  assert(reclaimed && retained==3 && !reclaim_failures);
  registers[0x9008/4]=0;registers[0xf104/4]=0;registers[0x507c/4]=0;
  y2_mm_reclaim_unused();assert(!gates[CLK_MM_DISP_WDMA].enabled && !gates[CLK_MM_CMDQ].enabled);
+ /* Partially gated DPI cannot read its unclocked partner's registers. */
+ gates[CLK_MM_DPI_ENGINE].enabled=true;gates[CLK_MM_DPI_DIGITAL_LANE].enabled=false;
+ y2_mm_reclaim_unused();assert(gates[CLK_MM_DPI_ENGINE].enabled);
  unsigned before=reclaimed;powered=0;y2_mm_reclaim_unused();assert(reclaimed==before);
 }
 ''')

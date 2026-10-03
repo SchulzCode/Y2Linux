@@ -60,7 +60,10 @@ int y2_cirq_begin(void)
 	writel(saved_control | 3, cirq + 0x300); /* MT6582 enable + edge-only; no newer FLUSH bit */
 	dsb(sy);
 	if ((readl(cirq + 0x300) & 3) != 3) {
+		clone_failures++;
 		writel(saved_control & ~1U, cirq + 0x300);
+		dsb(sy);
+		if (readl(cirq + 0x300) & 1) restore_failures++;
 		return -EIO;
 	}
 	for (b = 1; b < 7; b++) writel(~0U, dist + 0x180 + b * 4);
