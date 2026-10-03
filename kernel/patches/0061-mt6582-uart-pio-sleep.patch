@@ -1,0 +1,37 @@
+--- a/drivers/tty/serial/8250/8250_mtk.c
++++ b/drivers/tty/serial/8250/8250_mtk.c
+@@ -28,6 +28,7 @@
+ #define MTK_UART_RATE_FIX	0x0d	/* UART Rate Fix Register */
+ #define MTK_UART_ESCAPE_DAT	0x10	/* Escape Character register */
+ #define MTK_UART_ESCAPE_EN	0x11	/* Escape Enable register */
++#define MTK_UART_SLEEP_EN	0x12	/* MT6582 UART_SLEEP_EN +0x48 */
+ #define MTK_UART_DMA_EN		0x13	/* DMA Enable register */
+ #define MTK_UART_RXTRI_AD	0x14	/* RX Trigger address */
+ #define MTK_UART_FRACDIV_L	0x15	/* Fractional divider LSB address */
+@@ -515,6 +516,17 @@
+ 	return 0;
+ }
+ 
++/* Exact MT6582 PIO UART startup enables sleep for the global SPM handshake.
++ * Do not opt DMA ports or adjacent SoCs in. No gate/FIFO/data/baud write. */
++static void mtk8250_enable_pio_sleep(struct uart_8250_port *uart)
++{
++	if (!of_device_is_compatible(uart->port.dev->of_node, "mediatek,mt6582-uart") ||
++	    uart->dma) return;
++	writel(1, uart->port.membase + (MTK_UART_SLEEP_EN << uart->port.regshift));
++	if (readl(uart->port.membase + (MTK_UART_SLEEP_EN << uart->port.regshift)) != 1)
++		dev_warn(uart->port.dev, "UART sleep capability unavailable; DPIDLE blocked\n");
++}
++
+ static int mtk8250_probe(struct platform_device *pdev)
+ {
+ 	struct uart_8250_port uart = {};
+@@ -573,6 +585,8 @@
+ 	writel(0x0, uart.port.membase +
+ 			(MTK_UART_RATE_FIX << uart.port.regshift));
+ 
++	mtk8250_enable_pio_sleep(&uart);
++
+ 	platform_set_drvdata(pdev, data);
+ 
+ 	data->line = serial8250_register_8250_port(&uart);

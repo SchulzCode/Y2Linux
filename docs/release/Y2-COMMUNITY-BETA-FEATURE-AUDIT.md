@@ -1,5 +1,18 @@
 # Y2Linux + Reborn Community Beta — complete current-state feature audit
 
+## C3 UART admission software correction — 2026-10-03
+
+Candidate02's C1/C2 WORKING results remain valid; C3 has never entered.
+Exact MT6582 sources show UART1 is in the default blocker mask but PIO UART
+owners conditionally permit their clock and enable sleep before the global
+SPM request/ACK. This missing integration is now corrected with guarded
+ownership,100us ACK refusal, exact restore and diagnostics. No gate/FIFO/
+data/baud/reset write, unrelated guard removal or C1/C2 redesign is added.
+The new source/candidate boundary remains **SOFTWARE_READY_NEEDS_NEW_FLASH**;
+no hardware ACK or DORMANT success is claimed. See
+[Y2-CPU-C3-UART.md](../validation/Y2-CPU-C3-UART.md) and
+[Y2-CPU-C3-UART-PHYSICAL.md](../validation/Y2-CPU-C3-UART-PHYSICAL.md).
+
 ## CPU idle candidate02 hardware result — 2026-10-03
 
 Candidate02 is flashed and tested at Linuxdb0234e/Rebornb71b4688, kernelidle-02,

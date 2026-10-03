@@ -76,7 +76,16 @@ int main(void){
 
     def test_deep_idle_uses_the_same_baseline_and_restores_exactly(self):
         s = self.source()
-        run_c(self.FIXTURE + 'static unsigned idle_bus, idle_audio;\n' + function(s, 'y2_ccf_deep_idle_end') +
+        run_c(self.FIXTURE + r'''
+#include "uart-idle-policy.h"
+static unsigned idle_bus,idle_audio,deep_peri_raw,deep_uart_deferred,uart1_gate_before;
+static struct y2_uart_idle_save dormant_uart_save;
+static struct y2_spm_io uart_idle_io;
+static void *dormant_uart[2];
+static const char *uart_sleep_phase;
+static int y2_uart_sleep_available(unsigned pdn,unsigned *d){*d=0;return 0;}
+static int y2_uart_sleep_restore(void){return 0;}
+''' + function(s, 'y2_ccf_deep_idle_end') +
               function(s, 'y2_ccf_deep_idle_begin') + r'''
 int main(void){
  peri[0x18/4]=~0U;infra[0x40/4]=~0U;top[0x70/4]=0x07123456;

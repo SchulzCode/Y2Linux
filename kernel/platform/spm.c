@@ -62,6 +62,7 @@ static unsigned dormant_attempts, dormant_successes;
 static unsigned dormant_wake, dormant_debug, dormant_event, dormant_r13;
 static u64 dormant_residency_us;
 static unsigned dormant_restore_failures;
+static struct y2_spm_uart_sleep dormant_uart_sleep;
 extern struct sleep_save_sp sleep_save_sp;
 static unsigned dormant_context_phys;
 static bool dormant_qualification;
@@ -84,14 +85,19 @@ static struct clk *mfg_source;
 
 static unsigned spm_read(void *context, unsigned reg)
 {
-	return readl(context + reg);
+	unsigned value = readl(context + reg);
+	if (dormant_qualification && reg == SPM_PCM_REG13_DATA &&
+	    dormant_uart_sleep.request && !dormant_uart_sleep.ack &&
+	    (value & R13_UART_CLK_OFF_ACK)) y2_pm_mark(Y2_PM_UART_ACK, 0);
+	return value;
 }
 static void spm_write(void *context, unsigned reg, unsigned value)
 {
 	writel(value, context + reg);
 	/* Stock mt65xx_reg_sync_writel ordering, including command strobes. */
 	dsb(sy);
-	if (system_state == SYSTEM_SUSPEND && reg == SPM_POWER_ON_VAL1 && (value & R7_UART_CLK_OFF_REQ))
+	if ((system_state == SYSTEM_SUSPEND || dormant_qualification) &&
+	    reg == SPM_POWER_ON_VAL1 && (value & R7_UART_CLK_OFF_REQ))
 		y2_pm_mark(Y2_PM_UART_REQUEST, 0);
 	if (system_state == SYSTEM_SUSPEND && reg == SPM_PCM_CON0 &&
 	    (value & CON0_PCM_KICK) && readl(context + SPM_PCM_IM_LEN) == 596)
@@ -428,7 +434,7 @@ unlock:
  * No automatic hot-unplug is used merely to force entry. */
 int y2_spm_dormant_idle(void)
 {
-	unsigned power, biu, cache;
+	unsigned power, biu, cache, uart_attempts;
 	u64 start = 0;
 	int ret, restore;
 	bool entered = false;
@@ -494,11 +500,23 @@ int y2_spm_dormant_idle(void)
 	writel(cache | BIT(4), spm_cache);
 	dsb(sy);
 	if (readl(spm_cache) != (cache | BIT(4))) { ret = -EIO; goto restore_cluster; }
+	if (dormant_qualification) {
+		dormant_stage = "qualification_backstop_start";
+		y2_pm_backstop_begin(true); /* Covers the handshake and CPU reset return. */
+		if (!y2_pm_dormant_backstop_running()) { ret = -EACCES; goto restore_cluster; }
+	}
 	dormant_stage = "uart_pcm";
-	ret = y2_spm_idle_arm(&spm_io, idle_address);
-	if (!ret && dormant_qualification) {
-		y2_pm_backstop_begin(true); /* RGU keeps counting: infrastructure is retained */
-		if (!y2_pm_dormant_backstop_running()) ret = -EACCES;
+	uart_attempts = dormant_uart_sleep.attempts;
+	ret = y2_spm_idle_arm(&spm_io, idle_address, &dormant_uart_sleep);
+	if (dormant_uart_sleep.attempts != uart_attempts) {
+		if (ret) {
+			/* One qualified UART handshake refusal, then C1/C2 fallback.
+			 * Never repeatedly hammer a missing ACK before the observer runs. */
+			if (READ_ONCE(dormant_budget) > 0) WRITE_ONCE(dormant_budget, 0);
+			if (dormant_uart_sleep.result)
+				dormant_stage = dormant_uart_sleep.result == -EBUSY ? "UART_BUSY" : "uart_sleep_request";
+			if (dormant_qualification) y2_pm_mark(Y2_PM_DORMANT_ABORTED, ret);
+		}
 	}
 	if (!ret) {
 		dormant_stage = "cpu_suspend";
@@ -523,6 +541,11 @@ int y2_spm_dormant_idle(void)
 	dormant_stage = "restore_pcm";
 	if (dormant_qualification) y2_pm_mark(Y2_PM_DORMANT_RESTORE_PCM, ret);
 	restore = y2_spm_idle_restore(&spm_io, normal_address);
+	dormant_uart_sleep.power_after = spm_read(spm_base, SPM_POWER_ON_VAL1);
+	if (dormant_uart_sleep.power_after & R7_UART_CLK_OFF_REQ) {
+		dormant_uart_sleep.restore_failures++;
+		restore = -EIO;
+	}
 	if (restore) { dormant_restore_failures++; ret = restore; failure_stage = dormant_stage; }
 restore_cluster:
 	if (ret && !failure_stage) failure_stage = dormant_stage;
@@ -613,6 +636,15 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr, cha
 	ret += sysfs_emit_at(buf, ret, "dormant_attempts=%u dormant_successes=%u dormant_residency_us=%llu dormant_restore_failures=%u dormant_budget=%d dormant_wake=%#x dormant_debug=%#x dormant_event=%#x dormant_r13=%#x pcm_words=480 pcm_origin=MT6582_d53dd75c_dpidle\n",
 		dormant_attempts, dormant_successes, dormant_residency_us, dormant_restore_failures,
 		READ_ONCE(dormant_budget), dormant_wake, dormant_debug, dormant_event, dormant_r13);
+	ret += sysfs_emit_at(buf, ret, "uart_sleep_request=%u uart_sleep_ack=%u uart_sleep_attempts=%u uart_sleep_successes=%u uart_sleep_timeouts=%u uart_sleep_restore_failures=%u uart_sleep_result=%d uart_sleep_rejection=%s uart_power_before=%#x uart_power_request=%#x uart_power_after=%#x uart_r13_before=%#x uart_r13_ack=%#x uart_request_live=%u uart_ack_live=%u\n",
+		dormant_uart_sleep.request, dormant_uart_sleep.ack, dormant_uart_sleep.attempts,
+		dormant_uart_sleep.successes, dormant_uart_sleep.timeouts, dormant_uart_sleep.restore_failures,
+		dormant_uart_sleep.result, dormant_uart_sleep.result == -EBUSY ? "UART_BUSY" :
+		dormant_uart_sleep.result ? "REQUEST_OR_RESTORE_FAULT" : dormant_uart_sleep.ack ? "none" : "not_attempted",
+		dormant_uart_sleep.power_before, dormant_uart_sleep.power_request, dormant_uart_sleep.power_after,
+		dormant_uart_sleep.r13_before, dormant_uart_sleep.r13_ack,
+		!!(spm_read(spm_base, SPM_POWER_ON_VAL1) & R7_UART_CLK_OFF_REQ),
+		!!(spm_read(spm_base, SPM_PCM_REG13_DATA) & R13_UART_CLK_OFF_ACK));
 	raw_spin_unlock_irqrestore(&spm_lock, flags);
 	return ret;
 }
@@ -667,6 +699,7 @@ static ssize_t dormant_preflight_show(struct device *dev, struct device_attribut
 		vector, __pa_symbol(y2_cpu_resume), enable, sleep_save_sp.save_ptr_stash_phys,
 		dormant_context_phys, (unsigned)idle_address);
 	n += sysfs_emit_at(buf, n, "deadline_rule=architectural_future_2ms_and_GPT4_future_26000_ticks checked_at=admission_and_finisher\n");
+	n += sysfs_emit_at(buf, n, "uart_sleep_admission=conditional_MT6582_PIO_owner_then_global_ACK uart_sleep_ack_checked_at=PCM_fetch_before_power_run_WFI\n");
 	for (i = 0; i < ARRAY_SIZE(prerequisites); i++)
 		n += sysfs_emit_at(buf, n, "prerequisite_%s=%u\n", prerequisites[i].name, prerequisites[i].met);
 	n += sysfs_emit_at(buf, n, "unmet=");

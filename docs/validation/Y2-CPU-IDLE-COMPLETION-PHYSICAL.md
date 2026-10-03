@@ -1,5 +1,18 @@
 # Y2 CPU idle completion physical qualification
 
+## C3 UART admission software correction — 2026-10-03
+
+Candidate02's C1/C2 WORKING results remain valid; C3 has never entered.
+Exact MT6582 sources show UART1 is in the default blocker mask but PIO UART
+owners conditionally permit their clock and enable sleep before the global
+SPM request/ACK. This missing integration is now corrected with guarded
+ownership,100us ACK refusal, exact restore and diagnostics. No gate/FIFO/
+data/baud/reset write, unrelated guard removal or C1/C2 redesign is added.
+The new source/candidate boundary remains **SOFTWARE_READY_NEEDS_NEW_FLASH**;
+no hardware ACK or DORMANT success is claimed. See
+[Y2-CPU-C3-UART.md](Y2-CPU-C3-UART.md) and
+[Y2-CPU-C3-UART-PHYSICAL.md](Y2-CPU-C3-UART-PHYSICAL.md).
+
 ## Candidate02 hardware qualification — 2026-10-03
 
 **C1 WORKING; C2 WORKING; C3 BLOCKED BEFORE ENTRY BY UART1. Overall CPU idle

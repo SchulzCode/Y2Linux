@@ -24,7 +24,7 @@ PLAN = [
     'Natural coordinator parking (up to 20 minutes of genuine quiet/hold expiry)',
     'C2 entries, useful residency, clock restore and fsynced eMMC/installed-SD checksums',
     'C3 individual prerequisites, normal USB role detach and radio runtime-off',
-    'One RGU-backstopped timer-wake C3 entry, then 19 further bounded trials only after success',
+    'One RGU-backstopped timer-wake C3 entry, verify UART request/ACK, then 20 further bounded trials',
     'Any failed C3 trial disables C3 and stops repetition; independent regressions continue',
     'Timer/interrupt/context continuity, screen/workload wake, real silent playback',
     'USB bidirectional integrity and automatic Wi-Fi observation fallback',
@@ -254,7 +254,7 @@ def main():
     parser.add_argument('--output', type=Path, default=Path('out/cpu-idle-completion-physical')/
                         datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ-candidate'))
     parser.add_argument('--enable-qualified-runtime', action='store_true',
-                        help='leave normal C3 policy enabled only after all 20 checked timer wakes')
+                        help='leave normal C3 policy enabled only after the first entry and 20 further checked timer wakes')
     args = parser.parse_args()
     if not args.run:
         print('\n'.join(PLAN))

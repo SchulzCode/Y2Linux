@@ -44,6 +44,8 @@ int main(void) {
             self.assertIsNone(result['C1']['entries'])
             self.assertIsNone(result['C2']['blocker_owners'])
             self.assertIsNone(result['C3']['unused_clock_handoff'])
+            self.assertIsNone(result['C3']['uart_clock_handoff'])
+            self.assertEqual(result['C3']['uart_sleep'], {})
             for path, value in (
                 ('/sys/module/clocks/parameters/slow_blockers', str((1 << 11) | (1 << 12))),
                 ('/sys/bus/platform/devices/18070000.connectivity/power/runtime_status', 'active'),
@@ -52,6 +54,10 @@ int main(void) {
                  'peri_blockers=0x400 infra_blockers=0x80 disp0=0x400 disp1=0x8 prerequisite_topology=1 prerequisite_frequency=0 unmet=frequency,'),
                 ('/sys/module/clocks/parameters/unused_handoff',
                  'UART1 sampled=1 lcr=3 ier=0 lsr=0x60 dma=4 reason=quiet retained=0\nSPI0 sampled=1 command=0 status1=1 reason=quiet retained=0'),
+                ('/sys/devices/platform/10006000.power-controller/state',
+                 'dormant_entries=0 uart_sleep_attempts=1 uart_sleep_successes=0 uart_sleep_ack=0 uart_sleep_timeouts=1 uart_sleep_rejection=UART_BUSY uart_power_before=0x15820 uart_power_after=0x15820 uart_r13_ack=0'),
+                ('/sys/module/clocks/parameters/uart_sleep_handoff',
+                 'uart_sleep_owner_ready=1 uart1_deferred=0x20000 uart1_gate_before=0 uart1_gate_after=0'),
             ):
                 p = ctx.path(path)
                 p.parent.mkdir(parents=True, exist_ok=True)
@@ -65,6 +71,9 @@ int main(void) {
             self.assertEqual(result['C3']['unmet'], ['frequency'])
             self.assertIn('dma=4 reason=quiet', result['C3']['unused_clock_handoff'])
             self.assertEqual([x['clock'] for x in result['C3']['blocker_owners']], ['USB0', 'L2C_SRAM', 'MDP_WROT', 'DPI_ENGINE'])
+            self.assertEqual(result['C3']['uart_sleep']['uart_sleep_rejection'], 'UART_BUSY')
+            self.assertEqual(result['C3']['uart_sleep']['uart_sleep_ack'], '0')
+            self.assertIn('uart1_gate_after=0', result['C3']['uart_clock_handoff'])
 
     def test_dt_authorizes_only_the_exact_new_usb_and_existing_consumers(self):
         from tools.validation.dev_dtb import clock_id_allowed
@@ -435,13 +444,16 @@ int main(void){
 #define SPM_PCM_REG_DATA_INI 12
 #define SPM_PCM_EVENT_REG_STA 16
 #define SPM_PCM_REG13_DATA 20
+#define SPM_POWER_ON_VAL1 24
+#define R7_UART_CLK_OFF_REQ 1U
 #define READ_ONCE(x) (x)
 #define WRITE_ONCE(x,v) ((x)=(v))
 #define smp_load_acquire(p) (*(p))
 #define __pa_symbol(p) 0x80008000UL
 #define dsb(x) do{}while(0)
 typedef uint64_t u64;
-static unsigned regs[6],biu,cache;
+static unsigned regs[7],biu,cache;
+static struct {unsigned attempts,power_after,restore_failures;int result;} dormant_uart_sleep;
 static void *spm_base=regs,*spm_biu=&biu,*spm_cache=&cache;
 static int spm_lock,spm_io,idle_address,normal_address;
 static unsigned dormant_attempts,dormant_entries,dormant_resumes,dormant_successes;
@@ -454,10 +466,10 @@ static bool dormant_qualification;
 #define SYSTEM_RUNNING 0
 static int system_state;
 enum {Y2_PM_DORMANT_BEGIN,Y2_PM_DORMANT_CONTEXT,Y2_PM_DORMANT_RETURN,Y2_PM_DORMANT_COMPLETE,Y2_PM_DORMANT_ABORTED,Y2_PM_DORMANT_RESTORE_PCM,Y2_PM_DORMANT_RESTORE_CONTEXT,Y2_PM_DORMANT_RESTORE_CIRQ,Y2_PM_DORMANT_RESTORE_CLOCKS};
-static bool backstop_ready=true,backstop_running;
+static bool backstop_ready=true,backstop_running,backstop_fail;
 static bool y2_pm_dormant_backstop_ready(void){return backstop_ready;}
 static bool y2_pm_dormant_backstop_running(void){return backstop_running;}
-static void y2_pm_backstop_begin(bool staged){backstop_running=true;}
+static void y2_pm_backstop_begin(bool staged){backstop_running=!backstop_fail;}
 static void y2_pm_backstop_end(void){backstop_running=false;}
 static void y2_pm_mark(unsigned stage,int error){}
 static char *dormant_stage;
@@ -495,7 +507,7 @@ static int cpu_pm_enter(void){if(pm_error)return pm_error;cpu_owned=true;return 
 static void cpu_pm_exit(void){assert(cpu_owned);cpu_owned=false;}
 static int cpu_cluster_pm_enter(void){if(cluster_error)return cluster_error;cluster_owned=true;return 0;}
 static void cpu_cluster_pm_exit(void){assert(cluster_owned);cluster_owned=false;}
-static int y2_spm_idle_arm(int *io,unsigned address){return arm_error;}
+static int y2_spm_idle_arm(int *io,unsigned address,void *uart){assert(backstop_running);dormant_uart_sleep.attempts++;dormant_uart_sleep.result=arm_error;return arm_error;}
 static int y2_spm_idle_restore(int *io,unsigned address){return 0;}
 static int y2_spm_finish(unsigned long arg){return 0;}
 static int cpu_suspend(unsigned long arg,int (*fn)(unsigned long)){
@@ -520,7 +532,10 @@ int main(void){
  regs[0]=regs[1]=8;
  cirq_error=-EAGAIN;assert(y2_spm_dormant_idle()==-EAGAIN && !clocks_owned);cirq_error=0;
  cluster_error=-EBUSY;assert(y2_spm_dormant_idle()==-EBUSY && !cpu_owned && !cirq_owned);cluster_error=0;
- arm_error=-EBUSY;assert(y2_spm_dormant_idle()==-EBUSY && !suspends && dormant_budget==1);arm_error=0;
+ backstop_fail=true;assert(y2_spm_dormant_idle()==-EACCES && !dormant_uart_sleep.attempts && !clocks_owned && !cpu_owned && !cluster_owned && !cirq_owned);backstop_fail=false;
+ arm_error=-EBUSY;assert(y2_spm_dormant_idle()==-EBUSY && !suspends && !dormant_budget);
+ assert(y2_spm_dormant_idle()==-EACCES && dormant_uart_sleep.attempts==1); /* one refused UART request */
+ arm_error=0;dormant_budget=1;
  finish_error=-EBUSY;assert(y2_spm_dormant_idle()==-EBUSY && suspends==1 && !dormant_resumes && !dormant_successes);
  assert(!dormant_budget && !spm_lock && !clocks_owned && !cpu_owned && !cirq_owned && !cluster_owned);
  assert(y2_spm_dormant_idle()==-EACCES && suspends==1); /* never hammer a failed first test */

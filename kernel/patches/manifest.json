@@ -287,6 +287,12 @@
       "patch": "0060-y2-persistent-suspend-stages.patch",
       "base_sha256": "0f5cd354b1523364549e8cfc6dc4bbd781edc207b58a664617c4b971c119ae24",
       "result_sha256": "1d2d9a01f60849c0c118880f803cc979175935e2c5a2d319fe2b0b63b144194c"
+    },
+    {
+      "path": "drivers/tty/serial/8250/8250_mtk.c",
+      "patch": "0061-mt6582-uart-pio-sleep.patch",
+      "base_sha256": "9ed47647ccf4c2cada2b09d61d088b04cbc80b92f9455673b41fd645e5dfe821",
+      "result_sha256": "daaef67207f7257f1f0a40006ff59d4cc339c8d82338d371bed48cbc4ce05ab1"
     }
   ]
 }

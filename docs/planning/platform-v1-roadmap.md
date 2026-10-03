@@ -1,5 +1,58 @@
 # Platform v1 software completion roadmap
 
+## C3 UART software freeze audit — 2026-10-03
+
+Targeted stock-contract implementation and100 focused tests are complete.
+Installed candidate02/source/boot and actual C1/C2 results remain unchanged;
+C3 has never entered. The copied default UART1 mask lacked stock PIO-owner
+integration. Conditional UART1 sleep adoption, exact MT6582 console driver
+sleep capability, bounded global SPM ACK/refusal, checked unwind, retained
+stages and first-entry/20-further-cycle harness replace that missing contract.
+All unrelated clock guards, C1/C2/timers/parking/OPPs/media architecture remain.
+Exact source/ownership/unknown RTL limits are documented in
+[the C3 UART record](../validation/Y2-CPU-C3-UART.md).
+
+Before production handoff, build one fresh kernel/Buildroot/Reborn ARM pair and
+validate config/DT/modules/ABI, regressions, ELF/QEMU and preserving package.
+Candidate scope is BOOTIMG+Y2ROOT at `out/y2linux-cpu-c3-uart-candidate/`,
+API1/data/layout unchanged, no protected payload, no flash/push. No hardware
+promotion: #28/#31/#34 and CPU completion remain open pending real ACK and
+bounded same-boot DORMANT wake after owner installation. No new general audit,
+ROM/recovery provenance pass, electrical measurement or full suspend claim.
+
+## C3 UART stock-contract admission — 2026-10-03
+
+Owner narrows work to the candidate02 UART1 C3 blocker. Preserve physically
+working C1/C2 and their architecture; do not conduct another general CPU audit.
+Fresh targeted SSH verifies installeddb0234e/b71b4688, kernelidle-02/rootv1.19,
+buildY2LINUX-CPU-IDLE-COMPLETION-02, same boot
+`f155196b-64d4-45a4-88b3-27755a1a8926`. UART1 remains clocked with IRQ/DMA/LSR0;
+actual dormant calls0, C3 disabled/budget0. Restored normal radio/OPP policy
+legitimately adds other current preflight reasons; the prior settled receipt
+still isolates UART1 alone. Expected prior diagnostic taint4096 is retained.
+New read-only admission: `out/cpu-c3-uart-physical/20261003T164546Z/`.
+
+Exact MT6582 d53dd75c `mt_idle` default PERI mask includes UART1 bit17;
+`mtk_uart_startup` enables DPIDLE for non-DMA ports and enables UART_SLEEP_EN,
+while DMA ports remain blocked. The global SPM R7 request/R13 ACK follows PCM
+fetch and precedes PCM register/power/run/WFI programming. Existing Y2Linux
+has the handshake but lacks UART's conditional mask/sleep-owner integration.
+Therefore merely dropping bit17 is unauthorized by the hardware evidence.
+The next implementation boundary is conditional PIO sleep adoption with bounded
+ACK/refusal, exact unwind and diagnostics, preserving all unrelated blockers,
+CCF ownership, C1/C2 and existing timer/context/CIRQ safeguards. No forced gate,
+FIFO/data/baud/reset writes, invented PCM, memory/partition expansion or live
+C3 trial on the old kernel. Normal console ownership must provide its sleep
+capability as required by the same global handshake.
+
+Existing #28/#31/#34 clock/idle dependencies remain open; CPU completion is not
+closed or hardware-impossible. User authorizes one fresh preserving candidate
+`out/y2linux-cpu-c3-uart-candidate/`, BOOTIMG+Y2ROOT only, with owner-only flash
+and no push. Software validation and a prepared first-entry/20-cycle harness
+must precede handoff; physical DORMANT success remains unobserved until then.
+Unchanged ROM/recovery provenance, protected data and six owner doc edits stay
+separate. Full-system suspend/electrical battery benefit remain outside scope.
+
 ## Candidate02 physical closing audit — 2026-10-03
 
 Owner-installed candidate02 is verified at Linuxdb0234e/Rebornb71b4688,

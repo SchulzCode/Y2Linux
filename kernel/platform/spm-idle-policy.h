@@ -1,10 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef Y2_SPM_IDLE_POLICY_H
 #define Y2_SPM_IDLE_POLICY_H
+#include "spm-policy.h"
 #include "spm-suspend-policy.h"
-static inline int y2_spm_idle_arm(const struct y2_spm_io *io, unsigned address)
+#include "spm-uart-policy.h"
+static inline int y2_spm_idle_arm(const struct y2_spm_io *io, unsigned address,
+		struct y2_spm_uart_sleep *uart)
 {
-	unsigned val, n;
+	unsigned n;
+	int ret;
 	/* Exact Y2 spm_cpusys_can_power_down: both copies must show CPUs1-3 off. */
 	if ((io->read(io->context, SPM_PWR_STATUS) | io->read(io->context, SPM_PWR_STATUS_S)) & Y2_SPM_SECONDARY_CPU_MASK)
 		return -EBUSY;
@@ -15,16 +19,8 @@ static inline int y2_spm_idle_arm(const struct y2_spm_io *io, unsigned address)
 	    io->read(io->context, SPM_PCM_IM_LEN) != 479) return -EIO;
 	io->write(io->context, SPM_PCM_CON0, CON0_CFG_KEY | CON0_IM_SLEEP_DVS | CON0_IM_KICK);
 	io->write(io->context, SPM_PCM_CON0, CON0_CFG_KEY | CON0_IM_SLEEP_DVS);
-	val = io->read(io->context, SPM_POWER_ON_VAL1);
-	io->write(io->context, SPM_POWER_ON_VAL1, val | R7_UART_CLK_OFF_REQ);
-	for (n = 0; n < 10; n++) {
-		if (io->read(io->context, SPM_PCM_REG13_DATA) & R13_UART_CLK_OFF_ACK) break;
-		io->delay(10);
-	}
-	if (n == 10) {
-		io->write(io->context, SPM_POWER_ON_VAL1, val);
-		return -EBUSY;
-	}
+	ret = y2_spm_uart_request(io, uart);
+	if (ret) return ret;
 	io->write(io->context, SPM_PCM_REG_DATA_INI, io->read(io->context, SPM_POWER_ON_VAL0));
 	io->write(io->context, SPM_PCM_PWR_IO_EN, PCM_RF_SYNC_R0);
 	io->write(io->context, SPM_PCM_PWR_IO_EN, 0);

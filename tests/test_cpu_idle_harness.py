@@ -56,12 +56,12 @@ class Harness(unittest.TestCase):
             self.assertEqual(calls, [('usb', 'true'), ('wifi', 'true'), ('wifi', 'MUTATE')])
 
     def test_real_reset_return_requires_residency_and_all_restores(self):
-        a = {k: '0' for k in ('dormant_entries', 'dormant_resumes', 'dormant_successes',
+        a = {k: '0' for k in ('dormant_attempts', 'dormant_entries', 'dormant_resumes', 'dormant_successes',
                              'dormant_residency_us', 'dormant_restore_failures', 'dormant_failures')}
-        b = {**a, 'dormant_entries': '1', 'dormant_resumes': '1', 'dormant_successes': '1',
+        b = {**a, 'dormant_attempts': '1', 'dormant_entries': '1', 'dormant_resumes': '1', 'dormant_successes': '1',
              'dormant_residency_us': '4000', 'dormant_broken': '0', 'dormant_result': '-13', 'dormant_wake_result': '0'}
         self.assertTrue(DEVICE.dormant_verdict(a, b)['pass'])
-        for k, value in (('dormant_successes', '0'), ('dormant_residency_us', '0'),
+        for k, value in (('dormant_attempts', '2'), ('dormant_successes', '0'), ('dormant_residency_us', '0'),
                          ('dormant_restore_failures', '1'), ('dormant_broken', '1'),
                          ('dormant_entries', '2'), ('dormant_wake_result', '-5')):
             self.assertFalse(DEVICE.dormant_verdict(a, {**b, k: value})['pass'], k)
@@ -72,6 +72,22 @@ class Harness(unittest.TestCase):
         for seconds in (0, 10, 30):
             text = 'provider=1 armed_s=%d running=0 paused=0 staged=0 seconds=0 error=0' % seconds
             self.assertEqual(DEVICE.number(DEVICE.fields(text).get('armed_s')), seconds)
+
+    def test_uart_requires_new_real_ack_and_request_cleanup(self):
+        a = {k: '0' for k in ('uart_sleep_attempts', 'uart_sleep_successes',
+                             'uart_sleep_timeouts', 'uart_sleep_restore_failures')}
+        b = {**a, 'uart_sleep_attempts': '1', 'uart_sleep_successes': '1',
+             'uart_sleep_request': '1', 'uart_sleep_ack': '1', 'uart_sleep_result': '0',
+             'uart_power_before': '0x15820', 'uart_power_request': '0x15821',
+             'uart_power_after': '0x15820', 'uart_r13_ack': '0x100000'}
+        self.assertTrue(DEVICE.uart_sleep_verdict(a, b)['pass'])
+        for key, value in (('uart_sleep_attempts', '0'), ('uart_sleep_successes', '0'),
+                           ('uart_sleep_timeouts', '1'), ('uart_sleep_restore_failures', '1'),
+                           ('uart_sleep_ack', '0'), ('uart_sleep_request', '0'),
+                           ('uart_power_before', '0x15821'), ('uart_power_request', '0x15820'),
+                           ('uart_power_after', '0x15821'), ('uart_r13_ack', '0'),
+                           ('uart_sleep_result', '-16'), ('uart_power_after', None)):
+            self.assertFalse(DEVICE.uart_sleep_verdict(a, {**b, key: value})['pass'], key)
 
     def test_hotplug_checks_both_exact_descending_mt6582_power_copies(self):
         q = object.__new__(DEVICE.Qualification)
@@ -101,10 +117,14 @@ class Harness(unittest.TestCase):
         q.save = lambda: None
         q.wait_for_c3_topology = lambda: {'pass': True}
         writes = []
-        state = {'dormant_entries': '0', 'dormant_resumes': '0', 'dormant_successes': '0',
+        state = {'dormant_attempts': '0', 'dormant_entries': '0', 'dormant_resumes': '0', 'dormant_successes': '0',
                  'dormant_residency_us': '0', 'dormant_restore_failures': '0', 'dormant_failures': '0',
                  'dormant_broken': '0', 'dormant_result': '-13', 'dormant_wake_result': '-16'}
+        state.update({k: '0' for k in ('uart_sleep_attempts', 'uart_sleep_successes',
+                                     'uart_sleep_timeouts', 'uart_sleep_restore_failures')})
         snaps = {'spm': ' '.join(k+'='+v for k, v in state.items()), 'taint': '0',
+                 'modules': {'clocks': {'uart1_gate_before': '0', 'uart1_gate_after': '0',
+                                        'uart_restore_failures': '0'}},
                  'metrics': {'states': {'cpu0/cpuidle/state2': {'usage': '0', 'time': '0'}}}}
         role = types.SimpleNamespace()
         with patch.object(DEVICE.P, 'glob', return_value=iter([role])), \
@@ -120,6 +140,8 @@ class Harness(unittest.TestCase):
         self.assertIn((DEVICE.C3, 1), writes)
         self.assertIn((DEVICE.BUDGET, 0), writes)
         self.assertEqual(writes[-1], (role, 'device'))
+        # The first attempted entry is a 25ms wake, never the 1ms boundary probe.
+        self.assertNotIn('near_deadline_fallback', q.result)
 
     def test_c3_waits_for_owned_parking_and_both_physical_power_copies(self):
         q = object.__new__(DEVICE.Qualification)

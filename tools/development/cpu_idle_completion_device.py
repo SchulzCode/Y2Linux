@@ -101,13 +101,31 @@ def delta(a, b, key):
 def dormant_verdict(a, b):
     """A reset return alone is insufficient: require all checked restores."""
     changes = {n: delta(a, b, n) for n in
-               ('dormant_entries', 'dormant_resumes', 'dormant_successes',
+               ('dormant_attempts', 'dormant_entries', 'dormant_resumes', 'dormant_successes',
                 'dormant_residency_us', 'dormant_restore_failures', 'dormant_failures')}
-    return {'pass': changes['dormant_entries'] == changes['dormant_resumes'] ==
+    return {'pass': changes['dormant_attempts'] == changes['dormant_entries'] == changes['dormant_resumes'] ==
                     changes['dormant_successes'] == 1 and
                     changes['dormant_residency_us'] > 0 and
                     changes['dormant_restore_failures'] == changes['dormant_failures'] == 0 and
                     number(b.get('dormant_broken')) == 0 and number(b.get('dormant_wake_result')) == 0,
+            'changes': changes}
+
+
+def uart_sleep_verdict(a, b):
+    """Require this trial's hardware ACK and verified request cleanup."""
+    names = ('uart_sleep_attempts', 'uart_sleep_successes', 'uart_sleep_timeouts',
+             'uart_sleep_restore_failures')
+    changes = {n: delta(a, b, n) for n in names}
+    before = number(b.get('uart_power_before'))
+    return {'pass': changes['uart_sleep_attempts'] == changes['uart_sleep_successes'] == 1 and
+                    changes['uart_sleep_timeouts'] == changes['uart_sleep_restore_failures'] == 0 and
+                    number(b.get('uart_sleep_request')) == number(b.get('uart_sleep_ack')) == 1 and
+                    number(b.get('uart_sleep_result')) == 0 and before is not None and before & 1 == 0 and
+                    number(b.get('uart_power_request')) == before | 1 and
+                    number(b.get('uart_power_after')) is not None and
+                    number(b.get('uart_power_after')) & 1 == 0 and
+                    number(b.get('uart_r13_ack')) is not None and
+                    number(b.get('uart_r13_ack')) & (1 << 20) != 0,
             'changes': changes}
 
 
@@ -359,16 +377,7 @@ class Qualification:
             unmet = fields(preflight).get('unmet', '').strip(',')
             if unmet:
                 raise RuntimeError('C3 prerequisites: '+unmet+'\n'+preflight)
-            near_before = fields(spm())
-            write(C3, 0)
-            for _ in range(20):
-                time.sleep(.001)
-            write(C3, 1)
-            near_after = fields(spm())
-            self.result['near_deadline_fallback'] = {'before': near_before, 'after': near_after}
-            if delta(near_before, near_after, 'dormant_entries'):
-                raise RuntimeError('too-close deadline entered C3')
-            for cycle in range(20):
+            for cycle in range(21):
                 # One real cpu_suspend call per cycle. No retry after an entry/restore failure.
                 write(BACKSTOP, 10)
                 write(BUDGET, 1)
@@ -384,10 +393,18 @@ class Qualification:
                 write(BUDGET, 0)
                 after = snapshot()
                 verdict = dormant_verdict(a, fields(after['spm']))
+                verdict['uart_sleep'] = uart_sleep_verdict(a, fields(after['spm']))
+                clocks = after['modules']['clocks']
+                verdict['uart_gate_restored'] = (number(clocks['uart1_gate_before']) ==
+                                                 number(clocks['uart1_gate_after']))
+                verdict['uart_restore_failures'] = delta(before['modules']['clocks'], clocks,
+                                                         'uart_restore_failures')
                 key = 'cpu0/cpuidle/state2'
                 verdict['cpuidle_entries'] = delta(before['metrics']['states'][key], after['metrics']['states'][key], 'usage')
                 verdict['cpuidle_residency_us'] = delta(before['metrics']['states'][key], after['metrics']['states'][key], 'time')
-                verdict['pass'] &= (boot() == self.result['start_boot'] and verdict['cpuidle_entries'] == 1 and
+                verdict['pass'] &= (verdict['uart_sleep']['pass'] and verdict['uart_gate_restored'] and
+                                    verdict['uart_restore_failures'] == 0 and
+                                    boot() == self.result['start_boot'] and verdict['cpuidle_entries'] == 1 and
                                     verdict['cpuidle_residency_us'] > 0 and after['taint'] == '0' and
                                     number(after['modules']['local_timer']['context_failures']) == 0 and
                                     number(after['cirq']['restore_failures']) == 0 and
@@ -403,6 +420,19 @@ class Qualification:
                 self.save()
                 if not verdict['pass']:
                     raise RuntimeError('C3 first failed bounded cycle; disabled, no repeat')
+            # Never let the first real entry occur during a boundary probe.
+            near_before = fields(spm())
+            write(BACKSTOP, 10)
+            write(BUDGET, 1)
+            write(C3, 0)
+            for _ in range(20):
+                time.sleep(.001)
+            write(C3, 1)
+            write(BUDGET, 0)
+            near_after = fields(spm())
+            self.result['near_deadline_fallback'] = {'before': near_before, 'after': near_after}
+            if delta(near_before, near_after, 'dormant_entries'):
+                raise RuntimeError('too-close deadline entered C3')
             if self.config.get('enable_qualified_runtime'):
                 write(BUDGET, -1)
                 write(C3, 0)

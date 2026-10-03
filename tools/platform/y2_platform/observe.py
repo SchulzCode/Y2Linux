@@ -92,6 +92,10 @@ def idle_completion(ctx, states):
     result['C3']['preflight'] = ctx.read('/sys/devices/platform/10006000.power-controller/dormant_preflight')
     result['C3']['unused_clock_handoff'] = ctx.read('/sys/module/clocks/parameters/unused_handoff')
     result['C3']['context'] = ctx.read('/sys/devices/platform/10006000.power-controller/state')
+    result['C3']['uart_clock_handoff'] = ctx.read('/sys/module/clocks/parameters/uart_sleep_handoff')
+    uart = dict(re.findall(r'(\w+)=([^\s]+)', result['C3']['context'] or ''))
+    result['C3']['uart_sleep'] = {key: value for key, value in uart.items()
+                                if key.startswith(('uart_sleep_', 'uart_power_', 'uart_r13_', 'uart_request_', 'uart_ack_'))}
     result['C3']['entry_budget'] = ctx.integer('/sys/module/spm/parameters/dormant_budget')
     result['C3']['display_idle'] = {p.name: read(p) for p in ctx.glob('/sys/module/mm_clocks/parameters/*')}
     preflight = dict(re.findall(r'(\w+)=([^\s]+)', result['C3']['preflight'] or ''))

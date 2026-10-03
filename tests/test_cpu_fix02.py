@@ -890,9 +890,10 @@ class DormantReadiness(unittest.TestCase):
         clocks = (ROOT/'kernel/platform/clocks.c').read_text()
         begin = function(clocks.replace('int y2_ccf_deep_idle_begin(', 'static int y2_ccf_deep_idle_begin('), 'y2_ccf_deep_idle_begin')
         blockers = function(clocks.replace('int y2_ccf_deep_idle_blockers(', 'static int y2_ccf_deep_idle_blockers('), 'y2_ccf_deep_idle_blockers')
-        for mask in ('0x02fe87fdU | 0x7800U', '0x0000a080U | BIT(5)'):
+        for mask in ('y2_dpidle_peri_blockers', 'y2_uart_sleep_available', '0x0000a080U | BIT(5)'):
             self.assertIn(mask, begin)
             self.assertIn(mask, blockers)
+        self.assertIn('0x02fe87fdU | 0x7800U', (ROOT/'kernel/platform/uart-idle-policy.h').read_text())
         self.assertIn('y2_mm_idle_blockers(&deep_disp0_blockers, &deep_disp1_blockers)', begin)
         self.assertIn('y2_mm_idle_blockers(&disp0, &disp1)', pre)
         self.assertIn('deep_disp0_blockers || deep_disp1_blockers', begin)

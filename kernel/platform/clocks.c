@@ -7,6 +7,7 @@
  */
 #include "clocks.h"
 #include "idle-clock-policy.h"
+#include "uart-idle-policy.h"
 #include "policy.h"
 #include "power-math.h"
 #include "shared.h"
@@ -31,6 +32,67 @@ struct y2_clock {
 static void __iomem *y2_clock_bases[4];
 static DEFINE_SPINLOCK(y2_clk_lock);
 static struct y2_clock *y2_usb_clock;
+static void __iomem *dormant_uart[2];
+static struct y2_uart_idle_save dormant_uart_save;
+static struct y2_uart_idle_save uart1_observed;
+static unsigned deep_peri_raw, deep_uart_deferred, uart1_gate_before, uart1_gate_after;
+static unsigned uart_restore_failures, uart0_sleep, uart0_dma;
+static const char *uart_sleep_phase = "never_prepared";
+static const char *uart_owner_reason = "not_observed";
+module_param(deep_peri_raw, uint, 0400);
+module_param(deep_uart_deferred, uint, 0400);
+module_param(uart1_gate_before, uint, 0400);
+module_param(uart1_gate_after, uint, 0400);
+module_param(uart_restore_failures, uint, 0400);
+static unsigned uart_idle_read(void *context, unsigned reg)
+{
+	return readl(context + reg);
+}
+static void uart_idle_write(void *context, unsigned reg, unsigned value)
+{
+	writel(value, context + reg);
+	dsb(sy);
+}
+static struct y2_spm_io uart_idle_io = { .read = uart_idle_read, .write = uart_idle_write };
+/* Caller holds the existing clock-owner lock. IRQ-disabled CPU0-only entry
+ * excludes the process-context unused handoff; neither owner forces a gate. */
+static int y2_uart_sleep_available(unsigned pdn, unsigned *deferred)
+{
+	uart1_observed = (struct y2_uart_idle_save){};
+	*deferred = 0;
+	uart_owner_reason = "ready_for_global_ACK";
+	if (!(pdn & BIT(16))) {
+		if (!dormant_uart[0]) { uart_owner_reason = "UART0_mapping_unavailable"; return -ENODEV; }
+		/* UART0 belongs to serial8250: never read its IER/LSR/FIFO.
+		 * Its normal MT6582 driver must provide non-DMA sleep capability. */
+		uart0_dma = readl(dormant_uart[0] + 0x4c);
+		uart0_sleep = readl(dormant_uart[0] + Y2_UART_SLEEP_EN);
+		if (uart0_dma & ~4U) { uart_owner_reason = "UART0_DMA_or_unknown"; return -EBUSY; }
+		if (uart0_sleep != 1) { uart_owner_reason = "UART0_sleep_owner_missing"; return -EBUSY; }
+	}
+	if (!(pdn & Y2_UART1_CLOCK)) {
+		struct y2_spm_io io = uart_idle_io;
+		if (!dormant_uart[1]) { uart_owner_reason = "UART1_mapping_unavailable"; return -ENODEV; }
+		io.context = dormant_uart[1];
+		if (y2_uart_idle_ready(&io, &uart1_observed)) {
+			uart_owner_reason = uart1_observed.lcr & ~0x7fU ? "UART1_bank_or_unknown" :
+				uart1_observed.ier ? "UART1_IRQ_active" : uart1_observed.dma & ~4U ?
+				"UART1_DMA_or_unknown" : "UART1_sleep_unknown";
+			return -EBUSY;
+		}
+		*deferred = Y2_UART1_CLOCK;
+	}
+	return 0;
+}
+static int y2_uart_sleep_restore(void)
+{
+	int ret = y2_uart_idle_restore(&uart_idle_io, &dormant_uart_save);
+	uart1_gate_after = !!(readl(y2_clock_bases[1] + 0x18) & Y2_UART1_CLOCK);
+	if (uart1_gate_after != uart1_gate_before) ret = -EIO;
+	if (ret) uart_restore_failures++;
+	uart_sleep_phase = ret ? "restore_failed" : "restored";
+	return ret;
+}
 /* Only the MUSB owner calls this after claiming an idle DMA/controller.
  * Failed probes keep LK's gate protected; successful runtime PM may gate it. */
 int y2_ccf_usb_claim(void)
@@ -136,18 +198,36 @@ int y2_ccf_deep_idle_begin(void)
 {
 	void __iomem *top = y2_clock_bases[0], *peri = y2_clock_bases[1];
 	void __iomem *infra = y2_clock_bases[2];
+	unsigned pdn;
+	int ret;
 	if (!top || !peri || !infra) return -ENODEV;
 	if (!spin_trylock(&y2_clk_lock)) return -EBUSY;
-	/* Exact stock PERI/INFRA/DISP masks, plus all MSDC and AFE blockers.
-	 * Other groups are checked as powered-off domains by SPM. */
-	deep_peri_blockers = ~readl(peri + 0x18) & (0x02fe87fdU | 0x7800U);
+	pdn = readl(peri + 0x18);
+	/* Stock UART startup conditionally permits non-DMA clocks with sleep
+	 * enabled. UART1 admission is provisional until SPM's real global ACK.
+	 * All other stock masks, plus all MSDC/AFE blockers, remain unchanged. */
+	deep_peri_raw = y2_dpidle_peri_blockers(pdn, 0);
+	ret = y2_uart_sleep_available(pdn, &deep_uart_deferred);
+	deep_peri_blockers = y2_dpidle_peri_blockers(pdn, deep_uart_deferred);
 	deep_infra_blockers = ~readl(infra + 0x40) & (0x0000a080U | BIT(5));
-	if (deep_peri_blockers || deep_infra_blockers) goto busy;
+	if (ret || deep_peri_blockers || deep_infra_blockers) goto busy;
 	if (y2_mm_idle_blockers(&deep_disp0_blockers, &deep_disp1_blockers) ||
 	    deep_disp0_blockers || deep_disp1_blockers) goto busy;
 	idle_bus = readl(top + 4);
 	idle_audio = readl(top + 0x70);
 	if (!y2_bus_dcm_baseline(idle_bus)) goto busy;
+	uart1_gate_before = !!(pdn & Y2_UART1_CLOCK);
+	dormant_uart_save.prepared = 0;
+	if (deep_uart_deferred) {
+		uart_idle_io.context = dormant_uart[1];
+		ret = y2_uart_idle_prepare(&uart_idle_io, &dormant_uart_save);
+		if (ret) {
+			if (y2_uart_sleep_restore()) ret = -EIO;
+			spin_unlock(&y2_clk_lock);
+			return ret;
+		}
+	}
+	uart_sleep_phase = "awaiting_global_spm_ack";
 	writel(Y2_BUS_DCM_IDLE, top + 4);
 	writel(idle_audio & 0xf8ffffff, top + 0x70);
 	dsb(sy);
@@ -166,13 +246,17 @@ int y2_ccf_deep_idle_blockers(unsigned *peri, unsigned *infra, unsigned *bus)
 {
 	void __iomem *top = y2_clock_bases[0], *p = y2_clock_bases[1], *i = y2_clock_bases[2];
 	unsigned long flags;
+	unsigned pdn, deferred;
+	int ret;
 	if (!top || !p || !i) return -ENODEV;
 	spin_lock_irqsave(&y2_clk_lock, flags);
-	*peri = ~readl(p + 0x18) & (0x02fe87fdU | 0x7800U);
+	pdn = readl(p + 0x18);
+	ret = y2_uart_sleep_available(pdn, &deferred);
+	*peri = y2_dpidle_peri_blockers(pdn, deferred);
 	*infra = ~readl(i + 0x40) & (0x0000a080U | BIT(5));
 	*bus = readl(top + 4);
 	spin_unlock_irqrestore(&y2_clk_lock, flags);
-	return 0;
+	return ret;
 }
 int y2_ccf_deep_idle_end(void)
 {
@@ -182,9 +266,31 @@ int y2_ccf_deep_idle_end(void)
 	writel(idle_bus, top + 4);
 	dsb(sy);
 	if (readl(top + 4) != idle_bus || readl(top + 0x70) != idle_audio) ret = -EIO;
+	if (y2_uart_sleep_restore()) ret = -EIO;
 	spin_unlock(&y2_clk_lock);
 	return ret;
 }
+static int uart_sleep_handoff_get(char *buf, const struct kernel_param *kp)
+{
+	unsigned long flags;
+	unsigned pdn, deferred = 0;
+	int ready = -ENODEV, n;
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	pdn = y2_clock_bases[1] ? readl(y2_clock_bases[1] + 0x18) : ~0U;
+	if (y2_clock_bases[1]) ready = y2_uart_sleep_available(pdn, &deferred);
+	n = scnprintf(buf, PAGE_SIZE,
+		"uart_sleep_owner_ready=%u raw_peri_blockers=%#x uart1_deferred=%#x uart0_sleep=%u uart0_dma=%#x uart1_gate_now=%u uart1_gate_before=%u uart1_gate_after=%u uart1_sleep_before=%u uart1_lcr=%#x uart1_ier=%#x uart1_dma=%#x restore_failures=%u phase=%s rejection_reason=%s uart1_sampled=%#x uart1_sleep_now=%u uart1_lcr_now=%#x uart1_ier_now=%#x uart1_dma_now=%#x ack_authority=global_SPM_R13_bit20\n",
+		!ready, y2_dpidle_peri_blockers(pdn, 0), deferred, uart0_sleep, uart0_dma,
+		!!(pdn & Y2_UART1_CLOCK), uart1_gate_before, uart1_gate_after,
+		dormant_uart_save.sleep, dormant_uart_save.lcr, dormant_uart_save.ier,
+		dormant_uart_save.dma, uart_restore_failures, uart_sleep_phase, uart_owner_reason,
+		uart1_observed.sampled, uart1_observed.sleep, uart1_observed.lcr,
+		uart1_observed.ier, uart1_observed.dma);
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
+	return n;
+}
+static const struct kernel_param_ops uart_sleep_handoff_ops = {.get = uart_sleep_handoff_get};
+module_param_cb(uart_sleep_handoff, &uart_sleep_handoff_ops, NULL, 0400);
 
 /* Same INFRACFG_AO owner as the CPU mux. Original Y2 secondary hotplug and
  * dormant code use +0x800/+0x804; never write a loader image or RTC word. */
@@ -887,6 +993,10 @@ static int y2_clocks_probe(struct platform_device *pdev)
 	for (i = 0; i < 4; i++)
 		y2_clock_bases[i] = base[i];
 	unused_dev = dev;
+	/* C3's existing clock owner only reads console sleep/DMA capability;
+	 * UART1 is adopted temporarily for the vendor PIO sleep handshake. */
+	dormant_uart[0] = devm_ioremap(dev, 0x11002000, 0x80);
+	dormant_uart[1] = devm_ioremap(dev, 0x11003000, 0x80);
 	for (i = 0; i < ARRAY_SIZE(unused_hw); i++) {
 		struct clk_hw *hw = data->hws[Y2_CLK_UNUSED_START + 10 + i];
 		unused_hw[i] = container_of(hw, struct y2_clock, hw);

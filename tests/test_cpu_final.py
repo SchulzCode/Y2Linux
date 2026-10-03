@@ -48,13 +48,13 @@ static void wr(void *c,unsigned a,unsigned v){r[a/4]=v;writes++;
   assert(!(r[SPM_SLEEP_WAKEUP_EVENT_MASK/4]&WAKE_SRC_GPT));
  }}
 static void delay(unsigned u){delays+=u;}
-int main(void){struct y2_spm_io io={0,rd,wr,delay};
- r[SPM_PWR_STATUS/4]=0x800;assert(y2_spm_idle_arm(&io,0x81000000)==-EBUSY && !writes);
- r[SPM_PWR_STATUS/4]=0;broken=1;assert(y2_spm_idle_arm(&io,0x81000000)==-EIO && !kicks);
- broken=0;assert(y2_spm_idle_arm(&io,0x81000000)==-EBUSY && !kicks && delays==100);
+int main(void){struct y2_spm_io io={0,rd,wr,delay};struct y2_spm_uart_sleep uart={0};
+ r[SPM_PWR_STATUS/4]=0x800;assert(y2_spm_idle_arm(&io,0x81000000,&uart)==-EBUSY && !writes);
+ r[SPM_PWR_STATUS/4]=0;broken=1;assert(y2_spm_idle_arm(&io,0x81000000,&uart)==-EIO && !kicks);
+ broken=0;assert(y2_spm_idle_arm(&io,0x81000000,&uart)==-EBUSY && !kicks && delays==100);
  assert(!(r[SPM_POWER_ON_VAL1/4]&R7_UART_CLK_OFF_REQ));
  r[SPM_PCM_REG13_DATA/4]=R13_UART_CLK_OFF_ACK;
- assert(!y2_spm_idle_arm(&io,0x81000000) && kicks==1);
+ assert(!y2_spm_idle_arm(&io,0x81000000,&uart) && kicks==1);
  y2_spm_suspend_clean(&io);
  assert(!(r[SPM_PCM_CON1/4]&(CON1_PCM_TIMER_EN|CON1_PCM_WDT_EN)));
  assert(!r[SPM_PCM_PWR_IO_EN/4]);
