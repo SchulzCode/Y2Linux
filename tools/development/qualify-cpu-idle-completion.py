@@ -8,9 +8,11 @@ deep idle and restores them in finally. Never flashes, pushes or sends reboot.
 import argparse
 import datetime
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import subprocess
 import time
@@ -42,6 +44,69 @@ def identity_errors(manifest, actual):
         errors.append('running_reborn_build')
     if not actual.get('boot'):
         errors.append('boot_id')
+    return errors
+
+
+def foundation_errors(receipt, actual):
+    """Only continue a same-boot trial that never reached UART/context entry."""
+    errors = []
+    if (receipt.get('start_boot') != actual['boot'] or receipt.get('end_boot') != actual['boot'] or
+            receipt.get('source') != actual['versions']):
+        errors.append('same_boot_and_source')
+    if not receipt.get('done') or receipt.get('cleanup_errors') or receipt.get('filesystem_irq_errors'):
+        errors.append('completed_clean_foundation')
+    for phase in ('C1', 'hotplug', 'DVFS', 'C2_parking', 'storage_after_C2',
+                  'storage_after_C3', 'screen_wake', 'DVFS_after_C3', 'playback_workload_wake'):
+        if receipt.get('phases', {}).get(phase, {}).get('pass') is not True:
+            errors.append(phase)
+    final = receipt.get('final', {})
+    values = dict(re.findall(r'(\w+)=([^\s]+)', final.get('spm', '')))
+    for name in ('dormant_entries', 'dormant_resumes', 'dormant_successes', 'uart_sleep_attempts',
+                 'dormant_failures', 'dormant_restore_failures', 'dormant_broken'):
+        if values.get(name) != '0':
+            errors.append('never_entered_'+name)
+    if final.get('taint') != '0' or receipt.get('USB_WiFi_integrity', {}).get('pass') is not True:
+        errors.append('clean_taint_and_transports')
+    return errors
+
+
+def repeat_errors(receipt, actual):
+    """Continue only from contiguous, individually checked real reset returns."""
+    errors = []
+    if (receipt.get('start_boot') != actual['boot'] or receipt.get('end_boot') != actual['boot'] or
+            receipt.get('source') != actual['versions'] or not receipt.get('done') or
+            receipt.get('cleanup_errors') or receipt.get('filesystem_irq_errors') or receipt.get('error') or
+            receipt.get('USB_WiFi_integrity', {}).get('pass') is not True):
+        errors.append('clean_same_boot_first_entry')
+    for phase in ('storage_after_C3', 'screen_wake', 'DVFS_after_C3', 'playback_workload_wake'):
+        if receipt.get('phases', {}).get(phase, {}).get('pass') is not True:
+            errors.append(phase)
+    foundation = receipt.get('foundation_receipt', {})
+    try:
+        raw = Path(foundation['path']).read_bytes()
+        if hashlib.sha256(raw).hexdigest() != foundation['sha256'] or foundation_errors(json.loads(raw), actual):
+            errors.append('original_foundation')
+    except (KeyError, OSError, ValueError):
+        errors.append('original_foundation_missing')
+    rows = receipt.get('c3_cycles', [])
+    try:
+        spec = importlib.util.spec_from_file_location('c3_receipt_device',
+            Path(__file__).with_name('cpu_idle_completion_device.py'))
+        device = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(device)
+        valid = 1 <= len(rows) <= 20
+        for i, row in enumerate(rows):
+            valid &= (row['cycle'] == i and
+                      device.cycle_verdict(row['before'], row['after'], actual['boot'])['pass'])
+            for snapshot, expected in ((row['before'], i), (row['after'], i+1)):
+                counters = device.fields(snapshot['spm'])
+                valid &= all(device.number(counters.get(n)) == expected for n in
+                             ('dormant_entries', 'dormant_resumes', 'dormant_successes',
+                              'uart_sleep_attempts', 'uart_sleep_successes'))
+        if not valid:
+            errors.append('checked_first_entry')
+    except (KeyError, ValueError, RuntimeError):
+        errors.append('first_entry_evidence_missing')
     return errors
 
 
@@ -160,6 +225,21 @@ print('owned temporary observer cleanup complete')
             raise RuntimeError('Stop current playback before qualification; owner media state must be preserved')
         self.source, self.start_boot = actual['versions'], actual['boot']
         (self.directory/'installed-identity.json').write_text(json.dumps(actual, indent=2)+'\n')
+        foundation = None
+        repeat = getattr(self.args, 'c3_repeat_after', None)
+        foundation_path = repeat or getattr(self.args, 'c3_only_after', None)
+        if foundation_path:
+            raw = foundation_path.read_bytes()
+            prior = json.loads(raw)
+            errors = (repeat_errors if repeat else foundation_errors)(prior, actual)
+            if errors:
+                raise RuntimeError('C3-only continuation rejected: '+', '.join(errors))
+            foundation = {'path': str(foundation_path.resolve()),
+                          'sha256': hashlib.sha256(raw).hexdigest(),
+                          'boot': self.start_boot, 'source': self.source}
+            if repeat:
+                foundation['completed_cycles'] = len(prior['c3_cycles'])
+            (self.directory/'foundation-receipt.json').write_text(json.dumps(foundation, indent=2)+'\n')
         # Existing authorized Wi-Fi alias pins the same physical host. Establish
         # a temporary key-only listener only if its normal observer is absent.
         wifi = self.ssh(self.args.wifi_host, 'true')
@@ -195,6 +275,8 @@ print(json.dumps({'address':address,'pid':p.pid,'pid_file':pid}))
         config = {'device_directory': '/data/system/platform/cpu-idle-qualification/'+uuid.uuid4().hex,
                   'enable_qualified_runtime': self.args.enable_qualified_runtime,
                   'expected_boot': self.start_boot, 'expected_versions': self.source, 'original_radio':{**actual['radio'], 'wifi':True}}
+        if foundation:
+            config['qualified_first_entry' if repeat else 'unentered_foundation'] = foundation
         body = Path(__file__).with_name('cpu_idle_completion_device.py').read_text()
         launch = """
 import json,pathlib,subprocess,os
@@ -255,6 +337,11 @@ def main():
                         datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ-candidate'))
     parser.add_argument('--enable-qualified-runtime', action='store_true',
                         help='leave normal C3 policy enabled only after the first entry and 20 further checked timer wakes')
+    continuation = parser.add_mutually_exclusive_group()
+    continuation.add_argument('--c3-only-after', type=Path,
+                        help='reuse a clean same-boot full regression receipt only when UART/context entry never happened')
+    continuation.add_argument('--c3-repeat-after', type=Path,
+                        help='run only the twenty further cycles after independently rechecking a clean first-entry receipt')
     args = parser.parse_args()
     if not args.run:
         print('\n'.join(PLAN))

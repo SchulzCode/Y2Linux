@@ -89,7 +89,7 @@ def snapshot():
             'interrupts': read('/proc/interrupts'), 'timer_list': read('/proc/timer_list'),
             'clock_summary': read('/sys/kernel/debug/clk/clk_summary'),
             'journal': {n: read('/sys/firmware/y2_pm/'+n) for n in
-                        ('state', 'previous', 'devices', 'devices_previous', 'backstop', 'retention', 'reset_status')}}
+                        ('state', 'previous', 'devices', 'devices_previous', 'backstop_s', 'retention', 'reset_status')}}
 
 
 def delta(a, b, key):
@@ -102,13 +102,21 @@ def dormant_verdict(a, b):
     """A reset return alone is insufficient: require all checked restores."""
     changes = {n: delta(a, b, n) for n in
                ('dormant_attempts', 'dormant_entries', 'dormant_resumes', 'dormant_successes',
-                'dormant_residency_us', 'dormant_restore_failures', 'dormant_failures')}
-    return {'pass': changes['dormant_attempts'] == changes['dormant_entries'] == changes['dormant_resumes'] ==
-                    changes['dormant_successes'] == 1 and
+                'dormant_residency_us', 'dormant_restore_failures', 'dormant_failures', 'dormant_aborts')}
+    # spm.c counts admission calls before checking the consumed one-entry
+    # budget. Subsequent IRQ wakes may safely reject at budget during the rest
+    # of this window. Require exactly ONE real entry/return, accounting for
+    # every extra admission call as an abort, never a second context attempt.
+    refused = changes['dormant_attempts']-changes['dormant_entries']
+    return {'pass': changes['dormant_entries'] == changes['dormant_resumes'] ==
+                    changes['dormant_successes'] == 1 and refused >= 0 and
+                    changes['dormant_aborts'] == refused and
+                    (refused == 0 or (b.get('dormant_stage'), number(b.get('dormant_result'))) in
+                     (('budget', -13), ('resumed', 0))) and
                     changes['dormant_residency_us'] > 0 and
                     changes['dormant_restore_failures'] == changes['dormant_failures'] == 0 and
                     number(b.get('dormant_broken')) == 0 and number(b.get('dormant_wake_result')) == 0,
-            'changes': changes}
+            'changes': changes, 'safe_admission_refusals': refused}
 
 
 def uart_sleep_verdict(a, b):
@@ -127,6 +135,45 @@ def uart_sleep_verdict(a, b):
                     number(b.get('uart_r13_ack')) is not None and
                     number(b.get('uart_r13_ack')) & (1 << 20) != 0,
             'changes': changes}
+
+
+def cycle_verdict(before, after, expected_boot):
+    """Also usable for independently rechecking a stored first-entry receipt."""
+    a, b = fields(before['spm']), fields(after['spm'])
+    verdict = dormant_verdict(a, b)
+    verdict['uart_sleep'] = uart_sleep_verdict(a, b)
+    clocks = after['modules']['clocks']
+    verdict['uart_gate_restored'] = (number(clocks['uart1_gate_before']) ==
+                                     number(clocks['uart1_gate_after']))
+    verdict['uart_restore_failures'] = delta(before['modules']['clocks'], clocks, 'uart_restore_failures')
+    uart = fields(clocks['uart_sleep_handoff'])
+    verdict['uart_sleep_flag_restored'] = (uart.get('phase') == 'restored' and
+        number(uart.get('uart1_sleep_before')) is not None and
+        number(uart.get('uart1_sleep_before')) == number(uart.get('uart1_sleep_now')))
+    key = 'cpu0/cpuidle/state2'
+    verdict['cpuidle_entries'] = delta(before['metrics']['states'][key], after['metrics']['states'][key], 'usage')
+    verdict['cpuidle_residency_us'] = delta(before['metrics']['states'][key], after['metrics']['states'][key], 'time')
+    journal = fields(after['journal']['state'])
+    verdict['retained_reset_resume'] = (journal.get('valid') == '1' and
+        journal.get('stage') == 'DORMANT_COMPLETE' and journal.get('error') == '0' and
+        number(journal.get('reset_resume_entry')) == 0x59325253 and
+        all('stage='+n in after['journal']['devices'] for n in
+            ('BACKSTOP_STARTED', 'UART_REQUEST', 'UART_ACK', 'DORMANT_CONTEXT',
+             'DORMANT_FINISH', 'DORMANT_RETURN', 'DORMANT_COMPLETE')))
+    verdict['pass'] &= (verdict['uart_sleep']['pass'] and verdict['uart_gate_restored'] and
+                       verdict['uart_restore_failures'] == 0 and verdict['uart_sleep_flag_restored'] and
+                       verdict['retained_reset_resume'] and
+                       before['boot'] == after['boot'] == expected_boot and verdict['cpuidle_entries'] == 1 and
+                       verdict['cpuidle_residency_us'] > 0 and after['taint'] == '0' and
+                       number(after['modules']['local_timer']['context_failures']) == 0 and
+                       number(after['cirq']['restore_failures']) == 0 and
+                       number(after['cirq']['clone_failures']) == 0 and
+                       number(after['cirq']['entries']) == number(after['cirq']['flushes']) and
+                       number(b['dormant_wake']) & (1 << 4) != 0 and
+                       number(after['modules']['local_timer']['handoff_remaining_ns']) >= 2000000 and
+                       number(after['modules']['local_timer']['context_saves']) ==
+                       number(after['modules']['local_timer']['context_restores']))
+    return verdict
 
 
 class Qualification:
@@ -360,6 +407,49 @@ class Qualification:
             time.sleep(10)
         raise RuntimeError('natural C3 topology did not settle: '+repr(trace[-1]))
 
+    def wait_for_c3_admission(self, timeout=1200):
+        """Read-only settling AFTER the durable arm receipt wakes storage.
+
+        C3 stays disabled. Never fsync an observer record between this quiet
+        window and entry: that would legitimately wake MSDC0 again. The real
+        kernel guards still recheck clocks and the GPT4 deadline at entry.
+        """
+        end = time.monotonic()+timeout
+        stable = None
+        samples = 0
+        required = ('system_running', 'boot_policy', 'spm', 'local_events', 'cirq',
+                    'topology', 'frequency', 'screen_off', 'workload', 'runtime_budget',
+                    'qualification_backstop', 'linux_context', 'timer_context',
+                    'usb_restore', 'broken', 'clocks', 'display_clocks', 'bus')
+        while time.monotonic() < end:
+            if boot() != self.result['start_boot']:
+                raise RuntimeError('boot changed while settling C3 admission')
+            if read(C3) != '1':
+                raise RuntimeError('C3 must remain disabled while settling admission')
+            now = time.monotonic()
+            preflight = spm('dormant_preflight')
+            values = fields(preflight)
+            copies = values.get('power_status', '').split('/')
+            mmc = {p.parent.name: fields(read(p)) for p in
+                   P('/sys/bus/platform/devices').glob('*.mmc/y2_runtime_pm')}
+            row = {'time': now, 'preflight': preflight, 'coordinator': params('system_idle'), 'mmc': mmc}
+            quiet = (all(values.get('prerequisite_'+n) == '1' for n in required) and
+                     re.search(r'^unmet=\s*$', preflight, re.M) is not None and
+                     values.get('online') == '1' and read(CPU/'online') == '0' and
+                     number(row['coordinator'].get('parked_mask')) == 0xe and
+                     len(copies) == 2 and all(number(v) & 0xe00 == 0 for v in copies) and
+                     all(number(values.get(n)) == 0 for n in
+                         ('secondary_power', 'domain_blockers', 'peri_blockers', 'infra_blockers')) and
+                     '11230000.mmc' in mmc and all(m.get('gated') == '1' and
+                         number(m.get('error')) == number(m.get('last_mismatch')) == 0 for m in mmc.values()))
+            stable = (now if stable is None else stable) if quiet else None
+            samples += 1
+            self.result['c3_admission_progress'] = row
+            if stable is not None and now-stable >= 2:
+                return {'pass': True, 'samples': samples, 'quiet_s': now-stable, 'last': row}
+            time.sleep(.5)
+        raise RuntimeError('C3 admission did not settle after evidence write: '+repr(row))
+
     def c3_cycles(self):
         self.cmd('sync')
         write(POLICY/'scaling_min_freq', 598000)
@@ -373,18 +463,23 @@ class Qualification:
             self.result['c3_topology'] = self.wait_for_c3_topology()
             write(BACKSTOP, 10)
             write(BUDGET, 1)
-            preflight = spm('dormant_preflight')
-            unmet = fields(preflight).get('unmet', '').strip(',')
-            if unmet:
-                raise RuntimeError('C3 prerequisites: '+unmet+'\n'+preflight)
-            for cycle in range(21):
+            initial_admission = self.wait_for_c3_admission()
+            preflight = initial_admission['last']['preflight']
+            self.result['c3_initial_admission'] = initial_admission
+            completed = self.config.get('qualified_first_entry', {}).get('completed_cycles', 0)
+            cycles = range(completed, 21)
+            for cycle in cycles:
                 # One real cpu_suspend call per cycle. No retry after an entry/restore failure.
                 write(BACKSTOP, 10)
                 write(BUDGET, 1)
-                before = snapshot()
-                a = fields(before['spm'])
-                self.result['c3_armed'] = {'cycle': cycle, 'before': before}
+                self.result['c3_armed'] = {'cycle': cycle, 'status': 'settling_after_durable_receipt',
+                                         'budget': 1, 'backstop_s': 10}
                 self.save()
+                admission = self.wait_for_c3_admission()
+                before = snapshot()
+                # Keep the final snapshot in memory until wake. Saving it here
+                # would recreate the observer-induced eMMC clock rejection.
+                self.result['c3_armed'].update(status='armed', before=before, admission=admission)
                 deadline = (.025, .05, .1, .2)[cycle % 4]
                 write(C3, 0)
                 start = time.monotonic_ns()
@@ -392,28 +487,7 @@ class Qualification:
                 write(C3, 1)
                 write(BUDGET, 0)
                 after = snapshot()
-                verdict = dormant_verdict(a, fields(after['spm']))
-                verdict['uart_sleep'] = uart_sleep_verdict(a, fields(after['spm']))
-                clocks = after['modules']['clocks']
-                verdict['uart_gate_restored'] = (number(clocks['uart1_gate_before']) ==
-                                                 number(clocks['uart1_gate_after']))
-                verdict['uart_restore_failures'] = delta(before['modules']['clocks'], clocks,
-                                                         'uart_restore_failures')
-                key = 'cpu0/cpuidle/state2'
-                verdict['cpuidle_entries'] = delta(before['metrics']['states'][key], after['metrics']['states'][key], 'usage')
-                verdict['cpuidle_residency_us'] = delta(before['metrics']['states'][key], after['metrics']['states'][key], 'time')
-                verdict['pass'] &= (verdict['uart_sleep']['pass'] and verdict['uart_gate_restored'] and
-                                    verdict['uart_restore_failures'] == 0 and
-                                    boot() == self.result['start_boot'] and verdict['cpuidle_entries'] == 1 and
-                                    verdict['cpuidle_residency_us'] > 0 and after['taint'] == '0' and
-                                    number(after['modules']['local_timer']['context_failures']) == 0 and
-                                    number(after['cirq']['restore_failures']) == 0 and
-                                    number(after['cirq']['clone_failures']) == 0 and
-                                    number(after['cirq']['entries']) == number(after['cirq']['flushes']) and
-                                    number(fields(after['spm'])['dormant_wake']) & (1 << 4) != 0 and
-                                    number(after['modules']['local_timer']['handoff_remaining_ns']) >= 2000000 and
-                                    number(after['modules']['local_timer']['context_saves']) ==
-                                    number(after['modules']['local_timer']['context_restores']))
+                verdict = cycle_verdict(before, after, self.result['start_boot'])
                 rows.append({'cycle': cycle, 'deadline_s': deadline, 'elapsed_ns': time.monotonic_ns()-start,
                              'before': before, 'after': after, 'verdict': verdict})
                 self.result['c3_cycles'] = rows
@@ -424,6 +498,7 @@ class Qualification:
             near_before = fields(spm())
             write(BACKSTOP, 10)
             write(BUDGET, 1)
+            self.wait_for_c3_admission()
             write(C3, 0)
             for _ in range(20):
                 time.sleep(.001)
@@ -516,6 +591,17 @@ class Qualification:
         self.result['saved'] = saved
         self.result['initial'] = snapshot()
         self.result['initial_dmesg'] = self.cmd('dmesg')
+        foundation = self.config.get('unentered_foundation') or self.config.get('qualified_first_entry')
+        if foundation:
+            actual = fields(self.result['initial']['spm'])
+            if (foundation['boot'] != boot() or foundation['source'] != self.result['source'] or
+                    saved['c3'] != '1' or saved['budget'] != '0' or
+                    any(number(actual.get(n)) != self.config.get('qualified_first_entry', {}).get('completed_cycles', 0)
+                        for n in ('dormant_entries', 'dormant_resumes', 'dormant_successes', 'uart_sleep_attempts')) or
+                    any(number(actual.get(n)) != 0 for n in
+                        ('dormant_failures', 'dormant_restore_failures', 'dormant_broken'))):
+                raise RuntimeError('C3-only foundation no longer applies; no hardware mutation')
+            self.result['foundation_receipt'] = foundation
         self.save()
         c3_pass = False
         try:
@@ -528,21 +614,29 @@ class Qualification:
                 raise RuntimeError('GPT6/GPT4/PPI29 foundation not admitted')
             if read('/sys/devices/system/clocksource/clocksource0/current_clocksource') != 'arch_sys_counter':
                 raise RuntimeError('architectural clocksource unavailable')
-            self.phase('C1', self.c1)
-            verified = fields(read('/sys/module/local_timer/parameters/cpus'))
-            if any(verified.get('cpu%d_cntfrq' % c) != '13000000' or verified.get('cpu%d_error' % c) != '0' for c in range(4)):
-                raise RuntimeError('per-core CNTFRQ/PPI29 initialization failed')
-            self.phase('hotplug', self.hotplug)
-            self.phase('DVFS', self.dvfs)
-            write(POLICY/'scaling_min_freq', 598000)
-            write(POLICY/'scaling_max_freq', saved['policy']['scaling_max_freq'])
-            write(POLICY/'scaling_governor', 'schedutil')
-            self.screen(False)
-            self.result['screen_on_idle'] = self.window(20)
-            self.screen(True)
-            self.result['screen_off_before_parking'] = self.window(20)
-            self.phase('C2_parking', self.parking_c2)
-            self.phase('storage_after_C2', self.storage)
+            if foundation:
+                # Exact same-boot foundation was already physically checked.
+                # Correct the observer sequencing without repeating a CPU audit.
+                self.screen(True)
+                self.cmd('y2-radio', 'wifi', 'off-runtime')
+                self.cmd('y2-radio', 'bluetooth', 'off-runtime')
+                write(COORD, 'Y')
+            else:
+                self.phase('C1', self.c1)
+                verified = fields(read('/sys/module/local_timer/parameters/cpus'))
+                if any(verified.get('cpu%d_cntfrq' % c) != '13000000' or verified.get('cpu%d_error' % c) != '0' for c in range(4)):
+                    raise RuntimeError('per-core CNTFRQ/PPI29 initialization failed')
+                self.phase('hotplug', self.hotplug)
+                self.phase('DVFS', self.dvfs)
+                write(POLICY/'scaling_min_freq', 598000)
+                write(POLICY/'scaling_max_freq', saved['policy']['scaling_max_freq'])
+                write(POLICY/'scaling_governor', 'schedutil')
+                self.screen(False)
+                self.result['screen_on_idle'] = self.window(20)
+                self.screen(True)
+                self.result['screen_off_before_parking'] = self.window(20)
+                self.phase('C2_parking', self.parking_c2)
+                self.phase('storage_after_C2', self.storage)
             try:
                 self.phase('C3', self.c3_cycles)
                 c3_pass = True
