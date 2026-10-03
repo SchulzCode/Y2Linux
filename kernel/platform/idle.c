@@ -13,6 +13,13 @@
 static unsigned long slow_entries, slow_aborts, slow_failures, slow_attempts;
 static bool slow_broken;
 static atomic_t dormant_aborts = ATOMIC_INIT(0);
+static atomic64_t dormant_deadline_ns = ATOMIC64_INIT(0);
+static int dormant_deadline_get(char *buf, const struct kernel_param *kp)
+{
+	return sysfs_emit(buf, "%lld\n", atomic64_read(&dormant_deadline_ns));
+}
+static const struct kernel_param_ops dormant_deadline_ops = { .get = dormant_deadline_get };
+module_param_cb(dormant_deadline_ns, &dormant_deadline_ops, NULL, 0400);
 static int dormant_aborts_get(char *buf, const struct kernel_param *kp)
 {
 	return sysfs_emit(buf, "%d\n", atomic_read(&dormant_aborts));
@@ -45,9 +52,11 @@ static int y2_enter_slow_idle(struct cpuidle_device *dev, struct cpuidle_driver 
 static int y2_enter_dormant(struct cpuidle_device *dev, struct cpuidle_driver *drv, int index)
 {
 	int ret;
+	s64 remaining = ktime_to_ns(ktime_sub(READ_ONCE(dev->next_hrtimer), ktime_get()));
+	atomic64_set(&dormant_deadline_ns, remaining);
 	/* Stock minimum 26000 ticks at 13 MHz; Linux provides a monotonic
 	 * deadline. Do not round a near/past deadline into a long GPT sleep. */
-	if (ktime_to_ns(ktime_sub(READ_ONCE(dev->next_hrtimer), ktime_get())) < 2000000)
+	if (remaining < 2000000)
 		ret = -ETIME;
 	else ret = y2_spm_dormant_idle();
 	if (!ret) return index;

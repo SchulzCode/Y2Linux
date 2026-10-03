@@ -15,11 +15,17 @@ static void __iomem *cirq, *dist, *pol;
 static unsigned masks[7], entries, flushes, last_pending;
 static bool active;
 static unsigned saved_control;
+static unsigned restore_failures, clone_failures, pending_banks[Y2_CIRQ_BANKS];
+bool y2_cirq_restore_ok(void)
+{
+	return !READ_ONCE(restore_failures) && !READ_ONCE(clone_failures);
+}
 bool y2_cirq_ready(void) { return !!smp_load_acquire(&cirq); }
 int y2_cirq_begin(void)
 {
 	unsigned b;
 	if (!y2_cirq_ready()) return -ENODEV;
+	if (!y2_cirq_restore_ok()) return -EIO;
 	if (WARN_ON_ONCE(!irqs_disabled()) || num_online_cpus() != 1 ||
 	    smp_processor_id() || active) return -EBUSY;
 	saved_control = readl(cirq + 0x300);
@@ -43,6 +49,13 @@ int y2_cirq_begin(void)
 		writel(~readl(pol + (b + 1) * 4) & valid, cirq + 0x240 + b * 4);
 		writel(y2_cirq_ack_mask(pending, enabled, valid), cirq + 0x40 + b * 4);
 		writel(enabled, cirq + 0x100 + b * 4);
+		dsb(sy);
+		if ((readl(cirq + 0x80 + b * 4) & valid) != (~enabled & valid) ||
+		    (readl(cirq + 0x140 + b * 4) & valid) != sens ||
+		    (readl(cirq + 0x200 + b * 4) & valid) != (~readl(pol + (b + 1) * 4) & valid)) {
+			clone_failures++;
+			return -EIO; /* GIC masks and CIRQ enable are still untouched */
+		}
 	}
 	writel(saved_control | 3, cirq + 0x300); /* MT6582 enable + edge-only; no newer FLUSH bit */
 	dsb(sy);
@@ -68,6 +81,7 @@ void y2_cirq_end(void)
 	dsb(sy);
 	for (b = 0; b < Y2_CIRQ_BANKS; b++) {
 		unsigned pending = readl(cirq + b * 4) & y2_cirq_valid(b);
+		pending_banks[b] = pending;
 		writel(pending, dist + 0x200 + (b + 2) * 4);
 		last_pending |= pending;
 		writel(y2_cirq_valid(b), cirq + 0xc0 + b * 4);
@@ -79,6 +93,9 @@ void y2_cirq_end(void)
 		writel(masks[b], dist + 0x100 + b * 4);
 	}
 	dsb(sy);
+	if (readl(cirq + 0x300) & 1) restore_failures++;
+	for (b = 1; b < 7; b++)
+		if (readl(dist + 0x100 + b * 4) != masks[b]) restore_failures++;
 	active = false;
 	flushes++;
 }
@@ -88,8 +105,9 @@ unsigned y2_cirq_snapshot(void)
 }
 static ssize_t state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "ready=%u active=%u entries=%u flushes=%u pending=%#x range=64-218\n",
-		y2_cirq_ready(), READ_ONCE(active), READ_ONCE(entries), READ_ONCE(flushes), READ_ONCE(last_pending));
+	return sysfs_emit(buf, "ready=%u active=%u entries=%u flushes=%u pending=%#x range=64-218 restore_failures=%u clone_failures=%u pending_banks=%#x,%#x,%#x,%#x,%#x\n",
+		y2_cirq_ready(), READ_ONCE(active), READ_ONCE(entries), READ_ONCE(flushes), READ_ONCE(last_pending),
+		READ_ONCE(restore_failures), READ_ONCE(clone_failures), pending_banks[0], pending_banks[1], pending_banks[2], pending_banks[3], pending_banks[4]);
 }
 static DEVICE_ATTR_RO(state);
 static int y2_cirq_probe(struct platform_device *pdev)

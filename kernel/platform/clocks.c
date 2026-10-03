@@ -28,6 +28,18 @@ struct y2_clock {
 };
 static void __iomem *y2_clock_bases[4];
 static DEFINE_SPINLOCK(y2_clk_lock);
+static struct y2_clock *y2_usb_clock;
+/* Only the MUSB owner calls this after claiming an idle DMA/controller.
+ * Failed probes keep LK's gate protected; successful runtime PM may gate it. */
+int y2_ccf_usb_claim(void)
+{
+	unsigned long flags;
+	if (!smp_load_acquire(&y2_usb_clock)) return -EPROBE_DEFER;
+	spin_lock_irqsave(&y2_clk_lock, flags);
+	y2_usb_clock->inherited = false;
+	spin_unlock_irqrestore(&y2_clk_lock, flags);
+	return 0;
+}
 static unsigned slow_blockers, deep_peri_blockers, deep_infra_blockers, slow_restore_failures;
 module_param(slow_restore_failures, uint, 0400);
 module_param(slow_blockers, uint, 0400);
@@ -56,7 +68,7 @@ module_param_cb(slow_blocker_counts, &slow_bits_ops, NULL, 0400);
 
 /* PERI0 group bits from exact MT6582 mt_clkmgr.h, not adjacent SoCs. */
 static const char *const slow_owners[24] = {
- [11]="APDMA:y2-apdma/I2C-DMA", [12]="MSDC0:eMMC", [13]="MSDC1:SD",
+ [11]="APDMA:connectivity/I2C-DMA", [12]="MSDC0:eMMC", [13]="MSDC1:SD",
  [14]="MSDC2:unused-controller", [20]="BTIF:connectivity",
  [21]="I2C0:wheel", [22]="I2C1:DAC", [23]="I2C2:unused-controller"
 };
@@ -115,17 +127,22 @@ out:
 /* Deep idle transaction retains the clock-owner lock through WFI. No new
  * clock consumer can start DMA/AFE while system clocks are handed to PCM. */
 static unsigned idle_bus, idle_audio;
+static unsigned deep_disp0_blockers, deep_disp1_blockers;
+module_param(deep_disp0_blockers, uint, 0400);
+module_param(deep_disp1_blockers, uint, 0400);
 int y2_ccf_deep_idle_begin(void)
 {
 	void __iomem *top = y2_clock_bases[0], *peri = y2_clock_bases[1];
 	void __iomem *infra = y2_clock_bases[2];
 	if (!top || !peri || !infra) return -ENODEV;
 	if (!spin_trylock(&y2_clk_lock)) return -EBUSY;
-	/* Exact stock PERI/INFRA masks, plus all MSDC and AFE blockers. Other
-	 * groups are checked as powered-off domains by SPM before this call. */
+	/* Exact stock PERI/INFRA/DISP masks, plus all MSDC and AFE blockers.
+	 * Other groups are checked as powered-off domains by SPM. */
 	deep_peri_blockers = ~readl(peri + 0x18) & (0x02fe87fdU | 0x7800U);
 	deep_infra_blockers = ~readl(infra + 0x40) & (0x0000a080U | BIT(5));
 	if (deep_peri_blockers || deep_infra_blockers) goto busy;
+	if (y2_mm_idle_blockers(&deep_disp0_blockers, &deep_disp1_blockers) ||
+	    deep_disp0_blockers || deep_disp1_blockers) goto busy;
 	idle_bus = readl(top + 4);
 	idle_audio = readl(top + 0x70);
 	if (!y2_bus_dcm_baseline(idle_bus)) goto busy;
@@ -194,7 +211,50 @@ static const char *const y2_clk_names[] = {
     "y2-axi",	 "y2-i2c0",    "y2-i2c1",    "y2-apdma",	"y2-pwrap",
     "y2-kp",	 "y2-msdc0",   "y2-msdc1",   "y2-msdc0-source", "y2-msdc1-source",
     "y2-audintbus", "y2-audio", "y2-infra-audio", "y2-cpu", "y2-therm", "y2-auxadc", "y2-efuse",
-    "y2-connmcu", "y2-btif", "y2-mfg-source", "y2-msdc2-unused", "y2-i2c2-unused"};
+    "y2-connmcu", "y2-btif", "y2-mfg-source", "y2-msdc2-unused", "y2-i2c2-unused",
+    "y2-nfi-unused", "y2-pwm1-unused", "y2-pwm2-unused", "y2-pwm3-unused",
+    "y2-pwm4-unused", "y2-pwm5-unused", "y2-pwm6-unused", "y2-pwm7-unused",
+    "y2-pwm-unused", "y2-nli-unused", "y2-uart1-unused", "y2-uart2-unused",
+    "y2-uart3-unused", "y2-spi0-unused", "y2-l2c-sram-unused",
+    "y2-trng-unused", "y2-cpum-unused", "y2-usb0"};
+
+/* Normal CCF unused-clock ownership, with exact BSP activity checks. No DT
+ * consumer exists for these engines on Y2; active/unknown LK state is retained.
+ * INFRA bits7/13/15 are the BSP cg_bootup_pdn 0xb0e0 idle/test clocks, not
+ * CA7_CACHE_CONFIG, CPU power, coherency or the cache's SRAM retention control. */
+static const unsigned y2_unused_bits[] = {0,2,3,4,5,6,7,8,9,15,17,18,19,25,7,13,15};
+static int y2_unused_busy(struct device *dev, unsigned index, unsigned peri)
+{
+	void __iomem *r;
+	unsigned bit = y2_unused_bits[index];
+	if (index >= 14) return 0; /* unconsumed BSP idle/test clocks */
+	if (!index || index == 9) {
+		/* NAND accesses require both stock NFI/NLI clocks. An unknown
+		 * partial loader handoff is retained, never read unclocked. */
+		if (peri & (BIT(0) | BIT(15)))
+			return -EBUSY;
+		r = devm_ioremap(dev, 0x1100d000, 0x214);
+		if (!r) return -ENOMEM;
+		return y2_unused_nfi_busy(readl(r + 8), readl(r + 0x60),
+			readl(r + 0x210), readl(r + 0x64));
+	}
+	if (index <= 8) {
+		if (peri & BIT(9)) return -EBUSY; /* PWM register clock is off */
+		r = devm_ioremap(dev, 0x11006000, 0x210);
+		if (!r) return -ENOMEM;
+		/* Include sequencer/test/3D modes; never break a live PWM source. */
+		return readl(r) || readl(r + 0x1d0);
+	}
+	if (index <= 12) {
+		r = devm_ioremap(dev, 0x11002000 + (bit - 16) * 0x1000, 0x80);
+		if (!r) return -ENOMEM;
+		return y2_unused_uart_busy(readl(r + 0xc), readl(r + 4),
+			readl(r + 0x14), readl(r + 0x4c));
+	}
+	r = devm_ioremap(dev, 0x1100a000, 0x30);
+	if (!r) return -ENOMEM;
+	return y2_unused_spi_busy(readl(r + 0x18), readl(r + 0x20));
+}
 
 /* Shared INFRACFG fields stay with this owner. Callers serialize complete
  * domain transitions; each RMW is protected against CPU/clock operations. */
@@ -583,7 +643,26 @@ static int y2_clocks_probe(struct platform_device *pdev)
 		c->top = base[0];
 		c->infra = base[2];
 		c->pll = base[3];
+		if (i >= Y2_CLK_UNUSED_START && i < Y2_CLK_USB0) {
+			unsigned index = i - Y2_CLK_UNUSED_START;
+			bool infra = index >= 14;
+			int busy = 0;
+			c->bit = y2_unused_bits[index];
+			c->gate = infra ? base[2] + 0x40 : base[1] + 8;
+			init.ops = infra ? &y2_infra_ops : &y2_peri_ops;
+			if (!(readl(infra ? base[2] + 0x40 : base[1] + 0x18) & BIT(c->bit)))
+				busy = y2_unused_busy(dev, index, readl(base[1] + 0x18));
+			if (busy < 0) return busy;
+			c->inherited = busy;
+			if (!busy) init.flags &= ~CLK_IGNORE_UNUSED;
+			else dev_warn(dev, "%s retained: active/unknown loader engine\n", init.name);
+		}
 		if (i == Y2_CLK_CPU) { init.ops = &y2_cpu_ops; parent = "y2-armpll"; }
+		if (i == Y2_CLK_USB0) {
+			c->gate = base[1] + 8; c->bit = 10; c->inherited = true;
+			init.ops = &y2_peri_ops;
+			parent = "y2-usb-inherited-rate-unresolved"; /* PHY owner checks actual source */
+		}
 		if (i == Y2_CLK_MFG_SRC) {
 			init.ops = &y2_mfg_source_ops;
 			parent = "y2-mmpll";
@@ -656,14 +735,16 @@ static int y2_clocks_probe(struct platform_device *pdev)
 			else dev_warn(dev, "%s retained: inherited controller/DMA active\n", init.name);
 			c->inherited = busy;
 		}
-		if (c->gate && i != Y2_CLK_MSDC2 && i != Y2_CLK_I2C2)
+		if (c->gate && i < Y2_CLK_UNUSED_START && i != Y2_CLK_MSDC2 && i != Y2_CLK_I2C2)
 			c->inherited = init.ops->is_enabled(&c->hw);
 		/* Linux now owns these controllers, including their complete DMA and
 		 * runtime-PM lifecycle. Retaining the loader gate after CCF reaches
 		 * zero leaked every I2C transaction and MSDC autosuspend. */
 		if (i == Y2_CLK_CONNMCU || i == Y2_CLK_BTIF ||
 		    i == Y2_CLK_I2C0 || i == Y2_CLK_I2C1 || i == Y2_CLK_APDMA ||
-		    i == Y2_CLK_MSDC0 || i == Y2_CLK_MSDC1) c->inherited = false;
+		    i == Y2_CLK_MSDC0 || i == Y2_CLK_MSDC1 ||
+		    i == Y2_CLK_AUDIO || i == Y2_CLK_AUDINTBUS ||
+		    i == Y2_CLK_INFRA_AUDIO) c->inherited = false;
 		init.parent_names = &parent;
 		init.num_parents = 1;
 		c->hw.init = &init;
@@ -677,6 +758,7 @@ static int y2_clocks_probe(struct platform_device *pdev)
 		return ret;
 	for (i = 0; i < 4; i++)
 		y2_clock_bases[i] = base[i];
+	smp_store_release(&y2_usb_clock, container_of(data->hws[Y2_CLK_USB0], struct y2_clock, hw));
 	dev_info(dev, "CCF inherited PLLs/AXI; guarded shared CPU clock; AXI=%lu Hz\n",
 		 clk_hw_get_rate(data->hws[5]));
 	return 0;

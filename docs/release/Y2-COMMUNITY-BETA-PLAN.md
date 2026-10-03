@@ -1,5 +1,13 @@
 # Y2Linux + Reborn Community Beta 1 — feature-completion plan
 
+CPU idle update,2026-10-03: installed baseline C1 and C2 are now physically
+working (C2+7182 entries/+50.763741s of60.404076s, restores/storage errors0).
+C3 source and one coherent candidate target the owner-flash boundary; no actual
+dormant success is claimed. This supersedes historical C2 wording below, while
+full suspend and unrelated release gates remain open. See
+[CPU idle completion](../validation/Y2-CPU-IDLE-COMPLETION.md) and
+[physical evidence](../validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md).
+
 ## Sealed feature-completion integration — 2026-10-02
 
 **READY FOR HARDWARE DECISION RUN**. The [implementation pass](Y2-COMMUNITY-BETA-IMPLEMENTATION-PASS.md) records the ten-workstream results, fresh build/tests, exact hashes and single owner handoff.233features and their release requirements remain. Native wired24/high-rate programming and full-resume closure remain unresolved; physical qualification and public distribution are separate open gates. No flash or push. Older snapshots below are historical.

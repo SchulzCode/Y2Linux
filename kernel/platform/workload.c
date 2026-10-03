@@ -5,6 +5,7 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
+#include <linux/atomic.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/pm_qos.h>
@@ -16,6 +17,7 @@
 
 static LIST_HEAD(leases);
 static DEFINE_MUTEX(leases_lock);
+static atomic_t idle_blocking_leases = ATOMIC_INIT(0);
 struct y2_workload {
 	struct list_head node;
 	char name[32];
@@ -25,10 +27,23 @@ struct y2_workload {
 	struct pm_qos_request latency;
 	struct delayed_work expiry;
 	struct mutex lock;
+	bool idle_blocking;
 };
+
+/* IRQ-disabled idle entry cannot walk the mutex-protected lease list.
+ * Writers/expiry hold hint->lock; an expired pending worker stays conservative. */
+static void y2_workload_idle_blocker(struct y2_workload *hint, bool active)
+{
+	if (hint->idle_blocking == active) return;
+	if (active) atomic_inc(&idle_blocking_leases);
+	else atomic_dec(&idle_blocking_leases);
+	hint->idle_blocking = active;
+}
+bool y2_workload_idle_blocked(void) { return atomic_read(&idle_blocking_leases) != 0; }
 
 static void y2_workload_idle(struct y2_workload *hint)
 {
+	y2_workload_idle_blocker(hint, false);
 	strscpy(hint->name, "Idle", sizeof(hint->name));
 	hint->deadline = 0;
 	freq_qos_update_request(&hint->minimum, 0);
@@ -108,6 +123,7 @@ static ssize_t y2_workload_write(struct file *file, const char __user *buffer,
 	mutex_lock(&hint->lock);
 	ret = freq_qos_update_request(&hint->minimum, floor);
 	if (ret >= 0) {
+		y2_workload_idle_blocker(hint, strcmp(name, "Idle") != 0);
 		strscpy(hint->name, name, sizeof(hint->name));
 		hint->deadline = jiffies + msecs_to_jiffies(ms);
 		cpu_latency_qos_update_request(&hint->latency, latency);
@@ -124,6 +140,7 @@ static int y2_workload_release(struct inode *inode, struct file *file)
 	list_del(&hint->node);
 	mutex_unlock(&leases_lock);
 	cancel_delayed_work_sync(&hint->expiry);
+	y2_workload_idle_blocker(hint, false);
 	cpu_latency_qos_remove_request(&hint->latency);
 	freq_qos_remove_request(&hint->minimum);
 	freq_qos_remove_request(&hint->maximum);

@@ -261,6 +261,8 @@
         reg-names = "mac", "phy";
         interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_LOW>;
         dr_mode = "peripheral";
+        clocks = <&y2clk Y2_CLK_USB0>;
+        clock-names = "usb";
     };
     connectivity: connectivity@18070000 {
         compatible = "innioasis,y2-mt6582-connectivity";
@@ -396,7 +398,10 @@
         reg = <0x1400b000 0x1000>; interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_LOW>; clocks = <&mmsys CLK_MM_DISP_COLOR>;
     };
     mutex: mutex@1400e000 { compatible = "mediatek,mt6582-disp-mutex";
-        reg = <0x1400e000 0x1000>; interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_LOW>; clocks = <&mmsys CLK_MM_MUTEX_32K>;
+        reg = <0x1400e000 0x1000>; interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&mmsys CLK_MM_MUTEX_32K>, <&mmsys CLK_MM_SMI_COMMON>,
+                 <&mmsys CLK_MM_SMI_LARB0>, <&mmsys CLK_MM_MUTEX>;
+        clock-names = "32k", "smi-common", "smi-larb0", "mutex";
     };
     mipitx: mipi-tx@10010000 { compatible = "mediatek,mt6582-mipi-tx";
         reg = <0x10010000 0x1000>; clocks = <&clk26m>; clock-output-names = "mipi_tx0_pll";

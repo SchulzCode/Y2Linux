@@ -52,8 +52,26 @@ static inline int y2_spm_idle_arm(const struct y2_spm_io *io, unsigned address)
 	io->write(io->context, SPM_PCM_MAS_PAUSE_MASK, 0xffffffff);
 	io->write(io->context, SPM_PCM_PWR_IO_EN, PCM_PWRIO_EN_R0 | PCM_PWRIO_EN_R7);
 	y2_spm_update(io, SPM_CLK_CON, 0, CC_SRCLKENA_MASK);
+	/* A dropped arm write is a restore/fallback fault, never an entry. */
+	if (io->read(io->context, SPM_SLEEP_WAKEUP_EVENT_MASK) !=
+	    ~(Y2_SPM_WAKE | WAKE_SRC_GPT | WAKE_SRC_AFE | WAKE_SRC_USB_PDN | WAKE_SRC_CIRQ) ||
+	    io->read(io->context, SPM_PCM_TIMER_VAL) != 0xfff0ffffU ||
+	    io->read(io->context, SPM_PCM_PWR_IO_EN) != (PCM_PWRIO_EN_R0 | PCM_PWRIO_EN_R7) ||
+	    (io->read(io->context, SPM_CLK_CON) & (CC_DISABLE_DORM_PWR | CC_DISABLE_INFRA_PWR)) != CC_DISABLE_INFRA_PWR ||
+	    !(io->read(io->context, SPM_PCM_CON1) & CON1_PCM_TIMER_EN) ||
+	    (io->read(io->context, SPM_PCM_CON1) & CON1_PCM_WDT_EN)) return -EIO;
 	io->write(io->context, SPM_PCM_CON0, CON0_CFG_KEY | CON0_IM_SLEEP_DVS | CON0_PCM_KICK);
 	io->write(io->context, SPM_PCM_CON0, CON0_CFG_KEY | CON0_IM_SLEEP_DVS);
+	return 0;
+}
+static inline int y2_spm_idle_restore(const struct y2_spm_io *io, unsigned address)
+{
+	y2_spm_suspend_clean(io);
+	y2_spm_normal(io, address);
+	if (io->read(io->context, SPM_PCM_IM_PTR) != address ||
+	    io->read(io->context, SPM_PCM_IM_LEN) != 27 ||
+	    io->read(io->context, SPM_PCM_PWR_IO_EN) ||
+	    (io->read(io->context, SPM_PCM_CON1) & (CON1_PCM_WDT_EN | CON1_PCM_TIMER_EN))) return -EIO;
 	return 0;
 }
 #endif

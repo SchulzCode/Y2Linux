@@ -28,7 +28,7 @@
       "path": "drivers/soc/mediatek/mtk-mutex.c",
       "patch": "0011-mt6582-mutex.patch",
       "base_sha256": "3d62c9f315dc53c189f97febb3aaaea9a76528c84bf42515cf572c5f5f11f2e3",
-      "result_sha256": "3471b732e39c8016a846beebb6829b04a4a6f9214bb7be4102bf49c244b678d8"
+      "result_sha256": "b9f25223a06b0fb94a106e5466c755bf517dc7b564f7c5db688d1fb464344b71"
     },
     {
       "path": "drivers/gpu/drm/mediatek/mtk_drm_drv.c",
@@ -274,7 +274,7 @@
       "path": "drivers/usb/musb/musb_core.c",
       "patch": "0058-y2-musb-sleep-lifecycle.patch",
       "base_sha256": "0b8be0783e244d987284f10d6e87e6173bc29c91458cc7c5f2fe58057b0d63fc",
-      "result_sha256": "fdebf1b432213350804b9fac12c1063a86d2dba37c0037da6de2202bcd6c1ea7"
+      "result_sha256": "20ac95e24243fc20fcbff3241febcc6ad43058d6dbd64b138d768a1f439944dc"
     },
     {
       "path": "drivers/base/power/main.c",

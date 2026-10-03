@@ -23,7 +23,10 @@ static unsigned long jiffies;
 struct freq_qos_request{int value;};
 struct pm_qos_request{int value;};
 struct delayed_work{unsigned delay;};
-struct y2_workload{char name[32];unsigned long deadline;struct freq_qos_request minimum;struct pm_qos_request latency;struct delayed_work expiry;int lock;};
+struct y2_workload{char name[32];unsigned long deadline;struct freq_qos_request minimum;struct pm_qos_request latency;struct delayed_work expiry;int lock;bool idle_blocking;};
+static int idle_blocking_leases;
+#define atomic_inc(p) (++*(p))
+#define atomic_dec(p) (--*(p))
 struct file{void *private_data;};
 static int system_wq,fail;
 static int y2_system_idle_restore(void){return 0;}
@@ -34,7 +37,7 @@ static int freq_qos_update_request(struct freq_qos_request *p,int v){if(fail)ret
 static void cpu_latency_qos_update_request(struct pm_qos_request *p,int v){p->value=v;}
 static unsigned msecs_to_jiffies(unsigned ms){return ms;}
 static void mod_delayed_work(int q,struct delayed_work *p,unsigned ms){p->delay=ms;}
-''' + function(source, 'y2_workload_idle') + function(source, 'y2_workload_write') + r'''
+''' + function(source, 'y2_workload_idle_blocker') + function(source, 'y2_workload_idle') + function(source, 'y2_workload_write') + r'''
 int main(void){
  struct y2_workload hint={0};struct file file={&hint};
  const char *invalid[]={"Interactive 501","Idle 30001","Idle 0","Idle 100 garbage","MHz 1040000","PlaybackHeavy -1"};
@@ -50,7 +53,8 @@ int main(void){
  assert(y2_workload_write(&file,"NetworkTransfer 3000\n",21,0)==21 && hint.minimum.value==598000);
  assert(y2_workload_write(&file,"Maintenance 3000\n",17,0)==17 && hint.minimum.value==598000);
  fail=1;assert(y2_workload_write(&file,"Idle 100",8,0)==-EIO && hint.minimum.value==598000);
- assert(!hint.lock);
+ assert(!hint.lock && idle_blocking_leases==1);
+ y2_workload_idle(&hint);assert(idle_blocking_leases==0 && !hint.idle_blocking);
 }
 ''')
 
@@ -60,9 +64,11 @@ int main(void){
 #include <assert.h>
 #include <stdbool.h>
 struct request{bool active;};struct node{bool member;};
-struct y2_workload{struct node node;bool expiry,latency,freed;struct request minimum,maximum;int *policy;};
+struct y2_workload{struct node node;bool expiry,latency,freed;struct request minimum,maximum;int *policy;bool idle_blocking;};
 struct inode{int unused;};struct file{void *private_data;};static int leases_lock;
-static struct y2_workload *closing;
+static struct y2_workload *closing;static int idle_blocking_leases;
+#define atomic_inc(p) (++*(p))
+#define atomic_dec(p) (--*(p))
 static void mutex_lock(int *l){assert(!*l);*l=1;}
 static void mutex_unlock(int *l){assert(*l);*l=0;}
 static void list_del(struct node *n){assert(leases_lock && n->member);n->member=false;}
@@ -71,13 +77,15 @@ static void cpu_latency_qos_remove_request(bool *p){assert(!closing->expiry);*p=
 static void freq_qos_remove_request(struct request *p){assert(p->active);p->active=false;}
 static void cpufreq_cpu_put(int *p){(*p)--;}
 static void kfree(struct y2_workload *p){p->freed=true;}
-''' + function(source,'y2_workload_release') + r'''
+''' + function(source,'y2_workload_idle_blocker') + function(source,'y2_workload_release') + r'''
 int main(void){
- int users=2;struct y2_workload a={{true},true,true,false,{true},{true},&users},b=a;
+ int users=2;struct y2_workload a={{true},true,true,false,{true},{true},&users,true},b=a;
+ idle_blocking_leases=2;
  struct file f={&a};struct inode inode={0};closing=&a;
  assert(!y2_workload_release(&inode,&f));
  assert(a.freed && !a.minimum.active && !a.maximum.active && !a.latency && !a.expiry && users==1);
  assert(b.node.member && b.minimum.active && b.maximum.active && b.latency && b.expiry);
- f.private_data=&b;closing=&b;assert(!y2_workload_release(&inode,&f) && users==0 && b.freed);
+ assert(idle_blocking_leases==1);
+ f.private_data=&b;closing=&b;assert(!y2_workload_release(&inode,&f) && users==0 && b.freed && idle_blocking_leases==0);
 }
 ''')

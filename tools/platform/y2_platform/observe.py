@@ -56,6 +56,79 @@ def timer_runtime(ctx):
             'reason': None if cpus else 'runtime_timer_state_unavailable'}
 
 
+def idle_completion(ctx, states):
+    """Counters come from cpuidle's returned state; absent is never a PASS."""
+    result = {}
+    for label, name in (('C1', 'WFI'), ('C2', 'SLIDLE'), ('C3', 'DORMANT')):
+        rows = [state for state in states if state['name'] == name]
+        if label != 'C1':
+            rows = [state for state in rows if state['cpu'] == 'cpu0']
+        def total(field):
+            values = [row[field] for row in rows]
+            return sum(values) if values and all(v is not None for v in values) else None
+        result[label] = {'registered': bool(rows), 'per_cpu': rows,
+                         'enabled': all(row['disabled'] == 0 for row in rows) if rows else None,
+                         'entries': total('usage'), 'residency_us': total('time_us'),
+                         'failures': total('rejected')}
+    result['C2']['attribution'] = {
+        p.name: read(p) for p in ctx.glob('/sys/module/idle/parameters/slow_*')}
+    result['C2']['last_blocker'] = ctx.read('/sys/module/clocks/parameters/slow_blocker_names')
+    mask = ctx.integer('/sys/module/clocks/parameters/slow_blockers')
+    owners = []
+    for bit, clock, owner, node in (
+        (11, 'APDMA', 'connectivity / I2C DMA', '18070000.connectivity'), (12, 'MSDC0', 'eMMC', '11230000.mmc'),
+        (13, 'MSDC1', 'SD', '11240000.mmc'), (14, 'MSDC2', 'unused controller', None),
+        (20, 'BTIF', 'connectivity', '18070000.connectivity'),
+        (21, 'I2C0', 'wheel', '11007000.i2c'), (22, 'I2C1', 'DAC', '11008000.i2c'),
+        (23, 'I2C2', 'unused controller', None),
+    ):
+        if mask is not None and mask & (1 << bit):
+            owners.append({'bit': bit, 'clock': clock, 'owner': owner,
+                           'runtime_status': ctx.read('/sys/bus/platform/devices/'+node+'/power/runtime_status') if node else None})
+    result['C2']['blocker_owners'] = owners if mask is not None else None
+    result['C2']['shared_dma_owners'] = [
+        {'name': node, 'runtime_status': ctx.read('/sys/bus/platform/devices/'+node+'/power/runtime_status')}
+        for node in ('18070000.connectivity', '11007000.i2c', '11008000.i2c')]
+    result['C3']['preflight'] = ctx.read('/sys/devices/platform/10006000.power-controller/dormant_preflight')
+    result['C3']['context'] = ctx.read('/sys/devices/platform/10006000.power-controller/state')
+    result['C3']['entry_budget'] = ctx.integer('/sys/module/spm/parameters/dormant_budget')
+    result['C3']['display_idle'] = {p.name: read(p) for p in ctx.glob('/sys/module/mm_clocks/parameters/*')}
+    preflight = dict(re.findall(r'(\w+)=([^\s]+)', result['C3']['preflight'] or ''))
+    result['C3']['prerequisites'] = {k.removeprefix('prerequisite_'): v == '1'
+                                   for k, v in preflight.items() if k.startswith('prerequisite_')}
+    result['C3']['unmet'] = preflight.get('unmet', '').strip(',').split(',') if preflight.get('unmet') else []
+    peripheral = {0: 'NFI', **{n+1: 'PWM'+str(n) for n in range(1, 8)}, 9: 'PWM',
+                  10: 'USB0', 11: 'APDMA', 12: 'MSDC0', 13: 'MSDC1', 14: 'MSDC2', 15: 'NLI',
+                  17: 'UART1', 18: 'UART2', 19: 'UART3', 20: 'BTIF', 21: 'I2C0', 22: 'I2C1',
+                  23: 'I2C2', 25: 'SPI0'}
+    display = dict(enumerate(('SMI_COMMON', 'SMI_LARB0', 'CMDQ', 'MUTEX', 'COLOR', 'BLS',
+                             'DISP_WDMA', 'DISP_RDMA', 'OVL', 'MDP_TDSHP', 'MDP_WROT',
+                             'MDP_WDMA', 'MDP_RSZ1', 'MDP_RSZ0', 'MDP_RDMA', 'BLS_26M',
+                             'CAM_MDP', 'FAKE_ENG', 'MUTEX_32K')))
+    result['C3']['blocker_owners'] = [] if result['C3']['preflight'] is not None else None
+    for field, names, owner in (
+        ('peri_blockers', peripheral, 'peripheral controller'),
+        ('infra_blockers', {5: 'AFE', 7: 'L2C_SRAM', 13: 'TRNG', 15: 'CPUM'}, 'infrastructure clock owner'),
+        ('disp0', display, 'DRM / inherited engine'),
+        ('disp1', {0: 'DSI_ENGINE', 1: 'DSI_DIGITAL', 2: 'DPI_DIGITAL', 3: 'DPI_ENGINE'}, 'DRM / inherited engine'),
+    ):
+        try:
+            mask = int(preflight[field], 0)
+        except (KeyError, ValueError):
+            mask = None
+        if mask is None:
+            continue
+        for bit in range(32):
+            if mask & (1 << bit):
+                clock = names.get(bit, 'unknown')
+                node = {'USB0': '11200000.usb', 'APDMA': '18070000.connectivity',
+                        'BTIF': '18070000.connectivity', 'MSDC0': '11230000.mmc',
+                        'MSDC1': '11240000.mmc', 'I2C0': '11007000.i2c', 'I2C1': '11008000.i2c'}.get(clock)
+                result['C3']['blocker_owners'].append({'group': field, 'bit': bit, 'clock': clock,
+                    'owner': owner, 'runtime_status': ctx.read('/sys/bus/platform/devices/'+node+'/power/runtime_status') if node else None})
+    return result
+
+
 def cpu(ctx):
     stat = ctx.read('/proc/stat')
     ticks = {}
@@ -100,7 +173,7 @@ def cpu(ctx):
     return {'online': ctx.read('/sys/devices/system/cpu/online'),
             'load_average': ctx.read('/proc/loadavg'), 'ticks': ticks or None,
             'ticks_unit': 'USER_HZ_ticks', 'utilization_percent': None,
-            'policies': policies, 'idle': idle,
+            'policies': policies, 'idle': idle, 'idle_completion': idle_completion(ctx, idle),
             'voltage_uv': ctx.integer('/sys/module/pwrap/parameters/cpu_voltage_uv'),
             'stock_bin': ctx.read('/sys/module/cpu_dvfs/parameters/bin_supported'),
             'dvfs_ceiling_khz': ctx.integer('/sys/module/cpu_dvfs/parameters/qualification_max_khz'),

@@ -47,3 +47,24 @@
  
  	spin_unlock_irqrestore(&musb->lock, flags);
  	return 0;
+@@ -2896,8 +2908,11 @@
+ static int musb_runtime_suspend(struct device *dev)
+ {
+ 	struct musb	*musb = dev_to_musb(dev);
++	int error;
+ 
+ 	musb_save_context(musb);
++	error = y2_musb_runtime_gate(musb);
++	if (error) return error;
+ 	musb->is_runtime_suspended = 1;
+ 
+ 	return 0;
+@@ -2918,6 +2933,8 @@
+ 	 * Also context restore without save does not make
+ 	 * any sense
+ 	 */
++	error = y2_musb_runtime_clock(musb);
++	if (error) return error;
+ 	if (!musb->is_initialized)
+ 		return 0;
+ 

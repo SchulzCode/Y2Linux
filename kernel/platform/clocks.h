@@ -26,10 +26,15 @@
 #define Y2_CLK_MFG_SRC 24
 #define Y2_CLK_MSDC2 25
 #define Y2_CLK_I2C2 26
-#define Y2_CLK_NR 27
+#define Y2_CLK_UNUSED_START 27
+#define Y2_CLK_USB0 44
+#define Y2_CLK_NR 45
 #ifndef __DTS__
 int y2_ccf_slow_idle(void);
 int y2_ccf_deep_idle_begin(void);
 int y2_ccf_deep_idle_end(void);
 int y2_ccf_deep_idle_blockers(unsigned *peri, unsigned *infra, unsigned *bus);
+int y2_mm_idle_blockers(unsigned *disp0, unsigned *disp1);
+void y2_mm_reclaim_unused(void);
+int y2_ccf_usb_claim(void);
 #endif

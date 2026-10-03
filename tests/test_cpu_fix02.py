@@ -569,7 +569,7 @@ enum { Y2_PM_NONE, Y2_PM_SUSPEND_REQUEST, Y2_PM_FILESYSTEM_SYNCED, Y2_PM_DEVICES
  Y2_PM_SYSCORE_SUSPENDED, Y2_PM_PLATFORM_ENTER, Y2_PM_TEST_RETURN, Y2_PM_SELFTEST_A,
  Y2_PM_SELFTEST_B, Y2_PM_BACKSTOP_STARTED, Y2_PM_EXIT, Y2_PM_DEVICES_RESUMED, Y2_PM_CONSOLE_RESUMED,
  Y2_PM_PLATFORM_ENDED, Y2_PM_TASKS_THAWED, Y2_PM_FILESYSTEMS_THAWED, Y2_PM_POST_SUSPEND_NOTIFIED,
- Y2_PM_CONSOLE_RESTORED, Y2_PM_STAGE_COUNT };
+ Y2_PM_CONSOLE_RESTORED, Y2_PM_DORMANT_BEGIN, Y2_PM_DORMANT_CONTEXT, Y2_PM_DORMANT_FINISH, Y2_PM_DORMANT_RETURN, Y2_PM_DORMANT_COMPLETE, Y2_PM_DORMANT_ABORTED, Y2_PM_STAGE_COUNT };
 struct y2_pm_backstop_ops { int (*start)(unsigned); void (*ping)(void); void (*stop)(void); };
 struct kobject; struct kobj_attribute;
 static unsigned sram[Y2_PM_REGION / 4], drop_offset = ~0U, stuck_offset = ~0U;
@@ -883,14 +883,17 @@ class DormantReadiness(unittest.TestCase):
             self.assertNotIn(forbidden, pre)
         entry = function(spm.replace('int y2_spm_dormant_idle(', 'static int y2_spm_dormant_idle('), 'y2_spm_dormant_idle')
         # Same prerequisites, same masks, as the real entry path.
-        self.assertIn('BIT(0) | BIT(1) | BIT(3) |\n\t\t     BIT(4) | BIT(5) | BIT(7)', entry)
-        self.assertIn('BIT(0) | BIT(1) | BIT(3) | BIT(4) | BIT(5) | BIT(7)', pre)
-        self.assertIn('cpufreq_quick_get(0) > 747500', entry)
-        self.assertIn('khz > 747500', pre)
+        self.assertIn('BIT(0) | BIT(1) |\n\t\t     BIT(4) | BIT(5) | BIT(7)', entry)
+        self.assertIn('BIT(0) | BIT(1) | BIT(4) | BIT(5) | BIT(7)', pre)
+        self.assertIn('y2_dormant_opp(cpufreq_quick_get(0))', entry)
+        self.assertIn('y2_dormant_opp(khz)', pre)
         clocks = (ROOT/'kernel/platform/clocks.c').read_text()
         begin = function(clocks.replace('int y2_ccf_deep_idle_begin(', 'static int y2_ccf_deep_idle_begin('), 'y2_ccf_deep_idle_begin')
         blockers = function(clocks.replace('int y2_ccf_deep_idle_blockers(', 'static int y2_ccf_deep_idle_blockers('), 'y2_ccf_deep_idle_blockers')
         for mask in ('0x02fe87fdU | 0x7800U', '0x0000a080U | BIT(5)'):
             self.assertIn(mask, begin)
             self.assertIn(mask, blockers)
+        self.assertIn('y2_mm_idle_blockers(&deep_disp0_blockers, &deep_disp1_blockers)', begin)
+        self.assertIn('y2_mm_idle_blockers(&disp0, &disp1)', pre)
+        self.assertIn('deep_disp0_blockers || deep_disp1_blockers', begin)
         self.assertNotIn('writel', blockers)

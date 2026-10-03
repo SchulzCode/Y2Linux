@@ -90,7 +90,9 @@ static const char *const names[] = { "NONE",
 				     "TASKS_THAWED",
 				     "FILESYSTEMS_THAWED",
 				     "POST_SUSPEND_NOTIFIED",
-				     "CONSOLE_RESTORED" };
+				     "CONSOLE_RESTORED", "DORMANT_BEGIN", "DORMANT_CONTEXT",
+				     "DORMANT_FINISH", "DORMANT_RETURN", "DORMANT_COMPLETE",
+				     "DORMANT_ABORTED" };
 static_assert(ARRAY_SIZE(names) == Y2_PM_STAGE_COUNT);
 static const char *stage_name(unsigned stage)
 {
@@ -188,7 +190,7 @@ void y2_pm_mark(unsigned stage, int error)
 	raw_spin_lock_irqsave(&journal_lock, flags);
 	/* A helper request, or a kernel request not preceded by one, starts a
 	 * new cycle. The helper's earlier stage is kept for the same attempt. */
-	if (stage == Y2_PM_HELPER_REQUEST || stage == Y2_PM_SELFTEST_A ||
+	if (stage == Y2_PM_HELPER_REQUEST || stage == Y2_PM_DORMANT_BEGIN || stage == Y2_PM_SELFTEST_A ||
 	    (stage == Y2_PM_SUSPEND_REQUEST && journal_record[2] != Y2_PM_HELPER_REQUEST)) {
 		unsigned sequence = journal_record[1];
 		memset(journal_record, 0, sizeof(journal_record));
@@ -309,6 +311,16 @@ static ssize_t stage_store(struct kobject *k, struct kobj_attribute *a,
 void y2_pm_backstop_register(const struct y2_pm_backstop_ops *ops)
 {
 	WRITE_ONCE(backstop_ops, ops);
+}
+bool y2_pm_dormant_backstop_ready(void)
+{
+	return y2_pm_journal_ready() && READ_ONCE(backstop_ops) &&
+		READ_ONCE(backstop_armed) >= 10 && !READ_ONCE(backstop_running);
+}
+bool y2_pm_dormant_backstop_running(void)
+{
+	return READ_ONCE(backstop_running) && !READ_ONCE(backstop_paused) &&
+		!READ_ONCE(backstop_error);
 }
 /* One-shot: arming applies to the next pm_suspend only. Staged pm_test runs
  * keep the RGU counting through every phase; a full sleep pauses it only

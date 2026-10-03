@@ -15,6 +15,8 @@ bool y2_local_timer_ready(void);
 bool y2_local_events_ready(void);
 void y2_local_timer_registration(int result);
 int y2_local_timer_cpu_init(void);
+int y2_local_timer_dormant_check(void);
+bool y2_local_timer_context_ok(void);
 #else
 static inline bool y2_local_timer_resource(struct device_node *node) { return true; }
 static inline void y2_local_timer_prepare(void __iomem *gpt, unsigned long rate) {}

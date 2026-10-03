@@ -10,6 +10,7 @@
 #include "local-timer.h"
 #include "cpu-options.h"
 #include "timer-policy.h"
+#include "idle-completion-policy.h"
 #include <linux/of_address.h>
 #include <linux/smp.h>
 #include <linux/cpu_pm.h>
@@ -43,6 +44,45 @@ module_param(counter_adopted, bool, 0400);
 module_param_named(ready, y2_timer_ready, bool, 0400);
 static DEFINE_PER_CPU(unsigned, verified_cntfrq);
 static DEFINE_PER_CPU(int, cpu_admission_error);
+static unsigned handoff_checks, handoff_rejects, handoff_count, handoff_compare;
+static unsigned handoff_control, handoff_clock, handoff_irq, handoff_pending;
+static unsigned long long handoff_remaining_ns;
+static unsigned context_saves, context_restores, context_failures;
+module_param(handoff_checks, uint, 0400);
+module_param(handoff_rejects, uint, 0400);
+module_param(handoff_count, uint, 0400);
+module_param(handoff_compare, uint, 0400);
+module_param(handoff_control, uint, 0400);
+module_param(handoff_clock, uint, 0400);
+module_param(handoff_irq, uint, 0400);
+module_param(handoff_pending, uint, 0400);
+module_param(handoff_remaining_ns, ullong, 0400);
+module_param(context_saves, uint, 0400);
+module_param(context_restores, uint, 0400);
+module_param(context_failures, uint, 0400);
+
+int y2_local_timer_dormant_check(void)
+{
+	if (!timer_base || !y2_local_events_ready() ||
+	    strcmp(broadcast_admission, "gpt4_sole_owner")) return -ENODEV;
+	handoff_checks++;
+	handoff_control = readl(timer_base + 0x40);
+	handoff_clock = readl(timer_base + 0x44);
+	handoff_irq = readl(timer_base);
+	handoff_pending = readl(timer_base + 4);
+	handoff_compare = readl(timer_base + 0x4c);
+	/* Read the advancing count last, making the deadline check conservative. */
+	handoff_count = readl(timer_base + 0x48);
+	handoff_remaining_ns = handoff_compare > handoff_count ?
+		y2_gpt_ticks_ns(handoff_compare - handoff_count) : 0;
+	if (!y2_dormant_gpt_ready(handoff_control, handoff_clock, handoff_irq,
+			handoff_pending, handoff_count, handoff_compare)) {
+		handoff_rejects++;
+		return -ETIME;
+	}
+	return 0;
+}
+bool y2_local_timer_context_ok(void) { return !READ_ONCE(context_failures); }
 
 
 static int __init y2_timer_option(char *value)
@@ -271,22 +311,45 @@ static void y2_cntp_set_compare(u64 value)
 	asm volatile("mcrr p15, 2, %0, %1, c14" : : "r" ((u32)value), "r" ((u32)(value >> 32)));
 	isb();
 }
-struct y2_timer_context { u64 compare; u32 control, frequency; };
+struct y2_timer_context { u64 compare; u32 control, frequency; bool valid; };
 static DEFINE_PER_CPU(struct y2_timer_context, timer_context);
+static u32 y2_cntfrq_read(void)
+{
+	u32 value;
+	asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (value));
+	return value;
+}
+static void y2_cntfrq_write(u32 value)
+{
+	asm volatile("mcr p15, 0, %0, c14, c0, 0" : : "r" (value));
+	isb();
+}
 static int y2_timer_cpu_pm(struct notifier_block *nb, unsigned long action, void *unused)
 {
 	struct y2_timer_context *ctx = this_cpu_ptr(&timer_context);
 	if (!y2_local_timer_ready()) return NOTIFY_OK;
 	if (action == CPU_PM_ENTER) {
+		ctx->valid = false;
 		ctx->compare = y2_cntp_compare();
 		ctx->control = y2_cntp_control();
-		asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (ctx->frequency));
+		ctx->frequency = y2_cntfrq_read();
+		if (ctx->frequency != 13000000) return NOTIFY_BAD;
+		ctx->valid = true;
+		context_saves++;
 	} else if (action == CPU_PM_EXIT || action == CPU_PM_ENTER_FAILED) {
+		u32 frequency;
+		/* ENTER_FAILED also reaches notifiers which did not save context. */
+		if (!ctx->valid) return NOTIFY_OK;
 		y2_cntp_set_control(0);
-		asm volatile("mcr p15, 0, %0, c14, c0, 0" : : "r" (ctx->frequency));
+		y2_cntfrq_write(ctx->frequency);
 		y2_cntp_set_compare(ctx->compare);
 		y2_cntp_set_control(ctx->control);
 		isb();
+		frequency = y2_cntfrq_read();
+		if (frequency != ctx->frequency || y2_cntp_compare() != ctx->compare ||
+		    ((y2_cntp_control() ^ ctx->control) & 3)) context_failures++;
+		context_restores++;
+		ctx->valid = false;
 	}
 	return NOTIFY_OK;
 }

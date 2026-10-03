@@ -4,6 +4,8 @@
 #include <linux/cdev.h>
 #include <linux/atomic.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
+#include "clocks.h"
 #include <linux/sysfs.h>
 #include <linux/of.h>
 #include "/project/kernel/usb/recover.h"
@@ -40,6 +42,14 @@ static ssize_t y2_text_write(struct file *file, const char __user *buf,
 }
 static struct y2_platform_snapshot y2_power;
 static struct device *y2_usb_parent;
+static struct clk *y2_usb_bus_clock;
+static bool y2_usb_clock_enabled;
+static unsigned y2_usb_clock_gates, y2_usb_clock_restores, y2_usb_clock_failures;
+static void y2_usb_clock_release(void *unused)
+{
+    if (y2_usb_clock_enabled) clk_disable(y2_usb_bus_clock);
+    clk_unprepare(y2_usb_bus_clock);
+}
 
 
 static void y2_power_delay(void *context) { udelay(10); }
@@ -651,6 +661,8 @@ static int y2_musb_init(struct musb *musb)
     y2_otg=(struct usb_otg){.usb_phy=&y2_xceiv,.set_peripheral=y2_set_peripheral};
     ATOMIC_INIT_NOTIFIER_HEAD(&y2_xceiv.notifier);
     musb->xceiv=&y2_xceiv;musb->is_host=false;musb->isr=y2_musb_interrupt;
+    rc = y2_ccf_usb_claim();
+    if (rc) goto fail;
     y2_musb=musb;
     y2_usb_phase(Y2_USB_REGISTER);
     return 0;
@@ -673,6 +685,65 @@ static int y2_musb_exit(struct musb *musb)
  * resume re-enumerates ECM/ACM instead of reviving stale endpoint transfers. */
 static bool y2_pm_disconnect;
 static bool y2_pm_system_saved;
+bool y2_usb_idle_ok(void)
+{
+    return !READ_ONCE(y2_usb_clock_failures) && !READ_ONCE(y2_live.result);
+}
+/* Called by generic runtime PM after its complete endpoint context save.
+ * Explicit role-none/cable detach has drained requests through the gadget
+ * owner. Any DMA, FIFO, session or IRQ activity remains a genuine blocker. */
+int y2_musb_runtime_gate(struct musb *musb)
+{
+    unsigned i, mask;
+    unsigned long flags;
+    int ret = 0;
+    if (musb != READ_ONCE(y2_musb)) return 0;
+    spin_lock_irqsave(&musb->lock, flags);
+    if (!READ_ONCE(y2_usb_detached) || readl(musb->mregs + 0xa4) ||
+        (readb(musb->mregs + MUSB_POWER) & MUSB_POWER_SOFTCONN) ||
+        (readb(musb->mregs + MUSB_DEVCTL) & MUSB_DEVCTL_SESSION)) {
+        ret = -EBUSY; goto out;
+    }
+    for (i = 0; i < 8; i++)
+        if (readw(musb->mregs + 0x204 + i * 16) & 1) { ret = -EBUSY; goto out; }
+    for (i = 0; i < musb->config->num_eps; i++)
+        if ((musb->context.index_regs[i].txcsr & (MUSB_TXCSR_TXPKTRDY | MUSB_TXCSR_FIFONOTEMPTY)) ||
+            (musb->context.index_regs[i].rxcsr & (MUSB_RXCSR_RXPKTRDY | MUSB_RXCSR_FIFOFULL))) {
+            ret = -EBUSY; goto out;
+        }
+    if (y2_usb_clock_enabled) {
+        clk_disable(y2_usb_bus_clock);
+        if (y2_ccf_usb_read(0x10003018, &mask) || !(mask & BIT(10))) {
+            /* Refuse runtime suspend and reacquire on a failed gate. */
+            ret = clk_enable(y2_usb_bus_clock);
+            y2_usb_clock_enabled = !ret;
+            y2_usb_clock_failures++;
+            if (!ret) ret = -EIO;
+            goto out;
+        }
+        y2_usb_clock_enabled = false;
+        y2_usb_clock_gates++;
+    }
+out:
+    spin_unlock_irqrestore(&musb->lock, flags);
+    return ret;
+}
+int y2_musb_runtime_clock(struct musb *musb)
+{
+    unsigned mask;
+    int ret;
+    if (musb != READ_ONCE(y2_musb)) return 0;
+    if (y2_usb_clock_failures) return -EIO;
+    if (y2_usb_clock_enabled) return 0;
+    ret = clk_enable(y2_usb_bus_clock);
+    if (ret) { y2_usb_clock_failures++; return ret; }
+    y2_usb_clock_enabled = true;
+    if (y2_ccf_usb_read(0x10003018, &mask) || (mask & BIT(10))) {
+        y2_usb_clock_failures++; return -EIO;
+    }
+    y2_usb_clock_restores++;
+    return 0;
+}
 static unsigned y2_pm_suspends, y2_pm_restores, y2_pm_stale;
 static unsigned y2_pm_l1_mask;
 static void y2_musb_clear_stale(struct musb *musb)
@@ -786,6 +857,7 @@ static const struct musb_hdrc_platform_data y2_musb_data={
 static int y2_usb_runtime_get(void)
 {
     int ret;
+    if (READ_ONCE(y2_usb_clock_failures)) return -EIO;
     if (y2_usb_pm_held) return 0;
     ret = pm_runtime_resume_and_get(&y2_usb_child->dev);
     if (ret < 0) return ret;
@@ -1013,6 +1085,8 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
         READ_ONCE(y2_live.stage), READ_ONCE(y2_live.result), READ_ONCE(y2_live.configured),
         READ_ONCE(y2_live.polls), READ_ONCE(y2_live.chrdet), READ_ONCE(y2_live.irqs), READ_ONCE(y2_live.events));
     n += sysfs_emit_at(buf, n, "pm_suspends=%u pm_restores=%u pm_stale=%u\n", y2_pm_suspends, y2_pm_restores, y2_pm_stale);
+    n += sysfs_emit_at(buf, n, "bus_clock_enabled=%u bus_clock_gates=%u bus_clock_restores=%u bus_clock_failures=%u\n",
+        READ_ONCE(y2_usb_clock_enabled), y2_usb_clock_gates, y2_usb_clock_restores, y2_usb_clock_failures);
     n += sysfs_emit_at(buf, n, "recovery=%d writes=%u power=%d clock=%d\n",
         y2_power.wake.result, y2_power.wake.written, y2_power.power.result, y2_power.clock.result);
     n += sysfs_emit_at(buf, n, "transfer=%s dma_irqs=%u dma_errors=%u dma_boot_disabled=%u\n",
@@ -1120,6 +1194,13 @@ static int y2_usb_probe(struct platform_device *pdev)
     y2_pmic_snapshot(&y2_power.power);
     if (y2_power.power.result) return y2_power.power.result;
     if (y2_power.power.valid != 7) return -EIO;
+    y2_usb_bus_clock = devm_clk_get(&pdev->dev, "usb");
+    if (IS_ERR(y2_usb_bus_clock)) return PTR_ERR(y2_usb_bus_clock);
+    ret = clk_prepare_enable(y2_usb_bus_clock);
+    if (ret) return ret;
+    y2_usb_clock_enabled = true;
+    ret = devm_add_action_or_reset(&pdev->dev, y2_usb_clock_release, NULL);
+    if (ret) return ret;
     y2_usb_input=devm_power_supply_register(&pdev->dev,&y2_usb_input_desc,&input_cfg);
     if(IS_ERR(y2_usb_input)) {ret=PTR_ERR(y2_usb_input);y2_usb_input=NULL;return ret;}
     ret=register_chrdev_region(dev,1,"y2diag");

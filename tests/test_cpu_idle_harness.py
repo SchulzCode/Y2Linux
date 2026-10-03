@@ -1,0 +1,101 @@
+"""Offline fault tests for the owner-run hardware harness."""
+import importlib.util
+import json
+from pathlib import Path
+import subprocess
+import tempfile
+import types
+import unittest
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def load(name, file):
+    spec = importlib.util.spec_from_file_location(name, ROOT/'tools/development'/file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+HOST = load('cpu_idle_host', 'qualify-cpu-idle-completion.py')
+DEVICE = load('cpu_idle_device', 'cpu_idle_completion_device.py')
+
+
+class Harness(unittest.TestCase):
+    def test_default_plan_never_contacts_hardware(self):
+        with patch.object(HOST.subprocess, 'run', side_effect=AssertionError('SSH')):
+            with patch('sys.argv', ['qualification']):
+                self.assertEqual(HOST.main(), 0)
+
+    def test_every_installed_identity_must_match(self):
+        manifest = {k: 'expected-'+k for k in ('build_git_commit', 'reborn_source_commit',
+                    'kernel_version', 'rootfs_version', 'release_version', 'build_id',
+                    'platform_api_version', 'data_schema_version')}
+        actual = {'versions': manifest.copy(), 'boot': 'physical-boot',
+                  'uname_release': manifest['kernel_version'], 'reborn_build': manifest['reborn_source_commit']}
+        self.assertEqual(HOST.identity_errors(manifest, actual), [])
+        for key in manifest:
+            bad = {**actual, 'versions': {**manifest, key: 'stale'}}
+            self.assertIn(key, HOST.identity_errors(manifest, bad))
+        actual['reborn_build'] = 'old-reborn'
+        self.assertIn('running_reborn_build', HOST.identity_errors(manifest, actual))
+
+    def test_disconnect_fails_over_observation_but_never_retries_mutation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args = types.SimpleNamespace(output=Path(directory)/'evidence', host='usb', wifi_host='wifi')
+            runner = HOST.Run(args)
+            calls = []
+            def ssh(host, command, body=None, timeout=30):
+                calls.append((host, command))
+                if command == 'true' and host == 'wifi':
+                    return 0, b'', b''
+                return 255, b'', b'lost transport'
+            runner.ssh = ssh
+            self.assertEqual(runner.launch_once('MUTATE', b'payload')[0], 255)
+            self.assertEqual(calls, [('usb', 'true'), ('wifi', 'true'), ('wifi', 'MUTATE')])
+
+    def test_real_reset_return_requires_residency_and_all_restores(self):
+        a = {k: '0' for k in ('dormant_entries', 'dormant_resumes', 'dormant_successes',
+                             'dormant_residency_us', 'dormant_restore_failures', 'dormant_failures')}
+        b = {**a, 'dormant_entries': '1', 'dormant_resumes': '1', 'dormant_successes': '1',
+             'dormant_residency_us': '4000', 'dormant_broken': '0', 'dormant_result': '0'}
+        self.assertTrue(DEVICE.dormant_verdict(a, b)['pass'])
+        for k, value in (('dormant_successes', '0'), ('dormant_residency_us', '0'),
+                         ('dormant_restore_failures', '1'), ('dormant_broken', '1'),
+                         ('dormant_entries', '2'), ('dormant_result', '-5')):
+            self.assertFalse(DEVICE.dormant_verdict(a, {**b, k: value})['pass'], k)
+        with self.assertRaises(RuntimeError):
+            DEVICE.delta({}, {}, 'dormant_successes')
+
+    def test_first_failed_cycle_disables_c3_and_stops_repetition(self):
+        # Exercise the actual trial loop, not a duplicate state machine.
+        q = object.__new__(DEVICE.Qualification)
+        q.result = {'start_boot': 'boot'}
+        q.config = {}
+        q.cmd = lambda *a: ''
+        q.save = lambda: None
+        writes = []
+        state = {'dormant_entries': '0', 'dormant_resumes': '0', 'dormant_successes': '0',
+                 'dormant_residency_us': '0', 'dormant_restore_failures': '0', 'dormant_failures': '0',
+                 'dormant_broken': '0', 'dormant_result': '-16'}
+        snaps = {'spm': ' '.join(k+'='+v for k, v in state.items()), 'taint': '0',
+                 'metrics': {'states': {'cpu0/cpuidle/state2': {'usage': '0', 'time': '0'}}}}
+        role = types.SimpleNamespace()
+        with patch.object(DEVICE.P, 'glob', return_value=iter([role])), \
+             patch.object(DEVICE, 'read', return_value='device'), \
+             patch.object(DEVICE, 'write', side_effect=lambda p, v: writes.append((p, v))), \
+             patch.object(DEVICE, 'spm', side_effect=lambda n='state': 'unmet=' if n == 'dormant_preflight' else snaps['spm']), \
+             patch.object(DEVICE, 'snapshot', return_value=snaps), \
+             patch.object(DEVICE.time, 'sleep', return_value=None), \
+             patch.object(DEVICE, 'boot', return_value='boot'):
+            with self.assertRaisesRegex(RuntimeError, 'first failed bounded cycle'):
+                q.c3_cycles()
+        self.assertEqual(len(q.result['c3_cycles']), 1)
+        self.assertIn((DEVICE.C3, 1), writes)
+        self.assertIn((DEVICE.BUDGET, 0), writes)
+        self.assertEqual(writes[-1], (role, 'device'))
+
+
+if __name__ == '__main__':
+    unittest.main()

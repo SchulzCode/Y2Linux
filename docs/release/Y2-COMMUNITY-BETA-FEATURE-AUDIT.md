@@ -404,6 +404,21 @@ Broad core patches should remain frozen. Later0009 tuning and0060 instrumentatio
 
 ## 5. CPU / POWER
 
+### Current CPU idle evidence — 2026-10-03
+
+Installed baseline Linux131ee46/Reborn7f9df39, same bootcee326c1, now physically
+closes C1 and C2: four-core WFI residency/entries/rejections pass; natural parking
+reaches CPU0/owner0xe; SLIDLE adds7182 entries and50.763741 seconds in60.404076
+seconds (84%), with clock restore failures0 and fsynced eMMC/inserted-SD integrity.
+All five guarded OPPs and three physical hotplug cycles pass. Real wired playback
+adds352256 decoded frames, errors0, real PlaybackNormal lease and all-core demand
+wake. These results supersede the historical C2 gap below for the installed
+baseline; the coherent new candidate still requires qualification. C3 remains
+**SOFTWARE_READY_NEEDS_NEW_FLASH**, default off until one backstopped entry and
+20 checked cycles. No battery-life or full-system-suspend pass is claimed.
+[Physical record](../validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md),
+[implementation and harness](../validation/Y2-CPU-IDLE-COMPLETION.md).
+
 | OPP | Source voltage | Strongest physical evidence | Beta interpretation |
 | --- | --- | --- | --- |
 |598 MHz|1.15 V|Fix02 clock/readback/integrity and idle|Carry forward|

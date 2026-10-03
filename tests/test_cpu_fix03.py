@@ -22,7 +22,9 @@ class BusDcmBaseline(unittest.TestCase):
 #include "idle-clock-policy.h"
 #define __iomem
 static unsigned top[64],peri[64],infra[64],online=1,cpu,entries,slow_blockers,slow_restore_failures,slow_blockers_single,slow_blocker_bits[24];
-static unsigned deep_peri_blockers,deep_infra_blockers;
+static unsigned deep_peri_blockers,deep_infra_blockers,deep_disp0_blockers,deep_disp1_blockers;
+static unsigned mm0,mm1;
+static int y2_mm_idle_blockers(unsigned *a,unsigned *b){*a=mm0;*b=mm1;return 0;}
 static unsigned long slow_reject_topology,slow_reject_lock,slow_reject_bus,slow_reject_clock;
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof((a)[0]))
 #define BIT(n) (1U<<(n))
@@ -82,13 +84,15 @@ int main(void){
  assert(!y2_ccf_deep_idle_end() && top[1]==0x00 && top[0x70/4]==0x07123456 && !y2_clk_lock);
  top[1]=0x0f;assert(!y2_ccf_deep_idle_begin());assert(!y2_ccf_deep_idle_end() && top[1]==0x0f);
  top[1]=0x8f;assert(y2_ccf_deep_idle_begin()==-EBUSY && top[1]==0x8f && !y2_clk_lock);
+ top[1]=0;mm0=1;assert(y2_ccf_deep_idle_begin()==-EBUSY && !y2_clk_lock && !top[1]);
+ mm0=0;mm1=8;assert(y2_ccf_deep_idle_begin()==-EBUSY && !y2_clk_lock);
 }
 ''')
 
     def test_preflight_reports_bus_with_the_same_predicate(self):
         spm = (ROOT/'kernel/platform/spm.c').read_text()
         pre = function(spm, 'dormant_preflight_show')
-        self.assertIn('!y2_bus_dcm_baseline(bus) ? "bus," : ""', pre)
+        self.assertIn('{ "bus", y2_bus_dcm_baseline(bus) }', pre)
         self.assertNotIn('0x0f', pre)
         clocks = (ROOT/'kernel/platform/clocks.c').read_text()
         self.assertNotIn('!= 0x0f', clocks)

@@ -888,7 +888,7 @@
       "enabled_by_default": "Yes",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "Fix02 per-core IRQs and nine re-onlines plus 4→1→4 pass",
+      "physical_evidence": "Fix02 per-core IRQs and nine re-onlines plus 4\u21921\u21924 pass",
       "automated_tests": [
         "tests/test_dev_foundation.py",
         "tests/test_dev_abi.py",
@@ -1678,12 +1678,14 @@
       "enabled_by_default": "Yes",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "Fix02 entries/residency advance, rejected 0",
+      "physical_evidence": "2026-10-03 installed baseline: CPU0/1/2/3 WFI entries +1123/+916/+649/+1214; residency advances; rejections0, same boot/timer continuity.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
         "tests/test_cpu_fix02.py",
-        "tests/test_cpu_fix03.py"
+        "tests/test_cpu_fix03.py",
+        "tests/test_cpu_idle_completion.py",
+        "tests/test_cpu_idle_harness.py"
       ],
       "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
@@ -1699,7 +1701,8 @@
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1730,18 +1733,20 @@
       "owner": "Kernel",
       "implementation_state": "IMPLEMENTED_ENABLED",
       "enabled_by_default": "Yes when prerequisites clear",
-      "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
-      "evidence": "SOFTWARE_VALIDATED",
-      "physical_evidence": "Fix02 0 entries due to bus baseline; Fix03 accepts 0x00/0x0f, not physically retested",
+      "actually_used": "2026-10-03 natural CPU0-only screen-off/radios-off baseline idle",
+      "evidence": "PHYSICALLY_QUALIFIED",
+      "physical_evidence": "+7182 SLIDLE entries; +50763741 us in60.404075502 s (84%); restore failures0; eMMC/SD fsynced uncached SHA256 pass; same boot.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
         "tests/test_cpu_fix02.py",
-        "tests/test_cpu_fix03.py"
+        "tests/test_cpu_fix03.py",
+        "tests/test_cpu_idle_completion.py",
+        "tests/test_cpu_idle_harness.py"
       ],
       "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
-      "known_limitation": "Code correction exists; useful residency unknown",
+      "known_limitation": "New coherent candidate must repeat baseline qualification; SD-absent scenario not observed.",
       "failure_mode": "More consumption or clock restore fault",
       "safe_fallback": "WFI; y2.cpuidle=off disables board idle states. y2.deep_idle=off only removes C3, not C2",
       "source_paths": [
@@ -1753,7 +1758,8 @@
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1766,8 +1772,8 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Code correction exists; useful residency unknown",
-      "next_action": "Close SLIDLE bus-baseline fix physically: entries/residency, exact clock restore, timer continuity and wake with parking. Required power feature.",
+      "current_limitation": "New candidate qualification pending; electrical energy benefit not measured.",
+      "next_action": "Owner flash coherent CPU idle candidate, run the automated C1/C2/C3 qualification once.",
       "release_completion_groups": [
         "B"
       ],
@@ -1786,16 +1792,18 @@
       "enabled_by_default": "Yes",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "Fix02 3→2→1 at 5 s steps; wake restores in 0.63 s",
+      "physical_evidence": "2026-10-03 baseline natural parking reaches CPU0/owner0xe after genuine pressure hold; 3 hotplug cycles prove both physical power copies; playback demand restores all4.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
         "tests/test_cpu_fix02.py",
-        "tests/test_cpu_fix03.py"
+        "tests/test_cpu_fix03.py",
+        "tests/test_cpu_idle_completion.py",
+        "tests/test_cpu_idle_harness.py"
       ],
       "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
-      "known_limitation": "Fix03 wake-pressure attribution correction untested",
+      "known_limitation": "New candidate screen wake and fine-grained transition tracing pending.",
       "failure_mode": "Delayed parking after wakes or delayed interaction",
       "safe_fallback": "Restore all cores on demand",
       "source_paths": [
@@ -1807,7 +1815,8 @@
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1820,7 +1829,7 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Fix03 wake-pressure attribution correction untested",
+      "current_limitation": "New display-clock sleep ownership and candidate wake require fresh physical qualification.",
       "next_action": "Test screen cycles without policy redesign",
       "release_completion_groups": [
         "B"
@@ -1840,12 +1849,14 @@
       "enabled_by_default": "C3 default off; prerequisite checks present",
       "actually_used": "No",
       "evidence": "SOFTWARE_VALIDATED",
-      "physical_evidence": "Fix02 unmet topology/frequency/domains/clocks/bus; no C3 entry",
+      "physical_evidence": "No actual dormant entry yet. Baseline C3 disabled; supported USB detach proves suspended MUSB still holds USB0 clock. Exact MT6582 display/PERI/INFRA ownership and checked context/deadline/CIRQ fixes prepared.",
       "automated_tests": [
         "tests/test_cpu_final.py",
         "tests/test_slow_idle.py",
         "tests/test_cpu_fix02.py",
-        "tests/test_cpu_fix03.py"
+        "tests/test_cpu_fix03.py",
+        "tests/test_cpu_idle_completion.py",
+        "tests/test_cpu_idle_harness.py"
       ],
       "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
       "diagnostics": "Platform status/health and Idle source-specific counters/logs; see subsystem section",
@@ -1865,7 +1876,8 @@
       ],
       "evidence_docs": [
         "docs/validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md",
-        "docs/validation/Y2-CPU-FINAL-FIX03.md"
+        "docs/validation/Y2-CPU-FINAL-FIX03.md",
+        "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md"
       ],
       "current_candidate_physically_qualified": false,
       "legacy_release_classification": {
@@ -1878,8 +1890,8 @@
       "release_required": "REQUIRED_IF_HARDWARE_SUPPORTED",
       "release_requirement": "REQUIRED_IF_HARDWARE_SUPPORTS_IT",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Software/stock PCM exists, no physical acceptance",
-      "next_action": "Resolve dormant_preflight blockers; prove separate runtime PCM, CPU0-only topology, CIRQ/GPT4 deadline and CPU/timer context resume. Conditional release requirement, not automatic post-beta.",
+      "current_limitation": "SOFTWARE_READY_NEEDS_NEW_FLASH; no physical dormant success claimed.",
+      "next_action": "Owner flash one coherent candidate; all prerequisites, one RGU-backed entry, then20 bounded cycles only on success.",
       "release_completion_groups": [
         "C",
         "A",
@@ -3445,14 +3457,14 @@
     {
       "id": "F059",
       "subsystem": "Display",
-      "feature": "Native panel / DRM KMS / framebuffer / 480×360",
+      "feature": "Native panel / DRM KMS / framebuffer / 480\u00d7360",
       "user_visible": true,
       "owner": "Kernel",
       "implementation_state": "IMPLEMENTED_ENABLED",
       "enabled_by_default": "Yes",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "GPU01 and later menus visible at 480×360",
+      "physical_evidence": "GPU01 and later menus visible at 480\u00d7360",
       "automated_tests": [
         "tests/test_baseline_display.py",
         "tests/test_reborn_splash.py",
@@ -3863,7 +3875,7 @@
     {
       "id": "F067",
       "subsystem": "Input",
-      "feature": "APT32F I2C → evdev wheel → semantic navigation",
+      "feature": "APT32F I2C \u2192 evdev wheel \u2192 semantic navigation",
       "user_visible": true,
       "owner": "Reborn",
       "implementation_state": "IMPLEMENTED_ENABLED",
@@ -4133,7 +4145,7 @@
     {
       "id": "F072",
       "subsystem": "Audio",
-      "feature": "FFmpeg → float DSP → sink conversion → ALSA → AFE DL1 → I2S → CS43131",
+      "feature": "FFmpeg \u2192 float DSP \u2192 sink conversion \u2192 ALSA \u2192 AFE DL1 \u2192 I2S \u2192 CS43131",
       "user_visible": true,
       "owner": "Reborn",
       "implementation_state": "IMPLEMENTED_ENABLED",
@@ -4250,7 +4262,7 @@
       "enabled_by_default": "Enabled independently of qualification flag",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_OBSERVED",
-      "physical_evidence": "Physical01 one minute + rate switches owner clean; Fix02 24/96→48 exercise",
+      "physical_evidence": "Physical01 one minute + rate switches owner clean; Fix02 24/96\u219248 exercise",
       "automated_tests": [
         "tests/test_audio.py",
         "tests/test_audio_clocks.py",
@@ -4278,7 +4290,7 @@
       "legacy_release_classification": {
         "beta_state": "BETA_READY_WITH_LIMITATION",
         "beta_priority": "B",
-        "recommended_next_action": "Include 44.1↔48 transitions and one sustained segment"
+        "recommended_next_action": "Include 44.1\u219448 transitions and one sustained segment"
       },
       "product_target": "CORE_RELEASE_FEATURE",
       "hardware_conditional": false,
@@ -4286,7 +4298,7 @@
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
       "current_limitation": "audio-qualified.json still only lists 44.1; long Reborn listening pending",
-      "next_action": "Include 44.1↔48 transitions and one sustained segment",
+      "next_action": "Include 44.1\u219448 transitions and one sustained segment",
       "release_completion_groups": [
         "B"
       ],
@@ -4375,7 +4387,7 @@
       "diagnostics": "Not applicable; no implemented capability",
       "known_limitation": "Exact native MT6582 clock/rate route above48k remains unproven; family conversion stays44.1/48.",
       "failure_mode": "False native-rate claim",
-      "safe_fallback": "88.2→44.1; 96→48; 44.1 ultimate fallback",
+      "safe_fallback": "88.2\u219244.1; 96\u219248; 44.1 ultimate fallback",
       "source_paths": [
         "kernel/audio/mt6582-afe.c",
         "kernel/audio/y2-cs43131.c",
@@ -5464,7 +5476,7 @@
       "enabled_by_default": "When source/sink differ",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_OBSERVED",
-      "physical_evidence": "24/96→48 physically exercised; native sample/24-bit sign tests",
+      "physical_evidence": "24/96\u219248 physically exercised; native sample/24-bit sign tests",
       "automated_tests": [
         "Y2Reborn:crates/reborn-media/src/native.rs",
         "Y2Reborn:app/reborn/src/playback.rs",
@@ -6866,7 +6878,7 @@
       "enabled_by_default": "When Wi-Fi enabled",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "Physical01 ordinary checked DNS + TCP; Fix02 4×1 MiB each way SHA",
+      "physical_evidence": "Physical01 ordinary checked DNS + TCP; Fix02 4\u00d71 MiB each way SHA",
       "automated_tests": [
         "tests/test_wifi.py",
         "tests/test_platform_network_time.py",
@@ -7086,7 +7098,7 @@
       "enabled_by_default": "Existing TCP path",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_QUALIFIED",
-      "physical_evidence": "Physical01 3 repeats ~45.15–45.60 receive /46.35–46.56 transmit Mb/s",
+      "physical_evidence": "Physical01 3 repeats ~45.15\u201345.60 receive /46.35\u201346.56 transmit Mb/s",
       "automated_tests": [
         "tests/test_wifi.py",
         "tests/test_platform_network_time.py",
@@ -8255,7 +8267,7 @@
       "legacy_release_classification": {
         "beta_state": "BETA_READY_WITH_LIMITATION",
         "beta_priority": "B",
-        "recommended_next_action": "Wired↔SBC switching and peer-loss test"
+        "recommended_next_action": "Wired\u2194SBC switching and peer-loss test"
       },
       "product_target": "CORE_RELEASE_FEATURE",
       "hardware_conditional": false,
@@ -8263,7 +8275,7 @@
       "release_requirement": "REQUIRED_FOR_FEATURE_COMPLETE_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
       "current_limitation": "Peer loss/reconnect combinations not fully physical",
-      "next_action": "Wired↔SBC switching and peer-loss test",
+      "next_action": "Wired\u2194SBC switching and peer-loss test",
       "release_completion_groups": [
         "B"
       ],
@@ -9950,7 +9962,7 @@
       ],
       "automated_test_result": "Retained receipts only; no implementation tests rerun in this documentation audit",
       "diagnostics": "Platform status/health and UI source-specific counters/logs; see subsystem section",
-      "known_limitation": "Preview is not actual 480×360 readability or latency proof",
+      "known_limitation": "Preview is not actual 480\u00d7360 readability or latency proof",
       "failure_mode": "Clipped names, wrong focus, slow wheel list",
       "safe_fallback": "Full-value page and letter jump",
       "source_paths": [
@@ -9975,7 +9987,7 @@
       "release_required": "REQUIRED",
       "release_requirement": "REQUIRED_FOR_POLISHED_BETA",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "Preview is not actual 480×360 readability or latency proof",
+      "current_limitation": "Preview is not actual 480\u00d7360 readability or latency proof",
       "next_action": "Physical realistic10k navigation checklist",
       "release_completion_groups": [
         "B"
@@ -9995,7 +10007,7 @@
       "enabled_by_default": "Yes voltage-derived profile",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_OBSERVED",
-      "physical_evidence": "Real ADC/voltage readings; source provisional curve 3.4–4.175 V",
+      "physical_evidence": "Real ADC/voltage readings; source provisional curve 3.4\u20134.175 V",
       "automated_tests": [
         "tests/test_battery_soc.py",
         "tests/test_power_policy.py",
@@ -10053,7 +10065,7 @@
       "automated_tests": [],
       "automated_test_result": "No implemented feature to test; adjacent subsystem coverage is not evidence for this absent capability",
       "diagnostics": "Not applicable; no implemented capability",
-      "known_limitation": "68 mΩ/topology/offset and NTC wiring unproven",
+      "known_limitation": "68 m\u03a9/topology/offset and NTC wiring unproven",
       "failure_mode": "False safety assurance from fabricated values",
       "safe_fallback": "Not reported; die sensors separate",
       "source_paths": [
@@ -10079,7 +10091,7 @@
       "release_required": "REQUIRED_IF_HARDWARE_SUPPORTED",
       "release_requirement": "REQUIRED_IF_HARDWARE_SUPPORTS_IT",
       "public_distribution_state": "NOT_SEPARATELY_ASSESSED",
-      "current_limitation": "68 mΩ/topology/offset and NTC wiring unproven",
+      "current_limitation": "68 m\u03a9/topology/offset and NTC wiring unproven",
       "next_action": "Investigate exact MT6323/Y2 stock sense/coulomb/NTC path, calibration and net-current direction; implement real current/coulomb/pack temperature only where board-supported and prove against measurement.",
       "release_completion_groups": [
         "C",
@@ -10432,7 +10444,7 @@
       "enabled_by_default": "Charger enabled within source policy",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_OBSERVED",
-      "physical_evidence": "1121.57 s voltage3.540→3.574 V under changing load; not net-current proof",
+      "physical_evidence": "1121.57 s voltage3.540\u21923.574 V under changing load; not net-current proof",
       "automated_tests": [
         "tests/test_charger.py",
         "tests/test_offline_charging.py",
@@ -10486,7 +10498,7 @@
       "enabled_by_default": "rtc-policy write_enabled true",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "PHYSICALLY_OBSERVED",
-      "physical_evidence": "Hardware02 NTP→RTC read/write/tick pass",
+      "physical_evidence": "Hardware02 NTP\u2192RTC read/write/tick pass",
       "automated_tests": [
         "tests/test_platform_network_time.py",
         "tests/test_power.py"
@@ -11069,7 +11081,7 @@
       "user_visible": true,
       "owner": "Y2Linux userspace",
       "implementation_state": "IMPLEMENTED_ENABLED",
-      "enabled_by_default": "Syslog2×256 KiB; bounded Reborn logs and bundles",
+      "enabled_by_default": "Syslog2\u00d7256 KiB; bounded Reborn logs and bundles",
       "actually_used": "Path active when invoked; source/candidate scope, not proof of current runtime",
       "evidence": "SOFTWARE_VALIDATED",
       "physical_evidence": "Physical boot history/SRAM receipts; host redaction/bounds tests",
@@ -98553,5 +98565,16 @@
     },
     "physical_qualification": false,
     "public_distribution_ready": false
+  },
+  "cpu_idle_completion": {
+    "date": "2026-10-03",
+    "installed_linux": "131ee4621cd583c955182f994adac5a594fb823f",
+    "installed_reborn": "7f9df397ab3809d52e2f1073ca93a305246e0c3a",
+    "boot_id": "cee326c1-a5b0-447a-8eb0-dc3f39f7e2c2",
+    "C1": "WORKING",
+    "C2": "WORKING",
+    "C3": "SOFTWARE_READY_NEEDS_NEW_FLASH",
+    "record": "docs/validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md",
+    "scope": "Current baseline bounded CPU/storage/playback evidence; new source requires owner flash; unrelated full-suspend failure retained."
   }
 }

@@ -7,6 +7,7 @@ void y2_system_idle_activity(void);
 int y2_system_idle_restore(void);
 bool y2_backlight_dark(void);
 bool y2_workload_active(void);
+bool y2_workload_idle_blocked(void);
 #else
 static inline void y2_system_idle_activity(void)
 {

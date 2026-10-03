@@ -54,6 +54,12 @@ enum y2_pm_stage {
 	Y2_PM_FILESYSTEMS_THAWED,
 	Y2_PM_POST_SUSPEND_NOTIFIED,
 	Y2_PM_CONSOLE_RESTORED,
+	Y2_PM_DORMANT_BEGIN,
+	Y2_PM_DORMANT_CONTEXT,
+	Y2_PM_DORMANT_FINISH,
+	Y2_PM_DORMANT_RETURN,
+	Y2_PM_DORMANT_COMPLETE,
+	Y2_PM_DORMANT_ABORTED,
 	Y2_PM_STAGE_COUNT
 };
 /* Device PM callback phases recorded in the retained callback ring. */
@@ -93,6 +99,8 @@ void y2_pm_backstop_begin(bool staged);
 void y2_pm_backstop_ping(void);
 void y2_pm_backstop_pause(bool pause);
 void y2_pm_backstop_end(void);
+bool y2_pm_dormant_backstop_ready(void);
+bool y2_pm_dormant_backstop_running(void);
 extern void y2_cpu_resume(void);
 #else
 static inline void y2_pm_device(const struct device *dev, unsigned phase,

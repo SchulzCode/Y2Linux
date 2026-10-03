@@ -59,11 +59,14 @@ int main(void){struct y2_spm_io io={0,rd,wr,delay};
  assert(!(r[SPM_PCM_CON1/4]&(CON1_PCM_TIMER_EN|CON1_PCM_WDT_EN)));
  assert(!r[SPM_PCM_PWR_IO_EN/4]);
  y2_spm_normal(&io,0x81002000);assert(r[SPM_PCM_IM_LEN/4]==27);
+ assert(!y2_spm_idle_restore(&io,0x81002000));
+ broken=1;assert(y2_spm_idle_restore(&io,0x81002000)==-EIO);
 }
 ''')
 
     def test_cirq_clone_mask_and_replay_actual_code(self):
         s = (ROOT/'kernel/platform/cirq.c').read_text().replace('int y2_cirq_begin(', 'static int y2_cirq_begin(').replace('void y2_cirq_end(', 'static void y2_cirq_end(')
+        restore = function(s.replace('bool y2_cirq_restore_ok(', 'static bool y2_cirq_restore_ok('), 'y2_cirq_restore_ok')
         run_c(r'''
 #include <assert.h>
 #include <stdbool.h>
@@ -71,10 +74,11 @@ int main(void){struct y2_spm_io io={0,rd,wr,delay};
 #include "cirq-policy.h"
 #define BIT(x) (1U<<(x))
 #define WARN_ON_ONCE(x) (x)
+#define READ_ONCE(x) (x)
 #define dsb(x) do{}while(0)
 static unsigned c[0x400/4],g[0x1000/4],p[7],online=1,cpu;
 static void *cirq=c,*dist=g,*pol=p;static unsigned masks[7],entries,flushes,last_pending;
-static bool active;static unsigned saved_control;
+static bool active;static unsigned saved_control,restore_failures,clone_failures,pending_banks[Y2_CIRQ_BANKS];
 static bool y2_cirq_ready(void){return true;}
 static bool irqs_disabled(void){return true;}
 static unsigned num_online_cpus(void){return online;}
@@ -89,9 +93,15 @@ static void writel(unsigned v,void *addr){
   else g[off]=v;
  }else if(addr>=(void *)c && addr<(void *)(c+sizeof(c)/4)){
   off=(unsigned *)addr-c;c[off]=v;
+  if(off>=0xc0/4 && off<0xc0/4+5)c[off-0x40/4]|=v;
+  if(off>=0x100/4 && off<0x100/4+5)c[off-0x80/4]&=~v;
+  if(off>=0x180/4 && off<0x180/4+5)c[off-0x40/4]|=v;
+  if(off>=0x1c0/4 && off<0x1c0/4+5)c[off-0x80/4]&=~v;
+  if(off>=0x240/4 && off<0x240/4+5)c[off-0x40/4]|=v;
+  if(off>=0x280/4 && off<0x280/4+5)c[off-0x80/4]&=~v;
  }else assert(0);
 }
-''' + function(s, 'y2_cirq_begin') + function(s, 'y2_cirq_end') + r'''
+''' + restore + function(s, 'y2_cirq_begin') + function(s, 'y2_cirq_end') + r'''
 int main(void){
  for(unsigned i=1;i<7;i++)g[0x100/4+i]=0xa5a5a5a5;
  online=4;assert(y2_cirq_begin()==-EBUSY && !entries);online=1;
@@ -104,7 +114,8 @@ int main(void){
  y2_cirq_end();assert(!active && flushes==1 && c[0x300/4]==2);
  assert(g[0x200/4+2]==0x12345678 && g[0x200/4+6]==0x07ffffff);
  for(unsigned i=1;i<7;i++)assert(g[0x100/4+i]==0xa5a5a5a5);
- y2_cirq_end();assert(flushes==1);
+ y2_cirq_end();assert(flushes==1 && !restore_failures);
+ assert(pending_banks[0]==0x12345678 && pending_banks[4]==0x07ffffff);
  for(unsigned b=0;b<5;b++)assert(y2_cirq_valid(b)==(b==4?0x07ffffff:~0U));
  assert(y2_cirq_sensitivity(0xaaaaaaaa,0xaaaaaaaa)==0);
  assert(y2_cirq_sensitivity(0,0)==~0U);

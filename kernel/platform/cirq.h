@@ -4,5 +4,6 @@
 int y2_cirq_begin(void);
 void y2_cirq_end(void);
 bool y2_cirq_ready(void);
+bool y2_cirq_restore_ok(void);
 unsigned y2_cirq_snapshot(void);
 #endif

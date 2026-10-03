@@ -1,5 +1,107 @@
 # Platform v1 software completion roadmap
 
+## CPU idle completion admission — 2026-10-03
+### CPU idle dependency audit — 2026-10-03 08:05 UTC
+
+Current-boot receipts04–11 now physically close C1 and C2 on the installed
+baseline: four-core WFI counters/residency and timer continuity pass; natural
+parking reaches owner0xe/CPU0; C2 adds7182 entries and50.763741 seconds residency
+in60.404075502 seconds (84.0%), with restore failures0. Eight uncached, fsynced
+SHA256 cycles per eMMC/SD medium pass in each radio-off run, ext4 counts0.
+Three hotplug cycles and all five guarded OPPs pass. C3 remains unentered.
+Live screen-off still owns OVL/RDMA/COLOR/DSI and32-kHz mutex references;
+inherited AFE clocks remain enabled with zero references. This new evidence
+supersedes the admission's pending C1/C2 observations, not unrelated gates.
+
+Exact d53dd75c/3be93a68 MT6582 `dpidle_condition_mask` requires DISP0 0x7ffff
+and DISP1 0xf clock quiescence, rather than unconditional DISP-domain power-off.
+CPU completion therefore includes the existing Reborn DRM master's screen-sleep
+lifecycle, balanced shared display/audio clock ownership, and read-only checks
+for safely retiring inactive loader clocks. Active or unknown engines remain
+blockers. This dependency is within the owner's explicit CPU clock/wake scope;
+it authorizes no new display feature, arbitrary power-domain shutdown, DMA reset,
+MMIO userspace access, memory layout, partition, flash or push. Existing GPU
+and radio ownership and active performance ceiling remain required regressions.
+
+
+
+Owner explicitly authorizes an autonomous CPU/idle implementation and physical
+qualification pass on installed `y2linux-baseline-candidate`, with one fresh
+`y2linux-cpu-idle-completion-candidate` preserving BOOTIMG/Y2ROOT package.
+Only the owner flashes; no push, protected-partition or Y2DATA payload is admitted.
+
+Read-only SSH verifies Linux `131ee4621cd583c955182f994adac5a594fb823f`,
+Reborn `7f9df397ab3809d52e2f1073ca93a305246e0c3a`, kernel
+`6.18.0-y2linux-baseline-01`, root `2025.02.18-platform-v1.17`, release
+`1.0.0-baseline-candidate.1`, boot `cee326c1-a5b0-447a-8eb0-dc3f39f7e2c2`,
+taint0, matching the sealed package. This supersedes installed Candidate4
+identity only; retained Fix02 passes/failures remain historical evidence.
+Private receipts: `out/cpu-idle-completion-physical/20261003T074026Z/`.
+
+Initial current coverage: GPT6/GPT4/PPI29/CNTFRQ13MHz/highres/NO_HZ admitted;
+all five guarded OPPs admitted; CPU0-only coordinator-owned topology observed.
+C1 registered/enabled with accumulated residency, fresh continuity qualification
+pending. C2 registered/enabled but entries0, live APDMA/BTIF blockers while Wi-Fi
+runs; bus rejection0 and MMC runtime gating intact. C3 registered/default-off,
+entries0; current frequency, domains and clocks reject its read-only preflight.
+No new idle-state pass is claimed. Existing storage tuning remains Candidate4.
+
+GitHub active issues refreshed read-only: #16/#27/#28/#29/#31/#32/#33/#34 OPEN;
+CPU/timers/idle map to #28 and storage/radio/GPU interactions to #33/#31/#34.
+Their older descriptions do not override current source or hardware receipts.
+No external issue or milestone is closed or changed. Every unrelated hardware,
+audio/distribution/endurance gate retains its existing classification.
+
+Scope: characterize C1 then freeze its proven architecture; decode/fix actual C2
+clock/device ownership; resolve every source-backed C3 topology/deadline/CIRQ/PCM/
+context prerequisite, without masking blockers or undocumented register writes.
+Bounded existing runtime controls and workload/storage/network regression tests
+are authorized, with safe abort and state restoration. First C3 entry requires
+all real prerequisites; no repeated hammering of a failed deep path. Preserve
+GPT6/GPT4/PPI29, schedutil/QoS/thermal, hotplug, all guarded OPPs, exact memory/
+partition layout and Hardware02 fallback. Full system-suspend acceptance remains
+a separate gate. Coherent source fixes and fresh software/package qualification
+precede owner flash and current-candidate physical acceptance.
+
+Track implementation and physical results in
+[CPU idle completion](../validation/Y2-CPU-IDLE-COMPLETION.md) and
+[physical qualification](../validation/Y2-CPU-IDLE-COMPLETION-PHYSICAL.md).
+
+### USB clock dependency audit — 2026-10-03
+
+Current-boot receipt12 uses supported USB role `none` over the verified Wi-Fi
+observer. MUSB changes active ->suspended and returns active on restoring
+`device`; same boot, no source/partition changes. PERI USB0 bit10 nevertheless
+remains active in the exact C3 blocker mask. Source confirms the glue adopts
+that gate without a CCF consumer. The MT6582 d53 USB PHY's usb_enable_clock
+explicitly owns MT_CG_PERI_USB0 through enable_clock/disable_clock.
+
+This CPU completion boundary now admits a balanced USB0 CCF consumer and
+MUSB runtime save/gate/enable/restore hooks, preserving attached sessions,
+DMA/IRQ refusal, PHY sequencing and ordinary role-based detach/reconnect.
+No blocker bit is removed. Only the existing controller is modeled; no host,
+VBUS, PHY-retune, power-domain, memory, partition or flash scope is added.
+Fresh USB regressions and same-boot role recovery are required. The next C3
+harness may intentionally release USB through the existing role interface
+while its durable device-side job runs, then restore transport. Radios and
+USB may both legitimately prevent C3 until their owners have quiesced.
+
+### CPU idle source/build boundary audit — 2026-10-03
+
+Fresh same-boot receipts04/10/11/12/16/17 now establish four-core C1, useful C2,
+physical secondary hotplug, all five OPPs, the USB0 ownership leak, actual44.1-kHz
+playback with PlaybackNormal demand/all-core restoration and screen-off/on
+userspace transitions. Taint0; mounted eMMC/SD errors0; C3 has not entered.
+The source pass preserves the working timer/C1/C2/MMC/DVFS/parking algorithms
+and repairs the exact C3 clock/context/deadline/CIRQ/PCM prerequisites. Targeted
+native fault tests and fresh Reborn host/clippy checks pass; full fresh software
+and package qualification is next. This crosses a software build boundary only:
+no new hardware/memory/partition scope, milestone closure, flash or push.
+All unrelated full-suspend/storage-ceiling/audio/distribution gates remain open.
+One coherent CPU idle preserving candidate and its automated20-cycle harness
+are the next deliverables. CPU hardware completion remains pending owner flash.
+
+
 **Current scope, 2026-10-01:** See [platform state](../CURRENT_PLATFORM_STATE.md)
 and the [Fix02 physical result](../validation/Y2-CPU-FINAL-FIX02-PHYSICAL-QUALIFICATION.md).
 The owner-flashed Fix02 qualifies the awake CPU platform, but fails acceptance

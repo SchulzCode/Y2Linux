@@ -28,9 +28,15 @@
 #include "idle-clock-policy.h"
 #include "local-timer.h"
 #include "cpu-options.h"
+#include "idle-completion-policy.h"
+#include "system-idle.h"
 #include "pm-journal.h"
+#include "usb-pm.h"
 #include <linux/cpufreq.h>
 #include <linux/ktime.h>
+#include <linux/mm.h>
+#include <asm/idmap.h>
+#include <asm/smp_plat.h>
 #include "shared.h"
 #include "connectivity/domain.h"
 #include "gpu-policy.h"
@@ -45,6 +51,26 @@ static unsigned dormant_entries, dormant_resumes, dormant_aborts, dormant_failur
 static int dormant_result;
 static bool dormant_broken;
 static char *dormant_stage = "never_entered";
+/* Paired with normal cpuidle state2/disable. Zero quarantines entry;
+ * positive values bound physical cpu_suspend calls, -1 is qualified runtime. */
+static int dormant_budget;
+module_param(dormant_budget, int, 0600);
+static unsigned dormant_attempts, dormant_successes;
+static unsigned dormant_wake, dormant_debug, dormant_event, dormant_r13;
+static u64 dormant_residency_us;
+static unsigned dormant_restore_failures;
+extern struct sleep_save_sp sleep_save_sp;
+static unsigned dormant_context_phys;
+static bool dormant_qualification;
+static bool y2_dormant_context_ready(void)
+{
+	return idmap_pgd && virt_addr_valid(idmap_pgd) &&
+		sleep_save_sp.save_ptr_stash && virt_addr_valid(sleep_save_sp.save_ptr_stash) &&
+		sleep_save_sp.save_ptr_stash_phys == virt_to_phys(sleep_save_sp.save_ptr_stash) &&
+		!(cpu_logical_map(0) & MPIDR_HWID_BITMASK) &&
+		pfn_valid(__pa_symbol(y2_cpu_resume) >> PAGE_SHIFT) &&
+		idle_address && pfn_valid(idle_address >> PAGE_SHIFT);
+}
 static u64 resume_restore_ns;
 static dma_addr_t pcm_address, normal_address;
 static unsigned entries, resumes, aborts, last_wake, last_ticks, last_debug, last_event, last_r13;
@@ -110,6 +136,22 @@ int y2_spm_mfg_status(void)
 	if (READ_ONCE(mfg_broken)) return -EIO;
 	a = readl(spm_base + 0x60c) & BIT(4);
 	b = readl(spm_base + 0x610) & BIT(4);
+	return a != b ? -EIO : !!a;
+}
+int y2_spm_disp_status(void)
+{
+	unsigned a, b;
+	if (!smp_load_acquire(&spm_base)) return -EPROBE_DEFER;
+	a = spm_read(spm_base, SPM_PWR_STATUS) & BIT(3);
+	b = spm_read(spm_base, SPM_PWR_STATUS_S) & BIT(3);
+	return a != b ? -EIO : !!a;
+}
+int y2_spm_isp_status(void)
+{
+	unsigned a, b;
+	if (!smp_load_acquire(&spm_base)) return -EPROBE_DEFER;
+	a = spm_read(spm_base, SPM_PWR_STATUS) & BIT(5);
+	b = spm_read(spm_base, SPM_PWR_STATUS_S) & BIT(5);
 	return a != b ? -EIO : !!a;
 }
 static int y2_mfg_power_on(struct generic_pm_domain *domain)
@@ -272,6 +314,20 @@ static int y2_spm_finish(unsigned long unused)
 		y2_pm_mark(Y2_PM_BEFORE_SPM_ENTRY, 0);
 		/* An owner-armed RGU backstop never counts inside SPM sleep. */
 		y2_pm_backstop_pause(true);
+	} else {
+		if (READ_ONCE(dormant_qualification)) {
+			y2_spm_journal_snapshot();
+			y2_pm_mark(Y2_PM_DORMANT_FINISH, 0);
+		}
+		int ret = y2_local_timer_dormant_check();
+		if (ret) return ret;
+		/* cpu_suspend has now filled Linux's CPU0 stash. Validate the actual
+		 * resume buffer before removing coherency, not a duplicate context. */
+		if (!y2_dormant_context_ready()) return -EIO;
+		dormant_context_phys = READ_ONCE(sleep_save_sp.save_ptr_stash[0]);
+		if ((dormant_context_phys & 3) ||
+		    !pfn_valid(dormant_context_phys >> PAGE_SHIFT) ||
+		    !pfn_valid((dormant_context_phys + 64) >> PAGE_SHIFT)) return -EIO;
 	}
 	/* Linux has saved its architectural/MMU/VFP/GIC context. Flush all
 	 * cache levels before the PCM may remove CPU0 and cluster power. */
@@ -367,20 +423,42 @@ unlock:
 int y2_spm_dormant_idle(void)
 {
 	unsigned power, biu, cache;
+	u64 start = 0;
 	int ret, restore;
+	if (smp_processor_id()) return -EBUSY;
+	dormant_attempts++;
+	dormant_stage = "system_state";
+	if (system_state != SYSTEM_RUNNING) { ret = -EBUSY; goto out_idle; }
+	dormant_stage = "availability";
 	if (y2_deep_idle_disabled() || !y2_local_events_ready() ||
-	    !smp_load_acquire(&spm_base) || !y2_cirq_ready()) return -ENODEV;
-	if (num_online_cpus() != 1 || smp_processor_id()) return -EBUSY;
-	if (READ_ONCE(spm_broken) || READ_ONCE(dormant_broken)) return -EIO;
+	    !smp_load_acquire(&spm_base) || !y2_cirq_ready()) { ret = -ENODEV; goto out_idle; }
+	dormant_stage = "topology";
+	if (num_online_cpus() != 1 || smp_processor_id()) { ret = -EBUSY; goto out_idle; }
+	dormant_stage = "broken";
+	if (READ_ONCE(spm_broken) || READ_ONCE(dormant_broken) ||
+	    !y2_cirq_restore_ok() || !y2_local_timer_context_ok() || !y2_usb_idle_ok()) { ret = -EIO; goto out_idle; }
 	/* Replaces Android early-suspend voltage admission. Low OPPs share the
 	 * source-backed 1.15 V floor; CCF lock excludes an in-flight transition. */
-	if (cpufreq_quick_get(0) > 747500) return -EBUSY;
-	if (!raw_spin_trylock(&spm_lock)) return -EBUSY;
+	dormant_stage = "opp";
+	if (!y2_dormant_opp(cpufreq_quick_get(0))) { ret = -EBUSY; goto out_idle; }
+	dormant_stage = "screen_workload";
+	if (!y2_backlight_dark() || y2_workload_idle_blocked()) { ret = -EBUSY; goto out_idle; }
+	dormant_stage = "budget";
+	if (!READ_ONCE(dormant_budget) || READ_ONCE(dormant_budget) < -1) { ret = -EACCES; goto out_idle; }
+	dormant_stage = "qualification_backstop";
+	if (READ_ONCE(dormant_budget) > 0 && !y2_pm_dormant_backstop_ready()) { ret = -EACCES; goto out_idle; }
+	dormant_stage = "linux_context";
+	if (!y2_dormant_context_ready()) { ret = -EIO; goto out_idle; }
+	dormant_stage = "timer_handoff";
+	ret = y2_local_timer_dormant_check();
+	if (ret) goto out_idle;
+	dormant_stage = "spm_lock";
+	if (!raw_spin_trylock(&spm_lock)) { ret = -EBUSY; goto out_idle; }
 	dormant_stage = "domains";
 	power = spm_read(spm_base, SPM_PWR_STATUS) | spm_read(spm_base, SPM_PWR_STATUS_S);
-	/* Exact subsystem power bits from mt_clkmgr. Requiring these domains off
-	 * is stricter than vendor clock masks and avoids reads of powered-off MMIO. */
-	if (power & (Y2_SPM_SECONDARY_CPU_MASK | BIT(0) | BIT(1) | BIT(3) |
+	/* DISP uses the complete stock DISP0/1 clock masks in the shared clock
+	 * transaction. Other unmodeled domains remain strictly powered-off. */
+	if (power & (Y2_SPM_SECONDARY_CPU_MASK | BIT(0) | BIT(1) |
 		     BIT(4) | BIT(5) | BIT(7))) { ret = -EBUSY; goto unlock_idle; }
 	/* Boot ROM fetches uncached physical instructions after CPU0 reset. */
 	__cpuc_flush_dcache_area((void *)y2_cpu_resume, 64);
@@ -392,6 +470,8 @@ int y2_spm_dormant_idle(void)
 	dormant_stage = "cirq";
 	ret = y2_cirq_begin();
 	if (ret) goto restore_clocks;
+	dormant_qualification = READ_ONCE(dormant_budget) > 0;
+	if (dormant_qualification) y2_pm_mark(Y2_PM_DORMANT_BEGIN, 0);
 	biu = readl(spm_biu);
 	cache = readl(spm_cache);
 	ret = cpu_pm_enter();
@@ -405,39 +485,63 @@ int y2_spm_dormant_idle(void)
 	if (readl(spm_cache) != (cache | BIT(4))) { ret = -EIO; goto restore_cluster; }
 	dormant_stage = "uart_pcm";
 	ret = y2_spm_idle_arm(&spm_io, idle_address);
+	if (!ret && dormant_qualification) {
+		y2_pm_backstop_begin(true); /* RGU keeps counting: infrastructure is retained */
+		if (!y2_pm_dormant_backstop_running()) ret = -EACCES;
+	}
 	if (!ret) {
 		dormant_stage = "cpu_suspend";
+		if (READ_ONCE(dormant_budget) > 0) WRITE_ONCE(dormant_budget, READ_ONCE(dormant_budget) - 1);
 		dormant_entries++;
+		start = ktime_get_mono_fast_ns();
+		if (dormant_qualification) y2_pm_mark(Y2_PM_DORMANT_CONTEXT, 0);
 		ret = cpu_suspend(1, y2_spm_finish);
+		if (dormant_qualification) y2_pm_mark(Y2_PM_DORMANT_RETURN, ret);
+		if (!ret) dormant_resumes++; /* real reset return, even if later restore fails */
 		writel(biu, spm_biu);
-		last_wake = spm_read(spm_base, SPM_PCM_REG9_DATA);
-		last_debug = spm_read(spm_base, SPM_PCM_REG_DATA_INI);
-		if (!ret) dormant_resumes++;
-		if (last_debug) ret = -EIO;
+		dsb(sy);
+		if (readl(spm_biu) != biu) { dormant_restore_failures++; ret = -EIO; }
+		dormant_wake = spm_read(spm_base, SPM_PCM_REG9_DATA);
+		dormant_debug = spm_read(spm_base, SPM_PCM_REG_DATA_INI);
+		dormant_event = spm_read(spm_base, SPM_PCM_EVENT_REG_STA);
+		dormant_r13 = spm_read(spm_base, SPM_PCM_REG13_DATA);
+		if (dormant_debug) ret = -EIO;
 	}
-	y2_spm_suspend_clean(&spm_io);
-	y2_spm_normal(&spm_io, normal_address);
+	restore = y2_spm_idle_restore(&spm_io, normal_address);
+	if (restore) { dormant_restore_failures++; ret = restore; }
 restore_cluster:
 	writel(cache, spm_cache);
 	dsb(sy);
-	if (readl(spm_cache) != cache) ret = -EIO;
+	if (readl(spm_cache) != cache) { dormant_restore_failures++; ret = -EIO; }
 	cpu_cluster_pm_exit();
 restore_cpu:
 	cpu_pm_exit();
+	if (!y2_local_timer_context_ok()) { dormant_restore_failures++; ret = -EIO; }
 restore_cirq:
 	y2_cirq_end();
+	if (!y2_cirq_restore_ok()) { dormant_restore_failures++; ret = -EIO; }
 restore_clocks:
 	restore = y2_ccf_deep_idle_end();
-	if (restore) ret = restore;
+	if (restore) { dormant_restore_failures++; ret = restore; }
+	if (dormant_qualification) {
+		y2_pm_mark(ret ? Y2_PM_DORMANT_ABORTED : Y2_PM_DORMANT_COMPLETE, ret);
+		y2_pm_backstop_end();
+	}
+	dormant_qualification = false;
 unlock_idle:
-	if (!ret) dormant_stage = "resumed";
+	raw_spin_unlock(&spm_lock);
+out_idle:
+	if (!ret) {
+		dormant_stage = "resumed";
+		dormant_successes++;
+		dormant_residency_us += div_u64(ktime_get_mono_fast_ns() - start, 1000);
+	}
 	dormant_result = ret;
 	if (ret) dormant_aborts++;
 	if (ret == -EIO || ret == -ETIMEDOUT) {
 		dormant_failures++;
 		WRITE_ONCE(dormant_broken, true);
 	}
-	raw_spin_unlock(&spm_lock);
 	return ret;
 }
 static int y2_suspend_valid(suspend_state_t state)
@@ -472,6 +576,9 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr, cha
 	ret += sysfs_emit_at(buf, ret, "dormant_entries=%u dormant_resumes=%u dormant_aborts=%u dormant_failures=%u dormant_result=%d dormant_broken=%u\n",
 		dormant_entries, dormant_resumes, dormant_aborts, dormant_failures, dormant_result, dormant_broken);
 	ret += sysfs_emit_at(buf, ret, "dormant_stage=%s resume_restore_ns=%llu\n", dormant_stage, resume_restore_ns);
+	ret += sysfs_emit_at(buf, ret, "dormant_attempts=%u dormant_successes=%u dormant_residency_us=%llu dormant_restore_failures=%u dormant_budget=%d dormant_wake=%#x dormant_debug=%#x dormant_event=%#x dormant_r13=%#x pcm_words=480 pcm_origin=MT6582_d53dd75c_dpidle\n",
+		dormant_attempts, dormant_successes, dormant_residency_us, dormant_restore_failures,
+		READ_ONCE(dormant_budget), dormant_wake, dormant_debug, dormant_event, dormant_r13);
 	raw_spin_unlock_irqrestore(&spm_lock, flags);
 	return ret;
 }
@@ -482,29 +589,58 @@ static DEVICE_ATTR_RO(state);
  * taking clock ownership, and reports every unmet one. */
 static ssize_t dormant_preflight_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	unsigned power = 0, peri = 0, infra = 0, bus = 0, khz = cpufreq_quick_get(0);
+	unsigned a = 0, b = 0, peri = 0, infra = 0, bus = 0, disp0 = 0, disp1 = 0;
+	unsigned khz = cpufreq_quick_get(0), vector = 0, enable = 0;
 	bool mapped = smp_load_acquire(&spm_base);
 	int clocks = y2_ccf_deep_idle_blockers(&peri, &infra, &bus);
+	int display = y2_mm_idle_blockers(&disp0, &disp1);
+	int budget = READ_ONCE(dormant_budget);
 	ssize_t n;
-	if (mapped)
-		power = spm_read(spm_base, SPM_PWR_STATUS) | spm_read(spm_base, SPM_PWR_STATUS_S);
+	unsigned i;
+	struct { const char *name; bool met; } prerequisites[] = {
+		{ "system_running", system_state == SYSTEM_RUNNING },
+		{ "boot_policy", !y2_deep_idle_disabled() },
+		{ "spm", mapped },
+		{ "local_events", y2_local_events_ready() },
+		{ "cirq", y2_cirq_ready() && y2_cirq_restore_ok() },
+		{ "topology", num_online_cpus() == 1 && cpu_online(0) },
+		{ "frequency", y2_dormant_opp(khz) },
+		{ "screen_off", y2_backlight_dark() },
+		{ "workload", !y2_workload_idle_blocked() },
+		{ "runtime_budget", budget == -1 || budget > 0 },
+		{ "qualification_backstop", budget < 0 || y2_pm_dormant_backstop_ready() },
+		{ "linux_context", y2_dormant_context_ready() },
+		{ "timer_context", y2_local_timer_context_ok() },
+		{ "usb_restore", y2_usb_idle_ok() },
+		{ "broken", !READ_ONCE(spm_broken) && !READ_ONCE(dormant_broken) },
+		{ "clocks", !clocks && !peri && !infra },
+		{ "display_clocks", !display && !disp0 && !disp1 },
+		{ "bus", y2_bus_dcm_baseline(bus) },
+	};
+	if (mapped) {
+		a = spm_read(spm_base, SPM_PWR_STATUS);
+		b = spm_read(spm_base, SPM_PWR_STATUS_S);
+	}
+	y2_ccf_boot_state(&vector, &enable);
 	n = sysfs_emit(buf, "deep_idle_enabled=%u local_events=%u cirq=%u online=%u cpu_khz=%u spm_broken=%u dormant_broken=%u\n",
 		!y2_deep_idle_disabled(), y2_local_events_ready(), y2_cirq_ready(), num_online_cpus(), khz,
 		READ_ONCE(spm_broken), READ_ONCE(dormant_broken));
-	n += sysfs_emit_at(buf, n, "power_status=%#x domain_blockers=%#x clocks=%d peri_blockers=%#x infra_blockers=%#x bus=%#x\n",
-		power, power & (unsigned)(Y2_SPM_SECONDARY_CPU_MASK | BIT(0) | BIT(1) | BIT(3) | BIT(4) | BIT(5) | BIT(7)),
-		clocks, peri, infra, bus);
-	n += sysfs_emit_at(buf, n, "unmet=%s%s%s%s%s%s%s%s%s\n",
-		y2_deep_idle_disabled() ? "disabled," : "",
-		!y2_local_events_ready() ? "local_events," : "",
-		!y2_cirq_ready() ? "cirq," : "",
-		num_online_cpus() != 1 ? "topology," : "",
-		khz > 747500 ? "frequency," : "",
-		(READ_ONCE(spm_broken) || READ_ONCE(dormant_broken)) ? "broken," : "",
-		power & (Y2_SPM_SECONDARY_CPU_MASK | BIT(0) | BIT(1) | BIT(3) | BIT(4) | BIT(5) | BIT(7)) ? "domains," : "",
-		(clocks || peri || infra) ? "clocks," : "",
-		!y2_bus_dcm_baseline(bus) ? "bus," : "");
-	return n;
+	n += sysfs_emit_at(buf, n, "power_status=%#x/%#x secondary_power=%#x domain_blockers=%#x clocks=%d peri_blockers=%#x infra_blockers=%#x bus=%#x display=%d disp0=%#x disp1=%#x\n",
+		a, b, (a | b) & Y2_SPM_SECONDARY_CPU_MASK,
+		(a | b) & (unsigned)(Y2_SPM_SECONDARY_CPU_MASK | BIT(0) | BIT(1) | BIT(4) | BIT(5) | BIT(7)),
+		clocks, peri, infra, bus, display, disp0, disp1);
+	n += sysfs_emit_at(buf, n, "resume_vector=%#x expected_vector=%#lx resume_enable=%#x context_stash=%#x context_last=%#x pcm_address=%#x pcm_words=480 pcm_origin=MT6582_d53dd75c_dpidle\n",
+		vector, __pa_symbol(y2_cpu_resume), enable, sleep_save_sp.save_ptr_stash_phys,
+		dormant_context_phys, (unsigned)idle_address);
+	n += sysfs_emit_at(buf, n, "deadline_rule=architectural_future_2ms_and_GPT4_future_26000_ticks checked_at=admission_and_finisher\n");
+	for (i = 0; i < ARRAY_SIZE(prerequisites); i++)
+		n += sysfs_emit_at(buf, n, "prerequisite_%s=%u\n", prerequisites[i].name, prerequisites[i].met);
+	n += sysfs_emit_at(buf, n, "unmet=");
+	for (i = 0; i < ARRAY_SIZE(prerequisites); i++)
+		if (!prerequisites[i].met) n += sysfs_emit_at(buf, n, "%s,", prerequisites[i].name);
+	if ((a | b) & Y2_SPM_SECONDARY_CPU_MASK) n += sysfs_emit_at(buf, n, "secondary_power,");
+	if ((a | b) & (BIT(0) | BIT(1) | BIT(4) | BIT(5) | BIT(7))) n += sysfs_emit_at(buf, n, "domains,");
+	return n + sysfs_emit_at(buf, n, "\n");
 }
 static DEVICE_ATTR_RO(dormant_preflight);
 static struct attribute *y2_spm_attrs[] = { &dev_attr_state.attr, &dev_attr_dormant_preflight.attr, NULL };

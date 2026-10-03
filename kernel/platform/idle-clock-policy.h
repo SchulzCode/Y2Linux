@@ -20,4 +20,20 @@ static inline int y2_bus_dcm_baseline(unsigned value)
 {
 	return value == 0x00 || value == 0x0f;
 }
+/* Exact MT6582 idle operands; unknown/active engines remain blockers. */
+static inline int y2_unused_uart_busy(unsigned lcr, unsigned ier,
+		unsigned lsr, unsigned dma)
+{
+	return (lcr & 0x80) || ier || dma || (lsr & 0x61) != 0x60;
+}
+static inline int y2_unused_nfi_busy(unsigned control, unsigned status,
+		unsigned master, unsigned fifo)
+{
+	return (control & 0x310) || (status & 0x1f0f030f) ||
+		(master & 0xffff) || (fifo & 0x1f1f);
+}
+static inline int y2_unused_spi_busy(unsigned command, unsigned status)
+{
+	return (command & 0xc03) || status;
+}
 #endif

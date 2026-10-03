@@ -2,6 +2,8 @@
 #ifndef Y2_SPM_H
 #define Y2_SPM_H
 #include <linux/types.h>
+#include <linux/kconfig.h>
+#include <linux/errno.h>
 int y2_spm_dormant_idle(void);
 int y2_spm_cpu_disable(unsigned cpu);
 int y2_spm_cpu_kill(unsigned cpu);
@@ -15,4 +17,11 @@ int y2_spm_radio_status(unsigned domain);
 int y2_ccf_radio_protect(unsigned domain, bool protect);
 int y2_ccf_radio_remap(unsigned domain);
 int y2_spm_mfg_status(void);
+#if IS_ENABLED(CONFIG_Y2_POWER)
+int y2_spm_disp_status(void);
+int y2_spm_isp_status(void);
+#else
+static inline int y2_spm_disp_status(void) { return -EOPNOTSUPP; }
+static inline int y2_spm_isp_status(void) { return -EOPNOTSUPP; }
+#endif
 #endif
