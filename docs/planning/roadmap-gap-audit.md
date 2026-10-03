@@ -1,5 +1,32 @@
 # Y2Linux roadmap and gap audit
 
+## Baseline02 integrated candidate admission — 2026-10-03
+
+Owner requests a fresh integrated baseline after UART01 physical qualification.
+Read-only authorized SSH reconfirms installed Linuxe9e8d63/Rebornb71b4688,
+kernel `6.18.0-y2linux-cpu-c3-uart-01`, rootv1.20, unchanged boot
+`fd955840-35d9-47db-83e0-ff47d6bb2d2b`, taint0. C3 still has3647 real
+entries/resumes/successes/UART ACKs, zero timeout/context/clock/CIRQ failures.
+The completed foundation and21 bounded C3 trials plus60s runtime observation
+remain authoritative; see [UART01 physical evidence](../validation/Y2-CPU-C3-UART-PHYSICAL.md).
+This is a packaging boundary, not a general CPU audit or new hardware phase.
+
+Prepare one fresh BOOTIMG/Y2ROOT baseline from current committed Linux and
+Rebornb71b4688, retaining all integrated storage/USB/audio/power/radio/product
+work and current UART C3 architecture. Fresh kernel, Buildroot/Reborn ARM,
+production regressions, QEMU/ELF/config/DT/module/ABI and data-preserving package
+checks are required. Preserve Y2DATA, protected partitions, guarded five OPPs,
+C1/C2 and default-off C3 policy; include latest guarded qualification harness.
+New image physical qualification remains NOT_RUN until owner installation.
+Fallback is the unchanged physically qualified UART01 BOOTIMG/Y2ROOT pair.
+
+#28/#31/#34 remain OPEN: persistent C3 boot policy, full-system suspend,
+additional wake sources, endurance and electrical battery evidence are distinct
+unclosed coverage. No memory/layout/data-schema change, flash, push or public
+redistribution authorization. Six preexisting owner documentation edits remain
+separate. Boundary receipts: `out/baseline-02-validation/`;
+[new baseline record](../validation/Y2-BASELINE-02.md).
+
 ## UART01 C3 hardware closing audit — 2026-10-03
 
 **C1 WORKING; C2 WORKING; C3 WORKING_AND_REPEATEDLY_OBSERVED** on installed
