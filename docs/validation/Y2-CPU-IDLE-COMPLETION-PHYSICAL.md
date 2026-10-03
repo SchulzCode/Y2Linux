@@ -121,3 +121,7 @@ the actual Reborn/FFmpeg/ALSA pipeline. Eight seconds add352256 decoded frames;
 xruns, recoveries and playback errors add0. All cores online, a real
 PlaybackNormal lease active. Playback stopped and the fixture removed/rescanned.
 Receipt14 found no old retained fixtures and is explicitly not a playback pass.
+
+Receipts17/18: normal Reborn screen-on/off transitions return on the same boot;
+three bidirectional1MiB USB SHA256 rounds pass with independent Wi-Fi SSH ready.
+These awake results do not qualify the candidate's new bus-clock gate yet.

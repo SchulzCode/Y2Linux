@@ -237,6 +237,8 @@ p=subprocess.Popen(['python3',str(d/'job.py'),str(d/'config.json')],stdin=subpro
             raise RuntimeError('Qualification did not finish; job path '+path+'; no mutation retry')
         progress['USB_WiFi_integrity'] = self.usb_integrity()
         progress['pass'] = progress.get('pass') and progress['USB_WiFi_integrity']['pass']
+        if not progress['pass']:
+            self.launch_once("sh -c 'echo 1 > /sys/devices/system/cpu/cpu0/cpuidle/state2/disable; echo 0 > /sys/module/spm/parameters/dormant_budget'", None)
         (self.directory/'result.json').write_text(json.dumps(progress, indent=2)+'\n')
         print('Qualification:', 'PASS' if progress['pass'] else 'FAIL', str(self.directory/'result.json'))
         return 0 if progress['pass'] else 1

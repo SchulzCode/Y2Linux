@@ -393,6 +393,7 @@ class Qualification:
             time.sleep(8)
 
     def playback(self):
+        previous = self.ctl('status').get('playback', {})
         directory = P('/data/music')/('.CPU-IDLE-qualification-'+self.directory.name)
         directory.mkdir()
         file = directory/'silent-wake.wav'
@@ -430,6 +431,14 @@ class Qualification:
             file.unlink(missing_ok=True)
             directory.rmdir()
             self.ctl('scan')
+            # Restore the stopped owner's selection through normal control APIs.
+            if previous.get('state') == 'stopped' and previous.get('track_id') is not None:
+                with sqlite3.connect('file:/data/reborn/library.db?mode=ro', uri=True) as db:
+                    valid = db.execute('select id from tracks where id=? and deleted=0',
+                                       (previous['track_id'],)).fetchone()
+                if valid:
+                    self.ctl('play', str(previous['track_id']))
+                    self.ctl('stop')
 
     def run(self):
         if boot() != self.config['expected_boot'] or json.loads(read('/etc/y2linux/versions.json')) != self.config['expected_versions']:
@@ -486,8 +495,8 @@ class Qualification:
             self.result['error'] = repr(e)
         finally:
             cleanup_errors = []
-            actions = [(lambda: write(C3, 0 if c3_pass and self.config.get('enable_qualified_runtime') else 1 if self.result.get('C3_failure') else saved['c3'])),
-                       (lambda: write(BUDGET, -1 if c3_pass and self.config.get('enable_qualified_runtime') else 0 if self.result.get('C3_failure') else saved['budget'])),
+            actions = [(lambda: write(C3, 0 if c3_pass and not self.result.get('error') and self.config.get('enable_qualified_runtime') else 1 if self.result.get('C3_failure') or self.result.get('error') else saved['c3'])),
+                       (lambda: write(BUDGET, -1 if c3_pass and not self.result.get('error') and self.config.get('enable_qualified_runtime') else 0 if self.result.get('C3_failure') or self.result.get('error') else saved['budget'])),
                        (lambda: write(BACKSTOP, saved['backstop'])),
                        (lambda: write(POLICY/'scaling_min_freq', 598000)),
                        (lambda: write(POLICY/'scaling_max_freq', saved['policy']['scaling_max_freq'])),
@@ -510,6 +519,8 @@ class Qualification:
             self.result['end_boot'] = boot()
             self.result['done'] = True
             self.result['pass'] = not self.result.get('error') and c3_pass and not cleanup_errors and boot() == self.result['start_boot'] and not self.result['filesystem_irq_errors']
+            if not self.result['pass']:
+                write(C3, 1); write(BUDGET, 0)
             self.save()
 
 
