@@ -26,6 +26,15 @@ read-only clocked handoff operands, and preserve aliased UART banks. Partial
 NAND/PWM handoff must retain its gate without aborting the shared CCF provider.
 No blocker masks, timer/context/PCM/CIRQ/OPP algorithms or memory ABI change.
 
+The unused-clock owner also rechecks retained UART1–3/SPI0 through the existing
+CPU0-only, screen-off, lease-free deferrable worker, only with both radios
+physically off. It borrows/releases through CCF, keeps IRQ/DMA/unknown engines,
+never reads gated or aliased windows, avoids live UART clear-on-read LSR, and
+quarantines a failed gate readback. A transient loader operation no longer pins
+its clock forever. No new timer, coordinator-policy/hysteresis change or reset.
+Native fault tests cover real refs, still-busy engines, unavailable domains,
+unclocked skips, allocation/borrow and gate-readback failures.
+
 Existing#28/#31/#34 track this next owner dependency; all refreshed issues remain
 OPEN. The original autonomous completion instruction authorizes safe source
 fixes and one coherent follow-up preserving candidate. Candidate02 gets a fresh

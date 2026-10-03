@@ -30,12 +30,22 @@ owner, diagnostics and regression tests:
   IRQ-enabled, DLAB/alternate bank, RX data, incomplete TX, line/FIFO errors and
   unknown DMA/status bits remain blocked. No UART interrupt/FIFO/DMA reset/write.
 - Sample known operands only while their inherited clock is enabled, retain
-  them in a read-only `clocks/unused_handoff` diagnostic with reason names, and
+  the boot/latest idle recheck in a read-only `clocks/unused_handoff` diagnostic with reason names, and
   surface it in `y2-platform status cpu`. DLAB/alternate banks are retained
-  without reading aliased IER/LSR fields; already gated engines are not read.
+  without reading aliased IER/LSR fields; live IRQ/DMA owners are not disturbed
+  by clear-on-read LSR, and already gated engines are not read.
 - Partial NAND/PWM clock handoff retains its gate rather than returning a
   probe-aborting error for the entire shared CCF provider. Real allocation/
   mapping errors still fail provider registration.
+
+The unused-clock owner also rechecks retained UART1–3/SPI0 through the existing
+CPU0-only, screen-off, lease-free deferrable worker, only with both radios
+physically off. It borrows/releases through CCF, keeps IRQ/DMA/unknown engines,
+never reads gated or aliased windows, avoids live UART clear-on-read LSR, and
+quarantines a failed gate readback. A transient loader operation no longer pins
+its clock forever. No new timer, coordinator-policy/hysteresis change or reset.
+Native fault tests cover real refs, still-busy engines, unavailable domains,
+unclocked skips, allocation/borrow and gate-readback failures.
 
 Masks, C1/C2 algorithms, MMC high-speed/runtime PM, timer broadcast, PCM,
 CIRQ/context/coherency, coordinator hysteresis, guarded OPPs and ABI remain

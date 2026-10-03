@@ -23,6 +23,7 @@
 #include "cpu-options.h"
 #include "local-timer.h"
 #include "boot.h"
+#include "clocks.h"
 static DEFINE_MUTEX(idle_lock);
 static struct workqueue_struct *idle_wq;
 static bool enabled = true, paused, broken;
@@ -136,6 +137,8 @@ static void sample_work_fn(struct work_struct *work)
 		.demand = atomic_xchg(&demand, 0),
 	};
 	last_sample = jiffies;
+	if (in.allowed && in.dark && !in.lease && in.online == 1 && !in.demand)
+		y2_ccf_reclaim_unused();
 	if (in.demand)
 		y2_idle_wake(&state, in.now_ms);
 	switch (y2_idle_decide(&state, &in, &why)) {

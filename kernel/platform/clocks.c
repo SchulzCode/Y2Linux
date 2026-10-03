@@ -14,10 +14,12 @@
 #include "cpu-dvfs.h"
 #include "cpu-dvfs-policy.h"
 #include <linux/clk-provider.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <asm/proc-fns.h>
 struct y2_clock {
@@ -223,18 +225,29 @@ static const char *const y2_clk_names[] = {
  * INFRA bits7/13/15 are the BSP cg_bootup_pdn 0xb0e0 idle/test clocks, not
  * CA7_CACHE_CONFIG, CPU power, coherency or the cache's SRAM retention control. */
 static const unsigned y2_unused_bits[] = {0,2,3,4,5,6,7,8,9,15,17,18,19,25,7,13,15};
-/* Capture the actual boot-time decision, not a later unclocked read. These
+/* Capture the boot/latest clocked recheck, never a later unclocked read. These
  * unsupported engines have no DT/Linux consumer; their configured IRQ/DMA or
  * unknown loader state remains protected. UART0 console is never sampled. */
 struct y2_unused_handoff {
-	unsigned sampled, lcr, ier, lsr, dma, command, status;
+	unsigned sampled, line_sampled, lcr, ier, lsr, dma, command, status;
 	int busy;
 };
 static struct y2_unused_handoff unused_handoff[4];
+static void __iomem *unused_registers[4];
+static struct y2_clock *unused_hw[4];
+static struct clk *unused_clk[4];
+static struct device *unused_dev;
+static bool unused_ready;
+static DEFINE_MUTEX(unused_handoff_lock);
+static unsigned unused_rechecks, unused_reclaimed, unused_failures;
+module_param(unused_rechecks, uint, 0400);
+module_param(unused_reclaimed, uint, 0400);
+module_param(unused_failures, uint, 0400);
 static int unused_handoff_get(char *buf, const struct kernel_param *kp)
 {
 	unsigned i;
 	int n = 0;
+	mutex_lock(&unused_handoff_lock);
 	for (i = 0; i < ARRAY_SIZE(unused_handoff); i++) {
 		struct y2_unused_handoff *h = &unused_handoff[i];
 		if (!h->sampled) {
@@ -247,6 +260,11 @@ static int unused_handoff_get(char *buf, const struct kernel_param *kp)
 			n += scnprintf(buf + n, PAGE_SIZE - n,
 				"UART%u sampled=1 lcr=%#x reason=alternate_bank ier=unavailable lsr=unavailable dma=unavailable retained=1\n",
 				i + 1, h->lcr);
+		else if (i < 3 && !h->line_sampled)
+			n += scnprintf(buf + n, PAGE_SIZE - n,
+				"UART%u sampled=1 lcr=%#x ier=%#x lsr=unavailable dma=%#x reason=%s retained=1\n",
+				i + 1, h->lcr, h->ier, h->dma,
+				h->ier ? "irq_enabled" : h->dma & 3 ? "dma_enabled" : "unknown_dma_bits");
 		else if (i < 3)
 			n += scnprintf(buf + n, PAGE_SIZE - n,
 				"UART%u sampled=1 lcr=%#x ier=%#x lsr=%#x dma=%#x reason=%s retained=%d\n",
@@ -262,6 +280,7 @@ static int unused_handoff_get(char *buf, const struct kernel_param *kp)
 				!h->status ? "not_idle" : h->status != 1 ? "unknown_status" :
 				"quiet", h->busy);
 	}
+	mutex_unlock(&unused_handoff_lock);
 	return n;
 }
 static const struct kernel_param_ops unused_handoff_ops = {.get = unused_handoff_get};
@@ -290,8 +309,12 @@ static int y2_unused_busy(struct device *dev, unsigned index, unsigned peri)
 	}
 	if (index <= 12) {
 		struct y2_unused_handoff *h = &unused_handoff[index - 10];
-		r = devm_ioremap(dev, 0x11002000 + (bit - 16) * 0x1000, 0x80);
+		r = unused_registers[index - 10];
+		if (!r)
+			r = devm_ioremap(dev, 0x11002000 + (bit - 16) * 0x1000, 0x80);
 		if (!r) return -ENOMEM;
+		unused_registers[index - 10] = r;
+		h->line_sampled = 0;
 		h->lcr = readl(r + 0xc);
 		if (h->lcr & 0x80) {
 			/* +4 aliases DLH; the enhanced bank also aliases LSR. */
@@ -300,20 +323,65 @@ static int y2_unused_busy(struct device *dev, unsigned index, unsigned peri)
 			return 1;
 		}
 		h->ier = readl(r + 4);
-		h->lsr = readl(r + 0x14);
 		h->dma = readl(r + 0x4c);
+		if (h->ier || (h->dma & ~4U)) {
+			/* LSR reads clear line errors. Do not disturb a live IRQ/DMA owner. */
+			h->sampled = 1;
+			h->busy = 1;
+			return 1;
+		}
+		h->lsr = readl(r + 0x14);
+		h->line_sampled = 1;
 		h->busy = y2_unused_uart_busy(h->lcr, h->ier, h->lsr, h->dma);
 		h->sampled = 1;
 		return h->busy;
 	}
-	r = devm_ioremap(dev, 0x1100a000, 0x30);
+	r = unused_registers[3];
+	if (!r) r = devm_ioremap(dev, 0x1100a000, 0x30);
 	if (!r) return -ENOMEM;
+	unused_registers[3] = r;
 	unused_handoff[3].command = readl(r + 0x18);
 	unused_handoff[3].status = readl(r + 0x20);
 	unused_handoff[3].busy = y2_unused_spi_busy(unused_handoff[3].command,
 		unused_handoff[3].status);
 	unused_handoff[3].sampled = 1;
 	return unused_handoff[3].busy;
+}
+
+/* Process-context handoff from the existing deferrable idle worker. A
+ * transient loader TX/SPI operation must not permanently pin its clock.
+ * Borrow/release through CCF; only a clock still retained and physically on
+ * can be sampled. No IRQ/FIFO/DMA/reset writes, no extra polling timer. */
+void y2_ccf_reclaim_unused(void)
+{
+	unsigned i, peri;
+	unsigned long flags;
+	if (!smp_load_acquire(&unused_ready) ||
+	    y2_spm_radio_status(0) != 0 || y2_spm_radio_status(1) != 0) return;
+	mutex_lock(&unused_handoff_lock);
+	for (i = 0; i < ARRAY_SIZE(unused_hw); i++) {
+		struct y2_clock *c = unused_hw[i];
+		int busy;
+		if (!c || !c->inherited || !unused_clk[i] || !unused_registers[i]) continue;
+		peri = readl(y2_clock_bases[1] + 0x18);
+		if (peri & BIT(c->bit)) continue; /* no unclocked MMIO or re-enable */
+		if (clk_prepare_enable(unused_clk[i])) { unused_failures++; continue; }
+		spin_lock_irqsave(&y2_clk_lock, flags);
+		unused_rechecks++;
+		busy = y2_unused_busy(unused_dev, i + 10, peri);
+		if (!busy) c->inherited = false;
+		spin_unlock_irqrestore(&y2_clk_lock, flags);
+		clk_disable_unprepare(unused_clk[i]);
+		if (!busy && !__clk_get_enable_count(unused_clk[i])) {
+			if (readl(y2_clock_bases[1] + 0x18) & BIT(c->bit)) unused_reclaimed++;
+			else {
+				/* Do not repeatedly write a gate that failed readback. */
+				unused_failures++;
+				unused_clk[i] = NULL;
+			}
+		}
+	}
+	mutex_unlock(&unused_handoff_lock);
 }
 
 /* Shared INFRACFG fields stay with this owner. Callers serialize complete
@@ -818,6 +886,17 @@ static int y2_clocks_probe(struct platform_device *pdev)
 		return ret;
 	for (i = 0; i < 4; i++)
 		y2_clock_bases[i] = base[i];
+	unused_dev = dev;
+	for (i = 0; i < ARRAY_SIZE(unused_hw); i++) {
+		struct clk_hw *hw = data->hws[Y2_CLK_UNUSED_START + 10 + i];
+		unused_hw[i] = container_of(hw, struct y2_clock, hw);
+		unused_clk[i] = devm_clk_hw_get_clk(dev, hw, "idle-handoff");
+		if (IS_ERR(unused_clk[i])) {
+			unused_failures++;
+			unused_clk[i] = NULL; /* keep provider and inherited protection */
+		}
+	}
+	smp_store_release(&unused_ready, true);
 	smp_store_release(&y2_usb_clock, container_of(data->hws[Y2_CLK_USB0], struct y2_clock, hw));
 	dev_info(dev, "CCF inherited PLLs/AXI; guarded shared CPU clock; AXI=%lu Hz\n",
 		 clk_hw_get_rate(data->hws[5]));

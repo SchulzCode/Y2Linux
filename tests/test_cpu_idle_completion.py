@@ -117,9 +117,10 @@ int main(void) {
 #define BIT(x) (1U<<(x))
 struct device {int unused;};
 struct y2_unused_handoff {
- unsigned sampled,lcr,ier,lsr,dma,command,status;int busy;
+ unsigned sampled,line_sampled,lcr,ier,lsr,dma,command,status;int busy;
 };
 static struct y2_unused_handoff unused_handoff[4];
+static void *unused_registers[4];
 static const unsigned y2_unused_bits[]={0,2,3,4,5,6,7,8,9,15,17,18,19,25,7,13,15};
 static unsigned registers[0x220/4], reads, maps, address, map_failure;
 static void *devm_ioremap(struct device *d,unsigned a,unsigned size) {
@@ -145,11 +146,99 @@ int main(void) {
  assert(!y2_unused_busy(&dev,13,0) && address==0x1100a000);
  assert(unused_handoff[3].sampled && unused_handoff[3].status==1 && !unused_handoff[3].busy);
  /* STATUS0 is clear-on-read; the diagnostic never touches it. */
- assert(reads==10);
+ assert(reads==9 && !unused_handoff[1].line_sampled); /* no live IRQ-owner LSR */
  registers[0xc/4]=0xbf;
- assert(y2_unused_busy(&dev,12,0) && reads==11); /* no aliased IER/LSR access */
+ assert(y2_unused_busy(&dev,12,0) && reads==10); /* no aliased IER/LSR access */
  assert(unused_handoff[2].lcr==0xbf && unused_handoff[2].busy);
- map_failure=1;assert(y2_unused_busy(&dev,12,0)==-ENOMEM && reads==11);
+ map_failure=1;unused_registers[2]=NULL;
+ assert(y2_unused_busy(&dev,12,0)==-ENOMEM && reads==10);
+}
+''')
+
+    def test_actual_late_handoff_rechecks_busy_owners_without_unclocked_reads(self):
+        source = (ROOT/'kernel/platform/clocks.c').read_text().replace(
+            'void y2_ccf_reclaim_unused(', 'static void y2_ccf_reclaim_unused(')
+        run_c(r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <errno.h>
+#include <stddef.h>
+#include "idle-clock-policy.h"
+#define __iomem
+#define BIT(x) (1U<<(x))
+#define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
+#define smp_load_acquire(p) (*(p))
+struct device {int unused;};
+struct y2_clock {unsigned bit;bool inherited;};
+struct clk {struct y2_clock *c;unsigned refs;bool fail,drop;};
+struct y2_unused_handoff {unsigned sampled,line_sampled,lcr,ier,lsr,dma,command,status;int busy;};
+static struct y2_unused_handoff unused_handoff[4];
+static unsigned registers[4][0x220/4], peri[0x30/4], reads, enabled_calls;
+static void *unused_registers[4],*y2_clock_bases[4];
+static struct y2_clock clocks[4],*unused_hw[4];
+static struct clk handles[4],*unused_clk[4];
+static struct device dev,*unused_dev=&dev;
+static bool unused_ready;
+static int radio_status[2];
+static int y2_spm_radio_status(unsigned d){return radio_status[d];}
+static unsigned unused_rechecks,unused_reclaimed,unused_failures;
+static int unused_handoff_lock,y2_clk_lock;
+static const unsigned y2_unused_bits[]={0,2,3,4,5,6,7,8,9,15,17,18,19,25,7,13,15};
+static void mutex_lock(int *p){assert(!*p);*p=1;}
+static void mutex_unlock(int *p){assert(*p);*p=0;}
+#define spin_lock_irqsave(p,f) do{f=0;assert(!*(p));*(p)=1;}while(0)
+#define spin_unlock_irqrestore(p,f) do{(void)f;assert(*(p));*(p)=0;}while(0)
+static void *devm_ioremap(struct device *d,unsigned a,unsigned size){assert(0);return NULL;}
+static unsigned readl(void *p) {
+ for(unsigned i=0;i<4;i++)
+  if((unsigned long)p>=(unsigned long)registers[i] &&
+     (unsigned long)p<(unsigned long)(registers[i]+0x220/4)) {
+   assert(!(peri[0x18/4]&BIT(clocks[i].bit))); /* no unclocked operands */
+   assert(handles[i].refs);assert(unused_handoff_lock && y2_clk_lock);
+  }
+ reads++;return *(unsigned *)p;
+}
+static int clk_prepare_enable(struct clk *c) {
+ assert(unused_handoff_lock && !y2_clk_lock);enabled_calls++;
+ if(c->fail)return -EIO;c->refs++;return 0;
+}
+static void clk_disable_unprepare(struct clk *c) {
+ assert(unused_handoff_lock && !y2_clk_lock && c->refs);
+ if(!--c->refs && !c->c->inherited && !c->drop) peri[0x18/4]|=BIT(c->c->bit);
+}
+static unsigned __clk_get_enable_count(struct clk *c){return c->refs;}
+''' + function(source, 'y2_unused_busy') + function(source, 'y2_ccf_reclaim_unused') + r'''
+int main(void) {
+ y2_clock_bases[1]=peri;
+ for(unsigned i=0;i<4;i++) {
+  clocks[i].bit=y2_unused_bits[i+10];clocks[i].inherited=true;
+  unused_hw[i]=clocks+i;handles[i].c=clocks+i;unused_clk[i]=handles+i;
+  unused_registers[i]=registers[i];registers[i][0xc/4]=3;registers[i][0x14/4]=0x60;
+ }
+ y2_ccf_reclaim_unused();assert(!reads && !enabled_calls);
+ unused_ready=true;
+ radio_status[0]=1;y2_ccf_reclaim_unused();assert(!reads && !enabled_calls);
+ radio_status[0]=0;radio_status[1]=-EIO;
+ y2_ccf_reclaim_unused();assert(!reads && !enabled_calls);radio_status[1]=0;
+ registers[0][4/4]=1;registers[1][0x4c/4]=1;registers[2][0x14/4]=0x61;
+ y2_ccf_reclaim_unused();assert(!peri[0x18/4] && unused_rechecks==4 && !unused_reclaimed);
+ for(unsigned i=0;i<4;i++)assert(clocks[i].inherited && !handles[i].refs);
+ registers[0][4/4]=0;registers[1][0x4c/4]=4;registers[2][0x14/4]=0x60;
+ registers[3][0x20/4]=1;
+ y2_ccf_reclaim_unused();assert(unused_reclaimed==4 && unused_rechecks==8 && !unused_failures);
+ unsigned before=reads;y2_ccf_reclaim_unused();assert(reads==before);
+ /* Externally gated inherited clock: no borrow/re-enable and no operand read. */
+ clocks[0].inherited=true;before=enabled_calls;y2_ccf_reclaim_unused();assert(enabled_calls==before);
+ /* Real Linux consumer retains its ref even after handoff becomes quiet. */
+ peri[0x18/4]&=~BIT(17);handles[0].refs=1;
+ y2_ccf_reclaim_unused();assert(handles[0].refs==1 && !clocks[0].inherited && !(peri[0x18/4]&BIT(17)));
+ /* Gate readback failure leaves a real blocker and stops further gate writes. */
+ clocks[0].inherited=true;handles[0].refs=0;handles[0].drop=true;
+ y2_ccf_reclaim_unused();assert(unused_failures==1 && !unused_clk[0] && !(peri[0x18/4]&BIT(17)));
+ before=enabled_calls;y2_ccf_reclaim_unused();assert(enabled_calls==before);
+ /* Failed CCF borrow keeps the original protection and balances no fake ref. */
+ clocks[1].inherited=true;handles[1].fail=true;peri[0x18/4]&=~BIT(18);
+ y2_ccf_reclaim_unused();assert(unused_failures==2 && clocks[1].inherited && !handles[1].refs);
 }
 ''')
 

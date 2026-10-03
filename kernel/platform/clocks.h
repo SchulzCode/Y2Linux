@@ -36,5 +36,6 @@ int y2_ccf_deep_idle_end(void);
 int y2_ccf_deep_idle_blockers(unsigned *peri, unsigned *infra, unsigned *bus);
 int y2_mm_idle_blockers(unsigned *disp0, unsigned *disp1);
 void y2_mm_reclaim_unused(void);
+void y2_ccf_reclaim_unused(void);
 int y2_ccf_usb_claim(void);
 #endif
