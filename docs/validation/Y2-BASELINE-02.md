@@ -1,5 +1,64 @@
 # Baseline02 integrated preserving candidate
 
+## Sealed build receipt — 2026-10-03
+
+PASS for fresh build and software/package validation. Exact new-image hardware
+and automatic cold-boot qualification remain **NOT_RUN**. Prior UART01 C1/C2/C3
+architecture remains physically qualified; it is the unchanged paired rollback.
+
+| Field | Recorded identity |
+| --- | --- |
+| Build | Y2LINUX-BASELINE-02 |
+| Kernel | 6.18.0-y2linux-baseline-02 |
+| Root | 2025.02.18-platform-v1.21 |
+| Release | 1.0.0-baseline-candidate.2 |
+| Compiled Linux | `8584ccd85f052f351fe51650b2348c83ca894ed4` |
+| Compiled Reborn | `b71b468860233faa0a42b8448ec5777fa952b8e3` |
+| BOOTIMG SHA256 | `5d8a2999368a04b23b898d2106b465eb6b028c2314da1a39c66c6b26dc8c41a3` |
+| Y2ROOT SHA256 | `3148bea2b6d78be34afcbb9cd933502f14416e81c8053324ff6c9ea151ee3892` |
+| Manifest SHA256 | `122d6f5d73f3416a2608f770b1d05af5b0ba81db27c315639f56458833cc5654` |
+| SHA256SUMS SHA256 | `e50c83d37712649466e10188e1eded6b6ccec5f830f86881b028ea86d5d3a654` |
+
+Package: `out/y2linux-baseline-02-candidate/`.
+[Exact owner handoff](../../out/y2linux-baseline-02-candidate/BASELINE-02-OWNER-HANDOFF.md),
+[seal and check exits](../../out/baseline-02-validation/final-seal.json),
+[installed boot-policy bytes](../../out/baseline-02-validation/boot-policy-installed.json),
+[live ARM control proof](../../out/baseline-02-validation/live-policy-control.json),
+[closing installed-device read](../../out/baseline-02-validation/closing-hardware.json).
+
+Fresh kernel/config/DT/modules/ABI and ARM Buildroot/Reborn pass.391 integrated
+production cases pass with5 minimal-environment dependency skips separately
+covered by27 native filesystem/GIO,3 ALSA and installed ARM checks.125 focused
+source tests and238 Reborn tests/fmt/lint pass, as do Cortex-A7 QEMU, installed
+ARM platform/application/codecs, ELF/dependencies, source/license collection,
+filesystem/privacy, preservation and final sealed-package checks. Collector
+limitations and owner-local distribution status remain explicit in the package.
+
+New production behavior: S05y2-cpu-idle verifies static foundations, then reads
+back qualified budget-1/CPU0 enable once each boot. The kernel starts quarantined.
+No CPU1–3 C3 enable, forced parking/OPP/radio change, UART gate or weakening of
+entry/fault guards. Boot-policy JSON in status CPU records exact rejection;
+write/readback/receipt failure closes admission. Manual stop is respected by
+subsequent starts. Recovery: `y2.deep_idle=off` / `y2.cpu_safe=1`, or
+`y2-platform cpu-idle-policy stop` for this boot. The guarded harness checks real
+automatic activation before it quarantines C3 for its foundation/trial phases.
+
+Closing SSH verifies the old installed UART01 source, same boot/taint0 and3647
+C3 returns with zero UART timeout/restore failure. No new image was installed.
+Only the owner flashes: load MT6582_preserve_data_scatter.txt, Download Only,
+select BOOTIMG and ANDROID/Y2ROOT only, preserve USRDATA/Y2DATA and every protected
+partition. Then boot and confirm installation for the included automatic SSH
+qualification. No push or flash was performed. Full system suspend, additional
+wake sources/endurance and electrical battery measurement remain unqualified.
+
+Local source commits:5fec95e (baseline identity/preparation),8584ccd (automatic
+qualified boot policy and harness/fault tests). The later documentation receipt
+commit is not the compiled kernel/root source. Historical preparation below and
+source-era package documentation are superseded by this sealed receipt and the
+packaged manifest/owner handoff. The interrupted default-off draft made no package;
+its logs remain under validation/draft-default-off/. Initial native test-path
+probe history is preserved under pre-freeze-probes/; final fresh checks pass.
+
 Owner requested a new latest-source baseline on2026-10-03 after UART01
 hardware qualification. Candidate preparation is authorized; flashing and
 pushing are excluded. All current Linux changes and Rebornb71b4688 are included;

@@ -1,5 +1,18 @@
 # Current Y2Linux platform state
 
+## Baseline02 sealed precedence — 2026-10-03
+
+New latest-source preserving candidate is sealed at `out/y2linux-baseline-02-candidate/`:
+Linux`8584ccd85f052f351fe51650b2348c83ca894ed4`, Reborn`b71b468860233faa0a42b8448ec5777fa952b8e3`,
+kernel6.18.0-y2linux-baseline-02/rootv1.21. Fresh build,391 production cases,
+source/native/Reborn/ARM/QEMU/ELF/config/DT/ABI/package checks pass. Owner-selected
+automatic qualified CPU0 C3 boot policy is included; all existing guards remain.
+Only BOOTIMG/Y2ROOT; preserve Y2DATA and protected partitions. New-image hardware/
+cold-boot qualification NOT_RUN. Installed UART01 still proves C1/C2/C3 working,
+3647 real C3 returns, same boot/taint0 and zero restore failures. Earlier summaries
+below are historical. See [sealed baseline record](validation/Y2-BASELINE-02.md).
+No flash or push; owner installation is the next boundary.
+
 ## Baseline02 preparation precedence — 2026-10-03
 
 Installed UART01 is physically qualified for C1/C2/C3 on Linuxe9e8d63/Rebornb71b4688,

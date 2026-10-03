@@ -1,5 +1,37 @@
 # Y2Linux roadmap and gap audit
 
+## Baseline02 sealed candidate boundary — 2026-10-03
+
+**Y2LINUX-BASELINE-02 is built, software-validated and sealed.** Compiled Linux
+`8584ccd85f052f351fe51650b2348c83ca894ed4` / Reborn `b71b468860233faa0a42b8448ec5777fa952b8e3`;
+kernel6.18.0-y2linux-baseline-02, rootv1.21, release1.0.0-baseline-candidate.2.
+Fresh kernel/Buildroot/Reborn ARM, config/DT/modules/ABI,391 production tests,
+125 focused source tests,27 native filesystem/GIO and3 ALSA tests,238 Reborn
+tests/fmt/lint, Cortex-A7 QEMU, installed ARM tools, ELF/dependencies, legal/source
+collection and preserving package validation pass. Five minimal-environment
+checks skip dependencies separately covered by the native/ARM checks.
+Final package: `out/y2linux-baseline-02-candidate/`; receipts:
+`out/baseline-02-validation/final-seal.json`. Source/current-main inclusion and
+preserved implementation are recorded in preserved-architecture.json.
+
+Owner-selected C3 startup now selects budget-1/CPU0 enable once after static
+foundations pass. Live ARM control/readback and isolated fault tests pass;
+manual stop/recovery overrides and all dynamic kernel guards remain intact.
+New-image **cold-boot and physical qualification NOT_RUN** until owner flashes.
+Closing read-only SSH still verifies installed UART01e9e8d63, unchanged boot
+fd955840-35d9-47db-83e0-ff47d6bb2d2b, taint0,3647 actual C3 returns, no timeout/
+context/clock restore fault. C1/C2 and C3 entry/restore implementation are
+preserved; SPM comment/localversion and userspace boot admission differ.
+
+Only BOOTIMG and ANDROID/Y2ROOT are payloads. Y2DATA and protected partitions
+remain preserved. Exact UART01 rollback pair remains in fallback/; source/license
+archives and fresh validation/harness are attached. No flash/push or milestone
+closure. #28/#31/#34 stay OPEN; full suspend, additional wakes, endurance and
+electrical battery evidence remain separate gaps. Six owner documentation edits
+remain preserved. Next boundary: owner-controlled Download Only of the two new
+images, then exact-identity/automatic-boot-policy and guarded physical harness.
+[Baseline02 handoff record](../validation/Y2-BASELINE-02.md).
+
 ## Baseline02 automatic C3 policy source check — 2026-10-03
 
 The owner-selected once-per-boot CPU0 policy passes isolated foundation, identity,

@@ -1,5 +1,17 @@
 # Candidate and fallback identity index
 
+## Baseline02 sealed precedence — 2026-10-03
+
+| Role | Exact source and artifact | Evidence |
+| --- | --- | --- |
+| Latest integrated candidate | `out/y2linux-baseline-02-candidate/`, Linux`8584ccd85f052f351fe51650b2348c83ca894ed4`, Reborn`b71b468860233faa0a42b8448ec5777fa952b8e3`, kernel6.18.0-y2linux-baseline-02/rootv1.21 | Fresh software/package checks PASS; automatic qualified C3 boot policy; new-image physical/cold boot NOT_RUN |
+| Installed and exact paired rollback | UART01, Linuxe9e8d63/Rebornb71b4688, kernel6.18.0-y2linux-cpu-c3-uart-01/rootv1.20 | C1/C2/C3 physically WORKING;3647 C3 checked returns, zero restore/UART faults; same boot |
+
+BOOTIMG SHA256 `5d8a2999368a04b23b898d2106b465eb6b028c2314da1a39c66c6b26dc8c41a3`; Y2ROOT SHA256 `3148bea2b6d78be34afcbb9cd933502f14416e81c8053324ff6c9ea151ee3892`.
+[Sealed receipt and owner action](../validation/Y2-BASELINE-02.md).
+Only BOOTIMG/ANDROID payloads; preserve Y2DATA. Old precedence/preparation and
+candidate roles below are historical. No flash or push.
+
 ## Baseline02 preparation precedence — 2026-10-03
 
 Newest requested package: `out/y2linux-baseline-02-candidate/`, build
