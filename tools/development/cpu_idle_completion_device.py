@@ -225,7 +225,9 @@ class Qualification:
                         time.sleep(.25)
                         power = spm()
                         copies = fields(power).get('power', '').split('/')
-                        bit = 1 << (9+cpu)
+                        # Exact MT6582 FC1/FC2/FC3 mapping, confirmed by
+                        # same-boot physical hotplug: CPU3 clears bit9.
+                        bit = {1: 0x800, 2: 0x400, 3: 0x200}[cpu]
                         if len(copies) != 2 or any(bool(number(v) & bit) != bool(online) for v in copies):
                             raise RuntimeError('hotplug power copies disagree: '+power)
                         rows.append({'cycle': cycle, 'cpu': cpu, 'online': online,

@@ -73,6 +73,25 @@ class Harness(unittest.TestCase):
             text = 'provider=1 armed_s=%d running=0 paused=0 staged=0 seconds=0 error=0' % seconds
             self.assertEqual(DEVICE.number(DEVICE.fields(text).get('armed_s')), seconds)
 
+    def test_hotplug_checks_both_exact_descending_mt6582_power_copies(self):
+        q = object.__new__(DEVICE.Qualification)
+        # Receipt11: actual CPU3/2/1 off and CPU1/2/3 on power values.
+        values = (0x3d4e, 0x394e, 0x314e, 0x394e, 0x3d4e, 0x3f4e)
+        writes = []
+        with patch.object(DEVICE, 'write', side_effect=lambda p, v: writes.append((p, v))), \
+             patch.object(DEVICE.time, 'sleep', return_value=None), \
+             patch.object(DEVICE, 'read', return_value='0-3'), \
+             patch.object(DEVICE, 'spm', side_effect=['power=%#x/%#x' % (v, v) for v in values]*3):
+            result = q.hotplug()
+        self.assertTrue(result['pass'])
+        self.assertEqual(len(result['transitions']), 18)
+        self.assertEqual([(p.parent.name, v) for p, v in writes[:6]],
+                         [('cpu3', 0), ('cpu2', 0), ('cpu1', 0), ('cpu1', 1), ('cpu2', 1), ('cpu3', 1)])
+        with patch.object(DEVICE, 'write'), patch.object(DEVICE.time, 'sleep'), \
+             patch.object(DEVICE, 'spm', return_value='power=0x3d4e/0x3f4e'):
+            with self.assertRaisesRegex(RuntimeError, 'power copies disagree'):
+                q.hotplug()
+
     def test_first_failed_cycle_disables_c3_and_stops_repetition(self):
         # Exercise the actual trial loop, not a duplicate state machine.
         q = object.__new__(DEVICE.Qualification)
