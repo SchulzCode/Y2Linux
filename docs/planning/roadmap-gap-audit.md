@@ -1,5 +1,26 @@
 # Y2Linux roadmap and gap audit
 
+## C3 UART sealed candidate boundary — 2026-10-03
+
+Exact MT6582 PIO-owner admission/global UART request-ACK integration is fixed;
+C1/C2 and all unrelated clock/context/timer/OPP architecture are preserved.
+Candidate `out/y2linux-cpu-c3-uart-candidate/` at Linuxe9e8d63/Rebornb71b4688
+is freshly built/sealed. Production375/source109/native host/Reborn238 tests,
+ARM/QEMU/config/DT/modules/ABI/ELF and preserving package checks pass; five
+minimal-host dependency skips have separate native/ARM coverage. Sources and
+collector limitations are attached; package remains owner-local.
+
+Fresh closing SSH still verifies installed candidate02/unchanged boot,
+C3 disabled/budget0/entries0; C1/C2 working evidence remains authoritative.
+C3 has never entered. #28/#31/#34 and CPU idle acceptance remain open until
+owner-installed UART01 gives real ACK and bounded same-boot context/timer wake.
+No hardware-limit proof, full suspend/electrical battery claim, protected data
+change, flash/push or milestone closure. Owner alone installs BOOTIMG+Y2ROOT
+with the preserving scatter; harness is ready for first entry then20 further
+cycles. Six preexisting owner doc edits remain separate. Exact source, hashes,
+checks and owner action are in
+[the C3 UART handoff](../validation/Y2-CPU-C3-UART.md).
+
 ## C3 UART software freeze audit — 2026-10-03
 
 Targeted stock-contract implementation and100 focused tests are complete.
