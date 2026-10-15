@@ -4,8 +4,8 @@
 REBORN_SITE = $(if $(Y2_REBORN_SOURCE),$(Y2_REBORN_SOURCE),$(BR2_EXTERNAL_Y2LINUX_PATH)/../../Y2Reborn)
 REBORN_VERSION = $(shell python3 "$(BR2_EXTERNAL_Y2LINUX_PATH)/../tools/production/application.py" --source-version "$(REBORN_SITE)/Cargo.toml")
 REBORN_SITE_METHOD = local
-REBORN_LICENSE = MIT, OFL-1.1 (Open Sans glyph data in the binary; Open Sans, Noto and Pixelify Sans fonts of the shipped skins)
-REBORN_LICENSE_FILES = LICENSE assets/fonts/OpenSans-OFL.txt skins/classic/fonts/OpenSans-OFL.txt skins/paper/fonts/Noto-OFL.txt skins/bunny-bow/fonts/PixelifySans-OFL.txt
+REBORN_LICENSE = MIT, OFL-1.1 (Open Sans glyph data in the binary; Open Sans, Noto, Pixelify Sans, DM Sans, Syne and IBM Plex Mono fonts of the shipped skins)
+REBORN_LICENSE_FILES = LICENSE assets/fonts/OpenSans-OFL.txt skins/classic/fonts/OpenSans-OFL.txt skins/paper/fonts/Noto-OFL.txt skins/bunny-bow/fonts/PixelifySans-OFL.txt skins/gallery/fonts/DMSans-OFL.txt skins/gallery/fonts/Syne-OFL.txt skins/gallery/fonts/IBMPlexMono-OFL.txt
 REBORN_DEPENDENCIES = ffmpeg sqlite alsa-lib dbus mesa3d libdrm util-linux host-pkgconf
 REBORN_CARGO ?= $(HOME)/.cargo/bin/cargo
 REBORN_OVERRIDE_SRCDIR_RSYNC_EXCLUSIONS = --exclude=/target --exclude=/out --exclude=/.git
