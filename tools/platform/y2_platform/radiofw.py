@@ -13,6 +13,12 @@ Each player keeps the reviewed files on Y2DATA (`/data/firmware/mt6582`, which
   tools/connectivity/provision.py, installs them, deletes the copy and starts
   the radios.
 
+The FM tuner's two files (Beta 8) are an optional group: taken from the same
+image when they match, never a condition for Wi-Fi/Bluetooth. A player that
+has its radio firmware but not these takes them from a later system.img in a
+`Firmware` folder (Internal Storage or SD card) without restarting the radios;
+the kernel reads them only when FM is switched on.
+
 Only names, sizes and hashes are in this file; never firmware bytes.
 """
 # SPDX-License-Identifier: GPL-2.0-only
@@ -42,6 +48,14 @@ DEFAULTS = {
 }
 CUSTOM = ('/lib/libcustom_nvram.so', 51224, 'c6460e9649f539b56449dc19f8d20771402f539be9e73340a74a9ccf45287397')
 ALL = {**FILES, **DEFAULTS}
+# Stock /etc/firmware/mt6627 (identical in the original and v3.2.0 FM
+# packages; v2..v5 there are empty). The receive thresholds of
+# /etc/fmr/mt6627_fm_cust.cfg equal the kernel defaults, so it is not taken.
+FM = {
+    'mt6627_fm_v1_patch.bin': (1028, 'ba35c74d26660729caf83b41a567e700f633b6c99384dfa6cbb3c17ceb767e26'),
+    'mt6627_fm_v1_coeff.bin': (1092, 'd32f4a16b35f950ed1a57f2ae88f77ac4b5674d5c4210b65f6fe7912901fd8db'),
+}
+FM_DIR = '/etc/firmware/mt6627/'
 
 TARGET = '/data/firmware/mt6582'
 # While the firmware is missing the computer sees this folder as the MTP
@@ -266,12 +280,22 @@ def defaults(custom):
     return {'WIFI.defaults': bytes(wifi), 'BT.defaults': bytes(bt)}
 
 
+def fm_matching(files):
+    """The FM files among files that have the reviewed size and SHA-256."""
+    return {name: files[name] for name, (size, sha) in FM.items()
+            if name in files and len(files[name]) == size and digest(files[name]) == sha}
+
+
 def checked(files):
-    """Every reviewed file present, with the reviewed size and SHA-256."""
+    """Every reviewed radio file present, with the reviewed size and SHA-256;
+    FM files only as the complete reviewed pair, nothing else."""
     for name, (size, sha) in ALL.items():
         data = files.get(name)
         if data is None or len(data) != size or digest(data) != sha:
             raise ValueError('firmware_mismatch:' + name)
+    extra = set(files) - set(ALL)
+    if extra and (extra != set(FM) or len(fm_matching(files)) != len(FM)):
+        raise ValueError('firmware_mismatch:' + sorted(extra)[0])
     # The two Bluetooth patches in their download order (provision.py).
     order = sorted(files[n][24] & 15 for n in FILES if n.endswith('_hdr.bin'))
     if order != [1, 2]:
@@ -297,6 +321,14 @@ def from_system_image(path):
         if len(custom) != CUSTOM[1] or digest(custom) != CUSTOM[2]:
             raise ValueError('firmware_mismatch:libcustom_nvram.so')
         files.update(defaults(custom))
+        fm = {}
+        for name, (size, _) in FM.items():
+            try:
+                fm[name] = fs.read(FM_DIR + name, size)
+            except (FileNotFoundError, ValueError):
+                pass
+        if len(fm_matching(fm)) == len(FM):
+            files.update(fm)
         return checked(files)
     finally:
         image.close()
@@ -311,6 +343,17 @@ def from_directory(path):
         if not stat.S_ISREG(info.st_mode) or info.st_size != size:
             raise ValueError('firmware_mismatch:' + name)
         files[name] = file.read_bytes()
+    fm = {}
+    for name, (size, _) in FM.items():
+        file = Path(path) / name
+        try:
+            info = file.lstat()
+        except OSError:
+            continue
+        if stat.S_ISREG(info.st_mode) and info.st_size == size:
+            fm[name] = file.read_bytes()
+    if len(fm_matching(fm)) == len(FM):
+        files.update(fm)
     return checked(files)
 
 
@@ -320,6 +363,16 @@ def present(ctx):
     try:
         return all((target / n).lstat().st_size == size and stat.S_ISREG((target / n).lstat().st_mode)
                    for n, (size, _) in ALL.items())
+    except OSError:
+        return False
+
+
+def fm_present(ctx):
+    """Cheap check: both FM files there with their size."""
+    target = ctx.path(TARGET)
+    try:
+        return all((target / n).lstat().st_size == size and stat.S_ISREG((target / n).lstat().st_mode)
+                   for n, (size, _) in FM.items())
     except OSError:
         return False
 
@@ -391,18 +444,24 @@ def candidates(ctx):
 
 def state(ctx):
     value = ctx.json(STATE, {}) or {}
+    fm = 'Ready' if fm_present(ctx) else 'Missing'
     if present(ctx):
-        return {'state': 'Ready'}
+        return {'state': 'Ready', 'fm': fm}
     if value.get('state') in ('Installing', 'Failed'):
-        return {k: value.get(k) for k in ('state', 'reason')}
-    return {'state': 'Missing', 'folder': FOLDER, 'file': SOURCE}
+        return {**{k: value.get(k) for k in ('state', 'reason')}, 'fm': fm}
+    return {'state': 'Missing', 'folder': FOLDER, 'file': SOURCE, 'fm': fm}
 
 
 def scan(ctx, start_radios=True):
     """One pass of the owner flow: make the Firmware folder visible, then take
-    a finished system.img copy from it. Returns the new state."""
-    if installed(ctx):
-        return {'state': 'Ready'}
+    a finished system.img copy from it. Returns the new state. With the radio
+    firmware in place, only a copy that adds the FM files is taken, and the
+    radios keep running."""
+    radio = installed(ctx)
+    if radio and fm_present(ctx):
+        return {'state': 'Ready', 'fm': 'Ready'}
+    if radio:
+        return fm_top_up(ctx)
     previous = ctx.json(STATE, {}) or {}
     try:
         inbox(ctx)
@@ -442,6 +501,43 @@ def scan(ctx, start_radios=True):
         # The rejected copy is gone: back to asking for it.
         atomic_json(ctx.path(STATE), {'schema': 1, 'state': 'Missing'}, mode=0o644)
     return {'state': 'Missing'}
+
+
+def fm_top_up(ctx):
+    """Radio firmware installed, FM files missing: take them from a finished
+    system.img copy. The radio state stays Ready whatever happens here."""
+    previous = ctx.json(STATE, {}) or {}
+    for source in candidates(ctx):
+        try:
+            info = source.lstat()
+        except OSError:
+            continue
+        if not stat.S_ISREG(info.st_mode):
+            continue
+        seen = [info.st_size, info.st_mtime_ns]
+        if previous.get('fm_seen') != seen or time.time() - info.st_mtime < 5:
+            atomic_json(ctx.path(STATE), {'schema': 1, 'state': 'Ready', 'fm_seen': seen}, mode=0o644)
+            return {'state': 'Ready', 'fm': 'Missing'}
+        if previous.get('fm_reason') and previous.get('fm_seen') == seen:
+            return {'state': 'Ready', 'fm': 'Failed', 'reason': previous['fm_reason']}
+        try:
+            files = from_system_image(source)
+            if len(fm_matching(files)) != len(FM):
+                raise ValueError('fm_files_missing')
+            install(ctx, files)
+        except (OSError, ValueError) as error:
+            reason = str(error)[:80]
+            atomic_json(ctx.path(STATE), {'schema': 1, 'state': 'Ready', 'fm_reason': reason, 'fm_seen': seen},
+                        mode=0o644)
+            return {'state': 'Ready', 'fm': 'Failed', 'reason': reason}
+        try:
+            source.unlink()
+        except OSError:
+            pass
+        atomic_json(ctx.path(STATE), {'schema': 1, 'state': 'Ready', 'fm_installed_from': 'system.img'},
+                    mode=0o644)
+        return {'state': 'Ready', 'fm': 'Ready'}
+    return {'state': 'Ready', 'fm': 'Missing'}
 
 
 def start(ctx):

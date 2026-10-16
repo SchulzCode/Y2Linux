@@ -80,28 +80,36 @@ def daily_update_check(ctx, network, child):
 def radio_firmware(ctx, child, ready, maintenance):
     """While the player has no radio firmware, look for the owner's
     Firmware/system.img (and keep the folder visible) in its own process: the
-    extraction reads a 518 MB image and must never stall this loop."""
-    from .radiofw import candidates, present
-    # Re-checked every maintenance pass: firmware removed while running is
-    # noticed too (found by the owner test of 49, archive 154).
-    if ready and not (maintenance and not present(ctx)):
-        return child, True
+    extraction reads a 518 MB image and must never stall this loop. With the
+    radio firmware in place, a maintenance pass may still take the FM files
+    from such a copy (a few lstat calls; a scan only when a copy is there)."""
+    from .radiofw import candidates, fm_present, present
     if child is not None:
         if child.poll() is None:
-            return child, False
+            return child, ready
         child = None
-    if present(ctx):
+    # Re-checked every maintenance pass: firmware removed while running is
+    # noticed too (found by the owner test of 49, archive 154).
+    if ready and not maintenance:
         return None, True
     waiting = any(path.exists() for path in candidates(ctx))
+    if present(ctx):
+        if fm_present(ctx) or not (waiting and maintenance):
+            return None, True
+        return firmware_scan(), True
     if not (waiting or maintenance):
         return None, False
+    return firmware_scan(), False
+
+
+def firmware_scan():
     import subprocess
     try:
         return subprocess.Popen(['/usr/sbin/y2-platform', 'firmware', 'scan'],
                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                                stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True), False
+                                stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
     except OSError:
-        return None, False
+        return None
 
 
 def cadence(dark, settled):

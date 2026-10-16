@@ -219,6 +219,22 @@ def quiesce_radio(ctx, radio):
         time.sleep(1)
 
 
+FM_POWER = '/sys/devices/platform/18070000.connectivity/fm/power'
+
+
+def quiesce_fm(ctx):
+    """Reborn stops FM while it prepares; a tuner left on would hold its
+    CONSYS function and refuse the connectivity suspend, so switch it off
+    here too. FM is not restored after the wake (Power sleep stops FM)."""
+    if (ctx.read(FM_POWER) or '').strip() != '1':
+        return False
+    try:
+        control_write(ctx, FM_POWER, '0\n')
+    except OSError as error:
+        raise Refused('fm_power_down') from error
+    return True
+
+
 def screen_first(ctx):
     """Ask Reborn to light the screen before the radios are restored."""
     from .suspend_record import application_rpc
@@ -312,6 +328,7 @@ def execute_owned(ctx, fd, enter, locks):
         prepared = True
         record(ctx, 'quiescing_radios', 0)
         radios_changed = True
+        quiesce_fm(ctx)
         for radio in ('wifi', 'bluetooth'):
             quiesce_radio(ctx, radio)
         deadline = time.monotonic() + 15

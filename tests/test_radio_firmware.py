@@ -103,6 +103,11 @@ class RadioFirmware(unittest.TestCase):
             p = patch.object(radiofw, name, value)
             p.start()
             self.addCleanup(p.stop)
+        self.fm = {'mt6627_fm_v1_patch.bin': os.urandom(1028), 'mt6627_fm_v1_coeff.bin': os.urandom(1092)}
+        p = patch.object(radiofw, 'FM', {n: (len(d), sha(d)) for n, d in self.fm.items()})
+        p.start()
+        self.addCleanup(p.stop)
+        self.with_fm = False
 
     def image(self, extents=True):
         tree = self.temp / 'tree'
@@ -110,6 +115,12 @@ class RadioFirmware(unittest.TestCase):
         (tree / 'lib').mkdir()
         for name, data in self.files.items():
             (tree / 'etc/firmware' / name).write_bytes(data)
+        if self.with_fm:
+            (tree / 'etc/firmware/mt6627').mkdir()
+            for name, data in self.fm.items():
+                (tree / 'etc/firmware/mt6627' / name).write_bytes(data)
+            # Stock also carries empty v2..v5 files; they are never taken.
+            (tree / 'etc/firmware/mt6627/mt6627_fm_v2_patch.bin').write_bytes(b'')
         (tree / 'lib/libcustom_nvram.so').write_bytes(self.custom)
         raw = self.temp / 'raw.ext4'
         options = [] if extents else ['-O', '^extent,^64bit', '-t', 'ext3']
@@ -176,7 +187,7 @@ class RadioFirmware(unittest.TestCase):
         self.assertEqual({p.name for p in target.iterdir()}, set(radiofw.ALL))
         self.assertEqual(oct(target.stat().st_mode & 0o777), '0o700')
         self.assertTrue(radiofw.installed(ctx) and radiofw.present(ctx))
-        self.assertEqual(radiofw.state(ctx), {'state': 'Ready'})
+        self.assertEqual(radiofw.state(ctx), {'state': 'Ready', 'fm': 'Missing'})
 
     def test_a_rejected_copy_stays_failed_until_replaced(self):
         ctx = self.ctx([])
@@ -194,11 +205,66 @@ class RadioFirmware(unittest.TestCase):
         (sd / 'system.img').unlink()
         self.assertEqual(radiofw.scan(ctx)['state'], 'Missing')
 
+    def test_fm_files_come_along_when_they_match_and_never_gate_the_radios(self):
+        self.with_fm = True
+        got = radiofw.from_system_image(self.image())
+        self.assertEqual({n: got[n] for n in self.fm}, self.fm)
+        self.assertEqual(set(got), set(radiofw.ALL) | set(radiofw.FM))
+        # A different tuner patch is left out; Wi-Fi/Bluetooth are unaffected.
+        self.fm['mt6627_fm_v1_coeff.bin'] = os.urandom(1092)
+        got = radiofw.from_system_image(self.image())
+        self.assertEqual(set(got), set(radiofw.ALL))
+        with self.assertRaisesRegex(ValueError, 'firmware_mismatch:mt6627_fm_v1_coeff.bin'):
+            radiofw.checked({**got, 'mt6627_fm_v1_coeff.bin': self.fm['mt6627_fm_v1_coeff.bin'],
+                             'mt6627_fm_v1_patch.bin': self.fm['mt6627_fm_v1_patch.bin']})
+        with self.assertRaisesRegex(ValueError, 'firmware_mismatch:extra'):
+            radiofw.checked({**got, 'extra': b'x'})
+
+    def test_fm_files_are_added_later_without_restarting_the_radios(self):
+        calls = []
+        ctx = self.ctx(calls)
+        radiofw.install(ctx, radiofw.from_system_image(self.image()))
+        self.assertEqual(radiofw.state(ctx), {'state': 'Ready', 'fm': 'Missing'})
+        self.assertEqual(radiofw.scan(ctx), {'state': 'Ready', 'fm': 'Missing'})
+        # The owner puts a newer copy in Firmware on the SD card.
+        self.with_fm = True
+        sd = ctx.path('/media/sd/Firmware')
+        sd.mkdir()
+        source = sd / 'system.img'
+        source.write_bytes(sparse(self.image().read_bytes()))
+        self.assertEqual(radiofw.scan(ctx), {'state': 'Ready', 'fm': 'Missing'})   # still arriving
+        old = time.time() - 60
+        os.utime(source, (old, old))
+        self.assertEqual(radiofw.scan(ctx), {'state': 'Ready', 'fm': 'Missing'})   # the time changed
+        self.assertEqual(radiofw.scan(ctx), {'state': 'Ready', 'fm': 'Ready'})
+        self.assertFalse(source.exists())
+        self.assertEqual(calls, [])                     # radios never restarted
+        target = ctx.path(radiofw.TARGET)
+        self.assertEqual({p.name for p in target.iterdir()}, set(radiofw.ALL) | set(radiofw.FM))
+        self.assertTrue(radiofw.installed(ctx) and radiofw.fm_present(ctx))
+        self.assertEqual(radiofw.state(ctx), {'state': 'Ready', 'fm': 'Ready'})
+        # A root copy (update path) keeps the FM pair.
+        self.assertEqual(set(radiofw.from_directory(target)), set(radiofw.ALL) | set(radiofw.FM))
+
+    def test_a_copy_without_fm_files_is_refused_for_fm_only(self):
+        ctx = self.ctx([])
+        radiofw.install(ctx, radiofw.from_system_image(self.image()))
+        sd = ctx.path('/media/sd/Firmware')
+        sd.mkdir()
+        (sd / 'system.img').write_bytes(sparse(self.image().read_bytes()))
+        old = time.time() - 60
+        os.utime(sd / 'system.img', (old, old))
+        radiofw.scan(ctx)
+        failed = radiofw.scan(ctx)
+        self.assertEqual(failed, {'state': 'Ready', 'fm': 'Failed', 'reason': 'fm_files_missing'})
+        self.assertEqual(radiofw.scan(ctx)['fm'], 'Failed')        # not decoded again
+        self.assertTrue(radiofw.present(ctx) and not radiofw.fm_present(ctx))
+
     @unittest.skipUnless(STOCK.is_file(), 'owner stock package not present')
     def test_the_real_stock_system_image(self):
         patch.stopall()
         got = radiofw.from_system_image(STOCK)
-        self.assertEqual({n: (len(d), sha(d)) for n, d in got.items()}, radiofw.ALL)
+        self.assertEqual({n: (len(d), sha(d)) for n, d in got.items()}, {**radiofw.ALL, **radiofw.FM})
 
 
 class Watcher(unittest.TestCase):
@@ -222,6 +288,31 @@ class Watcher(unittest.TestCase):
             self.assertEqual(spawned, [['/usr/sbin/y2-platform', 'firmware', 'scan']])
         with patch('y2_platform.radiofw.present', return_value=True):
             self.assertEqual(service.radio_firmware(ctx, None, False, False), (None, True))
+
+    def test_fm_top_up_scans_only_at_maintenance_and_only_with_a_copy(self):
+        from y2_platform import service
+        spawned = []
+
+        class Child:
+            def poll(self):
+                return None
+        ctx = Context(Path(tempfile.mkdtemp(prefix='y2-watch-')), lambda argv, **kw: {'ok': True})
+        self.addCleanup(shutil.rmtree, ctx.root, True)
+        copy = ctx.root / 'media/sd/Firmware/system.img'
+        with patch('y2_platform.radiofw.present', return_value=True), \
+             patch('y2_platform.radiofw.fm_present', return_value=False), \
+             patch('y2_platform.radiofw.candidates', return_value=[copy]), \
+             patch('subprocess.Popen', side_effect=lambda *a, **k: spawned.append(a[0]) or Child()):
+            self.assertEqual(service.radio_firmware(ctx, None, True, True), (None, True))   # no copy
+            copy.parent.mkdir(parents=True)
+            copy.write_bytes(b'x')
+            self.assertEqual(service.radio_firmware(ctx, None, True, False), (None, True))  # between passes
+            self.assertEqual(spawned, [])
+            child, ready = service.radio_firmware(ctx, None, True, True)
+            self.assertTrue(ready and child)
+            self.assertEqual(len(spawned), 1)
+            self.assertEqual(service.radio_firmware(ctx, child, True, True), (child, True))  # still running
+            self.assertEqual(len(spawned), 1)
 
 
 class Tables(unittest.TestCase):

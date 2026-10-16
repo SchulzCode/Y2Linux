@@ -112,7 +112,8 @@ def firmware_free(images, stock_system):
     sys.path.insert(0, str(PROJECT / 'tools/platform'))
     from y2_platform import radiofw
     files = radiofw.from_system_image(str(stock_system))
-    probes = [data[4096:4160] for data in files.values() if len(data) > 8192]
+    # Large files by a 64-byte window, small ones (the FM tuner's) whole.
+    probes = [data[4096:4160] if len(data) > 8192 else data for data in files.values() if len(data) >= 512]
     if not probes:
         raise SystemExit('firmware scan: no probes from the stock system.img')
     result = {}

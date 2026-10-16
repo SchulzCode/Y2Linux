@@ -245,5 +245,27 @@ class SleepProduct(unittest.TestCase):
             record(self.ctx, 'quiescing_radios', 0)
 
 
+
+class FMQuiesce(unittest.TestCase):
+    """A tuner left on must not refuse the connectivity suspend."""
+    def test_tuner_is_switched_off_only_when_on_and_failure_refuses(self):
+        from y2_platform import product_sleep
+        root = Path(tempfile.mkdtemp(prefix='y2-fm-sleep-'))
+        ctx = Context(root, lambda argv, **kw: {'ok': True})
+        power = ctx.path(product_sleep.FM_POWER)
+        self.assertFalse(product_sleep.quiesce_fm(ctx))       # no tuner node: nothing to do
+        power.parent.mkdir(parents=True)
+        power.write_text('0\n')
+        self.assertFalse(product_sleep.quiesce_fm(ctx))
+        self.assertEqual(power.read_text(), '0\n')
+        power.write_text('1\n')
+        self.assertTrue(product_sleep.quiesce_fm(ctx))
+        self.assertEqual(power.read_text(), '0\n')
+        power.write_text('1\n')
+        with patch.object(product_sleep, 'control_write', side_effect=OSError(16, 'busy')):
+            with self.assertRaisesRegex(product_sleep.Refused, 'fm_power_down'):
+                product_sleep.quiesce_fm(ctx)
+
+
 if __name__ == '__main__':
     unittest.main()
