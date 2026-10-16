@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* MT6582 playback AFE, adapted from Chris Hendrickson's GPL-2.0 donor
  * mt6582-afe-pcm.c. MediaTek FE/BE topology with Linux 6.18 managed DMA,
- * runtime PM and synchronized IRQ lifetime. No FM, capture or board policy.
+ * runtime PM and synchronized IRQ lifetime. The one capture is the MT6627 FM
+ * tuner (stock HAL indirect path, see mt6582-afe.h); no board policy.
  */
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
@@ -19,11 +20,11 @@ struct mt6582_afe {
 	struct device *dev;
 	struct regmap *regmap;
 	struct clk_bulk_data clocks[3];
-	struct snd_pcm_substream *substream;
+	struct snd_pcm_substream *substream, *capture;
 	spinlock_t lock;
 	int irq;
-	bool running, irq_ready;
-	unsigned long periods;
+	bool running, capturing, irq_ready;
+	unsigned long periods, capture_periods;
 	unsigned configured_rate;
 };
 
@@ -39,6 +40,68 @@ static const struct snd_pcm_hardware mt6582_hw = {
 	.periods_min = 2, .periods_max = 256,
 };
 
+static const struct snd_pcm_hardware mt6582_fm_hw = {
+	.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
+		SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	.rates = SNDRV_PCM_RATE_48000, .rate_min = FM_RATE, .rate_max = FM_RATE,
+	.channels_min = 2, .channels_max = 2,
+	.buffer_bytes_max = PCM_MAX_BYTES,
+	.period_bytes_min = 512, .period_bytes_max = 128 * 1024,
+	.periods_min = 2, .periods_max = 256,
+};
+
+static void mt6582_capture_stop(struct mt6582_afe *afe)
+{
+	/* Called with the private spinlock held, or before IRQ registration. */
+	regmap_update_bits(afe->regmap, AFE_IRQ_CON, IRQ2, 0);
+	regmap_update_bits(afe->regmap, AFE_DAC_CON0, AWB_ON, 0);
+	regmap_write(afe->regmap, AFE_IRQ_CLR, IRQ2);
+	afe->capturing = false;
+}
+
+/* The FM source module, in AudioFMResourceManager::SetFmSourceModuleEnable
+ * order: second I2S in as slave, ASRC 32k -> 48k (SetI2SASRCConfig), ASRC
+ * on, I2S in on, then the I00/I01 -> O05/O06 connection of the stream. */
+static void mt6582_fm_input_off(struct mt6582_afe *afe)
+{
+	regmap_update_bits(afe->regmap, AFE_CONN2, FM_ROUTE, 0);
+	regmap_update_bits(afe->regmap, AFE_I2S_CON, I2S_ON, 0);
+	regmap_update_bits(afe->regmap, AFE_ASRC_CON0, ASRC_ON, 0);
+	regmap_update_bits(afe->regmap, AFE_CONN4, ASRC_BYPASS, ASRC_BYPASS);
+}
+static int mt6582_fm_input_on(struct mt6582_afe *afe)
+{
+	static const unsigned asrc[][2] = {
+		{AFE_ASRC_CON14, 0x00600000}, {AFE_ASRC_CON15, 0x00400000},
+		{AFE_ASRC_CON17, 0x00000cb2}, {AFE_ASRC_CON16, 0x00075987},
+		{AFE_ASRC_CON20, 0x00001b00},
+	};
+	int ret = regmap_update_bits(afe->regmap, AFE_I2S_CON, ~I2S_ON, I2S_IN_WORD);
+
+	if (!ret)
+		ret = regmap_update_bits(afe->regmap, FPGA_CFG1, I2S_IN_SLAVE_CLOCK, 0);
+	if (!ret)
+		ret = regmap_update_bits(afe->regmap, AFE_CONN4, ASRC_BYPASS, 0);
+	/* Memif I2S rate = the ASRC output rate. */
+	if (!ret)
+		ret = regmap_update_bits(afe->regmap, AFE_DAC_CON1, 0xf00,
+					 mt6582_rate_code(FM_RATE) << 8);
+	if (!ret)
+		ret = regmap_update_bits(afe->regmap, AFE_ASRC_CON13, BIT(16), 0);
+	for (unsigned i = 0; !ret && i < ARRAY_SIZE(asrc); i++)
+		ret = regmap_write(afe->regmap, asrc[i][0], asrc[i][1]);
+	if (!ret)
+		ret = regmap_update_bits(afe->regmap, AFE_ASRC_CON0, ASRC_ON, ASRC_ON);
+	if (!ret)
+		ret = regmap_update_bits(afe->regmap, AFE_I2S_CON, I2S_ON, I2S_ON);
+	if (!ret)
+		ret = regmap_update_bits(afe->regmap, AFE_CONN2, FM_ROUTE, FM_ROUTE);
+	if (ret)
+		mt6582_fm_input_off(afe);
+	return ret;
+}
+
 static void mt6582_stop(struct mt6582_afe *afe)
 {
 	/* Called with the private spinlock held, or before IRQ registration. */
@@ -51,7 +114,7 @@ static void mt6582_stop(struct mt6582_afe *afe)
 static irqreturn_t mt6582_irq(int irq, void *data)
 {
 	struct mt6582_afe *afe = data;
-	struct snd_pcm_substream *substream = NULL;
+	struct snd_pcm_substream *substream = NULL, *capture = NULL;
 	unsigned status;
 	unsigned long flags;
 
@@ -66,11 +129,17 @@ static irqreturn_t mt6582_irq(int irq, void *data)
 		substream = afe->substream;
 		afe->periods++;
 	}
+	if ((status & IRQ2) && afe->capturing) {
+		capture = afe->capture;
+		afe->capture_periods++;
+	}
 	spin_unlock_irqrestore(&afe->lock, flags);
 	/* No private lock across period_elapsed: ALSA can call trigger(STOP).
 	 * sync_stop/hw_free/close drain this handler before buffer/runtime release. */
 	if (substream)
 		snd_pcm_period_elapsed(substream);
+	if (capture)
+		snd_pcm_period_elapsed(capture);
 	return IRQ_HANDLED;
 }
 
@@ -207,6 +276,120 @@ static const struct snd_soc_dai_ops mt6582_fe_ops = {
 	.hw_params = mt6582_params, .hw_free = mt6582_free, .trigger = mt6582_trigger,
 };
 
+static int mt6582_fm_open(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	struct mt6582_afe *afe = snd_soc_dai_get_drvdata(dai);
+	int ret;
+
+	snd_soc_set_runtime_hwparams(substream, &mt6582_fm_hw);
+	ret = snd_pcm_hw_constraint_step(substream->runtime, 0,
+					SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 16);
+	if (ret >= 0)
+		ret = snd_pcm_hw_constraint_step(substream->runtime, 0,
+						SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 16);
+	if (ret >= 0)
+		ret = snd_pcm_hw_constraint_integer(substream->runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	if (ret < 0)
+		return ret;
+	WRITE_ONCE(afe->capture, substream);
+	return 0;
+}
+
+static int mt6582_fm_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	struct mt6582_afe *afe = snd_soc_dai_get_drvdata(dai);
+	unsigned long flags;
+
+	spin_lock_irqsave(&afe->lock, flags);
+	mt6582_capture_stop(afe);
+	spin_unlock_irqrestore(&afe->lock, flags);
+	synchronize_irq(afe->irq);
+	mt6582_fm_input_off(afe);
+	return 0;
+}
+
+static void mt6582_fm_close(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	struct mt6582_afe *afe = snd_soc_dai_get_drvdata(dai);
+
+	mt6582_fm_free(substream, dai);
+	WRITE_ONCE(afe->capture, NULL);
+}
+
+static int mt6582_fm_params(struct snd_pcm_substream *substream,
+			   struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
+{
+	struct mt6582_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	unsigned bytes = params_buffer_bytes(params);
+	int ret;
+
+	if (params_rate(params) != FM_RATE || params_channels(params) != 2 ||
+	    params_format(params) != SNDRV_PCM_FORMAT_S16_LE ||
+	    !mt6582_dma_valid(runtime->dma_addr, bytes))
+		return -EINVAL;
+	ret = regmap_write(afe->regmap, AFE_AWB_BASE, lower_32_bits(runtime->dma_addr));
+	if (!ret)
+		ret = regmap_write(afe->regmap, AFE_AWB_END, lower_32_bits(runtime->dma_addr) + bytes - 1);
+	/* AWB rate field, stereo (mono bit clear). */
+	if (!ret)
+		ret = regmap_update_bits(afe->regmap, AFE_DAC_CON1, (0xfU << AWB_RATE_SHIFT) | AWB_MONO,
+					 mt6582_rate_code(FM_RATE) << AWB_RATE_SHIFT);
+	if (!ret)
+		ret = mt6582_fm_input_on(afe);
+	if (!ret)
+		dev_info(afe->dev, "FM I2S in -> ASRC -> AWB %u Hz DMA=%pad bytes=%u period=%u frames\n",
+			 FM_RATE, &runtime->dma_addr, bytes, params_period_size(params));
+	return ret;
+}
+
+static int mt6582_fm_trigger(struct snd_pcm_substream *substream, int cmd,
+			    struct snd_soc_dai *dai)
+{
+	struct mt6582_afe *afe = snd_soc_dai_get_drvdata(dai);
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&afe->lock, flags);
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+		if (!substream->runtime->period_size || substream->runtime->period_size > 0x3ffff) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = regmap_update_bits(afe->regmap, AFE_IRQ_CNT2, 0x3ffff,
+					 substream->runtime->period_size);
+		if (!ret)
+			ret = regmap_update_bits(afe->regmap, AFE_IRQ_CON, 0xf00 | IRQ2,
+						 mt6582_rate_code(FM_RATE) << 8);
+		if (!ret)
+			ret = regmap_write(afe->regmap, AFE_IRQ_CLR, IRQ2);
+		if (!ret)
+			ret = regmap_update_bits(afe->regmap, AFE_DAC_CON0, AWB_ON, AWB_ON);
+		if (!ret)
+			ret = regmap_update_bits(afe->regmap, AFE_IRQ_CON, IRQ2, IRQ2);
+		if (ret)
+			mt6582_capture_stop(afe);
+		else
+			afe->capturing = true;
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+		mt6582_capture_stop(afe);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+	spin_unlock_irqrestore(&afe->lock, flags);
+	return ret;
+}
+
+static const struct snd_soc_dai_ops mt6582_fm_ops = {
+	.startup = mt6582_fm_open, .shutdown = mt6582_fm_close,
+	.hw_params = mt6582_fm_params, .hw_free = mt6582_fm_free, .trigger = mt6582_fm_trigger,
+};
+
 static int mt6582_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct mt6582_afe *afe = snd_soc_dai_get_drvdata(dai);
@@ -255,6 +438,9 @@ static const struct snd_soc_dai_ops mt6582_i2s_ops = {
 static struct snd_soc_dai_driver mt6582_dais[] = {
 	{ .name = "DL1", .id = 0, .playback = MT6582_PLAYBACK("DL1"), .ops = &mt6582_fe_ops },
 	{ .name = "I2S", .id = 1, .playback = MT6582_PLAYBACK("I2S Playback"), .ops = &mt6582_i2s_ops },
+	{ .name = "FM", .id = 2, .ops = &mt6582_fm_ops,
+	  .capture = { .stream_name = "FM Capture", .channels_min = 2, .channels_max = 2,
+		       .rates = SNDRV_PCM_RATE_48000, .formats = SNDRV_PCM_FMTBIT_S16_LE } },
 };
 static const struct snd_soc_dapm_route mt6582_routes[] = {
 	{ "I2S Playback", NULL, "DL1" },
@@ -267,7 +453,8 @@ static snd_pcm_uframes_t mt6582_pointer(struct snd_soc_component *component,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned cur;
 
-	if (regmap_read(afe->regmap, AFE_DL1_CUR, &cur))
+	if (regmap_read(afe->regmap, substream->stream == SNDRV_PCM_STREAM_CAPTURE ?
+			AFE_AWB_CUR : AFE_DL1_CUR, &cur))
 		return 0;
 	return bytes_to_frames(runtime, mt6582_pointer_bytes(lower_32_bits(runtime->dma_addr),
 							    cur, runtime->dma_bytes));
@@ -303,7 +490,7 @@ static int mt6582_runtime_resume(struct device *dev)
 	if (!ret)
 		ret = regmap_write(afe->regmap, AFE_IRQ_CLR, 0xff);
 	if (!ret)
-		ret = regmap_update_bits(afe->regmap, AFE_DAC_CON0, AFE_ON | DL1_ON, AFE_ON);
+		ret = regmap_update_bits(afe->regmap, AFE_DAC_CON0, AFE_ON | DL1_ON | AWB_ON, AFE_ON);
 	if (!ret) {
 		if (afe->irq_ready)
 			enable_irq(afe->irq);
@@ -321,10 +508,12 @@ static int mt6582_runtime_suspend(struct device *dev)
 
 	spin_lock_irqsave(&afe->lock, flags);
 	mt6582_stop(afe);
+	mt6582_capture_stop(afe);
 	regmap_update_bits(afe->regmap, AFE_I2S_CON3, I2S_ON, 0);
 	regmap_update_bits(afe->regmap, AFE_DAC_CON0, AFE_ON, 0);
 	spin_unlock_irqrestore(&afe->lock, flags);
 	synchronize_irq(afe->irq);
+	mt6582_fm_input_off(afe);
 	regmap_update_bits(afe->regmap, AUDIO_TOP_CON0, BIT(6) | BIT(2), BIT(6) | BIT(2));
 	clk_bulk_disable_unprepare(ARRAY_SIZE(afe->clocks), afe->clocks);
 	return 0;
@@ -412,7 +601,8 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr, cha
 	struct mt6582_afe *afe = dev_get_drvdata(dev);
 	static const unsigned regs[] = { AUDIO_TOP_CON0, AFE_DAC_CON0, AFE_DAC_CON1,
 		AFE_CONN0, AFE_DL1_BASE, AFE_DL1_CUR, AFE_DL1_END, AFE_I2S_CON3,
-		AFE_IRQ_CON, AFE_IRQ_CNT1 };
+		AFE_IRQ_CON, AFE_IRQ_CNT1, AFE_I2S_CON, AFE_CONN2, AFE_CONN4, AFE_AWB_BASE,
+		AFE_AWB_CUR, AFE_AWB_END, AFE_ASRC_CON0, AFE_IRQ_CNT2 };
 	unsigned long flags;
 	unsigned i, value;
 	int ret, len = 0;
@@ -421,7 +611,8 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr, cha
 	if (ret < 0)
 		return ret;
 	spin_lock_irqsave(&afe->lock, flags);
-	len += sysfs_emit_at(buf, len, "running=%u periods=%lu\n", afe->running, afe->periods);
+	len += sysfs_emit_at(buf, len, "running=%u periods=%lu capturing=%u capture_periods=%lu\n",
+			     afe->running, afe->periods, afe->capturing, afe->capture_periods);
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		ret = regmap_read(afe->regmap, regs[i], &value);
 		if (ret)
@@ -489,5 +680,5 @@ static struct platform_driver mt6582_driver = {
 		    .dev_groups = mt6582_groups },
 };
 module_platform_driver(mt6582_driver);
-MODULE_DESCRIPTION("MT6582 DL1 and second-I2S ASoC playback");
+MODULE_DESCRIPTION("MT6582 DL1 and second-I2S ASoC playback, FM capture");
 MODULE_LICENSE("GPL");

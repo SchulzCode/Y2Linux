@@ -8476,3 +8476,28 @@ unchanged since BETA-7.4.
 
 **Gate decision:** READY for **Y2Linux 1.0.0-beta.7.6 / Reborn 1.0.0-beta.7.6** (Baseline 67, sequence 6100) as a public beta
 at the owner's request; next evidence boundary: frame rate during the next OTA download.
+
+## BETA-8-FM radio: milestone gap audit — 2026-10-16
+
+**Boundary:** owner: "Start Beta 8: FM radio … first do the milestone gap audit … do not build, flash or power the tuner until I
+agree." FM is a new hardware subsystem (MT6627 FM in the MT6582 CONSYS). Documentation-only audit: nothing built, flashed or
+powered. Revision `b2bd82f`; device on Beta 7.6 (`6.18.56-y2linux-1.0.0-beta.7.6`), read over USB SSH only. Evidence, firmware
+hashes, phases and decisions: [BETA-8-FM-PLAN](BETA-8-FM-PLAN.md).
+
+| Area | State | Evidence / gap |
+| --- | --- | --- |
+| Tuner hardware | WORKS ON STOCK ANDROID (narrow) | 2026-08 Y2Player: chip 0x6627 opens, tunes, plays (indirect path). |
+| Reception on owner's unit | UNKNOWN / AT RISK | Floor −100…−107 dBm, no station, no RDS; sweep too coarse/fast; cable/no-cable, known-station and CQI controls never run. Dominant risk. |
+| CONSYS transport for FM | NOT STARTED | `y2_conn_get/put`, `y2_wmt_function`, `y2_stp_send`/`deliver` accept only BT/Wi-Fi/WMT; VCN28 forced off; device: vcn28 disabled, 0 users. Stock: VCN28 software-on (`hwPowerOn(LDO_VCN28)`) + WMT opcode 6 function 1, traffic on STP channel 1. |
+| MT6627 tuner driver | NOT STARTED | Stock ELF (symbols) + donor `fmradio` (15 189 lines) are the references. |
+| FM audio path | NOT STARTED | AFE playback-only. Stock HAL: FM I2S in (I00/I01, AFE slave, FM master 32 kHz, ASRC) → capture memif (indirect, proven audible) or → O00/O01 hardware loop (direct; silent on Y2, cause unknown). O00/O01 is our CS43131 output. |
+| FM firmware | AVAILABLE FROM OWNER IMAGE, not taken | v1 patch/coeff + cust.cfg identical in both stock packages; v2–v5 empty. `radiofw.py` takes 5 Wi-Fi/BT files only. Never in images. |
+| Platform API / sleep | NOT STARTED | Connectivity suspend refuses with functions on; FM needs a lease and a stop before full suspend. |
+| Reborn UI | NOT STARTED | Neighbour: internet radio. Owner decision 2026-10-15: FM menu hidden unless a scan finds a station. |
+| Wired-headphone detection | GAP (existing) | The cable is the aerial; "Y2Audio Headphone" SW input exists but is not driven. |
+| Wi-Fi, BT, power, display, USB, install | unchanged since BETA-7.6 | Device: Wi-Fi on, 0 transport errors/retries. |
+
+**Gate decision:** Beta 8 is **PARTIALLY READY**: phase 1 (firmware intake, host only) can start once the owner agrees to the plan;
+phase 2 (kernel FM function and first tuner power-up) is **BLOCKED on explicit owner authorisation** and ends at a reception gate
+(no real station → FM stays hidden, physical checks per feasibility §9.6). Next smallest blocker: owner answers to the eight
+decisions in the plan. No GitHub FM issue/epic exists yet; a high-level "Beta 8: FM radio" bookmark is proposed, not created.

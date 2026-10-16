@@ -16,6 +16,7 @@
 #include "protocol.h"
 
 #define Y2_CONN_BT 0
+#define Y2_CONN_FM 1
 #define Y2_CONN_WIFI 3
 #define Y2_CONN_WMT 4
 #define Y2_CONN_DMA_SIZE 8192
@@ -24,6 +25,7 @@ struct firmware;
 int y2_conn_request_firmware(struct device *dev, const char *name, const struct firmware **fw);
 struct hci_dev;
 struct y2_md;
+struct y2_fm;
 struct y2_stp_frame { unsigned size; unsigned char data[Y2_STP_MAX_PAYLOAD + 6]; };
 struct y2_conn {
 	struct device *dev;
@@ -66,6 +68,7 @@ struct y2_conn {
 	unsigned char wifi_factory[512], bt_factory[64];
 	struct platform_device *wifi;
 	struct y2_md *md;
+	struct y2_fm *fm;
 };
 int y2_btif_probe(struct platform_device *pdev, struct y2_conn *c);
 int y2_btif_start(struct y2_conn *c);
@@ -93,4 +96,8 @@ int y2_md_calibrate(struct y2_conn *c);
 void y2_md_unregister(struct y2_conn *c);
 void y2_md_abort(struct y2_conn *c);
 void y2_conn_hci_error(struct y2_conn *c);
+int y2_fm_probe(struct platform_device *pdev, struct y2_conn *c);
+void y2_fm_receive(struct y2_conn *c, const unsigned char *data, unsigned size);
+void y2_fm_lost(struct y2_conn *c);
+void y2_fm_shutdown(struct y2_conn *c);
 #endif

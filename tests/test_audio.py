@@ -31,7 +31,7 @@ typedef int irqreturn_t;
 struct regmap {unsigned r[0x600/4];};
 struct snd_pcm_runtime {unsigned rate,period_size;};
 struct snd_pcm_substream {struct snd_pcm_runtime *runtime;};
-struct mt6582_afe {struct regmap *regmap; struct snd_pcm_substream *substream; int lock; bool running; unsigned long periods;};
+struct mt6582_afe {struct regmap *regmap; struct snd_pcm_substream *substream, *capture; int lock; bool running, capturing; unsigned long periods, capture_periods;};
 struct snd_soc_dai {struct mt6582_afe *afe;};
 static struct mt6582_afe *snd_soc_dai_get_drvdata(struct snd_soc_dai *d){return d->afe;}
 static int locked, op, fail, elapsed, callback_stop;
@@ -51,12 +51,13 @@ static int regmap_write(struct regmap *m,unsigned r,unsigned v) {
 static int regmap_read(struct regmap *m,unsigned r,unsigned *v){*v=m->r[r/4];return 0;}
 static void snd_pcm_period_elapsed(struct snd_pcm_substream *s);
 '''
-        fixture+=''.join(function(src,n) for n in ('mt6582_stop','mt6582_trigger','mt6582_irq'))
+        fixture+=''.join(function(src,n) for n in ('mt6582_capture_stop','mt6582_stop','mt6582_trigger','mt6582_fm_trigger','mt6582_irq'))
         fixture+=r'''
 static struct snd_soc_dai *active_dai;
 static void snd_pcm_period_elapsed(struct snd_pcm_substream *s) {
- assert(!locked); assert(!(active_dai->afe->regmap->r[AFE_IRQ_STATUS/4]&IRQ1));
- elapsed++; if(callback_stop)assert(!mt6582_trigger(s,SNDRV_PCM_TRIGGER_STOP,active_dai));
+ assert(!locked); assert(!(active_dai->afe->regmap->r[AFE_IRQ_STATUS/4]&(IRQ1|IRQ2)));
+ elapsed++;
+ if(callback_stop)assert(!(s==active_dai->afe->capture?mt6582_fm_trigger:mt6582_trigger)(s,SNDRV_PCM_TRIGGER_STOP,active_dai));
 }
 int main(void) {
  struct regmap map={0};struct snd_pcm_runtime rt={44100,1024};
@@ -90,6 +91,25 @@ int main(void) {
  fail=0;rt.rate=96000;assert(mt6582_trigger(&sub,SNDRV_PCM_TRIGGER_START,&dai)==-EINVAL);
  rt.rate=44100;rt.period_size=0x40000;assert(mt6582_trigger(&sub,SNDRV_PCM_TRIGGER_START,&dai)==-EINVAL);
  assert(mt6582_trigger(&sub,100,&dai)==-EINVAL);
+ /* FM capture: AWB on IRQ2 at 48 kHz, independent of DL1/IRQ1. */
+ struct snd_pcm_runtime crt={48000,960};struct snd_pcm_substream cap={&crt};afe.capture=&cap;
+ for(fail=0;fail<=5;fail++) {
+  op=0;memset(&map,0,sizeof(map));afe.capturing=false;afe.running=false;
+  int ret=mt6582_fm_trigger(&cap,SNDRV_PCM_TRIGGER_START,&dai);
+  if(fail){assert(ret==-5&&!afe.capturing);assert(!(map.r[AFE_DAC_CON0/4]&AWB_ON));assert(!(map.r[AFE_IRQ_CON/4]&IRQ2));continue;}
+  assert(!ret&&afe.capturing&&map.r[AFE_IRQ_CNT2/4]==960);
+  assert(map.r[AFE_IRQ_CON/4]==(10U<<8|IRQ2)&&(map.r[AFE_DAC_CON0/4]&AWB_ON));
+  elapsed=0;callback_stop=0;map.r[AFE_IRQ_STATUS/4]=IRQ2;
+  assert(mt6582_irq(1,&afe)==IRQ_HANDLED&&elapsed==1&&afe.capture_periods);
+  rt.rate=48000;rt.period_size=1024;assert(!mt6582_trigger(&sub,SNDRV_PCM_TRIGGER_START,&dai));
+  map.r[AFE_IRQ_STATUS/4]=IRQ1|IRQ2;assert(mt6582_irq(1,&afe)==IRQ_HANDLED&&elapsed==3);
+  callback_stop=1;map.r[AFE_IRQ_STATUS/4]=IRQ2;
+  assert(mt6582_irq(1,&afe)==IRQ_HANDLED&&elapsed==4&&!afe.capturing&&afe.running);
+  assert(!(map.r[AFE_DAC_CON0/4]&AWB_ON)&&(map.r[AFE_DAC_CON0/4]&DL1_ON));
+  map.r[AFE_IRQ_STATUS/4]=IRQ2;assert(mt6582_irq(1,&afe)==IRQ_HANDLED&&elapsed==4);
+ }
+ fail=0;crt.period_size=0;assert(mt6582_fm_trigger(&cap,SNDRV_PCM_TRIGGER_START,&dai)==-EINVAL);
+ assert(mt6582_fm_trigger(&cap,100,&dai)==-EINVAL);
 }
 '''
         with tempfile.TemporaryDirectory() as tmp:

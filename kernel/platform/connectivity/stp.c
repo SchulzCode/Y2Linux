@@ -47,7 +47,8 @@ void y2_stp_reset(struct y2_conn *c)
 int y2_stp_send(struct y2_conn *c, unsigned channel, const unsigned char *data, unsigned size)
 {
 	struct y2_stp_frame *f; unsigned crc; int ret;
-	if ((channel != Y2_CONN_WMT && channel != Y2_CONN_BT) || !size || size > Y2_STP_MAX_PAYLOAD)
+	if ((channel != Y2_CONN_WMT && channel != Y2_CONN_BT && channel != Y2_CONN_FM) ||
+	    !size || size > Y2_STP_MAX_PAYLOAD)
 		return -EINVAL;
 	if (!wait_event_timeout(c->tx_wait, READ_ONCE(c->stp_pending) < Y2_STP_WINDOW ||
 		READ_ONCE(c->failure) || !READ_ONCE(c->transport_on), msecs_to_jiffies(1500))) return -ETIMEDOUT;
@@ -102,6 +103,7 @@ static int deliver(struct y2_conn *c, unsigned channel, const unsigned char *p, 
 {
 	unsigned copy_size = size;
 	if (channel == Y2_CONN_BT) { y2_hci_receive(c, p, size); return 0; }
+	if (channel == Y2_CONN_FM) { y2_fm_receive(c, p, size); return 0; }
 	if (channel != Y2_CONN_WMT || size < 5 ||
 	    p[0] != 2 || (y2_conn_le16(p + 2) != size - 4 &&
 	    !(READ_ONCE(c->wmt_reg_read) && p[1]==8 && size==16 && y2_conn_le16(p+2)==4))) return -EPROTO;

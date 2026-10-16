@@ -10,7 +10,7 @@ players update themselves over Wi-Fi (Settings → About & Updates → Update No
 | Next | Scope | State |
 | --- | --- | --- |
 | Device checks for 7.4–7.6 | Status bar/Skin look, update-screen fps on the next OTA, Now Playing clock/temperature on battery | Owed (owner installs) |
-| **Beta 8: FM radio** | Needs its own milestone audit first (`../Y2Player/docs/FM_RADIO_FEASIBILITY.md`) | Not started |
+| **Beta 8: FM radio** | Audit done 2026-10-16 ([BETA-8-FM](roadmap-gap-audit.md#beta-8-fm-radio-milestone-gap-audit--2026-10-16)); phased plan [BETA-8-FM-PLAN](BETA-8-FM-PLAN.md): firmware intake → kernel FM function + reception gate → audio capture → platform → Reborn | Plan proposed; owner decisions and tuner power-up go owed |
 | Sleep current | ≈7.8 mA vs stock 1.3 mA (archive 156) | Open |
 | Wired headphones | No jack detection yet | Open |
 

@@ -154,10 +154,16 @@ static int runtime_suspend(struct device *dev)
 	mutex_unlock(&c->lifecycle);
 	return ret;
 }
+/* Per-function rail: BT and Wi-Fi PA (VCN33), and VCN28 for FM, which the
+ * stock kernel turns on only for FM/GPS in co-clock mode (FM_PALDO). */
+static int function_rail(unsigned function)
+{
+	return function==Y2_CONN_BT ? 2 : function==Y2_CONN_WIFI ? 3 : function==Y2_CONN_FM ? 1 : -EINVAL;
+}
 int y2_conn_get(struct y2_conn *c, unsigned function)
 {
-	int ret;
-	if (function!=Y2_CONN_BT && function!=Y2_CONN_WIFI) return -EINVAL;
+	int ret, rail=function_rail(function);
+	if (rail<0) return rail;
 	if (!READ_ONCE(c->activated) || READ_ONCE(c->recovering) || c->removing) return -EHOSTDOWN;
 	ret=pm_runtime_resume_and_get(c->dev);
 	if (ret<0) { y2_conn_failed(c,ret); return ret; }
@@ -169,9 +175,9 @@ int y2_conn_get(struct y2_conn *c, unsigned function)
 		if (ret) { WRITE_ONCE(c->failure,ret); goto unused; }
 	}
 	if (c->functions & BIT(function)) { ret=0; goto unused; }
-	ret=c->failure ? c->failure : y2_conn_rail(c,function==Y2_CONN_BT ? 2 : 3,true);
+	ret=c->failure ? c->failure : y2_conn_rail(c,rail,true);
 	if (!ret) ret=y2_wmt_function(c,function,true);
-	if (ret) { y2_conn_rail(c,function==Y2_CONN_BT ? 2 : 3,false); goto unused; }
+	if (ret) { y2_conn_rail(c,rail,false); goto unused; }
 	c->functions |= BIT(function); c->wanted |= BIT(function);
 	mutex_unlock(&c->lifecycle);
 	return 0;
@@ -181,13 +187,13 @@ unused:
 }
 int y2_conn_put(struct y2_conn *c, unsigned function)
 {
-	int ret=0, rail;
-	if (function!=Y2_CONN_BT && function!=Y2_CONN_WIFI) return -EINVAL;
+	int ret=0, rail=function_rail(function);
+	if (rail<0) return rail;
 	mutex_lock(&c->lifecycle);
 	c->wanted &= ~BIT(function);
 	if (!(c->functions & BIT(function))) { mutex_unlock(&c->lifecycle); return 0; }
 	if (!c->failure && c->powered) ret=y2_wmt_function(c,function,false);
-	rail=y2_conn_rail(c,function==Y2_CONN_BT ? 2 : 3,false);
+	rail=y2_conn_rail(c,rail,false);
 	if (!ret) ret=rail;
 	c->functions &= ~BIT(function);
 	mutex_unlock(&c->lifecycle);
@@ -247,6 +253,7 @@ void y2_conn_hci_error(struct y2_conn *c)
 	if (c->hci_recovery_pending) c->hci_recovery_pending=false;
 	else {
 		WRITE_ONCE(c->failure,-EIO); complete_all(&c->response); wake_up_all(&c->tx_wait);
+		y2_fm_lost(c);
 		recover_locked(c);
 	}
 	mutex_unlock(&c->recovery_lock);
@@ -256,6 +263,7 @@ void y2_conn_failed(struct y2_conn *c, int error)
 	if (error>=0) error=-EIO;
 	if (!cmpxchg(&c->failure,0,error)) c->transport_errors++;
 	complete_all(&c->response); wake_up_all(&c->tx_wait);
+	y2_fm_lost(c);
 	if (READ_ONCE(c->activated) && !READ_ONCE(c->removing) && !READ_ONCE(c->recovering))
 		schedule_work(&c->recovery_work);
 }
@@ -396,6 +404,8 @@ static int probe(struct platform_device *pdev)
 	ret=y2_btif_probe(pdev,c); if (ret) return ret;
 	ret=y2_md_probe(pdev,c); if (ret) return ret;
 	platform_set_drvdata(pdev,c);
+	ret=y2_fm_probe(pdev,c);
+	if (ret) { y2_md_unregister(c); return ret; }
 	pm_runtime_set_suspended(dev); pm_runtime_set_autosuspend_delay(dev,1000);
 	/* Both consumer interfaces use this owner's explicit function refs. */
 	pm_suspend_ignore_children(dev,true);
@@ -408,6 +418,7 @@ static int probe(struct platform_device *pdev)
 static void shutdown(struct platform_device *pdev)
 {
 	struct y2_conn *c=platform_get_drvdata(pdev);
+	y2_fm_shutdown(c);
 	c->removing=true; y2_md_abort(c); cancel_work_sync(&c->recovery_work);
 	if (c->wifi) { platform_device_unregister(c->wifi); c->wifi=NULL; }
 	y2_hci_unregister(c); pm_runtime_disable(c->dev);

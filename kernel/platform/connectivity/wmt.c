@@ -162,6 +162,6 @@ int y2_wmt_function(struct y2_conn *c, unsigned function, bool enable)
 {
 	unsigned char request[] = {1,6,2,0,function,enable};
 	static const unsigned char reply[] = {2,6,1,0,0};
-	if (function != Y2_CONN_BT && function != Y2_CONN_WIFI) return -EINVAL;
+	if (function != Y2_CONN_BT && function != Y2_CONN_WIFI && function != Y2_CONN_FM) return -EINVAL;
 	return y2_conn_wmt(c, request, sizeof(request), reply, sizeof(reply));
 }

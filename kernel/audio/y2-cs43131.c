@@ -14,8 +14,8 @@
 
 struct y2_audio {
 	struct snd_soc_card card;
-	struct snd_soc_dai_link links[2];
-	struct snd_soc_dai_link_component cpus[2], codecs[2], platforms[2];
+	struct snd_soc_dai_link links[3];
+	struct snd_soc_dai_link_component cpus[3], codecs[3], platforms[3];
 };
 static int y2_codec_params(struct snd_pcm_substream *s, struct snd_pcm_hw_params *params)
 {
@@ -144,9 +144,9 @@ static int y2_audio_probe(struct platform_device *pdev)
 	ret = devm_add_action_or_reset(dev, y2_node_put, codec);
 	if (ret)
 		return ret;
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < 3; i++) {
 		y2->cpus[i].of_node = afe;
-		y2->cpus[i].dai_name = i ? "I2S" : "DL1";
+		y2->cpus[i].dai_name = i == 2 ? "FM" : i ? "I2S" : "DL1";
 		y2->platforms[i].of_node = afe;
 		y2->links[i].cpus = &y2->cpus[i];
 		y2->links[i].num_cpus = 1;
@@ -154,7 +154,7 @@ static int y2_audio_probe(struct platform_device *pdev)
 		y2->links[i].num_codecs = 1;
 		y2->links[i].platforms = &y2->platforms[i];
 		y2->links[i].num_platforms = 1;
-		y2->links[i].playback_only = 1;
+		y2->links[i].playback_only = i < 2;
 		y2->links[i].ignore_pmdown_time = 1;
 	}
 	y2->codecs[0].name = "snd-soc-dummy";
@@ -171,6 +171,12 @@ static int y2_audio_probe(struct platform_device *pdev)
 	y2->links[1].init = y2_codec_init;
 	y2->links[1].ops = &y2_codec_ops;
 	y2->links[1].dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	/* MT6627 FM tuner: its I2S never reaches a codec here, only AWB memory. */
+	y2->codecs[2].name = "snd-soc-dummy";
+	y2->codecs[2].dai_name = "snd-soc-dummy-dai";
+	y2->links[2].name = "Y2 FM Capture";
+	y2->links[2].stream_name = "Y2 FM Capture";
+	y2->links[2].capture_only = 1;
 	y2->card = (struct snd_soc_card) {
 		.name = "Y2Audio", .owner = THIS_MODULE, .dev = dev,
 		.dai_link = y2->links, .num_links = ARRAY_SIZE(y2->links),

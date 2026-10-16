@@ -272,6 +272,7 @@ int main(void){
 #include "connectivity/protocol.h"
 #define Y2_CONN_WMT 4
 #define Y2_CONN_BT 0
+#define Y2_CONN_FM 1
 #define READ_ONCE(x) (x)
 #define WRITE_ONCE(x,v) ((x)=(v))
 #define min(x,y) ((x)<(y)?(x):(y))
@@ -306,6 +307,8 @@ static int completion_done(int *p){return *p;}
 static void complete(int *p){assert(!*p);*p=1;completions++;}
 static void y2_conn_failed(struct y2_conn *c,int error){assert(error<0);c->failure=error;}
 static void y2_hci_receive(struct y2_conn *c,const unsigned char *p,unsigned n){bt_packets++;}
+static unsigned fm_packets;
+static void y2_fm_receive(struct y2_conn *c,const unsigned char *p,unsigned n){fm_packets++;}
 static int y2_btif_send(struct y2_conn *c,const unsigned char *p,unsigned n){
  assert(c->stp_lock && n<=sizeof(sent[0].data) && sent_count<16);
  if(send_error)return send_error;
@@ -393,6 +396,19 @@ int main(void){
  reset(&c);c.full_stp=true;full[15]^=1;
  y2_stp_receive(&c,full,sizeof(full));assert(c.failure==-EBADMSG && !c.response);
  assert(!bt_packets);
+ /* FM (channel 1): never in mandatory mode; in full mode framed like WMT
+  * and delivered to the tuner, never completing a WMT command. */
+ reset(&c);
+ const unsigned char fm_read_cmd[]={1,3,1,0,0x62};
+ assert(y2_stp_send(&c,Y2_CONN_FM,fm_read_cmd,sizeof(fm_read_cmd))==-EHOSTDOWN && !sent_count);
+ c.full_stp=true;
+ assert(!y2_stp_send(&c,Y2_CONN_FM,fm_read_cmd,sizeof(fm_read_cmd)));
+ assert(sent_count==1 && (sent[0].data[1]>>4)==Y2_CONN_FM && sent[0].size==11 && c.stp_pending==1);
+ unsigned char fm_event[]={0x80,0x10,6,0x96,4,3,2,0,0x27,0x66,0,0};
+ crc=y2_stp_crc(fm_event+4,6);fm_event[10]=crc;fm_event[11]=crc>>8;
+ y2_stp_receive(&c,fm_event,sizeof(fm_event));
+ assert(!c.failure && fm_packets==1 && !c.response && !c.stp_pending && c.stp_rx==1);
+ assert(y2_stp_send(&c,2,fm_read_cmd,sizeof(fm_read_cmd))==-EINVAL);
  /* All DMA split points, then a byte-at-a-time RF event. */
  for(unsigned split=0;split<=636;split++){
   rf_ready(&c);y2_stp_receive(&c,inbound,split);
