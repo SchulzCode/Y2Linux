@@ -8501,3 +8501,22 @@ hashes, phases and decisions: [BETA-8-FM-PLAN](BETA-8-FM-PLAN.md).
 phase 2 (kernel FM function and first tuner power-up) is **BLOCKED on explicit owner authorisation** and ends at a reception gate
 (no real station → FM stays hidden, physical checks per feasibility §9.6). Next smallest blocker: owner answers to the eight
 decisions in the plan. No GitHub FM issue/epic exists yet; a high-level "Beta 8: FM radio" bookmark is proposed, not created.
+
+## BETA-8-FM implementation boundary — 2026-10-16
+
+**Boundary:** owner: the owner's unit is an older revision that cannot receive FM; newer Y2s can; "do all of it". Branches
+`beta8-fm` (Y2Linux f5c1fa5, Y2Reborn dfdb78b), test identity 1.0.0-fm.2 / sequence 6120. Host evidence only.
+
+| Area | State | Evidence / gap |
+| --- | --- | --- |
+| Kernel FM function + MT6627 driver | BUILT, NOT_RUN | Kernel builds without new warnings; tests/test_fm.py packet-identical to the stock kernel (emulated). |
+| FM capture (AFE) | BUILT, NOT_RUN | Stock HAL indirect path; tests/test_audio capture trigger/IRQ2. Electrical behaviour unproven. |
+| Firmware intake | BUILT, host-tested | Real v3.2.0 system.img yields both FM files; top-up without radio restart. |
+| Sleep | BUILT, host-tested | quiesce_fm before the radio quiesce. |
+| Reborn FM | BUILT, host-tested | 497 Reborn tests, strict Clippy, previews 90–95. |
+| Reception | UNKNOWN | Owner's unit cannot receive (owner); community units with newer revisions must confirm. |
+| Host suite | PASS | 781 OK (tools/development/host-tests.sh). |
+
+**Gate decision:** ready for a **device candidate** (fm.2): the owner's unit checks power-up/firmware/tune/signal/capture
+samples/sleep; a public Beta 8 follows only after that and the owner's word. Blocked in this session on permission: the
+signed release build and writes to the player need the owner's explicit go.

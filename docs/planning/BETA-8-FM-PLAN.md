@@ -1,8 +1,28 @@
 # Beta 8: FM radio — gap audit evidence and phased plan (2026-10-16)
 
-**Status: PROPOSED. Nothing is built, flashed or powered.** The owner agrees to the plan and answers the open decisions
-(§5) before any phase starts; the first tuner power-up (phase 2) needs its own explicit go. Audit row:
-[BETA-8-FM](roadmap-gap-audit.md#beta-8-fm-radio-milestone-gap-audit--2026-10-16).
+**Status (2026-10-16, later): phases 1–5 IMPLEMENTED in software on branches `beta8-fm` (Y2Linux, Y2Reborn); hardware
+NOT_RUN.** Owner: "my player is an old revision that can not play FM radio, but new Y2 can and i want to enable this for
+the commuinty. do all of it" — so reception can only be confirmed by owners of newer units; the owner's unit can still
+prove power-up, firmware download, tuning, the signal read-out, the capture path and sleep. Decisions taken as defaults
+(§5): 87.5–108 MHz on a 100 kHz scan raster (frequency API takes 50 kHz steps), no RDS yet, shared Favorites, Bluetooth
+allowed, FM plays with the screen off and stops on Power sleep, re-copy of system.img into a Firmware folder for players
+that already have their radio firmware, FM hidden from the next start where a search found nothing. Audit rows:
+[BETA-8-FM](roadmap-gap-audit.md#beta-8-fm-radio-milestone-gap-audit--2026-10-16) and BETA-8-FM implementation below it.
+
+### What was built
+- Kernel: `kernel/platform/connectivity/fm.c` + `fm-protocol.h` (VCN28 + WMT function 1, STP channel 1, stock MT6627
+  sequences; root-only sysfs `fm/` power, frequency, signal, seek, scan, state). `tests/test_fm.py`: every sequence
+  byte-identical to the stock v3.2.0 kernel run in an emulator (power-up, 411 tunes, mute, volume, search, soft-mute
+  tune, power-down), CQI decision on 877 vectors, RSSI/stereo on 9,363 values, desense. The stock Y2 has **no chip
+  seek/scan** (empty ops slot); search = soft-mute tune per channel, like stock userspace.
+- AFE: `Y2 FM Capture` (second I2S in as slave, ASRC 32→48 kHz with the stock HAL words, I00/I01→O05/O06, AWB, IRQ2).
+- Platform: radiofw takes `mt6627_fm_v1_patch/coeff` (cfg not needed: its thresholds equal the kernel defaults),
+  top-up from a later system.img without restarting the radios; product sleep switches a left-on tuner off.
+- Reborn: `reborn_platform::fm` (arecord WAV stream into the decoder pipe, 3 s power grace), Radio → FM Radio, search
+  with Stop, frequency tiles, Search Again, Stereo/Mono line; previews 90–95.
+- Test candidate `1.0.0-fm.1` (label 68, kernel+platform only) was built and signed but not installed; `1.0.0-fm.2`
+  (label 69, with Reborn) is committed but not built (the session's permission check stopped the signing build and
+  writes to the player).
 
 ## 1. Evidence used
 

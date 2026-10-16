@@ -1,6 +1,15 @@
 # Next-session handoff — Y2Linux 1.0 Beta 7.6 (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-16, latest): BETA 8 FM — AUDIT DONE, PLAN PROPOSED, WAITING FOR THE OWNER.** Audit row BETA-8-FM in
+> **START HERE (2026-10-16, latest): BETA 8 FM — IMPLEMENTED ON `beta8-fm` (BOTH REPOS), DEVICE TEST OWED.** Owner: their
+> unit is an older revision without FM reception; newer Y2s receive; "do all of it". Kernel FM (fm.c, packet-identical to
+> stock, tests/test_fm.py), AFE `Y2 FM Capture`, radiofw FM files + top-up, sleep safety net, Reborn Radio → FM Radio.
+> Next: build `release.py build --label 69` (identity 1.0.0-fm.2, seq 6120; label 68 = fm.1 built, never installed),
+> stage it on the player (`y2-platform update stage --package DIR` then `apply`), copy system.img to Internal
+> Storage/Firmware, then on the unit: `fm/power`=1, `fm/state` (chip=6627 rom=0), `fm/signal`, `arecord -D hw:0,2`
+> non-zero samples, Reborn FM search (expected: nothing on this unit), Power sleep with FM on. Then Beta 8 (seq ≥ 6200),
+> report, docs, publish on the owner's word. Plan: [BETA-8-FM-PLAN](BETA-8-FM-PLAN.md).
+>
+> Previous entry: **(2026-10-16) BETA 8 FM — AUDIT DONE, PLAN PROPOSED, WAITING FOR THE OWNER.** Audit row BETA-8-FM in
 > [roadmap-gap-audit](roadmap-gap-audit.md); plan, evidence and firmware hashes in [BETA-8-FM-PLAN](BETA-8-FM-PLAN.md). Nothing built,
 > flashed or powered; the device was only read (Beta 7.6: vcn28 off, no FM firmware, playback-only ALSA). Key findings: stock FM on =
 > VCN28 software-on + WMT opcode 6 function 1 + STP channel 1 (our driver forces VCN28 off and filters both); the stock HAL's FM
