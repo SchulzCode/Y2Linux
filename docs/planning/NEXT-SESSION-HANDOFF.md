@@ -28,6 +28,10 @@
 >   one thread may be cheaper). Original settings back (Low, Fast, no profile), player paused. Not run: UI changes
 >   (no input injection), the fade after a chosen rise, profile scan/import screens, system sleep (USB unplugged).
 >   Test files in `/media/internal/music/EQ/` (HD 650 + a broken one).
+> - **Test build 92 = sequence 6751 (Linux `ef1619c`, Reborn `770a6de`), installed 2026-10-18, Acknowledged:** owner
+>   disliked scrolling in Sound and chose layout C: Sound = Equalizer, Normalize, Gapless, Crossfade + Output card
+>   ("Level Low · Filter Fast"); the card opens `Screen::Output` (outputs checked + Headphone Jack group with Level
+>   and DAC Filter). Owner to try with the buttons.
 > - **Owed:** a test build on the player (owner's OK): `amixer -c Y2Audio cget name='HP Output Level Live'`, regmap
 >   debugfs HP_OUT_CTL_1/CLASS_H per level, the 2-s fade, listening at Low (should match the old loudness), suspend and
 >   resume keep the level, a profile file from Internal Storage `EQ/`. Then the emailer's measurements (plan in the
