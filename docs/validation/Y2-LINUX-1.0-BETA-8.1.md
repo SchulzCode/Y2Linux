@@ -31,7 +31,7 @@ kernel (`out/rea/fm-kernel.elf`) and LK (`out/rea/fm-lk.elf`):
 | ST7701S `lcm_init` 0xc04a2754 (= `lcm_resume`), `lcm_suspend` 0xc04a27d8 | reset 1/20 ms/0/50 ms/1/150 ms, 47 rows at 0xc09fffb8; suspend 7 rows at 0xc0a00cf0 + 50 ms, reset left high |
 | `lcm_compare_id` 0xc04a2240 / 0xc04a2534 | GC9503V: DCS 0x04 = xx 95 03/04. ST7701S: 0xA1 = 0x88/0x99 |
 | `DSI_set_cmdq_V2` 0xc05227f8 | commands above 0xAF go out as generic writes (0x13/0x23/0x29), the rest as DCS (0x05/0x15/0x39) |
-| LK auto-detect 0x81e0af60, cmdline 0x81e183b0 | `lcm=%1d-%s`: the digit is LK's DCS 0x0A read result, not the ID match; with a failed read the name is LK's last driver. The owner's player reports `lcm=1-st7701…` on some boots and `lcm=0-st7701…` on soft restarts. |
+| LK auto-detect 0x81e0af60, cmdline 0x81e183b0 | `lcm=%1d-%s`: the digit is LK's DCS 0x0A read result, not the ID match. The name is the first driver of the list `[gc9503v, st7701]` (0x81e3821c) whose `lcm_compare_id` matched, else the last one, `st7701`. The owner's player reports `lcm=1-st7701…` on some boots and `lcm=0-st7701…` on soft restarts. *Corrected 2026-10-18 (after Beta 8.6): this row first said a failed read gives the last driver's name; a `gc9503v` name is a match with either digit (GC9503V compare 0x81e1eb60: DCS 0x04 = xx 95 03/04), see #45/#46.* |
 
 The first test build (6451) sent GC9503V commands to the owner's ST7701S at screen-on: white stripes. It was
 rolled back on the device, and the work below kept every step behind a switch.

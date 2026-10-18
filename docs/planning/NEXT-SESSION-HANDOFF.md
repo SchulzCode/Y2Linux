@@ -1,6 +1,17 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.6 (BASELINE 94) PUBLISHED — AUDIO PLAYBACK REVIEW.** Owner:
+> **START HERE (2026-10-18, latest): #45/#46 SECOND-PLAYER INVESTIGATION — PARSER FIX COMMITTED, UNRELEASED.** REA
+> fm-lk 0x81e0af60: LK's list is `[gc9503v, st7701]` (0x81e3821c); the `lcm=` name is the first driver whose
+> compare_id matched, else the last (st7701); the digit is a separate DCS 0x0A read. GC9503V compare (0x81e1eb60) only
+> matches DCS 0x04 = xx 95 03/04, so `lcm=0-gc9503v…` (samanz's boots) is a positive GC9503V ID that boot-policy.h
+> ignored. Fix: gc9503v with either digit, st7701 still only with `lcm=1-`; tests `test_power_policy` (mutation
+> caught), `test_power_final_27`; boot.o/panel.o W=1 clean; host 805 OK; 8.1 report row corrected. GC9503V power-down
+> stays opt-in (CONFIRMED_PANELS). Not done on purpose: "no power-down on a lag boot" — samanz's 7.10 run showed the
+> lag clears after the first screen-off (DIS domain power cycle). Hardware comparison (owner vs samanz): identical
+> except panel, eMMC model (FN62MB 2019 vs FNX2MB 2017, same CSD) and his 3.2.1 bootloaders (his LK hash unknown).
+> Replies on #45/#46 drafted, not posted (owner's OK). Ships with the next release.
+>
+> Previous entry: **START HERE (2026-10-18): Y2LINUX 1.0 BETA 8.6 (BASELINE 94) PUBLISHED — AUDIO PLAYBACK REVIEW.** Owner:
 > "publish as a new update, once you deem this good". Report `docs/validation/Y2-LINUX-1.0-BETA-8.6.md`, audits
 > AUDIO-REVIEW-8.5 and BETA-8.6; the owner's player runs test build 94 = this release (`/data/ota-94` deleted).
 > Next free label 95, sequence above 6800. Owed: battery current with a profile (USB unplugged), DAC Filter by ear,
