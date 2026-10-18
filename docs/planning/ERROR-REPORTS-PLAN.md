@@ -1,6 +1,6 @@
 # Error reports: opt-in reports from players to the maintainer
 
-Status 2026-10-18: **plan, owner-approved direction, nothing built.** Owner: "an error logger/reporter for users that
+Status 2026-10-18: **R2 (collector, scrubber, triggers, queue, CLI) built and host-tested; nothing uploads yet.** Owner: "an error logger/reporter for users that
 they can opt in. It should send me everything about the error and device, no personal information, over Wi-Fi
 HTTPS", then "go with the Cloudflare Worker … get as much information as possible … not only kernel level, also
 everything that happens in Reborn". Audit row ERROR-REPORTS in [roadmap-gap-audit](roadmap-gap-audit.md).
@@ -13,6 +13,7 @@ everything that happens in Reborn". Audit row ERROR-REPORTS in [roadmap-gap-audi
 | Content | **Scrubbed raw logs**: everything the player records (kernel, platform, recovery/update, Reborn), hardware IDs and live state, with personal data replaced (below). |
 | Sending | **Automatic + manual**: an error queues a report that uploads in the background over Wi-Fi; Settings has *Send Report Now*. Only after the user opted in. |
 | Linking | **Random install ID**, made on the player (never derived from a serial), shown in Settings and resettable. |
+| Asking | One question after the update, then the switch in Settings (see *Further decisions*). |
 
 ## What a report contains
 
@@ -162,9 +163,29 @@ install ID: a request on GitHub with the ID).
 | R6 | Device test with a test build (owner's OK): manual report, a provoked Reborn crash, an update failure from the test bench, upload to the deployed Worker, owner downloads | Device |
 | R7 | Release, `docs/ERROR-REPORTS.md`, readme | Release checks |
 
-## Open questions for the owner
+## Further decisions (owner, 2026-10-18: "yes to all")
 
-- A one-time question after updating ("Help improve Y2Linux by sending error reports?" Yes / No) or only the switch
-  in Settings.
-- Keep the maker part of MAC addresses (helps with Bluetooth headphone problems) — proposed yes.
-- 180 days retention — proposed.
+- Players ask once after updating to the release with error reports ("Help improve Y2Linux by sending error
+  reports?" Yes / No); the switch in Settings stays.
+- MAC addresses keep their maker part (first three bytes).
+- R2 keeps reports 180 days.
+
+## R2 results (2026-10-18)
+
+- `tools/platform/y2_platform/report.py`, `y2-platform report status|enable|disable|new-id|send [--topic]|check`,
+  `tests/test_error_reports.py` (in the release gate): planted canaries in every source (Wi-Fi, Bluetooth paired
+  and unpaired, Last.fm, SSH, eMMC/CPU/machine serials, volume ID, queue titles and paths, IPs, e-mail, URL token,
+  a file on the never-read list) never appear; removing any scrub layer fails the test (mutation-checked).
+  Evidence kept: panic text, Reborn events, MAC makers, the USB network, text after a music file, session settings,
+  library counts, hardware IDs. Budget cut, queue limits and every trigger tested. Host suite 813 OK.
+- Known-secret matching is one prefix-tree regex (an alternation of 2000 titles took 4 s per 200 KB; now
+  0.1–0.2 s per MB on the PC).
+- **Real data, owner's player (read-only, `/tmp` only, removed afterwards):** a full report takes **33 s** (nice 10),
+  5.7 MB raw → **≈390 KB** compressed, 162 sections, nothing cut. Harvested: 1 network, 5 Bluetooth names, the
+  Last.fm account, 5 serials, 184 queue strings. None of the owner's Wi-Fi name, Last.fm name, headphone address,
+  eMMC serial, home IPs, song/artist names, music paths or SD volume serial appears. Found and fixed on the way:
+  `ctx.glob` paths were re-rooted (Bluetooth names never harvested), the 128 KiB `ctx.json` limit hid the 311-song
+  session, the SD volume serial in Reborn's media source, an SSH key comment ("Y2Linux") blanking the product name.
+- Remaining "@"/"luca" hits are FFmpeg's `[flac @ 0x…]` prefixes and the build host in the kernel/FFmpeg version
+  strings (the maintainer's, part of the firmware).
+- Next: R3 (Worker), R4 (uploader + periodic `check` in the platform service).

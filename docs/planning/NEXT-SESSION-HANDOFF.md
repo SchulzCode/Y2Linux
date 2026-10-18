@@ -1,6 +1,14 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.7 (BASELINE 95) PUBLISHED — GC9503V IDENTIFIED FROM LK.** Owner:
+> **START HERE (2026-10-18, latest): ERROR REPORTS — PLAN + R2 BUILT (HOST), NOTHING UPLOADS YET.** Owner: opt-in
+> reporter with "everything" about the error and device, no personal data, Wi-Fi HTTPS; decisions: Cloudflare Worker
+> + R2 at `reports.schulzcode.dev` (home server reviewed: patched/UFW/fail2ban/key-only SSH, but LAN-only NPM with no
+> access lists — not to be exposed), scrubbed raw logs, automatic + Send Report Now, random install ID, one-time
+> question after the update, MAC maker kept, 180-day retention. Plan + R2 results:
+> [ERROR-REPORTS-PLAN](ERROR-REPORTS-PLAN.md), audit ERROR-REPORTS. Next: R3 Worker (`tools/reports/worker/`, owner
+> deploys with wrangler), R4 uploader + periodic check, R5 Reborn screens, R6 device test.
+>
+> Previous entry: **START HERE (2026-10-18): Y2LINUX 1.0 BETA 8.7 (BASELINE 95) PUBLISHED — GC9503V IDENTIFIED FROM LK.** Owner:
 > "publish the release also so i can update from OTA". Report `docs/validation/Y2-LINUX-1.0-BETA-8.7.md`, audit BETA-8.7;
 > release `1.0.0-beta.8.7`, sequence 6900, Linux `f7b4fb5`, Reborn `82fe089`. Owner installs by OTA (check: panel
 > path unchanged, `panel=st7701s` or record). Replies posted on #45/#46 (test steps, LK hash, jack answer). Next free
