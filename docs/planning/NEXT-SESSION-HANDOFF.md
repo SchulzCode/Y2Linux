@@ -1,6 +1,6 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.2 (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.2 (BASELINE 88) — FASTER UPDATES (OTA-50).** Owner: "can
+> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.2 (BASELINE 88) PUBLISHED — FASTER UPDATES (OTA-50).** Owner: "can
 > you give me the best solution, so multicore, the other stuff?" and chose to keep the verified package as the
 > rollback copy. Release `1.0.0-beta.8.2`, sequence 6501, Linux `1d463f6` (+ docs; code in `f9c1eae`), Reborn
 > `5aad5f1`; report `docs/validation/Y2-LINUX-1.0-BETA-8.2.md`, audit BETA-8.2, contract in

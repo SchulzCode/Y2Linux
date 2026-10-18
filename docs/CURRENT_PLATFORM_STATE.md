@@ -1,6 +1,6 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.2, Baseline 88 — 2026-10-18 (latest)
+## Y2Linux 1.0 Beta 8.2, Baseline 88 — 2026-10-18 (latest, published)
 
 Release `1.0.0-beta.8.2`, tag `baseline-88`, Linux `1d463f6`, Reborn `5aad5f1`, sequence 6501. Faster updates
 (OTA-50): the root payload is a segmented gzip that the recovery decodes, backs up and reads back on four cores,

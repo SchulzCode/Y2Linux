@@ -1,6 +1,6 @@
 # Y2Linux 1.0 Beta 8.2 (Baseline 88)
 
-Status: **built and device-checked; publishing as GitHub release `baseline-88`** (2026-10-18). Release
+Status: **PUBLISHED as GitHub release `baseline-88`** (2026-10-18), after the device check on the owner's player. Release
 `1.0.0-beta.8.2`, Reborn `1.0.0-beta.8.2` (identity only), kernel `6.18.56-y2linux-1.0.0-beta.8.2`, update
 sequence 6501, Linux `1d463f6`, Reborn `5aad5f1`. Built with `tools/production/release.py`: container suite
 **774 OK**, host suite 801 OK, update suite (`tests.test_platform_update`) 34 OK, also under ThreadSanitizer
