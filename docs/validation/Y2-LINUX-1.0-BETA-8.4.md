@@ -1,6 +1,6 @@
 # Y2Linux 1.0 Beta 8.4 (Baseline 90)
 
-Status: **publishing as GitHub release `baseline-90`** (2026-10-18). Release `1.0.0-beta.8.4`, Reborn
+Status: **PUBLISHED as GitHub release `baseline-90`** (2026-10-18). Release `1.0.0-beta.8.4`, Reborn
 `1.0.0-beta.8.4` (identity only), kernel `6.18.56-y2linux-1.0.0-beta.8.4`, update sequence 6700, Linux `c339919`,
 Reborn `000876f`. Built with `tools/production/release.py`: container suite **775 OK**, host suite 802 OK; all seal
 checks PASS, no MediaTek firmware in any image. **Not yet run on a player:** the owner installs it over the air.

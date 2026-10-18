@@ -1,6 +1,6 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.4 (BASELINE 90) — DARK DISPLAY AFTER A RESTART.** Owner:
+> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.4 (BASELINE 90) PUBLISHED — DARK DISPLAY AFTER A RESTART.** Owner:
 > "publish, I do OTA"; report `docs/validation/Y2-LINUX-1.0-BETA-8.4.md`, audit BETA-8.4. The 8.3 OTA's restart from the recovery came up dark and the health check rolled the install back.
 > Logs (`out/dsi-lag-2026-10-18/`, local): on the dark boot mm-clocks took **no** `holding SMI common/larb0` (the SMI
 > common gate was already closed at 0.36 s, before Lima), the handover logged `SMI gates 1 left closed by a restart`

@@ -1,6 +1,6 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.4, Baseline 90 — 2026-10-18 (latest)
+## Y2Linux 1.0 Beta 8.4, Baseline 90 — 2026-10-18 (latest, published)
 
 Release `1.0.0-beta.8.4`, tag `baseline-90`, Linux `c339919`, Reborn `000876f`, sequence 6700. The dark display
 after a restart (the 8.3 OTA rolled back for it) is the leftover closed SMI gate of POWER-FINAL-40: no SMI hold at
