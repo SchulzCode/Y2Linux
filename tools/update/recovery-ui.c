@@ -8,6 +8,7 @@
  */
 #define _GNU_SOURCE
 #include <fcntl.h>
+#include <limits.h>
 #include <poll.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -285,8 +286,23 @@ static uint64_t now_ms(void) {
     clock_gettime(CLOCK_MONOTONIC, &t);
     return (uint64_t)t.tv_sec * 1000 + (uint64_t)t.tv_nsec / 1000000;
 }
-/* Remaining time from the average rate so far; rounded up to whole minutes so
- * the line does not flicker, and only once there is enough to go on. */
+/* The installer's own estimate (OTA-50: "<percent> <step> <seconds>"), in
+ * fives under a minute like Reborn's download screen. */
+static unsigned rounded_left(unsigned seconds) {
+    return seconds < 10 ? 0 : seconds < 60 ? (seconds + 2) / 5 * 5 : (seconds + 30) / 60 * 60;
+}
+static void seconds_left(char *out, size_t cap, unsigned rounded) {
+    if (rounded < 10)
+        snprintf(out, cap, "A few seconds left");
+    else if (rounded < 60)
+        snprintf(out, cap, "About %u seconds left", rounded);
+    else if (rounded < 120)
+        snprintf(out, cap, "About a minute left");
+    else
+        snprintf(out, cap, "About %u min left", rounded / 60);
+}
+/* Without the installer's estimate (an older core): the average rate so far,
+ * rounded up to whole minutes, once there is enough to go on. */
 static void time_left(char *out, size_t cap, unsigned percent, uint64_t elapsed_ms) {
     if (percent >= 100) {
         out[0] = 0;
@@ -318,26 +334,44 @@ int main(void) {
     if (!ready)
         return 1;
     char screen[1024] = {0}, progress[64] = {0}, last_screen[1024] = {1}, last_progress[64] = {1};
-    char line[40] = {0}, last_line[40] = {1};
+    char line[40] = {0}, last_line[40] = {1}, reported_line[64] = {0};
     bool shown = false;
-    uint64_t started = 0, refreshed = 0;
-    unsigned phase = 0;
+    uint64_t started = 0, refreshed = 0, reported_at = 0;
+    unsigned phase = 0, reported = 0, displayed = UINT_MAX;
     for (;;) {
         if (!slurp("/run/y2/recovery-screen", screen, sizeof(screen)))
             screen[0] = 0;
         if (!slurp("/run/y2/recovery-progress", progress, sizeof(progress)))
             progress[0] = 0;
-        unsigned percent = 0;
-        bool running = sscanf(progress, "%u", &percent) == 1 && percent < 100;
+        unsigned percent = 0, seconds = 0;
+        char step[32];
+        int fields = sscanf(progress, "%u %31s %u", &percent, step, &seconds);
+        bool running = fields >= 1 && percent < 100;
         uint64_t now = now_ms();
         if (running && !started)
             started = now;
-        /* The estimate changes at most every three seconds. */
-        if (running && now - refreshed >= 3000) {
+        if (running && fields == 3) {
+            /* Count down between the installer's reports; the shown value
+             * only goes up when the estimate grew by ten seconds or more. */
+            if (strcmp(progress, reported_line)) {
+                snprintf(reported_line, sizeof(reported_line), "%s", progress);
+                reported = seconds;
+                reported_at = now;
+            }
+            uint64_t gone = (now - reported_at) / 1000;
+            unsigned left = gone < reported ? reported - (unsigned)gone : 1;
+            unsigned r = rounded_left(left);
+            if (displayed == UINT_MAX || r < displayed || r >= displayed + 10)
+                displayed = r;
+            seconds_left(line, sizeof(line), displayed);
+        } else if (running && now - refreshed >= 3000) {
+            /* The estimate changes at most every three seconds. */
             time_left(line, sizeof(line), percent, now - started);
             refreshed = now;
-        } else if (!running)
+        } else if (!running) {
             line[0] = 0;
+            displayed = UINT_MAX;
+        }
         bool changed = strcmp(screen, last_screen) || strcmp(progress, last_progress) ||
                        strcmp(line, last_line);
         if (changed || running) {

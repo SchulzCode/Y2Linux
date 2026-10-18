@@ -239,25 +239,98 @@ static bool text_is(const char *name, const char *want) {
     char buf[256];
     return readtext(name, buf, sizeof(buf)) && !strcmp(buf, want);
 }
+/* Time left (OTA-50). A run has a plan of its phases (the names timing()
+ * records), each with a modelled duration from the owner's player (Beta 8.2)
+ * scaled by the bytes involved. Finished phases rescale the rest by how fast
+ * they really were (another eMMC, a busier CPU); inside a phase with byte
+ * progress its own rate takes over. The bar then moves with time rather than
+ * with fixed shares per step, and the line carries the seconds left. */
+#define PLAN_PHASES 8
+struct plan_phase {
+    const char *name;
+    uint64_t model_ms;
+};
+static struct {
+    struct plan_phase phase[PLAN_PHASES];
+    unsigned count, current, last_percent;
+    uint64_t started_ms, bytes_ms, done_model_ms, done_ms;
+    double fraction;   /* of the current phase's bytes since bytes_ms, < 0 when none */
+} plan;
+static uint64_t mono_ms(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (uint64_t)t.tv_sec * 1000 + (uint64_t)t.tv_nsec / 1000000;
+}
+static void plan_add(const char *name, uint64_t model_ms) {
+    if (plan.count == 0)
+        plan.started_ms = mono_ms();
+    if (plan.count < PLAN_PHASES)
+        plan.phase[plan.count++] = (struct plan_phase){name, model_ms ? model_ms : 1};
+    plan.fraction = -1;
+}
+/* timing() closes a phase: the plan moves on when it was the current one. */
+static void plan_finish(const char *name) {
+    if (plan.current >= plan.count || strcmp(plan.phase[plan.current].name, name))
+        return;
+    uint64_t now = mono_ms();
+    plan.done_model_ms += plan.phase[plan.current].model_ms;
+    plan.done_ms += now - plan.started_ms;
+    plan.started_ms = now;
+    plan.current++;
+    plan.fraction = -1;
+}
+/* Milliseconds left and percent done (time-weighted, never backwards). */
+static uint64_t plan_left(unsigned *percent) {
+    uint64_t now = mono_ms(), elapsed = now - plan.started_ms, streaming = now - plan.bytes_ms, left = 0;
+    double scale = plan.done_model_ms ? (double)plan.done_ms / (double)plan.done_model_ms : 1.0;
+    scale = scale < 0.5 ? 0.5 : scale > 3.0 ? 3.0 : scale;
+    if (plan.current < plan.count) {
+        double model = (double)plan.phase[plan.current].model_ms * scale, current;
+        if (plan.fraction > 0.02 && streaming >= 300)
+            current = (double)streaming * (1.0 - plan.fraction) / plan.fraction;
+        else
+            current = model > (double)elapsed ? model - (double)elapsed : model * 0.05;
+        left = (uint64_t)current;
+        for (unsigned i = plan.current + 1; i < plan.count; i++)
+            left += (uint64_t)((double)plan.phase[i].model_ms * scale);
+    }
+    uint64_t done = plan.done_ms + elapsed;
+    unsigned p = (unsigned)(done * 100 / (done + left + 1));
+    p = p > 99 ? 99 : p;
+    if (p < plan.last_percent)
+        p = plan.last_percent;
+    plan.last_percent = p;
+    *percent = p;
+    return left;
+}
 /* Progress for the recovery screen, and (OTA-48) for the normal system's
- * download check that Reborn shows: "<percent> <step>". Best effort. Each new
- * recovery step is also logged to the kernel log, whose timestamps time the
- * install. */
+ * download check that Reborn shows: "<percent> <step>", with a plan also the
+ * seconds left. Best effort. Each new recovery step is also logged to the
+ * kernel log, whose timestamps time the install. */
 static const char *progress_step;
 static const char *progress_name;
+static unsigned progress_shown_s = UINT_MAX;
 static void progress(unsigned percent, const char *step) {
     if (!progress_name)
         return;
+    bool planned = plan.count && percent < 100;
+    uint64_t left = planned ? plan_left(&percent) : 0;
+    unsigned seconds = (unsigned)((left + 999) / 1000);
     if (recovery_env && (!progress_step || strcmp(progress_step, step))) {
         progress_step = step;
         int log = open(path("/dev/kmsg"), O_WRONLY | O_APPEND | O_CLOEXEC);
         if (log >= 0) {
-            dprintf(log, "<6>Y2RECOVERY step=%s percent=%u\n", step, percent);
+            if (planned)
+                dprintf(log, "<6>Y2RECOVERY step=%s percent=%u left=%us\n", step, percent, seconds);
+            else
+                dprintf(log, "<6>Y2RECOVERY step=%s percent=%u\n", step, percent);
             close(log);
         }
     }
+    progress_shown_s = planned ? seconds : UINT_MAX;
     char buf[64];
-    int n = snprintf(buf, sizeof(buf), "%u %s\n", percent > 100 ? 100 : percent, step);
+    int n = planned ? snprintf(buf, sizeof(buf), "%u %s %u\n", percent, step, seconds)
+                    : snprintf(buf, sizeof(buf), "%u %s\n", percent > 100 ? 100 : percent, step);
     char tmp[64];
     snprintf(tmp, sizeof(tmp), "%s.tmp", progress_name);
     int fd = open(path(tmp), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
@@ -275,6 +348,8 @@ static struct {
     uint64_t total;
 } prog;
 static void progress_span(const char *step, unsigned base, unsigned span, uint64_t total) {
+    plan.fraction = -1;
+    plan.bytes_ms = mono_ms();
     prog.step = step;
     prog.base = base;
     prog.span = span;
@@ -285,6 +360,15 @@ static void progress_span(const char *step, unsigned base, unsigned span, uint64
 static void progress_bytes(uint64_t done) {
     if (!prog.step || !prog.total)
         return;
+    if (plan.count) {
+        /* Rewritten when the percent or the seconds left change. */
+        plan.fraction = (double)(done > prog.total ? prog.total : done) / (double)prog.total;
+        unsigned p, before = plan.last_percent;
+        unsigned seconds = (unsigned)((plan_left(&p) + 999) / 1000);
+        if (p != before || seconds != progress_shown_s)
+            progress(p, prog.step);
+        return;
+    }
     unsigned p = prog.base + (unsigned)((done > prog.total ? prog.total : done) * prog.span / prog.total);
     if (p != prog.last) {
         prog.last = p;
@@ -1088,7 +1172,10 @@ static json_object *verify(int package, int check, int64_t installed_sequence, b
             goto fail;
     } else if (check == 1) {
         unsigned char *mem = image_buffer();
-        /* The root is nearly all of the decoding work. */
+        /* The root is nearly all of the decoding work; its own rate gives the
+         * seconds left (one core in the normal system: about 8 s). */
+        memset(&plan, 0, sizeof(plan));
+        plan_add("check", 8000);
         progress_span("check", 0, 96, (uint64_t)num(payload(m, ROOT), "raw_bytes"));
         bool ok = mem && check_payload(package, m, ROOT, NULL) && check_payload(package, m, BOOT, mem) &&
                   (!payload(m, RECOVERY) || check_payload(package, m, RECOVERY, mem));
@@ -1389,6 +1476,8 @@ static struct timespec phase_start;
 static void timing(json_object *j, const char *phase) {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
+    if (phase)
+        plan_finish(phase);
     if (phase) {
         json_object *t = field(j, "timings");
         if (!t) {
@@ -1601,6 +1690,30 @@ static void kept_check(json_object *j) {
         json_object_put(compat);
     error_text[0] = 0;
 }
+/* The plans (see plan_add), in milliseconds per MiB from the owner's player:
+ * hashing 30 per encoded MiB, live-root backup 21, write 10, readback 7.5. */
+static void plan_install(json_object *j, int root) {
+    unsigned char header[4096];
+    struct stat st;
+    uint64_t raw = pread(root, header, sizeof(header), 0) == sizeof(header) ? root_bytes(header) : 0;
+    uint64_t mib = (raw ? raw : 512ULL << 20) >> 20;
+    uint64_t encoded = fstatat(basefd, "pending/rootfs.ext4.gz", &st, AT_SYMLINK_NOFOLLOW) ? mib / 12
+                                                                                           : (uint64_t)st.st_size >> 20;
+    memset(&plan, 0, sizeof(plan));
+    plan_add("verify", 300 + encoded * 30);
+    plan_add("backup_root", *str(j, "kept_manifest_sha256") ? 300 : mib * 21);
+    plan_add("backup_boot", 1700);
+    plan_add("system", mib * 10);
+    plan_add("check", mib * 15 / 2);
+    plan_add("boot", 800);
+}
+static void plan_restore(json_object *r) {
+    uint64_t mib = (uint64_t)num(r, "raw_bytes") >> 20, encoded = (uint64_t)num(r, "bytes") >> 20;
+    memset(&plan, 0, sizeof(plan));
+    plan_add("restore", 800 + encoded * 30 + mib * 10);
+    plan_add("restore_check", mib * 15 / 2);
+    plan_add("restore_boot", 800);
+}
 /* recovery: the kept root is hashed on its own core while verify() hashes
  * the new package; kept_backup() takes the result. */
 static struct digest_job kept_hash;
@@ -1688,6 +1801,7 @@ static bool restore(int root, int disk, unsigned char *mem, json_object *j, cons
     json_object *saved = field(j, "backup"), *r = field(saved, "root"), *b = field(saved, "bootimg");
     if (!r || !b)
         return failure("no verified backup");
+    plan_restore(r);
     progress(2, "restore");
     int rf = openfile(basefd, "previous.ext4.gz", O_RDONLY, 0);
     int bf = rf >= 0 ? openfile(basefd, "previous-bootimg.gz", O_RDONLY, 0) : -1;
@@ -1833,6 +1947,7 @@ static bool recover(json_object *j) {
         goto done;
     }
     kept_prefetch(j);
+    plan_install(j, root);
     int pkg = openat(basefd, "pending", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
     json_object *m = pkg >= 0 ? verify(pkg, 2, num(j, "previous_sequence"), false) : NULL;
     timing(j, "verify");

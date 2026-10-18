@@ -264,9 +264,16 @@ class UpdateTests(unittest.TestCase):
         changed = self.journal()['root_bytes_written']
         self.assertGreater(changed, 0)
         self.assertLess(changed, len(self.new) // 4)     # only the chunks that differ
-        steps = [line.split()[1] for line in (self.root/'dev/kmsg').read_text().splitlines()]
+        lines = (self.root/'dev/kmsg').read_text().splitlines()
+        steps = [line.split()[1] for line in lines]
         self.assertEqual(steps, ['step=verify', 'step=backup', 'step=system', 'step=check',
                                  'step=boot', 'step=installed'])
+        # OTA-50: each step but the last carries the installer's estimate,
+        # which only falls here (a small root: every phase beats its model).
+        left = [int(line.split('left=')[1].rstrip('s')) for line in lines[:-1]]
+        self.assertEqual(left, sorted(left, reverse=True))
+        self.assertTrue(all(1 <= s <= 10 for s in left), left)
+        self.assertNotIn('left=', lines[-1])
         # Installing the same release again (development reinstall, as the device
         # test package) writes nothing and still reads back.
         self.write('run/y2/application-ready.json', {'boot_id': 'new-1'})

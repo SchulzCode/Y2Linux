@@ -127,7 +127,7 @@ charger_online() {
 
 y2_stage recovery
 recovery_data_mounted=
-recovery_screen 'Installing Update' "Don't turn off the player." 'This takes 1-2 minutes.'
+recovery_screen 'Installing Update' "Don't turn off the player." 'This takes less than a minute.'
 [ -x /sbin/y2-recovery-ui ] && /sbin/y2-recovery-ui &
 recovery_log "$(cat /sys/firmware/y2_boot/metadata 2>/dev/null)"
 echo 1 > /sys/firmware/y2_boot/normal_boot || recovery_stuck 'Storage did not start'
@@ -169,7 +169,7 @@ while :; do
     done
     # Always off here: a restart would come straight back and drain the battery.
     charger_online || { recovery_screen 'Battery too low' 'Charge the player, then' 'press Power to continue.'; recovery_restart=; recovery_off 10; }
-    recovery_screen 'Installing Update' "Don't turn off the player." 'This takes 1-2 minutes.'
+    recovery_screen 'Installing Update' "Don't turn off the player." 'This takes less than a minute.'
 done
 
 case "$outcome" in
