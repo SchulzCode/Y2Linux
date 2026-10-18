@@ -1,6 +1,6 @@
 # Y2Linux 1.0 Beta 8.0 (Baseline 75)
 
-Status: **built, installed on the owner's player, device check passed; publication at the owner's word.** Release
+Status: **PUBLISHED as GitHub release `baseline-75`** (2026-10-18), after the device check on the owner's player. Release
 `1.0.0-beta.8.0`, Reborn `1.0.0-beta.8.0`, kernel `6.18.56-y2linux-1.0.0-beta.8.0`, update sequence 6400, Linux
 `662ff11`, Reborn `1b3a5c1`. Built with `tools/production/release.py` in 100 s on top of Baseline 74: container suite
 **767 OK**, all seal checks PASS, no MediaTek firmware in any image. The fixes come from the 1.0 review

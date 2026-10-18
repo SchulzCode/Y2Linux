@@ -1,6 +1,6 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.0 (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.0 (BASELINE 75) — 1.0 REVIEW FIXES.** Owner: "fix it all and
+> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.0 (BASELINE 75) PUBLISHED — 1.0 REVIEW FIXES.** Owner: "fix it all and
 > publish a new release beta 8.0". Release `1.0.0-beta.8.0`, sequence 6400, Linux `662ff11` (+ docs), Reborn `1b3a5c1`,
 > report `docs/validation/Y2-LINUX-1.0-BETA-8.0.md`, audit BETA-8.0. Installed on the owner's player by OTA and
 > acknowledged; the broken-song case (B3) checked on the device. The review itself:

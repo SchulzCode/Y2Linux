@@ -1,6 +1,6 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.0, Baseline 75 — 2026-10-18 (latest)
+## Y2Linux 1.0 Beta 8.0, Baseline 75 — 2026-10-18 (latest, published)
 
 Release `1.0.0-beta.8.0`, tag `baseline-75`, Linux `662ff11`, Reborn `1b3a5c1`, sequence 6400. Fixes from the 1.0
 review: one unreadable song no longer rolls an update back or stops pruning (B3/B4), SD cards whose check is slow mount
