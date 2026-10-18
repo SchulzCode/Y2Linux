@@ -46,11 +46,26 @@ Docs: [platform OTA v2](../architecture/platform-ota-v2.md), [Recovery and updat
 - The queue's decoding check (before the restart) took 7.6 s instead of 15.8 s.
 - The readback (check) is bound by the eMMC: 512 MiB ≈ 3.7 s.
 
+## After publishing: rollback from a kept package, and the 3.2 s verify (2026-10-18)
+
+**Owner rollback on the player** (`y2-platform update rollback` on 6501, whose rollback copy was 6500's kept
+package, `source: package`): command at 15:41:35, player back on 6500 and healthy at 15:42:44 (69 s). Recovery
+log: `restore` 1.85 s → `check` 9.27 s → `restore` (BOOTIMG) 13.22 s → `restored` 14.01 s, i.e. both backups
+checked and the root written in 7.4 s (four-core decode, 128 KiB compare), readback 3.9 s, BOOTIMG 0.8 s.
+Journal `RolledBack`, `accepted.json` `current_sequence` 6500 (high-water mark stays 6501), Reborn `healthy`,
+panel power-down armed. 6501's package stays in `current/` and is dropped by the next queue (not the running
+release). Logs: `out/ota50-rollback-88/{before,after}` (local).
+
+**Why verify took 3.2 s:** not the verify. In `backup()` the kept-package check (signature, SHA-256 of the
+41.8 MB root, rename) ran before `step=backup` was logged, so its time counted under *verify*, and *backup
+1.8 s* was the BOOTIMG backup alone. Measured on the player: cold read of the kept root 0.31 s, SHA-256 0.93 s,
+one after the other. Fixed after the release (Linux `9c7dae7`, not yet in a release): the backup step is logged
+where it starts, the kept root is hashed on its own core while verify hashes the new package (its three payloads
+now in parallel too), and every install and restore phase records its milliseconds in the journal (`timings`).
+
 ## Known gaps
 
-- A rollback *from a kept package* ran only in the host tests (restore of the kept root, fallbacks for another
-  build, a changed payload, a broken index); on the device the rollback path itself is unchanged since 8.0.
-- The verify step took 3.2 s on the second install against 1.8 s on the first; not investigated.
+- The parallel hashing of `9c7dae7` is host-tested only (34 tests, ThreadSanitizer, AddressSanitizer/UBSan).
 - Unchanged from 8.1: the sleep drain with the panel powered down is not measured yet (#42); the GC9503V
   panel path awaits a GC9503V owner (#45).
 - `tests.test_platform_update` is not part of the container release gate (as before); it ran on the host.

@@ -8688,7 +8688,7 @@ builds 87 (6500) and 88 (6501) installed by OTA on the owner's player.
 | Segmented root payload | DEVICE-CONFIRMED | Queued by Beta 8.1's core; decoded on four threads by the new recovery |
 | Four-core backup / readback | DEVICE-CONFIRMED | 8.1 → 6500: backup 12.5 s, check 3.9 s, acknowledged |
 | Kept package as rollback copy | DEVICE-CONFIRMED (install) | 6500 → 6501: backup 1.8 s, `source: package`, acknowledged |
-| Rollback from a kept package | HOST-TESTED | Restore, fallbacks and broken index in `tests.test_platform_update` (also TSan/ASan) |
+| Rollback from a kept package | DEVICE-CONFIRMED (after publishing) | Owner rollback 6501 → 6500 from the kept package: 12.2 s in the recovery, `RolledBack`, healthy |
 | Space | CHECKED | `/data/updates` ≈ 87 MB; kept package removed last by the cleanup |
 | Sleep drain with panel power-down | OWED (from 8.1) | One overnight sleep on battery (#42) |
 | FM radio | ON BRANCH | |
