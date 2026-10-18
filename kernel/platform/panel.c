@@ -227,6 +227,12 @@ MODULE_PARM_DESC(stock_suspend, "screen-off uses the stock GC9503V power-down se
  * again leaves the panel lit at the next screen-off. */
 static bool power_down;
 module_param(power_down, bool, 0644);
+/* The platform's record of this player's panel (1 GC9503V, 2 ST7701S), used
+ * only when LK could not identify it this boot: on soft restarts LK's DCS read
+ * fails and it reports lcm=0- with its last driver's name (fm-lk 0x81e0af60). */
+static int panel_hint;
+module_param(panel_hint, int, 0644);
+MODULE_PARM_DESC(panel_hint, "panel recorded on an identified boot: 1 GC9503V, 2 ST7701S (0 none)");
 MODULE_PARM_DESC(power_down, "screen-off powers the panel down; off keeps the lit LK panel (as before #45)");
 
 static inline struct gc9503v *to_gc9503v(struct drm_panel *panel)
@@ -282,6 +288,14 @@ static int gc9503v_identify(struct gc9503v *ctx)
 		return -ENODEV;
 	}
 #endif
+	switch (READ_ONCE(panel_hint)) {
+	case Y2LCM_GC9503V:
+	case Y2LCM_ST7701S:
+		ctx->kind = READ_ONCE(panel_hint);
+		dev_info(&ctx->dsi->dev, "panel %s from the platform's record (LK did not identify it this boot)\n",
+			 ctx->kind == Y2LCM_ST7701S ? "ST7701S" : "GC9503V");
+		return 0;
+	}
 	ret = mipi_dsi_set_maximum_return_packet_size(ctx->dsi, sizeof(id));
 	if (!ret)
 		ret = mipi_dsi_dcs_read(ctx->dsi, MIPI_DCS_GET_DISPLAY_ID, id, sizeof(id));

@@ -291,10 +291,47 @@ class Switches(unittest.TestCase):
                 apply(ctx)
                 self.assertEqual(param.read_text(), expected, metadata)
                 override = ctx.path('/data/system/platform/power-features.json')
-                override.parent.mkdir(parents=True)
+                override.parent.mkdir(parents=True, exist_ok=True)
                 override.write_text(json.dumps({'panel_power_down': expected == 'N'}))
                 apply(ctx)
                 self.assertEqual(param.read_text(), 'Y' if expected == 'N' else 'N', metadata)
+
+    def test_the_panel_is_remembered_for_boots_lk_cannot_identify(self):
+        # fm-lk 0x81e0af60: lcm=%1d is LK's "read 0x0A succeeded" flag; on a failed
+        # read the name is its last driver (st7701). Only lcm=1- is trusted; it is
+        # recorded on Y2DATA and handed to the kernel (panel_hint) on lcm=0 boots.
+        from y2_platform.common import Context
+        from y2_platform.power_features import apply
+        with tempfile.TemporaryDirectory() as temp:
+            ctx = Context(temp)
+            params = ctx.path('/sys/module/panel/parameters')
+            params.mkdir(parents=True)
+            (params / 'power_down').write_text('N')
+            (params / 'panel_hint').write_text('0')
+            meta = ctx.path('/sys/firmware/y2_boot/metadata')
+            meta.parent.mkdir(parents=True)
+            lcm = ctx.path('/sys/firmware/y2_boot/lcm')
+            def boot(panel, token):
+                meta.write_text('valid=1 boot_mode=0 boot_reason=4 offline=0 recovery_image=0 panel=%s\n' % panel)
+                lcm.write_text(token + '\n')
+                (params / 'power_down').write_text('N')
+                (params / 'panel_hint').write_text('0')
+                apply(ctx)
+                return (params / 'power_down').read_text(), (params / 'panel_hint').read_text()
+            # No record yet and LK could not read the panel: stays lit.
+            self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('N', '0'))
+            # An identified boot records it; LK itself identifies, no hint needed.
+            self.assertEqual(boot('st7701s', 'lcm=1-st7701_hvga_dsi_vdo_boe'), ('Y', '0'))
+            self.assertEqual(ctx.json('/data/system/platform/panel.json')['panel'], 'st7701s')
+            # A soft restart uses the record.
+            self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('Y', '2'))
+            # A GC9503V record is handed over but not armed by default.
+            self.assertEqual(boot('gc9503v', 'lcm=1-gc9503v_hvga_dsi_vdo_hsd'), ('N', '0'))
+            self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('N', '1'))
+        source = StockPanelSuspend.source[StockPanelSuspend.source.index('static int gc9503v_identify('):]
+        source = source[:source.index('\n}\n')]
+        # LK's identification always wins; the record only fills a boot LK could not read.
+        self.assertLess(source.index('switch (y2_boot_panel())'), source.index('switch (READ_ONCE(panel_hint))'))
 
     def test_sleep_rows_record_both(self):
         diagnostics = (ROOT / 'tools/platform/y2_platform/sleep_diagnostics.py').read_text()

@@ -8,6 +8,7 @@ over. The owner keeps a feature off for an A/B night with
 A failure is recorded and never blocks boot, sleep or the UI.
 """
 # SPDX-License-Identifier: GPL-2.0-only
+import os
 from .common import atomic_json
 
 OVERRIDE = '/data/system/platform/power-features.json'
@@ -46,11 +47,39 @@ FEATURES = {
 CONFIRMED_PANELS = {'st7701s'}
 
 
+PANEL_RECORD = '/data/system/platform/panel.json'
+PANEL_HINT = '/sys/module/panel/parameters/panel_hint'
+PANEL_HINTS = {'gc9503v': 1, 'st7701s': 2}
+
+
 def panel(ctx):
-    """The panel LK identified (y2_boot/metadata panel=), or None."""
+    """This player's panel: LK's identification (y2_boot/metadata panel=, only from
+    lcm=1-, i.e. LK could read the panel), recorded on Y2DATA; on boots where LK
+    could not (soft restarts report lcm=0- with a fallback name), the record.
+    The kernel gets the record as panel_hint; it never overrides LK."""
+    lk = None
     for field in (ctx.read('/sys/firmware/y2_boot/metadata') or '').split():
         if field.startswith('panel='):
-            return field[len('panel='):]
+            lk = field[len('panel='):]
+    record = ctx.json(PANEL_RECORD, {})
+    record = record if isinstance(record, dict) else {}
+    if lk in PANEL_HINTS:
+        if record.get('panel') != lk:
+            try:
+                path = ctx.path(PANEL_RECORD)
+                path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                atomic_json(path, {'schema': 1, 'panel': lk, 'lcm': ctx.read('/sys/firmware/y2_boot/lcm')},
+                            durable=True)
+            except OSError:
+                pass
+        return lk
+    remembered = record.get('panel')
+    if remembered in PANEL_HINTS:
+        try:
+            ctx.path(PANEL_HINT).write_text(str(PANEL_HINTS[remembered]))
+        except OSError:
+            return None
+        return remembered
     return None
 
 
