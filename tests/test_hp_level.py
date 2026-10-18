@@ -150,5 +150,15 @@ int main(void) {
         self.assertLess(measure.index('cs43130_imp_meas(&cs43130->work);'), measure.index('y2_hp_level_write(cs43130);'))
 
 
+class ShippedProfiles(unittest.TestCase):
+    def test_image_installs_the_autoeq_profiles_with_their_license(self):
+        from pathlib import Path
+        mk = (Path(__file__).resolve().parents[1] / 'buildroot/package/reborn/reborn.mk').read_text()
+        self.assertIn('cp -a $(@D)/assets/eq/. $(TARGET_DIR)/usr/share/reborn/eq/', mk)
+        self.assertLess(mk.index('rm -rf $(TARGET_DIR)/usr/share/reborn/eq'),
+                        mk.index('cp -a $(@D)/assets/eq/.'))
+        self.assertIn('assets/eq/LICENSE-AutoEq.txt', mk.split('REBORN_LICENSE_FILES =', 1)[1].splitlines()[0])
+
+
 if __name__ == '__main__':
     unittest.main()

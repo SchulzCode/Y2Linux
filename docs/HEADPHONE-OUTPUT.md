@@ -42,8 +42,10 @@ table tops out at −3 dB, so the stock maximum is about 0.71 Vrms.
 - **DAC Filter** (Settings → Sound → Output): Fast (default, the chip's and stock's), Fast Phase Compensated, Slow, Slow Phase
   Compensated, Nonoversampling. These are the upstream controls `PCM Filter Speed`, `PCM Phase Compensation` and `PCM
   Nonoversample Emulate`, applied at once.
-- **Headphone Profile** (Settings → Sound → Equalizer → Headphone Profile): put AutoEQ `ParametricEQ.txt` files in a
-  folder named `EQ` on Internal Storage or the SD card. Up to 10 filters: PK (peaking), LSC (low shelf) and HSC (high
+- **Headphone Profile** (Settings → Sound → Equalizer → Headphone Profile): 47 AutoEQ profiles of common headphones
+  and IEMs come with the image (`/usr/share/reborn/eq`, Reborn `assets/eq/SOURCES.md`, MIT). More: put AutoEQ
+  `ParametricEQ.txt` files in a folder named `EQ` on Internal Storage or the SD card; a file there replaces a
+  shipped profile of the same name. Up to 10 filters: PK (peaking), LSC (low shelf) and HSC (high
   shelf), with Q. These are the RBJ cookbook biquads that Equalizer APO and AutoEQ use, played by FFmpeg's
   `equalizer`, `lowshelf` and `highshelf`. The preamp is the file's own, or lower when the filters' combined response
   still rises above 0 dB between 10 Hz and Nyquist (AutoEQ's HD 650 file says −6.1 dB; Reborn uses −6.4 dB). The
