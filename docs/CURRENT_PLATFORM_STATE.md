@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.0, Baseline 75 — 2026-10-18 (latest, published)
+## Y2Linux 1.0 Beta 8.1, Baseline 86 — 2026-10-18 (latest)
+
+Release `1.0.0-beta.8.1`, tag `baseline-86`, Linux `78220dc`, Reborn `a558870`, sequence 6463. The panel finally
+powers down at screen-off (#45): the Y2 ships with a GC9503V or an ST7701S panel (stock kernel and LK, REA); Y2Linux
+identifies it (LK's `lcm=1-`, the stock ID reads, a Y2DATA record) and uses the stock init and power-down. On by
+default for the ST7701S (owner's player, confirmed), opt-in for the GC9503V. Sleep effect not measured yet.
+Details: [Beta 8.1 report](validation/Y2-LINUX-1.0-BETA-8.1.md).
+
+## Y2Linux 1.0 Beta 8.0, Baseline 75 — 2026-10-18 (published)
 
 Release `1.0.0-beta.8.0`, tag `baseline-75`, Linux `662ff11`, Reborn `1b3a5c1`, sequence 6400. Fixes from the 1.0
 review: one unreadable song no longer rolls an update back or stops pruning (B3/B4), SD cards whose check is slow mount

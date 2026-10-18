@@ -8660,3 +8660,19 @@ Real-hardware evidence: OTA install of 6400 on the owner's player.
 
 **Gate decision:** READY for **Y2Linux 1.0.0-beta.8.0 / Reborn 1.0.0-beta.8.0** (Baseline 75, sequence 6400) at the
 owner's word.
+
+## BETA-8.1 (Baseline 86) panel power-down: milestone gap audit — 2026-10-18
+
+**Boundary:** owner: "answer the issues ... and publish beta 8.1". Display driver behaviour change (#45) and a
+newly found hardware variant (two panel types). Real-hardware evidence: test builds 6450–6463 on the owner's
+player (ST7701S).
+
+| Area | State for Beta 8.1 | Evidence / gap |
+| --- | --- | --- |
+| Panel identification | DEVICE-CONFIRMED (ST7701S) | `0xa1 = 88` on every boot, LK `lcm=0`/`lcm=1` both handled |
+| ST7701S power-down + stock init | DEVICE-CONFIRMED | 6456: two power-downs, two full inits, picture normal |
+| GC9503V power-down + init | OFF BY DEFAULT | Stock packet types not yet run on hardware; reporter asked to test (#45) |
+| Sleep drain effect | OWED | One overnight sleep on battery |
+| FM radio | ON BRANCH | |
+
+**Gate decision:** READY for **Y2Linux 1.0.0-beta.8.1** (Baseline 86, sequence 6463) at the owner's word (given).

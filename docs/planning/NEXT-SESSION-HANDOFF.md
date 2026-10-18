@@ -1,6 +1,16 @@
-# Next-session handoff — Y2Linux 1.0 Beta 8.0 (latest entry first; started 2026-10-09 as the deep-sleep continuation)
+# Next-session handoff — Y2Linux 1.0 Beta 8.1 (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.0 (BASELINE 75) PUBLISHED — 1.0 REVIEW FIXES.** Owner: "fix it all and
+> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.1 (BASELINE 86) — PANEL POWER-DOWN (#45), TWO PANEL TYPES.**
+> Release `1.0.0-beta.8.1`, sequence 6463, Linux `78220dc` (+ docs), Reborn `a558870`; report
+> `docs/validation/Y2-LINUX-1.0-BETA-8.1.md`, audit BETA-8.1. The owner's player has the **ST7701S** panel (LK and
+> the stock 0xA1 ID read); the GC9503V path is opt-in until the #45 reporter confirms it. Baselines 76–85 were test
+> builds (6450–6462). Owed: one overnight sleep on battery for the drain (#42); the reporter's GC9503V test.
+> Lessons: test builds 6451 (GC9503V commands on an ST7701S: white stripes) and 6452 (stale object after a revert,
+> fixed in `tools/build/run.py`). A rollback restores the *previous install*, not the last published release.
+> Update-speed idea (owner asked): the installer's backup step takes 31 of 53 s; keep the verified package as the
+> rollback copy, or compress on four cores.
+>
+> Previous entry: **START HERE (2026-10-18): Y2LINUX 1.0 BETA 8.0 (BASELINE 75) PUBLISHED — 1.0 REVIEW FIXES.** Owner: "fix it all and
 > publish a new release beta 8.0". Release `1.0.0-beta.8.0`, sequence 6400, Linux `662ff11` (+ docs), Reborn `1b3a5c1`,
 > report `docs/validation/Y2-LINUX-1.0-BETA-8.0.md`, audit BETA-8.0. Installed on the owner's player by OTA and
 > acknowledged; the broken-song case (B3) checked on the device. The review itself:
