@@ -297,9 +297,10 @@ class Switches(unittest.TestCase):
                 self.assertEqual(param.read_text(), 'Y' if expected == 'N' else 'N', metadata)
 
     def test_the_panel_is_remembered_for_boots_lk_cannot_identify(self):
-        # fm-lk 0x81e0af60: lcm=%1d is LK's "read 0x0A succeeded" flag; on a failed
-        # read the name is its last driver (st7701). Only lcm=1- is trusted; it is
-        # recorded on Y2DATA and handed to the kernel (panel_hint) on lcm=0 boots.
+        # fm-lk 0x81e0af60: lcm=%1d is LK's "read 0x0A succeeded" flag; the name is
+        # the first driver whose compare_id matched, else the last (st7701). The
+        # kernel's panel= (gc9503v with either digit, st7701 with lcm=1-) is
+        # recorded on Y2DATA and handed to the kernel (panel_hint) when it is unknown.
         from y2_platform.common import Context
         from y2_platform.power_features import apply
         with tempfile.TemporaryDirectory() as temp:
@@ -331,7 +332,10 @@ class Switches(unittest.TestCase):
             self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('Y', '0'))
             self.assertEqual(ctx.json('/data/system/platform/panel.json')['panel'], 'st7701s')
             (params / 'panel_kind').write_text('0')
-            # A GC9503V record is handed over but not armed by default.
+            # A GC9503V record is handed over but not armed by default. LK names
+            # it with lcm=0- too (#45/#46: a cold boot on the reporter's player).
+            self.assertEqual(boot('gc9503v', 'lcm=0-gc9503v_hvga_dsi_vdo_hsd'), ('N', '0'))
+            self.assertEqual(ctx.json('/data/system/platform/panel.json')['panel'], 'gc9503v')
             self.assertEqual(boot('gc9503v', 'lcm=1-gc9503v_hvga_dsi_vdo_hsd'), ('N', '0'))
             self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('N', '1'))
         source = StockPanelSuspend.source[StockPanelSuspend.source.index('static int gc9503v_identify('):]

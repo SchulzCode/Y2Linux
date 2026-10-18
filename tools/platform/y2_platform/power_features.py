@@ -54,9 +54,9 @@ PANEL_KIND = '/sys/module/panel/parameters/panel_kind'
 
 
 def panel(ctx):
-    """This player's panel: LK's identification (y2_boot/metadata panel=, only from
-    lcm=1-, i.e. LK could read the panel), recorded on Y2DATA; on boots where LK
-    could not (soft restarts report lcm=0- with a fallback name), the record.
+    """This player's panel: LK's identification (y2_boot/metadata panel=: a
+    gc9503v name, or st7701 with lcm=1-; boot-policy.h), recorded on Y2DATA; on
+    boots where LK did not identify it (lcm=0-st7701 can be a fallback), the record.
     The kernel gets the record as panel_hint; it never overrides LK."""
     lk = None
     for field in (ctx.read('/sys/firmware/y2_boot/metadata') or '').split():

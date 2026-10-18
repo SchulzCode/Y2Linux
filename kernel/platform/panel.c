@@ -228,8 +228,8 @@ MODULE_PARM_DESC(stock_suspend, "screen-off uses the stock GC9503V power-down se
 static bool power_down;
 module_param(power_down, bool, 0644);
 /* The platform's record of this player's panel (1 GC9503V, 2 ST7701S), used
- * only when LK could not identify it this boot: on soft restarts LK's DCS read
- * fails and it reports lcm=0- with its last driver's name (fm-lk 0x81e0af60). */
+ * only when LK did not identify it this boot: lcm=0-st7701 can be LK's
+ * fallback to its last driver (fm-lk 0x81e0af60, see boot-policy.h). */
 static int panel_hint;
 module_param(panel_hint, int, 0644);
 /* What the driver identified (0 not yet, 1 GC9503V, 2 ST7701S), for the platform. */
@@ -266,8 +266,8 @@ static int gc9503v_write(struct mipi_dsi_device *dsi, u8 cmd, const u8 *data, u8
 }
 
 /* Which of the two stock panels this player carries. LK ran the stock
- * lcm_compare_id and names the one it found (lcm=1-<name>): the owner's player
- * reports st7701s, #45's reporter's logs suggest a GC9503V. Without LK's word,
+ * lcm_compare_id and names the one it found (boot-policy.h): the owner's player
+ * reports st7701, #45's reporter's gc9503v (also with lcm=0-). Without LK's word,
  * the GC9503V's own check (0xc04a2240: DCS 0x04 = 0x9503/0x9504) is the
  * fallback. Nothing is ever sent to an unidentified panel. */
 static int gc9503v_identify(struct gc9503v *ctx)
