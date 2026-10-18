@@ -1,6 +1,6 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.3, Baseline 89 — 2026-10-18 (latest)
+## Y2Linux 1.0 Beta 8.3, Baseline 89 — 2026-10-18 (latest, published)
 
 Release `1.0.0-beta.8.3`, tag `baseline-89`, Linux `029d93e`, Reborn `03e6dff`, sequence 6600. The installer
 estimates its own time left from a model of its phases (owner's player) corrected by the measured rates; the

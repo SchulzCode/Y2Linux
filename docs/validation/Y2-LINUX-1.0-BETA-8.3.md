@@ -1,6 +1,6 @@
 # Y2Linux 1.0 Beta 8.3 (Baseline 89)
 
-Status: **publishing as GitHub release `baseline-89`** (2026-10-18). Release `1.0.0-beta.8.3`, Reborn
+Status: **PUBLISHED as GitHub release `baseline-89`** (2026-10-18). Release `1.0.0-beta.8.3`, Reborn
 `1.0.0-beta.8.3`, kernel `6.18.56-y2linux-1.0.0-beta.8.3`, update sequence 6600, Linux `029d93e`, Reborn
 `03e6dff`. Built with `tools/production/release.py`: container suite **774 OK**, host suite 801 OK, update suite
 (`tests.test_platform_update`) 34 OK, also under ThreadSanitizer and AddressSanitizer/UBSan, Reborn 517 OK

@@ -1,6 +1,6 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.3 (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.3 (BASELINE 89) — SECONDS LEFT ON THE UPDATE SCREENS.**
+> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.3 (BASELINE 89) PUBLISHED — SECONDS LEFT ON THE UPDATE SCREENS.**
 > Owner: "build the latest and publish, but don't update the player, I want to do that with OTA" and "more
 > precise time to finish". Release `1.0.0-beta.8.3`, sequence 6600, Linux `029d93e` (+ docs), Reborn `03e6dff`;
 > report `docs/validation/Y2-LINUX-1.0-BETA-8.3.md`, audit BETA-8.3. Time plan in `tools/update/core.c`
