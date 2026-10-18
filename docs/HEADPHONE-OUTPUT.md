@@ -33,13 +33,13 @@ table tops out at −3 dB, so the stock maximum is about 0.71 Vrms.
   a stream closes. The request lives in the driver, not the register cache, so it survives runtime and system
   suspend. The old sysfs switch `y2_hp/hp_gain` uses the same path. `y2_hp/hpload_measure` still measures the load
   but no longer changes the level. Host test: `tests/test_hp_level.py` (C harness on the real driver functions).
-- **Reborn**: Settings → Sound → *Headphone Level* sets the control before each wired stream starts. The DAC Master
+- **Reborn**: Settings → Sound → Output → *Headphone Level* sets the control before each wired stream starts. The DAC Master
   is now −19.5 dB instead of −24 dB, so Low plays 0.26 dB below the old level (1.73 Vrms at −24 dB) and never louder.
   Medium is +2.7 dB and High +4.5 dB over the old level. Changing the level during wired playback restarts the
   stream so the new level takes effect, and the first stream after a rise fades in over 2 s. A held pause gives its
   stream back, so the new level starts with Play. On a kernel without the control, Master stays at −24 dB.
   At full volume, the output is about 0.106 / 0.149 / 0.183 Vrms (Low / Medium / High, 0 dBFS).
-- **DAC Filter** (Settings → Sound): Fast (default, the chip's and stock's), Fast Phase Compensated, Slow, Slow Phase
+- **DAC Filter** (Settings → Sound → Output): Fast (default, the chip's and stock's), Fast Phase Compensated, Slow, Slow Phase
   Compensated, Nonoversampling. These are the upstream controls `PCM Filter Speed`, `PCM Phase Compensation` and `PCM
   Nonoversample Emulate`, applied at once.
 - **Headphone Profile** (Settings → Sound → Equalizer → Headphone Profile): put AutoEQ `ParametricEQ.txt` files in a
