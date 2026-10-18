@@ -64,6 +64,22 @@ class StockPanelSuspend(unittest.TestCase):
         prepare = self.source[self.source.index('static int gc9503v_prepare('):]
         self.assertLess(prepare.index('ctx->inherited = false;'), prepare.index('reset_control_assert(ctx->reset);'))
 
+    def test_the_lk_panel_is_adopted_so_screen_off_runs_the_power_down(self):
+        # Y2Linux #45: mtk-mmsys had no reset .status, so reset_control_status()
+        # returned -ENOTSUPP, prepare() failed every time and DRM skipped every
+        # unprepare ("Skipping unprepare of already unprepared panel").
+        prepare = self.source[self.source.index('static int gc9503v_prepare('):]
+        prepare = prepare[:prepare.index('\n}\n')]
+        inherited = prepare[prepare.index('if (ctx->inherited) {'):prepare.index('ctx->inherited = false;')]
+        self.assertIn('if (ret == -ENOTSUPP)\n            ret = 0;', inherited)
+        self.assertLess(inherited.index('-ENOTSUPP'), inherited.index('if (ret < 0) {'))
+        self.assertIn('dev_err(dev, "panel reset status unreadable', inherited)
+        mmsys = (ROOT / 'kernel/patches/0010-mt6582-mmsys.patch').read_text()
+        self.assertIn('+static int mtk_mmsys_reset_status(struct reset_controller_dev *rcdev, unsigned long id)', mmsys)
+        self.assertIn('+	.status = mtk_mmsys_reset_status,', mmsys)
+        # Asserted = bit cleared (mtk_mmsys_reset_update writes 0 on assert).
+        self.assertIn('+	return !(readl_relaxed(mmsys->regs + reg) & BIT(id % MMSYS_SW_RESET_PER_REG));', mmsys)
+
 
 class IdleVgp2(unittest.TestCase):
     card = (ROOT / 'kernel/audio/y2-cs43131.c').read_text()
