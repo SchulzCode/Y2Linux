@@ -79,6 +79,13 @@ class StockPanelSuspend(unittest.TestCase):
         self.assertIn('+	.status = mtk_mmsys_reset_status,', mmsys)
         # Asserted = bit cleared (mtk_mmsys_reset_update writes 0 on assert).
         self.assertIn('+	return !(readl_relaxed(mmsys->regs + reg) & BIT(id % MMSYS_SW_RESET_PER_REG));', mmsys)
+        # A DSI programmed while its register reads lagged fails panel commands at
+        # once instead of waiting 2 s each (the first screen-off after such a boot).
+        dsi = (ROOT / 'kernel/patches/0017-mt6582-dsi.patch').read_text()
+        self.assertIn('+		dsi->y2_regs_lag = attempt > 3;', dsi)
+        transfer = dsi[dsi.index('return -EHOSTDOWN;'):]
+        self.assertLess(transfer.index('if (dsi->driver_data->mt6582 && dsi->y2_regs_lag) {'),
+                        transfer.index('dsi_mode = readl(dsi->regs + DSI_MODE_CTRL);'))
 
 
 class IdleVgp2(unittest.TestCase):

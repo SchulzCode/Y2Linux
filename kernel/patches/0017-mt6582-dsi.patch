@@ -35,7 +35,7 @@
  	const u32 reg_cmdq_off;
  	const u32 reg_vm_cmd_off;
  	const u32 reg_shadow_dbg_off;
-@@ -196,6 +203,15 @@
+@@ -196,6 +203,17 @@
  };
  
  struct mtk_dsi {
@@ -44,6 +44,8 @@
 +    struct backlight_device *y2_bl;
 +    bool y2_dark;
 +    unsigned y2_samples, y2_irqs;
++    /* Programmed while register reads lagged (POWER-FINAL-44): see host_transfer. */
++    bool y2_regs_lag;
 +    struct drm_crtc *y2_crtc;
 +    bool y2_vblank;
 +    void __iomem *y2_mm, *y2_mutex, *y2_ovl, *y2_rdma, *y2_color, *y2_pins, *y2_phy;
@@ -51,7 +53,7 @@
  	struct device *dev;
  	struct mipi_dsi_host host;
  	struct drm_encoder encoder;
-@@ -225,6 +241,111 @@
+@@ -225,6 +243,111 @@
  	const struct mtk_dsi_driver_data *driver_data;
  };
  
@@ -163,7 +165,7 @@
  static inline struct mtk_dsi *bridge_to_dsi(struct drm_bridge *b)
  {
  	return container_of(b, struct mtk_dsi, bridge);
-@@ -265,6 +386,22 @@
+@@ -265,6 +388,22 @@
  	timing->clk_hs_zero = timing->clk_hs_trail * 4;
  	timing->clk_hs_exit = 2 * timing->clk_hs_trail;
  
@@ -186,12 +188,10 @@
  	timcon0 = FIELD_PREP(LPX, timing->lpx) |
  		  FIELD_PREP(HS_PREP, timing->da_hs_prepare) |
  		  FIELD_PREP(HS_ZERO, timing->da_hs_zero) |
-@@ -287,6 +424,25 @@
- 	writel(timcon1, dsi->regs + DSI_PHY_TIMECON1);
- 	writel(timcon2, dsi->regs + DSI_PHY_TIMECON2);
+@@ -289,6 +428,25 @@
  	writel(timcon3, dsi->regs + DSI_PHY_TIMECON3);
-+}
-+
+ }
+ 
 +/* POWER-FINAL-44: on some boots (archive 20261016/143, the restart-entered
 + * recovery after 43's install) the DSI register port answers every read with
 + * the data of the previous read: the whole register file reads shifted by one
@@ -209,10 +209,12 @@
 +	dev_warn(dsi->dev, "Y2SCAN DSI read-back ps=%08x vact=%08x expected vact=%08x dcm1=%08x\n",
 +		 ps, vact, dsi->vm.vactive, dsi->y2_mm ? readl(dsi->y2_mm + 0x12c) : 0xdeadbeef);
 +	return true;
- }
- 
++}
++
  static void mtk_dsi_enable(struct mtk_dsi *dsi)
-@@ -643,13 +799,24 @@
+ {
+ 	mtk_dsi_mask(dsi, DSI_CON_CTRL, DSI_EN, DSI_EN);
+@@ -643,13 +801,24 @@
  	u32 status, tmp;
  	u32 flag = LPRX_RD_RDY_INT_FLAG | CMD_DONE_INT_FLAG | VM_DONE_INT_FLAG;
  
@@ -237,7 +239,7 @@
  
  		mtk_dsi_mask(dsi, DSI_INTSTA, status, 0);
  		mtk_dsi_irq_data_set(dsi, status);
-@@ -677,6 +844,7 @@
+@@ -677,6 +846,7 @@
  	struct device *dev = dsi->host.dev;
  	int ret;
  	u32 bit_per_pixel;
@@ -245,7 +247,7 @@
  
  	if (++dsi->refcount != 1)
  		return 0;
-@@ -684,7 +852,7 @@
+@@ -684,7 +854,7 @@
  	ret = mipi_dsi_pixel_format_to_bpp(dsi->format);
  	if (ret < 0) {
  		dev_err(dev, "Unknown MIPI DSI format %d\n", dsi->format);
@@ -254,7 +256,7 @@
  	}
  	bit_per_pixel = ret;
  
-@@ -697,7 +865,10 @@
+@@ -697,7 +867,10 @@
  		goto err_refcount;
  	}
  
@@ -266,7 +268,7 @@
  
  	ret = clk_prepare_enable(dsi->engine_clk);
  	if (ret < 0) {
-@@ -711,6 +882,7 @@
+@@ -711,6 +884,7 @@
  		goto err_disable_engine_clk;
  	}
  
@@ -274,7 +276,7 @@
  	mtk_dsi_enable(dsi);
  
  	if (dsi->driver_data->has_shadow_ctl)
-@@ -724,6 +896,20 @@
+@@ -724,6 +898,22 @@
  	mtk_dsi_set_vm_cmd(dsi);
  	mtk_dsi_config_vdo_timing(dsi);
  	mtk_dsi_set_interrupt_enable(dsi);
@@ -291,11 +293,13 @@
 +		}
 +		dev_err(dev, "modeset: DSI register reads still lag after 3 power cycles\n");
 +	}
++	if (dsi->driver_data->mt6582)
++		dsi->y2_regs_lag = attempt > 3;
 +	if (dsi->driver_data->mt6582) dev_info(dev, "modeset: DSI command engine ready\n");
  
  	return 0;
  err_disable_engine_clk:
-@@ -831,6 +1017,11 @@
+@@ -831,6 +1021,11 @@
  {
  	struct mtk_dsi *dsi = bridge_to_dsi(bridge);
  
@@ -307,7 +311,7 @@
  	mtk_output_dsi_disable(dsi);
  }
  
-@@ -843,6 +1034,14 @@
+@@ -843,6 +1038,14 @@
  		return;
  
  	mtk_output_dsi_enable(dsi);
@@ -322,17 +326,27 @@
  }
  
  static void mtk_dsi_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-@@ -1124,6 +1323,9 @@
+@@ -1124,6 +1327,19 @@
  	u32 dsi_mode;
  	int ret, i;
  
 +	/* Failed pre-enable must not let panel DCS touch a powered-off bus. */
 +	if (dsi->driver_data->mt6582 && !dsi->refcount)
 +		return -EHOSTDOWN;
++	/* With register reads lagging, the mode read-back and every read-modify-
++	 * write below hold a neighbour's value: each command waited out its 2 s
++	 * timeout (first screen-off after such a boot, #45). Fail at once; the
++	 * panel's power-down falls back to reset low, and the next power-on
++	 * programs the engine afresh. */
++	if (dsi->driver_data->mt6582 && dsi->y2_regs_lag) {
++		dev_warn_ratelimited(dsi->dev, "DCS 0x%02x skipped: DSI register reads lag since power-on\n",
++				     msg->tx_len ? *(const u8 *)msg->tx_buf : 0);
++		return -EIO;
++	}
  	dsi_mode = readl(dsi->regs + DSI_MODE_CTRL);
  	if (dsi_mode & MODE) {
  		mtk_dsi_stop(dsi);
-@@ -1189,6 +1391,88 @@
+@@ -1189,6 +1405,88 @@
  	.transfer = mtk_dsi_host_transfer,
  };
  
@@ -421,7 +435,7 @@
  static int mtk_dsi_probe(struct platform_device *pdev)
  {
  	struct mtk_dsi *dsi;
-@@ -1230,26 +1514,78 @@
+@@ -1230,26 +1528,78 @@
  	if (irq_num < 0)
  		return irq_num;
  
@@ -520,7 +534,7 @@
  
  	return 0;
  }
-@@ -1258,6 +1594,11 @@
+@@ -1258,6 +1608,11 @@
  {
  	struct mtk_dsi *dsi = platform_get_drvdata(pdev);
  
@@ -532,19 +546,19 @@
  	mtk_output_dsi_disable(dsi);
  	mipi_dsi_host_unregister(&dsi->host);
  }
-@@ -1272,6 +1613,11 @@
- 	.reg_cmdq_off = 0x180,
- 	.reg_vm_cmd_off = 0x130,
+@@ -1274,6 +1629,11 @@
  	.reg_shadow_dbg_off = 0x190
-+};
-+
+ };
+ 
 +static const struct mtk_dsi_driver_data mt6582_dsi_driver_data = {
 + .mt6582 = true, .reg_cmdq_off = 0x180, .reg_vm_cmd_off = 0x130,
 + .reg_shadow_dbg_off = 0x190,
- };
- 
++};
++
  static const struct mtk_dsi_driver_data mt8183_dsi_driver_data = {
-@@ -1301,6 +1647,7 @@
+ 	.reg_cmdq_off = 0x200,
+ 	.reg_vm_cmd_off = 0x130,
+@@ -1301,6 +1661,7 @@
  };
  
  static const struct of_device_id mtk_dsi_of_match[] = {
