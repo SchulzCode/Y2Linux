@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.1, Baseline 86 — 2026-10-18 (latest, published)
+## Y2Linux 1.0 Beta 8.2, Baseline 88 — 2026-10-18 (latest)
+
+Release `1.0.0-beta.8.2`, tag `baseline-88`, Linux `1d463f6`, Reborn `5aad5f1`, sequence 6501. Faster updates
+(OTA-50): the root payload is a segmented gzip that the recovery decodes, backs up and reads back on four cores,
+and the acknowledged package stays on Y2DATA as the next install's rollback copy. On the owner's player the
+installer took 14.9 s (Beta 8.1: 53.5 s; 23.6 s when it has to back up the live root). Rollback from a kept package
+is host-tested only. Details: [Beta 8.2 report](validation/Y2-LINUX-1.0-BETA-8.2.md).
+
+## Y2Linux 1.0 Beta 8.1, Baseline 86 — 2026-10-18 (published)
 
 Release `1.0.0-beta.8.1`, tag `baseline-86`, Linux `78220dc`, Reborn `a558870`, sequence 6463. The panel finally
 powers down at screen-off (#45): the Y2 ships with a GC9503V or an ST7701S panel (stock kernel and LK, REA); Y2Linux

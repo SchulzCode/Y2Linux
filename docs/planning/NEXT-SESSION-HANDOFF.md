@@ -1,6 +1,17 @@
-# Next-session handoff — Y2Linux 1.0 Beta 8.1 (latest entry first; started 2026-10-09 as the deep-sleep continuation)
+# Next-session handoff — Y2Linux 1.0 Beta 8.2 (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.1 (BASELINE 86) PUBLISHED — PANEL POWER-DOWN (#45), TWO PANEL TYPES.**
+> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.2 (BASELINE 88) — FASTER UPDATES (OTA-50).** Owner: "can
+> you give me the best solution, so multicore, the other stuff?" and chose to keep the verified package as the
+> rollback copy. Release `1.0.0-beta.8.2`, sequence 6501, Linux `1d463f6` (+ docs; code in `f9c1eae`), Reborn
+> `5aad5f1`; report `docs/validation/Y2-LINUX-1.0-BETA-8.2.md`, audit BETA-8.2, contract in
+> `docs/architecture/platform-ota-v2.md`. Segmented root gzip (index in the signed manifest), four-thread decode /
+> backup / readback in `tools/update/core.c`, kept package `/data/updates/current/`. Owner's player: installer
+> 53.5 → 23.6 s (live backup, test build 87 = 6500) → 14.9 s (kept package, 6501), both acknowledged. Owed:
+> on-device rollback from a kept package (host-tested; going back needs a higher build afterwards), why verify
+> took 3.2 s once. `tests.test_platform_update` is not in the release gate: run it on the host (TSan/ASan via
+> `Y2_UPDATE_TEST_CC`). Still owed from 8.1: the overnight drain (#42), the GC9503V test (#45).
+>
+> Previous entry: **START HERE (2026-10-18): Y2LINUX 1.0 BETA 8.1 (BASELINE 86) PUBLISHED — PANEL POWER-DOWN (#45), TWO PANEL TYPES.**
 > Release `1.0.0-beta.8.1`, sequence 6463, Linux `78220dc` (+ docs), Reborn `a558870`; report
 > `docs/validation/Y2-LINUX-1.0-BETA-8.1.md`, audit BETA-8.1. The owner's player has the **ST7701S** panel (LK and
 > the stock 0xA1 ID read); the GC9503V path is opt-in until the #45 reporter confirms it. Baselines 76–85 were test

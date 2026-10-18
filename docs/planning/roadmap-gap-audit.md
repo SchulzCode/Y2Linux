@@ -8676,3 +8676,21 @@ player (ST7701S).
 | FM radio | ON BRANCH | |
 
 **Gate decision:** READY for **Y2Linux 1.0.0-beta.8.1** (Baseline 86, sequence 6463) at the owner's word (given).
+
+## BETA-8.2 (Baseline 88) faster updates: milestone gap audit — 2026-10-18
+
+**Boundary:** owner: "yes update all the docs and publish the build". Installer architecture change (payload
+layout, four threads, a new rollback-copy source) in the update core and recovery. Real-hardware evidence: test
+builds 87 (6500) and 88 (6501) installed by OTA on the owner's player.
+
+| Area | State for Beta 8.2 | Evidence / gap |
+| --- | --- | --- |
+| Segmented root payload | DEVICE-CONFIRMED | Queued by Beta 8.1's core; decoded on four threads by the new recovery |
+| Four-core backup / readback | DEVICE-CONFIRMED | 8.1 → 6500: backup 12.5 s, check 3.9 s, acknowledged |
+| Kept package as rollback copy | DEVICE-CONFIRMED (install) | 6500 → 6501: backup 1.8 s, `source: package`, acknowledged |
+| Rollback from a kept package | HOST-TESTED | Restore, fallbacks and broken index in `tests.test_platform_update` (also TSan/ASan) |
+| Space | CHECKED | `/data/updates` ≈ 87 MB; kept package removed last by the cleanup |
+| Sleep drain with panel power-down | OWED (from 8.1) | One overnight sleep on battery (#42) |
+| FM radio | ON BRANCH | |
+
+**Gate decision:** READY for **Y2Linux 1.0.0-beta.8.2** (Baseline 88, sequence 6501) at the owner's word (given).

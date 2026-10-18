@@ -80,14 +80,23 @@ The recovery that installs an update is always the one built with that update.
    - verifies the package again;
    - keeps the radio firmware on the data partition (players that ran an image before 49 had it
      inside the system partition);
-   - backs up the current system and boot image (compressed, on the data partition);
+   - backs up the current system and boot image (compressed, on the data partition). Since
+     Beta 8.2 the system backup is usually the signed package of the running version, kept from
+     its own install (about 2 s); otherwise, for example after a computer flash, the running
+     system is compressed on all four cores;
    - writes the new system and reads it back from the chip, writes the new boot image and reads
-     it back;
+     it back (both on four cores);
    - records *pending health* and clears the MISC request, then restarts.
+
+   On the owner's player (Beta 8.2) the installer takes about 15 s (Beta 8.1: 54 s), and an
+   update from *Update Now* to the running new version about a minute.
 5. **First start of the new version**: it confirms itself only when the player really works
    (Reborn draws frames and answers, storage, display, audio and input are fine). Then the update
-   is *acknowledged* and the downloaded package is deleted. The backup stays, so you can go back
-   once (Settings → Diagnostics).
+   is *acknowledged*. The package's boot images are deleted; its system part stays on the data
+   partition (about 42 MB) as the backup for the next update. The backup of the previous version
+   stays too, so you can go back once (Settings → Diagnostics). When space is short, the kept
+   package is the last thing an update removes; the next install then backs up the running
+   system instead.
 
 If anything fails, nothing is half-done: before the write the recovery stops with "nothing was
 changed"; after it, the recovery restores both images from the backup; if the new system never

@@ -47,6 +47,14 @@ layout/data/database schemas, `recovery_api` 1, release version, monotonic `sequ
 key ID, rollback/downgrade policy, short release notes, and size, SHA-256 and raw SHA-256 of every
 payload. Nothing in it is acted on before the signature is verified.
 
+Root layout (OTA-50, Beta 8.2): `rootfs.ext4.gz` is still one ordinary gzip member, made of independent
+1 MiB raw-deflate segments (each ended with a full flush, the last with the final block: the `pigz -i`
+layout). The manifest adds `segment_bytes` (1048576), `segments` (encoded length of each segment) and
+`raw_crc32`. Any gzip reader, including the core of Beta 8.1 and earlier, decodes it as one stream; the
+current core decodes the segments on four threads. An index that is present but does not fit (count,
+lengths, sum, segment size) refuses the package. `package.py` decodes every segment on its own before
+it signs.
+
 The channel is shipped in `/etc/y2linux/update-channel.json`: GitHub Releases of SchulzCode/Y2Linux,
 `releases/latest/download/manifest.json`. `/data/updates/channel.json` may override `manifest_url`.
 HTTPS redirects are followed only to the listed hosts (`github.com`, `objects.githubusercontent.com`,
@@ -68,7 +76,8 @@ downgrades; a development key may downgrade only with a signed manifest flag.
    data goes one entry at a time until it does — everything in `/data/logs` except `system.log`,
    `recovery-last.log` and `recovery-display.txt`, the rotated `*.previous.jsonl` platform journals and
    finished qualification runs. Music (on its own partition), settings, the library and the rollback
-   copies are never touched. If that is not enough, the download is refused with `needed_bytes` in
+   copies are never touched. Last of all goes the kept package (`current/`, see step 5): without it
+   the next install backs up the live root, which is only slower. If that is not enough, the download is refused with `needed_bytes` in
    `download.json` and Reborn says how much system space the update needs. The same cleanup makes room
    for the manifest itself, so a check works on a nearly full volume. Cancel deletes the package.
    Progress (OTA-48): the download writes `/run/y2/update-progress.json` (RAM, four times a second:
@@ -88,9 +97,24 @@ downgrades; a development key may downgrade only with a signed manifest flag.
    `PendingHealth` and only then clears MISC. It shows progress on screen and restarts into the new
    system (with the override: turns off; Power starts it). Low battery without a charger: it waits up
    to ten minutes for one, else always turns off with the request still set.
+   Root backup (OTA-50): when the queue found a kept package of the running release (step 5;
+   journal `kept_manifest_sha256`), the recovery checks it again (signature, the queued manifest hash,
+   segment index and `raw_crc32`, extent equal to the live root's, SHA-256 of the payload) and renames
+   its `rootfs.ext4.gz` to `previous.ext4.gz` (record `source: package`). Otherwise the live root is
+   compressed into the same segmented layout. The root keeps no state of its own (host keys, Bluetooth,
+   settings and journals live on Y2DATA), so the signed image of the running release is a complete way
+   back. Decoding, backup compression and readback CRC run on four threads while the main thread does
+   the I/O; the write still compares each 128 KiB chunk with the medium and skips equal ones.
+   Owner's player: installer 53.5 s (Beta 8.1) → 23.6 s with the live backup → 14.9 s with the kept
+   package (verify 3.2, backup 1.8, system 5.3, check 3.9, boot 0.8 s). The readback is bound by the
+   eMMC (512 MiB ≈ 3.7 s).
 5. **Health**: the platform acknowledges the new system when Reborn presents frames, answers and the core
-   checks pass (unchanged 180-second worker). The installed package is then deleted; backups stay for an
-   owner rollback (`rollback_allowed`).
+   checks pass (unchanged 180-second worker). The acknowledgement moves the installed package to
+   `/data/updates/current/` (manifest, signature and root payload; the boot payloads are deleted) when
+   its manifest is the one the journal installed. The next queue keeps it only if it is the running
+   release: authentic and compatible (replay and minimum checks do not apply), its sequence equals the
+   running compat sequence and both source commits equal `/etc/y2linux/versions.json`; otherwise it
+   is deleted. Backups stay for an owner rollback (`rollback_allowed`).
 
 ## Failure handling
 
