@@ -202,6 +202,17 @@ class USBProduct(unittest.TestCase):
         self.assertIn('+\t\trxstate(musb, req, true);', patch_text)
         # Packets already ACKed before the request existed are read by the CPU.
         self.assertIn('+\t\t\tif (late && y2_musb_late_pio()) {', patch_text)
+        # V1 code review B6: a multi-packet start that gives up stops the engine
+        # first and hands the packet to the CPU only if nothing reached memory.
+        start = patch_text[patch_text.index('+static int y2_rx_mode1_start('):
+                           patch_text.index('+static bool y2_rx_mode1_end(')]
+        fallback = start[start.index('+\tmoved = y2_hsdma_stop(channel);'):]
+        self.assertLess(fallback.index('y2_hsdma_stop'), fallback.index('c->channel_abort(channel);'))
+        self.assertLess(fallback.index('if (!moved)\n+\t\treturn Y2_M1_PIO;'),
+                        fallback.index('musb_g_giveback(musb_ep, request, -EIO);'))
+        self.assertIn('MUSB_RXCSR_FLUSHFIFO', fallback)
+        hsdma = (ROOT / 'kernel/patches/0055-musb-abort-bus-error.patch').read_text()
+        self.assertIn('+u32 y2_hsdma_stop(struct dma_channel *channel)', hsdma)
         manifest = json.loads((ROOT / 'kernel/patches/manifest.json').read_text())
         spec = next(o for o in manifest['overlays'] if o['path'] == 'drivers/usb/musb/musb_gadget.c')
         self.assertEqual(spec['patch'], '0065-y2-musb-pio-progress.patch')

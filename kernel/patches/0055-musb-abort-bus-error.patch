@@ -10,11 +10,10 @@
  		if (musb_channel->transmit) {
  			offset = musb->io.ep_offset(musb_channel->epnum,
  						MUSB_TXCSR);
-@@ -262,6 +263,24 @@
- 
+@@ -263,6 +264,38 @@
  	return 0;
  }
-+
+ 
 +#if IS_ENABLED(CONFIG_Y2_PLATFORM)
 +/* Y2 multi-packet receive (musb_gadget.c): bytes the engine has written to
 + * memory since the channel was programmed (address register), the programmed
@@ -31,7 +30,22 @@
 +	return musb_read_hsdma_addr(mbase, musb_channel->idx)
 +		- musb_channel->start_addr;
 +}
++
++/* Stop the engine (channel control off) and return the bytes it had written
++ * by then; channel_abort() must still follow. Under musb->lock, channel busy. */
++u32 y2_hsdma_stop(struct dma_channel *channel);
++u32 y2_hsdma_stop(struct dma_channel *channel)
++{
++	struct musb_dma_channel *musb_channel = channel->private_data;
++	void __iomem *mbase = musb_channel->controller->base;
++
++	musb_writew(mbase,
++		MUSB_HSDMA_CHANNEL_OFFSET(musb_channel->idx, MUSB_HSDMA_CONTROL), 0);
++	return musb_read_hsdma_addr(mbase, musb_channel->idx)
++		- musb_channel->start_addr;
++}
 +#endif
- 
++
  irqreturn_t dma_controller_irq(int irq, void *private_data)
  {
+ 	struct musb_dma_controller *controller = private_data;
