@@ -47,10 +47,31 @@ larb0 never completes. [42](Y2-PLATFORM-V1-POWER-FINAL-42.md) reopened the gates
 install screen can stay dark once more; the restart *out of* the recovery into 8.4 is done by 8.4's recovery
 kernel, which has the handler.
 
+## Device result: the owner's OTA 6600 → 6700 (2026-10-18)
+
+The owner first installed 8.3 again (14:13, lit, acknowledged), then 8.4. Every boot after the dark one took the
+hold, and none logged `SMI gates … left closed` (`/data/logs/system.log*`, logs in `out/ota-90-owner/`, local):
+
+| Boot | LK | SMI hold at probe | Handover | Display |
+| --- | --- | --- | --- | --- |
+| 14:05 restart into 6600 (8.3 recovery) | `lcm=0` | no | `SMI gates 1 left closed`, larb0 busy | dark, rolled back |
+| 14:11 rollback into 6500 | `lcm=0` | yes | idle | lit |
+| 14:13 restart into 6600 | `lcm=0` | yes | idle | lit, acknowledged |
+| recovery for 6700 (entered by 8.3's kernel) | `lcm=0` | yes | idle | lit |
+| 14:45 restart into 6700 (8.4's recovery kernel, with the handler) | `lcm=1` | yes | larb0 `stat=0 greq=0` | lit, acknowledged |
+
+**Install** (kept 6600 package as the rollback copy, `source: package`), journal `timings`: verify 1.50 s (the kept
+root hashed alongside), backup_root 0.17 s, backup_boot 1.31 s, system 8.33 s, check 4.10 s, boot 0.76 s:
+**16.2 s**. The estimate said 14 s at `verify`, 8 s at `system` (real 12.8 s), 7 s at `check` (4.9), 1 s at
+`boot` (0.8): the system write took 8.3 s for 103 MB written, against 4.4 s for the same amount in the 6600
+install, so the model's 10 ms per MiB was low this time (eMMC write speed varies; one sample).
+
+One lit restart through the handler is not yet proof for an intermittent fault (one dark restart in five that day).
+
 ## Known gaps
 
-- Nothing of 8.4 has run on a player yet. The check after the owner's OTA: `holding SMI common/larb0` on the 8.4
-  boot and no `SMI gates … left closed`; later restarts the same.
+- The restart handler has run once on the player (lit). Later restarts: check for `holding SMI common/larb0` and no
+  `SMI gates … left closed`.
 - Unchanged: the sleep drain with the panel powered down is not measured yet (#42); the GC9503V panel path awaits a
   GC9503V owner (#45). One host-suite run failed a timing-sensitive Bluetooth test under load
   (`test_reconnect_signal_cache_intents_and_bounded_recovery`); it passed alone three times and in the full rerun.
