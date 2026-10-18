@@ -637,6 +637,21 @@ class PlatformPolicyTests(unittest.TestCase):
     def power(self, **battery):
         (self.root/'run/y2/power.json').write_text(json.dumps({'boot_id': 'boot-a', 'battery': battery}))
 
+    def test_health_uses_reborns_verdict_and_ignores_unreadable_songs(self):
+        from y2_platform.update import application_healthy
+        # B3: one song that cannot be read must never roll an update back.
+        incomplete = {'healthy': True, 'graphics': {'available': True}, 'uptime_seconds': 40,
+                      'library': {'error': 'scan incomplete; retained existing entries (1 traversal failures)'}}
+        self.assertTrue(application_healthy(incomplete))
+        self.assertFalse(application_healthy({**incomplete, 'healthy': False,
+                                              'health_reasons': ['database failed']}))
+        self.assertFalse(application_healthy({**incomplete, 'healthy': 'yes'}))
+        older = {'graphics': {'available': True}, 'uptime_seconds': 40, 'library': {'error': 'x'}}
+        self.assertTrue(application_healthy(older))
+        self.assertFalse(application_healthy({**older, 'uptime_seconds': 3}))
+        self.assertFalse(application_healthy({}))
+        self.assertFalse(application_healthy(None))
+
     def test_battery_gate_needs_charger_or_half_battery(self):
         from y2_platform.update import battery_gate
         for battery, allowed in [({'percent': 50, 'charging': False}, True), ({'percent': 49}, False),
@@ -721,6 +736,54 @@ class PlatformPolicyTests(unittest.TestCase):
             self.assertIsNone(update.automatic_check(self.ctx, now=1000 + 3*86400))
             staged.assert_not_called()
         self.assertEqual(json.loads((self.root/'data/updates/last-check.json').read_text())['attempt'], 1000 + 3*86400)
+
+    def test_media_reconcile_runs_in_the_background_and_stops_a_hung_check(self):
+        from y2_platform import service
+        with patch.object(service, 'media_reconcile_needed', return_value=False), \
+             patch('subprocess.Popen') as popen:
+            self.assertEqual(service.media_reconcile(self.ctx, None, 100.0), {})
+            self.assertEqual(popen.call_count, 0)
+        with patch.object(service, 'media_reconcile_needed', return_value=True), \
+             patch('subprocess.Popen') as popen, patch.object(service, 'kill_tree') as kill:
+            run = service.media_reconcile(self.ctx, None, 100.0)
+            self.assertEqual(popen.call_args[0][0], ['/usr/sbin/y2-platform', 'media', 'reconcile'])
+            run['process'].poll.return_value = None
+            # A long card check is left alone (it used to be killed after 7 s) ...
+            self.assertIs(service.media_reconcile(self.ctx, run, 100.0 + 60), run)
+            self.assertEqual(popen.call_count, 1)
+            # ... a hung one is stopped with everything it started, then backs off.
+            stopped = service.media_reconcile(self.ctx, run, 100.0 + service.RECONCILE_LIMIT_S)
+            kill.assert_called_once_with(run['process'].pid)
+            self.assertIn('retry_at', stopped)
+            self.assertEqual(service.media_reconcile(self.ctx, stopped, 100.0 + service.RECONCILE_LIMIT_S + 1), stopped)
+            self.assertEqual(popen.call_count, 1)
+            service.media_reconcile(self.ctx, stopped, stopped['retry_at'])
+            self.assertEqual(popen.call_count, 2)
+
+    def test_a_timed_out_command_also_kills_what_its_child_started(self):
+        import sys, time
+        from y2_platform.common import command
+        marker = self.root/'grandchild.pid'
+        child = ('import sys; sys.path.insert(0, %r)\n'
+                 'from y2_platform.common import command\n'
+                 'import subprocess, os\n'
+                 'p = subprocess.Popen(["sleep", "30"], start_new_session=True)\n'
+                 'open(%r, "w").write(str(p.pid))\n'
+                 'p.wait()\n') % (str(PROJECT/'tools/platform'), str(marker))
+        result = command([sys.executable, '-I', '-c', child], timeout=1.5)
+        self.assertEqual(result['reason'], 'command_timeout')
+        pid = int(marker.read_text())
+        for _ in range(50):
+            try:
+                with open('/proc/%d/stat' % pid) as stream:
+                    if stream.read().rpartition(')')[2].split()[0] == 'Z':
+                        break
+            except FileNotFoundError:
+                break
+            time.sleep(0.02)
+        else:
+            os.kill(pid, 9)
+            self.fail('grandchild survived the timeout')
 
     def test_service_spawns_the_check_only_when_due(self):
         from y2_platform.service import daily_update_check

@@ -529,6 +529,20 @@ def automatic_check(ctx, now=None):
     return record
 
 
+def application_healthy(app):
+    """Reborn's own verdict (`healthy`, Beta 8): drawing, database working, no
+    stuck worker. A library scan that could not read some songs is not a
+    reason to roll an update back (V1 code review B3). Without the field (a
+    Reborn before Beta 8), the drawing and uptime checks alone."""
+    if not isinstance(app, dict):
+        return False
+    if 'healthy' in app:
+        return app['healthy'] is True
+    graphics = app.get('graphics')
+    return (isinstance(graphics, dict) and graphics.get('available') is True and
+            type(app.get('uptime_seconds')) is int and app['uptime_seconds'] >= 10)
+
+
 def health_ack(ctx):
     pending = status(ctx)
     if pending['state'] != 'PendingHealth':
@@ -567,8 +581,7 @@ def health_ack(ctx):
         app = json.loads(answer['output']) if answer['ok'] else {}
     except (ValueError, TypeError):
         app = {}
-    if (app.get('graphics', {}).get('available') is not True or
-            app.get('library', {}).get('error') is not None or app.get('uptime_seconds', 0) < 10):
+    if not application_healthy(app):
         return {'state': 'PendingHealth', 'reason': 'application_not_ready'}
     mark(ctx, 'application_ready')
     result = core(ctx, 'ack')
