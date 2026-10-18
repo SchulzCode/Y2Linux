@@ -61,6 +61,9 @@ def main():
     reset.add_argument('--id')
     reset.add_argument('--erase-user-music', action='store_true')
     sub.add_parser('export-diagnostics')
+    error_report = sub.add_parser('report', help='opt-in error reports (docs/planning/ERROR-REPORTS-PLAN.md)')
+    error_report.add_argument('action', choices=['status', 'enable', 'disable', 'new-id', 'send', 'check'])
+    error_report.add_argument('--topic', choices=['sound', 'display', 'battery', 'bluetooth', 'wifi', 'crash', 'other'])
     export = sub.add_parser('export-state')
     export.add_argument('--include-database', action='store_true')
     export.add_argument('--include-network', action='store_true')
@@ -166,6 +169,24 @@ def main():
         from .boot import capture_previous
         print(json.dumps(capture_previous(ctx), sort_keys=True))
         return 0
+    if args.command == 'report':
+        from . import report
+        try:
+            if args.action == 'status':
+                result = report.status(ctx)
+            elif args.action in ('enable', 'disable'):
+                result = report.set_enabled(ctx, args.action == 'enable')
+            elif args.action == 'new-id':
+                result = report.new_install_id(ctx)
+            elif args.action == 'send':
+                result = report.queue(ctx, 'manual', topic=args.topic)
+            else:
+                result = {'reports': report.run_checks(ctx)}
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        except (OSError, ValueError) as error:
+            print(json.dumps({'failure': 'report_failed', 'reason': type(error).__name__}))
+            return 1
     if args.command == 'export-diagnostics':
         from .diagnostics import export
         try:
