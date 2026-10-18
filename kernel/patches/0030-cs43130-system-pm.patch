@@ -19,7 +19,142 @@
  		return true;
  	default:
  		return false;
-@@ -2062,16 +2067,41 @@
+@@ -1111,6 +1116,106 @@
+ static SOC_VALUE_ENUM_SINGLE_DECL(dsd_enum, CS43130_DSD_INT_CFG, 0, 0x03,
+ 				  dsd_texts, dsd_values);
+ 
++/*
++ * Y2: headphone output level (HP_OUT_CTL_1 OUT_FS, full scale 1.0, 1.41 or
++ * 1.73 Vrms), paired with the HV_EN choice of upstream's load-based hv_seq:
++ * CLASS_H 0x1C (HV_EN off) for Low, 0x1E for Medium and High. Stock drives
++ * headphones at Low. The datasheet allows OUT_FS changes only while PDN_HP is
++ * set, so a level chosen during playback waits for the next HP power-up (the
++ * card ignores pmdown_time: the amplifier powers down when a stream closes).
++ * The requested level lives here, not in the regcache, and is written before
++ * every power-up, so it survives runtime and system suspend.
++ */
++#define Y2_HP_OUT_FS_MASK	0x30
++#define Y2_CLASS_H_HV_EN	0x02
++#define Y2_HP_LEVELS		3
++static const u8 y2_hp_out_fs[Y2_HP_LEVELS] = { 0x10, 0x20, 0x30 };
++static const u8 y2_hp_hv_en[Y2_HP_LEVELS] = { 0, Y2_CLASS_H_HV_EN, Y2_CLASS_H_HV_EN };
++static unsigned int y2_hp_level;	/* Low */
++static DEFINE_MUTEX(y2_hp_level_lock);
++
++/* Caller holds y2_hp_level_lock and knows PDN_HP is set. */
++static int y2_hp_level_write(struct cs43130_private *cs43130)
++{
++	int ret;
++
++	ret = regmap_update_bits(cs43130->regmap, CS43130_CLASS_H_CTL,
++				 Y2_CLASS_H_HV_EN, y2_hp_hv_en[y2_hp_level]);
++	if (ret)
++		return ret;
++	return regmap_update_bits(cs43130->regmap, CS43130_HP_OUT_CTL_1,
++				  Y2_HP_OUT_FS_MASK, y2_hp_out_fs[y2_hp_level]);
++}
++
++/* Request a level: written now while the amplifier is down, otherwise at its
++ * next power-up. Returns 1 when the request changed. */
++static int y2_hp_level_set(struct cs43130_private *cs43130, unsigned int level)
++{
++	unsigned int pwdn;
++	int changed, ret = 0;
++
++	if (level >= Y2_HP_LEVELS)
++		return -EINVAL;
++	mutex_lock(&y2_hp_level_lock);
++	changed = y2_hp_level != level;
++	y2_hp_level = level;
++	/* An unreadable state counts as powered: never write a live amplifier. */
++	if (!regmap_read(cs43130->regmap, CS43130_PWDN_CTL, &pwdn) &&
++	    (pwdn & CS43130_PDN_HP_MASK))
++		ret = y2_hp_level_write(cs43130);
++	mutex_unlock(&y2_hp_level_lock);
++	return ret ? ret : changed;
++}
++
++/* The level the output runs at (or will run at when it powers up next):
++ * 0..2, or Y2_HP_LEVELS when the registers hold another combination. */
++static unsigned int y2_hp_level_live(struct cs43130_private *cs43130)
++{
++	unsigned int out = 0, class_h = 0, i;
++
++	if (regmap_read(cs43130->regmap, CS43130_HP_OUT_CTL_1, &out) ||
++	    regmap_read(cs43130->regmap, CS43130_CLASS_H_CTL, &class_h))
++		return Y2_HP_LEVELS;
++	for (i = 0; i < Y2_HP_LEVELS; i++)
++		if ((out & Y2_HP_OUT_FS_MASK) == y2_hp_out_fs[i] &&
++		    (class_h & Y2_CLASS_H_HV_EN) == y2_hp_hv_en[i])
++			return i;
++	return Y2_HP_LEVELS;
++}
++
++static const char *const y2_hp_level_texts[] = { "Low", "Medium", "High" };
++static const char *const y2_hp_live_texts[] = { "Low", "Medium", "High", "Other" };
++static SOC_ENUM_SINGLE_EXT_DECL(y2_hp_level_enum, y2_hp_level_texts);
++static SOC_ENUM_SINGLE_EXT_DECL(y2_hp_live_enum, y2_hp_live_texts);
++
++static int y2_hp_level_get(struct snd_kcontrol *kcontrol,
++			   struct snd_ctl_elem_value *ucontrol)
++{
++	mutex_lock(&y2_hp_level_lock);
++	ucontrol->value.enumerated.item[0] = y2_hp_level;
++	mutex_unlock(&y2_hp_level_lock);
++	return 0;
++}
++
++static int y2_hp_level_put(struct snd_kcontrol *kcontrol,
++			   struct snd_ctl_elem_value *ucontrol)
++{
++	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
++
++	return y2_hp_level_set(snd_soc_component_get_drvdata(component),
++			       ucontrol->value.enumerated.item[0]);
++}
++
++static int y2_hp_live_get(struct snd_kcontrol *kcontrol,
++			  struct snd_ctl_elem_value *ucontrol)
++{
++	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
++
++	ucontrol->value.enumerated.item[0] =
++		y2_hp_level_live(snd_soc_component_get_drvdata(component));
++	return 0;
++}
++
+ static const struct snd_kcontrol_new cs43130_snd_controls[] = {
+ 	SOC_DOUBLE_R_TLV("Master Playback Volume",
+ 			 CS43130_PCM_VOL_A, CS43130_PCM_VOL_B, 0, 0xFF, 1,
+@@ -1126,6 +1231,16 @@
+ 	SOC_SINGLE("PCM High-pass Filter", CS43130_PCM_FILT_OPT, 1, 1, 0),
+ 	SOC_SINGLE("PCM De-emphasis Filter", CS43130_PCM_FILT_OPT, 0, 1, 0),
+ 	SOC_ENUM("DSD Phase Modulation", dsd_enum),
++	SOC_ENUM_EXT("HP Output Level", y2_hp_level_enum, y2_hp_level_get,
++		     y2_hp_level_put),
++	{
++		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
++		.name = "HP Output Level Live",
++		.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
++		.info = snd_soc_info_enum_double,
++		.get = y2_hp_live_get,
++		.private_value = (unsigned long)&y2_hp_live_enum,
++	},
+ };
+ 
+ static const struct reg_sequence pcm_seq[] = {
+@@ -1314,6 +1429,10 @@
+ 
+ 	switch (event) {
+ 	case SND_SOC_DAPM_PRE_PMU:
++		/* Y2: PDN_HP is still set here; apply the requested level. */
++		mutex_lock(&y2_hp_level_lock);
++		y2_hp_level_write(cs43130);
++		mutex_unlock(&y2_hp_level_lock);
+ 		switch (cs43130->dev_id) {
+ 		case CS43130_CHIP_ID:
+ 		case CS4399_CHIP_ID:
+@@ -2062,16 +2181,41 @@
  				   ac_reg_val >> CS43130_HP_MEAS_LOAD_2_SHIFT);
  	}
  
@@ -62,7 +197,7 @@
  
  	dev_dbg(cs43130->dev, "HP load stat: %x, INT_MASK_4: %x\n",
  		cs43130->hpload_stat, msk);
-@@ -2116,6 +2146,12 @@
+@@ -2116,6 +2260,12 @@
  	return 0;
  }
  
@@ -75,7 +210,7 @@
  static void cs43130_imp_meas(struct work_struct *wk)
  {
  	unsigned int reg, seq_size;
-@@ -2164,6 +2200,13 @@
+@@ -2164,6 +2314,13 @@
  	i = 0;
  	ac_idx = 0;
  	while (i < seq_size) {
@@ -89,7 +224,7 @@
  		ret = cs43130_hpload_proc(cs43130, hpload_seq[i].seq,
  					  hpload_seq[i].size,
  					  hpload_seq[i].msk, ac_idx);
-@@ -2183,6 +2226,16 @@
+@@ -2183,6 +2340,16 @@
  	}
  	cs43130->hpload_done = true;
  
@@ -106,16 +241,16 @@
  	if (cs43130->hpload_dc[HP_LEFT] >= CS43130_LINEOUT_LOAD)
  		snd_soc_jack_report(&cs43130->jack, CS43130_JACK_LINEOUT,
  				    CS43130_JACK_MASK);
-@@ -2223,6 +2276,142 @@
+@@ -2223,6 +2390,141 @@
  	mutex_unlock(&cs43130->clk_mutex);
  }
  
 +/*
-+ * Y2: headphone load measurement on demand, and the matching output level.
-+ * The Y2 powers the codec only while it is used and has no codec interrupt
-+ * wired, so measurement runs on request (never during playback) and polls
-+ * the HPLOAD status. The result selects hv_seq exactly as on plug detection;
-+ * hp_gain also lets the owner choose the level. Both persist in the regcache.
++ * Y2: headphone load measurement on demand. The Y2 powers the codec only
++ * while it is used and has no codec interrupt wired, so measurement runs on
++ * request (never during playback) and polls the HPLOAD status. It reports the
++ * load; the output level stays the requested one (hp_gain or the ALSA control
++ * "HP Output Level"), written again after the measurement's own choice.
 + */
 +static const char *const y2_hp_gain_names[] = { "low", "mid", "high" };
 +static DEFINE_MUTEX(y2_hp_lock);
@@ -124,13 +259,11 @@
 +			    char *buf)
 +{
 +	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
-+	unsigned int reg = 0;
-+	int i;
++	unsigned int live = y2_hp_level_live(cs43130), reg = 0;
 +
++	if (live < Y2_HP_LEVELS)
++		return sysfs_emit(buf, "%s\n", y2_hp_gain_names[live]);
 +	regmap_read(cs43130->regmap, CS43130_HP_OUT_CTL_1, &reg);
-+	for (i = 0; i < ARRAY_SIZE(hv_seq); i++)
-+		if (reg == hv_seq[i][1].def)
-+			return sysfs_emit(buf, "%s\n", y2_hp_gain_names[i]);
 +	return sysfs_emit(buf, "raw:%02x\n", reg);
 +}
 +
@@ -142,11 +275,8 @@
 +
 +	if (i < 0)
 +		return -EINVAL;
-+	/* Cache-only while suspended: synced on the next power-up. */
-+	mutex_lock(&y2_hp_lock);
-+	regmap_multi_reg_write(cs43130->regmap, hv_seq[i], ARRAY_SIZE(hv_seq[i]));
-+	mutex_unlock(&y2_hp_lock);
-+	return count;
++	i = y2_hp_level_set(cs43130, i);
++	return i < 0 ? i : count;
 +}
 +static DEVICE_ATTR_RW(hp_gain);
 +
@@ -202,6 +332,10 @@
 +			ret = -ENXIO; /* nothing in the jack, per the detector */
 +		} else {
 +			cs43130_imp_meas(&cs43130->work);
++			/* imp_meas wrote its load-based hv_seq; PDN_HP is set. */
++			mutex_lock(&y2_hp_level_lock);
++			y2_hp_level_write(cs43130);
++			mutex_unlock(&y2_hp_level_lock);
 +			if (!cs43130->hpload_done) {
 +				y2_hp_snapshot(cs43130, "failed");
 +				ret = -EIO;
@@ -249,7 +383,20 @@
  static irqreturn_t cs43130_irq_thread(int irq, void *data)
  {
  	struct cs43130_private *cs43130 = (struct cs43130_private *)data;
-@@ -2475,13 +2664,16 @@
+@@ -2358,6 +2660,12 @@
+ 				   CS43130_XTAL_ERR_INT, 0);
+ 	}
+ 
++	/* Y2: the default level instead of the reset value (High), so the
++	 * readback is right before the first stream; the amplifier is down. */
++	ret = y2_hp_level_set(cs43130, y2_hp_level);
++	if (ret < 0)
++		return ret;
++
+ 	ret = snd_soc_card_jack_new(card, "Headphone", CS43130_JACK_MASK,
+ 				    &cs43130->jack);
+ 	if (ret < 0) {
+@@ -2475,13 +2783,16 @@
  	cs43130->dc_meas = device_property_read_bool(cs43130->dev, "cirrus,dc-measure");
  	cs43130->ac_meas = device_property_read_bool(cs43130->dev, "cirrus,ac-measure");
  
@@ -268,7 +415,7 @@
  				       cs43130->dc_threshold,
  				       CS43130_DC_THRESHOLD)) {
  		for (i = 0; i < CS43130_DC_THRESHOLD; i++)
-@@ -2608,6 +2800,10 @@
+@@ -2608,6 +2919,10 @@
  	pm_runtime_set_active(cs43130->dev);
  	pm_runtime_enable(cs43130->dev);
  
@@ -279,7 +426,7 @@
  	switch (cs43130->dev_id) {
  	case CS43130_CHIP_ID:
  	case CS43131_CHIP_ID:
-@@ -2672,62 +2868,130 @@
+@@ -2672,62 +2987,130 @@
  	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
  }
  

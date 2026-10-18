@@ -16,8 +16,8 @@ REQUIRED_DECODERS = {
 REQUIRED_ARTWORK = {"mjpeg", "png", "webp"}
 REQUIRED_PARSERS = {"flac", "mpegaudio", "aac", "opus", "vorbis"}
 REQUIRED_FILTERS = {
-    "abuffer", "abuffersink", "aformat", "aresample", "volume", "equalizer", "alimiter",
-    "acrossfade", "amix", "atrim", "afade", "asetnsamples",
+    "abuffer", "abuffersink", "aformat", "aresample", "volume", "equalizer", "lowshelf",
+    "highshelf", "alimiter", "acrossfade", "amix", "atrim", "afade", "asetnsamples",
 }
 EXPECTED_LIBRARIES = {
     "libavcodec": "63.1.102", "libavformat": "63.1.102", "libavutil": "61.1.102",
