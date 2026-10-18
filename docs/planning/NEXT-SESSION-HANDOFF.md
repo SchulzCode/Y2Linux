@@ -1,6 +1,30 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.5 (BASELINE 93) PUBLISHED — HEADPHONE LEVEL, HEADPHONE PROFILES
+> **START HERE (2026-10-18, latest): AUDIO PLAYBACK REVIEW AFTER BETA 8.5 — FIXES HOST-TESTED, NOT BUILT.** Owner
+> asked for a review of all audio playback, then "do it all". Audit AUDIO-REVIEW-8.5; Reborn `0b55cbb` (+ docs `86b7baa`), state "Unreleased —
+> audio playback review". Nothing was built for the player, written to it or published.
+> - **Kernel (0030, Linux):** the level's PDN_HP check and write now run under the card's DAPM mutex (before, a
+>   stream starting between check and write could get OUT_FS written with the amplifier on); `hpload_measure`
+>   refuses an open stream and holds DAPM while measuring. `tests/test_hp_level.py` models the lock (mutations
+>   caught); W=1 compile in the sandbox clean; host suite 805 OK.
+> - **Reborn:** fade carries over a reopened sink and through volume up; louder sound settings fade in
+>   (`dsp_rise_fades`); held pause released on every sound change; same Headphone Level = no restart; EQ no longer
+>   PlaybackHeavy; one FFmpeg graph thread (host −43 %/−20 % CPU, bit-identical); preamp over 44.1–384 kHz (six
+>   shipped profiles 0.1–0.4 dB lower); license file not a profile; FFI layout asserts, new loud fixture, clip test
+>   at S24/S16. 539 tests, fmt, strict Clippy.
+> - **Answers:** OUT_FS was only ever written live through the two races above. Clip safety holds with ReplayGain,
+>   crossfade (tri curves sum ≤ limit), gapless (alimiter latency=1 trims/pads) and 24-bit; files below 44.1 kHz
+>   rely on the limiter (FFmpeg bypasses filters above Nyquist). Old Reborn + new kernel: 4.8 dB quieter; new Reborn
+>   + old kernel: as 8.4. A reboot with High saved plays High without a fade (by design).
+> - **Owed on the player (buttons, after a test build with the owner's OK):** Headphone Profile shows 47 entries and no
+>   "LICENSE-AutoEq"; raise the level while playing, press Next within 2 s: the fade continues; volume up during the
+>   fade: no jump; profile on → off while playing: fades in; pause until held, Reset Settings at High, Play: Low;
+>   press the checked level: no restart; DAC Filter change while playing: listen for a click. Measure CPU
+>   (decode+filter threads, HD 650) and the playback current with a profile vs 8.5 (PlaybackNormal now).
+> - **Not done on purpose:** refusing files whose preamp is far below what their filters need (the fade covers the
+>   jump); covering sample rates below 44.1 kHz in the preamp (would lower many profiles by up to 6 dB).
+>
+> Previous entry: **START HERE (2026-10-18): Y2LINUX 1.0 BETA 8.5 (BASELINE 93) PUBLISHED — HEADPHONE LEVEL, HEADPHONE PROFILES
 > (AUTOEQ, 47 SHIPPED), DAC FILTER, SOUND ON ONE SCREEN.** Owner: "publish it as beta 8.5". Report
 > `docs/validation/Y2-LINUX-1.0-BETA-8.5.md`, audit BETA-8.5; the owner's player runs test build 93 = this release.
 > History of the work below (first written when it was host-tested only). Owner question from an email (stock bass roll-off, "output gain switching with

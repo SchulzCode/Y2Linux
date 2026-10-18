@@ -31,13 +31,17 @@ table tops out at −3 dB, so the stock maximum is about 0.71 Vrms.
   written at once while the amplifier is down. Otherwise it is written right before the next power-up, in the
   "HiFi DAC" PRE_PMU event, while PDN_HP is still set. The card ignores pmdown_time, so the amplifier powers down when
   a stream closes. The request lives in the driver, not the register cache, so it survives runtime and system
-  suspend. The old sysfs switch `y2_hp/hp_gain` uses the same path. `y2_hp/hpload_measure` still measures the load
-  but no longer changes the level. Host test: `tests/test_hp_level.py` (C harness on the real driver functions).
+  suspend. The PDN_HP check and the write run under the card's DAPM lock, so a stream starting at that moment
+  cannot power the amplifier in between (audio review, 2026-10-18). The old sysfs switch `y2_hp/hp_gain` uses the
+  same path. `y2_hp/hpload_measure` still measures the load but no longer changes the level; it refuses while a
+  stream is open (`EBUSY`) and holds the DAPM lock while it measures. Host test: `tests/test_hp_level.py` (C harness on the real driver functions).
 - **Reborn**: Settings → Sound → Output → *Headphone Level* sets the control before each wired stream starts. The DAC Master
   is now −19.5 dB instead of −24 dB, so Low plays 0.26 dB below the old level (1.73 Vrms at −24 dB) and never louder.
   Medium is +2.7 dB and High +4.5 dB over the old level. Changing the level during wired playback restarts the
   stream so the new level takes effect, and the first stream after a rise fades in over 2 s. A held pause gives its
-  stream back, so the new level starts with Play. On a kernel without the control, Master stays at −24 dB.
+  stream back, so the new level starts with Play. A fade carries over when the stream restarts during it (Next, a
+  seek), and volume up during it keeps fading. Sound settings that play louder (a profile turned off, a boosting
+  preset, Normalize changed) fade in the same way. On a kernel without the control, Master stays at −24 dB.
   At full volume, the output is about 0.106 / 0.149 / 0.183 Vrms (Low / Medium / High, 0 dBFS).
 - **DAC Filter** (Settings → Sound → Output): Fast (default, the chip's and stock's), Fast Phase Compensated, Slow, Slow Phase
   Compensated, Nonoversampling. These are the upstream controls `PCM Filter Speed`, `PCM Phase Compensation` and `PCM
@@ -48,7 +52,9 @@ table tops out at −3 dB, so the stock maximum is about 0.71 Vrms.
   shipped profile of the same name. Up to 10 filters: PK (peaking), LSC (low shelf) and HSC (high
   shelf), with Q. These are the RBJ cookbook biquads that Equalizer APO and AutoEQ use, played by FFmpeg's
   `equalizer`, `lowshelf` and `highshelf`. The preamp is the file's own, or lower when the filters' combined response
-  still rises above 0 dB between 10 Hz and Nyquist (AutoEQ's HD 650 file says −6.1 dB; Reborn uses −6.4 dB). The
+  still rises above 0 dB between 10 Hz and Nyquist at any source rate from 44.1 to 384 kHz (the filters run before
+  resampling; AutoEQ's HD 650 file says −6.1 dB; Reborn uses −6.4 dB). For files below 44.1 kHz FFmpeg skips filters
+  above Nyquist and the limiter catches the rest. The
   limiter stays after the filters. Reborn keeps the imported profile when the file is removed. Choosing a preset
   turns the profile off.
 

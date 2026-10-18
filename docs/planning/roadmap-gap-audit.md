@@ -8768,3 +8768,23 @@ Master change, shipped AutoEq data and two FFmpeg filters (packaging). Real-hard
 | Output voltage, noise, response per load | NOT MEASURED | Plan in HEADPHONE-OUTPUT.md |
 
 **Gate decision:** READY for **Y2Linux 1.0.0-beta.8.5** (Baseline 93, sequence 6752) at the owner's word (given).
+
+## AUDIO-REVIEW-8.5 audio playback review after Beta 8.5: milestone gap audit — 2026-10-18
+
+**Boundary:** owner asked for a review of audio playback (bugs, races, hearing safety, battery, tests) and then
+"do it all". Localized fixes in the codec overlay (0030) and Reborn; one battery-policy change (an equalizer no
+longer takes the PlaybackHeavy workload class) and a small loudness change (six shipped profiles 0.1–0.4 dB lower).
+No hardware, memory or packaging scope change. Real-hardware evidence: Beta 8.5 device results (test builds
+91–93); everything below is host-tested only.
+
+| Area | State | Evidence / gap |
+| --- | --- | --- |
+| OUT_FS while PDN_HP clear | FIXED (host) | `y2_hp_level_set` checked PDN_HP and wrote outside DAPM's lock (a stream starting in between); now under the card's DAPM mutex. `hpload_measure` refuses an open stream and holds DAPM. C harness asserts the lock; mutations caught; W=1 compile clean |
+| Loudness without a fade | FIXED (host) | Fade carries over a reopened sink, volume up keeps fading, louder sound settings fade in, held pause released on any sound change |
+| Profile clip safety | FIXED (host) | Preamp covers 44.1–384 kHz source rates; limiter holds a +6 dB ReplayGain full profile at S24/S16 (new fixture) |
+| Shipped profile list | FIXED (host) | License file no longer listed as a profile |
+| Battery with a profile | CHANGED, NOT MEASURED | One graph thread (host −20…−43 % CPU, bit-identical); no PlaybackHeavy floor/latency for EQ. Device CPU and mA owed |
+| Settings screens, fades, sleep with a level | OWED | Button checks listed in the handoff |
+
+**Gate decision:** host work complete (Linux host suite 805 OK, Reborn 539 tests, fmt, strict Clippy). A test build
+on the player and any release need the owner's word.
