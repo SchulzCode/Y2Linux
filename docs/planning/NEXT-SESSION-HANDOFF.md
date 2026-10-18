@@ -20,9 +20,14 @@
 >   change (it never compiled the new filters before). Device results: probe default Low (HP_OUT_CTL_1 0x10, CLASS_H
 >   0x1C; 8.4 had 0x30/0x1E); wired play: PWDN 0xA6, 0x10/0x1C, Master −19.5 dB, `hp_level_live` 0; High requested
 >   during playback left the registers alone, a silent stream afterwards came up at 0x30/0x1E (Live High), Low while
->   down written at once. Runtime FFmpeg lists lowshelf/highshelf. Not run: UI changes (no input injection; stopping
->   Reborn to edit the session was refused by the permission classifier), the fade, profile import, system sleep
->   (needs USB unplugged). Test files in `/media/internal/music/EQ/` (HD 650 + a broken one).
+>   down written at once. Runtime FFmpeg lists lowshelf/highshelf. Session-edit tests (owner granted stopping Reborn;
+>   backup `/data/reborn/state/session.json.before-hp-test`, restored after): High + Slow Phase Compensated + HD 650
+>   profile → startup wrote 0x30/0x1E and PCM_FILT_OPT 0xC2, play Live High, Master −19.5, no fade (startup baseline),
+>   graph `EQ=configured,preamp=-6.4dB,alimiter` (−6.1 sanitized), 0 xruns/filter/decode errors. CPU on the same song:
+>   decode+filter threads 4.4 % → 11.7 % of one core with the 10-band profile (second thread = the EQ slice thread;
+>   one thread may be cheaper). Original settings back (Low, Fast, no profile), player paused. Not run: UI changes
+>   (no input injection), the fade after a chosen rise, profile scan/import screens, system sleep (USB unplugged).
+>   Test files in `/media/internal/music/EQ/` (HD 650 + a broken one).
 > - **Owed:** a test build on the player (owner's OK): `amixer -c Y2Audio cget name='HP Output Level Live'`, regmap
 >   debugfs HP_OUT_CTL_1/CLASS_H per level, the 2-s fade, listening at Low (should match the old loudness), suspend and
 >   resume keep the level, a profile file from Internal Storage `EQ/`. Then the emailer's measurements (plan in the
