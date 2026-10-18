@@ -15,6 +15,14 @@
 >   CLASS_H (runs 0x10 + 0x1E) and writes OUT_FS with the amplifier on. Y2Linux full volume was ≈0.11 Vrms (1.73 V −24 dB);
 >   stock's top step ≈0.71 Vrms. `c852008` (Baseline 49) already had `y2_hp/hp_gain` + on-demand load measurement,
 >   unused by Reborn; the 102-Ω board offset found then may be real series resistance (output impedance), so measure it.
+> - **Test build 91 = 1.0.0-beta.8.5, sequence 6750 (Linux `5de9c95`, Reborn `14aad05`), installed 2026-10-18 over SSH
+>   (stage + apply, install 16.0 s, Acknowledged).** `5de9c95` makes a resumed build rebuild FFmpeg when its options
+>   change (it never compiled the new filters before). Device results: probe default Low (HP_OUT_CTL_1 0x10, CLASS_H
+>   0x1C; 8.4 had 0x30/0x1E); wired play: PWDN 0xA6, 0x10/0x1C, Master −19.5 dB, `hp_level_live` 0; High requested
+>   during playback left the registers alone, a silent stream afterwards came up at 0x30/0x1E (Live High), Low while
+>   down written at once. Runtime FFmpeg lists lowshelf/highshelf. Not run: UI changes (no input injection; stopping
+>   Reborn to edit the session was refused by the permission classifier), the fade, profile import, system sleep
+>   (needs USB unplugged). Test files in `/media/internal/music/EQ/` (HD 650 + a broken one).
 > - **Owed:** a test build on the player (owner's OK): `amixer -c Y2Audio cget name='HP Output Level Live'`, regmap
 >   debugfs HP_OUT_CTL_1/CLASS_H per level, the 2-s fade, listening at Low (should match the old loudness), suspend and
 >   resume keep the level, a profile file from Internal Storage `EQ/`. Then the emailer's measurements (plan in the
