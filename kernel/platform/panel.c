@@ -28,8 +28,11 @@ struct gc9503v {
 	struct mipi_dsi_device *dsi;
 	struct reset_control *reset;
 	bool inherited;
-	bool identified; /* display ID read back as a GC9503V */
+	int kind; /* Y2LCM_*: which panel this player carries, once identified */
 };
+
+/* The Y2 ships with one of two panels; the stock kernel has a driver for each. */
+enum { Y2LCM_UNKNOWN, Y2LCM_GC9503V, Y2LCM_ST7701S };
 
 /* One MIPI DCS long/short write: command byte + parameter bytes. */
 struct gc9503v_cmd {
@@ -149,6 +152,71 @@ static const struct gc9503v_suspend_cmd gc9503v_stock_suspend_cmds[] = {
     {0x93, 1, 0, {0x27}},
     {0xaf, 1, 0, {0x02}},
 };
+/*
+ * Sitronix ST7701S (stock st7701_hvga_dsi_vdo_boe), the panel of the owner's
+ * player. Stock FM kernel: lcm_init 0xc04a2754 (= lcm_resume) pulses reset
+ * 1/20 ms/0/50 ms/1/150 ms and pushes the 47 rows at 0xc09fffb8 (0xffe = delay,
+ * 0xffd = end); lcm_suspend 0xc04a27d8 pushes the 7 rows at 0xc0a00cf0, waits
+ * 50 ms and leaves reset high. Delay rows are folded into delay_ms below.
+ */
+struct st7701s_cmd {
+	u8 cmd;
+	u8 len;
+	u8 delay_ms; /* after this command */
+	u8 data[16];
+};
+static const struct st7701s_cmd st7701s_init_cmds[] = {
+    {0xff, 5, 0, {0x77, 0x01, 0x00, 0x00, 0x13}},
+    {0xef, 1, 0, {0x08}},
+    {0xff, 5, 0, {0x77, 0x01, 0x00, 0x00, 0x10}},
+    {0xc0, 2, 0, {0x2c, 0x00}},
+    {0xc1, 2, 0, {0x10, 0x0c}},
+    {0xc2, 2, 0, {0x21, 0x0a}},
+    {0xcc, 1, 0, {0x10}},
+    {0xb0, 16, 0, {0x00, 0x0b, 0x12, 0x0d, 0x10, 0x06, 0x02, 0x08, 0x07, 0x1f, 0x04, 0x11, 0x0f, 0x29, 0x31, 0x1e}},
+    {0xb1, 16, 0, {0x00, 0x0b, 0x13, 0x0d, 0x11, 0x06, 0x03, 0x08, 0x07, 0x20, 0x04, 0x12, 0x11, 0x29, 0x31, 0x1e}},
+    {0xff, 5, 0, {0x77, 0x01, 0x00, 0x00, 0x11}},
+    {0xb0, 1, 0, {0x5d}},
+    {0xb1, 1, 0, {0x72}},
+    {0xb2, 1, 0, {0x84}},
+    {0xb3, 1, 0, {0x80}},
+    {0xb5, 1, 0, {0x4d}},
+    {0xb7, 1, 0, {0x85}},
+    {0xb8, 1, 0, {0x20}},
+    {0xb9, 1, 0, {0x10}},
+    {0xc1, 1, 0, {0x78}},
+    {0xc2, 1, 0, {0x78}},
+    {0xd0, 1, 100, {0x88}},
+    {0xe0, 3, 0, {0x80, 0x00, 0x02}},
+    {0xe1, 11, 0, {0x05, 0x00, 0x07, 0x00, 0x06, 0x00, 0x08, 0x00, 0x00, 0x33, 0x33}},
+    {0xe2, 12, 0, {0x00, 0x00, 0x30, 0x30, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}},
+    {0xe3, 4, 0, {0x00, 0x00, 0x11, 0x11}},
+    {0xe4, 2, 0, {0x44, 0x44}},
+    {0xe5, 16, 0, {0x0c, 0x78, 0x00, 0xe0, 0x0e, 0x7a, 0x00, 0xe0, 0x08, 0x74, 0x00, 0xe0, 0x0a, 0x76, 0x00, 0xe0}},
+    {0xe6, 4, 0, {0x00, 0x00, 0x11, 0x11}},
+    {0xe7, 2, 0, {0x44, 0x44}},
+    {0xe8, 16, 0, {0x0d, 0x79, 0x00, 0xe0, 0x0f, 0x7b, 0x00, 0xe0, 0x09, 0x75, 0x00, 0xe0, 0x0b, 0x77, 0x00, 0xe0}},
+    {0xe9, 2, 0, {0x36, 0x00}},
+    {0xeb, 7, 0, {0x00, 0x01, 0xe4, 0xe4, 0x44, 0x88, 0x40}},
+    {0xed, 16, 0, {0xa1, 0xc2, 0xfb, 0x0f, 0x67, 0x45, 0xff, 0xff, 0xff, 0xff, 0x54, 0x76, 0xf0, 0xbf, 0x2c, 0x1a}},
+    {0xef, 6, 0, {0x10, 0x0d, 0x04, 0x08, 0x3f, 0x1f}},
+    {0xff, 5, 0, {0x77, 0x01, 0x00, 0x00, 0x13}},
+    {0xe8, 2, 0, {0x00, 0x0e}},
+    {0xff, 5, 0, {0x77, 0x01, 0x00, 0x00, 0x00}},
+    {MIPI_DCS_EXIT_SLEEP_MODE, 0, 120, {}},
+    {0xff, 5, 0, {0x77, 0x01, 0x00, 0x00, 0x13}},
+    {0xe8, 2, 10, {0x00, 0x0c}},
+    {0xe8, 2, 0, {0x00, 0x00}},
+    {0xff, 5, 0, {0x77, 0x01, 0x00, 0x00, 0x00}},
+    {MIPI_DCS_SET_DISPLAY_ON, 0, 0, {}},
+};
+static const struct st7701s_cmd st7701s_suspend_cmds[] = {
+    {MIPI_DCS_SET_DISPLAY_OFF, 0, 10, {}},
+    {MIPI_DCS_ENTER_SLEEP_MODE, 0, 120, {}},
+    {0xff, 6, 0, {0x77, 0x01, 0x00, 0x00, 0x00, 0x80}},
+    {0xff, 5, 50, {0x77, 0x01, 0x00, 0x00, 0x80}},
+};
+
 static bool stock_suspend;
 module_param(stock_suspend, bool, 0644);
 MODULE_PARM_DESC(stock_suspend, "screen-off uses the stock GC9503V power-down sequence (reset high)");
@@ -187,28 +255,30 @@ static int gc9503v_write(struct mipi_dsi_device *dsi, u8 cmd, const u8 *data, u8
 	return ret < 0 ? ret : 0;
 }
 
-/* The stock kernel carries two panel drivers: this GC9503V (gc9503v_hvga_dsi_vdo_hsd)
- * and a Sitronix ST7701S (st7701_hvga_dsi_vdo_boe) with a different command set.
- * Like the stock lcm_compare_id (0xc04a2240), read DCS 0x04 (3 bytes) and accept
- * ID 0x9503/0x9504 before ever sending this driver's init or power-down. */
+/* Which of the two stock panels this player carries. LK ran the stock
+ * lcm_compare_id and names the one it found (lcm=1-<name>): the owner's player
+ * reports st7701s, #45's reporter's logs suggest a GC9503V. Without LK's word,
+ * the GC9503V's own check (0xc04a2240: DCS 0x04 = 0x9503/0x9504) is the
+ * fallback. Nothing is ever sent to an unidentified panel. */
 static int gc9503v_identify(struct gc9503v *ctx)
 {
 	u8 id[3] = {};
 	int ret;
 
-	if (ctx->identified)
+	if (ctx->kind)
 		return 0;
 #if IS_ENABLED(CONFIG_Y2_POWER)
-	/* LK ran the stock lcm_compare_id and names the panel it found (lcm=1-...).
-	 * The Y2 DSI read-back of 0x04 returned ff ff ff on the owner's GC9503V. */
 	switch (y2_boot_panel()) {
 	case Y2_PANEL_GC9503V:
-		ctx->identified = true;
+		ctx->kind = Y2LCM_GC9503V;
 		dev_info(&ctx->dsi->dev, "LK identified the panel as GC9503V\n");
 		return 0;
 	case Y2_PANEL_ST7701S:
+		ctx->kind = Y2LCM_ST7701S;
+		dev_info(&ctx->dsi->dev, "LK identified the panel as ST7701S\n");
+		return 0;
 	case Y2_PANEL_OTHER:
-		dev_warn_once(&ctx->dsi->dev, "LK found another panel than the GC9503V: panel stays lit\n");
+		dev_warn_once(&ctx->dsi->dev, "LK found an unknown panel: it stays lit\n");
 		return -ENODEV;
 	}
 #endif
@@ -216,13 +286,72 @@ static int gc9503v_identify(struct gc9503v *ctx)
 	if (!ret)
 		ret = mipi_dsi_dcs_read(ctx->dsi, MIPI_DCS_GET_DISPLAY_ID, id, sizeof(id));
 	if (ret == sizeof(id) && ((id[1] << 8 | id[2]) == 0x9503 || (id[1] << 8 | id[2]) == 0x9504)) {
-		ctx->identified = true;
+		ctx->kind = Y2LCM_GC9503V;
 		dev_info(&ctx->dsi->dev, "display ID %02x %02x %02x: GC9503V\n", id[0], id[1], id[2]);
 		return 0;
 	}
-	dev_warn_once(&ctx->dsi->dev, "display ID %02x %02x %02x (read %d) is not a GC9503V: panel stays lit\n",
+	dev_warn_once(&ctx->dsi->dev, "panel not identified (display ID %02x %02x %02x, read %d): it stays lit\n",
 		 id[0], id[1], id[2], ret);
 	return -ENODEV;
+}
+
+static int st7701s_send(struct gc9503v *ctx, const struct st7701s_cmd *table, unsigned int rows,
+			const char *what)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < rows; i++) {
+		ret = gc9503v_write(ctx->dsi, table[i].cmd, table[i].data, table[i].len);
+		if (ret < 0) {
+			dev_err(&ctx->dsi->dev, "ST7701S %s cmd 0x%02x (row %u) failed: %d\n", what,
+				table[i].cmd, i, ret);
+			return ret;
+		}
+		if (table[i].delay_ms)
+			msleep(table[i].delay_ms);
+	}
+	return 0;
+}
+
+/* Stock lcm_init / lcm_resume of the ST7701S. */
+static int st7701s_init(struct gc9503v *ctx)
+{
+	int ret;
+
+	dev_info(&ctx->dsi->dev, "ST7701S full initialization (stock lcm_init)\n");
+	ret = reset_control_deassert(ctx->reset);
+	if (!ret) {
+		msleep(20);
+		ret = reset_control_assert(ctx->reset);
+	}
+	if (!ret) {
+		msleep(50);
+		ret = reset_control_deassert(ctx->reset);
+	}
+	if (ret)
+		return ret;
+	msleep(150);
+	ret = st7701s_send(ctx, st7701s_init_cmds, ARRAY_SIZE(st7701s_init_cmds), "init");
+	if (ret) {
+		reset_control_assert(ctx->reset);
+		return ret;
+	}
+	dev_info(&ctx->dsi->dev, "ST7701S sleep-out and display-on complete\n");
+	return 0;
+}
+
+/* Stock lcm_suspend of the ST7701S; reset stays high. A failed sequence falls
+ * back to reset low, which also leaves the panel dark and quiescent. */
+static int st7701s_unprepare(struct gc9503v *ctx)
+{
+	int ret = st7701s_send(ctx, st7701s_suspend_cmds, ARRAY_SIZE(st7701s_suspend_cmds), "power-down");
+
+	if (!ret)
+		return 0;
+	ret = reset_control_assert(ctx->reset);
+	dev_err(&ctx->dsi->dev, "ST7701S power-down fell back to reset low: %d\n", ret);
+	return ret;
 }
 
 static int gc9503v_prepare(struct drm_panel *panel)
@@ -244,7 +373,10 @@ static int gc9503v_prepare(struct drm_panel *panel)
             return ret;
         }
         /* Not adopted: DRM keeps it unprepared and never powers it down. */
-        if (!ret && (!READ_ONCE(power_down) || gc9503v_identify(ctx)))
+        if (!ret && !READ_ONCE(power_down))
+            return -EOPNOTSUPP;
+        /* Never send one panel's commands to the other. */
+        if (gc9503v_identify(ctx))
             return -EOPNOTSUPP;
         ctx->inherited = false;
         if (!ret) {
@@ -252,6 +384,8 @@ static int gc9503v_prepare(struct drm_panel *panel)
             return 0;
         }
     }
+    if (ctx->kind == Y2LCM_ST7701S)
+        return st7701s_init(ctx);
     dev_info(dev, "panel reset asserted/previously unprepared: full DCS initialization\n");
 	/* Reset high 10ms, low 10ms, high 120ms: retained LK/recovery sequence. */
 	ret = reset_control_deassert(ctx->reset);
@@ -328,6 +462,8 @@ static int gc9503v_unprepare(struct drm_panel *panel)
 		ctx->inherited = true;
 		return 0;
 	}
+	if (ctx->kind == Y2LCM_ST7701S)
+		return st7701s_unprepare(ctx);
 
 	/* A failed stock sequence falls back to 26's reset-low quiescent state. */
 	if (READ_ONCE(stock_suspend) && !gc9503v_stock_unprepare(ctx))

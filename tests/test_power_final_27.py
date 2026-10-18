@@ -73,11 +73,14 @@ class StockPanelSuspend(unittest.TestCase):
         prepare = prepare[:prepare.index('\n}\n')]
         inherited = prepare[prepare.index('if (ctx->inherited) {'):prepare.index('ctx->inherited = false;')]
         self.assertIn('if (ret == -ENOTSUPP)\n            ret = 0;', inherited)
-        self.assertIn('if (!ret && (!READ_ONCE(power_down) || gc9503v_identify(ctx)))\n            return -EOPNOTSUPP;', inherited)
-        # Only a panel that reads back as a GC9503V (stock lcm_compare_id: DCS 0x04,
-        # ID 0x9503/0x9504) is adopted; the stock kernel also ships an ST7701S driver.
+        self.assertIn('if (!ret && !READ_ONCE(power_down))\n            return -EOPNOTSUPP;', inherited)
+        # Never one panel's commands to the other: identified first (LK's lcm=, then
+        # the GC9503V's own ID read), before adoption and before any full init.
+        self.assertLess(inherited.index('!READ_ONCE(power_down)'), inherited.index('if (gc9503v_identify(ctx))\n            return -EOPNOTSUPP;'))
+        self.assertLess(prepare.index('if (gc9503v_identify(ctx))'), prepare.index('return st7701s_init(ctx);'))
         identify = self.source[self.source.index('static int gc9503v_identify('):]
         identify = identify[:identify.index('\n}\n')]
+        self.assertIn('case Y2_PANEL_ST7701S:\n\t\tctx->kind = Y2LCM_ST7701S;', identify)
         self.assertIn('mipi_dsi_set_maximum_return_packet_size(ctx->dsi, sizeof(id));', identify)
         self.assertIn('mipi_dsi_dcs_read(ctx->dsi, MIPI_DCS_GET_DISPLAY_ID, id, sizeof(id));', identify)
         self.assertIn('(id[1] << 8 | id[2]) == 0x9503 || (id[1] << 8 | id[2]) == 0x9504', identify)
@@ -100,6 +103,10 @@ class StockPanelSuspend(unittest.TestCase):
         table = self.source[self.source.index('#define GAMMA'):self.source.index('\n};', self.source.index('gc9503v_init_cmds[]')) + 3]
         stock = self.source[self.source.index('static const struct gc9503v_suspend_cmd gc9503v_stock_suspend_cmds[]'):]
         stock = stock[:stock.index('\n};') + 3]
+        st7701 = self.source[self.source.index('struct st7701s_cmd {'):]
+        st7701 = st7701[:st7701.index('static const struct st7701s_cmd st7701s_suspend_cmds[] = {')]
+        st7701 += self.source[self.source.index('static const struct st7701s_cmd st7701s_suspend_cmds[] = {'):]
+        st7701 = st7701[:st7701.index('\n};', st7701.index('st7701s_suspend_cmds[] = {')) + 3]
         program = r"""
 #include <stdio.h>
 #include <string.h>
@@ -110,6 +117,8 @@ typedef unsigned char u8;
 #define sizeof_field(t, f) sizeof(((t *)0)->f)
 #define MIPI_DCS_SET_DISPLAY_OFF 0x28
 #define MIPI_DCS_ENTER_SLEEP_MODE 0x10
+#define MIPI_DCS_EXIT_SLEEP_MODE 0x11
+#define MIPI_DCS_SET_DISPLAY_ON 0x29
 struct mipi_dsi_device { int unused; };
 struct gc9503v_cmd { u8 cmd; u8 len; u8 data[52]; };
 struct gc9503v_suspend_cmd { u8 cmd; u8 len; u8 delay_ms; u8 data[5]; };
@@ -118,7 +127,7 @@ static ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *d, u8 cmd, const void 
 { (void)d; type = n == 0 ? 0x05 : n == 1 ? 0x15 : 0x39; sent[0] = cmd; memcpy(sent + 1, p, n); sent_len = n + 1; return 0; }
 static ssize_t mipi_dsi_generic_write(struct mipi_dsi_device *d, const void *p, size_t n)
 { (void)d; type = n == 1 ? 0x13 : n == 2 ? 0x23 : 0x29; memcpy(sent, p, n); sent_len = n; return 0; }
-""" + helper + table + stock + r"""
+""" + helper + table + stock + st7701 + r"""
 static int stock_type(u8 cmd, u8 len)
 { return cmd > 0xaf ? (len == 0 ? 0x13 : len == 1 ? 0x23 : 0x29) : (len == 0 ? 0x05 : len == 1 ? 0x15 : 0x39); }
 int main(void)
@@ -134,6 +143,12 @@ int main(void)
 		const struct gc9503v_suspend_cmd *c = &gc9503v_stock_suspend_cmds[i];
 		if (gc9503v_write(&d, c->cmd, c->data, c->len) || type != stock_type(c->cmd, c->len)) bad++;
 	}
+	for (i = 0; i < ARRAY_SIZE(st7701s_init_cmds) + ARRAY_SIZE(st7701s_suspend_cmds); i++) {
+		const struct st7701s_cmd *c = i < ARRAY_SIZE(st7701s_init_cmds) ? &st7701s_init_cmds[i] :
+			&st7701s_suspend_cmds[i - ARRAY_SIZE(st7701s_init_cmds)];
+		if (gc9503v_write(&d, c->cmd, c->data, c->len) || type != stock_type(c->cmd, c->len) ||
+		    sent[0] != c->cmd || memcmp(sent + 1, c->data, c->len)) bad++;
+	}
 	printf("%u %u\n", bad, generic);
 	return bad != 0;
 }
@@ -145,6 +160,36 @@ int main(void)
             result = subprocess.run([str(binary)], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(result.stdout.split(), ['0', '15'])   # 15 of the 37 rows are generic
+
+    def test_st7701s_tables_are_the_stock_ones(self):
+        # Stock FM kernel st7701_hvga_dsi_vdo_boe: lcm_init table 0xc09fffb8 (47 rows,
+        # delay rows folded into delay_ms), lcm_suspend table 0xc0a00cf0 + mdelay(50).
+        names = {'MIPI_DCS_EXIT_SLEEP_MODE': 0x11, 'MIPI_DCS_SET_DISPLAY_ON': 0x29,
+                 'MIPI_DCS_SET_DISPLAY_OFF': 0x28, 'MIPI_DCS_ENTER_SLEEP_MODE': 0x10}
+        def table(name):
+            t = self.source[self.source.index(name + '[] = {'):]
+            t = t[:t.index('\n};')]
+            rows = []
+            for cmd, length, delay, data in re.findall(r'\{(\w+), (\d+), (\d+), \{([^}]*)\}\}', t):
+                params = [int(x, 0) for x in data.split(',') if x.strip()]
+                self.assertEqual(int(length), len(params))
+                rows.append((names.get(cmd) or int(cmd, 0), params, int(delay)))
+            return rows
+        page = lambda n: (0xff, [0x77, 0x01, 0x00, 0x00, n], 0)
+        init = table('st7701s_init_cmds')
+        self.assertEqual(len(init), 43)
+        self.assertEqual(init[:3], [page(0x13), (0xef, [0x08], 0), page(0x10)])
+        self.assertEqual(init[20], (0xd0, [0x88], 100))
+        self.assertEqual(init[37:], [(0x11, [], 120), page(0x13), (0xe8, [0x00, 0x0c], 10),
+                                     (0xe8, [0x00, 0x00], 0), page(0x00), (0x29, [], 0)])
+        self.assertEqual(table('st7701s_suspend_cmds'), [
+            (0x28, [], 10), (0x10, [], 120), (0xff, [0x77, 0x01, 0x00, 0x00, 0x00, 0x80], 0),
+            (0xff, [0x77, 0x01, 0x00, 0x00, 0x80], 50)])
+        init_fn = self.source[self.source.index('static int st7701s_init('):]
+        init_fn = init_fn[:init_fn.index('\n}\n')]
+        # Stock reset: 1, 20 ms, 0, 50 ms, 1, 150 ms.
+        self.assertLess(init_fn.index('msleep(20);'), init_fn.index('msleep(50);'))
+        self.assertLess(init_fn.index('msleep(50);'), init_fn.index('msleep(150);'))
 
     def test_a_lagging_dsi_fails_panel_commands_at_once(self):
         # A DSI programmed while its register reads lagged fails panel commands at
