@@ -245,6 +245,7 @@ def build(args):
                     f'(SHA-256 {sha256(assets / third_name)}), attached to or linked from this release.\n')
     # glibc and GCC's runtime libraries come from the prebuilt Bootlin toolchain,
     # whose sources legal-info does not save (V1 readiness A7).
+    sys.path.insert(0, str(PROJECT))  # run as a script: tools/ is not on the path
     from tools.production.toolchain_sources import archive as toolchain_sources
     toolchain = toolchain_sources()
     shutil.copy2(toolchain, assets / toolchain.name)
