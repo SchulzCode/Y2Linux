@@ -32,6 +32,10 @@
 >   disliked scrolling in Sound and chose layout C: Sound = Equalizer, Normalize, Gapless, Crossfade + Output card
 >   ("Level Low · Filter Fast"); the card opens `Screen::Output` (outputs checked + Headphone Jack group with Level
 >   and DAC Filter). Owner to try with the buttons.
+> - **Test build 93 = sequence 6752 (Linux `04e2dc8`, Reborn `b694670`), Acknowledged:** 47 AutoEq profiles of common
+>   headphones/IEMs ship in `/usr/share/reborn/eq` (Reborn `assets/eq`, pinned AutoEq `7ae0f56`, MIT license in
+>   legal-info); a storage `EQ` file replaces a shipped one by name. Owner tested the broken-file refusal ("it works");
+>   the test copies on Internal Storage were removed (identical to the shipped ones).
 > - **Owed:** a test build on the player (owner's OK): `amixer -c Y2Audio cget name='HP Output Level Live'`, regmap
 >   debugfs HP_OUT_CTL_1/CLASS_H per level, the 2-s fade, listening at Low (should match the old loudness), suspend and
 >   resume keep the level, a profile file from Internal Storage `EQ/`. Then the emailer's measurements (plan in the
