@@ -232,6 +232,10 @@ module_param(power_down, bool, 0644);
  * fails and it reports lcm=0- with its last driver's name (fm-lk 0x81e0af60). */
 static int panel_hint;
 module_param(panel_hint, int, 0644);
+/* What the driver identified (0 not yet, 1 GC9503V, 2 ST7701S), for the platform. */
+static int panel_kind;
+module_param(panel_kind, int, 0444);
+MODULE_PARM_DESC(panel_kind, "identified panel: 1 GC9503V, 2 ST7701S (0 not identified)");
 MODULE_PARM_DESC(panel_hint, "panel recorded on an identified boot: 1 GC9503V, 2 ST7701S (0 none)");
 MODULE_PARM_DESC(power_down, "screen-off powers the panel down; off keeps the lit LK panel (as before #45)");
 
@@ -277,10 +281,12 @@ static int gc9503v_identify(struct gc9503v *ctx)
 	switch (y2_boot_panel()) {
 	case Y2_PANEL_GC9503V:
 		ctx->kind = Y2LCM_GC9503V;
+		WRITE_ONCE(panel_kind, ctx->kind);
 		dev_info(&ctx->dsi->dev, "LK identified the panel as GC9503V\n");
 		return 0;
 	case Y2_PANEL_ST7701S:
 		ctx->kind = Y2LCM_ST7701S;
+		WRITE_ONCE(panel_kind, ctx->kind);
 		dev_info(&ctx->dsi->dev, "LK identified the panel as ST7701S\n");
 		return 0;
 	case Y2_PANEL_OTHER:
@@ -288,20 +294,38 @@ static int gc9503v_identify(struct gc9503v *ctx)
 		return -ENODEV;
 	}
 #endif
-	switch (READ_ONCE(panel_hint)) {
-	case Y2LCM_GC9503V:
-	case Y2LCM_ST7701S:
-		ctx->kind = READ_ONCE(panel_hint);
-		dev_info(&ctx->dsi->dev, "panel %s from the platform's record (LK did not identify it this boot)\n",
-			 ctx->kind == Y2LCM_ST7701S ? "ST7701S" : "GC9503V");
-		return 0;
-	}
+	/* The stock compare_id reads: GC9503V 0x04 = xx 95 03/04 (0xc04a2240);
+	 * ST7701S 0xA1 first byte 0x88 or 0x99 (0xc04a2534, max return 1). */
 	ret = mipi_dsi_set_maximum_return_packet_size(ctx->dsi, sizeof(id));
 	if (!ret)
 		ret = mipi_dsi_dcs_read(ctx->dsi, MIPI_DCS_GET_DISPLAY_ID, id, sizeof(id));
 	if (ret == sizeof(id) && ((id[1] << 8 | id[2]) == 0x9503 || (id[1] << 8 | id[2]) == 0x9504)) {
 		ctx->kind = Y2LCM_GC9503V;
+		WRITE_ONCE(panel_kind, ctx->kind);
 		dev_info(&ctx->dsi->dev, "display ID %02x %02x %02x: GC9503V\n", id[0], id[1], id[2]);
+		return 0;
+	}
+	{
+		u8 st[1] = {};
+		int st_ret = mipi_dsi_set_maximum_return_packet_size(ctx->dsi, sizeof(st));
+
+		if (!st_ret)
+			st_ret = mipi_dsi_dcs_read(ctx->dsi, 0xa1, st, sizeof(st));
+		if (st_ret == sizeof(st) && (st[0] == 0x88 || st[0] == 0x99)) {
+			ctx->kind = Y2LCM_ST7701S;
+			WRITE_ONCE(panel_kind, ctx->kind);
+			dev_info(&ctx->dsi->dev, "register 0xa1 = %02x: ST7701S\n", st[0]);
+			return 0;
+		}
+		dev_warn_once(&ctx->dsi->dev, "ST7701S ID read 0xa1: %d, %02x\n", st_ret, st[0]);
+	}
+	switch (READ_ONCE(panel_hint)) {
+	case Y2LCM_GC9503V:
+	case Y2LCM_ST7701S:
+		ctx->kind = READ_ONCE(panel_hint);
+		WRITE_ONCE(panel_kind, ctx->kind);
+		dev_info(&ctx->dsi->dev, "panel %s from the platform's record (LK did not identify it this boot)\n",
+			 ctx->kind == Y2LCM_ST7701S ? "ST7701S" : "GC9503V");
 		return 0;
 	}
 	dev_warn_once(&ctx->dsi->dev, "panel not identified (display ID %02x %02x %02x, read %d): it stays lit\n",
@@ -386,6 +410,10 @@ static int gc9503v_prepare(struct drm_panel *panel)
             dev_err(dev, "panel reset status unreadable: %d\n", ret);
             return ret;
         }
+        /* Identify the LK-lit panel at the first screen-on (read-only DCS reads
+         * while the DSI is up), so the platform knows it before arming. */
+        if (!ret && !ctx->kind)
+            gc9503v_identify(ctx);
         /* Not adopted: DRM keeps it unprepared and never powers it down. */
         if (!ret && !READ_ONCE(power_down))
             return -EOPNOTSUPP;

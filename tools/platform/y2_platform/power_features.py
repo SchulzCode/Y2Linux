@@ -50,6 +50,7 @@ CONFIRMED_PANELS = {'st7701s'}
 PANEL_RECORD = '/data/system/platform/panel.json'
 PANEL_HINT = '/sys/module/panel/parameters/panel_hint'
 PANEL_HINTS = {'gc9503v': 1, 'st7701s': 2}
+PANEL_KIND = '/sys/module/panel/parameters/panel_kind'
 
 
 def panel(ctx):
@@ -61,6 +62,9 @@ def panel(ctx):
     for field in (ctx.read('/sys/firmware/y2_boot/metadata') or '').split():
         if field.startswith('panel='):
             lk = field[len('panel='):]
+    if lk not in PANEL_HINTS:
+        # The driver's own ID read at the first screen-on (stock compare_id registers).
+        lk = {str(v): k for k, v in PANEL_HINTS.items()}.get(ctx.read(PANEL_KIND))
     record = ctx.json(PANEL_RECORD, {})
     record = record if isinstance(record, dict) else {}
     if lk in PANEL_HINTS:

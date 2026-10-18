@@ -325,6 +325,12 @@ class Switches(unittest.TestCase):
             self.assertEqual(ctx.json('/data/system/platform/panel.json')['panel'], 'st7701s')
             # A soft restart uses the record.
             self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('Y', '2'))
+            # The driver's own ID read identifies it too (and is recorded).
+            (params / 'panel_kind').write_text('2')
+            ctx.path('/data/system/platform/panel.json').unlink()
+            self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('Y', '0'))
+            self.assertEqual(ctx.json('/data/system/platform/panel.json')['panel'], 'st7701s')
+            (params / 'panel_kind').write_text('0')
             # A GC9503V record is handed over but not armed by default.
             self.assertEqual(boot('gc9503v', 'lcm=1-gc9503v_hvga_dsi_vdo_hsd'), ('N', '0'))
             self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('N', '1'))
@@ -332,6 +338,10 @@ class Switches(unittest.TestCase):
         source = source[:source.index('\n}\n')]
         # LK's identification always wins; the record only fills a boot LK could not read.
         self.assertLess(source.index('switch (y2_boot_panel())'), source.index('switch (READ_ONCE(panel_hint))'))
+        # Then the stock compare_id registers, before the record.
+        self.assertLess(source.index('MIPI_DCS_GET_DISPLAY_ID'), source.index('mipi_dsi_dcs_read(ctx->dsi, 0xa1, st, sizeof(st))'))
+        self.assertLess(source.index('0xa1, st, sizeof(st)'), source.index('switch (READ_ONCE(panel_hint))'))
+        self.assertIn('(st[0] == 0x88 || st[0] == 0x99)', source)
 
     def test_sleep_rows_record_both(self):
         diagnostics = (ROOT / 'tools/platform/y2_platform/sleep_diagnostics.py').read_text()
