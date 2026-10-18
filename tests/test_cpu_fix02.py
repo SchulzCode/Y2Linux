@@ -532,7 +532,10 @@ class ScreenOffBackground(unittest.TestCase):
     def test_service_loop_uses_gated_reconcile_and_cadence(self):
         s = (ROOT/'tools/platform/y2_platform/service.py').read_text()
         loop = s[s.index('def serve('):]
-        self.assertIn("if media_reconcile_needed(ctx):\n                ctx.command(['/usr/sbin/y2-platform', 'media', 'reconcile']", loop)
+        # B5: reconcile runs in its own process, still started only when needed.
+        self.assertIn("reconcile = media_reconcile(ctx, reconcile, before)", loop)
+        helper = s[s.index('def media_reconcile('):s.index('def daily_update_check(')]
+        self.assertIn("not media_reconcile_needed(ctx)", helper)
         self.assertIn('next_maintenance = before + maintenance', loop)
         self.assertIn('interval - (time.monotonic() - before)', loop)
 

@@ -1,12 +1,13 @@
 """Bounded readiness/maintenance work, separate from the battery deadline owner."""
 # SPDX-License-Identifier: GPL-2.0-only
+import contextlib
 import fcntl
 import os
 import signal
 import time
 from .boot import private_directory
 import json
-from .common import atomic_json, read
+from .common import atomic_json, kill_tree, read
 from .media import inventory
 from .network import DnsProbeSchedule, EventMonitor, probe_dns
 from .observe import wifi
@@ -23,6 +24,11 @@ INTERVAL_S = 3
 DARK_INTERVAL_S = 10  # Reborn: network.json stale after 15 s (an Online record after 45 s)
 MAINTENANCE_S = 30
 DARK_MAINTENANCE_S = 300
+# A card's read-only admission check alone may take 60 s (media.read_only_check);
+# a run that is still busy after this is stopped, and the same card is tried
+# again only after RECONCILE_BACKOFF_S.
+RECONCILE_LIMIT_S = 150
+RECONCILE_BACKOFF_S = 600
 
 
 def display_dark(ctx):
@@ -49,6 +55,36 @@ def health_settled(answer):
     except (ValueError, TypeError):
         return False
     return isinstance(value, dict) and value.get('state') not in (None, 'PendingHealth', 'Failed')
+
+
+def media_reconcile(ctx, run, now):
+    """SD insertion/removal work (`media reconcile`) in its own process. It
+    used to run inside this loop with a 7 s deadline: a card whose check took
+    longer was never mounted, and every pass started another checker while the
+    orphaned ones kept running (V1 code review B5). `run` is this function's
+    previous answer: {'process', 'started'} while one runs, {'retry_at'} after
+    one was stopped. Returns the new state."""
+    run = run or {}
+    process = run.get('process')
+    if process is not None:
+        if process.poll() is None:
+            if now - run['started'] < RECONCILE_LIMIT_S:
+                return run
+            kill_tree(process.pid)
+            with contextlib.suppress(Exception):
+                process.wait(timeout=1)
+            return {'retry_at': now + RECONCILE_BACKOFF_S}
+        run = {}
+    if now < run.get('retry_at', 0) or not media_reconcile_needed(ctx):
+        return run
+    import subprocess
+    try:
+        process = subprocess.Popen(['/usr/sbin/y2-platform', 'media', 'reconcile'],
+                                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
+    except OSError:
+        return {}
+    return {'process': process, 'started': now}
 
 
 def daily_update_check(ctx, network, child):
@@ -162,6 +198,7 @@ def serve(ctx):
         query_failures = previous.get('status_query_failures', 0) if previous.get('boot_id') == ctx.read('/proc/sys/kernel/random/boot_id') else 0
         query_failures = query_failures if isinstance(query_failures, int) and query_failures >= 0 else 0
         update_check = None
+        reconcile = None
         firmware_scan, firmware_ready = None, False
         while running[0]:
             wake.drain()
@@ -190,8 +227,7 @@ def serve(ctx):
                 next_radio_policy = before + 30
                 wifi_policy(ctx, activity)
             atomic_json(runtime / 'time-status.json', time_status(ctx))
-            if media_reconcile_needed(ctx):
-                ctx.command(['/usr/sbin/y2-platform', 'media', 'reconcile'], timeout=7)
+            reconcile = media_reconcile(ctx, reconcile, before)
             if value['state'] == 'Online' and before >= next_ntp:
                 next_ntp = before + 60
                 ctx.command(['/etc/init.d/S43y2-time', 'start'], timeout=1)

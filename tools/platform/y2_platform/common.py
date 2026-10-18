@@ -62,6 +62,50 @@ def atomic_json(path, value, durable=False, mode=0o600):
             pass
 
 
+def descendants(pid, proc='/proc'):
+    """Every process below `pid`, also those that started their own session."""
+    children = {}
+    try:
+        entries = os.listdir(proc)
+    except OSError:
+        return []
+    for entry in entries:
+        if not entry.isdigit():
+            continue
+        try:
+            with open(os.path.join(proc, entry, 'stat'), 'rb') as stream:
+                fields = stream.read().rpartition(b')')[2].split()
+            children.setdefault(int(fields[1]), []).append(int(entry))
+        except (OSError, IndexError, ValueError):
+            continue
+    found, stack = [], [pid]
+    while stack:
+        for child in children.get(stack.pop(), ()):
+            found.append(child)
+            stack.append(child)
+    return found
+
+
+def kill_tree(pid):
+    """SIGKILL a child, its process group and everything it started. Every
+    `command()` child runs in its own session, so killing the group alone left
+    a nested command running (V1 code review B5: a filesystem check outlived the
+    `media reconcile` that started it)."""
+    below = descendants(pid)
+    for target, group in [(pid, True)] + [(p, False) for p in below]:
+        try:
+            if group:
+                os.killpg(target, signal.SIGKILL)
+            else:
+                os.kill(target, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        try:
+            os.killpg(os.getpgid(target), signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+
+
 def command(argv, timeout=1.0, limit=65536, pass_fds=(), failure_output=False):
     """No shell, bounded output/deadline; kill the process group on overrun."""
     try:
@@ -98,10 +142,7 @@ def command(argv, timeout=1.0, limit=65536, pass_fds=(), failure_output=False):
         except subprocess.TimeoutExpired:
             failure = 'command_timeout'
     if failure:
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        kill_tree(process.pid)
         try:
             process.wait(timeout=0.05)
         except subprocess.TimeoutExpired:
