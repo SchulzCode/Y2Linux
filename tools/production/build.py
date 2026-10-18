@@ -232,5 +232,12 @@ def expensive_package_inputs(PROJECT,out,public):
                      git(PROJECT,'HEAD:tools/graphics/reborn-splash.c')),
         'fdk-aac':key(variant),
         'bluez-alsa':key(variant,git(PROJECT,'HEAD:buildroot/patches/bluez-alsa')),
+        # Buildroot's stamps do not see a changed component list (the
+        # lowshelf/highshelf filters were never compiled into a resumed
+        # workspace); only FFmpeg's own options and pins rebuild it.
+        'ffmpeg':hashlib.sha256(''.join(
+            [line for line in config.splitlines(True) if line.startswith(('BR2_PACKAGE_FFMPEG','# BR2_PACKAGE_FFMPEG'))]
+            +[hashlib.sha256((PROJECT/name).read_bytes()).hexdigest() for name in
+              ('buildroot/inputs.lock.json','tools/production/ffmpeg9.py')]).encode()).hexdigest(),
     }
 if __name__=='__main__':main()
