@@ -1,6 +1,6 @@
 # Error reports: opt-in reports from players to the maintainer
 
-Status 2026-10-18: **R2 (collector, scrubber, triggers, queue, CLI) built and host-tested; nothing uploads yet.** Owner: "an error logger/reporter for users that
+Status 2026-10-18 (end of day): **R2 and R5 on the owner's player (test build 98, owner enabled reports); R3 drafted, untested; receiver placement open (see below); nothing uploads yet.** Owner: "an error logger/reporter for users that
 they can opt in. It should send me everything about the error and device, no personal information, over Wi-Fi
 HTTPS", then "go with the Cloudflare Worker … get as much information as possible … not only kernel level, also
 everything that happens in Reborn". Audit row ERROR-REPORTS in [roadmap-gap-audit](roadmap-gap-audit.md).
@@ -211,3 +211,26 @@ and 5 s without a button press. On the owner's player the question appeared afte
 Settings; **the owner answered Send Reports** (21:47:25 UTC) and opened the page: install ID shown, nothing queued.
 Not published. Known flaky, unrelated: Reborn `lastfm::tests::requests_carry_secrets_only_on_stdin_and_errors_classify`
 failed once under the parallel workspace run, passes alone and on rerun.
+
+## R3 status and the open decision (2026-10-18, end of day)
+
+Drafted, **not tested, not deployed**: `tools/reports/worker/src/index.js` (POST /v1/report only; upload key in an
+equal-time compare; schema, UUID install/report IDs, SHA-256 and trigger checked; ≤ 8 MiB read with a hard limit;
+gzip magic; body hash; KV limits 10 a day per install ID and 30 per salted daily address hash; duplicate report ID =
+200; R2 key `reports/YYYY-MM-DD/<install>/<report>.tar.gz` with metadata; no read route; no IP stored) and
+`tools/reports/worker/wrangler.toml` (route `reports.schulzcode.dev`, R2 binding `REPORTS`, KV `RATES`, secrets
+`UPLOAD_KEY` and `RATE_SALT`).
+
+Still to write in R3: `node --test` tests for the Worker (fake R2/KV), `tools/reports/fetch.py` (stdlib S3
+SigV4 for R2: list and download new reports into `out/reports/` or onto the home server; test with the AWS SigV4
+example vector), `tools/reports/README.md` (deploy: bucket, KV namespace, secrets, custom domain, 180-day lifecycle
+rule), the build-wide upload key.
+
+**Owner question, open:** "can this worker live on my server?" A Worker always runs on Cloudflare. Options given:
+1. Worker + R2, reports pulled to the home server by a script/n8n flow (recommended: only outgoing connections at
+   home, no home IP in the firmware, no disk filling from fake uploads; the drafted code fits).
+2. The same receiver as a small container on the home server behind a Cloudflare Tunnel publishing only
+   `reports.schulzcode.dev` (no port forward, NPM not involved; uploads land at home, the server must be online,
+   one more internet-facing service).
+3. Port forward (advised against: every NPM proxy host would be exposed, home IP in the firmware).
+The validation and limits are the same in 1 and 2; only the storage differs. Decide before finishing R3.

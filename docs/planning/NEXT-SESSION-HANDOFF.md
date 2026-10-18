@@ -1,6 +1,33 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): ERROR REPORTS — R2 + R5 (SCREENS, ONE-TIME QUESTION) ON THE OWNER'S PLAYER AS TEST BUILD 98 (1.0.0-beta.8.8, SEQ 6952, NOT PUBLISHED); THE OWNER ENABLED REPORTS; NOTHING UPLOADS YET.** Next: R3 Worker, R4 uploader. Next free label 99, sequence above 6952. All commits local (not pushed). Owner: opt-in
+> **START HERE (2026-10-19): ERROR REPORTS — CONTINUE R3 (RECEIVER) AFTER THE OWNER PICKS WHERE IT RUNS.** Plan with
+> every decision and result: [ERROR-REPORTS-PLAN](ERROR-REPORTS-PLAN.md) (sections "R2 results", "Test build 96",
+> "R5 screens, test builds 97–98", "R3 status and the open decision"); audit ERROR-REPORTS.
+> - **Owner's player:** test build 98 = `1.0.0-beta.8.8`, sequence 6952 (Linux `d9b19cb`, Reborn `fbecb77`),
+>   Acknowledged. It has `y2-platform report …`, About & Updates → Error Reports and the one-time question; **the owner
+>   answered Send Reports** (install ID 1A9A44E7…). Reports that trigger now wait in
+>   `/data/system/platform/reports/` (max 3): there is no uploader yet. Published release stays Beta 8.7
+>   (`baseline-95`, sequence 6900).
+> - **Open owner decision:** where the receiver runs. (1) Cloudflare Worker + R2, pulled to the home server
+>   (recommended), or (2) the same receiver on the home server behind a Cloudflare Tunnel; (3) port forward advised
+>   against. Home server: `schulzcode@192.168.123.202` (key `~/.ssh/y2linux_ed25519`), reviewed read-only 2026-10-18.
+> - **R3 drafted, untested:** `tools/reports/worker/src/index.js`, `wrangler.toml`. To do: Worker tests
+>   (`node --test`, Node 24 on the PC), `tools/reports/fetch.py` (stdlib SigV4), `tools/reports/README.md` (deploy
+>   steps for the owner: R2 bucket, KV namespace, secrets `UPLOAD_KEY`/`RATE_SALT`, custom domain, 180-day lifecycle),
+>   the upload key. Then R4: uploader in `report.py` (urllib TLS as `update.py`, retry/backoff, Wi-Fi + battery rules,
+>   NetworkTransfer workload) and the periodic `report check` in the platform service; R6 device test; R7 release.
+> - **Lessons today:** never inject button presses while the report question can appear (scripted presses answered it
+>   once on test build 97; reset); Reborn only observes the platform on platform screens (now also once 20 s after
+>   start); `ctx.json` reads at most 128 KiB; known-secret matching must be a prefix-tree regex. Flaky Reborn test:
+>   `lastfm::tests::requests_carry_secrets_only_on_stdin_and_errors_classify` (passes alone).
+> - **Git:** everything since Beta 8.7 is local only (Linux from `fdb7a90`, Reborn from `ef9e805`), nothing pushed.
+>   Next free label 99, sequence above 6952. Workspace `out/build`, `out/release-95` (published), `out/release-97`,
+>   `out/release-98`.
+> - **Paste-ready prompt:** "Continue the error reports: read docs/planning/NEXT-SESSION-HANDOFF.md (START HERE) and
+>   docs/planning/ERROR-REPORTS-PLAN.md. I choose receiver option <1 or 2>. Finish R3 with tests, then R4 (uploader),
+>   then a test build for my player."
+>
+> Previous entry: **ERROR REPORTS — R2 + R5 ON THE OWNER'S PLAYER AS TEST BUILD 98 (1.0.0-beta.8.8, SEQ 6952, NOT PUBLISHED); THE OWNER ENABLED REPORTS; NOTHING UPLOADS YET.** Owner: opt-in
 > reporter with "everything" about the error and device, no personal data, Wi-Fi HTTPS; decisions: Cloudflare Worker
 > + R2 at `reports.schulzcode.dev` (home server reviewed: patched/UFW/fail2ban/key-only SSH, but LAN-only NPM with no
 > access lists — not to be exposed), scrubbed raw logs, automatic + Send Report Now, random install ID, one-time
