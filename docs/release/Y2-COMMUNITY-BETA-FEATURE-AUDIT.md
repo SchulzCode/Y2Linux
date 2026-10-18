@@ -1,5 +1,10 @@
 # Y2Linux + Reborn community beta feature audit
 
+> **Retired 2026-10-18 (historical record).** Its last entry predates the first public beta. Each
+> public beta since has its own row in the [roadmap gap audit](../planning/roadmap-gap-audit.md) and
+> its own report in `docs/validation/`; the 1.0 readiness review is
+> [V1-RELEASE-READINESS](../planning/V1-RELEASE-READINESS.md). Nothing below is current.
+
 ## Baseline01 physical gate interrupted / USB diagnosis pending — 2026-10-04
 
 Exact installed Baseline01 Linux `98daf3f` / Reborn `9cd12bae`, kernel baseline-01

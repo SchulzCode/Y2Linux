@@ -314,7 +314,8 @@ def package(build, base, fallback_root, out, fallback_overlay=None, public=False
     from tools.production.composition import write as write_composition
     manifest['release_composition'] = write_composition(build, out, manifest, privacy)
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
-    shutil.copyfile(PROJECT/'docs/architecture/production-install.md',out/'install.md')
+    # The owner guide (install and updating), not the historical runbook (V1 review B1).
+    shutil.copyfile(PROJECT/'docs/INSTALL.md',out/'install.md')
     shutil.copyfile(PROJECT/'docs/architecture/reborn-ffmpeg9-build.md',out/'audio-qualification.md')
     (out/'SHA256SUMS').write_text(''.join(digest(p)+'  '+str(p.relative_to(out))+'\n'
         for p in sorted(out.rglob('*')) if p.is_file() and p != out/'SHA256SUMS'))

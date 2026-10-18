@@ -46,10 +46,13 @@ Buildroot builds Reborn from `../Y2Reborn`.
 mkdir y2 && cd y2
 git clone https://github.com/SchulzCode/Y2Linux.git
 git clone https://github.com/SchulzCode/Y2Reborn.git
-git -C Y2Linux checkout baseline-67
-git -C Y2Reborn checkout baseline-67
+git -C Y2Linux checkout baseline-75
+git -C Y2Reborn checkout baseline-75
 cd Y2Linux
 ```
+
+Use the tag of the release you want to rebuild (the newest is in the readme's table and on the
+[releases page](https://github.com/SchulzCode/Y2Linux/releases)); both repositories carry the same tag.
 
 Keep both trees clean (no uncommitted changes). The build and packaging tools
 refuse dirty trees and record both commit IDs in the image. If you change

@@ -113,7 +113,7 @@ def main():
     (out/'metadata/readback-plan.json').write_text(json.dumps(plan,indent=2)+'\n')
     for name in ['layout.json','rescue-manifest.json','versions.json','kernel-source-commit']:
         shutil.copyfile(a.build/name,out/'metadata'/name)
-    for source,dest in [('docs/knowledge/storage04-production-platform.md','metadata/storage04-production-platform.md'),('docs/architecture/production-install.md','install.md'),('docs/architecture/production-recovery.md','recovery.md'),('docs/architecture/update-model.md','ota-layout.md'),('docs/architecture/production-storage-v1.md','metadata/partition-audit.md')]:shutil.copyfile(PROJECT/source,out/dest)
+    for source,dest in [('docs/knowledge/storage04-production-platform.md','metadata/storage04-production-platform.md'),('docs/INSTALL.md','install.md'),('docs/RECOVERY-AND-UPDATES.md','recovery.md'),('docs/architecture/update-model.md','metadata/update-model.md'),('docs/architecture/production-storage-v1.md','metadata/partition-audit.md')]:shutil.copyfile(PROJECT/source,out/dest)
     shutil.copyfile(PROJECT/'buildroot/inputs.lock.json',out/'metadata/buildroot-inputs.lock.json')
     shutil.copyfile(PROJECT/'tools/build/inputs.lock.json',out/'metadata/kernel-inputs.lock.json')
     shutil.copyfile(a.build/'kernel/.config',out/'metadata/kernel.config')

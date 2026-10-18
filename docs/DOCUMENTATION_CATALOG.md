@@ -349,7 +349,10 @@ Indexed pages: **315**. Explicit scope notices: **228**.
 | [Internal Storage setup plan](planning/INTERNAL-STORAGE-SETUP-PLAN.md) | Automatic Internal Storage: cases, safety, layout |
 | [Last.fm scrobbling](LASTFM.md) | User guide: set-up, what counts, offline, privacy and security |
 | [Storage](STORAGE.md) | User guide: the layout, the first-start setup of Internal Storage, old files, SD cards, USB copying and speed, going back to stock |
-| [Faster uploads: receive DMA plan](planning/USB-RX-DMA-MODE1-PLAN.md) | Multi-packet (mode 1) receive DMA: evidence, design, tests (next work) |
+| [Faster uploads: receive DMA plan](planning/USB-RX-DMA-MODE1-PLAN.md) | Multi-packet (mode 1) receive DMA: evidence, design, tests |
+| [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
+| [1.0 release readiness audit](planning/V1-RELEASE-READINESS.md) | What stands between the betas and a 1.0 (2026-10-17/18) |
+| [1.0 code review](planning/V1-CODE-REVIEW.md) | Six area reviews: bugs B1–B8, fixes, coverage |
 | [POWER-FINAL-33 — Reborn skins (themes)](validation/Y2-PLATFORM-V1-POWER-FINAL-33.md) | Installed candidate report |
 | [POWER-FINAL-32 — deep idle during screen-off playback](validation/Y2-PLATFORM-V1-POWER-FINAL-32.md) | Sealed candidate report (in 33) |
 | [POWER-FINAL-31 — folder-first artwork and metadata formats](validation/Y2-PLATFORM-V1-POWER-FINAL-31.md) | Sealed candidate report (in 33) |

@@ -15,7 +15,9 @@ Read the whole page once before you start.
   [GitHub release](https://github.com/SchulzCode/Y2Linux/releases) (1.0 Beta 1 or later).
 - The **Innioasis firmware package for the Y2**, v3.2.0 (`y2_v3.2.0_FM-20260813`), from
   Innioasis's download page. You need it once, for the radio firmware, and it is also your
-  way back to stock, so keep it.
+  way back to stock, so keep it. **Only this version works:** the player checks every radio
+  file against its SHA-256, so a newer or older Innioasis package is refused until Y2Linux
+  knows its files ([issue tracker](https://github.com/SchulzCode/Y2Linux/issues) if yours differs).
 
 ### Why the Innioasis package?
 
