@@ -39,8 +39,33 @@ so the queue drops it and the recovery backs up the live root on four cores (abo
 download check runs in 8.2's core (no seconds yet); the install runs in 8.3's recovery (seconds left). The update
 after that uses the kept package. `y2-platform update status` shows `timings` after each install.
 
+## Device result: the owner's OTA 6500 → 6600 (2026-10-18)
+
+**Install** (live root backup on four cores, as expected: the kept 6501 package was not the running release):
+
+| Phase (journal `timings`) | verify | backup_root | backup_boot | system | check | boot | Installer |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 8.3 | 1.37 s | 10.83 s | 1.32 s | 4.37 s | 3.98 s | 0.76 s | **22.6 s** |
+| 8.2 (6500, same path) | 1.8 s | 12.5 s (both backups) | | 4.5 s | 3.9 s | 0.8 s | 23.6 s |
+
+**Estimate** (kernel log step lines against the real end, 24.53 s): at `verify` 24 s left (real 22.6), at `backup`
+21 s (21.3), at `system` 10 s (8.7), at `check` 5 s (4.7), at `boot` 1 s (0.8). The recovery's display ran
+normally (LK `lcm=1-st7701…`, panel adopted, vblanks about 67/s, backlight back at 1.0 s), so the countdown
+was drawn; the owner did not see it (to be confirmed whether the screen was dark already then).
+
+**Display fault after the restart into 6600:** LK reported `lcm=0-st7701…`; the hand-over read the DSI
+correctly, then at the first modeset the DSI register reads lagged one register (`read-back ps=00000000
+vact=000305a0`), three DSI power cycles did not clear it, panel commands were skipped (read-lag fail-fast,
+8.1) and no frame completed (`flip_done timed out`, `commit wait timed out`). The same signature as the dark
+screens of 43/46 ([DSI read lag](Y2-PLATFORM-V1-POWER-FINAL-44.md)); cause still unknown, nothing in 8.3 touches
+the display. Reborn never presented a first frame, so the health check queued the rollback at its 180 s deadline
+(`RollbackPending`, MISC set, no power-off): the next start restores 6500. Logs: `out/ota-89-owner/` (local).
+
 ## Known gaps
 
-- Nothing of 8.3 has run on a player yet; the estimate, the parallel hashing and the screen text are host-tested.
+- **The DSI read lag after a restart is back and is now the most likely way an update fails** (here the fourth
+  restart out of the recovery on 2026-10-18; the three of the 8.2 tests were lit). Its cause is still unknown.
+
+- The countdown on the recovery screen has not been seen by the owner yet.
 - Unchanged: the sleep drain with the panel powered down is not measured yet (#42); the GC9503V panel path awaits
   a GC9503V owner (#45).
