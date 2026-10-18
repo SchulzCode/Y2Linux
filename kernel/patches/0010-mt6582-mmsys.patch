@@ -1,9 +1,10 @@
 --- a/drivers/soc/mediatek/mtk-mmsys.c
 +++ b/drivers/soc/mediatek/mtk-mmsys.c
-@@ -31,6 +31,14 @@
+@@ -30,6 +30,14 @@
+ 	.routes = mmsys_default_routing_table,
  	.num_routes = ARRAY_SIZE(mmsys_default_routing_table),
  };
- 
++
 +static const struct mtk_mmsys_driver_data mt6582_mmsys_driver_data = {
 +	.sw0_rst_offset = 0x13c, .num_resets = 1, /* LCM_RST_B bit 0 */
 +	.clk_driver = "clk-mt6582-mm",
@@ -11,40 +12,10 @@
 +	.num_routes = ARRAY_SIZE(mmsys_default_routing_table),
 +};
 +
-+
+ 
  static const struct mtk_mmsys_driver_data mt2712_mmsys_driver_data = {
  	.clk_driver = "clk-mt2712-mm",
- 	.routes = mmsys_default_routing_table,
-@@ -378,10 +386,28 @@
- 	return mtk_mmsys_reset_deassert(rcdev, id);
- }
- 
-+/* 1 while the line is held in reset (its bit is cleared by assert), else 0.
-+ * Without .status, reset_control_status() returned -ENOTSUPP and the Y2 panel
-+ * driver could never adopt the panel LK left lit (Y2Linux #45). */
-+static int mtk_mmsys_reset_status(struct reset_controller_dev *rcdev, unsigned long id)
-+{
-+	struct mtk_mmsys *mmsys = container_of(rcdev, struct mtk_mmsys, rcdev);
-+	u32 reg;
-+
-+	if (mmsys->data->rst_tb) {
-+		if (id >= mmsys->data->num_resets)
-+			return -EINVAL;
-+		id = mmsys->data->rst_tb[id];
-+	}
-+	reg = mmsys->data->sw0_rst_offset + (id / MMSYS_SW_RESET_PER_REG) * sizeof(u32);
-+	return !(readl_relaxed(mmsys->regs + reg) & BIT(id % MMSYS_SW_RESET_PER_REG));
-+}
-+
- static const struct reset_control_ops mtk_mmsys_reset_ops = {
- 	.assert = mtk_mmsys_reset_assert,
- 	.deassert = mtk_mmsys_reset_deassert,
- 	.reset = mtk_mmsys_reset,
-+	.status = mtk_mmsys_reset_status,
- };
- 
- static int mtk_mmsys_probe(struct platform_device *pdev)
-@@ -457,6 +483,7 @@
+@@ -457,6 +465,7 @@
  
  static const struct of_device_id of_match_mtk_mmsys[] = {
  	{ .compatible = "mediatek,mt2701-mmsys", .data = &mt2701_mmsys_driver_data },

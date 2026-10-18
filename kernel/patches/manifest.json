@@ -22,7 +22,7 @@
       "path": "drivers/soc/mediatek/mtk-mmsys.c",
       "patch": "0010-mt6582-mmsys.patch",
       "base_sha256": "6f959cf51269bd1e1cf2895c38962bec5341a53e4f189681ff0db75e960e3dac",
-      "result_sha256": "10439e5003848dfe51f22e2beffa1a4776392b3a5c4406b77aa782cb878a62b7"
+      "result_sha256": "9029d6fe9696fd1663985e2d15575a2ea3ed3142627fee986e3df5170418f457"
     },
     {
       "path": "drivers/soc/mediatek/mtk-mutex.c",

@@ -6,7 +6,6 @@
  * Screen-off can use the stock power-down sequence (POWER-FINAL-27, stock_suspend).
  */
 #include <linux/delay.h>
-#include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
@@ -161,16 +160,7 @@ static int gc9503v_prepare(struct drm_panel *panel)
 
 	if (ctx->inherited) {
         ret = reset_control_status(ctx->reset);
-        /* Probe required innioasis,lk-powered: a reset controller that cannot
-         * report its line (mtk-mmsys before Y2Linux #45) means LK's lit panel.
-         * Failing here left the panel unprepared for good, so screen-off never
-         * ran its power-down. */
-        if (ret == -ENOTSUPP)
-            ret = 0;
-        if (ret < 0) {
-            dev_err(dev, "panel reset status unreadable: %d\n", ret);
-            return ret;
-        }
+        if (ret < 0) return ret;
         ctx->inherited = false;
         if (!ret) {
             dev_info(dev, "retaining live LK panel, reset deasserted; no DCS replay\n");
