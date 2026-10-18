@@ -8818,3 +8818,22 @@ build 94 (sequence 6800) on the owner's player, identical to this release.
 | GC9503V players | IDENTIFIED, POWER-DOWN OPT-IN | Reporter's test owed (#45) |
 
 **Gate decision:** READY for **Y2Linux 1.0.0-beta.8.7** (Baseline 95, sequence 6900) at the owner's word (given).
+
+## ERROR-REPORTS opt-in error reporting: milestone gap audit — 2026-10-18
+
+**Boundary:** owner: an opt-in error reporter that sends "everything about the error and device, no personal
+information" over Wi-Fi HTTPS; receiver Cloudflare Worker + R2 (owner's choice after the home-server review). New
+subsystem: a network upload of device data, so privacy is the gating risk. Plan:
+[ERROR-REPORTS-PLAN](ERROR-REPORTS-PLAN.md). Real-hardware evidence: a read-only inventory of the owner's player
+(log and state files, sizes, personal-data counts: kernel log 2 MACs and 4 serial lines, Reborn log 3 IPs, no titles,
+paths, SSIDs or account names).
+
+| Area | State | Evidence / gap |
+| --- | --- | --- |
+| Data sources | INVENTORIED | Kernel, pstore, platform journals, `/run/y2`, update/recovery, Reborn logs/state/control socket |
+| Scrubbing | DESIGNED | Known-secret replacement + patterns; canary tests required before any upload code ships |
+| Receiver | DESIGNED | Worker + R2; owner deploys; no read endpoint |
+| Player UI, triggers, uploader | NOT BUILT | Steps R2–R6 |
+
+**Gate decision:** implementation may proceed on the host (R2–R5). A test build on the player, deploying the
+Worker and any release need the owner's word. Nothing uploads by default (opt-in only).
