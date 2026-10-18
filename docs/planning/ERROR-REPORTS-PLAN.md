@@ -189,3 +189,12 @@ install ID: a request on GitHub with the ID).
 - Remaining "@"/"luca" hits are FFmpeg's `[flac @ 0x…]` prefixes and the build host in the kernel/FFmpeg version
   strings (the maintainer's, part of the firmware).
 - Next: R3 (Worker), R4 (uploader + periodic `check` in the platform service).
+
+## Test build 96 on the owner's player (2026-10-18)
+
+`1.0.0-beta.8.8`, sequence 6950, Linux `acec57c`, Reborn `ef9e805` (identity only); container suite 786 (the new
+tests run there too). Installed by stage + apply, ≈16 s, Acknowledged 6950. `y2-platform report status` →
+`enabled: null`; `enable` made an install ID and took the baseline (`check` then reported nothing, 0.7 s);
+`send --topic other` built and queued a manual report in **37 s, 409 KB**, 163 sections, all 13 live commands OK;
+the leak search on it found none of the owner's secrets. Afterwards `reports.json` and the queue were removed (state
+back to "not asked") and `/data/ota-96` deleted. Not released.

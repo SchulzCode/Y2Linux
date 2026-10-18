@@ -1,6 +1,6 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): ERROR REPORTS — PLAN + R2 BUILT (HOST), NOTHING UPLOADS YET.** Owner: opt-in
+> **START HERE (2026-10-18, latest): ERROR REPORTS — R2 ON THE OWNER'S PLAYER AS TEST BUILD 96 (1.0.0-beta.8.8, SEQ 6950, NOT PUBLISHED), NOTHING UPLOADS YET.** Manual report on the player: 37 s, 409 KB, no leak; state reset to "not asked". Next free label 97, sequence above 6950. Owner: opt-in
 > reporter with "everything" about the error and device, no personal data, Wi-Fi HTTPS; decisions: Cloudflare Worker
 > + R2 at `reports.schulzcode.dev` (home server reviewed: patched/UFW/fail2ban/key-only SSH, but LAN-only NPM with no
 > access lists — not to be exposed), scrubbed raw logs, automatic + Send Report Now, random install ID, one-time
