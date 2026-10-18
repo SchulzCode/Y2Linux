@@ -35,6 +35,7 @@
 #include <sys/random.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <time.h>
 #include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -876,34 +877,76 @@ static bool check_payload(int package, json_object *m, enum kind kind, unsigned 
     close(fd);
     return ok;
 }
+/* SHA-256 and size of one file. A job runs on a thread of its own, so the
+ * recovery hashes its payloads and the kept package on all cores (OTA-50);
+ * the result is checked by the caller on the main thread. */
+struct digest_job {
+    int dir;
+    const char *name;
+    uint64_t total;
+    unsigned char sum[32];
+    bool opened, regular, read_ok, running;
+    pthread_t thread;
+};
+static void *digest_worker(void *arg) {
+    struct digest_job *d = arg;
+    d->total = 0;
+    d->read_ok = false;
+    int fd = openat(d->dir, d->name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+    unsigned char *buf = malloc(CHUNK);
+    struct stat st;
+    d->opened = fd >= 0;
+    /* openfile()'s rule, without failure() off the main thread. */
+    d->regular = fd >= 0 && !fstat(fd, &st) && S_ISREG(st.st_mode) && st.st_nlink == 1;
+    if (d->regular && buf) {
+        crypto_hash_sha256_state h;
+        crypto_hash_sha256_init(&h);
+        for (;;) {
+            ssize_t n = read(fd, buf, CHUNK);
+            if (n < 0 && errno == EINTR)
+                continue;
+            if (n <= 0) {
+                d->read_ok = !n;
+                break;
+            }
+            crypto_hash_sha256_update(&h, buf, (size_t)n);
+            d->total += (uint64_t)n;
+        }
+        crypto_hash_sha256_final(&h, d->sum);
+    }
+    if (fd >= 0)
+        close(fd);
+    free(buf);
+    return NULL;
+}
+static void digest_start(struct digest_job *d, int dir, const char *name) {
+    *d = (struct digest_job){.dir = dir, .name = name};
+    d->running = !pthread_create(&d->thread, NULL, digest_worker, d);
+    if (!d->running)
+        digest_worker(d);
+}
+static void digest_join(struct digest_job *d) {
+    if (d->running)
+        pthread_join(d->thread, NULL);
+    d->running = false;
+}
+static bool digest_match(struct digest_job *d, json_object *p) {
+    digest_join(d);
+    if (!d->opened)
+        return failure("open %s", d->name);
+    if (!d->regular)
+        return failure("not a private regular file: %s", d->name);
+    if (!d->read_ok)
+        return failure("payload read");
+    return (d->total == (uint64_t)num(p, "bytes") && sha_match(d->sum, str(p, "sha256"))) ||
+           failure("%s hash/size mismatch", d->name);
+}
 /* SHA-256 of the encoded bytes against the record: the authenticity check that
  * the recovery repeats before it writes (the decoded content follows). */
 static bool file_digest(int dir, const char *name, json_object *p) {
-    int fd = openfile(dir, name, O_RDONLY, 0);
-    if (fd < 0)
-        return false;
-    static unsigned char buf[CHUNK];
-    unsigned char sum[32];
-    crypto_hash_sha256_state h;
-    crypto_hash_sha256_init(&h);
-    uint64_t total = 0;
-    for (;;) {
-        ssize_t n = read(fd, buf, sizeof(buf));
-        if (n < 0 && errno == EINTR)
-            continue;
-        if (n < 0) {
-            close(fd);
-            return failure("payload read");
-        }
-        if (!n)
-            break;
-        crypto_hash_sha256_update(&h, buf, (size_t)n);
-        total += (uint64_t)n;
-    }
-    close(fd);
-    crypto_hash_sha256_final(&h, sum);
-    return (total == (uint64_t)num(p, "bytes") && sha_match(sum, str(p, "sha256"))) ||
-           failure("%s hash/size mismatch", name);
+    struct digest_job d = {.dir = dir, .name = name};
+    digest_worker(&d);
+    return digest_match(&d, p);
 }
 static unsigned char *image_buffer(void) {
     void *p = NULL;
@@ -1033,9 +1076,14 @@ static json_object *verify(int package, int check, int64_t installed_sequence, b
     }
     if (check == 2) {
         progress_span("verify", 0, 3, 3);
-        bool ok = file_digest(package, payload_file[ROOT], payload(m, ROOT)) &&
-                  file_digest(package, payload_file[BOOT], payload(m, BOOT)) &&
-                  (!payload(m, RECOVERY) || file_digest(package, payload_file[RECOVERY], payload(m, RECOVERY)));
+        struct digest_job d[3];
+        enum kind kinds[3] = {ROOT, BOOT, RECOVERY};
+        unsigned jobs = payload(m, RECOVERY) ? 3 : 2;
+        for (unsigned i = 0; i < jobs; i++)
+            digest_start(&d[i], package, payload_file[kinds[i]]);
+        bool ok = true;
+        for (unsigned i = 0; i < jobs; i++)
+            ok = digest_match(&d[i], payload(m, kinds[i])) && ok;
         if (!ok)
             goto fail;
     } else if (check == 1) {
@@ -1335,6 +1383,23 @@ static bool state(json_object *j, const char *value, const char *why) {
     setstr(j, "failure", why ? why : "");
     return save("state.json", j);
 }
+/* Milliseconds of each install/restore phase in the journal (OTA-50), since
+ * the step lines on the screen and in the log only mark where one starts. */
+static struct timespec phase_start;
+static void timing(json_object *j, const char *phase) {
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    if (phase) {
+        json_object *t = field(j, "timings");
+        if (!t) {
+            t = json_object_new_object();
+            json_object_object_add(j, "timings", t);
+        }
+        setnum(t, phase, (int64_t)(now.tv_sec - phase_start.tv_sec) * 1000 +
+                             (now.tv_nsec - phase_start.tv_nsec) / 1000000);
+    }
+    phase_start = now;
+}
 static void boot_id(char *buf, size_t n) {
     if (!readtext("/proc/sys/kernel/random/boot_id", buf, n))
         buf[0] = 0;
@@ -1536,6 +1601,24 @@ static void kept_check(json_object *j) {
         json_object_put(compat);
     error_text[0] = 0;
 }
+/* recovery: the kept root is hashed on its own core while verify() hashes
+ * the new package; kept_backup() takes the result. */
+static struct digest_job kept_hash;
+static int kept_hash_dir = -1;
+static void kept_prefetch(json_object *journal) {
+    if (!*str(journal, "kept_manifest_sha256"))
+        return;
+    kept_hash_dir = openat(basefd, "current", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    if (kept_hash_dir >= 0)
+        digest_start(&kept_hash, kept_hash_dir, payload_file[ROOT]);
+}
+static void kept_release(void) {
+    if (kept_hash_dir < 0)
+        return;
+    digest_join(&kept_hash);
+    close(kept_hash_dir);
+    kept_hash_dir = -1;
+}
 /* recovery: the kept root payload as previous.ext4.gz, or NULL. */
 static json_object *kept_backup(json_object *journal, uint64_t bytes) {
     const char *want = str(journal, "kept_manifest_sha256");
@@ -1544,7 +1627,7 @@ static json_object *kept_backup(json_object *journal, uint64_t bytes) {
         return NULL;
     json_object *k = kept_manifest(dir), *r = NULL, *rp = payload(k, ROOT);
     if (k && !strcmp(str(k, "_manifest_sha256"), want) && (uint64_t)num(rp, "raw_bytes") == bytes &&
-        file_digest(dir, payload_file[ROOT], rp) &&
+        (kept_hash_dir >= 0 ? digest_match(&kept_hash, rp) : file_digest(dir, payload_file[ROOT], rp)) &&
         !renameat(dir, payload_file[ROOT], basefd, "previous.ext4.gz") && !fsync(basefd)) {
         json_object_deep_copy(rp, &r, NULL);
         if (r)
@@ -1553,6 +1636,7 @@ static json_object *kept_backup(json_object *journal, uint64_t bytes) {
     if (k)
         json_object_put(k);
     close(dir);
+    kept_release();
     drop_kept();
     error_text[0] = 0;
     return r;
@@ -1564,6 +1648,7 @@ static bool backup(int root, int disk, unsigned char *mem, json_object *journal)
     uint64_t bytes = root_bytes(header);
     if (!bytes)
         return failure("old root identity/extent");
+    progress_span("backup", 3, 37, bytes);
     /* OTA-46: the rollback copies of the release being replaced go first, so
      * the new copies fit where they were (the platform counts them as free).
      * A failed backup ends in Failed, which never restores. */
@@ -1579,9 +1664,9 @@ static bool backup(int root, int disk, unsigned char *mem, json_object *journal)
         r = json_object_new_object();
     json_object_object_add(saved, "root", r);
     json_object_object_add(saved, "bootimg", b);
-    progress_span("backup", 3, 37, bytes);
     bool ok = (kept || backup_stream(root, NULL, bytes, "previous.ext4.gz", r)) &&
               region_read(disk, BOOTIMG_OFFSET, mem, IMAGE_BYTES);
+    timing(journal, "backup_root");
     if (ok) {
         progress_span("backup", 40, 2, IMAGE_BYTES);
         ok = backup_stream(-1, mem, IMAGE_BYTES, "previous-bootimg.gz", b);
@@ -1590,6 +1675,7 @@ static bool backup(int root, int disk, unsigned char *mem, json_object *journal)
         json_object_put(saved);
         return false;
     }
+    timing(journal, "backup_boot");
     json_object_object_add(journal, "backup", saved);
     return save("state.json", journal);
 }
@@ -1615,14 +1701,17 @@ static bool restore(int root, int disk, unsigned char *mem, json_object *j, cons
         progress_span("restore", 5, 75, (uint64_t)num(r, "raw_bytes"));
         ok = stream_image(rf, root, NULL, r, ROOT, rflags, &crc) && fsync(root) == 0;
     }
+    timing(j, "restore");
     if (ok) {
         progress_span("check", 80, 15, (uint64_t)num(r, "raw_bytes"));
         ok = legacy_record(r) ? file_hash(root, (uint64_t)num(r, "raw_bytes"), str(r, "raw_sha256"))
                               : file_crc(root, (uint64_t)num(r, "raw_bytes"), crc);
+        timing(j, "restore_check");
     }
     if (ok) {
         progress(96, "restore");
         ok = region_write(disk, BOOTIMG_OFFSET, mem, IMAGE_BYTES);
+        timing(j, "restore_boot");
     }
     if (rf >= 0)
         close(rf);
@@ -1730,7 +1819,9 @@ static bool recover(json_object *j) {
     root = root_device();
     if (root < 0)
         goto done;
+    timing(j, NULL);
     if (!strcmp(s, "Installing") || !strcmp(s, "RollingBack") || !strcmp(s, "RollbackPending")) {
+        json_object_object_del(j, "timings");
         ok = restore(root, disk, mem, j,
                      !strcmp(s, "RollbackPending") && *str(j, "failure") ? str(j, "failure")
                                                                           : "interrupted update");
@@ -1741,8 +1832,10 @@ static bool recover(json_object *j) {
         failure("unknown update state");
         goto done;
     }
+    kept_prefetch(j);
     int pkg = openat(basefd, "pending", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
     json_object *m = pkg >= 0 ? verify(pkg, 2, num(j, "previous_sequence"), false) : NULL;
+    timing(j, "verify");
     if (!m || strcmp(str(m, "y2linux_commit"), str(j, "y2linux_commit")) ||
         num(m, "sequence") != num(j, "sequence") ||
         strcmp(str(m, "_manifest_sha256"), str(j, "manifest_sha256"))) {
@@ -1778,6 +1871,7 @@ static bool recover(json_object *j) {
              fsync(root) == 0;
         if (ok)
             setnum(j, "root_bytes_written", (int64_t)stream_written);
+        timing(j, "system");
     }
 #ifdef Y2_UPDATE_TEST
     if (ok && getenv("Y2_TEST_FAULT") && !strcmp(getenv("Y2_TEST_FAULT"), "readback")) {
@@ -1789,6 +1883,7 @@ static bool recover(json_object *j) {
     if (ok) {
         progress_span("check", 80, 16, (uint64_t)num(rp, "raw_bytes"));
         ok = file_crc(root, (uint64_t)num(rp, "raw_bytes"), crc);
+        timing(j, "check");
     }
 #ifdef Y2_UPDATE_TEST
     if (ok && getenv("Y2_TEST_FAULT") && !strcmp(getenv("Y2_TEST_FAULT"), "boot_interrupt"))
@@ -1797,6 +1892,7 @@ static bool recover(json_object *j) {
     if (ok) {
         progress(96, "boot");
         ok = region_write(disk, BOOTIMG_OFFSET, mem, IMAGE_BYTES);
+        timing(j, "boot");
     }
     if (rf >= 0)
         close(rf);
@@ -1817,6 +1913,7 @@ static bool recover(json_object *j) {
     json_object_put(m);
     close(pkg);
 done:
+    kept_release();
     if (root >= 0)
         close(root);
     free(mem);

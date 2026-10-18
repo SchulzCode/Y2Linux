@@ -426,12 +426,16 @@ class UpdateTests(unittest.TestCase):
                          ('package', root['sha256'], root['raw_crc32']))
         self.assertFalse((self.base/'current').exists())
         self.assertEqual((self.root/'root.img').read_bytes(), third)
+        # Each phase's time is in the journal (the step lines only mark starts).
+        self.assertEqual(sorted(self.journal()['timings']),
+                         ['backup_boot', 'backup_root', 'boot', 'check', 'system', 'verify'])
         self.assertEqual(self.run_core('rollback')['state'], 'RollbackPending')
         self.run_core('prepare')
         self.boot('recovery-3')
         self.assertEqual(self.run_core('recovery', recovery=True)['outcome'], 'rolled_back')
         self.assertEqual((self.root/'root.img').read_bytes(), self.new)
         self.assertTrue(self.span(BOOTIMG, self.new_boot))
+        self.assertEqual(sorted(self.journal()['timings']), ['restore', 'restore_boot', 'restore_check'])
 
     def test_a_kept_package_of_another_release_is_dropped(self):
         # Another running build (e.g. flashed by computer): dropped at queue.
