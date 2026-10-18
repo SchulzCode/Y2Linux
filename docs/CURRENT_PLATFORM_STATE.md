@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.3, Baseline 89 — 2026-10-18 (latest, published)
+## Y2Linux 1.0 Beta 8.4, Baseline 90 — 2026-10-18 (latest)
+
+Release `1.0.0-beta.8.4`, tag `baseline-90`, Linux `c339919`, Reborn `000876f`, sequence 6700. The dark display
+after a restart (the 8.3 OTA rolled back for it) is the leftover closed SMI gate of POWER-FINAL-40: no SMI hold at
+probe, larb0 stuck from LK, DSI reads lagging as a consequence. 42's restart handler (reopen SMI common/larb0 as the
+last step before the watchdog) is back next to 43's hold. Not yet run on a player. Details:
+[Beta 8.4 report](validation/Y2-LINUX-1.0-BETA-8.4.md).
+
+## Y2Linux 1.0 Beta 8.3, Baseline 89 — 2026-10-18 (published)
 
 Release `1.0.0-beta.8.3`, tag `baseline-89`, Linux `029d93e`, Reborn `03e6dff`, sequence 6600. The installer
 estimates its own time left from a model of its phases (owner's player) corrected by the measured rates; the

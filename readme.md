@@ -6,22 +6,22 @@ Linux 6.18 and a Buildroot userspace for the **Innioasis Y2** music player
 Android system on the internal eMMC and leaves the bootloaders, calibration and
 factory partitions untouched.
 
-> **Status: Y2Linux 1.0 Beta 8.3 (Baseline 89, 2026-10-18), public beta.** It runs every day
+> **Status: Y2Linux 1.0 Beta 8.4 (Baseline 90, 2026-10-18), public beta.** It runs every day
 > on the maintainer's Y2. Install it once from the ready-made images of the
 > [GitHub releases](https://github.com/SchulzCode/Y2Linux/releases) with SP Flash Tool
 > ([INSTALL](docs/INSTALL.md)); after that the player updates itself over Wi-Fi. Only one
 > hardware revision has been tested (see [Supported hardware](#supported-hardware)). Read
 > [Known issues](#known-issues) before you flash: battery life in sleep is not yet stock-like.
 
-| | 1.0 Beta 8.3 (Baseline 89) |
+| | 1.0 Beta 8.4 (Baseline 90) |
 | --- | --- |
-| Git tag (both repositories) | `baseline-89` (previous: `baseline-88`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
-| Release / kernel | `1.0.0-beta.8.3` / `6.18.56-y2linux-1.0.0-beta.8.3` (Linux 6.18 long-term line) |
-| Root filesystem | `2026.08-platform-v1.119` (Buildroot 2026.08) |
-| Player | Y2Reborn 1.0.0-beta.8.3 (Rust 1.99) with the UI v4 design, Cover Flow, Genres, a clock, 16 skins and Last.fm scrobbling |
+| Git tag (both repositories) | `baseline-90` (previous: `baseline-89`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
+| Release / kernel | `1.0.0-beta.8.4` / `6.18.56-y2linux-1.0.0-beta.8.4` (Linux 6.18 long-term line) |
+| Root filesystem | `2026.08-platform-v1.120` (Buildroot 2026.08) |
+| Player | Y2Reborn 1.0.0-beta.8.4 (Rust 1.99) with the UI v4 design, Cover Flow, Genres, a clock, 16 skins and Last.fm scrobbling |
 | Bluetooth codecs | SBC, AAC (fdk-aac-free) and LDAC |
 | Main components | GCC 15.3 / glibc 2.44, Mesa 26.2.4, FFmpeg 9.0.2, BlueZ 5.87, OpenSSL 4.0.3, Python 3.15.0 |
-| Images built from | Y2Linux `029d93e`, Y2Reborn `03e6dff` ([Beta 8.3 report](docs/validation/Y2-LINUX-1.0-BETA-8.3.md): the update screens show the seconds left; [8.2](docs/validation/Y2-LINUX-1.0-BETA-8.2.md): updates install in about 15 s instead of 54 s) |
+| Images built from | Y2Linux `c339919`, Y2Reborn `000876f` ([Beta 8.4 report](docs/validation/Y2-LINUX-1.0-BETA-8.4.md): the dark display after a restart; [8.3](docs/validation/Y2-LINUX-1.0-BETA-8.3.md): the update screens show the seconds left; [8.2](docs/validation/Y2-LINUX-1.0-BETA-8.2.md): updates install in about 15 s instead of 54 s) |
 
 ## Getting started
 
@@ -120,9 +120,10 @@ public release, and its Firmware-drive install was tested on the device):
   measured yet. Players with the GC9503V panel keep the old behaviour until it is confirmed there.
 - **Two panel types.** The Y2 ships with a GC9503V or an ST7701S panel; Y2Linux identifies it at
   start (`/sys/firmware/y2_boot/metadata`, `/sys/module/panel/parameters/panel_kind`).
-- **Rarely a slow display start.** The display controller sometimes answers register reads one
-  register late after a restart; since 47 the picture starts anyway. If the panel ever stays dark,
-  hold Power for 10 s and start again.
+- **Rarely a dark display after a restart.** Before Beta 8.4 a restart could leave a display clock
+  gate closed for the bootloader, and the screen stayed dark (an update then rolled itself back).
+  8.4 reopens it as the last step of every restart; this is not yet confirmed over many restarts.
+  If the panel ever stays dark, hold Power for 10 s and start again.
 - **USB after a wake from deep sleep** has worked on every wake since 16, but is not yet confirmed
   over many wakes. Power off and on if USB stays silent.
 - **Bluetooth:** Beta 2 fixes the reconnect that gave up when the headphones were absent at a wake
@@ -139,7 +140,7 @@ public release, and its Firmware-drive install was tested on the device):
 
 The full list, with evidence and next steps, is in the
 [current platform state](docs/CURRENT_PLATFORM_STATE.md) and the
-reports for 1.0 Beta [8.3](docs/validation/Y2-LINUX-1.0-BETA-8.3.md), [8.2](docs/validation/Y2-LINUX-1.0-BETA-8.2.md), [8.1](docs/validation/Y2-LINUX-1.0-BETA-8.1.md), [8.0](docs/validation/Y2-LINUX-1.0-BETA-8.0.md), [7.11](docs/validation/Y2-LINUX-1.0-BETA-7.11.md), [7.10](docs/validation/Y2-LINUX-1.0-BETA-7.10.md), [7.9](docs/validation/Y2-LINUX-1.0-BETA-7.9.md), [7.8](docs/validation/Y2-LINUX-1.0-BETA-7.8.md), [7.7](docs/validation/Y2-LINUX-1.0-BETA-7.7.md), [7.6](docs/validation/Y2-LINUX-1.0-BETA-7.6.md), [7.5](docs/validation/Y2-LINUX-1.0-BETA-7.5.md), [7.4](docs/validation/Y2-LINUX-1.0-BETA-7.4.md), [7.3](docs/validation/Y2-LINUX-1.0-BETA-7.3.md), [7.2](docs/validation/Y2-LINUX-1.0-BETA-7.2.md), [7.1](docs/validation/Y2-LINUX-1.0-BETA-7.1.md), [7](docs/validation/Y2-LINUX-1.0-BETA-7.md), [6.3](docs/validation/Y2-LINUX-1.0-BETA-6.3.md), [6.2](docs/validation/Y2-LINUX-1.0-BETA-6.2.md), [6.1](docs/validation/Y2-LINUX-1.0-BETA-6.1.md), [6](docs/validation/Y2-LINUX-1.0-BETA-6.md), [5.1](docs/validation/Y2-LINUX-1.0-BETA-5.1.md), [5](docs/validation/Y2-LINUX-1.0-BETA-5.md), [4.1](docs/validation/Y2-LINUX-1.0-BETA-4.1.md), [4](docs/validation/Y2-LINUX-1.0-BETA-4.md), [3](docs/validation/Y2-LINUX-1.0-BETA-3.md), [2](docs/validation/Y2-LINUX-1.0-BETA-2.md) and
+reports for 1.0 Beta [8.4](docs/validation/Y2-LINUX-1.0-BETA-8.4.md), [8.3](docs/validation/Y2-LINUX-1.0-BETA-8.3.md), [8.2](docs/validation/Y2-LINUX-1.0-BETA-8.2.md), [8.1](docs/validation/Y2-LINUX-1.0-BETA-8.1.md), [8.0](docs/validation/Y2-LINUX-1.0-BETA-8.0.md), [7.11](docs/validation/Y2-LINUX-1.0-BETA-7.11.md), [7.10](docs/validation/Y2-LINUX-1.0-BETA-7.10.md), [7.9](docs/validation/Y2-LINUX-1.0-BETA-7.9.md), [7.8](docs/validation/Y2-LINUX-1.0-BETA-7.8.md), [7.7](docs/validation/Y2-LINUX-1.0-BETA-7.7.md), [7.6](docs/validation/Y2-LINUX-1.0-BETA-7.6.md), [7.5](docs/validation/Y2-LINUX-1.0-BETA-7.5.md), [7.4](docs/validation/Y2-LINUX-1.0-BETA-7.4.md), [7.3](docs/validation/Y2-LINUX-1.0-BETA-7.3.md), [7.2](docs/validation/Y2-LINUX-1.0-BETA-7.2.md), [7.1](docs/validation/Y2-LINUX-1.0-BETA-7.1.md), [7](docs/validation/Y2-LINUX-1.0-BETA-7.md), [6.3](docs/validation/Y2-LINUX-1.0-BETA-6.3.md), [6.2](docs/validation/Y2-LINUX-1.0-BETA-6.2.md), [6.1](docs/validation/Y2-LINUX-1.0-BETA-6.1.md), [6](docs/validation/Y2-LINUX-1.0-BETA-6.md), [5.1](docs/validation/Y2-LINUX-1.0-BETA-5.1.md), [5](docs/validation/Y2-LINUX-1.0-BETA-5.md), [4.1](docs/validation/Y2-LINUX-1.0-BETA-4.1.md), [4](docs/validation/Y2-LINUX-1.0-BETA-4.md), [3](docs/validation/Y2-LINUX-1.0-BETA-3.md), [2](docs/validation/Y2-LINUX-1.0-BETA-2.md) and
 [1](docs/validation/Y2-LINUX-1.0-BETA-1.md),
 [49](docs/validation/Y2-PLATFORM-V1-POWER-FINAL-49.md) (firmware-free images, flash package, codecs),
 [48](docs/validation/Y2-PLATFORM-V1-POWER-FINAL-48.md) (download screen),

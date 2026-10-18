@@ -8712,3 +8712,21 @@ measurements and the owner rollback on the player (models); the 8.3 build itself
 
 **Gate decision:** READY for **Y2Linux 1.0.0-beta.8.3** (Baseline 89, sequence 6600) at the owner's word (given),
 with the device check owed through the owner's own OTA.
+
+## BETA-8.4 (Baseline 90) dark display after a restart: milestone gap audit — 2026-10-18
+
+**Boundary:** owner: "publish, I do OTA". Display restart path (kernel restart handler) after the 8.3 OTA rolled
+back on a dark display. Real-hardware evidence: the four restarts out of the recovery on the owner's player on
+2026-10-18 (three lit with the SMI hold, one dark without it); the 8.4 build itself has not run on a player.
+
+| Area | State for Beta 8.4 | Evidence / gap |
+| --- | --- | --- |
+| Cause of the dark restart | FOUND (logs) | No SMI hold at probe, `SMI gates 1 left closed`, larb0 stat=1 greq=1, DSI reads lag after |
+| Restart handler (42) back | HOST-TESTED | `tests.test_display_domain`; owed: restarts on the player |
+| Why only some restarts close the gate | UNKNOWN | Handler reopens it on every restart |
+| Sleep drain with panel power-down | OWED (from 8.1) | One overnight sleep on battery (#42) |
+| FM radio | ON BRANCH | |
+
+**Gate decision:** READY for **Y2Linux 1.0.0-beta.8.4** (Baseline 90, sequence 6700) at the owner's word (given),
+with the device check owed through the owner's own OTA.
+

@@ -1,7 +1,7 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): DARK DISPLAY AFTER A RESTART — CAUSE AND FIX IN CANDIDATE 8.4 (LABEL 90, NOT
-> PUBLISHED).** The 8.3 OTA's restart from the recovery came up dark and the health check rolled the install back.
+> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.4 (BASELINE 90) — DARK DISPLAY AFTER A RESTART.** Owner:
+> "publish, I do OTA"; report `docs/validation/Y2-LINUX-1.0-BETA-8.4.md`, audit BETA-8.4. The 8.3 OTA's restart from the recovery came up dark and the health check rolled the install back.
 > Logs (`out/dsi-lag-2026-10-18/`, local): on the dark boot mm-clocks took **no** `holding SMI common/larb0` (the SMI
 > common gate was already closed at 0.36 s, before Lima), the handover logged `SMI gates 1 left closed by a restart`
 > with larb0 `stat=1 greq=1`, and the DSI register reads lagged from the first modeset (3 power cycles useless): the
@@ -10,8 +10,8 @@
 > in 43 for a different cause; Linux `7ed664b` brings it back next to 43's hold and logs `SMI common gated before
 > Linux touched it: CG_CON0=…` when the gate is found closed at probe. Not established: why only some restarts close
 > the gate. Candidate 1.0.0-beta.8.4, sequence 6700, Linux `c339919`, Reborn identity only; container suite 775 OK.
-> **Owed:** the owner's decision (publish for OTA, or a restart series on the player first: `y2-platform update
-> probe` cycles, each boot checked for `holding` and no `SMI gates … left closed`).
+> **Owed:** after the owner's OTA, check the 8.4 boot for `holding SMI common/larb0` and no `SMI gates … left closed`
+> (`dmesg`, `/data/logs/system.log`), and the install `timings`; later restarts the same.
 >
 > Previous entry: **START HERE (2026-10-18): Y2LINUX 1.0 BETA 8.3 (BASELINE 89) PUBLISHED — SECONDS LEFT ON THE UPDATE SCREENS.**
 > Owner: "build the latest and publish, but don't update the player, I want to do that with OTA" and "more
