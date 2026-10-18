@@ -42,7 +42,7 @@ class ExfatDirReadahead(unittest.TestCase):
         media = (ROOT / 'tools/platform/y2_platform/media.py').read_text()
         self.assertIn("options = 'rw,nosuid,nodev,noexec,noatime'", media)
         internal = (ROOT / 'tools/platform/y2_platform/internal_media.py').read_text()
-        self.assertIn("OPTIONS = 'rw,nosuid,nodev,noexec,noatime'", internal)
+        self.assertIn("OPTIONS = 'rw,nosuid,nodev,noexec,noatime,noinit_itable'", internal)
 
 
 if __name__ == '__main__':

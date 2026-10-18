@@ -28,7 +28,10 @@ START = '3742720'
 SIZE = '11460608'
 CONTROLLER = '/11230000.mmc/'
 MARKER = '/run/y2/internal-media.json'
-OPTIONS = 'rw,nosuid,nodev,noexec,noatime'  # 30: no access-time writes during playback
+# 30: noatime, no access-time writes during playback. noinit_itable: the eMMC write guard
+# refuses WRITE_ZEROES/erase (storage-policy.h), so ext4's background inode-table zeroing
+# only failed at every start (`mmc_erase: group start error -30`, V1 code review R6).
+OPTIONS = 'rw,nosuid,nodev,noexec,noatime,noinit_itable'
 CHUNK = 1 << 20
 RESERVE = 64 << 20         # keep this much free after a migration
 # Every ext4 setting named, so a later e2fsprogs cannot change the layout: the set the first
@@ -37,7 +40,7 @@ FEATURES = ('none,has_journal,ext_attr,resize_inode,dir_index,orphan_file,filety
             'flex_bg,metadata_csum_seed,sparse_super,large_file,huge_file,dir_nlink,extra_isize,'
             'metadata_csum')
 MKFS = ['mkfs.ext4', '-F', '-q', '-L', LABEL, '-U', UUID, '-m', '0', '-J', 'size=64', '-b', '4096',
-        '-I', '256', '-i', '16384', '-O', FEATURES, '-E', 'lazy_itable_init=1,lazy_journal_init=1']
+        '-I', '256', '-i', '16384', '-O', FEATURES, '-E', 'lazy_itable_init=1,lazy_journal_init=1,nodiscard']
 
 # --- automatic setup (STORAGE-SETUP) ---
 SETUP = '/data/system/internal-media-setup.json'      # survives formatting p8

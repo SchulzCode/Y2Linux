@@ -124,7 +124,7 @@ class InternalMedia(Fixture):
         self.assertLess(order.index('e2fsck'), order.index('mount'))
         mount = next(c for c in self.calls if c[0] == 'mount')
         self.assertEqual(mount[:4], ['mount', '-t', 'ext4', '-o'])
-        self.assertEqual(mount[4], 'rw,nosuid,nodev,noexec,noatime')
+        self.assertEqual(mount[4], 'rw,nosuid,nodev,noexec,noatime,noinit_itable')
         self.assertEqual(mount[5:], ['/dev/mmcblk0p8', '/media/internal'])
         self.assertEqual(next(c for c in self.calls if c[0] == 'e2fsck')[:2], ['e2fsck', '-p'])
         self.assertTrue(im.ready(self.ctx))
