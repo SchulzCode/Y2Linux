@@ -116,6 +116,7 @@ def features(ctx, golden=False):
              'spm': ctx.read(SPM + 'state', limit=8192),
              # 27: stock panel power-down and the idle VGP2 rail (ledger F20/F22).
              'panel_stock_suspend': ctx.read('/sys/module/panel/parameters/stock_suspend', limit=16),
+             'panel_power_down': ctx.read('/sys/module/panel/parameters/power_down', limit=16),
              'vgp2_idle_off': ctx.read('/sys/module/y2_cs43131/parameters/vgp2_idle_off', limit=16),
              # 32: deep idle during playback and how often it was admitted.
              'deep_idle_audio': ctx.read('/sys/module/clocks/parameters/deep_idle_audio', limit=16),

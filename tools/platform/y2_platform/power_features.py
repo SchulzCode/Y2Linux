@@ -35,7 +35,23 @@ FEATURES = {
     # 32 (ledger F34/F36): deep idle (SLIDLE/DORMANT) while the audio clock is
     # on, i.e. during screen-off playback, as stock dpidle; N keeps 31's rule.
     'deep_idle_audio': ('/sys/module/clocks/parameters/deep_idle_audio', True),
+    # #45: screen-off powers the panel down with its stock lcm_suspend and
+    # screen-on replays the stock lcm_init (panel.c power_down); N keeps the
+    # LK-lit panel awake as before. On by default only for a panel it was
+    # confirmed on (CONFIRMED_PANELS); others turn it on with the override.
+    'panel_power_down': ('/sys/module/panel/parameters/power_down', True),
 }
+# The ST7701S was confirmed on the owner's player (2026-10-18, 6456). The
+# GC9503V's stock-packet init has not run on hardware yet.
+CONFIRMED_PANELS = {'st7701s'}
+
+
+def panel(ctx):
+    """The panel LK identified (y2_boot/metadata panel=), or None."""
+    for field in (ctx.read('/sys/firmware/y2_boot/metadata') or '').split():
+        if field.startswith('panel='):
+            return field[len('panel='):]
+    return None
 
 
 def encode(default, value):
@@ -56,7 +72,10 @@ def apply(ctx):
         override = {}
     result = {}
     for name, (path, default) in FEATURES.items():
-        wanted = override.get(name, default)
+        if name == 'panel_power_down' and name not in override:
+            wanted = panel(ctx) in CONFIRMED_PANELS
+        else:
+            wanted = override.get(name, default)
         try:
             value = encode(default, wanted)
             ctx.path(path).write_text(value)

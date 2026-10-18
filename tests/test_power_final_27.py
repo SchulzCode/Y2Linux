@@ -274,9 +274,32 @@ class Switches(unittest.TestCase):
         diagnostics = (ROOT / 'tools/platform/y2_platform/sleep_diagnostics.py').read_text()
         self.assertIn("'/sys/module/clocks/parameters/deep_audio_entries'", diagnostics)
 
+    def test_panel_power_down_is_on_only_for_a_confirmed_panel(self):
+        # #45: armed at application_ready on an ST7701S (confirmed 6456); a
+        # GC9503V or unknown panel keeps the lit panel unless the owner opts in.
+        from y2_platform.common import Context
+        from y2_platform.power_features import apply
+        for metadata, expected in (('panel=st7701s', 'Y'), ('panel=gc9503v', 'N'), ('panel=unknown', 'N'), ('', 'N')):
+            with tempfile.TemporaryDirectory() as temp:
+                ctx = Context(temp)
+                param = ctx.path('/sys/module/panel/parameters/power_down')
+                param.parent.mkdir(parents=True)
+                param.write_text('N')
+                meta = ctx.path('/sys/firmware/y2_boot/metadata')
+                meta.parent.mkdir(parents=True)
+                meta.write_text('valid=1 boot_mode=0 boot_reason=4 offline=0 recovery_image=0 ' + metadata + '\n')
+                apply(ctx)
+                self.assertEqual(param.read_text(), expected, metadata)
+                override = ctx.path('/data/system/platform/power-features.json')
+                override.parent.mkdir(parents=True)
+                override.write_text(json.dumps({'panel_power_down': expected == 'N'}))
+                apply(ctx)
+                self.assertEqual(param.read_text(), 'Y' if expected == 'N' else 'N', metadata)
+
     def test_sleep_rows_record_both(self):
         diagnostics = (ROOT / 'tools/platform/y2_platform/sleep_diagnostics.py').read_text()
         self.assertIn("'/sys/module/panel/parameters/stock_suspend'", diagnostics)
+        self.assertIn("'/sys/module/panel/parameters/power_down'", diagnostics)
         self.assertIn("'/sys/module/y2_cs43131/parameters/vgp2_idle_off'", diagnostics)
 
 
