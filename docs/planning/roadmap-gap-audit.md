@@ -8751,3 +8751,20 @@ nothing measured acoustically or electrically.
 
 **Gate decision:** implementation and host tests may proceed. A test build on the player and any release need the
 owner's word; the level default and the Master pin change loudness, so the owner listens before a release.
+
+## BETA-8.5 (Baseline 93) headphone level, profiles, DAC filter: milestone gap audit — 2026-10-18
+
+**Boundary:** owner: "publish it as beta 8.5". Headphone output stage control (kernel), a new default level, the
+Master change, shipped AutoEq data and two FFmpeg filters (packaging). Real-hardware evidence: test builds 91–93
+(6750–6752) on the owner's player; 93 is this release.
+
+| Area | State for Beta 8.5 | Evidence / gap |
+| --- | --- | --- |
+| Level control and default Low | DEVICE-TESTED | Registers per level; deferral while live; applied at power-up |
+| Loudness at Low | BY DESIGN | −0.26 dB vs 8.4 (datasheet ratio); owner listening owed |
+| Headphone profiles, 47 shipped | DEVICE-TESTED | Graph with shelves and preamp on ARM; refusal of a broken file (owner) |
+| DAC filter | DEVICE-TESTED (register) | PCM_FILT_OPT 0xC2 for Slow phase compensated; sound not compared |
+| Settings screens, fade after a raise, sleep with a level | OWED | Need the buttons / USB unplugged |
+| Output voltage, noise, response per load | NOT MEASURED | Plan in HEADPHONE-OUTPUT.md |
+
+**Gate decision:** READY for **Y2Linux 1.0.0-beta.8.5** (Baseline 93, sequence 6752) at the owner's word (given).

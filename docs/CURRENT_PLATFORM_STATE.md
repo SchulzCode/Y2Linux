@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.4, Baseline 90 — 2026-10-18 (latest, published)
+## Y2Linux 1.0 Beta 8.5, Baseline 93 — 2026-10-18 (latest, published)
+
+Release `1.0.0-beta.8.5`, tag `baseline-93`, Linux `04e2dc8`, Reborn `b694670`, sequence 6752. Headphone output
+level (kernel `HP Output Level`, default Low = stock, written only while the amplifier is down; Master −19.5 dB),
+headphone profiles (AutoEq, 47 shipped, FFmpeg lowshelf/highshelf), DAC filter, Sound on one screen with an Output
+page. On the owner's player as test build 93. Details: [Beta 8.5 report](validation/Y2-LINUX-1.0-BETA-8.5.md),
+[Headphone output](HEADPHONE-OUTPUT.md).
+
+## Y2Linux 1.0 Beta 8.4, Baseline 90 — 2026-10-18 (published)
 
 Release `1.0.0-beta.8.4`, tag `baseline-90`, Linux `c339919`, Reborn `000876f`, sequence 6700. The dark display
 after a restart (the 8.3 OTA rolled back for it) is the leftover closed SMI gate of POWER-FINAL-40: no SMI hold at

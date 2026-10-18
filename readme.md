@@ -6,22 +6,22 @@ Linux 6.18 and a Buildroot userspace for the **Innioasis Y2** music player
 Android system on the internal eMMC and leaves the bootloaders, calibration and
 factory partitions untouched.
 
-> **Status: Y2Linux 1.0 Beta 8.4 (Baseline 90, 2026-10-18), public beta.** It runs every day
+> **Status: Y2Linux 1.0 Beta 8.5 (Baseline 93, 2026-10-18), public beta.** It runs every day
 > on the maintainer's Y2. Install it once from the ready-made images of the
 > [GitHub releases](https://github.com/SchulzCode/Y2Linux/releases) with SP Flash Tool
 > ([INSTALL](docs/INSTALL.md)); after that the player updates itself over Wi-Fi. Only one
 > hardware revision has been tested (see [Supported hardware](#supported-hardware)). Read
 > [Known issues](#known-issues) before you flash: battery life in sleep is not yet stock-like.
 
-| | 1.0 Beta 8.4 (Baseline 90) |
+| | 1.0 Beta 8.5 (Baseline 93) |
 | --- | --- |
-| Git tag (both repositories) | `baseline-90` (previous: `baseline-89`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
-| Release / kernel | `1.0.0-beta.8.4` / `6.18.56-y2linux-1.0.0-beta.8.4` (Linux 6.18 long-term line) |
-| Root filesystem | `2026.08-platform-v1.120` (Buildroot 2026.08) |
-| Player | Y2Reborn 1.0.0-beta.8.4 (Rust 1.99) with the UI v4 design, Cover Flow, Genres, a clock, 16 skins and Last.fm scrobbling |
+| Git tag (both repositories) | `baseline-93` (previous: `baseline-90`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
+| Release / kernel | `1.0.0-beta.8.5` / `6.18.56-y2linux-1.0.0-beta.8.5` (Linux 6.18 long-term line) |
+| Root filesystem | `2026.08-platform-v1.123` (Buildroot 2026.08) |
+| Player | Y2Reborn 1.0.0-beta.8.5 (Rust 1.99) with the UI v4 design, Cover Flow, Genres, a clock, 16 skins, Last.fm scrobbling and 47 headphone profiles |
 | Bluetooth codecs | SBC, AAC (fdk-aac-free) and LDAC |
 | Main components | GCC 15.3 / glibc 2.44, Mesa 26.2.4, FFmpeg 9.0.2, BlueZ 5.87, OpenSSL 4.0.3, Python 3.15.0 |
-| Images built from | Y2Linux `c339919`, Y2Reborn `000876f` ([Beta 8.4 report](docs/validation/Y2-LINUX-1.0-BETA-8.4.md): the dark display after a restart; [8.3](docs/validation/Y2-LINUX-1.0-BETA-8.3.md): the update screens show the seconds left; [8.2](docs/validation/Y2-LINUX-1.0-BETA-8.2.md): updates install in about 15 s instead of 54 s) |
+| Images built from | Y2Linux `04e2dc8`, Y2Reborn `b694670` ([Beta 8.5 report](docs/validation/Y2-LINUX-1.0-BETA-8.5.md): headphone level, headphone profiles, DAC filter; [8.4](docs/validation/Y2-LINUX-1.0-BETA-8.4.md): the dark display after a restart; [8.3](docs/validation/Y2-LINUX-1.0-BETA-8.3.md): the update screens show the seconds left; [8.2](docs/validation/Y2-LINUX-1.0-BETA-8.2.md): updates install in about 15 s instead of 54 s) |
 
 ## Getting started
 
@@ -63,6 +63,9 @@ public release, and its Firmware-drive install was tested on the device):
 - Album art from the album folder first (cover.jpg, folder.jpg, … and Windows Media Player
   names), the embedded picture when the folder has none.
 - Wired headphone audio (CS43131 DAC), S16 stereo at 44.1/48 kHz; higher-rate files are converted.
+- Headphone level Low/Medium/High (Low is the stock level) and the DAC filter under Settings → Sound →
+  Output; headphone profiles that correct 47 common headphones and IEMs (AutoEq), more from an `EQ`
+  folder ([Headphone output](docs/HEADPHONE-OUTPUT.md)).
 - Bluetooth audio; the codec is chosen automatically (SBC, or AAC/aptX/LDAC when the
   headphones support them and BlueALSA offers them). The output follows the headphones:
   Bluetooth headphones take over from the jack when they connect, the jack when they leave.

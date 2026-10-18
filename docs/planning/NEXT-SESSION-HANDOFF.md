@@ -1,7 +1,9 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): HEADPHONE LEVEL, HEADPHONE PROFILES (AUTOEQ), DAC FILTER — ON `main`, HOST-TESTED,
-> NOT BUILT, NOT ON THE PLAYER.** Owner question from an email (stock bass roll-off, "output gain switching with
+> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.5 (BASELINE 93) PUBLISHED — HEADPHONE LEVEL, HEADPHONE PROFILES
+> (AUTOEQ, 47 SHIPPED), DAC FILTER, SOUND ON ONE SCREEN.** Owner: "publish it as beta 8.5". Report
+> `docs/validation/Y2-LINUX-1.0-BETA-8.5.md`, audit BETA-8.5; the owner's player runs test build 93 = this release.
+> History of the work below (first written when it was host-tested only). Owner question from an email (stock bass roll-off, "output gain switching with
 > impedance"). Guide + measurement plan: [HEADPHONE-OUTPUT](../HEADPHONE-OUTPUT.md); audit HP-LEVEL-EQ.
 > - **Code:** Linux `2c59a31` (0030: ALSA `HP Output Level` Low/Medium/High = OUT_FS 0x10/0x20/0x30 with hv_seq's
 >   HV_EN, written only while PDN_HP is set (now or at the HiFi DAC PRE_PMU), `HP Output Level Live`, probe default
