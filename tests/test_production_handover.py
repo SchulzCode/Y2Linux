@@ -176,8 +176,15 @@ exit 0
         self.assertRegex(script, r"charger_online \|\| \{[^}]*recovery_restart=; recovery_off 10; \}")
         result, events, log = self.exercise('recovery-stuck', cmdline='rdinit=/init y2.recovery=1')
         self.assertEqual(result.returncode,97,result.stderr)
-        self.assertNotIn('poweroff',events)
-        self.assertIn('staying in recovery',log)
+        self.assertNotIn('reboot',events)
+        # B8: stuck on battery, the player stays on for ten minutes (300 polls
+        # of 2 s without a charger), then turns off; the request stays set.
+        stuck = events.split('y2-update-core recovery')[1]
+        self.assertEqual(stuck.split('poweroff -f')[0].count('sleep 2'), 300)
+        self.assertTrue(stuck.rstrip().endswith('poweroff -f'))
+        self.assertIn('power off', log)   # the fixture kmsg keeps the last line only
+        # With a charger connected the count starts again: it never turns off.
+        self.assertIn('if charger_online; then idle=0; else idle=$((idle+1)); fi', script)
 
     def test_explicit_rescue_never_mounts_a_filesystem(self):
         result,events,_=self.exercise(cmdline='rdinit=/init y2.rescue=1')

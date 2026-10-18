@@ -53,11 +53,24 @@ recovery_off() {
 }
 
 # Unknown or manual-repair state: keep the request (LK returns here) and keep
-# PID1 with a console shell, exactly like the BOOTIMG rescue.
+# PID1 with a console shell, exactly like the BOOTIMG rescue. On battery the
+# screen would stay on until the cell is empty (V1 code review B8): after ten
+# minutes without a charger the player turns off; Power brings this back.
 recovery_stuck() {
     recovery_log "$*; staying in recovery"
     recovery_screen 'Update needs attention' "$1" '' 'Connect the player' 'to a computer.'
     [ -z "$recovery_data_mounted" ] || recovery_evidence
+    (
+        idle=0
+        while [ "$idle" -lt 300 ]; do
+            if charger_online; then idle=0; else idle=$((idle+1)); fi
+            sleep 2
+        done
+        recovery_log 'stuck on battery for ten minutes; power off'
+        recovery_screen 'Update needs attention' "$1" '' 'Turning off to save the battery.' 'Press Power to see this again.'
+        recovery_restart=
+        recovery_off 8
+    ) &
     while :; do
         /bin/busybox sh </dev/console >/dev/console 2>&1
         sleep 1
