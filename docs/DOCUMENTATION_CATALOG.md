@@ -351,6 +351,7 @@ Indexed pages: **315**. Explicit scope notices: **228**.
 | [Storage](STORAGE.md) | User guide: the layout, the first-start setup of Internal Storage, old files, SD cards, USB copying and speed, going back to stock |
 | [Faster uploads: receive DMA plan](planning/USB-RX-DMA-MODE1-PLAN.md) | Multi-packet (mode 1) receive DMA: evidence, design, tests |
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
+| [Y2Linux 1.0 Beta 8.3 report](validation/Y2-LINUX-1.0-BETA-8.3.md) | Beta 8.3 (Baseline 89): seconds left on the update screens, parallel hashing, phase timings |
 | [Y2Linux 1.0 Beta 8.2 report](validation/Y2-LINUX-1.0-BETA-8.2.md) | Beta 8.2 (Baseline 88): four-core installer, kept package as rollback copy (OTA-50) |
 | [Y2Linux 1.0 Beta 8.1 report](validation/Y2-LINUX-1.0-BETA-8.1.md) | Beta 8.1 (Baseline 86): panel power-down, two panel types (#45) |
 | [Y2Linux 1.0 Beta 8.0 report](validation/Y2-LINUX-1.0-BETA-8.0.md) | Beta 8.0 (Baseline 75): 1.0 review fixes, device check |

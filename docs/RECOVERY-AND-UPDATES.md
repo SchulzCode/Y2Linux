@@ -89,7 +89,9 @@ The recovery that installs an update is always the one built with that update.
    - records *pending health* and clears the MISC request, then restarts.
 
    On the owner's player (Beta 8.2) the installer takes about 15 s (Beta 8.1: 54 s), and an
-   update from *Update Now* to the running new version about a minute.
+   update from *Update Now* to the running new version about a minute. Since Beta 8.3 the screen
+   shows the seconds left, estimated from how long each step takes and how fast this player
+   is going (also during *Check*).
 5. **First start of the new version**: it confirms itself only when the player really works
    (Reborn draws frames and answers, storage, display, audio and input are fine). Then the update
    is *acknowledged*. The package's boot images are deleted; its system part stays on the data

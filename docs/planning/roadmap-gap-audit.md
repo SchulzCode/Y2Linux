@@ -8694,3 +8694,21 @@ builds 87 (6500) and 88 (6501) installed by OTA on the owner's player.
 | FM radio | ON BRANCH | |
 
 **Gate decision:** READY for **Y2Linux 1.0.0-beta.8.2** (Baseline 88, sequence 6501) at the owner's word (given).
+
+## BETA-8.3 (Baseline 89) time left on the update screens: milestone gap audit — 2026-10-18
+
+**Boundary:** owner: "build the latest and publish, but don't update the player". Installer progress and
+estimate, parallel hashing in the recovery, a Reborn screen text. Real-hardware evidence: the Beta 8.2 phase
+measurements and the owner rollback on the player (models); the 8.3 build itself has not run on a player.
+
+| Area | State for Beta 8.3 | Evidence / gap |
+| --- | --- | --- |
+| Time plan and seconds left | HOST-TESTED | Step lines carry `left=`, falling; models match 8.2 device phases (23.7/23.6 s, 11.7/12.2 s) |
+| Recovery screen countdown | BUILT, NOT ON DEVICE | Compiled into RECOVERY; the owner's OTA shows it |
+| Parallel verify hashing | HOST-TESTED | 34 update tests, ThreadSanitizer, AddressSanitizer/UBSan |
+| Reborn check-step seconds | HOST-TESTED | Parser test; older cores keep the old text |
+| Sleep drain with panel power-down | OWED (from 8.1) | One overnight sleep on battery (#42) |
+| FM radio | ON BRANCH | |
+
+**Gate decision:** READY for **Y2Linux 1.0.0-beta.8.3** (Baseline 89, sequence 6600) at the owner's word (given),
+with the device check owed through the owner's own OTA.

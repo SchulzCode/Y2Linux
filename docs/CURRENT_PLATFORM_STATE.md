@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.2, Baseline 88 — 2026-10-18 (latest, published)
+## Y2Linux 1.0 Beta 8.3, Baseline 89 — 2026-10-18 (latest)
+
+Release `1.0.0-beta.8.3`, tag `baseline-89`, Linux `029d93e`, Reborn `03e6dff`, sequence 6600. The installer
+estimates its own time left from a model of its phases (owner's player) corrected by the measured rates; the
+recovery screen and Reborn's check step show the seconds, and the bar moves with time. The kept root is hashed in
+parallel with verify, and each install records its phase timings in the journal. Not yet run on a player (the
+owner installs it over the air). Details: [Beta 8.3 report](validation/Y2-LINUX-1.0-BETA-8.3.md).
+
+## Y2Linux 1.0 Beta 8.2, Baseline 88 — 2026-10-18 (published)
 
 Release `1.0.0-beta.8.2`, tag `baseline-88`, Linux `1d463f6`, Reborn `5aad5f1`, sequence 6501. Faster updates
 (OTA-50): the root payload is a segmented gzip that the recovery decodes, backs up and reads back on four cores,

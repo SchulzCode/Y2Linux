@@ -1,6 +1,16 @@
-# Next-session handoff — Y2Linux 1.0 Beta 8.2 (latest entry first; started 2026-10-09 as the deep-sleep continuation)
+# Next-session handoff — Y2Linux 1.0 Beta 8.3 (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.2 (BASELINE 88) PUBLISHED — FASTER UPDATES (OTA-50).** Owner: "can
+> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.3 (BASELINE 89) — SECONDS LEFT ON THE UPDATE SCREENS.**
+> Owner: "build the latest and publish, but don't update the player, I want to do that with OTA" and "more
+> precise time to finish". Release `1.0.0-beta.8.3`, sequence 6600, Linux `029d93e` (+ docs), Reborn `03e6dff`;
+> report `docs/validation/Y2-LINUX-1.0-BETA-8.3.md`, audit BETA-8.3. Time plan in `tools/update/core.c`
+> (`plan_add`, `plan_left`, models per MiB from the owner's player), `"<percent> <step> <s>"` progress lines,
+> `tools/update/recovery-ui.c` countdown, Reborn check-step seconds. Also `9c7dae7` (kept root hashed during
+> verify, phase `timings` in the journal). Player state: 6500 after the 8.2 rollback test, `current/` = 6501
+> (dropped at the next queue). **Owed:** the owner's own OTA to 8.3 (live backup expected, about 24 s), then
+> read `timings` from `y2-platform update status`; a later update for the kept path with the parallel hashing.
+>
+> Previous entry: **START HERE (2026-10-18): Y2LINUX 1.0 BETA 8.2 (BASELINE 88) PUBLISHED — FASTER UPDATES (OTA-50).** Owner: "can
 > you give me the best solution, so multicore, the other stuff?" and chose to keep the verified package as the
 > rollback copy. Release `1.0.0-beta.8.2`, sequence 6501, Linux `1d463f6` (+ docs; code in `f9c1eae`), Reborn
 > `5aad5f1`; report `docs/validation/Y2-LINUX-1.0-BETA-8.2.md`, audit BETA-8.2, contract in

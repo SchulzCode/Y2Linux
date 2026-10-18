@@ -106,8 +106,14 @@ downgrades; a development key may downgrade only with a signed manifest flag.
    back. Decoding, backup compression and readback CRC run on four threads while the main thread does
    the I/O; the write still compares each 128 KiB chunk with the medium and skips equal ones.
    Owner's player: installer 53.5 s (Beta 8.1) → 23.6 s with the live backup → 14.9 s with the kept
-   package (verify 3.2, backup 1.8, system 5.3, check 3.9, boot 0.8 s). The readback is bound by the
-   eMMC (512 MiB ≈ 3.7 s).
+   package (verify 3.2, backup 1.8, system 5.3, check 3.9, boot 0.8 s; the 3.2 s included the kept
+   check, hashed in parallel with verify since 8.3). The readback is bound by the eMMC (512 MiB ≈ 3.7 s).
+   Each run records its phases in milliseconds in the journal (`timings`).
+   Time left (Beta 8.3): a plan of the run's phases with modelled durations (30 ms per encoded MiB
+   hashed, 21 per MiB of live-root backup, 10 written, 7.5 read back; kept root 0.3 s, boot backup
+   1.7 s, BOOTIMG 0.8 s), rescaled by the finished phases' real speed, the current phase by its own
+   byte rate. Progress lines are `"<percent> <step> <seconds left>"` (readers before 8.3 use the first
+   two fields); the bar is time-weighted and never moves back.
 5. **Health**: the platform acknowledges the new system when Reborn presents frames, answers and the core
    checks pass (unchanged 180-second worker). The acknowledgement moves the installed package to
    `/data/updates/current/` (manifest, signature and root payload; the boot payloads are deleted) when
