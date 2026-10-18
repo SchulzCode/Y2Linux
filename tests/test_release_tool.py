@@ -70,6 +70,23 @@ class ReleaseTool(unittest.TestCase):
                 self.assertIn('legal-info/sources/zlib-1/zlib.tar.gz', names)
                 self.assertTrue(all(member.uid == 0 and member.mtime == 1700000000 for member in tar.getmembers()))
 
+    def test_toolchain_library_sources_ship_with_every_release(self):
+        # V1 readiness A7: glibc and the GCC runtime come from the prebuilt Bootlin
+        # toolchain; their sources are pinned by Buildroot's own hashes.
+        from tools.production import toolchain_sources as sources
+        for package, (hash_file, _, licence) in sources.SOURCES.items():
+            self.assertTrue((sources.BUILDROOT / hash_file).is_file(), hash_file)
+            self.assertTrue(licence)
+        algorithm, digest = sources.pinned('package/glibc/glibc.hash',
+                                           'glibc-2.44-36-g2d5421ffca8893534d5e02ad38c28acd8e778fa3-git4.tar.gz')
+        self.assertEqual((algorithm, len(digest)), ('sha256', 64))
+        self.assertEqual(sources.pinned('package/gcc/gcc.hash', 'gcc-15.3.0.tar.xz')[0], 'sha512')
+        text = Path(release.__file__).read_text()
+        build = text[text.index('def build('):text.index('def publish(')]
+        self.assertLess(build.index('toolchain_sources()'),
+                        build.index("sources-buildroot-legal-info.tar'"))
+        self.assertIn("'Y2Linux-sources-toolchain-'", text[text.index('def publish('):])
+
 
 if __name__ == '__main__':
     unittest.main()

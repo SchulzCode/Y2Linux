@@ -243,6 +243,14 @@ def build(args):
     note.write_text(f'The package sources listed in manifest.csv and host-manifest.csv, except this project\'s own '
                     f'packages (sources/{", sources/".join(own)}), are in {third_name} '
                     f'(SHA-256 {sha256(assets / third_name)}), attached to or linked from this release.\n')
+    # glibc and GCC's runtime libraries come from the prebuilt Bootlin toolchain,
+    # whose sources legal-info does not save (V1 readiness A7).
+    from tools.production.toolchain_sources import archive as toolchain_sources
+    toolchain = toolchain_sources()
+    shutil.copy2(toolchain, assets / toolchain.name)
+    with note.open('a') as stream:
+        stream.write(f'glibc and the GCC runtime libraries come from the prebuilt Bootlin toolchain; their sources '
+                     f'are in {toolchain.name} (SHA-256 {sha256(toolchain)}), attached to or linked from this release.\n')
     deterministic_tar(assets / f'Y2Linux-{version}-sources-buildroot-legal-info.tar', legal_info,
                       [path.name for path in legal_info.iterdir() if path.name not in ('sources', 'host-sources')]
                       + [f'sources/{name}' for name in own], epoch)
@@ -409,7 +417,8 @@ def publish(args):
     upload, linked = [], []
     for path in sorted(assets.iterdir()):
         known = existing.get(path.name)
-        if path.name.startswith('Y2Linux-sources-third-party-') or re.fullmatch(r'linux-[\d.]+\.tar\.xz', path.name):
+        if (path.name.startswith(('Y2Linux-sources-third-party-', 'Y2Linux-sources-toolchain-')) or
+                re.fullmatch(r'linux-[\d.]+\.tar\.xz', path.name)):
             if known and known[3] == path.stat().st_size and known[2] in ('', sha256(path)):
                 linked.append((path, known))
                 continue
