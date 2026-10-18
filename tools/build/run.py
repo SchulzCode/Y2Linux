@@ -40,6 +40,26 @@ def prepare_overlay(project, spec):
     return overlay
 
 
+def touch_changed_overlays(output, specs, files):
+    """Give an overlay that changed for its path since this build directory last used it a
+    new mtime. The cache is content-addressed: returning to an earlier overlay (a reverted
+    patch) brought back an older file than the object built from its successor, and make
+    kept the stale object (test build 6452 still carried a backed-out mtk-mmsys.c change)."""
+    state = output / '.y2-overlays.json'
+    try:
+        previous = json.loads(state.read_text())
+    except (OSError, ValueError):
+        previous = None
+    current = {spec['path']: spec['result_sha256'] for spec in specs}
+    for spec, overlay in zip(specs, files):
+        # No record yet (first build with this rule): no object can be trusted.
+        if previous is None or previous.get(spec['path']) != spec['result_sha256']:
+            os.utime(overlay)
+    temporary = state.with_name(state.name + '.tmp')
+    temporary.write_text(json.dumps(current, indent=1, sort_keys=True) + '\n')
+    os.replace(temporary, state)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', default='out/build', help='project-relative build directory')
@@ -65,6 +85,7 @@ def main():
     overlays = []
     for spec in specs:
         overlays.append((prepare_overlay(PROJECT,spec), spec['path']))
+    touch_changed_overlays(output, specs, [path for path, _ in overlays])
     env = {
         'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LC_ALL': 'C', 'TZ': 'UTC',
         'ARCH': 'arm', 'LLVM': '1', 'CROSS_COMPILE': 'arm-linux-gnueabi-',

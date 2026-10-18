@@ -40,5 +40,32 @@ class OverlayHashes(unittest.TestCase):
                                  spec['patch'])
 
 
+class OverlayMtimes(unittest.TestCase):
+    def test_an_overlay_that_changed_for_its_path_gets_a_new_mtime(self):
+        # Test build 6452: a reverted patch brought back an older cached overlay,
+        # make kept the newer object and the backed-out code shipped.
+        import importlib.util, os, time
+        spec = importlib.util.spec_from_file_location('y2_run', ROOT / 'tools/build/run.py')
+        run = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(run)
+        with tempfile.TemporaryDirectory() as temporary:
+            out = Path(temporary)
+            a, b = out / 'a', out / 'b'
+            for path in (a, b):
+                path.write_text('x')
+                os.utime(path, (1000, 1000))
+            specs = [{'path': 'drivers/a.c', 'result_sha256': 'aa'}, {'path': 'drivers/b.c', 'result_sha256': 'bb'}]
+            run.touch_changed_overlays(out, specs, [a, b])      # no record: everything is touched
+            self.assertGreater(a.stat().st_mtime, time.time() - 60)
+            for path in (a, b):
+                os.utime(path, (1000, 1000))
+            run.touch_changed_overlays(out, specs, [a, b])      # unchanged: left alone
+            self.assertEqual((a.stat().st_mtime, b.stat().st_mtime), (1000, 1000))
+            specs[1] = {'path': 'drivers/b.c', 'result_sha256': 'b-older'}
+            run.touch_changed_overlays(out, specs, [a, b])      # b went back: touched
+            self.assertEqual(a.stat().st_mtime, 1000)
+            self.assertGreater(b.stat().st_mtime, time.time() - 60)
+
+
 if __name__ == '__main__':
     unittest.main()
