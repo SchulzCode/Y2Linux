@@ -1,6 +1,27 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.4 (BASELINE 90) PUBLISHED — DARK DISPLAY AFTER A RESTART.** Owner:
+> **START HERE (2026-10-18, latest): HEADPHONE LEVEL, HEADPHONE PROFILES (AUTOEQ), DAC FILTER — ON `main`, HOST-TESTED,
+> NOT BUILT, NOT ON THE PLAYER.** Owner question from an email (stock bass roll-off, "output gain switching with
+> impedance"). Guide + measurement plan: [HEADPHONE-OUTPUT](../HEADPHONE-OUTPUT.md); audit HP-LEVEL-EQ.
+> - **Code:** Linux `2c59a31` (0030: ALSA `HP Output Level` Low/Medium/High = OUT_FS 0x10/0x20/0x30 with hv_seq's
+>   HV_EN, written only while PDN_HP is set (now or at the HiFi DAC PRE_PMU), `HP Output Level Live`, probe default
+>   Low; `tests/test_hp_level.py` C harness, mutation-checked; FFmpeg `lowshelf highshelf`; `tools/audio/test_signals.py`).
+>   Reborn `dc66880` (Settings → Sound: Headphone Level, DAC Filter; Equalizer → Headphone Profile from `EQ` folders,
+>   10 filters, clip-safe preamp; Master −19.5 dB with the control, −24 dB without; 2-s fade after a rise). Owner
+>   choice: 10 bands (AutoEQ files have 10). Host: Linux 804 OK (host-tests.sh), driver compiles W=1 in the sandbox;
+>   Reborn 529 tests, fmt, strict Clippy.
+> - **Facts found:** DS1155F2 OUT_FS 00/01/10/11 = 0.5/1.0/1.41/1.73 Vrms; HV_EN = 1 specified for ≥ 600 Ω and
+>   VP ≥ 3.3 V (VGP2 in the DT is 1.8 V, so VP is wired elsewhere, probably to the battery: unknown). Stock never writes
+>   CLASS_H (runs 0x10 + 0x1E) and writes OUT_FS with the amplifier on. Y2Linux full volume was ≈0.11 Vrms (1.73 V −24 dB);
+>   stock's top step ≈0.71 Vrms. `c852008` (Baseline 49) already had `y2_hp/hp_gain` + on-demand load measurement,
+>   unused by Reborn; the 102-Ω board offset found then may be real series resistance (output impedance), so measure it.
+> - **Owed:** a test build on the player (owner's OK): `amixer -c Y2Audio cget name='HP Output Level Live'`, regmap
+>   debugfs HP_OUT_CTL_1/CLASS_H per level, the 2-s fade, listening at Low (should match the old loudness), suspend and
+>   resume keep the level, a profile file from Internal Storage `EQ/`. Then the emailer's measurements (plan in the
+>   guide; signal in `out/audio-test-signals/`, or regenerate). Not decided: the release number; attaching the test
+>   signal to a release.
+>
+> Previous entry: **START HERE (2026-10-18): Y2LINUX 1.0 BETA 8.4 (BASELINE 90) PUBLISHED — DARK DISPLAY AFTER A RESTART.** Owner:
 > "publish, I do OTA"; report `docs/validation/Y2-LINUX-1.0-BETA-8.4.md`, audit BETA-8.4. The 8.3 OTA's restart from the recovery came up dark and the health check rolled the install back.
 > Logs (`out/dsi-lag-2026-10-18/`, local): on the dark boot mm-clocks took **no** `holding SMI common/larb0` (the SMI
 > common gate was already closed at 0.36 s, before Lima), the handover logged `SMI gates 1 left closed by a restart`

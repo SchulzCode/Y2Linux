@@ -8730,3 +8730,24 @@ back on a dark display. Real-hardware evidence: the four restarts out of the rec
 **Gate decision:** READY for **Y2Linux 1.0.0-beta.8.4** (Baseline 90, sequence 6700) at the owner's word (given),
 with the device check owed through the owner's own OTA.
 
+
+## HP-LEVEL-EQ headphone output level and calibration: milestone gap audit — 2026-10-18
+
+**Boundary:** owner (after an email about stock bass rolloff and "output gain switching with impedance"): a headphone
+output level setting, a parametric equalizer with AutoEQ import, optional DAC filter settings and a measurement plan.
+New user-facing control of the analog output stage (hearing safety) and a packaging change (two FFmpeg filters).
+Real-hardware evidence: regmap debugfs reads on the owner's player and the REA of the stock kernel (2026-10-18);
+nothing measured acoustically or electrically.
+
+| Area | State | Real-hardware evidence / gap |
+| --- | --- | --- |
+| Output level today | READ ON DEVICE | HP_OUT_CTL_1 = 0x30 (1.73 Vrms full scale), CLASS_H 0x1E, Master pinned at −24 dB by Reborn → ≈0.11 Vrms at full volume |
+| Stock level | REA | Vendor `cs43131_apply_out_fs`: headphones 0x10 (1.0 Vrms), CLASS_H never written (reset 0x1E); top volume step −3 dB → ≈0.71 Vrms |
+| Full-scale voltages | DATASHEET | DS1155F2 HP_OUT_CTL_1 OUT_FS 00/01/10/11 = 0.5/1.0/1.41/1.73 Vrms; change only while PDN_HP is set; HV_EN = 1 specified for ≥ 600 Ω and VP ≥ 3.3 V |
+| Load measurement | IN KERNEL SINCE BASELINE 49 (`c852008`), UNUSED | `y2_hp/hpload_measure`, board offset 102 Ω; no jack detection (#11/#12 parked) |
+| Level control, parametric EQ, DAC filter settings | NOT BUILT | Host tests first (C harness for the codec logic, Reborn tests) |
+| Stock bass rolloff | UNKNOWN | Same DAC filter registers; Android processing or analog — needs a measurement (plan for the emailer) |
+| Real output, noise, frequency response per level and load | NOT MEASURED | 16/32/300 Ω loads with an audio interface |
+
+**Gate decision:** implementation and host tests may proceed. A test build on the player and any release need the
+owner's word; the level default and the Master pin change loudness, so the owner listens before a release.
