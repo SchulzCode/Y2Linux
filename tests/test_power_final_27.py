@@ -51,7 +51,7 @@ class StockPanelSuspend(unittest.TestCase):
     def test_reset_high_after_the_table_and_fallback_to_26(self):
         stock = self.source[self.source.index('static int gc9503v_stock_unprepare('):]
         stock = stock[:stock.index('\n}\n')]
-        self.assertLess(stock.index('mipi_dsi_dcs_write('), stock.index('reset_control_deassert(ctx->reset);'))
+        self.assertLess(stock.index('gc9503v_write('), stock.index('reset_control_deassert(ctx->reset);'))
         self.assertNotIn('reset_control_assert', stock)
         self.assertIn('msleep(50);', stock[stock.index('reset_control_deassert'):])
         body = self.source[self.source.index('static int gc9503v_unprepare('):]
@@ -63,6 +63,88 @@ class StockPanelSuspend(unittest.TestCase):
         self.assertIn('static bool stock_suspend;\nmodule_param(stock_suspend, bool, 0644);', self.source)
         prepare = self.source[self.source.index('static int gc9503v_prepare('):]
         self.assertLess(prepare.index('ctx->inherited = false;'), prepare.index('reset_control_assert(ctx->reset);'))
+
+    def test_the_lk_panel_is_adopted_only_with_power_down_on(self):
+        # Y2Linux #45: mtk-mmsys had no reset .status, prepare() failed and DRM
+        # skipped every unprepare. Now the line is reported; adoption (and with it
+        # the power-down at screen-off) is behind power_down, default off.
+        self.assertIn('static bool power_down;\nmodule_param(power_down, bool, 0644);', self.source)
+        prepare = self.source[self.source.index('static int gc9503v_prepare('):]
+        prepare = prepare[:prepare.index('\n}\n')]
+        inherited = prepare[prepare.index('if (ctx->inherited) {'):prepare.index('ctx->inherited = false;')]
+        self.assertIn('if (ret == -ENOTSUPP)\n            ret = 0;', inherited)
+        self.assertIn('if (!ret && (!READ_ONCE(power_down) || gc9503v_identify(ctx)))\n            return -EOPNOTSUPP;', inherited)
+        # Only a panel that reads back as a GC9503V (stock lcm_compare_id: DCS 0x04,
+        # ID 0x9503/0x9504) is adopted; the stock kernel also ships an ST7701S driver.
+        identify = self.source[self.source.index('static int gc9503v_identify('):]
+        identify = identify[:identify.index('\n}\n')]
+        self.assertIn('mipi_dsi_set_maximum_return_packet_size(ctx->dsi, sizeof(id));', identify)
+        self.assertIn('mipi_dsi_dcs_read(ctx->dsi, MIPI_DCS_GET_DISPLAY_ID, id, sizeof(id));', identify)
+        self.assertIn('(id[1] << 8 | id[2]) == 0x9503 || (id[1] << 8 | id[2]) == 0x9504', identify)
+        unprepare = self.source[self.source.index('static int gc9503v_unprepare('):]
+        unprepare = unprepare[:unprepare.index('\n}\n')]
+        # Switched off again: the next screen-off leaves the panel lit and re-inherits it.
+        self.assertLess(unprepare.index('if (!READ_ONCE(power_down)) {\n\t\tctx->inherited = true;\n\t\treturn 0;'),
+                        unprepare.index('gc9503v_stock_unprepare'))
+        mmsys = (ROOT / 'kernel/patches/0010-mt6582-mmsys.patch').read_text()
+        self.assertIn('+	.status = mtk_mmsys_reset_status,', mmsys)
+        # Asserted = bit cleared (mtk_mmsys_reset_update writes 0 on assert).
+        self.assertIn('+	return !(readl_relaxed(mmsys->regs + reg) & BIT(id % MMSYS_SW_RESET_PER_REG));', mmsys)
+
+    def test_commands_use_the_stock_packet_types(self):
+        # Stock DSI_set_cmdq_V2 (FM kernel 0xc05227f8): cmd > 0xAF generic
+        # (0x13/0x23/0x29), else DCS (0x05/0x15/0x39). All-DCS gave white stripes.
+        import subprocess, tempfile
+        helper = self.source[self.source.index('static int gc9503v_write('):]
+        helper = helper[:helper.index('\n}\n') + 3]
+        table = self.source[self.source.index('#define GAMMA'):self.source.index('\n};', self.source.index('gc9503v_init_cmds[]')) + 3]
+        stock = self.source[self.source.index('static const struct gc9503v_suspend_cmd gc9503v_stock_suspend_cmds[]'):]
+        stock = stock[:stock.index('\n};') + 3]
+        program = r"""
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+typedef unsigned char u8;
+#define EINVAL 22
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+#define sizeof_field(t, f) sizeof(((t *)0)->f)
+#define MIPI_DCS_SET_DISPLAY_OFF 0x28
+#define MIPI_DCS_ENTER_SLEEP_MODE 0x10
+struct mipi_dsi_device { int unused; };
+struct gc9503v_cmd { u8 cmd; u8 len; u8 data[52]; };
+struct gc9503v_suspend_cmd { u8 cmd; u8 len; u8 delay_ms; u8 data[5]; };
+static int type; static u8 sent[64]; static size_t sent_len;
+static ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *d, u8 cmd, const void *p, size_t n)
+{ (void)d; type = n == 0 ? 0x05 : n == 1 ? 0x15 : 0x39; sent[0] = cmd; memcpy(sent + 1, p, n); sent_len = n + 1; return 0; }
+static ssize_t mipi_dsi_generic_write(struct mipi_dsi_device *d, const void *p, size_t n)
+{ (void)d; type = n == 1 ? 0x13 : n == 2 ? 0x23 : 0x29; memcpy(sent, p, n); sent_len = n; return 0; }
+""" + helper + table + stock + r"""
+static int stock_type(u8 cmd, u8 len)
+{ return cmd > 0xaf ? (len == 0 ? 0x13 : len == 1 ? 0x23 : 0x29) : (len == 0 ? 0x05 : len == 1 ? 0x15 : 0x39); }
+int main(void)
+{
+	struct mipi_dsi_device d; unsigned i, bad = 0, generic = 0;
+	for (i = 0; i < ARRAY_SIZE(gc9503v_init_cmds); i++) {
+		const struct gc9503v_cmd *c = &gc9503v_init_cmds[i];
+		if (gc9503v_write(&d, c->cmd, c->data, c->len) || type != stock_type(c->cmd, c->len) ||
+		    sent_len != c->len + 1u || sent[0] != c->cmd || memcmp(sent + 1, c->data, c->len)) bad++;
+		generic += c->cmd > 0xaf;
+	}
+	for (i = 0; i < ARRAY_SIZE(gc9503v_stock_suspend_cmds); i++) {
+		const struct gc9503v_suspend_cmd *c = &gc9503v_stock_suspend_cmds[i];
+		if (gc9503v_write(&d, c->cmd, c->data, c->len) || type != stock_type(c->cmd, c->len)) bad++;
+	}
+	printf("%u %u\n", bad, generic);
+	return bad != 0;
+}
+"""
+        with tempfile.TemporaryDirectory() as temporary:
+            source, binary = Path(temporary) / 't.c', Path(temporary) / 't'
+            source.write_text(program)
+            subprocess.run(['cc', '-std=gnu11', '-Wall', '-Werror', '-o', str(binary), str(source)], check=True)
+            result = subprocess.run([str(binary)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(result.stdout.split(), ['0', '15'])   # 15 of the 37 rows are generic
 
     def test_a_lagging_dsi_fails_panel_commands_at_once(self):
         # A DSI programmed while its register reads lagged fails panel commands at

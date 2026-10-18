@@ -6,10 +6,12 @@
  * Screen-off can use the stock power-down sequence (POWER-FINAL-27, stock_suspend).
  */
 #include <linux/delay.h>
+#include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
+#include <linux/string.h>
 
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
@@ -21,6 +23,7 @@ struct gc9503v {
 	struct mipi_dsi_device *dsi;
 	struct reset_control *reset;
 	bool inherited;
+	bool identified; /* display ID read back as a GC9503V */
 };
 
 /* One MIPI DCS long/short write: command byte + parameter bytes. */
@@ -144,10 +147,63 @@ static const struct gc9503v_suspend_cmd gc9503v_stock_suspend_cmds[] = {
 static bool stock_suspend;
 module_param(stock_suspend, bool, 0644);
 MODULE_PARM_DESC(stock_suspend, "screen-off uses the stock GC9503V power-down sequence (reset high)");
+/* Y2Linux #45: until the reset controller could report its line, prepare()
+ * failed for LK's lit panel, DRM skipped every unprepare and the panel slept
+ * powered and awake. Off (default) keeps that behaviour; on, screen-off powers
+ * the panel down and screen-on replays the full stock init. Switching it off
+ * again leaves the panel lit at the next screen-off. */
+static bool power_down;
+module_param(power_down, bool, 0644);
+MODULE_PARM_DESC(power_down, "screen-off powers the panel down; off keeps the lit LK panel (as before #45)");
 
 static inline struct gc9503v *to_gc9503v(struct drm_panel *panel)
 {
 	return container_of(panel, struct gc9503v, panel);
+}
+
+/* The packet types of the stock DSI_set_cmdq_V2 (FM kernel 0xc05227f8):
+ * commands above 0xAF go out as generic writes (0x13/0x23/0x29), the others
+ * as DCS (0x05/0x15/0x39). Sent as DCS, the GC9503V ignored its unlock,
+ * power, GIP and gamma rows: white stripes after the full init (6451). */
+static int gc9503v_write(struct mipi_dsi_device *dsi, u8 cmd, const u8 *data, u8 len)
+{
+	u8 buf[1 + sizeof_field(struct gc9503v_cmd, data)];
+	ssize_t ret;
+
+	if (cmd <= 0xaf) {
+		ret = mipi_dsi_dcs_write(dsi, cmd, data, len);
+	} else {
+		if (len >= sizeof(buf))
+			return -EINVAL;
+		buf[0] = cmd;
+		memcpy(buf + 1, data, len);
+		ret = mipi_dsi_generic_write(dsi, buf, len + 1);
+	}
+	return ret < 0 ? ret : 0;
+}
+
+/* The stock kernel carries two panel drivers: this GC9503V (gc9503v_hvga_dsi_vdo_hsd)
+ * and a Sitronix ST7701S (st7701_hvga_dsi_vdo_boe) with a different command set.
+ * Like the stock lcm_compare_id (0xc04a2240), read DCS 0x04 (3 bytes) and accept
+ * ID 0x9503/0x9504 before ever sending this driver's init or power-down. */
+static int gc9503v_identify(struct gc9503v *ctx)
+{
+	u8 id[3] = {};
+	int ret;
+
+	if (ctx->identified)
+		return 0;
+	ret = mipi_dsi_set_maximum_return_packet_size(ctx->dsi, sizeof(id));
+	if (!ret)
+		ret = mipi_dsi_dcs_read(ctx->dsi, MIPI_DCS_GET_DISPLAY_ID, id, sizeof(id));
+	if (ret == sizeof(id) && ((id[1] << 8 | id[2]) == 0x9503 || (id[1] << 8 | id[2]) == 0x9504)) {
+		ctx->identified = true;
+		dev_info(&ctx->dsi->dev, "display ID %02x %02x %02x: GC9503V\n", id[0], id[1], id[2]);
+		return 0;
+	}
+	dev_warn(&ctx->dsi->dev, "display ID %02x %02x %02x (read %d) is not a GC9503V: panel stays lit\n",
+		 id[0], id[1], id[2], ret);
+	return -ENODEV;
 }
 
 static int gc9503v_prepare(struct drm_panel *panel)
@@ -160,7 +216,17 @@ static int gc9503v_prepare(struct drm_panel *panel)
 
 	if (ctx->inherited) {
         ret = reset_control_status(ctx->reset);
-        if (ret < 0) return ret;
+        /* Probe required innioasis,lk-powered: a reset controller that cannot
+         * report its line means LK's lit panel. */
+        if (ret == -ENOTSUPP)
+            ret = 0;
+        if (ret < 0) {
+            dev_err(dev, "panel reset status unreadable: %d\n", ret);
+            return ret;
+        }
+        /* Not adopted: DRM keeps it unprepared and never powers it down. */
+        if (!ret && (!READ_ONCE(power_down) || gc9503v_identify(ctx)))
+            return -EOPNOTSUPP;
         ctx->inherited = false;
         if (!ret) {
             dev_info(dev, "retaining live LK panel, reset deasserted; no DCS replay\n");
@@ -185,7 +251,7 @@ static int gc9503v_prepare(struct drm_panel *panel)
 	for (i = 0; i < ARRAY_SIZE(gc9503v_init_cmds); i++) {
 		const struct gc9503v_cmd *c = &gc9503v_init_cmds[i];
 
-		ret = mipi_dsi_dcs_write(dsi, c->cmd, c->data, c->len);
+		ret = gc9503v_write(dsi, c->cmd, c->data, c->len);
 		if (ret < 0) {
 			dev_err(dev, "init cmd 0x%02x failed: %d\n", c->cmd, ret);
 			goto disable_supply;
@@ -218,7 +284,7 @@ static int gc9503v_stock_unprepare(struct gc9503v *ctx)
 	for (i = 0; i < ARRAY_SIZE(gc9503v_stock_suspend_cmds); i++) {
 		const struct gc9503v_suspend_cmd *c = &gc9503v_stock_suspend_cmds[i];
 
-		ret = mipi_dsi_dcs_write(ctx->dsi, c->cmd, c->data, c->len);
+		ret = gc9503v_write(ctx->dsi, c->cmd, c->data, c->len);
 		if (ret < 0) {
 			dev_err(&ctx->dsi->dev, "stock power-down cmd 0x%02x failed: %d\n", c->cmd, ret);
 			return ret;
@@ -237,6 +303,12 @@ static int gc9503v_unprepare(struct drm_panel *panel)
 {
 	struct gc9503v *ctx = to_gc9503v(panel);
 	int ret, sleep_ret, reset_ret;
+
+	/* Switched off after adoption: leave the panel lit and retain it again. */
+	if (!READ_ONCE(power_down)) {
+		ctx->inherited = true;
+		return 0;
+	}
 
 	/* A failed stock sequence falls back to 26's reset-low quiescent state. */
 	if (READ_ONCE(stock_suspend) && !gc9503v_stock_unprepare(ctx))
