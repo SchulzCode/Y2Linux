@@ -40,6 +40,11 @@ static int __init recovery_option(char *s)
 }
 __setup("y2.recovery=", recovery_option);
 
+int y2_boot_panel(void)
+{
+	return boot_info.panel;
+}
+
 bool y2_normal_boot_enabled(void)
 {
 	return READ_ONCE(normal_boot);
@@ -47,9 +52,10 @@ bool y2_normal_boot_enabled(void)
 
 static ssize_t metadata_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "valid=%d boot_mode=%d boot_reason=%d offline=%d recovery_image=%d\n",
+	static const char *const panels[] = { "unknown", "gc9503v", "st7701s", "other" };
+	return sysfs_emit(buf, "valid=%d boot_mode=%d boot_reason=%d offline=%d recovery_image=%d panel=%s\n",
 		boot_info.valid, boot_info.mode, boot_info.reason, y2_boot_offline(&boot_info),
-		recovery_image);
+		recovery_image, panels[boot_info.panel & 3]);
 }
 static struct kobj_attribute metadata_attr = __ATTR_RO(metadata);
 

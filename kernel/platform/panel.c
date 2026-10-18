@@ -18,6 +18,11 @@
 #include <drm/drm_panel.h>
 #include <video/mipi_display.h>
 
+#if IS_ENABLED(CONFIG_Y2_POWER)
+#include "boot.h"
+#include "boot-policy.h"
+#endif
+
 struct gc9503v {
 	struct drm_panel panel;
 	struct mipi_dsi_device *dsi;
@@ -193,6 +198,20 @@ static int gc9503v_identify(struct gc9503v *ctx)
 
 	if (ctx->identified)
 		return 0;
+#if IS_ENABLED(CONFIG_Y2_POWER)
+	/* LK ran the stock lcm_compare_id and names the panel it found (lcm=1-...).
+	 * The Y2 DSI read-back of 0x04 returned ff ff ff on the owner's GC9503V. */
+	switch (y2_boot_panel()) {
+	case Y2_PANEL_GC9503V:
+		ctx->identified = true;
+		dev_info(&ctx->dsi->dev, "LK identified the panel as GC9503V\n");
+		return 0;
+	case Y2_PANEL_ST7701S:
+	case Y2_PANEL_OTHER:
+		dev_warn_once(&ctx->dsi->dev, "LK found another panel than the GC9503V: panel stays lit\n");
+		return -ENODEV;
+	}
+#endif
 	ret = mipi_dsi_set_maximum_return_packet_size(ctx->dsi, sizeof(id));
 	if (!ret)
 		ret = mipi_dsi_dcs_read(ctx->dsi, MIPI_DCS_GET_DISPLAY_ID, id, sizeof(id));
@@ -201,7 +220,7 @@ static int gc9503v_identify(struct gc9503v *ctx)
 		dev_info(&ctx->dsi->dev, "display ID %02x %02x %02x: GC9503V\n", id[0], id[1], id[2]);
 		return 0;
 	}
-	dev_warn(&ctx->dsi->dev, "display ID %02x %02x %02x (read %d) is not a GC9503V: panel stays lit\n",
+	dev_warn_once(&ctx->dsi->dev, "display ID %02x %02x %02x (read %d) is not a GC9503V: panel stays lit\n",
 		 id[0], id[1], id[2], ret);
 	return -ENODEV;
 }

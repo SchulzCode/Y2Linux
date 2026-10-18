@@ -41,6 +41,16 @@ int main(void){
  /* Arbitrary loader memory tags are bounded but never imported into policy. */
  reset();word(60,4);word(64,0x54410002);word(68,0xffffffff);word(72,0);
  i=y2_boot_parse(b,sizeof b);assert(i.valid && i.mode==8);
+ /* #45: LK's lcm=<found>-<name> names the panel the stock compare_id found. */
+ assert(y2_boot_parse(b,sizeof b).panel==Y2_PANEL_UNKNOWN);
+ const char *cmd[][2]={{"console=tty0 lcm=1-gc9503v_hvga_dsi_vdo_hsd boot_reason=1","1"},
+  {"lcm=1-st7701_hvga_dsi_vdo_boe boot_reason=1","2"},{"boot_reason=1 lcm=1-other_panel","3"},
+  {"boot_reason=1 lcm=0-gc9503v_hvga_dsi_vdo_hsd","0"},{"boot_reason=1 xlcm=1-gc9503v","0"},
+  {"boot_reason=1 lcm=1-gc95","3"}};
+ for(unsigned n=0;n<sizeof cmd/sizeof cmd[0];n++){
+  reset();memset(b+20,0,sizeof b-20);word(20,20);word(24,0x54410009);strcpy((char *)b+28,cmd[n][0]);
+  i=y2_boot_parse(b,sizeof b);assert(i.valid && i.reason==1 && i.panel==cmd[n][1][0]-'0');
+ }
 }
 ''')
 

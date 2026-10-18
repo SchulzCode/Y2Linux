@@ -5,7 +5,22 @@
  * Parse only this metadata. Never import loader memory, initrd or command-line
  * policy. The input is the already reserved first 16 KiB of board RAM.
  */
-struct y2_boot_info { int mode, reason, valid; };
+/* panel: LK's lcm=<found>-<name> (stock lcm_compare_id ran in LK): 0 unknown,
+ * 1 GC9503V (gc9503v_hvga_dsi_vdo_hsd), 2 ST7701S (st7701_hvga_dsi_vdo_boe),
+ * 3 another name. Informational: it never affects validity. */
+struct y2_boot_info { int mode, reason, valid, panel; };
+#define Y2_PANEL_UNKNOWN 0
+#define Y2_PANEL_GC9503V 1
+#define Y2_PANEL_ST7701S 2
+#define Y2_PANEL_OTHER 3
+
+static inline int y2_boot_prefix(const unsigned char *p, unsigned at, unsigned end, const char *word)
+{
+	unsigned k;
+	for (k = 0; word[k]; k++)
+		if (at + k >= end || p[at + k] != (unsigned char)word[k]) return 0;
+	return 1;
+}
 
 static inline unsigned y2_boot_word(const unsigned char *p)
 {
@@ -14,7 +29,7 @@ static inline unsigned y2_boot_word(const unsigned char *p)
 
 static inline struct y2_boot_info y2_boot_parse(const unsigned char *p, unsigned bytes)
 {
-	struct y2_boot_info info = { -1, -1, 0 };
+	struct y2_boot_info info = { -1, -1, 0, Y2_PANEL_UNKNOWN };
 	unsigned words, tag, size, n, i;
 	int command_seen = 0, end = 0;
 	const char key[] = "boot_reason=";
@@ -37,6 +52,11 @@ static inline struct y2_boot_info y2_boot_parse(const unsigned char *p, unsigned
 			for (i = 8; i < n; i++) {
 				unsigned j;
 				if (i != 8 && p[i - 1] != ' ') continue;
+				/* lcm=1-<name>: LK found that panel; lcm=0-... means none found. */
+				if (y2_boot_prefix(p, i, n, "lcm=1-"))
+					info.panel = y2_boot_prefix(p, i + 6, n, "gc9503v") ? Y2_PANEL_GC9503V :
+						     y2_boot_prefix(p, i + 6, n, "st7701") ? Y2_PANEL_ST7701S :
+						     Y2_PANEL_OTHER;
 				for (j = 0; j < sizeof(key) - 1 && i + j < n && p[i + j] == key[j]; j++) { }
 				if (j != sizeof(key) - 1) continue;
 				if (info.reason != -1 || i + j >= n || p[i + j] < '0' || p[i + j] > '7' ||
