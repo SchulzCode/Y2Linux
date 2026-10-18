@@ -1,6 +1,6 @@
 # Y2Linux 1.0 Beta 8.1 (Baseline 86)
 
-Status: **device-checked on the owner's player; publication at the owner's word (given 2026-10-18).** Release
+Status: **PUBLISHED as GitHub release `baseline-86`** (2026-10-18), after the device check on the owner's player. Release
 `1.0.0-beta.8.1`, Reborn `1.0.0-beta.8.1` (identity only), kernel `6.18.56-y2linux-1.0.0-beta.8.1`, update sequence
 6463, Linux `78220dc`, Reborn `a558870`. Built with `tools/production/release.py`: container suite **774 OK**, host
 suite 801 OK, all seal checks PASS, no MediaTek firmware in any image. Baselines 76–85 were test builds of this

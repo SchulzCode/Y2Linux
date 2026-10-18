@@ -1,6 +1,6 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.1 (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.1 (BASELINE 86) — PANEL POWER-DOWN (#45), TWO PANEL TYPES.**
+> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.1 (BASELINE 86) PUBLISHED — PANEL POWER-DOWN (#45), TWO PANEL TYPES.**
 > Release `1.0.0-beta.8.1`, sequence 6463, Linux `78220dc` (+ docs), Reborn `a558870`; report
 > `docs/validation/Y2-LINUX-1.0-BETA-8.1.md`, audit BETA-8.1. The owner's player has the **ST7701S** panel (LK and
 > the stock 0xA1 ID read); the GC9503V path is opt-in until the #45 reporter confirms it. Baselines 76–85 were test

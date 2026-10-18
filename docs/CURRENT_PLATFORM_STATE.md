@@ -1,6 +1,6 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.1, Baseline 86 — 2026-10-18 (latest)
+## Y2Linux 1.0 Beta 8.1, Baseline 86 — 2026-10-18 (latest, published)
 
 Release `1.0.0-beta.8.1`, tag `baseline-86`, Linux `78220dc`, Reborn `a558870`, sequence 6463. The panel finally
 powers down at screen-off (#45): the Y2 ships with a GC9503V or an ST7701S panel (stock kernel and LK, REA); Y2Linux
