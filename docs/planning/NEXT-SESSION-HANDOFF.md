@@ -1,6 +1,25 @@
-# Next-session handoff — Y2Linux 1.0 Beta 7.11 (latest entry first; started 2026-10-09 as the deep-sleep continuation)
+# Next-session handoff — Y2Linux 1.0 Beta 8.0 (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-17, latest): Y2LINUX 1.0 BETA 7.11 (BASELINE 74) PUBLISHED — FASTER COPIES TO THE PLAYER.**
+> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.0 (BASELINE 75) — 1.0 REVIEW FIXES.** Owner: "fix it all and
+> publish a new release beta 8.0". Release `1.0.0-beta.8.0`, sequence 6400, Linux `662ff11` (+ docs), Reborn `1b3a5c1`,
+> report `docs/validation/Y2-LINUX-1.0-BETA-8.0.md`, audit BETA-8.0. Installed on the owner's player by OTA and
+> acknowledged; the broken-song case (B3) checked on the device. The review itself:
+> [V1-RELEASE-READINESS](V1-RELEASE-READINESS.md), [V1-CODE-REVIEW](V1-CODE-REVIEW.md) (top notes say what is fixed).
+>
+> - **Code:** Reborn `d11563b` (unreadable songs counted, kept, no incomplete scan; `healthy` in rebornctl status;
+>   session quarantine + settings recovery), `1a3afc2` (audio profile matcher). Linux `e361b8b` (health uses
+>   `healthy`), `3bc6abb` (reconcile in the background, `common.kill_tree`), `ca119ff` (mode-1 fallback stops the engine
+>   first, `y2_hsdma_stop` in 0055), `ebc164e` (stuck recovery powers off after 10 min on battery), `f261044`
+>   (Y2MEDIA `noinit_itable`, mkfs `nodiscard`), `9c45e5c`/`662ff11` (toolchain sources asset, `tools/production/
+>   toolchain_sources.py`, cached in `.cache/downloads/toolchain-sources/`), `a90ba0c` (INSTALL.md in the packages, docs).
+> - **Owed on the device:** an MTP copy (the player was in developer USB mode), a large/slow SD card (B5), cable pull /
+>   sleep / Windows (A8), and everything A1, A2, A9–A11 in the readiness file.
+> - **Owner decisions still open:** A10 headphone detection (PR #11/#12), A14/R3 debug tools and `panic=0`, A16 skin
+>   names, A18 open PRs. Not done on purpose: R1 (big-file split), A6 ("Beta" wording waits for the 1.0 label).
+> - **Release mechanics:** next free label 76, sequence above 6400. FM (`beta8-fm`) needs a rebase and a new beta number.
+>   Workspace `out/build`, `out/release-74`, `out/release-75`.
+>
+> Previous entry: **START HERE (2026-10-17): Y2LINUX 1.0 BETA 7.11 (BASELINE 74) PUBLISHED — FASTER COPIES TO THE PLAYER.**
 > Owner: "Dolphin copies work, publish it as beta 7.11". Release `1.0.0-beta.7.11`, sequence 6352, Linux `9c3e4f1`
 > (+ docs), Reborn `814cd14`, report `docs/validation/Y2-LINUX-1.0-BETA-7.11.md`, audit BETA-7.11. The owner's player
 > already runs exactly this build (installed locally as the 6352 test build). Uploads 29.6 MB/s Internal, 23.3 MB/s SD.

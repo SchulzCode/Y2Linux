@@ -2,6 +2,10 @@
 
 > **2026-10-18:** the six area code reviews are done; see [V1-CODE-REVIEW](V1-CODE-REVIEW.md). They add one
 > more blocker, **A19** below: one undecodable song makes every OTA roll back after 180 s (host-reproduced).
+>
+> **Beta 8.0 (2026-10-18) fixed A3, A4 (documented; hashes stay strict), A5, A7, A12, A13, A19, A20**
+> ([report](../validation/Y2-LINUX-1.0-BETA-8.0.md)). A6 waits for the 1.0 label itself. Still open: A1, A2, A8–A11
+> (hardware or other people) and the owner decisions A14, A16, A18; A17 is feature work.
 
 Read-only audit of Y2Linux `main` (e771867, tag `baseline-74`) and Y2Reborn `main` (a0b1a50). Frame: the
 [standing milestone-boundary rule](roadmap-gap-audit.md#standing-milestone-boundary-rule). Nothing was built,

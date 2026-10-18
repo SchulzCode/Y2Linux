@@ -1,5 +1,9 @@
 # Y2Linux / Y2Reborn 1.0 code review — 2026-10-17/18 (checks and six area reviews complete)
 
+> **Fixed in Beta 8.0 (Baseline 75, 2026-10-18):** B1, B3, B4, B5, B6, B7, B8, P1, P2, R2, R4, R5, R6, R7
+> ([report](../validation/Y2-LINUX-1.0-BETA-8.0.md)). B2 kept strict (only v3.2.0 hashes; documented loudly). Open:
+> R1 (large-file split), R3 (owner decision).
+
 Companion to [V1-RELEASE-READINESS](V1-RELEASE-READINESS.md). Read-only: nothing in either repository was edited,
 built, committed or sent to the player. The automated checks ran on 2026-10-17. The six area reviews that session
 launched never reported; they were redone by hand on 2026-10-18 (Y2Linux `e771867`, Y2Reborn `a0b1a50`), one

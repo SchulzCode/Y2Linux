@@ -351,6 +351,7 @@ Indexed pages: **315**. Explicit scope notices: **228**.
 | [Storage](STORAGE.md) | User guide: the layout, the first-start setup of Internal Storage, old files, SD cards, USB copying and speed, going back to stock |
 | [Faster uploads: receive DMA plan](planning/USB-RX-DMA-MODE1-PLAN.md) | Multi-packet (mode 1) receive DMA: evidence, design, tests |
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
+| [Y2Linux 1.0 Beta 8.0 report](validation/Y2-LINUX-1.0-BETA-8.0.md) | Beta 8.0 (Baseline 75): 1.0 review fixes, device check |
 | [1.0 release readiness audit](planning/V1-RELEASE-READINESS.md) | What stands between the betas and a 1.0 (2026-10-17/18) |
 | [1.0 code review](planning/V1-CODE-REVIEW.md) | Six area reviews: bugs B1–B8, fixes, coverage |
 | [POWER-FINAL-33 — Reborn skins (themes)](validation/Y2-PLATFORM-V1-POWER-FINAL-33.md) | Installed candidate report |

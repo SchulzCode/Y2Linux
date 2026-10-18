@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 7.11, Baseline 74 — 2026-10-17 (latest, published)
+## Y2Linux 1.0 Beta 8.0, Baseline 75 — 2026-10-18 (latest)
+
+Release `1.0.0-beta.8.0`, tag `baseline-75`, Linux `662ff11`, Reborn `1b3a5c1`, sequence 6400. Fixes from the 1.0
+review: one unreadable song no longer rolls an update back or stops pruning (B3/B4), SD cards whose check is slow mount
+(B5), settings survive a rollback (B7), a stuck installer powers off on battery (B8), safer receive-DMA fallback (B6),
+toolchain sources in the release (A7), the real install guide in the packages. Installed on the owner's player by OTA,
+acknowledged, the broken-file case checked on the device. Details: [Beta 8.0 report](validation/Y2-LINUX-1.0-BETA-8.0.md).
+
+## Y2Linux 1.0 Beta 7.11, Baseline 74 — 2026-10-17 (published)
 
 Release `1.0.0-beta.7.11`, tag `baseline-74`, Linux `9c3e4f1`, Reborn `814cd14`. Copies to the player about three times
 faster: multi-packet receive DMA for USB (Internal Storage 29.6 MB/s instead of ≈10, SD 23.3 MB/s), measured with every

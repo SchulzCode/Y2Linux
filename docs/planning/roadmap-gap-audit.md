@@ -8638,3 +8638,25 @@ and a public release. Real-hardware evidence: test builds 6350–6352 on the own
 
 **Gate decision:** READY for **Y2Linux 1.0.0-beta.7.11 / Reborn 1.0.0-beta.7.11** (Baseline 74, sequence 6352) at the
 owner's word (given).
+
+## BETA-8.0 (Baseline 75) 1.0 review fixes: milestone gap audit — 2026-10-18
+
+**Boundary:** owner: "fix it all and publish a new release beta 8.0", after the 1.0 readiness audit and code review
+([V1-RELEASE-READINESS](V1-RELEASE-READINESS.md), [V1-CODE-REVIEW](V1-CODE-REVIEW.md)). Changes in the update health
+rule, the library scanner, SD admission, the USB receive fallback, the recovery image and the release assets.
+Real-hardware evidence: OTA install of 6400 on the owner's player.
+
+| Area | State for Beta 8.0 | Evidence / gap |
+| --- | --- | --- |
+| Update health (B3, R7) | DEVICE-CONFIRMED | 6352 → 6400 acknowledged at ≈67 s; `healthy: true` with a broken file on Internal Storage. |
+| Library unreadable files (B3, B4) | DEVICE-CONFIRMED | `unreadable: 1`, no library error; pruning covered by host tests. |
+| SD reconcile (B5) | HOST-TESTED | Background process, tree kill on timeout; large-card device test owed. |
+| Receive DMA fallback (B6) | HOST-TESTED | Normal path unchanged on the device (256 MiB hashed, counters consistent, `m1_fallback` 0); the fallback itself never fires in tests. |
+| Recovery stuck power-off (B8) | FIXTURE-TESTED | Not provoked on the device. |
+| Session recovery (B7) | HOST-TESTED | |
+| Toolchain sources (A7) | DONE | `Y2Linux-sources-toolchain-f7cda4c7d213.tar`, archives match Buildroot's pins. |
+| Standby drain (A1, #42), external install/build (A2), owed device checks (A8, A9, A11) | OPEN | Unchanged; block a 1.0 label. |
+| FM radio | ON BRANCH | Moves to a later beta number. |
+
+**Gate decision:** READY for **Y2Linux 1.0.0-beta.8.0 / Reborn 1.0.0-beta.8.0** (Baseline 75, sequence 6400) at the
+owner's word.
