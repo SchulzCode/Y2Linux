@@ -21,6 +21,7 @@
 #include <json-c/json.h>
 #include <limits.h>
 #include <linux/fs.h>
+#include <pthread.h>
 #include <sodium.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -30,6 +31,7 @@
 #include <string.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/random.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -337,6 +339,269 @@ static bool boot_identity(const unsigned char *b, uint64_t len, enum kind kind) 
            !memcmp(b + ko + 8, "KERNEL\0", 7) && u32(b + ro) == 0x58881688 &&
            u32(b + ro + 4) == r - 512 && !memcmp(b + ro + 8, want, 32);
 }
+/* Four-core work (OTA-50). A root payload and a root backup are one ordinary
+ * gzip member made of independent 1 MiB raw-deflate segments (each started
+ * without a dictionary and ended with a full flush, the last with BFINAL: the
+ * pigz -i layout). Any gzip reader decodes it as one stream; with the segment
+ * lengths (signed manifest, or the journal's backup record) the segments are
+ * decoded or encoded on all cores while the main thread does the I/O. Workers
+ * touch only their own segment and never call failure(): the main thread
+ * checks every result in order. */
+#define SEGMENT (1024u * 1024u)
+#define SEG_BATCH 8u
+#define SEG_WORKERS 4u
+#define SEG_OUT (SEGMENT + SEGMENT / 64u + 1024u)
+struct seg {
+    const unsigned char *in;
+    size_t in_len;
+    unsigned char *out;
+    size_t out_len;
+    bool last, ok;
+    uint32_t crc;
+};
+struct seg_batch;
+struct seg_part {
+    struct seg_batch *batch;
+    unsigned first;
+};
+struct seg_batch {
+    struct seg seg[SEG_BATCH];
+    unsigned count;
+    void (*fn)(struct seg *);
+    pthread_t thread[SEG_WORKERS];
+    bool running[SEG_WORKERS];
+    struct seg_part part[SEG_WORKERS];
+};
+static void *seg_worker(void *arg) {
+    struct seg_part *p = arg;
+    for (unsigned i = p->first; i < p->batch->count; i += SEG_WORKERS)
+        p->batch->fn(&p->batch->seg[i]);
+    return NULL;
+}
+static void seg_start(struct seg_batch *b) {
+    for (unsigned w = 0; w < SEG_WORKERS; w++) {
+        b->part[w] = (struct seg_part){b, w};
+        b->running[w] = w < b->count && !pthread_create(&b->thread[w], NULL, seg_worker, &b->part[w]);
+        /* No thread: this one does that share now. */
+        if (w < b->count && !b->running[w])
+            seg_worker(&b->part[w]);
+    }
+}
+static void seg_join(struct seg_batch *b) {
+    for (unsigned w = 0; w < SEG_WORKERS; w++)
+        if (b->running[w]) {
+            pthread_join(b->thread[w], NULL);
+            b->running[w] = false;
+        }
+}
+static void seg_deflate(struct seg *s) {
+    z_stream z = {0};
+    s->ok = false;
+    s->out_len = 0;
+    s->crc = (uint32_t)crc32(crc32(0L, Z_NULL, 0), s->in, (uInt)s->in_len);
+    /* Level 1 as before: the image is mostly free blocks. */
+    if (deflateInit2(&z, 1, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY) != Z_OK)
+        return;
+    z.next_in = (unsigned char *)s->in;
+    z.avail_in = (uInt)s->in_len;
+    z.next_out = s->out;
+    z.avail_out = SEG_OUT;
+    int rc = deflate(&z, s->last ? Z_FINISH : Z_FULL_FLUSH);
+    s->out_len = SEG_OUT - z.avail_out;
+    s->ok = (s->last ? rc == Z_STREAM_END : rc == Z_OK) && !z.avail_in && z.avail_out;
+    deflateEnd(&z);
+}
+static void seg_inflate(struct seg *s) {
+    z_stream z = {0};
+    s->ok = false;
+    s->out_len = 0;
+    if (inflateInit2(&z, -15) != Z_OK)
+        return;
+    z.next_in = (unsigned char *)s->in;
+    z.avail_in = (uInt)s->in_len;
+    z.next_out = s->out;
+    z.avail_out = SEGMENT + 1;   /* never full: a full flush marker is always consumed */
+    int rc;
+    do
+        rc = inflate(&z, Z_NO_FLUSH);
+    while (rc == Z_OK && z.avail_in && z.avail_out);
+    s->out_len = SEGMENT + 1 - z.avail_out;
+    /* Every segment ends exactly at its recorded length: whole SEGMENTs before
+     * the last, which alone carries the end of the stream. */
+    s->ok = !z.avail_in && (s->last ? rc == Z_STREAM_END && s->out_len && s->out_len <= SEGMENT
+                                    : rc == Z_OK && s->out_len == SEGMENT);
+    if (s->ok)
+        s->crc = (uint32_t)crc32(crc32(0L, Z_NULL, 0), s->out, (uInt)s->out_len);
+    inflateEnd(&z);
+}
+static void seg_crc(struct seg *s) {
+    s->crc = (uint32_t)crc32(crc32(0L, Z_NULL, 0), s->in, (uInt)s->in_len);
+    s->ok = true;
+}
+static const unsigned char gzip_header[10] = {0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3};
+static void put32(unsigned char *p, uint32_t v) {
+    for (unsigned i = 0; i < 4; i++)
+        p[i] = (unsigned char)(v >> (8 * i));
+}
+static uint32_t get32(const unsigned char *p) {
+    return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
+}
+struct sha_job {
+    const unsigned char *data;
+    size_t len;
+    unsigned char sum[32];
+};
+static void *sha_worker(void *arg) {
+    struct sha_job *j = arg;
+    crypto_hash_sha256(j->sum, j->data, j->len);
+    return NULL;
+}
+/* The segment index of a payload or backup record: count lengths, NULL when
+ * absent or not this layout (the caller then decodes it as one stream). */
+static uint32_t *segment_index(json_object *payload, uint64_t *count) {
+    json_object *list = field(payload, "segments");
+    uint64_t raw = (uint64_t)num(payload, "raw_bytes"), sum = 0;
+    if (!list || !json_object_is_type(list, json_type_array) || num(payload, "segment_bytes") != SEGMENT ||
+        !raw || json_object_array_length(list) != (raw + SEGMENT - 1) / SEGMENT)
+        return NULL;
+    *count = json_object_array_length(list);
+    uint32_t *lengths = calloc(*count, sizeof(*lengths));
+    if (!lengths)
+        return NULL;
+    for (uint64_t i = 0; i < *count; i++) {
+        json_object *item = json_object_array_get_idx(list, i);
+        int64_t v = json_object_is_type(item, json_type_int) ? json_object_get_int64(item) : 0;
+        if (v < 1 || v > SEG_OUT) {
+            free(lengths);
+            return NULL;
+        }
+        lengths[i] = (uint32_t)v;
+        sum += (uint64_t)v;
+    }
+    if (sum + sizeof(gzip_header) + 8 != (uint64_t)num(payload, "bytes")) {
+        free(lengths);
+        return NULL;
+    }
+    return lengths;
+}
+
+#define STREAM_INJECT 1u
+#define STREAM_RAW_SHA 2u
+#define STREAM_SKIP_SAME 4u
+static uint64_t stream_written;
+/* Decode a segmented root on all cores. Same contract as stream_image() for a
+ * ROOT: the encoded SHA-256 and size, raw size, gzip CRC/ISIZE, recorded raw
+ * CRC and the ext4 identity are all checked; output < 0 only validates.
+ * Writes stay at CHUNK granularity, skipping what the device already holds. */
+static bool stream_segments(int input, int output, json_object *payload, uint32_t *lengths,
+                            uint64_t count, unsigned flags, uint32_t *crc) {
+    uint64_t bytes = (uint64_t)num(payload, "bytes"), raw_bytes = (uint64_t)num(payload, "raw_bytes");
+    struct stat st;
+    if (fstat(input, &st) || (uint64_t)st.st_size != bytes)
+        return failure("encoded size");
+    unsigned char *map = mmap(NULL, bytes, PROT_READ, MAP_PRIVATE, input, 0);
+    if (map == MAP_FAILED)
+        return failure("payload map: %s", strerror(errno));
+    struct sha_job sha = {map, bytes, {0}};
+    pthread_t sha_thread;
+    bool sha_running = !pthread_create(&sha_thread, NULL, sha_worker, &sha);
+    if (!sha_running)
+        sha_worker(&sha);
+    static struct seg_batch b[2];
+    unsigned char *rawbuf[2] = {malloc((size_t)SEG_BATCH * (SEGMENT + 1)), malloc((size_t)SEG_BATCH * (SEGMENT + 1))};
+    unsigned char *old = flags & STREAM_SKIP_SAME ? malloc(CHUNK) : NULL;
+    uint64_t offset = sizeof(gzip_header), raw = 0, batches = (count + SEG_BATCH - 1) / SEG_BATCH;
+    uLong rawcrc = crc32(0L, Z_NULL, 0);
+    bool ok = rawbuf[0] && rawbuf[1] && (old || !(flags & STREAM_SKIP_SAME)) &&
+              !memcmp(map, gzip_header, 4);   /* no name/extra fields; mtime/OS free */
+    if (!ok)
+        failure("segmented payload setup");
+    for (uint64_t k = 0; ok && k <= batches; k++) {
+        unsigned p = k & 1;
+        if (k < batches) {
+            /* Queue batch k; batch k-1 (decoded) is written meanwhile. */
+            struct seg_batch *n = &b[p];
+            n->fn = seg_inflate;
+            n->count = (unsigned)(count - k * SEG_BATCH < SEG_BATCH ? count - k * SEG_BATCH : SEG_BATCH);
+            for (unsigned i = 0; i < n->count; i++) {
+                uint64_t index = k * SEG_BATCH + i;
+                n->seg[i] = (struct seg){.in = map + offset, .in_len = lengths[index],
+                                         .out = rawbuf[p] + (size_t)i * (SEGMENT + 1), .last = index == count - 1};
+                offset += lengths[index];
+            }
+            seg_start(n);
+        }
+        if (!k)
+            continue;
+        struct seg_batch *c = &b[!p];
+        seg_join(c);
+        for (unsigned i = 0; ok && i < c->count; i++) {
+            struct seg *s = &c->seg[i];
+            if (!s->ok) {
+                ok = failure("gzip corruption (segment %llu)", (unsigned long long)((k - 1) * SEG_BATCH + i));
+                break;
+            }
+            if (!raw && (s->out_len < 4096 || root_bytes(s->out) != raw_bytes)) {
+                ok = failure("root ext4 identity/extent");
+                break;
+            }
+            if (raw + s->out_len > raw_bytes) {
+                ok = failure("raw size");
+                break;
+            }
+            for (size_t at = 0; ok && output >= 0 && at < s->out_len; at += CHUNK) {
+                size_t n = s->out_len - at < CHUNK ? s->out_len - at : CHUNK;
+                bool same = false;
+                if (old) {
+                    ssize_t got = pread(output, old, n, (off_t)(raw + at));
+                    same = got == (ssize_t)n && !memcmp(old, s->out + at, n);
+                }
+                for (size_t done = 0; !same && done < n;) {
+                    ssize_t w = pwrite(output, s->out + at + done, n - done, (off_t)(raw + at + done));
+                    if (w < 0 && errno == EINTR)
+                        continue;
+                    if (w <= 0) {
+                        ok = failure("write: %s", w < 0 ? strerror(errno) : "short");
+                        break;
+                    }
+                    done += (size_t)w;
+                }
+                if (!same)
+                    stream_written += n;
+            }
+            raw += s->out_len;
+            rawcrc = crc32_combine(rawcrc, s->crc, (z_off_t)s->out_len);
+            progress_bytes(raw);
+#ifdef Y2_UPDATE_TEST
+            if ((flags & STREAM_INJECT) && getenv("Y2_TEST_FAULT") &&
+                !strcmp(getenv("Y2_TEST_FAULT"), "write_interrupt") && raw >= CHUNK) {
+                /* Power loss after the first write; threads joined so sanitizers stay quiet. */
+                seg_join(&b[0]);
+                seg_join(&b[1]);
+                if (sha_running)
+                    pthread_join(sha_thread, NULL);
+                _exit(91);
+            }
+#endif
+        }
+    }
+    seg_join(&b[0]);
+    seg_join(&b[1]);
+    if (sha_running)
+        pthread_join(sha_thread, NULL);
+    if (ok)
+        ok = (offset + 8 == bytes && raw == raw_bytes && get32(map + bytes - 8) == (uint32_t)rawcrc &&
+              get32(map + bytes - 4) == (uint32_t)raw_bytes && sha_match(sha.sum, str(payload, "sha256")) &&
+              (!field(payload, "raw_crc32") || num(payload, "raw_crc32") == (int64_t)rawcrc)) ||
+             failure("payload hash/size mismatch");
+    if (ok && crc)
+        *crc = (uint32_t)rawcrc;
+    munmap(map, bytes);
+    free(rawbuf[0]);
+    free(rawbuf[1]);
+    free(old);
+    return ok;
+}
 /* gzip must have one member, exact encoded and raw lengths, the SHA-256 of the
  * encoded bytes (signed manifest or our backup record) and the kind's identity.
  * The encoded hash authenticates the payload; zlib checks the gzip CRC-32 and
@@ -347,10 +612,6 @@ static bool boot_identity(const unsigned char *b, uint64_t len, enum kind kind) 
  * descriptor; boot images and the 16 MiB span backups decode into a
  * zero-filled buffer for aligned I/O. *crc receives the raw CRC-32.
  */
-#define STREAM_INJECT 1u
-#define STREAM_RAW_SHA 2u
-#define STREAM_SKIP_SAME 4u
-static uint64_t stream_written;
 static bool stream_image(int input, int output, unsigned char *mem, json_object *payload,
                          enum kind kind, unsigned flags, uint32_t *crc) {
     bool inject = flags & STREAM_INJECT;
@@ -360,6 +621,18 @@ static bool stream_image(int input, int output, unsigned char *mem, json_object 
         num(payload, "raw_bytes") < (int64_t)minimum || num(payload, "raw_bytes") > (int64_t)limit ||
         (kind == REGION && num(payload, "raw_bytes") != (int64_t)IMAGE_BYTES))
         return failure("image metadata bounds");
+    if (kind == ROOT && !mem && !(flags & STREAM_RAW_SHA)) {
+        uint64_t count = 0;
+        uint32_t *lengths = segment_index(payload, &count);
+        if (lengths) {
+            bool done = stream_segments(input, output, payload, lengths, count, flags, crc);
+            free(lengths);
+            return done;
+        }
+        /* A signed index that does not fit is a broken package, not an old one. */
+        if (field(payload, "segments") || field(payload, "segment_bytes"))
+            return failure("segment index");
+    }
     static unsigned char in[CHUNK], out[CHUNK], old[CHUNK];
     unsigned char header[4096], csum[32], rsum[32];
     size_t head = 0;
@@ -501,24 +774,58 @@ static bool drop_cache(int fd) {
     return true;
 }
 /* Readback of the medium against the CRC-32 computed while writing: detects
- * storage faults at memory speed; authenticity was settled before writing. */
+ * storage faults at memory speed; authenticity was settled before writing.
+ * The main thread reads batch k+1 while the cores checksum batch k. */
 static bool file_crc(int fd, uint64_t count, uint32_t expected) {
     if (!drop_cache(fd))
         return false;
-    static unsigned char buf[CHUNK];
+    static struct seg_batch b[2];
+    unsigned char *buf[2] = {malloc((size_t)SEG_BATCH * SEGMENT), malloc((size_t)SEG_BATCH * SEGMENT)};
+    uint64_t segs = (count + SEGMENT - 1) / SEGMENT, batches = (segs + SEG_BATCH - 1) / SEG_BATCH, at = 0;
     uLong c = crc32(0L, Z_NULL, 0);
-    uint64_t at = 0;
-    while (at < count) {
-        ssize_t n = pread(fd, buf, count - at < sizeof(buf) ? (size_t)(count - at) : sizeof(buf), (off_t)at);
-        if (n < 0 && errno == EINTR)
+    bool ok = buf[0] && buf[1];
+    if (!ok)
+        failure("readback buffers");
+    for (uint64_t k = 0; ok && k <= batches; k++) {
+        unsigned p = k & 1;
+        if (k < batches) {
+            struct seg_batch *n = &b[p];
+            n->fn = seg_crc;
+            n->count = (unsigned)(segs - k * SEG_BATCH < SEG_BATCH ? segs - k * SEG_BATCH : SEG_BATCH);
+            for (unsigned i = 0; ok && i < n->count; i++) {
+                uint64_t from = (k * SEG_BATCH + i) * SEGMENT;
+                size_t len = count - from < SEGMENT ? (size_t)(count - from) : SEGMENT;
+                for (size_t got = 0; got < len;) {
+                    ssize_t r = pread(fd, buf[p] + (size_t)i * SEGMENT + got, len - got, (off_t)(from + got));
+                    if (r < 0 && errno == EINTR)
+                        continue;
+                    if (r <= 0) {
+                        ok = failure("readback short read");
+                        break;
+                    }
+                    got += (size_t)r;
+                }
+                n->seg[i] = (struct seg){.in = buf[p] + (size_t)i * SEGMENT, .in_len = len};
+            }
+            if (!ok)
+                break;
+            seg_start(n);
+        }
+        if (!k)
             continue;
-        if (n <= 0)
-            return failure("readback short read");
-        c = crc32(c, buf, (uInt)n);
-        at += (uint64_t)n;
+        struct seg_batch *done = &b[!p];
+        seg_join(done);
+        for (unsigned i = 0; i < done->count; i++) {
+            c = crc32_combine(c, done->seg[i].crc, (z_off_t)done->seg[i].in_len);
+            at += done->seg[i].in_len;
+        }
         progress_bytes(at);
     }
-    return (uint32_t)c == expected || failure("readback mismatch");
+    seg_join(&b[0]);
+    seg_join(&b[1]);
+    free(buf[0]);
+    free(buf[1]);
+    return ok && ((uint32_t)c == expected || failure("readback mismatch"));
 }
 static bool file_hash(int fd, uint64_t count, const char *expected) {
     if (!drop_cache(fd))
@@ -610,8 +917,10 @@ static unsigned char *image_buffer(void) {
  * passes the sequence the normal system recorded when it queued the package:
  * its own compat file names the recovery's release, which may be this one. */
 /* check: 0 manifest only, 1 decode every payload (staging), 2 SHA-256 of the
- * encoded payloads only (the recovery, which decodes while it writes). */
-static json_object *verify(int package, int check, int64_t installed_sequence) {
+ * encoded payloads only (the recovery, which decodes while it writes).
+ * kept: the package of the running release (OTA-50), authentic and compatible
+ * but by design not newer, so the replay and minimum checks do not apply. */
+static json_object *verify(int package, int check, int64_t installed_sequence, bool kept) {
     if (!crypto_ready())
         return NULL;
     size_t length, siglen;
@@ -703,7 +1012,9 @@ static json_object *verify(int package, int check, int64_t installed_sequence) {
         failure("accepted sequence unreadable");
         goto fail;
     }
-    if (num(m, "minimum_sequence") > installed) {
+    if (kept)
+        downgrade = false;
+    else if (num(m, "minimum_sequence") > installed) {
         failure("minimum compatible release");
         goto fail;
     }
@@ -1043,75 +1354,208 @@ static bool backup_stream(int source_fd, const unsigned char *source_mem, uint64
     int out = openfile(basefd, tmp, O_WRONLY | O_CREAT | O_EXCL, 0600);
     if (out < 0)
         return false;
-    z_stream z = {0};
-    bool ok = false;
-    /* Level 1: the image is mostly free blocks; speed matters on battery. */
-    if (deflateInit2(&z, 1, Z_DEFLATED, 15 + 16, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
-        failure("backup gzip init");
-        close(out);
-        return false;
+    /* Segmented (see SEGMENT) on all cores: the main thread reads batch k+1
+     * and writes batch k-1 while batch k is compressed. */
+    static struct seg_batch b[2];
+    uint64_t count = (bytes + SEGMENT - 1) / SEGMENT, batches = (count + SEG_BATCH - 1) / SEG_BATCH;
+    unsigned char *inbuf[2] = {NULL, NULL}, *outbuf[2] = {malloc((size_t)SEG_BATCH * SEG_OUT),
+                                                       malloc((size_t)SEG_BATCH * SEG_OUT)};
+    if (!source_mem) {
+        inbuf[0] = malloc((size_t)SEG_BATCH * SEGMENT);
+        inbuf[1] = malloc((size_t)SEG_BATCH * SEGMENT);
     }
-    static unsigned char in[CHUNK], encoded[CHUNK];
-    unsigned char gzsum[32];
+    unsigned char gzsum[32], trailer[8];
     crypto_hash_sha256_state ch;
     crypto_hash_sha256_init(&ch);
     uLong rawcrc = crc32(0L, Z_NULL, 0);
-    uint64_t left = bytes, gzbytes = 0;
-    if (source_fd >= 0 && !drop_cache(source_fd))
-        goto done;
-    while (left) {
-        size_t count = left < sizeof(in) ? (size_t)left : sizeof(in);
-        const unsigned char *data = in;
-        if (source_mem)
-            data = source_mem + (bytes - left);
-        else {
-            ssize_t got = pread(source_fd, in, count, (off_t)(bytes - left));
-            if (got < 0 && errno == EINTR)
-                continue;
-            if (got <= 0) {
-                failure("backup read");
-                goto done;
+    uint64_t gzbytes = sizeof(gzip_header), done_raw = 0;
+    json_object *segments = json_object_new_array();
+    bool ok = outbuf[0] && outbuf[1] && (source_mem || (inbuf[0] && inbuf[1])) && segments;
+    if (!ok)
+        failure("backup buffers");
+    if (ok && source_fd >= 0 && !drop_cache(source_fd))
+        ok = false;
+    if (ok) {
+        ok = enough(basefd, sizeof(gzip_header)) && writeall(out, gzip_header, sizeof(gzip_header));
+        crypto_hash_sha256_update(&ch, gzip_header, sizeof(gzip_header));
+    }
+    for (uint64_t k = 0; ok && k <= batches; k++) {
+        unsigned p = k & 1;
+        if (k < batches) {
+            struct seg_batch *n = &b[p];
+            n->fn = seg_deflate;
+            n->count = (unsigned)(count - k * SEG_BATCH < SEG_BATCH ? count - k * SEG_BATCH : SEG_BATCH);
+            for (unsigned i = 0; ok && i < n->count; i++) {
+                uint64_t index = k * SEG_BATCH + i, at = index * SEGMENT;
+                size_t len = bytes - at < SEGMENT ? (size_t)(bytes - at) : SEGMENT;
+                const unsigned char *data = source_mem ? source_mem + at : inbuf[p] + (size_t)i * SEGMENT;
+                for (size_t got = 0; !source_mem && got < len;) {
+                    ssize_t r = pread(source_fd, inbuf[p] + (size_t)i * SEGMENT + got, len - got,
+                                      (off_t)(at + got));
+                    if (r < 0 && errno == EINTR)
+                        continue;
+                    if (r <= 0) {
+                        ok = failure("backup read");
+                        break;
+                    }
+                    got += (size_t)r;
+                }
+                n->seg[i] = (struct seg){.in = data, .in_len = len, .out = outbuf[p] + (size_t)i * SEG_OUT,
+                                         .last = index == count - 1};
             }
-            count = (size_t)got;
+            if (!ok)
+                break;
+            seg_start(n);
         }
-        left -= count;
-        rawcrc = crc32(rawcrc, data, (uInt)count);
-        z.next_in = (unsigned char *)data;
-        z.avail_in = (uInt)count;
-        int rc;
-        do {
-            z.next_out = encoded;
-            z.avail_out = sizeof(encoded);
-            rc = deflate(&z, left ? Z_NO_FLUSH : Z_FINISH);
-            if (rc != Z_OK && rc != Z_STREAM_END) {
-                failure("backup compression");
-                goto done;
+        if (!k)
+            continue;
+        struct seg_batch *c = &b[!p];
+        seg_join(c);
+        for (unsigned i = 0; ok && i < c->count; i++) {
+            struct seg *s = &c->seg[i];
+            if (!s->ok) {
+                ok = failure("backup compression");
+                break;
             }
-            size_t made = sizeof(encoded) - z.avail_out;
-            if (!enough(basefd, made) || !writeall(out, encoded, made))
-                goto done;
-            crypto_hash_sha256_update(&ch, encoded, made);
-            gzbytes += made;
-        } while (z.avail_in || z.avail_out == 0 || (!left && rc != Z_STREAM_END));
-        progress_bytes(bytes - left);
+            if (!enough(basefd, s->out_len) || !writeall(out, s->out, s->out_len)) {
+                ok = false;
+                break;
+            }
+            crypto_hash_sha256_update(&ch, s->out, s->out_len);
+            json_object_array_add(segments, json_object_new_int64((int64_t)s->out_len));
+            gzbytes += s->out_len;
+            rawcrc = crc32_combine(rawcrc, s->crc, (z_off_t)s->in_len);
+            done_raw += s->in_len;
+            progress_bytes(done_raw);
+        }
     }
-    if (fsync(out) || !drop_cache(out)) {
-        failure("backup fsync");
-        goto done;
+    seg_join(&b[0]);
+    seg_join(&b[1]);
+    if (ok) {
+        put32(trailer, (uint32_t)rawcrc);
+        put32(trailer + 4, (uint32_t)bytes);
+        ok = enough(basefd, sizeof(trailer)) && writeall(out, trailer, sizeof(trailer));
+        crypto_hash_sha256_update(&ch, trailer, sizeof(trailer));
+        gzbytes += sizeof(trailer);
     }
-    crypto_hash_sha256_final(&ch, gzsum);
-    setnum(record, "raw_bytes", (int64_t)bytes);
-    setnum(record, "bytes", (int64_t)gzbytes);
-    setnum(record, "raw_crc32", (int64_t)rawcrc);
-    setstr(record, "sha256", hash_string(gzsum));
-    ok = file_digest(basefd, tmp, record) &&
-         renameat(basefd, tmp, basefd, name) == 0 && fsync(basefd) == 0;
-done:
-    deflateEnd(&z);
+    if (ok && (fsync(out) || !drop_cache(out)))
+        ok = failure("backup fsync");
+    if (ok) {
+        crypto_hash_sha256_final(&ch, gzsum);
+        setnum(record, "raw_bytes", (int64_t)bytes);
+        setnum(record, "bytes", (int64_t)gzbytes);
+        setnum(record, "raw_crc32", (int64_t)rawcrc);
+        setstr(record, "sha256", hash_string(gzsum));
+        setnum(record, "segment_bytes", SEGMENT);
+        json_object_object_add(record, "segments", segments);
+        segments = NULL;
+        ok = file_digest(basefd, tmp, record) &&
+             renameat(basefd, tmp, basefd, name) == 0 && fsync(basefd) == 0;
+    }
+    if (segments)
+        json_object_put(segments);
     close(out);
+    free(inbuf[0]);
+    free(inbuf[1]);
+    free(outbuf[0]);
+    free(outbuf[1]);
     if (!ok && !error_text[0])
         failure("backup failed");
     return ok;
+}
+/* OTA-50: after its health ack the package of the running release stays in
+ * current/ (manifest, signature and root payload). When the next install finds
+ * it is still that release, its root payload is the rollback copy, with no
+ * backup of the live root: the root holds no state of its own (Y2DATA does).
+ * Anything that does not match falls back to the backup of the live root. */
+static const char *const kept_file[] = {"manifest.json", "manifest.sig", "rootfs.ext4.gz",
+                                        "bootimg.img.gz", "recovery.img.gz", NULL};
+static void drop_kept(void) {
+    int dir = openat(basefd, "current", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    if (dir >= 0) {
+        for (unsigned i = 0; kept_file[i]; i++)
+            unlinkat(dir, kept_file[i], 0);
+        close(dir);
+    }
+    unlinkat(basefd, "current", AT_REMOVEDIR);
+}
+/* The kept package, authentic, with a segment index and a raw CRC-32. */
+static json_object *kept_manifest(int dir) {
+    json_object *k = verify(dir, 0, -1, true);
+    uint64_t count = 0;
+    uint32_t *lengths = k ? segment_index(payload(k, ROOT), &count) : NULL;
+    if (k && (!lengths || !field(payload(k, ROOT), "raw_crc32"))) {
+        json_object_put(k);
+        k = NULL;
+    }
+    free(lengths);
+    return k;
+}
+/* ack: the installed package becomes current/, without its boot images. */
+static void keep_installed(json_object *j) {
+    drop_kept();
+    int dir = openat(basefd, "pending", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    if (dir < 0)
+        return;
+    size_t n;
+    char *raw = readfile(dir, "manifest.json", 16384, &n);
+    unsigned char sum[32];
+    bool same = false;
+    if (raw) {
+        crypto_hash_sha256(sum, (const unsigned char *)raw, n);
+        same = !strcmp(hash_string(sum), str(j, "manifest_sha256"));
+        free(raw);
+    }
+    if (same) {
+        unlinkat(dir, payload_file[BOOT], 0);
+        unlinkat(dir, payload_file[RECOVERY], 0);
+    }
+    close(dir);
+    if (same && !renameat(basefd, "pending", basefd, "current"))
+        fsync(basefd);
+}
+/* queue (running system): keep current/ only when it is this release. */
+static void kept_check(json_object *j) {
+    int dir = openat(basefd, "current", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    if (dir < 0)
+        return;
+    json_object *k = kept_manifest(dir), *versions = load(AT_FDCWD, path("/etc/y2linux/versions.json")),
+                *compat = load(AT_FDCWD, path("/etc/y2linux/update-compat.json"));
+    close(dir);
+    if (k && versions && compat && num(k, "sequence") == num(compat, "sequence") &&
+        !strcmp(str(k, "y2linux_commit"), str(versions, "build_git_commit")) &&
+        !strcmp(str(k, "reborn_commit"), str(versions, "reborn_source_commit")))
+        setstr(j, "kept_manifest_sha256", str(k, "_manifest_sha256"));
+    else
+        drop_kept();
+    if (k)
+        json_object_put(k);
+    if (versions)
+        json_object_put(versions);
+    if (compat)
+        json_object_put(compat);
+    error_text[0] = 0;
+}
+/* recovery: the kept root payload as previous.ext4.gz, or NULL. */
+static json_object *kept_backup(json_object *journal, uint64_t bytes) {
+    const char *want = str(journal, "kept_manifest_sha256");
+    int dir = *want ? openat(basefd, "current", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW) : -1;
+    if (dir < 0)
+        return NULL;
+    json_object *k = kept_manifest(dir), *r = NULL, *rp = payload(k, ROOT);
+    if (k && !strcmp(str(k, "_manifest_sha256"), want) && (uint64_t)num(rp, "raw_bytes") == bytes &&
+        file_digest(dir, payload_file[ROOT], rp) &&
+        !renameat(dir, payload_file[ROOT], basefd, "previous.ext4.gz") && !fsync(basefd)) {
+        json_object_deep_copy(rp, &r, NULL);
+        if (r)
+            setstr(r, "source", "package");
+    }
+    if (k)
+        json_object_put(k);
+    close(dir);
+    drop_kept();
+    error_text[0] = 0;
+    return r;
 }
 static bool backup(int root, int disk, unsigned char *mem, json_object *journal) {
     unsigned char header[4096];
@@ -1128,12 +1572,15 @@ static bool backup(int root, int disk, unsigned char *mem, json_object *journal)
     unlinkat(basefd, "previous-bootimg.gz", 0);
     if (!state(journal, "BackingUp", NULL))
         return false;
-    json_object *saved = json_object_new_object(), *r = json_object_new_object(),
+    json_object *saved = json_object_new_object(), *r = kept_backup(journal, bytes),
                 *b = json_object_new_object();
+    bool kept = r;
+    if (!kept)
+        r = json_object_new_object();
     json_object_object_add(saved, "root", r);
     json_object_object_add(saved, "bootimg", b);
     progress_span("backup", 3, 37, bytes);
-    bool ok = backup_stream(root, NULL, bytes, "previous.ext4.gz", r) &&
+    bool ok = (kept || backup_stream(root, NULL, bytes, "previous.ext4.gz", r)) &&
               region_read(disk, BOOTIMG_OFFSET, mem, IMAGE_BYTES);
     if (ok) {
         progress_span("backup", 40, 2, IMAGE_BYTES);
@@ -1148,7 +1595,10 @@ static bool backup(int root, int disk, unsigned char *mem, json_object *journal)
 }
 /* Backups from before OTA-38 carry only a raw SHA-256: check them that way. */
 static bool legacy_record(json_object *r) { return !field(r, "raw_crc32"); }
-static bool restore(int root, int disk, unsigned char *mem, json_object *j, const char *reason) {
+static bool restore(int root, int disk, unsigned char *mem, json_object *j, const char *why) {
+    /* why may be j's own failure string, which the first state() replaces. */
+    char reason[192];
+    snprintf(reason, sizeof(reason), "%s", why);
     json_object *saved = field(j, "backup"), *r = field(saved, "root"), *b = field(saved, "bootimg");
     if (!r || !b)
         return failure("no verified backup");
@@ -1179,9 +1629,9 @@ static bool restore(int root, int disk, unsigned char *mem, json_object *j, cons
     if (bf >= 0)
         close(bf);
     if (!ok) {
-        char why[192];
-        snprintf(why, sizeof(why), "%s", error_text);
-        state(j, "RescueRequired", why);
+        char failed[192];
+        snprintf(failed, sizeof(failed), "%s", error_text);
+        state(j, "RescueRequired", failed);
         return false;
     }
     json_object *water = load(basefd, "accepted.json");
@@ -1292,7 +1742,7 @@ static bool recover(json_object *j) {
         goto done;
     }
     int pkg = openat(basefd, "pending", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
-    json_object *m = pkg >= 0 ? verify(pkg, 2, num(j, "previous_sequence")) : NULL;
+    json_object *m = pkg >= 0 ? verify(pkg, 2, num(j, "previous_sequence"), false) : NULL;
     if (!m || strcmp(str(m, "y2linux_commit"), str(j, "y2linux_commit")) ||
         num(m, "sequence") != num(j, "sequence") ||
         strcmp(str(m, "_manifest_sha256"), str(j, "manifest_sha256"))) {
@@ -1389,7 +1839,7 @@ static bool prepare(json_object *j, const char *operation) {
     bool ok = mem != NULL;
     if (ok && !strcmp(s, "Queued") && !strcmp(operation, "y2-update")) {
         int pkg = openat(basefd, "pending", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
-        json_object *m = pkg >= 0 ? verify(pkg, 0, -1) : NULL;
+        json_object *m = pkg >= 0 ? verify(pkg, 0, -1, false) : NULL;
         ok = m && !strcmp(str(m, "_manifest_sha256"), str(j, "manifest_sha256"));
         if (!ok && m)
             failure("queued identity changed");
@@ -1548,7 +1998,7 @@ int main(int argc, char **argv) {
     }
     if ((!strcmp(argv[1], "check") || !strcmp(argv[1], "check-manifest")) && argc == 3) {
         int pkg = open(path(argv[2]), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
-        json_object *m = pkg >= 0 ? verify(pkg, strcmp(argv[1], "check-manifest") ? 1 : 0, -1) : NULL;
+        json_object *m = pkg >= 0 ? verify(pkg, strcmp(argv[1], "check-manifest") ? 1 : 0, -1, false) : NULL;
         if (pkg >= 0)
             close(pkg);
         if (m) {
@@ -1564,7 +2014,7 @@ int main(int argc, char **argv) {
             failure("update already pending");
         else {
             int pkg = openat(basefd, "pending", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
-            json_object *m = pkg >= 0 ? verify(pkg, 1, -1) : NULL;
+            json_object *m = pkg >= 0 ? verify(pkg, 1, -1, false) : NULL;
             if (pkg >= 0)
                 close(pkg);
             if (m) {
@@ -1578,6 +2028,7 @@ int main(int argc, char **argv) {
                 setstr(j, "release_version", str(m, "release_version"));
                 json_object_object_add(j, "rollback_allowed",
                                        json_object_new_boolean(yes(m, "rollback_allowed")));
+                kept_check(j);
                 ok = state(j, "Queued", NULL);
                 json_object_put(m);
             }
@@ -1630,6 +2081,8 @@ int main(int argc, char **argv) {
             setstr(j, "boot_id", current);
             ok = save("accepted.json", water) && state(j, "Acknowledged", NULL);
             json_object_put(water);
+            if (ok)
+                keep_installed(j);
         }
     ack_done:
         if (versions)

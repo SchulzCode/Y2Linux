@@ -176,7 +176,7 @@ case "$outcome" in
     installed)
         if [ -n "$recovery_restart" ]; then
             recovery_screen 'Update installed' '' 'Starting the new version.'
-            recovery_off 4
+            recovery_off 1
         fi
         recovery_screen 'Update installed' '' 'The player turns off now.' 'Press Power to start.'
         recovery_off ;;

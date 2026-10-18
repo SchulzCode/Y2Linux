@@ -15,7 +15,9 @@ import os
 from pathlib import Path
 import re
 import stat
+import struct
 import subprocess
+import zlib
 
 
 def sodium():
@@ -98,6 +100,51 @@ def compress(source, target, limit):
                 raw_bytes=source.stat().st_size, raw_sha256=raw_hash.hexdigest())
 
 
+SEGMENT = 1024 * 1024
+GZIP_HEADER = bytes([0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3])
+
+
+def compress_segmented(source, target, limit):
+    """The root payload as independent 1 MiB raw-deflate segments in one gzip member
+    (the pigz -i layout; core.c SEGMENT). Any gzip reader decodes it as one stream; the
+    recovery decodes the segments on all cores from the signed lengths. Every segment
+    is decoded once here, so a wrong index can never reach a player."""
+    source = Path(source)
+    size = source.stat().st_size
+    if not 4096 <= size <= limit:
+        raise ValueError(f'{source.name} outside its partition budget')
+    raw_hash, crc, segments = hashlib.sha256(), 0, []
+    with source.open('rb') as stream_in, target.open('wb') as encoded:
+        encoded.write(GZIP_HEADER)
+        done = 0
+        while done < size:
+            block = stream_in.read(SEGMENT)
+            if not block:
+                raise ValueError(f'{source.name} shorter than its size')
+            done += len(block)
+            raw_hash.update(block)
+            crc = zlib.crc32(block, crc)
+            deflate = zlib.compressobj(9, zlib.DEFLATED, -15, 9)
+            data = deflate.compress(block) + deflate.flush(zlib.Z_FINISH if done == size else zlib.Z_FULL_FLUSH)
+            inflate = zlib.decompressobj(-15)
+            if (inflate.decompress(data) != block or inflate.unconsumed_tail or inflate.unused_data or
+                    inflate.eof != (done == size)):
+                raise ValueError(f'{source.name}: segment {len(segments)} does not decode on its own')
+            encoded.write(data)
+            segments.append(len(data))
+        encoded.write(struct.pack('<II', crc, size & 0xffffffff))
+        encoded.flush()
+        os.fsync(encoded.fileno())
+    with target.open('rb') as stream:
+        if gzip.decompress(stream.read()) != source.read_bytes():
+            raise ValueError(f'{target.name}: not one valid gzip stream')
+        stream.seek(0)
+        digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+    return dict(name=target.name, encoding='gzip', bytes=target.stat().st_size, sha256=digest,
+                raw_bytes=size, raw_sha256=raw_hash.hexdigest(), raw_crc32=crc, segment_bytes=SEGMENT,
+                segments=segments)
+
+
 def boot_name(image, expected, label):
     """The reviewed MTK boot layout and our image name, as y2-update-core checks it."""
     data = Path(image).read_bytes()[:1 << 24]
@@ -128,7 +175,7 @@ def build(image, versions, output, private, key_id, sequence, minimum_sequence=0
     if recovery is not None:
         boot_name(recovery, b'Y2Recovery-1', b'RECOVERY')
     output.mkdir(mode=0o700, parents=True)
-    payloads = dict(rootfs=compress(image, output / 'rootfs.ext4.gz', 820 * 1024**2),
+    payloads = dict(rootfs=compress_segmented(image, output / 'rootfs.ext4.gz', 820 * 1024**2),
                     bootimg=compress(bootimg, output / 'bootimg.img.gz', 16 * 1024**2))
     if recovery is not None:
         payloads['recovery'] = compress(recovery, output / 'recovery.img.gz', 16 * 1024**2)

@@ -155,6 +155,15 @@ def make_room(ctx, fd, size):
             removed += remove_disposable(path)
         if fits():
             return removed
+    # Last: the kept package of the running release (OTA-50). Without it the
+    # recovery backs up the live root instead, which is only slower.
+    kept = root / 'current'
+    with contextlib.suppress(OSError, ValueError):
+        size = sum(f.lstat().st_size for f in kept.iterdir()) if kept.is_dir() else 0
+        remove_package(kept)
+        removed += size
+        if fits():
+            return removed
     raise NoSpace(need)
 
 
@@ -585,7 +594,8 @@ def health_ack(ctx):
         return {'state': 'PendingHealth', 'reason': 'application_not_ready'}
     mark(ctx, 'application_ready')
     result = core(ctx, 'ack')
-    # The installed package is no longer needed; backups stay for rollback.
+    # The core keeps the installed package as current/ (the next install's
+    # rollback copy); anything left in pending/ is no longer needed.
     with contextlib.suppress(OSError, ValueError):
         remove_package(ctx.path('/data/updates/pending'))
     return result

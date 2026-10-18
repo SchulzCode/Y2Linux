@@ -28,10 +28,10 @@ BOOTIMG, RECOVERY, MISC = 60416*512, 93184*512, 138240*512
 SPAN = 16*1024**2
 
 
-def root_image(marker):
+def root_image(marker, size=8*1024**2):
     # A raw-file image fixture with the real ext4 identity and extent fields;
     # tests the stream boundary, not e2fsck or a simulated electrical device.
-    raw = bytearray(8*1024**2)
+    raw = bytearray(size)
     struct.pack_into('<I', raw, 1024+4, len(raw)//4096)
     struct.pack_into('<I', raw, 1024+24, 2)
     struct.pack_into('<H', raw, 1024+56, 0xef53)
@@ -48,7 +48,7 @@ class UpdateTests(unittest.TestCase):
         cls.executable = Path(cls.tools.name) / 'core'
         # Optional actual target compiler/QEMU command, selected only by host harness.
         cc = os.environ.get('Y2_UPDATE_TEST_CC', 'cc')
-        subprocess.run([cc, '-O2', '-Wall', '-Wextra', '-Werror', '-DY2_UPDATE_TEST',
+        subprocess.run([cc, '-O2', '-Wall', '-Wextra', '-Werror', '-DY2_UPDATE_TEST', '-pthread',
                         str(PROJECT / 'tools/update/core.c'), '-lsodium', '-ljson-c', '-lz',
                         '-o', str(cls.executable)], check=True)
         cls.prefix = json.loads(os.environ.get('Y2_UPDATE_TEST_PREFIX', '[]'))
@@ -253,6 +253,8 @@ class UpdateTests(unittest.TestCase):
         self.boot('new-1')
         self.write('run/y2/application-ready.json', {'boot_id': 'new-1'})
         self.run_core('ack')
+        build(self.root/'new.img', self.versions, self.base/'pending', self.private, 'test', 1,
+              bootimg=self.root/'new-boot.img', recovery=self.root/'new-recovery.img')
         self.assertIn('replay', self.run_core('queue', expected=1)['failure'])
 
     def test_only_changed_chunks_are_written_and_steps_are_logged(self):
@@ -271,7 +273,7 @@ class UpdateTests(unittest.TestCase):
         self.run_core('ack')
         build(self.root/'new.img', self.versions, self.base/'again', self.private, 'test', 1,
               allow_downgrade=True, bootimg=self.root/'new-boot.img', recovery=self.root/'new-recovery.img')
-        shutil.rmtree(self.base/'pending')   # the platform removes it after the health ack
+        self.assertFalse((self.base/'pending').exists())   # kept as current/ by the ack
         (self.base/'again').rename(self.base/'pending')
         self.run_core('queue')
         self.run_core('prepare')
@@ -383,6 +385,125 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(self.run_core('recovery', recovery=True)['outcome'], 'rolled_back')
         self.assertEqual((self.root/'root.img').read_bytes(), self.old)
         self.assertTrue(self.span(BOOTIMG, self.old_boot))
+
+    def next_release(self):
+        # Release 1 installed and acknowledged; the running system's own files
+        # name it. Release 2 is queued for the next install.
+        self.install()
+        self.write('run/y2/application-ready.json', {'boot_id': 'new-1'})
+        self.run_core('ack')
+        compat = json.loads((self.root/'etc/y2linux/update-compat.json').read_text())
+        self.write('etc/y2linux/update-compat.json', dict(compat, sequence=1))
+        third = root_image(b'third-root-content')
+        (self.root/'third.img').write_bytes(third)
+        versions = dict(self.versions, release_version='test-v2', build_git_commit='3'*40)
+        build(self.root/'third.img', versions, self.base/'pending', self.private, 'test', 2,
+              rollback_allowed=True, bootimg=self.root/'new-boot.img', recovery=self.root/'new-recovery.img')
+        self.write('etc/y2linux/versions.json', self.versions)
+        return third
+
+    def test_the_kept_package_is_the_next_rollback_copy(self):
+        # OTA-50: the acknowledged package stays as current/ without its boot
+        # images, and the next install uses its root payload as the backup.
+        import hashlib
+        self.install()
+        self.write('run/y2/application-ready.json', {'boot_id': 'new-1'})
+        self.run_core('ack')
+        self.assertFalse((self.base/'pending').exists())
+        self.assertEqual(sorted(os.listdir(self.base/'current')), ['manifest.json', 'manifest.sig', 'rootfs.ext4.gz'])
+        kept = (self.base/'current/rootfs.ext4.gz').read_bytes()
+        self.assertEqual(hashlib.sha256(kept).hexdigest(), self.manifest['payloads']['rootfs']['sha256'])
+
+    def test_the_kept_package_restores_the_running_release(self):
+        root = self.manifest['payloads']['rootfs']
+        third = self.next_release()
+        self.assertIn('kept_manifest_sha256', self.run_core('queue'))
+        self.run_core('prepare')
+        self.boot('recovery-2')
+        self.assertEqual(self.run_core('recovery', recovery=True)['outcome'], 'installed')
+        record = self.journal()['backup']['root']
+        self.assertEqual((record['source'], record['sha256'], record['raw_crc32']),
+                         ('package', root['sha256'], root['raw_crc32']))
+        self.assertFalse((self.base/'current').exists())
+        self.assertEqual((self.root/'root.img').read_bytes(), third)
+        self.assertEqual(self.run_core('rollback')['state'], 'RollbackPending')
+        self.run_core('prepare')
+        self.boot('recovery-3')
+        self.assertEqual(self.run_core('recovery', recovery=True)['outcome'], 'rolled_back')
+        self.assertEqual((self.root/'root.img').read_bytes(), self.new)
+        self.assertTrue(self.span(BOOTIMG, self.new_boot))
+
+    def test_a_kept_package_of_another_release_is_dropped(self):
+        # Another running build (e.g. flashed by computer): dropped at queue.
+        third = self.next_release()
+        self.write('etc/y2linux/versions.json', dict(self.versions, reborn_source_commit='4'*40))
+        self.assertNotIn('kept_manifest_sha256', self.run_core('queue'))
+        self.assertFalse((self.base/'current').exists())
+        self.run_core('prepare')
+        self.assertEqual(self.run_core('recovery', recovery=True)['outcome'], 'installed')
+        self.assertNotIn('source', self.journal()['backup']['root'])
+        self.assertEqual((self.root/'root.img').read_bytes(), third)
+
+    def test_a_kept_package_changed_after_queueing_falls_back_to_the_live_backup(self):
+        third = self.next_release()
+        self.run_core('queue')
+        payload = self.base/'current/rootfs.ext4.gz'
+        data = bytearray(payload.read_bytes())
+        data[len(data)//2] ^= 1
+        payload.write_bytes(bytes(data))
+        self.run_core('prepare')
+        self.boot('recovery-2')
+        self.assertEqual(self.run_core('recovery', recovery=True)['outcome'], 'installed')
+        self.assertNotIn('source', self.journal()['backup']['root'])
+        self.assertFalse((self.base/'current').exists())
+        self.assertEqual((self.root/'root.img').read_bytes(), third)
+        self.run_core('rollback')
+        self.run_core('prepare')
+        self.assertEqual(self.run_core('recovery', recovery=True)['outcome'], 'rolled_back')
+        self.assertEqual((self.root/'root.img').read_bytes(), self.new)
+
+    def test_a_root_of_several_batches_installs_and_restores(self):
+        # 20 segments: three batches of the four-core pipeline in every step.
+        size = 20*1024**2
+        old, new = bytearray(root_image(b'old', size)), bytearray(root_image(b'new', size))
+        for at in range(0, size, 3*1024**2 + 4099):
+            old[at+8192:at+8200] = b'old-data'
+            new[at+8192:at+8200] = b'new-data'
+        (self.root/'root.img').write_bytes(old)
+        (self.root/'new.img').write_bytes(new)
+        shutil.rmtree(self.base/'pending')
+        build(self.root/'new.img', self.versions, self.base/'pending', self.private, 'test', 1,
+              rollback_allowed=True, bootimg=self.root/'new-boot.img', recovery=self.root/'new-recovery.img')
+        self.install()
+        self.assertEqual((self.root/'root.img').read_bytes(), new)
+        self.assertLess(self.journal()['root_bytes_written'], size // 4)
+        self.assertEqual(len(self.journal()['backup']['root']['segments']), 20)
+        self.run_core('rollback')
+        self.run_core('prepare')
+        self.assertEqual(self.run_core('recovery', recovery=True)['outcome'], 'rolled_back')
+        self.assertEqual((self.root/'root.img').read_bytes(), old)
+
+    def test_the_segment_index_is_signed_and_checked(self):
+        import gzip, zlib
+        root = self.manifest['payloads']['rootfs']
+        data = (self.base/'pending/rootfs.ext4.gz').read_bytes()
+        self.assertEqual(gzip.decompress(data), self.new)
+        self.assertEqual((root['segment_bytes'], len(root['segments'])), (1024**2, 8))
+        self.assertEqual(sum(root['segments']) + 18, root['bytes'])
+        self.assertEqual(root['raw_crc32'], zlib.crc32(self.new))
+        lengths = root['segments']
+        for wrong in ([lengths[0] + 1, lengths[1] - 1, *lengths[2:]], [*lengths[:-1], lengths[-1] + 1],
+                      [lengths[0] + lengths[1], *lengths[2:]], [*lengths[:-1], lengths[-1] - 1, 1]):
+            manifest = copy.deepcopy(self.manifest)
+            manifest['payloads']['rootfs']['segments'] = wrong
+            self.resign(manifest)
+            with self.subTest(wrong=wrong):
+                self.run_core('queue', expected=1)
+        manifest = copy.deepcopy(self.manifest)
+        manifest['payloads']['rootfs']['segment_bytes'] = 2*1024**2
+        self.resign(manifest)
+        self.run_core('queue', expected=1)
+        self.assertEqual((self.root/'root.img').read_bytes(), self.old)
 
     def test_lost_request_never_loops(self):
         # LK booted BOOTIMG although the request was set: nothing was written,
@@ -574,6 +695,11 @@ class UpdateTests(unittest.TestCase):
         # Still too little space: everything disposable goes, then a clear refusal
         # that names the total the update needs (the rollback copy counts as free).
         disposable()
+        # The kept package of the running release (OTA-50) goes only as the last step.
+        current = self.base/'current'
+        current.mkdir()
+        for name in ('manifest.json', 'manifest.sig', 'rootfs.ext4.gz'):
+            shutil.copy(source/name, current/name)
         manifest = json.loads((source/'manifest.json').read_text())
         payloads = manifest['payloads']
         need = (sum(item['bytes'] for item in payloads.values()) + payloads['rootfs']['raw_bytes']//4 +
@@ -588,7 +714,7 @@ class UpdateTests(unittest.TestCase):
         failed = json.loads((self.base/'download.json').read_text())
         self.assertEqual((failed['failure'], failed['needed_bytes']), ('update_data_space_reserve', need))
         for path in (logs/'deepsleep-old', logs/'system.log.0', platform/'power-journal.previous.jsonl',
-                     platform/'fix02-abc'):
+                     platform/'fix02-abc', current):
             self.assertFalse(path.exists(), path)
         for path in kept + [backup]:
             self.assertTrue(path.exists(), path)
