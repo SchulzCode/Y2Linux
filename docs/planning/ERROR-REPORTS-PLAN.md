@@ -198,3 +198,16 @@ tests run there too). Installed by stage + apply, ≈16 s, Acknowledged 6950. `y
 `send --topic other` built and queued a manual report in **37 s, 409 KB**, 163 sections, all 13 live commands OK;
 the leak search on it found none of the owner's secrets. Afterwards `reports.json` and the queue were removed (state
 back to "not asked") and `/data/ota-96` deleted. Not released.
+
+## R5 screens, test builds 97–98 (2026-10-18)
+
+Reborn `8ba33b3` (screens) and `fbecb77` (question timing): About & Updates > **Error Reports** (switch, What Is
+Sent, Send Report Now with seven topics, install ID with New ID, last report state), the one-time question
+("Help Improve Y2Linux?" No Thanks / Send Reports, both recorded), previews 33b–33g; 542 Reborn tests, strict
+Clippy. Test build 97 (sequence 6951): the question only came when a platform screen (Settings) opened, and the
+test's own scripted presses answered it (reset afterwards). Fixed in test build 98 (sequence 6952, Linux `d9b19cb`):
+one platform observation 20 s after start on any screen, and the question waits for a lit screen, no other dialog
+and 5 s without a button press. On the owner's player the question appeared after the restart without opening
+Settings; **the owner answered Send Reports** (21:47:25 UTC) and opened the page: install ID shown, nothing queued.
+Not published. Known flaky, unrelated: Reborn `lastfm::tests::requests_carry_secrets_only_on_stdin_and_errors_classify`
+failed once under the parallel workspace run, passes alone and on rerun.
