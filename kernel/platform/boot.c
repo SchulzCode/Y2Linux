@@ -59,6 +59,13 @@ static ssize_t metadata_show(struct kobject *kobj, struct kobj_attribute *attr, 
 }
 static struct kobj_attribute metadata_attr = __ATTR_RO(metadata);
 
+/* LK's raw lcm= token, e.g. lcm=1-st7701_hvga_dsi_vdo_boe (empty if absent). */
+static ssize_t lcm_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%s\n", boot_info.lcm);
+}
+static struct kobj_attribute lcm_attr = __ATTR_RO(lcm);
+
 static ssize_t normal_boot_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	return sysfs_emit(buf, "%u\n", y2_normal_boot_enabled());
@@ -82,7 +89,7 @@ static ssize_t normal_boot_store(struct kobject *kobj, struct kobj_attribute *at
 	return ret ? ret : count;
 }
 static struct kobj_attribute normal_boot_attr = __ATTR_RW(normal_boot);
-static struct attribute *y2_boot_attrs[] = { &metadata_attr.attr, &normal_boot_attr.attr, NULL };
+static struct attribute *y2_boot_attrs[] = { &metadata_attr.attr, &lcm_attr.attr, &normal_boot_attr.attr, NULL };
 static const struct attribute_group y2_boot_group = { .attrs = y2_boot_attrs };
 
 static int __init y2_boot_init(void)
@@ -93,9 +100,9 @@ static int __init y2_boot_init(void)
 	 * 0x80000100. It is ordinary retained DRAM, already in the linear map.
 	 * No ATAG is written and no unbounded loader pointer is dereferenced. */
 	boot_info = y2_boot_parse(phys_to_virt(0x80000100), 0x3f00);
-	pr_info("Y2BOOT: loader metadata valid=%d mode=%d reason=%d offline=%d recovery_image=%d; userspace handover pending\n",
+	pr_info("Y2BOOT: loader metadata valid=%d mode=%d reason=%d offline=%d recovery_image=%d lcm='%s'; userspace handover pending\n",
 		boot_info.valid, boot_info.mode, boot_info.reason, y2_boot_offline(&boot_info),
-		recovery_image);
+		recovery_image, boot_info.lcm);
 	kobj = kobject_create_and_add("y2_boot", firmware_kobj);
 	if (!kobj) return -ENOMEM;
 	ret = sysfs_create_group(kobj, &y2_boot_group);

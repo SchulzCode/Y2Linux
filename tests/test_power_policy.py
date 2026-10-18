@@ -51,6 +51,9 @@ int main(void){
   reset();memset(b+20,0,sizeof b-20);word(20,20);word(24,0x54410009);strcpy((char *)b+28,cmd[n][0]);
   i=y2_boot_parse(b,sizeof b);assert(i.valid && i.reason==1 && i.panel==cmd[n][1][0]-'0');
  }
+ reset();memset(b+20,0,sizeof b-20);word(20,20);word(24,0x54410009);strcpy((char *)b+28,"boot_reason=1 lcm=0-st7701_hvga_dsi_vdo_boe x");
+ i=y2_boot_parse(b,sizeof b);assert(i.valid && i.panel==Y2_PANEL_UNKNOWN && !strcmp(i.lcm,"lcm=0-st7701_hvga_dsi_vdo_boe"));
+ reset();i=y2_boot_parse(b,sizeof b);assert(i.valid && !i.lcm[0]);
 }
 ''')
 

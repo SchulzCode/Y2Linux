@@ -8,7 +8,7 @@
 /* panel: LK's lcm=<found>-<name> (stock lcm_compare_id ran in LK): 0 unknown,
  * 1 GC9503V (gc9503v_hvga_dsi_vdo_hsd), 2 ST7701S (st7701_hvga_dsi_vdo_boe),
  * 3 another name. Informational: it never affects validity. */
-struct y2_boot_info { int mode, reason, valid, panel; };
+struct y2_boot_info { int mode, reason, valid, panel; char lcm[48]; };
 #define Y2_PANEL_UNKNOWN 0
 #define Y2_PANEL_GC9503V 1
 #define Y2_PANEL_ST7701S 2
@@ -29,7 +29,7 @@ static inline unsigned y2_boot_word(const unsigned char *p)
 
 static inline struct y2_boot_info y2_boot_parse(const unsigned char *p, unsigned bytes)
 {
-	struct y2_boot_info info = { -1, -1, 0, Y2_PANEL_UNKNOWN };
+	struct y2_boot_info info = { -1, -1, 0, Y2_PANEL_UNKNOWN, "" };
 	unsigned words, tag, size, n, i;
 	int command_seen = 0, end = 0;
 	const char key[] = "boot_reason=";
@@ -52,6 +52,13 @@ static inline struct y2_boot_info y2_boot_parse(const unsigned char *p, unsigned
 			for (i = 8; i < n; i++) {
 				unsigned j;
 				if (i != 8 && p[i - 1] != ' ') continue;
+				/* The raw lcm= token (bounded, printable), for diagnostics. */
+				if (y2_boot_prefix(p, i, n, "lcm=")) {
+					unsigned k;
+					for (k = 0; k < sizeof(info.lcm) - 1 && i + k < n && p[i + k] != ' '; k++)
+						info.lcm[k] = p[i + k] >= 0x20 && p[i + k] < 0x7f ? p[i + k] : '?';
+					info.lcm[k] = 0;
+				}
 				/* lcm=1-<name>: LK found that panel; lcm=0-... means none found. */
 				if (y2_boot_prefix(p, i, n, "lcm=1-"))
 					info.panel = y2_boot_prefix(p, i + 6, n, "gc9503v") ? Y2_PANEL_GC9503V :
