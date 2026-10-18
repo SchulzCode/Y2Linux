@@ -1,6 +1,12 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): #45/#46 SECOND-PLAYER INVESTIGATION — PARSER FIX COMMITTED, UNRELEASED.** REA
+> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.7 (BASELINE 95) PUBLISHED — GC9503V IDENTIFIED FROM LK.** Owner:
+> "publish the release also so i can update from OTA". Report `docs/validation/Y2-LINUX-1.0-BETA-8.7.md`, audit BETA-8.7;
+> release `1.0.0-beta.8.7`, sequence 6900, Linux `f7b4fb5`, Reborn `82fe089`. Owner installs by OTA (check: panel
+> path unchanged, `panel=st7701s` or record). Replies posted on #45/#46 (test steps, LK hash, jack answer). Next free
+> label 96, sequence above 6900.
+>
+> Previous entry: **#45/#46 SECOND-PLAYER INVESTIGATION — PARSER FIX COMMITTED, UNRELEASED.** REA
 > fm-lk 0x81e0af60: LK's list is `[gc9503v, st7701]` (0x81e3821c); the `lcm=` name is the first driver whose
 > compare_id matched, else the last (st7701); the digit is a separate DCS 0x0A read. GC9503V compare (0x81e1eb60) only
 > matches DCS 0x04 = xx 95 03/04, so `lcm=0-gc9503v…` (samanz's boots) is a positive GC9503V ID that boot-policy.h

@@ -8805,3 +8805,16 @@ build 94 (sequence 6800) on the owner's player, identical to this release.
 | Sleep with a level, DAC filter by ear, output measurement | OWED | As in 8.5 |
 
 **Gate decision:** READY for **Y2Linux 1.0.0-beta.8.6** (Baseline 94, sequence 6800) at the owner's word (given).
+
+## BETA-8.7 (Baseline 95) GC9503V identification: milestone gap audit — 2026-10-18
+
+**Boundary:** owner: "publish the release also so i can update from OTA". One localized kernel parser change
+(`boot-policy.h`) for the second panel type; no hardware, memory or packaging scope change.
+
+| Area | State for Beta 8.7 | Evidence / gap |
+| --- | --- | --- |
+| LK panel naming | REA (stock v3.2.0 LK) | List order, fallback and GC9503V compare decoded; reporter's 3.2.1 LK hash requested |
+| ST7701S players | UNCHANGED PATH | Parser keeps `lcm=1-st7701`; host tests |
+| GC9503V players | IDENTIFIED, POWER-DOWN OPT-IN | Reporter's test owed (#45) |
+
+**Gate decision:** READY for **Y2Linux 1.0.0-beta.8.7** (Baseline 95, sequence 6900) at the owner's word (given).

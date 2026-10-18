@@ -6,22 +6,22 @@ Linux 6.18 and a Buildroot userspace for the **Innioasis Y2** music player
 Android system on the internal eMMC and leaves the bootloaders, calibration and
 factory partitions untouched.
 
-> **Status: Y2Linux 1.0 Beta 8.6 (Baseline 94, 2026-10-18), public beta.** It runs every day
+> **Status: Y2Linux 1.0 Beta 8.7 (Baseline 95, 2026-10-18), public beta.** It runs every day
 > on the maintainer's Y2. Install it once from the ready-made images of the
 > [GitHub releases](https://github.com/SchulzCode/Y2Linux/releases) with SP Flash Tool
 > ([INSTALL](docs/INSTALL.md)); after that the player updates itself over Wi-Fi. Only one
 > hardware revision has been tested (see [Supported hardware](#supported-hardware)). Read
 > [Known issues](#known-issues) before you flash: battery life in sleep is not yet stock-like.
 
-| | 1.0 Beta 8.6 (Baseline 94) |
+| | 1.0 Beta 8.7 (Baseline 95) |
 | --- | --- |
-| Git tag (both repositories) | `baseline-94` (previous: `baseline-93`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
-| Release / kernel | `1.0.0-beta.8.6` / `6.18.56-y2linux-1.0.0-beta.8.6` (Linux 6.18 long-term line) |
-| Root filesystem | `2026.08-platform-v1.124` (Buildroot 2026.08) |
-| Player | Y2Reborn 1.0.0-beta.8.6 (Rust 1.99) with the UI v4 design, Cover Flow, Genres, a clock, 16 skins, Last.fm scrobbling and 47 headphone profiles |
+| Git tag (both repositories) | `baseline-95` (previous: `baseline-94`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
+| Release / kernel | `1.0.0-beta.8.7` / `6.18.56-y2linux-1.0.0-beta.8.7` (Linux 6.18 long-term line) |
+| Root filesystem | `2026.08-platform-v1.125` (Buildroot 2026.08) |
+| Player | Y2Reborn 1.0.0-beta.8.7 (Rust 1.99) with the UI v4 design, Cover Flow, Genres, a clock, 16 skins, Last.fm scrobbling and 47 headphone profiles |
 | Bluetooth codecs | SBC, AAC (fdk-aac-free) and LDAC |
 | Main components | GCC 15.3 / glibc 2.44, Mesa 26.2.4, FFmpeg 9.0.2, BlueZ 5.87, OpenSSL 4.0.3, Python 3.15.0 |
-| Images built from | Y2Linux `fd32cdb`, Y2Reborn `cefcc8a` ([Beta 8.6 report](docs/validation/Y2-LINUX-1.0-BETA-8.6.md): audio review fixes, no loudness jumps, less CPU with a profile; [8.5](docs/validation/Y2-LINUX-1.0-BETA-8.5.md): headphone level, headphone profiles, DAC filter; [8.4](docs/validation/Y2-LINUX-1.0-BETA-8.4.md): the dark display after a restart; [8.3](docs/validation/Y2-LINUX-1.0-BETA-8.3.md): the update screens show the seconds left) |
+| Images built from | Y2Linux `f7b4fb5`, Y2Reborn `82fe089` ([Beta 8.7 report](docs/validation/Y2-LINUX-1.0-BETA-8.7.md): GC9503V players identified from LK; [8.6](docs/validation/Y2-LINUX-1.0-BETA-8.6.md): audio review fixes, no loudness jumps, less CPU with a profile; [8.5](docs/validation/Y2-LINUX-1.0-BETA-8.5.md): headphone level, headphone profiles, DAC filter; [8.4](docs/validation/Y2-LINUX-1.0-BETA-8.4.md): the dark display after a restart; [8.3](docs/validation/Y2-LINUX-1.0-BETA-8.3.md): the update screens show the seconds left) |
 
 ## Getting started
 

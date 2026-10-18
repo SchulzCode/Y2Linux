@@ -1,6 +1,12 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.6, Baseline 94 — 2026-10-18 (latest, published)
+## Y2Linux 1.0 Beta 8.7, Baseline 95 — 2026-10-18 (latest, published)
+
+Release `1.0.0-beta.8.7`, tag `baseline-95`, Linux `f7b4fb5`, Reborn `82fe089`, sequence 6900. LK's `gc9503v` panel
+name counts with either `lcm=` digit (stock LK names the first driver whose compare_id matched), so GC9503V players
+are identified (#45/#46); the GC9503V power-down stays opt-in. Details: [Beta 8.7 report](validation/Y2-LINUX-1.0-BETA-8.7.md).
+
+## Y2Linux 1.0 Beta 8.6, Baseline 94 — 2026-10-18 (published)
 
 Release `1.0.0-beta.8.6`, tag `baseline-94`, Linux `fd32cdb`, Reborn `cefcc8a`, sequence 6800. Audio playback review:
 the headphone level is written under DAPM's lock, `hpload_measure` refuses an open stream, fades carry over restarts
