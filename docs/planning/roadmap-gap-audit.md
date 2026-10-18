@@ -8789,3 +8789,19 @@ No hardware, memory or packaging scope change. Real-hardware evidence: Beta 8.5 
 
 **Gate decision:** host work complete (Linux host suite 805 OK, Reborn 539 tests, fmt, strict Clippy); test build 94
 on the owner's player passed the checks above. A release needs the owner's word.
+
+## BETA-8.6 (Baseline 94) audio playback review: milestone gap audit — 2026-10-18
+
+**Boundary:** owner: "publish as a new update, once you deem this good". The AUDIO-REVIEW-8.5 fixes as a release;
+no hardware, memory or packaging scope change beyond a new test fixture (not shipped). Real-hardware evidence: test
+build 94 (sequence 6800) on the owner's player, identical to this release.
+
+| Area | State for Beta 8.6 | Evidence / gap |
+| --- | --- | --- |
+| Level write under DAPM, hpload refusal | DEVICE-TESTED (behaviour) | Registers per level, `EBUSY` while playing; the race itself is not triggerable |
+| Fades, held pause, same level | DEVICE-TESTED | `dsp_rise_fade`, `fade_continued`, `pause_released`, no restart |
+| Profile list, hi-res preamp | DEVICE-TESTED | No license entry; AirPods Pro −6.1 dB in the graph |
+| CPU with a profile | DEVICE-MEASURED | Floor 598 MHz (was 747.5), ≥16 % fewer decode cycles; current not measured |
+| Sleep with a level, DAC filter by ear, output measurement | OWED | As in 8.5 |
+
+**Gate decision:** READY for **Y2Linux 1.0.0-beta.8.6** (Baseline 94, sequence 6800) at the owner's word (given).

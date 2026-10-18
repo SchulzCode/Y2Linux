@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.5, Baseline 93 — 2026-10-18 (latest, published)
+## Y2Linux 1.0 Beta 8.6, Baseline 94 — 2026-10-18 (latest, published)
+
+Release `1.0.0-beta.8.6`, tag `baseline-94`, Linux `fd32cdb`, Reborn `cefcc8a`, sequence 6800. Audio playback review:
+the headphone level is written under DAPM's lock, `hpload_measure` refuses an open stream, fades carry over restarts
+and louder sound settings fade in, held pauses take new settings, an equalizer no longer holds the CPU at 747.5 MHz,
+one filter-graph thread, preamp over 44.1–384 kHz. On the owner's player as test build 94. Details:
+[Beta 8.6 report](validation/Y2-LINUX-1.0-BETA-8.6.md).
+
+## Y2Linux 1.0 Beta 8.5, Baseline 93 — 2026-10-18 (published)
 
 Release `1.0.0-beta.8.5`, tag `baseline-93`, Linux `04e2dc8`, Reborn `b694670`, sequence 6752. Headphone output
 level (kernel `HP Output Level`, default Low = stock, written only while the amplifier is down; Master −19.5 dB),

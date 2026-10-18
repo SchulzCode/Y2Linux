@@ -1,8 +1,11 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): AUDIO PLAYBACK REVIEW AFTER BETA 8.5 — TEST BUILD 94 (1.0.0-beta.8.6, SEQUENCE
-> 6800) ON THE OWNER'S PLAYER, NOT PUBLISHED.** Owner asked for a review of all audio playback, then "do it all", then
-> "do the test on the player".
+> **START HERE (2026-10-18, latest): Y2LINUX 1.0 BETA 8.6 (BASELINE 94) PUBLISHED — AUDIO PLAYBACK REVIEW.** Owner:
+> "publish as a new update, once you deem this good". Report `docs/validation/Y2-LINUX-1.0-BETA-8.6.md`, audits
+> AUDIO-REVIEW-8.5 and BETA-8.6; the owner's player runs test build 94 = this release (`/data/ota-94` deleted).
+> Next free label 95, sequence above 6800. Owed: battery current with a profile (USB unplugged), DAC Filter by ear,
+> sleep with a level, the output measurements of HEADPHONE-OUTPUT.md. History of the work:
+> Owner asked for a review of all audio playback, then "do it all", then "do the test on the player".
 > - **Test build 94:** Linux `fd32cdb`, Reborn `cefcc8a`, `release.py build --label 94` (148 s, container suite 778,
 >   no firmware); stage + apply over SSH (owner approved each step in /permissions), install ≈16 s, Acknowledged 6800.
 >   Pre-existing, unrelated: a Python `OSError: [Errno 22]` line in kmsg at ≈29 s on every boot since 8.5.

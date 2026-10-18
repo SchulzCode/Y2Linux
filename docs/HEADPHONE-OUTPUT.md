@@ -1,7 +1,7 @@
 # Headphone output: level, equalizer profiles, DAC filter and measurement
 
-Status 2026-10-18: released in Beta 8.5 (Baseline 93); device results in the
-[Beta 8.5 report](validation/Y2-LINUX-1.0-BETA-8.5.md). No output has been measured yet. Audit row HP-LEVEL-EQ in
+Status 2026-10-18: released in Beta 8.5 (Baseline 93), review fixes in Beta 8.6 (Baseline 94); device results in the
+[Beta 8.5](validation/Y2-LINUX-1.0-BETA-8.5.md) and [Beta 8.6](validation/Y2-LINUX-1.0-BETA-8.6.md) reports. No output has been measured yet. Audit row HP-LEVEL-EQ in
 [roadmap-gap-audit](planning/roadmap-gap-audit.md).
 
 ## What the hardware does
