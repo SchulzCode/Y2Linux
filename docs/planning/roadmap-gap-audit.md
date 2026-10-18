@@ -8784,7 +8784,8 @@ No hardware, memory or packaging scope change. Real-hardware evidence: Beta 8.5 
 | Profile clip safety | FIXED (host) | Preamp covers 44.1–384 kHz source rates; limiter holds a +6 dB ReplayGain full profile at S24/S16 (new fixture) |
 | Shipped profile list | FIXED (host) | License file no longer listed as a profile |
 | Battery with a profile | CHANGED, NOT MEASURED | One graph thread (host −20…−43 % CPU, bit-identical); no PlaybackHeavy floor/latency for EQ. Device CPU and mA owed |
-| Settings screens, fades, sleep with a level | OWED | Button checks listed in the handoff |
+| Settings screens, fades, sleep with a level | DEVICE-TESTED (test build 94, sequence 6800) except sleep | Profile list, `dsp_rise_fade`, `pause_released`, no restart for the same level, `level_raise_fade` → `fade_continued` after Next, registers per level, `hpload_measure` EBUSY while playing |
+| Battery with a profile (device) | PARTLY MEASURED | Floor 747.5 → 598 MHz, ≥16 % fewer decode-thread cycles, half the idle entries; deep idle blocked by audio either way; mA owed |
 
-**Gate decision:** host work complete (Linux host suite 805 OK, Reborn 539 tests, fmt, strict Clippy). A test build
-on the player and any release need the owner's word.
+**Gate decision:** host work complete (Linux host suite 805 OK, Reborn 539 tests, fmt, strict Clippy); test build 94
+on the owner's player passed the checks above. A release needs the owner's word.

@@ -1,7 +1,30 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-18, latest): AUDIO PLAYBACK REVIEW AFTER BETA 8.5 — FIXES HOST-TESTED, NOT BUILT.** Owner
-> asked for a review of all audio playback, then "do it all". Audit AUDIO-REVIEW-8.5; Reborn `0b55cbb` (+ docs `86b7baa`), state "Unreleased —
+> **START HERE (2026-10-18, latest): AUDIO PLAYBACK REVIEW AFTER BETA 8.5 — TEST BUILD 94 (1.0.0-beta.8.6, SEQUENCE
+> 6800) ON THE OWNER'S PLAYER, NOT PUBLISHED.** Owner asked for a review of all audio playback, then "do it all", then
+> "do the test on the player".
+> - **Test build 94:** Linux `fd32cdb`, Reborn `cefcc8a`, `release.py build --label 94` (148 s, container suite 778,
+>   no firmware); stage + apply over SSH (owner approved each step in /permissions), install ≈16 s, Acknowledged 6800.
+>   Pre-existing, unrelated: a Python `OSError: [Errno 22]` line in kmsg at ≈29 s on every boot since 8.5.
+> - **Device results (buttons pressed over SSH by writing evdev records to the real input nodes — no uinput needed;
+>   screen via `/data/system/capture/y2-screen-stream`; a short Power press wakes a dark screen, Select/Back/wheel are
+>   ignored while dark):** profile list K→M has no "LICENSE-AutoEq"; profile off while playing → `dsp_rise_fade`
+>   2000 ms, back on → no fade (preamp −6.1 for AirPods Pro, P1); EQ change in a held pause → `pause_released`;
+>   pressing the checked level → no restart; High while playing → `level_raise_fade`, Next 0.7 s later →
+>   `fade_continued` 907 ms (no jump); High = 0x30/0x1E Live High, Low = 0x10/0x1C, Master −19.5 dB, 0 xruns;
+>   `hpload_measure` during playback → EBUSY. No kernel warnings.
+> - **CPU/battery (60 s, owner's AirPods Pro profile, same song, `python3 measure.py` with cpufreq time_in_state):**
+>   8.5: Reborn 17.9 % of one core (playback thread 12.0 %), CPU floor 747.5 MHz the whole time, SLIDLE/DORMANT 0,
+>   WFI entries 68 248/min. 8.6: floor 598 MHz (avg 608 MHz), Reborn ≈118 MHz-equivalent (playback ≈75 MHz vs ≥90
+>   on 8.5, ≥16 % fewer cycles), WFI entries 30 443/min (fewer wake-ups); profile off: playback 4.6 % ≈29 MHz, so a
+>   10-band profile still costs ≈46 MHz of the decode thread. Deep idle stays 0 during any playback (the INFRA-audio
+>   rule, see the awake-idle analysis), so D1 saves the frequency floor, not idle states. mA not measured (USB on).
+> - **Side effects:** test playback scrobbled one song to the owner's Last.fm. Restored afterwards: track 500 at
+>   1:21.7 paused, volume 47 (30 during the level tests), Low, Fast, AirPods Pro, Normalize Track. `/data/ota-94`
+>   (59 MB copy of the package) left on the player.
+> - **Not checked on the player:** volume up during a fade (unit test only), DAC Filter click (listening), sleep
+>   with a level (USB connected), the A1 race itself (not triggerable on purpose).
+> - Earlier, host stage of the same work: Audit AUDIO-REVIEW-8.5; Reborn `0b55cbb` (+ docs `86b7baa`), state "Unreleased —
 > audio playback review". Nothing was built for the player, written to it or published.
 > - **Kernel (0030, Linux):** the level's PDN_HP check and write now run under the card's DAPM mutex (before, a
 >   stream starting between check and write could get OUT_FS written with the amplifier on); `hpload_measure`
