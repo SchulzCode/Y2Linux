@@ -17,6 +17,7 @@
 #include <linux/of_address.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
+#include <linux/reboot.h>
 #include "clocks.h"
 #include "spm.h"
 
@@ -265,12 +266,45 @@ EXPORT_SYMBOL_GPL(y2_mm_release_loader_hold);
 static void y2_mm_take_loader_hold(struct device *dev)
 {
 	struct clk *smi = mm_idle_clocks[CLK_MM_SMI_COMMON], *larb = mm_idle_clocks[CLK_MM_SMI_LARB0];
-	if (!smi || !larb || !__clk_is_enabled(smi)) return; /* LK left no display path */
+	if (!smi || !larb) return;
+	if (!__clk_is_enabled(smi)) {
+		/* Before Lima or the display ran: the previous kernel's restart
+		 * left the gate closed (see y2_mm_restart), and LK's first fetch
+		 * through larb0 is stuck (2026-10-18, Beta 8.3 OTA). */
+		if (mm_idle_base && y2_spm_disp_status() == 1)
+			dev_warn(dev, "SMI common gated before Linux touched it: CG_CON0=%08x larb0 stat=%08x greq=%08x\n",
+				 readl(mm_idle_base + 0x100), readl(mm_idle_base + 0x10000),
+				 readl(mm_idle_base + 0x10450));
+		return;
+	}
 	if (clk_prepare_enable(smi)) return;
 	if (clk_prepare_enable(larb)) { clk_disable_unprepare(smi); return; }
 	loader_hold = true;
 	dev_info(dev, "holding SMI common/larb0 for the loader display until the display takes over\n");
 }
+/* POWER-FINAL-42, back in Beta 8.4: a software restart (watchdog reset)
+ * keeps MMSYS_CG_CON0. At shutdown DRM disables the display and drops its
+ * SMI references; with Lima idle the SMI common gate closes, and when the
+ * restart comes before the DIS domain has powered down the closed gate
+ * survives into LK, whose first fetch then wedges larb0 for good (40/41;
+ * the 8.3 OTA restart on 2026-10-18: no hold taken at probe, "SMI gates 1
+ * left closed" at handover, no frame). 43 removed this handler because its
+ * own test restarts were dark for a second reason, Lima closing the gate
+ * during the next boot, which y2_mm_take_loader_hold() now covers. As the
+ * last step before the watchdog handler, after every driver has shut down,
+ * reopen both gates so LK finds the cold-start state. Only with the DIS
+ * domain powered (read from SPM, no lock: other CPUs are stopped); a
+ * powered-down domain comes back with its gates open anyway. */
+static int y2_mm_restart(struct notifier_block *nb, unsigned long mode, void *cmd)
+{
+	if (mm_idle_base && y2_spm_disp_status() == 1)
+		writel(0x3, mm_idle_base + 0x108); /* MMSYS_CG_CLR0: SMI common, larb0 */
+	return NOTIFY_DONE;
+}
+static struct notifier_block y2_mm_restart_nb = {
+	.notifier_call = y2_mm_restart,
+	.priority = 255, /* before the watchdog restart handler (128) */
+};
 static int y2_mm_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *data;
@@ -305,6 +339,11 @@ static int y2_mm_probe(struct platform_device *pdev)
 		}
 	}
 	y2_mm_take_loader_hold(&pdev->dev);
+	{
+		static bool restart_registered;
+		if (!restart_registered && !register_restart_handler(&y2_mm_restart_nb))
+			restart_registered = true;
+	}
 	return 0;
 }
 

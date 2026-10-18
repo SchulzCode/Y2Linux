@@ -115,6 +115,42 @@ int main(void) {
         boot = (ROOT / 'tools/platform/y2_platform/boot.py').read_text()
         self.assertIn("if stage == 'application_ready':", boot)
 
+    def test_a_restart_leaves_the_smi_gates_open_for_lk(self):
+        # Beta 8.4 (POWER-FINAL-42 back): a watchdog restart keeps
+        # MMSYS_CG_CON0; the last restart handler reopens SMI common/larb0
+        # while DIS is powered, and the hold of 43 still covers Lima.
+        mm = (PLATFORM / 'mm-clocks.c').read_text()
+        handler = mm[mm.index('static int y2_mm_restart'):mm.index('static struct notifier_block y2_mm_restart_nb')]
+        self.assertIn('.priority = 255, /* before the watchdog restart handler (128) */', mm)
+        probe = mm[mm.index('static int y2_mm_probe'):]
+        self.assertLess(probe.index('y2_mm_take_loader_hold(&pdev->dev);'),
+                        probe.index('register_restart_handler(&y2_mm_restart_nb)'))
+        hold = mm[mm.index('static void y2_mm_take_loader_hold'):mm.index('static int y2_mm_restart')]
+        self.assertIn('SMI common gated before Linux touched it', hold)
+        self.assertLess(hold.index('if (!__clk_is_enabled(smi))'), hold.index('loader_hold = true'))
+        run_c(r'''
+#include <assert.h>
+#define __iomem
+#define NOTIFY_DONE 0
+struct notifier_block;
+static unsigned registers[0x12000 / 4], writes;
+static void *mm_idle_base = registers;
+static int powered;
+static int y2_spm_disp_status(void) { return powered; }
+static void writel(unsigned value, void *address) {
+ assert((char *)address == (char *)registers + 0x108); /* MMSYS_CG_CLR0 only */
+ assert(value == 0x3); writes++;
+}
+''' + handler + r'''
+int main(void) {
+ powered = 0; assert(y2_mm_restart(0, 0, 0) == NOTIFY_DONE && writes == 0); /* off: comes back open */
+ powered = -19; y2_mm_restart(0, 0, 0); assert(writes == 0);
+ powered = 1; y2_mm_restart(0, 0, 0); assert(writes == 1);
+ mm_idle_base = 0; y2_mm_restart(0, 0, 0); assert(writes == 1);
+ return 0;
+}
+''')
+
 
 if __name__ == '__main__':
     unittest.main()
