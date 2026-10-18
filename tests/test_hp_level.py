@@ -36,10 +36,19 @@ static void mutex_lock(struct mutex *m) { assert(!m->held); m->held = 1; }
 static void mutex_unlock(struct mutex *m) { assert(m->held); m->held = 0; }
 struct regmap { unsigned reg[6]; int read_error; unsigned level_writes; };
 struct reg_sequence { unsigned reg, def; };
-struct cs43130_private { struct regmap *regmap; int dev_id; };
+struct snd_soc_component;
+struct cs43130_private { struct regmap *regmap; int dev_id; struct snd_soc_component *component; };
+/* DAPM powers the amplifier under the card's DAPM mutex (modelled as a flag). */
+struct snd_soc_card { int dapm_held; };
+static struct snd_soc_card card;
+static int bound(void);
+static void snd_soc_dapm_mutex_lock(struct snd_soc_card *c) { assert(!c->dapm_held); c->dapm_held = 1; }
+static void snd_soc_dapm_mutex_unlock(struct snd_soc_card *c) { assert(c->dapm_held); c->dapm_held = 0; }
 static struct regmap map;
-static struct cs43130_private codec = { &map, CS43131_CHIP_ID };
+static struct cs43130_private codec = { &map, CS43131_CHIP_ID, 0 };
 static int regmap_read(struct regmap *m, unsigned r, unsigned *v) {
+ /* The PDN_HP check and the write after it are one step under DAPM. */
+ if (r == CS43130_PWDN_CTL) assert(!bound() || card.dapm_held);
  if (m->read_error && r == CS43130_PWDN_CTL) return m->read_error;
  *v = m->reg[r]; return 0;
 }
@@ -47,6 +56,7 @@ static int regmap_update_bits(struct regmap *m, unsigned r, unsigned mask, unsig
  /* DS1155F2: OUT_FS only while PDN_HP is set; never touch a live output. */
  assert(m->reg[CS43130_PWDN_CTL] & CS43130_PDN_HP_MASK);
  assert(r == CS43130_HP_OUT_CTL_1 || r == CS43130_CLASS_H_CTL);
+ assert(!bound() || card.dapm_held);
  m->reg[r] = (m->reg[r] & ~mask) | v; m->level_writes++; return 0;
 }
 static int regmap_write(struct regmap *m, unsigned r, unsigned v) { m->reg[r] = v; return 0; }
@@ -61,8 +71,9 @@ static const struct reg_sequence pop_free_seq2[] = { {CS43130_DXD13, 0x20} };
 static const struct reg_sequence dac_postpmu_seq[] = { {CS43130_DXD12, 0} };
 static const struct reg_sequence dac_postpmd_seq[] = { {CS43130_DXD12, 0} };
 /* ASoC shims for the control callbacks and the DAPM event. */
-struct snd_soc_component { struct cs43130_private *data; };
-static struct snd_soc_component component = { &codec };
+struct snd_soc_component { struct cs43130_private *data; struct snd_soc_card *card; };
+static struct snd_soc_component component = { &codec, &card };
+static int bound(void) { return codec.component && codec.component->card; }
 struct snd_kcontrol { int unused; };
 struct snd_soc_dapm_context { struct snd_soc_component *component; };
 struct snd_soc_dapm_widget { struct snd_soc_dapm_context *dapm; };
@@ -82,7 +93,8 @@ static int sysfs_emit(char *b, const char *f, ...) {
 static int sysfs_match_string(const char *const *names, const char *b) {
  for (int i = 0; i < 3; i++) if (!strncmp(names[i], b, strlen(names[i]))) return i; return -EINVAL;
 }
-''' + tables + function(source, 'y2_hp_level_write') + function(source, 'y2_hp_level_set')
+''' + tables + function(source, 'y2_hp_level_write') + function(source, 'y2_hp_dapm_lock')
+           + function(source, 'y2_hp_dapm_unlock') + function(source, 'y2_hp_level_set')
            + function(source, 'y2_hp_level_live') + enums + function(source, 'y2_hp_level_get')
            + function(source, 'y2_hp_level_put') + function(source, 'y2_hp_live_get')
            + function(source, 'cs43130_dac_event') + sysfs_names
@@ -92,7 +104,11 @@ static struct snd_soc_dapm_widget dac = { &dapm };
 static unsigned get(void) { struct snd_ctl_elem_value v = {0}; assert(!y2_hp_level_get(0, &v)); return v.value.enumerated.item[0]; }
 static int put(unsigned i) { struct snd_ctl_elem_value v = {0}; v.value.enumerated.item[0] = i; return y2_hp_level_put(0, &v); }
 static unsigned live(void) { struct snd_ctl_elem_value v = {0}; assert(!y2_hp_live_get(0, &v)); return v.value.enumerated.item[0]; }
-static void power_up(void) { assert(!cs43130_dac_event(&dac, 0, SND_SOC_DAPM_PRE_PMU)); map.reg[CS43130_PWDN_CTL] &= ~CS43130_PDN_HP_MASK; }
+static void power_up(void) {
+ snd_soc_dapm_mutex_lock(&card); /* DAPM: PRE_PMU, then the PDN_HP write */
+ assert(!cs43130_dac_event(&dac, 0, SND_SOC_DAPM_PRE_PMU)); map.reg[CS43130_PWDN_CTL] &= ~CS43130_PDN_HP_MASK;
+ snd_soc_dapm_mutex_unlock(&card);
+}
 static void power_down(void) { map.reg[CS43130_PWDN_CTL] |= CS43130_PDN_HP_MASK; }
 int main(void) {
  char buf[32];
@@ -103,7 +119,10 @@ int main(void) {
  map.reg[CS43130_PWDN_CTL] = 0xfe; map.reg[CS43130_HP_OUT_CTL_1] = 0x30 | 0x08 | 0x80;
  map.reg[CS43130_CLASS_H_CTL] = 0x1e;
  assert(get() == 0 && live() == 2);              /* before probe: reset High */
- assert(y2_hp_level_set(&codec, 0) == 0);         /* probe: default Low, no change */
+ assert(y2_hp_level_set(&codec, 2) == 1);         /* sysfs before the card binds: no DAPM yet */
+ assert(y2_hp_level_set(&codec, 0) == 1 && !card.dapm_held);
+ codec.component = &component;                    /* bound: every check runs under DAPM */
+ assert(y2_hp_level_set(&codec, 0) == 0 && !card.dapm_held); /* probe: default Low, no change */
  assert(map.reg[CS43130_HP_OUT_CTL_1] == (0x10 | 0x08 | 0x80) && map.reg[CS43130_CLASS_H_CTL] == 0x1c);
  assert(live() == 0 && hp_gain_show(&dev, 0, buf) > 0 && !strcmp(buf, "low\n"));
  /* Down: a request is written at once and reported as changed. */
@@ -130,6 +149,7 @@ int main(void) {
  assert(hp_gain_show(&dev, 0, buf) > 0 && !strcmp(buf, "raw:00\n"));
  map.reg[CS43130_HP_OUT_CTL_1] = 0x30; map.reg[CS43130_CLASS_H_CTL] = 0x1c; assert(live() == 3);
  assert(hp_gain_store(&dev, 0, "loud\n", 5) == -EINVAL);
+ assert(!card.dapm_held);
  return 0;
 }
 ''')
@@ -148,6 +168,12 @@ int main(void) {
         self.assertLess(pre.index('y2_hp_level_write(cs43130);'), pre.index('pop_free_seq'))
         measure = function(source, 'hpload_measure_store')
         self.assertLess(measure.index('cs43130_imp_meas(&cs43130->work);'), measure.index('y2_hp_level_write(cs43130);'))
+        # No stream may start (and power the amplifier) during a measurement:
+        # DAPM is held from the open-stream check to after the level write.
+        lock, unlock = measure.index('card = y2_hp_dapm_lock(cs43130);'), measure.index('y2_hp_dapm_unlock(card);')
+        self.assertLess(lock, measure.index('snd_soc_component_active(cs43130->component)'))
+        self.assertLess(measure.index('y2_hp_level_write(cs43130);'), unlock)
+        self.assertLess(unlock, measure.index('pm_runtime_put(dev);'))
 
 
 class ShippedProfiles(unittest.TestCase):

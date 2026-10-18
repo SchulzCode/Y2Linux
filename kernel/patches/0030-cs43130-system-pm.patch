@@ -19,7 +19,7 @@
  		return true;
  	default:
  		return false;
-@@ -1111,6 +1116,106 @@
+@@ -1111,6 +1116,128 @@
  static SOC_VALUE_ENUM_SINGLE_DECL(dsd_enum, CS43130_DSD_INT_CFG, 0, 0x03,
  				  dsd_texts, dsd_values);
  
@@ -54,15 +54,36 @@
 +				  Y2_HP_OUT_FS_MASK, y2_hp_out_fs[y2_hp_level]);
 +}
 +
++/* DAPM clears PDN_HP under the card's DAPM mutex, right after the "HiFi DAC"
++ * PRE_PMU has written the level. Holding it makes a PDN_HP check and the
++ * write after it one step. NULL before the card binds: nothing can power the
++ * amplifier then. Lock order: DAPM mutex, then y2_hp_level_lock. */
++static struct snd_soc_card *y2_hp_dapm_lock(struct cs43130_private *cs43130)
++{
++	struct snd_soc_card *card = cs43130->component ? cs43130->component->card : NULL;
++
++	if (card)
++		snd_soc_dapm_mutex_lock(card);
++	return card;
++}
++
++static void y2_hp_dapm_unlock(struct snd_soc_card *card)
++{
++	if (card)
++		snd_soc_dapm_mutex_unlock(card);
++}
++
 +/* Request a level: written now while the amplifier is down, otherwise at its
 + * next power-up. Returns 1 when the request changed. */
 +static int y2_hp_level_set(struct cs43130_private *cs43130, unsigned int level)
 +{
++	struct snd_soc_card *card;
 +	unsigned int pwdn;
 +	int changed, ret = 0;
 +
 +	if (level >= Y2_HP_LEVELS)
 +		return -EINVAL;
++	card = y2_hp_dapm_lock(cs43130);
 +	mutex_lock(&y2_hp_level_lock);
 +	changed = y2_hp_level != level;
 +	y2_hp_level = level;
@@ -71,6 +92,7 @@
 +	    (pwdn & CS43130_PDN_HP_MASK))
 +		ret = y2_hp_level_write(cs43130);
 +	mutex_unlock(&y2_hp_level_lock);
++	y2_hp_dapm_unlock(card);
 +	return ret ? ret : changed;
 +}
 +
@@ -126,7 +148,7 @@
  static const struct snd_kcontrol_new cs43130_snd_controls[] = {
  	SOC_DOUBLE_R_TLV("Master Playback Volume",
  			 CS43130_PCM_VOL_A, CS43130_PCM_VOL_B, 0, 0xFF, 1,
-@@ -1126,6 +1231,16 @@
+@@ -1126,6 +1253,16 @@
  	SOC_SINGLE("PCM High-pass Filter", CS43130_PCM_FILT_OPT, 1, 1, 0),
  	SOC_SINGLE("PCM De-emphasis Filter", CS43130_PCM_FILT_OPT, 0, 1, 0),
  	SOC_ENUM("DSD Phase Modulation", dsd_enum),
@@ -143,7 +165,7 @@
  };
  
  static const struct reg_sequence pcm_seq[] = {
-@@ -1314,6 +1429,10 @@
+@@ -1314,6 +1451,10 @@
  
  	switch (event) {
  	case SND_SOC_DAPM_PRE_PMU:
@@ -154,7 +176,7 @@
  		switch (cs43130->dev_id) {
  		case CS43130_CHIP_ID:
  		case CS4399_CHIP_ID:
-@@ -2062,16 +2181,41 @@
+@@ -2062,16 +2203,41 @@
  				   ac_reg_val >> CS43130_HP_MEAS_LOAD_2_SHIFT);
  	}
  
@@ -197,7 +219,7 @@
  
  	dev_dbg(cs43130->dev, "HP load stat: %x, INT_MASK_4: %x\n",
  		cs43130->hpload_stat, msk);
-@@ -2116,6 +2260,12 @@
+@@ -2116,6 +2282,12 @@
  	return 0;
  }
  
@@ -210,7 +232,7 @@
  static void cs43130_imp_meas(struct work_struct *wk)
  {
  	unsigned int reg, seq_size;
-@@ -2164,6 +2314,13 @@
+@@ -2164,6 +2336,13 @@
  	i = 0;
  	ac_idx = 0;
  	while (i < seq_size) {
@@ -224,7 +246,7 @@
  		ret = cs43130_hpload_proc(cs43130, hpload_seq[i].seq,
  					  hpload_seq[i].size,
  					  hpload_seq[i].msk, ac_idx);
-@@ -2183,6 +2340,16 @@
+@@ -2183,6 +2362,16 @@
  	}
  	cs43130->hpload_done = true;
  
@@ -241,10 +263,11 @@
  	if (cs43130->hpload_dc[HP_LEFT] >= CS43130_LINEOUT_LOAD)
  		snd_soc_jack_report(&cs43130->jack, CS43130_JACK_LINEOUT,
  				    CS43130_JACK_MASK);
-@@ -2223,6 +2390,141 @@
+@@ -2222,6 +2411,148 @@
+ 		cs43130_change_clksrc(component, CS43130_MCLK_SRC_RCO);
  	mutex_unlock(&cs43130->clk_mutex);
  }
- 
++
 +/*
 + * Y2: headphone load measurement on demand. The Y2 powers the codec only
 + * while it is used and has no codec interrupt wired, so measurement runs on
@@ -308,6 +331,7 @@
 +				    const char *buf, size_t count)
 +{
 +	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
++	struct snd_soc_card *card;
 +	unsigned int status = 0;
 +	int ret;
 +
@@ -317,8 +341,13 @@
 +	ret = pm_runtime_resume_and_get(dev);
 +	if (ret < 0)
 +		goto unlock;
++	/* Held for the whole measurement: no stream powers the amplifier while
++	 * imp_meas and the level below write HP_OUT_CTL_1. */
++	card = y2_hp_dapm_lock(cs43130);
 +	mutex_lock(&cs43130->clk_mutex);
-+	ret = cs43130->clk_req ? -EBUSY : 0; /* a stream owns the clocks */
++	/* A stream owns the clocks, or one is open and may start any moment. */
++	ret = cs43130->clk_req || snd_soc_component_active(cs43130->component) ?
++		-EBUSY : 0;
 +	mutex_unlock(&cs43130->clk_mutex);
 +	if (!ret) {
 +		/* The codec was powered from off: let its plug detector (stock
@@ -342,6 +371,7 @@
 +			}
 +		}
 +	}
++	y2_hp_dapm_unlock(card);
 +	pm_runtime_put(dev);
 +unlock:
 +	mutex_unlock(&y2_hp_lock);
@@ -379,24 +409,23 @@
 +	.name = "y2_hp",
 +	.attrs = y2_hp_attrs,
 +};
-+
+ 
  static irqreturn_t cs43130_irq_thread(int irq, void *data)
  {
- 	struct cs43130_private *cs43130 = (struct cs43130_private *)data;
-@@ -2358,6 +2660,12 @@
+@@ -2357,6 +2688,12 @@
+ 		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
  				   CS43130_XTAL_ERR_INT, 0);
  	}
- 
++
 +	/* Y2: the default level instead of the reset value (High), so the
 +	 * readback is right before the first stream; the amplifier is down. */
 +	ret = y2_hp_level_set(cs43130, y2_hp_level);
 +	if (ret < 0)
 +		return ret;
-+
+ 
  	ret = snd_soc_card_jack_new(card, "Headphone", CS43130_JACK_MASK,
  				    &cs43130->jack);
- 	if (ret < 0) {
-@@ -2475,13 +2783,16 @@
+@@ -2475,13 +2812,16 @@
  	cs43130->dc_meas = device_property_read_bool(cs43130->dev, "cirrus,dc-measure");
  	cs43130->ac_meas = device_property_read_bool(cs43130->dev, "cirrus,ac-measure");
  
@@ -415,7 +444,7 @@
  				       cs43130->dc_threshold,
  				       CS43130_DC_THRESHOLD)) {
  		for (i = 0; i < CS43130_DC_THRESHOLD; i++)
-@@ -2608,6 +2919,10 @@
+@@ -2608,6 +2948,10 @@
  	pm_runtime_set_active(cs43130->dev);
  	pm_runtime_enable(cs43130->dev);
  
@@ -426,7 +455,7 @@
  	switch (cs43130->dev_id) {
  	case CS43130_CHIP_ID:
  	case CS43131_CHIP_ID:
-@@ -2672,62 +2987,130 @@
+@@ -2672,62 +3016,130 @@
  	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
  }
  
@@ -470,10 +499,11 @@
  static int cs43130_runtime_suspend(struct device *dev)
  {
  	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
-+	int ret, restore;
- 
+-
 -	if (cs43130->xtal_ibias != CS43130_XTAL_UNUSED)
 -		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
++	int ret, restore;
++
 +	if (cs43130->xtal_ibias != CS43130_XTAL_UNUSED) {
 +		ret = regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
  				   CS43130_XTAL_ERR_INT,
@@ -510,8 +540,9 @@
  {
  	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
 -	int ret;
+-
 +	int ret, cleanup;
- 
++
 +	/* jiffies stamps separate slow rail enables from a stalled timer tick. */
 +	cs43130_pm_note("cs_jiffies_begin", (int)jiffies);
 +	cs43130_pm_note("cs_rails_begin", 0);
@@ -529,36 +560,40 @@
 -	gpiod_set_value_cansleep(cs43130->reset_gpio, 1);
 -
 -	usleep_range(2000, 2050);
-+	ret = cs43130_restore_cache(cs43130);
-+	if (!ret)
-+		return 0;
- 
+-
 -	ret = regcache_sync(cs43130->regmap);
 -	if (ret != 0) {
 -		dev_err(dev, "Failed to restore register cache\n");
 -		goto err;
+-	}
+-
+-	if (cs43130->xtal_ibias != CS43130_XTAL_UNUSED)
+-		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
+-				   CS43130_XTAL_ERR_INT, 0);
+-
+-	return 0;
+-err:
++	ret = cs43130_restore_cache(cs43130);
++	if (!ret)
++		return 0;
++
 +	dev_err(dev, "Failed to restore codec state: %d\n", ret);
-+	regcache_cache_only(cs43130->regmap, true);
+ 	regcache_cache_only(cs43130->regmap, true);
+-	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
+-
 +	gpiod_set_value_cansleep(cs43130->reset_gpio, 0);
 +	cleanup = regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
 +	if (cleanup) {
 +		cs43130_pm_note("cs_cleanup_fail", cleanup);
 +		dev_err(dev, "Failed to disable supplies after restore error: %d\n", cleanup);
- 	}
++	}
 +	return ret;
 +}
- 
--	if (cs43130->xtal_ibias != CS43130_XTAL_UNUSED)
--		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
--				   CS43130_XTAL_ERR_INT, 0);
++
 +static int cs43130_system_suspend(struct device *dev)
 +{
 +	int ret;
- 
--	return 0;
--err:
--	regcache_cache_only(cs43130->regmap, true);
--	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
++
 +	cs43130_pm_note("cs_sleep_begin", 0);
 +	ret = pm_runtime_force_suspend(dev);
 +	cs43130_pm_note("cs_sleep_done", ret);
@@ -568,7 +603,7 @@
 +static int cs43130_system_resume(struct device *dev)
 +{
 +	int ret;
- 
++
 +	cs43130_pm_note("cs_force_begin", 0);
 +	ret = pm_runtime_force_resume(dev);
 +	cs43130_pm_note("cs_force_done", ret);
