@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.7, Baseline 95 — 2026-10-18 (latest, published)
+## Y2Linux 1.0 Beta 8.8, Baseline 101 — 2026-10-19 (latest, published)
+
+Release `1.0.0-beta.8.8`, tag `baseline-101`, Linux `be71b6d`, Reborn `b6b6fbc`, sequence 7000. Error reports can be
+saved: About & Updates → Error Reports → Save Report writes the scrubbed report to `Error Reports/` on Internal
+Storage (`/media/internal/music`) or the SD card in ≈10 s (4 worker processes, nice 10); no uploader yet, so the
+switch and the question stay hidden. Details: [Beta 8.8 report](validation/Y2-LINUX-1.0-BETA-8.8.md),
+[user guide](ERROR-REPORTS.md).
+
+## Y2Linux 1.0 Beta 8.7, Baseline 95 — 2026-10-18 (published)
 
 Release `1.0.0-beta.8.7`, tag `baseline-95`, Linux `f7b4fb5`, Reborn `82fe089`, sequence 6900. LK's `gc9503v` panel
 name counts with either `lcm=` digit (stock LK names the first driver whose compare_id matched), so GC9503V players

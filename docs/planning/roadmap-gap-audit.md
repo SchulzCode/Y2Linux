@@ -8837,3 +8837,20 @@ paths, SSIDs or account names).
 
 **Gate decision:** implementation may proceed on the host (R2–R5). A test build on the player, deploying the
 Worker and any release need the owner's word. Nothing uploads by default (opt-in only).
+
+## BETA-8.8 (Baseline 101) error reports saved to storage: milestone gap audit — 2026-10-19
+
+**Boundary:** owner: "publish the next beta with what we have currently and export to storage feature either internal
+or sd card, we will do the worker afterwards", then "40-50 seconds is too long". The ERROR-REPORTS collector and
+screens reach users without any network path: a report is only written to storage the owner chose. No kernel,
+hardware, memory or packaging scope change.
+
+| Area | State for Beta 8.8 | Evidence / gap |
+| --- | --- | --- |
+| Save to storage | SHIPPED | Player: ext4 Internal Storage and exFAT SD written, both listed over MTP, MTP copy hash equal; FAT32 card and Reborn screens on the player owed |
+| Privacy | CHECKED ON REAL DATA | The player's 199 private values absent from every report; canary and mutation tests; text path = value path on 6 973 real lines |
+| Speed | ≈47 s → ≈10 s | Profiled on the player; 4 workers at nice 10 |
+| Upload, automatic triggers | NOT SHIPPED | Switch and question hidden while `upload` is false; R3/R4 next |
+
+**Gate decision:** READY for **Y2Linux 1.0.0-beta.8.8** (Baseline 101, sequence 7000) at the owner's word (given).
+

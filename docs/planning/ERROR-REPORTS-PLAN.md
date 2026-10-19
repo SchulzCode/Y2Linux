@@ -1,6 +1,8 @@
 # Error reports: opt-in reports from players to the maintainer
 
-Status 2026-10-18 (end of day): **R2 and R5 on the owner's player (test build 98, owner enabled reports); R3 drafted, untested; receiver placement open (see below); nothing uploads yet.** Owner: "an error logger/reporter for users that
+Status 2026-10-19: **Beta 8.8 (Baseline 101) ships Save Report: a scrubbed report written to Internal Storage or the SD
+card in ≈10 s, sent by the owner by hand; no uploader yet (switch and question hidden).** R3 drafted, untested;
+receiver placement open (see below). Owner: "an error logger/reporter for users that
 they can opt in. It should send me everything about the error and device, no personal information, over Wi-Fi
 HTTPS", then "go with the Cloudflare Worker … get as much information as possible … not only kernel level, also
 everything that happens in Reborn". Audit row ERROR-REPORTS in [roadmap-gap-audit](roadmap-gap-audit.md).
@@ -87,8 +89,8 @@ section before it is written:
    addresses, URLs (keep the host, drop path and query), paths below `/media` (keep the extension:
    `<media>/…/*.flac`).
 
-Replacements are stable within one report (`<ssid#1>`, `<bt#2>`, `<mac 3c:22:fb:…#1>`), so a log still shows that
-the same network or device came back. `report.json` counts the replacements per class.
+Replacements are stable within one report (a keyed hash: `<ssid#3fa2c1>`, `3C:22:FB:<mac#9b01e2>`, with a random
+key per report that is never written), so a log still shows that the same network or device came back. `report.json` counts the replacements per class.
 
 Not collected at all: `library.db` contents, `scrobbles.jsonl`, `lastfm.json`, Wi-Fi configuration, Bluetooth bond
 keys, SSH keys, `/data/system/dbus/machine-id`, entropy seed, artwork caches, any file below `/media`.
@@ -234,3 +236,29 @@ rule), the build-wide upload key.
    one more internet-facing service).
 3. Port forward (advised against: every NPM proxy host would be exposed, home IP in the firmware).
 The validation and limits are the same in 1 and 2; only the storage differs. Decide before finishing R3.
+
+## Save to storage and speed, Beta 8.8 (2026-10-19)
+
+Owner: "publish the next beta with what we have currently and export to storage feature either internal or sd card,
+we will do the worker afterwards", then "40-50 seconds is too long".
+
+- **Save Report** (`y2-platform report save --to internal|sd [--topic]`, Linux `190d713`, `d06c606`): the same
+  report, written to `Error Reports/y2linux-report-<local time>.tar.gz` at the MTP top level of the storage
+  (Internal Storage is `/media/internal/music` in `umtprd.conf`; the first device run wrote to `/media/internal` and
+  MTP did not show it). User-initiated, so no opt-in and nothing queued; the install ID only when reports are on.
+  Real directories only (`O_NOFOLLOW`, same filesystem), written as `.part`, renamed, folder fsynced. `report status`
+  adds `upload` (false) and `destinations`. Reports also hold `BAT0/charging_state` (#47).
+- **Reborn** (`6cca742`, `b6b6fbc`): Error Reports → Save Report → storage → topic. While `upload` is false only Save
+  Report and What Is Saved show; the switch, Send Report Now, the install ID and the one-time question come back when
+  the platform reports `upload: true` (R4).
+- **Speed** (`be71b6d`): ≈47 s → ≈10 s. Profile on the player: 71 of 77 s in scrubbing, 354 000 `text()` calls on
+  JSON-lines values, 2.8 M `re.sub`; each pattern scans 2–3.5 MB/s on the Y2. Now JSON lines are scrubbed as one text
+  (private keys' string values replaced in the text; private keys holding lists/objects and Bluetooth peers still
+  value by value; known values also in JSON-escaped form), logs are cut at line ends into 256 KB pieces for 4 forked
+  workers, tokens are keyed hashes, the live commands run during the scrub, `send`/`save` run at nice 10. On 6 973
+  real lines the text path equals the value path (tokens aside); no private value in five device reports.
+- **Boot ID:** a `/run/y2` record names it and it has an ext4 UUID's shape, so it was harvested as a volume serial;
+  it is discarded now.
+- **Next:** R3 (Worker tests, `fetch.py`, README, owner's receiver decision), R4 (uploader, periodic `report check`,
+  then `UPLOAD = True` in `report.py`, which brings the switch and question back in Reborn).
+

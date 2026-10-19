@@ -1,6 +1,16 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-19): ERROR REPORTS — CONTINUE R3 (RECEIVER) AFTER THE OWNER PICKS WHERE IT RUNS.** Plan with
+> **START HERE (2026-10-19): Y2LINUX 1.0 BETA 8.8 (BASELINE 101) PUBLISHED — ERROR REPORTS SAVED TO STORAGE; NEXT R3/R4.**
+> Owner: "publish the next beta with what we have currently and export to storage feature … we will do the worker
+> afterwards". Report `docs/validation/Y2-LINUX-1.0-BETA-8.8.md`, audit BETA-8.8, user guide `docs/ERROR-REPORTS.md`,
+> plan section "Save to storage and speed, Beta 8.8". Release `1.0.0-beta.8.8`, sequence 7000, Linux `be71b6d`,
+> Reborn `b6b6fbc` (builds 99/100 superseded, never installed). Owner's player still runs test build 98 (6952) and
+> installs 8.8 by OTA. Reports take ≈10 s (4 workers, nice 10). No uploader: `report.py` `UPLOAD = False` hides the
+> switch/question in Reborn; R4 sets it True. Owner wants the Worker next (receiver placement still open: Worker + R2
+> pulled home, or home server behind a Tunnel). #47 (no charging) was asked to save a report on 8.8.
+> Next free label 102, sequence above 7000.
+>
+> Previous entry: **ERROR REPORTS — CONTINUE R3 (RECEIVER) AFTER THE OWNER PICKS WHERE IT RUNS.** Plan with
 > every decision and result: [ERROR-REPORTS-PLAN](ERROR-REPORTS-PLAN.md) (sections "R2 results", "Test build 96",
 > "R5 screens, test builds 97–98", "R3 status and the open decision"); audit ERROR-REPORTS.
 > - **Owner's player:** test build 98 = `1.0.0-beta.8.8`, sequence 6952 (Linux `d9b19cb`, Reborn `fbecb77`),
