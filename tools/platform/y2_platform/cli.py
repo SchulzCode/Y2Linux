@@ -172,6 +172,8 @@ def main():
         return 0
     if args.command == 'report':
         from . import report
+        if args.action in ('send', 'save'):
+            report.lower_priority()
         try:
             if args.action == 'status':
                 result = report.status(ctx)

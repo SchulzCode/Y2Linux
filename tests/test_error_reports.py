@@ -3,6 +3,7 @@ import datetime
 import gzip
 import io
 import json
+import re
 import sqlite3
 import tarfile
 import tempfile
@@ -24,6 +25,11 @@ BSSID = '3C:22:FB:9A:BC:DE'
 CANARIES = [SSID, PSK, BT_NAME, 'AB:CD:EF', 'AB_CD_EF', LASTFM_USER, LASTFM_KEY, SSH_BLOB, SSH_COMMENT,
             CID, MACHINE_ID, 'deadbeef', TITLE, ARTIST, ZONE, '123.45', PUBLIC_IP, EMAIL, '9A:BC:DE',
             'Canary Band/', 'canary-station-token', 'NEVER-canary-value', 'C4A2-77E1']
+
+
+def plain(value):
+    """Tokens without their per-report hash: '<ssid#3fa2c1>' -> '<ssid#>'."""
+    return re.sub(r'#[0-9a-f]{6}>', '#>', value if isinstance(value, str) else json.dumps(value))
 
 
 def write(root, path, text, mode='w'):
@@ -160,7 +166,7 @@ class Report(unittest.TestCase):
         log = everything['files/data/reborn/logs/reborn-current.jsonl']
         self.assertIn('"prepared"', log)
         self.assertIn('14:14:7D:<mac#', log)                     # maker kept, device masked
-        self.assertIn('<ip:private#1>', log)
+        self.assertIn('<ip:private#>', plain(log))
         self.assertIn('10.42.0.1', log)                          # the USB network stays
         self.assertIn('/media/internal/<path>.flac: EIO', log)   # text after the file stays
         self.assertIn('https://ws.audioscrobbler.com/<path>', log)
@@ -189,6 +195,31 @@ class Report(unittest.TestCase):
         # Never read: library contents, account files, keys, the raw session.
         for name in everything:
             self.assertNotRegex(name, r'library\.db|lastfm|wpa_supplicant|authorized_keys|state/session\.json|bluez')
+
+    def test_parallel_scrubbing_matches_one_process_and_tokens_hold_across_files(self):
+        write(self.root, '/data/logs/system.log.0', ''.join(
+            'line %d: wlan0 joined %s from %s\n' % (n, SSID, PRIVATE_IP) for n in range(30000)))
+        known = report.secrets(self.ctx)
+        items = [(path, (Path(self.root) / path.lstrip('/')).read_bytes())
+                 for path in ('/data/logs/system.log.0', '/data/logs/system.log', '/data/reborn/logs/reborn-current.jsonl')]
+        self.assertGreater(len(report._parts(*items[0])), 2)
+        one = report.Scrubber(known)
+        alone = [report._scrub_blob(one, path, data) for path, data in items]     # whole files, one process
+        pool = report._pool(known, one.key)
+        self.assertIsNotNone(pool)
+        try:
+            together = report.Scrubber(known, one.key)
+            parallel = report._scrub_files(together, known, items, pool)
+        finally:
+            pool.terminate()
+        self.assertEqual(parallel, alone)
+        self.assertEqual(together.counts, one.counts)
+        token = one.text(SSID)
+        self.assertIn(token.encode(), parallel[0])               # every piece of the big log
+        self.assertIn(token.encode(), parallel[2])               # and Reborn's log
+        self.assertNotIn(SSID.encode(), b''.join(parallel))
+        self.assertNotIn(one.key.hex().encode(), b''.join(parallel))
+        self.assertNotEqual(report.Scrubber(known).text(SSID), token)   # a new report, new tokens
 
     def test_a_huge_log_is_cut_to_the_budget(self):
         import os
@@ -287,6 +318,22 @@ class Report(unittest.TestCase):
         index = json.loads(members((Path(self.root) / 'media/internal/music' / saved['file']).read_bytes())['report.json'])
         self.assertEqual(index['install_id'], report.status(self.ctx)['install_id'])
 
+    def test_the_command_saves_at_low_priority(self):
+        import contextlib
+        import sys
+        from unittest.mock import patch
+        from y2_platform import cli
+        self.mount('/media/sd')
+        output = io.StringIO()
+        with patch.object(cli, 'Context', return_value=self.ctx), patch.object(report.os, 'nice') as nice, \
+                patch.object(sys, 'argv', ['y2-platform', 'report', 'save', '--to', 'sd', '--topic', 'battery']), \
+                contextlib.redirect_stdout(output):
+            self.assertEqual(cli.main(), 0)
+        nice.assert_called_once_with(10)
+        result = json.loads(output.getvalue())
+        self.assertTrue(result['saved'])
+        self.assertTrue((Path(self.root) / 'media/sd' / result['file']).is_file())
+
     def test_saving_refuses_read_only_storage_and_a_folder_link(self):
         self.mount('/media/sd', options='ro,relatime')
         self.assertEqual(report.status(self.ctx)['destinations'], [])
@@ -308,27 +355,49 @@ class Report(unittest.TestCase):
         self.assertNotIn(boot, found)
         self.assertIn('C4A2-77E1', found)
 
+    def test_json_lines_scrubbed_as_text_keep_the_rules_of_values(self):
+        s = report.Scrubber({'ssid': {'Café Wörth'}, 'music': {'Canary Song Title'}})
+        lines = [json.dumps({'event': 'joined', 'message': 'joined Café Wörth'}),             # \\u escapes
+                 json.dumps({'event': 'joined', 'message': 'joined Café Wörth'}, ensure_ascii=False),
+                 json.dumps({'event': 'play', 'Title': 'Anything At All', 'n': 1}),            # the key rule
+                 json.dumps({'peer': {'address': '11:22:33:44:55:66', 'name': 'Neighbour Buds'}}),
+                 json.dumps({'note': 'from /media/sd/A Folder/x.flac to 192.168.1.20'}),
+                 json.dumps({'volume': {'uuid': 'C4A2-77E1', 'label': ''}, 'artist': ['Canary "Band"', 'B']}),
+                 json.dumps({'volume': {'UUID': 'Say \\"hi\\"', 'n': 2}})]
+        out = report._scrub_blob(s, '/data/reborn/logs/reborn-current.jsonl', '\n'.join(lines).encode()).decode()
+        for secret in ('Caf', 'Anything At All', 'Neighbour', 'A Folder', '192.168.1.20', '44:55:66',
+                       'C4A2', 'Canary', 'hi'):
+            self.assertNotIn(secret, out)
+        rows = [json.loads(line) for line in out.splitlines()]
+        self.assertEqual(rows[0]['message'], rows[1]['message'])       # one token for both forms
+        self.assertEqual(plain(rows[0]['message']), 'joined <ssid#>')
+        self.assertEqual(rows[2]['Title'], '<title>')
+        self.assertEqual(rows[3]['peer']['name'], '<bt_name>')
+        self.assertEqual(plain(rows[4]['note']), 'from /media/sd/<path>.flac to <ip:private#>')
+        self.assertEqual(rows[5], {'volume': {'uuid': '<uuid>', 'label': ''}, 'artist': ['<artist>', '<artist>']})
+        self.assertEqual(rows[6], {'volume': {'UUID': '<uuid>', 'n': 2}})
+
     def test_unpaired_bluetooth_names_next_to_an_address_are_private(self):
         s = report.Scrubber({})
-        self.assertEqual(s.value({'devices': [{'name': 'Neighbour Headphones', 'address': '11:22:33:44:55:66'}]}),
-                         {'devices': [{'name': '<bt_name>', 'address': '11:22:33:<mac#1>'}]})
-        self.assertEqual(s.value({'name': 'BAT0', 'type': 'Battery'}), {'name': 'BAT0', 'type': 'Battery'})
+        self.assertEqual(plain(s.value({'devices': [{'name': 'Neighbour Headphones', 'address': '11:22:33:44:55:66'}]})),
+                         plain({'devices': [{'name': '<bt_name>', 'address': '11:22:33:<mac#>'}]}))
+        self.assertEqual(plain(s.value({'name': 'BAT0', 'type': 'Battery'})), plain({'name': 'BAT0', 'type': 'Battery'}))
 
 
 class Scrubbing(unittest.TestCase):
     def test_patterns(self):
         s = report.Scrubber({'ssid': {'Home'}})
-        self.assertEqual(s.text('Home wifi, Homepage'), '<ssid#1> wifi, Homepage')
-        self.assertEqual(s.text('fe80::1c2d:3eff:fe4f:5a6b up'), '<ip6:link#1> up')
-        self.assertEqual(s.text('std::fmt and a::b'), 'std::fmt and a::b')
-        self.assertEqual(s.text('at 20:39:14 v6.18.56 build 2026.08'), 'at 20:39:14 v6.18.56 build 2026.08')
-        self.assertEqual(s.text('00:00:00:00:00:00 ff:ff:ff:ff:ff:ff'), '00:00:00:00:00:00 ff:ff:ff:ff:ff:ff')
-        self.assertEqual(s.text('/media/sd/Some Folder/x y.mp3, then'), '/media/sd/<path>.mp3, then')
-        self.assertEqual(s.text('dir /media/internal/A Folder Name'), 'dir /media/internal/<path>')
-        self.assertEqual(s.text('serial=ABCDEF0123456789'), 'serial=<serial#1>')
-        self.assertEqual(s.value({'title': 'x', 'n': ['Home']}), {'title': '<title>', 'n': ['<ssid#1>']})
-        self.assertEqual(s.value({'path': '/media/sd/a', 'uuid': '6ACE-5706'}), {'path': '/media/sd/<path>', 'uuid': '<uuid>'})
-        self.assertEqual(s.text('/dev/mmcblk1p1: UUID="6ACE-5706" TYPE="vfat"'), '/dev/mmcblk1p1: UUID="<serial#2>" TYPE="vfat"')
+        self.assertEqual(plain(s.text('Home wifi, Homepage')), plain('<ssid#> wifi, Homepage'))
+        self.assertEqual(plain(s.text('fe80::1c2d:3eff:fe4f:5a6b up')), plain('<ip6:link#> up'))
+        self.assertEqual(plain(s.text('std::fmt and a::b')), plain('std::fmt and a::b'))
+        self.assertEqual(plain(s.text('at 20:39:14 v6.18.56 build 2026.08')), plain('at 20:39:14 v6.18.56 build 2026.08'))
+        self.assertEqual(plain(s.text('00:00:00:00:00:00 ff:ff:ff:ff:ff:ff')), plain('00:00:00:00:00:00 ff:ff:ff:ff:ff:ff'))
+        self.assertEqual(plain(s.text('/media/sd/Some Folder/x y.mp3, then')), plain('/media/sd/<path>.mp3, then'))
+        self.assertEqual(plain(s.text('dir /media/internal/A Folder Name')), plain('dir /media/internal/<path>'))
+        self.assertEqual(plain(s.text('serial=ABCDEF0123456789')), plain('serial=<serial#>'))
+        self.assertEqual(plain(s.value({'title': 'x', 'n': ['Home']})), plain({'title': '<title>', 'n': ['<ssid#>']}))
+        self.assertEqual(plain(s.value({'path': '/media/sd/a', 'uuid': '6ACE-5706'})), plain({'path': '/media/sd/<path>', 'uuid': '<uuid>'}))
+        self.assertEqual(plain(s.text('/dev/mmcblk1p1: UUID="6ACE-5706" TYPE="vfat"')), plain('/dev/mmcblk1p1: UUID="<serial#>" TYPE="vfat"'))
 
 
 if __name__ == '__main__':

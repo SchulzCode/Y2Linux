@@ -16,12 +16,14 @@ import datetime
 import errno
 import gzip
 import hashlib
+import hmac
 import io
 import ipaddress
 import json
 import os
 import re
 import tarfile
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -211,15 +213,27 @@ def _trie_pattern(values):
 
 
 class Scrubber:
-    """Replace personal data; tokens are stable within one report."""
+    """Replace personal data; tokens are stable within one report.
 
-    def __init__(self, known=None):
-        self.tokens = {}
+    A token names its value by a keyed hash (`<ssid#3fa2c1>`): the same value
+    gets the same token in every part of a report, also when parts are
+    scrubbed in parallel, and the per-report random key (never written) keeps
+    a short hash of, say, an IP address from being guessed back."""
+
+    def __init__(self, known=None, key=None):
+        self.key = key or os.urandom(16)
         self.counts = {}
         pairs = []
+        self.original = {}
         for name, values in (known or {}).items():
             for value in values:
                 pairs.append((value, name))
+                # Also as written inside JSON by Python (\u escapes, \"): JSON
+                # lines are scrubbed as text (_scrub_blob).
+                escaped = json.dumps(value)[1:-1]
+                if escaped != value:
+                    pairs.append((escaped, name))
+                    self.original[escaped] = value      # one token for both forms
         # Longest first so a passphrase containing the SSID is replaced whole.
         pairs.sort(key=lambda pair: (-len(pair[0]), pair[0]))
         self.known = dict(pairs)
@@ -232,14 +246,12 @@ class Scrubber:
             return value
         if value[-1].isalnum() and match.end() < len(text) and text[match.end()].isalnum():
             return value
-        return self.token(self.known[value], value)
+        return self.token(self.known[value], self.original.get(value, value))
 
     def token(self, name, value, keep=''):
-        key = (name, value)
-        if key not in self.tokens:
-            self.tokens[key] = sum(1 for k in self.tokens if k[0] == name) + 1
         self.counts[name] = self.counts.get(name, 0) + 1
-        return '<%s%s#%d>' % (name, keep, self.tokens[key])
+        digest = hmac.new(self.key, ('%s\0%s' % (name, value)).encode(), 'sha256').hexdigest()
+        return '<%s%s#%s>' % (name, keep, digest[:6])
 
     def _mac(self, match):
         octets = [match.group(i) for i in (1, 3, 4, 5, 6, 7)]
@@ -286,15 +298,23 @@ class Scrubber:
         if not value:
             return value
         # Paths and URLs first: their shape is lost once a name inside is replaced.
-        value = MEDIA.sub(self._media, value)
-        value = URL.sub(lambda m: '%s://%s/<path>' % (m.group(1), m.group(2)) if m.group(3) not in ('', '/') else m.group(0), value)
+        # A pattern runs only when the text holds a character it needs.
+        if '/media/' in value:
+            value = MEDIA.sub(self._media, value)
+        if '://' in value:
+            value = URL.sub(lambda m: '%s://%s/<path>' % (m.group(1), m.group(2)) if m.group(3) not in ('', '/') else m.group(0), value)
         if self.known_pattern:
             value = self.known_pattern.sub(self._known, value)
-        value = EMAIL.sub(lambda m: self.token('email', m.group(0)), value)
-        value = SERIAL_FIELD.sub(lambda m: m.group(1) + m.group(2) + self.token('serial', m.group(3)), value)
+        if '@' in value:
+            value = EMAIL.sub(lambda m: self.token('email', m.group(0)), value)
+        lower = value.lower()
+        if 'serial' in lower or 'cid' in lower or 'machine' in lower or 'uuid' in lower:
+            value = SERIAL_FIELD.sub(lambda m: m.group(1) + m.group(2) + self.token('serial', m.group(3)), value)
         value = MAC.sub(self._mac, value)
-        value = IPV6.sub(self._ipv6, value)
-        value = IPV4.sub(self._ipv4, value)
+        if ':' in value:
+            value = IPV6.sub(self._ipv6, value)
+        if '.' in value:
+            value = IPV4.sub(self._ipv4, value)
         return value
 
     def value(self, value, key=None):
@@ -482,6 +502,23 @@ NEVER = re.compile(r'^/(media|data/music|data/ssh|root/\.ssh)/|wpa_supplicant|la
                    r'library\.db|/bluez/|machine-id|entropy|/keys?/|\.pem$|\.key$|session\.json')
 
 
+# JSON lines are scrubbed as one text (every string in them passes the same
+# patterns and known values): value by value, the logs of one report took ≈45 s
+# on the Y2. A private key's string value is replaced in the text too; a line
+# with a private key holding a list or object, or a Bluetooth peer's address,
+# still goes value by value.
+_KEYS = '|'.join(sorted(map(re.escape, PRIVATE_KEYS)))
+STRUCTURED = re.compile(r'"(?:%s)"\s*:\s*[\[{]|"address"\s*:' % _KEYS, re.IGNORECASE)
+PRIVATE_STRING = re.compile(r'"(%s)"(\s*:\s*)"((?:[^"\\]|\\.)*)"' % _KEYS, re.IGNORECASE)
+
+
+def _private_string(scrubber, match):
+    if not match.group(3):
+        return match.group(0)
+    scrubber.counts['private_key'] = scrubber.counts.get('private_key', 0) + 1
+    return '"%s"%s"<%s>"' % (match.group(1), match.group(2), match.group(1).lower())
+
+
 def _scrub_blob(scrubber, path, data):
     """One file's bytes, scrubbed by its kind (JSON, JSON lines, tar, text)."""
     if path.endswith(('.tar', '.tar.gz')):
@@ -490,6 +527,9 @@ def _scrub_blob(scrubber, path, data):
     if path.endswith('.jsonl'):
         lines = []
         for line in text.splitlines():
+            if not STRUCTURED.search(line):
+                lines.append(scrubber.text(PRIVATE_STRING.sub(lambda m: _private_string(scrubber, m), line)))
+                continue
             try:
                 lines.append(json.dumps(scrubber.value(json.loads(line)), sort_keys=True))
             except ValueError:
@@ -501,6 +541,69 @@ def _scrub_blob(scrubber, path, data):
         except ValueError:
             pass
     return scrubber.text(text).encode()
+
+
+PART = 256 * 1024                   # line-aligned pieces of a log scrubbed in parallel
+WORKERS = 4                         # the Y2's cores
+_worker = None
+
+
+def _parts(path, data):
+    """A file as pieces that scrub independently: logs split at line ends
+    (no pattern spans a line), JSON documents and archives whole."""
+    if path.endswith(('.json', '.tar', '.tar.gz')) or len(data) <= PART:
+        return [data]
+    parts, start = [], 0
+    while start < len(data):
+        end = data.find(b'\n', start + PART)
+        end = len(data) if end < 0 else end + 1
+        parts.append(data[start:end])
+        start = end
+    return parts
+
+
+def _worker_start(known, key):
+    global _worker
+    _worker = Scrubber(known, key)
+
+
+def _worker_scrub(job):
+    path, data = job
+    _worker.counts = {}
+    return _scrub_blob(_worker, path, data), _worker.counts
+
+
+def _scrub_files(scrubber, known, items, pool):
+    """Each (path, data) scrubbed, in parallel when a pool is there."""
+    jobs, owners = [], []
+    for n, (path, data) in enumerate(items):
+        for part in _parts(path, data):
+            jobs.append((path, part))
+            owners.append(n)
+    if pool is None:
+        results = [(_scrub_blob(scrubber, path, data), {}) for path, data in jobs]
+    else:
+        # Big pieces first so no core waits on the last large one.
+        order = sorted(range(len(jobs)), key=lambda i: -len(jobs[i][1]))
+        done = pool.map(_worker_scrub, [jobs[i] for i in order], chunksize=1)
+        results = [None] * len(jobs)
+        for i, result in zip(order, done):
+            results[i] = result
+    cleaned = [b''] * len(items)
+    for owner, (clean, counts) in zip(owners, results):
+        cleaned[owner] += clean
+        for name, count in counts.items():
+            scrubber.counts[name] = scrubber.counts.get(name, 0) + count
+    return cleaned
+
+
+def _pool(known, key):
+    """Worker processes forked before any thread starts; None if unavailable."""
+    try:
+        import multiprocessing
+        return multiprocessing.get_context('fork').Pool(WORKERS, _worker_start, (known, key))
+    except (ImportError, OSError, ValueError):
+        return None
 
 
 def _scrub_tar(scrubber, data, compressed):
@@ -528,7 +631,17 @@ def build(ctx, trigger, detail='', topic=None, install_id=None, now=None):
         raise ValueError('unknown_trigger')
     if topic is not None and topic not in TOPICS:
         raise ValueError('unknown_topic')
-    scrubber = Scrubber(secrets(ctx))
+    known = secrets(ctx)
+    scrubber = Scrubber(known)
+    pool = _pool(known, scrubber.key)
+    try:
+        return _build(ctx, trigger, detail, topic, install_id, now, scrubber, known, pool)
+    finally:
+        if pool is not None:
+            pool.terminate()
+
+
+def _build(ctx, trigger, detail, topic, install_id, now, scrubber, known, pool):
     now = now or datetime.datetime.now(datetime.timezone.utc)
     versions = ctx.json('/etc/y2linux/versions.json', {})
     local = datetime.datetime.now().astimezone()
@@ -553,15 +666,11 @@ def build(ctx, trigger, detail='', topic=None, install_id=None, now=None):
     add('reborn/session.json', json.dumps(scrubber.value(_session_projection(
         _large_json(ctx, '/data/reborn/state/session.json'))), indent=1, sort_keys=True).encode(), 'session.json (projected)')
     add('reborn/library.json', json.dumps(_library_statistics(ctx), indent=1, sort_keys=True).encode(), 'library.db (counts)')
-    for name, result in _commands(ctx).items():
-        output = (result or {}).get('output') or ''
-        data, cut = _tail(output.encode())
-        try:
-            clean = json.dumps(scrubber.value(json.loads(data)), indent=1, sort_keys=True).encode()
-        except ValueError:
-            clean = scrubber.text(data.decode('utf-8', errors='replace')).encode()
-        add('commands/%s.txt' % name, clean, 'command' + ('' if result.get('ok') else ' (%s)' % result.get('reason')), cut)
-    seen = set()
+    # The live commands (≈4 s, mostly waiting) run while the files scrub.
+    commands = {}
+    runner = threading.Thread(target=lambda: commands.update(_commands(ctx)), daemon=True)
+    runner.start()
+    seen, files = set(), []
     for pattern in FILES:
         for path in ctx.glob(pattern) if '*' in pattern else [ctx.path(pattern)]:
             relative = '/' + str(path.relative_to(ctx.root)).lstrip('/')
@@ -569,11 +678,22 @@ def build(ctx, trigger, detail='', topic=None, install_id=None, now=None):
                 continue
             seen.add(relative)
             data, cut = _read_bytes(ctx, relative)
-            if data is None:
-                continue
-            # Scrubbed archives are re-packed uncompressed (the report itself is gzip).
-            name = relative[:-3] if relative.endswith('.tar.gz') else relative
-            add('files' + name, _scrub_blob(scrubber, relative, data), relative, cut)
+            if data is not None:
+                files.append((relative, data, cut))
+    cleaned = _scrub_files(scrubber, known, [(relative, data) for relative, data, _ in files], pool)
+    runner.join()
+    for name, result in commands.items():
+        output = (result or {}).get('output') or ''
+        data, cut = _tail(output.encode())
+        try:
+            clean = json.dumps(scrubber.value(json.loads(data)), indent=1, sort_keys=True).encode()
+        except ValueError:
+            clean = scrubber.text(data.decode('utf-8', errors='replace')).encode()
+        add('commands/%s.txt' % name, clean, 'command' + ('' if result.get('ok') else ' (%s)' % result.get('reason')), cut)
+    for (relative, _, cut), clean in zip(files, cleaned):
+        # Scrubbed archives are re-packed uncompressed (the report itself is gzip).
+        name = relative[:-3] if relative.endswith('.tar.gz') else relative
+        add('files' + name, clean, relative, cut)
     index['scrubbed'] = dict(sorted(scrubber.counts.items()))
     return _pack(index, members), index
 
@@ -717,6 +837,12 @@ def _write_into(mount, top, data, stamp):
         return name
     finally:
         os.close(folder)
+
+
+def lower_priority():
+    """Building a report keeps every core busy for ≈10 s: never at the cost of
+    playback or the screen (the worker processes inherit this)."""
+    os.nice(10)
 
 
 def save_to(ctx, destination, topic=None, now=None):
