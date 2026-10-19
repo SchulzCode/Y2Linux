@@ -14,10 +14,14 @@ Read the whole page once before you start.
 - The **Y2Linux release**: the `…-first-install.zip` of the newest
   [GitHub release](https://github.com/SchulzCode/Y2Linux/releases) (1.0 Beta 1 or later).
 - The **Innioasis firmware package for the Y2**, v3.2.0 (`y2_v3.2.0_FM-20260813`), from
-  Innioasis's download page. You need it once, for the radio firmware, and it is also your
-  way back to stock, so keep it. **Only this version works:** the player checks every radio
-  file against its SHA-256, so a newer or older Innioasis package is refused until Y2Linux
-  knows its files ([issue tracker](https://github.com/SchulzCode/Y2Linux/issues) if yours differs).
+  Innioasis's download page, or the same build as `rom_y2.zip` from the
+  [y1-community stock ROM release 3.2.0-fm](https://github.com/y1-community/y1-stock-rom/releases/tag/3.2.0-fm)
+  (checked 2026-10-19: identical scatter file, boot image and LK, and its `system.img` passes the
+  player's radio firmware check; it is stored unpacked, about 860 MB instead of 520 MB). You need
+  it once, for the radio firmware, and it is also your way back to stock, so keep it. **Only this
+  version works:** the player checks every radio file against its SHA-256, so a newer or older
+  Innioasis package is refused until Y2Linux knows its files
+  ([issue tracker](https://github.com/SchulzCode/Y2Linux/issues) if yours differs).
 
 ### Why the Innioasis package?
 
@@ -72,13 +76,16 @@ first start Y2Linux turns it into Internal Storage, keeping up to about 400 MB o
    music; see [Internal Storage](#internal-storage) for what happens to files that were on it).
    Then Reborn starts, and music works. Wi-Fi and Bluetooth say they still need the radio
    firmware.
-6. **Connect the Y2 to the computer again.** It appears like a USB stick (MTP) with
+6. **Restart the player once** (hold Power to turn it off, then press Power again), so
+   Internal Storage gets its full space.
+7. **Connect the Y2 to the computer again.** It appears like a USB stick (MTP) with
    **Internal Storage** (and *SD Card* if a card is in). Internal Storage contains a folder
    **Firmware**.
-7. **From the Innioasis package, copy the file `system.img` into that Firmware folder** (about
-   520 MB). Copy, don't move: the player deletes its copy afterwards, and you need the
-   original to go back to stock. (If it was moved, unpack it again from the Innioasis zip.)
-8. **Wait a few seconds.** The player checks the file, keeps the five radio files, deletes the
+8. **From the firmware package, copy the file `system.img` into that Firmware folder** (about
+   520 MB from Innioasis's zip, about 860 MB from the community `rom_y2.zip`). Copy, don't move:
+   the player deletes its copy afterwards, and you need the original to go back to stock. (If
+   it was moved, unpack it again from the zip.)
+9. **Wait a few seconds.** The player checks the file, keeps the five radio files, deletes the
    big copy and starts Wi-Fi and Bluetooth; Reborn says *Wi-Fi and Bluetooth are ready*. The
    Firmware folder disappears. That's it.
 
@@ -86,8 +93,8 @@ If Reborn says *That File Isn't the Y2 Firmware*, the file was not `system.img` 
 package: delete it and copy the right one. The file can also go into a folder named `Firmware`
 on the SD card. On a player whose Internal Storage is not set up yet (a large old library, see
 below) the computer shows a separate **Firmware** drive instead; it has room for the file from
-the zip, but not for an unpacked copy (about 860 MB): Reborn then says *Not Enough Space for That
-File*, and the SD card's `Firmware` folder is the way.
+Innioasis's zip, but not for an unpacked copy (about 860 MB, as in the community `rom_y2.zip`):
+Reborn then says *Not Enough Space for That File*, and the SD card's `Firmware` folder is the way.
 
 From now on, updates come over Wi-Fi: Settings → About & Updates → Check for Updates →
 **Update Now** (Beta 7.1 and later; on Beta 7 and earlier: Download Update → Restart and
