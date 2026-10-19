@@ -1,0 +1,10 @@
+{
+  "name": "y2linux-reports",
+  "private": true,
+  "type": "module",
+  "description": "Y2Linux error report receiver (docs/planning/ERROR-REPORTS-PLAN.md, R3)",
+  "license": "GPL-2.0-only",
+  "scripts": {
+    "test": "node --test"
+  }
+}

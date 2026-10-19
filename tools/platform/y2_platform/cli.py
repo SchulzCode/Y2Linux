@@ -62,7 +62,8 @@ def main():
     reset.add_argument('--erase-user-music', action='store_true')
     sub.add_parser('export-diagnostics')
     error_report = sub.add_parser('report', help='opt-in error reports (docs/planning/ERROR-REPORTS-PLAN.md)')
-    error_report.add_argument('action', choices=['status', 'enable', 'disable', 'new-id', 'send', 'save', 'check'])
+    error_report.add_argument('action', choices=['status', 'enable', 'disable', 'new-id', 'send', 'save', 'check',
+                                                 'upload', 'work'])
     error_report.add_argument('--to', choices=['internal', 'sd'], help='save only: Internal Storage or the SD card')
     error_report.add_argument('--topic', choices=['sound', 'display', 'battery', 'bluetooth', 'wifi', 'crash', 'other'])
     export = sub.add_parser('export-state')
@@ -172,7 +173,7 @@ def main():
         return 0
     if args.command == 'report':
         from . import report
-        if args.action in ('send', 'save'):
+        if args.action in ('send', 'save', 'check', 'work'):
             report.lower_priority()
         try:
             if args.action == 'status':
@@ -183,10 +184,18 @@ def main():
                 result = report.new_install_id(ctx)
             elif args.action == 'send':
                 result = report.queue(ctx, 'manual', topic=args.topic)
+                if result.get('queued'):
+                    # Sent at once when it can be; otherwise it waits in the queue.
+                    result['upload'] = report.upload_now(ctx)
             elif args.action == 'save':
                 if args.to is None:
                     raise ValueError('save_needs_to')
                 result = report.save_to(ctx, args.to, topic=args.topic)
+            elif args.action == 'upload':
+                result = report.upload(ctx)
+            elif args.action == 'work':
+                # The platform service's periodic run: new triggers, then the queue.
+                result = {'reports': report.run_checks(ctx), 'upload': report.upload_now(ctx)}
             else:
                 result = {'reports': report.run_checks(ctx)}
             print(json.dumps(result, sort_keys=True))

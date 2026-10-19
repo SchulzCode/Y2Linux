@@ -260,12 +260,25 @@ class Report(unittest.TestCase):
         write(self.root, '/proc/sys/kernel/tainted', '512\n')
         write(self.root, '/sys/power/suspend_stats/fail', '2\n')
         write(self.root, '/sys/fs/ext4/mmcblk0p8/errors_count', '1\n')
-        write(self.root, '/run/y2/wifi-failure.json', '{}')
+        write(self.root, '/sys/devices/platform/18070000.connectivity/status',
+              'activated=1 powered=1 chip=6582 error=-110 transport_errors=0\n')
         fired = dict(report.check(self.ctx))
         self.assertEqual(set(fired), {'unclean_restart', 'update_failure', 'kernel_warning', 'sleep_failure',
                                       'storage_error', 'radio_failure'})   # the panic was reported above
         self.assertIn('watchdog', fired['unclean_restart'])
+        self.assertEqual(fired['radio_failure'], 'connectivity error=-110')
         self.assertEqual(report.check(self.ctx), [])
+        # A sleep a wake event cancelled (-EBUSY while suspending devices) is routine.
+        write(self.root, '/sys/power/suspend_stats/fail', '5\n')
+        write(self.root, '/sys/power/suspend_stats/last_failed_errno', '-16\n')
+        write(self.root, '/sys/power/suspend_stats/last_failed_step', 'suspend\n')
+        self.assertEqual(report.check(self.ctx), [])
+        write(self.root, '/sys/power/suspend_stats/failed_resume', '1\n')
+        self.assertEqual([t for t, _ in report.check(self.ctx)], ['sleep_failure'])
+        # Wi-Fi joining a network, or a wrong password / an absent network, is no radio failure.
+        for error in (None, 'wrong_credentials', 'ap_unavailable'):
+            write(self.root, '/run/y2/wifi-failure.json', json.dumps({'error': error, 'failures': 1}))
+            self.assertEqual(report.check(self.ctx), [])
         self.assertEqual(report.run_checks(self.ctx), [])        # not enabled: nothing queued
 
     def test_opting_in_reports_only_what_happens_afterwards(self):
@@ -293,7 +306,7 @@ class Report(unittest.TestCase):
         (Path(self.root) / 'media/internal/music').mkdir()
         status = report.status(self.ctx)
         self.assertEqual(status['destinations'], ['internal', 'sd'])
-        self.assertIs(status['upload'], report.UPLOAD)
+        self.assertIs(status['upload'], False)          # no upload key in this tree
         now = datetime.datetime(2026, 10, 19, 12, tzinfo=datetime.timezone.utc)
         first = report.save_to(self.ctx, 'sd', 'battery', now=now)
         second = report.save_to(self.ctx, 'sd', 'battery', now=now)
@@ -382,6 +395,16 @@ class Report(unittest.TestCase):
         self.assertEqual(plain(s.value({'devices': [{'name': 'Neighbour Headphones', 'address': '11:22:33:44:55:66'}]})),
                          plain({'devices': [{'name': '<bt_name>', 'address': '11:22:33:<mac#>'}]}))
         self.assertEqual(plain(s.value({'name': 'BAT0', 'type': 'Battery'})), plain({'name': 'BAT0', 'type': 'Battery'}))
+
+
+class Triggers(unittest.TestCase):
+    def test_storage_errors_are_the_internal_emmcs_not_a_pulled_card(self):
+        for line in ('I/O error, dev mmcblk0, sector 4096 op 0x0:(READ)', 'EXT4-fs error (device mmcblk0p8): x',
+                     'EXT4-fs (mmcblk0p8): Remounting filesystem read-only'):
+            self.assertTrue(report.STORAGE.search(line), line)
+        for line in ('I/O error, dev mmcblk1, sector 0 op 0x0:(READ)', 'mmc1: card 59b4 removed',
+                     'FAT-fs (mmcblk1p1): Filesystem has been set read-only'):
+            self.assertFalse(report.STORAGE.search(line), line)
 
 
 class Scrubbing(unittest.TestCase):

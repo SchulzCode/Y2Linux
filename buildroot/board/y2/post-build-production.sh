@@ -79,6 +79,11 @@ rm -f "$target/usr/share/reborn/lastfm-api.json"
 if [ -f "$Y2_ARTIFACT_DIR/lastfm-api.json" ]; then
     install -D -m 600 "$Y2_ARTIFACT_DIR/lastfm-api.json" "$target/usr/share/reborn/lastfm-api.json"
 fi
+# Error reports: the receiver's upload key when the build has one (tools/production/build.py).
+rm -f "$target/usr/share/y2linux/report-upload.json"
+if [ -f "$Y2_ARTIFACT_DIR/report-upload.json" ]; then
+    install -D -m 600 "$Y2_ARTIFACT_DIR/report-upload.json" "$target/usr/share/y2linux/report-upload.json"
+fi
 python3 - "$target/etc/y2linux" <<'PYUPDATE'
 import json, pathlib, sys
 root=pathlib.Path(sys.argv[1]); versions=json.loads((root/'versions.json').read_text())

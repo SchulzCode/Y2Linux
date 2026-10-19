@@ -67,6 +67,33 @@ def lastfm_key(out, source=None):
     return True
 
 
+
+# The error report receiver's build-wide upload key (tools/reports/README.md:
+# made by tools/reports/new_upload_key.py, also set as the Worker's UPLOAD_KEY).
+# Installed as /usr/share/y2linux/report-upload.json; without it the image never
+# uploads and Reborn offers only Save Report.
+REPORT_KEY = Path.home() / '.local/share/y2linux/report-upload.json'
+
+
+def report_upload_key(out, source=None):
+    source = REPORT_KEY if source is None else source
+    target = out / 'report-upload.json'
+    target.unlink(missing_ok=True)
+    if not source.is_file():
+        print('reports: no upload key (%s); the image saves reports but never uploads them' % source, flush=True)
+        return False
+    if source.stat().st_mode & 0o077:
+        raise SystemExit('reports: %s must be readable by its owner only (chmod 600)' % source)
+    value = json.loads(source.read_text())
+    if set(value) != {'upload_key'} or not isinstance(value['upload_key'], str) or \
+            not re.fullmatch(r'[A-Za-z0-9_-]{32,128}', value['upload_key']):
+        raise SystemExit('reports: %s must hold exactly upload_key (32-128 URL-safe characters)' % source)
+    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, 'w') as f:
+        json.dump(value, f)
+    print('reports: upload key included', flush=True)
+    return True
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--output',default='out/y2linux-platform-v1-build')
@@ -123,6 +150,7 @@ def main():
         apply_buildroot_modernization(source)
         apply_ffmpeg9(source, PROJECT/'.cache/buildroot-dl')
     lastfm_key(out)
+    report_upload_key(out)
     env=os.environ.copy();env.pop('Y2_PUBLIC_KEY_FILE',None)
     env.pop('Y2_OWNER_FIRMWARE',None)
     build_id = versions.get('build_id', 'Y2LINUX-REBORN-PREMIUM-' + versions['rootfs_version'].rsplit('.', 1)[-1].zfill(2))

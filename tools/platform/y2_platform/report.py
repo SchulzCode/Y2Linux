@@ -7,13 +7,15 @@ passphrases, Bluetooth names, account data, serial numbers, the songs in the
 queue) are replaced wherever they appear, then patterns (MAC and IP addresses,
 e-mail, URL paths, music paths), and JSON values under music keys. Library
 contents, account files, keys and anything below /media are never read into a
-report at all. Nothing here uploads; the queue waits for the uploader, and
+report at all. Queued reports go to the receiver (tools/reports/worker) over
+HTTPS once the owner opted in, and only from a build that carries the upload key;
 `save_to` writes a report onto Internal Storage or the SD card instead, for the
 owner to send by hand.
 """
 # SPDX-License-Identifier: GPL-2.0-only
 import datetime
 import errno
+import fcntl
 import gzip
 import hashlib
 import hmac
@@ -25,11 +27,14 @@ import re
 import tarfile
 import threading
 import time
+import urllib.error
+import urllib.request
 import uuid
 from pathlib import Path
 
 from .common import atomic_json
 from .observe import mountinfo
+from .workload import workload
 
 SCHEMA = 1
 STATE = '/data/system/platform/reports.json'
@@ -38,7 +43,15 @@ QUEUE_MAX = 3
 DAILY_MAX = 5
 BUDGET = 8 * 1024 * 1024          # compressed report
 SECTION_MAX = 4 * 1024 * 1024     # raw bytes per section (logs keep their newest end)
-UPLOAD = False                    # R4 brings the uploader; until then reports are saved by hand
+# The receiver (tools/reports/worker). The build-wide upload key comes from the
+# release build (tools/production/build.py); a build without it never uploads,
+# and Reborn then offers only Save Report.
+ENDPOINT = 'https://reports.schulzcode.dev/v1/report'
+UPLOAD_KEY = '/usr/share/y2linux/report-upload.json'
+RETRY_S = (300, 900, 3600, 3 * 3600, 6 * 3600)
+GIVE_UP_S = 3 * 86400
+MINIMUM_PERCENT = 15              # never below this on battery
+REFUSED = (400, 403, 404, 405, 411, 413)   # the receiver will never take this report
 # Storage a report can be saved to: its mount and the folder MTP shows as the
 # storage's top level (Internal Storage is the music folder, /run/y2/umtprd.conf).
 DESTINATIONS = {'internal': ('/media/internal', 'music'), 'sd': ('/media/sd', '')}
@@ -733,6 +746,8 @@ def state(ctx):
     value.setdefault('daily', {})
     value.setdefault('boot_triggers', {})
     value.setdefault('seen', {})
+    if not isinstance(value.get('uploads'), dict):
+        value['uploads'] = {}             # upload retries: queue file name -> attempts, next, error
     return value
 
 
@@ -772,7 +787,7 @@ def status(ctx):
     value = state(ctx)
     queued = [p.name for p in ctx.glob(QUEUE + '/*.tar.gz')]
     return {'schema': 1, 'enabled': value['enabled'], 'install_id': value['install_id'],
-            'queued': queued, 'last': value.get('last'), 'upload': UPLOAD,
+            'queued': queued, 'last': value.get('last'), 'upload': upload_key(ctx) is not None,
             'destinations': destinations(ctx)}
 
 
@@ -908,11 +923,208 @@ def queue(ctx, trigger, detail='', topic=None, now=None):
     return {'queued': True, 'report_id': index['report_id'], 'bytes': len(data), 'name': name}
 
 
+# ---------------------------------------------------------------- upload
+
+def upload_key(ctx):
+    """The build-wide upload key, or None when this build has none.
+
+    It is public (it is in every image) and only keeps random internet traffic
+    away from the receiver; the receiver's limits are the protection."""
+    value = ctx.json(UPLOAD_KEY, {})
+    key = value.get('upload_key') if isinstance(value, dict) else None
+    return key if isinstance(key, str) and re.fullmatch(r'[A-Za-z0-9_-]{32,128}', key) else None
+
+
+def upload_blocked(ctx, now):
+    """Why queued reports must wait now, or None. Uploads run in the background:
+    only on Wi-Fi, with a trustworthy clock (TLS), never during an update and
+    never below MINIMUM_PERCENT on battery."""
+    if upload_key(ctx) is None:
+        return 'no_upload_key'
+    if state(ctx)['enabled'] is not True:
+        return 'not_enabled'
+    boot = ctx.read('/proc/sys/kernel/random/boot_id')
+    network = ctx.json('/run/y2/network.json', {}) or {}
+    if network.get('state') != 'Online' or network.get('boot_id') != boot:
+        return 'offline'
+    from .timekeeping import status as clock
+    if not clock(ctx, now=now).get('tls_ready'):
+        return 'clock_not_ready'
+    update = ctx.json('/data/updates/state.json', {}) or {}
+    if update.get('state') not in (None, 'Idle', 'Acknowledged', 'RolledBack', 'Failed') or \
+            ctx.path('/data/system/platform/maintenance-pending').exists():
+        return 'update_in_progress'
+    power = ctx.json('/run/y2/power.json', {}) or {}
+    battery = (power.get('battery') or {}) if power.get('boot_id') in (None, boot) else {}
+    charging = battery.get('charging') is True or battery.get('status') in ('Charging', 'Full')
+    percent = battery.get('percent')
+    if not charging and (type(percent) is not int or percent < MINIMUM_PERCENT):
+        return 'battery_low'
+    return None
+
+
+def _queued_index(path):
+    """report.json of a queued report (the first member: only it is decompressed)."""
+    with tarfile.open(path, 'r:gz') as tar:
+        member = tar.next()
+        if member is None or member.name != 'report.json':
+            raise ValueError('report_index_missing')
+        return json.loads(tar.extractfile(member).read())
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """The receiver never redirects; a redirect is an error, never followed."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _post(opener, data, index, key):
+    """POST one report; (HTTP status, answer) or (None, reason) without an answer."""
+    release = index.get('release') or {}
+    headers = {
+        'Content-Type': 'application/gzip',
+        'User-Agent': 'Y2Linux/%s' % (release.get('release_version') or 'unknown'),
+        'X-Y2-Upload-Key': key,
+        'X-Y2-Schema': str(index.get('schema', SCHEMA)),
+        'X-Y2-Install-Id': str(index.get('install_id') or ''),
+        'X-Y2-Report-Id': str(index.get('report_id') or ''),
+        'X-Y2-Sha256': hashlib.sha256(data).hexdigest(),
+        'X-Y2-Trigger': str(index.get('trigger') or ''),
+        'X-Y2-Release': str(release.get('release_version') or ''),
+    }
+    request = urllib.request.Request(ENDPOINT, data=data, headers=headers, method='POST')
+    try:
+        with opener.open(request, timeout=30) as response:
+            body = response.read(4096)
+            status = response.status
+    except urllib.error.HTTPError as error:
+        with error:
+            status, body = error.code, error.read(4096)
+    except (urllib.error.URLError, OSError, TimeoutError) as error:
+        return None, type(getattr(error, 'reason', error)).__name__
+    try:
+        answer = json.loads(body or b'{}')
+    except ValueError:
+        answer = {}
+    return status, answer if isinstance(answer, dict) else {}
+
+
+def _opener(context=None):
+    handlers = [_NoRedirect(), urllib.request.ProxyHandler({})]
+    if context is not None:
+        handlers.append(urllib.request.HTTPSHandler(context=context))
+    return urllib.request.build_opener(*handlers)
+
+
+def _next_midnight(now):
+    tomorrow = (datetime.datetime.fromtimestamp(now, datetime.timezone.utc) + datetime.timedelta(days=1)).date()
+    return datetime.datetime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 5,
+                             tzinfo=datetime.timezone.utc).timestamp()
+
+
+@workload('NetworkTransfer')
+def upload(ctx, now=None, opener=None):
+    """Send every queued report that is due, oldest first.
+
+    A stored report (201, or 200 for one the receiver already has) leaves the
+    queue; one the receiver refuses (REFUSED) is dropped; a full day (429) waits
+    for the next UTC day; no answer or a server error retries after RETRY_S and
+    stops this run. A report still unsent GIVE_UP_S after it was made is
+    dropped. Only one upload runs at a time."""
+    now = time.time() if now is None else now
+    blocked = upload_blocked(ctx, now)
+    if blocked:
+        return {'uploaded': [], 'reason': blocked}
+    directory = ctx.path(QUEUE)
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    lock = os.open(directory / '.upload.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+    try:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return {'uploaded': [], 'reason': 'busy'}
+        return _upload_queue(ctx, now, opener or _opener(), upload_key(ctx))
+    finally:
+        os.close(lock)
+
+
+def _upload_queue(ctx, now, opener, key):
+    value = state(ctx)
+    queued = sorted(ctx.glob(QUEUE + '/*.tar.gz'))
+    retries = {name: entry for name, entry in value['uploads'].items()
+               if isinstance(entry, dict) and name in {p.name for p in queued}}
+    results = []
+
+    def settle(index, outcome, **fields):
+        last = value.get('last') or {}
+        if last.get('report_id') == index.get('report_id'):
+            last = {k: v for k, v in last.items() if k not in ('reason', 'next_attempt')}
+            value['last'] = dict(last, state=outcome, **fields)
+
+    for path in queued:
+        entry = retries.get(path.name, {})
+        if entry.get('next', 0) > now:
+            continue
+        try:
+            index = _queued_index(path)
+            data = path.read_bytes()
+        except (OSError, ValueError, tarfile.TarError, EOFError):
+            path.unlink(missing_ok=True)
+            results.append({'name': path.name, 'outcome': 'dropped', 'reason': 'unreadable'})
+            continue
+        created = index.get('created_utc')
+        try:
+            made = datetime.datetime.fromisoformat(created).timestamp()
+        except (TypeError, ValueError):
+            made = path.stat().st_mtime
+        if now - made > GIVE_UP_S:
+            path.unlink(missing_ok=True)
+            retries.pop(path.name, None)
+            settle(index, 'dropped', reason='expired')
+            results.append({'name': path.name, 'outcome': 'dropped', 'reason': 'expired'})
+            continue
+        status, answer = _post(opener, data, index, key)
+        if status in (200, 201):
+            path.unlink(missing_ok=True)
+            retries.pop(path.name, None)
+            settle(index, 'sent', sent_utc=datetime.datetime.fromtimestamp(now, datetime.timezone.utc).isoformat())
+            results.append({'name': path.name, 'outcome': 'sent', 'report_id': answer.get('report_id')})
+        elif status in REFUSED:
+            path.unlink(missing_ok=True)
+            retries.pop(path.name, None)
+            reason = 'refused_%d_%s' % (status, answer.get('error', ''))
+            settle(index, 'dropped', reason=reason)
+            results.append({'name': path.name, 'outcome': 'dropped', 'reason': reason})
+        else:
+            attempts = entry.get('attempts', 0) + 1
+            wait = _next_midnight(now) if status == 429 else now + RETRY_S[min(attempts, len(RETRY_S)) - 1]
+            reason = 'HTTP_%d' % status if status is not None else answer
+            retries[path.name] = {'attempts': attempts, 'next': wait, 'error': reason}
+            settle(index, 'failed', reason=reason, next_attempt=wait)
+            results.append({'name': path.name, 'outcome': 'retry', 'reason': reason, 'next': wait})
+            if status != 429:
+                break          # no answer or a server error: the rest would fare no better
+    value['uploads'] = retries
+    save(ctx, value)
+    return {'uploaded': results}
+
+
+def next_upload(ctx):
+    """When the earliest queued report may be sent (epoch), or None when none waits."""
+    queued = {p.name for p in ctx.glob(QUEUE + '/*.tar.gz')}
+    if not queued:
+        return None
+    retries = state(ctx)['uploads']
+    return min((retries.get(name) if isinstance(retries.get(name), dict) else {}).get('next', 0) for name in queued)
+
+
 # ---------------------------------------------------------------- triggers
 
 CRASH = re.compile(r'Kernel panic|Internal error: Oops|BUG: |Unable to handle kernel|kernel BUG at')
 DARK = re.compile(r'DSI register reads still lag|flip_done timed out|vblank wait timed out')
-STORAGE = re.compile(r'EXT4-fs error|I/O error, dev mmcblk|Remounting filesystem read-only|blk_update_request: I/O error')
+# The internal eMMC only: a pulled SD card (mmcblk1) logs I/O errors too.
+STORAGE = re.compile(r'EXT4-fs error|I/O error, dev mmcblk0|Remounting filesystem read-only|'
+                     r'blk_update_request: I/O error, dev mmcblk0')
 
 
 def _changed(value, name, current):
@@ -955,12 +1167,22 @@ def check(ctx):
     if update.get('state') in ('Failed', 'RolledBack', 'RescueRequired', 'RollbackPending') and \
             _changed(value, 'update', '%s:%s' % (update.get('sequence'), update.get('state'))):
         fired.append(('update_failure', str(update.get('state'))))
-    fails = ctx.integer('/sys/power/suspend_stats/fail')
-    if fails and _changed(value, 'suspend_fail', '%s:%s' % (boot, fails)):
-        fired.append(('sleep_failure', 'suspend_stats fail %d' % fails))
-    wifi = ctx.path('/run/y2/wifi-failure.json')
-    if wifi.is_file() and _changed(value, 'wifi_failure', str(int(wifi.stat().st_mtime))):
-        fired.append(('radio_failure', 'wifi'))
+    # A sleep cancelled by a wake event (a button, the charger) is counted as a
+    # failure with -EBUSY: routine on a player. Report a failed resume, tasks
+    # that would not freeze, or a driver that refused with another error.
+    stats = '/sys/power/suspend_stats/'
+    fails = ctx.integer(stats + 'fail') or 0
+    resumes = sum(ctx.integer(stats + name) or 0 for name in ('failed_resume', 'failed_resume_early',
+                                                             'failed_resume_noirq'))
+    frozen = ctx.integer(stats + 'failed_freeze') or 0
+    code = (ctx.read(stats + 'last_failed_errno') or '').strip()
+    real = resumes or frozen or (fails and code not in ('0', '-16'))
+    if real and _changed(value, 'suspend_fail', '%s:%s:%s:%s' % (boot, fails, resumes, frozen)):
+        fired.append(('sleep_failure', 'suspend_stats fail %d resume %d freeze %d errno %s step %s dev %s' % (
+            fails, resumes, frozen, code or '?', (ctx.read(stats + 'last_failed_step') or '').strip() or '?',
+            (ctx.read(stats + 'last_failed_dev') or '').strip() or '?')))
+    # Only the radio itself: wifi-failure.json is rewritten on every Wi-Fi
+    # connection and names the network's answers (wrong password, out of range).
     status_line = ctx.read('/sys/devices/platform/18070000.connectivity/status') or ''
     error = re.search(r'\berror=(-?\d+)', status_line)
     if error and error.group(1) != '0' and _changed(value, 'conn_error', '%s:%s' % (boot, error.group(1))):
@@ -981,3 +1203,12 @@ def run_checks(ctx):
     if state(ctx)['enabled'] is not True:
         return []
     return [dict(queue(ctx, trigger, detail), trigger=trigger) for trigger, detail in check(ctx)]
+
+
+def upload_now(ctx):
+    """upload() for callers whose own work must not fail with it (a queued report
+    stays queued): a sleep in progress or an I/O error becomes the reason."""
+    try:
+        return upload(ctx)
+    except (OSError, ValueError) as error:
+        return {'uploaded': [], 'reason': str(error) if isinstance(error, ValueError) else type(error).__name__}

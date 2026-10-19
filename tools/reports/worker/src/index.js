@@ -98,6 +98,15 @@ export async function handle(request, env, now = new Date()) {
   const day = now.toISOString().slice(0, 10);
   // A retried upload of a stored report is a success, not a second copy.
   if (await env.RATES.get(`seen:${report}`)) return answer(200, { report_id: report, status: 'duplicate' });
+
+  const body = await readLimited(request, MAX_BYTES);
+  if (body === null) return answer(413, { error: 'too_large' });
+  if (body.byteLength !== declared) return answer(400, { error: 'length_mismatch' });
+  if (body[0] !== 0x1f || body[1] !== 0x8b) return answer(400, { error: 'not_gzip' });
+  if ((await sha256(body)) !== digest) return answer(400, { error: 'sha256_mismatch' });
+
+  // Only a valid report counts towards the limits: a broken upload that the
+  // player retries must not use up its day.
   if (await overLimit(env.RATES, `install:${install}:${day}`, PER_INSTALL_PER_DAY)) {
     return answer(429, { error: 'install_daily_limit' });
   }
@@ -106,12 +115,6 @@ export async function handle(request, env, now = new Date()) {
   if (await overLimit(env.RATES, `address:${addressKey}:${day}`, PER_ADDRESS_PER_DAY)) {
     return answer(429, { error: 'address_daily_limit' });
   }
-
-  const body = await readLimited(request, MAX_BYTES);
-  if (body === null) return answer(413, { error: 'too_large' });
-  if (body.byteLength !== declared) return answer(400, { error: 'length_mismatch' });
-  if (body[0] !== 0x1f || body[1] !== 0x8b) return answer(400, { error: 'not_gzip' });
-  if ((await sha256(body)) !== digest) return answer(400, { error: 'sha256_mismatch' });
 
   const key = `reports/${day}/${install}/${report}.tar.gz`;
   await env.REPORTS.put(key, body, {

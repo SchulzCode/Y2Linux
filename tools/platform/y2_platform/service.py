@@ -29,6 +29,13 @@ DARK_MAINTENANCE_S = 300
 # again only after RECONCILE_BACKOFF_S.
 RECONCILE_LIMIT_S = 150
 RECONCILE_BACKOFF_S = 600
+# Error reports (ERROR-REPORTS-PLAN): look for new triggers this often, the
+# first time shortly after start (a crash record of the previous boot); a run
+# that builds and sends reports is stopped after REPORT_LIMIT_S.
+REPORT_FIRST_S = 120
+REPORT_CHECK_S = 900
+REPORT_LIMIT_S = 600
+REPORT_SEND_GAP_S = 300   # a blocked upload (battery, clock) is not retried every pass
 
 
 def display_dark(ctx):
@@ -111,6 +118,48 @@ def daily_update_check(ctx, network, child):
                                 stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
     except OSError:
         return None
+
+
+def error_reports(ctx, network, run, now, wall=None):
+    """Start `report work` (new triggers, then the upload queue) in its own
+    process: building a report takes ≈10 s of every core and an upload waits on
+    the network, so neither may stall this loop. Only with reports on and an
+    upload key in this build; due every REPORT_CHECK_S, or sooner when a queued
+    report may be sent and Wi-Fi is online. `run` is the previous answer:
+    {'next_check', 'process', 'started'}. Returns the new state."""
+    from . import report
+    run = dict(run or {'next_check': now + REPORT_FIRST_S})
+    process = run.pop('process', None)
+    started = run.pop('started', None)
+    if process is not None:
+        if process.poll() is None:
+            if now - started < REPORT_LIMIT_S:
+                return dict(run, process=process, started=started)
+            kill_tree(process.pid)
+            with contextlib.suppress(Exception):
+                process.wait(timeout=1)
+    try:
+        if report.upload_key(ctx) is None or report.state(ctx)['enabled'] is not True:
+            return run
+        due = report.next_upload(ctx)
+    except (OSError, ValueError, TypeError, AttributeError):
+        return run                # an unreadable record never stops this loop
+    check = now >= run['next_check']
+    send = (due is not None and network.get('state') == 'Online' and now >= run.get('send_after', 0) and
+            due <= (time.time() if wall is None else wall))
+    if not (check or send):
+        return run
+    if check:
+        run['next_check'] = now + REPORT_CHECK_S
+    run['send_after'] = now + REPORT_SEND_GAP_S
+    import subprocess
+    try:
+        process = subprocess.Popen(['/usr/sbin/y2-platform', 'report', 'work'],
+                                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
+    except OSError:
+        return run
+    return dict(run, process=process, started=now)
 
 
 def radio_firmware(ctx, child, ready, maintenance):
@@ -198,6 +247,7 @@ def serve(ctx):
         query_failures = previous.get('status_query_failures', 0) if previous.get('boot_id') == ctx.read('/proc/sys/kernel/random/boot_id') else 0
         query_failures = query_failures if isinstance(query_failures, int) and query_failures >= 0 else 0
         update_check = None
+        reports = None
         reconcile = None
         firmware_scan, firmware_ready = None, False
         while running[0]:
@@ -239,6 +289,7 @@ def serve(ctx):
                 # kernel D-state does not block Wi-Fi or the power daemon.
                 ctx.command(['/usr/sbin/y2-platform', 'space', '--cleanup'], timeout=2)
                 update_check = daily_update_check(ctx, value, update_check)
+                reports = error_reports(ctx, value, reports, before)
                 settled = settled or health_settled(
                     ctx.command(['/usr/sbin/y2-platform', 'update', 'health-ack'], timeout=8))
                 ready = ctx.json('/run/y2/application-ready.json', {})
