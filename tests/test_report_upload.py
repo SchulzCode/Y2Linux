@@ -281,6 +281,59 @@ class Upload(unittest.TestCase):
             os.close(lock)
         self.assertEqual(self.server.received, [])
 
+    def test_the_owners_screen_follows_build_and_upload_and_the_record_goes_away(self):
+        report.set_enabled(self.ctx, True)
+        seen = []
+        progress = report.Progress(self.ctx)
+        write_record = progress.__call__
+
+        def record(phase, fraction=0.0, force=False, **fields):
+            write_record(phase, fraction, True, **fields)        # every step, not five a second
+            seen.append(json.loads((Path(self.root) / report.PROGRESS.lstrip('/')).read_text()))
+        item = report.queue(self.ctx, 'manual', now=NOW, progress=record)
+        result = report.upload(self.ctx, now=NOW.timestamp(), opener=self.opener, progress=record)
+        self.assertEqual(result['uploaded'][0]['outcome'], 'sent')
+        phases = [r['phase'] for r in seen]
+        self.assertEqual(sorted(set(phases), key=phases.index), ['collect', 'scrub', 'pack', 'upload'])
+        percents = [r['percent'] for r in seen]
+        self.assertEqual(percents, sorted(percents))                     # never goes back
+        self.assertEqual((percents[0], percents[-1]), (0, 100))
+        last = seen[-1]
+        self.assertEqual(last['bytes_done'], last['bytes_total'])
+        self.assertTrue(all(r['seconds_left'] is None or r['seconds_left'] >= 0 for r in seen))
+        # The streamed body arrived whole.
+        [(_, headers, received)] = self.server.received
+        self.assertEqual(int(headers['content-length']), len(received))
+        self.assertEqual(headers['x-y2-report-id'], item['report_id'])
+        progress.close()
+        self.assertFalse((Path(self.root) / report.PROGRESS.lstrip('/')).exists())
+
+    def test_saving_shows_the_save_step_last(self):
+        lines = ['22 1 179:2 / / ro,relatime - ext4 /dev/root ro', '30 22 179:8 / /media/sd rw,relatime - vfat /dev/x rw']
+        write(self.root, '/proc/self/mountinfo', '\n'.join(lines) + '\n')
+        (Path(self.root) / 'media/sd').mkdir(parents=True, exist_ok=True)
+        seen = []
+        result = report.save_to(self.ctx, 'sd', now=NOW,
+                                progress=lambda phase, fraction=0.0, force=False, **f: seen.append((phase, fraction)))
+        self.assertTrue(result['saved'])
+        self.assertEqual(seen[-1], ('save', 1))
+        self.assertEqual(seen[0], ('collect', 0))
+
+    def test_progress_writes_at_most_five_times_a_second(self):
+        progress = report.Progress(self.ctx, 'sd')
+        path = Path(self.root) / report.PROGRESS.lstrip('/')
+        progress('scrub', 0.5)
+        first = path.read_text()
+        progress('scrub', 0.6)                                           # within 0.2 s: skipped
+        self.assertEqual(path.read_text(), first)
+        progress('scrub', 0.7, force=True)
+        value = json.loads(path.read_text())
+        self.assertEqual((value['phase'], value['destination'], value['schema']), ('scrub', 'sd', 1))
+        self.assertAlmostEqual(value['percent'], 12 + 64 * 0.7, places=1)
+        progress.close()
+        progress.close()                                                 # twice is fine
+        self.assertFalse(path.exists())
+
     def test_a_sleep_in_progress_leaves_the_report_queued(self):
         report.set_enabled(self.ctx, True)
         self.queued()

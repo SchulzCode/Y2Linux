@@ -56,6 +56,9 @@ REFUSED = (400, 403, 404, 405, 411, 413)   # the receiver will never take this r
 # storage's top level (Internal Storage is the music folder, /run/y2/umtprd.conf).
 DESTINATIONS = {'internal': ('/media/internal', 'music'), 'sd': ('/media/sd', '')}
 FOLDER = 'Error Reports'
+# Live progress of a report the owner started (Reborn's report screen reads it,
+# like the update's /run/y2/update-progress.json); removed when the run ends.
+PROGRESS = '/run/y2/report-progress.json'
 TOPICS = ('sound', 'display', 'battery', 'bluetooth', 'wifi', 'crash', 'other')
 TRIGGERS = ('manual', 'kernel_crash', 'kernel_warning', 'unclean_restart', 'reborn_crash',
             'reborn_failure', 'update_failure', 'sleep_failure', 'radio_failure',
@@ -581,27 +584,35 @@ def _worker_start(known, key):
 
 
 def _worker_scrub(job):
-    path, data = job
+    index, path, data = job
     _worker.counts = {}
-    return _scrub_blob(_worker, path, data), _worker.counts
+    return index, (_scrub_blob(_worker, path, data), _worker.counts)
 
 
-def _scrub_files(scrubber, known, items, pool):
-    """Each (path, data) scrubbed, in parallel when a pool is there."""
+def _scrub_files(scrubber, known, items, pool, progress=None):
+    """Each (path, data) scrubbed, in parallel when a pool is there;
+    progress(fraction) follows the bytes done."""
+    progress = progress or (lambda fraction: None)
     jobs, owners = [], []
     for n, (path, data) in enumerate(items):
         for part in _parts(path, data):
             jobs.append((path, part))
             owners.append(n)
+    total = sum(len(data) for _, data in jobs) or 1
+    done = 0
+    results = [None] * len(jobs)
     if pool is None:
-        results = [(_scrub_blob(scrubber, path, data), {}) for path, data in jobs]
+        for i, (path, data) in enumerate(jobs):
+            results[i] = (_scrub_blob(scrubber, path, data), {})
+            done += len(data)
+            progress(done / total)
     else:
         # Big pieces first so no core waits on the last large one.
         order = sorted(range(len(jobs)), key=lambda i: -len(jobs[i][1]))
-        done = pool.map(_worker_scrub, [jobs[i] for i in order], chunksize=1)
-        results = [None] * len(jobs)
-        for i, result in zip(order, done):
+        for i, result in pool.imap_unordered(_worker_scrub, [(i, *jobs[i]) for i in order], chunksize=1):
             results[i] = result
+            done += len(jobs[i][1])
+            progress(done / total)
     cleaned = [b''] * len(items)
     for owner, (clean, counts) in zip(owners, results):
         cleaned[owner] += clean
@@ -638,23 +649,65 @@ def _scrub_tar(scrubber, data, compressed):
     return out.getvalue()
 
 
-def build(ctx, trigger, detail='', topic=None, install_id=None, now=None):
+class Progress:
+    """Live progress of one report run for the owner's screen: the step
+    (collect, scrub, pack, then upload or save), the whole run's percent and
+    an estimate of the seconds left. At most five writes a second, in RAM."""
+
+    SLICES = {'collect': (0, 12), 'scrub': (12, 76), 'pack': (76, 82), 'upload': (82, 100), 'save': (82, 100)}
+
+    def __init__(self, ctx, destination=None):
+        self.path = ctx.path(PROGRESS)
+        self.destination = destination
+        self.start = time.monotonic()
+        self.written = 0.0
+
+    def __call__(self, phase, fraction=0.0, force=False, **fields):
+        now = time.monotonic()
+        if not force and now - self.written < 0.2:
+            return
+        self.written = now
+        low, high = self.SLICES[phase]
+        percent = low + (high - low) * min(max(fraction, 0.0), 1.0)
+        elapsed = now - self.start
+        left = int(round(elapsed * (100 - percent) / percent)) if percent >= 15 else None
+        try:
+            self.path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+            atomic_json(self.path, dict(schema=1, phase=phase, percent=round(percent, 1), seconds_left=left,
+                                        destination=self.destination, **fields))
+        except OSError:
+            pass                  # the screen goes without; the report does not
+
+    def close(self):
+        try:
+            self.path.unlink()
+        except OSError:
+            pass
+
+
+def _quiet(*args, **kwargs):
+    pass
+
+
+def build(ctx, trigger, detail='', topic=None, install_id=None, now=None, progress=None):
     """The complete report (tar.gz bytes) and its index."""
     if trigger not in TRIGGERS:
         raise ValueError('unknown_trigger')
     if topic is not None and topic not in TOPICS:
         raise ValueError('unknown_topic')
+    progress = progress or _quiet
+    progress('collect', 0, force=True)
     known = secrets(ctx)
     scrubber = Scrubber(known)
     pool = _pool(known, scrubber.key)
     try:
-        return _build(ctx, trigger, detail, topic, install_id, now, scrubber, known, pool)
+        return _build(ctx, trigger, detail, topic, install_id, now, scrubber, known, pool, progress)
     finally:
         if pool is not None:
             pool.terminate()
 
 
-def _build(ctx, trigger, detail, topic, install_id, now, scrubber, known, pool):
+def _build(ctx, trigger, detail, topic, install_id, now, scrubber, known, pool, progress):
     now = now or datetime.datetime.now(datetime.timezone.utc)
     versions = ctx.json('/etc/y2linux/versions.json', {})
     local = datetime.datetime.now().astimezone()
@@ -684,7 +737,9 @@ def _build(ctx, trigger, detail, topic, install_id, now, scrubber, known, pool):
     runner = threading.Thread(target=lambda: commands.update(_commands(ctx)), daemon=True)
     runner.start()
     seen, files = set(), []
-    for pattern in FILES:
+    progress('collect', 0.3)
+    for n, pattern in enumerate(FILES):
+        progress('collect', 0.3 + 0.7 * n / len(FILES))
         for path in ctx.glob(pattern) if '*' in pattern else [ctx.path(pattern)]:
             relative = '/' + str(path.relative_to(ctx.root)).lstrip('/')
             if relative in seen or NEVER.search(relative) or not path.is_file():
@@ -693,7 +748,10 @@ def _build(ctx, trigger, detail, topic, install_id, now, scrubber, known, pool):
             data, cut = _read_bytes(ctx, relative)
             if data is not None:
                 files.append((relative, data, cut))
-    cleaned = _scrub_files(scrubber, known, [(relative, data) for relative, data, _ in files], pool)
+    progress('scrub', 0, force=True)
+    cleaned = _scrub_files(scrubber, known, [(relative, data) for relative, data, _ in files], pool,
+                           lambda fraction: progress('scrub', fraction))
+    progress('pack', 0, force=True)
     runner.join()
     for name, result in commands.items():
         output = (result or {}).get('output') or ''
@@ -708,7 +766,9 @@ def _build(ctx, trigger, detail, topic, install_id, now, scrubber, known, pool):
         name = relative[:-3] if relative.endswith('.tar.gz') else relative
         add('files' + name, clean, relative, cut)
     index['scrubbed'] = dict(sorted(scrubber.counts.items()))
-    return _pack(index, members), index
+    packed = _pack(index, members)
+    progress('pack', 1, force=True)
+    return packed, index
 
 
 def _pack(index, members):
@@ -860,7 +920,7 @@ def lower_priority():
     os.nice(10)
 
 
-def save_to(ctx, destination, topic=None, now=None):
+def save_to(ctx, destination, topic=None, now=None, progress=None):
     """Build a report and save it onto Internal Storage or the SD card.
 
     Asked for by the owner on the player, so no opt-in is needed: nothing leaves
@@ -872,11 +932,15 @@ def save_to(ctx, destination, topic=None, now=None):
         return {'saved': False, 'reason': 'not_mounted'}
     value = state(ctx)
     now = now or datetime.datetime.now(datetime.timezone.utc)
+    progress = progress or _quiet
     data, index = build(ctx, 'manual', topic=topic,
-                        install_id=value['install_id'] if value['enabled'] is True else None, now=now)
+                        install_id=value['install_id'] if value['enabled'] is True else None, now=now,
+                        progress=progress)
     try:
         mount, top = DESTINATIONS[destination]
+        progress('save', 0, force=True, bytes_total=len(data))
         name = _write_into(ctx.path(mount), top, data, now.astimezone().strftime('%Y%m%d-%H%M%S'))
+        progress('save', 1, force=True, bytes_total=len(data))
     except OSError as error:
         return {'saved': False, 'reason': 'no_space' if error.errno == errno.ENOSPC else 'write_failed'}
     value = state(ctx)
@@ -888,7 +952,7 @@ def save_to(ctx, destination, topic=None, now=None):
             'report_id': index['report_id'], 'bytes': len(data)}
 
 
-def queue(ctx, trigger, detail='', topic=None, now=None):
+def queue(ctx, trigger, detail='', topic=None, now=None, progress=None):
     """Build and queue one report if the user opted in and the limits allow it."""
     value = state(ctx)
     if value['enabled'] is not True:
@@ -902,7 +966,7 @@ def queue(ctx, trigger, detail='', topic=None, now=None):
             return {'queued': False, 'reason': 'daily_limit'}
         if trigger in value['boot_triggers'].get(boot, []):
             return {'queued': False, 'reason': 'already_reported_this_boot'}
-    data, index = build(ctx, trigger, detail, topic, value['install_id'], now)
+    data, index = build(ctx, trigger, detail, topic, value['install_id'], now, progress)
     directory = ctx.path(QUEUE)
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     name = '%s-%s.tar.gz' % (now.strftime('%Y%m%dT%H%M%SZ'), index['report_id'])
@@ -978,7 +1042,22 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def _post(opener, data, index, key):
+class _Body:
+    """The report as urllib's request body, read in pieces so the owner's
+    screen can follow the upload."""
+
+    def __init__(self, data, progress):
+        self.data, self.sent, self.progress = data, 0, progress
+
+    def read(self, size=-1):
+        size = 16384 if size is None or size < 0 else min(size, 16384)
+        piece = self.data[self.sent:self.sent + size]
+        self.sent += len(piece)
+        self.progress('upload', self.sent / max(len(self.data), 1), bytes_done=self.sent, bytes_total=len(self.data))
+        return piece
+
+
+def _post(opener, data, index, key, progress=None):
     """POST one report; (HTTP status, answer) or (None, reason) without an answer."""
     release = index.get('release') or {}
     headers = {
@@ -991,8 +1070,10 @@ def _post(opener, data, index, key):
         'X-Y2-Sha256': hashlib.sha256(data).hexdigest(),
         'X-Y2-Trigger': str(index.get('trigger') or ''),
         'X-Y2-Release': str(release.get('release_version') or ''),
+        'Content-Length': str(len(data)),
     }
-    request = urllib.request.Request(ENDPOINT, data=data, headers=headers, method='POST')
+    body = _Body(data, progress) if progress else data
+    request = urllib.request.Request(ENDPOINT, data=body, headers=headers, method='POST')
     try:
         with opener.open(request, timeout=30) as response:
             body = response.read(4096)
@@ -1023,7 +1104,7 @@ def _next_midnight(now):
 
 
 @workload('NetworkTransfer')
-def upload(ctx, now=None, opener=None):
+def upload(ctx, now=None, opener=None, progress=None):
     """Send every queued report that is due, oldest first.
 
     A stored report (201, or 200 for one the receiver already has) leaves the
@@ -1043,12 +1124,12 @@ def upload(ctx, now=None, opener=None):
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return {'uploaded': [], 'reason': 'busy'}
-        return _upload_queue(ctx, now, opener or _opener(), upload_key(ctx))
+        return _upload_queue(ctx, now, opener or _opener(), upload_key(ctx), progress)
     finally:
         os.close(lock)
 
 
-def _upload_queue(ctx, now, opener, key):
+def _upload_queue(ctx, now, opener, key, progress=None):
     value = state(ctx)
     queued = sorted(ctx.glob(QUEUE + '/*.tar.gz'))
     retries = {name: entry for name, entry in value['uploads'].items()
@@ -1083,7 +1164,9 @@ def _upload_queue(ctx, now, opener, key):
             settle(index, 'dropped', reason='expired')
             results.append({'name': path.name, 'outcome': 'dropped', 'reason': 'expired'})
             continue
-        status, answer = _post(opener, data, index, key)
+        if progress:
+            progress('upload', 0, force=True, bytes_done=0, bytes_total=len(data))
+        status, answer = _post(opener, data, index, key, progress)
         if status in (200, 201):
             path.unlink(missing_ok=True)
             retries.pop(path.name, None)
@@ -1205,10 +1288,10 @@ def run_checks(ctx):
     return [dict(queue(ctx, trigger, detail), trigger=trigger) for trigger, detail in check(ctx)]
 
 
-def upload_now(ctx):
+def upload_now(ctx, progress=None):
     """upload() for callers whose own work must not fail with it (a queued report
     stays queued): a sleep in progress or an I/O error becomes the reason."""
     try:
-        return upload(ctx)
+        return upload(ctx, progress=progress)
     except (OSError, ValueError) as error:
         return {'uploaded': [], 'reason': str(error) if isinstance(error, ValueError) else type(error).__name__}

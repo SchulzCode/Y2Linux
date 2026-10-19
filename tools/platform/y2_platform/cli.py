@@ -183,14 +183,22 @@ def main():
             elif args.action == 'new-id':
                 result = report.new_install_id(ctx)
             elif args.action == 'send':
-                result = report.queue(ctx, 'manual', topic=args.topic)
-                if result.get('queued'):
-                    # Sent at once when it can be; otherwise it waits in the queue.
-                    result['upload'] = report.upload_now(ctx)
+                progress = report.Progress(ctx)
+                try:
+                    result = report.queue(ctx, 'manual', topic=args.topic, progress=progress)
+                    if result.get('queued'):
+                        # Sent at once when it can be; otherwise it waits in the queue.
+                        result['upload'] = report.upload_now(ctx, progress=progress)
+                finally:
+                    progress.close()
             elif args.action == 'save':
                 if args.to is None:
                     raise ValueError('save_needs_to')
-                result = report.save_to(ctx, args.to, topic=args.topic)
+                progress = report.Progress(ctx, args.to)
+                try:
+                    result = report.save_to(ctx, args.to, topic=args.topic, progress=progress)
+                finally:
+                    progress.close()
             elif args.action == 'upload':
                 result = report.upload(ctx)
             elif args.action == 'work':
