@@ -8870,3 +8870,18 @@ change.
 
 **Gate decision:** built and installed on the owner's player (Acknowledged 7100, Save Report used); **not
 published**: the owner continued R3/R4 on `main` instead, so the next release is a new build.
+
+## BETA-8.10 (Baseline 105) charging fix and error reports over Wi-Fi: milestone gap audit — 2026-10-19
+
+**Boundary:** owner: "publish without it and answer the issue without it". Kernel charger policy change (inherited
+PMIC charger settings replaced instead of refused, #47), the platform uploader and a public receiver. No memory,
+partition or packaging scope change; the upload key ships in the image (public by design).
+
+| Area | State for Beta 8.10 | Evidence / gap |
+| --- | --- | --- |
+| Charging start (#47) | FIXED IN CODE | Reporter's report: CV selector 31 refused (fault 0x80, -EIO); every CV/input OVP/battery OVP state tested on the host; not reproduced on a player; reporter's confirmation owed |
+| Wall-charger charging | NOT RECHECKED on 8.10 | PC port charges on 105 |
+| Uploads | SHIPPED | Owner's player: Send Report Now → R2 in ≈12 s, automatic report delivered, 0/203 private values |
+| Receiver cost | BOUNDED | Durable Object budget 100 reports / 40 MiB a day, 2 MiB each, 180-day expiry ≈ 7 GiB < 10 GB free; WAF rule and billing alert owed |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.10** (Baseline 105, sequence 7400).

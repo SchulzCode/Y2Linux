@@ -1,6 +1,7 @@
 # Error reports: opt-in reports from players to the maintainer
 
-Status 2026-10-19: **Beta 8.8 (Baseline 101) ships Save Report; Beta 8.9 (built, not published) asks only where.
+Status 2026-10-19: **Beta 8.10 (Baseline 105) ships opt-in uploads (R7 done); before it Beta 8.8 shipped Save Report.
+Earlier status follows.** Beta 8.9 (built, not published) asked only where.
 R3 (Worker, `fetch.py`, deploy README, upload key) and R4 (uploader, periodic check) are done and tested on `main`,
 unreleased; the receiver is option 1 (Worker + R2, pulled home). Next: the owner deploys the Worker
 (`tools/reports/README.md`), then R6 with a test build.** See "R3 and R4 done" at the end. Owner: "an error logger/reporter for users that
@@ -358,3 +359,11 @@ around it, the panel lit): the trigger now needs Reborn's first frame to be miss
 recovery restart is a finding for the display work. Afterwards: Send Report Now goes first and, once it is stored,
 takes the waiting reports along regardless of their retry time (the build-103 report waited 15 min in backoff
 behind it); the progress follows the new report only.
+
+## R7: released in Beta 8.10 (2026-10-19)
+
+Owner: "publish without it and answer the issue without it" (without a wall-charger test on build 105). Build 105 =
+`baseline-105`, sequence 7400, upload key included: players are asked once after updating. User guide section
+"Send reports over Wi-Fi". Still owed: Cloudflare WAF rate-limit rule and R2 billing alert (owner), the progress page
+checked by eye, the question on a player that never answered.
+

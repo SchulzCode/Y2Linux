@@ -1,12 +1,19 @@
 # Current Y2Linux platform state
 
+## Y2Linux 1.0 Beta 8.10, Baseline 105 — 2026-10-19 (latest, published)
+
+Release `1.0.0-beta.8.10`, tag `baseline-105`, Linux `9df5ccf`, Reborn `cfac12b`, sequence 7400. Charging no longer
+refuses charger settings left by other software (#47: CV 4.1875 V blocked every charger); opt-in error reports over
+Wi-Fi to the Cloudflare receiver (budgeted inside R2's free tier); no topic, live report progress; fewer false
+triggers. Details: [Beta 8.10 report](validation/Y2-LINUX-1.0-BETA-8.10.md), [user guide](ERROR-REPORTS.md).
+
 ## Y2Linux 1.0 Beta 8.9, label 102 — 2026-10-19 (built, on the owner's player, not published)
 
 Release `1.0.0-beta.8.9` (no tag), Linux `0e0760f`, Reborn `4da5f84`, sequence 7100. Save Report asks
 only for the storage and saves at once; the topic step is gone (it never changed what a report holds). No platform
 code change. Details: [Beta 8.9 report](validation/Y2-LINUX-1.0-BETA-8.9.md), [user guide](ERROR-REPORTS.md).
 
-## Y2Linux 1.0 Beta 8.8, Baseline 101 — 2026-10-19 (latest published)
+## Y2Linux 1.0 Beta 8.8, Baseline 101 — 2026-10-19 (published)
 
 Release `1.0.0-beta.8.8`, tag `baseline-101`, Linux `be71b6d`, Reborn `b6b6fbc`, sequence 7000. Error reports can be
 saved: About & Updates → Error Reports → Save Report writes the scrubbed report to `Error Reports/` on Internal

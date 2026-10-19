@@ -1,6 +1,17 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-19): ERROR REPORT UPLOADER (R3 + R4) DONE ON MAIN; OWNER DEPLOYS THE WORKER NEXT.**
+> **START HERE (2026-10-19): Y2LINUX 1.0 BETA 8.10 (BASELINE 105) PUBLISHED — CHARGING FIX #47, ERROR REPORTS OVER WI-FI.**
+> Owner: "publish without it and answer the issue without it" (no wall-charger test on 105). Report
+> `docs/validation/Y2-LINUX-1.0-BETA-8.10.md`, audit BETA-8.10. Release `1.0.0-beta.8.10`, sequence 7400, Linux `9df5ccf`,
+> Reborn `cfac12b`. #47 cause: `y2_charge_prepare` refused any inherited CV other than selector 30/0; the reporter's
+> PMIC held 31 (4.1875 V) → fault 0x80/-EIO on every charger. Now CV/input OVP/battery OVP are replaced by stock
+> values and read back; only an asserted battery-OVP detector refuses; refusals named in `check_*`. Reply posted on
+> #47; waiting for their confirmation. Uploads live: players are asked once; reports in R2, `tools/reports/fetch.py`.
+> Owed: Cloudflare WAF rate-limit rule + R2 billing alert (owner), wall-charger check on 8.10, progress page by eye.
+> Flaky host tests seen once each: `test_error_reports` queue/save (only inside the full suite). Next free label 106,
+> sequence above 7400.
+>
+> Previous entry: **ERROR REPORT UPLOADER (R3 + R4) DONE ON MAIN; OWNER DEPLOYS THE WORKER NEXT.**
 > Owner chose receiver option 1 (Worker + R2, pulled home): "do all you can do also check the plan and code again",
 > then "fix it for main directly". Done and tested on `main` (not released, not pushed): Worker fixes + 11 `node --test`
 > tests, `tools/reports/fetch.py` (SigV4, AWS vectors), `new_upload_key.py`, deploy steps `tools/reports/README.md`,

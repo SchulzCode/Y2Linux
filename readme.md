@@ -6,22 +6,22 @@ Linux 6.18 and a Buildroot userspace for the **Innioasis Y2** music player
 Android system on the internal eMMC and leaves the bootloaders, calibration and
 factory partitions untouched.
 
-> **Status: Y2Linux 1.0 Beta 8.8 (Baseline 101, 2026-10-19), public beta.** It runs every day
+> **Status: Y2Linux 1.0 Beta 8.10 (Baseline 105, 2026-10-19), public beta.** It runs every day
 > on the maintainer's Y2. Install it once from the ready-made images of the
 > [GitHub releases](https://github.com/SchulzCode/Y2Linux/releases) with SP Flash Tool
 > ([INSTALL](docs/INSTALL.md)); after that the player updates itself over Wi-Fi. Only one
 > hardware revision has been tested (see [Supported hardware](#supported-hardware)). Read
 > [Known issues](#known-issues) before you flash: battery life in sleep is not yet stock-like.
 
-| | 1.0 Beta 8.8 (Baseline 101) |
+| | 1.0 Beta 8.10 (Baseline 105) |
 | --- | --- |
-| Git tag (both repositories) | `baseline-101` (previous: `baseline-95`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
-| Release / kernel | `1.0.0-beta.8.8` / `6.18.56-y2linux-1.0.0-beta.8.8` (Linux 6.18 long-term line) |
-| Root filesystem | `2026.08-platform-v1.129` (Buildroot 2026.08) |
-| Player | Y2Reborn 1.0.0-beta.8.8 (Rust 1.99) with the UI v4 design, Cover Flow, Genres, a clock, 16 skins, Last.fm scrobbling and 47 headphone profiles |
+| Git tag (both repositories) | `baseline-105` (previous: `baseline-101`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
+| Release / kernel | `1.0.0-beta.8.10` / `6.18.56-y2linux-1.0.0-beta.8.10` (Linux 6.18 long-term line) |
+| Root filesystem | `2026.08-platform-v1.132` (Buildroot 2026.08) |
+| Player | Y2Reborn 1.0.0-beta.8.10 (Rust 1.99) with the UI v4 design, Cover Flow, Genres, a clock, 16 skins, Last.fm scrobbling and 47 headphone profiles |
 | Bluetooth codecs | SBC, AAC (fdk-aac-free) and LDAC |
 | Main components | GCC 15.3 / glibc 2.44, Mesa 26.2.4, FFmpeg 9.0.2, BlueZ 5.87, OpenSSL 4.0.3, Python 3.15.0 |
-| Images built from | Y2Linux `be71b6d`, Y2Reborn `b6b6fbc` ([Beta 8.8 report](docs/validation/Y2-LINUX-1.0-BETA-8.8.md): error reports saved to Internal Storage or the SD card; [8.7](docs/validation/Y2-LINUX-1.0-BETA-8.7.md): GC9503V players identified from LK; [8.6](docs/validation/Y2-LINUX-1.0-BETA-8.6.md): audio review fixes, no loudness jumps, less CPU with a profile; [8.5](docs/validation/Y2-LINUX-1.0-BETA-8.5.md): headphone level, headphone profiles, DAC filter; [8.4](docs/validation/Y2-LINUX-1.0-BETA-8.4.md): the dark display after a restart; [8.3](docs/validation/Y2-LINUX-1.0-BETA-8.3.md): the update screens show the seconds left) |
+| Images built from | Y2Linux `9df5ccf`, Y2Reborn `cfac12b` ([Beta 8.10 report](docs/validation/Y2-LINUX-1.0-BETA-8.10.md): charging on players whose charger settings came from other software (#47), error reports over Wi-Fi (opt-in), report progress; [8.8](docs/validation/Y2-LINUX-1.0-BETA-8.8.md): error reports saved to Internal Storage or the SD card; [8.7](docs/validation/Y2-LINUX-1.0-BETA-8.7.md): GC9503V players identified from LK; [8.6](docs/validation/Y2-LINUX-1.0-BETA-8.6.md): audio review fixes, no loudness jumps, less CPU with a profile; [8.5](docs/validation/Y2-LINUX-1.0-BETA-8.5.md): headphone level, headphone profiles, DAC filter; [8.4](docs/validation/Y2-LINUX-1.0-BETA-8.4.md): the dark display after a restart; [8.3](docs/validation/Y2-LINUX-1.0-BETA-8.3.md): the update screens show the seconds left) |
 
 ## Getting started
 
@@ -66,9 +66,10 @@ public release, and its Firmware-drive install was tested on the device):
 - Headphone level Low/Medium/High (Low is the stock level) and the DAC filter under Settings → Sound →
   Output; headphone profiles that correct 47 common headphones and IEMs (AutoEq), more from an `EQ`
   folder ([Headphone output](docs/HEADPHONE-OUTPUT.md)).
-- **Error reports** (Settings → About & Updates → Error Reports → Save Report): the player's logs and technical
-  details, with personal data removed, saved to Internal Storage or the SD card in about ten seconds, to attach
-  to a GitHub issue ([Error reports](docs/ERROR-REPORTS.md)).
+- **Error reports** (Settings → About & Updates → Error Reports): the player's logs and technical details, with
+  personal data removed. Opt-in: sent over Wi-Fi when something goes wrong or with Send Report Now (Beta 8.10), or
+  saved to Internal Storage or the SD card to attach to a GitHub issue; progress on screen
+  ([Error reports](docs/ERROR-REPORTS.md)).
 - Bluetooth audio; the codec is chosen automatically (SBC, or AAC/aptX/LDAC when the
   headphones support them and BlueALSA offers them). The output follows the headphones:
   Bluetooth headphones take over from the jack when they connect, the jack when they leave.

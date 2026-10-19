@@ -1,7 +1,28 @@
 # Error reports
 
 When something goes wrong on your player (no charging, a crash, sound or display trouble), an error report gives
-the maintainer the player's logs and technical details in one file. You decide whether to send it.
+the maintainer the player's logs and technical details in one file. You decide whether reports are sent: since
+Beta 8.10 the player can send them over Wi-Fi if you turn that on, and you can always save one and send it yourself.
+
+## Send reports over Wi-Fi (Beta 8.10 and later)
+
+After updating to Beta 8.10 the player asks once: **Help Improve Y2Linux?** Choose **Send Reports** or **No Thanks**.
+You can change it any time under Settings → **About & Updates** → **Error Reports** → **Send Error Reports**.
+
+With it on:
+
+- When something goes wrong (a crash, an unexpected restart, a failed update, sleep, display, Wi-Fi/Bluetooth or
+  storage problem), the player makes a report and sends it in the background. At most five a day.
+- **Send Report Now** makes one at once and sends it, with its progress on screen (Collect · Clean · Send). Then
+  write in your GitHub issue what went wrong and when; the **Install ID** shown on the page lets the maintainer
+  find your reports.
+- Reports go out only on Wi-Fi, never during an update and never below 15 % battery unless the player is charging.
+  Without Wi-Fi they wait (up to three days) and go out later.
+- They are sent encrypted (HTTPS) to the maintainer's private storage and deleted there after 180 days. Your IP
+  address is not stored. To have your reports deleted earlier, open an issue with your Install ID; **New ID** on
+  the page starts a new one.
+
+With it off, nothing is collected or sent.
 
 ## Save a report
 
@@ -9,7 +30,8 @@ the maintainer the player's logs and technical details in one file. You decide w
 2. Choose **Internal Storage** or **SD Card** (only the ones the player can write to right now are listed).
 
 The report is saved straight away and holds everything; say what went wrong in the GitHub issue you attach it to.
-(Beta 8.8 also asks what the problem is about; any answer is fine.)
+The screen shows the progress (Collect · Clean · Save). (Beta 8.8 also asks what the problem is about; any answer is
+fine.)
 
 The player collects its logs and removes personal details, which takes about ten seconds. The file goes into an
 **Error Reports** folder on the storage you chose:
@@ -19,12 +41,11 @@ Internal Storage/Error Reports/y2linux-report-20261019-143205.tar.gz
 SD Card/Error Reports/y2linux-report-20261019-143205.tar.gz
 ```
 
-## Send it
+## Send a saved report
 
 Connect the player to a computer, copy the file from the **Error Reports** folder over MTP (or take out the SD
 card) and attach it to your issue on [GitHub](https://github.com/SchulzCode/Y2Linux/issues). A report is usually
-about half a megabyte. Nothing leaves the player on its own: in this beta reports are only saved, never uploaded.
-Sending them over Wi-Fi comes with a later update, and only if you turn it on.
+about half a megabyte. A saved report never leaves the player on its own.
 
 ## What is in a report
 
@@ -52,7 +73,10 @@ send it.
 
 ```sh
 y2-platform report save --to internal|sd   # what Save Report runs (--topic is optional, only a label)
+y2-platform report send                    # what Send Report Now runs: build, then upload
 y2-platform report status
+y2-platform report work                    # what the platform service runs: triggers, then the upload queue
 ```
 
-Design and privacy rules: [ERROR-REPORTS-PLAN](planning/ERROR-REPORTS-PLAN.md).
+Design and privacy rules: [ERROR-REPORTS-PLAN](planning/ERROR-REPORTS-PLAN.md); the receiver, its limits and
+costs: [tools/reports](../tools/reports/README.md).
