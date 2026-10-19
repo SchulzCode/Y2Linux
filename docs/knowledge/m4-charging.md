@@ -76,12 +76,12 @@ was read once through the existing read-only regmap debugfs, not a raw WACS clie
 | Field | Entry | Candidate policy |
 | --- | --- | --- |
 | 0x000 CHR_EN/CSDAC_EN | Both off; HV_EN=1, automode=0 | Only the charger owner may enable; require HV protection, USB, valid source/sensors and no fault. Never alter automode/HV_EN. |
-| 0x002 input OVP selector | 15, nominal 10.5 V | Tighten to evidenced stock selector11 / 7 V. Reject an unexpected lower inherited selector instead of raising it. |
-| 0x00c battery OVP | Enabled, selector0, exact threshold unestablished | **Retain unchanged**. Also accept stock selector1/4.3 V if inherited. No writable battery OVP field in transport policy. Never raise it to force charging. |
+| 0x002 input OVP selector | 15, nominal 10.5 V | Set stock selector 11 / 7 V and read back, whatever was inherited (since #47, 2026-10-19). |
+| 0x00c battery OVP | Enabled, selector0, exact threshold unestablished | Switch on at stock selector 1 / 4.3 V and read back (deglitch kept), whatever was inherited; refuse only while the detector (bit 6) reports an over-voltage (since #47, 2026-10-19). |
 | 0x00e BATON | EN/TDET=1, hot detector=0, battery present | Preserve exact 0x0005 configuration, require presence. Unknown configuration inhibits. No fabricated thermistor conversion. |
 | 0x03c thermal | 0; stock full kernel would set bit5 | Enable only stock THR_HWPDN_EN bit5, read back; never disable detection, change selectors or enter test mode. Any nonzero PMU_THR_STATUS at 0x044 inhibits. |
 | 0x020 ADC routing/USBDL/UVLO | 0x0005 | Require and preserve. No test-mux, download charging, or undervoltage selector manipulation. |
-| Current/CV, trim/emergency state | Selectors15/30; inherited trims | Fixed 70 mA/4.175 V only. No calibration, OTP, OVP trim, battery profile, AP watchdog or emergency-reset writes. |
+| Current/CV, trim/emergency state | Selectors15/30; inherited trims | CV set to 4.175 V (selector 30) whatever was inherited: #47's player held 31 (4.1875 V) and the old check refused it, so it never charged. No calibration, OTP, OVP trim, battery profile, AP watchdog or emergency-reset writes. |
 
 ## Linux architecture and state machine
 
