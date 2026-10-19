@@ -37,8 +37,9 @@ DAILY_MAX = 5
 BUDGET = 8 * 1024 * 1024          # compressed report
 SECTION_MAX = 4 * 1024 * 1024     # raw bytes per section (logs keep their newest end)
 UPLOAD = False                    # R4 brings the uploader; until then reports are saved by hand
-# Music storage a report can be saved to (seen over MTP), and its folder there.
-DESTINATIONS = {'internal': '/media/internal', 'sd': '/media/sd'}
+# Storage a report can be saved to: its mount and the folder MTP shows as the
+# storage's top level (Internal Storage is the music folder, /run/y2/umtprd.conf).
+DESTINATIONS = {'internal': ('/media/internal', 'music'), 'sd': ('/media/sd', '')}
 FOLDER = 'Error Reports'
 TOPICS = ('sound', 'display', 'battery', 'bluetooth', 'wifi', 'crash', 'other')
 TRIGGERS = ('manual', 'kernel_crash', 'kernel_warning', 'unclean_restart', 'reborn_crash',
@@ -137,6 +138,9 @@ def secrets(ctx):
         for value in _strings(ctx.json(path)):
             if VOLUME_ID.fullmatch(value):
                 found['serial'].add(value)
+    # A record that names the boot (a random ID per boot, kept in report.json)
+    # looks like an ext4 UUID; it is not a volume serial.
+    found['serial'].discard(ctx.read('/proc/sys/kernel/random/boot_id') or '')
     serial = re.search(r'(?mi)^Serial\s*:\s*(\S+)', ctx.read('/proc/cpuinfo') or '')
     if serial:
         found['serial'].add(serial.group(1))
@@ -655,18 +659,22 @@ def status(ctx):
 def destinations(ctx):
     """The music storage mounted writable now, in DESTINATIONS order."""
     mounted = {m['path']: m for m in mountinfo(ctx.read('/proc/self/mountinfo', limit=1 << 20))}
-    return [name for name, path in DESTINATIONS.items()
-            if path in mounted and 'rw' in mounted[path]['options']]
+    return [name for name, (path, top) in DESTINATIONS.items()
+            if path in mounted and 'rw' in mounted[path]['options'] and (ctx.path(path) / top).is_dir()]
 
 
-def _write_into(mount, data, stamp):
-    """Write data as FOLDER/y2linux-report-<stamp>.tar.gz below mount, durably.
+def _write_into(mount, top, data, stamp):
+    """Write data as top/FOLDER/y2linux-report-<stamp>.tar.gz below mount, durably.
 
-    The folder must be a real directory on the mounted filesystem itself (no
+    Every folder must be a real directory on the mounted filesystem itself (no
     symlink out of it); the file is complete before it gets its name."""
     root = os.open(mount, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
         device = os.fstat(root).st_dev
+        for part in [p for p in top.split('/') if p]:
+            inner = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=root)
+            os.close(root)
+            root = inner
         try:
             os.mkdir(FOLDER, 0o755, dir_fd=root)
         except FileExistsError:
@@ -726,7 +734,8 @@ def save_to(ctx, destination, topic=None, now=None):
     data, index = build(ctx, 'manual', topic=topic,
                         install_id=value['install_id'] if value['enabled'] is True else None, now=now)
     try:
-        name = _write_into(ctx.path(DESTINATIONS[destination]), data, now.astimezone().strftime('%Y%m%d-%H%M%S'))
+        mount, top = DESTINATIONS[destination]
+        name = _write_into(ctx.path(mount), top, data, now.astimezone().strftime('%Y%m%d-%H%M%S'))
     except OSError as error:
         return {'saved': False, 'reason': 'no_space' if error.errno == errno.ENOSPC else 'write_failed'}
     value = state(ctx)

@@ -257,6 +257,9 @@ class Report(unittest.TestCase):
         self.assertEqual(report.status(self.ctx)['destinations'], [])
         self.assertEqual(report.save_to(self.ctx, 'sd', 'battery')['reason'], 'not_mounted')
         self.mount('/media/sd', '/media/internal')
+        # Internal Storage over MTP is the music folder: without it, nowhere to put the file.
+        self.assertEqual(report.status(self.ctx)['destinations'], ['sd'])
+        (Path(self.root) / 'media/internal/music').mkdir()
         status = report.status(self.ctx)
         self.assertEqual(status['destinations'], ['internal', 'sd'])
         self.assertIs(status['upload'], report.UPLOAD)
@@ -280,7 +283,8 @@ class Report(unittest.TestCase):
         self.assertEqual(report.status(self.ctx)['queued'], [])  # and queues nothing
         report.set_enabled(self.ctx, True)
         saved = report.save_to(self.ctx, 'internal', now=now)
-        index = json.loads(members((Path(self.root) / 'media/internal' / saved['file']).read_bytes())['report.json'])
+        self.assertFalse((Path(self.root) / 'media/internal/Error Reports').exists())
+        index = json.loads(members((Path(self.root) / 'media/internal/music' / saved['file']).read_bytes())['report.json'])
         self.assertEqual(index['install_id'], report.status(self.ctx)['install_id'])
 
     def test_saving_refuses_read_only_storage_and_a_folder_link(self):
@@ -295,6 +299,14 @@ class Report(unittest.TestCase):
         self.assertEqual(list(elsewhere.iterdir()), [])
         with self.assertRaises(ValueError):
             report.save_to(self.ctx, 'usb')
+
+    def test_the_boot_id_is_not_taken_for_a_volume_serial(self):
+        boot = '63c1a2b4-5d6e-4f70-8192-a3b4c5d6e7f8'
+        write(self.root, '/proc/sys/kernel/random/boot_id', boot + '\n')
+        write(self.root, '/run/y2/media-lifecycle.json', json.dumps({'boot_id': boot, 'uuid': 'C4A2-77E1'}))
+        found = report.secrets(self.ctx)['serial']
+        self.assertNotIn(boot, found)
+        self.assertIn('C4A2-77E1', found)
 
     def test_unpaired_bluetooth_names_next_to_an_address_are_private(self):
         s = report.Scrubber({})
