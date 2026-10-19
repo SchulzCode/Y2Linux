@@ -1,6 +1,7 @@
-# Y2Linux 1.0 Beta 8.9 (Baseline 102)
+# Y2Linux 1.0 Beta 8.9 (label 102, not published)
 
-Status: **PUBLISHED as GitHub release `baseline-102`** (2026-10-19). Release `1.0.0-beta.8.9`, Reborn
+Status: **BUILT (label 102) and installed on the owner's player; NOT PUBLISHED** (2026-10-19). The owner then chose
+to continue the error report uploader (R3/R4) on `main`, so the next release is a new build from there. Release `1.0.0-beta.8.9`, Reborn
 `1.0.0-beta.8.9`, kernel `6.18.56-y2linux-1.0.0-beta.8.9`, update sequence 7100, Linux `0e0760f`, Reborn `4da5f84`.
 Built with `tools/production/release.py` (135 s, resumed workspace, update based on `baseline-101`): container suite
 **792 OK**, host suite 819 OK, Reborn 543 tests and strict Clippy; all seal checks PASS, no MediaTek firmware in any
@@ -21,16 +22,15 @@ image. Milestone audit BETA-8.9 in [roadmap-gap-audit](../planning/roadmap-gap-a
 | Platform | No code change; `--topic` stays optional. |
 | User guide | [ERROR-REPORTS](../ERROR-REPORTS.md) without the topic step (with a note for Beta 8.8). Linux `9dc60e6`. |
 
-## Device results
+## Device results (owner's player)
 
-None for this build: it was not installed on a player before publishing. The change is a Reborn screen flow on top of
-the platform command that Beta 8.8 already ran on the owner's player; host test
-`without_an_uploader_reports_are_saved_to_the_chosen_storage` and the rendered preview 33i cover it. The owner
-installs it by OTA.
+Installed by stage + apply (package hashes equal on the player, signature checked): back after ≈40 s, `PendingHealth`
+→ `Acknowledged` 7100, Reborn healthy on `1.0.0-beta.8.9`; `/data/ota-102` removed. The owner then saved a report from
+the screens: SD card, 509 KB, `state: saved` at 13:30 UTC (no topic step).
 
 ## Known gaps
 
-- Not checked on the player: Save Report from the Reborn screens (8.8 and 8.9), a FAT32 card, a full or read-only
+- Not checked on the player: Save Report to Internal Storage from the screens, a FAT32 card, a full or read-only
   card.
 - Unchanged from 8.8: no upload (R3 Worker, R4 uploader), battery current with a profile, output measurements, sleep
   drain (#42), GC9503V confirmation (#45), charging on #47's player.

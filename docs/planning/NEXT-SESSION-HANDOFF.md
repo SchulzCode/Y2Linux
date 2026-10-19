@@ -1,12 +1,26 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-19): Y2LINUX 1.0 BETA 8.9 (BASELINE 102) PUBLISHED — SAVE REPORT WITHOUT A TOPIC; NEXT R3/R4.**
-> Owner: "would it not be better to just export all?" — the topic never changed a report's content (only a label in
-> `report.json`), so Save Report now asks only for the storage (Reborn `c0c5e04`); the topic picker stays for Send
-> Report Now, where it is the receiver's only description. Report `docs/validation/Y2-LINUX-1.0-BETA-8.9.md`, audit
-> BETA-8.9. Release `1.0.0-beta.8.9`, sequence 7100, Linux `0e0760f`, Reborn `4da5f84`, label 102 (135 s, container
-> 792, host 819, Reborn 543). Not installed on a player before publishing; owner installs by OTA. Everything else from
-> the entry below is unchanged (R3 receiver placement still open). Next free label 103, sequence above 7100.
+> **START HERE (2026-10-19): ERROR REPORT UPLOADER (R3 + R4) DONE ON MAIN; OWNER DEPLOYS THE WORKER NEXT.**
+> Owner chose receiver option 1 (Worker + R2, pulled home): "do all you can do also check the plan and code again",
+> then "fix it for main directly". Done and tested on `main` (not released, not pushed): Worker fixes + 11 `node --test`
+> tests, `tools/reports/fetch.py` (SigV4, AWS vectors), `new_upload_key.py`, deploy steps `tools/reports/README.md`,
+> uploader `report.upload` + `report work`, service schedule, build step for the key, Reborn "Report sent" /
+> "couldn't be sent". Trigger review on the owner's player found and fixed three false triggers (Wi-Fi record on every
+> connection, -EBUSY sleep cancellations, pulled SD card I/O errors). Plan section "R3 and R4 done".
+> - **Owner next:** deploy per `tools/reports/README.md` (R2 bucket + 180-day rule, KV namespace ID into
+>   `wrangler.toml`, `new_upload_key.py`, secrets, `wrangler deploy`, read-only R2 token for `fetch.py`).
+> - **Then R6:** a test build (with the key file from the deploy, the build prints `reports: upload key included`), install
+>   on the owner's player (stage + apply), Send Report Now, `fetch.py` downloads it; one provoked trigger. R7: user
+>   guide section "Sending reports", release.
+> - **Beta 8.9 (label 102, sequence 7100):** built, installed on the owner's player (Acknowledged; Save Report used,
+>   SD 509 KB), **not published**: `main` moved on, so `release.py publish --label 102` refuses. The next release is a
+>   new build from `main` with a sequence above 7100 (the owner's player runs 7100). Next free label 103.
+> - Reborn `main` also has the 8.9 docs commit `537e147` after the built commit `4da5f84` (publish needs Reborn HEAD
+>   = the built commit: for any future publish, build after the last Reborn commit).
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.9 (LABEL 102) BUILT, NOT PUBLISHED — SAVE REPORT WITHOUT A TOPIC.**
+> Owner: "would it not be better to just export all?" — the topic never changed a report's content, so Save Report
+> asks only for the storage (Reborn `c0c5e04`). Report `docs/validation/Y2-LINUX-1.0-BETA-8.9.md`, audit BETA-8.9.
 >
 > Previous entry: **Y2LINUX 1.0 BETA 8.8 (BASELINE 101) PUBLISHED — ERROR REPORTS SAVED TO STORAGE; NEXT R3/R4.**
 > Owner: "publish the next beta with what we have currently and export to storage feature … we will do the worker

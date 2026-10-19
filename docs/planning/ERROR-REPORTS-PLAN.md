@@ -1,8 +1,9 @@
 # Error reports: opt-in reports from players to the maintainer
 
-Status 2026-10-19: **Beta 8.8 (Baseline 101) ships Save Report: a scrubbed report written to Internal Storage or the SD
-card in ≈10 s, sent by the owner by hand; no uploader yet (switch and question hidden).** R3 drafted, untested;
-receiver placement open (see below). Owner: "an error logger/reporter for users that
+Status 2026-10-19: **Beta 8.8 (Baseline 101) ships Save Report; Beta 8.9 (built, not published) asks only where.
+R3 (Worker, `fetch.py`, deploy README, upload key) and R4 (uploader, periodic check) are done and tested on `main`,
+unreleased; the receiver is option 1 (Worker + R2, pulled home). Next: the owner deploys the Worker
+(`tools/reports/README.md`), then R6 with a test build.** See "R3 and R4 done" at the end. Owner: "an error logger/reporter for users that
 they can opt in. It should send me everything about the error and device, no personal information, over Wi-Fi
 HTTPS", then "go with the Cloudflare Worker … get as much information as possible … not only kernel level, also
 everything that happens in Reborn". Audit row ERROR-REPORTS in [roadmap-gap-audit](roadmap-gap-audit.md).
@@ -112,11 +113,11 @@ Only with *Error Reports* on. At most one report per trigger class per boot, at 
 | Reborn crash or restart by its supervisor | a new `panic-last.json`, supervisor restart count |
 | A required Reborn worker or subsystem failed | Reborn `health` |
 | Update failed or rolled back, recovery entered | `/data/updates/state.json`, `recovery-last.json` |
-| Sleep failure (refused with an error, failed resume, stuck guard) | sleep diagnostics and power journal rows |
-| Radio failure (Wi-Fi/Bluetooth boot or restore failed) | connectivity status, `wifi-failure.json` |
+| Sleep failure (a failed resume, tasks that would not freeze, a driver error other than -EBUSY; not a sleep a wake event cancelled) | `/sys/power/suspend_stats` |
+| Radio failure (the connectivity chip reports an error) | connectivity status `error=` (not `wifi-failure.json`: it is rewritten on every connection and names the network's answers) |
 | Dark display (DSI register lag, no frame) | kernel log lines of the display driver |
-| Storage error (ext4 errors, I/O errors, read-only remount) | ext4 counters, kernel log |
-| Manual | *Send Report Now* (with an optional choice: Sound, Display, Battery, Bluetooth, Wi-Fi, Crash, Other) |
+| Storage error (ext4 errors, eMMC I/O errors, read-only remount; not a pulled SD card) | ext4 counters, kernel log |
+| Manual | *Send Report Now* (with a choice: Sound, Display, Battery, Bluetooth, Wi-Fi, Crash, Other; *Save Report* asks none since 8.9) |
 
 A trigger collects at once (the logs are fresh) and queues the report; uploading waits for Wi-Fi and runs at low
 priority (the platform's NetworkTransfer workload class), never during an update and never below 15 % battery unless
@@ -128,7 +129,8 @@ charging.
   SHA-256 of the body. TLS 1.2+ with certificate checks (the same urllib/OpenSSL path as updates), no redirects.
 - A build-wide upload key in the header (it is public, inside the firmware; it only keeps random internet traffic
   out). The real protection is the Worker's limits.
-- Retry with backoff (1 min … 6 h), give up after 3 days; the reply's report ID is shown in Settings.
+- Retry with backoff (5 min, 15 min, 1 h, 3 h, then every 6 h; after a 429 the next UTC day), give up after 3 days;
+  a refused report is dropped. Settings shows the last report's state (waiting, sent, couldn't be sent).
 
 ## The Worker
 
@@ -136,7 +138,7 @@ charging.
   install ID format, body SHA-256. Rate limits: 10 reports a day per install ID, 30 per IP (Workers KV counters).
 - Stores `reports/YYYY-MM-DD/<install-id>/<report-id>.tar.gz` in a private R2 bucket with small metadata (schema,
   release, trigger, size). It stores no IP address and has no read endpoint.
-- R2 lifecycle: delete after 180 days.
+- R2 lifecycle: delete after 180 days. Request logs off (`[observability] enabled = false`): they would hold IPs.
 - The maintainer reads with an R2 API token (S3 API): `tools/reports/fetch.py` downloads new reports to
   `out/reports/` (or a scheduled pull to the home server).
 - Code in `tools/reports/worker/` (JavaScript, `wrangler.toml`, unit tests with `node --test`); the owner deploys it
@@ -261,4 +263,39 @@ we will do the worker afterwards", then "40-50 seconds is too long".
   it is discarded now.
 - **Next:** R3 (Worker tests, `fetch.py`, README, owner's receiver decision), R4 (uploader, periodic `report check`,
   then `UPLOAD = True` in `report.py`, which brings the switch and question back in Reborn).
+
+## R3 and R4 done (2026-10-19, `main`, unreleased)
+
+Owner: "option 1, do all you can do also check the plan and code again with the changes we made".
+
+- **Worker** (`tools/reports/worker`): rate limits now count only valid reports (before, a broken upload the
+  player retried used up its day); request logs off; `package.json` and 11 `node --test` tests with a fake R2 and KV
+  (storage key and metadata, duplicate report ID, no read route, exact key, every header check, gzip/length/hash,
+  the 8 MiB cut-off without buffering, both daily limits, no address stored, 500 without details).
+- **`fetch.py`**: read-only S3 client for R2 (SigV4 in the standard library; three published AWS signing examples
+  match), downloads new reports to `<day>/<install>/<report>.tar.gz`, checks the Worker's SHA-256, refuses keys that
+  are not report-shaped. 7 tests.
+- **Upload key**: `tools/reports/new_upload_key.py` writes `~/.local/share/y2linux/report-upload.json`; the release
+  build installs it as `/usr/share/y2linux/report-upload.json` (0600, like the Last.fm key). `report status`
+  says `upload: true` only when the image has it, which replaces the planned `UPLOAD = True`: forks and builds
+  before the Worker exists stay save-only.
+- **Uploader** (`report.upload`, `NetworkTransfer` workload, one at a time): opt-in, Wi-Fi online this boot, TLS
+  clock, no update, ≥ 15 % or charging; HTTPS with certificate checks, no proxy, no redirects; headers from the
+  report's own `report.json`; outcomes `sent` / `failed` (retry) / `dropped` (refused or 3 days old) in `last`.
+  `report send` tries at once; `report upload` and `report work` (checks + upload) added.
+- **Service**: `report work` in its own process 2 min after start, then every 15 min, sooner when a queued report
+  is due and Wi-Fi is online (at most every 5 min), stopped after 10 min. Nothing without the key and opt-in.
+- **Trigger review against the owner's player**: `wifi-failure.json` is rewritten on every Wi-Fi connection (it
+  exists on the player now with `error: null`): it would have sent a "radio problem" on every boot; dropped.
+  `suspend_stats/fail` also counts sleeps a wake event cancelled (-EBUSY): now only failed resumes, freeze
+  failures and other errors. Storage I/O errors only for the eMMC (a pulled SD card logs them too). Taint 0,
+  `console-ramoops-0` without a crash line, no dark-display or storage lines on the player.
+- **Reborn**: "Report sent" after Send Report Now when it went out at once; "couldn't be sent" for a dropped one.
+- Tests: `tests/test_report_upload.py` (a local HTTPS receiver with a throwaway certificate: identity headers,
+  every wait condition, backoff, 429, refusal, expiry, redirect, untrusted certificate, damaged file, lock, the
+  service schedule, the build step, the key maker, triggers/schema/size equal in Worker and player),
+  `tests/test_report_fetch.py`, both in the release gate.
+- **Next:** the owner deploys (`tools/reports/README.md`, ≈15 min), then R6: a test build with the key, Send
+  Report Now on the owner's player, `fetch.py` downloads it, a provoked trigger. Then R7: user guide
+  (`docs/ERROR-REPORTS.md` "Sending reports"), release.
 
