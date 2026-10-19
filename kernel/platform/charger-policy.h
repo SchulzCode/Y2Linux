@@ -86,18 +86,6 @@ static inline int y2_charge_refuse(const struct y2_charge_io *io,
 	return -EIO;
 }
 
-/* An inherited CV the sequence lowers to 4.175 V (selector 30): from stock's
- * 4.2 V (0, also the PMIC reset value), 4.1875 V (31, found on a player with
- * the same LK and pack, #47) or 4.175 V (14, 30). A lower one was chosen on
- * purpose and is never raised. */
-static inline int y2_cv_adoptable(unsigned cv)
-{
-	switch (cv & 0x1f) {
-	case 0: case 14: case 30: case 31: return 1;
-	default: return 0;
-	}
-}
-
 static inline int y2_charge_set(const struct y2_charge_io *io,
 				unsigned reg, unsigned mask, unsigned value)
 {
@@ -172,16 +160,18 @@ static inline int y2_charge_regulation(const struct y2_charge_io *io, unsigned s
 
 static inline int y2_charge_prepare(const struct y2_charge_io *io, unsigned selector)
 {
-	unsigned input, cv, ov;
+	unsigned input, ov;
 	int ret;
 	if (!y2_cs_selector_permitted(selector)) return -EINVAL;
 	ret = y2_charge_stop(io);
-	/* Do not raise an unexpectedly lower inherited protection/CV setting. */
+	/* Do not raise an unexpectedly lower inherited input protection. */
 	if (!ret) ret = io->read(io->context, 0x002, &input);
 	if (!ret && (input & 0xf0) != 0xf0 && (input & 0xf0) != 0xb0)
 		ret = y2_charge_refuse(io, 0x002, 0x00f0, input);
-	if (!ret) ret = io->read(io->context, 0x006, &cv);
-	if (!ret && !y2_cv_adoptable(cv)) ret = y2_charge_refuse(io, 0x006, 0x001f, cv);
+	/* Whatever CV earlier software left (stock 4.2 V, 4.1875 V on #47's
+	 * player, anything else) is replaced by 4.175 V and read back below:
+	 * refusing an inherited CV never protected the battery, it only stopped
+	 * charging. */
 	if (!ret) ret = io->read(io->context, 0x00c, &ov);
 	/* Only adopt the observed boot setting or the exact stock setting.
 	 * Never clear an asserted detector, disable OVP or accept a higher trim. */
