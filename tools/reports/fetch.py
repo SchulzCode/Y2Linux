@@ -116,9 +116,10 @@ def download(bucket, key, target):
         expected = response.headers.get('x-amz-meta-sha256')
     if expected and hashlib.sha256(data).hexdigest() != expected:
         raise ValueError('sha256_mismatch:' + key)
-    target.parent.mkdir(parents=True, exist_ok=True)
+    target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     temporary = target.with_name('.' + target.name + '.part')
-    with open(temporary, 'wb') as stream:
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'wb') as stream:
         stream.write(data)
     os.replace(temporary, target)
     return len(data)

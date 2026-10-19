@@ -110,6 +110,7 @@ class Fetch(unittest.TestCase):
             for key, _ in keys:
                 fetch.download(bucket, key, fetch.target_for(tmp, key))
             self.assertEqual((Path(tmp) / '2026-10-20/i2/r3.tar.gz').read_bytes(), b'\x1f\x8bthree')
+            self.assertEqual(oct((Path(tmp) / '2026-10-20/i2/r3.tar.gz').stat().st_mode & 0o777), '0o600')
             self.assertEqual(sorted(p.name for p in Path(tmp).rglob('*') if p.is_file()),
                              ['r1.tar.gz', 'r2.tar.gz', 'r3.tar.gz'])           # no .part left
         first = r2.requests[0]
