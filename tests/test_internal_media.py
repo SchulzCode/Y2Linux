@@ -12,6 +12,7 @@ from y2_platform import internal_media as im
 from y2_platform.common import Context
 from y2_platform.observe import storage
 
+ETC = Path(__file__).resolve().parents[1] / 'buildroot/board/y2/production-overlay/etc/y2linux'
 STOCK_SERIAL = '3F93-07E6'
 MOUNT_LINE = '9 1 179:8 / /media/internal rw - ext4 /dev/mmcblk0p8 rw'
 OLD_LINE = '12 1 179:8 / /run/y2/old-storage ro - vfat /dev/mmcblk0p8 ro'
@@ -301,6 +302,7 @@ class Setup(Fixture):
         super().setUp()
         self.put('/sys/class/power_supply/BAT0/status', 'Discharging')
         self.put('/sys/class/power_supply/BAT0/voltage_now', '3995068')
+        self.put('/etc/y2linux/battery-profile.json', (ETC / 'battery-profile.json').read_text())
         self.ctx.path('/media/internal').mkdir(parents=True)
         self.ctx.path('/data').mkdir(exist_ok=True)
         self.ctx.path('/run/reborn-splash').mkdir(parents=True)
@@ -404,10 +406,25 @@ class Setup(Fixture):
         self.ctx.path('/data/updates/state.json').unlink()
         self.put('/sys/class/power_supply/BAT0/voltage_now', '3600000')
         self.assertEqual(im.setup(self.ctx, automatic=True)['reason'], 'battery_low')
+        # Report 20261019-153610: power-on OCV 3.621 V is 24.8 % (shown 21 %): still too low.
+        self.put('/sys/class/power_supply/BAT0/voltage_ocv', '3621000')
+        self.assertEqual(im.setup(self.ctx, automatic=True)['reason'], 'battery_low')
         self.ctx.path('/sys/class/power_supply/BAT0/voltage_now').unlink()
+        self.assertEqual(im.setup(self.ctx, automatic=True)['reason'], 'battery_low')
+        self.ctx.path('/sys/class/power_supply/BAT0/voltage_ocv').unlink()
+        self.assertEqual(im.setup(self.ctx, automatic=True)['reason'], 'battery_unknown')
+        self.put('/sys/class/power_supply/BAT0/voltage_now', '3995068')
+        self.ctx.path('/etc/y2linux/battery-profile.json').unlink()
         self.assertEqual(im.setup(self.ctx, automatic=True)['reason'], 'battery_unknown')
         self.assertFalse(any(c[0] in ('mkfs.ext4', 'fsck.fat', 'mount') for c in self.calls))
         self.put('/sys/class/power_supply/BAT0/status', 'Charging')
+        self.assertEqual(im.setup(self.ctx, automatic=True)['state'], 'Done')
+
+    def test_battery_is_judged_by_the_power_on_ocv_not_the_boot_load(self):
+        # 25 % at rest (3.622 V) sags below 3.6 V under the boot load; the shown percentage
+        # comes from the power-on OCV, and so does the gate.
+        self.put('/sys/class/power_supply/BAT0/voltage_now', '3560000')
+        self.put('/sys/class/power_supply/BAT0/voltage_ocv', '3630000')
         self.assertEqual(im.setup(self.ctx, automatic=True)['state'], 'Done')
 
     def test_anything_but_the_stock_fat_is_left_alone(self):

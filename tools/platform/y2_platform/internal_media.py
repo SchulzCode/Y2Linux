@@ -50,7 +50,9 @@ STATUS = '/run/y2/internal-media-setup.json'
 KEPT = 'Old Player Files'
 KEEP_LIMIT = 400 * 1000 ** 2
 DATA_RESERVE = 150 * 1000 ** 2
-MIN_VOLTAGE_UV = 3_700_000
+# On battery: at least the percentage the plan named, read like the shown one (stock
+# oam_init: the PMIC's power-on OCV, latched before the boot load pulls the voltage down).
+MIN_PERCENT = 25
 SPLASH = '/run/reborn-splash'
 # Start-screen milestones (Reborn's boot table names them; copy, format, move).
 SPLASH_PHASES = {0: 'media_setup', 10: 'media_setup_10', 20: 'media_setup_20', 30: 'media_setup_30',
@@ -393,10 +395,14 @@ def automatic_blocked(ctx):
     if read(battery / 'status') in ('Charging', 'Full') or read(
             ctx.path('/sys/class/power_supply/y2-usb-input/online')) == '1':
         return None
-    voltage = read(battery / 'voltage_now')
+    from .battery import interpolate, load_profile
+    profile = load_profile(ctx)
+    voltage = read(battery / 'voltage_ocv')
     if not voltage or not voltage.isdigit():
+        voltage = read(battery / 'voltage_now')          # loaded: lower, so never too early
+    if profile is None or not voltage or not voltage.isdigit():
         return 'battery_unknown'
-    return None if int(voltage) >= MIN_VOLTAGE_UV else 'battery_low'
+    return None if interpolate(profile['voltage_soc'], int(voltage)) >= MIN_PERCENT else 'battery_low'
 
 
 def mount_old(ctx, device):

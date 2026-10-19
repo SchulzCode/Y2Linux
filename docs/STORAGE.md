@@ -60,8 +60,9 @@ If more than about 400 MB is on the old storage, Y2Linux does not touch it:
 The update itself never touches your storage. If the player still has the old storage, the setup
 runs at the **first restart after the update is confirmed** — never during the update's own
 health check (a slow start there could make the update roll back). Until then Settings → Storage
-says *Restart to finish setting up*. It also waits while the battery is low (below about 3.7 V and
-not charging); it runs at a later start instead.
+says *Restart to finish setting up*. It also waits while the battery is below 25 % and no charger
+is connected; Settings → Storage then says *Connect a charger and restart*, and the setup runs at
+the next start with the charger connected (any USB port is enough).
 
 ### Safe against power loss
 
