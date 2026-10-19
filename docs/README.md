@@ -1,14 +1,24 @@
 # Y2Linux documentation
 
-**Y2Linux 1.0 Beta 7.11 (Baseline 74, 2026-10-17)** is the current state (seventh
-public beta: the UI v4 redesign, one-step updates, motion): ready-made images on the [GitHub releases](https://github.com/SchulzCode/Y2Linux/releases),
+**Y2Linux 1.0 Beta 8.8 (Baseline 101, 2026-10-19)** is the current state (eighth
+public beta: headphone level and profiles, faster updates, error reports saved to storage): ready-made images on the [GitHub releases](https://github.com/SchulzCode/Y2Linux/releases),
 installed once with SP Flash Tool, then updated over Wi-Fi by the player itself
 ([recovery and updates](RECOVERY-AND-UPDATES.md)). No image carries MediaTek's radio firmware: each
 player takes it from its owner's Innioasis package ([INSTALL](INSTALL.md)). What works, what does not
 and the latest hardware results: [current platform state](CURRENT_PLATFORM_STATE.md); Last.fm
 scrobbling and why it is safe: [Last.fm scrobbling](LASTFM.md); Internal Storage, the SD card and
-USB copying: [Storage](STORAGE.md); the beta's
-evidence and open gaps: [1.0 Beta 7.11 report](validation/Y2-LINUX-1.0-BETA-7.11.md),
+USB copying: [Storage](STORAGE.md); headphone level, profiles and DAC filter:
+[Headphone output](HEADPHONE-OUTPUT.md); saving a report for an issue: [Error reports](ERROR-REPORTS.md);
+the beta's evidence and open gaps: [1.0 Beta 8.8 report](validation/Y2-LINUX-1.0-BETA-8.8.md),
+[1.0 Beta 8.7 report](validation/Y2-LINUX-1.0-BETA-8.7.md),
+[1.0 Beta 8.6 report](validation/Y2-LINUX-1.0-BETA-8.6.md),
+[1.0 Beta 8.5 report](validation/Y2-LINUX-1.0-BETA-8.5.md),
+[1.0 Beta 8.4 report](validation/Y2-LINUX-1.0-BETA-8.4.md),
+[1.0 Beta 8.3 report](validation/Y2-LINUX-1.0-BETA-8.3.md),
+[1.0 Beta 8.2 report](validation/Y2-LINUX-1.0-BETA-8.2.md),
+[1.0 Beta 8.1 report](validation/Y2-LINUX-1.0-BETA-8.1.md),
+[1.0 Beta 8.0 report](validation/Y2-LINUX-1.0-BETA-8.0.md),
+[1.0 Beta 7.11 report](validation/Y2-LINUX-1.0-BETA-7.11.md),
 [1.0 Beta 7.10 report](validation/Y2-LINUX-1.0-BETA-7.10.md),
 [1.0 Beta 7.9 report](validation/Y2-LINUX-1.0-BETA-7.9.md),
 [1.0 Beta 7.8 report](validation/Y2-LINUX-1.0-BETA-7.8.md),
