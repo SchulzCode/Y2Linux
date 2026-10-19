@@ -8854,3 +8854,18 @@ hardware, memory or packaging scope change.
 
 **Gate decision:** READY for **Y2Linux 1.0.0-beta.8.8** (Baseline 101, sequence 7000) at the owner's word (given).
 
+
+## BETA-8.9 (Baseline 102) Save Report without a topic: milestone gap audit — 2026-10-19
+
+**Boundary:** owner asked whether exporting everything would be better than choosing a topic, then "yes no topic" and
+"push and build a new release". The topic never selected report content (`report.py` `_build` collects the same
+sections for every topic). Reborn screen flow only; no kernel, platform code, hardware, memory or packaging scope
+change.
+
+| Area | State for Beta 8.9 | Evidence / gap |
+| --- | --- | --- |
+| Save Report flow | SHIPPED | Storage → saved; host test and preview 33i; not run on the player (8.8's platform command was) |
+| Send Report Now topics | UNCHANGED, HIDDEN | Kept for the uploader (R4), where the topic is the only owner description |
+| Everything else | As BETA-8.8 | Upload, FAT32/full card, #42, #45, #47 open |
+
+**Gate decision:** READY for **Y2Linux 1.0.0-beta.8.9** (Baseline 102, sequence 7100) at the owner's word.

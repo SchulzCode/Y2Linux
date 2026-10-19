@@ -8,8 +8,8 @@ the maintainer the player's logs and technical details in one file. You decide w
 1. Settings → **About & Updates** → **Error Reports** → **Save Report**.
 2. Choose **Internal Storage** or **SD Card** (only the ones the player can write to right now are listed).
 
-Beta 8.8 then also asks what the problem is about; any answer is fine, because every report holds everything.
-Later versions save straight away. Say what went wrong in the GitHub issue you attach the file to.
+The report is saved straight away and holds everything; say what went wrong in the GitHub issue you attach it to.
+(Beta 8.8 also asks what the problem is about; any answer is fine.)
 
 The player collects its logs and removes personal details, which takes about ten seconds. The file goes into an
 **Error Reports** folder on the storage you chose:

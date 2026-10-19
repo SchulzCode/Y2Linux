@@ -1,6 +1,14 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-19): Y2LINUX 1.0 BETA 8.8 (BASELINE 101) PUBLISHED — ERROR REPORTS SAVED TO STORAGE; NEXT R3/R4.**
+> **START HERE (2026-10-19): Y2LINUX 1.0 BETA 8.9 (BASELINE 102) PUBLISHED — SAVE REPORT WITHOUT A TOPIC; NEXT R3/R4.**
+> Owner: "would it not be better to just export all?" — the topic never changed a report's content (only a label in
+> `report.json`), so Save Report now asks only for the storage (Reborn `c0c5e04`); the topic picker stays for Send
+> Report Now, where it is the receiver's only description. Report `docs/validation/Y2-LINUX-1.0-BETA-8.9.md`, audit
+> BETA-8.9. Release `1.0.0-beta.8.9`, sequence 7100, Linux `0e0760f`, Reborn `4da5f84`, label 102 (135 s, container
+> 792, host 819, Reborn 543). Not installed on a player before publishing; owner installs by OTA. Everything else from
+> the entry below is unchanged (R3 receiver placement still open). Next free label 103, sequence above 7100.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.8 (BASELINE 101) PUBLISHED — ERROR REPORTS SAVED TO STORAGE; NEXT R3/R4.**
 > Owner: "publish the next beta with what we have currently and export to storage feature … we will do the worker
 > afterwards". Report `docs/validation/Y2-LINUX-1.0-BETA-8.8.md`, audit BETA-8.8, user guide `docs/ERROR-REPORTS.md`,
 > plan section "Save to storage and speed, Beta 8.8". Release `1.0.0-beta.8.8`, sequence 7000, Linux `be71b6d`,

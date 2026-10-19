@@ -13,7 +13,7 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **317**. Explicit scope notices: **228**.
+Indexed pages: **318**. Explicit scope notices: **228**.
 
 ## Entry
 
@@ -354,6 +354,7 @@ Indexed pages: **317**. Explicit scope notices: **228**.
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
+| [Y2Linux 1.0 Beta 8.9 report](validation/Y2-LINUX-1.0-BETA-8.9.md) | Beta 8.9 (Baseline 102): Save Report without a topic |
 | [Y2Linux 1.0 Beta 8.8 report](validation/Y2-LINUX-1.0-BETA-8.8.md) | Beta 8.8 (Baseline 101): error reports saved to storage, ≈47 s → ≈10 s |
 | [Y2Linux 1.0 Beta 8.7 report](validation/Y2-LINUX-1.0-BETA-8.7.md) | Beta 8.7 (Baseline 95): GC9503V identified from LK's panel name (#45/#46) |
 | [Y2Linux 1.0 Beta 8.6 report](validation/Y2-LINUX-1.0-BETA-8.6.md) | Beta 8.6 (Baseline 94): audio playback review (level write under DAPM, fades, held pause, CPU floor, hi-res preamp) |
