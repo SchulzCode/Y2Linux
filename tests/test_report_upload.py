@@ -205,6 +205,32 @@ class Upload(unittest.TestCase):
         self.assertEqual(report.status(self.ctx)['queued'], [])
         self.assertEqual(report.state(self.ctx)['uploads'], {})
 
+    def test_send_report_now_goes_first_then_takes_the_waiting_ones_along(self):
+        report.set_enabled(self.ctx, True)
+        old = self.queued('manual', NOW)
+        self.server.script[:] = [(503, {}, {})]
+        self.send(NOW)                                                    # old now waits 5 min
+        new = self.queued('manual', NOW + datetime.timedelta(minutes=1))
+        later = (NOW + datetime.timedelta(minutes=1, seconds=30)).timestamp()
+        shown = []
+        result = report.upload(self.ctx, now=later, opener=self.opener, first=new['name'],
+                               progress=lambda phase, fraction=0.0, force=False, **f: shown.append(f.get('bytes_total')))
+        self.assertEqual([(r['name'], r['outcome']) for r in result['uploaded']],
+                         [(new['name'], 'sent'), (old['name'], 'sent')])  # new first, old without waiting
+        self.assertEqual(report.status(self.ctx)['queued'], [])
+        new_size = int(self.server.received[1][1]['content-length'])
+        self.assertEqual(set(shown), {new_size})                          # the bar follows the new one only
+        # Without a working connection for the new one, the old one keeps its time.
+        report.queue(self.ctx, 'manual', now=NOW + datetime.timedelta(minutes=2))
+        self.server.script[:] = [(503, {}, {})]
+        self.send(NOW + datetime.timedelta(minutes=2))
+        waiting = report.status(self.ctx)['queued'][0]
+        newest = self.queued('manual', NOW + datetime.timedelta(minutes=3))
+        self.server.script[:] = [(503, {}, {})]
+        result = report.upload(self.ctx, now=later + 120, opener=self.opener, first=newest['name'])
+        self.assertEqual([r['name'] for r in result['uploaded']], [newest['name']])
+        self.assertIn(waiting, report.status(self.ctx)['queued'])
+
     def test_the_last_reports_failure_shows_and_backoff_grows(self):
         report.set_enabled(self.ctx, True)
         item = self.queued()

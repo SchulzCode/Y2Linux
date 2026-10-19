@@ -1104,14 +1104,18 @@ def _next_midnight(now):
 
 
 @workload('NetworkTransfer')
-def upload(ctx, now=None, opener=None, progress=None):
+def upload(ctx, now=None, opener=None, progress=None, first=None):
     """Send every queued report that is due, oldest first.
 
     A stored report (201, or 200 for one the receiver already has) leaves the
     queue; one the receiver refuses (REFUSED) is dropped; a full day (429) waits
     for the next UTC day; no answer or a server error retries after RETRY_S and
     stops this run. A report still unsent GIVE_UP_S after it was made is
-    dropped. Only one upload runs at a time."""
+    dropped. Only one upload runs at a time.
+
+    `first` (Send Report Now) is the owner's new report: it goes first and the
+    progress follows it; once it is stored, the others go too without waiting
+    for their retry time (the connection has just worked)."""
     now = time.time() if now is None else now
     blocked = upload_blocked(ctx, now)
     if blocked:
@@ -1124,14 +1128,15 @@ def upload(ctx, now=None, opener=None, progress=None):
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return {'uploaded': [], 'reason': 'busy'}
-        return _upload_queue(ctx, now, opener or _opener(), upload_key(ctx), progress)
+        return _upload_queue(ctx, now, opener or _opener(), upload_key(ctx), progress, first)
     finally:
         os.close(lock)
 
 
-def _upload_queue(ctx, now, opener, key, progress=None):
+def _upload_queue(ctx, now, opener, key, progress=None, first=None):
     value = state(ctx)
-    queued = sorted(ctx.glob(QUEUE + '/*.tar.gz'))
+    queued = sorted(ctx.glob(QUEUE + '/*.tar.gz'), key=lambda path: (path.name != first, path.name))
+    connected = False
     retries = {name: entry for name, entry in value['uploads'].items()
                if isinstance(entry, dict) and name in {p.name for p in queued}}
     results = []
@@ -1144,8 +1149,9 @@ def _upload_queue(ctx, now, opener, key, progress=None):
 
     for path in queued:
         entry = retries.get(path.name, {})
-        if entry.get('next', 0) > now:
+        if entry.get('next', 0) > now and not connected:
             continue
+        shown = progress if first is None or path.name == first else None
         try:
             index = _queued_index(path)
             data = path.read_bytes()
@@ -1164,10 +1170,11 @@ def _upload_queue(ctx, now, opener, key, progress=None):
             settle(index, 'dropped', reason='expired')
             results.append({'name': path.name, 'outcome': 'dropped', 'reason': 'expired'})
             continue
-        if progress:
-            progress('upload', 0, force=True, bytes_done=0, bytes_total=len(data))
-        status, answer = _post(opener, data, index, key, progress)
+        if shown:
+            shown('upload', 0, force=True, bytes_done=0, bytes_total=len(data))
+        status, answer = _post(opener, data, index, key, shown)
         if status in (200, 201):
+            connected = connected or path.name == first
             path.unlink(missing_ok=True)
             retries.pop(path.name, None)
             settle(index, 'sent', sent_utc=datetime.datetime.fromtimestamp(now, datetime.timezone.utc).isoformat())
@@ -1294,10 +1301,10 @@ def run_checks(ctx):
     return [dict(queue(ctx, trigger, detail), trigger=trigger) for trigger, detail in check(ctx)]
 
 
-def upload_now(ctx, progress=None):
+def upload_now(ctx, progress=None, first=None):
     """upload() for callers whose own work must not fail with it (a queued report
     stays queued): a sleep in progress or an I/O error becomes the reason."""
     try:
-        return upload(ctx, progress=progress)
+        return upload(ctx, progress=progress, first=first)
     except (OSError, ValueError) as error:
         return {'uploaded': [], 'reason': str(error) if isinstance(error, ValueError) else type(error).__name__}

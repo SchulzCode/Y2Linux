@@ -188,7 +188,7 @@ def main():
                     result = report.queue(ctx, 'manual', topic=args.topic, progress=progress)
                     if result.get('queued'):
                         # Sent at once when it can be; otherwise it waits in the queue.
-                        result['upload'] = report.upload_now(ctx, progress=progress)
+                        result['upload'] = report.upload_now(ctx, progress=progress, first=result['name'])
                 finally:
                     progress.close()
             elif args.action == 'save':
