@@ -15,7 +15,7 @@ bucket_name = "y2linux-reports"
 
 [[kv_namespaces]]
 binding = "RATES"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "50325fb617584e5a83f60e18aec88533"
 
 # Secrets (never in this file): UPLOAD_KEY (the key built into the player's
 # platform) and RATE_SALT (any long random text), set with `wrangler secret put`.
