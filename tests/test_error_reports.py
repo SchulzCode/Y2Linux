@@ -398,6 +398,26 @@ class Report(unittest.TestCase):
 
 
 class Triggers(unittest.TestCase):
+    def test_a_boot_time_dsi_lag_counts_only_when_no_frame_reached_the_screen(self):
+        with tempfile.TemporaryDirectory() as root:
+            player(root)
+            lag = '[    1.011318] mtk-dsi 1400c000.dsi: modeset: DSI register reads still lag after 3 power cycles\n'
+            dmesg = {'output': lag}
+
+            def run(argv, **kwargs):
+                return dict(dmesg, ok=True, reason=None) if argv[0] == 'dmesg' else runner(argv, **kwargs)
+            ctx = Context(root, runner=run)
+            write(root, '/run/y2/application-ready.json', json.dumps({'boot_id': 'boot-1', 'first_frame': True}))
+            fired = [t for t, _ in report.check(ctx)]
+            self.assertNotIn('display_failure', fired)                   # the panel lit: worked around
+            self.assertEqual(report.check(ctx), [])
+            write(root, '/run/y2/application-ready.json', json.dumps({'boot_id': 'boot-0', 'first_frame': True}))
+            self.assertEqual([t for t, _ in report.check(ctx)], ['display_failure'])   # no frame this boot
+            write(root, '/proc/sys/kernel/random/boot_id', 'boot-2\n')
+            write(root, '/run/y2/application-ready.json', json.dumps({'boot_id': 'boot-2', 'first_frame': True}))
+            dmesg['output'] = lag + '[  900.0] [drm] flip_done timed out\n'
+            self.assertEqual(report.check(ctx), [('display_failure', 'flip_done timed out')])
+
     def test_storage_errors_are_the_internal_emmcs_not_a_pulled_card(self):
         for line in ('I/O error, dev mmcblk0, sector 4096 op 0x0:(READ)', 'EXT4-fs error (device mmcblk0p8): x',
                      'EXT4-fs (mmcblk0p8): Remounting filesystem read-only'):

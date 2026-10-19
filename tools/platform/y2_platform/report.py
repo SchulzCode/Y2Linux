@@ -1271,8 +1271,14 @@ def check(ctx):
     if error and error.group(1) != '0' and _changed(value, 'conn_error', '%s:%s' % (boot, error.group(1))):
         fired.append(('radio_failure', 'connectivity error=%s' % error.group(1)))
     kernel = ctx.command(['dmesg'], timeout=5.0, limit=2 * 1024 * 1024).get('output') or ''
-    if DARK.search(kernel) and _changed(value, 'dark', boot):
-        fired.append(('display_failure', DARK.search(kernel).group(0)))
+    # The DSI read lag at boot (a restart through the recovery can leave the
+    # SMI gate closed) is worked around by the driver: only a problem when
+    # Reborn's first frame never reached the screen. Timeouts later always are.
+    ready = ctx.json('/run/y2/application-ready.json', {}) or {}
+    lit = ready.get('boot_id') == boot and ready.get('first_frame') is True
+    dark = [m.group(0) for m in DARK.finditer(kernel) if not (lit and m.group(0).startswith('DSI register'))]
+    if dark and _changed(value, 'dark', boot):
+        fired.append(('display_failure', dark[0]))
     storage = STORAGE.search(kernel)
     ext4 = sum(ctx.integer(_rel(ctx, p)) or 0 for p in ctx.glob('/sys/fs/ext4/*/errors_count'))
     if (storage or ext4) and _changed(value, 'storage', '%s:%s:%d' % (boot, bool(storage), ext4)):
