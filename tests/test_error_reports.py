@@ -246,6 +246,56 @@ class Report(unittest.TestCase):
         result = report.run_checks(self.ctx)
         self.assertEqual([(r['trigger'], r['queued']) for r in result], [('reborn_crash', True)])
 
+    def mount(self, *paths, options='rw,relatime'):
+        lines = ['22 1 179:2 / / ro,relatime - ext4 /dev/root ro']
+        for n, path in enumerate(paths):
+            (Path(self.root) / path.lstrip('/')).mkdir(parents=True, exist_ok=True)
+            lines.append('%d 22 179:%d / %s %s - vfat /dev/mmcblk1p1 rw' % (30 + n, 8 + n, path, options))
+        write(self.root, '/proc/self/mountinfo', '\n'.join(lines) + '\n')
+
+    def test_a_report_is_saved_onto_mounted_storage_without_opting_in(self):
+        self.assertEqual(report.status(self.ctx)['destinations'], [])
+        self.assertEqual(report.save_to(self.ctx, 'sd', 'battery')['reason'], 'not_mounted')
+        self.mount('/media/sd', '/media/internal')
+        status = report.status(self.ctx)
+        self.assertEqual(status['destinations'], ['internal', 'sd'])
+        self.assertIs(status['upload'], report.UPLOAD)
+        now = datetime.datetime(2026, 10, 19, 12, tzinfo=datetime.timezone.utc)
+        first = report.save_to(self.ctx, 'sd', 'battery', now=now)
+        second = report.save_to(self.ctx, 'sd', 'battery', now=now)
+        self.assertTrue(first['saved'])
+        self.assertRegex(first['file'], r'^Error Reports/y2linux-report-\d{8}-\d{6}\.tar\.gz$')
+        self.assertEqual(second['file'], first['file'][:-7] + '-2.tar.gz')
+        folder = Path(self.root) / 'media/sd/Error Reports'
+        self.assertEqual(sorted(p.name.startswith('.') for p in folder.iterdir()), [False, False])
+        everything = members((Path(self.root) / 'media/sd' / first['file']).read_bytes())
+        index = json.loads(everything['report.json'])
+        self.assertEqual((index['trigger'], index['topic'], index['install_id']), ('manual', 'battery', None))
+        for name, body in everything.items():
+            for canary in CANARIES:
+                self.assertNotIn(canary, body.decode('utf-8', errors='replace'), '%s in %s' % (canary, name))
+        last = report.status(self.ctx)['last']
+        self.assertEqual((last['state'], last['destination'], last['file']), ('saved', 'sd', second['file']))
+        self.assertIsNone(report.status(self.ctx)['enabled'])    # saving is not an answer to the question
+        self.assertEqual(report.status(self.ctx)['queued'], [])  # and queues nothing
+        report.set_enabled(self.ctx, True)
+        saved = report.save_to(self.ctx, 'internal', now=now)
+        index = json.loads(members((Path(self.root) / 'media/internal' / saved['file']).read_bytes())['report.json'])
+        self.assertEqual(index['install_id'], report.status(self.ctx)['install_id'])
+
+    def test_saving_refuses_read_only_storage_and_a_folder_link(self):
+        self.mount('/media/sd', options='ro,relatime')
+        self.assertEqual(report.status(self.ctx)['destinations'], [])
+        self.assertEqual(report.save_to(self.ctx, 'sd')['reason'], 'not_mounted')
+        self.mount('/media/sd')
+        elsewhere = Path(self.root) / 'data/elsewhere'
+        elsewhere.mkdir(parents=True)
+        (Path(self.root) / 'media/sd/Error Reports').symlink_to(elsewhere)
+        self.assertEqual(report.save_to(self.ctx, 'sd')['reason'], 'write_failed')
+        self.assertEqual(list(elsewhere.iterdir()), [])
+        with self.assertRaises(ValueError):
+            report.save_to(self.ctx, 'usb')
+
     def test_unpaired_bluetooth_names_next_to_an_address_are_private(self):
         s = report.Scrubber({})
         self.assertEqual(s.value({'devices': [{'name': 'Neighbour Headphones', 'address': '11:22:33:44:55:66'}]}),

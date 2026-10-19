@@ -7,10 +7,13 @@ passphrases, Bluetooth names, account data, serial numbers, the songs in the
 queue) are replaced wherever they appear, then patterns (MAC and IP addresses,
 e-mail, URL paths, music paths), and JSON values under music keys. Library
 contents, account files, keys and anything below /media are never read into a
-report at all. Nothing here uploads; the queue waits for the uploader.
+report at all. Nothing here uploads; the queue waits for the uploader, and
+`save_to` writes a report onto Internal Storage or the SD card instead, for the
+owner to send by hand.
 """
 # SPDX-License-Identifier: GPL-2.0-only
 import datetime
+import errno
 import gzip
 import hashlib
 import io
@@ -24,6 +27,7 @@ import uuid
 from pathlib import Path
 
 from .common import atomic_json
+from .observe import mountinfo
 
 SCHEMA = 1
 STATE = '/data/system/platform/reports.json'
@@ -32,6 +36,10 @@ QUEUE_MAX = 3
 DAILY_MAX = 5
 BUDGET = 8 * 1024 * 1024          # compressed report
 SECTION_MAX = 4 * 1024 * 1024     # raw bytes per section (logs keep their newest end)
+UPLOAD = False                    # R4 brings the uploader; until then reports are saved by hand
+# Music storage a report can be saved to (seen over MTP), and its folder there.
+DESTINATIONS = {'internal': '/media/internal', 'sd': '/media/sd'}
+FOLDER = 'Error Reports'
 TOPICS = ('sound', 'display', 'battery', 'bluetooth', 'wifi', 'crash', 'other')
 TRIGGERS = ('manual', 'kernel_crash', 'kernel_warning', 'unclean_restart', 'reborn_crash',
             'reborn_failure', 'update_failure', 'sleep_failure', 'radio_failure',
@@ -451,7 +459,7 @@ FILES = (
     '/sys/devices/system/cpu/cpu*/cpuidle/state*/name',
     '/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state', '/sys/devices/system/cpu/online',
     '/sys/class/thermal/thermal_zone*/temp', '/sys/class/thermal/thermal_zone*/type',
-    '/sys/class/power_supply/*/uevent', '/sys/fs/ext4/*/errors_count', '/sys/fs/ext4/*/first_error_time',
+    '/sys/class/power_supply/*/uevent', '/sys/class/power_supply/BAT0/charging_state', '/sys/fs/ext4/*/errors_count', '/sys/fs/ext4/*/first_error_time',
     '/sys/devices/platform/11200000.usb/status', '/sys/devices/platform/11200000.usb/rxdiag',
     '/data/system/platform/boot.json', '/data/system/platform/previous-boot-evidence.json',
     '/data/system/platform/power-journal.jsonl', '/data/system/platform/sleep-diagnostics.jsonl',
@@ -640,7 +648,94 @@ def status(ctx):
     value = state(ctx)
     queued = [p.name for p in ctx.glob(QUEUE + '/*.tar.gz')]
     return {'schema': 1, 'enabled': value['enabled'], 'install_id': value['install_id'],
-            'queued': queued, 'last': value.get('last')}
+            'queued': queued, 'last': value.get('last'), 'upload': UPLOAD,
+            'destinations': destinations(ctx)}
+
+
+def destinations(ctx):
+    """The music storage mounted writable now, in DESTINATIONS order."""
+    mounted = {m['path']: m for m in mountinfo(ctx.read('/proc/self/mountinfo', limit=1 << 20))}
+    return [name for name, path in DESTINATIONS.items()
+            if path in mounted and 'rw' in mounted[path]['options']]
+
+
+def _write_into(mount, data, stamp):
+    """Write data as FOLDER/y2linux-report-<stamp>.tar.gz below mount, durably.
+
+    The folder must be a real directory on the mounted filesystem itself (no
+    symlink out of it); the file is complete before it gets its name."""
+    root = os.open(mount, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        device = os.fstat(root).st_dev
+        try:
+            os.mkdir(FOLDER, 0o755, dir_fd=root)
+        except FileExistsError:
+            pass
+        folder = os.open(FOLDER, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=root)
+    finally:
+        os.close(root)
+    try:
+        if os.fstat(folder).st_dev != device:
+            raise OSError(errno.EXDEV, 'report_folder_elsewhere')
+        space = os.fstatvfs(folder)
+        if space.f_bavail * space.f_frsize < len(data) + 1024 * 1024:
+            raise OSError(errno.ENOSPC, 'report_no_space')
+        for n in range(1, 100):
+            name = 'y2linux-report-%s%s.tar.gz' % (stamp, '' if n == 1 else '-%d' % n)
+            try:
+                os.lstat(name, dir_fd=folder)
+            except FileNotFoundError:
+                break
+        else:
+            raise OSError(errno.EEXIST, 'report_names_taken')
+        temporary = '.' + name + '.part'
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644, dir_fd=folder)
+        try:
+            with os.fdopen(fd, 'wb') as stream:
+                stream.write(data)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.rename(temporary, name, src_dir_fd=folder, dst_dir_fd=folder)
+        except BaseException:
+            try:
+                os.unlink(temporary, dir_fd=folder)
+            except OSError:
+                pass
+            raise
+        try:
+            os.fsync(folder)           # an SD card may be pulled right afterwards
+        except OSError:
+            pass
+        return name
+    finally:
+        os.close(folder)
+
+
+def save_to(ctx, destination, topic=None, now=None):
+    """Build a report and save it onto Internal Storage or the SD card.
+
+    Asked for by the owner on the player, so no opt-in is needed: nothing leaves
+    the player unless the owner sends the file. It carries the install ID only
+    when error reports are on."""
+    if destination not in DESTINATIONS:
+        raise ValueError('unknown_destination')
+    if destination not in destinations(ctx):
+        return {'saved': False, 'reason': 'not_mounted'}
+    value = state(ctx)
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    data, index = build(ctx, 'manual', topic=topic,
+                        install_id=value['install_id'] if value['enabled'] is True else None, now=now)
+    try:
+        name = _write_into(ctx.path(DESTINATIONS[destination]), data, now.astimezone().strftime('%Y%m%d-%H%M%S'))
+    except OSError as error:
+        return {'saved': False, 'reason': 'no_space' if error.errno == errno.ENOSPC else 'write_failed'}
+    value = state(ctx)
+    value['last'] = {'report_id': index['report_id'], 'trigger': 'manual', 'state': 'saved',
+                     'destination': destination, 'file': FOLDER + '/' + name,
+                     'created_utc': index['created_utc'], 'bytes': len(data)}
+    save(ctx, value)
+    return {'saved': True, 'destination': destination, 'file': FOLDER + '/' + name,
+            'report_id': index['report_id'], 'bytes': len(data)}
 
 
 def queue(ctx, trigger, detail='', topic=None, now=None):

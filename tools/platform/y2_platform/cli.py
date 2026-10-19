@@ -62,7 +62,8 @@ def main():
     reset.add_argument('--erase-user-music', action='store_true')
     sub.add_parser('export-diagnostics')
     error_report = sub.add_parser('report', help='opt-in error reports (docs/planning/ERROR-REPORTS-PLAN.md)')
-    error_report.add_argument('action', choices=['status', 'enable', 'disable', 'new-id', 'send', 'check'])
+    error_report.add_argument('action', choices=['status', 'enable', 'disable', 'new-id', 'send', 'save', 'check'])
+    error_report.add_argument('--to', choices=['internal', 'sd'], help='save only: Internal Storage or the SD card')
     error_report.add_argument('--topic', choices=['sound', 'display', 'battery', 'bluetooth', 'wifi', 'crash', 'other'])
     export = sub.add_parser('export-state')
     export.add_argument('--include-database', action='store_true')
@@ -180,6 +181,10 @@ def main():
                 result = report.new_install_id(ctx)
             elif args.action == 'send':
                 result = report.queue(ctx, 'manual', topic=args.topic)
+            elif args.action == 'save':
+                if args.to is None:
+                    raise ValueError('save_needs_to')
+                result = report.save_to(ctx, args.to, topic=args.topic)
             else:
                 result = {'reports': report.run_checks(ctx)}
             print(json.dumps(result, sort_keys=True))
