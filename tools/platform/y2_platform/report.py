@@ -41,7 +41,7 @@ STATE = '/data/system/platform/reports.json'
 QUEUE = '/data/system/platform/reports'
 QUEUE_MAX = 3
 DAILY_MAX = 5
-BUDGET = 8 * 1024 * 1024          # compressed report
+BUDGET = 2 * 1024 * 1024          # compressed report (the receiver takes at most 2 MiB; real ones ≈0.5 MB)
 SECTION_MAX = 4 * 1024 * 1024     # raw bytes per section (logs keep their newest end)
 # The receiver (tools/reports/worker). The build-wide upload key comes from the
 # release build (tools/production/build.py); a build without it never uploads,

@@ -1,10 +1,11 @@
 # Y2Linux error report receiver (docs/planning/ERROR-REPORTS-PLAN.md, R3).
-# Deploy: see tools/reports/README.md. The IDs below are filled in once by the
-# owner (wrangler prints them when it creates the bucket and the namespace).
+# Deploy: see tools/reports/README.md.
 name = "y2linux-reports"
 main = "src/index.js"
 compatibility_date = "2026-06-01"
+# Only reports.schulzcode.dev: no workers.dev address, no preview URLs.
 workers_dev = false
+preview_urls = false
 routes = [
   { pattern = "reports.schulzcode.dev", custom_domain = true },
 ]
@@ -13,9 +14,14 @@ routes = [
 binding = "REPORTS"
 bucket_name = "y2linux-reports"
 
-[[kv_namespaces]]
-binding = "RATES"
-id = "50325fb617584e5a83f60e18aec88533"
+# The daily budget (class Quota in src/index.js): exact counts, Free plan.
+[[durable_objects.bindings]]
+name = "QUOTA"
+class_name = "Quota"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Quota"]
 
 # Secrets (never in this file): UPLOAD_KEY (the key built into the player's
 # platform) and RATE_SALT (any long random text), set with `wrangler secret put`.

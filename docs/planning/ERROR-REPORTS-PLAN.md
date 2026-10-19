@@ -21,7 +21,7 @@ everything that happens in Reborn". Audit row ERROR-REPORTS in [roadmap-gap-audi
 ## What a report contains
 
 One gzip-compressed tar per report, `report.json` (index, identity, trigger, section sizes and scrub counts) plus one
-file per section. Budget 8 MiB compressed (typical: 1–3 MiB); a section that does not fit is cut from the oldest end
+file per section. Budget 2 MiB compressed (8 MiB until the cost review of 2026-10-19; real reports ≈0.5 MB); a section that does not fit is cut from the oldest end
 and the cut is recorded.
 
 ### Identity and trigger
@@ -134,8 +134,9 @@ charging.
 
 ## The Worker
 
-- `POST /v1/report` only. Checks: method, path, upload key, `Content-Length` ≤ 8 MiB, gzip magic, schema version,
-  install ID format, body SHA-256. Rate limits: 10 reports a day per install ID, 30 per IP (Workers KV counters).
+- `POST /v1/report` only. Checks: method, path, upload key, `Content-Length` ≤ 2 MiB, gzip magic, schema version,
+  install ID format, body SHA-256. Budget in a Durable Object (exact): 100 reports and 40 MiB a day for the whole
+  service, 10 a day per install ID, 30 per network (IPv4 address or IPv6 /64). See "Cost review" at the end.
 - Stores `reports/YYYY-MM-DD/<install-id>/<report-id>.tar.gz` in a private R2 bucket with small metadata (schema,
   release, trigger, size). It stores no IP address and has no read endpoint.
 - R2 lifecycle: delete after 180 days. Request logs off (`[observability] enabled = false`): they would hold IPs.
@@ -298,4 +299,30 @@ Owner: "option 1, do all you can do also check the plan and code again with the 
 - **Next:** the owner deploys (`tools/reports/README.md`, ≈15 min), then R6: a test build with the key, Send
   Report Now on the owner's player, `fetch.py` downloads it, a provoked trigger. Then R7: user guide
   (`docs/ERROR-REPORTS.md` "Sending reports"), release.
+
+## Deployed and cost review (2026-10-19)
+
+The owner deployed the Worker (R2 bucket `y2linux-reports` in EEUR, Standard storage, private: no r2.dev URL, no
+custom domain), set the secrets and made a read-only R2 token for `fetch.py`. Checked from the PC: with the key and a
+broken body 400 `not_gzip`, a wrong key 403, GET 405, other paths 404; the token lists the bucket and a DELETE is
+refused (403). Found missing: the 180-day lifecycle rule (only Cloudflare's default multipart rule).
+
+Owner: "check if its moste secure not only the code but also rate limiting, so that i dont rack up cost in any case?
+i have the free tier". Workers and Durable Objects on the Free plan fail past their limits; **R2 bills** past 10
+GB-month and 1 M class A operations. The upload key is public (in every image), so an attacker with fresh install IDs
+and addresses was bounded only by the KV free tier (1 000 writes a day ≈ 333 reports × 8 MiB ≈ 2.6 GB a day; KV
+counters are also not atomic and read stale for up to a minute, so concurrent uploads could overshoot), and 8 MiB
+risked the Free plan's 10 ms CPU per request for the hash. Changes:
+
+- **`Quota` Durable Object** (SQLite, Free plan): one exact daily budget, 100 reports and 40 MiB for the whole
+  service (× 180 days ≈ 7 GiB < 10 GB), within it 10 per install ID and 30 per network; earlier days deleted. KV is no
+  longer used (namespace `RATES` can be deleted). Duplicates are found with an R2 head (class B).
+- **2 MiB** per report in the Worker and on the player (`report.BUDGET`; real reports ≈0.5 MB).
+- **IPv6 per /64**, since one connection gets a whole /64.
+- **`preview_urls = false`** besides `workers_dev = false`.
+- Owner steps added to `tools/reports/README.md`: the lifecycle rule (wrangler command), a WAF rate-limiting rule
+  (10 requests / 10 s per IP on the hostname, Free plan: one rule), a usage-based billing alert for R2 storage at
+  8 GB. Cost table in the README.
+- 14 Worker tests (new: budget under 150 concurrent uploads from new IDs and addresses, byte budget with
+  incompressible bodies, next-day reset, IPv6 grouping, nothing counted for refused or duplicate uploads).
 

@@ -2,20 +2,28 @@
 // Y2Linux error report receiver (docs/planning/ERROR-REPORTS-PLAN.md, R3).
 //
 // One route: POST /v1/report. It accepts a player's scrubbed report (a gzip
-// tar, at most 8 MiB), checks it and stores it in the private R2 bucket. It has
-// no read endpoint and stores no IP address: rate limits key on the install ID
-// and on a salted, daily-changing hash of the address that expires with the day.
+// tar, at most 2 MiB), checks it and stores it in the private R2 bucket. It has
+// no read endpoint and stores no IP address.
+//
+// Cost (tools/reports/README.md): Workers and Durable Objects on the Free plan
+// only fail past their limits; R2 bills beyond its free tier. The upload key is
+// public (it is in every image), so the protection is the Quota object: one
+// strongly consistent daily budget for all stored reports (DAILY_REPORTS,
+// DAILY_BYTES; with the bucket's 180-day expiry at most ≈7 GiB, inside R2's
+// free 10 GB), and per install ID and per network (a salted hash of the IPv4
+// address or IPv6 /64 that changes daily) within it.
 
-export const MAX_BYTES = 8 * 1024 * 1024;
+export const MAX_BYTES = 2 * 1024 * 1024;
 export const PER_INSTALL_PER_DAY = 10;
 export const PER_ADDRESS_PER_DAY = 30;
+export const DAILY_REPORTS = 100;
+export const DAILY_BYTES = 40 * 1024 * 1024;
 const SCHEMA = '1';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const TRIGGERS = new Set(['manual', 'kernel_crash', 'kernel_warning', 'unclean_restart', 'reborn_crash',
   'reborn_failure', 'update_failure', 'sleep_failure', 'radio_failure', 'display_failure', 'storage_error']);
 const RELEASE = /^[0-9A-Za-z.+-]{1,64}$/;
-const DAY_SECONDS = 86400;
 
 function answer(status, body) {
   return new Response(JSON.stringify(body), {
@@ -39,6 +47,19 @@ function same(a, b) {
   let diff = x.length ^ y.length;
   for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
   return diff === 0;
+}
+
+// The network an address belongs to: an IPv4 address itself, an IPv6 /64 (one
+// connection hands out a whole /64, so single IPv6 addresses cost nothing).
+export function network(address) {
+  if (!address.includes(':')) return address;
+  const [head, tail = ''] = address.toLowerCase().split('::');
+  const left = head ? head.split(':') : [];
+  const right = address.includes('::') && tail ? tail.split(':') : [];
+  const groups = address.includes('::')
+    ? [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill('0'), ...right]
+    : left;
+  return groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, '')).join(':') + '::/64';
 }
 
 // Read at most `limit` bytes; null when the body is larger (no full buffering).
@@ -66,13 +87,42 @@ async function readLimited(request, limit) {
   return body;
 }
 
-// A counter per key and day in KV; approximate under concurrency, which is
-// enough for abuse limits.
-async function overLimit(kv, key, limit) {
-  const count = Number((await kv.get(key)) ?? '0');
-  if (count >= limit) return true;
-  await kv.put(key, String(count + 1), { expirationTtl: 2 * DAY_SECONDS });
-  return false;
+// The daily budget, in one Durable Object: its storage calls run one request
+// at a time, so the counts are exact however many uploads arrive at once.
+// Everything from earlier days is deleted on the first request of a new day.
+export class Quota {
+  constructor(state) {
+    this.storage = state.storage;
+  }
+
+  async fetch(request) {
+    const { day, install, address, bytes } = await request.json();
+    if ((await this.storage.get('day')) !== day) {
+      await this.storage.deleteAll();
+      await this.storage.put('day', day);
+    }
+    const total = (await this.storage.get('total')) ?? { reports: 0, bytes: 0 };
+    const installs = (await this.storage.get(`install:${install}`)) ?? 0;
+    const addresses = (await this.storage.get(`address:${address}`)) ?? 0;
+    let error = null;
+    if (total.reports >= DAILY_REPORTS || total.bytes + bytes > DAILY_BYTES) error = 'daily_budget';
+    else if (installs >= PER_INSTALL_PER_DAY) error = 'install_daily_limit';
+    else if (addresses >= PER_ADDRESS_PER_DAY) error = 'address_daily_limit';
+    if (!error) {
+      await this.storage.put({
+        total: { reports: total.reports + 1, bytes: total.bytes + bytes },
+        [`install:${install}`]: installs + 1,
+        [`address:${address}`]: addresses + 1,
+      });
+    }
+    return new Response(JSON.stringify({ ok: !error, error }), { headers: { 'content-type': 'application/json' } });
+  }
+}
+
+async function admit(env, fields) {
+  const quota = env.QUOTA.get(env.QUOTA.idFromName('daily'));
+  const response = await quota.fetch('https://quota/admit', { method: 'POST', body: JSON.stringify(fields) });
+  return response.json();
 }
 
 export async function handle(request, env, now = new Date()) {
@@ -95,33 +145,27 @@ export async function handle(request, env, now = new Date()) {
   if (!Number.isFinite(declared) || declared <= 0) return answer(411, { error: 'length_required' });
   if (declared > MAX_BYTES) return answer(413, { error: 'too_large' });
 
-  const day = now.toISOString().slice(0, 10);
-  // A retried upload of a stored report is a success, not a second copy.
-  if (await env.RATES.get(`seen:${report}`)) return answer(200, { report_id: report, status: 'duplicate' });
-
   const body = await readLimited(request, MAX_BYTES);
   if (body === null) return answer(413, { error: 'too_large' });
   if (body.byteLength !== declared) return answer(400, { error: 'length_mismatch' });
   if (body[0] !== 0x1f || body[1] !== 0x8b) return answer(400, { error: 'not_gzip' });
   if ((await sha256(body)) !== digest) return answer(400, { error: 'sha256_mismatch' });
 
-  // Only a valid report counts towards the limits: a broken upload that the
-  // player retries must not use up its day.
-  if (await overLimit(env.RATES, `install:${install}:${day}`, PER_INSTALL_PER_DAY)) {
-    return answer(429, { error: 'install_daily_limit' });
-  }
-  const address = request.headers.get('cf-connecting-ip') ?? '';
-  const addressKey = await sha256(new TextEncoder().encode(`${env.RATE_SALT ?? ''}|${day}|${address}`));
-  if (await overLimit(env.RATES, `address:${addressKey}:${day}`, PER_ADDRESS_PER_DAY)) {
-    return answer(429, { error: 'address_daily_limit' });
-  }
-
+  const day = now.toISOString().slice(0, 10);
   const key = `reports/${day}/${install}/${report}.tar.gz`;
+  // A retried upload of a stored report is a success, not a second copy (an
+  // R2 lookup is a free-tier class B read; nothing is counted).
+  if (await env.REPORTS.head(key)) return answer(200, { report_id: report, status: 'duplicate' });
+  // Only a valid report counts: a broken upload the player retries uses nothing.
+  const address = await sha256(new TextEncoder().encode(
+    `${env.RATE_SALT ?? ''}|${day}|${network(request.headers.get('cf-connecting-ip') ?? '')}`));
+  const admitted = await admit(env, { day, install, address, bytes: body.byteLength });
+  if (!admitted.ok) return answer(429, { error: admitted.error });
+
   await env.REPORTS.put(key, body, {
     httpMetadata: { contentType: 'application/gzip' },
     customMetadata: { schema: SCHEMA, trigger, release, bytes: String(body.byteLength), sha256: digest },
   });
-  await env.RATES.put(`seen:${report}`, key, { expirationTtl: 7 * DAY_SECONDS });
   return answer(201, { report_id: report, status: 'stored' });
 }
 
