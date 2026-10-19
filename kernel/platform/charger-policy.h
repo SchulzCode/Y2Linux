@@ -127,16 +127,14 @@ static inline int y2_charge_pet(const struct y2_charge_io *io)
 
 static inline int y2_charge_protections(const struct y2_charge_io *io)
 {
-	unsigned ov;
 	int ret;
 	/* Require the observed board configuration; never clear a protection
 	 * or an unknown/test bit in order to pass these checks. */
 	ret = y2_charge_expect(io, 0x000, 0x0085, 0x0001); /* HV enabled, no HV fault/automode */
 	if (!ret) ret = y2_charge_expect(io, 0x002, 0x00f0, 0x00b0); /* stock 7V input OVP */
-	if (!ret) ret = io->read(io->context, 0x00c, &ov);
-	/* Separate emergency OVP from normal CV. The actual Y2 kernel's
-	 * charging_hw_init selects 1 (4.3V), with detection still enabled. */
-	if (!ret && ov != 0x0003) ret = y2_charge_refuse(io, 0x00c, 0xffff, ov);
+	/* Separate emergency OVP from normal CV: on, the actual Y2 kernel's
+	 * charging_hw_init selector 1 (4.3V), detector clear; deglitch as found. */
+	if (!ret) ret = y2_charge_expect(io, 0x00c, 0x004f, 0x0003);
 	if (!ret) ret = y2_charge_expect(io, 0x00e, 0xffff, 0x0005); /* BATON/TDET, present */
 	if (!ret) ret = y2_charge_expect(io, 0x018, 0xffff, 0); /* charger test/reset */
 	if (!ret) ret = y2_charge_expect(io, 0x020, 0xffff, 0x0005); /* normal ADC route/USBDL/UVLO */
@@ -160,27 +158,22 @@ static inline int y2_charge_regulation(const struct y2_charge_io *io, unsigned s
 
 static inline int y2_charge_prepare(const struct y2_charge_io *io, unsigned selector)
 {
-	unsigned input, ov;
+	unsigned ov;
 	int ret;
 	if (!y2_cs_selector_permitted(selector)) return -EINVAL;
 	ret = y2_charge_stop(io);
-	/* Do not raise an unexpectedly lower inherited input protection. */
-	if (!ret) ret = io->read(io->context, 0x002, &input);
-	if (!ret && (input & 0xf0) != 0xf0 && (input & 0xf0) != 0xb0)
-		ret = y2_charge_refuse(io, 0x002, 0x00f0, input);
-	/* Whatever CV earlier software left (stock 4.2 V, 4.1875 V on #47's
-	 * player, anything else) is replaced by 4.175 V and read back below:
-	 * refusing an inherited CV never protected the battery, it only stopped
-	 * charging. */
+	/* Whatever earlier software left in the input OVP (0x002), CV (0x006) and
+	 * battery OVP (0x00c) settings is replaced by the stock values below and
+	 * read back: refusing an unexpected inherited setting never protected the
+	 * battery, it only stopped charging (#47: CV 4.1875 V). The one thing
+	 * never overridden is a battery over-voltage the detector reports now. */
 	if (!ret) ret = io->read(io->context, 0x00c, &ov);
-	/* Only adopt the observed boot setting or the exact stock setting.
-	 * Never clear an asserted detector, disable OVP or accept a higher trim. */
-	if (!ret && ov != 1 && ov != 3) ret = y2_charge_refuse(io, 0x00c, 0xffff, ov);
+	if (!ret && (ov & 0x0040)) ret = y2_charge_refuse(io, 0x00c, 0x0040, ov);
 	/* Change only reconciled fields, with engines off. Hardware protection
-	 * is enabled before arming the charger; OV/UVLO/emergency trims survive. */
+	 * is enabled before arming the charger; UVLO/emergency trims survive. */
 	if (!ret) ret = y2_charge_set(io, 0x002, 0x00f0, 0x00b0);
 	if (!ret) ret = y2_charge_set(io, 0x03c, 0x0020, 0x0020);
-	if (!ret) ret = y2_charge_set(io, 0x00c, 0x000e, 0x0002);
+	if (!ret) ret = y2_charge_set(io, 0x00c, 0x000f, 0x0003);
 	if (!ret) ret = y2_charge_protections(io);
 	if (!ret) ret = y2_charge_set(io, 0x008, 0x000f, selector);
 	if (!ret) ret = y2_charge_set(io, 0x006, 0x001f, 30);

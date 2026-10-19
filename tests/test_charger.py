@@ -168,12 +168,25 @@ int main(void){
  persistent=0;assert(!y2_charge_stop(&io));
  /* Changing critical protection/test bits must prevent enable, without repair. */
  unsigned badregs[]={0,0xc,0xe,0x18,0x20,0x3c,0x44};
- unsigned badbits[]={1,1,0x1000,1,0x100,1,0x100};
+ unsigned badbits[]={1,0x40,0x1000,1,0x100,1,0x100};
  for(unsigned i=0;i<7;i++){
   reset();regs[badregs[i]/2]^=badbits[i];
   assert(y2_charge_prepare(&io,15)<0 && !starts);
  }
- reset();regs[1]=0xa2;assert(y2_charge_prepare(&io,15)<0 && regs[1]==0xa2);
+ /* Any inherited input OVP becomes stock's 7 V (0xb), the low bits kept. */
+ for(unsigned hv=0;hv<16;hv++){
+  reset();regs[1]=(hv<<4)|2;
+  assert(!y2_charge_prepare(&io,15) && regs[1]==0xb2 && !y2_charge_start(&io,15) && starts==1);
+ }
+ /* Battery OVP: switched on at stock 4.3 V whatever it was (deglitch kept);
+  * only an over-voltage the detector reports now refuses, untouched. */
+ unsigned ovs[]={0,1,2,3,5,0xf,0x11,0x1f};
+ for(unsigned i=0;i<8;i++){
+  reset();regs[6]=ovs[i];
+  assert(!y2_charge_prepare(&io,15) && (regs[6]&0x4f)==3 && (regs[6]&0x10)==(ovs[i]&0x10));
+  assert(!y2_charge_start(&io,15) && starts==1);
+ }
+ reset();regs[6]=0x41;assert(y2_charge_prepare(&io,15)<0 && regs[6]==0x41 && !starts);
  /* #47: whatever CV earlier software left (31 = 4.1875 V on the reporter's
   * player), charging sets 4.175 V, verifies it and starts. */
  for(unsigned cv=0;cv<32;cv++){
@@ -183,8 +196,7 @@ int main(void){
  }
  /* A refused inherited value names its register (BAT0 check_*). */
  struct y2_charge_io seen={0,io_read,io_update,record_refusal};
- reset();regs[1]=0xa2;assert(y2_charge_prepare(&seen,15)==-EIO && refused_reg==2 && refused_actual==0xa2);
- reset();regs[6]=5;assert(y2_charge_prepare(&seen,15)==-EIO && refused_reg==0xc && refused_actual==5);
+ reset();regs[6]=0x43;assert(y2_charge_prepare(&seen,15)==-EIO && refused_reg==0xc && refused_actual==0x43);
  reset();assert(!y2_charge_prepare(&io,15));regs[0x44/2]=0x100;
  assert(y2_charge_start(&io,15)<0 && !starts);
  reset();assert(!y2_charge_prepare(&io,15));regs[0]&=~0x20;

@@ -113,7 +113,7 @@ int main(void) {
  assert(y2_pmic_value_allowed(0,0x7b));
  assert(!y2_pmic_value_allowed(0,0x7a));
  assert(y2_pmic_value_allowed(0,0x63));
- assert(y2_pmic_write_mask(0xc)==14 && !y2_pmic_write_mask(0xe));
+ assert(y2_pmic_write_mask(0xc)==15 && !y2_pmic_write_mask(0xe)); /* OVP on + 4.3 V selector */
  for(unsigned v=0;v<16;v++)assert(y2_pmic_value_allowed(0xc,v)==(v==3));
  assert(y2_soc_calibrate(0x73,0xfd,&s));
  for(unsigned v=0;v<32;v++) assert(y2_pmic_value_allowed(6,v)==(v==30));

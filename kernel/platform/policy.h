@@ -29,7 +29,7 @@ static inline unsigned y2_pmic_write_mask(unsigned reg)
 	case 0x004: return 0x000a; /* Current sense + CV comparators. */
 	case 0x006: return 0x001f; /* Only 4.175V CV (value guard below). */
 	case 0x008: return 0x000f; /* CS_VTH: only table steps up to the stock 1100 mA maximum (y2_cs_selector_permitted). */
-	case 0x00c: return 0x000e; /* Stock 4.3V battery OVP; enable/status immutable. */
+	case 0x00c: return 0x000f; /* Stock 4.3V battery OVP, switched on; status immutable. */
 	case 0x01a: return 0x011f; /* Charger watchdog: 4s, enable, service. */
 	case 0x01e: return 0x0003; /* Charger watchdog interrupt/ack, no OUT write. */
 	case 0x024: return 0x000f; /* BC1.1 BB/RST/VSRC, comparator read-only. */
