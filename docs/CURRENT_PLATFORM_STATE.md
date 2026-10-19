@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.10, Baseline 105 — 2026-10-19 (latest, published)
+## Y2Linux 1.0 Beta 8.11, Baseline 106 — 2026-10-20 (latest, published)
+
+Release `1.0.0-beta.8.11`, tag `baseline-106`, Linux `9c7f079`, Reborn `727fd47`, sequence 7500. The automatic
+Internal Storage setup on battery needs 25 % read from the power-on OCV (was 3.7 V under the boot load, ≈45 %), and a
+setup waiting for the battery says *Connect a charger and restart* instead of *Restart to finish setting up* (user
+report 20261019-153610: restarts on battery never set it up). Not installed on a player before publishing. Details:
+[Beta 8.11 report](validation/Y2-LINUX-1.0-BETA-8.11.md), [Storage](STORAGE.md).
+
+## Y2Linux 1.0 Beta 8.10, Baseline 105 — 2026-10-19 (published)
 
 Release `1.0.0-beta.8.10`, tag `baseline-105`, Linux `9df5ccf`, Reborn `cfac12b`, sequence 7400. Charging no longer
 refuses charger settings left by other software (#47: CV 4.1875 V blocked every charger); opt-in error reports over

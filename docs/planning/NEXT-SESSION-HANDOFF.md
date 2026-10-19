@@ -1,6 +1,15 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-19): Y2LINUX 1.0 BETA 8.10 (BASELINE 105) PUBLISHED — CHARGING FIX #47, ERROR REPORTS OVER WI-FI.**
+> **START HERE (2026-10-20): Y2LINUX 1.0 BETA 8.11 (BASELINE 106) PUBLISHED — INTERNAL STORAGE SETUP ON A LOW BATTERY.**
+> User report `UserReports/y2linux-report-20261019-153610` ("internal storage is still 700 mb after multiple restarts"):
+> setup `Pending`/`battery_low` at every start (3.54–3.59 V under boot load < 3.7 V), and Reborn said "Restart to finish
+> setting up" for every Pending. Fixed: 25 % from BAT0 `voltage_ocv` via the stock profile (Linux `fee6b36`), Reborn
+> shows *Connect a charger and restart* (`f649609`). Report `docs/validation/Y2-LINUX-1.0-BETA-8.11.md`, audit
+> BETA-8.11. Release `1.0.0-beta.8.11`, sequence 7500, Linux `9c7f079`, Reborn `727fd47`; not installed on a player.
+> Open: leftover `system.img` when firmware is already installed (radiofw.scan returns early). Next free label 107,
+> sequence above 7500.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.10 (BASELINE 105) PUBLISHED — CHARGING FIX #47, ERROR REPORTS OVER WI-FI.**
 > Owner: "publish without it and answer the issue without it" (no wall-charger test on 105). Report
 > `docs/validation/Y2-LINUX-1.0-BETA-8.10.md`, audit BETA-8.10. Release `1.0.0-beta.8.10`, sequence 7400, Linux `9df5ccf`,
 > Reborn `cfac12b`. #47 cause: `y2_charge_prepare` refused any inherited CV other than selector 30/0; the reporter's

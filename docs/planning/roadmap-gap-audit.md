@@ -8885,3 +8885,17 @@ partition or packaging scope change; the upload key ships in the image (public b
 | Receiver cost | BOUNDED | Durable Object budget 100 reports / 40 MiB a day, 2 MiB each, 180-day expiry ≈ 7 GiB < 10 GB free; WAF rule and billing alert owed |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.10** (Baseline 105, sequence 7400).
+
+## BETA-8.11 (Baseline 106) Internal Storage setup on a low battery: milestone gap audit — 2026-10-20
+
+**Boundary:** owner: "do fix 1 and 2 and publish as 8.11" after user report 20261019-153610. Platform battery gate of
+the automatic storage setup and one Reborn status line. No kernel, memory, partition or packaging scope change.
+
+| Area | State for Beta 8.11 | Evidence / gap |
+| --- | --- | --- |
+| Setup battery gate | FIXED IN CODE | Report: every start on battery at 3.54–3.59 V `voltage_now` < 3.7 V → `battery_low`; now 25 % from `voltage_ocv` (plan value); host tests with the report's values |
+| Storage screen reason | FIXED IN CODE | `Pending` reason was dropped; now *Connect a charger and restart*; preview checked |
+| Setup on a stock-FAT player above 25 % | NOT CHECKED ON A PLAYER | Owner's player already has Y2MEDIA |
+| Leftover `system.img` after the radio firmware is installed | OPEN (minor) | `radiofw.scan` returns at `installed()` before looking at the folders; second user report, no log |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.11** (Baseline 106, sequence 7500).

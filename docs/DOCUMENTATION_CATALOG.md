@@ -13,7 +13,7 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **319**. Explicit scope notices: **228**.
+Indexed pages: **320**. Explicit scope notices: **228**.
 
 ## Entry
 
@@ -354,6 +354,7 @@ Indexed pages: **319**. Explicit scope notices: **228**.
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
+| [Y2Linux 1.0 Beta 8.11 report](validation/Y2-LINUX-1.0-BETA-8.11.md) | Beta 8.11 (Baseline 106): Internal Storage setup on a low battery (25 % by power-on OCV, "Connect a charger and restart") |
 | [Y2Linux 1.0 Beta 8.10 report](validation/Y2-LINUX-1.0-BETA-8.10.md) | Beta 8.10 (Baseline 105): charging fix (#47), error reports over Wi-Fi, report progress |
 | [Y2Linux 1.0 Beta 8.9 report](validation/Y2-LINUX-1.0-BETA-8.9.md) | Beta 8.9 (label 102, built, not published): Save Report without a topic |
 | [Y2Linux 1.0 Beta 8.8 report](validation/Y2-LINUX-1.0-BETA-8.8.md) | Beta 8.8 (Baseline 101): error reports saved to storage, ≈47 s → ≈10 s |
