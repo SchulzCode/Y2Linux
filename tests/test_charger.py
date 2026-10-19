@@ -57,6 +57,10 @@ static int io_update(void *ctx,unsigned reg,unsigned mask,unsigned v,int force){
  return 0;
 }
 static struct y2_charge_io io={0,io_read,io_update,0};
+static unsigned refused_reg, refused_actual;
+__attribute__((unused)) static void record_refusal(void *ctx,unsigned reg,unsigned mask,unsigned expected,unsigned actual,int error){
+ (void)ctx;(void)mask;(void)expected;assert(error==-EIO);refused_reg=reg;refused_actual=actual;
+}
 static void reset(void){
  memset(regs,0,sizeof(regs));
  operations=fail_at=force_count=starts=adc_fail=0; clock_ms=10000;
@@ -171,6 +175,21 @@ int main(void){
  }
  reset();regs[1]=0xa2;assert(y2_charge_prepare(&io,15)<0 && regs[1]==0xa2);
  reset();regs[3]=29;assert(y2_charge_prepare(&io,15)<0 && regs[3]==29);
+ /* #47: an inherited CV from 4.175 V up to stock's 4.2 V is lowered to
+  * 4.175 V and charging starts; every lower (or unknown) one is refused
+  * untouched. 31 = 4.1875 V is what the reporter's player held. */
+ for(unsigned cv=0;cv<32;cv++){
+  reset();regs[3]=cv;
+  int ok=!y2_charge_prepare(&io,15);
+  assert(ok==(cv==0||cv==14||cv==30||cv==31));
+  if(ok){assert((regs[3]&31)==30);assert(!y2_charge_start(&io,15) && starts==1);}
+  else assert(regs[3]==cv && !starts);
+ }
+ /* A refused inherited value names its register (BAT0 check_*). */
+ struct y2_charge_io seen={0,io_read,io_update,record_refusal};
+ reset();regs[3]=29;assert(y2_charge_prepare(&seen,15)==-EIO && refused_reg==6 && refused_actual==29);
+ reset();regs[1]=0xa2;assert(y2_charge_prepare(&seen,15)==-EIO && refused_reg==2 && refused_actual==0xa2);
+ reset();regs[6]=5;assert(y2_charge_prepare(&seen,15)==-EIO && refused_reg==0xc && refused_actual==5);
  reset();assert(!y2_charge_prepare(&io,15));regs[0x44/2]=0x100;
  assert(y2_charge_start(&io,15)<0 && !starts);
  reset();assert(!y2_charge_prepare(&io,15));regs[0]&=~0x20;

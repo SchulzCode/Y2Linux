@@ -75,6 +75,29 @@ static inline int y2_charge_expect(const struct y2_charge_io *io,
 	return ret;
 }
 
+/* An inherited value the sequence will not adopt. Recorded like a failed
+ * check (BAT0 charging_state check_*, expected 0 = "one of several"), so a
+ * report names the register instead of a bare -EIO (#47). */
+static inline int y2_charge_refuse(const struct y2_charge_io *io,
+				   unsigned reg, unsigned mask, unsigned value)
+{
+	if (io->mismatch)
+		io->mismatch(io->context, reg, mask, 0, value, -EIO);
+	return -EIO;
+}
+
+/* An inherited CV the sequence lowers to 4.175 V (selector 30): from stock's
+ * 4.2 V (0, also the PMIC reset value), 4.1875 V (31, found on a player with
+ * the same LK and pack, #47) or 4.175 V (14, 30). A lower one was chosen on
+ * purpose and is never raised. */
+static inline int y2_cv_adoptable(unsigned cv)
+{
+	switch (cv & 0x1f) {
+	case 0: case 14: case 30: case 31: return 1;
+	default: return 0;
+	}
+}
+
 static inline int y2_charge_set(const struct y2_charge_io *io,
 				unsigned reg, unsigned mask, unsigned value)
 {
@@ -125,7 +148,7 @@ static inline int y2_charge_protections(const struct y2_charge_io *io)
 	if (!ret) ret = io->read(io->context, 0x00c, &ov);
 	/* Separate emergency OVP from normal CV. The actual Y2 kernel's
 	 * charging_hw_init selects 1 (4.3V), with detection still enabled. */
-	if (!ret && ov != 0x0003) ret = -EIO;
+	if (!ret && ov != 0x0003) ret = y2_charge_refuse(io, 0x00c, 0xffff, ov);
 	if (!ret) ret = y2_charge_expect(io, 0x00e, 0xffff, 0x0005); /* BATON/TDET, present */
 	if (!ret) ret = y2_charge_expect(io, 0x018, 0xffff, 0); /* charger test/reset */
 	if (!ret) ret = y2_charge_expect(io, 0x020, 0xffff, 0x0005); /* normal ADC route/USBDL/UVLO */
@@ -155,13 +178,14 @@ static inline int y2_charge_prepare(const struct y2_charge_io *io, unsigned sele
 	ret = y2_charge_stop(io);
 	/* Do not raise an unexpectedly lower inherited protection/CV setting. */
 	if (!ret) ret = io->read(io->context, 0x002, &input);
-	if (!ret && (input & 0xf0) != 0xf0 && (input & 0xf0) != 0xb0) ret = -EIO;
+	if (!ret && (input & 0xf0) != 0xf0 && (input & 0xf0) != 0xb0)
+		ret = y2_charge_refuse(io, 0x002, 0x00f0, input);
 	if (!ret) ret = io->read(io->context, 0x006, &cv);
-	if (!ret && (cv & 0x1f) != 30 && (cv & 0x1f) != 0) ret = -EIO;
+	if (!ret && !y2_cv_adoptable(cv)) ret = y2_charge_refuse(io, 0x006, 0x001f, cv);
 	if (!ret) ret = io->read(io->context, 0x00c, &ov);
 	/* Only adopt the observed boot setting or the exact stock setting.
 	 * Never clear an asserted detector, disable OVP or accept a higher trim. */
-	if (!ret && ov != 1 && ov != 3) ret = -EIO;
+	if (!ret && ov != 1 && ov != 3) ret = y2_charge_refuse(io, 0x00c, 0xffff, ov);
 	/* Change only reconciled fields, with engines off. Hardware protection
 	 * is enabled before arming the charger; OV/UVLO/emergency trims survive. */
 	if (!ret) ret = y2_charge_set(io, 0x002, 0x00f0, 0x00b0);
