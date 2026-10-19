@@ -7,8 +7,9 @@ the maintainer the player's logs and technical details in one file. You decide w
 
 1. Settings → **About & Updates** → **Error Reports** → **Save Report**.
 2. Choose **Internal Storage** or **SD Card** (only the ones the player can write to right now are listed).
-3. Choose what the problem is about (Sound, Display, Battery or Sleep, Bluetooth, Wi-Fi, Crash or Freeze,
-   Something Else).
+
+Beta 8.8 then also asks what the problem is about; any answer is fine, because every report holds everything.
+Later versions save straight away. Say what went wrong in the GitHub issue you attach the file to.
 
 The player collects its logs and removes personal details, which takes about ten seconds. The file goes into an
 **Error Reports** folder on the storage you chose:
@@ -50,7 +51,7 @@ send it.
 ## For developers
 
 ```sh
-y2-platform report save --to internal|sd [--topic battery]   # what Save Report runs
+y2-platform report save --to internal|sd   # what Save Report runs (--topic is optional, only a label)
 y2-platform report status
 ```
 
