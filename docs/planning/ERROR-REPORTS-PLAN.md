@@ -117,7 +117,7 @@ Only with *Error Reports* on. At most one report per trigger class per boot, at 
 | Radio failure (the connectivity chip reports an error) | connectivity status `error=` (not `wifi-failure.json`: it is rewritten on every connection and names the network's answers) |
 | Dark display (DSI register lag, no frame) | kernel log lines of the display driver |
 | Storage error (ext4 errors, eMMC I/O errors, read-only remount; not a pulled SD card) | ext4 counters, kernel log |
-| Manual | *Send Report Now* (with a choice: Sound, Display, Battery, Bluetooth, Wi-Fi, Crash, Other; *Save Report* asks none since 8.9) |
+| Manual | *Send Report Now* and *Save Report*, no topic (since 8.10 and 8.9: every report holds everything; `--topic` stays optional on the command line) |
 
 A trigger collects at once (the logs are fresh) and queues the report; uploading waits for Wi-Fi and runs at low
 priority (the platform's NetworkTransfer workload class), never during an update and never below 15 % battery unless
@@ -325,4 +325,26 @@ risked the Free plan's 10 ms CPU per request for the hash. Changes:
   8 GB. Cost table in the README.
 - 14 Worker tests (new: budget under 150 concurrent uploads from new IDs and addresses, byte budget with
   incompressible bodies, next-day reset, IPv6 grouping, nothing counted for refused or duplicate uploads).
+
+## No topic, live progress, test build 103 (2026-10-19)
+
+Owner: "i also dont wnat to choose a topic for the automatic upload, it should just do it. also i want like the
+update player page to see the progress of creatign the report and uploading it / saving ti to dc or internal".
+
+- **No topic for Send Report Now** (Reborn): `PlatformTask::ReportSend` without a topic, `Screen::ReportTopic` and
+  `ReportTopic` removed (skins: `report_topic` gone from the screen list); `y2-platform report send` runs without
+  `--topic` (still accepted).
+- **Live progress** (platform `report.Progress`, `/run/y2/report-progress.json`, schema 1): `phase`
+  collect/scrub/pack/upload/save, `percent` of the whole run (collect 0–12, scrub 12–76 by bytes cleaned, pack
+  76–82, upload or save 82–100; upload by bytes sent through a streamed request body), `seconds_left` (from the
+  elapsed time once ≥ 15 %), `bytes_done`/`bytes_total`; at most five writes a second, only for `send` and `save`
+  (never for background reports), removed when the run ends. The scrub reports by bytes with `imap_unordered`.
+- **Reborn**: `client::report_progress` polled every 200 ms while the task runs (like the update download), drawn
+  like the update screen: steps Collect · Clean · Send (or Save), title per step, percent, gliding bar, detail
+  ("260 of 504 KB", "Into the Error Reports folder."), time left. Previews 33f, 33l–33o. 545 tests.
+- **Test build 103** (`1.0.0-beta.8.10`, sequence 7200, Linux `10b8cc7`, Reborn `bff7831`, 821 container tests,
+  upload key included): installed on the owner's player (Acknowledged, `upload: true`). The owner pressed Send
+  Report Now: built in ≈10 s (503 KB), upload refused by DNS (`gaierror`): the router still served the
+  "no such name" it had cached before the Worker existed (SOA minimum 1800 s); retried by the service afterwards.
+  The topic and progress changes above came after build 103.
 
