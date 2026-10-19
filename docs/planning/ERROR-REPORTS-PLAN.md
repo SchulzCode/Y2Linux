@@ -348,3 +348,13 @@ update player page to see the progress of creatign the report and uploading it /
   "no such name" it had cached before the Worker existed (SOA minimum 1800 s); retried by the service afterwards.
   The topic and progress changes above came after build 103.
 
+
+**Test build 104** (`1.0.0-beta.8.10`, sequence 7300, Linux `7846476`, Reborn `cfac12b`, 825 container tests): no
+topic, live progress, the narrower display trigger. Installed (Acknowledged 7300). Send Report Now: made 15:13:36,
+in R2 15:13:48 (≈12 s, 523 KB, 166 sections, `topic: null`); the progress record removed afterwards. Leak search on
+the player for both received reports: 0 of 203 private values. The first automatic report (display_failure,
+14:55, from build 103) was the boot-time DSI read lag after the restart through the recovery (the driver worked
+around it, the panel lit): the trigger now needs Reborn's first frame to be missing; the lag itself after a
+recovery restart is a finding for the display work. Afterwards: Send Report Now goes first and, once it is stored,
+takes the waiting reports along regardless of their retry time (the build-103 report waited 15 min in backoff
+behind it); the progress follows the new report only.
