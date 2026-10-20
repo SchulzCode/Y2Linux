@@ -1,6 +1,13 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-20): Y2LINUX 1.0 BETA 8.15 (BASELINE 112) PUBLISHED — CJK TEXT, UPDATE CHECK AFTER WAKE, CODEC RETRY.**
+> **START HERE (2026-10-20): Y2LINUX 1.0 BETA 8.16 (BASELINE 113) PUBLISHED — LARGE LIBRARIES (QUEUE, SCAN SPEED).**
+> Report 9765e1e7 (28 600 songs): `invalid queue bounds` on every All Songs play (MAX_QUEUE 20 000; ≈500 B/song in an
+> 8 MiB session) → MAX_QUEUE 5 000 window/random part, trimmed restore (`122607f`). Scans: 757.8 s full, 759.2 s with no
+> change (db 749 s) → scan probe marks seen by id (`5c7e768`, host 54.7 → 0.08 ms/batch); tags read on up to 3 cores at
+> nice 10 (`4922cab`, host 3.3×). Not installed before publishing; the reporting user's next report gives the scan
+> timing (scanner `scan_completed` fields). Next free label 114, sequence above 8000.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.15 (BASELINE 112) PUBLISHED — CJK TEXT, UPDATE CHECK AFTER WAKE, CODEC RETRY.**
 > CJK: Noto Sans CJK JP Regular package `y2-font-noto-cjk` (`0b3fcb5`), Reborn runtime glyph page (`a3b1943`,
 > reborn-graphics `glyphs.rs`, reborn-ui `glyph_cache.rs`, texture slot 9). Update: user "no Update button" + reports
 > 61caa81e/297f1032 → `update.stage` waits 30 s for Online, 3 tries, a failed check keeps an offered release, failed

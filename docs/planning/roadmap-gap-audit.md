@@ -8972,3 +8972,18 @@ No partition, kernel or memory-layout change. Hardware evidence: none for this b
 | USB DAC, video | GATED / NOT FOR 1.0 | unchanged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.15** (Baseline 112, sequence 7900).
+
+## BETA-8.16 (Baseline 113) large libraries: milestone gap audit — 2026-10-20
+
+**Boundary:** owner: multi-core scanning before 8.16 "so the user can test that directly", after report 9765e1e7
+(28 600 songs). Reborn queue limit and windowing, one scanner SQL statement, parallel tag reading (≤ 3 threads, nice 10,
+inside the existing LibraryScan lease). No kernel, partition or packaging change; memory per queue drops (5 000 songs).
+
+| Area | State for Beta 8.16 | Evidence / gap |
+| --- | --- | --- |
+| All Songs / Shuffle on 28 600 songs | FIXED IN CODE | window and restore-trim tests; not run on a large library |
+| Rescan with no changes | FIXED IN CODE | query plan read on a player's library; host benchmark 700×; player timing owed |
+| Tag reading on new files | FIXED IN CODE | order/isolation test with real fixtures; host 3.3×; SD-bound share on the player unmeasured |
+| Build 113 on a player | NOT INSTALLED BEFORE PUBLISH | owner OTA; health check rolls back a failing Reborn |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.16** (Baseline 113, sequence 8000).

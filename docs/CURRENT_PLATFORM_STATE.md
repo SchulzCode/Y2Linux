@@ -1,6 +1,13 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.15, Baseline 112 — 2026-10-20 (latest, published)
+## Y2Linux 1.0 Beta 8.16, Baseline 113 — 2026-10-20 (latest, published)
+
+Release `1.0.0-beta.8.16`, tag `baseline-113`, Linux `342a130`, Reborn `eea9312`, sequence 8000. Large libraries
+(report from a 28 600-song card): All Songs plays again (queue window of 5 000, random part for Shuffle), a rescan
+with no changes no longer spends 12.5 min in one database statement, and new files' tags are read on three cores.
+Details: [Beta 8.16 report](validation/Y2-LINUX-1.0-BETA-8.16.md).
+
+## Y2Linux 1.0 Beta 8.15, Baseline 112 — 2026-10-20 (published)
 
 Release `1.0.0-beta.8.15`, tag `baseline-112`, Linux `326d924`, Reborn `2ef41d3`, sequence 7900. Japanese, Chinese and
 Korean text from Noto Sans CJK through a runtime glyph page; a Check for Updates waits for Wi-Fi after a wake, retries,

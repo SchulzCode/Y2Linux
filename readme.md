@@ -6,22 +6,22 @@ Linux 6.18 and a Buildroot userspace for the **Innioasis Y2** music player
 Android system on the internal eMMC and leaves the bootloaders, calibration and
 factory partitions untouched.
 
-> **Status: Y2Linux 1.0 Beta 8.15 (Baseline 112, 2026-10-20), public beta.** It runs every day
+> **Status: Y2Linux 1.0 Beta 8.16 (Baseline 113, 2026-10-20), public beta.** It runs every day
 > on the maintainer's Y2. Install it once from the ready-made images of the
 > [GitHub releases](https://github.com/SchulzCode/Y2Linux/releases) with SP Flash Tool
 > ([INSTALL](docs/INSTALL.md)); after that the player updates itself over Wi-Fi. Only one
 > hardware revision has been tested (see [Supported hardware](#supported-hardware)). Read
 > [Known issues](#known-issues) before you flash: battery life in sleep is not yet stock-like.
 
-| | 1.0 Beta 8.15 (Baseline 112) |
+| | 1.0 Beta 8.16 (Baseline 113) |
 | --- | --- |
-| Git tag (both repositories) | `baseline-112` (previous: `baseline-111`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
-| Release / kernel | `1.0.0-beta.8.15` / `6.18.56-y2linux-1.0.0-beta.8.15` (Linux 6.18 long-term line) |
-| Root filesystem | `2026.08-platform-v1.140` (Buildroot 2026.08) |
-| Player | Y2Reborn 1.0.0-beta.8.15 (Rust 1.99) with the UI v4 design, Cover Flow, Genres, a clock, 16 skins, Last.fm scrobbling and 47 headphone profiles |
+| Git tag (both repositories) | `baseline-113` (previous: `baseline-112`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
+| Release / kernel | `1.0.0-beta.8.16` / `6.18.56-y2linux-1.0.0-beta.8.16` (Linux 6.18 long-term line) |
+| Root filesystem | `2026.08-platform-v1.141` (Buildroot 2026.08) |
+| Player | Y2Reborn 1.0.0-beta.8.16 (Rust 1.99) with the UI v4 design, Cover Flow, Genres, a clock, 16 skins, Last.fm scrobbling and 47 headphone profiles |
 | Bluetooth codecs | SBC, AAC (fdk-aac-free) and LDAC |
 | Main components | GCC 15.3 / glibc 2.44, Mesa 26.2.4, FFmpeg 9.0.2, BlueZ 5.87, OpenSSL 4.0.3, Python 3.15.0 |
-| Images built from | Y2Linux `326d924`, Y2Reborn `2ef41d3` ([Beta 8.15 report](docs/validation/Y2-LINUX-1.0-BETA-8.15.md): Japanese, Chinese and Korean text, a Check for Updates that waits for Wi-Fi after waking, a codec choice that survives connecting; [8.14](docs/validation/Y2-LINUX-1.0-BETA-8.14.md): a new random order for every shuffle, a seek that starts small, Shuffle on genres, long titles on Home; [8.13](docs/validation/Y2-LINUX-1.0-BETA-8.13.md): songs listed in Strawberry and other libmtp apps over USB, a Wi-Fi connect fix; [8.12](docs/validation/Y2-LINUX-1.0-BETA-8.12.md): no crash loop from SD-card playlists (#49), no silence after EQ changes (#48), sleep after a refused attempt, fuller error reports; [8.11](docs/validation/Y2-LINUX-1.0-BETA-8.11.md): Internal Storage is set up on battery from 25 % and the screen says when a charger is needed; [8.10](docs/validation/Y2-LINUX-1.0-BETA-8.10.md): charging on players whose charger settings came from other software (#47), error reports over Wi-Fi (opt-in), report progress; [8.8](docs/validation/Y2-LINUX-1.0-BETA-8.8.md): error reports saved to Internal Storage or the SD card; [8.7](docs/validation/Y2-LINUX-1.0-BETA-8.7.md): GC9503V players identified from LK; [8.6](docs/validation/Y2-LINUX-1.0-BETA-8.6.md): audio review fixes, no loudness jumps, less CPU with a profile; [8.5](docs/validation/Y2-LINUX-1.0-BETA-8.5.md): headphone level, headphone profiles, DAC filter; [8.4](docs/validation/Y2-LINUX-1.0-BETA-8.4.md): the dark display after a restart; [8.3](docs/validation/Y2-LINUX-1.0-BETA-8.3.md): the update screens show the seconds left) |
+| Images built from | Y2Linux `342a130`, Y2Reborn `eea9312` ([Beta 8.16 report](docs/validation/Y2-LINUX-1.0-BETA-8.16.md): large libraries — All Songs plays, rescans in seconds, tags read on several cores; [8.15](docs/validation/Y2-LINUX-1.0-BETA-8.15.md): Japanese, Chinese and Korean text, a Check for Updates that waits for Wi-Fi after waking, a codec choice that survives connecting; [8.14](docs/validation/Y2-LINUX-1.0-BETA-8.14.md): a new random order for every shuffle, a seek that starts small, Shuffle on genres, long titles on Home; [8.13](docs/validation/Y2-LINUX-1.0-BETA-8.13.md): songs listed in Strawberry and other libmtp apps over USB, a Wi-Fi connect fix; [8.12](docs/validation/Y2-LINUX-1.0-BETA-8.12.md): no crash loop from SD-card playlists (#49), no silence after EQ changes (#48), sleep after a refused attempt, fuller error reports; [8.11](docs/validation/Y2-LINUX-1.0-BETA-8.11.md): Internal Storage is set up on battery from 25 % and the screen says when a charger is needed; [8.10](docs/validation/Y2-LINUX-1.0-BETA-8.10.md): charging on players whose charger settings came from other software (#47), error reports over Wi-Fi (opt-in), report progress; [8.8](docs/validation/Y2-LINUX-1.0-BETA-8.8.md): error reports saved to Internal Storage or the SD card; [8.7](docs/validation/Y2-LINUX-1.0-BETA-8.7.md): GC9503V players identified from LK; [8.6](docs/validation/Y2-LINUX-1.0-BETA-8.6.md): audio review fixes, no loudness jumps, less CPU with a profile; [8.5](docs/validation/Y2-LINUX-1.0-BETA-8.5.md): headphone level, headphone profiles, DAC filter; [8.4](docs/validation/Y2-LINUX-1.0-BETA-8.4.md): the dark display after a restart; [8.3](docs/validation/Y2-LINUX-1.0-BETA-8.3.md): the update screens show the seconds left) |
 
 ## Getting started
 
