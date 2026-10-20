@@ -1652,7 +1652,30 @@
  	}
  	return ret;
  }
-@@ -2850,7 +4224,8 @@
+@@ -2838,7 +4212,22 @@
+ 	cqhci_writel(cq_host, reg, CQHCI_CFG);
+ }
+ 
++/* The Y2 request guard refuses every erase (CMD35/36/38, storage-policy.h).
++ * The card still advertises TRIM, so the block layer offered WRITE_ZEROES as
++ * an erase that the guard rejected: mke2fs zeroing the end of p8 during the
++ * Internal Storage setup logged "I/O error, dev mmcblk0 ... WRITE_ZEROES" and
++ * sent a storage_error report (bf017f02). Without TRIM, a zero-out writes
++ * zero pages, which the guard allows inside the writable windows. */
++static void msdc_init_card(struct mmc_host *mmc, struct mmc_card *card)
++{
++	struct msdc_host *host = mmc_priv(mmc);
++
++	if (host->y2_emmc)
++		card->quirks |= MMC_QUIRK_TRIM_BROKEN | MMC_QUIRK_SEC_ERASE_TRIM_BROKEN;
++}
++
+ static const struct mmc_host_ops mt_msdc_ops = {
++	.init_card = msdc_init_card,
+ 	.post_req = msdc_post_req,
+ 	.pre_req = msdc_pre_req,
+ 	.request = msdc_ops_request,
+@@ -2850,7 +4239,8 @@
  	.ack_sdio_irq = msdc_ack_sdio_irq,
  	.start_signal_voltage_switch = msdc_ops_switch_volt,
  	.card_busy = msdc_card_busy,
@@ -1662,7 +1685,7 @@
  	.prepare_hs400_tuning = msdc_prepare_hs400_tuning,
  	.execute_hs400_tuning = msdc_execute_hs400_tuning,
  	.card_hw_reset = msdc_hw_reset,
-@@ -2957,11 +4332,139 @@
+@@ -2957,11 +4347,139 @@
  	return 0;
  }
  
@@ -1802,7 +1825,7 @@
  
  	if (!pdev->dev.of_node) {
  		dev_err(&pdev->dev, "No DT found\n");
-@@ -2983,6 +4486,9 @@
+@@ -2983,6 +4501,9 @@
  		return PTR_ERR(host->base);
  
  	host->dev_comp = of_device_get_match_data(&pdev->dev);
@@ -1812,7 +1835,7 @@
  
  	if (host->dev_comp->needs_top_base) {
  		host->top_base = devm_platform_ioremap_resource(pdev, 1);
-@@ -3016,6 +4522,11 @@
+@@ -3016,6 +4537,11 @@
  	if (host->irq < 0)
  		return host->irq;
  
@@ -1824,7 +1847,7 @@
  	host->pinctrl = devm_pinctrl_get(&pdev->dev);
  	if (IS_ERR(host->pinctrl))
  		return dev_err_probe(&pdev->dev, PTR_ERR(host->pinctrl),
-@@ -3032,6 +4543,8 @@
+@@ -3032,6 +4558,8 @@
  		dev_err(&pdev->dev, "Cannot find pinctrl uhs!\n");
  		return PTR_ERR(host->pins_uhs);
  	}
@@ -1833,7 +1856,7 @@
  
  	/* Support for SDIO eint irq ? */
  	if ((mmc->pm_caps & MMC_PM_WAKE_SDIO_IRQ) && (mmc->pm_caps & MMC_PM_KEEP_POWER)) {
-@@ -3048,9 +4561,64 @@
+@@ -3048,9 +4576,64 @@
  	}
  
  	msdc_of_property_parse(pdev, host);
@@ -1898,7 +1921,7 @@
  	/* Set host parameters to mmc */
  	mmc->ops = &mt_msdc_ops;
  	if (host->dev_comp->clk_div_bits == 8)
-@@ -3072,6 +4640,8 @@
+@@ -3072,6 +4655,8 @@
  		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
  
  	mmc->caps |= MMC_CAP_CMD23;
@@ -1907,7 +1930,7 @@
  	if (host->cqhci)
  		mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
  	/* MMC core transfer sizes tunable parameters */
-@@ -3102,6 +4672,10 @@
+@@ -3102,6 +4687,10 @@
  	}
  	msdc_init_gpd_bd(host, &host->dma);
  	INIT_DELAYED_WORK(&host->req_timeout, msdc_request_timeout);
@@ -1918,7 +1941,7 @@
  	spin_lock_init(&host->lock);
  
  	platform_set_drvdata(pdev, mmc);
-@@ -3132,7 +4706,7 @@
+@@ -3132,7 +4721,7 @@
  		mmc->max_seg_size = 64 * 1024;
  		/* Reduce CIT to 0x40 that corresponds to 2.35us */
  		msdc_cqe_cit_cal(host, 2350);
@@ -1927,7 +1950,7 @@
  		/* Use HSQ on eMMC/SD (but not on SDIO) if HW CQE not supported */
  		struct mmc_hsq *hsq = devm_kzalloc(&pdev->dev, sizeof(*hsq), GFP_KERNEL);
  		if (!hsq) {
-@@ -3160,9 +4734,51 @@
+@@ -3160,9 +4749,51 @@
  
  	if (ret)
  		goto end;
@@ -1980,7 +2003,7 @@
  	pm_runtime_disable(host->dev);
  release:
  	msdc_deinit_hw(host);
-@@ -3189,6 +4805,19 @@
+@@ -3189,6 +4820,19 @@
  
  	mmc = platform_get_drvdata(pdev);
  	host = mmc_priv(mmc);
@@ -2000,7 +2023,7 @@
  
  	pm_runtime_get_sync(host->dev);
  
-@@ -3278,6 +4907,86 @@
+@@ -3278,6 +4922,86 @@
  		__msdc_enable_sdio_irq(host, 1);
  }
  
@@ -2087,7 +2110,7 @@
  static int msdc_runtime_suspend(struct device *dev)
  {
  	struct mmc_host *mmc = dev_get_drvdata(dev);
-@@ -3285,6 +4994,12 @@
+@@ -3285,6 +5009,12 @@
  
  	if (host->hsq_en)
  		mmc_hsq_suspend(mmc);
@@ -2100,7 +2123,7 @@
  
  	msdc_save_reg(host);
  
-@@ -3306,6 +5021,8 @@
+@@ -3306,6 +5036,8 @@
  	struct msdc_host *host = mmc_priv(mmc);
  	int ret;
  
