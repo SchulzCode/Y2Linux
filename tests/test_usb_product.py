@@ -2,6 +2,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -409,14 +410,24 @@ class USBFiles(unittest.TestCase):
             for patchfile in sorted((ROOT/'buildroot/package/y2-mtp').glob('*.patch')):
                 subprocess.run(['patch','--batch','--fuzz=0','-p1','-i',str(patchfile)],cwd=source,check=True,stdout=subprocess.DEVNULL)
             for name in ('h','c'): shutil.copyfile(ROOT/('tools/usb/mtp-safe.'+name),source/('inc' if name=='h' else 'src')/('mtp-safe.'+name))
-            build=subprocess.run(['make','-j4'],cwd=source,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+            # Patch 0005 reads tags through SQLite; the locked container has
+            # no SQLite headers, so link the failing stub there (file-name fallback).
+            sqlite=[]
+            if not Path('/usr/include/sqlite3.h').exists():
+                stub=ROOT/'tests/native/sqlite3-stub'; library=base/'sqlite-stub'; library.mkdir()
+                subprocess.run(['cc','-c','-Wall','-Werror',str(stub/'sqlite3.c'),'-o',str(library/'sqlite3.o')],check=True)
+                subprocess.run(['ar','rcs',str(library/'libsqlite3.a'),str(library/'sqlite3.o')],check=True)
+                sqlite=['-I'+str(stub),'-L'+str(library)]
+            env=dict(os.environ,CPPFLAGS=' '.join(f for f in sqlite if f.startswith('-I')),
+                     LDFLAGS=' '.join(f for f in sqlite if f.startswith('-L')))
+            build=subprocess.run(['make','-j4'],cwd=source,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
             self.assertEqual(build.returncode,0,build.stdout)
             receive_test=base/'receive-test'
             subprocess.run(['cc','-Wall','-Wextra','-Werror','-pthread','-I'+str(source/'inc'),
                             str(ROOT/'tests/native/mtp-rx-events.c'),str(source/'src/y2_rx.c'),
                             '-o',str(receive_test)],check=True)
             subprocess.run([str(receive_test)],check=True,timeout=10)
-            flags=['cc','-I'+str(source/'inc')]
+            flags=['cc','-I'+str(source/'inc'),*sqlite]
             main=base/'main.o'
             subprocess.run(flags+['-Dmain=umtprd_original_main','-c',str(source/'src/umtprd.c'),'-o',str(main)],check=True)
             binary=base/'protocol-test'
