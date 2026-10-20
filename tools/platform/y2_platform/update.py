@@ -34,6 +34,10 @@ CHANNEL = '/etc/y2linux/update-channel.json'
 # Owner gate before the device turns off to install (decision 2026-10-15).
 MINIMUM_PERCENT = 50
 CHECK_INTERVAL = 24 * 3600
+# Wi-Fi needs 15-20 s to reconnect after the player wakes; a Check for Updates
+# pressed meanwhile failed at once ("name resolution") and hid Update Now.
+NETWORK_WAIT_S = 30
+MANIFEST_ATTEMPTS = 3
 
 
 def channel(ctx):
@@ -283,6 +287,16 @@ class Cancelled(ValueError):
     """The owner stopped a running download (Reborn sends SIGTERM)."""
 
 
+def wait_online(ctx, seconds=None, sleep=time.sleep):
+    """True once Wi-Fi is Online (DNS answered), waiting at most `seconds`."""
+    deadline = time.monotonic() + (NETWORK_WAIT_S if seconds is None else seconds)
+    while ctx.json('/run/y2/network.json', {}).get('state') != 'Online':
+        if time.monotonic() >= deadline:
+            return False
+        sleep(1)
+    return True
+
+
 def _cancel(signum, frame):
     raise Cancelled('download_cancelled')
 
@@ -299,6 +313,7 @@ def stage(ctx, source=None, url=None, check_only=False):
     incoming = root / token
     live = None
     summary = None
+    previous = None
     terminate = signal.getsignal(signal.SIGTERM)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -317,6 +332,8 @@ def stage(ctx, source=None, url=None, check_only=False):
         # Even the manifest needs the reserve: a nearly full volume is cleaned
         # first, so a check can still find the release (OTA-46).
         cleaned = make_room(ctx, fd, 64 * 1024)
+        # What the Software Update page showed: a failed check keeps it.
+        previous = ctx.json('/data/updates/download.json')
         incoming.mkdir(mode=0o700)
         # A check only reads the signed manifest; it never shows as a download.
         atomic_json(root/'download.json', {'schema': 1, 'state': 'Checking' if check_only else 'Staging',
@@ -325,6 +342,8 @@ def stage(ctx, source=None, url=None, check_only=False):
             from .timekeeping import status as clock
             if not clock(ctx)['tls_ready'] or not clock(ctx)['entropy_ready']:
                 raise ValueError('clock_or_entropy_not_ready_for_TLS')
+            if not wait_online(ctx):
+                raise ValueError('network_not_online')
             base = base_url(url)
             opener = urllib.request.build_opener(AllowlistedRedirect(channel(ctx)['allowed_redirect_hosts']),
                                                  urllib.request.ProxyHandler({}))
@@ -348,18 +367,29 @@ def stage(ctx, source=None, url=None, check_only=False):
                         raise ValueError('local_package_regular_files_required')
                     yield stream
         for name, maximum in [('manifest.json', 16384), ('manifest.sig', 64)]:
-            try:
-                with get(name) as stream:
-                    copy_stream(stream, incoming/name, maximum, exact=64 if name.endswith('.sig') else None, seconds=30)
-            except urllib.error.HTTPError as error:
-                if not (check_only and error.code == 404 and name == 'manifest.json'):
-                    raise
-                # Nothing published on the channel yet: nothing newer to install.
-                remove_package(incoming)
-                installed = ctx.json('/etc/y2linux/versions.json', {}).get('release_version')
-                atomic_json(root/'download.json', {'schema': 1, 'state': 'Checked', 'up_to_date': True,
-                                                   'release_version': installed, 'published': False})
-                return {'state': 'UpToDate', 'release_version': installed}
+            for attempt in range(1, MANIFEST_ATTEMPTS + 1):
+                try:
+                    with get(name) as stream:
+                        copy_stream(stream, incoming/name, maximum, exact=64 if name.endswith('.sig') else None,
+                                    seconds=30)
+                    break
+                except urllib.error.HTTPError as error:
+                    if not (check_only and error.code == 404 and name == 'manifest.json'):
+                        raise
+                    # Nothing published on the channel yet: nothing newer to install.
+                    remove_package(incoming)
+                    installed = ctx.json('/etc/y2linux/versions.json', {}).get('release_version')
+                    atomic_json(root/'download.json', {'schema': 1, 'state': 'Checked', 'up_to_date': True,
+                                                       'release_version': installed, 'published': False})
+                    return {'state': 'UpToDate', 'release_version': installed}
+                except (urllib.error.URLError, TimeoutError):
+                    # A lookup or handshake that failed while Wi-Fi was still
+                    # settling: try again once it is online.
+                    if not url or attempt == MANIFEST_ATTEMPTS:
+                        raise
+                    (incoming/name).unlink(missing_ok=True)
+                    time.sleep(3)
+                    wait_online(ctx, 10)
         try:
             manifest = core(ctx, 'check-manifest', '/data/updates/' + token)
         except ValueError as error:
@@ -436,6 +466,10 @@ def stage(ctx, source=None, url=None, check_only=False):
         raise
     except (OSError, ValueError, TimeoutError) as error:
         record = {'schema': 1, 'state': 'Failed', 'failure': str(error)}
+        if check_only and isinstance(previous, dict) and previous.get('state') == 'Checked':
+            # A check that couldn't reach the server keeps the release the page
+            # already offered (Update Now stays); the error goes to the caller.
+            record = {**previous, 'last_check_failure': str(error)[:120]}
         if isinstance(error, NoSpace):
             record['needed_bytes'] = error.needed
             with contextlib.suppress(OSError, ValueError):
@@ -520,11 +554,15 @@ def automatic_check(ctx, now=None):
     from .timekeeping import status as clock
     if not clock(ctx)['tls_ready']:
         return None
-    record = {'schema': 1, 'time': now, 'attempt': now}
+    # Only a check that reached the server starts the next day; a failed one
+    # is tried again with the hourly attempt (it waited a whole day).
+    record = {'schema': 1, 'attempt': now}
+    if type(last.get('time')) in (int, float):
+        record['time'] = last['time']
     previous = ctx.json('/data/updates/download.json')
     try:
         manifest = stage(ctx, url=channel(ctx)['manifest_url'], check_only=True)
-        record.update(result='checked', release_version=manifest['release_version'])
+        record.update(time=now, result='checked', release_version=manifest['release_version'])
     except (OSError, ValueError, TimeoutError) as error:
         record.update(result='failed', failure=str(error)[:120])
         # A failed background check is not the owner's failed update: keep

@@ -839,6 +839,7 @@ class PlatformPolicyTests(unittest.TestCase):
         self.assertEqual(update.status(self.ctx)['failure'], 'journal_unreadable')
         (self.root/'data/updates/state.json').unlink()
         (self.root/'etc/y2linux/versions.json').write_text(json.dumps({'release_version': 'v35'}))
+        (self.root/'run/y2/network.json').write_text(json.dumps({'state': 'Online'}))
         import urllib.error
         missing = urllib.error.HTTPError('https://github.com/x/manifest.json', 404, 'Not Found', {}, None)
         opener = unittest.mock.MagicMock()
@@ -862,17 +863,59 @@ class PlatformPolicyTests(unittest.TestCase):
             result = update.automatic_check(self.ctx, now=1000)
             self.assertEqual(result['result'], 'failed')
             self.assertEqual(json.loads((self.root/'data/updates/download.json').read_text())['release_version'], 'old')
-            self.assertIsNone(update.automatic_check(self.ctx, now=1000 + 3600))   # within a day of the check
-            self.assertEqual(staged.call_count, 1)
+            # A failed check is tried again (the service paces attempts hourly);
+            # it used to wait a whole day.
             staged.side_effect = None
             staged.return_value = {'release_version': 'new'}
-            self.assertEqual(update.automatic_check(self.ctx, now=1000 + 86401)['release_version'], 'new')
+            self.assertEqual(update.automatic_check(self.ctx, now=1000 + 3600)['release_version'], 'new')
+            self.assertEqual(staged.call_count, 2)
+            self.assertIsNone(update.automatic_check(self.ctx, now=1000 + 7200))   # within a day of a real check
+            self.assertEqual(update.automatic_check(self.ctx, now=1000 + 3600 + 86401)['release_version'], 'new')
         # Offline: no network call, but the attempt is remembered.
         (self.root/'run/y2/network.json').write_text(json.dumps({'state': 'Associating'}))
         with patch.object(update, 'stage') as staged:
             self.assertIsNone(update.automatic_check(self.ctx, now=1000 + 3*86400))
             staged.assert_not_called()
         self.assertEqual(json.loads((self.root/'data/updates/last-check.json').read_text())['attempt'], 1000 + 3*86400)
+
+    def test_a_check_waits_for_wifi_retries_and_keeps_the_offered_release(self):
+        """A Check for Updates right after a wake (Wi-Fi still reconnecting) failed
+        at once and replaced 'Update Available' with 'Connect to Wi-Fi' (reports
+        61caa81e/297f1032)."""
+        from y2_platform import update
+        import urllib.error
+        url = 'https://github.com/o/r/releases/latest/download/manifest.json'
+        (self.root/'etc/y2linux/versions.json').write_text(json.dumps({'release_version': 'v35'}))
+        offered = {'schema': 1, 'state': 'Checked', 'release_version': 'v36', 'bytes': 1}
+        (self.root/'data/updates/download.json').write_text(json.dumps(offered))
+        network = self.root/'run/y2/network.json'
+        network.write_text(json.dumps({'state': 'Associating'}))
+        opener = unittest.mock.MagicMock()
+        opener.open.side_effect = urllib.error.URLError('[Errno -3] Temporary failure in name resolution')
+        common = (patch('y2_platform.timekeeping.status', return_value={'tls_ready': True, 'entropy_ready': True}),
+                  patch('y2_platform.update.data_volume', return_value={'generation': 1}),
+                  patch('urllib.request.build_opener', return_value=opener),
+                  patch.object(update, 'NETWORK_WAIT_S', 0.05), patch('time.sleep'))
+        with common[0], common[1], common[2], common[3], common[4]:
+            # Never online: no request at all, the offered release stays.
+            with self.assertRaisesRegex(ValueError, 'network_not_online'):
+                update.stage(self.ctx, url=url, check_only=True)
+            opener.open.assert_not_called()
+            kept = json.loads((self.root/'data/updates/download.json').read_text())
+            self.assertEqual((kept['state'], kept['release_version']), ('Checked', 'v36'))
+            # Online, but every lookup fails: three tries, then the error; still offered.
+            network.write_text(json.dumps({'state': 'Online'}))
+            with self.assertRaises(urllib.error.URLError):
+                update.stage(self.ctx, url=url, check_only=True)
+            self.assertEqual(opener.open.call_count, update.MANIFEST_ATTEMPTS)
+            kept = json.loads((self.root/'data/updates/download.json').read_text())
+            self.assertEqual((kept['state'], kept['release_version']), ('Checked', 'v36'))
+            self.assertIn('name resolution', kept['last_check_failure'])
+            # A download that fails is still reported as failed.
+            opener.open.reset_mock()
+            with self.assertRaises(urllib.error.URLError):
+                update.stage(self.ctx, url=url)
+            self.assertEqual(json.loads((self.root/'data/updates/download.json').read_text())['state'], 'Failed')
 
     def test_media_reconcile_runs_in_the_background_and_stops_a_hung_check(self):
         from y2_platform import service
