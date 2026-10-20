@@ -216,24 +216,33 @@ static int frequency_event(struct notifier_block *nb, unsigned long event,
 }
 static struct notifier_block frequency_nb = { .notifier_call =
 						      frequency_event };
+/* Pausing under idle_lock also ends a park the sampler is in the middle of,
+ * so no CPU is parked after this point. A CPU that will not come back is no
+ * reason to refuse sleep: freezing the secondaries copes with offline CPUs. */
 static int suspend_event(struct notifier_block *nb, unsigned long event,
 			 void *data)
 {
-	int ret = 0;
+	int ret;
 	if (event == PM_SUSPEND_PREPARE) {
 		mutex_lock(&idle_lock);
 		paused = true;
 		ret = restore_locked(false);
 		mutex_unlock(&idle_lock);
+		if (ret)
+			pr_warn("Y2IDLE: restore before suspend result=%d; suspending anyway\n", ret);
 	} else if (event == PM_POST_SUSPEND) {
 		mutex_lock(&idle_lock);
 		paused = false;
 		y2_idle_restored(&state, now_ms(), false);
 		mutex_unlock(&idle_lock);
 	}
-	return ret ? NOTIFY_BAD : NOTIFY_OK;
+	return NOTIFY_OK;
 }
-static struct notifier_block suspend_nb = { .notifier_call = suspend_event };
+/* Above cpu_hotplug_pm_callback (0): at equal priority it ran first and
+ * disabled hotplug, so add_cpu() for a CPU parked just before suspend got
+ * -EBUSY and the refused notifier failed the suspend with -EPERM. */
+static struct notifier_block suspend_nb = { .notifier_call = suspend_event,
+					    .priority = 1 };
 static void idle_input_event(struct input_handle *handle, unsigned type,
 			     unsigned code, int value)
 {

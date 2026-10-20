@@ -453,6 +453,23 @@ int main(void){
         self.assertIn('ret = y2_system_idle_restore();', (ROOT/'kernel/platform/workload.c').read_text())
         self.assertIn('y2_system_idle_restore();', (ROOT/'kernel/platform/backlight.c').read_text())
 
+    def test_a_cpu_parked_just_before_suspend_does_not_refuse_it(self):
+        # 2026-10-20 user report (Beta 8.10): the sampler parked CPU3 9 ms after
+        # "PM: suspend entry"; cpu_hotplug_pm_callback (priority 0, registered
+        # first) had disabled hotplug, add_cpu() got -EBUSY and NOTIFY_BAD failed
+        # the suspend with -EPERM. Restore before hotplug is disabled; never refuse.
+        s = (ROOT/'kernel/platform/system-idle.c').read_text()
+        cpu = (ROOT/'.cache/sources/linux-6.18/kernel/cpu.c').read_text()
+        self.assertIn('pm_notifier(cpu_hotplug_pm_callback, 0);', cpu)
+        self.assertRegex(s, r'suspend_nb = \{ \.notifier_call = suspend_event,\s+\.priority = 1 \}')
+        event = function(s, 'suspend_event')
+        self.assertNotIn('NOTIFY_BAD', event)
+        prepare = event[event.index('PM_SUSPEND_PREPARE'):event.index('PM_POST_SUSPEND')]
+        # Paused under idle_lock, which the sampler holds across remove_cpu().
+        self.assertLess(prepare.index('mutex_lock(&idle_lock);'), prepare.index('paused = true;'))
+        self.assertLess(prepare.index('paused = true;'), prepare.index('restore_locked(false)'))
+        self.assertIn('!paused', function(s, 'sample_work_fn'))
+
 
 class ScreenOffBackground(unittest.TestCase):
     """Userspace sources found for the recurring screen-off bursts."""
