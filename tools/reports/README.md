@@ -106,6 +106,18 @@ python3 tools/reports/fetch.py --list           # what is in the bucket, new one
 tar -xzf out/reports/2026-10-20/<install>/<report>.tar.gz -C /tmp/r && less /tmp/r/report.json
 ```
 
+On the maintainer PC a systemd user timer pulls them every 15 minutes (and 2 minutes after login) into
+`UserReports/` (git-ignored via `.git/info/exclude`), named like an R2 dashboard download
+(`reports_<day>_<install>_<report>.tar.gz`, `--flat`) so hand-downloaded reports are not fetched twice, with a
+desktop notification when any arrived (`--notify`). Units: `~/.config/systemd/user/y2linux-reports.{service,timer}`,
+`ExecStart=/usr/bin/python3 -I <repo>/tools/reports/fetch.py --flat --notify --into <repo>/UserReports`.
+`systemctl --user list-timers y2linux-reports.timer` shows the next run, `journalctl --user -u y2linux-reports`
+what it fetched.
+
+`UserReports/REVIEWED.md` is the review ledger: one row per report read (report ID's first 8 characters, or a saved
+report's file name) with its verdict on the newest release, plus the open findings. `fetch.py --pending --into
+UserReports` lists the reports it does not name yet — start there instead of re-reading old reports.
+
 On the home server, the same script on a timer pulls reports into a folder there (copy `fetch.py` and the token
 file; for example hourly with `--into /srv/y2linux-reports`). It only reads; R2's lifecycle rule deletes reports
 after 180 days. A user who asks for their reports to be deleted gives their install ID: delete

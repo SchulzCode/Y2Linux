@@ -137,6 +137,25 @@ class Fetch(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertIsNone(fetch.target_for('/x', key))
 
+    def test_flat_names_match_the_r2_dashboard_download(self):
+        self.assertEqual(fetch.target_for('/x', 'reports/2026-10-19/i/r.tar.gz', flat=True),
+                         Path('/x/reports_2026-10-19_i_r.tar.gz'))
+        self.assertIsNone(fetch.target_for('/x', 'reports/../i/r.tar.gz', flat=True))
+
+    def test_pending_lists_reports_the_ledger_does_not_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            names = ['reports_2026-10-20_i1_e37c8ebb-e8a6-4a2e-852f-473961c79d7d.tar.gz',
+                     'reports_2026-10-20_i1_19a41489-0d2d-4dfd-b817-c2a9f4ed5eca.tar.gz',
+                     'y2linux-report-20261019-153610.tar.gz']
+            for name in names:
+                (Path(tmp) / name).write_bytes(b'\x1f\x8b')
+            (Path(tmp) / '2026-10-20/i2').mkdir(parents=True)
+            (Path(tmp) / '2026-10-20/i2/81c5d87a-5bbe-4d46-944a-c4f832b4e931.tar.gz').write_bytes(b'\x1f\x8b')
+            self.assertEqual(len(fetch.pending(tmp)), 4)                    # no ledger yet
+            (Path(tmp) / 'REVIEWED.md').write_text('| e37c8ebb | ... |\n| y2linux-report-20261019-153610 |\n'
+                                                   '| 81c5d87a |\n')
+            self.assertEqual([p.name for p in fetch.pending(tmp)], [names[1]])
+
     def test_credentials_must_be_private_and_complete(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'r2.json'

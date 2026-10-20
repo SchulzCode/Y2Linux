@@ -5,7 +5,12 @@ The Worker only stores; this is the one way reports are read. It lists
 `reports/` with the S3 API (AWS Signature Version 4, standard library only, so
 it runs on the PC or the home server without packages) and downloads every
 report that is not in the target folder yet, checked against the SHA-256 the
-Worker recorded. Layout: <into>/<YYYY-MM-DD>/<install-id>/<report-id>.tar.gz.
+Worker recorded. Layout: <into>/<YYYY-MM-DD>/<install-id>/<report-id>.tar.gz, or
+with --flat <into>/reports_<YYYY-MM-DD>_<install-id>_<report-id>.tar.gz (the name
+the R2 dashboard gives a download, so hand-downloaded reports count as present).
+--pending lists the reports below the folder that its REVIEWED.md does not
+name yet (by the first 8 characters of the report ID, or a saved report's
+file name), so a new session starts with what nobody has looked at.
 
 Credentials: an R2 API token with Object Read on the bucket, in
 ~/.config/y2linux/r2-reports.json (mode 600):
@@ -19,6 +24,9 @@ import hashlib
 import hmac
 import json
 import os
+import re
+import shutil
+import subprocess
 import sys
 import urllib.error
 import urllib.parse
@@ -28,6 +36,8 @@ from pathlib import Path
 
 CONFIG = Path.home() / '.config/y2linux/r2-reports.json'
 PREFIX = 'reports/'
+LEDGER = 'REVIEWED.md'
+UUID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 S3 = '{http://s3.amazonaws.com/doc/2006-03-01/}'
 EMPTY_SHA256 = hashlib.sha256(b'').hexdigest()
 
@@ -100,13 +110,37 @@ class Bucket:
             token = root.findtext(S3 + 'NextContinuationToken')
 
 
-def target_for(into, key):
-    """reports/<day>/<install>/<report>.tar.gz below into, refusing anything else."""
+def target_for(into, key, flat=False):
+    """reports/<day>/<install>/<report>.tar.gz below into, refusing anything else.
+
+    flat: one file named like the key with '/' as '_', directly in into."""
     parts = key.split('/')
     if (len(parts) != 4 or parts[0] != 'reports' or not parts[3].endswith('.tar.gz')
             or any(p in ('', '.', '..') or p.startswith('.') for p in parts)):
         return None
-    return Path(into, *parts[1:])
+    return Path(into, '_'.join(parts)) if flat else Path(into, *parts[1:])
+
+
+def reference(path):
+    """How REVIEWED.md names a report: its ID's first 8 characters, else its file name."""
+    name = path.name[:-len('.tar.gz')]
+    last = name.rsplit('_', 1)[-1]
+    return last[:8] if UUID.fullmatch(last) else name
+
+
+def pending(into):
+    """Reports below into that the ledger does not name, oldest file first."""
+    ledger = Path(into, LEDGER)
+    text = ledger.read_text() if ledger.is_file() else ''
+    return sorted((p for p in Path(into).rglob('*.tar.gz') if reference(p) not in text),
+                  key=lambda p: (p.stat().st_mtime, p.name))
+
+
+def notify(new, into):
+    """A desktop notification about new reports, if notify-send exists."""
+    if new and shutil.which('notify-send'):
+        subprocess.run(['notify-send', '--app-name=Y2Linux', 'Y2Linux error reports',
+                        '%d new report(s) in %s' % (new, into)], check=False, timeout=10)
 
 
 def download(bucket, key, target):
@@ -140,13 +174,21 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     parser.add_argument('--into', type=Path, default=Path(__file__).resolve().parents[2] / 'out/reports')
     parser.add_argument('--config', type=Path, default=CONFIG)
+    parser.add_argument('--flat', action='store_true', help='reports_<day>_<install>_<report>.tar.gz in --into')
+    parser.add_argument('--notify', action='store_true', help='desktop notification when reports arrived')
     parser.add_argument('--list', action='store_true', help='only list what is in the bucket')
+    parser.add_argument('--pending', action='store_true',
+                        help='only list local reports that %s in --into does not name' % LEDGER)
     args = parser.parse_args(argv)
+    if args.pending:
+        for path in pending(args.into):
+            print(path)
+        return 0
     bucket = Bucket(load_config(args.config))
     new = failed = 0
     try:
         for key, size in bucket.keys():
-            target = target_for(args.into, key)
+            target = target_for(args.into, key, args.flat)
             if args.list:
                 print('%9d  %s%s' % (size, key, '' if target and target.exists() else '  (new)'))
                 continue
@@ -166,6 +208,8 @@ def main(argv=None):
         raise SystemExit('R2 answered %d: check the token and the bucket name' % error.code)
     if not args.list:
         print('%d new report(s) in %s' % (new, args.into), file=sys.stderr)
+        if args.notify:
+            notify(new, args.into)
     return 1 if failed else 0
 
 
