@@ -1927,16 +1927,27 @@ kalIndicateStatusAndComplete (
                 }
             }
 
-            /* CFG80211 Indication */
+            /* CFG80211 Indication. Hand over the entry itself (cfg80211 takes
+             * this reference): with only the BSSID, cfg80211 looks it up
+             * again by the requested SSID in its event work, and a miss
+             * (scan result expired meanwhile, SSID differing from the entry
+             * informed above) dropped the connection with a WARN at
+             * sme.c:845 (error report e89f05f1, Beta 8.12). */
             if(eStatus == WLAN_STATUS_MEDIA_CONNECT && !fgWasConnected) {
-                cfg80211_connect_result(prGlueInfo->prDevHandler,
+                if (bss == NULL)
+                    DBGLOG(INIT, WARN, ("[wifi] connected BSS " MACSTR " not in the scan table\n",
+                        MAC2STR(arBssid)));
+                cfg80211_connect_bss(prGlueInfo->prDevHandler,
                         arBssid,
+                        bss,
                         prGlueInfo->aucReqIe,
                         prGlueInfo->u4ReqIeLength,
                         prGlueInfo->aucRspIe,
                         prGlueInfo->u4RspIeLength,
                         WLAN_STATUS_SUCCESS,
-                        GFP_KERNEL);
+                        GFP_KERNEL,
+                        NL80211_TIMEOUT_UNSPECIFIED);
+                bss = NULL;
             }
             if (fgWasConnected) {
                 struct cfg80211_roam_info roam = {
