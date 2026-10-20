@@ -442,7 +442,7 @@ def scan(ctx, start_radios=True):
     """One pass of the owner flow: make the Firmware folder visible, then take
     a finished system.img copy from it. Returns the new state."""
     if installed(ctx):
-        return {'state': 'Ready'}
+        return leftover(ctx)
     previous = ctx.json(STATE, {}) or {}
     try:
         inbox(ctx)
@@ -483,6 +483,55 @@ def scan(ctx, start_radios=True):
         # The rejected copy is gone: back to asking for it.
         atomic_json(ctx.path(STATE), {'schema': 1, 'state': 'Missing'}, mode=0o644)
     return {'state': 'Missing'}
+
+
+def leftover(ctx):
+    """With the firmware in place, a finished system.img copy that arrives
+    later (copied again, or after the recovery kept the files) holds 520–860 MB
+    of the owner's storage for nothing: delete it like the first one. Only the
+    firmware package's image goes; any other file of that name stays."""
+    previous = ctx.json(STATE, {}) or {}
+    value = {'schema': 1, 'state': 'Ready', 'kept': previous.get('kept')}
+    for source in candidates(ctx):
+        try:
+            info = source.lstat()
+        except OSError:
+            continue
+        if not stat.S_ISREG(info.st_mode):
+            continue
+        seen = [info.st_size, info.st_mtime_ns]
+        if seen == previous.get('kept'):
+            continue
+        # A copy still arriving changes size or time between passes.
+        if previous.get('leftover') != seen or time.time() - info.st_mtime < 5:
+            value['leftover'] = seen
+            break
+        try:
+            from_system_image(source)
+        except (OSError, ValueError):
+            value['kept'] = seen
+            break
+        try:
+            source.unlink()
+        except OSError:
+            pass
+        tidy(ctx)
+    if value != {k: previous.get(k) for k in value} or set(previous) - set(value):
+        atomic_json(ctx.path(STATE), value, mode=0o644)
+    return {'state': 'Ready'}
+
+
+def leftover_waiting(ctx):
+    """Cheap check for the service: a copy leftover() has not judged yet."""
+    kept = (ctx.json(STATE, {}) or {}).get('kept')
+    for source in candidates(ctx):
+        try:
+            info = source.lstat()
+        except OSError:
+            continue
+        if stat.S_ISREG(info.st_mode) and [info.st_size, info.st_mtime_ns] != kept:
+            return True
+    return False
 
 
 def start(ctx):

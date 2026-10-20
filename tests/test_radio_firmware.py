@@ -178,6 +178,37 @@ class RadioFirmware(unittest.TestCase):
         self.assertTrue(radiofw.installed(ctx) and radiofw.present(ctx))
         self.assertEqual(radiofw.state(ctx), {'state': 'Ready'})
 
+    def test_a_copy_arriving_after_the_install_is_deleted_too(self):
+        """8.11 report: Firmware/system.img stayed after the firmware was in place."""
+        calls = []
+        ctx = self.ctx(calls)
+        image = sparse(self.image().read_bytes())
+        install = ctx.path('/data/firmware/inbox/system.img')
+        install.parent.mkdir(parents=True)
+        install.write_bytes(image)
+        old = time.time() - 60
+        os.utime(install, (old, old))
+        radiofw.scan(ctx)
+        self.assertEqual(radiofw.scan(ctx)['state'], 'Ready')
+        sd = ctx.path('/media/sd/Firmware')
+        sd.mkdir()
+        (sd / 'system.img').write_bytes(image)
+        os.utime(sd / 'system.img', (old, old))
+        self.assertEqual(radiofw.scan(ctx), {'state': 'Ready'})   # first sight: may still be arriving
+        self.assertTrue((sd / 'system.img').exists())
+        self.assertEqual(radiofw.scan(ctx), {'state': 'Ready'})
+        self.assertFalse((sd / 'system.img').exists())
+        self.assertEqual(len(calls), 2)                            # radios not restarted again
+        # Any other file of that name is the owner's and stays.
+        (sd / 'system.img').write_bytes(b'\0' * 10000)
+        os.utime(sd / 'system.img', (old, old))
+        self.assertTrue(radiofw.leftover_waiting(ctx))
+        for _ in range(3):
+            radiofw.scan(ctx)
+        self.assertTrue((sd / 'system.img').exists())
+        self.assertFalse(radiofw.leftover_waiting(ctx))            # judged once, not every pass
+        self.assertEqual(radiofw.state(ctx), {'state': 'Ready'})
+
     def test_a_rejected_copy_stays_failed_until_replaced(self):
         ctx = self.ctx([])
         sd = ctx.path('/media/sd/Firmware')
@@ -252,6 +283,15 @@ class Watcher(unittest.TestCase):
             self.assertEqual(spawned, [['/usr/sbin/y2-platform', 'firmware', 'scan']])
         with patch('y2_platform.radiofw.present', return_value=True):
             self.assertEqual(service.radio_firmware(ctx, None, False, False), (None, True))
+            # Firmware in place and a copy waiting: the maintenance pass scans to delete it.
+            sd = ctx.path('/media/sd/Firmware')
+            sd.mkdir(parents=True)
+            (sd / 'system.img').write_bytes(b'x')
+            self.assertEqual(service.radio_firmware(ctx, None, True, False), (None, True))
+            spawned.clear()
+            with patch('subprocess.Popen', side_effect=lambda *a, **k: spawned.append(a[0]) or Child()):
+                self.assertFalse(service.radio_firmware(ctx, None, True, True)[1])
+            self.assertEqual(spawned, [['/usr/sbin/y2-platform', 'firmware', 'scan']])
 
 
 class Tables(unittest.TestCase):
