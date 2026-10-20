@@ -263,10 +263,9 @@ void y2_mm_release_loader_hold(void)
 	clk_disable_unprepare(mm_idle_clocks[CLK_MM_SMI_COMMON]);
 }
 EXPORT_SYMBOL_GPL(y2_mm_release_loader_hold);
-static void y2_mm_take_loader_hold(struct device *dev)
+static void y2_mm_take_loader_hold_active(struct device *dev)
 {
 	struct clk *smi = mm_idle_clocks[CLK_MM_SMI_COMMON], *larb = mm_idle_clocks[CLK_MM_SMI_LARB0];
-	if (!smi || !larb) return;
 	if (!__clk_is_enabled(smi)) {
 		/* Before Lima or the display ran: the previous kernel's restart
 		 * left the gate closed (see y2_mm_restart), and LK's first fetch
@@ -281,6 +280,20 @@ static void y2_mm_take_loader_hold(struct device *dev)
 	if (clk_prepare_enable(larb)) { clk_disable_unprepare(smi); return; }
 	loader_hold = true;
 	dev_info(dev, "holding SMI common/larb0 for the loader display until the display takes over\n");
+}
+/* mtk_clk_pdev_probe() ends with an asynchronous pm_runtime_put(). Once that
+ * idle request has run, the clock core reports every gate of a suspended
+ * provider as disabled whatever CG_CON0 says (clk_core_is_enabled), so the
+ * hold was skipped, Lima's idle closed SMI common under LK's fetch and larb0
+ * wedged: no frame, health restore after 180 s (2026-10-20 user report: the
+ * "gated" line showed CG_CON0=00000000, every gate open). Keep the provider
+ * active for the check. */
+static void y2_mm_take_loader_hold(struct device *dev)
+{
+	if (!mm_idle_clocks[CLK_MM_SMI_COMMON] || !mm_idle_clocks[CLK_MM_SMI_LARB0]) return;
+	if (mm_dev && pm_runtime_resume_and_get(mm_dev) < 0) return;
+	y2_mm_take_loader_hold_active(dev);
+	if (mm_dev) pm_runtime_put(mm_dev);
 }
 /* POWER-FINAL-42, back in Beta 8.4: a software restart (watchdog reset)
  * keeps MMSYS_CG_CON0. At shutdown DRM disables the display and drops its

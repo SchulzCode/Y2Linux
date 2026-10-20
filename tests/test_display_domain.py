@@ -9,6 +9,7 @@ import sys
 import tempfile
 import unittest
 
+from test_audio import function
 from test_power import run_c
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -128,6 +129,12 @@ int main(void) {
         hold = mm[mm.index('static void y2_mm_take_loader_hold'):mm.index('static int y2_mm_restart')]
         self.assertIn('SMI common gated before Linux touched it', hold)
         self.assertLess(hold.index('if (!__clk_is_enabled(smi))'), hold.index('loader_hold = true'))
+        # 2026-10-20 report: after mtk_clk_pdev_probe()'s async pm_runtime_put()
+        # the clock core called the open gate disabled; check with DIS held.
+        wrapper = function(mm, 'y2_mm_take_loader_hold')
+        self.assertLess(wrapper.index('pm_runtime_resume_and_get(mm_dev)'),
+                        wrapper.index('y2_mm_take_loader_hold_active(dev);'))
+        self.assertLess(wrapper.index('y2_mm_take_loader_hold_active(dev);'), wrapper.index('pm_runtime_put(mm_dev)'))
         run_c(r'''
 #include <assert.h>
 #define __iomem
