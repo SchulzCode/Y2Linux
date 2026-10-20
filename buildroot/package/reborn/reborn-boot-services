@@ -14,5 +14,7 @@ fi
 /usr/libexec/reborn-splash --start >/dev/kmsg 2>&1 || :
 /etc/init.d/rcS >/dev/kmsg 2>&1
 result=$?
-/usr/sbin/y2-platform boot-stage services_started >/dev/kmsg 2>&1 || :
+# The stage record (boot history, several KiB) is in /data/system/platform/boot.json;
+# /dev/kmsg refuses a write over 1 KiB (EINVAL at every boot). Errors still go there.
+/usr/sbin/y2-platform boot-stage services_started >/dev/null 2>/dev/kmsg || :
 exit "$result"
