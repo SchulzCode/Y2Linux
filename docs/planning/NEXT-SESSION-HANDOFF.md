@@ -1,6 +1,14 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-20): Y2LINUX 1.0 BETA 8.14 (BASELINE 111) PUBLISHED — SHUFFLE, SEEK, GENRE SHUFFLE, TITLES, EMMC ZERO-OUT.**
+> **START HERE (2026-10-20): Y2LINUX 1.0 BETA 8.15 (BASELINE 112) PUBLISHED — CJK TEXT, UPDATE CHECK AFTER WAKE, CODEC RETRY.**
+> CJK: Noto Sans CJK JP Regular package `y2-font-noto-cjk` (`0b3fcb5`), Reborn runtime glyph page (`a3b1943`,
+> reborn-graphics `glyphs.rs`, reborn-ui `glyph_cache.rs`, texture slot 9). Update: user "no Update button" + reports
+> 61caa81e/297f1032 → `update.stage` waits 30 s for Online, 3 tries, a failed check keeps an offered release, failed
+> daily check retries hourly (`abee0c0`); Reborn wording/flash (`cdf8c7b`). F8 codec retry in the BT worker (`b8cd9a7`).
+> Build 112 (seq 7900) **not installed before publishing**: the owner updates the maintainer's player by OTA — then
+> check CJK on Lima, the glyph-page speed, and Check for Updates right after a wake. Next free label 113, seq > 7900.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.14 (BASELINE 111) PUBLISHED — SHUFFLE, SEEK, GENRE SHUFFLE, TITLES, EMMC ZERO-OUT.**
 > User requests: shuffle seed was the track ID (same order every time) → getrandom + splitmix64, Shuffle rows start
 > anywhere; held seek 30 s/step → 1 s → 3 s → 10 s (≤ 1/60 song); Shuffle row on a genre (All Songs existed); Home
 > card title fitted to 200 px (Reborn `2861ec9`). Report bf017f02: eMMC advertised TRIM → setup zero-out became an

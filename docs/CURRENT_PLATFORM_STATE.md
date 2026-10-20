@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.14, Baseline 111 — 2026-10-20 (latest, published)
+## Y2Linux 1.0 Beta 8.15, Baseline 112 — 2026-10-20 (latest, published)
+
+Release `1.0.0-beta.8.15`, tag `baseline-112`, Linux `326d924`, Reborn `2ef41d3`, sequence 7900. Japanese, Chinese and
+Korean text from Noto Sans CJK through a runtime glyph page; a Check for Updates waits for Wi-Fi after a wake, retries,
+and keeps a release it already offered (Update Now vanished after a failed check); a Bluetooth codec choice made while
+headphones connect is tried again. Not installed on a player before publishing (owner updates by OTA). Details:
+[Beta 8.15 report](validation/Y2-LINUX-1.0-BETA-8.15.md).
+
+## Y2Linux 1.0 Beta 8.14, Baseline 111 — 2026-10-20 (published)
 
 Release `1.0.0-beta.8.14`, tag `baseline-111`, Linux `8e21366`, Reborn `5cda8bb`, sequence 7800. User requests and one
 report: every shuffle now gets a fresh random order (the seed came from the track ID), a held seek starts at 1 s and

@@ -8955,3 +8955,20 @@ scope change. Hardware evidence: build 111 on the maintainer's player.
 | Japanese/CJK text, USB DAC, video | PLANNED / GATED | CJK next (audit before work); USB DAC needs the VBUS hardware check; video not for 1.0 |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.14** (Baseline 111, sequence 7800).
+
+## BETA-8.15 (Baseline 112) CJK text, update check after a wake and codec retry: milestone gap audit — 2026-10-20
+
+**Boundary:** owner: "fix this for 8.15 and also add japanese but dont put it on my player, i want to update with OTA".
+Packaging scope grows by one font package (16.5 MB in the root filesystem, ~361 MiB free after); Reborn gains a runtime
+glyph page (1 MiB CPU + 2 MiB GPU, only once CJK text appears); platform update check and Bluetooth worker behaviour.
+No partition, kernel or memory-layout change. Hardware evidence: none for this build (owner installs by OTA).
+
+| Area | State for Beta 8.15 | Evidence / gap |
+| --- | --- | --- |
+| Japanese/Chinese/Korean text | IMPLEMENTED, HOST-CHECKED | 12 preview states, host GLES compare; Lima and A7 speed unmeasured |
+| Update check after a wake | FIXED IN CODE | host tests (mutation-checked); on a player after the owner's OTA |
+| Codec choice while connecting | FIXED IN CODE | classification test; on a player with headphones owed |
+| Build 112 on a player | NOT INSTALLED BEFORE PUBLISH | owner's OTA is the first install; health check rolls back a failing Reborn |
+| USB DAC, video | GATED / NOT FOR 1.0 | unchanged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.15** (Baseline 112, sequence 7900).
