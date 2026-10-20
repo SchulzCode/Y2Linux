@@ -1,6 +1,19 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-20): Y2LINUX 1.0 BETA 8.11 (BASELINE 106) PUBLISHED — INTERNAL STORAGE SETUP ON A LOW BATTERY.**
+> **START HERE (2026-10-20): Y2LINUX 1.0 BETA 8.12 (BASELINE 108) PUBLISHED — CRASH LOOP, CODEC CLOCK, SLEEP, REPORTS.**
+> Issues #48/#49 and 16 uploaded reports (`UserReports/`). #49 and two more players: an M3U line with a multi-byte
+> character across byte 8 panicked Reborn (`playlists.rs:223`, also `playlist_index.rs` lookup/percent-decode) at every
+> SD scan → supervisor gave up (stale fbdev "glitch") → update rollback. #48: CS43131 XTAL_READY timeout on a quick
+> reopen played silence. Fixed: Reborn `3ff346a` (slicing), `bc2762d` (`isolated()`), `2db37cf` (open retry); Linux
+> `4d77820` (overlay 0030 crystal retry, per-DAI clock requests), `c885c12` (system-idle notifier priority 1),
+> `d491201` (loader hold with provider active), `c93fcb7` (pre-freeze refusal retried), `02ebd61`/`81cd4e3` (reports),
+> `f056579` (*Couldn't Start*, retry on SD change), `dccce63` (leftover system.img). Report
+> `docs/validation/Y2-LINUX-1.0-BETA-8.12.md`, audit BETA-8.12. Test build 107 (seq 7600) installed and checked on the
+> maintainer's player; 108 (seq 7601) not installed (classifier). Owed: slow crystal, sleep with a parked CPU,
+> *Couldn't Start* on a player, GC9503V recovery restarts, splash text with an SD hint, live EQ without a reopen.
+> Next free label 109, sequence above 7601.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.11 (BASELINE 106) PUBLISHED — INTERNAL STORAGE SETUP ON A LOW BATTERY.**
 > User report `UserReports/y2linux-report-20261019-153610` ("internal storage is still 700 mb after multiple restarts"):
 > setup `Pending`/`battery_low` at every start (3.54–3.59 V under boot load < 3.7 V), and Reborn said "Restart to finish
 > setting up" for every Pending. Fixed: 25 % from BAT0 `voltage_ocv` via the stock profile (Linux `fee6b36`), Reborn

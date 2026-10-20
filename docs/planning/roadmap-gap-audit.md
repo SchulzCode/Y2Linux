@@ -8899,3 +8899,24 @@ the automatic storage setup and one Reborn status line. No kernel, memory, parti
 | Leftover `system.img` after the radio firmware is installed | OPEN (minor) | `radiofw.scan` returns at `installed()` before looking at the folders; second user report, no log |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.11** (Baseline 106, sequence 7500).
+
+## BETA-8.12 (Baseline 108) crash loop, codec clock, sleep prepare and report fixes: milestone gap audit — 2026-10-20
+
+**Boundary:** owner: "fix it all and build a point release … install on my player and check … publish it" after issues
+#48/#49 and 16 uploaded reports. Reborn parsing and crash isolation, one kernel codec overlay, two kernel platform
+fixes (suspend notifier order, loader-display hold), platform sleep guard, report collection, supervisor screen. No
+memory, partition or packaging scope change. Hardware evidence: test build 107 on the maintainer's player.
+
+| Area | State for Beta 8.12 | Evidence / gap |
+| --- | --- | --- |
+| Playlist crash loop (#49) | FIXED, CHECKED ON A PLAYER | 3 players' `playlists.rs:223` panics; 107 started with crash-trigger M3U files on the SD card, lists shown, no panic |
+| Panic isolation | FIXED IN CODE | `isolated()` test with the real hook; per file in playlists, covers, scanner |
+| Silent audio after EQ (#48) | FIXED IN CODE, PARTLY CHECKED | XTAL timeout in report; register-model test; 25 reopens on 107 clean, crystal source confirmed; slow crystal not reproducible here |
+| Suspend prepare -EPERM | FIXED IN CODE | notifier order from linux-6.18 `kernel/cpu.c`; not checked (player on USB) |
+| Sleep quarantine after a prepare refusal | FIXED IN CODE | host tests; retry after 120 s |
+| Dark display after a recovery restart | FIXED IN CODE (cause from one report) | hold line present on 107; intermittent, GC9503V restarts owed |
+| Report collection | FIXED, CHECKED ON A PLAYER | `/proc` and debugfs present, leak check 0/44; codec glob only host-tested (108) |
+| *Couldn't Start* screen | FIXED IN CODE | supervisor tests against a fake tree; not shown on a player |
+| Build 108 on a player | NOT INSTALLED | classifier refused the install; differs from 107 by the report glob and sequence |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.12** (Baseline 108, sequence 7601).

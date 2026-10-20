@@ -1,6 +1,17 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.11, Baseline 106 — 2026-10-20 (latest, published)
+## Y2Linux 1.0 Beta 8.12, Baseline 108 — 2026-10-20 (latest, published)
+
+Release `1.0.0-beta.8.12`, tag `baseline-108`, Linux `570ed90`, Reborn `90f3da6`, sequence 7601. Fixes from #48, #49
+and 16 uploaded reports: an M3U line with a multi-byte character across byte 8 crashed Reborn at every start (crash
+loop, garbled screen, update rollback), now parsed safely and any panic on one user file is isolated; the CS43131
+crystal gets a retry and a failed clock fails the open instead of playing silence; a CPU parked just before suspend no
+longer fails the PM prepare chain and such a refusal is retried, not quarantined; the loader-display SMI hold checks
+with the clock provider active; reports collect `/proc`/debugfs and send one report per check; *Couldn't Start* after
+five failed starts. Test build 107 checked on the maintainer's player; 108 not installed. Details:
+[Beta 8.12 report](validation/Y2-LINUX-1.0-BETA-8.12.md).
+
+## Y2Linux 1.0 Beta 8.11, Baseline 106 — 2026-10-20 (published)
 
 Release `1.0.0-beta.8.11`, tag `baseline-106`, Linux `9c7f079`, Reborn `727fd47`, sequence 7500. The automatic
 Internal Storage setup on battery needs 25 % read from the power-on OCV (was 3.7 V under the boot load, ≈45 %), and a
