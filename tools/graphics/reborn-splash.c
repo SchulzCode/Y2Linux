@@ -443,6 +443,29 @@ static int serve(int listener, int notify, unsigned timeout, bool test) {
     /* Never change KD_GRAPHICS to KD_TEXT, even on a service failure. */
     display_close(&d); state("stopped"); event("stopped",0); return 1;
 }
+/* reborn-supervise: Reborn exited at every start. Its DRM last close
+ * restored the stale fbdev buffer (#49: a "glitch" left lit). Show the
+ * "Couldn't Start" screen and hold it until terminated; the next owner, a new
+ * Reborn, lights the panel itself, so the light goes out on the way out. */
+static int failed_screen(void) {
+#ifdef RB_SPLASH_TEST
+    return 2;
+#else
+    Display d={.fd=-1};
+    Progress progress={0};
+    logfd=open("/dev/kmsg",O_WRONLY|O_CLOEXEC);
+    devfd=open("/dev",O_RDONLY|O_DIRECTORY|O_CLOEXEC);
+    signal(SIGTERM,signal_stop); signal(SIGINT,signal_stop);
+    if (devfd<0 || display_open(&d)) { light("4\n"); event("failed_screen_unavailable",errno); return 1; }
+    draw(&d,&progress,true);
+    if (show(&d)) { display_close(&d); light("4\n"); event("failed_screen_unavailable",errno); return 1; }
+    event("failed_screen",0);
+    while (!stopped) poll(NULL,0,1000);
+    light("4\n");
+    display_close(&d);
+    return 0;
+#endif
+}
 static bool normal_metadata(const char *s) {
     int valid,mode,reason,offline;
     return sscanf(s,"valid=%d boot_mode=%d boot_reason=%d offline=%d",&valid,&mode,&reason,&offline)==4 && valid==1 && offline==0;
@@ -482,6 +505,8 @@ int main(int argc, char **argv) {
          * normal boot. Low-battery normal entries still use offline charging. */
         logfd=open("/dev/kmsg",O_WRONLY|O_CLOEXEC);
         return hide_console();
+    } else if (argc==2 && !strcmp(argv[1],"--failed")) {
+        return failed_screen();
     } else if (argc==2 && !strcmp(argv[1],"--start")) {
         /* Called only after the unchanged offline charger allows normal boot. */
 #ifdef RB_SPLASH_TEST

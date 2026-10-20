@@ -1,9 +1,26 @@
 #!/bin/sh
 # Five consecutive exits within one minute each exhaust the bounded restart budget.
 # Startup stderr is bounded by replacement; JSONL and panic evidence live on Y2DATA.
+#
+# An exhausted budget used to leave whatever the DRM last close restored (the
+# stale fbdev buffer) lit until the battery ran out (#49). Now the splash shows
+# "Couldn't Start", and Reborn gets a new budget when the SD card is inserted
+# or removed: a file on it can be what Reborn fails on. After ten minutes the
+# light goes out; on battery the player powers off instead of draining.
 set -u
 umask 077
 child=
+screen=
+napper=
+LOG=/data/reborn/logs/supervisor-last.json
+LIGHT=/sys/class/backlight/y2-backlight/bl_power
+stop_screen() {
+    if [ -n "$screen" ]; then
+        kill -TERM "$screen" 2>/dev/null || :
+        wait "$screen" 2>/dev/null || :
+        screen=
+    fi
+}
 cleanup() {
     if [ -n "$child" ]; then
         kill -TERM "$child" 2>/dev/null || :
@@ -11,26 +28,62 @@ cleanup() {
         kill -KILL "$child" 2>/dev/null || :
         # Do not wait forever on uninterruptible kernel I/O.
     fi
+    [ -z "$napper" ] || kill "$napper" 2>/dev/null || :
+    stop_screen
     rm -f /run/reborn/supervisor.pid /run/reborn/process.pid
 }
 trap cleanup EXIT
 trap 'exit 0' INT TERM
-attempt=0
-while [ "$attempt" -lt 5 ]; do
-    read started rest </proc/uptime; started=${started%%.*}
-    /usr/bin/reborn 2>/data/reborn/logs/startup-last.jsonl &
-    child=$!
-    printf '%s\n' "$child" >/run/reborn/process.pid
-    wait "$child"; result=$?
-    child=
-    [ ! -s /run/y2/shutdown.json ] || exit 0
-    [ "$result" -ne 0 ] || exit 0
-    read ended rest </proc/uptime; ended=${ended%%.*}
-    if [ $((ended - started)) -ge 60 ]; then attempt=0; fi
-    attempt=$((attempt + 1))
-    printf '{"event":"process_exit","status":%s,"attempt":%s}\n' "$result" "$attempt" >/data/reborn/logs/supervisor-last.json
-    [ "$attempt" -lt 5 ] || break
-    sleep $((attempt * 2))
+card() { if [ -e /sys/block/mmcblk1 ]; then echo 1; else echo 0; fi; }
+# A background sleep, so a stop (S90reborn) is handled at once, not after it.
+nap() { sleep "$1" & napper=$!; wait "$napper"; napper=; }
+# Start Reborn up to $1 times; 0 when it ended cleanly or the player shuts down.
+run() {
+    attempt=0
+    while [ "$attempt" -lt "$1" ]; do
+        read started rest </proc/uptime; started=${started%%.*}
+        /usr/bin/reborn 2>/data/reborn/logs/startup-last.jsonl &
+        child=$!
+        printf '%s\n' "$child" >/run/reborn/process.pid
+        wait "$child"; result=$?
+        child=
+        [ ! -s /run/y2/shutdown.json ] || return 0
+        [ "$result" -ne 0 ] || return 0
+        # Not the restored fbdev buffer between attempts; Reborn lights the
+        # panel again once it starts.
+        echo 4 >"$LIGHT" 2>/dev/null || :
+        read ended rest </proc/uptime; ended=${ended%%.*}
+        if [ $((ended - started)) -ge 60 ]; then attempt=0; fi
+        attempt=$((attempt + 1))
+        printf '{"event":"process_exit","status":%s,"attempt":%s}\n' "$result" "$attempt" >"$LOG"
+        [ "$attempt" -lt "$1" ] || break
+        sleep $((attempt * 2))
+    done
+    return 1
+}
+run 5 && exit 0
+while :; do
+    printf '{"event":"restart_budget_exhausted","attempts":5}\n' >"$LOG"
+    /usr/libexec/reborn-splash --failed &
+    screen=$!
+    seen=$(card)
+    waited=0
+    while [ "$(card)" = "$seen" ]; do
+        nap 5
+        waited=$((waited + 5))
+        [ ! -s /run/y2/shutdown.json ] || exit 0
+        [ "$waited" -eq 600 ] || continue
+        stop_screen
+        echo 4 >"$LIGHT" 2>/dev/null || :
+        # An update waiting for its health check restores itself (180 s);
+        # never power off under it.
+        if [ "$(cat /sys/class/power_supply/BAT0/status 2>/dev/null)" = Discharging ] &&
+                ! grep -q '"PendingHealth"' /data/updates/state.json 2>/dev/null; then
+            printf '{"event":"restart_budget_exhausted","attempts":5,"action":"poweroff"}\n' >"$LOG"
+            /usr/sbin/y2-platform shutdown poweroff --reason service >/dev/null 2>&1 || :
+        fi
+    done
+    stop_screen
+    printf '{"event":"card_changed","card":%s}\n' "$(card)" >"$LOG"
+    run 5 && exit 0
 done
-printf '{"event":"restart_budget_exhausted","attempts":5}\n' >/data/reborn/logs/supervisor-last.json
-exit 1
