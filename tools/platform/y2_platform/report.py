@@ -162,6 +162,8 @@ def secrets(ctx):
     serial = re.search(r'(?mi)^Serial\s*:\s*(\S+)', ctx.read('/proc/cpuinfo') or '')
     if serial:
         found['serial'].add(serial.group(1))
+    # A bootloader can pass the device serial on the command line.
+    found['serial'].update(re.findall(r'(?:^|\s)\S*serial(?:no)?=(\S+)', ctx.read('/proc/cmdline') or ''))
     session = _large_json(ctx, '/data/reborn/state/session.json')
     model = session.get('model', {}) if isinstance(session, dict) else {}
     for track in (model.get('queue') or [])[:5000] if isinstance(model, dict) else []:
@@ -350,6 +352,10 @@ class Scrubber:
 
 # ---------------------------------------------------------------- sources
 
+# Bound on a file without a size (a seq_file) read through for its tail.
+READ_THROUGH_MAX = 16 * 1024 * 1024
+
+
 def _tail(data, limit=SECTION_MAX):
     if len(data) <= limit:
         return data, False
@@ -361,7 +367,17 @@ def _tail(data, limit=SECTION_MAX):
 def _read_bytes(ctx, path, limit=SECTION_MAX):
     try:
         with open(ctx.path(path), 'rb') as stream:
-            stream.seek(0, os.SEEK_END)
+            try:
+                stream.seek(0, os.SEEK_END)
+            except OSError:
+                # seq_file (all of /proc but /proc/sys, debugfs) refuses
+                # SEEK_END: until 8.12 every such file was silently left out.
+                # Read it through and keep the newest end.
+                data, total = b'', 0
+                while total < READ_THROUGH_MAX and (chunk := stream.read(65536)):
+                    total += len(chunk)
+                    data = (data + chunk)[-(limit + 4096):]
+                return _tail(data)
             size = stream.tell()
             stream.seek(max(0, size - limit - 4096))
             return _tail(stream.read())
@@ -494,7 +510,7 @@ FILES = (
     '/proc/softirqs', '/proc/stat', '/proc/pressure/*', '/proc/mounts', '/proc/sys/kernel/tainted',
     '/sys/power/suspend_stats/*', '/sys/kernel/debug/wakeup_sources', '/sys/kernel/debug/suspend_stats',
     '/sys/kernel/debug/regulator/regulator_summary', '/sys/kernel/debug/clk/clk_summary',
-    '/sys/kernel/debug/regmap/1-0030/registers',
+    '/sys/kernel/debug/regmap/0-0030/registers',
     '/sys/devices/system/cpu/cpu*/cpuidle/state*/usage', '/sys/devices/system/cpu/cpu*/cpuidle/state*/time',
     '/sys/devices/system/cpu/cpu*/cpuidle/state*/name',
     '/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state', '/sys/devices/system/cpu/online',
@@ -689,9 +705,10 @@ def _quiet(*args, **kwargs):
     pass
 
 
-def build(ctx, trigger, detail='', topic=None, install_id=None, now=None, progress=None):
+def build(ctx, trigger, detail='', topic=None, install_id=None, now=None, progress=None, triggers=None):
     """The complete report (tar.gz bytes) and its index."""
-    if trigger not in TRIGGERS:
+    triggers = list(triggers or [trigger])
+    if trigger not in TRIGGERS or triggers[0] != trigger or not set(triggers) <= set(TRIGGERS):
         raise ValueError('unknown_trigger')
     if topic is not None and topic not in TOPICS:
         raise ValueError('unknown_topic')
@@ -701,19 +718,19 @@ def build(ctx, trigger, detail='', topic=None, install_id=None, now=None, progre
     scrubber = Scrubber(known)
     pool = _pool(known, scrubber.key)
     try:
-        return _build(ctx, trigger, detail, topic, install_id, now, scrubber, known, pool, progress)
+        return _build(ctx, triggers, detail, topic, install_id, now, scrubber, known, pool, progress)
     finally:
         if pool is not None:
             pool.terminate()
 
 
-def _build(ctx, trigger, detail, topic, install_id, now, scrubber, known, pool, progress):
+def _build(ctx, triggers, detail, topic, install_id, now, scrubber, known, pool, progress):
     now = now or datetime.datetime.now(datetime.timezone.utc)
     versions = ctx.json('/etc/y2linux/versions.json', {})
     local = datetime.datetime.now().astimezone()
     index = {
         'schema': SCHEMA, 'report_id': str(uuid.uuid4()), 'install_id': install_id,
-        'trigger': trigger, 'detail': scrubber.text(detail or ''), 'topic': topic,
+        'trigger': triggers[0], 'triggers': triggers, 'detail': scrubber.text(detail or ''), 'topic': topic,
         'created_utc': now.isoformat(), 'utc_offset_minutes': int(local.utcoffset().total_seconds() // 60),
         'uptime_seconds': (ctx.read('/proc/uptime') or '0').split()[0],
         'boot_id': ctx.read('/proc/sys/kernel/random/boot_id'),
@@ -952,8 +969,12 @@ def save_to(ctx, destination, topic=None, now=None, progress=None):
             'report_id': index['report_id'], 'bytes': len(data)}
 
 
-def queue(ctx, trigger, detail='', topic=None, now=None, progress=None):
-    """Build and queue one report if the user opted in and the limits allow it."""
+def queue(ctx, trigger, detail='', topic=None, now=None, progress=None, triggers=None):
+    """Build and queue one report if the user opted in and the limits allow it.
+
+    `triggers` names every trigger the report covers (the first is `trigger`).
+    """
+    triggers = list(triggers or [trigger])
     value = state(ctx)
     if value['enabled'] is not True:
         return {'queued': False, 'reason': 'not_enabled'}
@@ -964,9 +985,9 @@ def queue(ctx, trigger, detail='', topic=None, now=None, progress=None):
     if trigger != 'manual':
         if value['daily'].get(day, 0) >= DAILY_MAX:
             return {'queued': False, 'reason': 'daily_limit'}
-        if trigger in value['boot_triggers'].get(boot, []):
+        if all(t in value['boot_triggers'].get(boot, []) for t in triggers):
             return {'queued': False, 'reason': 'already_reported_this_boot'}
-    data, index = build(ctx, trigger, detail, topic, value['install_id'], now, progress)
+    data, index = build(ctx, trigger, detail, topic, value['install_id'], now, progress, triggers)
     directory = ctx.path(QUEUE)
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     name = '%s-%s.tar.gz' % (now.strftime('%Y%m%dT%H%M%SZ'), index['report_id'])
@@ -980,7 +1001,7 @@ def queue(ctx, trigger, detail='', topic=None, now=None, progress=None):
     for old in sorted(ctx.glob(QUEUE + '/*.tar.gz'))[:-QUEUE_MAX]:
         old.unlink(missing_ok=True)
     value['daily'][day] = value['daily'].get(day, 0) + 1
-    value['boot_triggers'] = {boot: value['boot_triggers'].get(boot, []) + [trigger]}
+    value['boot_triggers'] = {boot: value['boot_triggers'].get(boot, []) + triggers}
     value['last'] = {'report_id': index['report_id'], 'trigger': trigger, 'state': 'queued',
                      'created_utc': index['created_utc'], 'bytes': len(data)}
     save(ctx, value)
@@ -1242,8 +1263,17 @@ def check(ctx):
         fired.append(('unclean_restart', '%s %s last stage %s' % (
             evidence.get('reset_cause'), evidence.get('reset_cause_reason'), evidence.get('previous_last_stage'))))
     panic = ctx.path('/data/reborn/logs/panic-last.json')
-    if panic.is_file() and _changed(value, 'reborn_panic', str(int(panic.stat().st_mtime))):
-        fired.append(('reborn_crash', 'panic'))
+    if panic.is_file():
+        # One report per crash, not per rewrite: a crash at every start
+        # (playlists.rs:223, #49) rewrote the file each restart, every boot.
+        record = ctx.json('/data/reborn/logs/panic-last.json', {})
+        where = [record.get(k) for k in ('version', 'location', 'message')] if isinstance(record, dict) else []
+        signature = (hashlib.sha256(json.dumps(where).encode()).hexdigest()[:16] if any(where)
+                     else str(int(panic.stat().st_mtime)))
+        if _changed(value, 'reborn_panic', signature):
+            # Reborn 8.12 catches a worker's panic, skips that one file and runs on.
+            isolated = isinstance(record, dict) and record.get('isolated') is True
+            fired.append(('reborn_crash', 'isolated panic' if isolated else 'panic'))
     health = ctx.command(['rebornctl', 'health', '--json'], timeout=5.0, limit=262144)
     try:
         subsystems = json.loads(health.get('output') or '{}').get('subsystems', {})
@@ -1295,10 +1325,24 @@ def check(ctx):
 
 
 def run_checks(ctx):
-    """Queue a report for each fired trigger (when enabled); returns what happened."""
+    """Queue one report for the triggers fired in this check (when enabled).
+
+    They usually share a cause (a crash loop: unclean restart, Reborn crash and
+    a rolled-back update within seconds) and one report carries all of them;
+    one report each sent near copies against the daily limit.
+    """
     if state(ctx)['enabled'] is not True:
         return []
-    return [dict(queue(ctx, trigger, detail), trigger=trigger) for trigger, detail in check(ctx)]
+    fired = check(ctx)
+    if not fired:
+        return []
+    boot = ctx.read('/proc/sys/kernel/random/boot_id') or ''
+    reported = state(ctx)['boot_triggers'].get(boot, [])
+    fired = [(t, d) for t, d in fired if t not in reported] or fired
+    trigger = fired[0][0]
+    detail = fired[0][1] if len(fired) == 1 else '; '.join('%s: %s' % pair for pair in fired)
+    triggers = [t for t, _ in fired]
+    return [dict(queue(ctx, trigger, detail, triggers=triggers), trigger=trigger, triggers=triggers)]
 
 
 def upload_now(ctx, progress=None, first=None):

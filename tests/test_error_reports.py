@@ -3,6 +3,7 @@ import datetime
 import gzip
 import io
 import json
+import os
 import re
 import sqlite3
 import tarfile
@@ -289,6 +290,55 @@ class Report(unittest.TestCase):
         os.utime(Path(self.root) / 'data/reborn/logs/panic-last.json', (2_000_000_000, 2_000_000_000))
         result = report.run_checks(self.ctx)
         self.assertEqual([(r['trigger'], r['queued']) for r in result], [('reborn_crash', True)])
+
+    def test_one_check_sends_one_report_for_all_its_triggers(self):
+        # a8125bf1 (8.10): unclean restart, Reborn crash and rolled-back update
+        # within seconds went out as three near copies against the daily limit.
+        report.set_enabled(self.ctx, True)
+        write(self.root, '/data/system/platform/previous-boot-evidence.json',
+              json.dumps({'previous_orderly_shutdown': False, 'previous_boot_id': 'boot-0',
+                          'reset_cause': 'None', 'previous_last_stage': 'application_ready'}))
+        write(self.root, '/data/reborn/logs/panic-last.json',
+              json.dumps({'version': '8.10', 'location': 'playlists.rs:223', 'message': 'not a char boundary'}))
+        write(self.root, '/data/updates/state.json', json.dumps({'state': 'RolledBack', 'sequence': 7500}))
+        result = report.run_checks(self.ctx)
+        self.assertEqual(len(result), 1)
+        self.assertTrue(result[0]['queued'])
+        self.assertEqual(result[0]['triggers'], ['unclean_restart', 'reborn_crash', 'update_failure'])
+        self.assertEqual(len(report.status(self.ctx)['queued']), 1)
+        queued = sorted((Path(self.root) / report.QUEUE.lstrip('/')).glob('*.tar.gz'))
+        index = json.loads(members(queued[0].read_bytes())['report.json'])
+        self.assertEqual((index['trigger'], index['triggers']), ('unclean_restart', result[0]['triggers']))
+        self.assertIn('reborn_crash: panic', index['detail'])
+        self.assertEqual(report.run_checks(self.ctx), [])
+
+    def test_a_crash_loop_reports_its_panic_once(self):
+        report.set_enabled(self.ctx, True)
+        panic = Path(self.root) / 'data/reborn/logs/panic-last.json'
+        record = {'version': '8.11', 'location': 'playlists.rs:223', 'message': 'not a char boundary'}
+        fired = []
+        for second in range(5):                                  # rewritten at every restart
+            write(self.root, '/data/reborn/logs/panic-last.json', json.dumps(record | {'session': str(second)}))
+            os.utime(panic, (2_000_000_000 + second, 2_000_000_000 + second))
+            fired += [t for t, _ in report.check(self.ctx)]
+        self.assertEqual(fired, ['reborn_crash'])
+        write(self.root, '/data/reborn/logs/panic-last.json', json.dumps(record | {'location': 'other.rs:1'}))
+        self.assertEqual(report.check(self.ctx), [('reborn_crash', 'panic')])
+        # A worker panic Reborn caught (one file skipped, still running) is reported, named apart.
+        write(self.root, '/data/reborn/logs/panic-last.json',
+              json.dumps(record | {'location': 'worker.rs:9', 'isolated': True}))
+        self.assertEqual(report.check(self.ctx), [('reborn_crash', 'isolated panic')])
+        write(self.root, '/data/reborn/logs/panic-last.json',
+              json.dumps(record | {'location': 'worker.rs:9', 'isolated': True, 'session': 'next'}))
+        self.assertEqual(report.check(self.ctx), [])
+
+    @unittest.skipUnless(Path('/proc/version').is_file(), 'needs procfs')
+    def test_files_without_a_size_are_read_through(self):
+        # seq_file refuses SEEK_END: /proc and debugfs were left out of every report.
+        data, cut = report._read_bytes(Context('/'), '/proc/version')
+        self.assertTrue(data.startswith(b'Linux version'))
+        self.assertFalse(cut)
+        self.assertIn('/sys/kernel/debug/regmap/0-0030/registers', report.FILES)
 
     def mount(self, *paths, options='rw,relatime'):
         lines = ['22 1 179:2 / / ro,relatime - ext4 /dev/root ro']
