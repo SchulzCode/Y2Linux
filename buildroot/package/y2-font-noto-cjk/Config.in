@@ -1,0 +1,11 @@
+config BR2_PACKAGE_Y2_FONT_NOTO_CJK
+	bool "Noto Sans CJK JP Regular (Reborn CJK fallback)"
+	help
+	  The single OpenType/CFF file Noto Sans CJK JP Regular from the
+	  notofonts/noto-cjk release Sans2.004. The Japanese-region font
+	  carries all of CJK: kana, Hangul and Simplified/Traditional Han
+	  (Japanese glyph forms). Reborn draws characters its built-in
+	  Open Sans pages lack from it at runtime.
+	  Installed as /usr/share/fonts/noto-cjk/NotoSansCJKjp-Regular.otf
+	  (16.5 MB) with its SIL Open Font License 1.1.
+	  https://github.com/notofonts/noto-cjk
