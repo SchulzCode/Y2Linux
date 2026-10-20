@@ -13,7 +13,7 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **322**. Explicit scope notices: **228**.
+Indexed pages: **323**. Explicit scope notices: **228**.
 
 ## Entry
 
@@ -354,6 +354,7 @@ Indexed pages: **322**. Explicit scope notices: **228**.
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
+| [Y2Linux 1.0 Beta 8.14 report](validation/Y2-LINUX-1.0-BETA-8.14.md) | Beta 8.14 (Baseline 111): random shuffle, gentler seek, genre Shuffle, long titles, eMMC zero-out |
 | [Y2Linux 1.0 Beta 8.13 report](validation/Y2-LINUX-1.0-BETA-8.13.md) | Beta 8.13 (Baseline 110): songs listed in Strawberry/libmtp over USB, Wi-Fi connect fix, boot log |
 | [Y2Linux 1.0 Beta 8.12 report](validation/Y2-LINUX-1.0-BETA-8.12.md) | Beta 8.12 (Baseline 108): playlist crash loop (#49), silent audio after EQ changes (#48), sleep prepare, display hold, report fixes |
 | [Y2Linux 1.0 Beta 8.11 report](validation/Y2-LINUX-1.0-BETA-8.11.md) | Beta 8.11 (Baseline 106): Internal Storage setup on a low battery (25 % by power-on OCV, "Connect a charger and restart") |

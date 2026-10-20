@@ -1,6 +1,15 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.13, Baseline 110 — 2026-10-20 (latest, published)
+## Y2Linux 1.0 Beta 8.14, Baseline 111 — 2026-10-20 (latest, published)
+
+Release `1.0.0-beta.8.14`, tag `baseline-111`, Linux `8e21366`, Reborn `5cda8bb`, sequence 7800. User requests and one
+report: every shuffle now gets a fresh random order (the seed came from the track ID), a held seek starts at 1 s and
+grows to 3 s and 10 s (was 30 s per step), a Shuffle row on a genre, the Home card's long titles end with "…", and the
+guarded internal eMMC no longer advertises TRIM, so the Internal Storage setup's zero-out writes zeros instead of an
+erase the guard rejected (false `storage_error` report). Build 111 installed and checked on the maintainer's player.
+Details: [Beta 8.14 report](validation/Y2-LINUX-1.0-BETA-8.14.md).
+
+## Y2Linux 1.0 Beta 8.13, Baseline 110 — 2026-10-20 (published)
 
 Release `1.0.0-beta.8.13`, tag `baseline-110`, Linux `1a92e05`, Reborn `21cd3b0`, sequence 7701. From five uploaded
 reports and two user messages: music files over USB (MTP) now carry their format and tags from Reborn's library, so

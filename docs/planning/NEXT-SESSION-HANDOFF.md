@@ -1,6 +1,15 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-20): Y2LINUX 1.0 BETA 8.13 (BASELINE 110) PUBLISHED — SONGS OVER MTP, WI-FI CONNECT, BOOT LOG.**
+> **START HERE (2026-10-20): Y2LINUX 1.0 BETA 8.14 (BASELINE 111) PUBLISHED — SHUFFLE, SEEK, GENRE SHUFFLE, TITLES, EMMC ZERO-OUT.**
+> User requests: shuffle seed was the track ID (same order every time) → getrandom + splitmix64, Shuffle rows start
+> anywhere; held seek 30 s/step → 1 s → 3 s → 10 s (≤ 1/60 song); Shuffle row on a genre (All Songs existed); Home
+> card title fitted to 200 px (Reborn `2861ec9`). Report bf017f02: eMMC advertised TRIM → setup zero-out became an
+> erase the MSDC guard rejects → overlay 0009 `init_card` marks TRIM broken (`f9a3bd8`), write_zeroes 0 on the player.
+> Report `docs/validation/Y2-LINUX-1.0-BETA-8.14.md`, audit BETA-8.14. Build 111 (seq 7800) installed, owner checked.
+> NEXT (owner): Japanese text = Noto Sans CJK fallback with runtime glyph cache (audit first, AGENTS.md). Later: USB DAC
+> (owner checks GPIO93/5 V boost + CC first), video not for 1.0. Next free label 112, sequence above 7800.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.13 (BASELINE 110) PUBLISHED — SONGS OVER MTP, WI-FI CONNECT, BOOT LOG.**
 > Five uploaded reports (now pulled automatically: systemd user timer → `UserReports/`, ledger `UserReports/REVIEWED.md`,
 > `tools/reports/fetch.py --pending --into UserReports` lists unreviewed ones) and two user messages. Strawberry saw no
 > songs: umtprd reported every file as Undefined → overlay 0005 formats by extension + tags from Reborn's library

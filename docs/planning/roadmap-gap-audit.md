@@ -8938,3 +8938,20 @@ build 110 on the maintainer's player.
 | Report intake | DONE | timer + `REVIEWED.md` ledger on the maintainer PC |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.13** (Baseline 110, sequence 7701).
+
+## BETA-8.14 (Baseline 111) shuffle, seek, genre Shuffle, titles and eMMC zero-out: milestone gap audit — 2026-10-20
+
+**Boundary:** owner: "build 8.14 with 1–4 and publish it" after user requests (shuffle, seek, genre Shuffle, long
+titles) and report bf017f02. Reborn playback/UI changes and one MSDC card quirk. No memory, partition or packaging
+scope change. Hardware evidence: build 111 on the maintainer's player.
+
+| Area | State for Beta 8.14 | Evidence / gap |
+| --- | --- | --- |
+| Shuffle order | FIXED, CHECKED ON A PLAYER | seed tests (orders differ, uniform first song); owner: two shuffles differ |
+| Held seek | FIXED, CHECKED ON A PLAYER | schedule test; owner: feels right; first tuning |
+| Genre Shuffle row | DONE, CHECKED ON A PLAYER | UI test plays the genre's songs shuffled |
+| Long title on Home | FIXED, CHECKED ON A PLAYER | fitted to 200 px |
+| eMMC zero-out as erase | FIXED, CHECKED ON A PLAYER | write_zeroes_max_bytes 0; the setup itself not re-run |
+| Japanese/CJK text, USB DAC, video | PLANNED / GATED | CJK next (audit before work); USB DAC needs the VBUS hardware check; video not for 1.0 |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.14** (Baseline 111, sequence 7800).
