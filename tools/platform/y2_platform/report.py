@@ -510,7 +510,8 @@ FILES = (
     '/proc/softirqs', '/proc/stat', '/proc/pressure/*', '/proc/mounts', '/proc/sys/kernel/tainted',
     '/sys/power/suspend_stats/*', '/sys/kernel/debug/wakeup_sources', '/sys/kernel/debug/suspend_stats',
     '/sys/kernel/debug/regulator/regulator_summary', '/sys/kernel/debug/clk/clk_summary',
-    '/sys/kernel/debug/regmap/0-0030/registers',
+    # The CS43131 at 0x30; its I2C bus number follows probe order (0 or 1).
+    '/sys/kernel/debug/regmap/*-0030/registers',
     '/sys/devices/system/cpu/cpu*/cpuidle/state*/usage', '/sys/devices/system/cpu/cpu*/cpuidle/state*/time',
     '/sys/devices/system/cpu/cpu*/cpuidle/state*/name',
     '/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state', '/sys/devices/system/cpu/online',

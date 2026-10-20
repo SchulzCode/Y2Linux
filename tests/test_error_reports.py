@@ -338,7 +338,7 @@ class Report(unittest.TestCase):
         data, cut = report._read_bytes(Context('/'), '/proc/version')
         self.assertTrue(data.startswith(b'Linux version'))
         self.assertFalse(cut)
-        self.assertIn('/sys/kernel/debug/regmap/0-0030/registers', report.FILES)
+        self.assertIn('/sys/kernel/debug/regmap/*-0030/registers', report.FILES)
 
     def mount(self, *paths, options='rw,relatime'):
         lines = ['22 1 179:2 / / ro,relatime - ext4 /dev/root ro']
