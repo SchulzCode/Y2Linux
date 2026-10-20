@@ -361,6 +361,49 @@ class ProductAutoSleep(unittest.TestCase):
         self.write('/etc/y2linux/versions.json', '{"build_git_commit":"next-source"}')
         pm.admission(self.ctx)
 
+    def prepare_refusal_ring(self, *extra):
+        marks = ['HELPER_REQUEST', 'SUSPEND_REQUEST', 'BACKSTOP_STARTED', 'FILESYSTEM_SYNCED', *extra]
+        lines = ['ring=valid cycle=50 last=1976 backstop_s=0']
+        lines += [f'{1972 + i} phase=254 mark result=0 ms=297939 stage={stage}' for i, stage in enumerate(marks)]
+        lines.append('1976 phase=254 mark result=-1 ms=298617 stage=EXIT')
+        self.write('/sys/firmware/y2_pm/devices', '\n'.join(lines))
+        self.write('/sys/firmware/y2_pm/state', 'valid=1 stage=EXIT failed_stage=EXIT error=-1')
+
+    def test_notifier_refusal_before_freeze_waits_instead_of_quarantining(self):
+        # c43e8711 (8.10): PM_SUSPEND_PREPARE refused with -EPERM before any
+        # task froze; the pending guard then refused sleep 237 times in 4.4 h.
+        def refused(ctx):
+            self.prepare_refusal_ring()
+            raise OSError(errno.EPERM, 'Operation not permitted')
+        self.assertEqual(self.run_sleep(refused), 2)
+        receipt = self.ctx.json('/data/system/platform/suspend-last.json')
+        self.assertEqual(receipt['product']['reason'], 'kernel_prepare_refused')
+        self.assertFalse(self.ctx.json(pm.GUARD)['pending'])
+        self.assertEqual(self.rpc, ['sleep_prepare', 'sleep_restore'])
+        self.write('/sys/firmware/y2_pm/backstop_s', 'provider=1 armed_s=0 running=0')
+        with self.assertRaisesRegex(pm.Refused, 'kernel_prepare_retry_wait'):
+            pm.admission(self.ctx)
+        retry = self.ctx.json(pm.RETRY)
+        self.write(pm.RETRY, json.dumps(retry | {'not_before_ns': retry['not_before_ns'] - 121 * 10**9}))
+        pm.admission(self.ctx)
+        # The wait belongs to one boot.
+        self.write(pm.RETRY, json.dumps(retry | {'boot_id': 'earlier-boot'}))
+        pm.admission(self.ctx)
+
+    def test_failure_after_freeze_or_unclear_ring_still_quarantines(self):
+        for extra, ring in ((('TASKS_FROZEN',), True), ((), False)):
+            def failed(ctx):
+                if ring:
+                    self.prepare_refusal_ring(*extra)
+                else:
+                    self.write('/sys/firmware/y2_pm/devices', 'ring=absent cycle=0 last=0 backstop_s=0')
+                raise OSError(errno.EPERM, 'Operation not permitted')
+            self.write(pm.GUARD, '{}')
+            self.write('/sys/firmware/y2_pm/backstop_s', 'provider=1 armed_s=0 running=0')
+            self.assertEqual(self.run_sleep(failed), 1)
+            self.assertTrue(self.ctx.json(pm.GUARD)['pending'])
+            self.assertIsNone(self.ctx.json(pm.RETRY))
+
     def test_radio_quiesce_failure_before_kernel_entry_never_quarantines(self):
         # POWER-FINAL-12 Defect A: a Bluetooth off refused by the reconnect
         # owner (result 1, kernel never entered) left the guard pending and

@@ -21,6 +21,14 @@ from .boot import private_directory
 from .common import Context, atomic_json
 
 GUARD = '/data/system/platform/product-sleep-guard.json'
+# A kernel refusal before any task froze leaves nothing unproven; the next
+# request waits this long instead of the image being quarantined.
+RETRY = '/run/y2/product-sleep-retry.json'
+PREPARE_RETRY_SECONDS = 120
+# Stage marks of a kernel attempt that ended before freezing tasks: only the
+# PM_SUSPEND_PREPARE notifiers and the filesystem sync ran, no device callback.
+PRE_FREEZE_MARKS = frozenset(('HELPER_REQUEST', 'SUSPEND_REQUEST', 'BACKSTOP_STARTED',
+                              'FILESYSTEM_SYNCED', 'EXIT'))
 OPERATION_LOCKS = (
     ('activity_operation', '/run/y2/activity.lock'),
     ('firmware_update', '/data/updates/.stage.lock'),
@@ -62,6 +70,11 @@ def admission(ctx):
         raise Refused('kernel_sleep_unavailable')
     if backstop.get('armed_s') != '0' or backstop.get('running') != '0':
         raise Refused('pm_test_in_progress')
+    retry = ctx.json(RETRY, {})
+    if (retry.get('boot_id') == ctx.read('/proc/sys/kernel/random/boot_id')
+            and type(retry.get('not_before_ns')) is int
+            and time.clock_gettime_ns(time.CLOCK_BOOTTIME) < retry['not_before_ns']):
+        raise Refused('kernel_prepare_retry_wait')
     prior = ctx.json(GUARD, {})
     # Only an attempt that reached the kernel can leave an unproven sleep. A
     # pending record written before kernel entry (radio quiesce, Reborn) is a
@@ -185,6 +198,38 @@ def guard_record(ctx, pending, kernel_entry=False):
                 'kernel_entry': kernel_entry,
                 'boot_id': ctx.read('/proc/sys/kernel/random/boot_id'),
                 'updated': time.time()}, durable=True)
+
+
+def failed_before_freeze(ctx):
+    """True when the kernel returned an error before freezing any task.
+
+    A PM_SUSPEND_PREPARE notifier refusal (c43e8711 report: system-idle
+    bringing a parked CPU back after hotplug was disabled, -EPERM) returns
+    from the write before a single device callback ran. The current cycle's
+    ring then holds only these marks, ending in a failed EXIT. Anything else,
+    including a wrapped or unreadable ring, keeps the quarantine.
+    """
+    lines = (ctx.read('/sys/firmware/y2_pm/devices', limit=16384) or '').splitlines()
+    if not lines or not lines[0].startswith('ring=valid '):
+        return False
+    marks = []
+    for line in lines[1:]:
+        match = re.fullmatch(r'\d+ phase=\d+ mark result=(-?\d+) ms=\d+ stage=(\w+)', line)
+        if not match:
+            return False
+        marks.append((match[2], int(match[1])))
+    kernel = dict(re.findall(r'(\w+)=(\S+)', ctx.read('/sys/firmware/y2_pm/state') or ''))
+    return (bool(marks) and marks[-1][0] == 'EXIT' and marks[-1][1] < 0
+            and ('SUSPEND_REQUEST', 0) in marks
+            and all(stage in PRE_FREEZE_MARKS for stage, _ in marks)
+            and kernel.get('failed_stage') == 'EXIT')
+
+
+def retry_later(ctx):
+    private_directory(ctx.path(RETRY).parent)
+    atomic_json(ctx.path(RETRY), {'boot_id': ctx.read('/proc/sys/kernel/random/boot_id'),
+                'not_before_ns': time.clock_gettime_ns(time.CLOCK_BOOTTIME)
+                + PREPARE_RETRY_SECONDS * 10**9})
 
 
 def command(ctx, argv):
@@ -367,6 +412,13 @@ def execute_owned(ctx, fd, enter, locks):
                 if error.errno in (errno.EBUSY, errno.EAGAIN):
                     restored_kernel = True
                     raise Refused('kernel_suspend_refused') from error
+                if failed_before_freeze(ctx):
+                    # The write returned and no task froze: nothing is left
+                    # unproven. 8.10 kept this pending and refused every sleep
+                    # on that image (237 refusals in 4.4 h on battery).
+                    restored_kernel = True
+                    retry_later(ctx)
+                    raise Refused('kernel_prepare_refused') from error
                 raise
             count = wakeup_count(ctx)
             value = record(ctx, 'kernel_resumed', 0)
