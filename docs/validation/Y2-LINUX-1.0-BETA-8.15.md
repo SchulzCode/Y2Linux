@@ -32,11 +32,18 @@ Milestone audit BETA-8.15 in [roadmap-gap-audit](../planning/roadmap-gap-audit.m
 | CJK rendering | 12 preview states (Now Playing JP/KR/mixed/long, Songs, Artists, Albums, Cover Flow, Album, Up Next, Home, Search) rendered on host and compared against host Mesa GLES (`gles_compare`); 200 glyphs ≈ 1.0–1.4 ms on the host |
 | Image | font in the root filesystem; root image 42 → 55.7 MB compressed, about 16.5 MB more free space used |
 
+## Device results after publishing (owner's OTA, maintainer's player, 2026-10-20)
+
+| Check | Result |
+| --- | --- |
+| OTA 8.14 → 8.15 from the published release | Acknowledged 7900 (system step ≈ 9 s), Reborn health ok, no kernel warning, no `Errno 22` |
+| CJK text on the player (three tagged test songs: Japanese, Korean, Chinese; removed afterwards) | Now Playing, Songs, Artists and Home drew all characters (owner); font mapped by Reborn, no glyph/texture error logged, 1 missed frame in 3051 |
+| Check for Updates right after a wake from sleep | waited, then *Up to Date* (owner); `download.json` `Checked`, `up_to_date: true` |
+
 ## Known gaps
 
-- **Not run on a player before publishing** (owner's choice). First on-device use of the runtime glyph page (Lima
-  GLES2, `GL_LUMINANCE_ALPHA` like the built-in pages) and its speed on the Cortex-A7 are unmeasured; the update's
-  health check rolls back a release whose Reborn doesn't confirm health.
+- Not run on a player before publishing (owner's choice); checked after the owner's OTA (above). Glyph rasterising
+  time on the Cortex-A7 was not measured separately.
 - CJK draws in Regular weight inside SemiBold titles; CJK titles sort under "#"; the keyboard is Latin-only.
 - Players on 8.14 or older still have the old check: wait about 20 s after waking before Check for Updates.
 - Unchanged: USB DAC needs the VBUS hardware check; video not for 1.0; Strawberry itself not run; slow crystal, sleep
