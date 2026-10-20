@@ -195,6 +195,8 @@ int main(int argc, char **argv)
     assert(y2_object_format("x.mp3", 1) == MTP_FORMAT_ASSOCIATION);
     assert(y2_object_format(NULL, 0) == MTP_FORMAT_UNDEFINED);
     assert(y2_object_format(".mp3", 0) == MTP_FORMAT_UNDEFINED);   /* hidden, never listed */
+    assert(y2_object_format("._Song.mp3", 0) == MTP_FORMAT_UNDEFINED);  /* macOS AppleDouble */
+    assert(y2_object_format(".hidden.flac", 0) == MTP_FORMAT_UNDEFINED);
     assert(y2_object_format("a.", 0) == MTP_FORMAT_UNDEFINED && y2_object_format("A.Mp3", 0) == MTP_FORMAT_MP3);
 
     /* DeviceInfo: no capture formats; playback lists the music formats. */
