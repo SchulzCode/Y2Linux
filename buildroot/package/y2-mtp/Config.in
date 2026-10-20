@@ -1,6 +1,7 @@
 config BR2_PACKAGE_Y2_MTP
 	bool "Y2 lightweight MTP responder"
 	depends on BR2_TOOLCHAIN_HAS_THREADS
+	select BR2_PACKAGE_SQLITE
 	help
 	  Pinned uMTP-Responder with Y2 media confinement and durable atomic uploads.
 	  No raw block storage and no desktop framework dependencies.

@@ -1,0 +1,775 @@
+From: Y2Linux maintainers
+Subject: [PATCH] Report music formats and Reborn library tags
+
+libmtp track clients (Strawberry, mtp-tracks) skip objects of format
+Undefined and take the title from the Name property. Report music files
+by extension (MP3, WAV, WMA, OGG, AAC, M4A, FLAC) and serve Name, Artist,
+Album, AlbumArtist, Track, Duration, Genre, SampleRate, NumberOfChannels
+and AudioBitRate from Reborn's library, opened read-only. Without a
+usable library the Name of a music file is its file name without
+extension. ObjectFileName stays the real file name.
+
+diff --git a/Makefile b/Makefile
+index 32de1d5..57ea40f 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,5 +1,5 @@
+ CFLAGS += -I./inc -Wall
+-LDFLAGS += -lpthread -lrt
++LDFLAGS += -lpthread -lrt -lsqlite3
+ 
+ sources := $(wildcard src/*.c)
+ objects := $(sources:src/%.c=obj/%.o)
+diff --git a/inc/mtp_constant.h b/inc/mtp_constant.h
+index ebf7929..1fafc9b 100644
+--- a/inc/mtp_constant.h
++++ b/inc/mtp_constant.h
+@@ -95,6 +95,7 @@
+ #define MTP_FORMAT_JPX                                  0x3810   // JPEG2000 Extended File Format
+ #define MTP_FORMAT_DNG                                  0x3811   // Digital Negative
+ #define MTP_FORMAT_HEIF                                 0x3812   // HEIF images
++#define MTP_FORMAT_M4A                                  0xB215   // MPEG-4 audio (libmtp LIBMTP_FILETYPE_M4A)
+ #define MTP_FORMAT_UNDEFINED_FIRMWARE                   0xB802
+ #define MTP_FORMAT_WINDOWS_IMAGE_FORMAT                 0xB881
+ #define MTP_FORMAT_UNDEFINED_AUDIO                      0xB900
+diff --git a/inc/y2_tags.h b/inc/y2_tags.h
+new file mode 100644
+index 0000000..29d027b
+--- /dev/null
++++ b/inc/y2_tags.h
+@@ -0,0 +1,39 @@
++/* SPDX-License-Identifier: GPL-3.0-or-later */
++#ifndef Y2_TAGS_H
++#define Y2_TAGS_H
++
++#include <stdint.h>
++
++/* Reborn's music library. Read-only: never created, written or migrated here. */
++#define Y2_LIBRARY_DB "/data/reborn/library.db"
++
++#define Y2_TAG_SIZE 768             // MTP strings hold 255 UTF-16 units
++
++typedef struct y2_tags_
++{
++	char title[Y2_TAG_SIZE];         // Tag title, else the file name without extension
++	char artist[Y2_TAG_SIZE];
++	char album[Y2_TAG_SIZE];
++	char album_artist[Y2_TAG_SIZE];
++	char genre[Y2_TAG_SIZE];
++	uint16_t track;
++	uint16_t channels;
++	uint32_t duration_ms;
++	uint32_t sample_rate;
++	uint32_t bitrate;                // Bits per second
++} y2_tags;
++
++/* MTP ObjectFormat of a file by its extension (case-insensitive): a known audio
++ * format, MTP_FORMAT_ASSOCIATION for a folder, else MTP_FORMAT_UNDEFINED. */
++uint16_t y2_object_format(const char * name, int is_dir);
++int y2_format_is_audio(uint32_t format);
++
++/* Tags of the audio file at path (absolute, as Reborn stores it) from the online
++ * sources of the library. Always fills tags; returns 1 when the library had the
++ * track, 0 when it fell back to the file name (missing, busy or unknown). */
++int y2_tags_get(const char * path, const char * name, y2_tags * tags);
++
++/* Library location (NULL: Y2_LIBRARY_DB). Closes the open connection. */
++void y2_tags_set_database(const char * path);
++
++#endif
+diff --git a/src/mtp_constant_strings.c b/src/mtp_constant_strings.c
+index 145e063..6ad4189 100644
+--- a/src/mtp_constant_strings.c
++++ b/src/mtp_constant_strings.c
+@@ -318,6 +318,7 @@ const formatstring format_codes[]=
+ 	{ "MTP_FORMAT_JPX",                                0x3810 },   // JPEG2000 Extended File Format
+ 	{ "MTP_FORMAT_DNG",                                0x3811 },   // Digital Negative
+ 	{ "MTP_FORMAT_HEIF",                               0x3812 },   // HEIF images
++	{ "MTP_FORMAT_M4A",                                0xB215 },
+ 	{ "MTP_FORMAT_UNDEFINED_FIRMWARE",                 0xB802 },
+ 	{ "MTP_FORMAT_WINDOWS_IMAGE_FORMAT",               0xB881 },
+ 	{ "MTP_FORMAT_UNDEFINED_AUDIO",                    0xB900 },
+diff --git a/src/mtp_datasets.c b/src/mtp_datasets.c
+index 1f38735..22798bb 100644
+--- a/src/mtp_datasets.c
++++ b/src/mtp_datasets.c
+@@ -44,6 +44,7 @@
+ 
+ #include "usb_gadget_fct.h"
+ #include "fs_handles_db.h"
++#include "y2_tags.h"
+ #include "logs_out.h"
+ 
+ void set_default_date(struct tm * date)
+@@ -202,10 +203,7 @@ int build_objectinfo_dataset(mtp_ctx * ctx, void * buffer, int maxsize,fs_entry
+ 	}
+ 
+ 	ofs = poke32(buffer, ofs, maxsize, entry->storage_id);                                       // StorageID  (NR)
+-	if(entry->flags & ENTRY_IS_DIR)
+-		ofs = poke16(buffer, ofs, maxsize, MTP_FORMAT_ASSOCIATION);                              // ObjectFormat Code
+-	else
+-		ofs = poke16(buffer, ofs, maxsize, MTP_FORMAT_UNDEFINED);                                // ObjectFormat Code
++	ofs = poke16(buffer, ofs, maxsize, y2_object_format(entry->name, entry->flags & ENTRY_IS_DIR)); // ObjectFormat Code
+ 	ofs = poke16(buffer, ofs, maxsize, 0x0000);                                                  // Protection Status (NR)
+ 
+ 	entry->size = entrystat.st_size;
+diff --git a/src/mtp_properties.c b/src/mtp_properties.c
+index a45c3e8..4071886 100644
+--- a/src/mtp_properties.c
++++ b/src/mtp_properties.c
+@@ -44,9 +44,18 @@
+ #include "hash_utils.h"
+ #include "mtp_sanitize.h"
+ #include "usb_gadget_fct.h"
++#include "y2_tags.h"
+ 
+ #include "logs_out.h"
+ 
++#define Y2_AUDIO_PROPERTIES (uint16_t[]){ MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE, \
++												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID, \
++												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED, MTP_PROPERTY_ARTIST, MTP_PROPERTY_ALBUM_NAME, \
++												MTP_PROPERTY_ALBUM_ARTIST, MTP_PROPERTY_TRACK, MTP_PROPERTY_ORIGINAL_RELEASE_DATE, MTP_PROPERTY_DURATION, \
++												MTP_PROPERTY_GENRE, MTP_PROPERTY_COMPOSER, MTP_PROPERTY_AUDIO_BITRATE, MTP_PROPERTY_NUMBER_OF_CHANNELS, \
++												MTP_PROPERTY_SAMPLE_RATE, \
++												0xFFFF}
++
+ const formats_property fmt_properties[]=
+ {   // prop_code                       data_type         getset    default value          group code
+ 	{ MTP_FORMAT_UNDEFINED    , (uint16_t[]){   MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
+@@ -58,7 +67,15 @@ const formats_property fmt_properties[]=
+ 												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
+ 												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED,
+ 												0xFFFF}
+-	}
++	},
++	// Y2: music, with the tags of Reborn's library (y2_tags.c).
++	{ MTP_FORMAT_MP3          , Y2_AUDIO_PROPERTIES },
++	{ MTP_FORMAT_WAV          , Y2_AUDIO_PROPERTIES },
++	{ MTP_FORMAT_WMA          , Y2_AUDIO_PROPERTIES },
++	{ MTP_FORMAT_OGG          , Y2_AUDIO_PROPERTIES },
++	{ MTP_FORMAT_AAC          , Y2_AUDIO_PROPERTIES },
++	{ MTP_FORMAT_M4A          , Y2_AUDIO_PROPERTIES },
++	{ MTP_FORMAT_FLAC         , Y2_AUDIO_PROPERTIES }
+ #if 0
+ 	{ MTP_FORMAT_TEXT         , (uint16_t[]){   MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
+ 												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
+@@ -82,20 +99,6 @@ const formats_property fmt_properties[]=
+ 												MTP_PROPERTY_DURATION, MTP_PROPERTY_DESCRIPTION, MTP_PROPERTY_WIDTH, MTP_PROPERTY_HEIGHT, MTP_PROPERTY_DATE_AUTHORED,
+ 												0xFFFF}
+ 	},
+-	{ MTP_FORMAT_WAV          , (uint16_t[]){   MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
+-												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
+-												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED,MTP_PROPERTY_ARTIST,MTP_PROPERTY_ALBUM_NAME,
+-												MTP_PROPERTY_ALBUM_ARTIST, MTP_PROPERTY_TRACK, MTP_PROPERTY_ORIGINAL_RELEASE_DATE, MTP_PROPERTY_GENRE, MTP_PROPERTY_COMPOSER,
+-												MTP_PROPERTY_AUDIO_WAVE_CODEC, MTP_PROPERTY_BITRATE_TYPE, MTP_PROPERTY_AUDIO_BITRATE, MTP_PROPERTY_NUMBER_OF_CHANNELS,MTP_PROPERTY_SAMPLE_RATE,
+-												0xFFFF}
+-	},
+-	{ MTP_FORMAT_MP3          , (uint16_t[]){   MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
+-												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
+-												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED,MTP_PROPERTY_ARTIST,MTP_PROPERTY_ALBUM_NAME,
+-												MTP_PROPERTY_ALBUM_ARTIST, MTP_PROPERTY_TRACK, MTP_PROPERTY_ORIGINAL_RELEASE_DATE, MTP_PROPERTY_GENRE, MTP_PROPERTY_COMPOSER,
+-												MTP_PROPERTY_AUDIO_WAVE_CODEC, MTP_PROPERTY_BITRATE_TYPE, MTP_PROPERTY_AUDIO_BITRATE, MTP_PROPERTY_NUMBER_OF_CHANNELS,MTP_PROPERTY_SAMPLE_RATE,
+-												0xFFFF}
+-	},
+ 	{ MTP_FORMAT_MPEG         , (uint16_t[]){   MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
+ 												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
+ 												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED, MTP_PROPERTY_ARTIST, MTP_PROPERTY_ALBUM_NAME,
+@@ -126,30 +129,6 @@ const formats_property fmt_properties[]=
+ 												MTP_PROPERTY_HEIGHT, MTP_PROPERTY_DATE_AUTHORED,
+ 												0xFFFF}
+ 	},
+-	{ MTP_FORMAT_WMA          , (uint16_t[]){   MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
+-												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
+-												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED, MTP_PROPERTY_ARTIST, MTP_PROPERTY_ALBUM_NAME,
+-												MTP_PROPERTY_ALBUM_ARTIST, MTP_PROPERTY_TRACK, MTP_PROPERTY_ORIGINAL_RELEASE_DATE, MTP_PROPERTY_DURATION, MTP_PROPERTY_DESCRIPTION,
+-												MTP_PROPERTY_GENRE, MTP_PROPERTY_COMPOSER, MTP_PROPERTY_AUDIO_WAVE_CODEC, MTP_PROPERTY_BITRATE_TYPE, MTP_PROPERTY_AUDIO_BITRATE,
+-												MTP_PROPERTY_NUMBER_OF_CHANNELS, MTP_PROPERTY_SAMPLE_RATE,
+-												0xFFFF}
+-	},
+-	{ MTP_FORMAT_OGG          , (uint16_t[]){   MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
+-												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
+-												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED, MTP_PROPERTY_ARTIST, MTP_PROPERTY_ALBUM_NAME,
+-												MTP_PROPERTY_ALBUM_ARTIST, MTP_PROPERTY_TRACK, MTP_PROPERTY_ORIGINAL_RELEASE_DATE, MTP_PROPERTY_DURATION, MTP_PROPERTY_DESCRIPTION,
+-												MTP_PROPERTY_GENRE, MTP_PROPERTY_COMPOSER, MTP_PROPERTY_AUDIO_WAVE_CODEC, MTP_PROPERTY_BITRATE_TYPE, MTP_PROPERTY_AUDIO_BITRATE,
+-												MTP_PROPERTY_NUMBER_OF_CHANNELS, MTP_PROPERTY_SAMPLE_RATE,
+-												0xFFFF}
+-	},
+-	{ MTP_FORMAT_AAC          , (uint16_t[]){   MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
+-												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
+-												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED, MTP_PROPERTY_ARTIST, MTP_PROPERTY_ALBUM_NAME,
+-												MTP_PROPERTY_ALBUM_ARTIST, MTP_PROPERTY_TRACK, MTP_PROPERTY_ORIGINAL_RELEASE_DATE, MTP_PROPERTY_DURATION, MTP_PROPERTY_DESCRIPTION,
+-												MTP_PROPERTY_GENRE, MTP_PROPERTY_COMPOSER, MTP_PROPERTY_AUDIO_WAVE_CODEC, MTP_PROPERTY_BITRATE_TYPE, MTP_PROPERTY_AUDIO_BITRATE,
+-												MTP_PROPERTY_NUMBER_OF_CHANNELS, MTP_PROPERTY_SAMPLE_RATE,
+-												0xFFFF}
+-	},
+ 	{ MTP_FORMAT_ABSTRACT_AV_PLAYLIST, (uint16_t[]){   MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
+ 												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
+ 												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED,
+@@ -175,11 +154,6 @@ const formats_property fmt_properties[]=
+ 												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED,
+ 												0xFFFF}
+ 	},
+-	{ MTP_FORMAT_FLAC        ,  (uint16_t[]){   MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
+-												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
+-												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED,
+-												0xFFFF}
+-	},
+ 	{ MTP_FORMAT_AVI          , (uint16_t[]){   MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
+ 												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
+ 												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED, MTP_PROPERTY_ARTIST, MTP_PROPERTY_ALBUM_NAME,
+@@ -239,6 +213,7 @@ const profile_property properties[]=
+ 	{MTP_PROPERTY_OBJECT_FORMAT,       MTP_TYPE_UINT16,    0x00,   MTP_FORMAT_PLS_PLAYLIST                , 0x000000000 , 0x00 , MTP_FORMAT_PLS_PLAYLIST },
+ 	{MTP_PROPERTY_OBJECT_FORMAT,       MTP_TYPE_UINT16,    0x00,   MTP_FORMAT_XML_DOCUMENT                , 0x000000000 , 0x00 , MTP_FORMAT_XML_DOCUMENT },
+ 	{MTP_PROPERTY_OBJECT_FORMAT,       MTP_TYPE_UINT16,    0x00,   MTP_FORMAT_FLAC                        , 0x000000000 , 0x00 , MTP_FORMAT_FLAC },
++	{MTP_PROPERTY_OBJECT_FORMAT,       MTP_TYPE_UINT16,    0x00,   MTP_FORMAT_M4A                         , 0x000000000 , 0x00 , MTP_FORMAT_M4A },
+ 	{MTP_PROPERTY_OBJECT_FORMAT,       MTP_TYPE_UINT16,    0x00,   MTP_FORMAT_AVI                         , 0x000000000 , 0x00 , MTP_FORMAT_AVI },
+ 	{MTP_PROPERTY_OBJECT_FORMAT,       MTP_TYPE_UINT16,    0x00,   MTP_FORMAT_ASF                         , 0x000000000 , 0x00 , MTP_FORMAT_ASF },
+ 	{MTP_PROPERTY_OBJECT_FORMAT,       MTP_TYPE_UINT16,    0x00,   MTP_FORMAT_MS_WORD_DOCUMENT            , 0x000000000 , 0x00 , MTP_FORMAT_MS_WORD_DOCUMENT },
+@@ -272,6 +247,19 @@ const profile_property properties[]=
+ 	{MTP_PROPERTY_PROTECTION_STATUS,   MTP_TYPE_UINT16,    0x00,   0x0000             , 0x000000000 , 0x00 , 0xFFFF },
+ 	{MTP_PROPERTY_HIDDEN,              MTP_TYPE_UINT16,    0x00,   0x0000             , 0x000000000 , 0x00 , 0xFFFF },
+ 
++	// Y2: music tags (read-only, from Reborn's library)
++	{MTP_PROPERTY_ARTIST,              MTP_TYPE_STR,       0x00,   0x00               , 0x000000000 , 0x00 , 0xFFFF },
++	{MTP_PROPERTY_ALBUM_NAME,          MTP_TYPE_STR,       0x00,   0x00               , 0x000000000 , 0x00 , 0xFFFF },
++	{MTP_PROPERTY_ALBUM_ARTIST,        MTP_TYPE_STR,       0x00,   0x00               , 0x000000000 , 0x00 , 0xFFFF },
++	{MTP_PROPERTY_TRACK,               MTP_TYPE_UINT16,    0x00,   0x0000             , 0x000000000 , 0x00 , 0xFFFF },
++	{MTP_PROPERTY_ORIGINAL_RELEASE_DATE, MTP_TYPE_STR,     0x00,   0x00               , 0x000000000 , 0x00 , 0xFFFF },
++	{MTP_PROPERTY_DURATION,            MTP_TYPE_UINT32,    0x00,   0x00000000         , 0x000000000 , 0x00 , 0xFFFF },
++	{MTP_PROPERTY_GENRE,               MTP_TYPE_STR,       0x00,   0x00               , 0x000000000 , 0x00 , 0xFFFF },
++	{MTP_PROPERTY_COMPOSER,            MTP_TYPE_STR,       0x00,   0x00               , 0x000000000 , 0x00 , 0xFFFF },
++	{MTP_PROPERTY_AUDIO_BITRATE,       MTP_TYPE_UINT32,    0x00,   0x00000000         , 0x000000000 , 0x00 , 0xFFFF },
++	{MTP_PROPERTY_NUMBER_OF_CHANNELS,  MTP_TYPE_UINT16,    0x00,   0x0000             , 0x000000000 , 0x00 , 0xFFFF },
++	{MTP_PROPERTY_SAMPLE_RATE,         MTP_TYPE_UINT32,    0x00,   0x00000000         , 0x000000000 , 0x00 , 0xFFFF },
++
+ 	{0xFFFF,                           MTP_TYPE_UINT32,    0x00,   0x00000000         , 0x000000000 , 0x00 }
+ };
+ 
+@@ -365,6 +353,20 @@ int build_properties_dataset(mtp_ctx * ctx,void * buffer, int maxsize,uint32_t p
+ 		}
+ 	}
+ 
++	if( properties[i].prop_code == 0xFFFF && y2_format_is_audio(format_id) )
++	{
++		// Y2: music files share the file properties of undefined objects.
++		i = 0;
++		while(properties[i].prop_code != 0xFFFF )
++		{
++			if( ( properties[i].prop_code == property_id ) && ( properties[i].format_id == MTP_FORMAT_UNDEFINED ) )
++			{
++				break;
++			}
++			i++;
++		}
++	}
++
+ 	if( properties[i].prop_code == property_id )
+ 	{
+ 		ofs = poke16(buffer, ofs, maxsize, properties[i].prop_code);            // PropertyCode
+@@ -633,11 +635,97 @@ int setObjectPropValue(mtp_ctx * ctx,MTP_PACKET_HEADER * mtp_packet_hdr, uint32_
+ 	}
+ }
+ 
++// Y2: ObjectFormat of an entry (music by file extension).
++static uint16_t entry_format(fs_entry * entry)
++{
++	return y2_object_format(entry->name, entry->flags & ENTRY_IS_DIR);
++}
++
++// Y2: tags of a music entry. 0: not a music file (tags untouched).
++static int entry_tags(mtp_ctx * ctx, fs_entry * entry, const char * path, y2_tags * tags)
++{
++	char * full_path;
++
++	if( !y2_format_is_audio(entry_format(entry)) )
++		return 0;
++
++	full_path = NULL;
++	if( !path )
++	{
++		full_path = build_full_path(ctx->fs_db, mtp_get_storage_root(ctx, entry->storage_id), entry);
++		path = full_path;
++	}
++
++	y2_tags_get(path, entry->name, tags);
++
++	if( full_path )
++		free(full_path);
++
++	return 1;
++}
++
++// Y2: music tag properties, in the order GetObjectPropList reports them.
++static const uint16_t tag_properties[] =
++{
++	MTP_PROPERTY_ARTIST, MTP_PROPERTY_ALBUM_NAME, MTP_PROPERTY_ALBUM_ARTIST, MTP_PROPERTY_TRACK,
++	MTP_PROPERTY_ORIGINAL_RELEASE_DATE, MTP_PROPERTY_DURATION, MTP_PROPERTY_GENRE, MTP_PROPERTY_COMPOSER,
++	MTP_PROPERTY_AUDIO_BITRATE, MTP_PROPERTY_NUMBER_OF_CHANNELS, MTP_PROPERTY_SAMPLE_RATE,
++	0xFFFF
++};
++
++static int is_tag_property(uint32_t prop_code)
++{
++	int i;
++
++	for( i = 0; tag_properties[i] != 0xFFFF; i++ )
++	{
++		if( tag_properties[i] == prop_code )
++			return 1;
++	}
++
++	return 0;
++}
++
++// Y2: value of a music tag property (data type as in properties[]), and its address for objectproplist_element().
++static void * tag_value(y2_tags * tags, uint32_t prop_code, uint16_t * u16, uint32_t * u32)
++{
++	switch(prop_code)
++	{
++		case MTP_PROPERTY_ARTIST:                return tags->artist;
++		case MTP_PROPERTY_ALBUM_NAME:            return tags->album;
++		case MTP_PROPERTY_ALBUM_ARTIST:          return tags->album_artist;
++		case MTP_PROPERTY_GENRE:                 return tags->genre;
++		case MTP_PROPERTY_TRACK:                 *u16 = tags->track; return u16;
++		case MTP_PROPERTY_NUMBER_OF_CHANNELS:    *u16 = tags->channels; return u16;
++		case MTP_PROPERTY_DURATION:              *u32 = tags->duration_ms; return u32;
++		case MTP_PROPERTY_SAMPLE_RATE:           *u32 = tags->sample_rate; return u32;
++		case MTP_PROPERTY_AUDIO_BITRATE:         *u32 = tags->bitrate; return u32;
++		default:                                 return "";       // Composer, OriginalReleaseDate: not in the library
++	}
++}
++
++static int poke_tag(void * buffer, int ofs, int maxsize, y2_tags * tags, uint32_t prop_code)
++{
++	uint16_t u16;
++	uint32_t u32;
++	void * value;
++
++	value = tag_value(tags, prop_code, &u16, &u32);
++
++	if( value == &u16 )
++		return poke16(buffer, ofs, maxsize, u16);
++	if( value == &u32 )
++		return poke32(buffer, ofs, maxsize, u32);
++
++	return poke_string(buffer, ofs, maxsize, (char*)value);
++}
++
+ int build_ObjectPropValue_dataset(mtp_ctx * ctx,void * buffer, int maxsize,uint32_t handle,uint32_t prop_code)
+ {
+ 	int ofs;
+ 	fs_entry * entry;
+ 	char timestr[32];
++	y2_tags tags;
+ 
+ 	ofs = 0;
+ 
+@@ -646,13 +734,18 @@ int build_ObjectPropValue_dataset(mtp_ctx * ctx,void * buffer, int maxsize,uint3
+ 	entry = get_entry_by_handle(ctx->fs_db, handle);
+ 	if( entry )
+ 	{
++		if( ( prop_code == MTP_PROPERTY_NAME || is_tag_property(prop_code) ) && entry_tags(ctx, entry, NULL, &tags) )
++		{
++			if( prop_code == MTP_PROPERTY_NAME )
++				return poke_string(buffer, ofs, maxsize, tags.title);                                  // Tag title
++
++			return poke_tag(buffer, ofs, maxsize, &tags, prop_code);
++		}
++
+ 		switch(prop_code)
+ 		{
+ 			case MTP_PROPERTY_OBJECT_FORMAT:
+-				if(entry->flags & ENTRY_IS_DIR)
+-					ofs = poke16(buffer, ofs, maxsize, MTP_FORMAT_ASSOCIATION);                          // ObjectFormat Code
+-				else
+-					ofs = poke16(buffer, ofs, maxsize, MTP_FORMAT_UNDEFINED);                            // ObjectFormat Code
++				ofs = poke16(buffer, ofs, maxsize, entry_format(entry));                                 // ObjectFormat Code
+ 			break;
+ 
+ 			case MTP_PROPERTY_OBJECT_SIZE:
+@@ -841,6 +934,10 @@ int build_objectproplist_dataset(mtp_ctx * ctx, void * buffer, int maxsize,fs_en
+ 	// but some codes was added to check possible second word corruption
+ 	uint32_t tmp_dword[2];
+ 	uint32_t tmp_dword_array[4];
++	y2_tags tags;
++	int is_music, i;
++	uint16_t tag_u16;
++	uint32_t tag_u32;
+ 
+ 	tmp_dword[1] = 0xDEADBEEF;  // Canary
+ 
+@@ -868,10 +965,7 @@ int build_objectproplist_dataset(mtp_ctx * ctx, void * buffer, int maxsize,fs_en
+ 
+ 	numberofelements += objectproplist_element(ctx, buffer, &ofs, maxsize, MTP_PROPERTY_STORAGE_ID, handle, &entry->storage_id,prop_code);
+ 
+-	if(entry->flags & ENTRY_IS_DIR)
+-		tmp_dword[0] = MTP_FORMAT_ASSOCIATION;
+-	else
+-		tmp_dword[0] = MTP_FORMAT_UNDEFINED;
++	tmp_dword[0] = entry_format(entry);
+ 
+ 	numberofelements += objectproplist_element(ctx, buffer, &ofs, maxsize, MTP_PROPERTY_OBJECT_FORMAT, handle, &tmp_dword[0],prop_code);
+ 
+@@ -888,9 +982,23 @@ int build_objectproplist_dataset(mtp_ctx * ctx, void * buffer, int maxsize,fs_en
+ 	numberofelements += objectproplist_element(ctx, buffer, &ofs, maxsize, MTP_PROPERTY_PROTECTION_STATUS, handle, &tmp_dword[0],prop_code);
+ 
+ 	numberofelements += objectproplist_element(ctx, buffer, &ofs, maxsize, MTP_PROPERTY_OBJECT_FILE_NAME, handle, entry->name,prop_code);
+-	numberofelements += objectproplist_element(ctx, buffer, &ofs, maxsize, MTP_PROPERTY_NAME, handle, entry->name,prop_code);
++
++	// Y2: music files are named by their title tag (file name without extension if none).
++	is_music = 0;
++	if( prop_code == 0xFFFFFFFF || prop_code == MTP_PROPERTY_NAME || is_tag_property(prop_code) )
++		is_music = entry_tags(ctx, entry, path, &tags);
++
++	numberofelements += objectproplist_element(ctx, buffer, &ofs, maxsize, MTP_PROPERTY_NAME, handle, is_music ? tags.title : entry->name,prop_code);
+ 	numberofelements += objectproplist_element(ctx, buffer, &ofs, maxsize, MTP_PROPERTY_DISPLAY_NAME, handle, 0,prop_code);
+ 
++	if( is_music )
++	{
++		for( i = 0; tag_properties[i] != 0xFFFF; i++ )
++		{
++			numberofelements += objectproplist_element(ctx, buffer, &ofs, maxsize, tag_properties[i], handle, tag_value(&tags, tag_properties[i], &tag_u16, &tag_u32), prop_code);
++		}
++	}
++
+ 	// Date Created (NR) "YYYYMMDDThhmmss.s"
+ 	set_default_date(&lt);
+ 	t = entrystat.st_mtime;
+@@ -917,5 +1025,7 @@ int build_objectproplist_dataset(mtp_ctx * ctx, void * buffer, int maxsize,fs_en
+ 	{
+ 		PRINT_ERROR("build_objectproplist_dataset : second dword modified ! Please report ! (0x%.8X)", tmp_dword[1] );
+ 	}
++
++	free(path);
+ 	return ofs;
+ }
+diff --git a/src/y2_tags.c b/src/y2_tags.c
+new file mode 100644
+index 0000000..b4594a5
+--- /dev/null
++++ b/src/y2_tags.c
+@@ -0,0 +1,324 @@
++/* SPDX-License-Identifier: GPL-3.0-or-later */
++
++/**
++ * @file   y2_tags.c
++ * @brief  Music object formats and tags from Reborn's library (read-only)
++ *
++ * libmtp track clients (Strawberry, mtp-tracks) skip Undefined objects and
++ * take the title from the Name property, so audio files are reported with
++ * their format and the tags Reborn already read. The library is written
++ * concurrently by Reborn: it is opened read-only, statements never stay
++ * open between lookups, and a missing, busy or broken library falls back to
++ * the file name silently.
++ */
++
++#include "buildconf.h"
++
++#include <inttypes.h>
++#include <pthread.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <strings.h>
++#include <time.h>
++#include <sys/stat.h>
++#include <sqlite3.h>
++
++#include "mtp_constant.h"
++#include "y2_tags.h"
++#include "logs_out.h"
++
++#define Y2_TAGS_CACHE_MS 2000
++
++static const struct
++{
++	const char * extension;
++	uint16_t format;
++} audio_formats[] =
++{
++	{ "mp3",  MTP_FORMAT_MP3 },
++	{ "wav",  MTP_FORMAT_WAV },
++	{ "wma",  MTP_FORMAT_WMA },
++	{ "ogg",  MTP_FORMAT_OGG },
++	{ "oga",  MTP_FORMAT_OGG },
++	{ "opus", MTP_FORMAT_OGG },
++	{ "aac",  MTP_FORMAT_AAC },
++	{ "m4a",  MTP_FORMAT_M4A },
++	{ "flac", MTP_FORMAT_FLAC },
++};
++
++static const char select_tags[] =
++	"SELECT title,artist,album,album_artist,track,disc,duration_ms,sample_rate,channels,bitrate,genre FROM tracks "
++	"WHERE source_id IN (SELECT id FROM sources WHERE online=1) AND path=?1 AND deleted=0 LIMIT 1";
++
++// Libraries from before Reborn stored the genre.
++static const char select_tags_no_genre[] =
++	"SELECT title,artist,album,album_artist,track,disc,duration_ms,sample_rate,channels,bitrate FROM tracks "
++	"WHERE source_id IN (SELECT id FROM sources WHERE online=1) AND path=?1 AND deleted=0 LIMIT 1";
++
++static pthread_mutex_t tags_mutex = PTHREAD_MUTEX_INITIALIZER;
++static char database_path[512] = Y2_LIBRARY_DB;
++static sqlite3 * database;
++static sqlite3_stmt * statement;
++static dev_t database_dev;
++static ino_t database_ino;
++
++static char * cached_path;
++static int cached_found;
++static uint64_t cached_at;
++static y2_tags cached_tags;
++
++uint16_t y2_object_format(const char * name, int is_dir)
++{
++	const char * dot;
++	unsigned int i;
++
++	if( is_dir )
++		return MTP_FORMAT_ASSOCIATION;
++
++	if( !name )
++		return MTP_FORMAT_UNDEFINED;
++
++	dot = strrchr(name, '.');
++	if( !dot || dot == name )
++		return MTP_FORMAT_UNDEFINED;
++
++	for( i = 0; i < sizeof(audio_formats) / sizeof(audio_formats[0]); i++ )
++	{
++		if( !strcasecmp(dot + 1, audio_formats[i].extension) )
++			return audio_formats[i].format;
++	}
++
++	return MTP_FORMAT_UNDEFINED;
++}
++
++int y2_format_is_audio(uint32_t format)
++{
++	unsigned int i;
++
++	for( i = 0; i < sizeof(audio_formats) / sizeof(audio_formats[0]); i++ )
++	{
++		if( format == audio_formats[i].format )
++			return 1;
++	}
++
++	return 0;
++}
++
++static uint64_t now_ms(void)
++{
++	struct timespec ts;
++
++	clock_gettime(CLOCK_MONOTONIC, &ts);
++	return (uint64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
++}
++
++// Copy a UTF-8 string, cut on a character boundary.
++static void copy_text(char * dst, const unsigned char * src)
++{
++	size_t len;
++
++	dst[0] = 0;
++	if( !src )
++		return;
++
++	len = strlen((const char *)src);
++	if( len >= Y2_TAG_SIZE )
++	{
++		len = Y2_TAG_SIZE - 1;
++		while( len && (src[len] & 0xC0) == 0x80 )
++			len--;
++	}
++
++	memcpy(dst, src, len);
++	dst[len] = 0;
++}
++
++static uint32_t column_u32(sqlite3_stmt * stmt, int col, uint32_t max)
++{
++	sqlite3_int64 v;
++
++	v = sqlite3_column_int64(stmt, col);
++	if( v < 0 )
++		return 0;
++	if( (uint64_t)v > max )
++		return max;
++	return (uint32_t)v;
++}
++
++static void close_database(void)
++{
++	if( statement )
++		sqlite3_finalize(statement);
++	statement = NULL;
++
++	if( database )
++		sqlite3_close(database);
++	database = NULL;
++}
++
++static int open_database(void)
++{
++	struct stat st;
++	char uri[sizeof(database_path) * 3 + 16];
++	const char * c;
++	int ofs;
++
++	if( stat(database_path, &st) )
++	{
++		close_database();
++		return -1;
++	}
++
++	// Reborn replaced the library (rebuild): read the new file.
++	if( database && ( st.st_dev != database_dev || st.st_ino != database_ino ) )
++		close_database();
++
++	if( database )
++		return 0;
++
++	ofs = snprintf(uri, sizeof(uri), "file:");
++	for( c = database_path; *c && ofs < (int)sizeof(uri) - 12; c++ )
++	{
++		if( *c == '%' || *c == '?' || *c == '#' )
++			ofs += snprintf(uri + ofs, sizeof(uri) - ofs, "%%%.2X", (unsigned char)*c);
++		else
++			uri[ofs++] = *c;
++	}
++	snprintf(uri + ofs, sizeof(uri) - ofs, "?mode=ro");
++
++	if( sqlite3_open_v2(uri, &database, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI | SQLITE_OPEN_NOMUTEX, NULL) != SQLITE_OK )
++	{
++		PRINT_DEBUG("y2_tags : can't open %s : %s", database_path, database ? sqlite3_errmsg(database) : "no memory");
++		close_database();
++		return -1;
++	}
++
++	sqlite3_busy_timeout(database, 100);
++
++	if( sqlite3_prepare_v2(database, select_tags, -1, &statement, NULL) != SQLITE_OK &&
++	    sqlite3_prepare_v2(database, select_tags_no_genre, -1, &statement, NULL) != SQLITE_OK )
++	{
++		PRINT_DEBUG("y2_tags : can't query %s : %s", database_path, sqlite3_errmsg(database));
++		close_database();
++		return -1;
++	}
++
++	database_dev = st.st_dev;
++	database_ino = st.st_ino;
++
++	return 0;
++}
++
++static int lookup(const char * path, y2_tags * tags)
++{
++	int ret, found;
++
++	if( open_database() )
++		return 0;
++
++	found = 0;
++
++	if( sqlite3_bind_text(statement, 1, path, -1, SQLITE_STATIC) == SQLITE_OK )
++	{
++		ret = sqlite3_step(statement);
++		if( ret == SQLITE_ROW )
++		{
++			copy_text(tags->title, sqlite3_column_text(statement, 0));
++			copy_text(tags->artist, sqlite3_column_text(statement, 1));
++			copy_text(tags->album, sqlite3_column_text(statement, 2));
++			copy_text(tags->album_artist, sqlite3_column_text(statement, 3));
++			tags->track = column_u32(statement, 4, 0xFFFF);
++			tags->duration_ms = column_u32(statement, 6, 0xFFFFFFFF);
++			tags->sample_rate = column_u32(statement, 7, 0xFFFFFFFF);
++			tags->channels = column_u32(statement, 8, 0xFFFF);
++			tags->bitrate = column_u32(statement, 9, 0xFFFFFFFF);
++			if( sqlite3_column_count(statement) > 10 )
++				copy_text(tags->genre, sqlite3_column_text(statement, 10));
++			found = 1;
++		}
++		else if( ret != SQLITE_DONE )
++		{
++			PRINT_DEBUG("y2_tags : lookup failed (%d) : %s", ret, sqlite3_errmsg(database));
++		}
++	}
++
++	// Never keep a read snapshot open: Reborn checkpoints the WAL.
++	ret = sqlite3_reset(statement);
++	sqlite3_clear_bindings(statement);
++
++	if( ret != SQLITE_OK && ret != SQLITE_BUSY && ret != SQLITE_LOCKED )
++		close_database();
++
++	return found;
++}
++
++static void name_title(const char * name, char * title)
++{
++	const char * dot;
++	size_t len;
++
++	title[0] = 0;
++	if( !name )
++		return;
++
++	len = strlen(name);
++	dot = strrchr(name, '.');
++	if( dot && dot != name )
++		len = dot - name;
++
++	if( len >= Y2_TAG_SIZE )
++		len = Y2_TAG_SIZE - 1;
++
++	memcpy(title, name, len);
++	title[len] = 0;
++}
++
++int y2_tags_get(const char * path, const char * name, y2_tags * tags)
++{
++	int found;
++	uint64_t now;
++
++	memset(tags, 0, sizeof(y2_tags));
++
++	found = 0;
++
++	if( path && !pthread_mutex_lock(&tags_mutex) )
++	{
++		now = now_ms();
++		if( cached_path && !strcmp(cached_path, path) && now - cached_at < Y2_TAGS_CACHE_MS )
++		{
++			memcpy(tags, &cached_tags, sizeof(y2_tags));
++			found = cached_found;
++		}
++		else
++		{
++			found = lookup(path, tags);
++
++			free(cached_path);
++			cached_path = strdup(path);
++			cached_found = found;
++			cached_at = now;
++			memcpy(&cached_tags, tags, sizeof(y2_tags));
++		}
++		pthread_mutex_unlock(&tags_mutex);
++	}
++
++	if( !tags->title[0] )
++		name_title(name, tags->title);
++
++	return found;
++}
++
++void y2_tags_set_database(const char * path)
++{
++	pthread_mutex_lock(&tags_mutex);
++
++	close_database();
++	snprintf(database_path, sizeof(database_path), "%s", path ? path : Y2_LIBRARY_DB);
++
++	free(cached_path);
++	cached_path = NULL;
++
++	pthread_mutex_unlock(&tags_mutex);
++}

@@ -421,7 +421,7 @@ class USBFiles(unittest.TestCase):
             subprocess.run(flags+['-Dmain=umtprd_original_main','-c',str(source/'src/umtprd.c'),'-o',str(main)],check=True)
             binary=base/'protocol-test'
             objects=[str(o) for o in (source/'obj').glob('*.o') if o.name!='umtprd.o']
-            subprocess.run(flags+[str(ROOT/'tests/usb_mtp_protocol.c'),str(main),*objects,'-lpthread','-lrt','-o',str(binary)],check=True)
+            subprocess.run(flags+[str(ROOT/'tests/usb_mtp_protocol.c'),str(main),*objects,'-lsqlite3','-lpthread','-lrt','-o',str(binary)],check=True)
             media=base/'media'; media.mkdir()
             subprocess.run([str(binary),str(media)],check=True,timeout=5)
             self.assertFalse(list(media.glob('.y2-mtp-*')))
