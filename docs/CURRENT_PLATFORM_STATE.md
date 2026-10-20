@@ -1,6 +1,16 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.12, Baseline 108 — 2026-10-20 (latest, published)
+## Y2Linux 1.0 Beta 8.13, Baseline 110 — 2026-10-20 (latest, published)
+
+Release `1.0.0-beta.8.13`, tag `baseline-110`, Linux `1a92e05`, Reborn `21cd3b0`, sequence 7701. From five uploaded
+reports and two user messages: music files over USB (MTP) now carry their format and tags from Reborn's library, so
+libmtp track clients such as Strawberry list the songs on Internal Storage and the SD card (`mtp-tracks`: 0 → 311 on the
+maintainer's player); the Wi-Fi driver hands the connected BSS to cfg80211 (a dropped connection with a `sme.c:845`
+warning); no `Errno 22` line at every boot. Pause/resume silence was the #48 crystal path, fixed in 8.12 and checked on
+a player. Build 110 installed and checked on the maintainer's player. Details:
+[Beta 8.13 report](validation/Y2-LINUX-1.0-BETA-8.13.md).
+
+## Y2Linux 1.0 Beta 8.12, Baseline 108 — 2026-10-20 (published)
 
 Release `1.0.0-beta.8.12`, tag `baseline-108`, Linux `570ed90`, Reborn `90f3da6`, sequence 7601. Fixes from #48, #49
 and 16 uploaded reports: an M3U line with a multi-byte character across byte 8 crashed Reborn at every start (crash

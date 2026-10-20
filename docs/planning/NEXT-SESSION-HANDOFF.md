@@ -1,6 +1,16 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-20): Y2LINUX 1.0 BETA 8.12 (BASELINE 108) PUBLISHED — CRASH LOOP, CODEC CLOCK, SLEEP, REPORTS.**
+> **START HERE (2026-10-20): Y2LINUX 1.0 BETA 8.13 (BASELINE 110) PUBLISHED — SONGS OVER MTP, WI-FI CONNECT, BOOT LOG.**
+> Five uploaded reports (now pulled automatically: systemd user timer → `UserReports/`, ledger `UserReports/REVIEWED.md`,
+> `tools/reports/fetch.py --pending --into UserReports` lists unreviewed ones) and two user messages. Strawberry saw no
+> songs: umtprd reported every file as Undefined → overlay 0005 formats by extension + tags from Reborn's library
+> (`207e920`, hidden files `3f4f3d1`, container SQLite stub `338e408`); `mtp-tracks` 0 → 311 on the maintainer's player.
+> Wi-Fi `sme.c:845` dropped connect → driver passes the BSS to `cfg80211_connect_bss` (`9595a50`). Boot `Errno 22` →
+> `0f18219`. Pause silence = #48 (8.12), checked on a player. Report `docs/validation/Y2-LINUX-1.0-BETA-8.13.md`, audit
+> BETA-8.13. Build 110 (seq 7701) installed and checked; test build 109 (seq 7700) before it. Owed: Strawberry itself,
+> Windows Explorer display of music Names. Next free label 111, sequence above 7701.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.12 (BASELINE 108) PUBLISHED — CRASH LOOP, CODEC CLOCK, SLEEP, REPORTS.**
 > Issues #48/#49 and 16 uploaded reports (`UserReports/`). #49 and two more players: an M3U line with a multi-byte
 > character across byte 8 panicked Reborn (`playlists.rs:223`, also `playlist_index.rs` lookup/percent-decode) at every
 > SD scan → supervisor gave up (stale fbdev "glitch") → update rollback. #48: CS43131 XTAL_READY timeout on a quick

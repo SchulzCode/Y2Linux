@@ -87,7 +87,9 @@ automatically.
 
 Connect the player to a computer: it appears like a phone (MTP) with **Internal Storage** and
 **SD Card**. It works with Windows Explorer, Linux file managers (Dolphin, Nautilus) and MTP apps
-on macOS (for example OpenMTP).
+on macOS (for example OpenMTP). Music apps that read a device's song list over MTP (Strawberry and other
+libmtp programs) see the songs of both storages with the title, artist, album and length the player's library
+read; a song just copied shows its file name until the player has scanned it.
 
 - **Copy, rename, move, delete** files and folders, also between Internal Storage and the SD card
   (since 7.10). Moving inside one storage is instant; between the two storages each file is

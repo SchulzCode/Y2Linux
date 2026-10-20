@@ -8920,3 +8920,21 @@ memory, partition or packaging scope change. Hardware evidence: test build 107 o
 | Build 108 on a player | NOT INSTALLED | classifier refused the install; differs from 107 by the report glob and sequence |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.12** (Baseline 108, sequence 7601).
+
+## BETA-8.13 (Baseline 110) MTP track listing, Wi-Fi connect and boot log: milestone gap audit — 2026-10-20
+
+**Boundary:** owner: "fix all of this, publish 8.13 and mark all of these reports as solved" after five uploaded reports
+and two user messages. One userspace responder overlay (umtprd reads Reborn's library read-only), one Wi-Fi driver
+call, one boot script line, maintainer report tools. No memory, partition or packaging scope change. Hardware evidence:
+build 110 on the maintainer's player.
+
+| Area | State for Beta 8.13 | Evidence / gap |
+| --- | --- | --- |
+| Songs in Strawberry / libmtp clients | FIXED, CHECKED ON A PLAYER | `mtp-tracks` 0 (8.12) → 311 = files = library rows, all tagged; Strawberry itself not run |
+| MTP Name = tag title | OWNER DECISION | Windows Explorer display not checked |
+| Wi-Fi connect dropped (`sme.c:845`) | FIXED, CHECKED ON A PLAYER | boot connect + 3 reconnects, no warning; the original race is intermittent |
+| Boot `Errno 22` | FIXED, CHECKED ON A PLAYER | none in dmesg on 109 and 110 |
+| Pause/resume silence | FIXED IN 8.12, CHECKED ON A PLAYER | 25 s and 3.5 min wired pauses with sound on 8.12 |
+| Report intake | DONE | timer + `REVIEWED.md` ledger on the maintainer PC |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.13** (Baseline 110, sequence 7701).

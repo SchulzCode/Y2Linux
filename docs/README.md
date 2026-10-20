@@ -1,7 +1,7 @@
 # Y2Linux documentation
 
-**Y2Linux 1.0 Beta 8.12 (Baseline 108, 2026-10-20)** is the current state (eighth
-public beta: headphone level and profiles, faster updates, error reports, charging fix, Internal Storage setup on battery, crash loop and silent-audio fixes): ready-made images on the [GitHub releases](https://github.com/SchulzCode/Y2Linux/releases),
+**Y2Linux 1.0 Beta 8.13 (Baseline 110, 2026-10-20)** is the current state (eighth
+public beta: headphone level and profiles, faster updates, error reports, charging fix, Internal Storage setup on battery, crash loop and silent-audio fixes, songs in Strawberry over USB): ready-made images on the [GitHub releases](https://github.com/SchulzCode/Y2Linux/releases),
 installed once with SP Flash Tool, then updated over Wi-Fi by the player itself
 ([recovery and updates](RECOVERY-AND-UPDATES.md)). No image carries MediaTek's radio firmware: each
 player takes it from its owner's Innioasis package ([INSTALL](INSTALL.md)). What works, what does not
@@ -9,7 +9,8 @@ and the latest hardware results: [current platform state](CURRENT_PLATFORM_STATE
 scrobbling and why it is safe: [Last.fm scrobbling](LASTFM.md); Internal Storage, the SD card and
 USB copying: [Storage](STORAGE.md); headphone level, profiles and DAC filter:
 [Headphone output](HEADPHONE-OUTPUT.md); saving a report for an issue: [Error reports](ERROR-REPORTS.md);
-the beta's evidence and open gaps: [1.0 Beta 8.12 report](validation/Y2-LINUX-1.0-BETA-8.12.md),
+the beta's evidence and open gaps: [1.0 Beta 8.13 report](validation/Y2-LINUX-1.0-BETA-8.13.md),
+[1.0 Beta 8.12 report](validation/Y2-LINUX-1.0-BETA-8.12.md),
 [1.0 Beta 8.11 report](validation/Y2-LINUX-1.0-BETA-8.11.md),
 [1.0 Beta 8.10 report](validation/Y2-LINUX-1.0-BETA-8.10.md),
 [1.0 Beta 8.9 report (not published)](validation/Y2-LINUX-1.0-BETA-8.9.md),
