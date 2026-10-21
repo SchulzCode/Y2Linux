@@ -84,6 +84,11 @@ public release, and its Firmware-drive install was tested on the device):
   account. The player never sees your password with the QR sign-in, keeps only Last.fm's session
   key in its private storage, and talks to Last.fm over verified HTTPS only. How it works and why
   it is safe: **[Last.fm scrobbling](docs/LASTFM.md)**.
+- **Audiobooks:** a Home entry of their own once the library holds a book (Audiobooks/Hörbücher
+  folders, `.m4b` files, genre Audiobook); the player remembers your place in every book, moves
+  by chapter (M4B/MP3 chapter marks or one file per chapter), plays each book at its own speed
+  (0.75–2×) and has a sleep timer. Books stay out of your music. How it works:
+  **[Audiobooks](docs/AUDIOBOOKS.md)**.
 - **Sound and playback:** a five-band equalizer with presets (Bass Boost, Vocal, Treble Boost),
   Normalize Volume (ReplayGain), gapless playback, crossfade (up to 12 s), shuffle and repeat.
 - Search across artists, albums and songs with live results, and a full-screen keyboard (driven by

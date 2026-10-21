@@ -7,7 +7,8 @@ installed once with SP Flash Tool, then updated over Wi-Fi by the player itself
 player takes it from its owner's Innioasis package ([INSTALL](INSTALL.md)). What works, what does not
 and the latest hardware results: [current platform state](CURRENT_PLATFORM_STATE.md); Last.fm
 scrobbling and why it is safe: [Last.fm scrobbling](LASTFM.md); Internal Storage, the SD card and
-USB copying: [Storage](STORAGE.md); headphone level, profiles and DAC filter:
+USB copying: [Storage](STORAGE.md); audiobooks (chapters, progress, speed, sleep timer):
+[Audiobooks](AUDIOBOOKS.md); headphone level, profiles and DAC filter:
 [Headphone output](HEADPHONE-OUTPUT.md); saving a report for an issue: [Error reports](ERROR-REPORTS.md);
 the beta's evidence and open gaps: [1.0 Beta 8.17 report](validation/Y2-LINUX-1.0-BETA-8.17.md),
 [1.0 Beta 8.16 report](validation/Y2-LINUX-1.0-BETA-8.16.md),

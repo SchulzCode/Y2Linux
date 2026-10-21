@@ -349,6 +349,7 @@ Indexed pages: **326**. Explicit scope notices: **228**.
 | [Internal Storage setup plan](planning/INTERNAL-STORAGE-SETUP-PLAN.md) | Automatic Internal Storage: cases, safety, layout |
 | [Headphone output](HEADPHONE-OUTPUT.md) | Output level, headphone profiles (AutoEQ), DAC filter, CS43131 facts, measurement plan and player correction |
 | [Last.fm scrobbling](LASTFM.md) | User guide: set-up, what counts, offline, privacy and security |
+| [Audiobooks](AUDIOBOOKS.md) | User guide: where books go, chapters, progress, speed and sleep timer |
 | [Storage](STORAGE.md) | User guide: the layout, the first-start setup of Internal Storage, old files, SD cards, USB copying and speed, going back to stock |
 | [Faster uploads: receive DMA plan](planning/USB-RX-DMA-MODE1-PLAN.md) | Multi-packet (mode 1) receive DMA: evidence, design, tests |
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
