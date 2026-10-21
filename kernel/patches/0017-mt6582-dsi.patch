@@ -53,10 +53,38 @@
  	struct device *dev;
  	struct mipi_dsi_host host;
  	struct drm_encoder encoder;
-@@ -225,6 +243,111 @@
+@@ -225,6 +243,139 @@
  	const struct mtk_dsi_driver_data *driver_data;
  };
  
++/* F17 (report 51f3b06d): the read lag outlived three DSI power cycles and a
++ * DIS power-down (screen-off with dis_pdn, mutex back at reset values), so its
++ * cause sits outside the DSI block. What it does is known: every read answers
++ * with the data of the read before it (PSCTRL read 0, VACT_NL read PSCTRL),
++ * while writes land. Once the power cycles have failed, every DSI register is
++ * read twice, back to back under a lock, and the second answer is used: the
++ * read-modify-writes store the right values again and frames start. Reading
++ * twice is harmless when the port answers in time, so it stays on until the
++ * next boot. Other blocks are read once. */
++static void __iomem *y2_dsi_twice;
++static DEFINE_RAW_SPINLOCK(y2_dsi_read_lock);
++static u32 y2_dsi_readl(const volatile void __iomem *addr)
++{
++	void __iomem *base = READ_ONCE(y2_dsi_twice);
++	unsigned long flags;
++	u32 v;
++
++	if (likely(!base || addr < base || addr >= base + 0x1000))
++		return readl(addr);
++	raw_spin_lock_irqsave(&y2_dsi_read_lock, flags);
++	(void)readl(addr);
++	v = readl(addr);
++	raw_spin_unlock_irqrestore(&y2_dsi_read_lock, flags);
++	return v;
++}
++#undef readl
++#define readl(c) y2_dsi_readl(c)
++
 +/* Read-only bounded post-modeset observation. Only scheduled with DSI powered;
 + * cancel synchronously before bridge disable so no unclocked access occurs.
 + * Component registers are the same retained MT6582 map used by their owners. */
@@ -239,11 +267,12 @@
  
  		mtk_dsi_mask(dsi, DSI_INTSTA, status, 0);
  		mtk_dsi_irq_data_set(dsi, status);
-@@ -677,6 +846,7 @@
+@@ -677,6 +846,8 @@
  	struct device *dev = dsi->host.dev;
  	int ret;
  	u32 bit_per_pixel;
 +	unsigned attempt = 0;
++	bool lag;
  
  	if (++dsi->refcount != 1)
  		return 0;
@@ -276,15 +305,21 @@
  	mtk_dsi_enable(dsi);
  
  	if (dsi->driver_data->has_shadow_ctl)
-@@ -724,6 +898,22 @@
+@@ -724,6 +898,30 @@
  	mtk_dsi_set_vm_cmd(dsi);
  	mtk_dsi_config_vdo_timing(dsi);
  	mtk_dsi_set_interrupt_enable(dsi);
-+	if (dsi->driver_data->mt6582 && y2_dsi_reads_lag(dsi)) {
++	lag = dsi->driver_data->mt6582 && y2_dsi_reads_lag(dsi);
++	if (lag) {
 +		/* Every mtk_dsi_mask() above wrote a neighbour's value: start over
 +		 * from a powered-off engine (POWER-FINAL-44). */
-+		if (++attempt <= 3) {
-+			dev_warn(dev, "modeset: DSI register reads lag one register; power-cycling the DSI (attempt %u)\n", attempt);
++		if (++attempt <= 3 || !READ_ONCE(y2_dsi_twice)) {
++			if (attempt <= 3) {
++				dev_warn(dev, "modeset: DSI register reads lag one register; power-cycling the DSI (attempt %u)\n", attempt);
++			} else {
++				dev_warn(dev, "modeset: DSI register reads lag after 3 power cycles; reading every DSI register twice\n");
++				WRITE_ONCE(y2_dsi_twice, dsi->regs);
++			}
 +			clk_disable_unprepare(dsi->digital_clk);
 +			clk_disable_unprepare(dsi->engine_clk);
 +			phy_power_off(dsi->phy);
@@ -292,9 +327,11 @@
 +			goto y2_retry;
 +		}
 +		dev_err(dev, "modeset: DSI register reads still lag after 3 power cycles\n");
++	} else if (attempt > 3) {
++		dev_info(dev, "modeset: DSI register read-back correct with every register read twice\n");
 +	}
 +	if (dsi->driver_data->mt6582)
-+		dsi->y2_regs_lag = attempt > 3;
++		dsi->y2_regs_lag = lag;
 +	if (dsi->driver_data->mt6582) dev_info(dev, "modeset: DSI command engine ready\n");
  
  	return 0;

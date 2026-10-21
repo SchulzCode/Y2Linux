@@ -19,6 +19,10 @@ class CodecSleepUnwind(unittest.TestCase):
 #define CS43130_XTAL_ERR_INT 1
 #define CS43130_XTAL_ERR_INT_SHIFT 0
 #define PM_SUSPEND_ON 0
+#define CS43130_PWDN_CTL 3
+#define CS43130_PDN_XTAL_MASK 0x08
+#define CS43130_PDN_XTAL_SHIFT 3
+static bool y2_xtal_running, y2_rails_off;
 static unsigned pm_suspend_target_state = 3;
 static unsigned long jiffies = 100;
 struct regmap { unsigned cache[4], hw[4]; bool only, dirty; };
@@ -109,8 +113,18 @@ int main(void) {
  assert(cs43130_system_resume(&dev)==-EIO && cleanup_noted);
  assert(!reset_high && map.only && last_error==-EIO);
  for(unsigned i=0;i<5;i++)assert(codec.supplies[i]==1);
- init();pm_suspend_target_state=PM_SUSPEND_ON;
- assert(!cs43130_runtime_suspend(&dev) && !cs43130_runtime_resume(&dev));
+ init();pm_suspend_target_state=PM_SUSPEND_ON;y2_xtal_running=true;
+ assert(!cs43130_runtime_suspend(&dev));
+ /* #51: the crystal stops with the rails and stays down in the replay. */
+ assert(!y2_xtal_running && (map.cache[CS43130_PWDN_CTL]&CS43130_PDN_XTAL_MASK));
+ assert(!cs43130_runtime_resume(&dev) && (map.hw[CS43130_PWDN_CTL]&CS43130_PDN_XTAL_MASK));
  assert(!notes); /* ordinary audio runtime traffic does not write sleep traces */
+ /* Rails a failed crystal recovery left off hold no references: suspend skips the disable. */
+ init();pm_suspend_target_state=PM_SUSPEND_ON;
+ for(unsigned i=0;i<5;i++)codec.supplies[i]=0;
+ y2_rails_off=true;
+ assert(!cs43130_runtime_suspend(&dev) && !y2_rails_off && !disables && map.only && !reset_high);
+ assert(!cs43130_runtime_resume(&dev) && enables==1 && reset_high);
+ for(unsigned i=0;i<5;i++)assert(codec.supplies[i]==1);
 }
 ''')

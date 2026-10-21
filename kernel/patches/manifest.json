@@ -118,7 +118,7 @@
       "path": "drivers/gpu/drm/mediatek/mtk_dsi.c",
       "patch": "0017-mt6582-dsi.patch",
       "base_sha256": "a8405967bc29d4786727389cff06f9f7129b319ecb27840ae9b4ed0fcd857476",
-      "result_sha256": "83065b4825e415076bc75729086474517188a55aec32cf6b32d45bb7226ab260"
+      "result_sha256": "4a8fd7d9714be7bd449dc8ad261a2f3d567cc8537d46efd402e650576a8f570e"
     },
     {
       "path": "sound/soc/mediatek/Makefile",
@@ -178,7 +178,7 @@
       "path": "sound/soc/codecs/cs43130.c",
       "patch": "0030-cs43130-system-pm.patch",
       "base_sha256": "e3f2d840943600a6cb9d474ba367b1bb6a225cd98fc502f3c09570a7d6033099",
-      "result_sha256": "21fa42f73b3291297899453c78f99589b7dc79149694211ecde65974c2f896c8"
+      "result_sha256": "b9571c82c25240d8e232af5091bad5c4ae193f230eb06b8666b1dafcc5e5e8c9"
     },
     {
       "path": "drivers/usb/gadget/legacy/cdc2.c",

@@ -195,10 +195,32 @@ int main(void)
         # A DSI programmed while its register reads lagged fails panel commands at
         # once instead of waiting 2 s each (the first screen-off after such a boot).
         dsi = (ROOT / 'kernel/patches/0017-mt6582-dsi.patch').read_text()
-        self.assertIn('+		dsi->y2_regs_lag = attempt > 3;', dsi)
+        self.assertIn('+		dsi->y2_regs_lag = lag;', dsi)
         transfer = dsi[dsi.index('return -EHOSTDOWN;'):]
         self.assertLess(transfer.index('if (dsi->driver_data->mt6582 && dsi->y2_regs_lag) {'),
                         transfer.index('dsi_mode = readl(dsi->regs + DSI_MODE_CTRL);'))
+
+    def test_a_lag_that_outlives_the_power_cycles_reads_every_dsi_register_twice(self):
+        # F17 (51f3b06d): the lag survived 3 power cycles and a DIS power-down,
+        # and the wake stayed dark. Each read answers with the previous read's
+        # data, so reading twice gives the right value: the engine is programmed
+        # once more that way before panel commands are given up.
+        dsi = (ROOT / 'kernel/patches/0017-mt6582-dsi.patch').read_text()
+        helper = dsi[dsi.index('+static u32 y2_dsi_readl('):]
+        helper = helper[:helper.index('\n+}\n')]
+        self.assertIn('addr >= base + 0x1000', helper)            # only the DSI block
+        self.assertIn('raw_spin_lock_irqsave(&y2_dsi_read_lock, flags);', helper)
+        self.assertLess(helper.index('(void)readl(addr);'), helper.index('v = readl(addr);'))
+        # Every later readl() of the file, including the IRQ handler's and the
+        # read-modify-write helper's, goes through it.
+        self.assertLess(dsi.index('+#define readl(c) y2_dsi_readl(c)'), dsi.index('+static bool y2_dsi_reads_lag('))
+        poweron = dsi[dsi.index('+	lag = dsi->driver_data->mt6582 && y2_dsi_reads_lag(dsi);'):]
+        poweron = poweron[:poweron.index('+		dsi->y2_regs_lag = lag;')]
+        self.assertIn('if (++attempt <= 3 || !READ_ONCE(y2_dsi_twice)) {', poweron)
+        self.assertLess(poweron.index('WRITE_ONCE(y2_dsi_twice, dsi->regs);'), poweron.index('goto y2_retry;'))
+        # The report's dark-display trigger keeps matching a real failure.
+        self.assertIn('DSI register reads still lag after 3 power cycles', poweron)
+        self.assertNotIn('still lag', poweron[:poweron.index('dev_err(dev,')])
 
 
 class IdleVgp2(unittest.TestCase):

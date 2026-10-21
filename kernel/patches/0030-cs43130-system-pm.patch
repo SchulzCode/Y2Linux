@@ -19,49 +19,169 @@
  		return true;
  	default:
  		return false;
-@@ -352,6 +357,72 @@
+@@ -352,6 +357,193 @@
  					1000, time * 1000);
  }
  
 +/*
-+ * Y2: start the crystal. Without an IRQ line the ready flag is polled; a
-+ * restart within milliseconds of hw_free powering it down (Reborn reopens
-+ * the stream on every EQ change) sometimes missed the 100 ms budget, and
-+ * the stream then played on the wrong clock: silence with a moving
-+ * position (#48). Power it down, rest, and give a second try more time.
++ * Y2: the crystal. Stock starts it with the codec and never stops it between
++ * streams. Upstream powered it down at every hw_free and restarted it at the
++ * next hw_params; on this board that restart sometimes never reports ready:
++ * silence with a moving position (#48), and later every open refused until a
++ * reboot (#51, after a pause and Next). So a crystal that started keeps
++ * running until the codec powers down (runtime suspend), and a start:
++ *  - forces its power-down/up writes to the chip (the cache may disagree with
++ *    a chip that kept power) and drops a stale ready flag first;
++ *  - logs the live clock state when the flag never comes;
++ *  - during a stream open, after two failed starts, cuts the codec's rails,
++ *    replays the cache and starts once more.
++ * Without an IRQ line the ready flag is polled.
 + */
++static const int y2_xtal_budget_ms[] = { 100, 300 };
++#define Y2_XTAL_REST_US			10000
++#define Y2_XTAL_CYCLED_BUDGET_MS	500
++#define Y2_CODEC_OFF_MS			300
++/* Under clk_mutex, or with the codec suspended: the crystal runs. */
++static bool y2_xtal_running;
++/* Set by a stream's clock request: only an open may cycle the rails. */
++static bool y2_xtal_may_cycle;
++/* The rails were left off by a failed cycle; runtime PM must not drop them. */
++static bool y2_rails_off;
++static unsigned int y2_xtal_failures, y2_xtal_recoveries;
++
++static int cs43130_restore_cache(struct cs43130_private *cs43130);
++
++static int y2_xtal_try(struct cs43130_private *cs43130, int budget_ms)
++{
++	unsigned int val = 0;
++	int ret;
++
++	/* A crystal the chip still runs (or that failed to start) stops first. */
++	if (regmap_read_bypassed(cs43130->regmap, CS43130_PWDN_CTL, &val) ||
++	    !(val & CS43130_PDN_XTAL_MASK)) {
++		regmap_write_bits(cs43130->regmap, CS43130_PWDN_CTL,
++				  CS43130_PDN_XTAL_MASK,
++				  1 << CS43130_PDN_XTAL_SHIFT);
++		usleep_range(Y2_XTAL_REST_US, Y2_XTAL_REST_US + 1000);
++	}
++	/* The status is sticky and clears on read: drop an old ready flag. */
++	regmap_read(cs43130->regmap, CS43130_INT_STATUS_1, &val);
++	reinit_completion(&cs43130->xtal_rdy);
++	regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
++			   CS43130_XTAL_RDY_INT_MASK, 0);
++	regmap_write_bits(cs43130->regmap, CS43130_PWDN_CTL,
++			  CS43130_PDN_XTAL_MASK, 0);
++	ret = cs43130_wait_for_completion(cs43130, &cs43130->xtal_rdy, budget_ms);
++	regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
++			   CS43130_XTAL_RDY_INT_MASK,
++			   1 << CS43130_XTAL_RDY_INT_SHIFT);
++	return ret;
++}
++
++static void y2_xtal_report(struct cs43130_private *cs43130, const char *when)
++{
++	unsigned int status = 0, pwdn = 0, cached = 0, clk = 0, bias = 0, mask = 0;
++
++	regmap_read(cs43130->regmap, CS43130_INT_STATUS_1, &status);
++	regmap_read_bypassed(cs43130->regmap, CS43130_PWDN_CTL, &pwdn);
++	regmap_read(cs43130->regmap, CS43130_PWDN_CTL, &cached);
++	regmap_read_bypassed(cs43130->regmap, CS43130_SYS_CLK_CTL_1, &clk);
++	regmap_read_bypassed(cs43130->regmap, CS43130_CRYSTAL_SET, &bias);
++	regmap_read_bypassed(cs43130->regmap, CS43130_INT_MASK_1, &mask);
++	dev_err(cs43130->dev,
++		"XTAL not ready %s: status1=%02x pwdn=%02x (cache %02x) clk1=%02x crystal=%02x mask1=%02x failures=%u recoveries=%u\n",
++		when, status, pwdn, cached, clk, bias, mask, y2_xtal_failures,
++		y2_xtal_recoveries);
++}
++
++/* Cut and restore the codec's rails inside a stream open (no stream runs;
++ * clk_mutex is held) and replay the cache, the crystal down in it. */
++static int y2_codec_cycle(struct cs43130_private *cs43130)
++{
++	int ret;
++
++	if (y2_rails_off) {
++		/* An earlier cycle left them off: only bring them back, the
++		 * crystal down in the replay (failed starts wrote it on). */
++		regmap_update_bits(cs43130->regmap, CS43130_PWDN_CTL,
++				   CS43130_PDN_XTAL_MASK, 1 << CS43130_PDN_XTAL_SHIFT);
++		ret = regulator_bulk_enable(CS43130_NUM_SUPPLIES, cs43130->supplies);
++		if (ret)
++			return ret;
++		y2_rails_off = false;
++		return cs43130_restore_cache(cs43130);
++	}
++	regcache_cache_only(cs43130->regmap, true);
++	regcache_mark_dirty(cs43130->regmap);
++	regmap_update_bits(cs43130->regmap, CS43130_PWDN_CTL,
++			   CS43130_PDN_XTAL_MASK, 1 << CS43130_PDN_XTAL_SHIFT);
++	gpiod_set_value_cansleep(cs43130->reset_gpio, 0);
++	ret = regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
++	if (ret) {
++		/* The references stayed: replay onto the powered chip. */
++		dev_err(cs43130->dev, "Codec rails refused to cycle: %d\n", ret);
++		cs43130_restore_cache(cs43130);
++		return ret;
++	}
++	msleep(Y2_CODEC_OFF_MS);
++	ret = regulator_bulk_enable(CS43130_NUM_SUPPLIES, cs43130->supplies);
++	if (ret) {
++		msleep(50);
++		ret = regulator_bulk_enable(CS43130_NUM_SUPPLIES, cs43130->supplies);
++	}
++	if (ret) {
++		/* Off and unreferenced: runtime suspend skips the disable, and the
++		 * next runtime resume enables and replays as usual. */
++		y2_rails_off = true;
++		dev_err(cs43130->dev, "Codec rails did not come back: %d\n", ret);
++		return ret;
++	}
++	return cs43130_restore_cache(cs43130);
++}
++
 +static int y2_xtal_start(struct cs43130_private *cs43130)
 +{
-+	static const int budget_ms[] = { 100, 300 };
-+	unsigned int i;
++	unsigned int i, status = 0;
 +	int ret = 0;
 +
-+	for (i = 0; i < ARRAY_SIZE(budget_ms); i++) {
-+		if (i) {
-+			regmap_update_bits(cs43130->regmap, CS43130_PWDN_CTL,
-+					   CS43130_PDN_XTAL_MASK,
-+					   1 << CS43130_PDN_XTAL_SHIFT);
-+			usleep_range(5000, 6000);
-+		}
-+		reinit_completion(&cs43130->xtal_rdy);
-+		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
-+				   CS43130_XTAL_RDY_INT_MASK, 0);
-+		regmap_update_bits(cs43130->regmap, CS43130_PWDN_CTL,
-+				   CS43130_PDN_XTAL_MASK, 0);
-+		ret = cs43130_wait_for_completion(cs43130, &cs43130->xtal_rdy,
-+						  budget_ms[i]);
-+		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
-+				   CS43130_XTAL_RDY_INT_MASK,
-+				   1 << CS43130_XTAL_RDY_INT_SHIFT);
++	if (y2_xtal_running) {
++		/* Still running unless the chip flagged a crystal error. */
++		if (!regmap_read(cs43130->regmap, CS43130_INT_STATUS_1, &status) &&
++		    !(status & CS43130_XTAL_ERR_INT))
++			return 0;
++		dev_warn(cs43130->dev, "XTAL error while running (status1=%02x)\n",
++			 status);
++		y2_xtal_running = false;
++	}
++
++	for (i = 0; i < ARRAY_SIZE(y2_xtal_budget_ms); i++) {
++		ret = y2_xtal_try(cs43130, y2_xtal_budget_ms[i]);
 +		if (!ret) {
 +			if (i)
 +				dev_warn(cs43130->dev, "XTAL ready on retry %u\n", i);
++			y2_xtal_running = true;
 +			return 0;
 +		}
 +		dev_err(cs43130->dev, "Error waiting for XTAL_READY interrupt: %d (try %u)\n",
 +			ret, i + 1);
 +	}
-+	return ret;
++	y2_xtal_failures++;
++	y2_xtal_report(cs43130, "after retries");
++	if (!y2_xtal_may_cycle)
++		return ret;
++
++	ret = y2_codec_cycle(cs43130);
++	if (!ret)
++		ret = y2_xtal_try(cs43130, Y2_XTAL_CYCLED_BUDGET_MS);
++	if (ret) {
++		if (!y2_rails_off)
++			y2_xtal_report(cs43130, "after a codec power cycle");
++		return ret == -ETIMEDOUT ? ret : -ETIMEDOUT;
++	}
++	y2_xtal_recoveries++;
++	dev_warn(cs43130->dev, "XTAL ready after a codec power cycle\n");
++	y2_xtal_running = true;
++	return 0;
 +}
 +
 +static int cs43130_change_clksrc(struct snd_soc_component *component,
@@ -79,6 +199,7 @@
 +	if (cs43130->mclk_int_src != CS43130_MCLK_SRC_RCO) {
 +		cs43130_change_clksrc(component, CS43130_MCLK_SRC_RCO);
 +	} else {
++		y2_xtal_running = false;
 +		regmap_update_bits(cs43130->regmap, CS43130_PWDN_CTL,
 +				   CS43130_PDN_XTAL_MASK,
 +				   1 << CS43130_PDN_XTAL_SHIFT);
@@ -92,7 +213,7 @@
  static int cs43130_change_clksrc(struct snd_soc_component *component,
  				 enum cs43130_mclk_src_sel src)
  {
-@@ -379,25 +450,14 @@
+@@ -379,25 +571,14 @@
  	switch (src) {
  	case CS43130_MCLK_SRC_EXT:
  		cs43130->pll_bypass = true;
@@ -121,7 +242,7 @@
  		}
  
  		regmap_update_bits(cs43130->regmap, CS43130_SYS_CLK_CTL_1,
-@@ -411,28 +471,18 @@
+@@ -411,28 +592,18 @@
  		regmap_update_bits(cs43130->regmap, CS43130_PWDN_CTL,
  				   CS43130_PDN_PLL_MASK,
  				   1 << CS43130_PDN_PLL_SHIFT);
@@ -154,7 +275,7 @@
  		}
  
  		reinit_completion(&cs43130->pll_rdy);
-@@ -446,7 +496,7 @@
+@@ -446,7 +617,7 @@
  				   1 << CS43130_PLL_RDY_INT_SHIFT);
  		if (ret) {
  			dev_err(cs43130->dev, "Error waiting for PLL_READY interrupt: %d\n", ret);
@@ -163,7 +284,7 @@
  		}
  
  		regmap_update_bits(cs43130->regmap, CS43130_SYS_CLK_CTL_1,
-@@ -456,6 +506,7 @@
+@@ -456,6 +627,7 @@
  				   CS43130_MCLK_INT_MASK,
  				   mclk_int_decoded << CS43130_MCLK_INT_SHIFT);
  		usleep_range(150, 200);
@@ -171,10 +292,28 @@
  		break;
  	case CS43130_MCLK_SRC_RCO:
  		cs43130->mclk_int_src = CS43130_MCLK_SRC_RCO;
-@@ -809,34 +860,79 @@
+@@ -468,9 +640,11 @@
+ 				   CS43130_MCLK_22P5 << CS43130_MCLK_INT_SHIFT);
+ 		usleep_range(150, 200);
+ 
+-		regmap_update_bits(cs43130->regmap, CS43130_PWDN_CTL,
+-				   CS43130_PDN_XTAL_MASK,
+-				   1 << CS43130_PDN_XTAL_SHIFT);
++		/* Y2: a started crystal runs until the codec powers down. */
++		if (!y2_xtal_running)
++			regmap_update_bits(cs43130->regmap, CS43130_PWDN_CTL,
++					   CS43130_PDN_XTAL_MASK,
++					   1 << CS43130_PDN_XTAL_SHIFT);
+ 		regmap_update_bits(cs43130->regmap, CS43130_PWDN_CTL,
+ 				   CS43130_PDN_PLL_MASK,
+ 				   1 << CS43130_PDN_PLL_SHIFT);
+@@ -809,34 +983,81 @@
  	return 0;
  }
  
+-static int cs43130_dsd_hw_params(struct snd_pcm_substream *substream,
+-				 struct snd_pcm_hw_params *params,
+-				 struct snd_soc_dai *dai)
 +/*
 + * Y2: DAIs holding a clock request (bit = DAI id), under clk_mutex. ALSA
 + * calls hw_free after a failed hw_params and may repeat hw_params without
@@ -201,30 +340,47 @@
 +/* A failed clock start fails hw_params (-ETIMEDOUT) instead of playing silence. */
 +static int y2_clk_get(struct snd_soc_component *component, int dai_id,
 +		      unsigned int rate)
-+{
-+	struct cs43130_private *cs43130 = snd_soc_component_get_drvdata(component);
-+	unsigned int required_clk;
+ {
+-	struct snd_soc_component *component = dai->component;
+ 	struct cs43130_private *cs43130 = snd_soc_component_get_drvdata(component);
+ 	unsigned int required_clk;
+-	u8 dsd_speed;
 +	int ret = 0;
 +
 +	if (!(CS43130_MCLK_22M % rate))
 +		required_clk = CS43130_MCLK_22M;
 +	else
 +		required_clk = CS43130_MCLK_24M;
-+
-+	mutex_lock(&cs43130->clk_mutex);
+ 
+ 	mutex_lock(&cs43130->clk_mutex);
 +	if (test_bit(dai_id, &y2_clk_holders)) {
 +		/* A repeated hw_params: keep a running clock that fits the rate. */
 +		if (required_clk == cs43130->mclk_int)
 +			goto unlock;
 +		y2_clk_put(component, dai_id);
 +	}
-+	if (!cs43130->clk_req) {
-+		/* no DAI is currently using clk */
-+		cs43130_set_pll(component, 0, 0, cs43130->mclk, required_clk);
+ 	if (!cs43130->clk_req) {
+ 		/* no DAI is currently using clk */
+-		if (!(CS43130_MCLK_22M % params_rate(params)))
+-			required_clk = CS43130_MCLK_22M;
+-		else
+-			required_clk = CS43130_MCLK_24M;
+-
+ 		cs43130_set_pll(component, 0, 0, cs43130->mclk, required_clk);
+-		if (cs43130->pll_bypass)
+-			cs43130_change_clksrc(component, CS43130_MCLK_SRC_EXT);
+-		else
+-			cs43130_change_clksrc(component, CS43130_MCLK_SRC_PLL);
++		y2_xtal_may_cycle = true;
 +		ret = cs43130_change_clksrc(component, cs43130->pll_bypass ?
 +					    CS43130_MCLK_SRC_EXT :
 +					    CS43130_MCLK_SRC_PLL);
-+	}
++		y2_xtal_may_cycle = false;
+ 	}
+-
+-	cs43130->clk_req++;
+-	if (cs43130->clk_req == 2)
+-		cs43130_pcm_dsd_mix(true, cs43130->regmap);
 +	if (!ret) {
 +		set_bit(dai_id, &y2_clk_holders);
 +		cs43130->clk_req++;
@@ -232,38 +388,17 @@
 +			cs43130_pcm_dsd_mix(true, cs43130->regmap);
 +	}
 +unlock:
-+	mutex_unlock(&cs43130->clk_mutex);
+ 	mutex_unlock(&cs43130->clk_mutex);
 +	return ret;
 +}
 +
- static int cs43130_dsd_hw_params(struct snd_pcm_substream *substream,
- 				 struct snd_pcm_hw_params *params,
- 				 struct snd_soc_dai *dai)
- {
- 	struct snd_soc_component *component = dai->component;
- 	struct cs43130_private *cs43130 = snd_soc_component_get_drvdata(component);
--	unsigned int required_clk;
- 	u8 dsd_speed;
--
--	mutex_lock(&cs43130->clk_mutex);
--	if (!cs43130->clk_req) {
--		/* no DAI is currently using clk */
--		if (!(CS43130_MCLK_22M % params_rate(params)))
--			required_clk = CS43130_MCLK_22M;
--		else
--			required_clk = CS43130_MCLK_24M;
--
--		cs43130_set_pll(component, 0, 0, cs43130->mclk, required_clk);
--		if (cs43130->pll_bypass)
--			cs43130_change_clksrc(component, CS43130_MCLK_SRC_EXT);
--		else
--			cs43130_change_clksrc(component, CS43130_MCLK_SRC_PLL);
--	}
--
--	cs43130->clk_req++;
--	if (cs43130->clk_req == 2)
--		cs43130_pcm_dsd_mix(true, cs43130->regmap);
--	mutex_unlock(&cs43130->clk_mutex);
++static int cs43130_dsd_hw_params(struct snd_pcm_substream *substream,
++				 struct snd_pcm_hw_params *params,
++				 struct snd_soc_dai *dai)
++{
++	struct snd_soc_component *component = dai->component;
++	struct cs43130_private *cs43130 = snd_soc_component_get_drvdata(component);
++	u8 dsd_speed;
 +	int ret;
 +
 +	ret = y2_clk_get(component, dai->id, params_rate(params));
@@ -272,13 +407,14 @@
  
  	switch (params_rate(params)) {
  	case 176400:
-@@ -878,28 +974,12 @@
+@@ -878,28 +1099,12 @@
  	unsigned int sclk = cs43130->dais[dai->id].sclk;
  	unsigned int bitwidth_sclk;
  	unsigned int bitwidth_dai = (unsigned int)(params_width(params));
 -	unsigned int required_clk;
  	u8 dsd_speed;
--
++	int ret;
+ 
 -	mutex_lock(&cs43130->clk_mutex);
 -	if (!cs43130->clk_req) {
 -		/* no DAI is currently using clk */
@@ -298,15 +434,13 @@
 -	if (cs43130->clk_req == 2)
 -		cs43130_pcm_dsd_mix(true, cs43130->regmap);
 -	mutex_unlock(&cs43130->clk_mutex);
-+	int ret;
-+
 +	ret = y2_clk_get(component, dai->id, params_rate(params));
 +	if (ret)
 +		return ret;
  
  	switch (dai->id) {
  	case CS43130_ASP_DOP_DAI:
-@@ -989,12 +1069,7 @@
+@@ -989,12 +1194,7 @@
  	struct cs43130_private *cs43130 = snd_soc_component_get_drvdata(component);
  
  	mutex_lock(&cs43130->clk_mutex);
@@ -320,7 +454,7 @@
  	mutex_unlock(&cs43130->clk_mutex);
  
  	return 0;
-@@ -1111,6 +1186,128 @@
+@@ -1111,6 +1311,128 @@
  static SOC_VALUE_ENUM_SINGLE_DECL(dsd_enum, CS43130_DSD_INT_CFG, 0, 0x03,
  				  dsd_texts, dsd_values);
  
@@ -449,7 +583,7 @@
  static const struct snd_kcontrol_new cs43130_snd_controls[] = {
  	SOC_DOUBLE_R_TLV("Master Playback Volume",
  			 CS43130_PCM_VOL_A, CS43130_PCM_VOL_B, 0, 0xFF, 1,
-@@ -1126,6 +1323,16 @@
+@@ -1126,6 +1448,16 @@
  	SOC_SINGLE("PCM High-pass Filter", CS43130_PCM_FILT_OPT, 1, 1, 0),
  	SOC_SINGLE("PCM De-emphasis Filter", CS43130_PCM_FILT_OPT, 0, 1, 0),
  	SOC_ENUM("DSD Phase Modulation", dsd_enum),
@@ -466,7 +600,7 @@
  };
  
  static const struct reg_sequence pcm_seq[] = {
-@@ -1314,6 +1521,10 @@
+@@ -1314,6 +1646,10 @@
  
  	switch (event) {
  	case SND_SOC_DAPM_PRE_PMU:
@@ -477,7 +611,7 @@
  		switch (cs43130->dev_id) {
  		case CS43130_CHIP_ID:
  		case CS4399_CHIP_ID:
-@@ -2062,16 +2273,41 @@
+@@ -2062,16 +2398,41 @@
  				   ac_reg_val >> CS43130_HP_MEAS_LOAD_2_SHIFT);
  	}
  
@@ -520,7 +654,7 @@
  
  	dev_dbg(cs43130->dev, "HP load stat: %x, INT_MASK_4: %x\n",
  		cs43130->hpload_stat, msk);
-@@ -2116,6 +2352,12 @@
+@@ -2116,6 +2477,12 @@
  	return 0;
  }
  
@@ -533,7 +667,7 @@
  static void cs43130_imp_meas(struct work_struct *wk)
  {
  	unsigned int reg, seq_size;
-@@ -2164,6 +2406,13 @@
+@@ -2164,6 +2531,13 @@
  	i = 0;
  	ac_idx = 0;
  	while (i < seq_size) {
@@ -547,7 +681,7 @@
  		ret = cs43130_hpload_proc(cs43130, hpload_seq[i].seq,
  					  hpload_seq[i].size,
  					  hpload_seq[i].msk, ac_idx);
-@@ -2183,6 +2432,16 @@
+@@ -2183,6 +2557,16 @@
  	}
  	cs43130->hpload_done = true;
  
@@ -564,11 +698,10 @@
  	if (cs43130->hpload_dc[HP_LEFT] >= CS43130_LINEOUT_LOAD)
  		snd_soc_jack_report(&cs43130->jack, CS43130_JACK_LINEOUT,
  				    CS43130_JACK_MASK);
-@@ -2222,6 +2481,148 @@
- 		cs43130_change_clksrc(component, CS43130_MCLK_SRC_RCO);
+@@ -2223,6 +2607,157 @@
  	mutex_unlock(&cs43130->clk_mutex);
  }
-+
+ 
 +/*
 + * Y2: headphone load measurement on demand. The Y2 powers the codec only
 + * while it is used and has no codec interrupt wired, so measurement runs on
@@ -699,8 +832,17 @@
 +}
 +static DEVICE_ATTR_RO(hpload_debug);
 +
++static ssize_t xtal_show(struct device *dev, struct device_attribute *attr,
++			 char *buf)
++{
++	return sysfs_emit(buf, "running=%d failures=%u recoveries=%u\n",
++			  y2_xtal_running, y2_xtal_failures, y2_xtal_recoveries);
++}
++static DEVICE_ATTR_RO(xtal);
++
 +static struct attribute *y2_hp_attrs[] = {
 +	&dev_attr_hp_gain.attr,
++	&dev_attr_xtal.attr,
 +	&dev_attr_hpload_measure.attr,
 +	&dev_attr_hpload_dc.attr,
 +	&dev_attr_hpload_debug.attr,
@@ -710,23 +852,24 @@
 +	.name = "y2_hp",
 +	.attrs = y2_hp_attrs,
 +};
- 
++
  static irqreturn_t cs43130_irq_thread(int irq, void *data)
  {
-@@ -2357,6 +2758,12 @@
- 		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
+ 	struct cs43130_private *cs43130 = (struct cs43130_private *)data;
+@@ -2358,6 +2893,12 @@
  				   CS43130_XTAL_ERR_INT, 0);
  	}
-+
+ 
 +	/* Y2: the default level instead of the reset value (High), so the
 +	 * readback is right before the first stream; the amplifier is down. */
 +	ret = y2_hp_level_set(cs43130, y2_hp_level);
 +	if (ret < 0)
 +		return ret;
- 
++
  	ret = snd_soc_card_jack_new(card, "Headphone", CS43130_JACK_MASK,
  				    &cs43130->jack);
-@@ -2475,13 +2882,16 @@
+ 	if (ret < 0) {
+@@ -2475,13 +3016,16 @@
  	cs43130->dc_meas = device_property_read_bool(cs43130->dev, "cirrus,dc-measure");
  	cs43130->ac_meas = device_property_read_bool(cs43130->dev, "cirrus,ac-measure");
  
@@ -745,7 +888,7 @@
  				       cs43130->dc_threshold,
  				       CS43130_DC_THRESHOLD)) {
  		for (i = 0; i < CS43130_DC_THRESHOLD; i++)
-@@ -2608,6 +3018,10 @@
+@@ -2608,6 +3152,10 @@
  	pm_runtime_set_active(cs43130->dev);
  	pm_runtime_enable(cs43130->dev);
  
@@ -756,7 +899,7 @@
  	switch (cs43130->dev_id) {
  	case CS43130_CHIP_ID:
  	case CS43131_CHIP_ID:
-@@ -2672,62 +3086,130 @@
+@@ -2672,62 +3220,139 @@
  	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
  }
  
@@ -800,11 +943,10 @@
  static int cs43130_runtime_suspend(struct device *dev)
  {
  	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
--
++	int ret, restore;
+ 
 -	if (cs43130->xtal_ibias != CS43130_XTAL_UNUSED)
 -		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
-+	int ret, restore;
-+
 +	if (cs43130->xtal_ibias != CS43130_XTAL_UNUSED) {
 +		ret = regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
  				   CS43130_XTAL_ERR_INT,
@@ -816,11 +958,20 @@
  	regcache_cache_only(cs43130->regmap, true);
  	regcache_mark_dirty(cs43130->regmap);
 -
++	/* Y2: the crystal stops with the rails; the replay leaves it down. */
++	y2_xtal_running = false;
++	regmap_update_bits(cs43130->regmap, CS43130_PWDN_CTL,
++			   CS43130_PDN_XTAL_MASK, 1 << CS43130_PDN_XTAL_SHIFT);
  	gpiod_set_value_cansleep(cs43130->reset_gpio, 0);
  
 -	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
 -
 -	return 0;
++	if (y2_rails_off) {
++		/* A failed cycle already dropped the rails and their references. */
++		y2_rails_off = false;
++		return 0;
++	}
 +	ret = regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
 +	if (ret) {
 +		/* Bulk disable restores the prior rail references on failure. A
@@ -841,9 +992,8 @@
  {
  	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
 -	int ret;
--
 +	int ret, cleanup;
-+
+ 
 +	/* jiffies stamps separate slow rail enables from a stalled timer tick. */
 +	cs43130_pm_note("cs_jiffies_begin", (int)jiffies);
 +	cs43130_pm_note("cs_rails_begin", 0);
@@ -861,40 +1011,36 @@
 -	gpiod_set_value_cansleep(cs43130->reset_gpio, 1);
 -
 -	usleep_range(2000, 2050);
--
++	ret = cs43130_restore_cache(cs43130);
++	if (!ret)
++		return 0;
+ 
 -	ret = regcache_sync(cs43130->regmap);
 -	if (ret != 0) {
 -		dev_err(dev, "Failed to restore register cache\n");
 -		goto err;
--	}
--
--	if (cs43130->xtal_ibias != CS43130_XTAL_UNUSED)
--		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
--				   CS43130_XTAL_ERR_INT, 0);
--
--	return 0;
--err:
-+	ret = cs43130_restore_cache(cs43130);
-+	if (!ret)
-+		return 0;
-+
 +	dev_err(dev, "Failed to restore codec state: %d\n", ret);
- 	regcache_cache_only(cs43130->regmap, true);
--	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
--
++	regcache_cache_only(cs43130->regmap, true);
 +	gpiod_set_value_cansleep(cs43130->reset_gpio, 0);
 +	cleanup = regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
 +	if (cleanup) {
 +		cs43130_pm_note("cs_cleanup_fail", cleanup);
 +		dev_err(dev, "Failed to disable supplies after restore error: %d\n", cleanup);
-+	}
+ 	}
 +	return ret;
 +}
-+
+ 
+-	if (cs43130->xtal_ibias != CS43130_XTAL_UNUSED)
+-		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
+-				   CS43130_XTAL_ERR_INT, 0);
 +static int cs43130_system_suspend(struct device *dev)
 +{
 +	int ret;
-+
+ 
+-	return 0;
+-err:
+-	regcache_cache_only(cs43130->regmap, true);
+-	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
 +	cs43130_pm_note("cs_sleep_begin", 0);
 +	ret = pm_runtime_force_suspend(dev);
 +	cs43130_pm_note("cs_sleep_done", ret);
@@ -904,7 +1050,7 @@
 +static int cs43130_system_resume(struct device *dev)
 +{
 +	int ret;
-+
+ 
 +	cs43130_pm_note("cs_force_begin", 0);
 +	ret = pm_runtime_force_resume(dev);
 +	cs43130_pm_note("cs_force_done", ret);
