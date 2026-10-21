@@ -178,7 +178,7 @@
       "path": "sound/soc/codecs/cs43130.c",
       "patch": "0030-cs43130-system-pm.patch",
       "base_sha256": "e3f2d840943600a6cb9d474ba367b1bb6a225cd98fc502f3c09570a7d6033099",
-      "result_sha256": "b9571c82c25240d8e232af5091bad5c4ae193f230eb06b8666b1dafcc5e5e8c9"
+      "result_sha256": "7bc2033be79fbde492dcf365db4fbcf2a1bf0e84755a7d3591ff57418a616ad8"
     },
     {
       "path": "drivers/usb/gadget/legacy/cdc2.c",

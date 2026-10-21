@@ -1,8 +1,8 @@
 """Exercise the codec overlay's clock start (#48, #51) against a register model: a started crystal keeps
 running across hw_free/hw_params (stock never stops it between streams), a crystal that is slow to report
 ready gets a second try, two failed tries during an open cycle the codec's rails once, a failed start fails
-hw_params and leaves the codec on RCO, and the per-DAI clock requests stay balanced across ALSA's
-hw_params/hw_free sequences."""
+hw_params and leaves the codec on RCO, a crystal that failed or stopped gets the strongest bias for the boot
+(#52), and the per-DAI clock requests stay balanced across ALSA's hw_params/hw_free sequences."""
 import unittest
 from test_audio import function
 from test_cpu_fix02 import overlay
@@ -49,6 +49,9 @@ class CodecClock(unittest.TestCase):
 #define CS43130_PDN_XTAL_SHIFT 3
 #define CS43130_PDN_PLL_MASK 0x04
 #define CS43130_PDN_PLL_SHIFT 2
+#define CS43130_XTAL_IBIAS_MASK 0x07
+#define CS43130_XTAL_IBIAS_15UA 2
+#define CS43130_XTAL_IBIAS_12_5UA 4
 #define CS43130_MCLK_22M 22579200
 #define CS43130_MCLK_24M 24576000
 #define CS43130_NUM_SUPPLIES 3
@@ -79,7 +82,7 @@ struct snd_soc_component { struct cs43130_private *priv; };
 static struct regmap map;
 static struct gpio_desc reset = { 1 };
 static struct cs43130_private codec = { .regmap = &map, .mclk_int_src = CS43130_MCLK_SRC_RCO,
- .pll_bypass = 1, .xtal_ibias = 2, .mclk = 22579200, .reset_gpio = &reset };
+ .pll_bypass = 1, .xtal_ibias = CS43130_XTAL_IBIAS_12_5UA, .mclk = 22579200, .reset_gpio = &reset };
 static struct snd_soc_component component = { &codec };
 static struct cs43130_private *snd_soc_component_get_drvdata(struct snd_soc_component *c) { return c->priv; }
 /* One chip: the cache and the chip agree, a cache-only map has no chip behind it. */
@@ -87,7 +90,8 @@ static int regmap_update_bits(struct regmap *m, unsigned r, unsigned mask, unsig
  m->reg[r] = (m->reg[r] & ~mask) | v; return 0;
 }
 static int regmap_write_bits(struct regmap *m, unsigned r, unsigned mask, unsigned v) {
- /* Cache-only (rails off) writes land in the cache, as in regmap. */
+ /* Cache-only (rails off) writes land in the cache, as in regmap. The bias changes only with the crystal down. */
+ if (r == CS43130_CRYSTAL_SET) assert(m->reg[CS43130_PWDN_CTL] & CS43130_PDN_XTAL_MASK);
  return regmap_update_bits(m, r, mask, v);
 }
 static int regmap_read(struct regmap *m, unsigned r, unsigned *v) {
@@ -129,7 +133,7 @@ static int cs43130_set_pll(struct snd_soc_component *component, int pll_id, int 
 }
 static int cs43130_change_clksrc(struct snd_soc_component *component, enum cs43130_mclk_src_sel src);
 static unsigned long y2_clk_holders;
-''' + preamble + function(source, 'y2_xtal_try') + function(source, 'y2_xtal_report')
+''' + preamble + function(source, 'y2_xtal_boost') + function(source, 'y2_xtal_try') + function(source, 'y2_xtal_report')
            + function(source, 'y2_codec_cycle') + function(source, 'y2_xtal_start')
            + function(source, 'y2_clksrc_failed') + change
            + function(source, 'y2_clk_put') + function(source, 'y2_clk_get') + r'''
@@ -146,6 +150,8 @@ int main(void) {
  assert(!y2_clk_get(&component, 0, 44100));
  assert(codec.clk_req == 1 && codec.mclk_int_src == CS43130_MCLK_SRC_EXT && sel() == CS43130_MCLK_SRC_EXT && !xtal_off());
  assert(xtal_waits == 1 && budget == 100 && !rests && y2_xtal_running);
+ /* A crystal that starts keeps the stock bias. */
+ assert(!y2_xtal_boosted && map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_12_5UA);
  /* #51: close and reopen (Next) keep the crystal running; the reopen does not restart it. */
  hw_free(0); on_rco(); assert(codec.clk_req == 0 && !xtal_off() && y2_xtal_running);
  assert(!y2_clk_get(&component, 0, 44100) && xtal_waits == 1 && sel() == CS43130_MCLK_SRC_EXT);
@@ -153,11 +159,16 @@ int main(void) {
  /* A crystal error while it runs restarts it: power down, rest, start. */
  map.reg[CS43130_INT_STATUS_1] = CS43130_XTAL_ERR_INT;
  assert(!y2_clk_get(&component, 0, 44100) && xtal_waits == 2 && rests == 1 && y2_xtal_running);
+ /* #52: a crystal that stopped restarts with the strongest bias. */
+ assert(y2_xtal_boosted && map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_15UA);
  hw_free(0);
+ y2_xtal_boosted = false; codec.xtal_ibias = CS43130_XTAL_IBIAS_12_5UA;
  /* #48: after a runtime suspend the first wait misses; rest, second try with 300 ms. */
  runtime_suspend(); xtal_waits = 0; rests = 0; xtal_slow = 1;
  assert(!y2_clk_get(&component, 0, 44100));
  assert(xtal_waits == 2 && budget == 300 && rests == 1 && !rail_cycles && sel() == CS43130_MCLK_SRC_EXT);
+ /* #52: the second try already runs at 15 uA, and later starts keep it. */
+ assert(y2_xtal_boosted && codec.xtal_ibias == CS43130_XTAL_IBIAS_15UA && map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_15UA);
  hw_free(0);
  /* Both tries miss during an open: one rail cycle, the cache replayed, a last 500 ms start. */
  runtime_suspend(); xtal_waits = 0; xtal_slow = 2;

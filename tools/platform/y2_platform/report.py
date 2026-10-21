@@ -511,7 +511,7 @@ FILES = (
     '/sys/power/suspend_stats/*', '/sys/kernel/debug/wakeup_sources', '/sys/kernel/debug/suspend_stats',
     '/sys/kernel/debug/regulator/regulator_summary', '/sys/kernel/debug/clk/clk_summary',
     # The CS43131 at 0x30; its I2C bus number follows probe order (0 or 1).
-    '/sys/kernel/debug/regmap/*-0030/registers',
+    '/sys/kernel/debug/regmap/*-0030/registers', '/sys/bus/i2c/devices/*-0030/y2_hp/xtal',
     '/sys/devices/system/cpu/cpu*/cpuidle/state*/usage', '/sys/devices/system/cpu/cpu*/cpuidle/state*/time',
     '/sys/devices/system/cpu/cpu*/cpuidle/state*/name',
     '/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state', '/sys/devices/system/cpu/online',
