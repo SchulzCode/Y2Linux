@@ -1,6 +1,15 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-21): Y2LINUX 1.0 BETA 8.17 (BASELINE 114) PUBLISHED — #51 CRYSTAL, REPORT/REDDIT FIXES F12–F22.**
+> **START HERE (2026-10-21, night): Y2LINUX 1.0 BETA 8.19 (BASELINE 118) PUBLISHED — AUDIOBOOKS, SHARPER COVERS, CUSTOMIZE.**
+> Installed on the owner's player before publishing (build 118, seq 8302, Linux `6649c89`, Reborn `da5b777`; 8.18 was
+> test-only). Audiobooks: `reborn_core::books`, `app/reborn/src/books.rs`, `sleep_timer.rs`, `views_books.rs`; plan, code
+> map and device test in Reborn `docs/ui/REBORN-AUDIOBOOKS.md`; user guide `docs/AUDIOBOOKS.md`. FFmpeg gains `atempo`
+> (`01d8882`); FFmpeg allocation ceiling 128 MiB (long M4B). Covers 180/128 + levels; Customize (Wrap Around, When
+> Screen Off). Open: car AVRCP metadata (btmon capture on the owner's player `/data/logs/car-bt/`), in-file seek for
+> long books (2–3 s reopen), the 4.5-min pre-recovery stall seen once (build 115). Test books on the owner's Internal
+> Storage `Audiobooks/Reborn Test Books/`. Next free label 119, sequence above 8302.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.17 (BASELINE 114) PUBLISHED — #51 CRYSTAL, REPORT/REDDIT FIXES F12–F22.**
 > #51 (`XTAL_READY -110` until reboot, the #48 player): crystal now runs until runtime suspend as stock, forced restart,
 > one rail cycle (overlay 0030, `y2_hp/xtal`). F12 SD admission accepts Windows-benign fsck findings (`media.py`
 > `fat_findings`, `sd-admissions.json`); F20 `bt_lost |=`; F21 discovery; F14 intents now reach `/run/y2/bt-intent`

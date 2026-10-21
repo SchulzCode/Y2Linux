@@ -1,6 +1,15 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.17, Baseline 114 — 2026-10-21 (latest, published)
+## Y2Linux 1.0 Beta 8.19, Baseline 118 — 2026-10-21 (latest, published)
+
+Release `1.0.0-beta.8.19`, tag `baseline-118`, Linux `6649c89`, Reborn `da5b777`, sequence 8302 (8.18 was a test build,
+never published). Audiobooks: their own Home entry, chapters from the files' marks or one per file, the place kept per
+book with a rewind, speed 0.75–2× (FFmpeg `atempo`), a sleep timer; long M4B books play (FFmpeg allocation ceiling 128
+MiB). Sharper covers (180/128 px, crop, Lanczos, smaller copies), Settings → Customize (wrap-around lists, screen-off
+buttons). Installed on the owner's player before publishing. Details:
+[Beta 8.19 report](validation/Y2-LINUX-1.0-BETA-8.19.md).
+
+## Y2Linux 1.0 Beta 8.17, Baseline 114 — 2026-10-21 (published)
 
 Release `1.0.0-beta.8.17`, tag `baseline-114`, Linux `8719042`, Reborn `6d5458c`, sequence 8100. User reports and
 #51: the headphone crystal keeps running between songs as on stock (no more `ALSA -110` until a reboot), SD cards with

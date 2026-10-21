@@ -13,7 +13,7 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **326**. Explicit scope notices: **228**.
+Indexed pages: **328**. Explicit scope notices: **228**.
 
 ## Entry
 
@@ -355,6 +355,7 @@ Indexed pages: **326**. Explicit scope notices: **228**.
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
+| [Y2Linux 1.0 Beta 8.19 report](validation/Y2-LINUX-1.0-BETA-8.19.md) | Beta 8.19 (Baseline 118): audiobooks (chapters, progress, speed, sleep timer), long M4B books, sharper covers, Customize |
 | [Y2Linux 1.0 Beta 8.17 report](validation/Y2-LINUX-1.0-BETA-8.17.md) | Beta 8.17 (Baseline 114): #51 headphone crystal, SD cards Windows reads, Bluetooth disconnect/search/connect, SBC on weak links, report fixes |
 | [Y2Linux 1.0 Beta 8.16 report](validation/Y2-LINUX-1.0-BETA-8.16.md) | Beta 8.16 (Baseline 113): large libraries — All Songs plays, fast rescans, multi-core tag reading |
 | [Y2Linux 1.0 Beta 8.15 report](validation/Y2-LINUX-1.0-BETA-8.15.md) | Beta 8.15 (Baseline 112): Japanese/Chinese/Korean text, update check after a wake, codec choice while connecting |

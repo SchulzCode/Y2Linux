@@ -9005,3 +9005,26 @@ partition or memory-layout change.
 | Build 114 on a player | NOT INSTALLED BEFORE PUBLISH | owner OTA; health check rolls back a failing Reborn |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.17** (Baseline 114, sequence 8100).
+
+## BETA-8.19 (Baseline 118) audiobooks, sharper covers, Customize: milestone gap audit — 2026-10-21
+
+**Boundary:** owner: sharper covers and a Customize page (wrap-around lists, screen-off buttons) — built as test 8.18,
+never published — then audiobooks end to end (Y2Player assessed, not copied) with speed and a sleep timer, published as
+8.19. Packaging/memory changes: FFmpeg gains the `atempo` filter (defconfig, `verify-ffmpeg.py`, Reborn qemu lists);
+Reborn's per-allocation FFmpeg ceiling 32 → 128 MiB (a long M4B's frame index), large MP4s scanned one at a time; the
+thumbnail atlas grows to 2048×1024 (≈8 MB of video memory). No kernel, partition or session-schema change
+(`state/books.json` is new and separate).
+
+| Area | State for Beta 8.19 | Evidence / gap |
+| --- | --- | --- |
+| Audiobooks (detection, list, page, chapters, progress, rewind, finished) | IMPLEMENTED, DEVICE-CHECKED | test books on the owner's player (builds 117/118); real libraries owed |
+| Speed (`atempo`) | IMPLEMENTED, DEVICE-CHECKED | `atempo=1.50` in the chain, position rate measured; by ear owed |
+| Sleep timer | IMPLEMENTED, DEVICE-CHECKED | end of chapter on the player; the timed fade owed |
+| Long M4B (10.5 h) | FIXED, DEVICE-CHECKED | RSS 92 MB (155 MB peak) of 928 MB; seek 2.8 s (reopen); in-file seek later |
+| Covers 180/128, levels, crop, cache | IMPLEMENTED, DEVICE-INSTALLED | GLES 165/165; Mali-400 look checked on screenshots only |
+| Customize, When Screen Off, headset grace | IMPLEMENTED, HOST-CHECKED | router and UI tests; holds not injectable |
+| Car AVRCP metadata | OPEN | capture running on the owner's player |
+| Build 118 on a player | INSTALLED BEFORE PUBLISH | owner's player, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.19** (Baseline 118, sequence 8302).
+
