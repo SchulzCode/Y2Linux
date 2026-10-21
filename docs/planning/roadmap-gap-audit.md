@@ -9028,3 +9028,19 @@ thumbnail atlas grows to 2048×1024 (≈8 MB of video memory). No kernel, partit
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.19** (Baseline 118, sequence 8302).
 
+## BETA-8.20 (Baseline 119) headphone crystal (#52): milestone gap audit — 2026-10-22
+
+**Boundary:** owner: fix GitHub #52 and publish 8.20, installed and tested on the owner's player first. Kernel change
+limited to the CS43131 overlay (0030: crystal bias after a failure, sysfs) and Reborn's open deadline; reports gain one
+sysfs file. No packaging, memory, partition or schema change. Hardware evidence: the #52 reports (one player, a
+marginal crystal) and the owner's player (build 119).
+
+| Area | State for Beta 8.20 | Evidence / gap |
+| --- | --- | --- |
+| Crystal bias 15 µA after a failed start or a stop | IMPLEMENTED, HOST-CHECKED, DEVICE-CHECKED (forced) | register model test; owner's player with `boost`: `CRYSTAL_SET=02`, all playback steps pass |
+| Stock bias on healthy players | DEVICE-CHECKED | owner's player: every start first try, `boosted=0` |
+| Reborn open deadline 5 s | IMPLEMENTED, HOST-CHECKED | Reborn tests; the slow path only on the affected player |
+| #52 on the affected player | OWED | reporter's next report (`y2_hp/xtal`) |
+| Build 119 on a player | INSTALLED BEFORE PUBLISH | owner's player, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.20** (Baseline 119, sequence 8400).

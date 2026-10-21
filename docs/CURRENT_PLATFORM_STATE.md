@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.19, Baseline 118 — 2026-10-21 (latest, published)
+## Y2Linux 1.0 Beta 8.20, Baseline 119 — 2026-10-22 (latest, published)
+
+Release `1.0.0-beta.8.20`, tag `baseline-119`, Linux `0f0b4ed`, Reborn `cdae78e`, sequence 8400. #52: a CS43131
+crystal that fails to start or stops while running gets the chip's strongest bias (15 µA) for the boot (one player's
+crystal flags XTAL_ERR at the stock 12.5 µA); Reborn waits 5 s for an open (the kernel's rail cycle and its own second
+open); reports collect `y2_hp/xtal`. Installed and tested on the owner's player before publishing (stock and forced
+15 µA). Details: [Beta 8.20 report](validation/Y2-LINUX-1.0-BETA-8.20.md).
+
+## Y2Linux 1.0 Beta 8.19, Baseline 118 — 2026-10-21 (published)
 
 Release `1.0.0-beta.8.19`, tag `baseline-118`, Linux `6649c89`, Reborn `da5b777`, sequence 8302 (8.18 was a test build,
 never published). Audiobooks: their own Home entry, chapters from the files' marks or one per file, the place kept per

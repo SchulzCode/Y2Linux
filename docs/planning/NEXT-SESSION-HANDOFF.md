@@ -1,6 +1,15 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-21, night): Y2LINUX 1.0 BETA 8.19 (BASELINE 118) PUBLISHED — AUDIOBOOKS, SHARPER COVERS, CUSTOMIZE.**
+> **START HERE (2026-10-22): Y2LINUX 1.0 BETA 8.20 (BASELINE 119) PUBLISHED — #52 HEADPHONE CRYSTAL.**
+> Installed on the owner's player before publishing (build 119, seq 8400, Linux `0f0b4ed`, Reborn `cdae78e`). #52 =
+> the #48/#51 player (install 2813306c): its CS43131 flags XTAL_ERR at the stock 12.5 µA bias; overlay 0030 now raises
+> the bias to 15 µA after a failed start or a stop while running (`y2_hp/xtal` `boosted=`, writable `boost`), Reborn's
+> open deadline 5 s, reports collect `y2_hp/xtal`. Device runs at stock and forced 15 µA all pass (report BETA-8.20).
+> Owed: the reporter's confirmation (next report's `y2_hp/xtal`). Test tones (48/96 kHz) on the owner's Internal
+> Storage `Reborn Test 48k/`. 8 uploaded reports still pending review (`fetch.py --pending`). Next free label 120,
+> sequence above 8400.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.19 (BASELINE 118) PUBLISHED — AUDIOBOOKS, SHARPER COVERS, CUSTOMIZE.**
 > Installed on the owner's player before publishing (build 118, seq 8302, Linux `6649c89`, Reborn `da5b777`; 8.18 was
 > test-only). Audiobooks: `reborn_core::books`, `app/reborn/src/books.rs`, `sleep_timer.rs`, `views_books.rs`; plan, code
 > map and device test in Reborn `docs/ui/REBORN-AUDIOBOOKS.md`; user guide `docs/AUDIOBOOKS.md`. FFmpeg gains `atempo`

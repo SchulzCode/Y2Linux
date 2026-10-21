@@ -1,7 +1,7 @@
 # Y2Linux documentation
 
-**Y2Linux 1.0 Beta 8.19 (Baseline 118, 2026-10-21)** is the current state (eighth
-public beta: headphone level and profiles, faster updates, error reports, charging fix, Internal Storage setup on battery, crash loop and silent-audio fixes, songs in Strawberry over USB, random shuffle, Japanese text, large libraries, headphones after a pause and SD cards Windows reads, audiobooks and sharper covers): ready-made images on the [GitHub releases](https://github.com/SchulzCode/Y2Linux/releases),
+**Y2Linux 1.0 Beta 8.20 (Baseline 119, 2026-10-22)** is the current state (eighth
+public beta: headphone level and profiles, faster updates, error reports, charging fix, Internal Storage setup on battery, crash loop and silent-audio fixes, songs in Strawberry over USB, random shuffle, Japanese text, large libraries, headphones after a pause and SD cards Windows reads, audiobooks and sharper covers, headphone audio that would not start): ready-made images on the [GitHub releases](https://github.com/SchulzCode/Y2Linux/releases),
 installed once with SP Flash Tool, then updated over Wi-Fi by the player itself
 ([recovery and updates](RECOVERY-AND-UPDATES.md)). No image carries MediaTek's radio firmware: each
 player takes it from its owner's Innioasis package ([INSTALL](INSTALL.md)). What works, what does not
@@ -10,7 +10,8 @@ scrobbling and why it is safe: [Last.fm scrobbling](LASTFM.md); Internal Storage
 USB copying: [Storage](STORAGE.md); audiobooks (chapters, progress, speed, sleep timer):
 [Audiobooks](AUDIOBOOKS.md); headphone level, profiles and DAC filter:
 [Headphone output](HEADPHONE-OUTPUT.md); saving a report for an issue: [Error reports](ERROR-REPORTS.md);
-the beta's evidence and open gaps: [1.0 Beta 8.19 report](validation/Y2-LINUX-1.0-BETA-8.19.md),
+the beta's evidence and open gaps: [1.0 Beta 8.20 report](validation/Y2-LINUX-1.0-BETA-8.20.md),
+[1.0 Beta 8.19 report](validation/Y2-LINUX-1.0-BETA-8.19.md),
 [1.0 Beta 8.17 report](validation/Y2-LINUX-1.0-BETA-8.17.md),
 [1.0 Beta 8.16 report](validation/Y2-LINUX-1.0-BETA-8.16.md),
 [1.0 Beta 8.15 report](validation/Y2-LINUX-1.0-BETA-8.15.md),
