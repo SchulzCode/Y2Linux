@@ -406,12 +406,12 @@ def automatic_blocked(ctx):
 
 
 def mount_old(ctx, device):
-    """The stock FAT read-only at OLD after the read-only check (#44 rules); None or a reason."""
-    from .media import fat_unclean_only
+    """The stock FAT read-only at OLD after the read-only check (#44/F12 rules); None or a reason."""
+    from .media import fat_benign_only
     if any(m['path'] == OLD and m['source'] == device for m in mountinfo(ctx.read('/proc/self/mountinfo'))):
         return None
     check = ctx.command(['fsck.fat', '-n', device], timeout=180, failure_output=True)
-    if not check['ok'] and not (check['reason'] == 'command_failed' and fat_unclean_only(check['output'])):
+    if not check['ok'] and not (check['reason'] == 'command_failed' and fat_benign_only(check['output'])):
         return 'old_storage_check_failed'
     target = ctx.path(OLD)
     if target.is_symlink():

@@ -363,8 +363,10 @@ def refused_card(ctx):
     parts = instance.split(':') if isinstance(instance, str) else []
     if len(parts) != 5 or device_instance(ctx, ':'.join(parts[1:3])) != instance:
         return {}
+    check = last.get('filesystem_check') if isinstance(last.get('filesystem_check'), dict) else {}
+    # ['timeout'] for a card too slow to check in 60 s, not one that needs repair (F12).
     return {'state': 'Degraded', 'reason': 'filesystem_check_failed',
-            'filesystem': last.get('filesystem')}
+            'filesystem': last.get('filesystem'), 'findings': check.get('findings', [])}
 
 
 def storage(ctx):

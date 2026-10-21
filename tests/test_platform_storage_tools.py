@@ -320,10 +320,102 @@ class StorageTools(unittest.TestCase):
         sd = storage(self.ctx)['volumes'][2]
         self.assertEqual((sd['state'], sd['reason']), ('Unavailable', 'not_uniquely_mounted'))
 
-    def test_fat_dirty_bit_with_other_boot_differences_stays_out(self):
-        calls = self.fat_card_checked_as(self.PULLED_FAT.replace('65:01/00', '65:01/00, 19:00/40'))
-        self.assertEqual(operation(self.ctx, 'mount')['reason'], 'filesystem_check_failed')
+    def test_fat_dirty_bit_with_other_boot_differences_is_mounted(self):
+        # A backup boot sector that differs alone already passes (fsck.fat exits 0 and
+        # never fixes it); with the dirty bit it used to keep the card out. fsck.fat
+        # wraps a long offset list onto a line starting with ", ".
+        calls = self.fat_card_checked_as(self.PULLED_FAT.replace(
+            '65:01/00', '3:4d/6d, 4:53/6b, 5:57/66, 6:49/73, 7:4e/2e, 8:34/66, 9:2e/61, 10:31/74\n  , 65:01/00'))
+        result = operation(self.ctx, 'mount')
+        self.assertEqual(result['state'], 'Ready')
+        self.assertEqual(result['filesystem_check']['findings'], ['backup_differs', 'dirty'])
+        self.assertTrue(any(c[0] == 'mount' for c in calls))
+
+    # fsck.fat 4.2 -n (LC_ALL=C) on host images with each change (dosfstools as on the player).
+    STALE_FREE = ('fsck.fat 4.2 (2021-01-31)\n'
+                  'Free cluster summary wrong (1234 vs. really 76393)\n'
+                  '  Auto-correcting.\n\n'
+                  'Leaving filesystem unchanged.\n'
+                  '/dev/mmcblk1p1: 10 files, 250/76643 clusters\n')
+    LABEL = ("Volume label 'MUSIC' stored in root directory and label 'Y2' stored in boot sector and different.\n"
+             '  Auto-copying volume label from root directory to boot sector.\n')
+    LOST = 'Reclaimed 4 unused clusters (16384 bytes).\n'
+
+    def test_fat_findings_windows_mounts_over_are_admitted(self):
+        # Reddit/F12: "needs repair" on a card the PC read; reformatting fixed it.
+        from y2_platform.media import fat_findings
+        dirty = self.PULLED_FAT
+        cases = {
+            'stale free count': (self.STALE_FREE, ['fsinfo_free']),
+            'dirty + stale free count': (dirty.replace('Leaving', 'Free cluster summary wrong (1 vs. really 2)\n'
+                                                       '  Auto-correcting.\nLeaving'), ['dirty', 'fsinfo_free']),
+            'label mismatch': (self.STALE_FREE.replace('Free cluster summary wrong (1234 vs. really 76393)\n'
+                                                      '  Auto-correcting.\n', self.LABEL), ['label_mismatch']),
+            'lost clusters + dirty': (dirty.replace('Dirty bit', self.LOST + 'Dirty bit'), ['dirty', 'lost_clusters']),
+            'one lost cluster': (dirty.replace('Dirty bit', 'Reclaimed 1 unused cluster (4096 bytes).\nDirty bit'),
+                                 ['dirty', 'lost_clusters']),
+            # Labels written by other systems' tools (dosfstools check.c).
+            'invalid label': (dirty.replace('Dirty bit', "Volume label 'my*card' stored in root directory is not valid.\n"
+                                            '  Auto-removing label.\nDirty bit'), ['dirty', 'label_mismatch']),
+            'lowercase label': (dirty.replace('Dirty bit', "Volume label 'Music' stored in root directory contains "
+                                              'lowercase characters.\n  Auto-changing lowercase characters to uppercase\n'
+                                              'Dirty bit'), ['dirty', 'label_mismatch']),
+        }
+        for name, (output, findings) in cases.items():
+            with self.subTest(name):
+                self.assertEqual(fat_findings(output), findings)
+        calls = self.fat_card_checked_as(self.STALE_FREE)
+        result = operation(self.ctx, 'mount')
+        self.assertEqual((result['state'], result['filesystem_check']['finding']), ('Ready', 'benign'))
+        self.assertFalse(any(c[0] == 'fsck.fat' and set(c) & {'-a', '-w', '-r', '-y'} for c in calls))
+
+    def test_fat_benign_lines_out_of_place_or_with_real_findings_stay_out(self):
+        from y2_platform.media import fat_benign_only, fat_findings
+        damaged = self.STALE_FREE.replace('Leaving', '/Music/Song.flac\n  Contains a free cluster (77). Assuming EOF.\nLeaving')
+        self.assertFalse(fat_benign_only(damaged))
+        self.assertIn('other', fat_findings(damaged))
+        # "Auto-correcting." answers only the free count, not another finding.
+        self.assertFalse(fat_benign_only(self.LOST + '  Auto-correcting.\n'))
+        self.assertFalse(fat_benign_only('fsck.fat 4.2 (2021-01-31)\nLeaving filesystem unchanged.\n'))
+        calls = self.fat_card_checked_as(damaged)
+        result = operation(self.ctx, 'mount')
+        self.assertEqual((result['state'], result['reason']), ('Degraded', 'filesystem_check_failed'))
+        self.assertIn('other', result['filesystem_check']['findings'])
         self.assertFalse(any(c[0] == 'mount' for c in calls))
+
+    def test_admissions_are_remembered_across_boots_without_names(self):
+        # F12 (c75aae95): a card refused at every insertion; only the last card's
+        # verdict was kept, in /run. Bounded, no checker output, no label or file names.
+        from y2_platform.media import ADMISSIONS, ADMISSIONS_KEPT
+        damaged = self.STALE_FREE.replace('Leaving', '/Music/Secret Song.flac\n  Bad cluster chain.\nLeaving')
+        self.fat_card_checked_as(damaged)
+        for _ in range(ADMISSIONS_KEPT + 3):
+            operation(self.ctx, 'mount')
+        text = self.ctx.path(ADMISSIONS).read_text()
+        entries = json.loads(text)['admissions']
+        self.assertEqual(len(entries), ADMISSIONS_KEPT)
+        self.assertEqual((entries[-1]['ok'], entries[-1]['findings'], entries[-1]['filesystem']),
+                         (False, ['fsinfo_free', 'other'], 'vfat'))
+        self.assertIsInstance(entries[-1]['elapsed_ms'], int)
+        self.assertNotIn('Secret', text)
+        self.assertNotIn('Music', text)
+
+    def test_a_check_that_times_out_is_named_apart(self):
+        calls = self.card_fixture()
+        runner = self.ctx.runner
+        def slow(argv, **kwargs):
+            if argv[0] == 'fsck.fat':
+                return {'ok': False, 'reason': 'command_timeout', 'output': None}
+            result = runner(argv, **kwargs)
+            if argv[0] == 'blkid':
+                result['output'] = result['output'].replace('exfat', 'vfat')
+            return result
+        self.ctx.runner = slow
+        result = operation(self.ctx, 'mount')
+        self.assertEqual((result['state'], result['filesystem_check']['reason'], result['filesystem_check']['findings']),
+                         ('Degraded', 'command_timeout', ['timeout']))
+        sd = storage(self.ctx)['volumes'][2]
+        self.assertEqual((sd['reason'], sd['findings']), ('filesystem_check_failed', ['timeout']))
 
     def test_fsck_is_read_only_and_never_checks_mounted_media(self):
         calls = self.card_fixture()

@@ -30,45 +30,114 @@ def media_identity(entry, filesystem, uuid):
 
 # fsck.fat -n exits 1 whenever it would change anything, including only the
 # dirty bit a FAT card keeps after it was pulled out while mounted (Android,
-# Windows and macOS mount such a card; issue #44). A run that found nothing
-# else prints only these lines. The boot sector may then differ from its
-# backup only in the byte holding that same flag (offset 37 on FAT12/16, 65
-# on FAT32). Any other line is a real finding and keeps the card out.
-FAT_UNCLEAN_LINES = [re.compile(p) for p in (
-    r'fsck\.fat \S+ \(.*\)',
-    r'There are differences between boot sector and its backup\.',
-    r'This is mostly harmless\. Differences: \(offset:original/backup\)',
-    r'(?:37|65):[0-9a-f]{2}/[0-9a-f]{2}',
-    r'Not automatically fixing this\.',
-    r'Dirty bit is set\. Fs was not properly unmounted and some data may be corrupt\.',
-    r'Automatically removing dirty bit\.',
-    r'Leaving filesystem unchanged\.',
-    r'\S+: \d+ files, \d+/\d+ clusters',
+# Windows and macOS mount such a card; issue #44). Windows also mounts a card
+# whose free-cluster count (FSInfo) is stale, whose volume label differs
+# between the root directory and the boot sector (Windows renames only the
+# former), or with unused clusters still marked used; the Linux FAT driver
+# recounts free space and none of them touches a file (Reddit: "needs repair"
+# on a card the PC read; F12). Each such line has a class; any other line
+# (file chains, directory entries, sizes, names) is a real finding and keeps
+# the card out.
+FAT_LINES = [(cls, re.compile(p)) for cls, p in (
+    (None, r'fsck\.fat \S+ \(.*\)'),
+    (None, r'Leaving filesystem unchanged\.'),
+    (None, r'\S+: \d+ files, \d+/\d+ clusters'),
+    ('backup', r'There are differences between boot sector and its backup\.'),
+    ('backup', r'This is mostly harmless\. Differences: \(offset:original/backup\)'),
+    ('backup', r'(?:, )?\d+:[0-9a-f]{2}/[0-9a-f]{2}(?:, \d+:[0-9a-f]{2}/[0-9a-f]{2})*'),
+    ('backup', r'Not automatically fixing this\.'),
+    ('dirty', r'Dirty bit is set\. Fs was not properly unmounted and some data may be corrupt\.'),
+    ('dirty', r'Automatically removing dirty bit\.'),
+    ('fsinfo_free', r'Free cluster summary wrong \(\d+ vs\. really \d+\)'),
+    ('fsinfo_free', r'Free cluster summary uninitialized \(should be \d+\)'),
+    ('label_mismatch', r"Volume label '.*' stored in root directory and label '.*' stored in boot sector "
+                       r"and different\."),
+    ('label_mismatch', r'Auto-copying volume label from root directory to boot sector\.'),
+    # A label written by another system's tools: invalid characters, lowercase.
+    ('label_mismatch', r"Volume label '.*' stored in root directory is not valid\."),
+    ('label_mismatch', r"Volume label '.*' stored in root directory contains lowercase characters\."),
+    ('lost_clusters', r'Reclaimed \d+ unused clusters? \(\d+ bytes\)\.'),
 )]
-FAT_DIRTY_LINE = 'Dirty bit is set. Fs was not properly unmounted and some data may be corrupt.'
+# The answer line a finding prints next; accepted only right after its finding.
+FAT_FOLLOW = {'Auto-correcting.': 'fsinfo_free', 'Auto-removing label.': 'label_mismatch',
+              'Auto-changing lowercase characters to uppercase': 'label_mismatch'}
+# The boot sector's own dirty flag (offset 37 on FAT12/16, 65 on FAT32) also
+# differs from its backup on a card pulled while mounted.
+FAT_DIRTY_OFFSETS = {'37', '65'}
 
 
-def fat_unclean_only(output):
-    """True when a failed `fsck.fat -n` reported nothing but an unclean unmount."""
-    lines = [line.strip() for line in (output or '').splitlines() if line.strip()]
-    return (FAT_DIRTY_LINE in lines and
-            all(any(p.fullmatch(line) for p in FAT_UNCLEAN_LINES) for line in lines))
+def fat_findings(output):
+    """The classes a `fsck.fat -n` run reported, sorted; 'other' for any line
+    that is not a benign class. Never any file or label text."""
+    found, offsets, previous = set(), set(), None
+    for line in (output or '').splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if FAT_FOLLOW.get(line) is not None and FAT_FOLLOW[line] == previous:
+            continue
+        cls = next((c for c, p in FAT_LINES if p.fullmatch(line)), 'other')
+        if cls == 'backup' and ':' in line and '/' in line:
+            offsets.update(item.split(':')[0] for item in re.findall(r'\d+:[0-9a-f]{2}/[0-9a-f]{2}', line))
+        if cls not in (None, 'backup'):
+            found.add(cls)
+        previous = cls
+    if offsets - FAT_DIRTY_OFFSETS:
+        found.add('backup_differs')
+    return sorted(found)
+
+
+def fat_benign_only(output):
+    """True when a failed `fsck.fat -n` reported only findings Windows mounts
+    over: an unclean unmount, a stale free count, a label mismatch, unused
+    clusters, a differing backup boot sector."""
+    found = fat_findings(output)
+    return bool(found) and 'other' not in found
 
 
 def read_only_check(ctx, card, force=False):
     """The admission check, never a repair. The record keeps no checker
-    output from a failed run (it can name files); an unclean unmount alone
-    passes with `finding`."""
+    output from a failed run (it can name files); benign findings pass with
+    `finding`, and every run names its classes in `findings`."""
     argv = {'ext4': ['e2fsck', '-f', '-n'] if force else ['e2fsck', '-n'],
             'vfat': ['fsck.fat', '-n'], 'exfat': ['fsck.exfat', '-n']}[card['filesystem']]
+    started = time.monotonic()
     result = ctx.command(argv + [card['device']], timeout=60,
                          failure_output=card['filesystem'] == 'vfat')
     check = {'ok': result['ok'], 'reason': result['reason'],
-             'output': result['output'] if result['ok'] else None}
-    if (not result['ok'] and result['reason'] == 'command_failed' and card['filesystem'] == 'vfat'
-            and fat_unclean_only(result['output'])):
-        check.update(ok=True, finding='unclean_unmount')
+             'output': result['output'] if result['ok'] else None,
+             'elapsed_ms': int((time.monotonic() - started) * 1000)}
+    if result['reason'] == 'command_timeout':
+        check['findings'] = ['timeout']
+    elif not result['ok'] and result['reason'] == 'command_failed' and card['filesystem'] == 'vfat':
+        check['findings'] = fat_findings(result['output'])
+        if fat_benign_only(result['output']):
+            # 'unclean_unmount' is the #44 name for the dirty bit alone.
+            check.update(ok=True, finding='unclean_unmount' if check['findings'] == ['dirty'] else 'benign')
+    elif not result['ok']:
+        check['findings'] = ['other']
     return check
+
+
+# Why the last cards were refused or let in, across boots (F12: a card refused
+# at every insertion left no reason in a report). No checker output, no names.
+ADMISSIONS = '/data/system/platform/sd-admissions.json'
+ADMISSIONS_KEPT = 10
+
+
+def remember_admission(ctx, card, check):
+    try:
+        old = ctx.json(ADMISSIONS, {}) or {}
+        entries = [e for e in old.get('admissions', []) if isinstance(e, dict)] if isinstance(old, dict) else []
+        entries.append({'time': int(time.time()), 'card': card['identity']['id'][:12],
+                        'filesystem': card['filesystem'], 'ok': bool(check.get('ok')),
+                        'reason': check.get('reason'), 'finding': check.get('finding'),
+                        'findings': check.get('findings', []), 'elapsed_ms': check.get('elapsed_ms')})
+        directory = ctx.path(ADMISSIONS).parent
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        atomic_json(ctx.path(ADMISSIONS), {'schema': 1, 'admissions': entries[-ADMISSIONS_KEPT:]})
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
 
 
 def candidates(ctx):
@@ -211,6 +280,7 @@ def operation(ctx, action):
                     # the owner must see that failure rather than a RW mount.
                     result = read_only_check(ctx, card)
                     state['filesystem_check'] = result
+                    remember_admission(ctx, card, result)
                     if not result['ok']:
                         state.update(state='Degraded', reason='filesystem_check_failed')
                         atomic_json(runtime / 'media.json', state)
