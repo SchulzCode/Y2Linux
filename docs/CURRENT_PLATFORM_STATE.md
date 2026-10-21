@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.16, Baseline 113 — 2026-10-20 (latest, published)
+## Y2Linux 1.0 Beta 8.17, Baseline 114 — 2026-10-21 (latest, published)
+
+Release `1.0.0-beta.8.17`, tag `baseline-114`, Linux `8719042`, Reborn `6d5458c`, sequence 8100. User reports and
+#51: the headphone crystal keeps running between songs as on stock (no more `ALSA -110` until a reboot), SD cards with
+findings Windows mounts over are admitted, output leaves Bluetooth when headphones drop, Bluetooth search and Connect
+no longer fail while busy, SBC lowers its bitpool on a weak link, update checks retry after a failure.
+Details: [Beta 8.17 report](validation/Y2-LINUX-1.0-BETA-8.17.md).
+
+## Y2Linux 1.0 Beta 8.16, Baseline 113 — 2026-10-20 (published)
 
 Release `1.0.0-beta.8.16`, tag `baseline-113`, Linux `342a130`, Reborn `eea9312`, sequence 8000. Large libraries
 (report from a 28 600-song card): All Songs plays again (queue window of 5 000, random part for Shuffle), a rescan

@@ -1,6 +1,15 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-20): Y2LINUX 1.0 BETA 8.16 (BASELINE 113) PUBLISHED — LARGE LIBRARIES (QUEUE, SCAN SPEED).**
+> **START HERE (2026-10-21): Y2LINUX 1.0 BETA 8.17 (BASELINE 114) PUBLISHED — #51 CRYSTAL, REPORT/REDDIT FIXES F12–F22.**
+> #51 (`XTAL_READY -110` until reboot, the #48 player): crystal now runs until runtime suspend as stock, forced restart,
+> one rail cycle (overlay 0030, `y2_hp/xtal`). F12 SD admission accepts Windows-benign fsck findings (`media.py`
+> `fat_findings`, `sd-admissions.json`); F20 `bt_lost |=`; F21 discovery; F14 intents now reach `/run/y2/bt-intent`
+> (were never read since Oct 5), page cancel, timed holds (`failed`/pending/codec), busy retries; F22 SBC ABR (bluez-alsa
+> 0003); F15, F16, F5, F13 diagnostics, F18 sleep waits for application_ready, F17 DSI double read + Reborn wake retry.
+> Ledger `UserReports/REVIEWED.md`. Not installed before publishing (owner OTA); device checks listed in the 8.17
+> report. Deferred by owner: HLS radio, on-device SD repair. Next free label 115, sequence above 8100.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.16 (BASELINE 113) PUBLISHED — LARGE LIBRARIES (QUEUE, SCAN SPEED).**
 > Report 9765e1e7 (28 600 songs): `invalid queue bounds` on every All Songs play (MAX_QUEUE 20 000; ≈500 B/song in an
 > 8 MiB session) → MAX_QUEUE 5 000 window/random part, trimmed restore (`122607f`). Scans: 757.8 s full, 759.2 s with no
 > change (db 749 s) → scan probe marks seen by id (`5c7e768`, host 54.7 → 0.08 ms/batch); tags read on up to 3 cores at

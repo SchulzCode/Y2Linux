@@ -8987,3 +8987,21 @@ inside the existing LibraryScan lease). No kernel, partition or packaging change
 | Build 113 on a player | NOT INSTALLED BEFORE PUBLISH | owner OTA; health check rolls back a failing Reborn |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.16** (Baseline 113, sequence 8000).
+
+## BETA-8.17 (Baseline 114) user reports and #51: milestone gap audit — 2026-10-21
+
+**Boundary:** owner: fix every open finding from the new reports, Reddit posts and #51 on top of 8.16, publish as
+8.17; HLS radio and an on-device SD repair deferred. Kernel overlays 0030 (codec crystal lifetime, rail cycle) and 0017
+(DSI double read on a persistent lag), a new BlueALSA patch (SBC bitpool steps), platform and Reborn fixes. No
+partition or memory-layout change.
+
+| Area | State for Beta 8.17 | Evidence / gap |
+| --- | --- | --- |
+| #51 headphone crystal | FIXED IN CODE | register-model test (restart, retry, rail cycle, rails left off); not run on a player; crystal power while the codec is active unmeasured |
+| SD admission (F12) | FIXED IN CODE | fsck.fat 4.2 outputs from host images; real-image test |
+| Bluetooth disconnect/search/connect (F20, F21, F14) | FIXED IN CODE | Reborn unit tests, native fake-BlueZ test of the page cancel; page cancel on real BlueZ unconfirmed |
+| SBC bitpool steps (F22) | FIXED IN CODE | host decision tests, ARM compile; no stuttering sink tested |
+| F13 Wi-Fi after wake, F17 dark wake, F18 early sleep | DIAGNOSTICS / MITIGATION | causes unproven; new evidence fields in reports |
+| Build 114 on a player | NOT INSTALLED BEFORE PUBLISH | owner OTA; health check rolls back a failing Reborn |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.17** (Baseline 114, sequence 8100).
