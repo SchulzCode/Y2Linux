@@ -111,6 +111,44 @@ class NetworkTime(unittest.TestCase):
         self.assertEqual(record['error'], 'wrong_credentials')
         self.assertNotIn('private-name', json.dumps(record))
 
+    def test_network_not_found_records_what_the_scan_saw_without_names(self):
+        # F13 (70cce0f1): after a wake the saved network was "not found" for minutes;
+        # nothing said whether it was out of range, on a passive channel or not seen.
+        outputs = {
+            'scan_results': 'bssid / frequency / signal level / flags / ssid\n'
+                            'aa:bb:cc:dd:ee:01\t2462\t-71\t[WPA2-PSK-CCMP][ESS]\thome-net\n'
+                            'aa:bb:cc:dd:ee:02\t5180\t-80\t[WPA2-PSK-CCMP][ESS]\thome-net\n'
+                            'aa:bb:cc:dd:ee:03\t2437\t-50\t[ESS]\tneighbour\n',
+            'list_networks': 'network id / ssid / bssid / flags\n0\thome-net\tany\t[CURRENT]\n',
+            'get': 'DE\n'}
+        def runner(argv, **kw):
+            self.calls.append(argv)
+            return {'ok': True, 'reason': None, 'output': outputs.get(argv[3])}
+        self.ctx.runner = runner
+        monitor = EventMonitor(self.ctx)
+        monitor.event('<3>CTRL-EVENT-NETWORK-NOT-FOUND')
+        record = self.ctx.json('/run/y2/wifi-failure.json')
+        self.assertEqual(record['error'], 'ap_unavailable')
+        self.assertEqual(record['scan'], {'available': True, 'networks': 3, 'saved_networks': 1, 'band_2ghz': 2,
+                                          'band_5ghz': 1, 'saved_seen': True, 'saved_signal_dbm': -71,
+                                          'saved_frequency_mhz': 2462, 'saved_channel': 11,
+                                          'saved_access_points': 2, 'country': 'DE'})
+        text = json.dumps(record)
+        for private in ('home-net', 'neighbour', 'aa:bb'):
+            self.assertNotIn(private, text)
+        # Reported after every scan: wpa_cli is asked at most every 30 s.
+        asked = len(self.calls)
+        monitor.event('<3>CTRL-EVENT-NETWORK-NOT-FOUND')
+        self.assertEqual(len(self.calls), asked)
+        self.assertEqual(self.ctx.json('/run/y2/wifi-failure.json')['failures'], 2)
+        self.assertTrue(self.ctx.json('/run/y2/wifi-failure.json')['scan']['saved_seen'])
+        outputs['scan_results'] = 'bssid / frequency / signal level / flags / ssid\n'
+        with patch('time.monotonic', return_value=time.monotonic() + 31):
+            monitor.event('<3>CTRL-EVENT-NETWORK-NOT-FOUND')
+        scan = self.ctx.json('/run/y2/wifi-failure.json')['scan']
+        self.assertEqual((scan['networks'], scan['saved_seen']), (0, False))
+        self.assertNotIn('saved_channel', scan)
+
     def test_new_lease_dns_does_not_inherit_old_probe_deadline(self):
         schedule = DnsProbeSchedule()
         link = dict(association='COMPLETED', association_id='one',

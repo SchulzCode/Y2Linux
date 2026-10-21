@@ -116,6 +116,58 @@ class ProductAutoSleep(unittest.TestCase):
         record(self.ctx, 'requested', 0, mode='product')
         self.assertNotIn('first_entry', self.ctx.json('/data/system/platform/suspend-last.json'))
 
+    def test_sleep_before_application_ready_waits_for_it_then_sleeps(self):
+        # 4fed1b6a (8.12): sleep 8 s after Reborn started, power features not yet
+        # armed, then a hang right after resume. The kernel entry now waits.
+        self.write('/data/system/platform/boot.json', json.dumps({'boot_id': 'same-boot', 'last_stage': 'services_started'}))
+        ticks = []
+        def tick(seconds):
+            ticks.append(seconds)
+            if len(ticks) == 3:
+                self.write('/data/system/platform/boot.json',
+                           json.dumps({'boot_id': 'same-boot', 'last_stage': 'application_ready'}))
+        entered = []
+        def enter(ctx):
+            entered.append(len(ticks))
+            self.returned()
+        with patch('y2_platform.product_sleep.time.sleep', side_effect=tick):
+            self.assertEqual(self.run_sleep(enter), 0)
+        self.assertEqual(entered, [3])
+        receipt = self.ctx.json('/data/system/platform/suspend-last.json')
+        stages = [s['stage'] for s in receipt['stages']]
+        self.assertLess(stages.index('reborn_prepared'), stages.index('waiting_application_ready'))
+        self.assertLess(stages.index('waiting_application_ready'), stages.index('quiescing_radios'))
+        # Durable rows around the screen restore locate a later stall.
+        self.assertLess(stages.index('kernel_resumed'), stages.index('screen_restoring'))
+        self.assertLess(stages.index('screen_restoring'), stages.index('screen_restored'))
+        self.assertLess(stages.index('screen_restored'), stages.index('restoring_radios'))
+        self.assertEqual(receipt['product']['state'], 'restored')
+
+    def test_the_wait_for_application_ready_is_bounded_and_a_power_press_cancels_it(self):
+        self.write('/data/system/platform/boot.json', json.dumps({'boot_id': 'same-boot', 'last_stage': 'platform_start'}))
+        clock = [1000.0]
+        def tick(seconds):
+            clock[0] += seconds
+        with patch('y2_platform.product_sleep.time.sleep', side_effect=tick), \
+             patch('y2_platform.product_sleep.time.monotonic', side_effect=lambda: clock[0]):
+            self.assertEqual(self.run_sleep(lambda ctx: self.returned()), 0)
+        self.assertGreaterEqual(clock[0] - 1000, pm.APPLICATION_READY_WAIT_S)
+        self.assertEqual(self.ctx.json('/data/system/platform/suspend-last.json')['product']['state'], 'restored')
+        # Power during the wait: no kernel entry, the screen comes back.
+        self.rpc.clear()
+        self.write('/sys/firmware/y2_pm/backstop_s', 'provider=1 armed_s=0 running=0')
+        def press(seconds):
+            self.power += 1
+            self.irqs()
+        entered = []
+        with patch('y2_platform.product_sleep.time.sleep', side_effect=press):
+            self.assertEqual(self.run_sleep(lambda ctx: entered.append(1)), 2)
+        self.assertEqual(entered, [])
+        self.assertEqual(self.rpc, ['sleep_prepare', 'sleep_restore'])
+        receipt = self.ctx.json('/data/system/platform/suspend-last.json')
+        self.assertEqual((receipt['product']['state'], receipt['product']['reason']), ('refused', 'wake_event_in_progress'))
+        self.assertFalse(self.ctx.json(pm.GUARD)['pending'])
+
     def test_rtc_restores_without_automatic_reentry(self):
         self.assertEqual(self.run_sleep(lambda ctx: self.returned(rtc=True)), 0)
         receipt = self.ctx.json('/data/system/platform/suspend-last.json')

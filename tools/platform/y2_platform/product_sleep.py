@@ -29,6 +29,11 @@ PREPARE_RETRY_SECONDS = 120
 # PM_SUSPEND_PREPARE notifiers and the filesystem sync ran, no device callback.
 PRE_FREEZE_MARKS = frozenset(('HELPER_REQUEST', 'SUSPEND_REQUEST', 'BACKSTOP_STARTED',
                               'FILESYSTEM_SYNCED', 'EXIT'))
+# Report 4fed1b6a (8.12): a sleep entered 8 s after Reborn started, before
+# `application_ready` armed the power features, hung right after resume. A
+# sleep requested that early now waits (screen already off) for the stage,
+# at most this long, then goes on as before.
+APPLICATION_READY_WAIT_S = 60
 OPERATION_LOCKS = (
     ('activity_operation', '/run/y2/activity.lock'),
     ('firmware_update', '/data/updates/.stage.lock'),
@@ -264,6 +269,29 @@ def quiesce_radio(ctx, radio):
         time.sleep(1)
 
 
+def application_starting(ctx):
+    """True only while this boot's journal says the UI has not reached
+    `application_ready` yet; unknown or another boot is not "starting"."""
+    journal = ctx.json('/data/system/platform/boot.json', {})
+    return (isinstance(journal, dict) and journal.get('boot_id') == ctx.read('/proc/sys/kernel/random/boot_id')
+            and journal.get('last_stage') in ('platform_start', 'services_started'))
+
+
+def wait_for_application(ctx, previous_irqs, wait_s=APPLICATION_READY_WAIT_S):
+    """Defer kernel entry until `application_ready`, bounded. A Power or RTC
+    wake during the wait cancels the sleep like any wake before entry."""
+    from .sleep import wake_irqs
+    from .suspend_record import record
+    if not application_starting(ctx):
+        return
+    record(ctx, 'waiting_application_ready', 0)
+    deadline = time.monotonic() + wait_s
+    while application_starting(ctx) and time.monotonic() < deadline:
+        time.sleep(.25)
+        if previous_irqs is not None and wake_irqs(ctx.read('/proc/interrupts')) != previous_irqs:
+            raise Refused('wake_event_in_progress')
+
+
 def screen_first(ctx):
     """Ask Reborn to light the screen before the radios are restored."""
     from .suspend_record import application_rpc
@@ -271,6 +299,14 @@ def screen_first(ctx):
         return application_rpc(ctx, 'sleep_restore')
     except (OSError, ValueError):
         return None
+
+
+def progress(ctx, stage):
+    """One durable row in the sleep receipt without the sysfs reads of a full
+    record (a stalled driver could block those too). Never raises."""
+    from .suspend_record import progress as row
+    with contextlib.suppress(OSError, ValueError, TypeError):
+        row(ctx, stage)
 
 
 def marker(ctx, stage):
@@ -355,6 +391,7 @@ def execute_owned(ctx, fd, enter, locks):
         except OSError as error:
             raise Refused('reborn_preparation_unavailable') from error
         prepared = True
+        wait_for_application(ctx, previous_irqs)
         record(ctx, 'quiescing_radios', 0)
         radios_changed = True
         for radio in ('wifi', 'bluetooth'):
@@ -455,7 +492,11 @@ def execute_owned(ctx, fd, enter, locks):
             # and RF calibration take ≈1.6 s (archive 110) and the UI used to
             # wait for them; it does not depend on the radios. A failed early
             # restore is retried by the completion record, as before.
+            # 4fed1b6a: nothing durable followed `kernel_resumed`; these two
+            # light rows say whether a stall is in the screen restore or after it.
+            progress(ctx, 'screen_restoring')
             screen = screen_first(ctx)
+            progress(ctx, 'screen_restored' if screen else 'screen_restore_failed')
             try:
                 record(ctx, 'restoring_radios', result)
                 marker(ctx, 'RADIOS_RESTORING')

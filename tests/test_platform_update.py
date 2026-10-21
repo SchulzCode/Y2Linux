@@ -871,6 +871,13 @@ class PlatformPolicyTests(unittest.TestCase):
             self.assertEqual(staged.call_count, 2)
             self.assertIsNone(update.automatic_check(self.ctx, now=1000 + 7200))   # within a day of a real check
             self.assertEqual(update.automatic_check(self.ctx, now=1000 + 3600 + 86401)['release_version'], 'new')
+        # A failed record written by ≤ 8.14 kept `time` (ef22a23d): it no longer holds off a day.
+        (self.root/'data/updates/last-check.json').write_text(json.dumps(
+            {'schema': 1, 'attempt': 5000, 'time': 5000, 'result': 'failed', 'failure': '[Errno 11]'}))
+        with patch('y2_platform.timekeeping.status', return_value={'tls_ready': True}), \
+             patch.object(update, 'stage', return_value={'release_version': 'newer'}) as staged:
+            self.assertEqual(update.automatic_check(self.ctx, now=5000 + 3601)['release_version'], 'newer')
+            staged.assert_called_once()
         # Offline: no network call, but the attempt is remembered.
         (self.root/'run/y2/network.json').write_text(json.dumps({'state': 'Associating'}))
         with patch.object(update, 'stage') as staged:
@@ -974,9 +981,17 @@ class PlatformPolicyTests(unittest.TestCase):
             self.assertEqual(popen.call_count, 1)
             (self.root/'data/updates/last-check.json').write_text(json.dumps({'attempt': clock.time() - 60}))
             self.assertIsNone(daily_update_check(self.ctx, {'state': 'Online'}, None))
-            (self.root/'data/updates/last-check.json').write_text(json.dumps({'attempt': clock.time() - 7200, 'time': clock.time() - 7200}))
+            (self.root/'data/updates/last-check.json').write_text(json.dumps(
+                {'attempt': clock.time() - 7200, 'time': clock.time() - 7200, 'result': 'checked'}))
             self.assertIsNone(daily_update_check(self.ctx, {'state': 'Online'}, None))
             self.assertEqual(popen.call_count, 1)
+            # Report ef22a23d: ≤ 8.14 stamped `time` on a failed check too; that
+            # one waits an hour like any failed attempt, not a day.
+            (self.root/'data/updates/last-check.json').write_text(json.dumps(
+                {'attempt': clock.time() - 7200, 'time': clock.time() - 7200, 'result': 'failed',
+                 'failure': '[Errno 11] Resource temporarily unavailable'}))
+            daily_update_check(self.ctx, {'state': 'Online'}, None)
+            self.assertEqual(popen.call_count, 2)
             running = popen.return_value
             running.poll.return_value = None
             self.assertIs(daily_update_check(self.ctx, {'state': 'Online'}, running), running)

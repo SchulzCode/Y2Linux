@@ -109,6 +109,10 @@ def daily_update_check(ctx, network, child):
     now = time.time()
     for key, period in (('time', 24 * 3600), ('attempt', 3600)):
         stamp = last.get(key)
+        # Only a check that reached the server starts the next day; ≤ 8.14 also
+        # stamped `time` on a failed one (report ef22a23d: no check for a day).
+        if key == 'time' and last.get('result') != 'checked':
+            continue
         if type(stamp) in (int, float) and 0 <= now - stamp < period:
             return None
     import subprocess

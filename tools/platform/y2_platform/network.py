@@ -204,8 +204,49 @@ class DnsProbeSchedule:
         return True
 
 
+def _channel(frequency):
+    if 2412 <= frequency <= 2472:
+        return (frequency - 2407) // 5
+    if frequency == 2484:
+        return 14
+    if 5000 <= frequency <= 5900:
+        return (frequency - 5000) // 5
+    return None
+
+
+def scan_evidence(ctx):
+    """Why the saved network was "not found" (F13: Wi-Fi did not come back after
+    a wake on one player, cause unproven): how many networks the last scan saw,
+    whether a saved one was among them, its best signal and channel, and the
+    regulatory country (country=00 scans channels 12/13 passively). Never a
+    network name or address."""
+    scan = ctx.command(['wpa_cli', '-i', 'wlan0', 'scan_results'], timeout=2)
+    saved = ctx.command(['wpa_cli', '-i', 'wlan0', 'list_networks'], timeout=2)
+    if not scan['ok'] or not saved['ok']:
+        return {'available': False}
+    names = {row[1] for row in (line.split('\t') for line in (saved['output'] or '').splitlines()[1:])
+             if len(row) >= 2 and row[1]}
+    rows = [row for row in (line.split('\t') for line in (scan['output'] or '').splitlines()[1:])
+            if len(row) >= 3 and row[1].isdigit() and re.fullmatch(r'-?\d+', row[2])]
+    result = {'available': True, 'networks': len(rows), 'saved_networks': len(names),
+              'band_2ghz': sum(int(row[1]) < 3000 for row in rows),
+              'band_5ghz': sum(int(row[1]) >= 5000 for row in rows)}
+    hits = [row for row in rows if len(row) >= 5 and row[4] in names]
+    result['saved_seen'] = bool(hits)
+    if hits:
+        best = max(hits, key=lambda row: int(row[2]))
+        result.update(saved_signal_dbm=int(best[2]), saved_frequency_mhz=int(best[1]),
+                      saved_channel=_channel(int(best[1])), saved_access_points=len(hits))
+    country = ctx.command(['wpa_cli', '-i', 'wlan0', 'get', 'country'], timeout=2)
+    value = (country.get('output') or '').strip()
+    if country['ok'] and re.fullmatch(r'[0-9A-Z]{2}', value):
+        result['country'] = value
+    return result
+
+
 class EventMonitor:
     """Passive supplicant events. Never issues CONNECT or owns reconnect."""
+    SCAN_EVIDENCE_S = 30
     def __init__(self, ctx):
         self.ctx, self.sock, self.path = ctx, None, None
         self.generation = None
@@ -273,6 +314,15 @@ class EventMonitor:
             return
         old = self.ctx.json('/run/y2/wifi-failure.json', {})
         failures = old.get('failures', 0)
-        publish(self.ctx, 'wifi-failure', {'error': error,
-                'epoch': self.ctx.read('/run/y2/wifi-epoch'),
-                'failures': (failures if isinstance(failures, int) else 0) + bool(error)})
+        record = {'error': error, 'epoch': self.ctx.read('/run/y2/wifi-epoch'),
+                  'failures': (failures if isinstance(failures, int) else 0) + bool(error)}
+        if error == 'ap_unavailable':
+            # wpa_supplicant reports this after every scan: look at most every 30 s.
+            last = old.get('scan_monotonic_s')
+            if (old.get('boot_id') == self.ctx.read('/proc/sys/kernel/random/boot_id') and
+                    isinstance(last, (int, float)) and 0 <= time.monotonic() - last < self.SCAN_EVIDENCE_S and
+                    isinstance(old.get('scan'), dict)):
+                record.update(scan=old['scan'], scan_monotonic_s=last)
+            else:
+                record.update(scan=scan_evidence(self.ctx), scan_monotonic_s=time.monotonic())
+        publish(self.ctx, 'wifi-failure', record)

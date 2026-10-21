@@ -543,6 +543,10 @@ def automatic_check(ctx, now=None):
     now = time.time() if now is None else now
     directory = private_directory(ctx.path('/data/updates'))
     last = ctx.json('/data/updates/last-check.json', {}) or {}
+    # `time` counts only from a check that reached the server: ≤ 8.14 kept it on
+    # a failed one too, which held off every automatic check for a day (ef22a23d).
+    if last.get('result') != 'checked':
+        last = {k: v for k, v in last.items() if k != 'time'}
     if type(last.get('time')) in (int, float) and 0 <= now - last['time'] < CHECK_INTERVAL:
         return None
     # Any attempt is recorded, so an unready clock retries hourly, not every tick.

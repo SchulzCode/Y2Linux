@@ -523,7 +523,7 @@ FILES = (
     '/data/system/platform/suspend-last.json', '/data/system/platform/product-sleep-guard.json',
     '/data/system/platform/rtc-policy.json', '/data/system/platform/time-last.json',
     '/data/system/platform/battery-ui.json', '/data/system/platform/panel.json',
-    '/data/system/platform/retained/*.tar',
+    '/data/system/platform/sd-admissions.json', '/data/system/platform/retained/*.tar',
     '/data/updates/*.json', '/data/updates/current/manifest.json',
     '/run/y2/*.json', '/run/y2/*.jsonl', '/run/y2/*.log',
     '/data/bluetooth/codec-history.json', '/data/bluetooth/enabled', '/data/network/enabled',
@@ -1271,7 +1271,15 @@ def check(ctx):
         where = [record.get(k) for k in ('version', 'location', 'message')] if isinstance(record, dict) else []
         signature = (hashlib.sha256(json.dumps(where).encode()).hexdigest()[:16] if any(where)
                      else str(int(panic.stat().st_mtime)))
-        if _changed(value, 'reborn_panic', signature):
+        # A panic of an earlier release is not news on this one: a player that
+        # updated past 8.12 resent its old #49 panic once (19a41489, d48362a7).
+        # Its hash is still recorded and the file still goes into any report.
+        version = record.get('version') if isinstance(record, dict) else None
+        running = (ctx.json('/etc/y2linux/release.json', {}) or
+                   ctx.json('/etc/y2linux/versions.json', {}) or {}).get('reborn_version')
+        earlier = (isinstance(version, str) and isinstance(running, str) and running and
+                   version != running and not version.startswith(running + '-'))
+        if _changed(value, 'reborn_panic', signature) and not earlier:
             # Reborn 8.12 catches a worker's panic, skips that one file and runs on.
             isolated = isinstance(record, dict) and record.get('isolated') is True
             fired.append(('reborn_crash', 'isolated panic' if isolated else 'panic'))

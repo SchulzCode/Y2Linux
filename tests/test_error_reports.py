@@ -332,6 +332,21 @@ class Report(unittest.TestCase):
               json.dumps(record | {'location': 'worker.rs:9', 'isolated': True, 'session': 'next'}))
         self.assertEqual(report.check(self.ctx), [])
 
+    def test_an_earlier_release_panic_is_not_reported_again_after_an_update(self):
+        # 19a41489, d48362a7: a player updated past 8.12 resent its old 8.10 #49
+        # panic once on the new release. Still recorded, still in a report's files.
+        report.set_enabled(self.ctx, True)
+        # The image carries the version in versions.json (no release.json on a player).
+        write(self.root, '/etc/y2linux/versions.json', json.dumps({'reborn_version': '1.0.0-beta.8.17'}))
+        old = {'version': '1.0.0-beta.8.10-product-ui-v3', 'location': 'playlists.rs:223', 'message': 'not a char boundary'}
+        write(self.root, '/data/reborn/logs/panic-last.json', json.dumps(old))
+        self.assertEqual(report.check(self.ctx), [])
+        self.assertEqual(report.check(self.ctx), [])
+        # The running release's own panic (Reborn adds its build suffix) is reported.
+        write(self.root, '/data/reborn/logs/panic-last.json',
+              json.dumps(old | {'version': '1.0.0-beta.8.17-product-ui-v3'}))
+        self.assertEqual(report.check(self.ctx), [('reborn_crash', 'panic')])
+
     @unittest.skipUnless(Path('/proc/version').is_file(), 'needs procfs')
     def test_files_without_a_size_are_read_through(self):
         # seq_file refuses SEEK_END: /proc and debugfs were left out of every report.

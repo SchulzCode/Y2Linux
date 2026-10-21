@@ -99,6 +99,19 @@ def record(ctx, stage, result=None, reason=None, reborn_ack=None, mode=None, res
     return value
 
 
+def progress(ctx, stage):
+    """Append one stage row to the receipt, durably, reading no sysfs and
+    changing no product state: locates a stall between two full records."""
+    directory = private_directory(ctx.path('/data/system/platform'))
+    value = ctx.json('/data/system/platform/suspend-last.json', {})
+    if not isinstance(value, dict):
+        return
+    value.setdefault('stages', []).append({'stage': stage, 'time': time.time(),
+                                           'boottime_s': time.clock_gettime(time.CLOCK_BOOTTIME)})
+    value['stages'] = value['stages'][-32:]
+    atomic_json(directory / 'suspend-last.json', value, durable=True)
+
+
 def application_rpc(ctx, operation, **fields):
     """Bounded explicit application acknowledgement, never just process liveness."""
     request = {'version': 1, 'id': 6582, 'command': {'op': operation, **fields}}
