@@ -150,6 +150,32 @@ class CodecQuality(unittest.TestCase):
         self.ctx.path('/proc/sys/kernel/random/boot_id').write_text('next-boot')
         self.assertIsNone(configure(self.ctx)['effective'])
 
+    def test_sbc_adaptive_bitpool_is_on_by_default_and_switchable(self):
+        from y2_platform.codec_controls import configure
+        args = codec_runtime(self.ctx)
+        self.assertIn('--sbc-abr', args)  # also for settings saved before 8.17
+        self.assertLess(args.index('--sbc-quality=high'), args.index('--sbc-abr'))
+        script = (Path(__file__).resolve().parents[1] /
+                  'buildroot/board/y2/production-overlay/usr/libexec/y2/connectivity').read_text()
+        self.assertIn('|--sbc-abr|', script)
+        value = configure(self.ctx, sbc_abr=False)
+        self.assertEqual((value['requested']['sbc_abr'], value['supported']['sbc_abr']), (False, True))
+        self.assertNotIn('--sbc-abr', codec_runtime(self.ctx))
+        with self.assertRaises(ValueError): configure(self.ctx, sbc_abr='on')
+
+    def test_sbc_live_bitpool_and_adjustments_are_observed(self):
+        from y2_platform.codec_observation import quality
+        pcm = {'Running': True, 'Rate': 44100, 'CodecConfiguration': [0x21, 0x15, 2, 53],
+               'EncoderStats': {'Active': 1, 'Bitpool': 53, 'BitrateKbps': 328,
+                                'AbrEnabled': 1, 'AbrAdjustments': 0}}
+        value = quality('SBC', pcm, {})
+        self.assertEqual((value['sbc_bitpool'], value['sbc_abr_enabled'], value['sbc_abr_adjustments']), (53, True, 0))
+        pcm['EncoderStats'].update(Bitpool=35, BitrateKbps=229, AbrAdjustments=2)
+        value = quality('SBC', pcm, {})
+        self.assertEqual((value['sbc_bitpool'], value['bitrate_bps'], value['sbc_abr_adjustments']), (35, 229000, 2))
+        pcm['Running'] = False
+        self.assertIsNone(quality('SBC', pcm, {})['sbc_abr_enabled'])
+
     def test_invalid_preferences_never_modify_saved_settings(self):
         from y2_platform.codec_controls import configure
         for value in ('unknown', '', ';reboot'):

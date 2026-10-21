@@ -91,6 +91,8 @@ def codec_runtime(ctx, record=False):
     if quality not in ('high', 'xq', 'xq+'):
         raise ValueError('invalid_sbc_quality')
     args.append('--sbc-quality=' + quality)
+    if policy.get('sbc_abr', True) is True:
+        args.append('--sbc-abr')
     if '--codec=AAC' in args:
         # The patched encoder caps this by the peer and by one packet per frame.
         if policy.get('aac_quality', 'high') == 'high':

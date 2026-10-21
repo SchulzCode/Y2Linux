@@ -42,6 +42,7 @@ def main():
     codec_runtime.add_argument('--record', action='store_true')
     codec_settings = sub.add_parser('codec-settings')
     codec_settings.add_argument('--sbc-quality', choices=['high', 'xq', 'xq+'])
+    codec_settings.add_argument('--sbc-abr', choices=['on', 'off'])
     codec_settings.add_argument('--ldac-quality', choices=['mobile', 'standard', 'high'])
     codec_settings.add_argument('--ldac-abr', choices=['on', 'off'])
     codec_settings.add_argument('--aac-quality', choices=['standard', 'high'])
@@ -149,7 +150,9 @@ def main():
     if args.command == 'codec-settings':
         from .codec_controls import configure
         try:
-            result = configure(ctx, sbc_quality=args.sbc_quality, ldac_quality=args.ldac_quality,
+            result = configure(ctx, sbc_quality=args.sbc_quality,
+                               sbc_abr=None if args.sbc_abr is None else args.sbc_abr == 'on',
+                               ldac_quality=args.ldac_quality,
                                ldac_abr=None if args.ldac_abr is None else args.ldac_abr == 'on',
                                aac_quality=args.aac_quality,
                                aac_abr=None if args.aac_abr is None else args.aac_abr == 'on')

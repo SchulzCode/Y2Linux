@@ -6,8 +6,9 @@ from .common import atomic_json
 
 # AAC "high": FDK afterburner and up to the peer's maximum rate where a frame
 # still fits one packet (AirPods: 256 kbit/s); "standard" is BlueALSA's tested
-# 220 kbit/s. Adaptive rate steps CBR AAC down while the link backs up.
-DEFAULTS = {'sbc_quality': 'high', 'ldac_quality': 'standard', 'ldac_abr': True,
+# 220 kbit/s. Adaptive rate steps CBR AAC down while the link backs up, and
+# the SBC bit-pool (53 -> 45 -> 35) the same way (BlueALSA patch 0003).
+DEFAULTS = {'sbc_quality': 'high', 'sbc_abr': True, 'ldac_quality': 'standard', 'ldac_abr': True,
             'aac_quality': 'high', 'aac_abr': True}
 
 
@@ -22,7 +23,7 @@ def requested(ctx):
 
 
 def validate(value):
-    if any(type(value.get(key)) is not bool for key in ('experimental', 'ldac_abr', 'aac_abr')):
+    if any(type(value.get(key)) is not bool for key in ('experimental', 'sbc_abr', 'ldac_abr', 'aac_abr')):
         raise ValueError('invalid_codec_boolean')
     # SBC XQ is an owner choice (some SBC-only headphones sound much better,
     # a few refuse it); the default stays "high".
@@ -51,7 +52,7 @@ def status(ctx):
             'effective': effective, 'effective_scope': 'daemon_start_arguments',
             'pending_restart': effective != policy,
             'apply_action': 'restart_player',
-            'supported': {'sbc_quality': ['high', 'xq', 'xq+'],
+            'supported': {'sbc_quality': ['high', 'xq', 'xq+'], 'sbc_abr': True,
                           'aac_quality': ['standard', 'high'] if inventory.get('codecs', {}).get('AAC', {}).get('compiled_locally') else [],
                           'aac_abr': inventory.get('codecs', {}).get('AAC', {}).get('compiled_locally') is True,
                           'ldac_quality': ['mobile', 'standard', 'high'] if inventory.get('codecs', {}).get('LDAC', {}).get('compiled_locally') else [],

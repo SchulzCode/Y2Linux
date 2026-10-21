@@ -1,0 +1,225 @@
+Adaptive bit-pool for SBC (Y2Linux), the counterpart of AAC ABR (patch 0002).
+
+SBC kept its configured bit-pool on a weak link (53 at 44.1 kHz joint stereo,
+~328 kbit/s): a sink with a poor radio, such as a cheap SBC-only soundbar, ran
+dry and stuttered while other sinks coped with the same rate. With --sbc-abr
+the encoder steps the bit-pool down (100%, 85%, 66% of the configured value:
+53 -> 45 -> 35, never below the peer's negotiated minimum) when two packets are
+queued or a write had to wait, and back up after ~10 s with an empty queue.
+libsbc applies a new bit-pool from the next frame on; frames per packet stay
+as sized for the configured bit-pool. EncoderStats (patch 0001) reports the
+live Bitpool, BitrateKbps, AbrEnabled and AbrAdjustments.
+Decisions: src/y2-sbc-abr.h.
+
+--- a/src/ba-config.h
++++ b/src/ba-config.h
+@@ -160,6 +160,8 @@
+ 	 * is also known as SBC XQ Dual Channel HD. The "+" version uses bitpool 47
+ 	 * instead of 38. */
+ 	uint8_t sbc_quality;
++	/* Y2: adaptive bit-pool (y2-sbc-abr.h) */
++	bool sbc_abr;
+ 
+ #if ENABLE_AAC
+ 	bool aac_afterburner;
+--- a/src/ba-config.c
++++ b/src/ba-config.c
+@@ -91,6 +91,8 @@
+ 
+ 	/* Try to use high SBC encoding quality as a default. */
+ 	.sbc_quality = SBC_QUALITY_HIGH,
++	/* Y2: adaptive SBC bit-pool is opt-in (--sbc-abr). */
++	.sbc_abr = false,
+ 
+ #if ENABLE_AAC
+ 	/* There are two issues with the afterburner: a) it uses a LOT of power,
+--- a/src/main.c
++++ b/src/main.c
+@@ -185,6 +185,7 @@
+ 		{ "a2dp-force-mono", no_argument, NULL, 6 },
+ 		{ "a2dp-force-audio-cd", no_argument, NULL, 7 },
+ 		{ "sbc-quality", required_argument, NULL, 14 },
++		{ "sbc-abr", no_argument, NULL, 201 },
+ #if ENABLE_AAC
+ 		{ "aac-afterburner", no_argument, NULL, 4 },
+ 		{ "aac-bitrate", required_argument, NULL, 5 },
+@@ -340,6 +341,7 @@
+ 					"      --a2dp-force-mono\t\ttry to force monophonic audio for A2DP profiles\n"
+ 					"      --a2dp-force-audio-cd\ttry to force 44.1 kHz sampling for A2DP profiles\n"
+ 					"      --sbc-quality=MODE\tset SBC encoder quality; default: %s\n"
++					"      --sbc-abr\t\t\tadapt the SBC bit-pool to the link (Y2)\n"
+ #if ENABLE_AAC
+ 					"      --aac-afterburner\t\tenable FDK AAC afterburner\n"
+ 					"      --aac-bitrate=BPS\t\tset AAC CBR bitrate or max peak for VBR; default: %u\n"
+@@ -627,6 +629,9 @@
+ 			config.sbc_quality = entry->v.u;
+ 			break;
+ 		}
++		case 201 /* --sbc-abr */ :
++			config.sbc_abr = true;
++			break;
+ 
+ #if ENABLE_AAC
+ 		case 4 /* --aac-afterburner */ :
+--- a/src/a2dp-sbc.c
++++ b/src/a2dp-sbc.c
+@@ -15,7 +15,9 @@
+ #include <stdbool.h>
+ #include <stddef.h>
+ #include <stdint.h>
++#include <stdlib.h>
+ #include <string.h>
++#include <sys/ioctl.h>
+ #include <sys/param.h>
+ #include <sys/types.h>
+ 
+@@ -36,6 +38,7 @@
+ #include "shared/ffb.h"
+ #include "shared/log.h"
+ #include "shared/rt.h"
++#include "y2-sbc-abr.h"
+ 
+ static const struct a2dp_bit_mapping a2dp_sbc_channels[] = {
+ 	{ SBC_CHANNEL_MODE_MONO, .ch = { 1, a2dp_channel_map_mono } },
+@@ -150,7 +153,10 @@
+ 	g_atomic_int_set(&t_pcm->encoder_active, 0);
+ 	g_atomic_int_set(&t_pcm->encoder_adjustments, 0);
+ 	g_atomic_int_set(&t_pcm->encoder_errors, 0);
+-	g_atomic_int_set(&t_pcm->encoder_abr, 0);
++	/* Y2: the configured bit-pool is the top level (y2-sbc-abr.h). */
++	struct y2_sbc_abr abr;
++	y2_sbc_abr_init(&abr, sbc.bitpool, configuration->min_bitpool, rate, config.sbc_abr);
++	g_atomic_int_set(&t_pcm->encoder_abr, abr.enabled);
+ 	g_atomic_int_set(&t_pcm->encoder_quality, config.sbc_quality);
+ 	g_atomic_int_set(&t_pcm->encoder_bitpool, sbc.bitpool);
+ 	g_atomic_int_set(&t_pcm->encoder_bitrate_kbps,
+@@ -210,6 +216,8 @@
+ 				sbc_reinit_a2dp(&sbc, 0, configuration, sizeof(*configuration));
+ 				sbc.bitpool = sbc_a2dp_get_bitpool(configuration, config.sbc_quality);
+ 				sbc.endian = SBC_LE;
++				y2_sbc_abr_init(&abr, sbc.bitpool, configuration->min_bitpool, rate, config.sbc_abr);
++				g_atomic_int_set(&t_pcm->encoder_bitpool, sbc.bitpool);
+ 				continue;
+ 			}
+ 			error("PCM poll and read error: %s", strerror(errno));
+@@ -260,6 +268,12 @@
+ 			rtp_state_new_frame(&rtp, rtp_header);
+ 			rtp_media_header->frame_count = sbc_frames;
+ 
++			/* Y2: socket queue before this packet, as for LDAC ABR. */
++			int queued_bytes = 0;
++			if (ioctl(t->bt_fd, TIOCOUTQ, &queued_bytes) != -1)
++				queued_bytes = abs(t->media.bt_fd_coutq_init - queued_bytes);
++			errno = 0;
++
+ 			ssize_t len = ffb_blen_out(&bt);
+ 			if ((len = io_bt_write(t_pcm, bt.data, len)) <= 0) {
+ 				if (len == -1)
+@@ -267,6 +281,20 @@
+ 				goto fail;
+ 			}
+ 
++			/* io_bt_write() leaves EAGAIN when it had to wait for room. A new
++			 * bit-pool applies from the next encoded frame on. */
++			const unsigned int next = y2_sbc_abr_update(&abr,
++					(unsigned int)queued_bytes / t->mtu_write, errno == EAGAIN, (unsigned int)pcm_frames);
++			if (next != 0) {
++				debug("SBC bit-pool: %u -> %u", sbc.bitpool, next);
++				sbc.bitpool = (uint8_t)next;
++				g_atomic_int_set(&t_pcm->encoder_bitpool, next);
++				g_atomic_int_set(&t_pcm->encoder_bitrate_kbps,
++					8 * sbc_get_frame_length(&sbc) * rate /
++					(sbc_frame_pcm_samples / channels) / 1000);
++				g_atomic_int_inc(&t_pcm->encoder_adjustments);
++			}
++
+ 			g_atomic_int_set(&t_pcm->encoder_active, 1);
+ 
+ 			if (!io.initiated) {
+--- /dev/null
++++ b/src/y2-sbc-abr.h
+@@ -0,0 +1,84 @@
++/*
++ * Y2Linux: adaptive bit-pool for SBC, the counterpart of y2-aac-abr.h.
++ *
++ * SBC kept its full bit-pool (53 at 44.1 kHz joint stereo, ~328 kbit/s) on a
++ * weak link, so a sink with a poor radio ran dry and stuttered while others
++ * coped. This steps the bit-pool down (100%, 85%, 66%: 53 -> 45 -> 35) while
++ * the socket queue backs up and back up after a quiet stretch, never below
++ * the peer's negotiated minimum. libsbc applies a new bit-pool from the next
++ * frame on. Pure decisions, no I/O: unit-tested.
++ *
++ * This file is free software; you can redistribute it and/or modify it under
++ * the terms of the MIT license. See the COPYING file for details.
++ */
++#ifndef Y2_SBC_ABR_H_
++#define Y2_SBC_ABR_H_
++
++#include <stdbool.h>
++
++#define Y2_SBC_ABR_LEVELS 3
++/* Never step twice within this time (as for AAC). */
++#define Y2_SBC_ABR_HOLD_MS 200
++/* Time with an empty socket queue before stepping up. */
++#define Y2_SBC_ABR_CALM_MS 10000
++
++struct y2_sbc_abr {
++	bool enabled;
++	unsigned int level;
++	unsigned int levels;
++	unsigned int bitpools[Y2_SBC_ABR_LEVELS];
++	/* both counted in PCM frames, so packet size does not matter */
++	unsigned int hold, calm_needed;
++	unsigned int calm, since_change;
++};
++
++static inline void y2_sbc_abr_init(struct y2_sbc_abr *abr, unsigned int bitpool,
++		unsigned int min_bitpool, unsigned int rate, bool enabled) {
++	static const unsigned int percent[Y2_SBC_ABR_LEVELS] = { 100, 85, 66 };
++	abr->level = abr->levels = abr->calm = abr->since_change = 0;
++	for (unsigned int i = 0; i < Y2_SBC_ABR_LEVELS; i++) {
++		unsigned int value = (bitpool * percent[i] + 50) / 100;
++		if (value < min_bitpool)
++			value = min_bitpool < bitpool ? min_bitpool : bitpool;
++		/* Levels the peer's minimum folds together are dropped. */
++		if (abr->levels == 0 || value < abr->bitpools[abr->levels - 1])
++			abr->bitpools[abr->levels++] = value;
++	}
++	abr->hold = rate * Y2_SBC_ABR_HOLD_MS / 1000;
++	abr->calm_needed = rate * (Y2_SBC_ABR_CALM_MS / 1000);
++	/* Nothing to adapt when every level is the same bit-pool. */
++	abr->enabled = enabled && abr->levels > 1;
++}
++
++/* Call once per written packet with the socket queue depth (in packets)
++ * seen before writing it, whether the write had to wait and the PCM frames
++ * it carried. Returns the new bit-pool when the level changes, otherwise 0. */
++static inline unsigned int y2_sbc_abr_update(struct y2_sbc_abr *abr,
++		unsigned int queued_packets, bool blocked, unsigned int pcm_frames) {
++	if (!abr->enabled)
++		return 0;
++	if (abr->since_change < abr->hold)
++		abr->since_change += pcm_frames;
++	if (blocked || queued_packets >= 2) {
++		abr->calm = 0;
++		if (abr->level + 1 < abr->levels && abr->since_change >= abr->hold) {
++			abr->level++;
++			abr->since_change = 0;
++			return abr->bitpools[abr->level];
++		}
++		return 0;
++	}
++	if (queued_packets != 0)
++		abr->calm = 0;
++	else if (abr->calm < abr->calm_needed)
++		abr->calm += pcm_frames;
++	if (abr->level > 0 && abr->calm >= abr->calm_needed) {
++		abr->level--;
++		abr->calm = 0;
++		abr->since_change = 0;
++		return abr->bitpools[abr->level];
++	}
++	return 0;
++}
++
++#endif

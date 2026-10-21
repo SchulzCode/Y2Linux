@@ -12,7 +12,7 @@ start_bluealsa() {
     set -f
     set -- $codec_args
     for arg do
-        case "$arg" in --codec=-AAC|--codec=-aptX|--codec=-aptX-HD|--codec=-LDAC|--codec=AAC|--codec=aptX|--codec=aptX-HD|--codec=LDAC|--sbc-quality=high|--sbc-quality=xq|--sbc-quality=xq+|--ldac-quality=mobile|--ldac-quality=standard|--ldac-quality=high|--ldac-abr|--aac-afterburner|--aac-bitrate=320000|--aac-abr) ;;
+        case "$arg" in --codec=-AAC|--codec=-aptX|--codec=-aptX-HD|--codec=-LDAC|--codec=AAC|--codec=aptX|--codec=aptX-HD|--codec=LDAC|--sbc-quality=high|--sbc-quality=xq|--sbc-quality=xq+|--sbc-abr|--ldac-quality=mobile|--ldac-quality=standard|--ldac-quality=high|--ldac-abr|--aac-afterburner|--aac-bitrate=320000|--aac-abr) ;;
             *) return 1;; esac
     done
     start-stop-daemon -S -b -m -p /run/y2/bluealsa.pid -x /usr/bin/bluealsad -- \

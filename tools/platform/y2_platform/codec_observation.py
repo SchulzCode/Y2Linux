@@ -14,6 +14,7 @@ def quality(codec, pcm, settings):
              'encoder_observed': live, 'bitrate_bps': None,
              'bitrate_scope': 'encoder_payload_nominal_not_radio_throughput',
              'sbc_quality': None, 'sbc_bitpool': None, 'sbc_xq_peer_mode': None,
+             'sbc_abr_enabled': None, 'sbc_abr_adjustments': None,
              'ldac_quality_index': None, 'ldac_nominal_choices_kbps': None,
              'ldac_abr_enabled': None, 'ldac_abr_adjustments': None,
              'ldac_abr_adaptation_observed': False,
@@ -29,6 +30,11 @@ def quality(codec, pcm, settings):
             value['sbc_bitpool'] = bitpool
             if bitpool is not None:
                 value['sbc_quality'] = 'xq+' if xq_mode and bitpool == 47 else 'xq' if xq_mode and bitpool == 38 else 'standard'
+        # BlueALSA patch 0003: Bitpool above is the live (possibly stepped
+        # down) value; adjustments count how often the link forced a change.
+        enabled = observed('AbrEnabled', 0, 1)
+        value['sbc_abr_enabled'] = bool(enabled) if enabled is not None else None
+        value['sbc_abr_adjustments'] = observed('AbrAdjustments')
     elif codec == 'LDAC':
         rate = pcm.get('Rate')
         value['ldac_nominal_choices_kbps'] = [303, 606, 909] if rate in (44100, 88200) else [330, 660, 990] if rate in (48000, 96000) else None

@@ -27,7 +27,8 @@ static guint evaluation_source;
 static void schedule_evaluation(guint milliseconds);
 static GHashTable *connected;
 static char preferred[18];
-static gboolean inhibited, pending, was_powered;
+static gboolean inhibited, pending, was_powered, aborting;
+static char *pending_path;
 static struct y2_reconnect_budget budget;
 static gint64 connected_since, control_sequence, control_until;
 static unsigned failures, completed, total_attempts;
@@ -95,6 +96,24 @@ static void load_state(void)
 	}
 	g_free(path);g_key_file_unref(file);
 }
+static void abort_done(GObject *object,GAsyncResult *result,gpointer unused)
+{
+	(void)unused;
+	GVariant *reply=g_dbus_connection_call_finish(G_DBUS_CONNECTION(object),result,NULL);
+	if(reply) g_variant_unref(reply);
+}
+/* A user waits for the common lease (connect_pending/power_pending) while an
+ * automatic page holds it: BlueZ answers an absent peer only after ~20 s
+ * (report 70cce0f1: two Connect taps refused). Disconnect on the paged device
+ * makes BlueZ cancel the page; the attempt then completes and the lease is
+ * released at once. */
+static void abort_pending(void)
+{
+	if(!pending || aborting || !pending_path) return;
+	aborting=TRUE;
+	g_dbus_connection_call(bus,"org.bluez",pending_path,"org.bluez.Device1","Disconnect",
+		NULL,NULL,G_DBUS_CALL_FLAGS_NONE,5000,NULL,abort_done,NULL);
+}
 static void control(void)
 {
 	GKeyFile *file=g_key_file_new();
@@ -107,16 +126,24 @@ static void control(void)
 		if(g_key_file_get_integer(file,"intent","version",NULL)==1 &&
 			!g_strcmp0(boot,boot_id) && sequence>control_sequence && sequence<=now &&
 			until>=sequence && until-sequence<=30000000) {
+			/* A pending, failed or codec intent only holds automatic
+			 * reconnect until its deadline (at most 30 s): Reborn leaves one
+			 * behind after a Connect that failed (headphones off) or waited,
+			 * and inhibiting on it would end auto-reconnect for the boot.
+			 * An explicit disconnect, forget, power-off or pair, or an
+			 * uncertain completion, inhibits until a connect. */
+			gboolean hold=!g_strcmp0(operation,"failed") || !g_strcmp0(operation,"connect_pending") ||
+				!g_strcmp0(operation,"power_pending") || !g_strcmp0(operation,"codec");
 			if(!g_strcmp0(operation,"connect") || !g_strcmp0(operation,"power_on")) {
 				if(!pending && until>=now) {inhibited=FALSE;y2_reconnect_reset(&budget);last_error=NULL;}
 			} else if(!g_strcmp0(operation,"disconnect") || !g_strcmp0(operation,"forget") ||
 				!g_strcmp0(operation,"power_off") || !g_strcmp0(operation,"pair") ||
-				!g_strcmp0(operation,"uncertain") || !g_strcmp0(operation,"connect_pending") ||
-				!g_strcmp0(operation,"power_pending") || !g_strcmp0(operation,"codec")) inhibited=TRUE;
+				!g_strcmp0(operation,"uncertain")) inhibited=TRUE;
+			if(!g_strcmp0(operation,"connect_pending") || !g_strcmp0(operation,"power_pending")) abort_pending();
 			/* A completed explicit operation already held the common lease.
 			 * Its validity deadline is not an automatic reconnect delay. */
 			control_sequence=sequence;
-			control_until=inhibited?until:0;record();
+			control_until=inhibited || hold?until:0;record();
 		}
 		g_free(boot);g_free(operation);
 	}
@@ -158,7 +185,8 @@ static void connection_done(GObject *object,GAsyncResult *result,gpointer unused
 			inhibited=TRUE;last_error="completion_unknown_user_retry_required";
 		}
 	}
-	g_clear_error(&error); pending=FALSE;
+	if(aborting) {last_error="cancelled_for_user";aborting=FALSE;}
+	g_clear_error(&error); pending=FALSE; g_clear_pointer(&pending_path,g_free);
 	flock(operation_lock,LOCK_UN);
 	budget.next=g_get_monotonic_time()+2*G_USEC_PER_SEC;record();
 	schedule_evaluation(2000);
@@ -266,7 +294,7 @@ static gboolean evaluate_devices(gpointer unused)
 		/* Re-read the user's intent while holding the same operation lock. */
 		control();
 		if(!inhibited && timestamp>=control_until && y2_reconnect_attempt(&budget,timestamp)) {
-			pending=TRUE;
+			pending=TRUE;g_free(pending_path);pending_path=g_strdup(candidate);
 			total_attempts++;record();
 			/* BlueZ answers an absent peer with "Host is down" after the
 			 * page timeout plus its own setup. The old 10 s deadline fired
