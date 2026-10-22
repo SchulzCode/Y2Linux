@@ -9064,3 +9064,28 @@ report (second player, never plays; plays on stock), the stock kernel's codec dr
 | Build 120 on a player | INSTALLED BEFORE PUBLISH | owner's player, Acknowledged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.21** (Baseline 120, sequence 8500).
+
+## BETA-8.22 (Baseline 121) report fixes F23–F32 and #53: milestone gap audit — 2026-10-22
+
+**Boundary:** owner: plan and implement all fixes from the 2026-10-22 report review in the next beta, installed and
+tested on the owner's player first. Changes: initramfs/recovery (stage trail, health evidence, display off before
+restart), kernel config `CONFIG_PSTORE_PMSG` and a `pmsg-size` inside the existing ramoops reservation (no memory map
+change; DTB validator updated), overlay 0014 (log rate), Wi-Fi driver remove path, platform (sleep lease, taint,
+Wi-Fi evidence, download record, clock), Reborn (sink retry, Bluetooth marker/Pair, pre-open, Date & Time). No
+partition, schema or packaging change. Hardware evidence: fourteen user reports (8.10–8.20) and the owner's player
+(test builds 8600–8603).
+
+| Area | State for Beta 8.22 | Evidence / gap |
+| --- | --- | --- |
+| F23 health-boot evidence (pmsg, health files, console/panic until confirmed) | IMPLEMENTED, DEVICE-CHECKED | owner's player: health file with trail; settings restored; normal-boot trail |
+| F23 recovery display off before restart | IMPLEMENTED, DEVICE-CHECKED (no regression) | four OTA installs acknowledged on boot 1; cause on GC9503V unproven |
+| F24 activity lease released before the radio restore; busy retry | IMPLEMENTED, HOST-CHECKED | sleep needs USB off; owed |
+| F25 / F28 Bluetooth | IMPLEMENTED, HOST-CHECKED | failure cases owed |
+| F26 WARN-only taint / F27 Wi-Fi remove | IMPLEMENTED, HOST-CHECKED / DEVICE-CHECKED | F27: Wi-Fi off while Online, no WARN |
+| F29 / F30 | DEVICE-CHECKED | 0 bursts after 50 skips; 1 scanout line per boot |
+| F31 Wi-Fi evidence | IMPLEMENTED, HOST-CHECKED | failure case owed |
+| F32 interrupted download | IMPLEMENTED, DEVICE-CHECKED | stale record → `download_interrupted` |
+| #53 manual clock | IMPLEMENTED, DEVICE-CHECKED (platform) | set, refusal, NTP step-back, shutdown save; page by hand owed |
+| Build 121 on a player | INSTALLED BEFORE PUBLISH | seq 8603, Acknowledged |
+
+**Gate decision:** owner's call (publication not yet requested).

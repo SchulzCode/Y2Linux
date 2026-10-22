@@ -13,7 +13,7 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **330**. Explicit scope notices: **228**.
+Indexed pages: **331**. Explicit scope notices: **228**.
 
 ## Entry
 
@@ -355,6 +355,7 @@ Indexed pages: **330**. Explicit scope notices: **228**.
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
+| [Y2Linux 1.0 Beta 8.22 report](validation/Y2-LINUX-1.0-BETA-8.22.md) | Beta 8.22 (Baseline 121): report fixes F23–F32 (update health evidence, wake, Bluetooth, sleep, stuck download) and setting the clock by hand (#53) |
 | [Y2Linux 1.0 Beta 8.21 report](validation/Y2-LINUX-1.0-BETA-8.21.md) | Beta 8.21 (Baseline 120): headphone crystal run as stock (#52, #54): started with the codec, never stopped on a flag, used after 1 s |
 | [Y2Linux 1.0 Beta 8.20 report](validation/Y2-LINUX-1.0-BETA-8.20.md) | Beta 8.20 (Baseline 119): headphone crystal that would not start (#52), 15 µA bias after a failure, 5-s open wait |
 | [Y2Linux 1.0 Beta 8.19 report](validation/Y2-LINUX-1.0-BETA-8.19.md) | Beta 8.19 (Baseline 118): audiobooks (chapters, progress, speed, sleep timer), long M4B books, sharper covers, Customize |
