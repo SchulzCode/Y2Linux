@@ -22,15 +22,24 @@ class CodecSleepUnwind(unittest.TestCase):
 #define CS43130_PWDN_CTL 3
 #define CS43130_PDN_XTAL_MASK 0x08
 #define CS43130_PDN_XTAL_SHIFT 3
+#define CS43130_PDN_PLL_MASK 0x04
+#define CS43130_PDN_PLL_SHIFT 2
+#define CS43130_SYS_CLK_CTL_1 4
+#define CS43130_MCLK_SRC_SEL_MASK 0x03
+#define CS43130_MCLK_SRC_SEL_SHIFT 0
+#define CS43130_MCLK_INT_MASK 0x04
+#define CS43130_MCLK_INT_SHIFT 2
+enum { CS43130_MCLK_SRC_EXT = 0, CS43130_MCLK_SRC_PLL, CS43130_MCLK_SRC_RCO };
+enum { CS43130_MCLK_24P5 = 0, CS43130_MCLK_22P5 };
 static bool y2_xtal_on;
 static unsigned xtal_starts;
 static unsigned pm_suspend_target_state = 3;
 static unsigned long jiffies = 100;
-struct regmap { unsigned cache[4], hw[4]; bool only, dirty; };
-struct cs43130_private { struct regmap *regmap; void *reset_gpio; unsigned xtal_ibias; int supplies[5]; };
+struct regmap { unsigned cache[5], hw[5]; bool only, dirty; };
+struct cs43130_private { struct regmap *regmap; void *reset_gpio; unsigned xtal_ibias; int supplies[5]; int mclk_int_src; };
 struct device { struct cs43130_private *data; };
 static struct regmap map;
-static struct cs43130_private codec = { &map, 0, 1, {1,1,1,1,1} };
+static struct cs43130_private codec = { &map, 0, 1, {1,1,1,1,1}, 0 };
 static struct device dev = { &codec };
 static bool reset_high;
 static int enable_error, disable_error, sync_error, xtal_error;
@@ -125,6 +134,9 @@ int main(void) {
  assert(!cs43130_runtime_suspend(&dev));
  /* #51: the crystal stops with the rails and stays down in the replay... */
  assert(!y2_xtal_on && (map.cache[CS43130_PWDN_CTL]&CS43130_PDN_XTAL_MASK));
+ /* #52: hw_free keeps the running clock; suspend returns the codec to RCO with the PLL off. */
+ assert((map.cache[CS43130_SYS_CLK_CTL_1]&CS43130_MCLK_SRC_SEL_MASK)==CS43130_MCLK_SRC_RCO);
+ assert((map.cache[CS43130_PWDN_CTL]&CS43130_PDN_PLL_MASK) && codec.mclk_int_src==CS43130_MCLK_SRC_RCO);
  /* ...and, as stock, starts with the codec once the replay is done (#54). */
  assert(!cs43130_runtime_resume(&dev) && xtal_starts==1 && y2_xtal_on && !(map.hw[CS43130_PWDN_CTL]&CS43130_PDN_XTAL_MASK));
  assert(!notes); /* ordinary audio runtime traffic does not write sleep traces */

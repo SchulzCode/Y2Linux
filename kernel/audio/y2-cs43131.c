@@ -155,7 +155,11 @@ static int y2_audio_probe(struct platform_device *pdev)
 		y2->links[i].platforms = &y2->platforms[i];
 		y2->links[i].num_platforms = 1;
 		y2->links[i].playback_only = 1;
-		y2->links[i].ignore_pmdown_time = 1;
+		/* #52: ASoC's 5-s power-down delay. Reborn reopens the PCM at every
+		 * track change; without it each skip power-cycled the headphone
+		 * amplifier and its charge pump, which shares the 1.8 V rail with
+		 * the crystal oscillator (stock keeps its output open across
+		 * tracks). One player's marginal crystal stopped during quick skips. */
 	}
 	y2->codecs[0].name = "snd-soc-dummy";
 	y2->codecs[0].dai_name = "snd-soc-dummy-dai";
