@@ -259,7 +259,7 @@
  		regmap_update_bits(cs43130->regmap, CS43130_PWDN_CTL,
  				   CS43130_PDN_PLL_MASK,
  				   1 << CS43130_PDN_PLL_SHIFT);
-@@ -809,34 +935,85 @@
+@@ -809,34 +935,90 @@
  	return 0;
  }
  
@@ -310,7 +310,12 @@
 +	}
 +	if (!cs43130->clk_req && (cs43130->mclk_int_src == CS43130_MCLK_SRC_RCO ||
 +				  required_clk != cs43130->mclk_int)) {
-+		/* no DAI is using clk, and the one still running does not fit */
++		/* no DAI is using clk, and the one still running does not fit:
++		 * leave it first. set_pll() stops the PLL, and a PLL still
++		 * selected as MCLK took the chip's control port down with it
++		 * (I2C NACK until a restart; 8.22 test build, 48 -> 44.1 kHz). */
++		if (cs43130->mclk_int_src != CS43130_MCLK_SRC_RCO)
++			cs43130_change_clksrc(component, CS43130_MCLK_SRC_RCO);
 +		cs43130_set_pll(component, 0, 0, cs43130->mclk, required_clk);
 +		ret = cs43130_change_clksrc(component, cs43130->pll_bypass ?
 +					    CS43130_MCLK_SRC_EXT :
@@ -366,7 +371,7 @@
  
  	switch (params_rate(params)) {
  	case 176400:
-@@ -878,28 +1055,12 @@
+@@ -878,28 +1060,12 @@
  	unsigned int sclk = cs43130->dais[dai->id].sclk;
  	unsigned int bitwidth_sclk;
  	unsigned int bitwidth_dai = (unsigned int)(params_width(params));
@@ -400,7 +405,7 @@
  
  	switch (dai->id) {
  	case CS43130_ASP_DOP_DAI:
-@@ -989,12 +1150,7 @@
+@@ -989,12 +1155,7 @@
  	struct cs43130_private *cs43130 = snd_soc_component_get_drvdata(component);
  
  	mutex_lock(&cs43130->clk_mutex);
@@ -414,7 +419,7 @@
  	mutex_unlock(&cs43130->clk_mutex);
  
  	return 0;
-@@ -1111,6 +1267,128 @@
+@@ -1111,6 +1272,128 @@
  static SOC_VALUE_ENUM_SINGLE_DECL(dsd_enum, CS43130_DSD_INT_CFG, 0, 0x03,
  				  dsd_texts, dsd_values);
  
@@ -543,7 +548,7 @@
  static const struct snd_kcontrol_new cs43130_snd_controls[] = {
  	SOC_DOUBLE_R_TLV("Master Playback Volume",
  			 CS43130_PCM_VOL_A, CS43130_PCM_VOL_B, 0, 0xFF, 1,
-@@ -1126,6 +1404,16 @@
+@@ -1126,6 +1409,16 @@
  	SOC_SINGLE("PCM High-pass Filter", CS43130_PCM_FILT_OPT, 1, 1, 0),
  	SOC_SINGLE("PCM De-emphasis Filter", CS43130_PCM_FILT_OPT, 0, 1, 0),
  	SOC_ENUM("DSD Phase Modulation", dsd_enum),
@@ -560,7 +565,7 @@
  };
  
  static const struct reg_sequence pcm_seq[] = {
-@@ -1314,6 +1602,10 @@
+@@ -1314,6 +1607,10 @@
  
  	switch (event) {
  	case SND_SOC_DAPM_PRE_PMU:
@@ -571,7 +576,7 @@
  		switch (cs43130->dev_id) {
  		case CS43130_CHIP_ID:
  		case CS4399_CHIP_ID:
-@@ -2062,16 +2354,41 @@
+@@ -2062,16 +2359,41 @@
  				   ac_reg_val >> CS43130_HP_MEAS_LOAD_2_SHIFT);
  	}
  
@@ -614,7 +619,7 @@
  
  	dev_dbg(cs43130->dev, "HP load stat: %x, INT_MASK_4: %x\n",
  		cs43130->hpload_stat, msk);
-@@ -2116,6 +2433,12 @@
+@@ -2116,6 +2438,12 @@
  	return 0;
  }
  
@@ -627,7 +632,7 @@
  static void cs43130_imp_meas(struct work_struct *wk)
  {
  	unsigned int reg, seq_size;
-@@ -2164,6 +2487,13 @@
+@@ -2164,6 +2492,13 @@
  	i = 0;
  	ac_idx = 0;
  	while (i < seq_size) {
@@ -641,7 +646,7 @@
  		ret = cs43130_hpload_proc(cs43130, hpload_seq[i].seq,
  					  hpload_seq[i].size,
  					  hpload_seq[i].msk, ac_idx);
-@@ -2183,6 +2513,16 @@
+@@ -2183,6 +2518,16 @@
  	}
  	cs43130->hpload_done = true;
  
@@ -658,7 +663,7 @@
  	if (cs43130->hpload_dc[HP_LEFT] >= CS43130_LINEOUT_LOAD)
  		snd_soc_jack_report(&cs43130->jack, CS43130_JACK_LINEOUT,
  				    CS43130_JACK_MASK);
-@@ -2216,12 +2556,176 @@
+@@ -2216,12 +2561,176 @@
  			       ARRAY_SIZE(hp_cln_seq));
  
  	mutex_lock(&cs43130->clk_mutex);
@@ -838,7 +843,7 @@
  
  static irqreturn_t cs43130_irq_thread(int irq, void *data)
  {
-@@ -2357,6 +2861,12 @@
+@@ -2357,6 +2866,12 @@
  		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
  				   CS43130_XTAL_ERR_INT, 0);
  	}
@@ -851,7 +856,7 @@
  
  	ret = snd_soc_card_jack_new(card, "Headphone", CS43130_JACK_MASK,
  				    &cs43130->jack);
-@@ -2475,13 +2985,16 @@
+@@ -2475,13 +2990,16 @@
  	cs43130->dc_meas = device_property_read_bool(cs43130->dev, "cirrus,dc-measure");
  	cs43130->ac_meas = device_property_read_bool(cs43130->dev, "cirrus,ac-measure");
  
@@ -870,7 +875,7 @@
  				       cs43130->dc_threshold,
  				       CS43130_DC_THRESHOLD)) {
  		for (i = 0; i < CS43130_DC_THRESHOLD; i++)
-@@ -2603,10 +3116,16 @@
+@@ -2603,10 +3121,16 @@
  
  	cs43130->mclk_int_src = CS43130_MCLK_SRC_RCO;
  
@@ -888,7 +893,7 @@
  
  	switch (cs43130->dev_id) {
  	case CS43130_CHIP_ID:
-@@ -2672,62 +3191,146 @@
+@@ -2672,62 +3196,146 @@
  	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
  }
  

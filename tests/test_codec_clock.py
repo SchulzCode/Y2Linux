@@ -134,9 +134,12 @@ static int cs43130_wait_for_completion(struct cs43130_private *c, struct complet
  jiffies += time; return -ETIMEDOUT;
 }
 static int use_pll, pll_sets;
+static unsigned sel(void);
 static int cs43130_set_pll(struct snd_soc_component *component, int pll_id, int source,
                            unsigned int freq_in, unsigned int freq_out) {
  (void)pll_id; (void)source; (void)freq_in; pll_sets++;
+ /* set_pll() stops the PLL: never while it is the selected MCLK (control port down, 8.22 test build). */
+ assert(sel() != CS43130_MCLK_SRC_PLL);
  component->priv->mclk_int = freq_out; component->priv->pll_bypass = !use_pll; return 0;
 }
 static int cs43130_change_clksrc(struct snd_soc_component *component, enum cs43130_mclk_src_sel src);
