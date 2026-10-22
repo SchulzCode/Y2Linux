@@ -22,7 +22,8 @@ class CodecSleepUnwind(unittest.TestCase):
 #define CS43130_PWDN_CTL 3
 #define CS43130_PDN_XTAL_MASK 0x08
 #define CS43130_PDN_XTAL_SHIFT 3
-static bool y2_xtal_running, y2_rails_off;
+static bool y2_xtal_on;
+static unsigned xtal_starts;
 static unsigned pm_suspend_target_state = 3;
 static unsigned long jiffies = 100;
 struct regmap { unsigned cache[4], hw[4]; bool only, dirty; };
@@ -67,6 +68,12 @@ static int regulator_bulk_disable(unsigned n,int *rails) {
  disables++;if(disable_error)return disable_error; /* core rolls back partial disable */
  for(unsigned i=0;i<n;i++){assert(rails[i]);rails[i]--;}return 0;
 }
+/* As the overlay's: clears PDN_XTAL on the chip (after the replay). */
+static void y2_xtal_power_on(struct cs43130_private *c) {
+ assert(!c->regmap->only && reset_high);
+ xtal_starts++;y2_xtal_on=true;c->regmap->cache[CS43130_PWDN_CTL]&=~CS43130_PDN_XTAL_MASK;
+ c->regmap->hw[CS43130_PWDN_CTL]=c->regmap->cache[CS43130_PWDN_CTL];
+}
 static int pm_runtime_force_suspend(struct device *d);
 static int pm_runtime_force_resume(struct device *d);
 ''' + ''.join(function(source, n) for n in ('cs43130_pm_note',
@@ -79,7 +86,7 @@ static void init(void) {
  for(unsigned i=0;i<5;i++)codec.supplies[i]=1;
  reset_high=true;codec.reset_gpio=&reset_high;
  enable_error=disable_error=sync_error=xtal_error=0;cleanup_noted=false;
- enables=disables=syncs=notes=0;pm_suspend_target_state=3;
+ enables=disables=syncs=notes=xtal_starts=0;pm_suspend_target_state=3;
 }
 int main(void) {
  init();assert(!cs43130_system_suspend(&dev));
@@ -107,24 +114,23 @@ int main(void) {
   assert(cs43130_system_resume(&dev)==-EIO);
   assert(!reset_high && map.only && last_error==-EIO);
   for(unsigned i=0;i<5;i++)assert(!codec.supplies[i]);
+  assert(!xtal_starts); /* a failed resume leaves the crystal down */
  }
  init();assert(!cs43130_system_suspend(&dev));
  sync_error=-EIO;disable_error=-EBUSY;
  assert(cs43130_system_resume(&dev)==-EIO && cleanup_noted);
  assert(!reset_high && map.only && last_error==-EIO);
  for(unsigned i=0;i<5;i++)assert(codec.supplies[i]==1);
- init();pm_suspend_target_state=PM_SUSPEND_ON;y2_xtal_running=true;
+ init();pm_suspend_target_state=PM_SUSPEND_ON;y2_xtal_on=true;
  assert(!cs43130_runtime_suspend(&dev));
- /* #51: the crystal stops with the rails and stays down in the replay. */
- assert(!y2_xtal_running && (map.cache[CS43130_PWDN_CTL]&CS43130_PDN_XTAL_MASK));
- assert(!cs43130_runtime_resume(&dev) && (map.hw[CS43130_PWDN_CTL]&CS43130_PDN_XTAL_MASK));
+ /* #51: the crystal stops with the rails and stays down in the replay... */
+ assert(!y2_xtal_on && (map.cache[CS43130_PWDN_CTL]&CS43130_PDN_XTAL_MASK));
+ /* ...and, as stock, starts with the codec once the replay is done (#54). */
+ assert(!cs43130_runtime_resume(&dev) && xtal_starts==1 && y2_xtal_on && !(map.hw[CS43130_PWDN_CTL]&CS43130_PDN_XTAL_MASK));
  assert(!notes); /* ordinary audio runtime traffic does not write sleep traces */
- /* Rails a failed crystal recovery left off hold no references: suspend skips the disable. */
- init();pm_suspend_target_state=PM_SUSPEND_ON;
- for(unsigned i=0;i<5;i++)codec.supplies[i]=0;
- y2_rails_off=true;
- assert(!cs43130_runtime_suspend(&dev) && !y2_rails_off && !disables && map.only && !reset_high);
- assert(!cs43130_runtime_resume(&dev) && enables==1 && reset_high);
- for(unsigned i=0;i<5;i++)assert(codec.supplies[i]==1);
+ /* A codec without a crystal never starts one. */
+ init();pm_suspend_target_state=PM_SUSPEND_ON;codec.xtal_ibias=CS43130_XTAL_UNUSED;
+ assert(!cs43130_runtime_suspend(&dev) && !cs43130_runtime_resume(&dev) && !xtal_starts);
+ codec.xtal_ibias=1;
 }
 ''')
