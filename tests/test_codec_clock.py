@@ -103,7 +103,7 @@ static void set_bit(int bit, unsigned long *map) { *map |= 1UL << bit; }
 static int test_and_clear_bit(int bit, unsigned long *map) { int was = test_bit(bit, map); *map &= ~(1UL << bit); return was; }
 struct regmap { unsigned reg[5]; };
 struct cs43130_private {
- struct regmap *regmap; void *dev; struct mutex clk_mutex; int clk_req;
+ struct regmap *regmap; void *dev; struct mutex clk_mutex; int clk_req; bool has_irq_line;
  enum cs43130_mclk_src_sel mclk_int_src; int pll_bypass, xtal_ibias; unsigned mclk, mclk_int;
  struct completion xtal_rdy, pll_rdy;
 };
@@ -135,7 +135,9 @@ static int regmap_read(struct regmap *m, unsigned r, unsigned *v) {
 static int regmap_read_bypassed(struct regmap *m, unsigned r, unsigned *v) { *v = m->reg[r]; return 0; }
 static int mix, xtal_waits, budget, pll_fail;
 static void usleep_range(unsigned long lo, unsigned long hi) { (void)lo; (void)hi; }
-static void msleep(unsigned ms) { jiffies += ms; }
+/* What the chip latches while the power-up sleeps. */
+static unsigned status_at_select;
+static void msleep(unsigned ms) { jiffies += ms; map.reg[CS43130_INT_STATUS_1] |= status_at_select; }
 static void cs43130_pcm_dsd_mix(bool on, struct regmap *m) { (void)m; mix = on; }
 static int cs43130_wait_for_completion(struct cs43130_private *c, struct completion *to_poll, int time) {
  (void)c; (void)time; assert(to_poll == &c->pll_rdy); return pll_fail ? -ETIMEDOUT : 0;
@@ -162,8 +164,8 @@ static int cs43130_set_pll(struct snd_soc_component *component, int pll_id, int 
 }
 static int cs43130_change_clksrc(struct snd_soc_component *component, enum cs43130_mclk_src_sel src);
 static unsigned long y2_clk_holders;
-''' + preamble + function(source, 'y2_xtal_boost') + function(source, 'y2_xtal_power_on')
-           + function(source, 'y2_xtal_ran_ms') + function(source, 'y2_xtal_report') + function(source, 'y2_xtal_start')
+''' + preamble + function(source, 'y2_xtal_boost') + function(source, 'y2_xtal_ran_ms')
+           + function(source, 'y2_xtal_power_on') + function(source, 'y2_xtal_report') + function(source, 'y2_xtal_start')
            + function(source, 'y2_clksrc_failed') + change
            + function(source, 'y2_clk_put') + function(source, 'y2_clk_get') + r'''
 static unsigned sel(void) { return map.reg[CS43130_SYS_CLK_CTL_1] & CS43130_MCLK_SRC_SEL_MASK; }
@@ -222,6 +224,16 @@ int main(void) {
  runtime_suspend(); runtime_resume(); ready_after = 3;
  assert(!y2_clk_get(&component, 0, 44100) && xtal_waits == 2 && y2_xtal_ready && !y2_xtal_assumed);
  hw_free(0);
+ /* #54: power-up reads the flag once after its 20 ms; a good crystal is ready there (ready_ms 20, no stream
+  * wait), and an error flag seen there is counted. */
+ {
+  int waits = xtal_waits; unsigned errors = y2_xtal_errors;
+  runtime_suspend(); status_at_select = CS43130_XTAL_RDY_INT | CS43130_XTAL_ERR_INT;
+  runtime_resume(); status_at_select = 0;
+  assert(y2_xtal_ready && y2_xtal_ready_ms == 20 && y2_xtal_errors == errors + 1 && !map.reg[CS43130_INT_STATUS_1]);
+  assert(map.reg[CS43130_INT_MASK_1] & CS43130_XTAL_RDY_INT_MASK);
+  assert(!y2_clk_get(&component, 0, 44100) && xtal_waits == waits); hw_free(0);
+ }
  /* Test boost: the bias changes at the next power-up, never under a running crystal. */
  y2_xtal_boost(&codec); assert(y2_xtal_boosted && map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_12_5UA);
  runtime_suspend(); runtime_resume(); assert(map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_15UA);
