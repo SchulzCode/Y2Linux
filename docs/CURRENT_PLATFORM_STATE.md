@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.20, Baseline 119 — 2026-10-22 (latest, published)
+## Y2Linux 1.0 Beta 8.21, Baseline 120 — 2026-10-22 (latest, published)
+
+Release `1.0.0-beta.8.21`, tag `baseline-120`, Linux `2e914d6`, Reborn `cdc6b43`, sequence 8500. #52/#54: the CS43131
+crystal now runs as stock runs it (stock never waits for or reads its ready/error flags): it starts when the codec
+powers up, stops only with the rails, a stream waits until it has run 1 s and then uses it anyway; no automatic
+15 µA boost, no rail cycle; codec autosuspend 5 s. Installed and tested on the owner's player before publishing.
+Details: [Beta 8.21 report](validation/Y2-LINUX-1.0-BETA-8.21.md).
+
+## Y2Linux 1.0 Beta 8.20, Baseline 119 — 2026-10-22 (published)
 
 Release `1.0.0-beta.8.20`, tag `baseline-119`, Linux `0f0b4ed`, Reborn `cdae78e`, sequence 8400. #52: a CS43131
 crystal that fails to start or stops while running gets the chip's strongest bias (15 µA) for the boot (one player's

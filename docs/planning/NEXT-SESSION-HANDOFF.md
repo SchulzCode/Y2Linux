@@ -1,6 +1,17 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-22): Y2LINUX 1.0 BETA 8.20 (BASELINE 119) PUBLISHED — #52 HEADPHONE CRYSTAL.**
+> **START HERE (2026-10-22, evening): Y2LINUX 1.0 BETA 8.21 (BASELINE 120) PUBLISHED — CRYSTAL RUN AS STOCK (#52, #54).**
+> Installed on the owner's player before publishing (build 120, seq 8500, Linux `2e914d6`, Reborn `cdc6b43`). 8.20's
+> 15 µA boost failed on #52, and #54 (install 0400eb78) is a second player that never plays on headphones but does on
+> stock. Stock `cs43131_hw_init` powers the crystal with the codec and masks/never reads XTAL_RDY/XTAL_ERR; we had
+> started it only at hw_params and stopped it before every retry (≤0.5 s continuous). Overlay 0030 (Linux `9ba00b9`):
+> crystal on at runtime resume, off only at runtime suspend, a stream waits until it ran 1 s then uses it anyway,
+> later flags only counted, no auto boost/rail cycle, codec autosuspend 5 s; `y2_hp/xtal`
+> `running= ready= unconfirmed= errors= boosted=`. Device runs all pass (report BETA-8.21); the slow path itself is owed
+> by the #52/#54 reporters. #53 (clock = build time without Wi-Fi) diagnosed, fix awaits the owner's choice. Ledger
+> rows in `UserReports/REVIEWED.md`. Next free label 121, sequence above 8500.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.20 (BASELINE 119) PUBLISHED — #52 HEADPHONE CRYSTAL.**
 > Installed on the owner's player before publishing (build 119, seq 8400, Linux `0f0b4ed`, Reborn `cdae78e`). #52 =
 > the #48/#51 player (install 2813306c): its CS43131 flags XTAL_ERR at the stock 12.5 µA bias; overlay 0030 now raises
 > the bias to 15 µA after a failed start or a stop while running (`y2_hp/xtal` `boosted=`, writable `boost`), Reborn's

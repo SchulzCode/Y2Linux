@@ -9044,3 +9044,23 @@ marginal crystal) and the owner's player (build 119).
 | Build 119 on a player | INSTALLED BEFORE PUBLISH | owner's player, Acknowledged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.20** (Baseline 119, sequence 8400).
+
+## BETA-8.21 (Baseline 120) headphone crystal run as stock (#52, #54): milestone gap audit — 2026-10-22
+
+**Boundary:** owner: do 8.21 and publish, installed and tested on the owner's player first. Kernel change limited to
+the CS43131 overlay (0030: crystal lifetime and wait, codec autosuspend, sysfs fields). No packaging, memory,
+partition, schema or Reborn code change (identity only). Hardware evidence: #52 reports on 8.20 (15 µA fails), the #54
+report (second player, never plays; plays on stock), the stock kernel's codec driver (REA/objdump), the owner's player
+(build 120).
+
+| Area | State for Beta 8.21 | Evidence / gap |
+| --- | --- | --- |
+| Crystal starts with the codec, stops only with the rails | IMPLEMENTED, HOST-CHECKED, DEVICE-CHECKED | register model + PM tests; owner's player: every power-up `ready=1`, no stop outside runtime suspend |
+| Stream uses an unconfirmed crystal after 1 s (stock path) | IMPLEMENTED, HOST-CHECKED | model with a 5-s crystal; not reachable on the owner's player (crystal ready at once) |
+| Codec autosuspend 5 s | DEVICE-CHECKED | stop 8 s → `suspended`; skips keep the codec active |
+| 48 kHz (PLL) from a powered-down codec | DEVICE-CHECKED | owner's player |
+| #52 / #54 on the affected players | OWED | reporters' next reports (`y2_hp/xtal unconfirmed=`) |
+| #53 clock without Wi-Fi | DIAGNOSED, NOT CHANGED | owner decision pending |
+| Build 120 on a player | INSTALLED BEFORE PUBLISH | owner's player, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.21** (Baseline 120, sequence 8500).
