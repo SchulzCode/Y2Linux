@@ -133,18 +133,20 @@
     };
     /* GPIO controls reproduce stock 20 -> 18 -> 15 order. Dependency refs
      * serialize regulator_bulk_enable and reverse disable. GPIO rail voltages
-     * are nominal board enable models, not independently measured LDOs. */
+     * are nominal board enable models, not independently measured LDOs.
+     * #52/#54: as stock cs43131_on, VGP2 then the three GPIOs back to back,
+     * then one 50 ms settle (was 50 ms after each). */
     dac20: regulator-dac20 { compatible = "regulator-fixed";
         regulator-name = "cs43131-en20";
         regulator-min-microvolt = <1800000>; regulator-max-microvolt = <1800000>;
         gpio = <&pio 20 GPIO_ACTIVE_HIGH>; enable-active-high;
-        startup-delay-us = <50000>; vin-supply = <&vgp2>;
+        startup-delay-us = <0>; vin-supply = <&vgp2>;
     };
     dac18: regulator-dac18 { compatible = "regulator-fixed";
         regulator-name = "cs43131-en18";
         regulator-min-microvolt = <1800000>; regulator-max-microvolt = <1800000>;
         gpio = <&pio 18 GPIO_ACTIVE_HIGH>; enable-active-high;
-        startup-delay-us = <50000>; vin-supply = <&dac20>;
+        startup-delay-us = <0>; vin-supply = <&dac20>;
     };
     dac15: regulator-dac15 { compatible = "regulator-fixed";
         regulator-name = "cs43131-en15";

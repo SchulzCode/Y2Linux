@@ -223,7 +223,9 @@ def check(data, initrd_size, production=True, recovery=False):
     for pin in (20,18,15):
         path='/regulator-dac'+str(pin); v=nodes[path]
         require(v['compatible']==strings('regulator-fixed') and v['gpio']==cells(handle('/pinctrl@10005000'),pin,0), 'DAC enable GPIO')
-        require(v['vin-supply']==cells(handle(parent)) and v['startup-delay-us']==cells(50000), 'DAC supply ordering/delay')
+        # Stock: VGP2, GPIO20/18/15 back to back, one 50 ms settle (#52/#54).
+        require(v['vin-supply']==cells(handle(parent)) and
+                v['startup-delay-us']==cells(50000 if pin == 15 else 0), 'DAC supply ordering/delay')
         require(v['regulator-min-microvolt']==cells(1800000) and v['regulator-max-microvolt']==cells(1800000), 'nominal DAC rails')
         parent=path
     codec=nodes['/i2c@11008000/codec@30']

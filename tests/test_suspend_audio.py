@@ -78,7 +78,8 @@ static int regulator_bulk_disable(unsigned n,int *rails) {
  for(unsigned i=0;i<n;i++){assert(rails[i]);rails[i]--;}return 0;
 }
 /* As the overlay's: clears PDN_XTAL on the chip (after the replay). */
-static void y2_xtal_power_on(struct cs43130_private *c) {
+static void y2_xtal_power_on(struct cs43130_private *c, bool select) {
+ (void)select;
  assert(!c->regmap->only && reset_high);
  xtal_starts++;y2_xtal_on=true;c->regmap->cache[CS43130_PWDN_CTL]&=~CS43130_PDN_XTAL_MASK;
  c->regmap->hw[CS43130_PWDN_CTL]=c->regmap->cache[CS43130_PWDN_CTL];
