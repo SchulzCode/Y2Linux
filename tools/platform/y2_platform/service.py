@@ -11,7 +11,7 @@ from .common import atomic_json, kill_tree, read
 from .media import inventory
 from .network import DnsProbeSchedule, EventMonitor, probe_dns
 from .observe import wifi
-from .timekeeping import status as time_status
+from .timekeeping import remember as remember_time, status as time_status
 
 
 # Fix02 background attribution: every iteration used to start a complete
@@ -293,6 +293,9 @@ def serve(ctx):
                 # Run slow fs/stat/cleanup outside this readiness process. A
                 # kernel D-state does not block Wi-Fi or the power daemon.
                 ctx.command(['/usr/sbin/y2-platform', 'space', '--cleanup'], timeout=2)
+                # A restart without Wi-Fi resumes near this clock (#53); hourly.
+                with contextlib.suppress(OSError):
+                    remember_time(ctx)
                 update_check = daily_update_check(ctx, value, update_check)
                 reports = error_reports(ctx, value, reports, before)
                 settled = settled or health_settled(

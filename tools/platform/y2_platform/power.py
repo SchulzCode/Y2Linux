@@ -188,6 +188,9 @@ class Coordinator:
         # was killed, the DRM last-close restores the fbdev buffer (stale,
         # console or white). Never hand init a lit panel.
         results['backlight'] = backlight_off(self.ctx)
+        # #53: a clock set by hand (or from the network) survives a restart
+        # to the minute instead of to the last hourly record.
+        results['time_remember'] = self.ctx.command(['/usr/sbin/y2-platform', 'time-remember'], timeout=2)
         results['sync'] = self.ctx.command(['/bin/busybox', 'sync'], timeout=5)
         if results['sync']['ok']:
             results['journal_complete'] = self.ctx.command(

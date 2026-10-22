@@ -80,6 +80,9 @@ def main():
     update.add_argument('--package', help='owner-supplied local signed package directory')
     sub.add_parser('time-bootstrap')
     sub.add_parser('time')
+    time_set = sub.add_parser('time-set', help="the owner's date and time (#53); network time replaces it")
+    time_set.add_argument('epoch', type=int, help='UTC seconds since 1970, within the build-date range')
+    sub.add_parser('time-remember', help='write the durable clock floor now (orderly shutdown)')
     rtc_alarm = sub.add_parser('rtc-alarm')
     rtc_alarm.add_argument('seconds', type=int, help='seconds from RTC now; zero disables; does not suspend')
     ntp = sub.add_parser('ntp-event')
@@ -294,6 +297,15 @@ def main():
         result = network_check(ctx, args.peer, args.seconds, args.throughput, args.interface)
         print(json.dumps(result, sort_keys=True))
         return 0 if result['record']['result'] == 'OK' else 1
+    if args.command in ('time-set', 'time-remember'):
+        from .timekeeping import set_manual, remember
+        try:
+            result = set_manual(ctx, args.epoch) if args.command == 'time-set' else remember(ctx, every=0)
+        except (OSError, ValueError) as error:
+            print(json.dumps({'state': 'Failed', 'failure': str(error)}))
+            return 1
+        print(json.dumps(result or {'state': 'Unchanged'}))
+        return 0
     if args.command in ('time', 'time-bootstrap', 'ntp-event'):
         from .timekeeping import status, bootstrap, ntp_event
         import os

@@ -9,7 +9,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/platform'))
 from y2_platform.common import Context
 from y2_platform.network import dhcp_event, lease_event, probe_dns, EventMonitor, DnsProbeSchedule
-from y2_platform.timekeeping import status, bootstrap, ntp_event
+from y2_platform.timekeeping import status, bootstrap, ntp_event, set_manual, remember
 from y2_platform.network_check import check as network_check
 
 
@@ -318,6 +318,74 @@ class NetworkTime(unittest.TestCase):
         self.put('/run/y2/time.json', __import__('json').dumps(old))
         self.assertTrue(status(self.ctx, floor + 105, monotonic=mono + 5, elapsed=boot + 3605)['tls_ready'])
         self.assertFalse(status(self.ctx, floor + 3705, monotonic=mono + 5, elapsed=boot + 3605)['tls_ready'])
+
+    def test_manual_time_is_kept_as_a_floor_never_trusted_and_ntp_replaces_it(self):
+        # #53: a player that never had Wi-Fi started from the build date
+        # every boot; the owner's own time now carries over a restart.
+        floor = 1790000000
+        self.put('/etc/y2linux/build-epoch', str(floor))
+        self.put('/etc/y2linux/rtc-policy.json', json.dumps({'write_enabled': True, 'source': 'receipt'}))
+        for wrong in (floor - 86401, floor + 6 * 366 * 86400, 'now', floor + 0.5, True):
+            with self.assertRaisesRegex(ValueError, 'date_out_of_range'):
+                set_manual(self.ctx, wrong)
+        self.assertEqual(self.calls, [])
+        chosen = floor + 3 * 86400
+        value = set_manual(self.ctx, chosen)
+        self.assertEqual(value['source'], 'manual')
+        self.assertIn(['/bin/busybox', 'date', '-u', '-s', '@' + str(chosen)], self.calls)
+        self.assertIn(['/bin/busybox', 'hwclock', '-w', '-u'], self.calls)
+        clock = status(self.ctx, chosen + 5, monotonic=value['monotonic_s'] + 5, elapsed=value['boottime_s'] + 5)
+        self.assertTrue(clock['clock_sane'])
+        self.assertFalse(clock['tls_ready'])
+        self.assertFalse(clock['ntp_authenticated'])
+        self.assertEqual(clock['source'], 'manual')
+        written = json.loads(self.ctx.read('/run/y2/time-status.json'))
+        self.assertEqual((written['source'], written['tls_ready']), ('manual', False))
+        last = json.loads(self.ctx.read('/data/system/platform/time-last.json'))
+        self.assertEqual((last['source'], last['epoch']), ('manual', chosen))
+        # Next boot, RTC lost: the clock resumes from the owner's time, untrusted.
+        self.put('/proc/sys/kernel/random/boot_id', 'boot-two')
+        self.calls.clear()
+        self.assertEqual(bootstrap(self.ctx, now=1659312000)['source'], 'manual')
+        self.assertIn(['/bin/busybox', 'date', '-u', '-s', '@' + str(chosen)], self.calls)
+        self.assertFalse(status(self.ctx, chosen)['tls_ready'])
+        # An RTC that kept the owner's time is still only the owner's time.
+        self.put('/sys/class/rtc/rtc0/date', '2026-09-22')
+        self.assertEqual(bootstrap(self.ctx, now=chosen + 100)['source'], 'manual')
+        self.assertFalse(status(self.ctx, chosen + 100)['tls_ready'])
+        # The first network time replaces it, even within the hour.
+        ntp_event(self.ctx, 'stratum', {'stratum': '2'}, now=chosen + 200)
+        last = json.loads(self.ctx.read('/data/system/platform/time-last.json'))
+        self.assertEqual((last['source'], last['epoch']), ('ntp', chosen + 200))
+        self.assertTrue(status(self.ctx, chosen + 200)['tls_ready'])
+        self.put('/proc/sys/kernel/random/boot_id', 'boot-three')
+        self.assertEqual(bootstrap(self.ctx, now=chosen + 300)['source'], 'retained_rtc')
+
+    def test_running_clock_is_remembered_hourly_only_when_set(self):
+        floor = 1790000000
+        self.put('/etc/y2linux/build-epoch', str(floor))
+        # The build date alone is never remembered as a time.
+        bootstrap(self.ctx, now=0)
+        self.assertIsNone(remember(self.ctx, now=floor + 7200, monotonic=1, elapsed=1))
+        value = set_manual(self.ctx, floor + 100)
+        mono, boot = value['monotonic_s'], value['boottime_s']
+        path = self.ctx.path('/data/system/platform/time-last.json')
+        later = lambda s: dict(now=floor + 100 + s, monotonic=mono + s, elapsed=boot + s)
+        self.assertIsNone(remember(self.ctx, **later(1800)))
+        written = remember(self.ctx, **later(3700))
+        self.assertEqual((written['source'], written['epoch']), ('manual', floor + 3800))
+        self.assertEqual(json.loads(path.read_text())['epoch'], floor + 3800)
+        self.assertIsNone(remember(self.ctx, **later(3800)))
+        # Asleep for two hours: the wall clock and CLOCK_BOOTTIME both ran on.
+        asleep = remember(self.ctx, now=floor + 100 + 11000, monotonic=mono + 3900, elapsed=boot + 11000)
+        self.assertEqual(asleep['epoch'], floor + 11100)
+        # Someone stepped the clock since the anchor: not written.
+        self.assertIsNone(remember(self.ctx, now=floor + 100 + 30000, monotonic=mono + 4000, elapsed=boot + 15000))
+        # Orderly shutdown asks for it now.
+        self.assertEqual(remember(self.ctx, every=0, **later(11010))['epoch'], floor + 11110)
+        # Another boot's anchor is not this clock.
+        self.put('/proc/sys/kernel/random/boot_id', 'boot-two')
+        self.assertIsNone(remember(self.ctx, every=0, **later(11020)))
 
     def test_qualification_never_passes_invalid_iperf_output_or_offline_wifi(self):
         with patch('y2_platform.network_check.snapshot', return_value={'wifi': {'state':'Off'}}):
