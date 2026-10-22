@@ -22,6 +22,8 @@ for i in /etc/init.d/S??*; do
 	esac
 	[ -z "$milestone" ] || [ ! -d /run/reborn-splash ] || printf '%s\n' "$milestone" > /run/reborn-splash/phase
 	read -r began _ < /proc/uptime
+	# Survives a reset (pstore): the next boot sees the script a boot died in (F23).
+	[ ! -c /dev/pmsg0 ] || echo "$began rc $name" > /dev/pmsg0
 
 	case "$i" in
 		*.sh)

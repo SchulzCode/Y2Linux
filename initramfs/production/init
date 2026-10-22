@@ -16,6 +16,39 @@ y2_stage() {
     # The early splash maps the same milestone names to its progress bar and
     # status line. It owns this directory; before it exists nothing is written.
     [ ! -d /run/reborn-splash ] || printf '%s\n' "$1" > /run/reborn-splash/phase
+    # In the kernel log too: a boot that dies before the system logger keeps
+    # only its RAM console (ramoops), and that shows how far it got (F23).
+    echo "<6>Y2STAGE $1" >> /dev/kmsg
+    # And in pstore's message buffer, which survives a reset: the next boot
+    # sees how far a boot that died before the system logger got (F23).
+    [ ! -c /dev/pmsg0 ] || echo "$up init $1" > /dev/pmsg0
+}
+# F23: the first boots of a new system, counted by the update journal, can die
+# before the system logger; each later boot (and recovery) overwrites what the
+# previous one left in RAM. Keep its stage messages and console with the update
+# record, newest 4.
+y2_keep_previous_boot() {
+    mount -t pstore pstore /sys/fs/pstore 2>/dev/null || return 0
+    if mkdir -p "$1"; then
+        n=0
+        for old in $(ls -1 "$1" 2>/dev/null | sort -r); do
+            n=$((n+1)); [ "$n" -le 3 ] || rm -f "$1/$old"
+        done
+        {
+            # This boot's context: a low battery on a weak charger, LK's boot
+            # reason, and a data check that had to replay a journal (the
+            # previous boot died with /data mounted) each tell a story.
+            echo "== this boot $(cat /proc/sys/kernel/random/boot_id) uptime $(cat /proc/uptime)"
+            echo "battery_uv $(cat /sys/class/power_supply/BAT0/voltage_now 2>/dev/null)"
+            echo "lk $(cat /sys/firmware/y2_boot/metadata 2>/dev/null)"
+            echo "data_fsck $3"; cat /run/y2/health-data-fsck.txt 2>/dev/null
+            echo "== boot-check"; cat /run/y2/update-boot-check.json 2>/dev/null
+            for part in pmsg-ramoops-0 console-ramoops-0 dmesg-ramoops-0; do
+                [ ! -s "/sys/fs/pstore/$part" ] || { echo "== $part"; head -c 262144 "/sys/fs/pstore/$part"; }
+            done
+        } > "$1/$(date +%s)-$2-previous-boot.txt"
+    fi
+    umount /sys/fs/pstore
 }
 y2_stage initramfs
 mount -t debugfs debugfs /sys/kernel/debug
@@ -40,6 +73,7 @@ start_observer() {
 rescue() {
     y2_stage rescue
     echo "<3>Y2RESCUE: $*; staying in rescue" > /dev/kmsg
+    [ ! -c /dev/pmsg0 ] || echo "rescue $*" > /dev/pmsg0
     {
         printf '\033[2J\033[H'
         echo 'Y2Linux STORAGE06 RESCUE'
@@ -111,17 +145,33 @@ if [ -e /newdata/updates/state.json ] || [ -L /newdata/updates/state.json ]; the
 fi
 umount /newdata || rescue 'update preflight unmount'
 if [ "$update_record" != 0 ]; then
-    e2fsck -p "$datadev" > /dev/kmsg 2>&1
-    [ "$?" -le 1 ] || rescue 'update data filesystem check'
+    e2fsck -p "$datadev" > /run/y2/health-data-fsck.txt 2>&1
+    data_fsck=$?
+    cat /run/y2/health-data-fsck.txt > /dev/kmsg
+    [ "$data_fsck" -le 1 ] || rescue 'update data filesystem check'
     mount -t ext4 -o rw,nosuid,nodev "$datadev" /newdata || rescue 'update data mount'
     y2_stage rescue_update
     /sbin/y2-update-core boot-check > /run/y2/update-boot-check.json
     update_decision=$?
     cp /run/y2/update-boot-check.json /newdata/updates/boot-check-last.json 2>/dev/null
+    health_boot=$(sed -n 's/.*"health_boots": *\([0-9]*\).*/\1/p' /run/y2/update-boot-check.json | head -n 1)
+    y2_keep_previous_boot /newdata/updates/health "boot${health_boot:-x}" "$data_fsck"
     sync
     umount /newdata || rescue 'update data unmount'
     case "$update_decision" in
-        10) : ;; # first boots of a new system are counted, then start normally
+        10)
+            # First boots of a new system are counted, then start normally.
+            # F23: until health is confirmed (y2-platform restores these),
+            # every kernel message reaches the RAM console and a CPU stall
+            # panics into a ramoops record and a restart, instead of a silent
+            # hang the next boot cannot see.
+            printf '{"printk":"%s","panic":"%s","panic_on_rcu_stall":"%s"}\n' \
+                "$(cat /proc/sys/kernel/printk)" "$(cat /proc/sys/kernel/panic)" \
+                "$(cat /proc/sys/kernel/panic_on_rcu_stall 2>/dev/null)" > /run/y2/health-debug.json
+            echo 7 > /proc/sys/kernel/printk
+            echo 10 > /proc/sys/kernel/panic
+            echo 1 > /proc/sys/kernel/panic_on_rcu_stall 2>/dev/null
+            ;;
         20)
             # The recovery image restores the previous system on the next power-on.
             echo '<3>Y2RESCUE: update unfinished; recovery requested; power off' > /dev/kmsg

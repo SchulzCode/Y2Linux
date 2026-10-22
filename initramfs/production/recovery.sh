@@ -34,6 +34,27 @@ recovery_evidence() {
     sync
 }
 
+# F23: the normal restart stops Reborn and turns the light off before
+# reboot(2); recovery restarted with its UI still flipping frames (≈9/s) on a
+# lit panel, and on GC9503V players the new system's first boots died before
+# their logger. Hand the bootloader a still, dark display either way.
+recovery_ui=
+recovery_display_off() {
+    for bl in /sys/class/backlight/*/bl_power; do [ ! -w "$bl" ] || echo 4 > "$bl"; done
+    [ -n "$recovery_ui" ] || return 0
+    kill "$recovery_ui" 2>/dev/null
+    local waited=0
+    while [ "$waited" -lt 20 ] && kill -0 "$recovery_ui" 2>/dev/null; do
+        sleep 0.05; waited=$((waited+1))
+    done
+    kill -9 "$recovery_ui" 2>/dev/null
+    wait "$recovery_ui" 2>/dev/null
+    recovery_ui=
+    # The UI's DRM last close restores the console buffer: let that land dark.
+    for bl in /sys/class/backlight/*/bl_power; do [ ! -w "$bl" ] || echo 4 > "$bl"; done
+    sleep 0.2
+}
+
 # Keep the evidence, then turn off or, with the owner's switch, restart.
 recovery_off() {
     if [ -n "$recovery_data_mounted" ]; then
@@ -42,6 +63,7 @@ recovery_off() {
     fi
     sync
     sleep "${1:-12}"
+    recovery_display_off
     if [ -n "$recovery_restart" ]; then
         recovery_log 'restart'
         reboot -f
@@ -128,7 +150,7 @@ charger_online() {
 y2_stage recovery
 recovery_data_mounted=
 recovery_screen 'Installing Update' "Don't turn off the player." 'This takes less than a minute.'
-[ -x /sbin/y2-recovery-ui ] && /sbin/y2-recovery-ui &
+if [ -x /sbin/y2-recovery-ui ]; then /sbin/y2-recovery-ui & recovery_ui=$!; fi
 recovery_log "$(cat /sys/firmware/y2_boot/metadata 2>/dev/null)"
 echo 1 > /sys/firmware/y2_boot/normal_boot || recovery_stuck 'Storage did not start'
 if [ -w /sys/devices/system/cpu/cpufreq/policy0/scaling_governor ]; then

@@ -789,6 +789,46 @@ class PlatformPolicyTests(unittest.TestCase):
         self.assertFalse(application_healthy({}))
         self.assertFalse(application_healthy(None))
 
+    def test_a_download_whose_process_is_gone_shows_as_interrupted(self):
+        # A user's 8.17 player said "Downloading Update… Keep Wi-Fi on." for a day: the
+        # record stayed Staging after the download died, and that page had no way out.
+        from y2_platform.update import status, automatic_check
+        import os
+        records = self.root/'data/updates'
+        (records/'download.json').write_text(json.dumps({'schema': 1, 'state': 'Staging', 'id': '.incoming-x'}))
+        lock = records/'.stage.lock'
+        lock.write_text('')
+        self.assertEqual(status(self.ctx)['download'], {'schema': 1, 'state': 'Failed', 'failure': 'download_interrupted'})
+        # A live download (its flock in /proc/locks) is still shown as running.
+        meta = lock.stat()
+        (self.root/'proc/locks').write_text('1: FLOCK  ADVISORY  WRITE 4242 %02x:%02x:%d 0 EOF\n'
+                                            % (os.major(meta.st_dev), os.minor(meta.st_dev), meta.st_ino))
+        self.assertEqual(status(self.ctx)['download']['state'], 'Staging')
+        # A failed background check never writes the leftover back.
+        (self.root/'proc/locks').write_text('')
+        (self.root/'run/y2/network.json').write_text(json.dumps({'state': 'Online'}))
+        from unittest.mock import patch
+        with patch('y2_platform.timekeeping.status', return_value={'tls_ready': True, 'entropy_ready': True}), \
+             patch('y2_platform.update.stage', side_effect=ValueError('name resolution')):
+            automatic_check(self.ctx, now=10**9)
+        self.assertNotEqual((self.ctx.json('/data/updates/download.json') or {}).get('state'), 'Staging')
+
+    def test_confirmed_health_restores_the_health_boot_kernel_settings(self):
+        # F23: init raises the console level and turns a CPU stall into a panic until health is confirmed.
+        from y2_platform.update import restore_health_debug
+        kernel = self.root/'proc/sys/kernel'
+        kernel.mkdir(parents=True, exist_ok=True)
+        for name, value in (('printk', '7'), ('panic', '10'), ('panic_on_rcu_stall', '1')):
+            (kernel/name).write_text(value + '\n')
+        (self.root/'run/y2/health-debug.json').write_text(json.dumps(
+            {'printk': '3\t4\t1\t7', 'panic': '0', 'panic_on_rcu_stall': '0; reboot'}))
+        restore_health_debug(self.ctx)
+        self.assertEqual((kernel/'printk').read_text(), '3\t4\t1\t7\n')
+        self.assertEqual((kernel/'panic').read_text(), '0\n')
+        self.assertEqual((kernel/'panic_on_rcu_stall').read_text(), '1\n')   # not a number list: untouched
+        self.assertFalse((self.root/'run/y2/health-debug.json').exists())
+        restore_health_debug(self.ctx)   # nothing saved: nothing to do
+
     def test_battery_gate_needs_charger_or_half_battery(self):
         from y2_platform.update import battery_gate
         for battery, allowed in [({'percent': 50, 'charging': False}, True), ({'percent': 49}, False),

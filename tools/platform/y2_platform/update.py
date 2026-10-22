@@ -14,6 +14,7 @@ import json
 import collections
 import os
 from pathlib import Path
+import re
 import shutil
 import signal
 import stat
@@ -52,6 +53,28 @@ def channel(ctx):
     return value
 
 
+def stage_running(ctx):
+    """A download or check holds the stage lock while it runs (live holders only)."""
+    from .product_sleep import lock_holders
+    try:
+        return bool(lock_holders(ctx, ctx.path('/data/updates/.stage.lock').stat()))
+    except OSError:
+        return False
+
+
+def download_record(ctx):
+    """download.json, with a download or check whose process is gone shown as interrupted.
+
+    A user's player (8.17) said "Downloading Update… Keep Wi-Fi on." for a day:
+    the record a download writes first stays `Staging` when the download dies
+    without reaching its own handler (power loss, a kill), and that page offered
+    neither Cancel nor Check for Updates; a restart kept it (it is on /data)."""
+    record = ctx.json('/data/updates/download.json')
+    if isinstance(record, dict) and record.get('state') in ('Staging', 'Checking') and not stage_running(ctx):
+        return {'schema': 1, 'state': 'Failed', 'failure': 'download_interrupted'}
+    return record
+
+
 def status(ctx):
     value = ctx.json('/data/updates/state.json')
     if value is None and not ctx.path('/data/updates/state.json').exists() and not ctx.path('/data/updates/state.json').is_symlink():
@@ -61,7 +84,7 @@ def status(ctx):
     # The native core writes journal schema 2 since OTA-35 (BOOTIMG + root).
     if not isinstance(value, dict) or value.get('schema') not in (1, 2):
         return {'schema': 1, 'state': 'Failed', 'failure': 'journal_unreadable'}
-    return {**value, 'download': ctx.json('/data/updates/download.json'),
+    return {**value, 'download': download_record(ctx),
             'last_check': ctx.json('/data/updates/last-check.json'),
             'channel': channel(ctx).get('name'), 'full_system': True,
             'physical_qualification': False}
@@ -563,7 +586,8 @@ def automatic_check(ctx, now=None):
     record = {'schema': 1, 'attempt': now}
     if type(last.get('time')) in (int, float):
         record['time'] = last['time']
-    previous = ctx.json('/data/updates/download.json')
+    # Never an interrupted download's leftover: a failed check would write it back.
+    previous = download_record(ctx)
     try:
         manifest = stage(ctx, url=channel(ctx)['manifest_url'], check_only=True)
         record.update(time=now, result='checked', release_version=manifest['release_version'])
@@ -592,6 +616,20 @@ def application_healthy(app):
     graphics = app.get('graphics')
     return (isinstance(graphics, dict) and graphics.get('available') is True and
             type(app.get('uptime_seconds')) is int and app['uptime_seconds'] >= 10)
+
+
+def restore_health_debug(ctx):
+    """Undo init's health-boot console level and stall panic (F23); best effort."""
+    saved = ctx.json('/run/y2/health-debug.json', None)
+    if not isinstance(saved, dict):
+        return
+    for name in ('printk', 'panic', 'panic_on_rcu_stall'):
+        value = saved.get(name)
+        if isinstance(value, str) and re.fullmatch(r'[0-9]+(\s+[0-9]+)*', value.strip()):
+            with contextlib.suppress(OSError):
+                ctx.path('/proc/sys/kernel/' + name).write_text(value.strip() + '\n')
+    with contextlib.suppress(OSError):
+        ctx.path('/run/y2/health-debug.json').unlink()
 
 
 def health_ack(ctx):
@@ -636,6 +674,7 @@ def health_ack(ctx):
         return {'state': 'PendingHealth', 'reason': 'application_not_ready'}
     mark(ctx, 'application_ready')
     result = core(ctx, 'ack')
+    restore_health_debug(ctx)
     # The core keeps the installed package as current/ (the next install's
     # rollback copy); anything left in pending/ is no longer needed.
     with contextlib.suppress(OSError, ValueError):

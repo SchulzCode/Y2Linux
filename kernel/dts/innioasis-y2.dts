@@ -205,6 +205,8 @@
             reg = <0xbde00000 0x00100000>;
             record-size = <0x10000>;
             console-size = <0x80000>;
+            /* F23: boot stages from init/rcS/platform (/dev/pmsg0). */
+            pmsg-size = <0x20000>;
             no-map;
         };
     };

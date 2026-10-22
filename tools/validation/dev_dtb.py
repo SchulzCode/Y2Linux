@@ -94,7 +94,8 @@ def check(data, initrd_size, production=True, recovery=False):
         if path.endswith('/ramoops@bde00000'):
             # Crash/stall evidence only: pstore console below the radio window.
             require(props=={'reg':cells(*region),'no-map':b'','compatible':strings('ramoops'),
-                            'record-size':cells(0x10000),'console-size':cells(0x80000)},'reservation '+path)
+                            'record-size':cells(0x10000),'console-size':cells(0x80000),
+                            'pmsg-size':cells(0x20000)},'reservation '+path)
             continue
         if connectivity and path.endswith('/high-owned@bdf00000'):
             require(len(props.pop('phandle',b''))==4,'owned radio reservation handle')

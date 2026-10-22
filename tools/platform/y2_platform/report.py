@@ -524,7 +524,7 @@ FILES = (
     '/data/system/platform/rtc-policy.json', '/data/system/platform/time-last.json',
     '/data/system/platform/battery-ui.json', '/data/system/platform/panel.json',
     '/data/system/platform/sd-admissions.json', '/data/system/platform/retained/*.tar',
-    '/data/updates/*.json', '/data/updates/current/manifest.json',
+    '/data/updates/*.json', '/data/updates/current/manifest.json', '/data/updates/health/*.txt',
     '/run/y2/*.json', '/run/y2/*.jsonl', '/run/y2/*.log',
     '/data/bluetooth/codec-history.json', '/data/bluetooth/enabled', '/data/network/enabled',
     '/data/network/power-save.json',

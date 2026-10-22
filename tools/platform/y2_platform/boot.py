@@ -95,6 +95,18 @@ def mark(ctx, stage):
                 os.write(fd_stage, (json.dumps({'stage': stage, 'monotonic_s': time.monotonic()}) + '\n').encode())
         finally:
             os.close(fd_stage)
+        # The reset-surviving stage trail of init and rcS (F23); best effort.
+        try:
+            fd_pmsg = os.open(ctx.path('/dev/pmsg0'), os.O_WRONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        except OSError:
+            pass
+        else:
+            try:
+                os.write(fd_pmsg, ('%.2f platform %s\n' % (time.monotonic(), stage)).encode())
+            except OSError:
+                pass
+            finally:
+                os.close(fd_pmsg)
         if stage == 'application_ready':
             from .power_features import apply
             apply(ctx)

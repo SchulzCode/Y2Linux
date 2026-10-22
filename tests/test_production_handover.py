@@ -174,6 +174,10 @@ exit 0
         # A low battery without charger always turns off: a restart would loop.
         script=(ROOT/'initramfs/production/recovery.sh').read_text()
         self.assertRegex(script, r"charger_online \|\| \{[^}]*recovery_restart=; recovery_off 10; \}")
+        # F23: the UI stops and the light goes out before reboot(2)/poweroff, as in a normal restart.
+        off = script[script.index('recovery_off() {'):script.index('\n}\n', script.index('recovery_off() {'))]
+        self.assertLess(off.index('recovery_display_off'), off.index('reboot -f'))
+        self.assertIn('/sbin/y2-recovery-ui & recovery_ui=$!', script)
         result, events, log = self.exercise('recovery-stuck', cmdline='rdinit=/init y2.recovery=1')
         self.assertEqual(result.returncode,97,result.stderr)
         self.assertNotIn('reboot',events)
