@@ -105,6 +105,15 @@ changed"; after it, the recovery restores both images from the backup; if the ne
 confirms itself, the next start restores the previous one. A low battery during an install makes
 the player turn off and wait for the charger, with the request still set.
 
+**A frozen install restarts by itself (since Beta 8.23).** Some players stood at *Checking the update
+(Step 1 of 4)* for hours ([#56](https://github.com/SchulzCode/Y2Linux/issues/56)); the cause is not
+known yet. The recovery now feeds the player's hardware watchdog only while the installer makes
+progress: after two minutes without progress the player restarts, and the recovery resumes the
+install or restores the previous version. The installer's steps survive that restart, and the
+recovery keeps the previous start's record in `/data/logs/recovery-previous-boot.txt`, which error
+reports include. On an older version, holding Power (or the reset pinhole) during a frozen install
+is safe for the same reason: the request stays set and the next start installs or restores.
+
 ## What an update never touches
 
 Your music (internal storage and SD card), your settings and library, the radio firmware on the

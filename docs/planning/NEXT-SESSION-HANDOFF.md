@@ -1,6 +1,25 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-22, late night): Y2LINUX 1.0 BETA 8.23 (BASELINE 122) PUBLISHED — RECOVERY WATCHDOG (F34), DAC AS STOCK (#52, #54).**
+> **START HERE (2026-10-23): AFTER BETA 8.23 (BASELINE 122) — WHAT IS OWED TODAY.**
+> Published 2026-10-22 night (seq 8705, Linux `e3195fd` + docs, Reborn `0779d8b` + docs `dfd9640`); the owner's player
+> runs it. GitHub comments posted on #52, #54 (asked to retest; #54 to enable Send Error Reports and give the Install
+> ID) and #56 (correction: the Reborn F33 fix was another bug; 8.23's watchdog is the fix for the freeze). The #56
+> comment's last paragraph calls the battery drain explained — it is not; an edit was blocked, the owner may fix it.
+> Order for today:
+> 1. Read new reports first: `UserReports/REVIEWED.md` + `tools/reports/fetch.py --pending` (ledger rule). For #52 (2813306c) and
+>    #54 (0400eb78) on 8.23 read `y2_hp/xtal` (`ready_ms`, `errors`, `unconfirmed`), `sink_reused`/`sink_reopened`,
+>    `dac_hold_failed`; any frozen install: `/data/logs/recovery-previous-boot.txt` and `Y2RECOVERY`/pmsg lines.
+> 2. Owner's player, needs the owner: listen for a click at same-format track changes (kept sink); unplug USB → screen
+>    off → product sleep → wake → play on headphones (first real sleep with the hold/new power-up; read sleep rows and
+>    `cs_sleep_*`/`cs_force_*` notes); full power-off/on; ideally an overnight drain vs 8.22's figures.
+> 3. Open questions: #56 lost 54 points in ≈1 h frozen in recovery on a charger (does recovery charge? what drew it?);
+>    F34's cause (needs a trail); the hold write at screen wake is synchronous (≈70 ms when the codec was down — move off
+>    Reborn's main thread if it shows); battery cost of the screen-on hold (stock does the same, unmeasured).
+> 4. Unchanged from before: car AVRCP metadata, long-book seek, #42 sleep drain, #45 GC9503V screen-off, #47 charging
+>    confirmation, F23 rollback cause.
+> Next free label 123, sequence above 8705.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.23 (BASELINE 122) PUBLISHED — RECOVERY WATCHDOG (F34), DAC AS STOCK (#52, #54).**
 > Build 122, seq 8705, Linux `e3195fd`, Reborn `0779d8b`, installed on the owner's player (test builds 8700–8704).
 > F34: recovery feeds the SoC watchdog only while the installer progresses (120 s), pmsg trail and
 > `/data/logs/recovery-previous-boot.txt`; initramfs links few applets (`touch` missing broke 8701/8702; a test now

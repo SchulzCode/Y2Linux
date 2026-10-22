@@ -143,6 +143,13 @@ public release, and its Firmware-drive install was tested on the device):
   negotiated with AirPods but not yet confirmed by listening. Beta 6.1 changes how Bluetooth pauses
   (Beta 6 resumed silently on AirPods); the fix awaits its listening check. There is no
   wired-headphone detection: the jack is used whenever no Bluetooth headphones are connected.
+- **Updates frozen at "Step 1 of 4".** Some players' installer stops at its first step
+  ([#56](https://github.com/SchulzCode/Y2Linux/issues/56)); the cause is not known yet. Since Beta
+  8.23 the player restarts by itself after two minutes without progress and finishes or undoes the
+  update; on older versions a forced restart is safe. A frozen install leaves a record for error reports.
+- **Headphones on some players (#52, #54).** A few players' DAC crystal starts slowly or stops when
+  skipping a lot. Beta 8.23 powers the DAC exactly as the stock firmware does; confirmation from the
+  affected players is owed.
 - **Install:** the full path from stock has been run on the maintainer's player only. A kernel that
   hangs before its rescue system runs can only be fixed with SP Flash Tool.
 - **Copying to the player over USB** became about three times faster in Beta 7.11 (receive DMA);

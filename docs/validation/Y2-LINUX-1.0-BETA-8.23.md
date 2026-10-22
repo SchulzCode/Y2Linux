@@ -44,4 +44,9 @@ checks PASS, no MediaTek firmware in any image. Milestone audit BETA-8.23 in
   at a track change with the output kept (needs listening).
 - The hold write at screen wake powers the codec up synchronously (≈70 ms) when it was down.
 - #52/#54: confirmation from the reporters (`y2_hp/xtal`: `ready_ms`, `errors`, `unconfirmed`).
-- F34's cause: the next frozen install's `recovery-previous-boot.txt`. F23 unchanged.
+- F34's cause: the next frozen install's `recovery-previous-boot.txt`. #56 (install 07e62fce, 8.17 → 8.21, frozen ≈1 h)
+  is the same freeze; its report holds only the successful second run (8.21 kept no trail of the frozen one). It also
+  lost 93 % → 39 % in that hour while on a charger: not analysed (whether recovery charges, and what the frozen
+  installer and its screen drew). F23 unchanged.
+- GitHub: comments on #52, #54 (retest, Send Error Reports + Install ID) and #56 posted 2026-10-22; the #56 comment's
+  last paragraph presents the battery drain as explained, which it is not (an edit was blocked; owner may correct it).
