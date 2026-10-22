@@ -30,9 +30,10 @@ y2_stage() {
 y2_keep_previous_boot() {
     mount -t pstore pstore /sys/fs/pstore 2>/dev/null || return 0
     if mkdir -p "$1"; then
+        # This initramfs links only the applets init always needs.
         n=0
-        for old in $(ls -1 "$1" 2>/dev/null | sort -r); do
-            n=$((n+1)); [ "$n" -le 3 ] || rm -f "$1/$old"
+        for old in $(/bin/busybox ls -1 "$1" 2>/dev/null | /bin/busybox sort -r); do
+            n=$((n+1)); [ "$n" -le 3 ] || /bin/busybox rm -f "$1/$old"
         done
         {
             # This boot's context: a low battery on a weak charger, LK's boot
@@ -44,9 +45,9 @@ y2_keep_previous_boot() {
             echo "data_fsck $3"; cat /run/y2/health-data-fsck.txt 2>/dev/null
             echo "== boot-check"; cat /run/y2/update-boot-check.json 2>/dev/null
             for part in pmsg-ramoops-0 console-ramoops-0 dmesg-ramoops-0; do
-                [ ! -s "/sys/fs/pstore/$part" ] || { echo "== $part"; head -c 262144 "/sys/fs/pstore/$part"; }
+                [ ! -s "/sys/fs/pstore/$part" ] || { echo "== $part"; /bin/busybox head -c 262144 "/sys/fs/pstore/$part"; }
             done
-        } > "$1/$(date +%s)-$2-previous-boot.txt"
+        } > "$1/$(/bin/busybox date +%s)-$2-previous-boot.txt"
     fi
     umount /sys/fs/pstore
 }
@@ -154,7 +155,7 @@ if [ "$update_record" != 0 ]; then
     /sbin/y2-update-core boot-check > /run/y2/update-boot-check.json
     update_decision=$?
     cp /run/y2/update-boot-check.json /newdata/updates/boot-check-last.json 2>/dev/null
-    health_boot=$(sed -n 's/.*"health_boots": *\([0-9]*\).*/\1/p' /run/y2/update-boot-check.json | head -n 1)
+    health_boot=$(sed -n 's/.*"health_boots": *\([0-9]*\).*/\1/p' /run/y2/update-boot-check.json)
     y2_keep_previous_boot /newdata/updates/health "boot${health_boot:-x}" "$data_fsck"
     sync
     umount /newdata || rescue 'update data unmount'
@@ -165,8 +166,10 @@ if [ "$update_record" != 0 ]; then
             # every kernel message reaches the RAM console and a CPU stall
             # panics into a ramoops record and a restart, instead of a silent
             # hang the next boot cannot see.
-            printf '{"printk":"%s","panic":"%s","panic_on_rcu_stall":"%s"}\n' \
-                "$(cat /proc/sys/kernel/printk)" "$(cat /proc/sys/kernel/panic)" \
+            # printk separates its four levels with tabs, which JSON refuses raw.
+            read -r p1 p2 p3 p4 < /proc/sys/kernel/printk
+            printf '{"printk":"%s %s %s %s","panic":"%s","panic_on_rcu_stall":"%s"}\n' \
+                "$p1" "$p2" "$p3" "$p4" "$(cat /proc/sys/kernel/panic)" \
                 "$(cat /proc/sys/kernel/panic_on_rcu_stall 2>/dev/null)" > /run/y2/health-debug.json
             echo 7 > /proc/sys/kernel/printk
             echo 10 > /proc/sys/kernel/panic

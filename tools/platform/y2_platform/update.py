@@ -620,7 +620,11 @@ def application_healthy(app):
 
 def restore_health_debug(ctx):
     """Undo init's health-boot console level and stall panic (F23); best effort."""
-    saved = ctx.json('/run/y2/health-debug.json', None)
+    try:
+        # strict=False: a raw tab from /proc/sys/kernel/printk (8.22 test build).
+        saved = json.loads(ctx.read('/run/y2/health-debug.json') or '', strict=False)
+    except ValueError:
+        return
     if not isinstance(saved, dict):
         return
     for name in ('printk', 'panic', 'panic_on_rcu_stall'):

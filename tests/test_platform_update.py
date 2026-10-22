@@ -820,8 +820,9 @@ class PlatformPolicyTests(unittest.TestCase):
         kernel.mkdir(parents=True, exist_ok=True)
         for name, value in (('printk', '7'), ('panic', '10'), ('panic_on_rcu_stall', '1')):
             (kernel/name).write_text(value + '\n')
-        (self.root/'run/y2/health-debug.json').write_text(json.dumps(
-            {'printk': '3\t4\t1\t7', 'panic': '0', 'panic_on_rcu_stall': '0; reboot'}))
+        # As init wrote it on the first test build: a raw tab inside the JSON string.
+        (self.root/'run/y2/health-debug.json').write_text(
+            '{"printk":"3\t4\t1\t7","panic":"0","panic_on_rcu_stall":"0; reboot"}\n')
         restore_health_debug(self.ctx)
         self.assertEqual((kernel/'printk').read_text(), '3\t4\t1\t7\n')
         self.assertEqual((kernel/'panic').read_text(), '0\n')
