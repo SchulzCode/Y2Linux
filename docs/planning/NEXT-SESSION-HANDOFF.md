@@ -1,6 +1,15 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-22, night): Y2LINUX 1.0 BETA 8.22 (BASELINE 121) PUBLISHED — REPORT FIXES F23–F32, #53, #52/#54 CRYSTAL.**
+> **START HERE (2026-10-22, late night): Y2LINUX 1.0 BETA 8.23 (BASELINE 122) PUBLISHED — RECOVERY WATCHDOG (F34), DAC AS STOCK (#52, #54).**
+> Build 122, seq 8705, Linux `e3195fd`, Reborn `0779d8b`, installed on the owner's player (test builds 8700–8704).
+> F34: recovery feeds the SoC watchdog only while the installer progresses (120 s), pmsg trail and
+> `/data/logs/recovery-previous-boot.txt`; initramfs links few applets (`touch` missing broke 8701/8702; a test now
+> checks every command). #52/#54: stock power-up (XTAL+PLL+CLKOUT, select EXT 20 ms later, `ready_ms`), DT rail burst
+> (dac20/18 0, dac15 50 ms), `y2_hp/hold` set by Reborn while the screen is on, Reborn keeps the wired sink across
+> same-spec track changes (`sink_reused`). Owed: real sleep/wake and power-off with this build, battery cost of the
+> hold, click check at track changes, reporters' `y2_hp/xtal`. Report BETA-8.23. Next free label 123, sequence above 8705.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.22 (BASELINE 121) PUBLISHED — REPORT FIXES F23–F32, #53, #52/#54 CRYSTAL.**
 > All pending reports reviewed (ledger `UserReports/REVIEWED.md`, F23–F32). Built and installed on the owner's player
 > (build 121, seq 8607, Linux `073aa0c`, Reborn `e196033`; test builds 8600–8606 found initramfs applet, printk-JSON,
 > busybox-ntpd and PLL-switch issues, all fixed). #52/#54 crystal: stock lifecycle (probe start, 2-min idle, no source

@@ -1,6 +1,15 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.22, Baseline 121 — 2026-10-22 (latest, published)
+## Y2Linux 1.0 Beta 8.23, Baseline 122 — 2026-10-22 (latest, published)
+
+Release `1.0.0-beta.8.23`, tag `baseline-122`, Linux `e3195fd`, Reborn `0779d8b`, sequence 8705. F34: a recovery install
+that stops making progress (the "Step 1 of 4" freeze) restarts the player through the SoC watchdog and leaves its
+trail in `/data/logs/recovery-previous-boot.txt`. #52/#54: the CS43131 powers up as stock (crystal, PLL and CLKOUT
+together, crystal selected 20 ms later, DAC rails in one burst), stays powered while the screen is on (`y2_hp/hold`),
+and Reborn keeps the headphone output open across same-format track changes. Installed and tested on the owner's
+player. Details: [Beta 8.23 report](validation/Y2-LINUX-1.0-BETA-8.23.md).
+
+## Y2Linux 1.0 Beta 8.22, Baseline 121 — 2026-10-22 (published)
 
 Release `1.0.0-beta.8.22`, tag `baseline-121`, Linux `073aa0c`, Reborn `e196033`, sequence 8607. Fixes from the
 review of all pending reports (F23–F32) and #53: update health boots leave a reset-surviving stage trail and evidence

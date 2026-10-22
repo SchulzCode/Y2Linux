@@ -9090,3 +9090,24 @@ partition, schema or packaging change. Hardware evidence: fourteen user reports 
 | Build 121 on a player | INSTALLED BEFORE PUBLISH | seq 8607, Acknowledged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.22** (Baseline 121, sequence 8607).
+
+## BETA-8.23 (Baseline 122) recovery watchdog (F34) and DAC power as stock (#52, #54): milestone gap audit — 2026-10-22
+
+**Boundary:** owner: stop the "Step 1 of 4" install freeze from needing a forced restart; model the headphone DAC's
+power as close to stock as possible ("do it all now"); install and test on the owner's player, then publish. Changes:
+initramfs recovery (watchdog keeper, pmsg trail, previous-boot evidence), update core (progress to pmsg), overlay 0030
+(stock power-up, `y2_hp/hold`), DT DAC rail delays (validator updated), Reborn (kept wired sink, DAC hold, F33 update
+task queue). No memory map, partition, schema or packaging change. Hardware evidence: #52/#54 reports on 8.22 and
+the owner's player (test builds 8700–8705).
+
+| Area | State for Beta 8.23 | Evidence / gap |
+| --- | --- | --- |
+| F34 recovery watchdog + evidence | IMPLEMENTED, DEVICE-CHECKED | starved keeper resets (`boot_reason=4`); 8703–8705 restarted by themselves; freeze cause unproven |
+| Initramfs command coverage | HOST-CHECKED | test: every command init/recovery/storage run exists in the initramfs |
+| #54 stock power-up (XTAL+PLL+CLKOUT, EXT 20 ms later, rail burst) | IMPLEMENTED, DEVICE-CHECKED (owner's healthy crystal) | `PWDN_CTL=f0`, `SYS_CLK_CTL_1=04`, `ready_ms=30` after boot; reporters owed |
+| #52 kept wired output across same-format tracks | IMPLEMENTED, DEVICE-CHECKED | 17/17 reuses in the skip block, 96 per session, no kernel line; click check by ear owed |
+| DAC hold while the screen is on | IMPLEMENTED, DEVICE-CHECKED (screen on/off) | released at screen-off, codec down after 141–160 s; real sleep/wake and power-off with this build owed; battery cost unmeasured |
+| F33 update task queue (Reborn) | IMPLEMENTED, HOST-CHECKED | — |
+| Build 122 on a player | INSTALLED BEFORE PUBLISH | seq 8705, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.23** (Baseline 122, sequence 8705).
