@@ -6,7 +6,7 @@ kernel's topology, workload, OPP, deadline, UART ACK and restoration guards.
 # SPDX-License-Identifier: GPL-2.0-only
 import os
 
-from .common import atomic_json
+from .common import atomic_json, kernel_trusted
 
 STATE = '/sys/devices/system/cpu/cpu0/cpuidle/state2'
 BUDGET = '/sys/module/spm/parameters/dormant_budget'
@@ -54,7 +54,7 @@ def apply(ctx, action='start'):
         versions = ctx.json('/etc/y2linux/versions.json', {})
         if not boot or versions.get('kernel_version') != ctx.read('/proc/sys/kernel/osrelease'):
             result['reasons'].append('installed_kernel_identity')
-        if ctx.read('/proc/sys/kernel/tainted') != '0':
+        if not kernel_trusted(ctx):
             result['reasons'].append('kernel_tainted_or_unknown')
         if ctx.read('/sys/devices/system/cpu/cpuidle/current_driver') != 'mt6582-idle':
             result['reasons'].append('cpuidle_driver')

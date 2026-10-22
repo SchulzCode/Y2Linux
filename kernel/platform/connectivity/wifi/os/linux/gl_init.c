@@ -2590,6 +2590,12 @@ static VOID wlanRemove(VOID)
     P_GLUE_INFO_T glue;
     if (!wdev) return;
     glue=wiphy_priv(wdev->wiphy);
+    /* F27: a link still up is reported gone before the netdev goes. The
+     * firmware's own disconnect arrives after unregistering, and cfg80211
+     * then WARNs about the leftover BSS (a taint that blocked sleep). The
+     * queued event is processed by the unregister itself. */
+    if (glue->fgIsRegistered && wdev->netdev && READ_ONCE(wdev->connected))
+        cfg80211_disconnected(wdev->netdev,WLAN_REASON_DEAUTH_LEAVING,NULL,0,true,GFP_KERNEL);
     if (glue->fgIsRegistered) wlanNetUnregister(wdev);
     WRITE_ONCE(g_u4HaltFlag,1);
     cancel_delayed_work_sync(&workq);

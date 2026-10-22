@@ -14,6 +14,9 @@ from .common import atomic_json
 from .observe import wifi
 
 
+LAST_FAILURE_KEYS = ('error', 'reason', 'epoch', 'failures', 'scan', 'scan_monotonic_s', 'boot_id', 'monotonic_s')
+
+
 def publish(ctx, name, value):
     private_directory(ctx.path('/run/y2'))
     value.update(schema=1, boot_id=ctx.read('/proc/sys/kernel/random/boot_id'), monotonic_s=time.monotonic())
@@ -316,6 +319,16 @@ class EventMonitor:
         failures = old.get('failures', 0)
         record = {'error': error, 'epoch': self.ctx.read('/run/y2/wifi-epoch'),
                   'failures': (failures if isinstance(failures, int) else 0) + bool(error)}
+        # wpa_supplicant's own code (reason=CONN_FAILED, status_code=15): it
+        # separates a password from a timeout or SAE (F31). Never a name.
+        detail = re.search(r'\b(?:reason|status_code)=([A-Za-z0-9_]{1,32})\b', text) if error else None
+        if detail:
+            record['reason'] = detail.group(1)
+        # A connect ends a failure run: keep what the last failure showed
+        # (F13's scan evidence was gone by the time a report was saved).
+        last = old if old.get('error') else old.get('last_failure')
+        if isinstance(last, dict) and last.get('error'):
+            record['last_failure'] = {key: last[key] for key in LAST_FAILURE_KEYS if key in last}
         if error == 'ap_unavailable':
             # wpa_supplicant reports this after every scan: look at most every 30 s.
             last = old.get('scan_monotonic_s')

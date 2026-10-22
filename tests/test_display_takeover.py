@@ -45,3 +45,15 @@ int main(void){
  assert(!mtk_ovl_clk_enable(&d) && writes==count);
 }
 ''')
+
+
+class ScanoutLog(unittest.TestCase):
+    def test_scanout_line_only_on_layout_change_or_mismatch(self):
+        # F30: a line per frame filled /data/logs within minutes and rotated reports' evidence away.
+        manifest = json.loads((ROOT/'kernel/patches/manifest.json').read_text())
+        entry = next(e for e in manifest['overlays'] if e['path'].endswith('/mtk_disp_ovl.c'))
+        source = prepare_overlay(ROOT, entry).read_text()
+        block = source[source.index('One line per new layout'):source.index('"Y2SCAN FB format=')]
+        self.assertIn('if (live == addr && fmt == y2_last_fmt && size == y2_last_size &&\n'
+                      '            pending->pitch == y2_last_pitch)\n            return;', block)
+        self.assertEqual(source.count('Y2SCAN FB'), 1)

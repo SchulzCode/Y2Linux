@@ -116,6 +116,34 @@ class ProductAutoSleep(unittest.TestCase):
         record(self.ctx, 'requested', 0, mode='product')
         self.assertNotIn('first_entry', self.ctx.json('/data/system/platform/suspend-last.json'))
 
+    def test_playback_may_start_while_the_radios_come_back(self):
+        # F24: a wired open right after a wake (shared activity lease) was refused as
+        # busy until the radio restore had finished.
+        self.write('/data/network/enabled', '1')
+        lease = []
+        def command(argv, **kwargs):
+            self.calls.append(argv)
+            if argv[-1] == 'on-runtime':
+                fd = os.open(self.ctx.path('/run/y2/activity.lock'), os.O_RDWR)
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+                    lease.append('free')
+                except BlockingIOError:
+                    lease.append('held')
+                finally:
+                    os.close(fd)
+                # The firmware/update and maintenance locks stay held.
+                fd = os.open(self.ctx.path('/data/system/platform/.maintenance.lock'), os.O_RDWR)
+                try:
+                    with self.assertRaises(BlockingIOError):
+                        fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+                finally:
+                    os.close(fd)
+            return {'ok': True, 'output': ''}
+        self.ctx.runner = command
+        self.assertEqual(self.run_sleep(lambda ctx: self.returned()), 0)
+        self.assertEqual(lease, ['free'])
+
     def test_sleep_before_application_ready_waits_for_it_then_sleeps(self):
         # 4fed1b6a (8.12): sleep 8 s after Reborn started, power features not yet
         # armed, then a hang right after resume. The kernel entry now waits.
@@ -509,6 +537,16 @@ class ProductAutoSleep(unittest.TestCase):
                                             | record_value))
             with self.assertRaisesRegex(pm.Refused, 'sleep_recovery_required'):
                 pm.admission(self.ctx)
+
+    def test_kernel_warn_alone_keeps_product_sleep(self):
+        # F26: one cfg80211 WARN (taint 512) kept a player awake on a weak charger for hours.
+        self.write('/proc/sys/kernel/tainted', '512')
+        pm.admission(self.ctx)
+        for value in (str(512 | 4096), '1', 'unreadable'):
+            with self.subTest(taint=value):
+                self.write('/proc/sys/kernel/tainted', value)
+                with self.assertRaisesRegex(pm.Refused, 'kernel_sleep_unavailable'):
+                    pm.admission(self.ctx)
 
     def test_old_kernel_and_tainted_diagnostic_cannot_enable_product_sleep(self):
         self.write('/proc/sys/kernel/tainted', '4096')

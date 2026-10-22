@@ -195,6 +195,17 @@ class Context:
         }
 
 
+# TAINT_WARN alone: a kernel WARN this boot (F26: one cfg80211 WARN kept the
+# player awake for hours). Every other bit (probe modules, forced loads, a
+# machine check) still marks the kernel as not trusted for sleep or deep idle.
+TAINT_WARN = 1 << 9
+
+
+def kernel_trusted(ctx):
+    taint = number(ctx.read('/proc/sys/kernel/tainted'))
+    return taint is not None and not taint & ~TAINT_WARN
+
+
 def key_values(text, separator=':'):
     result = {}
     for line in (text or '').splitlines():

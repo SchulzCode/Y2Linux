@@ -957,6 +957,52 @@ int main(void) {
                              b'synthetic input')
             with self.assertRaises(ValueError): defaults(source)
 
+    def test_wifi_remove_reports_a_live_link_before_unregistering(self):
+        # F27: Wi-Fi powered down while connected → WARN _cfg80211_unregister_wdev (leftover BSS) → taint.
+        source = (ROOT/'kernel/platform/connectivity/wifi/os/linux/gl_init.c').read_text()
+        run_c(r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#define VOID void
+#define WLAN_REASON_DEAUTH_LEAVING 3
+#define GFP_KERNEL 0
+#define READ_ONCE(x) (x)
+#define WRITE_ONCE(x, v) ((x) = (v))
+#define IS_ERR_OR_NULL(p) (!(p))
+#define GLUE_FLAG_HALT_BIT 0
+struct net_device { int registered; };
+struct wiphy { int unused; };
+struct wireless_dev { struct wiphy *wiphy; struct net_device *netdev; bool connected; };
+struct glue { bool fgIsRegistered; unsigned long u4Flag; int waitq; void *main_thread; void *prAdapter; };
+typedef struct glue *P_GLUE_INFO_T;
+static struct glue g; static struct net_device nd; static struct wiphy w;
+static struct wireless_dev wd = { &w, &nd, true };
+static struct wireless_dev *y2_wdev; static void *gPrDev; static bool y2_adapter_started; static int g_u4HaltFlag, workq;
+static int order, disconnected_at, unregistered_at;
+static void *wiphy_priv(struct wiphy *x) { (void)x; return &g; }
+static void cfg80211_disconnected(struct net_device *d, int reason, const void *ie, size_t len, bool local, int gfp) {
+ (void)ie; (void)len; (void)gfp; assert(d->registered && reason == 3 && local); disconnected_at = ++order; }
+static void wlanNetUnregister(struct wireless_dev *x) { x->netdev->registered = 0; g.fgIsRegistered = false; unregistered_at = ++order; }
+static void cancel_delayed_work_sync(int *x) { (void)x; }
+static void glBusFreeIrq(struct net_device *d, struct glue *x) { (void)d; (void)x; }
+static void set_bit(int b, unsigned long *f) { *f |= 1UL << b; }
+static void wake_up_interruptible(int *q) { (void)q; }
+static void kthread_stop(void *t) { (void)t; }
+static void wlanAdapterStop(void *a) { (void)a; }
+static void wlanNetDestroy(struct wireless_dev *x) { (void)x; }
+''' + function(source, 'wlanRemove') + r'''
+int main(void) {
+ nd.registered = 1; g.fgIsRegistered = true; y2_wdev = &wd;
+ wlanRemove();
+ assert(disconnected_at == 1 && unregistered_at == 2);
+ /* Not connected: nothing to report. */
+ order = disconnected_at = 0; nd.registered = 1; g.fgIsRegistered = true; wd.connected = false; y2_wdev = &wd;
+ wlanRemove();
+ assert(!disconnected_at && unregistered_at == 1);
+ return 0;
+}''')
+
 
 if __name__ == '__main__':
     unittest.main()

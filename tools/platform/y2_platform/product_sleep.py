@@ -18,7 +18,7 @@ import sys
 import time
 
 from .boot import private_directory
-from .common import Context, atomic_json
+from .common import Context, atomic_json, kernel_trusted
 
 GUARD = '/data/system/platform/product-sleep-guard.json'
 # A kernel refusal before any task froze leaves nothing unproven; the next
@@ -64,7 +64,7 @@ def admission(ctx):
     spm = spm_state(ctx)
     if spm.get('system_sleep_abi') != '1':
         raise Refused('physical_qualification_required')
-    if ctx.read('/proc/sys/kernel/tainted') != '0' or spm.get('broken') != '0':
+    if not kernel_trusted(ctx) or spm.get('broken') != '0':
         raise Refused('kernel_sleep_unavailable')
     if 'mem' not in (ctx.read('/sys/power/state') or '').split():
         raise Refused('kernel_sleep_unavailable')
@@ -152,6 +152,7 @@ def operation_state(ctx, workloads=True):
 
 @contextlib.contextmanager
 def operation_locks(ctx):
+    held = {}
     with contextlib.ExitStack() as stack:
         for owner, name in OPERATION_LOCKS:
             path = ctx.path(name)
@@ -163,7 +164,15 @@ def operation_locks(ctx):
             except BlockingIOError as error:
                 holders = lock_holders(ctx, os.fstat(fd))
                 raise Refused(owner + (':' + ','.join(holders) if holders else '')) from error
-        yield
+            held[owner] = fd
+        yield held
+
+
+def release_activity(held):
+    """Let playback start once the player is awake for good (F24)."""
+    fd = held.get('activity_operation')
+    if fd is not None:
+        fcntl.flock(fd, fcntl.LOCK_UN)
 
 
 def lock_holders(ctx, meta):
@@ -374,8 +383,9 @@ def execute_owned(ctx, fd, enter, locks):
     pending = False
     attempted = False
     restored_kernel = False
+    held = {}
     try:
-        locks.enter_context(operation_locks(ctx))
+        held = locks.enter_context(operation_locks(ctx))
         admission(ctx)
         battery_and_cable(ctx)
         operation_state(ctx, workloads=False)
@@ -497,6 +507,11 @@ def execute_owned(ctx, fd, enter, locks):
             progress(ctx, 'screen_restoring')
             screen = screen_first(ctx)
             progress(ctx, 'screen_restored' if screen else 'screen_restore_failed')
+            # F24: nothing sleeps any more. A Play right after waking took
+            # Reborn's shared activity lease and was refused as busy (ALSA
+            # -16) for the ≈1.6 s of the radio restore below; wired playback
+            # does not need the radios. The other operation locks stay.
+            release_activity(held)
             try:
                 record(ctx, 'restoring_radios', result)
                 marker(ctx, 'RADIOS_RESTORING')

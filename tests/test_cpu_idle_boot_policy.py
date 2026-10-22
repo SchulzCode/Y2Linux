@@ -55,6 +55,10 @@ class BootPolicy(unittest.TestCase):
         self.assertEqual(self.ctx.read('/sys/devices/system/cpu/cpu1/cpuidle/state2/disable'), '1')
         self.assertEqual(self.ctx.json(policy.RECORD)['boot_id'], 'qualified-boot')
 
+    def test_kernel_warn_alone_does_not_skip_deep_idle(self):
+        self.put('/proc/sys/kernel/tainted', '512')
+        self.assertEqual(policy.apply(self.ctx)['state'], 'Enabled')
+
     def test_each_missing_or_failed_foundation_keeps_safe_fallback(self):
         for name in policy.FOUNDATIONS:
             with self.subTest(name=name):

@@ -46,7 +46,7 @@
       "path": "drivers/gpu/drm/mediatek/mtk_disp_ovl.c",
       "patch": "0014-mt6582-ovl.patch",
       "base_sha256": "405ee251d3f328a00074158d2cf9664c934de40a5b47c7a5b018a8deeb6b233d",
-      "result_sha256": "676601a6f6de64c9a88df638d55db40bdd2a823c3e59c4da6574f5d93099f908"
+      "result_sha256": "306614ecd657947017a5ff15e4142b4ac73d5bcfb9c83cde2cf85d762d28a163"
     },
     {
       "path": "drivers/gpu/drm/mediatek/mtk_disp_rdma.c",

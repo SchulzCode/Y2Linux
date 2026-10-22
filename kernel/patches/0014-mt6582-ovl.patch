@@ -126,17 +126,28 @@
  			ignore_pixel_alpha = OVL_CONST_BLEND;
  	}
  
-@@ -569,6 +626,18 @@
+@@ -569,6 +626,29 @@
  
  	mtk_ovl_set_bit_depth(dev, idx, fmt, cmdq_pkt);
  	mtk_ovl_layer_on(dev, idx, cmdq_pkt);
 +    if (ovl->data->mt6582 && idx == 0 && !cmdq_pkt && state->base.fb) {
++        /* One line per new layout, or when the scanout address did not land:
++         * a line per frame filled the system log within minutes (F30). */
++        static unsigned int y2_last_fmt, y2_last_size, y2_last_pitch;
 +        struct drm_framebuffer *fb = state->base.fb;
 +        struct mtk_gem_obj *gem = to_mtk_gem_obj(fb->obj[0]);
++        unsigned int live = readl(ovl->regs + DISP_REG_OVL_ADDR(ovl, idx));
++        unsigned int size = fb->width << 16 | fb->height;
++
++        if (live == addr && fmt == y2_last_fmt && size == y2_last_size &&
++            pending->pitch == y2_last_pitch)
++            return;
++        y2_last_fmt = fmt;
++        y2_last_size = size;
++        y2_last_pitch = pending->pitch;
 +        dev_info_ratelimited(dev, "Y2SCAN FB format=%p4cc size=%ux%u pitch=%u GEM-DMA=%pad allocation=%zu expected=%08x live=%08x match=%u ctrl=%08x src=%08x roi=%08x layer=%08x pitch-live=%08x size-live=%08x offset=%08x rdma=%08x\n",
 +            &fmt, fb->width, fb->height, pending->pitch, &gem->dma_addr, gem->base.size, addr,
-+            readl(ovl->regs + DISP_REG_OVL_ADDR(ovl, idx)),
-+            addr == readl(ovl->regs + DISP_REG_OVL_ADDR(ovl, idx)),
++            live, addr == live,
 +            readl(ovl->regs + DISP_REG_OVL_EN), readl(ovl->regs + DISP_REG_OVL_SRC_CON),
 +            readl(ovl->regs + DISP_REG_OVL_ROI_SIZE), readl(ovl->regs + DISP_REG_OVL_CON(idx)),
 +            readl(ovl->regs + DISP_REG_OVL_PITCH(idx)), readl(ovl->regs + DISP_REG_OVL_SRC_SIZE(idx)),
@@ -145,7 +156,7 @@
  }
  
  void mtk_ovl_bgclr_in_on(struct device *dev)
-@@ -670,6 +739,17 @@
+@@ -670,6 +750,17 @@
  	.formats = mt8173_formats,
  	.num_formats = ARRAY_SIZE(mt8173_formats),
  };
@@ -163,7 +174,7 @@
  
  static const struct mtk_disp_ovl_data mt8173_ovl_driver_data = {
  	.addr = DISP_REG_OVL_ADDR_MT8173,
-@@ -742,6 +822,8 @@
+@@ -742,6 +833,8 @@
  static const struct of_device_id mtk_disp_ovl_driver_dt_match[] = {
  	{ .compatible = "mediatek,mt2701-disp-ovl",
  	  .data = &mt2701_ovl_driver_data},
