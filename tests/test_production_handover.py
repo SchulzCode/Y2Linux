@@ -177,8 +177,13 @@ exit 0
         # F34: the SoC watchdog is fed only while the installer runs and reports progress; a frozen
         # install restarts like a press of Power instead of staying on "Step 1 of 4" for hours.
         loop = script[script.index('while :; do\n    recovery_watchdog_start'):]
-        self.assertLess(loop.index('recovery_watchdog_start'), loop.index('/sbin/y2-update-core recovery'))
-        self.assertLess(loop.index('/sbin/y2-update-core recovery'), loop.index('recovery_watchdog_stop'))
+        self.assertLess(loop.index('recovery_watchdog_start'), loop.index('recovery_core'))
+        self.assertLess(loop.index('recovery_core'), loop.index('recovery_watchdog_stop'))
+        # A finished install or restore is not waited for: the installer once never exited after "installed".
+        core = script[script.index('recovery_core() {'):script.index('\n}\n', script.index('recovery_core() {'))]
+        self.assertIn("'100 installed'*|'100 restored'*) finished=$((finished+1)) ;;", core)
+        self.assertIn('if [ "$finished" -ge 30 ]; then', core)
+        self.assertNotIn('echo 7 > /proc/sys/kernel/printk', script)
         self.assertLess(loop.index('recovery_watchdog_stop'), loop.index('until charger_online'))
         keeper = script[script.index('recovery_watchdog_start() {'):script.index('recovery_watchdog_stop() {')]
         self.assertIn('if [ "$still" -ge 120 ]; then', keeper)

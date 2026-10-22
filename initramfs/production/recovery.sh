@@ -223,19 +223,39 @@ recovery_data_mounted=1
 recovery_restart_mode
 mkdir -p /newdata/logs
 recovery_keep_previous_boot
-# F34: every kernel message reaches the RAM console during the install, and a
-# CPU stall panics into a ramoops record (the watchdog restarts the player).
-echo 7 > /proc/sys/kernel/printk
-echo 10 > /proc/sys/kernel/panic
-echo 1 > /proc/sys/kernel/panic_on_rcu_stall 2>/dev/null
 /bin/busybox timeout 10 /bin/busybox seedrng --seed-dir=/newdata/system/entropy > /dev/kmsg 2>&1 || :
 recovery_keep_radio_firmware
 y2_stage recovery_install
 
 attempt=0
+# F34 (8.23 test build): the installer wrote "installed" (journal saved, the
+# recovery request cleared) and then never exited; recovery waited for it.
+# A finished install or restore is not waited for longer than 30 s.
+recovery_core() {
+    /sbin/y2-update-core recovery > /run/y2/recovery-result.json &
+    core=$!
+    finished=0
+    while kill -0 "$core" 2>/dev/null; do
+        case "$(cat /run/y2/recovery-progress 2>/dev/null)" in
+            '100 installed'*|'100 restored'*) finished=$((finished+1)) ;;
+        esac
+        if [ "$finished" -ge 30 ]; then
+            recovery_log "installer finished but did not exit; continuing"
+            [ ! -c /dev/pmsg0 ] || echo "core finished, no exit" > /dev/pmsg0
+            case "$(cat /run/y2/recovery-progress)" in
+                '100 installed'*) echo '{"outcome":"installed","exit":"hung"}' ;;
+                *) echo '{"outcome":"rolled_back","exit":"hung"}' ;;
+            esac > /run/y2/recovery-result.json
+            return
+        fi
+        sleep 1
+    done
+    wait "$core"
+}
+
 while :; do
     recovery_watchdog_start
-    /sbin/y2-update-core recovery > /run/y2/recovery-result.json
+    recovery_core
     recovery_watchdog_stop
     outcome=$(sed -n 's/.*"outcome":"\([a-z_]*\)".*/\1/p' /run/y2/recovery-result.json)
     recovery_log "outcome=${outcome:-none} $(cat /run/y2/recovery-result.json)"
