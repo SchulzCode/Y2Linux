@@ -2,8 +2,10 @@
 runs it: it starts when the codec powers up, stops only with the rails, a stream waits for its ready flag until it
 has run 1 s and then uses it anyway (stock never reads the flag), flags seen later are counted and never restart it,
 the running clock stays selected between streams (#52: stock never switches), power-up selects the crystal with
-the PLL and CLKOUT on as stock cs43131_hw_init does (#54), a PLL that never locks fails hw_params and
-leaves the codec on RCO with the crystal running, and the per-DAI clock requests stay balanced across ALSA's hw_params/hw_free sequences."""
+the PLL and CLKOUT on as stock cs43131_hw_init does (#54), rates the crystal does not clock are refused (the PLL is never
+used, as stock: #52's crystal stopped at every 48 kHz start), a crystal error at a stream start power-cycles the codec,
+a probe that finds the rails on starts the codec cold, and the per-DAI clock requests stay balanced across ALSA's
+hw_params/hw_free sequences."""
 import re
 import unittest
 from pathlib import Path
@@ -46,10 +48,26 @@ class CodecClock(unittest.TestCase):
         self.assertEqual(delays, [('20', '0'), ('18', '0'), ('15', '50000')])
         # The ready flag is read every 20 ms, not every 1 ms (stock never reads it during the start).
         self.assertIn('Y2_XTAL_POLL_US, ms * 1000);', function(source, 'y2_xtal_wait'))
-        # Nothing but runtime suspend powers the crystal down any more, and nothing cycles the rails.
+        # Nothing but runtime suspend powers the crystal down (also inside the #52 power cycle).
         self.assertEqual(source.count('1 << CS43130_PDN_XTAL_SHIFT'), 3)  # two XTAL_UNUSED branches, runtime suspend
-        for gone in ('y2_codec_cycle', 'y2_rails_off', 'y2_xtal_try', 'y2_xtal_may_cycle'):
+        for gone in ('y2_rails_off', 'y2_xtal_try', 'y2_xtal_may_cycle'):
             self.assertNotIn(gone, source)
+        cycle = function(source, 'y2_codec_cycle')
+        self.assertLess(cycle.index('cs43130_runtime_suspend(cs43130->dev);'), cycle.index('msleep(Y2_CODEC_OFF_MS);'))
+        self.assertLess(cycle.index('msleep(Y2_CODEC_OFF_MS);'), cycle.index('cs43130_runtime_resume(cs43130->dev);'))
+        # #52: a restart resets the SoC, not the PMIC: rails found on at probe go off for Y2_CODEC_OFF_MS first.
+        cold = probe[probe.index('y2_cold_start = regulator_is_enabled(cs43130->supplies[0].consumer) > 0;'):]
+        order = ['regulator_bulk_enable(', 'if (y2_cold_start) {', 'regulator_bulk_disable(', 'msleep(Y2_CODEC_OFF_MS);',
+                 'regulator_bulk_enable(', 'cs43130->reset_gpio = devm_gpiod_get_optional(']
+        at = 0
+        for step in order:
+            at = cold.index(step, at) + 1
+        # #52: no PLL, ever: rates the crystal does not clock fail before any clock work.
+        get = function(source, 'y2_clk_get')
+        self.assertLess(get.index('if (CS43130_MCLK_22M % rate) {'), get.index('mutex_lock(&cs43130->clk_mutex);'))
+        afe = (Path(__file__).resolve().parents[1]/'kernel/audio/mt6582-afe.c').read_text()
+        self.assertNotIn('SNDRV_PCM_RATE_48000', afe)
+        self.assertIn('.rate_min = 44100, .rate_max = 44100,', afe)
         preamble = source[source.index('#define Y2_XTAL_WAIT_MS'):source.index('static void y2_xtal_boost(')]
         run_c(r'''
 #include <assert.h>
@@ -164,8 +182,13 @@ static int cs43130_set_pll(struct snd_soc_component *component, int pll_id, int 
 }
 static int cs43130_change_clksrc(struct snd_soc_component *component, enum cs43130_mclk_src_sel src);
 static unsigned long y2_clk_holders;
+static void runtime_suspend(void);
+static void runtime_resume(void);
+static int cs43130_runtime_suspend(void *dev) { (void)dev; runtime_suspend(); return 0; }
+static int cs43130_runtime_resume(void *dev) { (void)dev; runtime_resume(); return 0; }
 ''' + preamble + function(source, 'y2_xtal_boost') + function(source, 'y2_xtal_ran_ms')
-           + function(source, 'y2_xtal_power_on') + function(source, 'y2_xtal_report') + function(source, 'y2_xtal_start')
+           + function(source, 'y2_xtal_power_on') + function(source, 'y2_xtal_report')
+           + function(source, 'y2_codec_cycle') + function(source, 'y2_xtal_start')
            + function(source, 'y2_clksrc_failed') + change
            + function(source, 'y2_clk_put') + function(source, 'y2_clk_get') + r'''
 static unsigned sel(void) { return map.reg[CS43130_SYS_CLK_CTL_1] & CS43130_MCLK_SRC_SEL_MASK; }
@@ -181,6 +204,7 @@ static void runtime_suspend(void) {
  codec.mclk_int_src = CS43130_MCLK_SRC_RCO; map.reg[CS43130_INT_STATUS_1] = 0; }
 static void runtime_resume(void) { y2_xtal_power_on(&codec, true); }
 int main(void) {
+ (void)y2_cold_start; /* probe only */
  map.reg[CS43130_SYS_CLK_CTL_1] = CS43130_MCLK_SRC_RCO; map.reg[CS43130_PWDN_CTL] = 0xff;
  /* The codec kept power since probe: the first stream powers the crystal and waits for it. */
  ready_after = 20;
@@ -194,11 +218,19 @@ int main(void) {
  pll_sets = 0;
  assert(!y2_clk_get(&component, 0, 44100) && xtal_waits == 1 && pll_sets == 0); on_ext();
  hw_free(0);
- /* #52: a sticky crystal error while it runs is counted, never acted on (stock masks it). */
- map.reg[CS43130_INT_STATUS_1] = CS43130_XTAL_ERR_INT | 0x41;
- assert(!y2_clk_get(&component, 0, 44100) && y2_xtal_errors == 1 && starts == 1 && !stops && !xtal_off());
- assert(sel() == CS43130_MCLK_SRC_EXT && xtal_waits == 1);
+ /* #52: a crystal error seen at a stream start power-cycles the codec (rails off 500 ms, as from a power-on);
+  * the stream waits for the restarted crystal on the crystal clock. */
+ map.reg[CS43130_INT_STATUS_1] = CS43130_XTAL_ERR_INT | 0x41; ready_after = 30;
+ {
+  unsigned long before = jiffies;
+  assert(!y2_clk_get(&component, 0, 44100) && y2_xtal_errors == 1 && y2_codec_cycles == 1);
+  assert(stops == 1 && starts == 2 && !xtal_off() && y2_xtal_ready && y2_xtal_ready_ms == 30 && xtal_waits == 2);
+  assert(sel() == CS43130_MCLK_SRC_EXT && codec.clk_req == 1 && jiffies - before >= 500 + 30);
+ }
  hw_free(0);
+ /* A clean status at the next start changes nothing. */
+ assert(!y2_clk_get(&component, 0, 44100) && y2_codec_cycles == 1 && xtal_waits == 2); hw_free(0);
+ stops = 0; starts = 1; /* the counts below start after this cycle */
  /* Runtime suspend stops the crystal; runtime resume starts it before the stream, which waits only for the rest. */
  runtime_suspend(); assert(stops == 1);
  /* As stock cs43131_hw_init: XTAL, PLL and CLKOUT power up together, 20 ms later the crystal is selected. */
@@ -237,33 +269,21 @@ int main(void) {
  /* Test boost: the bias changes at the next power-up, never under a running crystal. */
  y2_xtal_boost(&codec); assert(y2_xtal_boosted && map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_12_5UA);
  runtime_suspend(); runtime_resume(); assert(map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_15UA);
- /* 48 kHz through the PLL; a PLL that never locks fails hw_params, leaves RCO, keeps the crystal, holds nothing. */
- use_pll = 1; pll_fail = 1; stops = 0;
- assert(y2_clk_get(&component, 0, 48000) == -ETIMEDOUT);
- on_rco(); assert((map.reg[CS43130_PWDN_CTL] & CS43130_PDN_PLL_MASK) && !xtal_off() && !stops && y2_xtal_on);
- assert(codec.clk_req == 0 && !y2_clk_holders);
- hw_free(0); /* ALSA's hw_free after the failure must not take a request it never got */
+ /* #52: 48 kHz, and every rate the crystal does not clock, is refused before any clock work: no PLL, ever. */
+ pll_sets = 0; stops = 0;
+ assert(y2_clk_get(&component, 0, 48000) == -EINVAL && y2_clk_get(&component, 0, 96000) == -EINVAL);
+ assert(y2_clk_get(&component, 0, 32000) == -EINVAL);
+ assert(!pll_sets && codec.clk_req == 0 && !y2_clk_holders && !stops && !xtal_off()); on_ext();
+ hw_free(0); /* ALSA's hw_free after the refusal must not take a request it never got */
  assert(codec.clk_req == 0);
- /* The retry locks. */
- pll_fail = 0;
- assert(!y2_clk_get(&component, 0, 48000) && codec.mclk_int_src == CS43130_MCLK_SRC_PLL && codec.mclk_int == CS43130_MCLK_24M);
- /* The PLL keeps running after the stream; the next 48 kHz stream reuses it. */
- hw_free(0); assert(codec.mclk_int_src == CS43130_MCLK_SRC_PLL && !xtal_off());
- pll_sets = 0;
- assert(!y2_clk_get(&component, 0, 48000) && pll_sets == 0 && codec.mclk_int_src == CS43130_MCLK_SRC_PLL);
- hw_free(0);
- /* A 44.1 kHz stream after it switches back to the crystal. */
- use_pll = 0;
- assert(!y2_clk_get(&component, 0, 44100) && pll_sets == 1); on_ext();
- hw_free(0);
  /* Runtime suspend returns the codec to RCO with the PLL off; the next open selects the crystal again. */
  runtime_suspend(); on_rco(); runtime_resume();
  assert(!y2_clk_get(&component, 0, 44100)); on_ext();
  hw_free(0);
- /* A repeated hw_params at a fitting rate keeps the clock; a new family switches. */
- assert(!y2_clk_get(&component, 0, 48000) && codec.clk_req == 1);
- assert(!y2_clk_get(&component, 0, 96000) && codec.clk_req == 1);
- assert(!y2_clk_get(&component, 0, 44100) && codec.clk_req == 1 && codec.mclk_int == CS43130_MCLK_22M);
+ /* A repeated hw_params keeps the clock; 88.2 kHz runs from the crystal too; a refused rate keeps the request. */
+ assert(!y2_clk_get(&component, 0, 44100) && codec.clk_req == 1);
+ assert(!y2_clk_get(&component, 0, 88200) && codec.clk_req == 1 && codec.mclk_int == CS43130_MCLK_22M && !pll_sets);
+ assert(y2_clk_get(&component, 0, 48000) == -EINVAL && codec.clk_req == 1);
  /* A second DAI shares the clock; the last hw_free returns to RCO. */
  assert(!y2_clk_get(&component, 1, 44100) && codec.clk_req == 2 && mix);
  hw_free(0); assert(codec.clk_req == 1 && sel() == CS43130_MCLK_SRC_EXT);
