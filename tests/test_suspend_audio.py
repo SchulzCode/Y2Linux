@@ -36,11 +36,14 @@ static unsigned xtal_starts;
 static unsigned pm_suspend_target_state = 3;
 static unsigned long jiffies = 100;
 struct regmap { unsigned cache[5], hw[5]; bool only, dirty; };
-struct cs43130_private { struct regmap *regmap; void *reset_gpio; unsigned xtal_ibias; int supplies[5]; int mclk_int_src; };
+struct cs43130_private { struct regmap *regmap; void *reset_gpio; unsigned xtal_ibias; int supplies[5]; int mclk_int_src;
+ struct device *dev; };
 struct device { struct cs43130_private *data; };
 static struct regmap map;
-static struct cs43130_private codec = { &map, 0, 1, {1,1,1,1,1}, 0 };
+static struct device dev;
+static struct cs43130_private codec = { &map, 0, 1, {1,1,1,1,1}, 0, &dev };
 static struct device dev = { &codec };
+static unsigned int y2_xtal_stream_cycles;
 static bool reset_high;
 static int enable_error, disable_error, sync_error, xtal_error;
 static unsigned enables, disables, syncs, notes;
@@ -51,7 +54,7 @@ static void y2_pm_note(const char *s,int e) {
  notes++;strcpy(last_note,s);last_error=e;
  if(!strcmp(s,"cs_cleanup_fail") && e==-EBUSY)cleanup_noted=true;
 }
-#define dev_err(...) do {} while(0)
+#define dev_err(d, ...) ((void)(d))
 static void regcache_cache_only(struct regmap *m,bool v) { m->only=v; }
 static void regcache_mark_dirty(struct regmap *m) { m->dirty=true; }
 static void gpiod_set_value_cansleep(void *g,int v) {
@@ -87,7 +90,7 @@ static void y2_xtal_power_on(struct cs43130_private *c, bool select) {
 static int pm_runtime_force_suspend(struct device *d);
 static int pm_runtime_force_resume(struct device *d);
 ''' + ''.join(function(source, n) for n in ('cs43130_pm_note',
-            'cs43130_restore_cache', 'cs43130_runtime_suspend', 'cs43130_runtime_resume',
+            'cs43130_restore_cache', 'cs43130_runtime_suspend', 'y2_codec_up', 'cs43130_runtime_resume',
             'cs43130_system_suspend', 'cs43130_system_resume')) + r'''
 static int pm_runtime_force_suspend(struct device *d){return cs43130_runtime_suspend(d);}
 static int pm_runtime_force_resume(struct device *d){return cs43130_runtime_resume(d);}
