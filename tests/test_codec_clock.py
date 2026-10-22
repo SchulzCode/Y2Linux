@@ -27,8 +27,12 @@ class CodecClock(unittest.TestCase):
         self.assertLess(suspend.index('y2_xtal_on = false;'), suspend.index('regulator_bulk_disable'))
         resume = function(source, 'cs43130_runtime_resume')
         self.assertLess(resume.index('cs43130_restore_cache(cs43130);'), resume.index('y2_xtal_power_on(cs43130);'))
-        # The codec keeps power for 5 s after a stream (track changes), not 100 ms.
-        self.assertIn('pm_runtime_set_autosuspend_delay(cs43130->dev, 5000);', source)
+        # #52/#54, as stock: the crystal starts at probe, and the codec keeps power two idle minutes.
+        self.assertIn('pm_runtime_set_autosuspend_delay(cs43130->dev, 120000);', source)
+        probe = function(source, 'cs43130_i2c_probe')
+        self.assertLess(probe.index('y2_xtal_power_on(cs43130);'), probe.index('pm_runtime_enable(cs43130->dev);'))
+        # The ready flag is read every 20 ms, not every 1 ms (stock never reads it during the start).
+        self.assertIn('Y2_XTAL_POLL_US, ms * 1000);', function(source, 'y2_xtal_wait'))
         # Nothing but runtime suspend powers the crystal down any more, and nothing cycles the rails.
         self.assertEqual(source.count('1 << CS43130_PDN_XTAL_SHIFT'), 3)  # two XTAL_UNUSED branches, runtime suspend
         for gone in ('y2_codec_cycle', 'y2_rails_off', 'y2_xtal_try', 'y2_xtal_may_cycle'):
@@ -118,9 +122,12 @@ static int regmap_read_bypassed(struct regmap *m, unsigned r, unsigned *v) { *v 
 static int mix, xtal_waits, budget, pll_fail;
 static void usleep_range(unsigned long lo, unsigned long hi) { (void)lo; (void)hi; }
 static void cs43130_pcm_dsd_mix(bool on, struct regmap *m) { (void)m; mix = on; }
-/* The crystal reports ready `ready_after` ms after it was powered; a wait advances the clock. */
 static int cs43130_wait_for_completion(struct cs43130_private *c, struct completion *to_poll, int time) {
- if (to_poll == &c->pll_rdy) return pll_fail ? -ETIMEDOUT : 0;
+ (void)c; (void)time; assert(to_poll == &c->pll_rdy); return pll_fail ? -ETIMEDOUT : 0;
+}
+/* The crystal reports ready `ready_after` ms after it was powered; a wait advances the clock. */
+static int y2_xtal_wait(struct cs43130_private *c, int time) {
+ (void)c;
  assert(!(map.reg[CS43130_PWDN_CTL] & CS43130_PDN_XTAL_MASK));
  budget = time; xtal_waits++;
  if (jiffies - chip_on_at + time >= ready_after) {
@@ -162,7 +169,7 @@ int main(void) {
  ready_after = 20;
  assert(!y2_clk_get(&component, 0, 44100));
  assert(codec.clk_req == 1 && codec.mclk_int_src == CS43130_MCLK_SRC_EXT && sel() == CS43130_MCLK_SRC_EXT && !xtal_off());
- assert(starts == 1 && xtal_waits == 1 && budget == 1000 && y2_xtal_ready && !y2_xtal_unconfirmed);
+ assert(starts == 1 && xtal_waits == 1 && budget == 1000 && y2_xtal_ready && !y2_xtal_unconfirmed && y2_xtal_ready_ms == 20);
  /* A crystal that starts keeps the stock bias. */
  assert(!y2_xtal_boosted && map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_12_5UA);
  /* #51/#52: close and reopen (Next) keep the crystal running and selected: no clock work at all. */
