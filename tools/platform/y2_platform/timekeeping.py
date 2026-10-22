@@ -160,6 +160,13 @@ def set_manual(ctx, epoch):
         directory = private_directory(ctx.path('/data/system/platform'))
         atomic_json(directory / 'time-last.json', value, durable=True)
         rtc_write(ctx, value)
+        # A running, not yet synchronised ntpd took a 2 h jump for network
+        # time at its first sync and kept it for minutes (8.22 test build); a
+        # fresh one steps at once. Without a reachable server the owner's time
+        # stays, which is what it is for.
+        if ctx.read('/run/y2/ntp.pid'):
+            ctx.command(['/etc/init.d/S43y2-time', 'stop'], timeout=5)
+            value['ntp_restart'] = ctx.command(['/etc/init.d/S43y2-time', 'start'], timeout=5)['ok']
         return value
     finally:
         os.close(fd)

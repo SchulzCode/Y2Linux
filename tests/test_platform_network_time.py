@@ -334,6 +334,7 @@ class NetworkTime(unittest.TestCase):
         self.assertEqual(value['source'], 'manual')
         self.assertIn(['/bin/busybox', 'date', '-u', '-s', '@' + str(chosen)], self.calls)
         self.assertIn(['/bin/busybox', 'hwclock', '-w', '-u'], self.calls)
+        self.assertNotIn(['/etc/init.d/S43y2-time', 'start'], self.calls)   # no time server running
         clock = status(self.ctx, chosen + 5, monotonic=value['monotonic_s'] + 5, elapsed=value['boottime_s'] + 5)
         self.assertTrue(clock['clock_sane'])
         self.assertFalse(clock['tls_ready'])
@@ -358,6 +359,14 @@ class NetworkTime(unittest.TestCase):
         last = json.loads(self.ctx.read('/data/system/platform/time-last.json'))
         self.assertEqual((last['source'], last['epoch']), ('ntp', chosen + 200))
         self.assertTrue(status(self.ctx, chosen + 200)['tls_ready'])
+        # A running, not yet synchronised time server is restarted: a fresh one steps at its first sync.
+        self.put('/run/y2/ntp.pid', '4242')
+        self.put('/run/y2/time.json', json.dumps({'source': 'manual', 'boot_id': 'boot-two'}))
+        self.calls.clear()
+        value = set_manual(self.ctx, chosen + 400)
+        self.assertEqual(self.calls[-2:], [['/etc/init.d/S43y2-time', 'stop'], ['/etc/init.d/S43y2-time', 'start']])
+        self.assertTrue(value['ntp_restart'])
+        ntp_event(self.ctx, 'stratum', {'stratum': '2'}, now=chosen + 500)
         # Network time this boot: a hand-set time is refused (busybox ntpd kept one 2 h off for minutes
         # while its periodic callback called it network time, 8.22 test build).
         self.calls.clear()
@@ -365,7 +374,7 @@ class NetworkTime(unittest.TestCase):
             set_manual(self.ctx, chosen + 7200)
         self.assertEqual(self.calls, [])
         self.put('/proc/sys/kernel/random/boot_id', 'boot-three')
-        self.assertEqual(bootstrap(self.ctx, now=chosen + 300)['source'], 'retained_rtc')
+        self.assertEqual(bootstrap(self.ctx, now=chosen + 600)['source'], 'retained_rtc')
 
     def test_running_clock_is_remembered_hourly_only_when_set(self):
         floor = 1790000000
