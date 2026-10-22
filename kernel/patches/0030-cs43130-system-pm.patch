@@ -19,7 +19,7 @@
  		return true;
  	default:
  		return false;
-@@ -352,6 +357,168 @@
+@@ -352,6 +357,171 @@
  					1000, time * 1000);
  }
  
@@ -118,7 +118,7 @@
 +/* Under clk_mutex, before a stream selects the crystal or the PLL it feeds. */
 +static void y2_xtal_start(struct cs43130_private *cs43130)
 +{
-+	unsigned int status = 0, ran;
++	unsigned int status = 0, ran, waited;
 +	int ret;
 +
 +	if (!y2_xtal_on)
@@ -146,15 +146,18 @@
 +	ran = y2_xtal_ran_ms();
 +	regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
 +			   CS43130_XTAL_RDY_INT_MASK, 0);
++	waited = ran;
 +	ret = y2_xtal_wait(cs43130, ran < Y2_XTAL_WAIT_MS ? Y2_XTAL_WAIT_MS - ran : 1);
 +	regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
 +			   CS43130_XTAL_RDY_INT_MASK,
 +			   1 << CS43130_XTAL_RDY_INT_SHIFT);
 +	ran = y2_xtal_ran_ms();
++	waited = ran - waited;
 +	if (!ret) {
++		/* Seen at once after a long run (started at probe): at most `ran`. */
 +		y2_xtal_ready = true;
 +		y2_xtal_ready_ms = ran;
-+		if (ran > Y2_XTAL_SLOW_MS)
++		if (waited > Y2_XTAL_SLOW_MS)
 +			dev_warn(cs43130->dev, "XTAL ready %u ms after power-up\n", ran);
 +		return;
 +	}
@@ -188,7 +191,7 @@
  static int cs43130_change_clksrc(struct snd_soc_component *component,
  				 enum cs43130_mclk_src_sel src)
  {
-@@ -379,25 +546,12 @@
+@@ -379,25 +549,12 @@
  	switch (src) {
  	case CS43130_MCLK_SRC_EXT:
  		cs43130->pll_bypass = true;
@@ -215,7 +218,7 @@
  		}
  
  		regmap_update_bits(cs43130->regmap, CS43130_SYS_CLK_CTL_1,
-@@ -411,28 +565,16 @@
+@@ -411,28 +568,16 @@
  		regmap_update_bits(cs43130->regmap, CS43130_PWDN_CTL,
  				   CS43130_PDN_PLL_MASK,
  				   1 << CS43130_PDN_PLL_SHIFT);
@@ -246,7 +249,7 @@
  		}
  
  		reinit_completion(&cs43130->pll_rdy);
-@@ -446,7 +588,7 @@
+@@ -446,7 +591,7 @@
  				   1 << CS43130_PLL_RDY_INT_SHIFT);
  		if (ret) {
  			dev_err(cs43130->dev, "Error waiting for PLL_READY interrupt: %d\n", ret);
@@ -255,7 +258,7 @@
  		}
  
  		regmap_update_bits(cs43130->regmap, CS43130_SYS_CLK_CTL_1,
-@@ -456,6 +598,7 @@
+@@ -456,6 +601,7 @@
  				   CS43130_MCLK_INT_MASK,
  				   mclk_int_decoded << CS43130_MCLK_INT_SHIFT);
  		usleep_range(150, 200);
@@ -263,7 +266,7 @@
  		break;
  	case CS43130_MCLK_SRC_RCO:
  		cs43130->mclk_int_src = CS43130_MCLK_SRC_RCO;
-@@ -468,9 +611,7 @@
+@@ -468,9 +614,7 @@
  				   CS43130_MCLK_22P5 << CS43130_MCLK_INT_SHIFT);
  		usleep_range(150, 200);
  
@@ -274,7 +277,7 @@
  		regmap_update_bits(cs43130->regmap, CS43130_PWDN_CTL,
  				   CS43130_PDN_PLL_MASK,
  				   1 << CS43130_PDN_PLL_SHIFT);
-@@ -809,34 +950,90 @@
+@@ -809,34 +953,90 @@
  	return 0;
  }
  
@@ -386,7 +389,7 @@
  
  	switch (params_rate(params)) {
  	case 176400:
-@@ -878,28 +1075,12 @@
+@@ -878,28 +1078,12 @@
  	unsigned int sclk = cs43130->dais[dai->id].sclk;
  	unsigned int bitwidth_sclk;
  	unsigned int bitwidth_dai = (unsigned int)(params_width(params));
@@ -420,7 +423,7 @@
  
  	switch (dai->id) {
  	case CS43130_ASP_DOP_DAI:
-@@ -989,12 +1170,7 @@
+@@ -989,12 +1173,7 @@
  	struct cs43130_private *cs43130 = snd_soc_component_get_drvdata(component);
  
  	mutex_lock(&cs43130->clk_mutex);
@@ -434,7 +437,7 @@
  	mutex_unlock(&cs43130->clk_mutex);
  
  	return 0;
-@@ -1111,6 +1287,128 @@
+@@ -1111,6 +1290,128 @@
  static SOC_VALUE_ENUM_SINGLE_DECL(dsd_enum, CS43130_DSD_INT_CFG, 0, 0x03,
  				  dsd_texts, dsd_values);
  
@@ -563,7 +566,7 @@
  static const struct snd_kcontrol_new cs43130_snd_controls[] = {
  	SOC_DOUBLE_R_TLV("Master Playback Volume",
  			 CS43130_PCM_VOL_A, CS43130_PCM_VOL_B, 0, 0xFF, 1,
-@@ -1126,6 +1424,16 @@
+@@ -1126,6 +1427,16 @@
  	SOC_SINGLE("PCM High-pass Filter", CS43130_PCM_FILT_OPT, 1, 1, 0),
  	SOC_SINGLE("PCM De-emphasis Filter", CS43130_PCM_FILT_OPT, 0, 1, 0),
  	SOC_ENUM("DSD Phase Modulation", dsd_enum),
@@ -580,7 +583,7 @@
  };
  
  static const struct reg_sequence pcm_seq[] = {
-@@ -1314,6 +1622,10 @@
+@@ -1314,6 +1625,10 @@
  
  	switch (event) {
  	case SND_SOC_DAPM_PRE_PMU:
@@ -591,7 +594,7 @@
  		switch (cs43130->dev_id) {
  		case CS43130_CHIP_ID:
  		case CS4399_CHIP_ID:
-@@ -2062,16 +2374,41 @@
+@@ -2062,16 +2377,41 @@
  				   ac_reg_val >> CS43130_HP_MEAS_LOAD_2_SHIFT);
  	}
  
@@ -634,7 +637,7 @@
  
  	dev_dbg(cs43130->dev, "HP load stat: %x, INT_MASK_4: %x\n",
  		cs43130->hpload_stat, msk);
-@@ -2116,6 +2453,12 @@
+@@ -2116,6 +2456,12 @@
  	return 0;
  }
  
@@ -647,7 +650,7 @@
  static void cs43130_imp_meas(struct work_struct *wk)
  {
  	unsigned int reg, seq_size;
-@@ -2164,6 +2507,13 @@
+@@ -2164,6 +2510,13 @@
  	i = 0;
  	ac_idx = 0;
  	while (i < seq_size) {
@@ -661,7 +664,7 @@
  		ret = cs43130_hpload_proc(cs43130, hpload_seq[i].seq,
  					  hpload_seq[i].size,
  					  hpload_seq[i].msk, ac_idx);
-@@ -2183,6 +2533,16 @@
+@@ -2183,6 +2536,16 @@
  	}
  	cs43130->hpload_done = true;
  
@@ -678,7 +681,7 @@
  	if (cs43130->hpload_dc[HP_LEFT] >= CS43130_LINEOUT_LOAD)
  		snd_soc_jack_report(&cs43130->jack, CS43130_JACK_LINEOUT,
  				    CS43130_JACK_MASK);
-@@ -2216,12 +2576,176 @@
+@@ -2216,12 +2579,176 @@
  			       ARRAY_SIZE(hp_cln_seq));
  
  	mutex_lock(&cs43130->clk_mutex);
@@ -858,7 +861,7 @@
  
  static irqreturn_t cs43130_irq_thread(int irq, void *data)
  {
-@@ -2357,6 +2881,12 @@
+@@ -2357,6 +2884,12 @@
  		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
  				   CS43130_XTAL_ERR_INT, 0);
  	}
@@ -871,7 +874,7 @@
  
  	ret = snd_soc_card_jack_new(card, "Headphone", CS43130_JACK_MASK,
  				    &cs43130->jack);
-@@ -2475,13 +3005,16 @@
+@@ -2475,13 +3008,16 @@
  	cs43130->dc_meas = device_property_read_bool(cs43130->dev, "cirrus,dc-measure");
  	cs43130->ac_meas = device_property_read_bool(cs43130->dev, "cirrus,ac-measure");
  
@@ -890,7 +893,7 @@
  				       cs43130->dc_threshold,
  				       CS43130_DC_THRESHOLD)) {
  		for (i = 0; i < CS43130_DC_THRESHOLD; i++)
-@@ -2603,10 +3136,23 @@
+@@ -2603,10 +3139,23 @@
  
  	cs43130->mclk_int_src = CS43130_MCLK_SRC_RCO;
  
@@ -915,7 +918,7 @@
  
  	switch (cs43130->dev_id) {
  	case CS43130_CHIP_ID:
-@@ -2672,62 +3218,146 @@
+@@ -2672,62 +3221,146 @@
  	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
  }
  
