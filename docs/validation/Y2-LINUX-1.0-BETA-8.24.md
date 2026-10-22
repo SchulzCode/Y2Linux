@@ -46,4 +46,4 @@ Milestone audit BETA-8.24 in [roadmap-gap-audit](../planning/roadmap-gap-audit.m
   crystal never flags an error); host register model only. Crystal errors during a kept sink (same-stream track
   changes) are seen only at the next stream start.
 - Not checked on a player: a real sleep and wake, a full power-off, the click check by ear (unchanged from 8.23).
-- The overlay comment on the cold start states the disproven VGP2 assumption; to be corrected in the next build.
+- The overlay comment on the cold start stated the disproven VGP2 assumption; corrected on main after the build (in the next release).
