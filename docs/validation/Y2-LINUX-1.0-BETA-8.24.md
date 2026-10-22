@@ -47,3 +47,7 @@ Milestone audit BETA-8.24 in [roadmap-gap-audit](../planning/roadmap-gap-audit.m
   changes) are seen only at the next stream start.
 - Not checked on a player: a real sleep and wake, a full power-off, the click check by ear (unchanged from 8.23).
 - The overlay comment on the cold start stated the disproven VGP2 assumption; corrected on main after the build (in the next release).
+- Owner decision (2026-10-23): the crystal changes of 8.21–8.23 stay. Most copy stock, and which of them fixed #52 is
+  unknown. After the reporters confirm 8.24, only non-stock parts that prove unnecessary are trimmed: the probe cold
+  start first, then the power cycle if no report shows `cycles>0`, then the ready wait once `ready_ms` is no longer
+  needed. The screen-on hold's battery cost is measured before it is touched.

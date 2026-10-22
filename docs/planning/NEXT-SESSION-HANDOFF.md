@@ -1,13 +1,34 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-23): Y2LINUX 1.0 BETA 8.24 (BASELINE 123) PUBLISHED — NO CODEC PLL, 44.1 kHz AS STOCK (#52).**
-> Build 123, seq 8800, Linux `2a21690`, Reborn `e199d9c`, installed on the owner's player (13/13: 48/96 kHz play at
-> 44100 Hz, crystal selected, 50 reuses across rates). #52 on 8.23: every failure on 8.21–8.23 was a 48 kHz start
-> (PLL_READY -110, then XTAL_ERR); stock `audio_policy.conf` output = 44100 only. 8.24: AFE 44.1 kHz only, codec refuses
-> non-crystal rates, Reborn `WIRED_RATE` 44.1 kHz (decoder converts), codec power cycle after a crystal error
-> (`cycles=`), cold start at probe when the rails are on (`cold_start=`). Correction: a software/OTA restart already
-> resets VGP2 (2.5 V reset value, off at probe) — the "VGP2 survives a restart" idea was wrong; fix the overlay comment
-> in the next build. The rest of the list below is still owed. Report BETA-8.24. Next free label 124, sequence above 8800.
+> **START HERE (2026-10-24): AFTER BETA 8.24 (BASELINE 123) — WAIT FOR #52/#54, THEN TRIM THE CRYSTAL CODE.**
+> Published 2026-10-23 (seq 8800, Linux build `2a21690`, docs `6cc7eb2`; Reborn `e199d9c`, docs `db4c407`); the owner's
+> player runs it. #52 cause: every failure on 8.21–8.23 was a 48 kHz start through the CS43131 PLL (PLL_READY -110, then
+> XTAL_ERR); stock `audio_policy.conf` output = 44100 only, so stock never runs the PLL. 8.24: AFE 44.1 kHz only, codec
+> refuses non-crystal rates, Reborn `reborn_audio::WIRED_RATE` (decoder converts; one open sink for all rates), codec
+> power cycle after a crystal error (`y2_hp/xtal` `cycles=`), cold start at probe when rails are on (`cold_start=`).
+> Device: 13/13 (48/96 kHz at 44100 Hz, crystal selected, 50 reuses, 0 reopens). Correction: a software or OTA restart
+> already resets VGP2 (2.5 V reset value, off at probe), so the "VGP2 survives a restart" idea in `f66d71d` was wrong;
+> the code comment is fixed on main (`0da8393`, unbuilt).
+> Order for today:
+> 1. Reports first (`UserReports/REVIEWED.md`, `tools/reports/fetch.py --pending`). #52 (2813306c), #54 (0400eb78) on
+>    8.24: `y2_hp/xtal` (`ready_ms`, `errors`, `unconfirmed`, `cycles`, `cold_start`), any `refused: it needs the PLL`
+>    or `codec power-cycled` kernel line, `sink_reused`/`sink_reopened`. #54 failed differently on 8.22 (crystal not
+>    ready 45.9 s after power-up), so the 44.1 kHz conversion alone may not fix it.
+> 2. GitHub: no comment on #52 about 8.24 yet (owner not asked; offered). #56 comment's battery sentence still overstated.
+> 3. Owner decision recorded 2026-10-23: **no rollback of the crystal changes now.** Most of 8.21–8.23 copies stock
+>    (crystal with the codec, never switched, stock power-up, hold while the screen is on); the pre-8.21 behaviour was
+>    the unusual one, and which change fixed #52 is unknown. Once #52/#54 confirm 8.24, trim only non-stock parts that
+>    prove unnecessary: (a) probe cold start (proven not to trigger) first, (b) the power cycle if no report shows
+>    `cycles>0`, (c) the up-to-1-s ready wait only after reports settle (it gives `ready_ms`). Measure the hold's battery
+>    cost before touching it (a shorter idle delay is the milder lever).
+> 4. Still owed on the owner's player: click check by ear at track changes, unplug USB → real sleep/wake → play on
+>    headphones, full power-off/on, overnight drain vs 8.22.
+> 5. Open questions unchanged: #56 drain in a frozen recovery on a charger, F34's cause, the synchronous hold write at
+>    screen wake (≈70 ms when the codec was down), car AVRCP metadata, long-book seek, #42, #45, #47, F23.
+> Next free label 124, sequence above 8800. Report BETA-8.24.
+>
+> Previous entry: **Y2LINUX 1.0 BETA 8.24 (BASELINE 123) PUBLISHED — NO CODEC PLL, 44.1 kHz AS STOCK (#52).**
+> Build 123, seq 8800, installed on the owner's player; see the entry above and report BETA-8.24.
 >
 > Previous entry: **AFTER BETA 8.23 (BASELINE 122) — WHAT IS OWED TODAY.**
 > Published 2026-10-22 night (seq 8705, Linux `e3195fd` + docs, Reborn `0779d8b` + docs `dfd9640`); the owner's player
