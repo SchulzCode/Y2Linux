@@ -326,6 +326,13 @@ static void progress(unsigned percent, const char *step) {
                 dprintf(log, "<6>Y2RECOVERY step=%s percent=%u\n", step, percent);
             close(log);
         }
+        /* The reset-surviving trail (pstore): a run that froze names its
+         * step to the next recovery start (F34). */
+        int trail = open(path("/dev/pmsg0"), O_WRONLY | O_CLOEXEC);
+        if (trail >= 0) {
+            dprintf(trail, "core step=%s percent=%u\n", step, percent);
+            close(trail);
+        }
     }
     progress_shown_s = planned ? seconds : UINT_MAX;
     char buf[64];

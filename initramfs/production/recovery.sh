@@ -55,6 +55,56 @@ recovery_display_off() {
     sleep 0.2
 }
 
+# F34: players froze during an install and showed "Step 1 of 4" for hours
+# until someone held Power (a restart then installed). The SoC watchdog (31 s)
+# now does that restart: it is fed while the installer reports progress and
+# starves when the kernel freezes or the installer shows nothing new for two
+# minutes. The request stays set, so the next start resumes (or restores the
+# old system), as after Power. Only while the installer runs.
+recovery_watchdog=
+recovery_watchdog_start() {
+    [ -c /dev/watchdog ] || return 0
+    rm -f /run/y2/recovery-watchdog-stop
+    (
+        exec 3>/dev/watchdog || exit 0
+        last= still=0
+        while [ ! -e /run/y2/recovery-watchdog-stop ]; do
+            now=$(cat /run/y2/recovery-progress 2>/dev/null)
+            if [ "$now" = "$last" ]; then still=$((still+5)); else still=0; fi
+            last=$now
+            if [ "$still" -ge 120 ]; then
+                echo "<3>Y2RECOVERY: no progress for 120 s (${now:-none}); watchdog restart" > /dev/kmsg
+                [ ! -c /dev/pmsg0 ] || echo "watchdog no progress ${now:-none}" > /dev/pmsg0
+                sync
+                while :; do sleep 60; done
+            fi
+            printf . >&3
+            sleep 5
+        done
+        printf V >&3
+    ) &
+    recovery_watchdog=$!
+}
+recovery_watchdog_stop() {
+    [ -n "$recovery_watchdog" ] || return 0
+    touch /run/y2/recovery-watchdog-stop
+    wait "$recovery_watchdog" 2>/dev/null
+    recovery_watchdog=
+}
+
+# The previous start's trail and console from pstore (a run that froze, then
+# the watchdog or Power restarted), kept next to the installer log (F34).
+recovery_keep_previous_boot() {
+    mount -t pstore pstore /sys/fs/pstore 2>/dev/null || return 0
+    {
+        echo "== this start $(cat /proc/sys/kernel/random/boot_id) $(cat /sys/firmware/y2_boot/metadata 2>/dev/null)"
+        for part in pmsg-ramoops-0 dmesg-ramoops-0 console-ramoops-0; do
+            [ ! -s "/sys/fs/pstore/$part" ] || { echo "== $part"; /bin/busybox head -c 262144 "/sys/fs/pstore/$part"; }
+        done
+    } > /newdata/logs/recovery-previous-boot.txt 2>/dev/null
+    umount /sys/fs/pstore
+}
+
 # Keep the evidence, then turn off or, with the owner's switch, restart.
 recovery_off() {
     if [ -n "$recovery_data_mounted" ]; then
@@ -171,13 +221,22 @@ mount -t ext4 -o rw,nosuid,nodev "$datadev" /newdata || recovery_stuck 'Storage 
 recovery_data_mounted=1
 [ "$(cat /newdata/.y2data-schema 2>/dev/null)" = 1 ] || recovery_stuck 'Unknown storage format'
 recovery_restart_mode
+mkdir -p /newdata/logs
+recovery_keep_previous_boot
+# F34: every kernel message reaches the RAM console during the install, and a
+# CPU stall panics into a ramoops record (the watchdog restarts the player).
+echo 7 > /proc/sys/kernel/printk
+echo 10 > /proc/sys/kernel/panic
+echo 1 > /proc/sys/kernel/panic_on_rcu_stall 2>/dev/null
 /bin/busybox timeout 10 /bin/busybox seedrng --seed-dir=/newdata/system/entropy > /dev/kmsg 2>&1 || :
 recovery_keep_radio_firmware
 y2_stage recovery_install
 
 attempt=0
 while :; do
+    recovery_watchdog_start
     /sbin/y2-update-core recovery > /run/y2/recovery-result.json
+    recovery_watchdog_stop
     outcome=$(sed -n 's/.*"outcome":"\([a-z_]*\)".*/\1/p' /run/y2/recovery-result.json)
     recovery_log "outcome=${outcome:-none} $(cat /run/y2/recovery-result.json)"
     [ "$outcome" = needs_power ] || break

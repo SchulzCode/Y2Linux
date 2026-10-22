@@ -505,7 +505,7 @@ def _commands(ctx):
 FILES = (
     '/sys/fs/pstore/*',
     '/data/logs/system.log', '/data/logs/system.log.0', '/data/logs/recovery-last.log',
-    '/data/logs/recovery-display.txt',
+    '/data/logs/recovery-display.txt', '/data/logs/recovery-previous-boot.txt',
     '/proc/version', '/proc/cmdline', '/proc/meminfo', '/proc/vmstat', '/proc/loadavg', '/proc/interrupts',
     '/proc/softirqs', '/proc/stat', '/proc/pressure/*', '/proc/mounts', '/proc/sys/kernel/tainted',
     '/sys/power/suspend_stats/*', '/sys/kernel/debug/wakeup_sources', '/sys/kernel/debug/suspend_stats',

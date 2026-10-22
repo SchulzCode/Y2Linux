@@ -125,7 +125,7 @@ class NoSpace(ValueError):
 # before it writes the new ones, so they count as space the update can use.
 BACKUPS = ('previous.ext4.gz', 'previous-bootimg.gz')
 # Kept in /data/logs: the live system log and the last installer run.
-KEPT_LOGS = ('system.log', 'recovery-last.log', 'recovery-display.txt')
+KEPT_LOGS = ('system.log', 'recovery-last.log', 'recovery-display.txt', 'recovery-previous-boot.txt')
 
 
 def disposable(ctx):

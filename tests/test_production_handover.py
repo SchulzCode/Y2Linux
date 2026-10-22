@@ -174,6 +174,16 @@ exit 0
         # A low battery without charger always turns off: a restart would loop.
         script=(ROOT/'initramfs/production/recovery.sh').read_text()
         self.assertRegex(script, r"charger_online \|\| \{[^}]*recovery_restart=; recovery_off 10; \}")
+        # F34: the SoC watchdog is fed only while the installer runs and reports progress; a frozen
+        # install restarts like a press of Power instead of staying on "Step 1 of 4" for hours.
+        loop = script[script.index('while :; do\n    recovery_watchdog_start'):]
+        self.assertLess(loop.index('recovery_watchdog_start'), loop.index('/sbin/y2-update-core recovery'))
+        self.assertLess(loop.index('/sbin/y2-update-core recovery'), loop.index('recovery_watchdog_stop'))
+        self.assertLess(loop.index('recovery_watchdog_stop'), loop.index('until charger_online'))
+        keeper = script[script.index('recovery_watchdog_start() {'):script.index('recovery_watchdog_stop() {')]
+        self.assertIn('if [ "$still" -ge 120 ]; then', keeper)
+        self.assertIn('printf V >&3', keeper)   # magic close: a normal stop disarms it
+        self.assertIn('recovery_keep_previous_boot', script)
         # F23: the UI stops and the light goes out before reboot(2)/poweroff, as in a normal restart.
         off = script[script.index('recovery_off() {'):script.index('\n}\n', script.index('recovery_off() {'))]
         self.assertLess(off.index('recovery_display_off'), off.index('reboot -f'))
