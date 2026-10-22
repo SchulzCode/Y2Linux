@@ -358,6 +358,12 @@ class NetworkTime(unittest.TestCase):
         last = json.loads(self.ctx.read('/data/system/platform/time-last.json'))
         self.assertEqual((last['source'], last['epoch']), ('ntp', chosen + 200))
         self.assertTrue(status(self.ctx, chosen + 200)['tls_ready'])
+        # Network time this boot: a hand-set time is refused (busybox ntpd kept one 2 h off for minutes
+        # while its periodic callback called it network time, 8.22 test build).
+        self.calls.clear()
+        with self.assertRaisesRegex(ValueError, 'network_time_active'):
+            set_manual(self.ctx, chosen + 7200)
+        self.assertEqual(self.calls, [])
         self.put('/proc/sys/kernel/random/boot_id', 'boot-three')
         self.assertEqual(bootstrap(self.ctx, now=chosen + 300)['source'], 'retained_rtc')
 

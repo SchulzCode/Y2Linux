@@ -144,6 +144,12 @@ def set_manual(ctx, epoch):
     fd = os.open(runtime / 'time.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX)
+        # Network time this boot: the clock is right, and the running time
+        # server would keep a hand-set time for minutes while its periodic
+        # callback calls it network time (8.22 test build: 2 h off, "ntp").
+        anchor = ctx.json('/run/y2/time.json', {})
+        if anchor.get('source') == 'ntp' and anchor.get('boot_id') == ctx.read('/proc/sys/kernel/random/boot_id'):
+            raise ValueError('network_time_active')
         if not ctx.command(['/bin/busybox', 'date', '-u', '-s', '@' + str(epoch)], timeout=3)['ok']:
             raise ValueError('date_not_set')
         value = {'schema': 1, 'boot_id': ctx.read('/proc/sys/kernel/random/boot_id'),
