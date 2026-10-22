@@ -6,22 +6,22 @@ Linux 6.18 and a Buildroot userspace for the **Innioasis Y2** music player
 Android system on the internal eMMC and leaves the bootloaders, calibration and
 factory partitions untouched.
 
-> **Status: Y2Linux 1.0 Beta 8.23 (Baseline 122, 2026-10-22), public beta.** It runs every day
+> **Status: Y2Linux 1.0 Beta 8.24 (Baseline 123, 2026-10-23), public beta.** It runs every day
 > on the maintainer's Y2. Install it once from the ready-made images of the
 > [GitHub releases](https://github.com/SchulzCode/Y2Linux/releases) with SP Flash Tool
 > ([INSTALL](docs/INSTALL.md)); after that the player updates itself over Wi-Fi. Only one
 > hardware revision has been tested (see [Supported hardware](#supported-hardware)). Read
 > [Known issues](#known-issues) before you flash: battery life in sleep is not yet stock-like.
 
-| | 1.0 Beta 8.23 (Baseline 122) |
+| | 1.0 Beta 8.24 (Baseline 123) |
 | --- | --- |
-| Git tag (both repositories) | `baseline-122` (previous: `baseline-121`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
-| Release / kernel | `1.0.0-beta.8.23` / `6.18.56-y2linux-1.0.0-beta.8.23` (Linux 6.18 long-term line) |
-| Root filesystem | `2026.08-platform-v1.161` (Buildroot 2026.08) |
-| Player | Y2Reborn 1.0.0-beta.8.23 (Rust 1.99) with the UI v4 design, Cover Flow, Genres, audiobooks, a sleep timer, a clock, 16 skins, Last.fm scrobbling and 47 headphone profiles |
+| Git tag (both repositories) | `baseline-123` (previous: `baseline-122`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
+| Release / kernel | `1.0.0-beta.8.24` / `6.18.56-y2linux-1.0.0-beta.8.24` (Linux 6.18 long-term line) |
+| Root filesystem | `2026.08-platform-v1.163` (Buildroot 2026.08) |
+| Player | Y2Reborn 1.0.0-beta.8.24 (Rust 1.99) with the UI v4 design, Cover Flow, Genres, audiobooks, a sleep timer, a clock, 16 skins, Last.fm scrobbling and 47 headphone profiles |
 | Bluetooth codecs | SBC, AAC (fdk-aac-free) and LDAC |
 | Main components | GCC 15.3 / glibc 2.44, Mesa 26.2.4, FFmpeg 9.0.2, BlueZ 5.87, OpenSSL 4.0.3, Python 3.15.0 |
-| Images built from | Y2Linux `e3195fd`, Y2Reborn `0779d8b` ([Beta 8.23 report](docs/validation/Y2-LINUX-1.0-BETA-8.23.md): a frozen update install restarts the player by itself and leaves a trail, the headphone DAC is powered as on stock and the output stays open across track changes (#52, #54); [8.22](docs/validation/Y2-LINUX-1.0-BETA-8.22.md): headphones on players with a slow DAC crystal run as on stock (#52, #54), set the date and time by hand (#53), no "Downloading Update…" forever after an interrupted download, music right after waking, Bluetooth after an interrupted codec switch, sleep after a harmless kernel warning, evidence from update boots; [8.21](docs/validation/Y2-LINUX-1.0-BETA-8.21.md): headphone audio on players whose DAC crystal is slow to start (#52, #54), the crystal run as stock runs it; [8.20](docs/validation/Y2-LINUX-1.0-BETA-8.20.md): first #52 attempt (15 µA bias, 5-s open wait); [8.19](docs/validation/Y2-LINUX-1.0-BETA-8.19.md): audiobooks with chapters, progress, speed and a sleep timer, long M4B books, sharper covers, Settings → Customize (wrap-around lists, screen-off buttons); [8.17](docs/validation/Y2-LINUX-1.0-BETA-8.17.md): headphones after a pause and Next (#51), SD cards Windows reads, Bluetooth disconnect, search and connect, SBC on weak links; [8.16](docs/validation/Y2-LINUX-1.0-BETA-8.16.md): large libraries — All Songs plays, rescans in seconds, tags read on several cores; [8.15](docs/validation/Y2-LINUX-1.0-BETA-8.15.md): Japanese, Chinese and Korean text, a Check for Updates that waits for Wi-Fi after waking, a codec choice that survives connecting; [8.14](docs/validation/Y2-LINUX-1.0-BETA-8.14.md): a new random order for every shuffle, a seek that starts small, Shuffle on genres, long titles on Home; [8.13](docs/validation/Y2-LINUX-1.0-BETA-8.13.md): songs listed in Strawberry and other libmtp apps over USB, a Wi-Fi connect fix; [8.12](docs/validation/Y2-LINUX-1.0-BETA-8.12.md): no crash loop from SD-card playlists (#49), no silence after EQ changes (#48), sleep after a refused attempt, fuller error reports; [8.11](docs/validation/Y2-LINUX-1.0-BETA-8.11.md): Internal Storage is set up on battery from 25 % and the screen says when a charger is needed; [8.10](docs/validation/Y2-LINUX-1.0-BETA-8.10.md): charging on players whose charger settings came from other software (#47), error reports over Wi-Fi (opt-in), report progress; [8.8](docs/validation/Y2-LINUX-1.0-BETA-8.8.md): error reports saved to Internal Storage or the SD card; [8.7](docs/validation/Y2-LINUX-1.0-BETA-8.7.md): GC9503V players identified from LK; [8.6](docs/validation/Y2-LINUX-1.0-BETA-8.6.md): audio review fixes, no loudness jumps, less CPU with a profile; [8.5](docs/validation/Y2-LINUX-1.0-BETA-8.5.md): headphone level, headphone profiles, DAC filter; [8.4](docs/validation/Y2-LINUX-1.0-BETA-8.4.md): the dark display after a restart; [8.3](docs/validation/Y2-LINUX-1.0-BETA-8.3.md): the update screens show the seconds left) |
+| Images built from | Y2Linux `2a21690`, Y2Reborn `e199d9c` ([Beta 8.24 report](docs/validation/Y2-LINUX-1.0-BETA-8.24.md): the headphone output runs at 44.1 kHz like stock, so the DAC's PLL is never used (#52); [8.23](docs/validation/Y2-LINUX-1.0-BETA-8.23.md): a frozen update install restarts the player by itself and leaves a trail, the headphone DAC is powered as on stock and the output stays open across track changes (#52, #54); [8.22](docs/validation/Y2-LINUX-1.0-BETA-8.22.md): headphones on players with a slow DAC crystal run as on stock (#52, #54), set the date and time by hand (#53), no "Downloading Update…" forever after an interrupted download, music right after waking, Bluetooth after an interrupted codec switch, sleep after a harmless kernel warning, evidence from update boots; [8.21](docs/validation/Y2-LINUX-1.0-BETA-8.21.md): headphone audio on players whose DAC crystal is slow to start (#52, #54), the crystal run as stock runs it; [8.20](docs/validation/Y2-LINUX-1.0-BETA-8.20.md): first #52 attempt (15 µA bias, 5-s open wait); [8.19](docs/validation/Y2-LINUX-1.0-BETA-8.19.md): audiobooks with chapters, progress, speed and a sleep timer, long M4B books, sharper covers, Settings → Customize (wrap-around lists, screen-off buttons); [8.17](docs/validation/Y2-LINUX-1.0-BETA-8.17.md): headphones after a pause and Next (#51), SD cards Windows reads, Bluetooth disconnect, search and connect, SBC on weak links; [8.16](docs/validation/Y2-LINUX-1.0-BETA-8.16.md): large libraries — All Songs plays, rescans in seconds, tags read on several cores; [8.15](docs/validation/Y2-LINUX-1.0-BETA-8.15.md): Japanese, Chinese and Korean text, a Check for Updates that waits for Wi-Fi after waking, a codec choice that survives connecting; [8.14](docs/validation/Y2-LINUX-1.0-BETA-8.14.md): a new random order for every shuffle, a seek that starts small, Shuffle on genres, long titles on Home; [8.13](docs/validation/Y2-LINUX-1.0-BETA-8.13.md): songs listed in Strawberry and other libmtp apps over USB, a Wi-Fi connect fix; [8.12](docs/validation/Y2-LINUX-1.0-BETA-8.12.md): no crash loop from SD-card playlists (#49), no silence after EQ changes (#48), sleep after a refused attempt, fuller error reports; [8.11](docs/validation/Y2-LINUX-1.0-BETA-8.11.md): Internal Storage is set up on battery from 25 % and the screen says when a charger is needed; [8.10](docs/validation/Y2-LINUX-1.0-BETA-8.10.md): charging on players whose charger settings came from other software (#47), error reports over Wi-Fi (opt-in), report progress; [8.8](docs/validation/Y2-LINUX-1.0-BETA-8.8.md): error reports saved to Internal Storage or the SD card; [8.7](docs/validation/Y2-LINUX-1.0-BETA-8.7.md): GC9503V players identified from LK; [8.6](docs/validation/Y2-LINUX-1.0-BETA-8.6.md): audio review fixes, no loudness jumps, less CPU with a profile; [8.5](docs/validation/Y2-LINUX-1.0-BETA-8.5.md): headphone level, headphone profiles, DAC filter; [8.4](docs/validation/Y2-LINUX-1.0-BETA-8.4.md): the dark display after a restart; [8.3](docs/validation/Y2-LINUX-1.0-BETA-8.3.md): the update screens show the seconds left) |
 
 ## Getting started
 
@@ -62,7 +62,7 @@ public release, and its Firmware-drive install was tested on the device):
   (genre → All Songs and its albums).
 - Album art from the album folder first (cover.jpg, folder.jpg, … and Windows Media Player
   names), the embedded picture when the folder has none.
-- Wired headphone audio (CS43131 DAC), S16 stereo at 44.1/48 kHz; higher-rate files are converted.
+- Wired headphone audio (CS43131 DAC), S16 stereo at 44.1 kHz as on stock; other rates (48, 96 kHz …) are converted.
 - Headphone level Low/Medium/High (Low is the stock level) and the DAC filter under Settings → Sound →
   Output; headphone profiles that correct 47 common headphones and IEMs (AutoEq), more from an `EQ`
   folder ([Headphone output](docs/HEADPHONE-OUTPUT.md)).
@@ -148,8 +148,9 @@ public release, and its Firmware-drive install was tested on the device):
   8.23 the player restarts by itself after two minutes without progress and finishes or undoes the
   update; on older versions a forced restart is safe. A frozen install leaves a record for error reports.
 - **Headphones on some players (#52, #54).** A few players' DAC crystal starts slowly or stops when
-  skipping a lot. Beta 8.23 powers the DAC exactly as the stock firmware does; confirmation from the
-  affected players is owed.
+  skipping a lot; on #52 it stopped at 48 kHz songs. Beta 8.23 powers the DAC as the stock firmware
+  does, and Beta 8.24 plays everything at 44.1 kHz like stock, so the DAC's PLL is never used;
+  confirmation from the affected players is owed.
 - **Install:** the full path from stock has been run on the maintainer's player only. A kernel that
   hangs before its rescue system runs can only be fixed with SP Flash Tool.
 - **Copying to the player over USB** became about three times faster in Beta 7.11 (receive DMA);

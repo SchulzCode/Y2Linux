@@ -1,6 +1,15 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-23): AFTER BETA 8.23 (BASELINE 122) — WHAT IS OWED TODAY.**
+> **START HERE (2026-10-23): Y2LINUX 1.0 BETA 8.24 (BASELINE 123) PUBLISHED — NO CODEC PLL, 44.1 kHz AS STOCK (#52).**
+> Build 123, seq 8800, Linux `2a21690`, Reborn `e199d9c`, installed on the owner's player (13/13: 48/96 kHz play at
+> 44100 Hz, crystal selected, 50 reuses across rates). #52 on 8.23: every failure on 8.21–8.23 was a 48 kHz start
+> (PLL_READY -110, then XTAL_ERR); stock `audio_policy.conf` output = 44100 only. 8.24: AFE 44.1 kHz only, codec refuses
+> non-crystal rates, Reborn `WIRED_RATE` 44.1 kHz (decoder converts), codec power cycle after a crystal error
+> (`cycles=`), cold start at probe when the rails are on (`cold_start=`). Correction: a software/OTA restart already
+> resets VGP2 (2.5 V reset value, off at probe) — the "VGP2 survives a restart" idea was wrong; fix the overlay comment
+> in the next build. The rest of the list below is still owed. Report BETA-8.24. Next free label 124, sequence above 8800.
+>
+> Previous entry: **AFTER BETA 8.23 (BASELINE 122) — WHAT IS OWED TODAY.**
 > Published 2026-10-22 night (seq 8705, Linux `e3195fd` + docs, Reborn `0779d8b` + docs `dfd9640`); the owner's player
 > runs it. GitHub comments posted on #52, #54 (asked to retest; #54 to enable Send Error Reports and give the Install
 > ID) and #56 (correction: the Reborn F33 fix was another bug; 8.23's watchdog is the fix for the freeze). The #56

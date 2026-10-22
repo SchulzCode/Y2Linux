@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.23, Baseline 122 — 2026-10-22 (latest, published)
+## Y2Linux 1.0 Beta 8.24, Baseline 123 — 2026-10-23 (latest, published)
+
+Release `1.0.0-beta.8.24`, tag `baseline-123`, Linux `2a21690`, Reborn `e199d9c`, sequence 8800. #52: every failure of
+the reporter's player was a 48 kHz start through the CS43131's PLL, which stock never runs (stock output: 44.1 kHz
+only). The headphone output now runs at 44.1 kHz only, Reborn converts other rates, the codec refuses rates the crystal
+does not clock, and a crystal error at a stream start power-cycles the codec. Installed and tested on the owner's
+player. Details: [Beta 8.24 report](validation/Y2-LINUX-1.0-BETA-8.24.md).
+
+## Y2Linux 1.0 Beta 8.23, Baseline 122 — 2026-10-22 (published)
 
 Release `1.0.0-beta.8.23`, tag `baseline-122`, Linux `e3195fd`, Reborn `0779d8b`, sequence 8705. F34: a recovery install
 that stops making progress (the "Step 1 of 4" freeze) restarts the player through the SoC watchdog and leaves its

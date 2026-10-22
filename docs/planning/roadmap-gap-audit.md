@@ -9111,3 +9111,21 @@ the owner's player (test builds 8700–8705).
 | Build 122 on a player | INSTALLED BEFORE PUBLISH | seq 8705, Acknowledged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.23** (Baseline 122, sequence 8705).
+
+## BETA-8.24 (Baseline 123) no codec PLL, 44.1 kHz as stock (#52): milestone gap audit — 2026-10-23
+
+**Boundary:** owner: implement the three #52 measures (no PLL, cold start after a restart, self-healing) and publish
+8.24. Changes: AFE rate list (44.1 kHz only), overlay 0030 (refuse non-crystal rates, power cycle after a crystal error,
+cold start at probe, sysfs fields), platform capabilities (enabled/driver/sink rates), Reborn (`WIRED_RATE`, wired plan
+and reuse rule simplified). No memory map, partition, schema or packaging change. Hardware evidence: #52 report on
+8.23 (all failures at 48 kHz), stock `audio_policy.conf`, the owner's player (build 123).
+
+| Area | State for Beta 8.24 | Evidence / gap |
+| --- | --- | --- |
+| Wired output 44.1 kHz only, no PLL | IMPLEMENTED, DEVICE-CHECKED | 48/96 kHz play at 44100 Hz, crystal selected; reporters owed |
+| One open sink across rates | DEVICE-CHECKED | `sink_reused` +50, `sink_reopened` 0 |
+| Power cycle after a crystal error | IMPLEMENTED, HOST-CHECKED | register model; not triggerable on the owner's player |
+| Cold start at probe | IMPLEMENTED, DEVICE-CHECKED (not triggered) | restarts already reset VGP2; safety net only |
+| Build 123 on a player | INSTALLED BEFORE PUBLISH | seq 8800, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.24** (Baseline 123, sequence 8800).
