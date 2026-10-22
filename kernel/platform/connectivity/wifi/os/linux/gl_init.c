@@ -2594,7 +2594,7 @@ static VOID wlanRemove(VOID)
      * firmware's own disconnect arrives after unregistering, and cfg80211
      * then WARNs about the leftover BSS (a taint that blocked sleep). The
      * queued event is processed by the unregister itself. */
-    if (glue->fgIsRegistered && wdev->netdev && READ_ONCE(wdev->connected))
+    if (glue->fgIsRegistered && wdev->netdev && wdev->connected)
         cfg80211_disconnected(wdev->netdev,WLAN_REASON_DEAUTH_LEAVING,NULL,0,true,GFP_KERNEL);
     if (glue->fgIsRegistered) wlanNetUnregister(wdev);
     WRITE_ONCE(g_u4HaltFlag,1);
