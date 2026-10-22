@@ -9086,6 +9086,7 @@ partition, schema or packaging change. Hardware evidence: fourteen user reports 
 | F31 Wi-Fi evidence | IMPLEMENTED, HOST-CHECKED | failure case owed |
 | F32 interrupted download | IMPLEMENTED, DEVICE-CHECKED | stale record → `download_interrupted` |
 | #53 manual clock | IMPLEMENTED, DEVICE-CHECKED (platform) | set, refusal, NTP step-back, shutdown save; page by hand owed |
-| Build 121 on a player | INSTALLED BEFORE PUBLISH | seq 8603, Acknowledged |
+| #52/#54 crystal lifecycle as stock | IMPLEMENTED, DEVICE-CHECKED (owner's healthy crystal) | 15/15 playback, `ready_ms=10` cold; reporters owed |
+| Build 121 on a player | INSTALLED BEFORE PUBLISH | seq 8607, Acknowledged |
 
-**Gate decision:** owner's call (publication not yet requested).
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.22** (Baseline 121, sequence 8607).

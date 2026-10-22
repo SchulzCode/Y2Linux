@@ -1,9 +1,11 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-22, night): Y2LINUX 1.0 BETA 8.22 (BASELINE 121) — REPORT FIXES F23–F32 AND #53.**
+> **START HERE (2026-10-22, night): Y2LINUX 1.0 BETA 8.22 (BASELINE 121) PUBLISHED — REPORT FIXES F23–F32, #53, #52/#54 CRYSTAL.**
 > All pending reports reviewed (ledger `UserReports/REVIEWED.md`, F23–F32). Built and installed on the owner's player
-> (build 121, seq 8603, Linux `908eff7`, Reborn `e196033`; test builds 8600–8602 found initramfs applet, printk-JSON
-> and busybox-ntpd issues, all fixed). F23 (update rollback, GC9503V) has evidence capture (`/dev/pmsg0` trail,
+> (build 121, seq 8607, Linux `073aa0c`, Reborn `e196033`; test builds 8600–8606 found initramfs applet, printk-JSON,
+> busybox-ntpd and PLL-switch issues, all fixed). #52/#54 crystal: stock lifecycle (probe start, 2-min idle, no source
+> switch, 20-ms polls, `ready_ms`); stock RE confirms a crystal on every Y2; next lever if it still fails: stock's exact
+> power-up (PLL/CLKOUT on, rail burst). F23 (update rollback, GC9503V) has evidence capture (`/dev/pmsg0` trail,
 > `/data/updates/health/*.txt`) and a recovery display-off fix candidate; cause unproven. Owed on a player: F24 after a
 > real sleep (USB blocks sleep), F25/F26/F28/F31 failure cases, Date & Time page by hand. Report BETA-8.22. Next free
 > label 122, sequence above 8603.

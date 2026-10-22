@@ -1,12 +1,13 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.22, Baseline 121 — 2026-10-22 (latest)
+## Y2Linux 1.0 Beta 8.22, Baseline 121 — 2026-10-22 (latest, published)
 
-Release `1.0.0-beta.8.22`, tag `baseline-121`, Linux `908eff7`, Reborn `e196033`, sequence 8603. Fixes from the
+Release `1.0.0-beta.8.22`, tag `baseline-121`, Linux `073aa0c`, Reborn `e196033`, sequence 8607. Fixes from the
 review of all pending reports (F23–F32) and #53: update health boots leave a reset-surviving stage trail and evidence
 in `/data/updates/health`, the recovery stops its UI and backlight before restarting; a play right after waking is
 no longer refused as busy; Bluetooth recovers from an interrupted codec switch; one kernel WARN no longer blocks sleep;
-an interrupted download no longer leaves "Downloading Update…" forever; the date and time can be set by hand.
+an interrupted download no longer leaves "Downloading Update…" forever; the date and time can be set by hand; the
+headphone crystal runs as stock runs it (#52/#54: started at boot, kept two idle minutes, no clock switch per track).
 Installed and tested on the owner's player. Details: [Beta 8.22 report](validation/Y2-LINUX-1.0-BETA-8.22.md).
 
 ## Y2Linux 1.0 Beta 8.21, Baseline 120 — 2026-10-22 (published)
