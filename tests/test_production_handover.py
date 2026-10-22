@@ -177,12 +177,8 @@ exit 0
         # F34: the SoC watchdog is fed only while the installer runs and reports progress; a frozen
         # install restarts like a press of Power instead of staying on "Step 1 of 4" for hours.
         loop = script[script.index('while :; do\n    recovery_watchdog_start'):]
-        self.assertLess(loop.index('recovery_watchdog_start'), loop.index('recovery_core'))
-        self.assertLess(loop.index('recovery_core'), loop.index('recovery_watchdog_stop'))
-        # A finished install or restore is not waited for: the installer once never exited after "installed".
-        core = script[script.index('recovery_core() {'):script.index('\n}\n', script.index('recovery_core() {'))]
-        self.assertIn("'100 installed'*|'100 restored'*) finished=$((finished+1)) ;;", core)
-        self.assertIn('if [ "$finished" -ge 30 ]; then', core)
+        self.assertLess(loop.index('recovery_watchdog_start'), loop.index('/sbin/y2-update-core recovery'))
+        self.assertLess(loop.index('/sbin/y2-update-core recovery'), loop.index('recovery_watchdog_stop'))
         self.assertNotIn('echo 7 > /proc/sys/kernel/printk', script)
         self.assertLess(loop.index('recovery_watchdog_stop'), loop.index('until charger_online'))
         keeper = script[script.index('recovery_watchdog_start() {'):script.index('recovery_watchdog_stop() {')]
@@ -223,3 +219,41 @@ exit 0
             self.assertIn('mount --move /newroot/'+name+' /'+name,events)
         self.assertIn('RESCUE switch_root exec failed',events)
         self.assertNotIn('BUILDROOT INIT',events)
+
+
+class InitramfsCommands(unittest.TestCase):
+    def test_every_command_in_the_initramfs_scripts_exists_there(self):
+        # The initramfs links only a few BusyBox applets. `touch` (8.23 test build: recovery never
+        # restarted after an install), `head` and `date` (8.22 test build: empty health files) were
+        # missing and failed silently. Call others through /bin/busybox.
+        import re
+        builder = (ROOT/'tools/build/dev_initramfs.py').read_text()
+        linked = set(re.findall(r"'([a-z_0-9]+)'", builder[builder.index('for applet in ('):
+                                                            builder.index("put('bin/'+applet")]))
+        placed = {p.rsplit('/', 1)[1] for p in re.findall(r"(?:binary|put)\('((?:s?bin)/[A-Za-z0-9_.-]+)'", builder)}
+        builtins = {'echo', 'printf', 'read', 'cd', 'test', 'true', 'false', 'exit', 'return', 'set', 'trap',
+                    'wait', 'exec', 'shift', 'eval', 'export', 'local', 'unset', 'command', 'break', 'continue',
+                    'umask', 'in', 'case', 'for'}
+        keywords = {'if', 'then', 'else', 'elif', 'do', 'while', 'until', '!', '{', '}', 'fi', 'done', 'esac', '[', ':', '.'}
+        scripts = {name: (ROOT/'initramfs/production'/name).read_text() for name in ('init', 'recovery.sh', 'storage.sh')}
+        functions = {f for text in scripts.values() for f in re.findall(r'^\s*([A-Za-z_][A-Za-z0-9_]*)\(\)\s*\{', text, re.M)}
+        missing = []
+        for name, text in scripts.items():
+            for number, line in enumerate(text.splitlines(), 1):
+                if line.lstrip().startswith('#'):
+                    continue
+                labels = {w for m in re.findall(r'^\s*([^()\s]+)\)', line) for w in m.split('|')}
+                code = re.sub(r'"(?:[^"\\]|\\.)*"|\'[^\']*\'', 'X', line)
+                code = re.sub(r'\$\(\([^)]*\)\)|\$\{[^}]*\}|\[ [^]]* \]', 'X', code.split(' #', 1)[0])
+                for segment in re.split(r'\$\(|`|;;|;|&&|\|\||\||\(|\)|&', code):
+                    words = segment.split()
+                    while words and (words[0] in keywords or '=' in words[0] or words[0][0] in '<>'):
+                        words.pop(0)
+                    if (not words or not re.fullmatch(r'[a-z][a-z0-9_.-]*', words[0]) or words[0] in labels or
+                            re.fullmatch(r'[0-9a-f]{32,}', words[0])):
+                        continue
+                    word = words[0]
+                    if word in builtins or word in functions or word in linked or word in placed:
+                        continue
+                    missing.append('%s:%d: %s' % (name, number, word))
+        self.assertEqual(missing, [])

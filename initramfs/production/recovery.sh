@@ -64,7 +64,7 @@ recovery_display_off() {
 recovery_watchdog=
 recovery_watchdog_start() {
     [ -c /dev/watchdog ] || return 0
-    rm -f /run/y2/recovery-watchdog-stop
+    /bin/busybox rm -f /run/y2/recovery-watchdog-stop
     (
         exec 3>/dev/watchdog || exit 0
         last= still=0
@@ -87,7 +87,7 @@ recovery_watchdog_start() {
 }
 recovery_watchdog_stop() {
     [ -n "$recovery_watchdog" ] || return 0
-    touch /run/y2/recovery-watchdog-stop
+    : > /run/y2/recovery-watchdog-stop
     wait "$recovery_watchdog" 2>/dev/null
     recovery_watchdog=
 }
@@ -228,34 +228,9 @@ recovery_keep_radio_firmware
 y2_stage recovery_install
 
 attempt=0
-# F34 (8.23 test build): the installer wrote "installed" (journal saved, the
-# recovery request cleared) and then never exited; recovery waited for it.
-# A finished install or restore is not waited for longer than 30 s.
-recovery_core() {
-    /sbin/y2-update-core recovery > /run/y2/recovery-result.json &
-    core=$!
-    finished=0
-    while kill -0 "$core" 2>/dev/null; do
-        case "$(cat /run/y2/recovery-progress 2>/dev/null)" in
-            '100 installed'*|'100 restored'*) finished=$((finished+1)) ;;
-        esac
-        if [ "$finished" -ge 30 ]; then
-            recovery_log "installer finished but did not exit; continuing"
-            [ ! -c /dev/pmsg0 ] || echo "core finished, no exit" > /dev/pmsg0
-            case "$(cat /run/y2/recovery-progress)" in
-                '100 installed'*) echo '{"outcome":"installed","exit":"hung"}' ;;
-                *) echo '{"outcome":"rolled_back","exit":"hung"}' ;;
-            esac > /run/y2/recovery-result.json
-            return
-        fi
-        sleep 1
-    done
-    wait "$core"
-}
-
 while :; do
     recovery_watchdog_start
-    recovery_core
+    /sbin/y2-update-core recovery > /run/y2/recovery-result.json
     recovery_watchdog_stop
     outcome=$(sed -n 's/.*"outcome":"\([a-z_]*\)".*/\1/p' /run/y2/recovery-result.json)
     recovery_log "outcome=${outcome:-none} $(cat /run/y2/recovery-result.json)"
