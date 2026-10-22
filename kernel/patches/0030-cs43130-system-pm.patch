@@ -1003,9 +1003,9 @@
  		dev_err(cs43130->dev, "Failed to request supplies: %d\n", ret);
  		return ret;
  	}
-+	/* Y2 (#52): a restart resets the SoC, not the PMIC: VGP2 (VA, VP, VCP)
-+	 * kept the codec and its crystal powered through it, and a stuck crystal
-+	 * stayed stuck. Rails left on start cold, as from a power-on. */
++	/* Y2 (#52): rails found on (VGP2 feeds VA, VP, VCP and the crystal) start
++	 * cold, as from a power-on, so a stuck crystal cannot carry over. On the
++	 * owner's player a restart already resets VGP2 (8.24): a safety net. */
 +	y2_cold_start = regulator_is_enabled(cs43130->supplies[0].consumer) > 0;
  	ret = regulator_bulk_enable(ARRAY_SIZE(cs43130->supplies),
  				    cs43130->supplies);
