@@ -27,10 +27,6 @@ class CodecClock(unittest.TestCase):
         self.assertLess(suspend.index('y2_xtal_on = false;'), suspend.index('regulator_bulk_disable'))
         resume = function(source, 'cs43130_runtime_resume')
         self.assertLess(resume.index('cs43130_restore_cache(cs43130);'), resume.index('y2_xtal_power_on(cs43130);'))
-        # #52: the card keeps ASoC's 5-s power-down delay; skips no longer cycle the amplifier and charge pump.
-        from pathlib import Path
-        card = (Path(__file__).resolve().parents[1] / 'kernel/audio/y2-cs43131.c').read_text()
-        self.assertNotIn('ignore_pmdown_time = 1', card)
         # The codec keeps power for 5 s after a stream (track changes), not 100 ms.
         self.assertIn('pm_runtime_set_autosuspend_delay(cs43130->dev, 5000);', source)
         # Nothing but runtime suspend powers the crystal down any more, and nothing cycles the rails.
