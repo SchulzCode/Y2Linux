@@ -5,7 +5,9 @@ the running clock stays selected between streams (#52: stock never switches), po
 the PLL and CLKOUT on as stock cs43131_hw_init does (#54), rates the crystal does not clock are refused (the PLL is never
 used, as stock: #52's crystal stopped at every 48 kHz start), a crystal error at a stream start power-cycles the codec,
 a probe that finds the rails on starts the codec cold, and the per-DAI clock requests stay balanced across ALSA's
-hw_params/hw_free sequences."""
+hw_params/hw_free sequences. #52/#54 on 8.24: each power-up starts the crystal with the whole chip powered (stock
+PWDN_CTL=0) and cuts the rails for another try when it flags an error or no ready flag, three tries in all; the first
+stream after a failed power-up adds one cold start, bounded."""
 import re
 import unittest
 from pathlib import Path
@@ -31,7 +33,8 @@ class CodecClock(unittest.TestCase):
         suspend = function(source, 'cs43130_runtime_suspend')
         self.assertLess(suspend.index('y2_xtal_on = false;'), suspend.index('regulator_bulk_disable'))
         resume = function(source, 'cs43130_runtime_resume')
-        self.assertLess(resume.index('cs43130_restore_cache(cs43130);'), resume.index('y2_xtal_power_on(cs43130, true);'))
+        self.assertLess(resume.index('y2_codec_up(cs43130);'), resume.index('y2_xtal_power_on(cs43130, true);'))
+        self.assertIn('cs43130_restore_cache(cs43130);', function(source, 'y2_codec_up'))
         # #52/#54, as stock: the crystal starts at probe, and the codec keeps power two idle minutes.
         self.assertIn('pm_runtime_set_autosuspend_delay(cs43130->dev, 120000);', source)
         probe = function(source, 'cs43130_i2c_probe')
@@ -52,9 +55,15 @@ class CodecClock(unittest.TestCase):
         self.assertEqual(source.count('1 << CS43130_PDN_XTAL_SHIFT'), 3)  # two XTAL_UNUSED branches, runtime suspend
         for gone in ('y2_rails_off', 'y2_xtal_try', 'y2_xtal_may_cycle'):
             self.assertNotIn(gone, source)
+        rails = function(source, 'y2_rails_cycle')
+        self.assertLess(rails.index('cs43130_runtime_suspend(cs43130->dev);'), rails.index('msleep(Y2_CODEC_OFF_MS);'))
+        self.assertLess(rails.index('msleep(Y2_CODEC_OFF_MS);'), rails.index('y2_codec_up(cs43130);'))
         cycle = function(source, 'y2_codec_cycle')
-        self.assertLess(cycle.index('cs43130_runtime_suspend(cs43130->dev);'), cycle.index('msleep(Y2_CODEC_OFF_MS);'))
-        self.assertLess(cycle.index('msleep(Y2_CODEC_OFF_MS);'), cycle.index('cs43130_runtime_resume(cs43130->dev);'))
+        self.assertLess(cycle.index('y2_rails_cycle(cs43130);'), cycle.index('y2_xtal_power_on(cs43130, true);'))
+        # The start-rate test switches and the cycle trigger exist for the reporters.
+        self.assertIn('module_param(y2_xtal_full_power, bool, 0644);', source)
+        self.assertIn('module_param(y2_xtal_quiet_start, bool, 0644);', source)
+        self.assertIn('if (!sysfs_streq(buf, "cycle"))', function(source, 'xtal_store'))
         # #52: a restart resets the SoC, not the PMIC: rails found on at probe go off for Y2_CODEC_OFF_MS first.
         cold = probe[probe.index('y2_cold_start = regulator_is_enabled(cs43130->supplies[0].consumer) > 0;'):]
         order = ['regulator_bulk_enable(', 'if (y2_cold_start) {', 'regulator_bulk_disable(', 'msleep(Y2_CODEC_OFF_MS);',
@@ -104,6 +113,7 @@ enum cs43130_mclk_src_sel { CS43130_MCLK_SRC_EXT = 0, CS43130_MCLK_SRC_PLL, CS43
 enum { CS43130_MCLK_24P5 = 0, CS43130_MCLK_22P5 };
 #define CS43130_XTAL_UNUSED -1
 static int warnings;
+#define module_param(name, type, perm)
 #define dev_err(d, ...) ((void)(d))
 #define dev_warn(d, ...) ((void)(d), warnings++)
 #define dev_warn_ratelimited(d, ...) ((void)(d), warnings++)
@@ -120,6 +130,8 @@ static int test_bit(int bit, unsigned long *map) { return (*map >> bit) & 1; }
 static void set_bit(int bit, unsigned long *map) { *map |= 1UL << bit; }
 static int test_and_clear_bit(int bit, unsigned long *map) { int was = test_bit(bit, map); *map &= ~(1UL << bit); return was; }
 struct regmap { unsigned reg[5]; };
+struct cs43130_private;
+static int y2_rails_cycle(struct cs43130_private *cs43130);
 struct cs43130_private {
  struct regmap *regmap; void *dev; struct mutex clk_mutex; int clk_req; bool has_irq_line;
  enum cs43130_mclk_src_sel mclk_int_src; int pll_bypass, xtal_ibias; unsigned mclk, mclk_int;
@@ -133,38 +145,45 @@ static struct snd_soc_component component = { &codec };
 static struct cs43130_private *snd_soc_component_get_drvdata(struct snd_soc_component *c) { return c->priv; }
 /* The chip: when the crystal was powered, how long it takes to report ready, how often it was stopped. */
 static unsigned long chip_on_at; static unsigned ready_after; static int stops, starts;
+/* The next `bad_starts` crystal starts flag XTAL_ERR and never report ready (#52/#54). */
+static int bad_starts, this_bad; static unsigned pwdn_at_start; static int bias_writes;
 static int regmap_update_bits(struct regmap *m, unsigned r, unsigned mask, unsigned v) {
  unsigned old = m->reg[r];
  m->reg[r] = (m->reg[r] & ~mask) | v;
  if (r == CS43130_PWDN_CTL) {
   if (!(old & CS43130_PDN_XTAL_MASK) && (m->reg[r] & CS43130_PDN_XTAL_MASK)) stops++;
-  if ((old & CS43130_PDN_XTAL_MASK) && !(m->reg[r] & CS43130_PDN_XTAL_MASK)) { starts++; chip_on_at = jiffies; }
+  if ((old & CS43130_PDN_XTAL_MASK) && !(m->reg[r] & CS43130_PDN_XTAL_MASK)) {
+   starts++; chip_on_at = jiffies; pwdn_at_start = m->reg[r];
+   this_bad = bad_starts > 0; if (this_bad) bad_starts--;
+  }
  }
  return 0;
 }
 static int regmap_write_bits(struct regmap *m, unsigned r, unsigned mask, unsigned v) {
  /* The bias changes only with the crystal down. */
- if (r == CS43130_CRYSTAL_SET) assert(m->reg[CS43130_PWDN_CTL] & CS43130_PDN_XTAL_MASK);
+ if (r == CS43130_CRYSTAL_SET) { assert(m->reg[CS43130_PWDN_CTL] & CS43130_PDN_XTAL_MASK); bias_writes++; }
  return regmap_update_bits(m, r, mask, v);
 }
+static int regmap_write(struct regmap *m, unsigned r, unsigned v) { return regmap_update_bits(m, r, 0xff, v); }
 static int regmap_read(struct regmap *m, unsigned r, unsigned *v) {
  *v = m->reg[r]; if (r == CS43130_INT_STATUS_1) m->reg[r] = 0; return 0;
 }
 static int regmap_read_bypassed(struct regmap *m, unsigned r, unsigned *v) { *v = m->reg[r]; return 0; }
 static int mix, xtal_waits, budget, pll_fail;
 static void usleep_range(unsigned long lo, unsigned long hi) { (void)lo; (void)hi; }
-/* What the chip latches while the power-up sleeps. */
-static unsigned status_at_select;
-static void msleep(unsigned ms) { jiffies += ms; map.reg[CS43130_INT_STATUS_1] |= status_at_select; }
+static void msleep(unsigned ms) { jiffies += ms; }
 static void cs43130_pcm_dsd_mix(bool on, struct regmap *m) { (void)m; mix = on; }
 static int cs43130_wait_for_completion(struct cs43130_private *c, struct completion *to_poll, int time) {
  (void)c; (void)time; assert(to_poll == &c->pll_rdy); return pll_fail ? -ETIMEDOUT : 0;
 }
-/* The crystal reports ready `ready_after` ms after it was powered; a wait advances the clock. */
+static unsigned int y2_xtal_errors;
+/* The crystal reports ready `ready_after` ms after it was powered, or an error at once on a bad start (counted, as
+ * the real wait does); a wait advances the clock. */
 static int y2_xtal_wait(struct cs43130_private *c, int time) {
  (void)c;
  assert(!(map.reg[CS43130_PWDN_CTL] & CS43130_PDN_XTAL_MASK));
  budget = time; xtal_waits++;
+ if (this_bad) { y2_xtal_errors++; return -EIO; }
  if (jiffies - chip_on_at + time >= ready_after) {
   if (jiffies - chip_on_at < ready_after) jiffies = chip_on_at + ready_after;
   return 0;
@@ -185,9 +204,10 @@ static unsigned long y2_clk_holders;
 static void runtime_suspend(void);
 static void runtime_resume(void);
 static int cs43130_runtime_suspend(void *dev) { (void)dev; runtime_suspend(); return 0; }
-static int cs43130_runtime_resume(void *dev) { (void)dev; runtime_resume(); return 0; }
+static int y2_codec_up(struct cs43130_private *c) { (void)c; return 0; }
 ''' + preamble + function(source, 'y2_xtal_boost') + function(source, 'y2_xtal_ran_ms')
-           + function(source, 'y2_xtal_power_on') + function(source, 'y2_xtal_report')
+           + function(source, 'y2_xtal_attempt') + function(source, 'y2_xtal_power_on')
+           + function(source, 'y2_xtal_report') + function(source, 'y2_rails_cycle')
            + function(source, 'y2_codec_cycle') + function(source, 'y2_xtal_start')
            + function(source, 'y2_clksrc_failed') + change
            + function(source, 'y2_clk_put') + function(source, 'y2_clk_get') + r'''
@@ -202,15 +222,18 @@ static void runtime_suspend(void) {
  regmap_update_bits(&map, CS43130_PWDN_CTL, CS43130_PDN_PLL_MASK, 1 << CS43130_PDN_PLL_SHIFT);
  map.reg[CS43130_SYS_CLK_CTL_1] = CS43130_MCLK_SRC_RCO | CS43130_MCLK_22P5 << CS43130_MCLK_INT_SHIFT;
  codec.mclk_int_src = CS43130_MCLK_SRC_RCO; map.reg[CS43130_INT_STATUS_1] = 0; }
-static void runtime_resume(void) { y2_xtal_power_on(&codec, true); }
+static void runtime_resume(void) { y2_xtal_stream_cycles = 0; y2_xtal_power_on(&codec, true); }
 int main(void) {
  (void)y2_cold_start; /* probe only */
- map.reg[CS43130_SYS_CLK_CTL_1] = CS43130_MCLK_SRC_RCO; map.reg[CS43130_PWDN_CTL] = 0xff;
- /* The codec kept power since probe: the first stream powers the crystal and waits for it. */
+ map.reg[CS43130_SYS_CLK_CTL_1] = CS43130_MCLK_SRC_RCO; map.reg[CS43130_PWDN_CTL] = 0xfe; /* reset values */
+ /* The codec kept power since probe: the first stream powers the crystal, as stock with the whole chip on, waits for
+  * it, and hands the other blocks back to DAPM. */
  ready_after = 20;
  assert(!y2_clk_get(&component, 0, 44100));
  assert(codec.clk_req == 1 && codec.mclk_int_src == CS43130_MCLK_SRC_EXT && sel() == CS43130_MCLK_SRC_EXT && !xtal_off());
- assert(starts == 1 && xtal_waits == 1 && budget == 1000 && y2_xtal_ready && !y2_xtal_unconfirmed && y2_xtal_ready_ms == 20);
+ assert(starts == 1 && pwdn_at_start == 0 && (map.reg[CS43130_PWDN_CTL] & 0xf0) == 0xf0);
+ assert(xtal_waits == 1 && budget == 80 && y2_xtal_ready && !y2_xtal_unconfirmed && y2_xtal_ready_ms == 20);
+ assert(y2_xtal_tries == 1 && y2_xtal_start_ms == 20 && !warnings);
  /* A crystal that starts keeps the stock bias. */
  assert(!y2_xtal_boosted && map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_12_5UA);
  /* #51/#52: close and reopen (Next) keep the crystal running and selected: no clock work at all. */
@@ -230,42 +253,62 @@ int main(void) {
  hw_free(0);
  /* A clean status at the next start changes nothing. */
  assert(!y2_clk_get(&component, 0, 44100) && y2_codec_cycles == 1 && xtal_waits == 2); hw_free(0);
- stops = 0; starts = 1; /* the counts below start after this cycle */
- /* Runtime suspend stops the crystal; runtime resume starts it before the stream, which waits only for the rest. */
- runtime_suspend(); assert(stops == 1);
- /* As stock cs43131_hw_init: XTAL, PLL and CLKOUT power up together, 20 ms later the crystal is selected. */
- runtime_resume(); assert(starts == 2 && !xtal_off() && !y2_xtal_ready); on_ext();
+ /* Runtime suspend stops the crystal; runtime resume starts it as stock cs43131_hw_init and selects it. */
+ runtime_suspend(); assert(stops == 2);
+ runtime_resume(); assert(starts == 3 && !xtal_off() && y2_xtal_ready && y2_xtal_tries == 1); on_ext();
  assert(!(map.reg[CS43130_PWDN_CTL] & (CS43130_PDN_PLL_MASK | CS43130_PDN_CLKOUT_MASK)));
- assert(codec.mclk_int == CS43130_MCLK_22M && codec.pll_bypass && jiffies - chip_on_at == 20);
- jiffies += 600; ready_after = 700; pll_sets = 0;
- assert(!y2_clk_get(&component, 0, 44100) && budget == 380 && y2_xtal_ready && !y2_xtal_unconfirmed && !pll_sets);
- hw_free(0);
- /* #54: a crystal that does not report ready within 1 s is used anyway, as stock; it is never stopped. */
- runtime_suspend(); runtime_resume(); xtal_waits = 0; ready_after = 5000; warnings = 0;
- assert(!y2_clk_get(&component, 0, 44100));
- assert(xtal_waits == 1 && budget == 980 && y2_xtal_assumed && !y2_xtal_ready && y2_xtal_unconfirmed == 1 && warnings == 1);
- assert(sel() == CS43130_MCLK_SRC_EXT && codec.clk_req == 1 && !xtal_off() && stops == 2);
- hw_free(0);
- /* The next open does not wait or report again; a ready flag that comes later is recorded. */
- assert(!y2_clk_get(&component, 0, 44100) && xtal_waits == 1 && y2_xtal_unconfirmed == 1 && warnings == 1);
- hw_free(0);
- map.reg[CS43130_INT_STATUS_1] = CS43130_XTAL_RDY_INT;
- assert(!y2_clk_get(&component, 0, 44100) && y2_xtal_ready && warnings == 2 && xtal_waits == 1);
- hw_free(0);
- /* A fresh power-up waits again (a new crystal start). */
- runtime_suspend(); runtime_resume(); ready_after = 3;
- assert(!y2_clk_get(&component, 0, 44100) && xtal_waits == 2 && y2_xtal_ready && !y2_xtal_assumed);
- hw_free(0);
- /* #54: power-up reads the flag once after its 20 ms; a good crystal is ready there (ready_ms 20, no stream
-  * wait), and an error flag seen there is counted. */
+ assert(codec.mclk_int == CS43130_MCLK_22M && codec.pll_bypass && y2_xtal_ready_ms == 30);
+ assert(!y2_clk_get(&component, 0, 44100) && xtal_waits == 3); hw_free(0);
+ /* #52/#54 on 8.24: a power-up whose crystal flags an error gets a cold start, up to three tries. */
  {
-  int waits = xtal_waits; unsigned errors = y2_xtal_errors;
-  runtime_suspend(); status_at_select = CS43130_XTAL_RDY_INT | CS43130_XTAL_ERR_INT;
-  runtime_resume(); status_at_select = 0;
-  assert(y2_xtal_ready && y2_xtal_ready_ms == 20 && y2_xtal_errors == errors + 1 && !map.reg[CS43130_INT_STATUS_1]);
-  assert(map.reg[CS43130_INT_MASK_1] & CS43130_XTAL_RDY_INT_MASK);
-  assert(!y2_clk_get(&component, 0, 44100) && xtal_waits == waits); hw_free(0);
+  unsigned errors = y2_xtal_errors; int st = stops;
+  runtime_suspend(); bad_starts = 2; warnings = 0;
+  runtime_resume();
+  assert(y2_xtal_ready && y2_xtal_tries == 3 && y2_xtal_errors == errors + 2 && stops == st + 3 && warnings == 2);
+  on_ext(); assert(!y2_clk_get(&component, 0, 44100) && y2_xtal_stream_cycles == 0); hw_free(0);
  }
+ /* Three failed tries: the crystal is used anyway (stock never checks); the first stream adds one cold start, which
+  * here succeeds. */
+ {
+  unsigned cycles = y2_codec_cycles;
+  runtime_suspend(); bad_starts = 3; warnings = 0;
+  runtime_resume();
+  assert(!y2_xtal_ready && !y2_xtal_assumed && y2_xtal_tries == 3 && warnings == 3); on_ext();
+  assert(!y2_clk_get(&component, 0, 44100) && y2_xtal_stream_cycles == 1 && y2_codec_cycles == cycles + 1);
+  assert(y2_xtal_ready && !y2_xtal_assumed && !y2_xtal_unconfirmed); on_ext();
+  hw_free(0);
+ }
+ /* #54: a crystal that never starts: the stream's one cold start fails too, then it is used as stock, and later
+  * streams neither wait nor cycle again until the codec powers up anew. Bounded: 3 + 3 starts. */
+ {
+  int st = starts; unsigned cycles = y2_codec_cycles;
+  runtime_suspend(); bad_starts = 1000; warnings = 0;
+  runtime_resume();
+  assert(!y2_clk_get(&component, 0, 44100));
+  assert(starts == st + 6 && y2_codec_cycles == cycles + 1 && y2_xtal_stream_cycles == 1);
+  assert(y2_xtal_assumed && !y2_xtal_ready && y2_xtal_unconfirmed == 1); on_ext();
+  hw_free(0);
+  st = starts; { int waits = xtal_waits;
+  assert(!y2_clk_get(&component, 0, 44100) && starts == st && xtal_waits == waits && y2_xtal_unconfirmed == 1); }
+  hw_free(0);
+  /* A ready flag that comes later is recorded. */
+  bad_starts = 0; this_bad = 0; warnings = 0; map.reg[CS43130_INT_STATUS_1] = CS43130_XTAL_RDY_INT;
+  assert(!y2_clk_get(&component, 0, 44100) && y2_xtal_ready && warnings == 1 && starts == st);
+  hw_free(0);
+ }
+ /* An error latched by the first stream after a failed power-up cycles at once (the 8.24 gap). */
+ {
+  unsigned cycles = y2_codec_cycles;
+  runtime_suspend(); bad_starts = 3; runtime_resume(); assert(!y2_xtal_ready);
+  map.reg[CS43130_INT_STATUS_1] = CS43130_XTAL_ERR_INT | 0x40;
+  assert(!y2_clk_get(&component, 0, 44100) && y2_codec_cycles == cycles + 1 && y2_xtal_ready && y2_xtal_stream_cycles == 1);
+  hw_free(0);
+ }
+ /* Test switches: clocks-only start (8.24's 0xF0) and a quiet start without the bias write and status read. */
+ runtime_suspend(); y2_xtal_full_power = false; runtime_resume();
+ assert(pwdn_at_start == 0xf0 && y2_xtal_ready); y2_xtal_full_power = true;
+ runtime_suspend(); bias_writes = 0; y2_xtal_quiet_start = true; runtime_resume();
+ assert(!bias_writes && pwdn_at_start == 0 && y2_xtal_ready); y2_xtal_quiet_start = false;
  /* Test boost: the bias changes at the next power-up, never under a running crystal. */
  y2_xtal_boost(&codec); assert(y2_xtal_boosted && map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_12_5UA);
  runtime_suspend(); runtime_resume(); assert(map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_15UA);
