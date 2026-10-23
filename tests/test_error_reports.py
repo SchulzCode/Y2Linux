@@ -507,6 +507,22 @@ class Scrubbing(unittest.TestCase):
         self.assertEqual(plain(s.value({'path': '/media/sd/a', 'uuid': '6ACE-5706'})), plain({'path': '/media/sd/<path>', 'uuid': '<uuid>'}))
         self.assertEqual(plain(s.text('/dev/mmcblk1p1: UUID="6ACE-5706" TYPE="vfat"')), plain('/dev/mmcblk1p1: UUID="<serial#>" TYPE="vfat"'))
 
+    def test_library_names_that_are_versions_or_state_words_stay(self):
+        # F41 (471831b6, 65fd5cfb): songs called "Ready" and "1.0" replaced the
+        # shutdown answer and turned Y2LINUX-1.0.0-BETA-8.22 into <music#…>.0.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write(root, '/data/reborn/state/session.json', json.dumps({'schema': 2, 'model': {'queue': [
+                {'title': 'Ready', 'artist': '1.0', 'album': '2001'}, {'title': 'Secret Song', 'artist': 'Ready Band'}]}}))
+            write(root, '/data/network/wpa_supplicant.conf', 'network={\n ssid="1234"\n psk="Ready"\n}\n')
+            found = report.secrets(Context(directory))
+        self.assertEqual(found['music'], {'Secret Song', 'Ready Band'})
+        self.assertEqual(found['ssid'], {'1234'})
+        self.assertEqual(found['wifi_secret'], {'Ready'})
+        text = report.Scrubber(found).text('Y2LINUX-1.0.0-BETA-8.22 outcome Ready, playing Secret Song')
+        self.assertIn('Y2LINUX-1.0.0-BETA-8.22', text)
+        self.assertNotIn('Secret Song', text)
+
 
 if __name__ == '__main__':
     unittest.main()

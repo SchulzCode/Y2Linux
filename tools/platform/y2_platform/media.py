@@ -87,6 +87,30 @@ def fat_findings(output):
     return sorted(found)
 
 
+def fat_other_shapes(output, limit=5):
+    """What the 'other' lines of a `fsck.fat -n` run said, never a name (F12,
+    29ed4ccb: refusals on 8.25 could not be told from a benign line nobody had
+    classified). A line with a path (dosfstools prints every file and directory
+    as one) only counts; quoted text and numbers are blanked."""
+    shapes, paths, previous = [], 0, None
+    for line in (output or '').splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if FAT_FOLLOW.get(line) is not None and FAT_FOLLOW[line] == previous:
+            continue
+        previous = next((c for c, p in FAT_LINES if p.fullmatch(line)), 'other')
+        if previous != 'other':
+            continue
+        if '/' in line:
+            paths += 1
+            continue
+        shape = re.sub(r'\d+', '#', re.sub(r"'[^']*'|\"[^\"]*\"", "'…'", line))[:100]
+        if shape not in shapes and len(shapes) < limit:
+            shapes.append(shape)
+    return {'shapes': shapes, 'path_lines': paths}
+
+
 def fat_benign_only(output):
     """True when a failed `fsck.fat -n` reported only findings Windows mounts
     over: an unclean unmount, a stale free count, a label mismatch, unused
@@ -111,6 +135,8 @@ def read_only_check(ctx, card, force=False):
         check['findings'] = ['timeout']
     elif not result['ok'] and result['reason'] == 'command_failed' and card['filesystem'] == 'vfat':
         check['findings'] = fat_findings(result['output'])
+        if 'other' in check['findings']:
+            check['other'] = fat_other_shapes(result['output'])
         if fat_benign_only(result['output']):
             # 'unclean_unmount' is the #44 name for the dirty bit alone.
             check.update(ok=True, finding='unclean_unmount' if check['findings'] == ['dirty'] else 'benign')
@@ -132,7 +158,8 @@ def remember_admission(ctx, card, check):
         entries.append({'time': int(time.time()), 'card': card['identity']['id'][:12],
                         'filesystem': card['filesystem'], 'ok': bool(check.get('ok')),
                         'reason': check.get('reason'), 'finding': check.get('finding'),
-                        'findings': check.get('findings', []), 'elapsed_ms': check.get('elapsed_ms')})
+                        'findings': check.get('findings', []), 'elapsed_ms': check.get('elapsed_ms'),
+                        **({'other': check['other']} if check.get('other') else {})})
         directory = ctx.path(ADMISSIONS).parent
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         atomic_json(ctx.path(ADMISSIONS), {'schema': 1, 'admissions': entries[-ADMISSIONS_KEPT:]})

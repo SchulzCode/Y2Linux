@@ -398,6 +398,13 @@ class StorageTools(unittest.TestCase):
                          (False, ['fsinfo_free', 'other'], 'vfat'))
         self.assertIsInstance(entries[-1]['elapsed_ms'], int)
         self.assertNotIn('Secret', text)
+        # 29ed4ccb (8.25): what the unclassified line said, without the name.
+        self.assertEqual(entries[-1]['other'], {'shapes': ['Bad cluster chain.'], 'path_lines': 1})
+        from y2_platform.media import fat_other_shapes
+        self.assertEqual(fat_other_shapes("/A/B.mp3\n  Contains a free cluster (77). Assuming EOF.\n"
+                                          "Duplicate directory entry 'SECRET  MP3'\n"),
+                         {'shapes': ['Contains a free cluster (#). Assuming EOF.', "Duplicate directory entry '…'"],
+                          'path_lines': 1})
         self.assertNotIn('Music', text)
 
     def test_a_check_that_times_out_is_named_apart(self):

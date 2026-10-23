@@ -74,6 +74,12 @@ PRIVATE_KEYS = frozenset((
 ))
 # Never a secret, even when a key comment or account field holds one of them.
 COMMON_WORDS = frozenset(('Y2Linux', 'y2linux', 'Reborn', 'reborn', 'root', 'localhost', 'true', 'false', 'null'))
+# F41: a song called "Ready" or "1.0" also replaced Reborn's shutdown answer and
+# the release inside build IDs. Library names without a letter and the state
+# words reports are read by stay; network, device and account names do not.
+MUSIC_KEPT = frozenset(('Ready', 'Failed', 'Normal', 'Idle', 'Online', 'Offline', 'Charging', 'Discharging',
+                        'Full', 'Connected', 'Disconnected', 'Paused', 'Playing', 'Stopped', 'Unknown', 'Error',
+                        'None', 'Starting', 'Scanning', 'Bluetooth', 'Wired'))
 # The stock LK and preloader regions (production-partitions.json): which
 # bootloader a player carries (3.2.0 vs 3.2.1, #45/#46).
 BOOTLOADERS = (('lk', '/dev/mmcblk0', 0x1d20000, 0x60000), ('preloader', '/dev/mmcblk0boot0', 0, 0x40000))
@@ -172,8 +178,11 @@ def secrets(ctx):
                 if isinstance(track.get(key), str):
                     found['music'].add(track[key])
     # Too short to replace safely (would hit ordinary words and numbers).
+    def kept(name, value):
+        return name == 'music' and (value.strip() in MUSIC_KEPT or not re.search(r'[^\W\d_]', value))
     return {name: {v for v in values if isinstance(v, str) and len(v.strip()) >= 3 and v not in COMMON_WORDS
-                   and v.strip() not in ('0000000000000000',)} for name, values in found.items()}
+                   and v.strip() not in ('0000000000000000',) and not kept(name, v)}
+            for name, values in found.items()}
 
 
 def _key_values(value, key):
