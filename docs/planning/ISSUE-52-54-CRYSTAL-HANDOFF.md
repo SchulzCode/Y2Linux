@@ -310,3 +310,8 @@ same with `1`. Compare `tries=` / `ready=`. Also `y2_xtal_quiet_start` (candidat
 Checks: `tests.test_codec_clock` OK. Mutations caught: TRIES 1, STREAM_CYCLES 0, start with 0xF0.
 `make W=1 sound/soc/codecs/cs43130.o` has no warnings. Owed on the owner's player: `tries=1`,
 `start_ms` ≈ 30, and no click from the brief full-chip power-up (HP amp included) at boot or screen wake.
+
+**Published as Beta 8.25 (baseline-124, sequence 8901), with one change after the owner's listening test:** the
+full-chip start (`PWDN_CTL=0`) made static in the headphones at screen wake (amplifier powered outside its DAPM
+sequence). The start now writes `0x10` (everything but the headphone amplifier); `y2_xtal_start_hp=1` restores the
+exact stock `0x00` for a reporter test. Report: `docs/validation/Y2-LINUX-1.0-BETA-8.25.md`.

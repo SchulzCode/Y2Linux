@@ -1,6 +1,17 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.24, Baseline 123 — 2026-10-23 (latest, published)
+## Y2Linux 1.0 Beta 8.25, Baseline 124 — 2026-10-23 (latest, published)
+
+Release `1.0.0-beta.8.25`, tag `baseline-124`, Linux `f7f23d4`, Reborn `40386bc`, sequence 8901. #52/#54 on 8.24: both
+players' CS43131 crystals flagged XTAL_ERR right at power-up (not a PLL problem). Stock starts the crystal with the chip
+powered (`PWDN_CTL=0`); Y2Linux powered only the clocks. Each DAC power-up now starts it with the chip powered except
+the headphone amplifier (which made static), retries with a 500 ms rail cycle up to three times, and the first song
+after a failed power-up gets one more cold start. Test switches `y2_xtal_full_power`, `y2_xtal_start_hp`,
+`y2_xtal_quiet_start` and `echo cycle > y2_hp/xtal` for the reporters. Installed and tested on the owner's player.
+Details: [Beta 8.25 report](validation/Y2-LINUX-1.0-BETA-8.25.md),
+[analysis handoff](planning/ISSUE-52-54-CRYSTAL-HANDOFF.md).
+
+## Y2Linux 1.0 Beta 8.24, Baseline 123 — 2026-10-23 (published)
 
 Release `1.0.0-beta.8.24`, tag `baseline-123`, Linux `2a21690`, Reborn `e199d9c`, sequence 8800. #52: every failure of
 the reporter's player was a 48 kHz start through the CS43131's PLL, which stock never runs (stock output: 44.1 kHz

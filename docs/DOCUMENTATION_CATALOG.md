@@ -355,6 +355,8 @@ Indexed pages: **331**. Explicit scope notices: **228**.
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
+| [Y2Linux 1.0 Beta 8.25 report](validation/Y2-LINUX-1.0-BETA-8.25.md) | Beta 8.25 (Baseline 124): the DAC crystal starts as on stock with the chip powered (amplifier kept down), three tries with rail cycles, a cold start for the first song (#52, #54) |
+| [#52/#54 crystal handoff](planning/ISSUE-52-54-CRYSTAL-HANDOFF.md) | Evidence, stock RE, Fable's analysis and the 8.25 implementation for the CS43131 crystal failures |
 | [Y2Linux 1.0 Beta 8.24 report](validation/Y2-LINUX-1.0-BETA-8.24.md) | Beta 8.24 (Baseline 123): headphone output at 44.1 kHz only, no codec PLL, as stock (#52); codec power cycle after a crystal error |
 | [Y2Linux 1.0 Beta 8.23 report](validation/Y2-LINUX-1.0-BETA-8.23.md) | Beta 8.23 (Baseline 122): recovery watchdog for frozen installs (F34), headphone DAC powered as stock and output kept across track changes (#52, #54) |
 | [Y2Linux 1.0 Beta 8.22 report](validation/Y2-LINUX-1.0-BETA-8.22.md) | Beta 8.22 (Baseline 121): report fixes F23–F32 (update health evidence, wake, Bluetooth, sleep, stuck download) and setting the clock by hand (#53) |

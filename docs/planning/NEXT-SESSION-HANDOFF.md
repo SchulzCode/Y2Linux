@@ -1,6 +1,19 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-24): AFTER BETA 8.24 (BASELINE 123) — WAIT FOR #52/#54, THEN TRIM THE CRYSTAL CODE.**
+> **START HERE (2026-10-24): AFTER BETA 8.25 (BASELINE 124) — READ THE #52/#54 RESULTS.**
+> Published 2026-10-23 (seq 8901, Linux build `f7f23d4`; Reborn `40386bc`); the owner's player runs it. 8.24 did not fix
+> #52, and #54 fails the same way: the CS43131 crystal flags XTAL_ERR at power-up (both 8.24 reports, `cycles=0`). Full
+> evidence, stock RE and Fable's analysis: `docs/planning/ISSUE-52-54-CRYSTAL-HANDOFF.md`. 8.25: crystal start with the
+> chip powered as stock except the headphone amplifier (with it, static at screen wake on the owner's player), three
+> tries with 500 ms rail cycles, one cold start for the first song; switches `y2_xtal_full_power`, `y2_xtal_start_hp`,
+> `y2_xtal_quiet_start`, `echo cycle > y2_hp/xtal`; `y2_hp/xtal` adds `tries= start_ms= stream_cycles=`.
+> Order: (1) reports (`fetch.py --pending`, ledger): `tries=`, `errors=`, `stream_cycles=`, `unconfirmed=` on 2813306c
+> and 0400eb78, and any test output in the issue comments. (2) If tries>1 then ready: the retries work; if ready only
+> with `start_hp=1`, design a click-free amplifier start. If still never ready: supply margin (VGP2 under load, real
+> GPIO rail voltages) is next, not the register sequence. (3) The trim plan of the 8.24 entry waits until #52/#54 play.
+> Next free label 125, sequence above 8901. Report BETA-8.25.
+>
+> Previous entry: **START HERE (2026-10-24): AFTER BETA 8.24 (BASELINE 123) — WAIT FOR #52/#54, THEN TRIM THE CRYSTAL CODE.**
 > Published 2026-10-23 (seq 8800, Linux build `2a21690`, docs `6cc7eb2`; Reborn `e199d9c`, docs `db4c407`); the owner's
 > player runs it. #52 cause: every failure on 8.21–8.23 was a 48 kHz start through the CS43131 PLL (PLL_READY -110, then
 > XTAL_ERR); stock `audio_policy.conf` output = 44100 only, so stock never runs the PLL. 8.24: AFE 44.1 kHz only, codec

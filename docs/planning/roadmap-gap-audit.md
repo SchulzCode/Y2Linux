@@ -9129,3 +9129,18 @@ and reuse rule simplified). No memory map, partition, schema or packaging change
 | Build 123 on a player | INSTALLED BEFORE PUBLISH | seq 8800, Acknowledged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.24** (Baseline 123, sequence 8800).
+
+## BETA-8.25 (Baseline 124) crystal start as stock with retries (#52, #54): milestone gap audit — 2026-10-23
+
+**Boundary:** owner: implement Fable's plan from the #52/#54 handoff, install on the owner's player, publish 8.25.
+Changes: overlay 0030 only (crystal start with the chip powered except the headphone amplifier, three tries with rail
+cycles, a first-stream cold start, module test switches, sysfs fields) and its tests. No memory map, partition, schema,
+packaging or Reborn code change. Hardware evidence: #52 and #54 reports on 8.24 (XTAL_ERR at power-up), stock RE,
+the owner's player (builds 8900 and 8901).
+
+| Area | State for Beta 8.25 | Evidence / gap |
+| --- | --- | --- |
+| Crystal start with the chip powered | IMPLEMENTED, DEVICE-CHECKED | owner: 10/10 first-try starts; reporters owed |
+| Amplifier kept down during the start | DEVICE-CHECKED | static at screen wake with it on (8900), none without (8901) |
+| Power-up retries / first-stream cold start | IMPLEMENTED, HOST-CHECKED | register model, mutation-checked; never needed on the owner's player |
+| Build 124 on a player | INSTALLED BEFORE PUBLISH | seq 8901, Acknowledged |
