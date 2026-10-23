@@ -489,6 +489,10 @@ def wifi_state(radio, wpa, address, route, dns, dhcp_error=None):
     if not wpa:
         return 'Starting', 'supplicant_unavailable'
     state = wpa.get('wpa_state')
+    # Y2Reborn #20: wrong password. The supplicant goes on scanning and trying;
+    # without this the player showed "Connecting…" and "Saved", never why.
+    if state != 'COMPLETED' and wpa.get('credential_failure'):
+        return 'Failed', wpa['credential_failure']
     if state == 'SCANNING':
         return 'Scanning', None
     if state in ('ASSOCIATING', 'ASSOCIATED', '4WAY_HANDSHAKE', 'GROUP_HANDSHAKE'):
@@ -518,6 +522,13 @@ def wifi(ctx, signal_cache=None):
             isinstance(failed_time, (int, float)) and 0 <= time.monotonic() - failed_time < 120 and
             failure.get('error')):
         properties['failure_reason'] = failure['error']
+    credential = failure.get('credential')
+    failed_network = None
+    if (isinstance(credential, dict) and credential.get('error') and
+            credential.get('boot_id') == ctx.read('/proc/sys/kernel/random/boot_id')):
+        # Until the next connect (network.py drops it there).
+        properties['credential_failure'] = credential['error']
+        failed_network = credential.get('network_id')
     ip = ctx.command(['ip', '-j', '-4', 'addr', 'show', 'dev', 'wlan0']) if radio else {'output': None}
     routes = ctx.command(['ip', '-j', '-4', 'route', 'show', 'default', 'dev', 'wlan0']) if radio else {'output': None}
     try:
@@ -557,6 +568,8 @@ def wifi(ctx, signal_cache=None):
     elif properties.get('wpa_state') != 'COMPLETED':
         rssi, signal = None, None
     return {'state': state, 'reason': reason, 'radio_present': radio,
+            # The saved network whose password failed (wpa_supplicant's id).
+            'failed_network_id': failed_network if state == 'Failed' and reason == properties.get('credential_failure') else None,
             # A missed control query does not prove a radio disconnect. Preserve
             # the actual failure and latency separately from event counters.
             'supplicant_observation': {'ok': wpa.get('ok') if radio else None,

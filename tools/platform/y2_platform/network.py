@@ -14,6 +14,7 @@ from .common import atomic_json
 from .observe import wifi
 
 
+CREDENTIAL_ERRORS = ('wrong_credentials', 'authentication_failed', 'authentication_rejected')
 LAST_FAILURE_KEYS = ('error', 'reason', 'epoch', 'failures', 'scan', 'scan_monotonic_s', 'boot_id', 'monotonic_s')
 
 
@@ -346,6 +347,18 @@ class EventMonitor:
         last = old if old.get('error') else old.get('last_failure')
         if isinstance(last, dict) and last.get('error'):
             record['last_failure'] = {key: last[key] for key in LAST_FAILURE_KEYS if key in last}
+        # Y2Reborn #20: a wrong password stays reported until a connect. The
+        # "network not found" that follows (the network is disabled for a while
+        # after each failure) never replaces it; it names the network it was.
+        boot = self.ctx.read('/proc/sys/kernel/random/boot_id')
+        if error in CREDENTIAL_ERRORS:
+            network = re.search(r'\bid=(\d+)\b', text)
+            record['credential'] = {'error': error, 'reason': record.get('reason'), 'boot_id': boot,
+                                    'network_id': int(network.group(1)) if network else None,
+                                    'monotonic_s': time.monotonic()}
+        elif error is not None and isinstance(old.get('credential'), dict) and \
+                old['credential'].get('boot_id') == boot:
+            record['credential'] = old['credential']
         if error == 'ap_unavailable':
             # wpa_supplicant reports this after every scan: look at most every 30 s.
             last = old.get('scan_monotonic_s')

@@ -64,6 +64,30 @@ class WifiFailureEvidence(unittest.TestCase):
         self.assertEqual((self.record()['last_failure']['error'], self.record()['last_failure']['reason']),
                          ('wrong_credentials', 'WRONG_KEY'))
 
+    def test_a_wrong_password_stays_reported_until_a_connect(self):
+        # Y2Reborn #20: one wrong letter, 15 tries, the player said "Connecting…"
+        # and "Saved", never why. On the owner's player (8.27) each try ended in
+        # WRONG_KEY, then "not found" while the network was disabled for a while.
+        from y2_platform.observe import wifi_state
+        self.monitor.event('<3>CTRL-EVENT-SSID-TEMP-DISABLED id=7 ssid="home-net" auth_failures=1 duration=10 '
+                           'reason=WRONG_KEY')
+        self.monitor.event('<3>CTRL-EVENT-NETWORK-NOT-FOUND')
+        record = self.record()
+        self.assertEqual(record['error'], 'ap_unavailable')
+        self.assertEqual((record['credential']['error'], record['credential']['network_id']),
+                         ('wrong_credentials', 7))
+        self.assertNotIn('home-net', json.dumps(record))
+        for wpa_state in ('SCANNING', '4WAY_HANDSHAKE', 'DISCONNECTED'):
+            wpa = {'wpa_state': wpa_state, 'credential_failure': record['credential']['error']}
+            self.assertEqual(wifi_state(True, wpa, [], [], False), ('Failed', 'wrong_credentials'))
+        self.assertEqual(wifi_state(True, {'wpa_state': 'COMPLETED', 'credential_failure': 'wrong_credentials'},
+                                    ['192.0.2.2'], [{}], True), ('Online', None))
+        self.monitor.event('<3>CTRL-EVENT-CONNECTED - Connection to aa:bb:cc:dd:ee:01 completed [id=7 id_str=]')
+        self.assertNotIn('credential', self.record())
+        # Another kind of failure is not a password.
+        self.monitor.event('<3>CTRL-EVENT-NETWORK-NOT-FOUND')
+        self.assertNotIn('credential', self.record())
+
 
 if __name__ == '__main__':
     unittest.main()
