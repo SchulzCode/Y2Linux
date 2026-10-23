@@ -6,7 +6,7 @@ the PLL and CLKOUT on as stock cs43131_hw_init does (#54), rates the crystal doe
 used, as stock: #52's crystal stopped at every 48 kHz start), a crystal error at a stream start power-cycles the codec,
 a probe that finds the rails on starts the codec cold, and the per-DAI clock requests stay balanced across ALSA's
 hw_params/hw_free sequences. #52/#54 on 8.24: each power-up starts the crystal with the whole chip powered (stock
-PWDN_CTL=0) and cuts the rails for another try when it flags an error or no ready flag, three tries in all; the first
+PWDN_CTL=0, except the headphone amplifier: its unsequenced power-up was audible) and cuts the rails for another try when it flags an error or no ready flag, three tries in all; the first
 stream after a failed power-up adds one cold start, bounded."""
 import re
 import unittest
@@ -63,6 +63,7 @@ class CodecClock(unittest.TestCase):
         # The start-rate test switches and the cycle trigger exist for the reporters.
         self.assertIn('module_param(y2_xtal_full_power, bool, 0644);', source)
         self.assertIn('module_param(y2_xtal_quiet_start, bool, 0644);', source)
+        self.assertIn('module_param(y2_xtal_start_hp, bool, 0644);', source)
         self.assertIn('if (!sysfs_streq(buf, "cycle"))', function(source, 'xtal_store'))
         # #52: a restart resets the SoC, not the PMIC: rails found on at probe go off for Y2_CODEC_OFF_MS first.
         cold = probe[probe.index('y2_cold_start = regulator_is_enabled(cs43130->supplies[0].consumer) > 0;'):]
@@ -104,6 +105,7 @@ class CodecClock(unittest.TestCase):
 #define CS43130_PDN_PLL_MASK 0x04
 #define CS43130_PDN_PLL_SHIFT 2
 #define CS43130_PDN_CLKOUT_MASK 0x02
+#define CS43130_PDN_HP_MASK 0x10
 #define CS43130_XTAL_IBIAS_MASK 0x07
 #define CS43130_XTAL_IBIAS_15UA 2
 #define CS43130_XTAL_IBIAS_12_5UA 4
@@ -231,7 +233,8 @@ int main(void) {
  ready_after = 20;
  assert(!y2_clk_get(&component, 0, 44100));
  assert(codec.clk_req == 1 && codec.mclk_int_src == CS43130_MCLK_SRC_EXT && sel() == CS43130_MCLK_SRC_EXT && !xtal_off());
- assert(starts == 1 && pwdn_at_start == 0 && (map.reg[CS43130_PWDN_CTL] & 0xf0) == 0xf0);
+ /* The headphone amplifier stays down (stock's PWDN_CTL=0 start was audible as static). */
+ assert(starts == 1 && pwdn_at_start == CS43130_PDN_HP_MASK && (map.reg[CS43130_PWDN_CTL] & 0xf0) == 0xf0);
  assert(xtal_waits == 1 && budget == 80 && y2_xtal_ready && !y2_xtal_unconfirmed && y2_xtal_ready_ms == 20);
  assert(y2_xtal_tries == 1 && y2_xtal_start_ms == 20 && !warnings);
  /* A crystal that starts keeps the stock bias. */
@@ -308,7 +311,9 @@ int main(void) {
  runtime_suspend(); y2_xtal_full_power = false; runtime_resume();
  assert(pwdn_at_start == 0xf0 && y2_xtal_ready); y2_xtal_full_power = true;
  runtime_suspend(); bias_writes = 0; y2_xtal_quiet_start = true; runtime_resume();
- assert(!bias_writes && pwdn_at_start == 0 && y2_xtal_ready); y2_xtal_quiet_start = false;
+ assert(!bias_writes && pwdn_at_start == CS43130_PDN_HP_MASK && y2_xtal_ready); y2_xtal_quiet_start = false;
+ runtime_suspend(); y2_xtal_start_hp = true; runtime_resume();
+ assert(pwdn_at_start == 0 && y2_xtal_ready && (map.reg[CS43130_PWDN_CTL] & 0xf0) == 0xf0); y2_xtal_start_hp = false;
  /* Test boost: the bias changes at the next power-up, never under a running crystal. */
  y2_xtal_boost(&codec); assert(y2_xtal_boosted && map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_12_5UA);
  runtime_suspend(); runtime_resume(); assert(map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_15UA);
