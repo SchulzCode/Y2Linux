@@ -1,8 +1,8 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.27, Baseline 126 — 2026-10-23 (built, on the owner's player, not yet published)
+## Y2Linux 1.0 Beta 8.27, Baseline 126 — 2026-10-23 (latest, published)
 
-Release `1.0.0-beta.8.27`, Linux `65e1c47`, Reborn `4947352`, sequence 9100. SD cards (F12, report 29ed4ccb: every
+Release `1.0.0-beta.8.27`, tag `baseline-126`, Linux `65e1c47`, Reborn `4947352`, sequence 9100. SD cards (F12, report 29ed4ccb: every
 card "Needs Repair" after a pull while mounted): a FAT32/exFAT card whose check finds errors plays read-only instead of
 being refused; Settings → Storage → Repair SD Card (owner-confirmed, charger or 30 %, a copy of the card's tables
 kept) repairs it on the player; a healthy card is read-only between writes (USB, playlist changes, reports, the

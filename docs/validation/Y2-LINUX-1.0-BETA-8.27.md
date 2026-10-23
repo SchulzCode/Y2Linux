@@ -1,6 +1,6 @@
 # Y2Linux 1.0 Beta 8.27 (Baseline 126)
 
-Status: **BUILT and installed on the owner's player; not yet published**. Release `1.0.0-beta.8.27`, Reborn `1.0.0-beta.8.27`, kernel `6.18.56-y2linux-1.0.0-beta.8.27`,
+Status: **PUBLISHED as GitHub release `baseline-126`** (2026-10-23), installed on the owner's player first. Release `1.0.0-beta.8.27`, Reborn `1.0.0-beta.8.27`, kernel `6.18.56-y2linux-1.0.0-beta.8.27`,
 update sequence 9100, root `2026.08-platform-v1.167`, Linux `65e1c47`, Reborn `4947352`. Built with
 `tools/production/release.py` (134 s, resumed workspace, update based on `baseline-125`): container suite
 **878 OK**, host suite OK; Reborn workspace tests, clippy and fmt clean; all seal checks PASS, no MediaTek

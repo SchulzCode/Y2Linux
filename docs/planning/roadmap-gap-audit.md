@@ -9179,4 +9179,6 @@ the owner's player (exFAT card).
 | Damaged card plays read-only | IMPLEMENTED, HOST-CHECKED | **not run on a damaged card in a player** |
 | Repair SD Card | IMPLEMENTED, HOST-CHECKED | `fsck.fat -a -w` on damaged images on the player; the full flow not run on a damaged card |
 | Protected card + write windows | IMPLEMENTED, DEVICE-CHECKED | ro 4 s after unplug, clean, rw on replug, playback and sleep while ro |
-| Build 126 on a player | INSTALLED | seq 9100, Acknowledged; publish awaits the owner |
+| Build 126 on a player | INSTALLED BEFORE PUBLISH | seq 9100, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.27** (Baseline 126, sequence 9100).

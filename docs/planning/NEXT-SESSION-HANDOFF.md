@@ -1,6 +1,6 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-24): BETA 8.27 (LABEL 126) BUILT, ON THE OWNER'S PLAYER — SD CARD PHASES 0–3, PUBLISH ON THE OWNER'S WORD.**
+> **START HERE (2026-10-24): BETA 8.27 (BASELINE 126) PUBLISHED — SD CARD PHASES 0–3.**
 > Seq 9100, Linux `65e1c47`, Reborn `4947352`. F12 follow-up (report 29ed4ccb): interrupted-write leftovers Linux never
 > sees are admitted; FAT/exFAT cards with errors mount read-only (`media-mount.json` `read_only: filesystem_errors |
 > check_timed_out`), Reborn `SdCard::ReadOnly/Unchecked`, Settings → Storage → Repair SD Card (`y2-media repair`, tables
