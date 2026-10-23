@@ -1,6 +1,16 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.25, Baseline 124 — 2026-10-23 (latest, published)
+## Y2Linux 1.0 Beta 8.26, Baseline 125 — 2026-10-23 (latest, published)
+
+Release `1.0.0-beta.8.26`, tag `baseline-125`, Linux `518c641`, Reborn `404edb3`, sequence 9000. From the review of twelve
+uploaded reports (F35–F41): a player that turned off at 5 % no longer turns off again at every start on a charger
+(F36); Wi-Fi switched on after a sleep with Wi-Fi off connects at the first tap (F37); nonstandard chargers get
+450 mA instead of 70 mA (F38); every shutdown step goes to pstore and the journal writes get 3 s (F39); a Wi-Fi
+re-association no longer warns (F35); reports record more about "network not found" (F13) and refused SD cards (F12)
+and keep version strings (F41). Installed and checked on the owner's player (F37 reproduced on 8.25 first).
+Details: [Beta 8.26 report](validation/Y2-LINUX-1.0-BETA-8.26.md).
+
+## Y2Linux 1.0 Beta 8.25, Baseline 124 — 2026-10-23 (published)
 
 Release `1.0.0-beta.8.25`, tag `baseline-124`, Linux `f7f23d4`, Reborn `40386bc`, sequence 8901. #52/#54 on 8.24: both
 players' CS43131 crystals flagged XTAL_ERR right at power-up (not a PLL problem). Stock starts the crystal with the chip

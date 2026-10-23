@@ -1,6 +1,16 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-24): #52/#54 ARE SOLVED ON BETA 8.25 — REVIEW THE OTHER PENDING REPORTS, THEN TRIM.**
+> **START HERE (2026-10-24): AFTER BETA 8.26 (BASELINE 125) — REPORT FIXES F35–F41 PUBLISHED.**
+> Published 2026-10-23 (seq 9000, Linux build `518c641`; Reborn `404edb3`, identity only); the owner's player runs it.
+> The 12 reports pending after 8.25 were reviewed (ledger `UserReports/REVIEWED.md`, F35–F41) and fixed: F36 start on a
+> charger after a low-battery power-off (`battery.py` restore, stale power-on OCV, `power.py` SOC shutdown on battery
+> only), F37 `y2-radio` per-device rfkill (reproduced on 8.25 and fixed on the device), F38 nonstandard 450 mA (owner
+> choice, unqualified), F39 pmsg shutdown trail + 3-s stage writes, F35 roam BSS entry, evidence for F12 (`other`
+> shapes) and F13 (entry age, flags, key_mgmt), F41 scrubber. F40 (two xruns) is watch-only. Next: `fetch.py --pending`;
+> watch for F13/F39 evidence and F38 on a nonstandard charger; then the 8.24 crystal trim plan. Next free label 126,
+> sequence above 9000. Report BETA-8.26.
+>
+> Previous entry: **START HERE (2026-10-24): #52/#54 ARE SOLVED ON BETA 8.25 — REVIEW THE OTHER PENDING REPORTS, THEN TRIM.**
 > 2026-10-23: both reporters closed their issues. #54's 8.25 report (5f909e65, install 0400eb78): `tries=1 ready_ms=30
 > errors=0 cycles=0 stream_cycles=0` — the chip-powered start (`PWDN_CTL=0x10`) alone fixed a unit whose crystal failed
 > at every power-up on 8.22/8.24; 23 tracks, 0 playback errors. #52 (2813306c) confirmed in text, no report. Ledger rows

@@ -9144,3 +9144,23 @@ the owner's player (builds 8900 and 8901).
 | Amplifier kept down during the start | DEVICE-CHECKED | static at screen wake with it on (8900), none without (8901) |
 | Power-up retries / first-stream cold start | IMPLEMENTED, HOST-CHECKED | register model, mutation-checked; never needed on the owner's player |
 | Build 124 on a player | INSTALLED BEFORE PUBLISH | seq 8901, Acknowledged |
+
+## BETA-8.26 (Baseline 125) report fixes F35–F41: milestone gap audit — 2026-10-23
+
+**Boundary:** owner: fix the findings of the 2026-10-23 review of twelve uploaded reports and publish; owner chose
+450 mA for nonstandard chargers (F38) and a device run before publishing. Changes: platform Python (battery start,
+low-battery rule, shutdown trail, Wi-Fi and SD evidence, report scrubbing), `y2-radio`, the Wi-Fi driver's roam
+indication and the nonstandard charger ceiling. No memory map, partition, schema, packaging or Reborn code change.
+Hardware evidence: the twelve reports, the owner's player (F37 reproduced on 8.25, then 8.26).
+
+| Area | State for Beta 8.26 | Evidence / gap |
+| --- | --- | --- |
+| F36 start on a charger after a low-battery power-off | IMPLEMENTED, HOST-CHECKED | report values replayed; restore path device-checked; a drained battery not reproduced |
+| F37 Wi-Fi rfkill after a sleep with Wi-Fi off | IMPLEMENTED, DEVICE-CHECKED | reproduced on 8.25 (`phy4 soft=1`), fixed on 8.26 (`phy1 soft=0`, COMPLETED) |
+| F38 nonstandard chargers 450 mA | IMPLEMENTED, HOST-CHECKED | **not qualified on a nonstandard charger** (owner decision) |
+| F39 shutdown trail, 3-s stage writes | IMPLEMENTED, DEVICE-CHECKED | trail in the next boot's capture; the stalled update restart's cause stays open |
+| F35 roam BSS entry | IMPLEMENTED, BUILT | the re-association could not be forced |
+| F12/F13/F41 report evidence | IMPLEMENTED, HOST-CHECKED | F41 seen in a saved device report |
+| Build 125 on a player | INSTALLED BEFORE PUBLISH | seq 9000, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.26** (Baseline 125, sequence 9000).
