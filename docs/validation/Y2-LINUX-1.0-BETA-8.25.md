@@ -52,11 +52,25 @@ way while stock plays points to a difference in our start, not a bad crystal.
 | OTA 8900 → 8901 (published build) | back after ≈60 s, Acknowledged; `ready_ms=40 tries=1 start_hp=0`; 10 × `cycle`: 10/10 first try at 30 ms; `PWDN_CTL=f0` after the start |
 | Listening, build 8901 | **no static** at the wake after 3 min screen off; playback normal |
 
+## Result from the reporters (2026-10-23)
+
+Both issues were closed by their reporters on 8.25:
+
+- #54 (install 0400eb78, report 5f909e65, first 8.25 boot): `y2_hp/xtal` shows `ready=1 ready_ms=30 tries=1 errors=0
+  cycles=0 cold_start=0 stream_cycles=0 full_power=1 start_hp=0`. The crystal, which on 8.22 and 8.24 flagged XTAL_ERR
+  at every power-up on this unit, came up at the first try with the chip-powered start, exactly like the owner's
+  player. 23 tracks started, `playback_errors=0`, one deep sleep, no codec warning in the boot. Reporter: "It works
+  perfectly now!"
+- #52 (install 2813306c): "It works, and I couldn't break it." (songs, restart, screen off); no 8.25 report uploaded.
+
+So the cause was the clocks-only start (`PWDN_CTL=0xF0`): the retries and the first-stream cold start were not needed
+on either unit, and neither switch comparison was run. Stays open only as a cosmetic item below.
+
 ## Open
 
-- #52/#54 confirmation from the reporters, with the start rate (`tries=`) and, if they can, the comparison with
-  `y2_xtal_full_power=0` and `y2_xtal_start_hp=1`.
+- #52/#54: none. The switches `y2_xtal_full_power`, `y2_xtal_start_hp`, `y2_xtal_quiet_start` stay as diagnostics; the
+  trim plan of the 8.24 handoff entry (remove non-stock crystal code) may now proceed.
 - Cosmetic: a manual `cycle` logs "codec power-cycled after a crystal error" and counts in `cycles=`; read `cycles=`
   together with the reporter's test runs.
-- If the amplifier-off start does not help the reporters but `y2_xtal_start_hp=1` does, the amplifier has to be part of
-  the start with a click-free sequence (mute/ramp) before it becomes the default.
+- The amplifier-off start (`0x10`) was sufficient for both reporters; `y2_xtal_start_hp=1` (exact stock `0x00`) is not
+  needed and is not click-free.

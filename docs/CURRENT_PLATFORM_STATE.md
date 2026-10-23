@@ -8,6 +8,7 @@ powered (`PWDN_CTL=0`); Y2Linux powered only the clocks. Each DAC power-up now s
 the headphone amplifier (which made static), retries with a 500 ms rail cycle up to three times, and the first song
 after a failed power-up gets one more cold start. Test switches `y2_xtal_full_power`, `y2_xtal_start_hp`,
 `y2_xtal_quiet_start` and `echo cycle > y2_hp/xtal` for the reporters. Installed and tested on the owner's player.
+**Confirmed by both reporters on 2026-10-23** (#54 report: `tries=1 ready_ms=30 errors=0`; #52 and #54 closed).
 Details: [Beta 8.25 report](validation/Y2-LINUX-1.0-BETA-8.25.md),
 [analysis handoff](planning/ISSUE-52-54-CRYSTAL-HANDOFF.md).
 

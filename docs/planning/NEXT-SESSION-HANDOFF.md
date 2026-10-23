@@ -1,6 +1,15 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-24): AFTER BETA 8.25 (BASELINE 124) — READ THE #52/#54 RESULTS.**
+> **START HERE (2026-10-24): #52/#54 ARE SOLVED ON BETA 8.25 — REVIEW THE OTHER PENDING REPORTS, THEN TRIM.**
+> 2026-10-23: both reporters closed their issues. #54's 8.25 report (5f909e65, install 0400eb78): `tries=1 ready_ms=30
+> errors=0 cycles=0 stream_cycles=0` — the chip-powered start (`PWDN_CTL=0x10`) alone fixed a unit whose crystal failed
+> at every power-up on 8.22/8.24; 23 tracks, 0 playback errors. #52 (2813306c) confirmed in text, no report. Ledger rows
+> added. Nothing of 8.25's retry machinery was exercised, so the 8.24 trim plan (keep stock-equivalent parts, remove
+> non-stock crystal code; keep the switches as diagnostics) may start. Before that: 12 other pending reports from
+> 2026-10-22/23 (installs 00322807, 03df8d42, 07e62fce, 432e74ab, 4ff97dff, 703f1fbf, 72f7e3ee ×3, cc1fe289, 09cabe08,
+> aa96e00a) are unreviewed — ledger first. Next free label 125, sequence above 8901.
+>
+> Previous entry: **START HERE (2026-10-24): AFTER BETA 8.25 (BASELINE 124) — READ THE #52/#54 RESULTS.**
 > Published 2026-10-23 (seq 8901, Linux build `f7f23d4`; Reborn `40386bc`); the owner's player runs it. 8.24 did not fix
 > #52, and #54 fails the same way: the CS43131 crystal flags XTAL_ERR at power-up (both 8.24 reports, `cycles=0`). Full
 > evidence, stock RE and Fable's analysis: `docs/planning/ISSUE-52-54-CRYSTAL-HANDOFF.md`. 8.25: crystal start with the

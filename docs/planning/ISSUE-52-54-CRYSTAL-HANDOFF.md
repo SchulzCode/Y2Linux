@@ -315,3 +315,12 @@ Checks: `tests.test_codec_clock` OK. Mutations caught: TRIES 1, STREAM_CYCLES 0,
 full-chip start (`PWDN_CTL=0`) made static in the headphones at screen wake (amplifier powered outside its DAPM
 sequence). The start now writes `0x10` (everything but the headphone amplifier); `y2_xtal_start_hp=1` restores the
 exact stock `0x00` for a reporter test. Report: `docs/validation/Y2-LINUX-1.0-BETA-8.25.md`.
+
+**Outcome (2026-10-23):** both reporters confirmed 8.25 and closed #52 and #54. The #54 unit's report (5f909e65)
+shows `ready=1 ready_ms=30 tries=1 errors=0 cycles=0 cold_start=0 stream_cycles=0 full_power=1 start_hp=0` on its
+first 8.25 boot: the chip-powered start without the headphone amplifier (`PWDN_CTL=0x10`) brought up a crystal that
+flagged XTAL_ERR at every power-up on 8.22 and 8.24; no retry, rail cycle or first-stream cold start ran. #52's
+reporter confirmed in text ("couldn't break it", also after a restart and screen off) without a report. Conclusion:
+the CS43131 crystal oscillator needs the chip's analog/digital blocks powered to start reliably on some units; the
+clock-only power-up Y2Linux used since the first codec driver was the cause. Candidates 2 and 3 (`start_hp`, `quiet`)
+were not needed. Report: `docs/validation/Y2-LINUX-1.0-BETA-8.25.md`.
