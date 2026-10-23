@@ -15,7 +15,7 @@ struct y2_adc {
 	struct regmap *map;
 	struct mutex lock;
 	struct y2_pmic_cal cal;
-	bool calibrated;
+	bool calibrated, nominal;
 };
 static int y2_adc_sample(struct y2_adc *a, unsigned channel, int *raw)
 {
@@ -109,7 +109,7 @@ static int y2_adc_probe(struct platform_device *pdev)
 	struct y2_adc *a;
 	struct thermal_zone_device *tz;
 	unsigned cid, fuse0, fuse1;
-	int ret;
+	int ret, cal;
 	if (!chip || !chip->regmap) return -EPROBE_DEFER;
 	indio = devm_iio_device_alloc(dev, sizeof(*a));
 	if (!indio) return -ENOMEM;
@@ -119,7 +119,8 @@ static int y2_adc_probe(struct platform_device *pdev)
 	if (!ret) ret = regmap_read(a->map, 0x63a, &fuse0);
 	if (!ret) ret = regmap_read(a->map, 0x63c, &fuse1);
 	if (ret) return dev_err_probe(dev, ret, "ADC efuse read\n");
-	a->calibrated = !y2_pmic_calibrate(cid, fuse0, fuse1, &a->cal);
+	cal = y2_pmic_calibrate(cid, fuse0, fuse1, &a->cal);
+	a->calibrated = cal >= 0; a->nominal = cal > 0;
 	indio->name = "mt6323-auxadc"; indio->info = &y2_adc_info;
 	indio->modes = INDIO_DIRECT_MODE;
 	indio->channels = y2_adc_channels; indio->num_channels = ARRAY_SIZE(y2_adc_channels);
@@ -129,7 +130,11 @@ static int y2_adc_probe(struct platform_device *pdev)
 		tz = devm_thermal_of_zone_register(dev, 0, a, &y2_pmic_thermal_ops);
 		if (IS_ERR(tz)) return dev_err_probe(dev, PTR_ERR(tz), "PMIC thermal zone\n");
 	} else dev_warn(dev, "no valid die calibration; temperature unavailable\n");
-	dev_info(dev, "BATSNS/ISENSE 15-bit 1.8 V x4; BATON1 1.8 V; die calibration=%u; pack temperature/current/SOC unvalidated\n", a->calibrated);
+	if (a->nominal)
+		dev_warn(dev, "die calibration fuse clear (CID=%#x efuse=%#x,%#x): vendor nominal, read 10 C high\n",
+			 cid, fuse0, fuse1);
+	dev_info(dev, "BATSNS/ISENSE 15-bit 1.8 V x4; BATON1 1.8 V; die calibration=%u; pack temperature/current/SOC unvalidated\n",
+		 a->nominal ? 2 : a->calibrated);
 	return 0;
 }
 static const struct of_device_id y2_adc_match[] = { { .compatible = "mediatek,mt6323-auxadc" }, {} };

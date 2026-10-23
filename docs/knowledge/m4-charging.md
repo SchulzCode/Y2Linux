@@ -112,7 +112,8 @@ is a fault. The lower boundary deliberately excludes depleted-pack revival;
 transition, **not an inferred pack damage threshold**. The
 [MediaTek technical brief](https://www.nikom.biz/pic_info/A101018/MT6323.PDF)
 also identifies BATON/ISENSE; it does not establish this board's battery wiring.
-ADC timeout, unavailable die calibration, saturated BATON/ISENSE, missing
+ADC timeout, unavailable die temperature (an unknown PMIC; a clear calibration
+fuse uses the vendor nominal read 10 °C high instead), saturated BATON/ISENSE, missing
 battery, PMIC IO error, altered critical configuration, OVP, hardware thermal
 alarm and watchdog errors all inhibit. The existing stock-derived 150°C PMIC
 critical limit is retained, with no assertion that it protects pack temperature.

@@ -86,12 +86,22 @@ int main(void) {
 int main(void) {
  struct y2_pmic_cal p;
  struct y2_soc_cal s;
- assert(y2_pmic_calibrate(0x2023,0,0,&p));
- assert(y2_pmic_calibrate(0x9999,0x46da,0x800f,&p));
+ assert(y2_pmic_calibrate(0x9999,0x46da,0x800f,&p) < 0);
+ assert(y2_pmic_calibrate(0x9999,0,0,&p) < 0);
+ /* Calibration fuse clear (report 09888d70): vendor nominal VTS 3698 = 25 C,
+  * read 10 C high; the other fuse bits are ignored. */
+ assert(y2_pmic_calibrate(0x2023,0,0,&p) == 1);
+ assert(p.divisor==-171 && y2_pmic_mc(&p,3698+9102)==35000);
+ struct y2_pmic_cal q;
+ assert(y2_pmic_calibrate(0x2023,0x46d8,0x800f,&q) == 1 && y2_pmic_calibrate(0x1023,0xffd,0xffff,&q) == 1);
+ assert(q.divisor==p.divisor && q.intercept==p.intercept);
  /* Our PMIC fuses: reference point 27 C, not a live temperature sample. */
  assert(!y2_pmic_calibrate(0x2023,0x46da,0x800f,&p));
  assert(p.divisor==-171 && y2_pmic_mc(&p,3910+9102)==27000);
  for(unsigned r=1;r<32768;r++) assert(y2_pmic_mc(&p,r)<=y2_pmic_mc(&p,r-1));
+ /* On our fuses nominal without the margin reads about 8 C low; with it, never lower than own. */
+ for(unsigned r=12000;r<14000;r++){assert(y2_pmic_mc(&q,r)>=y2_pmic_mc(&p,r));
+  assert(y2_pmic_mc(&q,r)-Y2_PMIC_NOMINAL_MARGIN_MC<y2_pmic_mc(&p,r)-7000);}
  assert(y2_battery_uv(16384)==3600000);
  assert(y2_battery_uv(0)==0 && y2_battery_uv(32767)==7199780);
  assert(y2_soc_calibrate(0,0,&s));

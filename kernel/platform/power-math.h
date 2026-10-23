@@ -4,23 +4,37 @@
 #define Y2_POWER_MATH_H
 #include "charge-table.h"
 /* MT6582 BSP d53dd75c3ff7: mtk_ts_{cpu,pmic}.c, mt_cpufreq.c and
- * charging_hw_pmic.c. Keep vendor integer rounding; never use default fuses.
+ * charging_hw_pmic.c. Keep vendor integer rounding; default fuses only where
+ * the vendor uses them (PMIC die without its calibration fuse, below).
  * Provenance, units and limitations: docs/knowledge/m4-power-platform.md. */
 struct y2_pmic_cal { int intercept, divisor; };
+/* Without the calibration-enable fuse, pmic_cali_prepare() uses its nominal
+ * VTS 3698 at 25 C, slope 0. Nominal can be about 10 C off (our own E2 fuses
+ * read 8 C low through it), so it reads 10 C high: derating and the 150 C
+ * stops act early, never late. */
+#define Y2_PMIC_NOMINAL_VTS 3698
+#define Y2_PMIC_NOMINAL_DEGC_HALF 50
+#define Y2_PMIC_NOMINAL_MARGIN_MC 10000
+/* 0: own fuses; 1: nominal (calibration fuse clear); -1: unknown PMIC. */
 static inline int y2_pmic_calibrate(unsigned cid, unsigned a, unsigned b,
 				  struct y2_pmic_cal *cal)
 {
-	int slope, id, vts, vbe;
-	if (!(a & 2) || (cid != 0x1023 && cid != 0x2023 && cid != 0x3023))
+	int slope, id, vts, vbe, degc_half, margin = 0, nominal = !(a & 2);
+	if (cid != 0x1023 && cid != 0x2023 && cid != 0x3023)
 		return -1;
 	vts = ((b & 31) << 8) | (a >> 8);
+	degc_half = (a >> 2) & 63;
 	if (cid == 0x1023) { id = (b >> 12) & 1; slope = (b >> 6) & 63; }
 	else { id = (b >> 14) & 1; slope = (((b >> 11) & 7) << 3) | ((b >> 6) & 7); }
 	if (!id) slope = 0;
+	if (nominal) {
+		vts = Y2_PMIC_NOMINAL_VTS; degc_half = Y2_PMIC_NOMINAL_DEGC_HALF;
+		slope = 0; margin = Y2_PMIC_NOMINAL_MARGIN_MC;
+	}
 	cal->divisor = -(171 + ((b & 32) ? -slope : slope));
 	vbe = -((vts + 9102) * 1800 / 32768) * 1000;
-	cal->intercept = vbe * 100 / cal->divisor + ((a >> 2) & 63) * 500;
-	return 0;
+	cal->intercept = vbe * 100 / cal->divisor + degc_half * 500 + margin;
+	return nominal;
 }
 static inline int y2_pmic_mc(const struct y2_pmic_cal *cal, unsigned raw)
 {
