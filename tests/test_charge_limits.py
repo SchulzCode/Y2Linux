@@ -83,7 +83,7 @@ static const struct row rows[]={
  {Y2_SOURCE_SDP,      900000, 500000, 500000, 450000, 450000},
  {Y2_SOURCE_CDP,           -1, 650000, 650000, 650000, 650000},
  {Y2_SOURCE_DCP,           -1,1100000,1100000, 650000,1100000},
- {Y2_SOURCE_NONSTANDARD,   -1,1100000,  70000,  70000,  70000},
+ {Y2_SOURCE_NONSTANDARD,   -1,1100000, 450000, 450000, 450000},
  {Y2_SOURCE_APPLE,         -1, 800000, 800000, 650000, 800000},
 };
 int main(void){
@@ -110,7 +110,8 @@ int main(void){
   assert(ua==0 || y2_cs_selector_exact(ua)>=0);
   if(uv<=Y2_PRECHARGE_UV)assert(ua<=Y2_DEEP_DISCHARGE_MAX_UA);
   if(t==Y2_SOURCE_SDP)assert(ua<=(alloc<0 ? 70000U : 450000U));
-  if(t==Y2_SOURCE_NONSTANDARD || t==Y2_SOURCE_UNKNOWN)assert(ua<=70000);
+  if(t==Y2_SOURCE_UNKNOWN)assert(ua<=70000);
+  if(t==Y2_SOURCE_NONSTANDARD)assert(ua<=450000);   /* F38 */
   if(level==Y2_THERMAL_LEVELS)assert(ua==0);
  }
  /* A PC port can never be promoted by raising the owner ceiling. */
@@ -195,7 +196,7 @@ int main(void){
   {4,Y2_SOURCE_DCP,       650000,  650000,10}, {4,Y2_SOURCE_DCP,     1100000, 1100000, 5},
   {4,Y2_SOURCE_DCP,       900000,  900000, 7}, {4,Y2_SOURCE_DCP,      700000,  700000, 9},
   {4,Y2_SOURCE_DCP,        70000,   70000,15},
-  {3,Y2_SOURCE_NONSTANDARD,1100000, 70000,15}, {3,Y2_SOURCE_NONSTANDARD,650000, 70000,15},
+  {3,Y2_SOURCE_NONSTANDARD,1100000,450000,12}, {3,Y2_SOURCE_NONSTANDARD,650000,450000,12},
   {5,Y2_SOURCE_APPLE,     650000,  650000,10}, {5,Y2_SOURCE_APPLE,   1100000,  800000, 8},
  };
  for(unsigned i=0;i<sizeof rows/sizeof rows[0];i++){
@@ -233,7 +234,7 @@ int main(void){
  unplug(&c);
  plug(&c,5,-1);assert(c.source==Y2_SOURCE_APPLE && c.charge_ua==800000);
  unplug(&c);
- plug(&c,3,-1);assert(c.source==Y2_SOURCE_NONSTANDARD && c.charge_ua==70000);
+ plug(&c,3,-1);assert(c.source==Y2_SOURCE_NONSTANDARD && c.charge_ua==450000);
  unplug(&c);
  /* Wall charger pulled and a PC port plugged between two polls: the interrupt
   * only sets source_changed; the next poll must stop, reclassify and re-program

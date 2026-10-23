@@ -98,12 +98,14 @@ static inline unsigned y2_source_stock_request_ua(enum y2_source_type type, int 
 /* Highest current this Linux policy lets a source class draw. Equal to the
  * stock request except nonstandard: BC1.2 defines no capability for a source
  * whose data lines are neither shorted (DCP) nor pulled (SDP/CDP) and Linux has
- * no validated VBUS-collapse check, so it keeps the previously validated
- * 70 mA. A one-line change once a nonstandard charger has been qualified. */
+ * no validated VBUS-collapse check. F38 (cb904ffb, e7604e73): at 70 mA such a
+ * charger (dumb adapters, charge-only cables) carried less than the awake load
+ * and the player drained while "Charging". It gets what any USB 2.0 port gives
+ * an SDP here (450 mA), not the stock 1100 mA, until one has been qualified. */
 static inline unsigned y2_source_class_ceiling_ua(enum y2_source_type type)
 {
 	switch (type) {
-	case Y2_SOURCE_NONSTANDARD: return 70000;
+	case Y2_SOURCE_NONSTANDARD: return 450000;
 	case Y2_SOURCE_UNKNOWN: return 70000;
 	case Y2_SOURCE_SDP: return 500000;
 	case Y2_SOURCE_CDP: return 650000;

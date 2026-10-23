@@ -227,6 +227,35 @@ class BatterySoc(unittest.TestCase):
         junk = Soc(p, {'ui_percent': 'x', 'anchor_percent': 7}).observe(0, 3779000, 1, 'Discharging')
         self.assertEqual((junk['percent'], junk['anchor_percent']), (50, None))
 
+    def test_start_on_a_charger_after_a_low_battery_poweroff_runs(self):
+        # F36 (97f11bb1): turned off at 5 %, charged on the charging screen for
+        # an hour, then every start showed 5 % and turned off again at 4.03 V.
+        self.put('/etc/y2linux/power-policy.json', (ETC / 'power-policy.json').read_text())
+        policy, _ = load_policy(self.ctx)
+        saved = {'schema': 1, 'ui_percent': 5, 'anchor_percent': None}
+        for now, voltage, ocv in ((3850, 4027148, 3620000), (17, 3714257, 3700000)):
+            soc, guard = Soc(load_profile(self.ctx), saved), LowBattery()
+            for tick in range(6):
+                value = soc.observe(now + tick, voltage, 1, 'Charging', charge_current=450000, boot_ocv=ocv)
+                state = guard.observe(policy, voltage, 1, value)
+            self.assertGreater(value['percent'], 30)
+            self.assertNotEqual(state, 'ShutdownPending')
+        # The stale power-on OCV alone no longer decides a late first sample.
+        late = Soc(load_profile(self.ctx)).observe(3850, 3779000, 1, 'Discharging', boot_ocv=3500000)
+        fresh = Soc(load_profile(self.ctx)).observe(10, 3779000, 1, 'Discharging', boot_ocv=3500000)
+        self.assertGreater(late['percent'], fresh['percent'])
+        # On battery a saved 5 % still turns a drained player off.
+        soc, guard = Soc(load_profile(self.ctx), saved), LowBattery()
+        for tick in range(6):
+            state = guard.observe(policy, 3627026, 1, soc.observe(10 + tick, 3627026, 1, 'Discharging'))
+        self.assertEqual(state, 'ShutdownPending')
+        # A charger that cannot carry the load is still caught by the voltage floor.
+        guard = LowBattery()
+        for _ in range(5):
+            state = guard.observe(policy, 3390000, 1, {'percent': 40, 'confidence': 'calibrated_estimate',
+                                                       'charging': True, 'status': 'Charging'})
+        self.assertEqual(state, 'ShutdownPending')
+
     def test_awake_load_follows_the_drain_not_the_loaded_voltage(self):
         # 28 boot 8f43c71e: started at 89 % from the power-on OCV, then the old
         # estimator pulled toward the loaded 3.95-3.98 V and showed 85 within

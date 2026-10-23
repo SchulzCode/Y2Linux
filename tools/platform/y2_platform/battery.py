@@ -13,6 +13,9 @@ UI_STATE = '/data/system/platform/battery-ui.json'
 # estimate; oam_init prefers the power-on OCV unless a charger moved it 31+.
 UI_RESTORE_POINTS = 40
 OCV_CHARGER_POINTS = 31
+# F36 (97f11bb1): the charging screen (offline-charge) can run an hour before
+# the platform's first sample; the power-on OCV then predates that charge.
+BOOT_OCV_FRESH_SECONDS = 120
 # Stock mt_battery_update_status: at Full the display counts up one point per
 # 10-s battery-thread tick to 100 (100Percent tracking).
 FULL_STEP_SECONDS = 10
@@ -120,7 +123,7 @@ class Soc:
             return estimate
         return max(0., min(100., estimate * 100 / self.anchor))
 
-    def restore(self, estimate):
+    def restore(self, estimate, charging=False):
         """First sample: reuse the saved display value within 40 points."""
         saved = self.saved or {}
         anchor = saved.get('anchor_percent')
@@ -128,6 +131,11 @@ class Soc:
             self.anchor = float(anchor)
         ui = saved.get('ui_percent')
         shown = self.display(estimate)
+        # F36 (97f11bb1): a player that turned off at 5 % and charged while off
+        # started at 5 % again and turned off at once, on the charger, for 13 h.
+        # A charger only adds charge: a lower saved value gives way to the live one.
+        if charging and type(ui) is int and ui < shown:
+            ui = None
         if type(ui) is int and 1 <= ui <= 100 and abs(ui - shown) < UI_RESTORE_POINTS:
             self.ui = ui
             # The estimate restarts there too (stock dod_init sets the gauge).
@@ -193,12 +201,13 @@ class Soc:
         if first:
             # Stock oam_init: the PMIC's power-on OCV predates the boot load;
             # a charger that moved it by 31+ points leaves the live sample.
-            if type(boot_ocv) is int and 3000000 <= boot_ocv <= 4400000:
+            if (type(boot_ocv) is int and 3000000 <= boot_ocv <= 4400000 and
+                    now <= BOOT_OCV_FRESH_SECONDS):
                 ocv = interpolate(p['voltage_soc'], boot_ocv)
                 if status in ('Discharging', 'Unknown') or abs(ocv - target) < OCV_CHARGER_POINTS:
                     target = ocv
             self.percent = target
-            self.restore(target)
+            self.restore(target, charging)
         elif (status == 'Discharging' and not hybrid and table is not None and
               p.get('design_capacity_uah') and 0 < dt <= OAM_MAX_STEP_SECONDS):
             # POWER-FINAL-29: stock oam_run on battery. The model current is

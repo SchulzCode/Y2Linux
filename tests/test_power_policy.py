@@ -96,7 +96,8 @@ int main(void){
   struct y2_charge_decision d;
   unsigned ua=y2_charge_decide(&d,source,budget,4000000,0,Y2_CHARGE_DEFAULT_CEILING_UA);
   assert(ua<=650000 && ua<=d.stock_request_ua && ua<=d.class_ceiling_ua && (ua==0 || y2_cs_selector_exact(ua)>=0));
-  if(source==Y2_SOURCE_UNKNOWN || source==Y2_SOURCE_NONSTANDARD)assert(ua==70000);
+  if(source==Y2_SOURCE_UNKNOWN)assert(ua==70000);
+  if(source==Y2_SOURCE_NONSTANDARD)assert(ua==450000);   /* F38 */
   /* POWER-FINAL-16 Defect C: stock SDP request, never the negotiated budget. */
   if(source==Y2_SOURCE_SDP)assert(ua<=(budget<0 ? 70000U : 450000U));
  }

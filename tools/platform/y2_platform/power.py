@@ -55,7 +55,12 @@ class LowBattery:
         percent = soc.get('percent')
         valid_soc = type(percent) is int and 0 <= percent <= 100
         trustworthy = valid_soc and soc.get('confidence') in ('hardware', 'calibrated_estimate')
-        soc_shutdown = (policy.get('schema') == 2 and trustworthy and percent <= policy['shutdown_soc'])
+        # F36: on a charger the shown value never falls (battery.Soc.track), so a
+        # low one is a start value from before the charge; the voltage guard
+        # alone covers a source weaker than the load.
+        charging = soc.get('charging') is True or soc.get('status') == 'Charging'
+        soc_shutdown = (policy.get('schema') == 2 and trustworthy and not charging and
+                        percent <= policy['shutdown_soc'])
         if voltage <= policy['critical_uv'] or soc_shutdown:
             self.samples += 1
             self.state = 'Critical'
@@ -158,8 +163,10 @@ class Coordinator:
         # never signal a host process or execute host power commands.
         self.intent['state'] = 'Executing'
         self.publish()
+        shutdown_trail(self.ctx, 'execute %s %s' % (self.intent['action'], self.intent['reason']))
         results = {'journal_pending': self.ctx.command(
-            ['/usr/sbin/y2-platform', 'boot-stage', 'shutdown_pending'], timeout=1)}
+            ['/usr/sbin/y2-platform', 'boot-stage', 'shutdown_pending'], timeout=STAGE_SECONDS)}
+        shutdown_trail(self.ctx, 'journal_pending', results['journal_pending'])
         # Reborn normally ends on its dark frame with the backlight already off
         # before it acknowledges. If it never did (hung, crashed, deadline
         # reached) the light goes out before the kill: dropping DRM master would
@@ -169,6 +176,7 @@ class Coordinator:
             results['backlight_early'] = backlight_off(self.ctx)
         for name in ('S90reborn', 'S41y2-connectivity'):
             results[name] = self.ctx.command(['/etc/init.d/' + name, 'stop'], timeout=3)
+            shutdown_trail(self.ctx, name, results[name])
         # Stop/reap failure cannot extend the battery grace indefinitely.
         for name, executable in (('process', '/usr/bin/reborn'),
                                  ('supervisor', '/usr/libexec/reborn-supervise')):
@@ -191,18 +199,46 @@ class Coordinator:
         # #53: a clock set by hand (or from the network) survives a restart
         # to the minute instead of to the last hourly record.
         results['time_remember'] = self.ctx.command(['/usr/sbin/y2-platform', 'time-remember'], timeout=2)
+        shutdown_trail(self.ctx, 'time_remember', results['time_remember'])
         results['sync'] = self.ctx.command(['/bin/busybox', 'sync'], timeout=5)
+        shutdown_trail(self.ctx, 'sync', results['sync'])
         if results['sync']['ok']:
             results['journal_complete'] = self.ctx.command(
-                ['/usr/sbin/y2-platform', 'boot-stage', 'shutdown_complete'], timeout=1)
+                ['/usr/sbin/y2-platform', 'boot-stage', 'shutdown_complete'], timeout=STAGE_SECONDS)
+            shutdown_trail(self.ctx, 'journal_complete', results['journal_complete'])
         self.intent['stop_results'] = {k: {'ok': v['ok'], 'reason': v['reason']} for k, v in results.items()}
         self.publish()
         # BusyBox init owns rcK, unmount and final reboot(2). Never use -f.
         result = self.ctx.command(['/bin/busybox', self.intent['action']], timeout=2)
+        shutdown_trail(self.ctx, 'init_' + self.intent['action'], result)
         if not result['ok']:
             self.intent.update(state='Failed', failure='init_shutdown_request_failed')
             self.publish()
         return result
+
+
+# F39 (471831b6, c14a3860): 2 of 55 update restarts lost these journal writes
+# and one never restarted. A stage write is a Python start and an fsync, which a
+# busy shutdown stretches past 1 s. Every step also goes to pstore pmsg (RAM, it
+# cannot stall); the next boot's retained capture or the recovery keeps it.
+STAGE_SECONDS = 3
+
+
+def shutdown_trail(ctx, step, result=None):
+    """One pmsg line per shutdown step; best effort, never raises."""
+    line = '%.2f shutdown %s' % (time.monotonic(), step)
+    if result is not None:
+        line += ' ok' if result.get('ok') else ' ' + str(result.get('reason'))
+    try:
+        fd = os.open(ctx.path('/dev/pmsg0'), os.O_WRONLY | os.O_APPEND | os.O_NOFOLLOW | os.O_CLOEXEC)
+    except OSError:
+        return
+    try:
+        os.write(fd, (line + '\n').encode())
+    except OSError:
+        pass
+    finally:
+        os.close(fd)
 
 
 def backlight_off(ctx):

@@ -89,6 +89,21 @@ class PowerContract(unittest.TestCase):
         self.assertEqual(c.intent['stop_results']['backlight']['reason'], 'no_backlight')
         self.assertEqual(self.calls[-1][0], ['/bin/busybox', 'poweroff'])
 
+    def test_shutdown_steps_reach_pmsg_and_stage_writes_get_three_seconds(self):
+        # F39 (471831b6): an update restart left no stage and no trail.
+        self.put('/dev/pmsg0', '')
+        c = Coordinator(self.ctx, lambda: self.now)
+        c.request('reboot', 'update', 3)
+        self.now += 3 * 10**9
+        c.execute()
+        steps = [line.split()[2] for line in self.ctx.read('/dev/pmsg0').splitlines()]
+        self.assertEqual(steps, ['execute', 'journal_pending', 'S90reborn', 'S41y2-connectivity',
+                                 'time_remember', 'sync', 'init_reboot'])
+        self.assertIn('shutdown execute reboot update', self.ctx.read('/dev/pmsg0'))
+        self.assertIn('journal_pending injected_failure', self.ctx.read('/dev/pmsg0'))
+        stages = [kw['timeout'] for argv, kw in self.calls if 'boot-stage' in argv]
+        self.assertEqual(stages, [3])
+
     def test_ack_requires_same_request_pid_start_time_and_boot(self):
         self.put('/run/reborn/process.pid', '123')
         self.put('/proc/123/stat', '123 (reborn) S ' + ' '.join(['0'] * 18 + ['900']))
