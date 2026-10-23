@@ -1,6 +1,84 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-24): BETA 8.28 (BASELINE 127) PUBLISHED — WI-FI WRONG PASSWORD (Y2Reborn #20).**
+> **START HERE (2026-10-24): AFTER BETA 8.28 — TRIAGE OF ALL OPEN GITHUB ISSUES DONE, NOTHING POSTED; PICK THE NEXT BETA.**
+>
+> **State.** Newest release **Beta 8.28 = `baseline-127`** (seq 9200, Linux build `f3f938a` + docs `96b5039`, Reborn
+> `f6eb0b2` + docs pushed). The owner's player runs 8.28 (installed by OTA, Acknowledged boot 1). Both repositories
+> clean and pushed. **Next free label 128, sequence above 9200.** 0 pending error reports at the end of 2026-10-23.
+>
+> **Released on 2026-10-23** (each installed and checked on the owner's player before publishing; reports in
+> `docs/validation/`):
+> - **8.25** (`baseline-124`, seq 8901): #52/#54 headphone crystal, both reporters confirmed and closed.
+> - **8.26** (`baseline-125`, seq 9000): review of 12 reports → F35–F41: F36 low-battery power-off loop on a charger
+>   (restore/OCV/SOC-shutdown rules), F37 `y2-radio` per-device rfkill (Wi-Fi blocked after a sleep with Wi-Fi off;
+>   reproduced and fixed on the player), F38 nonstandard chargers 450 mA (owner choice, **unqualified**), F39 pmsg
+>   shutdown trail + 3-s stage writes, F35 cfg80211 roam BSS, F12/F13 evidence fields, F41 scrubber.
+> - **8.27** (`baseline-126`, seq 9100): SD cards (report 29ed4ccb): FAT/exFAT with errors mount **read-only** and
+>   play; **Repair SD Card** (owner-confirmed, charger or 30 %, tables copied to `/data/system/platform/sd-repair/`,
+>   `fsck.fat -a -w` / `fsck.exfat -p` / `e2fsck -p`); healthy cards **protected** (ro between writes, windows
+>   `y2-media write --holder usb|reborn|report|radiofw`, closed by the 3-s reconcile tick; owner switch
+>   `/data/system/platform/sd-always-writable`). Device-checked: ro 4 s after unplug, `fsck.exfat` clean, rw on replug.
+>   **Not run on a really damaged card in a player.**
+> - **8.28** (`baseline-127`, seq 9200): Y2Reborn #20 wrong Wi-Fi password never said → platform reports
+>   `Failed/wrong_credentials` (+ `failed_network_id`) until a connect; Reborn tries a join before saving it
+>   (`PendingJoin`), reopens the keyboard with the text + "Wrong password", one entry per network, other networks
+>   enabled again, Change Password. Device-checked with `rebornctl test wifi-join-wrong --saved 0` (WrongPassword
+>   5.8 s, nothing left) and `wifi-join --saved 0` (Joined).
+>
+> **Review ledger** `UserReports/REVIEWED.md` (untracked): F1–F41 + rows up to 2026-10-23. Still open: F13 (saved
+> network "not found" with BT off and the AP listed at −66 dBm; empty scans after wakes on 8.25 — new fields
+> `saved_age_s`, `saved_flags`, `saved_key_mgmt` from 8.26 should explain the next one), F38 (450 mA unqualified on a
+> real nonstandard charger), F39 (cause of the hung update restart; pmsg trail since 8.26), F40 (two xruns, watch),
+> F12 (the reporter's `other` line — 8.26 records its shape; 8.27 plays such cards read-only).
+>
+> **GitHub triage (2026-10-23, nothing posted, closed or changed — waiting for the owner).** 15 open issues:
+> - *Close with a short comment:* Y2Linux **#53** (time: fixed 8.22, manual clock), **#56** (update freeze: watchdog
+>   since 8.23, report reviewed), **#57** (gain: Settings → Sound → Output → Headphone Jack; top level still a bit
+>   quieter than stock), **#45** (panel power-down: fixed 8.7, confirmed), **#46** (hardware report, answered), **#42**
+>   (drain: ≈1.9 mA with the panel power-down — best closed together with the GC9503V default below).
+> - *Comment, keep open:* Y2Linux **#50** (#1 pause silence 8.12, #2 genre All Songs/Shuffle 8.14, #4 shuffle order
+>   8.14 fixed; #3 genre → playlist and #6 genre-filtered album open; #5 Librepods not planned); Y2Reborn **#21** (2
+>   wrong password fixed 8.28; 1 Previous-restarts-song open; 3 Songs plays album order — check; 4 MusicBee → SD — ask
+>   for an 8.27+ report); Y2Reborn **#20** (closed by reporter: note "fixed in 8.28"); Y2Reborn **#19** podcasts PR
+>   (samanz) — owner decision: PR yes/no, placement, directory (fyyd), auto-download.
+> - *Code candidates (nothing implemented):*
+>   1. **Y2Linux #58** audiobooks in All Songs shuffle — confirmed: `filtered_indices()`
+>      (`Y2Reborn crates/reborn-ui/src/lib.rs:2438`) filters only `track_matches`, the queue builder only `online`;
+>      add `is_music()` (one line + test).
+>   2. **Y2Linux #55** "This takes less than a minut": recovery screen `COLUMNS 28` (`tools/update/recovery-ui.c:34`),
+>      text 30 chars in `initramfs/production/recovery.sh:202,248` → e.g. "It takes under a minute.".
+>   3. **GC9503V panel power-down by default**: `CONFIRMED_PANELS = {'st7701s'}`
+>      (`tools/platform/y2_platform/power_features.py:47`); #45 reporter confirmed GC9503V on 8.7 and ≈1.9 mA. One line,
+>      hardware decision.
+>   4. **Y2Reborn #21.1** Previous restarts the song after ~3 s (today `Effect::PreviousTrack` always steps back,
+>      `app/reborn/src/main.rs`).
+>   5. **Y2Linux #50.3** genre → Add to Playlist / Play Next / Add to Queue (collection menu only on Album/Artist,
+>      `crates/reborn-ui/src/lib.rs:1344`).
+>   6. **Y2Linux #40** split multi-artist tags ("A;B" under both; Artists list groups by raw `t.artist`,
+>      `crates/reborn-ui/src/catalog.rs:181`).
+>   7. **Y2Linux #41** Album Artists browse (albums already keyed by `album_artist`).
+>   8. **Y2Reborn #22** Bluetooth absolute volume: `bluealsad` started without `--a2dp-volume`
+>      (`usr/libexec/y2/connectivity:18`), Reborn volume is software only; needs AVRCP volume sync + fallback.
+>   9. **Y2Linux #50.6** album opened from a genre shows only that genre's songs (option).
+>   10. **Y2Linux #59** f2fs/btrfs/ext2 on SD: answer "use ext4 (supported)", not planned.
+>   Quick wins: 1–3. The owner was asked how to proceed (post the comments/closures, and which items go into 8.29).
+>
+> **Other owed items:** GitHub replies not posted on #20/#21/#58/#55 etc.; the 8.24 crystal trim plan (remove
+> non-stock crystal code, keep the switches as diagnostics) still waits; WPA3-only networks are not offered
+> (`Network::password_required` accepts PSK only).
+>
+> **How-to reminders** (details in memory notes): release = `release.py bump --version X --sequence N` → commit both
+> repos (Reborn with `GIT_AUTHOR_*`/`GIT_COMMITTER_*` env, never model attribution) → `release.py build --label N`
+> (tree must stay clean while it runs) → install on the player (`scp out/release-N/ota/*` to `/data/updates/owner-N`,
+> `y2-platform update stage --package DIR`, `update apply`) → docs → `release.py publish --label N --title … --notes
+> out/release-N-notes.md --yes` (Reborn HEAD must be the built commit: Reborn docs commit after publishing). Host
+> checks: `tools/development/host-tests.sh` (906; the report tests are load-flaky, rerun alone), Reborn `cargo test
+> --workspace`, `clippy -D warnings`, `fmt --check`, previews `cargo run --bin reborn-preview -- DIR` +
+> `tools/preview/render_previews.py DIR`. Player SSH over USB (`root@10.42.0.1`, key `~/.ssh/y2linux_ed25519`);
+> Wi-Fi may be idle-powered-down while dark (unblock the wlan rfkill); a background logger needs a long runtime when
+> the owner unplugs (the card is always rw while USB is connected).
+>
+> Previous entry: **START HERE (2026-10-24): BETA 8.28 (BASELINE 127) PUBLISHED — WI-FI WRONG PASSWORD (Y2Reborn #20).**
 > Seq 9200, Linux `f3f938a`, Reborn `f6eb0b2`. Platform: `wifi-failure.json` `credential` block (kept until a connect,
 > survives ap_unavailable), `network.json` `Failed/wrong_credentials` + `failed_network_id`. Reborn `wifi.rs`
 > `PendingJoin` (ATTACH, SELECT, events; saved only on connect; older same-SSID entries removed; ENABLE_NETWORK all;
