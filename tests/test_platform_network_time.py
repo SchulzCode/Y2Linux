@@ -132,7 +132,8 @@ class NetworkTime(unittest.TestCase):
         self.assertEqual(record['scan'], {'available': True, 'networks': 3, 'saved_networks': 1, 'band_2ghz': 2,
                                           'band_5ghz': 1, 'saved_seen': True, 'saved_signal_dbm': -71,
                                           'saved_frequency_mhz': 2462, 'saved_channel': 11,
-                                          'saved_access_points': 2, 'country': 'DE'})
+                                          'saved_access_points': 2, 'country': 'DE',
+                                          'saved_flags': '[WPA2-PSK-CCMP][ESS]', 'saved_key_mgmt': []})
         text = json.dumps(record)
         for private in ('home-net', 'neighbour', 'aa:bb'):
             self.assertNotIn(private, text)

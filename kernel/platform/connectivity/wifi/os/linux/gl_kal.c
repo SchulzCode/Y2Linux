@@ -1954,8 +1954,14 @@ kalIndicateStatusAndComplete (
                     .req_ie=prGlueInfo->aucReqIe,.req_ie_len=prGlueInfo->u4ReqIeLength,
                     .resp_ie=prGlueInfo->aucRspIe,.resp_ie_len=prGlueInfo->u4RspIeLength,
                 };
+                /* The same for a re-association: with only the BSSID the
+                 * re-lookup by SSID missed, WARNed at sme.c:1200 and dropped
+                 * the roam event (F35, report ba0e41a6). cfg80211 takes the
+                 * reference; without an entry it still looks one up. */
                 roam.links[0].channel=prChannel; roam.links[0].bssid=arBssid;
+                roam.links[0].bss=bss;
                 cfg80211_roamed(prGlueInfo->prDevHandler,&roam,GFP_KERNEL);
+                bss = NULL;
             }
             if (bss)
                 cfg80211_put_bss(priv_to_wiphy(prGlueInfo), bss);

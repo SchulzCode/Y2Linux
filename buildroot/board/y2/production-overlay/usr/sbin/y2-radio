@@ -36,7 +36,17 @@ if [ "$enabled" = 1 ]; then
     esac
 fi
 if [ "$type" = wlan ]; then
-    if [ "$enabled" = 1 ]; then rfkill unblock wlan; else rfkill block wlan; fi
+    # Per device, never `rfkill block wlan`: that also sets the type's default,
+    # and cfg80211's phy rfkill, made when the card probes at the next switch-on
+    # (Reborn writes `soft` itself), started blocked: Wi-Fi showed OFF or
+    # INTERFACE_DISABLED until a second tap after any sleep with Wi-Fi off (F37).
+    soft=$((1 - enabled))
+    for device in /sys/class/rfkill/rfkill*; do
+        if [ "$(cat "$device/type" 2>/dev/null)" = wlan ]; then
+            # The phy one may vanish meanwhile: blocking y2-wifi removes the card.
+            echo "$soft" > "$device/soft" 2>/dev/null || [ ! -e "$device" ]
+        fi
+    done
 else
     if [ "$enabled" = 1 ]; then
         y2-platform bluetooth-power on

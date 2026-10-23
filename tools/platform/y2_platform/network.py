@@ -240,6 +240,23 @@ def scan_evidence(ctx):
         best = max(hits, key=lambda row: int(row[2]))
         result.update(saved_signal_dbm=int(best[2]), saved_frequency_mhz=int(best[1]),
                       saved_channel=_channel(int(best[1])), saved_access_points=len(hits))
+        # F13 (cb904ffb): "not found" with the saved network listed at -66 dBm.
+        # scan_results is the BSS table (entries up to 180 s old): how old the
+        # entry is, and whether its security matches the saved network's.
+        result['saved_flags'] = ''.join(re.findall(r'\[[A-Z0-9+_-]{1,24}\]', best[3] if len(best) > 3 else ''))
+        bss = ctx.command(['wpa_cli', '-i', 'wlan0', 'bss', best[0]], timeout=2)
+        age = re.search(r'(?m)^age=(\d+)$', bss.get('output') or '') if bss['ok'] else None
+        if age:
+            result['saved_age_s'] = int(age.group(1))
+        ids = [row[0] for row in (line.split('\t') for line in (saved['output'] or '').splitlines()[1:])
+               if len(row) >= 2 and row[1] == best[4] and row[0].isdigit()]
+        managements = set()
+        for network in ids[:4]:
+            answer = ctx.command(['wpa_cli', '-i', 'wlan0', 'get_network', network, 'key_mgmt'], timeout=2)
+            value = (answer.get('output') or '').strip()
+            if answer['ok'] and re.fullmatch(r'[A-Z0-9 _-]{1,64}', value):
+                managements.add(value)
+        result['saved_key_mgmt'] = sorted(managements)
     country = ctx.command(['wpa_cli', '-i', 'wlan0', 'get', 'country'], timeout=2)
     value = (country.get('output') or '').strip()
     if country['ok'] and re.fullmatch(r'[0-9A-Z]{2}', value):

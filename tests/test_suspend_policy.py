@@ -108,6 +108,36 @@ class SuspendPolicy(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(state, 'mem\n')
 
+    def test_wifi_switch_never_changes_the_wlan_default(self):
+        # F37 (72f7e3ee, a19646dd): `rfkill block wlan` at each sleep also set
+        # the type's default; with Wi-Fi off the wake never cleared it, and the
+        # phy rfkill of the next switch-on started blocked. Every wlan device
+        # is switched by itself; Bluetooth's rfkill is not touched.
+        radio = HELPER.with_name('y2-radio')
+        commands = [line for line in radio.read_text().splitlines() if not line.lstrip().startswith('#')]
+        self.assertFalse([line for line in commands if 'rfkill block' in line or 'rfkill unblock' in line])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            devices = {'rfkill0': 'wlan', 'rfkill1': 'bluetooth', 'rfkill3': 'wlan'}
+            for name, kind in devices.items():
+                (root / 'sys/class/rfkill' / name).mkdir(parents=True)
+                (root / 'sys/class/rfkill' / name / 'type').write_text(kind + '\n')
+                (root / 'sys/class/rfkill' / name / 'soft').write_text('0\n')
+            script = root / 'y2-radio'
+            script.write_text(radio.read_text().replace('/sys/', str(root) + '/sys/'))
+            soft = lambda: {n: (root / 'sys/class/rfkill' / n / 'soft').read_text().strip() for n in devices}
+            result = subprocess.run(['sh', str(script), 'wifi', 'off-runtime'], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(soft(), {'rfkill0': '1', 'rfkill1': '0', 'rfkill3': '1'})
+            # The card's phy rfkill goes away once y2-wifi is blocked.
+            for name in ('soft', 'type'):
+                (root / 'sys/class/rfkill/rfkill3' / name).unlink()
+            (root / 'sys/class/rfkill/rfkill3').rmdir()
+            del devices['rfkill3']
+            result = subprocess.run(['sh', str(script), 'wifi', 'on-runtime'], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(soft(), {'rfkill0': '0', 'rfkill1': '0'})
+
 
 if __name__ == '__main__':
     unittest.main()
