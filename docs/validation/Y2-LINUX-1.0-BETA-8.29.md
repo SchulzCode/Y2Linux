@@ -1,6 +1,7 @@
 # Y2Linux 1.0 Beta 8.29 (Baseline 128)
 
-Status: **BUILT** (2026-10-24), not installed on a player before publishing (see Device results). Release
+Status: **PUBLISHED as GitHub release `baseline-128`** (2026-10-24), not installed on a player before publishing
+(owner's decision; see Device results). Release
 `1.0.0-beta.8.29`, Reborn `1.0.0-beta.8.29`, kernel `6.18.56-y2linux-1.0.0-beta.8.29`, update sequence 9300, root
 `2026.08-platform-v1.169`, Linux `4d97301`, Reborn `e58980c`. Built with `tools/production/release.py`
 (139 s, resumed workspace, update based on `baseline-127`): container suite **879 OK**; host power/charger modules
