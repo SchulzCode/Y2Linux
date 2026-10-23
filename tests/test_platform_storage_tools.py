@@ -1,5 +1,7 @@
 import errno
 import json
+import time
+import struct
 import os
 from pathlib import Path
 import sys
@@ -163,7 +165,8 @@ class StorageTools(unittest.TestCase):
             if argv[0] == 'blkid':
                 output = 'card-uuid-one' if 'UUID' in argv else 'TYPE=exfat\nUUID=card-uuid-one'
             if argv[0] == 'mount':
-                self.put('/proc/self/mountinfo', '51 1 179:9 / /media/sd rw - exfat /dev/mmcblk1p1 rw')
+                access = 'rw' if 'rw' in argv[argv.index('-o') + 1].split(',') else 'ro'
+                self.put('/proc/self/mountinfo', '51 1 179:9 / /media/sd %s - exfat /dev/mmcblk1p1 %s' % (access, access))
             if argv[0] == 'umount':
                 return {'ok': False, 'reason': 'command_failed', 'output': None}
             return {'ok': True, 'reason': None, 'output': output}
@@ -255,12 +258,14 @@ class StorageTools(unittest.TestCase):
             if argv[0] == 'blkid':
                 result['output'] = result['output'].replace('exfat', 'vfat')
             if argv[0] == 'mount':
-                self.put('/proc/self/mountinfo', '51 1 179:9 / /media/sd rw - vfat /dev/mmcblk1p1 rw')
+                access = 'rw' if 'rw' in argv[argv.index('-o') + 1].split(',') else 'ro'
+                self.put('/proc/self/mountinfo', '51 1 179:9 / /media/sd %s - vfat /dev/mmcblk1p1 %s' % (access, access))
             return result
         self.ctx.runner = fat
         self.assertEqual(operation(self.ctx, 'mount')['state'], 'Ready')
         args = next(c for c in calls if c[0] == 'mount')
-        self.assertEqual(args[args.index('-o') + 1], 'rw,nosuid,nodev,noexec,noatime,fmask=0177,dmask=0077,utf8=1')
+        # A healthy card is protected: read-only until something writes (media.write_window).
+        self.assertEqual(args[args.index('-o') + 1], 'ro,nosuid,nodev,noexec,noatime,fmask=0177,dmask=0077,utf8=1')
 
     PULLED_FAT = ('fsck.fat 4.2 (2021-01-31)\n'
                   'There are differences between boot sector and its backup.\n'
@@ -284,7 +289,8 @@ class StorageTools(unittest.TestCase):
             if argv[0] == 'blkid':
                 result['output'] = result['output'].replace('exfat', 'vfat')
             if argv[0] == 'mount':
-                self.put('/proc/self/mountinfo', '51 1 179:9 / /media/sd rw - vfat /dev/mmcblk1p1 rw')
+                access = 'rw' if 'rw' in argv[argv.index('-o') + 1].split(',') else 'ro'
+                self.put('/proc/self/mountinfo', '51 1 179:9 / /media/sd %s - vfat /dev/mmcblk1p1 %s' % (access, access))
             return result
         self.ctx.runner = fat
         return calls
@@ -301,24 +307,27 @@ class StorageTools(unittest.TestCase):
         self.assertFalse(any(c[0] == 'fsck.fat' and set(c) & {'-a', '-w', '-r', '-y'} for c in calls))
         self.assertEqual(storage(self.ctx)['volumes'][2]['state'], 'Ready')
 
-    def test_fat_card_with_real_findings_stays_out_and_the_status_says_why(self):
+    DAMAGED_FAT = None  # set below from PULLED_FAT
+
+    def test_fat_card_with_real_findings_plays_read_only_and_the_status_says_why(self):
+        # 29ed4ccb (8.25): every card the user had was refused ("Needs repair"),
+        # so nothing played. Reading never changes a card: it is mounted read-only.
         damaged = self.PULLED_FAT.replace(
             'Dirty bit', '/Music/Song.flac\n  File size is 4194304 bytes, cluster chain length is 1048576 bytes.\n'
             '  Truncating file to 1048576 bytes.\nDirty bit')
         calls = self.fat_card_checked_as(damaged)
         result = operation(self.ctx, 'mount')
-        self.assertEqual((result['state'], result['reason']), ('Degraded', 'filesystem_check_failed'))
-        self.assertFalse(any(c[0] == 'mount' for c in calls))
+        self.assertEqual((result['state'], result['reason'], result['read_only']),
+                         ('Degraded', 'read_only', 'filesystem_errors'))
+        mount = next(c for c in calls if c[0] == 'mount')
+        self.assertTrue(mount[mount.index('-o') + 1].startswith('ro,'))
+        self.assertFalse(any(c[0] == 'fsck.fat' and set(c) & {'-a', '-w', '-r', '-y'} for c in calls))
         # Checker output can name files: it is not kept.
         self.assertIsNone(result['filesystem_check']['output'])
         self.assertNotIn('Song.flac', self.ctx.path('/run/y2/media.json').read_text())
         sd = storage(self.ctx)['volumes'][2]
-        self.assertEqual((sd['state'], sd['reason'], sd['filesystem']),
-                         ('Degraded', 'filesystem_check_failed', 'vfat'))
-        # Removed or reinserted (a new disk sequence number): no longer this card's verdict.
-        self.ctx.path('/sys/devices/platform/11240000.mmc/block/mmcblk1/diskseq').write_text('18')
-        sd = storage(self.ctx)['volumes'][2]
-        self.assertEqual((sd['state'], sd['reason']), ('Unavailable', 'not_uniquely_mounted'))
+        self.assertEqual((sd['state'], sd['reason'], sd['read_only_reason'], sd['filesystem']),
+                         ('Degraded', 'read_only', 'filesystem_errors', 'vfat'))
 
     def test_fat_dirty_bit_with_other_boot_differences_is_mounted(self):
         # A backup boot sector that differs alone already passes (fsck.fat exits 0 and
@@ -379,9 +388,9 @@ class StorageTools(unittest.TestCase):
         self.assertFalse(fat_benign_only('fsck.fat 4.2 (2021-01-31)\nLeaving filesystem unchanged.\n'))
         calls = self.fat_card_checked_as(damaged)
         result = operation(self.ctx, 'mount')
-        self.assertEqual((result['state'], result['reason']), ('Degraded', 'filesystem_check_failed'))
+        self.assertEqual((result['state'], result['read_only']), ('Degraded', 'filesystem_errors'))
         self.assertIn('other', result['filesystem_check']['findings'])
-        self.assertFalse(any(c[0] == 'mount' for c in calls))
+        self.assertTrue(any(c[0] == 'mount' and 'ro,' in c[c.index('-o') + 1] + ',' for c in calls))
 
     def test_admissions_are_remembered_across_boots_without_names(self):
         # F12 (c75aae95): a card refused at every insertion; only the last card's
@@ -391,6 +400,7 @@ class StorageTools(unittest.TestCase):
         self.fat_card_checked_as(damaged)
         for _ in range(ADMISSIONS_KEPT + 3):
             operation(self.ctx, 'mount')
+            self.put('/proc/self/mountinfo', '')   # taken out again (read-only mounts since 8.27)
         text = self.ctx.path(ADMISSIONS).read_text()
         entries = json.loads(text)['admissions']
         self.assertEqual(len(entries), ADMISSIONS_KEPT)
@@ -416,13 +426,17 @@ class StorageTools(unittest.TestCase):
             result = runner(argv, **kwargs)
             if argv[0] == 'blkid':
                 result['output'] = result['output'].replace('exfat', 'vfat')
+            if argv[0] == 'mount':
+                self.put('/proc/self/mountinfo', self.ctx.read('/proc/self/mountinfo').replace('exfat', 'vfat'))
             return result
         self.ctx.runner = slow
         result = operation(self.ctx, 'mount')
         self.assertEqual((result['state'], result['filesystem_check']['reason'], result['filesystem_check']['findings']),
                          ('Degraded', 'command_timeout', ['timeout']))
+        # Not damage, and nothing to fear from reading: it plays, read-only.
+        self.assertEqual(result['read_only'], 'check_timed_out')
         sd = storage(self.ctx)['volumes'][2]
-        self.assertEqual((sd['reason'], sd['findings']), ('filesystem_check_failed', ['timeout']))
+        self.assertEqual((sd['state'], sd['reason'], sd['read_only_reason']), ('Degraded', 'read_only', 'check_timed_out'))
 
     def test_fsck_is_read_only_and_never_checks_mounted_media(self):
         calls = self.card_fixture()
@@ -432,7 +446,7 @@ class StorageTools(unittest.TestCase):
         self.assertEqual(operation(self.ctx, 'check')['reason'], 'already_mounted')
         self.assertEqual(sum(c[0] == 'fsck.exfat' for c in calls), 2)
 
-    def test_mount_requires_read_only_check_and_refuses_dirty_or_timed_out_media(self):
+    def test_exfat_card_that_fails_its_check_plays_read_only(self):
         for reason in ('command_failed', 'timeout'):
             with self.subTest(reason=reason):
                 if not self.ctx.path('/sys/class/block/mmcblk1p1').exists():
@@ -447,12 +461,152 @@ class StorageTools(unittest.TestCase):
                     return original(argv, **kwargs)
                 self.ctx.runner = failure
                 result = operation(self.ctx, 'mount')
-                self.assertEqual(result['state'], 'Degraded')
-                self.assertEqual(result['reason'], 'filesystem_check_failed')
+                self.assertEqual((result['state'], result['reason'], result['read_only']),
+                                 ('Degraded', 'read_only', 'filesystem_errors'))
                 self.assertEqual(storage(self.ctx)['media']['last_operation']['filesystem_check']['reason'], reason)
-                self.assertFalse(any(c[0] == 'mount' for c in calls))
-                self.assertFalse(self.ctx.path('/run/y2/media-mount.json').exists())
+                self.assertTrue(any(c[0] == 'mount' and c[c.index('-o') + 1].startswith('ro,') for c in calls))
+                self.put('/proc/self/mountinfo', '')
                 self.ctx.runner = original
+
+    # fsck.fat 4.2 -n on host images holding what an interrupted write leaves
+    # (2026-10-23, scratchpad tools/fatdamage.py): FAT copies differ, an
+    # orphaned long name; and three real ones (chain shorter than the size, a
+    # free first cluster, a shared chain).
+    FAT_COPIES = ('FATs differ but appear to be intact.\n  Using first FAT.\n'
+                  'Reclaimed 1 unused cluster (4096 bytes).\n')
+    ORPHAN = ('Orphaned long file name part "Song 2.mp3"\n  Auto-deleting.\n'
+              'Reclaimed 79 unused clusters (323584 bytes).\n')
+    INTERRUPTED = {
+        'chain shorter': '/Music/Song 0.mp3\n  File size is 300000 bytes, cluster chain length is 16384 bytes.\n'
+                         '  Truncating file to 16384 bytes.\n',
+        'free first cluster': '/Music/Song 1.mp3\n  Contains a free cluster (78). Assuming EOF.\n',
+        'shared chain': '/Music/Song 0.mp3  and\n/Music/Song 1.mp3\n  share clusters.\n  Truncating second to 0 bytes.\n',
+    }
+
+    def test_interrupted_write_leftovers_linux_never_sees_are_admitted(self):
+        from y2_platform.media import fat_benign_only, fat_findings
+        self.assertEqual(fat_findings(self.FAT_COPIES), ['fat_copies', 'lost_clusters'])
+        self.assertEqual(fat_findings(self.ORPHAN), ['lost_clusters', 'orphan_lfn'])
+        self.assertTrue(fat_benign_only(self.FAT_COPIES) and fat_benign_only(self.ORPHAN))
+        for name, lines in self.INTERRUPTED.items():
+            with self.subTest(name):
+                self.assertFalse(fat_benign_only(lines))
+        # The answers count only right after their own finding.
+        self.assertFalse(fat_benign_only(self.LOST + '  Using first FAT.\n'))
+        self.assertFalse(fat_benign_only(self.LOST + '  Auto-deleting.\n'))
+
+    def protected_card(self):
+        calls = self.fat_card_checked_as(self.PULLED_FAT)
+        self.put('/proc/sys/kernel/random/boot_id', 'boot-one')
+        self.assertEqual(operation(self.ctx, 'mount')['read_only'], 'protected')
+        return calls
+
+    def test_a_healthy_card_is_read_only_between_writes(self):
+        from y2_platform.media import protect, write_window
+        calls = self.protected_card()
+        sd = storage(self.ctx)['volumes'][2]
+        # Healthy: Ready with its real space, only not writable this moment.
+        self.assertEqual((sd['state'], sd['writable'], sd['space_state']), ('Ready', False, 'Normal'))
+        answer = write_window(self.ctx, 'reborn', 60)
+        self.assertEqual((answer['writable'], answer['holders']), (True, ['reborn']))
+        self.assertIn(['mount', '-o', 'remount,rw', '/media/sd'], calls)
+        self.assertTrue(storage(self.ctx)['volumes'][2]['writable'])
+        # A second writer keeps it open after the first ends.
+        write_window(self.ctx, 'report', 60)
+        self.assertEqual(write_window(self.ctx, 'reborn', release=True)['writable'], True)
+        self.assertEqual(write_window(self.ctx, 'report', release=True)['writable'], False)
+        self.assertEqual(calls[-1], ['mount', '-o', 'remount,ro', '/media/sd'])
+        # A forgotten window ends at the reconcile tick after its time.
+        write_window(self.ctx, 'usb', 30)
+        protect(self.ctx)
+        self.assertTrue(storage(self.ctx)['volumes'][2]['writable'])
+        later = time.monotonic() + 31
+        with patch('y2_platform.media.time.monotonic', return_value=later):
+            protect(self.ctx)
+        self.assertFalse(storage(self.ctx)['volumes'][2]['writable'])
+        with self.assertRaises(ValueError):
+            write_window(self.ctx, 'anyone')
+
+    def test_damaged_card_gets_no_window(self):
+        from y2_platform.media import can_write, write_window
+        calls = self.fat_card_checked_as(self.PULLED_FAT.replace('Dirty bit', self.INTERRUPTED['chain shorter'] + 'Dirty bit'))
+        self.put('/proc/sys/kernel/random/boot_id', 'boot-one')
+        self.assertEqual(operation(self.ctx, 'mount')['read_only'], 'filesystem_errors')
+        self.assertEqual(write_window(self.ctx, 'reborn', 60)['reason'], 'card_has_errors')
+        self.assertFalse(any('remount,rw' in c for c in calls))
+        self.assertFalse(can_write(self.ctx))
+
+    def test_the_owner_switch_keeps_the_old_writable_mount(self):
+        from y2_platform.media import PROTECT_OFF
+        self.put(PROTECT_OFF, '')
+        self.fat_card_checked_as(self.PULLED_FAT)
+        self.put('/proc/sys/kernel/random/boot_id', 'boot-one')
+        result = operation(self.ctx, 'mount')
+        self.assertEqual((result['state'], result['read_only']), ('Ready', None))
+        self.assertTrue(storage(self.ctx)['volumes'][2]['writable'])
+
+    def repair_fixture(self, damaged=True, percent=80, charging=False):
+        from y2_platform.media import fat_other_shapes  # noqa: F401 (module loaded)
+        findings = self.INTERRUPTED['chain shorter'] if damaged else ''
+        calls = self.fat_card_checked_as(self.PULLED_FAT.replace('Dirty bit', findings + 'Dirty bit'))
+        self.put('/proc/sys/kernel/random/boot_id', 'boot-one')
+        operation(self.ctx, 'mount')
+        self.put('/run/y2/power.json', json.dumps({'boot_id': 'boot-one', 'battery': {
+            'percent': percent, 'charging': charging, 'status': 'Charging' if charging else 'Discharging'}}))
+        # A FAT32 boot sector: 32 reserved sectors, 2 FATs of 100 sectors.
+        boot = bytearray(512)
+        struct.pack_into('<HBHBHHBH', boot, 11, 512, 8, 32, 2, 0, 0, 0xF8, 0)
+        struct.pack_into('<I', boot, 36, 100)
+        self.put('/dev/mmcblk1p1', '')
+        self.ctx.path('/dev/mmcblk1p1').write_bytes(bytes(boot) + bytes(300 * 512))
+        fat = self.ctx.runner
+        state = {'repaired': False}
+        def runner(argv, **kwargs):
+            if argv[0] == 'umount':
+                calls.append(argv)
+                self.put('/proc/self/mountinfo', '')
+                return {'ok': True, 'reason': None, 'output': None}
+            if argv[:3] == ['fsck.fat', '-a', '-w']:
+                calls.append(argv)
+                state['repaired'] = True
+                return {'ok': False, 'reason': 'command_failed',
+                        'output': self.INTERRUPTED['chain shorter'] + 'Reclaimed 70 unused clusters (286720 bytes).\n'}
+            if argv[:2] == ['fsck.fat', '-n'] and state['repaired']:
+                calls.append(argv)
+                return {'ok': True, 'reason': None, 'output': ''}
+            return fat(argv, **kwargs)
+        self.ctx.runner = runner
+        return calls
+
+    def test_repair_runs_only_when_asked_backs_up_and_admits_again(self):
+        from y2_platform.media import REPAIR_LAST, repair
+        calls = self.repair_fixture()
+        result = repair(self.ctx)
+        self.assertIn(['fsck.fat', '-a', '-w', '/dev/mmcblk1p1'], calls)
+        self.assertEqual((result['state'], result['action'], result['read_only']), ('Ready', 'repair', 'protected'))
+        changed = result['repair']['changed']
+        self.assertEqual((changed['files_shortened'], changed['clusters_freed']), (1, 70))
+        backup = result['repair']['backup']
+        self.assertEqual((backup['saved'], backup['bytes']), (True, (32 + 200) * 512))
+        self.assertEqual(self.ctx.path(backup['file']).stat().st_size, (32 + 200) * 512)
+        record = self.ctx.path(REPAIR_LAST).read_text()
+        self.assertNotIn('Song', record)
+        self.assertEqual(json.loads(record)['findings_before'], ['dirty', 'other'])
+
+    def test_repair_refuses_a_healthy_card(self):
+        from y2_platform.media import repair
+        calls = self.repair_fixture(damaged=False)
+        self.assertEqual(repair(self.ctx)['reason'], 'card_not_marked_for_repair')
+        self.assertFalse(any(c[:2] == ['fsck.fat', '-a'] for c in calls))
+
+    def test_repair_needs_a_charger_or_30_percent(self):
+        from y2_platform.media import repair
+        calls = self.repair_fixture(percent=20)
+        self.assertEqual(repair(self.ctx)['reason'], 'repair_needs_charger_or_battery')
+        self.assertFalse(any(c[:2] == ['fsck.fat', '-a'] for c in calls))
+        self.ctx.path('/run/y2/power.json').write_text(json.dumps({'boot_id': 'boot-one', 'battery': {
+            'percent': 20, 'charging': True, 'status': 'Charging'}}))
+        self.assertEqual(repair(self.ctx)['state'], 'Ready')
 
     def test_card_replacement_during_check_prevents_mount(self):
         calls = self.card_fixture()

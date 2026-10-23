@@ -417,14 +417,20 @@ def storage(ctx):
                 if item['source_instance'] is None or claim.get('source_instance') != item['source_instance']:
                     item.update(state='Failed', reason='block_instance_changed')
         readonly = 'ro' in item['options'] or 'ro' in item['super_options']
+        protected = False
+        if target == '/media/sd' and readonly:
+            # media.py mounts a healthy card read-only between writes: it is Ready.
+            protected = ctx.json('/run/y2/media-mount.json', {}).get('read_only') == 'protected'
+        if target == '/media/sd':
+            item['writable'] = not readonly
         try:
             vfs = os.statvfs(ctx.path(target))
             item.update(total_bytes=vfs.f_blocks * vfs.f_frsize,
                         available_bytes=vfs.f_bavail * vfs.f_frsize,
                         free_bytes=vfs.f_bfree * vfs.f_frsize,
                         available_inodes=vfs.f_favail)
-            item['space_state'] = space_state(item['available_bytes'], item['total_bytes'], readonly,
-                                             item['state'] == 'Failed')
+            item['space_state'] = space_state(item['available_bytes'], item['total_bytes'],
+                                             readonly and not protected, item['state'] == 'Failed')
             if vfs.f_files > 0 and vfs.f_favail == 0:
                 item['space_state'] = 'CriticalSpace'
             if target == '/media/sd':
@@ -438,8 +444,13 @@ def storage(ctx):
         except OSError:
             item['space_state'] = 'Failed'
             item.update(state='Failed', reason='statvfs_failed')
-        if item['state'] == 'Ready' and readonly:
+        if item['state'] == 'Ready' and readonly and not protected:
             item.update(state='Degraded', reason='read_only')
+            if target == '/media/sd':
+                # Why the platform mounted the card read-only (media.py): its
+                # check found errors or did not finish; Repair can make it writable.
+                cause = ctx.json('/run/y2/media-mount.json', {}).get('read_only')
+                item['read_only_reason'] = cause if cause in ('filesystem_errors', 'check_timed_out') else 'mounted_read_only'
         volumes.append(item)
     blocks = []
     for path in ctx.glob('/sys/class/block/*'):

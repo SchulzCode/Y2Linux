@@ -40,7 +40,8 @@ class ExfatDirReadahead(unittest.TestCase):
 
     def test_every_card_format_mounts_noatime(self):
         media = (ROOT / 'tools/platform/y2_platform/media.py').read_text()
-        self.assertIn("options = 'rw,nosuid,nodev,noexec,noatime'", media)
+        # Read-only between writes since 8.27 (protected card), noatime either way.
+        self.assertIn("options = ('ro' if read_only else 'rw') + ',nosuid,nodev,noexec,noatime'", media)
         internal = (ROOT / 'tools/platform/y2_platform/internal_media.py').read_text()
         self.assertIn("OPTIONS = 'rw,nosuid,nodev,noexec,noatime,noinit_itable'", internal)
 

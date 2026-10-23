@@ -100,7 +100,11 @@ def main():
     shutdown.add_argument('action', choices=['poweroff', 'reboot'])
     shutdown.add_argument('--reason', choices=['user', 'service', 'update'], default='user')
     media = sub.add_parser('media')
-    media.add_argument('action', choices=['mount', 'unmount', 'check', 'status', 'reconcile', 'format', 'grow'])
+    media.add_argument('action', choices=['mount', 'unmount', 'check', 'status', 'reconcile', 'format', 'grow', 'repair', 'write'])
+    media.add_argument('--holder', choices=['reborn', 'report', 'radiofw', 'usb'], default='reborn',
+                       help='write only: who holds the window')
+    media.add_argument('--seconds', type=int, default=60, help='write only: how long the card stays writable')
+    media.add_argument('--release', action='store_true', help='write only: end the holder\'s window')
     media.add_argument('--json', action='store_true')
     media.add_argument('--confirm-cid', help='format only: the CID shown by `media status`; formats exactly that card')
     internal = sub.add_parser('internal-media')
@@ -362,9 +366,20 @@ def main():
         from .space import policy
         result = policy(ctx, args.cleanup)
     elif args.command == 'media':
-        from .media import change_card, operation, reconcile
+        from .media import change_card, operation, reconcile, repair
         if args.action in ('format', 'grow'):
             result = change_card(ctx, args.action, args.confirm_cid)
+        elif args.action == 'repair':
+            result = repair(ctx)
+            if result['state'] != 'Ready':
+                # Reborn reads only `failure` from a refused command.
+                result['failure'] = ('errors_left' if result['state'] == 'Degraded' and result.get('read_only')
+                                     else result.get('reason') or 'repair_failed')
+        elif args.action == 'write':
+            from .media import write_window
+            result = write_window(ctx, args.holder, args.seconds, args.release)
+            if result['state'] != 'Ready':
+                result['failure'] = result.get('reason') or 'write_window_failed'
         else:
             result = reconcile(ctx) if args.action == 'reconcile' else operation(ctx, args.action)
     elif args.command == 'internal-media':
@@ -403,7 +418,7 @@ def main():
                   args.action == 'setup' and result['state'] in ('Failed', 'Unavailable') or
                   args.action == 'unmount' and result['state'] == 'Failed') or
               args.command == 'media' and (result['state'] in ('Failed', 'Degraded') or
-                                          args.action in ('mount', 'format', 'grow') and result['state'] != 'Ready') or
+                                          args.action in ('mount', 'format', 'grow', 'repair') and result['state'] != 'Ready') or
               args.command in ('bench-storage', 'bench-library') and result['record']['result'] == 'FAILED')
     return 1 if failed else 0
 

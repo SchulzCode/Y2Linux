@@ -13,6 +13,7 @@ HTTPS once the owner opted in, and only from a build that carries the upload key
 owner to send by hand.
 """
 # SPDX-License-Identifier: GPL-2.0-only
+import contextlib
 import datetime
 import errno
 import fcntl
@@ -532,7 +533,8 @@ FILES = (
     '/data/system/platform/suspend-last.json', '/data/system/platform/product-sleep-guard.json',
     '/data/system/platform/rtc-policy.json', '/data/system/platform/time-last.json',
     '/data/system/platform/battery-ui.json', '/data/system/platform/panel.json',
-    '/data/system/platform/sd-admissions.json', '/data/system/platform/retained/*.tar',
+    '/data/system/platform/sd-admissions.json', '/data/system/platform/sd-repair-last.json',
+    '/data/system/platform/retained/*.tar',
     '/data/updates/*.json', '/data/updates/current/manifest.json', '/data/updates/health/*.txt',
     '/run/y2/*.json', '/run/y2/*.jsonl', '/run/y2/*.log',
     '/data/bluetooth/codec-history.json', '/data/bluetooth/enabled', '/data/network/enabled',
@@ -881,8 +883,10 @@ def status(ctx):
 def destinations(ctx):
     """The music storage mounted writable now, in DESTINATIONS order."""
     mounted = {m['path']: m for m in mountinfo(ctx.read('/proc/self/mountinfo', limit=1 << 20))}
+    from .media import can_write
     return [name for name, (path, top) in DESTINATIONS.items()
-            if path in mounted and 'rw' in mounted[path]['options'] and (ctx.path(path) / top).is_dir()]
+            if path in mounted and ('rw' in mounted[path]['options'] or path == '/media/sd' and can_write(ctx))
+            and (ctx.path(path) / top).is_dir()]
 
 
 def _write_into(mount, top, data, stamp):
@@ -966,7 +970,9 @@ def save_to(ctx, destination, topic=None, now=None, progress=None):
     try:
         mount, top = DESTINATIONS[destination]
         progress('save', 0, force=True, bytes_total=len(data))
-        name = _write_into(ctx.path(mount), top, data, now.astimezone().strftime('%Y%m%d-%H%M%S'))
+        from .media import sd_writable
+        with (sd_writable(ctx, 'report') if destination == 'sd' else contextlib.nullcontext()):
+            name = _write_into(ctx.path(mount), top, data, now.astimezone().strftime('%Y%m%d-%H%M%S'))
         progress('save', 1, force=True, bytes_total=len(data))
     except OSError as error:
         return {'saved': False, 'reason': 'no_space' if error.errno == errno.ENOSPC else 'write_failed'}

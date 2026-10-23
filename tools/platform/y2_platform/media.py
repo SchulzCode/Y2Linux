@@ -1,5 +1,6 @@
 """Single explicit SD lifecycle, guarded by controller and filesystem identity."""
 # SPDX-License-Identifier: GPL-2.0-only
+import contextlib
 import fcntl
 import json
 import os
@@ -57,10 +58,16 @@ FAT_LINES = [(cls, re.compile(p)) for cls, p in (
     ('label_mismatch', r"Volume label '.*' stored in root directory is not valid\."),
     ('label_mismatch', r"Volume label '.*' stored in root directory contains lowercase characters\."),
     ('lost_clusters', r'Reclaimed \d+ unused clusters? \(\d+ bytes\)\.'),
+    # A card pulled between the two FAT copies (Linux reads the first) and the
+    # long-name part of an entry whose short entry was never written: neither is
+    # visible to Linux or Windows (host reproduction of interrupted writes).
+    ('fat_copies', r'FATs differ but appear to be intact\.'),
+    ('orphan_lfn', r'Orphaned long file name part ".*"'),
 )]
 # The answer line a finding prints next; accepted only right after its finding.
 FAT_FOLLOW = {'Auto-correcting.': 'fsinfo_free', 'Auto-removing label.': 'label_mismatch',
-              'Auto-changing lowercase characters to uppercase': 'label_mismatch'}
+              'Auto-changing lowercase characters to uppercase': 'label_mismatch',
+              'Using first FAT.': 'fat_copies', 'Auto-deleting.': 'orphan_lfn'}
 # The boot sector's own dirty flag (offset 37 on FAT12/16, 65 on FAT32) also
 # differs from its backup on a card pulled while mounted.
 FAT_DIRTY_OFFSETS = {'37', '65'}
@@ -149,6 +156,7 @@ def read_only_check(ctx, card, force=False):
 # at every insertion left no reason in a report). No checker output, no names.
 ADMISSIONS = '/data/system/platform/sd-admissions.json'
 ADMISSIONS_KEPT = 10
+READ_ONLY_FALLBACK = ('vfat', 'exfat')
 
 
 def remember_admission(ctx, card, check):
@@ -234,6 +242,7 @@ def reconcile(ctx):
     current = [list(v) for v in inventory(ctx)]
     previous = ctx.json('/run/y2/media-lifecycle.json', {})
     if previous.get('inventory') == current and not previous.get('retry'):
+        protect(ctx)
         return previous
     attempts = previous.get('attempts', 0) if previous.get('inventory') == current else 0
     attempts = attempts if isinstance(attempts, int) else 0
@@ -308,10 +317,19 @@ def operation(ctx, action):
                     result = read_only_check(ctx, card)
                     state['filesystem_check'] = result
                     remember_admission(ctx, card, result)
+                    read_only = None
                     if not result['ok']:
                         state.update(state='Degraded', reason='filesystem_check_failed')
-                        atomic_json(runtime / 'media.json', state)
-                        return state
+                        # FAT/exFAT with a finding (or a check that ran out of
+                        # time) mounts read-only: reading never changes a card,
+                        # writing into a damaged table can overwrite another file.
+                        # The music plays; Repair (or a computer) makes it writable.
+                        # ext4 stays out: even a read-only mount replays its journal.
+                        if card['filesystem'] not in READ_ONLY_FALLBACK:
+                            atomic_json(runtime / 'media.json', state)
+                            return state
+                        read_only = ('check_timed_out' if result.get('findings') == ['timeout']
+                                     else 'filesystem_errors')
                     if candidates(ctx) != available:
                         state.update(state='Failed', reason='source_changed_during_check')
                         atomic_json(runtime / 'media.json', state)
@@ -323,7 +341,13 @@ def operation(ctx, action):
                     # POWER-FINAL-30: noatime on every card format. relatime still
                     # wrote an access time the first time each song was read every
                     # day: a metadata write to the card during playback.
-                    options = 'rw,nosuid,nodev,noexec,noatime'
+                    # A healthy card is protected too: read-only until something
+                    # writes to it (write_window). Pulled during playback it stays
+                    # clean; only an interrupted write can damage a FAT card.
+                    protect = read_only is None and not ctx.path(PROTECT_OFF).exists()
+                    if protect:
+                        read_only = 'protected'
+                    options = ('ro' if read_only else 'rw') + ',nosuid,nodev,noexec,noatime'
                     if card['filesystem'] in ('vfat', 'exfat'):
                         options += ',fmask=0177,dmask=0077'
                     if card['filesystem'] == 'vfat':
@@ -332,8 +356,10 @@ def operation(ctx, action):
                                           card['device'], '/media/sd'], timeout=3)
                     current = mounts(ctx)
                     if result['ok'] and len(current) == 1 and current[0]['source'] == card['device']:
-                        state.update(state='Ready', mount_id=current[0]['mount_id'],
-                                     device_id=current[0]['device_id'],
+                        damaged = read_only not in (None, 'protected')
+                        state.update(state='Degraded' if damaged else 'Ready', mount_id=current[0]['mount_id'],
+                                     device_id=current[0]['device_id'], read_only=read_only,
+                                     reason='read_only' if damaged else None,
                                      source_instance=device_instance(ctx, current[0]['device_id']))
                         if candidates(ctx) != available:
                             state.update(state='Failed', reason='source_changed_during_mount')
@@ -417,6 +443,291 @@ def change_card(ctx, action, confirm_cid=None):
         state.update(operation(ctx, 'mount'))
         state['action'] = action
     return state
+
+
+# ---------------------------------------------------------------------------
+# Protected card: a healthy card is mounted read-only and becomes writable only
+# while something writes to it — the computer over USB, a playlist change, a
+# report saved to the card, the firmware import removing its system.img. Each
+# writer holds a named window with an end time; the reconcile tick (3 s) turns
+# the card read-only again when none is left. A remount to read-only flushes the
+# card and clears its dirty bit, so a card pulled out during playback is clean.
+
+PROTECT_OFF = '/data/system/platform/sd-always-writable'   # owner switch: the old rw mount
+SD_WRITE = '/run/y2/sd-write.json'
+WRITE_HOLD_MAX = 600
+WRITE_HOLDERS = ('usb', 'reborn', 'report', 'radiofw')
+
+
+def _sd_state(ctx):
+    """(claim, mount) of our current SD mount, else (claim, None)."""
+    claim = ctx.json('/run/y2/media-mount.json', {}) or {}
+    old = mounts(ctx)
+    if len(old) == 1 and owned_mount(ctx, old[0]) and claim.get('mount_id') == old[0]['mount_id'] \
+            and claim.get('boot_id') == ctx.read('/proc/sys/kernel/random/boot_id'):
+        return claim, old[0]
+    return claim, None
+
+
+def _writers(ctx, mount):
+    value = ctx.json(SD_WRITE, {}) or {}
+    if value.get('boot_id') != ctx.read('/proc/sys/kernel/random/boot_id') or \
+            value.get('mount_id') != mount['mount_id']:
+        return {}
+    now = time.monotonic()
+    return {k: v for k, v in (value.get('holders') or {}).items()
+            if k in WRITE_HOLDERS and isinstance(v, (int, float)) and v > now}
+
+
+def _apply_window(ctx, mount, holders):
+    """Remount to match the holders; records them. Returns writable now."""
+    atomic_json(ctx.path(SD_WRITE), {'schema': 1, 'boot_id': ctx.read('/proc/sys/kernel/random/boot_id'),
+                                     'mount_id': mount['mount_id'], 'holders': holders})
+    writable = 'rw' in mount['options']
+    if bool(holders) != writable:
+        ctx.command(['mount', '-o', 'remount,' + ('rw' if holders else 'ro'), '/media/sd'], timeout=10)
+        now = mounts(ctx)
+        writable = bool(now) and 'rw' in now[0]['options']
+    return writable
+
+
+def write_window(ctx, holder, seconds=60, release=False):
+    """Open (or end) the named holder's window on a protected card."""
+    if holder not in WRITE_HOLDERS:
+        raise ValueError('unknown_write_holder')
+    runtime = ctx.path('/run/y2')
+    runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
+    lock = os.open(runtime / 'media.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
+        deadline = time.monotonic() + 5
+        while True:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                # A check or a repair holds the card; a short admission passes.
+                if time.monotonic() >= deadline:
+                    return {'state': 'Failed', 'reason': 'media_operation_in_progress', 'writable': False}
+                time.sleep(.2)
+        claim, mount = _sd_state(ctx)
+        if mount is None:
+            return {'state': 'Unavailable', 'reason': 'not_mounted', 'writable': False}
+        if claim.get('read_only') not in (None, 'protected'):
+            # Errors found or a check unfinished: Repair first, never a window.
+            return {'state': 'Degraded', 'reason': 'card_has_errors', 'writable': False}
+        if claim.get('read_only') is None:
+            return {'state': 'Ready', 'reason': None, 'writable': 'rw' in mount['options']}
+        holders = _writers(ctx, mount)
+        if release:
+            holders.pop(holder, None)
+        else:
+            holders[holder] = time.monotonic() + max(1, min(int(seconds), WRITE_HOLD_MAX))
+        writable = _apply_window(ctx, mount, holders)
+        ok = writable == bool(holders) or release
+        return {'state': 'Ready' if ok else 'Failed', 'reason': None if ok else 'remount_failed',
+                'writable': writable, 'holders': sorted(holders)}
+    finally:
+        os.close(lock)
+
+
+def protect(ctx):
+    """Reconcile tick: a protected card with no live window goes read-only."""
+    claim, mount = _sd_state(ctx)
+    if mount is None or claim.get('read_only') != 'protected' or 'rw' not in mount['options']:
+        return
+    lock = os.open(ctx.path('/run/y2/media.lock'), os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        claim, mount = _sd_state(ctx)
+        if mount is not None and claim.get('read_only') == 'protected':
+            _apply_window(ctx, mount, _writers(ctx, mount))
+    except BlockingIOError:
+        pass   # a writer or an operation holds the card; the next tick tries again
+    finally:
+        os.close(lock)
+
+
+def can_write(ctx):
+    """True when the SD takes writes now or on a window (not for a damaged card)."""
+    claim, mount = _sd_state(ctx)
+    return mount is not None and ('rw' in mount['options'] or claim.get('read_only') == 'protected')
+
+
+@contextlib.contextmanager
+def sd_writable(ctx, holder, seconds=120):
+    """A window around one write to the card; ended again whatever happens."""
+    answer = write_window(ctx, holder, seconds)
+    try:
+        yield answer
+    finally:
+        if answer.get('holders'):
+            write_window(ctx, holder, release=True)
+
+
+# ---------------------------------------------------------------------------
+# Repair, started only by the owner on the card the player marked (mounted
+# read-only after a failed check, or refused). Android's vold repairs every
+# card before mounting it; here the owner decides, because a repair may
+# shorten or remove the damaged files.
+
+REPAIR_LAST = '/data/system/platform/sd-repair-last.json'
+REPAIR_BACKUP = '/data/system/platform/sd-repair'
+REPAIR_BACKUP_MAX = 256 << 20        # the tables of a 512 GB FAT32 card at 32 KiB clusters ≈ 128 MiB
+REPAIR_DATA_RESERVE = 64 << 20       # Y2DATA keeps this much free after the copy
+REPAIR_MINIMUM_PERCENT = 30
+REPAIR_SECONDS = 1800                # never kill a repair half way unless it hangs
+REPAIRERS = {'vfat': ['fsck.fat', '-a', '-w'], 'exfat': ['fsck.exfat', '-p'], 'ext4': ['e2fsck', '-p']}
+
+
+def tables_bytes(boot, filesystem):
+    """Bytes from the start of the filesystem to its first data cluster (boot
+    sectors, FATs, root directory of FAT12/16; exFAT up to its cluster heap),
+    None when the boot sector does not say. ext4 spreads its tables: None."""
+    if len(boot) < 512:
+        return None
+    if filesystem == 'vfat':
+        sector, _, reserved, fats, roots, _, _, small = struct.unpack_from('<HBHBHHBH', boot, 11)
+        size = small or struct.unpack_from('<I', boot, 36)[0]
+        if sector not in (512, 1024, 2048, 4096) or not fats or not size:
+            return None
+        return (reserved + fats * size) * sector + roots * 32
+    if filesystem == 'exfat' and boot[3:11] == b'EXFAT   ':
+        shift = boot[108]
+        return struct.unpack_from('<I', boot, 88)[0] << shift if 9 <= shift <= 12 else None
+    return None
+
+
+def repair_summary(output):
+    """What a repair changed, as counts and name-free line shapes."""
+    text = output or ''
+    return {'files_shortened': len(re.findall(r'Truncating (?:file|second) to \d+ bytes', text)),
+            'entries_removed': len(re.findall(r'(?m)^\s*(?:Auto-deleting|Deleting|Dropping)\b', text)),
+            'shared_chains': len(re.findall(r'share clusters', text)),
+            'clusters_freed': sum(int(n) for n in re.findall(r'Reclaimed (\d+) unused clusters?', text)),
+            'shapes': fat_other_shapes(text, limit=12)}
+
+
+def marked_for_repair(ctx):
+    """The card the player marked: mounted read-only by us after its check,
+    or refused and still inserted. Returns (state, mount or None) or None."""
+    old = mounts(ctx)
+    claim = ctx.json('/run/y2/media-mount.json', {})
+    if len(old) == 1 and owned_mount(ctx, old[0]) and claim.get('mount_id') == old[0]['mount_id'] and \
+            claim.get('read_only') in ('filesystem_errors', 'check_timed_out'):
+        return claim, old[0]
+    if not old:
+        from .observe import refused_card
+        if refused_card(ctx):
+            return ctx.json('/run/y2/media.json', {}), None
+    return None
+
+
+def battery_allows_repair(ctx):
+    power = ctx.json('/run/y2/power.json', {}) or {}
+    if power.get('boot_id') != ctx.read('/proc/sys/kernel/random/boot_id'):
+        return False
+    battery = power.get('battery') or {}
+    percent = battery.get('percent')
+    return (battery.get('charging') is True or battery.get('status') in ('Charging', 'Full') or
+            (type(percent) is int and percent >= REPAIR_MINIMUM_PERCENT))
+
+
+def save_tables(ctx, card):
+    """Copy of the card's tables before the repair, for support: the newest one
+    only. Directory contents the repair changes are not in it."""
+    directory = ctx.path(REPAIR_BACKUP)
+    try:
+        with open(ctx.path(card['device']), 'rb') as device:
+            size = tables_bytes(device.read(512), card['filesystem'])
+            if size is None:
+                return {'saved': False, 'reason': 'no_tables_for_' + card['filesystem']}
+            if size > REPAIR_BACKUP_MAX:
+                return {'saved': False, 'reason': 'tables_too_large', 'bytes': size}
+            directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+            space = os.statvfs(directory)
+            if space.f_bavail * space.f_frsize < size + REPAIR_DATA_RESERVE:
+                return {'saved': False, 'reason': 'no_space', 'bytes': size}
+            for old in directory.glob('*.img'):
+                old.unlink()
+            target = directory / (card['identity']['id'][:12] + '.img')
+            device.seek(0)
+            fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+            try:
+                left = size
+                while left:
+                    chunk = device.read(min(left, 1 << 20))
+                    if not chunk:
+                        raise OSError('short_read')
+                    os.write(fd, chunk)
+                    left -= len(chunk)
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+            return {'saved': True, 'bytes': size, 'file': str(target.relative_to(ctx.root))}
+    except OSError as error:
+        return {'saved': False, 'reason': 'copy_failed:' + (error.strerror or str(error))[:40]}
+
+
+def repair(ctx):
+    """Owner command: repair the marked card, then admit it again."""
+    from .workload import workload
+    state = workload('Maintenance')(_repair)(ctx)
+    if state['state'] == 'Starting':
+        # Admission after the repair: a clean check mounts it read-write.
+        state.update(operation(ctx, 'mount'))
+        state['action'] = 'repair'
+    return state
+
+
+def _repair(ctx):
+    runtime = ctx.path('/run/y2')
+    runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
+    lock = os.open(runtime / 'media.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    record = {'schema': 1, 'time': int(time.time()), 'boot_id': ctx.read('/proc/sys/kernel/random/boot_id')}
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        state = {'schema': 1, 'action': 'repair', 'state': 'Starting', 'reason': None,
+                 'boot_id': record['boot_id']}
+        marked = marked_for_repair(ctx)
+        if marked is None:
+            state.update(state='Failed', reason='card_not_marked_for_repair')
+            return state
+        if not battery_allows_repair(ctx):
+            state.update(state='Failed', reason='repair_needs_charger_or_battery')
+            return state
+        before, _ = marked
+        if not detach_for_change(ctx, state):
+            return state
+        available = candidates(ctx)
+        identity = (before.get('identity') or {}).get('id')
+        if len(available) != 1 or available[0]['identity']['id'] != identity:
+            state.update(state='Failed', reason='card_changed')
+            return state
+        card = available[0]
+        if card['filesystem'] not in REPAIRERS:
+            state.update(state='Failed', reason='filesystem_not_repairable')
+            return state
+        record.update(card=identity[:12], filesystem=card['filesystem'],
+                      findings_before=(before.get('filesystem_check') or {}).get('findings'),
+                      backup=save_tables(ctx, card))
+        started = time.monotonic()
+        result = ctx.command(REPAIRERS[card['filesystem']] + [card['device']], timeout=REPAIR_SECONDS,
+                             limit=1 << 20, failure_output=True)
+        record.update(elapsed_ms=int((time.monotonic() - started) * 1000), ok=result['ok'],
+                      reason=result['reason'], changed=repair_summary(result.get('output')))
+        state['repair'] = {k: record[k] for k in ('ok', 'reason', 'changed', 'backup', 'elapsed_ms')}
+        if result['reason'] == 'command_timeout':
+            state.update(state='Failed', reason='repair_timed_out')
+        return state
+    except BlockingIOError:
+        return {'schema': 1, 'action': 'repair', 'state': 'Failed', 'reason': 'media_operation_in_progress'}
+    finally:
+        if 'card' in record:
+            try:
+                atomic_json(ctx.path(REPAIR_LAST), record, durable=True)
+            except OSError:
+                pass
+        os.close(lock)
 
 
 def apply_change(ctx, action, confirm_cid):

@@ -216,6 +216,7 @@ class USBService:
         self.cached_views = []
         self.terminal = False
         self.mounted = {}
+        self.sd_window = 0.0
 
     def write(self, relative, value):
         self.ctx.path(GADGET + '/' + relative).write_text(str(value) + '\n')
@@ -377,12 +378,33 @@ class USBService:
             self.last_record = value
         return value
 
+    # A connected computer may write to the SD card at any time: the protected
+    # card (media.py) is writable while the host has the player enumerated, and
+    # read-only again once the cable is gone. Renewed every 10 s for 30 s.
+    SD_WINDOW_RENEW = 10
+    SD_WINDOW_SECONDS = 30
+
+    def sd_writable(self, cable):
+        from .media import write_window
+        host = cable in ('configured', 'suspended')
+        now = time.monotonic()
+        try:
+            if host and now - self.sd_window >= self.SD_WINDOW_RENEW:
+                if write_window(self.ctx, 'usb', self.SD_WINDOW_SECONDS).get('holders'):
+                    self.sd_window = now
+            elif not host and self.sd_window:
+                write_window(self.ctx, 'usb', release=True)
+                self.sd_window = 0.0
+        except (OSError, ValueError):
+            pass
+
     def tick(self):
         self.ctx.path('/run/y2').mkdir(parents=True, exist_ok=True)
         udcs = self.ctx.glob('/sys/class/udc/*')
         if len(udcs) != 1:
             return self.record('Unavailable', 'no_unique_udc', None)
         cable = read(udcs[0] / 'state')
+        self.sd_writable(cable)
         if self.terminal:
             return self.record('Failed', 'responder_restart_budget', cable)
         requested = self.ctx.json('/data/system/platform/usb-mode.json', {}).get('mode', 'mtp')

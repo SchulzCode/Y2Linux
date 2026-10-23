@@ -412,6 +412,19 @@ def candidates(ctx):
             yield folder / SOURCE
 
 
+def remove(ctx, source):
+    """Delete the used system.img; on the SD card inside a write window (the
+    card is read-only between writes, media.py)."""
+    import contextlib
+    from .media import sd_writable
+    on_sd = str(source).startswith(str(ctx.path(SD_INBOX)))
+    try:
+        with (sd_writable(ctx, 'radiofw', 30) if on_sd else contextlib.nullcontext()):
+            source.unlink()
+    except OSError:
+        pass
+
+
 def tidy(ctx):
     """After the install: the Internal Storage Firmware folder goes away again
     (only its note; anything the owner put there stays)."""
@@ -470,10 +483,7 @@ def scan(ctx, start_radios=True):
             atomic_json(ctx.path(STATE), {'schema': 1, 'state': 'Failed', 'reason': reason, 'seen': seen},
                         mode=0o644)
             return {'state': 'Failed', 'reason': reason}
-        try:
-            source.unlink()
-        except OSError:
-            pass
+        remove(ctx, source)
         tidy(ctx)
         atomic_json(ctx.path(STATE), {'schema': 1, 'state': 'Ready', 'installed_from': 'system.img'}, mode=0o644)
         if start_radios:
@@ -511,10 +521,7 @@ def leftover(ctx):
         except (OSError, ValueError):
             value['kept'] = seen
             break
-        try:
-            source.unlink()
-        except OSError:
-            pass
+        remove(ctx, source)
         tidy(ctx)
     if value != {k: previous.get(k) for k in value} or set(previous) - set(value):
         atomic_json(ctx.path(STATE), value, mode=0o644)
