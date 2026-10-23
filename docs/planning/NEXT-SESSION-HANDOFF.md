@@ -1,6 +1,14 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-24): BETA 8.27 (BASELINE 126) PUBLISHED — SD CARD PHASES 0–3.**
+> **START HERE (2026-10-24): BETA 8.28 (BASELINE 127) PUBLISHED — WI-FI WRONG PASSWORD (Y2Reborn #20).**
+> Seq 9200, Linux `f3f938a`, Reborn `f6eb0b2`. Platform: `wifi-failure.json` `credential` block (kept until a connect,
+> survives ap_unavailable), `network.json` `Failed/wrong_credentials` + `failed_network_id`. Reborn `wifi.rs`
+> `PendingJoin` (ATTACH, SELECT, events; saved only on connect; older same-SSID entries removed; ENABLE_NETWORK all;
+> failed try removed), `Status.join`, UI `wifi_join_changed` (keyboard reopened with the text + "Wrong password"),
+> Change Password, `rebornctl test wifi-join[-wrong] --saved ID`. #20 not commented on GitHub. Next free label 128,
+> sequence above 9200. Report BETA-8.28.
+>
+> Previous entry: **START HERE (2026-10-24): BETA 8.27 (BASELINE 126) PUBLISHED — SD CARD PHASES 0–3.**
 > Seq 9100, Linux `65e1c47`, Reborn `4947352`. F12 follow-up (report 29ed4ccb): interrupted-write leftovers Linux never
 > sees are admitted; FAT/exFAT cards with errors mount read-only (`media-mount.json` `read_only: filesystem_errors |
 > check_timed_out`), Reborn `SdCard::ReadOnly/Unchecked`, Settings → Storage → Repair SD Card (`y2-media repair`, tables

@@ -9182,3 +9182,20 @@ the owner's player (exFAT card).
 | Build 126 on a player | INSTALLED BEFORE PUBLISH | seq 9100, Acknowledged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.27** (Baseline 126, sequence 9100).
+
+## BETA-8.28 (Baseline 127) Wi-Fi wrong password (Y2Reborn #20): milestone gap audit — 2026-10-23
+
+**Boundary:** owner: "do the fix and publish the new version" after the #20 analysis. Changes: platform Wi-Fi failure
+record and state (`network.py`, `observe.py`); Reborn Wi-Fi worker join, Wi-Fi page, keyboard return, diagnostics. No
+kernel, memory map, partition, schema or packaging change. Hardware evidence: #20, report a19646dd, the owner's player
+(reproduced on 8.27, checked on 8.28).
+
+| Area | State for Beta 8.28 | Evidence / gap |
+| --- | --- | --- |
+| Wrong password reported by the platform | IMPLEMENTED, DEVICE-CHECKED | `Failed / wrong_credentials` with the failed network id |
+| Join tried before it is saved | IMPLEMENTED, DEVICE-CHECKED | `wifi-join-wrong`: WrongPassword 5.8 s, nothing left; `wifi-join`: Joined |
+| Keyboard return, rows, Change Password | IMPLEMENTED, HOST-CHECKED | UI test and preview; not typed on the device |
+| Saved network whose password changed | IMPLEMENTED, HOST-CHECKED | the owner's password cannot be restored after such a test |
+| Build 127 on a player | INSTALLED BEFORE PUBLISH | seq 9200, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.28** (Baseline 127, sequence 9200).

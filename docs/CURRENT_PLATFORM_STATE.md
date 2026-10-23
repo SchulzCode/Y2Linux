@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.27, Baseline 126 — 2026-10-23 (latest, published)
+## Y2Linux 1.0 Beta 8.28, Baseline 127 — 2026-10-23 (latest, published)
+
+Release `1.0.0-beta.8.28`, tag `baseline-127`, Linux `f3f938a`, Reborn `f6eb0b2`, sequence 9200. Wi-Fi (Y2Reborn #20: a
+wrong password was never said, the player showed "Connecting…" then "Saved"): the platform reports a wrong password
+as Failed until the next connect; Reborn tries a join before saving it, reopens the keyboard with the typed text and
+"Wrong password", keeps one entry per network and the other saved networks enabled, and offers Change Password.
+Checked on the owner's player (reproduced on 8.27 first). Details: [Beta 8.28 report](validation/Y2-LINUX-1.0-BETA-8.28.md).
+
+## Y2Linux 1.0 Beta 8.27, Baseline 126 — 2026-10-23 (published)
 
 Release `1.0.0-beta.8.27`, tag `baseline-126`, Linux `65e1c47`, Reborn `4947352`, sequence 9100. SD cards (F12, report 29ed4ccb: every
 card "Needs Repair" after a pull while mounted): a FAT32/exFAT card whose check finds errors plays read-only instead of
