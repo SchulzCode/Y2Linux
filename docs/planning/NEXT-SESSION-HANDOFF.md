@@ -1,6 +1,14 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-24): AFTER BETA 8.28 — TRIAGE OF ALL OPEN GITHUB ISSUES DONE, NOTHING POSTED; PICK THE NEXT BETA.**
+> **START HERE (2026-10-24): BETA 8.29 (BASELINE 128) PUBLISHED — CHARGING WITHOUT PMIC DIE CALIBRATION (F42).**
+> Seq 9300, Linux `4d97301` (fix `1a51503`), Reborn `e58980c`. Reports 09888d70/8fc8eea6/ba0bb428 (install 047f2c1a,
+> 8.28): never charged; `die calibration=0` (efuse 0x63a bit 1 clear, CID 0x2023) → die channel -ENODATA → charger
+> `fault=0x3` forever. Fix: `y2_pmic_calibrate` returns 1 and uses the stock nominal (VTS 3698, 25 °C, slope 0) +10 °C
+> (owner choice); boot log `die calibration=2` + efuse words. Not installed on a player before publishing (SSH to
+> the owner's player denied by the session's permission classifier). Reporter confirmation owed. The GitHub triage
+> below is still unposted. Next free label 129, sequence above 9300. Report BETA-8.29.
+>
+> Previous entry: **START HERE (2026-10-24): AFTER BETA 8.28 — TRIAGE OF ALL OPEN GITHUB ISSUES DONE, NOTHING POSTED; PICK THE NEXT BETA.**
 >
 > **State.** Newest release **Beta 8.28 = `baseline-127`** (seq 9200, Linux build `f3f938a` + docs `96b5039`, Reborn
 > `f6eb0b2` + docs pushed). The owner's player runs 8.28 (installed by OTA, Acknowledged boot 1). Both repositories

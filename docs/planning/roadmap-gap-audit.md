@@ -9199,3 +9199,20 @@ kernel, memory map, partition, schema or packaging change. Hardware evidence: #2
 | Build 127 on a player | INSTALLED BEFORE PUBLISH | seq 9200, Acknowledged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.28** (Baseline 127, sequence 9200).
+
+## BETA-8.29 (Baseline 128) charging without PMIC die calibration: milestone gap audit — 2026-10-24
+
+**Boundary:** owner: "do the fixes, I want +10 here, and publish a new version so my user can update" after the
+analysis of reports 09888d70/8fc8eea6/ba0bb428 (install 047f2c1a). Changes: `kernel/platform/power-math.h`
+(`y2_pmic_calibrate` nominal case) and `mt6323-adc.c` (flag, zone, boot log). No memory map, partition, schema,
+packaging or Reborn change. Hardware evidence: the three reports (charger `fault=0x3`, `die calibration=0`); the
+stock nominal is from `mtk_ts_pmic.c` `pmic_cali_prepare()` (BSP `d53dd75c3ff7`).
+
+| Area | State for Beta 8.29 | Evidence / gap |
+| --- | --- | --- |
+| Die sensor without calibration fuse | IMPLEMENTED, HOST-CHECKED | stock nominal + 10 °C; unit test; not run on an affected player |
+| Calibrated players | UNCHANGED, HOST-CHECKED | same conversion at the own fuses; container suite 879 OK |
+| Build 128 on a player | NOT INSTALLED BEFORE PUBLISH | SSH to the owner's player not available in this session; the owner's player is calibrated |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.29** (Baseline 128, sequence 9300).
+

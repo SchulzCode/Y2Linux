@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.28, Baseline 127 — 2026-10-23 (latest, published)
+## Y2Linux 1.0 Beta 8.29, Baseline 128 — 2026-10-24 (latest, published)
+
+Release `1.0.0-beta.8.29`, tag `baseline-128`, Linux `4d97301`, Reborn `e58980c`, sequence 9300. Charging (reports
+09888d70/8fc8eea6/ba0bb428: a player never charged): an MT6323 without its die-temperature calibration fuse used to
+return no die temperature, which the charger took as an ADC fault and inhibited charging forever. It now uses the
+stock nominal coefficients read 10 °C high (derating and the 150 °C stops act early). Calibrated players are
+unchanged. Not run on an affected player yet. Details: [Beta 8.29 report](validation/Y2-LINUX-1.0-BETA-8.29.md).
+
+## Y2Linux 1.0 Beta 8.28, Baseline 127 — 2026-10-23 (published)
 
 Release `1.0.0-beta.8.28`, tag `baseline-127`, Linux `f3f938a`, Reborn `f6eb0b2`, sequence 9200. Wi-Fi (Y2Reborn #20: a
 wrong password was never said, the player showed "Connecting…" then "Saved"): the platform reports a wrong password
