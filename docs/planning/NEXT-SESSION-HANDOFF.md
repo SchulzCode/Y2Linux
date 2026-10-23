@@ -1,6 +1,15 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-24): AFTER BETA 8.26 (BASELINE 125) — REPORT FIXES F35–F41 PUBLISHED.**
+> **START HERE (2026-10-24): BETA 8.27 (LABEL 126) BUILT, ON THE OWNER'S PLAYER — SD CARD PHASES 0–3, PUBLISH ON THE OWNER'S WORD.**
+> Seq 9100, Linux `65e1c47`, Reborn `4947352`. F12 follow-up (report 29ed4ccb): interrupted-write leftovers Linux never
+> sees are admitted; FAT/exFAT cards with errors mount read-only (`media-mount.json` `read_only: filesystem_errors |
+> check_timed_out`), Reborn `SdCard::ReadOnly/Unchecked`, Settings → Storage → Repair SD Card (`y2-media repair`, tables
+> copied to `/data/system/platform/sd-repair/`); healthy cards `read_only: protected` with windows (`y2-media write
+> --holder usb|reborn|report|radiofw`), closed by the reconcile tick; owner switch `sd-always-writable`. Device-checked:
+> protection/windows/unplug; not run: read-only fallback and repair on a really damaged card. Report BETA-8.27.
+> Next free label 127, sequence above 9100.
+>
+> Previous entry: **START HERE (2026-10-24): AFTER BETA 8.26 (BASELINE 125) — REPORT FIXES F35–F41 PUBLISHED.**
 > Published 2026-10-23 (seq 9000, Linux build `518c641`; Reborn `404edb3`, identity only); the owner's player runs it.
 > The 12 reports pending after 8.25 were reviewed (ledger `UserReports/REVIEWED.md`, F35–F41) and fixed: F36 start on a
 > charger after a low-battery power-off (`battery.py` restore, stale power-on OCV, `power.py` SOC shutdown on battery

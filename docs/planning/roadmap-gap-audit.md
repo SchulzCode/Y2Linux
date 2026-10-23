@@ -9164,3 +9164,19 @@ Hardware evidence: the twelve reports, the owner's player (F37 reproduced on 8.2
 | Build 125 on a player | INSTALLED BEFORE PUBLISH | seq 9000, Acknowledged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.26** (Baseline 125, sequence 9000).
+
+## BETA-8.27 (Baseline 126) SD cards: read-only fallback, repair, protection (F12): milestone gap audit — 2026-10-23
+
+**Boundary:** owner: "do all phases with user confirmation in 2" (plan after report 29ed4ccb). Changes: platform
+`media.py` (admission classes, read-only fallback, repair, protected mount with write windows), status, reports, the
+firmware import, the USB service; Reborn SD states, Repair SD Card, playlist write windows. No kernel, memory map,
+partition, schema or packaging change. Hardware evidence: report 29ed4ccb, host reproduction of interrupted writes,
+the owner's player (exFAT card).
+
+| Area | State for Beta 8.27 | Evidence / gap |
+| --- | --- | --- |
+| Interrupted-write leftovers admitted | IMPLEMENTED, HOST-CHECKED | real `fsck.fat` 4.2 lines; same lines on the player |
+| Damaged card plays read-only | IMPLEMENTED, HOST-CHECKED | **not run on a damaged card in a player** |
+| Repair SD Card | IMPLEMENTED, HOST-CHECKED | `fsck.fat -a -w` on damaged images on the player; the full flow not run on a damaged card |
+| Protected card + write windows | IMPLEMENTED, DEVICE-CHECKED | ro 4 s after unplug, clean, rw on replug, playback and sleep while ro |
+| Build 126 on a player | INSTALLED | seq 9100, Acknowledged; publish awaits the owner |

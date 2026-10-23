@@ -75,13 +75,24 @@ automatically.
 ## The SD card
 
 - **FAT32, exFAT and ext4 cards** work. Each card is checked read-only before it is used.
+- **Protected between writes (since Beta 8.27).** The player keeps the card read-only and makes
+  it writable only while something writes to it: a computer connected by USB, a change to a
+  playlist stored on the card, an error report saved to it. Taking the card out while music from it
+  plays (or with the player off) leaves it clean. Take it out only when no computer is connected
+  and no playlist on it is being changed.
 - A card that was **pulled out while in use** (it carries a "not cleanly unmounted" mark) is used
-  again normally.
-- A card whose check finds **real damage** is not used: Settings → Storage says *Needs repair ·
-  Check it on a computer* (Windows: Properties → Tools → Check; macOS: Disk Utility → First Aid).
-  Nothing is written to it.
-- Music on the card is in the library next to Internal Storage. Remove the card only when no song
-  from it is playing.
+  again normally, as are the harmless leftovers of an interrupted copy that Windows ignores too.
+- A FAT32 or exFAT card whose check finds **real damage** (or whose check does not finish) still
+  plays, but **read-only**: Settings → Storage says *Has errors · Playing only* and nothing is
+  written to it, so the damage cannot spread. **Repair SD Card** (Settings → Storage) fixes it on
+  the player: keep it on the charger or above 30 %. Damaged files may be shortened or removed; the
+  rest stays. A copy of the card's tables is kept on the player for support. A computer can repair
+  it too (Windows: Properties → Tools → Check; macOS: Disk Utility → First Aid), but First Aid
+  does not always fix what the player finds; reformatting (back up first) always does.
+- An ext4 card with damage is not mounted (*Needs repair*); Repair SD Card works for it too.
+- Copying to the card from a computer: use the USB cable (the card is a drive next to Internal
+  Storage) rather than a card reader; with a reader, switch the player off before taking the card
+  out and eject it on the computer before unplugging.
 
 ## Copying music: USB
 
@@ -135,7 +146,10 @@ has to format that storage before it can use it. This path has not been tested b
 ```sh
 y2-platform internal-media status        # partition, filesystem, mount
 cat /run/y2/internal-media-setup.json    # what the setup did at this start
-y2-media status                          # the SD card
+y2-media status                          # the SD card (writable, read_only_reason)
+y2-media write --holder reborn --seconds 60   # a write window on the protected card (--release ends it)
+y2-media repair                          # what Settings > Storage > Repair SD Card runs
+cat /data/system/platform/sd-repair-last.json # the last repair, no names
 ```
 
 Design, safety rules and evidence: [internal storage](knowledge/internal-storage.md), the

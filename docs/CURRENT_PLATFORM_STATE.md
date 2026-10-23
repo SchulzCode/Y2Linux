@@ -1,6 +1,15 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.26, Baseline 125 — 2026-10-23 (latest, published)
+## Y2Linux 1.0 Beta 8.27, Baseline 126 — 2026-10-23 (built, on the owner's player, not yet published)
+
+Release `1.0.0-beta.8.27`, Linux `65e1c47`, Reborn `4947352`, sequence 9100. SD cards (F12, report 29ed4ccb: every
+card "Needs Repair" after a pull while mounted): a FAT32/exFAT card whose check finds errors plays read-only instead of
+being refused; Settings → Storage → Repair SD Card (owner-confirmed, charger or 30 %, a copy of the card's tables
+kept) repairs it on the player; a healthy card is read-only between writes (USB, playlist changes, reports, the
+firmware import open short windows), so taking it out during playback leaves it clean. Checked on the owner's player.
+Details: [Beta 8.27 report](validation/Y2-LINUX-1.0-BETA-8.27.md).
+
+## Y2Linux 1.0 Beta 8.26, Baseline 125 — 2026-10-23 (published)
 
 Release `1.0.0-beta.8.26`, tag `baseline-125`, Linux `518c641`, Reborn `404edb3`, sequence 9000. From the review of twelve
 uploaded reports (F35–F41): a player that turned off at 5 % no longer turns off again at every start on a charger

@@ -355,6 +355,7 @@ Indexed pages: **331**. Explicit scope notices: **228**.
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
+| [Y2Linux 1.0 Beta 8.27 report](validation/Y2-LINUX-1.0-BETA-8.27.md) | Beta 8.27 (Baseline 126): SD cards with errors play read-only, Repair SD Card on the player, healthy cards read-only between writes (F12) |
 | [Y2Linux 1.0 Beta 8.26 report](validation/Y2-LINUX-1.0-BETA-8.26.md) | Beta 8.26 (Baseline 125): report fixes F35–F41 (low-battery power-off loop on a charger, Wi-Fi after sleep, nonstandard chargers, shutdown trail, Wi-Fi roam warning) and evidence for F12/F13 |
 | [Y2Linux 1.0 Beta 8.25 report](validation/Y2-LINUX-1.0-BETA-8.25.md) | Beta 8.25 (Baseline 124): the DAC crystal starts as on stock with the chip powered (amplifier kept down), three tries with rail cycles, a cold start for the first song (#52, #54) |
 | [#52/#54 crystal handoff](planning/ISSUE-52-54-CRYSTAL-HANDOFF.md) | Evidence, stock RE, Fable's analysis and the 8.25 implementation for the CS43131 crystal failures |
