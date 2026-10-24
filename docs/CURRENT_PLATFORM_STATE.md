@@ -1,6 +1,16 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.29, Baseline 128 — 2026-10-24 (latest, published)
+## Y2Linux 1.0 Beta 8.30, Baseline 129 — 2026-10-24 (latest, published)
+
+Release `1.0.0-beta.8.30`, tag `baseline-129`, Linux `e510867`, Reborn `44481c3`, sequence 9401. GitHub triage
+fixes: music queues never include audiobook parts (#58); a song picked on Songs is followed by the next row (Y2Reborn
+#21); Previous more than 3 s into a song restarts it (Y2Reborn #21); Bluetooth headphones with AVRCP absolute volume
+follow the player's volume through BlueZ's transport `Volume`, changes on the headphones come back, the wired volume is
+kept apart (Y2Reborn #22); the recovery screen's lines fit its 28 columns and long Reborn toasts take two lines (#55);
+the GC9503V panel powers down at screen-off by default (#45/#42). Details:
+[Beta 8.30 report](validation/Y2-LINUX-1.0-BETA-8.30.md).
+
+## Y2Linux 1.0 Beta 8.29, Baseline 128 — 2026-10-24 (published)
 
 Release `1.0.0-beta.8.29`, tag `baseline-128`, Linux `4d97301`, Reborn `e58980c`, sequence 9300. Charging (reports
 09888d70/8fc8eea6/ba0bb428: a player never charged): an MT6323 without its die-temperature calibration fuse used to

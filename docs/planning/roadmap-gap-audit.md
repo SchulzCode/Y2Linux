@@ -9216,3 +9216,25 @@ stock nominal is from `mtk_ts_pmic.c` `pmic_cali_prepare()` (BSP `d53dd75c3ff7`)
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.29** (Baseline 128, sequence 9300).
 
+
+## BETA-8.30 (Baseline 129) GitHub triage fixes: milestone gap audit — 2026-10-24
+
+**Boundary:** owner: "do 58, do 55 and also look for other places in reborn with the same problem, do 4 with the
+previous song, do bluetooth absolute volume, assess but don't implement 59", then "Publish Beta 8.30" and "make the
+GC9503V power-down default + close #42". Changes: Reborn queue membership and Songs order (`track_matches`,
+`filtered_indices`, `play_index`), Previous restart, AVRCP absolute volume (BlueZ `MediaTransport1.Volume`, Reborn
+settings `wired_volume`/`bluetooth_absolute_volume`), two-line toasts; Linux recovery-screen text and
+`CONFIRMED_PANELS`. No kernel, memory map, partition, data schema or packaging change. Hardware evidence for the
+GC9503V default: #45 (8.7, normal picture through screen-off cycles and deep sleep) and #42 (≈1.9 mA overnight).
+
+| Area | State for Beta 8.30 | Evidence / gap |
+| --- | --- | --- |
+| Music queues without audiobooks (#58), Songs order (Y2Reborn #21) | IMPLEMENTED, HOST-CHECKED | UI test `music_queues_skip_audiobooks_and_songs_play_in_list_order` |
+| Previous restarts the song (Y2Reborn #21) | IMPLEMENTED, DEVICE-CHECKED | 3/3 on the owner's player after the seek-target fix (Reborn `44481c3`) |
+| Bluetooth absolute volume (Y2Reborn #22) | IMPLEMENTED, HOST-CHECKED | level/takeover unit test; not run with real headphones (none at hand); reporter confirmation owed |
+| Recovery text (#55), Reborn toasts | IMPLEMENTED, HOST-CHECKED | `test_recovery_screen_lines_fit_its_28_columns`; toast test + preview 44b; 16 toasts were cut |
+| GC9503V panel power-down default (#42/#45) | ENABLED BY DEFAULT | confirmed on a GC9503V player by its owner; the owner's player is ST7701S (unchanged) |
+| SD filesystems (#59) | ASSESSED, NOT IMPLEMENTED | ext4 supported; f2fs possible later, btrfs not planned (answer on #59) |
+| Build 129 on a player | INSTALLED BEFORE PUBLISH | seq 9401 Acknowledged; one hung start after the update restart (F39 family, before `boot.json`), healthy after a power cycle |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.30** (Baseline 129, sequence 9401).

@@ -1,6 +1,19 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-24): BETA 8.29 (BASELINE 128) PUBLISHED — CHARGING WITHOUT PMIC DIE CALIBRATION (F42).**
+> **START HERE (2026-10-24): BETA 8.30 (BASELINE 129) PUBLISHED — GITHUB TRIAGE FIXES, REPLIES POSTED.**
+> Seq 9401, Linux `e510867` (fixes `14e2c91`), Reborn `44481c3` (fixes `20a493b`, seek `44481c3`). Report
+> [Beta 8.30](../validation/Y2-LINUX-1.0-BETA-8.30.md). Done: #58 (no audiobooks in music queues), Songs in list order
+> and Previous restarts after 3 s (Y2Reborn #21), AVRCP absolute volume (Y2Reborn #22: BlueZ transport `Volume`,
+> `settings.wired_volume`, takeover never louder; **not run with real headphones**), #55 recovery lines + two-line
+> toasts (16 were cut), GC9503V power-down default (#42/#45), #59 assessed (ext4 yes, f2fs maybe, btrfs no).
+> Device: 9401 installed and Acknowledged on the owner's player; Previous 3/3. **The first boot after the 9401 update
+> restart hung before `boot.json` (splash "Couldn't Start", no USB, no logs; pmsg lost to the long-press reset)** — F39
+> family, second occurrence; next lever: keep the early-boot stage trail where a long-press reset cannot clear it.
+> GitHub: closed #58 #55 #53 #56 #45 #46 #42 with replies; commented #50 #59 #40 #41, Y2Reborn #21 #22 #19 #20.
+> Still open: #40 split artists, #41 Album Artists, #50.3/#50.6, Y2Reborn #21.4 (MusicBee, report asked), #22
+> confirmation, #19 podcasts (owner: later). Next free label 130, sequence above 9401.
+>
+> Previous entry: **START HERE (2026-10-24): BETA 8.29 (BASELINE 128) PUBLISHED — CHARGING WITHOUT PMIC DIE CALIBRATION (F42).**
 > Seq 9300, Linux `4d97301` (fix `1a51503`), Reborn `e58980c`. Reports 09888d70/8fc8eea6/ba0bb428 (install 047f2c1a,
 > 8.28): never charged; `die calibration=0` (efuse 0x63a bit 1 clear, CID 0x2023) → die channel -ENODATA → charger
 > `fault=0x3` forever. Fix: `y2_pmic_calibrate` returns 1 and uses the stock nominal (VTS 3698, 25 °C, slope 0) +10 °C

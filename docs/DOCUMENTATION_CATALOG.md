@@ -355,6 +355,7 @@ Indexed pages: **331**. Explicit scope notices: **228**.
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
+| [Y2Linux 1.0 Beta 8.30 report](validation/Y2-LINUX-1.0-BETA-8.30.md) | Beta 8.30 (Baseline 129): Bluetooth absolute volume (Y2Reborn #22), Previous restarts the song and Songs plays in list order (Y2Reborn #21), no audiobooks in music queues (#58), no cut-off text (#55), GC9503V panel power-down by default (#42/#45) |
 | [Y2Linux 1.0 Beta 8.29 report](validation/Y2-LINUX-1.0-BETA-8.29.md) | Beta 8.29 (Baseline 128): a player whose PMIC has no die calibration fuse charges again (stock nominal, read 10 °C high) |
 | [Y2Linux 1.0 Beta 8.28 report](validation/Y2-LINUX-1.0-BETA-8.28.md) | Beta 8.28 (Baseline 127): Wi-Fi says when the password is wrong, a join is saved only once it connects, Change Password (Y2Reborn #20) |
 | [Y2Linux 1.0 Beta 8.27 report](validation/Y2-LINUX-1.0-BETA-8.27.md) | Beta 8.27 (Baseline 126): SD cards with errors play read-only, Repair SD Card on the player, healthy cards read-only between writes (F12) |
