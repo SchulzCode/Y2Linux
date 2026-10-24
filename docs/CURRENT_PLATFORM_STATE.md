@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.34, Baseline 135 — 2026-10-24 (latest, published)
+## Y2Linux 1.0 Beta 8.35, Baseline 136 — 2026-10-25 (latest, published)
+
+Release `1.0.0-beta.8.35`, tag `baseline-136`, Linux `fc733e8`, Reborn `e0921a0`, sequence 9902. Louder headphones,
+safe by default (report F45, FiiO FH7 too quiet at High): each Headphone Level has its own DAC Master (Low ≈0.35,
+Medium ≈0.71, High 1.73 Vrms at full volume, was 0.11/0.15/0.18), the volume steps are even in dB, and going past the
+old loudest output asks once (*Raise the Volume?*, again after 20 h of loud listening). Details:
+[Beta 8.35 report](validation/Y2-LINUX-1.0-BETA-8.35.md).
+
+## Y2Linux 1.0 Beta 8.34, Baseline 135 — 2026-10-24 (published)
 
 Release `1.0.0-beta.8.34`, tag `baseline-135`, Linux `88febab`, Reborn `01f1ed3`, sequence 9802. MTP no longer hangs
 when a computer connects (#61): uMTP's storage events were written under the mutex every request takes and waited for

@@ -1,6 +1,6 @@
 # Headphone drive plan: loud enough for every headphone, safe by default
 
-Status 2026-10-25: Phases 1–3 implemented in Reborn (uncommitted, host tests pass), not built or flashed. The owner has
+Status 2026-10-25: Phases 1–3 published in Beta 8.35 (Baseline 136, [report](../validation/Y2-LINUX-1.0-BETA-8.35.md)); device-checked on the owner's player. The owner has
 no meter, so Phase 0 was skipped and one level table that works for both cases was chosen: Low 0.35, Medium 0.71,
 High 1.73 Vrms, picked by ear (current behaviour: [HEADPHONE-OUTPUT.md](../HEADPHONE-OUTPUT.md)). No kernel change.
 Owner decisions 2–4 taken as recommended. Two safety refinements: a level change raises the volume number only for

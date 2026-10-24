@@ -1,6 +1,15 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-24): BETA 8.34 (BASELINE 135) PUBLISHED — MTP HANG FIX (#61).**
+> **START HERE (2026-10-25): BETA 8.35 (BASELINE 136) PUBLISHED — LOUDER HEADPHONES, SAFE BY DEFAULT (F45).**
+> Seq 9902, Linux `fc733e8` (docs `cc8e384`), Reborn `e0921a0` (change `5a40103`). Master per level (Low −9, Medium
+> −6, High 0 dB → ≈0.35/0.71/1.73 Vrms), volume in 0.6 dB steps, safe level = the old maximum (−14.7 dBV, safe volume
+> 90/80/67) with *Raise the Volume?* and a 20-h lapse, one-time volume migration, start/BT-return cap. Plan and
+> assessment: [headphone drive plan](HEADPHONE-DRIVE-PLAN.md); report [Beta 8.35](../validation/Y2-LINUX-1.0-BETA-8.35.md).
+> No meter: the ≈100 Ω series resistance is still inferred. Build gotcha: `release.py build` needs
+> `Y2_STOCK_PACKAGE=$PWD/donorSource/y2_v3.2.0_FM-20260813` (default path ../Y2Player is gone). Next free label 137,
+> sequence above 9902.
+>
+> Previous entry: **START HERE (2026-10-24): BETA 8.34 (BASELINE 135) PUBLISHED — MTP HANG FIX (#61).**
 > Seq 9802, Linux `88febab` (fix `8a699dc`: `buildroot/package/y2-mtp/0006-y2-mtp-events-never-block.patch`), Reborn
 > `01f1ed3` (identity only). uMTP wrote StoreAdded/Removed under `inotify_mutex` and the interrupt write waits for the
 > host; the SD write window swaps the SD storage right after connecting, so KDE/libmtp sessions hung. Report

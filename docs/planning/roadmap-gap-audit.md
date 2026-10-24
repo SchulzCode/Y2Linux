@@ -9281,3 +9281,18 @@ map, partition, data schema or packaging change.
 | Build 135 on a player | INSTALLED BEFORE PUBLISH | seq 9802, Acknowledged, healthy |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.34** (Baseline 135, sequence 9802).
+
+## BETA-8.35 (Baseline 136) headphone drive: milestone gap audit — 2026-10-25
+
+**Boundary:** user report F45 (FiiO FH7 IEM too quiet at High); owner: plan, then "follow your plan" without a meter,
+"keep as is and publish". Change: Reborn only (Master per level, dB volume scale, safe-volume warning, migration).
+No kernel, platform, memory map, partition or packaging change; session schema unchanged (additive settings fields).
+
+| Area | State for Beta 8.35 | Evidence / gap |
+| --- | --- | --- |
+| Level gain staging (HP-LEVEL-EQ) | CHANGED, HOST- AND DEVICE-CHECKED | Master −9/−6/0 dB live on the owner's player; output not measured with a meter |
+| Hearing safety | NEW, HOST- AND PARTLY DEVICE-CHECKED | warning + agreement on device; 20-h lapse, BT-return cap and restart cap host-tested only |
+| Volume migration | DEVICE-CHECKED | 80 → 76 at Low on the owner's player |
+| Build 136 on a player | INSTALLED BEFORE PUBLISH | seq 9902, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.35** (Baseline 136, sequence 9902).

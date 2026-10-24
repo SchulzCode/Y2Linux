@@ -2,8 +2,7 @@
 
 Status 2026-10-25: released in Beta 8.5 (Baseline 93), review fixes in Beta 8.6 (Baseline 94); device results in the
 [Beta 8.5](validation/Y2-LINUX-1.0-BETA-8.5.md) and [Beta 8.6](validation/Y2-LINUX-1.0-BETA-8.6.md) reports. Louder
-levels, the dB volume scale and the safe-volume warning are implemented in Reborn for the next beta and not yet on a
-device ([headphone drive plan](planning/HEADPHONE-DRIVE-PLAN.md), report F45). No output has been measured yet. Audit
+levels, the dB volume scale and the safe-volume warning are in Beta 8.35 (Baseline 136) ([headphone drive plan](planning/HEADPHONE-DRIVE-PLAN.md), report F45). No output has been measured yet. Audit
 row HP-LEVEL-EQ in [roadmap-gap-audit](planning/roadmap-gap-audit.md).
 
 ## What the hardware does
