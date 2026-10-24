@@ -1,6 +1,12 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.30, Baseline 129 — 2026-10-24 (latest, published)
+## Y2Linux 1.0 Beta 8.31, Baseline 130 — 2026-10-24 (latest, published)
+
+Release `1.0.0-beta.8.31`, tag `baseline-130`, Linux `b0b8ae6`, Reborn `b07cb9d`, sequence 9500. Settings → Sound →
+Balance (user request): Left +10 dB … Center … Right +10 dB, applied at the live sink gain by lowering the other side,
+jack and Bluetooth. Reborn only. Details: [Beta 8.31 report](validation/Y2-LINUX-1.0-BETA-8.31.md).
+
+## Y2Linux 1.0 Beta 8.30, Baseline 129 — 2026-10-24 (published)
 
 Release `1.0.0-beta.8.30`, tag `baseline-129`, Linux `e510867`, Reborn `44481c3`, sequence 9401. GitHub triage
 fixes: music queues never include audiobook parts (#58); a song picked on Songs is followed by the next row (Y2Reborn

@@ -9238,3 +9238,16 @@ GC9503V default: #45 (8.7, normal picture through screen-off cycles and deep sle
 | Build 129 on a player | INSTALLED BEFORE PUBLISH | seq 9401 Acknowledged; one hung start after the update restart (F39 family, before `boot.json`), healthy after a power cycle |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.30** (Baseline 129, sequence 9401).
+
+## BETA-8.31 (Baseline 130) left/right balance: milestone gap audit — 2026-10-24
+
+**Boundary:** owner: "can you also make this addition to the sound settings" (a user's left/right balance request),
+then "Release as Beta 8.31". Change: Reborn only (`settings.balance`, sink gain per channel, Balance page, Sound
+layout). No kernel, memory map, partition, data schema or packaging change.
+
+| Area | State for Beta 8.31 | Evidence / gap |
+| --- | --- | --- |
+| Balance setting | IMPLEMENTED, HOST- AND DEVICE-CHECKED | unit + UI tests; set and saved through button events on the owner's player, playback without xruns; not listened to |
+| Build 130 on a player | INSTALLED BEFORE PUBLISH | seq 9500, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.31** (Baseline 130, sequence 9500).

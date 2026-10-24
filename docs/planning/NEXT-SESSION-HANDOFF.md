@@ -1,6 +1,13 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-24): BETA 8.30 (BASELINE 129) PUBLISHED — GITHUB TRIAGE FIXES, REPLIES POSTED.**
+> **START HERE (2026-10-24): BETA 8.31 (BASELINE 130) PUBLISHED — LEFT/RIGHT BALANCE.**
+> Seq 9500, Linux `b0b8ae6`, Reborn `b07cb9d` (feature `b12a1ee`). Settings → Sound → Balance (user request, one ear
+> hears less): `settings.balance` -10..=10 dB, the other side lowered at the live sink gain (`VolumeRamp::balance`).
+> Installed and Acknowledged on the owner's player (normal restart), checked through button events; not listened to.
+> Also this session: all 29 open Y2Player issues got a "no longer developed, use Y2Reborn" comment (still open).
+> Next free label 131, sequence above 9500.
+>
+> Previous entry: **START HERE (2026-10-24): BETA 8.30 (BASELINE 129) PUBLISHED — GITHUB TRIAGE FIXES, REPLIES POSTED.**
 > Seq 9401, Linux `e510867` (fixes `14e2c91`), Reborn `44481c3` (fixes `20a493b`, seek `44481c3`). Report
 > [Beta 8.30](../validation/Y2-LINUX-1.0-BETA-8.30.md). Done: #58 (no audiobooks in music queues), Songs in list order
 > and Previous restarts after 3 s (Y2Reborn #21), AVRCP absolute volume (Y2Reborn #22: BlueZ transport `Volume`,
