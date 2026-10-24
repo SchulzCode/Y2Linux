@@ -54,6 +54,20 @@ class Maintenance(unittest.TestCase):
         self.assertEqual(m.purge(self.ctx,plan['id'],plan['confirmation'])['state'],'Complete')
         self.assertFalse(self.ctx.path('/data/system/platform/maintenance-pending').exists())
 
+    def test_settings_reset_keeps_a_schema_3_queue_of_song_references(self):
+        # Reborn Beta 8.33: songs by reference, your queue, history; kept as read.
+        self.session={'schema':3,'model':{'settings':{'volume':99},'queue':[{'ref':['internal','/data/music/song.flac',3]}],
+                      'queue_queued':[1],'history':[{'source_id':'internal','path':'/data/music/song.flac'}],'position_ms':42}}
+        self.ctx.path('/data/'+m.SETTINGS).write_text(json.dumps(self.session))
+        self.ctx.runner=lambda *a,**kw:{'ok':True,'output':json.dumps({'session_schema':3,'settings':{'volume':35}})}
+        plan=m.plan(self.ctx,'settings')
+        m.execute(self.ctx,plan['confirmation'])
+        session=json.loads(self.ctx.path('/data/'+m.SETTINGS).read_text())
+        self.assertEqual(session['schema'],3)
+        self.assertEqual(session['model']['settings'],{'volume':35})
+        for key in ('queue','queue_queued','history','position_ms'):
+            self.assertEqual(session['model'][key],self.session['model'][key])
+
     def test_settings_reset_forgets_the_lastfm_sign_in_and_its_waiting_plays(self):
         for name in m.LASTFM:
             self.ctx.path('/data/'+name).write_text('{"name":"luca","key":"k"}\n')

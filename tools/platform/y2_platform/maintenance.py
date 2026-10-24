@@ -249,14 +249,16 @@ def execute(ctx, confirmation, erase_music=False, resume=False):
                 raw = regular_bytes(data, relative, 8*1024**2)
                 model = json.loads(raw)
                 wrapped = 'schema' in model
-                if wrapped and model.get('schema') != 2:
+                # Schema 3 (Reborn Beta 8.33) stores the queue by reference;
+                # only the settings change here, the rest is kept as read.
+                if wrapped and model.get('schema') not in (2, 3):
                     raise ValueError('unsupported_session_schema')
                 body = model.get('model') if wrapped else model
                 if not isinstance(body, dict) or 'settings' not in body:
                     raise ValueError('invalid_saved_session')
                 answer = ctx.command(['/usr/bin/reborn', '--default-settings'], timeout=2)
                 defaults = json.loads(answer['output']) if answer['ok'] else {}
-                if defaults.get('session_schema') != 2 or not isinstance(defaults.get('settings'), dict):
+                if defaults.get('session_schema') not in (2, 3) or not isinstance(defaults.get('settings'), dict):
                     raise ValueError('application_defaults_unavailable')
                 if not old:
                     free(quarantine, len(raw)*2)

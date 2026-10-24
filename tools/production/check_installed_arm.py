@@ -59,7 +59,7 @@ audio=json.loads(subprocess.check_output(audio_command,text=True,timeout=15))
 assert len(audio['combinations']) == 16 and all(v['accepted_constraints'] for v in audio['combinations'])
 assert not audio['physical_qualification'] and not audio['pcm_started']
 defaults = json.loads(run('usr/bin/reborn', ['--default-settings']).stdout)
-assert defaults['session_schema'] == 2 and 'volume' in defaults['settings']
+assert defaults['session_schema'] == 3 and 'volume' in defaults['settings']
 
 with tempfile.TemporaryDirectory(prefix='y2-cpu-final-arm-bench-') as directory:
     fd=os.open(directory,os.O_RDONLY|os.O_DIRECTORY)
