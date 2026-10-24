@@ -9,6 +9,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <poll.h>
+#include <time.h>
 #include "mtp.h"
 #include "mtp_helpers.h"
 #include "mtp_constant.h"
@@ -231,6 +233,41 @@ int main(int argc, char **argv)
         assert(!leftovers(argv[1]) && !leftovers(sd) && !leftovers(old));
         snprintf(path,sizeof path,"rm -rf '%s' '%s'",sd,old); assert(!system(path));
     }
+    /* #61: an unread event never holds up requests. The interrupt endpoint is
+     * a pipe whose buffer is full, a host that does not read events (KDE's MTP
+     * daemon while it sets up): pushing them under inotify_mutex, as the
+     * storage mount/unmount commands do, returns at once and leaves the mutex
+     * free; once the host reads, the newest events arrive in order. */
+    {
+        int events[2]; assert(!pipe(events));
+        int flags=fcntl(events[1],F_GETFL); assert(!fcntl(events[1],F_SETFL,flags|O_NONBLOCK));
+        static char block[4096]; size_t filled=0; ssize_t n;
+        while((n=write(events[1],block,sizeof block))>0) filled+=n;
+        while((n=write(events[1],block,1))>0) filled+=n;
+        assert(!fcntl(events[1],F_SETFL,flags));
+        usb.ep_handles[EP_DESCRIPTOR_INT_IN]=events[1]; usb.stop=0; ctx.cancel_req=0;
+        struct timespec start, end; clock_gettime(CLOCK_MONOTONIC,&start);
+        assert(!pthread_mutex_lock(&ctx.inotify_mutex));
+        for(uint32_t i=0;i<20;i++) assert(mtp_push_event(&ctx,MTP_EVENT_STORE_ADDED,1,&i)==16);
+        assert(!pthread_mutex_unlock(&ctx.inotify_mutex));
+        clock_gettime(CLOCK_MONOTONIC,&end);
+        assert(end.tv_sec-start.tv_sec<1);                       /* nothing waited for the host */
+        assert(!pthread_mutex_trylock(&ctx.inotify_mutex)); pthread_mutex_unlock(&ctx.inotify_mutex);
+        static char sink[1<<20]; size_t drained=0;
+        while(drained<filled) { n=read(events[0],sink,filled-drained); assert(n>0); drained+=n; }
+        unsigned char event[16]; uint32_t last=0; int count=0;
+        struct pollfd ready={.fd=events[0],.events=POLLIN};
+        while(poll(&ready,1,500)>0) {
+            assert(read(events[0],event,sizeof event)==sizeof event);
+            uint32_t code=event[6]|event[7]<<8, value; memcpy(&value,event+12,4);
+            assert(code==MTP_EVENT_STORE_ADDED && (!count || value>last));
+            last=value; count++;
+        }
+        /* The one being written when the host stopped reading, then the newest
+         * 16 (the oldest are dropped). */
+        assert((count==16 || count==17) && last==19);
+        usb.ep_handles[EP_DESCRIPTOR_INT_IN]=-1; close(events[0]);
+    }
     deinit_fs_db(ctx.fs_db); free(ctx.rdbuffer); free(ctx.rdbuffer2); free(ctx.wrbuffer); close(channel[0]); close(channel[1]);
-    puts("PASS FS/HS descriptors, actual SendObjectInfo/SendObject/download: hidden staging, complete, truncated, cancelled, disconnected, new session, concurrent truncation; MoveObject/CopyObject: rename, between storages, folders, read-only, refusals");
+    puts("PASS events never block requests (#61), FS/HS descriptors, actual SendObjectInfo/SendObject/download: hidden staging, complete, truncated, cancelled, disconnected, new session, concurrent truncation; MoveObject/CopyObject: rename, between storages, folders, read-only, refusals");
 }

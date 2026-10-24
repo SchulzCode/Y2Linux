@@ -1,0 +1,111 @@
+From: Y2Linux maintainers
+Subject: [PATCH] Never let an unread event stall MTP requests
+
+An event goes out on the interrupt endpoint, whose write completes only
+once the host reads it, and many hosts do not read it while they set up
+a session (KDE's MTP daemon, libmtp tools). The storage mount/unmount
+commands push StoreAdded/StoreRemoved while holding inotify_mutex, which
+every operation takes, so one unread event stalled all requests until
+the host gave up (~20 s) and reset the device (Y2Linux #61: the SD card's
+write window swaps its storage right after the cable is connected).
+Queue events and write them from their own thread; a full queue (16)
+drops the oldest event.
+
+diff --git a/src/mtp.c b/src/mtp.c
+--- a/src/mtp.c
++++ b/src/mtp.c
+@@ -956,11 +956,58 @@
+ 	return 0xFFFFFFFF;
+ }
+ 
++/*
++ * Y2 (#61): an event goes out on the interrupt endpoint, whose write only
++ * completes once the host reads it, and many hosts do not read it while they
++ * set up a session (KDE's MTP daemon, libmtp tools). The storage mount and
++ * unmount commands push StoreAdded/StoreRemoved while holding inotify_mutex,
++ * which every operation takes: one unread event stalled all requests until
++ * the host gave up (~20 s) and reset the device. Events are queued here and
++ * written by their own thread; a full queue drops the oldest event.
++ */
++#define Y2_EVENT_SLOTS 16
++
++static struct
++{
++	unsigned char data[64];
++	int size;
++} y2_events[Y2_EVENT_SLOTS];
++static unsigned int y2_event_head, y2_event_count;
++static int y2_event_thread_started;
++static pthread_mutex_t y2_event_lock = PTHREAD_MUTEX_INITIALIZER;
++static pthread_cond_t y2_event_ready = PTHREAD_COND_INITIALIZER;
++
++static void * y2_event_thread(void * arg)
++{
++	mtp_ctx * ctx = arg;
++	unsigned char data[64];
++	int size, ret;
++
++	for(;;)
++	{
++		pthread_mutex_lock( &y2_event_lock );
++		while( !y2_event_count )
++			pthread_cond_wait( &y2_event_ready, &y2_event_lock );
++		size = y2_events[y2_event_head].size;
++		memcpy( data, y2_events[y2_event_head].data, size );
++		y2_event_head = ( y2_event_head + 1 ) % Y2_EVENT_SLOTS;
++		y2_event_count--;
++		pthread_mutex_unlock( &y2_event_lock );
++
++		ret = write_usb( ctx->usb_ctx, EP_DESCRIPTOR_INT_IN, data, size );
++
++		PRINT_DEBUG("y2_event_thread : write_usb return: %d", ret );
++	}
++
++	return NULL;
++}
++
+ int mtp_push_event(mtp_ctx * ctx, uint32_t event, int nbparams, uint32_t * parameters )
+ {
+ 	unsigned char event_buffer[64];
++	pthread_t thread;
++	unsigned int slot;
+ 	int size;
+-	int ret;
+ 
+ 	size = build_event_dataset( ctx, event_buffer, sizeof(event_buffer), event , ctx->session_id, 0x00000000, nbparams, parameters);
+ 	if(size < 0)
+@@ -969,9 +1016,30 @@
+ 	PRINT_DEBUG("mtp_push_event : Event packet buffer - %d Bytes :",size);
+ 	PRINT_DEBUG_BUF(event_buffer, size);
+ 
+-	ret = write_usb(ctx->usb_ctx,EP_DESCRIPTOR_INT_IN,event_buffer,size);
+-
+-	PRINT_DEBUG("write_usb return: %d", ret );
++	pthread_mutex_lock( &y2_event_lock );
++	if( !y2_event_thread_started )
++	{
++		if( pthread_create( &thread, NULL, y2_event_thread, ctx ) )
++		{
++			pthread_mutex_unlock( &y2_event_lock );
++			PRINT_ERROR("mtp_push_event : event thread creation failed, event dropped");
++			return -1;
++		}
++		pthread_detach( thread );
++		y2_event_thread_started = 1;
++	}
++	if( y2_event_count == Y2_EVENT_SLOTS )
++	{
++		/* The host is not reading events: the oldest one goes. */
++		y2_event_head = ( y2_event_head + 1 ) % Y2_EVENT_SLOTS;
++		y2_event_count--;
++	}
++	slot = ( y2_event_head + y2_event_count ) % Y2_EVENT_SLOTS;
++	memcpy( y2_events[slot].data, event_buffer, size );
++	y2_events[slot].size = size;
++	y2_event_count++;
++	pthread_cond_signal( &y2_event_ready );
++	pthread_mutex_unlock( &y2_event_lock );
+ 
+-	return ret;
++	return size;
+ }
