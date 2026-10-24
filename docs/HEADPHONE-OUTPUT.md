@@ -1,8 +1,10 @@
 # Headphone output: level, equalizer profiles, DAC filter and measurement
 
-Status 2026-10-18: released in Beta 8.5 (Baseline 93), review fixes in Beta 8.6 (Baseline 94); device results in the
-[Beta 8.5](validation/Y2-LINUX-1.0-BETA-8.5.md) and [Beta 8.6](validation/Y2-LINUX-1.0-BETA-8.6.md) reports. No output has been measured yet. Audit row HP-LEVEL-EQ in
-[roadmap-gap-audit](planning/roadmap-gap-audit.md).
+Status 2026-10-25: released in Beta 8.5 (Baseline 93), review fixes in Beta 8.6 (Baseline 94); device results in the
+[Beta 8.5](validation/Y2-LINUX-1.0-BETA-8.5.md) and [Beta 8.6](validation/Y2-LINUX-1.0-BETA-8.6.md) reports. Louder
+levels, the dB volume scale and the safe-volume warning are implemented in Reborn for the next beta and not yet on a
+device ([headphone drive plan](planning/HEADPHONE-DRIVE-PLAN.md), report F45). No output has been measured yet. Audit
+row HP-LEVEL-EQ in [roadmap-gap-audit](planning/roadmap-gap-audit.md).
 
 ## What the hardware does
 
@@ -12,9 +14,9 @@ Datasheet DS1155F2, HP Output Control 1 (0x80000) OUT_FS:
 | Setting | OUT_FS | Full scale | CLASS_H (0xB0000) | Y2Linux level |
 | --- | --- | --- | --- | --- |
 | 00 | 0x00 | 0.5 Vrms | — | not offered |
-| 01 | 0x10 | 1.0 Vrms | 0x1C (HV_EN off) | **Low**: stock headphone level, the default |
+| 01 | 0x10 | 1.0 Vrms | 0x1C (HV_EN off) | **Low**: stock's register value, the default |
 | 10 | 0x20 | 1.41 Vrms | 0x1E (HV_EN on) | Medium |
-| 11 | 0x30 | 1.73 Vrms | 0x1E (HV_EN on) | High: what Y2Linux used before |
+| 11 | 0x30 | 1.73 Vrms | 0x1E (HV_EN on) | High: what Y2Linux used before Beta 8.5 |
 
 The HV_EN pairing follows the upstream driver's load table (`hv_seq`). The datasheet allows OUT_FS changes only while
 the amplifier is powered down (PDN_HP set). It specifies HV_EN = 1 for loads of 600 Ω and more and VP ≥ 3.3 V. Stock never
@@ -35,14 +37,34 @@ table tops out at −3 dB, so the stock maximum is about 0.71 Vrms.
   cannot power the amplifier in between (audio review, 2026-10-18). The old sysfs switch `y2_hp/hp_gain` uses the
   same path. `y2_hp/hpload_measure` still measures the load but no longer changes the level; it refuses while a
   stream is open (`EBUSY`) and holds the DAPM lock while it measures. Host test: `tests/test_hp_level.py` (C harness on the real driver functions).
-- **Reborn**: Settings → Sound → Output → *Headphone Level* sets the control before each wired stream starts. The DAC Master
-  is now −19.5 dB instead of −24 dB, so Low plays 0.26 dB below the old level (1.73 Vrms at −24 dB) and never louder.
-  Medium is +2.7 dB and High +4.5 dB over the old level. Changing the level during wired playback restarts the
+- **Reborn**: Settings → Sound → Output → *Headphone Level* sets the control before each wired stream starts. Each
+  level has its own DAC Master (`HpLevel::master_db`), set right after the amplifier powers up for the level it
+  really runs at (−24 dB until then, and when the live level is unknown):
+
+  | Level | Full scale | Master | At volume 100, 0 dBFS | Safe volume |
+  | --- | --- | --- | --- | --- |
+  | Low (earphones, IEMs) | 1.0 Vrms | −9 dB | ≈0.35 Vrms | 90 |
+  | Medium (most headphones) | 1.41 Vrms | −6 dB | ≈0.71 Vrms (stock's loudest) | 80 |
+  | High (hard to drive) | 1.73 Vrms | 0 dB | 1.73 Vrms (the chip's maximum) | 67 |
+
+  Beta 8.5 to 8.34 held Master at −19.5 dB for every level, so the loudest output was 0.106 / 0.149 / 0.183 Vrms. That
+  was too quiet for IEMs (report F45), and the board probably has ≈100 Ω in series with the jack (the load
+  measurement reads 102 Ω high). Without a meter the series resistance is unconfirmed, so the levels are spread
+  wide enough for either case and users pick by ear.
+
+  The **volume** has even steps: 10–100 rise by 0.6 dB a step (a wheel click is 1.2 dB), 1–9 by 3 dB down to −81 dB,
+  0 is silence (before: a squared curve, 12 dB between 2 and 4). The **safe level** is the old loudest output,
+  0.183 Vrms ≈ −14.7 dBV at the chip. On the jack, volume up stops there and asks *Raise the Volume?* once. The
+  agreement lapses after 20 hours of listening above it, and the volume returns to the safe level. Reborn starts on
+  the jack at most at the safe volume (the headphones may have changed), and so does a return from Bluetooth.
+  Changing the level moves the volume so the music stays as loud: lower at once for a higher level, higher only for
+  the new stream at a lower level (never a loud moment on the old one). An old session's volume moves once to the
+  same output level (High 100 → 67, Low 100 → 82). Bluetooth headphones with their own volume are unchanged.
+  Changing the level during wired playback restarts the
   stream so the new level takes effect, and the first stream after a rise fades in over 2 s. A held pause gives its
   stream back, so the new level starts with Play. A fade carries over when the stream restarts during it (Next, a
   seek), and volume up during it keeps fading. Sound settings that play louder (a profile turned off, a boosting
   preset, Normalize changed) fade in the same way. On a kernel without the control, Master stays at −24 dB.
-  At full volume, the output is about 0.106 / 0.149 / 0.183 Vrms (Low / Medium / High, 0 dBFS).
 - **DAC Filter** (Settings → Sound → Output): Fast (default, the chip's and stock's), Fast Phase Compensated, Slow, Slow Phase
   Compensated, Nonoversampling. These are the upstream controls `PCM Filter Speed`, `PCM Phase Compensation` and `PCM
   Nonoversample Emulate`, applied at once.
@@ -126,4 +148,4 @@ For **Low, Medium and High** × **open, 300 Ω, 32 Ω and 16 Ω**, record:
 Safety: measure into loads, never with headphones on someone's head while testing levels or Master changes. A
 developer-only full-scale test can raise the DAC Master over SSH once playback has started
 (`amixer -c Y2Audio sset Master 0dB`; Reborn sets Master again at every stream start). That plays up to 1.73 Vrms,
-about 19.5 dB above Reborn's maximum.
+High's own maximum; at Low it is 9 dB above Reborn's maximum.

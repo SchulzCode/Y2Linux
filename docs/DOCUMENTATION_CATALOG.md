@@ -352,6 +352,7 @@ Indexed pages: **331**. Explicit scope notices: **228**.
 | [Audiobooks](AUDIOBOOKS.md) | User guide: where books go, chapters, progress, speed and sleep timer |
 | [Storage](STORAGE.md) | User guide: the layout, the first-start setup of Internal Storage, old files, SD cards, USB copying and speed, going back to stock |
 | [Faster uploads: receive DMA plan](planning/USB-RX-DMA-MODE1-PLAN.md) | Multi-packet (mode 1) receive DMA: evidence, design, tests |
+| [Headphone drive plan](planning/HEADPHONE-DRIVE-PLAN.md) | Loud enough for every headphone: series-resistance check, gain table, volume curve, safe-volume warning |
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
