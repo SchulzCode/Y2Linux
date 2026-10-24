@@ -1,6 +1,13 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.33, Baseline 134 — 2026-10-24 (latest, published)
+## Y2Linux 1.0 Beta 8.34, Baseline 135 — 2026-10-24 (latest, published)
+
+Release `1.0.0-beta.8.34`, tag `baseline-135`, Linux `88febab`, Reborn `01f1ed3`, sequence 9802. MTP no longer hangs
+when a computer connects (#61): uMTP's storage events were written under the mutex every request takes and waited for
+the host to read them; they are queued for their own thread now. Details:
+[Beta 8.34 report](validation/Y2-LINUX-1.0-BETA-8.34.md).
+
+## Y2Linux 1.0 Beta 8.33, Baseline 134 — 2026-10-24 (published)
 
 Release `1.0.0-beta.8.33`, tag `baseline-134`, Linux `0caf312`, Reborn `eca7f49`, sequence 9702 (8.32 was not
 published). Search is one page with the keys over it, folding into its results (owner request). Queue redesign: your

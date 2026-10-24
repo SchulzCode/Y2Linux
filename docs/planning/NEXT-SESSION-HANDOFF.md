@@ -1,6 +1,14 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-24): BETA 8.33 (BASELINE 134) PUBLISHED — SEARCH PAGE AND QUEUE REDESIGN.**
+> **START HERE (2026-10-24): BETA 8.34 (BASELINE 135) PUBLISHED — MTP HANG FIX (#61).**
+> Seq 9802, Linux `88febab` (fix `8a699dc`: `buildroot/package/y2-mtp/0006-y2-mtp-events-never-block.patch`), Reborn
+> `01f1ed3` (identity only). uMTP wrote StoreAdded/Removed under `inotify_mutex` and the interrupt write waits for the
+> host; the SD write window swaps the SD storage right after connecting, so KDE/libmtp sessions hung. Report
+> [Beta 8.34](../validation/Y2-LINUX-1.0-BETA-8.34.md), ledger F44. Repro on a KDE host: `kioclient ls "mtp:/Y2/SD Card/"`
+> after `umtprd "-cmd:unmount:SD Card"` + `"-cmd:mount:SD Card"` on the player. 5 newer error reports fetched, not
+> reviewed. Next free label 136, sequence above 9802.
+>
+> Previous entry: **START HERE (2026-10-24): BETA 8.33 (BASELINE 134) PUBLISHED — SEARCH PAGE AND QUEUE REDESIGN.**
 > Seq 9702, Linux `0caf312`, Reborn `eca7f49` (search `512a5f3`/`fdfa148`, queue `8f7de2c`, `rebornctl action`
 > `eae392b`, Shuffle-off fix `eca7f49`). 8.32 (labels 131/132) was never published. Report
 > [Beta 8.33](../validation/Y2-LINUX-1.0-BETA-8.33.md). Device-tested on the owner's player through

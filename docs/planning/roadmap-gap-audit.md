@@ -9268,3 +9268,16 @@ reset and installed-arm check for schema 3. No kernel, memory map, partition or 
 | Build 134 on a player | INSTALLED BEFORE PUBLISH | seq 9702, Acknowledged, healthy, 0 warnings |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.33** (Baseline 134, sequence 9702).
+
+## BETA-8.34 (Baseline 135) MTP hang fix: milestone gap audit — 2026-10-24
+
+**Boundary:** user report #61 (MTP hangs in Dolphin, the player disconnects); owner: "can you check on that?", then
+publish. Change: one uMTP patch (`0006-y2-mtp-events-never-block`) and its protocol test. No kernel, Reborn, memory
+map, partition, data schema or packaging change.
+
+| Area | State for Beta 8.34 | Evidence / gap |
+| --- | --- | --- |
+| MTP events vs requests | FIXED, HOST- AND DEVICE-CHECKED | protocol test (hung before the fix); KDE reconnect, 3 storage swaps, 20 MB copies on the owner's player; Windows/macOS not tried |
+| Build 135 on a player | INSTALLED BEFORE PUBLISH | seq 9802, Acknowledged, healthy |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.34** (Baseline 135, sequence 9802).

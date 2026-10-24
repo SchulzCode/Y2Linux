@@ -355,6 +355,7 @@ Indexed pages: **331**. Explicit scope notices: **228**.
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
+| [Y2Linux 1.0 Beta 8.34 report](validation/Y2-LINUX-1.0-BETA-8.34.md) | Beta 8.34 (Baseline 135): MTP no longer hangs when a computer connects (#61) |
 | [Y2Linux 1.0 Beta 8.33 report](validation/Y2-LINUX-1.0-BETA-8.33.md) | Beta 8.33 (Baseline 134): search as one page, queue redesign (your queue first, no restart on edits, Up Next history, Move, Select Songs, group queue actions), session schema 3 |
 | [Y2Linux 1.0 Beta 8.31 report](validation/Y2-LINUX-1.0-BETA-8.31.md) | Beta 8.31 (Baseline 130): left/right balance in Settings → Sound |
 | [Y2Linux 1.0 Beta 8.30 report](validation/Y2-LINUX-1.0-BETA-8.30.md) | Beta 8.30 (Baseline 129): Bluetooth absolute volume (Y2Reborn #22), Previous restarts the song and Songs plays in list order (Y2Reborn #21), no audiobooks in music queues (#58), no cut-off text (#55), GC9503V panel power-down by default (#42/#45) |
