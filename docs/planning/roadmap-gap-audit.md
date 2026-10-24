@@ -9251,3 +9251,20 @@ layout). No kernel, memory map, partition, data schema or packaging change.
 | Build 130 on a player | INSTALLED BEFORE PUBLISH | seq 9500, Acknowledged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.31** (Baseline 130, sequence 9500).
+
+## BETA-8.33 (Baseline 134) search page and queue redesign: milestone gap audit — 2026-10-24
+
+**Boundary:** owner: plan and "do the whole revamp" of the search page, then a queue assessment and "do the whole
+plan", each installed for testing; then "can you publish a new baseline". Changes: Reborn (search page, queue model
+and Up Next, playback engine's upcoming list, session schema 3, `rebornctl action`) and the platform's settings
+reset and installed-arm check for schema 3. No kernel, memory map, partition or packaging change.
+
+| Area | State for Beta 8.33 | Evidence / gap |
+| --- | --- | --- |
+| Search page | IMPLEMENTED, HOST- AND DEVICE-CHECKED | UI tests, previews 70–71e, device walk-through on builds 131/132 |
+| Queue model, Up Next, Select Songs, group actions | IMPLEMENTED, HOST- AND DEVICE-CHECKED | core/UI tests, engine test; device through `rebornctl action` on 133/134; holds by hand open |
+| No restart on queue edits | IMPLEMENTED, HOST- AND DEVICE-CHECKED | engine test; device: generation unchanged, gapless next |
+| Session schema 3 | IMPLEMENTED, DEVICE-CHECKED | 8.31 session read on 133, schema-3 restore on 134; rollback to < 8.33 keeps settings, empties the queue |
+| Build 134 on a player | INSTALLED BEFORE PUBLISH | seq 9702, Acknowledged, healthy, 0 warnings |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.33** (Baseline 134, sequence 9702).

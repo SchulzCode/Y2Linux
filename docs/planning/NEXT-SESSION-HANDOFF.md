@@ -1,6 +1,14 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-24): BETA 8.31 (BASELINE 130) PUBLISHED — LEFT/RIGHT BALANCE.**
+> **START HERE (2026-10-24): BETA 8.33 (BASELINE 134) PUBLISHED — SEARCH PAGE AND QUEUE REDESIGN.**
+> Seq 9702, Linux `0caf312`, Reborn `eca7f49` (search `512a5f3`/`fdfa148`, queue `8f7de2c`, `rebornctl action`
+> `eae392b`, Shuffle-off fix `eca7f49`). 8.32 (labels 131/132) was never published. Report
+> [Beta 8.33](../validation/Y2-LINUX-1.0-BETA-8.33.md). Device-tested on the owner's player through
+> `rebornctl action NAME` (hold menus cannot be injected as key presses). Open: holds and Move by hand; GitHub
+> #60, Y2Reborn #26/#31/#32/#38 not yet answered. Build needs `Y2_STOCK_PACKAGE=…/Y2Linux/donorSource/y2_v3.2.0_FM-20260813`
+> (the stock folder moved). Next free label 135, sequence above 9702.
+>
+> Previous entry: **START HERE (2026-10-24): BETA 8.31 (BASELINE 130) PUBLISHED — LEFT/RIGHT BALANCE.**
 > Seq 9500, Linux `b0b8ae6`, Reborn `b07cb9d` (feature `b12a1ee`). Settings → Sound → Balance (user request, one ear
 > hears less): `settings.balance` -10..=10 dB, the other side lowered at the live sink gain (`VolumeRamp::balance`).
 > Installed and Acknowledged on the owner's player (normal restart), checked through button events; not listened to.

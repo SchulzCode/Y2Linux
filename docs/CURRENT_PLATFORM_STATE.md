@@ -1,6 +1,15 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.31, Baseline 130 — 2026-10-24 (latest, published)
+## Y2Linux 1.0 Beta 8.33, Baseline 134 — 2026-10-24 (latest, published)
+
+Release `1.0.0-beta.8.33`, tag `baseline-134`, Linux `0caf312`, Reborn `eca7f49`, sequence 9702 (8.32 was not
+published). Search is one page with the keys over it, folding into its results (owner request). Queue redesign: your
+queue plays first, queue edits/Shuffle/Repeat no longer restart the song (`Playback::set_upcoming`), Repeat All
+wraps on Next and Previous restarts the first song, Up Next with history, Move and Select Songs, queue actions for
+albums/artists/genres/folders/search, session schema 3 (queue by reference). Y2Reborn #38 artists of joined tags.
+Details: [Beta 8.33 report](validation/Y2-LINUX-1.0-BETA-8.33.md).
+
+## Y2Linux 1.0 Beta 8.31, Baseline 130 — 2026-10-24 (published)
 
 Release `1.0.0-beta.8.31`, tag `baseline-130`, Linux `b0b8ae6`, Reborn `b07cb9d`, sequence 9500. Settings → Sound →
 Balance (user request): Left +10 dB … Center … Right +10 dB, applied at the live sink gain by lowering the other side,
