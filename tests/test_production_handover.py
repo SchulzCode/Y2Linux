@@ -201,6 +201,20 @@ exit 0
         # With a charger connected the count starts again: it never turns off.
         self.assertIn('if charger_online; then idle=0; else idle=$((idle+1)); fi', script)
 
+    def test_recovery_screen_lines_fit_its_28_columns(self):
+        # #55: the screen cuts every line after 28 characters ("This takes less than a minut").
+        ui = (ROOT/'tools/update/recovery-ui.c').read_text()
+        columns = int(re.search(r'#define COLUMNS (\d+)', ui).group(1))
+        script = (ROOT/'initramfs/production/recovery.sh').read_text()
+        calls = re.findall(r"recovery_screen ((?:'[^']*'|\"[^\"]*\"|\"\$1\")(?: (?:'[^']*'|\"[^\"]*\"))*)", script)
+        self.assertGreater(len(calls), 10)
+        for call in calls:
+            for line in re.findall(r"'([^']*)'|\"([^\"]*)\"", call):
+                text = line[0] or line[1]
+                self.assertLessEqual(len(text), columns, text)
+        for reason in re.findall(r"recovery_stuck '([^']*)'", script):
+            self.assertLessEqual(len(reason), columns, reason)
+
     def test_explicit_rescue_never_mounts_a_filesystem(self):
         result,events,_=self.exercise(cmdline='rdinit=/init y2.rescue=1')
         self.assertEqual(result.returncode,99,result.stderr)

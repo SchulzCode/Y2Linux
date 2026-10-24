@@ -297,11 +297,12 @@ class Switches(unittest.TestCase):
         self.assertIn("'/sys/module/clocks/parameters/deep_audio_entries'", diagnostics)
 
     def test_panel_power_down_is_on_only_for_a_confirmed_panel(self):
-        # #45: armed at application_ready on an ST7701S (confirmed 6456); a
-        # GC9503V or unknown panel keeps the lit panel unless the owner opts in.
+        # #45: armed at application_ready on an ST7701S (confirmed 6456) and a
+        # GC9503V (confirmed on #45/#42, Beta 8.30); an unknown panel keeps the
+        # lit panel unless the owner opts in.
         from y2_platform.common import Context
         from y2_platform.power_features import apply
-        for metadata, expected in (('panel=st7701s', 'Y'), ('panel=gc9503v', 'N'), ('panel=unknown', 'N'), ('', 'N')):
+        for metadata, expected in (('panel=st7701s', 'Y'), ('panel=gc9503v', 'Y'), ('panel=unknown', 'N'), ('', 'N')):
             with tempfile.TemporaryDirectory() as temp:
                 ctx = Context(temp)
                 param = ctx.path('/sys/module/panel/parameters/power_down')
@@ -354,12 +355,12 @@ class Switches(unittest.TestCase):
             self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('Y', '0'))
             self.assertEqual(ctx.json('/data/system/platform/panel.json')['panel'], 'st7701s')
             (params / 'panel_kind').write_text('0')
-            # A GC9503V record is handed over but not armed by default. LK names
+            # A GC9503V is armed too (8.30) and its record handed over. LK names
             # it with lcm=0- too (#45/#46: a cold boot on the reporter's player).
-            self.assertEqual(boot('gc9503v', 'lcm=0-gc9503v_hvga_dsi_vdo_hsd'), ('N', '0'))
+            self.assertEqual(boot('gc9503v', 'lcm=0-gc9503v_hvga_dsi_vdo_hsd'), ('Y', '0'))
             self.assertEqual(ctx.json('/data/system/platform/panel.json')['panel'], 'gc9503v')
-            self.assertEqual(boot('gc9503v', 'lcm=1-gc9503v_hvga_dsi_vdo_hsd'), ('N', '0'))
-            self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('N', '1'))
+            self.assertEqual(boot('gc9503v', 'lcm=1-gc9503v_hvga_dsi_vdo_hsd'), ('Y', '0'))
+            self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('Y', '1'))
         source = StockPanelSuspend.source[StockPanelSuspend.source.index('static int gc9503v_identify('):]
         source = source[:source.index('\n}\n')]
         # LK's identification always wins; the record only fills a boot LK could not read.

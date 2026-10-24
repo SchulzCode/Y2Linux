@@ -42,9 +42,10 @@ FEATURES = {
     # confirmed on (CONFIRMED_PANELS); others turn it on with the override.
     'panel_power_down': ('/sys/module/panel/parameters/power_down', True),
 }
-# The ST7701S was confirmed on the owner's player (2026-10-18, 6456). The
-# GC9503V's stock-packet init has not run on hardware yet.
-CONFIRMED_PANELS = {'st7701s'}
+# The ST7701S was confirmed on the owner's player (2026-10-18, 6456), the
+# GC9503V on samanz's player (#45, Beta 8.7: normal picture through screen-off
+# cycles and deep sleep; #42: overnight drain 30-37 mA -> 1.9 mA).
+CONFIRMED_PANELS = {'st7701s', 'gc9503v'}
 
 
 PANEL_RECORD = '/data/system/platform/panel.json'
