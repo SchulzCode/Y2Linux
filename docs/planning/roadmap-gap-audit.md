@@ -9329,3 +9329,17 @@ memory map, partition, packaging, session or settings change.
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.37** (Baseline 144, sequence 10200).
 
+## BETA-8.38 (Baseline 146) Bluetooth pause and live wave: milestone gap audit — 2026-10-25
+
+**Boundary:** user report 73547e56 (F43, AirPods Pro 2) and the owner's wave request ("all of A, the live wave, not a
+real visualizer yet"), "publish". Change: Reborn only (pause path, wave drawing, audio-thread meter). No kernel,
+platform, memory map, partition, packaging, session or settings change.
+
+| Area | State for Beta 8.38 | Evidence / gap |
+| --- | --- | --- |
+| Bluetooth pause/resume (F43) | CHANGED, EVIDENCE-BASED | report timelines; ear confirmation by the reporter owed |
+| Wave anti-aliasing and levels | NEW, HOST- AND DEVICE-CHECKED | meter tests; previews; device frames, ≈1.7 ms CPU a frame |
+| Build 146 on a player | INSTALLED BEFORE PUBLISH | seq 10310, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.38** (Baseline 146, sequence 10310).
+

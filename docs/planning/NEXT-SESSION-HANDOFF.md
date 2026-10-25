@@ -1,6 +1,12 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-25): BETA 8.37 (BASELINE 144) PUBLISHED — SLEEP TIMER, SEARCH, ONE WAY OF SCROLLING.**
+> **START HERE (2026-10-25): BETA 8.38 (BASELINE 146) PUBLISHED — BLUETOOTH PAUSE (F43), LIVE WAVE.**
+> Seq 10310, Linux `4c79cdb`, Reborn `6c37d9f` (F43 `990443f`). Bluetooth Pause releases the sink, Play reopens
+> (BlueALSA in-place resume silent with AirPods Pro 2; reporter confirmation owed). Wave: ribbon AA + levels from
+> `app/reborn/src/meter.rs` (`Playback::heard`, `Ui::set_heard`, `components::wave_progress(.., levels)`), also on
+> Home's card. Label 145 was a test build. Next free label 147, sequence above 10310.
+>
+> Previous entry: **START HERE (2026-10-25): BETA 8.37 (BASELINE 144) PUBLISHED — SLEEP TIMER, SEARCH, ONE WAY OF SCROLLING.**
 > Seq 10200, Linux `69f9f4c`, Reborn `69232c2`. Sleep timer picker (#29, skins `{sleep}`), search Back one level /
 > empty start / playlists / See All (#44), playlist focus fix, headers stay and only lists scroll everywhere
 > (`components::header_list_*`, `views_search::search_first`, `Ui::group_window`). Spec: Y2Reborn

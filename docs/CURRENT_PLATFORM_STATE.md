@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.37, Baseline 144 — 2026-10-25 (latest, published)
+## Y2Linux 1.0 Beta 8.38, Baseline 146 — 2026-10-25 (latest, published)
+
+Release `1.0.0-beta.8.38`, tag `baseline-146`, Linux `4c79cdb`, Reborn `6c37d9f`, sequence 10310. Reborn only: on
+Bluetooth, Pause releases the output and Play opens a new stream (ledger F43, AirPods Pro 2: in-place BlueALSA
+resumes stayed silent), and the playing wave is anti-aliased and follows the music's loudness (three bands measured
+before the volume, timed by the output's delay), on Now Playing and Home. Details:
+[Beta 8.38 report](validation/Y2-LINUX-1.0-BETA-8.38.md).
+
+## Y2Linux 1.0 Beta 8.37, Baseline 144 — 2026-10-25 (published)
 
 Release `1.0.0-beta.8.37`, tag `baseline-144`, Linux `69f9f4c`, Reborn `69232c2`, sequence 10200. Reborn only:
 sleep timer lengths picked with the wheel (Y2Reborn #29, skins show the timer), the search goes back one level at a
