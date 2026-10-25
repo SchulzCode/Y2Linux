@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.36, Baseline 138 — 2026-10-25 (latest, published)
+## Y2Linux 1.0 Beta 8.37, Baseline 144 — 2026-10-25 (latest, published)
+
+Release `1.0.0-beta.8.37`, tag `baseline-144`, Linux `69f9f4c`, Reborn `69232c2`, sequence 10200. Reborn only:
+sleep timer lengths picked with the wheel (Y2Reborn #29, skins show the timer), the search goes back one level at a
+time, starts empty, finds playlists and shortens long sections with See All (#44), the playlist page keeps its focus
+on screen, and one way of scrolling everywhere (headers stay, only lists scroll). Labels 139–143 were device test
+builds. Details: [Beta 8.37 report](validation/Y2-LINUX-1.0-BETA-8.37.md).
+
+## Y2Linux 1.0 Beta 8.36, Baseline 138 — 2026-10-25 (published)
 
 Release `1.0.0-beta.8.36`, tag `baseline-138`, Linux `8d22ba1`, Reborn `92b9c9a`, sequence 10050. The open GitHub
 issues assessed in the code: own covers for songs without an album (Y2Reborn #43), the playing mark in skins'

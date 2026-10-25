@@ -9314,3 +9314,18 @@ partition or packaging change; settings gain two defaulted fields, session schem
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.36** (Baseline 138, sequence 10050).
 
+## BETA-8.37 (Baseline 144) sleep timer, search, scrolling: milestone gap audit — 2026-10-25
+
+**Boundary:** owner requests (#29 "build it with your list", #44 "do it all as proposed", the playlist focus and
+"headers stay, scroll only the list everywhere"). Change: Reborn only (UI, skins, icon sheet). No kernel, platform,
+memory map, partition, packaging, session or settings change.
+
+| Area | State for Beta 8.37 | Evidence / gap |
+| --- | --- | --- |
+| Sleep timer picker, skins' `{sleep}` | NEW, HOST- AND DEVICE-CHECKED | picker, hours, redraw while paused, Classic |
+| Search Back / empty start / playlists / See All | NEW, HOST- AND DEVICE-CHECKED | owner library and SD playlists |
+| Scrolling (headers stay, lists scroll) | CHANGED, HOST- AND DEVICE-CHECKED | tests; owner checked on device |
+| Build 144 on a player | INSTALLED BEFORE PUBLISH | seq 10200, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.37** (Baseline 144, sequence 10200).
+
