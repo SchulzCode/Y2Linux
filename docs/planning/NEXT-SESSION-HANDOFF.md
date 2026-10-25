@@ -1,6 +1,13 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-25): BETA 8.35 (BASELINE 136) PUBLISHED — LOUDER HEADPHONES, SAFE BY DEFAULT (F45).**
+> **START HERE (2026-10-25): BETA 8.36 (BASELINE 138) PUBLISHED — GITHUB ISSUE FIXES, ONE MENU ORDER, CUSTOMIZE.**
+> Seq 10050, Linux `8d22ba1` (supervisor report `007aa9c`), Reborn `92b9c9a` (fixes `d340263`, redesign `92b9c9a`).
+> Menu rules (owner): menus hold actions, Customize preferences, one order, no new row without removing one — spec
+> Y2Reborn `docs/ui/REBORN-PRODUCT-UI-V4.md` (last section), test `every_menu_lists_its_shared_actions_in_one_order`.
+> Label 137 (seq 10002) was a device test build. Open: haptics (#28, PMIC VIBR driver), AVRCP/Last.fm joined
+> artists, queued songs deleted from storage stay in Up Next. Next free label 139, sequence above 10050.
+>
+> Previous entry: **START HERE (2026-10-25): BETA 8.35 (BASELINE 136) PUBLISHED — LOUDER HEADPHONES, SAFE BY DEFAULT (F45).**
 > Seq 9902, Linux `fc733e8` (docs `cc8e384`), Reborn `e0921a0` (change `5a40103`). Master per level (Low −9, Medium
 > −6, High 0 dB → ≈0.35/0.71/1.73 Vrms), volume in 0.6 dB steps, safe level = the old maximum (−14.7 dBV, safe volume
 > 90/80/67) with *Raise the Volume?* and a 20-h lapse, one-time volume migration, start/BT-return cap. Plan and

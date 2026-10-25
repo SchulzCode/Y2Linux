@@ -13,7 +13,7 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **331**. Explicit scope notices: **228**.
+Indexed pages: **332**. Explicit scope notices: **228**.
 
 ## Entry
 
@@ -356,6 +356,7 @@ Indexed pages: **331**. Explicit scope notices: **228**.
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
+| [Y2Linux 1.0 Beta 8.36 report](validation/Y2-LINUX-1.0-BETA-8.36.md) | Beta 8.36 (Baseline 138): GitHub issue fixes (#43 covers, #60, #32, #40), one menu order and Customize choices, Couldn't Start saves a report |
 | [Y2Linux 1.0 Beta 8.35 report](validation/Y2-LINUX-1.0-BETA-8.35.md) | Beta 8.35 (Baseline 136): louder headphone levels, even volume steps, safe-volume warning (F45) |
 | [Y2Linux 1.0 Beta 8.34 report](validation/Y2-LINUX-1.0-BETA-8.34.md) | Beta 8.34 (Baseline 135): MTP no longer hangs when a computer connects (#61) |
 | [Y2Linux 1.0 Beta 8.33 report](validation/Y2-LINUX-1.0-BETA-8.33.md) | Beta 8.33 (Baseline 134): search as one page, queue redesign (your queue first, no restart on edits, Up Next history, Move, Select Songs, group queue actions), session schema 3 |

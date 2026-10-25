@@ -9296,3 +9296,21 @@ No kernel, platform, memory map, partition or packaging change; session schema u
 | Build 136 on a player | INSTALLED BEFORE PUBLISH | seq 9902, Acknowledged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.35** (Baseline 136, sequence 9902).
+
+## BETA-8.36 (Baseline 138) issue fixes and menu order: milestone gap audit — 2026-10-25
+
+**Boundary:** owner: assess all open GitHub issues in the code, fix, test on the player, then "do the implementation
+and redesign of the UI as proposed", consistent everywhere. Change: Reborn (fixes, menus, Customize, filters, skin
+engine `label_end`) and `reborn-supervise` (report on *Couldn't Start*). No kernel, platform API, memory map,
+partition or packaging change; settings gain two defaulted fields, session schema unchanged.
+
+| Area | State for Beta 8.36 | Evidence / gap |
+| --- | --- | --- |
+| Issue bugs #43, #60, #32, #40 | FIXED, HOST- AND DEVICE-CHECKED | tests fail without the fixes; owner's player with tagged test files |
+| Couldn't Start report | NEW, HOST- AND DEVICE-CHECKED | forced failures on the owner's player; report copied over MTP |
+| Menu order, Customize, genre albums, Album Artists, wheel seek, audiobook Cover Flow | NEW, HOST- AND DEVICE-CHECKED | consistency test; previews 09b, 17g, 17h, 51c, b2; device walk-through |
+| Haptics (#28) | NOT STARTED | needs a vibration-motor driver (PMIC VIBR): new hardware subsystem, own evidence first |
+| Build 138 on a player | INSTALLED BEFORE PUBLISH | seq 10050, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.36** (Baseline 138, sequence 10050).
+

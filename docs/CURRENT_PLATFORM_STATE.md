@@ -1,6 +1,16 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.35, Baseline 136 — 2026-10-25 (latest, published)
+## Y2Linux 1.0 Beta 8.36, Baseline 138 — 2026-10-25 (latest, published)
+
+Release `1.0.0-beta.8.36`, tag `baseline-138`, Linux `8d22ba1`, Reborn `92b9c9a`, sequence 10050. The open GitHub
+issues assessed in the code: own covers for songs without an album (Y2Reborn #43), the playing mark in skins'
+Up Next (#60), Up Next keeps the focused song (#32), joined genres split and joined artists read with commas (#40);
+one menu order everywhere and Customize choices (Cover Flow for albums and audiobooks, Album Artists, a seeking
+Now Playing wheel), genre-limited album pages, Add to Queue in Up Next; the *Couldn't Start* screen saves an error
+report onto Internal Storage. Label 137 (sequence 10002) was a device test build. Details:
+[Beta 8.36 report](validation/Y2-LINUX-1.0-BETA-8.36.md).
+
+## Y2Linux 1.0 Beta 8.35, Baseline 136 — 2026-10-25 (published)
 
 Release `1.0.0-beta.8.35`, tag `baseline-136`, Linux `fc733e8`, Reborn `e0921a0`, sequence 9902. Louder headphones,
 safe by default (report F45, FiiO FH7 too quiet at High): each Headphone Level has its own DAC Master (Low ≈0.35,
