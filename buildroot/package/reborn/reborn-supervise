@@ -7,6 +7,10 @@
 # "Couldn't Start", and Reborn gets a new budget when the SD card is inserted
 # or removed: a file on it can be what Reborn fails on. After ten minutes the
 # light goes out; on battery the player powers off instead of draining.
+#
+# The screen also saves an error report (once a boot) onto Internal Storage, or
+# the SD card: it carries startup-last.jsonl, the only record of why Reborn
+# failed, and USB file transfer runs without Reborn, so a user can send it.
 set -u
 umask 077
 child=
@@ -61,11 +65,22 @@ run() {
     done
     return 1
 }
+# `report save` answers saved:false (exit 0) when that storage is not mounted.
+save_report() {
+    [ ! -e /run/reborn/report-saved ] || return 0
+    : >/run/reborn/report-saved
+    for to in internal sd; do
+        /usr/sbin/y2-platform report save --to "$to" --topic crash 2>/dev/null |
+            grep -q '"saved": true' && return 0
+    done
+}
 run 5 && exit 0
 while :; do
     printf '{"event":"restart_budget_exhausted","attempts":5}\n' >"$LOG"
     /usr/libexec/reborn-splash --failed &
     screen=$!
+    # In the background: the screen shows at once and a stop is not held up.
+    save_report >/dev/null 2>&1 &
     seen=$(card)
     waited=0
     while [ "$(card)" = "$seen" ]; do

@@ -1,6 +1,7 @@
 """reborn-supervise: the bounded restart budget, then the "Couldn't Start" screen
 instead of a stale lit framebuffer (#49), a new budget on an SD card change and a
-power-off on battery. The script runs for real against a fake file tree."""
+power-off on battery, and an error report saved where USB reaches it. The script
+runs for real against a fake file tree."""
 import os
 from pathlib import Path
 import shutil
@@ -30,7 +31,12 @@ class Supervise(unittest.TestCase):
         self.tool('usr/libexec/reborn-splash', 'echo "start $*" >> %s\n'
                   'trap \'echo stop >> %s; exit 0\' TERM\nwhile :; do sleep 0.02; done\n'
                   % (self.root / 'splash.log', self.root / 'splash.log'))
-        self.tool('usr/sbin/y2-platform', 'echo "$*" >> %s\n' % (self.root / 'platform.log'))
+        # `report save` saves only onto the storage named in saves-on, like a mounted one.
+        self.put('saves-on', 'internal\n')
+        self.tool('usr/sbin/y2-platform', 'echo "$*" >> %s\n'
+                  '[ "$1" = report ] || exit 0\n'
+                  '[ "$4" = "$(cat %s)" ] && echo \'{"saved": true}\' || echo \'{"reason": "not_mounted", "saved": false}\'\n'
+                  % (self.root / 'platform.log', self.root / 'saves-on'))
         text = SUPERVISE.read_text()
         for path in ('/data', '/run', '/usr/bin/reborn', '/usr/libexec/reborn-splash', '/usr/sbin/y2-platform',
                      '/sys/block', '/sys/class'):
@@ -41,8 +47,12 @@ class Supervise(unittest.TestCase):
         self.process = None
 
     def tearDown(self):
-        if self.process and self.process.poll() is None:
-            self.process.kill()
+        if self.process:
+            # The whole session: a killed shell would leave the splash running.
+            try:
+                os.killpg(self.process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
             self.process.wait(timeout=5)
 
     def put(self, name, text):
@@ -59,6 +69,12 @@ class Supervise(unittest.TestCase):
     def lines(self, name):
         path = self.root / name
         return path.read_text().splitlines() if path.exists() else []
+
+    def shutdowns(self):
+        return [line for line in self.lines('platform.log') if line.startswith('shutdown')]
+
+    def reports(self):
+        return [line for line in self.lines('platform.log') if line.startswith('report')]
 
     def start(self):
         self.process = subprocess.Popen(SH + [str(self.script)], start_new_session=True)
@@ -77,6 +93,7 @@ class Supervise(unittest.TestCase):
         self.assertEqual(self.process.wait(timeout=10), 0)
         self.assertEqual(self.lines('reborn.log'), ['run'])
         self.assertEqual(self.lines('splash.log'), [])
+        self.assertEqual(self.lines('platform.log'), [])
 
     def test_exhausted_budget_shows_the_screen_and_a_card_change_retries(self):
         self.put('data/updates/state.json', '{"state": "PendingHealth"}')
@@ -92,13 +109,13 @@ class Supervise(unittest.TestCase):
         # An update waiting for its health check is never powered off; the light goes out.
         self.wait(lambda: self.lines('splash.log')[-1:] == ['stop'])
         time.sleep(.3)
-        self.assertEqual(self.lines('platform.log'), [])
+        self.assertEqual(self.shutdowns(), [])
         self.assertEqual(self.lines('sys/class/backlight/y2-backlight/bl_power'), ['4'])
         self.assertIsNone(self.process.poll())
 
     def test_on_battery_the_player_powers_off_after_the_wait(self):
         self.start()
-        self.wait(lambda: self.lines('platform.log') == ['shutdown poweroff --reason service'])
+        self.wait(lambda: self.shutdowns() == ['shutdown poweroff --reason service'])
         self.assertEqual(self.lines('splash.log'), ['start --failed', 'stop'])
         self.assertIn('poweroff', self.lines('data/reborn/logs/supervisor-last.json')[0])
 
@@ -107,7 +124,22 @@ class Supervise(unittest.TestCase):
         self.start()
         self.wait(lambda: self.lines('splash.log') == ['start --failed', 'stop'])
         time.sleep(.3)
-        self.assertEqual(self.lines('platform.log'), [])
+        self.assertEqual(self.shutdowns(), [])
+
+    def test_the_screen_saves_one_report_a_boot_onto_internal_storage(self):
+        self.put('data/updates/state.json', '{"state": "PendingHealth"}')
+        self.start()
+        self.wait(lambda: self.reports() == ['report save --to internal --topic crash'])
+        (self.root / 'sys/block/mmcblk1').mkdir()               # a new budget, the same boot
+        self.wait(lambda: len(self.lines('splash.log')) == 3)
+        time.sleep(.3)
+        self.assertEqual(self.reports(), ['report save --to internal --topic crash'])
+
+    def test_without_internal_storage_the_report_goes_onto_the_sd_card(self):
+        self.put('saves-on', 'sd\n')
+        self.start()
+        self.wait(lambda: self.reports() == ['report save --to internal --topic crash',
+                                             'report save --to sd --topic crash'])
 
     def test_a_stop_ends_the_screen_at_once(self):
         self.start()

@@ -108,6 +108,11 @@ stops in the **rescue** screen, the screen shows the reason (for example, the ro
 partition was not found). Turn the player off with a long Power press and check the flashed
 rows. Nothing is written automatically in rescue.
 
+If the screen says **Couldn't Start**, the player itself started but Reborn did not. From the
+release after Beta 8.35 the player then saves an error report: connect it to a computer and
+send the file from *Internal Storage* (or the SD card) → `Error Reports` with your
+[issue](https://github.com/SchulzCode/Y2Linux/issues). It holds the reason Reborn failed.
+
 ## Developers: SSH over USB
 
 The release's data image contains **no SSH key**, so nobody can log in. To use SSH, build a
