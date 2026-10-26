@@ -22,6 +22,7 @@ FIXTURE = r'''
 #define WRITE_ONCE(v,x) ((v)=(x))
 #define min(a,b) ((a)<(b)?(a):(b))
 #define BIT(n) (1U<<(n))
+#define __iomem
 typedef unsigned long long u64;
 static unsigned regs[1024], operations, fail_at, force_count, starts, adc_fail;
 static int persistent, corrupt_readback, enabled_once;

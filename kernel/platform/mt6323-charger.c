@@ -11,9 +11,11 @@
 #include <linux/mfd/mt6397/core.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/property.h>
+#include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/workqueue.h>
 #include "power-math.h"
@@ -22,6 +24,7 @@
 #include "charge-limits.h"
 #include "source.h"
 #include "charger-idle.h"
+#include "poweroff-policy.h"
 
 /* A wakeup-source reference excludes system sleep, not runtime cpuidle.
  * Keep the charger/watchdog's awake requirement visible to CPU0 DORMANT.
@@ -45,6 +48,7 @@ enum y2_charge_fault {
 struct y2_charger {
 	struct device *dev;
 	struct regmap *map;
+	void __iomem *rgu;
 	struct y2_charge_io io;
 	struct iio_channel *battery, *baton, *isense, *die;
 	struct power_supply *bat, *usb, *input;
@@ -692,6 +696,38 @@ static void y2_charger_shutdown(struct platform_device *pdev)
 	y2_charger_inhibit(c);
 	mutex_unlock(&c->lock);
 }
+/* Runs after every .shutdown (charging already inhibited) and before the
+ * MT6323 BBPU power-off. Interrupts are off; the WACS regmap is IRQ-safe. */
+static int y2_charger_power_off(struct sys_off_data *data)
+{
+	struct y2_charger *c = data->cb_data;
+	unsigned con0;
+	if (regmap_read(c->map, 0, &con0) || !y2_poweroff_to_charger(con0))
+		return NOTIFY_DONE;
+	dev_emerg(c->dev, "charger attached: restart into charging mode\n");
+	writel(Y2_RGU_RESTART_KEY, c->rgu + Y2_RGU_RESTART);
+	writel(y2_rgu_charger_mode(readl(c->rgu + Y2_RGU_MODE)), c->rgu + Y2_RGU_MODE);
+	mdelay(3);	/* stock waits 2.5 ms */
+	writel(Y2_RGU_SWRST_KEY, c->rgu + Y2_RGU_SWRST);
+	mdelay(1000);
+	dev_emerg(c->dev, "charging-mode restart failed; powering off\n");
+	return NOTIFY_DONE;
+}
+static void y2_charger_map_rgu(struct y2_charger *c)
+{
+	struct device_node *np = of_parse_phandle(c->dev->of_node, "innioasis,rgu", 0);
+	struct resource r;
+	int ret = np ? of_address_to_resource(np, 0, &r) : -ENODEV;
+	of_node_put(np);
+	/* The watchdog driver owns the region; this mapping only resets. */
+	if (!ret) c->rgu = devm_ioremap(c->dev, r.start, resource_size(&r));
+	if (c->rgu)
+		ret = devm_register_sys_off_handler(c->dev, SYS_OFF_MODE_POWER_OFF, SYS_OFF_PRIO_HIGH,
+						    y2_charger_power_off, c);
+	else if (!ret)
+		ret = -ENOMEM;
+	if (ret) dev_warn(c->dev, "power off on a charger stays off: %d\n", ret);
+}
 static void y2_charger_release(void *data)
 {
 	struct y2_charger *c = data;
@@ -770,6 +806,7 @@ static int y2_charger_probe(struct platform_device *pdev)
 	c->usb = devm_power_supply_register(dev, &y2_usb_desc, &cfg);
 	if (IS_ERR(c->usb)) return PTR_ERR(c->usb);
 	platform_set_drvdata(pdev, c);
+	y2_charger_map_rgu(c);
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) return irq;
 	ret = devm_request_threaded_irq(dev, irq, NULL, y2_charger_irq, IRQF_ONESHOT, "mt6323-chrdet", c);

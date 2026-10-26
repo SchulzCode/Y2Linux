@@ -327,6 +327,8 @@
                 io-channels = <&pmic_adc 7>, <&pmic_adc 5>, <&pmic_adc 6>, <&pmic_adc 3>;
                 io-channel-names = "battery-voltage", "baton", "isense", "pmic-temperature";
                 power-supplies = <&usb_input>;
+                /* Power off on a charger restarts into LK's charging mode (F46). */
+                innioasis,rgu = <&rgu>;
                 wakeup-source;
             };
             backlight: backlight { compatible = "innioasis,y2-backlight"; };
