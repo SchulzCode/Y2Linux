@@ -1,7 +1,7 @@
 # Y2Linux 1.0 Beta 8.40 (Baseline 154)
 
-Status: **PUBLISHED as GitHub release `baseline-154`** (2026-10-27), not installed on a player before publishing
-(owner: "do the fix and push as 8.40"). Release `1.0.0-beta.8.40`, Reborn `1.0.0-beta.8.40`, kernel
+Status: **PUBLISHED as GitHub release `baseline-154`** (2026-10-27) at the owner's word ("do the fix and push as 8.40"),
+then installed and checked on the owner's player (see [On the player](#on-the-player)). Release `1.0.0-beta.8.40`, Reborn `1.0.0-beta.8.40`, kernel
 `6.18.56-y2linux-1.0.0-beta.8.40`, update sequence 10500, root `2026.08-platform-v1.196`, Linux `1b09963`, Reborn
 `77c54e2`. Built with `tools/production/release.py` (107 s, resumed workspace, update based on `baseline-153`):
 container suite **885 OK**, host suite 912 OK; all seal checks PASS, no MediaTek firmware in any image. Milestone
@@ -38,10 +38,18 @@ audit BETA-8.40 in [roadmap-gap-audit](../planning/roadmap-gap-audit.md).
 
 No platform userspace, Reborn (identity only), memory map, partition or packaging change.
 
-## Open
+## On the player
 
-- Device check: Power Off on a charger, expect the charging screen and the next start's
-  `Y2BOOT: loader metadata valid=1 mode=8 reason=3`; unplug on that screen must still switch off.
+Owner's player (ST7701S panel, stock LK), 8.39 → 8.40 by staged OTA: install 18.1 s, back in ≈70 s, Acknowledged on
+health boot 1, no "stays off" warning from the charger driver.
+
+| Step | Result |
+| --- | --- |
+| Power Off (`y2-platform shutdown poweroff --reason user`) while Charging | Host USB: the gadget left, 5.6 s later the MediaTek preloader (`0e8d:2000`) enumerated for 2.8 s (a restart; before the fix nothing appeared). The owner saw the charging screen |
+| Hold Power on that screen | `Y2BOOT: loader metadata valid=1 mode=8 reason=3 offline=1`, `Y2CHARGE: offline mode=8 reason=3 battery=4117016uV`, `deliberate Power release; normal boot`; the previous boot's log ends with `charger attached: restart into charging mode` |
+| Power Off on the charger again, unplug on the charging screen, plug in again | The next start was `mode=8 reason=1`: a fresh power-on from the plug-in, so the player had really switched off after the unplug |
+
+## Open
 - The reporter (02f46e9f) also sees a Rockbox boot picture before Y2Linux. Y2Linux never writes LOGO or UBOOT, and
   that player's LK is not the stock v3.2.0 one (prefix SHA-256 `bd001af2…`). Advice: flash the stock `logo.bin` to
   LOGO only.

@@ -9369,8 +9369,8 @@ packaging change.
 
 | Area | State for Beta 8.40 | Evidence / gap |
 | --- | --- | --- |
-| Power off with a charger (F46) | CHANGED, STOCK-DERIVED | REA of the FM kernel (`mt_power_off`, `arch_reset`, `wdt_arch_reset`), preloader boot-reason strings and LK (`is_force_boot`, `kernel_power_off_charging_detection`); host test; device check owed |
+| Power off with a charger (F46) | CHANGED, STOCK-DERIVED, DEVICE-CHECKED | REA of the FM kernel (`mt_power_off`, `arch_reset`, `wdt_arch_reset`), preloader boot-reason strings and LK (`is_force_boot`, `kernel_power_off_charging_detection`); host test; owner player `mode=8 reason=3`, unplug switches off |
 | Power off without a charger | UNCHANGED | handler returns before any write; BBPU power-off as before |
-| Build 154 on a player | NOT INSTALLED BEFORE PUBLISH | owner's instruction |
+| Build 154 on a player | INSTALLED AFTER PUBLISH | owner's instruction; seq 10500, Acknowledged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.40** (Baseline 154, sequence 10500).

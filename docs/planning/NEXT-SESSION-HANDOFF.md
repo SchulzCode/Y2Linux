@@ -3,7 +3,8 @@
 > **START HERE (2026-10-27): BETA 8.40 (BASELINE 154) PUBLISHED — POWER OFF ON A CHARGER OPENS THE CHARGING SCREEN (F46).**
 > Seq 10500, Linux `1b09963` (fix `9f933b1`), Reborn `77c54e2` (identity only). `y2_charger_power_off` in
 > `kernel/platform/mt6323-charger.c` + `poweroff-policy.h`: CHRDET at power-off → stock `charger` RGU reset (reason 3)
-> → LK mode 8. NOT device-checked: Power Off on a charger, expect `mode=8 reason=3`, unplug there must switch off.
+> → LK mode 8. Device-checked on the owner's player (8.40 installed, Acknowledged): `mode=8 reason=3`, unplug there
+> switches off (next start `reason=1`).
 > Build gotcha: `Y2_STOCK_PACKAGE=…/Y2Linux/donorSource/y2_v3.2.0_FM-20260813`. Next free label 155, sequence above 10500.
 >
 > Previous entry: **START HERE (2026-10-26): BETA 8.39 (BASELINE 153) PUBLISHED — FOLDERS BY FILE NAME, SHUFFLE ALBUMS, PLAYLIST SORT, 120 000 SONGS.**
