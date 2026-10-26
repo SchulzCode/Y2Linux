@@ -1,6 +1,13 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-25): BETA 8.38 (BASELINE 146) PUBLISHED — BLUETOOTH PAUSE (F43), LIVE WAVE.**
+> **START HERE (2026-10-26): BETA 8.39 (BASELINE 153) PUBLISHED — FOLDERS BY FILE NAME, SHUFFLE ALBUMS, PLAYLIST SORT, 120 000 SONGS.**
+> Seq 10470, Linux `1c599c5`, Reborn `7cf527d` (features `894a99c`, performance `b3534e9`..`7cf527d`). Folders via
+> `reborn_ui::folders::FolderIndex` and `sort::natural_key`; `ShuffleMode` (`settings.shuffle` + `shuffle_albums`,
+> `queue::album_shuffle`); `PlaylistSort` per playlist; `Ui::prewarm` while the screen is off; playlists from the
+> scan (`ScanMetrics::playlists`, worker `Job::Known`, `cache/playlists.json`). Device numbers for 120 829 songs in
+> the Beta 8.39 report. Labels 147–152 were test builds. Next free label 154, sequence above 10470.
+>
+> Previous entry: **START HERE (2026-10-25): BETA 8.38 (BASELINE 146) PUBLISHED — BLUETOOTH PAUSE (F43), LIVE WAVE.**
 > Seq 10310, Linux `4c79cdb`, Reborn `6c37d9f` (F43 `990443f`). Bluetooth Pause releases the sink, Play reopens
 > (BlueALSA in-place resume silent with AirPods Pro 2; reporter confirmation owed). Wave: ribbon AA + levels from
 > `app/reborn/src/meter.rs` (`Playback::heard`, `Ui::set_heard`, `components::wave_progress(.., levels)`), also on

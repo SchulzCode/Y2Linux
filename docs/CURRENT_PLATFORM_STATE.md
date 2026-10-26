@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.38, Baseline 146 — 2026-10-25 (latest, published)
+## Y2Linux 1.0 Beta 8.39, Baseline 153 — 2026-10-26 (latest, published)
+
+Release `1.0.0-beta.8.39`, tag `baseline-153`, Linux `1c599c5`, Reborn `7cf527d`, sequence 10470. Reborn only:
+Folders list folders then songs by file name with numbers in number order and play in that order, Shuffle is Off /
+Songs / Albums, playlists have a Sort, and a 120 000-song card was measured and made fast on the player (folder
+index, lists kept per library and made ahead with the screen off, Cover Flow 71 fps, playlists found by the scan
+instead of a 94-s walk per visit). Details: [Beta 8.39 report](validation/Y2-LINUX-1.0-BETA-8.39.md).
+
+## Y2Linux 1.0 Beta 8.38, Baseline 146 — 2026-10-25 (published)
 
 Release `1.0.0-beta.8.38`, tag `baseline-146`, Linux `4c79cdb`, Reborn `6c37d9f`, sequence 10310. Reborn only: on
 Bluetooth, Pause releases the output and Play opens a new stream (ledger F43, AirPods Pro 2: in-place BlueALSA

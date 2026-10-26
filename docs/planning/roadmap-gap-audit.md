@@ -9343,3 +9343,19 @@ platform, memory map, partition, packaging, session or settings change.
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.38** (Baseline 146, sequence 10310).
 
+## BETA-8.39 (Baseline 153) Folders, Shuffle Albums, playlist Sort, 120 000 songs: milestone gap audit — 2026-10-26
+
+**Boundary:** a Reddit user report (512 GB card, 33 000 → 120 000 MP3s, folder-first) and the owner's "do all phases
+then test on the player, also 120k library", then "yes do all of it" (publish). Change: Reborn only (library views,
+queue shuffle, playlist worker, caches). No kernel, platform, memory map, partition or packaging change; settings
+gain two fields read with defaults.
+
+| Area | State for Beta 8.39 | Evidence / gap |
+| --- | --- | --- |
+| Folders by file name, folder play order | NEW, HOST- AND DEVICE-CHECKED | UI tests; previews; Clubland order and Next on the player |
+| Shuffle Off / Songs / Albums | NEW, HOST- AND DEVICE-CHECKED | core tests; Now Playing step and queue on the player |
+| Playlist Sort | NEW, HOST- AND DEVICE-CHECKED | UI tests; on the player, kept across a restart |
+| 120 000-song library | MEASURED ON THE PLAYER | performance traces before/after; real-size files 500 only; not listened to |
+| Build 153 on a player | INSTALLED BEFORE PUBLISH | seq 10470, Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.39** (Baseline 153, sequence 10470).

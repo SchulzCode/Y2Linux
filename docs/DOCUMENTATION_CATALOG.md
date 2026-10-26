@@ -13,7 +13,7 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **334**. Explicit scope notices: **228**.
+Indexed pages: **335**. Explicit scope notices: **228**.
 
 ## Entry
 
@@ -356,6 +356,7 @@ Indexed pages: **334**. Explicit scope notices: **228**.
 | [Last.fm scrobbling plan](planning/LASTFM-SCROBBLE-PLAN.md) | Last.fm sign-in, scrobble queue and offline plays |
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
+| [Y2Linux 1.0 Beta 8.39 report](validation/Y2-LINUX-1.0-BETA-8.39.md) | Beta 8.39 (Baseline 153): Folders by file name, Shuffle Albums, playlist Sort, a 120 000-song card measured and made fast |
 | [Y2Linux 1.0 Beta 8.38 report](validation/Y2-LINUX-1.0-BETA-8.38.md) | Beta 8.38 (Baseline 146): Bluetooth sound after Pause → Play (F43), a smooth wave that moves with the music |
 | [Y2Linux 1.0 Beta 8.37 report](validation/Y2-LINUX-1.0-BETA-8.37.md) | Beta 8.37 (Baseline 144): sleep timer lengths (#29), search Back/See All/playlists (#44), playlist focus, headers stay and only lists scroll |
 | [Y2Linux 1.0 Beta 8.36 report](validation/Y2-LINUX-1.0-BETA-8.36.md) | Beta 8.36 (Baseline 138): GitHub issue fixes (#43 covers, #60, #32, #40), one menu order and Customize choices, Couldn't Start saves a report |
