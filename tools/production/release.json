@@ -1,10 +1,10 @@
 {
   "release_version": "1.0.0-beta.8.39",
-  "rootfs_version": "2026.08-platform-v1.191",
+  "rootfs_version": "2026.08-platform-v1.192",
   "build_id": "Y2LINUX-1.0.0-BETA-8.39",
   "platform_api_version": 1,
   "feature_contract_version": 2,
   "battery_profile_schema": 1,
   "low_battery_policy_schema": 2,
-  "update_sequence": 10430
+  "update_sequence": 10440
 }
