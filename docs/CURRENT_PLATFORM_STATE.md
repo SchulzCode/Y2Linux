@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.39, Baseline 153 — 2026-10-26 (latest, published)
+## Y2Linux 1.0 Beta 8.40, Baseline 154 — 2026-10-27 (latest, published)
+
+Release `1.0.0-beta.8.40`, tag `baseline-154`, Linux `1b09963`, Reborn `77c54e2`, sequence 10500. Kernel only: power
+off with a charger attached restarts into LK's charging mode (stock `charger` reset: WDT without AUTO_RESTART, boot
+reason 3 → mode 8 → offline charging) instead of staying off and never charging (ledger F46, install 02f46e9f and the
+fleet's power journals). Not yet checked on a player. Details:
+[Beta 8.40 report](validation/Y2-LINUX-1.0-BETA-8.40.md).
+
+## Y2Linux 1.0 Beta 8.39, Baseline 153 — 2026-10-26 (published)
 
 Release `1.0.0-beta.8.39`, tag `baseline-153`, Linux `1c599c5`, Reborn `7cf527d`, sequence 10470. Reborn only:
 Folders list folders then songs by file name with numbers in number order and play in that order, Shuffle is Off /

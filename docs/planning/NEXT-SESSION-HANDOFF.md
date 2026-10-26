@@ -1,6 +1,12 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-26): BETA 8.39 (BASELINE 153) PUBLISHED — FOLDERS BY FILE NAME, SHUFFLE ALBUMS, PLAYLIST SORT, 120 000 SONGS.**
+> **START HERE (2026-10-27): BETA 8.40 (BASELINE 154) PUBLISHED — POWER OFF ON A CHARGER OPENS THE CHARGING SCREEN (F46).**
+> Seq 10500, Linux `1b09963` (fix `9f933b1`), Reborn `77c54e2` (identity only). `y2_charger_power_off` in
+> `kernel/platform/mt6323-charger.c` + `poweroff-policy.h`: CHRDET at power-off → stock `charger` RGU reset (reason 3)
+> → LK mode 8. NOT device-checked: Power Off on a charger, expect `mode=8 reason=3`, unplug there must switch off.
+> Build gotcha: `Y2_STOCK_PACKAGE=…/Y2Linux/donorSource/y2_v3.2.0_FM-20260813`. Next free label 155, sequence above 10500.
+>
+> Previous entry: **START HERE (2026-10-26): BETA 8.39 (BASELINE 153) PUBLISHED — FOLDERS BY FILE NAME, SHUFFLE ALBUMS, PLAYLIST SORT, 120 000 SONGS.**
 > Seq 10470, Linux `1c599c5`, Reborn `7cf527d` (features `894a99c`, performance `b3534e9`..`7cf527d`). Folders via
 > `reborn_ui::folders::FolderIndex` and `sort::natural_key`; `ShuffleMode` (`settings.shuffle` + `shuffle_albums`,
 > `queue::album_shuffle`); `PlaylistSort` per playlist; `Ui::prewarm` while the screen is off; playlists from the

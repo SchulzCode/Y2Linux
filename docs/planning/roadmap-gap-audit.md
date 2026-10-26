@@ -9359,3 +9359,18 @@ gain two fields read with defaults.
 | Build 153 on a player | INSTALLED BEFORE PUBLISH | seq 10470, Acknowledged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.39** (Baseline 153, sequence 10470).
+
+## BETA-8.40 (Baseline 154) power off on a charger: milestone gap audit — 2026-10-27
+
+**Boundary:** user report 149a9d81 (install 02f46e9f: "will not charge while the power is off", ledger F46) and the
+owner's "do the fix for our software and push as 8.40". Change: kernel power-off path only (charger driver
+sys-off handler, charger DT node gains an RGU reference). No platform userspace, Reborn, memory map, partition or
+packaging change.
+
+| Area | State for Beta 8.40 | Evidence / gap |
+| --- | --- | --- |
+| Power off with a charger (F46) | CHANGED, STOCK-DERIVED | REA of the FM kernel (`mt_power_off`, `arch_reset`, `wdt_arch_reset`), preloader boot-reason strings and LK (`is_force_boot`, `kernel_power_off_charging_detection`); host test; device check owed |
+| Power off without a charger | UNCHANGED | handler returns before any write; BBPU power-off as before |
+| Build 154 on a player | NOT INSTALLED BEFORE PUBLISH | owner's instruction |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.40** (Baseline 154, sequence 10500).
