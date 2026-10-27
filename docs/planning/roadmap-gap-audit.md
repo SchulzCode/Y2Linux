@@ -9374,3 +9374,22 @@ packaging change.
 | Build 154 on a player | INSTALLED AFTER PUBLISH | owner's instruction; seq 10500, Acknowledged |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.40** (Baseline 154, sequence 10500).
+
+## HAPTICS (#28) vibration motor: entry gap audit — 2026-10-27
+
+**Boundary:** owner: research the internal speaker and haptics with REA and the stock sources, then "start with
+haptics". New hardware subsystem (MT6323 VIBR LDO as a force-feedback input), so this entry precedes the code.
+Evidence: REA of the stock FM kernel (`vib_mod_init`, `vibr_power_set`, `vibrator_enable`, `dct_pmic_VIBR_enable/sel`,
+cust `{50 ms, 9, 5}`), the golden comparison row `vibr_ther_shen_en` and upstream `mt6323-regulator`
+(`docs/planning/SPEAKER-HAPTICS-PLAN.md`). No device evidence yet: the motor has never run under Linux.
+
+| Area | State before the change | Plan / gap |
+| --- | --- | --- |
+| VIBR rail | NOT DECLARED; writes refused by the PWRAP policy | `ldo_vibr` 1.8..2.8 V; policy admits 0x542 enable + thermal bit, 0x544 selectors 3..5 only (stock 2.8 V is the ceiling) |
+| VIBR thermal shutdown | MISMATCH vs stock (golden row) | set once at boot by pmic-lowpower, never cleared (transport guard) |
+| Motor driver | NOT BUILT | upstream `regulator-haptic` (`CONFIG_INPUT_REGULATOR_HAPTIC`), suspend switches it off |
+| Reborn | NO HAPTICS | Customize > Haptics Off/Light/Strong (default Off); one 30 ms tick per handled wheel step/button on a lit screen, ≥45 ms apart |
+| Device checks | OWED | motor runs; Light/Strong felt; fast spin responsive; rail off after sleep; overnight drain unchanged |
+
+**Gate decision:** ready for a host build and an owner-installed test build; not release-qualified until the device
+checks pass. Speaker (no issue yet) stays planning only.
