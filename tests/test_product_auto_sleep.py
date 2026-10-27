@@ -68,9 +68,9 @@ class ProductAutoSleep(unittest.TestCase):
         self.calls.append(argv)
         return {'ok': True, 'output': ''}
 
-    def application(self, ctx, op):
-        self.rpc.append(op)
-        return {'sleep_ready': True, 'screen_off': op == 'sleep_prepare'}
+    def application(self, ctx, op, **fields):
+        self.rpc.append(op + (':dark' if fields.get('dark') else ''))
+        return {'sleep_ready': True, 'screen_off': op == 'sleep_prepare' or fields.get('dark') is True}
 
     def irqs(self):
         self.write('/proc/interrupts', f'  66: {self.rtc} 0 mt6323 20 Level mt6397-rtc\n'
@@ -302,19 +302,19 @@ class ProductAutoSleep(unittest.TestCase):
                 raise OSError(errno.EINVAL, 'cable event')
             original_write(ctx, name, value)
 
-        def preparation(ctx, op):
+        def preparation(ctx, op, **fields):
             if op == 'sleep_prepare':
                 self.write('/sys/power/wakeup_count', '9')
                 self.write('/sys/class/power_supply/y2-usb-presence/online', '1')
                 self.write('/sys/class/power_supply/BAT0/status', 'Charging')
-            return self.application(ctx, op)
+            return self.application(ctx, op, **fields)
 
         with patch.object(pm, 'control_write', side_effect=kernel_control), \
                 patch('y2_platform.suspend_record.application_rpc', side_effect=preparation):
             self.assertEqual(self.run_sleep(lambda ctx: self.fail('slept with a cable')), 2)
         receipt = self.ctx.json('/data/system/platform/suspend-last.json')
         self.assertEqual(receipt['product']['reason'], 'charger_or_usb_active')
-        self.assertEqual(self.rpc, ['sleep_prepare', 'sleep_restore'])
+        self.assertEqual(self.rpc, ['sleep_prepare', 'sleep_restore:dark'])
 
     def test_continuous_events_refuse_after_bounded_retries(self):
         stores = []
@@ -331,8 +331,23 @@ class ProductAutoSleep(unittest.TestCase):
             self.assertEqual(self.run_sleep(lambda ctx: self.fail('entered while busy')), 2)
         self.assertEqual(len(stores), pm.STALE_COUNT_RETRIES + 1)
         receipt = self.ctx.json('/data/system/platform/suspend-last.json')
+        # A kernel wakeup source, not a person: the screen stays dark (F47).
+        self.assertEqual(receipt['product']['reason'], 'wakeup_count_busy')
+        self.assertEqual(self.rpc, ['sleep_prepare', 'sleep_restore:dark'])
+
+    def test_screen_woken_before_preparation_cancels_without_a_restore(self):
+        # F48: Power darkened the screen with the request; a second press woke
+        # it before the platform prepared. Reborn refuses; nothing to restore.
+        def woken(ctx, op, **fields):
+            self.rpc.append(op)
+            raise ValueError('wake_event_in_progress')
+        with patch('y2_platform.suspend_record.application_rpc', side_effect=woken):
+            self.assertEqual(self.run_sleep(lambda ctx: self.fail('slept after a wake')), 2)
+        receipt = self.ctx.json('/data/system/platform/suspend-last.json')
         self.assertEqual(receipt['product']['reason'], 'wake_event_in_progress')
-        self.assertEqual(self.rpc, ['sleep_prepare', 'sleep_restore'])
+        self.assertEqual(self.rpc, ['sleep_prepare'])
+        self.assertFalse(self.ctx.json(pm.GUARD)['pending'])
+        self.assertEqual(self.calls, [])  # radios never quiesced
 
     def test_kernel_busy_restores_once_without_claiming_sleep_or_retrying(self):
         calls = []
@@ -345,7 +360,9 @@ class ProductAutoSleep(unittest.TestCase):
         self.assertEqual(receipt['product']['reason'], 'kernel_suspend_refused')
         self.assertFalse(receipt['product']['kernel_completed'])
         self.assertNotIn('cycles', receipt)
-        self.assertEqual(self.rpc, ['sleep_prepare', 'sleep_restore'])
+        # F47: the kernel refused (UART busy on a player); nobody woke it.
+        self.assertEqual(self.rpc, ['sleep_prepare', 'sleep_restore:dark'])
+        self.assertTrue(receipt['reborn_restore'])
         self.assertFalse(self.ctx.json(pm.GUARD)['pending'])
 
     def test_power_press_during_preparation_cancels_entry_and_restores(self):
@@ -459,7 +476,7 @@ class ProductAutoSleep(unittest.TestCase):
         receipt = self.ctx.json('/data/system/platform/suspend-last.json')
         self.assertEqual(receipt['product']['reason'], 'kernel_prepare_refused')
         self.assertFalse(self.ctx.json(pm.GUARD)['pending'])
-        self.assertEqual(self.rpc, ['sleep_prepare', 'sleep_restore'])
+        self.assertEqual(self.rpc, ['sleep_prepare', 'sleep_restore:dark'])
         self.write('/sys/firmware/y2_pm/backstop_s', 'provider=1 armed_s=0 running=0')
         with self.assertRaisesRegex(pm.Refused, 'kernel_prepare_retry_wait'):
             pm.admission(self.ctx)
@@ -562,7 +579,7 @@ class ProductAutoSleep(unittest.TestCase):
         os.mkfifo(path)
         holder = os.open(path, os.O_RDWR | os.O_NONBLOCK)
         try:
-            with self.assertRaisesRegex(pm.Refused, 'wake_event_in_progress'):
+            with self.assertRaisesRegex(pm.Refused, 'wakeup_count_busy'):
                 pm.wakeup_count(self.ctx, timeout=.02)
         finally:
             os.close(holder)

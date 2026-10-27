@@ -213,7 +213,7 @@ class SleepProduct(unittest.TestCase):
         # of it waiting for Wi-Fi/Bluetooth firmware and calibration.
         source = (ROOT / 'tools/platform/y2_platform/product_sleep.py').read_text()
         restore = source[source.index('# Keep every operation lock held until radios and Reborn restore.'):]
-        self.assertLess(restore.index('screen = screen_first(ctx)'), restore.index("record(ctx, 'restoring_radios'"))
+        self.assertLess(restore.index('screen = screen_first(ctx, dark)'), restore.index("record(ctx, 'restoring_radios'"))
         self.assertLess(restore.index("record(ctx, 'restoring_radios'"), restore.index("'on-runtime'"))
         self.assertIn('restore_ack=screen', restore)
 

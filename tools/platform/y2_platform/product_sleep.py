@@ -301,11 +301,12 @@ def wait_for_application(ctx, previous_irqs, wait_s=APPLICATION_READY_WAIT_S):
             raise Refused('wake_event_in_progress')
 
 
-def screen_first(ctx):
-    """Ask Reborn to light the screen before the radios are restored."""
+def screen_first(ctx, dark=False):
+    """Ask Reborn to restore before the radios are; `dark` keeps the screen
+    off (a refused sleep nobody woke, F47)."""
     from .suspend_record import application_rpc
     try:
-        return application_rpc(ctx, 'sleep_restore')
+        return application_rpc(ctx, 'sleep_restore', **({'dark': True} if dark else {}))
     except (OSError, ValueError):
         return None
 
@@ -355,7 +356,7 @@ def wakeup_count(ctx, timeout=2):
     if signal.getitimer(signal.ITIMER_REAL)[0]:
         raise Refused('sleep_deadline_in_progress')
     def expired(signum, frame):
-        raise Refused('wake_event_in_progress')
+        raise Refused('wakeup_count_busy')
     old = signal.signal(signal.SIGALRM, expired)
     signal.setitimer(signal.ITIMER_REAL, timeout)
     try:
@@ -383,6 +384,7 @@ def execute_owned(ctx, fd, enter, locks):
     pending = False
     attempted = False
     restored_kernel = False
+    refusal = None
     held = {}
     try:
         held = locks.enter_context(operation_locks(ctx))
@@ -440,7 +442,7 @@ def execute_owned(ctx, fd, enter, locks):
                 # so a real wake still cancels entry.
                 stale_counts += 1
                 if stale_counts > STALE_COUNT_RETRIES:
-                    raise Refused('wake_event_in_progress') from error
+                    raise Refused('wakeup_count_busy') from error
                 count = None
                 continue
             stale_counts = 0
@@ -488,9 +490,12 @@ def execute_owned(ctx, fd, enter, locks):
             count = None
     except Refused as error:
         result = 2
-        record(ctx, 'product_refused', result, reason=str(error))
-        # No kernel call followed a rejected wake-count handshake.
-        if str(error) == 'wake_event_in_progress':
+        refusal = str(error)
+        record(ctx, 'product_refused', result, reason=refusal)
+        # No kernel call followed a rejected wake-count handshake. Only
+        # `wake_event_in_progress` is a Power/RTC wake; `wakeup_count_busy`
+        # is a kernel wakeup source that did not settle.
+        if refusal in ('wake_event_in_progress', 'wakeup_count_busy'):
             restored_kernel = True
     except (OSError, ValueError, RuntimeError) as error:
         result = 1
@@ -505,7 +510,13 @@ def execute_owned(ctx, fd, enter, locks):
             # 4fed1b6a: nothing durable followed `kernel_resumed`; these two
             # light rows say whether a stall is in the screen restore or after it.
             progress(ctx, 'screen_restoring')
-            screen = screen_first(ctx)
+            # F47: a refusal leaves the screen dark (it went dark with the
+            # request); only a wake — Power or RTC during the preparation, or
+            # a real return from the kernel — lights it. Lit after every
+            # refusal, a kernel that refused each sleep turned the screen on
+            # every two minutes for hours. Failures still light it to explain.
+            dark = result == 2 and refusal != 'wake_event_in_progress'
+            screen = screen_first(ctx, dark)
             progress(ctx, 'screen_restored' if screen else 'screen_restore_failed')
             # F24: nothing sleeps any more. A Play right after waking took
             # Reborn's shared activity lease and was refused as busy (ALSA
@@ -521,7 +532,7 @@ def execute_owned(ctx, fd, enter, locks):
                             command(ctx, ['/usr/sbin/y2-radio', radio, 'on-runtime'])
             except (OSError, ValueError, RuntimeError):
                 result = 1
-            value = record(ctx, 'complete_result_' + str(result), result, restore_ack=screen)
+            value = record(ctx, 'complete_result_' + str(result), result, restore_ack=screen, dark=dark)
             if value.get('result'):
                 result = value['result']
             if result == 0:
