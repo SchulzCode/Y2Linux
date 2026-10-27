@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.40, Baseline 154 — 2026-10-27 (latest, published)
+## Y2Linux 1.0 Beta 8.41, Baseline 159 — 2026-10-27 (latest, published)
+
+Release `1.0.0-beta.8.41`, tag `baseline-159`, Linux `af69742`, Reborn `1358702`, sequence 10700. Internal speaker
+(OCA72559/AW87559 with stock tables, stock speaker route, exclusive outputs), headphone detection (200 ms detector poll
+while the codec is powered, no codec IRQ), Reborn Output > Speaker with mono downmix, plug moves to headphones and
+unplug pauses; haptic feedback (VIBR regulator-haptic, Customize > Haptics, 60 ms per button press as stock). Test
+builds 155–158 on the owner's player. Details: [Beta 8.41 report](validation/Y2-LINUX-1.0-BETA-8.41.md).
+
+## Y2Linux 1.0 Beta 8.40, Baseline 154 — 2026-10-27 (published)
 
 Release `1.0.0-beta.8.40`, tag `baseline-154`, Linux `1b09963`, Reborn `77c54e2`, sequence 10500. Kernel only: power
 off with a charger attached restarts into LK's charging mode (stock `charger` reset: WDT without AUTO_RESTART, boot

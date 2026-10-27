@@ -1,6 +1,16 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-27): BETA 8.40 (BASELINE 154) PUBLISHED — POWER OFF ON A CHARGER OPENS THE CHARGING SCREEN (F46).**
+> **START HERE (2026-10-27): BETA 8.41 (BASELINE 159) PUBLISHED — INTERNAL SPEAKER, HEADPHONE DETECTION, HAPTICS (#28).**
+> Seq 10700, Linux `af69742`, Reborn `1358702`. Plan/REA: `docs/planning/SPEAKER-HAPTICS-PLAN.md`; report BETA-8.41.
+> Kernel: VIBR `regulator-haptic` (policy 0x542 0x8004 thermal never cleared, 0x544 selectors 3..5), `kernel/audio/aw87559.c`
+> (registers without an answer so headphones never depend on it), card Speaker pin + `y2_output_put` rules, overlay 0030
+> speaker route in `y2_hp_level_write` and `y2_jack_poll` (200 ms, `__pm_runtime_put_autosuspend`: 6.18's
+> `pm_runtime_put_autosuspend` marks busy). The audio I2C bus is 0 or 1 by probe order: find `*-0030`. Reborn: `jack.rs`,
+> `SinkSpec.speaker`, native route 2, `VolumeRamp::mono`, jack changes through `with_model_action`, `rebornctl jack in|out`.
+> Device path test: `/data/speaker-paths.sh` on the player (headphones out). Owed: overnight drain, a real plug on 159,
+> GitHub #28 reply. Next free label 160, sequence above 10700.
+>
+> Previous entry: **START HERE (2026-10-27): BETA 8.40 (BASELINE 154) PUBLISHED — POWER OFF ON A CHARGER OPENS THE CHARGING SCREEN (F46).**
 > Seq 10500, Linux `1b09963` (fix `9f933b1`), Reborn `77c54e2` (identity only). `y2_charger_power_off` in
 > `kernel/platform/mt6323-charger.c` + `poweroff-policy.h`: CHRDET at power-off → stock `charger` RGU reset (reason 3)
 > → LK mode 8. Device-checked on the owner's player (8.40 installed, Acknowledged): `mode=8 reason=3`, unplug there

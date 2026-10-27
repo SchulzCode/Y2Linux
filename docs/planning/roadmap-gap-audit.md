@@ -9414,3 +9414,21 @@ never reported) and `docs/planning/SPEAKER-HAPTICS-PLAN.md`. The speaker has nev
 
 **Gate decision:** ready for a host build and an owner-installed test build together with the haptics change; not
 release-qualified until the device checks pass.
+
+## BETA-8.41 (Baseline 159) internal speaker and haptic feedback: milestone gap audit — 2026-10-27
+
+**Boundary:** the HAPTICS (#28) and SPEAKER entry audits above, test builds 155–158 on the owner's player, then the
+owner's "do the build and publish it". Change: kernel (VIBR rail and policy, regulator-haptic, AW87559 driver, card
+Speaker pin and exclusivity, codec speaker route and jack poll in overlay 0030, DT, validator) and Reborn (haptics,
+jack, speaker output, mono gain, `rebornctl jack`). No memory map, partition or packaging change; settings gain
+`haptics` and `speaker` read with defaults.
+
+| Area | State for Beta 8.41 | Evidence / gap |
+| --- | --- | --- |
+| Haptics (#28) | NEW, STOCK-DERIVED, DEVICE-CHECKED | motor felt at Light/Strong (155); 60 ms stock tick per press chosen by the owner; overnight drain owed |
+| Speaker | NEW, STOCK-DERIVED, DEVICE-CHECKED | OCA72559 answers; stock route registers live; owner heard it; long listening and drain owed |
+| Headphone detection | NEW, DEVICE-CHECKED | real plugs 1 → 0 → 1, kernel speaker-off on plug while playing; detection only while the codec is powered (as stock) |
+| Output paths | DEVICE-CHECKED (simulated jack via `rebornctl jack`) | nine paths on 158, all as intended; "Starting" hang of 157 fixed |
+| Build 159 on a player | NOT INSTALLED BEFORE PUBLISH | test build 158 (same code apart from `rebornctl jack` flag parsing) installed |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.41** (Baseline 159, sequence 10700).

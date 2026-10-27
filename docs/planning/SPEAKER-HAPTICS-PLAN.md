@@ -1,5 +1,9 @@
 # Internal speaker and haptic feedback — research and plan
 
+**Status:** implemented and published in Beta 8.41 (Baseline 159): haptics as stock's key press (60 ms per button,
+no wheel ticks, owner's choice), speaker steps S1–S3 as planned (jack by polling, no IRQ). See the
+[Beta 8.41 report](../validation/Y2-LINUX-1.0-BETA-8.41.md). The sections below are the research as written.
+
 Research 2026-10-27 for the next update. Sources: the stock FM kernel through REA
 (`out/rea/fm-kernel.elf`, sha256 `329466b3…`, Ghidra 12.1.2 + llvm-objdump), the
 stock `system.img` (MyLauncher.apk strings only), the donor tree
