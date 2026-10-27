@@ -23,6 +23,7 @@ typedef uint64_t u64;
 #define __pa_symbol(x) ((uintptr_t)(x))
 #define dsb(x) ((void)0)
 #define pr_info(...) ((void)0)
+#define pr_warn(...) ((void)0)
 #define raw_spin_lock_irqsave(p,f) do { assert(!*(p)); *(p)=1; (f)=0; } while(0)
 #define raw_spin_unlock_irqrestore(p,f) do { assert(*(p)); *(p)=0; (void)(f); } while(0)
 enum { Y2_PM_TIMER_RESTORED, Y2_PM_CIRQ_REPLAYED, Y2_PM_CIRQ_CLONED,
@@ -78,6 +79,9 @@ static int y2_spm_finish(unsigned long arg) { return 0; }
  * restored before the normal PCM; the golden capture is read-only. */
 static int vproc_armed;
 static void y2_golden_capture(void) { }
+/* F47: UART-busy dump/retry (y2_spm_uart_busy) is exercised in test_sleep_relight. */
+static unsigned uart_busy_recoveries;
+static bool y2_spm_uart_busy(void){return false;}
 static void y2_golden_entry_apply(void){}
 static void y2_golden_entry_restore(void){}
 static void y2_pmic_golden_capture(void){}

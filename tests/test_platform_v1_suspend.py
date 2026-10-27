@@ -61,6 +61,7 @@ static void y2_pm_backstop_pause(bool pause){}
 #define raw_spin_lock_irqsave(lock,f) do{assert(!*(lock));*(lock)=1;f=0;}while(0)
 #define raw_spin_unlock_irqrestore(lock,f) do{assert(*(lock));*(lock)=0;(void)f;}while(0)
 #define pr_info(...) do{}while(0)
+#define pr_warn(...) do{}while(0)
 typedef int suspend_state_t;typedef uint64_t u64;
 static unsigned biureg=0x12345678,spmregs[1024];
 static void *spm_base=spmregs,*spm_biu=&biureg;
@@ -96,6 +97,9 @@ static void y2_spm_journal_snapshot(void){}
  * that armed it; the golden capture is read-only. */
 static unsigned vproc_begins,vproc_ends,pmic_begins,pmic_ends,wrap_gated,wrap_gates;
 static void y2_golden_capture(void){}
+/* F47: UART-busy dump/retry (y2_spm_uart_busy) is exercised in test_sleep_relight. */
+static unsigned uart_busy_recoveries;
+static bool y2_spm_uart_busy(void){return false;}
 static void y2_golden_entry_apply(void){}
 static void y2_golden_entry_restore(void){}
 static void y2_pmic_golden_capture(void){assert(!wrap_gated);}

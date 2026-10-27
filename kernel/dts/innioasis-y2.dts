@@ -128,6 +128,8 @@
         i2c1_state: i2c1-state { groups = "i2c1"; function = "i2c1"; };
         sd_state: sd-state { groups = "msdc1"; function = "msdc1"; };
         lcm_state: lcm-state { groups = "lcm-reset"; function = "lcm-reset"; };
+        uart0_state: uart0-state { groups = "uart0-rx"; function = "uart0"; };
+        uart0_sleep_state: uart0-sleep-state { groups = "uart0-rx"; function = "uart0-sleep"; };
     };
     /* GPIO controls reproduce stock 20 -> 18 -> 15 order. Dependency refs
      * serialize regulator_bulk_enable and reverse disable. GPIO rail voltages
@@ -277,6 +279,9 @@
         reg = <0x11002000 0x400>;
         interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
         clocks = <&uart_clk>;
+        /* F47: RX pad to GPIO in system sleep, as stock mtk_uart_suspend. */
+        pinctrl-names = "default", "sleep";
+        pinctrl-0 = <&uart0_state>; pinctrl-1 = <&uart0_sleep_state>;
     };
     usb_input: usb@11200000 {
         /* Y2 peripheral-only MUSB controller and integrated PHY.

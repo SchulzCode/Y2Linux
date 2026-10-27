@@ -30,12 +30,19 @@ static const unsigned nav_pins[] = {6, 7, 9, 10, 54}, wheel_pins[] = {55}, pmic_
 		      lcm_pins[] = {112};
 static const unsigned i2c0_pins[] = {84, 85}, i2c1_pins[] = {86, 87},
 		      sd_pins[] = {124, 125, 126, 127, 128, 129}, audio_pins[] = {43, 44, 46};
+/* F47: UART0 (console) URXD1. Stock mtk_uart_suspend (FM kernel 0xc038af20)
+ * switches a UART's RX pad to GPIO mode 0 before sleep and mtk_uart_switch_to_rx
+ * restores mode 1; a live RX pad otherwise keeps back the SPM's UART ACK. */
+static const unsigned uart0_rx_pins[] = {108};
 static const char *const group_names[] = {"navigation", "wheel-irq", "pmic-irq", "lcm-reset",
-					  "i2c0",	"i2c1",	     "msdc1", "i2s-lk"};
+					  "i2c0",	"i2c1",	     "msdc1", "i2s-lk", "uart0-rx"};
 static const unsigned *const group_pins[] = {nav_pins,	wheel_pins, pmic_pins, lcm_pins,
-					     i2c0_pins, i2c1_pins,  sd_pins, audio_pins};
-static const unsigned group_counts[] = {5, 1, 1, 1, 2, 2, 6, 3};
-static const char *const function_names[] = {"gpio", "eint", "lcm-reset", "i2c0", "i2c1", "msdc1", "i2s-lk"};
+					     i2c0_pins, i2c1_pins,  sd_pins, audio_pins, uart0_rx_pins};
+static const unsigned group_counts[] = {5, 1, 1, 1, 2, 2, 6, 3, 1};
+#define Y2_UART0_RX 7
+#define Y2_UART0_RX_SLEEP 8
+static const char *const function_names[] = {"gpio", "eint", "lcm-reset", "i2c0", "i2c1", "msdc1", "i2s-lk",
+					     "uart0", "uart0-sleep"};
 static int group_count(struct pinctrl_dev *p) { return ARRAY_SIZE(group_names); }
 static const char *group_name(struct pinctrl_dev *p, unsigned n) { return group_names[n]; }
 static int group_get(struct pinctrl_dev *p, unsigned n, const unsigned **pins, unsigned *num)
@@ -48,7 +55,7 @@ static int func_count(struct pinctrl_dev *p) { return ARRAY_SIZE(function_names)
 static const char *func_name(struct pinctrl_dev *p, unsigned n) { return function_names[n]; }
 static int func_groups(struct pinctrl_dev *p, unsigned n, const char *const **groups, unsigned *num)
 {
-	*groups = group_names + (n == 0 ? 0 : n == 1 ? 1 : n + 1);
+	*groups = group_names + (n == 0 ? 0 : n == 1 ? 1 : n == Y2_UART0_RX_SLEEP ? 8 : n + 1);
 	*num = n == 1 ? 2 : 1;
 	return 0;
 }
@@ -69,7 +76,8 @@ static int pin_mux(struct pinctrl_dev *pc, unsigned f, unsigned g)
 {
 	struct y2_pins *p = pinctrl_dev_get_drvdata(pc);
 	unsigned i;
-	if ((f == 0 && g != 0) || (f == 1 && (g < 1 || g > 2)) || (f >= 2 && g != f + 1))
+	if ((f == 0 && g != 0) || (f == 1 && (g < 1 || g > 2)) ||
+	    (f == Y2_UART0_RX_SLEEP && g != 8) || (f >= 2 && f != Y2_UART0_RX_SLEEP && g != f + 1))
 		return -EINVAL;
 	for (i = 0; i < group_counts[g]; i++) {
 		unsigned pin = group_pins[g][i];
@@ -81,7 +89,7 @@ static int pin_mux(struct pinctrl_dev *pc, unsigned f, unsigned g)
                 !!(readl(p->base + 0x200 + (pin / 16) * 16) & BIT(pin % 16)),
                 !!(readl(p->base + 0x500 + (pin / 16) * 16) & BIT(pin % 16)),
                 readl(p->base + (pin <= 85 ? 0x900 : 0x910)));
-		if (f < 2)
+		if (f < 2 || f == Y2_UART0_RX_SLEEP)
 			pin_bit(p, 0, pin, false);
 		/* EINT25/55 are already selected by LK on tested donor hardware.
 		 * Do not assume a universal GPIO->EINT mux function number. */
@@ -92,7 +100,10 @@ static int pin_mux(struct pinctrl_dev *pc, unsigned f, unsigned g)
 			return dev_err_probe(p->gpio.parent, -EINVAL,
 					     "I2S pin%u lacks inherited peripheral mux\n", pin);
 		if (f != 1 && f != 6)
-			pin_mode(p, pin, f >= 2 ? 1 : 0);
+			pin_mode(p, pin, f >= 2 && f != Y2_UART0_RX_SLEEP ? 1 : 0);
+		/* Every sleep switches the UART0 RX pad twice: not worth a line. */
+		if (f == Y2_UART0_RX || f == Y2_UART0_RX_SLEEP)
+			continue;
 		dev_info(p->gpio.parent, "pin%u mode=%u function=%s\n", pin,
 			 (readl(p->base + 0x600 + (pin / 5) * 16) >> ((pin % 5) * 3)) & 7,
 			 function_names[f]);

@@ -29,6 +29,7 @@
 #include "infra-pdn.h"
 #include "clocks.h"
 #include "idle-clock-policy.h"
+#include "uart-idle-policy.h"
 #include "local-timer.h"
 #include "cpu-options.h"
 #include "idle-completion-policy.h"
@@ -575,6 +576,14 @@ static void y2_golden_entry_restore(void);
 static void y2_pwrap_clock_gate(void);
 static void y2_pwrap_clock_ungate(void);
 static unsigned golden_entry[Y2_GOLDEN_ROWS], golden_captures;
+/* F47 (report 66e5feea): the UART clock-off ACK never came for a whole boot
+ * and every suspend was refused. Stock request_uart_to_sleep then dumps the
+ * UARTs (dump_uart_reg); here UART0, the console, and its RX pad mode
+ * (GPIO108: 1 = URXD1, 0 = the GPIO sleep state of the UART0 pinctrl). */
+static void __iomem *uart0_regs, *uart0_rx_mode;
+static unsigned uart_busy_refusals, uart_busy_recoveries, uart_busy_pdn, uart_busy_rx_mode;
+static unsigned uart_busy_lcr, uart_busy_ier, uart_busy_lsr, uart_busy_dma, uart_busy_sleep;
+static bool y2_spm_uart_busy(void); /* defined after y2_spm_enter: it writes */
 static unsigned y2_golden_read(unsigned row)
 {
 	const struct y2_golden_row *r = &y2_golden_rows[row];
@@ -605,7 +614,7 @@ static int y2_spm_enter(suspend_state_t state)
 	unsigned biu;
 	u64 restore_start = 0;
 	int ret, restore;
-	bool infra = false;
+	bool infra = false, uart_busy = false;
 	if (state != PM_SUSPEND_MEM || num_online_cpus() != 1 ||
 	    smp_processor_id() != 0 || READ_ONCE(spm_broken)) return -EBUSY;
 	raw_spin_lock_irqsave(&spm_lock, flags);
@@ -639,6 +648,12 @@ static int y2_spm_enter(suspend_state_t state)
 	/* 19: no AP PMIC access may follow until y2_pwrap_clock_ungate(). */
 	y2_pwrap_clock_gate();
 	ret = y2_spm_suspend_arm(&spm_io, pcm_address, infra);
+	if (ret == -EBUSY && y2_spm_uart_busy()) {
+		/* F47: one more request after the dump, then refuse as stock. */
+		uart_busy = true;
+		ret = y2_spm_suspend_arm(&spm_io, pcm_address, infra);
+		if (!ret) uart_busy_recoveries++;
+	}
 	y2_spm_journal_snapshot();
 	if (!ret) {
 		y2_pm_mark(Y2_PM_PCM_INSTALLED, 0);
@@ -700,9 +715,41 @@ unlock:
 	last_result = ret;
 	if (restore_start) resume_restore_ns = ktime_get_mono_fast_ns() - restore_start;
 	raw_spin_unlock_irqrestore(&spm_lock, flags);
+	if (uart_busy)
+		pr_warn("Y2SPM: UART busy (no clock-off ACK) peri_pdn=%#x rx_mode=%#x lcr=%#x ier=%#x lsr=%#x dma=%#x sleep_en=%#x retry=%d refusals=%u recoveries=%u\n",
+			uart_busy_pdn, uart_busy_rx_mode, uart_busy_lcr, uart_busy_ier, uart_busy_lsr,
+			uart_busy_dma, uart_busy_sleep, ret, uart_busy_refusals, uart_busy_recoveries);
 	pr_info("Y2SPM: suspend result=%d resumes=%u wake=%#x ticks32k=%u event=%#x debug=%#x r13=%#x\n",
 		ret, resumes, last_wake, last_ticks, last_event, last_debug, last_r13);
 	return ret;
+}
+static bool y2_spm_uart_busy(void)
+{
+	int status = 0;
+	unsigned pdn;
+	if (spm_read(spm_base, SPM_PCM_REG13_DATA) & R13_UART_CLK_OFF_ACK) return false;
+	if ((spm_read(spm_base, SPM_PWR_STATUS) | spm_read(spm_base, SPM_PWR_STATUS_S)) &
+	    Y2_SPM_SECONDARY_CPU_MASK) return false;
+	uart_busy_refusals++;
+	pdn = y2_dcm_read(&status, 0x10003018); /* PERI_PDN0_STA, as stock prints */
+	uart_busy_pdn = status ? ~0U : pdn;
+	uart_busy_rx_mode = uart0_rx_mode ? (readl(uart0_rx_mode) >> 9) & 7 : ~0U;
+	uart_busy_lcr = uart_busy_ier = uart_busy_lsr = uart_busy_dma = uart_busy_sleep = ~0U;
+	if (status || (pdn & BIT(16)) || !uart0_regs) return true; /* never read it unclocked */
+	uart_busy_lcr = readl(uart0_regs + 0x0c);
+	if (!(uart_busy_lcr & 0x80)) { /* the divisor bank aliases IER and LSR */
+		uart_busy_ier = readl(uart0_regs + 0x04);
+		uart_busy_lsr = readl(uart0_regs + 0x14);
+	}
+	uart_busy_dma = readl(uart0_regs + 0x4c);
+	uart_busy_sleep = readl(uart0_regs + Y2_UART_SLEEP_EN);
+	/* The one part of the ACK Linux owns (8250_mtk sets it at probe and
+	 * resume); set it again before the single retry. */
+	if (uart_busy_sleep != 1) {
+		writel(1, uart0_regs + Y2_UART_SLEEP_EN);
+		dsb(sy);
+	}
+	return true;
 }
 /* Runtime DORMANT uses its own stock PCM and leaves infrastructure/DDRPHY
  * powered. Only CPU0 with CPUs1-3 physically off can execute this program.
@@ -911,6 +958,9 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr, cha
 		spm_broken, entries, resumes, aborts, last_result, last_wake, last_ticks,
 		last_event, last_debug, last_r13, spm_read(spm_base, 0x60c), spm_read(spm_base, 0x610));
 	ret += sysfs_emit_at(buf, ret, "suspend_restore_failures=%u\n", suspend_restore_failures);
+	ret += sysfs_emit_at(buf, ret, "suspend_uart_busy=%u suspend_uart_recoveries=%u uart_busy_peri_pdn=%#x uart_busy_rx_mode=%#x uart_busy_lcr=%#x uart_busy_ier=%#x uart_busy_lsr=%#x uart_busy_dma=%#x uart_busy_sleep_en=%#x\n",
+		uart_busy_refusals, uart_busy_recoveries, uart_busy_pdn, uart_busy_rx_mode, uart_busy_lcr,
+		uart_busy_ier, uart_busy_lsr, uart_busy_dma, uart_busy_sleep);
 	ret += sysfs_emit_at(buf, ret, "dcm=%u dcm_result=%d golden_apply=%#x golden_entries=%u golden_pll_offs=%#x\n",
 		dcm, dcm_result, READ_ONCE(golden_apply), golden_entries, golden_pll_offs);
 	ret += sysfs_emit_at(buf, ret, "md1_gate=%u md1_result=%d md1_sta=%#x md1_regates=%u\n",
@@ -1145,6 +1195,10 @@ static int y2_spm_probe(struct platform_device *pdev)
 	if (IS_ERR(spm_biu)) return PTR_ERR(spm_biu);
 	spm_cache = devm_platform_ioremap_resource(pdev, 2);
 	if (IS_ERR(spm_cache)) return PTR_ERR(spm_cache);
+	/* F47 diagnostics only; owned by 8250_mtk and pinctrl, read here (plus
+	 * UART0's sleep enable before a retry). Missing maps skip the dump. */
+	uart0_regs = devm_ioremap(&pdev->dev, 0x11002000, 0x80);
+	uart0_rx_mode = devm_ioremap(&pdev->dev, 0x10005750, 4); /* GPIO_MODE21: pins 105-109 */
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret) return ret;
 	pcm = dmam_alloc_coherent(&pdev->dev, sizeof(y2_pcm_suspend) + sizeof(y2_pcm_normal) + sizeof(y2_pcm_dpidle),
