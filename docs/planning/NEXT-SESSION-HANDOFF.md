@@ -1,6 +1,61 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-27): BETA 8.41 (BASELINE 159) PUBLISHED — INTERNAL SPEAKER, HEADPHONE DETECTION, HAPTICS (#28).**
+> **START HERE (2026-10-27, evening): BETA 8.42 IN PROGRESS, NOT PUBLISHED — SLEEP (F47/F48), LARGE SD CARDS (F49), QUICK SCAN.**
+> The owner said: commit, do not publish yet. Everything below is on `main` in both repos, not pushed, not tagged.
+> - **F47/F48 sleep** (earlier today): Linux `d3b49f2` (UART0 RX pad to GPIO in sleep, UART-busy dump + one retry),
+>   `2200bad` (a refused sleep stays dark); Reborn `57b47b2` (screen off at once on Power), `9ee61f0` (no Sleep page).
+>   Identity `df66c7e`/`c5029b1` (8.42, seq 10800) and `5c0bc11` (seq 10810). Test build 160 ran on the owner's player;
+>   161 (seq 10810, Reborn `9ee61f0`) is built in `out/release-161`, its device check is not recorded.
+> - **F49 large SD card** (Linux `84e5366`): report `d32f8f3c` (install `b4bc0c95`; the user wrote "BFBC0C95"), 8.41,
+>   1 TB exFAT, 71 400 songs. `fsck.exfat -n` took 58.8–59.6 s; above ≈72 000 songs it hit the fixed 60 s, the card went
+>   read-only (`check_timed_out`) and Repair (`fsck.exfat -p`, 60.5 s, nothing changed) could not help. Now: admission
+>   check `ADMISSION_CHECK_SECONDS` 20 (ext4 `EXT4_CHECK_SECONDS` 60, no background path); a timeout mounts read-only as
+>   `read_only: checking` (observe: Ready, not writable; `write_window` → `card_being_checked`; not repairable);
+>   `service.media_verify` starts `y2-platform media verify` (retry `VERIFY_RETRY_S` 30) → `media.verify`: checker with
+>   `CHECK_SECONDS` 1800, no lock while reading, applies only to the same mount + card (identity id + diskseq), a failed
+>   check across a sleep (`CLOCK_BOOTTIME` − monotonic grew) gives no verdict. Pass → `protected` (USB window opens on
+>   its next 10-s tick); finding/timeout → `filesystem_errors`/`check_timed_out` (Repair). `sd-admissions.json` rows
+>   carry `background: true`. fsck.fat/fsck.exfat `-n` open the device O_RDONLY without a mount check (dosfstools 4.2,
+>   exfatprogs 1.4.3 sources in `out/build/buildroot/build`). Tests: `test_platform_storage_tools` (4 new),
+>   `test_platform_update.test_media_verify_*`. Docs: [STORAGE](../STORAGE.md#the-sd-card).
+> - **Quick scan** (Reborn `c2ef3af`): the same report's restart scans took 62–70 s to list 70 500 files. Automatic
+>   scans (`Scanner::scan` = `ScanMode::Quick`: start, storage change, after USB) skip a folder whose mtime is unchanged
+>   while the storage's free space (`quick_fingerprint`: mountinfo type exfat or ext4 only, `reborn_platform::free_bytes`)
+>   equals the last complete walk. Records: additive tables `scan_folders`/`scan_volumes` (with `METADATA_REVISION`),
+>   written only after a complete verified walk, cleared otherwise. Skipped folders' rows are marked seen
+>   (`seen_folders`, range on UNIQUE(source_id,path)), counts/playlists/subfolders come from the record. Scan for Music
+>   and control `scan` = `scan_all` (`ScanMode::Walk`). Trade-off: an edit on a computer that changes neither a folder's
+>   time nor the free space (most tag edits) shows only after Scan for Music. Kernel facts: 6.18 `fs/exfat/super.c`
+>   counts used clusters from the bitmap at mount; `namei.c` sets the parent's mtime on create/unlink/rename. Tests:
+>   `quick_scan_tests` (4); workspace tests, strict Clippy, fmt pass.
+>
+> **Next, in this order:**
+> 1. Sequence bump for a test build (as `5c0bc11`: `update_sequence` 10820, `rootfs_version` v1.204), commit, then
+>    `Y2_STOCK_PACKAGE=$PWD/donorSource/y2_v3.2.0_FM-20260813 tools/production/release.py build --label 162` (do not
+>    touch the tree while it builds). Next free label 162.
+> 2. Device check of F49: first time `fsck.exfat -n` on the owner's card. If it finishes under 20 s, put a generated
+>    library on it (tens of thousands of small files) until it does not. Expect: card plays at once,
+>    `/run/y2/media-mount.json` `read_only: checking` → `protected`, an `sd-admissions.json` row with `background`, MTP
+>    read-only during the check and writable after, nothing offered for Repair. Also: sleep during the check, card
+>    pulled during the check.
+> 3. Device timing of the quick scan: restart Reborn twice with an unchanged card and compare the `scan_completed`
+>    fields (`quick`, `folders_skipped`, `elapsed_ms`); copy a song over USB (expect a full walk, `quick: false`);
+>    Settings → Scan for Music (full walk).
+> 4. F47/F48 on 161/162: Power → dark and stays dark; overnight drain (owed since 8.41).
+> 5. Release docs (report `docs/validation/Y2-LINUX-1.0-BETA-8.42.md`, state, readme, catalog, audit, handoff; Reborn
+>    state + readme). Publish only when the owner says so.
+> 6. Reply to the report user (the owner relays it; text below). Ledger: `UserReports/REVIEWED.md` F49 + row `d32f8f3c`.
+> 7. Pending error reports: about 30 since 2026-10-24 were read for sleep only (F47/F48) plus `d32f8f3c`; the rest are
+>    not reviewed (`python3 tools/reports/fetch.py --pending --into UserReports`).
+>
+> Draft reply for `d32f8f3c`: "Thanks, your report showed it exactly. Your card isn't damaged: the player checks a card
+> before using it, and with about 71 000 songs on your 1 TB card that check takes just under a minute, the time limit
+> it had. Above about 72 000 songs it ran out of time, so the player kept the card read-only and offered Repair, which
+> found nothing to fix. The next version uses the card straight away and finishes the check in the background, and
+> after a restart it no longer reads every unchanged folder again. If you edit tags on a computer, use Settings → Scan
+> for Music afterwards. Until then your music still plays; to add songs, put the card in your PC."
+>
+> Previous entry: **START HERE (2026-10-27): BETA 8.41 (BASELINE 159) PUBLISHED — INTERNAL SPEAKER, HEADPHONE DETECTION, HAPTICS (#28).**
 > Seq 10700, Linux `af69742`, Reborn `1358702`. Plan/REA: `docs/planning/SPEAKER-HAPTICS-PLAN.md`; report BETA-8.41.
 > Kernel: VIBR `regulator-haptic` (policy 0x542 0x8004 thermal never cleared, 0x544 selectors 3..5), `kernel/audio/aw87559.c`
 > (registers without an answer so headphones never depend on it), card Speaker pin + `y2_output_put` rules, overlay 0030

@@ -9432,3 +9432,23 @@ jack, speaker output, mono gain, `rebornctl jack`). No memory map, partition or 
 | Build 159 on a player | NOT INSTALLED BEFORE PUBLISH | test build 158 (same code apart from `rebornctl jack` flag parsing) installed |
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.41** (Baseline 159, sequence 10700).
+
+## BETA-8.42 SD admission in the background (F49) and Reborn quick scan: entry audit — 2026-10-27
+
+**Boundary:** report `d32f8f3c` (8.41, 1 TB exFAT, 71 400 songs) and the owner's "implement the fix" / "implement
+the folder mtime skip too", committed without a build ("commit but don't publish yet"). Change: platform SD admission
+(`media.py`, `service.py`, `observe.py`, `cli.py`) and Reborn's library walk. No kernel, memory map, partition or
+packaging change; Reborn's database gains two additive tables (schema version unchanged).
+
+| Area | State before | Plan / gap |
+| --- | --- | --- |
+| SD admission check | one `fsck -n` with 60 s, timeout = read-only + Repair | 20 s for FAT32/exFAT, then mounted read-only as `checking` and checked by `media verify` (30 min, no lock); ext4 unchanged (60 s, refused on failure) |
+| Writes during the check | — | refused (`card_being_checked`); USB gets its window on the tick after the pass |
+| Repair | offered for a timeout | only for findings or a background check that never ends |
+| Sleep during the check | — | a failed check read across a sleep is no verdict and runs again |
+| Restart scan | every folder read (62–70 s for 70 500 files on exFAT) | unchanged folders skipped while exFAT/ext4 free space is unchanged; FAT32 and Scan for Music read every folder |
+| Missed by the quick scan | — | edits on a computer that change neither folder time nor free space (most tag edits) until Scan for Music |
+| Device checks | OWED | slow card plays at once, `checking` → `protected`, MTP writable after the pass, sleep and card pull during the check; restart scan timing before/after |
+
+**Gate decision:** ready for an owner-installed test build (label 162); not release-qualified until the device checks
+pass.

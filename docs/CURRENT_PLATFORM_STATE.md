@@ -1,5 +1,29 @@
 # Current Y2Linux platform state
 
+## Y2Linux 1.0 Beta 8.42 — work in progress, not published (2026-10-27)
+
+Release `1.0.0-beta.8.42` (identity committed, sequence 10810 in `tools/production/release.json`), nothing tagged.
+On `main` since Beta 8.41:
+
+- **Sleep without relighting (F47/F48)**, `d3b49f2` + `2200bad`, Reborn `57b47b2` + `9ee61f0`. The UART0 RX pad goes to
+  GPIO in system sleep as stock `mtk_uart_suspend` (a live pad held back the SPM UART clock-off ACK; on one player
+  every sleep of a 4-h boot was refused). A UART-busy refusal logs the UART registers and asks once more. A refused
+  sleep keeps the screen dark; only a wake lights it. Reborn turns the screen off at once on Power and no longer
+  opens the Sleep page. Test builds 160 (sequence 10800) and 161 (10810, `5c0bc11` / Reborn `9ee61f0`); 160 ran on the
+  owner's player.
+- **Large SD cards are checked in the background (F49)**, `84e5366`, report `d32f8f3c` (8.41, 1 TB exFAT, 71 400
+  songs): `fsck.exfat -n` took 59 s, so above about 72 000 songs the old 60 s limit mounted the card read-only and
+  offered a Repair that found nothing. Now the admission check gets 20 s (ext4 keeps 60 s); a FAT32/exFAT card whose
+  check does not finish is mounted read-only as `checking` (Ready, no write window, no Repair) and `y2-media verify`,
+  started by the service loop, checks it for up to 30 minutes without the media lock. A pass makes it a protected
+  card, a finding or no end makes it Repair-able, a check read across a system sleep is run again.
+  [Storage](STORAGE.md#the-sd-card).
+- **Reborn quick scan** (Reborn `c2ef3af`): automatic scans skip folders whose time is unchanged while the exFAT/ext4
+  free space equals the last complete walk; Scan for Music reads every folder. See the Reborn state document.
+
+Not built since `84e5366`/`c2ef3af`; not checked on a player. Next free label 162, sequence above 10810. Handoff:
+[next session](planning/NEXT-SESSION-HANDOFF.md).
+
 ## Y2Linux 1.0 Beta 8.41, Baseline 159 — 2026-10-27 (latest, published)
 
 Release `1.0.0-beta.8.41`, tag `baseline-159`, Linux `af69742`, Reborn `1358702`, sequence 10700. Internal speaker
