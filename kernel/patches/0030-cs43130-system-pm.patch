@@ -607,7 +607,7 @@
  	mutex_unlock(&cs43130->clk_mutex);
  
  	return 0;
-@@ -1111,6 +1460,128 @@
+@@ -1111,6 +1460,155 @@
  static SOC_VALUE_ENUM_SINGLE_DECL(dsd_enum, CS43130_DSD_INT_CFG, 0, 0x03,
  				  dsd_texts, dsd_values);
  
@@ -629,17 +629,44 @@
 +static unsigned int y2_hp_level;	/* Low */
 +static DEFINE_MUTEX(y2_hp_level_lock);
 +
++/*
++ * Y2 speaker: the AW87559 amplifier takes HPOUTA/HPOUTB as one differential
++ * input. Stock cs43131_apply_route (FM kernel 0xc054baa8) sets, for the
++ * speaker, PCM_PATH_CTL_2 = 0x05 (both channels left, B inverted),
++ * ASP_CH_2_SZ_EN = 0x06 (channel 2 also takes the left slot) and OUT_FS 0x30
++ * (1.73 Vrms); for headphones 0x00, 0x0E and the headphone level. The card's
++ * "Speaker" pin decides, read under the DAPM mutex at every HP power-up.
++ */
++#define Y2_PCM_PATH_MASK	0x07
++#define Y2_PCM_PATH_SPEAKER	0x05
++#define Y2_ASP_CH2_LEFT_SLOT	0x08
++#define Y2_SPEAKER_OUT_FS	0x30
++
++static bool y2_speaker_pin(struct cs43130_private *cs43130)
++{
++	struct snd_soc_card *card = cs43130->component ? cs43130->component->card : NULL;
++
++	return card && snd_soc_dapm_get_pin_status(&card->dapm, "Speaker");
++}
++
 +/* Caller holds y2_hp_level_lock and knows PDN_HP is set. */
 +static int y2_hp_level_write(struct cs43130_private *cs43130)
 +{
++	bool speaker = y2_speaker_pin(cs43130);
 +	int ret;
 +
-+	ret = regmap_update_bits(cs43130->regmap, CS43130_CLASS_H_CTL,
-+				 Y2_CLASS_H_HV_EN, y2_hp_hv_en[y2_hp_level]);
++	ret = regmap_update_bits(cs43130->regmap, CS43130_PCM_PATH_CTL_2, Y2_PCM_PATH_MASK,
++				 speaker ? Y2_PCM_PATH_SPEAKER : 0);
++	if (!ret)
++		ret = regmap_update_bits(cs43130->regmap, CS43130_ASP_CH_2_SZ_EN,
++					 Y2_ASP_CH2_LEFT_SLOT, speaker ? 0 : Y2_ASP_CH2_LEFT_SLOT);
++	if (!ret)
++		ret = regmap_update_bits(cs43130->regmap, CS43130_CLASS_H_CTL, Y2_CLASS_H_HV_EN,
++					 speaker ? Y2_CLASS_H_HV_EN : y2_hp_hv_en[y2_hp_level]);
 +	if (ret)
 +		return ret;
-+	return regmap_update_bits(cs43130->regmap, CS43130_HP_OUT_CTL_1,
-+				  Y2_HP_OUT_FS_MASK, y2_hp_out_fs[y2_hp_level]);
++	return regmap_update_bits(cs43130->regmap, CS43130_HP_OUT_CTL_1, Y2_HP_OUT_FS_MASK,
++				  speaker ? Y2_SPEAKER_OUT_FS : y2_hp_out_fs[y2_hp_level]);
 +}
 +
 +/* DAPM clears PDN_HP under the card's DAPM mutex, right after the "HiFi DAC"
@@ -736,7 +763,7 @@
  static const struct snd_kcontrol_new cs43130_snd_controls[] = {
  	SOC_DOUBLE_R_TLV("Master Playback Volume",
  			 CS43130_PCM_VOL_A, CS43130_PCM_VOL_B, 0, 0xFF, 1,
-@@ -1126,6 +1597,16 @@
+@@ -1126,6 +1624,16 @@
  	SOC_SINGLE("PCM High-pass Filter", CS43130_PCM_FILT_OPT, 1, 1, 0),
  	SOC_SINGLE("PCM De-emphasis Filter", CS43130_PCM_FILT_OPT, 0, 1, 0),
  	SOC_ENUM("DSD Phase Modulation", dsd_enum),
@@ -753,7 +780,7 @@
  };
  
  static const struct reg_sequence pcm_seq[] = {
-@@ -1314,6 +1795,10 @@
+@@ -1314,6 +1822,10 @@
  
  	switch (event) {
  	case SND_SOC_DAPM_PRE_PMU:
@@ -764,7 +791,7 @@
  		switch (cs43130->dev_id) {
  		case CS43130_CHIP_ID:
  		case CS4399_CHIP_ID:
-@@ -2062,16 +2547,41 @@
+@@ -2062,16 +2574,41 @@
  				   ac_reg_val >> CS43130_HP_MEAS_LOAD_2_SHIFT);
  	}
  
@@ -807,7 +834,7 @@
  
  	dev_dbg(cs43130->dev, "HP load stat: %x, INT_MASK_4: %x\n",
  		cs43130->hpload_stat, msk);
-@@ -2116,6 +2626,12 @@
+@@ -2116,6 +2653,12 @@
  	return 0;
  }
  
@@ -820,7 +847,7 @@
  static void cs43130_imp_meas(struct work_struct *wk)
  {
  	unsigned int reg, seq_size;
-@@ -2164,6 +2680,13 @@
+@@ -2164,6 +2707,13 @@
  	i = 0;
  	ac_idx = 0;
  	while (i < seq_size) {
@@ -834,7 +861,7 @@
  		ret = cs43130_hpload_proc(cs43130, hpload_seq[i].seq,
  					  hpload_seq[i].size,
  					  hpload_seq[i].msk, ac_idx);
-@@ -2183,6 +2706,16 @@
+@@ -2183,6 +2733,16 @@
  	}
  	cs43130->hpload_done = true;
  
@@ -851,7 +878,7 @@
  	if (cs43130->hpload_dc[HP_LEFT] >= CS43130_LINEOUT_LOAD)
  		snd_soc_jack_report(&cs43130->jack, CS43130_JACK_LINEOUT,
  				    CS43130_JACK_MASK);
-@@ -2216,12 +2749,232 @@
+@@ -2216,12 +2776,289 @@
  			       ARRAY_SIZE(hp_cln_seq));
  
  	mutex_lock(&cs43130->clk_mutex);
@@ -1071,8 +1098,65 @@
 +}
 +static DEVICE_ATTR_RW(hold);
 +
++/*
++ * Y2 jack detection without the codec IRQ: EINT16 stays unwired, because its
++ * handler would consume the sticky status bits the crystal start polls (#52).
++ * While the codec is powered (screen on: Reborn's hold; or a stream) the stock
++ * detector's HP_STATUS bit is read every 200 ms (stock reads it 200 ms after
++ * its EINT16). A plug is reported at once and first turns a playing speaker
++ * off, before the headphones get the speaker's level; an unplug needs two
++ * reads. Powered down, nothing polls and the last state stays reported.
++ */
++#define Y2_JACK_POLL_MS		200
++static struct cs43130_private *y2_jack_codec;
++static int y2_jack_state = -1;	/* unknown, then 0 empty or 1 plugged */
++static unsigned int y2_jack_empty_reads, y2_jack_speaker_offs;
++static void y2_jack_poll(struct work_struct *work);
++static DECLARE_DELAYED_WORK(y2_jack_work, y2_jack_poll);
++
++static void y2_jack_poll(struct work_struct *work)
++{
++	struct cs43130_private *cs43130 = y2_jack_codec;
++	struct snd_soc_card *card;
++	unsigned int status;
++	bool plugged;
++
++	/* Powered down: stop; the next runtime resume starts polling again. */
++	if (!cs43130 || pm_runtime_get_if_active(cs43130->dev) <= 0)
++		return;
++	if (!regmap_read(cs43130->regmap, CS43130_HP_STATUS, &status)) {
++		plugged = status & Y2_HP_STATUS_PLUGGED;
++		y2_jack_empty_reads = plugged ? 0 : y2_jack_empty_reads + 1;
++		card = cs43130->component ? cs43130->component->card : NULL;
++		if (plugged && card && y2_speaker_pin(cs43130)) {
++			snd_soc_dapm_disable_pin(&card->dapm, "Speaker");
++			snd_soc_dapm_sync(&card->dapm);
++			y2_jack_speaker_offs++;
++			dev_info(cs43130->dev, "Y2 headphones plugged: speaker off\n");
++		}
++		if (plugged ? y2_jack_state != 1 :
++		    y2_jack_state != 0 && (y2_jack_state < 0 || y2_jack_empty_reads >= 2)) {
++			y2_jack_state = plugged;
++			snd_soc_jack_report(&cs43130->jack, plugged ? SND_JACK_HEADPHONE : 0,
++					    CS43130_JACK_MASK);
++		}
++	}
++	/* Not pm_runtime_put_autosuspend(): it marks the codec busy, and a poll
++	 * every 200 ms would then keep it powered for good. */
++	__pm_runtime_put_autosuspend(cs43130->dev);
++	schedule_delayed_work(&y2_jack_work, msecs_to_jiffies(Y2_JACK_POLL_MS));
++}
++
++static ssize_t jack_show(struct device *dev, struct device_attribute *attr, char *buf)
++{
++	return sysfs_emit(buf, "state=%d empty_reads=%u speaker_offs=%u\n",
++			  y2_jack_state, y2_jack_empty_reads, y2_jack_speaker_offs);
++}
++static DEVICE_ATTR_RO(jack);
++
 +static struct attribute *y2_hp_attrs[] = {
 +	&dev_attr_hp_gain.attr,
++	&dev_attr_jack.attr,
 +	&dev_attr_xtal.attr,
 +	&dev_attr_hold.attr,
 +	&dev_attr_hpload_measure.attr,
@@ -1087,7 +1171,7 @@
  
  static irqreturn_t cs43130_irq_thread(int irq, void *data)
  {
-@@ -2357,6 +3110,12 @@
+@@ -2357,6 +3194,12 @@
  		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
  				   CS43130_XTAL_ERR_INT, 0);
  	}
@@ -1100,7 +1184,18 @@
  
  	ret = snd_soc_card_jack_new(card, "Headphone", CS43130_JACK_MASK,
  				    &cs43130->jack);
-@@ -2475,13 +3234,16 @@
+@@ -2388,6 +3231,10 @@
+ 	regmap_update_bits(cs43130->regmap, CS43130_HP_DETECT,
+ 			   CS43130_HP_DETECT_CTRL_MASK,
+ 			   CS43130_HP_DETECT_CTRL_MASK);
++	/* Y2: the stock detector configuration (cs43131_hw_init), polled. */
++	regmap_write(cs43130->regmap, CS43130_HP_DETECT, Y2_HP_DETECT_STOCK);
++	y2_jack_codec = cs43130;
++	schedule_delayed_work(&y2_jack_work, msecs_to_jiffies(Y2_JACK_POLL_MS));
+ 
+ 	return 0;
+ }
+@@ -2475,13 +3322,16 @@
  	cs43130->dc_meas = device_property_read_bool(cs43130->dev, "cirrus,dc-measure");
  	cs43130->ac_meas = device_property_read_bool(cs43130->dev, "cirrus,ac-measure");
  
@@ -1119,7 +1214,7 @@
  				       cs43130->dc_threshold,
  				       CS43130_DC_THRESHOLD)) {
  		for (i = 0; i < CS43130_DC_THRESHOLD; i++)
-@@ -2529,11 +3291,31 @@
+@@ -2529,11 +3379,31 @@
  		dev_err(cs43130->dev, "Failed to request supplies: %d\n", ret);
  		return ret;
  	}
@@ -1151,7 +1246,7 @@
  	}
  
  	cs43130->reset_gpio = devm_gpiod_get_optional(cs43130->dev,
-@@ -2603,10 +3385,23 @@
+@@ -2603,10 +3473,23 @@
  
  	cs43130->mclk_int_src = CS43130_MCLK_SRC_RCO;
  
@@ -1176,7 +1271,16 @@
  
  	switch (cs43130->dev_id) {
  	case CS43130_CHIP_ID:
-@@ -2672,23 +3467,119 @@
+@@ -2647,6 +3530,8 @@
+ {
+ 	struct cs43130_private *cs43130 = i2c_get_clientdata(client);
+ 
++	y2_jack_codec = NULL;
++	cancel_delayed_work_sync(&y2_jack_work);
+ 	if (cs43130->xtal_ibias != CS43130_XTAL_UNUSED)
+ 		regmap_update_bits(cs43130->regmap, CS43130_INT_MASK_1,
+ 				   CS43130_XTAL_ERR_INT,
+@@ -2672,23 +3557,119 @@
  	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
  }
  
@@ -1303,7 +1407,7 @@
  }
  
  static int cs43130_runtime_resume(struct device *dev)
-@@ -2696,38 +3587,41 @@
+@@ -2696,38 +3677,43 @@
  	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
  	int ret;
  
@@ -1337,6 +1441,8 @@
 +		y2_xtal_stream_cycles = 0;
 +		y2_xtal_power_on(cs43130, true);
 +	}
++	if (y2_jack_codec)
++		mod_delayed_work(system_wq, &y2_jack_work, msecs_to_jiffies(Y2_JACK_POLL_MS));
  	return 0;
 -err:
 -	regcache_cache_only(cs43130->regmap, true);

@@ -28,19 +28,26 @@ typedef unsigned char u8;
 #define CS43130_DXD12 4
 #define CS43130_DXD13 5
 #define CS43130_PDN_HP_MASK 0x10
+#define CS43130_PCM_PATH_CTL_2 6
+#define CS43130_ASP_CH_2_SZ_EN 7
 enum { CS43130_CHIP_ID, CS4399_CHIP_ID, CS43131_CHIP_ID, CS43198_CHIP_ID };
 enum { SND_SOC_DAPM_PRE_PMU = 1, SND_SOC_DAPM_POST_PMU = 2, SND_SOC_DAPM_POST_PMD = 8 };
 struct mutex { int held; };
 #define DEFINE_MUTEX(m) struct mutex m
 static void mutex_lock(struct mutex *m) { assert(!m->held); m->held = 1; }
 static void mutex_unlock(struct mutex *m) { assert(m->held); m->held = 0; }
-struct regmap { unsigned reg[6]; int read_error; unsigned level_writes; };
+struct regmap { unsigned reg[8]; int read_error; unsigned level_writes; };
 struct reg_sequence { unsigned reg, def; };
 struct snd_soc_component;
 struct cs43130_private { struct regmap *regmap; int dev_id; struct snd_soc_component *component; };
 /* DAPM powers the amplifier under the card's DAPM mutex (modelled as a flag). */
-struct snd_soc_card { int dapm_held; };
+struct snd_soc_card { int dapm_held; int dapm; };
 static struct snd_soc_card card;
+/* The card's Speaker pin (#28 speaker route), read under the DAPM mutex. */
+static int speaker_pin;
+static int snd_soc_dapm_get_pin_status(int *d, const char *pin) {
+ assert(d == &card.dapm && !strcmp(pin, "Speaker") && card.dapm_held); return speaker_pin;
+}
 static int bound(void);
 static void snd_soc_dapm_mutex_lock(struct snd_soc_card *c) { assert(!c->dapm_held); c->dapm_held = 1; }
 static void snd_soc_dapm_mutex_unlock(struct snd_soc_card *c) { assert(c->dapm_held); c->dapm_held = 0; }
@@ -55,7 +62,8 @@ static int regmap_read(struct regmap *m, unsigned r, unsigned *v) {
 static int regmap_update_bits(struct regmap *m, unsigned r, unsigned mask, unsigned v) {
  /* DS1155F2: OUT_FS only while PDN_HP is set; never touch a live output. */
  assert(m->reg[CS43130_PWDN_CTL] & CS43130_PDN_HP_MASK);
- assert(r == CS43130_HP_OUT_CTL_1 || r == CS43130_CLASS_H_CTL);
+ assert(r == CS43130_HP_OUT_CTL_1 || r == CS43130_CLASS_H_CTL ||
+        r == CS43130_PCM_PATH_CTL_2 || r == CS43130_ASP_CH_2_SZ_EN);
  assert(!bound() || card.dapm_held);
  m->reg[r] = (m->reg[r] & ~mask) | v; m->level_writes++; return 0;
 }
@@ -149,6 +157,17 @@ int main(void) {
  assert(hp_gain_show(&dev, 0, buf) > 0 && !strcmp(buf, "raw:00\n"));
  map.reg[CS43130_HP_OUT_CTL_1] = 0x30; map.reg[CS43130_CLASS_H_CTL] = 0x1c; assert(live() == 3);
  assert(hp_gain_store(&dev, 0, "loud\n", 5) == -EINVAL);
+ /* Speaker pin: stock speaker route at the next power-up (PCM path 0x05,
+  * channel 2 on the left slot, OUT_FS 1.73 Vrms, HV_EN), whatever the
+  * headphone level; headphones again restore stereo and their level. */
+ map.reg[CS43130_ASP_CH_2_SZ_EN] = 0x0e; assert(put(0) == 0); /* still Low */
+ speaker_pin = 1; power_up();
+ assert(map.reg[CS43130_PCM_PATH_CTL_2] == 0x05 && map.reg[CS43130_ASP_CH_2_SZ_EN] == 0x06);
+ assert((map.reg[CS43130_HP_OUT_CTL_1] & 0x30) == 0x30 && (map.reg[CS43130_CLASS_H_CTL] & 0x02));
+ power_down(); speaker_pin = 0; power_up();
+ assert(map.reg[CS43130_PCM_PATH_CTL_2] == 0 && map.reg[CS43130_ASP_CH_2_SZ_EN] == 0x0e);
+ assert((map.reg[CS43130_HP_OUT_CTL_1] & 0x30) == 0x10 && !(map.reg[CS43130_CLASS_H_CTL] & 0x02));
+ power_down();
  assert(!card.dapm_held);
  return 0;
 }

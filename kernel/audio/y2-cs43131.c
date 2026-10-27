@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Innioasis Y2 headphone card. Board topology adapted from Chris Hendrickson's
- * GPL-2.0 mt6582-cs43131.c; upstream 6.18 codec with system PM/error fixes.
+/* Innioasis Y2 headphone and speaker card. Board topology adapted from Chris
+ * Hendrickson's GPL-2.0 mt6582-cs43131.c; upstream 6.18 codec with system
+ * PM/error fixes. The speaker is the AW87559 amplifier (aux "PA") on HPOUTA/B.
  */
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/string.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "../../codecs/cs43130.h"
@@ -16,6 +19,7 @@ struct y2_audio {
 	struct snd_soc_card card;
 	struct snd_soc_dai_link links[2];
 	struct snd_soc_dai_link_component cpus[2], codecs[2], platforms[2];
+	struct snd_soc_aux_dev amp;
 };
 static int y2_codec_params(struct snd_pcm_substream *s, struct snd_pcm_hw_params *params)
 {
@@ -79,15 +83,63 @@ static void y2_vgp2_release(void *unused)
 	y2_vgp2 = NULL;
 	mutex_unlock(&y2_vgp2_lock);
 }
-static const struct snd_soc_dapm_widget y2_widgets[] = { SND_SOC_DAPM_HP("Headphone", NULL) };
+static const struct snd_soc_dapm_widget y2_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone", NULL), SND_SOC_DAPM_SPK("Speaker", NULL),
+};
 static const struct snd_soc_dapm_route y2_routes[] = {
 	{ "Headphone", NULL, "HPOUTA" }, { "Headphone", NULL, "HPOUTB" },
+	{ "PA IN", NULL, "HPOUTA" }, { "PA IN", NULL, "HPOUTB" },
+	{ "Speaker", NULL, "PA OUT" },
 };
-static const struct snd_kcontrol_new y2_controls[] = { SOC_DAPM_PIN_SWITCH("Headphone") };
+/* The codec's HP power-up writes the speaker route (mono differential, OUT_FS
+ * 1.73 Vrms) or the headphone one from the Speaker pin. Both outputs share
+ * that amplifier, so a switch from one to the other while a stream runs
+ * would keep the other's route: refused, a closed stream may switch. One
+ * pin on turns the other off; the speaker never starts with headphones in. */
+static bool y2_headphones_in(struct snd_soc_card *card)
+{
+	struct y2_audio *y2 = container_of(card, struct y2_audio, card);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_get_pcm_runtime(card, &y2->links[1]);
+	unsigned int status;
+
+	/* Unreadable (powered down): the codec's poll turns it off on a plug. */
+	return rtd && !regmap_read(snd_soc_rtd_to_codec(rtd, 0)->component->regmap,
+				   CS43130_HP_STATUS, &status) && (status & BIT(6));
+}
+static bool y2_streaming(struct snd_soc_card *card)
+{
+	struct y2_audio *y2 = container_of(card, struct y2_audio, card);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_get_pcm_runtime(card, &y2->links[1]);
+
+	return rtd && snd_soc_component_active(snd_soc_rtd_to_codec(rtd, 0)->component);
+}
+static int y2_output_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	const char *pin = (const char *)kcontrol->private_value;
+	const char *other = strcmp(pin, "Speaker") ? "Speaker" : "Headphone";
+
+	if (ucontrol->value.integer.value[0]) {
+		if (snd_soc_dapm_get_pin_status(&card->dapm, other) && y2_streaming(card))
+			return -EBUSY;
+		if (!strcmp(pin, "Speaker") && y2_headphones_in(card))
+			return -EBUSY;
+		snd_soc_dapm_disable_pin(&card->dapm, other);
+	}
+	return snd_soc_dapm_put_pin_switch(kcontrol, ucontrol);
+}
+#define Y2_OUTPUT_SWITCH(xname) { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	.name = xname " Switch", .info = snd_soc_dapm_info_pin_switch, \
+	.get = snd_soc_dapm_get_pin_switch, .put = y2_output_put, \
+	.private_value = (unsigned long)xname }
+static const struct snd_kcontrol_new y2_controls[] = {
+	Y2_OUTPUT_SWITCH("Headphone"), Y2_OUTPUT_SWITCH("Speaker"),
+};
 static int y2_late_probe(struct snd_soc_card *card)
 {
 	struct y2_audio *y2 = container_of(card, struct y2_audio, card);
 	struct snd_soc_pcm_runtime *rtd = snd_soc_get_pcm_runtime(card, &y2->links[1]);
+	int ret;
 	/* Quiesce ALSA/DAPM before the AFE and I2C codec power down. These
 	 * managed links order system PM without adding runtime power references. */
 	if (!rtd || !device_link_add(card->dev, snd_soc_rtd_to_cpu(rtd, 0)->dev,
@@ -103,13 +155,14 @@ static int y2_late_probe(struct snd_soc_card *card)
 				 snd_soc_rtd_to_codec(rtd, 0)->component), false);
 	/* No automatic output: owner enables the pin after setting a safe level.
 	 * Upstream codec reset volume is -60 dB; no startup state restoration. */
-	return snd_soc_dapm_disable_pin(&card->dapm, "Headphone");
+	ret = snd_soc_dapm_disable_pin(&card->dapm, "Headphone");
+	return ret ? ret : snd_soc_dapm_disable_pin(&card->dapm, "Speaker");
 }
 static void y2_node_put(void *node) { of_node_put(node); }
 static int y2_audio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *afe, *codec;
+	struct device_node *afe, *codec, *amp;
 	struct regulator *vgp2;
 	struct y2_audio *y2;
 	int ret, i;
@@ -144,6 +197,13 @@ static int y2_audio_probe(struct platform_device *pdev)
 	ret = devm_add_action_or_reset(dev, y2_node_put, codec);
 	if (ret)
 		return ret;
+	amp = of_parse_phandle(dev->of_node, "audio-amp", 0);
+	if (!amp)
+		return -EINVAL;
+	ret = devm_add_action_or_reset(dev, y2_node_put, amp);
+	if (ret)
+		return ret;
+	y2->amp.dlc.of_node = amp;
 	for (i = 0; i < 2; i++) {
 		y2->cpus[i].of_node = afe;
 		y2->cpus[i].dai_name = i ? "I2S" : "DL1";
@@ -179,6 +239,7 @@ static int y2_audio_probe(struct platform_device *pdev)
 		.controls = y2_controls, .num_controls = ARRAY_SIZE(y2_controls),
 		.dapm_widgets = y2_widgets, .num_dapm_widgets = ARRAY_SIZE(y2_widgets),
 		.dapm_routes = y2_routes, .num_dapm_routes = ARRAY_SIZE(y2_routes),
+		.aux_dev = &y2->amp, .num_aux_devs = 1,
 		.late_probe = y2_late_probe,
 	};
 	return devm_snd_soc_register_card(dev, &y2->card);
@@ -190,5 +251,5 @@ static struct platform_driver y2_audio_driver = {
 	.driver = { .name = "y2-audio", .of_match_table = y2_audio_match, .pm = &snd_soc_pm_ops },
 };
 module_platform_driver(y2_audio_driver);
-MODULE_DESCRIPTION("Innioasis Y2 CS43131 headphone ASoC card");
+MODULE_DESCRIPTION("Innioasis Y2 CS43131 headphone and AW87559 speaker ASoC card");
 MODULE_LICENSE("GPL");

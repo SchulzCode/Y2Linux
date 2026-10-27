@@ -89,6 +89,12 @@ static void y2_xtal_power_on(struct cs43130_private *c, bool select) {
 }
 static int pm_runtime_force_suspend(struct device *d);
 static int pm_runtime_force_resume(struct device *d);
+/* #28 jack poller: every runtime resume (re)starts it; nothing else here. */
+static void *y2_jack_codec = (void *)1;
+static int y2_jack_work, jack_polls, wq_object, *system_wq = &wq_object;
+#define Y2_JACK_POLL_MS 200
+static unsigned msecs_to_jiffies(unsigned ms){return ms;}
+static bool mod_delayed_work(int *wq,int *w,unsigned delay){assert(wq==system_wq&&w==&y2_jack_work&&delay==200);jack_polls++;return true;}
 ''' + ''.join(function(source, n) for n in ('cs43130_pm_note',
             'cs43130_restore_cache', 'cs43130_runtime_suspend', 'y2_codec_up', 'cs43130_runtime_resume',
             'cs43130_system_suspend', 'cs43130_system_resume')) + r'''

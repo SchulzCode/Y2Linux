@@ -9393,3 +9393,24 @@ cust `{50 ms, 9, 5}`), the golden comparison row `vibr_ther_shen_en` and upstrea
 
 **Gate decision:** ready for a host build and an owner-installed test build; not release-qualified until the device
 checks pass. Speaker (no issue yet) stays planning only.
+
+## SPEAKER (internal speaker) entry gap audit — 2026-10-27
+
+**Boundary:** owner: "keep stock [haptics] for now and work on the speaker now". New hardware subsystem (AW87559 /
+OCA72559 amplifier on I2C1 0x58 behind the CS43131, GPIO8 enable) and jack detection. Evidence: REA of the stock FM
+kernel (`aw87559_on/off`, `Sound_Speaker_Turnon/off`, `cs43131_apply_route`, `cs43131_apply_out_fs`,
+`cs43131_refresh_volume_for_route`, `cs43131_hp_work_callback`, `cs43131_early_suspend`, `cs43131_power_down_hw`), the
+donor driver (tables identical to stock), the player's own regmap (detector cached 0xC4, never read; "Headphone Jack"
+never reported) and `docs/planning/SPEAKER-HAPTICS-PLAN.md`. The speaker has never played under Linux.
+
+| Area | State before | Plan / gap |
+| --- | --- | --- |
+| Amplifier | GPIO8 hogged low, no driver | donor `aw87559.c` (stock tables, timings); registers even without an answer so the headphones never depend on it |
+| Route | headphones only | codec writes stock speaker route at HP power-up from the card's Speaker pin: PCM path 0x05, ASP ch2 left slot, OUT_FS 1.73 Vrms |
+| Exclusivity | — | one pin on turns the other off; switching under a running stream refused (speaker level into earphones); speaker refused while the detector reads a plug |
+| Jack detection | none (no codec IRQ; EINT16 would break the #52 crystal polling) | 200 ms HP_STATUS poll only while the codec is powered (stock detects only then too); plug turns the speaker off at once; `__pm_runtime_put_autosuspend` so the poll never keeps the DAC up |
+| Reborn | — | jack via "Y2Audio Headphone" SW events; Output > Speaker (on); mono (L+R)/2 downmix (DAC plays the left slot only); Master −3 dB (stock top); plug moves to headphones, unplug pauses |
+| Device checks | OWED | amp chip ID; detector bit live; audible, no pop; plug/unplug while playing and paused; screen-off playback; sleep and drain unchanged |
+
+**Gate decision:** ready for a host build and an owner-installed test build together with the haptics change; not
+release-qualified until the device checks pass.

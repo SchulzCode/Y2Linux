@@ -145,7 +145,7 @@ int main(void) {
         for old,new in [(struct.pack('>I',1800000),struct.pack('>I',2500000)),
                         (b'cirrus,cs43131\0',b'cirrus,cs43130\0'),
                         (struct.pack('>III',0,104,8),struct.pack('>III',0,105,8)),
-                        (b'output-low\0',b'output-hig\0')]:
+                        (b'awinic,aw87559\0',b'awinic,aw87558\0')]:
             with self.subTest(old=old):
                 self.assertIn(old,data)
                 with self.assertRaises((ValueError,KeyError)):

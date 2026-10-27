@@ -120,8 +120,6 @@
         gpio-controller; #gpio-cells = <2>; gpio-ranges = <&pio 0 0 169>;
         interrupt-controller; #interrupt-cells = <2>; #address-cells = <0>;
         interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
-        speaker-disable { gpio-hog; gpios = <8 GPIO_ACTIVE_HIGH>;
-            output-low; line-name = "speaker-disabled-m3"; };
         audio_state: audio-state { groups = "i2s-lk"; function = "i2s-lk"; };
         nav_state: nav-state { groups = "navigation"; input-enable; };
         wheel_state: wheel-state { groups = "wheel-irq"; function = "eint"; input-enable; };
@@ -162,7 +160,7 @@
         pinctrl-names = "default"; pinctrl-0 = <&audio_state>;
     };
     sound { compatible = "innioasis,y2-audio";
-        mediatek,platform = <&afe>; audio-codec = <&dac>;
+        mediatek,platform = <&afe>; audio-codec = <&dac>; audio-amp = <&amp>;
         vgp2-supply = <&vgp2>; /* 27: held unless vgp2_idle_off=Y */
     };
     /* #28: the motor as a force-feedback input ("regulator-haptic"): a rumble
@@ -402,7 +400,16 @@
             VA-supply = <&vgp2>; VP-supply = <&vgp2>; VCP-supply = <&vgp2>;
             VD-supply = <&dac18>; VL-supply = <&dac15>;
             cirrus,xtal-ibias = <2>;
-            /* Use upstream ready-status polling. EINT16/jack is a later test. */
+            /* Ready-status polling, no IRQ: EINT16 would take the sticky bits
+             * the crystal start polls (#52); the codec polls the jack instead. */
+        };
+        /* The speaker amplifier, AW87559 (or OCA72559) as stock binds it
+         * (1-0058 aw87559_pa). GPIO8 enables it (stock: low 10 ms, high,
+         * 100 ms); low, the default, it is off and does not answer. */
+        amp: amplifier@58 {
+            compatible = "awinic,aw87559"; reg = <0x58>;
+            enable-gpios = <&pio 8 GPIO_ACTIVE_HIGH>;
+            sound-name-prefix = "PA";
         };
     };
     keypad@10011000 { compatible = "mediatek,mt6582-keypad";

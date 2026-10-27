@@ -148,7 +148,7 @@ def check(data, initrd_size, production=True, recovery=False):
                     (connectivity and path in tuple('/pwrap@1000d000/pmic/regulators/'+n for n in CONN_RAILS)) or
                     (production and path in tuple('/pwrap@1000d000/pmic/regulators/'+n for n in STORAGE_RAILS+(HAPTIC_RAIL,))), 'unreviewed rail')
         if path.startswith('/i2c@11008000/'):
-            require(path == '/i2c@11008000/codec@30', 'unreviewed audio/radio I2C client')
+            require(path in ('/i2c@11008000/codec@30', '/i2c@11008000/amplifier@58'), 'unreviewed audio/radio I2C client')
     def handle(path): return struct.unpack('>I',nodes[path]['phandle'])[0]
     for path,props in nodes.items():
         # Validate variable-length clock specifiers, provider arity and clock IDs.
@@ -250,8 +250,15 @@ def check(data, initrd_size, production=True, recovery=False):
     require(codec['cirrus,xtal-ibias']==cells(2) and 'interrupts' not in codec, 'codec crystal/polling')
     require(nodes['/sound']['mediatek,platform']==cells(handle('/audio-controller@11220000')) and
             nodes['/sound']['audio-codec']==cells(handle('/i2c@11008000/codec@30')), 'ASoC topology')
-    require(nodes['/pinctrl@10005000/speaker-disable']['gpios']==cells(8,0) and
-            'output-low' in nodes['/pinctrl@10005000/speaker-disable'], 'speaker stays disabled')
+    # Speaker: the stock AW87559 at 0x58, enabled by GPIO8 only through its
+    # driver (no hog), behind the codec as the card's "PA" aux device.
+    amp=nodes['/i2c@11008000/amplifier@58']
+    require(amp['compatible']==strings('awinic,aw87559') and amp['reg']==cells(0x58) and
+            amp['enable-gpios']==cells(handle('/pinctrl@10005000'),8,0) and
+            amp['sound-name-prefix']==strings('PA'), 'AW87559 identity, GPIO8 enable')
+    require(nodes['/sound']['audio-amp']==cells(handle('/i2c@11008000/amplifier@58')), 'speaker amplifier on the card')
+    require(not any(p.startswith('/pinctrl@10005000/') and 'gpio-hog' in v and 8 in struct.unpack('>'+str(len(v['gpios'])//4)+'I',v['gpios'])
+                    for p,v in nodes.items() if 'gpios' in v), 'GPIO8 owned by the amplifier driver')
     panel=nodes['/dsi@1400c000/panel@0']
     require(panel['resets']==cells(handle('/syscon@14000000'),0) and 'innioasis,lk-powered' in panel,'evidenced panel reset/power')
     if power:

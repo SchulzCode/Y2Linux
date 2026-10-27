@@ -39,7 +39,8 @@ static void *device_link_add(struct device *consumer,struct device *supplier,uns
  assert(supplier==((links%2)?&codecdev:&afedev));return ++links==link_fail?NULL:supplier;
 }
 static int snd_soc_dapm_disable_pin(struct snd_soc_dapm_context *d,const char *name){
- assert(d && name[0]=='H');disabled++;return pin_error;
+ /* Headphone first, then the speaker (#28 speaker card). */
+ assert(d && name[0]==(disabled?'S':'H'));disabled++;return pin_error;
 }
 ''' + function((ROOT/'kernel/audio/y2-cs43131.c').read_text(), 'y2_late_probe') + r'''
 int main(void){
@@ -48,7 +49,7 @@ int main(void){
   no_rtd=fault==1;link_fail=fault==2?1:fault==3?2:0;links=disabled=0;
   component.dapm.idle=true;int rc=y2_late_probe(&y.card);
   if(fault){assert(rc==-ENOMEM && component.dapm.idle && !disabled);}
-  else{assert(!rc && links==2 && !component.dapm.idle && disabled==1 && y.card.dapm.idle);}
+  else{assert(!rc && links==2 && !component.dapm.idle && disabled==2 && y.card.dapm.idle);}
  }
  no_rtd=link_fail=links=disabled=0;pin_error=-EINVAL;
  assert(y2_late_probe(&y.card)==-EINVAL && disabled==1);
