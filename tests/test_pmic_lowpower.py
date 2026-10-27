@@ -13,6 +13,7 @@ class WriteWhitelist(unittest.TestCase):
         run_c(r'''
 #include <assert.h>
 #include "policy.h"
+#include "pmic-lowpower-policy.h"
 int main(void) {
  static const unsigned regs[] = {0x404, 0x500, 0x502, 0x552, 0x556};
  for (unsigned i = 0; i < 5; i++) {
@@ -23,6 +24,13 @@ int main(void) {
  assert(y2_pmic_write_mask(0x504) == 0x1001 && y2_pmic_write_mask(0x506) == 0x4001);
  assert(y2_pmic_write_mask(0x508) == 0x0001);
  assert(y2_pmic_write_mask(0x50c) == 0x8000 && y2_pmic_write_mask(0x532) == 0x00e0);
+ /* #28: VIBR enable + thermal shutdown, selector 1.8..2.8 V only; thermal shutdown never cleared. */
+ assert(y2_pmic_write_mask(0x542) == 0x8004 && y2_pmic_write_mask(0x544) == 0x00e0);
+ assert(y2_pmic_value_allowed(0x542, 0x8004) && y2_pmic_value_allowed(0x542, 0x0004));
+ assert(!y2_pmic_value_allowed(0x542, 0x8000) && !y2_pmic_value_allowed(0x542, 0x0000));
+ for (unsigned sel = 0; sel < 8; sel++)
+  assert(y2_pmic_value_allowed(0x544, sel << 5) == (sel >= 3 && sel <= 5));
+ assert(Y2_PMIC_VIBR_REG == 0x542 && Y2_PMIC_VIBR_THR == 0x0004);
  /* 27: VSYS mode fields only (test_pmic_sleep.py); selectors and both buck enables stay closed. */
  assert(y2_pmic_write_mask(0x256) == 0x0133 && y2_pmic_write_mask(0x23c) == 0x0002);
  assert(y2_pmic_write_mask(0x244) == 0 && y2_pmic_write_mask(0x246) == 0 && y2_pmic_write_mask(0x248) == 0);
@@ -59,7 +67,11 @@ int main(void) {
 
     def test_driver_touches_only_the_table_and_requires_admin_for_revert(self):
         self.assertIn('regmap_update_bits(lp_map, y2_pmic_lp_rails[i].reg, Y2_PMIC_LP_BIT', self.source)
-        self.assertEqual(len(re.findall(r'regmap_update_bits\(', self.source)), 1)
+        # #28: the one other write sets the stock VIBR thermal shutdown, never clears it.
+        self.assertIn('regmap_update_bits(lp_map, Y2_PMIC_VIBR_REG, Y2_PMIC_VIBR_THR, Y2_PMIC_VIBR_THR)', self.source)
+        self.assertEqual(len(re.findall(r'regmap_update_bits\(', self.source)), 2)
+        self.assertNotIn('Y2_PMIC_VIBR_THR, 0', self.source)
+        self.assertNotIn('VIBR', self.source[self.source.index('static int lp_apply'):self.source.index('static struct regmap *lp_find_map')])
         self.assertEqual(len(re.findall(r'regmap_write\(', self.source)), 0)
         self.assertIn('capable(CAP_SYS_ADMIN)', self.source)
         self.assertIn('0600', self.source)

@@ -165,6 +165,12 @@
         mediatek,platform = <&afe>; audio-codec = <&dac>;
         vgp2-supply = <&vgp2>; /* 27: held unless vgp2_idle_off=Y */
     };
+    /* #28: the motor as a force-feedback input ("regulator-haptic"): a rumble
+     * switches VIBR on, its magnitude picks 1.8/2.0/2.8 V, memless timing ends it. */
+    haptics { compatible = "regulator-haptic";
+        haptic-supply = <&vibr>;
+        min-microvolt = <1800000>; max-microvolt = <2800000>;
+    };
     navigation-keys {
         pinctrl-names = "default"; pinctrl-0 = <&nav_state>;
         compatible = "gpio-keys-polled";
@@ -356,6 +362,14 @@
                     /* POWER-FINAL-27: no longer always on. Stock's only VGP2 user
                      * is the CS43131 (ledger F20): the codec's runtime PM and the
                      * card's vgp2_idle_off switch own it; off while the DAC is idle. */
+                };
+                /* #28: the vibration motor's rail. The stock vibrator is only this
+                 * LDO switched on and off at VOSEL 5 = 2.8 V (FM kernel
+                 * vibr_power_set, cust {50 ms, 9, 5}); 2.8 V stays the ceiling. */
+                vibr: ldo_vibr {
+                    regulator-name = "vibr";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <2800000>;
                 };
             };
         };

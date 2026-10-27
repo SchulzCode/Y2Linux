@@ -82,6 +82,18 @@ int main(void) {
  assert(!wrap_reg_write(&w,0x52c,0x0080)&&writes==1);  /* VMCH 3.3 V */
  assert(wrap_reg_write(&w,0x52c,0x0000)==-EPERM&&writes==1); /* never 3.0 V */
  word=0x4000;assert(wrap_reg_write(&w,0x508,0x0000)==-EPERM&&wrap_reg_write(&w,0x52e,0)==-EPERM); /* VEMC_3V3 */
+ /* #28 VIBR as mt6323-regulator drives it for regulator-haptic. */
+ phase=polls=delays=commands=writes=acks=0;word=0x0000;
+ assert(wrap_reg_write(&w,0x542,0x8000)==-EPERM&&!writes); /* not before the thermal shutdown */
+ assert(!wrap_reg_write(&w,0x542,0x0004)&&word==0x0004&&writes==1); /* pmic-lowpower sets it */
+ assert(!wrap_reg_write(&w,0x542,0x8004)&&!wrap_reg_write(&w,0x542,0x0004)&&writes==3); /* on, off */
+ assert(wrap_reg_write(&w,0x542,0x8000)==-EPERM&&writes==3); /* never cleared */
+ assert(wrap_reg_write(&w,0x542,0x8006)==-EPERM&&writes==3); /* adjacent bit */
+ phase=polls=delays=commands=writes=acks=0;word=0x0060;
+ assert(!wrap_reg_write(&w,0x544,0x00a0)&&word==0x00a0&&writes==1); /* 2.8 V */
+ assert(!wrap_reg_write(&w,0x544,0x0080)&&!wrap_reg_write(&w,0x544,0x0060)&&writes==3); /* 2.0, 1.8 V */
+ assert(wrap_reg_write(&w,0x544,0x00c0)==-EPERM&&wrap_reg_write(&w,0x544,0x00e0)==-EPERM); /* 3.0, 3.3 V */
+ assert(wrap_reg_write(&w,0x544,0x0040)==-EPERM&&wrap_reg_write(&w,0x544,0x0061)==-EPERM&&writes==3);
 
  phase=polls=delays=commands=writes=acks=0;word=0x0088;
  assert(!wrap_reg_write(&w,0x76e,0x00e8)&&word==0x00e8&&writes==1);

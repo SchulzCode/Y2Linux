@@ -12,6 +12,11 @@
  * No enable, voltage or clock-control bit is touched here; the VPROC sleep
  * voltage is a separate, suspend-only owner (vproc-sleep-policy.h). */
 #define Y2_PMIC_LP_BIT 0x0001U
+/* #28: the same stock init sets VIBR_THER_SHDN_EN (DIGLDO_CON39 bit 2, golden
+ * row vibr_ther_shen_en). Set once with LP_SEL and never cleared (policy.h);
+ * the lp_sel switch does not revert it. */
+#define Y2_PMIC_VIBR_REG 0x542U
+#define Y2_PMIC_VIBR_THR 0x0004U
 #define Y2_PMIC_CID_REG 0x100U
 #define Y2_PMIC_CID_E2 0x2023U
 struct y2_pmic_lp_rail {

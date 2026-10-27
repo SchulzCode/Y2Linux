@@ -88,6 +88,14 @@ static inline unsigned y2_pmic_write_mask(unsigned reg)
 		return 0x8000;
 	case 0x532: /* DIGLDO_CON29: VGP2 selector only. */
 		return 0x00e0;
+	/* #28 vibration motor (regulator-haptic on VIBR), the stock vibrator's
+	 * only fields: DIGLDO_CON39 enable + the stock thermal shutdown (set once
+	 * by pmic-lowpower.c, never cleared), DIGLDO_CON40 selector 1.8..2.8 V.
+	 * Keep both DT bounds admitted: at registration the regulator core moves
+	 * an out-of-range VIBR to 1.8 or 2.8 V, and a refusal there would fail
+	 * the whole mt6323-regulator probe (SD, audio and radio rails with it). */
+	case 0x542: return 0x8004;
+	case 0x544: return 0x00e0;
 	/* SD rails as stock msdc_sd_power/msdc_sd_power_switch drive them
 	 * (docs/validation/Y2-STORAGE-CEILING.md). The VEMC_3V3 (root eMMC)
 	 * enable stays unwritable; only its LP_SEL bit is admitted above. */
@@ -137,6 +145,9 @@ static inline int y2_pmic_value_allowed(unsigned reg, unsigned value)
 	if (reg == 0x02c && (value & 0x3f) != 1) return 0;
 	if (reg == 0x02e && !(value & 0x80)) return 0;
 	if (reg == 0x03c && !(value & 0x20)) return 0;
+	if (reg == 0x542 && !(value & 0x4)) return 0; /* VIBR thermal shutdown stays on */
+	/* VIBR 1.8/2.0/2.8 V (selectors 3..5); stock runs it at 2.8 V. */
+	if (reg == 0x544 && (((value >> 5) & 7) < 3 || ((value >> 5) & 7) > 5)) return 0;
 	if (reg == 0x8000 && value != 0x4300) return 0;
 	if (reg == 0x416 && (value & 0xc)) return 0;
 	if (reg == 0x52c && !(value & 0x80)) return 0; /* VMCH never 3.0 V */

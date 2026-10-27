@@ -4,7 +4,8 @@
  * the registers in pmic-lowpower-policy.h. Applied once after the
  * PMIC is up, verified by readback, and revertible at run time:
  *   /sys/firmware/y2_pmic/lp_sel  (0600)  write 1 = set, 0 = clear, read = state
- * No voltage, enable, clock or sleep-voltage setting is changed. */
+ * No voltage, enable, clock or sleep-voltage setting is changed. The same pass
+ * sets the stock VIBR thermal shutdown once (#28); the switch leaves it set. */
 #include <linux/capability.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -82,6 +83,9 @@ static void lp_start(struct work_struct *work)
 	lp_ready = !lp_error;
 	pr_info("y2-pmic-lp: LP_SEL %s on VA/VIO28/VUSB/VM/VIO18/VMC/VMCH/VEMC3V3 (CID=%#x err=%d)\n",
 		lp_ready ? "set" : "FAILED", cid, lp_error);
+	ret = regmap_update_bits(lp_map, Y2_PMIC_VIBR_REG, Y2_PMIC_VIBR_THR, Y2_PMIC_VIBR_THR);
+	if (ret)
+		pr_warn("y2-pmic-lp: VIBR thermal shutdown not set (err=%d)\n", ret);
 	mutex_unlock(&lp_lock);
 }
 
@@ -95,6 +99,10 @@ static ssize_t lp_sel_show(struct kobject *k, struct kobj_attribute *a, char *bu
 		n += sysfs_emit_at(buf, n, " %s=%u", y2_pmic_lp_rails[i].name,
 				   regmap_read(lp_map, y2_pmic_lp_rails[i].reg, &value) ? 9U :
 				   !!(value & Y2_PMIC_LP_BIT));
+	if (lp_map)
+		n += sysfs_emit_at(buf, n, " VIBR_THR=%u",
+				   regmap_read(lp_map, Y2_PMIC_VIBR_REG, &value) ? 9U :
+				   !!(value & Y2_PMIC_VIBR_THR));
 	n += sysfs_emit_at(buf, n, "\n");
 	mutex_unlock(&lp_lock);
 	return n;
