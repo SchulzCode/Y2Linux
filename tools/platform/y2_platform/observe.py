@@ -419,8 +419,9 @@ def storage(ctx):
         readonly = 'ro' in item['options'] or 'ro' in item['super_options']
         protected = False
         if target == '/media/sd' and readonly:
-            # media.py mounts a healthy card read-only between writes: it is Ready.
-            protected = ctx.json('/run/y2/media-mount.json', {}).get('read_only') == 'protected'
+            # media.py mounts a healthy card read-only between writes: it is Ready;
+            # so is one that plays while its check finishes in the background (F49).
+            protected = ctx.json('/run/y2/media-mount.json', {}).get('read_only') in ('protected', 'checking')
         if target == '/media/sd':
             item['writable'] = not readonly
         try:

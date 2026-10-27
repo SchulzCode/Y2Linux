@@ -988,6 +988,35 @@ class PlatformPolicyTests(unittest.TestCase):
             service.media_reconcile(self.ctx, stopped, stopped['retry_at'])
             self.assertEqual(popen.call_count, 2)
 
+    def test_media_verify_runs_one_background_check_while_a_card_is_checking(self):
+        from y2_platform import service
+        with patch.object(service, 'media_verify_needed', return_value=False), \
+             patch('subprocess.Popen') as popen:
+            self.assertEqual(service.media_verify(self.ctx, None, 100.0), {})
+            self.assertEqual(popen.call_count, 0)
+        with patch.object(service, 'media_verify_needed', return_value=True), \
+             patch('subprocess.Popen') as popen, patch.object(service, 'kill_tree') as kill:
+            run = service.media_verify(self.ctx, None, 100.0)
+            self.assertEqual(popen.call_args[0][0], ['/usr/sbin/y2-platform', 'media', 'verify'])
+            run['process'].poll.return_value = None
+            # A long check is never stopped by the loop (media.CHECK_SECONDS bounds it).
+            self.assertIs(service.media_verify(self.ctx, run, 100.0 + 3600), run)
+            kill.assert_not_called()
+            # Ended without a verdict: again only after VERIFY_RETRY_S.
+            run['process'].poll.return_value = 0
+            ended = service.media_verify(self.ctx, run, 4000.0)
+            self.assertEqual(ended, {'retry_at': 4000.0 + service.VERIFY_RETRY_S})
+            self.assertEqual(service.media_verify(self.ctx, ended, 4001.0), ended)
+            service.media_verify(self.ctx, ended, ended['retry_at'])
+            self.assertEqual(popen.call_count, 2)
+        claim = self.ctx.path('/run/y2/media-mount.json')
+        claim.parent.mkdir(parents=True, exist_ok=True)
+        boot = self.ctx.read('/proc/sys/kernel/random/boot_id')
+        claim.write_text(json.dumps({'read_only': 'checking', 'boot_id': boot}))
+        self.assertTrue(service.media_verify_needed(self.ctx))
+        claim.write_text(json.dumps({'read_only': 'protected', 'boot_id': boot}))
+        self.assertFalse(service.media_verify_needed(self.ctx))
+
     def test_a_timed_out_command_also_kills_what_its_child_started(self):
         import sys, time
         from y2_platform.common import command

@@ -100,7 +100,7 @@ def main():
     shutdown.add_argument('action', choices=['poweroff', 'reboot'])
     shutdown.add_argument('--reason', choices=['user', 'service', 'update'], default='user')
     media = sub.add_parser('media')
-    media.add_argument('action', choices=['mount', 'unmount', 'check', 'status', 'reconcile', 'format', 'grow', 'repair', 'write'])
+    media.add_argument('action', choices=['mount', 'unmount', 'check', 'status', 'reconcile', 'verify', 'format', 'grow', 'repair', 'write'])
     media.add_argument('--holder', choices=['reborn', 'report', 'radiofw', 'usb'], default='reborn',
                        help='write only: who holds the window')
     media.add_argument('--seconds', type=int, default=60, help='write only: how long the card stays writable')
@@ -380,6 +380,9 @@ def main():
             result = write_window(ctx, args.holder, args.seconds, args.release)
             if result['state'] != 'Ready':
                 result['failure'] = result.get('reason') or 'write_window_failed'
+        elif args.action == 'verify':
+            from .media import verify
+            result = verify(ctx)
         else:
             result = reconcile(ctx) if args.action == 'reconcile' else operation(ctx, args.action)
     elif args.command == 'internal-media':

@@ -29,6 +29,9 @@ DARK_MAINTENANCE_S = 300
 # again only after RECONCILE_BACKOFF_S.
 RECONCILE_LIMIT_S = 150
 RECONCILE_BACKOFF_S = 600
+# A background check (`media verify`, F49) that ended without a verdict (the
+# player slept, the card was busy) starts again after this.
+VERIFY_RETRY_S = 30
 # Error reports (ERROR-REPORTS-PLAN): look for new triggers this often, the
 # first time shortly after start (a crash record of the previous boot); a run
 # that builds and sends reports is stopped after REPORT_LIMIT_S.
@@ -91,6 +94,34 @@ def media_reconcile(ctx, run, now):
                                    stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
     except OSError:
         return {}
+    return {'process': process, 'started': now}
+
+
+def media_verify_needed(ctx):
+    claim = ctx.json('/run/y2/media-mount.json', {})
+    return (isinstance(claim, dict) and claim.get('read_only') == 'checking' and
+            claim.get('boot_id') == ctx.read('/proc/sys/kernel/random/boot_id'))
+
+
+def media_verify(ctx, run, now):
+    """The check of a card mounted while its check ran (media.verify) in its
+    own process; it bounds its checker itself (media.CHECK_SECONDS). `run`
+    as for media_reconcile. Returns the new state."""
+    run = run or {}
+    process = run.get('process')
+    if process is not None:
+        if process.poll() is None:
+            return run
+        run = {'retry_at': now + VERIFY_RETRY_S}
+    if now < run.get('retry_at', 0) or not media_verify_needed(ctx):
+        return run
+    import subprocess
+    try:
+        process = subprocess.Popen(['/usr/sbin/y2-platform', 'media', 'verify'],
+                                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
+    except OSError:
+        return {'retry_at': now + VERIFY_RETRY_S}
     return {'process': process, 'started': now}
 
 
@@ -253,7 +284,7 @@ def serve(ctx):
         query_failures = query_failures if isinstance(query_failures, int) and query_failures >= 0 else 0
         update_check = None
         reports = None
-        reconcile = None
+        reconcile = verify = None
         firmware_scan, firmware_ready = None, False
         while running[0]:
             wake.drain()
@@ -283,6 +314,7 @@ def serve(ctx):
                 wifi_policy(ctx, activity)
             atomic_json(runtime / 'time-status.json', time_status(ctx))
             reconcile = media_reconcile(ctx, reconcile, before)
+            verify = media_verify(ctx, verify, before)
             if value['state'] == 'Online' and before >= next_ntp:
                 next_ntp = before + 60
                 ctx.command(['/etc/init.d/S43y2-time', 'start'], timeout=1)

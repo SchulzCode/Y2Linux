@@ -417,12 +417,17 @@ class StorageTools(unittest.TestCase):
                           'path_lines': 1})
         self.assertNotIn('Music', text)
 
-    def test_a_check_that_times_out_is_named_apart(self):
+    def slow_card(self, background):
+        """A FAT card whose check outlasts admission; `background` answers the
+        check `verify` runs (F49, d32f8f3c: 59 s on 71 400 songs)."""
         calls = self.card_fixture()
         runner = self.ctx.runner
         def slow(argv, **kwargs):
             if argv[0] == 'fsck.fat':
-                return {'ok': False, 'reason': 'command_timeout', 'output': None}
+                calls.append((argv, kwargs['timeout']))
+                if kwargs['timeout'] < self.CHECK_SECONDS:
+                    return {'ok': False, 'reason': 'command_timeout', 'output': None}
+                return background(argv)
             result = runner(argv, **kwargs)
             if argv[0] == 'blkid':
                 result['output'] = result['output'].replace('exfat', 'vfat')
@@ -430,13 +435,74 @@ class StorageTools(unittest.TestCase):
                 self.put('/proc/self/mountinfo', self.ctx.read('/proc/self/mountinfo').replace('exfat', 'vfat'))
             return result
         self.ctx.runner = slow
+        return calls
+
+    from y2_platform.media import ADMISSION_CHECK_SECONDS, CHECK_SECONDS
+
+    def test_a_slow_check_plays_at_once_and_finishes_in_the_background(self):
+        from y2_platform.media import ADMISSIONS, marked_for_repair, verify, write_window
+        calls = self.slow_card(lambda argv: {'ok': True, 'reason': None, 'output': ''})
         result = operation(self.ctx, 'mount')
-        self.assertEqual((result['state'], result['filesystem_check']['reason'], result['filesystem_check']['findings']),
-                         ('Degraded', 'command_timeout', ['timeout']))
-        # Not damage, and nothing to fear from reading: it plays, read-only.
-        self.assertEqual(result['read_only'], 'check_timed_out')
+        checks = lambda: [c for c in calls if isinstance(c, tuple)]
+        self.assertEqual(checks(), [(['fsck.fat', '-n', '/dev/mmcblk1p1'], self.ADMISSION_CHECK_SECONDS)])
+        self.assertEqual((result['state'], result['reason'], result['read_only'], result['filesystem_check']['findings']),
+                         ('Ready', None, 'checking', ['timeout']))
+        mount = next(c for c in calls if isinstance(c, list) and c[0] == 'mount')
+        self.assertTrue(mount[mount.index('-o') + 1].startswith('ro,'))
+        # Not damage: Ready, its space shown, no Repair, no window until the check passes.
         sd = storage(self.ctx)['volumes'][2]
-        self.assertEqual((sd['state'], sd['reason'], sd['read_only_reason']), ('Degraded', 'read_only', 'check_timed_out'))
+        self.assertEqual((sd['state'], sd['writable'], sd['space_state']), ('Ready', False, 'Normal'))
+        self.assertNotIn('read_only_reason', sd)
+        self.assertIsNone(marked_for_repair(self.ctx))
+        self.assertEqual(write_window(self.ctx, 'usb', 30)['reason'], 'card_being_checked')
+        self.assertFalse(any('remount,rw' in c for c in calls if isinstance(c, list)))
+        answer = verify(self.ctx)
+        self.assertEqual(checks()[-1], (['fsck.fat', '-n', '/dev/mmcblk1p1'], self.CHECK_SECONDS))
+        self.assertEqual((answer['state'], answer['read_only']), ('Ready', 'protected'))
+        self.assertEqual(self.ctx.json('/run/y2/media-mount.json')['read_only'], 'protected')
+        self.assertEqual(write_window(self.ctx, 'usb', 30)['holders'], ['usb'])
+        entries = self.ctx.json(ADMISSIONS)['admissions']
+        self.assertEqual([(e['ok'], e.get('background')) for e in entries], [(False, None), (True, True)])
+        # Settled: nothing left to check.
+        self.assertEqual(verify(self.ctx)['reason'], 'nothing_to_check')
+
+    def test_a_background_check_with_findings_or_no_end_offers_repair(self):
+        from y2_platform.media import marked_for_repair, verify
+        cases = {'filesystem_errors': {'ok': False, 'reason': 'command_failed',
+                                       'output': self.INTERRUPTED['chain shorter']},
+                 'check_timed_out': {'ok': False, 'reason': 'command_timeout', 'output': None}}
+        for read_only, answer in cases.items():
+            with self.subTest(read_only):
+                self.setUp()
+                self.slow_card(lambda argv: dict(answer))
+                self.assertEqual(operation(self.ctx, 'mount')['read_only'], 'checking')
+                result = verify(self.ctx)
+                self.assertEqual((result['state'], result['reason'], result['read_only']),
+                                 ('Degraded', 'read_only', read_only))
+                sd = storage(self.ctx)['volumes'][2]
+                self.assertEqual((sd['state'], sd['read_only_reason']), ('Degraded', read_only))
+                self.assertIsNotNone(marked_for_repair(self.ctx))
+                self.assertNotIn('Song', self.ctx.path('/run/y2/media.json').read_text())
+
+    def test_a_background_check_applies_only_to_the_card_it_read(self):
+        from y2_platform.media import verify
+        self.slow_card(lambda argv: {'ok': False, 'reason': 'command_failed', 'output': 'I/O error'})
+        operation(self.ctx, 'mount')
+        # The player slept while the checker read: no verdict, it runs again.
+        with patch('y2_platform.media._slept_ns', side_effect=[0, 5_000_000_000]):
+            self.assertEqual(verify(self.ctx)['reason'], 'slept_during_check')
+        self.assertEqual(self.ctx.json('/run/y2/media-mount.json')['read_only'], 'checking')
+        # Reinserted (new disk sequence) before or while it was checked.
+        self.ctx.path('/sys/class/block/mmcblk1p1').resolve().parent.joinpath('diskseq').write_text('18')
+        self.assertEqual(verify(self.ctx)['reason'], 'card_changed')
+        self.assertEqual(self.ctx.json('/run/y2/media-mount.json')['read_only'], 'checking')
+
+    def test_ext4_keeps_its_admission_check(self):
+        from y2_platform.media import EXT4_CHECK_SECONDS, read_only_check
+        seen = []
+        self.ctx.runner = lambda argv, **kw: seen.append(kw['timeout']) or {'ok': True, 'reason': None, 'output': ''}
+        read_only_check(self.ctx, {'filesystem': 'ext4', 'device': '/dev/mmcblk1p1'})
+        self.assertEqual(seen, [EXT4_CHECK_SECONDS])
 
     def test_fsck_is_read_only_and_never_checks_mounted_media(self):
         calls = self.card_fixture()
@@ -456,7 +522,7 @@ class StorageTools(unittest.TestCase):
                 def failure(argv, **kwargs):
                     if argv[0] == 'fsck.exfat':
                         calls.append(argv)
-                        self.assertEqual(kwargs['timeout'], 60)
+                        self.assertEqual(kwargs['timeout'], self.ADMISSION_CHECK_SECONDS)
                         return {'ok': False, 'reason': reason, 'output': None}
                     return original(argv, **kwargs)
                 self.ctx.runner = failure

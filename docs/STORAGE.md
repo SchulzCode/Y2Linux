@@ -82,8 +82,12 @@ automatically.
   and no playlist on it is being changed.
 - A card that was **pulled out while in use** (it carries a "not cleanly unmounted" mark) is used
   again normally, as are the harmless leftovers of an interrupted copy that Windows ignores too.
-- A FAT32 or exFAT card whose check finds **real damage** (or whose check does not finish) still
-  plays, but **read-only**: Settings → Storage says *Has errors · Playing only* and nothing is
+- **A large card is checked while it plays (F49).** A FAT32 or exFAT card whose check takes longer
+  than 20 s (about 70 000 songs on a 1 TB exFAT card take a minute) is used at once, read-only,
+  and checked in the background; when the check passes it is writable as usual. Until then a
+  computer sees it read-only.
+- A FAT32 or exFAT card whose check finds **real damage** (or whose background check has not
+  finished after 30 minutes) still plays, but **read-only**: Settings → Storage says *Has errors · Playing only* and nothing is
   written to it, so the damage cannot spread. **Repair SD Card** (Settings → Storage) fixes it on
   the player: keep it on the charger or above 30 %. Damaged files may be shortened or removed; the
   rest stays. A copy of the card's tables is kept on the player for support. A computer can repair
@@ -148,6 +152,8 @@ y2-platform internal-media status        # partition, filesystem, mount
 cat /run/y2/internal-media-setup.json    # what the setup did at this start
 y2-media status                          # the SD card (writable, read_only_reason)
 y2-media write --holder reborn --seconds 60   # a write window on the protected card (--release ends it)
+y2-media verify                          # the background check of a card mounted while its check ran (read_only: checking)
+cat /data/system/platform/sd-admissions.json  # the last 10 checks: time, verdict, elapsed_ms, background
 y2-media repair                          # what Settings > Storage > Repair SD Card runs
 cat /data/system/platform/sd-repair-last.json # the last repair, no names
 ```

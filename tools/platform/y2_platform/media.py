@@ -126,14 +126,26 @@ def fat_benign_only(output):
     return bool(found) and 'other' not in found
 
 
-def read_only_check(ctx, card, force=False):
+# F49 (d32f8f3c, 8.41): fsck.exfat -n took 59 s on a 1 TB card with 71 400
+# songs and ran out of the old 60 s at a few more; the card then stayed
+# read-only behind a Repair that found nothing. A FAT/exFAT card whose check
+# does not finish within ADMISSION_CHECK_SECONDS is mounted read-only at once
+# ('checking') and checked again in the background (verify) for CHECK_SECONDS.
+ADMISSION_CHECK_SECONDS = 20
+EXT4_CHECK_SECONDS = 60              # no background check: a read-only ext4 mount replays its journal
+CHECK_SECONDS = 1800
+
+
+def read_only_check(ctx, card, force=False, timeout=None):
     """The admission check, never a repair. The record keeps no checker
     output from a failed run (it can name files); benign findings pass with
     `finding`, and every run names its classes in `findings`."""
     argv = {'ext4': ['e2fsck', '-f', '-n'] if force else ['e2fsck', '-n'],
             'vfat': ['fsck.fat', '-n'], 'exfat': ['fsck.exfat', '-n']}[card['filesystem']]
+    if timeout is None:
+        timeout = ADMISSION_CHECK_SECONDS if card['filesystem'] in READ_ONLY_FALLBACK else EXT4_CHECK_SECONDS
     started = time.monotonic()
-    result = ctx.command(argv + [card['device']], timeout=60,
+    result = ctx.command(argv + [card['device']], timeout=timeout,
                          failure_output=card['filesystem'] == 'vfat')
     check = {'ok': result['ok'], 'reason': result['reason'],
              'output': result['output'] if result['ok'] else None,
@@ -167,7 +179,8 @@ def remember_admission(ctx, card, check):
                         'filesystem': card['filesystem'], 'ok': bool(check.get('ok')),
                         'reason': check.get('reason'), 'finding': check.get('finding'),
                         'findings': check.get('findings', []), 'elapsed_ms': check.get('elapsed_ms'),
-                        **({'other': check['other']} if check.get('other') else {})})
+                        **({'other': check['other']} if check.get('other') else {}),
+                        **({'background': True} if check.get('background') else {})})
         directory = ctx.path(ADMISSIONS).parent
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         atomic_json(ctx.path(ADMISSIONS), {'schema': 1, 'admissions': entries[-ADMISSIONS_KEPT:]})
@@ -306,7 +319,7 @@ def operation(ctx, action):
                 card = available[0]
                 state.update(card)
                 if action == 'check':
-                    result = read_only_check(ctx, card, force=True)
+                    result = read_only_check(ctx, card, force=True, timeout=CHECK_SECONDS)
                     state['filesystem_check'] = result
                     state.update(state='Ready' if result['ok'] else 'Degraded',
                                  reason='read_only_check_passed' if result['ok'] else result['reason'])
@@ -318,18 +331,20 @@ def operation(ctx, action):
                     state['filesystem_check'] = result
                     remember_admission(ctx, card, result)
                     read_only = None
-                    if not result['ok']:
+                    if result.get('findings') == ['timeout'] and card['filesystem'] in READ_ONLY_FALLBACK:
+                        # Not finished is not damaged (F49): it plays read-only
+                        # now and `verify` finishes the check in the background.
+                        read_only = 'checking'
+                    elif not result['ok']:
                         state.update(state='Degraded', reason='filesystem_check_failed')
-                        # FAT/exFAT with a finding (or a check that ran out of
-                        # time) mounts read-only: reading never changes a card,
+                        # FAT/exFAT with a finding mounts read-only: reading never changes a card,
                         # writing into a damaged table can overwrite another file.
                         # The music plays; Repair (or a computer) makes it writable.
                         # ext4 stays out: even a read-only mount replays its journal.
                         if card['filesystem'] not in READ_ONLY_FALLBACK:
                             atomic_json(runtime / 'media.json', state)
                             return state
-                        read_only = ('check_timed_out' if result.get('findings') == ['timeout']
-                                     else 'filesystem_errors')
+                        read_only = 'filesystem_errors'
                     if candidates(ctx) != available:
                         state.update(state='Failed', reason='source_changed_during_check')
                         atomic_json(runtime / 'media.json', state)
@@ -356,7 +371,7 @@ def operation(ctx, action):
                                           card['device'], '/media/sd'], timeout=3)
                     current = mounts(ctx)
                     if result['ok'] and len(current) == 1 and current[0]['source'] == card['device']:
-                        damaged = read_only not in (None, 'protected')
+                        damaged = read_only not in (None, 'protected', 'checking')
                         state.update(state='Degraded' if damaged else 'Ready', mount_id=current[0]['mount_id'],
                                      device_id=current[0]['device_id'], read_only=read_only,
                                      reason='read_only' if damaged else None,
@@ -512,6 +527,9 @@ def write_window(ctx, holder, seconds=60, release=False):
         claim, mount = _sd_state(ctx)
         if mount is None:
             return {'state': 'Unavailable', 'reason': 'not_mounted', 'writable': False}
+        if claim.get('read_only') == 'checking':
+            # Writable once its background check passes (USB asks again every 10 s).
+            return {'state': 'Failed', 'reason': 'card_being_checked', 'writable': False}
         if claim.get('read_only') not in (None, 'protected'):
             # Errors found or a check unfinished: Repair first, never a window.
             return {'state': 'Degraded', 'reason': 'card_has_errors', 'writable': False}
@@ -562,6 +580,77 @@ def sd_writable(ctx, holder, seconds=120):
     finally:
         if answer.get('holders'):
             write_window(ctx, holder, release=True)
+
+
+# ---------------------------------------------------------------------------
+# Background check (F49) of a card mounted read-only ('checking') because its
+# check did not finish within the admission budget. The service starts it
+# (`media verify`) while the claim says 'checking'. No lock is held while the
+# checker reads; the result applies only to the same mount of the same card.
+
+def _slept_ns():
+    return time.clock_gettime_ns(time.CLOCK_BOOTTIME) - time.monotonic_ns()
+
+
+def _card_key(card):
+    return card['identity']['id'], card['source_instance']
+
+
+def verify(ctx):
+    state = {'schema': 1, 'action': 'verify', 'state': 'Starting', 'reason': None}
+    claim, mount = _sd_state(ctx)
+    if mount is None or claim.get('read_only') != 'checking':
+        state.update(state='Unavailable', reason='nothing_to_check')
+        return state
+    key = ((claim.get('identity') or {}).get('id'), claim.get('source_instance'))
+    available = candidates(ctx)
+    if [_card_key(c) for c in available] != [key]:
+        state.update(state='Failed', reason='card_changed')
+        return state
+    card = available[0]
+    slept = _slept_ns()
+    result = read_only_check(ctx, card, timeout=CHECK_SECONDS)
+    result['background'] = True
+    if not result['ok'] and _slept_ns() - slept > 1_000_000_000:
+        # A check read across a system sleep is no verdict; the service runs it again.
+        state.update(state='Failed', reason='slept_during_check')
+        return state
+    remember_admission(ctx, card, result)
+    runtime = ctx.path('/run/y2')
+    lock = os.open(runtime / 'media.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
+        deadline = time.monotonic() + 30
+        while True:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    state.update(state='Failed', reason='media_operation_in_progress')
+                    return state
+                time.sleep(.2)
+        now, mount = _sd_state(ctx)
+        if mount is None or now.get('mount_id') != claim.get('mount_id') or now.get('read_only') != 'checking' \
+                or [_card_key(c) for c in candidates(ctx)] != [key]:
+            state.update(state='Failed', reason='card_changed')
+            return state
+        if result['ok']:
+            read_only = 'protected'
+            if ctx.path(PROTECT_OFF).exists():
+                ctx.command(['mount', '-o', 'remount,rw', '/media/sd'], timeout=10)
+                current = mounts(ctx)
+                read_only = None if current and 'rw' in current[0]['options'] else 'protected'
+            now.update(state='Ready', reason=None, read_only=read_only, filesystem_check=result)
+        else:
+            # Errors found, or still unfinished after CHECK_SECONDS: Repair is offered.
+            now.update(state='Degraded', reason='read_only', filesystem_check=result,
+                       read_only='check_timed_out' if result.get('findings') == ['timeout'] else 'filesystem_errors')
+        atomic_json(runtime / 'media-mount.json', now)
+        atomic_json(runtime / 'media.json', now)
+        state.update(now, action='verify')
+        return state
+    finally:
+        os.close(lock)
 
 
 # ---------------------------------------------------------------------------
