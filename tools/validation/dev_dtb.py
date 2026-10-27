@@ -69,6 +69,19 @@ STORAGE_RAILS = ('ldo_vmch','ldo_vmc','ldo_vio18')
 STORAGE_EMMC_MODES = {'mmc-ddr-1_8v','mmc-hs200-1_8v'}
 STORAGE_SD_MODES = {'sd-uhs-sdr12','sd-uhs-sdr25','sd-uhs-sdr50','sd-uhs-ddr50','sd-uhs-sdr104'}
 
+# #28: the vibration motor's VIBR rail, 1.8..2.8 V (stock fixed 2.8 V), only
+# for regulator-haptic; never on at boot.
+HAPTIC_RAIL = 'ldo_vibr'
+
+def check_haptics(nodes, handle):
+    rail='/pwrap@1000d000/pmic/regulators/'+HAPTIC_RAIL
+    v=nodes[rail]
+    require(v['regulator-min-microvolt']==cells(1800000) and v['regulator-max-microvolt']==cells(2800000), 'VIBR within the stock 2.8 V')
+    require('regulator-always-on' not in v and 'regulator-boot-on' not in v, 'VIBR off until a rumble')
+    h=nodes['/haptics']
+    require(h['compatible']==strings('regulator-haptic') and h['haptic-supply']==cells(handle(rail)), 'regulator-haptic on VIBR')
+    require(h['min-microvolt']==cells(1800000) and h['max-microvolt']==cells(2800000), 'haptic range = VIBR range')
+
 def check_storage(nodes, handle):
     rails='/pwrap@1000d000/pmic/regulators/'
     require(not any(p.startswith(rails+'ldo_vemc') for p in nodes), 'root eMMC card supply stays undeclared')
@@ -133,7 +146,7 @@ def check(data, initrd_size, production=True, recovery=False):
                             '/pwrap@1000d000/pmic/regulators/ldo_vgp2',
                             '/pwrap@1000d000/pmic/regulators/buck_vproc') or
                     (connectivity and path in tuple('/pwrap@1000d000/pmic/regulators/'+n for n in CONN_RAILS)) or
-                    (production and path in tuple('/pwrap@1000d000/pmic/regulators/'+n for n in STORAGE_RAILS)), 'unreviewed rail')
+                    (production and path in tuple('/pwrap@1000d000/pmic/regulators/'+n for n in STORAGE_RAILS+(HAPTIC_RAIL,))), 'unreviewed rail')
         if path.startswith('/i2c@11008000/'):
             require(path == '/i2c@11008000/codec@30', 'unreviewed audio/radio I2C client')
     def handle(path): return struct.unpack('>I',nodes[path]['phandle'])[0]
@@ -199,6 +212,7 @@ def check(data, initrd_size, production=True, recovery=False):
         require('no-sdio' in v,'MMC radio activation')
     if production:
         check_storage(nodes, handle)
+        check_haptics(nodes, handle)
     if production:
         timer=nodes.get('/local-timer', {})
         require(timer.get('compatible')==strings('arm,armv7-timer') and
