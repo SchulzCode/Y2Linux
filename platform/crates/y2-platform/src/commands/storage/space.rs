@@ -1,0 +1,243 @@
+//! `space.py`: Y2DATA admission policy and bounded cleanup of explicitly disposable files
+//! (`y2-platform space [--cleanup]`).
+// SPDX-License-Identifier: GPL-2.0-only
+use super::observe::volumes;
+use super::sys::{get, mkdir, observation_record, wall, Object};
+use crate::reply::{atomic_json, Failure};
+use serde_json::{json, Value};
+use std::{ffi::CString, io, os::unix::ffi::OsStrExt};
+use y2p_core::{storage_media::disposable_name, Root};
+
+const PURPOSES: [&str; 6] = [
+    "cache",
+    "diagnostic",
+    "update",
+    "user_state",
+    "database",
+    "transfer",
+];
+
+fn admission(volume: &Object, purpose: &str) -> Value {
+    let state = volume
+        .get("space_state")
+        .cloned()
+        .unwrap_or(json!("Unavailable"));
+    if matches!(
+        state.as_str(),
+        Some("ReadOnlyRisk" | "Failed" | "Unavailable")
+    ) {
+        return json!({"allowed": false, "reason": state});
+    }
+    let reserve: i64 = if matches!(purpose, "user_state" | "database") {
+        32 << 20
+    } else {
+        96 << 20
+    };
+    // isinstance(free, int): a bool is one too.
+    let free = match get(volume, "available_bytes") {
+        Value::Bool(b) => Some(i64::from(*b)),
+        Value::Number(n) => n.as_i64(),
+        _ => None,
+    };
+    let mut allowed = free.is_some_and(|f| f >= reserve);
+    if matches!(purpose, "cache" | "diagnostic" | "update") && state.as_str() != Some("Normal") {
+        allowed = false;
+    }
+    json!({"allowed": allowed, "reason": if allowed { "budget_available" } else { "space_reserved" },
+           "reserve_bytes": reserve, "requested_bytes": 0})
+}
+
+/// An open directory descriptor, closed when dropped.
+struct Fd(libc::c_int);
+
+impl Drop for Fd {
+    fn drop(&mut self) {
+        // SAFETY: a descriptor this module opened and owns.
+        unsafe { libc::close(self.0) };
+    }
+}
+
+fn last_error() -> io::Error {
+    io::Error::last_os_error()
+}
+
+fn cstring(text: &str) -> io::Result<CString> {
+    CString::new(text).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))
+}
+
+fn open_directory(at: libc::c_int, name: &CString) -> io::Result<Fd> {
+    // SAFETY: a NUL-terminated name relative to an open directory (or AT_FDCWD).
+    let fd = unsafe {
+        libc::openat(
+            at,
+            name.as_ptr(),
+            libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+        )
+    };
+    if fd < 0 {
+        Err(last_error())
+    } else {
+        Ok(Fd(fd))
+    }
+}
+
+fn fstat(fd: libc::c_int) -> io::Result<libc::stat> {
+    // SAFETY: a zeroed stat filled by the kernel for an open descriptor.
+    unsafe {
+        let mut meta: libc::stat = std::mem::zeroed();
+        if libc::fstat(fd, &mut meta) != 0 {
+            return Err(last_error());
+        }
+        Ok(meta)
+    }
+}
+
+fn lstat_at(fd: libc::c_int, name: &CString) -> io::Result<libc::stat> {
+    // SAFETY: as fstat, for a name in an open directory, not following a symlink.
+    unsafe {
+        let mut meta: libc::stat = std::mem::zeroed();
+        if libc::fstatat(fd, name.as_ptr(), &mut meta, libc::AT_SYMLINK_NOFOLLOW) != 0 {
+            return Err(last_error());
+        }
+        Ok(meta)
+    }
+}
+
+fn regular(meta: &libc::stat) -> bool {
+    meta.st_mode & libc::S_IFMT == libc::S_IFREG
+}
+
+/// `os.scandir(fd)`: the names of an open directory in its order (without `.` and `..`), at most
+/// `limit`.
+fn names(fd: libc::c_int, limit: usize) -> io::Result<Vec<CString>> {
+    // SAFETY: fdopendir takes over a duplicate of the descriptor; closedir releases it.
+    unsafe {
+        let copy = libc::dup(fd);
+        if copy < 0 {
+            return Err(last_error());
+        }
+        let directory = libc::fdopendir(copy);
+        if directory.is_null() {
+            let error = last_error();
+            libc::close(copy);
+            return Err(error);
+        }
+        libc::rewinddir(directory);
+        let mut found = Vec::new();
+        while found.len() < limit {
+            *libc::__errno_location() = 0;
+            let entry = libc::readdir(directory);
+            if entry.is_null() {
+                let errno = *libc::__errno_location();
+                libc::closedir(directory);
+                return if errno == 0 {
+                    Ok(found)
+                } else {
+                    Err(io::Error::from_raw_os_error(errno))
+                };
+            }
+            let name = std::ffi::CStr::from_ptr((*entry).d_name.as_ptr()).to_owned();
+            if name.as_bytes() != b"." && name.as_bytes() != b".." {
+                found.push(name);
+            }
+        }
+        libc::closedir(directory);
+        Ok(found)
+    }
+}
+
+/// Never walk arbitrary trees or delete media, settings, databases or stages.
+fn disposable_cleanup(root: &Root, max_files: u64, max_bytes: u64) -> Result<Value, Failure> {
+    let now = wall();
+    let (mut files, mut bytes, mut errors) = (0u64, 0u64, Vec::new());
+    let data = root.path("/data");
+    let top = CString::new(data.as_os_str().as_bytes()).map_err(Failure::value)?;
+    let rootfd = open_directory(libc::AT_FDCWD, &top).map_err(|e| Failure::os(e, &data))?;
+    for (parts, category, keep) in [
+        (["reborn", "cache"], "cache", 0usize),
+        (["reborn", "diagnostics"], "diagnostics", 2),
+        (["cache", "platform"], "platform", 0),
+    ] {
+        let mut attempt = || -> io::Result<()> {
+            let mut fd: Option<Fd> = None;
+            for part in parts {
+                let at = fd.as_ref().map_or(rootfd.0, |f| f.0);
+                fd = Some(open_directory(at, &cstring(part)?)?);
+            }
+            let fd = fd.expect("two parts");
+            if fstat(fd.0)?.st_dev != fstat(rootfd.0)?.st_dev {
+                return Err(io::Error::from_raw_os_error(libc::EXDEV)); // cleanup_submount_refused
+            }
+            // A bounded scan, not an unbounded in-memory directory listing.
+            let mut entries: Vec<(f64, String, u64, u64)> = Vec::new();
+            for name in names(fd.0, 4096)? {
+                let text = name.to_string_lossy().into_owned();
+                if !disposable_name(category, &text) {
+                    continue;
+                }
+                let meta = lstat_at(fd.0, &name)?;
+                if regular(&meta) && meta.st_nlink == 1 {
+                    let mtime = meta.st_mtime as f64 + meta.st_mtime_nsec as f64 * 1e-9;
+                    entries.push((mtime, text, meta.st_size as u64, meta.st_ino));
+                }
+            }
+            entries.sort_by(|a, b| {
+                b.0.total_cmp(&a.0)
+                    .then_with(|| b.1.cmp(&a.1))
+                    .then_with(|| b.2.cmp(&a.2))
+                    .then_with(|| b.3.cmp(&a.3))
+            });
+            for (mtime, name, size, inode) in entries.iter().skip(keep).rev() {
+                if now - mtime < 86_400.0 || files >= max_files || bytes + size > max_bytes {
+                    continue;
+                }
+                let name = cstring(name)?;
+                let current = lstat_at(fd.0, &name)?;
+                if current.st_ino != *inode || current.st_size as u64 != *size || !regular(&current)
+                {
+                    continue;
+                }
+                // SAFETY: a NUL-terminated name in the open directory.
+                if unsafe { libc::unlinkat(fd.0, name.as_ptr(), 0) } != 0 {
+                    return Err(last_error());
+                }
+                files += 1;
+                bytes += size;
+            }
+            Ok(())
+        };
+        match attempt() {
+            Ok(()) => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => errors.push(json!({"category": category, "errno": error.raw_os_error()})),
+        }
+    }
+    Ok(json!({"files": files, "bytes": bytes, "errors": errors}))
+}
+
+pub fn policy(root: &Root, cleanup: bool) -> Result<Value, Failure> {
+    let volumes = volumes(root);
+    let data = volumes
+        .into_iter()
+        .find(|v| get(v, "path").as_str() == Some("/data"))
+        .expect("the /data volume");
+    let admission: Object = PURPOSES
+        .iter()
+        .map(|p| (p.to_string(), admission(&data, p)))
+        .collect();
+    let space_state = get(&data, "space_state").clone();
+    let mut result = json!({
+        "schema": "org.y2linux.space/v1", "record": observation_record(root, "space-policy"),
+        "state": space_state, "volume": data.clone(), "admission": admission, "cleanup": null,
+    });
+    if cleanup
+        && get(&data, "state").as_str() == Some("Ready")
+        && matches!(space_state.as_str(), Some("LowSpace" | "CriticalSpace"))
+    {
+        result["cleanup"] = disposable_cleanup(root, 64, 8 << 20)?;
+    }
+    let directory = root.path("/run/y2");
+    mkdir(&directory, 0o700)?;
+    atomic_json(&directory.join("storage.json"), &result, false)?;
+    Ok(result)
+}
