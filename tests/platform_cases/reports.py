@@ -211,7 +211,7 @@ CASES = [
                                     'storage': 'boot-a:True:2', 'reborn_panic': hashlib.sha256(json.dumps(
                                         ['1.0.0-fixture', 'a.rs:1', 'boom']).encode()).hexdigest()[:16]})}}),
     ('report-check-old-crash-key', ['report', 'check'], {'ported': True, 'files': {
-        **ENABLED, '/sys/fs/pstore/dmesg-ramoops-0': 'Kernel panic\n', STATE: state(seen={'pstore': 'x'}),
+        **ENABLED, '/sys/fs/pstore/console-ramoops-0': 'Kernel panic\n', STATE: state(seen={'pstore': 'x'}),
         '/etc/y2linux/release.json': '{"reborn_version": "1.0"}',
         '/data/reborn/logs/panic-last.json': json.dumps({'version': '0.9', 'location': 'x', 'message': 'y'})}}),
     ('report-check-routine-sleep', ['report', 'check'], {'ported': True, 'files': {

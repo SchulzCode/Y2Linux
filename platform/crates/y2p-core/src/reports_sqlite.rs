@@ -35,6 +35,8 @@ struct Api {
     sleep: unsafe extern "C" fn(c_int) -> c_int,
 }
 
+// Each symbol is cast to the Api field it is assigned to (its type is the field's).
+#[allow(clippy::missing_transmute_annotations)]
 fn api() -> Option<&'static Api> {
     static API: OnceLock<Option<Api>> = OnceLock::new();
     API.get_or_init(|| {

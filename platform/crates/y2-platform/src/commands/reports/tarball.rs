@@ -229,6 +229,9 @@ pub fn gunzip(data: &[u8], limit: u64) -> io::Result<Vec<u8>> {
     Ok(out)
 }
 
+/// Members with the bodies asked for.
+pub type Members = Vec<(Member, Option<Vec<u8>>)>;
+
 /// One member read back.
 pub struct Member {
     pub name: String,
@@ -245,7 +248,7 @@ pub fn members(
     compressed: bool,
     limit: usize,
     wanted: impl Fn(&Member) -> bool,
-) -> Result<Vec<(Member, Option<Vec<u8>>)>, ()> {
+) -> Result<Members, ()> {
     let raw;
     let data = if compressed {
         raw = gunzip(data, 64 << 20).map_err(|_| ())?;

@@ -59,6 +59,8 @@ fn resolve(path: &Path) -> PathBuf {
     }
 }
 
+// statvfs fields are 32-bit on the player (armv7), 64-bit on the host.
+#[allow(clippy::unnecessary_cast)]
 /// `observe.storage(ctx)`'s volume for `/data`; every target's blkid request is made as Python's.
 fn data(root: &Root) -> Volume {
     let mounts = media::mountinfo(root.read("/proc/self/mountinfo").as_deref());

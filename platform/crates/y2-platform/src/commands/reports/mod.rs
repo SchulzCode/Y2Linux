@@ -178,10 +178,10 @@ fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> O
             }
         },
         "upload" => upload::upload(root, None, None),
-        "work" => checks::run_checks(root).and_then(|reports| {
-            Ok(Py::dict()
+        "work" => checks::run_checks(root).map(|reports| {
+            Py::dict()
                 .with("reports", reports)
-                .with("upload", upload::upload_now(root, None, None)))
+                .with("upload", upload::upload_now(root, None, None))
         }),
         _ => checks::run_checks(root).map(|reports| Py::dict().with("reports", reports)),
     };

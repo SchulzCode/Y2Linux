@@ -106,7 +106,7 @@ impl Py {
         match self {
             Py::None => false,
             Py::Bool(b) => *b,
-            Py::Int(d) => d.trim_start_matches('-').trim_start_matches('0') != "",
+            Py::Int(d) => !d.trim_start_matches('-').trim_start_matches('0').is_empty(),
             Py::Float(f) => *f != 0.0,
             Py::Str(s) => !s.is_empty(),
             Py::List(l) => !l.is_empty(),

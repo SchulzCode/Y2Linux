@@ -780,3 +780,43 @@ pub fn send(root: &Root, topic: Option<&str>) -> Result<Py, Failure> {
     progress.close();
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The real-root path: the body reaches the program's stdin whole, its output is read as curl's.
+    #[test]
+    fn uploads_stream_the_body_and_read_the_answer() {
+        let script = "n=$(wc -c); printf '{\"report_id\": \"r\", \"bytes\": %s}\\n201 0 ' \"$n\"";
+        let data = vec![7u8; 100_000];
+        let outcome = stream(&["/bin/sh", "-c", script], &data, None);
+        let (status, value) = answer(&outcome);
+        assert_eq!(status, Some(201));
+        let value = value.unwrap();
+        assert_eq!(value.get("report_id"), Some(&Py::str("r")));
+        assert_eq!(value.get("bytes").and_then(Py::as_int), Some(100_000));
+        let failed = stream(
+            &[
+                "/bin/sh",
+                "-c",
+                "cat >/dev/null; printf '\\n000 6 Could not resolve host'; exit 6",
+            ],
+            b"x",
+            None,
+        );
+        assert_eq!(answer(&failed), (None, Err("gaierror".into())));
+        let missing = stream(&["/nonexistent/curl"], b"x", None);
+        assert_eq!(answer(&missing), (None, Err("FileNotFoundError".into())));
+        let refused = command::Outcome {
+            ok: true,
+            reason: None,
+            output: Some("{\"error\": \"bad_trigger\"}\n400 0 ".into()),
+        };
+        let (status, value) = answer(&refused);
+        assert_eq!(
+            (status, value.unwrap().get("error").cloned()),
+            (Some(400), Some(Py::str("bad_trigger")))
+        );
+    }
+}
