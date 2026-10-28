@@ -4,9 +4,9 @@
 //! represented by fixed event classes and numeric errno only: free text cannot be reliably scrubbed by
 //! a password regular expression.
 //!
-//! The bundle carries `observe.snapshot(ctx)` and `health.check(ctx)`, which belong to the
-//! observation group: until those are in Rust, `export-diagnostics` hands itself to Python before it
-//! reads or writes anything (`platform_state`).
+//! The bundle carries `observe.snapshot(ctx)` and `health.check(ctx)`, the observation group's
+//! (`platform_state`), taken where Python's `collect` takes them: after the space admission, the lock
+//! and the export limit.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     fields::{FIELDS, KERNEL_FIELDS, KERNEL_STATUS_KEYS, PUBLIC_WORDS},
@@ -238,9 +238,13 @@ pub fn events(raw: Option<&str>) -> Py {
     Py::List(result)
 }
 
-/// `observe.snapshot(ctx)` and `health.check(ctx)`, once the observation group provides them.
-fn platform_state(_root: &Root) -> Option<(Py, Py)> {
-    None
+/// `observe.snapshot(ctx)` and `health.check(ctx)`, in this order (each runs its own commands).
+fn platform_state(root: &Root) -> Result<(Py, Py), Failure> {
+    use crate::commands::observation::{health, snapshot};
+    let status = snapshot::snapshot(root, &[], false, 0.0)?;
+    let status = Py::from_serde(&serde_json::Value::Object(status));
+    let checks = health::check(root, false)?;
+    Ok((status, Py::from_serde(&serde_json::Value::Object(checks))))
 }
 
 /// `log_tail(ctx, relative)`: walk reviewed data paths with no symlinks; never read arbitrary files.
@@ -290,7 +294,8 @@ fn log_tail(root: &Root, relative: &str) -> Result<Py, Failure> {
     Ok(events(Some(&String::from_utf8_lossy(&tail))))
 }
 
-fn collect(root: &Root, snapshot: Py, health: Py) -> Py {
+fn collect(root: &Root) -> Result<Py, Failure> {
+    let (snapshot, health) = platform_state(root)?;
     let mut logs = Py::dict();
     for (name, path) in [
         ("system", "logs/system.log"),
@@ -309,7 +314,7 @@ fn collect(root: &Root, snapshot: Py, health: Py) -> Py {
             Py::dict().with("state", Py::str("Unavailable"))
         },
     );
-    Py::dict()
+    Ok(Py::dict()
         .with("schema", Py::str("org.y2linux.tester-diagnostics/v1"))
         .with("redacted", Py::Bool(true))
         .with(
@@ -342,10 +347,10 @@ fn collect(root: &Root, snapshot: Py, health: Py) -> Py {
                 0,
             ),
         )
-        .with("logs", logs)
+        .with("logs", logs))
 }
 
-fn export_inner(root: &Root, snapshot: Py, health: Py) -> Result<Py, Failure> {
+fn export_inner(root: &Root) -> Result<Py, Failure> {
     let volume = data_volume(root)?;
     if !admitted(&volume, MAX_BYTES as u64) {
         return Err(Failure::value("diagnostic_space_reserved"));
@@ -368,9 +373,7 @@ fn export_inner(root: &Root, snapshot: Py, health: Py) -> Result<Py, Failure> {
     if existing >= 8 {
         return Err(Failure::value("diagnostic_export_limit_retrieve_existing"));
     }
-    let raw = pyjson::dumps_strict(&collect(root, snapshot, health), Style::Spaced)
-        .map_err(Failure::Value)?
-        + "\n";
+    let raw = pyjson::dumps_strict(&collect(root)?, Style::Spaced).map_err(Failure::Value)? + "\n";
     if raw.len() > MAX_BYTES {
         return Err(Failure::value("diagnostic_size_limit"));
     }
@@ -422,11 +425,10 @@ fn export_inner(root: &Root, snapshot: Py, health: Py) -> Result<Py, Failure> {
 
 /// cli.py's `export-diagnostics`: any OSError or ValueError is `diagnostic_export_failed`.
 pub fn export(root: &Root) -> Outcome {
-    let Some((snapshot, health)) = platform_state(root) else {
-        return Err(Failure::Fallback);
-    };
-    match export_inner(root, snapshot, health) {
+    match export_inner(root) {
         Ok(value) => Ok(Reply::text(pyjson::dumps(&value, Style::Spaced))),
+        // A snapshot Python crashes on (its traceback): by then only /data/exports and its lock file
+        // exist, which Python makes the same way again.
         Err(Failure::Fallback) => Err(Failure::Fallback),
         Err(_) => Reply::unsorted(
             &y2p_core::json::Ordered::new()

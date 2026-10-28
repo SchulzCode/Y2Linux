@@ -339,7 +339,11 @@ CASES = [
         'ported': False, 'commands': BLKID, 'files': {**PURGE, QUARANTINE + '/record.json': '{'}}),
     # export-state / export-diagnostics
     ('export-state-unverified', ['export-state', '--include-database'], {'ported': True}),
-    ('export-diagnostics', ['export-diagnostics'], {'ported': False}),
+    ('export-diagnostics', ['export-diagnostics'], {'ported': True}),
+    ('export-diagnostics-limit', ['export-diagnostics'], {'ported': True, 'commands': BLKID, 'files': {
+        **DATA, **{'/data/exports/y2-diagnostics-%d-x.tar.gz' % i: '' for i in range(8)}}}),
+    ('export-diagnostics-not-a-directory', ['export-diagnostics'], {'ported': True, 'commands': BLKID, 'files': {
+        **DATA, '/data/exports': 'a file'}}),
 ]
 
 # Cases tests/test_platform_reports.py runs with archive normalisation (`archives`) or a plan made first
@@ -373,6 +377,12 @@ EXTRA_CASES = [
     ('export-state', ['export-state', '--include-database', '--include-network'], {
         'ported': True, 'archives': True, 'library': True, 'commands': BLKID, 'volatile': ['wall_timestamp', 'monotonic_ns', 'bytes'],
         'patterns': [HEX32, HEX64], 'files': {**DATA, **SETTINGS, '/data/network/wpa_supplicant.conf': 'network={}\n'}}),
+    # The tester export: the snapshot and health projected, log tails as event classes, dmesg unanswered.
+    ('export-diagnostics-complete', ['export-diagnostics'], {
+        'ported': True, 'archives': True, 'commands': BLKID, 'volatile': ['bytes'],
+        'patterns': [(r'y2-diagnostics-\d+-[0-9a-f]{32}', 'y2-diagnostics-<id>'), HEX64], 'files': {
+            **DATA, '/data/logs/system.log': 'msdc0: cmd timeout error=-110\njoined Home at 192.168.1.40\n',
+            '/data/reborn/logs/reborn.log': 'bluetooth reconnect failed ret: 5\n'}}),
     ('export-state-plain', ['export-state'], {'ported': True, 'archives': True, 'commands': BLKID,
                                               'volatile': ['wall_timestamp', 'monotonic_ns', 'bytes'],
                                               'patterns': [HEX32, HEX64], 'files': DATA}),

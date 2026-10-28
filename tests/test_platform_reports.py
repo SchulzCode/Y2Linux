@@ -230,6 +230,11 @@ class ReportsDifferential(unittest.TestCase):
         retained = next(m for m in big if m['name'] == 'files/data/system/platform/retained/boot-1.tar')['data']
         self.assertEqual([name for name, _ in retained], ['boot.log', 'evidence.json', 'x.jsonl'])
         self.assertIn('files/data/reborn/diagnostics/d.tar', index['sections'])
+        diagnostics = results['export-diagnostics-complete']
+        self.assertEqual(diagnostics['stdout']['state'], 'Complete')
+        bundle = diagnostics['tree']['/data/exports/y2-diagnostics-<id>.tar.gz.members.json']['content'][0]['data']
+        self.assertEqual(bundle['logs']['system'][0]['components'], ['msdc'])
+        self.assertIn('checks', bundle['health'])
         crashed = results['reset-execute-plan-no-expiry']
         self.assertEqual((crashed['exit'], crashed['stdout']), (1, []))
 
