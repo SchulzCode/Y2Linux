@@ -36,6 +36,20 @@ class QuietDisplayPower(unittest.TestCase):
         self.assertLess(relit, show.index('return ret;'))
         self.assertNotIn('return', show[show.index('drmModeSetCrtc('):relit])
 
+    def test_splash_cycles_the_crtc_once_when_its_modeset_gives_no_frame(self):
+        # F17 (3e55b45e): no vblank from the first modeset and no CRTC off all
+        # boot; an off/on cleared the same symptom on 51f3b06d.
+        splash = (ROOT / 'tools/graphics/reborn-splash.c').read_text()
+        show = splash[splash.index('static int show(Display *d) {'):]
+        show = show[:show.index('\n}\n')]
+        failed = show[show.index('if (drmWaitVBlank(d->fd,&vbl)) {'):]
+        self.assertLess(failed.index('if (cycled) poll(NULL,0,40);'), failed.index('cycled=true;'))
+        off = failed.index('drmModeSetCrtc(d->fd,d->crtc,0,0,0,NULL,0,NULL);')
+        self.assertLess(failed.index('cycled=true;'), off)
+        self.assertLess(off, failed.index('ret=drmModeSetCrtc(d->fd,d->crtc,d->fb,'))
+        self.assertLess(failed.index('ret=drmModeSetCrtc(d->fd,d->crtc,d->fb,'), show.index('light("0\\n");'))
+        self.assertIn('static bool cycled;', splash)
+
     def test_dsi_handoff_is_dark_until_the_first_linux_frame(self):
         # 21's boot log: "park video" at 0.489 s, Linux DSI modeset at 0.532 s,
         # splash frame at 0.642 s; the lit panel had no stream in between.

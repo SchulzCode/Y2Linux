@@ -118,7 +118,7 @@
       "path": "drivers/gpu/drm/mediatek/mtk_dsi.c",
       "patch": "0017-mt6582-dsi.patch",
       "base_sha256": "a8405967bc29d4786727389cff06f9f7129b319ecb27840ae9b4ed0fcd857476",
-      "result_sha256": "4a8fd7d9714be7bd449dc8ad261a2f3d567cc8537d46efd402e650576a8f570e"
+      "result_sha256": "faf61957c64320b3b9a721013dc8021752526608a9841869e5ce94571dffe6af"
     },
     {
       "path": "sound/soc/mediatek/Makefile",

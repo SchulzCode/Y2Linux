@@ -284,12 +284,27 @@ static void light(const char *value) {
     if (write(fd,value,2)!=2) event("backlight_write_failed",errno);
     close(fd);
 }
+/* F17 (3e55b45e): a cold boot whose pipeline never produced a frame; every
+ * SetCrtc waited out its flip_done timeouts (~35 s) and nothing turned the
+ * CRTC off, which cleared the same symptom on 51f3b06d. Without a vblank after
+ * the modeset, turn the CRTC off and set the mode again, once per process. */
+static bool cycled;
 static int show(Display *d) {
     light("4\n");
     int ret=drmModeSetCrtc(d->fd,d->crtc,d->fb,0,0,&d->connector,1,&d->mode);
     if (!ret) {
         drmVBlank vbl={.request={.type=DRM_VBLANK_RELATIVE,.sequence=2}};
-        if (drmWaitVBlank(d->fd,&vbl)) poll(NULL,0,40);
+        if (drmWaitVBlank(d->fd,&vbl)) {
+            if (cycled) poll(NULL,0,40);
+            else {
+                cycled=true; event("modeset_no_vblank",errno);
+                (void)drmModeSetCrtc(d->fd,d->crtc,0,0,0,NULL,0,NULL);
+                ret=drmModeSetCrtc(d->fd,d->crtc,d->fb,0,0,&d->connector,1,&d->mode);
+                vbl=(drmVBlank){.request={.type=DRM_VBLANK_RELATIVE,.sequence=2}};
+                event(ret || drmWaitVBlank(d->fd,&vbl) ? "modeset_cycle_no_vblank" : "modeset_cycle_vblank",
+                      ret ? errno : 0);
+            }
+        }
     }
     light("0\n"); /* always: a failed modeset must never leave the panel dark */
     return ret;

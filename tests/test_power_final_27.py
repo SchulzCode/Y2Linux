@@ -222,6 +222,43 @@ int main(void)
         self.assertIn('DSI register reads still lag after 3 power cycles', poweron)
         self.assertNotIn('still lag', poweron[:poweron.index('dev_err(dev,')])
 
+    def test_no_panel_read_goes_out_while_dsi_reads_need_the_double_read(self):
+        # F17 (3e55b45e): the only double-read boot that sent the stock ID reads
+        # (lcm=0-st7701) got 0 bytes and never streamed; readb() bypasses the
+        # double read. Writes still go out.
+        dsi = (ROOT / 'kernel/patches/0017-mt6582-dsi.patch').read_text()
+        transfer = dsi[dsi.index('return -EHOSTDOWN;'):]
+        guard = transfer.index('READ_ONCE(y2_dsi_twice) && MTK_DSI_HOST_IS_READ(msg->type)) {')
+        self.assertLess(guard, transfer.index('dsi_mode = readl(dsi->regs + DSI_MODE_CTRL);'))
+        self.assertIn('return -EIO;', transfer[guard:guard + 400])
+
+    def test_an_enabled_dsi_without_frames_is_restarted_at_most_twice(self):
+        # F17 (3e55b45e): DSI idle (status 0) and vblank stuck at 1 from the
+        # first modeset; no screen-off ever cycled it, which cleared 51f3b06d.
+        dsi = (ROOT / 'kernel/patches/0017-mt6582-dsi.patch').read_text()
+        sample = dsi[dsi.index('+static void y2_scanout_sample('):]
+        sample = sample[:sample.index('\n+}\n')]
+        check = sample[sample.index('if (!dsi->y2_samples && dsi->y2_vblank && dsi->enabled'):]
+        check = check[:check.index('return;')]
+        self.assertIn('dsi->y2_restarts < 2', check)
+        self.assertIn('drm_crtc_vblank_count(dsi->y2_crtc) - dsi->y2_vblank_start < 2', check)
+        self.assertIn('!(readl(dsi->regs + DSI_INTSTA) & DSI_BUSY)', check)   # a streaming DSI is busy
+        self.assertLess(check.index('dsi->y2_restarts++;'), check.index('y2_dsi_restart(dsi);'))
+        self.assertIn('schedule_delayed_work(&dsi->y2_sample, msecs_to_jiffies(250));', check)
+        restart = dsi[dsi.index('+static void y2_dsi_restart(struct mtk_dsi *dsi)\n'):]
+        restart = restart[:restart.index('\n+}\n')]
+        order = ['mtk_dsi_stop(dsi);', 'phy_power_off(dsi->phy);', 'dsi->refcount = 0;',
+                 'mtk_dsi_poweron(dsi);', 'mtk_output_dsi_enable(dsi);']
+        self.assertEqual([restart.index(s) for s in order], sorted(restart.index(s) for s in order))
+        self.assertNotIn('switch_to_cmd_mode', restart)       # idle engine: no VM_DONE wait
+        enable = dsi[dsi.index('mtk_output_dsi_enable(dsi);\n+    if (dsi->driver_data->mt6582) {'):]
+        enable = enable[:enable.index('schedule_delayed_work(&dsi->y2_sample')]
+        self.assertIn('dsi->y2_restarts = 0;', enable)
+        self.assertIn('dsi->y2_vblank_start = drm_crtc_vblank_count(dsi->y2_crtc);', enable)
+        # The bridge disable cancels the sampler before it touches the DSI.
+        disable = dsi[dsi.index('+	if (dsi->driver_data->mt6582) {\n+        cancel_delayed_work_sync(&dsi->y2_sample);'):]
+        self.assertLess(disable.index('cancel_delayed_work_sync'), disable.index('mtk_output_dsi_disable(dsi);'))
+
 
 class IdleVgp2(unittest.TestCase):
     card = (ROOT / 'kernel/audio/y2-cs43131.c').read_text()
