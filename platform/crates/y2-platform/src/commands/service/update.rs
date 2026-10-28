@@ -1499,12 +1499,34 @@ fn health_ack(root: &Root) -> Result<Value> {
     Ok(Value::Object(result))
 }
 
-/// `health.check`: root, data, filesystem_errors, display, render_node, audio and input all `OK`.
-/// It is the whole `observe.snapshot` (port group observation), not ported yet: the Python platform
-/// does this health-ack. Nothing it would not write the same way has changed by then (it reads back
-/// this boot's update-health.json unchanged).
-fn core_health_ok(_root: &Root) -> Result<bool> {
-    Err(Raise::Fallback)
+/// `health.check`: root, data, filesystem_errors, display, render_node, audio and input all `OK`
+/// (`checks.get(name, {}).get('state')`: the dict comprehension keeps the last check of a name).
+fn core_health_ok(root: &Root) -> Result<bool> {
+    let health = crate::commands::observation::health::check(root, false)?;
+    let checks = health
+        .get("checks")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    let state = |name: &str| {
+        checks
+            .iter()
+            .rev()
+            .find(|item| item.get("name").and_then(Value::as_str) == Some(name))
+            .and_then(|item| item.get("state"))
+            .and_then(Value::as_str)
+    };
+    Ok([
+        "root",
+        "data",
+        "filesystem_errors",
+        "display",
+        "render_node",
+        "audio",
+        "input",
+    ]
+    .iter()
+    .all(|name| state(name) == Some("OK")))
 }
 
 /// The routed form: `update <action> [--url URL] [--package DIR]`.

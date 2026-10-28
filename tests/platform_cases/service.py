@@ -117,6 +117,20 @@ READY = {'/run/y2/application-ready.json': json.dumps({'boot_id': 'boot-a', 'fir
                                                        'start_ticks': 777})}
 
 
+# Every core health check health-ack needs OK: a writable root and Y2DATA on the internal controller with
+# their filesystem identities, no ext4 errors, and the display, render, audio and input nodes.
+HEALTHY = {'/proc/self/mountinfo': '22 1 ../../devices/platform/11230000.mmc/mmcblk0p2 / / rw - ext4 /dev/mmcblk0p2 rw\n'
+                                   '30 22 ../../devices/platform/11230000.mmc/mmcblk0p9 / /data rw,noatime - ext4 '
+                                   '/dev/mmcblk0p9 rw\n',
+           '/sys/dev/block/.present': '', '/sys/devices/platform/11230000.mmc/mmcblk0p2/dev': '179:2\n',
+           '/sys/devices/platform/11230000.mmc/mmcblk0p9/dev': '179:9\n',
+           '/sys/fs/ext4/mmcblk0p9/errors_count': '0\n', '/dev/dri/card0': '', '/dev/dri/renderD128': '',
+           '/dev/snd/pcmC0D0p': '', '/dev/input/event0': ''}
+HEALTHY_BLKID = [answer(['blkid', '-p', '-s', 'UUID', '-o', 'value', '/dev/mmcblk0p2'],
+                        '79324c69-6e75-4801-8000-000000000101'), BLKID]
+REBORNCTL = ['/usr/bin/rebornctl', 'status', '--json']
+
+
 def stat_line(ticks):
     return '1234 (reborn) S ' + ' '.join(['1'] * 18) + ' %d 0\n' % ticks
 
@@ -251,8 +265,28 @@ CASES = [
         'commands': [core('rollback', {'state': 'RollbackPending'}), core('prepare', {'state': 'Prepared'})]}),
     ('update-health-ack-expired-refused', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'ported': True, 'files': {
         **PENDING, '/run/y2/update-health.json': '{"boot_id": "boot-a", "deadline_monotonic_s": 1.5}'}}),
-    ('update-health-ack-checks', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'ported': False, 'files': {
+    ('update-health-ack-checks', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'ported': True, 'files': {
         **PENDING, **READY, '/proc/1234/stat': stat_line(777)}}),
+    ('update-health-ack-app-not-ready', ['update', 'health-ack'], {
+        'volatile': ['deadline_monotonic_s'], 'ported': True, 'commands': HEALTHY_BLKID, 'files': {
+            **PENDING, **READY, **HEALTHY, '/proc/1234/stat': stat_line(777)}}),
+    ('update-health-ack-app-not-json', ['update', 'health-ack'], {
+        'volatile': ['deadline_monotonic_s'], 'ported': True, 'commands': [*HEALTHY_BLKID, answer(REBORNCTL, 'x')],
+        'files': {**PENDING, **READY, **HEALTHY, '/proc/1234/stat': stat_line(777)}}),
+    ('update-health-ack-acknowledged', ['update', 'health-ack'], {
+        'volatile': ['deadline_monotonic_s'], 'ported': True,
+        'commands': [*HEALTHY_BLKID, answer(REBORNCTL, '{"healthy": true}'), core('ack', {'state': 'Acknowledged'})],
+        'files': {**PENDING, **READY, **HEALTHY, '/proc/1234/stat': stat_line(777),
+                  '/data/system/platform/boot.json': json.dumps({'schema': 1, 'boot_id': 'boot-a',
+                                                                 'last_stage': 'services_started'}),
+                  '/run/y2/health-debug.json': '{"printk": "4\\t4 1 7", "panic": "0", "panic_on_rcu_stall": "1"}',
+                  '/proc/sys/kernel/printk': '7 4 1 7\n', '/proc/sys/kernel/panic': '0\n',
+                  '/proc/sys/kernel/panic_on_rcu_stall': '1\n',
+                  '/data/updates/pending/manifest.json': '{}'}}),
+    ('update-health-ack-graphics', ['update', 'health-ack'], {
+        'volatile': ['deadline_monotonic_s'], 'ported': True,
+        'commands': [*HEALTHY_BLKID, answer(REBORNCTL, '{"graphics": {"available": true}, "uptime_seconds": 9}')],
+        'files': {**PENDING, **READY, **HEALTHY, '/proc/1234/stat': stat_line(777)}}),
     # update auto-check (the service's daily check)
     ('update-auto-check-not-due', ['update', 'auto-check'], {'volatile': ['attempt'], 'ported': True, 'files': {
         '/data/updates/last-check.json': last_check()}}),

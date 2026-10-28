@@ -8,9 +8,9 @@ mod bench;
 mod bluetooth;
 mod collect;
 mod evidence;
-mod health;
+pub(crate) mod health;
 mod network_check;
-mod snapshot;
+pub(crate) mod snapshot;
 mod system;
 mod util;
 
