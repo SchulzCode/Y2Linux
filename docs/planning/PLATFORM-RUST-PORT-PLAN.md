@@ -183,6 +183,9 @@ Acknowledged, the phase's device checks, a handoff entry. Publish only when the 
   exact argument forms, fallbacks, accepted differences); `y2p-core` gained the bounded command runner (fixture
   answers below `Y2_ROOT`), Python value rules (`is True`, bools as ints, `1.0 == 1`), `OSError` texts and uuid4.
   62 differential cases, all identical Rust vs Python, each checked to run in Rust or fall back as intended.
+  **Device-checked on test build 168** (167 carried phase 1's binary: fixed package version, now the git tree of
+  `platform/`): ported calls 8–17 ms instead of 527–541 ms, restart trail 1.20 s instead of 2.57 s, plain boot
+  application_ready 40.59 s instead of 44.44 s, records as before.
   **Part 2 (next):** `status` (incl. `--reborn --pss`, `wifi`), `health`, `boot-evidence`, `network-check`: they sit
   on `observe.py` and most other modules (the largest single piece of phase 2).
 

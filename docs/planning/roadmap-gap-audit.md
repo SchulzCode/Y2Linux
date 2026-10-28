@@ -9562,3 +9562,12 @@ phase 1's source). Cause: the package version was a fixed `1`, so the resumed bu
 Fix: `Y2_PLATFORM_VERSION` is the git tree of `platform/` (a build fails without one), and `release.py` prunes
 older `y2-platform-*` folders. 167's device result is therefore phase 1 again (Acknowledged, records identical to
 166, restart orderly); the part 1 device check moves to test build 168 (sequence 11130).
+
+**Device result, test build 168** (Linux `cf86abc`, sequence 11130; `/usr/sbin/y2-platform` 634 KB, new hash):
+staged OTA → health boot **Acknowledged**, taint 0. Ported commands on the player: `capabilities` 15 ms, `sleep
+status` 8 ms, `time` 8 ms, `time-remember` 17 ms, `codec-runtime` 9 ms (Python 527–541 ms each). Boot records as
+166's (power features, CPU idle `Enabled`, BlueALSA arguments); Rust `dhcp-event` took the real lease
+(`Authenticated`), Rust `ntp-event` wrote time.json. Restart: `execute` → `init_reboot ok` in **1.20 s** (166:
+2.57 s; journal_pending 0.02 s, time_remember 0.01 s, journal_complete 0.02 s, each 0.54–0.59 s before), orderly;
+plain boot platform_start 8.23 s, services_started 22.06 s, **application_ready 40.59 s** (166: 8.72/23.75/44.44).
+Owner (2026-10-28): continue until all phases are done and Python is removed; the owner runs the hardware tests.
