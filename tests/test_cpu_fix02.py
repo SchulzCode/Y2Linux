@@ -596,7 +596,7 @@ enum { Y2_PM_NONE, Y2_PM_SUSPEND_REQUEST, Y2_PM_FILESYSTEM_SYNCED, Y2_PM_DEVICES
  Y2_PM_SELFTEST_B, Y2_PM_BACKSTOP_STARTED, Y2_PM_EXIT, Y2_PM_DEVICES_RESUMED, Y2_PM_CONSOLE_RESUMED,
  Y2_PM_PLATFORM_ENDED, Y2_PM_TASKS_THAWED, Y2_PM_FILESYSTEMS_THAWED, Y2_PM_POST_SUSPEND_NOTIFIED,
  Y2_PM_CONSOLE_RESTORED, Y2_PM_DORMANT_BEGIN, Y2_PM_DORMANT_CONTEXT, Y2_PM_DORMANT_FINISH, Y2_PM_DORMANT_RETURN, Y2_PM_DORMANT_COMPLETE, Y2_PM_DORMANT_ABORTED, Y2_PM_DORMANT_RESTORE_PCM, Y2_PM_DORMANT_RESTORE_CONTEXT, Y2_PM_DORMANT_RESTORE_CIRQ, Y2_PM_DORMANT_RESTORE_CLOCKS, Y2_PM_INFRA_PDN_ENTRY, Y2_PM_STAGE_COUNT };
-struct y2_pm_backstop_ops { int (*start)(unsigned); void (*ping)(void); void (*stop)(void); };
+struct y2_pm_backstop_ops { int (*start)(unsigned); void (*ping)(void); void (*stop)(void); void (*end)(void); };
 struct kobject; struct kobj_attribute;
 static unsigned sram[Y2_PM_REGION / 4], drop_offset = ~0U, stuck_offset = ~0U;
 static void *journal = sram;
@@ -608,11 +608,12 @@ static const struct y2_pm_backstop_ops *backstop_ops;
 static unsigned backstop_armed, backstop_seconds;
 static bool backstop_running, backstop_paused, backstop_staged;
 static int backstop_error;
-static unsigned starts, pings, stops, start_fail;
+static unsigned starts, pings, stops, ends, start_fail;
 static int start(unsigned s) { if (start_fail) return -EBUSY; starts++; assert(s >= 10 && s <= 30); return 0; }
 static void ping(void) { pings++; }
 static void stop(void) { stops++; }
-static const struct y2_pm_backstop_ops ops = { start, ping, stop };
+static void end(void) { ends++; }
+static const struct y2_pm_backstop_ops ops = { start, ping, stop, end };
 static void writel(unsigned v, void *p)
 {
 	unsigned off = (unsigned char *)p - (unsigned char *)sram;
@@ -729,7 +730,7 @@ int main(void){
  backstop_armed = 30; y2_pm_mark(Y2_PM_SUSPEND_REQUEST, 0); y2_pm_backstop_begin(true);
  assert(starts == 1 && backstop_running && backstop_staged && journal_record[2] == Y2_PM_BACKSTOP_STARTED);
  unsigned p = pings; y2_pm_mark(Y2_PM_DEVICES_SUSPENDED, 0); assert(pings == p + 1);
- y2_pm_backstop_end(); assert(stops == 1 && !backstop_running);
+ y2_pm_backstop_end(); assert(stops == 1 && ends == 1 && !backstop_running);
  /* One-shot: the next request is not covered. */
  y2_pm_backstop_begin(true); assert(starts == 1);
  /* Full sleep: paused (stopped) only around SPM, restarted after return. */
@@ -737,9 +738,12 @@ int main(void){
  y2_pm_backstop_pause(true); assert(stops == 2 && backstop_paused);
  p = pings; y2_pm_mark(Y2_PM_AFTER_SPM_RETURN, 0); assert(pings == p); /* never pinged while paused */
  y2_pm_backstop_pause(false); assert(starts == 3 && !backstop_paused);
- y2_pm_backstop_end(); assert(stops == 3);
+ y2_pm_backstop_end(); assert(stops == 3 && ends == 2);
+ /* Paused at exit: no second stop, but the RGU is still handed back. */
+ backstop_armed = 20; y2_pm_backstop_begin(false); y2_pm_backstop_pause(true);
+ y2_pm_backstop_end(); assert(stops == 4 && ends == 3 && !backstop_running);
  /* Pause is inert when not running (runtime dormant path). */
- y2_pm_backstop_pause(true); assert(stops == 3);
+ y2_pm_backstop_pause(true); assert(stops == 4);
  /* Provider refusal (userspace owns /dev/watchdog) leaves nothing running. */
  start_fail = 1; backstop_armed = 30; y2_pm_backstop_begin(true); assert(!backstop_running && backstop_error == -EBUSY);
 }
@@ -767,8 +771,10 @@ int main(void){
         wdt = overlay('drivers/watchdog/mtk_wdt.c')
         self.assertIn('if (watchdog_active(wdd) || seconds < WDT_MIN_TIMEOUT', wdt)
         self.assertIn('y2_pm_backstop_register(&y2_backstop_ops);', wdt)
-        # Upstream suspend/resume still act only on a core-owned active watchdog.
-        self.assertIn('if (watchdog_active(&mtk_wdt->wdt_dev))\n\t\tmtk_wdt_stop', function(wdt, 'mtk_wdt_suspend'))
+        # Suspend/resume act on a core-owned watchdog (opened or kernel-fed), never on
+        # the backstop (tests/test_watchdog_keepalive.py runs them).
+        self.assertIn('if (watchdog_active(&mtk_wdt->wdt_dev) ||\n\t    y2_keepalive_running(&mtk_wdt->wdt_dev))\n\t\tmtk_wdt_stop',
+                      function(wdt, 'mtk_wdt_suspend'))
 
 
 class UsbTransportAttribution(unittest.TestCase):

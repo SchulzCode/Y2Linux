@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'tools/platform'))
 from audio_precision import generate
 from y2_platform.common import Context
-from y2_platform.boot import capture_previous, evidence_status, mark, pmic_power_status
+from y2_platform.boot import capture_previous, evidence_status, loader_boot, mark, pmic_power_status
 
 
 class EvidenceTests(unittest.TestCase):
@@ -69,6 +69,7 @@ class EvidenceTests(unittest.TestCase):
             result=capture_previous(ctx)
             self.assertEqual(result['previous_boot_id'],'previous')
             self.assertIsNone(result['reset_cause'])
+            self.assertEqual(result['loader'], {'boot_reason': None, 'reset': None})
             self.assertFalse(result['kernel_panic_retention_guaranteed'])
             self.assertLessEqual(len(result['logs'][0]['tail_lines']),32)
             path=ctx.path('/data/system/platform/previous-boot-evidence.json')
@@ -113,8 +114,20 @@ class EvidenceTests(unittest.TestCase):
             put('/data/system/platform/previous-boot-evidence.json',json.dumps(
                 {'captured_on_boot_id':'previous','pmic':pmic_power_status(status(0x8000))}))
             put('/sys/firmware/y2_pmic/power_status',status(0x8010))
+            put('/sys/firmware/y2_boot/metadata','valid=1 boot_mode=0 boot_reason=0 offline=0 recovery_image=0 panel=st7701s\n')
             self.assertTrue(capture_previous(ctx)['pmic']['long_press_reset'])
             self.assertTrue(evidence_status(ctx)['pmic']['long_press_reset'])
+            self.assertEqual(evidence_status(ctx)['loader'], {'boot_reason': 0, 'reset': 'cold'})
+
+    def test_loader_start_tells_a_watchdog_reset_from_a_cut(self):
+        # F56: the RGU status reads 0 by the time Linux probes; LK's boot
+        # reason survives. 4 = SoC reset past the Power key (watchdog, restart).
+        meta = 'valid=1 boot_mode=0 boot_reason=%s offline=0 recovery_image=0 panel=gc9503v\n'
+        self.assertEqual(loader_boot(meta % 4), {'boot_reason': 4, 'reset': 'warm'})
+        self.assertEqual(loader_boot(meta % 3), {'boot_reason': 3, 'reset': 'warm'})
+        self.assertEqual(loader_boot(meta % 1), {'boot_reason': 1, 'reset': 'cold'})
+        for text in (None, 'valid=0 boot_reason=4\n', meta % 'x'):
+            self.assertEqual(loader_boot(text), {'boot_reason': None, 'reset': None})
 
 
 if __name__ == '__main__': unittest.main()

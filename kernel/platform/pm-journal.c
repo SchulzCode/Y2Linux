@@ -401,6 +401,8 @@ void y2_pm_backstop_end(void)
 		return;
 	if (ops && !backstop_paused)
 		ops->stop();
+	if (ops && ops->end)
+		ops->end();
 	backstop_running = false;
 	backstop_paused = false;
 }

@@ -1312,10 +1312,13 @@ def check(ctx):
     evidence = ctx.json('/data/system/platform/previous-boot-evidence.json', {})
     if evidence.get('previous_orderly_shutdown') is False and \
             _changed(value, 'unclean', str(evidence.get('previous_boot_id') or boot)):
-        # F56/F57: the PMIC's long-press record tells a held Power from a cut.
+        # F56/F57: the PMIC's long-press record tells a held Power from a cut,
+        # the loader's warm start a watchdog reset (or kernel restart) from both.
         pmic = evidence.get('pmic') if isinstance(evidence.get('pmic'), dict) else {}
-        fired.append(('unclean_restart', '%s %s last stage %s pmic %s' % (
+        loader = evidence.get('loader') if isinstance(evidence.get('loader'), dict) else {}
+        fired.append(('unclean_restart', '%s %s last stage %s loader %s pmic %s' % (
             evidence.get('reset_cause'), evidence.get('reset_cause_reason'), evidence.get('previous_last_stage'),
+            '%s(%s)' % (loader['reset'], loader.get('boot_reason')) if loader.get('reset') else 'not_observed',
             pmic.get('long_press_reset_reason', 'not_observed'))))
     panic = ctx.path('/data/reborn/logs/panic-last.json')
     if panic.is_file():

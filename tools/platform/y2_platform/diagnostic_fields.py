@@ -33,3 +33,5 @@ FIELDS |= KERNEL_FIELDS
 
 # F56/F57: the PMIC power-down record in the previous-boot evidence (boot.py).
 FIELDS |= frozenset('pmic strup_con8 top_rst_misc chr_con16 strup_con5 chrstatus lk_long_press_record long_press_reset long_press_reset_reason just_pwrkey_rst long_press_reset_enabled long_press_reset_seconds uvlo_selector thermal_status power_key_down'.split())
+# F56: the loader's start (warm after a watchdog reset) in the previous-boot evidence.
+FIELDS |= frozenset('loader boot_reason reset'.split())

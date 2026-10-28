@@ -40,6 +40,20 @@ def reset_cause(text, missing_reason='not_observed'):
             'reset_status_raw': fields.get('raw')}
 
 
+def loader_boot(text):
+    """F56: how LK says this boot started. The RGU status is cleared before
+    Linux reads it (0x0 in every report), but a SoC reset (the watchdog, a
+    restart) keeps the PMIC on: boot_reason 3-6 is warm, anything else cold.
+    After a previous boot without shutdown_complete, warm means the watchdog
+    or a kernel restart ended it, cold that power was cut or Power was held."""
+    from .battery import WARM_BOOT_REASONS
+    fields = dict(f.split('=', 1) for f in (text or '').split() if '=' in f)
+    if fields.get('valid') != '1' or not fields.get('boot_reason', '').isdecimal():
+        return {'boot_reason': None, 'reset': None}
+    reason = int(fields['boot_reason'])
+    return {'boot_reason': reason, 'reset': 'warm' if reason in WARM_BOOT_REASONS else 'cold'}
+
+
 PMIC_POWER_STATUS = '/sys/firmware/y2_pmic/power_status'
 # TOP_RST_MISC PWRKEY_RST_TD, as the vendor keypad header (KPD_PMIC_LPRST_TD)
 # names its selectors; not timed on a Y2.
@@ -192,6 +206,8 @@ def capture_previous(ctx):
               'record': ctx.record('previous-boot-evidence'), 'logs': []}
     if ctx.read(RESET_STATUS) is not None:
         result.update(reset_cause(ctx.read(RESET_STATUS)))
+    from .battery import BOOT_METADATA
+    result['loader'] = loader_boot(ctx.read(BOOT_METADATA))
     earlier = previous.get('pmic') if isinstance(previous.get('pmic'), dict) else {}
     result['pmic'] = pmic_power_status(ctx.read(PMIC_POWER_STATUS), earlier.get('lk_long_press_record'))
     from .boot_retained import capture
@@ -242,6 +258,6 @@ def evidence_status(ctx):
             'previous_last_stage', 'previous_orderly_shutdown', 'reset_cause',
             'reset_cause_reason', 'reset_status_raw', 'kernel_panic_retention_guaranteed')} | {
             'private_record': '/data/system/platform/previous-boot-evidence.json',
-            'retained': value.get('retained'), 'pmic': value.get('pmic'),
+            'retained': value.get('retained'), 'pmic': value.get('pmic'), 'loader': value.get('loader'),
             'log_tails': [{k: log.get(k) for k in ('name','tail_sha256','source_bytes_at_capture')}
                           for log in value.get('logs',[])]}

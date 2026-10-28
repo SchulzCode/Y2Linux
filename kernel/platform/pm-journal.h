@@ -89,6 +89,9 @@ struct y2_pm_backstop_ops {
 	int (*start)(unsigned int seconds);
 	void (*ping)(void);
 	void (*stop)(void);
+	/* Optional: the backstop is over and the provider may hand the RGU
+	 * back to the kernel-fed watchdog. */
+	void (*end)(void);
 };
 #if IS_ENABLED(CONFIG_Y2_POWER)
 bool y2_pm_journal_ready(void);

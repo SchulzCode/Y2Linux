@@ -71,8 +71,10 @@ recovery_display_off() {
 # starves when the kernel freezes or the installer shows nothing new for two
 # minutes. The request stays set, so the next start resumes (or restores the
 # old system), as after Power. From the first step until the recovery waits
-# for a person (stuck, charger) or turns off. Arguments: the progress file and
-# how long it may stay unchanged (s).
+# for a person (stuck, charger) or turns off. Its 'V' hands the watchdog back
+# to the kernel, which feeds it until the next opener (F56): then only a kernel
+# freeze restarts. Arguments: the progress file and how long it may stay
+# unchanged (s).
 recovery_watchdog=
 recovery_watchdog_start() {
     [ -c /dev/watchdog ] || return 0

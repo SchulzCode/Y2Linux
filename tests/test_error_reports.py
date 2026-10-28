@@ -256,7 +256,8 @@ class Report(unittest.TestCase):
         self.assertEqual(report.check(self.ctx), [])
         write(self.root, '/data/system/platform/previous-boot-evidence.json',
               json.dumps({'previous_orderly_shutdown': False, 'previous_boot_id': 'boot-0',
-                          'reset_cause': 'watchdog', 'previous_last_stage': 'ui',
+                          'reset_cause': None, 'previous_last_stage': 'ui',
+                          'loader': {'boot_reason': 4, 'reset': 'warm'},
                           'pmic': {'long_press_reset_reason': 'no_long_press_record'}}))
         write(self.root, '/data/updates/state.json', json.dumps({'state': 'RolledBack', 'sequence': 6901}))
         write(self.root, '/proc/sys/kernel/tainted', '512\n')
@@ -267,7 +268,7 @@ class Report(unittest.TestCase):
         fired = dict(report.check(self.ctx))
         self.assertEqual(set(fired), {'unclean_restart', 'update_failure', 'kernel_warning', 'sleep_failure',
                                       'storage_error', 'radio_failure'})   # the panic was reported above
-        self.assertIn('watchdog', fired['unclean_restart'])
+        self.assertIn('loader warm(4)', fired['unclean_restart'])
         self.assertTrue(fired['unclean_restart'].endswith('pmic no_long_press_record'))
         self.assertEqual(fired['radio_failure'], 'connectivity error=-110')
         self.assertEqual(report.check(self.ctx), [])
