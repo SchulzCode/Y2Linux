@@ -20,7 +20,10 @@ use std::{
     os::unix::process::CommandExt,
     process::{Command, ExitCode},
 };
-use y2p_core::json::{dumps, Separators};
+use y2p_core::{
+    json::{dumps, Separators},
+    os_text::{backslashreplace, fsdecode_os, has_surrogates},
+};
 
 /// Whether this build may hand a command line to the Python platform (cargo feature `python-fallback`,
 /// on by default until phase 6).
@@ -43,14 +46,10 @@ fn main() -> ExitCode {
     {
         args = mapped;
     }
-    // Not UTF-8 (Python would see surrogate escapes): the Python platform parses it.
-    let Some(text) = args
-        .iter()
-        .map(|a| a.to_str())
-        .collect::<Option<Vec<&str>>>()
-    else {
-        return python(&args);
-    };
+    // Python's sys.argv (`os.fsdecode`): a byte that is not UTF-8 is a lone surrogate there, an escape
+    // character here (y2p_core::os_text), which repr(), json.dumps and stderr show as Python does.
+    let decoded: Vec<String> = args.iter().map(|a| fsdecode_os(a)).collect();
+    let text: Vec<&str> = decoded.iter().map(String::as_str).collect();
     // Internal programmes (the sleep helper, suspend records, the power audit and power command): not
     // main.py subcommands, so no argparse; each runs and exits itself.
     if let Some(programme) = commands::suspend::programme(&text) {
@@ -74,14 +73,23 @@ fn main() -> ExitCode {
         argparse::Outcome::Parsed(parsed) => parsed,
     };
     if env::var_os("Y2_ROOT").is_some() && env::var_os("Y2_ARGPARSE_ECHO").is_some() {
-        // tests/test_platform_argparse.py: the parse itself, compared with Python's namespace.
+        // tests/test_platform_argparse.py: the parse itself, compared with Python's namespace (ASCII
+        // JSON, so an escaped byte reads back as Python's surrogate).
         let echo = serde_json::json!({"namespace": parsed.typed(), "canonical": parsed.canonical});
+        let echo = dumps(&echo, Separators::Spaced).expect("echo");
         return print(&mut std::io::stdout().lock(), &format!("{echo}\n"), 0);
     }
     let canonical: Vec<&str> = parsed.canonical.iter().map(String::as_str).collect();
     let Some(command) = commands::route(&canonical) else {
         return python(&args);
     };
+    if PYTHON_FALLBACK
+        && canonical.iter().any(|a| has_surrogates(a))
+        && matches!(canonical[0], "firmware" | "update")
+    {
+        // The service group's paths, URLs and package names are not yet read as bytes (os.fsencode).
+        return python(&args);
+    }
     let root = y2p_core::Root::from_env();
     let (stdout, code) = match command(&root) {
         Ok(reply) => (reply.stdout, reply.code),
@@ -105,8 +113,10 @@ fn main() -> ExitCode {
     ExitCode::from(code)
 }
 
-/// argparse's `_print_message` then `exit(code)`: a failed write is ignored.
+/// argparse's `_print_message` then `exit(code)`: a failed write is ignored. Python's stdout and stderr
+/// are UTF-8 with `backslashreplace` on stderr (only argument text can hold a surrogate).
 fn print(out: &mut dyn Write, text: &str, code: u8) -> ExitCode {
+    let text = backslashreplace(text);
     let _ = out.write_all(text.as_bytes()).and_then(|()| out.flush());
     ExitCode::from(code)
 }

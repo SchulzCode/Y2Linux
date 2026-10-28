@@ -37,6 +37,23 @@ FLOATS = ['0', '0.1', '1e-1', ' 2.5 ', 'inf', '-Infinity', 'nan', '+nAn', '1_000
 BAD_FLOATS = ['x', '1e', '.', 'e5', '1_.5', '0x1', 'infi', '1.2.3', '', '1_e5', 'nan_', '\x1c1']
 HELP = ['-h', '--help', '--he', '--h', '-hx', '-h=x', '--help=', '-hh', '--hel=1']
 UNKNOWN = ['--nope', '-q', '--', '-x', 'extra', '--js0n', '-=x', '--=x', '-', '-1', '-1e5']
+# Arguments that are not UTF-8: Python's sys.argv holds a lone surrogate per such byte (os.fsdecode), which
+# subprocess gives the Rust binary back as the byte. Its stderr writes them as \udcXX (backslashreplace).
+NON_UTF8 = [['\udcff'], ['sleep', '\udcff'], ['status', 'cpu\udcff'], ['status', '\udced\udca0\udc80'],
+            ['time-set', '\udcff'], ['time-set', '1\udcff'], ['boot-stage', 'a\udcffb'], ['stat\udcffus'],
+            ['heal\udcffth'], ['--\udcff'], ['-\udcff', 'time'], ['time', '\udcff'], ['time', '--\udcff'],
+            ['network-check', '--peer', '\udce2\udc82'], ['network-check', '--pe\udcff', 'x'],
+            ['network-check', '--peer=\udcff'], ['network-check', '--peer', 'x', '--seconds', '\udcfe'],
+            ['status', '--pid', '\udcff'], ['status', '--interval', '1\udcff'], ['status', '--pi\udcff', '1'],
+            ['transfer', 'begin', '--name', '\udcff\udcfe', '--bytes', '1', '--sha256', 'x'],
+            ['transfer', '\udcff'], ['collect', '--workload', 'w\udcff'], ['media', 'format', '--confirm-cid', '\udcff'],
+            ['firmware', 'install', '/media/\udcff'], ['report', 'save', '--to', '\udcff'],
+            ['reset', 'purge', '--id', '\udcff', '--confirm', '\udcfe'], ['codec-settings', '--sbc-quality', 'xq\udcff']]
+
+
+def shown(text):
+    """What Python's stdout/stderr write for a str (UTF-8, a lone surrogate as \\udcXX)."""
+    return text.encode('utf-8', 'backslashreplace').decode()
 
 
 def reference(argvs):
@@ -195,7 +212,7 @@ def top_cases(rng):
 def corpus(seed=20261028, per_command=140):
     """About 6 000 distinct argument lists (fewer for the subcommands with few arguments to vary)."""
     rng = random.Random(seed)
-    cases = top_cases(rng) + [[name, flag] for name in COMMANDS for flag in HELP]
+    cases = top_cases(rng) + [[name, flag] for name in COMMANDS for flag in HELP] + NON_UTF8
     for name in COMMANDS:
         found = set()
         for _ in range(per_command * 5):
@@ -236,7 +253,7 @@ class PlatformArgparse(unittest.TestCase):
     @unittest.skipUnless(rust_binary(), RUST_ENV + ' (host build of the Rust y2-platform) not given')
     def test_rust_parses_like_main_py(self):
         cases = corpus()
-        expected = reference(cases)
+        expected = [{**o, 'stdout': shown(o['stdout']), 'stderr': shown(o['stderr'])} for o in reference(cases)]
         with tempfile.TemporaryDirectory(prefix='y2-argparse-') as root, ThreadPoolExecutor(8) as pool:
             actual = list(pool.map(lambda argv: rust(rust_binary(), root, argv), cases))
         failures, canonicals = [], []

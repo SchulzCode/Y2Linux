@@ -10,6 +10,7 @@ pub mod devices_support;
 pub mod json;
 pub mod lock;
 pub mod observation_support;
+pub mod os_text;
 pub mod power_charger;
 pub mod power_identity;
 pub mod power_journal;
