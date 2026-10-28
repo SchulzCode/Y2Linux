@@ -2,7 +2,13 @@
 # y2-platform: the platform service in Rust (docs/planning/PLATFORM-RUST-PORT-PLAN.md),
 # vendored and pinned like Reborn; Buildroot provides the C toolchain.
 ################################################################################
-Y2_PLATFORM_VERSION = 1
+# The git tree of platform/ (builds start from committed source): a changed crate is a new version and so a
+# new build folder. A fixed version let a resumed build reuse the old folder: test build 167 shipped 166's
+# binary.
+Y2_PLATFORM_VERSION := $(shell git -C $(BR2_EXTERNAL_Y2LINUX_PATH)/.. rev-parse --short=12 HEAD:platform 2>/dev/null)
+ifeq ($(Y2_PLATFORM_VERSION),)
+$(error y2-platform: no git tree for platform/ (commit it first))
+endif
 Y2_PLATFORM_SITE = $(BR2_EXTERNAL_Y2LINUX_PATH)/../platform
 Y2_PLATFORM_SITE_METHOD = local
 Y2_PLATFORM_LICENSE = GPL-2.0-only, MIT (y2p-contract), MIT or Apache-2.0 (vendored crates)

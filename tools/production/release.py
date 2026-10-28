@@ -412,6 +412,16 @@ def prune(keep=2, dry_run=False):
             removed.append(f'{WORKSPACE.name}/buildroot/build/{path.name}')
             if not dry_run:
                 shutil.rmtree(path)
+    # y2-platform's version is the git tree of platform/ (y2-platform.mk): keep only the current one.
+    try:
+        tree = git(PROJECT, 'rev-parse', '--short=12', 'HEAD:platform')
+    except (OSError, subprocess.CalledProcessError):
+        tree = None
+    for path in sorted((WORKSPACE / 'buildroot/build').glob('y2-platform-*')) if tree else []:
+        if path.is_dir() and path.name != f'y2-platform-{tree}':
+            removed.append(f'{WORKSPACE.name}/buildroot/build/{path.name}')
+            if not dry_run:
+                shutil.rmtree(path)
     # Locked build environments: only the base and the one of the current lock.
     lock = hashlib.sha256((PROJECT / 'tools/build/inputs.lock.json').read_bytes() +
                           (PROJECT / 'tools/build/connectivity-host.lock.json').read_bytes()).hexdigest()
