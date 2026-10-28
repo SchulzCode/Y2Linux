@@ -141,7 +141,10 @@ pub fn idle_counters(root: &Root) -> Node {
                 512,
             ))),
         ),
-        ("idle_rejections".into(), each("/sys/module/idle/parameters/*")),
+        (
+            "idle_rejections".into(),
+            each("/sys/module/idle/parameters/*"),
+        ),
         (
             "clock_blockers".into(),
             each("/sys/module/clocks/parameters/*blockers"),
@@ -205,7 +208,12 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
     let usb = root
         .glob("/sys/class/udc/*")
         .iter()
-        .map(|p| (name(p), Node::V(text_value(read(&p.join("state"), 131_072)))))
+        .map(|p| {
+            (
+                name(p),
+                Node::V(text_value(read(&p.join("state"), 131_072))),
+            )
+        })
         .collect();
     let usb_net = diagnostics::usb_net(root)?;
     let backlight = root
@@ -225,7 +233,10 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
             (
                 name(p),
                 Node::O(vec![
-                    ("type".into(), Node::V(text_value(read(&p.join("type"), 131_072)))),
+                    (
+                        "type".into(),
+                        Node::V(text_value(read(&p.join("type"), 131_072))),
+                    ),
                     (
                         "blocked".into(),
                         Node::V(text_value(read(&p.join("soft"), 131_072))),
@@ -234,7 +245,9 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
             )
         })
         .collect();
-    let idle_policy = root.json("/run/y2/cpu-idle-policy.json").unwrap_or(Value::Null);
+    let idle_policy = root
+        .json("/run/y2/cpu-idle-policy.json")
+        .unwrap_or(Value::Null);
     let idle_counters = idle_counters(root);
     let sleep = super::super::sleep::product(
         &root.json_object(super::receipt::RECEIPT),
@@ -280,7 +293,10 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
         ("boot_id".into(), Node::V(text_value(boot_id))),
         (
             "build".into(),
-            Node::V(root.json("/etc/y2linux/versions.json").unwrap_or(Value::Null)),
+            Node::V(
+                root.json("/etc/y2linux/versions.json")
+                    .unwrap_or(Value::Null),
+            ),
         ),
         ("state".into(), Node::V("Suspend".into())),
         ("battery".into(), Node::V(battery.clone())),

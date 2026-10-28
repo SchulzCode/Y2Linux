@@ -97,14 +97,21 @@ fn key_values(text: Option<&str>, keys: &[&str]) -> Node {
     }
     Node::O(
         keys.iter()
-            .map(|k| ((*k).to_owned(), Node::V(found.get(*k).cloned().unwrap_or(Value::Null))))
+            .map(|k| {
+                (
+                    (*k).to_owned(),
+                    Node::V(found.get(*k).cloned().unwrap_or(Value::Null)),
+                )
+            })
             .collect(),
     )
 }
 
 /// Local IPv4 addresses of one interface from /proc/net/fib_trie: no subprocess, no ioctl.
 fn ipv4(root: &Root, interface: &str) -> Result<Vec<String>, E> {
-    let routes = root.read_limited("/proc/net/route", 65_536).unwrap_or_default();
+    let routes = root
+        .read_limited("/proc/net/route", 65_536)
+        .unwrap_or_default();
     let mut networks = Vec::new();
     for line in splitlines(&routes).into_iter().skip(1) {
         let fields = split(line);
@@ -134,7 +141,9 @@ fn ipv4(root: &Root, interface: &str) -> Result<Vec<String>, E> {
                     let octet: i64 = octet.parse().map_err(|_| E::value("octet"))?;
                     value |= octet << (8 * index);
                 }
-                if networks.iter().any(|(network, mask)| value & mask == *network)
+                if networks
+                    .iter()
+                    .any(|(network, mask)| value & mask == *network)
                     && !found.iter().any(|f| f == previous)
                 {
                     found.push(previous.to_owned());
@@ -190,7 +199,10 @@ pub fn usb_net(root: &Root) -> Result<Node, E> {
     .iter()
     .map(|n| {
         let value = root.integer(&format!("{net}statistics/{n}"));
-        ((*n).to_owned(), Node::V(value.map_or(Value::Null, Value::from)))
+        (
+            (*n).to_owned(),
+            Node::V(value.map_or(Value::Null, Value::from)),
+        )
     })
     .collect();
     let udc = root
@@ -221,11 +233,9 @@ pub fn usb_net(root: &Root) -> Result<Node, E> {
             (parent_name(p), Node::V(Value::Array(first)))
         })
         .collect();
-    let field = |n: &str, limit| Node::V(text_value(root.read_limited(&format!("{net}{n}"), limit)));
-    let addresses = ipv4(root, "usb0")?
-        .into_iter()
-        .map(Value::String)
-        .collect();
+    let field =
+        |n: &str, limit| Node::V(text_value(root.read_limited(&format!("{net}{n}"), limit)));
+    let addresses = ipv4(root, "usb0")?.into_iter().map(Value::String).collect();
     Ok(Node::O(vec![
         ("udc".into(), Node::O(udc)),
         (
@@ -248,7 +258,10 @@ pub fn usb_net(root: &Root) -> Result<Node, E> {
         ),
         (
             "transfer".into(),
-            Node::V(root.json("/run/y2/usb-transfer.json").unwrap_or(Value::Null)),
+            Node::V(
+                root.json("/run/y2/usb-transfer.json")
+                    .unwrap_or(Value::Null),
+            ),
         ),
         ("processes".into(), processes(root)),
     ]))
@@ -266,7 +279,10 @@ fn features(root: &Root, golden: bool) -> Node {
         )
     };
     let mut value = vec![
-        ("vproc_sleep".into(), text("/sys/module/pwrap/parameters/vproc_sleep", 16)),
+        (
+            "vproc_sleep".into(),
+            text("/sys/module/pwrap/parameters/vproc_sleep", 16),
+        ),
         (
             "vproc_sleep_state".into(),
             text("/sys/module/pwrap/parameters/vproc_sleep_state", 4096),
@@ -280,7 +296,10 @@ fn features(root: &Root, golden: bool) -> Node {
             "phy_savecurrent".into(),
             each("/sys/bus/platform/drivers/y2-usb/*/phy_savecurrent"),
         ),
-        ("wheel_sleep".into(), each("/sys/bus/i2c/devices/*-0051/sleep")),
+        (
+            "wheel_sleep".into(),
+            each("/sys/bus/i2c/devices/*-0051/sleep"),
+        ),
         ("infra".into(), text("/sys/firmware/y2_infra/state", 4096)),
         ("spm".into(), text(&format!("{SPM}state"), 8192)),
         // 27: stock panel power-down and the idle VGP2 rail (ledger F20/F22).
@@ -451,10 +470,18 @@ mod tests {
     #[test]
     fn addresses_come_from_the_fib_trie() {
         let dir = Dir::new();
-        put(&dir, "/proc/net/route", "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\n\
-             usb0\t0002A8C0\t00000000\t0001\t0\t0\t0\t00FFFFFF\n");
-        put(&dir, "/proc/net/fib_trie", "Main:\n  +-- 0.0.0.0/0 3 0 5\n     |-- 192.168.2.0\n        /24 link UNICAST\n     \
-             |-- 192.168.2.1\n        /32 host LOCAL\n     |-- 10.0.0.1\n        /32 host LOCAL\n");
+        put(
+            &dir,
+            "/proc/net/route",
+            "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\n\
+             usb0\t0002A8C0\t00000000\t0001\t0\t0\t0\t00FFFFFF\n",
+        );
+        put(
+            &dir,
+            "/proc/net/fib_trie",
+            "Main:\n  +-- 0.0.0.0/0 3 0 5\n     |-- 192.168.2.0\n        /24 link UNICAST\n     \
+             |-- 192.168.2.1\n        /32 host LOCAL\n     |-- 10.0.0.1\n        /32 host LOCAL\n",
+        );
         let root = Root::new(dir.path());
         assert_eq!(ipv4(&root, "usb0").unwrap(), ["192.168.2.1"]);
         assert!(ipv4(&root, "wlan0").unwrap().is_empty());

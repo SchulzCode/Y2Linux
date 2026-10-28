@@ -418,40 +418,163 @@ mod tests {
     fn errors_read_as_cpython_words_them() {
         // python3 -c "json.loads(b'...')" for each input (3.14).
         for (input, class, text) in [
-            (&b""[..], "JSONDecodeError", "Expecting value: line 1 column 1 (char 0)"),
-            (b" ", "JSONDecodeError", "Expecting value: line 1 column 2 (char 1)"),
-            (b"{", "JSONDecodeError", "Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"),
-            (b"{\"a\"", "JSONDecodeError", "Expecting ':' delimiter: line 1 column 5 (char 4)"),
-            (b"{\"a\":", "JSONDecodeError", "Expecting value: line 1 column 6 (char 5)"),
-            (b"{\"a\":1", "JSONDecodeError", "Expecting ',' delimiter: line 1 column 7 (char 6)"),
-            (b"{\"a\":1,", "JSONDecodeError", "Expecting property name enclosed in double quotes: line 1 column 8 (char 7)"),
-            (b"{\"a\":1,}", "JSONDecodeError", "Illegal trailing comma before end of object: line 1 column 7 (char 6)"),
-            (b"[1,]", "JSONDecodeError", "Illegal trailing comma before end of array: line 1 column 3 (char 2)"),
-            (b"[1", "JSONDecodeError", "Expecting ',' delimiter: line 1 column 3 (char 2)"),
-            (b"[", "JSONDecodeError", "Expecting value: line 1 column 2 (char 1)"),
-            (b"[1,", "JSONDecodeError", "Expecting value: line 1 column 4 (char 3)"),
-            (b"\"abc", "JSONDecodeError", "Unterminated string starting at: line 1 column 1 (char 0)"),
-            (b"\"a\x01\"", "JSONDecodeError", "Invalid control character at: line 1 column 3 (char 2)"),
-            (b"\"\\x\"", "JSONDecodeError", "Invalid \\escape: line 1 column 2 (char 1)"),
-            (b"\"\\u12\"", "JSONDecodeError", "Invalid \\uXXXX escape: line 1 column 3 (char 2)"),
-            (b"\"\\u1234", "JSONDecodeError", "Unterminated string starting at: line 1 column 1 (char 0)"),
-            (b"\"\\ud800\\uzzzz\"", "JSONDecodeError", "Invalid \\uXXXX escape: line 1 column 9 (char 8)"),
-            (b"{}x", "JSONDecodeError", "Extra data: line 1 column 3 (char 2)"),
-            (b"nul", "JSONDecodeError", "Expecting value: line 1 column 1 (char 0)"),
-            (b"-", "JSONDecodeError", "Expecting value: line 1 column 1 (char 0)"),
-            (b"01", "JSONDecodeError", "Extra data: line 1 column 2 (char 1)"),
-            (b"1e+", "JSONDecodeError", "Extra data: line 1 column 2 (char 1)"),
-            (b"{\"a\" 1}", "JSONDecodeError", "Expecting ':' delimiter: line 1 column 6 (char 5)"),
-            (b"\xed\xa0\x80\"", "JSONDecodeError", "Expecting value: line 1 column 1 (char 0)"),
-            (b"\xff", "UnicodeDecodeError", "'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"),
-            (b"a\xe2\x82", "UnicodeDecodeError", "'utf-8' codec can't decode bytes in position 1-2: unexpected end of data"),
-            (b"\xe2(\xa1", "UnicodeDecodeError", "'utf-8' codec can't decode byte 0xe2 in position 0: invalid continuation byte"),
-            (b"\xe2\x82(", "UnicodeDecodeError", "'utf-8' codec can't decode bytes in position 0-1: invalid continuation byte"),
-            (b"\xc0\x80", "UnicodeDecodeError", "'utf-8' codec can't decode byte 0xc0 in position 0: invalid start byte"),
+            (
+                &b""[..],
+                "JSONDecodeError",
+                "Expecting value: line 1 column 1 (char 0)",
+            ),
+            (
+                b" ",
+                "JSONDecodeError",
+                "Expecting value: line 1 column 2 (char 1)",
+            ),
+            (
+                b"{",
+                "JSONDecodeError",
+                "Expecting property name enclosed in double quotes: line 1 column 2 (char 1)",
+            ),
+            (
+                b"{\"a\"",
+                "JSONDecodeError",
+                "Expecting ':' delimiter: line 1 column 5 (char 4)",
+            ),
+            (
+                b"{\"a\":",
+                "JSONDecodeError",
+                "Expecting value: line 1 column 6 (char 5)",
+            ),
+            (
+                b"{\"a\":1",
+                "JSONDecodeError",
+                "Expecting ',' delimiter: line 1 column 7 (char 6)",
+            ),
+            (
+                b"{\"a\":1,",
+                "JSONDecodeError",
+                "Expecting property name enclosed in double quotes: line 1 column 8 (char 7)",
+            ),
+            (
+                b"{\"a\":1,}",
+                "JSONDecodeError",
+                "Illegal trailing comma before end of object: line 1 column 7 (char 6)",
+            ),
+            (
+                b"[1,]",
+                "JSONDecodeError",
+                "Illegal trailing comma before end of array: line 1 column 3 (char 2)",
+            ),
+            (
+                b"[1",
+                "JSONDecodeError",
+                "Expecting ',' delimiter: line 1 column 3 (char 2)",
+            ),
+            (
+                b"[",
+                "JSONDecodeError",
+                "Expecting value: line 1 column 2 (char 1)",
+            ),
+            (
+                b"[1,",
+                "JSONDecodeError",
+                "Expecting value: line 1 column 4 (char 3)",
+            ),
+            (
+                b"\"abc",
+                "JSONDecodeError",
+                "Unterminated string starting at: line 1 column 1 (char 0)",
+            ),
+            (
+                b"\"a\x01\"",
+                "JSONDecodeError",
+                "Invalid control character at: line 1 column 3 (char 2)",
+            ),
+            (
+                b"\"\\x\"",
+                "JSONDecodeError",
+                "Invalid \\escape: line 1 column 2 (char 1)",
+            ),
+            (
+                b"\"\\u12\"",
+                "JSONDecodeError",
+                "Invalid \\uXXXX escape: line 1 column 3 (char 2)",
+            ),
+            (
+                b"\"\\u1234",
+                "JSONDecodeError",
+                "Unterminated string starting at: line 1 column 1 (char 0)",
+            ),
+            (
+                b"\"\\ud800\\uzzzz\"",
+                "JSONDecodeError",
+                "Invalid \\uXXXX escape: line 1 column 9 (char 8)",
+            ),
+            (
+                b"{}x",
+                "JSONDecodeError",
+                "Extra data: line 1 column 3 (char 2)",
+            ),
+            (
+                b"nul",
+                "JSONDecodeError",
+                "Expecting value: line 1 column 1 (char 0)",
+            ),
+            (
+                b"-",
+                "JSONDecodeError",
+                "Expecting value: line 1 column 1 (char 0)",
+            ),
+            (
+                b"01",
+                "JSONDecodeError",
+                "Extra data: line 1 column 2 (char 1)",
+            ),
+            (
+                b"1e+",
+                "JSONDecodeError",
+                "Extra data: line 1 column 2 (char 1)",
+            ),
+            (
+                b"{\"a\" 1}",
+                "JSONDecodeError",
+                "Expecting ':' delimiter: line 1 column 6 (char 5)",
+            ),
+            (
+                b"\xed\xa0\x80\"",
+                "JSONDecodeError",
+                "Expecting value: line 1 column 1 (char 0)",
+            ),
+            (
+                b"\xff",
+                "UnicodeDecodeError",
+                "'utf-8' codec can't decode byte 0xff in position 0: invalid start byte",
+            ),
+            (
+                b"a\xe2\x82",
+                "UnicodeDecodeError",
+                "'utf-8' codec can't decode bytes in position 1-2: unexpected end of data",
+            ),
+            (
+                b"\xe2(\xa1",
+                "UnicodeDecodeError",
+                "'utf-8' codec can't decode byte 0xe2 in position 0: invalid continuation byte",
+            ),
+            (
+                b"\xe2\x82(",
+                "UnicodeDecodeError",
+                "'utf-8' codec can't decode bytes in position 0-1: invalid continuation byte",
+            ),
+            (
+                b"\xc0\x80",
+                "UnicodeDecodeError",
+                "'utf-8' codec can't decode byte 0xc0 in position 0: invalid start byte",
+            ),
         ] {
             assert_eq!(
                 loads(input),
-                Err(Error { class, text: text.into() }),
+                Err(Error {
+                    class,
+                    text: text.into()
+                }),
                 "{input:?}"
             );
         }

@@ -3,13 +3,13 @@
 //! The suspend group's own copy (power-journal.jsonl, sleep-diagnostics.jsonl); the power group's
 //! journal and the Wi-Fi journal follow the same protocol.
 // SPDX-License-Identifier: GPL-2.0-only
-use y2p_core::record::private_directory;
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, Write},
     os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
 };
+use y2p_core::record::private_directory;
 
 /// What Python raised: an `OSError` (with its errno), or the `ValueError`s of the journal
 /// (`power_journal_not_regular`, `state_directory_not_directory`), as `ErrorKind::InvalidData`.
@@ -96,8 +96,8 @@ fn append(path: &Path, encoded: &[u8], limit: u64, durable: bool) -> Result {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::tests::Dir;
+    use super::*;
 
     #[test]
     fn rows_append_and_rotate_once() {

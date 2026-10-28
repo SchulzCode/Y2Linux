@@ -12,7 +12,9 @@ use y2p_core::{py::truthy, root::python_int, Root};
 /// would read differently run the Python programme.
 pub fn suspend_record(root: &Root, args: &[String]) -> Outcome {
     let fallback = || python_script("suspend-record.py", "__suspend-record", args);
-    let Some(stage) = args.first() else { fallback() };
+    let Some(stage) = args.first() else {
+        fallback()
+    };
     let result = match args.get(1) {
         None => None,
         Some(text) => match python_int(text) {

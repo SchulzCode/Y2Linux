@@ -7,7 +7,9 @@
 //! (argparse's errors, `--help`, `--x=y`, abbreviations, out-of-range windows) runs the Python
 //! programme, which prints argparse's message.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{journal::Node, monotonic, process_time, python_script, receipt, text_value, traceback, wall, E};
+use super::{
+    journal::Node, monotonic, process_time, python_script, receipt, text_value, traceback, wall, E,
+};
 use crate::reply::Outcome;
 use serde_json::{json, Map, Value};
 use std::{
@@ -163,7 +165,9 @@ fn glob(root: &Root, pattern: &str) -> Vec<String> {
                 }
                 continue;
             }
-            let Ok(entries) = fs::read_dir(directory) else { continue };
+            let Ok(entries) = fs::read_dir(directory) else {
+                continue;
+            };
             for entry in entries.flatten() {
                 let name = entry.file_name();
                 let Some(name) = name.to_str() else { continue };
@@ -238,7 +242,9 @@ fn int(text: &str) -> Result<i64, E> {
 fn processes(root: &Root) -> Result<Vec<(String, Thread)>, E> {
     let mut result: Vec<(String, Thread)> = Vec::new();
     for path in glob(root, "/proc/[0-9]*/task/[0-9]*/stat") {
-        let Some(raw) = read(&root.path(&path)) else { continue };
+        let Some(raw) = read(&root.path(&path)) else {
+            continue;
+        };
         let rest = raw.split_once('(').map_or("", |(_, r)| r);
         let (name, tail) = rest.rsplit_once(')').unwrap_or(("", rest));
         let parts = split(tail);
@@ -340,7 +346,10 @@ fn application(root: &Root) -> Node {
             ("audio_state".into(), Node::V(audio)),
             ("graphics".into(), Node::O(graphics)),
         ]),
-        _ => Node::O(vec![("unavailable".into(), Node::V(json!("AttributeError")))]),
+        _ => Node::O(vec![(
+            "unavailable".into(),
+            Node::V(json!("AttributeError")),
+        )]),
     }
 }
 
@@ -361,7 +370,9 @@ fn snapshot(root: &Root) -> Result<Node, E> {
         ("monotonic".into(), Node::V(json!(start))),
         (
             "boot_id".into(),
-            Node::V(text_value(read(&root.path("/proc/sys/kernel/random/boot_id")))),
+            Node::V(text_value(read(
+                &root.path("/proc/sys/kernel/random/boot_id"),
+            ))),
         ),
         (
             "identity".into(),
@@ -373,7 +384,10 @@ fn snapshot(root: &Root) -> Result<Node, E> {
     let patterns: Vec<&str> = SNAPSHOT.iter().chain(&SNAPSHOT_TAIL).copied().collect();
     entries.push(("files".into(), files_node(&files(root, &patterns))));
     entries.push(("threads".into(), threads_node(&processes(root)?)));
-    entries.push(("collection_seconds".into(), Node::V(json!(monotonic() - start))));
+    entries.push((
+        "collection_seconds".into(),
+        Node::V(json!(monotonic() - start)),
+    ));
     Ok(Node::O(entries))
 }
 
@@ -428,7 +442,9 @@ fn interrupts(sample: &Sample) -> Result<Irqs, E> {
     let cpus: Vec<&str> = lines.first().map(|l| split(l)).unwrap_or_default();
     let mut rows: Irqs = Vec::new();
     for line in lines.iter().skip(1) {
-        let Some((key, tail)) = line.split_once(':') else { continue };
+        let Some((key, tail)) = line.split_once(':') else {
+            continue;
+        };
         let mut parts = split(tail);
         let mut counts = Vec::new();
         while parts
@@ -528,12 +544,23 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
                 ("irq".into(), Node::V(json!(key))),
                 ("name".into(), Node::V(json!(name))),
                 ("delta".into(), Node::V(d.map_or(Value::Null, |v| json!(v)))),
-                ("per_second".into(), float_or_null(d.map(|v| v as f64 / duration))),
+                (
+                    "per_second".into(),
+                    float_or_null(d.map(|v| v as f64 / duration)),
+                ),
                 ("counter_discontinuity".into(), Node::V(json!(!valid))),
-                ("cpu_columns_changed".into(), Node::V(json!(columns_changed))),
+                (
+                    "cpu_columns_changed".into(),
+                    Node::V(json!(columns_changed)),
+                ),
                 (
                     "common_cpu_deltas".into(),
-                    Node::O(common.iter().map(|(c, v)| (c.clone(), Node::V(json!(v)))).collect()),
+                    Node::O(
+                        common
+                            .iter()
+                            .map(|(c, v)| (c.clone(), Node::V(json!(v))))
+                            .collect(),
+                    ),
                 ),
                 (
                     "common_cpu_lower_bound_per_second".into(),
@@ -567,7 +594,10 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
             match get(&s.files, &usage) {
                 Some(Some(text)) => int(text),
                 Some(None) => Err(E::TypeError("int() argument must be a string".into())),
-                None => Err(E::Crash(format!("KeyError: {}", y2p_core::py::repr(&usage)))),
+                None => Err(E::Crash(format!(
+                    "KeyError: {}",
+                    y2p_core::py::repr(&usage)
+                ))),
             }
         };
         let entries = usage_of(b)? - usage_of(a)?;
@@ -588,7 +618,12 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
     // instead of publishing/clamping >100%.
     let mut cpus: Vec<String> = Vec::new();
     for row in &idle {
-        let cpu = row.path.split("/cpuidle/").next().unwrap_or_default().to_owned();
+        let cpu = row
+            .path
+            .split("/cpuidle/")
+            .next()
+            .unwrap_or_default()
+            .to_owned();
         if !cpus.contains(&cpu) {
             cpus.push(cpu);
         }
@@ -598,7 +633,11 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
             .filter(|i| idle[*i].path.split("/cpuidle/").next() == Some(cpu.as_str()))
             .collect();
         if rows.iter().all(|i| idle[*i].time_us.is_some())
-            && rows.iter().map(|i| idle[*i].time_us.unwrap_or(0)).sum::<i64>() as f64 > duration * 1e6
+            && rows
+                .iter()
+                .map(|i| idle[*i].time_us.unwrap_or(0))
+                .sum::<i64>() as f64
+                > duration * 1e6
         {
             for i in rows {
                 let row = &mut idle[i];
@@ -610,7 +649,10 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
     }
     let opps = |s: &Sample| -> Result<Vec<(i64, i64)>, E> {
         let mut map: Vec<(i64, i64)> = Vec::new();
-        for line in splitlines(file(s, "/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state")) {
+        for line in splitlines(file(
+            s,
+            "/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state",
+        )) {
             let parts = split(line);
             let [k, v] = parts.as_slice() else {
                 return Err(E::value("not enough values to unpack"));
@@ -664,14 +706,18 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
             (new >= *old).then(|| {
                 (
                     key.clone(),
-                    Node::V(json!({"delta": new - old, "per_second": (new - old) as f64 / duration})),
+                    Node::V(
+                        json!({"delta": new - old, "per_second": (new - old) as f64 / duration}),
+                    ),
                 )
             })
         })
         .collect();
     let sources = |s: &Sample| -> Vec<(String, Vec<(String, String)>)> {
         let rows = splitlines(file(s, "/sys/kernel/debug/wakeup_sources"));
-        let Some(first) = rows.first() else { return Vec::new() };
+        let Some(first) = rows.first() else {
+            return Vec::new();
+        };
         let header = split(first);
         let mut result: Vec<(String, Vec<(String, String)>)> = Vec::new();
         for row in &rows[1..] {
@@ -694,10 +740,17 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
     let (wa, wb) = (sources(a), sources(b));
     let mut wakes = Vec::new();
     for (name, old) in &wa {
-        let Some((_, new)) = wb.iter().find(|(k, _)| k == name) else { continue };
+        let Some((_, new)) = wb.iter().find(|(k, _)| k == name) else {
+            continue;
+        };
         let mut changes = Vec::new();
         for key in ["event_count", "wakeup_count", "active_count"] {
-            let lookup = |list: &[(String, String)]| list.iter().rev().find(|(k, _)| k == key).map(|(_, v)| v.clone());
+            let lookup = |list: &[(String, String)]| {
+                list.iter()
+                    .rev()
+                    .find(|(k, _)| k == key)
+                    .map(|(_, v)| v.clone())
+            };
             if let (Some(o), Some(n)) = (lookup(old), lookup(new)) {
                 changes.push((key.to_owned(), Node::V(json!(int(&n)? - int(&o)?))));
             }
@@ -711,10 +764,14 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
     let exits = (!cpu0.is_empty() && cpu0.iter().all(|r| r.entries.is_some()))
         .then(|| cpu0.iter().map(|r| r.entries.unwrap_or(0)).sum::<i64>());
     let mut by_ticks: Vec<&Offender> = offenders.iter().collect();
-    by_ticks.sort_by(|x, y| y.ticks.cmp(&x.ticks));
+    by_ticks.sort_by_key(|x| std::cmp::Reverse(x.ticks));
     let mut by_rate: Vec<&Offender> = offenders.iter().collect();
-    by_rate.sort_by(|x, y| y.rate.partial_cmp(&x.rate).unwrap_or(std::cmp::Ordering::Equal));
-    irq.sort_by(|x, y| y.0.cmp(&x.0));
+    by_rate.sort_by(|x, y| {
+        y.rate
+            .partial_cmp(&x.rate)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    irq.sort_by_key(|x| std::cmp::Reverse(x.0));
     let idle_nodes = idle
         .iter()
         .map(|r| {
@@ -722,10 +779,19 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
                 ("path".to_owned(), Node::V(json!(r.path))),
                 ("name".into(), Node::V(text_value(r.name.clone()))),
                 ("raw_time_delta_us".into(), Node::V(json!(r.raw))),
-                ("time_us".into(), Node::V(r.time_us.map_or(Value::Null, |v| json!(v)))),
+                (
+                    "time_us".into(),
+                    Node::V(r.time_us.map_or(Value::Null, |v| json!(v))),
+                ),
                 ("percent_wall_time".into(), float_or_null(r.percent)),
-                ("entries".into(), Node::V(r.entries.map_or(Value::Null, |v| json!(v)))),
-                ("counter_discontinuity".into(), Node::V(json!(r.discontinuity))),
+                (
+                    "entries".into(),
+                    Node::V(r.entries.map_or(Value::Null, |v| json!(v))),
+                ),
+                (
+                    "counter_discontinuity".into(),
+                    Node::V(json!(r.discontinuity)),
+                ),
             ];
             if r.invalid {
                 entries.push((
@@ -751,13 +817,19 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
             "top_context_switch_threads".into(),
             list(by_rate.iter().take(25).map(|o| o.node.clone()).collect()),
         ),
-        ("irqs".into(), list(irq.into_iter().map(|(_, n)| n).collect())),
+        (
+            "irqs".into(),
+            list(irq.into_iter().map(|(_, n)| n).collect()),
+        ),
         ("cpuidle".into(), list(idle_nodes)),
         (
             "cpu0_idle_exits_per_second".into(),
             float_or_null(exits.map(|e| e as f64 / duration)),
         ),
-        ("frequency_residency".into(), Node::V(Value::Array(frequency))),
+        (
+            "frequency_residency".into(),
+            Node::V(Value::Array(frequency)),
+        ),
         ("frequency_reason".into(), Node::V(frequency_reason)),
         ("scheduler".into(), Node::O(scheduler)),
         ("wakeup_sources".into(), list(wakes)),
@@ -834,6 +906,7 @@ fn run(root: &Root, args: &Args) -> Result<(), E> {
         .open(path)
         .map_err(|e| E::os(&e, Some(path)))?;
     let text = dumps(&result, Separators::Compact).map_err(|e| E::value(e.to_string()))? + "\n";
-    out.write_all(text.as_bytes()).map_err(|e| E::os(&e, None))?;
+    out.write_all(text.as_bytes())
+        .map_err(|e| E::os(&e, None))?;
     Ok(())
 }

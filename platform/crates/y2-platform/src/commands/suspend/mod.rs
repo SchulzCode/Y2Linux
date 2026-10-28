@@ -22,7 +22,7 @@ pub mod scripts;
 
 use super::Command;
 use crate::reply::{Failure, Outcome, Reply};
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::{
     env,
     ffi::OsString,
@@ -30,44 +30,45 @@ use std::{
     os::unix::process::CommandExt,
     path::Path,
     process,
+    sync::atomic::{AtomicBool, Ordering},
 };
 use y2p_core::{py, Root};
 
-/// The Rust implementation of these exact arguments, if this group has one.
+/// The Rust implementation of these exact (canonical) arguments, if this group has one.
 pub fn route(args: &[&str]) -> Option<Command> {
-    let rest = |n: usize| -> Vec<String> { args[n..].iter().map(|a| a.to_string()).collect() };
     Some(match args {
         ["sleep", "request"] => Box::new(request::request),
         ["sleep", "prepare"] => Box::new(request::prepare),
-        ["__product-sleep", ..] => {
-            let args = rest(1);
-            Box::new(move |root| helper::main(root, &args))
-        }
-        ["__suspend-record", ..] => {
-            let args = rest(1);
-            Box::new(move |root| scripts::suspend_record(root, &args))
-        }
-        ["__power-command", ..] => {
-            let args = rest(1);
-            Box::new(move |root| scripts::power_command(root, &args))
-        }
-        ["__power-audit", ..] => {
-            let args = rest(1);
-            Box::new(move |root| audit::main(root, &args))
-        }
+        _ => return None,
+    })
+}
+
+/// The group's programmes that are not y2-platform subcommands, as hidden first arguments: main.rs
+/// runs these before its argparse parser (which refuses every `__` name). Each handles every
+/// argument form itself (its own Python programme for what it does not read) and ends the process.
+#[allow(dead_code)] // main.rs runs it before argparse (see the report / plan §5a)
+pub fn programme(args: &[&str]) -> Option<Command> {
+    let rest: Vec<String> = args.iter().skip(1).map(|a| a.to_string()).collect();
+    Some(match args.first().copied()? {
+        "__product-sleep" => Box::new(move |root| helper::main(root, &rest)),
+        "__suspend-record" => Box::new(move |root| scripts::suspend_record(root, &rest)),
+        "__power-command" => Box::new(move |root| scripts::power_command(root, &rest)),
+        "__power-audit" => Box::new(move |root| audit::main(root, &rest)),
         _ => return None,
     })
 }
 
 /// The names this binary also answers to (the basename of argv[0], installed as links to
 /// `/usr/sbin/y2-platform`): the y2-platform arguments that name's programme is. `None` for
-/// `y2-platform` itself and every other name.
+/// `y2-platform` itself and every other name. main.rs replaces its arguments with these before
+/// anything else.
 ///
 /// - `y2-status`, `y2-health`: `exec /usr/sbin/y2-platform status|health "$@"`.
 /// - `y2-suspend-record`: `exec python3 -I /usr/lib/y2-platform/suspend-record.py "$@"`.
 /// - `y2-power-audit`: the Python programme of the same name.
 /// - `poweroff`, `reboot` (`tools/platform/y2-power-command`, installed under both names) and
 ///   `y2-power-command` (which that script refuses with exit 2).
+#[allow(dead_code)] // main.rs's argv[0] dispatch (phase 6 installs the names)
 pub fn program(name: &str, args: &[OsString]) -> Option<Vec<OsString>> {
     let with = |first: &[&str]| {
         first
@@ -87,15 +88,19 @@ pub fn program(name: &str, args: &[OsString]) -> Option<Vec<OsString>> {
 }
 
 /// Set by the sleep helper's SIGTERM/SIGINT handler (`RuntimeError('sleep_helper_interrupted')`).
-pub static INTERRUPTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub static INTERRUPTED: AtomicBool = AtomicBool::new(false);
+/// The helper's restore is running: a signal is raised once it has finished.
+pub static MASKED: AtomicBool = AtomicBool::new(false);
 
-/// Where Python would run the helper's signal handler: raise once a SIGTERM/SIGINT arrived.
+/// Where Python would run the helper's signal handler: raise (once) after a SIGTERM/SIGINT.
 pub fn interrupted() -> Result<(), E> {
-    if INTERRUPTED.load(std::sync::atomic::Ordering::SeqCst) {
-        Err(E::RuntimeError("sleep_helper_interrupted".into()))
-    } else {
-        Ok(())
+    if MASKED.load(Ordering::SeqCst) {
+        return Ok(());
     }
+    if INTERRUPTED.swap(false, Ordering::SeqCst) {
+        return Err(E::RuntimeError("sleep_helper_interrupted".into()));
+    }
+    Ok(())
 }
 
 /// A Python exception on the suspend path: what `except` clauses tell apart and `str(error)`.
@@ -104,7 +109,10 @@ pub enum E {
     /// `product_sleep.Refused` (a `ValueError`).
     Refused(String),
     /// A `ValueError` (or a subclass: `JSONDecodeError`, `UnicodeDecodeError`).
-    Value { class: &'static str, text: String },
+    Value {
+        class: &'static str,
+        text: String,
+    },
     /// An `OSError` (or a subclass).
     Os {
         class: &'static str,
@@ -242,7 +250,11 @@ pub fn python_script(script: &str, route: &str, args: &[String]) -> ! {
         command.arg(format!("/usr/lib/y2-platform/{script}"));
     }
     let error = command.args(args).exec();
-    let _ = writeln!(io::stderr(), "y2-platform: {}: {error}", python.to_string_lossy());
+    let _ = writeln!(
+        io::stderr(),
+        "y2-platform: {}: {error}",
+        python.to_string_lossy()
+    );
     exit(if error.kind() == io::ErrorKind::PermissionDenied {
         126
     } else {
@@ -265,8 +277,9 @@ pub fn platform(root: &Root, args: &[&str]) -> ! {
             }
             Err(Failure::Fallback) => {}
             Err(error) => {
-                let text = y2p_core::json::dumps(&error.record(), y2p_core::json::Separators::Spaced)
-                    .expect("record");
+                let text =
+                    y2p_core::json::dumps(&error.record(), y2p_core::json::Separators::Spaced)
+                        .expect("record");
                 println!("{text}");
                 exit(1)
             }
@@ -283,7 +296,11 @@ pub fn platform(root: &Root, args: &[&str]) -> ! {
         .env("PYTHONPATH", "/usr/lib/y2-platform")
         .env("PYTHONDONTWRITEBYTECODE", "1")
         .exec();
-    let _ = writeln!(io::stderr(), "y2-platform: {}: {error}", python.to_string_lossy());
+    let _ = writeln!(
+        io::stderr(),
+        "y2-platform: {}: {error}",
+        python.to_string_lossy()
+    );
     exit(127)
 }
 
@@ -302,9 +319,7 @@ pub fn py_eq(a: &Value, b: &Value) -> bool {
             x.len() == y.len() && x.iter().zip(y).all(|(a, b)| py_eq(a, b))
         }
         (Value::Object(x), Value::Object(y)) => {
-            x.len() == y.len()
-                && x.iter()
-                    .all(|(k, v)| y.get(k).is_some_and(|w| py_eq(v, w)))
+            x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| py_eq(v, w)))
         }
         _ => a == b,
     }
@@ -334,9 +349,7 @@ pub fn py_gt(a: &Value, b: &Value) -> Result<bool, E> {
             (Some(x), Some(y)) => Ok(x > y),
             _ => match (a, b) {
                 (Value::String(x), Value::String(y)) => Ok(x > y),
-                _ => Err(E::TypeError(
-                    "'>' not supported between instances".into(),
-                )),
+                _ => Err(E::TypeError("'>' not supported between instances".into())),
             },
         },
     }
@@ -355,11 +368,6 @@ pub fn py_add(current: Option<&Value>, n: f64, integer: bool) -> Result<Value, E
             None => Err(E::TypeError("unsupported operand type(s) for +".into())),
         },
     }
-}
-
-/// `dict.get(key, default)` where the key may hold anything.
-pub fn object<'a>(map: &'a Map<String, Value>, key: &str) -> Option<&'a Map<String, Value>> {
-    map.get(key).and_then(Value::as_object)
 }
 
 /// `time.time()`.

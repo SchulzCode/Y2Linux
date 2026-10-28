@@ -66,8 +66,6 @@ unsafe extern "C" {
     ) -> libc::c_int;
 }
 
-/// The restore is running: signals wait until it has finished.
-static MASKED: AtomicBool = AtomicBool::new(false);
 static ALARM: AtomicBool = AtomicBool::new(false);
 
 extern "C" fn stop(_: libc::c_int) {
@@ -92,16 +90,7 @@ fn install(sig: libc::c_int, handler: extern "C" fn(libc::c_int)) -> libc::sigac
     }
 }
 
-/// A signal handler's raise, unless the restore is running.
-fn check() -> Result<(), E> {
-    if MASKED.load(Ordering::SeqCst) {
-        return Ok(());
-    }
-    if INTERRUPTED.swap(false, Ordering::SeqCst) {
-        return Err(E::RuntimeError("sleep_helper_interrupted".into()));
-    }
-    Ok(())
-}
+use super::{interrupted as check, MASKED};
 
 /// `time.sleep(seconds)`: a signal handler that raises ends it.
 fn sleep(seconds: f64) -> Result<(), E> {
@@ -188,7 +177,10 @@ fn execute(root: &Root, fd: i32) -> Result<i64, E> {
         Err(E::Refused(refusal)) => {
             run.result = 2;
             run.refusal = Some(refusal.clone());
-            match record(root, Stage::new("product_refused", Some(2)).reason(&refusal)) {
+            match record(
+                root,
+                Stage::new("product_refused", Some(2)).reason(&refusal),
+            ) {
                 // No kernel call followed a rejected wake-count handshake. Only
                 // `wake_event_in_progress` is a Power/RTC wake; `wakeup_count_busy` is a kernel
                 // wakeup source that did not settle.
@@ -249,7 +241,9 @@ impl Run {
         match request::prepare_owned(root) {
             Ok(_) => {}
             Err(error) if error.is_value() => return Err(E::refused(error.text())),
-            Err(error) if error.is_os() => return Err(E::refused("reborn_preparation_unavailable")),
+            Err(error) if error.is_os() => {
+                return Err(E::refused("reborn_preparation_unavailable"))
+            }
             Err(error) => return Err(error),
         }
         self.prepared = true;
@@ -293,7 +287,9 @@ impl Run {
             record(root, Stage::new("kernel_suspend", Some(0)))?;
             guard_record(root, true, true)?;
             self.pending = true;
-            if let Err(error) = control_write(root, "/sys/power/wakeup_count", &format!("{current}\n")) {
+            if let Err(error) =
+                control_write(root, "/sys/power/wakeup_count", &format!("{current}\n"))
+            {
                 if !error.is_os() {
                     return Err(error);
                 }
@@ -372,7 +368,8 @@ impl Run {
             // Power or RTC during the preparation, or a real return from the kernel — lights it.
             // Lit after every refusal, a kernel that refused each sleep turned the screen on every
             // two minutes for hours. Failures still light it to explain.
-            let dark = self.result == 2 && self.refusal.as_deref() != Some("wake_event_in_progress");
+            let dark =
+                self.result == 2 && self.refusal.as_deref() != Some("wake_event_in_progress");
             let screen = screen_first(root, dark)?;
             progress(
                 root,
@@ -385,12 +382,18 @@ impl Run {
             // F24: nothing sleeps any more. A Play right after waking took Reborn's shared activity
             // lease and was refused as busy (ALSA -16) for the ≈1.6 s of the radio restore below;
             // wired playback does not need the radios. The other operation locks stay.
-            if let Some((_, file)) = self.held.iter().find(|(owner, _)| *owner == "activity_operation") {
+            if let Some((_, file)) = self
+                .held
+                .iter()
+                .find(|(owner, _)| *owner == "activity_operation")
+            {
                 file.unlock().map_err(|e| E::os(&e, None))?;
             }
             match self.restore_radios(root) {
                 Ok(()) => {}
-                Err(error @ (E::Os { .. } | E::Value { .. } | E::Refused(_) | E::RuntimeError(_))) => {
+                Err(
+                    error @ (E::Os { .. } | E::Value { .. } | E::Refused(_) | E::RuntimeError(_)),
+                ) => {
                     let _ = error;
                     self.result = 1;
                 }
@@ -607,9 +610,18 @@ fn kernel_sleep(root: &Root) -> Result<(), E> {
 
 fn timer_only(value: &Map<String, Value>, spm: &Map<String, Value>) -> bool {
     let empty = Map::new();
-    let p = value.get("product").and_then(Value::as_object).unwrap_or(&empty);
-    let before = value.get("wake_irqs_before").and_then(Value::as_object).unwrap_or(&empty);
-    let after = value.get("wake_irqs_after").and_then(Value::as_object).unwrap_or(&empty);
+    let p = value
+        .get("product")
+        .and_then(Value::as_object)
+        .unwrap_or(&empty);
+    let before = value
+        .get("wake_irqs_before")
+        .and_then(Value::as_object)
+        .unwrap_or(&empty);
+    let after = value
+        .get("wake_irqs_after")
+        .and_then(Value::as_object)
+        .unwrap_or(&empty);
     is_true(p.get("kernel_completed"))
         && is_true(p.get("same_boot"))
         && spm.get("timer_wake").and_then(Value::as_str) == Some("1")

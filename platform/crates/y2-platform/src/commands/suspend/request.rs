@@ -82,7 +82,11 @@ pub fn request(root: &Root) -> Outcome {
         .mode(0o600)
         .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
         .open(&path)
-        .map_err(|e| cli(Err(E::os(&e, Some(&path)))).err().unwrap_or(Failure::Fallback))?;
+        .map_err(|e| {
+            cli(Err(E::os(&e, Some(&path))))
+                .err()
+                .unwrap_or(Failure::Fallback)
+        })?;
     match lock.try_lock() {
         Ok(()) => {}
         Err(std::fs::TryLockError::WouldBlock) => {

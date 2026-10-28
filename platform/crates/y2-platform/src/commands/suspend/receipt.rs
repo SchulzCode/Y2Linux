@@ -3,8 +3,8 @@
 //! `/run/y2/suspend.lock` (sleep request, the helper, y2-suspend).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    admission::spm_state, diagnostics, interrupted, is_text, journal, py_add, py_eq, py_gt,
-    pyjson, text_value, E,
+    admission::spm_state, diagnostics, interrupted, is_text, journal, py_add, py_eq, py_gt, pyjson,
+    text_value, E,
 };
 use serde_json::{json, Map, Value};
 use std::{
@@ -19,7 +19,7 @@ use y2p_core::{
     json::{dumps, Separators},
     py::{is_true, truthy},
     root::{python_int, read},
-    suspend_text::{fields, splitlines, split, Regex},
+    suspend_text::{fields, split, splitlines, Regex},
     Root,
 };
 
@@ -75,7 +75,10 @@ fn either(reason: Option<&str>, fallback: Value) -> Value {
 
 /// A receipt's dict (`value.get(key, {})`) for the IRQ counts; anything else is Python's TypeError
 /// once it is indexed.
-fn counts<'a>(value: &'a Map<String, Value>, key: &str) -> Result<Option<&'a Map<String, Value>>, E> {
+fn counts<'a>(
+    value: &'a Map<String, Value>,
+    key: &str,
+) -> Result<Option<&'a Map<String, Value>>, E> {
     match value.get(key) {
         None => Ok(None),
         Some(Value::Object(map)) => Ok(Some(map)),
@@ -173,7 +176,10 @@ pub fn transition(
             p.insert("wake_reason".into(), json!(wake));
         }
         if state(&p) != "refused" {
-            set(&mut p, &[("state", json!("waking")), ("reason", reason_value)]);
+            set(
+                &mut p,
+                &[("state", json!("waking")), ("reason", reason_value)],
+            );
         }
         if k("failed_stage") == Some("DPM_PREPARED") && k("error") == Some("-16") {
             set(
@@ -185,7 +191,10 @@ pub fn transition(
             );
         }
     } else if stage == "product_refused" {
-        set(&mut p, &[("state", json!("refused")), ("reason", reason_value)]);
+        set(
+            &mut p,
+            &[("state", json!("refused")), ("reason", reason_value)],
+        );
     } else if stage == "product_failure" {
         set(
             &mut p,
@@ -203,7 +212,10 @@ pub fn transition(
                         json!("platform_restoration_failed")
                     },
                 );
-                set(&mut p, &[("state", json!("restore_failed")), ("reason", why)]);
+                set(
+                    &mut p,
+                    &[("state", json!("restore_failed")), ("reason", why)],
+                );
             }
         } else if !pm_test_none(value.get("pm_test"))? {
             set(
@@ -239,7 +251,10 @@ pub fn transition(
                 ],
             );
         } else {
-            set(&mut p, &[("state", json!("restored")), ("reason", Value::Null)]);
+            set(
+                &mut p,
+                &[("state", json!("restored")), ("reason", Value::Null)],
+            );
         }
     }
     Ok(p)
@@ -321,7 +336,9 @@ pub fn plain(value: &Map<String, Value>, stage: &str) -> bool {
         Some(_) => false,
     };
     let product = match value.get("product") {
-        Some(Value::Object(p)) => !matches!(p.get("state"), Some(Value::Array(_) | Value::Object(_))),
+        Some(Value::Object(p)) => {
+            !matches!(p.get("state"), Some(Value::Array(_) | Value::Object(_)))
+        }
         Some(other) => !truthy(other),
         None => true,
     };
@@ -337,7 +354,10 @@ pub fn plain(value: &Map<String, Value>, stage: &str) -> bool {
         && value
             .get("persistent_kernel")
             .is_none_or(|v| v.is_string() || !truthy(v))
-        && !matches!(value.get("pm_test"), Some(Value::Array(_) | Value::Object(_)))
+        && !matches!(
+            value.get("pm_test"),
+            Some(Value::Array(_) | Value::Object(_))
+        )
 }
 
 /// `suspend_record.record`.
@@ -369,7 +389,10 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
         value.insert("mode".into(), json!(mode));
     }
     if s.stage == "product_failure" {
-        value.insert("error".into(), s.reason.clone().map_or(Value::Null, Value::String));
+        value.insert(
+            "error".into(),
+            s.reason.clone().map_or(Value::Null, Value::String),
+        );
     }
     let controllers: Map<String, Value> = root
         .glob("/sys/bus/platform/drivers/y2-usb/*/status")
@@ -453,7 +476,11 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
                     y2p_core::py::repr(&text)
                 ))
             })?;
-            let seconds = py_add(value.get("suspended_seconds"), ticks as f64 / 32768.0, false)?;
+            let seconds = py_add(
+                value.get("suspended_seconds"),
+                ticks as f64 / 32768.0,
+                false,
+            )?;
             value.insert("suspended_seconds".into(), seconds);
         }
     }
@@ -476,17 +503,16 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
             None => application_rpc(root, "sleep_restore", s.dark),
         };
         let restored = match acknowledgement {
-            Ok(ack) => is_true(ack.get("sleep_ready")) && ack.get("screen_off") == Some(&json!(s.dark)),
+            Ok(ack) => {
+                is_true(ack.get("sleep_ready")) && ack.get("screen_off") == Some(&json!(s.dark))
+            }
             Err(error) if error.is_os() || error.is_value() => false,
             Err(error) => return Err(error),
         };
         value.insert("reborn_restore".into(), json!(restored));
         if !restored {
             let kept = value.get("result").cloned().unwrap_or(Value::Null);
-            value.insert(
-                "result".into(),
-                if truthy(&kept) { kept } else { json!(1) },
-            );
+            value.insert("result".into(), if truthy(&kept) { kept } else { json!(1) });
             value.insert("error".into(), json!("reborn_resume_probe_failed"));
         }
     }
@@ -495,7 +521,13 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
         .get("current_boot_id")
         .and_then(Value::as_str)
         .map(str::to_owned);
-    let product = transition(&value, s.stage, &result, current.as_deref(), s.reason.as_deref())?;
+    let product = transition(
+        &value,
+        s.stage,
+        &result,
+        current.as_deref(),
+        s.reason.as_deref(),
+    )?;
     let product_state = state(&product).to_owned();
     if s.stage == "complete_result_0" && !matches!(product_state.as_str(), "restored" | "idle") {
         value.insert("result".into(), json!(1));
@@ -592,7 +624,8 @@ fn wait(fd: i32, events: i16, deadline: std::time::Instant) -> Result<(), E> {
             revents: 0,
         };
         // SAFETY: one valid pollfd.
-        let ready = unsafe { libc::poll(&mut poll, 1, left.as_millis().min(i32::MAX as u128) as i32) };
+        let ready =
+            unsafe { libc::poll(&mut poll, 1, left.as_millis().min(i32::MAX as u128) as i32) };
         if ready > 0 {
             return Ok(());
         }
@@ -649,9 +682,11 @@ pub fn application_rpc(root: &Root, operation: &str, dark: bool) -> Result<Map<S
         *slot = *byte as libc::c_char;
     }
     let length = (std::mem::size_of::<libc::sa_family_t>() + bytes.len()) as libc::socklen_t;
-    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(RPC_TIMEOUT_MS as u64);
+    let deadline =
+        std::time::Instant::now() + std::time::Duration::from_millis(RPC_TIMEOUT_MS as u64);
     // SAFETY: `address` is an initialised sockaddr_un of `length` bytes.
-    let connected = unsafe { libc::connect(fd, (&address as *const libc::sockaddr_un).cast(), length) };
+    let connected =
+        unsafe { libc::connect(fd, (&address as *const libc::sockaddr_un).cast(), length) };
     if connected < 0 {
         let error = last_error();
         match error.raw_os_error() {
@@ -662,7 +697,13 @@ pub fn application_rpc(root: &Root, operation: &str, dark: bool) -> Result<Map<S
                 let mut size = std::mem::size_of::<libc::c_int>() as libc::socklen_t;
                 // SAFETY: SO_ERROR into a c_int.
                 unsafe {
-                    libc::getsockopt(fd, libc::SOL_SOCKET, libc::SO_ERROR, (&mut code as *mut libc::c_int).cast(), &mut size)
+                    libc::getsockopt(
+                        fd,
+                        libc::SOL_SOCKET,
+                        libc::SO_ERROR,
+                        (&mut code as *mut libc::c_int).cast(),
+                        &mut size,
+                    )
                 };
                 if code != 0 {
                     return Err(E::os(&std::io::Error::from_raw_os_error(code), None));
@@ -674,7 +715,8 @@ pub fn application_rpc(root: &Root, operation: &str, dark: bool) -> Result<Map<S
     interrupted()?;
     // sendall: one deadline for the whole request.
     let mut data = request.as_bytes();
-    let send_deadline = std::time::Instant::now() + std::time::Duration::from_millis(RPC_TIMEOUT_MS as u64);
+    let send_deadline =
+        std::time::Instant::now() + std::time::Duration::from_millis(RPC_TIMEOUT_MS as u64);
     while !data.is_empty() {
         wait(fd, libc::POLLOUT, send_deadline)?;
         // SAFETY: `data` is a valid buffer of its length.
@@ -694,7 +736,8 @@ pub fn application_rpc(root: &Root, operation: &str, dark: bool) -> Result<Map<S
     let mut block = [0u8; 4096];
     while !response.contains(&b'\n') && response.len() <= RESPONSE_LIMIT {
         // Each recv has its own 5-s timeout.
-        let until = std::time::Instant::now() + std::time::Duration::from_millis(RPC_TIMEOUT_MS as u64);
+        let until =
+            std::time::Instant::now() + std::time::Duration::from_millis(RPC_TIMEOUT_MS as u64);
         wait(fd, libc::POLLIN, until)?;
         // SAFETY: `block` is writable for its length.
         let got = unsafe { libc::recv(fd, block.as_mut_ptr().cast(), block.len(), 0) };
@@ -766,8 +809,12 @@ mod tests {
         assert_eq!(p["state"], "waking");
         assert_eq!(p["kernel_completed"], true);
         assert_eq!(p["wake_reason"], "power");
-        let refused = transition(value, "refused_charger_active", &json!(2), Some("b"), None).unwrap();
-        assert_eq!((refused["state"].clone(), refused["reason"].clone()), (json!("refused"), json!("charger_active")));
+        let refused =
+            transition(value, "refused_charger_active", &json!(2), Some("b"), None).unwrap();
+        assert_eq!(
+            (refused["state"].clone(), refused["reason"].clone()),
+            (json!("refused"), json!("charger_active"))
+        );
         let other = transition(value, "complete_result_0", &json!(0), Some("c"), None).unwrap();
         assert_eq!(other["reason"], "same_boot_not_proven");
     }

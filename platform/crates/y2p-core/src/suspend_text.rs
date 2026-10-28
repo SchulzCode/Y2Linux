@@ -24,7 +24,15 @@ pub fn splitlines(text: &str) -> Vec<&str> {
     while let Some((index, c)) = chars.next() {
         let breaks = matches!(
             c,
-            '\n' | '\r' | '\u{b}' | '\u{c}' | '\u{1c}' | '\u{1d}' | '\u{1e}' | '\u{85}' | '\u{2028}' | '\u{2029}'
+            '\n' | '\r'
+                | '\u{b}'
+                | '\u{c}'
+                | '\u{1c}'
+                | '\u{1d}'
+                | '\u{1e}'
+                | '\u{85}'
+                | '\u{2028}'
+                | '\u{2029}'
         );
         if !breaks {
             continue;

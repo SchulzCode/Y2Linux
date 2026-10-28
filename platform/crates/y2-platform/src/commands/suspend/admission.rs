@@ -50,7 +50,10 @@ pub fn identity(root: &Root) -> Value {
     let versions = root.json_object("/etc/y2linux/versions.json");
     let mut value = Map::new();
     for key in ["build_id", "build_git_commit", "reborn_source_commit"] {
-        value.insert(key.into(), versions.get(key).cloned().unwrap_or(Value::Null));
+        value.insert(
+            key.into(),
+            versions.get(key).cloned().unwrap_or(Value::Null),
+        );
     }
     value.insert(
         "kernel".into(),
@@ -118,8 +121,10 @@ pub fn admission(root: &Root) -> Result<(), E> {
     // Only an attempt that reached the kernel can leave an unproven sleep. A pending record written
     // before kernel entry (radio quiesce, Reborn) is a helper failure, not a kernel quarantine; 12
     // kept those across reboots.
-    if py_eq(prior.get("identity").unwrap_or(&Value::Null), &identity(root))
-        && prior.get("pending").is_some_and(truthy)
+    if py_eq(
+        prior.get("identity").unwrap_or(&Value::Null),
+        &identity(root),
+    ) && prior.get("pending").is_some_and(truthy)
         && prior.get("kernel_entry").is_none_or(truthy)
     {
         // A clean, explicit owner trial on this image can recover a quarantine.
@@ -133,8 +138,10 @@ pub fn admission(root: &Root) -> Result<(), E> {
             _ => &empty,
         };
         let zero = json!(0);
-        let recovered = !py_eq(receipt.get("mode").unwrap_or(&Value::Null), &json!("product"))
-            && py_eq(p.get("state").unwrap_or(&Value::Null), &json!("restored"))
+        let recovered = !py_eq(
+            receipt.get("mode").unwrap_or(&Value::Null),
+            &json!("product"),
+        ) && py_eq(p.get("state").unwrap_or(&Value::Null), &json!("restored"))
             && is_true(p.get("kernel_completed"))
             && is_true(p.get("same_boot"))
             && py_eq(
@@ -170,8 +177,7 @@ pub fn load_policy(root: &Root) -> Result<Map<String, Value>, &'static str> {
     // No derived or fallback voltage thresholds. A reference records who/what qualified the
     // policy; software cannot certify that physical evidence.
     let schema = value.get("schema").cloned().unwrap_or(Value::Null);
-    if !(py_eq(&schema, &json!(1)) || py_eq(&schema, &json!(2))) || !is_true(value.get("enabled"))
-    {
+    if !(py_eq(&schema, &json!(1)) || py_eq(&schema, &json!(2))) || !is_true(value.get("enabled")) {
         return Err("thresholds_disabled_PHYSICAL_GATE");
     }
     let int = |key: &str| exact_int(value.get(key));
@@ -228,7 +234,8 @@ pub fn battery_and_cable(root: &Root) -> Result<(), E> {
         // POWER-FINAL-16 Defect C (archive 109): VBUS from a powered-off or sleeping PC with
         // nothing charging must not hold the Y2 awake. Sleep while the cable is in only when no
         // host uses the gadget and the charger is idle (Full, or inhibited/paused).
-        if !matches!(status.as_deref(), Some("Full" | "Not charging")) || usb_host_configured(root) {
+        if !matches!(status.as_deref(), Some("Full" | "Not charging")) || usb_host_configured(root)
+        {
             return Err(refused("charger_or_usb_active"));
         }
     } else if status.as_deref() != Some("Discharging") {
@@ -329,7 +336,10 @@ pub fn operation_state(root: &Root, workloads: bool) -> Result<(), E> {
     {
         return Err(refused("firmware_update"));
     }
-    if root.path("/data/system/platform/maintenance-pending").exists() {
+    if root
+        .path("/data/system/platform/maintenance-pending")
+        .exists()
+    {
         return Err(refused("maintenance_recovery"));
     }
     if !workloads {
@@ -360,11 +370,16 @@ pub fn lock_holders(root: &Root, meta: &Metadata) -> Vec<String> {
     let comm = Regex::new(r"[^\w.-]").expect("pattern");
     for line in splitlines(&root.read("/proc/locks").unwrap_or_default()) {
         let fields = split(line);
-        if fields.len() < 6 || fields[1] != "FLOCK" || !y2p_core::suspend_text::is_decimal(fields[4]) {
+        if fields.len() < 6
+            || fields[1] != "FLOCK"
+            || !y2p_core::suspend_text::is_decimal(fields[4])
+        {
             continue;
         }
         let parts: Vec<&str> = fields[5].split(':').collect();
-        let [a, b, c] = parts.as_slice() else { continue };
+        let [a, b, c] = parts.as_slice() else {
+            continue;
+        };
         let (Some(a), Some(b), Some(c)) = (
             y2p_core::suspend_text::int16(a),
             y2p_core::suspend_text::int16(b),
@@ -428,7 +443,9 @@ pub fn failed_before_freeze(root: &Root) -> bool {
         .last()
         .is_some_and(|(stage, result)| stage == "EXIT" && *result < 0)
         && marks.iter().any(|(s, r)| s == "SUSPEND_REQUEST" && *r == 0)
-        && marks.iter().all(|(s, _)| PRE_FREEZE_MARKS.contains(&s.as_str()))
+        && marks
+            .iter()
+            .all(|(s, _)| PRE_FREEZE_MARKS.contains(&s.as_str()))
         && field(&kernel, "failed_stage") == Some("EXIT")
 }
 
@@ -436,7 +453,8 @@ pub fn retry_later(root: &Root) -> Result<(), E> {
     let path = root.path(RETRY);
     private_directory(path.parent().unwrap_or(Path::new("/")))?;
     let not_before = clock::boottime_ns() + PREPARE_RETRY_SECONDS * 1_000_000_000;
-    let value = json!({"boot_id": boot_id(root), "not_before_ns": Value::Number(Number::from(not_before))});
+    let value =
+        json!({"boot_id": boot_id(root), "not_before_ns": Value::Number(Number::from(not_before))});
     y2p_core::record::atomic_json(&path, &value, false, 0o600).map_err(|e| E::os(&e, Some(&path)))
 }
 
@@ -444,10 +462,12 @@ pub fn retry_later(root: &Root) -> Result<(), E> {
 /// or another boot is not "starting".
 pub fn application_starting(root: &Root) -> bool {
     let journal = root.json_object("/data/system/platform/boot.json");
-    py_eq(journal.get("boot_id").unwrap_or(&Value::Null), &boot_id(root))
-        && ["platform_start", "services_started"]
-            .iter()
-            .any(|s| is_text(journal.get("last_stage"), s))
+    py_eq(
+        journal.get("boot_id").unwrap_or(&Value::Null),
+        &boot_id(root),
+    ) && ["platform_start", "services_started"]
+        .iter()
+        .any(|s| is_text(journal.get("last_stage"), s))
 }
 
 #[cfg(test)]
@@ -473,10 +493,21 @@ mod tests {
         put(&dir, "/etc/y2linux/power-policy.json", good);
         assert!(load_policy(&root).is_ok());
         put(&dir, "/data/system/platform/power-policy.json", "[1]");
-        assert!(load_policy(&root).is_ok(), "a non-dict override falls back to the shipped policy");
-        put(&dir, "/data/system/platform/power-policy.json", &good.replace("\"source\": \"owner\"", "\"source\": \"\""));
+        assert!(
+            load_policy(&root).is_ok(),
+            "a non-dict override falls back to the shipped policy"
+        );
+        put(
+            &dir,
+            "/data/system/platform/power-policy.json",
+            &good.replace("\"source\": \"owner\"", "\"source\": \"\""),
+        );
         assert_eq!(load_policy(&root), Err("invalid_policy"));
-        put(&dir, "/data/system/platform/power-policy.json", &good.replace("\"shutdown_soc\": 5", "\"shutdown_soc\": 10"));
+        put(
+            &dir,
+            "/data/system/platform/power-policy.json",
+            &good.replace("\"shutdown_soc\": 5", "\"shutdown_soc\": 10"),
+        );
         assert_eq!(load_policy(&root), Err("invalid_policy"));
     }
 
@@ -486,9 +517,17 @@ mod tests {
         let root = Root::new(dir.path());
         put(&dir, "/sys/firmware/y2_pm/devices", "ring=valid cycle=3\n1 phase=0 mark result=0 ms=1 stage=HELPER_REQUEST\n\
              2 phase=0 mark result=0 ms=2 stage=SUSPEND_REQUEST\n3 phase=0 mark result=-1 ms=3 stage=EXIT\n");
-        put(&dir, "/sys/firmware/y2_pm/state", "valid=1 failed_stage=EXIT error=-1\n");
+        put(
+            &dir,
+            "/sys/firmware/y2_pm/state",
+            "valid=1 failed_stage=EXIT error=-1\n",
+        );
         assert!(failed_before_freeze(&root));
-        put(&dir, "/sys/firmware/y2_pm/state", "valid=1 failed_stage=DPM_PREPARED error=-16\n");
+        put(
+            &dir,
+            "/sys/firmware/y2_pm/state",
+            "valid=1 failed_stage=DPM_PREPARED error=-16\n",
+        );
         assert!(!failed_before_freeze(&root));
     }
 }
