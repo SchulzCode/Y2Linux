@@ -19,6 +19,11 @@ ryu = "=1.0.23"
 # The error-report scrubber (report.py) is regular expressions; Rust regex has no lookbehind, which the
 # port spells out by hand.
 regex = { version = "=1.13.1", default-features = false, features = ["std", "unicode", "perf"] }
+# Report archives, retained boot evidence (gzip/tar as Reborn's pins) and the hashes the records carry.
+flate2 = { version = "=1.1.5", default-features = false, features = ["rust_backend"] }
+tar = { version = "=0.4.44", default-features = false }
+sha2 = { version = "=0.10.9", default-features = false }
+hmac = "=0.12.1"
 
 [profile.release]
 opt-level = "s"
