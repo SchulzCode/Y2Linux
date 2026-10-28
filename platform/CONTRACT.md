@@ -157,7 +157,9 @@ Most are `LOCK_EX|LOCK_NB` with a named refusal (`*_in_progress`, `busy`); the b
 | An expired media write window is re-protected only in a reconcile the service starts, which it skips when nothing changed | read in code; device check owed |
 | A DHCP renew deletes `dns.json`: Wi-Fi may show `dns_unavailable` for up to 300 s | read in code |
 
-These are owner decisions (fix in Python now, or carry into the port unchanged and fix after parity).
+Owner decision (2026-10-28): **port them 1:1 and fix them after parity** (plan §3.2, §8), so that the port ends with
+no Python in the image. A port of the affected code keeps the behaviour and marks it `// DEFECT (CONTRACT.md): …`;
+the differential tests keep expecting the Python behaviour until the fix.
 
 ## Differential harness
 

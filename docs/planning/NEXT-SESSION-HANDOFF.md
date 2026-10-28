@@ -1,6 +1,6 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-28, night): PLATFORM RUST PORT PHASE 0 DONE — WAITING FOR THE OWNER'S CONTRACT-CRATE DECISION.**
+> **START HERE (2026-10-28, night): PLATFORM RUST PORT PHASE 0 DONE, OWNER DECISIONS TAKEN — PHASE 1 NEXT.**
 > [Plan](PLATFORM-RUST-PORT-PLAN.md) §5 Phase 0, no product change, nothing built or installed; 165 stays on the
 > owner's player (its overnight/power-off checks below are still owed). Measured on 165 (plan §7): platform daemons
 > 58.4 MB RSS / 35.0 MB PSS, ≈92 s CPU per hour awake idle (power-daemon 60) and ≈109 s/h playing; `status --reborn
@@ -12,9 +12,10 @@
 > `tests.test_platform_differential` in `tools/production/tests.sh` (Rust side via `Y2_PLATFORM_RUST`, skipped now).
 > Suspected defects in CONTRACT.md; confirmed on the player: `usr/libexec/sftp-server` greps `"state": "Ready"`,
 > the file has `"state":"Ready"`, so SFTP never roots at Internal Storage. Raw samples: `/data/logs/phase0/` on the
-> player. **Next:** owner decides where `y2p-contract` lives (recommendation (a), plan §4) and which suspected
-> defects to fix in Python first; the owner unplugs the player for the 165 overnight (drain from the power
-> journal = the Python drain baseline); then Phase 1 (repeat the roadmap gap audit first: architecture change).
+> player. **Owner decisions (later that night):** `y2p-contract` in Y2Linux, vendored by Reborn with a stamp,
+> `release.py build` refuses a mismatch (plan §4 (a)); suspected defects are ported 1:1 and fixed after parity
+> (plan §3.2, §8). **Next:** read the 165 overnight drain from the power journal (owner unplugs tonight; it is the
+> Python drain baseline), then Phase 1 (repeat the roadmap gap audit first: architecture change).
 > Next free label 166, sequence above 11100.
 >
 > Previous entry: **START HERE (2026-10-28, late): BETA 8.44 TEST BUILD 165 ON THE OWNER'S PLAYER, NOT PUBLISHED — WATCHDOG, LONG-PRESS, PANIC.**

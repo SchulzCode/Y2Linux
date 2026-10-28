@@ -1,6 +1,6 @@
 # Platform service: port from Python to Rust, then remove Python from the player
 
-Status: **Phase 0 done (2026-10-28), Phase 1 waits for the owner's contract-crate decision (§4).** Owner's goal: everything that runs on the player is Rust (Reborn), C
+Status: **Phase 0 done (2026-10-28); owner decisions taken (§4 contract crate in Y2Linux, defects ported 1:1 and fixed after parity); Phase 1 next.** Owner's goal: everything that runs on the player is Rust (Reborn), C
 (kernel, early boot, installer) or shell (init scripts); **no Python in the image**. Host-side tooling (release,
 build, validation, the test harness) may stay Python.
 
@@ -82,7 +82,10 @@ functions through `ctx` (`common.py`: `ctx.path`, `ctx.read`, `ctx.json`, `ctx.c
    names, types, enum strings), timeouts, lock files and lock protocol (flock on the same paths), atomic-write
    semantics (temp + fsync + rename, no randomness at boot: see `test_platform_records_do_not_need_the_random_pool`),
    pmsg/kmsg line texts. Reborn and the report tooling must notice nothing. Contract changes, if ever wanted, are a
-   separate step after parity.
+   separate step after parity. **This includes known defects** (owner, 2026-10-28: "port 1:1 then fix"): the
+   suspected defects in [CONTRACT.md](../../platform/CONTRACT.md#suspected-defects-found-while-inventorying-not-changed-in-phase-0)
+   are ported as they are, marked with a `// DEFECT (CONTRACT.md): …` comment, and fixed in Rust after Phase 6,
+   when no Python is left in the image.
 3. **Python and Rust coexist safely.** During the transition a Python daemon and a Rust CLI may touch the same state:
    identical locking and write order are mandatory, not optional.
 4. **Port behaviour, including the fixes.** Every F-number fix in the Python code (comments name them: F13, F23,
@@ -115,7 +118,7 @@ functions through `ctx` (`common.py`: `ctx.path`, `ctx.read`, `ctx.json`, `ctx.c
   `reborn-platform`. Options: (a) Reborn vendors `y2p-contract` from Y2Linux at a pinned commit, (b) the crate lives
   in Y2Reborn and Y2Linux vendors it. Pick one in phase 1 and write it down; release tooling
   (`tools/production/release.py`) must keep both repos' commits consistent.
-  **Phase 0 recommendation (owner to decide):** (a). The crate lives in Y2Linux (`platform/y2p-contract`): the
+  **Decided (owner, 2026-10-28: "deem as you think is best"):** (a). The crate lives in Y2Linux (`platform/y2p-contract`): the
   platform writes the records, its Python goldens and the differential harness are here, and most contract changes
   start on the platform side. Reborn keeps building on its own (as now: `cargo vendor`, no network, contributors
   without a Y2Linux checkout) from a vendored copy `vendor/y2p-contract` plus a stamp file naming the Y2Linux
@@ -262,7 +265,11 @@ per boot), `time-remember`, `wifi-event`/`dhcp-event`/`ntp-event`.
 shutdown of the previous boot `shutdown_pending` 4042.50 → `shutdown_complete` 4044.53 (2.03 s). Earlier boots keep
 no stage times (`boot.json` history has none).
 
-## 8. Out of scope / later
+## 8. After Phase 6
+- Fix the defects carried 1:1 (CONTRACT.md list, plus any found during the port), each as its own change with a
+  test and, where the hardware is involved, a device check.
+
+## 9. Out of scope / later
 - Host tooling in Python (release, build, validation, report fetch) stays.
 - Plugin system (separate plan): the Rust platform makes a shared plugin SDK possible.
 - Contract version changes (`platform_api_version` 2) only after parity is reached.
