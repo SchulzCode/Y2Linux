@@ -119,7 +119,7 @@ pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &
     parameters.insert("seconds".into(), json!(seconds));
     parameters.insert("throughput_requested".into(), json!(throughput));
     let mut record = util::record(root, "network-qualification", parameters);
-    let before = snapshot(root, &[], false, 0.0)?;
+    let before = super::crashing(snapshot(root, &[], false, 0.0))?;
     let mut result = Map::new();
     result.insert("schema".into(), json!("org.y2linux.benchmark/v1"));
     if interface == "wlan0" && before["wifi"]["state"] != "Online" {
@@ -182,7 +182,7 @@ pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &
         },
     );
     result.insert("record".into(), Value::Object(record));
-    let after = snapshot(root, &[], false, 0.0)?;
+    let after = super::crashing(snapshot(root, &[], false, 0.0))?;
     result.insert("after".into(), Value::Object(after));
     Reply::sorted(&result, u8::from(!ok))
 }

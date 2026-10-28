@@ -64,12 +64,8 @@ impl Parsed {
     }
 }
 
-/// argparse reads `-5` as a value when the parser has no option that looks like a negative number.
-fn negative_number(token: &str) -> bool {
-    crate::regex!(r"\A-\d+\z|\A-\d*\.\d+\z").is_match(token)
-}
-
-/// The arguments after the subcommand, or None for anything argparse would treat otherwise.
+/// The canonical arguments after the subcommand (argparse.rs: positionals, then options in definition
+/// order, `--option value` as two tokens), or None for a form this group does not run.
 fn parse(args: &[&str], spec: &Spec) -> Option<Parsed> {
     let mut parsed = Parsed::default();
     let mut index = 0;
@@ -99,9 +95,6 @@ fn parse(args: &[&str], spec: &Spec) -> Option<Parsed> {
                 None => {
                     let value = *args.get(index)?;
                     index += 1;
-                    if value.starts_with('-') && !negative_number(value) {
-                        return None;
-                    }
                     value
                 }
             };
@@ -180,7 +173,7 @@ pub fn route(args: &[&str]) -> Option<Command> {
                 reborn: parsed.flag("--reborn"),
                 interval,
             };
-            Some(Box::new(move |root| status(root, &options)))
+            Some(Box::new(move |root| crashing(status(root, &options))))
         }
         "health" => {
             let parsed = parse(
@@ -191,7 +184,7 @@ pub fn route(args: &[&str]) -> Option<Command> {
                 },
             )?;
             let full = parsed.flag("--full");
-            Some(Box::new(move |root| health::run(root, full)))
+            Some(Box::new(move |root| crashing(health::run(root, full))))
         }
         "boot-evidence" if rest.is_empty() => Some(Box::new(evidence::run)),
         "network-check" => {
@@ -240,7 +233,7 @@ pub fn route(args: &[&str]) -> Option<Command> {
                 pss: parsed.flag("--pss"),
                 reborn: parsed.flag("--reborn"),
             };
-            Some(Box::new(move |root| collect::run(root, &options)))
+            Some(Box::new(move |root| crashing(collect::run(root, &options))))
         }
         "bench-storage" => {
             let parsed = parse(
@@ -284,6 +277,27 @@ pub fn route(args: &[&str]) -> Option<Command> {
             }))
         }
         _ => None,
+    }
+}
+
+/// An input the Python platform crashes on (an uncaught AttributeError, TypeError, KeyError or
+/// IndexError: a traceback on stderr, nothing more on stdout, exit 1) after the snapshot already asked
+/// for its subprocesses, so handing the command to Python would ask for them twice: end the same way.
+pub fn crash(what: &str) -> ! {
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
+    let _ = writeln!(
+        std::io::stderr(),
+        "y2-platform: {what}: the Python platform raises an uncaught exception here"
+    );
+    std::process::exit(1)
+}
+
+/// `outcome`, with a crash (`Failure::Fallback` from the snapshot) ended as Python ends it.
+pub fn crashing<T>(outcome: Result<T, crate::reply::Failure>) -> Result<T, crate::reply::Failure> {
+    match outcome {
+        Err(crate::reply::Failure::Fallback) => crash("observation"),
+        other => other,
     }
 }
 
@@ -381,7 +395,10 @@ mod tests {
         assert_eq!(parsed.positional.as_deref(), Some("wifi"));
         assert_eq!(parsed.appended("--pid"), ["5", "-3"]);
         assert!(parsed.flag("--pss"));
-        assert!(parse(&["--pid", "--pss"], &spec).is_none());
+        assert_eq!(
+            parse(&["--pid", "-x"], &spec).unwrap().appended("--pid"),
+            ["-x"]
+        );
         assert!(parse(&["--pi", "5"], &spec).is_none());
         assert!(parse(&["wifi", "cpu"], &spec).is_none());
         assert!(parse(&["--pss=1"], &spec).is_none());

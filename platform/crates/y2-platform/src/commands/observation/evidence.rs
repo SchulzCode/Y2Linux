@@ -311,16 +311,22 @@ fn read_up_to(file: &mut File, limit: usize) -> io::Result<Vec<u8>> {
     Ok(data)
 }
 
+/// `os.fdopen(fd, 'rb')` of a directory: io.FileIO refuses it naming the descriptor, which it does
+/// not close (it did not open it), so later descriptors get higher numbers. Kept as Python does it.
+fn directory_error(file: File) -> String {
+    use std::os::fd::IntoRawFd;
+    format!("[Errno 21] Is a directory: {}", file.into_raw_fd())
+}
+
 /// `os.open(path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)` of a retained source, regular files only.
 fn source(path: &Path, limit: usize) -> Result<Vec<u8>, SourceError> {
     let mut file =
         open_flags(path, libc::O_NOFOLLOW | libc::O_NONBLOCK).map_err(SourceError::Os)?;
-    if !file
-        .metadata()
-        .map_err(SourceError::Os)?
-        .file_type()
-        .is_file()
-    {
+    let kind = file.metadata().map_err(SourceError::Os)?.file_type();
+    if kind.is_dir() {
+        return Err(SourceError::Text(directory_error(file)));
+    }
+    if !kind.is_file() {
         return Err(SourceError::Text("retained_source_not_regular".into()));
     }
     let raw = read_up_to(&mut file, limit + 1).map_err(SourceError::Os)?;
@@ -591,6 +597,12 @@ pub fn run(root: &Root) -> Outcome {
             let info = file
                 .metadata()
                 .map_err(|e| Failure::os(e, Path::new(name)))?;
+            if info.file_type().is_dir() {
+                return Err(Failure::Os {
+                    text: directory_error(file),
+                    class: "IsADirectoryError",
+                });
+            }
             if !info.file_type().is_file() {
                 return Err(Failure::value("invalid_log_file"));
             }
@@ -629,7 +641,7 @@ pub fn run(root: &Root) -> Outcome {
         };
         let lines = largest["tail_lines"].as_array_mut().expect("lines");
         if lines.is_empty() {
-            return Err(Failure::Fallback); // IndexError: pop from an empty list
+            super::crash("pop from empty list"); // IndexError
         }
         lines.remove(0);
     }

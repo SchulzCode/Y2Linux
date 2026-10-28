@@ -520,7 +520,7 @@ pub fn cpu(root: &Root) -> Result<Map<String, Value>, Failure> {
         let opp: Vec<Value> = split_ws(&available)
             .into_iter()
             .filter(|v| !v.is_empty() && v.chars().all(|c| c.is_ascii_digit()))
-            .filter_map(|v| int(v))
+            .filter_map(int)
             .filter(|v| admitted.is_some_and(|a| *v <= a))
             .map(Value::from)
             .collect();
@@ -957,8 +957,28 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
         Some(_) => return Err(Failure::Fallback), // AttributeError on .get
     };
     let get = |k: &str| battery.get(k).cloned().unwrap_or(Value::Null);
+    let mut receipt = root.json_object("/data/system/platform/suspend-last.json");
+    // sleep.product: `dict(value.get('product') or {})` also takes a list of key/value pairs.
+    if let Some(Value::Array(pairs)) = receipt.get("product") {
+        let mut product = Map::new();
+        for pair in pairs {
+            let (key, value) = match pair {
+                Value::Array(kv) if kv.len() == 2 && kv[0].is_string() => {
+                    (kv[0].as_str().unwrap_or_default().to_owned(), kv[1].clone())
+                }
+                Value::String(s) if s.chars().count() == 2 => {
+                    let mut chars = s.chars();
+                    let key = chars.next().expect("two").to_string();
+                    (key, json!(chars.next().expect("two").to_string()))
+                }
+                _ => return Err(Failure::Fallback),
+            };
+            product.insert(key, value);
+        }
+        receipt.insert("product".into(), Value::Object(product));
+    }
     let sleep = super::super::sleep::product(
-        &root.json_object("/data/system/platform/suspend-last.json"),
+        &receipt,
         root.read("/proc/sys/kernel/random/boot_id").as_deref(),
     )?;
     Ok(json!({
@@ -1248,10 +1268,9 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
                 let cause = claim.get("read_only").and_then(Value::as_str);
                 item.insert(
                     "read_only_reason".into(),
-                    json!(match cause {
-                        Some(c @ ("filesystem_errors" | "check_timed_out")) => c,
-                        _ => "mounted_read_only",
-                    }),
+                    json!(cause
+                        .filter(|c| matches!(*c, "filesystem_errors" | "check_timed_out"))
+                        .unwrap_or("mounted_read_only")),
                 );
             }
         }
@@ -1697,10 +1716,39 @@ mod tests {
     #[test]
     fn rounding_matches_python() {
         // round(x, 3) in CPython
-        assert_eq!(round3(2.0005), 2.0);
+        assert_eq!(round3(2.0005), 2.001);
         assert_eq!(round3(13.0434782608), 13.043);
         assert_eq!(round3(0.0015), 0.002);
         assert_eq!(round3(100.0), 100.0);
+        // Utilisation percentages 100 * busy / total as the snapshot computes them.
+        let values: Vec<f64> = (1..4000u32)
+            .map(|total| 100.0 * f64::from(total * 7 % 997) / f64::from(total))
+            .collect();
+        let script = "import sys\nfor line in sys.stdin:\n    print(repr(round(float(line), 3)))";
+        let Ok(mut python) = std::process::Command::new("python3")
+            .args(["-I", "-c", script])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+        else {
+            return; // no host Python
+        };
+        let input: String = values.iter().map(|v| format!("{v:?}\n")).collect();
+        let mut stdin = python.stdin.take().unwrap();
+        let writer = std::thread::spawn(move || {
+            use std::io::Write;
+            stdin.write_all(input.as_bytes())
+        });
+        let output = python.wait_with_output().unwrap();
+        writer.join().unwrap().unwrap();
+        let expected = String::from_utf8(output.stdout).unwrap();
+        for (value, line) in values.iter().zip(expected.lines()) {
+            assert_eq!(
+                y2p_core::json::float_repr(round3(*value)),
+                line,
+                "{value:?}"
+            );
+        }
     }
 
     #[test]

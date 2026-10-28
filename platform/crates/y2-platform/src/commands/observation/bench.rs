@@ -204,7 +204,8 @@ impl<'a> Scratch<'a> {
             initial_uuid: Value::Null,
         };
         scratch.initial = scratch.identity()?;
-        let observed = storage(root).map_err(|_| Error::value("observation_fallback"))?;
+        let observed =
+            storage(root).map_err(|_| -> Error { super::crash("storage observation") })?;
         let item = observed["volumes"]
             .as_array()
             .and_then(|v| v.iter().find(|v| v["path"] == volume))
@@ -620,6 +621,9 @@ fn controller_fault(system: &Value) -> bool {
     })
 }
 
+/// What runs once after a measurement's steps (an fdatasync, a directory fsync).
+type Finalize<'f> = &'f dyn Fn(&Scratch) -> Result<()>;
+
 struct Bench<'a> {
     root: &'a Root,
     deadline: f64,
@@ -667,7 +671,7 @@ impl Bench<'_> {
         count: usize,
         bytes_per_op: u64,
         mut step: impl FnMut(&mut Scratch, usize) -> Result<()>,
-        finalize: Option<&dyn Fn(&Scratch) -> Result<()>>,
+        finalize: Option<Finalize>,
     ) -> Result<()> {
         let mut samples = Vec::with_capacity(count);
         let before_io = io_snapshot(self.root);
@@ -992,7 +996,7 @@ pub fn storage_benchmark(
         described.insert("uuid".into(), scratch.initial_uuid.clone());
         described.insert(
             "observation".into(),
-            storage(root).map_err(|_| Error::value("observation_fallback"))?,
+            storage(root).map_err(|_| -> Error { super::crash("storage observation") })?,
         );
         bench
             .result
@@ -1006,7 +1010,6 @@ pub fn storage_benchmark(
         Ok(()) => {
             record.insert("result".into(), json!("OK"));
         }
-        Err(error) if error.text == "observation_fallback" => return Err(Failure::Fallback),
         Err(error) => {
             record.insert("result".into(), json!("FAILED"));
             record.insert(
@@ -1090,7 +1093,6 @@ pub fn library_benchmark(root: &Root, volume: &str, tracks: i64, scan: bool) -> 
             measurements = value;
             record.insert("result".into(), json!("OK"));
         }
-        Err(error) if error.text == "observation_fallback" => return Err(Failure::Fallback),
         Err(error) => {
             record.insert("result".into(), json!("FAILED"));
             record.insert("failure".into(), json!(error.text));

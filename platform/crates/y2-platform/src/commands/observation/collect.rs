@@ -94,17 +94,8 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
                 }
             }
         }
-        let mut value = match snapshot(root, &pids, options.pss, 0.0) {
-            Ok(value) => value,
-            // An input Python crashes on (a traceback: exit 1, nothing more on stdout); before the
-            // first line Python itself can do it.
-            Err(Failure::Fallback) if samples == 0 => return Err(Failure::Fallback),
-            Err(Failure::Fallback) => {
-                let _ = out.flush();
-                std::process::exit(1);
-            }
-            Err(error) => return Err(error),
-        };
+        // An input Python crashes on ends the stream as its traceback does (super::crash).
+        let mut value = super::crashing(snapshot(root, &pids, options.pss, 0.0))?;
         let record = value["record"].as_object_mut().expect("record");
         record.insert("workload".into(), json!(label));
         if let Some(Value::Object(parameters)) = record.get_mut("parameters") {
