@@ -14,7 +14,7 @@ use y2p_core::{
 };
 
 /// `publish(ctx, name, value)`: `value.update(schema, boot_id, monotonic_s)` and the runtime record.
-fn publish(root: &Root, name: &str, mut value: Ordered) -> Result<Ordered, Failure> {
+pub(crate) fn publish(root: &Root, name: &str, mut value: Ordered) -> Result<Ordered, Failure> {
     private_directory(&root.path("/run/y2"))?;
     value
         .set("schema", 1)
@@ -28,7 +28,7 @@ fn publish(root: &Root, name: &str, mut value: Ordered) -> Result<Ordered, Failu
 }
 
 /// True while Wi-Fi is soft-blocked: sleep or the owner turned it off.
-fn wlan_switched_off(root: &Root) -> bool {
+pub(crate) fn wlan_switched_off(root: &Root) -> bool {
     let mut entries: Vec<String> = fs::read_dir(root.path("/sys/class/rfkill"))
         .into_iter()
         .flatten()
