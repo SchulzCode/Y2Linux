@@ -151,9 +151,14 @@ Most are `LOCK_EX|LOCK_NB` with a named refusal (`*_in_progress`, `busy`); the b
 
 ## Ported to Rust (`platform/crates/y2-platform/src/commands`)
 
-Rust runs a subcommand only for the exact argument forms below; every other form (`--help`, an abbreviated
-option, an invalid choice, extra arguments) is argparse's and goes to the Python platform unchanged. A
-ported command also hands itself to Python, before it changes anything Python would not change the same way
+The dispatcher parses the arguments first, exactly as main.py's argparse parser (`src/argparse.rs` with the
+parser as data, `src/argparse.json`, generated and checked by `tools/development/platform-argparse.py`): `--help`
+prints that parser's help (exit 0) and an argument error its usage and `main.py …: error: …` on stderr (exit 2),
+without Python. Rust then runs a subcommand for the canonical forms below (an abbreviated or `=` spelling, or
+options in another order, parse to the same canonical form: subcommand, positionals, then the options given in
+definition order); every other form goes to the Python platform with the arguments as given. Help and usage
+texts are the 80-column ones (Python would use a terminal's width or COLUMNS; the platform's callers use pipes).
+A ported command also hands itself to Python, before it changes anything Python would not change the same way
 again, for inputs where Python would crash or parses something not worth reproducing (listed). Each row has
 differential cases in `tests/test_platform_differential.py` (`ported` True/False is checked).
 
@@ -164,7 +169,7 @@ differential cases in `tests/test_platform_differential.py` (`ported` True/False
 | `time` | `time.rs` | timekeeping.status | — |
 | `time-remember` | `time.rs` | timekeeping.remember(every=0) | — |
 | `ntp-event step\|stratum\|periodic\|unsync` | `time.rs` | timekeeping.ntp_event | `stratum` not a plain decimal |
-| `boot-stage <stage>` (not starting with `-`) | `boot.rs`, `power_features.rs` | boot.mark, power_features.apply | — |
+| `boot-stage <stage>` | `boot.rs`, `power_features.rs` | boot.mark, power_features.apply | — |
 | `codec-runtime` [`--record`] | `codec.rs` | radio_policy.codec_runtime | `codecs` not a dict |
 | `wifi-event CONNECTED\|DISCONNECTED\|SERVICE_RESTART` | `network.rs` | network.lease_event | — |
 | `dhcp-event deconfig\|leasefail\|nak\|bound\|renew` | `network.rs` | network.dhcp_event | an address, netmask or route ipaddress would word an error for (leading zeros, hostmask, bad octets) |
