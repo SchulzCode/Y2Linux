@@ -233,6 +233,17 @@ printf '%s\n' "$datadev" > /run/y2-data-device
 echo "Y2ROOT: verified $rootdev with Y2DATA=$datadev; switching to Buildroot" > /dev/kmsg
 y2_stage switch_root
 [ -z "$observer" ] || { kill "$observer"; wait "$observer" 2>/dev/null; }
+# Owner decision (2026-10-28): the running system restarts 10 s after a
+# kernel panic (pstore keeps the record) instead of staying dark until the
+# battery is empty. The command line keeps panic=0 for this rescue, so a
+# failed handover below puts it back. Health boots set 10 above already.
+panic_before=$(cat /proc/sys/kernel/panic 2>/dev/null)
+echo 10 > /proc/sys/kernel/panic 2>/dev/null
+handover_rescue() {
+    [ -z "$panic_before" ] || echo "$panic_before" > /proc/sys/kernel/panic 2>/dev/null
+    start_observer
+    rescue "$1"
+}
 moved=
 for fs in proc sys run tmp dev; do
     mkdir -p "/newroot/$fs"
@@ -240,8 +251,7 @@ for fs in proc sys run tmp dev; do
         moved="$fs $moved"
     else
         for undo in $moved; do mount --move "/newroot/$undo" "/$undo"; done
-        start_observer
-        rescue 'mount handover failed'
+        handover_rescue 'mount handover failed'
     fi
 done
 # BusyBox ash accepts -i only at shell startup, never through "set -i".
@@ -250,8 +260,7 @@ done
 handover_exec_failed() {
     trap - EXIT
     for undo in $moved; do mount --move "/newroot/$undo" "/$undo"; done
-    start_observer
-    rescue 'switch_root exec failed'
+    handover_rescue 'switch_root exec failed'
 }
 trap handover_exec_failed EXIT
 exec switch_root -c /dev/console /newroot /sbin/init

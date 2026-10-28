@@ -28,8 +28,8 @@ static const struct y2_pmic_lp_rail y2_pmic_lp_rails[] = {
 	{0x504, "VMC"}, {0x506, "VMCH"}, {0x508, "VEMC3V3"},
 };
 #define Y2_PMIC_LP_RAILS (sizeof(y2_pmic_lp_rails) / sizeof(y2_pmic_lp_rails[0]))
-/* F56/F57: what the PMIC holds about the last power-down, read only (never in
- * the write policy). Stock LK boot_mode_select (0x81e0a360) reads STRUP_CON8
+/* F56/F57: what the PMIC holds about the last power-down, read only (only
+ * TOP_RST_MISC bit 6 is writable, and only to 0, below). Stock LK boot_mode_select (0x81e0a360) reads STRUP_CON8
  * JUST_PWRKEY_RST (bit 14, latched by a Power long-press reset) and, if set,
  * writes CLR_JUST_RST (bit 4) and leaves it set. TOP_RST_MISC: that reset's
  * enable (bit 6) and time (bits 9:8) as the preloader set them (enabled,
@@ -43,6 +43,14 @@ static const struct y2_pmic_lp_rail y2_pmic_power_status[] = {
 	{0x044, "strup_con5"}, {0x142, "chrstatus"},
 };
 #define Y2_PMIC_POWER_STATUS_REGS (sizeof(y2_pmic_power_status) / sizeof(y2_pmic_power_status[0]))
+/* F57 owner decision (report 496f54ad: power lost ~3 s after a power-off was
+ * acknowledged, Power still held): once y2-platform executes a shutdown its
+ * SoC watchdog is the backstop, so it turns the long-press reset off and a
+ * held Power cannot cut the 8-14 s power-off. TOP_RST_MISC RG_PWRKEY_RST_EN
+ * (vendor upmu_hw.h bit 6), clear only; the preloader's platform init
+ * (0x0020b5d2) sets it again, with the 11 s time, at every start. */
+#define Y2_PMIC_TOP_RST_MISC 0x11aU
+#define Y2_PMIC_PWRKEY_RST_EN 0x0040U
 /* The vendor E2 branch is the verified source for this register map. */
 static inline int y2_pmic_lp_chip_ok(unsigned cid)
 {

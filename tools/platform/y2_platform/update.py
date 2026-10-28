@@ -618,8 +618,17 @@ def application_healthy(app):
             type(app.get('uptime_seconds')) is int and app['uptime_seconds'] >= 10)
 
 
+# Owner decision (2026-10-28): the running system restarts 10 s after a kernel
+# panic; init sets it before the handover on every boot (the command line keeps
+# panic=0 for the rescue).
+RUNNING_PANIC_SECONDS = '10'
+
+
 def restore_health_debug(ctx):
-    """Undo init's health-boot console level and stall panic (F23); best effort."""
+    """Undo init's health-boot console level and stall panic (F23); best effort.
+
+    The panic timeout stays at 10 s: only the health boot's RCU stall panic
+    and console level go back to the saved values."""
     try:
         # strict=False: a raw tab from /proc/sys/kernel/printk (8.22 test build).
         saved = json.loads(ctx.read('/run/y2/health-debug.json') or '', strict=False)
@@ -628,7 +637,7 @@ def restore_health_debug(ctx):
     if not isinstance(saved, dict):
         return
     for name in ('printk', 'panic', 'panic_on_rcu_stall'):
-        value = saved.get(name)
+        value = RUNNING_PANIC_SECONDS if name == 'panic' else saved.get(name)
         if isinstance(value, str) and re.fullmatch(r'[0-9]+(\s+[0-9]+)*', value.strip()):
             with contextlib.suppress(OSError):
                 ctx.path('/proc/sys/kernel/' + name).write_text(value.strip() + '\n')

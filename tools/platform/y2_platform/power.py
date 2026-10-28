@@ -167,6 +167,8 @@ class Coordinator:
         shutdown_trail(self.ctx, 'execute %s %s' % (self.intent['action'], self.intent['reason']))
         results = {'watchdog': self.arm_watchdog()}
         shutdown_trail(self.ctx, 'watchdog', results['watchdog'])
+        results['long_press_reset'] = self.long_press_reset_off()
+        shutdown_trail(self.ctx, 'long_press_reset', results['long_press_reset'])
         results['journal_pending'] = self.step(
             'journal_pending', ['/usr/sbin/y2-platform', 'boot-stage', 'shutdown_pending'], STAGE_SECONDS)
         # Reborn normally ends on its dark frame with the backlight already off
@@ -270,10 +272,31 @@ class Coordinator:
             return {'ok': False, 'reason': 'watchdog_unavailable'}
         return {'ok': failure is None, 'reason': failure}
 
+    def long_press_reset_off(self):
+        """F57 (496f54ad): Power still held through the 8-14 s power-off let
+        the PMIC long-press reset cut it ~3 s after Reborn's ack. With the
+        watchdog armed as the backstop, turn that reset off until the next
+        start (the preloader sets it again). Without the watchdog it stays the
+        only escape from a stalled shutdown. Never fails the shutdown."""
+        if self.watchdog is None:
+            return {'ok': False, 'reason': 'kept_without_watchdog'}
+        try:
+            fd = os.open(self.ctx.path(LONG_PRESS_RESET), os.O_WRONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        except OSError:
+            return {'ok': False, 'reason': 'long_press_reset_unavailable'}   # older kernel
+        try:
+            os.write(fd, b'0\n')
+        except OSError:
+            return {'ok': False, 'reason': 'long_press_reset_failed'}
+        finally:
+            os.close(fd)
+        return {'ok': True, 'reason': None}
+
 
 # F39: the radio stop, one step per sub-command of the S41 script.
 RADIO_STOP = ('wifi', 'bluetooth', 'daemon')
 WATCHDOG_POWERS_OFF = '/sys/class/power_supply/BAT0/watchdog_powers_off'
+LONG_PRESS_RESET = '/sys/firmware/y2_pmic/long_press_reset'
 
 
 def wait_gone(ctx, name, timeout):

@@ -6,7 +6,8 @@
  *   /sys/firmware/y2_pmic/lp_sel  (0600)  write 1 = set, 0 = clear, read = state
  * No voltage, enable, clock or sleep-voltage setting is changed. The same pass
  * sets the stock VIBR thermal shutdown once (#28); the switch leaves it set.
- * /sys/firmware/y2_pmic/power_status (0444) reads the PMIC's power-down record. */
+ * /sys/firmware/y2_pmic/power_status (0444) reads the PMIC's power-down record;
+ * /sys/firmware/y2_pmic/long_press_reset (0200) takes only "0" (F57). */
 #include <linux/capability.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -152,16 +153,46 @@ static ssize_t power_status_show(struct kobject *k, struct kobj_attribute *a, ch
 }
 static struct kobj_attribute power_status_attr = __ATTR(power_status, 0444, power_status_show, NULL);
 
+/* F57: y2-platform turns the Power long-press reset off when it executes a
+ * shutdown (pmic-lowpower-policy.h). Off only, until the next start. */
+static ssize_t long_press_reset_store(struct kobject *k, struct kobj_attribute *a,
+				      const char *buf, size_t size)
+{
+	unsigned value = 0;
+	int ret;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (y2_pmic_lp_parse(buf, size) != 0)
+		return -EINVAL;
+	mutex_lock(&lp_lock);
+	if (!lp_map)
+		lp_map = lp_find_map();
+	ret = lp_map ? regmap_update_bits(lp_map, Y2_PMIC_TOP_RST_MISC, Y2_PMIC_PWRKEY_RST_EN, 0) : -ENODEV;
+	if (!ret)
+		ret = regmap_read(lp_map, Y2_PMIC_TOP_RST_MISC, &value);
+	if (!ret && (value & Y2_PMIC_PWRKEY_RST_EN))
+		ret = -EIO;
+	mutex_unlock(&lp_lock);
+	pr_info("y2-pmic-lp: long-press reset %s for the shutdown (top_rst_misc=0x%04x err=%d)\n",
+		ret ? "still on" : "off", value, ret);
+	return ret ? ret : size;
+}
+static struct kobj_attribute long_press_reset_attr = __ATTR(long_press_reset, 0200, NULL, long_press_reset_store);
+
 static int __init y2_pmic_lp_init(void)
 {
 	struct kobject *k;
 	if (!of_machine_is_compatible("innioasis,y2"))
 		return -ENODEV;
 	k = kobject_create_and_add("y2_pmic", firmware_kobj);
-	if (k && sysfs_create_file(k, &lp_sel_attr.attr))
+	if (k && sysfs_create_file(k, &lp_sel_attr.attr)) {
 		kobject_put(k);
-	else if (k && sysfs_create_file(k, &power_status_attr.attr))
-		pr_warn("y2-pmic-lp: power_status not created\n");
+	} else if (k) {
+		if (sysfs_create_file(k, &power_status_attr.attr))
+			pr_warn("y2-pmic-lp: power_status not created\n");
+		if (sysfs_create_file(k, &long_press_reset_attr.attr))
+			pr_warn("y2-pmic-lp: long_press_reset not created\n");
+	}
 	INIT_DELAYED_WORK(&lp_work, lp_start);
 	schedule_delayed_work(&lp_work, 10 * HZ);
 	return 0;

@@ -825,7 +825,8 @@ class PlatformPolicyTests(unittest.TestCase):
             '{"printk":"3\t4\t1\t7","panic":"0","panic_on_rcu_stall":"0; reboot"}\n')
         restore_health_debug(self.ctx)
         self.assertEqual((kernel/'printk').read_text(), '3\t4\t1\t7\n')
-        self.assertEqual((kernel/'panic').read_text(), '0\n')
+        # Owner decision 2026-10-28: the running system keeps panic=10, not the command line's 0.
+        self.assertEqual((kernel/'panic').read_text(), '10\n')
         self.assertEqual((kernel/'panic_on_rcu_stall').read_text(), '1\n')   # not a number list: untouched
         self.assertFalse((self.root/'run/y2/health-debug.json').exists())
         restore_health_debug(self.ctx)   # nothing saved: nothing to do

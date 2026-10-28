@@ -120,6 +120,9 @@ static inline unsigned y2_pmic_write_mask(unsigned reg)
 	case 0x23c: return 0x0002; /* VSYS_VOSEL_CTRL only */
 	case 0x242: return 0xff7f; /* VSYS_SFCHG_FRATE/RRATE/REN */
 	case 0x256: return 0x0133; /* VSYS_TRANSTD/VOSEL_TRANS_EN/VSLEEP_EN */
+	/* F57 owner decision: TOP_RST_MISC PWRKEY_RST_EN, clear only (value guard
+	 * below), once a shutdown executes (pmic-lowpower-policy.h). */
+	case 0x11a: return 0x0040;
 	case 0x120: return 0x0030;
 	case 0x148: return 0x000a;
 	case 0x402: return 0x0801;
@@ -151,6 +154,7 @@ static inline int y2_pmic_value_allowed(unsigned reg, unsigned value)
 	if (reg == 0x8000 && value != 0x4300) return 0;
 	if (reg == 0x416 && (value & 0xc)) return 0;
 	if (reg == 0x52c && !(value & 0x80)) return 0; /* VMCH never 3.0 V */
+	if (reg == 0x11a && (value & 0x0040)) return 0; /* long-press reset: off only */
 	if (!y2_vproc_value_allowed(reg, value)) return 0;
 	return y2_pmic_write_mask(reg) != 0;
 }

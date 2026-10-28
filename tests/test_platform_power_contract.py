@@ -104,7 +104,7 @@ class PowerContract(unittest.TestCase):
         # names the step it happened in; the radio stop is split and comes
         # after the sync, before shutdown_complete.
         self.assertEqual(steps, [
-            'execute reboot update', 'watchdog watchdog_unavailable',
+            'execute reboot update', 'watchdog watchdog_unavailable', 'long_press_reset kept_without_watchdog',
             'begin journal_pending', 'journal_pending injected_failure',
             'begin S90reborn', 'S90reborn injected_failure', 'begin kill', 'begin backlight',
             'begin time_remember', 'time_remember injected_failure', 'begin sync', 'sync injected_failure',
@@ -180,6 +180,54 @@ class PowerContract(unittest.TestCase):
         self.assertEqual(c.intent['stop_results']['watchdog'], {'ok': False, 'reason': 'powers_off_unavailable'})
         self.assertTrue(self.ctx.read('/dev/watchdog').startswith('.'))
         os.close(c.watchdog)
+
+    def test_armed_watchdog_turns_the_long_press_reset_off_before_the_first_step(self):
+        # F57 (496f54ad): Power still held through the power-off let the PMIC
+        # long-press reset cut it. From the watchdog on, that reset is off, for
+        # a restart as for a power-off; the preloader sets it again at the start.
+        node = '/sys/firmware/y2_pmic/long_press_reset'
+        for action in ('poweroff', 'reboot'):
+            with self.subTest(action=action):
+                self.put('/dev/watchdog', '')
+                self.put('/dev/pmsg0', '')
+                self.put(node, '')
+                self.put('/run/y2/shutdown.json', 'null')
+                seen = []
+                def runner(argv, **kwargs):
+                    seen.append(self.ctx.read(node))
+                    return {'ok': True, 'reason': None, 'output': None}
+                self.ctx.runner = runner
+                c = Coordinator(self.ctx, lambda: self.now)
+                c.request(action, 'user', 3)
+                c.execute()
+                self.assertEqual(seen[0], '0', 'off before the first shutdown step')
+                self.assertEqual(c.intent['stop_results']['long_press_reset'], {'ok': True, 'reason': None})
+                steps = [line.split(None, 2)[2] for line in self.ctx.read('/dev/pmsg0').splitlines()]
+                self.assertEqual(steps[2], 'long_press_reset ok')
+                os.close(c.watchdog)
+
+    def test_long_press_reset_without_kernel_support_or_watchdog_never_blocks_the_shutdown(self):
+        # An older kernel has no switch: recorded, the shutdown goes on.
+        self.put('/dev/watchdog', '')
+        c = Coordinator(self.ctx, lambda: self.now)
+        c.request('poweroff', 'user', 3)
+        c.execute()
+        self.assertEqual(c.intent['stop_results']['long_press_reset'],
+                         {'ok': False, 'reason': 'long_press_reset_unavailable'})
+        self.assertFalse(self.ctx.path('/sys/firmware/y2_pmic/long_press_reset').exists(), 'never created')
+        self.assertEqual(self.calls[-1][0], ['/bin/busybox', 'poweroff'])
+        os.close(c.watchdog)
+        # No watchdog: the long-press reset stays the only escape from a stall.
+        self.ctx.path('/dev/watchdog').unlink()
+        self.put('/sys/firmware/y2_pmic/long_press_reset', '')
+        self.put('/run/y2/shutdown.json', 'null')
+        c = Coordinator(self.ctx, lambda: self.now)
+        c.request('reboot', 'user', 3)
+        c.execute()
+        self.assertEqual(c.intent['stop_results']['long_press_reset'],
+                         {'ok': False, 'reason': 'kept_without_watchdog'})
+        self.assertEqual(self.ctx.read('/sys/firmware/y2_pmic/long_press_reset'), '')
+        self.assertEqual(self.calls[-1][0], ['/bin/busybox', 'reboot'])
 
     def test_ack_requires_same_request_pid_start_time_and_boot(self):
         self.put('/run/reborn/process.pid', '123')

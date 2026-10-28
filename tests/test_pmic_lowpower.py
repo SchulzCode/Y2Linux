@@ -69,7 +69,8 @@ int main(void) {
         self.assertIn('regmap_update_bits(lp_map, y2_pmic_lp_rails[i].reg, Y2_PMIC_LP_BIT', self.source)
         # #28: the one other write sets the stock VIBR thermal shutdown, never clears it.
         self.assertIn('regmap_update_bits(lp_map, Y2_PMIC_VIBR_REG, Y2_PMIC_VIBR_THR, Y2_PMIC_VIBR_THR)', self.source)
-        self.assertEqual(len(re.findall(r'regmap_update_bits\(', self.source)), 2)
+        # F57: the third clears only the long-press reset enable (test below).
+        self.assertEqual(len(re.findall(r'regmap_update_bits\(', self.source)), 3)
         self.assertNotIn('Y2_PMIC_VIBR_THR, 0', self.source)
         self.assertNotIn('VIBR', self.source[self.source.index('static int lp_apply'):self.source.index('static struct regmap *lp_find_map')])
         self.assertEqual(len(re.findall(r'regmap_write\(', self.source)), 0)
@@ -88,7 +89,8 @@ int main(void) {
 
     def test_power_down_record_is_read_only_and_never_writable(self):
         # F56/F57: STRUP_CON8 (LK's long-press record), TOP_RST_MISC, UVLO,
-        # thermal and Power state are read for the boot evidence, never written.
+        # thermal and Power state are read for the boot evidence, never written
+        # (TOP_RST_MISC: only its long-press reset enable, off, below).
         run_c(r'''
 #include <assert.h>
 #include <string.h>
@@ -100,7 +102,7 @@ int main(void) {
  assert(Y2_PMIC_POWER_STATUS_REGS == 5);
  for (unsigned i = 0; i < 5; i++) {
   assert(y2_pmic_power_status[i].reg == regs[i] && !strcmp(y2_pmic_power_status[i].name, names[i]));
-  if (regs[i] != 0x020)
+  if (regs[i] != 0x020 && regs[i] != 0x11a)
    assert(y2_pmic_write_mask(regs[i]) == 0);
  }
  /* CHR_CON16: only the charger's USBDL bits, never the UVLO selector. */
@@ -112,6 +114,34 @@ int main(void) {
         self.assertNotIn('regmap_update_bits', show)
         self.assertNotIn('regmap_write', show)
         self.assertIn('__ATTR(power_status, 0444, power_status_show, NULL)', self.source)
+
+    def test_long_press_reset_can_only_be_turned_off(self):
+        # F57 owner decision: at shutdown y2-platform clears TOP_RST_MISC
+        # PWRKEY_RST_EN (bit 6); its time, the other reset enables and setting
+        # it again stay closed (the preloader sets it at every start).
+        run_c(r'''
+#include <assert.h>
+#include "policy.h"
+#include "pmic-lowpower-policy.h"
+int main(void) {
+ assert(Y2_PMIC_TOP_RST_MISC == 0x11a && Y2_PMIC_PWRKEY_RST_EN == 0x0040);
+ assert(y2_pmic_write_mask(0x11a) == 0x0040);
+ /* As the preloader leaves it: SYSRSTB, NEWLDO_RSTB, PWRKEY_RST_EN, 11 s. */
+ assert(y2_pmic_value_allowed(0x11a, 0x010a) && !y2_pmic_value_allowed(0x11a, 0x014a));
+ assert(!y2_pmic_value_allowed(0x11a, 0x0040));
+ /* The SET/CLR aliases stay closed. */
+ assert(y2_pmic_write_mask(0x11c) == 0 && y2_pmic_write_mask(0x11e) == 0);
+ return 0;
+}
+''')
+        store = self.source[self.source.index('static ssize_t long_press_reset_store'):
+                            self.source.index('long_press_reset_attr =')]
+        self.assertIn('capable(CAP_SYS_ADMIN)', store)
+        self.assertIn('y2_pmic_lp_parse(buf, size) != 0', store)
+        self.assertIn('regmap_update_bits(lp_map, Y2_PMIC_TOP_RST_MISC, Y2_PMIC_PWRKEY_RST_EN, 0)', store)
+        self.assertIn('-EIO', store)   # verified by readback
+        self.assertNotIn('regmap_write', store)
+        self.assertIn('__ATTR(long_press_reset, 0200, NULL, long_press_reset_store)', self.source)
 
     def test_makefile_builds_it_under_the_power_option_only(self):
         self.assertIn('obj-$(CONFIG_Y2_POWER) += pmic-lowpower.o', (PLATFORM / 'Makefile').read_text())

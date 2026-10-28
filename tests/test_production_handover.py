@@ -26,6 +26,8 @@ class Handover(unittest.TestCase):
             (p/'newdata/.y2data-schema').write_text('2\n' if failure=='schema' else '1\n')
             (p/'newroot/sbin/init').write_text('#!/bin/sh\nexit 0\n');(p/'newroot/sbin/init').chmod(0o755)
             (p/'proc/cmdline').write_text(cmdline)
+            (p/'proc/sys/kernel').mkdir(parents=True)
+            (p/'proc/sys/kernel/panic').write_text('0\n')
             (p/'sys/firmware/y2_boot/normal_boot').write_text('0\n')
             (p/'display.ko').write_bytes(b'module fixture')
             (p/'boot-modules/fixture/kernel').mkdir(parents=True)
@@ -101,6 +103,7 @@ exit 0
             self.assertEqual((p/'run/y2/modules/fixture/kernel/g_ncm.ko').read_bytes(), b'NCM fixture')
             events=ledger.read_text().replace(str(p),'')
             log=(p/'dev/kmsg').read_text() if (p/'dev/kmsg').exists() else ''
+            self.panic=(p/'proc/sys/kernel/panic').read_text()
             return result,events,log
 
     def test_no_sd_root_data_mounts_then_switch_root(self):
@@ -231,6 +234,18 @@ exit 0
         result,events,_=self.exercise(cmdline='rdinit=/init y2.rescue=1')
         self.assertEqual(result.returncode,99,result.stderr)
         self.assertNotIn('mount -t ext4',events)
+
+    def test_running_system_restarts_after_a_panic_but_the_rescue_never_does(self):
+        # Owner decision 2026-10-28: panic=10 from the handover on (the command
+        # line's panic=0 stays for the rescue); a failed handover puts it back.
+        result,events,_=self.exercise()
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(self.panic,'10\n')
+        for failure in ('move','exec','fsck'):
+            with self.subTest(failure=failure):
+                result,events,_=self.exercise(failure)
+                self.assertEqual(result.returncode,99,result.stderr)
+                self.assertEqual(self.panic,'0\n')
 
     def test_failed_mount_move_rolls_back_before_rescue(self):
         result,events,_=self.exercise('move')

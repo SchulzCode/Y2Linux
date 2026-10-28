@@ -83,7 +83,9 @@ The production rescue waits for the exact internal filesystem identities and
 geometry, validates layout/schema and executable availability, and logs errors
 over ACM while retaining PID1 if those checks fail. It never falls back to SD,
 formats storage or schedules automatic reboot. `panic=0` prevents timed panic
-reboots. The final switch_root/exec assumes the validated BusyBox init remains
+reboots in the rescue; init sets `panic=10` only at the root handover (a failed
+handover restores 0), so the running system restarts 10 s after a kernel panic.
+The final switch_root/exec assumes the validated BusyBox init remains
 executable; post-handover crashes/hardware faults are not repaired by this rescue.
 No claim is made that USB observes a crash before gadget initialization.
 
