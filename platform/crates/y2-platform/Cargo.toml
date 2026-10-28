@@ -1,0 +1,10 @@
+[package]
+name = "y2-platform"
+description = "/usr/sbin/y2-platform: the platform contract's command line (plan: strangler dispatcher)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+y2p-core = { path = "../y2p-core" }

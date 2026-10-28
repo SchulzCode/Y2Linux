@@ -1,0 +1,13 @@
+[package]
+name = "y2p-core"
+description = "Root-prefixed paths, Python-compatible JSON and durable records for the Y2 platform"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+libc.workspace = true
+ryu.workspace = true

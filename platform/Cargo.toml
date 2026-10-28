@@ -1,0 +1,26 @@
+# The on-device platform service in Rust (docs/planning/PLATFORM-RUST-PORT-PLAN.md). The `y2-platform`
+# binary is installed as /usr/sbin/y2-platform; subcommands not ported yet run the Python platform.
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.99"
+license = "GPL-2.0-only"
+
+[workspace.dependencies]
+# The same pins as Y2Reborn (its vendor/ holds the same sources).
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.145"
+libc = "=0.2.177"
+ryu = "=1.0.23"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = "debuginfo"
+# Nothing catches a panic: a bug ends the command like an uncaught Python exception (exit != 0).
+panic = "abort"
