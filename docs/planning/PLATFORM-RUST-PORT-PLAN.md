@@ -1,6 +1,6 @@
 # Platform service: port from Python to Rust, then remove Python from the player
 
-Status: **plan, not started** (2026-10-28). Owner's goal: everything that runs on the player is Rust (Reborn), C
+Status: **Phase 0 done (2026-10-28), Phase 1 waits for the owner's contract-crate decision (§4).** Owner's goal: everything that runs on the player is Rust (Reborn), C
 (kernel, early boot, installer) or shell (init scripts); **no Python in the image**. Host-side tooling (release,
 build, validation, the test harness) may stay Python.
 
@@ -115,6 +115,14 @@ functions through `ctx` (`common.py`: `ctx.path`, `ctx.read`, `ctx.json`, `ctx.c
   `reborn-platform`. Options: (a) Reborn vendors `y2p-contract` from Y2Linux at a pinned commit, (b) the crate lives
   in Y2Reborn and Y2Linux vendors it. Pick one in phase 1 and write it down; release tooling
   (`tools/production/release.py`) must keep both repos' commits consistent.
+  **Phase 0 recommendation (owner to decide):** (a). The crate lives in Y2Linux (`platform/y2p-contract`): the
+  platform writes the records, its Python goldens and the differential harness are here, and most contract changes
+  start on the platform side. Reborn keeps building on its own (as now: `cargo vendor`, no network, contributors
+  without a Y2Linux checkout) from a vendored copy `vendor/y2p-contract` plus a stamp file naming the Y2Linux
+  commit and the tree hash; a small `release.py sync-contract` copies it, and `release.py build` refuses to build
+  when Reborn's copy differs from Y2Linux HEAD's crate (the same way publish already refuses a Reborn HEAD that is
+  not the built commit). The crate carries `platform_api_version`/`feature_contract_version` as constants, and the
+  platform's golden JSON fixtures are its tests.
 - Install: Rust binary at `/usr/sbin/y2-platform`; Python moves to `/usr/lib/y2-platform/main.py` only (the
   fallback). `capabilities.json` and the contract marker unchanged.
 
@@ -134,6 +142,11 @@ Acknowledged, the phase's device checks, a handoff entry. Publish only when the 
 - Build the **differential harness**: a host test helper that runs a subcommand under Python and under a host build
   of the Rust binary against the same fake root (copy of the fixture tree), then diffs stdout, exit code and the
   resulting tree.
+- **Done 2026-10-28:** measurements in §7; inventory [platform/CONTRACT.md](../../platform/CONTRACT.md) +
+  `platform/contract.json` (106 entries, argument table checked against the parser); harness
+  `tests/platform_differential.py` (+ launcher), `tests.test_platform_differential` in `tools/production/tests.sh`
+  (16 cases Python vs Python, perturbation checks, hermeticity audit; Rust comparison skipped without
+  `Y2_PLATFORM_RUST`). The inventory found six suspected defects (CONTRACT.md), one confirmed on the player.
 
 ### Phase 1 — Skeleton and dispatcher
 - Workspace, `y2p-core`, `y2p-contract` (start with the types of `status`, `health`, `capabilities`, boot stages),
@@ -192,13 +205,62 @@ Acknowledged, the phase's device checks, a handoff entry. Publish only when the 
 
 | Metric | Phase 0 (Python) | Target | Phase 6 (Rust) |
 | --- | --- | --- | --- |
-| Platform RSS (all daemons) | ≈60 MB | < 15 MB | |
-| Platform CPU, 1 h awake idle | (measure) | ≥ 5× less | |
-| `y2-platform status --reborn --pss` latency | ≈0.5 s | < 50 ms | |
-| Root image size | 130 MB tree | −22 MB or more | |
-| Awake idle current | (measure) | lower | |
-| Overnight drain | ≈2 mA (161, estimate) | not worse | |
-| Host tests / container suite | green | green | |
+| Platform RSS (all daemons) | 58.4 MB RSS, 35.0 MB PSS (power 12.5, service 19.8, connectivity 14.9, ssh 11.2 MB RSS) | < 15 MB | |
+| Platform CPU, 1 h awake idle | ≈92 s/h (2.5 % of the one online core; power-daemon 60, service 24, ssh 7, connectivity 1) | ≥ 5× less | |
+| Platform CPU, playing | ≈109 s/h (power 62, service 38; Wi-Fi on in this window) | ≥ 5× less | |
+| `y2-platform status --reborn --pss` latency | 1.49 s wall, 1.37 s CPU (a Reborn refresh with `capabilities` and `report status`: ≈3.0 s CPU) | < 50 ms | |
+| Root image size | 130 MB tree, Python 21.3 MB (stdlib 16.1, libpython 5.1) + platform 0.7 MB | −22 MB or more | |
+| Awake idle current | not measurable on the charger (no `current_now`; the player only runs unplugged when asleep) | lower | |
+| Overnight drain | ≈2 mA (161, estimate); 165 overnight owed (owner unplugs) | not worse | |
+| Host tests / container suite | host 967 tests OK (2 skips incl. the Rust comparison); container not run | green | |
+
+### Phase 0 measurements (owner's player, test build 165, 2026-10-28)
+
+On the USB charger, screen off, one CPU online. Per-process `utime+stime` and RSS/PSS from `/proc` every 60 s
+(`/data/logs/phase0/{idle,play}.log` on the player). The owner stopped the idle run early: **awake idle** 551 s
+(uptime 2759–3310 s, Wi-Fi off, Bluetooth off); its rates equal the since-boot averages (power-daemon 54.9 s in
+55 min). **Playing** 614 s (MP3 320k, 10-band EQ + limiter, wired headphones, Wi-Fi on and online). Python
+platform vs the rest, CPU seconds per hour:
+
+| Process | Idle s/h | Playing s/h | RSS MB | PSS MB |
+| --- | --- | --- | --- | --- |
+| power-daemon (Python) | 59.9 | 62.2 | 12.5 | 7.4 |
+| service-daemon (Python) | 23.5 | 37.6 | 19.8 | 13.1 |
+| ssh-daemon (Python) | 7.2 | 7.4 | 11.2 | 6.3 |
+| connectivity-daemon (Python) | 1.3 | 1.4 | 14.9 | 8.2 |
+| **platform total** | **91.8** | **108.6** | **58.4** | **35.0** |
+| reborn | 43.5 | 744 (20.7 % CPU) | 26.9 / 33.7 | 24.7 / 31.0 |
+| everything else (observer, dbus, bluetoothd, wpa, bluealsa, bt-reconnect, umtprd) | 6.2 | 7.4 | 24.3 | 10.8 |
+
+System busy: 3.0 % idle, 6.9 % playing. With the screen off Reborn does not poll the platform, so these are the
+daemons' own loops; every platform screen Reborn shows adds ≈3 s CPU per refresh (below).
+
+**CLI latency** (10 runs each, median wall / CPU, while nothing else ran). Read-only commands for real;
+state-changing ones only as a floor (`<command> --help`, and `import` of the module):
+
+| Call | Wall | CPU |
+| --- | --- | --- |
+| `python3 -I -c pass` | 0.152 | 0.150 |
+| `status --reborn --pss` (Reborn refresh) | 1.492 | 1.366 |
+| `capabilities` (Reborn refresh) | 0.547 | 0.540 |
+| `report status` (Reborn refresh) | 1.007 | 0.993 |
+| `health` | 1.617 | 1.500 |
+| `status wifi` | 1.584 | 1.476 |
+| `update status` | 0.871 | 0.867 |
+| `media status` / `internal-media status` / `firmware status` | 0.719 / 0.599 / 0.566 | ≈ wall |
+| `sleep status` / `time` / `codec-runtime` | 0.564 / 0.572 / 0.541 | ≈ wall |
+| floor for any state-changing call (`--help`) | ≈0.84 | ≈0.83 |
+| `import` cli / update / report / maintenance / network | 0.43 / 0.77 / 0.84 / 0.81 / 0.47 | ≈ wall |
+
+`status` itself starts 4 helpers per call (`/bin/cat /sys/power/wakeup_count`, `y2-bt-observe`, `ip -4 -o …`,
+`rebornctl metrics --json`); importing `report.py` alone costs 0.84 s, so `report status` is 1 s for a few file
+reads. The shell-called hot paths pay ≥0.54 s each: `boot-stage` (0.84 floor, twice per shutdown and three times
+per boot), `time-remember`, `wifi-event`/`dhcp-event`/`ntp-event`.
+
+**Boot stages** (this boot, an update's first boot, and the previous boot on 8.43 agree within 0.1 s; pmsg trail):
+`rc S03y2-platform` 12.09 s → `platform_start` 12.50 → `services_started` 27.74 → `application_ready` 48.61;
+shutdown of the previous boot `shutdown_pending` 4042.50 → `shutdown_complete` 4044.53 (2.03 s). Earlier boots keep
+no stage times (`boot.json` history has none).
 
 ## 8. Out of scope / later
 - Host tooling in Python (release, build, validation, report fetch) stays.

@@ -1,6 +1,23 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-28, late): BETA 8.44 TEST BUILD 165 ON THE OWNER'S PLAYER, NOT PUBLISHED — WATCHDOG, LONG-PRESS, PANIC.**
+> **START HERE (2026-10-28, night): PLATFORM RUST PORT PHASE 0 DONE — WAITING FOR THE OWNER'S CONTRACT-CRATE DECISION.**
+> [Plan](PLATFORM-RUST-PORT-PLAN.md) §5 Phase 0, no product change, nothing built or installed; 165 stays on the
+> owner's player (its overnight/power-off checks below are still owed). Measured on 165 (plan §7): platform daemons
+> 58.4 MB RSS / 35.0 MB PSS, ≈92 s CPU per hour awake idle (power-daemon 60) and ≈109 s/h playing; `status --reborn
+> --pss` 1.49 s, a Reborn refresh ≈3 s CPU, any state-changing call ≥0.84 s; Python 21.3 MB of the 130 MB tree;
+> boot `platform_start` 12.5 → `services_started` 27.7 → `application_ready` 48.6 s. The idle run was 9 min (owner
+> stopped it), playing 10 min (wired headphones); awake current not measurable on the charger. Inventory:
+> [platform/CONTRACT.md](../../platform/CONTRACT.md) + `platform/contract.json` (106 entries; argument table checked by
+> `tools/development/platform-contract.py --check`). Harness: `tests/platform_differential.py`,
+> `tests.test_platform_differential` in `tools/production/tests.sh` (Rust side via `Y2_PLATFORM_RUST`, skipped now).
+> Suspected defects in CONTRACT.md; confirmed on the player: `usr/libexec/sftp-server` greps `"state": "Ready"`,
+> the file has `"state":"Ready"`, so SFTP never roots at Internal Storage. Raw samples: `/data/logs/phase0/` on the
+> player. **Next:** owner decides where `y2p-contract` lives (recommendation (a), plan §4) and which suspected
+> defects to fix in Python first; the owner unplugs the player for the 165 overnight (drain from the power
+> journal = the Python drain baseline); then Phase 1 (repeat the roadmap gap audit first: architecture change).
+> Next free label 166, sequence above 11100.
+>
+> Previous entry: **START HERE (2026-10-28, late): BETA 8.44 TEST BUILD 165 ON THE OWNER'S PLAYER, NOT PUBLISHED — WATCHDOG, LONG-PRESS, PANIC.**
 > Owner: "do what you think is best" on the open decisions. Kept: sleep floor 3.4 V/5 %, Wi-Fi heal timing, no panel
 > re-init at `lcm=0`. Done: kernel-fed SoC watchdog in normal use (patch 0037 mtk_wdt, `mtk_wdt.y2_keepalive=0` turns it
 > off, stopped on suspend, `tests/test_watchdog_keepalive.py`), PMIC long-press reset off once a shutdown executes
