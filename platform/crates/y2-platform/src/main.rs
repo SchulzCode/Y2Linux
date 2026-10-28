@@ -5,6 +5,10 @@
 //! and `PYTHONDONTWRITEBYTECODE=1`. Same process (callers signal and wait for this PID: Reborn sends
 //! SIGTERM to `update stage`), same argv and environment for Python, same stdin, stdout and stderr.
 // SPDX-License-Identifier: GPL-2.0-only
+mod commands;
+mod reply;
+
+use reply::Failure;
 use std::{
     env,
     ffi::OsString,
@@ -12,22 +16,35 @@ use std::{
     os::unix::process::CommandExt,
     process::{Command, ExitCode},
 };
+use y2p_core::json::{dumps, Separators};
 
 const PYTHON: &str = "/usr/bin/python3";
 const MAIN: &str = "/usr/lib/y2-platform/main.py";
 const LIBRARY: &str = "/usr/lib/y2-platform";
 
-/// Subcommands implemented in Rust. Phase 1: none.
-fn ported(_args: &[OsString]) -> Option<fn(&[OsString]) -> ExitCode> {
-    None
-}
-
 fn main() -> ExitCode {
     let args: Vec<OsString> = env::args_os().skip(1).collect();
-    match ported(&args) {
-        Some(command) => command(&args),
-        None => python(&args),
-    }
+    let text: Option<Vec<&str>> = args.iter().map(|a| a.to_str()).collect();
+    let Some(command) = text.as_deref().and_then(commands::route) else {
+        return python(&args);
+    };
+    let root = y2p_core::Root::from_env();
+    let (stdout, code) = match command(&root) {
+        Ok(reply) => (reply.stdout, reply.code),
+        Err(Failure::Fallback) => return python(&args),
+        // main.py: an OSError, ValueError or RuntimeError no command caught.
+        Err(error) => (
+            dumps(&error.record(), Separators::Spaced).expect("record"),
+            1,
+        ),
+    };
+    let mut out = std::io::stdout().lock();
+    // print(): a closed pipe after the work is done changes nothing (Python reports it on stderr).
+    let _ = out
+        .write_all(stdout.as_bytes())
+        .and_then(|()| out.write_all(b"\n"))
+        .and_then(|()| out.flush());
+    ExitCode::from(code)
 }
 
 /// The Python interpreter and entry. A host test (`Y2_ROOT` set, tests/platform_differential.py) may

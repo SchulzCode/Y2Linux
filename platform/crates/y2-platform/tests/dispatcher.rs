@@ -30,7 +30,8 @@ fn fake_python(name: &str) -> PathBuf {
 fn python_replaces_the_dispatcher_with_the_same_arguments() {
     let python = fake_python("same");
     let mut child = Command::new(BINARY)
-        .args(["status", "--reborn", "--pss", "a b", ""])
+        // Arguments no Rust command takes (argparse's error is Python's).
+        .args(["--no-such-option", "--reborn", "a b", ""])
         .env("Y2_ROOT", "/nonexistent")
         .env("Y2_PLATFORM_PYTHON", &python)
         .env("Y2_PLATFORM_MAIN", "/fixture/main.py")
@@ -50,7 +51,7 @@ fn python_replaces_the_dispatcher_with_the_same_arguments() {
     assert_eq!(
         String::from_utf8(output.stdout).unwrap(),
         format!(
-            "pid={pid}\narg=-I\narg=/fixture/main.py\narg=status\narg=--reborn\narg=--pss\narg=a b\narg=\n\
+            "pid={pid}\narg=-I\narg=/fixture/main.py\narg=--no-such-option\narg=--reborn\narg=a b\narg=\n\
              PYTHONPATH=/usr/lib/y2-platform\nPYTHONDONTWRITEBYTECODE=1\nKEPT=inherited\nstdin=input\n"
         ),
         "exec in the same process (callers signal this PID), argv, environment and stdin unchanged"
@@ -61,7 +62,7 @@ fn python_replaces_the_dispatcher_with_the_same_arguments() {
 fn only_a_fixture_root_may_name_another_interpreter() {
     let python = fake_python("real");
     let output = Command::new(BINARY)
-        .arg("capabilities")
+        .args(["capabilities", "--help"])
         .env_remove("Y2_ROOT")
         .env("Y2_PLATFORM_PYTHON", &python)
         .env("Y2_PLATFORM_MAIN", "/fixture/main.py")
@@ -74,7 +75,7 @@ fn only_a_fixture_root_may_name_another_interpreter() {
 #[test]
 fn a_missing_interpreter_fails_like_the_shell() {
     let output = Command::new(BINARY)
-        .arg("capabilities")
+        .args(["capabilities", "--help"])
         .env("Y2_ROOT", "/nonexistent")
         .env("Y2_PLATFORM_PYTHON", "/nonexistent/python3")
         .stdin(Stdio::null())
