@@ -13,7 +13,7 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **340**. Explicit scope notices: **228**.
+Indexed pages: **341**. Explicit scope notices: **228**.
 
 ## Entry
 
@@ -360,6 +360,7 @@ Indexed pages: **340**. Explicit scope notices: **228**.
 | [Y2Linux 1.0 Beta 8.43 report](validation/Y2-LINUX-1.0-BETA-8.43.md) | Beta 8.43 (Baseline 164): Y2Reborn issue fixes (#25 #28 #30 #45 #46 #51 #52 #55 #56 #57 #60 #62) |
 | [Y2Linux 1.0 Beta 8.42 report](validation/Y2-LINUX-1.0-BETA-8.42.md) | Beta 8.42 (Baseline 163): sleep without relighting, large SD cards, quick scan, error report fixes F17 F23 F34 F39 F50–F57, #62 empty factory partitions |
 | [Y2Linux 1.0 Beta 8.41 report](validation/Y2-LINUX-1.0-BETA-8.41.md) | Beta 8.41 (Baseline 159): internal speaker, headphone detection, haptic feedback |
+| [Platform Rust port plan](planning/PLATFORM-RUST-PORT-PLAN.md) | Port of the Python platform service to Rust in phases, then Python removed from the player; inventory, contract, tests, gates |
 | [Speaker and haptics plan](planning/SPEAKER-HAPTICS-PLAN.md) | Stock REA of the vibrator, AW87559 and CS43131 speaker route; plan and device checks |
 | [Y2Linux 1.0 Beta 8.39 report](validation/Y2-LINUX-1.0-BETA-8.39.md) | Beta 8.39 (Baseline 153): Folders by file name, Shuffle Albums, playlist Sort, a 120 000-song card measured and made fast |
 | [Y2Linux 1.0 Beta 8.38 report](validation/Y2-LINUX-1.0-BETA-8.38.md) | Beta 8.38 (Baseline 146): Bluetooth sound after Pause → Play (F43), a smooth wave that moves with the music |
