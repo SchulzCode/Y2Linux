@@ -95,7 +95,7 @@ fn a_missing_interpreter_fails_like_the_shell() {
 fn a_parsed_command_no_route_takes_goes_to_python_as_given() {
     let python = fake_python("given");
     let output = Command::new(BINARY)
-        .args(["firmware", "--", "install", "a b"])
+        .args(["reset", "--id", "a b", "--", "plan"])
         .env("Y2_ROOT", "/nonexistent")
         .env("Y2_PLATFORM_PYTHON", &python)
         .env("Y2_PLATFORM_MAIN", "/fixture/main.py")
@@ -104,7 +104,7 @@ fn a_parsed_command_no_route_takes_goes_to_python_as_given() {
         .unwrap();
     assert_eq!(output.status.code(), Some(3));
     assert!(String::from_utf8_lossy(&output.stdout)
-        .contains("arg=/fixture/main.py\narg=firmware\narg=--\narg=install\narg=a b\n"));
+        .contains("arg=/fixture/main.py\narg=reset\narg=--id\narg=a b\narg=--\narg=plan\n"));
 }
 
 #[test]
