@@ -1,6 +1,6 @@
 # Platform service: port from Python to Rust, then remove Python from the player
 
-Status: **Phase 0 done (2026-10-28); owner decisions taken (§4 contract crate in Y2Linux, defects ported 1:1 and fixed after parity); Phase 1 done (test build 166 device-checked: OTA, restart, screens, one sleep cycle); Phase 2 next; the overnight drain is still owed.** Owner's goal: everything that runs on the player is Rust (Reborn), C
+Status: **Phase 0 done (2026-10-28); owner decisions taken (§4 contract crate in Y2Linux, defects ported 1:1 and fixed after parity); Phase 1 done (test build 166 device-checked); Phase 2 in progress: the short commands are ported (see below), `status`/`health`/`boot-evidence`/`network-check` next; the overnight drain is still owed.** Owner's goal: everything that runs on the player is Rust (Reborn), C
 (kernel, early boot, installer) or shell (init scripts); **no Python in the image**. Host-side tooling (release,
 build, validation, the test harness) may stay Python.
 
@@ -177,6 +177,14 @@ Acknowledged, the phase's device checks, a handoff entry. Publish only when the 
   `codec-runtime`, `cpu-idle-policy`.
 - Device checks: Reborn screens that show platform state (Settings, About, Wi-Fi, Storage), shutdown trail timing,
   Wi-Fi connect/reconnect events, CPU before/after.
+- **Part 1 implemented 2026-10-28:** `capabilities`, `sleep status`, `time`, `time-remember`, `ntp-event`,
+  `boot-stage` (with the power features at `application_ready`), `codec-runtime`, `wifi-event`, `dhcp-event`,
+  `cpu-idle-policy` in Rust ([CONTRACT.md](../../platform/CONTRACT.md#ported-to-rust-platformcratesy2-platformsrccommands):
+  exact argument forms, fallbacks, accepted differences); `y2p-core` gained the bounded command runner (fixture
+  answers below `Y2_ROOT`), Python value rules (`is True`, bools as ints, `1.0 == 1`), `OSError` texts and uuid4.
+  62 differential cases, all identical Rust vs Python, each checked to run in Rust or fall back as intended.
+  **Part 2 (next):** `status` (incl. `--reborn --pss`, `wifi`), `health`, `boot-evidence`, `network-check`: they sit
+  on `observe.py` and most other modules (the largest single piece of phase 2).
 
 ### Phase 3 — Small daemons and remaining simple commands
 - `ssh-daemon`, `connectivity-daemon` (network.py, connectivity.py, radio_policy, bt_control, bluetooth, the F52/F53

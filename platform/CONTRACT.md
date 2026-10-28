@@ -149,6 +149,32 @@ Most are `LOCK_EX|LOCK_NB` with a named refusal (`*_in_progress`, `busy`); the b
   `os.kill(pid, 0)` in connectivity-daemon and `/proc/self/fd/N` in transfer commit are used even under a test root;
   `y2-power-audit` opens every path directly.
 
+## Ported to Rust (`platform/crates/y2-platform/src/commands`)
+
+Rust runs a subcommand only for the exact argument forms below; every other form (`--help`, an abbreviated
+option, an invalid choice, extra arguments) is argparse's and goes to the Python platform unchanged. A
+ported command also hands itself to Python, before it changes anything Python would not change the same way
+again, for inputs where Python would crash or parses something not worth reproducing (listed). Each row has
+differential cases in `tests/test_platform_differential.py` (`ported` True/False is checked).
+
+| Command (forms) | Module | Python | Falls back to Python for |
+| --- | --- | --- | --- |
+| `capabilities` [`--json`] | `capabilities.rs`, `codec.rs` | capabilities.status + cli tail | a template entry that is not a dict; `codecs` not a dict |
+| `sleep status` | `sleep.rs` | sleep.status/product | `product` truthy but not a dict; an unhashable `state` |
+| `time` | `time.rs` | timekeeping.status | — |
+| `time-remember` | `time.rs` | timekeeping.remember(every=0) | — |
+| `ntp-event step\|stratum\|periodic\|unsync` | `time.rs` | timekeeping.ntp_event | `stratum` not a plain decimal |
+| `boot-stage <stage>` (not starting with `-`) | `boot.rs`, `power_features.rs` | boot.mark, power_features.apply | — |
+| `codec-runtime` [`--record`] | `codec.rs` | radio_policy.codec_runtime | `codecs` not a dict |
+| `wifi-event CONNECTED\|DISCONNECTED\|SERVICE_RESTART` | `network.rs` | network.lease_event | — |
+| `dhcp-event deconfig\|leasefail\|nak\|bound\|renew` | `network.rs` | network.dhcp_event | an address, netmask or route ipaddress would word an error for (leading zeros, hostmask, bad octets) |
+| `cpu-idle-policy start\|stop` | `cpu_idle.rs` | cpu_idle.apply | — |
+
+Known, accepted differences (none reachable from the platform's own records): JSON input with `NaN`,
+`Infinity` or integers beyond 64 bits reads as unreadable (Python reads them); an `OSError` while writing a
+record names the record, not Python's temporary file; `str.splitlines` separators other than `\n`/`\r\n` in
+sysfs text.
+
 ## Suspected defects found while inventorying (not changed in Phase 0)
 
 | Finding | Status |
