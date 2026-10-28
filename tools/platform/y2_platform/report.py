@@ -534,6 +534,7 @@ FILES = (
     '/data/system/platform/rtc-policy.json', '/data/system/platform/time-last.json',
     '/data/system/platform/battery-ui.json', '/data/system/platform/panel.json',
     '/data/system/platform/sd-admissions.json', '/data/system/platform/sd-repair-last.json',
+    '/data/system/platform/wifi-journal*.jsonl',
     '/data/system/platform/retained/*.tar',
     '/data/updates/*.json', '/data/updates/current/manifest.json', '/data/updates/health/*.txt',
     '/run/y2/*.json', '/run/y2/*.jsonl', '/run/y2/*.log',
@@ -1254,6 +1255,35 @@ STORAGE = re.compile(r'EXT4-fs error|I/O error, dev mmcblk0|Remounting filesyste
                      r'blk_update_request: I/O error, dev mmcblk0')
 
 
+def crash_signature(ctx):
+    """The newest retained kernel crash as (record time, kernel timestamp, text hash), or None.
+
+    F50: a ramoops panic record stays in pstore over many starts, while the
+    console and pmsg records change every start; a hash over all of them sent
+    fcdf3a25's 10-25 panic again as 8e9181e5. The record time (pstore's mtime
+    of a dmesg dump; up to 6 are kept, the newest counts) and the crash line's
+    kernel timestamp name one crash; either matching the last one is enough,
+    as RAM decay over a cold start may flip a digit of one. The text hash only
+    serves records with neither."""
+    found = []
+    for path in sorted(ctx.glob('/sys/fs/pstore/*')):
+        text = ctx.read(_rel(ctx, path), limit=1 << 20) or ''
+        match = CRASH.search(text)
+        if not match:
+            continue
+        stamp = re.search(r'\[\s*(\d+\.\d+)\]', text[text.rfind('\n', 0, match.start()) + 1:match.start()])
+        when = 0
+        if path.name.startswith('dmesg-'):
+            with contextlib.suppress(OSError):
+                when = int(path.stat().st_mtime)
+        found.append((when, stamp.group(1) if stamp else '', text))
+    if not found:
+        return None
+    when, uptime, text = max(found, key=lambda entry: entry[0])
+    digest = '' if when > 0 or uptime else hashlib.sha256(text.encode()).hexdigest()[:16]
+    return (str(when) if when > 0 else '', uptime, digest)
+
+
 def _changed(value, name, current):
     """True once per new value of a watched marker."""
     if current in (None, '', 0) or value['seen'].get(name) == current:
@@ -1267,17 +1297,26 @@ def check(ctx):
     value = state(ctx)
     fired = []
     boot = ctx.read('/proc/sys/kernel/random/boot_id') or ''
-    pstore = ''.join(ctx.read(_rel(ctx, p), limit=1 << 20) or '' for p in ctx.glob('/sys/fs/pstore/*'))
-    if CRASH.search(pstore) and _changed(value, 'pstore', hashlib.sha256(pstore.encode()).hexdigest()):
-        fired.append(('kernel_crash', 'previous boot'))
+    crash = crash_signature(ctx)
+    if crash:
+        seen = (str(value['seen'].get('pstore_crash') or '') + '||').split('|')[:3]
+        # Before 8.42 the key was the all-records hash: a crash on record then
+        # was already reported by that release (no resend after the update).
+        known = 'pstore_crash' not in value['seen'] and 'pstore' in value['seen']
+        value['seen']['pstore_crash'] = '|'.join(crash)
+        if not known and not any(part and part == last for part, last in zip(crash, seen)):
+            fired.append(('kernel_crash', 'previous boot'))
     tainted = ctx.integer('/proc/sys/kernel/tainted')
     if tainted and _changed(value, 'tainted', '%s:%s' % (boot, tainted)):
         fired.append(('kernel_warning', 'taint %d' % tainted))
     evidence = ctx.json('/data/system/platform/previous-boot-evidence.json', {})
     if evidence.get('previous_orderly_shutdown') is False and \
             _changed(value, 'unclean', str(evidence.get('previous_boot_id') or boot)):
-        fired.append(('unclean_restart', '%s %s last stage %s' % (
-            evidence.get('reset_cause'), evidence.get('reset_cause_reason'), evidence.get('previous_last_stage'))))
+        # F56/F57: the PMIC's long-press record tells a held Power from a cut.
+        pmic = evidence.get('pmic') if isinstance(evidence.get('pmic'), dict) else {}
+        fired.append(('unclean_restart', '%s %s last stage %s pmic %s' % (
+            evidence.get('reset_cause'), evidence.get('reset_cause_reason'), evidence.get('previous_last_stage'),
+            pmic.get('long_press_reset_reason', 'not_observed'))))
     panic = ctx.path('/data/reborn/logs/panic-last.json')
     if panic.is_file():
         # One report per crash, not per rewrite: a crash at every start

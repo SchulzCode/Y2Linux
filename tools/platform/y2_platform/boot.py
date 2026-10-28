@@ -40,6 +40,51 @@ def reset_cause(text, missing_reason='not_observed'):
             'reset_status_raw': fields.get('raw')}
 
 
+PMIC_POWER_STATUS = '/sys/firmware/y2_pmic/power_status'
+# TOP_RST_MISC PWRKEY_RST_TD, as the vendor keypad header (KPD_PMIC_LPRST_TD)
+# names its selectors; not timed on a Y2.
+LONG_PRESS_SECONDS = (8, 11, 14, 5)
+
+
+def pmic_power_status(text, earlier=None):
+    """F56/F57: the MT6323's record of the last power-down (kernel
+    pmic-lowpower-policy.h), as the loaders left it. LK clears a latched
+    Power long-press reset by setting STRUP_CON8 bit 4 and leaves it set,
+    so a set bit may stay from an earlier boot: only a change from the
+    previous boot's record (`earlier`) proves a long-press reset now.
+    A clear bit rules one out; brownout and a dead battery stay unrecorded."""
+    fields = dict(re.findall(r'(\w+)=(\S+)', text or ''))
+    regs = {}
+    for name, value in fields.items():
+        if name != 'valid' and re.fullmatch(r'0x[0-9a-fA-F]{1,4}', value):
+            regs[name] = int(value, 16)
+    if fields.get('valid') != '1' or 'strup_con8' not in regs:
+        return {'state': 'Unavailable', 'long_press_reset': None,
+                'long_press_reset_reason': 'not_observed'}
+    flag = bool(regs['strup_con8'] & 0x0010)
+    if not flag:
+        verdict, reason = False, 'no_long_press_record'
+    elif earlier is False:
+        verdict, reason = True, 'lk_cleared_long_press_reset'
+    else:
+        verdict, reason = None, ('record_set_before' if earlier else 'first_record')
+    result = {'state': 'Ready', 'raw': {name: '0x%04x' % value for name, value in regs.items()},
+              'lk_long_press_record': flag, 'long_press_reset': verdict,
+              'long_press_reset_reason': reason,
+              'just_pwrkey_rst': bool(regs['strup_con8'] & 0x4000)}
+    misc = regs.get('top_rst_misc')
+    if misc is not None:
+        result['long_press_reset_enabled'] = bool(misc & 0x0040)
+        result['long_press_reset_seconds'] = LONG_PRESS_SECONDS[(misc >> 8) & 3]
+    if 'chr_con16' in regs:
+        result['uvlo_selector'] = regs['chr_con16'] & 3
+    if 'strup_con5' in regs:
+        result['thermal_status'] = (regs['strup_con5'] >> 8) & 7
+    if 'chrstatus' in regs:
+        result['power_key_down'] = not regs['chrstatus'] & 0x0002
+    return result
+
+
 def transition(previous, boot_id, stage, identity, now_ns, reset=None):
     if not boot_id:
         raise ValueError('boot_id_unavailable')
@@ -147,6 +192,8 @@ def capture_previous(ctx):
               'record': ctx.record('previous-boot-evidence'), 'logs': []}
     if ctx.read(RESET_STATUS) is not None:
         result.update(reset_cause(ctx.read(RESET_STATUS)))
+    earlier = previous.get('pmic') if isinstance(previous.get('pmic'), dict) else {}
+    result['pmic'] = pmic_power_status(ctx.read(PMIC_POWER_STATUS), earlier.get('lk_long_press_record'))
     from .boot_retained import capture
     try:
         result['retained'] = capture(ctx, boot, journal.get('boot_id'))
@@ -195,6 +242,6 @@ def evidence_status(ctx):
             'previous_last_stage', 'previous_orderly_shutdown', 'reset_cause',
             'reset_cause_reason', 'reset_status_raw', 'kernel_panic_retention_guaranteed')} | {
             'private_record': '/data/system/platform/previous-boot-evidence.json',
-            'retained': value.get('retained'),
+            'retained': value.get('retained'), 'pmic': value.get('pmic'),
             'log_tails': [{k: log.get(k) for k in ('name','tail_sha256','source_bytes_at_capture')}
                           for log in value.get('logs',[])]}

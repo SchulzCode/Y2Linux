@@ -5,7 +5,8 @@
  * PMIC is up, verified by readback, and revertible at run time:
  *   /sys/firmware/y2_pmic/lp_sel  (0600)  write 1 = set, 0 = clear, read = state
  * No voltage, enable, clock or sleep-voltage setting is changed. The same pass
- * sets the stock VIBR thermal shutdown once (#28); the switch leaves it set. */
+ * sets the stock VIBR thermal shutdown once (#28); the switch leaves it set.
+ * /sys/firmware/y2_pmic/power_status (0444) reads the PMIC's power-down record. */
 #include <linux/capability.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -129,6 +130,28 @@ static ssize_t lp_sel_store(struct kobject *k, struct kobj_attribute *a, const c
 }
 static struct kobj_attribute lp_sel_attr = __ATTR(lp_sel, 0600, lp_sel_show, lp_sel_store);
 
+/* F56/F57: the PMIC's power-down record (pmic-lowpower-policy.h), raw and
+ * read only; y2-platform decodes it into the previous-boot evidence. */
+static ssize_t power_status_show(struct kobject *k, struct kobj_attribute *a, char *buf)
+{
+	unsigned i, value;
+	ssize_t n;
+	mutex_lock(&lp_lock);
+	if (!lp_map)
+		lp_map = lp_find_map();
+	n = sysfs_emit(buf, "valid=%u", lp_map ? 1U : 0U);
+	for (i = 0; lp_map && i < Y2_PMIC_POWER_STATUS_REGS; i++) {
+		if (regmap_read(lp_map, y2_pmic_power_status[i].reg, &value))
+			n += sysfs_emit_at(buf, n, " %s=error", y2_pmic_power_status[i].name);
+		else
+			n += sysfs_emit_at(buf, n, " %s=0x%04x", y2_pmic_power_status[i].name, value);
+	}
+	n += sysfs_emit_at(buf, n, "\n");
+	mutex_unlock(&lp_lock);
+	return n;
+}
+static struct kobj_attribute power_status_attr = __ATTR(power_status, 0444, power_status_show, NULL);
+
 static int __init y2_pmic_lp_init(void)
 {
 	struct kobject *k;
@@ -137,6 +160,8 @@ static int __init y2_pmic_lp_init(void)
 	k = kobject_create_and_add("y2_pmic", firmware_kobj);
 	if (k && sysfs_create_file(k, &lp_sel_attr.attr))
 		kobject_put(k);
+	else if (k && sysfs_create_file(k, &power_status_attr.attr))
+		pr_warn("y2-pmic-lp: power_status not created\n");
 	INIT_DELAYED_WORK(&lp_work, lp_start);
 	schedule_delayed_work(&lp_work, 10 * HZ);
 	return 0;

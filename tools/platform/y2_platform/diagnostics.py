@@ -49,7 +49,7 @@ PUBLIC_WORDS |= frozenset(('Off Starting Scanning Associating AcquiringIP Authen
     'off automatic CAM FAST_PSP radio_off supplicant_unavailable not_authenticated '
     'no_address no_default_route dns_unavailable dhcp_timeout dhcp_nak '
     'lease_configuration_failed wrong_credentials authentication_failed '
-    'authentication_rejected ap_unavailable authentication_timeout '
+    'authentication_rejected ap_unavailable authentication_timeout handshake_failed '
     'command_timeout command_unavailable command_output_limit command_failed '
     'power_save_readback_unavailable').split())
 PUBLIC_WORDS |= frozenset(("driver_contract", "interleaved_s16_le", "s16_stereo", "I05_I06_to_O00_O01_s16"))
@@ -59,6 +59,9 @@ PUBLIC_WORDS |= frozenset(('org.y2linux.usb-transfer/v1', 'org.y2linux.pcm-contr
     'ffs.mtp', 'ecm.usb0', 'acm.GS0', 'not attached', 'powered', 'default',
     'addressed', 'configured', 'suspended', 'sleep_requested', 'sleep_preparing',
     'sleep_refused', 'preparing', 'waking'))
+# F56/F57 PMIC power-down record reasons (boot.pmic_power_status).
+PUBLIC_WORDS |= frozenset(('not_observed', 'no_long_press_record', 'lk_cleared_long_press_reset',
+    'record_set_before', 'first_record'))
 PRIVATE_KEYS = re.compile(r'(password|passphrase|secret|credential|ssid|bssid|address|mac$|cid$|serial|calibration|nvram|bond|link.?key|identity|filename|track|title|artist|album|path|cmdline)', re.I)
 IDENTITY_KEYS = frozenset(('build_git_commit', 'reborn_source_commit', 'y2linux_commit', 'reborn_commit', 'sha256'))
 VERSION_KEYS = frozenset(('kernel_version', 'kernel', 'rootfs_version', 'rootfs_release', 'release_version', 'reborn_version', 'build_id'))

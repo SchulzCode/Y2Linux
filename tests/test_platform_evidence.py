@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'tools/platform'))
 from audio_precision import generate
 from y2_platform.common import Context
-from y2_platform.boot import capture_previous, evidence_status, mark
+from y2_platform.boot import capture_previous, evidence_status, mark, pmic_power_status
 
 
 class EvidenceTests(unittest.TestCase):
@@ -83,6 +83,38 @@ class EvidenceTests(unittest.TestCase):
             put('/proc/sys/kernel/random/boot_id','next-boot')
             log.unlink();log.symlink_to('/etc/passwd')
             with self.assertRaises(OSError): capture_previous(ctx)
+
+    def test_pmic_long_press_record_is_decoded_only_when_it_changed(self):
+        # F56/F57: LK leaves STRUP_CON8 bit 4 set after clearing a long-press
+        # reset; a set bit proves a new one only after a boot that had it clear.
+        status = lambda strup: ('valid=1 strup_con8=0x%04x top_rst_misc=0x015b chr_con16=0x0005 '
+                                'strup_con5=0x0000 chrstatus=0x0000\n' % strup)
+        fresh = pmic_power_status(status(0x8010), False)
+        self.assertEqual((fresh['long_press_reset'], fresh['long_press_reset_reason']),
+                         (True, 'lk_cleared_long_press_reset'))
+        self.assertEqual((fresh['long_press_reset_enabled'], fresh['long_press_reset_seconds']), (True, 11))
+        self.assertEqual((fresh['uvlo_selector'], fresh['thermal_status'], fresh['power_key_down']), (1, 0, True))
+        self.assertEqual(fresh['raw']['strup_con8'], '0x8010')
+        self.assertEqual(pmic_power_status(status(0x8010), True)['long_press_reset_reason'], 'record_set_before')
+        self.assertIsNone(pmic_power_status(status(0x8010))['long_press_reset'])
+        clear = pmic_power_status(status(0x8000), True)
+        self.assertEqual((clear['long_press_reset'], clear['lk_long_press_record']), (False, False))
+        for text in (None, 'valid=0\n', 'valid=1 strup_con8=error\n'):
+            self.assertEqual(pmic_power_status(text, False)['state'], 'Unavailable')
+        with tempfile.TemporaryDirectory() as root:
+            ctx = Context(root)
+            def put(name,value):
+                path=ctx.path(name);path.parent.mkdir(parents=True,exist_ok=True);path.write_text(value);return path
+            put('/data/.y2data-schema','1')
+            put('/proc/self/mountinfo','3 1 179:2 / /data rw - ext4 /dev/data rw\n')
+            put('/run/y2-data-device','/dev/data')
+            put('/proc/sys/kernel/random/boot_id','new-boot')
+            put('/data/system/platform/boot.json',json.dumps({'schema':1,'boot_id':'previous','orderly_shutdown':False}))
+            put('/data/system/platform/previous-boot-evidence.json',json.dumps(
+                {'captured_on_boot_id':'previous','pmic':pmic_power_status(status(0x8000))}))
+            put('/sys/firmware/y2_pmic/power_status',status(0x8010))
+            self.assertTrue(capture_previous(ctx)['pmic']['long_press_reset'])
+            self.assertTrue(evidence_status(ctx)['pmic']['long_press_reset'])
 
 
 if __name__ == '__main__': unittest.main()

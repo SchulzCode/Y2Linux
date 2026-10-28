@@ -86,6 +86,33 @@ int main(void) {
         self.assertEqual(regs, {0x404, 0x500, 0x502, 0x552, 0x556, 0x504, 0x506, 0x508})
         self.assertTrue(regs.isdisjoint({0x21a, 0x240, 0x230, 0x256}))
 
+    def test_power_down_record_is_read_only_and_never_writable(self):
+        # F56/F57: STRUP_CON8 (LK's long-press record), TOP_RST_MISC, UVLO,
+        # thermal and Power state are read for the boot evidence, never written.
+        run_c(r'''
+#include <assert.h>
+#include <string.h>
+#include "policy.h"
+#include "pmic-lowpower-policy.h"
+int main(void) {
+ static const unsigned regs[] = {0x04a, 0x11a, 0x020, 0x044, 0x142};
+ static const char *names[] = {"strup_con8", "top_rst_misc", "chr_con16", "strup_con5", "chrstatus"};
+ assert(Y2_PMIC_POWER_STATUS_REGS == 5);
+ for (unsigned i = 0; i < 5; i++) {
+  assert(y2_pmic_power_status[i].reg == regs[i] && !strcmp(y2_pmic_power_status[i].name, names[i]));
+  if (regs[i] != 0x020)
+   assert(y2_pmic_write_mask(regs[i]) == 0);
+ }
+ /* CHR_CON16: only the charger's USBDL bits, never the UVLO selector. */
+ assert(!(y2_pmic_write_mask(0x020) & 0x3));
+ return 0;
+}
+''')
+        show = self.source[self.source.index('static ssize_t power_status_show'):self.source.index('power_status_attr =')]
+        self.assertNotIn('regmap_update_bits', show)
+        self.assertNotIn('regmap_write', show)
+        self.assertIn('__ATTR(power_status, 0444, power_status_show, NULL)', self.source)
+
     def test_makefile_builds_it_under_the_power_option_only(self):
         self.assertIn('obj-$(CONFIG_Y2_POWER) += pmic-lowpower.o', (PLATFORM / 'Makefile').read_text())
 

@@ -256,7 +256,8 @@ class Report(unittest.TestCase):
         self.assertEqual(report.check(self.ctx), [])
         write(self.root, '/data/system/platform/previous-boot-evidence.json',
               json.dumps({'previous_orderly_shutdown': False, 'previous_boot_id': 'boot-0',
-                          'reset_cause': 'watchdog', 'previous_last_stage': 'ui'}))
+                          'reset_cause': 'watchdog', 'previous_last_stage': 'ui',
+                          'pmic': {'long_press_reset_reason': 'no_long_press_record'}}))
         write(self.root, '/data/updates/state.json', json.dumps({'state': 'RolledBack', 'sequence': 6901}))
         write(self.root, '/proc/sys/kernel/tainted', '512\n')
         write(self.root, '/sys/power/suspend_stats/fail', '2\n')
@@ -267,6 +268,7 @@ class Report(unittest.TestCase):
         self.assertEqual(set(fired), {'unclean_restart', 'update_failure', 'kernel_warning', 'sleep_failure',
                                       'storage_error', 'radio_failure'})   # the panic was reported above
         self.assertIn('watchdog', fired['unclean_restart'])
+        self.assertTrue(fired['unclean_restart'].endswith('pmic no_long_press_record'))
         self.assertEqual(fired['radio_failure'], 'connectivity error=-110')
         self.assertEqual(report.check(self.ctx), [])
         # A sleep a wake event cancelled (-EBUSY while suspending devices) is routine.
@@ -281,6 +283,41 @@ class Report(unittest.TestCase):
             write(self.root, '/run/y2/wifi-failure.json', json.dumps({'error': error, 'failures': 1}))
             self.assertEqual(report.check(self.ctx), [])
         self.assertEqual(report.run_checks(self.ctx), [])        # not enabled: nothing queued
+
+    def test_a_kept_panic_record_is_not_sent_again(self):
+        # F50: 8e9181e5 re-sent fcdf3a25's 10-25 panic: the dmesg record stays
+        # in pstore while the console and pmsg records change every start.
+        import os
+        pstore = Path(self.root) / 'sys/fs/pstore'
+        (pstore / 'console-ramoops-0').unlink()
+        def dump(name, uptime, when):
+            write(self.root, '/sys/fs/pstore/' + name,
+                  '<0>[  %s] reboot: Power down\n<0>[  %s] Kernel panic - not syncing: Attempted to kill init!\n'
+                  % (uptime - 2, uptime))
+            os.utime(pstore / name, (when, when))
+        dump('dmesg-ramoops-0', 769.016180, 1761390000)
+        write(self.root, '/sys/fs/pstore/console-ramoops-0', '[  769.016180] Kernel panic - not syncing\n')
+        self.assertIn(('kernel_crash', 'previous boot'), report.check(self.ctx))
+        for start in range(3):
+            write(self.root, '/sys/fs/pstore/console-ramoops-0', '[    5.%d] boot %d\n' % (start, start))
+            write(self.root, '/sys/fs/pstore/pmsg-ramoops-0', '%d.00 shutdown execute poweroff user\n' % start)
+            self.assertEqual([t for t, _ in report.check(self.ctx)], [])
+        # A cold start flipped a digit of the kernel timestamp: the record time still names it.
+        write(self.root, '/sys/fs/pstore/dmesg-ramoops-0', '<0>[  769.0161$0] Kernel panic - not syncing\n')
+        os.utime(pstore / 'dmesg-ramoops-0', (1761390000, 1761390000))
+        self.assertEqual([t for t, _ in report.check(self.ctx)], [])
+        # A new panic in another record is news, even beside the kept one.
+        dump('dmesg-ramoops-1', 310.695269, 1761480000)
+        self.assertEqual([t for t, _ in report.check(self.ctx)], ['kernel_crash'])
+        self.assertEqual([t for t, _ in report.check(self.ctx)], [])
+        # Updated from a release that keyed on the hash of all records: a crash it saw is not resent.
+        value = report.state(self.ctx)
+        del value['seen']['pstore_crash']
+        value['seen']['pstore'] = 'old-hash'
+        report.save(self.ctx, value)
+        self.assertEqual([t for t, _ in report.check(self.ctx)], [])
+        dump('dmesg-ramoops-2', 12.5, 1761490000)
+        self.assertEqual([t for t, _ in report.check(self.ctx)], ['kernel_crash'])
 
     def test_opting_in_reports_only_what_happens_afterwards(self):
         report.set_enabled(self.ctx, True)                       # old pstore and panic records exist

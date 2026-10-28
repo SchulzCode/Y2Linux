@@ -28,6 +28,21 @@ static const struct y2_pmic_lp_rail y2_pmic_lp_rails[] = {
 	{0x504, "VMC"}, {0x506, "VMCH"}, {0x508, "VEMC3V3"},
 };
 #define Y2_PMIC_LP_RAILS (sizeof(y2_pmic_lp_rails) / sizeof(y2_pmic_lp_rails[0]))
+/* F56/F57: what the PMIC holds about the last power-down, read only (never in
+ * the write policy). Stock LK boot_mode_select (0x81e0a360) reads STRUP_CON8
+ * JUST_PWRKEY_RST (bit 14, latched by a Power long-press reset) and, if set,
+ * writes CLR_JUST_RST (bit 4) and leaves it set. TOP_RST_MISC: that reset's
+ * enable (bit 6) and time (bits 9:8) as the preloader set them (enabled,
+ * selector 1); the stock kernel cleared bit 6 at keypad probe
+ * (long_press_reboot_function_setting), Y2Linux keeps it. CHR_CON16
+ * bits 1:0: UVLO selector; STRUP_CON5 bits 10:8: PMU thermal status;
+ * CHRSTATUS bit 1: Power debounce (0 = down). Field map: the Y2 FM kernel's
+ * upmu accessors (upmu_get_just_pwrkey_rst etc.). */
+static const struct y2_pmic_lp_rail y2_pmic_power_status[] = {
+	{0x04a, "strup_con8"}, {0x11a, "top_rst_misc"}, {0x020, "chr_con16"},
+	{0x044, "strup_con5"}, {0x142, "chrstatus"},
+};
+#define Y2_PMIC_POWER_STATUS_REGS (sizeof(y2_pmic_power_status) / sizeof(y2_pmic_power_status[0]))
 /* The vendor E2 branch is the verified source for this register map. */
 static inline int y2_pmic_lp_chip_ok(unsigned cid)
 {
