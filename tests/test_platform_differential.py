@@ -47,7 +47,7 @@ WIFI = {'patterns': [UUID], 'ported': True}
 CASES = [
     ('capabilities', ['capabilities'], {'ported': True}),
     ('capabilities-json', ['capabilities', '--json'], {'ported': True}),
-    ('capabilities-help', ['capabilities', '--help'], {'ported': False}),
+    ('capabilities-help', ['capabilities', '--help'], {'ported': True}),
     ('capabilities-no-template', ['capabilities'], {'ported': True, 'files': {'/etc/y2linux/capabilities.json': None}}),
     ('capabilities-experimental', ['capabilities'], {'ported': True, 'files': {
         POLICY: json.dumps({'schema': 1, 'experimental': True, 'sbc_quality': 'xq+'}),
@@ -93,7 +93,7 @@ CASES = [
         '/sys/firmware/y2_boot/metadata': 'lcm=0-st7701\n', '/data/system/platform/panel.json': '{"panel": "gc9503v"}'}}),
     ('boot-stage-shutdown', ['boot-stage', 'shutdown_complete'], {'ported': True}),
     ('boot-stage-unknown', ['boot-stage', 'no_such_stage'], {'ported': True}),
-    ('boot-stage-option', ['boot-stage', '-x'], {'ported': False}),
+    ('boot-stage-option', ['boot-stage', '-x'], {'ported': True}),
     ('boot-stage-no-data', ['boot-stage', 'platform_start'], {'ported': True, 'files': {'/data/.y2data-schema': None}}),
     ('boot-stage-wrong-mount', ['boot-stage', 'platform_start'], {'ported': True, 'files': {'/run/y2-data-device': '/dev/sda1'}}),
     ('codec-runtime', ['codec-runtime'], {'ported': True}),
@@ -132,7 +132,7 @@ CASES = [
     ('cpu-idle-start-no-sysfs', ['cpu-idle-policy', 'start'], {'ported': True, 'files': {
         '/sys/module/spm/parameters/dormant_budget': None}}),
     ('cpu-idle-stop', ['cpu-idle-policy', 'stop'], {'ported': True}),
-    ('argument-error', ['sleep', 'no_such_action'], {'ported': False}),
+    ('argument-error', ['sleep', 'no_such_action'], {'ported': True}),
 ]
 
 

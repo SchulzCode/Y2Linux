@@ -6,6 +6,7 @@
 pub mod clock;
 pub mod command;
 pub mod connectivity_journal;
+pub mod devices_support;
 pub mod json;
 pub mod lock;
 pub mod py;

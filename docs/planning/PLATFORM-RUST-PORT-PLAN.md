@@ -240,8 +240,13 @@ Rules for every group (the phase 2 part 1 code is the pattern: `commands/*.rs`, 
 - Port 1:1, including every F-number comment and the CONTRACT.md defects (marked `// DEFECT (CONTRACT.md): …`).
   The contract inventory (`platform/contract.json`, the group's entries) lists paths, locks, timeouts,
   subprocesses and trail lines to keep.
-- Rust takes only well-formed argument forms; argparse's error paths, `--help`, abbreviations stay Python's until
-  phase 6, when the dispatcher prints argparse's exact messages itself (the Python parser is the reference).
+- The dispatcher parses every command line as main.py's argparse parser does (`src/argparse.rs`, the parser as data
+  in `src/argparse.json` from tools/development/platform-argparse.py; tests/test_platform_argparse.py compares a
+  corpus of ~5 700 argument lists with Python 3.15's parser): it prints `--help` and argument errors itself, and a
+  group's `route` sees only the canonical form of a parsed command: the subcommand, the positionals given, then the
+  optionals given in definition order with full names (`status --reborn --pss` is `status --pss --reborn`,
+  `--opt=v` is `--opt v`, a repeated option once with its last value, an append option once per value, ints as
+  `str(int())`, floats as `repr(float())`). Forms no route takes still go to Python with the arguments as given.
 - A command may hand itself to Python (`Failure::Fallback`) only before it changed anything Python would not
   change the same way again. Daemons never fall back.
 - Python inside the platform's own work goes in its port: the DNS probe (`network.probe_dns` runs `python3 -c
