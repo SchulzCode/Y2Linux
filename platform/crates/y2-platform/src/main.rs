@@ -1,10 +1,14 @@
 //! `/usr/sbin/y2-platform`, the strangler dispatcher (docs/planning/PLATFORM-RUST-PORT-PLAN.md §3.1).
-//! A subcommand ported to Rust runs here; every other one replaces this process with the Python
-//! platform, exactly as the shell wrapper it replaces did:
+//! The arguments are parsed first, as `main.py`'s argparse parser does (argparse.rs): `--help` prints
+//! that parser's help (exit 0), an argument error its usage and message on stderr (exit 2). A parsed
+//! command goes to its Rust implementation in its canonical spelling (`argparse::Parsed::canonical`);
+//! every other one replaces this process with the Python platform, with the arguments as given, exactly
+//! as the shell wrapper it replaces did:
 //! `exec /usr/bin/python3 -I /usr/lib/y2-platform/main.py "$@"` with `PYTHONPATH=/usr/lib/y2-platform`
 //! and `PYTHONDONTWRITEBYTECODE=1`. Same process (callers signal and wait for this PID: Reborn sends
 //! SIGTERM to `update stage`), same argv and environment for Python, same stdin, stdout and stderr.
 // SPDX-License-Identifier: GPL-2.0-only
+mod argparse;
 mod commands;
 mod reply;
 
@@ -24,8 +28,26 @@ const LIBRARY: &str = "/usr/lib/y2-platform";
 
 fn main() -> ExitCode {
     let args: Vec<OsString> = env::args_os().skip(1).collect();
-    let text: Option<Vec<&str>> = args.iter().map(|a| a.to_str()).collect();
-    let Some(command) = text.as_deref().and_then(commands::route) else {
+    // Not UTF-8 (Python would see surrogate escapes): the Python platform parses it.
+    let Some(text) = args
+        .iter()
+        .map(|a| a.to_str())
+        .collect::<Option<Vec<&str>>>()
+    else {
+        return python(&args);
+    };
+    let parsed = match argparse::parse(&text) {
+        argparse::Outcome::Help(help) => return print(&mut std::io::stdout().lock(), &help, 0),
+        argparse::Outcome::Error(error) => return print(&mut std::io::stderr().lock(), &error, 2),
+        argparse::Outcome::Parsed(parsed) => parsed,
+    };
+    if env::var_os("Y2_ROOT").is_some() && env::var_os("Y2_ARGPARSE_ECHO").is_some() {
+        // tests/test_platform_argparse.py: the parse itself, compared with Python's namespace.
+        let echo = serde_json::json!({"namespace": parsed.typed(), "canonical": parsed.canonical});
+        return print(&mut std::io::stdout().lock(), &format!("{echo}\n"), 0);
+    }
+    let canonical: Vec<&str> = parsed.canonical.iter().map(String::as_str).collect();
+    let Some(command) = commands::route(&canonical) else {
         return python(&args);
     };
     let root = y2p_core::Root::from_env();
@@ -44,6 +66,12 @@ fn main() -> ExitCode {
         .write_all(stdout.as_bytes())
         .and_then(|()| out.write_all(b"\n"))
         .and_then(|()| out.flush());
+    ExitCode::from(code)
+}
+
+/// argparse's `_print_message` then `exit(code)`: a failed write is ignored.
+fn print(out: &mut dyn Write, text: &str, code: u8) -> ExitCode {
+    let _ = out.write_all(text.as_bytes()).and_then(|()| out.flush());
     ExitCode::from(code)
 }
 

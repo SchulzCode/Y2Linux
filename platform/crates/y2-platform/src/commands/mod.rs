@@ -1,5 +1,7 @@
-//! The subcommands implemented in Rust, each for exactly the argument forms listed in `route`; every
-//! other form (help, abbreviations, invalid choices, extra arguments) is argparse's and goes to Python.
+//! The subcommands implemented in Rust, each for exactly the argument forms listed in `route`. `route`
+//! sees the canonical form of a parsed command line (argparse.rs `Parsed::canonical`: the subcommand, the
+//! positionals given, then the optionals given in definition order with their full names); help, argument
+//! errors and abbreviations never reach it. A form no route takes goes to Python with the arguments as given.
 // SPDX-License-Identifier: GPL-2.0-only
 pub mod boot;
 pub mod capabilities;
@@ -32,7 +34,8 @@ pub fn route(args: &[&str]) -> Option<Command> {
         ["sleep", "status"] => Box::new(sleep::status),
         ["time"] => Box::new(time::status),
         ["time-remember"] => Box::new(time::remember),
-        ["boot-stage", stage] if !stage.starts_with('-') => {
+        // Any stage argparse took (`boot-stage -- -x` too): boot.mark refuses the unknown ones.
+        ["boot-stage", stage] => {
             let stage = stage.to_string();
             Box::new(move |root| boot::mark(root, &stage))
         }
