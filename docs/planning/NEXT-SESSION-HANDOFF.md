@@ -1,6 +1,16 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-28, late night): PLATFORM RUST PORT PHASE 1 DONE — TEST BUILD 166 (RUST DISPATCHER) ON THE OWNER'S PLAYER, NOT PUBLISHED.**
+> **START HERE (2026-10-29): PLATFORM RUST PORT — ALL GROUPS MERGED ON MAIN, PHASE 6 (REMOVE PYTHON) NOT DONE. Stopped at the usage limit.**
+> On `main` (not pushed): argparse-identical dispatcher and every group ported and merged (observation, connectivity,
+> devices, storage, service: update+firmware, reports, power, suspend); 30 test modules green with `Y2_PLATFORM_RUST`.
+> Last device build: 168. **Open:** (1) stopped agent branches `worktree-agent-a9cbacb26426e3605` (export-diagnostics
+> wired; service-daemon and `update health-ack` not yet) and `worktree-agent-a03b5860b99a9360a` (non-UTF-8 argv in Rust;
+> the other fallbacks not yet): review, finish, merge. (2) Phase 6: drop `BR2_PACKAGE_PYTHON3*` (keep SQLITE: reports
+> load libsqlite3.so.0), post-build links y2-status/y2-health/y2-suspend-record/y2-power-audit and /sbin/poweroff,reboot to
+> y2-platform, no /usr/lib/y2-platform, build without the Python fallback, fix validate.py 359-360, composition.py 48-70,
+> check_installed_arm.py (Python under qemu), CONTRACT.md rows. Then build 169 (seq > 11130), OTA, owner's hardware tests.
+>
+> Previous entry: **START HERE (2026-10-28, late night): PLATFORM RUST PORT PHASE 1 DONE — TEST BUILD 166 (RUST DISPATCHER) ON THE OWNER'S PLAYER, NOT PUBLISHED.**
 > Owner: "go ahead with phase 1, we can't do the overnight drain yet". Linux `5d2c1ec`..`f336f3c` + identity
 > `10f884c` (1.0.0-beta.8.44, seq 11110, rootfs v1.208), Reborn `bd96685`. `platform/` Cargo workspace (Rust 1.99.0,
 > vendored serde/serde_json/libc/ryu): `y2p-core` (ctx paths/reads, `json.dumps`-identical output, `atomic_json`,
