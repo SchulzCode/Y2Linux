@@ -12,3 +12,8 @@ y2p-contract = { path = "../y2p-contract" }
 serde.workspace = true
 serde_json.workspace = true
 libc.workspace = true
+regex.workspace = true
+flate2.workspace = true
+tar.workspace = true
+sha2.workspace = true
+hmac.workspace = true

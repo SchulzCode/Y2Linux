@@ -254,7 +254,9 @@ pub fn loads(text: &str) -> Option<Py> {
 
 /// `json.loads(bytes)`: UTF-8 (Python also detects UTF-16/32 by the first bytes; not used here).
 pub fn loads_bytes(data: &[u8]) -> Option<Py> {
-    let data = data.strip_prefix(b"\xef\xbb\xbf").map_or(Some(data), |_| None)?;
+    let data = data
+        .strip_prefix(b"\xef\xbb\xbf")
+        .map_or(Some(data), |_| None)?;
     loads(std::str::from_utf8(data).ok()?)
 }
 
@@ -410,7 +412,11 @@ impl Parser<'_> {
             if text.trim_start_matches('-').len() > 4300 {
                 return None;
             }
-            Some(Py::Int(if text == "-0" { "0".into() } else { text.into() }))
+            Some(Py::Int(if text == "-0" {
+                "0".into()
+            } else {
+                text.into()
+            }))
         }
     }
 
@@ -649,16 +655,35 @@ mod tests {
              \"c\": 100000.0}"
         );
         assert_eq!(
-            dumps(&loads("[{\"a\": [1, {}], \"b\": []}]").unwrap(), Style::Indent),
+            dumps(
+                &loads("[{\"a\": [1, {}], \"b\": []}]").unwrap(),
+                Style::Indent
+            ),
             "[\n {\n  \"a\": [\n   1,\n   {}\n  ],\n  \"b\": []\n }\n]"
         );
         assert_eq!(
-            dumps(&loads(r#"[1, -0, 1e400, NaN, 1.0]"#).unwrap(), Style::Compact),
+            dumps(
+                &loads(r#"[1, -0, 1e400, NaN, 1.0]"#).unwrap(),
+                Style::Compact
+            ),
             "[1,0,Infinity,NaN,1.0]"
         );
-        for bad in ["", "{", "[1,]", "{\"a\" 1}", "01", "1 2", "\"\u{1}\"", "'a'", "[1e]"] {
+        for bad in [
+            "",
+            "{",
+            "[1,]",
+            "{\"a\" 1}",
+            "01",
+            "1 2",
+            "\"\u{1}\"",
+            "'a'",
+            "[1e]",
+        ] {
             assert_eq!(loads(bad), None, "{bad:?}");
         }
-        assert_eq!(py_repr(&loads(r#"{"a": [null, true, "it's"]}"#).unwrap()), "{'a': [None, True, \"it's\"]}");
+        assert_eq!(
+            py_repr(&loads(r#"{"a": [null, true, "it's"]}"#).unwrap()),
+            "{'a': [None, True, \"it's\"]}"
+        );
     }
 }

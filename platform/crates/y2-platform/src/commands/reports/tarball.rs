@@ -161,16 +161,15 @@ impl Writer {
             let mut records = Vec::new();
             for (key, value) in &pax {
                 let length = key.len() + value.len() + 3;
-                let (mut n, mut p) = (0usize, 0usize);
+                let mut p = 0usize;
                 loop {
-                    n = length + p.to_string().len();
+                    let n = length + p.to_string().len();
                     if n == p {
                         break;
                     }
                     p = n;
                 }
                 records.extend_from_slice(format!("{p} {key}={value}\n").as_bytes());
-                let _ = n;
             }
             self.out.extend(header(&Fields {
                 name: "././@PaxHeader",
@@ -214,10 +213,9 @@ impl Writer {
 
 /// `gzip.compress(data, compresslevel=level, mtime=mtime)`.
 pub fn gzip(data: &[u8], level: u32, mtime: u32) -> Vec<u8> {
-    let mut encoder: GzEncoder<Vec<u8>> =
-        GzBuilder::new()
-            .mtime(mtime)
-            .write(Vec::with_capacity(data.len() / 4), Compression::new(level));
+    let mut encoder: GzEncoder<Vec<u8>> = GzBuilder::new()
+        .mtime(mtime)
+        .write(Vec::with_capacity(data.len() / 4), Compression::new(level));
     encoder.write_all(data).expect("in memory");
     encoder.finish().expect("in memory")
 }
@@ -225,7 +223,9 @@ pub fn gzip(data: &[u8], level: u32, mtime: u32) -> Vec<u8> {
 /// `gzip.decompress` (also several members).
 pub fn gunzip(data: &[u8], limit: u64) -> io::Result<Vec<u8>> {
     let mut out = Vec::new();
-    MultiGzDecoder::new(data).take(limit).read_to_end(&mut out)?;
+    MultiGzDecoder::new(data)
+        .take(limit)
+        .read_to_end(&mut out)?;
     Ok(out)
 }
 

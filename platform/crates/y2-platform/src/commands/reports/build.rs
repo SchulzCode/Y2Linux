@@ -82,10 +82,6 @@ impl Progress {
         }
     }
 
-    pub fn shown(&self) -> bool {
-        self.path.is_some()
-    }
-
     pub fn update(&self, phase: &str, fraction: f64, force: bool, fields: &[(&str, Py)]) {
         let Some(path) = &self.path else {
             return;
@@ -180,8 +176,10 @@ fn read_bytes(root: &Root, name: &str) -> Option<(Vec<u8>, bool)> {
             Some(tail(&data, SECTION_MAX))
         }
         Ok(size) => {
-            file.seek(SeekFrom::Start(size.saturating_sub((SECTION_MAX + 4096) as u64)))
-                .ok()?;
+            file.seek(SeekFrom::Start(
+                size.saturating_sub((SECTION_MAX + 4096) as u64),
+            ))
+            .ok()?;
             let mut data = Vec::new();
             file.read_to_end(&mut data).ok()?;
             Some(tail(&data, SECTION_MAX))
@@ -265,7 +263,10 @@ fn session_projection(session: Option<Py>) -> Py {
         .with("queue_length", Py::from(queue.len()))
         .with("queue_position", position)
         .with("current_track", current_track)
-        .with("other_keys", Py::List(other.into_iter().map(Py::Str).collect()))
+        .with(
+            "other_keys",
+            Py::List(other.into_iter().map(Py::Str).collect()),
+        )
 }
 
 /// `_library_statistics`: counts only (sqlite read-only); never a name, title or path.
@@ -302,7 +303,11 @@ fn library_statistics(root: &Root) -> Py {
             .collect();
         result.set("tables", Py::dict());
         for table in &tables {
-            if !table.is_empty() && table.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+            if !table.is_empty()
+                && table
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'_')
+            {
                 let rows = database.query(&format!("select count(*) from \"{table}\""))?;
                 let count = rows.first().and_then(|r| r.first()).map_or(Py::None, value);
                 if let Some(tables) = result.get_mut("tables") {
@@ -348,7 +353,10 @@ fn library_statistics(root: &Root) -> Py {
         let version = database.query("pragma user_version")?;
         result.set(
             "user_version",
-            version.first().and_then(|r| r.first()).map_or(Py::None, value),
+            version
+                .first()
+                .and_then(|r| r.first())
+                .map_or(Py::None, value),
         );
         Ok(())
     })();
@@ -404,7 +412,10 @@ fn hardware(root: &Root) -> Py {
     }
     let mut panel = Py::dict();
     for name in ["panel_kind", "panel_hint", "power_down", "stock_suspend"] {
-        panel.set(name, read(root, &format!("/sys/module/panel/parameters/{name}")));
+        panel.set(
+            name,
+            read(root, &format!("/sys/module/panel/parameters/{name}")),
+        );
     }
     data.set("y2_boot", boot);
     data.set("panel", panel);
@@ -447,10 +458,7 @@ fn hardware(root: &Root) -> Py {
             fields.set(name, read(root, &format!("{card}/{name}")));
         }
         let ext_csd = first(root, &format!("/sys/kernel/debug/{host}/{host}:*/ext_csd"));
-        fields.set(
-            "ext_csd",
-            ext_csd.map_or(Py::None, |p| read(root, &p)),
-        );
+        fields.set("ext_csd", ext_csd.map_or(Py::None, |p| read(root, &p)));
         fields.set("ios", read(root, &format!("/sys/kernel/debug/{host}/ios")));
         if let Some(storage) = data.get_mut("storage") {
             storage.set(host, fields);
@@ -501,12 +509,42 @@ const COMMANDS: [(&str, &[&str], f64, usize); 13] = [
     ("dmesg", &["dmesg"], 10.0, 2 << 20),
     ("platform_health", &["y2-platform", "health"], 10.0, 1 << 20),
     ("platform_status", &["y2-platform", "status"], 10.0, 1 << 20),
-    ("update_status", &["y2-platform", "update", "status"], 10.0, 256 << 10),
-    ("reborn_status", &["rebornctl", "status", "--json"], 5.0, 1 << 20),
-    ("reborn_health", &["rebornctl", "health", "--json"], 5.0, 1 << 20),
-    ("reborn_metrics", &["rebornctl", "metrics", "--json"], 5.0, 1 << 20),
-    ("reborn_audio", &["rebornctl", "audio", "--json"], 5.0, 1 << 20),
-    ("reborn_snapshot", &["rebornctl", "snapshot", "--json"], 5.0, 1 << 20),
+    (
+        "update_status",
+        &["y2-platform", "update", "status"],
+        10.0,
+        256 << 10,
+    ),
+    (
+        "reborn_status",
+        &["rebornctl", "status", "--json"],
+        5.0,
+        1 << 20,
+    ),
+    (
+        "reborn_health",
+        &["rebornctl", "health", "--json"],
+        5.0,
+        1 << 20,
+    ),
+    (
+        "reborn_metrics",
+        &["rebornctl", "metrics", "--json"],
+        5.0,
+        1 << 20,
+    ),
+    (
+        "reborn_audio",
+        &["rebornctl", "audio", "--json"],
+        5.0,
+        1 << 20,
+    ),
+    (
+        "reborn_snapshot",
+        &["rebornctl", "snapshot", "--json"],
+        5.0,
+        1 << 20,
+    ),
     (
         "reborn_events",
         &["rebornctl", "events", "--last", "500", "--json"],
@@ -520,7 +558,12 @@ const COMMANDS: [(&str, &[&str], f64, usize); 13] = [
         512 << 10,
     ),
     ("mounts_space", &["df", "-k"], 5.0, 64 << 10),
-    ("amixer", &["amixer", "-c", "Y2Audio", "contents"], 5.0, 256 << 10),
+    (
+        "amixer",
+        &["amixer", "-c", "Y2Audio", "contents"],
+        5.0,
+        256 << 10,
+    ),
 ];
 
 /// Files copied whole (logs keep their newest end). Globs are bounded by ctx.glob.
@@ -610,7 +653,11 @@ fn never(path: &str) -> bool {
 /// `_parts`: a file as pieces that scrub independently: logs split at line ends (no pattern spans a
 /// line), JSON documents and archives whole.
 fn parts(path: &str, data: &[u8]) -> Vec<Vec<u8>> {
-    if path.ends_with(".json") || path.ends_with(".tar") || path.ends_with(".tar.gz") || data.len() <= PART {
+    if path.ends_with(".json")
+        || path.ends_with(".tar")
+        || path.ends_with(".tar.gz")
+        || data.len() <= PART
+    {
         return vec![data.to_vec()];
     }
     let (mut parts, mut start) = (Vec::new(), 0);
@@ -655,7 +702,10 @@ fn scrub_files(
                     break;
                 };
                 let clean = scrub::blob(&mut worker, jobs[i].1, &jobs[i].2);
-                if sender.send((i, clean, std::mem::take(&mut worker.counts))).is_err() {
+                if sender
+                    .send((i, clean, std::mem::take(&mut worker.counts)))
+                    .is_err()
+                {
                     break;
                 }
             });
@@ -692,7 +742,10 @@ fn pack(index: &mut Py, members: &mut [(String, Vec<u8>)]) -> Vec<u8> {
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(0, |d| d.as_secs() as i64)
         };
-        tar.add(&tarball::Info::file("report.json", body.len(), now(), 0o600), &body);
+        tar.add(
+            &tarball::Info::file("report.json", body.len(), now(), 0o600),
+            &body,
+        );
         for (name, data) in members.iter() {
             tar.add(&tarball::Info::file(name, data.len(), now(), 0o600), data);
         }
@@ -718,7 +771,8 @@ fn random_key() -> Result<[u8; 16], Failure> {
     let mut filled = 0;
     while filled < key.len() {
         // SAFETY: the pointer and length describe the unfilled tail of `key`.
-        let n = unsafe { libc::getrandom(key[filled..].as_mut_ptr().cast(), key.len() - filled, 0) };
+        let n =
+            unsafe { libc::getrandom(key[filled..].as_mut_ptr().cast(), key.len() - filled, 0) };
         if n < 0 {
             let error = std::io::Error::last_os_error();
             if error.raw_os_error() == Some(libc::EINTR) {
@@ -779,7 +833,11 @@ pub fn build(
         .with("boot_id", super::boot_id(root).into())
         .with(
             "release",
-            if release.truthy() { release } else { versions.clone() },
+            if release.truthy() {
+                release
+            } else {
+                versions.clone()
+            },
         )
         .with("versions", versions)
         .with("build_id", root.read("/etc/y2linux/build-id").into())
@@ -830,7 +888,10 @@ pub fn build(
             COMMANDS
                 .iter()
                 .map(|(name, argv, timeout, limit)| {
-                    (*name, command::run_with(&root, argv, *timeout, *limit, true))
+                    (
+                        *name,
+                        command::run_with(&root, argv, *timeout, *limit, true),
+                    )
                 })
                 .collect::<Vec<_>>()
         })
@@ -863,7 +924,10 @@ pub fn build(
         }
     }
     progress.update("scrub", 0.0, true, &[]);
-    let items: Vec<(String, Vec<u8>)> = files.iter().map(|(r, d, _)| (r.clone(), d.clone())).collect();
+    let items: Vec<(String, Vec<u8>)> = files
+        .iter()
+        .map(|(r, d, _)| (r.clone(), d.clone()))
+        .collect();
     let cleaned = scrub_files(&mut scrubber, &items, |fraction| {
         progress.update("scrub", fraction, false, &[])
     });
@@ -879,17 +943,29 @@ pub fn build(
         let source = if result.ok {
             "command".to_owned()
         } else {
-            format!(
-                "command ({})",
-                result.reason.as_deref().unwrap_or("None")
-            )
+            format!("command ({})", result.reason.as_deref().unwrap_or("None"))
         };
-        add(&mut index, &format!("commands/{name}.txt"), clean, Py::Str(source), cut);
+        add(
+            &mut index,
+            &format!("commands/{name}.txt"),
+            clean,
+            Py::Str(source),
+            cut,
+        );
     }
     for ((relative, _, cut), clean) in files.iter().zip(cleaned) {
         // Scrubbed archives are re-packed uncompressed (the report itself is gzip).
-        let name = relative.strip_suffix(".gz").filter(|_| relative.ends_with(".tar.gz")).unwrap_or(relative);
-        add(&mut index, &format!("files{name}"), clean, Py::str(relative.clone()), *cut);
+        let name = relative
+            .strip_suffix(".gz")
+            .filter(|_| relative.ends_with(".tar.gz"))
+            .unwrap_or(relative);
+        add(
+            &mut index,
+            &format!("files{name}"),
+            clean,
+            Py::str(relative.clone()),
+            *cut,
+        );
     }
     let counts = scrubber
         .counts
@@ -911,11 +987,17 @@ mod tests {
         let data = b"aaaa\nbbbb\ncccc";
         assert_eq!(tail(data, 100), (data.to_vec(), false));
         assert_eq!(tail(data, 7), (b"cccc".to_vec(), true));
-        let log: Vec<u8> = (0..PART * 2).map(|i| if i % 100 == 99 { b'\n' } else { b'x' }).collect();
+        let log: Vec<u8> = (0..PART * 2)
+            .map(|i| if i % 100 == 99 { b'\n' } else { b'x' })
+            .collect();
         let pieces = parts("/data/logs/system.log", &log);
         assert_eq!(pieces.concat(), log);
-        assert!(pieces.iter().all(|p| p.ends_with(b"\n")));
+        assert!(pieces.len() == 2 && pieces[0].ends_with(b"\n"));
         assert_eq!(parts("/run/y2/x.json", &log).len(), 1);
-        assert!(never("/data/reborn/state/session.json") && never("/x/y.pem") && !never("/run/y2/power.json"));
+        assert!(
+            never("/data/reborn/state/session.json")
+                && never("/x/y.pem")
+                && !never("/run/y2/power.json")
+        );
     }
 }

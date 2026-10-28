@@ -63,7 +63,10 @@ pub fn prechecks(root: &Root, action: &str) -> Result<(), Failure> {
             return Err(Failure::Fallback);
         }
     }
-    if value.get("last").is_some_and(|l| l.truthy() && !l.is_dict()) {
+    if value
+        .get("last")
+        .is_some_and(|l| l.truthy() && !l.is_dict())
+    {
         return Err(Failure::Fallback);
     }
     if let Some(Py::Dict(uploads)) = value.get("uploads") {
@@ -180,7 +183,10 @@ pub fn status(root: &Root) -> Result<Py, Failure> {
 
 /// `destinations(ctx)`: the music storage mounted writable now, in DESTINATIONS order.
 pub fn destinations(root: &Root) -> Vec<&'static str> {
-    let table = media::mountinfo(root.read_limited("/proc/self/mountinfo", 1 << 20).as_deref());
+    let table = media::mountinfo(
+        root.read_limited("/proc/self/mountinfo", 1 << 20)
+            .as_deref(),
+    );
     let mounted = |path: &str| table.iter().rev().find(|m| m.path == path);
     DESTINATIONS
         .iter()

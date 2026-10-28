@@ -23,6 +23,7 @@ pub struct Mount {
     pub path: String,
     pub options: Vec<String>,
     pub source: String,
+    pub super_options: Vec<String>,
 }
 
 fn unescape(value: &str) -> String {
@@ -56,8 +57,14 @@ pub fn mountinfo(text: Option<&str>) -> Vec<Mount> {
         let Some((left, right)) = line.split_once(" - ") else {
             continue;
         };
-        let a: Vec<&str> = left.split(super::pyre::isspace).filter(|s| !s.is_empty()).collect();
-        let b: Vec<&str> = right.split(super::pyre::isspace).filter(|s| !s.is_empty()).collect();
+        let a: Vec<&str> = left
+            .split(super::pyre::isspace)
+            .filter(|s| !s.is_empty())
+            .collect();
+        let b: Vec<&str> = right
+            .split(super::pyre::isspace)
+            .filter(|s| !s.is_empty())
+            .collect();
         if a.len() < 6 || b.len() < 3 || !a[0].bytes().all(|c| c.is_ascii_digit()) {
             continue;
         }
@@ -70,6 +77,7 @@ pub fn mountinfo(text: Option<&str>) -> Vec<Mount> {
             path: unescape(a[4]),
             options: a[5].split(',').map(str::to_owned).collect(),
             source: unescape(b[1]),
+            super_options: b[2].split(',').map(str::to_owned).collect(),
         });
     }
     result
@@ -126,7 +134,8 @@ fn sd_state(root: &Root) -> (Py, Option<Mount>) {
 pub fn can_write(root: &Root) -> bool {
     let (claim, mount) = sd_state(root);
     mount.is_some_and(|m| {
-        m.options.iter().any(|o| o == "rw") || claim.get("read_only").and_then(Py::as_str) == Some("protected")
+        m.options.iter().any(|o| o == "rw")
+            || claim.get("read_only").and_then(Py::as_str) == Some("protected")
     })
 }
 
@@ -165,10 +174,16 @@ fn apply_window(root: &Root, mount: &Mount, holders: &[(String, Py)]) -> Result<
     atomic_json(&root.path(SD_WRITE), &record, false)?;
     let mut writable = mount.options.iter().any(|o| o == "rw");
     if !holders.is_empty() != writable {
-        let mode = if holders.is_empty() { "remount,ro" } else { "remount,rw" };
+        let mode = if holders.is_empty() {
+            "remount,ro"
+        } else {
+            "remount,rw"
+        };
         command::run(root, &["mount", "-o", mode, "/media/sd"], 10.0);
         let now = mounts(root);
-        writable = now.first().is_some_and(|m| m.options.iter().any(|o| o == "rw"));
+        writable = now
+            .first()
+            .is_some_and(|m| m.options.iter().any(|o| o == "rw"));
     }
     Ok(writable)
 }
@@ -244,7 +259,11 @@ fn write_into(mount: &Path, top: &str, data: &[u8], stamp: &str) -> io::Result<S
     for n in 1..100 {
         let name = format!(
             "y2linux-report-{stamp}{}.tar.gz",
-            if n == 1 { String::new() } else { format!("-{n}") }
+            if n == 1 {
+                String::new()
+            } else {
+                format!("-{n}")
+            }
         );
         match lstat_at(&folder, &name) {
             Err(e) if e.raw_os_error() == Some(libc::ENOENT) => {
@@ -309,8 +328,14 @@ pub fn stat_at(dir: &OwnedFd, name: &str) -> io::Result<libc::stat> {
     // SAFETY: a zeroed stat is a valid output buffer.
     let mut meta: libc::stat = unsafe { std::mem::zeroed() };
     // SAFETY: a valid fd, name and buffer.
-    if unsafe { libc::fstatat(dir.as_raw_fd(), c.as_ptr(), &mut meta, libc::AT_SYMLINK_NOFOLLOW) }
-        != 0
+    if unsafe {
+        libc::fstatat(
+            dir.as_raw_fd(),
+            c.as_ptr(),
+            &mut meta,
+            libc::AT_SYMLINK_NOFOLLOW,
+        )
+    } != 0
     {
         return Err(io::Error::last_os_error());
     }
@@ -325,14 +350,25 @@ pub fn rename_at(dir: &OwnedFd, from: &str, to: &str) -> io::Result<()> {
     rename_between(dir, from, dir, to)
 }
 
-pub fn rename_between(from_dir: &OwnedFd, from: &str, to_dir: &OwnedFd, to: &str) -> io::Result<()> {
+pub fn rename_between(
+    from_dir: &OwnedFd,
+    from: &str,
+    to_dir: &OwnedFd,
+    to: &str,
+) -> io::Result<()> {
     let (a, b) = (
         CString::new(from).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))?,
         CString::new(to).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))?,
     );
     // SAFETY: valid fds and NUL-terminated names.
-    if unsafe { libc::renameat(from_dir.as_raw_fd(), a.as_ptr(), to_dir.as_raw_fd(), b.as_ptr()) }
-        != 0
+    if unsafe {
+        libc::renameat(
+            from_dir.as_raw_fd(),
+            a.as_ptr(),
+            to_dir.as_raw_fd(),
+            b.as_ptr(),
+        )
+    } != 0
     {
         return Err(io::Error::last_os_error());
     }
@@ -372,12 +408,7 @@ pub fn save_to(
         now,
         progress,
     )?;
-    progress.update(
-        "save",
-        0.0,
-        true,
-        &[("bytes_total", Py::from(data.len()))],
-    );
+    progress.update("save", 0.0, true, &[("bytes_total", Py::from(data.len()))]);
     let window = if destination == "sd" {
         write_window(root, 120, false)
     } else {
@@ -386,8 +417,8 @@ pub fn save_to(
     let written = match window {
         Err(error) => Err(error),
         Ok(holders) => {
-            let result =
-                write_into(&root.path(mount), top, &data, &clock::local_stamp(now)).map_err(super::os_plain);
+            let result = write_into(&root.path(mount), top, &data, &clock::local_stamp(now))
+                .map_err(super::os_plain);
             // The window ends whatever happened; its own OSError replaces the write's.
             match (holders.is_empty(), result) {
                 (true, result) => result,
@@ -414,12 +445,18 @@ pub fn save_to(
     value.set(
         "last",
         Py::dict()
-            .with("report_id", index.get("report_id").cloned().unwrap_or(Py::None))
+            .with(
+                "report_id",
+                index.get("report_id").cloned().unwrap_or(Py::None),
+            )
             .with("trigger", Py::str("manual"))
             .with("state", Py::str("saved"))
             .with("destination", Py::str(destination))
             .with("file", Py::str(file.clone()))
-            .with("created_utc", index.get("created_utc").cloned().unwrap_or(Py::None))
+            .with(
+                "created_utc",
+                index.get("created_utc").cloned().unwrap_or(Py::None),
+            )
             .with("bytes", Py::from(data.len())),
     );
     state::save(root, &value)?;
@@ -427,6 +464,9 @@ pub fn save_to(
         .with("saved", Py::Bool(true))
         .with("destination", Py::str(destination))
         .with("file", Py::str(file))
-        .with("report_id", index.get("report_id").cloned().unwrap_or(Py::None))
+        .with(
+            "report_id",
+            index.get("report_id").cloned().unwrap_or(Py::None),
+        )
         .with("bytes", Py::from(data.len())))
 }

@@ -179,7 +179,20 @@ pub fn fromisoformat(text: &str) -> Option<f64> {
         (digits(0, 4)?, digits(4, 2)?, digits(6, 2)?, 8)
     };
     let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
-    let month_days = [31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let month_days = [
+        31,
+        if leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
     if !(1..=12).contains(&month) || day < 1 || day > month_days[month as usize - 1] || year < 1 {
         return None;
     }
@@ -193,7 +206,7 @@ pub fn fromisoformat(text: &str) -> Option<f64> {
         let extended = b.get(at + 2) == Some(&b':');
         hour = digits(at, 2)?;
         at += 2;
-        let mut field = |at: &mut usize| -> Option<Option<i64>> {
+        let field = |at: &mut usize| -> Option<Option<i64>> {
             if extended {
                 if b.get(*at) != Some(&b':') {
                     return Some(None);
@@ -301,14 +314,19 @@ mod tests {
             fromisoformat("2025-10-28T11:14:56.120000+00:00"),
             Some(1_761_650_096.12)
         );
-        assert_eq!(fromisoformat("2025-10-28T13:14:56+02:00"), Some(1_761_650_096.0));
+        assert_eq!(
+            fromisoformat("2025-10-28T13:14:56+02:00"),
+            Some(1_761_650_096.0)
+        );
         assert_eq!(fromisoformat("2025-10-28T11:14:56Z"), Some(1_761_650_096.0));
         assert_eq!(fromisoformat("2025-13-28"), None);
         assert_eq!(fromisoformat("nope"), None);
         assert_eq!(next_midnight(1_761_650_096.5), 1_761_696_300.0);
+        // datetime.fromtimestamp(t, timezone.utc).microsecond
         assert_eq!(
             Instant::from_float(1.0000005),
-            Instant { secs: 1, micros: 0 }
+            Instant { secs: 1, micros: 1 }
         );
+        assert_eq!(Instant::from_float(1761650096.1234565).micros, 123_456);
     }
 }

@@ -243,13 +243,12 @@ impl Scrubber {
         let Some(address) = parse_ipv6(text) else {
             return text.to_owned();
         };
-        if address == 1 || address == 0 {
+        let Some(kind) = ipv6_kind(address) else {
             return text.to_owned(); // loopback, unspecified
-        }
+        };
         if text.matches(':').count() < 3 && !text.chars().any(|c| c.is_ascii_digit()) {
             return text.to_owned(); // "a::b", "dead::beef": a path or a name, not an address
         }
-        let kind = ipv6_kind(address);
         self.token("ip6", text, &format!(":{kind}"))
     }
 
@@ -296,7 +295,13 @@ impl Scrubber {
         }
         if let Some(pattern) = self.shared.pattern.clone() {
             let text = value.clone();
-            value = pyre::sub(&pattern, &text, 0, |_, _| true, |caps| self.known(caps, &text));
+            value = pyre::sub(
+                &pattern,
+                &text,
+                0,
+                |_, _| true,
+                |caps| self.known(caps, &text),
+            );
         }
         if value.contains('@') {
             value = pyre::sub(
@@ -304,9 +309,8 @@ impl Scrubber {
                 &value,
                 1,
                 |t, at| {
-                    !pyre::before(t, at).is_some_and(|c| {
-                        c.is_ascii_alphanumeric() || "._%+-".contains(c)
-                    })
+                    !pyre::before(t, at)
+                        .is_some_and(|c| c.is_ascii_alphanumeric() || "._%+-".contains(c))
                 },
                 |caps| {
                     let address = caps[1].to_owned();
@@ -453,10 +457,7 @@ fn ipv6_start(text: &str, at: usize) -> bool {
         return false;
     }
     let rest = &text.as_bytes()[at..];
-    let run = rest
-        .iter()
-        .take_while(|&&b| hex(b) || b == b':')
-        .count();
+    let run = rest.iter().take_while(|&&b| hex(b) || b == b':').count();
     if (0..=39).any(|k| k + 2 <= run && &rest[k..k + 2] == b"::") {
         return true;
     }
@@ -559,34 +560,10 @@ fn ipv4_sub(text: &str, mut replace: impl FnMut(&str) -> String) -> String {
     out
 }
 
-/// `ipaddress.IPv4Address(text)` and the kind `_ipv4` names: `None` when kept as it is.
-pub fn ipv4_kind(text: &str) -> Option<&'static str> {
-    let mut octets = [0u8; 4];
-    let parts: Vec<&str> = text.split('.').collect();
-    if parts.len() != 4 {
-        return None;
-    }
-    for (octet, part) in octets.iter_mut().zip(&parts) {
-        if part.is_empty()
-            || part.len() > 3
-            || !part.bytes().all(|b| b.is_ascii_digit())
-            || (part.len() > 1 && part.starts_with('0'))
-        {
-            return None;
-        }
-        *octet = part.parse().ok()?;
-    }
-    let value = u32::from_be_bytes(octets);
-    let within = |network: u32, prefix: u32| {
-        prefix == 0 || (value ^ network) >> (32 - prefix) == 0
-    };
+/// ipaddress's IPv4 properties: (loopback, unspecified, private, link-local).
+fn ipv4_props(value: u32) -> (bool, bool, bool, bool) {
+    let within = |network: u32, prefix: u32| prefix == 0 || (value ^ network) >> (32 - prefix) == 0;
     let net = |a: u8, b: u8, c: u8, d: u8| u32::from_be_bytes([a, b, c, d]);
-    if within(net(127, 0, 0, 0), 8) || value == 0 || value == u32::MAX {
-        return None;
-    }
-    if within(net(10, 42, 0, 0), 24) {
-        return None; // the fixed USB network of every Y2Linux player
-    }
     // ipaddress._private_networks (Python 3.13+), minus its exceptions.
     let private = [
         (net(0, 0, 0, 0), 8),
@@ -607,9 +584,42 @@ pub fn ipv4_kind(text: &str) -> Option<&'static str> {
     .iter()
     .any(|&(n, p)| within(n, p))
         && !(value == net(192, 0, 0, 9) || value == net(192, 0, 0, 10));
+    (
+        within(net(127, 0, 0, 0), 8),
+        value == 0,
+        private,
+        within(net(169, 254, 0, 0), 16),
+    )
+}
+
+/// `ipaddress.IPv4Address(text)` and the kind `_ipv4` names: `None` when kept as it is.
+pub fn ipv4_kind(text: &str) -> Option<&'static str> {
+    let mut octets = [0u8; 4];
+    let parts: Vec<&str> = text.split('.').collect();
+    if parts.len() != 4 {
+        return None;
+    }
+    for (octet, part) in octets.iter_mut().zip(&parts) {
+        if part.is_empty()
+            || part.len() > 3
+            || !part.bytes().all(|b| b.is_ascii_digit())
+            || (part.len() > 1 && part.starts_with('0'))
+        {
+            return None;
+        }
+        *octet = part.parse().ok()?;
+    }
+    let value = u32::from_be_bytes(octets);
+    let (loopback, unspecified, private, link) = ipv4_props(value);
+    if loopback || unspecified || value == u32::MAX {
+        return None;
+    }
+    if value >> 8 == u32::from_be_bytes([0, 10, 42, 0]) {
+        return None; // the fixed USB network of every Y2Linux player
+    }
     Some(if private {
         "private"
-    } else if within(net(169, 254, 0, 0), 16) {
+    } else if link {
         "link"
     } else {
         "public"
@@ -669,7 +679,7 @@ pub fn parse_ipv6(text: &str) -> Option<u128> {
     for part in &parts[..hi] {
         value = (value << 16) | hextet(part)?;
     }
-    value <<= 16 * (8 - hi - lo) as u32;
+    value = value.checked_shl(16 * (8 - hi) as u32).unwrap_or(0);
     let mut low: u128 = 0;
     for part in &parts[parts.len() - lo..] {
         low = (low << 16) | hextet(part)?;
@@ -677,24 +687,31 @@ pub fn parse_ipv6(text: &str) -> Option<u128> {
     Some(value | low)
 }
 
-/// `_ipv6`'s kind: link-local, else private (ipaddress, Python 3.13+), else public.
-pub fn ipv6_kind(address: u128) -> &'static str {
-    let within = |network: u128, prefix: u32| {
-        prefix == 0 || (address ^ network) >> (128 - prefix) == 0
-    };
+/// `_ipv6`'s answer: `None` for a kept address (loopback, unspecified), else its kind: link-local,
+/// else private (ipaddress, Python 3.13+), else public. An IPv4-mapped address has its IPv4 address's
+/// properties.
+pub fn ipv6_kind(address: u128) -> Option<&'static str> {
+    let within =
+        |network: u128, prefix: u32| prefix == 0 || (address ^ network) >> (128 - prefix) == 0;
     let net = |text: &str| parse_ipv6(text).expect("constant");
-    if within(net("fe80::"), 10) {
-        return "link";
-    }
     if within(net("::ffff:0:0"), 96) {
-        let mapped = address as u32;
-        let octets = mapped.to_be_bytes();
-        let text = format!("{}.{}.{}.{}", octets[0], octets[1], octets[2], octets[3]);
-        // is_private of the mapped IPv4 address (loopback and 0.0.0.0 are private there too).
-        return match ipv4_kind(&text) {
-            Some("public") => "public",
-            _ => "private",
-        };
+        let (loopback, unspecified, private, link) = ipv4_props(address as u32);
+        if loopback || unspecified {
+            return None;
+        }
+        return Some(if link {
+            "link"
+        } else if private {
+            "private"
+        } else {
+            "public"
+        });
+    }
+    if address == 1 || address == 0 {
+        return None;
+    }
+    if within(net("fe80::"), 10) {
+        return Some("link");
     }
     let private = [
         ("::1", 128),
@@ -720,11 +737,11 @@ pub fn ipv6_kind(address: u128) -> &'static str {
     ]
     .iter()
     .any(|&(n, p)| within(net(n), p));
-    if private && !exception {
+    Some(if private && !exception {
         "private"
     } else {
         "public"
-    }
+    })
 }
 
 // ---- JSON lines and blobs ----------------------------------------------------------------------------
@@ -767,7 +784,12 @@ fn private_strings(scrubber: &mut Scrubber, line: &str) -> String {
                 return caps[0].to_owned();
             }
             scrubber.count("private_key");
-            format!("\"{}\"{}\"<{}>\"", &caps[1], &caps[2], caps[1].to_lowercase())
+            format!(
+                "\"{}\"{}\"<{}>\"",
+                &caps[1],
+                &caps[2],
+                caps[1].to_lowercase()
+            )
         })
         .into_owned()
 }
@@ -853,6 +875,15 @@ mod tests {
             "serial=0123456789ab cid: 0x1234567890 machine-id=\"abcdef0123456789\" PARTUUID=12345678-01 xserial=12345678",
             "Home network Homepage MyHome (Home) Living Room's Speaker \u{e9}l\u{e8}ve Ready",
             "{\"title\": \"Song \\\"A\\\"\", \"ssid\": \"Home\", \"t\": \"\\u00e9l\\u00e8ve\"}",
+            "mapped ::ffff:7f00:1 ::ffff:a9fe:1 ::ffff:808:808 ::ffff:c0a8:101 64:ff9b:1::1 2001:db8::1:2:3:4 fe80::1%wlan0",
+            "hex aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbb:cccc::1 deadbeef00112233445566778899aabbccddeeff 1:2:3:4:5:6:7:8:9",
+            "digits \u{663}.\u{664}.\u{665}.\u{666} 1.2.3.4 tail. 9.9.9.9.",
+            "esc \"Song \\\"A\\\"\" \\u00e9l\\u00e8ve ok Home\u{301} xHome Home_x _Home",
+            "mail a.b@c.museum, <x@y.io> .lead@x.org trailing@x.org. 12345678901234567890123456789012345678901234567890123456789012345@x.org",
+            "media /media/sd/a.mp3.flac x /media/internal/music \"quoted /media/sd/b c.ogg\" /media/sd/x.FLAC) /mediax/no /media/sd/song.flac\n/media/sd/next",
+            "urls https://h/ https://h/a b http://user@host:8080/p/q?x#y wss://no/x HTTPS://upper/p",
+            "serials Serial: ABCDEF12 serial_number = \"12345678-abc\" uuid=1234567 cid=deadbeefcafe PARTUUID:abcdefgh",
+            "mac2 aa-bb-cc-dd-ee-ff aa:bb-cc:dd:ee:ff 0a:1b:2c:3d:4e:5f; 00:11:22:33:44:55:66",
         ];
         let known: &[(&'static str, &[&str])] = &[
             ("ssid", &["Home", "Living Room"]),
@@ -885,7 +916,11 @@ print(json.dumps([out, dict(sorted(scrubber.counts.items()))]))
         else {
             return;
         };
-        assert!(python.status.success(), "{}", String::from_utf8_lossy(&python.stderr));
+        assert!(
+            python.status.success(),
+            "{}",
+            String::from_utf8_lossy(&python.stderr)
+        );
         let (texts, counts): (Vec<String>, BTreeMap<String, u64>) =
             serde_json::from_slice(&python.stdout).unwrap();
         for (r, p) in rust.iter().zip(&texts) {
@@ -901,31 +936,36 @@ print(json.dumps([out, dict(sorted(scrubber.counts.items()))]))
         assert_eq!(ipv4_kind("127.0.0.1"), None);
         assert_eq!(ipv4_kind("10.42.0.7"), None);
         assert_eq!(ipv4_kind("010.0.0.1"), None);
-        assert_eq!(parse_ipv6("1:2:3:4:5:6:7:8"), Some(0x0001_0002_0003_0004_0005_0006_0007_0008));
+        assert_eq!(
+            parse_ipv6("1:2:3:4:5:6:7:8"),
+            Some(0x0001_0002_0003_0004_0005_0006_0007_0008)
+        );
         assert_eq!(parse_ipv6("1::"), Some(1 << 112));
         assert_eq!(parse_ipv6(":1:2"), None);
         assert_eq!(parse_ipv6("1:::2"), None);
-        assert_eq!(ipv6_kind(parse_ipv6("fe80::1").unwrap()), "link");
-        assert_eq!(ipv6_kind(parse_ipv6("2606:4700::1111").unwrap()), "public");
-        assert_eq!(ipv6_kind(parse_ipv6("fd00::1").unwrap()), "private");
+        assert_eq!(ipv6_kind(parse_ipv6("fe80::1").unwrap()), Some("link"));
+        assert_eq!(
+            ipv6_kind(parse_ipv6("2606:4700::1111").unwrap()),
+            Some("public")
+        );
+        assert_eq!(ipv6_kind(parse_ipv6("fd00::1").unwrap()), Some("private"));
     }
 
     #[test]
     fn values_and_tries() {
-        assert_eq!(
-            trie_pattern(&["abc", "ab", "b"]).unwrap(),
-            "(?:ab(?:c)?|b)"
-        );
+        assert_eq!(trie_pattern(&["abc", "ab", "b"]).unwrap(), "(?:ab(?:c)?|b)");
         let mut s = scrubber(&[("bt_name", &["Speaker One"])]);
         let value = pyjson::loads(
             r#"{"address": "AA:BB:CC:DD:EE:FF", "name": "Speaker One", "alias": "", "Title": "x", "list": [{"Artist": "y"}]}"#,
         )
         .unwrap();
-        assert_eq!(
-            pyjson::dumps(&s.value(&value, None), pyjson::Style::Spaced),
-            "{\"Title\": \"<title>\", \"address\": \"AA:BB:CC:<mac#8b1a2f>\", \"alias\": \"\", \
-             \"list\": [{\"Artist\": \"<artist>\"}], \"name\": \"<bt_name>\"}"
-                .replace("8b1a2f", &s.token("mac", "AA:BB:CC:DD:EE:FF", "")[13..19])
+        let clean = pyjson::dumps(&s.value(&value, None), pyjson::Style::Spaced);
+        let token = s.token("mac", "AA:BB:CC:DD:EE:FF", "");
+        let expected = format!(
+            "{{\"Title\": \"<title>\", \"address\": \"AA:BB:CC:{token}\", \"alias\": \"\", \
+             \"list\": [{{\"Artist\": \"<artist>\"}}], \"name\": \"<bt_name>\"}}"
         );
+        assert_eq!(clean, expected);
+        assert_eq!(s.counts["private_key"], 2);
     }
 }

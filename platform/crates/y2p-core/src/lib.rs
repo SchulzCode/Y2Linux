@@ -10,6 +10,7 @@ pub mod json;
 pub mod lock;
 pub mod py;
 pub mod record;
+pub mod reports_sqlite;
 pub mod root;
 
 pub use root::Root;

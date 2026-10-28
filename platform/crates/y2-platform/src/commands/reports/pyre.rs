@@ -29,15 +29,6 @@ pub fn isalnum(c: char) -> bool {
     one(c, r"^[\p{L}\p{N}]$", &CELL)
 }
 
-/// `str.isalpha()`.
-pub fn isalpha(c: char) -> bool {
-    if c.is_ascii() {
-        return c.is_ascii_alphabetic();
-    }
-    static CELL: OnceLock<Regex> = OnceLock::new();
-    one(c, r"^\p{L}$", &CELL)
-}
-
 /// `str.isdecimal()` (Python's `\d`).
 pub fn isdecimal(c: char) -> bool {
     if c.is_ascii() {
@@ -197,7 +188,10 @@ mod tests {
         assert_eq!(splitlines(""), Vec::<&str>::new());
         assert_eq!(splitlines("\n"), [""]);
         assert!(is_word('é') && is_word('½') && is_word('_') && !is_word('-'));
-        assert!(!isalnum('\u{301}'), "a combining mark is not alnum in Python");
+        assert!(
+            !isalnum('\u{301}'),
+            "a combining mark is not alnum in Python"
+        );
         assert!(isdecimal('٣') && !isdecimal('½'));
         assert_eq!(rstrip("a \x1f\n"), "a");
     }

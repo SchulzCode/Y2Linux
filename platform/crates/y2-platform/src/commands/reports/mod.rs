@@ -6,6 +6,7 @@ mod build;
 mod checks;
 mod clock;
 mod diagnostics;
+mod fields;
 mod maintenance;
 mod media;
 mod pyjson;
@@ -41,8 +42,8 @@ const SCOPES: [&str; 6] = [
     "full-user",
 ];
 
-/// `--name value` options (each at most once, a value not starting with `-`) and `--flag`s after a
-/// positional; `None` for any other form (argparse's).
+/// The canonical form's options after the positional (argparse.rs: given ones only, full names, each
+/// once): `--name value` pairs and bare `--flag`s; `None` for anything else.
 fn options<'a>(
     rest: &[&'a str],
     valued: &[(&str, Option<&[&str]>)],
@@ -62,7 +63,7 @@ fn options<'a>(
         }
         let (_, choices) = valued.iter().find(|(n, _)| *n == name)?;
         let value = *rest.get(i + 1)?;
-        if value.starts_with('-') || choices.is_some_and(|c| !c.contains(&value)) {
+        if choices.is_some_and(|c| !c.contains(&value)) {
             return None;
         }
         found.push((name.to_owned(), Some(value)));
@@ -258,6 +259,7 @@ mod tests {
             &["report", "save", "--to", "sd", "--topic", "wifi"],
             &["report", "send", "--topic", "crash"],
             &["reset", "plan", "--scope", "settings"],
+            &["reset", "execute", "--confirm", "-x"],
             &["reset", "execute", "--confirm", "abc", "--erase-user-music"],
             &["reset", "purge", "--id", "", "--confirm", "x"],
             &["export-state", "--include-network", "--include-database"],
@@ -273,7 +275,6 @@ mod tests {
             &["report", "save", "--to", "sd", "--to", "sd"],
             &["report", "status", "--help"],
             &["reset", "plan", "--scope", "everything"],
-            &["reset", "execute", "--confirm", "-x"],
             &["export-state", "--include-database", "--include-database"],
             &["export-diagnostics", "x"],
         ] {
