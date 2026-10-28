@@ -144,7 +144,7 @@ class PowerExtraCases(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.directory = tempfile.TemporaryDirectory()
-        cls.fixture = test_platform_differential.player_root(Path(cls.directory.name) / 'fixture')
+        cls.fixture = test_platform_differential.player_root(Path(cls.directory.name) / 'fixture', ('power',))
 
     @classmethod
     def tearDownClass(cls):
@@ -180,7 +180,7 @@ class PowerConversation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.directory = tempfile.TemporaryDirectory()
-        cls.fixture = test_platform_differential.player_root(Path(cls.directory.name) / 'fixture')
+        cls.fixture = test_platform_differential.player_root(Path(cls.directory.name) / 'fixture', ('power',))
         cls.python = run_conversation('python', 'python', cls.fixture)
 
     @classmethod

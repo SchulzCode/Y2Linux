@@ -18,7 +18,7 @@ class ObservationDifferential(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.directory = tempfile.TemporaryDirectory()
-        cls.fixture = test_platform_differential.player_root(Path(cls.directory.name) / 'fixture')
+        cls.fixture = test_platform_differential.player_root(Path(cls.directory.name) / 'fixture', ('observation',))
 
     @classmethod
     def tearDownClass(cls):
