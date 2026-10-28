@@ -60,7 +60,7 @@ CASES = [
     # usb-mode
     ('usb-mode-mtp', ['usb-mode', 'mtp'], {'ported': True}),
     ('usb-mode-developer', ['usb-mode', 'developer'], {'ported': True}),
-    ('usb-mode-invalid', ['usb-mode', 'mass-storage'], {'ported': False}),
+    ('usb-mode-invalid', ['usb-mode', 'mass-storage'], {'ported': True}),
     # time-set (#53)
     ('time-set', ['time-set', '1788100000'], {'ported': True, 'commands': [
         answer(DATE + ['@1788100000']), answer(HWCLOCK)]}),
@@ -75,7 +75,7 @@ CASES = [
     ('time-set-manual-again', ['time-set', '1788100000'], {'ported': True, 'commands': [answer(DATE + ['@1788100000'])],
                                                            'files': {'/run/y2/time.json': anchor('manual')}}),
     ('time-set-date-fails', ['time-set', '1788100000'], {'ported': True}),
-    ('time-set-not-a-number', ['time-set', 'soon'], {'ported': False}),
+    ('time-set-not-a-number', ['time-set', 'soon'], {'ported': True}),
     # time-bootstrap
     ('time-bootstrap', ['time-bootstrap'], {'ported': True}),
     ('time-bootstrap-retained', ['time-bootstrap'], {'ported': True, 'files': {RTC + 'date': '2026-10-28\n'}}),
@@ -88,7 +88,7 @@ CASES = [
         'commands': [answer(DATE + ['@1900000100'])]}),
     ('time-bootstrap-date-fails', ['time-bootstrap'], {'ported': True, 'files': {'/etc/y2linux/build-epoch': '1900000000\n'}}),
     ('time-bootstrap-no-floor', ['time-bootstrap'], {'ported': True, 'files': {'/etc/y2linux/build-epoch': None, LAST: None}}),
-    ('time-bootstrap-extra', ['time-bootstrap', 'now'], {'ported': False}),
+    ('time-bootstrap-extra', ['time-bootstrap', 'now'], {'ported': True}),
     # rtc-alarm
     ('rtc-alarm', ['rtc-alarm', '60'], {'ported': True, 'files': {RTC + 'since_epoch': '1788000000\n'}}),
     ('rtc-alarm-disable', ['rtc-alarm', '0'], {'ported': True, 'files': {RTC + 'since_epoch': '1788000000\n',
@@ -96,7 +96,7 @@ CASES = [
     ('rtc-alarm-no-rtc', ['rtc-alarm', '60'], {'ported': True}),
     ('rtc-alarm-too-far', ['rtc-alarm', '604801'], {'ported': True}),
     ('rtc-alarm-negative', ['rtc-alarm', '-1'], {'ported': True}),
-    ('rtc-alarm-not-a-number', ['rtc-alarm', '1h'], {'ported': False}),
+    ('rtc-alarm-not-a-number', ['rtc-alarm', '1h'], {'ported': True}),
     # codec-settings
     ('codec-settings', ['codec-settings'], {'ported': True}),
     ('codec-settings-sbc', ['codec-settings', '--sbc-quality', 'xq+', '--sbc-abr', 'off'], {'ported': True}),
@@ -116,8 +116,8 @@ CASES = [
     ('codec-settings-live-pending', ['codec-settings', '--sbc-abr', 'off'], {'ported': True, 'files': LIVE}),
     ('codec-settings-other-daemon', ['codec-settings'], {'ported': True, 'files': {
         **LIVE, '/proc/4242/cmdline': '/usr/bin/bluetoothd\0'}}),
-    ('codec-settings-invalid-choice', ['codec-settings', '--sbc-quality', 'max'], {'ported': False}),
-    ('codec-settings-abbreviated', ['codec-settings', '--sbc-q', 'xq'], {'ported': False}),
+    ('codec-settings-invalid-choice', ['codec-settings', '--sbc-quality', 'max'], {'ported': True}),
+    ('codec-settings-abbreviated', ['codec-settings', '--sbc-q', 'xq'], {'ported': True}),
     # transfer status
     ('transfer-status', ['transfer', 'status', '--id', ID], {'ported': True, 'files': {STAGE + '/manifest.json': MANIFEST}}),
     ('transfer-status-missing', ['transfer', 'status', '--id', ID], {'ported': True}),
@@ -145,8 +145,8 @@ CASES = [
         answer(BLKID[0]['argv'], '79324c69-6e75-4801-8000-000000000999')]}),
     ('transfer-begin-read-only', BEGIN, {'ported': True, 'commands': BLKID, 'files': {
         '/proc/self/mountinfo': MOUNTS.replace('rw,noatime', 'ro,noatime')}}),
-    ('transfer-begin-bytes-not-int', ['transfer', 'begin', '--bytes', 'five'], {'ported': False}),
-    ('transfer-begin-repeated', ['transfer', 'begin', '--name', 'a', '--name', 'b'], {'ported': False}),
+    ('transfer-begin-bytes-not-int', ['transfer', 'begin', '--bytes', 'five'], {'ported': True}),
+    ('transfer-begin-repeated', ['transfer', 'begin', '--name', 'a', '--name', 'b'], {'ported': True}),
     # transfer commit (the workload lease first, then the checks up to the stage lock)
     ('transfer-commit-bad-id', ['transfer', 'commit', '--id', 'nope'], {'ported': True}),
     ('transfer-commit-no-data', ['transfer', 'commit', '--id', ID], {'ported': True}),
@@ -167,7 +167,7 @@ CASES = [
                                                                            'files': DATA}),
     ('transfer-discard-no-stage', ['transfer', 'discard', '--id', ID], {'ported': True, 'commands': BLKID, 'files': {
         **DATA, '/data/transfer-staging/other': ''}}),
-    ('transfer-unknown-action', ['transfer', 'list'], {'ported': False}),
+    ('transfer-unknown-action', ['transfer', 'list'], {'ported': True}),
     # ssh-daemon, one or two loop iterations (Y2_DAEMON_TICKS)
     ('ssh-no-key', ['ssh-daemon'], {'ported': True, 'env': TICK}),
     ('ssh-no-interface', ['ssh-daemon'], {'ported': True, 'env': TICK, 'files': KEY}),
@@ -179,7 +179,7 @@ CASES = [
     ('ssh-two-ticks', ['ssh-daemon'], {'ported': True, 'env': {**TICK, 'Y2_DAEMON_TICKS': '2'}, 'files': KEY}),
     ('ssh-two-ticks-unavailable', ['ssh-daemon'], {'ported': True, 'env': {**TICK, 'Y2_DAEMON_TICKS': '2'},
                                                    'commands': [answer(IP, USB0)]}),
-    ('ssh-extra-argument', ['ssh-daemon', '--foreground'], {'ported': False}),
+    ('ssh-extra-argument', ['ssh-daemon', '--foreground'], {'ported': True}),
 ]
 
 # A verified Y2Media mounted and recorded Ready this boot (device 259:2), beside the verified /data.
