@@ -1,6 +1,6 @@
 # Platform service: port from Python to Rust, then remove Python from the player
 
-Status: **Phase 0 done (2026-10-28); owner decisions taken (§4 contract crate in Y2Linux, defects ported 1:1 and fixed after parity); Phase 1 implemented, test build 166 and its device checks next.** Owner's goal: everything that runs on the player is Rust (Reborn), C
+Status: **Phase 0 done (2026-10-28); owner decisions taken (§4 contract crate in Y2Linux, defects ported 1:1 and fixed after parity); Phase 1 done (test build 166 device-checked: OTA, restart, screens, one sleep cycle); Phase 2 next; the overnight drain is still owed.** Owner's goal: everything that runs on the player is Rust (Reborn), C
 (kernel, early boot, installer) or shell (init scripts); **no Python in the image**. Host-side tooling (release,
 build, validation, the test harness) may stay Python.
 
@@ -167,7 +167,9 @@ Acknowledged, the phase's device checks, a handoff entry. Publish only when the 
   the shell wrapper `tools/platform/y2-platform` is gone. Reborn: `crates/y2p-contract` (copy + `Y2LINUX-SOURCE`
   stamp), `reborn-platform` uses its schema names; `release.py sync-contract`, and `build` refuses a differing copy.
   `host-tests.sh` builds the host binary, so `tests.test_platform_differential` compares Rust with Python (all 16
-  cases identical). Device checks on 166 owed.
+  cases identical). **Device-checked on test build 166** (seq 11110, audit "PLATFORM-RUST phase 1"): Acknowledged
+  after a staged OTA, a restart through the dispatcher (shutdown trail 2.57 s, orderly), Settings/About data, one
+  unplugged sleep cycle (261.6 s, same boot, result 0); the dispatcher adds 4–22 ms per call.
 
 ### Phase 2 — Hot short-lived commands (largest CPU win, low risk)
 - `status` (incl. `--reborn --pss`, `wifi`), `health`, `capabilities`, `boot-stage`, `boot-evidence`,
@@ -273,8 +275,10 @@ state-changing ones only as a floor (`<command> --help`, and `import` of the mod
 reads. The shell-called hot paths pay ≥0.54 s each: `boot-stage` (0.84 floor, twice per shutdown and three times
 per boot), `time-remember`, `wifi-event`/`dhcp-event`/`ntp-event`.
 
-**Boot stages** (this boot, an update's first boot, and the previous boot on 8.43 agree within 0.1 s; pmsg trail):
-`rc S03y2-platform` 12.09 s → `platform_start` 12.50 → `services_started` 27.74 → `application_ready` 48.61;
+**Boot stages** (both are first boots after an update, 165's and 8.43's, and agree within 0.1 s; pmsg trail):
+`rc S03y2-platform` 12.09 s → `platform_start` 12.50 → `services_started` 27.74 → `application_ready` 48.61.
+A plain restart (measured on 166, whose dispatcher still runs all of this in Python, so the same baseline):
+`platform_start` 8.72 → `services_started` 23.75 → `application_ready` 44.44 s;
 shutdown of the previous boot `shutdown_pending` 4042.50 → `shutdown_complete` 4044.53 (2.03 s). Earlier boots keep
 no stage times (`boot.json` history has none).
 

@@ -9517,9 +9517,20 @@ schema names. No kernel, device tree, memory map, partition, recovery or update-
 | Image | 130 MB tree | +0.4 MB (one binary) |
 | Contract types | hand-written strings on both sides | `y2p-contract` (schema names, boot stage/record, health, capabilities, status envelope, error record) checked against Python goldens; `release.py build` refuses a differing Reborn copy |
 | 165 device checks (sleep cycles, overnight, power-off holding Power, update restart) | OWED | still owed; 166 stacks on 165 |
-| Device checks for phase 1 | — | OWED on test build 166: Acknowledged after a staged OTA (an update restart), status/Settings screens, a restart, a sleep/wake cycle when the owner can unplug |
+| Device checks for phase 1 | — | DEVICE-CHECKED on test build 166 (below) |
 
 **Gate decision:** ready for an owner-installed test build (label 166, sequence above 11100); not
-release-qualified. Phase 2 (the first Rust subcommands) is admitted only after 166's device checks pass; the
+release-qualified.
+
+**Device result, test build 166** (Linux `10f884c`, Reborn `bd96685`, sequence 11110, rootfs v1.208; owner's
+player): staged OTA from 165 → health boot `1520bf4a` **Acknowledged**; `/usr/sbin/y2-platform` is the 302 KB ARM
+ELF, the four daemons run with the same command lines, supervisor logs empty, taint 0. Exit codes and shapes as
+before (error record exit 1, argparse exit 2 naming `main.py`); the dispatcher adds 4–22 ms per call (`capabilities`
+0.541 s, 165's wrapper 0.547 s). Restart on 166 (`shutdown reboot --reason user`): pmsg `execute` → `init_reboot
+ok` in 2.57 s, watchdog and long-press reset ok, orderly, warm; boot `8f497227` platform_start 8.72 s,
+application_ready 44.44 s (a plain restart; the 12.5/48.6 s of Phase 0 were first boots after an update).
+Settings and About & Updates show their platform data. One sleep cycle unplugged (owner): 261.6 s asleep, same
+boot, `complete_result_0`, radios restored. Still owed: overnight on the dispatcher (and 165's power-off with
+Power held). **Phase 2 admitted** for source work and host tests; its device checks follow on the next test build. Phase 2 (the first Rust subcommands) is admitted only after 166's device checks pass; the
 overnight drain on the dispatcher build is owed before phase 5 (power) at the latest and is recommended before
 phase 2's CPU comparison. No milestone is promoted or closed.

@@ -1,6 +1,23 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-28, night): PLATFORM RUST PORT PHASE 0 DONE, OWNER DECISIONS TAKEN — PHASE 1 NEXT.**
+> **START HERE (2026-10-28, late night): PLATFORM RUST PORT PHASE 1 DONE — TEST BUILD 166 (RUST DISPATCHER) ON THE OWNER'S PLAYER, NOT PUBLISHED.**
+> Owner: "go ahead with phase 1, we can't do the overnight drain yet". Linux `5d2c1ec`..`f336f3c` + identity
+> `10f884c` (1.0.0-beta.8.44, seq 11110, rootfs v1.208), Reborn `bd96685`. `platform/` Cargo workspace (Rust 1.99.0,
+> vendored serde/serde_json/libc/ryu): `y2p-core` (ctx paths/reads, `json.dumps`-identical output, `atomic_json`,
+> flock, clocks), `y2p-contract` (MIT; schema names, boot/health/capabilities/status/error types, Python goldens via
+> `tools/development/platform-goldens.py`), `y2-platform` (execs the same Python command for every subcommand).
+> Buildroot package `y2-platform`; post-build refuses a non-ELF `/usr/sbin/y2-platform`; shell wrapper removed.
+> Reborn carries `crates/y2p-contract` (stamp `Y2LINUX-SOURCE`) and uses its schema names; `release.py
+> sync-contract` copies it, `build` refuses a differing copy. Harness: Rust vs Python identical on all 16 cases
+> (`host-tests.sh` builds the host binary). Device (audit "PLATFORM-RUST phase 1"): OTA Acknowledged, restart trail
+> 2.57 s orderly, Settings/About data, one unplugged sleep 261.6 s result 0, dispatcher +4–22 ms per call; plain
+> restart boot baseline platform_start 8.72 / application_ready 44.44 s. **Owed:** overnight drain on 166 (= Python
+> baseline), 165's power-off holding Power 15 s. **Next: phase 2** (plan §5: status, health, capabilities,
+> boot-stage, boot-evidence, time*, sleep status, wifi/dhcp/ntp-event, network-check, codec-runtime,
+> cpu-idle-policy in Rust, each with a differential case; mark carried defects `// DEFECT (CONTRACT.md)`).
+> Next free label 167, sequence above 11110.
+>
+> Previous entry: **START HERE (2026-10-28, night): PLATFORM RUST PORT PHASE 0 DONE, OWNER DECISIONS TAKEN — PHASE 1 NEXT.**
 > [Plan](PLATFORM-RUST-PORT-PLAN.md) §5 Phase 0, no product change, nothing built or installed; 165 stays on the
 > owner's player (its overnight/power-off checks below are still owed). Measured on 165 (plan §7): platform daemons
 > 58.4 MB RSS / 35.0 MB PSS, ≈92 s CPU per hour awake idle (power-daemon 60) and ≈109 s/h playing; `status --reborn
