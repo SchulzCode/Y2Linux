@@ -20,5 +20,6 @@ pub mod record;
 pub mod root;
 pub mod service_digest;
 pub mod storage_media;
+pub mod suspend_text;
 
 pub use root::Root;

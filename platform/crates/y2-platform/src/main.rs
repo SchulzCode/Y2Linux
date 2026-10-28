@@ -27,7 +27,19 @@ const MAIN: &str = "/usr/lib/y2-platform/main.py";
 const LIBRARY: &str = "/usr/lib/y2-platform";
 
 fn main() -> ExitCode {
-    let args: Vec<OsString> = env::args_os().skip(1).collect();
+    let mut args: Vec<OsString> = env::args_os().skip(1).collect();
+    // The programmes this binary also is, by the name it was started under (links to
+    // /usr/sbin/y2-platform: y2-status, y2-health, y2-suspend-record, y2-power-audit, poweroff, reboot).
+    let name = env::args_os()
+        .next()
+        .map(std::path::PathBuf::from)
+        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()));
+    if let Some(mapped) = name
+        .as_deref()
+        .and_then(|n| commands::suspend::program(n, &args))
+    {
+        args = mapped;
+    }
     // Not UTF-8 (Python would see surrogate escapes): the Python platform parses it.
     let Some(text) = args
         .iter()
@@ -36,6 +48,23 @@ fn main() -> ExitCode {
     else {
         return python(&args);
     };
+    // Internal programmes (the sleep helper, suspend records, the power audit and power command): not
+    // main.py subcommands, so no argparse; each runs and exits itself.
+    if let Some(programme) = commands::suspend::programme(&text) {
+        let root = y2p_core::Root::from_env();
+        return match programme(&root) {
+            Ok(reply) => print(
+                &mut std::io::stdout().lock(),
+                &format!("{}\n", reply.stdout),
+                reply.code,
+            ),
+            Err(error) => print(
+                &mut std::io::stderr().lock(),
+                &format!("{}: {}\n", text[0], error.message()),
+                1,
+            ),
+        };
+    }
     let parsed = match argparse::parse(&text) {
         argparse::Outcome::Help(help) => return print(&mut std::io::stdout().lock(), &help, 0),
         argparse::Outcome::Error(error) => return print(&mut std::io::stderr().lock(), &error, 2),
