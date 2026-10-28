@@ -16,6 +16,9 @@ serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.145"
 libc = "=0.2.177"
 ryu = "=1.0.23"
+# The error-report scrubber (report.py) is regular expressions; Rust regex has no lookbehind, which the
+# port spells out by hand.
+regex = { version = "=1.13.1", default-features = false, features = ["std", "unicode", "perf"] }
 
 [profile.release]
 opt-level = "s"

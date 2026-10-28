@@ -75,6 +75,12 @@ def main():
     if args.host_access:
         audit(args.host_access, [args.root, args.commands, args.calls, args.host_access])
     sys.path.insert(0, str(PLATFORM))
+    if os.environ.get('Y2_LAUNCHER_PATCH'):
+        # A case's own preparation of the Python side (tests/platform_cases/<group>.py), e.g. stopping a
+        # daemon loop after Y2_DAEMON_TICKS iterations as the Rust daemon does below a fixture root.
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        module, _, function = os.environ['Y2_LAUNCHER_PATCH'].partition(':')
+        getattr(__import__(module, fromlist=[function]), function)()
     from y2_platform import cli, common
     cli.Context = lambda: common.Context(args.root, runner)
     sys.argv = ['y2-platform', *argv]

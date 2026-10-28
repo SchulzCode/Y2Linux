@@ -9,6 +9,15 @@ pub mod network;
 pub mod power_features;
 pub mod sleep;
 pub mod time;
+// The remaining port groups, one module each, each with its own `route`.
+pub mod connectivity;
+pub mod devices;
+pub mod observation;
+pub mod power;
+pub mod reports;
+pub mod service;
+pub mod storage;
+pub mod suspend;
 
 use crate::reply::Outcome;
 use y2p_core::Root;
@@ -47,6 +56,15 @@ pub fn route(args: &[&str]) -> Option<Command> {
             let action = action.to_string();
             Box::new(move |root| cpu_idle::apply(root, &action))
         }
-        _ => return None,
+        _ => {
+            return observation::route(args)
+                .or_else(|| connectivity::route(args))
+                .or_else(|| devices::route(args))
+                .or_else(|| storage::route(args))
+                .or_else(|| service::route(args))
+                .or_else(|| reports::route(args))
+                .or_else(|| power::route(args))
+                .or_else(|| suspend::route(args))
+        }
     })
 }

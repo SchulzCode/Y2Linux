@@ -66,6 +66,89 @@ impl Root {
     }
 }
 
+impl Root {
+    /// `ctx.glob(pattern)`: pathlib's glob below the root (`*`, `?`, `[...]` within one component; dot
+    /// files match too, symlinked directories are followed), sorted by path components, at most 256.
+    pub fn glob(&self, pattern: &str) -> Vec<PathBuf> {
+        let mut found = vec![self.base.clone()];
+        for component in pattern
+            .trim_start_matches('/')
+            .split('/')
+            .filter(|c| !c.is_empty())
+        {
+            let wild = component.contains(['*', '?', '[']);
+            let mut next = Vec::new();
+            for directory in &found {
+                if !wild {
+                    let path = directory.join(component);
+                    if path.symlink_metadata().is_ok() {
+                        next.push(path);
+                    }
+                    continue;
+                }
+                let Ok(entries) = std::fs::read_dir(directory) else {
+                    continue;
+                };
+                for entry in entries.flatten() {
+                    if entry
+                        .file_name()
+                        .to_str()
+                        .is_some_and(|name| fnmatch(component, name))
+                    {
+                        next.push(entry.path());
+                    }
+                }
+            }
+            found = next;
+        }
+        found.sort_by(|a, b| a.components().cmp(b.components()));
+        found.truncate(256);
+        found
+    }
+}
+
+/// `fnmatch.fnmatchcase` for one path component.
+pub fn fnmatch(pattern: &str, name: &str) -> bool {
+    let (p, n): (Vec<char>, Vec<char>) = (pattern.chars().collect(), name.chars().collect());
+    fn class(p: &[char], c: char) -> Option<(bool, usize)> {
+        // p starts after '['; returns (matched, length including the closing bracket).
+        let (negate, mut i) = if matches!(p.first(), Some('!')) {
+            (true, 1)
+        } else {
+            (false, 0)
+        };
+        let start = i;
+        let mut matched = false;
+        while i < p.len() {
+            if p[i] == ']' && i > start {
+                return Some((matched != negate, i + 1));
+            }
+            if i + 2 < p.len() && p[i + 1] == '-' && p[i + 2] != ']' {
+                matched |= p[i] <= c && c <= p[i + 2];
+                i += 3;
+            } else {
+                matched |= p[i] == c;
+                i += 1;
+            }
+        }
+        None // no closing bracket: '[' is literal
+    }
+    fn go(p: &[char], n: &[char]) -> bool {
+        match p.first() {
+            None => n.is_empty(),
+            Some('*') => (0..=n.len()).any(|k| go(&p[1..], &n[k..])),
+            Some('?') => !n.is_empty() && go(&p[1..], &n[1..]),
+            Some('[') => match (n.first(), class(&p[1..], *n.first().unwrap_or(&'\0'))) {
+                (Some(_), Some((true, len))) => go(&p[1 + len..], &n[1..]),
+                (Some(_), Some((false, _))) | (None, _) => false,
+                (Some(c), None) => *c == '[' && go(&p[1..], &n[1..]),
+            },
+            Some(c) => n.first() == Some(c) && go(&p[1..], &n[1..]),
+        }
+    }
+    go(&p, &n)
+}
+
 /// `common.read` on an absolute host path.
 pub fn read(path: &Path, limit: usize) -> Option<String> {
     let file = File::open(path).ok()?;
@@ -159,6 +242,47 @@ pub(crate) mod tests {
         assert_eq!(root.json_object("/j")["a"], 2);
         fs::write(dir.path().join("j"), "not json").unwrap();
         assert_eq!(root.json("/j"), None);
+    }
+
+    #[test]
+    fn globs_follow_pathlib() {
+        let (dir, root) = fixture();
+        for name in [
+            "sys/class/udc/a/state",
+            "sys/class/udc/.hidden/state",
+            "sys/class/udc/b/other",
+            "sys/devices/system/cpu/cpu0/cpuidle/state1",
+            "sys/devices/system/cpu/cpu10/cpuidle/state0",
+            "sys/devices/system/cpu/cpufreq/x",
+        ] {
+            fs::create_dir_all(dir.path().join(name).parent().unwrap()).unwrap();
+            fs::write(dir.path().join(name), "").unwrap();
+        }
+        let names = |pattern: &str| -> Vec<String> {
+            root.glob(pattern)
+                .iter()
+                .map(|p| p.strip_prefix(dir.path()).unwrap().display().to_string())
+                .collect()
+        };
+        assert_eq!(
+            names("/sys/class/udc/*/state"),
+            ["sys/class/udc/.hidden/state", "sys/class/udc/a/state"]
+        );
+        assert_eq!(
+            names("/sys/devices/system/cpu/cpu[0-9]*/cpuidle/state*"),
+            [
+                "sys/devices/system/cpu/cpu0/cpuidle/state1",
+                "sys/devices/system/cpu/cpu10/cpuidle/state0"
+            ]
+        );
+        assert!(names("/sys/class/none/*").is_empty());
+        assert!(
+            fnmatch("slow_*", "slow_x")
+                && !fnmatch("slow_*", "fast")
+                && fnmatch("a[!b]c", "axc")
+                && !fnmatch("a[!b]c", "abc")
+                && fnmatch("x[", "x[")
+        );
     }
 
     /// A self-cleaning directory (no tempfile crate in the vendored set).

@@ -218,6 +218,43 @@ Acknowledged, the phase's device checks, a handoff entry. Publish only when the 
   that only tested internals into Rust unit tests, keep black-box tests (they drive the Rust binary via `--root`).
 - Device: full qualification as for a release candidate (AGENTS.md), then the owner decides on publishing.
 
+## 5a. Remaining port groups (from 2026-10-28, owner: "continue till all phases are done")
+
+Phases 2–5 are carried out as eight groups that can be ported side by side, each in its own module
+`platform/crates/y2-platform/src/commands/<group>/` (with its own `route`, already chained in `commands/mod.rs`)
+and its own differential cases `tests/platform_cases/<group>.py` (`CASES`, `fixture(root)`), so they never edit
+the same lines. Device checks follow per test build; power and sleep keep their overnight gates.
+
+| Group | Subcommands / programs | Python |
+| --- | --- | --- |
+| observation | `status` (all sections, `--reborn`, `--pss`, `--pid`, `--interval`), `health`, `boot-evidence`, `network-check`, `collect`, `bench-storage`, `bench-library` | observe, health, boot (capture_previous), boot_retained, network_check, collect, bench, workload |
+| connectivity | `connectivity-daemon`, `wifi-power-policy`, `bluetooth-power` | connectivity, network (rest), radio_policy.wifi_policy, bt_control, bluetooth |
+| devices | `ssh-daemon`, `usb-mode`, `transfer`, `codec-settings`, `time-set`, `time-bootstrap`, `rtc-alarm` | ssh, usb, transfer, codec_controls, timekeeping (rest) |
+| storage | `media` (all actions), `internal-media`, `space`, `/usr/sbin/y2-media` | media, internal_media, space |
+| service | `service-daemon`, `update` (all actions), `firmware` | service, update, radiofw |
+| reports | `report` (all actions), `export-diagnostics`, `export-state`, `reset` | report, diagnostics, diagnostic_fields, maintenance |
+| power | `power-daemon`, `shutdown` | power, battery, charger_state, power_journal |
+| suspend | `sleep request`, `sleep prepare`, product-sleep.py, suspend-record.py, `y2-suspend-record`, `y2-power-audit`, `y2-status`, `y2-health`, `y2-power-command` | sleep, product_sleep, sleep_diagnostics, suspend_record, the scripts |
+
+Rules for every group (the phase 2 part 1 code is the pattern: `commands/*.rs`, `reply.rs`, `y2p-core`):
+- Port 1:1, including every F-number comment and the CONTRACT.md defects (marked `// DEFECT (CONTRACT.md): …`).
+  The contract inventory (`platform/contract.json`, the group's entries) lists paths, locks, timeouts,
+  subprocesses and trail lines to keep.
+- Rust takes only well-formed argument forms; argparse's error paths, `--help`, abbreviations stay Python's until
+  phase 6, when the dispatcher prints argparse's exact messages itself (the Python parser is the reference).
+- A command may hand itself to Python (`Failure::Fallback`) only before it changed anything Python would not
+  change the same way again. Daemons never fall back.
+- Python inside the platform's own work goes in its port: the DNS probe (`network.probe_dns` runs `python3 -c
+  getaddrinfo`) becomes an in-process lookup on a bounded worker thread on the real root, while below a fixture
+  root it still records Python's argv as a fixture command so the harness compares; report uploads (urllib) go
+  through `curl` with the same request (no redirects, no proxy, the same timeouts and headers).
+- Daemons: the loop body is testable as one tick; below a fixture root `Y2_DAEMON_TICKS=n` ends the loop after
+  n iterations (exit 0), and the case's `Y2_LAUNCHER_PATCH` stops the Python daemon at the same point.
+- Every command, action and programme of the group gets differential cases (success, refusal, error, fallback;
+  `ported` True/False); `tests.test_platform_differential` must pass with `Y2_PLATFORM_RUST` set.
+- Edit only the group's files; a helper several groups need goes into `y2p-core` in a new file
+  `src/<group>_<name>.rs`. Python under `tools/platform` stays the unchanged reference until phase 6.
+
 ## 6. Risks and how to handle them
 
 | Risk | Handling |

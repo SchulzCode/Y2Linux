@@ -136,6 +136,13 @@ CASES = [
 ]
 
 
+import importlib  # noqa: E402
+
+GROUPS = [importlib.import_module('platform_cases.' + name)
+          for name in importlib.import_module('platform_cases').GROUPS]
+CASES += [case for group in GROUPS for case in group.CASES]
+
+
 def player_root(root):
     """A small player-shaped tree: identity, verified /data, a Wi-Fi epoch, nothing mounted on the SD slot."""
     def put(name, content, mode=0o644):
@@ -207,6 +214,8 @@ def player_root(root):
     put('/sys/devices/platform/10006000.power-controller/dormant_preflight', ''.join(
         'prerequisite_%s=1\n' % n for n in ('system_running', 'boot_policy', 'spm', 'local_events', 'cirq',
                                             'linux_context', 'timer_context', 'broken')))
+    for group in GROUPS:
+        group.fixture(root)
     return root
 
 

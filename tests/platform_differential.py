@@ -13,6 +13,8 @@ A host build of the Rust binary is given by `Y2_PLATFORM_RUST` (path) and must h
   a subprocess is never started, its result is the entry with the same argv, otherwise
   {"ok": false, "reason": "fixture", "output": null} (what a Python fixture Context answers).
 - `Y2_FIXTURE_CALLS=<file>`: append one JSON line {"argv": [...], "timeout": seconds} per subprocess asked for.
+- `Y2_DAEMON_TICKS=<n>` (a case's `env`): a daemon returns after n iterations of its loop (fixture roots only); the
+  case names `Y2_LAUNCHER_PATCH=<module>:<function>` (tests/platform_cases) to stop the Python daemon the same way.
 - `Y2_PLATFORM_PYTHON`, `Y2_PLATFORM_MAIN`: the interpreter and entry its fallback runs for a subcommand it does
   not implement (honoured only with `Y2_ROOT`); the harness names the launcher, which takes the fixture from the
   same variables.
