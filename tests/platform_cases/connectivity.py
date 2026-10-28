@@ -1,6 +1,7 @@
 """Differential cases of port group `connectivity` (see tests/platform_cases/__init__.py):
 `wifi-power-policy`, `bluetooth-power on|off` and `connectivity-daemon` (ended after Y2_DAEMON_TICKS loop
-iterations; `stop_after_ticks` stops the Python daemon at the same point)."""
+iterations; `stop_after_ticks` stops the Python daemon at the same point). Argument errors and --help are
+the dispatcher's argparse in Rust (`ported` True), never a fallback."""
 import json
 import time
 
@@ -62,7 +63,7 @@ CASES = [
     ('wifi-power-policy-bad-mode', ['wifi-power-policy'], {'ported': True, 'files': {POWER_SAVE: '{"schema": 1, "mode": "turbo"}'}}),
     ('wifi-power-policy-not-object', ['wifi-power-policy'], {'ported': True, 'commands': [readback('off')],
                                                              'files': {POWER_SAVE: '[1]'}}),
-    ('wifi-power-policy-help', ['wifi-power-policy', '--help'], {'ported': False}),
+    ('wifi-power-policy-help', ['wifi-power-policy', '--help'], {'ported': True}),
     ('bluetooth-power-on', ['bluetooth-power', 'on'], {'ported': True, 'patterns': INTENT, 'commands': [
         answer(['bluetoothctl', 'power', 'on'], 'Changing power on succeeded')], 'files': {
             '/proc/sys/kernel/random/boot_id': BOOT + '\n'}}),
@@ -73,7 +74,7 @@ CASES = [
     ('bluetooth-power-no-boot-identity', ['bluetooth-power', 'off'], {'ported': True}),
     ('bluetooth-power-intent-not-directory', ['bluetooth-power', 'on'], {'ported': True, 'files': {
         '/proc/sys/kernel/random/boot_id': BOOT + '\n', '/run/y2/bt-intent': 'file\n'}}),
-    ('bluetooth-power-invalid', ['bluetooth-power', 'maybe'], {'ported': False}),
+    ('bluetooth-power-invalid', ['bluetooth-power', 'maybe'], {'ported': True}),
     ('connectivity-daemon-cold', ['connectivity-daemon'], daemon()),
     ('connectivity-daemon-attach', ['connectivity-daemon'], daemon(3, commands=ATTACHED, files={IFINDEX: '3\n'})),
     ('connectivity-daemon-reuse', ['connectivity-daemon'], daemon(2, files={IFINDEX: '3\n'}, commands=[
@@ -96,8 +97,8 @@ CASES = [
         IFINDEX: '3\n', '/run/y2/network.json': network('INTERFACE_DISABLED')})),
     ('connectivity-daemon-disabled-other-boot', ['connectivity-daemon'], daemon(2, commands=ATTACHED, files={
         IFINDEX: '3\n', '/run/y2/network.json': network('INTERFACE_DISABLED', boot='boot-z')})),
-    ('connectivity-daemon-help', ['connectivity-daemon', '--help'], {'ported': False}),
-    ('connectivity-daemon-extra', ['connectivity-daemon', 'now'], {'ported': False}),
+    ('connectivity-daemon-help', ['connectivity-daemon', '--help'], {'ported': True}),
+    ('connectivity-daemon-extra', ['connectivity-daemon', 'now'], {'ported': True}),
 ]
 
 
