@@ -600,7 +600,7 @@ class ProductAutoSleep(unittest.TestCase):
 
     def test_pending_update_low_voltage_and_usb_each_prevent_entry(self):
         for path, value, reason in (
-                ('/sys/class/power_supply/BAT0/voltage_now', '3590000', 'battery_reserve'),
+                ('/sys/class/power_supply/BAT0/voltage_now', '3390000', 'battery_reserve'),
                 ('/sys/class/power_supply/y2-usb-presence/online', '1', 'charger_or_usb_active'),
                 ('/data/updates/state.json', '{"schema":1,"state":"Queued"}', 'firmware_update')):
             old = self.ctx.read(path)
@@ -612,6 +612,36 @@ class ProductAutoSleep(unittest.TestCase):
             else:
                 self.write(path, old)
 
+
+    def test_low_battery_sleeps_until_the_low_battery_power_off(self):
+        # F55 (189640af, 8.41): 3.56-3.58 V under load at 37 % refused every
+        # sleep (recover_uv 3.6 V), and the dark player drained awake.
+        def power(state, **battery):
+            self.write('/run/y2/power.json', json.dumps({
+                'boot_id': 'same-boot', 'state': state, 'monotonic_ns': time.monotonic_ns(),
+                'battery': dict({'confidence': 'calibrated_estimate'}, **battery)}))
+        self.write('/sys/class/power_supply/BAT0/voltage_now', '3558471')
+        power('Normal', percent=37, filtered_voltage_uv=3578229)
+        pm.battery_and_cable(self.ctx)
+        # Low (warning_soc) and Critical (critical_soc) sleep too: the 30-min
+        # maintenance return admits again and wakes the player to power off.
+        power('Low', percent=15, filtered_voltage_uv=3520000)
+        pm.battery_and_cable(self.ctx)
+        power('Critical', percent=8, filtered_voltage_uv=3450000)
+        pm.battery_and_cable(self.ctx)
+        # A dip under load is not empty; the filtered voltage decides.
+        self.write('/sys/class/power_supply/BAT0/voltage_now', '3390000')
+        pm.battery_and_cable(self.ctx)
+        for state, battery in (('Critical', dict(percent=8, filtered_voltage_uv=3398000)),
+                               ('Critical', dict(percent=5, filtered_voltage_uv=3480000)),
+                               ('ShutdownPending', dict(percent=5, filtered_voltage_uv=3480000))):
+            with self.subTest(state=state, battery=battery):
+                power(state, **battery)
+                with self.assertRaisesRegex(pm.Refused, 'battery_reserve|battery_safety_owner'):
+                    pm.battery_and_cable(self.ctx)
+        # Without a trusted percentage only the voltage floor applies.
+        power('Normal', percent=5, filtered_voltage_uv=3700000, confidence='provisional')
+        pm.battery_and_cable(self.ctx)
 
     def test_idle_cable_without_host_admits_sleep(self):
         """Defect C (archive 109): VBUS from a powered-off PC, charger idle."""

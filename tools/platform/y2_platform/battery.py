@@ -16,6 +16,16 @@ OCV_CHARGER_POINTS = 31
 # F36 (97f11bb1): the charging screen (offline-charge) can run an hour before
 # the platform's first sample; the power-on OCV then predates that charge.
 BOOT_OCV_FRESH_SECONDS = 120
+# Stock dod_init (0xc039be10) keeps the saved UI_SOC whatever the boot sample
+# says after boot_reason 3..6 (BR_WDT, BR_WDT_BY_PASS_PWK, BR_TOOL_BY_PASS_PWK,
+# BR_2SEC_REBOOT). The PMIC stayed on, so 0x724 still holds the OCV of the last
+# cold start (F54, 98499743: an update restart at 95 % showed 13 % at 4.02 V).
+BOOT_METADATA = '/sys/firmware/y2_boot/metadata'
+WARM_BOOT_REASONS = (3, 4, 5, 6)
+# A rested OCV is never below the loaded battery voltage (ADC tolerance aside);
+# boot load sags 60-120 mV below it (ledger F30), never 300 mV (oam_run clamp).
+OCV_BELOW_LOAD_UV = 50000
+OCV_ABOVE_LOAD_UV = 300000
 # Stock mt_battery_update_status: at Full the display counts up one point per
 # 10-s battery-thread tick to 100 (100Percent tracking).
 FULL_STEP_SECONDS = 10
@@ -90,6 +100,20 @@ def interpolate(points, uv):
     return float(points[-1][1])
 
 
+def boot_kind(text):
+    """'warm' (SoC reset, PMIC on), 'charged' (LK's charging screen ran first:
+    charge added while the saved value waited) or 'cold'; None if unknown."""
+    fields = dict(f.split('=', 1) for f in (text or '').split() if '=' in f)
+    try:
+        if fields.get('valid') != '1':
+            return None
+        if fields.get('offline') == '1':
+            return 'charged'
+        return 'warm' if int(fields['boot_reason']) in WARM_BOOT_REASONS else 'cold'
+    except (KeyError, ValueError):
+        return None
+
+
 class Soc:
     """Bounded filter and monotonic trend, resetting on loss/replacement of pack.
 
@@ -110,6 +134,8 @@ class Soc:
         self.full_latched = False
         self.full_step_at = None
         self.saved = saved if isinstance(saved, dict) else None
+        # How the first sample started, e.g. 'warm/saved' (F54 diagnostics).
+        self.start = None
 
     def state(self):
         """What survives a restart (stock RTC spare register), or None."""
@@ -123,8 +149,9 @@ class Soc:
             return estimate
         return max(0., min(100., estimate * 100 / self.anchor))
 
-    def restore(self, estimate, charging=False):
-        """First sample: reuse the saved display value within 40 points."""
+    def restore(self, estimate, charging=False, boot=None):
+        """First sample: reuse the saved display value within 40 points, or
+        after a warm restart unless the live estimate is 40+ points above it."""
         saved = self.saved or {}
         anchor = saved.get('anchor_percent')
         if type(anchor) in (int, float) and 80 <= anchor <= 100:
@@ -134,19 +161,24 @@ class Soc:
         # F36 (97f11bb1): a player that turned off at 5 % and charged while off
         # started at 5 % again and turned off at once, on the charger, for 13 h.
         # A charger only adds charge: a lower saved value gives way to the live one.
-        if charging and type(ui) is int and ui < shown:
+        # A warm restart had no time off to charge in; its first sample on a
+        # charger reads high (F54, c0a4f35d: 28 % shown as 42 %).
+        if (charging and boot != 'warm' or boot == 'charged') and type(ui) is int and ui < shown:
             ui = None
-        if type(ui) is int and 1 <= ui <= 100 and abs(ui - shown) < UI_RESTORE_POINTS:
+        restored = (type(ui) is int and 1 <= ui <= 100 and
+                    (shown - ui if boot == 'warm' else abs(ui - shown)) < UI_RESTORE_POINTS)
+        if restored:
             self.ui = ui
             # The estimate restarts there too (stock dod_init sets the gauge).
             self.percent = min(100., ui * (self.anchor or 100.) / 100)
         else:
             self.ui = int(round(shown))
+        self.start = '%s/%s' % (boot or 'unknown', 'saved' if restored else self.start)
         self.saved = None
 
     def observe(self, now, voltage, present, status, hardware_percent=None,
                 current=None, temperature=None, counter=None, charge_current=None,
-                boot_ocv=None):
+                boot_ocv=None, boot=None):
         charging = status == 'Charging'
         result = dict(percent=None, source='unavailable', confidence='unavailable', status=status,
                       charging=charging, voltage_uv=voltage, current_ua=current,
@@ -199,15 +231,20 @@ class Soc:
         target = interpolate(p['voltage_soc'], estimate_uv)
         first = self.percent is None
         if first:
+            self.start = 'live'
             # Stock oam_init: the PMIC's power-on OCV predates the boot load;
             # a charger that moved it by 31+ points leaves the live sample.
+            # It is latched at PMIC power-on only: never after a warm restart.
             if (type(boot_ocv) is int and 3000000 <= boot_ocv <= 4400000 and
-                    now <= BOOT_OCV_FRESH_SECONDS):
+                    now <= BOOT_OCV_FRESH_SECONDS and boot not in ('warm', 'charged')):
                 ocv = interpolate(p['voltage_soc'], boot_ocv)
-                if status in ('Discharging', 'Unknown') or abs(ocv - target) < OCV_CHARGER_POINTS:
-                    target = ocv
+                if status in ('Discharging', 'Unknown'):
+                    if voltage - OCV_BELOW_LOAD_UV <= boot_ocv <= voltage + OCV_ABOVE_LOAD_UV:
+                        target, self.start = ocv, 'ocv'
+                elif abs(ocv - target) < OCV_CHARGER_POINTS:
+                    target, self.start = ocv, 'ocv'
             self.percent = target
-            self.restore(target, charging)
+            self.restore(target, charging, boot)
         elif (status == 'Discharging' and not hybrid and table is not None and
               p.get('design_capacity_uah') and 0 < dt <= OAM_MAX_STEP_SECONDS):
             # POWER-FINAL-29: stock oam_run on battery. The model current is
@@ -242,6 +279,7 @@ class Soc:
                       source='hybrid' if hybrid else 'stock_oam' if oam else 'voltage_estimate',
                       confidence='provisional' if p['provisional'] else 'calibrated_estimate',
                       provisional=p['provisional'], resting=resting, filtered_voltage_uv=round(self.filtered),
+                      start=self.start,
                       calibration_source=p['source'])
         return result
 
@@ -295,4 +333,5 @@ def sample(ctx, engine, now=None):
                           ctx.integer(base + 'current_now'), temp * 100 if temp is not None else None,
                           ctx.integer(base + 'charge_counter'),
                           charge_field(ctx.read(base + 'charging_state'), 'sense_current_est_ua'),
-                          ctx.integer(base + 'voltage_ocv'))
+                          ctx.integer(base + 'voltage_ocv'),
+                          boot_kind(ctx.read(BOOT_METADATA)) if engine.percent is None else None)

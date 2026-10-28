@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/platform'))
-from y2_platform.battery import Soc, load_profile, sample
+from y2_platform.battery import Soc, boot_kind, load_profile, sample
 from y2_platform.common import Context
 from y2_platform.power import LowBattery, load_policy
 
@@ -241,9 +241,12 @@ class BatterySoc(unittest.TestCase):
             self.assertGreater(value['percent'], 30)
             self.assertNotEqual(state, 'ShutdownPending')
         # The stale power-on OCV alone no longer decides a late first sample.
-        late = Soc(load_profile(self.ctx)).observe(3850, 3779000, 1, 'Discharging', boot_ocv=3500000)
-        fresh = Soc(load_profile(self.ctx)).observe(10, 3779000, 1, 'Discharging', boot_ocv=3500000)
-        self.assertGreater(late['percent'], fresh['percent'])
+        late = Soc(load_profile(self.ctx)).observe(3850, 3779000, 1, 'Discharging', boot_ocv=3850000)
+        fresh = Soc(load_profile(self.ctx)).observe(10, 3779000, 1, 'Discharging', boot_ocv=3850000)
+        self.assertLess(late['percent'], fresh['percent'])
+        # F54: an OCV below the loaded voltage predates a charge and is ignored.
+        below = Soc(load_profile(self.ctx)).observe(10, 3779000, 1, 'Discharging', boot_ocv=3500000)
+        self.assertEqual(below['percent'], late['percent'])
         # On battery a saved 5 % still turns a drained player off.
         soc, guard = Soc(load_profile(self.ctx), saved), LowBattery()
         for tick in range(6):
@@ -255,6 +258,65 @@ class BatterySoc(unittest.TestCase):
             state = guard.observe(policy, 3390000, 1, {'percent': 40, 'confidence': 'calibrated_estimate',
                                                        'charging': True, 'status': 'Charging'})
         self.assertEqual(state, 'ShutdownPending')
+
+    def test_warm_restart_keeps_the_saved_percent_not_the_old_power_on_ocv(self):
+        # F54, 98499743 (8.38): cold start near empty, charged to 95 %, then an
+        # update restart (boot_reason=4) read the old 0x724 OCV and showed 13 %.
+        self.assertEqual(boot_kind('valid=1 boot_mode=0 boot_reason=4 offline=0 recovery_image=0 panel=gc9503v'),
+                         'warm')
+        self.assertEqual(boot_kind('valid=1 boot_mode=8 boot_reason=3 offline=1 recovery_image=0'), 'charged')
+        self.assertEqual(boot_kind('valid=1 boot_mode=0 boot_reason=0 offline=0'), 'cold')
+        self.assertIsNone(boot_kind('valid=0 boot_mode=-1 boot_reason=-1 offline=0'))
+        self.assertIsNone(boot_kind(None))
+        saved = {'schema': 1, 'ui_percent': 95, 'anchor_percent': None}
+        for boot in ('warm', None):
+            value = Soc(load_profile(self.ctx), saved).observe(14, 4021655, 1, 'Discharging',
+                                                               boot_ocv=3545000, boot=boot)
+            self.assertEqual(value['percent'], 95)
+        self.assertEqual(value['start'], 'unknown/saved')
+        # Played down since the cold start: the old OCV is plausible by voltage
+        # alone, so only the boot reason tells it apart.
+        saved = {'schema': 1, 'ui_percent': 40, 'anchor_percent': None}
+        warm = Soc(load_profile(self.ctx), saved).observe(14, 3700000, 1, 'Discharging',
+                                                          boot_ocv=3950000, boot='warm')
+        self.assertEqual((warm['percent'], warm['start']), (40, 'warm/saved'))
+        cold = Soc(load_profile(self.ctx), saved).observe(14, 3700000, 1, 'Discharging',
+                                                          boot_ocv=3950000, boot='cold')
+        self.assertEqual(cold['start'], 'cold/ocv')
+        self.assertGreater(cold['percent'], 70)
+        # Stock dod_init keeps the saved value beyond 40 points after a warm
+        # restart; only a live estimate 40+ above it proves it wrong.
+        low = Soc(load_profile(self.ctx), {'schema': 1, 'ui_percent': 13}).observe(
+            14, 4021655, 1, 'Discharging', boot='warm')
+        self.assertEqual((low['percent'], low['start']), (89, 'warm/live'))
+        high = Soc(load_profile(self.ctx), {'schema': 1, 'ui_percent': 95}).observe(
+            14, 3700000, 1, 'Discharging', boot='warm')
+        self.assertEqual(high['percent'], 95)
+
+    def test_warm_restart_on_a_charger_keeps_the_lower_saved_percent(self):
+        # F54, c0a4f35d (8.41): update restart while charging at 28 % showed 42 %,
+        # then 37, then 29 at unplug.
+        saved = {'schema': 1, 'ui_percent': 28, 'anchor_percent': 96.74}
+        value = Soc(load_profile(self.ctx), saved).observe(14, 3633837, 1, 'Charging',
+                                                           boot_ocv=3720000, boot='warm')
+        self.assertEqual(value['percent'], 28)
+        # F36 is kept: after LK's charging screen (offline=1) or a cold start on
+        # a charger, a lower saved value still gives way to the live one.
+        saved = {'schema': 1, 'ui_percent': 5, 'anchor_percent': None}
+        for boot, status in (('charged', 'Discharging'), ('charged', 'Charging'), ('cold', 'Charging'), (None, 'Charging')):
+            value = Soc(load_profile(self.ctx), saved).observe(17, 3714257, 1, status, boot=boot)
+            self.assertGreater(value['percent'], 20, (boot, status))
+            self.assertTrue(value['start'].endswith('/live'), (boot, status))
+
+    def test_sample_reads_the_boot_reason_once(self):
+        self.put('/sys/class/power_supply/BAT0/present', '1')
+        self.put('/sys/class/power_supply/BAT0/status', 'Discharging')
+        self.put('/sys/class/power_supply/BAT0/voltage_now', '4021655')
+        self.put('/sys/class/power_supply/BAT0/voltage_ocv', '3545000')
+        self.put('/sys/firmware/y2_boot/metadata', 'valid=1 boot_mode=0 boot_reason=4 offline=0 recovery_image=0')
+        soc = Soc(load_profile(self.ctx), {'schema': 1, 'ui_percent': 95})
+        self.assertEqual(sample(self.ctx, soc, 14)['start'], 'warm/saved')
+        self.assertEqual(sample(self.ctx, soc, 15)['percent'], 95)
 
     def test_awake_load_follows_the_drain_not_the_loaded_voltage(self):
         # 28 boot 8f43c71e: started at 89 % from the power-on OCV, then the old

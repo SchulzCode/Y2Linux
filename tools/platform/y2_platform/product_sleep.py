@@ -118,14 +118,28 @@ def battery_and_cable(ctx):
         raise Refused('battery_state_unavailable')
     policy, error = load_policy(ctx)
     voltage = ctx.integer('/sys/class/power_supply/BAT0/voltage_now')
-    if error or voltage is None or voltage <= policy['recover_uv']:
-        raise Refused('battery_reserve')
     state = ctx.json('/run/y2/power.json', {})
     sampled = state.get('monotonic_ns')
     age = time.monotonic_ns() - sampled if type(sampled) is int else -1
+    # F55: Low (20 %) and Critical (10 %) may sleep; asleep drains ~8 mA, awake
+    # and dark far more. Every sleep returns within the 30-min SPM maintenance
+    # timer and admits again here, so a sleeping player still reaches the
+    # low-battery power-off (shutdown_soc / critical_uv) awake.
     if (state.get('boot_id') != ctx.read('/proc/sys/kernel/random/boot_id') or
-            not 0 <= age <= 10 * 10**9 or state.get('state') != 'Normal'):
+            not 0 <= age <= 10 * 10**9 or state.get('state') not in ('Normal', 'Low', 'Critical')):
         raise Refused('battery_safety_owner')
+    # F55 (189640af): one loaded sample at 3.56-3.58 V (37 %) refused every
+    # sleep below recover_uv. Judge the filtered voltage and refuse only where
+    # the low-battery owner is about to power off (power.LowBattery).
+    battery = state.get('battery') if isinstance(state.get('battery'), dict) else {}
+    filtered = battery.get('filtered_voltage_uv')
+    level = filtered if type(filtered) is int and filtered > 0 else voltage
+    percent = battery.get('percent')
+    empty = (type(percent) is int and policy is not None and policy.get('schema') == 2 and
+             battery.get('confidence') in ('hardware', 'calibrated_estimate') and
+             percent <= policy['shutdown_soc'])
+    if error or voltage is None or level is None or level <= policy['critical_uv'] or empty:
+        raise Refused('battery_reserve')
     shutdown = ctx.json('/run/y2/shutdown.json', {})
     if shutdown.get('state') in ('ShutdownPending', 'Executing', 'Failed'):
         raise Refused('shutdown_in_progress')
