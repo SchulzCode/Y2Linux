@@ -187,6 +187,30 @@ pub fn repr_of(value: &Value) -> String {
     }
 }
 
+/// Python `a == b` for parsed JSON values: numbers by value (`1 == 1.0`, `True == 1`), containers
+/// element by element.
+pub fn py_eq(a: &Value, b: &Value) -> bool {
+    match (a, b) {
+        (Value::Number(x), Value::Number(y)) => match (x.as_i64(), y.as_i64()) {
+            (Some(x), Some(y)) => x == y,
+            _ => match (x.as_u64(), y.as_u64()) {
+                (Some(x), Some(y)) => x == y,
+                _ => x.as_f64() == y.as_f64(),
+            },
+        },
+        (Value::Bool(_), Value::Number(_)) | (Value::Number(_), Value::Bool(_)) => {
+            py::number(Some(a)) == py::number(Some(b))
+        }
+        (Value::Array(x), Value::Array(y)) => {
+            x.len() == y.len() && x.iter().zip(y).all(|(a, b)| py_eq(a, b))
+        }
+        (Value::Object(x), Value::Object(y)) => {
+            x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| py_eq(v, w)))
+        }
+        _ => a == b,
+    }
+}
+
 /// `text[:limit]` by characters.
 pub fn prefix(text: &str, limit: usize) -> String {
     text.chars().take(limit).collect()

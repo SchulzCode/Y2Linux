@@ -2,7 +2,9 @@
 //! `update` (update.py), `firmware` (radiofw.py) and `service-daemon` (service.py).
 // SPDX-License-Identifier: GPL-2.0-only
 mod download;
+mod image;
 mod python;
+pub mod radiofw;
 mod storage;
 pub mod update;
 
@@ -74,6 +76,16 @@ fn update_route(args: &[&str]) -> Option<Command> {
 pub fn route(args: &[&str]) -> Option<Command> {
     match args {
         ["update", rest @ ..] => update_route(rest),
+        ["firmware", action, path @ ..]
+            if ["status", "scan", "install"].contains(action)
+                && path.len() <= 1
+                && path.iter().all(|p| option_value(p)) =>
+        {
+            let (action, path) = (action.to_string(), path.first().map(|p| p.to_string()));
+            Some(Box::new(move |root| {
+                radiofw::run(root, &action, path.as_deref())
+            }))
+        }
         _ => None,
     }
 }

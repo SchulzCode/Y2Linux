@@ -11,6 +11,10 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
+import struct
+import subprocess
+import tempfile
 import time
 
 PACKAGE = Path(__file__).resolve().parent / 'service_package'
@@ -229,5 +233,137 @@ CASES = [
 ]
 
 
+# ---- firmware -------------------------------------------------------------------------------------------
+# Owner copies of system.img below /srv/radiofw/<name>/Firmware (an MTP root the cases name): ext4 and ext3
+# images with stand-in firmware (the reviewed hashes are the real files'), so a scan reads the image, the
+# files and the reader library and refuses at the library's hash, or earlier.
+SEEN = {}
+
+
+def mtp_root(name, state=None):
+    """The case files: /srv/radiofw/<name> exported, and the previous pass having seen this copy."""
+    files = {'/run/y2/mtp-roots.json': json.dumps({'roots': ['/srv/radiofw/' + name, '/data/firmware/inbox']})}
+    if state:
+        files['/run/y2/radio-firmware.json'] = lambda: json.dumps(
+            {'schema': 1, 'state': state, 'seen': SEEN.get(name), 'reason': 'firmware_mismatch:old'})
+    return files
+
+
+def sparse(raw, block):
+    """Android sparse encoding: raw chunks, zero runs as don't-care, one fill (tests/test_radio_firmware.py)."""
+    blocks = [raw[i:i + block].ljust(block, b'\0') for i in range(0, len(raw), block)]
+    chunks, i = [], 0
+    while i < len(blocks):
+        j = i
+        if blocks[i] == bytes(block):
+            while j < len(blocks) and blocks[j] == bytes(block):
+                j += 1
+            chunks.append(struct.pack('<HHII', 0xCAC3, 0, j - i, 12))
+        else:
+            while j < len(blocks) and blocks[j] != bytes(block):
+                j += 1
+            chunks.append(struct.pack('<HHII', 0xCAC1, 0, j - i, 12 + (j - i) * block) + b''.join(blocks[i:j]))
+        i = j
+    chunks.append(struct.pack('<HHII', 0xCAC2, 0, 2, 16) + b'\xaa\xbb\xcc\xdd')
+    header = struct.pack('<IHHHHIIII', 0xED26FF3A, 1, 0, 28, 12, block, len(blocks) + 2, len(chunks), 0)
+    return header + b''.join(chunks)
+
+
+def firmware_tree(directory, omit=(), large=()):
+    sizes = {'WIFI_RAM_CODE_MT6582': 3000, 'WMT_SOC.cfg': 80, 'mt6572_82_patch_e1_0_hdr.bin': 64,
+             'mt6572_82_patch_e1_1_hdr.bin': 64, 'modem_1_2g_n.img': 9000}
+    (directory / 'etc/firmware').mkdir(parents=True)
+    (directory / 'lib').mkdir()
+    for name, size in sizes.items():
+        if name not in omit:
+            size += 1 if name in large else 0
+            (directory / 'etc/firmware' / name).write_bytes(bytes((i * 7 + len(name)) % 256 for i in range(size)))
+    library = bytearray(i * 13 % 256 for i in range(51224))
+    library[:7] = b'\x7fELF\x01\x01\x01'
+    (directory / 'lib/libcustom_nvram.so').write_bytes(bytes(library))
+
+
+def mke2fs(tree, image, options, size):
+    command = shutil.which('mke2fs')
+    if not command:
+        return False
+    try:
+        return subprocess.run([command, '-q', '-F', *options, '-d', str(tree), str(image), size],
+                              capture_output=True).returncode == 0
+    except OSError:
+        return False
+
+
+IMAGES = {
+    # name: (tree options, mke2fs options, size, sparse block or None for a raw image)
+    'ext4': ({}, ['-b', '1024', '-t', 'ext4'], '1M', None),
+    'ext3': ({}, ['-b', '1024', '-O', '^extent,^64bit', '-t', 'ext3'], '1M', 1024),
+    'partial': ({'omit': ('modem_1_2g_n.img',)}, ['-b', '4096', '-t', 'ext4'], '2M', 4096),
+    'large': ({'large': ('WMT_SOC.cfg',)}, ['-b', '1024', '-t', 'ext4'], '1M', 1024),
+}
+
+
+def firmware_images(root):
+    """Without a host mke2fs only the images that need none are made; their cases then see no copy."""
+    old = time.time() - 3600
+    with tempfile.TemporaryDirectory() as scratch:
+        for name, (tree_options, options, size, block) in IMAGES.items():
+            tree = Path(scratch) / name
+            firmware_tree(tree, **tree_options)
+            raw = Path(scratch) / (name + '.img')
+            if not mke2fs(tree, raw, options, size):
+                continue
+            target = root / 'srv/radiofw' / name / 'Firmware/system.img'
+            target.parent.mkdir(parents=True)
+            target.write_bytes(raw.read_bytes() if block is None else sparse(raw.read_bytes(), block))
+    for name, data in (('text', b'not an image\n'),
+                       ('badsparse', struct.pack('<IHHHHIIII', 0xED26FF3A, 2, 0, 28, 12, 4096, 0, 0, 0))):
+        target = root / 'srv/radiofw' / name / 'Firmware/system.img'
+        target.parent.mkdir(parents=True)
+        target.write_bytes(data)
+    for image in (root / 'srv/radiofw').glob('*/Firmware/system.img'):
+        os.utime(image, (old, old))
+        info = image.lstat()
+        SEEN[image.parent.parent.name] = [info.st_size, info.st_mtime_ns]
+
+
+INTERNAL = {'/run/y2/internal-media.json': json.dumps({'state': 'Ready', 'boot_id': 'boot-a', 'mount_id': 40,
+                                                       'device_id': '179:8'}),
+            '/proc/self/mountinfo': '22 1 179:2 / / ro - ext4 /dev/mmcblk0p2 ro\n'
+                                    '30 22 179:9 / /data rw,noatime - ext4 /dev/mmcblk0p9 rw\n'
+                                    '40 22 179:8 / /media/internal rw - ext4 /dev/mmcblk0p8 rw\n'}
+
+CASES += [
+    ('firmware-status', ['firmware', 'status'], {'ported': True}),
+    ('firmware-status-path', ['firmware', 'status', 'ignored'], {'ported': True}),
+    ('firmware-status-installing', ['firmware', 'status'], {'ported': True, 'files': {
+        '/run/y2/radio-firmware.json': '{"schema": 1, "state": "Installing", "seen": [1, 2]}'}}),
+    ('firmware-status-no-space', ['firmware', 'status'], {'ported': True, 'files': {
+        '/run/y2/mtp-events.json': '{"error": 28.0}'}}),
+    ('firmware-status-internal', ['firmware', 'status'], {'ported': True, 'files': INTERNAL}),
+    ('firmware-status-partly-there', ['firmware', 'status'], {'ported': True, 'files': {
+        '/data/firmware/mt6582/WMT_SOC.cfg': 'x' * 80}}),
+    ('firmware-scan', ['firmware', 'scan'], {'ported': True}),
+    ('firmware-scan-internal', ['firmware', 'scan'], {'ported': True, 'files': {
+        **INTERNAL, '/media/internal/music/.keep': ''}}),
+    ('firmware-scan-internal-unmounted', ['firmware', 'scan'], {'ported': True, 'files': INTERNAL}),
+    ('firmware-scan-rejected-copy-gone', ['firmware', 'scan'], {'ported': True, 'files': {
+        '/run/y2/radio-firmware.json': '{"schema": 1, "state": "Failed", "reason": "x", "seen": [1, 2]}'}}),
+    ('firmware-scan-new-copy', ['firmware', 'scan'], {'ported': True, 'files': mtp_root('ext4')}),
+    # The copy is written when the case runs: its time is a clock reading.
+    ('firmware-scan-arriving', ['firmware', 'scan'], {'ported': True, 'volatile': ['seen'], 'files': {
+        '/data/firmware/inbox/system.img': 'still copying'}}),
+    ('firmware-scan-rejected-before', ['firmware', 'scan'], {'ported': True, 'files': mtp_root('ext4', 'Failed')}),
+    ('firmware-install-dir', ['firmware', 'install', str(PACKAGE)], {'ported': True}),
+    ('firmware-install-image', ['firmware', 'install', str(PACKAGE / 'manifest.json')], {'ported': True}),
+    ('firmware-install-missing', ['firmware', 'install', str(PACKAGE / 'system.img')], {'ported': True}),
+    ('firmware-install-no-path', ['firmware', 'install'], {'ported': True}),
+    ('firmware-help', ['firmware', '--help'], {'ported': False}),
+    ('firmware-bad-action', ['firmware', 'flash'], {'ported': False}),
+] + [('firmware-scan-' + name, ['firmware', 'scan'], {'ported': True, 'files': mtp_root(name, 'Missing')})
+     for name in ('ext4', 'ext3', 'partial', 'large', 'text', 'badsparse')]
+
+
 def fixture(root):
     """Add the files these cases need below `root` (a pathlib.Path)."""
+    firmware_images(root)
