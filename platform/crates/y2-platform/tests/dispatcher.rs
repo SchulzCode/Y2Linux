@@ -65,7 +65,7 @@ fn python_replaces_the_dispatcher_with_the_same_arguments() {
 fn only_a_fixture_root_may_name_another_interpreter() {
     let python = fake_python("real");
     let output = Command::new(BINARY)
-        .args(["health", "--full"])
+        .args(["network-check", "--peer", "router"])
         .env_remove("Y2_ROOT")
         .env("Y2_PLATFORM_PYTHON", &python)
         .env("Y2_PLATFORM_MAIN", "/fixture/main.py")
@@ -78,7 +78,7 @@ fn only_a_fixture_root_may_name_another_interpreter() {
 #[test]
 fn a_missing_interpreter_fails_like_the_shell() {
     let output = Command::new(BINARY)
-        .args(["health", "--full"])
+        .args(["network-check", "--peer", "router"])
         .env("Y2_ROOT", "/nonexistent")
         .env("Y2_PLATFORM_PYTHON", "/nonexistent/python3")
         .stdin(Stdio::null())
