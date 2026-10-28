@@ -82,6 +82,68 @@ class ConnectivitySupervisor(unittest.TestCase):
         self.assertEqual(self.calls[-1][-2:], ['interface_remove','wlan0'])
         self.assertFalse(self.monitor.attached)
 
+    def test_a_new_netdev_under_the_old_name_gets_a_new_supplicant_interface(self):
+        # F53: a removal missed between two looks left the supplicant's old
+        # interface on the new wlan0 (INTERFACE_DISABLED for 106 min).
+        (self.root/'sys/class/net/wlan0').mkdir()
+        (self.root/'sys/class/net/wlan0/ifindex').write_text('5\n')
+        self.monitor.interface(0)
+        self.assertEqual((self.monitor.attached, self.monitor.ifindex), (True, '5'))
+        self.calls.clear()
+        self.monitor.interface(10)
+        self.assertEqual(self.calls, [])
+        (self.root/'sys/class/net/wlan0/ifindex').write_text('7\n')
+        self.monitor.interface(20)
+        self.assertEqual(self.calls[0], ['/usr/libexec/y2/wpa-event','wlan0','DISCONNECTED'])
+        self.assertEqual(self.calls[2][-2:], ['interface_remove','wlan0'])
+        self.assertEqual(self.calls[3][3:5], ['interface_add','wlan0'])
+        self.assertEqual((self.monitor.attached, self.monitor.ifindex), (True, '7'))
+
+    def test_interface_left_disabled_with_radio_on_is_added_again(self):
+        import json
+        (self.root/'proc/sys/kernel/random').mkdir(parents=True)
+        (self.root/'proc/sys/kernel/random/boot_id').write_text('boot-one')
+        rfkill = self.root/'sys/class/rfkill/rfkill1'
+        rfkill.mkdir(parents=True)
+        (rfkill/'type').write_text('wlan\n')
+        (rfkill/'soft').write_text('0\n')
+        def network(association):
+            (self.root/'run/y2/network.json').write_text(json.dumps({
+                'boot_id': 'boot-one', 'monotonic_s': time.monotonic(), 'association': association,
+                'radio_present': True}))
+        network('INTERFACE_DISABLED')
+        self.monitor.attached = True
+        self.monitor.verify(100)
+        self.monitor.verify(129)
+        self.assertEqual(self.calls, [])
+        self.monitor.verify(130)
+        self.assertEqual(self.calls[-1][-2:], ['interface_remove','wlan0'])
+        self.assertFalse(self.monitor.attached)
+        # Backed off when the new interface is disabled again.
+        self.calls.clear()
+        self.monitor.attached = True
+        self.monitor.verify(131)
+        self.monitor.verify(161)
+        self.assertEqual(self.calls, [])
+        self.monitor.verify(190)
+        self.assertEqual(len(self.calls), 3)
+        # A radio switched off (sleep, the owner) or a stale record is no reason.
+        self.calls.clear()
+        self.monitor.attached = True
+        (rfkill/'soft').write_text('1\n')
+        for now in (1000, 1100, 1200):
+            self.monitor.verify(now)
+        (rfkill/'soft').write_text('0\n')
+        (self.root/'run/y2/network.json').write_text(json.dumps({
+            'boot_id': 'boot-one', 'monotonic_s': time.monotonic() - 60, 'association': 'INTERFACE_DISABLED',
+            'radio_present': True}))
+        for now in (1300, 1400):
+            self.monitor.verify(now)
+        network('DISCONNECTED')
+        for now in (1500, 1600):
+            self.monitor.verify(now)
+        self.assertEqual(self.calls, [])
+
     def test_failed_interface_attach_has_bounded_backoff(self):
         (self.root/'sys/class/net/wlan0').mkdir()
         self.answers = [{'ok': False, 'output': ''}] * 50

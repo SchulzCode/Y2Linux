@@ -5,6 +5,7 @@ import os
 import select
 import time
 from .boot import private_directory
+from .network import journal, wlan_switched_off
 from .radio_policy import codec_runtime
 from .service import SignalWake
 from .ssh import AddressEvents
@@ -16,6 +17,11 @@ HEALTH_S = 30
 # absent (measured: 11 active scans/min, ~7 Wi-Fi IRQ/s). Exponential backoff to
 # two minutes bounds that; association with a present AP is unaffected.
 AUTOSCAN = 'exponential:2:120'
+# F53 (aa96e00a, 8.38): after a wake wlan0 stayed INTERFACE_DISABLED for 106
+# min with every rfkill unblocked; Joins failed until Wi-Fi off/on, which
+# re-adds the interface. Re-add it after this long, backed off.
+DISABLED_S = 30
+RENEW_MAX_S = 600
 
 
 def alive(ctx, name, binary):
@@ -39,6 +45,11 @@ class Supervisor:
         self.retry_delay = 2
         self.next_restart = {}
         self.pids = {}
+        # The netdev the supplicant interface was added for.
+        self.ifindex = None
+        self.disabled_since = None
+        self.renewals = 0
+        self.next_renew = 0
 
     def stop(self, name):
         # Preserve the existing hook cleanup; these pid files are private and
@@ -83,15 +94,55 @@ class Supervisor:
             if pid is not None:
                 self.pids[name] = pid
 
+    def detach(self):
+        ctx = self.ctx
+        ctx.command(['/usr/libexec/y2/wpa-event', 'wlan0', 'DISCONNECTED'], timeout=3)
+        self.stop('wifi-action')
+        ctx.command(['wpa_cli', '-g', '/run/wpa_supplicant/global',
+                     'interface_remove', 'wlan0'], timeout=2)
+        self.attached = False
+        self.ifindex = None
+        self.retry_at, self.retry_delay = 0, 2
+
+    def verify(self, now):
+        """F53: re-add a supplicant interface left INTERFACE_DISABLED while
+        wlan0 exists and no rfkill blocks it (the platform's own readiness
+        record; no command while healthy)."""
+        ctx = self.ctx
+        net = ctx.json('/run/y2/network.json', {})
+        fresh = (isinstance(net, dict) and net.get('boot_id') == ctx.read('/proc/sys/kernel/random/boot_id') and
+                 isinstance(net.get('monotonic_s'), (int, float)) and 0 <= time.monotonic() - net['monotonic_s'] < 30)
+        if fresh and net.get('association') == 'COMPLETED':
+            self.renewals = 0
+        if (not self.attached or not fresh or net.get('association') != 'INTERFACE_DISABLED' or
+                not net.get('radio_present') or wlan_switched_off(ctx)):
+            self.disabled_since = None
+            return
+        self.disabled_since = now if self.disabled_since is None else self.disabled_since
+        if now - self.disabled_since < DISABLED_S or now < self.next_renew:
+            return
+        self.renewals += 1
+        self.next_renew = now + min(RENEW_MAX_S, 60 * 2 ** (self.renewals - 1))
+        journal(ctx, 'wifi_interface_renewed', reason='interface_disabled', renewals=self.renewals,
+                disabled_s=round(now - self.disabled_since, 1),
+                rfkill={p.name: [ctx.read(f'/sys/class/rfkill/{p.name}/{f}') for f in ('type', 'soft', 'hard')]
+                        for p in ctx.glob('/sys/class/rfkill/rfkill*')})
+        self.disabled_since = None
+        self.detach()
+
     def interface(self, now):
         ctx = self.ctx
         present = ctx.path('/sys/class/net/wlan0').is_dir()
+        index = ctx.read('/sys/class/net/wlan0/ifindex') if present else None
+        if self.attached and present and index != self.ifindex:
+            # F53: wlan0 went and came back between two looks (one netlink
+            # wake drained both). The supplicant still had its interface for
+            # the old netdev; a stale one is never reused.
+            journal(ctx, 'wifi_interface_renewed', reason='new_netdev')
+            self.detach()
         if not present:
             if self.attached:
-                ctx.command(['/usr/libexec/y2/wpa-event', 'wlan0', 'DISCONNECTED'], timeout=3)
-                self.stop('wifi-action')
-                ctx.command(['wpa_cli', '-g', '/run/wpa_supplicant/global',
-                             'interface_remove', 'wlan0'], timeout=2)
+                self.detach()
             self.attached = False
             self.retry_at, self.retry_delay = 0, 2
             return
@@ -112,6 +163,7 @@ class Supervisor:
             action = ctx.command(['wpa_cli', '-i', 'wlan0', '-a', '/usr/libexec/y2/wpa-event',
                                   '-B', '-P', '/run/y2/wifi-action.pid'], timeout=3)
             self.attached = action.get('ok') is True
+            self.ifindex = index if self.attached else None
         self.retry_at = now + self.retry_delay
         self.retry_delay = min(60, self.retry_delay * 2)
 
@@ -135,6 +187,7 @@ def serve(ctx):
             wake.drain()
             now = time.monotonic()
             supervisor.health(now, force=dead)
+            supervisor.verify(now)
             if changed or not supervisor.attached or events.sock is None:
                 supervisor.interface(now)
             # pidfds make helper death an event. Older hosts retain the existing

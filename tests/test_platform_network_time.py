@@ -107,6 +107,8 @@ class NetworkTime(unittest.TestCase):
             self.assertTrue(probe_dns(self.ctx, before)['ok'])
         monitor = EventMonitor(self.ctx)
         monitor.event('<3>CTRL-EVENT-SSID-TEMP-DISABLED id=0 ssid="private-name" reason=WRONG_KEY')
+        self.assertEqual(self.ctx.json('/run/y2/wifi-failure.json')['error'], 'handshake_failed')
+        monitor.event('<3>CTRL-EVENT-SSID-TEMP-DISABLED id=0 ssid="private-name" reason=WRONG_KEY')
         record = self.ctx.json('/run/y2/wifi-failure.json')
         self.assertEqual(record['error'], 'wrong_credentials')
         self.assertNotIn('private-name', json.dumps(record))

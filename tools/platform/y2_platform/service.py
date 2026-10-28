@@ -9,7 +9,7 @@ from .boot import private_directory
 import json
 from .common import atomic_json, kill_tree, read
 from .media import inventory
-from .network import DnsProbeSchedule, EventMonitor, probe_dns
+from .network import DnsProbeSchedule, EventMonitor, WifiRecovery, probe_dns
 from .observe import wifi
 from .timekeeping import remember as remember_time, status as time_status
 
@@ -266,6 +266,7 @@ def serve(ctx):
     fd = os.open(runtime / 'service.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     monitor = EventMonitor(ctx)
+    recovery = WifiRecovery(ctx)
     running = [True]
     wake = usb = None
     try:
@@ -306,7 +307,9 @@ def serve(ctx):
                 value = wifi(ctx, signal_cache=value)
             if value.get('radio_present') and value.get('supplicant_observation', {}).get('ok') is False:
                 query_failures += 1
-            value.update(status_query_failures=query_failures, schema=1, boot_id=ctx.read('/proc/sys/kernel/random/boot_id'), monotonic_s=time.monotonic())
+            recovery.observe(value, before, monitor)
+            value.update(status_query_failures=query_failures, schema=1, boot_id=ctx.read('/proc/sys/kernel/random/boot_id'), monotonic_s=time.monotonic(),
+                         supplicant_events=monitor.summary())
             atomic_json(runtime / 'network.json', value)
             activity = coexistence.observe(ctx, value, before)
             if before >= next_radio_policy and value['association'] == 'COMPLETED':
