@@ -2,9 +2,9 @@
 //! `media` (every action), `internal-media` (every action) and `space`, with cli.main's printing and
 //! exit-code rules. `/usr/sbin/y2-media` stays the overlay shell wrapper (`exec y2-platform media "$@"`).
 //!
-//! Rust takes the well-formed argument forms: options as separate tokens in any order (repeated
-//! ones: the last wins), exact option names, plain decimal `--seconds`. `--opt=value`, abbreviations,
-//! `--help`, `--`, invalid choices and values that start with `-` go to Python's argparse.
+//! `route` receives the canonical form of the parsed command line (the dispatcher's argparse.rs): the
+//! positional action, then the options given with their full names, `--opt value` as two tokens, flags
+//! bare and ints as `str(int())`; argparse's help and errors never reach it.
 // SPDX-License-Identifier: GPL-2.0-only
 mod internal;
 mod media;
@@ -38,14 +38,12 @@ fn parse<'a>(
     };
     let mut tokens = args.iter();
     while let Some(&token) = tokens.next() {
-        if !token.starts_with('-') || token == "-" {
-            parsed.positionals.push(token);
-        } else if let Some(flag) = flags.iter().find(|f| **f == token) {
+        if let Some(flag) = flags.iter().find(|f| **f == token) {
             parsed.flags.push(flag);
+        } else if let Some(option) = options.iter().find(|o| **o == token) {
+            parsed.options.insert(option, tokens.next()?);
         } else {
-            let option = options.iter().find(|o| **o == token)?;
-            let value = tokens.next().filter(|v| !v.starts_with('-'))?;
-            parsed.options.insert(option, value);
+            parsed.positionals.push(token);
         }
     }
     Some(parsed)
@@ -90,8 +88,8 @@ pub fn route(args: &[&str]) -> Option<Command> {
                 return None;
             }
             let seconds = match parsed.options.get("--seconds") {
-                Some(text) if sys::isdigit(text) => text.parse::<i64>().ok()?,
-                Some(_) => return None,
+                // An int beyond 64 bits is left to Python.
+                Some(text) => text.parse::<i64>().ok()?,
                 None => 60,
             };
             let request = MediaRequest {

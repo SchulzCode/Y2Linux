@@ -976,6 +976,17 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         );
     };
     let device = format!("/dev/{}", name(&entry));
+    // A resume record of this partition without a phase is Python's KeyError after its 'Running'
+    // note: handed to Python before the probe, so it runs the same commands.
+    if let Some(Value::Object(saved)) = root.json(SETUP) {
+        if get_eq(&saved, "device", &json!(device))
+            && get_eq(&saved, "start", &json!(START))
+            && get_eq(&saved, "size", &json!(SIZE))
+            && !saved.contains_key("phase")
+        {
+            return Err(Failure::Fallback);
+        }
+    }
     let props = probe(root, &entry);
     let stored = root.json(SETUP);
     if exists(&root.path(SETUP)) && !matches!(stored, Some(Value::Object(_))) {

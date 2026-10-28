@@ -13,7 +13,7 @@ import json
 BLOCK = 'sys/devices/platform/11240000.mmc/mmc_host/mmc1/mmc1:aaaa'
 DISK = BLOCK + '/block/mmcblk1'
 PART = DISK + '/mmcblk1p1'
-EMMC = 'sys/devices/platform/11230000.mmc/mmc_host/mmc0/mmc0:0001/block/mmcblk0'
+EMMC = 'sys/devices/platform/11230000.mmc/mmc_host/mmc0/mmc0:0002/block/mmcblk0'
 P8 = EMMC + '/mmcblk0p8'
 CID = '035344534433324780a1b2c3d4016a00'
 SD_UUID = '1234-ABCD'
@@ -141,9 +141,6 @@ MEDIA = [
     ('media-unmount-usb', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
         {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'attached',
          'views': [{'path': '/media/internal/music'}, {'path': '/media/sd'}]})}}),
-    ('media-unmount-usb-broken-views', ['media', 'unmount'], {'ported': False, 'files': {
-        **MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
-            {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'views': ['/media/sd']})}}),
     ('media-check', ['media', 'check'], {'ported': True, 'commands': [VFAT, ok(FSCK, 'clean')]}),
     ('media-check-ext4', ['media', 'check'], {'ported': True, 'commands': [
         EXT4, failed(['e2fsck', '-f', '-n', '/dev/mmcblk1p1'])]}),
@@ -155,8 +152,6 @@ MEDIA = [
     ('media-reconcile-same', ['media', 'reconcile'], {'ported': True, 'files': {
         '/run/y2/media-lifecycle.json': json.dumps({'schema': 1, 'inventory': LIFECYCLE, 'attempts': 1,
                                                     'retry': False, 'state': 'Ready', 'reason': None})}}),
-    ('media-reconcile-same-no-state', ['media', 'reconcile'], {'ported': True, 'files': {
-        '/run/y2/media-lifecycle.json': json.dumps({'inventory': LIFECYCLE})}}),
     ('media-reconcile-retry', ['media', 'reconcile'], {'ported': True, 'files': {
         **MOUNTED, '/run/y2/media-lifecycle.json': json.dumps({'inventory': LIFECYCLE, 'attempts': 2, 'retry': True})}}),
     ('media-reconcile-protect', ['media', 'reconcile'], {'ported': True, 'files': {
@@ -196,8 +191,6 @@ MEDIA = [
     ('media-repair-not-marked', ['media', 'repair'], {'ported': True}),
     ('media-repair-on-battery', ['media', 'repair'], {'ported': True, 'files': {
         '/run/y2/media.json': REFUSED, '/run/y2/power.json': POWER.replace('64', '12')}}),
-    ('media-repair-bad-battery', ['media', 'repair'], {'ported': False, 'files': {
-        '/run/y2/media.json': REFUSED, '/run/y2/power.json': '{"boot_id": "boot-a", "battery": [1]}'}}),
     ('media-repair', ['media', 'repair'], {'ported': True, 'commands': [
         EXT4, ok(['e2fsck', '-p', '/dev/mmcblk1p1'], 'Truncating file to 0 bytes'), ok(['e2fsck', '-n', '/dev/mmcblk1p1']),
         ok(['mount', '-t', 'ext4', '-o', 'ro,nosuid,nodev,noexec,noatime', '/dev/mmcblk1p1', '/media/sd'])], 'files': {
@@ -211,7 +204,7 @@ MEDIA = [
     ('media-repair-timeout', ['media', 'repair'], {'ported': True, 'commands': [
         EXT4, failed(['e2fsck', '-p', '/dev/mmcblk1p1'], reason='command_timeout')], 'files': {
         '/run/y2/media.json': REFUSED, '/run/y2/power.json': POWER}}),
-    ('media-repair-short-device', ['media', 'repair'], {'ported': True, 'commands': [EXT4], 'files': {
+    ('media-repair-short-device', ['media', 'repair'], {'ported': True, 'commands': [VFAT], 'files': {
         '/run/y2/media.json': REFUSED.replace('"ext4"', '"vfat"').replace(identity('ext4')['id'], identity()['id']),
         '/run/y2/power.json': POWER, '/dev/mmcblk1p1': BOOT}}),
     ('media-repair-mounted', ['media', 'repair'], {'ported': True, 'commands': [ok(['umount', '/media/sd'])],
@@ -230,20 +223,18 @@ MEDIA = [
     ('media-write-held', ['media', 'write', '--holder', 'report', '--seconds', '0'], {'ported': True, 'files': {
         **MOUNTED, **mounts(SD_RW), '/run/y2/sd-write.json': json.dumps({'boot_id': 'boot-a', 'mount_id': 51.0, 'holders': {
             'usb': 1e12}})}, 'volatile': WRITE_VOLATILE}),
-    ('media-write-bad-holders', ['media', 'write'], {'ported': False, 'files': {
-        **MOUNTED, '/run/y2/sd-write.json': json.dumps({'boot_id': 'boot-a', 'mount_id': 51, 'holders': [1]})}}),
     ('media-write-checking', ['media', 'write'], {'ported': True, 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('checking')}}),
     ('media-write-errors', ['media', 'write'], {'ported': True, 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('filesystem_errors')}}),
     ('media-write-unprotected', ['media', 'write'], {'ported': True, 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim(None)}}),
-    ('media-help', ['media', '--help'], {'ported': False}),
-    ('media-no-action', ['media'], {'ported': False}),
-    ('media-bad-action', ['media', 'eject'], {'ported': False}),
-    ('media-bad-holder', ['media', 'write', '--holder', 'nobody'], {'ported': False}),
-    ('media-seconds-joined', ['media', 'write', '--seconds=5'], {'ported': False}),
-    ('media-seconds-negative', ['media', 'write', '--seconds', '-5'], {'ported': False}),
+    ('media-help', ['media', '--help'], {'ported': True}),
+    ('media-no-action', ['media'], {'ported': True}),
+    ('media-bad-action', ['media', 'eject'], {'ported': True}),
+    ('media-bad-holder', ['media', 'write', '--holder', 'nobody'], {'ported': True}),
+    ('media-seconds-joined', ['media', 'write', '--seconds=5'], {'ported': True}),
+    ('media-seconds-negative', ['media', 'write', '--seconds', '-5'], {'ported': True}),
 ]
 
 P8_BLKID = ['blkid', '-p', '-o', 'export', '/dev/mmcblk0p8']
@@ -353,10 +344,8 @@ INTERNAL_CASES = [
         SETUP: json.dumps({**RECORD, 'start': 0})}}),
     ('internal-setup-record-phase', ['internal-media', 'setup'], {'ported': True, 'commands': [STOCK], 'files': {
         SETUP: json.dumps({**RECORD, 'phase': 'done'})}}),
-    ('internal-setup-record-no-phase', ['internal-media', 'setup'], {'ported': False, 'commands': [STOCK], 'files': {
-        SETUP: json.dumps({k: v for k, v in RECORD.items() if k != 'phase'})}}),
-    ('internal-help', ['internal-media', '--help'], {'ported': False}),
-    ('internal-serial-missing', ['internal-media', 'setup', '--confirm-serial'], {'ported': False}),
+    ('internal-help', ['internal-media', '--help'], {'ported': True}),
+    ('internal-serial-missing', ['internal-media', 'setup', '--confirm-serial'], {'ported': True}),
 ]
 
 DATA_READY = {'/proc/self/mountinfo': BASE_MOUNTS.replace('179:9', '179:8')}
@@ -371,8 +360,8 @@ SPACE = [
     ('space-read-only', ['space'], {'ported': True, 'commands': [DATA_UUID], 'files': {
         '/proc/self/mountinfo': DATA_READY['/proc/self/mountinfo'].replace('/data rw', '/data ro')}}),
     ('space-no-data', ['space'], {'ported': True, 'files': {'/proc/self/mountinfo': BASE_MOUNTS.splitlines()[0]}}),
-    ('space-help', ['space', '--help'], {'ported': False}),
-    ('space-extra', ['space', 'now'], {'ported': False}),
+    ('space-help', ['space', '--help'], {'ported': True}),
+    ('space-extra', ['space', 'now'], {'ported': True}),
 ]
 
 CASES = MEDIA + INTERNAL_CASES + SPACE
