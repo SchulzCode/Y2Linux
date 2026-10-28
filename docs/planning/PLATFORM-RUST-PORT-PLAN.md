@@ -1,6 +1,6 @@
 # Platform service: port from Python to Rust, then remove Python from the player
 
-Status: **Phase 0 done (2026-10-28); owner decisions taken (§4 contract crate in Y2Linux, defects ported 1:1 and fixed after parity); Phase 1 next.** Owner's goal: everything that runs on the player is Rust (Reborn), C
+Status: **Phase 0 done (2026-10-28); owner decisions taken (§4 contract crate in Y2Linux, defects ported 1:1 and fixed after parity); Phase 1 implemented, test build 166 and its device checks next.** Owner's goal: everything that runs on the player is Rust (Reborn), C
 (kernel, early boot, installer) or shell (init scripts); **no Python in the image**. Host-side tooling (release,
 build, validation, the test harness) may stay Python.
 
@@ -155,6 +155,19 @@ Acknowledged, the phase's device checks, a handoff entry. Publish only when the 
 - Workspace, `y2p-core`, `y2p-contract` (start with the types of `status`, `health`, `capabilities`, boot stages),
   Buildroot package, multicall binary that implements nothing yet and execs Python for every subcommand.
 - Device check: everything behaves exactly as before (one boot, sleep, update restart).
+
+- **Implemented 2026-10-28** (entry audit "PLATFORM-RUST phase 1"): `platform/` workspace with vendored serde,
+  serde_json, libc, ryu (Reborn's pins) and Rust 1.99.0; `y2p-core` (root paths and `ctx.read`/`integer`/`json`,
+  `json.dumps`-identical output incl. float `repr` checked against host Python on 20 000 random values,
+  `atomic_json`, `private_directory`, flock helpers checked against a Python holder, monotonic/boottime clocks);
+  `y2p-contract` (schema names, boot stage/line/record, health, capabilities, status envelope, error record;
+  round-trip tests on Python goldens from `tools/development/platform-goldens.py`); `y2-platform` (dispatcher: `exec`
+  of the same Python command; with `Y2_ROOT` the harness may name its interpreter/entry). Buildroot package
+  `y2-platform`, post-build checks that `/usr/sbin/y2-platform` is the ELF, `validate.py` checks it in tar and ext4;
+  the shell wrapper `tools/platform/y2-platform` is gone. Reborn: `crates/y2p-contract` (copy + `Y2LINUX-SOURCE`
+  stamp), `reborn-platform` uses its schema names; `release.py sync-contract`, and `build` refuses a differing copy.
+  `host-tests.sh` builds the host binary, so `tests.test_platform_differential` compares Rust with Python (all 16
+  cases identical). Device checks on 166 owed.
 
 ### Phase 2 — Hot short-lived commands (largest CPU win, low risk)
 - `status` (incl. `--reborn --pss`, `wifi`), `health`, `capabilities`, `boot-stage`, `boot-evidence`,

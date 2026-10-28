@@ -14,6 +14,7 @@ players update themselves over Wi-Fi (Settings → About & Updates → Update No
 | **FM radio** | Implemented on branch `beta8-fm` (audit rows BETA-8-FM on that branch) | Device test owed |
 | Sleep current | ≈7.8 mA vs stock 1.3 mA (archive 156) | Open |
 | Wired headphones | No jack detection yet | Open |
+| **Platform in Rust, no Python on the player** | [plan](PLATFORM-RUST-PORT-PLAN.md): phase 0 done (measurements, [contract inventory](../../platform/CONTRACT.md), differential harness); phase 1 dispatcher (audit PLATFORM-RUST phase 1) | Test build 166 owed; then phases 2–6 |
 
 The sections below are the history of how the platform got here (deep-sleep work, POWER-FINAL candidates); their "latest"
 labels refer to their own dates.

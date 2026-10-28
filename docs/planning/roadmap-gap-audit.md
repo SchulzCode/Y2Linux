@@ -9492,3 +9492,34 @@ gain fields read with defaults.
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.43** (Baseline 164, sequence 11000).
 
+
+## PLATFORM-RUST phase 1 (Rust dispatcher for `/usr/sbin/y2-platform`): entry audit — 2026-10-28
+
+**Boundary:** the owner's "go ahead with phase 1" after Phase 0 of the
+[platform port plan](PLATFORM-RUST-PORT-PLAN.md) and the owner decisions of the same night (contract crate in
+Y2Linux, Reborn carries a stamped copy; known defects ported 1:1 and fixed after Phase 6). Hardware evidence: the
+Phase 0 measurements on test build 165 (owner's player, plan §7), boot stages of 165 and of the previous 8.43 boot
+(pmsg trail). Limitations: the idle window was 9 min and the playing window 10 min, awake current is not measurable
+on the charger, and **no overnight drain on 165 exists** (owner: not possible yet), so the Python drain baseline is
+still the 161 estimate (≈2 mA).
+
+Change: **packaging/architecture**. A new Cargo workspace `platform/` (`y2p-core`, `y2p-contract`, `y2-platform`,
+vendored serde/serde_json/libc/ryu at Reborn's pins, Rust 1.99.0) and Buildroot package `y2-platform`; the Rust
+binary replaces the shell wrapper at `/usr/sbin/y2-platform` and, in this phase, hands every subcommand to
+`/usr/bin/python3 -I /usr/lib/y2-platform/main.py` by `exec` (same PID, argv, environment, stdio). Python, its
+modules and every other script are installed as before. Reborn gains `crates/y2p-contract` (copy) and uses its
+schema names. No kernel, device tree, memory map, partition, recovery or update-format change.
+
+| Area | State before | Phase 1 / gap |
+| --- | --- | --- |
+| `/usr/sbin/y2-platform` | shell `exec python3 …` | Rust `exec` of the same command; host tests: argv/env/stdin/PID/exit code identical, 16 differential cases Rust vs Python identical |
+| Exec cost per call | `sh` start + Python | Rust start + Python (≈ the same; the CPU win starts in phase 2) |
+| Image | 130 MB tree | +0.4 MB (one binary) |
+| Contract types | hand-written strings on both sides | `y2p-contract` (schema names, boot stage/record, health, capabilities, status envelope, error record) checked against Python goldens; `release.py build` refuses a differing Reborn copy |
+| 165 device checks (sleep cycles, overnight, power-off holding Power, update restart) | OWED | still owed; 166 stacks on 165 |
+| Device checks for phase 1 | — | OWED on test build 166: Acknowledged after a staged OTA (an update restart), status/Settings screens, a restart, a sleep/wake cycle when the owner can unplug |
+
+**Gate decision:** ready for an owner-installed test build (label 166, sequence above 11100); not
+release-qualified. Phase 2 (the first Rust subcommands) is admitted only after 166's device checks pass; the
+overnight drain on the dispatcher build is owed before phase 5 (power) at the latest and is recommended before
+phase 2's CPU comparison. No milestone is promoted or closed.
