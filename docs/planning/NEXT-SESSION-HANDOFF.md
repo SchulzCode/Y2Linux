@@ -1,6 +1,16 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-28, night): BETA 8.43 (BASELINE 164) PUBLISHED — Y2REBORN ISSUE FIXES.**
+> **START HERE (2026-10-28, late): BETA 8.44 TEST BUILD 165 ON THE OWNER'S PLAYER, NOT PUBLISHED — WATCHDOG, LONG-PRESS, PANIC.**
+> Owner: "do what you think is best" on the open decisions. Kept: sleep floor 3.4 V/5 %, Wi-Fi heal timing, no panel
+> re-init at `lcm=0`. Done: kernel-fed SoC watchdog in normal use (patch 0037 mtk_wdt, `mtk_wdt.y2_keepalive=0` turns it
+> off, stopped on suspend, `tests/test_watchdog_keepalive.py`), PMIC long-press reset off once a shutdown executes
+> (`/sys/firmware/y2_pmic/long_press_reset`), `panic=10` in the running system (rescue keeps 0). Seq 11100, label 165,
+> Acknowledged. Device so far: "Watchdog enabled (timeout=31 sec)", keepalive Y, panic 10, loader warm/cold in the boot
+> evidence. **The freeze test is impossible here: no CONFIG_MAGIC_SYSRQ (no /proc/sysrq-trigger).** Owed: sleep cycles
+> and an overnight unplugged (no false resets, maintenance wakes), a power-off while holding Power 15 s (pmsg
+> `long_press_reset ok`), an update restart. Next free label 166, sequence above 11100.
+>
+> Previous entry: **START HERE (2026-10-28, night): BETA 8.43 (BASELINE 164) PUBLISHED — Y2REBORN ISSUE FIXES.**
 > Seq 11000, Linux `f5529b7`, Reborn `a08ca5d` (fixes `2eada03`). Report [Beta 8.43](../validation/Y2-LINUX-1.0-BETA-8.43.md),
 > notes `out/release-164-notes.md`. Installed on the owner's player (build 164 = the release, Acknowledged). Issues
 > fixed: Y2Reborn #25 #28 #30 #45 #46 #51 #52 #55 #56 #57 #60 #62 (answered, closed). Answered without code: #50 #54
