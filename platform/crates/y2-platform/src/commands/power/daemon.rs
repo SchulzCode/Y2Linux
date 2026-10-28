@@ -1,0 +1,231 @@
+//! `y2-platform power-daemon` (`power.serve`): the battery and shutdown owner. Every second it samples
+//! BAT0 (CLOCK_BOOTTIME for the SOC), keeps the displayed percentage across restarts, runs the
+//! low-battery policy, journals, publishes `/run/y2/power.json` (Reborn's `power.rs` reads it directly:
+//! same boot, at most 5 s old) and executes a due shutdown; between samples it serves one client of
+//! `/run/y2/power.sock` (shutdown requests and Reborn's acknowledgement).
+//!
+//! Below a fixture root `Y2_DAEMON_TICKS=n` ends the loop after n iterations (exit 0), at the point
+//! where tests/platform_cases/power.py stops the Python daemon.
+// SPDX-License-Identifier: GPL-2.0-only
+use super::{
+    battery::{load_profile, sample, Soc, UI_STATE},
+    coordinator::Coordinator,
+    journal::PowerJournal,
+    policy::{load_policy, LowBattery},
+    quiet_exit, unix,
+};
+use crate::reply::{atomic_json, private_directory, unlink_missing_ok, Failure, Outcome};
+use std::{
+    os::unix::{fs::FileTypeExt, net::UnixStream},
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
+use y2p_core::{
+    clock,
+    power_json::{self, Json, Object},
+    Root,
+};
+
+pub const SOCKET: &str = "/run/y2/power.sock";
+const REQUEST_LIMIT: usize = 2048;
+
+static RUNNING: AtomicBool = AtomicBool::new(true);
+
+extern "C" fn stop(_: libc::c_int) {
+    RUNNING.store(false, Ordering::SeqCst);
+}
+
+/// `signal.signal(SIGTERM/SIGINT, …)`: end the loop at its next iteration.
+fn handle_signals() {
+    for signal in [libc::SIGTERM, libc::SIGINT] {
+        // SAFETY: an all-zero sigaction with a plain handler and an empty mask; the handler only
+        // stores to an atomic.
+        unsafe {
+            let mut action: libc::sigaction = std::mem::zeroed();
+            action.sa_sigaction = stop as *const () as libc::sighandler_t;
+            libc::sigemptyset(&mut action.sa_mask);
+            libc::sigaction(signal, &action, std::ptr::null_mut());
+        }
+    }
+}
+
+/// `Y2_DAEMON_TICKS` below a fixture root.
+fn tick_limit(root: &Root) -> Option<u64> {
+    if root.is_real() {
+        return None;
+    }
+    std::env::var("Y2_DAEMON_TICKS").ok()?.parse().ok()
+}
+
+fn now() -> i128 {
+    i128::from(clock::monotonic_ns())
+}
+
+pub fn serve(root: &Root) -> Outcome {
+    let runtime = root.path("/run/y2");
+    private_directory(&runtime)?;
+    let lock_path = runtime.join("power.lock");
+    let _lock = match y2p_core::lock::try_exclusive(&lock_path) {
+        Ok(Some(lock)) => lock,
+        Ok(None) => return Err(unix::os(std::io::Error::from_raw_os_error(libc::EAGAIN))),
+        Err(error) => return Err(Failure::os(error, &lock_path)),
+    };
+    let address = root.path(SOCKET);
+    if address.exists() {
+        let meta = std::fs::symlink_metadata(&address).map_err(|e| Failure::os(e, &address))?;
+        if !meta.file_type().is_socket() {
+            return Err(Failure::value("unsafe_power_socket_path"));
+        }
+        std::fs::remove_file(&address).map_err(|e| Failure::os(e, &address))?;
+    }
+    let mut coordinator = Coordinator::new(root);
+    let mut journal = PowerJournal::new();
+    let mut battery = LowBattery::default();
+    let mut soc = Soc::new(load_profile(root), power_json::read(root, UI_STATE));
+    let mut ui_saved = None;
+    let (policy, reason) = load_policy(root);
+    RUNNING.store(true, Ordering::SeqCst);
+    handle_signals();
+    let server = unix::listen(&address)?;
+    let ticks = tick_limit(root);
+    let mut iterations = 0u64;
+    let mut next_sample: i128 = 0;
+    let mut state = "Unavailable";
+    let mut battery_status = Object::new();
+    while RUNNING.load(Ordering::SeqCst) {
+        if now() >= next_sample {
+            next_sample = now() + 1_000_000_000;
+            // SOC uses physical elapsed time including suspend. Keep the
+            // shutdown grace/sampling scheduler on its existing clock.
+            battery_status = sample(root, &mut soc);
+            let voltage = battery_status.get("voltage_uv").and_then(Json::exact_int);
+            // 28: keep the displayed percentage across a restart (stock
+            // RTC spare register); written only when it changes.
+            if let Some(ui_state) = soc.state().filter(|s| Some(*s) != ui_saved) {
+                let record = Object::new()
+                    .with("schema", 1i64)
+                    .with("ui_percent", ui_state.0)
+                    .with("anchor_percent", ui_state.1);
+                if atomic_json(&root.path(UI_STATE), &record, true).is_ok() {
+                    ui_saved = Some(ui_state);
+                }
+            }
+            state = battery.observe(
+                policy.as_ref(),
+                voltage,
+                root.integer("/sys/class/power_supply/BAT0/present"),
+                &battery_status,
+            );
+            if state == "ShutdownPending" && coordinator.intent.is_none() {
+                let grace = policy.as_ref().map_or(10, |p| p.grace_seconds);
+                coordinator.request(&"poweroff".into(), &"low_battery".into(), grace)?;
+            }
+            journal.observe(
+                root,
+                state,
+                &battery_status,
+                coordinator.intent.as_ref(),
+                None,
+            );
+            let record = Object::new()
+                .with("schema", 1i64)
+                .with("boot_id", coordinator.boot_id.clone())
+                .with("monotonic_ns", clock::monotonic_ns())
+                .with("state", state)
+                .with("voltage_uv", voltage)
+                .with("reason", reason)
+                .with("thresholds_enabled", policy.is_some())
+                .with("battery", battery_status.clone())
+                .with(
+                    "qualification_reference",
+                    policy.as_ref().map(|p| {
+                        Json::from(
+                            p.value
+                                .get("qualification_reference")
+                                .cloned()
+                                .unwrap_or_default(),
+                        )
+                    }),
+                )
+                .with("shutdown", coordinator.intent.clone());
+            atomic_json(&runtime.join("power.json"), &record, false)?;
+        }
+        if coordinator.due() {
+            journal.observe(
+                root,
+                state,
+                &battery_status,
+                coordinator.intent.as_ref(),
+                Some("shutdown_execute"),
+            );
+            coordinator.execute()?;
+        }
+        let wait = coordinator.wait_ns(next_sample);
+        iterations += 1;
+        if ticks.is_some_and(|limit| iterations >= limit) {
+            break;
+        }
+        if wait == 0 {
+            continue;
+        }
+        let Some(client) = unix::accept(&server, Duration::from_nanos(wait as u64))? else {
+            continue;
+        };
+        serve_client(client, &mut coordinator);
+    }
+    drop(server);
+    unlink_missing_ok(&address)?;
+    quiet_exit(0)
+}
+
+/// One request line from one client; the answer is one line, `{"ok": true, "result": intent}` or
+/// `{"ok": false, "error": str(error)}`.
+fn serve_client(mut client: UnixStream, coordinator: &mut Coordinator) {
+    let result = handle(&mut client, coordinator);
+    let answer = match result {
+        Ok(intent) => Object::new().with("ok", true).with("result", intent),
+        Err(error) => Object::new().with("ok", false).with("error", error),
+    };
+    if let Ok(text) = y2p_core::json::dumps(&answer, y2p_core::json::Separators::Spaced) {
+        let _ = unix::send_all(&mut client, (text + "\n").as_bytes());
+    }
+}
+
+/// The request, as `str(error)` of every error Python catches here (ValueError, OSError, KeyError,
+/// TypeError, AttributeError).
+fn handle(client: &mut UnixStream, coordinator: &mut Coordinator) -> Result<Object, String> {
+    unix::timeouts(client, Duration::from_millis(200)).map_err(|e| e.message())?;
+    let (pid, uid) = unix::peer(client).map_err(|e| e.message())?;
+    if uid != 0 {
+        return Err("owner_privilege_required".into());
+    }
+    let mut data = Vec::new();
+    while !data.contains(&b'\n') {
+        let mut part = [0u8; REQUEST_LIMIT + 1];
+        let n = unix::recv(client, &mut part).map_err(|e| e.message())?;
+        if n == 0 || data.len() + n > REQUEST_LIMIT {
+            return Err("invalid_power_request".into());
+        }
+        data.extend_from_slice(&part[..n]);
+    }
+    // Accepted difference: text that is not JSON is refused with serde's message, not json's.
+    let request = Json::parse(&data).map_err(|e| e.to_string())?;
+    let Json::Object(request) = request else {
+        return Err(format!(
+            "'{}' object has no attribute 'get'",
+            request.type_name()
+        ));
+    };
+    let value = if request.value("operation").is_str("ack") {
+        let id = request.get("id").ok_or("'id'")?;
+        let outcome = request.get("outcome").ok_or("'outcome'")?;
+        coordinator.ack(id, pid, outcome)
+    } else {
+        let reason = request
+            .get("reason")
+            .cloned()
+            .unwrap_or_else(|| "user".into());
+        coordinator.request(&request.value("action"), &reason, 10)
+    };
+    value.map_err(|e| e.message())
+}
