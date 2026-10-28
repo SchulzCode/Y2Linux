@@ -1,6 +1,33 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-27, evening): BETA 8.42 IN PROGRESS, NOT PUBLISHED — SLEEP (F47/F48), LARGE SD CARDS (F49), QUICK SCAN.**
+> **START HERE (2026-10-28): BETA 8.42 IN PROGRESS, NOT PUBLISHED — REPORT FIXES F17 F23 F34 F39 F50–F57, TEST BUILD 162 ON THE OWNER'S PLAYER.**
+> All 40 pending error reports were reviewed (ledger `UserReports/REVIEWED.md`: rows, F50–F57, a dated paragraph for
+> F39/F34/F23/F17/F48/F40). Fixes on `main` in both repos, not pushed: Linux `boot (F23, F34…)` .. `reports (F50, F56,
+> F57…)`, kernel config `7924194` (`CONFIG_LOG_BUF_SHIFT` 19: the Image was 5.4 KiB over the 12 MiB cap; the 1 MiB log
+> comes from `log_buf_len=1M`), sequence `d6b8420` (10820, rootfs v1.204); Reborn `3a4860b` (F51 Play waits for lost
+> Bluetooth headphones, F52 exact Wi-Fi reasons), `13f03d0` (F57 held Power after a wake), `25b8e06` (F17 EACCES).
+> - F39/F50: SoC watchdog armed for the whole shutdown (`power.py` `arm_watchdog`, `BAT0/watchdog_powers_off` clears
+>   AUTO_RESTART for a power-off), pmsg `begin <step>` lines, radio stop after sync per radio, Wi-Fi IRQ returns
+>   IRQ_NONE after a connectivity failure (suspected stall, unproven), last power-off handler that never returns.
+>   Device: a user restart on 162 wrote the full trail (`execute` → `init_reboot ok` in 2.7 s).
+> - F54/F55 (`battery.py`, `product_sleep.py`): warm restart keeps the saved percent (stock `dod_init`); sleep refused
+>   for the battery only at filtered 3.4 V / 5 %. F52/F53 (`network.py`, `connectivity.py`): WRONG_KEY latches on the
+>   2nd, saved-network reselect after 30 s DISCONNECTED, interface re-add, `wifi-journal.jsonl`. F17: no DCS reads
+>   while reads are doubled, DSI restart ≤ 2 when no frames, splash CRTC cycle. F23/F34: init waits for both
+>   partitions; recovery watchdog from the first step. F56/F57: `/sys/firmware/y2_pmic/power_status` →
+>   `previous-boot-evidence.json` `pmic` (on 162: long-press reset enabled, 11 s, no record); pstore panic re-send fixed.
+> - Device on 161 before the update: 17.3 h sleep ≈ 2 mA (voltage estimate), no F47 refusal. 162 installed by staged
+>   OTA, Acknowledged on health boot 1, ST7701S streams (vblank 16), kernel log 1 MiB.
+>
+> **Next:** device checks per finding (F54 warm restart `start: warm/saved`; F55 sleep below 3.6 V; F51 Play after a
+> sleep with Bluetooth headphones; F52/F53 `ip link set wlan0 down`, `wpa_cli disconnect` + platform restart; F57 hold
+> Power after a wake; F50/F39 `echo 1 > BAT0/watchdog_powers_off` + open `/dev/watchdog` → off / charging mode; F49
+> large card), overnight drain on 162, release docs, publish only when the owner says so. **Owner decisions:** sleep
+> floor 3.4 V/5 %; PMIC long-press reset (stock clears TOP_RST_MISC bit 6, we keep it: a hold through our 8–14 s
+> power-off can be cut); watchdog in normal use (F56); `panic=10` in the running system; Wi-Fi heal thresholds; stock
+> re-inits the panel at boot when LK reports `lcm=0` (not adopted). Next free label 163, sequence above 10820.
+>
+> Previous entry: **START HERE (2026-10-27, evening): BETA 8.42 IN PROGRESS, NOT PUBLISHED — SLEEP (F47/F48), LARGE SD CARDS (F49), QUICK SCAN.**
 > The owner said: commit, do not publish yet. Everything below is on `main` in both repos, not pushed, not tagged.
 > - **F47/F48 sleep** (earlier today): Linux `d3b49f2` (UART0 RX pad to GPIO in sleep, UART-busy dump + one retry),
 >   `2200bad` (a refused sleep stays dark); Reborn `57b47b2` (screen off at once on Power), `9ee61f0` (no Sleep page).
