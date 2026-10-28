@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -14,16 +15,32 @@
 #include "fs-store.h"
 #include "../../kernel/platform/connectivity/calibration.h"
 
+/* #62: the provider reports a never-formatted PROTECT partition as
+ * "protect_f=empty" / "protect_s=empty"; its records are then absent, and the
+ * modem finds no file, as stock's modem does on such a player. */
+static int protect_empty(int factory, char which)
+{
+	char status[256], key[] = "\nprotect_?=empty\n";
+	key[9] = which;
+	int fd=openat(factory,"ready",O_RDONLY|O_CLOEXEC|O_NOFOLLOW|O_NONBLOCK);
+	if (fd < 0) return 0;
+	ssize_t n=read(fd,status,sizeof(status)-1); close(fd);
+	if (n <= 0) return 0;
+	status[n]=0;
+	return strstr(status,key) != NULL;
+}
 static int seed(struct y2_store *store, int factory)
 {
 	static const char *names[] = {"ST33A004","ST33B004","MP0D_000"};
 	static const char *paths[] = {"X/ST33A004","Y/ST33B004","X/MP0D_000"};
 	static const unsigned sizes[] = {2060,2060,4};
+	static const char partition[] = {'f','s','f'};
 	const char *roots[] = {"Z/","X/","Y/","W/"};
 	for (unsigned i=0;i<4;i++) if (!y2_fs_new(store,roots[i],1)) return -1;
 	for (unsigned i=0;i<3;i++) {
 		unsigned char data[2060]; struct stat st;
 		int fd=openat(factory,names[i],O_RDONLY|O_CLOEXEC|O_NOFOLLOW|O_NONBLOCK);
+		if (fd < 0 && errno == ENOENT && protect_empty(factory,partition[i])) continue;
 		if (fd < 0) return -1;
 		int ret=fstat(fd,&st) || !S_ISREG(st.st_mode) || st.st_size != sizes[i] ||
 			st.st_uid || (st.st_mode & 077) || read(fd,data,sizes[i]) != (ssize_t)sizes[i];

@@ -511,6 +511,63 @@ int main(void) {
 }
 ''')
 
+    def test_never_formatted_protect_partitions_give_no_records(self):
+        # #62: a non-FM player's PROTECT_F/S are all zero (never formatted). Stock's modem then
+        # finds no factory files; the provider says so instead of stopping the radios. Any other
+        # unreadable content still fails closed.
+        import shutil, subprocess
+        if not shutil.which('cc') or not any(Path(d, 'ext2fs/ext2fs.h').exists()
+                                             for d in ('/usr/include', '/usr/local/include')):
+            self.skipTest('host libext2fs headers unavailable')
+        with tempfile.TemporaryDirectory() as directory:
+            t = Path(directory)
+            subprocess.run(['cc', '-DY2_FACTORY_HOST_TEST', '-O1', '-Wall', '-Werror', '-o', str(t / 'factory'),
+                            str(ROOT / 'tools/connectivity/factory.c'), '-lext2fs', '-lcom_err'], check=True)
+            for name in ('img', 'fw'):
+                (t / name).mkdir()
+            (t / 'img/NVRAM.bin').write_bytes(bytes(0x500000))
+            for name in ('PROTECT_F.bin', 'PROTECT_S.bin'):
+                (t / 'img' / name).write_bytes(bytes(0xa00000))
+            wifi = bytearray(512); wifi[0:2] = b'\x04\x01'; wifi[196] = 1
+            (t / 'fw/WIFI.defaults').write_bytes(wifi)
+            (t / 'fw/BT.defaults').write_bytes(bytes(64))
+            def run(out):
+                return subprocess.run([str(t / 'factory'), str(t / 'img'), str(t / out), str(t / 'data'),
+                                       str(t / 'fw')], capture_output=True, text=True)
+            result = run('run1')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            ready = (t / 'run1/ready').read_text()
+            self.assertIn('\nprotect_f=empty\nprotect_s=empty\n', ready)
+            self.assertFalse((t / 'run1/ST33A004').exists())
+            with open(t / 'img/PROTECT_S.bin', 'r+b') as f:
+                f.seek(5000); f.write(b'X')
+            result = run('run2')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('protected filesystem cannot be read without repair', result.stderr)
+        # The calibration service skips only records of a partition the provider called empty.
+        source = (ROOT / 'tools/connectivity/calibration.c').read_text()
+        self.assertIn('if (fd < 0 && errno == ENOENT && protect_empty(factory,partition[i])) continue;', source)
+        run_c(r'''
+#define _GNU_SOURCE
+#include <assert.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+''' + function(source, 'protect_empty') + r'''
+int main(void){
+ char dir[]="/tmp/y2-protect-XXXXXX";assert(mkdtemp(dir));
+ int d=open(dir,O_RDONLY|O_DIRECTORY);assert(d>=0);
+ assert(!protect_empty(d,'f'));
+ int f=openat(d,"ready",O_WRONLY|O_CREAT,0600);
+ const char s[]="version=1\nprotect_f=empty\nprotect_s=records\n";
+ assert(write(f,s,sizeof(s)-1)==(ssize_t)sizeof(s)-1);close(f);
+ assert(protect_empty(d,'f') && !protect_empty(d,'s'));
+ unlinkat(d,"ready",0);close(d);rmdir(dir);
+}
+''')
+
     def test_factory_open_with_repeated_separators_preserves_seed(self):
         run_c(r'''
 #include <assert.h>

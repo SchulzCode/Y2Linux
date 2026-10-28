@@ -175,6 +175,16 @@ static int nvram_empty(const unsigned char *data)
 	}
 	return 1;
 }
+/* #62: some players (non-FM, 2026) leave PROTECT_F/S never formatted: every
+ * byte zero, no superblock. Stock mounts them with "check" only, never formats
+ * them, and its modem then finds no factory files and uses its own defaults.
+ * Only a partition without one nonzero byte counts as empty; any other
+ * unreadable content still fails closed. */
+static int protect_empty(const unsigned char *data)
+{
+	for (size_t i = 0; i < PROTECT_BYTES; i++) if (data[i]) return 0;
+	return 1;
+}
 static void replay_ram_journal(int memory)
 {
 	/* Stock left the filesystem mounted when this retained copy was taken.
@@ -290,6 +300,7 @@ int main(int argc, char **argv)
 	 * discard unknown factory calibration or overwrite it with defaults. */
 	if (!nvram_empty(nvram)) fail("nonempty/unknown factory backup: records must be mapped first");
 	explicit_bzero(nvram, NVRAM_BYTES); free(nvram);
+	unsigned empty[2] = {0, 0};
 	for (unsigned which = 0; which < 2; which++) {
 		if (images) {
 			char path[512]; snprintf(path, sizeof(path), "%s/PROTECT_%c.bin", images, which ? 'S' : 'F');
@@ -297,7 +308,8 @@ int main(int argc, char **argv)
 			if (fd < 0) fail("retained protected filesystem unavailable");
 			read_exact(fd, protect, PROTECT_BYTES, 0); close(fd);
 		} else read_exact(disk, protect, PROTECT_BYTES, which ? 0x1300000 : 0x900000);
-		protect_records(protect, output, which);
+		if (protect_empty(protect)) empty[which] = 1;
+		else protect_records(protect, output, which);
 	}
 	if (disk >= 0) close(disk);
 	explicit_bzero(protect, PROTECT_BYTES); free(protect);
@@ -312,10 +324,18 @@ int main(int argc, char **argv)
 	write_private(output, "WIFI", wifi, sizeof(wifi));
 	write_private(output, "BT", bt, sizeof(bt));
 	/* Publish completion last. Consumers must reject a partial provider run. */
-	static const char status[] = "version=1\nfactory_backup=empty\nrf_parameters=stock_board_defaults\nidentity=persistent_fallback\n";
-	write_private(output, "ready", status, sizeof(status) - 1);
+	/* y2-calibration reads protect_f/protect_s: an empty one seeds no records. */
+	char status[192];
+	int length = snprintf(status, sizeof(status), "version=1\nfactory_backup=empty\nrf_parameters=stock_board_defaults\n"
+		"identity=persistent_fallback\nprotect_f=%s\nprotect_s=%s\n",
+		empty[0] ? "empty" : "records", empty[1] ? "empty" : "records");
+	if (length <= 0 || (size_t)length >= sizeof(status)) fail("provider status");
+	write_private(output, "ready", status, (size_t)length);
 	explicit_bzero(wifi, sizeof(wifi)); explicit_bzero(bt, sizeof(bt));
 	close(output); close(persistent);
+	if (empty[0] || empty[1])
+		printf("y2-factory: PROTECT_F %s, PROTECT_S %s; empty ones give no factory records\n",
+		       empty[0] ? "empty" : "records", empty[1] ? "empty" : "records");
 	puts("y2-factory: private records ready; factory partitions were read-only");
 	return 0;
 }
