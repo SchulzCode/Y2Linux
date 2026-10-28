@@ -5,6 +5,7 @@
     release.py build --label 52            # resumes out/build; --clean starts over
     release.py publish --label 52 --title "Y2Linux 1.0 Beta 3" --notes notes.md --yes
     release.py prune --dry-run
+    release.py sync-contract               # copy y2p-contract into Y2Reborn (then commit Y2Reborn)
 
 `build` never touches GitHub or a device. It resumes the one build workspace
 out/build at the kernel (a missing workspace, or --clean, builds from
@@ -13,7 +14,9 @@ update, scans every image for MediaTek firmware and assembles everything a
 release needs under out/release-<label>/; afterwards only the two newest
 release outputs stay (prune). Build folders are never copied: a copy keeps
 absolute paths, symlinks and library search paths of its origin (Beta 2's
-build still used libraries of build 34). `publish` tags and pushes
+build still used libraries of build 34). `build` also refuses to start while
+Y2Reborn's copy of the shared contract crate differs from Y2Linux's
+(platform/crates/y2p-contract; `sync-contract` copies it). `publish` tags and pushes
 both repositories and creates the GitHub release; it re-uploads the large
 third-party source archive and the Linux source only when they changed and
 links the identical files of the release that carries them otherwise.
@@ -41,6 +44,11 @@ KEY = Path.home() / '.local/share/y2linux/signing/platform-v1-release-20261015.k
 KEY_ID = 'platform-v1-release-20261015'
 STOCK = Path(os.environ.get('Y2_STOCK_PACKAGE', '/home/luca/Dokumente/Code/Y2Player/y2_v3.2.0_FM-20260813'))
 WORKSPACE = OUT / 'build'
+# The platform/Reborn contract types (docs/planning/PLATFORM-RUST-PORT-PLAN.md §4): Y2Linux holds the crate,
+# Y2Reborn a copy with a stamp naming the Y2Linux commit and the tree hash it was made from.
+CONTRACT = Path('platform/crates/y2p-contract')
+CONTRACT_COPY = Path('crates/y2p-contract')
+CONTRACT_STAMP = 'Y2LINUX-SOURCE'
 
 
 def git(repo, *args):
@@ -53,6 +61,38 @@ def sha256(path):
         for block in iter(lambda: stream.read(1 << 20), b''):
             digest.update(block)
     return digest.hexdigest()
+
+
+def contract_tree(directory):
+    """SHA-256 over the crate's files (path and content, sorted), without the stamp and build output."""
+    digest = hashlib.sha256()
+    for path in sorted(p for p in directory.rglob('*') if p.is_file()):
+        relative = path.relative_to(directory)
+        if relative.parts[0] == 'target' or relative == Path(CONTRACT_STAMP):
+            continue
+        digest.update(str(relative).encode() + b'\0' + sha256(path).encode() + b'\n')
+    return digest.hexdigest()
+
+
+def contract_difference():
+    """Why Y2Reborn's y2p-contract is not Y2Linux's, or None when they are the same files."""
+    source, copy = PROJECT / CONTRACT, REBORN / CONTRACT_COPY
+    if not copy.is_dir():
+        return f'Y2Reborn has no {CONTRACT_COPY}'
+    if contract_tree(source) != contract_tree(copy):
+        return f'Y2Reborn {CONTRACT_COPY} differs from Y2Linux {CONTRACT}'
+    return None
+
+
+def sync_contract(args=None):
+    source, copy = PROJECT / CONTRACT, REBORN / CONTRACT_COPY
+    shutil.rmtree(copy, ignore_errors=True)
+    shutil.copytree(source, copy, ignore=shutil.ignore_patterns('target'))
+    (copy / CONTRACT_STAMP).write_text(
+        f'# Copy of Y2Linux {CONTRACT} made by tools/production/release.py sync-contract; edit it there.\n'
+        f'y2linux_commit {git(PROJECT, "rev-parse", "HEAD")}\n'
+        f'tree_sha256 {contract_tree(source)}\n')
+    print(f'{copy}: copied; commit Y2Reborn')
 
 
 class Steps:
@@ -144,6 +184,9 @@ def build(args):
     for repo in (PROJECT, REBORN):
         if git(repo, 'status', '--porcelain'):
             raise SystemExit(f'{repo.name}: commit the reviewed source first')
+    difference = contract_difference()
+    if difference:
+        raise SystemExit(f'{difference}: run release.py sync-contract and commit Y2Reborn')
     folder = WORKSPACE
     release = OUT / f'release-{args.label}'
     if (release / 'summary.json').exists():
@@ -465,6 +508,7 @@ def main():
     p = sub.add_parser('prune', help='remove all but the newest builds and release outputs')
     p.add_argument('--keep', type=int, default=2)
     p.add_argument('--dry-run', action='store_true')
+    sub.add_parser('sync-contract', help="copy Y2Linux's y2p-contract crate into Y2Reborn")
     p = sub.add_parser('publish', help='tag, push and create the GitHub release')
     p.add_argument('--label', required=True)
     p.add_argument('--title', required=True)
@@ -474,7 +518,7 @@ def main():
     if args.command == 'prune':
         prune(args.keep, args.dry_run)
         return
-    {'bump': bump, 'build': build, 'publish': publish}[args.command](args)
+    {'bump': bump, 'build': build, 'publish': publish, 'sync-contract': sync_contract}[args.command](args)
 
 
 if __name__ == '__main__':

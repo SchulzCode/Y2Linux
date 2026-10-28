@@ -49,6 +49,31 @@ class ReleaseTool(unittest.TestCase):
             self.assertIn('power-final-34-build', skipped[0])  # the workspace still uses it
             self.assertEqual(sorted(path.name for path in (project / '.cache').iterdir()), ['environment', active])
 
+    def test_reborn_must_carry_the_same_contract_crate(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project, reborn = Path(temporary) / 'Y2Linux', Path(temporary) / 'Y2Reborn'
+            crate = project / release.CONTRACT
+            (crate / 'src').mkdir(parents=True)
+            (crate / 'Cargo.toml').write_text('[package]\nname = "y2p-contract"\n')
+            (crate / 'src/lib.rs').write_text('pub const A: u32 = 1;\n')
+            (crate / 'target/debug').mkdir(parents=True)
+            (crate / 'target/debug/build-output').write_text('ignored')
+            with patch.object(release, 'PROJECT', project), patch.object(release, 'REBORN', reborn), \
+                    patch.object(release, 'git', lambda repo, *a: 'a' * 40):
+                self.assertIn('has no', release.contract_difference())
+                release.sync_contract()
+                copy = reborn / release.CONTRACT_COPY
+                self.assertIsNone(release.contract_difference())
+                self.assertFalse((copy / 'target').exists())
+                stamp = (copy / release.CONTRACT_STAMP).read_text()
+                self.assertIn('y2linux_commit ' + 'a' * 40, stamp)
+                self.assertIn('tree_sha256 ' + release.contract_tree(crate), stamp)
+                (copy / 'src/lib.rs').write_text('pub const A: u32 = 2;\n')  # edited in Reborn
+                self.assertIn('differs', release.contract_difference())
+                release.sync_contract()
+                (crate / 'src/new.rs').write_text('')  # changed in Y2Linux, not copied yet
+                self.assertIn('differs', release.contract_difference())
+
     def test_source_archives_are_reproducible(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / 'legal-info'

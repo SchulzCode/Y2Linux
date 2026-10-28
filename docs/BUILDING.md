@@ -184,6 +184,7 @@ player before `publish`.
 ```sh
 python3 tools/production/release.py bump --version 1.0.0-beta.7.10 --sequence 6300  # identity in both repositories
 # review, run the checks, commit Y2Linux and Y2Reborn
+python3 tools/production/release.py sync-contract                  # only after platform/crates/y2p-contract changed; commit Y2Reborn
 python3 tools/production/release.py build --label 73               # ≈2 min
 # write the report and docs, commit them (only docs/ and readme.md may change after the build)
 python3 tools/production/release.py publish --label 73 --title "Y2Linux 1.0 Beta 7.10" \
@@ -198,7 +199,10 @@ image contains MediaTek firmware and puts everything under `out/release-<label>/
 lists hashes, test count and the time of every step). The third-party package sources go into a
 reproducible archive named after its hash; `publish` uploads it and the Linux source archive only
 when no earlier release carries the identical file, and links that file otherwise. The base for
-the next update package is always the newest **published** release.
+the next update package is always the newest **published** release. `build` refuses to start
+while Y2Reborn's `crates/y2p-contract` (the record types the platform and Reborn share) is not the
+same files as Y2Linux's `platform/crates/y2p-contract`; change the crate in Y2Linux only and copy it
+with `sync-contract`.
 
 After every successful `build`, `out/` keeps only the workspace, the two newest release outputs
 (always including the newest published one) and the archives (`deep-sleep-final`, `rea`,
