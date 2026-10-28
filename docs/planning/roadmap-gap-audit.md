@@ -9534,3 +9534,24 @@ boot, `complete_result_0`, radios restored. Still owed: overnight on the dispatc
 Power held). **Phase 2 admitted** for source work and host tests; its device checks follow on the next test build. Phase 2 (the first Rust subcommands) is admitted only after 166's device checks pass; the
 overnight drain on the dispatcher build is owed before phase 5 (power) at the latest and is recommended before
 phase 2's CPU comparison. No milestone is promoted or closed.
+
+## PLATFORM-RUST phase 2 part 1 (short commands in Rust): entry audit — 2026-10-28
+
+**Boundary:** the owner's "ok do phase 2" after the phase 1 device check on test build 166 (above). Change:
+`capabilities`, `sleep status`, `time`, `time-remember`, `ntp-event`, `boot-stage` (incl. the `application_ready`
+power features and the panel record/hint), `codec-runtime`, `wifi-event`, `dhcp-event`, `cpu-idle-policy` run
+in Rust for their exact argument forms (platform/CONTRACT.md "Ported to Rust"); all else still runs in Python.
+These sit in the boot path (S03y2-platform, reborn-boot-services, S05y2-cpu-idle, connectivity), the shutdown
+path (`boot-stage shutdown_*`, `time-remember`), the Wi-Fi path (wpa-event, udhcpc) and ntpd's callback. No
+kernel, memory map, partition or packaging change beyond the binary.
+
+| Area | Evidence | Gap |
+| --- | --- | --- |
+| Behaviour | 62 differential cases Rust = Python (records, files, modes, subprocess requests, errors, fallbacks) | fixture only |
+| Boot stages, power features, cpu idle, codec arguments | — | OWED on test build 167: same records as 166, boot timing |
+| Shutdown trail (F39/F50 timing) | 166: journal_pending 0.54 s, time_remember 0.54 s, journal_complete 0.59 s | OWED: restart on 167 |
+| Wi-Fi events | — | OWED: association/DHCP on 167 (owner's Wi-Fi is on) |
+| Overnight drain | none on the dispatcher yet | owed |
+
+**Gate decision:** ready for an owner-installed test build (label 167, sequence 11120); not release-qualified.
+Part 2 (`status`, `health`, `boot-evidence`, `network-check`) continues as source work.
