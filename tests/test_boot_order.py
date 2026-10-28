@@ -227,6 +227,12 @@ class BootOrder(unittest.TestCase):
         self.assertIn('sleep 0.05', loop)
         self.assertNotIn('sleep 1\n', loop)
         self.assertIn('-lt 800', loop, 'still waits about 40 s in total')
+        # F23 (report 5497435a): data alone no longer ends the wait at once, and the root is
+        # probed again before a boot rescues for a missing root.
+        self.assertIn('[ -n "$datadev" ] && [ -n "$rootdev" ] && break', loop)
+        self.assertIn('[ "$alone" -lt 20 ] || break', loop)
+        tail = init[init.index('[ -n "$datadev" ] || rescue'):init.index("rescue 'missing/invalid internal Y2ROOT'")]
+        self.assertEqual(tail.count('y2_find_partition Y2ROOT'), 1)
 
     def test_platform_records_do_not_need_the_random_pool(self):
         sys.path.insert(0, str(ROOT / 'tools/platform'))

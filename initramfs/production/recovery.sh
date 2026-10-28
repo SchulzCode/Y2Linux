@@ -13,6 +13,16 @@ recovery_screen() {
 
 recovery_log() {
     echo "<6>Y2RECOVERY: $*" > /dev/kmsg
+    # pstore's message buffer outlives a frozen run's restart (F34).
+    [ ! -c /dev/pmsg0 ] || echo "recovery $*" > /dev/pmsg0
+}
+
+# F34: a run froze right after "init recovery", before the installer and its
+# watchdog started; USB power-on restarted it 26 min later. The steps before
+# the install name themselves here, and the watchdog below watches this file.
+recovery_step() {
+    printf '%s\n' "$1" > /run/y2/recovery-step
+    [ ! -c /dev/pmsg0 ] || echo "recovery step $1" > /dev/pmsg0
 }
 
 # Restart into the result (OTA-46 default). The owner's override
@@ -60,7 +70,9 @@ recovery_display_off() {
 # now does that restart: it is fed while the installer reports progress and
 # starves when the kernel freezes or the installer shows nothing new for two
 # minutes. The request stays set, so the next start resumes (or restores the
-# old system), as after Power. Only while the installer runs.
+# old system), as after Power. From the first step until the recovery waits
+# for a person (stuck, charger) or turns off. Arguments: the progress file and
+# how long it may stay unchanged (s).
 recovery_watchdog=
 recovery_watchdog_start() {
     [ -c /dev/watchdog ] || return 0
@@ -69,11 +81,11 @@ recovery_watchdog_start() {
         exec 3>/dev/watchdog || exit 0
         last= still=0
         while [ ! -e /run/y2/recovery-watchdog-stop ]; do
-            now=$(cat /run/y2/recovery-progress 2>/dev/null)
+            now=$(cat "$1" 2>/dev/null)
             if [ "$now" = "$last" ]; then still=$((still+5)); else still=0; fi
             last=$now
-            if [ "$still" -ge 120 ]; then
-                echo "<3>Y2RECOVERY: no progress for 120 s (${now:-none}); watchdog restart" > /dev/kmsg
+            if [ "$still" -ge "$2" ]; then
+                echo "<3>Y2RECOVERY: no progress for $2 s (${now:-none}); watchdog restart" > /dev/kmsg
                 [ ! -c /dev/pmsg0 ] || echo "watchdog no progress ${now:-none}" > /dev/pmsg0
                 sync
                 while :; do sleep 60; done
@@ -129,6 +141,8 @@ recovery_off() {
 # screen would stay on until the cell is empty (V1 code review B8): after ten
 # minutes without a charger the player turns off; Power brings this back.
 recovery_stuck() {
+    # A person decides from here: no watchdog restarts behind the screen.
+    recovery_watchdog_stop
     recovery_log "$*; staying in recovery"
     recovery_screen 'Update needs attention' "$1" '' 'Connect the player' 'to a computer.'
     [ -z "$recovery_data_mounted" ] || recovery_evidence
@@ -198,6 +212,9 @@ charger_online() {
 }
 
 y2_stage recovery
+recovery_step start
+# e2fsck of a dirty Y2DATA is the slowest step before the install.
+recovery_watchdog_start /run/y2/recovery-step 300
 recovery_data_mounted=
 recovery_screen 'Installing Update' "Don't turn off the player." 'This takes under a minute.'
 if [ -x /sbin/y2-recovery-ui ]; then /sbin/y2-recovery-ui & recovery_ui=$!; fi
@@ -207,6 +224,7 @@ if [ -w /sys/devices/system/cpu/cpufreq/policy0/scaling_governor ]; then
     echo schedutil > /sys/devices/system/cpu/cpufreq/policy0/scaling_governor
 fi
 start_observer
+recovery_step storage_discovery
 n=0
 while [ "$n" -lt 800 ]; do
     datadev=$(y2_find_partition Y2DATA 79324c69-6e75-4801-8000-000000000102 2104320 1638400)
@@ -215,21 +233,27 @@ while [ "$n" -lt 800 ]; do
     sleep 0.05
 done
 [ -n "$datadev" ] || recovery_stuck 'Storage not found'
+recovery_step data_check
 e2fsck -p "$datadev" > /dev/kmsg 2>&1
 [ "$?" -le 1 ] || recovery_stuck 'Storage check failed'
+recovery_step data_mount
 mount -t ext4 -o rw,nosuid,nodev "$datadev" /newdata || recovery_stuck 'Storage did not mount'
 recovery_data_mounted=1
 [ "$(cat /newdata/.y2data-schema 2>/dev/null)" = 1 ] || recovery_stuck 'Unknown storage format'
 recovery_restart_mode
 mkdir -p /newdata/logs
 recovery_keep_previous_boot
+recovery_step entropy
 /bin/busybox timeout 10 /bin/busybox seedrng --seed-dir=/newdata/system/entropy > /dev/kmsg 2>&1 || :
+recovery_step radio_firmware
 recovery_keep_radio_firmware
 y2_stage recovery_install
+# The installer's own progress takes over (one opener of /dev/watchdog).
+recovery_watchdog_stop
 
 attempt=0
 while :; do
-    recovery_watchdog_start
+    recovery_watchdog_start /run/y2/recovery-progress 120
     /sbin/y2-update-core recovery > /run/y2/recovery-result.json
     recovery_watchdog_stop
     outcome=$(sed -n 's/.*"outcome":"\([a-z_]*\)".*/\1/p' /run/y2/recovery-result.json)

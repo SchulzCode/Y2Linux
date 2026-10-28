@@ -182,8 +182,20 @@ exit 0
         self.assertNotIn('echo 7 > /proc/sys/kernel/printk', script)
         self.assertLess(loop.index('recovery_watchdog_stop'), loop.index('until charger_online'))
         keeper = script[script.index('recovery_watchdog_start() {'):script.index('recovery_watchdog_stop() {')]
-        self.assertIn('if [ "$still" -ge 120 ]; then', keeper)
+        self.assertIn('if [ "$still" -ge "$2" ]; then', keeper)
         self.assertIn('printf V >&3', keeper)   # magic close: a normal stop disarms it
+        self.assertIn('recovery_watchdog_start /run/y2/recovery-progress 120', loop)
+        # F34 gap (report 5497435a): a run froze after "init recovery", before the installer. The
+        # watchdog runs from the first step; the installer's own keeper replaces it (one opener of
+        # /dev/watchdog), and a stuck screen waits for a person without restarts behind it.
+        early = script[script.index('y2_stage recovery\n'):script.index('while :; do\n    recovery_watchdog_start')]
+        self.assertIn('recovery_watchdog_start /run/y2/recovery-step 300', early)
+        self.assertLess(early.index('recovery_watchdog_start'), early.index('y2_find_partition Y2DATA'))
+        self.assertLess(early.index('e2fsck -p'), early.index('recovery_watchdog_stop'))
+        for step in ('storage_discovery', 'data_check', 'data_mount', 'radio_firmware'):
+            self.assertIn('recovery_step ' + step, early)
+        stuck_fn = script[script.index('recovery_stuck() {'):]
+        self.assertLess(stuck_fn.index('recovery_watchdog_stop'), stuck_fn.index('recovery_screen'))
         self.assertIn('recovery_keep_previous_boot', script)
         # F23: the UI stops and the light goes out before reboot(2)/poweroff, as in a normal restart.
         off = script[script.index('recovery_off() {'):script.index('\n}\n', script.index('recovery_off() {'))]
