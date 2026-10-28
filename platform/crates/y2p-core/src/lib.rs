@@ -7,6 +7,7 @@ pub mod clock;
 pub mod command;
 pub mod json;
 pub mod lock;
+pub mod observation_support;
 pub mod py;
 pub mod record;
 pub mod root;
