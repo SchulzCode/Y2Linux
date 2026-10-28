@@ -1003,6 +1003,43 @@ int main(void) {
  return 0;
 }''')
 
+    def test_wifi_irq_is_not_claimed_when_it_cannot_be_cleared(self):
+        # F39: a level-low line claimed without the WHLPCR write re-enters
+        # forever on CPU0 (whole-system stall at shutdown). Unclaimed, the
+        # spurious-IRQ detector disables it.
+        source = (ROOT/'kernel/platform/connectivity/wifi/ahb.c').read_text()
+        run_c(r'''
+#include <assert.h>
+#include <stdbool.h>
+#define IRQ_NONE 0
+#define IRQ_HANDLED 1
+#define READ_ONCE(x) (x)
+#define MCR_WHLPCR 4
+#define WHLPCR_INT_EN_CLR 2
+#define GLUE_FLAG_HALT 1
+#define GLUE_FLAG_INT_BIT 2
+typedef int irqreturn_t;
+struct y2_conn { bool powered; int failure; };
+struct y2_wifi { struct y2_conn *conn; };
+typedef struct { struct { struct y2_wifi *bus; unsigned char *HifRegBaseAddr; } rHifInfo; unsigned long u4Flag; int waitq; } GLUE_INFO_T, *P_GLUE_INFO_T;
+struct net_device { P_GLUE_INFO_T glue; };
+static void *netdev_priv(struct net_device *n) { return &n->glue; }
+static unsigned char regs[32]; static unsigned cleared;
+static void writel(unsigned v, unsigned char *a) { assert(a == regs + MCR_WHLPCR && v == WHLPCR_INT_EN_CLR); cleared++; }
+static void set_bit(int b, unsigned long *f) { *f |= 1UL << b; }
+static void wake_up_interruptible(int *q) { (void)q; }
+''' + function(source, 'available') + function(source, 'irq') + r'''
+int main(void) {
+ struct y2_conn c = { true, 0 }; struct y2_wifi w = { &c };
+ GLUE_INFO_T g = { { &w, regs }, 0, 0 }; struct net_device n = { &g };
+ assert(irq(184, &n) == IRQ_HANDLED && cleared == 1);
+ c.failure = -5;
+ assert(irq(184, &n) == IRQ_NONE && cleared == 1);
+ c.failure = 0; c.powered = false;
+ assert(irq(184, &n) == IRQ_NONE && cleared == 1);
+ return 0;
+}''')
+
 
 if __name__ == '__main__':
     unittest.main()

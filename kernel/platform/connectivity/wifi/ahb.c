@@ -120,7 +120,13 @@ static irqreturn_t irq(int n, void *data)
 {
 	struct net_device *net=data;
 	P_GLUE_INFO_T glue=*(P_GLUE_INFO_T *)netdev_priv(net);
-	if (!available(glue)) return IRQ_HANDLED;
+	/* F39: the line is level-low and only WHLPCR clears it. Claiming it
+	 * without that write (failure set, still powered) re-entered at once,
+	 * forever, on CPU0, which then also never ran the remove/recovery work
+	 * that frees it: a whole-system stall. Unclaimed, the spurious-IRQ
+	 * detector disables the line and logs "nobody cared"; the next
+	 * request_irq (card probe after recovery) enables it again. */
+	if (!available(glue)) return IRQ_NONE;
 	writel(WHLPCR_INT_EN_CLR,glue->rHifInfo.HifRegBaseAddr+MCR_WHLPCR);
 	if (!(glue->u4Flag & GLUE_FLAG_HALT)) {
 		set_bit(GLUE_FLAG_INT_BIT,&glue->u4Flag); wake_up_interruptible(&glue->waitq);

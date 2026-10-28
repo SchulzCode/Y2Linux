@@ -6,10 +6,12 @@ case "$1" in
     start-stop-daemon -S -b -m -p /run/y2/connectivity.pid -x /usr/libexec/y2/connectivity
     ;;
  stop)
-    y2-radio wifi off-runtime 2>/dev/null || :
-    y2-radio bluetooth off-runtime 2>/dev/null || :
-    start-stop-daemon -K -p /run/y2/connectivity.pid 2>/dev/null || :
+    "$0" stop-wifi; "$0" stop-bluetooth; "$0" stop-daemon
     ;;
+ # F39: the power daemon runs these one by one, so its shutdown trail names the one that stalls.
+ stop-wifi) y2-radio wifi off-runtime 2>/dev/null || : ;;
+ stop-bluetooth) y2-radio bluetooth off-runtime 2>/dev/null || : ;;
+ stop-daemon) start-stop-daemon -K -p /run/y2/connectivity.pid 2>/dev/null || : ;;
  restart) "$0" stop; "$0" start;;
 esac
 exit 0

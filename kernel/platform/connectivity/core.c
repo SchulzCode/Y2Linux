@@ -254,7 +254,11 @@ void y2_conn_hci_error(struct y2_conn *c)
 void y2_conn_failed(struct y2_conn *c, int error)
 {
 	if (error>=0) error=-EIO;
-	if (!cmpxchg(&c->failure,0,error)) c->transport_errors++;
+	if (!cmpxchg(&c->failure,0,error)) {
+		c->transport_errors++;
+		/* F39 trail: console level, so pstore keeps it if the system stalls. */
+		dev_crit(c->dev,"connectivity failure %d from %pS\n",error,__builtin_return_address(0));
+	}
 	complete_all(&c->response); wake_up_all(&c->tx_wait);
 	if (READ_ONCE(c->activated) && !READ_ONCE(c->removing) && !READ_ONCE(c->recovering))
 		schedule_work(&c->recovery_work);

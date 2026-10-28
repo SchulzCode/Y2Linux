@@ -1,8 +1,10 @@
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/platform'))
 from y2_platform.common import Context
@@ -96,13 +98,88 @@ class PowerContract(unittest.TestCase):
         c.request('reboot', 'update', 3)
         self.now += 3 * 10**9
         c.execute()
-        steps = [line.split()[2] for line in self.ctx.read('/dev/pmsg0').splitlines()]
-        self.assertEqual(steps, ['execute', 'journal_pending', 'S90reborn', 'S41y2-connectivity',
-                                 'time_remember', 'sync', 'init_reboot'])
-        self.assertIn('shutdown execute reboot update', self.ctx.read('/dev/pmsg0'))
-        self.assertIn('journal_pending injected_failure', self.ctx.read('/dev/pmsg0'))
+        lines = self.ctx.read('/dev/pmsg0').splitlines()
+        steps = [line.split(None, 2)[2] for line in lines]
+        # F39 (8.39-8.41): every step is announced before it runs, so a stall
+        # names the step it happened in; the radio stop is split and comes
+        # after the sync, before shutdown_complete.
+        self.assertEqual(steps, [
+            'execute reboot update', 'watchdog watchdog_unavailable',
+            'begin journal_pending', 'journal_pending injected_failure',
+            'begin S90reborn', 'S90reborn injected_failure', 'begin kill', 'begin backlight',
+            'begin time_remember', 'time_remember injected_failure', 'begin sync', 'sync injected_failure',
+            'begin S41_wifi', 'S41_wifi injected_failure', 'begin S41_wifi_removed', 'S41_wifi_removed ok',
+            'begin S41_bluetooth', 'S41_bluetooth injected_failure',
+            'begin S41_daemon', 'S41_daemon injected_failure',
+            'begin init_reboot', 'init_reboot injected_failure'])
         stages = [kw['timeout'] for argv, kw in self.calls if 'boot-stage' in argv]
         self.assertEqual(stages, [3])
+        self.assertEqual([argv for argv, _ in self.calls if argv[0] == '/etc/init.d/S41y2-connectivity'],
+                         [['/etc/init.d/S41y2-connectivity', 'stop-' + n] for n in ('wifi', 'bluetooth', 'daemon')])
+
+    def test_radio_stop_runs_after_sync_and_before_shutdown_complete(self):
+        def runner(argv, **kwargs):
+            self.calls.append((argv, kwargs))
+            return {'ok': True, 'reason': None, 'output': None}
+        self.ctx.runner = runner
+        c = Coordinator(self.ctx, lambda: self.now)
+        c.request('poweroff', 'user', 3)
+        self.now += 3 * 10**9
+        c.execute()
+        order = [argv[-1] for argv, _ in self.calls]
+        self.assertEqual(order, ['shutdown_pending', 'stop', 'time-remember', 'sync', 'stop-wifi',
+                                 'stop-bluetooth', 'stop-daemon', 'shutdown_complete', 'poweroff'])
+        self.assertTrue(all(kw['timeout'] <= 5 for _, kw in self.calls))
+        for name in ('S41_wifi', 'S41_wifi_removed', 'S41_bluetooth', 'S41_daemon'):
+            self.assertEqual(c.intent['stop_results'][name], {'ok': True, 'reason': None})
+
+    def test_wifi_removal_is_waited_for_but_bounded(self):
+        self.put('/sys/class/net/wlan0/operstate', 'up')
+        self.put('/dev/pmsg0', '')
+        c = Coordinator(self.ctx, lambda: self.now)
+        c.request('reboot', 'update', 3)
+        clock = [100.0]
+        def sleep(seconds):
+            clock[0] += seconds
+        with mock.patch('y2_platform.power.time.sleep', side_effect=sleep) as slept, \
+                mock.patch('y2_platform.power.time.monotonic', side_effect=lambda: clock[0]):
+            c.execute()
+        self.assertEqual(c.intent['stop_results']['S41_wifi_removed'], {'ok': False, 'reason': 'still_present'})
+        self.assertGreaterEqual(slept.call_count, 19)
+        self.assertAlmostEqual(clock[0], 102.0, delta=.15)
+        self.assertIn('shutdown S41_wifi_removed still_present', self.ctx.read('/dev/pmsg0'))
+
+    def test_shutdown_arms_the_watchdog_and_a_power_off_reset_powers_off(self):
+        # F39: a stalled shutdown (3b2364ca drained a full battery while it
+        # looked off) ends in the SoC watchdog reset. For a power-off the
+        # reset must not start the system: the loader's reason 3 charges or
+        # powers off. A restart keeps AUTO_RESTART (update: MISC -> recovery).
+        for action, reason, expected in (('poweroff', 'user', '1\n'), ('poweroff', 'low_battery', '1\n'),
+                                         ('reboot', 'update', None), ('reboot', 'user', None)):
+            with self.subTest(action=action, reason=reason):
+                self.put('/dev/watchdog', '')
+                self.put('/sys/class/power_supply/BAT0/watchdog_powers_off', '0\n')
+                self.put('/run/y2/shutdown.json', 'null')
+                c = Coordinator(self.ctx, lambda: self.now)
+                c.request(action, reason, 3)
+                c.execute()
+                self.assertEqual(c.intent['stop_results']['watchdog'], {'ok': True, 'reason': None})
+                self.assertEqual(self.ctx.read('/sys/class/power_supply/BAT0/watchdog_powers_off'),
+                                 (expected or '0\n').strip())
+                # Fed before every step; never closed with the magic 'V'.
+                fed = self.ctx.read('/dev/watchdog')
+                self.assertGreaterEqual(len(fed), 10)
+                self.assertEqual(set(fed), {'.'})
+                os.close(c.watchdog)
+
+    def test_power_off_without_the_kernel_switch_still_arms_the_watchdog(self):
+        self.put('/dev/watchdog', '')
+        c = Coordinator(self.ctx, lambda: self.now)
+        c.request('poweroff', 'user', 3)
+        c.execute()
+        self.assertEqual(c.intent['stop_results']['watchdog'], {'ok': False, 'reason': 'powers_off_unavailable'})
+        self.assertTrue(self.ctx.read('/dev/watchdog').startswith('.'))
+        os.close(c.watchdog)
 
     def test_ack_requires_same_request_pid_start_time_and_boot(self):
         self.put('/run/reborn/process.pid', '123')

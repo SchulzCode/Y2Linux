@@ -635,7 +635,30 @@ static ssize_t charging_state_show(struct device *dev, struct device_attribute *
 	return n;
 }
 static DEVICE_ATTR_RO(charging_state);
-static struct attribute *y2_charge_attrs[] = { &dev_attr_charging_state.attr, NULL };
+/* F39: the power daemon writes 1 before it arms /dev/watchdog for a power-off,
+ * so a stalled shutdown ends off or in charging mode, not in a running system.
+ * The watchdog driver owns WDT_MODE; this flips only AUTO_RESTART. */
+static ssize_t watchdog_powers_off_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct y2_charger *c = power_supply_get_drvdata(dev_get_drvdata(dev));
+	if (!c->rgu) return -ENODEV;
+	return sysfs_emit(buf, "%u\n", !(readl(c->rgu + Y2_RGU_MODE) & Y2_RGU_MODE_AUTO_RESTART));
+}
+static ssize_t watchdog_powers_off_store(struct device *dev, struct device_attribute *attr,
+					 const char *buf, size_t n)
+{
+	struct y2_charger *c = power_supply_get_drvdata(dev_get_drvdata(dev));
+	bool value;
+	if (kstrtobool(buf, &value)) return -EINVAL;
+	if (!c->rgu) return -ENODEV;
+	writel(y2_rgu_poweroff_mode(readl(c->rgu + Y2_RGU_MODE), value), c->rgu + Y2_RGU_MODE);
+	dev_info(c->dev, "watchdog reset %s\n", value ? "powers off (loader reason 3)" : "restarts");
+	return n;
+}
+static DEVICE_ATTR_RW(watchdog_powers_off);
+static struct attribute *y2_charge_attrs[] = {
+	&dev_attr_charging_state.attr, &dev_attr_watchdog_powers_off.attr, NULL
+};
 ATTRIBUTE_GROUPS(y2_charge);
 
 static int y2_charger_prepare_pm(struct device *dev)
@@ -696,6 +719,16 @@ static void y2_charger_shutdown(struct platform_device *pdev)
 	y2_charger_inhibit(c);
 	mutex_unlock(&c->lock);
 }
+/* Stock "charger" reset (poweroff-policy.h): LK sees reason 3 and charges
+ * while CHRDET is set, else powers off. Returns only if the reset failed. */
+static void y2_charger_rgu_reset(struct y2_charger *c)
+{
+	writel(Y2_RGU_RESTART_KEY, c->rgu + Y2_RGU_RESTART);
+	writel(y2_rgu_charger_mode(readl(c->rgu + Y2_RGU_MODE)), c->rgu + Y2_RGU_MODE);
+	mdelay(3);	/* stock waits 2.5 ms */
+	writel(Y2_RGU_SWRST_KEY, c->rgu + Y2_RGU_SWRST);
+	mdelay(1000);
+}
 /* Runs after every .shutdown (charging already inhibited) and before the
  * MT6323 BBPU power-off. Interrupts are off; the WACS regmap is IRQ-safe. */
 static int y2_charger_power_off(struct sys_off_data *data)
@@ -705,12 +738,40 @@ static int y2_charger_power_off(struct sys_off_data *data)
 	if (regmap_read(c->map, 0, &con0) || !y2_poweroff_to_charger(con0))
 		return NOTIFY_DONE;
 	dev_emerg(c->dev, "charger attached: restart into charging mode\n");
-	writel(Y2_RGU_RESTART_KEY, c->rgu + Y2_RGU_RESTART);
-	writel(y2_rgu_charger_mode(readl(c->rgu + Y2_RGU_MODE)), c->rgu + Y2_RGU_MODE);
-	mdelay(3);	/* stock waits 2.5 ms */
-	writel(Y2_RGU_SWRST_KEY, c->rgu + Y2_RGU_SWRST);
-	mdelay(1000);
+	y2_charger_rgu_reset(c);
 	dev_emerg(c->dev, "charging-mode restart failed; powering off\n");
+	return NOTIFY_DONE;
+}
+/* F50: the last power-off handler, after the BBPU one returned. Returning
+ * would let init exit and panic=0 hold the player on until the battery is
+ * empty, so this never returns. What kept the power is logged to the console
+ * (pstore keeps it across the reset); the power-down is re-asserted every
+ * second until a charger, the Power release or the bound decides the reset. */
+static int y2_charger_power_off_last(struct sys_off_data *data)
+{
+	struct y2_charger *c = data->cb_data;
+	unsigned second = 0, released = 0, con0, key, bbpu;
+	bool told = false;
+	for (;;) {
+		if (regmap_read(c->map, 0, &con0)) con0 = 0;
+		if (regmap_read(c->map, Y2_PMIC_CHRSTATUS, &key)) key = Y2_CHRSTATUS_PWRKEY_DEB;
+		if (!second) {
+			if (regmap_read(c->map, Y2_RTC_BBPU, &bbpu)) bbpu = ~0U;
+			dev_emerg(c->dev, "power-off returned: chr_con0=0x%04x chrstatus=0x%04x bbpu=0x%04x\n",
+				  con0, key, bbpu);
+		}
+		if (y2_poweroff_reset_now(second, con0, key, &released)) {
+			if (!told)
+				dev_emerg(c->dev, "power-off failed after %us (chr_con0=0x%04x chrstatus=0x%04x): restart into the loader\n",
+					  second, con0, key);
+			told = true;
+			y2_charger_rgu_reset(c);
+		}
+		regmap_write(c->map, Y2_RTC_BBPU, Y2_RTC_BBPU_POWER_DOWN);
+		regmap_write(c->map, Y2_RTC_WRTGR, 1);
+		mdelay(1000);
+		if (second < Y2_POWEROFF_LAST_SECONDS) second++;
+	}
 	return NOTIFY_DONE;
 }
 static void y2_charger_map_rgu(struct y2_charger *c)
@@ -727,6 +788,12 @@ static void y2_charger_map_rgu(struct y2_charger *c)
 	else if (!ret)
 		ret = -ENOMEM;
 	if (ret) dev_warn(c->dev, "power off on a charger stays off: %d\n", ret);
+	/* After mt6323-pwrc (SYS_OFF_PRIO_DEFAULT): only when its power-down returned. */
+	if (c->rgu) {
+		ret = devm_register_sys_off_handler(c->dev, SYS_OFF_MODE_POWER_OFF, SYS_OFF_PRIO_LOW,
+						    y2_charger_power_off_last, c);
+		if (ret) dev_warn(c->dev, "a failed power off is not caught: %d\n", ret);
+	}
 }
 static void y2_charger_release(void *data)
 {

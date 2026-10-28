@@ -95,6 +95,7 @@ def process_identity(ctx, name, expected):
 class Coordinator:
     def __init__(self, ctx, clock=time.monotonic_ns):
         self.ctx, self.clock = ctx, clock
+        self.watchdog = None
         self.boot_id = ctx.read('/proc/sys/kernel/random/boot_id')
         previous = ctx.json('/run/y2/shutdown.json', {})
         self.intent = previous if (previous.get('boot_id') == self.boot_id and
@@ -164,9 +165,10 @@ class Coordinator:
         self.intent['state'] = 'Executing'
         self.publish()
         shutdown_trail(self.ctx, 'execute %s %s' % (self.intent['action'], self.intent['reason']))
-        results = {'journal_pending': self.ctx.command(
-            ['/usr/sbin/y2-platform', 'boot-stage', 'shutdown_pending'], timeout=STAGE_SECONDS)}
-        shutdown_trail(self.ctx, 'journal_pending', results['journal_pending'])
+        results = {'watchdog': self.arm_watchdog()}
+        shutdown_trail(self.ctx, 'watchdog', results['watchdog'])
+        results['journal_pending'] = self.step(
+            'journal_pending', ['/usr/sbin/y2-platform', 'boot-stage', 'shutdown_pending'], STAGE_SECONDS)
         # Reborn normally ends on its dark frame with the backlight already off
         # before it acknowledges. If it never did (hung, crashed, deadline
         # reached) the light goes out before the kill: dropping DRM master would
@@ -174,10 +176,9 @@ class Coordinator:
         acknowledgement = self.intent.get('acknowledgement') or {}
         if acknowledgement.get('outcome') != 'Ready':
             results['backlight_early'] = backlight_off(self.ctx)
-        for name in ('S90reborn', 'S41y2-connectivity'):
-            results[name] = self.ctx.command(['/etc/init.d/' + name, 'stop'], timeout=3)
-            shutdown_trail(self.ctx, name, results[name])
+        results['S90reborn'] = self.step('S90reborn', ['/etc/init.d/S90reborn', 'stop'], 3)
         # Stop/reap failure cannot extend the battery grace indefinitely.
+        self.begin('kill')
         for name, executable in (('process', '/usr/bin/reborn'),
                                  ('supervisor', '/usr/libexec/reborn-supervise')):
             identity = process_identity(self.ctx, name, executable)
@@ -195,26 +196,93 @@ class Coordinator:
         # turns the backlight off before acknowledging. If it crashed, hung or
         # was killed, the DRM last-close restores the fbdev buffer (stale,
         # console or white). Never hand init a lit panel.
+        self.begin('backlight')
         results['backlight'] = backlight_off(self.ctx)
         # #53: a clock set by hand (or from the network) survives a restart
         # to the minute instead of to the last hourly record.
-        results['time_remember'] = self.ctx.command(['/usr/sbin/y2-platform', 'time-remember'], timeout=2)
-        shutdown_trail(self.ctx, 'time_remember', results['time_remember'])
-        results['sync'] = self.ctx.command(['/bin/busybox', 'sync'], timeout=5)
-        shutdown_trail(self.ctx, 'sync', results['sync'])
+        results['time_remember'] = self.step(
+            'time_remember', ['/usr/sbin/y2-platform', 'time-remember'], 2)
+        results['sync'] = self.step('sync', ['/bin/busybox', 'sync'], 5)
+        # F39: 5 shutdowns stalled the whole system in or right after the
+        # radio stop (Wi-Fi connected, Bluetooth paging). It now runs after the
+        # sync, one radio per step; a stall there leaves shutdown_complete
+        # unwritten and ends in the watchdog reset.
+        for name in RADIO_STOP:
+            results['S41_' + name] = self.step(
+                'S41_' + name, ['/etc/init.d/S41y2-connectivity', 'stop-' + name], 3)
+            if name == 'wifi':
+                # Blocking y2-wifi removes the card in a kernel worker after
+                # the write returned; wait for it so a stall names this step.
+                results['S41_wifi_removed'] = self.step('S41_wifi_removed', None, 2)
         if results['sync']['ok']:
-            results['journal_complete'] = self.ctx.command(
-                ['/usr/sbin/y2-platform', 'boot-stage', 'shutdown_complete'], timeout=STAGE_SECONDS)
-            shutdown_trail(self.ctx, 'journal_complete', results['journal_complete'])
+            results['journal_complete'] = self.step(
+                'journal_complete', ['/usr/sbin/y2-platform', 'boot-stage', 'shutdown_complete'], STAGE_SECONDS)
         self.intent['stop_results'] = {k: {'ok': v['ok'], 'reason': v['reason']} for k, v in results.items()}
         self.publish()
         # BusyBox init owns rcK, unmount and final reboot(2). Never use -f.
-        result = self.ctx.command(['/bin/busybox', self.intent['action']], timeout=2)
-        shutdown_trail(self.ctx, 'init_' + self.intent['action'], result)
+        result = self.step('init_' + self.intent['action'], ['/bin/busybox', self.intent['action']], 2)
         if not result['ok']:
             self.intent.update(state='Failed', failure='init_shutdown_request_failed')
             self.publish()
+        # The watchdog stays armed and is fed no more (this daemon's exit at
+        # rcK closes it without 'V': one last ping, still running). rcK,
+        # unmount and reboot(2) take ~5 s and reboot(2) stops it (mtk_wdt
+        # stop_on_reboot); a stall there, or a failed request, ends in its reset.
         return result
+
+    def begin(self, name):
+        shutdown_trail(self.ctx, 'begin ' + name)
+        if self.watchdog is not None:
+            try:
+                os.write(self.watchdog, b'.')
+            except OSError:
+                pass
+
+    def step(self, name, argv, timeout):
+        """One bounded shutdown step between pmsg 'begin' and result lines."""
+        self.begin(name)
+        result = (self.ctx.command(argv, timeout=timeout) if argv else
+                  wait_gone(self.ctx, '/sys/class/net/wlan0', timeout))
+        shutdown_trail(self.ctx, name, result)
+        return result
+
+    def arm_watchdog(self):
+        """F39: arm the SoC watchdog (31 s) for the whole shutdown.
+
+        Its reset completes the requested transition whatever stalls: a restart
+        (update: LK still finds MISC boot-recovery, written by `prepare` before
+        the request, as after the F34 recovery watchdog), or for a power-off the
+        loader's reason 3: charging mode on a charger, otherwise off."""
+        if self.watchdog is not None:
+            return {'ok': True, 'reason': None}
+        failure = None
+        if self.intent['action'] == 'poweroff':
+            try:
+                with open(self.ctx.path(WATCHDOG_POWERS_OFF), 'w') as f:
+                    f.write('1\n')
+            except OSError:
+                # Old kernel or no RGU mapping: the reset restarts instead.
+                failure = 'powers_off_unavailable'
+        try:
+            self.watchdog = os.open(self.ctx.path('/dev/watchdog'),
+                                    os.O_WRONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        except OSError:
+            return {'ok': False, 'reason': 'watchdog_unavailable'}
+        return {'ok': failure is None, 'reason': failure}
+
+
+# F39: the radio stop, one step per sub-command of the S41 script.
+RADIO_STOP = ('wifi', 'bluetooth', 'daemon')
+WATCHDOG_POWERS_OFF = '/sys/class/power_supply/BAT0/watchdog_powers_off'
+
+
+def wait_gone(ctx, name, timeout):
+    deadline = time.monotonic() + timeout
+    while ctx.path(name).exists():
+        if time.monotonic() >= deadline:
+            return {'ok': False, 'reason': 'still_present', 'output': None}
+        time.sleep(.1)
+    return {'ok': True, 'reason': None, 'output': None}
 
 
 # F39 (471831b6, c14a3860): 2 of 55 update restarts lost these journal writes

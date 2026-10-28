@@ -63,7 +63,9 @@ int main(void){
         self.assertIn('CHARGE_BEHAVIOUR', writeable)
         self.assertIn('CONSTANT_CHARGE_CURRENT_MAX', writeable)
         self.assertNotIn('POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT)', writeable.replace('_MAX', 'X'))
-        self.assertEqual(len(re.findall(r'DEVICE_ATTR_(?:RW|WO)', charger)), 0)
+        # The one writable attribute picks the watchdog's reset mode for a
+        # power-off (F39), nothing about charging.
+        self.assertEqual(re.findall(r'DEVICE_ATTR_(?:RW|WO)\(\w+\)', charger), ['DEVICE_ATTR_RW(watchdog_powers_off)'])
         # Every selector the driver programs comes from the decision function.
         self.assertEqual(charger.count('y2_charge_decide('), 1)
 
