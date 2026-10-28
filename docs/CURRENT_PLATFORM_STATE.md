@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.42, Baseline 163 — 2026-10-28 (latest, published)
+## Y2Linux 1.0 Beta 8.43, Baseline 164 — 2026-10-28 (latest, published)
+
+Release `1.0.0-beta.8.43`, tag `baseline-164`, Linux `f5529b7`, Reborn `a08ca5d`, sequence 11000. Reborn only (the
+platform changes the version): Y2Reborn issues #51 (leaving Search), #45/#46 (one album per folder and title), #52/#55
+(Home items can be hidden), #60/#25 (Go to the source), #57 (Cover Flow shelf in skins), #56 (Album Order), #30 (letter
+steps), #62 (unplug message), #28 (USB and seek ticks). Test build 164 = the published images, Acknowledged on the
+owner's player. Details: [Beta 8.43 report](validation/Y2-LINUX-1.0-BETA-8.43.md).
+
+## Y2Linux 1.0 Beta 8.42, Baseline 163 — 2026-10-28 (published)
 
 Release `1.0.0-beta.8.42`, tag `baseline-163`, Linux `7e5b151`, Reborn `25b8e06`, sequence 10900. Sleep without
 relighting (F47/F48: UART0 RX pad to GPIO in sleep, a refused sleep stays dark, Reborn blanks at once and has no Sleep

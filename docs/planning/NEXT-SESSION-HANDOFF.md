@@ -1,6 +1,13 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-28, evening): BETA 8.42 (BASELINE 163) PUBLISHED — SLEEP, LARGE SD CARDS, QUICK SCAN, REPORT FIXES, #62.**
+> **START HERE (2026-10-28, night): BETA 8.43 (BASELINE 164) PUBLISHED — Y2REBORN ISSUE FIXES.**
+> Seq 11000, Linux `f5529b7`, Reborn `a08ca5d` (fixes `2eada03`). Report [Beta 8.43](../validation/Y2-LINUX-1.0-BETA-8.43.md),
+> notes `out/release-164-notes.md`. Installed on the owner's player (build 164 = the release, Acknowledged). Issues
+> fixed: Y2Reborn #25 #28 #30 #45 #46 #51 #52 #55 #56 #57 #60 #62 (answered, closed). Answered without code: #50 #54
+> #59 #61; later: #53 #33 #27 #41 #40; podcasts PR #19 not answered (owner). Owed by hand: letter-scroll feel,
+> USB/seek ticks, leaving Search, Cover Flow shelf in light skins. Next free label 165, sequence above 11000.
+>
+> Previous entry: **START HERE (2026-10-28, evening): BETA 8.42 (BASELINE 163) PUBLISHED — SLEEP, LARGE SD CARDS, QUICK SCAN, REPORT FIXES, #62.**
 > Seq 10900, Linux `7e5b151` (#62 `9ee3f04`), Reborn `25b8e06`. Report [Beta 8.42](../validation/Y2-LINUX-1.0-BETA-8.42.md),
 > notes `out/release-163-notes.md`. Not installed before publishing (the owner's player runs 162, seq 10820). Issues
 > #62 and #63 answered with the release link. Device checks and owner decisions owed: see the entry below and the

@@ -9476,3 +9476,19 @@ watchdog), platform (shutdown steps, SD admission, Wi-Fi heal, battery, sleep fl
 
 **Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.42** (Baseline 163, sequence 10900).
 
+## BETA-8.43 (Baseline 164) Y2Reborn issue fixes: milestone gap audit — 2026-10-28
+
+**Boundary:** triage of the 25 open Y2Reborn issues against 8.42, the owner's "do the bugs and quick wins, build
+8.43", test build 164 on the owner's player, then "publish and answer the issues". Change: Reborn only (search exit,
+album-artist unification on the library thread, Home visibility, queue origin, skin gradient recolour, album order,
+letter steps, unplug toast, haptic ticks). No kernel, memory map, partition or packaging change; settings and session
+gain fields read with defaults.
+
+| Area | State for Beta 8.43 | Evidence / gap |
+| --- | --- | --- |
+| Home visibility, Album Order, unplug message, Go to fallback | DEVICE-CHECKED (over SSH, screenshots) | Radio hidden and shown again on the owner's player |
+| Search exit, letter steps, haptics, shelf, Go to source | HOST-TESTED | by hand on a player owed |
+| Build 164 on a player | INSTALLED, Acknowledged | published images are build 164 |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.43** (Baseline 164, sequence 11000).
+

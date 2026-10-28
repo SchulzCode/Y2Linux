@@ -13,7 +13,7 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **339**. Explicit scope notices: **228**.
+Indexed pages: **340**. Explicit scope notices: **228**.
 
 ## Entry
 
@@ -357,6 +357,7 @@ Indexed pages: **339**. Explicit scope notices: **228**.
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
 | [Y2Linux 1.0 Beta 8.40 report](validation/Y2-LINUX-1.0-BETA-8.40.md) | Beta 8.40 (Baseline 154): power off on a charger opens the charging screen (F46) |
+| [Y2Linux 1.0 Beta 8.43 report](validation/Y2-LINUX-1.0-BETA-8.43.md) | Beta 8.43 (Baseline 164): Y2Reborn issue fixes (#25 #28 #30 #45 #46 #51 #52 #55 #56 #57 #60 #62) |
 | [Y2Linux 1.0 Beta 8.42 report](validation/Y2-LINUX-1.0-BETA-8.42.md) | Beta 8.42 (Baseline 163): sleep without relighting, large SD cards, quick scan, error report fixes F17 F23 F34 F39 F50–F57, #62 empty factory partitions |
 | [Y2Linux 1.0 Beta 8.41 report](validation/Y2-LINUX-1.0-BETA-8.41.md) | Beta 8.41 (Baseline 159): internal speaker, headphone detection, haptic feedback |
 | [Speaker and haptics plan](planning/SPEAKER-HAPTICS-PLAN.md) | Stock REA of the vibrator, AW87559 and CS43131 speaker route; plan and device checks |
