@@ -1,0 +1,174 @@
+# y2-platform contract inventory (Phase 0 of the Rust port)
+
+What the Python platform (`tools/platform`, installed as `/usr/lib/y2-platform` + `/usr/sbin/y2-platform`)
+promises to its callers, written down before any of it is ported
+([plan](../docs/planning/PLATFORM-RUST-PORT-PLAN.md), §3 principle 2: the contract does not change).
+Inventoried from the source at Linux `4684423` (Beta 8.44, test build 165) on 2026-10-28.
+
+- **[contract.json](contract.json)** is the machine-readable inventory: `arguments` (39 subcommands, generated
+  from the parser) and `entries` (106, one per subcommand/action, plus the helper scripts and boot scripts that
+  call the platform). Each entry gives handler (file:line), arguments, exit codes, stdout (format, `schema`
+  value, keys, enum/reason strings, failure shapes), files read and written (and how), locks, timeouts,
+  subprocesses, kmsg/pmsg trail lines, signals, F-numbers on the code path, environment and porting notes;
+  daemons also have `loop`.
+- `tools/development/platform-contract.py --check` (run by `tests.test_platform_differential`) fails when the
+  parser and the table differ or a subcommand/action has no entry. After changing `cli.py`: `--write`, then
+  review that subcommand's entry by hand.
+- The differential harness that checks a port against this contract is `tests/platform_differential.py`
+  (see [below](#differential-harness)).
+
+The entries were read from the source by five readers (A observation/boot, B power/sleep/time, C connectivity,
+USB, SSH, D service/media/update/firmware, E reports/diagnostics/maintenance) and spot-checked against the code
+and the player; treat an entry as a map to the code, and re-read the code it cites before porting it.
+
+## Rules every subcommand shares
+
+**Entry and errors.** `/usr/sbin/y2-platform` is `exec /usr/bin/python3 -I /usr/lib/y2-platform/main.py "$@"`
+with `PYTHONPATH=/usr/lib/y2-platform`, `PYTHONDONTWRITEBYTECODE=1`. `main.py` turns an escaping `OSError`,
+`ValueError` or `RuntimeError` into `{"schema": "org.y2linux.error/v1", "state": "Failed", "reason": str(error),
+"type": <class name>}` and exit 1. Other exceptions give a traceback on stderr, empty stdout, exit 1. argparse
+errors exit 2 with usage on stderr. Several commands catch their own errors first and print a different shape:
+`{"state": "Failed", "failure": str(error)}` (export-state, reset, firmware, update, time-set, time-remember),
+`{"failure": "report_failed", "reason": <class name>}` (report), `{"state": "Failed", "failure":
+"diagnostic_export_failed"}` (export-diagnostics), `{"schema": "org.y2linux.codec-settings/v1", "failure": …}`.
+`str(error)` of an `OSError` is Python's text (`[Errno 11] Resource temporarily unavailable`, with the path for
+file errors): callers only show or log it, but a port must decide per command whether to reproduce it
+(differential tests will see it).
+
+**Reborn's reading of exit codes** (`crates/reborn-platform/src/client.rs` `run`): stdout must be one JSON object
+(≤ 1 MiB); a non-zero exit is an error and Reborn shows `value["failure"]` or `operation_failed`, except
+`health`, whose exit 1 is evidence. So the `org.y2linux.error/v1` shape (it has `reason`, no `failure`) always
+reaches the owner as `operation_failed`, e.g. every busy `media.lock`/`internal-media.lock` and
+`sleep_operation_in_progress` (D). Reborn checks `schema` for status, capabilities, health and sleep.
+
+**stdout.** One line of `json.dumps` with the default separators (`", "`, `": "`), `ensure_ascii=True`, Python
+float repr. Sorted keys for the generic tail of `cli.py` (status, health, capabilities, media, internal-media,
+space, bench-*, boot-stage; `allow_nan=False`) and for sleep, boot-evidence, cpu-idle-policy, report, update,
+firmware, transfer, network-check, export-*, reset; **insertion order** (unsorted) for usb-mode, rtc-alarm,
+codec-settings, wifi-power-policy, bluetooth-power, time*, ntp-event, wifi-event, dhcp-event, shutdown.
+`codec-runtime` prints shell tokens (consumed by `usr/libexec/y2/connectivity` under `set -e`); `collect` streams
+lines; daemons print nothing. JSON callers are order-insensitive; shell callers are not (below).
+
+**Files.** `common.atomic_json`: temp `.<name>.<pid>.<monotonic_ns>.tmp` in the same directory (no randomness:
+the CRNG may not be ready at boot, `test_platform_records_do_not_need_the_random_pool`), `O_EXCL|O_NOFOLLOW|
+O_CLOEXEC`, mode set by `fchmod` (default 0600), compact `(',', ':')` separators, sorted keys, newline,
+`os.replace`; `durable=True` adds fsync of the file and then of the directory. `boot.private_directory` creates
+each missing parent 0700, refuses a non-directory and chmods the target 0700 on every call. `ctx.read` strips and
+returns `None` above its limit (128 KiB); `ctx.json` returns the default when the type differs; `ctx.glob` sorts
+and stops at 256 and, unlike most Rust globs, matches dot-files. Journals (`power-journal.jsonl`,
+`sleep-diagnostics.jsonl`, `wifi-journal.jsonl`) are bounded appends with one `.previous` rotation under their lock.
+
+**Subprocesses.** `common.command(argv, timeout=1.0, limit=65536)`: no shell, `stdin` and `stderr` to
+`/dev/null`, own session, `env` exactly `PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C`; on overrun the whole tree is
+SIGKILLed (`kill_tree`, V1 code review B5) and a D-state child is left; result `{ok, reason, output}` with reasons
+`command_unavailable`, `command_timeout`, `command_output_limit`, `command_failed`. Exceptions to the rule (direct
+`subprocess.Popen`): service-daemon's children (`media reconcile|verify`, `update auto-check`, `report work`,
+`firmware scan`), ssh-daemon's dropbear (inherits the environment), the shutdown steps in `power.py`.
+
+**Clocks.** CLOCK_MONOTONIC for most deadlines, records (`monotonic_ns`, `monotonic_s`) and write windows;
+CLOCK_BOOTTIME for battery state, the sleep retry gate and "did a sleep happen" (`boottime − monotonic` grew: F49
+verify). Wall clock for report names (UTC queue, local time when saved), the daily update check, space cleanup
+ages, and `record.wall_timestamp`. Monotonic floats are compared across processes (power.json freshness ≤ 10 s
+for sleep admission, Wi-Fi events).
+
+## Locks (flock; a port must take the same paths in the same mode)
+
+| Lock | Taken by |
+| --- | --- |
+| `/run/y2/activity.lock` (shared lease; Reborn holds it while playing; sleep takes it exclusively) | export-state, media repair/write, network-check, report send/upload/work, reset purge, transfer commit, update apply/rollback/probe-recovery, product-sleep, y2-suspend |
+| `/run/y2/suspend.lock` | sleep request, product-sleep, y2-suspend |
+| `/run/y2/media.lock` | media (all but status), firmware scan, report save |
+| `/run/y2/internal-media.lock` | internal-media mount/unmount/provision/setup |
+| `/run/y2/dhcp.lock` (blocking, no timeout) | wifi-event, dhcp-event |
+| `/run/y2/time.lock` (blocking) | time-set, time-remember, ntp-event, service-daemon |
+| `/run/y2/{power,service,ssh,connectivity-monitor}.lock` (single instance) | the four daemons |
+| `/run/y2/{bt-operation,codec-settings,cpu-idle-policy,rtc-alarm}.lock` | bluetooth-power, codec-settings, cpu-idle-policy, rtc-alarm |
+| `/data/system/platform/.boot.lock` (blocking) | boot-stage, update health-ack |
+| `/data/system/platform/.power-journal.lock`, `.sleep-diagnostics.lock` | power-daemon, sleep, product-sleep, suspend-record |
+| `/data/system/platform/.maintenance.lock`, `.wifi-journal.lock` | reset + product-sleep; connectivity-daemon |
+| `/data/updates/.lock`, `/data/updates/.stage.lock` | update (all writers); product-sleep checks `.stage.lock` |
+| `/data/system/platform/reports/.upload.lock`, `/data/exports/.diagnostics.lock` | report send/upload/work; export-diagnostics |
+| `/data/transfer-staging/<id>/lock`, `/data/reset-quarantine/<id>` (directory fd) | transfer commit/discard; reset purge |
+
+Most are `LOCK_EX|LOCK_NB` with a named refusal (`*_in_progress`, `busy`); the blocking ones are marked.
+
+## Callers (who must notice nothing)
+
+- **Reborn** (`client.rs`, one worker thread, fixed argv): `status --reborn --pss` (25 s) + `capabilities` (10 s)
+  + `report status` (10 s) per refresh while a platform screen is visible, `health` (30), `status wifi` (25),
+  `update check` (100) / `stage` (950, SIGTERM to cancel) / `apply` / `cancel` / `rollback` (30),
+  `export-state --include-database` and `export-diagnostics` (120), `codec-settings --{sbc,aac,ldac}-quality …`,
+  `--{aac,ldac}-abr …` (10), `sleep request` (30), `internal-media setup --confirm-shown` (300), `media repair`
+  (1900), `bench-storage …` (90), `bench-library …` (120), `report enable|disable|new-id|send|save --to …`,
+  `time-set <epoch>` (10); `storage.rs` runs `/usr/sbin/y2-media mount|unmount` (5 s); `power.rs` reads
+  `/run/y2/power.json` directly. Reborn matches reason strings by hand (F52 was such a mismatch): those it matches
+  are named in the entries' `important_fields`.
+- **Boot and shell scripts** (production overlay): `S02y2-media` (internal-media setup --automatic, mount),
+  `S03y2-platform` (boot-stage platform_start → kmsg), `S03y2-time` (time-bootstrap), `S05y2-cpu-idle`,
+  `platform-supervise` / `power-supervise` / `readiness-supervise` / `ssh-supervise` (a daemon's exit 0 ends its
+  supervision for good), `connectivity` (codec-runtime --record, connectivity-daemon), `wpa-event`, `dhcp-event`,
+  `ntp-event`, `y2-media`, `y2-radio` (bluetooth-power), `y2-suspend` (sleep prepare). `S43y2-time` greps
+  `network.json` for the literal `"state":"Online"`, so compact separators in that file are part of the contract.
+- **The platform itself**: power-daemon runs `boot-stage shutdown_pending|shutdown_complete` and `time-remember`
+  as shutdown steps (each a new Python process today, ≈0.5 s: F39 trail); service-daemon starts `media reconcile`,
+  `media verify`, `update auto-check`, `report work`, `firmware scan`, `space --cleanup`, `update health-ack`,
+  `boot-stage application_ready`; connectivity-daemon runs `wifi-event SERVICE_RESTART`.
+- **initramfs**: `/sbin/y2-platform-start` (C) and the marker `/etc/y2linux/platform-contract` = `y2-platform-v1`.
+- **Readers of state files**: the error-report scrubber and Worker, `tools/reports`, the `UserReports` analyses
+  (power journal, previous-boot evidence, sleep diagnostics, wifi journal field names).
+
+## What a port must not miss (collected from the entries)
+
+- **Python inside the platform's own subprocesses:** the DNS probe runs `/usr/bin/python3 -I -c 'socket.getaddrinfo…'`
+  (`network.probe_dns`) and the report upload uses in-process `urllib` (no redirects, no proxy, 30 s socket timeout,
+  16 KiB streamed body), not `curl`. Both must be replaced before Python leaves the image (phase 6).
+- **Byte-exact Python JSON inside values:** the reset plan `confirmation` and the settings-result sha256 hash
+  `json.dumps(sort_keys=True)` (compact), the media identity id hashes `json.dumps(sort_keys=True)` with the default
+  separators. A plan made by Python must still confirm under Rust: reproduce these encodings exactly.
+- **The scrubber** (report): Python regex semantics (lookbehinds, Unicode `\b`), a prefix-tree regex, a per-report
+  random HMAC key with 6-hex tokens, archive members in order with `report.json` first, gzip mtime 0, a 2 MiB
+  budget reached by halving the largest section. Port it with golden archives from the Python side.
+- **bench-storage** draws data and offsets from Python's Mersenne Twister seeded with 6582: port the generator or
+  declare the bytes outside the contract.
+- **Suspend-path writes** stay single unbuffered writes in order: `wakeup_count`, backstop 30, `mem`, backstop 0;
+  `/sys/power/wakeup_count` is read through a killable `/bin/cat` with a 0.1 s limit (an in-process read can block).
+- **Shutdown timing** (F39/F50): the steps add up to ≈29 s against the 31 s watchdog fed when a step begins; while
+  `execute()` runs the daemon accepts no clients (`shutdown` callers time out after 1 s); a Failed intent is not
+  retried. Faster steps change these margins: watch the pmsg trail on the device.
+- **Ordering:** `boot-evidence` must run before any `boot-stage` of a boot (`previous_boot_capture_missed_early_boundary`);
+  `boot-stage application_ready` writes power features to sysfs while holding the blocking `.boot.lock` and its
+  callers kill it after 2–3 s; the wpa restart order (DHCP teardown → SERVICE_RESTART → stop the action daemon →
+  supplicant); `update stage` SIGTERM handling changes three times (default during the manifest, cancel during
+  the payload, ignored after commit); `cpu-idle-policy start` writes its once-per-boot marker before its checks.
+- **Randomness:** uuid4/urandom/getrandom for the Wi-Fi epoch, transfer and install ids, the shutdown intent id,
+  bench run names, resolv.conf temp names, report keys. Early-boot callers must not block on the CRNG.
+- **Real-root-only branches** (`ctx.root == '/'`): pidfd SIGKILL, product-sleep launch, `getrandom`;
+  `os.kill(pid, 0)` in connectivity-daemon and `/proc/self/fd/N` in transfer commit are used even under a test root;
+  `y2-power-audit` opens every path directly.
+
+## Suspected defects found while inventorying (not changed in Phase 0)
+
+| Finding | Status |
+| --- | --- |
+| `usr/libexec/sftp-server` greps `internal-media.json` for `"state": "Ready"` (with a space); `atomic_json` writes `"state":"Ready"`, so SFTP is always rooted at `/data/music`, never Internal Storage | **confirmed on the player** (165: file has no space) |
+| `media status` exits 1 for a Degraded (read-only) card; `media write` exits 0 with `failure` set for `not_mounted`; `update auto-check` prints `null`; `firmware scan` exits 0 with install errors | read in code; behaviour callers rely on today |
+| A second `update check/stage` meeting the busy `.stage.lock` overwrites `download.json` with a Failed `[Errno 11]` while the first download continues | read in code |
+| `update rollback` calls the core before the battery gate: a battery refusal leaves the journal `RollbackPending` | read in code |
+| An expired media write window is re-protected only in a reconcile the service starts, which it skips when nothing changed | read in code; device check owed |
+| A DHCP renew deletes `dns.json`: Wi-Fi may show `dns_unavailable` for up to 300 s | read in code |
+
+These are owner decisions (fix in Python now, or carry into the port unchanged and fix after parity).
+
+## Differential harness
+
+`tests/platform_differential.py` runs one subcommand twice, each on its own copy of one fixture root: the Python
+side through `tests/platform_differential_launcher.py` (the installed `main.py` with `cli.Context` rooted at the
+copy, subprocess answers from a list, every request recorded), the other side normally the Rust host build given
+by `Y2_PLATFORM_RUST`. It compares exit code, stdout (parsed, root path replaced), the subprocess requests and the
+whole resulting tree (paths, types, modes, contents parsed per JSON line, symlink targets), after normalising clock
+readings by key name (`monotonic_ns`, `wall_timestamp`, …) and per-case patterns (uuids). `host_access` lists what
+the Python side opens, lists or starts outside the root (an audit hook), so a case cannot pass by both sides
+reading the host. A Rust host build must honour `Y2_ROOT`, `Y2_FIXTURE_COMMANDS` and `Y2_FIXTURE_CALLS` (module
+docstring). `tests/test_platform_differential.py` (in `tools/production/tests.sh`) runs 16 cases Python against
+Python, checks that the harness reports each kind of difference, checks this inventory against the parser, and
+compares against Rust when `Y2_PLATFORM_RUST` is set (skipped otherwise). Add a case for each ported command.
