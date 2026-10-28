@@ -174,7 +174,7 @@ class ReportsDifferential(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.directory = tempfile.TemporaryDirectory()
-        cls.fixture = test_platform_differential.player_root(Path(cls.directory.name) / 'fixture')
+        cls.fixture = test_platform_differential.player_root(Path(cls.directory.name) / 'fixture', ('reports',))
 
     @classmethod
     def tearDownClass(cls):
