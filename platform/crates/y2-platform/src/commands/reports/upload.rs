@@ -4,9 +4,10 @@
 //! The receiver (tools/reports/worker) is reached through the `curl` binary instead of Python's
 //! urllib, with the same request: POST, no redirects followed (a 3xx is an answer, retried as
 //! `HTTP_3xx`), no proxy, no configuration file, 30 s to connect and no 30 s without progress, the
-//! same headers (urllib's own Accept-Encoding and Connection too, curl's Accept, Expect and chunked
-//! encoding removed) and the report as the body, streamed from stdin in 16 KiB pieces so the owner's
-//! screen follows the upload. Below a fixture root the call is a fixture command like any other.
+//! same headers as urllib sends them (its own Accept-Encoding and Connection too; curl's Accept,
+//! Expect and chunked encoding removed) and the report as the body, streamed from stdin in 16 KiB
+//! pieces so the owner's screen follows the upload. Below a fixture root the call is a fixture command
+//! like any other (its argv carries the headers, so the differential tests compare them).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     boot_id, build, clock, json_dict, or_dict,
@@ -32,8 +33,6 @@ const GIVE_UP_S: f64 = 3.0 * 86400.0;
 const MINIMUM_PERCENT: i64 = 15;
 /// The receiver will never take this report.
 const REFUSED: [i64; 6] = [400, 403, 404, 405, 411, 413];
-/// Where the request's headers wait for curl (`-H @file`) while the upload lock is held.
-const HEADERS: &str = ".upload-headers";
 
 fn wall() -> f64 {
     clock::Instant::now().timestamp()
@@ -294,9 +293,10 @@ fn answer(outcome: &command::Outcome) -> (Option<i64>, Result<Py, String>) {
     (None, Err(class.into()))
 }
 
-/// The curl command line: everything but the headers (a file) and the body (stdin) is fixed.
-fn argv(headers: &str) -> Vec<String> {
-    [
+/// The curl command line: the request's headers as `--header` arguments (urllib's names, title-cased as
+/// it sends them; an empty value as curl's `Name;`), the body on stdin.
+fn argv(headers: &[(&str, String)]) -> Vec<String> {
+    let mut argv: Vec<String> = [
         "curl",
         "-q",
         "--silent",
@@ -313,21 +313,45 @@ fn argv(headers: &str) -> Vec<String> {
         "30",
         "--request",
         "POST",
-        "--header",
-        &format!("@{headers}"),
-        "--upload-file",
-        "-",
-        "--write-out",
-        "\\n%{http_code} %{exitcode} %{errormsg}",
-        ENDPOINT,
     ]
     .iter()
     .map(|s| s.to_string())
-    .collect()
+    .collect();
+    for (name, value) in headers {
+        argv.push("--header".into());
+        argv.push(if value.is_empty() {
+            format!("{name};")
+        } else {
+            format!("{name}: {value}")
+        });
+    }
+    // http.client's own and urllib's Connection; curl's Accept, Expect and chunked encoding removed.
+    for header in [
+        "Accept-Encoding: identity",
+        "Connection: close",
+        "Accept:",
+        "Expect:",
+        "Transfer-Encoding:",
+    ] {
+        argv.push("--header".into());
+        argv.push(header.into());
+    }
+    argv.extend(
+        [
+            "--upload-file",
+            "-",
+            "--write-out",
+            "\\n%{http_code} %{exitcode} %{errormsg}",
+            ENDPOINT,
+        ]
+        .iter()
+        .map(|s| s.to_string()),
+    );
+    argv
 }
 
-/// The request's headers (`_post`), one per line as curl reads them.
-pub fn headers(data: &[u8], index: &Py, key: &str) -> String {
+/// `_post`'s headers, in its order.
+pub fn headers(data: &[u8], index: &Py, key: &str) -> Vec<(&'static str, String)> {
     let release = or_dict(index.get("release").cloned().unwrap_or(Py::None));
     let version = release
         .get("release_version")
@@ -345,8 +369,7 @@ pub fn headers(data: &[u8], index: &Py, key: &str) -> String {
         .iter()
         .map(|b| format!("{b:02x}"))
         .collect();
-    [
-        ("Accept-Encoding", "identity".to_owned()),
+    vec![
         ("Content-Type", "application/gzip".to_owned()),
         (
             "User-Agent",
@@ -363,20 +386,7 @@ pub fn headers(data: &[u8], index: &Py, key: &str) -> String {
         ("X-Y2-Trigger", text("trigger")),
         ("X-Y2-Release", version.unwrap_or_default()),
         ("Content-Length", data.len().to_string()),
-        ("Connection", "close".to_owned()),
-        // curl's own: urllib sends neither.
-        ("Accept", String::new()),
-        ("Expect", String::new()),
-        ("Transfer-Encoding", String::new()),
     ]
-    .iter()
-    .map(|(name, value)| {
-        format!(
-            "{name}:{}{value}\n",
-            if value.is_empty() { "" } else { " " }
-        )
-    })
-    .collect()
 }
 
 /// `_post(opener, data, index, key, progress)`: POST one report.
@@ -386,29 +396,15 @@ fn post(
     index: &Py,
     key: &str,
     progress: Option<&build::Progress>,
-) -> Result<(Option<i64>, Result<Py, String>), Failure> {
-    let directory = root.path(QUEUE);
-    let file = directory.join(HEADERS);
-    let _ = std::fs::remove_file(&file);
-    let mut out = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
-        .open(&file)
-        .map_err(|e| super::os(e, &file))?;
-    out.write_all(headers(data, index, key).as_bytes())
-        .map_err(|e| super::os(e, &file))?;
-    drop(out);
-    let argv = argv(&file.to_string_lossy());
+) -> (Option<i64>, Result<Py, String>) {
+    let argv = argv(&headers(data, index, key));
     let refs: Vec<&str> = argv.iter().map(String::as_str).collect();
     let outcome = if root.is_real() {
         stream(&refs, data, progress)
     } else {
         command::run_with(root, &refs, 600.0, 65536, true)
     };
-    let _ = std::fs::remove_file(&file);
-    Ok(answer(&outcome))
+    answer(&outcome)
 }
 
 /// curl on the real root, the body written to its stdin in 16 KiB pieces (`_Body`), its output
@@ -655,7 +651,7 @@ fn upload_queue(
                 ],
             );
         }
-        let (status, answer) = post(root, &data, &index, key, shown)?;
+        let (status, answer) = post(root, &data, &index, key, shown);
         match (status, answer) {
             (Some(code @ (200 | 201)), answer) => {
                 connected = connected || Some(name.as_str()) == first;
