@@ -1,6 +1,12 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-28): BETA 8.42 IN PROGRESS, NOT PUBLISHED — REPORT FIXES F17 F23 F34 F39 F50–F57, TEST BUILD 162 ON THE OWNER'S PLAYER.**
+> **START HERE (2026-10-28, evening): BETA 8.42 (BASELINE 163) PUBLISHED — SLEEP, LARGE SD CARDS, QUICK SCAN, REPORT FIXES, #62.**
+> Seq 10900, Linux `7e5b151` (#62 `9ee3f04`), Reborn `25b8e06`. Report [Beta 8.42](../validation/Y2-LINUX-1.0-BETA-8.42.md),
+> notes `out/release-163-notes.md`. Not installed before publishing (the owner's player runs 162, seq 10820). Issues
+> #62 and #63 answered with the release link. Device checks and owner decisions owed: see the entry below and the
+> report's Open section. Next free label 164, sequence above 10900.
+>
+> Previous entry: **START HERE (2026-10-28): BETA 8.42 IN PROGRESS, NOT PUBLISHED — REPORT FIXES F17 F23 F34 F39 F50–F57, TEST BUILD 162 ON THE OWNER'S PLAYER.**
 > All 40 pending error reports were reviewed (ledger `UserReports/REVIEWED.md`: rows, F50–F57, a dated paragraph for
 > F39/F34/F23/F17/F48/F40). Fixes on `main` in both repos, not pushed: Linux `boot (F23, F34…)` .. `reports (F50, F56,
 > F57…)`, kernel config `7924194` (`CONFIG_LOG_BUF_SHIFT` 19: the Image was 5.4 KiB over the 12 MiB cap; the 1 MiB log

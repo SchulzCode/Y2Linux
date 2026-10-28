@@ -9452,3 +9452,27 @@ packaging change; Reborn's database gains two additive tables (schema version un
 
 **Gate decision:** ready for an owner-installed test build (label 162); not release-qualified until the device checks
 pass.
+
+## BETA-8.42 (Baseline 163) sleep, SD admission, report fixes: milestone gap audit — 2026-10-28
+
+**Boundary:** the BETA-8.42 entry audit above, the review of 40 error reports (findings F50–F57), issues #62/#63,
+test builds 160–162 on the owner's player, then the owner's "do a build now and publish". Change: kernel (UART pad
+in sleep, DSI restart and read policy, connectivity IRQ, last power-off handler and `watchdog_powers_off`, PMIC power
+status), kernel config `CONFIG_LOG_BUF_SHIFT` 19 (Image 1.6 MiB under the D08 12 MiB cap instead of 5.4 KiB over;
+the 1 MiB log is allocated from `log_buf_len=1M`, no other memory map change), initramfs (partition wait, recovery
+watchdog), platform (shutdown steps, SD admission, Wi-Fi heal, battery, sleep floor, factory provider), Reborn
+(sleep, quick scan, lost Bluetooth peer, Wi-Fi reasons, held Power, EACCES). No partition or packaging change.
+
+| Area | State for Beta 8.42 | Evidence / gap |
+| --- | --- | --- |
+| Sleep (F47/F48) | DEVICE-CHECKED | 17.3 h asleep on 161 (≈2 mA estimate), no kernel refusal |
+| Shutdown (F39/F50) | DEVICE-CHECKED (restart only) | full pmsg trail on 162; watchdog power-off and a real stall not exercised |
+| SD admission (F49), quick scan | HOST-TESTED | slow card and restart timing owed |
+| #62 empty PROTECT | HOST-TESTED | reporter's player owed (modem defaults, range) |
+| Wi-Fi heal, battery, held Power, lost peer | HOST-TESTED | device checks listed in the Beta 8.42 report |
+| Dark start (F17) | DEVICE-CHECKED (no false restart) | a dark start not reproduced |
+| F56 | DIAGNOSTICS ONLY | cause open |
+| Build 163 on a player | NOT INSTALLED BEFORE PUBLISH | test build 162 (same code apart from #62 and the sequence) installed and Acknowledged |
+
+**Gate decision:** published at the owner's word as **Y2Linux 1.0.0-beta.8.42** (Baseline 163, sequence 10900).
+
