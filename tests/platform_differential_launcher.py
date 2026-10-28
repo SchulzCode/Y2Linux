@@ -5,6 +5,7 @@ at --root and its subprocess runner answers from --commands and records every re
 """
 import argparse
 import json
+import os
 from pathlib import Path
 import runpy
 import sys
@@ -15,7 +16,6 @@ PLATFORM = Path(__file__).resolve().parents[1] / 'tools/platform'
 def audit(log, own):
     """Record what the code under test reaches outside the fixture root: a path opened or listed without
     `ctx.path`, or a process started without `ctx.command`. The interpreter's own files are not counted."""
-    import os
     allowed = tuple(str(Path(p).resolve()) for p in [*own, PLATFORM, sys.prefix, sys.base_prefix,
                                                      sys.exec_prefix, Path(__file__).parent])
     stream = open(log, 'a', buffering=1)
@@ -45,14 +45,21 @@ def audit(log, own):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--root', required=True)
-    parser.add_argument('--commands', required=True)
-    parser.add_argument('--calls', required=True)
-    parser.add_argument('--host-access', help='append each file/process access outside --root as a JSON line')
-    parser.add_argument('argv', nargs=argparse.REMAINDER)
-    args = parser.parse_args()
-    argv = args.argv[1:] if args.argv[:1] == ['--'] else args.argv
+    if sys.argv[1:2] != ['--root'] and 'Y2_ROOT' in os.environ:
+        # Started by the Rust dispatcher's fallback (Y2_PLATFORM_MAIN): the fixture comes from the same
+        # environment the Rust side got, every argument is the platform's.
+        args = argparse.Namespace(root=os.environ['Y2_ROOT'], commands=os.environ['Y2_FIXTURE_COMMANDS'],
+                                  calls=os.environ['Y2_FIXTURE_CALLS'], host_access=None)
+        argv = sys.argv[1:]
+    else:
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--root', required=True)
+        parser.add_argument('--commands', required=True)
+        parser.add_argument('--calls', required=True)
+        parser.add_argument('--host-access', help='append each file/process access outside --root as a JSON line')
+        parser.add_argument('argv', nargs=argparse.REMAINDER)
+        args = parser.parse_args()
+        argv = args.argv[1:] if args.argv[:1] == ['--'] else args.argv
     answers = json.loads(Path(args.commands).read_text())
 
     def runner(command, timeout=1.0, **_):

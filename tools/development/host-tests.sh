@@ -19,5 +19,10 @@ echo "host-tests: build $Y2_ARTIFACT_TEST_ROOT" >&2
 missing=
 python3 -c 'import elftools' 2>/dev/null || missing="$missing pyelftools"
 [ -z "$missing" ] || echo "host-tests: missing$missing (Arch/CachyOS: python-pyelftools); its tests will error" >&2
+# The Rust platform's host build, so tests.test_platform_differential compares it with Python
+# (skipped without cargo, as in the container).
+if [ -z "${Y2_PLATFORM_RUST:-}" ] && command -v cargo >/dev/null 2>&1; then
+    (cd platform && cargo build --offline --locked -q) && export Y2_PLATFORM_RUST="$PWD/platform/target/debug/y2-platform"
+fi
 # shellcheck disable=SC2086 # one module name per word
 PYTHONPATH=.:tests:tools/platform exec python3 -m unittest "$@" $modules

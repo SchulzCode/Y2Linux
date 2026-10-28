@@ -170,7 +170,13 @@ class PlatformDifferential(unittest.TestCase):
                 if actions:
                     self.assertEqual(set(actions[0]) - {e['action'] for e in entries}, set())
 
-    @unittest.skipUnless(rust_binary(),RUST_ENV + ' (host build of the Rust y2-platform) not given')
+    def test_contract_goldens_are_the_python_output(self):
+        # y2p-contract's golden files must stay what the Python platform prints and writes.
+        check = subprocess.run([sys.executable, str(REPOSITORY / 'tools/development/platform-goldens.py'),
+                                '--check'], capture_output=True, text=True)
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
+    @unittest.skipUnless(rust_binary(), RUST_ENV + ' (host build of the Rust y2-platform) not given')
     def test_rust_matches_python(self):
         rust = rust_side(rust_binary())
         for name, argv, options in CASES:

@@ -13,6 +13,9 @@ A host build of the Rust binary is given by `Y2_PLATFORM_RUST` (path) and must h
   a subprocess is never started, its result is the entry with the same argv, otherwise
   {"ok": false, "reason": "fixture", "output": null} (what a Python fixture Context answers).
 - `Y2_FIXTURE_CALLS=<file>`: append one JSON line {"argv": [...], "timeout": seconds} per subprocess asked for.
+- `Y2_PLATFORM_PYTHON`, `Y2_PLATFORM_MAIN`: the interpreter and entry its fallback runs for a subcommand it does
+  not implement (honoured only with `Y2_ROOT`); the harness names the launcher, which takes the fixture from the
+  same variables.
 """
 import hashlib
 import json
@@ -31,6 +34,8 @@ RUST_ENV = 'Y2_PLATFORM_RUST'
 VOLATILE_KEYS = frozenset({
     'wall_timestamp', 'monotonic_ns', 'monotonic_s', 'stage_monotonic_ns', 'boottime_ns', 'elapsed_ms',
     'duration_ms', 'collection_duration_ns', 'timestamp', 'time', 'at', 'updated_at', 'checked_at', 'now', 'uptime_seconds',
+    # statvfs() of the fixture copy measures the host's disk, which changes between the two runs.
+    'available_bytes', 'free_bytes', 'available_inodes', 'total_bytes', 'total_inodes',
 })
 # A leading clock reading on a trail line ("12.34 platform …").
 TRAIL_CLOCK = re.compile(r'(?m)^\d+\.\d+ ')
@@ -51,8 +56,10 @@ def python_side(root, argv, commands_file, calls_file, timeout, env):
 def rust_side(binary):
     """A side that runs an implementation honouring the Y2_ROOT/Y2_FIXTURE_* contract above."""
     def run(root, argv, commands_file, calls_file, timeout, env):
+        # Subcommands not ported yet go to the Python platform (the dispatcher's fallback) on the same root.
         env = base_environment({**env, 'Y2_ROOT': str(root), 'Y2_FIXTURE_COMMANDS': str(commands_file),
-                                'Y2_FIXTURE_CALLS': str(calls_file)})
+                                'Y2_FIXTURE_CALLS': str(calls_file), 'Y2_PLATFORM_PYTHON': sys.executable,
+                                'Y2_PLATFORM_MAIN': str(LAUNCHER)})
         return subprocess.run([str(binary), *argv], stdin=subprocess.DEVNULL, capture_output=True,
                               timeout=timeout, env=env)
     return run
