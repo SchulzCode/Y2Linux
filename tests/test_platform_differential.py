@@ -140,10 +140,13 @@ import importlib  # noqa: E402
 
 GROUPS = [importlib.import_module('platform_cases.' + name)
           for name in importlib.import_module('platform_cases').GROUPS]
+# A group's cases run on the base root plus that group's fixture only: two groups may model the same
+# device (both storage and observation describe the SD card) in different states.
+CASE_GROUP = {case[0]: group.__name__.rsplit('.', 1)[1] for group in GROUPS for case in group.CASES}
 CASES += [case for group in GROUPS for case in group.CASES]
 
 
-def player_root(root):
+def player_root(root, groups=()):
     """A small player-shaped tree: identity, verified /data, a Wi-Fi epoch, nothing mounted on the SD slot."""
     def put(name, content, mode=0o644):
         path = root / name.lstrip('/')
@@ -215,7 +218,8 @@ def player_root(root):
         'prerequisite_%s=1\n' % n for n in ('system_running', 'boot_policy', 'spm', 'local_events', 'cirq',
                                             'linux_context', 'timer_context', 'broken')))
     for group in GROUPS:
-        group.fixture(root)
+        if group.__name__.rsplit('.', 1)[1] in groups:
+            group.fixture(root)
     return root
 
 
@@ -224,6 +228,12 @@ class PlatformDifferential(unittest.TestCase):
     def setUpClass(cls):
         cls.directory = tempfile.TemporaryDirectory()
         cls.fixture = player_root(Path(cls.directory.name) / 'fixture')
+        cls.fixtures = {None: cls.fixture}
+        for name in sorted(set(CASE_GROUP.values())):
+            cls.fixtures[name] = player_root(Path(cls.directory.name) / ('fixture-' + name), (name,))
+
+    def fixture_for(self, case):
+        return self.fixtures[CASE_GROUP.get(case)]
 
     @classmethod
     def tearDownClass(cls):
@@ -234,17 +244,18 @@ class PlatformDifferential(unittest.TestCase):
         # would report noise (clock readings, root paths, random names) as differences.
         for name, argv, options in CASES:
             with self.subTest(name):
-                self.assertEqual(compare(self.fixture, argv, **options), [])
+                self.assertEqual(compare(self.fixture_for(name), argv, **options), [])
 
     def test_cases_stay_inside_the_fixture_root(self):
         # A path the Python side opens without ctx.path, or a process it starts without
         # ctx.command, would make both sides read the host and agree by accident.
         for name, argv, options in CASES:
             with self.subTest(name):
-                self.assertEqual(host_access(self.fixture, argv, env=options.get('env'), files=options.get('files')), [])
+                self.assertEqual(host_access(self.fixture_for(name), argv, env=options.get('env'), files=options.get('files')), [])
 
     def test_cases_exercise_exit_codes_files_and_subprocesses(self):
-        results = {name: run_case(python_side, self.fixture, argv, **options) for name, argv, options in CASES}
+        results = {name: run_case(python_side, self.fixture, argv, **options) for name, argv, options in CASES
+                   if name not in CASE_GROUP}
         self.assertEqual(results['capabilities']['exit'], 0)
         self.assertEqual(results['capabilities']['stdout']['schema'], 'org.y2linux.capabilities/v1')
         self.assertEqual(results['boot-stage-unknown']['exit'], 1)
@@ -321,7 +332,7 @@ class PlatformDifferential(unittest.TestCase):
         rust = rust_side(rust_binary())
         for name, argv, options in CASES:
             with self.subTest(name):
-                self.assertEqual(compare(self.fixture, argv, right=rust, **options), [])
+                self.assertEqual(compare(self.fixture_for(name), argv, right=rust, **options), [])
 
 
 if __name__ == '__main__':
