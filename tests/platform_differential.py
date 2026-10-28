@@ -36,7 +36,10 @@ VOLATILE_KEYS = frozenset({
     'duration_ms', 'collection_duration_ns', 'timestamp', 'time', 'at', 'updated_at', 'checked_at', 'now', 'uptime_seconds',
     # statvfs() of the fixture copy measures the host's disk, which changes between the two runs.
     'available_bytes', 'free_bytes', 'available_inodes', 'total_bytes', 'total_inodes',
+    'boottime_s', 'link_counts_since_s',
 })
+# Clock readings only when they are numbers: `epoch` is also the Wi-Fi association's id (a string).
+VOLATILE_NUMBERS = frozenset({'epoch'})
 # A leading clock reading on a trail line ("12.34 platform …").
 TRAIL_CLOCK = re.compile(r'(?m)^\d+\.\d+ ')
 
@@ -59,7 +62,8 @@ def rust_side(binary):
         # Subcommands not ported yet go to the Python platform (the dispatcher's fallback) on the same root.
         env = base_environment({**env, 'Y2_ROOT': str(root), 'Y2_FIXTURE_COMMANDS': str(commands_file),
                                 'Y2_FIXTURE_CALLS': str(calls_file), 'Y2_PLATFORM_PYTHON': sys.executable,
-                                'Y2_PLATFORM_MAIN': str(LAUNCHER)})
+                                'Y2_PLATFORM_MAIN': str(LAUNCHER),
+                                'Y2_FIXTURE_FALLBACK': str(root.parent / 'fallback')})
         return subprocess.run([str(binary), *argv], stdin=subprocess.DEVNULL, capture_output=True,
                               timeout=timeout, env=env)
     return run
@@ -72,7 +76,8 @@ def rust_binary():
 
 def normalise_json(value, volatile):
     if isinstance(value, dict):
-        return {k: '<volatile>' if k in volatile else normalise_json(v, volatile) for k, v in value.items()}
+        return {k: '<volatile>' if k in volatile or (k in VOLATILE_NUMBERS and isinstance(v, (int, float)))
+                else normalise_json(v, volatile) for k, v in value.items()}
     if isinstance(value, list):
         return [normalise_json(v, volatile) for v in value]
     return value
@@ -123,26 +128,39 @@ def snapshot(root, volatile, patterns):
     return tree
 
 
-def run_case(side, fixture, argv, commands=(), timeout=60, volatile=(), patterns=(), env=None):
-    """Run `argv` with `side` on a fresh copy of `fixture`; return everything compared."""
+def run_case(side, fixture, argv, commands=(), timeout=60, volatile=(), patterns=(), env=None, files=None,
+             ported=None):
+    """Run `argv` with `side` on a fresh copy of `fixture` (changed by `files`: path -> text, a function
+    returning it, or None to remove it); return everything compared, and under `fallback` whether a Rust side handed the command to
+    the Python platform (never compared)."""
     volatile = VOLATILE_KEYS | set(volatile)
     patterns = [(TRAIL_CLOCK, '<clock> '), *patterns]
     with tempfile.TemporaryDirectory(prefix='y2-diff-') as scratch:
         scratch = Path(scratch)
         root = scratch / 'root'
         shutil.copytree(fixture, root, symlinks=True)
+        for name, text in (files or {}).items():
+            path = root / name.lstrip('/')
+            text = text() if callable(text) else text  # made at run time (a clock reading)
+            if text is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text)
         commands_file = scratch / 'commands.json'
         commands_file.write_text(json.dumps(list(commands)))
         calls_file = scratch / 'calls.jsonl'
         calls_file.touch()
         result = side(root, argv, commands_file, calls_file, timeout, env or {})
-        calls = [normalise_json(json.loads(line.replace(str(root), '<root>')), volatile)
-                 for line in calls_file.read_text().splitlines() if line]
+        # A timeout is recorded as given (`timeout=3` or the default 1.0): compare it as a number.
+        calls = [normalise_json({**call, 'timeout': float(call['timeout'])}, volatile) for call in
+                 (json.loads(line.replace(str(root), '<root>')) for line in calls_file.read_text().splitlines() if line)]
         return {
             'exit': result.returncode,
             'stdout': normalise_text(result.stdout.decode('utf-8', errors='replace'), root, volatile, patterns),
             'calls': calls,
             'tree': snapshot(root, volatile, patterns),
+            'fallback': (scratch / 'fallback').exists(),
         }
 
 
@@ -167,17 +185,30 @@ def differences(left, right, path=''):
 
 
 def compare(fixture, argv, left=python_side, right=None, **case):
-    """Differences between two implementations of `argv` on `fixture`."""
+    """Differences between two implementations of `argv` on `fixture`. With `ported` True (False), the
+    right side must have run the command itself (handed it to Python)."""
     right = right or python_side
-    return differences(run_case(left, fixture, argv, **case), run_case(right, fixture, argv, **case))
+    a, b = run_case(left, fixture, argv, **case), run_case(right, fixture, argv, **case)
+    found = differences({k: v for k, v in a.items() if k != 'fallback'}, {k: v for k, v in b.items() if k != 'fallback'})
+    if right is not python_side and case.get('ported') is not None and b['fallback'] == case['ported']:
+        found.append('ran in Python' if case['ported'] else 'ran in Rust, expected the Python fallback')
+    return found
 
 
-def host_access(fixture, argv, env=None, timeout=60):
+def host_access(fixture, argv, env=None, timeout=60, files=None):
     """What the Python side of `argv` reads, writes, lists or starts outside the fixture root."""
     with tempfile.TemporaryDirectory(prefix='y2-diff-') as scratch:
         scratch = Path(scratch)
         root = scratch / 'root'
         shutil.copytree(fixture, root, symlinks=True)
+        for name, text in (files or {}).items():
+            path = root / name.lstrip('/')
+            text = text() if callable(text) else text  # made at run time (a clock reading)
+            if text is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text)
         (scratch / 'commands.json').write_text('[]')
         log = scratch / 'host-access.jsonl'
         command = [sys.executable, '-I', str(LAUNCHER), '--root', str(root), '--commands',

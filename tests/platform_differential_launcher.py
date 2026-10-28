@@ -51,6 +51,8 @@ def main():
         args = argparse.Namespace(root=os.environ['Y2_ROOT'], commands=os.environ['Y2_FIXTURE_COMMANDS'],
                                   calls=os.environ['Y2_FIXTURE_CALLS'], host_access=None)
         argv = sys.argv[1:]
+        if os.environ.get('Y2_FIXTURE_FALLBACK'):
+            Path(os.environ['Y2_FIXTURE_FALLBACK']).touch()  # the harness tells ported from fallen-back
     else:
         parser = argparse.ArgumentParser()
         parser.add_argument('--root', required=True)
