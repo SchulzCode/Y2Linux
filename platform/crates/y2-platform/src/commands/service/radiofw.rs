@@ -733,6 +733,8 @@ fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
 }
 
 /// `radiofw.leftover_waiting`: cheap check for the service: a copy leftover() has not judged yet.
+/// Used by service-daemon's `radio_firmware` once the daemon is ported (still Python).
+#[allow(dead_code)]
 pub fn leftover_waiting(root: &Root) -> bool {
     let kept = root
         .json_object(STATE)

@@ -31,6 +31,47 @@ def fixed_token():
     uuid.uuid4 = lambda: fixed
 
 
+def daemon_ticks():
+    """Y2_LAUNCHER_PATCH for `service-daemon`: the loop ends after Y2_DAEMON_TICKS iterations (exit 0), its
+    waits return at once, and the children it starts with subprocess.Popen itself (service.py and usb.py do
+    so even below a fixture root) are recorded as fixture calls (timeout 0) and refused like a missing
+    binary (OSError), never started on the host."""
+    import errno
+    import subprocess
+    from y2_platform import network, service
+    ticks = int(os.environ['Y2_DAEMON_TICKS'])
+    loops = []
+    wake = service.SignalWake.__init__
+
+    def init(self, running):
+        loops.append(running)
+        wake(self, running)
+
+    def wait(self, timeout, *, wake_fd=None):
+        loops.append(None)
+        if len(loops) - 1 >= ticks:
+            loops[0][0] = False
+
+    real = subprocess.Popen
+    # The launcher's own --calls (Python side), or the fixture environment (the Rust fallback).
+    import sys
+    record = (sys.argv[sys.argv.index('--calls') + 1] if '--calls' in sys.argv
+              else os.environ['Y2_FIXTURE_CALLS'])
+
+    class Popen(real):
+        def __init__(self, argv, *args, **kwargs):
+            if isinstance(argv, (list, tuple)) and argv and str(argv[0]).startswith(('/usr/sbin/y2-platform',
+                                                                                     '/usr/sbin/umtprd')):
+                with open(record, 'a') as calls:
+                    calls.write(json.dumps({'argv': [str(a) for a in argv], 'timeout': 0}) + '\n')
+                raise OSError(errno.ENOENT, 'No such file or directory', str(argv[0]))
+            super().__init__(argv, *args, **kwargs)
+
+    service.SignalWake.__init__ = init
+    network.EventMonitor.wait = wait
+    subprocess.Popen = Popen
+
+
 def answer(argv, output='', ok=True, reason=None):
     return {'argv': argv, 'ok': ok, 'reason': reason if reason or ok else 'command_failed', 'output': output}
 
@@ -105,9 +146,9 @@ CASES = [
         '/data/updates/state.json': '{"schema": 3, "state": "Queued"}'}}),
     ('update-status-unreadable', ['update', 'status'], {'ported': True, 'files': {'/data/updates/state.json': 'x'}}),
     ('update-status-url-option', ['update', 'status', '--url', 'https://x/manifest.json'], {'ported': True}),
-    ('update-status-bare-option', ['update', 'status', '--url'], {'ported': False}),
-    ('update-option-first', ['update', '--package', '/x', 'status'], {'ported': False}),
-    ('update-unknown-action', ['update', 'install'], {'ported': False}),
+    ('update-status-bare-option', ['update', 'status', '--url'], {'ported': True}),
+    ('update-option-first', ['update', '--package', '/x', 'status'], {'ported': True}),
+    ('update-unknown-action', ['update', 'install'], {'ported': True}),
     # update check / stage
     ('update-check-no-source', ['update', 'check'], {'ported': True}),
     ('update-check-no-data', ['update', 'check'], {'ported': True, 'files': CHANNEL}),
@@ -358,10 +399,27 @@ CASES += [
     ('firmware-install-image', ['firmware', 'install', str(PACKAGE / 'manifest.json')], {'ported': True}),
     ('firmware-install-missing', ['firmware', 'install', str(PACKAGE / 'system.img')], {'ported': True}),
     ('firmware-install-no-path', ['firmware', 'install'], {'ported': True}),
-    ('firmware-help', ['firmware', '--help'], {'ported': False}),
-    ('firmware-bad-action', ['firmware', 'flash'], {'ported': False}),
+    ('firmware-help', ['firmware', '--help'], {'ported': True}),
+    ('firmware-bad-action', ['firmware', 'flash'], {'ported': True}),
 ] + [('firmware-scan-' + name, ['firmware', 'scan'], {'ported': True, 'files': mtp_root(name, 'Missing')})
      for name in ('ext4', 'ext3', 'partial', 'large', 'text', 'badsparse')]
+
+
+# ---- service-daemon (still Python: its tick is mostly other groups' code, see service/mod.rs) -------------
+TICKS = {'Y2_LAUNCHER_PATCH': 'platform_cases.service:daemon_ticks'}
+DAEMON = {'ported': False, 'volatile': ['attempt', 'deadline_monotonic_s']}
+CASES += [
+    ('service-daemon-one-tick', ['service-daemon'], {**DAEMON, 'env': {**TICKS, 'Y2_DAEMON_TICKS': '1'}}),
+    ('service-daemon-three-ticks', ['service-daemon'], {**DAEMON, 'env': {**TICKS, 'Y2_DAEMON_TICKS': '3'}}),
+    ('service-daemon-dark-settled', ['service-daemon'], {**DAEMON, 'env': {**TICKS, 'Y2_DAEMON_TICKS': '2'}, 'files': {
+        '/sys/class/backlight/panel/bl_power': '4\n', '/sys/class/backlight/panel/brightness': '200\n',
+        '/run/y2/media-lifecycle.json': '{"inventory": []}',
+        '/data/updates/last-check.json': last_check(),
+        '/run/y2/application-ready.json': '{"boot_id": "boot-a", "first_frame": true}'},
+        'commands': [answer(['/usr/sbin/y2-platform', 'update', 'health-ack'], '{"state": "Acknowledged"}')]}),
+    ('service-daemon-online', ['service-daemon'], {**DAEMON, 'env': {**TICKS, 'Y2_DAEMON_TICKS': '1'}, 'files': {
+        **ONLINE, '/run/y2/media-mount.json': '{"read_only": "checking", "boot_id": "boot-a"}'}}),
+]
 
 
 def fixture(root):

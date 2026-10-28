@@ -38,13 +38,7 @@ fn time_wall() -> f64 {
     super::time::wall()
 }
 
-/// A value argparse takes for an option: present and not itself an option.
-fn option_value(value: &str) -> bool {
-    !value.starts_with('-')
-}
-
-/// `update <action>` with `--url URL` and `--package DIR` each at most once, in any order, after the
-/// action (other spellings are argparse's).
+/// `update <action>` with `--url URL` and `--package DIR` as the parser's canonical form gives them.
 fn update_route(args: &[&str]) -> Option<Command> {
     let (action, rest) = args.split_first()?;
     if !UPDATE_ACTIONS.contains(action) {
@@ -53,9 +47,6 @@ fn update_route(args: &[&str]) -> Option<Command> {
     let (mut url, mut package) = (None, None);
     let mut rest = rest;
     while let [option, value, tail @ ..] = rest {
-        if !option_value(value) {
-            return None;
-        }
         match *option {
             "--url" if url.is_none() => url = Some(value.to_string()),
             "--package" if package.is_none() => package = Some(value.to_string()),
@@ -77,9 +68,7 @@ pub fn route(args: &[&str]) -> Option<Command> {
     match args {
         ["update", rest @ ..] => update_route(rest),
         ["firmware", action, path @ ..]
-            if ["status", "scan", "install"].contains(action)
-                && path.len() <= 1
-                && path.iter().all(|p| option_value(p)) =>
+            if ["status", "scan", "install"].contains(action) && path.len() <= 1 =>
         {
             let (action, path) = (action.to_string(), path.first().map(|p| p.to_string()));
             Some(Box::new(move |root| {

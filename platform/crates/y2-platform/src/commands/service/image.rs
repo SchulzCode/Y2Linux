@@ -91,7 +91,7 @@ impl Image {
             let block = u32_at(&header, 12)? as u128;
             let total = u32_at(&header, 16)? as u128;
             let count = u32_at(&header, 20)?;
-            if major != 1 || file_hdr < 28 || chunk_hdr < 12 || block % 4 != 0 {
+            if major != 1 || file_hdr < 28 || chunk_hdr < 12 || !block.is_multiple_of(4) {
                 return Err(value("unsupported_sparse_image"));
             }
             let (mut offset, mut at) = (file_hdr, 0u128);
