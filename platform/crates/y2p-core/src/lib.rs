@@ -10,5 +10,6 @@ pub mod lock;
 pub mod py;
 pub mod record;
 pub mod root;
+pub mod service_digest;
 
 pub use root::Root;
