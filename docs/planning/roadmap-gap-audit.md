@@ -9555,3 +9555,10 @@ kernel, memory map, partition or packaging change beyond the binary.
 
 **Gate decision:** ready for an owner-installed test build (label 167, sequence 11120); not release-qualified.
 Part 2 (`status`, `health`, `boot-evidence`, `network-check`) continues as source work.
+
+**Test build 167 did not carry phase 2 part 1** (found on the player: Rust and Python took the same 0.54 s per
+call; `/usr/sbin/y2-platform` was byte-identical to 166's, and `out/build/buildroot/build/y2-platform-1` still held
+phase 1's source). Cause: the package version was a fixed `1`, so the resumed build reused the old build folder.
+Fix: `Y2_PLATFORM_VERSION` is the git tree of `platform/` (a build fails without one), and `release.py` prunes
+older `y2-platform-*` folders. 167's device result is therefore phase 1 again (Acknowledged, records identical to
+166, restart orderly); the part 1 device check moves to test build 168 (sequence 11130).
