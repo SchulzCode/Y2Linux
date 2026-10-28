@@ -109,6 +109,7 @@ BR2_PACKAGE_Y2_GPU_CHECK=y
 
 # Reborn audio stack; local music/artwork only, no FFmpeg CLI/encoders/network.
 BR2_PACKAGE_REBORN=y
+BR2_PACKAGE_Y2_PLATFORM=y
 BR2_PACKAGE_FFMPEG=y
 # BR2_PACKAGE_FFMPEG_FFMPEG is not set
 # BR2_PACKAGE_FFMPEG_FFPROBE is not set

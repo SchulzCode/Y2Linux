@@ -1,0 +1,11 @@
+config BR2_PACKAGE_Y2_PLATFORM
+	bool "y2-platform (Rust platform service command line)"
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	depends on BR2_USE_MMU
+	depends on !BR2_STATIC_LIBS
+	help
+	  /usr/sbin/y2-platform from the platform/ Cargo workspace: the
+	  platform contract's command line. Subcommands not ported to Rust
+	  yet run the Python platform in /usr/lib/y2-platform. Requires
+	  pre-provisioned Rust 1.99.0 and the ARMv7 hard-float target;
+	  the Cargo build is offline (vendored crates).

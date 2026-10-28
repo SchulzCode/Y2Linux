@@ -351,7 +351,7 @@ def validate_rootfs(out,build,m):
             require(not any(name in members for name in ('usr/lib/dri/swrast_dri.so','usr/bin/Xorg','usr/bin/weston')), 'no software/desktop graphics fallback')
         if m.get('platform_api_version') == 1:
             for name in ('usr/sbin/y2-update-core','usr/sbin/y2-audio-contract','usr/libexec/y2-sftp-server',
-                         'usr/sbin/y2-bt-observe','usr/bin/reborn-bench'):
+                         'usr/sbin/y2-bt-observe','usr/bin/reborn-bench','usr/sbin/y2-platform'):
                 content=read(name)
                 require(content[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',content,18)[0]==40,'platform ARM binary '+name)
                 require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img'))==content,'platform ext4/tar agreement '+name)

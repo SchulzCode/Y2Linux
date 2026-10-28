@@ -46,7 +46,11 @@ install -m 644 "$project"/tools/platform/y2_platform/*.py "$target/usr/lib/y2-pl
 install -m 644 "$project/tools/platform/main.py" "$target/usr/lib/y2-platform/main.py"
 install -m 644 "$project/tools/platform/suspend-record.py" "$target/usr/lib/y2-platform/suspend-record.py"
 install -m 644 "$project/tools/platform/product-sleep.py" "$target/usr/lib/y2-platform/product-sleep.py"
-for command in y2-platform y2-status y2-health y2-suspend-record y2-power-audit; do
+# /usr/sbin/y2-platform is the Rust dispatcher (package y2-platform); it runs the Python above for
+# every subcommand not ported yet (docs/planning/PLATFORM-RUST-PORT-PLAN.md).
+[ "$(head -c 4 "$target/usr/sbin/y2-platform" 2>/dev/null)" = "$(printf '\177ELF')" ] ||
+    { echo 'post-build: /usr/sbin/y2-platform is not the Rust y2-platform binary' >&2; exit 1; }
+for command in y2-status y2-health y2-suspend-record y2-power-audit; do
     install -m 755 "$project/tools/platform/$command" "$target/usr/sbin/$command"
 done
 install -m 644 "$project/tools/platform/capabilities.json" "$target/etc/y2linux/capabilities.json"
