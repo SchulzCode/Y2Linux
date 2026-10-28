@@ -186,6 +186,52 @@ fn decimal(text: &str) -> (String, i32) {
     )
 }
 
+/// A dict in insertion order, for the commands that print `json.dumps(result)` without `sort_keys`
+/// (a `serde_json::Map` keeps its keys sorted). Setting an existing key keeps its position, as a dict.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Ordered(pub Vec<(String, serde_json::Value)>);
+
+impl Ordered {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// `dict[key] = value`.
+    pub fn set(&mut self, key: &str, value: impl Into<serde_json::Value>) -> &mut Self {
+        let value = value.into();
+        match self.0.iter_mut().find(|(k, _)| k == key) {
+            Some(entry) => entry.1 = value,
+            None => self.0.push((key.to_owned(), value)),
+        }
+        self
+    }
+
+    pub fn with(mut self, key: &str, value: impl Into<serde_json::Value>) -> Self {
+        self.set(key, value);
+        self
+    }
+
+    pub fn get(&self, key: &str) -> Option<&serde_json::Value> {
+        self.0.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+    }
+
+    /// The keys of a parsed record in their file order (sorted: records are written with sort_keys).
+    pub fn from_map(map: &serde_json::Map<String, serde_json::Value>) -> Self {
+        Self(map.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+    }
+}
+
+impl Serialize for Ordered {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(self.0.len()))?;
+        for (key, value) in &self.0 {
+            map.serialize_entry(key, value)?;
+        }
+        map.end()
+    }
+}
+
 /// `json.dumps(value)` with the given separators.
 pub fn dumps<T: Serialize + ?Sized>(
     value: &T,
@@ -293,6 +339,16 @@ mod tests {
         assert_eq!(
             dumps(&json!("\u{1}\u{8}\u{c}\r"), Separators::Spaced).unwrap(),
             "\"\\u0001\\b\\f\\r\""
+        );
+    }
+
+    #[test]
+    fn ordered_objects_keep_insertion_order() {
+        let mut value = Ordered::new().with("state", "Ready").with("boot_id", "b");
+        value.set("state", "Failed").set("monotonic_s", 1.5);
+        assert_eq!(
+            dumps(&value, Separators::Spaced).unwrap(),
+            "{\"state\": \"Failed\", \"boot_id\": \"b\", \"monotonic_s\": 1.5}"
         );
     }
 
