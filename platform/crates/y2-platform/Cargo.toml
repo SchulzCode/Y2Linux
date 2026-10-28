@@ -17,3 +17,10 @@ flate2.workspace = true
 tar.workspace = true
 sha2.workspace = true
 hmac.workspace = true
+
+[features]
+default = ["python-fallback"]
+# The Python platform behind the dispatcher: a command line no Rust route takes (and a command that
+# returns `Failure::Fallback`) replaces this process with main.py. Phase 6 builds without it
+# (`--no-default-features`): then every subcommand and action must have a route (main.rs's test).
+python-fallback = []

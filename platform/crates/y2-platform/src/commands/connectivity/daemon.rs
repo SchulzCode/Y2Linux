@@ -394,7 +394,7 @@ impl Supervisor {
                     // codec_policy_unavailable: BlueALSA stays down until the next health look.
                     Err(Failure::Value(_) | Failure::Os { .. }) => return Ok(()),
                     // An inventory Python cannot read (AttributeError): the daemon ends as Python's.
-                    Err(Failure::Fallback) => return Err(Failure::Fallback),
+                    Err(error @ (Failure::Fallback | Failure::Crash { .. })) => return Err(error),
                 }
                 "/usr/bin/bluealsad"
             }

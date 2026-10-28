@@ -22,6 +22,9 @@ use std::{
 };
 use y2p_core::json::{dumps, Separators};
 
+/// Whether this build may hand a command line to the Python platform (cargo feature `python-fallback`,
+/// on by default until phase 6).
+pub const PYTHON_FALLBACK: bool = cfg!(feature = "python-fallback");
 const PYTHON: &str = "/usr/bin/python3";
 const MAIN: &str = "/usr/lib/y2-platform/main.py";
 const LIBRARY: &str = "/usr/lib/y2-platform";
@@ -83,6 +86,10 @@ fn main() -> ExitCode {
     let (stdout, code) = match command(&root) {
         Ok(reply) => (reply.stdout, reply.code),
         Err(Failure::Fallback) => return python(&args),
+        // An exception main.py does not catch: its traceback on stderr, nothing on stdout, exit 1.
+        Err(error @ Failure::Crash { .. }) => {
+            return print(&mut std::io::stderr().lock(), &error.traceback(), 1)
+        }
         // main.py: an OSError, ValueError or RuntimeError no command caught.
         Err(error) => (
             dumps(&error.record(), Separators::Spaced).expect("record"),
@@ -120,6 +127,18 @@ fn fallback() -> (OsString, OsString) {
 }
 
 fn python(args: &[OsString]) -> ExitCode {
+    if !PYTHON_FALLBACK {
+        // Built without the Python platform: every command line argparse takes has a route (the test
+        // below), so this is a command no build of this binary implements.
+        let _ = writeln!(
+            std::io::stderr(),
+            "y2-platform: {}: no Rust implementation and no Python platform",
+            args.first()
+                .map(|a| a.to_string_lossy())
+                .unwrap_or_default()
+        );
+        return ExitCode::from(127);
+    }
     let (interpreter, main) = fallback();
     let error = Command::new(&interpreter)
         .arg("-I")
@@ -139,4 +158,125 @@ fn python(args: &[OsString]) -> ExitCode {
     } else {
         127
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::Value;
+
+    /// The service group's commands still being ported (another branch): until they land these
+    /// command lines go to Python. Remove each as its route arrives.
+    const KNOWN_UNROUTED: &[&str] = &["service-daemon"];
+
+    /// One sample value argparse takes for an action (its first choice, a number, or a word).
+    fn sample(action: &Value) -> String {
+        if let Some(choice) = action["choices"].as_array().and_then(|c| c.first()) {
+            return match choice {
+                Value::String(s) => s.clone(),
+                other => other.to_string(),
+            };
+        }
+        match action["type"].as_str() {
+            Some("int") => "1".into(),
+            Some("float") => "1.5".into(),
+            _ => "x".into(),
+        }
+    }
+
+    /// Every command line of argparse.json's parser, as far as routes tell them apart: each subcommand,
+    /// each choice of its first positional with choices (the action), the other positionals with one
+    /// sample (an optional positional also left out), alone and with each of its options once.
+    fn command_lines() -> Vec<(String, Vec<String>)> {
+        let spec: Value =
+            serde_json::from_str(include_str!("argparse.json")).expect("argparse.json");
+        let mut lines = Vec::new();
+        for entry in spec["commands"].as_array().expect("commands") {
+            let name = entry[0].as_str().expect("name").to_owned();
+            let actions = entry[1]["actions"].as_array().expect("actions");
+            let named = |a: &&Value| a["options"].as_array().is_some_and(|o| !o.is_empty());
+            let positionals: Vec<&Value> = actions
+                .iter()
+                .filter(|a| !named(a) && a["kind"] != "help")
+                .collect();
+            let optionals: Vec<&Value> = actions
+                .iter()
+                .filter(|a| named(a) && a["kind"] != "help")
+                .collect();
+            let chooser = positionals.iter().position(|a| a["choices"].is_array());
+            let choices: Vec<Option<String>> = match chooser {
+                Some(i) => positionals[i]["choices"]
+                    .as_array()
+                    .expect("choices")
+                    .iter()
+                    .map(|c| c.as_str().map(str::to_owned))
+                    .collect(),
+                None => vec![None],
+            };
+            for choice in choices {
+                let mut full = vec![name.clone()];
+                let mut short = vec![name.clone()];
+                for (i, positional) in positionals.iter().enumerate() {
+                    let value = match (Some(i) == chooser, &choice) {
+                        (true, Some(c)) => c.clone(),
+                        _ => sample(positional),
+                    };
+                    full.push(value.clone());
+                    if positional["nargs"] != "?" || Some(i) == chooser {
+                        short.push(value);
+                    }
+                }
+                let label = match &choice {
+                    Some(c) => format!("{name} {c}"),
+                    None => name.clone(),
+                };
+                for base in [&full, &short] {
+                    lines.push((label.clone(), base.clone()));
+                    for optional in &optionals {
+                        let mut line = base.clone();
+                        let option = optional["options"]
+                            .as_array()
+                            .and_then(|o| o.iter().rev().find_map(Value::as_str))
+                            .expect("option")
+                            .to_owned();
+                        line.push(option);
+                        if optional["kind"] != "store_true" {
+                            line.push(sample(optional));
+                        }
+                        lines.push((label.clone(), line));
+                    }
+                }
+            }
+        }
+        lines
+    }
+
+    #[test]
+    fn every_command_line_argparse_takes_has_a_route() {
+        let mut unrouted = std::collections::BTreeSet::new();
+        let mut missing = Vec::new();
+        let mut parsed = 0;
+        for (label, line) in command_lines() {
+            let args: Vec<&str> = line.iter().map(String::as_str).collect();
+            let crate::argparse::Outcome::Parsed(result) = crate::argparse::parse(&args) else {
+                continue; // a combination argparse refuses (a required option missing)
+            };
+            parsed += 1;
+            let canonical: Vec<&str> = result.canonical.iter().map(String::as_str).collect();
+            if crate::commands::route(&canonical).is_none() {
+                if !KNOWN_UNROUTED.contains(&label.as_str()) {
+                    missing.push(format!("{canonical:?}"));
+                }
+                unrouted.insert(label);
+            }
+        }
+        assert!(parsed > 300, "only {parsed} command lines parsed");
+        assert!(missing.is_empty(), "no route for {missing:#?}");
+        if !super::PYTHON_FALLBACK {
+            // Built without the Python platform: nothing may be left for it.
+            assert!(
+                unrouted.is_empty(),
+                "no route (and no Python) for {unrouted:?}"
+            );
+        }
+    }
 }

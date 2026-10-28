@@ -65,7 +65,7 @@ fn python_replaces_the_dispatcher_with_the_same_arguments() {
 fn only_a_fixture_root_may_name_another_interpreter() {
     let python = fake_python("real");
     let output = Command::new(BINARY)
-        .args(["network-check", "--peer", "router"])
+        .args(["service-daemon"])
         .env_remove("Y2_ROOT")
         .env("Y2_PLATFORM_PYTHON", &python)
         .env("Y2_PLATFORM_MAIN", "/fixture/main.py")
@@ -78,7 +78,7 @@ fn only_a_fixture_root_may_name_another_interpreter() {
 #[test]
 fn a_missing_interpreter_fails_like_the_shell() {
     let output = Command::new(BINARY)
-        .args(["network-check", "--peer", "router"])
+        .args(["service-daemon"])
         .env("Y2_ROOT", "/nonexistent")
         .env("Y2_PLATFORM_PYTHON", "/nonexistent/python3")
         .stdin(Stdio::null())
@@ -95,7 +95,7 @@ fn a_missing_interpreter_fails_like_the_shell() {
 fn a_parsed_command_no_route_takes_goes_to_python_as_given() {
     let python = fake_python("given");
     let output = Command::new(BINARY)
-        .args(["network-check", "--peer", "a b", "--seconds", "3"])
+        .args(["service-daemon"])
         .env("Y2_ROOT", "/nonexistent")
         .env("Y2_PLATFORM_PYTHON", &python)
         .env("Y2_PLATFORM_MAIN", "/fixture/main.py")
@@ -103,9 +103,8 @@ fn a_parsed_command_no_route_takes_goes_to_python_as_given() {
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(3));
-    assert!(String::from_utf8_lossy(&output.stdout).contains(
-        "arg=/fixture/main.py\narg=network-check\narg=--peer\narg=a b\narg=--seconds\narg=3\n"
-    ));
+    assert!(String::from_utf8_lossy(&output.stdout)
+        .contains("arg=/fixture/main.py\narg=service-daemon\nPYTHONPATH"));
 }
 
 #[test]

@@ -1,7 +1,7 @@
 //! What a ported subcommand returns: its stdout and exit code, an error `main.py` would print as
-//! `org.y2linux.error/v1`, or "let Python do it" for inputs the Python platform handles in a way not
-//! worth reproducing (it would crash, or parse something exotic). A command may fall back only before
-//! it changed anything Python would not change the same way again.
+//! `org.y2linux.error/v1`, an exception main.py does not catch (Python's traceback on stderr, exit 1),
+//! or (only the service group's commands until they are done) "let Python do it". A command may fall
+//! back only before it changed anything Python would not change the same way again.
 // SPDX-License-Identifier: GPL-2.0-only
 use serde::Serialize;
 use std::{
@@ -47,12 +47,20 @@ impl Reply {
 
 #[derive(Debug)]
 pub enum Failure {
-    /// Hand the whole command to the Python platform.
+    /// Hand the whole command to the Python platform (the service group's last ones; phase 6 removes it).
     Fallback,
     /// `raise ValueError(text)`.
     Value(String),
-    /// An `OSError`: Python's `str(error)` and its class name.
+    /// An `OSError`: Python's `str(error)` and its class name; also any other exception main.py catches
+    /// that is not a plain `ValueError` (`AddressValueError`, `UnicodeEncodeError`, `RuntimeError`).
     Os { text: String, class: &'static str },
+    /// An exception main.py does not catch (`TypeError`, `AttributeError`, `KeyError`, `IndexError`):
+    /// nothing more on stdout, Python's traceback on stderr, exit 1. What the command had already
+    /// changed stays changed, as in Python.
+    Crash {
+        class: &'static str,
+        message: String,
+    },
 }
 
 impl Failure {
@@ -64,6 +72,78 @@ impl Failure {
     pub fn os(error: io::Error, path: &Path) -> Failure {
         let (text, class) = py::os_error(&error, Some(&path.to_string_lossy()));
         Failure::Os { text, class }
+    }
+
+    /// An exception main.py catches, by class name: `ValueError` subclasses (`AddressValueError`,
+    /// `NetmaskValueError`, `UnicodeEncodeError`, `JSONDecodeError`) and `RuntimeError`.
+    pub fn raised(class: &'static str, text: impl Into<String>) -> Failure {
+        match class {
+            "ValueError" => Failure::Value(text.into()),
+            _ => Failure::Os {
+                text: text.into(),
+                class,
+            },
+        }
+    }
+
+    /// `int(text)` of a str that is no integer: `invalid literal for int() with base 10: '…'`.
+    pub fn int_literal(text: &str) -> Failure {
+        Failure::Value(format!(
+            "invalid literal for int() with base 10: {}",
+            crate::argparse::python::repr(text)
+        ))
+    }
+
+    /// An uncaught exception of class `class` with `str(error)` `message`.
+    pub fn crash(class: &'static str, message: impl Into<String>) -> Failure {
+        Failure::Crash {
+            class,
+            message: message.into(),
+        }
+    }
+
+    /// `TypeError(message)`, uncaught.
+    pub fn type_error(message: impl Into<String>) -> Failure {
+        Failure::crash("TypeError", message)
+    }
+
+    /// `AttributeError(message)`, uncaught (`'list' object has no attribute 'get'`).
+    pub fn attribute_error(message: impl Into<String>) -> Failure {
+        Failure::crash("AttributeError", message)
+    }
+
+    /// `KeyError(key)`, uncaught: its `str()` is the key's repr.
+    pub fn key_error(key: &str) -> Failure {
+        Failure::crash("KeyError", crate::argparse::python::repr(key))
+    }
+
+    /// `IndexError(message)`, uncaught.
+    pub fn index_error(message: impl Into<String>) -> Failure {
+        Failure::crash("IndexError", message)
+    }
+
+    /// Whether this is an exception that `except (OSError, ValueError, RuntimeError)` (main.py's
+    /// clause, and most commands' own) catches: not a crash, not a fallback.
+    pub fn caught(&self) -> bool {
+        matches!(self, Failure::Value(_) | Failure::Os { .. })
+    }
+
+    /// The traceback main.py's uncaught exception leaves on stderr (its last line is Python's).
+    pub fn traceback(&self) -> String {
+        let (class, message) = match self {
+            Failure::Crash { class, message } => (*class, message.clone()),
+            Failure::Os { class, text } => (*class, text.clone()),
+            Failure::Value(text) => ("ValueError", text.clone()),
+            Failure::Fallback => ("RuntimeError", String::new()),
+        };
+        let last = if message.is_empty() {
+            class.to_string()
+        } else {
+            format!("{class}: {message}")
+        };
+        format!(
+            "Traceback (most recent call last):\n  File \"/usr/lib/y2-platform/main.py\", line 7, in <module>\n    raise SystemExit(main())\n{last}\n"
+        )
     }
 
     /// An OSError raised with a plain message (`raise OSError('dormant budget readback')`).
@@ -79,6 +159,7 @@ impl Failure {
         match self {
             Failure::Fallback => String::new(),
             Failure::Value(text) | Failure::Os { text, .. } => text.clone(),
+            Failure::Crash { message, .. } => message.clone(),
         }
     }
 
@@ -97,7 +178,7 @@ impl Failure {
     /// main.py's record for an error no command caught (exit 1).
     pub fn record(&self) -> Ordered {
         let kind = match self {
-            Failure::Os { class, .. } => class,
+            Failure::Os { class, .. } | Failure::Crash { class, .. } => class,
             _ => "ValueError",
         };
         Ordered::new()

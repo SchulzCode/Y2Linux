@@ -114,6 +114,8 @@ impl From<Failure> for Raise {
             Failure::Fallback => Raise::Fallback,
             Failure::Value(text) => Raise::Value(text),
             Failure::Os { text, .. } => Raise::Os(text),
+            // An uncaught exception in a helper of another group: Python crashes the same way.
+            Failure::Crash { .. } => Raise::Fallback,
         }
     }
 }

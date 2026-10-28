@@ -10,7 +10,7 @@
 //! order and texts (`usage…` then `<prog>: error: <message>` on stderr, exit 2) and `-h` anywhere (that
 //! parser's help on stdout, exit 0).
 // SPDX-License-Identifier: GPL-2.0-only
-mod python;
+pub(crate) mod python;
 #[rustfmt::skip]
 mod unicode;
 
