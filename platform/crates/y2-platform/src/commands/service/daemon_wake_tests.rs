@@ -40,6 +40,7 @@ fn send(signal: libc::c_int) {
 
 #[test]
 fn control_without_supplicant_and_stop_share_one_wait() {
+    let _signals = crate::testing::process_signals();
     let _turn = SIGNALS.lock().unwrap_or_else(|e| e.into_inner());
     RUNNING.store(true, Ordering::SeqCst);
     let old = handlers();
@@ -68,6 +69,7 @@ fn control_without_supplicant_and_stop_share_one_wait() {
 
 #[test]
 fn supplicant_and_control_each_wake_without_losing_packets() {
+    let _signals = crate::testing::process_signals();
     let _turn = SIGNALS.lock().unwrap_or_else(|e| e.into_inner());
     let mut monitor = EventMonitor::new(&Root::new("/nonexistent"));
     let (socket, sender) = UnixDatagram::pair().unwrap();

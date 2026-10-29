@@ -1,7 +1,7 @@
 //! When the automatic setup may start: no update waiting for its health check, and a charger or
 //! enough battery.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::super::sys::{exists, get, is_symlink, isdigit, read};
+use super::super::sys::{get, isdigit, read};
 use crate::commands::power::battery::interpolate_int;
 use serde_json::{json, Value};
 use y2p_core::{
@@ -12,30 +12,6 @@ use y2p_core::{
 // On battery: at least the percentage the plan named, read like the shown one (stock
 // oam_init: the PMIC's power-on OCV, latched before the boot load pulls the voltage down).
 const MIN_PERCENT: f64 = 25.0;
-
-/// The update journal's state (`Idle` without a journal on a ready Y2DATA, `Failed` for one that
-/// cannot be read), as `update status` reports it.
-fn update_state(root: &Root) -> Value {
-    let path = root.path("/data/updates/state.json");
-    let value = root.json("/data/updates/state.json");
-    let value = match value {
-        None if !exists(&path) && !is_symlink(&path) => {
-            let ready = root.read("/data/.y2data-schema").as_deref() == Some("1")
-                && root.path("/data/updates").is_dir();
-            return json!(if ready { "Idle" } else { "Unavailable" });
-        }
-        other => other,
-    };
-    // The native core writes journal schema 2 since OTA-35 (BOOTIMG + root).
-    match value {
-        Some(Value::Object(map))
-            if get(&map, "schema").py_eq(&json!(1)) || get(&map, "schema").py_eq(&json!(2)) =>
-        {
-            get(&map, "state").clone()
-        }
-        _ => json!("Failed"),
-    }
-}
 
 /// A battery profile table `[[uv, value], ...]`: 2..128 rows, strictly ascending voltage, bounded
 /// values (increasing too when `increasing`), as the power daemon accepts it.
@@ -128,7 +104,7 @@ fn load_profile(root: &Root) -> Option<Vec<(i64, i64)>> {
 
 /// Why the setup must not start on its own now (it runs at a later start).
 pub(super) fn automatic_blocked(root: &Root) -> Option<&'static str> {
-    let update = update_state(root);
+    let update = crate::commands::service::update::journal_state(root);
     if ["Queued", "PendingHealth", "RollbackPending"]
         .iter()
         .any(|s| update.as_str() == Some(s))

@@ -315,30 +315,8 @@ pub fn battery_and_cable(root: &Root) -> Result<(), E> {
     Ok(())
 }
 
-/// `update.status(ctx).get('state')`: the update journal's state as the update page reads it.
-fn update_state(root: &Root) -> Value {
-    let path = root.path("/data/updates/state.json");
-    let mut value = root.json("/data/updates/state.json");
-    if value.is_none() && !path.exists() && path.symlink_metadata().is_err() {
-        let ready = root.read("/data/.y2data-schema").as_deref() == Some("1")
-            && root.path("/data/updates").is_dir();
-        value = Some(json!({"schema": 1, "state": if ready { "Idle" } else { "Unavailable" }}));
-    }
-    // The native core writes journal schema 2 since OTA-35 (BOOTIMG + root).
-    match value {
-        Some(Value::Object(map))
-            if map
-                .get("schema")
-                .is_some_and(|s| s.py_eq(&json!(1)) || s.py_eq(&json!(2))) =>
-        {
-            map.get("state").cloned().unwrap_or(Value::Null)
-        }
-        _ => json!("Failed"),
-    }
-}
-
 pub fn operation_state(root: &Root, workloads: bool) -> Result<(), E> {
-    let state = update_state(root);
+    let state = crate::commands::service::update::journal_state(root);
     if !["Idle", "Acknowledged", "RolledBack", "Failed"]
         .iter()
         .any(|t| is_text(Some(&state), t))

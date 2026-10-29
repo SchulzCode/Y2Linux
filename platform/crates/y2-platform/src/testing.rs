@@ -15,6 +15,14 @@ use y2p_core::Root;
 
 static NEXT: AtomicU32 = AtomicU32::new(0);
 
+/// Process-wide signal state (dispositions, a signal sent to the whole test process, a flag a handler
+/// sets) is shared by every test thread: tests that install a handler or signal the process take this,
+/// one at a time (update `stage`'s SIGTERM cancel, the service daemon's wake signals).
+pub fn process_signals() -> std::sync::MutexGuard<'static, ()> {
+    static SIGNALS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    SIGNALS.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 /// The repository (for the overlay's files, e.g. the stock battery profile).
 pub fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..")

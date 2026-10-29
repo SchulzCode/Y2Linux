@@ -10,19 +10,14 @@ use std::os::unix::fs::MetadataExt;
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
-    sync::Mutex,
 };
 use y2p_core::command::Outcome;
 
-/// `stage` keeps process-wide state (CANCELLED, the SIGTERM disposition): one at a time.
-static STAGE: Mutex<()> = Mutex::new(());
 const TOKEN: &str = "0123456789abcdef0123456789abcdef";
 const CORE: &str = "/usr/sbin/y2-update-core";
 const URL: &str = "https://github.com/o/r/releases/latest/download/manifest.json";
 
-fn serial() -> std::sync::MutexGuard<'static, ()> {
-    STAGE.lock().unwrap_or_else(|e| e.into_inner())
-}
+use super::test_serial as serial;
 
 /// The answer for one release URL (`base` + file name).
 type Remote = Box<dyn FnMut(&str) -> Result<Stream>>;

@@ -40,6 +40,7 @@ mod apply;
 mod check;
 mod health;
 mod journal;
+pub(crate) use journal::state as journal_state;
 mod source;
 mod staging;
 
@@ -189,6 +190,13 @@ pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) 
 #[path = "update_tests.rs"]
 mod update_tests;
 
+/// `stage` keeps process-wide state (CANCELLED, the SIGTERM disposition): tests that run it, here
+/// and in update_tests.rs, take the process-wide signal lock.
+#[cfg(test)]
+pub(super) fn test_serial() -> std::sync::MutexGuard<'static, ()> {
+    crate::testing::process_signals()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -226,6 +234,7 @@ mod tests {
 
     #[test]
     fn a_busy_stage_lock_leaves_the_running_download_alone() {
+        let _serial = test_serial();
         let fixture = data_ready();
         let staging = r#"{"schema":1,"state":"Staging","id":".incoming-first"}"#;
         fixture.put_mode("/data/updates/download.json", staging, 0o600);
@@ -247,6 +256,7 @@ mod tests {
 
     #[test]
     fn auto_check_says_why_it_did_not_check() {
+        let _serial = test_serial();
         let fixture = Fixture::new();
         let now = Player.now();
         fixture.put_json(
@@ -267,6 +277,7 @@ mod tests {
 
     #[test]
     fn a_rollback_on_a_low_battery_never_reaches_the_core() {
+        let _serial = test_serial();
         let fixture = Fixture::new().with_answers(vec![]);
         fixture.put_json(
             "/run/y2/power.json",

@@ -170,3 +170,26 @@ pub(super) fn installed_release(root: &Root) -> Value {
         .cloned()
         .unwrap_or(Value::Null)
 }
+
+/// The update journal's state as other work gates on it (`Idle` when there is no journal yet on a
+/// ready /data, `Unavailable` without one, `Failed` for a journal of another schema; the core writes
+/// schema 2 since OTA-35, BOOTIMG and root). Null when a journal of a known schema has no state.
+pub(crate) fn state(root: &Root) -> Value {
+    let path = root.path("/data/updates/state.json");
+    let mut value = root.json("/data/updates/state.json");
+    if value.is_none() && !path.exists() && path.symlink_metadata().is_err() {
+        let ready = root.read("/data/.y2data-schema").as_deref() == Some("1")
+            && root.path("/data/updates").is_dir();
+        value = Some(json!({"schema": 1, "state": if ready { "Idle" } else { "Unavailable" }}));
+    }
+    match value {
+        Some(Value::Object(map))
+            if map
+                .get("schema")
+                .is_some_and(|s| s.py_eq(&json!(1)) || s.py_eq(&json!(2))) =>
+        {
+            map.get("state").cloned().unwrap_or(Value::Null)
+        }
+        _ => json!("Failed"),
+    }
+}

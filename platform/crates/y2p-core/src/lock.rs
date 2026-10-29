@@ -70,6 +70,18 @@ pub fn exclusive_within(path: &Path, wait: Duration) -> io::Result<Option<File>>
 /// `fcntl.flock(fd, LOCK_EX | LOCK_NB)` (or `LOCK_SH`) on a descriptor the caller holds: `Ok(false)`
 /// while another holder has it. The lock lasts as long as the descriptor's open file description.
 pub fn try_fd(fd: BorrowedFd<'_>, kind: Kind) -> io::Result<bool> {
+    // Test builds: the same short retry as `settle` (a forked child of another test holds a copy).
+    #[cfg(feature = "testing")]
+    for _ in 0..20 {
+        if try_fd_once(fd, kind)? {
+            return Ok(true);
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    try_fd_once(fd, kind)
+}
+
+fn try_fd_once(fd: BorrowedFd<'_>, kind: Kind) -> io::Result<bool> {
     let operation = match kind {
         Kind::Exclusive => libc::LOCK_EX,
         Kind::Shared => libc::LOCK_SH,
@@ -92,7 +104,7 @@ pub fn would_block() -> io::Error {
 
 fn try_path(path: &Path, kind: Kind) -> io::Result<Option<File>> {
     let file = open(path)?;
-    Ok(try_fd(std::os::fd::AsFd::as_fd(&file), kind)?.then_some(file))
+    Ok(try_fd_once(std::os::fd::AsFd::as_fd(&file), kind)?.then_some(file))
 }
 
 /// One attempt on the player. In test builds (feature `testing`) a busy lock is tried again for up to
