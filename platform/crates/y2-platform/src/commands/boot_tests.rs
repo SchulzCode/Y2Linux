@@ -6,15 +6,9 @@ use std::fs;
 
 #[test]
 fn boot_history_preserves_previous_failure_and_bounds_retention() {
-    let next = |record: Option<Map<String, Value>>, boot: &str, stage, now| {
-        transition(
-            record.map(Value::Object),
-            boot,
-            stage,
-            json!({}),
-            now,
-            reset_cause(None),
-        )
+    let next = |record: Option<Value>, boot: &str, stage, now| {
+        let record = transition(record, boot, stage, json!({}), now, reset_cause(None));
+        serde_json::to_value(record).unwrap()
     };
     let mut record = None;
     for n in 0..15 {

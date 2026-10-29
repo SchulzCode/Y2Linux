@@ -6,7 +6,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::storage::{self, data_volume, Volume, INTERNAL};
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
-use serde_json::{json, Map, Value};
+use serde::Serialize;
+use serde_json::{json, Value};
 use std::os::fd::{AsFd, BorrowedFd};
 use std::{
     ffi::CString,
@@ -26,6 +27,7 @@ use std::{
 use y2p_core::lock;
 use y2p_core::{
     devices_support::{hex, record, Digest, Sha256},
+    json::{Object, ObjectExt},
     py::{self, eq_int, exact_int},
     Root,
 };
@@ -333,29 +335,66 @@ fn begin(
         .mode(0o700)
         .create(&directory)
         .map_err(|e| Failure::os(e, &directory))?;
-    let mut value = Map::new();
-    value.insert("schema".into(), json!(1));
-    value.insert("id".into(), json!(token));
-    value.insert("name".into(), json!(name));
-    value.insert("bytes".into(), json!(size));
-    value.insert("sha256".into(), json!(sha256));
-    value.insert("data_generation".into(), json!(volume.generation));
-    value.insert("state".into(), json!("Staging"));
-    value.insert(
-        "record".into(),
-        serde_json::to_value(record(
-            root,
-            "usb-transfer",
-            json!({"name": name, "bytes": size}),
-        ))
-        .map_err(Failure::value)?,
-    );
-    atomic_json(&directory.join("manifest.json"), &value, true)?;
-    value.insert(
-        "upload_path".into(),
-        json!(format!("/data/transfer-staging/{token}/payload.part")),
-    );
-    Ok(Value::Object(value))
+    let mut manifest = NewManifest {
+        schema: 1,
+        id: &token,
+        name,
+        bytes: size,
+        sha256,
+        data_generation: volume.generation,
+        state: "Staging",
+        record: record(root, "usb-transfer", json!({"name": name, "bytes": size})),
+        upload_path: None,
+    };
+    atomic_json(&directory.join("manifest.json"), &manifest, true)?;
+    manifest.upload_path = Some(format!("/data/transfer-staging/{token}/payload.part"));
+    serde_json::to_value(manifest).map_err(Failure::value)
+}
+
+/// manifest.json as `begin` writes it (sorted); it prints it with the path to upload to.
+#[derive(Serialize)]
+struct NewManifest<'a> {
+    schema: u8,
+    id: &'a str,
+    name: &'a str,
+    bytes: i64,
+    sha256: &'a str,
+    /// The /data volume the upload was admitted on; commit refuses another one.
+    data_generation: Option<String>,
+    state: &'static str,
+    /// The evidence record (`ctx.record`) commit completes with its result.
+    record: Object,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    upload_path: Option<String>,
+}
+
+/// What commit takes from a Staging manifest, each field checked (in this order: the name, the
+/// /data generation, size and hash).
+struct Staged {
+    /// The name's path components below `music`.
+    parts: Vec<String>,
+    size: i64,
+    sha256: String,
+}
+
+fn staged(manifest: &Object, volume: &Volume) -> Result<Staged, Failure> {
+    let parts = filename(manifest.get("name").and_then(Value::as_str))?;
+    if manifest.value("data_generation") != json!(volume.generation) {
+        return Err(Failure::value("data_generation_changed"));
+    }
+    let size = exact_int(manifest.get("bytes")).filter(|s| (1..=MAX_BYTES).contains(s));
+    let sha256 = manifest
+        .get("sha256")
+        .and_then(Value::as_str)
+        .filter(|s| hex_of(s, 64));
+    let (Some(size), Some(sha256)) = (size, sha256) else {
+        return Err(Failure::value("invalid_transfer_manifest"));
+    };
+    Ok(Staged {
+        parts,
+        size,
+        sha256: sha256.to_owned(),
+    })
 }
 
 fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
@@ -392,20 +431,11 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
     if state.as_deref() == Some("Committed") {
         return Ok(Value::Object(value));
     }
-    let parts = filename(value.get("name").and_then(Value::as_str))?;
-    let recorded_generation = value.get("data_generation").cloned().unwrap_or(Value::Null);
-    if recorded_generation != json!(volume.generation) {
-        return Err(Failure::value("data_generation_changed"));
-    }
-    let size = exact_int(value.get("bytes")).filter(|s| (1..=MAX_BYTES).contains(s));
-    let expected = value
-        .get("sha256")
-        .and_then(Value::as_str)
-        .filter(|s| hex_of(s, 64))
-        .map(str::to_owned);
-    let (Some(size), Some(expected)) = (size, expected) else {
-        return Err(Failure::value("invalid_transfer_manifest"));
-    };
+    let Staged {
+        parts,
+        size,
+        sha256: expected,
+    } = staged(&value, &volume)?;
     if !storage::admitted(&volume, size as u64) {
         return Err(Failure::value("insufficient_space_for_seal_and_reserve"));
     }
@@ -459,7 +489,7 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
     // SAFETY: plain syscall on an open descriptor.
     check(unsafe { libc::fchmod(sealed.as_raw_fd(), 0o644) })?;
     fsync(sealed.as_raw_fd())?;
-    if json!(data_volume(root)?.generation) != recorded_generation {
+    if data_volume(root)?.generation != volume.generation {
         return Err(Failure::value("data_generation_changed"));
     }
     // Music lives on Y2Media once it is mounted and recorded Ready, else on Y2DATA.

@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::power_features;
 use crate::reply::{atomic_json, lock, private_directory, Failure, Outcome, Reply};
-use serde_json::{json, Map, Value};
+use serde::Serialize;
+use serde_json::{json, Value};
 use std::{
+    collections::HashMap,
     fs::OpenOptions,
     io::Write,
     os::unix::fs::{MetadataExt, OpenOptionsExt},
@@ -18,11 +20,14 @@ use y2p_core::{
 };
 
 const RESET_STATUS: &str = "/sys/firmware/y2_pm/reset_status";
+/// How many earlier boots the journal keeps.
+const HISTORY: usize = 8;
 
-/// `re.findall(r'(\w+)=(\S+)', text)` into a dict (a later key wins).
-fn fields(text: &str) -> Map<String, Value> {
+/// The `key=value` pairs of the reset status (`(\w+)=(\S+)`: in each whitespace-separated token the
+/// first word followed by `=` and at least one more character; a later key wins).
+fn fields(text: &str) -> HashMap<&str, &str> {
     let word = |c: char| c.is_alphanumeric() || c == '_';
-    let mut map = Map::new();
+    let mut map = HashMap::new();
     for token in text.split_whitespace() {
         let chars: Vec<(usize, char)> = token.char_indices().collect();
         for start in 0..chars.len() {
@@ -31,8 +36,10 @@ fn fields(text: &str) -> Map<String, Value> {
                 end += 1;
             }
             if end > start && end + 1 < chars.len() && chars[end].1 == '=' {
-                let key = &token[chars[start].0..chars[end].0];
-                map.insert(key.into(), json!(&token[chars[end + 1].0..]));
+                map.insert(
+                    &token[chars[start].0..chars[end].0],
+                    &token[chars[end + 1].0..],
+                );
                 break;
             }
         }
@@ -40,128 +47,162 @@ fn fields(text: &str) -> Map<String, Value> {
     map
 }
 
-/// `reset_cause`: the MT6582 RGU WDT_STATUS the watchdog driver read at probe, before its first write.
-/// Zero, unknown bits or an absent file never prove a power-on reset.
-fn reset_cause(text: Option<&str>) -> [(&'static str, Value); 3] {
+/// The reset cause boot.json records: the MT6582 RGU WDT_STATUS the watchdog driver read at probe,
+/// before its first write.
+#[derive(Debug, PartialEq, Serialize)]
+struct ResetCause {
+    /// A cause the RGU status proves; none for zero, unknown bits or an absent file (those never
+    /// prove a power-on reset).
+    reset_cause: Option<String>,
+    reset_cause_reason: String,
+    reset_status_raw: Option<String>,
+}
+
+fn reset_cause(text: Option<&str>) -> ResetCause {
     let fields = fields(text.unwrap_or_default());
-    if fields.get("valid") != Some(&json!("1")) {
-        return [
-            ("reset_cause", Value::Null),
-            ("reset_cause_reason", json!("not_observed")),
-            ("reset_status_raw", Value::Null),
-        ];
+    if fields.get("valid") != Some(&"1") {
+        return ResetCause {
+            reset_cause: None,
+            reset_cause_reason: "not_observed".into(),
+            reset_status_raw: None,
+        };
     }
-    let raw = fields.get("raw").cloned().unwrap_or(Value::Null);
-    let cause = fields
-        .get("cause")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    if [
+    let raw = fields.get("raw").map(|raw| (*raw).to_owned());
+    let cause = fields.get("cause").copied().unwrap_or_default();
+    const PROVEN: [&str; 5] = [
         "watchdog_timeout",
         "software_reset",
         "watchdog_irq",
         "debug_reset",
         "spm_watchdog",
-    ]
-    .contains(&cause)
-    {
-        return [
-            ("reset_cause", json!(cause)),
-            ("reset_cause_reason", json!("rgu_wdt_status_at_probe")),
-            ("reset_status_raw", raw),
-        ];
+    ];
+    if PROVEN.contains(&cause) {
+        return ResetCause {
+            reset_cause: Some(cause.to_owned()),
+            reset_cause_reason: "rgu_wdt_status_at_probe".into(),
+            reset_status_raw: raw,
+        };
     }
-    let reason = format!(
-        "rgu_status_{}",
-        if cause.is_empty() {
-            "unreadable"
-        } else {
-            cause
+    let cause = if cause.is_empty() {
+        "unreadable"
+    } else {
+        cause
+    };
+    ResetCause {
+        reset_cause: None,
+        reset_cause_reason: format!("rgu_status_{cause}"),
+        reset_status_raw: raw,
+    }
+}
+
+/// A counter of the previous record: a non-negative integer, or a bool (a hand-edited record; it
+/// counts as 0 or 1 and is kept as it is while the boot is the same); anything else is 0.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(untagged)]
+enum Counter {
+    Count(u64),
+    Flag(bool),
+}
+
+impl Counter {
+    fn of(value: Option<&Value>) -> Counter {
+        match value {
+            Some(Value::Bool(flag)) => Counter::Flag(*flag),
+            Some(Value::Number(n)) => Counter::Count(n.as_u64().unwrap_or(0)),
+            _ => Counter::Count(0),
         }
-    );
-    [
-        ("reset_cause", Value::Null),
-        ("reset_cause_reason", json!(reason)),
-        ("reset_status_raw", raw),
-    ]
-}
+    }
 
-/// `isinstance(x, int) and x >= 0` (bools included, as in Python) or 0.
-fn counter(value: Option<&Value>) -> Value {
-    match value {
-        Some(v @ Value::Bool(_)) => v.clone(),
-        Some(Value::Number(n)) if n.as_u64().is_some() => Value::Number(n.clone()),
-        _ => json!(0),
+    fn count(self) -> u64 {
+        match self {
+            Counter::Count(n) => n,
+            Counter::Flag(flag) => u64::from(flag),
+        }
     }
 }
 
-/// `boot.transition`.
+/// boot.json (schema 1), written and printed with its keys sorted. The fields taken over from the
+/// previous record (`previous_boot_id`, the history, `identity`) keep whatever JSON they held.
+#[derive(Debug, Serialize)]
+struct BootRecord {
+    schema: u8,
+    boot_id: String,
+    boot_count: u64,
+    previous_boot_id: Value,
+    last_stage: &'static str,
+    stage_monotonic_ns: u64,
+    orderly_shutdown: bool,
+    consecutive_unclean: Counter,
+    recovery_recommended: bool,
+    #[serde(flatten)]
+    reset: ResetCause,
+    /// The last boots before this one, oldest first: boot id, last stage, orderly shutdown, identity.
+    history: Vec<Value>,
+    /// /etc/y2linux/versions.json of the running build.
+    identity: Value,
+}
+
+/// `boot.transition`: the journal after `stage` of boot `boot_id`. A previous record that is not a
+/// schema-1 object starts a new journal. A new boot counts one more boot, and one more unclean boot
+/// unless the last one ended with `shutdown_complete`; three unclean boots in a row recommend
+/// recovery.
 fn transition(
     previous: Option<Value>,
     boot_id: &str,
     stage: BootStage,
     identity: Value,
     now_ns: u64,
-    reset: [(&'static str, Value); 3],
-) -> Map<String, Value> {
+    reset: ResetCause,
+) -> BootRecord {
     let previous = match previous {
         Some(Value::Object(map)) if number(map.get("schema")) == Some(1.0) => map,
-        _ => Map::new(),
+        _ => Object::new(),
     };
-    let same = previous.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot_id);
-    let count = counter(previous.get("boot_count"));
-    let mut unclean = counter(previous.get("consecutive_unclean"));
-    if !same {
-        unclean = if !previous.is_empty() && !previous.get("orderly_shutdown").is_some_and(truthy) {
-            json!((number(Some(&unclean)).unwrap_or(0.0) as u64 + 1).min(1000))
-        } else {
-            json!(0)
-        };
-    }
+    let known = !previous.is_empty();
+    let same = previous.get("boot_id").and_then(Value::as_str) == Some(boot_id);
+    let mut unclean = Counter::of(previous.get("consecutive_unclean"));
     let mut history = match previous.get("history") {
         Some(Value::Array(items)) => items.clone(),
         _ => Vec::new(),
     };
-    if !previous.is_empty() && !same {
-        let mut entry = Map::new();
-        for key in ["boot_id", "last_stage", "orderly_shutdown", "identity"] {
-            entry.insert(
-                key.into(),
-                previous.get(key).cloned().unwrap_or(Value::Null),
-            );
+    if !same {
+        let orderly = previous.get("orderly_shutdown").is_some_and(truthy);
+        unclean = Counter::Count(if known && !orderly {
+            (unclean.count() + 1).min(1000)
+        } else {
+            0
+        });
+        if known {
+            history.push(json!({
+                "boot_id": previous.value("boot_id"),
+                "last_stage": previous.value("last_stage"),
+                "orderly_shutdown": previous.value("orderly_shutdown"),
+                "identity": previous.value("identity"),
+            }));
+            history = history.split_off(history.len().saturating_sub(HISTORY));
         }
-        history.push(Value::Object(entry));
-        history = history.split_off(history.len().saturating_sub(8));
     }
-    let count = number(Some(&count)).unwrap_or(0.0) as u64 + u64::from(!same);
-    let recommended = number(Some(&unclean)).unwrap_or(0.0) >= 3.0;
-    let mut value = Map::new();
-    value.insert("schema".into(), json!(1));
-    value.insert("boot_id".into(), json!(boot_id));
-    value.insert("boot_count".into(), json!(count));
-    let previous_boot = if same {
-        previous.get("previous_boot_id")
-    } else {
-        previous.get("boot_id")
-    };
-    value.insert(
-        "previous_boot_id".into(),
-        previous_boot.cloned().unwrap_or(Value::Null),
-    );
-    value.insert("last_stage".into(), json!(stage.as_str()));
-    value.insert("stage_monotonic_ns".into(), json!(now_ns));
-    value.insert(
-        "orderly_shutdown".into(),
-        json!(stage == BootStage::ShutdownComplete),
-    );
-    value.insert("consecutive_unclean".into(), unclean);
-    value.insert("recovery_recommended".into(), json!(recommended));
-    for (key, v) in reset {
-        value.insert(key.into(), v);
+    BootRecord {
+        schema: 1,
+        boot_id: boot_id.to_owned(),
+        boot_count: Counter::of(previous.get("boot_count")).count() + u64::from(!same),
+        previous_boot_id: previous.value(if same { "previous_boot_id" } else { "boot_id" }),
+        last_stage: stage.as_str(),
+        stage_monotonic_ns: now_ns,
+        orderly_shutdown: stage == BootStage::ShutdownComplete,
+        consecutive_unclean: unclean,
+        recovery_recommended: unclean.count() >= 3,
+        reset,
+        history,
+        identity,
     }
-    value.insert("history".into(), Value::Array(history));
-    value.insert("identity".into(), identity);
-    value
+}
+
+/// One line of /run/y2/boot-stages.jsonl, in this key order.
+#[derive(Serialize)]
+struct StageLine {
+    stage: &'static str,
+    monotonic_s: f64,
 }
 
 pub fn mark(root: &Root, stage: &str) -> Outcome {
@@ -212,9 +253,10 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
         .size()
         < 8192
     {
-        let line = Object::new()
-            .with("stage", stage.as_str())
-            .with("monotonic_s", root.clock().monotonic());
+        let line = StageLine {
+            stage: stage.as_str(),
+            monotonic_s: root.clock().monotonic(),
+        };
         let text = dumps(&line, Separators::Spaced).map_err(Failure::value)? + "\n";
         trail
             .write_all(text.as_bytes())

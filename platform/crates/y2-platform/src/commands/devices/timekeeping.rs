@@ -1,12 +1,13 @@
-//! The rest of `timekeeping.py`: `time-set` (set_manual, #53), `time-bootstrap` (bootstrap) and
-//! `rtc-alarm` (alarm). `time`, `time-remember` and `ntp-event` are `commands/time.rs`; its private
-//! helpers this module needs (status at a given time, rtc_write, drift) are copied here.
+//! The owner's and the boot's clock commands: `time-set` (#53), `time-bootstrap` and `rtc-alarm`.
+//! `time`, `time-remember` and `ntp-event` are `commands/time.rs`, whose clock rules (plausibility,
+//! drift, build floor) these share.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::{
-    commands::time::{plausible, wall},
+    commands::time::{drift, floor, plausible, same_boot, wall},
     reply::{atomic_json, lock, private_directory, write_text, Failure, Outcome, Reply},
 };
-use serde_json::{json, Map, Value};
+use serde::Serialize;
+use serde_json::{json, Value};
 use y2p_core::{
     command,
     json::{Object, ObjectExt},
@@ -14,30 +15,64 @@ use y2p_core::{
     Root,
 };
 
+/// CLOCK_BOOTTIME in seconds: it keeps counting while the player sleeps.
 fn boottime(root: &Root) -> f64 {
     root.clock().boottime_ns() as f64 / 1e9
 }
 
-fn floor(root: &Root) -> Option<i64> {
-    root.integer("/etc/y2linux/build-epoch")
+/// /run/y2/time.json (and the durable time-last.json): the boot's clock anchor, printed in this key
+/// order; `time-set` adds what it did after the anchor was written.
+#[derive(Serialize)]
+struct Anchor {
+    schema: u8,
+    boot_id: Option<String>,
+    /// The wall clock the anchor holds: the owner's integer, the running clock (a float) or the
+    /// retained value as it was recorded.
+    epoch: Value,
+    monotonic_s: f64,
+    boottime_s: f64,
+    source: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rtc_write: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ntp_restart: Option<bool>,
 }
 
-/// `timekeeping.drift` (as time.rs).
-fn drift(anchor: &Map<String, Value>, now: f64, monotonic: f64, elapsed: f64) -> f64 {
-    let (stamp, wall, since) = (
-        number(anchor.get("monotonic_s")),
-        number(anchor.get("epoch")),
-        number(anchor.get("boottime_s")),
-    );
-    match (since, stamp, wall) {
-        (Some(since), _, Some(wall)) => now - wall - (elapsed - since),
-        (None, Some(stamp), Some(wall)) => now - wall - (monotonic - stamp),
-        _ => f64::INFINITY,
+impl Anchor {
+    fn now(root: &Root, epoch: Value, source: &'static str) -> Anchor {
+        Anchor {
+            schema: 1,
+            boot_id: root.boot_id(),
+            epoch,
+            monotonic_s: root.clock().monotonic(),
+            boottime_s: boottime(root),
+            source,
+            rtc_write: None,
+            ntp_restart: None,
+        }
     }
 }
 
-/// `timekeeping.status(ctx, now=epoch)`: the status `time` prints, at the owner's time.
-fn status_at(root: &Root, now: i64) -> Object {
+/// /run/y2/time-status.json: the status `time` prints, here at the owner's time (written sorted).
+#[derive(Serialize)]
+struct Status {
+    schema: u8,
+    clock_sane: bool,
+    tls_ready: bool,
+    reason: &'static str,
+    source: Value,
+    ntp_authenticated: bool,
+    epoch: i64,
+    build_epoch: Option<i64>,
+    anchor: Object,
+    /// The kernel CRNG (only the player's own root reads it).
+    entropy_ready: Option<bool>,
+    rtc_retention_qualified: bool,
+}
+
+/// The clock status at the owner's time `now`, as `time` reports it: TLS ready only for a plausible
+/// clock whose anchor of this boot came from the network or a retained RTC and still agrees.
+fn status_at(root: &Root, now: i64) -> Status {
     let (monotonic, elapsed) = (root.clock().monotonic(), boottime(root));
     let floor = floor(root);
     let valid = plausible(now as f64, floor);
@@ -46,63 +81,53 @@ fn status_at(root: &Root, now: i64) -> Object {
         number(anchor.get("monotonic_s")),
         number(anchor.get("epoch")),
     );
-    let coherent = anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(root.boot_id())
+    let coherent = same_boot(&anchor, &root.boot_id())
         && wall_anchor.is_some()
         && stamp.is_some_and(|stamp| (0.0..=86_400.0).contains(&(monotonic - stamp)))
         && drift(&anchor, now as f64, monotonic, elapsed).abs() <= 60.0;
-    let source = anchor.get("source").cloned().unwrap_or(Value::Null);
+    let source = anchor.value("source");
     let ready = valid && coherent && matches!(source.as_str(), Some("ntp" | "retained_rtc"));
-    Object::new()
-        .with("schema", 1)
-        .with("clock_sane", valid)
-        .with("tls_ready", ready)
-        .with(
-            "reason",
-            if ready {
-                "reasonable_clock"
-            } else {
-                "clock_not_established"
-            },
-        )
-        .with("source", source)
-        .with("ntp_authenticated", false)
-        .with("epoch", now)
-        .with("build_epoch", json!(floor))
-        .with("anchor", Value::Object(anchor))
-        .with(
-            "entropy_ready",
-            if root.is_real() {
-                json!(py::entropy_ready())
-            } else {
-                Value::Null
-            },
-        )
-        .with("rtc_retention_qualified", false)
+    Status {
+        schema: 1,
+        clock_sane: valid,
+        tls_ready: ready,
+        reason: if ready {
+            "reasonable_clock"
+        } else {
+            "clock_not_established"
+        },
+        source,
+        ntp_authenticated: false,
+        epoch: now,
+        build_epoch: floor,
+        anchor,
+        entropy_ready: root.is_real().then(py::entropy_ready),
+        rtc_retention_qualified: false,
+    }
 }
 
-/// `timekeeping.rtc_write` (as time.rs): a source-backed default or an owner receipt admits normal
-/// NTP -> RTC synchronization. Mutable owner policy still takes precedence.
-fn rtc_write(root: &Root, value: &mut Object) {
+/// Write the system clock to the RTC when the RTC policy allows it: a source-backed default or an
+/// owner receipt admits it, the owner's mutable policy on /data taking precedence. Whether the
+/// write worked, or `None` when the policy does not allow it.
+fn rtc_write(root: &Root) -> Option<bool> {
     let rtc = match root.json("/data/system/platform/rtc-policy.json") {
         Some(Value::Object(map)) => map,
         _ => root.json_object("/etc/y2linux/rtc-policy.json"),
     };
     let referenced = rtc.get("qualification_reference").is_some_and(truthy)
         || rtc.get("source").is_some_and(truthy);
-    if is_true(rtc.get("write_enabled")) && referenced {
-        let ok = command::run(root, &["/bin/busybox", "hwclock", "-w", "-u"], 3.0).ok;
-        value.set("rtc_write", ok);
-    }
+    (is_true(rtc.get("write_enabled")) && referenced)
+        .then(|| command::run(root, &["/bin/busybox", "hwclock", "-w", "-u"], 3.0).ok)
 }
 
 /// `y2-platform time-set <epoch>`: the owner's own date and time (#53), for a player without Wi-Fi.
 /// Within the build-date range only; it never makes the clock TLS ready (an owner's guess is not an
 /// authenticated time), and the next network time replaces it. Remembered for the next boot, which
-/// starts from it instead of the build date. Its errors print `{"state": "Failed", "failure": …}`.
+/// starts from it instead of the build date. Its refusals and storage errors print
+/// `{"state": "Failed", "failure": …}` (exit 1); Reborn shows the failure.
 pub fn set_manual(root: &Root, epoch: i64) -> Outcome {
     match set_manual_inner(root, epoch) {
         Ok(value) => Reply::unsorted(&value, 0),
-        // `except (ValueError, OSError)`: anything else leaves the command.
         Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
             &Object::new()
@@ -113,7 +138,7 @@ pub fn set_manual(root: &Root, epoch: i64) -> Outcome {
     }
 }
 
-fn set_manual_inner(root: &Root, epoch: i64) -> Result<Object, Failure> {
+fn set_manual_inner(root: &Root, epoch: i64) -> Result<Anchor, Failure> {
     if !plausible(epoch as f64, floor(root)) {
         return Err(Failure::value("date_out_of_range"));
     }
@@ -125,7 +150,7 @@ fn set_manual_inner(root: &Root, epoch: i64) -> Result<Object, Failure> {
     // "ntp").
     let anchor = root.json_object("/run/y2/time.json");
     if anchor.get("source").and_then(Value::as_str) == Some("ntp")
-        && anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(root.boot_id())
+        && same_boot(&anchor, &root.boot_id())
     {
         return Err(Failure::value("network_time_active"));
     }
@@ -133,13 +158,7 @@ fn set_manual_inner(root: &Root, epoch: i64) -> Result<Object, Failure> {
     if !command::run(root, &["/bin/busybox", "date", "-u", "-s", &set], 3.0).ok {
         return Err(Failure::value("date_not_set"));
     }
-    let mut value = Object::new()
-        .with("schema", 1)
-        .with("boot_id", json!(root.boot_id()))
-        .with("epoch", epoch)
-        .with("monotonic_s", root.clock().monotonic())
-        .with("boottime_s", boottime(root))
-        .with("source", "manual");
+    let mut value = Anchor::now(root, json!(epoch), "manual");
     atomic_json(&runtime.join("time.json"), &value, false)?;
     // Readers of the status (scrobbling) see the untrusted clock at once.
     atomic_json(
@@ -150,7 +169,7 @@ fn set_manual_inner(root: &Root, epoch: i64) -> Result<Object, Failure> {
     let directory = root.path("/data/system/platform");
     private_directory(&directory)?;
     atomic_json(&directory.join("time-last.json"), &value, true)?;
-    rtc_write(root, &mut value);
+    value.rtc_write = rtc_write(root);
     // A running, not yet synchronised ntpd took a 2 h jump for network time at its first sync and
     // kept it for minutes (8.22 test build); a fresh one steps at once. Without a reachable server
     // the owner's time stays, which is what it is for.
@@ -159,14 +178,14 @@ fn set_manual_inner(root: &Root, epoch: i64) -> Result<Object, Failure> {
         .is_some_and(|pid| !pid.is_empty())
     {
         command::run(root, &["/etc/init.d/S43y2-time", "stop"], 5.0);
-        let ok = command::run(root, &["/etc/init.d/S43y2-time", "start"], 5.0).ok;
-        value.set("ntp_restart", ok);
+        value.ntp_restart = Some(command::run(root, &["/etc/init.d/S43y2-time", "start"], 5.0).ok);
     }
     Ok(value)
 }
 
 /// `y2-platform time-bootstrap` (S03y2-time, before the power service): the boot's first clock anchor.
-/// Takes no time.lock and reads time-last.json without a data_ready check, as Python.
+/// It takes no time.lock and reads time-last.json without checking /data: nothing else runs yet, and
+/// a missing or unverified /data only loses the retained floor.
 pub fn bootstrap(root: &Root) -> Outcome {
     let mut now = json!(wall());
     let floor = floor(root);
@@ -198,7 +217,7 @@ pub fn bootstrap(root: &Root) -> Outcome {
         }
     } else {
         let mut source = "build_floor";
-        // max(floor or 0, retained if plausible_retained else 0): the first of equals wins.
+        // The later of the build floor and a plausible retained time (the floor on a tie).
         let first = floor.unwrap_or(0);
         let (second, second_f) = match (plausible_retained, retained, retained_number) {
             (true, Some(value), Some(r)) => (value.clone(), r),
@@ -210,7 +229,7 @@ pub fn bootstrap(root: &Root) -> Outcome {
             (json!(first), first as f64)
         };
         if !plausible(now_f, floor) && target_f != 0.0 {
-            // str(int(target)): a float is truncated toward zero.
+            // `date` takes whole seconds: a fractional retained time is truncated toward zero.
             let set = format!("@{}", target_f.trunc() as i64);
             if command::run(root, &["/bin/busybox", "date", "-u", "-s", &set], 1.0).ok {
                 now = target;
@@ -221,19 +240,24 @@ pub fn bootstrap(root: &Root) -> Outcome {
         }
         source
     };
-    let value = Object::new()
-        .with("schema", 1)
-        .with("boot_id", json!(root.boot_id()))
-        .with("epoch", now)
-        .with("monotonic_s", root.clock().monotonic())
-        .with("boottime_s", boottime(root))
-        .with("source", source);
+    let value = Anchor::now(root, now, source);
     atomic_json(&runtime.join("time.json"), &value, false)?;
     Reply::unsorted(&value, 0)
 }
 
+/// What `rtc-alarm` prints and records (/run/y2/rtc-alarm.json), in this key order.
+#[derive(Serialize)]
+struct Alarm {
+    schema: u8,
+    boot_id: Option<String>,
+    alarm_epoch: Option<i64>,
+    state: &'static str,
+    qualified: bool,
+    reason: &'static str,
+}
+
 /// `y2-platform rtc-alarm <seconds>`: kernel RTC alarm plumbing; arming an alarm does not enter
-/// suspend. The target uses the RTC's clock (since_epoch), not the system wall clock.
+/// suspend. The target uses the RTC's clock (since_epoch), not the system wall clock; 0 disables.
 pub fn alarm(root: &Root, seconds: i64) -> Outcome {
     if !(0..=604_800).contains(&seconds) {
         return Err(Failure::value("rtc_alarm_seconds_out_of_range"));
@@ -248,34 +272,28 @@ pub fn alarm(root: &Root, seconds: i64) -> Outcome {
     let path = root.path("/sys/class/rtc/rtc0/wakealarm");
     // Linux requires disabling an existing alarm before replacement.
     write_text(&path, "0\n")?;
-    let target = if seconds != 0 {
-        now.saturating_add(seconds)
-    } else {
-        0
-    };
-    if target != 0 {
+    let target = (seconds != 0).then(|| now.saturating_add(seconds));
+    if let Some(target) = target {
         write_text(&path, &format!("{target}\n"))?;
     }
+    // A disabled alarm reads back empty (or 0 on some drivers).
     let observed = root.integer("/sys/class/rtc/rtc0/wakealarm");
-    let valid = observed == Some(target) || (target == 0 && observed.is_none());
-    if !valid {
+    if observed != Some(target.unwrap_or(0)) && !(target.is_none() && observed.is_none()) {
         write_text(&path, "0\n")?;
         return Err(Failure::value("rtc_alarm_readback_mismatch"));
     }
-    let value = Object::new()
-        .with("schema", 1)
-        .with("boot_id", json!(root.boot_id()))
-        .with(
-            "alarm_epoch",
-            if target != 0 {
-                json!(target)
-            } else {
-                Value::Null
-            },
-        )
-        .with("state", if target != 0 { "Armed" } else { "Disabled" })
-        .with("qualified", false)
-        .with("reason", "same_boot_alarm_wake_PHYSICAL_PENDING");
+    let value = Alarm {
+        schema: 1,
+        boot_id: root.boot_id(),
+        alarm_epoch: target,
+        state: if target.is_some() {
+            "Armed"
+        } else {
+            "Disabled"
+        },
+        qualified: false,
+        reason: "same_boot_alarm_wake_PHYSICAL_PENDING",
+    };
     atomic_json(&runtime.join("rtc-alarm.json"), &value, false)?;
     Reply::unsorted(&value, 0)
 }

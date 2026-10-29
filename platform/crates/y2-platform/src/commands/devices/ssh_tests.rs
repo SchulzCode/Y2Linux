@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::{ok, Fixture};
+use serde_json::json;
 use std::sync::Arc;
 
 const IP: [&str; 7] = ["ip", "-j", "-4", "addr", "show", "dev", "usb0"];

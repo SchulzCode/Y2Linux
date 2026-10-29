@@ -8,7 +8,8 @@
 //! loop after n iterations, as SIGTERM would.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::{atomic_json, private_directory, Failure, Outcome};
-use serde_json::{json, Value};
+use serde::Serialize;
+use serde_json::Value;
 use std::{
     io::{self, Write},
     os::{
@@ -289,6 +290,24 @@ impl AddressEvents {
 
 // ---- the daemon ----------------------------------------------------------------------------------
 
+/// /run/y2/ssh.json, published every tick (sorted, compact: sftp-server greps `"state":"Ready"`);
+/// `monotonic_s` tells a reader how fresh it is.
+#[derive(Serialize)]
+struct State {
+    schema: u8,
+    boot_id: Option<String>,
+    monotonic_s: f64,
+    state: &'static str,
+    reason: &'static str,
+    bind: &'static str,
+    interface: &'static str,
+    authentication: &'static str,
+    /// Whether the SFTP subsystem is installed.
+    sftp: bool,
+    /// dropbear's process id once it was started.
+    pid: Option<u32>,
+}
+
 struct Daemon<'a> {
     root: &'a Root,
     runtime: std::path::PathBuf,
@@ -344,13 +363,18 @@ impl<'a> Daemon<'a> {
                 ("Starting", reason)
             };
         }
-        let record = json!({
-            "schema": 1, "boot_id": self.root.boot_id(),
-            "monotonic_s": self.root.clock().monotonic(), "state": ready, "reason": reason,
-            "bind": "10.42.0.1:22", "interface": "usb0", "authentication": "owner_public_key",
-            "sftp": self.root.path("/usr/libexec/y2-sftp-server").is_file(),
-            "pid": self.child.as_ref().map(Child::id),
-        });
+        let record = State {
+            schema: 1,
+            boot_id: self.root.boot_id(),
+            monotonic_s: self.root.clock().monotonic(),
+            state: ready,
+            reason,
+            bind: "10.42.0.1:22",
+            interface: "usb0",
+            authentication: "owner_public_key",
+            sftp: self.root.path("/usr/libexec/y2-sftp-server").is_file(),
+            pid: self.child.as_ref().map(Child::id),
+        };
         atomic_json(&self.runtime.join("ssh.json"), &record, false)?;
         Ok(ready)
     }
@@ -473,6 +497,7 @@ mod ssh_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn addresses_are_read_as_the_generator() {

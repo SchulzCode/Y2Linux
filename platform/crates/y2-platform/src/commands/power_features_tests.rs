@@ -18,7 +18,7 @@ fn owner(fixture: &Fixture, value: Value) {
 
 /// `apply(ctx)` with a feature's entry as JSON.
 fn apply_json(fixture: &Fixture) -> Value {
-    Value::Object(apply(&fixture.root))
+    serde_json::to_value(apply(&fixture.root).features).unwrap()
 }
 
 #[test]
