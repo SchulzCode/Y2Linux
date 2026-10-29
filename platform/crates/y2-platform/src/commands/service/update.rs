@@ -825,10 +825,76 @@ struct Staging<'a> {
     previous: Value,
 }
 
+/// A core answer without the manifest's fields (only a broken core gives one).
 fn malformed() -> Raise {
-    // A core answer without the manifest fields is a traceback in Python (KeyError/TypeError):
-    // CONTRACT.md, accepted differences (only a broken core gives one).
     Raise::value("invalid_update_core_response")
+}
+
+/// One payload of a signed release: its key (rootfs, bootimg, recovery), size and SHA-256.
+struct Payload {
+    key: String,
+    bytes: i64,
+    sha256: Value,
+}
+
+/// What the core's `check-manifest` answers about a signed release.
+struct Manifest {
+    /// The answer itself (what `update check` prints).
+    answer: Map<String, Value>,
+    /// In the core's order.
+    payloads: Vec<Payload>,
+    /// What the payloads download.
+    total: i64,
+    release: Value,
+    sequence: Value,
+    /// The root filesystem's unpacked size (only a download needs it).
+    raw_bytes: Option<i64>,
+}
+
+impl Manifest {
+    fn read(answer: Map<String, Value>) -> Result<Self> {
+        let Some(Value::Object(items)) = answer.get("payloads") else {
+            return Err(malformed());
+        };
+        let payloads = items
+            .iter()
+            .map(|(key, item)| {
+                Ok(Payload {
+                    key: key.clone(),
+                    bytes: py::exact_int(item.get("bytes")).ok_or_else(malformed)?,
+                    sha256: item.get("sha256").cloned().unwrap_or(Value::Null),
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let raw_bytes = items
+            .get("rootfs")
+            .and_then(|rootfs| py::exact_int(rootfs.get("raw_bytes")));
+        let (Some(release), Some(sequence)) = (
+            answer.get("release_version").cloned(),
+            answer.get("sequence").cloned(),
+        ) else {
+            return Err(malformed());
+        };
+        Ok(Self {
+            total: payloads.iter().map(|p| p.bytes).sum(),
+            payloads,
+            release,
+            sequence,
+            raw_bytes,
+            answer,
+        })
+    }
+
+    fn notes(&self) -> Value {
+        self.answer.get("notes").cloned().unwrap_or(json!(""))
+    }
+
+    /// download.json after a check: the release on offer (Update Now).
+    fn offer(&self) -> Value {
+        json!({"schema": 1, "state": "Checked", "release_version": self.release,
+               "sequence": self.sequence, "download_bytes": self.total, "notes": self.notes(),
+               "reborn_version": self.answer.get("reborn_version").cloned().unwrap_or(json!(""))})
+    }
 }
 
 impl Staging<'_> {
@@ -983,64 +1049,46 @@ impl Staging<'_> {
             }
             Err(error) => return Err(error),
         };
-        let Some(Value::Object(payloads)) = manifest.get("payloads") else {
-            return Err(malformed());
-        };
-        let mut items = Vec::new();
-        let mut total: i64 = 0;
-        // The core's payload order (the map keeps the order of the document).
-        for (key, item) in payloads {
-            let bytes = py::exact_int(item.get("bytes")).ok_or_else(malformed)?;
-            total += bytes;
-            items.push((
-                key.clone(),
-                bytes,
-                item.get("sha256").cloned().unwrap_or(Value::Null),
-            ));
-        }
-        let (Some(release), Some(sequence)) =
-            (manifest.get("release_version"), manifest.get("sequence"))
-        else {
-            return Err(malformed());
-        };
-        self.summary = json!({"schema": 1, "state": "Checked", "release_version": release,
-                              "sequence": sequence, "download_bytes": total,
-                              "notes": manifest.get("notes").cloned().unwrap_or(json!("")),
-                              "reborn_version": manifest.get("reborn_version").cloned().unwrap_or(json!(""))});
+        let manifest = Manifest::read(manifest)?;
+        self.summary = manifest.offer();
         if self.check_only {
             remove_package(&self.incoming)?;
             atomic_json(&download, &self.summary, false)?;
-            return Ok(Value::Object(manifest));
+            return Ok(Value::Object(manifest.answer));
         }
-        let raw = payloads
-            .get("rootfs")
-            .and_then(|r| py::exact_int(r.get("raw_bytes")))
-            .ok_or_else(malformed)?;
+        let raw = manifest.raw_bytes.ok_or_else(malformed)?;
         // Until the package is committed below, SIGTERM (Reborn's Cancel) stops the download and
         // leaves the release offered as before.
         Terminate::set(Handler::Call(cancel));
         // Root payload plus its backup during installation; refuse early, not in recovery.
-        cleaned += make_room(root, io, file, total as i128 + raw.div_euclid(4) as i128)?;
+        cleaned += make_room(
+            root,
+            io,
+            file,
+            manifest.total as i128 + raw.div_euclid(4) as i128,
+        )?;
         if CANCELLED.load(Ordering::SeqCst) {
             return Err(Raise::Net(Net::Cancelled));
         }
         // Music and the screen come first: download and check yield the CPU.
         // SAFETY: nice(2) only lowers this process's priority.
         unsafe { libc::nice(10) };
-        let mut live = Progress::new(root, release.clone(), total);
+        let live = self.live.insert(Progress::new(
+            root,
+            manifest.release.clone(),
+            manifest.total,
+        ));
         live.finish("download");
-        self.live = Some(live);
         let mut count: i64 = 0;
-        for (key, bytes, sha) in &items {
-            let name = payload_file(key).ok_or_else(malformed)?;
+        for payload in &manifest.payloads {
+            let name = payload_file(&payload.key).ok_or_else(malformed)?;
             let mut stream = source.get(io, name, true)?;
-            let live = self.live.as_mut().expect("progress");
             let (got, digest) = copy_stream(
                 io,
                 &mut stream,
                 &self.incoming.join(name),
-                *bytes,
-                Some(*bytes),
+                payload.bytes,
+                Some(payload.bytes),
                 900.0,
                 true,
                 |done| {
@@ -1049,12 +1097,11 @@ impl Staging<'_> {
                 },
             )?;
             drop(stream);
-            if sha.as_str() != Some(digest.as_str()) {
+            if payload.sha256.as_str() != Some(digest.as_str()) {
                 return Err(Raise::value("download_hash_mismatch"));
             }
             count += got;
         }
-        let live = self.live.as_mut().expect("progress");
         live.done = count;
         // The queue below decodes and checks every payload once (OTA-48: the separate check before it
         // decoded the same files a second time).
@@ -1096,8 +1143,8 @@ impl Staging<'_> {
         atomic_json(
             &download,
             &json!({"schema": 1, "state": "Verified", "bytes": count,
-                    "release_version": release,
-                    "notes": manifest.get("notes").cloned().unwrap_or(json!("")),
+                    "release_version": manifest.release,
+                    "notes": manifest.notes(),
                     "backup_budget": "recovery captures the compressed previous root and BOOTIMG before any write",
                     "reserve_bytes": RESERVE as i64, "cleaned_bytes": cleaned as i64}),
             true,
@@ -1563,6 +1610,25 @@ fn loads_lenient(text: &str) -> Option<Value> {
     serde_json::from_str(&escaped).ok()
 }
 
+/// /run/y2/application-ready.json: Reborn's first frame, and the process that drew it.
+pub(super) struct ApplicationReady(Map<String, Value>);
+
+impl ApplicationReady {
+    pub(super) fn read(root: &Root) -> Self {
+        Self(root.json_object("/run/y2/application-ready.json"))
+    }
+
+    /// Whether Reborn drew its first frame in this boot.
+    pub(super) fn drawn(&self, root: &Root) -> bool {
+        self.0.get("boot_id").cloned().unwrap_or(Value::Null) == Value::from(root.boot_id())
+            && is_true(self.0.get("first_frame"))
+    }
+
+    fn pid(&self) -> Option<i64> {
+        py::exact_int(self.0.get("pid")).filter(|p| *p > 0)
+    }
+}
+
 /// Python `a == b` for an int (or None) read from /proc and a value from a record.
 fn same_number(read: Option<i64>, recorded: Option<&Value>) -> bool {
     match (read, recorded) {
@@ -1599,13 +1665,11 @@ fn health_ack(root: &Root) -> Result<Value> {
     }
     // A successful frame alone is insufficient: app must still answer, core mounts/devices must be
     // usable, and the same boot/process must own readiness.
-    let ready = root.json_object("/run/y2/application-ready.json");
-    if ready.get("boot_id").cloned().unwrap_or(Value::Null) != Value::from(root.boot_id())
-        || !is_true(ready.get("first_frame"))
-    {
+    let ready = ApplicationReady::read(root);
+    if !ready.drawn(root) {
         return Ok(json!({"state": "PendingHealth", "reason": "application_first_frame_missing"}));
     }
-    let Some(pid) = py::exact_int(ready.get("pid")).filter(|p| *p > 0) else {
+    let Some(pid) = ready.pid() else {
         return Ok(json!({"state": "PendingHealth", "reason": "application_pid_missing"}));
     };
     if pid > 4_194_304 {
@@ -1615,7 +1679,7 @@ fn health_ack(root: &Root) -> Result<Value> {
     let tail = stat.rsplit_once(") ").map_or(stat.as_str(), |(_, t)| t);
     let fields: Vec<&str> = tail.split_whitespace().collect();
     let start_ticks = fields.get(19).and_then(|f| y2p_core::root::python_int(f));
-    if !same_number(start_ticks, ready.get("start_ticks")) {
+    if !same_number(start_ticks, ready.0.get("start_ticks")) {
         return Ok(json!({"state": "PendingHealth", "reason": "application_generation_changed"}));
     }
     if !core_health_ok(root)? {

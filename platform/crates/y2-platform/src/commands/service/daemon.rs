@@ -688,12 +688,12 @@ impl Service {
                         &[PLATFORM, "update", "health-ack"],
                         8.0,
                     ));
-                let ready = root.json_object("/run/y2/application-ready.json");
-                let journal = root.json_object("/data/system/platform/boot.json");
-                if this_boot(root, ready.get("boot_id"))
-                    && is_true(ready.get("first_frame"))
+                // Reborn drew while the boot journal still waits for it.
+                if update::ApplicationReady::read(root).drawn(root)
                     && matches!(
-                        journal.get("last_stage").and_then(Value::as_str),
+                        root.json_object("/data/system/platform/boot.json")
+                            .get("last_stage")
+                            .and_then(Value::as_str),
                         Some("platform_start" | "services_started")
                     )
                 {
