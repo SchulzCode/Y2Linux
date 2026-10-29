@@ -19,7 +19,7 @@ observation util, reports pyre), per-tick work in the daemons, connectivity: sam
 fixture argv. Then host suite, build 171, OTA. Not built or installed yet; the player runs 170.
 
 **Resume point (2026-10-29, evening, usage limit near):** wave 2 runs as eight agents in git worktrees under
-`.claude/worktrees/agent-*`, one branch per group. **Merged on main:** devices, connectivity, power, storage, suspend, service, observation (plus wave 1); reports still on its branch.
+`.claude/worktrees/agent-*`, one branch per group. **Merged on main:** all eight groups (plus wave 1); next: the cleanup, checks, CONTRACT.md, build 171 and OTA below.
 **Still on their branches** (each commits per step; continue or merge what is there):
   - `worktree-agent-a0b52a2b44f9ce140` (reports, 13 commits ahead)
   - `worktree-agent-a115c1c7ce4e9d7b8` (observation, 4 commits ahead)
