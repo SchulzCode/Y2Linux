@@ -1,16 +1,9 @@
-import contextlib
-import json
-import os
-from pathlib import Path
-import sqlite3
-import sys
-import tarfile
-import tempfile
+"""The BlueZ init script's maintenance guard (tools/production/service_guards.py).
+
+The owner reset and state export themselves are tested in
+platform/crates/y2-platform/src/commands/reports/maintenance_tests.rs.
+"""
 import unittest
-from unittest.mock import patch
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools/platform'))
-from y2_platform.common import Context
-from y2_platform import maintenance as m
 from tools.production.service_guards import bluetooth_maintenance_guard
 
 class Maintenance(unittest.TestCase):
@@ -23,129 +16,5 @@ class Maintenance(unittest.TestCase):
         for unknown in ('restart() {\n}\n', source + 'start() {\n}\n'):
             with self.assertRaisesRegex(ValueError, 'structure'):
                 bluetooth_maintenance_guard(unknown)
-
-    def setUp(self):
-        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
-        self.root=Path(self.tmp.name);self.ctx=Context(self.root)
-        self.data=self.ctx.path('/data');self.data.mkdir()
-        (self.data/'.y2data-schema').write_text('1');(self.data/'updates').mkdir(mode=0o700)
-        self.volume={'path':'/data','state':'Ready','generation':'a:7:179:7','uuid':'data-uuid'}
-        check=patch('y2_platform.transfer.storage',return_value={'volumes':[self.volume]})
-        check.start();self.addCleanup(check.stop)
-        for d in ('proc/sys/kernel/random','data/reborn/state','data/music','data/network','data/ssh/host-keys','data/factory'):
-            self.ctx.path(d).mkdir(parents=True,exist_ok=True)
-        self.ctx.path('/proc/sys/kernel/random/boot_id').write_text('boot')
-        self.ctx.path('/data/music/song.flac').write_bytes(b'music')
-        self.ctx.path('/data/ssh/host-keys/private').write_bytes(b'test-only-secret')
-        self.ctx.path('/data/factory/preserve').write_bytes(b'factory-fixture')
-        self.session={'schema':2,'model':{'settings':{'volume':99},'queue':[{'id':3}],'position_ms':42}}
-        self.ctx.path('/data/'+m.SETTINGS).write_text(json.dumps(self.session))
-        self.ctx.runner=lambda *a,**kw:{'ok':True,'output':json.dumps({'session_schema':2,'settings':{'volume':35}})}
-
-    def test_settings_reset_preserves_queue_database_music_and_bounded_purge(self):
-        plan=m.plan(self.ctx,'settings')
-        with self.assertRaisesRegex(ValueError,'confirmation'):m.execute(self.ctx,'wrong')
-        result=m.execute(self.ctx,plan['confirmation'])
-        session=json.loads(self.ctx.path('/data/'+m.SETTINGS).read_text())
-        self.assertEqual(session['model']['settings'],{'volume':35})
-        self.assertEqual(session['model']['queue'],self.session['model']['queue'])
-        self.assertEqual(session['model']['position_ms'],42)
-        self.assertEqual(self.ctx.path('/data/music/song.flac').read_bytes(),b'music')
-        self.assertEqual(m.purge(self.ctx,plan['id'],plan['confirmation'])['state'],'Complete')
-        self.assertFalse(self.ctx.path('/data/system/platform/maintenance-pending').exists())
-
-    def test_settings_reset_keeps_a_schema_3_queue_of_song_references(self):
-        # Reborn Beta 8.33: songs by reference, your queue, history; kept as read.
-        self.session={'schema':3,'model':{'settings':{'volume':99},'queue':[{'ref':['internal','/data/music/song.flac',3]}],
-                      'queue_queued':[1],'history':[{'source_id':'internal','path':'/data/music/song.flac'}],'position_ms':42}}
-        self.ctx.path('/data/'+m.SETTINGS).write_text(json.dumps(self.session))
-        self.ctx.runner=lambda *a,**kw:{'ok':True,'output':json.dumps({'session_schema':3,'settings':{'volume':35}})}
-        plan=m.plan(self.ctx,'settings')
-        m.execute(self.ctx,plan['confirmation'])
-        session=json.loads(self.ctx.path('/data/'+m.SETTINGS).read_text())
-        self.assertEqual(session['schema'],3)
-        self.assertEqual(session['model']['settings'],{'volume':35})
-        for key in ('queue','queue_queued','history','position_ms'):
-            self.assertEqual(session['model'][key],self.session['model'][key])
-
-    def test_settings_reset_forgets_the_lastfm_sign_in_and_its_waiting_plays(self):
-        for name in m.LASTFM:
-            self.ctx.path('/data/'+name).write_text('{"name":"luca","key":"k"}\n')
-        plan=m.plan(self.ctx,'settings')
-        self.assertEqual(sorted(t['path'] for t in plan['targets']),sorted([m.SETTINGS,*m.LASTFM]))
-        result=m.execute(self.ctx,plan['confirmation'])
-        self.assertEqual(result['state'],'Complete')
-        for name in m.LASTFM:
-            self.assertFalse(self.ctx.path('/data/'+name).exists())
-        # The session file keeps its queue and only gets default settings.
-        session=json.loads(self.ctx.path('/data/'+m.SETTINGS).read_text())
-        self.assertEqual(session['model']['settings'],{'volume':35})
-        self.assertEqual(session['model']['queue'],self.session['model']['queue'])
-        # Without an account there is nothing extra to plan.
-        m.purge(self.ctx,plan['id'],plan['confirmation'])
-        self.assertEqual([t['path'] for t in m.plan(self.ctx,'settings')['targets']],[m.SETTINGS])
-
-    def test_process_source_and_mount_guards_and_full_reset_explicitness(self):
-        process=self.ctx.path('/proc/999');process.mkdir()
-        (process/'cmdline').write_bytes(b'/usr/bin/reborn\0')
-        self.assertEqual(m.plan(self.ctx,'settings')['state'],'NeedsQuiescence')
-        (process/'cmdline').unlink();process.rmdir()
-        plan=m.plan(self.ctx,'full-user')
-        with self.assertRaisesRegex(ValueError,'erase_user_music'):m.execute(self.ctx,plan['confirmation'])
-        self.volume['generation']='replacement'
-        with self.assertRaisesRegex(ValueError,'generation'):m.execute(self.ctx,plan['confirmation'],True)
-        self.volume['generation']='a:7:179:7'
-        result=m.execute(self.ctx,plan['confirmation'],True)
-        self.assertFalse(self.ctx.path('/data/music').exists())
-        self.assertEqual(self.ctx.path('/data/factory/preserve').read_bytes(),b'factory-fixture')
-        self.assertTrue(self.ctx.path('/data/ssh/host-keys/private').exists())
-        self.assertEqual(result['state'],'Complete')
-
-    def test_interrupted_reset_resumes_after_new_boot_without_overwriting_new_files(self):
-        for suffix in ('','-wal','-shm'): self.ctx.path('/data/reborn/library.db'+suffix).write_bytes(b'test')
-        plan=m.plan(self.ctx,'library');rename=os.rename;calls=[0]
-        def interrupt(*args,**kwargs):
-            calls[0]+=1
-            if calls[0]==2:raise OSError('injected interruption')
-            return rename(*args,**kwargs)
-        with patch.object(m.os,'rename',side_effect=interrupt):
-            with self.assertRaises(OSError):m.execute(self.ctx,plan['confirmation'])
-        self.assertTrue(self.ctx.path('/data/system/platform/maintenance-pending').exists())
-        self.ctx.path('/proc/sys/kernel/random/boot_id').write_text('next')
-        self.volume['generation']='next:8:179:7'
-        result=m.execute(self.ctx,plan['confirmation'],resume=True)
-        self.assertEqual(result['state'],'Complete')
-        self.assertFalse(self.ctx.path('/data/system/platform/maintenance-pending').exists())
-        self.assertEqual(len(result['completed']),3)
-
-    def test_private_export_uses_online_sqlite_backup_and_excludes_bonds_keys(self):
-        database=self.ctx.path('/data/reborn/library.db')
-        with contextlib.closing(sqlite3.connect(database)) as db:
-            db.execute('PRAGMA journal_mode=WAL');db.execute('CREATE TABLE test(value)');db.execute('INSERT INTO test VALUES(42)');db.commit()
-            self.ctx.path('/data/network/wpa_supplicant.conf').write_text('secret test fixture')
-            result=m.export(self.ctx,include_database=True)
-            self.assertFalse(result['contains_network_credentials'])
-            archive=self.ctx.path(result['path'])
-            self.assertEqual(archive.stat().st_mode & 0o777,0o600)
-            with tarfile.open(archive) as tar:
-                names=tar.getnames()
-                self.assertEqual(set(names),{'manifest.json','reborn--state--session.json','library.db'})
-                restored=self.root/'restored.db'
-                restored.write_bytes(tar.extractfile('library.db').read())
-            with contextlib.closing(sqlite3.connect(restored)) as check:
-                self.assertEqual(check.execute('SELECT value FROM test').fetchone(),(42,))
-            result=m.export(self.ctx,include_network=True)
-            self.assertTrue(result['contains_network_credentials'])
-            with tarfile.open(self.ctx.path(result['path'])) as tar:
-                self.assertIn('network--wpa_supplicant.conf',tar.getnames())
-
-    def test_symlink_never_escapes_purge_and_source_reset_refuses_symlink(self):
-        outside=self.root/'outside';outside.mkdir();(outside/'keep').write_bytes(b'keep')
-        self.ctx.path('/data/music/link').symlink_to(outside,target_is_directory=True)
-        plan=m.plan(self.ctx,'full-user');m.execute(self.ctx,plan['confirmation'],True)
-        while m.purge(self.ctx,plan['id'],plan['confirmation'],limit=2)['state']!='Complete':pass
-        self.assertTrue((outside/'keep').exists())
-        self.ctx.path('/data/reborn').symlink_to(outside,target_is_directory=True)
-        with self.assertRaises(ValueError):m.plan(self.ctx,'full-user')
 
 if __name__=='__main__':unittest.main()
