@@ -25,7 +25,6 @@ pub mod record;
 pub mod recorded;
 pub mod reports_sqlite;
 pub mod root;
-pub mod service_digest;
 pub mod storage_media;
 pub mod suspend_text;
 pub mod sys;

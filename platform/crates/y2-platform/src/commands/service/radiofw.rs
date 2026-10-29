@@ -22,10 +22,9 @@ use std::{
 use y2p_core::mounts::mounts_at;
 use y2p_core::{
     command,
+    digest::sha256_hex,
     json::{Object, ObjectExt},
-    py, record,
-    service_digest::sha256_hex,
-    Root,
+    py, record, Root,
 };
 
 mod copy;

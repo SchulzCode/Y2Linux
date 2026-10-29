@@ -9,12 +9,9 @@ use crate::{regex, reply::Failure};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use std::path::Path;
+use y2p_core::json::{dumps_sorted, Object, ObjectExt, Separators};
 use y2p_core::py::PyValue;
 use y2p_core::{command, py::truthy, Root};
-use y2p_core::{
-    json::{dumps_sorted, Object, ObjectExt, Separators},
-    observation_support::sha2::{Digest, Sha256},
-};
 
 /// The filesystem UUIDs the image's own volumes are made with.
 fn expected_uuid(target: &str) -> Option<&'static str> {
@@ -149,11 +146,7 @@ fn media_identity(entry: &Path, filesystem: &Value, uuid: &Value) -> Value {
                               "filesystem": filesystem, "uuid": uuid});
     // Texts and nulls only: nothing here a JSON text cannot hold.
     let encoded = dumps_sorted(&identity, Separators::Spaced).expect("identity");
-    let digest: String = Sha256::digest(encoded.as_bytes())
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect();
-    identity["id"] = json!(digest);
+    identity["id"] = json!(y2p_core::digest::sha256_hex(encoded.as_bytes()));
     identity
 }
 

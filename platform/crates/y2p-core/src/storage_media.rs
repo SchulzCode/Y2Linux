@@ -8,7 +8,6 @@ pub use crate::text::splitlines;
 use crate::text::strip;
 use regex::Regex;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use std::{collections::BTreeSet, sync::OnceLock};
 
 fn full(pattern: &str) -> Regex {
@@ -308,24 +307,6 @@ pub fn tables_bytes(boot: &[u8], filesystem: &str) -> Option<u64> {
         return (9..=12).contains(&shift).then(|| u32_at(boot, 88) << shift);
     }
     None
-}
-
-/// SHA-256 fed in chunks, as lowercase hex at the end (Y2Media's copy verification).
-#[derive(Default)]
-pub struct Sha256Stream(Sha256);
-
-impl Sha256Stream {
-    pub fn update(&mut self, bytes: &[u8]) {
-        self.0.update(bytes);
-    }
-
-    pub fn hexdigest(self) -> String {
-        self.0
-            .finalize()
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect()
-    }
 }
 
 /// The disposable files the space cleanup may remove, by category (the whole name must match).

@@ -23,9 +23,9 @@ use std::{
 };
 use y2p_core::{
     command,
+    digest::Sha256,
     mounts::mounts_at,
     py::{truthy, PyValue},
-    storage_media::Sha256Stream,
     Root,
 };
 
@@ -149,7 +149,7 @@ pub(super) fn sha256(path: &Path) -> Result<String, Failure> {
     unsafe {
         libc::posix_fadvise(file.as_raw_fd(), 0, 0, libc::POSIX_FADV_DONTNEED);
     }
-    let mut hasher = Sha256Stream::default();
+    let mut hasher = Sha256::new();
     let mut chunk = vec![0u8; CHUNK];
     loop {
         let n = file.read(&mut chunk).map_err(|e| Failure::os(e, path))?;

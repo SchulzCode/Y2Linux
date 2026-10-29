@@ -194,7 +194,7 @@ fn package(fixture: &Fixture, release: &str, raw_bytes: i64) -> Package {
         payloads.push(format!(
             "\"{key}\": {{\"bytes\": {}, \"sha256\": \"{}\"{extra}}}",
             data.len(),
-            y2p_core::service_digest::sha256_hex(&data)
+            y2p_core::digest::sha256_hex(&data)
         ));
     }
     let manifest = format!(

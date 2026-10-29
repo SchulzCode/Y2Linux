@@ -29,11 +29,10 @@ use y2p_core::lock;
 use y2p_core::sys::{set_signal, signal_disposition, Disposition, Handler};
 use y2p_core::{
     clock, command,
+    digest::Sha256,
     json::{sorted, Object, ObjectExt},
     py::{self, is_true, truthy},
-    record,
-    service_digest::Sha256,
-    Root,
+    record, Root,
 };
 
 mod apply;
