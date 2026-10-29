@@ -172,6 +172,25 @@ struct MediaRequest {
     confirm_cid: Option<String>,
 }
 
+/// The exit code of a `media` action. `status` reports the card in any state (a Degraded card
+/// mounted read-only is an answer, not a failure); `write` fails whenever it sets `failure`
+/// (not_mounted included), so Reborn's window call sees a refusal as one. A lifecycle record
+/// without `state` exits 1 (Python's KeyError).
+fn media_exit(action: &str, result: &Object) -> u8 {
+    let failed = match result.get("state") {
+        None => true,
+        Some(_) if action == "status" => false,
+        Some(_) if action == "write" => result.contains_key("failure"),
+        Some(state) => {
+            let state = state.as_str();
+            matches!(state, Some("Failed" | "Degraded"))
+                || (["mount", "format", "grow", "repair"].contains(&action)
+                    && state != Some("Ready"))
+        }
+    };
+    u8::from(failed)
+}
+
 fn media_command(root: &y2p_core::Root, request: &MediaRequest) -> Outcome {
     let action = request.action;
     let result: Object = match action {
@@ -210,19 +229,61 @@ fn media_command(root: &y2p_core::Root, request: &MediaRequest) -> Outcome {
         "reconcile" => media::reconcile(root)?,
         _ => media::operation(root, action)?,
     };
-    // DEFECT (CONTRACT.md): `media status` exits 1 for a Degraded (read-only) card, and `media write`
-    // exits 0 with `failure` set for `not_mounted` (state Unavailable).
-    // `result['state']` of a lifecycle record without one is Python's KeyError after printing: exit 1.
-    let failed = match result.get("state") {
-        None => true,
-        Some(state) => {
-            let state = state.as_str();
-            matches!(state, Some("Failed" | "Degraded"))
-                || (["mount", "format", "grow", "repair"].contains(&action)
-                    && state != Some("Ready"))
-        }
-    };
-    let code = u8::from(failed);
+    let code = media_exit(action, &result);
 
     Reply::sorted(&result, code)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn record(value: serde_json::Value) -> Object {
+        value.as_object().unwrap().clone()
+    }
+
+    #[test]
+    fn status_answers_for_every_card_state() {
+        for state in ["Ready", "Unavailable", "Degraded", "Failed"] {
+            assert_eq!(
+                media_exit("status", &record(json!({"state": state}))),
+                0,
+                "{state}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_refused_write_window_exits_1() {
+        let refused =
+            json!({"state": "Unavailable", "reason": "not_mounted", "failure": "not_mounted"});
+        assert_eq!(media_exit("write", &record(refused)), 1);
+        let degraded =
+            json!({"state": "Degraded", "reason": "card_has_errors", "failure": "card_has_errors"});
+        assert_eq!(media_exit("write", &record(degraded)), 1);
+        assert_eq!(
+            media_exit(
+                "write",
+                &record(json!({"state": "Ready", "writable": true}))
+            ),
+            0
+        );
+    }
+
+    #[test]
+    fn lifecycle_actions_keep_their_rules() {
+        assert_eq!(
+            media_exit("reconcile", &record(json!({"state": "Degraded"}))),
+            1
+        );
+        assert_eq!(
+            media_exit("reconcile", &record(json!({"state": "Unavailable"}))),
+            0
+        );
+        assert_eq!(
+            media_exit("mount", &record(json!({"state": "Unavailable"}))),
+            1
+        );
+        assert_eq!(media_exit("verify", &record(json!({}))), 1);
+    }
 }
