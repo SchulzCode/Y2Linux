@@ -8,13 +8,14 @@
 //! where tests/platform_cases/power.py stops the Python daemon.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    battery::{load_profile, sample, Soc, UI_STATE},
+    battery::{load_profile, sample, BatteryStatus, DisplayRecord, Soc, UI_STATE},
     coordinator::Coordinator,
     journal::PowerJournal,
     policy::{load_policy, LowBattery},
     quiet_exit, unix,
 };
 use crate::reply::{atomic_json, private_directory, unlink_missing_ok, Failure, Outcome};
+use serde::Serialize;
 use serde_json::Value;
 use std::{
     os::unix::{fs::FileTypeExt, net::UnixStream},
@@ -32,6 +33,52 @@ pub const SOCKET: &str = "/run/y2/power.sock";
 const REQUEST_LIMIT: usize = 2048;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
+
+/// `/run/y2/power.json` (written sorted; Reborn's power.rs reads it).
+#[derive(Serialize)]
+struct PowerRecord<'a> {
+    schema: i64,
+    boot_id: Option<&'a str>,
+    monotonic_ns: u64,
+    state: &'a str,
+    voltage_uv: Option<i64>,
+    reason: Option<&'a str>,
+    thresholds_enabled: bool,
+    battery: &'a BatteryStatus,
+    qualification_reference: Option<&'a Value>,
+    shutdown: Option<&'a Object>,
+}
+
+/// One request on the power socket.
+enum Request {
+    /// Reborn's answer to a pending intent.
+    Ack { id: Value, outcome: Value },
+    /// A transition (`shutdown` or Reborn); the reason defaults to `user`.
+    Transition { action: Value, reason: Value },
+}
+
+impl Request {
+    /// The request's fields, or Python's `str(error)` of the lookup that failed.
+    fn of(request: Value) -> Result<Request, String> {
+        let Value::Object(mut request) = request else {
+            return Err(format!(
+                "'{}' object has no attribute 'get'",
+                request.type_name()
+            ));
+        };
+        if request.value("operation").is_str("ack") {
+            let id = request.shift_remove("id").ok_or("'id'")?;
+            let outcome = request.shift_remove("outcome").ok_or("'outcome'")?;
+            return Ok(Request::Ack { id, outcome });
+        }
+        Ok(Request::Transition {
+            action: request.value("action"),
+            reason: request
+                .shift_remove("reason")
+                .unwrap_or_else(|| "user".into()),
+        })
+    }
+}
 
 extern "C" fn stop(_: libc::c_int) {
     RUNNING.store(false, Ordering::SeqCst);
@@ -85,21 +132,18 @@ pub fn serve(root: &Root) -> Outcome {
     let mut iterations = 0u64;
     let mut next_sample: i128 = 0;
     let mut state = "Unavailable";
-    let mut battery_status = Object::new();
+    let mut battery_status = BatteryStatus::default();
     while RUNNING.load(Ordering::SeqCst) {
         if now() >= next_sample {
             next_sample = now() + 1_000_000_000;
             // SOC uses physical elapsed time including suspend. Keep the
             // shutdown grace/sampling scheduler on its existing clock.
             battery_status = sample(root, &mut soc);
-            let voltage = battery_status.get("voltage_uv").and_then(Value::exact_int);
+            let voltage = battery_status.voltage_uv;
             // 28: keep the displayed percentage across a restart (stock
             // RTC spare register); written only when it changes.
             if let Some(ui_state) = soc.state().filter(|s| Some(*s) != ui_saved) {
-                let record = Object::new()
-                    .with("schema", 1i64)
-                    .with("ui_percent", ui_state.0)
-                    .with("anchor_percent", ui_state.1);
+                let record = DisplayRecord::new(ui_state);
                 if atomic_json(&root.path(UI_STATE), &record, true).is_ok() {
                     ui_saved = Some(ui_state);
                 }
@@ -121,22 +165,18 @@ pub fn serve(root: &Root) -> Outcome {
                 coordinator.intent.as_ref(),
                 None,
             );
-            let record = Object::new()
-                .with("schema", 1i64)
-                .with("boot_id", coordinator.boot_id.clone())
-                .with("monotonic_ns", clock.monotonic_ns())
-                .with("state", state)
-                .with("voltage_uv", voltage)
-                .with("reason", reason)
-                .with("thresholds_enabled", policy.is_some())
-                .with("battery", battery_status.clone())
-                .with(
-                    "qualification_reference",
-                    policy
-                        .as_ref()
-                        .map(|p| p.value.value("qualification_reference")),
-                )
-                .with("shutdown", coordinator.intent.clone());
+            let record = PowerRecord {
+                schema: 1,
+                boot_id: coordinator.boot_id.as_deref(),
+                monotonic_ns: clock.monotonic_ns(),
+                state,
+                voltage_uv: voltage,
+                reason,
+                thresholds_enabled: policy.is_some(),
+                battery: &battery_status,
+                qualification_reference: policy.as_ref().map(|p| &p.qualification_reference),
+                shutdown: coordinator.intent.as_ref(),
+            };
             atomic_json(&runtime.join("power.json"), &record, false)?;
         }
         if coordinator.due() {
@@ -199,22 +239,9 @@ fn handle(client: &mut UnixStream, coordinator: &mut Coordinator) -> Result<Obje
     }
     // Accepted difference: text that is not JSON is refused with serde's message, not json's.
     let request = serde_json::from_slice::<Value>(&data).map_err(|e| e.to_string())?;
-    let Value::Object(request) = request else {
-        return Err(format!(
-            "'{}' object has no attribute 'get'",
-            request.type_name()
-        ));
-    };
-    let value = if request.value("operation").is_str("ack") {
-        let id = request.get("id").ok_or("'id'")?;
-        let outcome = request.get("outcome").ok_or("'outcome'")?;
-        coordinator.ack(id, pid, outcome)
-    } else {
-        let reason = request
-            .get("reason")
-            .cloned()
-            .unwrap_or_else(|| "user".into());
-        coordinator.request(&request.value("action"), &reason, 10)
-    };
-    value.map_err(|e| e.message())
+    match Request::of(request)? {
+        Request::Ack { id, outcome } => coordinator.ack(&id, pid, &outcome),
+        Request::Transition { action, reason } => coordinator.request(&action, &reason, 10),
+    }
+    .map_err(|e| e.message())
 }

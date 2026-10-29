@@ -1,20 +1,20 @@
 //! `power.load_policy` and `power.LowBattery`: UI-independent shutdown policy. Electrical thresholds
 //! are owner-qualified data.
 // SPDX-License-Identifier: GPL-2.0-only
+use super::battery::BatteryStatus;
 use serde_json::{Map, Value};
 use y2p_core::{
-    json::Object,
-    py::PyValue,
     py::{eq_int, exact_int, is_true},
     Root,
 };
 
 pub const POLICY: &str = "/data/system/platform/power-policy.json";
 
-/// A qualified policy (`value` is the whole document, as Python keeps it).
+/// A qualified policy.
 #[derive(Clone, Debug)]
 pub struct Policy {
-    pub value: Map<String, Value>,
+    /// The document's `qualification_reference` as it is (null when missing), for power.json.
+    pub qualification_reference: Value,
     pub schema2: bool,
     pub critical_uv: i64,
     pub low_uv: i64,
@@ -100,7 +100,10 @@ pub fn load_policy(root: &Root) -> (Option<Policy>, Option<&'static str>) {
             warning_soc,
             critical_soc,
             shutdown_soc,
-            value,
+            qualification_reference: value
+                .get("qualification_reference")
+                .cloned()
+                .unwrap_or(Value::Null),
         }),
         None,
     )
@@ -129,7 +132,7 @@ impl LowBattery {
         policy: Option<&Policy>,
         voltage: Option<i64>,
         present: Option<i64>,
-        soc: &Object,
+        soc: &BatteryStatus,
     ) -> &'static str {
         let Some(policy) = policy else {
             (self.state, self.samples) = ("Unavailable", 0);
@@ -141,17 +144,13 @@ impl LowBattery {
         };
         // USB presence does not prove positive net pack current. The same
         // qualified voltage guard applies while connected to a source.
-        let percent = soc.get("percent").and_then(Value::exact_int);
-        let valid_soc = percent.filter(|p| (0..=100).contains(p));
-        let trustworthy = valid_soc.is_some()
-            && soc
-                .get("confidence")
-                .is_some_and(|c| c.is_str("hardware") || c.is_str("calibrated_estimate"));
+        let valid_soc = soc.percent.filter(|p| (0..=100).contains(p));
+        let trustworthy =
+            valid_soc.is_some() && matches!(soc.confidence, "hardware" | "calibrated_estimate");
         // F36: on a charger the shown value never falls (battery.Soc.track), so a
         // low one is a start value from before the charge; the voltage guard
         // alone covers a source weaker than the load.
-        let charging = matches!(soc.get("charging"), Some(Value::Bool(true)))
-            || soc.get("status").is_some_and(|s| s.is_str("Charging"));
+        let charging = soc.charging || soc.status.as_deref() == Some("Charging");
         let soc_shutdown = policy.schema2
             && trustworthy
             && !charging
@@ -184,7 +183,6 @@ impl LowBattery {
 mod tests {
     use super::*;
     use std::fs;
-    use y2p_core::json::ObjectExt;
 
     fn root_with(policy: &str) -> (std::path::PathBuf, Root) {
         use std::sync::atomic::{AtomicU32, Ordering};
@@ -246,12 +244,12 @@ mod tests {
         let (dir, root) = root_with(stock);
         let policy = load_policy(&root).0.unwrap();
         let mut low = LowBattery::default();
-        let soc = |percent: i64, status: &str| {
-            Object::new()
-                .with("percent", percent)
-                .with("confidence", "calibrated_estimate")
-                .with("status", status)
-                .with("charging", status == "Charging")
+        let soc = |percent: i64, status: &str| BatteryStatus {
+            percent: Some(percent),
+            confidence: "calibrated_estimate",
+            status: Some(status.into()),
+            charging: status == "Charging",
+            ..BatteryStatus::default()
         };
         assert_eq!(
             low.observe(

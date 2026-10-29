@@ -111,6 +111,52 @@ fn wait_gone(root: &Root, name: &str, timeout: f64) -> Step {
     Step::of(true, None)
 }
 
+/// How an intent's `acknowledgement` reads: Reborn's dict, or nothing yet; an intent resumed from
+/// shutdown.json may hold anything there.
+#[derive(Debug)]
+pub enum Acknowledgement<'a> {
+    /// Null (or another falsy value): Reborn has not answered.
+    Absent,
+    /// A dict, with its `outcome` if it has one.
+    Given(Option<&'a Value>),
+    /// Something truthy that is not a dict.
+    Odd(&'a Value),
+}
+
+/// What the coordinator reads of an intent: one it built, or one resumed from shutdown.json after a
+/// daemon restart.
+pub trait IntentFields {
+    fn state(&self) -> Option<&str>;
+    /// The deadline in CLOCK_MONOTONIC ns (0 when it is not an int).
+    fn deadline_ns(&self) -> i128;
+    fn acknowledgement(&self) -> Acknowledgement<'_>;
+
+    fn pending(&self) -> bool {
+        self.state() == Some("ShutdownPending")
+    }
+}
+
+impl IntentFields for Object {
+    fn state(&self) -> Option<&str> {
+        self.get("state").and_then(Value::as_str)
+    }
+
+    fn deadline_ns(&self) -> i128 {
+        self.get("deadline_monotonic_ns")
+            .and_then(Value::exact_int)
+            .map_or(0, i128::from)
+    }
+
+    fn acknowledgement(&self) -> Acknowledgement<'_> {
+        match self.get("acknowledgement") {
+            None => Acknowledgement::Absent,
+            Some(ack) if !ack.truthy() => Acknowledgement::Absent,
+            Some(Value::Object(ack)) => Acknowledgement::Given(ack.get("outcome")),
+            Some(other) => Acknowledgement::Odd(other),
+        }
+    }
+}
+
 pub struct Coordinator {
     root: Root,
     watchdog: Option<File>,
@@ -126,14 +172,15 @@ impl Coordinator {
             _ => Object::new(),
         };
         let boot = Value::from(boot_id.clone());
-        let one_of = |key: &str, choices: &[&str]| {
-            previous
-                .get(key)
-                .is_some_and(|v| choices.iter().any(|c| v.is_str(c)))
-        };
         let valid = previous.value("boot_id").py_eq(&boot)
-            && one_of("state", &["ShutdownPending", "Executing", "Failed"])
-            && one_of("action", &["poweroff", "reboot"])
+            && matches!(
+                previous.state(),
+                Some("ShutdownPending" | "Executing" | "Failed")
+            )
+            && matches!(
+                previous.get("action").and_then(Value::as_str),
+                Some("poweroff" | "reboot")
+            )
             && previous
                 .get("deadline_monotonic_ns")
                 .and_then(Value::exact_int)
@@ -143,7 +190,7 @@ impl Coordinator {
             && previous.contains_key("acknowledgement");
         let mut intent = valid.then_some(previous);
         if let Some(intent) = intent.as_mut() {
-            if intent.value("state").is_str("Executing") {
+            if intent.state() == Some("Executing") {
                 // Continue the already requested transition after a daemon crash,
                 // retaining its original deadline. No new boot is auto-rebooted.
                 intent.set("state", "ShutdownPending");
@@ -163,14 +210,6 @@ impl Coordinator {
 
     fn intent(&mut self) -> &mut Object {
         self.intent.as_mut().expect("an intent")
-    }
-
-    fn deadline(&self) -> i128 {
-        self.intent
-            .as_ref()
-            .and_then(|i| i.get("deadline_monotonic_ns"))
-            .and_then(Value::exact_int)
-            .map_or(0, i128::from)
     }
 
     pub fn publish(&self) -> Result<(), Failure> {
@@ -239,9 +278,10 @@ impl Coordinator {
         pid: i64,
         outcome: &Value,
     ) -> Result<Object, Failure> {
-        let pending = self.intent.as_ref().is_some_and(|i| {
-            i.value("state").is_str("ShutdownPending") && i.value("id").py_eq(request_id)
-        });
+        let pending = self
+            .intent
+            .as_ref()
+            .is_some_and(|i| i.pending() && i.value("id").py_eq(request_id));
         if !pending {
             return Err(Failure::value("stale_shutdown_ack"));
         }
@@ -268,25 +308,24 @@ impl Coordinator {
     }
 
     pub fn due(&self) -> bool {
-        let Some(intent) = &self.intent else {
+        let Some(intent) = self.intent.as_ref().filter(|i| i.pending()) else {
             return false;
         };
-        if !intent.value("state").is_str("ShutdownPending") {
-            return false;
-        }
-        if self.clock() >= self.deadline() {
+        if self.clock() >= intent.deadline_ns() {
             return true;
         }
         // `bool(ack and ack['outcome'] == 'Ready')`: a resumed intent may carry anything here.
-        match intent.value("acknowledgement") {
-            ack if !ack.truthy() => false,
-            Value::Object(ack) => match ack.get("outcome") {
-                Some(outcome) => outcome.is_str("Ready"),
-                None => crash("KeyError: 'outcome'"),
-            },
-            Value::Array(_) => crash("TypeError: list indices must be integers or slices, not str"),
-            Value::String(_) => crash("TypeError: string indices must be integers, not 'str'"),
-            other => crash(&format!(
+        match intent.acknowledgement() {
+            Acknowledgement::Absent => false,
+            Acknowledgement::Given(Some(outcome)) => outcome.is_str("Ready"),
+            Acknowledgement::Given(None) => crash("KeyError: 'outcome'"),
+            Acknowledgement::Odd(Value::Array(_)) => {
+                crash("TypeError: list indices must be integers or slices, not str")
+            }
+            Acknowledgement::Odd(Value::String(_)) => {
+                crash("TypeError: string indices must be integers, not 'str'")
+            }
+            Acknowledgement::Odd(other) => crash(&format!(
                 "TypeError: '{}' object is not subscriptable",
                 other.type_name()
             )),
@@ -299,12 +338,8 @@ impl Coordinator {
         // pending shutdown need timed wakes; polling four times per second
         // provides neither faster requests nor better battery observations.
         let mut deadline = next_sample_ns;
-        if self
-            .intent
-            .as_ref()
-            .is_some_and(|i| i.value("state").is_str("ShutdownPending"))
-        {
-            deadline = deadline.min(self.deadline());
+        if let Some(intent) = self.intent.as_ref().filter(|i| i.pending()) {
+            deadline = deadline.min(intent.deadline_ns());
         }
         (deadline - self.clock()).max(0)
     }
@@ -340,10 +375,10 @@ impl Coordinator {
         // before it acknowledges. If it never did (hung, crashed, deadline
         // reached) the light goes out before the kill: dropping DRM master would
         // otherwise restore the stale fbdev/console buffer on a lit panel.
-        let ready = match self.intent().value("acknowledgement") {
-            ack if !ack.truthy() => false,
-            Value::Object(ack) => ack.value("outcome").is_str("Ready"),
-            other => crash(&format!(
+        let ready = match self.intent().acknowledgement() {
+            Acknowledgement::Absent => false,
+            Acknowledgement::Given(outcome) => outcome.is_some_and(|o| o.is_str("Ready")),
+            Acknowledgement::Odd(other) => crash(&format!(
                 "AttributeError: '{}' object has no attribute 'get'",
                 other.type_name()
             )),

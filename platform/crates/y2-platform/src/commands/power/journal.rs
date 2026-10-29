@@ -6,8 +6,9 @@
 //! order, records read from files in their file order. A journal failure never delays or
 //! disables battery protection: it is counted and the row dropped.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::crash;
+use super::{battery::BatteryStatus, crash};
 use crate::commands::time::wall;
+use serde::Serialize;
 use serde_json::Value;
 use std::{fs, io::Read, os::unix::fs::OpenOptionsExt};
 use y2p_core::mounts::data_ready;
@@ -703,6 +704,61 @@ fn sleep_status(receipt: &Object, boot_id: Option<&str>) -> Result<Object, Dropp
 
 // ---- the journal ---------------------------------------------------------------------------------
 
+/// A battery reading as a journal row holds it (in its own key order), and the two fields whose
+/// change is a state change.
+pub trait BatteryRow: Serialize {
+    fn status(&self) -> Value;
+    fn charging(&self) -> Value;
+}
+
+impl BatteryRow for BatteryStatus {
+    fn status(&self) -> Value {
+        Value::from(self.status.clone())
+    }
+
+    fn charging(&self) -> Value {
+        Value::Bool(self.charging)
+    }
+}
+
+/// A partial reading (the journal's own and the sleep diagnostics' tests): what it has.
+impl BatteryRow for Object {
+    fn status(&self) -> Value {
+        self.value("status")
+    }
+
+    fn charging(&self) -> Value {
+        self.value("charging")
+    }
+}
+
+/// One `power-journal.jsonl` row, in this key order.
+#[derive(Serialize)]
+struct Row<'a, B: BatteryRow> {
+    schema: i64,
+    event: &'a str,
+    wall_time: f64,
+    monotonic_s: f64,
+    boottime_s: f64,
+    boot_id: Option<String>,
+    build: Value,
+    state: &'a str,
+    battery: &'a B,
+    shutdown: Option<&'a Object>,
+    usb: Object,
+    usb_net: Object,
+    charger: Option<String>,
+    backlight: Object,
+    radios: Object,
+    idle_policy: Value,
+    idle_counters: Object,
+    sleep: Object,
+    // Preserve completed intervals when a later refusal replaces
+    // suspend-last.json. This shares the existing event cadence.
+    suspend: Object,
+    kernel_pm: Option<String>,
+}
+
 #[derive(Debug, Default)]
 pub struct PowerJournal {
     next_snapshot: f64,
@@ -723,7 +779,7 @@ impl PowerJournal {
         &mut self,
         root: &Root,
         state: &str,
-        battery: &Object,
+        battery: &impl BatteryRow,
         shutdown: Option<&Object>,
         event: Option<&str>,
     ) -> bool {
@@ -742,7 +798,7 @@ impl PowerJournal {
         &mut self,
         root: &Root,
         state: &str,
-        battery: &Object,
+        battery: &impl BatteryRow,
         shutdown: Option<&Object>,
         event: Option<&str>,
         now: f64,
@@ -750,11 +806,7 @@ impl PowerJournal {
         // POWER-FINAL-14: persist USB state changes (and one follow-up) so a
         // USB failure after a wake leaves evidence across a restart.
         self.diagnostics.observe_usb(root, now);
-        let signature = (
-            state.to_owned(),
-            battery.value("status"),
-            battery.value("charging"),
-        );
+        let signature = (state.to_owned(), battery.status(), battery.charging());
         let changed = self.signature.as_ref().is_none_or(|s| {
             s.0 != signature.0 || !s.1.py_eq(&signature.1) || !s.2.py_eq(&signature.2)
         });
@@ -788,16 +840,16 @@ impl PowerJournal {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn row(
+    fn row<'a, B: BatteryRow>(
         &self,
         root: &Root,
-        state: &str,
-        battery: &Object,
-        shutdown: Option<&Object>,
-        event: Option<&str>,
+        state: &'a str,
+        battery: &'a B,
+        shutdown: Option<&'a Object>,
+        event: Option<&'a str>,
         safety: bool,
         now: f64,
-    ) -> Result<Option<Object>, Dropped> {
+    ) -> Result<Option<Row<'a, B>>, Dropped> {
         // Do not create persistent state on an unverified/missing data mount.
         if !data_ready(root) {
             return Ok(None);
@@ -854,46 +906,35 @@ impl PowerJournal {
                 _ => Value::Null, // a falsy product (`or {}`); a truthy non-dict ended above
             },
         );
-        let row = Object::new()
-            .with("schema", 1i64)
-            .with(
-                "event",
-                event.filter(|e| !e.is_empty()).unwrap_or(if safety {
-                    "state_change"
-                } else {
-                    "snapshot"
-                }),
-            )
-            .with("wall_time", wall())
-            .with("monotonic_s", now)
-            .with("boottime_s", root.clock().boottime_ns() as f64 / 1e9)
-            .with("boot_id", boot_id)
-            .with("build", json(root, "/etc/y2linux/versions.json"))
-            .with("state", state)
-            .with("battery", battery.clone())
-            .with("shutdown", shutdown.cloned())
-            .with("usb", usb)
-            .with("usb_net", usb_net)
-            .with(
-                "charger",
-                root.read("/sys/class/power_supply/BAT0/charging_state"),
-            )
-            .with("backlight", backlight)
-            .with("radios", radios)
-            .with("idle_policy", json(root, "/run/y2/cpu-idle-policy.json"))
-            .with("idle_counters", idle)
-            .with("sleep", sleep)
-            // Preserve completed intervals when a later refusal replaces
-            // suspend-last.json. This shares the existing event cadence.
-            .with("suspend", suspend)
-            .with(
-                "kernel_pm",
-                root.read_limited("/sys/firmware/y2_pm/state", 8192),
-            );
-        Ok(Some(row))
+        Ok(Some(Row {
+            schema: 1,
+            event: event.filter(|e| !e.is_empty()).unwrap_or(if safety {
+                "state_change"
+            } else {
+                "snapshot"
+            }),
+            wall_time: wall(),
+            monotonic_s: now,
+            boottime_s: root.clock().boottime_ns() as f64 / 1e9,
+            boot_id,
+            build: json(root, "/etc/y2linux/versions.json"),
+            state,
+            battery,
+            shutdown,
+            usb,
+            usb_net,
+            charger: root.read("/sys/class/power_supply/BAT0/charging_state"),
+            backlight,
+            radios,
+            idle_policy: json(root, "/run/y2/cpu-idle-policy.json"),
+            idle_counters: idle,
+            sleep,
+            suspend,
+            kernel_pm: root.read_limited("/sys/firmware/y2_pm/state", 8192),
+        }))
     }
 
-    fn append(&self, root: &Root, row: &Object, durable: bool) -> Result<(), Dropped> {
+    fn append(&self, root: &Root, row: &impl Serialize, durable: bool) -> Result<(), Dropped> {
         let encoded = dumps(row, Separators::Compact).map_err(|_| Dropped)? + "\n";
         if encoded.len() > ROW {
             return Err(Dropped); // power_journal_row_too_large

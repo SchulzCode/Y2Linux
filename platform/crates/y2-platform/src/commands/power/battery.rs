@@ -3,10 +3,10 @@
 //! Every float operation is Python's, in Python's order (int operands converted where Python converts
 //! them, int/int true division on exact operands), so the percentages match the Python daemon's.
 // SPDX-License-Identifier: GPL-2.0-only
+use serde::Serialize;
 use serde_json::Value;
 use std::collections::VecDeque;
 use y2p_core::{
-    json::{Object, ObjectExt},
     power_text::{python_split, sense_current},
     py::PyValue,
     py::{eq_int, exact_int},
@@ -257,6 +257,102 @@ pub struct Reading {
     pub boot: Option<&'static str>,
 }
 
+/// What one sample publishes (`battery` in power.json and in the journal rows), in this key order:
+/// the reading, then for a voltage estimate the estimate's own fields.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct BatteryStatus {
+    pub percent: Option<i64>,
+    pub source: &'static str,
+    pub confidence: &'static str,
+    pub status: Option<String>,
+    pub charging: bool,
+    pub voltage_uv: Option<i64>,
+    pub current_ua: Option<i64>,
+    pub temperature_millicelsius: Option<i64>,
+    pub charge_counter_uah: Option<i64>,
+    pub provisional: bool,
+    pub resting: bool,
+    #[serde(flatten)]
+    pub estimate: Option<Estimate>,
+}
+
+impl Default for BatteryStatus {
+    /// No usable reading: no percentage, nothing measured.
+    fn default() -> Self {
+        Self {
+            percent: None,
+            source: "unavailable",
+            confidence: "unavailable",
+            status: None,
+            charging: false,
+            voltage_uv: None,
+            current_ua: None,
+            temperature_millicelsius: None,
+            charge_counter_uah: None,
+            provisional: true,
+            resting: false,
+            estimate: None,
+        }
+    }
+}
+
+/// The voltage estimate's fields of a [`BatteryStatus`]; the capacity pair only with a design capacity.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Estimate {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub design_capacity_uah: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remaining_uah_estimate: Option<i64>,
+    pub estimate_percent: i64,
+    pub anchor_percent: Option<f64>,
+    pub full_latched: bool,
+    pub filtered_voltage_uv: i64,
+    pub start: Option<String>,
+    pub calibration_source: String,
+}
+
+/// `battery-ui.json`: the displayed percentage kept across a restart.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+pub struct DisplayRecord {
+    pub schema: i64,
+    pub ui_percent: i64,
+    pub anchor_percent: Option<f64>,
+}
+
+impl DisplayRecord {
+    pub fn new((ui_percent, anchor_percent): (i64, Option<f64>)) -> Self {
+        Self {
+            schema: 1,
+            ui_percent,
+            anchor_percent,
+        }
+    }
+}
+
+/// What the first sample may restore from `battery-ui.json` (anything else in it is ignored).
+#[derive(Clone, Copy, Debug, Default)]
+struct Saved {
+    /// An exact int (a float or a bool is not one).
+    ui_percent: Option<i64>,
+    /// Any JSON number (not a bool).
+    anchor_percent: Option<f64>,
+}
+
+impl Saved {
+    fn of(value: Option<Value>) -> Option<Saved> {
+        let Some(Value::Object(saved)) = value else {
+            return None;
+        };
+        Some(Saved {
+            ui_percent: saved.get("ui_percent").and_then(Value::exact_int),
+            anchor_percent: match saved.get("anchor_percent") {
+                Some(Value::Number(n)) => Some(n.as_f64().unwrap_or(f64::NAN)),
+                _ => None,
+            },
+        })
+    }
+}
+
 /// `Soc`: bounded filter and monotonic trend, resetting on loss/replacement of pack.
 ///
 /// The voltage curve is an estimate under load. Rest means stable voltage, not proof of open-circuit
@@ -276,7 +372,7 @@ pub struct Soc {
     anchor: Option<f64>,
     full_latched: bool,
     full_step_at: Option<f64>,
-    saved: Option<Object>,
+    saved: Option<Saved>,
     // How the first sample started, e.g. 'warm/saved' (F54 diagnostics).
     start: Option<String>,
 }
@@ -293,10 +389,7 @@ impl Soc {
             anchor: None,
             full_latched: false,
             full_step_at: None,
-            saved: match saved {
-                Some(Value::Object(o)) => Some(o),
-                _ => None,
-            },
+            saved: Saved::of(saved),
             start: None,
         }
     }
@@ -322,13 +415,10 @@ impl Soc {
     /// the live estimate is 40+ points above it.
     fn restore(&mut self, estimate: f64, charging: bool, boot: Option<&str>) {
         let saved = self.saved.take().unwrap_or_default();
-        if let Some(Value::Number(n)) = saved.get("anchor_percent") {
-            let value = n.as_f64().unwrap_or(f64::NAN);
-            if (80.0..=100.0).contains(&value) {
-                self.anchor = Some(value);
-            }
+        if let Some(anchor) = saved.anchor_percent.filter(|a| (80.0..=100.0).contains(a)) {
+            self.anchor = Some(anchor);
         }
-        let mut ui = saved.get("ui_percent").and_then(Value::exact_int);
+        let mut ui = saved.ui_percent;
         let shown = self.display(estimate);
         // F36 (97f11bb1): a player that turned off at 5 % and charged while off
         // started at 5 % again and turned off at once, on the charger, for 13 h.
@@ -367,20 +457,17 @@ impl Soc {
         ));
     }
 
-    pub fn observe(&mut self, now: f64, r: &Reading) -> Object {
+    pub fn observe(&mut self, now: f64, r: &Reading) -> BatteryStatus {
         let charging = r.status.as_deref() == Some("Charging");
-        let mut result = Object::new()
-            .with("percent", Value::Null)
-            .with("source", "unavailable")
-            .with("confidence", "unavailable")
-            .with("status", r.status.clone())
-            .with("charging", charging)
-            .with("voltage_uv", r.voltage)
-            .with("current_ua", r.current)
-            .with("temperature_millicelsius", r.temperature)
-            .with("charge_counter_uah", r.counter)
-            .with("provisional", true)
-            .with("resting", false);
+        let mut result = BatteryStatus {
+            status: r.status.clone(),
+            charging,
+            voltage_uv: r.voltage,
+            current_ua: r.current,
+            temperature_millicelsius: r.temperature,
+            charge_counter_uah: r.counter,
+            ..BatteryStatus::default()
+        };
         let valid_voltage = r.voltage.is_some_and(|v| (2500000..=4400000).contains(&v));
         if r.present != Some(1) || !valid_voltage || !now.is_finite() {
             self.filtered = None;
@@ -404,11 +491,10 @@ impl Soc {
         if let Some(hardware) = r.hardware_percent.filter(|p| (0..=100).contains(p)) {
             // Only BAT0's genuine capacity property can select FuelGaugeSoc.
             self.percent = Some(hardware as f64);
-            result
-                .set("percent", hardware)
-                .set("source", "fuel_gauge")
-                .set("confidence", "hardware")
-                .set("provisional", false);
+            result.percent = Some(hardware);
+            result.source = "fuel_gauge";
+            result.confidence = "hardware";
+            result.provisional = false;
             return result;
         }
         let Some(p) = self.profile.clone() else {
@@ -521,40 +607,33 @@ impl Soc {
             self.ui = Some(self.ui().min(1));
         }
         let percent = self.percent.expect("set");
-        if let Some(capacity) = p.design_capacity_uah {
-            result.set("design_capacity_uah", capacity).set(
-                "remaining_uah_estimate",
-                round_int(capacity as f64 * percent / 100.),
-            );
-        }
-        result
-            .set("percent", self.ui())
-            .set("estimate_percent", round_int(self.display(percent)))
-            .set("anchor_percent", self.anchor.map(round2))
-            .set("full_latched", self.full_latched)
-            .set(
-                "source",
-                if hybrid {
-                    "hybrid"
-                } else if oam {
-                    "stock_oam"
-                } else {
-                    "voltage_estimate"
-                },
-            )
-            .set(
-                "confidence",
-                if p.provisional {
-                    "provisional"
-                } else {
-                    "calibrated_estimate"
-                },
-            )
-            .set("provisional", p.provisional)
-            .set("resting", resting)
-            .set("filtered_voltage_uv", round_int(filtered))
-            .set("start", self.start.clone())
-            .set("calibration_source", p.source.clone());
+        result.percent = Some(self.ui());
+        result.source = if hybrid {
+            "hybrid"
+        } else if oam {
+            "stock_oam"
+        } else {
+            "voltage_estimate"
+        };
+        result.confidence = if p.provisional {
+            "provisional"
+        } else {
+            "calibrated_estimate"
+        };
+        result.provisional = p.provisional;
+        result.resting = resting;
+        result.estimate = Some(Estimate {
+            design_capacity_uah: p.design_capacity_uah,
+            remaining_uah_estimate: p
+                .design_capacity_uah
+                .map(|capacity| round_int(capacity as f64 * percent / 100.)),
+            estimate_percent: round_int(self.display(percent)),
+            anchor_percent: self.anchor.map(round2),
+            full_latched: self.full_latched,
+            filtered_voltage_uv: round_int(filtered),
+            start: self.start.clone(),
+            calibration_source: p.source.clone(),
+        });
         result
     }
 
@@ -606,12 +685,12 @@ impl Soc {
 }
 
 /// `sample(ctx, engine)`: one BAT0 reading on CLOCK_BOOTTIME (physical elapsed time incl. suspend).
-pub fn sample(root: &Root, engine: &mut Soc) -> Object {
+pub fn sample(root: &Root, engine: &mut Soc) -> BatteryStatus {
     let now = root.clock().boottime_ns() as f64 / 1e9;
     sample_at(root, engine, now)
 }
 
-pub fn sample_at(root: &Root, engine: &mut Soc, now: f64) -> Object {
+pub fn sample_at(root: &Root, engine: &mut Soc, now: f64) -> BatteryStatus {
     let base = "/sys/class/power_supply/BAT0/";
     let int = |name: &str| root.integer(&format!("{base}{name}"));
     // Read BAT0 only: PMIC/CPU temperatures and USB configured limits cannot
@@ -674,15 +753,15 @@ mod tests {
             hardware_percent,
             ..Reading::default()
         };
-        assert_eq!(
-            soc.observe(10.0, &reading(Some(55))).get("percent"),
-            Some(&Value::from(55i64))
-        );
+        assert_eq!(soc.observe(10.0, &reading(Some(55))).percent, Some(55));
         let next = soc.observe(11.0, &reading(None));
         // The voltage estimate takes over as on a first sample (no TypeError, no crash).
-        assert_eq!(next.get("source"), Some(&Value::from("voltage_estimate")));
-        assert!(next.get("percent").and_then(Value::exact_int).is_some());
-        assert_eq!(next.get("start"), Some(&Value::from("unknown/live")));
+        assert_eq!(next.source, "voltage_estimate");
+        assert!(next.percent.is_some());
+        assert_eq!(
+            next.estimate.and_then(|e| e.start).as_deref(),
+            Some("unknown/live")
+        );
     }
 
     #[test]
@@ -1007,14 +1086,9 @@ mod tests {
                     boot,
                     ..Reading::default()
                 };
-                let result = soc.observe(now, &reading);
-                let state = soc.state().map(|(ui, anchor)| {
-                    Object::new()
-                        .with("schema", 1i64)
-                        .with("ui_percent", ui)
-                        .with("anchor_percent", anchor)
-                });
-                out.push(Value::Array(vec![result.into(), state.into()]));
+                let result = serde_json::to_value(soc.observe(now, &reading)).unwrap();
+                let state = serde_json::to_value(soc.state().map(DisplayRecord::new)).unwrap();
+                out.push(Value::Array(vec![result, state]));
             }
             ours += &(dumps(&out, Separators::Spaced).unwrap() + "\n");
         }
