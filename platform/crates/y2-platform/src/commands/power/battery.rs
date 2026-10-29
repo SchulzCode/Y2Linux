@@ -3,7 +3,6 @@
 //! Every float operation is Python's, in Python's order (int operands converted where Python converts
 //! them, int/int true division on exact operands), so the percentages match the Python daemon's.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::crash;
 use serde_json::Value;
 use std::collections::VecDeque;
 use y2p_core::{
@@ -313,14 +312,9 @@ impl Soc {
         }
     }
 
-    /// The display value where Python would compare or add `None` (a fuel-gauge sample followed by one
-    /// without): `TypeError`, which ends the daemon.
-    // DEFECT (port): after a sample with BAT0 `capacity` and then one without, `ui` is None and
-    // `track` raises TypeError (min/max/< on None), ending the Python daemon; ported as that crash.
+    /// The display value; set by the first sample (restore) or a fuel-gauge sample.
     fn ui(&self) -> i64 {
-        self.ui.unwrap_or_else(|| {
-            crash("TypeError: '<' not supported between instances of 'int' and 'NoneType'")
-        })
+        self.ui.expect("set by the first sample")
     }
 
     /// First sample: reuse the saved display value within 40 points, or after a warm restart unless
@@ -462,7 +456,10 @@ impl Soc {
         }
         let mut target = interpolate(&p.voltage_soc, estimate_uv);
         let status = r.status.as_deref();
-        if self.percent.is_none() {
+        // After fuel-gauge samples the voltage estimate has no display value yet: it starts as a
+        // first sample (the Python platform went on with `ui` None and its daemon ended on a
+        // TypeError).
+        if self.percent.is_none() || self.ui.is_none() {
             self.start = Some("live".into());
             // Stock oam_init: the PMIC's power-on OCV predates the boot load;
             // a charger that moved it by 31+ points leaves the live sample.
@@ -665,6 +662,27 @@ mod tests {
             std::process::id(),
             NEXT.fetch_add(1, Ordering::SeqCst)
         ))
+    }
+
+    #[test]
+    fn a_sample_without_the_fuel_gauge_goes_on_from_its_percent() {
+        let mut soc = Soc::new(Some(profile()), None);
+        let reading = |hardware_percent| Reading {
+            voltage: Some(3900000),
+            present: Some(1),
+            status: Some("Discharging".into()),
+            hardware_percent,
+            ..Reading::default()
+        };
+        assert_eq!(
+            soc.observe(10.0, &reading(Some(55))).get("percent"),
+            Some(&Json::from(55i64))
+        );
+        let next = soc.observe(11.0, &reading(None));
+        // The voltage estimate takes over as on a first sample (no TypeError, no crash).
+        assert_eq!(next.get("source"), Some(&Json::from("voltage_estimate")));
+        assert!(next.get("percent").and_then(Json::exact_int).is_some());
+        assert_eq!(next.get("start"), Some(&Json::from("unknown/live")));
     }
 
     #[test]
