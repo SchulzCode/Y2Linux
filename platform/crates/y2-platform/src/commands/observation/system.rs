@@ -227,17 +227,9 @@ struct FirmwareInstall {
 fn radiofw_state(root: &Root) -> Value {
     let install: FirmwareInstall = record_fields(root, "/run/y2/radio-firmware.json");
     let target = root.path("/data/firmware/mt6582");
-    let files: [(&str, u64); 7] = [
-        ("WIFI_RAM_CODE_MT6582", 160_368),
-        ("WMT_SOC.cfg", 80),
-        ("mt6572_82_patch_e1_0_hdr.bin", 33_120),
-        ("mt6572_82_patch_e1_1_hdr.bin", 17_476),
-        ("modem_1_2g_n.img", 2_424_376),
-        ("WIFI.defaults", 512),
-        ("BT.defaults", 64),
-    ];
-    // Cheap check for status polling: every file there with its size.
-    let present = files.iter().all(|(n, size)| {
+    // Cheap check for status polling: every file there with its size (the service's own list).
+    use crate::commands::service::radiofw::{DEFAULTS, FILES};
+    let present = FILES.iter().chain(&DEFAULTS).all(|(n, size, _)| {
         std::fs::symlink_metadata(target.join(n))
             .is_ok_and(|m| m.len() == *size && m.file_type().is_file())
     });
