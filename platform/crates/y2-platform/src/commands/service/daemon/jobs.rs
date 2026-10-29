@@ -3,12 +3,11 @@
 //! how long it may run, when it is tried again; and the hourly time floor, done in process.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    atomic_json, command, inventory, media, private_directory, process, py, radiofw, reports,
-    sorted_object, this_boot, time, truthy, update, Child, Failure, Object, Py, Root, Start, Value,
-    PLATFORM, RECONCILE_BACKOFF_S, RECONCILE_LIMIT_S, REPORT_CHECK_S, REPORT_FIRST_S,
-    REPORT_LIMIT_S, REPORT_SEND_GAP_S, VERIFY_RETRY_S,
+    command, inventory, media, process, py, radiofw, reports, this_boot, time, truthy, update,
+    Child, Failure, Object, Py, Root, Start, Value, PLATFORM, RECONCILE_BACKOFF_S,
+    RECONCILE_LIMIT_S, REPORT_CHECK_S, REPORT_FIRST_S, REPORT_LIMIT_S, REPORT_SEND_GAP_S,
+    VERIFY_RETRY_S,
 };
-use y2p_core::json::ObjectExt;
 
 /// `y2-platform <args>` in its own session, its standard streams on /dev/null.
 pub(super) fn start(root: &Root, args: &[&str]) -> Result<Child, Failure> {
@@ -281,40 +280,5 @@ pub(super) fn radio_firmware(
 /// since: a restart without Wi-Fi then resumes about where it was rather than from the last sync or the
 /// build date.
 pub(super) fn remember_time(root: &Root) -> Result<(), Failure> {
-    let (now, monotonic, elapsed) = (
-        time::wall(),
-        root.clock().monotonic(),
-        root.clock().boottime_ns() as f64 / 1e9,
-    );
-    let runtime = root.path("/run/y2");
-    private_directory(&runtime)?;
-    // Never over a record that a sync or the owner wrote meanwhile.
-    let _lock = crate::reply::lock(&runtime.join("time.lock"))?;
-    let anchor = root.json_object("/run/y2/time.json");
-    let source = anchor
-        .get("source")
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    if !matches!(source.as_deref(), Some("ntp" | "manual"))
-        || !time::same_boot(&anchor, &root.boot_id())
-        || !time::plausible(now, time::floor(root))
-        || time::drift(&anchor, now, monotonic, elapsed).abs() > 60.0
-    {
-        return Ok(());
-    }
-    let previous = root.json_object(time::LAST);
-    let last = py::number(previous.get("epoch"));
-    if last.is_some_and(|last| (0.0..time::RETAIN_S).contains(&(now - last)))
-        && previous.get("source").and_then(Value::as_str) == source.as_deref()
-    {
-        return Ok(());
-    }
-    let mut value = sorted_object(&anchor);
-    value
-        .set("epoch", now)
-        .set("monotonic_s", monotonic)
-        .set("boottime_s", elapsed);
-    let directory = root.path("/data/system/platform");
-    private_directory(&directory)?;
-    atomic_json(&directory.join("time-last.json"), &value, true)
+    time::remember_floor(root, true).map(drop)
 }

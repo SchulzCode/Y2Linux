@@ -163,6 +163,14 @@ pub fn remember(root: &Root) -> Outcome {
 }
 
 fn remember_inner(root: &Root) -> Result<Option<Object>, Failure> {
+    remember_floor(root, false)
+}
+
+/// Keep the durable floor (`time-last.json`) at the running clock while it is a good NTP or owner
+/// time of this boot: the anchor plus `epoch`, `monotonic_s` and `boottime_s`. With `retain` a floor
+/// of the same source written less than `RETAIN_S` ago is kept (the service daemon's hourly pass,
+/// #53); `time-remember` (a shutdown step) always writes. The record written, if any.
+pub(crate) fn remember_floor(root: &Root, retain: bool) -> Result<Option<Object>, Failure> {
     let (now, monotonic, elapsed) = (wall(), root.clock().monotonic(), boottime_of(root));
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
@@ -180,7 +188,15 @@ fn remember_inner(root: &Root) -> Result<Option<Object>, Failure> {
     {
         return Ok(None);
     }
-    // `0 <= now - last < every` with every=0 never holds: the CLI always writes.
+    if retain {
+        let previous = root.json_object(LAST);
+        let last = py::number(previous.get("epoch"));
+        if last.is_some_and(|last| (0.0..RETAIN_S).contains(&(now - last)))
+            && previous.get("source").and_then(Value::as_str) == source.as_deref()
+        {
+            return Ok(None);
+        }
+    }
     let mut value = sorted_object(&anchor);
     value
         .set("epoch", now)

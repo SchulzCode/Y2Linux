@@ -32,7 +32,7 @@ use std::{
 use y2p_core::sys::{set_signal, Disposition, Handler};
 use y2p_core::{
     command,
-    json::{sorted_object, Object, ObjectExt},
+    json::{Object, ObjectExt},
     py::{self, is_true, truthy},
     root::read,
     Root,
