@@ -3,15 +3,11 @@
 The stock rows are the Y2 FM kernel's GC9503V lcm_suspend table 0xc09ff464
 (72-byte rows, decoded 2026-10-14) and cs43131_power_down_hw 0xc054b620.
 """
-import json
 from pathlib import Path
 import re
-import sys
-import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'tools/platform'))
 
 # (cmd, params, delay ms after) in stock order; reset HIGH and 50 ms follow.
 STOCK_PANEL_SUSPEND = [
@@ -296,108 +292,13 @@ class IdleVgp2(unittest.TestCase):
 
 
 class Switches(unittest.TestCase):
-    def test_userspace_arms_both_with_owner_override(self):
-        from y2_platform.common import Context
-        from y2_platform.power_features import apply
-        with tempfile.TemporaryDirectory() as temp:
-            ctx = Context(temp)
-            panel = ctx.path('/sys/module/panel/parameters/stock_suspend')
-            vgp2 = ctx.path('/sys/module/y2_cs43131/parameters/vgp2_idle_off')
-            for p in (panel, vgp2):
-                p.parent.mkdir(parents=True)
-                p.write_text('N')
-            result = apply(ctx)
-            self.assertEqual((panel.read_text(), vgp2.read_text()), ('Y', 'Y'))
-            self.assertEqual(result['panel_stock_suspend']['wanted'], True)
-            override = ctx.path('/data/system/platform/power-features.json')
-            override.parent.mkdir(parents=True)
-            override.write_text(json.dumps({'panel_stock_suspend': False, 'vgp2_idle_off': False}))
-            apply(ctx)
-            self.assertEqual((panel.read_text(), vgp2.read_text()), ('N', 'N'))
-
-    def test_deep_idle_audio_is_armed_by_userspace(self):
-        # POWER-FINAL-32: kernel default off, power_features turns it on.
-        from y2_platform.common import Context
-        from y2_platform.power_features import apply
-        with tempfile.TemporaryDirectory() as temp:
-            ctx = Context(temp)
-            param = ctx.path('/sys/module/clocks/parameters/deep_idle_audio')
-            param.parent.mkdir(parents=True)
-            param.write_text('N')
-            self.assertEqual(apply(ctx)['deep_idle_audio']['value'], 'Y')
-            override = ctx.path('/data/system/platform/power-features.json')
-            override.parent.mkdir(parents=True)
-            override.write_text(json.dumps({'deep_idle_audio': False}))
-            apply(ctx)
-            self.assertEqual(param.read_text(), 'N')
-        diagnostics = (ROOT / 'tools/platform/y2_platform/sleep_diagnostics.py').read_text()
-        self.assertIn("'/sys/module/clocks/parameters/deep_audio_entries'", diagnostics)
-
-    def test_panel_power_down_is_on_only_for_a_confirmed_panel(self):
-        # #45: armed at application_ready on an ST7701S (confirmed 6456) and a
-        # GC9503V (confirmed on #45/#42, Beta 8.30); an unknown panel keeps the
-        # lit panel unless the owner opts in.
-        from y2_platform.common import Context
-        from y2_platform.power_features import apply
-        for metadata, expected in (('panel=st7701s', 'Y'), ('panel=gc9503v', 'Y'), ('panel=unknown', 'N'), ('', 'N')):
-            with tempfile.TemporaryDirectory() as temp:
-                ctx = Context(temp)
-                param = ctx.path('/sys/module/panel/parameters/power_down')
-                param.parent.mkdir(parents=True)
-                param.write_text('N')
-                meta = ctx.path('/sys/firmware/y2_boot/metadata')
-                meta.parent.mkdir(parents=True)
-                meta.write_text('valid=1 boot_mode=0 boot_reason=4 offline=0 recovery_image=0 ' + metadata + '\n')
-                apply(ctx)
-                self.assertEqual(param.read_text(), expected, metadata)
-                override = ctx.path('/data/system/platform/power-features.json')
-                override.parent.mkdir(parents=True, exist_ok=True)
-                override.write_text(json.dumps({'panel_power_down': expected == 'N'}))
-                apply(ctx)
-                self.assertEqual(param.read_text(), 'Y' if expected == 'N' else 'N', metadata)
-
     def test_the_panel_is_remembered_for_boots_lk_cannot_identify(self):
         # fm-lk 0x81e0af60: lcm=%1d is LK's "read 0x0A succeeded" flag; the name is
         # the first driver whose compare_id matched, else the last (st7701). The
         # kernel's panel= (gc9503v with either digit, st7701 with lcm=1-) is
         # recorded on Y2DATA and handed to the kernel (panel_hint) when it is unknown.
-        from y2_platform.common import Context
-        from y2_platform.power_features import apply
-        with tempfile.TemporaryDirectory() as temp:
-            ctx = Context(temp)
-            params = ctx.path('/sys/module/panel/parameters')
-            params.mkdir(parents=True)
-            (params / 'power_down').write_text('N')
-            (params / 'panel_hint').write_text('0')
-            meta = ctx.path('/sys/firmware/y2_boot/metadata')
-            meta.parent.mkdir(parents=True)
-            lcm = ctx.path('/sys/firmware/y2_boot/lcm')
-            def boot(panel, token):
-                meta.write_text('valid=1 boot_mode=0 boot_reason=4 offline=0 recovery_image=0 panel=%s\n' % panel)
-                lcm.write_text(token + '\n')
-                (params / 'power_down').write_text('N')
-                (params / 'panel_hint').write_text('0')
-                apply(ctx)
-                return (params / 'power_down').read_text(), (params / 'panel_hint').read_text()
-            # No record yet and LK could not read the panel: stays lit.
-            self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('N', '0'))
-            # An identified boot records it; LK itself identifies, no hint needed.
-            self.assertEqual(boot('st7701s', 'lcm=1-st7701_hvga_dsi_vdo_boe'), ('Y', '0'))
-            self.assertEqual(ctx.json('/data/system/platform/panel.json')['panel'], 'st7701s')
-            # A soft restart uses the record.
-            self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('Y', '2'))
-            # The driver's own ID read identifies it too (and is recorded).
-            (params / 'panel_kind').write_text('2')
-            ctx.path('/data/system/platform/panel.json').unlink()
-            self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('Y', '0'))
-            self.assertEqual(ctx.json('/data/system/platform/panel.json')['panel'], 'st7701s')
-            (params / 'panel_kind').write_text('0')
-            # A GC9503V is armed too (8.30) and its record handed over. LK names
-            # it with lcm=0- too (#45/#46: a cold boot on the reporter's player).
-            self.assertEqual(boot('gc9503v', 'lcm=0-gc9503v_hvga_dsi_vdo_hsd'), ('Y', '0'))
-            self.assertEqual(ctx.json('/data/system/platform/panel.json')['panel'], 'gc9503v')
-            self.assertEqual(boot('gc9503v', 'lcm=1-gc9503v_hvga_dsi_vdo_hsd'), ('Y', '0'))
-            self.assertEqual(boot('unknown', 'lcm=0-st7701_hvga_dsi_vdo_boe'), ('Y', '1'))
+        # The power_features half (record, panel_hint, power_down) is the Rust test
+        # power_features_tests::the_panel_is_remembered_for_boots_lk_cannot_identify.
         source = StockPanelSuspend.source[StockPanelSuspend.source.index('static int gc9503v_identify('):]
         source = source[:source.index('\n}\n')]
         # LK's identification always wins; the record only fills a boot LK could not read.
@@ -406,12 +307,6 @@ class Switches(unittest.TestCase):
         self.assertLess(source.index('MIPI_DCS_GET_DISPLAY_ID'), source.index('mipi_dsi_dcs_read(ctx->dsi, 0xa1, st, sizeof(st))'))
         self.assertLess(source.index('0xa1, st, sizeof(st)'), source.index('switch (READ_ONCE(panel_hint))'))
         self.assertIn('(st[0] == 0x88 || st[0] == 0x99)', source)
-
-    def test_sleep_rows_record_both(self):
-        diagnostics = (ROOT / 'tools/platform/y2_platform/sleep_diagnostics.py').read_text()
-        self.assertIn("'/sys/module/panel/parameters/stock_suspend'", diagnostics)
-        self.assertIn("'/sys/module/panel/parameters/power_down'", diagnostics)
-        self.assertIn("'/sys/module/y2_cs43131/parameters/vgp2_idle_off'", diagnostics)
 
 
 if __name__ == '__main__':

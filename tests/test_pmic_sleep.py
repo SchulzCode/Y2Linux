@@ -4,17 +4,13 @@ Registers start at 17's real sleep-entry values (archive 112, boot de37f6bc,
 pmic_golden): 0x102=0x8043, 0x108=0x03bf, 0x10e=0, 0x70c=0x1c32, 0x776=0,
 0x778=0. Field names: ledger F15/F16.
 """
-import json
 from pathlib import Path
-import sys
-import tempfile
 import unittest
 
 from test_power import run_c
 
 ROOT = Path(__file__).resolve().parents[1]
 PLATFORM = ROOT / 'kernel/platform'
-sys.path.insert(0, str(ROOT / 'tools/platform'))
 
 
 class PmicSleep(unittest.TestCase):
@@ -149,29 +145,6 @@ int main(void) {
         begin = pwrap[pwrap.index('void y2_pmic_sleep_begin(void)'):pwrap.index('void y2_pmic_sleep_end(void)')]
         self.assertLess(begin.index('y2_ps_vsys_ready('), begin.index('y2_ps_apply('))
         self.assertIn('groups &= ~Y2_PS_VSYS;', begin)
-        diagnostics = (ROOT / 'tools/platform/y2_platform/sleep_diagnostics.py').read_text()
-        self.assertIn("'pmic_sleep_state'", diagnostics)
-
-    def test_userspace_arms_all_groups_with_owner_override(self):
-        from y2_platform.common import Context
-        from y2_platform.power_features import apply
-        with tempfile.TemporaryDirectory() as temp:
-            ctx = Context(temp)
-            param = ctx.path('/sys/module/pwrap/parameters/pmic_sleep')
-            param.parent.mkdir(parents=True)
-            param.write_text('0')
-            self.assertEqual(apply(ctx)['pmic_sleep']['wanted'], 0xf)
-            self.assertEqual(param.read_text(), '15')
-            override = ctx.path('/data/system/platform/power-features.json')
-            override.parent.mkdir(parents=True)
-            override.write_text(json.dumps({'pmic_sleep': 1}))
-            apply(ctx)
-            self.assertEqual(param.read_text(), '1')
-            override.write_text(json.dumps({'pmic_sleep': 7}))   # 26 behaviour: no VSYS
-            apply(ctx)
-            self.assertEqual(param.read_text(), '7')
-            override.write_text(json.dumps({'pmic_sleep': 16}))
-            self.assertIn('error', apply(ctx)['pmic_sleep'])
 
 
 if __name__ == '__main__':

@@ -1156,3 +1156,7 @@ fn run(root: &Root, args: &Args) -> Result<(), E> {
         .map_err(|e| E::os(&e, None))?;
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "audit_tests.rs"]
+mod audit_tests;

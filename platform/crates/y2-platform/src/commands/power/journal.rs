@@ -738,7 +738,19 @@ impl PowerJournal {
         shutdown: Option<&Object>,
         event: Option<&str>,
     ) -> bool {
-        let now = clock::monotonic();
+        self.observe_at(root, state, battery, shutdown, event, clock::monotonic())
+    }
+
+    /// `observe(..., now=now)`: at this CLOCK_MONOTONIC time (seconds).
+    pub fn observe_at(
+        &mut self,
+        root: &Root,
+        state: &str,
+        battery: &Object,
+        shutdown: Option<&Object>,
+        event: Option<&str>,
+        now: f64,
+    ) -> bool {
         // POWER-FINAL-14: persist USB state changes (and one follow-up) so a
         // USB failure after a wake leaves evidence across a restart.
         self.diagnostics.observe_usb(root, now);
@@ -962,3 +974,7 @@ mod tests {
         assert!(sleep_status(&parse(r#"{"product": [1]}"#), Some("b")).is_err());
     }
 }
+
+#[cfg(test)]
+#[path = "journal_tests.rs"]
+mod journal_tests;

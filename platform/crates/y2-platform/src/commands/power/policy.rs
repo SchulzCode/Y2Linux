@@ -337,3 +337,7 @@ mod tests {
         fs::remove_dir_all(dir).unwrap();
     }
 }
+
+#[cfg(test)]
+#[path = "policy_tests.rs"]
+mod policy_tests;

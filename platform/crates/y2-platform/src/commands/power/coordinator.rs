@@ -527,3 +527,7 @@ fn kill(root: &Root, name: &str, executable: &str, identity: &Object) {
         libc::close(fd as libc::c_int);
     }
 }
+
+#[cfg(test)]
+#[path = "coordinator_tests.rs"]
+mod coordinator_tests;

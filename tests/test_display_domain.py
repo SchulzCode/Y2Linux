@@ -3,10 +3,7 @@
 Stock (REA, FM kernel spm_mtcmos_ctrl_disp 0xc00350a8) powers DIS off at every
 screen-off; Y2 15 never did and slept with DIS on (PWR_STATUS 0x314c).
 """
-import json
 from pathlib import Path
-import sys
-import tempfile
 import unittest
 
 from test_audio import function
@@ -14,7 +11,6 @@ from test_power import run_c
 
 ROOT = Path(__file__).resolve().parents[1]
 PLATFORM = ROOT / 'kernel/platform'
-sys.path.insert(0, str(ROOT / 'tools/platform'))
 
 
 class DisplayDomain(unittest.TestCase):
@@ -88,33 +84,6 @@ int main(void) {
         self.assertIn('#power-domain-cells = <1>;', dts)
         self.assertIn('power-domains = <&spm 0>;', dts)
         self.assertEqual(dts.count('power-domains = <&spm 1>'), 2)
-
-    def test_userspace_arms_after_first_frame_with_owner_override(self):
-        from y2_platform.common import Context
-        from y2_platform.power_features import apply
-        with tempfile.TemporaryDirectory() as temp:
-            ctx = Context(temp)
-            param = ctx.path('/sys/module/spm/parameters/dis_pdn')
-            param.parent.mkdir(parents=True)
-            param.write_text('N')
-            ctx.path('/sys/module/spm/parameters/golden_apply').write_text('0')
-            self.assertEqual(apply(ctx)['dis_pdn']['wanted'], True)
-            self.assertEqual(param.read_text(), 'Y')
-            override = ctx.path('/data/system/platform/power-features.json')
-            override.parent.mkdir(parents=True)
-            override.write_text(json.dumps({'dis_pdn': False}))
-            apply(ctx)
-            self.assertEqual(param.read_text(), 'N')
-            self.assertEqual(ctx.json('/run/y2/power-features.json')['features']['dis_pdn']['wanted'], False)
-            # golden_apply: all groups by default, owner subset, invalid value refused.
-            self.assertEqual(ctx.path('/sys/module/spm/parameters/golden_apply').read_text(), '15')
-            override.write_text(json.dumps({'golden_apply': 3}))
-            apply(ctx)
-            self.assertEqual(ctx.path('/sys/module/spm/parameters/golden_apply').read_text(), '3')
-            override.write_text(json.dumps({'golden_apply': 99}))
-            self.assertIn('error', apply(ctx)['golden_apply'])
-        boot = (ROOT / 'tools/platform/y2_platform/boot.py').read_text()
-        self.assertIn("if stage == 'application_ready':", boot)
 
     def test_a_restart_leaves_the_smi_gates_open_for_lk(self):
         # Beta 8.4 (POWER-FINAL-42 back): a watchdog restart keeps
