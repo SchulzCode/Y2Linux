@@ -1,12 +1,36 @@
 //! The `power` section: the power supplies, the power daemon's battery record and the sleep receipt.
 // SPDX-License-Identifier: GPL-2.0-only
-use crate::commands::observation::util::{get_eq, is_int, name, read, text};
+use crate::commands::observation::util::{fields, is_int, name, read, text};
 use crate::reply::Failure;
+use serde::Deserialize;
 use serde_json::{json, Map, Value};
-use y2p_core::{py::truthy, Root};
+use y2p_core::{
+    json::{Object, ObjectExt},
+    py::{truthy, PyValue},
+    Root,
+};
+
+/// When `/run/y2/power.json` (the power daemon's policy record, renewed every second) was written.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct PolicyStamp {
+    boot_id: Value,
+    monotonic_ns: Value,
+}
+
+/// The power daemon's battery reading (power.json `battery`).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Battery {
+    current_ua: Value,
+    percent: Value,
+    source: Value,
+    confidence: Value,
+    temperature_millicelsius: Value,
+}
 
 pub fn power(root: &Root) -> Result<Value, Failure> {
-    let fields = [
+    let supply_fields = [
         "type",
         "status",
         "health",
@@ -25,22 +49,22 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
     let mut supplies = Vec::new();
     for path in root.glob("/sys/class/power_supply/*") {
         let mut supply = Map::new();
-        for f in fields {
-            supply.insert(f.into(), text(read(&path.join(f))));
+        for field in supply_fields {
+            supply.insert(field.into(), text(read(&path.join(field))));
         }
         supply.insert("name".into(), json!(name(&path)));
         supplies.push(Value::Object(supply));
     }
+    // The policy record counts while the daemon renews it: this boot, within the last 5 s.
     let mut policy = root.json_object("/run/y2/power.json");
-    let boot = Value::from(root.boot_id());
-    let fresh = is_int(policy.get("monotonic_ns")).is_some_and(|t| {
+    let stamp: PolicyStamp = fields(&policy);
+    let fresh = is_int(Some(&stamp.monotonic_ns)).is_some_and(|t| {
         (0..5_000_000_000).contains(&(i128::from(root.clock().monotonic_ns()) - t))
     });
-    if !get_eq(&policy, "boot_id", &boot) || !fresh {
-        policy = serde_json::from_value(
-            json!({"state": "Unavailable", "reason": "policy_not_running_or_stale"}),
-        )
-        .expect("literal");
+    if !stamp.boot_id.py_eq(&Value::from(root.boot_id())) || !fresh {
+        policy = Object::new()
+            .with("state", "Unavailable")
+            .with("reason", "policy_not_running_or_stale");
     }
     // No battery is an empty one; a battery that is no object is a broken record.
     let battery = match policy.get("battery") {
@@ -48,7 +72,7 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
         Some(Value::Object(map)) => map.clone(),
         Some(_) => return Err(Failure::value("invalid_power_record")),
     };
-    let get = |k: &str| battery.get(k).cloned().unwrap_or(Value::Null);
+    let reading: Battery = fields(&battery);
     let mut receipt = root.json_object("/data/system/platform/suspend-last.json");
     if let Some(product) = receipt
         .get("product")
@@ -64,10 +88,10 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
     };
     Ok(json!({
         "supplies": supplies, "units": {"voltage": "uV", "configured_current": "uA"},
-        "battery": battery.clone(),
-        "measured_current_ua": get("current_ua"), "soc_percent": get("percent"),
-        "soc_source": get("source"), "soc_confidence": get("confidence"),
-        "pack_temperature": get("temperature_millicelsius"),
+        "battery": battery,
+        "measured_current_ua": reading.current_ua, "soc_percent": reading.percent,
+        "soc_source": reading.source, "soc_confidence": reading.confidence,
+        "pack_temperature": reading.temperature_millicelsius,
         "unavailable_reason": "not_exposed_by_qualified_y2_battery_driver",
         "normal_boot": root.integer("/sys/firmware/y2_boot/normal_boot"),
         "low_battery": policy, "sleep": sleep,
@@ -145,7 +169,7 @@ fn holds_non_text_key(value: &Value) -> bool {
 /// is no text is refused (`invalid_sleep_receipt`). A section that leaves out the power section
 /// prints.
 pub fn printable(value: &Map<String, Value>) -> Result<(), Failure> {
-    if value.values().any(holds_non_text_key) || value.keys().any(|k| k.starts_with(NON_TEXT_KEY)) {
+    if value.values().any(holds_non_text_key) {
         return Err(invalid_sleep_receipt());
     }
     Ok(())

@@ -1,12 +1,12 @@
 //! `observe.bluetooth`, `bluetooth.normalize`, `codec_controls.status` and
 //! `codec_observation.quality`: actual D-Bus observations, never codec requests, for platform clients.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::util::{self, contains, get_eq, is_int};
+use super::util::{self, contains, fields, get_eq, is_int, present, record_fields};
 use crate::{
     commands::codec::{inventory_codec, requested, validate},
     reply::Failure,
 };
-use serde::de::{Deserializer, IgnoredAny, MapAccess, Visitor};
+use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use y2p_core::py::PyValue;
 use y2p_core::{
@@ -40,13 +40,35 @@ fn inventory_entry<'a>(
         .map_err(|_| Settings::Stop(Stop::Refused(Failure::value("invalid_codec_inventory"))))
 }
 
+/// The installed codec inventory (what this build compiled and qualified).
+const INVENTORY: &str = "/etc/y2linux/bluetooth-codecs.json";
+
+/// `/run/y2/codec-runtime.json`: the codec arguments BlueALSA was last started with and the
+/// settings they carry (connectivity group).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct AppliedCodecs {
+    /// Missing (no arguments) differs from null (no list: unobserved).
+    #[serde(deserialize_with = "present")]
+    arguments: Option<Value>,
+    boot_id: Value,
+    settings: Value,
+}
+
+/// When `/run/y2/bt-reconnect.json` was written (y2-bt-reconnect, every few seconds).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct ReconnectStamp {
+    boot_id: Value,
+    monotonic_us: Value,
+}
+
 /// `codec_controls.status`.
-fn codec_settings(root: &Root) -> Result<Value, Settings> {
+fn codec_settings(root: &Root, inventory: &Map<String, Value>) -> Result<Value, Settings> {
     let policy = requested(root)
         .and_then(validate)
         .map_err(|error| Settings::Invalid(error.message()))?;
-    let inventory = root.json_object("/etc/y2linux/bluetooth-codecs.json");
-    let applied = root.json_object("/run/y2/codec-runtime.json");
+    let applied: AppliedCodecs = record_fields(root, "/run/y2/codec-runtime.json");
     let boot = root.boot_id();
     // This receipt records startup arguments, never endpoint/negotiation success.
     let pid = root.integer("/run/y2/bluealsa.pid");
@@ -63,7 +85,7 @@ fn codec_settings(root: &Root) -> Result<Value, Settings> {
             .as_str()
             .is_some_and(|a| a.rsplit('/').next() == Some("bluealsad"))
         && {
-            let arguments = match applied.get("arguments") {
+            let arguments = match &applied.arguments {
                 None => Vec::new(),
                 Some(other) => {
                     y2p_core::py::iterate(other).ok_or(Settings::Stop(Stop::Unobserved))?
@@ -72,16 +94,16 @@ fn codec_settings(root: &Root) -> Result<Value, Settings> {
             arguments.iter().all(|a| contains(&argv, a))
         };
     let effective = if live
-        && get_eq(&applied, "boot_id", &util::text(boot.clone()))
+        && applied.boot_id.py_eq(&util::text(boot.clone()))
         && boot.as_deref().is_some_and(|b| !b.is_empty())
     {
-        applied.get("settings").cloned().unwrap_or(Value::Null)
+        applied.settings
     } else {
         Value::Null
     };
     let policy = Value::Object(policy);
-    let aac = inventory_entry(&inventory, "AAC")?;
-    let ldac = inventory_entry(&inventory, "LDAC")?;
+    let aac = inventory_entry(inventory, "AAC")?;
+    let ldac = inventory_entry(inventory, "LDAC")?;
     let compiled =
         |codec: Option<&Map<String, Value>>| codec.and_then(|c| c.get("compiled_locally")).cloned();
     let qualities = |codec: Option<&Map<String, Value>>, list: Value| {
@@ -242,83 +264,7 @@ fn quality(codec: &Value, pcm: &Map<String, Value>, settings: &Value) -> Map<Str
     value
 }
 
-/// The key order of the `bluez` object in y2-bt-observe's output (Python dicts keep it; the device
-/// list follows it).
-struct BluezOrder(Vec<String>);
-
-impl<'de> serde::Deserialize<'de> for BluezOrder {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct Top;
-        impl<'de> Visitor<'de> for Top {
-            type Value = BluezOrder;
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                f.write_str("an object")
-            }
-            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<BluezOrder, A::Error> {
-                let mut order = Vec::new();
-                while let Some(key) = map.next_key::<String>()? {
-                    if key == "bluez" {
-                        order = map.next_value::<Keys>()?.0;
-                    } else {
-                        map.next_value::<IgnoredAny>()?;
-                    }
-                }
-                Ok(BluezOrder(order))
-            }
-        }
-        deserializer.deserialize_map(Top)
-    }
-}
-
-/// An object's keys in document order (a repeated key keeps its first position, as a dict).
-struct Keys(Vec<String>);
-
-impl<'de> serde::Deserialize<'de> for Keys {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct Object;
-        impl<'de> Visitor<'de> for Object {
-            type Value = Keys;
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                f.write_str("any value")
-            }
-            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Keys, A::Error> {
-                let mut keys: Vec<String> = Vec::new();
-                while let Some(key) = map.next_key::<String>()? {
-                    map.next_value::<IgnoredAny>()?;
-                    if !keys.contains(&key) {
-                        keys.push(key);
-                    }
-                }
-                Ok(Keys(keys))
-            }
-            fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<Keys, A::Error> {
-                while seq.next_element::<IgnoredAny>()?.is_some() {}
-                Ok(Keys(Vec::new()))
-            }
-            fn visit_bool<E>(self, _: bool) -> Result<Keys, E> {
-                Ok(Keys(Vec::new()))
-            }
-            fn visit_i64<E>(self, _: i64) -> Result<Keys, E> {
-                Ok(Keys(Vec::new()))
-            }
-            fn visit_u64<E>(self, _: u64) -> Result<Keys, E> {
-                Ok(Keys(Vec::new()))
-            }
-            fn visit_f64<E>(self, _: f64) -> Result<Keys, E> {
-                Ok(Keys(Vec::new()))
-            }
-            fn visit_str<E>(self, _: &str) -> Result<Keys, E> {
-                Ok(Keys(Vec::new()))
-            }
-            fn visit_unit<E>(self) -> Result<Keys, E> {
-                Ok(Keys(Vec::new()))
-            }
-        }
-        deserializer.deserialize_any(Object)
-    }
-}
-
-fn base(root: &Root, settings: Value) -> Map<String, Value> {
+fn base(root: &Root, settings: Value, inventory: Option<Value>) -> Map<String, Value> {
     let value = json!({
         "state": "Unavailable", "reason": "dbus_observation_unavailable",
         "adapter": null, "selected_peer": null, "transport": null,
@@ -329,7 +275,7 @@ fn base(root: &Root, settings: Value) -> Map<String, Value> {
         "actual_bitrate_bps": null, "packet_loss": null,
         "reconnect_owner": "y2-bt-reconnect",
         "reconnect": root.json("/run/y2/bt-reconnect.json"),
-        "codec_inventory": root.json("/etc/y2linux/bluetooth-codecs.json"),
+        "codec_inventory": inventory,
         "codec_settings": settings,
     });
     match value {
@@ -339,8 +285,15 @@ fn base(root: &Root, settings: Value) -> Map<String, Value> {
 }
 
 /// `bluetooth.normalize(ctx, raw)`.
-fn normalize(root: &Root, raw: &Map<String, Value>, order: &[String]) -> Result<Value, Stop> {
-    let settings = match codec_settings(root) {
+fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
+    // Read once: the settings check it and the section shows it.
+    let inventory = root.json(INVENTORY);
+    let none = Map::new();
+    let entries = match &inventory {
+        Some(Value::Object(map)) => map,
+        _ => &none,
+    };
+    let settings = match codec_settings(root, entries) {
         Ok(settings) => settings,
         Err(Settings::Invalid(reason)) => {
             json!({"schema": y2p_contract::schema::CODEC_SETTINGS, "state": "Failed",
@@ -349,12 +302,13 @@ fn normalize(root: &Root, raw: &Map<String, Value>, order: &[String]) -> Result<
         }
         Err(Settings::Stop(stop)) => return Err(stop),
     };
-    let mut result = base(root, settings);
-    let reconnect = result.get("reconnect").cloned().unwrap_or(Value::Null);
-    let stale = match &reconnect {
-        Value::Object(r) => {
-            !get_eq(r, "boot_id", &Value::from(root.boot_id()))
-                || !is_int(r.get("monotonic_us")).is_some_and(|us| {
+    let mut result = base(root, settings, inventory);
+    // Fresh: written this boot within the last 10 s.
+    let stale = match result.get("reconnect") {
+        Some(Value::Object(record)) => {
+            let stamp: ReconnectStamp = fields(record);
+            !stamp.boot_id.py_eq(&Value::from(root.boot_id()))
+                || !is_int(Some(&stamp.monotonic_us)).is_some_and(|us| {
                     let age = root.clock().monotonic() * 1e6 - us as f64;
                     (0.0..10_000_000.0).contains(&age)
                 })
@@ -447,11 +401,11 @@ fn normalize(root: &Root, raw: &Map<String, Value>, order: &[String]) -> Result<
         result.insert("state".into(), json!("Degraded"));
         result.insert("reason".into(), json!("bluealsa_runtime_version_mismatch"));
     }
+    // In y2-bt-observe's order (the object's keys as the output gives them).
     let mut devices = Vec::new();
-    for device_path in order {
-        let Some(device) = bluez
-            .get(device_path)
-            .and_then(|i| i.get("org.bluez.Device1"))
+    for (device_path, interfaces) in bluez {
+        let Some(device) = interfaces
+            .get("org.bluez.Device1")
             .and_then(Value::as_object)
         else {
             continue;
@@ -557,10 +511,7 @@ pub fn bluetooth(root: &Root) -> Result<Value, Failure> {
     let output = answer.output.unwrap_or_default();
     if let Ok(Value::Object(observed)) = serde_json::from_str::<Value>(&output) {
         if get_eq(&observed, "schema", &json!(1)) {
-            let order = serde_json::from_str::<BluezOrder>(&output)
-                .map(|o| o.0)
-                .unwrap_or_default();
-            match normalize(root, &observed, &order) {
+            match normalize(root, &observed) {
                 Ok(value) => return Ok(value),
                 Err(Stop::Refused(error)) => return Err(error),
                 Err(Stop::Unobserved) => {}

@@ -3,6 +3,7 @@
 //! True`), `os.path.realpath`, uncapped `Path.glob`, and `ctx.record`.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::Failure;
+use serde::de::{value::MapDeserializer, DeserializeOwned};
 use serde_json::{json, Map, Value};
 use std::{
     collections::BTreeMap,
@@ -194,6 +195,26 @@ fn as_i128(value: &Value) -> Option<i128> {
 
 fn num(value: &Value) -> Option<f64> {
     y2p_core::py::number(Some(value))
+}
+
+/// The named fields of a record as `T` (each field a `Value`; a missing one is null, as `dict.get`
+/// gives None), for the checks that read them; the record itself can still be shown whole. `T` takes
+/// any object, so nothing about the record's other fields or types is refused here.
+pub fn fields<T: DeserializeOwned + Default>(record: &Map<String, Value>) -> T {
+    let entries = record.iter().map(|(key, value)| (key.as_str(), value));
+    T::deserialize(MapDeserializer::<_, serde_json::Error>::new(entries)).unwrap_or_default()
+}
+
+/// `fields` of the JSON object at a device path (all null for a missing or unreadable file, or one
+/// that is no object).
+pub fn record_fields<T: DeserializeOwned + Default>(root: &Root, name: &str) -> T {
+    fields(&root.json_object(name))
+}
+
+/// For a `fields` field that tells a missing key (None) from a null one (`Some(Null)`):
+/// `#[serde(default, deserialize_with = "present")]`.
+pub fn present<'de, D: serde::Deserializer<'de>>(value: D) -> Result<Option<Value>, D::Error> {
+    serde::Deserialize::deserialize(value).map(Some)
 }
 
 /// `d.get(key) == other` where a missing key is None.
@@ -418,6 +439,23 @@ mod tests {
         );
         assert_eq!(realpath(&dir.join("absent/z")), real.join("absent/z"));
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn record_fields_read_missing_as_null_and_take_any_type() {
+        #[derive(serde::Deserialize, Default)]
+        #[serde(default)]
+        struct Record {
+            state: Value,
+            #[serde(deserialize_with = "present")]
+            arguments: Option<Value>,
+        }
+        let read = |value: Value| -> Record { fields(value.as_object().unwrap()) };
+        let full = read(json!({"state": ["odd"], "arguments": null, "other": 1}));
+        assert_eq!(full.state, json!(["odd"]));
+        assert_eq!(full.arguments, Some(Value::Null));
+        let empty = read(json!({}));
+        assert!(empty.state.is_null() && empty.arguments.is_none());
     }
 
     #[test]

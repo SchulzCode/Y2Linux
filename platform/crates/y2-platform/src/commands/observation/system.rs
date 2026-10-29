@@ -2,12 +2,19 @@
 //! `boot.evidence_status`/`reset_cause`, `internal_media.setup_status`/`ready`, `usb_diagnostics`.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::util::{
-    self, findall2, findall_map, get_eq, name, number, read, read_limited, splitlines, text,
+    self, findall2, findall_map, get_eq, name, number, read, read_limited, record_fields,
+    splitlines, text,
 };
 use crate::{regex, reply::Failure};
+use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use std::os::unix::fs::MetadataExt;
-use y2p_core::{command, py::truthy, Root};
+use y2p_core::{
+    command,
+    json::{Object, ObjectExt},
+    py::{truthy, PyValue},
+    Root,
+};
 
 pub const RESET_STATUS: &str = "/sys/firmware/y2_pm/reset_status";
 
@@ -117,15 +124,27 @@ pub fn setup_status(root: &Root) -> Value {
     }
 }
 
+/// `/run/y2/internal-media.json`: the Y2Media mount the platform made (storage group).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct InternalClaim {
+    state: Value,
+    boot_id: Value,
+    mount_id: Value,
+    device_id: Value,
+}
+
 /// `internal_media.ready`: True only while the recorded mount is still the live, exact Y2Media mount.
 pub fn internal_ready(root: &Root) -> bool {
-    let claim = root.json_object("/run/y2/internal-media.json");
+    let claim: InternalClaim = record_fields(root, "/run/y2/internal-media.json");
     let current = y2p_core::mounts::mounts_at(root, "/media/internal");
-    claim.get("state").and_then(Value::as_str) == Some("Ready")
-        && current.len() == 1
-        && get_eq(&claim, "boot_id", &Value::from(root.boot_id()))
-        && get_eq(&claim, "mount_id", &json!(current[0].mount_id))
-        && get_eq(&claim, "device_id", &json!(current[0].device_id))
+    let [mount] = &current[..] else {
+        return false;
+    };
+    claim.state.as_str() == Some("Ready")
+        && claim.boot_id.py_eq(&Value::from(root.boot_id()))
+        && claim.mount_id.py_eq(&json!(mount.mount_id))
+        && claim.device_id.py_eq(&json!(mount.device_id))
 }
 
 /// `int(text, 16)`.
@@ -201,17 +220,17 @@ fn lock_holders(root: &Root, meta: &std::fs::Metadata) -> Vec<String> {
 /// restart kept it (it is on /data).
 fn download_record(root: &Root) -> Value {
     let record = root.json("/data/updates/download.json");
-    if let Some(Value::Object(map)) = &record {
-        let running = std::fs::metadata(root.path("/data/updates/.stage.lock"))
-            .map(|meta| !lock_holders(root, &meta).is_empty())
-            .unwrap_or(false);
-        if matches!(
-            map.get("state").and_then(Value::as_str),
-            Some("Staging" | "Checking")
-        ) && !running
-        {
-            return json!({"schema": 1, "state": "Failed", "failure": "download_interrupted"});
-        }
+    let in_progress = record
+        .as_ref()
+        .and_then(|r| r.get("state"))
+        .and_then(Value::as_str)
+        .is_some_and(|state| matches!(state, "Staging" | "Checking"));
+    // Only a download in progress needs its process: the lock's live holders.
+    if in_progress
+        && !std::fs::metadata(root.path("/data/updates/.stage.lock"))
+            .is_ok_and(|meta| !lock_holders(root, &meta).is_empty())
+    {
+        return json!({"schema": 1, "state": "Failed", "failure": "download_interrupted"});
     }
     record.unwrap_or(Value::Null)
 }
@@ -243,19 +262,14 @@ pub fn update_status(root: &Root) -> Value {
         root.json("/data/updates/last-check.json")
             .unwrap_or(Value::Null),
     );
-    // channel(ctx).get('name'): the owner's override on /data, or the shipped channel.
-    let shipped = match root.json("/etc/y2linux/update-channel.json") {
-        Some(Value::Object(m)) => m,
-        _ => Map::new(),
-    };
-    let override_ = match root.json("/data/updates/channel.json") {
-        Some(Value::Object(m)) => m,
-        _ => Map::new(),
-    };
-    let name = override_
-        .get("name")
-        .or(shipped.get("name"))
-        .cloned()
+    // The owner's channel on /data, or the shipped one.
+    let name = root
+        .json_object("/data/updates/channel.json")
+        .shift_remove("name")
+        .or_else(|| {
+            root.json_object("/etc/y2linux/update-channel.json")
+                .shift_remove("name")
+        })
         .unwrap_or(Value::Null);
     value.insert("channel".into(), name);
     value.insert("full_system".into(), json!(true));
@@ -263,12 +277,17 @@ pub fn update_status(root: &Root) -> Value {
     Value::Object(value)
 }
 
+/// `/run/y2/radio-firmware.json`: the last firmware install's answer (service group).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct FirmwareInstall {
+    state: Value,
+    reason: Value,
+}
+
 /// `radiofw.state`.
 fn radiofw_state(root: &Root) -> Value {
-    let value = match root.json("/run/y2/radio-firmware.json") {
-        Some(Value::Object(m)) => m,
-        _ => Map::new(),
-    };
+    let install: FirmwareInstall = record_fields(root, "/run/y2/radio-firmware.json");
     let target = root.path("/data/firmware/mt6582");
     let files: [(&str, u64); 7] = [
         ("WIFI_RAM_CODE_MT6582", 160_368),
@@ -287,21 +306,19 @@ fn radiofw_state(root: &Root) -> Value {
     if present {
         return json!({"state": "Ready"});
     }
-    if matches!(
-        value.get("state").and_then(Value::as_str),
-        Some("Installing" | "Failed")
-    ) {
-        return json!({"state": value.get("state"), "reason": value.get("reason")});
+    if matches!(install.state.as_str(), Some("Installing" | "Failed")) {
+        return json!({"state": install.state, "reason": install.reason});
     }
     let mut missing = json!({"state": "Missing", "folder": "Firmware", "file": "system.img",
                              "location": if internal_ready(root) { "internal" } else { "drive" }});
     // The responder refuses a copy that does not fit before writing anything (mtp-safe space()), so
     // nothing is left behind; only say why (#39).
-    let events = match root.json("/run/y2/mtp-events.json") {
-        Some(Value::Object(m)) => m,
-        _ => Map::new(),
-    };
-    if get_eq(&events, "error", &json!(28)) {
+    // ENOSPC
+    if get_eq(
+        &root.json_object("/run/y2/mtp-events.json"),
+        "error",
+        &json!(28),
+    ) {
         missing["reason"] = json!("no_space");
     }
     missing
@@ -314,9 +331,16 @@ fn source_type(text: Option<&str>) -> Value {
         .map_or(Value::Null, |c| json!(&c[1]))
 }
 
+/// The charger's `charging_state` fields the USB diagnostics show, each with its pattern (compiled
+/// once).
 fn charge_field(state: &str, name: &str) -> Result<Value, Failure> {
-    let pattern = y2p_core::observation_support::regex::Regex::new(&format!(r"\b{name}=(-?\d+)"))
-        .expect("pattern");
+    let pattern = match name {
+        "stock_request_ua" => regex!(r"\bstock_request_ua=(-?\d+)"),
+        "class_ceiling_ua" => regex!(r"\bclass_ceiling_ua=(-?\d+)"),
+        "thermal_level" => regex!(r"\bthermal_level=(-?\d+)"),
+        "sense_current_est_ua" => regex!(r"\bsense_current_est_ua=(-?\d+)"),
+        _ => return Ok(Value::Null),
+    };
     match pattern.captures(state) {
         Some(c) => Ok(json!(util::int_or_raise(&c[1])?)),
         None => Ok(Value::Null),
@@ -442,13 +466,13 @@ fn time_status(root: &Root) -> Result<Value, Failure> {
 /// `observe.system`.
 pub fn system(root: &Root) -> Result<Value, Failure> {
     let clock = time_status(root)?;
+    // The SSH supervisor's record while it is renewed (every few seconds) this boot.
     let mut ssh = root.json_object("/run/y2/ssh.json");
     let boot = Value::from(root.boot_id());
     if !get_eq(&ssh, "boot_id", &boot) || !util::fresh_seconds(root, ssh.get("monotonic_s"), 10.0) {
-        ssh = serde_json::from_value(
-            json!({"state": "Unavailable", "reason": "ssh_record_stale_or_absent"}),
-        )
-        .expect("literal");
+        ssh = Object::new()
+            .with("state", "Unavailable")
+            .with("reason", "ssh_record_stale_or_absent");
     }
     let trail = root.read("/run/y2/boot-stages.jsonl").unwrap_or_default();
     let lines = splitlines(&trail);

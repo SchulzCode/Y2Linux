@@ -1,16 +1,79 @@
 //! The `wifi` section: supplicant state, addresses, route, DNS readiness and signal.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::commands::observation::util::{
-    self, fresh_seconds, get_eq, key_values, name, number, read, text,
+    self, fields, fresh_seconds, key_values, name, number, read, record_fields, text,
 };
 use crate::reply::Failure;
+use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use y2p_core::py::PyValue;
-use y2p_core::{command, py::truthy, Root};
+use y2p_core::{
+    command,
+    py::{is_true, truthy},
+    Root,
+};
 
 /// A confirmed lease is re-probed every 300 s (network.DnsProbeSchedule); this keeps Online across
 /// one slow or skipped re-check.
 const DNS_FRESH_S: f64 = 420.0;
+
+/// `/run/y2/wifi-failure.json` (connectivity): the last join failure, and a saved network's password
+/// failure (kept until the next connect).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct JoinFailure {
+    boot_id: Value,
+    monotonic_s: Value,
+    error: Value,
+    credential: Value,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct CredentialFailure {
+    boot_id: Value,
+    error: Value,
+    network_id: Value,
+}
+
+/// `/run/y2/dns.json`: the last DNS probe of a lease.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct DnsProbe {
+    ok: Value,
+    boot_id: Value,
+    epoch: Value,
+    address: Value,
+    bssid: Value,
+    monotonic_s: Value,
+}
+
+/// `/run/y2/dhcp.json`: the DHCP client's last answer for a lease.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct DhcpAnswer {
+    boot_id: Value,
+    epoch: Value,
+    error: Value,
+}
+
+/// The parts of `/run/y2/network.json` (the last status the connectivity daemon published) a new
+/// observation reuses: the signal reading while it is fresh.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Published {
+    signal_observation: Value,
+    rssi_dbm: Value,
+}
+
+/// When and for which access point a signal was polled.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct SignalStamp {
+    boot_id: Value,
+    bssid: Value,
+    monotonic_s: Value,
+}
 
 fn wifi_state(
     radio: bool,
@@ -115,19 +178,19 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
             .map(|(k, v)| (k, Value::String(v)))
             .collect();
     let boot = Value::from(root.boot_id());
-    let failure = root.json_object("/run/y2/wifi-failure.json");
-    if get_eq(&failure, "boot_id", &boot)
-        && fresh_seconds(root, failure.get("monotonic_s"), 120.0)
-        && failure.get("error").is_some_and(truthy)
+    let failure: JoinFailure = record_fields(root, "/run/y2/wifi-failure.json");
+    if failure.boot_id.py_eq(&boot)
+        && fresh_seconds(root, Some(&failure.monotonic_s), 120.0)
+        && truthy(&failure.error)
     {
-        properties.insert("failure_reason".into(), failure["error"].clone());
+        properties.insert("failure_reason".into(), failure.error);
     }
     let mut failed_network = Value::Null;
-    if let Some(Value::Object(credential)) = failure.get("credential") {
-        if credential.get("error").is_some_and(truthy) && get_eq(credential, "boot_id", &boot) {
-            // Until the next connect (network.py drops it there).
-            properties.insert("credential_failure".into(), credential["error"].clone());
-            failed_network = credential.get("network_id").cloned().unwrap_or(Value::Null);
+    if let Value::Object(credential) = &failure.credential {
+        let credential: CredentialFailure = fields(credential);
+        if truthy(&credential.error) && credential.boot_id.py_eq(&boot) {
+            properties.insert("credential_failure".into(), credential.error);
+            failed_network = credential.network_id;
         }
     }
     let (ip, routes) = if radio {
@@ -157,23 +220,22 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
         },
         None => (Vec::new(), json!([])),
     };
-    let dns = root.json_object("/run/y2/dns.json");
-    // Configuration alone never constitutes DNS readiness. Match network epoch.
+    // A probe of this lease (boot, network epoch, address, access point), not configuration alone,
+    // makes DNS ready.
+    let dns: DnsProbe = record_fields(root, "/run/y2/dns.json");
     let epoch = text(root.read("/run/y2/wifi-epoch"));
     let bssid = properties.get("bssid").cloned().unwrap_or(Value::Null);
-    let dns_ready = util::is_number(dns.get("monotonic_s")).is_some()
-        && y2p_core::py::is_true(dns.get("ok"))
-        && get_eq(&dns, "boot_id", &boot)
+    let dns_ready = util::is_number(Some(&dns.monotonic_s)).is_some()
+        && is_true(Some(&dns.ok))
+        && dns.boot_id.py_eq(&boot)
         && truthy(&epoch)
-        && get_eq(&dns, "epoch", &epoch)
-        && util::contains(&addresses, dns.get("address").unwrap_or(&Value::Null))
-        && get_eq(&dns, "bssid", &bssid)
-        && fresh_seconds(root, dns.get("monotonic_s"), DNS_FRESH_S);
-    let dhcp = root.json_object("/run/y2/dhcp.json");
-    let dhcp_error = if get_eq(&dhcp, "boot_id", &boot)
-        && get_eq(&dhcp, "epoch", &text(root.read("/run/y2/wifi-epoch")))
-    {
-        dhcp.get("error").cloned().unwrap_or(Value::Null)
+        && dns.epoch.py_eq(&epoch)
+        && util::contains(&addresses, &dns.address)
+        && dns.bssid.py_eq(&bssid)
+        && fresh_seconds(root, Some(&dns.monotonic_s), DNS_FRESH_S);
+    let dhcp: DhcpAnswer = record_fields(root, "/run/y2/dhcp.json");
+    let dhcp_error = if dhcp.boot_id.py_eq(&boot) && dhcp.epoch.py_eq(&epoch) {
+        dhcp.error
     } else {
         Value::Null
     };
@@ -189,22 +251,19 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
     for path in root.glob("/sys/class/net/wlan0/statistics/*") {
         stats.insert(name(&path), number(read(&path).as_deref()));
     }
-    let previous = root.json_object("/run/y2/network.json");
-    let mut signal = match previous.get("signal_observation") {
-        Some(Value::Object(map)) => Value::Object(map.clone()),
-        Some(other) if truthy(other) => return Err(Failure::value("invalid_network_record")),
-        _ => json!({}),
+    let previous: Published = record_fields(root, "/run/y2/network.json");
+    let stamp: SignalStamp = match &previous.signal_observation {
+        Value::Object(map) => fields(map),
+        other if truthy(other) => return Err(Failure::value("invalid_network_record")),
+        _ => SignalStamp::default(),
     };
-    let fresh = {
-        let s = signal.as_object().expect("object");
-        get_eq(s, "boot_id", &boot)
-            && get_eq(s, "bssid", &bssid)
-            && fresh_seconds(root, s.get("monotonic_s"), 30.0)
-    };
-    let mut rssi = if fresh {
-        previous.get("rssi_dbm").cloned().unwrap_or(Value::Null)
-    } else {
-        Value::Null
+    let fresh = stamp.boot_id.py_eq(&boot)
+        && stamp.bssid.py_eq(&bssid)
+        && fresh_seconds(root, Some(&stamp.monotonic_s), 30.0);
+    let (mut signal, mut rssi) = match previous.signal_observation {
+        observed @ Value::Object(_) if fresh => (observed, previous.rssi_dbm),
+        observed @ Value::Object(_) => (observed, Value::Null),
+        _ => (json!({}), Value::Null),
     };
     let association = properties.get("wpa_state").cloned().unwrap_or(Value::Null);
     if association.as_str() == Some("COMPLETED") && !fresh {
