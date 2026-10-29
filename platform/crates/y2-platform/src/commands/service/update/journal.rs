@@ -4,7 +4,6 @@
 use super::{
     channel, command, fs, json, py, sorted, string, truthy, Map, Path, Raise, Result, Root, Value,
 };
-use std::os::unix::fs::MetadataExt;
 pub(super) use y2p_core::json::python_error as json_error;
 use y2p_core::py::PyValue;
 
@@ -72,36 +71,7 @@ pub fn status(root: &Root) -> Map<String, Value> {
 
 /// Whether any live process holds a flock on `path` (/proc/locks names the device and inode).
 fn lock_held(root: &Root, path: &Path) -> bool {
-    let Ok(meta) = fs::metadata(path) else {
-        return false;
-    };
-    let dev = meta.dev();
-    let (major, minor) = (libc::major(dev) as u64, libc::minor(dev) as u64);
-    for line in root.read("/proc/locks").unwrap_or_default().lines() {
-        let fields: Vec<&str> = line.split_whitespace().collect();
-        if fields.len() < 6
-            || fields[1] != "FLOCK"
-            || fields[4].is_empty()
-            || !fields[4].chars().all(|c| c.is_numeric())
-        {
-            continue;
-        }
-        let parts: Vec<&str> = fields[5].split(':').collect();
-        let [a, b, c] = parts.as_slice() else {
-            continue;
-        };
-        let parsed = (
-            u64::from_str_radix(a, 16),
-            u64::from_str_radix(b, 16),
-            c.parse::<u64>(),
-        );
-        if let (Ok(a), Ok(b), Ok(c)) = parsed {
-            if (a, b, c) == (major, minor, meta.ino()) {
-                return true;
-            }
-        }
-    }
-    false
+    fs::metadata(path).is_ok_and(|meta| !y2p_core::lock::flock_pids(root, &meta).is_empty())
 }
 
 /// One action of the native core; its refusal becomes the error text.

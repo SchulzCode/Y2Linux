@@ -9,7 +9,6 @@ use super::util::{
 use crate::{regex, reply::Failure};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
-use std::os::unix::fs::MetadataExt;
 use y2p_core::{
     command,
     json::{Object, ObjectExt},
@@ -150,76 +149,6 @@ pub fn internal_ready(root: &Root) -> bool {
         && claim.device_id.py_eq(&json!(mount.device_id))
 }
 
-/// `int(text, 16)`.
-fn int_hex(text: &str) -> Option<i64> {
-    let text = y2p_core::root::python_strip(text);
-    let (negative, body) = match text.strip_prefix('-') {
-        Some(rest) => (true, rest),
-        None => (false, text.strip_prefix('+').unwrap_or(text)),
-    };
-    let body = body
-        .strip_prefix("0x")
-        .or_else(|| body.strip_prefix("0X"))
-        .map(|b| b.strip_prefix('_').unwrap_or(b))
-        .unwrap_or(body);
-    if body.is_empty()
-        || body.starts_with('_')
-        || body.ends_with('_')
-        || body.contains("__")
-        || !body.chars().all(|c| c.is_ascii_hexdigit() || c == '_')
-    {
-        return None;
-    }
-    let value = i64::from_str_radix(&body.replace('_', ""), 16).ok()?;
-    Some(if negative { -value } else { value })
-}
-
-/// The live holders of a flock on this file (`pid/comm`, at most 8), from /proc/locks; never inferred
-/// from old files.
-fn lock_holders(root: &Root, meta: &std::fs::Metadata) -> Vec<String> {
-    let dev = meta.dev();
-    let major = ((dev >> 8) & 0xfff) | ((dev >> 32) & !0xfff);
-    let minor = (dev & 0xff) | ((dev >> 12) & !0xff);
-    let mut holders = Vec::new();
-    for line in splitlines(root.read("/proc/locks").as_deref().unwrap_or_default()) {
-        let fields = util::split_ws(line);
-        if fields.len() < 6
-            || fields[1] != "FLOCK"
-            || fields[4].is_empty()
-            || !fields[4].chars().all(|c| c.is_ascii_digit())
-        {
-            continue;
-        }
-        // `<major hex>:<minor hex>:<inode>`.
-        let parts: Vec<&str> = fields[5].split(':').collect();
-        let [major_text, minor_text, inode_text] = parts[..] else {
-            continue;
-        };
-        let (Some(a), Some(b), Some(inode)) = (
-            int_hex(major_text),
-            int_hex(minor_text),
-            util::int(inode_text),
-        ) else {
-            continue;
-        };
-        if (a, b, inode) == (major as i64, minor as i64, meta.ino() as i64) {
-            let pid = fields[4];
-            let comm = root
-                .read(&format!("/proc/{pid}/comm"))
-                .filter(|c| !c.is_empty())
-                .unwrap_or_else(|| "unknown".into());
-            let cleaned: String = regex!(r"[^\w.-]")
-                .replace_all(&comm, "_")
-                .chars()
-                .take(32)
-                .collect();
-            holders.push(format!("{pid}/{cleaned}"));
-        }
-    }
-    holders.truncate(8);
-    holders
-}
-
 /// The update download's record (download.json), with a download or check whose process is gone shown as
 /// interrupted. A user's player (8.17) said "Downloading Update… Keep Wi-Fi on." for a day: the
 /// record a download writes first stays `Staging` when the download dies without reaching its own
@@ -235,7 +164,7 @@ fn download_record(root: &Root) -> Value {
     // Only a download in progress needs its process: the lock's live holders.
     if in_progress
         && !std::fs::metadata(root.path("/data/updates/.stage.lock"))
-            .is_ok_and(|meta| !lock_holders(root, &meta).is_empty())
+            .is_ok_and(|meta| !y2p_core::lock::flock_pids(root, &meta).is_empty())
     {
         return json!({"schema": 1, "state": "Failed", "failure": "download_interrupted"});
     }

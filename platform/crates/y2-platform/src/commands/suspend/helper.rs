@@ -17,7 +17,7 @@ mod kernel;
 use super::{
     admission::{
         admission, application_starting, battery_and_cable, failed_before_freeze, guard_record,
-        lock_holders, operation_state, retry_later, spm_state,
+        operation_state, retry_later, spm_state,
     },
     fail, int_literal,
     receipt::{self, record, wake_irqs, Receipt, Stage},
@@ -406,7 +406,7 @@ fn operation_locks(root: &Root) -> Result<Vec<(&'static str, File)>, E> {
             Ok(true) => held.push((owner, file)),
             Ok(false) => {
                 let meta = file.metadata().map_err(|e| E::os(&e, None))?;
-                let holders = lock_holders(root, &meta);
+                let holders = y2p_core::lock::flock_holders(root, &meta);
                 let mut reason = owner.to_owned();
                 if !holders.is_empty() {
                     reason = format!("{owner}:{}", holders.join(","));

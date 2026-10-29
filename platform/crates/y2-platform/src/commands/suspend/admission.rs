@@ -6,7 +6,7 @@
 use super::{is_text, pattern, py_gt, text_value, wall, E};
 use serde::Serialize;
 use serde_json::{json, Map, Value};
-use std::{fs::Metadata, os::unix::fs::MetadataExt, path::Path, sync::OnceLock};
+use std::{path::Path, sync::OnceLock};
 use y2p_core::py::PyValue;
 use y2p_core::{
     py::{exact_int, is_true, truthy},
@@ -349,48 +349,6 @@ pub fn operation_state(root: &Root, workloads: bool) -> Result<(), E> {
         }
     }
     Ok(())
-}
-
-/// Name actual live flock holders; never infer ownership from old files.
-pub fn lock_holders(root: &Root, meta: &Metadata) -> Vec<String> {
-    let dev = meta.dev();
-    let (major, minor) = (libc::major(dev) as i64, libc::minor(dev) as i64);
-    let inode = meta.ino() as i128;
-    let mut holders = Vec::new();
-    static COMM: OnceLock<Option<Regex>> = OnceLock::new();
-    let Some(comm) = pattern(&COMM, r"[^\w.-]") else {
-        return holders;
-    };
-    for line in splitlines(&root.read("/proc/locks").unwrap_or_default()) {
-        let fields = split(line);
-        if fields.len() < 6
-            || fields[1] != "FLOCK"
-            || !y2p_core::suspend_text::is_decimal(fields[4])
-        {
-            continue;
-        }
-        let parts: Vec<&str> = fields[5].split(':').collect();
-        let [a, b, c] = parts.as_slice() else {
-            continue;
-        };
-        let (Some(a), Some(b), Some(c)) = (
-            y2p_core::suspend_text::int16(a),
-            y2p_core::suspend_text::int16(b),
-            y2p_core::root::python_int(c),
-        ) else {
-            continue;
-        };
-        if (a, b, i128::from(c)) == (major, minor, inode) {
-            let pid = fields[4];
-            let name = root
-                .read(&format!("/proc/{pid}/comm"))
-                .unwrap_or_else(|| "unknown".into());
-            let name: String = comm.replace_all(&name, "_").chars().take(32).collect();
-            holders.push(format!("{pid}/{name}"));
-        }
-    }
-    holders.truncate(8);
-    holders
 }
 
 /// `product-sleep-guard.json`: whether an attempt of this image (`identity`) is still unproven.
