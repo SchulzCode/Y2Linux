@@ -179,14 +179,6 @@ impl<'a> Stage<'a> {
     }
 }
 
-fn private_directory(path: &Path) -> Result<(), E> {
-    y2p_core::record::private_directory(path).map_err(|e| E::os(&e, Some(path)))
-}
-
-fn atomic_json(path: &Path, value: &Map<String, Value>, durable: bool) -> Result<(), E> {
-    y2p_core::record::atomic_json(path, value, durable, 0o600).map_err(|e| E::os(&e, Some(path)))
-}
-
 /// Whether `record` starts a new receipt for this stage.
 pub fn starts_receipt(stage: &str, value: &Map<String, Value>) -> bool {
     stage == "requested"
@@ -197,7 +189,7 @@ pub fn starts_receipt(stage: &str, value: &Map<String, Value>) -> bool {
 /// `suspend_record.record`.
 pub fn record(root: &Root, s: Stage) -> Result<Receipt, E> {
     let directory = root.path(PLATFORM);
-    private_directory(&directory)?;
+    E::private_directory(&directory)?;
     let path = directory.join("suspend-last.json");
     let mut value = root.json_object(RECEIPT);
     let boot = || text_value(root.boot_id());
@@ -382,7 +374,7 @@ pub fn record(root: &Root, s: Stage) -> Result<Receipt, E> {
         // json.dump(sort_keys=True) raises in the temporary file, which atomic_json removes.
         return Err(raised(super::super::sleep::odd_keys()));
     }
-    atomic_json(&path, &value, true)?;
+    E::atomic_json(&path, &value, true)?;
     let battery = match root.json_object("/run/y2/power.json").get("battery") {
         Some(b) => b.clone(),
         None => json!({}),
@@ -422,7 +414,7 @@ fn append_stage(value: &mut Map<String, Value>, row: Value) -> Result<(), E> {
 /// no product state: locates a stall between two full records.
 pub fn progress(root: &Root, stage: &str) -> Result<(), E> {
     let directory = root.path(PLATFORM);
-    private_directory(&directory)?;
+    E::private_directory(&directory)?;
     let mut value = root.json_object(RECEIPT);
     let row = ProgressRow {
         stage,
@@ -430,7 +422,7 @@ pub fn progress(root: &Root, stage: &str) -> Result<(), E> {
         boottime_s: super::boottime(),
     };
     append_stage(&mut value, to_value(row)?)?;
-    atomic_json(&directory.join("suspend-last.json"), &value, true)
+    E::atomic_json(&directory.join("suspend-last.json"), &value, true)
 }
 
 #[cfg(test)]

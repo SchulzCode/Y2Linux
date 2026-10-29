@@ -89,8 +89,7 @@ pub fn request(root: &Root) -> Outcome {
 /// `sleep request` with the helper started by `launcher`.
 pub fn request_with(root: &Root, launcher: Launcher) -> Outcome {
     let directory = root.path("/run/y2");
-    y2p_core::record::private_directory(&directory)
-        .map_err(|e| failure(E::os(&e, Some(&directory))))?;
+    E::private_directory(&directory).map_err(failure)?;
     let path = directory.join("suspend.lock");
     // os.open(O_RDWR | O_CREAT | O_NOFOLLOW, 0o600): close-on-exec, made inheritable for the helper.
     let lock = lock::open(&path).map_err(|e| failure(E::os(&e, Some(&path))))?;

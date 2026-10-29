@@ -167,6 +167,21 @@ impl E {
         }
     }
 
+    /// `boot.private_directory(path)`.
+    pub fn private_directory(path: &Path) -> Result<(), E> {
+        y2p_core::record::private_directory(path).map_err(|e| E::os(&e, Some(path)))
+    }
+
+    /// `common.atomic_json(path, value, durable=durable)`: a private (0600) record.
+    pub fn atomic_json<T: Serialize + ?Sized>(
+        path: &Path,
+        value: &T,
+        durable: bool,
+    ) -> Result<(), E> {
+        y2p_core::record::atomic_json(path, value, durable, 0o600)
+            .map_err(|e| E::os(&e, Some(path)))
+    }
+
     /// `str(error)`.
     pub fn text(&self) -> &str {
         match self {

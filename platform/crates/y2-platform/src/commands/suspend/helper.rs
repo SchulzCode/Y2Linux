@@ -400,7 +400,7 @@ fn operation_locks(root: &Root) -> Result<Vec<(&'static str, File)>, E> {
     for (owner, name) in OPERATION_LOCKS {
         let path = root.path(name);
         let parent = path.parent().unwrap_or(Path::new("/"));
-        y2p_core::record::private_directory(parent).map_err(|e| E::os(&e, Some(parent)))?;
+        E::private_directory(parent)?;
         let file = lock::open(&path).map_err(|e| E::os(&e, Some(&path)))?;
         match lock::try_fd(file.as_fd(), lock::Kind::Exclusive) {
             Ok(true) => held.push((owner, file)),

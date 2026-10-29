@@ -393,10 +393,6 @@ pub fn lock_holders(root: &Root, meta: &Metadata) -> Vec<String> {
     holders
 }
 
-fn private_directory(path: &Path) -> Result<(), E> {
-    y2p_core::record::private_directory(path).map_err(|e| E::os(&e, Some(path)))
-}
-
 /// `product-sleep-guard.json`: whether an attempt of this image (`identity`) is still unproven.
 /// Only `pending` with `kernel_entry` quarantines the image (a record without `kernel_entry`, from
 /// 12, counts as one that reached the kernel).
@@ -411,7 +407,7 @@ struct Guard {
 
 pub fn guard_record(root: &Root, pending: bool, kernel_entry: bool) -> Result<(), E> {
     let path = root.path(GUARD);
-    private_directory(path.parent().unwrap_or(Path::new("/")))?;
+    E::private_directory(path.parent().unwrap_or(Path::new("/")))?;
     let guard = Guard {
         identity: identity(root),
         pending,
@@ -419,7 +415,7 @@ pub fn guard_record(root: &Root, pending: bool, kernel_entry: bool) -> Result<()
         boot_id: root.boot_id(),
         updated: wall(),
     };
-    y2p_core::record::atomic_json(&path, &guard, true, 0o600).map_err(|e| E::os(&e, Some(&path)))
+    E::atomic_json(&path, &guard, true)
 }
 
 /// True when the kernel returned an error before freezing any task.
@@ -474,12 +470,12 @@ struct Retry {
 
 pub fn retry_later(root: &Root) -> Result<(), E> {
     let path = root.path(RETRY);
-    private_directory(path.parent().unwrap_or(Path::new("/")))?;
+    E::private_directory(path.parent().unwrap_or(Path::new("/")))?;
     let retry = Retry {
         boot_id: root.boot_id(),
         not_before_ns: root.clock().boottime_ns() + PREPARE_RETRY_SECONDS * 1_000_000_000,
     };
-    y2p_core::record::atomic_json(&path, &retry, false, 0o600).map_err(|e| E::os(&e, Some(&path)))
+    E::atomic_json(&path, &retry, false)
 }
 
 /// True only while this boot's journal says the UI has not reached `application_ready` yet; unknown
