@@ -393,8 +393,9 @@ impl Supervisor {
                     }
                     // codec_policy_unavailable: BlueALSA stays down until the next health look.
                     Err(Failure::Value(_) | Failure::Os { .. }) => return Ok(()),
-                    // An inventory Python cannot read (AttributeError): the daemon ends as Python's.
-                    Err(error @ (Failure::Fallback | Failure::Crash { .. })) => return Err(error),
+                    // An inventory Python cannot read (AttributeError): the daemon ends as Python's,
+                    // with its traceback (main.rs).
+                    Err(error) => return Err(error),
                 }
                 "/usr/bin/bluealsad"
             }
@@ -708,13 +709,8 @@ pub fn serve(root: &Root) -> Outcome {
     match result {
         // A daemon prints nothing (main.rs would print a newline for a reply).
         Ok(()) => std::process::exit(0),
-        // Python's AttributeError: a traceback on stderr, no stdout, exit 1.
-        Err(Failure::Fallback) => {
-            eprintln!(
-                "Traceback (most recent call last):\nAttributeError: bluetooth-codecs.json `codecs` is not an object"
-            );
-            std::process::exit(1)
-        }
+        // An OSError is main.py's record; an AttributeError (an inventory `codecs` that is not an
+        // object) its traceback on stderr, no stdout, exit 1 (main.rs prints both).
         Err(error) => Err(error),
     }
 }

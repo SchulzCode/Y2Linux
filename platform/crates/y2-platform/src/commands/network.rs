@@ -9,6 +9,7 @@ use std::{env, fs, os::unix::fs::PermissionsExt, path::Path};
 use y2p_core::{
     clock, command,
     json::Ordered,
+    power_text::python_split,
     py::{self, is_true, truthy},
     Root,
 };
@@ -154,61 +155,129 @@ pub fn wifi_event(root: &Root, event: &str) -> Outcome {
     Reply::unsorted(&publish(root, "dhcp", state)?, 0)
 }
 
-/// `str(ipaddress.IPv4Address(text))`: four decimal octets, no leading zeros. Anything else is left to
-/// Python, whose error text names the value.
-fn ipv4(text: &str) -> Result<[u8; 4], Failure> {
+// ---- ipaddress (Python 3.15's IPv4 parsing, with its exact error texts) ----------------------------
+
+fn address_error(text: String) -> Failure {
+    Failure::raised("AddressValueError", text)
+}
+
+/// `%r` in ipaddress's messages.
+fn repr(text: &str) -> String {
+    crate::argparse::python::repr(text)
+}
+
+/// `str.isascii() and str.isdigit()`.
+fn ascii_digits(text: &str) -> bool {
+    !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// `_BaseV4._parse_octet`: the ValueError's text.
+fn parse_octet(octet: &str) -> Result<u8, String> {
+    if octet.is_empty() {
+        return Err("Empty octet not permitted".into());
+    }
+    if !ascii_digits(octet) {
+        return Err(format!("Only decimal digits permitted in {}", repr(octet)));
+    }
+    if octet.len() > 3 {
+        return Err(format!("At most 3 characters permitted in {}", repr(octet)));
+    }
+    if octet != "0" && octet.starts_with('0') {
+        return Err(format!(
+            "Leading zeros are not permitted in {}",
+            repr(octet)
+        ));
+    }
+    let value: u32 = octet.parse().expect("three ASCII digits");
+    u8::try_from(value).map_err(|_| format!("Octet {value} (> 255) not permitted"))
+}
+
+/// `_BaseV4._ip_int_from_string`: AddressValueError.
+fn ip_int(text: &str) -> Result<u32, Failure> {
+    if text.is_empty() {
+        return Err(address_error("Address cannot be empty".into()));
+    }
     let parts: Vec<&str> = text.split('.').collect();
     if parts.len() != 4 {
-        return Err(Failure::Fallback);
+        return Err(address_error(format!(
+            "Expected 4 octets in {}",
+            repr(text)
+        )));
     }
     let mut octets = [0u8; 4];
     for (octet, part) in octets.iter_mut().zip(parts) {
-        if part.is_empty()
-            || part.len() > 3
-            || !part.bytes().all(|b| b.is_ascii_digit())
-            || (part.len() > 1 && part.starts_with('0'))
-        {
-            return Err(Failure::Fallback);
-        }
-        *octet = part.parse().map_err(|_| Failure::Fallback)?;
+        *octet = parse_octet(part)
+            .map_err(|error| address_error(format!("{error} in {}", repr(text))))?;
     }
-    Ok(octets)
+    Ok(u32::from_be_bytes(octets))
+}
+
+/// `ipaddress.IPv4Address(text)` of a str.
+fn ipv4(text: &str) -> Result<[u8; 4], Failure> {
+    if text.contains('/') {
+        return Err(address_error(format!("Unexpected '/' in {}", repr(text))));
+    }
+    ip_int(text).map(u32::to_be_bytes)
 }
 
 fn dotted(octets: [u8; 4]) -> String {
     format!("{}.{}.{}.{}", octets[0], octets[1], octets[2], octets[3])
 }
 
-/// ipaddress's prefix: a length `0..=32` (RFC 3442 routes) or a netmask (udhcpc's `subnet`). A
-/// hostmask (`0.0.0.255`), which ipaddress also takes, is left to Python.
+/// `_BaseNetwork._prefix_from_ip_int`: a netmask's length, None when it mixes zeroes and ones.
+fn prefix_from_int(mask: u32) -> Option<u32> {
+    let zeroes = if mask == 0 { 32 } else { mask.trailing_zeros() };
+    let length = 32 - zeroes;
+    let ones = u64::from(mask) >> zeroes;
+    (ones == (1u64 << length) - 1).then_some(length)
+}
+
+/// `_BaseV4._make_netmask(text)` of a str: a length (ASCII digits, `0..=32`), else a netmask, else a
+/// hostmask (`0.0.0.255` is /24); anything else is a NetmaskValueError naming the text.
 fn prefix(text: &str) -> Result<u32, Failure> {
-    if text.contains('.') {
-        let mask = u32::from_be_bytes(ipv4(text)?);
-        let length = mask.leading_ones();
-        return if length == 32 || mask << length == 0 {
-            Ok(length)
-        } else {
-            Err(Failure::Fallback)
-        };
+    if ascii_digits(text) {
+        // Out of range (any length of digits): the dotted forms below refuse it too.
+        if let Some(length) = text.parse::<u64>().ok().filter(|l| *l <= 32) {
+            return Ok(length as u32);
+        }
     }
-    if text.is_empty()
-        || !text.bytes().all(|b| b.is_ascii_digit())
-        || (text.len() > 1 && text.starts_with('0'))
-    {
-        return Err(Failure::Fallback);
-    }
-    text.parse()
+    ip_int(text)
         .ok()
-        .filter(|p| *p <= 32)
-        .ok_or(Failure::Fallback)
+        .and_then(|mask| prefix_from_int(mask).or_else(|| prefix_from_int(!mask)))
+        .ok_or_else(|| {
+            Failure::raised(
+                "NetmaskValueError",
+                format!("{} is not a valid netmask", repr(text)),
+            )
+        })
+}
+
+/// `_split_optional_netmask`: at most one '/'.
+fn split_prefix(text: &str) -> Result<(&str, Option<&str>), Failure> {
+    let mut parts = text.split('/');
+    let address = parts.next().unwrap_or_default();
+    let mask = parts.next();
+    if parts.next().is_some() {
+        return Err(address_error(format!(
+            "Only one '/' permitted in {}",
+            repr(text)
+        )));
+    }
+    Ok((address, mask))
+}
+
+/// `ipaddress.IPv4Interface(text)`: the prefix length.
+fn interface(text: &str) -> Result<u32, Failure> {
+    let (address, mask) = split_prefix(text)?;
+    ipv4(address)?;
+    mask.map_or(Ok(32), prefix)
 }
 
 /// `str(ipaddress.IPv4Network(text, strict=False))`.
 fn network(text: &str) -> Result<String, Failure> {
-    let (address, length) = match text.split_once('/') {
-        Some((a, l)) => (ipv4(a)?, prefix(l)?),
-        None => (ipv4(text)?, 32),
-    };
+    let (address, mask) = split_prefix(text)?;
+    let address = ipv4(address)?;
+    let length = mask.map_or(Ok(32), prefix)?;
     let mask = if length == 0 {
         0
     } else {
@@ -258,29 +327,33 @@ pub fn dhcp_event(root: &Root, event: &str) -> Outcome {
         }
         "bound" | "renew" => {
             let address = ipv4(&var("ip").unwrap_or_default())?;
-            let length = prefix(&var("subnet").unwrap_or_default())?;
+            let length = interface(&format!(
+                "{}/{}",
+                dotted(address),
+                var("subnet").unwrap_or_default()
+            ))?;
             if address == [0, 0, 0, 0] || (224..=239).contains(&address[0]) || address[0] == 127 {
                 return Err(Failure::value("invalid_dhcp_address"));
             }
-            let servers: Vec<String> = var("dns")
-                .unwrap_or_default()
-                .split_whitespace()
+            let split = |name: &str| -> Vec<String> {
+                python_split(&var(name).unwrap_or_default())
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect()
+            };
+            let servers: Vec<String> = split("dns")
+                .iter()
                 .take(3)
                 .map(|s| ipv4(s).map(dotted))
                 .collect::<Result<_, _>>()?;
-            let gateways: Vec<String> = var("router")
-                .unwrap_or_default()
-                .split_whitespace()
+            let gateways: Vec<String> = split("router")
+                .iter()
                 .take(3)
                 .map(|s| ipv4(s).map(dotted))
                 .collect::<Result<_, _>>()?;
             // RFC3442: classless routes supersede the router option. Bound the list and restrict syntax
             // to parsed addresses, never shell text.
-            let static_routes: Vec<String> = var("staticroutes")
-                .unwrap_or_default()
-                .split_whitespace()
-                .map(str::to_owned)
-                .collect();
+            let static_routes: Vec<String> = split("staticroutes");
             let routes: Vec<(String, String)> = if !static_routes.is_empty() {
                 if static_routes.len() > 32 || static_routes.len() % 2 == 1 {
                     return Err(Failure::value("invalid_classless_routes"));
@@ -362,24 +435,64 @@ mod tests {
     #[test]
     fn addresses_parse_as_ipaddress_does() {
         assert_eq!(dotted(ipv4("192.168.1.40").unwrap()), "192.168.1.40");
-        for bad in [
-            "01.2.3.4",
-            "1.2.3",
-            "256.1.1.1",
-            "",
-            "1.2.3.4.5",
-            " 1.2.3.4",
+        fn error<T: std::fmt::Debug>(result: Result<T, Failure>) -> String {
+            match result.unwrap_err() {
+                Failure::Os { class, text } => format!("{class}: {text}"),
+                other => panic!("{other:?}"),
+            }
+        }
+        for (bad, text) in [
+            (
+                "01.2.3.4",
+                "Leading zeros are not permitted in '01' in '01.2.3.4'",
+            ),
+            ("1.2.3", "Expected 4 octets in '1.2.3'"),
+            (
+                "256.1.1.1",
+                "Octet 256 (> 255) not permitted in '256.1.1.1'",
+            ),
+            ("", "Address cannot be empty"),
+            ("1.2.3.4.5", "Expected 4 octets in '1.2.3.4.5'"),
+            (
+                " 1.2.3.4",
+                "Only decimal digits permitted in ' 1' in ' 1.2.3.4'",
+            ),
+            ("1..2.3", "Empty octet not permitted in '1..2.3'"),
+            (
+                "1.2.3.1234",
+                "At most 3 characters permitted in '1234' in '1.2.3.1234'",
+            ),
+            (
+                "1.2.3.\u{663}",
+                "Only decimal digits permitted in '\u{663}' in '1.2.3.\u{663}'",
+            ),
+            ("1.2.3.4/5", "Unexpected '/' in '1.2.3.4/5'"),
         ] {
-            assert!(matches!(ipv4(bad), Err(Failure::Fallback)), "{bad}");
+            assert_eq!(error(ipv4(bad)), format!("AddressValueError: {text}"));
         }
         assert_eq!(network("10.1.2.3/8").unwrap(), "10.0.0.0/8");
         assert_eq!(network("0.0.0.0/0").unwrap(), "0.0.0.0/0");
         assert_eq!(network("192.168.5.1").unwrap(), "192.168.5.1/32");
+        assert_eq!(network("10.1.2.3/0.255.255.255").unwrap(), "10.0.0.0/8");
         assert_eq!(prefix("255.255.255.0").unwrap(), 24);
         assert_eq!(prefix("255.255.255.255").unwrap(), 32);
         assert_eq!(prefix("0.0.0.0").unwrap(), 0);
-        assert!(matches!(prefix("0.0.0.255"), Err(Failure::Fallback)));
-        assert!(matches!(prefix("255.0.255.0"), Err(Failure::Fallback)));
+        assert_eq!(prefix("0.0.0.255").unwrap(), 24);
+        assert_eq!(prefix("024").unwrap(), 24);
+        for bad in ["255.0.255.0", "33", "", "+8", "99999999999999999999", "x"] {
+            assert_eq!(
+                error(prefix(bad)),
+                format!("NetmaskValueError: '{bad}' is not a valid netmask")
+            );
+        }
+        assert_eq!(
+            error(interface("1.2.3.4/1/2")),
+            "AddressValueError: Only one '/' permitted in '1.2.3.4/1/2'"
+        );
+        assert_eq!(
+            error(network("1.2.3.4/")),
+            "NetmaskValueError: '' is not a valid netmask"
+        );
         assert_eq!(network("10.1.2.3/255.0.0.0").unwrap(), "10.0.0.0/8");
     }
 }

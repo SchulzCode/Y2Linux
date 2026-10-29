@@ -4,7 +4,7 @@
 //! restarting the daemon here. Errors print `{"schema": "org.y2linux.codec-settings/v1", "failure": …}`.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::{
-    commands::codec::{inventory_codec, requested, validate},
+    commands::codec::{inventory_codec, not_iterable, requested, validate},
     reply::{atomic_json, Failure, Outcome, Reply},
 };
 use serde::Serialize;
@@ -58,7 +58,8 @@ impl Changes {
 pub fn configure(root: &Root, changes: Changes) -> Outcome {
     match configure_inner(root, changes) {
         Ok(value) => Reply::unsorted(&value, 0),
-        Err(Failure::Fallback) => Err(Failure::Fallback),
+        // `except (ValueError, OSError)`: anything else leaves the command.
+        Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
             &Ordered::new()
                 .with("schema", SCHEMA)
@@ -195,7 +196,7 @@ fn recorded_arguments_present(arguments: Option<&Value>, argv: &[&str]) -> Resul
         Some(Value::Array(items)) => items.iter().all(|item| item.as_str().is_some_and(has)),
         Some(Value::String(text)) => text.chars().all(|c| has(c.encode_utf8(&mut [0; 4]))),
         Some(Value::Object(map)) => map.keys().all(|key| has(key)),
-        Some(_) => return Err(Failure::Fallback),
+        Some(other) => return Err(not_iterable(other)),
     })
 }
 
@@ -242,7 +243,10 @@ mod tests {
         assert!(recorded_arguments_present(None, &argv).unwrap());
         assert!(matches!(
             recorded_arguments_present(Some(&json!(null)), &argv),
-            Err(Failure::Fallback)
+            Err(Failure::Crash {
+                class: "TypeError",
+                ..
+            })
         ));
     }
 }

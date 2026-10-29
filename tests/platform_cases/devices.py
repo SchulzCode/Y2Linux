@@ -229,10 +229,17 @@ EXTRA_CASES = [
         **UPLOAD, STAGE + '/manifest.json': manifest(record=None)}}),
     ('transfer-commit-manifest-list', COMMIT, {'ported': True, 'commands': BLKID, 'files': {
         **UPLOAD, STAGE + '/manifest.json': '[]'}}),
-    ('codec-settings-live-null-arguments', ['codec-settings'], {'ported': False, 'files': {
+    # Python's TypeError/AttributeError (a traceback, nothing on stdout); a change takes the lock first.
+    ('codec-settings-live-null-arguments', ['codec-settings'], {'ported': True, 'files': {
         **LIVE, '/run/y2/codec-runtime.json': '{"boot_id": "boot-a", "arguments": null}'}}),
-    ('codec-settings-broken-inventory', ['codec-settings'], {'ported': False, 'files': {
+    ('codec-settings-live-number-arguments', ['codec-settings', '--sbc-abr', 'off'], {'ported': True, 'files': {
+        **LIVE, '/run/y2/codec-runtime.json': '{"boot_id": "boot-a", "arguments": 1.5}'}}),
+    ('codec-settings-broken-inventory', ['codec-settings'], {'ported': True, 'files': {
         INVENTORY: '{"schema": 1, "codecs": {"AAC": 3}}'}}),
+    ('codec-settings-null-codecs', ['codec-settings', '--sbc-quality', 'xq'], {'ported': True, 'files': {
+        INVENTORY: '{"schema": 1, "codecs": null}'}}),
+    ('codec-settings-list-ldac', ['codec-settings'], {'ported': True, 'files': {
+        INVENTORY: '{"schema": 1, "codecs": {"AAC": {}, "LDAC": []}}'}}),
     # Every prerequisite holds: dropbear starts (on a host without /usr/sbin/dropbear: FileNotFoundError).
     ('ssh-starts-dropbear', ['ssh-daemon'], {'ported': True, 'env': TICK, 'commands': [answer(IP, USB0)],
                                              'files': KEY, 'needs_no_dropbear': True}),

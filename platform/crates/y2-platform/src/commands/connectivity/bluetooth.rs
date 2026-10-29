@@ -5,7 +5,7 @@
 //! sorted (`status`), so it is a plain value.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{observe_wifi::py_eq, wifi::Json};
-use crate::commands::codec::{inventory_codec, requested, validate};
+use crate::commands::codec::{inventory_codec, not_iterable, requested, validate};
 use crate::reply::Failure;
 use serde::de::{Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{json, Map, Value};
@@ -123,7 +123,7 @@ pub fn codec_settings(root: &Root) -> Result<Value, Failure> {
             }
             Some(Value::String(text)) => text.chars().all(|c| present(&c.to_string())),
             Some(Value::Object(keys)) => keys.keys().all(|k| present(k)),
-            Some(_) => return Err(Failure::Fallback), // TypeError in Python
+            Some(other) => return Err(not_iterable(other)), // all(... for arg in other)
         };
     let effective = if live
         && super::observe_wifi::eq_text(applied.get("boot_id"), boot.as_deref())
@@ -318,7 +318,7 @@ fn field(object: &Json, key: &str) -> Value {
     object.get(key).map_or(Value::Null, Json::value)
 }
 
-/// `bluetooth.normalize(ctx, raw)`. `Err(Fallback)` where Python raises something no caller catches
+/// `bluetooth.normalize(ctx, raw)`. `Err(Crash)` where Python raises something no caller catches
 /// (an inventory `codecs` that is not an object).
 pub fn normalize(root: &Root, raw: &Json) -> Result<Value, Failure> {
     let settings = match codec_settings(root) {
