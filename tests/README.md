@@ -20,7 +20,7 @@ missing minimal-environment dependencies. All **125 focused source tests** and
 ELF/dependencies and preserving-package checks pass. These are retained build
 receipts, not tests rerun by this documentation update.
 
-The boot-policy fault tests are `tests/test_cpu_idle_boot_policy.py`; exact
+The boot-policy fault tests are Rust (`platform/crates/y2-platform/src/commands/cpu_idle_tests.rs`); exact
 MT6582 UART admission/ACK cases are in `tests/test_cpu_c3_uart.py`. Existing CPU,
 cpuidle, timer, hotplug, CIRQ/SPM, clock, MMC and USB guards remain in their
 production/source suites. No implementation tests are rerun for documentation

@@ -50,7 +50,7 @@ reaches the owner as `operation_failed`, e.g. every busy `media.lock`/`internal-
 `sleep_operation_in_progress` (D). Reborn checks `schema` for status, capabilities, health and sleep.
 
 **stdout.** One line of `json.dumps` with the default separators (`", "`, `": "`), `ensure_ascii=True`, Python
-float repr. Sorted keys for the generic tail of `cli.py` (status, health, capabilities, media, internal-media,
+float repr. Sorted keys for the generic commands (status, health, capabilities, media, internal-media,
 space, bench-*, boot-stage; `allow_nan=False`) and for sleep, boot-evidence, cpu-idle-policy, report, update,
 firmware, transfer, network-check, export-*, reset; **insertion order** (unsorted) for usb-mode, rtc-alarm,
 codec-settings, wifi-power-policy, bluetooth-power, time*, ntp-event, wifi-event, dhcp-event, shutdown.
@@ -127,9 +127,9 @@ Most are `LOCK_EX|LOCK_NB` with a named refusal (`*_in_progress`, `busy`); the b
 
 ## What a port must not miss (collected from the entries)
 
-- **Python inside the platform's own subprocesses:** the DNS probe runs `/usr/bin/python3 -I -c 'socket.getaddrinfo…'`
-  (`network.probe_dns`) and the report upload uses in-process `urllib` (no redirects, no proxy, 30 s socket timeout,
-  16 KiB streamed body), not `curl`. Both must be replaced before Python leaves the image (phase 6).
+- **Python inside the platform's own subprocesses** (done in phase 6): the DNS probe ran `/usr/bin/python3 -I -c
+  'socket.getaddrinfo…'` and is Rust's `getaddrinfo` now; the report upload used in-process `urllib` (no redirects,
+  no proxy, 30 s socket timeout, 16 KiB streamed body) and runs `curl` with the same limits.
 - **Byte-exact Python JSON inside values:** the reset plan `confirmation` and the settings-result sha256 hash
   `json.dumps(sort_keys=True)` (compact), the media identity id hashes `json.dumps(sort_keys=True)` with the default
   separators. A plan made by Python must still confirm under Rust: reproduce these encodings exactly.

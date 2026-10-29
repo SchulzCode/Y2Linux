@@ -119,8 +119,8 @@ dated observations as current.
   Preserve old output directories; use a fresh archive name and take the host lease.
 - CPU PM tests (`/home/luca/Dokumente/Code/Y2Linux/tests/test_suspend_cpu_pm.py`),
   platform suspend tests (`/home/luca/Dokumente/Code/Y2Linux/tests/test_platform_v1_suspend.py`),
-  automatic sleep tests (`/home/luca/Dokumente/Code/Y2Linux/tests/test_product_auto_sleep.py`)
-  and product flow tests (`/home/luca/Dokumente/Code/Y2Linux/tests/test_sleep_product.py`).
+  automatic sleep and product flow tests (Rust since 2026-10-29:
+  `platform/crates/y2-platform/src/commands/suspend/{helper,receipt}_tests.rs`).
 
 ## Preserve established corrections and independent gaps
 

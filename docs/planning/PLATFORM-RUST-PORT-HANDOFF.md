@@ -63,8 +63,8 @@ RSS. Reborn itself (45 s/h, 26.7 MB) is now the largest consumer.
     `time_t`/`c_long`, plus one support file per group (`power_*.rs`, `storage_media.rs`, `suspend_text.rs`, …).
   - `crates/y2p-contract` — schema names and constants shared with Reborn, with `tests/golden`.
   - `crates/y2-platform` — the binary. `main.rs` (argv[0] multicall via `commands::suspend::program`, hidden
-    programmes, argparse, route; an unrouted command line exits 127), `argparse.rs` + `argparse.json` (cli.py's
-    parser as data), `reply.rs` (`Failure`: Value, Os, Crash = Python's uncaught exception), `commands/*.rs` and
+    programmes, the parser, route; an unrouted command line exits 127), `cli.rs` (the argument table and parser
+    since the refactor; `argparse.rs`/`argparse.json` until 170), `reply.rs` (`Failure`), `commands/*.rs` and
     `commands/<group>/` for observation, connectivity, devices, storage, service (update, firmware,
     service-daemon), reports, power, suspend.
 - `platform/CONTRACT.md` + `platform/contract.json` — the contract inventory (106 entries), callers, locks, the
@@ -76,9 +76,9 @@ RSS. Reborn itself (45 s/h, 26.7 MB) is now the largest consumer.
   `tests/test_platform_differential.py` and `tests/platform_cases/<group>.py`, and
   `tests/test_platform_{argparse,devices,power_rpc,observation,suspend,reports}.py`, all in `tools/production/tests.sh`
   (platform/CONTRACT.md "Golden suite").
-- Tools: `tools/development/platform-contract.py --check|--write` (contract.json against `argparse.json`),
-  `platform-goldens.py [--check]` (y2p-contract goldens), `platform-argparse.py --check|--write` (`argparse.json`
-  is edited by hand; the check keeps it consistent), `host-tests.sh`.
+- Tools: `tools/development/platform-contract.py --check|--write` (contract.json against `y2-platform
+  __arguments`, cli.rs's table), `platform-goldens.py [--check]` (y2p-contract goldens), `platform-raw-goldens.py`
+  (the golden cases with key order and spacing, for a byte comparison of two builds), `host-tests.sh`.
 - Packaging: `buildroot/package/y2-platform/` (version = git tree hash of `HEAD:platform`, so every change rebuilds),
   `buildroot/configs/y2_production_defconfig` (no `PYTHON3*`), `buildroot/board/y2/post-build-production.sh`
   (links `y2-status`, `y2-health`, `y2-suspend-record`, `y2-power-audit`, `/sbin/poweroff`, `/sbin/reboot` to
@@ -176,7 +176,8 @@ use the Python reference (`tools/platform`): the goldens were recorded from it.
   32 bits there; use `y2p_core::wide()`. `host-tests.sh` now type-checks armv7.
 - **Package version must change with the code.** Build 167 shipped the old binary because the Buildroot version was
   fixed; it is now the `HEAD:platform` tree hash, and `release.py` prunes old `y2-platform-*` build dirs.
-- **The build container cannot run the build's host `python3.15`**: `platform-argparse.py` uses it only if it runs.
+- **The build container (musl) cannot run host binaries**: neither the build's host `python3.15` nor the project's
+  glibc debug `y2-platform`; tools treat a binary that does not run as absent (platform-contract.py, build 171).
 - Python's float repr needs `ryu` (Rust's `{:e}` picks other shortest digits); checked on 20 000 random floats.
 - Fixtures per group (`CASE_GROUP`), goldens regenerated from the base root, or groups collide (storage vs
   observation SD card).
