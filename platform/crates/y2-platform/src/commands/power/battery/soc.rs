@@ -18,7 +18,7 @@ use std::{collections::VecDeque, sync::Arc};
 const OCV_CHARGER_POINTS: f64 = 31.0;
 // F36 (97f11bb1): the charging screen (offline-charge) can run an hour before
 // the platform's first sample; the power-on OCV then predates that charge.
-const BOOT_OCV_FRESH_SECONDS: f64 = 120.0;
+pub(super) const BOOT_OCV_FRESH_SECONDS: f64 = 120.0;
 // A rested OCV is never below the loaded battery voltage (ADC tolerance aside);
 // boot load sags 60-120 mV below it (ledger F30), never 300 mV (oam_run clamp).
 const OCV_BELOW_LOAD_UV: i64 = 50000;
@@ -86,6 +86,11 @@ pub struct Soc {
 }
 
 impl Soc {
+    /// Whether a previous estimate and display value exist (the power-on OCV is used without one).
+    pub(super) fn estimated(&self) -> bool {
+        self.percent.is_some() && self.ui.is_some()
+    }
+
     pub fn new(profile: Option<Profile>, saved: Option<Value>) -> Soc {
         Soc::fresh(profile.map(Arc::new), saved)
     }

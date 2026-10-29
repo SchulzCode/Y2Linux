@@ -89,8 +89,8 @@ struct Daemon<'r> {
     reason: Option<&'static str>,
     state: &'static str,
     battery_status: BatteryStatus,
-    /// The power.json last written (without `monotonic_ns`) and when.
-    published: Option<(Value, u64)>,
+    /// What the power.json last written said (see [`Published`]) and when.
+    published: Option<(Published, u64)>,
     notes: Notes,
 }
 
@@ -147,10 +147,7 @@ impl Daemon<'_> {
             qualification_reference: self.policy.as_ref().map(|p| &p.qualification_reference),
             shutdown: self.coordinator.intent.as_ref(),
         };
-        let mut content = serde_json::to_value(&record).unwrap_or(Value::Null);
-        if let Value::Object(map) = &mut content {
-            map.shift_remove("monotonic_ns");
-        }
+        let content = Published::of(self);
         if !publish_due(self.published.as_ref(), &content, now) {
             return;
         }
@@ -175,9 +172,38 @@ impl Daemon<'_> {
     }
 }
 
-/// Whether power.json is written: its content (without `monotonic_ns`) changed since `published`,
-/// or what was published is `RENEW_NS` old.
-fn publish_due(published: Option<&(Value, u64)>, content: &Value, now: u64) -> bool {
+/// What a power.json says apart from its time and the raw voltage (the ADC moves by a step or two
+/// every sample): a record that says nothing new waits for `RENEW_NS`. Readers take the voltage from
+/// a record at most 2 s old (Reborn refuses one 5 s old, sleep admission one 10 s old).
+#[derive(PartialEq)]
+struct Published {
+    state: &'static str,
+    reason: Option<&'static str>,
+    thresholds_enabled: bool,
+    battery: BatteryStatus,
+    shutdown: Option<Object>,
+}
+
+impl Published {
+    fn of(daemon: &Daemon) -> Self {
+        let mut battery = daemon.battery_status.clone();
+        battery.voltage_uv = None;
+        if let Some(estimate) = &mut battery.estimate {
+            estimate.filtered_voltage_uv = 0;
+        }
+        Published {
+            state: daemon.state,
+            reason: daemon.reason,
+            thresholds_enabled: daemon.policy.is_some(),
+            battery,
+            shutdown: daemon.coordinator.intent.clone(),
+        }
+    }
+}
+
+/// Whether power.json is written: what it says changed since `published`, or what was published
+/// is `RENEW_NS` old.
+fn publish_due<T: PartialEq>(published: Option<&(T, u64)>, content: &T, now: u64) -> bool {
     published.is_none_or(|(last, at)| last != content || now.saturating_sub(*at) >= RENEW_NS)
 }
 
@@ -276,12 +302,12 @@ mod tests {
 
     #[test]
     fn power_record_written_on_change_and_renewed_before_reborn_finds_it_stale() {
-        let first = json!({"state": "Normal", "voltage_uv": 3_900_000});
+        let first = json!({"state": "Normal"});
         assert!(publish_due(None, &first, 0));
         let published = (first.clone(), 10_000_000_000);
         assert!(!publish_due(Some(&published), &first, 11_000_000_000));
         assert!(publish_due(Some(&published), &first, 12_000_000_000));
-        let changed = json!({"state": "Normal", "voltage_uv": 3_899_000});
+        let changed = json!({"state": "Low"});
         assert!(publish_due(Some(&published), &changed, 10_500_000_000));
         // A monotonic clock never runs back; if it did, an unchanged record would stay as it is.
         assert!(!publish_due(Some(&published), &first, 9_000_000_000));

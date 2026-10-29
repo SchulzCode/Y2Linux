@@ -70,33 +70,56 @@ pub struct Reading {
 /// the reading it came from (the low-battery policy takes the pack's presence from it).
 pub fn sample(root: &Root, engine: &mut Soc) -> (BatteryStatus, Reading) {
     let now = root.clock().boottime_ns() as f64 / 1e9;
-    let reading = read(root, engine);
+    let reading = read(root, engine, now);
     (engine.observe(now, &reading), reading)
 }
 
 /// One sample at `now` (CLOCK_BOOTTIME seconds), for the tests.
 #[cfg(test)]
 pub fn sample_at(root: &Root, engine: &mut Soc, now: f64) -> BatteryStatus {
-    engine.observe(now, &read(root, engine))
+    engine.observe(now, &read(root, engine, now))
 }
 
-/// BAT0 as the estimate reads it; the boot metadata only until the first estimate.
-pub fn read(root: &Root, engine: &Soc) -> Reading {
+/// The BAT0 properties this kernel's charger driver may not have (mt6323-charger.c `y2_bat_props`
+/// has none of them): on the player each is looked up once, as the driver is built in and its
+/// properties are fixed for the boot.
+const OPTIONAL: [&str; 4] = ["capacity", "current_now", "temp", "charge_counter"];
+
+/// BAT0 as the estimate reads it at `now` (CLOCK_BOOTTIME seconds). Only what the estimate uses is
+/// read: `charging_state` (the charger-path current, ~1.2 KB of text) while Charging, the power-on
+/// OCV while it can still be used (the first estimate, 120 s), the boot metadata until the first
+/// estimate.
+pub fn read(root: &Root, engine: &Soc, now: f64) -> Reading {
+    static PRESENT: std::sync::OnceLock<[bool; 4]> = std::sync::OnceLock::new();
     let base = "/sys/class/power_supply/BAT0/";
     let int = |name: &str| root.integer(&format!("{base}{name}"));
+    let present = root.is_real().then(|| {
+        PRESENT.get_or_init(|| OPTIONAL.map(|n| root.path(&format!("{base}{n}")).exists()))
+    });
+    let optional = |index: usize| match present {
+        Some(present) if !present[index] => None,
+        _ => int(OPTIONAL[index]),
+    };
+    let status = root.read(&format!("{base}status"));
+    let charging = status.as_deref() == Some("Charging");
+    let first = engine.percent.is_none();
     // Read BAT0 only: PMIC/CPU temperatures and USB configured limits cannot
     // become pack sensor values. Missing hardware properties stay null.
     Reading {
         voltage: int("voltage_now"),
         present: int("present"),
-        status: root.read(&format!("{base}status")),
-        hardware_percent: int("capacity"),
-        current: int("current_now"),
-        temperature: int("temp").map(|t| t.saturating_mul(100)),
-        counter: int("charge_counter"),
-        charge_current: sense_current(root.read(&format!("{base}charging_state")).as_deref()),
-        boot_ocv: int("voltage_ocv"),
-        boot: if engine.percent.is_none() {
+        status,
+        hardware_percent: optional(0),
+        current: optional(1),
+        temperature: optional(2).map(|t| t.saturating_mul(100)),
+        counter: optional(3),
+        charge_current: charging
+            .then(|| sense_current(root.read(&format!("{base}charging_state")).as_deref()))
+            .flatten(),
+        boot_ocv: (!engine.estimated() && now <= soc::BOOT_OCV_FRESH_SECONDS)
+            .then(|| int("voltage_ocv"))
+            .flatten(),
+        boot: if first {
             boot_kind(root.read(BOOT_METADATA).as_deref())
         } else {
             None
