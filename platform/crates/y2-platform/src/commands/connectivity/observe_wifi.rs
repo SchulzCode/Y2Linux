@@ -3,9 +3,10 @@
 //! wpa_supplicant: null means unobserved, never zero or success.
 // SPDX-License-Identifier: GPL-2.0-only
 use serde_json::{json, Map, Value};
+use y2p_core::py;
 use y2p_core::{
     clock, command,
-    json::{sorted_object, Build, Object},
+    json::{sorted_object, Object, ObjectExt},
     py::{number, truthy},
     root::{python_int, read, READ_LIMIT},
     Root,
@@ -27,26 +28,6 @@ pub fn key_values(text: Option<&str>, separator: char) -> Map<String, Value> {
         }
     }
     result
-}
-
-/// Python `==` between two JSON values (numbers by value, `True == 1`).
-pub fn py_eq(a: Option<&Value>, b: Option<&Value>) -> bool {
-    let a = a.unwrap_or(&Value::Null);
-    let b = b.unwrap_or(&Value::Null);
-    match (a, b) {
-        (Value::Number(_) | Value::Bool(_), Value::Number(_) | Value::Bool(_)) => {
-            number(Some(a)) == number(Some(b))
-        }
-        (Value::Array(x), Value::Array(y)) => {
-            x.len() == y.len() && x.iter().zip(y).all(|(p, q)| py_eq(Some(p), Some(q)))
-        }
-        (Value::Object(x), Value::Object(y)) => {
-            x.len() == y.len()
-                && x.iter()
-                    .all(|(k, v)| y.get(k).is_some_and(|w| py_eq(Some(v), Some(w))))
-        }
-        _ => a == b,
-    }
 }
 
 /// `x == text` for a JSON value and a text read from a file (`None` when unreadable).
@@ -208,8 +189,10 @@ pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
         && eq_text(dns.get("boot_id"), boot.as_deref())
         && epoch.as_deref().is_some_and(|e| !e.is_empty())
         && eq_text(dns.get("epoch"), epoch.as_deref())
-        && addresses.iter().any(|a| py_eq(dns.get("address"), Some(a)))
-        && py_eq(dns.get("bssid"), properties.get("bssid"))
+        && addresses
+            .iter()
+            .any(|a| py::eq(dns.get("address"), Some(a)))
+        && py::eq(dns.get("bssid"), properties.get("bssid"))
         && fresh(clock_value(dns.get("monotonic_s")), DNS_FRESH_S);
     let dhcp = root.json_object("/run/y2/dhcp.json");
     let error = (eq_text(dhcp.get("boot_id"), boot.as_deref())
@@ -242,7 +225,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
     };
     let signal = object(previous.get("signal_observation").cloned().filter(truthy));
     let signal_fresh = eq_text(signal.get("boot_id"), boot.as_deref())
-        && py_eq(signal.get("bssid"), properties.get("bssid"))
+        && py::eq(signal.get("bssid"), properties.get("bssid"))
         && fresh(clock_value(signal.get("monotonic_s")), 30.0);
     let mut rssi = if signal_fresh {
         previous.get("rssi_dbm").cloned().unwrap_or(Value::Null)
@@ -273,7 +256,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
         signal_value = Value::Null;
     }
     let failed = state.as_str() == Some("Failed")
-        && py_eq(Some(&reason), properties.get("credential_failure"));
+        && py::eq(Some(&reason), properties.get("credential_failure"));
     Object::new()
         .with("state", state)
         .with("reason", reason)
@@ -422,10 +405,10 @@ mod tests {
 
     #[test]
     fn python_equality_and_addresses() {
-        assert!(py_eq(Some(&json!(1)), Some(&json!(1.0))));
-        assert!(py_eq(Some(&json!(true)), Some(&json!(1))));
-        assert!(py_eq(None, Some(&Value::Null)));
-        assert!(!py_eq(Some(&json!("1")), Some(&json!(1))));
+        assert!(py::eq(Some(&json!(1)), Some(&json!(1.0))));
+        assert!(py::eq(Some(&json!(true)), Some(&json!(1))));
+        assert!(py::eq(None, Some(&Value::Null)));
+        assert!(!py::eq(Some(&json!("1")), Some(&json!(1))));
         let ip = r#"[{"ifname": "wlan0", "addr_info": [{"local": "10.0.0.5", "scope": "global"},
                     {"local": "169.254.1.1", "scope": "link"}]}]"#;
         assert_eq!(

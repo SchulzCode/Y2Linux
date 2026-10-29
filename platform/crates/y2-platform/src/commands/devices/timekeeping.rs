@@ -9,7 +9,7 @@ use crate::{
 use serde_json::{json, Map, Value};
 use y2p_core::{
     clock, command,
-    json::{Build, Object},
+    json::{Object, ObjectExt},
     py::{self, is_true, number, truthy},
     Root,
 };

@@ -3,14 +3,14 @@
 use super::{
     bluetooth, system,
     util::{
-        self, counters, eq, findall_map, fresh_seconds, get_eq, int, is_int, key_values, name,
-        number, parent_name, read, read_limited, reads_by_name, realpath, split_ws, splitlines,
-        text,
+        self, counters, findall_map, fresh_seconds, get_eq, int, is_int, key_values, name, number,
+        parent_name, read, read_limited, reads_by_name, realpath, split_ws, splitlines, text,
     },
 };
 use crate::{regex, reply::Failure};
 use serde_json::{json, Map, Value};
 use std::path::Path;
+use y2p_core::py::PyValue;
 use y2p_core::{
     clock, command,
     json::{dumps_sorted, Separators},
@@ -1182,7 +1182,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
                 }
                 let claimed = claim.get("identity").filter(|v| !v.is_null());
                 if state == "Ready"
-                    && (identity.is_null() || claimed.is_some_and(|c| !eq(c, &identity)))
+                    && (identity.is_null() || claimed.is_some_and(|c| !c.py_eq(&identity)))
                 {
                     (state, reason) = ("Failed", Some("media_identity_changed_or_missing"));
                 }
@@ -1540,7 +1540,7 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
     Ok(json!({
         "state": state, "reason": reason, "radio_present": radio,
         // The saved network whose password failed (wpa_supplicant's id).
-        "failed_network_id": if state == "Failed" && eq(&reason, &credential) { failed_network } else { Value::Null },
+        "failed_network_id": if state == "Failed" && reason.py_eq(&credential) { failed_network } else { Value::Null },
         // A missed control query does not prove a radio disconnect. Preserve the actual failure and
         // latency separately from event counters.
         "supplicant_observation": {"ok": wpa.as_ref().map(|w| w.ok),
@@ -1609,7 +1609,7 @@ fn readiness(status: &Snapshot) -> Result<Value, Failure> {
         Some(state @ (Value::Array(_) | Value::Object(_))) => {
             return Err(Failure::type_error(format!(
                 "unhashable type: '{}'",
-                util::type_name(state)
+                PyValue::type_name(state)
             )))
         }
         Some(Value::String(s)) => match s.as_str() {

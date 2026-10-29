@@ -3,7 +3,7 @@
 use crate::reply::{atomic_json, Outcome, Reply};
 use serde_json::json;
 use y2p_core::{
-    json::{Build, Object},
+    json::{Object, ObjectExt},
     Root,
 };
 

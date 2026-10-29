@@ -4,11 +4,12 @@
 //! reads for `status` (group observation) and are not needed here.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::sys::{
-    boot_id, device_instance, exists, get, get_eq, get_in, isdigit, mounts, object, py_eq, read,
-    resolve, statvfs, text, Object,
+    boot_id, device_instance, exists, get, get_eq, get_in, isdigit, mounts, object, read, resolve,
+    statvfs, text, Object,
 };
 use serde_json::{json, Value};
 use std::path::Path;
+use y2p_core::py::PyValue;
 use y2p_core::{
     command,
     json::{dumps_sorted, Separators},
@@ -231,11 +232,11 @@ pub fn volumes(root: &Root) -> Vec<Object> {
                 let claimed = get(&claim, "identity");
                 if get(&item, "state") == "Ready"
                     && (identity.is_none()
-                        || (!claimed.is_null() && !py_eq(claimed, &identity_value)))
+                        || (!claimed.is_null() && !claimed.py_eq(&identity_value)))
                 {
                     failed(&mut item, "media_identity_changed_or_missing");
                 }
-                if instance.is_none() || !py_eq(get(&claim, "source_instance"), &text(&instance)) {
+                if instance.is_none() || !get(&claim, "source_instance").py_eq(&text(&instance)) {
                     failed(&mut item, "block_instance_changed");
                 }
             }

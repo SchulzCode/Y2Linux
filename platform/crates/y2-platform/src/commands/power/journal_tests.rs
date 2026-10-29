@@ -32,8 +32,8 @@ fn rows(fixture: &Fixture) -> Vec<Value> {
 }
 
 fn battery(value: Value) -> Object {
-    match Json::from(value) {
-        Json::Object(o) => o,
+    match value {
+        Value::Object(o) => o,
         other => panic!("{other:?}"),
     }
 }

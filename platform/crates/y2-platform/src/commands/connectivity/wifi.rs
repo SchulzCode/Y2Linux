@@ -3,7 +3,7 @@
 //! password latch Reborn reads, the scan evidence of F13 and the F52 self-heal. The service daemon runs
 //! these in process; the connectivity daemon writes the journal (F53).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::observe_wifi::{clock_value, eq_text, py_eq, wifi};
+use super::observe_wifi::{clock_value, eq_text, wifi};
 use crate::commands::network::{publish, wlan_switched_off};
 use crate::reply::Failure;
 use serde_json::{json, Value};
@@ -18,10 +18,11 @@ use std::{
     sync::mpsc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+use y2p_core::py;
 use y2p_core::{
     clock, command,
     connectivity_journal::{append_bounded, data_ready},
-    json::{dumps, Build, Object, Separators},
+    json::{dumps, Object, ObjectExt, Separators},
     py::truthy,
     Root,
 };
@@ -345,9 +346,9 @@ pub fn probe_dns(root: &Root, observed: &Object) -> Result<Option<Object>, Failu
     };
     let after = wifi(root, Some(observed));
     if root.read("/run/y2/wifi-epoch") != epoch
-        || !py_eq(after.get("association_id"), observed.get("association_id"))
-        || !py_eq(after.get("ip_addresses"), observed.get("ip_addresses"))
-        || !py_eq(after.get("default_route"), observed.get("default_route"))
+        || !py::eq(after.get("association_id"), observed.get("association_id"))
+        || !py::eq(after.get("ip_addresses"), observed.get("ip_addresses"))
+        || !py::eq(after.get("default_route"), observed.get("default_route"))
     {
         return Ok(None);
     }
@@ -423,7 +424,9 @@ impl DnsProbeSchedule {
             observed.get("ip_addresses").cloned().unwrap_or(Value::Null),
         );
         let same = self.key.as_ref().is_some_and(|old| {
-            old.0 == key.0 && py_eq(Some(&old.1), Some(&key.1)) && py_eq(Some(&old.2), Some(&key.2))
+            old.0 == key.0
+                && py::eq(Some(&old.1), Some(&key.1))
+                && py::eq(Some(&old.2), Some(&key.2))
         });
         if !same {
             self.key = Some(key);
@@ -813,7 +816,7 @@ impl EventMonitor {
         let mut wrong_key = (valid && kind != "CONNECTED").then(|| old["wrong_key"].clone());
         if error == Some("handshake_failed") {
             let count = match &wrong_key {
-                Some(w) if py_eq(w.get("network_id"), Some(&json!(network))) => {
+                Some(w) if py::eq(w.get("network_id"), Some(&json!(network))) => {
                     y2p_core::py::number(w.get("count")).unwrap_or(0.0) as i64 + 1
                 }
                 _ => 1,

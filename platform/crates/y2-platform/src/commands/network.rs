@@ -8,7 +8,7 @@ use serde_json::{json, Map, Value};
 use std::{env, fs, os::unix::fs::PermissionsExt, path::Path};
 use y2p_core::{
     clock, command,
-    json::{sorted_object, Build, Object},
+    json::{sorted_object, Object, ObjectExt},
     power_text::python_split,
     py::{self, is_true, truthy},
     Root,

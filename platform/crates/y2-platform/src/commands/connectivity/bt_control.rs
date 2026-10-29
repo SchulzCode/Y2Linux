@@ -12,7 +12,7 @@ use std::{
 };
 use y2p_core::{
     clock, command,
-    json::{Build, Object},
+    json::{Object, ObjectExt},
     Root,
 };
 

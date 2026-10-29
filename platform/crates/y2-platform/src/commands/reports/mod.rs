@@ -25,7 +25,7 @@ pub(crate) mod workload;
 use super::Command;
 use crate::reply::{Failure, Outcome, Reply};
 use pyjson::Py;
-use y2p_core::json::Build;
+use y2p_core::json::ObjectExt;
 use y2p_core::Root;
 
 const TOPICS: [&str; 7] = [

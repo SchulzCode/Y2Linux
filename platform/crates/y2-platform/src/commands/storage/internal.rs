@@ -16,8 +16,8 @@ use super::media::{mkdir_io, properties};
 use super::observe::setup_status;
 use super::sys::{
     atomic_json_mode, available, boot_id, device_instance, exists, get, get_eq, is_symlink,
-    isdigit, lock_now, mkdir, mounts as all_mounts, name, object, py_eq, read, release_view,
-    resolve, statvfs, text, Mount, Object,
+    isdigit, lock_now, mkdir, mounts as all_mounts, name, object, read, release_view, resolve,
+    statvfs, text, Mount, Object,
 };
 use crate::reply::{atomic_json, write_text, Failure};
 use serde_json::{json, Value};
@@ -32,6 +32,7 @@ use std::{
     },
     path::{Path, PathBuf},
 };
+use y2p_core::py::PyValue;
 use y2p_core::{
     command,
     py::{exact_int, truthy},
@@ -584,7 +585,7 @@ pub fn provision(
         if !valid(&props) {
             if get(&props, "TYPE").as_str() != Some("vfat")
                 || !truthy(confirm_uuid)
-                || !py_eq(get(&props, "UUID"), confirm_uuid)
+                || !get(&props, "UUID").py_eq(confirm_uuid)
             {
                 // Only the stock FAT filesystem, named by its serial, may be replaced.
                 return record(
@@ -731,7 +732,7 @@ fn update_state(root: &Root) -> Value {
     // The native core writes journal schema 2 since OTA-35 (BOOTIMG + root).
     match value {
         Some(Value::Object(map))
-            if py_eq(get(&map, "schema"), &json!(1)) || py_eq(get(&map, "schema"), &json!(2)) =>
+            if get(&map, "schema").py_eq(&json!(1)) || get(&map, "schema").py_eq(&json!(2)) =>
         {
             get(&map, "state").clone()
         }
@@ -781,7 +782,7 @@ fn load_profile(root: &Root) -> Option<Vec<(i64, i64)>> {
     let Some(Value::Object(value)) = value else {
         return None;
     };
-    if !py_eq(get(&value, "schema"), &json!(1)) {
+    if !get(&value, "schema").py_eq(&json!(1)) {
         return None;
     }
     let points = value.get("voltage_soc");
@@ -1023,7 +1024,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
             if let Some(blocked) = automatic_blocked(root) {
                 return note(root, "Pending", Some(blocked), &[]);
             }
-        } else if !truthy(confirm_serial) || !py_eq(confirm_serial, &serial) {
+        } else if !truthy(confirm_serial) || !confirm_serial.py_eq(&serial) {
             return note(
                 root,
                 "Failed",
@@ -1105,7 +1106,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
     if key(&saved, "phase")?.as_str() == Some("staging") {
         // `TYPE != 'vfat' or UUID != saved['serial']`: the serial is looked up only for a FAT.
         if get(&props, "TYPE").as_str() != Some("vfat")
-            || !py_eq(get(&props, "UUID"), key(&saved, "serial")?)
+            || !get(&props, "UUID").py_eq(key(&saved, "serial")?)
         {
             return note(root, "Failed", Some("old_storage_changed"), &[]);
         }
@@ -1137,7 +1138,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         if !valid(&props) {
             // `TYPE == 'vfat' and UUID != saved['serial']`: the serial only for a FAT.
             if get(&props, "TYPE").as_str() == Some("vfat")
-                && !py_eq(get(&props, "UUID"), key(&saved, "serial")?)
+                && !get(&props, "UUID").py_eq(key(&saved, "serial")?)
             {
                 return note(root, "Failed", Some("old_storage_changed"), &[]);
             }

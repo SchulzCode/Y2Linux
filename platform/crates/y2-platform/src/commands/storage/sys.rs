@@ -15,6 +15,7 @@ use std::{
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+use y2p_core::py::PyValue;
 use y2p_core::{
     lock,
     root::{read as read_text, READ_LIMIT},
@@ -25,56 +26,11 @@ pub type Object = Map<String, Value>;
 
 // ---- Python values ---------------------------------------------------------------------------
 
-/// Python `a == b` on parsed JSON: numbers compare by value (`True == 1 == 1.0`), containers element
-/// by element.
-pub fn py_eq(a: &Value, b: &Value) -> bool {
-    fn numeric(v: &Value) -> Option<(Option<i128>, f64)> {
-        match v {
-            Value::Bool(b) => Some((Some(i128::from(*b)), f64::from(u8::from(*b)))),
-            Value::Number(n) => Some((
-                n.as_i64()
-                    .map(i128::from)
-                    .or_else(|| n.as_u64().map(i128::from)),
-                n.as_f64().unwrap_or(f64::NAN),
-            )),
-            _ => None,
-        }
-    }
-    match (a, b) {
-        (Value::Null, Value::Null) => true,
-        (Value::String(x), Value::String(y)) => x == y,
-        (Value::Array(x), Value::Array(y)) => {
-            x.len() == y.len() && x.iter().zip(y).all(|(a, b)| py_eq(a, b))
-        }
-        (Value::Object(x), Value::Object(y)) => {
-            x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| py_eq(v, w)))
-        }
-        _ => match (numeric(a), numeric(b)) {
-            (Some((Some(x), _)), Some((Some(y), _))) => x == y,
-            (Some((_, x)), Some((_, y))) => x == y,
-            _ => false,
-        },
-    }
-}
-
-/// `type(value).__name__` of a JSON value as `json.loads` makes it.
-pub fn py_type(value: &Value) -> &'static str {
-    match value {
-        Value::Null => "NoneType",
-        Value::Bool(_) => "bool",
-        Value::Number(n) if n.is_f64() => "float",
-        Value::Number(_) => "int",
-        Value::String(_) => "str",
-        Value::Array(_) => "list",
-        Value::Object(_) => "dict",
-    }
-}
-
 /// `value.<attribute>` on a value that has no such attribute: Python's uncaught AttributeError.
 pub fn no_attribute(value: &Value, attribute: &str) -> Failure {
     Failure::attribute_error(format!(
         "'{}' object has no attribute '{attribute}'",
-        py_type(value)
+        PyValue::type_name(value)
     ))
 }
 
@@ -85,7 +41,7 @@ pub fn get<'a>(map: &'a Object, key: &str) -> &'a Value {
 
 /// `d.get(key) == value`.
 pub fn get_eq(map: &Object, key: &str, value: &Value) -> bool {
-    py_eq(get(map, key), value)
+    get(map, key).py_eq(value)
 }
 
 /// `d.get(key) in (a, b, …)` for strings.
@@ -495,7 +451,7 @@ fn has_view(current: &Object, path: &str) -> Result<bool, Failure> {
         Value::String(_) | Value::Object(_) => Err(no_attribute(&string, "get")),
         other => Err(Failure::type_error(format!(
             "'{}' object is not iterable",
-            py_type(other)
+            PyValue::type_name(other)
         ))),
     }
 }
@@ -641,18 +597,6 @@ pub fn maintenance(root: &Root) -> Result<Lease, Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn values_compare_as_python() {
-        assert!(py_eq(&json!(1), &json!(1.0)) && py_eq(&json!(true), &json!(1)));
-        assert!(!py_eq(&json!("1"), &json!(1)) && !py_eq(&json!(null), &json!(0)));
-        assert!(py_eq(&json!([["a", null]]), &json!([["a", null]])));
-        assert!(py_eq(
-            &json!({"a": 1, "b": [2]}),
-            &json!({"b": [2.0], "a": true})
-        ));
-        assert!(!py_eq(&json!({"a": 1}), &json!({"a": 1, "b": 2})));
-    }
 
     #[test]
     fn mountinfo_keeps_every_field() {

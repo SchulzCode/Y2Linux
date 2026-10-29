@@ -14,7 +14,6 @@ pub mod os_text;
 pub mod power_charger;
 pub mod power_identity;
 pub mod power_journal;
-pub mod power_json;
 pub mod power_text;
 pub mod py;
 pub mod record;

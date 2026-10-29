@@ -6,7 +6,7 @@ use crate::reply::{atomic_json, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use y2p_core::{
     clock, command,
-    json::{Build, Object},
+    json::{Object, ObjectExt},
     py::{eq_int, is_true, truthy},
     Root,
 };

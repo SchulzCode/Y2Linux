@@ -4,11 +4,12 @@
 //! [`Json::parse`] so the devices keep the order y2-bt-observe printed them in. The result is printed
 //! sorted (`status`), so it is a plain value.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{observe_wifi::py_eq, wifi::Json};
+use super::wifi::Json;
 use crate::commands::codec::{inventory_codec, not_iterable, requested, validate};
 use crate::reply::Failure;
 use serde::de::{Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{json, Map, Value};
+use y2p_core::py;
 use y2p_core::{
     clock,
     py::{is_true, number, truthy},
@@ -148,7 +149,7 @@ pub fn codec_settings(root: &Root) -> Result<Value, Failure> {
     Ok(json!({
         "schema": "org.y2linux.codec-settings/v1", "requested": policy.clone(),
         "effective": effective.clone(), "effective_scope": "daemon_start_arguments",
-        "pending_restart": !py_eq(Some(&effective), Some(&policy)),
+        "pending_restart": !py::eq(Some(&effective), Some(&policy)),
         "apply_action": "restart_player",
         "supported": {"sbc_quality": ["high", "xq", "xq+"], "sbc_abr": true,
                       "aac_quality": qualities(&aac, json!(["standard", "high"])),
@@ -182,7 +183,8 @@ pub fn quality(codec: Option<&str>, pcm: &Json, settings: &Value) -> Value {
     };
     let stats = pcm.get("EncoderStats").filter(|s| s.pairs().is_some());
     let live = pcm.get("Running").and_then(Json::leaf) == Some(&Value::Bool(true))
-        && stats.is_some_and(|s| py_eq(s.get("Active").map(Json::value).as_ref(), Some(&json!(1))));
+        && stats
+            .is_some_and(|s| py::eq(s.get("Active").map(Json::value).as_ref(), Some(&json!(1))));
     let observed = |key: &str, minimum: i64, maximum: i64| -> Value {
         let value = if live {
             stats.and_then(|s| s.get(key)).and_then(Json::leaf)
@@ -253,7 +255,7 @@ pub fn quality(codec: Option<&str>, pcm: &Json, settings: &Value) -> Value {
             let rate_in = |choices: [i64; 2]| {
                 choices
                     .iter()
-                    .any(|c| py_eq(rate.as_ref(), Some(&json!(c))))
+                    .any(|c| py::eq(rate.as_ref(), Some(&json!(c))))
             };
             let choices = if rate_in([44100, 88200]) {
                 json!([303, 606, 909])
@@ -365,7 +367,7 @@ pub fn normalize(root: &Root, raw: &Json) -> Result<Value, Failure> {
     }
     let done = |result: Map<String, Value>| Ok(Value::Object(result));
     if raw.pairs().is_none()
-        || !py_eq(raw.get("schema").map(Json::value).as_ref(), Some(&json!(1)))
+        || !py::eq(raw.get("schema").map(Json::value).as_ref(), Some(&json!(1)))
         || !raw.get("stable_owners").is_some_and(|s| truthy(&s.value()))
     {
         return done(result);
@@ -518,7 +520,7 @@ pub fn normalize(root: &Root, raw: &Json) -> Result<Value, Failure> {
                "lifetime_note": "snapshot; use ObjectManager removal signals for per-open lifetime"}),
     );
     let rate_ok = exact_int(Some(&rate)).is_some_and(|r| (8000..=192_000).contains(&r));
-    if format.is_none() || !rate_ok || !py_eq(Some(&channels), Some(&json!(2))) {
+    if format.is_none() || !rate_ok || !py::eq(Some(&channels), Some(&json!(2))) {
         result.insert("state".into(), json!("Degraded"));
         result.insert("reason".into(), json!("unsupported_or_incomplete_pcm"));
     }

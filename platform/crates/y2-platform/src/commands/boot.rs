@@ -12,7 +12,7 @@ use std::{
 use y2p_contract::BootStage;
 use y2p_core::{
     clock,
-    json::{dumps, Build, Object, Separators},
+    json::{dumps, Object, ObjectExt, Separators},
     py::{number, truthy},
     Root,
 };

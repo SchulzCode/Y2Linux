@@ -5,7 +5,7 @@ use serde_json::{json, Map, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 use y2p_core::{
     clock, command,
-    json::{sorted_object, Build, Object},
+    json::{sorted_object, Object, ObjectExt},
     py::{self, is_true, number, truthy},
     Root,
 };

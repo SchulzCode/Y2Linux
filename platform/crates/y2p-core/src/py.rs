@@ -173,10 +173,166 @@ pub fn entropy_ready() -> bool {
     unsafe { libc::getrandom((&mut byte as *mut u8).cast(), 1, libc::GRND_NONBLOCK) == 1 }
 }
 
+/// Python's rules for a parsed JSON value (`json.loads` gives dict, list, str, int, float, bool,
+/// None): truthiness, `type(x).__name__`, `==`, `str()` and `repr()`.
+pub trait PyValue {
+    /// Python truthiness.
+    fn truthy(&self) -> bool;
+    /// `type(value).__name__`.
+    fn type_name(&self) -> &'static str;
+    /// Whether the value can be a dict key or a set member (`TypeError: unhashable` otherwise).
+    fn hashable(&self) -> bool;
+    /// Python `a == b`: numbers and bools by value (`True == 1 == 1.0`, an int and a float exactly),
+    /// containers element-wise, dicts by keys and values regardless of order.
+    fn py_eq(&self, other: &Value) -> bool;
+    /// `value == text` for a str.
+    fn is_str(&self, text: &str) -> bool;
+    /// `type(value) is int`.
+    fn exact_int(&self) -> Option<i64>;
+    /// Python `str(value)` (`'%s' % value`, `str(ValueError(value))`).
+    fn py_str(&self) -> String;
+    /// Python `repr(value)`: a dict in its key order.
+    fn py_repr(&self) -> String;
+}
+
+impl PyValue for Value {
+    fn truthy(&self) -> bool {
+        truthy(self)
+    }
+
+    fn type_name(&self) -> &'static str {
+        match self {
+            Value::Null => "NoneType",
+            Value::Bool(_) => "bool",
+            Value::Number(n) if n.is_f64() => "float",
+            Value::Number(_) => "int",
+            Value::String(_) => "str",
+            Value::Array(_) => "list",
+            Value::Object(_) => "dict",
+        }
+    }
+
+    fn hashable(&self) -> bool {
+        !matches!(self, Value::Array(_) | Value::Object(_))
+    }
+
+    fn py_eq(&self, other: &Value) -> bool {
+        match (self, other) {
+            (Value::Null, Value::Null) => true,
+            (Value::String(a), Value::String(b)) => a == b,
+            (Value::Array(a), Value::Array(b)) => {
+                a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.py_eq(y))
+            }
+            (Value::Object(a), Value::Object(b)) => {
+                a.len() == b.len() && a.iter().all(|(k, v)| b.get(k).is_some_and(|w| v.py_eq(w)))
+            }
+            (a, b) => match (Numeric::of(a), Numeric::of(b)) {
+                (Some(x), Some(y)) => x.same(&y),
+                _ => false,
+            },
+        }
+    }
+
+    fn is_str(&self, text: &str) -> bool {
+        self.as_str() == Some(text)
+    }
+
+    fn exact_int(&self) -> Option<i64> {
+        exact_int(Some(self))
+    }
+
+    fn py_str(&self) -> String {
+        match self {
+            Value::String(s) => s.clone(),
+            other => other.py_repr(),
+        }
+    }
+
+    fn py_repr(&self) -> String {
+        match self {
+            Value::Null => "None".into(),
+            Value::Bool(true) => "True".into(),
+            Value::Bool(false) => "False".into(),
+            Value::Number(n) => match n.as_f64() {
+                Some(f) if n.is_f64() => crate::json::float_repr(f),
+                _ => n.to_string(),
+            },
+            Value::String(s) => repr(s),
+            Value::Array(a) => format!(
+                "[{}]",
+                a.iter().map(Value::py_repr).collect::<Vec<_>>().join(", ")
+            ),
+            Value::Object(o) => format!(
+                "{{{}}}",
+                o.iter()
+                    .map(|(k, v)| format!("{}: {}", repr(k), v.py_repr()))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        }
+    }
+}
+
+/// `a == b` of two optional values, a missing one as None.
+pub fn eq(a: Option<&Value>, b: Option<&Value>) -> bool {
+    a.unwrap_or(&Value::Null).py_eq(b.unwrap_or(&Value::Null))
+}
+
+enum Numeric {
+    Int(i128),
+    Float(f64),
+}
+
+impl Numeric {
+    fn of(value: &Value) -> Option<Numeric> {
+        match value {
+            Value::Bool(b) => Some(Numeric::Int(i128::from(*b))),
+            Value::Number(n) => Some(if let Some(i) = n.as_i64() {
+                Numeric::Int(i128::from(i))
+            } else if let Some(u) = n.as_u64() {
+                Numeric::Int(i128::from(u))
+            } else {
+                Numeric::Float(n.as_f64().unwrap_or(f64::NAN))
+            }),
+            _ => None,
+        }
+    }
+
+    fn same(&self, other: &Numeric) -> bool {
+        match (self, other) {
+            (Numeric::Int(a), Numeric::Int(b)) => a == b,
+            (Numeric::Float(a), Numeric::Float(b)) => a == b,
+            // Python compares an int with a float exactly, not through a conversion.
+            (Numeric::Int(i), Numeric::Float(f)) | (Numeric::Float(f), Numeric::Int(i)) => {
+                f.is_finite() && f.fract() == 0.0 && f.abs() < 1.8e38 && *f as i128 == *i
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn equality_and_spelling_follow_python() {
+        let parse = |t: &str| serde_json::from_str::<Value>(t).unwrap();
+        assert!(parse("1").py_eq(&parse("1.0")) && parse("true").py_eq(&parse("1")));
+        assert!(!parse("1.5").py_eq(&parse("1")) && !parse("\"1\"").py_eq(&parse("1")));
+        assert!(parse(r#"{"a": 1, "b": [2]}"#).py_eq(&parse(r#"{"b": [2.0], "a": true}"#)));
+        // 2**53 + 1 is no float: Python compares exactly.
+        assert!(!parse("9007199254740993").py_eq(&parse("9007199254740992.0")));
+        assert!(eq(None, Some(&Value::Null)) && !eq(Some(&json!("1")), Some(&json!(1))));
+        assert_eq!(
+            parse(r#"[null, true, 1.0, "it's", {"k": "v", "a": 1}]"#).py_repr(),
+            r#"[None, True, 1.0, "it's", {'k': 'v', 'a': 1}]"#
+        );
+        assert_eq!(parse("\"x\"").py_str(), "x");
+        assert_eq!(parse("[]").type_name(), "list");
+        assert_eq!(parse("2.0").type_name(), "float");
+        assert!(Numeric::Int(3).same(&Numeric::Float(3.0)));
+    }
 
     #[test]
     fn values_follow_python_rules() {

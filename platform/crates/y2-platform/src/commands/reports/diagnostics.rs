@@ -21,7 +21,7 @@ use crate::reply::{private_directory, Failure, Outcome, Reply};
 use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::{io::Write, os::unix::fs::OpenOptionsExt, sync::OnceLock};
-use y2p_core::json::Build;
+use y2p_core::json::ObjectExt;
 use y2p_core::{command, Root};
 
 const MAX_BYTES: usize = 2 * 1024 * 1024;

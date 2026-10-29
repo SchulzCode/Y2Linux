@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use std::fs;
 use y2p_core::{
     clock,
-    json::{Build, Object},
+    json::{Object, ObjectExt},
     Root,
 };
 

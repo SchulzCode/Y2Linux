@@ -10,6 +10,7 @@ use std::{
     path::{Component, Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
+use y2p_core::py::PyValue;
 use y2p_core::{
     clock,
     observation_support::regex::Regex,
@@ -121,19 +122,6 @@ pub fn isdigit(text: &str) -> bool {
         })
 }
 
-/// `type(value).__name__` of a parsed JSON value.
-pub fn type_name(value: &Value) -> &'static str {
-    match value {
-        Value::Null => "NoneType",
-        Value::Bool(_) => "bool",
-        Value::Number(n) if n.is_f64() => "float",
-        Value::Number(_) => "int",
-        Value::String(_) => "str",
-        Value::Array(_) => "list",
-        Value::Object(_) => "dict",
-    }
-}
-
 /// A dict key that is no str (`dict([[1, 2]])`), kept under this prefix: Python's
 /// `json.dumps(sort_keys=True)` of a dict holding it raises TypeError (`unsortable`).
 pub const NON_STR_KEY: &str = "\u{0}non-str-key:";
@@ -153,7 +141,7 @@ pub fn py_dict(value: &Value) -> Result<Map<String, Value>, Failure> {
         other => {
             return Err(Failure::type_error(format!(
                 "'{}' object is not iterable",
-                type_name(other)
+                PyValue::type_name(other)
             )))
         }
     };
@@ -181,7 +169,7 @@ pub fn py_dict(value: &Value) -> Result<Map<String, Value>, Failure> {
         let key = match key {
             Value::String(key) => key,
             key @ (Value::Array(_) | Value::Object(_)) => {
-                let name = type_name(&key);
+                let name = PyValue::type_name(&key);
                 return Err(Failure::type_error(format!(
                     "cannot use '{name}' as a dict key (unhashable type: '{name}')"
                 )));
@@ -218,7 +206,7 @@ pub fn sortable(value: &Value) -> Result<(), Failure> {
 pub fn no_get(value: &Value) -> Failure {
     Failure::attribute_error(format!(
         "'{}' object has no attribute 'get'",
-        type_name(value)
+        PyValue::type_name(value)
     ))
 }
 
@@ -285,25 +273,6 @@ macro_rules! regex {
     }};
 }
 
-/// Python `a == b` for parsed JSON (bools and numbers compare numerically).
-pub fn eq(a: &Value, b: &Value) -> bool {
-    match (a, b) {
-        (Value::Number(_) | Value::Bool(_), Value::Number(_) | Value::Bool(_)) => {
-            match (as_i128(a), as_i128(b)) {
-                (Some(x), Some(y)) => x == y,
-                _ => num(a) == num(b),
-            }
-        }
-        (Value::Array(x), Value::Array(y)) => {
-            x.len() == y.len() && x.iter().zip(y).all(|(a, b)| eq(a, b))
-        }
-        (Value::Object(x), Value::Object(y)) => {
-            x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| eq(v, w)))
-        }
-        _ => a == b,
-    }
-}
-
 fn as_i128(value: &Value) -> Option<i128> {
     match value {
         Value::Bool(b) => Some(i128::from(*b)),
@@ -318,12 +287,12 @@ fn num(value: &Value) -> Option<f64> {
 
 /// `d.get(key) == other` where a missing key is None.
 pub fn get_eq(map: &Map<String, Value>, key: &str, other: &Value) -> bool {
-    eq(map.get(key).unwrap_or(&Value::Null), other)
+    map.get(key).unwrap_or(&Value::Null).py_eq(other)
 }
 
 /// `value in sequence` for a list.
 pub fn contains(list: &[Value], value: &Value) -> bool {
-    list.iter().any(|item| eq(item, value))
+    list.iter().any(|item| item.py_eq(value))
 }
 
 /// `isinstance(value, int)`: an int or a bool, as an exact integer.
@@ -551,13 +520,6 @@ mod tests {
             counters(Some("ctxt 5\nintr 7 1 2\nempty\n"))["intr"],
             json!(7)
         );
-    }
-
-    #[test]
-    fn equality_is_pythons() {
-        assert!(eq(&json!(1), &json!(1.0)) && eq(&json!(true), &json!(1)));
-        assert!(!eq(&json!("1"), &json!(1)) && !eq(&json!(null), &json!(false)));
-        assert!(eq(&json!({"a": [1, 2.0]}), &json!({"a": [true, 2]})));
     }
 
     #[test]

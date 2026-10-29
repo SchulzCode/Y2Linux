@@ -5,7 +5,7 @@ use super::observe::{media_identity, refused_card, volumes, MEDIA_MOUNT, MEDIA_S
 use super::sys::{
     available, boot_id, device_instance, exists, get, get_eq, get_in, is_symlink, isdigit,
     lock_now, lock_within, maintenance, mkdir, mounts as all_mounts, name, no_attribute, object,
-    py_eq, read, release_sd, resolve, statvfs, try_lock, wall_seconds, write_record, Mount, Object,
+    read, release_sd, resolve, statvfs, try_lock, wall_seconds, write_record, Mount, Object,
 };
 use crate::reply::{atomic_json, unlink_missing_ok, Failure};
 use serde_json::{json, Value};
@@ -21,6 +21,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+use y2p_core::py::PyValue;
 use y2p_core::{
     clock, command,
     py::{exact_int, is_true, number, truthy},
@@ -321,7 +322,7 @@ pub fn reconcile(root: &Root) -> Result<Object, Failure> {
     let runtime = runtime(root)?;
     let current = inventory(root);
     let previous = object(root, "/run/y2/media-lifecycle.json");
-    let same = py_eq(get(&previous, "inventory"), &current);
+    let same = get(&previous, "inventory").py_eq(&current);
     if same && !truthy(get(&previous, "retry")) {
         protect(root)?;
         return Ok(previous);
@@ -816,7 +817,7 @@ fn card_keys(cards: &[Object]) -> Vec<(Value, Value)> {
 
 fn same_card(cards: &[Object], key: &(Value, Value)) -> bool {
     let keys = card_keys(cards);
-    keys.len() == 1 && py_eq(&keys[0].0, &key.0) && py_eq(&keys[0].1, &key.1)
+    keys.len() == 1 && keys[0].0.py_eq(&key.0) && keys[0].1.py_eq(&key.1)
 }
 
 pub fn verify(root: &Root) -> Result<Object, Failure> {
@@ -853,7 +854,7 @@ pub fn verify(root: &Root) -> Result<Object, Failure> {
     };
     let (mut now, mount) = sd_state(root);
     if mount.is_none()
-        || !py_eq(get(&now, "mount_id"), get(&claim, "mount_id"))
+        || !get(&now, "mount_id").py_eq(get(&claim, "mount_id"))
         || get(&now, "read_only").as_str() != Some("checking")
         || !same_card(&candidates(root), &key)
     {
@@ -1090,7 +1091,7 @@ fn repair_locked(root: &Root, record: &mut Object) -> Result<Object, Failure> {
     // A non-dict identity or check crashes Python here, after the card was detached (and, for the
     // check, before the record has a card: no repair record is written).
     let identity = identity_id(&before)?;
-    if available.len() != 1 || !py_eq(&json!(card_id(&available[0])), &identity) {
+    if available.len() != 1 || !json!(card_id(&available[0])).py_eq(&identity) {
         set_state(&mut state, "Failed", "card_changed");
         return Ok(state);
     }

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::{
     clock,
-    json::{Build, Object},
+    json::{Object, ObjectExt},
     Root,
 };
 use serde_json::{json, Value};

@@ -26,7 +26,7 @@ use std::{
     os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt},
     path::Path,
 };
-use y2p_core::json::Build;
+use y2p_core::json::ObjectExt;
 use y2p_core::{clock as kernel, command, Root};
 
 const SETTINGS: &str = "reborn/state/session.json";

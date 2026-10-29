@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use y2p_core::{
     clock,
     json::{dumps, Separators},
-    power_json::Object,
+    json::{Object, ObjectExt},
 };
 
 const FIB_TRIE: &str = "Main:

@@ -8,7 +8,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     download::{self, Error as Net, Response, CANCELLED},
-    python::{int_or_float, is_one_of, key_order, lock_held, prefix, str_of},
+    python::{int_or_float, is_one_of, key_order, lock_held, prefix},
     storage,
 };
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
@@ -24,8 +24,8 @@ use std::{
 };
 use y2p_core::{
     clock, command,
-    json::{Build, Object},
-    py::{self, is_true, truthy},
+    json::{sorted, Object, ObjectExt},
+    py::{self, is_true, truthy, PyValue},
     record,
     service_digest::Sha256,
     Root,
@@ -277,7 +277,7 @@ pub fn core(
         .and_then(|v| v.get("failure").cloned())
         .filter(truthy);
         return Err(Raise::Value(match refusal {
-            Some(value) => str_of(&value),
+            Some(value) => sorted(value).py_str(),
             None => format!(
                 "update_core_{}",
                 result
@@ -1229,11 +1229,10 @@ fn rpc(root: &Root, action: &str) -> Result<Value> {
         return Err(Raise::value("invalid_power_response"));
     };
     if !result.get("ok").is_some_and(truthy) {
-        return Err(Raise::Value(
-            result
-                .get("error")
-                .map_or_else(|| "power_request_failed".into(), str_of),
-        ));
+        return Err(Raise::Value(result.get("error").map_or_else(
+            || "power_request_failed".into(),
+            |e| sorted(e.clone()).py_str(),
+        )));
     }
     result
         .get("result")

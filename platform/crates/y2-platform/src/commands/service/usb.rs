@@ -8,11 +8,12 @@ use super::radiofw;
 use crate::commands::storage::{
     internal, media,
     observe::{setup_status, volumes},
-    sys::{mounts, py_eq, read, Mount, Object},
+    sys::{mounts, read, Mount, Object},
 };
 use crate::reply::{atomic_json, mkdir_parents, write_text, Failure};
 use serde_json::{json, Value};
 use std::{fs, path::Path, thread, time::Duration};
+use y2p_core::py::PyValue;
 use y2p_core::{clock, py, Root};
 
 const GADGET: &str = "/sys/kernel/config/usb_gadget/y2";
@@ -93,10 +94,11 @@ fn media_views(root: &Root) -> Vec<Object> {
         // Never create a view of an absent underlying mount.
         let release = root.json_object("/run/y2/usb-release-sd.json");
         if let Some(mount) = mount.filter(|_| path == "/media/sd") {
-            if py_eq(
-                release.get("mount_id").unwrap_or(&Value::Null),
-                &json!(mount.mount_id),
-            ) {
+            if release
+                .get("mount_id")
+                .unwrap_or(&Value::Null)
+                .py_eq(&json!(mount.mount_id))
+            {
                 continue;
             }
         }
@@ -162,9 +164,9 @@ fn identity(view: &Object) -> Value {
     ])
 }
 
-/// `str(value)` of a record's field (`'%s'`).
+/// `str(value)` of a record's field (`'%s'`), a dict's keys sorted as the records are written.
 fn py_text(value: Option<&Value>) -> String {
-    super::python::str_of(value.unwrap_or(&Value::Null))
+    y2p_core::json::sorted(value.cloned().unwrap_or_default()).py_str()
 }
 
 /// `expectations(views)`: the mount identity the responder must find when it pins a root.
@@ -505,7 +507,7 @@ impl UsbService {
     fn pinned(&mut self) -> Option<Vec<Value>> {
         let state = self.root.json_object("/run/y2/mtp-roots.json");
         let pid = self.child.as_ref().map(Child::pid)?;
-        if !py_eq(state.get("pid").unwrap_or(&Value::Null), &json!(pid)) {
+        if !state.get("pid").unwrap_or(&Value::Null).py_eq(&json!(pid)) {
             return None;
         }
         state.get("roots").and_then(Value::as_array).cloned()
@@ -536,7 +538,7 @@ impl UsbService {
         }
         for (path, mounted) in self.mounted.clone() {
             let view = desired.iter().find(|(p, _)| *p == path).map(|(_, v)| *v);
-            if view.is_some_and(|v| py_eq(&mounted, &identity(v))) {
+            if view.is_some_and(|v| mounted.py_eq(&identity(v))) {
                 continue;
             }
             // Leaving view: the responder drops its pinned root and open files before the platform
@@ -595,7 +597,7 @@ impl UsbService {
             "error": activity.and_then(|a| a.get("error")).cloned().unwrap_or(Value::Null),
             "restarts": self.failures,
         });
-        if !self.last_record.as_ref().is_some_and(|l| py_eq(l, &value)) {
+        if !self.last_record.as_ref().is_some_and(|l| l.py_eq(&value)) {
             atomic_json(&self.root.path("/run/y2/usb-transfer.json"), &value, false)?;
             self.last_record = Some(value.clone());
         }
@@ -788,7 +790,12 @@ impl UsbService {
         }
         let mut activity = self.root.json_object("/run/y2/mtp-events.json");
         let pid = self.child.as_ref().map(Child::pid);
-        if pid.is_none_or(|pid| !py_eq(activity.get("pid").unwrap_or(&Value::Null), &json!(pid))) {
+        if pid.is_none_or(|pid| {
+            !activity
+                .get("pid")
+                .unwrap_or(&Value::Null)
+                .py_eq(&json!(pid))
+        }) {
             activity = Object::new();
         }
         // isinstance(generation, int): a bool is an int too.

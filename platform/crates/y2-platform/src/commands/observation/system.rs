@@ -10,6 +10,7 @@ use super::{
 use crate::{regex, reply::Failure};
 use serde_json::{json, Map, Value};
 use std::os::unix::fs::MetadataExt;
+use y2p_core::py::PyValue;
 use y2p_core::{command, py::truthy, Root};
 
 pub const RESET_STATUS: &str = "/sys/firmware/y2_pm/reset_status";
@@ -91,7 +92,7 @@ pub(crate) fn evidence_status(root: &Root) -> Result<Value, Failure> {
         Some(other) => y2p_core::py::iterate(other).ok_or_else(|| {
             Failure::type_error(format!(
                 "'{}' object is not iterable",
-                util::type_name(other)
+                PyValue::type_name(other)
             ))
         })?,
     };

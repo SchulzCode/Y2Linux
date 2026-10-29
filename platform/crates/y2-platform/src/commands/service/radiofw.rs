@@ -12,7 +12,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     image::{self, Ext4, Image},
-    python::{mountinfo, py_eq, realpath, Mount},
+    python::{mountinfo, realpath, Mount},
 };
 use crate::reply::{atomic_json as publish, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
@@ -23,9 +23,10 @@ use std::{
     path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+use y2p_core::py::PyValue;
 use y2p_core::{
     clock, command,
-    json::{Build, Object},
+    json::{Object, ObjectExt},
     py, record,
     service_digest::sha256_hex,
     Root,
@@ -652,7 +653,7 @@ fn scan(root: &Root, reviewed: &Reviewed) -> Result<Value> {
         };
         let (seen, arriving) = seen(&info);
         // A copy still arriving over USB changes size or time between passes.
-        if !py_eq(get_or_null(&previous, "seen"), &seen) || arriving {
+        if !get_or_null(&previous, "seen").py_eq(&seen) || arriving {
             record_state(
                 root,
                 &json!({"schema": 1, "state": "Missing", "seen": seen}),
@@ -707,11 +708,11 @@ fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
             continue;
         };
         let (seen, arriving) = seen(&info);
-        if py_eq(&seen, get_or_null(&previous, "kept")) {
+        if seen.py_eq(get_or_null(&previous, "kept")) {
             continue;
         }
         // A copy still arriving changes size or time between passes.
-        if !py_eq(get_or_null(&previous, "leftover"), &seen) || arriving {
+        if !get_or_null(&previous, "leftover").py_eq(&seen) || arriving {
             value.set("leftover", seen);
             break;
         }
@@ -724,7 +725,7 @@ fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
     }
     let differs = value
         .iter()
-        .any(|(k, v)| !py_eq(v, get_or_null(&previous, k)))
+        .any(|(k, v)| !v.py_eq(get_or_null(&previous, k)))
         || previous.keys().any(|k| value.get(k).is_none());
     if differs {
         record_state(root, &serde_json::to_value(&value).expect("value"))?;
@@ -741,7 +742,7 @@ pub fn leftover_waiting(root: &Root) -> bool {
         .unwrap_or(Value::Null);
     candidates(root)
         .iter()
-        .any(|source| regular(source).is_some_and(|info| !py_eq(&seen(&info).0, &kept)))
+        .any(|source| regular(source).is_some_and(|info| !seen(&info).0.py_eq(&kept)))
 }
 
 /// `radiofw.start`: (re)start the radios with the installed firmware. Stopping running radios can take

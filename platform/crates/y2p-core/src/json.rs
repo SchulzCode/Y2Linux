@@ -195,14 +195,16 @@ fn decimal(text: &str) -> (String, i32) {
 /// A JSON object: a dict in insertion order (serde_json's `preserve_order`).
 pub type Object = serde_json::Map<String, serde_json::Value>;
 
-/// Building an object as a dict literal or `dict[key] = value`: a new key goes last, an existing one
-/// keeps its position.
-pub trait Build {
+/// An object as a dict: built as a literal or with `dict[key] = value` (a new key goes last, an
+/// existing one keeps its position), read with `dict.get(key)`.
+pub trait ObjectExt {
     fn set(&mut self, key: &str, value: impl Into<serde_json::Value>) -> &mut Self;
     fn with(self, key: &str, value: impl Into<serde_json::Value>) -> Self;
+    /// `dict.get(key)` as a value (None for a missing key).
+    fn value(&self, key: &str) -> serde_json::Value;
 }
 
-impl Build for Object {
+impl ObjectExt for Object {
     fn set(&mut self, key: &str, value: impl Into<serde_json::Value>) -> &mut Self {
         self.insert(key.to_owned(), value.into());
         self
@@ -211,6 +213,10 @@ impl Build for Object {
     fn with(mut self, key: &str, value: impl Into<serde_json::Value>) -> Self {
         self.set(key, value);
         self
+    }
+
+    fn value(&self, key: &str) -> serde_json::Value {
+        self.get(key).cloned().unwrap_or(serde_json::Value::Null)
     }
 }
 

@@ -4,6 +4,7 @@
 use super::*;
 use crate::commands::power::policy::{self, load_policy, LowBattery};
 use crate::testing::Fixture;
+use serde_json::Value;
 
 const ETC: &str = "buildroot/board/y2/production-overlay/etc/y2linux";
 const BAT0: &str = "/sys/class/power_supply/BAT0/";
@@ -34,12 +35,12 @@ fn at(voltage: i64, present: i64, status: &str) -> Reading {
 }
 
 /// A saved display state (`battery-ui.json`) as `Soc(profile, state)` receives it.
-fn saved(text: &str) -> Option<Json> {
-    Some(Json::parse(text.as_bytes()).expect("saved state"))
+fn saved(text: &str) -> Option<Value> {
+    Some(serde_json::from_slice::<Value>(text.as_bytes()).expect("saved state"))
 }
 
 /// `soc.state()` as the daemon writes it: `{'schema': 1, 'ui_percent': ..., 'anchor_percent': ...}`.
-fn state_json(soc: &Soc) -> Option<Json> {
+fn state_json(soc: &Soc) -> Option<Value> {
     soc.state().map(|(ui, anchor)| {
         Object::new()
             .with("schema", 1i64)
@@ -50,7 +51,7 @@ fn state_json(soc: &Soc) -> Option<Json> {
 }
 
 fn percent(value: &Object) -> Option<i64> {
-    value.get("percent").and_then(Json::exact_int)
+    value.get("percent").and_then(Value::exact_int)
 }
 
 fn shown(value: &Object) -> i64 {
@@ -58,16 +59,16 @@ fn shown(value: &Object) -> i64 {
 }
 
 fn int(value: &Object, key: &str) -> Option<i64> {
-    value.get(key).and_then(Json::exact_int)
+    value.get(key).and_then(Value::exact_int)
 }
 
 fn text(value: &Object, key: &str) -> Option<String> {
-    value.get(key).and_then(Json::as_str).map(str::to_owned)
+    value.get(key).and_then(Value::as_str).map(str::to_owned)
 }
 
 fn flag(value: &Object, key: &str) -> bool {
     match value.get(key) {
-        Some(Json::Bool(b)) => *b,
+        Some(Value::Bool(b)) => *b,
         other => panic!("{key}: {other:?}"),
     }
 }
@@ -449,7 +450,7 @@ fn restart_keeps_the_display_instead_of_the_boot_sag() {
         },
     );
     assert_eq!(shown(&again), 100);
-    assert_eq!(again.value("anchor_percent"), Json::from(anchor));
+    assert_eq!(again.value("anchor_percent"), Value::from(anchor));
 }
 
 #[test]
@@ -476,7 +477,7 @@ fn saved_value_is_refused_beyond_40_points_and_charger_moved_ocv() {
     .observe(0., &at(3779000, 1, "Discharging"));
     assert_eq!(
         (percent(&junk), junk.value("anchor_percent")),
-        (Some(50), Json::Null)
+        (Some(50), Value::Null)
     );
 }
 

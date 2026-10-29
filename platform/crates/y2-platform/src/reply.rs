@@ -10,7 +10,7 @@ use std::{
     path::Path,
 };
 use y2p_core::{
-    json::{dumps, dumps_sorted, Build, Object, Separators},
+    json::{dumps, dumps_sorted, Object, ObjectExt, Separators},
     py,
 };
 

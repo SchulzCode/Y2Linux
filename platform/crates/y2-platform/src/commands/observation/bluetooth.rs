@@ -1,13 +1,14 @@
 //! `observe.bluetooth`, `bluetooth.normalize`, `codec_controls.status` and
 //! `codec_observation.quality`: actual D-Bus observations, never codec requests, for platform clients.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::util::{self, contains, eq, get_eq, is_int};
+use super::util::{self, contains, get_eq, is_int};
 use crate::{
     commands::codec::{inventory_codec, requested, validate},
     reply::Failure,
 };
 use serde::de::{Deserializer, IgnoredAny, MapAccess, Visitor};
 use serde_json::{json, Map, Value};
+use y2p_core::py::PyValue;
 use y2p_core::{
     clock, command,
     py::{exact_int, is_true, truthy},
@@ -82,7 +83,7 @@ fn codec_settings(root: &Root) -> Result<Value, Stop> {
     Ok(json!({
         "schema": y2p_contract::schema::CODEC_SETTINGS, "requested": policy.clone(),
         "effective": effective.clone(), "effective_scope": "daemon_start_arguments",
-        "pending_restart": !eq(&effective, &policy),
+        "pending_restart": !effective.py_eq(&policy),
         "apply_action": "restart_player",
         "supported": {
             "sbc_quality": ["high", "xq", "xq+"], "sbc_abr": true,
@@ -181,7 +182,7 @@ fn quality(codec: &Value, pcm: &Map<String, Value>, settings: &Value) -> Map<Str
         }
         Some("LDAC") => {
             let rate = pcm.get("Rate").cloned().unwrap_or(Value::Null);
-            let is = |n: i64| eq(&rate, &json!(n));
+            let is = |n: i64| rate.py_eq(&json!(n));
             value.insert(
                 "ldac_nominal_choices_kbps".into(),
                 if is(44100) || is(88200) {
@@ -533,7 +534,7 @@ fn normalize(root: &Root, raw: &Map<String, Value>, order: &[String]) -> Result<
         "lifetime_note": "snapshot; use ObjectManager removal signals for per-open lifetime"}),
     );
     let rate_ok = exact_int(Some(&rate)).is_some_and(|r| (8000..=192_000).contains(&r));
-    if format.is_none() || !rate_ok || !eq(&channels, &json!(2)) {
+    if format.is_none() || !rate_ok || !channels.py_eq(&json!(2)) {
         result.insert("state".into(), json!("Degraded"));
         result.insert("reason".into(), json!("unsupported_or_incomplete_pcm"));
     }

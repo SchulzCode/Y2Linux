@@ -3,9 +3,10 @@
 //! kernel-refusal retry gate. Also the two pieces of other modules the gates read: `power.load_policy`
 //! and `update.status(ctx).get('state')`.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{is_text, py_eq, py_gt, text_value, wall, E};
+use super::{is_text, py_gt, text_value, wall, E};
 use serde_json::{json, Map, Number, Value};
 use std::{fs::Metadata, os::unix::fs::MetadataExt, path::Path};
+use y2p_core::py::PyValue;
 use y2p_core::{
     clock,
     py::{exact_int, is_true, truthy},
@@ -112,7 +113,10 @@ pub fn admission(root: &Root) -> Result<(), E> {
         return Err(refused("pm_test_in_progress"));
     }
     let retry = root.json_object(RETRY);
-    if py_eq(retry.get("boot_id").unwrap_or(&Value::Null), &boot_id(root))
+    if retry
+        .get("boot_id")
+        .unwrap_or(&Value::Null)
+        .py_eq(&boot_id(root))
         && before(retry.get("not_before_ns"), clock::boottime_ns())
     {
         return Err(refused("kernel_prepare_retry_wait"));
@@ -121,10 +125,11 @@ pub fn admission(root: &Root) -> Result<(), E> {
     // Only an attempt that reached the kernel can leave an unproven sleep. A pending record written
     // before kernel entry (radio quiesce, Reborn) is a helper failure, not a kernel quarantine; 12
     // kept those across reboots.
-    if py_eq(
-        prior.get("identity").unwrap_or(&Value::Null),
-        &identity(root),
-    ) && prior.get("pending").is_some_and(truthy)
+    if prior
+        .get("identity")
+        .unwrap_or(&Value::Null)
+        .py_eq(&identity(root))
+        && prior.get("pending").is_some_and(truthy)
         && prior.get("kernel_entry").is_none_or(truthy)
     {
         // A clean, explicit owner trial on this image can recover a quarantine.
@@ -138,16 +143,19 @@ pub fn admission(root: &Root) -> Result<(), E> {
             _ => &empty,
         };
         let zero = json!(0);
-        let recovered = !py_eq(
-            receipt.get("mode").unwrap_or(&Value::Null),
-            &json!("product"),
-        ) && py_eq(p.get("state").unwrap_or(&Value::Null), &json!("restored"))
+        let recovered = !receipt
+            .get("mode")
+            .unwrap_or(&Value::Null)
+            .py_eq(&json!("product"))
+            && p.get("state")
+                .unwrap_or(&Value::Null)
+                .py_eq(&json!("restored"))
             && is_true(p.get("kernel_completed"))
             && is_true(p.get("same_boot"))
-            && py_eq(
-                receipt.get("current_boot_id").unwrap_or(&Value::Null),
-                &boot_id(root),
-            )
+            && receipt
+                .get("current_boot_id")
+                .unwrap_or(&Value::Null)
+                .py_eq(&boot_id(root))
             && py_gt(
                 receipt.get("updated").unwrap_or(&zero),
                 prior.get("updated").unwrap_or(&zero),
@@ -177,7 +185,7 @@ pub fn load_policy(root: &Root) -> Result<Map<String, Value>, &'static str> {
     // No derived or fallback voltage thresholds. A reference records who/what qualified the
     // policy; software cannot certify that physical evidence.
     let schema = value.get("schema").cloned().unwrap_or(Value::Null);
-    if !(py_eq(&schema, &json!(1)) || py_eq(&schema, &json!(2))) || !is_true(value.get("enabled")) {
+    if !(schema.py_eq(&json!(1)) || schema.py_eq(&json!(2))) || !is_true(value.get("enabled")) {
         return Err("thresholds_disabled_PHYSICAL_GATE");
     }
     let int = |key: &str| exact_int(value.get(key));
@@ -213,7 +221,7 @@ pub fn load_policy(root: &Root) -> Result<Map<String, Value>, &'static str> {
     {
         return Err("invalid_policy");
     }
-    if py_eq(&schema, &json!(2)) {
+    if schema.py_eq(&json!(2)) {
         let soc = ["warning_soc", "critical_soc", "shutdown_soc"].map(int);
         match soc {
             [Some(warning), Some(critical), Some(shutdown)]
@@ -258,7 +266,10 @@ pub fn battery_and_cable(root: &Root) -> Result<(), E> {
     // F55: Low (20 %) and Critical (10 %) may sleep; asleep drains ~8 mA, awake and dark far more.
     // Every sleep returns within the 30-min SPM maintenance timer and admits again here, so a
     // sleeping player still reaches the low-battery power-off (shutdown_soc / critical_uv) awake.
-    if !py_eq(state.get("boot_id").unwrap_or(&Value::Null), &boot_id(root))
+    if !state
+        .get("boot_id")
+        .unwrap_or(&Value::Null)
+        .py_eq(&boot_id(root))
         || !(0..=10_000_000_000).contains(&age)
         || !["Normal", "Low", "Critical"]
             .iter()
@@ -280,7 +291,10 @@ pub fn battery_and_cable(root: &Root) -> Result<(), E> {
     let policy_ok = policy.as_ref().ok();
     let flat = match (percent, policy_ok) {
         (Some(percent), Some(policy)) => {
-            py_eq(policy.get("schema").unwrap_or(&Value::Null), &json!(2))
+            policy
+                .get("schema")
+                .unwrap_or(&Value::Null)
+                .py_eq(&json!(2))
                 && ["hardware", "calibrated_estimate"]
                     .iter()
                     .any(|c| is_text(battery.get("confidence"), c))
@@ -320,7 +334,7 @@ fn update_state(root: &Root) -> Value {
         Some(Value::Object(map))
             if map
                 .get("schema")
-                .is_some_and(|s| py_eq(s, &json!(1)) || py_eq(s, &json!(2))) =>
+                .is_some_and(|s| s.py_eq(&json!(1)) || s.py_eq(&json!(2))) =>
         {
             map.get("state").cloned().unwrap_or(Value::Null)
         }
@@ -462,12 +476,13 @@ pub fn retry_later(root: &Root) -> Result<(), E> {
 /// or another boot is not "starting".
 pub fn application_starting(root: &Root) -> bool {
     let journal = root.json_object("/data/system/platform/boot.json");
-    py_eq(
-        journal.get("boot_id").unwrap_or(&Value::Null),
-        &boot_id(root),
-    ) && ["platform_start", "services_started"]
-        .iter()
-        .any(|s| is_text(journal.get("last_stage"), s))
+    journal
+        .get("boot_id")
+        .unwrap_or(&Value::Null)
+        .py_eq(&boot_id(root))
+        && ["platform_start", "services_started"]
+            .iter()
+            .any(|s| is_text(journal.get("last_stage"), s))
 }
 
 #[cfg(test)]

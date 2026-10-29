@@ -2,6 +2,7 @@
 //! `observe.mountinfo` with every field, `str()` of a parsed JSON value, `json.loads(strict=False)`,
 //! the key order of one parsed object, and `product_sleep.lock_holders`.
 // SPDX-License-Identifier: GPL-2.0-only
+
 use serde::de::{Deserializer, IgnoredAny, MapAccess, Visitor};
 use serde_json::Value;
 use std::{
@@ -10,10 +11,7 @@ use std::{
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
 };
-use y2p_core::{
-    json::{float_repr, sorted_entries},
-    py, Root,
-};
+use y2p_core::Root;
 
 /// `os.path.realpath(path, strict=False)` (posixpath, Python 3.15): symlinks resolved where they
 /// exist, the rest of the path taken as written with `..` removed lexically.
@@ -157,63 +155,6 @@ pub fn mountinfo(text: &str) -> Vec<Mount> {
         });
     }
     result
-}
-
-/// `str(value)` of a parsed JSON value.
-pub fn str_of(value: &Value) -> String {
-    match value {
-        Value::String(text) => text.clone(),
-        other => repr_of(other),
-    }
-}
-
-/// `repr(value)` of a parsed JSON value.
-pub fn repr_of(value: &Value) -> String {
-    match value {
-        Value::Null => "None".into(),
-        Value::Bool(true) => "True".into(),
-        Value::Bool(false) => "False".into(),
-        Value::Number(n) if n.is_f64() => float_repr(n.as_f64().unwrap_or(0.0)),
-        Value::Number(n) => n.to_string(),
-        Value::String(text) => py::repr(text),
-        Value::Array(items) => format!(
-            "[{}]",
-            items.iter().map(repr_of).collect::<Vec<_>>().join(", ")
-        ),
-        // Sorted keys: the records it spells are written sorted.
-        Value::Object(map) => format!(
-            "{{{}}}",
-            sorted_entries(map)
-                .into_iter()
-                .map(|(k, v)| format!("{}: {}", py::repr(k), repr_of(v)))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-    }
-}
-
-/// Python `a == b` for parsed JSON values: numbers by value (`1 == 1.0`, `True == 1`), containers
-/// element by element.
-pub fn py_eq(a: &Value, b: &Value) -> bool {
-    match (a, b) {
-        (Value::Number(x), Value::Number(y)) => match (x.as_i64(), y.as_i64()) {
-            (Some(x), Some(y)) => x == y,
-            _ => match (x.as_u64(), y.as_u64()) {
-                (Some(x), Some(y)) => x == y,
-                _ => x.as_f64() == y.as_f64(),
-            },
-        },
-        (Value::Bool(_), Value::Number(_)) | (Value::Number(_), Value::Bool(_)) => {
-            py::number(Some(a)) == py::number(Some(b))
-        }
-        (Value::Array(x), Value::Array(y)) => {
-            x.len() == y.len() && x.iter().zip(y).all(|(a, b)| py_eq(a, b))
-        }
-        (Value::Object(x), Value::Object(y)) => {
-            x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| py_eq(v, w)))
-        }
-        _ => a == b,
-    }
 }
 
 /// `text[:limit]` by characters.
@@ -372,19 +313,6 @@ pub fn lock_held(root: &Root, path: &Path) -> bool {
 mod tests {
     use super::*;
     use serde_json::json;
-
-    #[test]
-    fn values_print_as_python_str() {
-        assert_eq!(str_of(&json!("x")), "x");
-        assert_eq!(str_of(&json!(5)), "5");
-        assert_eq!(str_of(&json!(1.0)), "1.0");
-        assert_eq!(str_of(&json!(true)), "True");
-        assert_eq!(str_of(&json!([1, "a", null])), "[1, 'a', None]");
-        assert_eq!(
-            str_of(&json!({"b": 1, "a": "it's"})),
-            "{'a': \"it's\", 'b': 1}"
-        );
-    }
 
     #[test]
     fn key_order_is_the_documents() {

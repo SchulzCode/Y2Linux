@@ -13,7 +13,7 @@
 use super::process::{self, Child, Start};
 use super::{radiofw, usb::UsbService};
 use crate::commands::connectivity::{
-    observe_wifi::{py_eq, wifi},
+    observe_wifi::wifi,
     radio_policy::wifi_policy,
     wifi::{probe_dns, DnsProbeSchedule, EventMonitor, WifiRecovery},
 };
@@ -29,9 +29,10 @@ use std::{
     os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd},
     sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
+use y2p_core::py::PyValue;
 use y2p_core::{
     clock, command,
-    json::{sorted_object, Build, Object},
+    json::{sorted_object, Object, ObjectExt},
     py::{self, is_true, truthy},
     root::read,
     Root,
@@ -70,7 +71,7 @@ fn boot_id(root: &Root) -> Option<String> {
 
 /// `x == ctx.read(boot_id)` for a value from a record (None equals a missing boot id).
 fn this_boot(root: &Root, value: Option<&Value>) -> bool {
-    py_eq(value, Some(&json!(boot_id(root))))
+    py::eq(value, Some(&json!(boot_id(root))))
 }
 
 /// `subprocess.Popen(['/usr/sbin/y2-platform', …], DEVNULL…, start_new_session=True, close_fds=True)`.
@@ -106,7 +107,7 @@ fn display_dark(root: &Root) -> bool {
 fn media_reconcile_needed(root: &Root) -> bool {
     let lifecycle = root.json_object("/run/y2/media-lifecycle.json");
     let current = inventory(root);
-    !py_eq(lifecycle.get("inventory"), Some(&current))
+    !py::eq(lifecycle.get("inventory"), Some(&current))
         || lifecycle.get("retry").is_some_and(truthy)
         || media::window_expired(root)
 }
@@ -399,7 +400,7 @@ impl Coexistence {
             Some(value) if truthy(value) => {
                 return Err(Failure::attribute_error(format!(
                     "'{}' object has no attribute 'get'",
-                    py_type(value)
+                    PyValue::type_name(value)
                 )))
             }
             _ => Map::new(),
@@ -415,7 +416,7 @@ impl Coexistence {
                             "TypeError",
                             format!(
                                 "unsupported operand type(s) for +=: 'int' and '{}'",
-                                py_type(value)
+                                PyValue::type_name(value)
                             ),
                         )
                     })?
@@ -771,19 +772,6 @@ pub fn serve(root: &Root) -> Outcome {
             std::process::exit(1)
         }
         Err(error) => Err(error),
-    }
-}
-
-/// Python's type name of a parsed JSON value (for the crash texts).
-fn py_type(value: &Value) -> &'static str {
-    match value {
-        Value::Null => "NoneType",
-        Value::Bool(_) => "bool",
-        Value::Number(n) if n.is_f64() => "float",
-        Value::Number(_) => "int",
-        Value::String(_) => "str",
-        Value::Array(_) => "list",
-        Value::Object(_) => "dict",
     }
 }
 

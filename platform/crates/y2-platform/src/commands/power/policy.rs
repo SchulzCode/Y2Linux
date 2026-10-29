@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use serde_json::{Map, Value};
 use y2p_core::{
-    power_json::{Json, Object},
+    json::Object,
+    py::PyValue,
     py::{eq_int, exact_int, is_true},
     Root,
 };
@@ -140,7 +141,7 @@ impl LowBattery {
         };
         // USB presence does not prove positive net pack current. The same
         // qualified voltage guard applies while connected to a source.
-        let percent = soc.get("percent").and_then(Json::exact_int);
+        let percent = soc.get("percent").and_then(Value::exact_int);
         let valid_soc = percent.filter(|p| (0..=100).contains(p));
         let trustworthy = valid_soc.is_some()
             && soc
@@ -149,7 +150,7 @@ impl LowBattery {
         // F36: on a charger the shown value never falls (battery.Soc.track), so a
         // low one is a start value from before the charge; the voltage guard
         // alone covers a source weaker than the load.
-        let charging = matches!(soc.get("charging"), Some(Json::Bool(true)))
+        let charging = matches!(soc.get("charging"), Some(Value::Bool(true)))
             || soc.get("status").is_some_and(|s| s.is_str("Charging"));
         let soc_shutdown = policy.schema2
             && trustworthy
@@ -183,6 +184,7 @@ impl LowBattery {
 mod tests {
     use super::*;
     use std::fs;
+    use y2p_core::json::ObjectExt;
 
     fn root_with(policy: &str) -> (std::path::PathBuf, Root) {
         use std::sync::atomic::{AtomicU32, Ordering};

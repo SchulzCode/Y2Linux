@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::{atomic_json, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
+use y2p_core::py::PyValue;
 use y2p_core::{
     py::{eq_int, is_true},
     Root,
@@ -90,24 +91,11 @@ pub fn inventory_codec<'a>(
     }
 }
 
-/// `type(value).__name__` of a JSON value as Python's `json` reads it.
-pub fn type_name(value: &Value) -> &'static str {
-    match value {
-        Value::Null => "NoneType",
-        Value::Bool(_) => "bool",
-        Value::Number(n) if n.is_f64() => "float",
-        Value::Number(_) => "int",
-        Value::String(_) => "str",
-        Value::Array(_) => "list",
-        Value::Object(_) => "dict",
-    }
-}
-
 /// `value.get(...)` on a value that is not a dict: AttributeError.
 pub fn no_get(value: &Value) -> Failure {
     Failure::attribute_error(format!(
         "'{}' object has no attribute 'get'",
-        type_name(value)
+        PyValue::type_name(value)
     ))
 }
 
@@ -119,7 +107,7 @@ pub fn contains(value: &Value, key: &str) -> Result<bool, Failure> {
         Value::String(text) => Ok(text.contains(key)),
         other => Err(Failure::type_error(format!(
             "argument of type '{}' is not a container or iterable",
-            type_name(other)
+            PyValue::type_name(other)
         ))),
     }
 }
@@ -129,7 +117,10 @@ pub fn no_getitem(value: &Value) -> Failure {
     Failure::type_error(match value {
         Value::Array(_) => "list indices must be integers or slices, not str".to_owned(),
         Value::String(_) => "string indices must be integers, not 'str'".to_owned(),
-        other => format!("'{}' object is not subscriptable", type_name(other)),
+        other => format!(
+            "'{}' object is not subscriptable",
+            PyValue::type_name(other)
+        ),
     })
 }
 
@@ -139,14 +130,17 @@ pub fn no_setitem(value: &Value) -> Failure {
         Value::Array(_) => "list indices must be integers or slices, not str".to_owned(),
         other => format!(
             "'{}' object does not support item assignment",
-            type_name(other)
+            PyValue::type_name(other)
         ),
     })
 }
 
 /// `iter(value)` (a `for`, `all(...)`) on a value that is not iterable: TypeError.
 pub fn not_iterable(value: &Value) -> Failure {
-    Failure::type_error(format!("'{}' object is not iterable", type_name(value)))
+    Failure::type_error(format!(
+        "'{}' object is not iterable",
+        PyValue::type_name(value)
+    ))
 }
 
 fn flag(codec: Option<&Map<String, Value>>, key: &str) -> bool {

@@ -9,8 +9,9 @@ use crate::{
 };
 use serde::Serialize;
 use serde_json::{json, Value};
+use y2p_core::py::PyValue;
 use y2p_core::{
-    json::{sorted, Build, Object},
+    json::{sorted, Object, ObjectExt},
     py::{is_true, truthy},
     Root,
 };
@@ -155,7 +156,7 @@ fn status(root: &Root) -> Result<Status, Failure> {
     for key in KEYS {
         requested.set(key, policy.get(key).cloned().unwrap_or(Value::Null));
     }
-    let pending_restart = !python_equal(&effective, &Value::Object(policy));
+    let pending_restart = !effective.py_eq(&Value::Object(policy));
     let compiled = |name: &str| -> Result<Option<Value>, Failure> {
         Ok(inventory_codec(&inventory, name)?.and_then(|c| c.get("compiled_locally").cloned()))
     };
@@ -201,30 +202,6 @@ fn recorded_arguments_present(arguments: Option<&Value>, argv: &[&str]) -> Resul
     })
 }
 
-/// Python `==` of two parsed JSON values: numbers by value (`1 == 1.0`, `True == 1`), dicts without
-/// regard to key order.
-fn python_equal(a: &Value, b: &Value) -> bool {
-    let numeric = |v: &Value| match v {
-        Value::Bool(b) => Some(f64::from(u8::from(*b))),
-        Value::Number(n) => n.as_f64(),
-        _ => None,
-    };
-    match (a, b) {
-        (Value::Array(x), Value::Array(y)) => {
-            x.len() == y.len() && x.iter().zip(y).all(|(p, q)| python_equal(p, q))
-        }
-        (Value::Object(x), Value::Object(y)) => {
-            x.len() == y.len()
-                && x.iter()
-                    .all(|(k, v)| y.get(k).is_some_and(|w| python_equal(v, w)))
-        }
-        _ => match (numeric(a), numeric(b)) {
-            (Some(x), Some(y)) => x == y,
-            _ => a == b,
-        },
-    }
-}
-
 #[cfg(test)]
 #[path = "codec_settings_tests.rs"]
 mod codec_settings_tests;
@@ -235,12 +212,6 @@ mod tests {
 
     #[test]
     fn equality_and_membership_follow_python() {
-        assert!(python_equal(
-            &json!({"a": 1, "b": [true]}),
-            &json!({"b": [1.0], "a": 1.0})
-        ));
-        assert!(!python_equal(&json!(null), &json!({})));
-        assert!(!python_equal(&json!("1"), &json!(1)));
         let argv = ["/usr/bin/bluealsad", "-p", "a2dp-source", ""];
         assert!(recorded_arguments_present(Some(&json!(["-p", ""])), &argv).unwrap());
         assert!(!recorded_arguments_present(Some(&json!(["-p", 3])), &argv).unwrap());

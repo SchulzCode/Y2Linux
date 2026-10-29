@@ -18,7 +18,6 @@ use super::{
         admission, application_starting, battery_and_cable, failed_before_freeze, guard_record,
         lock_holders, operation_state, retry_later, spm_state,
     },
-    py_eq,
     receipt::{self, record, wake_irqs, Stage},
     request, traceback, E, INTERRUPTED,
 };
@@ -34,6 +33,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
+use y2p_core::py::PyValue;
 use y2p_core::{
     command,
     py::{is_true, truthy},
@@ -673,7 +673,7 @@ fn timer_only(value: &Map<String, Value>, spm: &Map<String, Value>) -> bool {
         && is_true(p.get("same_boot"))
         && spm.get("timer_wake").and_then(Value::as_str) == Some("1")
         && ["power", "rtc"].iter().all(|name| match before.get(*name) {
-            Some(b) => after.get(*name).is_some_and(|a| py_eq(a, b)),
+            Some(b) => after.get(*name).is_some_and(|a| a.py_eq(b)),
             None => false,
         })
 }
