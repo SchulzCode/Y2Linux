@@ -119,6 +119,14 @@ impl Root {
     /// `ctx.read('/proc/sys/kernel/random/boot_id')`: this boot's id, which records carry to tell a
     /// fact of this boot from one a restart left behind (`None` when unreadable; as a value, null).
     pub fn boot_id(&self) -> Option<String> {
+        // The player's boot id cannot change while a process runs: read once. A fixture root's is a
+        // file a test may rewrite, so it is read each time.
+        static REAL: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+        if self.is_real() {
+            return REAL
+                .get_or_init(|| self.read("/proc/sys/kernel/random/boot_id"))
+                .clone();
+        }
         self.read("/proc/sys/kernel/random/boot_id")
     }
 
