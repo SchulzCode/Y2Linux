@@ -1,0 +1,37 @@
+{
+ "argv": [
+  "ssh-daemon"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "ip",
+    "-j",
+    "-4",
+    "addr",
+    "show",
+    "dev",
+    "usb0"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "reason": "[Errno 2] No such file or directory: '/usr/sbin/dropbear'",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "FileNotFoundError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/ssh.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

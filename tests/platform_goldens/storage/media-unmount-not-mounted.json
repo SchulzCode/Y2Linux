@@ -1,0 +1,37 @@
+{
+ "argv": [
+  "media",
+  "unmount"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "action": "unmount",
+  "boot_id": "boot-a",
+  "reason": "not_mounted",
+  "schema": 1,
+  "state": "Unavailable"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.json": {
+    "content": {
+     "action": "unmount",
+     "boot_id": "boot-a",
+     "reason": "not_mounted",
+     "schema": 1,
+     "state": "Unavailable"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

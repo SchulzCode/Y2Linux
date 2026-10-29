@@ -1,0 +1,20 @@
+{
+ "argv": [
+  "space",
+  "--help"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": [
+  "usage: main.py space [-h] [--cleanup]",
+  "",
+  "options:",
+  "  -h, --help  show this help message and exit",
+  "  --cleanup"
+ ],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

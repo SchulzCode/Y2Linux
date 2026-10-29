@@ -1,0 +1,140 @@
+{
+ "argv": [
+  "status",
+  "bluetooth"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/cat",
+    "<root>/sys/power/wakeup_count"
+   ],
+   "timeout": 0.1
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-bt-observe"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/sbin/ip",
+    "-4",
+    "-o",
+    "addr",
+    "show",
+    "dev",
+    "usb0"
+   ],
+   "timeout": 0.5
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "bluetooth": {
+   "actual_bitrate_bps": null,
+   "adapter": null,
+   "codec_inventory": {
+    "codecs": {
+     "AAC": {
+      "compiled_locally": true,
+      "distribution_approved": true,
+      "platform_qualified": true
+     },
+     "LDAC": {
+      "compiled_locally": true,
+      "owner_private_experiment": true
+     },
+     "SBC": {
+      "compiled_locally": true,
+      "platform_qualified": true
+     },
+     "aptX": {
+      "compiled_locally": false
+     }
+    },
+    "schema": 1
+   },
+   "codec_settings": {
+    "apply_action": "restart_player",
+    "effective": null,
+    "effective_scope": "daemon_start_arguments",
+    "pending_restart": true,
+    "requested": {
+     "aac_abr": true,
+     "aac_quality": "high",
+     "experimental": false,
+     "ldac_abr": true,
+     "ldac_quality": "standard",
+     "sbc_abr": true,
+     "sbc_quality": "high",
+     "schema": 1
+    },
+    "schema": "org.y2linux.codec-settings/v1",
+    "supported": {
+     "aac_abr": true,
+     "aac_quality": [
+      "standard",
+      "high"
+     ],
+     "ldac_abr": true,
+     "ldac_quality": [
+      "mobile",
+      "standard",
+      "high"
+     ],
+     "sbc_abr": true,
+     "sbc_quality": [
+      "high",
+      "xq",
+      "xq+"
+     ]
+    }
+   },
+   "mutually_usable": null,
+   "negotiated_codec": null,
+   "packet_loss": null,
+   "pcm": null,
+   "preferred_codec": null,
+   "reason": "dbus_observation_unavailable",
+   "reconnect": {
+    "reason": "reconnect_record_stale_or_absent",
+    "state": "Unavailable"
+   },
+   "reconnect_owner": "y2-bt-reconnect",
+   "remote_advertised": null,
+   "remote_advertised_reason": "API_exposes_mutual_subset_only",
+   "requested_codec": null,
+   "runtime_enabled": null,
+   "selected_peer": null,
+   "state": "Unavailable",
+   "transport": null
+  },
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "collection_duration_ns": "<volatile>",
+   "evidence_level": "IMPLEMENTED",
+   "failure": null,
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {},
+   "reborn_commit": "reborn",
+   "result": "observed",
+   "rootfs_release": "v1.0",
+   "units": {
+    "collection_duration": "ns"
+   },
+   "wall_timestamp": "<volatile>",
+   "workload": "observation",
+   "y2linux_commit": "linux-commit"
+  },
+  "schema": "org.y2linux.status/v1"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

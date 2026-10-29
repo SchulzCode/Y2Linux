@@ -1,0 +1,56 @@
+{
+ "argv": [
+  "media",
+  "reconcile"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "mount",
+    "-o",
+    "remount,ro",
+    "/media/sd"
+   ],
+   "timeout": 10.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "inventory": [
+   [
+    "mmcblk1",
+    "179:96",
+    "9",
+    "035344534433324780a1b2c3d4016a00"
+   ],
+   [
+    "mmcblk1p1",
+    "179:97",
+    "9",
+    "035344534433324780a1b2c3d4016a00"
+   ]
+  ],
+  "state": "Ready"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/sd-write.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "holders": {},
+     "mount_id": 51,
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

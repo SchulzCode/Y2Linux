@@ -1,0 +1,21 @@
+{
+ "argv": [
+  "transfer",
+  "status",
+  "--id",
+  "0123456789ABCDEF0123456789ABCDEF"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "invalid_transfer_id",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

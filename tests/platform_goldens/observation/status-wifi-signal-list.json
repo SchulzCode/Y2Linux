@@ -1,0 +1,56 @@
+{
+ "argv": [
+  "status",
+  "wifi"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/cat",
+    "<root>/sys/power/wakeup_count"
+   ],
+   "timeout": 0.1
+  },
+  {
+   "argv": [
+    "wpa_cli",
+    "-i",
+    "wlan0",
+    "status"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-j",
+    "-4",
+    "addr",
+    "show",
+    "dev",
+    "wlan0"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-j",
+    "-4",
+    "route",
+    "show",
+    "default",
+    "dev",
+    "wlan0"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,16 +1,18 @@
-"""main.py's argument parsing in Rust (platform/crates/y2-platform/src/argparse.rs) against Python's.
+"""The Rust platform's argument parsing (platform/crates/y2-platform/src/argparse.rs) against its golden.
 
-The parser the Rust dispatcher embeds (src/argparse.json, src/argparse/unicode.rs) must be cli.py's
-(tools/development/platform-argparse.py --check). A generated corpus of argument lists (valid, permuted,
-abbreviated, ambiguous, invalid types and choices, missing and extra arguments, `--`, `=`, help) then runs through
-main.py's parser (the player's Python 3.15 when the build has it, otherwise the host's with 3.15's defaults) and
-through the Rust binary (`Y2_PLATFORM_RUST`, with `Y2_ARGPARSE_ECHO=1` below a fixture root: it prints the parse
-instead of running anything). Exit code, stdout, stderr and the parsed namespace must be equal, and the canonical
-argument list the Rust side hands its commands must parse back to the same namespace.
+The parser is data, src/argparse.json (main.py's argparse parser as the Python platform built it; edited by hand
+since, kept consistent by tools/development/platform-argparse.py --check). A generated corpus of argument lists
+(valid, permuted, abbreviated, ambiguous, invalid types and choices, missing and extra arguments, `--`, `=`, help)
+runs through the Rust binary (`Y2_PLATFORM_RUST`, with `Y2_ARGPARSE_ECHO=1` below a fixture root: it prints the
+parse instead of running anything). Exit code, stdout, stderr and the parsed namespace must be the golden's,
+tests/platform_goldens/argparse.jsonl.gz: one JSON line per list, first recorded from main.py's parser on the
+player's Python 3.15. The canonical argument list the Rust side hands its commands must parse back to the same
+namespace. After a deliberate change of argparse.json (the corpus changes with it) or of the parser,
+`Y2_RECORD_GOLDENS=1` rewrites the golden from the Rust binary; review the outcomes that changed.
 """
 from concurrent.futures import ThreadPoolExecutor
+import gzip
 import json
-import os
 from pathlib import Path
 import random
 import subprocess
@@ -19,11 +21,12 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from platform_differential import REPOSITORY, RUST_ENV, rust_binary  # noqa: E402
+from platform_golden import GOLDENS, RECORD_ENV, REPOSITORY, SKIP, recording, rust_binary  # noqa: E402
 
-GENERATOR = REPOSITORY / 'tools/development/platform-argparse.py'
+CHECKER = REPOSITORY / 'tools/development/platform-argparse.py'
 SPEC = json.loads((REPOSITORY / 'platform/crates/y2-platform/src/argparse.json').read_text())
 COMMANDS = dict(SPEC['commands'])
+GOLDEN = GOLDENS / 'argparse.jsonl.gz'
 
 STRINGS = ['x', 'value', 'a b', '', '-', '--', '-x', '-5', '-1.5', '-.5', '-1_0', '-5x', '--x=y', '=', "it's",
            'q"uote', 'both\'"', 'ü', 'naïve', '​', ' ', '\t', 'tab\tnew\nline', 'back\\slash', '\x7f',
@@ -51,24 +54,35 @@ NON_UTF8 = [['\udcff'], ['sleep', '\udcff'], ['status', 'cpu\udcff'], ['status',
             ['reset', 'purge', '--id', '\udcff', '--confirm', '\udcfe'], ['codec-settings', '--sbc-quality', 'xq\udcff']]
 
 
-def shown(text):
-    """What Python's stdout/stderr write for a str (UTF-8, a lone surrogate as \\udcXX)."""
-    return text.encode('utf-8', 'backslashreplace').decode()
+def golden():
+    """The recorded outcomes: [{argv, exit, stdout, stderr, namespace}] (namespace None: no parse)."""
+    return [json.loads(line) for line in gzip.decompress(GOLDEN.read_bytes()).decode().splitlines()]
 
 
-def reference(argvs):
-    """main.py's parse of each argument list (generator --reference: the player's Python when present)."""
-    result = subprocess.run([sys.executable, str(GENERATOR), '--reference'], input=json.dumps(argvs),
-                            capture_output=True, text=True, check=True)
-    return json.loads(result.stdout)
+def write_golden(outcomes):
+    text = ''.join(json.dumps(o, sort_keys=True) + '\n' for o in outcomes)
+    GOLDEN.write_bytes(gzip.compress(text.encode(), compresslevel=9, mtime=0))
 
 
 def rust(binary, root, argv):
-    environment = {'PATH': '/usr/bin:/bin', 'Y2_ROOT': root, 'Y2_ARGPARSE_ECHO': '1',
-                   'Y2_PLATFORM_PYTHON': '/nonexistent/python3'}  # a fallback shows as exit 127
+    environment = {'PATH': '/usr/bin:/bin', 'Y2_ROOT': root, 'Y2_ARGPARSE_ECHO': '1'}
     result = subprocess.run([str(binary), *argv], capture_output=True, env=environment, stdin=subprocess.DEVNULL,
                             timeout=30)
     return {'exit': result.returncode, 'stdout': result.stdout.decode(), 'stderr': result.stderr.decode()}
+
+
+def echoed(got):
+    """The namespace and canonical list a successful Rust parse prints (None, None otherwise)."""
+    try:
+        echo = json.loads(got['stdout']) if got['exit'] == 0 else None
+    except ValueError:
+        echo = None
+    return (echo['namespace'], echo['canonical']) if isinstance(echo, dict) and 'namespace' in echo else (None, None)
+
+
+def run_all(argvs):
+    with tempfile.TemporaryDirectory(prefix='y2-argparse-') as root, ThreadPoolExecutor(16) as pool:
+        return list(pool.map(lambda argv: rust(rust_binary(), root, argv), argvs))
 
 
 def typo(rng, word):
@@ -232,14 +246,21 @@ def corpus(seed=20261028, per_command=140):
 
 
 class PlatformArgparse(unittest.TestCase):
-    def test_embedded_parser_is_cli_pys(self):
-        check = subprocess.run([sys.executable, str(GENERATOR), '--check'], capture_output=True, text=True)
+    def test_embedded_parser_is_consistent(self):
+        check = subprocess.run([sys.executable, str(CHECKER), '--check'], capture_output=True, text=True)
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
 
-    def test_corpus_covers_every_kind_of_outcome(self):
+    @unittest.skipIf(recording(), 'recording the golden')
+    def test_golden_is_the_corpus(self):
+        # The corpus follows argparse.json: a changed parser is re-recorded (RECORD_ENV), never run partly.
+        recorded = [o['argv'] for o in golden()]
         cases = corpus()
-        self.assertGreater(len(cases), 5000)
-        outcomes = reference(cases)
+        self.assertEqual(len(recorded), len(cases), 'the corpus changed: record the golden with %s=1' % RECORD_ENV)
+        self.assertEqual([a for a, b in zip(recorded, cases) if a != b][:5], [])
+
+    def test_golden_covers_every_kind_of_outcome(self):
+        outcomes = golden()
+        self.assertGreater(len(outcomes), 5000)
         exits = [o['exit'] for o in outcomes]
         self.assertGreater(exits.count(0), 1000)
         self.assertGreater(exits.count(2), 1000)
@@ -250,27 +271,31 @@ class PlatformArgparse(unittest.TestCase):
             self.assertIn(text, errors)
         self.assertTrue(any(o['exit'] == 0 and o['stdout'].startswith('usage:') for o in outcomes))
 
-    @unittest.skipUnless(rust_binary(), RUST_ENV + ' (host build of the Rust y2-platform) not given')
-    def test_rust_parses_like_main_py(self):
-        cases = corpus()
-        expected = [{**o, 'stdout': shown(o['stdout']), 'stderr': shown(o['stderr'])} for o in reference(cases)]
-        with tempfile.TemporaryDirectory(prefix='y2-argparse-') as root, ThreadPoolExecutor(8) as pool:
-            actual = list(pool.map(lambda argv: rust(rust_binary(), root, argv), cases))
+    @unittest.skipUnless(rust_binary(), SKIP)
+    def test_rust_parses_like_the_golden(self):
+        if recording():
+            cases = corpus()
+            outcomes = []
+            for argv, got in zip(cases, run_all(cases)):
+                namespace, _ = echoed(got)
+                outcomes.append({'argv': argv, 'exit': got['exit'], 'namespace': namespace,
+                                 'stdout': '' if namespace is not None else got['stdout'], 'stderr': got['stderr']})
+            write_golden(outcomes)
+            return
+        expected = golden()
+        actual = run_all([want['argv'] for want in expected])
         failures, canonicals = [], []
-        for argv, want, got in zip(cases, expected, actual):
+        for want, got in zip(expected, actual):
+            namespace, canonical = echoed(got)
             if want['namespace'] is not None:
-                try:
-                    echo = json.loads(got['stdout'])
-                except ValueError:
-                    echo = {'namespace': None, 'canonical': None}
-                same = (got['exit'], echo['namespace'], got['stderr']) == (0, want['namespace'], want['stderr'])
+                same = (got['exit'], namespace, got['stderr']) == (0, want['namespace'], want['stderr'])
                 if same:
-                    canonicals.append((argv, want['namespace'], echo['canonical']))
+                    canonicals.append((want['argv'], namespace, canonical))
             else:
-                same = all(got[k] == want[k] for k in ('exit', 'stdout', 'stderr'))
+                same = namespace is None and all(got[k] == want[k] for k in ('exit', 'stdout', 'stderr'))
             if not same:
-                failures.append('%r\n  python: %r\n  rust:   %r' % (argv, want, got))
-        self.assertEqual(failures[:20], [], '%d of %d differ' % (len(failures), len(cases)))
+                failures.append('%r\n  golden: %r\n  rust:   %r' % (want['argv'], want, got))
+        self.assertEqual(failures[:20], [], '%d of %d differ' % (len(failures), len(expected)))
         # The canonical form: subcommand, positionals, then the options in definition order, full names; it
         # parses back to the same namespace (unless a value itself starts with '-', which argparse would take
         # for an option: commands read the canonical list by position, never through argparse).
@@ -278,11 +303,11 @@ class PlatformArgparse(unittest.TestCase):
                 if not any(token.startswith('-') and token not in self.options(canonical[0])
                            for token in canonical[1:])]
         self.assertGreater(len(back), 1000)
-        again = reference([canonical for _, _, canonical in back])
-        for (argv, namespace, canonical), outcome in zip(back, again):
+        again = run_all([canonical for _, _, canonical in back])
+        for (argv, namespace, canonical), got in zip(back, again):
             with self.subTest(argv=argv):
                 self.assertEqual(canonical[0], namespace['command'])
-                self.assertEqual(outcome['namespace'], namespace, canonical)
+                self.assertEqual(echoed(got)[0], namespace, canonical)
                 order = [self.options(canonical[0]).index(t) for t in canonical[1:] if t in self.options(canonical[0])]
                 self.assertEqual(order, sorted(order), canonical)
 

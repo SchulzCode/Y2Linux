@@ -1,0 +1,24 @@
+{
+ "argv": [
+  "power-daemon"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "unsafe_power_socket_path",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/power.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

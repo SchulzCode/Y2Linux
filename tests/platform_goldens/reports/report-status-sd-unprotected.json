@@ -1,0 +1,26 @@
+{
+ "argv": [
+  "report",
+  "status"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "destinations": [],
+  "enabled": null,
+  "install_id": null,
+  "last": null,
+  "queued": [
+   "20261019T100000Z-0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c0c.tar.gz",
+   "20261020T100000Z-0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a.tar.gz",
+   "20261021T100000Z-0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b.tar.gz"
+  ],
+  "schema": 1,
+  "upload": false
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

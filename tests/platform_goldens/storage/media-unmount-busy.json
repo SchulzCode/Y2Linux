@@ -1,0 +1,45 @@
+{
+ "argv": [
+  "media",
+  "unmount"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "umount",
+    "/media/sd"
+   ],
+   "timeout": 3.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "action": "unmount",
+  "boot_id": "boot-a",
+  "reason": "unmount_busy",
+  "schema": 1,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.json": {
+    "content": {
+     "action": "unmount",
+     "boot_id": "boot-a",
+     "reason": "unmount_busy",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "transfer",
+  "begin",
+  "--name",
+  "A/\udcff\udcfe.flac",
+  "--bytes",
+  "5",
+  "--sha256",
+  "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "'utf-8' codec can't encode characters in position 2-3: surrogates not allowed",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "UnicodeEncodeError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

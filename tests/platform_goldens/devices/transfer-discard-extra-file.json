@@ -1,0 +1,36 @@
+{
+ "argv": [
+  "transfer",
+  "discard",
+  "--id",
+  "0123456789abcdef0123456789abcdef"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "reason": "[Errno 39] Directory not empty: '0123456789abcdef0123456789abcdef'",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "OSError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": [
+   "/data/transfer-staging/0123456789abcdef0123456789abcdef/manifest.json"
+  ]
+ }
+}

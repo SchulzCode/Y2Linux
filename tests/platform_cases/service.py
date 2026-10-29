@@ -1,12 +1,12 @@
-"""Differential cases of port group `service` (see tests/platform_cases/__init__.py): `update`, `firmware`,
+"""Golden cases of port group `service` (see tests/platform_cases/__init__.py): `update`, `firmware`,
 `service-daemon`.
 
-The update cases give the staging token through `Y2_FIXTURE_TOKEN` (the Rust side honours it below a fixture
-root; `fixed_token` patches Python's uuid4 the same way), so the native core's `check-manifest` request has a
-fixed argv the fixture can answer and the staging directory has a fixed name. The local package
-(`service_package/`) stands in for a signed one: the signature is the core's to check, and the core is a
-fixture command here.
+The update cases give the staging token through `Y2_FIXTURE_TOKEN` (honoured below a fixture root), so the
+native core's `check-manifest` request has a fixed argv the fixture can answer and the staging directory has a
+fixed name. The local package (`service_package/`) stands in for a signed one: the signature is the core's to
+check, and the core is a fixture command here.
 """
+import gzip
 import hashlib
 import json
 import os
@@ -21,55 +21,7 @@ PACKAGE = Path(__file__).resolve().parent / 'service_package'
 TOKEN = '0123456789abcdef0123456789abcdef'
 INCOMING = '/data/updates/.incoming-' + TOKEN
 CORE = '/usr/sbin/y2-update-core'
-FIXED = {'Y2_FIXTURE_TOKEN': TOKEN, 'Y2_LAUNCHER_PATCH': 'platform_cases.service:fixed_token'}
-
-
-def fixed_token():
-    """Y2_LAUNCHER_PATCH: Python's uuid4 gives the token the Rust side takes from Y2_FIXTURE_TOKEN."""
-    import uuid
-    fixed = uuid.UUID(hex=os.environ['Y2_FIXTURE_TOKEN'])
-    uuid.uuid4 = lambda: fixed
-
-
-def daemon_ticks():
-    """Y2_LAUNCHER_PATCH for `service-daemon`: the loop ends after Y2_DAEMON_TICKS iterations (exit 0), its
-    waits return at once, and the children it starts with subprocess.Popen itself (service.py and usb.py do
-    so even below a fixture root) are recorded as fixture calls (timeout 0) and refused like a missing
-    binary (OSError), never started on the host."""
-    import errno
-    import subprocess
-    from y2_platform import network, service
-    ticks = int(os.environ['Y2_DAEMON_TICKS'])
-    loops = []
-    wake = service.SignalWake.__init__
-
-    def init(self, running):
-        loops.append(running)
-        wake(self, running)
-
-    def wait(self, timeout, *, wake_fd=None):
-        loops.append(None)
-        if len(loops) - 1 >= ticks:
-            loops[0][0] = False
-
-    real = subprocess.Popen
-    # The launcher's own --calls (Python side), or the fixture environment (the Rust fallback).
-    import sys
-    record = (sys.argv[sys.argv.index('--calls') + 1] if '--calls' in sys.argv
-              else os.environ['Y2_FIXTURE_CALLS'])
-
-    class Popen(real):
-        def __init__(self, argv, *args, **kwargs):
-            if isinstance(argv, (list, tuple)) and argv and str(argv[0]).startswith(('/usr/sbin/y2-platform',
-                                                                                     '/usr/sbin/umtprd')):
-                with open(record, 'a') as calls:
-                    calls.write(json.dumps({'argv': [str(a) for a in argv], 'timeout': 0}) + '\n')
-                raise OSError(errno.ENOENT, 'No such file or directory', str(argv[0]))
-            super().__init__(argv, *args, **kwargs)
-
-    service.SignalWake.__init__ = init
-    network.EventMonitor.wait = wait
-    subprocess.Popen = Popen
+FIXED = {'Y2_FIXTURE_TOKEN': TOKEN}
 
 
 def answer(argv, output='', ok=True, reason=None):
@@ -150,131 +102,131 @@ ONLINE = {'/run/y2/network.json': '{"state":"Online"}'}
 
 CASES = [
     # update status
-    ('update-status', ['update', 'status'], {'ported': True}),
-    ('update-status-journal', ['update', 'status'], {'ported': True, 'files': {
+    ('update-status', ['update', 'status'], {}),
+    ('update-status-journal', ['update', 'status'], {'files': {
         **QUEUED, **CHANNEL, '/data/updates/channel.json': '{"name": "owner", "manifest_url": "https://x/manifest.json", "other": 1}',
         '/data/updates/download.json': '{"schema": 1, "state": "Staging", "id": "x"}',
         '/data/updates/last-check.json': '{"schema": 1, "attempt": 5, "result": "failed"}'}}),
-    ('update-status-idle', ['update', 'status'], {'ported': True, 'files': {'/data/updates/.keep': ''}}),
-    ('update-status-bad-journal', ['update', 'status'], {'ported': True, 'files': {
+    ('update-status-idle', ['update', 'status'], {'files': {'/data/updates/.keep': ''}}),
+    ('update-status-bad-journal', ['update', 'status'], {'files': {
         '/data/updates/state.json': '{"schema": 3, "state": "Queued"}'}}),
-    ('update-status-unreadable', ['update', 'status'], {'ported': True, 'files': {'/data/updates/state.json': 'x'}}),
-    ('update-status-url-option', ['update', 'status', '--url', 'https://x/manifest.json'], {'ported': True}),
-    ('update-status-bare-option', ['update', 'status', '--url'], {'ported': True}),
-    ('update-option-first', ['update', '--package', '/x', 'status'], {'ported': True}),
-    ('update-unknown-action', ['update', 'install'], {'ported': True}),
+    ('update-status-unreadable', ['update', 'status'], {'files': {'/data/updates/state.json': 'x'}}),
+    ('update-status-url-option', ['update', 'status', '--url', 'https://x/manifest.json'], {}),
+    ('update-status-bare-option', ['update', 'status', '--url'], {}),
+    ('update-option-first', ['update', '--package', '/x', 'status'], {}),
+    ('update-unknown-action', ['update', 'install'], {}),
     # update check / stage
-    ('update-check-no-source', ['update', 'check'], {'ported': True}),
-    ('update-check-no-data', ['update', 'check'], {'ported': True, 'files': CHANNEL}),
+    ('update-check-no-source', ['update', 'check'], {}),
+    ('update-check-no-data', ['update', 'check'], {'files': CHANNEL}),
     ('update-check-both', ['update', 'check', '--url', 'https://x/manifest.json', '--package', str(PACKAGE)],
-     {'ported': True}),
-    ('update-check-maintenance', ['update', 'check'], {'ported': True, 'commands': [BLKID], 'files': {
+     {}),
+    ('update-check-maintenance', ['update', 'check'], {'commands': [BLKID], 'files': {
         **CHANNEL, **VOLUME, '/data/system/platform/maintenance-pending': ''}}),
-    ('update-check-clock', ['update', 'check'], {'ported': True, 'env': FIXED, 'commands': [BLKID], 'files': {
+    ('update-check-clock', ['update', 'check'], {'env': FIXED, 'commands': [BLKID], 'files': {
         **CHANNEL, **VOLUME}}),
-    ('update-check-clock-keeps-offer', ['update', 'check'], {'ported': True, 'env': FIXED, 'commands': [BLKID],
+    ('update-check-clock-keeps-offer', ['update', 'check'], {'env': FIXED, 'commands': [BLKID],
                                                              'files': {**CHANNEL, **VOLUME, '/data/updates/download.json': CHECKED}}),
-    ('update-check-wrong-blkid', ['update', 'check'], {'ported': True, 'files': {**CHANNEL, **VOLUME},
+    ('update-check-wrong-blkid', ['update', 'check'], {'files': {**CHANNEL, **VOLUME},
                                                        'commands': [answer(BLKID['argv'], 'other')]}),
     ('update-check-package', ['update', 'check', '--package', str(PACKAGE)], {
-        'ported': True, 'env': FIXED, 'commands': [BLKID, CHECK], 'files': VOLUME}),
+        'env': FIXED, 'commands': [BLKID, CHECK], 'files': VOLUME}),
     ('update-check-up-to-date', ['update', 'check', '--package', str(PACKAGE)], {
-        'ported': True, 'env': FIXED, 'files': VOLUME, 'commands': [BLKID, core(
+        'env': FIXED, 'files': VOLUME, 'commands': [BLKID, core(
             'check-manifest', ok=False, directory=INCOMING,
             output=json.dumps({'failure': 'manifest sequence downgrade/replay refused'}))]}),
     ('update-check-core-refuses', ['update', 'check', '--package', str(PACKAGE)], {
-        'ported': True, 'env': FIXED, 'files': {**VOLUME, '/data/updates/download.json': CHECKED},
+        'env': FIXED, 'files': {**VOLUME, '/data/updates/download.json': CHECKED},
         'commands': [BLKID, core('check-manifest', ok=False, directory=INCOMING,
                                  output=json.dumps({'failure': 'manifest signature invalid'}))]}),
     ('update-check-core-unanswered', ['update', 'check', '--package', str(PACKAGE)], {
-        'ported': True, 'env': FIXED, 'files': VOLUME, 'commands': [BLKID]}),
+        'env': FIXED, 'files': VOLUME, 'commands': [BLKID]}),
     ('update-check-core-empty', ['update', 'check', '--package', str(PACKAGE)], {
-        'ported': True, 'env': FIXED, 'files': VOLUME, 'commands': [BLKID, core('check-manifest', directory=INCOMING,
+        'env': FIXED, 'files': VOLUME, 'commands': [BLKID, core('check-manifest', directory=INCOMING,
                                                                                output='')]}),
     ('update-check-core-list', ['update', 'check', '--package', str(PACKAGE)], {
-        'ported': True, 'env': FIXED, 'files': VOLUME, 'commands': [BLKID, core('check-manifest', directory=INCOMING,
+        'env': FIXED, 'files': VOLUME, 'commands': [BLKID, core('check-manifest', directory=INCOMING,
                                                                                output='[1]')]}),
     ('update-check-not-a-directory', ['update', 'check', '--package', str(PACKAGE / 'manifest.json')], {
-        'ported': True, 'env': FIXED, 'files': VOLUME, 'commands': [BLKID]}),
+        'env': FIXED, 'files': VOLUME, 'commands': [BLKID]}),
     ('update-check-missing-package', ['update', 'check', '--package', str(PACKAGE / 'missing')], {
-        'ported': True, 'env': FIXED, 'files': VOLUME, 'commands': [BLKID]}),
+        'env': FIXED, 'files': VOLUME, 'commands': [BLKID]}),
     ('update-check-no-signature', ['update', 'check', '--package', str(PACKAGE.parent)], {
-        'ported': True, 'env': FIXED, 'files': VOLUME, 'commands': [BLKID]}),
-    ('update-stage', STAGE, {'ported': True, 'env': FIXED, 'files': VOLUME, 'commands': [
+        'env': FIXED, 'files': VOLUME, 'commands': [BLKID]}),
+    ('update-stage', STAGE, {'env': FIXED, 'files': VOLUME, 'commands': [
         BLKID, CHECK, core('queue', {'state': 'Queued', 'release_version': '1.0.1-fixture'})]}),
-    ('update-stage-replaces-pending', STAGE, {'ported': True, 'env': FIXED, 'commands': [BLKID, CHECK], 'files': {
+    ('update-stage-replaces-pending', STAGE, {'env': FIXED, 'commands': [BLKID, CHECK], 'files': {
         **VOLUME, '/data/updates/pending/manifest.json': '{}', '/data/updates/.incoming-old/manifest.sig': 'x',
         '/run/y2/update-check-progress': '50 check\n'}}),
-    ('update-stage-hash-mismatch', STAGE, {'ported': True, 'env': FIXED, 'files': VOLUME, 'commands': [
+    ('update-stage-hash-mismatch', STAGE, {'env': FIXED, 'files': VOLUME, 'commands': [
         BLKID, core('check-manifest', manifest(payloads={'rootfs': {**payload('rootfs.ext4.gz'), 'raw_bytes': 1},
                                                           'bootimg': {**payload('bootimg.img.gz'), 'sha256': '0' * 64},
                                                           'recovery': payload('recovery.img.gz')}),
                     directory=INCOMING)]}),
-    ('update-stage-incomplete', STAGE, {'ported': True, 'env': FIXED, 'files': VOLUME, 'commands': [
+    ('update-stage-incomplete', STAGE, {'env': FIXED, 'files': VOLUME, 'commands': [
         BLKID, core('check-manifest', manifest(payloads={'rootfs': {'bytes': 40, 'sha256': '', 'raw_bytes': 0}}),
                     directory=INCOMING)]}),
-    ('update-stage-too-large', STAGE, {'ported': True, 'env': FIXED, 'files': VOLUME, 'commands': [
+    ('update-stage-too-large', STAGE, {'env': FIXED, 'files': VOLUME, 'commands': [
         BLKID, core('check-manifest', manifest(payloads={'rootfs': {'bytes': 5, 'sha256': '', 'raw_bytes': 0}}),
                     directory=INCOMING)]}),
-    ('update-stage-queue-refused', STAGE, {'ported': True, 'env': FIXED, 'files': VOLUME, 'commands': [
+    ('update-stage-queue-refused', STAGE, {'env': FIXED, 'files': VOLUME, 'commands': [
         BLKID, CHECK, core('queue', ok=False, output='{"failure": "payload changed after queueing"}')]}),
-    ('update-stage-pending', STAGE, {'ported': True, 'env': FIXED, 'commands': [BLKID], 'files': {**VOLUME, **QUEUED}}),
-    ('update-stage-excess', STAGE, {'ported': True, 'env': FIXED, 'commands': [BLKID], 'files': {
+    ('update-stage-pending', STAGE, {'env': FIXED, 'commands': [BLKID], 'files': {**VOLUME, **QUEUED}}),
+    ('update-stage-excess', STAGE, {'env': FIXED, 'commands': [BLKID], 'files': {
         **VOLUME, **{'/data/updates/.incoming-%d/manifest.json' % i: '{}' for i in range(9)}}}),
-    ('update-stage-unknown-leftover', STAGE, {'ported': True, 'env': FIXED, 'commands': [BLKID], 'files': {
+    ('update-stage-unknown-leftover', STAGE, {'env': FIXED, 'commands': [BLKID], 'files': {
         **VOLUME, '/data/updates/.incoming-old/notes.txt': 'x'}}),
-    ('update-stage-unsafe-pending', STAGE, {'ported': True, 'env': FIXED, 'commands': [BLKID], 'files': {
+    ('update-stage-unsafe-pending', STAGE, {'env': FIXED, 'commands': [BLKID], 'files': {
         **VOLUME, '/data/updates/pending': 'a file'}}),
     # update apply / rollback / cancel / probe / recovery status
-    ('update-apply-nothing-queued', ['update', 'apply'], {'ported': True}),
-    ('update-apply-battery', ['update', 'apply'], {'ported': True, 'files': QUEUED}),
-    ('update-apply-other-boot', ['update', 'apply'], {'ported': True, 'files': {**QUEUED, '/run/y2/power.json': json.dumps(
+    ('update-apply-nothing-queued', ['update', 'apply'], {}),
+    ('update-apply-battery', ['update', 'apply'], {'files': QUEUED}),
+    ('update-apply-other-boot', ['update', 'apply'], {'files': {**QUEUED, '/run/y2/power.json': json.dumps(
         {'boot_id': 'boot-z', 'battery': {'charging': True}})}}),
-    ('update-apply-half-battery', ['update', 'apply'], {'ported': True, 'commands': [core('prepare', {'state': 'Prepared'})],
+    ('update-apply-half-battery', ['update', 'apply'], {'commands': [core('prepare', {'state': 'Prepared'})],
                                                          'files': {**QUEUED, '/run/y2/power.json': json.dumps(
                                                              {'battery': {'percent': 50, 'status': 'Discharging'}})}}),
-    ('update-apply-prepare-refused', ['update', 'apply'], {'ported': True, 'files': {**QUEUED, **CHARGING}}),
-    ('update-apply-poweroff', ['update', 'apply'], {'ported': True, 'commands': [core('prepare', {'state': 'Prepared'})],
+    ('update-apply-prepare-refused', ['update', 'apply'], {'files': {**QUEUED, **CHARGING}}),
+    ('update-apply-poweroff', ['update', 'apply'], {'commands': [core('prepare', {'state': 'Prepared'})],
                                                     'files': {**QUEUED, **CHARGING,
                                                               '/data/updates/restart.json': '{"mode": "poweroff"}'}}),
-    ('update-rollback-refused', ['update', 'rollback'], {'ported': True}),
-    ('update-rollback-battery', ['update', 'rollback'], {'ported': True, 'commands': [core('rollback', {'state': 'RollbackPending'})]}),
-    ('update-cancel', ['update', 'cancel'], {'ported': True, 'commands': [core('cancel', {'state': 'Idle'})], 'files': {
+    ('update-rollback-refused', ['update', 'rollback'], {}),
+    ('update-rollback-battery', ['update', 'rollback'], {'commands': [core('rollback', {'state': 'RollbackPending'})]}),
+    ('update-cancel', ['update', 'cancel'], {'commands': [core('cancel', {'state': 'Idle'})], 'files': {
         '/data/updates/pending/manifest.json': '{}', '/data/updates/pending/rootfs.ext4.gz': 'x'}}),
-    ('update-cancel-refused', ['update', 'cancel'], {'ported': True, 'commands': [
+    ('update-cancel-refused', ['update', 'cancel'], {'commands': [
         core('cancel', ok=False, output='{"failure": 7}')]}),
-    ('update-cancel-unsafe', ['update', 'cancel'], {'ported': True, 'commands': [core('cancel', {'state': 'Idle'})],
+    ('update-cancel-unsafe', ['update', 'cancel'], {'commands': [core('cancel', {'state': 'Idle'})],
                                                     'files': {'/data/updates/pending/other': 'x'}}),
-    ('update-probe-recovery', ['update', 'probe-recovery'], {'ported': True, 'commands': [core('probe', {'ok': True})]}),
-    ('update-probe-refused', ['update', 'probe-recovery'], {'ported': True}),
-    ('update-recovery-status', ['update', 'recovery-status'], {'ported': True, 'commands': [
+    ('update-probe-recovery', ['update', 'probe-recovery'], {'commands': [core('probe', {'ok': True})]}),
+    ('update-probe-refused', ['update', 'probe-recovery'], {}),
+    ('update-recovery-status', ['update', 'recovery-status'], {'commands': [
         core('misc', {'command': 'boot-recovery', 'recovery': '--update'})]}),
-    ('update-recovery-status-failed', ['update', 'recovery-status'], {'ported': True, 'commands': [
+    ('update-recovery-status-failed', ['update', 'recovery-status'], {'commands': [
         core('misc', ok=False, output='not json')]}),
     # update health-ack
-    ('update-health-ack-idle', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'ported': True}),
-    ('update-health-ack-first-frame', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'ported': True, 'files': PENDING}),
-    ('update-health-ack-pid', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'ported': True, 'files': {
+    ('update-health-ack-idle', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s']}),
+    ('update-health-ack-first-frame', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'files': PENDING}),
+    ('update-health-ack-pid', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'files': {
         **PENDING, '/run/y2/application-ready.json': '{"boot_id": "boot-a", "first_frame": true, "pid": "1"}'}}),
-    ('update-health-ack-bad-pid', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'ported': True, 'files': {
+    ('update-health-ack-bad-pid', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'files': {
         **PENDING, '/run/y2/application-ready.json': '{"boot_id": "boot-a", "first_frame": true, "pid": 5000000}'}}),
-    ('update-health-ack-generation', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'ported': True, 'files': {
+    ('update-health-ack-generation', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'files': {
         **PENDING, **READY, '/proc/1234/stat': stat_line(778)}}),
-    ('update-health-ack-expired', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'ported': True, 'files': {
+    ('update-health-ack-expired', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'files': {
         **PENDING, '/run/y2/update-health.json': '{"boot_id": "boot-a", "deadline_monotonic_s": 0}'},
         'commands': [core('rollback', {'state': 'RollbackPending'}), core('prepare', {'state': 'Prepared'})]}),
-    ('update-health-ack-expired-refused', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'ported': True, 'files': {
+    ('update-health-ack-expired-refused', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'files': {
         **PENDING, '/run/y2/update-health.json': '{"boot_id": "boot-a", "deadline_monotonic_s": 1.5}'}}),
-    ('update-health-ack-checks', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'ported': True, 'files': {
+    ('update-health-ack-checks', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'files': {
         **PENDING, **READY, '/proc/1234/stat': stat_line(777)}}),
     ('update-health-ack-app-not-ready', ['update', 'health-ack'], {
-        'volatile': ['deadline_monotonic_s'], 'ported': True, 'commands': HEALTHY_BLKID, 'files': {
+        'volatile': ['deadline_monotonic_s'], 'commands': HEALTHY_BLKID, 'files': {
             **PENDING, **READY, **HEALTHY, '/proc/1234/stat': stat_line(777)}}),
     ('update-health-ack-app-not-json', ['update', 'health-ack'], {
-        'volatile': ['deadline_monotonic_s'], 'ported': True, 'commands': [*HEALTHY_BLKID, answer(REBORNCTL, 'x')],
+        'volatile': ['deadline_monotonic_s'], 'commands': [*HEALTHY_BLKID, answer(REBORNCTL, 'x')],
         'files': {**PENDING, **READY, **HEALTHY, '/proc/1234/stat': stat_line(777)}}),
     ('update-health-ack-acknowledged', ['update', 'health-ack'], {
-        'volatile': ['deadline_monotonic_s'], 'ported': True,
+        'volatile': ['deadline_monotonic_s'],
         'commands': [*HEALTHY_BLKID, answer(REBORNCTL, '{"healthy": true}'), core('ack', {'state': 'Acknowledged'})],
         'files': {**PENDING, **READY, **HEALTHY, '/proc/1234/stat': stat_line(777),
                   '/data/system/platform/boot.json': json.dumps({'schema': 1, 'boot_id': 'boot-a',
@@ -284,26 +236,26 @@ CASES = [
                   '/proc/sys/kernel/panic_on_rcu_stall': '1\n',
                   '/data/updates/pending/manifest.json': '{}'}}),
     ('update-health-ack-graphics', ['update', 'health-ack'], {
-        'volatile': ['deadline_monotonic_s'], 'ported': True,
+        'volatile': ['deadline_monotonic_s'],
         'commands': [*HEALTHY_BLKID, answer(REBORNCTL, '{"graphics": {"available": true}, "uptime_seconds": 9}')],
         'files': {**PENDING, **READY, **HEALTHY, '/proc/1234/stat': stat_line(777)}}),
     # update auto-check (the service's daily check)
-    ('update-auto-check-not-due', ['update', 'auto-check'], {'volatile': ['attempt'], 'ported': True, 'files': {
+    ('update-auto-check-not-due', ['update', 'auto-check'], {'volatile': ['attempt'], 'files': {
         '/data/updates/last-check.json': last_check()}}),
-    ('update-auto-check-no-channel', ['update', 'auto-check'], {'volatile': ['attempt'], 'ported': True, 'files': {
+    ('update-auto-check-no-channel', ['update', 'auto-check'], {'volatile': ['attempt'], 'files': {
         '/data/updates/last-check.json': last_check('failed')}}),
-    ('update-auto-check-offline', ['update', 'auto-check'], {'volatile': ['attempt'], 'ported': True, 'files': {
+    ('update-auto-check-offline', ['update', 'auto-check'], {'volatile': ['attempt'], 'files': {
         **CHANNEL, '/data/updates/last-check.json': last_check(age=90000)}}),
-    ('update-auto-check-clock', ['update', 'auto-check'], {'volatile': ['attempt'], 'ported': True, 'files': {**CHANNEL, **ONLINE}}),
+    ('update-auto-check-clock', ['update', 'auto-check'], {'volatile': ['attempt'], 'files': {**CHANNEL, **ONLINE}}),
     ('update-auto-check-fails', ['update', 'auto-check'], {'volatile': ['attempt'], 
-        'ported': True, 'env': FIXED, 'commands': [BLKID], 'files': {
+        'env': FIXED, 'commands': [BLKID], 'files': {
             **CHANNEL, **ONLINE, **VOLUME, '/run/y2/time.json': anchor(),
             '/data/updates/download.json': '{"schema": 1, "state": "Staging", "id": "y"}',
             '/data/updates/last-check.json': last_check('failed', age=4000)}}),
     ('update-auto-check-fails-keeps-offer', ['update', 'auto-check'], {'volatile': ['attempt'], 
-        'ported': True, 'env': FIXED, 'files': {**CHANNEL, **ONLINE, '/run/y2/time.json': anchor(),
+        'env': FIXED, 'files': {**CHANNEL, **ONLINE, '/run/y2/time.json': anchor(),
                                                 '/data/updates/download.json': CHECKED}}),
-    ('update-auto-check-odd-url', ['update', 'auto-check'], {'volatile': ['attempt'], 'ported': True, 'files': {
+    ('update-auto-check-odd-url', ['update', 'auto-check'], {'volatile': ['attempt'], 'files': {
         '/etc/y2linux/update-channel.json': '{"manifest_url": 5}'}}),
 ]
 
@@ -378,26 +330,38 @@ IMAGES = {
 }
 
 
-def firmware_images(root):
-    """Without a host mke2fs only the images that need none are made; their cases then see no copy."""
-    old = time.time() - 3600
+IMAGE_FIXTURES = Path(__file__).resolve().parent / 'firmware_images'
+# The copies' time: long settled (a copy changed within 5 s is still arriving), and fixed, as `seen` records it.
+SETTLED = 1788000000
+
+
+def make_firmware_images():
+    """Rewrite firmware_images/<name>.img.gz (IMAGES, with the host's mke2fs): the goldens of the firmware
+    cases read these files, so a rewrite re-records them."""
     with tempfile.TemporaryDirectory() as scratch:
         for name, (tree_options, options, size, block) in IMAGES.items():
             tree = Path(scratch) / name
             firmware_tree(tree, **tree_options)
             raw = Path(scratch) / (name + '.img')
             if not mke2fs(tree, raw, options, size):
-                continue
-            target = root / 'srv/radiofw' / name / 'Firmware/system.img'
-            target.parent.mkdir(parents=True)
-            target.write_bytes(raw.read_bytes() if block is None else sparse(raw.read_bytes(), block))
+                raise SystemExit('mke2fs failed for ' + name)
+            data = raw.read_bytes() if block is None else sparse(raw.read_bytes(), block)
+            (IMAGE_FIXTURES / (name + '.img.gz')).write_bytes(gzip.compress(data, compresslevel=9, mtime=0))
+
+
+def firmware_images(root):
+    """The owner copies below `root`: the kept images (make_firmware_images), a text file, a bad sparse header."""
+    for name in IMAGES:
+        target = root / 'srv/radiofw' / name / 'Firmware/system.img'
+        target.parent.mkdir(parents=True)
+        target.write_bytes(gzip.decompress((IMAGE_FIXTURES / (name + '.img.gz')).read_bytes()))
     for name, data in (('text', b'not an image\n'),
                        ('badsparse', struct.pack('<IHHHHIIII', 0xED26FF3A, 2, 0, 28, 12, 4096, 0, 0, 0))):
         target = root / 'srv/radiofw' / name / 'Firmware/system.img'
         target.parent.mkdir(parents=True)
         target.write_bytes(data)
     for image in (root / 'srv/radiofw').glob('*/Firmware/system.img'):
-        os.utime(image, (old, old))
+        os.utime(image, (SETTLED, SETTLED))
         info = image.lstat()
         SEEN[image.parent.parent.name] = [info.st_size, info.st_mtime_ns]
 
@@ -409,56 +373,55 @@ INTERNAL = {'/run/y2/internal-media.json': json.dumps({'state': 'Ready', 'boot_i
                                     '40 22 179:8 / /media/internal rw - ext4 /dev/mmcblk0p8 rw\n'}
 
 CASES += [
-    ('firmware-status', ['firmware', 'status'], {'ported': True}),
-    ('firmware-status-path', ['firmware', 'status', 'ignored'], {'ported': True}),
-    ('firmware-status-installing', ['firmware', 'status'], {'ported': True, 'files': {
+    ('firmware-status', ['firmware', 'status'], {}),
+    ('firmware-status-path', ['firmware', 'status', 'ignored'], {}),
+    ('firmware-status-installing', ['firmware', 'status'], {'files': {
         '/run/y2/radio-firmware.json': '{"schema": 1, "state": "Installing", "seen": [1, 2]}'}}),
-    ('firmware-status-no-space', ['firmware', 'status'], {'ported': True, 'files': {
+    ('firmware-status-no-space', ['firmware', 'status'], {'files': {
         '/run/y2/mtp-events.json': '{"error": 28.0}'}}),
-    ('firmware-status-internal', ['firmware', 'status'], {'ported': True, 'files': INTERNAL}),
-    ('firmware-status-partly-there', ['firmware', 'status'], {'ported': True, 'files': {
+    ('firmware-status-internal', ['firmware', 'status'], {'files': INTERNAL}),
+    ('firmware-status-partly-there', ['firmware', 'status'], {'files': {
         '/data/firmware/mt6582/WMT_SOC.cfg': 'x' * 80}}),
-    ('firmware-scan', ['firmware', 'scan'], {'ported': True}),
-    ('firmware-scan-internal', ['firmware', 'scan'], {'ported': True, 'files': {
+    ('firmware-scan', ['firmware', 'scan'], {}),
+    ('firmware-scan-internal', ['firmware', 'scan'], {'files': {
         **INTERNAL, '/media/internal/music/.keep': ''}}),
-    ('firmware-scan-internal-unmounted', ['firmware', 'scan'], {'ported': True, 'files': INTERNAL}),
-    ('firmware-scan-rejected-copy-gone', ['firmware', 'scan'], {'ported': True, 'files': {
+    ('firmware-scan-internal-unmounted', ['firmware', 'scan'], {'files': INTERNAL}),
+    ('firmware-scan-rejected-copy-gone', ['firmware', 'scan'], {'files': {
         '/run/y2/radio-firmware.json': '{"schema": 1, "state": "Failed", "reason": "x", "seen": [1, 2]}'}}),
-    ('firmware-scan-new-copy', ['firmware', 'scan'], {'ported': True, 'files': mtp_root('ext4')}),
+    ('firmware-scan-new-copy', ['firmware', 'scan'], {'files': mtp_root('ext4')}),
     # The copy is written when the case runs: its time is a clock reading.
-    ('firmware-scan-arriving', ['firmware', 'scan'], {'ported': True, 'volatile': ['seen'], 'files': {
+    ('firmware-scan-arriving', ['firmware', 'scan'], {'volatile': ['seen'], 'files': {
         '/data/firmware/inbox/system.img': 'still copying'}}),
-    ('firmware-scan-rejected-before', ['firmware', 'scan'], {'ported': True, 'files': mtp_root('ext4', 'Failed')}),
-    ('firmware-install-dir', ['firmware', 'install', str(PACKAGE)], {'ported': True}),
-    ('firmware-install-image', ['firmware', 'install', str(PACKAGE / 'manifest.json')], {'ported': True}),
-    ('firmware-install-missing', ['firmware', 'install', str(PACKAGE / 'system.img')], {'ported': True}),
-    ('firmware-install-no-path', ['firmware', 'install'], {'ported': True}),
-    ('firmware-help', ['firmware', '--help'], {'ported': True}),
-    ('firmware-bad-action', ['firmware', 'flash'], {'ported': True}),
-] + [('firmware-scan-' + name, ['firmware', 'scan'], {'ported': True, 'files': mtp_root(name, 'Missing')})
+    ('firmware-scan-rejected-before', ['firmware', 'scan'], {'files': mtp_root('ext4', 'Failed')}),
+    ('firmware-install-dir', ['firmware', 'install', str(PACKAGE)], {}),
+    ('firmware-install-image', ['firmware', 'install', str(PACKAGE / 'manifest.json')], {}),
+    ('firmware-install-missing', ['firmware', 'install', str(PACKAGE / 'system.img')], {}),
+    ('firmware-install-no-path', ['firmware', 'install'], {}),
+    ('firmware-help', ['firmware', '--help'], {}),
+    ('firmware-bad-action', ['firmware', 'flash'], {}),
+] + [('firmware-scan-' + name, ['firmware', 'scan'], {'files': mtp_root(name, 'Missing')})
      for name in ('ext4', 'ext3', 'partial', 'large', 'text', 'badsparse')]
 
 
 # ---- service-daemon (commands/service/daemon.rs, usb.rs) --------------------------------------------------
-TICKS = {'Y2_LAUNCHER_PATCH': 'platform_cases.service:daemon_ticks'}
 # duration_ns: how long the (fixture) supplicant query took.
-DAEMON = {'ported': True, 'volatile': ['attempt', 'deadline_monotonic_s', 'duration_ns']}
+DAEMON = {'volatile': ['attempt', 'deadline_monotonic_s', 'duration_ns']}
 CASES += [
-    ('service-daemon-one-tick', ['service-daemon'], {**DAEMON, 'env': {**TICKS, 'Y2_DAEMON_TICKS': '1'}}),
-    ('service-daemon-three-ticks', ['service-daemon'], {**DAEMON, 'env': {**TICKS, 'Y2_DAEMON_TICKS': '3'}}),
-    ('service-daemon-dark-settled', ['service-daemon'], {**DAEMON, 'env': {**TICKS, 'Y2_DAEMON_TICKS': '2'}, 'files': {
+    ('service-daemon-one-tick', ['service-daemon'], {**DAEMON, 'env': {'Y2_DAEMON_TICKS': '1'}}),
+    ('service-daemon-three-ticks', ['service-daemon'], {**DAEMON, 'env': {'Y2_DAEMON_TICKS': '3'}}),
+    ('service-daemon-dark-settled', ['service-daemon'], {**DAEMON, 'env': {'Y2_DAEMON_TICKS': '2'}, 'files': {
         '/sys/class/backlight/panel/bl_power': '4\n', '/sys/class/backlight/panel/brightness': '200\n',
         '/run/y2/media-lifecycle.json': '{"inventory": []}',
         '/data/updates/last-check.json': last_check(),
         '/run/y2/application-ready.json': '{"boot_id": "boot-a", "first_frame": true}'},
         'commands': [answer(['/usr/sbin/y2-platform', 'update', 'health-ack'], '{"state": "Acknowledged"}')]}),
-    ('service-daemon-online', ['service-daemon'], {**DAEMON, 'env': {**TICKS, 'Y2_DAEMON_TICKS': '1'}, 'files': {
+    ('service-daemon-online', ['service-daemon'], {**DAEMON, 'env': {'Y2_DAEMON_TICKS': '1'}, 'files': {
         **ONLINE, '/run/y2/media-mount.json': '{"read_only": "checking", "boot_id": "boot-a"}'}}),
 ]
 
 
 def ticks(n):
-    return {**TICKS, 'Y2_DAEMON_TICKS': str(n)}
+    return {'Y2_DAEMON_TICKS': str(n)}
 
 
 def wifi_online(status='wpa_state=COMPLETED\nbssid=00:11:22:33:44:55\nid=0\n', dns='2'):

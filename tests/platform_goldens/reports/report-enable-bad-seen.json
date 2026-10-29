@@ -1,0 +1,28 @@
+{
+ "argv": [
+  "report",
+  "enable"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {
+   "/data/system/platform/reports.json": {
+    "content": {
+     "boot_triggers": {},
+     "daily": {},
+     "enabled": true,
+     "install_id": "<uuid>",
+     "schema": 1,
+     "seen": [],
+     "uploads": {}
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

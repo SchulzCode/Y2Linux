@@ -1,0 +1,24 @@
+{
+ "argv": [
+  "codec-settings",
+  "--sbc-quality",
+  "high"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "invalid_sbc_quality",
+  "schema": "org.y2linux.codec-settings/v1"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/codec-settings.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,41 @@
+{
+ "argv": [
+  "media",
+  "format",
+  "--confirm-cid",
+  "other"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "action": "format",
+  "boot_id": "boot-a",
+  "cid": "035344534433324780a1b2c3d4016a00",
+  "reason": "cid_confirmation_mismatch",
+  "schema": 1,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.json": {
+    "content": {
+     "action": "format",
+     "boot_id": "boot-a",
+     "cid": "035344534433324780a1b2c3d4016a00",
+     "reason": "cid_confirmation_mismatch",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

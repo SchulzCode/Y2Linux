@@ -1,0 +1,16 @@
+{
+ "argv": [
+  "media",
+  "write",
+  "--holder",
+  "nobody"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,17 @@
+{
+ "argv": [
+  "time-set",
+  "-5"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "date_out_of_range",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

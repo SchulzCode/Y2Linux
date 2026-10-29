@@ -1,0 +1,23 @@
+{
+ "argv": [
+  "export-state",
+  "--include-database"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "verified_data_unavailable",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

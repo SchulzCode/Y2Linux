@@ -1,0 +1,19 @@
+{
+ "argv": [
+  "dhcp-event",
+  "bound"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "dhcp_interface_not_owned",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

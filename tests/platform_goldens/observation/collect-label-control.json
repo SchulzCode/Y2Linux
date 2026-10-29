@@ -1,0 +1,22 @@
+{
+ "argv": [
+  "collect",
+  "--seconds",
+  "1",
+  "--workload",
+  "a\tb"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "invalid_workload_label",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,52 @@
+{
+ "argv": [
+  "internal-media",
+  "mount"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk0p8"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "boot_id": "boot-a",
+  "filesystem": "vfat",
+  "label": "Y2",
+  "path": "/media/internal",
+  "reason": "filesystem_identity_not_y2media",
+  "schema": 1,
+  "state": "Unavailable"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/internal-media.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "filesystem": "vfat",
+     "label": "Y2",
+     "path": "/media/internal",
+     "reason": "filesystem_identity_not_y2media",
+     "schema": 1,
+     "state": "Unavailable"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/internal-media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

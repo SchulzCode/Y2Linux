@@ -1,0 +1,191 @@
+{
+ "argv": [
+  "reset",
+  "execute"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "completed": [
+   "network"
+  ],
+  "id": "<hex32>",
+  "preserved": [
+   "SSH identity",
+   "entropy",
+   "update/rollback",
+   "factory/calibration",
+   "unknown data directories",
+   "Y2Media internal music (/media/internal; delete files over MTP)"
+  ],
+  "purge_confirmation": "<hex64>",
+  "quarantine": "/data/reset-quarantine/<hex32>",
+  "schema": 1,
+  "scope": "network",
+  "state": "Complete"
+ },
+ "tree": {
+  "added": {
+   "/data/reset-quarantine": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/000": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/000/enabled": {
+    "content": 0,
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/000/wpa_supplicant.conf": {
+    "content": [
+     "x"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/record.json": {
+    "content": {
+     "completed": [
+      "network"
+     ],
+     "id": "<hex32>",
+     "preserved": [
+      "SSH identity",
+      "entropy",
+      "update/rollback",
+      "factory/calibration",
+      "unknown data directories",
+      "Y2Media internal music (/media/internal; delete files over MTP)"
+     ],
+     "purge_confirmation": "<hex64>",
+     "quarantine": "/data/reset-quarantine/<hex32>",
+     "schema": 1,
+     "scope": "network",
+     "state": "Complete"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/.maintenance.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/maintenance-state.json": {
+    "content": {
+     "completed": [
+      "network"
+     ],
+     "id": "<hex32>",
+     "preserved": [
+      "SSH identity",
+      "entropy",
+      "update/rollback",
+      "factory/calibration",
+      "unknown data directories",
+      "Y2Media internal music (/media/internal; delete files over MTP)"
+     ],
+     "purge_confirmation": "<hex64>",
+     "quarantine": "/data/reset-quarantine/<hex32>",
+     "schema": 1,
+     "scope": "network",
+     "state": "Complete"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/reset-plan.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "confirmation": "<hex64>",
+     "data_generation": "boot-a:30:259:5",
+     "data_uuid": "79324c69-6e75-4801-8000-000000000102",
+     "expires_monotonic_s": "<volatile>",
+     "id": "<hex32>",
+     "preserved": [
+      "SSH identity",
+      "entropy",
+      "update/rollback",
+      "factory/calibration",
+      "unknown data directories",
+      "Y2Media internal music (/media/internal; delete files over MTP)"
+     ],
+     "restart": "owner reboot after completion",
+     "schema": 1,
+     "scope": "network",
+     "state": "Planned",
+     "stop_services": [
+      "S90reborn",
+      "S42y2-readiness",
+      "S41y2-connectivity",
+      "S40bluetoothd"
+     ],
+     "targets": [
+      {
+       "identity": {
+        "device": 53,
+        "inode": "<volatile>",
+        "mode": 16384,
+        "mtime_ns": "<volatile>",
+        "size": 80
+       },
+       "path": "network"
+      }
+     ]
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": [
+   "/data/network",
+   "/data/network/enabled",
+   "/data/network/wpa_supplicant.conf"
+  ]
+ }
+}

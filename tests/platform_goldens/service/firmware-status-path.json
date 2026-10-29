@@ -1,0 +1,20 @@
+{
+ "argv": [
+  "firmware",
+  "status",
+  "ignored"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "file": "system.img",
+  "folder": "Firmware",
+  "location": "drive",
+  "state": "Missing"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

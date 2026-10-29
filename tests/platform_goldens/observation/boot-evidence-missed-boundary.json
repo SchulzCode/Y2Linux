@@ -1,0 +1,18 @@
+{
+ "argv": [
+  "boot-evidence"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "previous_boot_capture_missed_early_boundary",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

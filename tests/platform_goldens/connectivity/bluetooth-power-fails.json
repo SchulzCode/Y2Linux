@@ -1,0 +1,50 @@
+{
+ "argv": [
+  "bluetooth-power",
+  "on"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "bluetoothctl",
+    "power",
+    "on"
+   ],
+   "timeout": 15.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "ok": false,
+  "output": null,
+  "reason": "fixture"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/bt-operation.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/run/y2/bt-intent": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/run/y2/bt-intent/bt-control.ini": {
+    "content": [
+     "[intent]",
+     "version=1",
+     "boot_id=c0ffee00-1111-4222-8333-444455556666",
+     "sequence=<us>",
+     "operation=uncertain",
+     "deadline_us=<us>"
+    ],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

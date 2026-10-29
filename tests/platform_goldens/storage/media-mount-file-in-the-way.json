@@ -1,0 +1,73 @@
+{
+ "argv": [
+  "media",
+  "mount"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "fsck.fat",
+    "-n",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 20.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "reason": "[Errno 17] File exists: '<root>/media/sd'",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "FileExistsError"
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/sd-admissions.json": {
+    "content": {
+     "admissions": [
+      {
+       "card": "378be454f127",
+       "elapsed_ms": "<volatile>",
+       "filesystem": "vfat",
+       "finding": null,
+       "findings": [],
+       "ok": true,
+       "reason": null,
+       "time": "<volatile>"
+      }
+     ],
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

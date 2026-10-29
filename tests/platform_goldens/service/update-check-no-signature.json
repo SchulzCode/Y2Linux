@@ -1,0 +1,55 @@
+{
+ "argv": [
+  "update",
+  "check",
+  "--package",
+  "<repository>/tests/platform_cases"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "failure": "[Errno 2] No such file or directory: '<repository>/tests/platform_cases/manifest.json'",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/data/updates": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/updates/.incoming-0123456789abcdef0123456789abcdef": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/updates/.stage.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/updates/download.json": {
+    "content": {
+     "failure": "[Errno 2] No such file or directory: '<repository>/tests/platform_cases/manifest.json'",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

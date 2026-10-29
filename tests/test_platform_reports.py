@@ -1,21 +1,25 @@
-"""Differential cases of port group `reports` that the shared checks of tests/test_platform_differential.py cannot
-see as equal (tests/platform_cases/reports.py, EXTRA_CASES): Python against Python, and against the Rust host build
-when `Y2_PLATFORM_RUST` is set, on the same player-shaped fixture root.
+"""Golden cases of port group `reports` that need more than tests/test_platform_differential.py's plain run
+(tests/platform_cases/reports.py, EXTRA_CASES), run by the Rust host build (`Y2_PLATFORM_RUST`) on the
+player-shaped fixture root and compared with tests/platform_goldens/reports/<case>.json (tests/platform_golden.py).
 
 A report or export left on disk carries a random ID and the wall clock in its name, tokens keyed by a per-report
-random key, member times, and deflate bytes that are miniz's in Rust and zlib's in Python. `normalised` renames such
-files and replaces each archive by a JSON listing of its members (name, mode, size, owner; the data as text with
-every token numbered in order of appearance, IDs and clock values replaced), so the tree comparison sees the archive
-contents. The upload request's random headers are replaced in the recorded calls. `plan_first` runs `reset plan`
-on the same root before the case's `reset execute|resume`, with the confirmation the plan printed.
+random key, member times, and deflate bytes (miniz's). `normalised` renames such files and replaces each archive by
+a JSON listing of its members (name, mode, size, owner; the data as text with every token numbered in order of
+appearance, IDs and clock values replaced), so the tree difference shows the archive contents. The upload request's
+random headers are replaced in the recorded calls. `plan_first` runs `reset plan` on the same root before the case's
+`reset execute|resume`, with the confirmation the plan printed.
 """
 import base64
+import grp
 import gzip
+import hashlib
 import io
+import os
+import pwd
 import random
 import json
 import re
-import sqlite3
+import shutil
 import sys
 import tarfile
 import tempfile
@@ -23,7 +27,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from platform_differential import compare, python_side, run_case, rust_binary, rust_side, RUST_ENV  # noqa: E402
+from platform_golden import SKIP, check_all, read_golden, run_case, rust_binary, touched  # noqa: E402
 from platform_cases import reports  # noqa: E402
 import test_platform_differential  # noqa: E402
 
@@ -36,6 +40,7 @@ TOKEN = re.compile(r'#([0-9a-f]{6})>')
 PLACES = ('data/system/platform/reports', 'media/internal/music/Error Reports', 'media/sd/Error Reports',
           'data/exports')
 FIXED = set(reports.ARCHIVES)
+LIBRARY = Path(__file__).resolve().parent / 'platform_cases/library.db'
 
 
 def text(data, tokens):
@@ -46,14 +51,34 @@ def text(data, tokens):
     return re.sub(r'(?m)^(\d+\.\d+|\d+) (\d+\.\d+)$', '<uptime>', value)
 
 
+def owner(name, names):
+    # A member copied from the fixture is owned by whoever runs the test: its name is the host's.
+    return '<owner>' if name and name in names else name
+
+
+def summary(value):
+    """Member text over 64 KiB as its line count, digest and first and last lines (the golden stays small)."""
+    if len(value) <= 65536:
+        return value
+    lines = value.splitlines()
+    return {'lines': len(lines), 'sha256': hashlib.sha256(value.encode('utf-8', 'surrogatepass')).hexdigest(),
+            'head': lines[:3], 'tail': lines[-3:]}
+
+
 def listing(data):
     """An archive's members in order, normalised."""
     tokens, members = {}, []
+    users = set()
+    for lookup in (lambda: pwd.getpwuid(os.geteuid()).pw_name, lambda: grp.getgrgid(os.getegid()).gr_name):
+        try:
+            users.add(lookup())
+        except KeyError:
+            pass
     with tarfile.open(fileobj=io.BytesIO(gzip.decompress(data)), mode='r:') as archive:
         for member in archive.getmembers():
             body = archive.extractfile(member).read() if member.isfile() else b''
             entry = {'name': member.name, 'mode': oct(member.mode), 'type': member.type.decode(),
-                     'uname': member.uname, 'gname': member.gname}
+                     'uname': owner(member.uname, users), 'gname': owner(member.gname, users)}
             if member.name.endswith('report-progress.json'):
                 entry['data'] = '<progress>'          # the run's own live record, read while it ran
             elif member.name.endswith('.tar') and body:
@@ -64,7 +89,7 @@ def listing(data):
                 try:
                     entry['data'] = json.loads(entry['data'])
                 except ValueError:
-                    pass
+                    entry['data'] = summary(entry['data'])
             members.append(entry)
     return members
 
@@ -107,18 +132,12 @@ def planned(side, scope):
 
 
 def with_library(side):
-    """`side`, with Reborn's library database (binary, so not a case's `files`) made in the root first."""
+    """`side`, with Reborn's library database (binary, so not a case's `files`) put in the root first: a kept
+    file (tracks: 3 rows, a table "odd name", user_version 7), since its bytes name the SQLite that wrote it."""
     def run(root, argv, commands_file, calls_file, timeout, env):
         path = root / 'data/reborn/library.db'
         path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(path) as database:
-            database.execute('create table tracks (title text, codec text, sample_rate int, source_id text)')
-            database.executemany('insert into tracks values (?, ?, ?, ?)', [
-                ('Song One', 'flac', 44100, '1234-ABCD'), ('Song Two', 'flac', 48000, '1234-ABCD'),
-                ('Song Three', 'mp3', 44100, None)])
-            database.execute('create table "odd name" (x)')
-            database.execute('pragma user_version = 7')
-        database.close()
+        shutil.copyfile(LIBRARY, path)
         return side(root, argv, commands_file, calls_file, timeout, env)
     return run
 
@@ -157,7 +176,7 @@ def with_archives(side):
 
 
 def options(case):
-    """A case's options for run_case, and the side wrapper it needs."""
+    """A case's options for run_case, with the side wrapper it needs."""
     case = dict(case)
     archives, scope = case.pop('archives', False), case.pop('plan_first', None)
     library, archives_made = case.pop('library', False), case.pop('retained', False)
@@ -167,10 +186,10 @@ def options(case):
         side = with_library(side) if library else side
         side = with_archives(side) if archives_made else side
         return normalised(side) if archives else side
-    return case, wrap
+    return {**case, 'wrap': wrap}
 
 
-class ReportsDifferential(unittest.TestCase):
+class ReportsGoldens(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.directory = tempfile.TemporaryDirectory()
@@ -180,20 +199,17 @@ class ReportsDifferential(unittest.TestCase):
     def tearDownClass(cls):
         cls.directory.cleanup()
 
-    def test_python_against_python_is_identical(self):
-        for name, argv, case in reports.EXTRA_CASES:
-            with self.subTest(name):
-                case, wrap = options(case)
-                self.assertEqual(compare(self.fixture, argv, left=wrap(python_side), right=wrap(python_side),
-                                         **case), [])
+    @unittest.skipUnless(rust_binary(), SKIP)
+    def test_cases_match_their_goldens(self):
+        check_all(self, [(('reports', name), lambda argv=argv, case=case: run_case(self.fixture, argv, **options(case)))
+                         for name, argv, case in reports.EXTRA_CASES])
 
-    def test_cases_exercise_the_paths_they_name(self):
-        results = {name: run_case(options(case)[1](python_side), self.fixture, argv, **options(case)[0])
-                   for name, argv, case in reports.EXTRA_CASES}
+    def test_goldens_exercise_the_paths_they_name(self):
+        results = {name: read_golden('reports', name) for name, _, _ in reports.EXTRA_CASES}
         queue = '/' + reports.QUEUE.lstrip('/') + '/<stamp>-<uuid>.tar.gz.members.json'
         sent = results['report-send-queued']
         self.assertEqual(sent['stdout']['upload']['reason'], 'offline')
-        members = sent['tree'][queue]['content']
+        members = touched(sent)[queue]['content']
         self.assertEqual([m['name'] for m in members[:4]],
                          ['report.json', 'hardware.json', 'reborn/session.json', 'reborn/library.json'])
         self.assertEqual(members[0]['data']['topic'], 'crash')
@@ -206,10 +222,10 @@ class ReportsDifferential(unittest.TestCase):
         self.assertEqual(results['report-check-queues']['stdout']['reports'][0]['queued'], True)
         self.assertTrue(results['report-save-internal']['stdout']['saved'])
         self.assertIn('/media/internal/music/Error Reports/y2linux-report-<stamp>.tar.gz.members.json',
-                      results['report-save-internal']['tree'])
+                      touched(results['report-save-internal']))
         self.assertTrue(results['report-save-sd']['stdout']['saved'])
         self.assertEqual(results['report-save-sd']['calls'][-1]['argv'], ['mount', '-o', 'remount,rw', '/media/sd'])
-        export = results['export-state']['tree']['/data/exports/state-<hex>.tar.gz.members.json']['content']
+        export = touched(results['export-state'])['/data/exports/state-<hex>.tar.gz.members.json']['content']
         self.assertEqual([m['name'] for m in export], ['manifest.json', 'reborn--state--session.json',
                                                        'network--wpa_supplicant.conf', 'network--enabled',
                                                        'library.db'])
@@ -219,12 +235,12 @@ class ReportsDifferential(unittest.TestCase):
         self.assertEqual(results['export-state']['stdout']['contains_network_credentials'], True)
         settings = results['reset-execute-settings']
         self.assertEqual((settings['exit'], settings['stdout']['state']), (0, 'Complete'))
-        session = settings['tree']['/data/reborn/state/session.json']['content']
+        session = touched(settings)['/data/reborn/state/session.json']['content']
         self.assertEqual(session['model']['settings'], {'volume': 5})
         self.assertEqual(results['reset-execute-network']['stdout']['completed'], ['network'])
         self.assertEqual(results['reset-execute-defaults-unavailable']['stdout']['failure'],
                          'application_defaults_unavailable')
-        big = results['report-send-retained']['tree'][queue]['content']
+        big = touched(results['report-send-retained'])[queue]['content']
         index = big[0]['data']
         self.assertTrue(index['sections']['files/data/logs/system.log']['cut'])
         retained = next(m for m in big if m['name'] == 'files/data/system/platform/retained/boot-1.tar')['data']
@@ -232,19 +248,11 @@ class ReportsDifferential(unittest.TestCase):
         self.assertIn('files/data/reborn/diagnostics/d.tar', index['sections'])
         diagnostics = results['export-diagnostics-complete']
         self.assertEqual(diagnostics['stdout']['state'], 'Complete')
-        bundle = diagnostics['tree']['/data/exports/y2-diagnostics-<id>.tar.gz.members.json']['content'][0]['data']
+        bundle = touched(diagnostics)['/data/exports/y2-diagnostics-<id>.tar.gz.members.json']['content'][0]['data']
         self.assertEqual(bundle['logs']['system'][0]['components'], ['msdc'])
         self.assertIn('checks', bundle['health'])
         crashed = results['reset-execute-plan-no-expiry']
         self.assertEqual((crashed['exit'], crashed['stdout']), (1, []))
-
-    @unittest.skipUnless(rust_binary(), RUST_ENV + ' (host build of the Rust y2-platform) not given')
-    def test_rust_matches_python(self):
-        rust = rust_side(rust_binary())
-        for name, argv, case in reports.EXTRA_CASES:
-            with self.subTest(name):
-                case, wrap = options(case)
-                self.assertEqual(compare(self.fixture, argv, left=wrap(python_side), right=wrap(rust), **case), [])
 
 
 if __name__ == '__main__':

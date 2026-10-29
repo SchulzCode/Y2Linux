@@ -1,0 +1,19 @@
+{
+ "argv": [
+  "update",
+  "auto-check"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": null,
+ "tree": {
+  "added": {},
+  "changed": {
+   "/data/updates": {
+    "mode": "0o700",
+    "type": "dir"
+   }
+  },
+  "removed": []
+ }
+}

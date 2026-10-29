@@ -1,0 +1,149 @@
+{
+ "argv": [
+  "media",
+  "mount"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "e2fsck",
+    "-n",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 60.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "mount",
+    "-t",
+    "ext4",
+    "-o",
+    "ro,nosuid,nodev,noexec,noatime",
+    "/dev/mmcblk1p1",
+    "/media/sd"
+   ],
+   "timeout": 3.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "action": "mount",
+  "boot_id": "boot-a",
+  "cid": "035344534433324780a1b2c3d4016a00",
+  "device": "/dev/mmcblk1p1",
+  "filesystem": "ext4",
+  "filesystem_check": {
+   "elapsed_ms": "<volatile>",
+   "ok": true,
+   "output": "",
+   "reason": null
+  },
+  "identity": {
+   "cid": "035344534433324780a1b2c3d4016a00",
+   "filesystem": "ext4",
+   "geometry": {
+    "partition": "1",
+    "size": "62513152",
+    "start": "8192"
+   },
+   "id": "0ad68ec3de82ea31b1c9423df6991357f1d45ab43a21dbd9ad72acda2e4f8ac4",
+   "uuid": "1234-ABCD"
+  },
+  "reason": "fixture",
+  "schema": 1,
+  "source_instance": "block:179:97:diskseq:9",
+  "state": "Failed",
+  "uuid": "1234-ABCD"
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/sd-admissions.json": {
+    "content": {
+     "admissions": [
+      {
+       "card": "0ad68ec3de82",
+       "elapsed_ms": "<volatile>",
+       "filesystem": "ext4",
+       "finding": null,
+       "findings": [],
+       "ok": true,
+       "reason": null,
+       "time": "<volatile>"
+      }
+     ],
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/media": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/media/sd": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/run/y2/media.json": {
+    "content": {
+     "action": "mount",
+     "boot_id": "boot-a",
+     "cid": "035344534433324780a1b2c3d4016a00",
+     "device": "/dev/mmcblk1p1",
+     "filesystem": "ext4",
+     "filesystem_check": {
+      "elapsed_ms": "<volatile>",
+      "ok": true,
+      "output": "",
+      "reason": null
+     },
+     "identity": {
+      "cid": "035344534433324780a1b2c3d4016a00",
+      "filesystem": "ext4",
+      "geometry": {
+       "partition": "1",
+       "size": "62513152",
+       "start": "8192"
+      },
+      "id": "0ad68ec3de82ea31b1c9423df6991357f1d45ab43a21dbd9ad72acda2e4f8ac4",
+      "uuid": "1234-ABCD"
+     },
+     "reason": "fixture",
+     "schema": 1,
+     "source_instance": "block:179:97:diskseq:9",
+     "state": "Failed",
+     "uuid": "1234-ABCD"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

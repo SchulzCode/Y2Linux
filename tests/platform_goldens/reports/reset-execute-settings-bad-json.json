@@ -1,0 +1,114 @@
+{
+ "argv": [
+  "reset",
+  "execute"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "failure": "Expecting value: line 1 column 7 (char 6)",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/data/reset-quarantine": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/record.json": {
+    "content": {
+     "completed": [],
+     "id": "<hex32>",
+     "schema": 1,
+     "scope": "settings",
+     "state": "Applying"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/.maintenance.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/maintenance-pending": {
+    "content": [
+     "Owner maintenance pending; keep mutable consumers stopped"
+    ],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/reset-plan.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "confirmation": "<hex64>",
+     "data_generation": "boot-a:30:259:5",
+     "data_uuid": "79324c69-6e75-4801-8000-000000000102",
+     "expires_monotonic_s": "<volatile>",
+     "id": "<hex32>",
+     "preserved": [
+      "SSH identity",
+      "entropy",
+      "update/rollback",
+      "factory/calibration",
+      "unknown data directories",
+      "Y2Media internal music (/media/internal; delete files over MTP)"
+     ],
+     "restart": "owner reboot after completion",
+     "schema": 1,
+     "scope": "settings",
+     "state": "Planned",
+     "stop_services": [
+      "S90reborn",
+      "S42y2-readiness"
+     ],
+     "targets": [
+      {
+       "identity": {
+        "device": 53,
+        "inode": "<volatile>",
+        "mode": 32768,
+        "mtime_ns": "<volatile>",
+        "size": 6
+       },
+       "path": "reborn/state/session.json"
+      }
+     ]
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

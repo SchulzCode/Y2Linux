@@ -1,0 +1,32 @@
+{
+ "argv": [
+  "media",
+  "repair"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "action": "repair",
+  "boot_id": "boot-a",
+  "failure": "card_not_marked_for_repair",
+  "reason": "card_not_marked_for_repair",
+  "schema": 1,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

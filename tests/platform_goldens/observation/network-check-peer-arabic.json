@@ -1,0 +1,26 @@
+{
+ "argv": [
+  "network-check",
+  "--peer",
+  "\u0661.2.3.4"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "Only decimal digits permitted in '\u0661' in '\u0661.2.3.4'",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "AddressValueError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

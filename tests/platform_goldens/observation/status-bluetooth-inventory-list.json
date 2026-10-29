@@ -1,0 +1,28 @@
+{
+ "argv": [
+  "status",
+  "bluetooth"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/cat",
+    "<root>/sys/power/wakeup_count"
+   ],
+   "timeout": 0.1
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-bt-observe"
+   ],
+   "timeout": 3.0
+  }
+ ],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

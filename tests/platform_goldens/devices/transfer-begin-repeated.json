@@ -1,0 +1,23 @@
+{
+ "argv": [
+  "transfer",
+  "begin",
+  "--name",
+  "a",
+  "--name",
+  "b"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "invalid_transfer_size_or_hash",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

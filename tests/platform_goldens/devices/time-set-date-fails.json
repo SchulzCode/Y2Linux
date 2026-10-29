@@ -1,0 +1,34 @@
+{
+ "argv": [
+  "time-set",
+  "1788100000"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/busybox",
+    "date",
+    "-u",
+    "-s",
+    "@1788100000"
+   ],
+   "timeout": 3.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "failure": "date_not_set",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/time.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

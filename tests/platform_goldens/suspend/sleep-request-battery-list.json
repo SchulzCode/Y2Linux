@@ -1,0 +1,60 @@
+{
+ "argv": [
+  "sleep",
+  "request"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {
+   "/run/y2/suspend.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/system/platform/suspend-last.json": {
+    "content": {
+     "current_boot_id": "boot-a",
+     "mode": "product",
+     "persistent_kernel": null,
+     "pm_test": "none",
+     "product": {
+      "boot_id": "boot-a",
+      "kernel_completed": false,
+      "reason": null,
+      "request_boot_id": "boot-a",
+      "same_boot": true,
+      "schema": "org.y2linux.sleep/v1",
+      "state": "requested",
+      "wake_reason": "unknown"
+     },
+     "radio_restore": null,
+     "request_boot_id": "boot-a",
+     "requested_mode": "deep",
+     "result": 0,
+     "schema": 1,
+     "stage": "requested",
+     "stages": [
+      {
+       "result": 0,
+       "stage": "requested",
+       "time": "<volatile>"
+      }
+     ],
+     "started": "<volatile>",
+     "updated": "<volatile>",
+     "usb_restore": {
+      "controllers": {},
+      "udcs": {}
+     }
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

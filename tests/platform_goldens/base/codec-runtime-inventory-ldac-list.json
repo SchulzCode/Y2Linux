@@ -1,0 +1,14 @@
+{
+ "argv": [
+  "codec-runtime",
+  "--record"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,169 @@
+{
+ "argv": [
+  "transfer",
+  "commit",
+  "--id",
+  "0123456789abcdef0123456789abcdef"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p8"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p8"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p8"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p8"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "bytes": 5,
+  "data_generation": "boot-a:30:259:1",
+  "id": "0123456789abcdef0123456789abcdef",
+  "name": "Album/song.flac",
+  "record": {
+   "failure": null,
+   "result": "OK",
+   "workload": "usb-transfer"
+  },
+  "schema": 1,
+  "sha256": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+  "state": "Committed"
+ },
+ "tree": {
+  "added": {
+   "/data/transfer-staging/0123456789abcdef0123456789abcdef/lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/media/internal/music/Album": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/media/internal/music/Album/song.flac": {
+    "content": [
+     "hello"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/transfer-staging/0123456789abcdef0123456789abcdef/manifest.json": {
+    "content": {
+     "bytes": 5,
+     "data_generation": "boot-a:30:259:1",
+     "id": "0123456789abcdef0123456789abcdef",
+     "name": "Album/song.flac",
+     "record": {
+      "failure": null,
+      "result": "OK",
+      "workload": "usb-transfer"
+     },
+     "schema": 1,
+     "sha256": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+     "state": "Committed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": [
+   "/data/transfer-staging/0123456789abcdef0123456789abcdef/payload.part"
+  ]
+ }
+}

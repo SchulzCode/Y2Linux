@@ -1,0 +1,16 @@
+{
+ "argv": [
+  "export-diagnostics"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "diagnostic_export_failed",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

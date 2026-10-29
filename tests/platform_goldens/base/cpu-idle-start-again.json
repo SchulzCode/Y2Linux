@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "cpu-idle-policy",
+  "start"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "boot_id": "boot-a",
+  "policy": "qualified_CPU0_DORMANT",
+  "previous": {
+   "state": "Enabled"
+  },
+  "reasons": [
+   "already_applied_this_boot"
+  ],
+  "schema": "org.y2linux.cpu-idle-policy/v1",
+  "state": "Skipped"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

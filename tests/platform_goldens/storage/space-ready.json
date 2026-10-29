@@ -1,0 +1,200 @@
+{
+ "argv": [
+  "space"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "admission": {
+   "cache": {
+    "allowed": true,
+    "reason": "budget_available",
+    "requested_bytes": 0,
+    "reserve_bytes": 100663296
+   },
+   "database": {
+    "allowed": true,
+    "reason": "budget_available",
+    "requested_bytes": 0,
+    "reserve_bytes": 33554432
+   },
+   "diagnostic": {
+    "allowed": true,
+    "reason": "budget_available",
+    "requested_bytes": 0,
+    "reserve_bytes": 100663296
+   },
+   "transfer": {
+    "allowed": true,
+    "reason": "budget_available",
+    "requested_bytes": 0,
+    "reserve_bytes": 100663296
+   },
+   "update": {
+    "allowed": true,
+    "reason": "budget_available",
+    "requested_bytes": 0,
+    "reserve_bytes": 100663296
+   },
+   "user_state": {
+    "allowed": true,
+    "reason": "budget_available",
+    "requested_bytes": 0,
+    "reserve_bytes": 33554432
+   }
+  },
+  "cleanup": null,
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "evidence_level": "IMPLEMENTED",
+   "failure": null,
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {},
+   "reborn_commit": "reborn",
+   "result": null,
+   "rootfs_release": "v1.0",
+   "units": {},
+   "wall_timestamp": "<volatile>",
+   "workload": "space-policy",
+   "y2linux_commit": "linux-commit"
+  },
+  "schema": "org.y2linux.space/v1",
+  "state": "Normal",
+  "volume": {
+   "available_bytes": "<volatile>",
+   "available_inodes": "<volatile>",
+   "controller_valid": true,
+   "device_id": "179:8",
+   "filesystem": "ext4",
+   "free_bytes": "<volatile>",
+   "generation": "boot-a:30:179:8",
+   "mount_id": 30,
+   "options": [
+    "rw",
+    "noatime"
+   ],
+   "path": "/data",
+   "reason": null,
+   "root": "/",
+   "source": "/dev/mmcblk0p9",
+   "source_instance": "block:179:8:diskseq:1",
+   "space_state": "Normal",
+   "state": "Ready",
+   "super_options": [
+    "rw"
+   ],
+   "total_bytes": "<volatile>",
+   "uuid": "79324c69-6e75-4801-8000-000000000102"
+  }
+ },
+ "tree": {
+  "added": {
+   "/run/y2/storage.json": {
+    "content": {
+     "admission": {
+      "cache": {
+       "allowed": true,
+       "reason": "budget_available",
+       "requested_bytes": 0,
+       "reserve_bytes": 100663296
+      },
+      "database": {
+       "allowed": true,
+       "reason": "budget_available",
+       "requested_bytes": 0,
+       "reserve_bytes": 33554432
+      },
+      "diagnostic": {
+       "allowed": true,
+       "reason": "budget_available",
+       "requested_bytes": 0,
+       "reserve_bytes": 100663296
+      },
+      "transfer": {
+       "allowed": true,
+       "reason": "budget_available",
+       "requested_bytes": 0,
+       "reserve_bytes": 100663296
+      },
+      "update": {
+       "allowed": true,
+       "reason": "budget_available",
+       "requested_bytes": 0,
+       "reserve_bytes": 100663296
+      },
+      "user_state": {
+       "allowed": true,
+       "reason": "budget_available",
+       "requested_bytes": 0,
+       "reserve_bytes": 33554432
+      }
+     },
+     "cleanup": null,
+     "record": {
+      "boot_id": "boot-a",
+      "build_id": "fixture-build",
+      "evidence_level": "IMPLEMENTED",
+      "failure": null,
+      "kernel": "6.18.0-fixture",
+      "monotonic_ns": "<volatile>",
+      "parameters": {},
+      "reborn_commit": "reborn",
+      "result": null,
+      "rootfs_release": "v1.0",
+      "units": {},
+      "wall_timestamp": "<volatile>",
+      "workload": "space-policy",
+      "y2linux_commit": "linux-commit"
+     },
+     "schema": "org.y2linux.space/v1",
+     "state": "Normal",
+     "volume": {
+      "available_bytes": "<volatile>",
+      "available_inodes": "<volatile>",
+      "controller_valid": true,
+      "device_id": "179:8",
+      "filesystem": "ext4",
+      "free_bytes": "<volatile>",
+      "generation": "boot-a:30:179:8",
+      "mount_id": 30,
+      "options": [
+       "rw",
+       "noatime"
+      ],
+      "path": "/data",
+      "reason": null,
+      "root": "/",
+      "source": "/dev/mmcblk0p9",
+      "source_instance": "block:179:8:diskseq:1",
+      "space_state": "Normal",
+      "state": "Ready",
+      "super_options": [
+       "rw"
+      ],
+      "total_bytes": "<volatile>",
+      "uuid": "79324c69-6e75-4801-8000-000000000102"
+     }
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

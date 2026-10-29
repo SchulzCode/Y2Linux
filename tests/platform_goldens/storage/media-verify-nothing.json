@@ -1,0 +1,19 @@
+{
+ "argv": [
+  "media",
+  "verify"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "action": "verify",
+  "reason": "nothing_to_check",
+  "schema": 1,
+  "state": "Unavailable"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

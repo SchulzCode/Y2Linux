@@ -1,0 +1,139 @@
+{
+ "argv": [
+  "connectivity-daemon"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-S",
+    "-b",
+    "-m",
+    "-p",
+    "/run/y2/calibration.pid",
+    "-x",
+    "/usr/sbin/y2-calibration",
+    "--"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/usr/libexec/y2/wpa-event",
+    "wlan0",
+    "DISCONNECTED"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-platform",
+    "wifi-event",
+    "SERVICE_RESTART"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-K",
+    "-p",
+    "/run/y2/wifi-action.pid"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "wpa_supplicant",
+    "-B",
+    "-u",
+    "-g",
+    "/run/wpa_supplicant/global",
+    "-P",
+    "/run/y2/wpa.pid"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-S",
+    "-b",
+    "-m",
+    "-p",
+    "/run/y2/reconnect.pid",
+    "-x",
+    "/usr/sbin/y2-bt-reconnect",
+    "--"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-K",
+    "-p",
+    "/run/y2/wifi-action.pid"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-K",
+    "-p",
+    "/run/y2/wifi-dhcp.pid"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-K",
+    "-p",
+    "/run/y2/wpa.pid"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-K",
+    "-p",
+    "/run/y2/reconnect.pid"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-K",
+    "-p",
+    "/run/y2/bluealsa.pid"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-K",
+    "-p",
+    "/run/y2/calibration.pid"
+   ],
+   "timeout": 2.0
+  }
+ ],
+ "exit": 0,
+ "stdout": [],
+ "tree": {
+  "added": {
+   "/run/y2/connectivity-monitor.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

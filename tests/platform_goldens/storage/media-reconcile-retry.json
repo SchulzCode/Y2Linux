@@ -1,0 +1,89 @@
+{
+ "argv": [
+  "media",
+  "reconcile"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "umount",
+    "/media/sd"
+   ],
+   "timeout": 3.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "action": "unmount",
+  "attempts": 3,
+  "boot_id": "boot-a",
+  "inventory": [
+   [
+    "mmcblk1",
+    "179:96",
+    "9",
+    "035344534433324780a1b2c3d4016a00"
+   ],
+   [
+    "mmcblk1p1",
+    "179:97",
+    "9",
+    "035344534433324780a1b2c3d4016a00"
+   ]
+  ],
+  "reason": "source_change_unmount_failed",
+  "retry": true,
+  "schema": 1,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.json": {
+    "content": {
+     "action": "unmount",
+     "boot_id": "boot-a",
+     "reason": "fixture",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/run/y2/media-lifecycle.json": {
+    "content": {
+     "action": "unmount",
+     "attempts": 3,
+     "boot_id": "boot-a",
+     "inventory": [
+      [
+       "mmcblk1",
+       "179:96",
+       "9",
+       "035344534433324780a1b2c3d4016a00"
+      ],
+      [
+       "mmcblk1p1",
+       "179:97",
+       "9",
+       "035344534433324780a1b2c3d4016a00"
+      ]
+     ],
+     "reason": "source_change_unmount_failed",
+     "retry": true,
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

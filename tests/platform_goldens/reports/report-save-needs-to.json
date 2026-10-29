@@ -1,0 +1,17 @@
+{
+ "argv": [
+  "report",
+  "save"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "report_failed",
+  "reason": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

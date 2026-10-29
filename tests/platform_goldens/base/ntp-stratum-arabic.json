@@ -1,0 +1,72 @@
+{
+ "argv": [
+  "ntp-event",
+  "step"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/busybox",
+    "hwclock",
+    "-w",
+    "-u"
+   ],
+   "timeout": 3.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "authenticated": false,
+  "boot_id": "boot-a",
+  "boottime_s": "<volatile>",
+  "epoch": "<volatile>",
+  "event": "step",
+  "monotonic_s": "<volatile>",
+  "rtc_write": true,
+  "schema": 1,
+  "source": "ntp",
+  "stratum": 3
+ },
+ "tree": {
+  "added": {
+   "/run/y2/time.json": {
+    "content": {
+     "authenticated": false,
+     "boot_id": "boot-a",
+     "boottime_s": "<volatile>",
+     "epoch": "<volatile>",
+     "event": "step",
+     "monotonic_s": "<volatile>",
+     "schema": 1,
+     "source": "ntp",
+     "stratum": 3
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/time.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/system/platform/time-last.json": {
+    "content": {
+     "authenticated": false,
+     "boot_id": "boot-a",
+     "boottime_s": "<volatile>",
+     "epoch": "<volatile>",
+     "event": "step",
+     "monotonic_s": "<volatile>",
+     "schema": 1,
+     "source": "ntp",
+     "stratum": 3
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

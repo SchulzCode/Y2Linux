@@ -1,4 +1,4 @@
-"""Differential cases of port group `observation` (see tests/platform_cases/__init__.py): status (every section
+"""Golden cases of port group `observation` (see tests/platform_cases/__init__.py): status (every section
 and option), health, boot-evidence, network-check, collect, bench-storage and bench-library.
 
 The shared fixture gains only paths the base status does not read (block devices behind /sys/dev/block/179:19..,
@@ -245,8 +245,8 @@ EVERYTHING_COMMANDS = [*VOLUMES, *ONLINE, *observation(), METRICS,
                        answer(['/sbin/ip', '-4', '-o', 'addr', 'show', 'dev', 'usb0'], '5: usb0 inet 10.0.0.2/24 x')]
 
 
-def status(name, argv, ported=True, **options):
-    return (name, ['status', *argv], {'ported': ported, 'volatile': TIMING, **options})
+def status(name, argv, **options):
+    return (name, ['status', *argv], {'volatile': TIMING, **options})
 
 
 CASES = [
@@ -453,17 +453,17 @@ CASES = [
     status('status-interval-negative-zero', ['cpu', '--interval', '-0']),
     status('status-huge-pid', ['memory', '--pid', '99999999999999999999']),
     # health
-    ('health-ported', ['health'], {'ported': True}),
-    ('health-json', ['health', '--json'], {'ported': True}),
-    ('health-full', ['health', '--full'], {'ported': True, 'commands': [answer(['y2-audio-contract'], 'ok')]}),
-    ('health-player', ['health', '--json', '--full'], {'ported': True, 'volatile': TIMING, 'files': {
+    ('health-ported', ['health'], {}),
+    ('health-json', ['health', '--json'], {}),
+    ('health-full', ['health', '--full'], {'commands': [answer(['y2-audio-contract'], 'ok')]}),
+    ('health-player', ['health', '--json', '--full'], {'volatile': TIMING, 'files': {
         **EVERYTHING, '/sys/fs/ext4/mmcblk0p20/errors_count': '0\n', '/sys/fs/ext4/mmcblk0p19/errors_count': '0\n',
         '/dev/dri/renderD128': '', '/dev/dri/card0': '', '/dev/snd/pcmC0D0p': '', '/dev/input/event0': ''},
         'commands': [*EVERYTHING_COMMANDS, answer(['modetest', '-M', 'mediatek', '-c'], 'ok')]}),
-    ('health-ext4-errors', ['health'], {'ported': True, 'files': {
+    ('health-ext4-errors', ['health'], {'files': {
         '/sys/fs/ext4/mmcblk0p20/errors_count': '4\n', '/sys/fs/ext4/mmcblk0p19/errors_count': 'x\n'}}),
-    ('health-ext4-unreadable', ['health'], {'ported': True, 'files': {'/sys/fs/ext4/mmcblk0p20/errors_count': '-1\n'}}),
-    ('health-player-storage', ['health'], {'ported': True, 'files': PLAYER, 'commands': VOLUMES}),
+    ('health-ext4-unreadable', ['health'], {'files': {'/sys/fs/ext4/mmcblk0p20/errors_count': '-1\n'}}),
+    ('health-player-storage', ['health'], {'files': PLAYER, 'commands': VOLUMES}),
 ]
 
 # ---- boot-evidence -------------------------------------------------------------------------------------------
@@ -473,11 +473,11 @@ PMIC = '/sys/firmware/y2_pmic/power_status'
 LOGS = {'/data/logs/system.log.0': ''.join('old line %d\n' % n for n in range(40)),
         '/data/logs/system.log': 'a' * 700 + '\nb\r\nc\x85d\n\xe9t\xe9\n'}
 CASES += [
-    ('boot-evidence', ['boot-evidence'], {'ported': True, 'volatile': TIMING, 'files': {
+    ('boot-evidence', ['boot-evidence'], {'volatile': TIMING, 'files': {
         PMIC: 'valid=1 strup_con8=0x0010 top_rst_misc=0x0140 chr_con16=0x0001 strup_con5=0x0300 chrstatus=0x0002\n',
         '/sys/firmware/y2_boot/metadata': 'valid=1 boot_reason=4 lcm=1-st7701\n',
         '/sys/firmware/y2_pm/previous': 'suspend=1\n', '/sys/firmware/y2_pm/backstop_s': '30\n', **LOGS}}),
-    ('boot-evidence-pstore', ['boot-evidence'], {'ported': True, 'volatile': TIMING, 'files': {
+    ('boot-evidence-pstore', ['boot-evidence'], {'volatile': TIMING, 'files': {
         '/proc/self/mountinfo': '22 1 179:2 / / ro - ext4 /dev/mmcblk0p2 ro\n'
                                 '30 22 179:9 / /data rw,noatime - ext4 /dev/mmcblk0p9 rw\n'
                                 '50 22 0:30 / /sys/fs/pstore rw - pstore pstore rw\n',
@@ -486,31 +486,31 @@ CASES += [
         '/sys/fs/pstore/subdir/x': 'not regular', '/sys/firmware/y2_pm/state/x': 'a directory',
         EVIDENCE: json.dumps({'captured_on_boot_id': 'boot-z', 'pmic': {'lk_long_press_record': False}}),
         PMIC: 'valid=1 strup_con8=0x4010\n', '/sys/firmware/y2_boot/metadata': 'valid=1 boot_reason=x\n'}}),
-    ('boot-evidence-many-pstore', ['boot-evidence'], {'ported': True, 'volatile': TIMING, 'files': {
+    ('boot-evidence-many-pstore', ['boot-evidence'], {'volatile': TIMING, 'files': {
         '/proc/self/mountinfo': '30 22 179:9 / /data rw - ext4 /dev/mmcblk0p9 rw\n'
                                 '50 22 0:30 / /sys/fs/pstore rw - pstore pstore rw\n',
         **{'/sys/fs/pstore/entry-%02d' % n: str(n) for n in range(34)}}}),
-    ('boot-evidence-pstore-missing', ['boot-evidence'], {'ported': True, 'volatile': TIMING, 'files': {
+    ('boot-evidence-pstore-missing', ['boot-evidence'], {'volatile': TIMING, 'files': {
         '/proc/self/mountinfo': '30 22 179:9 / /data rw - ext4 /dev/mmcblk0p9 rw\n'
                                 '50 22 0:30 / /sys/fs/pstore rw - pstore pstore rw\n'}}),
-    ('boot-evidence-rotation', ['boot-evidence'], {'ported': True, 'volatile': TIMING, 'files': {
+    ('boot-evidence-rotation', ['boot-evidence'], {'volatile': TIMING, 'files': {
         **{'/data/system/platform/retained/boot-old%d.tar' % n: 'old' for n in range(9)},
         '/data/system/platform/retained/boot-dir.tar/x': '', '/data/system/platform/retained/notes.txt': ''}}),
-    ('boot-evidence-again', ['boot-evidence'], {'ported': True, 'files': {
+    ('boot-evidence-again', ['boot-evidence'], {'files': {
         EVIDENCE: json.dumps({'captured_on_boot_id': BOOT, 'logs': [], 'kept': 'as it was'})}}),
-    ('boot-evidence-missed-boundary', ['boot-evidence'], {'ported': True, 'files': {
+    ('boot-evidence-missed-boundary', ['boot-evidence'], {'files': {
         '/data/system/platform/boot.json': json.dumps({'schema': 1, 'boot_id': BOOT})}}),
-    ('boot-evidence-no-data', ['boot-evidence'], {'ported': True, 'files': {'/data/.y2data-schema': '2\n'}}),
-    ('boot-evidence-wrong-mount', ['boot-evidence'], {'ported': True, 'files': {'/run/y2-data-device': '/dev/sda1\n'}}),
-    ('boot-evidence-no-boot-id', ['boot-evidence'], {'ported': True, 'files': {'/proc/sys/kernel/random/boot_id': ''}}),
-    ('boot-evidence-odd-boot-id', ['boot-evidence'], {'ported': True, 'volatile': TIMING, 'files': {
+    ('boot-evidence-no-data', ['boot-evidence'], {'files': {'/data/.y2data-schema': '2\n'}}),
+    ('boot-evidence-wrong-mount', ['boot-evidence'], {'files': {'/run/y2-data-device': '/dev/sda1\n'}}),
+    ('boot-evidence-no-boot-id', ['boot-evidence'], {'files': {'/proc/sys/kernel/random/boot_id': ''}}),
+    ('boot-evidence-odd-boot-id', ['boot-evidence'], {'volatile': TIMING, 'files': {
         '/proc/sys/kernel/random/boot_id': 'boot a!\n'}}),
-    ('boot-evidence-retained-file', ['boot-evidence'], {'ported': True, 'volatile': TIMING, 'files': {
+    ('boot-evidence-retained-file', ['boot-evidence'], {'volatile': TIMING, 'files': {
         '/data/system/platform/retained': 'a file'}}),
-    ('boot-evidence-logs-file', ['boot-evidence'], {'ported': True, 'volatile': TIMING, 'files': {'/data/logs': 'x'}}),
-    ('boot-evidence-log-directory', ['boot-evidence'], {'ported': True, 'volatile': TIMING, 'files': {
+    ('boot-evidence-logs-file', ['boot-evidence'], {'volatile': TIMING, 'files': {'/data/logs': 'x'}}),
+    ('boot-evidence-log-directory', ['boot-evidence'], {'volatile': TIMING, 'files': {
         '/data/logs/system.log/x': ''}}),
-    ('boot-evidence-bounded', ['boot-evidence'], {'ported': True, 'volatile': TIMING, 'files': {
+    ('boot-evidence-bounded', ['boot-evidence'], {'volatile': TIMING, 'files': {
         '/data/logs/system.log.0': ('é' * 600 + '\n') * 40, '/data/logs/system.log': ('ü' * 600 + '\n') * 33}}),
 ]
 
@@ -519,94 +519,92 @@ CASES += [
 PING = ['ping', '-I', 'usb0', '-c', '5', '-W', '2', '192.168.7.1']
 IPERF = ['iperf3', '--bind-dev', 'usb0', '-c', '192.168.7.1', '-t', '3', '-J']
 CASES += [
-    ('network-check-offline', ['network-check', '--peer', '192.168.1.1'], {'ported': True}),
+    ('network-check-offline', ['network-check', '--peer', '192.168.1.1'], {}),
     ('network-check-online', ['network-check', '--peer', '192.168.1.1', '--interface', 'wlan0'], {
-        'ported': True, 'volatile': TIMING, 'files': {**RADIO, '/run/y2/dns.json': DNS},
+        'volatile': TIMING, 'files': {**RADIO, '/run/y2/dns.json': DNS},
         'commands': [*ONLINE, answer(['ping', '-I', 'wlan0', '-c', '5', '-W', '2', '192.168.1.1'], '5 received')]}),
     ('network-check-usb', ['network-check', '--peer', '192.168.7.1', '--interface', 'usb0'], {
-        'ported': True, 'commands': [answer(PING, '5 packets transmitted')]}),
-    ('network-check-usb-ping-fails', ['network-check', '--peer', '192.168.7.1', '--interface', 'usb0'], {'ported': True}),
+        'commands': [answer(PING, '5 packets transmitted')]}),
+    ('network-check-usb-ping-fails', ['network-check', '--peer', '192.168.7.1', '--interface', 'usb0'], {}),
     ('network-check-throughput', ['network-check', '--peer', '192.168.7.1', '--seconds', '3', '--throughput',
-                                  '--interface', 'usb0'], {'ported': True, 'commands': [
+                                  '--interface', 'usb0'], {'commands': [
         answer(PING, 'ok'), answer(IPERF, json.dumps({'end': {'sum_sent': {'bits_per_second': 9.5e7}}}))]}),
     ('network-check-throughput-error', ['network-check', '--peer', '192.168.7.1', '--seconds', '3', '--throughput',
-                                        '--interface', 'usb0'], {'ported': True, 'commands': [
+                                        '--interface', 'usb0'], {'commands': [
         answer(PING, 'ok'), answer(IPERF, json.dumps({'end': {'sum_sent': {}}, 'error': 'busy'}))]}),
     ('network-check-throughput-not-json', ['network-check', '--peer', '192.168.7.1', '--seconds', '3',
-                                           '--throughput', '--interface', 'usb0'], {'ported': True, 'commands': [
+                                           '--throughput', '--interface', 'usb0'], {'commands': [
         answer(PING, 'ok'), answer(IPERF, 'garbage')]}),
     ('network-check-throughput-fails', ['network-check', '--peer', '192.168.7.1', '--seconds', '3', '--throughput',
-                                        '--interface', 'usb0'], {'ported': True, 'commands': [answer(PING, 'ok')]}),
-    ('network-check-workload', ['network-check', '--peer', '192.168.1.1'], {'ported': True, 'files': {
+                                        '--interface', 'usb0'], {'commands': [answer(PING, 'ok')]}),
+    ('network-check-workload', ['network-check', '--peer', '192.168.1.1'], {'files': {
         '/dev/y2-workload': ''}, 'patterns': [(r'(NetworkTransfer 3000\n)+', 'NetworkTransfer 3000\n')]}),
-    ('network-check-bad-seconds', ['network-check', '--peer', '192.168.1.1', '--seconds', '0'], {'ported': True}),
+    ('network-check-bad-seconds', ['network-check', '--peer', '192.168.1.1', '--seconds', '0'], {}),
     # ipaddress.IPv4Address's AddressValueError, after the workload lease was taken.
-    ('network-check-bad-peer', ['network-check', '--peer', '192.168.001.1'], {'ported': True}),
-    ('network-check-hostname', ['network-check', '--peer', 'router'], {'ported': True}),
+    ('network-check-bad-peer', ['network-check', '--peer', '192.168.001.1'], {}),
+    ('network-check-hostname', ['network-check', '--peer', 'router'], {}),
     # A peer that is not UTF-8: ipaddress's error shows the surrogate escape (\\udcff).
-    ('network-check-not-utf8', ['network-check', '--peer', '192.168.1.\udcff'], {'ported': True}),
+    ('network-check-not-utf8', ['network-check', '--peer', '192.168.1.\udcff'], {}),
     ('collect-workload-not-utf8', ['collect', '--seconds', '1', '--interval', '1', '--workload', 'w\udcff'], {
-        'ported': True, 'volatile': [*TIMING, 'bytes']}),
-    ('network-check-empty-peer', ['network-check', '--peer', ''], {'ported': True}),
-    ('network-check-peer-prefix', ['network-check', '--peer', '10.0.0.1/8'], {'ported': True}),
-    ('network-check-peer-octet', ['network-check', '--peer', '1.2.3.256'], {'ported': True}),
-    ('network-check-peer-long-octet', ['network-check', '--peer', '1.2.3.0004'], {'ported': True}),
-    ('network-check-peer-empty-octet', ['network-check', '--peer', '1..2.3'], {'ported': True}),
-    ('network-check-peer-arabic', ['network-check', '--peer', '\u0661.2.3.4'], {'ported': True}),
+        'volatile': [*TIMING, 'bytes']}),
+    ('network-check-empty-peer', ['network-check', '--peer', ''], {}),
+    ('network-check-peer-prefix', ['network-check', '--peer', '10.0.0.1/8'], {}),
+    ('network-check-peer-octet', ['network-check', '--peer', '1.2.3.256'], {}),
+    ('network-check-peer-long-octet', ['network-check', '--peer', '1.2.3.0004'], {}),
+    ('network-check-peer-empty-octet', ['network-check', '--peer', '1..2.3'], {}),
+    ('network-check-peer-arabic', ['network-check', '--peer', '\u0661.2.3.4'], {}),
     ('network-check-huge-seconds', ['network-check', '--peer', '192.168.1.1', '--seconds', '99999999999999999999'],
-     {'ported': True}),
-    ('collect-huge-seconds', ['collect', '--seconds', '99999999999999999999'], {'ported': True}),
+     {}),
+    ('collect-huge-seconds', ['collect', '--seconds', '99999999999999999999'], {}),
     ('collect-huge-pid', ['collect', '--seconds', '1', '--interval', '1', '--pid', '-99999999999999999999'],
-     {'ported': True}),
+     {}),
     ('collect-one', ['collect', '--seconds', '1', '--interval', '1'], {
-        'ported': True, 'volatile': [*TIMING, 'bytes']}),
+        'volatile': [*TIMING, 'bytes']}),
     ('collect-growth', ['collect', '--seconds', '2', '--interval', '1', '--pid', '4242', '--pss', '--workload', 'play'],
-     {'ported': True, 'volatile': [*TIMING, 'bytes', 'slope_kib_per_hour']}),
+     {'volatile': [*TIMING, 'bytes', 'slope_kib_per_hour']}),
     ('collect-reborn', ['collect', '--seconds', '1', '--interval', '1', '--warmup', '1', '--reborn'], {
-        'ported': True, 'volatile': [*TIMING, 'bytes'], 'files': {'/run/reborn/process.pid': '4242\n'},
+        'volatile': [*TIMING, 'bytes'], 'files': {'/run/reborn/process.pid': '4242\n'},
         'commands': [METRICS]}),
-    ('collect-bounds', ['collect', '--seconds', '0'], {'ported': True}),
-    ('collect-warmup-bounds', ['collect', '--seconds', '1', '--warmup', '2'], {'ported': True}),
-    ('collect-label', ['collect', '--seconds', '1', '--workload', ''], {'ported': True}),
-    ('collect-label-control', ['collect', '--seconds', '1', '--workload', 'a\tb'], {'ported': True}),
+    ('collect-bounds', ['collect', '--seconds', '0'], {}),
+    ('collect-warmup-bounds', ['collect', '--seconds', '1', '--warmup', '2'], {}),
+    ('collect-label', ['collect', '--seconds', '1', '--workload', ''], {}),
+    ('collect-label-control', ['collect', '--seconds', '1', '--workload', 'a\tb'], {}),
     ('collect-label-dash', ['collect', '--seconds', '1', '--interval', '1', '--workload', '-x'], {
-        'ported': True, 'volatile': [*TIMING, 'bytes']}),
-    ('collect-invalid-pid', ['collect', '--seconds', '1', '--pid', '0'], {'ported': True}),
+        'volatile': [*TIMING, 'bytes']}),
+    ('collect-invalid-pid', ['collect', '--seconds', '1', '--pid', '0'], {}),
     ('collect-too-many-pids', ['collect', '--seconds', '1', *[a for n in range(33) for a in ('--pid', str(n + 1))]],
-     {'ported': True}),
+     {}),
 ]
 BENCH_TIMING = [*TIMING, 'cpu_busy_percent']
 CASES += [
-    ('bench-storage-unhealthy', ['bench-storage'], {'ported': True}),
-    ('bench-storage-internal', ['bench-storage', '--volume', '/media/internal'], {'ported': True}),
-    ('bench-storage-bounds', ['bench-storage', '--size-mib', '0'], {'ported': True}),
-    ('bench-storage-sd-missing', ['bench-storage', '--volume', '/media/sd', '--size-mib', '1'], {'ported': True}),
+    ('bench-storage-unhealthy', ['bench-storage'], {}),
+    ('bench-storage-internal', ['bench-storage', '--volume', '/media/internal'], {}),
+    ('bench-storage-bounds', ['bench-storage', '--size-mib', '0'], {}),
+    ('bench-storage-sd-missing', ['bench-storage', '--volume', '/media/sd', '--size-mib', '1'], {}),
     ('bench-storage-run', ['bench-storage', '--size-mib', '1', '--operations', '3', '--seconds', '120'], {
-        'ported': True, 'volatile': BENCH_TIMING, 'files': DATA_READY, 'commands': VOLUMES,
+        'volatile': BENCH_TIMING, 'files': DATA_READY, 'commands': VOLUMES,
         'patterns': [(r'run-[0-9a-f]{32}', 'run-<hex>')]}),
     ('bench-storage-sd', ['bench-storage', '--volume', '/media/sd', '--size-mib', '1', '--operations', '1'], {
-        'ported': True, 'volatile': BENCH_TIMING, 'files': {**PLAYER, '/run/y2/media-mount.json': claim(read_only=None),
+        'volatile': BENCH_TIMING, 'files': {**PLAYER, '/run/y2/media-mount.json': claim(read_only=None),
                                                             '/proc/self/mountinfo': MOUNTS.replace(
                                                                 'ro,nosuid - vfat /dev/mmcblk1p1 ro',
                                                                 'rw,nosuid - vfat /dev/mmcblk1p1 rw')},
         'commands': VOLUMES}),
-    ('bench-library-unhealthy', ['bench-library'], {'ported': True}),
-    ('bench-library-internal', ['bench-library', '--volume', '/media/internal', '--scan'], {'ported': True}),
-    ('bench-library-no-child', ['bench-library'], {'ported': True, 'files': DATA_READY, 'commands': VOLUMES}),
+    ('bench-library-unhealthy', ['bench-library'], {}),
+    ('bench-library-internal', ['bench-library', '--volume', '/media/internal', '--scan'], {}),
+    ('bench-library-no-child', ['bench-library'], {'files': DATA_READY, 'commands': VOLUMES}),
     ('bench-library-run', ['bench-library', '--tracks', '10000', '--scan'], {
-        'ported': True, 'files': DATA_READY, 'commands': [*VOLUMES, answer(
+        'files': DATA_READY, 'commands': [*VOLUMES, answer(
             ['/usr/bin/reborn-bench', '--scratch-fd', '5', '--tracks', '10000', '--scan'],
             json.dumps({'open_ms': 12.5, 'queries': [1, 2]}))]}),
     ('bench-library-not-json', ['bench-library'], {
-        'ported': True, 'files': DATA_READY, 'commands': [*VOLUMES, answer(
+        'files': DATA_READY, 'commands': [*VOLUMES, answer(
             ['/usr/bin/reborn-bench', '--scratch-fd', '5', '--tracks', '1000'], '')]}),
 ]
 
 
-# The shared hermeticity audit reads two things as host access that are not (tests/test_platform_observation.py
-# runs these with an audit that knows them): boot-evidence's `os.open('logs', dir_fd=…)` and
-# `os.open('system.log', dir_fd=…)` below the fixture's /data, which the audit hook resolves against the working
-# directory, and the traceback of an input Python crashes on (it opens `<unknown>` for runpy's frames).
+# Run by tests/test_platform_observation.py: boot-evidence below /data and the inputs the platform ends on with a
+# traceback (exit 1, nothing on stdout).
 CRASHES = ('status-cpu-timer-crash', 'status-power-battery-list', 'status-system-evidence-bad-logs',
            'status-system-update-unhashable', 'status-wifi-signal-list', 'status-power-sleep-int-key',
            'status-power-sleep-number', 'status-power-sleep-number-pair', 'status-power-sleep-list-key',
@@ -618,8 +616,6 @@ EXTRA_CASES = [case for case in CASES if case[0] in CRASHES or (
                                                      'boot-evidence-no-data', 'boot-evidence-wrong-mount',
                                                      'boot-evidence-no-boot-id'))]
 CASES = [case for case in CASES if case not in EXTRA_CASES]
-# What the audit may report for EXTRA_CASES: dir_fd-relative names and the traceback's pseudo file.
-AUDIT_NAMES = ('logs', 'system.log.0', 'system.log', '<unknown>')
 
 
 def fixture(root):

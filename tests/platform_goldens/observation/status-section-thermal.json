@@ -1,0 +1,189 @@
+{
+ "argv": [
+  "status",
+  "thermal"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/cat",
+    "<root>/sys/power/wakeup_count"
+   ],
+   "timeout": 0.1
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p19"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p20"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p21"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "wpa_cli",
+    "-i",
+    "wlan0",
+    "status"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-j",
+    "-4",
+    "addr",
+    "show",
+    "dev",
+    "wlan0"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-j",
+    "-4",
+    "route",
+    "show",
+    "default",
+    "dev",
+    "wlan0"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "wpa_cli",
+    "-i",
+    "wlan0",
+    "signal_poll"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-bt-observe"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/sbin/ip",
+    "-4",
+    "-o",
+    "addr",
+    "show",
+    "dev",
+    "usb0"
+   ],
+   "timeout": 0.5
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "collection_duration_ns": "<volatile>",
+   "evidence_level": "IMPLEMENTED",
+   "failure": null,
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {},
+   "reborn_commit": "reborn",
+   "result": "observed",
+   "rootfs_release": "v1.0",
+   "units": {
+    "collection_duration": "ns"
+   },
+   "wall_timestamp": "<volatile>",
+   "workload": "observation",
+   "y2linux_commit": "linux-commit"
+  },
+  "schema": "org.y2linux.status/v1",
+  "thermal": {
+   "battery_temperature": null,
+   "battery_temperature_reason": "no_qualified_pack_sensor",
+   "cooling": [
+    {
+     "max_state": 3,
+     "name": "cooling_device0",
+     "state": 0,
+     "type": "cpufreq"
+    }
+   ],
+   "zones": [
+    {
+     "name": "thermal_zone0",
+     "temperature_millicelsius": 41000,
+     "trips": [
+      {
+       "name": "trip_point_0_temp",
+       "temperature_millicelsius": 85000,
+       "type": "passive"
+      },
+      {
+       "name": "trip_point_1_temp",
+       "temperature_millicelsius": 95000,
+       "type": null
+      }
+     ],
+     "type": "cpu"
+    },
+    {
+     "name": "thermal_zone1",
+     "temperature_millicelsius": null,
+     "trips": [],
+     "type": "pmic"
+    }
+   ]
+  }
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

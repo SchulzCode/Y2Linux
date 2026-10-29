@@ -1,0 +1,81 @@
+{
+ "argv": [
+  "sleep",
+  "request"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "boot_id": "boot-a",
+  "kernel_completed": false,
+  "reason": "fixture_launcher_unavailable",
+  "request_boot_id": "boot-a",
+  "same_boot": true,
+  "schema": "org.y2linux.sleep/v1",
+  "state": "refused",
+  "wake_reason": "unknown"
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/.power-journal.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/power-journal.jsonl": {
+    "content": [
+     "{\"backlight\": {}, \"battery\": {\"confidence\": \"voltage\", \"filtered_voltage_uv\": 3900000, \"percent\": 5, \"status\": \"Discharging\"}, \"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build\": {\"build_git_commit\": \"linux-commit\", \"feature_contract_version\": 2, \"kernel_version\": \"6.18.0-fixture\", \"platform_api_version\": 1, \"reborn_source_commit\": \"reborn\", \"release_version\": \"1.0.0-fixture\", \"rootfs_version\": \"v1.0\"}, \"charger\": null, \"event\": \"suspend_requested\", \"idle_counters\": {\"clock_blockers\": {}, \"collector_cpu_seconds\": \"<volatile>\", \"counter_reset_rule\": \"decreasing per-core counters are unknown, not negative rates\", \"cpuidle\": {\"0\": {\"DORMANT\": {\"disable\": 1, \"rejected\": null, \"time\": \"<volatile>\", \"usage\": null}}}, \"frequency_khz\": null, \"frequency_ticks\": null, \"idle_rejections\": {}, \"online\": null, \"runtime_pm\": {}, \"scheduler\": {}}, \"idle_policy\": null, \"kernel_pm\": null, \"monotonic_s\": \"<volatile>\", \"radios\": {\"rfkill0\": {\"blocked\": \"0\", \"type\": \"wlan\"}}, \"schema\": 1, \"shutdown\": null, \"sleep\": {\"boot_id\": \"boot-a\", \"kernel_completed\": false, \"reason\": null, \"request_boot_id\": \"boot-a\", \"same_boot\": true, \"schema\": \"org.y2linux.sleep/v1\", \"state\": \"requested\", \"wake_reason\": \"unknown\"}, \"state\": \"Suspend\", \"suspend\": {\"cycles\": null, \"error\": null, \"first_entry\": null, \"maintenance_wakes\": null, \"mode\": \"product\", \"reason\": null, \"resume\": null, \"stage\": \"requested\", \"suspended_seconds\": null}, \"usb\": {}, \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"wall_time\": \"<volatile>\"}",
+     "{\"backlight\": {}, \"battery\": {\"confidence\": \"voltage\", \"filtered_voltage_uv\": 3900000, \"percent\": 5, \"status\": \"Discharging\"}, \"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build\": {\"build_git_commit\": \"linux-commit\", \"feature_contract_version\": 2, \"kernel_version\": \"6.18.0-fixture\", \"platform_api_version\": 1, \"reborn_source_commit\": \"reborn\", \"release_version\": \"1.0.0-fixture\", \"rootfs_version\": \"v1.0\"}, \"charger\": null, \"event\": \"suspend_refused_fixture_launcher_unavailable\", \"idle_counters\": {\"clock_blockers\": {}, \"collector_cpu_seconds\": \"<volatile>\", \"counter_reset_rule\": \"decreasing per-core counters are unknown, not negative rates\", \"cpuidle\": {\"0\": {\"DORMANT\": {\"disable\": 1, \"rejected\": null, \"time\": \"<volatile>\", \"usage\": null}}}, \"frequency_khz\": null, \"frequency_ticks\": null, \"idle_rejections\": {}, \"online\": null, \"runtime_pm\": {}, \"scheduler\": {}}, \"idle_policy\": null, \"kernel_pm\": null, \"monotonic_s\": \"<volatile>\", \"radios\": {\"rfkill0\": {\"blocked\": \"0\", \"type\": \"wlan\"}}, \"schema\": 1, \"shutdown\": null, \"sleep\": {\"boot_id\": \"boot-a\", \"kernel_completed\": false, \"reason\": \"fixture_launcher_unavailable\", \"request_boot_id\": \"boot-a\", \"same_boot\": true, \"schema\": \"org.y2linux.sleep/v1\", \"state\": \"refused\", \"wake_reason\": \"unknown\"}, \"state\": \"Suspend\", \"suspend\": {\"cycles\": null, \"error\": null, \"first_entry\": null, \"maintenance_wakes\": null, \"mode\": null, \"reason\": \"fixture_launcher_unavailable\", \"resume\": null, \"stage\": \"refused_fixture_launcher_unavailable\", \"suspended_seconds\": null}, \"usb\": {}, \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"wall_time\": \"<volatile>\"}"
+    ],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/suspend.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/system/platform/suspend-last.json": {
+    "content": {
+     "current_boot_id": "boot-a",
+     "persistent_kernel": null,
+     "pm_test": "none",
+     "product": {
+      "boot_id": "boot-a",
+      "kernel_completed": false,
+      "reason": "fixture_launcher_unavailable",
+      "request_boot_id": "boot-a",
+      "same_boot": true,
+      "schema": "org.y2linux.sleep/v1",
+      "state": "refused",
+      "wake_reason": "unknown"
+     },
+     "radio_restore": null,
+     "request_boot_id": "boot-a",
+     "requested_mode": "deep",
+     "result": 2,
+     "schema": 1,
+     "stage": "refused_fixture_launcher_unavailable",
+     "stages": [
+      {
+       "result": 2,
+       "stage": "refused_fixture_launcher_unavailable",
+       "time": "<volatile>"
+      }
+     ],
+     "started": "<volatile>",
+     "updated": "<volatile>",
+     "usb_restore": {
+      "controllers": {},
+      "udcs": {}
+     }
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

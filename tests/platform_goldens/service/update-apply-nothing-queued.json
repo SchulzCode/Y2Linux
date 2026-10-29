@@ -1,0 +1,23 @@
+{
+ "argv": [
+  "update",
+  "apply"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "no_verified_queued_update",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

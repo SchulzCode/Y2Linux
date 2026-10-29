@@ -1,0 +1,136 @@
+{
+ "argv": [
+  "update",
+  "stage",
+  "--package",
+  "<repository>/tests/platform_cases/service_package"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-update-core",
+    "check-manifest",
+    "/data/updates/.incoming-0123456789abcdef0123456789abcdef"
+   ],
+   "timeout": 15.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-update-core",
+    "queue"
+   ],
+   "timeout": 300.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "release_version": "1.0.1-fixture",
+  "state": "Queued"
+ },
+ "tree": {
+  "added": {
+   "/data/updates": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/updates/.stage.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/updates/download.json": {
+    "content": {
+     "backup_budget": "recovery captures the compressed previous root and BOOTIMG before any write",
+     "bytes": 70,
+     "cleaned_bytes": 0,
+     "notes": "Fixture notes",
+     "release_version": "1.0.1-fixture",
+     "reserve_bytes": 100663296,
+     "schema": 1,
+     "state": "Verified"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/updates/pending": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/updates/pending/bootimg.img.gz": {
+    "content": [
+     "boot payload stand-in"
+    ],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/updates/pending/manifest.json": {
+    "content": {
+     "release_version": "1.0.1-fixture",
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/updates/pending/manifest.sig": {
+    "content": [
+     "0000000000000000000000000000000000000000000000000000000000000000"
+    ],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/updates/pending/recovery.img.gz": {
+    "content": [
+     "recovery payload stand-in"
+    ],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/updates/pending/rootfs.ext4.gz": {
+    "content": [
+     "root payload stand-in"
+    ],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/update-progress.json": {
+    "content": {
+     "bytes_done": 70,
+     "bytes_total": 70,
+     "phase": "done",
+     "release_version": "1.0.1-fixture",
+     "schema": 1,
+     "seconds_left": null,
+     "speed_bytes_per_s": null
+    },
+    "mode": "0o644",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

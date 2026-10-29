@@ -1,0 +1,19 @@
+{
+ "argv": [
+  "report",
+  "send",
+  "--topic",
+  "sound"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "queued": false,
+  "reason": "not_enabled"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

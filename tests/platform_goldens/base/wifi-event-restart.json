@@ -1,0 +1,90 @@
+{
+ "argv": [
+  "wifi-event",
+  "SERVICE_RESTART"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "ip",
+    "-4",
+    "address",
+    "flush",
+    "dev",
+    "wlan0",
+    "scope",
+    "global"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-4",
+    "route",
+    "flush",
+    "dev",
+    "wlan0"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "address": null,
+  "boot_id": "boot-a",
+  "epoch": "<uuid>",
+  "error": null,
+  "monotonic_s": "<volatile>",
+  "schema": 1,
+  "state": "Unavailable"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/dhcp.json": {
+    "content": {
+     "address": null,
+     "boot_id": "boot-a",
+     "epoch": "<uuid>",
+     "error": null,
+     "monotonic_s": "<volatile>",
+     "schema": 1,
+     "state": "Unavailable"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/dhcp.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/resolv.conf": {
+    "content": [
+     "options timeout:2 attempts:1"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/run/y2/wifi-events.json": {
+    "content": {
+     "association_active": false,
+     "boot_id": "boot-a",
+     "last_event": "SERVICE_RESTART",
+     "link_counts_since_s": "<volatile>",
+     "monotonic_s": "<volatile>",
+     "radio_off_disconnects": 0,
+     "real_disconnects": 0,
+     "reconnects": 0,
+     "schema": 1,
+     "service_restart": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

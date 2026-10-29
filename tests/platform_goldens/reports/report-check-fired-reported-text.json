@@ -1,0 +1,58 @@
+{
+ "argv": [
+  "report",
+  "check"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "rebornctl",
+    "health",
+    "--json"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "dmesg"
+   ],
+   "timeout": 5.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "reports": [
+   {
+    "queued": false,
+    "reason": "already_reported_this_boot",
+    "trigger": "kernel_warning",
+    "triggers": [
+     "kernel_warning"
+    ]
+   }
+  ]
+ },
+ "tree": {
+  "added": {},
+  "changed": {
+   "/data/system/platform/reports.json": {
+    "content": {
+     "boot_triggers": {
+      "boot-a": "kernel_warning,x"
+     },
+     "daily": {},
+     "enabled": true,
+     "install_id": "6f1c3b2a-9d4e-4f5a-8b7c-0d1e2f3a4b5c",
+     "schema": 1,
+     "seen": {
+      "tainted": "boot-a:1"
+     },
+     "uploads": {}
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

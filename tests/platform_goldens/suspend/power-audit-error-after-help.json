@@ -1,0 +1,26 @@
+{
+ "argv": [
+  "__power-audit",
+  "-h",
+  "--seconds",
+  "x"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": [
+  "usage: y2-power-audit [-h] [--seconds SECONDS] [--settle SETTLE] --state STATE",
+  "                      --output OUTPUT",
+  "",
+  "options:",
+  "  -h, --help         show this help message and exit",
+  "  --seconds SECONDS",
+  "  --settle SETTLE",
+  "  --state STATE",
+  "  --output OUTPUT"
+ ],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

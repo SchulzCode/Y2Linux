@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "update",
+  "cancel"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/usr/sbin/y2-update-core",
+    "cancel"
+   ],
+   "timeout": 15.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "failure": "7",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

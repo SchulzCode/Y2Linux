@@ -1,0 +1,19 @@
+{
+ "argv": [
+  "boot-stage",
+  "platform_start"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "verified_data_mount_unavailable",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

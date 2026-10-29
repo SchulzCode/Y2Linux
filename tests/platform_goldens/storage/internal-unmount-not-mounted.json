@@ -1,0 +1,37 @@
+{
+ "argv": [
+  "internal-media",
+  "unmount"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "boot_id": "boot-a",
+  "path": "/media/internal",
+  "reason": "not_mounted",
+  "schema": 1,
+  "state": "Unavailable"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/internal-media.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "path": "/media/internal",
+     "reason": "not_mounted",
+     "schema": 1,
+     "state": "Unavailable"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/internal-media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

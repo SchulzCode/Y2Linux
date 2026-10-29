@@ -1,0 +1,26 @@
+{
+ "argv": [
+  "network-check",
+  "--peer",
+  "192.168.1.\udcff"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "Only decimal digits permitted in '\\udcff' in '192.168.1.\\udcff'",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "AddressValueError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

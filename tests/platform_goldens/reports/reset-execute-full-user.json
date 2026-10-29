@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "reset",
+  "execute",
+  "--confirm",
+  "92e8819de7fc60a805c3d6f5f5b6df7582fa5dbe1309fcd3e697d26b8bf8e532"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "full_reset_requires_erase_user_music_confirmation",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/.maintenance.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

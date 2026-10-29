@@ -1,0 +1,21 @@
+{
+ "argv": [
+  "codec-settings",
+  "--sbc-quality",
+  "xq"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {
+   "/run/y2/codec-settings.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

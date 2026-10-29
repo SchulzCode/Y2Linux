@@ -1,0 +1,45 @@
+{
+ "argv": [
+  "rtc-alarm",
+  "0"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "alarm_epoch": null,
+  "boot_id": "boot-a",
+  "qualified": false,
+  "reason": "same_boot_alarm_wake_PHYSICAL_PENDING",
+  "schema": 1,
+  "state": "Disabled"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/rtc-alarm.json": {
+    "content": {
+     "alarm_epoch": null,
+     "boot_id": "boot-a",
+     "qualified": false,
+     "reason": "same_boot_alarm_wake_PHYSICAL_PENDING",
+     "schema": 1,
+     "state": "Disabled"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/rtc-alarm.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/sys/class/rtc/rtc0/wakealarm": {
+    "content": 0,
+    "mode": "0o644",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

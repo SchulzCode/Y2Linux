@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "dhcp-event",
+  "bound"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "Only decimal digits permitted in 'x' in '192.168.1.x'",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "AddressValueError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/dhcp.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

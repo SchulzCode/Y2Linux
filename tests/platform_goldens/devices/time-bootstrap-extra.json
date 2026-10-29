@@ -1,0 +1,14 @@
+{
+ "argv": [
+  "time-bootstrap",
+  "now"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,26 @@
+{
+ "argv": [
+  "media",
+  "write",
+  "--seconds=5"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "failure": "not_mounted",
+  "reason": "not_mounted",
+  "state": "Unavailable",
+  "writable": false
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

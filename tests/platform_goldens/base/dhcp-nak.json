@@ -1,0 +1,73 @@
+{
+ "argv": [
+  "dhcp-event",
+  "nak"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "ip",
+    "-4",
+    "address",
+    "flush",
+    "dev",
+    "wlan0",
+    "scope",
+    "global"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-4",
+    "route",
+    "flush",
+    "dev",
+    "wlan0"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "address": null,
+  "boot_id": "boot-a",
+  "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+  "error": "dhcp_nak",
+  "monotonic_s": "<volatile>",
+  "schema": 1,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/dhcp.json": {
+    "content": {
+     "address": null,
+     "boot_id": "boot-a",
+     "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+     "error": "dhcp_nak",
+     "monotonic_s": "<volatile>",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/dhcp.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/resolv.conf": {
+    "content": [
+     "options timeout:2 attempts:1"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,56 @@
+{
+ "argv": [
+  "media",
+  "format",
+  "--confirm-cid",
+  "035344534433324780a1b2c3d4016a00"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "action": "format",
+  "boot_id": "boot-a",
+  "cid": "035344534433324780a1b2c3d4016a00",
+  "device": "/dev/mmcblk1",
+  "errno": 25,
+  "reason": "partition_reread_failed",
+  "schema": 1,
+  "sectors": 20000,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.json": {
+    "content": {
+     "action": "format",
+     "boot_id": "boot-a",
+     "cid": "035344534433324780a1b2c3d4016a00",
+     "device": "/dev/mmcblk1",
+     "errno": 25,
+     "reason": "partition_reread_failed",
+     "schema": 1,
+     "sectors": 20000,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/dev/mmcblk1": {
+    "content": {
+     "bytes": 10240000,
+     "sha256": "1d338074d0b8d874fe9a9440f32930e90b757c266f04206d4c5a13f44aacdd2c"
+    },
+    "mode": "0o644",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

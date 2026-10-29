@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "reset",
+  "execute",
+  "--confirm",
+  "e4c3952a30d36e0d3491c5baa73e91db94eae690941402894b9b72827440e913"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "reset_plan_expired",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/.maintenance.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

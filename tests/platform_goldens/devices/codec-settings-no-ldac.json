@@ -1,0 +1,24 @@
+{
+ "argv": [
+  "codec-settings",
+  "--ldac-quality",
+  "high"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "ldac_encoder_not_compiled",
+  "schema": "org.y2linux.codec-settings/v1"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/codec-settings.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

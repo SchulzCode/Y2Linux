@@ -1,0 +1,183 @@
+{
+ "argv": [
+  "health",
+  "--full"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/cat",
+    "<root>/sys/power/wakeup_count"
+   ],
+   "timeout": 0.1
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-bt-observe"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/sbin/ip",
+    "-4",
+    "-o",
+    "addr",
+    "show",
+    "dev",
+    "usb0"
+   ],
+   "timeout": 0.5
+  },
+  {
+   "argv": [
+    "y2-audio-contract"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "modetest",
+    "-M",
+    "mediatek",
+    "-c"
+   ],
+   "timeout": 2.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "checks": [
+   {
+    "name": "root",
+    "reason": "source_missing_or_wrong_controller",
+    "state": "FAILED"
+   },
+   {
+    "name": "data",
+    "reason": "source_missing_or_wrong_controller",
+    "state": "FAILED"
+   },
+   {
+    "name": "sd",
+    "reason": "not_uniquely_mounted",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "name": "internal_media",
+    "reason": "not_uniquely_mounted",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "errors": [],
+    "name": "filesystem_errors",
+    "reason": "counter_unavailable",
+    "state": "UNAVAILABLE",
+    "unreadable": []
+   },
+   {
+    "name": "render_node",
+    "reason": "interface_missing",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "name": "display",
+    "reason": "interface_missing",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "name": "audio",
+    "reason": "interface_missing",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "name": "input",
+    "reason": "interface_missing",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "name": "rtc",
+    "reason": "interface_missing",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "name": "thermal",
+    "reason": "interface_missing",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "name": "power_supply",
+    "reason": "observed",
+    "state": "OK"
+   },
+   {
+    "name": "usb",
+    "reason": "interface_missing",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "name": "wifi",
+    "reason": "radio_off",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "name": "bluetooth",
+    "reason": "dbus_observation_unavailable",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "name": "update",
+    "reason": "data_state_unavailable",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "name": "highres_timer",
+    "reason": "runtime_unavailable",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "name": "tickless_idle",
+    "reason": "runtime_unavailable",
+    "state": "UNAVAILABLE"
+   },
+   {
+    "name": "alsa_query",
+    "reason": "query_completed",
+    "state": "OK"
+   },
+   {
+    "name": "render_query",
+    "reason": "fixture",
+    "state": "UNAVAILABLE"
+   }
+  ],
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "evidence_level": "IMPLEMENTED",
+   "failure": [
+    "root",
+    "data"
+   ],
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {
+    "mode": "full"
+   },
+   "reborn_commit": "reborn",
+   "result": "FAILED",
+   "rootfs_release": "v1.0",
+   "units": {},
+   "wall_timestamp": "<volatile>",
+   "workload": "health",
+   "y2linux_commit": "linux-commit"
+  },
+  "schema": "org.y2linux.health/v1",
+  "state": "FAILED"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

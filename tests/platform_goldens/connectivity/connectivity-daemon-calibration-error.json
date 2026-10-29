@@ -1,0 +1,79 @@
+{
+ "argv": [
+  "connectivity-daemon"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-K",
+    "-p",
+    "/run/y2/wifi-action.pid"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-K",
+    "-p",
+    "/run/y2/wifi-dhcp.pid"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-K",
+    "-p",
+    "/run/y2/wpa.pid"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-K",
+    "-p",
+    "/run/y2/reconnect.pid"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-K",
+    "-p",
+    "/run/y2/bluealsa.pid"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "start-stop-daemon",
+    "-K",
+    "-p",
+    "/run/y2/calibration.pid"
+   ],
+   "timeout": 2.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "reason": "[Errno 21] Is a directory: '<root>/run/y2/calibration-ready'",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "IsADirectoryError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/connectivity-monitor.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,26 @@
+{
+ "argv": [
+  "usb-mode",
+  "mtp"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "apply": "when_disconnected",
+  "mode": "mtp",
+  "state": "Queued"
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/usb-mode.json": {
+    "content": {
+     "mode": "mtp"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

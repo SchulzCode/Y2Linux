@@ -1,0 +1,21 @@
+{
+ "argv": [
+  "time-remember"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "state": "Unchanged"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/time.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

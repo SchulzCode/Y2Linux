@@ -1,0 +1,76 @@
+{
+ "argv": [
+  "codec-settings",
+  "--aac-quality=standard",
+  "--ldac-abr",
+  "off",
+  "--aac-abr",
+  "on",
+  "--ldac-quality",
+  "mobile"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "apply_action": "restart_player",
+  "effective": null,
+  "effective_scope": "daemon_start_arguments",
+  "pending_restart": true,
+  "requested": {
+   "aac_abr": true,
+   "aac_quality": "standard",
+   "experimental": true,
+   "ldac_abr": false,
+   "ldac_quality": "mobile",
+   "sbc_abr": true,
+   "sbc_quality": "xq",
+   "schema": 1
+  },
+  "schema": "org.y2linux.codec-settings/v1",
+  "supported": {
+   "aac_abr": true,
+   "aac_quality": [
+    "standard",
+    "high"
+   ],
+   "ldac_abr": true,
+   "ldac_quality": [
+    "mobile",
+    "standard",
+    "high"
+   ],
+   "sbc_abr": true,
+   "sbc_quality": [
+    "high",
+    "xq",
+    "xq+"
+   ]
+  }
+ },
+ "tree": {
+  "added": {
+   "/run/y2/codec-settings.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/bluetooth/codec-policy.json": {
+    "content": {
+     "aac_abr": true,
+     "aac_quality": "standard",
+     "experimental": true,
+     "ldac_abr": false,
+     "ldac_quality": "mobile",
+     "sbc_abr": true,
+     "sbc_quality": "xq",
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

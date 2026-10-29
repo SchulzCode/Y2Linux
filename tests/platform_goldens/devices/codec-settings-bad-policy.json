@@ -1,0 +1,16 @@
+{
+ "argv": [
+  "codec-settings"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "invalid_codec_policy",
+  "schema": "org.y2linux.codec-settings/v1"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

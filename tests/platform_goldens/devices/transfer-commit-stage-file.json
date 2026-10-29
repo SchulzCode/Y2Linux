@@ -1,0 +1,40 @@
+{
+ "argv": [
+  "transfer",
+  "commit",
+  "--id",
+  "0123456789abcdef0123456789abcdef"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "reason": "[Errno 20] Not a directory: '0123456789abcdef0123456789abcdef'",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "NotADirectoryError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,34 @@
+{
+ "argv": [
+  "media",
+  "reconcile"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "attempts": 1,
+  "inventory": [
+   [
+    "mmcblk1",
+    "179:96",
+    "9",
+    "035344534433324780a1b2c3d4016a00"
+   ],
+   [
+    "mmcblk1p1",
+    "179:97",
+    "9",
+    "035344534433324780a1b2c3d4016a00"
+   ]
+  ],
+  "reason": null,
+  "retry": false,
+  "schema": 1,
+  "state": "Ready"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

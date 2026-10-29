@@ -1,0 +1,157 @@
+{
+ "argv": [
+  "media",
+  "mount"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "fsck.exfat",
+    "-n",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 20.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "mount",
+    "-t",
+    "exfat",
+    "-o",
+    "ro,nosuid,nodev,noexec,noatime,fmask=0177,dmask=0077",
+    "/dev/mmcblk1p1",
+    "/media/sd"
+   ],
+   "timeout": 3.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "action": "mount",
+  "boot_id": "boot-a",
+  "cid": "035344534433324780a1b2c3d4016a00",
+  "device": "/dev/mmcblk1p1",
+  "filesystem": "exfat",
+  "filesystem_check": {
+   "elapsed_ms": "<volatile>",
+   "findings": [
+    "timeout"
+   ],
+   "ok": false,
+   "output": null,
+   "reason": "command_timeout"
+  },
+  "identity": {
+   "cid": "035344534433324780a1b2c3d4016a00",
+   "filesystem": "exfat",
+   "geometry": {
+    "partition": "1",
+    "size": "62513152",
+    "start": "8192"
+   },
+   "id": "80ffdf99a4b7b4a2798a5f3f1a0ddfb2bd8bb6031c10b2caefdb00097d62b7a7",
+   "uuid": "1234-ABCD"
+  },
+  "reason": "fixture",
+  "schema": 1,
+  "source_instance": "block:179:97:diskseq:9",
+  "state": "Failed",
+  "uuid": "1234-ABCD"
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/sd-admissions.json": {
+    "content": {
+     "admissions": [
+      {
+       "card": "80ffdf99a4b7",
+       "elapsed_ms": "<volatile>",
+       "filesystem": "exfat",
+       "finding": null,
+       "findings": [
+        "timeout"
+       ],
+       "ok": false,
+       "reason": "command_timeout",
+       "time": "<volatile>"
+      }
+     ],
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/media": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/media/sd": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/run/y2/media.json": {
+    "content": {
+     "action": "mount",
+     "boot_id": "boot-a",
+     "cid": "035344534433324780a1b2c3d4016a00",
+     "device": "/dev/mmcblk1p1",
+     "filesystem": "exfat",
+     "filesystem_check": {
+      "elapsed_ms": "<volatile>",
+      "findings": [
+       "timeout"
+      ],
+      "ok": false,
+      "output": null,
+      "reason": "command_timeout"
+     },
+     "identity": {
+      "cid": "035344534433324780a1b2c3d4016a00",
+      "filesystem": "exfat",
+      "geometry": {
+       "partition": "1",
+       "size": "62513152",
+       "start": "8192"
+      },
+      "id": "80ffdf99a4b7b4a2798a5f3f1a0ddfb2bd8bb6031c10b2caefdb00097d62b7a7",
+      "uuid": "1234-ABCD"
+     },
+     "reason": "fixture",
+     "schema": 1,
+     "source_instance": "block:179:97:diskseq:9",
+     "state": "Failed",
+     "uuid": "1234-ABCD"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,48 @@
+{
+ "argv": [
+  "update",
+  "auto-check"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "attempt": "<volatile>",
+  "failure": "verified_data_unavailable",
+  "result": "failed",
+  "schema": 1
+ },
+ "tree": {
+  "added": {
+   "/data/updates/last-check.json": {
+    "content": {
+     "attempt": "<volatile>",
+     "failure": "verified_data_unavailable",
+     "result": "failed",
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/updates": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/updates/download.json": {
+    "content": {
+     "download_bytes": 70,
+     "notes": "",
+     "reborn_version": "",
+     "release_version": "1.0.0-offered",
+     "schema": 1,
+     "sequence": 11100,
+     "state": "Checked"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

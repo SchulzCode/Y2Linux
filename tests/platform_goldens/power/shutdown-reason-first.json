@@ -1,0 +1,21 @@
+{
+ "argv": [
+  "shutdown",
+  "--reason",
+  "service",
+  "poweroff"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "[Errno 2] No such file or directory",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "FileNotFoundError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,290 @@
+{
+ "argv": [
+  "__power-audit",
+  "--seconds",
+  "1",
+  "--settle",
+  "0",
+  "--state",
+  "fixture",
+  "--output",
+  "{root}/audit.json"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": [],
+ "tree": {
+  "added": {
+   "/audit.json": {
+    "content": {
+     "duration_seconds": "<volatile>",
+     "end": {
+      "boot_id": "boot-a",
+      "collection_seconds": "<volatile>",
+      "cpu_seconds": "<volatile>",
+      "files": {
+       "/proc/interrupts": "CPU0       CPU1\n 160:         12          3  mt6397  14 Edge  mt6397-rtc\nIPI0:          5          1  Rescheduling interrupts",
+       "/proc/stat": "cpu  1 2 3\nctxt 100\nintr 50 1 2\nprocesses 9",
+       "/sys/class/power_supply/BAT0/voltage_now": "4149316",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state0/name": "WFI",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state0/time": "1000",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state0/usage": "10",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state2/name": "DORMANT",
+       "/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state": "598000 10\n1300000 5",
+       "/sys/kernel/debug/wakeup_sources": "name\tactive_count\tevent_count\twakeup_count\nbattery\t1\t2\t0"
+      },
+      "monotonic": "<volatile>",
+      "threads": {
+       "42:42:900": {
+        "context_switches": {
+         "nonvoluntary_ctxt_switches": 2,
+         "voluntary_ctxt_switches": 10
+        },
+        "name": "y2 player",
+        "state": "S",
+        "stime": 3,
+        "utime": 7,
+        "wchan": "do_epoll_wait"
+       }
+      }
+     },
+     "observer": {
+      "counter_collection_seconds": "<volatile>",
+      "counter_cpu_seconds": "<volatile>",
+      "max_rss_kib": "<volatile>",
+      "note": "Endpoint counter skew is bounded by collection time; descriptions are outside the window.",
+      "pid": "<volatile>",
+      "total_cpu_seconds": "<volatile>"
+     },
+     "same_boot": true,
+     "schema": "org.y2linux.power-audit/v2",
+     "start": {
+      "boot_id": "boot-a",
+      "collection_seconds": "<volatile>",
+      "cpu_seconds": "<volatile>",
+      "files": {
+       "/proc/interrupts": "CPU0       CPU1\n 160:         12          3  mt6397  14 Edge  mt6397-rtc\nIPI0:          5          1  Rescheduling interrupts",
+       "/proc/stat": "cpu  1 2 3\nctxt 100\nintr 50 1 2\nprocesses 9",
+       "/sys/class/power_supply/BAT0/voltage_now": "4149316",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state0/name": "WFI",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state0/time": "1000",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state0/usage": "10",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state2/name": "DORMANT",
+       "/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state": "598000 10\n1300000 5",
+       "/sys/kernel/debug/wakeup_sources": "name\tactive_count\tevent_count\twakeup_count\nbattery\t1\t2\t0"
+      },
+      "monotonic": "<volatile>",
+      "threads": {
+       "42:42:900": {
+        "context_switches": {
+         "nonvoluntary_ctxt_switches": 2,
+         "voluntary_ctxt_switches": 10
+        },
+        "name": "y2 player",
+        "state": "S",
+        "stime": 3,
+        "utime": 7,
+        "wchan": "do_epoll_wait"
+       }
+      }
+     },
+     "state": "fixture",
+     "state_end": {
+      "application": {
+       "unavailable": "FileNotFoundError"
+      },
+      "boot_id": "boot-a",
+      "collection_seconds": "<volatile>",
+      "files": {
+       "/proc/interrupts": "CPU0       CPU1\n 160:         12          3  mt6397  14 Edge  mt6397-rtc\nIPI0:          5          1  Rescheduling interrupts",
+       "/proc/stat": "cpu  1 2 3\nctxt 100\nintr 50 1 2\nprocesses 9",
+       "/proc/uptime": "2730.79 4378.47",
+       "/sys/class/rfkill/rfkill0/soft": "0",
+       "/sys/class/rfkill/rfkill0/type": "wlan",
+       "/sys/class/udc/11200000.usb/state": "not attached",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state0/name": "WFI",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state0/time": "1000",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state0/usage": "10",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state2/disable": "1",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state2/name": "DORMANT",
+       "/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state": "598000 10\n1300000 5",
+       "/sys/kernel/debug/wakeup_sources": "name\tactive_count\tevent_count\twakeup_count\nbattery\t1\t2\t0",
+       "/sys/module/pwrap/parameters/pmic_sleep": "0",
+       "/sys/module/spm/parameters/dis_pdn": "N",
+       "/sys/module/spm/parameters/dormant_budget": "0",
+       "/sys/module/spm/parameters/golden_apply": "0",
+       "/sys/module/spm/parameters/md1_gate": "N",
+       "/sys/module/spm/parameters/pwrap_gate": "N"
+      },
+      "identity": "{\"release_version\": \"1.0.0-fixture\", \"build_git_commit\": \"linux-commit\", \"reborn_source_commit\": \"reborn\", \"rootfs_version\": \"v1.0\", \"platform_api_version\": 1, \"feature_contract_version\": 2, \"kernel_version\": \"6.18.0-fixture\"}",
+      "kernel": "<volatile>",
+      "monotonic": "<volatile>",
+      "threads": {
+       "42:42:900": {
+        "context_switches": {
+         "nonvoluntary_ctxt_switches": 2,
+         "voluntary_ctxt_switches": 10
+        },
+        "name": "y2 player",
+        "state": "S",
+        "stime": 3,
+        "utime": 7,
+        "wchan": "do_epoll_wait"
+       }
+      },
+      "wall_time": "<volatile>"
+     },
+     "state_start": {
+      "application": {
+       "unavailable": "FileNotFoundError"
+      },
+      "boot_id": "boot-a",
+      "collection_seconds": "<volatile>",
+      "files": {
+       "/proc/interrupts": "CPU0       CPU1\n 160:         12          3  mt6397  14 Edge  mt6397-rtc\nIPI0:          5          1  Rescheduling interrupts",
+       "/proc/stat": "cpu  1 2 3\nctxt 100\nintr 50 1 2\nprocesses 9",
+       "/proc/uptime": "2730.79 4378.47",
+       "/sys/class/rfkill/rfkill0/soft": "0",
+       "/sys/class/rfkill/rfkill0/type": "wlan",
+       "/sys/class/udc/11200000.usb/state": "not attached",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state0/name": "WFI",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state0/time": "1000",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state0/usage": "10",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state2/disable": "1",
+       "/sys/devices/system/cpu/cpu0/cpuidle/state2/name": "DORMANT",
+       "/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state": "598000 10\n1300000 5",
+       "/sys/kernel/debug/wakeup_sources": "name\tactive_count\tevent_count\twakeup_count\nbattery\t1\t2\t0",
+       "/sys/module/pwrap/parameters/pmic_sleep": "0",
+       "/sys/module/spm/parameters/dis_pdn": "N",
+       "/sys/module/spm/parameters/dormant_budget": "0",
+       "/sys/module/spm/parameters/golden_apply": "0",
+       "/sys/module/spm/parameters/md1_gate": "N",
+       "/sys/module/spm/parameters/pwrap_gate": "N"
+      },
+      "identity": "{\"release_version\": \"1.0.0-fixture\", \"build_git_commit\": \"linux-commit\", \"reborn_source_commit\": \"reborn\", \"rootfs_version\": \"v1.0\", \"platform_api_version\": 1, \"feature_contract_version\": 2, \"kernel_version\": \"6.18.0-fixture\"}",
+      "kernel": "<volatile>",
+      "monotonic": "<volatile>",
+      "threads": {
+       "42:42:900": {
+        "context_switches": {
+         "nonvoluntary_ctxt_switches": 2,
+         "voluntary_ctxt_switches": 10
+        },
+        "name": "y2 player",
+        "state": "S",
+        "stime": 3,
+        "utime": 7,
+        "wchan": "do_epoll_wait"
+       }
+      },
+      "wall_time": "<volatile>"
+     },
+     "summary": {
+      "cpu0_idle_exits_per_second": "<volatile>",
+      "cpuidle": [
+       {
+        "counter_discontinuity": false,
+        "entries": 0,
+        "name": "WFI",
+        "path": "/sys/devices/system/cpu/cpu0/cpuidle/state0",
+        "percent_wall_time": "<volatile>",
+        "raw_time_delta_us": 0,
+        "time_us": 0
+       }
+      ],
+      "frequency_reason": null,
+      "frequency_residency": [
+       {
+        "khz": 598000,
+        "percent_recorded_residency": null,
+        "ticks": 0
+       },
+       {
+        "khz": 1300000,
+        "percent_recorded_residency": null,
+        "ticks": 0
+       }
+      ],
+      "irqs": [
+       {
+        "common_cpu_deltas": {
+         "CPU0": 0,
+         "CPU1": 0
+        },
+        "common_cpu_lower_bound_per_second": "<volatile>",
+        "counter_discontinuity": false,
+        "cpu_columns_changed": false,
+        "delta": 0,
+        "irq": "160",
+        "name": "mt6397 14 Edge mt6397-rtc",
+        "per_second": "<volatile>"
+       },
+       {
+        "common_cpu_deltas": {
+         "CPU0": 0,
+         "CPU1": 0
+        },
+        "common_cpu_lower_bound_per_second": "<volatile>",
+        "counter_discontinuity": false,
+        "cpu_columns_changed": false,
+        "delta": 0,
+        "irq": "IPI0",
+        "name": "Rescheduling interrupts",
+        "per_second": "<volatile>"
+       }
+      ],
+      "scheduler": {
+       "ctxt": {
+        "delta": 0,
+        "per_second": "<volatile>"
+       },
+       "intr": {
+        "delta": 0,
+        "per_second": "<volatile>"
+       },
+       "processes": {
+        "delta": 0,
+        "per_second": "<volatile>"
+       }
+      },
+      "top_context_switch_threads": [
+       {
+        "context_switches_per_second": "<volatile>",
+        "cpu_percent_one_core": "<volatile>",
+        "name": "y2 player",
+        "thread": "42:42:900",
+        "ticks": 0
+       }
+      ],
+      "top_cpu_threads": [
+       {
+        "context_switches_per_second": "<volatile>",
+        "cpu_percent_one_core": "<volatile>",
+        "name": "y2 player",
+        "thread": "42:42:900",
+        "ticks": 0
+       }
+      ],
+      "wakeup_sources": [
+       {
+        "deltas": {
+         "active_count": 0,
+         "event_count": 0,
+         "wakeup_count": 0
+        },
+        "name": "battery"
+       }
+      ],
+      "wakeups_per_second": null,
+      "wakeups_reason": "Context switches and IRQs are proxies; they are not independent unique CPU wakes."
+     },
+     "undisturbed_sleep_seconds": "<volatile>"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

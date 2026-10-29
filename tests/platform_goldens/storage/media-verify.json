@@ -1,0 +1,176 @@
+{
+ "argv": [
+  "media",
+  "verify"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "fsck.fat",
+    "-n",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1800.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "action": "verify",
+  "boot_id": "boot-a",
+  "cid": "035344534433324780a1b2c3d4016a00",
+  "device": "/dev/mmcblk1p1",
+  "device_id": "179:97",
+  "filesystem": "vfat",
+  "filesystem_check": {
+   "background": true,
+   "elapsed_ms": "<volatile>",
+   "ok": true,
+   "output": "",
+   "reason": null
+  },
+  "identity": {
+   "cid": "035344534433324780a1b2c3d4016a00",
+   "filesystem": "vfat",
+   "geometry": {
+    "partition": "1",
+    "size": "62513152",
+    "start": "8192"
+   },
+   "id": "378be454f12761e5cacb85b564b2e5d73dcb229acd8aba2bc5a3cbf937deb6d9",
+   "uuid": "1234-ABCD"
+  },
+  "mount_id": 51,
+  "read_only": "protected",
+  "reason": null,
+  "schema": 1,
+  "source_instance": "block:179:97:diskseq:9",
+  "state": "Ready",
+  "uuid": "1234-ABCD"
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/sd-admissions.json": {
+    "content": {
+     "admissions": [
+      {
+       "background": true,
+       "card": "378be454f127",
+       "elapsed_ms": "<volatile>",
+       "filesystem": "vfat",
+       "finding": null,
+       "findings": [],
+       "ok": true,
+       "reason": null,
+       "time": "<volatile>"
+      }
+     ],
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.json": {
+    "content": {
+     "action": "mount",
+     "boot_id": "boot-a",
+     "cid": "035344534433324780a1b2c3d4016a00",
+     "device": "/dev/mmcblk1p1",
+     "device_id": "179:97",
+     "filesystem": "vfat",
+     "filesystem_check": {
+      "background": true,
+      "elapsed_ms": "<volatile>",
+      "ok": true,
+      "output": "",
+      "reason": null
+     },
+     "identity": {
+      "cid": "035344534433324780a1b2c3d4016a00",
+      "filesystem": "vfat",
+      "geometry": {
+       "partition": "1",
+       "size": "62513152",
+       "start": "8192"
+      },
+      "id": "378be454f12761e5cacb85b564b2e5d73dcb229acd8aba2bc5a3cbf937deb6d9",
+      "uuid": "1234-ABCD"
+     },
+     "mount_id": 51,
+     "read_only": "protected",
+     "reason": null,
+     "schema": 1,
+     "source_instance": "block:179:97:diskseq:9",
+     "state": "Ready",
+     "uuid": "1234-ABCD"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/run/y2/media-mount.json": {
+    "content": {
+     "action": "mount",
+     "boot_id": "boot-a",
+     "cid": "035344534433324780a1b2c3d4016a00",
+     "device": "/dev/mmcblk1p1",
+     "device_id": "179:97",
+     "filesystem": "vfat",
+     "filesystem_check": {
+      "background": true,
+      "elapsed_ms": "<volatile>",
+      "ok": true,
+      "output": "",
+      "reason": null
+     },
+     "identity": {
+      "cid": "035344534433324780a1b2c3d4016a00",
+      "filesystem": "vfat",
+      "geometry": {
+       "partition": "1",
+       "size": "62513152",
+       "start": "8192"
+      },
+      "id": "378be454f12761e5cacb85b564b2e5d73dcb229acd8aba2bc5a3cbf937deb6d9",
+      "uuid": "1234-ABCD"
+     },
+     "mount_id": 51,
+     "read_only": "protected",
+     "reason": null,
+     "schema": 1,
+     "source_instance": "block:179:97:diskseq:9",
+     "state": "Ready",
+     "uuid": "1234-ABCD"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

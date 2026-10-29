@@ -1,0 +1,52 @@
+{
+ "argv": [
+  "cpu-idle-policy",
+  "start"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "boot_id": "boot-a",
+  "budget": "-1",
+  "disabled": "0",
+  "policy": "qualified_CPU0_DORMANT",
+  "reasons": [],
+  "schema": "org.y2linux.cpu-idle-policy/v1",
+  "state": "Enabled"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/cpu-idle-policy.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "budget": "-1",
+     "disabled": "0",
+     "policy": "qualified_CPU0_DORMANT",
+     "reasons": [],
+     "schema": "org.y2linux.cpu-idle-policy/v1",
+     "state": "Enabled"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/cpu-idle-policy.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/sys/devices/system/cpu/cpu0/cpuidle/state2/disable": {
+    "content": 0,
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/module/spm/parameters/dormant_budget": {
+    "content": -1,
+    "mode": "0o644",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

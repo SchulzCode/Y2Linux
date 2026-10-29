@@ -1,0 +1,21 @@
+{
+ "argv": [
+  "transfer",
+  "discard",
+  "--id",
+  "0123456789abcdef0123456789abcdef"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "verified_data_unavailable",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

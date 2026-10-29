@@ -1,0 +1,20 @@
+{
+ "argv": [
+  "media",
+  "status"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "generation": null,
+  "path": "/media/sd",
+  "reason": "not_uniquely_mounted",
+  "space_state": "Unavailable",
+  "state": "Unavailable"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

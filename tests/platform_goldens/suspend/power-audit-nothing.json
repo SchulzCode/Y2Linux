@@ -1,0 +1,13 @@
+{
+ "argv": [
+  "__power-audit"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

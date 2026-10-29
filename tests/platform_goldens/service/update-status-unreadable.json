@@ -1,0 +1,18 @@
+{
+ "argv": [
+  "update",
+  "status"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "failure": "journal_unreadable",
+  "schema": 1,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

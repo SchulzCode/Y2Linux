@@ -1,0 +1,23 @@
+{
+ "argv": [
+  "sleep",
+  "request",
+  "--help"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": [
+  "usage: main.py sleep [-h] {request,status,prepare}",
+  "",
+  "positional arguments:",
+  "  {request,status,prepare}",
+  "",
+  "options:",
+  "  -h, --help            show this help message and exit"
+ ],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

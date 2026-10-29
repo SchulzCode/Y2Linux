@@ -1,23 +1,14 @@
-"""Differential cases of port group `suspend` (see tests/platform_cases/__init__.py).
+"""Golden cases of port group `suspend` (see tests/platform_cases/__init__.py).
 
-`CASES` run on the plain harness: `sleep request` (every admission refusal, the fixture launcher's refusal after
-the `requested` receipt, the quarantine guard and its recovery, the Python fallbacks) and `sleep prepare` without
-Reborn. The cases that need a live peer (Reborn's control socket, a lock holder, the helper's inherited lock) or
-the hidden programmes (`__product-sleep`, `__suspend-record`, `__power-command`, `__power-audit`) are in
-`SERVED_CASES` and run by tests/test_platform_suspend.py.
-
-`launcher()` is the Python side of the hidden programmes (`Y2_LAUNCHER_PATCH=platform_cases.suspend:launcher`):
-it runs product-sleep.py, suspend-record.py, y2-power-command and y2-power-audit on the fixture root the way the
-installed programmes run on the player.
+`CASES` run on the plain harness: `sleep request` (every admission refusal, the fixture's refusal after the
+`requested` receipt, the quarantine guard and its recovery) and `sleep prepare` without Reborn. The cases that
+need a live peer (Reborn's control socket, a lock holder, the helper's inherited lock) or the hidden programmes
+(`__product-sleep`, `__suspend-record`, `__power-command`, `__power-audit`) are in `SERVED_CASES` and run by
+tests/test_platform_suspend.py.
 """
 import json
-import os
-from pathlib import Path
-import sys
 import time
-import traceback
 
-PATCH = {'Y2_LAUNCHER_PATCH': 'platform_cases.suspend:launcher'}
 SLEEP = '/data/system/platform/suspend-last.json'
 GUARD = '/data/system/platform/product-sleep-guard.json'
 SPM = '/sys/bus/platform/devices/10006000.power-controller/state'
@@ -56,7 +47,7 @@ READY = {
 
 
 def ready(**changes):
-    return {'ported': True, 'volatile': VOLATILE, 'files': {**READY, **changes}}
+    return {'volatile': VOLATILE, 'files': {**READY, **changes}}
 
 
 def guard(pending=True, updated=1.0, **extra):
@@ -65,7 +56,7 @@ def guard(pending=True, updated=1.0, **extra):
 
 REQUEST = ['sleep', 'request']
 CASES = [
-    ('sleep-request-charging', REQUEST, {'ported': True, 'volatile': VOLATILE}),
+    ('sleep-request-charging', REQUEST, {'volatile': VOLATILE}),
     ('sleep-request-no-sleep-abi', REQUEST, ready(**{SPM: 'system_sleep_abi=0 broken=0\n'})),
     ('sleep-request-two-spm', REQUEST, ready(**{'/sys/bus/platform/devices/10006000.other/state': 'x=1\n'})),
     ('sleep-request-broken', REQUEST, ready(**{SPM: 'system_sleep_abi=1 broken=1\n'})),
@@ -129,10 +120,10 @@ CASES = [
     ('sleep-request-data-unverified', REQUEST, ready(**{'/data/.y2data-schema': None})),
     ('sleep-request-no-receipt', REQUEST, ready(**{SLEEP: None})),
     # The dispatcher's argparse prints the help itself.
-    ('sleep-request-help', ['sleep', 'request', '--help'], {'ported': True}),
+    ('sleep-request-help', ['sleep', 'request', '--help'], {}),
     # Without Reborn's control socket: the refusal receipt, then main.py's error record.
-    ('sleep-prepare-no-reborn', ['sleep', 'prepare'], {'ported': True, 'volatile': VOLATILE}),
-    ('sleep-prepare-list-product', ['sleep', 'prepare'], {'ported': True, 'volatile': VOLATILE,
+    ('sleep-prepare-no-reborn', ['sleep', 'prepare'], {'volatile': VOLATILE}),
+    ('sleep-prepare-list-product', ['sleep', 'prepare'], {'volatile': VOLATILE,
                                                           'files': {SLEEP: '{"product": [["state", "idle"]]}'}}),
     ('sleep-prepare-battery-null', ['sleep', 'prepare'], ready(**{'/run/y2/power.json': lambda: json.dumps(
         {'boot_id': 'boot-a', 'battery': None})})),
@@ -164,14 +155,15 @@ for name, product in [
         ('dict-state', {'state': {'a': 1}}),
         ('number-state', {'state': 7}),
 ]:
-    CASES.append(('sleep-status-product-' + name, STATUS, {'ported': True, 'files': {
+    CASES.append(('sleep-status-product-' + name, STATUS, {'files': {
         SLEEP: json.dumps({'product': product})}}))
-CASES.append(('sleep-status-receipt-list', STATUS, {'ported': True, 'files': {SLEEP: '[["product", 1]]'}}))
+CASES.append(('sleep-status-receipt-list', STATUS, {'files': {SLEEP: '[["product", 1]]'}}))
 
 
 # Cases that need tests/test_platform_suspend.py's sides: (name, argv, options, setup); `setup` keys:
 # 'reborn' {op: answer line (str) or None to close without answering}, 'hold' [lock paths held during the run],
-# 'inherit' True to make /run/y2/suspend.lock the run's stdin (/dev/null) as product-sleep's inherited lock.
+# 'inherit' True to make /run/y2/suspend.lock (the case's own file) the run's stdin, product-sleep's inherited
+# lock, 'readonly' [nodes made 0444, whose writes fail for an unprivileged user].
 OK = '{"id": 6582, "ok": true, "result": {"sleep_ready": true, "screen_off": true}}'
 RESTORED = '{"id": 6582, "ok": true, "result": {"sleep_ready": true, "screen_off": false}}'
 DARK = OK
@@ -191,22 +183,20 @@ HELPER = {**READY, '/sys/power/wakeup_count': '7\n', '/sys/firmware/y2_pm/state'
           '/sys/devices/platform/18070000.connectivity/status': 'powered=0 functions=0 refs=0\n'}
 PRODUCT = ['__product-sleep', '0']
 SERVED_CASES = [
-    ('sleep-prepare', ['sleep', 'prepare'], {'ported': True}, {'reborn': {'sleep_prepare': OK}}),
-    ('sleep-prepare-not-dark', ['sleep', 'prepare'], {'ported': True}, {'reborn': {'sleep_prepare': RESTORED}}),
-    ('sleep-prepare-refused', ['sleep', 'prepare'], {'ported': True}, {'reborn': {
+    ('sleep-prepare', ['sleep', 'prepare'], {}, {'reborn': {'sleep_prepare': OK}}),
+    ('sleep-prepare-not-dark', ['sleep', 'prepare'], {}, {'reborn': {'sleep_prepare': RESTORED}}),
+    ('sleep-prepare-refused', ['sleep', 'prepare'], {}, {'reborn': {
         'sleep_prepare': '{"id": 6582, "ok": false, "error": "player_busy"}'}}),
-    ('sleep-prepare-other-id', ['sleep', 'prepare'], {'ported': True}, {'reborn': {
+    ('sleep-prepare-other-id', ['sleep', 'prepare'], {}, {'reborn': {
         'sleep_prepare': '{"id": 6582.0, "ok": true, "result": []}'}}),
-    ('sleep-prepare-closed', ['sleep', 'prepare'], {'ported': True}, {'reborn': {'sleep_prepare': None}}),
-    ('sleep-prepare-garbage', ['sleep', 'prepare'], {'ported': True}, {'reborn': {'sleep_prepare': '{"id": 6582,'}}),
+    ('sleep-prepare-closed', ['sleep', 'prepare'], {}, {'reborn': {'sleep_prepare': None}}),
+    ('sleep-prepare-garbage', ['sleep', 'prepare'], {}, {'reborn': {'sleep_prepare': '{"id": 6582,'}}),
     ('sleep-request-busy', REQUEST, ready(), {'hold': ['/run/y2/suspend.lock']}),
-    # Python's own crashes in the recovery check (AttributeError, TypeError): a traceback, exit 1. ('traceback':
-    # printing it opens '<unknown>', which the host-access audit would count.)
-    ('sleep-request-quarantine-text-product', REQUEST, ready(**{GUARD: guard(), SLEEP: '{"product": "x"}'}),
-     {'traceback': True}),
+    # Python's own crashes in the recovery check (AttributeError, TypeError): a traceback, exit 1.
+    ('sleep-request-quarantine-text-product', REQUEST, ready(**{GUARD: guard(), SLEEP: '{"product": "x"}'}), {}),
     ('sleep-request-quarantine-text-updated', REQUEST, ready(**{GUARD: guard(), SLEEP: json.dumps(
         {'current_boot_id': 'boot-a', 'updated': 'late', 'product': {
-            'state': 'restored', 'kernel_completed': True, 'same_boot': True}})}), {'traceback': True}),
+            'state': 'restored', 'kernel_completed': True, 'same_boot': True}})}), {}),
     ('product-sleep', PRODUCT, {**ready(**HELPER), 'commands': COMMANDS},
      {'reborn': REBORN, 'inherit': True}),
     ('product-sleep-wifi-on', PRODUCT, {**ready(**{**HELPER, '/data/network/enabled': '1\n'}), 'commands': COMMANDS},
@@ -223,7 +213,7 @@ SERVED_CASES = [
         '/data/system/platform/maintenance-pending': ''}), {'inherit': True}),
     ('product-sleep-radios-on', PRODUCT, {**ready(**{**HELPER, 
         '/sys/devices/platform/18070000.connectivity/status': 'powered=1 functions=0x3 \n'}), 'commands': COMMANDS},
-     {'reborn': REBORN, 'inherit': True, 'slow': True}),
+     {'reborn': REBORN, 'inherit': True}),  # waits the 15-s radio deadline
     ('product-sleep-no-count', PRODUCT, {**ready(**{**HELPER, '/sys/power/wakeup_count': None}),
                                          'commands': COMMANDS}, {'reborn': REBORN, 'inherit': True}),
     ('product-sleep-workload', PRODUCT, {**ready(**{**HELPER, '/sys/module/workload/parameters/leases':
@@ -254,70 +244,70 @@ SERVED_CASES = [
      {'reborn': REBORN, 'inherit': True, 'readonly': ['/sys/firmware/y2_pm/backstop_s']}),
     ('product-sleep-wrong-lock', PRODUCT, ready(**HELPER), {}),
     ('product-sleep-stdout', ['__product-sleep', '1'], ready(**HELPER), {'inherit': True}),
-    ('product-sleep-no-fd', ['__product-sleep'], {'ported': True}, {}),
-    ('product-sleep-text-fd', ['__product-sleep', 'x'], {'ported': True}, {}),
-    ('suspend-record-requested', ['__suspend-record', 'requested', '0'], {'ported': True, 'volatile': VOLATILE}, {}),
+    ('product-sleep-no-fd', ['__product-sleep'], {}, {}),
+    ('product-sleep-text-fd', ['__product-sleep', 'x'], {}, {}),
+    ('suspend-record-requested', ['__suspend-record', 'requested', '0'], {'volatile': VOLATILE}, {}),
     ('suspend-record-kernel-suspend', ['__suspend-record', 'kernel_suspend', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {**READY, '/sys/firmware/y2_pm/state': KERNEL}}, {}),
+     {'volatile': VOLATILE, 'files': {**READY, '/sys/firmware/y2_pm/state': KERNEL}}, {}),
     ('suspend-record-kernel-resumed', ['__suspend-record', 'kernel_resumed', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {**READY, '/sys/firmware/y2_pm/state': KERNEL, SLEEP: json.dumps(
+     {'volatile': VOLATILE, 'files': {**READY, '/sys/firmware/y2_pm/state': KERNEL, SLEEP: json.dumps(
          {'pm_test': 'none', 'cycles': 1, 'suspended_seconds': 1.5, 'wake_irqs_before': {'rtc': 12, 'power': 2},
           'product': {'state': 'sleeping', 'request_boot_id': 'boot-a'}, 'stages': [{'stage': 'x'}] * 40})}}, {}),
     ('suspend-record-maintenance', ['__suspend-record', 'maintenance_wake', '0'],
-     {'ported': True, 'volatile': VOLATILE}, {}),
+     {'volatile': VOLATILE}, {}),
     ('suspend-record-failure', ['__suspend-record', 'product_failure', '1', 'radio_power_down'],
-     {'ported': True, 'volatile': VOLATILE}, {}),
+     {'volatile': VOLATILE}, {}),
     ('suspend-record-complete', ['__suspend-record', 'complete_result_0', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {'/sys/firmware/y2_pm/stage': '', SLEEP: json.dumps(
+     {'volatile': VOLATILE, 'files': {'/sys/firmware/y2_pm/stage': '', SLEEP: json.dumps(
          {'pm_test': 'none', 'product': {'state': 'waking', 'request_boot_id': 'boot-a', 'kernel_completed': True}})}},
      {'reborn': {'sleep_restore': RESTORED}}),
     ('suspend-record-complete-no-reborn', ['__suspend-record', 'complete_result_0', '0'],
-     {'ported': True, 'volatile': VOLATILE}, {}),
+     {'volatile': VOLATILE}, {}),
     ('suspend-record-pm-test', ['__suspend-record', 'complete_result_0', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {SLEEP: '{"pm_test": "core"}'}},
+     {'volatile': VOLATILE, 'files': {SLEEP: '{"pm_test": "core"}'}},
      {'reborn': {'sleep_restore': RESTORED}}),
     # Python's IndexError / int()'s ValueError: a traceback, nothing written.
-    ('suspend-record-bad-result', ['__suspend-record', 'syncing', 'x'], {'ported': True}, {}),
-    ('suspend-record-no-stage', ['__suspend-record'], {'ported': True}, {}),
-    ('suspend-record-float-result', ['__suspend-record', 'syncing', '1.0'], {'ported': True}, {}),
+    ('suspend-record-bad-result', ['__suspend-record', 'syncing', 'x'], {}, {}),
+    ('suspend-record-no-stage', ['__suspend-record'], {}, {}),
+    ('suspend-record-float-result', ['__suspend-record', 'syncing', '1.0'], {}, {}),
     # int() also reads whitespace, underscores and other decimal digits.
     ('suspend-record-odd-results', ['__suspend-record', 'syncing', ' +1_0 '],
-     {'ported': True, 'volatile': VOLATILE}, {}),
+     {'volatile': VOLATILE}, {}),
     ('suspend-record-arabic-result', ['__suspend-record', 'product_failure', '\u0663', 'why', 'extra'],
-     {'ported': True, 'volatile': VOLATILE}, {}),
+     {'volatile': VOLATILE}, {}),
     ('suspend-record-odd-receipt', ['__suspend-record', 'syncing', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {SLEEP: '{"stages": "none"}'}}, {}),
+     {'volatile': VOLATILE, 'files': {SLEEP: '{"stages": "none"}'}}, {}),
     ('suspend-record-null-stages', ['__suspend-record', 'syncing', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {SLEEP: '{"stages": null}'}}, {}),
+     {'volatile': VOLATILE, 'files': {SLEEP: '{"stages": null}'}}, {}),
     ('suspend-record-list-receipt', ['__suspend-record', 'syncing', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {SLEEP: '[1, 2]'}}, {}),
-    ('suspend-record-pairs-product', ['__suspend-record', 'syncing', '0'], {'ported': True, 'volatile': VOLATILE,
+     {'volatile': VOLATILE, 'files': {SLEEP: '[1, 2]'}}, {}),
+    ('suspend-record-pairs-product', ['__suspend-record', 'syncing', '0'], {'volatile': VOLATILE,
      'files': {SLEEP: json.dumps({'product': [['state', 'requested'], ['request_boot_id', 'boot-a']]})}}, {}),
-    ('suspend-record-text-product', ['__suspend-record', 'syncing', '0'], {'ported': True, 'volatile': VOLATILE,
+    ('suspend-record-text-product', ['__suspend-record', 'syncing', '0'], {'volatile': VOLATILE,
      'files': {SLEEP: json.dumps({'product': 'requested'})}}, {}),
-    ('suspend-record-number-product', ['__suspend-record', 'syncing', '0'], {'ported': True, 'volatile': VOLATILE,
+    ('suspend-record-number-product', ['__suspend-record', 'syncing', '0'], {'volatile': VOLATILE,
      'files': {SLEEP: json.dumps({'product': 5})}}, {}),
     # A key that is no str: the marker is written, then the sorted receipt dump raises (nothing published).
     ('suspend-record-number-key', ['__suspend-record', 'complete_result_0', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {'/sys/firmware/y2_pm/stage': '', SLEEP: json.dumps(
+     {'volatile': VOLATILE, 'files': {'/sys/firmware/y2_pm/stage': '', SLEEP: json.dumps(
          {'pm_test': 'none', 'product': [[1, 'x'], ['state', 'waking'], ['request_boot_id', 'boot-a'],
                                          ['kernel_completed', True]]})}},
      {'reborn': {'sleep_restore': RESTORED}}),
     ('suspend-record-text-cycles', ['__suspend-record', 'kernel_resumed', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {**READY, '/sys/firmware/y2_pm/state': KERNEL, SLEEP: json.dumps(
+     {'volatile': VOLATILE, 'files': {**READY, '/sys/firmware/y2_pm/state': KERNEL, SLEEP: json.dumps(
          {'pm_test': 'none', 'cycles': '1', 'product': {'state': 'sleeping', 'request_boot_id': 'boot-a'}})}}, {}),
     ('suspend-record-text-seconds', ['__suspend-record', 'kernel_resumed', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {**READY, '/sys/firmware/y2_pm/state': KERNEL, SLEEP: json.dumps(
+     {'volatile': VOLATILE, 'files': {**READY, '/sys/firmware/y2_pm/state': KERNEL, SLEEP: json.dumps(
          {'pm_test': 'none', 'cycles': True, 'suspended_seconds': [1],
           'product': {'state': 'sleeping', 'request_boot_id': 'boot-a'}})}}, {}),
     ('suspend-record-text-wakes', ['__suspend-record', 'maintenance_wake', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {SLEEP: '{"maintenance_wakes": null}'}}, {}),
+     {'volatile': VOLATILE, 'files': {SLEEP: '{"maintenance_wakes": null}'}}, {}),
     ('suspend-record-list-pm-test', ['__suspend-record', 'complete_result_0', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {SLEEP: json.dumps({'pm_test': ['none']})}},
+     {'volatile': VOLATILE, 'files': {SLEEP: json.dumps({'pm_test': ['none']})}},
      {'reborn': {'sleep_restore': RESTORED}}),
     # The IRQ counts before the sleep as Python's `in` reads them: a list or str is searched, then indexed.
     *[('suspend-record-irqs-' + name, ['__suspend-record', 'kernel_resumed', '0'],
-       {'ported': True, 'volatile': VOLATILE, 'files': {**READY, '/sys/firmware/y2_pm/state': KERNEL,
+       {'volatile': VOLATILE, 'files': {**READY, '/sys/firmware/y2_pm/state': KERNEL,
                                                         SLEEP: json.dumps({'pm_test': 'none', 'wake_irqs_before': before,
                                                                            'product': {'state': 'sleeping',
                                                                                        'request_boot_id': 'boot-a'}})}},
@@ -326,19 +316,19 @@ SERVED_CASES = [
                                 ('text-count', {'rtc': '1', 'power': 2}), ('null-count', {'power': None}),
                                 ('bool-count', {'rtc': False, 'power': True})]],
     ('suspend-record-irqs-unproven', ['__suspend-record', 'kernel_resumed', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {**READY, SLEEP: json.dumps(
+     {'volatile': VOLATILE, 'files': {**READY, SLEEP: json.dumps(
          {'pm_test': 'none', 'wake_irqs_before': 3, 'product': {'state': 'sleeping', 'request_boot_id': 'boot-a'}})}},
      {}),
     # A battery that is no dict: the receipt is written, then the journal row's battery.get raises.
     ('suspend-record-battery-null', ['__suspend-record', 'syncing', '0'],
-     {'ported': True, 'volatile': VOLATILE, 'files': {'/run/y2/power.json': '{"battery": null}'}}, {}),
-    ('power-command-flags', ['__power-command', 'reboot', '-f'], {'ported': True}, {}),
-    ('power-command-name', ['__power-command', 'y2-power-command'], {'ported': True}, {}),
+     {'volatile': VOLATILE, 'files': {'/run/y2/power.json': '{"battery": null}'}}, {}),
+    ('power-command-flags', ['__power-command', 'reboot', '-f'], {}, {}),
+    ('power-command-name', ['__power-command', 'y2-power-command'], {}, {}),
     ('power-command-poweroff', ['__power-command', 'poweroff'], {}, {}),
     ('power-audit-bounds', ['__power-audit', '--seconds', '0', '--state', 'x', '--output', '/x'],
-     {'ported': True}, {}),
+     {}, {}),
     # The script's argparse parser: help, abbreviations, `=`, its errors (exit 2), then the window bounds.
-    *[('power-audit-' + name, ['__power-audit', *argv], {'ported': True}, {}) for name, argv in [
+    *[('power-audit-' + name, ['__power-audit', *argv], {}, {}) for name, argv in [
         ('help', ['--help']), ('h', ['-h']), ('help-late', ['--state', 'x', '--h']), ('h-joined', ['-hx']),
         ('help-after-error', ['--seconds', 'x', '-h']), ('error-after-help', ['-h', '--seconds', 'x']),
         ('help-value', ['--help=x']), ('h-value', ['-h=x']), ('nothing', []),
@@ -358,99 +348,30 @@ SERVED_CASES = [
         ('underscores', ['--seconds', '1_0_0_00', '--state', 'x', '--output', '/x']),
     ]],
 ]
+# A one-second power audit of a fixture process and its counters (written to {root}/audit.json).
+AUDIT = {**ready(), 'volatile': (
+    *VOLATILE, 'monotonic', 'collection_seconds', 'cpu_seconds', 'duration_seconds',
+    'undisturbed_sleep_seconds', 'pid', 'total_cpu_seconds', 'counter_cpu_seconds', 'counter_collection_seconds',
+    'max_rss_kib', 'per_second', 'cpu_percent_one_core', 'context_switches_per_second',
+    'common_cpu_lower_bound_per_second', 'percent_wall_time', 'cpu0_idle_exits_per_second', 'kernel'), 'files': {
+    '/proc/42/task/42/stat': '42 (y2 player) S 1 42 42 0 -1 4194560 100 0 0 0 7 3 0 0 20 0 2 0 900 0 0\n',
+    '/proc/42/task/42/status': 'Name:\ty2\nvoluntary_ctxt_switches:\t10\nnonvoluntary_ctxt_switches:\t2\n',
+    '/proc/42/task/42/wchan': 'do_epoll_wait\n',
+    '/proc/interrupts': '           CPU0       CPU1\n 160:         12          3  mt6397  14 Edge  mt6397-rtc\n'
+                        'IPI0:          5          1  Rescheduling interrupts\n',
+    '/proc/stat': 'cpu  1 2 3\nctxt 100\nintr 50 1 2\nprocesses 9\n',
+    '/sys/devices/system/cpu/cpu0/cpuidle/state0/name': 'WFI\n',
+    '/sys/devices/system/cpu/cpu0/cpuidle/state0/usage': '10\n',
+    '/sys/devices/system/cpu/cpu0/cpuidle/state0/time': '1000\n',
+    '/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state': '598000 10\n1300000 5\n',
+    '/sys/kernel/debug/wakeup_sources': 'name\tactive_count\tevent_count\twakeup_count\nbattery\t1\t2\t0\n',
+    '/sys/class/udc/11200000.usb/state': 'not attached\n',
+}}
+SERVED_CASES.append(('power-audit', ['__power-audit', '--seconds', '1', '--settle', '0', '--state', 'fixture',
+                                     '--output', '{root}/audit.json'], AUDIT, {}))
 
 
 def fixture(root):
     """Add the files these cases need below `root` (a pathlib.Path): none; each case brings its own."""
 
 
-# ---- the Python side of the hidden programmes (Y2_LAUNCHER_PATCH) ------------------------------------------------
-
-def launcher():
-    from y2_platform import cli
-    original = cli.main
-
-    def main():
-        argv = sys.argv[1:]
-        programmes = {'__product-sleep': product_sleep, '__suspend-record': suspend_record,
-                      '__power-command': lambda a: power_command(a, original), '__power-audit': power_audit}
-        if argv and argv[0] in programmes:
-            return programmes[argv[0]](argv[1:])
-        return original()
-    cli.main = main
-
-
-def crashed():
-    traceback.print_exc()
-    return 1
-
-
-def product_sleep(argv):
-    """tools/platform/product-sleep.py (product_sleep.main) on the fixture's Context."""
-    import signal
-    from y2_platform import cli, product_sleep
-    try:
-        fd = int(argv[0])
-
-        def stop(signum, frame):
-            raise RuntimeError('sleep_helper_interrupted')
-        signal.signal(signal.SIGTERM, stop)
-        signal.signal(signal.SIGINT, stop)
-        try:
-            return product_sleep.execute(cli.Context(), fd)
-        finally:
-            os.close(fd)
-    except Exception:
-        return crashed()
-
-
-def suspend_record(argv):
-    """tools/platform/suspend-record.py (suspend_record.main) on the fixture's Context."""
-    from y2_platform import cli, suspend_record
-    try:
-        value = suspend_record.record(cli.Context(), argv[0], int(argv[1]) if len(argv) > 1 else None,
-                                      argv[2] if len(argv) > 2 else None)
-    except Exception:
-        return crashed()
-    return 1 if value.get('error') else 0
-
-
-def power_command(argv, original):
-    """tools/platform/y2-power-command, installed as /sbin/poweroff and /sbin/reboot ($0 is argv[0])."""
-    if not argv or argv[0] not in ('poweroff', 'reboot'):
-        return 2
-    if len(argv) > 1:
-        print('Use y2-platform shutdown for normal shutdown; emergency flags are not supported.', file=sys.stderr)
-        return 2
-    sys.argv = ['y2-platform', 'shutdown', argv[0], '--reason', 'user']
-    return original()
-
-
-def power_audit(argv):
-    """tools/platform/y2-power-audit with every absolute path below the fixture root."""
-    import glob as host_glob
-    import importlib.machinery
-    import importlib.util
-    import pathlib
-    import types
-    from y2_platform import cli, common
-    root = str(cli.Context().root)
-    script = Path(__file__).resolve().parents[2] / 'tools/platform/y2-power-audit'
-    loader = importlib.machinery.SourceFileLoader('y2_power_audit', str(script))
-    module = importlib.util.module_from_spec(importlib.util.spec_from_loader('y2_power_audit', loader))
-    loader.exec_module(module)
-    rooted = lambda p: p if str(p).startswith(root) else root + str(p)  # noqa: E731
-    original_read = module.read
-    module.read = lambda p: original_read(rooted(p))
-    module.Path = lambda p: pathlib.Path(rooted(p)) if str(p).startswith('/') else pathlib.Path(p)
-    module.glob = types.SimpleNamespace(glob=lambda pattern: [p[len(root):] for p in host_glob.glob(root + pattern)])
-    rooted_context = cli.Context()
-    common.Context = lambda *_: rooted_context
-    sys.argv = ['y2-power-audit', *argv]
-    try:
-        module.main()
-    except SystemExit:
-        raise
-    except Exception:
-        return crashed()
-    return 0

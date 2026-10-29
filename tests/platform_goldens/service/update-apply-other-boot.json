@@ -1,0 +1,23 @@
+{
+ "argv": [
+  "update",
+  "apply"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "update_needs_charger_or_half_battery",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

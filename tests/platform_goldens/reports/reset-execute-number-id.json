@@ -1,0 +1,22 @@
+{
+ "argv": [
+  "reset",
+  "execute",
+  "--confirm",
+  "792043d59db9ca0f4fb129543e88d42d139ea36cb08ded27d2897ee30124485f"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {
+   "/data/system/platform/.maintenance.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

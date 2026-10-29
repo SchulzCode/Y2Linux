@@ -1,0 +1,107 @@
+{
+ "argv": [
+  "media",
+  "check"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "e2fsck",
+    "-f",
+    "-n",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1800.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "action": "check",
+  "boot_id": "boot-a",
+  "cid": "035344534433324780a1b2c3d4016a00",
+  "device": "/dev/mmcblk1p1",
+  "filesystem": "ext4",
+  "filesystem_check": {
+   "elapsed_ms": "<volatile>",
+   "findings": [
+    "other"
+   ],
+   "ok": false,
+   "output": null,
+   "reason": "command_failed"
+  },
+  "identity": {
+   "cid": "035344534433324780a1b2c3d4016a00",
+   "filesystem": "ext4",
+   "geometry": {
+    "partition": "1",
+    "size": "62513152",
+    "start": "8192"
+   },
+   "id": "0ad68ec3de82ea31b1c9423df6991357f1d45ab43a21dbd9ad72acda2e4f8ac4",
+   "uuid": "1234-ABCD"
+  },
+  "reason": "command_failed",
+  "schema": 1,
+  "source_instance": "block:179:97:diskseq:9",
+  "state": "Degraded",
+  "uuid": "1234-ABCD"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.json": {
+    "content": {
+     "action": "check",
+     "boot_id": "boot-a",
+     "cid": "035344534433324780a1b2c3d4016a00",
+     "device": "/dev/mmcblk1p1",
+     "filesystem": "ext4",
+     "filesystem_check": {
+      "elapsed_ms": "<volatile>",
+      "findings": [
+       "other"
+      ],
+      "ok": false,
+      "output": null,
+      "reason": "command_failed"
+     },
+     "identity": {
+      "cid": "035344534433324780a1b2c3d4016a00",
+      "filesystem": "ext4",
+      "geometry": {
+       "partition": "1",
+       "size": "62513152",
+       "start": "8192"
+      },
+      "id": "0ad68ec3de82ea31b1c9423df6991357f1d45ab43a21dbd9ad72acda2e4f8ac4",
+      "uuid": "1234-ABCD"
+     },
+     "reason": "command_failed",
+     "schema": 1,
+     "source_instance": "block:179:97:diskseq:9",
+     "state": "Degraded",
+     "uuid": "1234-ABCD"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

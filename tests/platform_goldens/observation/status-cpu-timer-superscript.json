@@ -1,0 +1,27 @@
+{
+ "argv": [
+  "status",
+  "cpu"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/cat",
+    "<root>/sys/power/wakeup_count"
+   ],
+   "timeout": 0.1
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "reason": "invalid literal for int() with base 10: '\u00b2'",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,14 @@
+{
+ "argv": [
+  "sleep",
+  "no_such_action"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,15 @@
+{
+ "argv": [
+  "codec-settings",
+  "--sbc-quality",
+  "max"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

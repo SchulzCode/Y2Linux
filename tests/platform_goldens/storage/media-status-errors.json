@@ -1,0 +1,72 @@
+{
+ "argv": [
+  "media",
+  "status"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "available_bytes": "<volatile>",
+  "available_inodes": "<volatile>",
+  "capacity_state": "Undersized",
+  "controller_valid": true,
+  "device_id": "179:97",
+  "filesystem": "vfat",
+  "free_bytes": "<volatile>",
+  "generation": "boot-a:51:179:97",
+  "identity": {
+   "cid": "035344534433324780a1b2c3d4016a00",
+   "filesystem": "vfat",
+   "geometry": {
+    "partition": "1",
+    "size": "62513152",
+    "start": "8192"
+   },
+   "id": "378be454f12761e5cacb85b564b2e5d73dcb229acd8aba2bc5a3cbf937deb6d9",
+   "uuid": "1234-ABCD"
+  },
+  "mount_id": 51,
+  "options": [
+   "ro",
+   "nosuid",
+   "nodev",
+   "noexec",
+   "noatime"
+  ],
+  "partition_bytes": 32006733824,
+  "path": "/media/sd",
+  "read_only_reason": "filesystem_errors",
+  "reason": "read_only",
+  "root": "/",
+  "source": "/dev/mmcblk1p1",
+  "source_instance": "block:179:97:diskseq:9",
+  "space_state": "ReadOnlyRisk",
+  "state": "Degraded",
+  "super_options": [
+   "ro",
+   "fmask=0177",
+   "dmask=0077"
+  ],
+  "total_bytes": "<volatile>",
+  "uuid": "1234-ABCD",
+  "writable": false
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

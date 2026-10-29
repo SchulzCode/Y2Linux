@@ -1,0 +1,578 @@
+{
+ "argv": [
+  "status",
+  "cpu"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/cat",
+    "<root>/sys/power/wakeup_count"
+   ],
+   "timeout": 0.1
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p19"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p20"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p21"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "wpa_cli",
+    "-i",
+    "wlan0",
+    "status"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-j",
+    "-4",
+    "addr",
+    "show",
+    "dev",
+    "wlan0"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-j",
+    "-4",
+    "route",
+    "show",
+    "default",
+    "dev",
+    "wlan0"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "wpa_cli",
+    "-i",
+    "wlan0",
+    "signal_poll"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-bt-observe"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/sbin/ip",
+    "-4",
+    "-o",
+    "addr",
+    "show",
+    "dev",
+    "usb0"
+   ],
+   "timeout": 0.5
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "cpu": {
+   "cirq": null,
+   "clock_blockers": {
+    "slow_blockers": "5263360"
+   },
+   "counters": {
+    "ctxt": 5,
+    "intr": 99,
+    "processes": 77,
+    "procs_blocked": 0,
+    "procs_running": 1,
+    "softirq": 3
+   },
+   "dormant_preflight": "prerequisite_spm=1 prerequisite_cirq=0 unmet=,cirq,timer, peri_blockers=0x300c01 infra_blockers=0xa0 disp0=0b11 disp1=9 bad=x",
+   "dvfs_ceiling_khz": 1300000,
+   "dvfs_diagnostics": {
+    "bin_supported": "1",
+    "qualification_max_khz": "1300000"
+   },
+   "dvfs_fault": null,
+   "idle": [
+    {
+     "cpu": "cpu0",
+     "disabled": 0,
+     "exit_latency_us": null,
+     "name": "WFI",
+     "rejected": 0,
+     "state": "state0",
+     "target_residency_us": null,
+     "time_us": 50,
+     "usage": 100
+    },
+    {
+     "cpu": "cpu0",
+     "disabled": 0,
+     "exit_latency_us": null,
+     "name": "SLIDLE",
+     "rejected": null,
+     "state": "state1",
+     "target_residency_us": null,
+     "time_us": null,
+     "usage": 4
+    },
+    {
+     "cpu": "cpu0",
+     "disabled": 1,
+     "exit_latency_us": 300,
+     "name": "DORMANT",
+     "rejected": 1,
+     "state": "state2",
+     "target_residency_us": null,
+     "time_us": 8,
+     "usage": 2
+    },
+    {
+     "cpu": "cpu1",
+     "disabled": 0,
+     "exit_latency_us": null,
+     "name": "WFI",
+     "rejected": 1,
+     "state": "state0",
+     "target_residency_us": null,
+     "time_us": 9,
+     "usage": 7
+    }
+   ],
+   "idle_completion": {
+    "C1": {
+     "enabled": true,
+     "entries": 107,
+     "failures": 1,
+     "per_cpu": [
+      {
+       "cpu": "cpu0",
+       "disabled": 0,
+       "exit_latency_us": null,
+       "name": "WFI",
+       "rejected": 0,
+       "state": "state0",
+       "target_residency_us": null,
+       "time_us": 50,
+       "usage": 100
+      },
+      {
+       "cpu": "cpu1",
+       "disabled": 0,
+       "exit_latency_us": null,
+       "name": "WFI",
+       "rejected": 1,
+       "state": "state0",
+       "target_residency_us": null,
+       "time_us": 9,
+       "usage": 7
+      }
+     ],
+     "registered": true,
+     "residency_us": 59
+    },
+    "C2": {
+     "attribution": {
+      "slow_reason": "clock"
+     },
+     "blocker_owners": [
+      {
+       "bit": 12,
+       "clock": "MSDC0",
+       "owner": "eMMC",
+       "runtime_status": "suspended"
+      },
+      {
+       "bit": 14,
+       "clock": "MSDC2",
+       "owner": "unused controller",
+       "runtime_status": null
+      },
+      {
+       "bit": 20,
+       "clock": "BTIF",
+       "owner": "connectivity",
+       "runtime_status": "active"
+      },
+      {
+       "bit": 22,
+       "clock": "I2C1",
+       "owner": "DAC",
+       "runtime_status": null
+      }
+     ],
+     "enabled": true,
+     "entries": 4,
+     "failures": null,
+     "last_blocker": "MSDC0,BTIF",
+     "per_cpu": [
+      {
+       "cpu": "cpu0",
+       "disabled": 0,
+       "exit_latency_us": null,
+       "name": "SLIDLE",
+       "rejected": null,
+       "state": "state1",
+       "target_residency_us": null,
+       "time_us": null,
+       "usage": 4
+      }
+     ],
+     "registered": true,
+     "residency_us": null,
+     "shared_dma_owners": [
+      {
+       "name": "18070000.connectivity",
+       "runtime_status": "active"
+      },
+      {
+       "name": "11007000.i2c",
+       "runtime_status": null
+      },
+      {
+       "name": "11008000.i2c",
+       "runtime_status": null
+      }
+     ]
+    },
+    "C3": {
+     "blocker_owners": [
+      {
+       "bit": 0,
+       "clock": "NFI",
+       "group": "peri_blockers",
+       "owner": "peripheral controller",
+       "runtime_status": null
+      },
+      {
+       "bit": 10,
+       "clock": "USB0",
+       "group": "peri_blockers",
+       "owner": "peripheral controller",
+       "runtime_status": null
+      },
+      {
+       "bit": 11,
+       "clock": "APDMA",
+       "group": "peri_blockers",
+       "owner": "peripheral controller",
+       "runtime_status": "active"
+      },
+      {
+       "bit": 20,
+       "clock": "BTIF",
+       "group": "peri_blockers",
+       "owner": "peripheral controller",
+       "runtime_status": "active"
+      },
+      {
+       "bit": 21,
+       "clock": "I2C0",
+       "group": "peri_blockers",
+       "owner": "peripheral controller",
+       "runtime_status": null
+      },
+      {
+       "bit": 5,
+       "clock": "AFE",
+       "group": "infra_blockers",
+       "owner": "infrastructure clock owner",
+       "runtime_status": null
+      },
+      {
+       "bit": 7,
+       "clock": "L2C_SRAM",
+       "group": "infra_blockers",
+       "owner": "infrastructure clock owner",
+       "runtime_status": null
+      },
+      {
+       "bit": 0,
+       "clock": "SMI_COMMON",
+       "group": "disp0",
+       "owner": "DRM / inherited engine",
+       "runtime_status": null
+      },
+      {
+       "bit": 1,
+       "clock": "SMI_LARB0",
+       "group": "disp0",
+       "owner": "DRM / inherited engine",
+       "runtime_status": null
+      },
+      {
+       "bit": 0,
+       "clock": "DSI_ENGINE",
+       "group": "disp1",
+       "owner": "DRM / inherited engine",
+       "runtime_status": null
+      },
+      {
+       "bit": 3,
+       "clock": "DPI_ENGINE",
+       "group": "disp1",
+       "owner": "DRM / inherited engine",
+       "runtime_status": null
+      }
+     ],
+     "boot_policy": {
+      "boot_id": "boot-a",
+      "state": "Enabled"
+     },
+     "context": "pc=3 uart_sleep_count=4 uart_power_on=1 other=2",
+     "display_idle": {
+      "display_gate": "closed"
+     },
+     "enabled": false,
+     "entries": 2,
+     "entry_budget": 12,
+     "failures": 1,
+     "per_cpu": [
+      {
+       "cpu": "cpu0",
+       "disabled": 1,
+       "exit_latency_us": 300,
+       "name": "DORMANT",
+       "rejected": 1,
+       "state": "state2",
+       "target_residency_us": null,
+       "time_us": 8,
+       "usage": 2
+      }
+     ],
+     "preflight": "prerequisite_spm=1 prerequisite_cirq=0 unmet=,cirq,timer, peri_blockers=0x300c01 infra_blockers=0xa0 disp0=0b11 disp1=9 bad=x",
+     "prerequisites": {
+      "cirq": false,
+      "spm": true
+     },
+     "registered": true,
+     "residency_us": 8,
+     "uart_clock_handoff": null,
+     "uart_sleep": {
+      "uart_power_on": "1",
+      "uart_sleep_count": "4"
+     },
+     "unmet": [
+      "cirq",
+      "timer"
+     ],
+     "unused_clock_handoff": "done"
+    }
+   },
+   "idle_diagnostics": {
+    "fast": "1",
+    "slow_reason": "clock"
+   },
+   "load_average": "0.10 0.20 0.30 1/80 999",
+   "mmc_runtime_pm": {
+    "11230000.mmc": "enabled=1 delay_ms=200"
+   },
+   "online": "0-1",
+   "policies": [
+    {
+     "admitted_opp_khz": [
+      598000,
+      747500,
+      1040000,
+      1300000
+     ],
+     "affected_cpus": "0 1",
+     "cpuinfo_cur_freq": null,
+     "cpuinfo_max_freq": null,
+     "cpuinfo_min_freq": null,
+     "frequency_unit": "kHz",
+     "name": "policy0",
+     "scaling_available_frequencies": "598000 747500 1040000 1300000 1500000 x",
+     "scaling_cur_freq": null,
+     "scaling_driver": null,
+     "scaling_governor": "schedutil",
+     "scaling_max_freq": "1300000",
+     "scaling_min_freq": null,
+     "time_in_state": {
+      "1300000": 20,
+      "598000": 10
+     },
+     "time_in_state_unit": "USER_HZ_ticks"
+    }
+   ],
+   "pwrap_readiness": null,
+   "radio_boot_retries": null,
+   "recovery_options": {},
+   "slidle_attribution": {
+    "slow_blocker_names": "MSDC0,BTIF",
+    "slow_blockers": "5263360"
+   },
+   "slidle_clock_owners": "MSDC0,BTIF",
+   "spm": "pc=3 uart_sleep_count=4 uart_power_on=1 other=2",
+   "stock_bin": "1",
+   "suspend_persistent": {
+    "backstop": null,
+    "current": "idle",
+    "device_callbacks": "cb=1",
+    "device_callbacks_previous_boot": null,
+    "durable": {
+     "product": {
+      "kernel_completed": true,
+      "reason": null,
+      "request_boot_id": "boot-a",
+      "state": "restored",
+      "wake_reason": "power"
+     }
+    },
+    "previous_boot": null,
+    "radio_restore": null,
+    "reset_status": "valid=1 cause=software_reset raw=0x00000004",
+    "retention": null,
+    "selftest": null,
+    "usb_restore": {
+     "11200000.usb": "transfer=dma dma_tx=10 dma_rx=x pio_rx=2 irq_count=99 detached=1 reconnect_retries=2 runtime_held=0"
+    }
+   },
+   "suspend_stage": null,
+   "system_idle": {
+    "mode": "2"
+   },
+   "throttling_reason": null,
+   "ticks": {
+    "cpu": [
+     100,
+     0,
+     50,
+     1000,
+     5,
+     0,
+     1,
+     0
+    ],
+    "cpu0": [
+     100,
+     0,
+     50,
+     1000,
+     5,
+     0,
+     1,
+     0
+    ],
+    "cpu1": [
+     7,
+     null
+    ]
+   },
+   "ticks_unit": "USER_HZ_ticks",
+   "timer": {
+    "admission": {
+     "admission": "on"
+    },
+    "broadcast_clockevent": null,
+    "clockevents": {
+     "clockevent0": "arch_sys_timer"
+    },
+    "clocksource": "arch_sys_counter",
+    "highres_active": true,
+    "no_hz_active": false,
+    "per_cpu": [
+     {
+      "cpu": 0,
+      "hres_active": 1,
+      "nohz": 1,
+      "tick_stopped": 0
+     },
+     {
+      "cpu": 1,
+      "hres_active": 1,
+      "nohz": 0
+     }
+    ],
+    "reason": null,
+    "source": "/proc/timer_list"
+   },
+   "utilization_percent": null,
+   "voltage_ownership": null,
+   "voltage_uv": null,
+   "wakeup_count": null,
+   "wakeup_count_reason": "fixture",
+   "workload_qos": {
+    "implemented": false,
+    "interactive_max_ms": 500,
+    "lease_max_ms": 30000,
+    "leases": "none"
+   }
+  },
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "collection_duration_ns": "<volatile>",
+   "evidence_level": "IMPLEMENTED",
+   "failure": null,
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {},
+   "reborn_commit": "reborn",
+   "result": "observed",
+   "rootfs_release": "v1.0",
+   "units": {
+    "collection_duration": "ns"
+   },
+   "wall_timestamp": "<volatile>",
+   "workload": "observation",
+   "y2linux_commit": "linux-commit"
+  },
+  "schema": "org.y2linux.status/v1"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

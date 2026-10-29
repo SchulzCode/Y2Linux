@@ -1,0 +1,47 @@
+{
+ "argv": [
+  "report",
+  "check",
+  "--topic",
+  "wifi"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "rebornctl",
+    "health",
+    "--json"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "dmesg"
+   ],
+   "timeout": 5.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "reports": []
+ },
+ "tree": {
+  "added": {},
+  "changed": {
+   "/data/system/platform/reports.json": {
+    "content": {
+     "boot_triggers": {},
+     "daily": {},
+     "enabled": true,
+     "install_id": "6f1c3b2a-9d4e-4f5a-8b7c-0d1e2f3a4b5c",
+     "schema": 1,
+     "seen": {},
+     "uploads": {}
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

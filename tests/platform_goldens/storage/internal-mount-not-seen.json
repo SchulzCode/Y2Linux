@@ -1,0 +1,76 @@
+{
+ "argv": [
+  "internal-media",
+  "mount"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk0p8"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "e2fsck",
+    "-p",
+    "/dev/mmcblk0p8"
+   ],
+   "timeout": 180.0
+  },
+  {
+   "argv": [
+    "mount",
+    "-t",
+    "ext4",
+    "-o",
+    "rw,nosuid,nodev,noexec,noatime,noinit_itable",
+    "/dev/mmcblk0p8",
+    "/media/internal"
+   ],
+   "timeout": 20.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "boot_id": "boot-a",
+  "path": "/media/internal",
+  "reason": "mount_identity_failed",
+  "schema": 1,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/media": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/media/internal": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/run/y2/internal-media.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "path": "/media/internal",
+     "reason": "mount_identity_failed",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/internal-media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "internal-media",
+  "status"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "filesystem": null,
+  "identity_valid": false,
+  "label": null,
+  "marker": {},
+  "mounted": false,
+  "partition": null,
+  "path": "/media/internal",
+  "ready": false,
+  "schema": 1,
+  "uuid": null
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

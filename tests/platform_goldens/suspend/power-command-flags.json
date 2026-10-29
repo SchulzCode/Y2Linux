@@ -1,0 +1,15 @@
+{
+ "argv": [
+  "__power-command",
+  "reboot",
+  "-f"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

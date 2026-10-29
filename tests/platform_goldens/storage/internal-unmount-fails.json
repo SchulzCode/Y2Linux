@@ -1,0 +1,45 @@
+{
+ "argv": [
+  "internal-media",
+  "unmount"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "umount",
+    "/media/internal"
+   ],
+   "timeout": 10.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "boot_id": "boot-a",
+  "path": "/media/internal",
+  "reason": "fixture",
+  "schema": 1,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/internal-media.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "path": "/media/internal",
+     "reason": "fixture",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/internal-media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

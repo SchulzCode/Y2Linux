@@ -1,0 +1,14 @@
+{
+ "argv": [
+  "transfer",
+  "list"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

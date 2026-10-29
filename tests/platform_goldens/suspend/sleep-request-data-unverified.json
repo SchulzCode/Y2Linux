@@ -1,0 +1,68 @@
+{
+ "argv": [
+  "sleep",
+  "request"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "boot_id": "boot-a",
+  "kernel_completed": false,
+  "reason": "fixture_launcher_unavailable",
+  "request_boot_id": "boot-a",
+  "same_boot": true,
+  "schema": "org.y2linux.sleep/v1",
+  "state": "refused",
+  "wake_reason": "unknown"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/suspend.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/system/platform/suspend-last.json": {
+    "content": {
+     "current_boot_id": "boot-a",
+     "persistent_kernel": null,
+     "pm_test": "none",
+     "product": {
+      "boot_id": "boot-a",
+      "kernel_completed": false,
+      "reason": "fixture_launcher_unavailable",
+      "request_boot_id": "boot-a",
+      "same_boot": true,
+      "schema": "org.y2linux.sleep/v1",
+      "state": "refused",
+      "wake_reason": "unknown"
+     },
+     "radio_restore": null,
+     "request_boot_id": "boot-a",
+     "requested_mode": "deep",
+     "result": 2,
+     "schema": 1,
+     "stage": "refused_fixture_launcher_unavailable",
+     "stages": [
+      {
+       "result": 2,
+       "stage": "refused_fixture_launcher_unavailable",
+       "time": "<volatile>"
+      }
+     ],
+     "started": "<volatile>",
+     "updated": "<volatile>",
+     "usb_restore": {
+      "controllers": {},
+      "udcs": {}
+     }
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

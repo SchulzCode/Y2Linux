@@ -1,0 +1,83 @@
+{
+ "argv": [
+  "reset",
+  "plan",
+  "--scope",
+  "caches"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "boot_id": "boot-a",
+  "confirmation": "<hex64>",
+  "data_generation": "boot-a:30:259:5",
+  "data_uuid": "79324c69-6e75-4801-8000-000000000102",
+  "expires_monotonic_s": "<volatile>",
+  "id": "<hex32>",
+  "preserved": [
+   "SSH identity",
+   "entropy",
+   "update/rollback",
+   "factory/calibration",
+   "unknown data directories",
+   "Y2Media internal music (/media/internal; delete files over MTP)"
+  ],
+  "restart": "owner reboot after completion",
+  "schema": 1,
+  "scope": "caches",
+  "state": "Planned",
+  "stop_services": [
+   "S90reborn",
+   "S42y2-readiness"
+  ],
+  "targets": []
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/reset-plan.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "confirmation": "<hex64>",
+     "data_generation": "boot-a:30:259:5",
+     "data_uuid": "79324c69-6e75-4801-8000-000000000102",
+     "expires_monotonic_s": "<volatile>",
+     "id": "<hex32>",
+     "preserved": [
+      "SSH identity",
+      "entropy",
+      "update/rollback",
+      "factory/calibration",
+      "unknown data directories",
+      "Y2Media internal music (/media/internal; delete files over MTP)"
+     ],
+     "restart": "owner reboot after completion",
+     "schema": 1,
+     "scope": "caches",
+     "state": "Planned",
+     "stop_services": [
+      "S90reborn",
+      "S42y2-readiness"
+     ],
+     "targets": []
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

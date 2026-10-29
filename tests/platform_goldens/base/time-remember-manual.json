@@ -1,0 +1,39 @@
+{
+ "argv": [
+  "time-remember"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "boot_id": "boot-a",
+  "boottime_s": "<volatile>",
+  "epoch": "<volatile>",
+  "monotonic_s": "<volatile>",
+  "schema": 1,
+  "source": "manual"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/time.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/system/platform/time-last.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "boottime_s": "<volatile>",
+     "epoch": "<volatile>",
+     "monotonic_s": "<volatile>",
+     "schema": 1,
+     "source": "manual"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

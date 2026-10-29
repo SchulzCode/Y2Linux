@@ -1,0 +1,45 @@
+{
+ "argv": [
+  "codec-runtime",
+  "--record"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": [
+  "--codec=AAC --codec=-LDAC --sbc-quality=high --sbc-abr --aac-afterburner --aac-bitrate=320000 --aac-abr --ldac-quality=standard --ldac-abr"
+ ],
+ "tree": {
+  "added": {
+   "/run/y2/codec-runtime.json": {
+    "content": {
+     "arguments": [
+      "--codec=AAC",
+      "--codec=-LDAC",
+      "--sbc-quality=high",
+      "--sbc-abr",
+      "--aac-afterburner",
+      "--aac-bitrate=320000",
+      "--aac-abr",
+      "--ldac-quality=standard",
+      "--ldac-abr"
+     ],
+     "boot_id": "boot-a",
+     "settings": {
+      "aac_abr": true,
+      "aac_quality": "high",
+      "experimental": false,
+      "ldac_abr": true,
+      "ldac_quality": "standard",
+      "sbc_abr": true,
+      "sbc_quality": "high",
+      "schema": 1
+     }
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

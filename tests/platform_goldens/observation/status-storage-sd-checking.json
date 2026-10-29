@@ -1,0 +1,283 @@
+{
+ "argv": [
+  "status",
+  "storage"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/cat",
+    "<root>/sys/power/wakeup_count"
+   ],
+   "timeout": 0.1
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p19"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p20"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p21"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-bt-observe"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/sbin/ip",
+    "-4",
+    "-o",
+    "addr",
+    "show",
+    "dev",
+    "usb0"
+   ],
+   "timeout": 0.5
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "collection_duration_ns": "<volatile>",
+   "evidence_level": "IMPLEMENTED",
+   "failure": null,
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {},
+   "reborn_commit": "reborn",
+   "result": "observed",
+   "rootfs_release": "v1.0",
+   "units": {
+    "collection_duration": "ns"
+   },
+   "wall_timestamp": "<volatile>",
+   "workload": "observation",
+   "y2linux_commit": "linux-commit"
+  },
+  "schema": "org.y2linux.status/v1",
+  "storage": {
+   "blocks": [
+    {
+     "cid": null,
+     "io_error_count": 0,
+     "name": "11230000.mmc-blk",
+     "name_id": null,
+     "serial": null,
+     "size_sectors": 7634944,
+     "stat": "1 2 3 4",
+     "stat_unit": "Linux_block_stat_fields_sectors_512_bytes",
+     "type": "MMC"
+    }
+   ],
+   "bus_parameters": "clock: 200000000 Hz",
+   "controllers": [
+    {
+     "actual_hz": 187500000,
+     "cap_hz": 200000000,
+     "clock_error": -3,
+     "fallbacks": 1,
+     "mode": {
+      "a": -2,
+      "bus_width": 8,
+      "crc_events": 0,
+      "mode": "hs200",
+      "tuning": 31
+     },
+     "name": "11230000.mmc",
+     "runtime_pm": {
+      "delay_ms": 200,
+      "enabled": 1
+     },
+     "runtime_status": "active",
+     "transport_errors": 0,
+     "tuning": "phase=3"
+    }
+   ],
+   "internal_setup": {
+    "bytes": 9,
+    "files": 3,
+    "reason": null,
+    "state": "Ready"
+   },
+   "media": {
+    "last_operation": {
+     "reason": null,
+     "state": "Ready"
+    },
+    "lifecycle": {
+     "state": "Mounted"
+    }
+   },
+   "sd_bus_parameters": null,
+   "volumes": [
+    {
+     "available_bytes": "<volatile>",
+     "available_inodes": "<volatile>",
+     "controller_valid": true,
+     "device_id": "179:19",
+     "filesystem": "ext4",
+     "free_bytes": "<volatile>",
+     "generation": "boot-a:22:179:19",
+     "mount_id": 22,
+     "options": [
+      "ro"
+     ],
+     "path": "/",
+     "reason": "read_only",
+     "root": "/",
+     "source": "/dev/mmcblk0p19",
+     "source_instance": "block:179:19:diskseq:7",
+     "space_state": "ReadOnlyRisk",
+     "state": "Degraded",
+     "super_options": [
+      "ro"
+     ],
+     "total_bytes": "<volatile>",
+     "uuid": "79324c69-6e75-4801-8000-000000000101"
+    },
+    {
+     "available_bytes": "<volatile>",
+     "available_inodes": "<volatile>",
+     "controller_valid": true,
+     "device_id": "179:20",
+     "filesystem": "ext4",
+     "free_bytes": "<volatile>",
+     "generation": "boot-a:30:179:20",
+     "mount_id": 30,
+     "options": [
+      "rw",
+      "noatime"
+     ],
+     "path": "/data",
+     "reason": null,
+     "root": "/",
+     "source": "/dev/mmcblk0p20",
+     "source_instance": "block:179:20:diskseq:7",
+     "space_state": "Normal",
+     "state": "Ready",
+     "super_options": [
+      "rw"
+     ],
+     "total_bytes": "<volatile>",
+     "uuid": "79324c69-6e75-4801-8000-000000000102"
+    },
+    {
+     "available_bytes": "<volatile>",
+     "available_inodes": "<volatile>",
+     "capacity_state": "Full",
+     "controller_valid": true,
+     "device_id": "179:33",
+     "filesystem": "vfat",
+     "free_bytes": "<volatile>",
+     "generation": "boot-a:40:179:33",
+     "identity": {
+      "cid": "1b534d454231515430",
+      "filesystem": "vfat",
+      "geometry": {
+       "partition": "1",
+       "size": "1000",
+       "start": "8192"
+      },
+      "id": "fc8e92ac21e892852c79b65b24da9a06a62bd40f785aeb6f071990c998fc3641",
+      "uuid": "1234-ABCD"
+     },
+     "mount_id": 40,
+     "options": [
+      "ro",
+      "nosuid"
+     ],
+     "partition_bytes": 512000,
+     "path": "/media/sd",
+     "reason": null,
+     "root": "/",
+     "source": "/dev/mmcblk1p1",
+     "source_instance": "block:179:33:diskseq:12",
+     "space_state": "Normal",
+     "state": "Ready",
+     "super_options": [
+      "ro"
+     ],
+     "total_bytes": "<volatile>",
+     "uuid": "1234-ABCD",
+     "writable": false
+    },
+    {
+     "available_bytes": "<volatile>",
+     "available_inodes": "<volatile>",
+     "controller_valid": true,
+     "device_id": "179:21",
+     "filesystem": "ext4",
+     "free_bytes": "<volatile>",
+     "generation": "boot-a:41:179:21",
+     "mount_id": 41,
+     "options": [
+      "rw",
+      "noatime"
+     ],
+     "path": "/media/internal",
+     "reason": null,
+     "root": "/",
+     "source": "/dev/mmcblk0p21",
+     "source_instance": "block:179:21:diskseq:7",
+     "space_state": "Normal",
+     "state": "Ready",
+     "super_options": [
+      "rw"
+     ],
+     "total_bytes": "<volatile>",
+     "uuid": "79324c69-6e75-4801-8000-000000000103"
+    }
+   ]
+  }
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

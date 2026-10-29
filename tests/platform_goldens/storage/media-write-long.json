@@ -1,0 +1,56 @@
+{
+ "argv": [
+  "media",
+  "write",
+  "--holder",
+  "radiofw",
+  "--seconds",
+  "5000",
+  "--holder",
+  "usb"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "mount",
+    "-o",
+    "remount,rw",
+    "/media/sd"
+   ],
+   "timeout": 10.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "failure": "remount_failed",
+  "holders": [
+   "usb"
+  ],
+  "reason": "remount_failed",
+  "state": "Failed",
+  "writable": false
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/sd-write.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "holders": {
+      "usb": "<volatile>"
+     },
+     "mount_id": 51,
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

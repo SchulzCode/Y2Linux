@@ -1,0 +1,53 @@
+{
+ "argv": [
+  "media",
+  "format",
+  "--confirm-cid",
+  "035344534433324780a1b2c3d4016a00"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "umount",
+    "/media/sd"
+   ],
+   "timeout": 10.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "action": "format",
+  "boot_id": "boot-a",
+  "cid": "035344534433324780a1b2c3d4016a00",
+  "device": "/dev/mmcblk1",
+  "reason": "unmount_busy",
+  "schema": 1,
+  "sectors": 20000,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.json": {
+    "content": {
+     "action": "format",
+     "boot_id": "boot-a",
+     "cid": "035344534433324780a1b2c3d4016a00",
+     "device": "/dev/mmcblk1",
+     "reason": "unmount_busy",
+     "schema": 1,
+     "sectors": 20000,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

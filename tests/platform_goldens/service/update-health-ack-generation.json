@@ -1,0 +1,26 @@
+{
+ "argv": [
+  "update",
+  "health-ack"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "reason": "application_generation_changed",
+  "state": "PendingHealth"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/update-health.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "deadline_monotonic_s": "<volatile>"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,23 @@
+{
+ "argv": [
+  "reset",
+  "purge"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "invalid_reset_id",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

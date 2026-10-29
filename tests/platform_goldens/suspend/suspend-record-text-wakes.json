@@ -1,0 +1,15 @@
+{
+ "argv": [
+  "__suspend-record",
+  "maintenance_wake",
+  "0"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

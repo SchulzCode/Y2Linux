@@ -1,0 +1,101 @@
+{
+ "argv": [
+  "status",
+  "wifi",
+  "--pid",
+  "4242",
+  "--reborn",
+  "--json"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/cat",
+    "<root>/sys/power/wakeup_count"
+   ],
+   "timeout": 0.1
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-bt-observe"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/sbin/ip",
+    "-4",
+    "-o",
+    "addr",
+    "show",
+    "dev",
+    "usb0"
+   ],
+   "timeout": 0.5
+  },
+  {
+   "argv": [
+    "/usr/bin/rebornctl",
+    "metrics",
+    "--json"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "collection_duration_ns": "<volatile>",
+   "evidence_level": "IMPLEMENTED",
+   "failure": null,
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {},
+   "reborn_commit": "reborn",
+   "result": "observed",
+   "rootfs_release": "v1.0",
+   "units": {
+    "collection_duration": "ns"
+   },
+   "wall_timestamp": "<volatile>",
+   "workload": "observation",
+   "y2linux_commit": "linux-commit"
+  },
+  "schema": "org.y2linux.status/v1",
+  "wifi": {
+   "association": null,
+   "association_id": null,
+   "coexistence": null,
+   "default_route": [],
+   "dns_ready": false,
+   "events": {
+    "boot_id": "boot-a",
+    "connected": 1,
+    "last_event": "CONNECTED",
+    "real_disconnects": 0
+   },
+   "failed_network_id": null,
+   "ip_addresses": [],
+   "power_save": null,
+   "radio_present": false,
+   "reason": "radio_off",
+   "reconnect_owner": "wpa_supplicant",
+   "rssi_dbm": null,
+   "signal_observation": null,
+   "state": "Off",
+   "supplicant_observation": {
+    "duration_ns": "<volatile>",
+    "ok": null,
+    "reason": "radio_off"
+   },
+   "traffic_counters": {}
+  }
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

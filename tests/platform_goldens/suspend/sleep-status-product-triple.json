@@ -1,0 +1,19 @@
+{
+ "argv": [
+  "sleep",
+  "status"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "dictionary update sequence element #0 has length 3; 2 is required",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

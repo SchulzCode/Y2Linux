@@ -1,0 +1,39 @@
+{
+ "argv": [
+  "media",
+  "format",
+  "--confirm-cid",
+  "035344534433324780a1b2c3d4016a00"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "action": "format",
+  "boot_id": "boot-a",
+  "reason": "no_unique_card",
+  "schema": 1,
+  "state": "Unavailable"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.json": {
+    "content": {
+     "action": "format",
+     "boot_id": "boot-a",
+     "reason": "no_unique_card",
+     "schema": 1,
+     "state": "Unavailable"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

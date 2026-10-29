@@ -1,0 +1,40 @@
+{
+ "argv": [
+  "bench-library"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "measurements": null,
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "evidence_level": "IMPLEMENTED",
+   "failure": "[Errno 19] source_unavailable",
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {
+    "scan": false,
+    "tracks": 1000,
+    "volume": "/data"
+   },
+   "reborn_commit": "reborn",
+   "result": "FAILED",
+   "rootfs_release": "v1.0",
+   "units": {
+    "latency": "ms",
+    "memory": "KiB",
+    "size": "bytes"
+   },
+   "wall_timestamp": "<volatile>",
+   "workload": "reborn-library",
+   "y2linux_commit": "linux-commit"
+  },
+  "schema": "org.y2linux.benchmark/v1"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

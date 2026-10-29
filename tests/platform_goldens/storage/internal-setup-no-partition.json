@@ -1,0 +1,36 @@
+{
+ "argv": [
+  "internal-media",
+  "setup",
+  "--automatic"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "boot_id": "boot-a",
+  "reason": "partition_geometry_not_found",
+  "schema": 1,
+  "state": "Unavailable"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/internal-media-setup.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "reason": "partition_geometry_not_found",
+     "schema": 1,
+     "state": "Unavailable"
+    },
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/run/y2/internal-media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

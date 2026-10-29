@@ -1,0 +1,23 @@
+{
+ "argv": [
+  "sleep",
+  "request"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "boot_id": "boot-a",
+  "kernel_completed": true,
+  "reason": "sleep_operation_in_progress",
+  "request_boot_id": "boot-a",
+  "same_boot": true,
+  "schema": "org.y2linux.sleep/v1",
+  "state": "refused",
+  "wake_reason": "power"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

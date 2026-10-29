@@ -1,0 +1,74 @@
+{
+ "argv": [
+  "dhcp-event",
+  "bound"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "ip",
+    "-4",
+    "address",
+    "flush",
+    "dev",
+    "wlan0",
+    "scope",
+    "global"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-4",
+    "route",
+    "flush",
+    "dev",
+    "wlan0"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "ip",
+    "link",
+    "set",
+    "dev",
+    "wlan0",
+    "up"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "reason": "lease_configuration_failed",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/dhcp.json": {
+    "content": {
+     "address": null,
+     "boot_id": "boot-a",
+     "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+     "error": "lease_configuration_failed",
+     "monotonic_s": "<volatile>",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/dhcp.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}
