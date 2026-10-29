@@ -1,112 +1,12 @@
-//! The dispatcher hands every command it does not run itself to Python exactly as the shell wrapper did,
-//! and parses, prints help and refuses arguments itself as main.py's argparse parser does.
+//! The dispatcher parses, prints help and refuses arguments itself as main.py's argparse parser did.
 // SPDX-License-Identifier: GPL-2.0-only
 use std::{
     ffi::OsStr,
-    fs,
-    io::Write,
-    os::unix::{ffi::OsStrExt, fs::PermissionsExt},
-    path::PathBuf,
+    os::unix::ffi::OsStrExt,
     process::{Command, Stdio},
 };
 
 const BINARY: &str = env!("CARGO_BIN_EXE_y2-platform");
-
-/// A stand-in interpreter: prints its PID, arguments, the two Python variables and stdin, exits 3.
-fn fake_python(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("y2-dispatch-{}-{name}", std::process::id()));
-    fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("python3");
-    fs::write(
-        &path,
-        "#!/bin/sh\necho \"pid=$$\"\nfor a in \"$@\"; do echo \"arg=$a\"; done\n\
-         echo \"PYTHONPATH=${PYTHONPATH-unset}\"\necho \"PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE-unset}\"\n\
-         echo \"KEPT=${KEPT-unset}\"\necho \"stdin=$(cat)\"\nexit 3\n",
-    )
-    .unwrap();
-    fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
-    path
-}
-
-#[test]
-fn python_replaces_the_dispatcher_with_the_same_arguments() {
-    let python = fake_python("same");
-    let mut child = Command::new(BINARY)
-        // Not UTF-8: Python parses it (with surrogate escapes), so the arguments go to it as given.
-        .args(["--no-such-option", "--reborn", "a b", ""])
-        .arg(OsStr::from_bytes(b"\xff"))
-        .env("Y2_ROOT", "/nonexistent")
-        .env("Y2_PLATFORM_PYTHON", &python)
-        .env("Y2_PLATFORM_MAIN", "/fixture/main.py")
-        .env("KEPT", "inherited")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()
-        .unwrap();
-    child.stdin.take().unwrap().write_all(b"input").unwrap();
-    let pid = child.id();
-    let output = child.wait_with_output().unwrap();
-    assert_eq!(
-        output.status.code(),
-        Some(3),
-        "Python's exit code is the command's"
-    );
-    assert_eq!(
-        String::from_utf8_lossy(&output.stdout),
-        format!(
-            "pid={pid}\narg=-I\narg=/fixture/main.py\narg=--no-such-option\narg=--reborn\narg=a b\narg=\narg=\u{fffd}\n\
-             PYTHONPATH=/usr/lib/y2-platform\nPYTHONDONTWRITEBYTECODE=1\nKEPT=inherited\nstdin=input\n"
-        ),
-        "exec in the same process (callers signal this PID), argv, environment and stdin unchanged"
-    );
-}
-
-#[test]
-fn only_a_fixture_root_may_name_another_interpreter() {
-    let python = fake_python("real");
-    let output = Command::new(BINARY)
-        .args(["network-check", "--peer", "router"])
-        .env_remove("Y2_ROOT")
-        .env("Y2_PLATFORM_PYTHON", &python)
-        .env("Y2_PLATFORM_MAIN", "/fixture/main.py")
-        .stdin(Stdio::null())
-        .output()
-        .unwrap();
-    assert!(!String::from_utf8_lossy(&output.stdout).contains("arg=/fixture/main.py"));
-}
-
-#[test]
-fn a_missing_interpreter_fails_like_the_shell() {
-    let output = Command::new(BINARY)
-        .args(["network-check", "--peer", "router"])
-        .env("Y2_ROOT", "/nonexistent")
-        .env("Y2_PLATFORM_PYTHON", "/nonexistent/python3")
-        .stdin(Stdio::null())
-        .output()
-        .unwrap();
-    assert_eq!(output.status.code(), Some(127));
-    assert!(output.stdout.is_empty());
-    assert!(
-        String::from_utf8_lossy(&output.stderr).starts_with("y2-platform: /nonexistent/python3: ")
-    );
-}
-
-#[test]
-fn a_parsed_command_no_route_takes_goes_to_python_as_given() {
-    let python = fake_python("given");
-    let output = Command::new(BINARY)
-        .args(["network-check", "--peer", "a b", "--seconds", "3"])
-        .env("Y2_ROOT", "/nonexistent")
-        .env("Y2_PLATFORM_PYTHON", &python)
-        .env("Y2_PLATFORM_MAIN", "/fixture/main.py")
-        .stdin(Stdio::null())
-        .output()
-        .unwrap();
-    assert_eq!(output.status.code(), Some(3));
-    assert!(String::from_utf8_lossy(&output.stdout).contains(
-        "arg=/fixture/main.py\narg=network-check\narg=--peer\narg=a b\narg=--seconds\narg=3\n"
-    ));
-}
 
 #[test]
 fn help_and_argument_errors_are_printed_without_python() {
@@ -133,6 +33,53 @@ fn help_and_argument_errors_are_printed_without_python() {
         String::from_utf8(error.stderr).unwrap(),
         "usage: main.py sleep [-h] {request,status,prepare}\nmain.py sleep: error: argument action: invalid choice: 'nap' (choose from 'request', 'status', 'prepare')\n"
     );
+}
+
+#[test]
+fn arguments_that_are_not_utf8_are_parsed_as_python_sees_them() {
+    // os.fsdecode: each byte that is no UTF-8 is a lone surrogate, shown as \udcXX.
+    let run = |args: &[&[u8]]| {
+        Command::new(BINARY)
+            .args(args.iter().map(|a| OsStr::from_bytes(a)))
+            .env("Y2_ROOT", "/nonexistent")
+            .env("Y2_PLATFORM_PYTHON", "/nonexistent/python3")
+            .stdin(Stdio::null())
+            .output()
+            .unwrap()
+    };
+    let error = run(&[b"sleep", b"n\xffp"]);
+    assert_eq!(error.status.code(), Some(2));
+    assert!(error.stdout.is_empty());
+    assert_eq!(
+        String::from_utf8(error.stderr).unwrap(),
+        "usage: main.py sleep [-h] {request,status,prepare}\nmain.py sleep: error: argument action: invalid choice: \
+         'n\\udcffp' (choose from 'request', 'status', 'prepare')\n"
+    );
+    let int = run(&[b"time-set", b"\xe2\x82"]);
+    assert_eq!(int.status.code(), Some(2));
+    assert!(String::from_utf8(int.stderr)
+        .unwrap()
+        .ends_with("error: argument epoch: invalid int value: '\\udce2\\udc82'\n"));
+    // A routed command runs in Rust: boot.mark refuses the stage before it reads anything.
+    let stage = run(&[b"boot-stage", b"a\xffb"]);
+    assert_eq!(stage.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(stage.stdout).unwrap(),
+        "{\"schema\": \"org.y2linux.error/v1\", \"state\": \"Failed\", \"reason\": \"unknown_boot_stage\", \
+         \"type\": \"ValueError\"}\n"
+    );
+    // The parse holds Python's surrogates (ASCII JSON: \udcff).
+    let echo = Command::new(BINARY)
+        .arg("boot-stage")
+        .arg(OsStr::from_bytes(b"\xff"))
+        .env("Y2_ROOT", "/nonexistent")
+        .env("Y2_ARGPARSE_ECHO", "1")
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert!(String::from_utf8(echo.stdout)
+        .unwrap()
+        .contains("\"canonical\": [\"boot-stage\", \"\\udcff\"]"));
 }
 
 #[test]

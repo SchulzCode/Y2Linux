@@ -84,11 +84,16 @@ impl Formatter for PythonFormatter {
                 continue;
             }
             writer.write_all(&fragment.as_bytes()[start..index])?;
+            start = index + c.len_utf8();
+            if let Some(unit) = crate::os_text::surrogate(c) {
+                // An escaped byte of a non-UTF-8 argument: Python's lone surrogate.
+                write!(writer, "\\u{unit:04x}")?;
+                continue;
+            }
             let mut units = [0u16; 2];
             for unit in c.encode_utf16(&mut units) {
                 write!(writer, "\\u{unit:04x}")?;
             }
-            start = index + c.len_utf8();
         }
         writer.write_all(&fragment.as_bytes()[start..])
     }

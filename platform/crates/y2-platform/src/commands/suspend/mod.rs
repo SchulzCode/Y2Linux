@@ -6,8 +6,8 @@
 //! The programmes that are not `y2-platform` subcommands are hidden routes (`__product-sleep`,
 //! `__suspend-record`, `__power-audit`, `__power-command`; argparse refuses every one of them) and
 //! names this binary answers to by its argv[0] (`program`). A hidden route prints nothing on stdout
-//! and ends the process with the programme's own exit code; one that cannot do an input runs the
-//! Python programme itself (`python_script`), never main.py.
+//! and ends the process with the programme's own exit code, for every argument form and input the
+//! Python programme takes (its argparse texts, its tracebacks).
 // SPDX-License-Identifier: GPL-2.0-only
 pub mod admission;
 pub mod append;
@@ -24,10 +24,8 @@ use super::Command;
 use crate::reply::{Failure, Outcome, Reply};
 use serde_json::Value;
 use std::{
-    env,
     ffi::OsString,
     io::{self, Write},
-    os::unix::process::CommandExt,
     path::Path,
     process,
     sync::atomic::{AtomicBool, Ordering},
@@ -222,48 +220,8 @@ pub fn exit(code: i32) -> ! {
     process::exit(code)
 }
 
-/// The fixture's Python, or the player's (as main.rs's fallback picks them).
-fn interpreter() -> (OsString, bool) {
-    let test = env::var_os("Y2_ROOT").is_some();
-    let python = env::var_os("Y2_PLATFORM_PYTHON")
-        .filter(|_| test)
-        .unwrap_or_else(|| "/usr/bin/python3".into());
-    (python, test)
-}
-
-/// Replace this process with the Python programme `script` (`/usr/lib/y2-platform/<script>`) and
-/// `args`. Below a fixture root the harness's launcher runs it as the hidden route `route`
-/// (tests/platform_cases/suspend.py).
-pub fn python_script(script: &str, route: &str, args: &[String]) -> ! {
-    let (python, test) = interpreter();
-    let mut command = process::Command::new(&python);
-    command.arg("-I");
-    if test {
-        let main = env::var_os("Y2_PLATFORM_MAIN")
-            .unwrap_or_else(|| "/usr/lib/y2-platform/main.py".into());
-        command.arg(main).arg(route);
-    } else if script == "y2-power-audit" {
-        // Not -I in its own #! line: `#!/usr/bin/env python3`.
-        command = process::Command::new("/usr/bin/python3");
-        command.arg("/usr/lib/y2-platform/y2-power-audit");
-    } else {
-        command.arg(format!("/usr/lib/y2-platform/{script}"));
-    }
-    let error = command.args(args).exec();
-    let _ = writeln!(
-        io::stderr(),
-        "y2-platform: {}: {error}",
-        python.to_string_lossy()
-    );
-    exit(if error.kind() == io::ErrorKind::PermissionDenied {
-        126
-    } else {
-        127
-    })
-}
-
 /// `exec /usr/sbin/y2-platform <args>` from a shell wrapper: the Rust command when one is ported,
-/// otherwise the Python platform (main.rs's fallback).
+/// otherwise (a build with the Python platform only) main.py, as main.rs's fallback.
 pub fn platform(root: &Root, args: &[&str]) -> ! {
     if let Some(command) = super::route(args) {
         match command(root) {
@@ -275,7 +233,10 @@ pub fn platform(root: &Root, args: &[&str]) -> ! {
                     .and_then(|()| out.flush());
                 exit(i32::from(reply.code))
             }
-            Err(Failure::Fallback) => {}
+            Err(error @ Failure::Crash { .. }) => {
+                let _ = io::stderr().write_all(error.traceback().as_bytes());
+                exit(1)
+            }
             Err(error) => {
                 let text =
                     y2p_core::json::dumps(&error.record(), y2p_core::json::Separators::Spaced)
@@ -285,21 +246,15 @@ pub fn platform(root: &Root, args: &[&str]) -> ! {
             }
         }
     }
-    let (python, test) = interpreter();
-    let main = env::var_os("Y2_PLATFORM_MAIN")
-        .filter(|_| test)
-        .unwrap_or_else(|| "/usr/lib/y2-platform/main.py".into());
-    let error = process::Command::new(&python)
-        .arg("-I")
-        .arg(main)
-        .args(args)
-        .env("PYTHONPATH", "/usr/lib/y2-platform")
-        .env("PYTHONDONTWRITEBYTECODE", "1")
-        .exec();
+    python(args)
+}
+
+/// A programme line no route takes (main.rs's route test rules this out).
+fn python(args: &[&str]) -> ! {
     let _ = writeln!(
         io::stderr(),
-        "y2-platform: {}: {error}",
-        python.to_string_lossy()
+        "y2-platform: {}: no implementation",
+        args.first().copied().unwrap_or_default()
     );
     exit(127)
 }
@@ -416,7 +371,7 @@ pub(crate) mod tests {
     static NEXT: AtomicU32 = AtomicU32::new(0);
     impl Dir {
         pub fn new() -> Self {
-            let path = env::temp_dir().join(format!(
+            let path = std::env::temp_dir().join(format!(
                 "y2-suspend-{}-{}",
                 process::id(),
                 NEXT.fetch_add(1, Ordering::SeqCst)

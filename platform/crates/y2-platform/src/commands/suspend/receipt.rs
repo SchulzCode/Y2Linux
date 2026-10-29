@@ -73,16 +73,43 @@ fn either(reason: Option<&str>, fallback: Value) -> Value {
     }
 }
 
-/// A receipt's dict (`value.get(key, {})`) for the IRQ counts; anything else is Python's TypeError
-/// once it is indexed.
-fn counts<'a>(
-    value: &'a Map<String, Value>,
-    key: &str,
-) -> Result<Option<&'a Map<String, Value>>, E> {
-    match value.get(key) {
-        None => Ok(None),
-        Some(Value::Object(map)) => Ok(Some(map)),
-        Some(_) => Err(E::TypeError(format!("{key} is not a dict"))),
+/// `name in container` for a receipt's IRQ counts (`value.get(key, {})`: a missing key is `{}`).
+fn contains(container: Option<&Value>, name: &str) -> Result<bool, E> {
+    match container {
+        None => Ok(false),
+        Some(Value::Object(map)) => Ok(map.contains_key(name)),
+        Some(Value::Array(items)) => Ok(items.iter().any(|v| v.as_str() == Some(name))),
+        Some(Value::String(text)) => Ok(text.contains(name)),
+        Some(other) => Err(E::TypeError(format!(
+            "argument of type '{}' is not iterable",
+            super::super::sleep::python_type(other)
+        ))),
+    }
+}
+
+/// `container[name]` once `name in container` held.
+fn index<'a>(container: Option<&'a Value>, name: &str) -> Result<&'a Value, E> {
+    match container {
+        Some(Value::Object(map)) => Ok(map.get(name).expect("contains")),
+        Some(Value::Array(_)) => Err(E::TypeError(
+            "list indices must be integers or slices, not str".into(),
+        )),
+        _ => Err(E::TypeError(
+            "string indices must be integers, not 'str'".into(),
+        )),
+    }
+}
+
+/// A `sleep.product` failure as the exception it is on this path.
+pub fn raised(failure: crate::reply::Failure) -> E {
+    use crate::reply::Failure;
+    match failure {
+        Failure::Value(text) => E::value(text),
+        Failure::Crash {
+            class: "TypeError",
+            message,
+        } => E::TypeError(message),
+        other => E::Crash(other.message()),
     }
 }
 
@@ -94,8 +121,19 @@ pub fn transition(
     boot_id: Option<&str>,
     reason: Option<&str>,
 ) -> Result<Map<String, Value>, E> {
-    let mut p = super::super::sleep::product(value, boot_id)
-        .map_err(|_| E::TypeError("receipt product is not a dict".into()))?;
+    transition_keys(value, stage, result, boot_id, reason).map(|(p, _)| p)
+}
+
+/// `sleep.transition`, and whether the product holds a key that is no str (`dict()` of a list of
+/// pairs): Python keeps such a dict until its sorted `json.dump` raises.
+pub fn transition_keys(
+    value: &Map<String, Value>,
+    stage: &str,
+    result: &Value,
+    boot_id: Option<&str>,
+    reason: Option<&str>,
+) -> Result<(Map<String, Value>, bool), E> {
+    let (mut p, odd) = super::super::sleep::product_keys(value, boot_id).map_err(raised)?;
     let boot = boot_id.map_or(Value::Null, |b| json!(b));
     let reason_value = reason.map_or(Value::Null, |r| json!(r));
     if stage == "requested" || stage == "quiescing_radios" || stage.starts_with("refused_") {
@@ -152,20 +190,15 @@ pub fn transition(
             && k("pcm_length") == Some("596")
             && !matches!(k("wake"), None | Some("0") | Some("0x0"));
         p.insert("kernel_completed".into(), json!(completed));
-        let (before, after) = (
-            counts(value, "wake_irqs_before")?,
-            counts(value, "wake_irqs_after")?,
-        );
+        let (before, after) = (value.get("wake_irqs_before"), value.get("wake_irqs_after"));
         if completed {
             let mut sources = Vec::new();
             for name in ["rtc", "power"] {
-                if let (Some(b), Some(a)) = (
-                    before.and_then(|m| m.get(name)),
-                    after.and_then(|m| m.get(name)),
-                ) {
-                    if py_gt(a, b)? {
-                        sources.push(name);
-                    }
+                if contains(before, name)?
+                    && contains(after, name)?
+                    && py_gt(index(after, name)?, index(before, name)?)?
+                {
+                    sources.push(name);
                 }
             }
             let wake = match sources.as_slice() {
@@ -257,7 +290,7 @@ pub fn transition(
             );
         }
     }
-    Ok(p)
+    Ok((p, odd))
 }
 
 /// `value.get('pm_test') == text`.
@@ -314,50 +347,6 @@ pub fn starts_receipt(stage: &str, value: &Map<String, Value>) -> bool {
     stage == "requested"
         || (stage == "quiescing_radios" && !value.get("reborn_prepared").is_some_and(truthy))
         || stage.starts_with("refused_")
-}
-
-/// Whether Python would read this receipt (for `stage`) the way `record` does: the fields it adds to,
-/// indexes or compares hold what the platform itself writes. A command line meeting anything else
-/// hands itself to Python before it changes anything.
-pub fn plain(value: &Map<String, Value>, stage: &str) -> bool {
-    if starts_receipt(stage, value) {
-        return true;
-    }
-    let number = |key: &str| {
-        value
-            .get(key)
-            .is_none_or(|v| matches!(v, Value::Number(_) | Value::Bool(_)))
-    };
-    let irqs = |key: &str| match value.get(key) {
-        None => true,
-        Some(Value::Object(map)) => map
-            .values()
-            .all(|v| matches!(v, Value::Number(_) | Value::Bool(_))),
-        Some(_) => false,
-    };
-    let product = match value.get("product") {
-        Some(Value::Object(p)) => {
-            !matches!(p.get("state"), Some(Value::Array(_) | Value::Object(_)))
-        }
-        Some(other) => !truthy(other),
-        None => true,
-    };
-    product
-        && number("cycles")
-        && number("maintenance_wakes")
-        && number("suspended_seconds")
-        && irqs("wake_irqs_before")
-        && irqs("wake_irqs_after")
-        && value
-            .get("stages")
-            .is_none_or(|s| matches!(s, Value::Array(_)))
-        && value
-            .get("persistent_kernel")
-            .is_none_or(|v| v.is_string() || !truthy(v))
-        && !matches!(
-            value.get("pm_test"),
-            Some(Value::Array(_) | Value::Object(_))
-        )
 }
 
 /// `suspend_record.record`.
@@ -521,7 +510,7 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
         .get("current_boot_id")
         .and_then(Value::as_str)
         .map(str::to_owned);
-    let product = transition(
+    let (product, odd) = transition_keys(
         &value,
         s.stage,
         &result,
@@ -543,6 +532,10 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
             // Path.write_text: a buffered text write, not the helper's single PM control write.
             fs::write(&marker, "REBORN_READY\n").map_err(|e| E::os(&e, Some(&marker)))?;
         }
+    }
+    if odd {
+        // json.dump(sort_keys=True) raises in the temporary file, which atomic_json removes.
+        return Err(raised(super::super::sleep::odd_keys()));
     }
     atomic_json(&path, &value, true)?;
     let battery = match root.json_object("/run/y2/power.json").get("battery") {

@@ -271,9 +271,9 @@ CASES = [
     status('status-interval-zero', ['--interval', '0']),
     status('status-invalid-pid', ['--pid', '0']),
     status('status-invalid-pid-high', ['--pid', '4194305']),
-    status('status-interval-small', ['--interval', '0.05'], ported=False),
-    status('status-interval-nan', ['--interval', 'nan'], ported=False),
-    status('status-too-many-pids', [arg for n in range(33) for arg in ('--pid', str(n + 1))], ported=False),
+    status('status-interval-small', ['--interval', '0.05']),
+    status('status-interval-nan', ['--interval', 'nan']),
+    status('status-too-many-pids', [arg for n in range(33) for arg in ('--pid', str(n + 1))]),
     # storage
     status('status-storage-player', ['storage'], files=PLAYER, commands=VOLUMES),
     status('status-storage-no-blkid', ['storage'], files=PLAYER),
@@ -401,6 +401,57 @@ CASES = [
         'qualified_formats': ['S16_LE'], 'qualified_rates': [44100.0]})}),
     status('status-cpu-timer-crash', ['cpu'], files={'/proc/timer_list': 'cpu: 0\n  .nohz : 1\ncpu: '}),
     status('status-cpu-blank', ['cpu'], files={'/proc/stat': '', '/proc/timer_list': 'nothing\n'}),
+    # int() of sysfs text Python reads: other decimal digits are ints, a superscript passes isdigit() and
+    # then raises ValueError (main.py's record).
+    status('status-cpu-timer-arabic-digit', ['cpu'], files={'/proc/timer_list': 'cpu: \u0661\n  .nohz : \u0662\n'}),
+    status('status-cpu-timer-superscript', ['cpu'], files={'/proc/timer_list': 'cpu: \u00b2\n  .nohz : 1\n'}),
+    status('status-storage-sd-superscript-size', ['storage'], files={**PLAYER, SD + '/mmcblk1p1/size': '\u00b2\n'},
+           commands=VOLUMES),
+    status('status-storage-controller-arabic', ['storage'], files={
+        '/sys/bus/platform/devices/11230000.mmc/y2_performance': 'cap_hz=\u0665 clock_error=-1\n'}),
+    # dict(product) of a receipt product that is no dict: a pair list with a key that is no str sorts with
+    # TypeError only where it is printed; a str or a bad pair is a ValueError.
+    status('status-power-sleep-int-key', ['power'], files={'/data/system/platform/suspend-last.json': json.dumps(
+        {'product': [[1, 'x'], ['state', 'restored'], ['request_boot_id', BOOT]]})}),
+    status('status-cpu-sleep-int-key', ['cpu'], files={'/data/system/platform/suspend-last.json': json.dumps(
+        {'product': [[1, 'x'], ['state', 'restored'], ['request_boot_id', BOOT]]})}),
+    status('status-power-sleep-int-key-idle', ['power'], files={'/data/system/platform/suspend-last.json': json.dumps(
+        {'product': [[None, 'x'], ['state', 'nap']]})}),
+    status('status-power-sleep-pairs', ['power'], files={'/data/system/platform/suspend-last.json': json.dumps(
+        {'product': ['st', {'state': 1, 'z': 2}, ['state', 'refused'], ['request_boot_id', BOOT]]})}),
+    status('status-power-sleep-long-pair', ['power'], files={'/data/system/platform/suspend-last.json': json.dumps(
+        {'product': [['state', 'idle'], ['a', 'b', 'c']]})}),
+    status('status-power-sleep-text', ['power'], files={
+        '/data/system/platform/suspend-last.json': '{"product": "restored"}'}),
+    status('status-power-sleep-number', ['power'], files={'/data/system/platform/suspend-last.json': '{"product": 5}'}),
+    status('status-power-sleep-number-pair', ['power'], files={
+        '/data/system/platform/suspend-last.json': '{"product": [5]}'}),
+    status('status-power-sleep-list-key', ['power'], files={
+        '/data/system/platform/suspend-last.json': '{"product": [[[1], 2]]}'}),
+    status('status-power-battery-null', ['power'], files={'/run/y2/power.json': fresh(
+        {'boot_id': BOOT, 'battery': None}, 'monotonic_ns', ns=True)}),
+    status('status-wifi-ip-text', ['wifi'], files=RADIO, commands=[ONLINE[0], answer(IP, '"ab"')], volatile=TIMING),
+    status('status-wifi-ip-number-link', ['wifi'], files=RADIO, commands=[ONLINE[0], answer(IP, '[1]')],
+           volatile=TIMING),
+    status('status-wifi-ip-info-dict', ['wifi'], files=RADIO, commands=[
+        ONLINE[0], answer(IP, '[{"addr_info": {"scope": "global"}}]')], volatile=TIMING),
+    status('status-wifi-ip-info-null', ['wifi'], files=RADIO, commands=[
+        ONLINE[0], answer(IP, '[{"addr_info": null}]'), answer(ROUTE, ROUTES)], volatile=TIMING),
+    status('status-wifi-signal-text', ['wifi'], files={**RADIO, '/run/y2/network.json': '{"signal_observation": "x"}'},
+           commands=ONLINE, volatile=TIMING),
+    status('status-system-evidence-text-logs', ['system'], files={
+        '/data/system/platform/previous-boot-evidence.json': '{"logs": "ab"}'}),
+    status('status-system-evidence-null-logs', ['system'], files={
+        '/data/system/platform/previous-boot-evidence.json': '{"logs": null, "pmic": 1}'}),
+    status('status-system-evidence-list-log', ['system'], files={
+        '/data/system/platform/previous-boot-evidence.json': '{"logs": [{"name": "a"}, [1]]}'}),
+    status('status-system-update-dict-state', ['readiness'], files={
+        '/data/updates/state.json': '{"schema": 1, "state": {"a": 1}}'}),
+    # cli.py's parser.error after parsing (exit 2, usage on stderr): out-of-range, NaN or tiny intervals.
+    status('status-interval-too-long', ['--interval', '11']),
+    status('status-interval-tiny', ['--interval', '1e-05']),
+    status('status-interval-negative-zero', ['cpu', '--interval', '-0']),
+    status('status-huge-pid', ['memory', '--pid', '99999999999999999999']),
     # health
     ('health-ported', ['health'], {'ported': True}),
     ('health-json', ['health', '--json'], {'ported': True}),
@@ -489,8 +540,24 @@ CASES += [
     ('network-check-workload', ['network-check', '--peer', '192.168.1.1'], {'ported': True, 'files': {
         '/dev/y2-workload': ''}, 'patterns': [(r'(NetworkTransfer 3000\n)+', 'NetworkTransfer 3000\n')]}),
     ('network-check-bad-seconds', ['network-check', '--peer', '192.168.1.1', '--seconds', '0'], {'ported': True}),
-    ('network-check-bad-peer', ['network-check', '--peer', '192.168.001.1'], {'ported': False}),
-    ('network-check-hostname', ['network-check', '--peer', 'router'], {'ported': False}),
+    # ipaddress.IPv4Address's AddressValueError, after the workload lease was taken.
+    ('network-check-bad-peer', ['network-check', '--peer', '192.168.001.1'], {'ported': True}),
+    ('network-check-hostname', ['network-check', '--peer', 'router'], {'ported': True}),
+    # A peer that is not UTF-8: ipaddress's error shows the surrogate escape (\\udcff).
+    ('network-check-not-utf8', ['network-check', '--peer', '192.168.1.\udcff'], {'ported': True}),
+    ('collect-workload-not-utf8', ['collect', '--seconds', '1', '--interval', '1', '--workload', 'w\udcff'], {
+        'ported': True, 'volatile': [*TIMING, 'bytes']}),
+    ('network-check-empty-peer', ['network-check', '--peer', ''], {'ported': True}),
+    ('network-check-peer-prefix', ['network-check', '--peer', '10.0.0.1/8'], {'ported': True}),
+    ('network-check-peer-octet', ['network-check', '--peer', '1.2.3.256'], {'ported': True}),
+    ('network-check-peer-long-octet', ['network-check', '--peer', '1.2.3.0004'], {'ported': True}),
+    ('network-check-peer-empty-octet', ['network-check', '--peer', '1..2.3'], {'ported': True}),
+    ('network-check-peer-arabic', ['network-check', '--peer', '\u0661.2.3.4'], {'ported': True}),
+    ('network-check-huge-seconds', ['network-check', '--peer', '192.168.1.1', '--seconds', '99999999999999999999'],
+     {'ported': True}),
+    ('collect-huge-seconds', ['collect', '--seconds', '99999999999999999999'], {'ported': True}),
+    ('collect-huge-pid', ['collect', '--seconds', '1', '--interval', '1', '--pid', '-99999999999999999999'],
+     {'ported': True}),
     ('collect-one', ['collect', '--seconds', '1', '--interval', '1'], {
         'ported': True, 'volatile': [*TIMING, 'bytes']}),
     ('collect-growth', ['collect', '--seconds', '2', '--interval', '1', '--pid', '4242', '--pss', '--workload', 'play'],
@@ -541,7 +608,11 @@ CASES += [
 # `os.open('system.log', dir_fd=…)` below the fixture's /data, which the audit hook resolves against the working
 # directory, and the traceback of an input Python crashes on (it opens `<unknown>` for runpy's frames).
 CRASHES = ('status-cpu-timer-crash', 'status-power-battery-list', 'status-system-evidence-bad-logs',
-           'status-system-update-unhashable', 'status-wifi-signal-list')
+           'status-system-update-unhashable', 'status-wifi-signal-list', 'status-power-sleep-int-key',
+           'status-power-sleep-number', 'status-power-sleep-number-pair', 'status-power-sleep-list-key',
+           'status-power-battery-null', 'status-wifi-ip-text', 'status-wifi-ip-number-link',
+           'status-wifi-ip-info-dict', 'status-wifi-signal-text', 'status-system-evidence-text-logs',
+           'status-system-evidence-null-logs', 'status-system-evidence-list-log', 'status-system-update-dict-state')
 EXTRA_CASES = [case for case in CASES if case[0] in CRASHES or (
     case[1] == ['boot-evidence'] and case[0] not in ('boot-evidence-again', 'boot-evidence-missed-boundary',
                                                      'boot-evidence-no-data', 'boot-evidence-wrong-mount',

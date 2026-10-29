@@ -16,14 +16,12 @@ use std::{
 };
 use y2p_core::{py::is_true, Root};
 
-/// Python would crash in the power journal row (`battery.get` on a `battery` that is no dict) or read
-/// the stored receipt differently: hand the command to Python before anything changed.
-fn unusual(root: &Root, stage: &str) -> bool {
-    let battery = root
-        .json_object("/run/y2/power.json")
-        .get("battery")
-        .is_some_and(|b| !b.is_object());
-    battery || !receipt::plain(&root.json_object(receipt::RECEIPT), stage)
+/// An exception main.py prints as its error record (an OSError here: `cli` ends a crash itself).
+fn failure(error: E) -> Failure {
+    match cli(Err(error)) {
+        Err(failure) => failure,
+        Ok(_) => unreachable!("an error stays an error"),
+    }
 }
 
 /// `sleep.prepare`: Reborn must acknowledge the screen is off and it is ready to sleep.
@@ -57,22 +55,15 @@ pub fn prepare_owned(root: &Root) -> Result<Map<String, Value>, E> {
 
 /// `y2-platform sleep prepare` (y2-suspend's owner path): takes no lock itself.
 pub fn prepare(root: &Root) -> Outcome {
-    if unusual(root, "reborn_prepared") {
-        return Err(Failure::Fallback);
-    }
     cli(prepare_owned(root).and_then(|p| Reply::sorted(&p, 0).map_err(|_| E::value("json"))))
 }
 
 /// `y2-platform sleep request`: acknowledge an owned request; the detached helper owns the blocking
 /// PM. Installed 04 lacks the built-in context-ownership ABI and stays refused.
 pub fn request(root: &Root) -> Outcome {
-    if unusual(root, "requested") {
-        return Err(Failure::Fallback);
-    }
     let directory = root.path("/run/y2");
     y2p_core::record::private_directory(&directory)
-        .map_err(|e| E::os(&e, Some(&directory)))
-        .map_err(|e| cli(Err(e)).err().unwrap_or(Failure::Fallback))?;
+        .map_err(|e| failure(E::os(&e, Some(&directory))))?;
     let path = directory.join("suspend.lock");
     // os.open(O_RDWR | O_CREAT | O_NOFOLLOW, 0o600): close-on-exec, made inheritable for the helper.
     let lock = OpenOptions::new()
@@ -82,11 +73,7 @@ pub fn request(root: &Root) -> Outcome {
         .mode(0o600)
         .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
         .open(&path)
-        .map_err(|e| {
-            cli(Err(E::os(&e, Some(&path))))
-                .err()
-                .unwrap_or(Failure::Fallback)
-        })?;
+        .map_err(|e| failure(E::os(&e, Some(&path))))?;
     match lock.try_lock() {
         Ok(()) => {}
         Err(std::fs::TryLockError::WouldBlock) => {

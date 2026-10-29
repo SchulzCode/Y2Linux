@@ -112,7 +112,19 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
             Some("Starting" | "Degraded") => "DEGRADED",
             Some("Failed") => "FAILED",
             Some("Unavailable") => "UNAVAILABLE",
-            _ => return Err(Failure::Fallback), // KeyError
+            // `{...}[item['state']]`: a KeyError for any other state, a TypeError for a list or dict.
+            _ => {
+                return Err(match &item["state"] {
+                    Value::String(state) => Failure::key_error(state),
+                    state @ (Value::Array(_) | Value::Object(_)) => Failure::type_error(format!(
+                        "unhashable type: '{}'",
+                        util::type_name(state)
+                    )),
+                    Value::Null => Failure::crash("KeyError", "None"),
+                    Value::Bool(b) => Failure::crash("KeyError", if *b { "True" } else { "False" }),
+                    number => Failure::crash("KeyError", number.to_string()),
+                })
+            }
         };
         add(name, state, item["reason"].clone(), None);
     }

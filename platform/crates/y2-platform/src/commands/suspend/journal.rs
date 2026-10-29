@@ -253,7 +253,7 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
         &root.json_object(super::receipt::RECEIPT),
         boot_id.as_deref(),
     )
-    .map_err(|_| E::TypeError("unhashable type".into()))?;
+    .map_err(super::receipt::raised)?;
     let mut summary: Vec<(String, Node)> = [
         "mode",
         "stage",

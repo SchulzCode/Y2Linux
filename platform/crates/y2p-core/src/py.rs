@@ -107,6 +107,11 @@ pub fn repr(text: &str) -> String {
             c if (c as u32) < 0x20 || c as u32 == 0x7f => {
                 out.push_str(&format!("\\x{:02x}", c as u32))
             }
+            // An escaped byte of a non-UTF-8 argument: a lone surrogate, which Python shows escaped.
+            c if crate::os_text::surrogate(c).is_some() => out.push_str(&format!(
+                "\\u{:04x}",
+                crate::os_text::surrogate(c).unwrap_or_default()
+            )),
             c => out.push(c),
         }
     }

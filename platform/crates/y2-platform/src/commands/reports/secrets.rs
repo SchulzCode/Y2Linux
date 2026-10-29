@@ -9,6 +9,7 @@ use super::{
     pyre::{self, lazy, S},
     scrub::Known,
 };
+use crate::reply::Failure;
 use regex::Regex;
 use std::{collections::BTreeSet, sync::OnceLock};
 use y2p_core::Root;
@@ -121,7 +122,7 @@ fn volume_id(value: &str) -> bool {
     .is_match(value)
 }
 
-pub fn secrets(root: &Root) -> Known {
+pub fn secrets(root: &Root) -> Result<Known, Failure> {
     let mut found: Vec<(&'static str, BTreeSet<String>)> = super::scrub::CLASSES
         .iter()
         .map(|c| (*c, BTreeSet::new()))
@@ -246,9 +247,20 @@ pub fn secrets(root: &Root) -> Known {
     }
     let session = large_json(root, "/data/reborn/state/session.json");
     if let Some(model @ Py::Dict(_)) = session.as_ref().and_then(|s| s.get("model")) {
+        // `(model.get('queue') or [])[:5000]`: a string queue holds no dicts; a dict is a KeyError,
+        // a number a TypeError (main.py's traceback).
         let tracks: Vec<Py> = match model.get("queue") {
             Some(Py::List(items)) => items.iter().take(5000).cloned().collect(),
-            _ => Vec::new(), // a string queue holds no dicts; other shapes were left to Python
+            Some(Py::Dict(items)) if !items.is_empty() => {
+                return Err(Failure::crash("KeyError", "slice(None, 5000, None)"))
+            }
+            Some(queue @ (Py::Int(_) | Py::Float(_) | Py::Bool(true))) if queue.truthy() => {
+                return Err(Failure::type_error(format!(
+                    "'{}' object is not subscriptable",
+                    super::pyops::type_name(queue)
+                )))
+            }
+            _ => Vec::new(),
         };
         for track in tracks {
             for key in [
@@ -273,7 +285,7 @@ pub fn secrets(root: &Root) -> Known {
                     .chars()
                     .any(|c| pyre::isalnum(c) && !pyre::isdecimal(c) && c != '_'))
     };
-    found
+    Ok(found
         .into_iter()
         .map(|(name, values)| {
             let values = values
@@ -287,5 +299,5 @@ pub fn secrets(root: &Root) -> Known {
                 .collect();
             (name, values)
         })
-        .collect()
+        .collect())
 }

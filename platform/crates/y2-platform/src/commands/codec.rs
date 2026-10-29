@@ -73,7 +73,8 @@ pub fn validate(value: Map<String, Value>) -> Result<Map<String, Value>, Failure
     Ok(value)
 }
 
-/// `inventory.get('codecs', {}).get(name, {})`; a non-dict there is an AttributeError in Python.
+/// `inventory.get('codecs', {}).get(name, {})` and the `.get` callers make on it: a non-dict there
+/// (a JSON null too) is Python's uncaught AttributeError.
 pub fn inventory_codec<'a>(
     inventory: &'a Map<String, Value>,
     name: &str,
@@ -83,10 +84,69 @@ pub fn inventory_codec<'a>(
         Some(Value::Object(codecs)) => match codecs.get(name) {
             None => Ok(None),
             Some(Value::Object(codec)) => Ok(Some(codec)),
-            Some(_) => Err(Failure::Fallback),
+            Some(other) => Err(no_get(other)),
         },
-        Some(_) => Err(Failure::Fallback),
+        Some(other) => Err(no_get(other)),
     }
+}
+
+/// `type(value).__name__` of a JSON value as Python's `json` reads it.
+pub fn type_name(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "NoneType",
+        Value::Bool(_) => "bool",
+        Value::Number(n) if n.is_f64() => "float",
+        Value::Number(_) => "int",
+        Value::String(_) => "str",
+        Value::Array(_) => "list",
+        Value::Object(_) => "dict",
+    }
+}
+
+/// `value.get(...)` on a value that is not a dict: AttributeError.
+pub fn no_get(value: &Value) -> Failure {
+    Failure::attribute_error(format!(
+        "'{}' object has no attribute 'get'",
+        type_name(value)
+    ))
+}
+
+/// `key in value` (a str key): a dict's keys, a list's items, a str's substrings; TypeError otherwise.
+pub fn contains(value: &Value, key: &str) -> Result<bool, Failure> {
+    match value {
+        Value::Object(map) => Ok(map.contains_key(key)),
+        Value::Array(items) => Ok(items.iter().any(|i| i.as_str() == Some(key))),
+        Value::String(text) => Ok(text.contains(key)),
+        other => Err(Failure::type_error(format!(
+            "argument of type '{}' is not a container or iterable",
+            type_name(other)
+        ))),
+    }
+}
+
+/// `value[key]` (a str key) on a value that is not a dict: TypeError.
+pub fn no_getitem(value: &Value) -> Failure {
+    Failure::type_error(match value {
+        Value::Array(_) => "list indices must be integers or slices, not str".to_owned(),
+        Value::String(_) => "string indices must be integers, not 'str'".to_owned(),
+        other => format!("'{}' object is not subscriptable", type_name(other)),
+    })
+}
+
+/// `value[key] = …` (a str key) on a value that is not a dict: TypeError.
+pub fn no_setitem(value: &Value) -> Failure {
+    Failure::type_error(match value {
+        Value::Array(_) => "list indices must be integers or slices, not str".to_owned(),
+        other => format!(
+            "'{}' object does not support item assignment",
+            type_name(other)
+        ),
+    })
+}
+
+/// `iter(value)` (a `for`, `all(...)`) on a value that is not iterable: TypeError.
+pub fn not_iterable(value: &Value) -> Failure {
+    Failure::type_error(format!("'{}' object is not iterable", type_name(value)))
 }
 
 fn flag(codec: Option<&Map<String, Value>>, key: &str) -> bool {

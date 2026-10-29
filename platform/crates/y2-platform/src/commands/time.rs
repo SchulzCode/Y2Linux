@@ -116,7 +116,8 @@ pub fn remember(root: &Root) -> Outcome {
     match remember_inner(root) {
         Ok(Some(value)) => Reply::unsorted(&value, 0),
         Ok(None) => Reply::unsorted(&Ordered::new().with("state", "Unchanged"), 0),
-        Err(Failure::Fallback) => Err(Failure::Fallback),
+        // `except (OSError, ValueError)`: anything else leaves the command.
+        Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
             &Ordered::new()
                 .with("state", "Failed")
@@ -156,6 +157,47 @@ fn remember_inner(root: &Root) -> Result<Option<Ordered>, Failure> {
     Ok(Some(value))
 }
 
+/// `int(text)` of a str: its value (one beyond 64 bits as the nearest 64-bit bound, which no range
+/// check here tells apart), or the ValueError int() raises.
+pub fn python_int(text: &str) -> Result<i64, Failure> {
+    use crate::argparse::python;
+    if let Some(value) = python::int(text) {
+        return Ok(value.parse().unwrap_or(if value.starts_with('-') {
+            i64::MIN
+        } else {
+            i64::MAX
+        }));
+    }
+    // An int but for its length: CPython's digit limit (sys.get_int_max_str_digits(), 4300).
+    let digits = text
+        .chars()
+        .filter(|c| python::decimal(*c).is_some())
+        .count();
+    let mut short = String::new();
+    for c in text.chars() {
+        if python::decimal(c).is_none() {
+            short.push(c);
+        } else if !short.ends_with('\u{1}') {
+            short.push('\u{1}');
+        }
+    }
+    if digits > 4300 && python::int(&short.replace('\u{1}', "1")).is_some() {
+        return Err(Failure::Value(format!(
+            "Exceeds the limit (4300 digits) for integer string conversion: value has {digits} digits; \
+             use sys.set_int_max_str_digits() to increase the limit"
+        )));
+    }
+    Err(Failure::Value(int_literal(&crate::argparse::python::repr(
+        text,
+    ))))
+}
+
+/// int()'s ValueError text for a repr: CPython formats it with `%.200R` (at most 200 characters).
+fn int_literal(shown: &str) -> String {
+    let shown: String = shown.chars().take(200).collect();
+    format!("invalid literal for int() with base 10: {shown}")
+}
+
 /// `y2-platform ntp-event <event>` from BusyBox ntpd (`stratum` in the environment).
 pub fn ntp_event(root: &Root, event: &str) -> Outcome {
     let now = wall();
@@ -163,9 +205,12 @@ pub fn ntp_event(root: &Root, event: &str) -> Outcome {
     private_directory(&runtime)?;
     // BusyBox explicitly permits overlapping step/stratum callbacks.
     let _lock = lock(&runtime.join("time.lock"))?;
-    let stratum_text = std::env::var("stratum").unwrap_or_else(|_| "16".into());
-    // int() of anything but a plain decimal raises a ValueError whose text names the value.
-    let stratum = y2p_core::root::python_int(&stratum_text).ok_or(Failure::Fallback)?;
+    // `int(env.get('stratum', '16'))`: Python's int() of the text (any size), or its ValueError.
+    // os.environ reads a value that is not UTF-8 with surrogate escapes (y2p_core::os_text).
+    let stratum = match std::env::var_os("stratum") {
+        None => 16,
+        Some(raw) => python_int(&y2p_core::os_text::fsdecode_os(&raw))?,
+    };
     if event == "unsync" || !(1..16).contains(&stratum) || !plausible(now, floor(root)) {
         return Reply::unsorted(
             &Ordered::new()

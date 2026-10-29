@@ -121,19 +121,53 @@ CASES = [
     ('sleep-request-shutting-down', REQUEST, ready(**{'/run/y2/shutdown.json': '{"state": "ShutdownPending"}'})),
     ('sleep-request-no-power-battery', REQUEST, ready(**{'/run/y2/power.json': lambda: json.dumps(
         {'boot_id': 'boot-a', 'state': 'Normal', 'monotonic_ns': time.monotonic_ns()})})),
-    # Python's journal row would crash on a battery that is no dict: the whole command is Python's.
-    ('sleep-request-battery-null', REQUEST, {**ready(**{'/run/y2/power.json': lambda: json.dumps(
-        {'boot_id': 'boot-a', 'state': 'Normal', 'monotonic_ns': time.monotonic_ns(), 'battery': None})}),
-        'ported': False}),
+    # The journal row crashes on a battery that is no dict (AttributeError), after the receipt was written.
+    ('sleep-request-battery-null', REQUEST, ready(**{'/run/y2/power.json': lambda: json.dumps(
+        {'boot_id': 'boot-a', 'state': 'Normal', 'monotonic_ns': time.monotonic_ns(), 'battery': None})})),
+    ('sleep-request-battery-list', REQUEST, ready(**{'/run/y2/power.json': lambda: json.dumps(
+        {'boot_id': 'boot-a', 'state': 'Normal', 'monotonic_ns': time.monotonic_ns(), 'battery': []})})),
     ('sleep-request-data-unverified', REQUEST, ready(**{'/data/.y2data-schema': None})),
     ('sleep-request-no-receipt', REQUEST, ready(**{SLEEP: None})),
     # The dispatcher's argparse prints the help itself.
     ('sleep-request-help', ['sleep', 'request', '--help'], {'ported': True}),
     # Without Reborn's control socket: the refusal receipt, then main.py's error record.
     ('sleep-prepare-no-reborn', ['sleep', 'prepare'], {'ported': True, 'volatile': VOLATILE}),
-    ('sleep-prepare-list-product', ['sleep', 'prepare'], {'ported': False, 'volatile': VOLATILE,
+    ('sleep-prepare-list-product', ['sleep', 'prepare'], {'ported': True, 'volatile': VOLATILE,
                                                           'files': {SLEEP: '{"product": [["state", "idle"]]}'}}),
+    ('sleep-prepare-battery-null', ['sleep', 'prepare'], ready(**{'/run/y2/power.json': lambda: json.dumps(
+        {'boot_id': 'boot-a', 'battery': None})})),
 ]
+# `sleep status` of receipts whose product is no dict: Python's dict() of it (a list of pairs builds one;
+# anything else is its ValueError record or TypeError traceback), unhashable states and keys that are no str.
+STATUS = ['sleep', 'status']
+for name, product in [
+        ('pairs', [['state', 'restored'], ['request_boot_id', 'boot-a'], ['kernel_completed', True]]),
+        ('pairs-other-boot', [['state', 'sleeping'], ['request_boot_id', 'boot-old']]),
+        ('pair-texts', ['ab', {'state': 'refused'}, ['reason', 'usb']]),
+        ('pair-dicts', [{'state': 'x', 'y': 1}]),
+        ('text', 'restored'),
+        ('number', 3),
+        ('float', 2.5),
+        ('true', True),
+        ('empty-list', []),
+        ('false', False),
+        ('triple', [['state', 'idle', 'x']]),
+        ('short-text', ['a']),
+        ('number-item', [['state', 'restored'], 5]),
+        ('null-item', [None]),
+        ('list-key', [[['state'], 'restored']]),
+        ('dict-key', [[{}, 'restored']]),
+        ('number-key', [[1, 'x'], ['state', 'restored'], ['request_boot_id', 'boot-a']]),
+        ('number-key-idle', [[1, 'x'], ['state', 'nap']]),
+        ('null-key', [[None, 'x'], ['state', 'waking']]),
+        ('list-state', [['state', ['restored']]]),
+        ('dict-state', {'state': {'a': 1}}),
+        ('number-state', {'state': 7}),
+]:
+    CASES.append(('sleep-status-product-' + name, STATUS, {'ported': True, 'files': {
+        SLEEP: json.dumps({'product': product})}}))
+CASES.append(('sleep-status-receipt-list', STATUS, {'ported': True, 'files': {SLEEP: '[["product", 1]]'}}))
+
 
 # Cases that need tests/test_platform_suspend.py's sides: (name, argv, options, setup); `setup` keys:
 # 'reborn' {op: answer line (str) or None to close without answering}, 'hold' [lock paths held during the run],
@@ -242,15 +276,87 @@ SERVED_CASES = [
     ('suspend-record-pm-test', ['__suspend-record', 'complete_result_0', '0'],
      {'ported': True, 'volatile': VOLATILE, 'files': {SLEEP: '{"pm_test": "core"}'}},
      {'reborn': {'sleep_restore': RESTORED}}),
-    ('suspend-record-bad-result', ['__suspend-record', 'syncing', 'x'], {'ported': False}, {}),
-    ('suspend-record-no-stage', ['__suspend-record'], {'ported': False}, {}),
+    # Python's IndexError / int()'s ValueError: a traceback, nothing written.
+    ('suspend-record-bad-result', ['__suspend-record', 'syncing', 'x'], {'ported': True}, {}),
+    ('suspend-record-no-stage', ['__suspend-record'], {'ported': True}, {}),
+    ('suspend-record-float-result', ['__suspend-record', 'syncing', '1.0'], {'ported': True}, {}),
+    # int() also reads whitespace, underscores and other decimal digits.
+    ('suspend-record-odd-results', ['__suspend-record', 'syncing', ' +1_0 '],
+     {'ported': True, 'volatile': VOLATILE}, {}),
+    ('suspend-record-arabic-result', ['__suspend-record', 'product_failure', '\u0663', 'why', 'extra'],
+     {'ported': True, 'volatile': VOLATILE}, {}),
     ('suspend-record-odd-receipt', ['__suspend-record', 'syncing', '0'],
-     {'ported': False, 'volatile': VOLATILE, 'files': {SLEEP: '{"stages": "none"}'}}, {}),
+     {'ported': True, 'volatile': VOLATILE, 'files': {SLEEP: '{"stages": "none"}'}}, {}),
+    ('suspend-record-null-stages', ['__suspend-record', 'syncing', '0'],
+     {'ported': True, 'volatile': VOLATILE, 'files': {SLEEP: '{"stages": null}'}}, {}),
+    ('suspend-record-list-receipt', ['__suspend-record', 'syncing', '0'],
+     {'ported': True, 'volatile': VOLATILE, 'files': {SLEEP: '[1, 2]'}}, {}),
+    ('suspend-record-pairs-product', ['__suspend-record', 'syncing', '0'], {'ported': True, 'volatile': VOLATILE,
+     'files': {SLEEP: json.dumps({'product': [['state', 'requested'], ['request_boot_id', 'boot-a']]})}}, {}),
+    ('suspend-record-text-product', ['__suspend-record', 'syncing', '0'], {'ported': True, 'volatile': VOLATILE,
+     'files': {SLEEP: json.dumps({'product': 'requested'})}}, {}),
+    ('suspend-record-number-product', ['__suspend-record', 'syncing', '0'], {'ported': True, 'volatile': VOLATILE,
+     'files': {SLEEP: json.dumps({'product': 5})}}, {}),
+    # A key that is no str: the marker is written, then the sorted receipt dump raises (nothing published).
+    ('suspend-record-number-key', ['__suspend-record', 'complete_result_0', '0'],
+     {'ported': True, 'volatile': VOLATILE, 'files': {'/sys/firmware/y2_pm/stage': '', SLEEP: json.dumps(
+         {'pm_test': 'none', 'product': [[1, 'x'], ['state', 'waking'], ['request_boot_id', 'boot-a'],
+                                         ['kernel_completed', True]]})}},
+     {'reborn': {'sleep_restore': RESTORED}}),
+    ('suspend-record-text-cycles', ['__suspend-record', 'kernel_resumed', '0'],
+     {'ported': True, 'volatile': VOLATILE, 'files': {**READY, '/sys/firmware/y2_pm/state': KERNEL, SLEEP: json.dumps(
+         {'pm_test': 'none', 'cycles': '1', 'product': {'state': 'sleeping', 'request_boot_id': 'boot-a'}})}}, {}),
+    ('suspend-record-text-seconds', ['__suspend-record', 'kernel_resumed', '0'],
+     {'ported': True, 'volatile': VOLATILE, 'files': {**READY, '/sys/firmware/y2_pm/state': KERNEL, SLEEP: json.dumps(
+         {'pm_test': 'none', 'cycles': True, 'suspended_seconds': [1],
+          'product': {'state': 'sleeping', 'request_boot_id': 'boot-a'}})}}, {}),
+    ('suspend-record-text-wakes', ['__suspend-record', 'maintenance_wake', '0'],
+     {'ported': True, 'volatile': VOLATILE, 'files': {SLEEP: '{"maintenance_wakes": null}'}}, {}),
+    ('suspend-record-list-pm-test', ['__suspend-record', 'complete_result_0', '0'],
+     {'ported': True, 'volatile': VOLATILE, 'files': {SLEEP: json.dumps({'pm_test': ['none']})}},
+     {'reborn': {'sleep_restore': RESTORED}}),
+    # The IRQ counts before the sleep as Python's `in` reads them: a list or str is searched, then indexed.
+    *[('suspend-record-irqs-' + name, ['__suspend-record', 'kernel_resumed', '0'],
+       {'ported': True, 'volatile': VOLATILE, 'files': {**READY, '/sys/firmware/y2_pm/state': KERNEL,
+                                                        SLEEP: json.dumps({'pm_test': 'none', 'wake_irqs_before': before,
+                                                                           'product': {'state': 'sleeping',
+                                                                                       'request_boot_id': 'boot-a'}})}},
+       {}) for name, before in [('list', ['rtc']), ('list-other', ['x', 1]), ('text', 'rtc power'),
+                                ('text-other', 'none'), ('number', 3), ('null', None),
+                                ('text-count', {'rtc': '1', 'power': 2}), ('null-count', {'power': None}),
+                                ('bool-count', {'rtc': False, 'power': True})]],
+    ('suspend-record-irqs-unproven', ['__suspend-record', 'kernel_resumed', '0'],
+     {'ported': True, 'volatile': VOLATILE, 'files': {**READY, SLEEP: json.dumps(
+         {'pm_test': 'none', 'wake_irqs_before': 3, 'product': {'state': 'sleeping', 'request_boot_id': 'boot-a'}})}},
+     {}),
+    # A battery that is no dict: the receipt is written, then the journal row's battery.get raises.
+    ('suspend-record-battery-null', ['__suspend-record', 'syncing', '0'],
+     {'ported': True, 'volatile': VOLATILE, 'files': {'/run/y2/power.json': '{"battery": null}'}}, {}),
     ('power-command-flags', ['__power-command', 'reboot', '-f'], {'ported': True}, {}),
     ('power-command-name', ['__power-command', 'y2-power-command'], {'ported': True}, {}),
     ('power-command-poweroff', ['__power-command', 'poweroff'], {}, {}),
     ('power-audit-bounds', ['__power-audit', '--seconds', '0', '--state', 'x', '--output', '/x'],
-     {'ported': False}, {}),
+     {'ported': True}, {}),
+    # The script's argparse parser: help, abbreviations, `=`, its errors (exit 2), then the window bounds.
+    *[('power-audit-' + name, ['__power-audit', *argv], {'ported': True}, {}) for name, argv in [
+        ('help', ['--help']), ('h', ['-h']), ('help-late', ['--state', 'x', '--h']), ('h-joined', ['-hx']),
+        ('help-after-error', ['--seconds', 'x', '-h']), ('error-after-help', ['-h', '--seconds', 'x']),
+        ('help-value', ['--help=x']), ('h-value', ['-h=x']), ('nothing', []),
+        ('no-output', ['--state', 'x']), ('ambiguous', ['--s', '1', '--state', 'x', '--output', '/x']),
+        ('abbreviated', ['--sec=0', '--st', 'x', '--o', '/x']), ('settle', ['--settle', '121', '--state', 'x',
+                                                                           '--output', '/x']),
+        ('nan', ['--seconds', 'nan', '--state', 'x', '--output', '/x']),
+        ('inf', ['--seconds', 'inf', '--state', 'x', '--output', '/x']),
+        ('negative', ['--seconds', '-5', '--state', 'x', '--output', '/x']),
+        ('bad-float', ['--seconds', 'x', '--state', 'x', '--output', '/x']),
+        ('empty-float', ['--seconds=', '--state', 'x', '--output', '/x']),
+        ('missing-value', ['--state']), ('option-value', ['--state', '-x', '--output', '/x']),
+        ('dashes', ['--state', 'x', '--output', '/x', '--', 'y']), ('dash-value', ['--state', '--', 'x']),
+        ('unknown', ['--state', 'x', '--output', '/x', '--x']), ('positional', ['y', '--state', 'x', '--output', '/x']),
+        ('unknown-first', ['--x', '--seconds', '0']), ('single-dash', ['-s', '1']),
+        ('space', ['--state', 'x', '--output', '/x', '-a b']),
+        ('underscores', ['--seconds', '1_0_0_00', '--state', 'x', '--output', '/x']),
+    ]],
 ]
 
 

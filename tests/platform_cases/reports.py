@@ -127,6 +127,8 @@ DEFAULTS = answer(['/usr/bin/reborn', '--default-settings'],
                   json.dumps({'session_schema': 3, 'settings': {'volume': 5}}))
 PLAN_ID = '1234567890abcdef1234567890abcdef'
 RESET = {'ported': True, 'volatile': ['expires_monotonic_s', 'inode', 'mtime_ns'], 'patterns': [HEX32, HEX64]}
+SESSION_PATH = '/data/reborn/state/session.json'
+TAINTED = {**ENABLED, '/proc/sys/kernel/tainted': '1\n'}
 
 
 def plan(**changes):
@@ -140,6 +142,13 @@ def plan(**changes):
     value['confirmation'] = hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     if tamper:
         value.update(tamper)
+    return value
+
+
+def plan_without(*keys, **changes):
+    """A plan without `keys`, its confirmation over what is left (a plan Python's execute reads further)."""
+    value = {k: v for k, v in plan(**changes).items() if k not in keys and k != 'confirmation'}
+    value['confirmation'] = hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     return value
 
 
@@ -218,9 +227,33 @@ CASES = [
         **ENABLED, '/sys/power/suspend_stats/fail': '4\n', '/sys/power/suspend_stats/last_failed_errno': '-16\n',
         '/run/y2/application-ready.json': '{"boot_id": "boot-a", "first_frame": true}'},
         'commands': [answer(DMESG, 'DSI register reads still lag')]}),
-    ('report-check-bad-daily', ['report', 'check'], {'ported': False, 'files': {STATE: state(daily=[])}}),
-    ('report-check-bad-queue', ['report', 'check'], {'ported': False, 'files': {
-        **ENABLED, '/data/reborn/state/session.json': '{"model": {"queue": 5}}'}}),
+    # Shapes of reports.json and session.json Python reads as it finds them: an error, a traceback (an
+    # AttributeError, TypeError or KeyError: nothing on stdout, exit 1) or nothing at all when the shape
+    # is never used, after the same changes (check's seen markers are saved before the queue raises).
+    ('report-check-bad-daily', ['report', 'check'], {'ported': True, 'files': {STATE: state(daily=[])}}),
+    ('report-check-bad-queue', ['report', 'check'], {'ported': True, 'files': {
+        **ENABLED, SESSION_PATH: '{"model": {"queue": 5}}'}}),
+    ('report-check-fired-bad-daily', ['report', 'check'], {'ported': True, 'commands': FIRED_COMMANDS, 'files': {
+        **FIRED, STATE: state(daily=[])}}),
+    ('report-check-fired-reported-text', ['report', 'check'], {'ported': True, 'files': {
+        **TAINTED, STATE: state(boot_triggers={'boot-a': 'kernel_warning,x'})}}),
+    ('report-check-fired-reported-number', ['report', 'check'], {'ported': True, 'files': {
+        **TAINTED, STATE: state(boot_triggers={'boot-a': 7})}}),
+    ('report-check-fired-bad-triggers', ['report', 'check'], {'ported': True, 'files': {
+        **TAINTED, STATE: state(boot_triggers=[])}}),
+    ('report-check-fired-bad-seen', ['report', 'check'], {'ported': True, 'commands': FIRED_COMMANDS, 'files': {
+        **FIRED, STATE: state(seen=[])}}),
+    ('report-check-bad-seen-quiet', ['report', 'check'], {'ported': True, 'files': {**ENABLED, STATE: state(seen='x')}}),
+    ('report-check-fired-settings-text', ['report', 'check'], {'ported': True, 'files': {
+        **TAINTED, SESSION_PATH: '{"model": {"settings": "ab"}}'}}),
+    ('report-check-fired-settings-number', ['report', 'check'], {'ported': True, 'files': {
+        **TAINTED, SESSION_PATH: '{"model": {"settings": 3}}'}}),
+    ('report-check-health-list', ['report', 'check'], {'ported': True, 'files': ENABLED, 'commands': [
+        answer(HEALTH, '[1]')]}),
+    ('report-enable-bad-seen', ['report', 'enable'], {'ported': True, 'patterns': [UUID], 'commands': FIRED_COMMANDS,
+                                                    'files': {**FIRED, STATE: state(enabled=False, seen=[])}}),
+    ('report-send-bad-daily', ['report', 'send'], {'ported': True, 'env': PATCH, 'files': {
+        **READY, STATE: state(daily=5)}}),
     ('report-work', ['report', 'work'], {**UPLOAD, 'files': {**READY, '/run/y2/network.json': None}}),
     ('report-work-disabled', ['report', 'work'], {'ported': True, 'env': PATCH}),
     # report upload: why it waits
@@ -257,6 +290,12 @@ CASES = [
         http(0, '', 7, 'Failed to connect to reports.schulzcode.dev port 443: Connection refused')]}),
     ('report-upload-timeout', ['report', 'upload'], {**UPLOAD, 'files': READY, 'commands': [http(0, '', 28, 'Timeout')]}),
     ('report-upload-certificate', ['report', 'upload'], {**UPLOAD, 'files': READY, 'commands': [http(0, '', 60, 'x')]}),
+    ('report-upload-bad-attempts', ['report', 'upload'], {**UPLOAD, 'files': {
+        **READY, STATE: state(uploads={A: {'attempts': 'x'}})}, 'commands': [http(503, 'oops')]}),
+    ('report-upload-bad-battery', ['report', 'upload'], {'ported': True, 'files': {
+        **READY, '/run/y2/power.json': json.dumps({'boot_id': 'boot-a', 'battery': 'full'})}}),
+    ('report-work-bad-battery', ['report', 'work'], {'ported': True, 'env': PATCH, 'files': {
+        **READY, '/run/y2/power.json': json.dumps({'boot_id': 'boot-a', 'battery': [1]})}}),
     ('report-upload-not-due', ['report', 'upload'], {**UPLOAD, 'files': {
         **READY, STATE: state(uploads={A: {'attempts': 1, 'next': 9e12}, B: {'attempts': 5, 'next': 9e12}})},
         'commands': [http(201)]}),
@@ -288,8 +327,13 @@ CASES = [
         **DATA, '/data/updates/state.json': '{"schema": 2, "state": "Staged"}'}}),
     ('reset-plan-bad-journal', ['reset', 'plan', '--scope', 'caches'], {**RESET, 'commands': BLKID, 'files': {
         **DATA, '/data/updates/state.json': '{"schema": 7}'}}),
-    ('reset-plan-journal-no-state', ['reset', 'plan', '--scope', 'caches'], {**RESET, 'ported': False, 'files': {
+    # A journal without a state: update.status's KeyError, after the volume check (blkid).
+    ('reset-plan-journal-no-state', ['reset', 'plan', '--scope', 'caches'], {**RESET, 'commands': BLKID, 'files': {
         **DATA, '/data/updates/state.json': '{"schema": 1}'}}),
+    ('reset-plan-odd-pid', ['reset', 'plan', '--scope', 'caches'], {**RESET, 'commands': BLKID, 'files': {
+        **DATA, '/proc/12a/cmdline': '/usr/bin/reborn\0'}}),
+    ('reset-plan-pid-underscore', ['reset', 'plan', '--scope', 'caches'], {**RESET, 'commands': BLKID, 'files': {
+        **DATA, '/proc/1_2/cmdline': '/usr/bin/reborn\0'}}),
     ('reset-plan-wrong-uuid', ['reset', 'plan', '--scope', 'caches'], {**RESET, 'files': DATA, 'commands': [
         answer(['blkid', '-p', '-s', 'UUID', '-o', 'value', '/dev/mmcblk0p9'], 'other')]}),
     ('reset-plan-unsafe', ['reset', 'plan', '--scope', 'caches'], {**RESET, 'commands': BLKID, 'files': {
@@ -310,6 +354,27 @@ CASES = [
         'ported': True, 'files': plan_files(CACHES)}),
     ('reset-execute-generation', ['reset', 'execute', '--confirm', plan(data_generation='x')['confirmation']], {
         'ported': True, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(data_generation='x'))}}),
+    ('reset-execute-null-id-wrong', ['reset', 'execute', '--confirm', 'f' * 64], {
+        'ported': True, 'files': plan_files(plan(id=None))}),
+    ('reset-execute-no-generation', ['reset', 'execute', '--confirm', plan(data_generation=None)['confirmation']], {
+        'ported': True, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(data_generation=None))}}),
+    ('reset-execute-no-generation-key', ['reset', 'execute', '--confirm', plan_without('data_generation')['confirmation']],
+     {'ported': True, 'commands': BLKID, 'files': {**DATA, **plan_files(plan_without('data_generation'))}}),
+    ('reset-execute-text-targets', ['reset', 'execute', '--confirm', plan(targets='ab')['confirmation']], {
+        'ported': True, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(targets='ab'))}}),
+    ('reset-execute-number-path', ['reset', 'execute', '--confirm', plan(targets=[{'path': 5, 'identity': None}])[
+        'confirmation']], {'ported': True, 'commands': BLKID, 'files': {
+            **DATA, **plan_files(plan(targets=[{'path': 5, 'identity': None}]))}}),
+    ('reset-execute-no-identity', ['reset', 'execute', '--confirm', plan(targets=[{'path': 'cache'}])['confirmation']],
+     {'ported': True, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(targets=[{'path': 'cache'}]))}}),
+    # A resume reads the targets only after the pending flag and the Applying record are written.
+    ('reset-resume-no-targets', ['reset', 'resume', '--confirm', plan(targets=None)['confirmation']], {
+        **RESET, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(targets=None))}}),
+    ('reset-resume-number-targets', ['reset', 'resume', '--confirm', plan(targets=3)['confirmation']], {
+        **RESET, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(targets=3))}}),
+    # Without `preserved` the targets are already moved when the KeyError comes.
+    ('reset-execute-no-preserved', ['reset', 'execute', '--confirm', plan_without('preserved')['confirmation']], {
+        **RESET, 'commands': BLKID, 'files': {**DATA, **plan_files(plan_without('preserved'))}}),
     ('reset-execute-caches', ['reset', 'execute', '--confirm', CACHES['confirmation']], {
         'ported': True, 'commands': BLKID, 'files': {**DATA, **plan_files(CACHES)}}),
     ('reset-execute-target-changed', ['reset', 'execute', '--confirm', SETTINGS_PLAN['confirmation']], {
@@ -335,8 +400,11 @@ CASES = [
         'ported': True, 'commands': BLKID, 'files': PURGE}),
     ('reset-purge', ['reset', 'purge', '--id', PLAN_ID, '--confirm', 'c' * 64], {
         'ported': True, 'commands': BLKID, 'files': PURGE}),
+    # json.loads's JSONDecodeError text as the failure; a record that is no dict: a traceback.
     ('reset-purge-bad-record', ['reset', 'purge', '--id', PLAN_ID, '--confirm', 'x'], {
-        'ported': False, 'commands': BLKID, 'files': {**PURGE, QUARANTINE + '/record.json': '{'}}),
+        'ported': True, 'commands': BLKID, 'files': {**PURGE, QUARANTINE + '/record.json': '{'}}),
+    ('reset-purge-list-record', ['reset', 'purge', '--id', PLAN_ID, '--confirm', 'x'], {
+        'ported': True, 'commands': BLKID, 'files': {**PURGE, QUARANTINE + '/record.json': '[1]'}}),
     # export-state / export-diagnostics
     ('export-state-unverified', ['export-state', '--include-database'], {'ported': True}),
     ('export-diagnostics', ['export-diagnostics'], {'ported': True}),
@@ -349,9 +417,36 @@ CASES = [
 # Cases tests/test_platform_reports.py runs with archive normalisation (`archives`) or a plan made first
 # (`plan_first`: the scope) or a library database (`library`) or retained archives and a large log (`retained`) made first.
 EXTRA_CASES = [
-    # Python's traceback (a KeyError) parses its source: the shared host-access check sees '<unknown>'.
+    # Python's traceback parses its source: the shared host-access check (no fixture commands) sees '<unknown>'.
     ('reset-execute-plan-no-expiry', ['reset', 'execute', '--confirm', plan(expires_monotonic_s='x')['confirmation']],
-     {'ported': False, 'files': plan_files(plan(expires_monotonic_s='x'))}),
+     {'ported': True, 'files': plan_files(plan(expires_monotonic_s='x'))}),
+    ('reset-execute-plan-missing-expiry', ['reset', 'execute', '--confirm', plan_without('expires_monotonic_s')[
+        'confirmation']], {'ported': True, 'files': plan_files(plan_without('expires_monotonic_s'))}),
+    ('reset-execute-number-id', ['reset', 'execute', '--confirm', plan(id=5)['confirmation']],
+     {'ported': True, 'files': plan_files(plan(id=5))}),
+    ('report-check-fired-odd-count', ['report', 'check'], {'ported': True, 'commands': FIRED_COMMANDS, 'files': {
+        **FIRED, STATE: state(daily={DAY: 'x'})}}),
+    ('report-check-seen-late', ['report', 'check'], {'ported': True, 'files': {
+        **ENABLED, '/sys/fs/ext4/mmcblk0p9/errors_count': '2\n', STATE: state(seen=None)}}),
+    ('report-check-fired-queue-dict', ['report', 'check'], {'ported': True, 'files': {
+        **TAINTED, SESSION_PATH: '{"model": {"queue": {"a": 1}}}'}}),
+    ('report-upload-bad-next', ['report', 'upload'], {**UPLOAD, 'files': {
+        **READY, STATE: state(uploads={A: {'next': 'soon'}})}}),
+    ('report-upload-bad-last', ['report', 'upload'], {**UPLOAD, 'files': {**READY, STATE: state(last='x')},
+                                                     'commands': [http(201, '{}')]}),
+    # A manual report is queued before its count fails (TypeError): it stays queued, reports.json unchanged.
+    ('report-send-odd-count', ['report', 'send'], {**UPLOAD, 'archives': True, 'files': {
+        **READY, '/run/y2/network.json': None, STATE: state(daily={DAY: 'x'})}}),
+    # dict() of a list of pairs: the settings as Python reads them.
+    ('report-check-settings-pairs', ['report', 'check'], {**UPLOAD, 'archives': True, 'files': {
+        **TAINTED, SESSION_PATH: '{"model": {"settings": [["volume", 3], "tz"], "queue": "ab"}}'}}),
+    # The saved session as json.loads reads it: its JSONDecodeError, or a traceback for a list with 'schema'.
+    ('reset-execute-settings-bad-json', ['reset', 'execute'], {**RESET, 'plan_first': 'settings', 'commands': BLKID,
+                                                               'files': {**DATA, SESSION_PATH: '{"a": '}}),
+    ('reset-execute-settings-list', ['reset', 'execute'], {**RESET, 'plan_first': 'settings', 'commands': BLKID,
+                                                           'files': {**DATA, SESSION_PATH: '["schema"]'}}),
+    ('reset-execute-defaults-list', ['reset', 'execute'], {**RESET, 'plan_first': 'settings', 'commands': BLKID + [
+        answer(['/usr/bin/reborn', '--default-settings'], '[1]')], 'files': {**DATA, **SETTINGS}}),
     ('report-send', ['report', 'send', '--topic', 'wifi'], {**UPLOAD, 'archives': True, 'files': {
         **READY, '/data/system/platform/reports/' + A: None, '/data/system/platform/reports/' + B: None,
         '/data/system/platform/reports/' + C: None, '/data/network/wpa_supplicant.conf': 'network={\n ssid="Home"\n}\n',

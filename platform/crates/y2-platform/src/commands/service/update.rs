@@ -81,8 +81,9 @@ pub enum Raise {
     /// `NoSpace(needed)`: a ValueError `update_data_space_reserve` with the bytes the update needs.
     NoSpace(i128),
     Net(Net),
-    /// Let the Python platform do the whole command (nothing changed yet).
-    Fallback,
+    /// An exception Python does not catch here (a TypeError on a record of an unexpected type): a
+    /// traceback and exit 1.
+    Crash,
 }
 
 impl Raise {
@@ -91,7 +92,7 @@ impl Raise {
             Raise::Value(text) | Raise::Os(text) => text.clone(),
             Raise::NoSpace(_) => "update_data_space_reserve".into(),
             Raise::Net(error) => error.text(),
-            Raise::Fallback => String::new(),
+            Raise::Crash => String::new(),
         }
     }
 
@@ -111,9 +112,10 @@ impl Raise {
 impl From<Failure> for Raise {
     fn from(failure: Failure) -> Raise {
         match failure {
-            Failure::Fallback => Raise::Fallback,
             Failure::Value(text) => Raise::Value(text),
             Failure::Os { text, .. } => Raise::Os(text),
+            // An uncaught exception in a helper of another group: Python crashes the same way.
+            Failure::Crash { .. } => Raise::Crash,
         }
     }
 }
@@ -1092,7 +1094,7 @@ pub fn stage(
             }
             Err(error)
         }
-        Err(Raise::Fallback) => Err(Raise::Fallback),
+        Err(Raise::Crash) => Err(Raise::Crash),
         Err(error) => {
             let text = error.text();
             let mut record = json!({"schema": 1, "state": "Failed", "failure": text});
@@ -1293,7 +1295,7 @@ fn cancel_update(root: &Root) -> Result<Value> {
 fn channel_url(root: &Root) -> Result<Option<String>> {
     match channel(root).get("manifest_url") {
         Some(Value::String(url)) => Ok(Some(url.clone())),
-        Some(value) if truthy(value) => Err(Raise::Fallback),
+        Some(value) if truthy(value) => Err(Raise::Crash),
         _ => Ok(None),
     }
 }
@@ -1301,7 +1303,6 @@ fn channel_url(root: &Root) -> Result<Option<String>> {
 /// `update.automatic_check`: daily check on Wi-Fi: only reports that an update exists, never downloads
 /// a payload or installs. Called by the maintenance loop; cheap when not due.
 fn automatic_check(root: &Root) -> Result<Value> {
-    let url = channel_url(root)?;
     let now = super::time_wall();
     let directory = root.path("/data/updates");
     private_directory(&directory)?;
@@ -1321,7 +1322,9 @@ fn automatic_check(root: &Root) -> Result<Value> {
     attempt.insert("schema".into(), json!(1));
     attempt.insert("attempt".into(), json!(now));
     atomic_json(&directory.join("last-check.json"), &attempt, false)?;
-    if !state_is(&status(root), &TERMINAL) || url.is_none() {
+    // `not channel(ctx).get('manifest_url')`: truthiness only; its type matters at the check below.
+    if !state_is(&status(root), &TERMINAL) || !channel(root).get("manifest_url").is_some_and(truthy)
+    {
         return Ok(Value::Null);
     }
     if root.json_object("/run/y2/network.json").get("state") != Some(&json!("Online")) {
@@ -1341,6 +1344,7 @@ fn automatic_check(root: &Root) -> Result<Value> {
     }
     // Never an interrupted download's leftover: a failed check would write it back.
     let previous = download_record(root);
+    let url = channel_url(root)?;
     match stage(root, None, url.as_deref(), true) {
         Ok(manifest) => {
             record["time"] = json!(now);
@@ -1350,7 +1354,7 @@ fn automatic_check(root: &Root) -> Result<Value> {
                 .cloned()
                 .unwrap_or(Value::Null);
         }
-        Err(Raise::Fallback) => return Err(Raise::Fallback),
+        Err(Raise::Crash) => return Err(Raise::Crash),
         Err(error) => {
             record["result"] = json!("failed");
             record["failure"] = json!(prefix(&error.text(), 120));
@@ -1450,7 +1454,7 @@ fn health_ack(root: &Root) -> Result<Value> {
     }
     // A deadline that is not a number is a TypeError in Python; only possible for a record this call
     // did not write, so nothing changed yet.
-    let deadline = py::number(progress.get("deadline_monotonic_s")).ok_or(Raise::Fallback)?;
+    let deadline = py::number(progress.get("deadline_monotonic_s")).ok_or(Raise::Crash)?;
     if clock::monotonic() >= deadline {
         // Ask LK for the recovery image now, so even a later hang before the rescue restores on the
         // next power-on. Never an automatic power-off.
@@ -1553,7 +1557,13 @@ pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) 
     })();
     match result {
         Ok(value) => Reply::sorted(&value, 0),
-        Err(Raise::Fallback) => Err(Failure::Fallback),
+        // Raise::Crash: an uncaught exception in Python (a TypeError on a record of the wrong type):
+        // a traceback and exit 1, nothing on stdout. Python may change a record before it fails; this
+        // stops before (CONTRACT.md: accepted differences).
+        Err(Raise::Crash) => Err(Failure::crash(
+            "TypeError",
+            "a record of an unexpected type",
+        )),
         Err(error) => Reply::unsorted(
             &Ordered::new()
                 .with("state", "Failed")

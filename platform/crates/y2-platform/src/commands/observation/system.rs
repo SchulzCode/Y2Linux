@@ -84,16 +84,24 @@ fn evidence_status(root: &Root) -> Result<Value, Failure> {
     result.insert("retained".into(), get("retained"));
     result.insert("pmic".into(), get("pmic"));
     result.insert("loader".into(), get("loader"));
+    // `for log in value.get('logs', [])`: a dict yields its keys, a str its characters (each then
+    // has no `.get`); a number, bool or None is not iterable.
     let logs = match value.get("logs") {
         None => Vec::new(),
         Some(Value::Array(items)) => items.clone(),
-        // Iterating anything else raises (AttributeError on its items, or TypeError).
-        Some(_) => return Err(Failure::Fallback),
+        Some(Value::Object(map)) => map.keys().map(|k| json!(k)).collect(),
+        Some(Value::String(s)) => s.chars().map(|c| json!(c.to_string())).collect(),
+        Some(other) => {
+            return Err(Failure::type_error(format!(
+                "'{}' object is not iterable",
+                util::type_name(other)
+            )))
+        }
     };
     let mut tails = Vec::new();
     for log in logs {
         let Value::Object(log) = log else {
-            return Err(Failure::Fallback);
+            return Err(util::no_get(&log));
         };
         tails.push(
             json!({"name": log.get("name"), "tail_sha256": log.get("tail_sha256"),
@@ -325,7 +333,7 @@ fn charge_field(state: &str, name: &str) -> Result<Value, Failure> {
     let pattern = y2p_core::observation_support::regex::Regex::new(&format!(r"\b{name}=(-?\d+)"))
         .expect("pattern");
     match pattern.captures(state) {
-        Some(c) => Ok(json!(util::int(&c[1]).ok_or(Failure::Fallback)?)),
+        Some(c) => Ok(json!(util::int_or_raise(&c[1])?)),
         None => Ok(Value::Null),
     }
 }

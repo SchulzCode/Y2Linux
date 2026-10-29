@@ -349,7 +349,10 @@ impl UsbService {
                     child.kill();
                     if !child.wait(1.0) {
                         // subprocess.TimeoutExpired: not an OSError, the daemon ends (a traceback).
-                        return Err(Failure::Fallback);
+                        return Err(Failure::crash(
+                            "subprocess.TimeoutExpired",
+                            "Command '['/usr/sbin/umtprd']' timed out after 1.0 seconds",
+                        ));
                     }
                 }
             }
@@ -614,7 +617,7 @@ impl UsbService {
             Ok(())
         };
         match result {
-            Err(Failure::Fallback) => Err(Failure::Fallback),
+            Err(error @ Failure::Crash { .. }) => Err(error),
             _ => Ok(()),
         }
     }
@@ -639,7 +642,12 @@ impl UsbService {
         {
             None => json!("mtp"),
             // `mode not in FUNCTIONS` of a list or dict: TypeError, the daemon ends.
-            Some(Value::Array(_) | Value::Object(_)) => return Err(Failure::Fallback),
+            Some(Value::Array(_)) => {
+                return Err(Failure::crash("TypeError", "unhashable type: 'list'"))
+            }
+            Some(Value::Object(_)) => {
+                return Err(Failure::crash("TypeError", "unhashable type: 'dict'"))
+            }
             Some(value) => value.clone(),
         };
         let name = udc
@@ -649,7 +657,7 @@ impl UsbService {
         match self.attempt(requested, &cable, &name) {
             Err(error @ (Failure::Os { .. } | Failure::Value(_))) => {
                 match self.stop() {
-                    Err(Failure::Fallback) => return Err(Failure::Fallback),
+                    Err(error @ Failure::Crash { .. }) => return Err(error),
                     Err(_) => self.terminal = true,
                     Ok(()) => {}
                 }

@@ -211,6 +211,11 @@ Acknowledged, the phase's device checks, a handoff entry. Publish only when the 
   charger (charging screen), update restart, **two overnight runs** with drain compared to the Phase 0 baseline.
 
 ### Phase 6 — Remove Python
+- Prepared (2026-10-29): no ported command hands itself to Python any more (Python's errors and crashes are
+  reproduced, `Failure::Crash`; arguments that are not UTF-8 are parsed as `os.fsdecode` reads them). The hand-off
+  is the cargo feature `python-fallback` (default on); `--no-default-features` builds a binary without any Python
+  path, and main.rs's route test then requires a route for every subcommand and action (open: `service-daemon`,
+  and the service group's `update health-ack`/`export-diagnostics` fallbacks, ported separately).
 - Remove the dispatcher fallback, `/usr/lib/y2-platform`, Python scripts, `BR2_PACKAGE_PYTHON3*` from the production
   defconfig; confirm with `make … show-depends`/the legal-info manifest that nothing else pulls Python; firmware scan
   and package validation still pass; image size and RAM measured (§7).

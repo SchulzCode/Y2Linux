@@ -156,29 +156,47 @@ parser as data, `src/argparse.json`, generated and checked by `tools/development
 prints that parser's help (exit 0) and an argument error its usage and `main.py …: error: …` on stderr (exit 2),
 without Python. Rust then runs a subcommand for the canonical forms below (an abbreviated or `=` spelling, or
 options in another order, parse to the same canonical form: subcommand, positionals, then the options given in
-definition order); every other form goes to the Python platform with the arguments as given. Help and usage
-texts are the 80-column ones (Python would use a terminal's width or COLUMNS; the platform's callers use pipes).
-A ported command also hands itself to Python, before it changes anything Python would not change the same way
-again, for inputs where Python would crash or parses something not worth reproducing (listed). Each row has
-differential cases in `tests/test_platform_differential.py` (`ported` True/False is checked).
+definition order); a form no route takes goes to the Python platform with the arguments as given (since
+phase 6 preparation only `service-daemon` has no route). Help and usage texts are the 80-column ones (Python would
+use a terminal's width or COLUMNS; the platform's callers use pipes). Arguments and environment values that are
+not UTF-8 are read as Python reads them (`os.fsdecode`: a lone surrogate per byte, kept in Rust as a private-use
+escape character, `y2p_core::os_text`, that `repr()`, `json.dumps`, stderr and `os.fsencode` treat as Python
+treats the surrogate); only `firmware` and `update`, whose paths and URLs are not yet read back as bytes, still
+hand such arguments to Python.
 
-| Command (forms) | Module | Python | Falls back to Python for |
-| --- | --- | --- | --- |
-| `capabilities` [`--json`] | `capabilities.rs`, `codec.rs` | capabilities.status + cli tail | a template entry that is not a dict; `codecs` not a dict |
-| `sleep status` | `sleep.rs` | sleep.status/product | `product` truthy but not a dict; an unhashable `state` |
-| `time` | `time.rs` | timekeeping.status | — |
-| `time-remember` | `time.rs` | timekeeping.remember(every=0) | — |
-| `ntp-event step\|stratum\|periodic\|unsync` | `time.rs` | timekeeping.ntp_event | `stratum` not a plain decimal |
-| `boot-stage <stage>` | `boot.rs`, `power_features.rs` | boot.mark, power_features.apply | — |
-| `codec-runtime` [`--record`] | `codec.rs` | radio_policy.codec_runtime | `codecs` not a dict |
-| `wifi-event CONNECTED\|DISCONNECTED\|SERVICE_RESTART` | `network.rs` | network.lease_event | — |
-| `dhcp-event deconfig\|leasefail\|nak\|bound\|renew` | `network.rs` | network.dhcp_event | an address, netmask or route ipaddress would word an error for (leading zeros, hostmask, bad octets) |
-| `cpu-idle-policy start\|stop` | `cpu_idle.rs` | cpu_idle.apply | — |
+No ported command hands itself to Python any more (except the service group's `update health-ack` and
+`export-diagnostics` until their port lands): where Python raises an exception main.py catches, Rust prints
+main.py's error record with Python's exact `str(error)` and class (`ipaddress`'s `AddressValueError` and
+`NetmaskValueError`, `int()`'s `ValueError`, `UnicodeEncodeError`), or the command's own failure shape where the
+command catches it; where Python crashes (`TypeError`, `AttributeError`, `KeyError`, `IndexError`), Rust ends
+the same way (`Failure::Crash`: nothing more on stdout, a traceback on stderr, exit 1) after the same file
+changes and subprocess requests. Each command has differential cases (`ported: True` is checked).
+
+The Python hand-off itself is the cargo feature `python-fallback` (default on). Phase 6 builds without it
+(`--no-default-features`): then nothing in the binary can exec Python, and main.rs's test
+`every_command_line_argparse_takes_has_a_route` requires a route for every subcommand and action of
+`argparse.json` (with the feature on it allows only `service-daemon` to be missing).
+
+| Command (forms) | Module | Python |
+| --- | --- | --- |
+| `capabilities` [`--json`] | `capabilities.rs`, `codec.rs` | capabilities.status + cli tail |
+| `sleep status` | `sleep.rs` | sleep.status/product |
+| `time` | `time.rs` | timekeeping.status |
+| `time-remember` | `time.rs` | timekeeping.remember(every=0) |
+| `ntp-event step\|stratum\|periodic\|unsync` | `time.rs` | timekeeping.ntp_event |
+| `boot-stage <stage>` | `boot.rs`, `power_features.rs` | boot.mark, power_features.apply |
+| `codec-runtime` [`--record`] | `codec.rs` | radio_policy.codec_runtime |
+| `wifi-event CONNECTED\|DISCONNECTED\|SERVICE_RESTART` | `network.rs` | network.lease_event |
+| `dhcp-event deconfig\|leasefail\|nak\|bound\|renew` | `network.rs` | network.dhcp_event |
+| `cpu-idle-policy start\|stop` | `cpu_idle.rs` | cpu_idle.apply |
+| the port groups' commands (plan §5a) | `commands/<group>/` | see each group's module |
 
 Known, accepted differences (none reachable from the platform's own records): JSON input with `NaN`,
 `Infinity` or integers beyond 64 bits reads as unreadable (Python reads them); an `OSError` while writing a
 record names the record, not Python's temporary file; `str.splitlines` separators other than `\n`/`\r\n` in
-sysfs text.
+sysfs text; a valid UTF-8 argument holding U+10DC80..U+10DCFF reads as an escaped byte; a `y2-suspend-record`
+result beyond 64 bits is refused like a non-number (y2-suspend passes exit codes). A traceback's frames are not
+Python's (its last line, class and message, is).
 
 ## Suspected defects found while inventorying (not changed in Phase 0)
 

@@ -429,7 +429,7 @@ pub fn export(root: &Root) -> Outcome {
         Ok(value) => Ok(Reply::text(pyjson::dumps(&value, Style::Spaced))),
         // A snapshot Python crashes on (its traceback): by then only /data/exports and its lock file
         // exist, which Python makes the same way again.
-        Err(Failure::Fallback) => Err(Failure::Fallback),
+        Err(error @ Failure::Crash { .. }) => Err(error),
         Err(_) => Reply::unsorted(
             &y2p_core::json::Ordered::new()
                 .with("state", "Failed")

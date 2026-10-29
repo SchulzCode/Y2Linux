@@ -88,8 +88,13 @@ pub fn route(args: &[&str]) -> Option<Command> {
                 return None;
             }
             let seconds = match parsed.options.get("--seconds") {
-                // An int beyond 64 bits is left to Python.
-                Some(text) => text.parse::<i64>().ok()?,
+                // `str(int())` from argparse; only `max(1, min(seconds, WRITE_HOLD_MAX))` reads it,
+                // so an int beyond 64 bits clamps as its saturated value does.
+                Some(text) => text.parse::<i64>().unwrap_or(if text.starts_with('-') {
+                    i64::MIN
+                } else {
+                    i64::MAX
+                }),
                 None => 60,
             };
             let request = MediaRequest {

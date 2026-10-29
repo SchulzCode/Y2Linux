@@ -4,6 +4,7 @@
 //! player's Python's (unicode.rs, generated).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::unicode::{DECIMAL_ZEROS, NONPRINTABLE, SPACE};
+use y2p_core::os_text::surrogate;
 
 /// `unicodedata.decimal(c)`: the digit of a Unicode decimal digit (Nd).
 pub fn decimal(c: char) -> Option<u32> {
@@ -46,7 +47,12 @@ pub fn repr(text: &str) -> String {
                 out.push(c);
             }
             _ if code < 0x20 || code == 0x7f => out.push_str(&format!("\\x{code:02x}")),
-            _ if code < 0x7f || is_printable(c) => out.push(c),
+            _ if code < 0x7f => out.push(c),
+            // An escaped byte of a non-UTF-8 argument: a lone surrogate, which Python shows escaped.
+            _ if surrogate(c).is_some() => {
+                out.push_str(&format!("\\u{:04x}", surrogate(c).unwrap_or_default()))
+            }
+            _ if is_printable(c) => out.push(c),
             _ if code <= 0xff => out.push_str(&format!("\\x{code:02x}")),
             _ if code <= 0xffff => out.push_str(&format!("\\u{code:04x}")),
             _ => out.push_str(&format!("\\U{code:08x}")),

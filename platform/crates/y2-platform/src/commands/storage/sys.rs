@@ -57,6 +57,27 @@ pub fn py_eq(a: &Value, b: &Value) -> bool {
     }
 }
 
+/// `type(value).__name__` of a JSON value as `json.loads` makes it.
+pub fn py_type(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "NoneType",
+        Value::Bool(_) => "bool",
+        Value::Number(n) if n.is_f64() => "float",
+        Value::Number(_) => "int",
+        Value::String(_) => "str",
+        Value::Array(_) => "list",
+        Value::Object(_) => "dict",
+    }
+}
+
+/// `value.<attribute>` on a value that has no such attribute: Python's uncaught AttributeError.
+pub fn no_attribute(value: &Value, attribute: &str) -> Failure {
+    Failure::attribute_error(format!(
+        "'{}' object has no attribute '{attribute}'",
+        py_type(value)
+    ))
+}
+
 /// `d.get(key)` (None when missing).
 pub fn get<'a>(map: &'a Object, key: &str) -> &'a Value {
     map.get(key).unwrap_or(&Value::Null)
@@ -437,11 +458,13 @@ pub fn usb_status(root: &Root) -> Object {
     state
 }
 
-/// `any(v.get('path') == path for v in current.get('views', []))`; what Python would crash on
-/// (a view that is not a dict, views that are not a list) is handed to Python.
+/// `any(v.get('path') == path for v in current.get('views', []))`, with Python's crashes: a view
+/// that is not a dict (also each character of a str, each key of a dict) has no `get`, a number,
+/// bool or null is not iterable.
 fn has_view(current: &Object, path: &str) -> Result<bool, Failure> {
     let empty = Value::Array(Vec::new());
     let views = current.get("views").unwrap_or(&empty);
+    let string = Value::String(String::new());
     match views {
         Value::Array(items) => {
             for item in items {
@@ -450,14 +473,18 @@ fn has_view(current: &Object, path: &str) -> Result<bool, Failure> {
                         return Ok(true)
                     }
                     Value::Object(_) => {}
-                    _ => return Err(Failure::Fallback),
+                    other => return Err(no_attribute(other, "get")),
                 }
             }
             Ok(false)
         }
         Value::String(s) if s.is_empty() => Ok(false),
         Value::Object(m) if m.is_empty() => Ok(false),
-        _ => Err(Failure::Fallback),
+        Value::String(_) | Value::Object(_) => Err(no_attribute(&string, "get")),
+        other => Err(Failure::type_error(format!(
+            "'{}' object is not iterable",
+            py_type(other)
+        ))),
     }
 }
 

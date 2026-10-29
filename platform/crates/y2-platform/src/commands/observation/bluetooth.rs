@@ -18,15 +18,15 @@ use y2p_core::{
 enum Stop {
     /// A TypeError or ValueError: `observe.bluetooth` catches it and reports no observation.
     Caught,
-    /// Anything else (an AttributeError): the command crashes; Python does it.
-    Fallback,
+    /// Anything else (an AttributeError on an inventory that is no dict): the command crashes.
+    Crash(Failure),
 }
 
 impl From<Failure> for Stop {
     fn from(error: Failure) -> Self {
         match error {
-            Failure::Fallback => Stop::Fallback,
-            _ => Stop::Caught,
+            Failure::Value(_) | Failure::Os { .. } => Stop::Caught,
+            crash => Stop::Crash(crash),
         }
     }
 }
@@ -332,7 +332,7 @@ fn base(root: &Root, settings: Value) -> Map<String, Value> {
 fn normalize(root: &Root, raw: &Map<String, Value>, order: &[String]) -> Result<Value, Stop> {
     let settings = match codec_settings(root) {
         Ok(settings) => settings,
-        Err(Stop::Fallback) => return Err(Stop::Fallback),
+        Err(Stop::Crash(error)) => return Err(Stop::Crash(error)),
         Err(Stop::Caught) => {
             // Only a ValueError is caught here; a TypeError reaches observe.bluetooth.
             match codec_failure(root)? {
@@ -550,8 +550,8 @@ fn normalize(root: &Root, raw: &Map<String, Value>, order: &[String]) -> Result<
 /// The ValueError text of `codec_controls.status` (None when what failed was a TypeError).
 fn codec_failure(root: &Root) -> Result<Option<String>, Stop> {
     match requested(root).and_then(validate) {
-        Err(Failure::Fallback) => Err(Stop::Fallback),
-        Err(error) => Ok(Some(error.message())),
+        Err(error @ (Failure::Value(_) | Failure::Os { .. })) => Ok(Some(error.message())),
+        Err(crash) => Err(Stop::Crash(crash)),
         Ok(_) => Ok(None),
     }
 }
@@ -567,7 +567,7 @@ pub fn bluetooth(root: &Root) -> Result<Value, Failure> {
                 .unwrap_or_default();
             match normalize(root, &observed, &order) {
                 Ok(value) => return Ok(value),
-                Err(Stop::Fallback) => return Err(Failure::Fallback),
+                Err(Stop::Crash(error)) => return Err(error),
                 Err(Stop::Caught) => {}
             }
         }

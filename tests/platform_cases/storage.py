@@ -141,6 +141,21 @@ MEDIA = [
     ('media-unmount-usb', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
         {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'attached',
          'views': [{'path': '/media/internal/music'}, {'path': '/media/sd'}]})}}),
+    # Views Python cannot read: AttributeError (no dict) or TypeError (not iterable), a traceback.
+    ('media-unmount-usb-text-views', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+        {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': '/media/sd'})}}),
+    ('media-unmount-usb-dict-views', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+        {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': {'path': '/media/sd'}})}}),
+    ('media-unmount-usb-number-view', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+        {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': [{'path': '/x'}, 3]})}}),
+    ('media-unmount-usb-null-views', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+        {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': None})}}),
+    ('media-unmount-usb-number-views', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+        {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': 7})}}),
+    ('media-unmount-usb-empty-text-views', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+        {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': ''})}}),
+    ('media-unmount-usb-view-first', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+        {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': [{'path': '/media/sd'}, 3]})}}),
     ('media-check', ['media', 'check'], {'ported': True, 'commands': [VFAT, ok(FSCK, 'clean')]}),
     ('media-check-ext4', ['media', 'check'], {'ported': True, 'commands': [
         EXT4, failed(['e2fsck', '-f', '-n', '/dev/mmcblk1p1'])]}),
@@ -168,8 +183,11 @@ MEDIA = [
         VFAT, failed(FSCK, reason='command_timeout')], 'files': {**MOUNTED, '/run/y2/media-mount.json': claim('checking')}}),
     ('media-verify-other-card', ['media', 'verify'], {'ported': True, 'commands': [VFAT], 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('checking', source_instance='block:179:97:diskseq:3')}}),
-    ('media-verify-bad-identity', ['media', 'verify'], {'ported': False, 'commands': [VFAT], 'files': {
+    # A claim Python cannot read crashes it (AttributeError: traceback, nothing on stdout, exit 1).
+    ('media-verify-bad-identity', ['media', 'verify'], {'ported': True, 'commands': [VFAT], 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('checking', identity=['x'])}}),
+    ('media-verify-text-identity', ['media', 'verify'], {'ported': True, 'commands': [VFAT], 'files': {
+        **MOUNTED, '/run/y2/media-mount.json': claim('checking', identity='x')}}),
     ('media-format-unconfirmed', ['media', 'format'], {'ported': True}),
     ('media-format-wrong-card', ['media', 'format', '--confirm-cid', 'other'], {'ported': True}),
     ('media-format', ['media', 'format', '--confirm-cid', CID], {'ported': True, 'files': SMALL}),
@@ -212,7 +230,25 @@ MEDIA = [
                                                              '/run/y2/media-mount.json': claim('check_timed_out')}}),
     ('media-repair-changed-card', ['media', 'repair'], {'ported': True, 'commands': [VFAT], 'files': {
         '/run/y2/media.json': REFUSED, '/run/y2/power.json': POWER}}),
+    # A battery, identity or check that is no dict crashes Python: before the card is detached
+    # (battery) or after it (identity, check), with no repair record written.
+    ('media-repair-bad-battery', ['media', 'repair'], {'ported': True, 'files': {
+        '/run/y2/media.json': REFUSED, '/run/y2/power.json': POWER.replace('{"charging"', '"x", "y": {"charging"')}}),
+    ('media-repair-bad-identity', ['media', 'repair'], {'ported': True, 'commands': [EXT4], 'files': {
+        '/run/y2/media.json': REFUSED.replace('"identity": {', '"identity": ["x"], "old": {'),
+        '/run/y2/power.json': POWER}}),
+    ('media-repair-bad-check', ['media', 'repair'], {'ported': True, 'commands': [EXT4], 'files': {
+        '/run/y2/media.json': json.dumps({**json.loads(REFUSED), 'filesystem_check': [1]}),
+        '/run/y2/power.json': POWER}}),
     ('media-write-not-mounted', ['media', 'write'], {'ported': True}),
+    ('media-write-bad-holders', ['media', 'write'], {'ported': True, 'files': {
+        **MOUNTED, '/run/y2/sd-write.json': json.dumps({'boot_id': 'boot-a', 'mount_id': 51, 'holders': [1]})}}),
+    ('media-write-huge-seconds', ['media', 'write', '--seconds', '99999999999999999999999'], {
+        'ported': True, 'files': MOUNTED, 'volatile': WRITE_VOLATILE,
+        'commands': [ok(['mount', '-o', 'remount,rw', '/media/sd'])]}),
+    ('media-write-huge-negative-seconds', ['media', 'write', '--seconds', '-99999999999999999999999'], {
+        'ported': True, 'files': MOUNTED, 'volatile': WRITE_VOLATILE,
+        'commands': [ok(['mount', '-o', 'remount,rw', '/media/sd'])]}),
     ('media-write', ['media', 'write'], {'ported': True, 'files': MOUNTED, 'volatile': WRITE_VOLATILE,
                                          'commands': [ok(['mount', '-o', 'remount,rw', '/media/sd'])]}),
     ('media-write-long', ['media', 'write', '--holder', 'radiofw', '--seconds', '5000', '--holder', 'usb'], {
@@ -344,6 +380,17 @@ INTERNAL_CASES = [
         SETUP: json.dumps({**RECORD, 'start': 0})}}),
     ('internal-setup-record-phase', ['internal-media', 'setup'], {'ported': True, 'commands': [STOCK], 'files': {
         SETUP: json.dumps({**RECORD, 'phase': 'done'})}}),
+    # A resume record without its phase (or a FAT's serial) is Python's KeyError after the 'Running' note.
+    ('internal-setup-record-no-phase', ['internal-media', 'setup'], {'ported': True, 'commands': [STOCK], 'files': {
+        SETUP: json.dumps({k: v for k, v in RECORD.items() if k != 'phase'})}}),
+    ('internal-setup-staging-no-serial', ['internal-media', 'setup'], {'ported': True, 'commands': [STOCK], 'files': {
+        SETUP: json.dumps({**{k: v for k, v in RECORD.items() if k != 'serial'}, 'phase': 'staging'})}}),
+    ('internal-setup-staging-no-serial-ext4', ['internal-media', 'setup'], {'ported': True, 'commands': [VALID],
+                                                                             'files': {
+        SETUP: json.dumps({**{k: v for k, v in RECORD.items() if k != 'serial'}, 'phase': 'staging'})}}),
+    ('internal-setup-formatting-no-serial', ['internal-media', 'setup'], {'ported': True, 'commands': [STOCK],
+                                                                           'files': {
+        SETUP: json.dumps({k: v for k, v in RECORD.items() if k != 'serial'})}}),
     ('internal-help', ['internal-media', '--help'], {'ported': True}),
     ('internal-serial-missing', ['internal-media', 'setup', '--confirm-serial'], {'ported': True}),
 ]

@@ -2,6 +2,7 @@
 //! `common.key_values`/`counters`, `re.findall` pairs, `==` between parsed JSON values (`1 == 1.0 ==
 //! True`), `os.path.realpath`, uncapped `Path.glob`, and `ctx.record`.
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::reply::Failure;
 use serde_json::{json, Map, Value};
 use std::{
     collections::BTreeMap,
@@ -12,7 +13,7 @@ use std::{
 use y2p_core::{
     clock,
     observation_support::regex::Regex,
-    root::{self, python_int, python_strip},
+    root::{self, python_strip},
     Root,
 };
 
@@ -72,9 +73,152 @@ pub fn split_ws(text: &str) -> Vec<&str> {
     text.split(is_space).filter(|s| !s.is_empty()).collect()
 }
 
-/// `int(text)` (`common.number`) of a str.
+/// `int(text)` (`common.number`) of a str: any Unicode decimal digits, surrounding whitespace and
+/// single underscores, as Python's `int()`. None where it raises (and, an accepted difference, beyond
+/// 64 bits, where Python would carry on with a larger int).
 pub fn int(text: &str) -> Option<i64> {
-    python_int(text)
+    crate::argparse::python::int(text)?.parse().ok()
+}
+
+/// `int(text)` where nothing catches its ValueError: the value, or main.py's error record
+/// (`invalid literal for int() with base 10: '…'`).
+pub fn int_or_raise(text: &str) -> Result<i64, Failure> {
+    int(text).ok_or_else(|| Failure::int_literal(text))
+}
+
+/// The characters `str.isdigit()` takes besides the decimal digits (Numeric_Type=Digit:
+/// superscripts, circled digits, …), as inclusive ranges (Python's Unicode 16 tables).
+const DIGITS: [(u32, u32); 20] = [
+    (0xb2, 0xb3),
+    (0xb9, 0xb9),
+    (0x1369, 0x1371),
+    (0x19da, 0x19da),
+    (0x2070, 0x2070),
+    (0x2074, 0x2079),
+    (0x2080, 0x2089),
+    (0x2460, 0x2468),
+    (0x2474, 0x247c),
+    (0x2488, 0x2490),
+    (0x24ea, 0x24ea),
+    (0x24f5, 0x24fd),
+    (0x24ff, 0x24ff),
+    (0x2776, 0x277e),
+    (0x2780, 0x2788),
+    (0x278a, 0x2792),
+    (0x10a40, 0x10a43),
+    (0x10e60, 0x10e68),
+    (0x11052, 0x1105a),
+    (0x1f100, 0x1f10a),
+];
+
+/// `str.isdigit()`: not empty, every character a decimal digit or another Unicode digit. `int()`
+/// reads only the decimal ones: an `isdigit()` text may still be no int.
+pub fn isdigit(text: &str) -> bool {
+    !text.is_empty()
+        && text.chars().all(|c| {
+            crate::argparse::python::decimal(c).is_some()
+                || DIGITS.iter().any(|&(a, b)| (a..=b).contains(&(c as u32)))
+        })
+}
+
+/// `type(value).__name__` of a parsed JSON value.
+pub fn type_name(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "NoneType",
+        Value::Bool(_) => "bool",
+        Value::Number(n) if n.is_f64() => "float",
+        Value::Number(_) => "int",
+        Value::String(_) => "str",
+        Value::Array(_) => "list",
+        Value::Object(_) => "dict",
+    }
+}
+
+/// A dict key that is no str (`dict([[1, 2]])`), kept under this prefix: Python's
+/// `json.dumps(sort_keys=True)` of a dict holding it raises TypeError (`unsortable`).
+pub const NON_STR_KEY: &str = "\u{0}non-str-key:";
+
+/// `dict(value)` of a truthy parsed JSON value that is no dict: a list of pairs (two-item lists,
+/// two-character strs, two-key dicts), or the ValueError/TypeError Python raises.
+pub fn py_dict(value: &Value) -> Result<Map<String, Value>, Failure> {
+    let length = |index: usize, n: usize| {
+        Failure::value(format!(
+            "dictionary update sequence element #{index} has length {n}; 2 is required"
+        ))
+    };
+    let items = match value {
+        Value::Array(items) => items,
+        // A str's items are its characters (length 1).
+        Value::String(_) => return Err(length(0, 1)),
+        other => {
+            return Err(Failure::type_error(format!(
+                "'{}' object is not iterable",
+                type_name(other)
+            )))
+        }
+    };
+    let mut result = Map::new();
+    for (index, item) in items.iter().enumerate() {
+        let (key, value) = match item {
+            Value::Array(pair) if pair.len() == 2 => (pair[0].clone(), pair[1].clone()),
+            Value::Array(other) => return Err(length(index, other.len())),
+            Value::String(text) => {
+                let chars: Vec<char> = text.chars().collect();
+                if chars.len() != 2 {
+                    return Err(length(index, chars.len()));
+                }
+                (json!(chars[0].to_string()), json!(chars[1].to_string()))
+            }
+            // Its keys, in this reader's (sorted) order.
+            Value::Object(map) if map.len() == 2 => {
+                let mut keys = map.keys();
+                (json!(keys.next()), json!(keys.next()))
+            }
+            Value::Object(map) => return Err(length(index, map.len())),
+            _ => return Err(Failure::type_error("object is not iterable")),
+        };
+        let key = match key {
+            Value::String(key) => key,
+            key @ (Value::Array(_) | Value::Object(_)) => {
+                let name = type_name(&key);
+                return Err(Failure::type_error(format!(
+                    "cannot use '{name}' as a dict key (unhashable type: '{name}')"
+                )));
+            }
+            other => format!("{NON_STR_KEY}{other}"),
+        };
+        result.insert(key, value);
+    }
+    Ok(result)
+}
+
+/// Whether `json.dumps(value, sort_keys=True)` raises: a dict in it holds a key that is no str.
+pub fn unsortable(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => map
+            .iter()
+            .any(|(k, v)| k.starts_with(NON_STR_KEY) || unsortable(v)),
+        Value::Array(items) => items.iter().any(unsortable),
+        _ => false,
+    }
+}
+
+/// `json.dumps(value, sort_keys=True)`: the TypeError where it cannot sort a dict's keys.
+pub fn sortable(value: &Value) -> Result<(), Failure> {
+    if unsortable(value) {
+        return Err(Failure::type_error(
+            "'<' not supported between instances of 'int' and 'str'",
+        ));
+    }
+    Ok(())
+}
+
+/// `value.get(...)` on a parsed JSON value that is no dict: Python's AttributeError.
+pub fn no_get(value: &Value) -> Failure {
+    Failure::attribute_error(format!(
+        "'{}' object has no attribute 'get'",
+        type_name(value)
+    ))
 }
 
 /// `common.number(value)` as JSON: an int or null.
@@ -358,6 +502,37 @@ pub fn boot_id(root: &Root) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ints_digits_and_dicts_as_python() {
+        assert_eq!(int(" \u{661}_2 "), Some(12));
+        assert_eq!(int("\u{b2}"), None);
+        assert!(isdigit("\u{b2}1") && isdigit("\u{661}") && !isdigit("") && !isdigit("1 "));
+        assert_eq!(
+            int_or_raise("x").unwrap_err().message(),
+            "invalid literal for int() with base 10: 'x'"
+        );
+        let pairs = py_dict(&json!([["a", 1], "bc", {"x": 1, "y": 2}, [2, 3]])).unwrap();
+        assert_eq!(pairs["a"], json!(1));
+        assert_eq!(pairs["b"], json!("c"));
+        assert_eq!(pairs["x"], json!("y"));
+        assert!(unsortable(&json!({"p": pairs})));
+        assert_eq!(
+            py_dict(&json!(["abc"])).unwrap_err().message(),
+            "dictionary update sequence element #0 has length 3; 2 is required"
+        );
+        assert!(matches!(
+            py_dict(&json!(5)),
+            Err(Failure::Crash {
+                class: "TypeError",
+                ..
+            })
+        ));
+        assert_eq!(
+            no_get(&json!([1])).message(),
+            "'list' object has no attribute 'get'"
+        );
+    }
 
     #[test]
     fn lines_and_words_split_as_python() {

@@ -303,7 +303,7 @@ CASES = [
     ('update-auto-check-fails-keeps-offer', ['update', 'auto-check'], {'volatile': ['attempt'], 
         'ported': True, 'env': FIXED, 'files': {**CHANNEL, **ONLINE, '/run/y2/time.json': anchor(),
                                                 '/data/updates/download.json': CHECKED}}),
-    ('update-auto-check-odd-url', ['update', 'auto-check'], {'volatile': ['attempt'], 'ported': False, 'files': {
+    ('update-auto-check-odd-url', ['update', 'auto-check'], {'volatile': ['attempt'], 'ported': True, 'files': {
         '/etc/y2linux/update-channel.json': '{"manifest_url": 5}'}}),
 ]
 

@@ -54,8 +54,19 @@ CASES = [
         '/data/network/enabled': '1\n', '/run/y2/wifi-power.json': '{"enabled": true}',
         '/sys/module/cpu_dvfs/parameters/qualification_max_khz': '1300000\n'}}),
     ('capabilities-bad-policy', ['capabilities'], {'ported': True, 'files': {POLICY: '{"schema": 2}'}}),
-    ('capabilities-broken-template', ['capabilities'], {'ported': False, 'files': {
+    ('capabilities-broken-template', ['capabilities'], {'ported': True, 'files': {
         '/etc/y2linux/capabilities.json': '{"schema": "org.y2linux.capabilities/v1", "capabilities": {"wifi": 3}}'}}),
+    # Templates and inventories Python crashes on (a traceback, nothing on stdout) or refuses first.
+    *[('capabilities-template-' + name, ['capabilities'], {'ported': True, 'files': {
+        '/etc/y2linux/capabilities.json': json.dumps({'capabilities': caps}), **extra}}) for name, caps, extra in [
+        ('null', None, {}), ('list-wifi', ['wifi'], {}), ('list', ['dvfs'], {}), ('text', 'bluetooth', {}),
+        ('text-other', 'dvfs', {}), ('list-bad-policy', [], {POLICY: '{"schema": 2}'}),
+        ('null-entry', {'wifi': None}, {}), ('codec-entry', {'bluetooth_aac': 3}, {}),
+        ('codec-entry-list', {'bluetooth_sbc': [1]}, {}), ('codec-entry-false', {'bluetooth_ldac': False}, {}),
+        ('xq-null', {'bluetooth_sbc_xq': None}, {}), ('dvfs-text', {'dvfs': 'on'}, {}),
+        ('codecs-list', {'bluetooth_aac': {}}, {'/etc/y2linux/bluetooth-codecs.json': '{"schema": 1, "codecs": []}'}),
+        ('codec-null', {'bluetooth_aac': {}}, {'/etc/y2linux/bluetooth-codecs.json':
+                                               '{"schema": 1, "codecs": {"AAC": null}}'})]],
     ('health', ['health'], {}),
     ('status', ['status'], {}),
     ('status-wifi', ['status', 'wifi'], {}),
@@ -65,7 +76,7 @@ CASES = [
         {'product': {'state': 'sleeping', 'request_boot_id': 'boot-old', 'reason': None, 'kernel_completed': True}})}}),
     ('sleep-status-refused-before', ['sleep', 'status'], {'ported': True, 'files': {SLEEP: json.dumps(
         {'product': {'state': 'refused', 'request_boot_id': 'boot-old', 'reason': 'usb'}})}}),
-    ('sleep-status-list', ['sleep', 'status'], {'ported': False, 'files': {SLEEP: '{"product": [["state", "idle"]]}'}}),
+    ('sleep-status-list', ['sleep', 'status'], {'ported': True, 'files': {SLEEP: '{"product": [["state", "idle"]]}'}}),
     ('time', ['time'], {'ported': True, 'files': {'/run/y2/time.json': anchor()}}),
     ('time-no-anchor', ['time'], {'ported': True}),
     ('time-other-boot', ['time'], {'ported': True, 'files': {'/run/y2/time.json': anchor(boot='x')}}),
@@ -80,7 +91,13 @@ CASES = [
                                                         'files': {'/data/system/platform/time-last.json': anchor()}}),
     ('ntp-unsync', ['ntp-event', 'unsync'], {'ported': True, 'env': {'stratum': '2'}}),
     ('ntp-stratum-16', ['ntp-event', 'stratum'], {'ported': True}),
-    ('ntp-bad-stratum', ['ntp-event', 'step'], {'ported': False, 'env': {'stratum': 'x'}}),
+    ('ntp-bad-stratum', ['ntp-event', 'step'], {'ported': True, 'env': {'stratum': 'x'}}),
+    # int() of the stratum as Python reads it: whitespace, other decimal digits, underscores, any size.
+    *[('ntp-stratum-' + name, ['ntp-event', 'step'], {'ported': True, 'env': {'stratum': text}, 'commands': answers(
+        ['/bin/busybox', 'hwclock', '-w', '-u'])}) for name, text in [
+        ('spaces', ' 3\n'), ('arabic', '٣'), ('underscore', '1_0'), ('huge', '9' * 30), ('negative', '-1'),
+        ('empty', ''), ('double-underscore', '1__0'), ('plus', '+2'), ('float', '2.0'),
+        ('too-long', '1' * 4301), ('too-long-bad', '1' * 4301 + 'x'), ('quote', "x'")]],
     ('boot-stage', ['boot-stage', 'platform_start'], {'ported': True}),
     ('boot-stage-same-boot', ['boot-stage', 'services_started'], {'ported': True, 'files': {
         '/data/system/platform/boot.json': json.dumps({'schema': 1, 'boot_id': 'boot-a', 'boot_count': 7,
@@ -102,6 +119,9 @@ CASES = [
         {'schema': 1, 'experimental': True, 'aac_quality': 'standard', 'ldac_abr': False, 'sbc_quality': 'xq'})}}),
     ('codec-runtime-bad-quality', ['codec-runtime'], {'ported': True, 'files': {POLICY: '{"schema": 1, "ldac_quality": "max"}'}}),
     ('codec-runtime-no-inventory', ['codec-runtime'], {'ported': True, 'files': {'/etc/y2linux/bluetooth-codecs.json': None}}),
+    *[('codec-runtime-inventory-' + name, ['codec-runtime', '--record'], {'ported': True, 'files': {
+        '/etc/y2linux/bluetooth-codecs.json': json.dumps({'schema': 1, 'codecs': codecs})}}) for name, codecs in [
+        ('null', None), ('text', 'AAC'), ('aac-null', {'AAC': None}), ('ldac-list', {'AAC': {}, 'LDAC': [1]})]],
     ('wifi-event', ['wifi-event', 'CONNECTED'], {**WIFI, 'commands': answers(*FLUSH)}),
     ('wifi-event-reconnect', ['wifi-event', 'CONNECTED'], {**WIFI, 'files': {'/run/y2/wifi-events.json': json.dumps(
         {'boot_id': 'boot-a', 'last_event': 'DISCONNECTED', 'connected': 2, 'reconnects': True, 'association_active': False})}}),
@@ -116,7 +136,23 @@ CASES = [
     ('dhcp-bound-odd-routes', ['dhcp-event', 'bound'], {'ported': True, 'env': {**LEASE, 'staticroutes': '10.0.0.0/8'}}),
     ('dhcp-bound-fails', ['dhcp-event', 'bound'], {'ported': True, 'env': LEASE, 'commands': answers(*FLUSH)}),
     ('dhcp-bound-loopback', ['dhcp-event', 'bound'], {'ported': True, 'env': {**LEASE, 'ip': '127.0.0.5'}}),
-    ('dhcp-bound-bad-address', ['dhcp-event', 'bound'], {'ported': False, 'env': {**LEASE, 'ip': '192.168.1'}}),
+    ('dhcp-bound-bad-address', ['dhcp-event', 'bound'], {'ported': True, 'env': {**LEASE, 'ip': '192.168.1'}}),
+    # ipaddress's own errors (AddressValueError, NetmaskValueError) and the forms it also takes.
+    *[('dhcp-bound-' + name, ['dhcp-event', 'bound'], {'ported': True, 'env': {**LEASE, **env}, 'commands': IP_OK})
+      for name, env in [
+        ('leading-zero', {'ip': '192.168.001.1'}), ('no-ip', {'ip': ''}), ('octet', {'ip': '192.168.1.256'}),
+        ('slash', {'ip': '192.168.1.40/24'}), ('letters', {'ip': '192.168.1.x'}), ('long-octet', {'ip': '1.2.3.0040'}),
+        ('hostmask', {'subnet': '0.0.0.255'}), ('mixed-mask', {'subnet': '255.0.255.0'}),
+        ('mask-slash', {'subnet': '24/8'}), ('mask-33', {'subnet': '33'}), ('mask-zero-padded', {'subnet': '024'}),
+        ('no-subnet', {'subnet': ''}), ('bad-dns', {'dns': '9.9.9.9 1.1.1'}), ('bad-router', {'router': '192.168.1.1/24'}),
+        ('bad-route', {'staticroutes': '10.0.0.0/33 192.168.1.2'}), ('bad-gateway', {'staticroutes': '10.0.0.0/8 x'}),
+        ('route-slashes', {'staticroutes': '10.0.0.0/8/8 192.168.1.2'}), ('route-hostmask', {
+            'staticroutes': '10.1.2.3/0.255.255.255 192.168.1.2'}), ('unicode-space', {'dns': '9.9.9.9\x1f1.1.1.1'})]],
+    # Bytes that are not UTF-8 (os.environ and sys.argv: surrogate escapes, shown as \\udcXX).
+    ('dhcp-bound-not-utf8', ['dhcp-event', 'bound'], {'ported': True, 'env': {**LEASE, 'ip': '192.168.1.\udcff'}}),
+    ('dhcp-interface-not-utf8', ['dhcp-event', 'bound'], {'ported': True, 'env': {**LEASE, 'interface': 'wlan\udcff'}}),
+    ('ntp-stratum-not-utf8', ['ntp-event', 'step'], {'ported': True, 'env': {'stratum': '\udce2\udc822'}}),
+    ('boot-stage-not-utf8', ['boot-stage', 'platform_\udcff'], {'ported': True}),
     ('dhcp-leasefail', ['dhcp-event', 'leasefail'], {'ported': True, 'env': LEASE}),
     ('dhcp-nak', ['dhcp-event', 'nak'], {'ported': True, 'env': LEASE}),
     ('dhcp-deconfig', ['dhcp-event', 'deconfig'], {'ported': True, 'env': LEASE}),
@@ -249,9 +285,12 @@ class PlatformDifferential(unittest.TestCase):
     def test_cases_stay_inside_the_fixture_root(self):
         # A path the Python side opens without ctx.path, or a process it starts without
         # ctx.command, would make both sides read the host and agree by accident.
+        # A crash's traceback (3.14 traceback.py, _should_show_carets: ast.parse of the failing line) opens
+        # the pseudo file '<unknown>' relative to the cwd: no device access (as tests/test_platform_suspend.py).
         for name, argv, options in CASES:
             with self.subTest(name):
-                self.assertEqual(host_access(self.fixture_for(name), argv, env=options.get('env'), files=options.get('files')), [])
+                found = host_access(self.fixture_for(name), argv, env=options.get('env'), files=options.get('files'))
+                self.assertEqual([e for e in found if not e['target'].endswith('/<unknown>')], [])
 
     def test_cases_exercise_exit_codes_files_and_subprocesses(self):
         results = {name: run_case(python_side, self.fixture, argv, **options) for name, argv, options in CASES

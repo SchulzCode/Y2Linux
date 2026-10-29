@@ -8,7 +8,8 @@ use y2p_core::{
     Root,
 };
 
-/// The entry `caps[name]` as a dict; anything else is a TypeError in Python.
+/// The entry `caps[name]` as a dict, for `caps[name][key] = …`; anything else (a JSON null too) is
+/// Python's uncaught TypeError.
 fn entry<'a>(
     caps: &'a mut Map<String, Value>,
     name: &str,
@@ -16,7 +17,7 @@ fn entry<'a>(
     match caps.get_mut(name) {
         None => Ok(None),
         Some(Value::Object(map)) => Ok(Some(map)),
-        Some(_) => Err(Failure::Fallback),
+        Some(other) => Err(codec::no_setitem(other)),
     }
 }
 
@@ -34,12 +35,20 @@ pub fn run(root: &Root) -> Outcome {
         .cloned()
         .unwrap_or(Value::Null);
     result.insert("platform_version".into(), version.clone());
-    let inventory = root.json_object("/etc/y2linux/bluetooth-codecs.json");
-    let policy = codec::requested(root)?;
     let mut caps = match result.remove("capabilities") {
         None => None,
         Some(Value::Object(map)) => Some(map),
-        Some(_) => return Err(Failure::Fallback),
+        // Not a dict (a JSON null too): `name in caps` then `caps[name]` raise TypeError; a list or
+        // str without those names reaches `caps.get(...)` after the policy (AttributeError).
+        Some(other) => {
+            for name in ["wifi", "bluetooth"] {
+                if codec::contains(&other, name)? {
+                    return Err(codec::no_getitem(&other));
+                }
+            }
+            codec::requested(root)?;
+            return Err(codec::no_get(&other));
+        }
     };
     if let Some(caps) = caps.as_mut() {
         for (name, path) in [
@@ -50,6 +59,10 @@ pub fn run(root: &Root) -> Outcome {
                 cap.insert("enabled".into(), json!(root.integer(path) == Some(1)));
             }
         }
+    }
+    let inventory = root.json_object("/etc/y2linux/bluetooth-codecs.json");
+    let policy = codec::requested(root)?;
+    if let Some(caps) = caps.as_mut() {
         for (key, name) in [
             ("sbc", "SBC"),
             ("aac", "AAC"),

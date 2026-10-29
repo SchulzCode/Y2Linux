@@ -14,19 +14,43 @@ use std::{
 };
 use y2p_core::{command, lock, Root};
 
-/// A dotted quad `ipaddress.IPv4Address` accepts (and prints back unchanged); None for anything it
-/// would word an error for.
-fn ipv4(text: &str) -> Option<String> {
+/// `str(ipaddress.IPv4Address(text))`: the dotted quad unchanged, or the `AddressValueError` ipaddress
+/// words for it (main.py prints it as its error record).
+fn ipv4(text: &str) -> Result<String, Failure> {
+    let repr = crate::argparse::python::repr;
+    let error = |message: String| Failure::raised("AddressValueError", message);
+    if text.contains('/') {
+        return Err(error(format!("Unexpected '/' in {}", repr(text))));
+    }
+    if text.is_empty() {
+        return Err(error("Address cannot be empty".into()));
+    }
     let octets: Vec<&str> = text.split('.').collect();
-    let valid = octets.len() == 4
-        && octets.iter().all(|o| {
-            !o.is_empty()
-                && o.len() <= 3
-                && o.chars().all(|c| c.is_ascii_digit())
-                && (o.len() == 1 || !o.starts_with('0'))
-                && o.parse::<u16>().is_ok_and(|v| v <= 255)
-        });
-    valid.then(|| text.to_owned())
+    if octets.len() != 4 {
+        return Err(error(format!("Expected 4 octets in {}", repr(text))));
+    }
+    for octet in octets {
+        // `_parse_octet`, in order: the first bad octet names the error.
+        let problem = if octet.is_empty() {
+            Some("Empty octet not permitted".to_owned())
+        } else if !octet.chars().all(|c| c.is_ascii_digit()) {
+            Some(format!("Only decimal digits permitted in {}", repr(octet)))
+        } else if octet.len() > 3 {
+            Some(format!("At most 3 characters permitted in {}", repr(octet)))
+        } else if octet != "0" && octet.starts_with('0') {
+            Some(format!(
+                "Leading zeros are not permitted in {}",
+                repr(octet)
+            ))
+        } else {
+            let value: u16 = octet.parse().expect("three ASCII digits");
+            (value > 255).then(|| format!("Octet {value} (> 255) not permitted"))
+        };
+        if let Some(problem) = problem {
+            return Err(error(format!("{problem} in {}", repr(text))));
+        }
+    }
+    Ok(text.to_owned())
 }
 
 /// The semantic QoS lease (`workload.workload`): a shared activity lease (sleep takes it
@@ -107,9 +131,9 @@ fn outcome(answer: &command::Outcome) -> Value {
 
 /// `y2-platform network-check --peer A [--seconds N] [--throughput] [--interface wlan0|usb0]`.
 pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &str) -> Outcome {
-    // ipaddress words its own AddressValueError: Python does those (nothing is changed before).
-    let peer = ipv4(peer).ok_or(Failure::Fallback)?;
+    // `@workload("NetworkTransfer")`: the lease comes first, then ipaddress reads the peer.
     let _lease = Lease::take(root, "NetworkTransfer")?;
+    let peer = ipv4(peer)?;
     if !(1..=600).contains(&seconds) {
         return Err(Failure::value("invalid_network_qualification_parameters"));
     }
@@ -127,6 +151,7 @@ pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &
         record.insert("failure".into(), json!("wifi_not_online"));
         result.insert("record".into(), Value::Object(record));
         result.insert("before".into(), Value::Object(before));
+        util::sortable(&Value::Object(result.clone()))?;
         return Reply::sorted(&result, 1);
     }
     result.insert("before".into(), Value::Object(before));
@@ -184,6 +209,7 @@ pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &
     result.insert("record".into(), Value::Object(record));
     let after = super::crashing(snapshot(root, &[], false, 0.0))?;
     result.insert("after".into(), Value::Object(after));
+    util::sortable(&Value::Object(result.clone()))?;
     Reply::sorted(&result, u8::from(!ok))
 }
 
@@ -193,17 +219,44 @@ mod tests {
 
     #[test]
     fn peers_parse_as_ipaddress_does() {
-        assert_eq!(ipv4("192.168.1.10").as_deref(), Some("192.168.1.10"));
-        assert_eq!(ipv4("0.0.0.0").as_deref(), Some("0.0.0.0"));
-        for bad in [
-            "192.168.1",
-            "1.2.3.256",
-            "01.2.3.4",
-            "1.2.3.4 ",
-            "a.b.c.d",
-            "1..2.3",
+        assert_eq!(ipv4("192.168.1.10").ok().as_deref(), Some("192.168.1.10"));
+        assert_eq!(ipv4("0.0.0.0").ok().as_deref(), Some("0.0.0.0"));
+        for (bad, message) in [
+            ("192.168.1", "Expected 4 octets in '192.168.1'"),
+            (
+                "1.2.3.256",
+                "Octet 256 (> 255) not permitted in '1.2.3.256'",
+            ),
+            (
+                "01.2.3.4",
+                "Leading zeros are not permitted in '01' in '01.2.3.4'",
+            ),
+            (
+                "1.2.3.4 ",
+                "Only decimal digits permitted in '4 ' in '1.2.3.4 '",
+            ),
+            (
+                "a.b.c.d",
+                "Only decimal digits permitted in 'a' in 'a.b.c.d'",
+            ),
+            ("1..2.3", "Empty octet not permitted in '1..2.3'"),
+            (
+                "1.2.3.4444",
+                "At most 3 characters permitted in '4444' in '1.2.3.4444'",
+            ),
+            ("", "Address cannot be empty"),
+            ("1.2.3.4/8", "Unexpected '/' in '1.2.3.4/8'"),
+            ("router", "Expected 4 octets in 'router'"),
         ] {
-            assert_eq!(ipv4(bad), None, "{bad}");
+            let error = ipv4(bad).unwrap_err();
+            assert_eq!(error.message(), message, "{bad}");
+            assert!(matches!(
+                error,
+                Failure::Os {
+                    class: "AddressValueError",
+                    ..
+                }
+            ));
         }
     }
 }

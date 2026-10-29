@@ -312,7 +312,12 @@ fn error_reports(
         _ if !online || now < run.send_after.unwrap_or(0.0) => false,
         Due::At(at) => at <= time::wall(),
         // `due <= time.time()` of a string: a TypeError, the daemon ends.
-        Due::Other => return Err(Failure::Fallback),
+        Due::Other => {
+            return Err(Failure::crash(
+                "TypeError",
+                "'<=' not supported between instances of 'str' and 'float'",
+            ))
+        }
     };
     if !(check || send) {
         return Ok(run);
@@ -384,7 +389,12 @@ impl Coexistence {
     ) -> Result<Map<String, Value>, Failure> {
         let stats = match wifi.get("traffic_counters") {
             Some(Value::Object(stats)) => stats.clone(),
-            Some(value) if truthy(value) => return Err(Failure::Fallback), // .get on a non-dict
+            Some(value) if truthy(value) => {
+                return Err(Failure::attribute_error(format!(
+                    "'{}' object has no attribute 'get'",
+                    py_type(value)
+                )))
+            }
             _ => Map::new(),
         };
         let mut total = 0.0;
@@ -392,7 +402,17 @@ impl Coexistence {
             match stats.get(key) {
                 Some(value) if !truthy(value) => {}
                 None => {}
-                Some(value) => total += py::number(Some(value)).ok_or(Failure::Fallback)?,
+                Some(value) => {
+                    total += py::number(Some(value)).ok_or_else(|| {
+                        Failure::crash(
+                            "TypeError",
+                            format!(
+                                "unsupported operand type(s) for +=: 'int' and '{}'",
+                                py_type(value)
+                            ),
+                        )
+                    })?
+                }
             }
         }
         let mut rate = None;
@@ -735,13 +755,24 @@ pub fn serve(root: &Root) -> Outcome {
         Ok(()) => std::process::exit(0),
         // What Python would not catch (TypeError, AttributeError, TimeoutExpired): a traceback on
         // stderr, no stdout, exit 1.
-        Err(Failure::Fallback) => {
-            eprintln!(
-                "Traceback (most recent call last):\n  service-daemon: an unexpected record shape"
-            );
+        Err(error @ Failure::Crash { .. }) => {
+            let _ = std::io::Write::write_all(&mut std::io::stderr(), error.traceback().as_bytes());
             std::process::exit(1)
         }
         Err(error) => Err(error),
+    }
+}
+
+/// Python's type name of a parsed JSON value (for the crash texts).
+fn py_type(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "NoneType",
+        Value::Bool(_) => "bool",
+        Value::Number(n) if n.is_f64() => "float",
+        Value::Number(_) => "int",
+        Value::String(_) => "str",
+        Value::Array(_) => "list",
+        Value::Object(_) => "dict",
     }
 }
 

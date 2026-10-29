@@ -106,7 +106,8 @@ fn rtc_write(root: &Root, value: &mut Ordered) {
 pub fn set_manual(root: &Root, epoch: i64) -> Outcome {
     match set_manual_inner(root, epoch) {
         Ok(value) => Reply::unsorted(&value, 0),
-        Err(Failure::Fallback) => Err(Failure::Fallback),
+        // `except (ValueError, OSError)`: anything else leaves the command.
+        Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
             &Ordered::new()
                 .with("state", "Failed")

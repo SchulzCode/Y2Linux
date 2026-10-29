@@ -5,6 +5,7 @@ use super::{
     build::{rel, Progress},
     json_dict, or_dict,
     pyjson::{self, py_str, Py},
+    pyops,
     pyre::{self, lazy, S},
     state,
 };
@@ -103,17 +104,18 @@ fn crash_signature(root: &Root) -> Option<[String; 3]> {
     ])
 }
 
-/// `_changed(value, name, current)`: True once per new value of a watched marker.
-fn changed(value: &mut Py, name: &str, current: Py) -> bool {
+/// `_changed(value, name, current)`: True once per new value of a watched marker (`value['seen']`
+/// that is no dict: AttributeError at its `.get`).
+fn changed(value: &mut Py, name: &str, current: Py) -> Result<bool, Failure> {
     if matches!(&current, Py::None) || current.py_eq(&Py::str("")) || current.py_eq(&Py::int(0)) {
-        return false;
+        return Ok(false);
     }
     let seen = value.get_mut("seen").expect("state has seen");
-    if seen.get(name).is_some_and(|v| v.py_eq(&current)) {
-        return false;
+    if pyops::get(seen, name)?.is_some_and(|v| v.py_eq(&current)) {
+        return Ok(false);
     }
     seen.set(name, current);
-    true
+    Ok(true)
 }
 
 fn int(root: &Root, name: &str) -> Option<i64> {
@@ -126,9 +128,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     let mut fired: Vec<(String, String)> = Vec::new();
     let boot = boot_id(root).unwrap_or_default();
     if let Some(crash) = crash_signature(root) {
-        let previous = value
-            .get("seen")
-            .and_then(|s| s.get("pstore_crash"))
+        let previous = pyops::get(value.get("seen").expect("state has seen"), "pstore_crash")?
             .filter(|v| v.truthy())
             .map(py_str)
             .unwrap_or_default();
@@ -157,7 +157,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     }
     let tainted = int(root, "/proc/sys/kernel/tainted");
     if let Some(tainted) = tainted.filter(|t| *t != 0) {
-        if changed(&mut value, "tainted", Py::Str(format!("{boot}:{tainted}"))) {
+        if changed(&mut value, "tainted", Py::Str(format!("{boot}:{tainted}")))? {
             fired.push(("kernel_warning".into(), format!("taint {tainted}")));
         }
     }
@@ -171,7 +171,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             .filter(|v| v.truthy())
             .map(py_str)
             .unwrap_or_else(|| boot.clone());
-        if changed(&mut value, "unclean", Py::Str(previous)) {
+        if changed(&mut value, "unclean", Py::Str(previous))? {
             // F56/F57: the PMIC's long-press record tells a held Power from a cut, the loader's warm
             // start a watchdog reset (or kernel restart) from both.
             let pmic = evidence
@@ -244,7 +244,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             (Some(v), Some(r)) => !r.is_empty() && v != r && !v.starts_with(&format!("{r}-")),
             _ => false,
         };
-        if changed(&mut value, "reborn_panic", Py::Str(signature)) && !earlier {
+        if changed(&mut value, "reborn_panic", Py::Str(signature))? && !earlier {
             // Reborn 8.12 catches a worker's panic, skips that one file and runs on.
             let isolated = matches!(record.get("isolated"), Some(Py::Bool(true)));
             fired.push((
@@ -267,7 +267,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     let subsystems = match subsystems {
         None => Py::dict(),
         Some(v @ Py::Dict(_)) => v.get("subsystems").cloned().unwrap_or(Py::dict()),
-        Some(_) => return Err(Failure::value("rebornctl_health_not_an_object")),
+        Some(other) => return Err(pyops::no_attribute(&other, "get")), // a traceback
     };
     let mut failed: Vec<String> = match &subsystems {
         Py::Dict(items) => items
@@ -279,7 +279,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             })
             .map(|(k, _)| k.clone())
             .collect(),
-        _ => return Err(Failure::value("rebornctl_health_subsystems")),
+        other => return Err(pyops::no_attribute(other, "items")),
     };
     failed.sort();
     if !failed.is_empty()
@@ -287,7 +287,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             &mut value,
             "reborn_failed",
             Py::Str(format!("{boot}:{}", failed.join(","))),
-        )
+        )?
     {
         fired.push(("reborn_failure".into(), failed.join(",")));
     }
@@ -302,7 +302,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             py_str(update.get("sequence").unwrap_or(&Py::None)),
             py_str(&update_state)
         );
-        if changed(&mut value, "update", Py::Str(marker)) {
+        if changed(&mut value, "update", Py::Str(marker))? {
             fired.push(("update_failure".into(), py_str(&update_state)));
         }
     }
@@ -332,7 +332,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             &mut value,
             "suspend_fail",
             Py::Str(format!("{boot}:{fails}:{resumes}:{frozen}")),
-        )
+        )?
     {
         let or_mark = |name: &str| {
             let text = root.read(&format!("{stats}{name}")).unwrap_or_default();
@@ -365,7 +365,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
         .next()
         .map(|c| c[1].to_owned());
     if let Some(error) = error.filter(|e| e != "0") {
-        if changed(&mut value, "conn_error", Py::Str(format!("{boot}:{error}"))) {
+        if changed(&mut value, "conn_error", Py::Str(format!("{boot}:{error}")))? {
             fired.push((
                 "radio_failure".into(),
                 format!("connectivity error={error}"),
@@ -388,7 +388,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
         .map(|m| m.as_str())
         .filter(|m| !(lit && m.starts_with("DSI register")))
         .collect();
-    if !darks.is_empty() && changed(&mut value, "dark", Py::Str(boot.clone())) {
+    if !darks.is_empty() && changed(&mut value, "dark", Py::Str(boot.clone()))? {
         fired.push(("display_failure".into(), darks[0].to_owned()));
     }
     let found = storage().find(&kernel).map(|m| m.as_str().to_owned());
@@ -405,7 +405,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
                 "{boot}:{}:{ext4}",
                 if found.is_some() { "True" } else { "False" }
             )),
-        )
+        )?
     {
         fired.push((
             "storage_error".into(),
@@ -430,21 +430,20 @@ pub fn run_checks(root: &Root) -> Result<Py, Failure> {
         return Ok(Py::List(Vec::new()));
     }
     let boot = boot_id(root).unwrap_or_default();
-    let reported: Vec<String> = match state::state(root)
+    // `state(ctx)['boot_triggers'].get(boot, [])`, then `t not in reported`.
+    let triggers = state::state(root)
         .get("boot_triggers")
-        .and_then(|b| b.get(&boot))
-    {
-        Some(Py::List(items)) => items
-            .iter()
-            .filter_map(|t| t.as_str().map(str::to_owned))
-            .collect(),
-        _ => Vec::new(),
-    };
-    let fresh: Vec<(String, String)> = fired
-        .iter()
-        .filter(|(t, _)| !reported.contains(t))
         .cloned()
-        .collect();
+        .unwrap_or(Py::None);
+    let reported = pyops::get(&triggers, &boot)?
+        .cloned()
+        .unwrap_or(Py::List(Vec::new()));
+    let mut fresh: Vec<(String, String)> = Vec::new();
+    for (t, d) in &fired {
+        if !pyops::contains(&reported, t)? {
+            fresh.push((t.clone(), d.clone()));
+        }
+    }
     let fired = if fresh.is_empty() { fired } else { fresh };
     let trigger = fired[0].0.clone();
     let detail = if fired.len() == 1 {

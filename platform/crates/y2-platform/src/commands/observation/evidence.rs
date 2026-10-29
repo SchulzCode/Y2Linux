@@ -641,7 +641,7 @@ pub fn run(root: &Root) -> Outcome {
         };
         let lines = largest["tail_lines"].as_array_mut().expect("lines");
         if lines.is_empty() {
-            super::crash("pop from empty list"); // IndexError
+            super::crash(&Failure::index_error("pop from empty list"));
         }
         lines.remove(0);
     }
