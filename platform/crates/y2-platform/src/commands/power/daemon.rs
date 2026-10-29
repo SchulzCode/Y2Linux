@@ -1,7 +1,8 @@
 //! `y2-platform power-daemon`: the battery and shutdown owner. Every second it samples
 //! BAT0 (CLOCK_BOOTTIME for the SOC), keeps the displayed percentage across restarts, runs the
 //! low-battery policy, journals, publishes `/run/y2/power.json` (Reborn's `power.rs` reads it directly:
-//! same boot, at most 5 s old) and executes a due shutdown; between samples it serves one client of
+//! same boot, at most 5 s old; rewritten when it changes and at least every 2 s) and executes a due
+//! shutdown; between samples it serves one client of
 //! `/run/y2/power.sock` (shutdown requests and Reborn's acknowledgement).
 //!
 //! Below a fixture root `Y2_DAEMON_TICKS=n` ends the loop after n iterations (exit 0): the golden
@@ -32,6 +33,9 @@ use y2p_core::{json::Object, Root};
 pub const SOCKET: &str = "/run/y2/power.sock";
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
+
+/// How old an unchanged power.json may get before it is rewritten (Reborn refuses one 5 s old).
+const RENEW_NS: u64 = 2_000_000_000;
 
 /// `/run/y2/power.json` (written sorted; Reborn's power.rs reads it).
 #[derive(Serialize)]
@@ -85,6 +89,8 @@ struct Daemon<'r> {
     reason: Option<&'static str>,
     state: &'static str,
     battery_status: BatteryStatus,
+    /// The power.json last written (without `monotonic_ns`) and when.
+    published: Option<(Value, u64)>,
     notes: Notes,
 }
 
@@ -128,10 +134,11 @@ impl Daemon<'_> {
             self.coordinator.intent.as_ref(),
             None,
         );
+        let now = root.clock().monotonic_ns();
         let record = PowerRecord {
             schema: 1,
             boot_id: self.coordinator.boot_id.as_deref(),
-            monotonic_ns: root.clock().monotonic_ns(),
+            monotonic_ns: now,
             state: self.state,
             voltage_uv: voltage,
             reason: self.reason,
@@ -140,10 +147,16 @@ impl Daemon<'_> {
             qualification_reference: self.policy.as_ref().map(|p| &p.qualification_reference),
             shutdown: self.coordinator.intent.as_ref(),
         };
-        self.notes.check(
-            "/run/y2/power.json",
-            atomic_json(&root.path("/run/y2/power.json"), &record, false),
-        );
+        let mut content = serde_json::to_value(&record).unwrap_or(Value::Null);
+        if let Value::Object(map) = &mut content {
+            map.shift_remove("monotonic_ns");
+        }
+        if !publish_due(self.published.as_ref(), &content, now) {
+            return;
+        }
+        let written = atomic_json(&root.path("/run/y2/power.json"), &record, false);
+        self.published = written.is_ok().then_some((content, now));
+        self.notes.check("/run/y2/power.json", written);
     }
 
     /// A shutdown whose grace ended or that Reborn acknowledged: its journal row, then its steps.
@@ -160,6 +173,12 @@ impl Daemon<'_> {
         );
         self.coordinator.execute();
     }
+}
+
+/// Whether power.json is written: its content (without `monotonic_ns`) changed since `published`,
+/// or what was published is `RENEW_NS` old.
+fn publish_due(published: Option<&(Value, u64)>, content: &Value, now: u64) -> bool {
+    published.is_none_or(|(last, at)| last != content || now.saturating_sub(*at) >= RENEW_NS)
 }
 
 extern "C" fn stop(_: libc::c_int) {
@@ -215,6 +234,7 @@ pub fn serve(root: &Root) -> Outcome {
         reason,
         state: "Unavailable",
         battery_status: BatteryStatus::default(),
+        published: None,
         notes: Notes::default(),
     };
     RUNNING.store(true, Ordering::SeqCst);
@@ -247,4 +267,23 @@ pub fn serve(root: &Root) -> Outcome {
     drop(server);
     unlink_missing_ok(&address)?;
     quiet_exit(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn power_record_written_on_change_and_renewed_before_reborn_finds_it_stale() {
+        let first = json!({"state": "Normal", "voltage_uv": 3_900_000});
+        assert!(publish_due(None, &first, 0));
+        let published = (first.clone(), 10_000_000_000);
+        assert!(!publish_due(Some(&published), &first, 11_000_000_000));
+        assert!(publish_due(Some(&published), &first, 12_000_000_000));
+        let changed = json!({"state": "Normal", "voltage_uv": 3_899_000});
+        assert!(publish_due(Some(&published), &changed, 10_500_000_000));
+        // A monotonic clock never runs back; if it did, an unchanged record would stay as it is.
+        assert!(!publish_due(Some(&published), &first, 9_000_000_000));
+    }
 }
