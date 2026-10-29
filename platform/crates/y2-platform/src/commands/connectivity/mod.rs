@@ -10,6 +10,7 @@ pub mod bt_control;
 #[cfg(test)]
 pub(crate) mod crosscheck;
 pub mod daemon;
+pub mod direct;
 pub mod observe_wifi;
 pub mod radio_policy;
 pub(crate) mod record;
