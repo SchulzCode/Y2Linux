@@ -53,7 +53,9 @@ fn ssh_waits_for_crng_and_usb_not_only_a_running_daemon() {
     let fixture = Fixture::new();
     let root = &fixture.root;
     fixture.put("/root/.ssh/authorized_keys", "fixture-public-key");
-    let address = usb_address(root);
+    // Every command scripted (unanswered: `fixture`): the process-wide fixture files are the
+    // cross-checks'.
+    let (address, _) = scripted(Vec::new(), || usb_address(root));
     assert_eq!(
         prerequisites(root, false, address).1,
         "kernel_crng_not_ready"
