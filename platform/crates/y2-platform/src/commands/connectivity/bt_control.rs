@@ -36,7 +36,7 @@ pub fn intent(root: &Root, operation: &str) -> Result<(), Failure> {
         .boot_id()
         .filter(|b| b.chars().count() == 36)
         .ok_or_else(|| Failure::value("boot_identity_unavailable"))?;
-    let now = clock::monotonic_ns() / 1000;
+    let now = root.clock().monotonic_ns() / 1000;
     // The reconnect observer must not wake for unrelated power/USB status files.
     let directory = root.path("/run/y2/bt-intent");
     private_directory(&directory)?;

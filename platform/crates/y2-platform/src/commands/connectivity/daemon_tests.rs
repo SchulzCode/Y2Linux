@@ -2,21 +2,28 @@
 //! tests/test_connectivity_supervisor.py checked of the Python platform (connectivity.py). The signal
 //! wait of the whole daemon is tested on the command line (tests/connectivity.rs).
 // SPDX-License-Identifier: GPL-2.0-only
+use super::super::steps::Steps;
 use super::*;
-use crate::testing::{failed, ok, scripted, Fixture};
+use crate::testing::{failed, ok, Fixture};
 use y2p_core::command::Outcome;
 
 type Calls = Vec<Vec<String>>;
 
-fn fixture() -> Fixture {
-    let fixture = Fixture::new();
+/// A fixture whose root's requests the test answers per step.
+fn fixture() -> (Fixture, Steps) {
+    let steps = Steps::default();
+    let fixture = steps.attach(Fixture::new());
     fixture.mkdir("/run/y2").mkdir("/sys/class/net");
-    fixture
+    (fixture, steps)
 }
 
 /// Run `f` with these answers (anything else fails); the requests' argv.
-fn run<T>(answers: Vec<(Vec<String>, Outcome)>, f: impl FnOnce() -> T) -> (T, Calls) {
-    let (value, calls) = scripted(answers, f);
+fn run<T>(
+    steps: &Steps,
+    answers: Vec<(Vec<String>, Outcome)>,
+    f: impl FnOnce() -> T,
+) -> (T, Calls) {
+    let (value, calls) = steps.run(answers, f);
     (value, calls.into_iter().map(|(argv, _)| argv).collect())
 }
 
@@ -73,7 +80,7 @@ impl Drop for Helpers {
 
 #[test]
 fn healthy_radio_off_uses_native_reads_and_no_commands() {
-    let fixture = fixture();
+    let (fixture, steps) = fixture();
     let mut helpers = Helpers(Vec::new());
     for (name, path) in HELPERS {
         let child = std::process::Command::new("sleep")
@@ -91,7 +98,7 @@ fn healthy_radio_off_uses_native_reads_and_no_commands() {
         .unwrap();
     }
     let mut monitor = Supervisor::new(&fixture.root);
-    let (_, calls) = run(Vec::new(), || {
+    let (_, calls) = run(&steps, Vec::new(), || {
         monitor.health(0.0, false).unwrap();
         monitor.interface(0.0);
         monitor.health(20.0, false).unwrap();
@@ -104,7 +111,7 @@ fn healthy_radio_off_uses_native_reads_and_no_commands() {
 
 #[test]
 fn missing_helper_crash_events_cannot_bypass_restart_rate() {
-    let fixture = fixture();
+    let (fixture, steps) = fixture();
     // BlueALSA's arguments can be made (else it is not started at all).
     fixture.put("/etc/y2linux/bluetooth-codecs.json", r#"{"schema": 1}"#);
     let mut monitor = Supervisor::new(&fixture.root);
@@ -115,20 +122,20 @@ fn missing_helper_crash_events_cannot_bypass_restart_rate() {
             .filter(|argv| argv[0] == "wpa_supplicant" || argv[..2] == ["start-stop-daemon", "-S"])
             .count()
     };
-    let (_, calls) = run(Vec::new(), || monitor.health(0.0, false).unwrap());
+    let (_, calls) = run(&steps, Vec::new(), || monitor.health(0.0, false).unwrap());
     assert_eq!(restarts(&calls), 4);
-    let (_, calls) = run(Vec::new(), || {
+    let (_, calls) = run(&steps, Vec::new(), || {
         monitor.health(1.0, true).unwrap();
         monitor.health(29.0, true).unwrap();
     });
     assert_eq!(restarts(&calls), 0);
-    let (_, calls) = run(Vec::new(), || monitor.health(30.0, true).unwrap());
+    let (_, calls) = run(&steps, Vec::new(), || monitor.health(30.0, true).unwrap());
     assert_eq!(restarts(&calls), 4);
 }
 
 #[test]
 fn stale_reused_pid_is_not_a_healthy_helper() {
-    let fixture = fixture();
+    let (fixture, _) = fixture();
     let (name, path) = HELPERS[1];
     assert_eq!(name, "wpa");
     let pid = std::process::id();
@@ -144,7 +151,7 @@ fn stale_reused_pid_is_not_a_healthy_helper() {
 
 #[test]
 fn warm_restart_reuses_supplicant_interface_and_action_hook() {
-    let fixture = fixture();
+    let (fixture, steps) = fixture();
     fixture.mkdir("/sys/class/net/wlan0");
     let mut monitor = Supervisor::new(&fixture.root);
     let answers = vec![
@@ -153,7 +160,7 @@ fn warm_restart_reuses_supplicant_interface_and_action_hook() {
         ok(&AUTOSCAN_SET, "OK"),
         ok(&ACTION, ""),
     ];
-    let (_, calls) = run(answers, || monitor.interface(0.0));
+    let (_, calls) = run(&steps, answers, || monitor.interface(0.0));
     assert!(monitor.attached);
     // A missing AP must back off its scans instead of rescanning every ~5 s.
     assert_eq!(
@@ -161,16 +168,16 @@ fn warm_restart_reuses_supplicant_interface_and_action_hook() {
         words(&["wpa_cli", "-i", "wlan0", "autoscan", "exponential:2:120"])
     );
     assert_eq!(calls[calls.len() - 1], words(&ACTION));
-    let (_, more) = run(Vec::new(), || monitor.interface(60.0));
+    let (_, more) = run(&steps, Vec::new(), || monitor.interface(60.0));
     assert_eq!(calls.len() + more.len(), 4);
 }
 
 #[test]
 fn netdev_removal_runs_disconnect_cleanup_once() {
-    let fixture = fixture();
+    let (fixture, steps) = fixture();
     let mut monitor = Supervisor::new(&fixture.root);
     monitor.attached = true;
-    let (_, calls) = run(Vec::new(), || {
+    let (_, calls) = run(&steps, Vec::new(), || {
         monitor.interface(0.0);
         monitor.interface(30.0);
     });
@@ -190,18 +197,18 @@ fn netdev_removal_runs_disconnect_cleanup_once() {
 fn a_new_netdev_under_the_old_name_gets_a_new_supplicant_interface() {
     // F53: a removal missed between two looks left the supplicant's old interface on the new wlan0
     // (INTERFACE_DISABLED for 106 min).
-    let fixture = fixture();
+    let (fixture, steps) = fixture();
     fixture.put("/sys/class/net/wlan0/ifindex", "5\n");
     let mut monitor = Supervisor::new(&fixture.root);
-    run(adding(), || monitor.interface(0.0));
+    run(&steps, adding(), || monitor.interface(0.0));
     assert_eq!(
         (monitor.attached, monitor.ifindex.as_deref()),
         (true, Some("5"))
     );
-    let (_, calls) = run(adding(), || monitor.interface(10.0));
+    let (_, calls) = run(&steps, adding(), || monitor.interface(10.0));
     assert!(calls.is_empty());
     fixture.put("/sys/class/net/wlan0/ifindex", "7\n");
-    let (_, calls) = run(adding(), || monitor.interface(20.0));
+    let (_, calls) = run(&steps, adding(), || monitor.interface(20.0));
     assert_eq!(
         calls[0],
         words(&["/usr/libexec/y2/wpa-event", "wlan0", "DISCONNECTED"])
@@ -219,7 +226,7 @@ fn a_new_netdev_under_the_old_name_gets_a_new_supplicant_interface() {
 
 #[test]
 fn interface_left_disabled_with_radio_on_is_added_again() {
-    let fixture = fixture();
+    let (fixture, steps) = fixture();
     fixture
         .put("/proc/sys/kernel/random/boot_id", "boot-one")
         .put("/sys/class/rfkill/rfkill1/type", "wlan\n")
@@ -234,28 +241,28 @@ fn interface_left_disabled_with_radio_on_is_added_again() {
     network("INTERFACE_DISABLED", 0.0);
     let mut monitor = Supervisor::new(&fixture.root);
     monitor.attached = true;
-    let (_, calls) = run(Vec::new(), || {
+    let (_, calls) = run(&steps, Vec::new(), || {
         monitor.verify(100.0);
         monitor.verify(129.0);
     });
     assert!(calls.is_empty());
-    let (_, calls) = run(Vec::new(), || monitor.verify(130.0));
+    let (_, calls) = run(&steps, Vec::new(), || monitor.verify(130.0));
     let last = calls.last().unwrap();
     assert_eq!(last[last.len() - 2..], ["interface_remove", "wlan0"]);
     assert!(!monitor.attached);
     // Backed off when the new interface is disabled again.
     monitor.attached = true;
-    let (_, calls) = run(Vec::new(), || {
+    let (_, calls) = run(&steps, Vec::new(), || {
         monitor.verify(131.0);
         monitor.verify(161.0);
     });
     assert!(calls.is_empty());
-    let (_, calls) = run(Vec::new(), || monitor.verify(190.0));
+    let (_, calls) = run(&steps, Vec::new(), || monitor.verify(190.0));
     assert_eq!(calls.len(), 3);
     // A radio switched off (sleep, the owner) or a stale record is no reason.
     monitor.attached = true;
     fixture.put("/sys/class/rfkill/rfkill1/soft", "1\n");
-    let (_, calls) = run(Vec::new(), || {
+    let (_, calls) = run(&steps, Vec::new(), || {
         for now in [1000.0, 1100.0, 1200.0] {
             monitor.verify(now);
         }
@@ -263,14 +270,14 @@ fn interface_left_disabled_with_radio_on_is_added_again() {
     assert!(calls.is_empty());
     fixture.put("/sys/class/rfkill/rfkill1/soft", "0\n");
     network("INTERFACE_DISABLED", 60.0);
-    let (_, calls) = run(Vec::new(), || {
+    let (_, calls) = run(&steps, Vec::new(), || {
         for now in [1300.0, 1400.0] {
             monitor.verify(now);
         }
     });
     assert!(calls.is_empty());
     network("DISCONNECTED", 0.0);
-    let (_, calls) = run(Vec::new(), || {
+    let (_, calls) = run(&steps, Vec::new(), || {
         for now in [1500.0, 1600.0] {
             monitor.verify(now);
         }
@@ -280,7 +287,7 @@ fn interface_left_disabled_with_radio_on_is_added_again() {
 
 #[test]
 fn failed_interface_attach_has_bounded_backoff() {
-    let fixture = fixture();
+    let (fixture, steps) = fixture();
     fixture.mkdir("/sys/class/net/wlan0");
     let mut monitor = Supervisor::new(&fixture.root);
     let answers = || {
@@ -289,14 +296,14 @@ fn failed_interface_attach_has_bounded_backoff() {
             failed(&LIST, "command_failed"),
         ]
     };
-    let (_, calls) = run(answers(), || {
+    let (_, calls) = run(&steps, answers(), || {
         monitor.interface(0.0);
         monitor.interface(1.0);
     });
     assert_eq!(calls.len(), 2);
-    let (_, more) = run(answers(), || monitor.interface(2.0));
+    let (_, more) = run(&steps, answers(), || monitor.interface(2.0));
     assert_eq!(calls.len() + more.len(), 4);
-    run(answers(), || {
+    run(&steps, answers(), || {
         for now in [6.0, 14.0, 30.0, 62.0, 122.0] {
             monitor.interface(now);
         }
@@ -307,10 +314,10 @@ fn failed_interface_attach_has_bounded_backoff() {
 
 #[test]
 fn wpa_restart_preserves_hooks_and_reconnect_single_owner() {
-    let fixture = fixture();
+    let (fixture, steps) = fixture();
     let mut monitor = Supervisor::new(&fixture.root);
     monitor.attached = true;
-    let (_, calls) = run(Vec::new(), || {
+    let (_, calls) = run(&steps, Vec::new(), || {
         monitor.restart("wpa").unwrap();
         assert!(!monitor.attached);
         monitor.restart("reconnect").unwrap();
@@ -331,14 +338,14 @@ fn wpa_restart_preserves_hooks_and_reconnect_single_owner() {
 
 #[test]
 fn codec_policy_failure_does_not_tear_down_other_helpers() {
-    let fixture = fixture();
+    let (fixture, steps) = fixture();
     // A policy codec_runtime refuses (ValueError).
     fixture.put(
         "/data/bluetooth/codec-policy.json",
         r#"{"schema": 1, "sbc_quality": "max"}"#,
     );
     let mut monitor = Supervisor::new(&fixture.root);
-    let (restarted, calls) = run(Vec::new(), || monitor.restart("bluealsa"));
+    let (restarted, calls) = run(&steps, Vec::new(), || monitor.restart("bluealsa"));
     assert!(restarted.is_ok());
     assert!(calls.is_empty());
 }

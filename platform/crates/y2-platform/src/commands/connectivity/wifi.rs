@@ -20,7 +20,7 @@ use std::{
 };
 use y2p_core::py;
 use y2p_core::{
-    clock, command,
+    command,
     connectivity_journal::append_bounded,
     json::{dumps, Object, ObjectExt, Separators},
     mounts::data_ready,
@@ -86,7 +86,7 @@ pub fn journal(root: &Root, event: &str, fields: Object) -> bool {
         .with("schema", 1)
         .with("event", event)
         .with("wall_time", wall())
-        .with("monotonic_s", clock::monotonic())
+        .with("monotonic_s", root.clock().monotonic())
         .with("boot_id", json!(root.boot_id()));
     for (key, value) in fields {
         row.set(&key, value);
@@ -529,7 +529,7 @@ impl EventMonitor {
             sock: None,
             path: None,
             generation: None,
-            started: clock::monotonic(),
+            started: root.clock().monotonic(),
             counts: Vec::new(),
             last: Vec::new(),
             last_disconnect: Value::Null,
@@ -543,7 +543,7 @@ impl EventMonitor {
 
     /// Counts and ages of the supplicant's events for network.json and the journal.
     pub fn summary(&self, now: Option<f64>) -> Object {
-        let now = now.unwrap_or_else(clock::monotonic);
+        let now = now.unwrap_or_else(|| self.root.clock().monotonic());
         let mut counts = Object::new();
         for (kind, n) in &self.counts {
             counts = counts.with(kind, *n);
@@ -646,7 +646,7 @@ impl EventMonitor {
     }
 
     fn count(&mut self, kind: &str) {
-        let now = clock::monotonic();
+        let now = self.root.clock().monotonic();
         match self.counts.iter_mut().find(|(k, _)| k == kind) {
             Some(entry) => entry.1 += 1,
             None => self.counts.push((kind.to_owned(), 1)),
@@ -814,7 +814,7 @@ impl EventMonitor {
                         .with("reason", reason)
                         .with("boot_id", json!(boot))
                         .with("network_id", json!(network))
-                        .with("monotonic_s", clock::monotonic()),
+                        .with("monotonic_s", root.clock().monotonic()),
                 ),
             );
         } else if error.is_some() {
@@ -829,7 +829,7 @@ impl EventMonitor {
             let last = clock_value(old.get("scan_monotonic_s"));
             let cached = eq_text(old.get("boot_id"), boot.as_deref())
                 && last.is_some_and(|at| {
-                    (0.0..Self::SCAN_EVIDENCE_S).contains(&(clock::monotonic() - at))
+                    (0.0..Self::SCAN_EVIDENCE_S).contains(&(root.clock().monotonic() - at))
                 })
                 && matches!(old.get("scan"), Some(Value::Object(_)));
             if cached {
@@ -839,7 +839,7 @@ impl EventMonitor {
             } else {
                 record
                     .set("scan", value_of(scan_evidence(root)))
-                    .set("scan_monotonic_s", clock::monotonic());
+                    .set("scan_monotonic_s", root.clock().monotonic());
             }
         }
         publish(root, "wifi-failure", record).map(drop)

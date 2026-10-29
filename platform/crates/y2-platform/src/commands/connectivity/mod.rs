@@ -19,6 +19,8 @@ pub mod observe_wifi;
 pub mod radio_policy;
 #[cfg(test)]
 mod scenarios;
+#[cfg(test)]
+pub(crate) mod steps;
 #[allow(dead_code)]
 pub mod wifi;
 

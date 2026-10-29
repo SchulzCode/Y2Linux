@@ -21,8 +21,14 @@ pub fn wall() -> f64 {
         .map_or(0.0, |d| d.as_secs_f64())
 }
 
+/// CLOCK_BOOTTIME in seconds (the service daemon's anchor checks).
 pub(crate) fn boottime() -> f64 {
     clock::boottime_ns() as f64 / 1e9
+}
+
+/// CLOCK_BOOTTIME in seconds as `root` reads it.
+fn boottime_of(root: &Root) -> f64 {
+    root.clock().boottime_ns() as f64 / 1e9
 }
 
 pub fn plausible(epoch: f64, floor: Option<i64>) -> bool {
@@ -62,7 +68,7 @@ pub(crate) fn same_boot(anchor: &Map<String, Value>, boot: &Option<String>) -> b
 
 /// `y2-platform time`.
 pub fn status(root: &Root) -> Outcome {
-    let (now, monotonic, elapsed) = (wall(), clock::monotonic(), boottime());
+    let (now, monotonic, elapsed) = (wall(), root.clock().monotonic(), boottime_of(root));
     let floor = floor(root);
     let valid = plausible(now, floor);
     let anchor = root.json_object("/run/y2/time.json");
@@ -124,7 +130,7 @@ pub fn remember(root: &Root) -> Outcome {
 }
 
 fn remember_inner(root: &Root) -> Result<Option<Object>, Failure> {
-    let (now, monotonic, elapsed) = (wall(), clock::monotonic(), boottime());
+    let (now, monotonic, elapsed) = (wall(), root.clock().monotonic(), boottime_of(root));
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
     // Never over a record that a sync or the owner wrote meanwhile.
@@ -219,8 +225,8 @@ pub fn ntp_event(root: &Root, event: &str) -> Outcome {
         .with("schema", 1)
         .with("boot_id", json!(root.boot_id()))
         .with("epoch", now)
-        .with("monotonic_s", clock::monotonic())
-        .with("boottime_s", boottime())
+        .with("monotonic_s", root.clock().monotonic())
+        .with("boottime_s", boottime_of(root))
         .with("source", "ntp")
         .with("stratum", stratum)
         .with("authenticated", false)

@@ -5,7 +5,7 @@
 use crate::reply::{atomic_json, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use y2p_core::{
-    clock, command,
+    command,
     json::{Object, ObjectExt},
     py::{eq_int, is_true, truthy},
     Root,
@@ -118,7 +118,7 @@ pub fn wifi_policy(root: &Root, activity: Option<&Map<String, Value>>) -> Result
         )
         .with("epoch", json!(epoch))
         .with("ifindex", json!(ifindex))
-        .with("monotonic_s", clock::monotonic())
+        .with("monotonic_s", root.clock().monotonic())
         .with("boot_id", json!(boot));
     // No private_directory: a missing /run/y2 is an OSError (main.py's record).
     atomic_json(&root.path("/run/y2/wifi-power.json"), &value, false)?;

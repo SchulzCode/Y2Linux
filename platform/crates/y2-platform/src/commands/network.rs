@@ -7,7 +7,7 @@ use crate::reply::{
 use serde_json::{json, Map, Value};
 use std::{env, fs, os::unix::fs::PermissionsExt, path::Path};
 use y2p_core::{
-    clock, command,
+    command,
     json::{sorted_object, Object, ObjectExt},
     power_text::python_split,
     py::{self, is_true, truthy},
@@ -20,7 +20,7 @@ pub(crate) fn publish(root: &Root, name: &str, mut value: Object) -> Result<Obje
     value
         .set("schema", 1)
         .set("boot_id", json!(root.boot_id()))
-        .set("monotonic_s", clock::monotonic());
+        .set("monotonic_s", root.clock().monotonic());
     atomic_json(&root.path(&format!("/run/y2/{name}.json")), &value, false)?;
     Ok(value)
 }
@@ -102,7 +102,7 @@ pub fn wifi_event(root: &Root, event: &str) -> Outcome {
     // raw counts, but count a real loss only once after a known connection.
     let mut record = sorted_object(&old);
     if record.get("link_counts_since_s").is_none() {
-        record.set("link_counts_since_s", clock::monotonic());
+        record.set("link_counts_since_s", root.clock().monotonic());
     }
     for name in ["real_disconnects", "reconnects", "radio_off_disconnects"] {
         let value = count(record.get(name));

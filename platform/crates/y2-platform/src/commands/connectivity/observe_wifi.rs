@@ -5,7 +5,7 @@
 use serde_json::{json, Map, Value};
 use y2p_core::py;
 use y2p_core::{
-    clock, command,
+    command,
     json::{sorted_object, Object, ObjectExt},
     py::{number, truthy},
     root::{python_int, read, READ_LIMIT},
@@ -136,16 +136,16 @@ fn addresses(ip: Option<&str>, routes: Option<&str>) -> (Vec<Value>, Value) {
 /// `observe.wifi(ctx, signal_cache)`.
 pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
     let radio = root.path("/sys/class/net/wlan0").exists();
-    let status_started = clock::monotonic_ns();
+    let status_started = root.clock().monotonic_ns();
     // Station statistics can hold the control loop for about 2.1 s on this firmware. Bound the
     // observation above that measured delay.
     let wpa = radio.then(|| command::run(root, &["wpa_cli", "-i", "wlan0", "status"], 3.0));
-    let status_duration_ns = radio.then(|| clock::monotonic_ns() - status_started);
+    let status_duration_ns = radio.then(|| root.clock().monotonic_ns() - status_started);
     let mut properties = key_values(wpa.as_ref().and_then(|w| w.output.as_deref()), '=');
     let failure = root.json_object("/run/y2/wifi-failure.json");
     let boot = root.boot_id();
     let fresh = |at: Option<f64>, window: f64| {
-        at.is_some_and(|at| (0.0..window).contains(&(clock::monotonic() - at)))
+        at.is_some_and(|at| (0.0..window).contains(&(root.clock().monotonic() - at)))
     };
     if eq_text(failure.get("boot_id"), boot.as_deref())
         && fresh(clock_value(failure.get("monotonic_s")), 120.0)
@@ -247,7 +247,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
                 "bssid",
                 properties.get("bssid").cloned().unwrap_or(Value::Null),
             )
-            .with("monotonic_s", clock::monotonic())
+            .with("monotonic_s", root.clock().monotonic())
             .with("ok", poll.ok)
             .with("reason", json!(poll.reason))
             .into_sorted();

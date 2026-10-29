@@ -469,7 +469,7 @@ impl Supervisor {
         let boot = root.boot_id();
         let fresh = super::observe_wifi::eq_text(net.get("boot_id"), boot.as_deref())
             && number(net.get("monotonic_s"))
-                .is_some_and(|at| (0.0..30.0).contains(&(clock::monotonic() - at)));
+                .is_some_and(|at| (0.0..30.0).contains(&(root.clock().monotonic() - at)));
         let association = net.get("association").and_then(Value::as_str);
         if fresh && association == Some("COMPLETED") {
             self.renewals = 0;
@@ -627,7 +627,7 @@ fn monitor(
     let mut done = 0u64;
     while RUNNING.load(Ordering::SeqCst) {
         wake.drain();
-        let now = clock::monotonic();
+        let now = root.clock().monotonic();
         supervisor.health(now, dead)?;
         supervisor.verify(now);
         if changed || !supervisor.attached || !events.present() {
@@ -643,9 +643,9 @@ fn monitor(
                 }
             }
         }
-        let mut timeout = (supervisor.next_health - clock::monotonic()).max(0.0);
+        let mut timeout = (supervisor.next_health - root.clock().monotonic()).max(0.0);
         if !supervisor.attached && root.path("/sys/class/net/wlan0").is_dir() {
-            timeout = timeout.min((supervisor.retry_at - clock::monotonic()).max(0.05));
+            timeout = timeout.min((supervisor.retry_at - root.clock().monotonic()).max(0.05));
         }
         if ticks.is_some() {
             timeout = 0.0;
