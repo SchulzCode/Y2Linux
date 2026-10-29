@@ -9644,3 +9644,17 @@ health-ack 86 s after apply; boot platform_start 6.63 s, services_started 20.06 
 four daemons 3.4–4.4 MB RSS each; no Python in /usr/bin. Fixed defects visible on the player: SFTP opens
 `/media/internal/music` (real SFTP session), `update auto-check` prints `{"result": "skipped", "reason": "not_due"}`,
 `media status` exits 0. The owner's hardware checks above are still owed.
+
+## PLATFORM-RUST refactor (ported Python → idiomatic Rust, test build 171): entry audit — 2026-10-29
+
+**Boundary:** the owner's "just do the refactoring plan now and after you are finished install via ota"
+([plan](PLATFORM-RUST-REFACTOR-PLAN.md), decisions recorded there). Hardware evidence: test build 170 on the
+owner's player (first Rust OTA, Acknowledged, SFTP fix confirmed); the owner's hardware checks on 170 are **not
+done** — they move to 171, with 170 as the comparison point. Change: **architecture of the platform code** (one
+shared core, one JSON model, test injection instead of seams, typed records, module splits) with three deliberate
+behaviour changes (argparse replaced; crash paths → refusal records; same-lease DHCP renew is a no-op), all visible
+as golden diffs. Contract fixed points (plan §3) unchanged: Reborn's JSON fields and failure strings, the compact
+records scripts grep, persistent /data formats, multicall names, stdout JSON formatting. No kernel, device tree,
+memory map, partition, recovery or package-set change. Gate: host suite + cargo tests + goldens green, then test
+build 171 by OTA; not release-qualified until the owner's checks pass on it.
+

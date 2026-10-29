@@ -1,7 +1,15 @@
 # Platform Rust refactor: from ported Python to idiomatic Rust
 
-Status: **plan only (2026-10-29), not started.** Start it only after the owner's hardware checks on test build 170
-(or later) have been read and their bugs fixed: a refactor must not hide which change broke the player.
+Status: **in progress (started 2026-10-29 on the owner's word).** The owner chose to do it right away, before the
+hardware checks on test build 170 ("can you just do the refactoring plan now and after you are finished install via
+ota"); the result goes to the player as test build 171, and the hardware checks then cover both. If one fails, 170
+(sequence 11150) is the comparison point.
+
+**Owner decisions (2026-10-29, §7):** replace the argparse emulation with a small declarative parser (exact option
+names and `--opt=value`, errors exit 2, help says y2-platform); every fake-traceback crash path becomes a refusal
+record (exit 1, JSON `{"state": "Failed", "failure": …}`); **keep the exact JSON output format** (json.dumps
+spacing, key order, Python float repr) — only the internal types are unified; a DHCP renew of the same lease
+changes nothing (no flush and re-add).
 
 Owner (2026-10-29): put the Rust-only build on the player, review what works and what not, then "another pass
 regarding refactoring / code quality" because the code is "more like ported python and not really well written /
