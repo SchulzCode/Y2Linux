@@ -31,7 +31,12 @@
   }
  ],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "reason": "invalid_previous_boot_evidence",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
  "tree": {
   "added": {},
   "changed": {},

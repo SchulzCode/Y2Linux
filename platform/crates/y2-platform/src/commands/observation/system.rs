@@ -7,7 +7,6 @@ use super::util::{
 use crate::{regex, reply::Failure};
 use serde_json::{json, Map, Value};
 use std::os::unix::fs::MetadataExt;
-use y2p_core::py::PyValue;
 use y2p_core::{command, py::truthy, Root};
 
 pub const RESET_STATUS: &str = "/sys/firmware/y2_pm/reset_status";
@@ -82,21 +81,17 @@ pub(crate) fn evidence_status(root: &Root) -> Result<Value, Failure> {
     result.insert("retained".into(), get("retained"));
     result.insert("pmic".into(), get("pmic"));
     result.insert("loader".into(), get("loader"));
-    // `for log in value.get('logs', [])`: a dict yields its keys, a str its characters (each then
-    // has no `.get`); a number, bool or None is not iterable.
+    // The logs are a list of objects (boot-evidence writes them; an empty object or text holds none
+    // either); anything else is a broken record.
+    let invalid = || Failure::value("invalid_previous_boot_evidence");
     let logs = match value.get("logs") {
         None => Vec::new(),
-        Some(other) => y2p_core::py::iterate(other).ok_or_else(|| {
-            Failure::type_error(format!(
-                "'{}' object is not iterable",
-                PyValue::type_name(other)
-            ))
-        })?,
+        Some(other) => y2p_core::py::iterate(other).ok_or_else(invalid)?,
     };
     let mut tails = Vec::new();
     for log in logs {
         let Value::Object(log) = log else {
-            return Err(util::no_get(&log));
+            return Err(invalid());
         };
         tails.push(
             json!({"name": log.get("name"), "tail_sha256": log.get("tail_sha256"),

@@ -6,7 +6,6 @@ use super::{
 };
 use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
-use y2p_core::py::PyValue;
 use y2p_core::{command, Root};
 
 /// `health.check(ctx, full)` as a value.
@@ -113,19 +112,8 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
             Some("Starting" | "Degraded") => "DEGRADED",
             Some("Failed") => "FAILED",
             Some("Unavailable") => "UNAVAILABLE",
-            // `{...}[item['state']]`: a KeyError for any other state, a TypeError for a list or dict.
-            _ => {
-                return Err(match &item["state"] {
-                    Value::String(state) => Failure::key_error(state),
-                    state @ (Value::Array(_) | Value::Object(_)) => Failure::type_error(format!(
-                        "unhashable type: '{}'",
-                        PyValue::type_name(state)
-                    )),
-                    Value::Null => Failure::crash("KeyError", "None"),
-                    Value::Bool(b) => Failure::crash("KeyError", if *b { "True" } else { "False" }),
-                    number => Failure::crash("KeyError", number.to_string()),
-                })
-            }
+            // The snapshot's readiness knows no other state.
+            _ => return Err(Failure::value("invalid_readiness_state")),
         };
         add(name, state, item["reason"].clone(), None);
     }

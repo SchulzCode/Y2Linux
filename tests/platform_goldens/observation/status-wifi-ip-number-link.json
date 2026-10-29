@@ -47,7 +47,12 @@
   }
  ],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "reason": "invalid_ip_output",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
  "tree": {
   "added": {},
   "changed": {},

@@ -66,9 +66,9 @@ pub(crate) fn timer_runtime(root: &Root) -> Result<Map<String, Value>, Failure> 
     let mut cpus: Vec<Map<String, Value>> = Vec::new();
     for block in regex!(r"(?m)^cpu:\s*").split(&text).skip(1) {
         let lines = splitlines(block);
-        // `block.splitlines()[0]` of an empty block (`cpu:` at the end of the text).
+        // A `cpu:` with nothing after it (the text cut short): no line to number the CPU by.
         let Some(first) = lines.first() else {
-            return Err(Failure::index_error("list index out of range"));
+            return Err(Failure::value("invalid_timer_list"));
         };
         if !util::isdigit(first) {
             continue;
@@ -905,23 +905,26 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
         )
         .expect("literal");
     }
-    // `battery = policy.get('battery', {})`, then `battery.get(...)`.
+    // No battery is an empty one; a battery that is no object is a broken record.
     let battery = match policy.get("battery") {
         None => Map::new(),
         Some(Value::Object(map)) => map.clone(),
-        Some(other) => return Err(util::no_get(other)),
+        Some(_) => return Err(Failure::value("invalid_power_record")),
     };
     let get = |k: &str| battery.get(k).cloned().unwrap_or(Value::Null);
     let mut receipt = root.json_object("/data/system/platform/suspend-last.json");
-    // sleep.product: `dict(value.get('product') or {})` of a product that is no dict.
     if let Some(product) = receipt
         .get("product")
         .filter(|p| truthy(p) && !p.is_object())
     {
-        let product = util::py_dict(product)?;
+        let product = pairs(product)?;
         receipt.insert("product".into(), Value::Object(product));
     }
-    let sleep = super::super::sleep::product(&receipt, root.boot_id().as_deref())?;
+    let sleep = match super::super::sleep::product(&receipt, root.boot_id().as_deref()) {
+        Ok(sleep) => sleep,
+        Err(error @ Failure::Value(_)) => return Err(error),
+        Err(_) => return Err(invalid_sleep_receipt()),
+    };
     Ok(json!({
         "supplies": supplies, "units": {"voltage": "uV", "configured_current": "uA"},
         "battery": battery.clone(),
@@ -932,6 +935,83 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
         "normal_boot": root.integer("/sys/firmware/y2_boot/normal_boot"),
         "low_battery": policy, "sleep": sleep,
     }))
+}
+
+/// A sleep receipt whose product the snapshot cannot show: no object and no list of pairs, a key
+/// that is a list or object, a state that is a list or object; or a key that is a number, bool or
+/// null, which only refuses where the power section is printed (`printable`).
+fn invalid_sleep_receipt() -> Failure {
+    Failure::value("invalid_sleep_receipt")
+}
+
+/// Where a sleep product's key is no text (a list of pairs with a number key), its entry is kept
+/// under this prefix: the snapshot holds it, but printing it is refused (`printable`).
+const NON_TEXT_KEY: &str = "\u{0}non-str-key:";
+
+/// The sleep product written as a list of pairs (two-item lists, two-character texts, two-key
+/// objects, by their sorted keys), as `dict()` builds it; a pair of the wrong length is the
+/// ValueError text `dict()` gives, anything else that is no pair `invalid_sleep_receipt`.
+fn pairs(value: &Value) -> Result<Map<String, Value>, Failure> {
+    let length = |index: usize, n: usize| {
+        Failure::value(format!(
+            "dictionary update sequence element #{index} has length {n}; 2 is required"
+        ))
+    };
+    let items = match value {
+        Value::Array(items) => items,
+        // A text's items are its characters (length 1).
+        Value::String(_) => return Err(length(0, 1)),
+        _ => return Err(invalid_sleep_receipt()),
+    };
+    let mut result = Map::new();
+    for (index, item) in items.iter().enumerate() {
+        let (key, value) = match item {
+            Value::Array(pair) if pair.len() == 2 => (pair[0].clone(), pair[1].clone()),
+            Value::Array(other) => return Err(length(index, other.len())),
+            Value::String(text) => {
+                let chars: Vec<char> = text.chars().collect();
+                if chars.len() != 2 {
+                    return Err(length(index, chars.len()));
+                }
+                (json!(chars[0].to_string()), json!(chars[1].to_string()))
+            }
+            Value::Object(map) if map.len() == 2 => {
+                let mut keys = map.keys().collect::<Vec<_>>();
+                keys.sort();
+                (json!(keys[0]), json!(keys[1]))
+            }
+            Value::Object(map) => return Err(length(index, map.len())),
+            _ => return Err(invalid_sleep_receipt()),
+        };
+        let key = match key {
+            Value::String(key) => key,
+            Value::Array(_) | Value::Object(_) => return Err(invalid_sleep_receipt()),
+            other => format!("{NON_TEXT_KEY}{other}"),
+        };
+        result.insert(key, value);
+    }
+    Ok(result)
+}
+
+/// Whether `value` holds a sleep product key that is no text.
+fn holds_non_text_key(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => map
+            .iter()
+            .any(|(k, v)| k.starts_with(NON_TEXT_KEY) || holds_non_text_key(v)),
+        Value::Array(items) => items.iter().any(holds_non_text_key),
+        _ => false,
+    }
+}
+
+/// Whether a value holding (part of) a snapshot can be printed: one holding a sleep product key that
+/// is no text is refused (`invalid_sleep_receipt`). A section that leaves out the power section
+/// prints.
+pub fn printable(value: &Map<String, Value>) -> Result<(), Failure> {
+    if value.values().any(holds_non_text_key) || value.keys().any(|k| k.starts_with(NON_TEXT_KEY)) {
+        return Err(invalid_sleep_receipt());
+    }
+    Ok(())
 }
 
 // ---- storage -----------------------------------------------------------------------------------
@@ -1323,9 +1403,9 @@ fn wifi_state(
     (s("Online"), Value::Null)
 }
 
-/// The global addresses of `ip -j -4 addr`, as Python's comprehension reads them: Ok(None) where it
-/// raises what `wifi` catches (ValueError, TypeError, KeyError), the AttributeError of `.get` on an
-/// item that is no dict (a dict's key, a str's character, a list, a number) as Python's crash.
+/// The global addresses of `ip -j -4 addr`: Ok(None) for output that is no JSON, no list, an
+/// `addr_info` that is no list or a global address without `local` (no addresses then); a link or
+/// address entry that is no object refuses the snapshot (`invalid_ip_output`).
 fn addresses(output: Option<&str>) -> Result<Option<Vec<Value>>, Failure> {
     let text = output.filter(|o| !o.is_empty()).unwrap_or("[]");
     let Ok(parsed) = serde_json::from_str::<Value>(text) else {
@@ -1337,7 +1417,7 @@ fn addresses(output: Option<&str>) -> Result<Option<Vec<Value>>, Failure> {
     let mut found = Vec::new();
     for link in links {
         let Value::Object(link) = link else {
-            return Err(util::no_get(&link));
+            return Err(Failure::value("invalid_ip_output"));
         };
         let infos = match link.get("addr_info") {
             None => Vec::new(),
@@ -1348,7 +1428,7 @@ fn addresses(output: Option<&str>) -> Result<Option<Vec<Value>>, Failure> {
         };
         for info in infos {
             let Value::Object(info) = info else {
-                return Err(util::no_get(&info));
+                return Err(Failure::value("invalid_ip_output"));
             };
             if info.get("scope").and_then(Value::as_str) == Some("global") {
                 match info.get("local") {
@@ -1451,7 +1531,7 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
     let previous = root.json_object("/run/y2/network.json");
     let mut signal = match previous.get("signal_observation") {
         Some(Value::Object(map)) => Value::Object(map.clone()),
-        Some(other) if truthy(other) => return Err(util::no_get(other)), // AttributeError
+        Some(other) if truthy(other) => return Err(Failure::value("invalid_network_record")),
         _ => json!({}),
     };
     let fresh = {
@@ -1548,12 +1628,8 @@ fn readiness(status: &Snapshot) -> Result<Value, Failure> {
     let audio = regex!(r"(?m)^\s*\d+\s+\[Y2Audio\s*\]").is_match(cards) && valid;
     let update = &status["system"]["update"];
     let update_state = match update.get("state") {
-        // `{...}.get(state)` of a list or dict: TypeError.
-        Some(state @ (Value::Array(_) | Value::Object(_))) => {
-            return Err(Failure::type_error(format!(
-                "unhashable type: '{}'",
-                PyValue::type_name(state)
-            )))
+        Some(Value::Array(_) | Value::Object(_)) => {
+            return Err(Failure::value("invalid_update_journal"))
         }
         Some(Value::String(s)) => match s.as_str() {
             "Idle" | "Acknowledged" => "Ready",

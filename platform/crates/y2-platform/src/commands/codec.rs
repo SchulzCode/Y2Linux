@@ -99,42 +99,6 @@ pub fn no_get(value: &Value) -> Failure {
     ))
 }
 
-/// `key in value` (a str key): a dict's keys, a list's items, a str's substrings; TypeError otherwise.
-pub fn contains(value: &Value, key: &str) -> Result<bool, Failure> {
-    match value {
-        Value::Object(map) => Ok(map.contains_key(key)),
-        Value::Array(items) => Ok(items.iter().any(|i| i.as_str() == Some(key))),
-        Value::String(text) => Ok(text.contains(key)),
-        other => Err(Failure::type_error(format!(
-            "argument of type '{}' is not a container or iterable",
-            PyValue::type_name(other)
-        ))),
-    }
-}
-
-/// `value[key]` (a str key) on a value that is not a dict: TypeError.
-pub fn no_getitem(value: &Value) -> Failure {
-    Failure::type_error(match value {
-        Value::Array(_) => "list indices must be integers or slices, not str".to_owned(),
-        Value::String(_) => "string indices must be integers, not 'str'".to_owned(),
-        other => format!(
-            "'{}' object is not subscriptable",
-            PyValue::type_name(other)
-        ),
-    })
-}
-
-/// `value[key] = …` (a str key) on a value that is not a dict: TypeError.
-pub fn no_setitem(value: &Value) -> Failure {
-    Failure::type_error(match value {
-        Value::Array(_) => "list indices must be integers or slices, not str".to_owned(),
-        other => format!(
-            "'{}' object does not support item assignment",
-            PyValue::type_name(other)
-        ),
-    })
-}
-
 /// `iter(value)` (a `for`, `all(...)`) on a value that is not iterable: TypeError.
 pub fn not_iterable(value: &Value) -> Failure {
     Failure::type_error(format!(

@@ -60,7 +60,8 @@ CASES = [
     ('capabilities-bad-policy', ['capabilities'], {'files': {POLICY: '{"schema": 2}'}}),
     ('capabilities-broken-template', ['capabilities'], {'files': {
         '/etc/y2linux/capabilities.json': '{"schema": "org.y2linux.capabilities/v1", "capabilities": {"wifi": 3}}'}}),
-    # Templates and inventories Python crashes on (a traceback, nothing on stdout) or refuses first.
+    # Templates and inventories that are refused: invalid_capabilities_template, invalid_codec_inventory, or the
+    # codec policy's own refusal first.
     *[('capabilities-template-' + name, ['capabilities'], {'files': {
         '/etc/y2linux/capabilities.json': json.dumps({'capabilities': caps}), **extra}}) for name, caps, extra in [
         ('null', None, {}), ('list-wifi', ['wifi'], {}), ('list', ['dvfs'], {}), ('text', 'bluetooth', {}),

@@ -187,7 +187,7 @@ pub fn route(args: &[&str]) -> Option<Command> {
                 reborn: parsed.flag("--reborn"),
                 interval,
             };
-            Some(Box::new(move |root| crashing(status(root, &options))))
+            Some(Box::new(move |root| status(root, &options)))
         }
         "health" => {
             let parsed = parse(
@@ -198,7 +198,7 @@ pub fn route(args: &[&str]) -> Option<Command> {
                 },
             )?;
             let full = parsed.flag("--full");
-            Some(Box::new(move |root| crashing(health::run(root, full))))
+            Some(Box::new(move |root| health::run(root, full)))
         }
         "boot-evidence" if rest.is_empty() => Some(Box::new(evidence::run)),
         "network-check" => {
@@ -247,7 +247,7 @@ pub fn route(args: &[&str]) -> Option<Command> {
                 pss: parsed.flag("--pss"),
                 reborn: parsed.flag("--reborn"),
             };
-            Some(Box::new(move |root| crashing(collect::run(root, &options))))
+            Some(Box::new(move |root| collect::run(root, &options)))
         }
         "bench-storage" => {
             let parsed = parse(
@@ -292,22 +292,6 @@ pub fn route(args: &[&str]) -> Option<Command> {
         }
         _ => None,
     }
-}
-
-/// End the command as Python's uncaught exception `error` does (a traceback on stderr, nothing more
-/// on stdout, exit 1) from where it is raised, after what the command already did (bench scratch
-/// files, streamed `collect` lines).
-pub fn crash(error: &crate::reply::Failure) -> ! {
-    use std::io::Write;
-    let _ = std::io::stdout().flush();
-    let _ = std::io::stderr().write_all(error.traceback().as_bytes());
-    std::process::exit(1)
-}
-
-/// `outcome`: a helper of another group already ends as Python's crash (`Failure::Crash`) where
-/// Python would, after the snapshot asked for its subprocesses.
-pub fn crashing<T>(outcome: Result<T, crate::reply::Failure>) -> Result<T, crate::reply::Failure> {
-    outcome
 }
 
 fn volume(value: Option<&str>) -> Option<String> {
@@ -385,7 +369,7 @@ fn status(root: &Root, options: &StatusOptions) -> Outcome {
         reduced.insert(section.clone(), part);
         result = reduced;
     }
-    util::sortable(&Value::Object(result.clone()))?;
+    snapshot::printable(&result)?;
     Reply::sorted(&result, 0)
 }
 

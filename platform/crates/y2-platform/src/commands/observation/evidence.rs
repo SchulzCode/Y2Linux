@@ -638,9 +638,11 @@ pub fn run(root: &Root) -> Outcome {
         }) else {
             return Err(Failure::value("max() iterable argument is empty"));
         };
+        // Every log line dropped and still too large (a huge retained listing): refused, nothing
+        // written.
         let lines = largest["tail_lines"].as_array_mut().expect("lines");
         if lines.is_empty() {
-            super::crash(&Failure::index_error("pop from empty list"));
+            return Err(Failure::value("evidence_record_too_large"));
         }
         lines.remove(0);
     }

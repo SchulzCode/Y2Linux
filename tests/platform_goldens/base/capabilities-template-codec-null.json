@@ -4,7 +4,12 @@
  ],
  "calls": [],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "reason": "invalid_codec_inventory",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
  "tree": {
   "added": {},
   "changed": {},

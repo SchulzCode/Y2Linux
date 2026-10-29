@@ -1,6 +1,6 @@
 """Golden cases of port group `observation` kept apart from tests/test_platform_differential.py's
-(tests/platform_cases/observation.py, EXTRA_CASES): boot-evidence below /data and the inputs the platform ends on
-with a traceback. Run by the Rust host build (`Y2_PLATFORM_RUST`) and compared with
+(tests/platform_cases/observation.py, EXTRA_CASES): boot-evidence below /data and the records the platform refuses
+(REFUSALS). Run by the Rust host build (`Y2_PLATFORM_RUST`) and compared with
 tests/platform_goldens/observation/<case>.json (tests/platform_golden.py)."""
 from pathlib import Path
 import sys
@@ -30,8 +30,9 @@ class ObservationGoldens(unittest.TestCase):
 
     def test_goldens_exercise_the_paths_they_name(self):
         results = {name: read_golden('observation', name) for name, _, _ in observation.EXTRA_CASES}
-        for name in observation.CRASHES:
-            self.assertEqual((results[name]['exit'], results[name]['stdout']), (1, []), name)
+        for name, reason in observation.REFUSALS.items():
+            record = {'schema': 'org.y2linux.error/v1', 'state': 'Failed', 'reason': reason, 'type': 'ValueError'}
+            self.assertEqual((results[name]['exit'], results[name]['stdout']), (1, record), name)
         evidence = results['boot-evidence']['stdout']
         self.assertEqual([log['name'] for log in evidence['logs']], ['system.log.0', 'system.log'])
         self.assertEqual(evidence['pmic']['long_press_reset_reason'], 'first_record')

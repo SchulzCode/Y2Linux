@@ -117,11 +117,6 @@ impl Failure {
         Failure::crash("KeyError", crate::argparse::python::repr(key))
     }
 
-    /// `IndexError(message)`, uncaught.
-    pub fn index_error(message: impl Into<String>) -> Failure {
-        Failure::crash("IndexError", message)
-    }
-
     /// Whether this is an exception that `except (OSError, ValueError, RuntimeError)` (main.py's
     /// clause, and most commands' own) catches: not a crash, not a fallback.
     pub fn caught(&self) -> bool {

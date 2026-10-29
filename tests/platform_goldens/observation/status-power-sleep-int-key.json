@@ -31,7 +31,12 @@
   }
  ],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "reason": "invalid_sleep_receipt",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
  "tree": {
   "added": {},
   "changed": {},

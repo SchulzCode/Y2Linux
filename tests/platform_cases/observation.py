@@ -409,8 +409,8 @@ CASES = [
            commands=VOLUMES),
     status('status-storage-controller-arabic', ['storage'], files={
         '/sys/bus/platform/devices/11230000.mmc/y2_performance': 'cap_hz=\u0665 clock_error=-1\n'}),
-    # dict(product) of a receipt product that is no dict: a pair list with a key that is no str sorts with
-    # TypeError only where it is printed; a str or a bad pair is a ValueError.
+    # A receipt product that is a list of pairs: one with a key that is no text is refused only where the power
+    # section is printed; a text or a pair of the wrong length is dict()'s ValueError.
     status('status-power-sleep-int-key', ['power'], files={'/data/system/platform/suspend-last.json': json.dumps(
         {'product': [[1, 'x'], ['state', 'restored'], ['request_boot_id', BOOT]]})}),
     status('status-cpu-sleep-int-key', ['cpu'], files={'/data/system/platform/suspend-last.json': json.dumps(
@@ -604,15 +604,30 @@ CASES += [
 ]
 
 
-# Run by tests/test_platform_observation.py: boot-evidence below /data and the inputs the platform ends on with a
-# traceback (exit 1, nothing on stdout).
-CRASHES = ('status-cpu-timer-crash', 'status-power-battery-list', 'status-system-evidence-bad-logs',
-           'status-system-update-unhashable', 'status-wifi-signal-list', 'status-power-sleep-int-key',
-           'status-power-sleep-number', 'status-power-sleep-number-pair', 'status-power-sleep-list-key',
-           'status-power-battery-null', 'status-wifi-ip-text', 'status-wifi-ip-number-link',
-           'status-wifi-ip-info-dict', 'status-wifi-signal-text', 'status-system-evidence-text-logs',
-           'status-system-evidence-null-logs', 'status-system-evidence-list-log', 'status-system-update-dict-state')
-EXTRA_CASES = [case for case in CASES if case[0] in CRASHES or (
+# Run by tests/test_platform_observation.py: boot-evidence below /data and the inputs the platform refuses (records
+# it cannot read, which Python ended on with a traceback): exit 1 and the error record with this reason.
+REFUSALS = {
+    'status-cpu-timer-crash': 'invalid_timer_list',
+    'status-power-battery-list': 'invalid_power_record',
+    'status-power-battery-null': 'invalid_power_record',
+    'status-power-sleep-int-key': 'invalid_sleep_receipt',
+    'status-power-sleep-number': 'invalid_sleep_receipt',
+    'status-power-sleep-number-pair': 'invalid_sleep_receipt',
+    'status-power-sleep-list-key': 'invalid_sleep_receipt',
+    'status-system-evidence-bad-logs': 'invalid_previous_boot_evidence',
+    'status-system-evidence-text-logs': 'invalid_previous_boot_evidence',
+    'status-system-evidence-null-logs': 'invalid_previous_boot_evidence',
+    'status-system-evidence-list-log': 'invalid_previous_boot_evidence',
+    'status-system-update-unhashable': 'invalid_update_journal',
+    'status-system-update-dict-state': 'invalid_update_journal',
+    'status-wifi-signal-list': 'invalid_network_record',
+    'status-wifi-signal-text': 'invalid_network_record',
+    'status-wifi-ip-text': 'invalid_ip_output',
+    'status-wifi-ip-number-link': 'invalid_ip_output',
+    'status-wifi-ip-info-dict': 'invalid_ip_output',
+    'status-wifi-ip-object': 'invalid_ip_output',
+}
+EXTRA_CASES = [case for case in CASES if case[0] in REFUSALS or (
     case[1] == ['boot-evidence'] and case[0] not in ('boot-evidence-again', 'boot-evidence-missed-boundary',
                                                      'boot-evidence-no-data', 'boot-evidence-wrong-mount',
                                                      'boot-evidence-no-boot-id'))]

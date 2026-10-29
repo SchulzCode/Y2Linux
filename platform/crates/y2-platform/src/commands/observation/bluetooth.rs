@@ -15,26 +15,36 @@ use y2p_core::{
     Root,
 };
 
-/// Why `normalize` stopped, as Python's control flow sees it.
+/// Why `normalize` stopped.
 enum Stop {
-    /// A TypeError or ValueError: `observe.bluetooth` catches it and reports no observation.
-    Caught,
-    /// Anything else (an AttributeError on an inventory that is no dict): the command crashes.
-    Crash(Failure),
+    /// The observation cannot be read (a codec receipt's arguments that are no list): the section
+    /// reports no observation.
+    Unobserved,
+    /// A broken installed record (the codec inventory): the snapshot is refused.
+    Refused(Failure),
 }
 
-impl From<Failure> for Stop {
-    fn from(error: Failure) -> Self {
-        match error {
-            Failure::Value(_) | Failure::Os { .. } => Stop::Caught,
-            crash => Stop::Crash(crash),
-        }
-    }
+/// Why `codec_settings` has no answer.
+enum Settings {
+    /// The owner's codec policy is refused (its reason): the settings are shown as Failed.
+    Invalid(String),
+    Stop(Stop),
+}
+
+/// The codec inventory's entry for `name`; an inventory whose codecs are no object refuses.
+fn inventory_entry<'a>(
+    inventory: &'a Map<String, Value>,
+    name: &str,
+) -> Result<Option<&'a Map<String, Value>>, Settings> {
+    inventory_codec(inventory, name)
+        .map_err(|_| Settings::Stop(Stop::Refused(Failure::value("invalid_codec_inventory"))))
 }
 
 /// `codec_controls.status`.
-fn codec_settings(root: &Root) -> Result<Value, Stop> {
-    let policy = validate(requested(root)?)?;
+fn codec_settings(root: &Root) -> Result<Value, Settings> {
+    let policy = requested(root)
+        .and_then(validate)
+        .map_err(|error| Settings::Invalid(error.message()))?;
     let inventory = root.json_object("/etc/y2linux/bluetooth-codecs.json");
     let applied = root.json_object("/run/y2/codec-runtime.json");
     let boot = root.boot_id();
@@ -55,8 +65,9 @@ fn codec_settings(root: &Root) -> Result<Value, Stop> {
         && {
             let arguments = match applied.get("arguments") {
                 None => Vec::new(),
-                // Not iterable: TypeError.
-                Some(other) => y2p_core::py::iterate(other).ok_or(Stop::Caught)?,
+                Some(other) => {
+                    y2p_core::py::iterate(other).ok_or(Settings::Stop(Stop::Unobserved))?
+                }
             };
             arguments.iter().all(|a| contains(&argv, a))
         };
@@ -69,8 +80,8 @@ fn codec_settings(root: &Root) -> Result<Value, Stop> {
         Value::Null
     };
     let policy = Value::Object(policy);
-    let aac = inventory_codec(&inventory, "AAC")?;
-    let ldac = inventory_codec(&inventory, "LDAC")?;
+    let aac = inventory_entry(&inventory, "AAC")?;
+    let ldac = inventory_entry(&inventory, "LDAC")?;
     let compiled =
         |codec: Option<&Map<String, Value>>| codec.and_then(|c| c.get("compiled_locally")).cloned();
     let qualities = |codec: Option<&Map<String, Value>>, list: Value| {
@@ -331,18 +342,12 @@ fn base(root: &Root, settings: Value) -> Map<String, Value> {
 fn normalize(root: &Root, raw: &Map<String, Value>, order: &[String]) -> Result<Value, Stop> {
     let settings = match codec_settings(root) {
         Ok(settings) => settings,
-        Err(Stop::Crash(error)) => return Err(Stop::Crash(error)),
-        Err(Stop::Caught) => {
-            // Only a ValueError is caught here; a TypeError reaches observe.bluetooth.
-            match codec_failure(root)? {
-                Some(reason) => {
-                    json!({"schema": y2p_contract::schema::CODEC_SETTINGS, "state": "Failed",
-                                       "reason": reason, "requested": null, "effective": null,
-                                       "pending_restart": false, "supported": {}})
-                }
-                None => return Err(Stop::Caught),
-            }
+        Err(Settings::Invalid(reason)) => {
+            json!({"schema": y2p_contract::schema::CODEC_SETTINGS, "state": "Failed",
+                   "reason": reason, "requested": null, "effective": null,
+                   "pending_restart": false, "supported": {}})
         }
+        Err(Settings::Stop(stop)) => return Err(stop),
     };
     let mut result = base(root, settings);
     let reconnect = result.get("reconnect").cloned().unwrap_or(Value::Null);
@@ -546,15 +551,6 @@ fn normalize(root: &Root, raw: &Map<String, Value>, order: &[String]) -> Result<
     Ok(Value::Object(result))
 }
 
-/// The ValueError text of `codec_controls.status` (None when what failed was a TypeError).
-fn codec_failure(root: &Root) -> Result<Option<String>, Stop> {
-    match requested(root).and_then(validate) {
-        Err(error @ (Failure::Value(_) | Failure::Os { .. })) => Ok(Some(error.message())),
-        Err(crash) => Err(Stop::Crash(crash)),
-        Ok(_) => Ok(None),
-    }
-}
-
 /// `observe.bluetooth`.
 pub fn bluetooth(root: &Root) -> Result<Value, Failure> {
     let answer = command::run_with(root, &["/usr/sbin/y2-bt-observe"], 3.0, 262_144, false);
@@ -566,8 +562,8 @@ pub fn bluetooth(root: &Root) -> Result<Value, Failure> {
                 .unwrap_or_default();
             match normalize(root, &observed, &order) {
                 Ok(value) => return Ok(value),
-                Err(Stop::Crash(error)) => return Err(error),
-                Err(Stop::Caught) => {}
+                Err(Stop::Refused(error)) => return Err(error),
+                Err(Stop::Unobserved) => {}
             }
         }
     }

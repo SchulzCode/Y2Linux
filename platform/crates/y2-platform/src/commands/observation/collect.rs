@@ -96,8 +96,8 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
                 }
             }
         }
-        // An input Python crashes on ends the stream as its traceback does (super::crash).
-        let mut value = super::crashing(snapshot(root, &pids, options.pss, 0.0))?;
+        // A refused snapshot ends the stream with its refusal record after the lines so far.
+        let mut value = snapshot(root, &pids, options.pss, 0.0)?;
         let record = value["record"].as_object_mut().expect("record");
         record.insert("workload".into(), json!(label));
         if let Some(Value::Object(parameters)) = record.get_mut("parameters") {
@@ -149,7 +149,7 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
                 .as_object()
                 .is_some_and(|r| r.values().any(|item| item["state"] == "Failed")),
         );
-        util::sortable(&Value::Object(value.clone()))?;
+        super::snapshot::printable(&value)?;
         let line = dumps_sorted(&value, Separators::Spaced).map_err(Failure::value)? + "\n";
         bytes += line.len();
         if bytes > 64 * 1024 * 1024 {

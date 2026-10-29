@@ -8,8 +8,14 @@ use y2p_core::{
     Root,
 };
 
-/// The entry `caps[name]` as a dict, for `caps[name][key] = …`; anything else (a JSON null too) is
-/// Python's uncaught TypeError.
+/// The installed template is broken: its capabilities, or one of the entries this fills in, are no
+/// object.
+fn invalid_template() -> Failure {
+    Failure::value("invalid_capabilities_template")
+}
+
+/// The entry `caps[name]` as an object to fill in; one that is anything else (a JSON null too)
+/// refuses the template.
 fn entry<'a>(
     caps: &'a mut Map<String, Value>,
     name: &str,
@@ -17,7 +23,7 @@ fn entry<'a>(
     match caps.get_mut(name) {
         None => Ok(None),
         Some(Value::Object(map)) => Ok(Some(map)),
-        Some(other) => Err(codec::no_setitem(other)),
+        Some(_) => Err(invalid_template()),
     }
 }
 
@@ -38,16 +44,18 @@ pub fn run(root: &Root) -> Outcome {
     let mut caps = match result.shift_remove("capabilities") {
         None => None,
         Some(Value::Object(map)) => Some(map),
-        // Not a dict (a JSON null too): `name in caps` then `caps[name]` raise TypeError; a list or
-        // str without those names reaches `caps.get(...)` after the policy (AttributeError).
+        // Capabilities that are no object refuse the template. A list or text naming neither radio is
+        // read only after the codec policy, whose own refusal comes first then.
         Some(other) => {
-            for name in ["wifi", "bluetooth"] {
-                if codec::contains(&other, name)? {
-                    return Err(codec::no_getitem(&other));
-                }
+            let names_a_radio = ["wifi", "bluetooth"].iter().any(|name| match &other {
+                Value::Array(items) => items.iter().any(|item| item.as_str() == Some(name)),
+                Value::String(text) => text.contains(name),
+                _ => true,
+            });
+            if !names_a_radio {
+                codec::requested(root)?;
             }
-            codec::requested(root)?;
-            return Err(codec::no_get(&other));
+            return Err(invalid_template());
         }
     };
     if let Some(caps) = caps.as_mut() {
@@ -77,7 +85,8 @@ pub fn run(root: &Root) -> Outcome {
             {
                 continue;
             }
-            let actual = codec::inventory_codec(&inventory, name)?;
+            let actual = codec::inventory_codec(&inventory, name)
+                .map_err(|_| Failure::value("invalid_codec_inventory"))?;
             let Some(cap) = entry(caps, &format!("bluetooth_{key}"))? else {
                 continue;
             };
