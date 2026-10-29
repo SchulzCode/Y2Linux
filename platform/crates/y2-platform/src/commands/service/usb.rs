@@ -3,7 +3,7 @@
 //! pins media roots per lifetime; mount identity changes require unbinding/stopping it before a
 //! replacement view. `service-daemon` ticks it every pass and stops it when it ends.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::process::{self, Child, Start};
+use super::process::{self, Child, Launch, Start};
 use super::radiofw;
 use crate::commands::storage::{
     internal, media,
@@ -278,6 +278,8 @@ pub struct UsbService {
     /// path -> identity, in insertion order (a dict).
     mounted: Vec<(String, Value)>,
     sd_window: f64,
+    /// What starts the responder and its IPC commands.
+    launch: Launch,
 }
 
 /// A symlink's OSError: Python names both paths.
@@ -310,6 +312,7 @@ impl UsbService {
             terminal: false,
             mounted: Vec::new(),
             sd_window: 0.0,
+            launch: process::launcher(),
         }
     }
 
@@ -469,7 +472,7 @@ impl UsbService {
                 &self.root.path("/run/y2/mtp-expect.txt"),
                 &expectations(&views),
             )?;
-            self.child = Some(process::spawn(
+            self.child = Some((self.launch)(
                 &self.root,
                 &["/usr/sbin/umtprd", "-conf", "/run/y2/umtprd.conf"],
                 Start::Responder,
@@ -495,12 +498,10 @@ impl UsbService {
     }
 
     /// `command(message)`: one IPC command to the running responder.
-    fn command(&self, message: &str) -> bool {
-        process::run(
-            &self.root,
-            &["/usr/sbin/umtprd", &format!("-cmd:{message}")],
-            3.0,
-        )
+    fn command(&mut self, message: &str) -> bool {
+        let argv = ["/usr/sbin/umtprd", &format!("-cmd:{message}")];
+        (self.launch)(&self.root, &argv, Start::Command)
+            .is_ok_and(|child| child.succeeds_within(3.0))
     }
 
     /// `pinned()`: the roots the running responder has pinned, if its record is this responder's.

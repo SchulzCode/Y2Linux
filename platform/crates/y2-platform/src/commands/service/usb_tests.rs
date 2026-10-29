@@ -5,9 +5,8 @@
 //! read from stay unchanged. A stand-in responder (a shell that sleeps) starts in place of umtprd.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::commands::service::process::testing::launching;
 use crate::commands::storage::sys::release_sd;
-use crate::testing::{ok, repository, scripted, Fixture};
+use crate::testing::{ok, repository, Fixture};
 use std::{
     cell::RefCell,
     os::unix::fs::{symlink as link, MetadataExt},
@@ -20,7 +19,7 @@ const DEVICE: &str =
     "/sys/devices/platform/11230000.mmc/mmc_host/mmc0/mmc0:0001/block/mmcblk0/mmcblk0p8";
 const INTERNAL: &str = "/media/internal/music";
 
-type Launch = Box<dyn FnMut(&[&str]) -> Option<Vec<String>>>;
+type Instead = Box<dyn FnMut(&[&str]) -> Option<Vec<String>>>;
 
 /// Y2Media mounted at /media/internal: device 179:2 on the eMMC controller with Y2Media's geometry,
 /// its music folder present (`blkid` answers its UUID, see `answers`).
@@ -55,9 +54,19 @@ fn responder(argv: &[&str]) -> Option<Vec<String>> {
     })
 }
 
-/// Run `body` with the fixture's command answers and `launch` for what the service starts.
-fn session<T>(launch: Launch, body: impl FnOnce() -> T) -> T {
-    scripted(answers(UUID), || launching(launch, body)).0
+/// What the service starts: the host argv `instead` answers for a request, or (for `None`) a
+/// refusal as for a missing program.
+fn stand_in(mut instead: Instead) -> Launch {
+    Box::new(move |_, argv, how| match instead(argv) {
+        Some(host) => {
+            let host: Vec<&str> = host.iter().map(String::as_str).collect();
+            process::spawn(&Root::new("/"), &host, how)
+        }
+        None => Err(Failure::os(
+            std::io::Error::from_raw_os_error(libc::ENOENT),
+            Path::new(argv[0]),
+        )),
+    })
 }
 
 struct Usb {
@@ -68,15 +77,21 @@ struct Usb {
 impl Usb {
     /// USBProduct.setUp: the UDC not attached, configfs and /run/y2 present, Internal Storage ready.
     fn new() -> Usb {
-        let fixture = Fixture::new();
+        let fixture = Fixture::new().with_answers(answers(UUID));
         fixture
             .put("/proc/sys/kernel/random/boot_id", "boot-one")
             .put("/sys/class/udc/musb/state", "not attached")
             .mkdir("/sys/kernel/config/usb_gadget")
             .mkdir("/run/y2");
         media(&fixture);
-        let service = UsbService::new(&fixture.root);
+        let mut service = UsbService::new(&fixture.root);
+        service.launch = stand_in(Box::new(responder));
         Usb { fixture, service }
+    }
+
+    /// What the service starts from now on (a stand-in responder at first).
+    fn launching(&mut self, instead: Instead) {
+        self.service.launch = stand_in(instead);
     }
 
     /// A gadget attribute as the platform reads it (stripped).
@@ -161,15 +176,13 @@ fn alive(pid: i32) -> bool {
 #[test]
 fn no_udc_bind_before_all_functionfs_descriptors() {
     let mut usb = Usb::new();
-    session(Box::new(responder), || {
-        let state = usb.tick();
-        assert_eq!(state["reason"], "waiting_for_descriptors");
-        assert!(!usb.fixture.exists(&format!("{GADGET}/UDC")));
-        assert_eq!(usb.ready()["state"], "Ready");
-        assert_eq!(usb.gadget("UDC"), "musb");
-        assert_eq!(usb.gadget("os_desc/use"), "1");
-        assert!(is_link(&usb.fixture.path(&format!("{GADGET}/os_desc/c.1"))));
-    });
+    let state = usb.tick();
+    assert_eq!(state["reason"], "waiting_for_descriptors");
+    assert!(!usb.fixture.exists(&format!("{GADGET}/UDC")));
+    assert_eq!(usb.ready()["state"], "Ready");
+    assert_eq!(usb.gadget("UDC"), "musb");
+    assert_eq!(usb.gadget("os_desc/use"), "1");
+    assert!(is_link(&usb.fixture.path(&format!("{GADGET}/os_desc/c.1"))));
     assert_eq!(selection("mtp").unwrap(), ["ffs.mtp", "ecm.usb0"]);
 }
 
@@ -210,110 +223,99 @@ fn no_block_export_or_triple_function_selection() {
 #[test]
 fn disconnect_refresh_keeps_linux_ownership_and_reconnect() {
     let mut usb = Usb::new();
-    session(Box::new(responder), || {
-        usb.ready();
-        usb.cable("not attached");
-        let disconnected = usb.tick();
-        assert_eq!(disconnected["state"], "Disconnected");
-        assert!(disconnected["refresh_generation"].as_u64().unwrap() > 0);
-        assert_eq!(disconnected["filesystem_owner"], "linux");
-        assert_eq!(disconnected["block_export"], false);
-        usb.cable("configured");
-        assert_eq!(usb.tick()["state"], "Ready");
-    });
+    usb.ready();
+    usb.cable("not attached");
+    let disconnected = usb.tick();
+    assert_eq!(disconnected["state"], "Disconnected");
+    assert!(disconnected["refresh_generation"].as_u64().unwrap() > 0);
+    assert_eq!(disconnected["filesystem_owner"], "linux");
+    assert_eq!(disconnected["block_export"], false);
+    usb.cable("configured");
+    assert_eq!(usb.tick()["state"], "Ready");
 }
 
 #[test]
 fn only_durable_generation_not_activity_requests_library_refresh() {
     let mut usb = Usb::new();
-    session(Box::new(responder), || {
-        usb.ready();
-        let pid = usb.pid();
-        usb.fixture.put_json(
-            "/run/y2/mtp-events.json",
-            &json!({"pid": pid, "active": true, "generation": 0}),
-        );
-        let value = usb.tick();
-        assert_eq!(value["state"], "Copying");
-        assert_eq!(value["refresh_generation"], 0);
-        usb.fixture.put_json(
-            "/run/y2/mtp-events.json",
-            &json!({"pid": pid, "active": false, "generation": 5}),
-        );
-        let first = usb.tick()["refresh_generation"].as_u64().unwrap();
-        assert!(first > 0);
-        assert_eq!(first, usb.tick()["refresh_generation"].as_u64().unwrap());
-    });
+    usb.ready();
+    let pid = usb.pid();
+    usb.fixture.put_json(
+        "/run/y2/mtp-events.json",
+        &json!({"pid": pid, "active": true, "generation": 0}),
+    );
+    let value = usb.tick();
+    assert_eq!(value["state"], "Copying");
+    assert_eq!(value["refresh_generation"], 0);
+    usb.fixture.put_json(
+        "/run/y2/mtp-events.json",
+        &json!({"pid": pid, "active": false, "generation": 5}),
+    );
+    let first = usb.tick()["refresh_generation"].as_u64().unwrap();
+    assert!(first > 0);
+    assert_eq!(first, usb.tick()["refresh_generation"].as_u64().unwrap());
 }
 
 #[test]
 fn failed_daemon_and_failed_bind_have_bounded_retry() {
     let mut usb = Usb::new();
-    session(Box::new(responder), || {
-        usb.ready();
-        for _ in 0..5 {
-            if usb.service.child.is_some() {
-                usb.responder_exits();
-            }
-            usb.tick();
-            usb.tick();
+    usb.ready();
+    for _ in 0..5 {
+        if usb.service.child.is_some() {
+            usb.responder_exits();
         }
-        assert!(usb.service.terminal);
-        assert_eq!(usb.tick()["state"], "Failed");
-    });
+        usb.tick();
+        usb.tick();
+    }
+    assert!(usb.service.terminal);
+    assert_eq!(usb.tick()["state"], "Failed");
 }
 
 #[test]
 fn failure_budget_decays_after_a_stable_responder() {
     let mut usb = Usb::new();
-    session(Box::new(responder), || {
-        usb.ready();
-        usb.service.failures = 4;
-        usb.service.started -= 120.0;
-        usb.responder_exits();
-        usb.tick();
-        assert_eq!(usb.service.failures, 1);
-        assert!(!usb.service.terminal);
-    });
+    usb.ready();
+    usb.service.failures = 4;
+    usb.service.started -= 120.0;
+    usb.responder_exits();
+    usb.tick();
+    assert_eq!(usb.service.failures, 1);
+    assert!(!usb.service.terminal);
 }
 
 #[test]
 fn bind_failure_never_reports_host_ownership() {
     let mut usb = Usb::new();
-    session(Box::new(responder), || {
-        usb.tick();
-        usb.descriptors();
-        // The bind fails: the UDC attribute cannot be written.
-        usb.fixture.mkdir(&format!("{GADGET}/UDC"));
-        let value = usb.tick();
-        assert_eq!(value["state"], "Failed");
-        assert_eq!(value["filesystem_owner"], "linux");
-        assert!(!usb.service.bound);
-        assert!(usb.service.child.is_none());
-    });
+    usb.tick();
+    usb.descriptors();
+    // The bind fails: the UDC attribute cannot be written.
+    usb.fixture.mkdir(&format!("{GADGET}/UDC"));
+    let value = usb.tick();
+    assert_eq!(value["state"], "Failed");
+    assert_eq!(value["filesystem_owner"], "linux");
+    assert!(!usb.service.bound);
+    assert!(usb.service.child.is_none());
 }
 
 #[test]
 fn readiness_restart_unbinds_its_existing_gadget_before_setup() {
     let mut usb = Usb::new();
-    session(Box::new(responder), || usb.ready());
+    usb.ready();
     // The UDC as the restarted service's setup leaves it when it starts its responder (the last
     // step before the bind).
     let seen = Rc::new(RefCell::new(Vec::new()));
     let (record, udc) = (Rc::clone(&seen), usb.fixture.path(&format!("{GADGET}/UDC")));
-    let launch: Launch = Box::new(move |argv| {
+    let launch: Instead = Box::new(move |argv| {
         record.borrow_mut().push(fs::read_to_string(&udc).unwrap());
         responder(argv)
     });
     let mut restarted = UsbService::new(&usb.fixture.root);
-    session(launch, || {
-        let value = restarted.tick().unwrap();
-        assert_eq!(*seen.borrow(), ["\n"]);
-        assert_eq!(usb.gadget("UDC"), "musb");
-        assert_eq!(value["filesystem_owner"], "linux");
-        assert_eq!(restarted.tick().unwrap()["filesystem_owner"], "linux");
-        restarted.stop().unwrap();
-    });
+    restarted.launch = stand_in(launch);
+    let value = restarted.tick().unwrap();
+    assert_eq!(*seen.borrow(), ["\n"]);
+    assert_eq!(usb.gadget("UDC"), "musb");
+    assert_eq!(value["filesystem_owner"], "linux");
+    assert_eq!(restarted.tick().unwrap()["filesystem_owner"], "linux");
+    restarted.stop().unwrap();
 }
 
 #[test]
@@ -321,7 +323,7 @@ fn gadget_requests_validated_bus_powered_500ma_allocation() {
     // The charger grants 450 mA to a *configured* 500 mA request only; a self-powered/0 mA
     // configuration left a PC port "Not charging".
     let mut usb = Usb::new();
-    session(Box::new(responder), || usb.ready());
+    usb.ready();
     assert_eq!(usb.gadget("configs/c.1/MaxPower"), "500");
     assert_eq!(usb.gadget("configs/c.1/bmAttributes"), "0x80");
 }
@@ -344,14 +346,14 @@ fn both_views_declared_in_fixed_slots_missing_sd_is_notmounted() {
 #[test]
 fn sd_hotplug_changes_the_live_view_without_usb_reenumeration() {
     let mut usb = Usb::new();
-    session(Box::new(responder), || usb.ready());
+    usb.ready();
     let pid = usb.pid();
     let udc = usb.fixture.path(&format!("{GADGET}/UDC"));
     let bound = fs::metadata(&udc).unwrap();
     // The responder acknowledges each IPC command by publishing the roots it pins.
     let sent = Rc::new(RefCell::new(Vec::<String>::new()));
     let (record, roots) = (Rc::clone(&sent), usb.fixture.path("/run/y2/mtp-roots.json"));
-    let launch: Launch = Box::new(move |argv| {
+    let launch: Instead = Box::new(move |argv| {
         let message = argv.get(1)?.strip_prefix("-cmd:")?.to_owned();
         let name = message.split_once(':').unwrap().1;
         let path = if name == "Internal Storage" {
@@ -375,14 +377,15 @@ fn sd_hotplug_changes_the_live_view_without_usb_reenumeration() {
         &json!({"pid": pid, "roots": [INTERNAL]}),
     );
     let internal = usb.internal_view();
-    let (first, second) = session(launch, || {
+    let (first, second) = {
+        usb.launching(launch);
         usb.service.cached_views = vec![internal.clone(), sd_view()];
         let first = usb.tick();
         assert_eq!(*sent.borrow(), ["mount:SD Card"]);
         assert_eq!(paths(&first), [INTERNAL, "/media/sd"]);
         usb.service.cached_views = vec![internal.clone()];
         (first, usb.tick())
-    });
+    };
     assert!(first["refresh_generation"].as_u64().unwrap() > 0);
     assert_eq!(*sent.borrow(), ["mount:SD Card", "unmount:SD Card"]);
     assert_eq!(paths(&second), [INTERNAL]);
@@ -399,7 +402,7 @@ fn sd_hotplug_changes_the_live_view_without_usb_reenumeration() {
 #[test]
 fn unacknowledged_unmount_falls_back_to_stopping_the_responder() {
     let mut usb = Usb::new();
-    session(Box::new(responder), || usb.ready());
+    usb.ready();
     let old = usb.pid();
     let sd = sd_view();
     usb.service
@@ -407,12 +410,13 @@ fn unacknowledged_unmount_falls_back_to_stopping_the_responder() {
         .push(("/media/sd".into(), identity(&sd)));
     usb.service.views = Some(vec![usb.internal_view(), sd]);
     // The responder takes the command but never drops the root.
-    let launch: Launch = Box::new(|argv| {
+    let launch: Instead = Box::new(|argv| {
         argv.get(1)
             .is_some_and(|a| a.starts_with("-cmd:"))
             .then(|| vec!["true".into()])
     });
-    session(launch, || usb.tick());
+    usb.launching(launch);
+    usb.tick();
     assert!(usb.service.child.as_ref().map(Child::pid) != Some(old));
     assert!(!alive(old)); // the old responder released every pin
 }
@@ -420,14 +424,12 @@ fn unacknowledged_unmount_falls_back_to_stopping_the_responder() {
 #[test]
 fn media_identity_change_stops_old_responder_before_new_view() {
     let mut usb = Usb::new();
-    session(Box::new(responder), || usb.ready());
+    usb.ready();
     let old = usb.pid();
     let mut remounted = usb.internal_view();
     remounted.insert("mount_id".into(), json!(6));
-    session(Box::new(responder), || {
-        usb.service.cached_views = vec![remounted];
-        usb.tick();
-    });
+    usb.service.cached_views = vec![remounted];
+    usb.tick();
     assert!(!alive(old));
     assert!(usb.service.child.as_ref().map(Child::pid) != Some(old));
 }
@@ -435,16 +437,14 @@ fn media_identity_change_stops_old_responder_before_new_view() {
 #[test]
 fn developer_change_waits_for_disconnect() {
     let mut usb = Usb::new();
-    session(Box::new(responder), || {
-        usb.ready();
-        usb.fixture.put(
-            "/data/system/platform/usb-mode.json",
-            "{\"mode\":\"developer\"}",
-        );
-        assert_eq!(usb.tick()["mode"], "mtp");
-        usb.cable("not attached");
-        assert_eq!(usb.tick()["mode"], "developer");
-    });
+    usb.ready();
+    usb.fixture.put(
+        "/data/system/platform/usb-mode.json",
+        "{\"mode\":\"developer\"}",
+    );
+    assert_eq!(usb.tick()["mode"], "mtp");
+    usb.cable("not attached");
+    assert_eq!(usb.tick()["mode"], "developer");
 }
 
 #[test]
@@ -500,7 +500,7 @@ fn views_fixture() -> Fixture {
 
 /// `media_views` with `blkid` answering `uuid` for Y2Media.
 fn views_with(fixture: &Fixture, uuid: &str) -> Vec<Object> {
-    scripted(answers(uuid), || media_views(&fixture.root)).0
+    media_views(&fixture.root.clone().with_answers(answers(uuid)))
 }
 
 fn views(fixture: &Fixture) -> Vec<Object> {
