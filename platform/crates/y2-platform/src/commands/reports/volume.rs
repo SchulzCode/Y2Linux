@@ -1,7 +1,7 @@
-//! What maintenance.py and diagnostics.py need of other modules: `transfer.data_volume` (observe.storage's
-//! /data volume, computed with every volume's `blkid` request in consumer order so the commands asked
-//! for are Python's), `space.admission`, `update.free`, `transfer.open_directory` and
-//! `update.status(ctx)['state']`.
+//! What the maintenance and diagnostics commands need of other groups: the verified /data volume
+//! (devices::storage, every volume's `blkid` request in the order the goldens record), the space
+//! admission, the update's free-space rule, a directory opened below another without crossing a
+//! mount, and the update journal's state.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{json_at, media};
 pub use crate::commands::devices::storage::{data_volume, Volume};
@@ -59,7 +59,7 @@ pub fn open_directory(parent: &OwnedFd, component: &str) -> Result<OwnedFd, Fail
     Ok(fd)
 }
 
-/// `update.status(ctx)['state']`: a journal without a state is a KeyError (main.py's traceback).
+/// The update journal's state as `update status` reads it; a journal without a state is refused.
 pub fn update_state(root: &Root) -> Result<String, Failure> {
     use super::pyjson::Py;
     let path = root.path("/data/updates/state.json");
@@ -82,6 +82,6 @@ pub fn update_state(root: &Root) -> Result<String, Failure> {
     match value.get("state") {
         Some(Py::Str(state)) => Ok(state.clone()),
         Some(_) => Ok(String::new()), // a non-string state equals none of the names compared
-        None => Err(Failure::key_error("state")),
+        None => Err(Failure::value("update_state_unreadable")),
     }
 }

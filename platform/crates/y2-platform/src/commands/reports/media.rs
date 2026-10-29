@@ -1,11 +1,11 @@
-//! What `report save` needs from observe.py and media.py: `mountinfo`, the SD card's state
-//! (`_sd_state`, `owned_mount`, `can_write`), its write window (`write_window`, `sd_writable`), and
-//! report.py's `save_to` / `_write_into`.
+//! `report save`: the SD card's state as the storage group records it (our mount, its claim,
+//! `can_write`), the report's own write window on a protected card, and writing the file below a
+//! destination without following a link out of it.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     build, clock, json_dict, or_dict,
     pyjson::Py,
-    state::{self, DESTINATIONS},
+    state::{self, Reports, DESTINATIONS},
 };
 use crate::reply::{atomic_json, Failure};
 use std::os::fd::AsFd;
@@ -17,9 +17,9 @@ use std::{
     time::Duration,
 };
 pub use y2p_core::mounts::{mountinfo, mounts_at, Mount};
-use y2p_core::{clock as kernel, command, Root};
+use y2p_core::{command, Root};
 
-/// `media.mounts(ctx)`: the mounts on /media/sd.
+/// The mounts on /media/sd.
 fn mounts(root: &Root) -> Vec<Mount> {
     mounts_at(root, "/media/sd")
 }
@@ -48,7 +48,7 @@ fn owned_mount(root: &Root, mounted: &Mount) -> bool {
         && eq(claim.get("device"), &Py::str(mounted.source.clone()))
 }
 
-/// `media._sd_state`: (claim, mount) of our current SD mount, else (claim, None).
+/// The SD claim and our current SD mount (None when the card is not mounted by us this boot).
 fn sd_state(root: &Root) -> (Py, Option<Mount>) {
     let claim = or_dict(json_dict(root, "/run/y2/media-mount.json"));
     let mut old = mounts(root);
@@ -84,7 +84,7 @@ fn writers(root: &Root, mount: &Mount) -> Vec<(String, Py)> {
     {
         return Vec::new();
     }
-    let now = kernel::monotonic();
+    let now = root.clock().monotonic();
     match value.get("holders") {
         Some(Py::Dict(holders)) => holders
             .iter()
@@ -121,18 +121,21 @@ fn apply_window(root: &Root, mount: &Mount, holders: &[(String, Py)]) -> Result<
     Ok(writable)
 }
 
-/// `media.write_window(ctx, 'report', seconds, release)`; its answer's holders.
+/// Open the report's write window for `seconds` (or close it, `release`) on a protected card; the
+/// holders of the window then (none when there is no window).
 fn write_window(root: &Root, seconds: i64, release: bool) -> Result<Vec<String>, Failure> {
     let runtime = root.path("/run/y2");
     crate::reply::mkdir_parents(&runtime, 0o700)?;
     let path = runtime.join("media.lock");
-    let deadline = kernel::monotonic() + 5.0;
+    // At most 5 s on the root's clock (a test's clock moves on at each sleep instead of waiting).
+    let clock = root.clock();
+    let deadline = clock.monotonic() + 5.0;
     let _lock = loop {
         match y2p_core::lock::try_exclusive(&path).map_err(|e| super::os(e, &path))? {
             Some(lock) => break lock,
             // A check or a repair holds the card; a short admission passes.
-            None if kernel::monotonic() >= deadline => return Ok(Vec::new()),
-            None => std::thread::sleep(Duration::from_millis(200)),
+            None if clock.monotonic() >= deadline => return Ok(Vec::new()),
+            None => clock.sleep(Duration::from_millis(200)),
         }
     };
     let (claim, mount) = sd_state(root);
@@ -148,7 +151,7 @@ fn write_window(root: &Root, seconds: i64, release: bool) -> Result<Vec<String>,
     holders.retain(|(k, _)| k != "report");
     if !release {
         let hold = seconds.clamp(1, WRITE_HOLD_MAX) as f64;
-        holders.push(("report".into(), Py::Float(kernel::monotonic() + hold)));
+        holders.push(("report".into(), Py::Float(root.clock().monotonic() + hold)));
     }
     apply_window(root, &mount, &holders)?;
     let mut names: Vec<String> = holders.into_iter().map(|(k, _)| k).collect();
@@ -283,7 +286,7 @@ pub fn rename_between(
     Ok(())
 }
 
-/// `save_to(ctx, destination, topic, progress)`: build a report and save it onto Internal Storage or
+/// Build a report and save it onto Internal Storage or
 /// the SD card. Asked for by the owner on the player, so no opt-in is needed: nothing leaves the
 /// player unless the owner sends the file. It carries the install ID only when error reports are on.
 pub fn save_to(
@@ -300,10 +303,10 @@ pub fn save_to(
             .with("saved", Py::Bool(false))
             .with("reason", Py::str("not_mounted")));
     }
-    let value = state::state(root);
-    let now = clock::Instant::now();
-    let install = if matches!(value.get("enabled"), Some(Py::Bool(true))) {
-        value.get("install_id").cloned().unwrap_or(Py::None)
+    let value = Reports::load(root);
+    let now = clock::Instant::now(root);
+    let install = if value.enabled() {
+        value.field("install_id")
     } else {
         Py::None
     };
@@ -316,7 +319,7 @@ pub fn save_to(
         now,
         progress,
     )?;
-    progress.update("save", 0.0, true, &[("bytes_total", Py::from(data.len()))]);
+    progress.update("save", 0.0, true, build::Bytes::total(data.len()));
     let window = if destination == "sd" {
         write_window(root, 120, false)
     } else {
@@ -336,7 +339,7 @@ pub fn save_to(
     };
     let name = match written {
         Ok(name) => {
-            progress.update("save", 1.0, true, &[("bytes_total", Py::from(data.len()))]);
+            progress.update("save", 1.0, true, build::Bytes::total(data.len()));
             name
         }
         Err(Failure::Os { text, .. }) => {
@@ -349,33 +352,26 @@ pub fn save_to(
         Err(other) => return Err(other),
     };
     let file = format!("{}/{name}", build::FOLDER);
-    let mut value = state::state(root);
+    let report_id = index.get("report_id").cloned().unwrap_or(Py::None);
+    let mut value = Reports::load(root);
     value.set(
         "last",
-        Py::dict()
-            .with(
-                "report_id",
-                index.get("report_id").cloned().unwrap_or(Py::None),
-            )
-            .with("trigger", Py::str("manual"))
-            .with("state", Py::str("saved"))
-            .with("destination", Py::str(destination))
-            .with("file", Py::str(file.clone()))
-            .with(
-                "created_utc",
-                index.get("created_utc").cloned().unwrap_or(Py::None),
-            )
-            .with("bytes", Py::from(data.len())),
+        state::Last {
+            report_id: report_id.clone(),
+            trigger: "manual",
+            state: "saved",
+            saved: Some((destination, &file)),
+            created_utc: index.get("created_utc").cloned().unwrap_or(Py::None),
+            bytes: data.len(),
+        }
+        .into(),
     );
-    state::save(root, &value)?;
+    value.save(root)?;
     Ok(Py::dict()
         .with("saved", Py::Bool(true))
         .with("destination", Py::str(destination))
         .with("file", Py::str(file))
-        .with(
-            "report_id",
-            index.get("report_id").cloned().unwrap_or(Py::None),
-        )
+        .with("report_id", report_id)
         .with("bytes", Py::from(data.len())))
 }
 

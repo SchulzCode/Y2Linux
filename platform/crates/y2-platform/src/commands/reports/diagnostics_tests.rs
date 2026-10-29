@@ -3,7 +3,7 @@
 //! tails as event classes, a private archive bound to the verified /data.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::testing::{ok, scripted, Fixture};
+use crate::testing::{ok, Fixture};
 
 fn projected(text: &str) -> Py {
     project(&pyjson::loads(text).unwrap(), "", 0)
@@ -192,12 +192,16 @@ fn verified_data(fixture: &Fixture) {
     fixture.mkdir("/data/updates");
 }
 
-fn exported(root: &Root) -> Result<Py, Failure> {
-    let blkid = ok(
+/// This root with /data's blkid answer.
+fn answering(root: &Root) -> Root {
+    root.clone().with_answers(vec![ok(
         &["blkid", "-p", "-s", "UUID", "-o", "value", "/dev/mmcblk0p9"],
         DATA_UUID,
-    );
-    scripted(vec![blkid], || export_inner(root)).0
+    )])
+}
+
+fn exported(root: &Root) -> Result<Py, Failure> {
+    export_inner(&answering(root))
 }
 
 fn names(directory: &std::path::Path, suffix: &str) -> Vec<String> {
@@ -210,20 +214,11 @@ fn names(directory: &std::path::Path, suffix: &str) -> Vec<String> {
 
 #[test]
 fn archive_is_private_projected_and_mount_bound() {
-    let _env = crate::commands::reports::fixture_environment();
     use std::os::unix::fs::PermissionsExt;
     let fixture = Fixture::new();
     verified_data(&fixture);
     let root = &fixture.root;
-    let volume = scripted(
-        vec![ok(
-            &["blkid", "-p", "-s", "UUID", "-o", "value", "/dev/mmcblk0p9"],
-            DATA_UUID,
-        )],
-        || data_volume(root),
-    )
-    .0
-    .unwrap();
+    let volume = data_volume(&answering(root)).unwrap();
     if !admitted(&volume, MAX_BYTES as u64) {
         // This host's /data (the temporary directory) has too little room: the space reserve refuses.
         let refused = exported(root).err().unwrap();

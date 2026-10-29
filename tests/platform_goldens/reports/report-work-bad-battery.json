@@ -19,8 +19,14 @@
    "timeout": 5.0
   }
  ],
- "exit": 1,
- "stdout": [],
+ "exit": 0,
+ "stdout": {
+  "reports": [],
+  "upload": {
+   "reason": "power_record_unreadable",
+   "uploaded": []
+  }
+ },
  "tree": {
   "added": {
    "/run/y2/activity.lock": {

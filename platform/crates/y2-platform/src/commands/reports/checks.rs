@@ -1,18 +1,19 @@
-//! report.py's automatic triggers: `crash_signature`, `check` and `run_checks`.
+//! The automatic triggers of an error report: `crash_signature`, `check` and `run_checks`.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     build::{rel, Progress},
     json_dict, or_dict,
     pyjson::{self, py_str, Py},
-    pyops,
+    pyops::{self, OrRefuse},
     pyre::{self, lazy, S},
-    state,
+    sha256_hex,
+    state::Reports,
+    HEALTH_UNREADABLE, STATE_UNREADABLE,
 };
 use crate::reply::Failure;
 use regex::Regex;
-use sha2::{Digest, Sha256};
 use std::sync::OnceLock;
-use y2p_core::{command, Root};
+use y2p_core::{command, root::python_strip, Root};
 
 fn crash() -> &'static Regex {
     static CELL: OnceLock<Regex> = OnceLock::new();
@@ -39,12 +40,7 @@ fn storage() -> &'static Regex {
     )
 }
 
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-/// `crash_signature(ctx)`: the newest retained kernel crash as (record time, kernel timestamp, text
-/// hash), or None.
+/// The newest retained kernel crash as (record time, kernel timestamp, text hash), or None.
 ///
 /// F50: a ramoops panic record stays in pstore over many starts, while the console and pmsg records
 /// change every start; a hash over all of them sent fcdf3a25's 10-25 panic again as 8e9181e5. The
@@ -90,7 +86,7 @@ fn crash_signature(root: &Root) -> Option<[String; 3]> {
     let digest = if *when > 0 || !uptime.is_empty() {
         String::new()
     } else {
-        hex(&Sha256::digest(text.as_bytes()))[..16].to_owned()
+        sha256_hex(text.as_bytes())[..16].to_owned()
     };
     Some([
         if *when > 0 {
@@ -103,17 +99,16 @@ fn crash_signature(root: &Root) -> Option<[String; 3]> {
     ])
 }
 
-/// `_changed(value, name, current)`: True once per new value of a watched marker (`value['seen']`
-/// that is no dict: AttributeError at its `.get`).
-fn changed(value: &mut Py, name: &str, current: Py) -> Result<bool, Failure> {
+/// `_changed(value, name, current)`: True once per new value of a watched marker (a `seen` that is
+/// no object is refused).
+fn changed(value: &mut Reports, name: &str, current: Py) -> Result<bool, Failure> {
     if matches!(&current, Py::None) || current.py_eq(&Py::str("")) || current.py_eq(&Py::int(0)) {
         return Ok(false);
     }
-    let seen = value.get_mut("seen").expect("state has seen");
-    if pyops::get(seen, name)?.is_some_and(|v| v.py_eq(&current)) {
+    if value.seen()?.get(name).is_some_and(|v| v.py_eq(&current)) {
         return Ok(false);
     }
-    seen.set(name, current);
+    value.mark_seen(name, current);
     Ok(true)
 }
 
@@ -121,13 +116,16 @@ fn int(root: &Root, name: &str) -> Option<i64> {
     root.integer(name)
 }
 
-/// `check(ctx)`: every automatic trigger that fired since the last check, as (trigger, detail).
+/// Every automatic trigger that fired since the last check, as (trigger, detail); what fired is
+/// marked as seen in reports.json.
 pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
-    let mut value = state::state(root);
+    let mut value = Reports::load(root);
     let mut fired: Vec<(String, String)> = Vec::new();
     let boot = root.boot_id().unwrap_or_default();
     if let Some(crash) = crash_signature(root) {
-        let previous = pyops::get(value.get("seen").expect("state has seen"), "pstore_crash")?
+        let seen_map = value.seen()?;
+        let previous = seen_map
+            .get("pstore_crash")
             .filter(|v| v.truthy())
             .map(py_str)
             .unwrap_or_default();
@@ -138,13 +136,8 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             .collect();
         // Before 8.42 the key was the all-records hash: a crash on record then was already reported
         // by that release (no resend after the update).
-        let seen_map = value.get("seen").expect("seen");
         let known = seen_map.get("pstore_crash").is_none() && seen_map.get("pstore").is_some();
-        let joined = crash.join("|");
-        value
-            .get_mut("seen")
-            .expect("seen")
-            .set("pstore_crash", Py::Str(joined));
+        value.mark_seen("pstore_crash", Py::Str(crash.join("|")));
         if !known
             && !crash
                 .iter()
@@ -215,7 +208,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             .collect();
         let signature = if parts.iter().any(Py::truthy) {
             let text = pyjson::dumps(&Py::List(parts), pyjson::Style::Spaced);
-            hex(&Sha256::digest(text.as_bytes()))[..16].to_owned()
+            sha256_hex(text.as_bytes())[..16].to_owned()
         } else {
             use std::os::unix::fs::MetadataExt;
             std::fs::metadata(&panic_path)
@@ -261,12 +254,12 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     );
     let output = health.output.unwrap_or_default();
     let subsystems = pyjson::loads(if output.is_empty() { "{}" } else { &output });
-    // `json.loads(...).get('subsystems', {})` on a non-dict answer raises AttributeError (a
-    // traceback); Python's run then stops here.
+    // An answer, or its subsystems, that is no object is refused: the check stops here, before
+    // reports.json is saved.
     let subsystems = match subsystems {
         None => Py::dict(),
         Some(v @ Py::Dict(_)) => v.get("subsystems").cloned().unwrap_or(Py::dict()),
-        Some(other) => return Err(pyops::no_attribute(&other, "get")), // a traceback
+        Some(_) => return Err(Failure::value(HEALTH_UNREADABLE)),
     };
     let mut failed: Vec<String> = match &subsystems {
         Py::Dict(items) => items
@@ -278,7 +271,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             })
             .map(|(k, _)| k.clone())
             .collect(),
-        other => return Err(pyops::no_attribute(other, "items")),
+        _ => return Err(Failure::value(HEALTH_UNREADABLE)),
     };
     failed.sort();
     if !failed.is_empty()
@@ -319,7 +312,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     .map(|n| int(root, &format!("{stats}{n}")).unwrap_or(0))
     .sum();
     let frozen = int(root, &format!("{stats}failed_freeze")).unwrap_or(0);
-    let code = pyre::strip(
+    let code = python_strip(
         &root
             .read(&format!("{stats}last_failed_errno"))
             .unwrap_or_default(),
@@ -335,7 +328,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     {
         let or_mark = |name: &str| {
             let text = root.read(&format!("{stats}{name}")).unwrap_or_default();
-            let text = pyre::strip(&text);
+            let text = python_strip(&text);
             if text.is_empty() {
                 "?".to_owned()
             } else {
@@ -411,17 +404,17 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             found.unwrap_or_else(|| format!("ext4 errors_count {ext4}")),
         ));
     }
-    state::save(root, &value)?;
+    value.save(root)?;
     Ok(fired)
 }
 
-/// `run_checks(ctx)`: queue one report for the triggers fired in this check (when enabled).
+/// `report check`: queue one report for the triggers fired in this check (when enabled).
 ///
 /// They usually share a cause (a crash loop: unclean restart, Reborn crash and a rolled-back update
 /// within seconds) and one report carries all of them; one report each sent near copies against the
 /// daily limit.
 pub fn run_checks(root: &Root) -> Result<Py, Failure> {
-    if !matches!(state::state(root).get("enabled"), Some(Py::Bool(true))) {
+    if !Reports::load(root).enabled() {
         return Ok(Py::List(Vec::new()));
     }
     let fired = check(root)?;
@@ -429,17 +422,10 @@ pub fn run_checks(root: &Root) -> Result<Py, Failure> {
         return Ok(Py::List(Vec::new()));
     }
     let boot = root.boot_id().unwrap_or_default();
-    // `state(ctx)['boot_triggers'].get(boot, [])`, then `t not in reported`.
-    let triggers = state::state(root)
-        .get("boot_triggers")
-        .cloned()
-        .unwrap_or(Py::None);
-    let reported = pyops::get(&triggers, &boot)?
-        .cloned()
-        .unwrap_or(Py::List(Vec::new()));
+    let reported = Reports::load(root).reported(&boot)?;
     let mut fresh: Vec<(String, String)> = Vec::new();
     for (t, d) in &fired {
-        if !pyops::contains(&reported, t)? {
+        if !pyops::contains(&reported, t).or_refuse(STATE_UNREADABLE)? {
             fresh.push((t.clone(), d.clone()));
         }
     }

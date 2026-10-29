@@ -2,8 +2,8 @@
 //! event, an earlier release's or an already reported crash stays quiet, and one check makes one report.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::commands::reports::test_player as player;
-use crate::testing::{ok, scripted, Fixture};
+use crate::commands::reports::{state, test_player as player};
+use crate::testing::{ok, Fixture};
 use serde_json::json;
 use std::time::{Duration, UNIX_EPOCH};
 
@@ -18,8 +18,13 @@ fn answers(dmesg: Option<&str>) -> Vec<(Vec<String>, command::Outcome)> {
         .collect()
 }
 
+/// This root with the player's tools answering (dmesg with `dmesg` if given).
+fn answering(root: &Root, dmesg: Option<&str>) -> Root {
+    root.clone().with_answers(answers(dmesg))
+}
+
 fn fired_with(root: &Root, dmesg: Option<&str>) -> Vec<(String, String)> {
-    scripted(answers(dmesg), || check(root).unwrap()).0
+    check(&answering(root, dmesg)).unwrap()
 }
 
 fn fired(root: &Root) -> Vec<(String, String)> {
@@ -37,11 +42,11 @@ fn pairs(list: &[(&str, &str)]) -> Vec<(String, String)> {
 }
 
 fn run(root: &Root) -> Py {
-    scripted(answers(None), || run_checks(root).unwrap()).0
+    run_checks(&answering(root, None)).unwrap()
 }
 
 fn enable(root: &Root) {
-    scripted(answers(None), || state::set_enabled(root, true).unwrap());
+    state::set_enabled(&answering(root, None), true).unwrap();
 }
 
 /// `os.utime(path, (when, when))`.
@@ -62,7 +67,6 @@ fn setup() -> Fixture {
 
 #[test]
 fn triggers_fire_once_each() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     let mut first = fired(root);
@@ -134,7 +138,6 @@ fn triggers_fire_once_each() {
 
 #[test]
 fn a_kept_panic_record_is_not_sent_again() {
-    let _env = crate::commands::reports::fixture_environment();
     // F50: 8e9181e5 re-sent fcdf3a25's 10-25 panic: the dmesg record stays in pstore while the
     // console and pmsg records change every start.
     let fixture = setup();
@@ -202,7 +205,6 @@ fn reports(result: &Py) -> Vec<Py> {
 
 #[test]
 fn opting_in_reports_only_what_happens_afterwards() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     enable(root); // old pstore and panic records exist
@@ -226,7 +228,6 @@ fn opting_in_reports_only_what_happens_afterwards() {
 
 #[test]
 fn one_check_sends_one_report_for_all_its_triggers() {
-    let _env = crate::commands::reports::fixture_environment();
     // a8125bf1 (8.10): unclean restart, Reborn crash and rolled-back update within seconds went out
     // as three near copies against the daily limit.
     let fixture = setup();
@@ -273,7 +274,6 @@ fn one_check_sends_one_report_for_all_its_triggers() {
 
 #[test]
 fn a_crash_loop_reports_its_panic_once() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     enable(root);
@@ -311,7 +311,6 @@ fn a_crash_loop_reports_its_panic_once() {
 
 #[test]
 fn an_earlier_release_panic_is_not_reported_again_after_an_update() {
-    let _env = crate::commands::reports::fixture_environment();
     // 19a41489, d48362a7: a player updated past 8.12 resent its old 8.10 #49 panic once on the new
     // release. Still recorded, still in a report's files.
     let fixture = setup();
@@ -336,7 +335,6 @@ fn an_earlier_release_panic_is_not_reported_again_after_an_update() {
 
 #[test]
 fn a_boot_time_dsi_lag_counts_only_when_no_frame_reached_the_screen() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     let lag = "[    1.011318] mtk-dsi 1400c000.dsi: modeset: DSI register reads still lag after 3 power cycles\n";
@@ -373,7 +371,6 @@ fn a_boot_time_dsi_lag_counts_only_when_no_frame_reached_the_screen() {
 
 #[test]
 fn storage_errors_are_the_internal_emmcs_not_a_pulled_card() {
-    let _env = crate::commands::reports::fixture_environment();
     for line in [
         "I/O error, dev mmcblk0, sector 4096 op 0x0:(READ)",
         "EXT4-fs error (device mmcblk0p8): x",

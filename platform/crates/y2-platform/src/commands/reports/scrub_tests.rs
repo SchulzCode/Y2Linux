@@ -10,7 +10,7 @@ fn scrubber(known: &[(&'static str, &[&str])]) -> Scrubber {
         .iter()
         .map(|(n, v)| (*n, v.iter().map(|s| s.to_string()).collect()))
         .collect();
-    Scrubber::new(&known, *b"fedcba9876543210")
+    Scrubber::new(&known, *b"fedcba9876543210").unwrap()
 }
 
 /// `plain(json.dumps(value))` of a scrubbed value and of the expected one.

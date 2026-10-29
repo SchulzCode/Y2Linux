@@ -1,25 +1,26 @@
-//! diagnostics.py: the tester export with an allowlisted projection, separate from private backup.
+//! `export-diagnostics`: the tester export with an allowlisted projection, separate from the
+//! private backup (`export-state`).
 //!
 //! No raw log, database, credential file, calibration or user filename is exported. Log excerpts are
 //! represented by fixed event classes and numeric errno only: free text cannot be reliably scrubbed by
 //! a password regular expression.
 //!
-//! The bundle carries `observe.snapshot(ctx)` and `health.check(ctx)`, the observation group's
-//! (`platform_state`), taken where Python's `collect` takes them: after the space admission, the lock
-//! and the export limit.
+//! The bundle carries the observation group's snapshot and health checks (`platform_state`), taken
+//! only after the space admission, the lock and the export limit: an export that cannot be written
+//! runs none of their commands.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    fields::{FIELDS, KERNEL_FIELDS, KERNEL_STATUS_KEYS, PUBLIC_WORDS},
+    fields::{fields, kernel_fields, kernel_status_keys, public_words},
     json_dict, os, os_plain,
     pyjson::{self, Py, Style},
     pyre::{self, lazy, S},
+    sha256_hex,
     state::uuid4,
     tarball,
     volume::{admitted, data_volume},
 };
 use crate::reply::{private_directory, Failure, Outcome, Reply};
 use regex::Regex;
-use sha2::{Digest, Sha256};
 use std::{io::Write, os::unix::fs::OpenOptionsExt, sync::OnceLock};
 use y2p_core::json::ObjectExt;
 use y2p_core::{command, Root};
@@ -123,7 +124,7 @@ pub fn project(value: &Py, key: &str, depth: usize) -> Py {
         Py::Dict(items) => {
             let mut out: Vec<(String, Py)> = Vec::new();
             for (k, v) in items.iter().take(512) {
-                if sorted_contains(&FIELDS, k) {
+                if sorted_contains(fields(), k) {
                     out.push((k.clone(), project(v, k, depth + 1)));
                 }
             }
@@ -137,7 +138,7 @@ pub fn project(value: &Py, key: &str, depth: usize) -> Py {
                 .collect(),
         ),
         Py::Str(text) => {
-            if sorted_contains(&KERNEL_STATUS_KEYS, key)
+            if sorted_contains(kernel_status_keys(), key)
                 || matches!(key, "11200000.usb" | "11230000.mmc" | "11240000.mmc")
             {
                 static PAIRS: OnceLock<Regex> = OnceLock::new();
@@ -145,7 +146,7 @@ pub fn project(value: &Py, key: &str, depth: usize) -> Py {
                 let mut out: Vec<(String, Py)> = Vec::new();
                 for caps in pairs.captures_iter(text) {
                     let field = &caps[1];
-                    if sorted_contains(&KERNEL_FIELDS, field) {
+                    if sorted_contains(kernel_fields(), field) {
                         let projected = project(&Py::str(&caps[2]), field, depth + 1);
                         match out.iter_mut().find(|(k, _)| k == field) {
                             Some(entry) => entry.1 = projected,
@@ -187,7 +188,7 @@ pub fn project(value: &Py, key: &str, depth: usize) -> Py {
             {
                 return value.clone();
             }
-            if PUBLIC_WORDS.binary_search(&text.as_str()).is_ok() {
+            if sorted_contains(public_words(), text) {
                 return value.clone();
             }
             Py::str("[redacted]")
@@ -239,7 +240,7 @@ pub fn events(raw: Option<&str>) -> Py {
     Py::List(result)
 }
 
-/// `observe.snapshot(ctx)` and `health.check(ctx)`, in this order (each runs its own commands).
+/// The platform snapshot and the health checks, in this order (each runs its own commands).
 fn platform_state(root: &Root) -> Result<(Py, Py), Failure> {
     use crate::commands::observation::{health, snapshot};
     let status = snapshot::snapshot(root, &[], false, 0.0)?;
@@ -248,7 +249,8 @@ fn platform_state(root: &Root) -> Result<(Py, Py), Failure> {
     Ok((status, Py::from_serde(&serde_json::Value::Object(checks))))
 }
 
-/// `log_tail(ctx, relative)`: walk reviewed data paths with no symlinks; never read arbitrary files.
+/// The events of a log's tail: walk reviewed data paths with no symlinks; never read arbitrary
+/// files.
 fn log_tail(root: &Root, relative: &str) -> Result<Py, Failure> {
     use super::media::{fstat, open_at};
     use std::io::{Read, Seek, SeekFrom};
@@ -375,9 +377,7 @@ fn export_inner(root: &Root) -> Result<Py, Failure> {
     if raw.len() > MAX_BYTES {
         return Err(Failure::value("diagnostic_size_limit"));
     }
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs());
+    let now = root.clock().wall_ns() / 1_000_000_000;
     let name = format!("y2-diagnostics-{now}-{}.tar.gz", uuid4()?.replace('-', ""));
     let partial = directory.join(format!(".{name}.partial"));
     let result = (|| {
@@ -406,10 +406,7 @@ fn export_inner(root: &Root) -> Result<Py, Failure> {
             .and_then(|d| d.sync_all())
             .map_err(os_plain)?;
         let bytes = std::fs::read(&complete).map_err(|e| os(e, &complete))?;
-        let digest: String = Sha256::digest(&bytes)
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect();
+        let digest = sha256_hex(&bytes);
         Ok(Py::dict()
             .with("state", Py::str("Complete"))
             .with("path", Py::Str(format!("/data/exports/{name}")))
@@ -421,13 +418,10 @@ fn export_inner(root: &Root) -> Result<Py, Failure> {
     result
 }
 
-/// cli.py's `export-diagnostics`: any OSError or ValueError is `diagnostic_export_failed`.
+/// `export-diagnostics`: any failure is `diagnostic_export_failed` (exit 1).
 pub fn export(root: &Root) -> Outcome {
     match export_inner(root) {
         Ok(value) => Ok(Reply::text(pyjson::dumps(&value, Style::Spaced))),
-        // A snapshot Python crashes on (its traceback): by then only /data/exports and its lock file
-        // exist, which Python makes the same way again.
-        Err(error @ Failure::Crash { .. }) => Err(error),
         Err(_) => Reply::unsorted(
             &y2p_core::json::Object::new()
                 .with("state", "Failed")

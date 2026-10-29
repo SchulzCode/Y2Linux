@@ -1,6 +1,5 @@
-//! Group `reports` of the port (docs/planning/PLATFORM-RUST-PORT-PLAN.md, "Remaining port groups"):
-//! `report` (report.py: opt-in error reports, the scrubber, the queue and its upload), `reset` and
-//! `export-state` (maintenance.py), `export-diagnostics` (diagnostics.py, diagnostic_fields.py).
+//! The reports group: `report` (opt-in error reports, the scrubber, the queue and its upload),
+//! `reset` and `export-state` (the owner's maintenance), `export-diagnostics` (the tester export).
 // SPDX-License-Identifier: GPL-2.0-only
 mod build;
 mod checks;
@@ -160,7 +159,23 @@ fn lower_priority() {
     }
 }
 
-/// cli.py's `report` branch: OSError and ValueError print `report_failed` with the class name.
+/// Refusals of a record of an unexpected shape (each was a traceback of the Python platform):
+/// reports.json, a queued report's report.json, Reborn's health answer, power.json's battery,
+/// Reborn's session.json.
+pub const STATE_UNREADABLE: &str = "report_state_unreadable";
+pub const QUEUED_UNREADABLE: &str = "queued_report_unreadable";
+pub const HEALTH_UNREADABLE: &str = "reborn_health_unreadable";
+pub const POWER_UNREADABLE: &str = "power_record_unreadable";
+pub const SESSION_UNREADABLE: &str = "session_unreadable";
+const UNREADABLE: [&str; 5] = [
+    STATE_UNREADABLE,
+    QUEUED_UNREADABLE,
+    HEALTH_UNREADABLE,
+    POWER_UNREADABLE,
+    SESSION_UNREADABLE,
+];
+
+/// `report <action>`: every failure prints `report_failed` (exit 1) with a reason.
 fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> Outcome {
     if matches!(action, "send" | "save" | "check" | "work") {
         lower_priority();
@@ -180,40 +195,51 @@ fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> O
             }
         },
         "upload" => upload::upload(root, None, None),
-        "work" => checks::run_checks(root).and_then(|reports| {
-            Ok(Py::dict()
+        "work" => checks::run_checks(root).map(|reports| {
+            Py::dict()
                 .with("reports", reports)
-                .with("upload", upload::upload_now(root, None, None)?))
+                .with("upload", upload::upload_now(root, None, None))
         }),
         _ => checks::run_checks(root).map(|reports| Py::dict().with("reports", reports)),
     };
     match result {
         Ok(value) => Ok(Reply::text(pyjson::dumps(&value, pyjson::Style::Spaced))),
-        // A TypeError, KeyError or AttributeError: main.py's traceback.
-        Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
             &y2p_core::json::Object::new()
                 .with("failure", "report_failed")
-                .with("reason", class(&error)),
+                .with("reason", reason(&error)),
             1,
         ),
     }
 }
 
-/// `type(error).__name__`.
-fn class(error: &Failure) -> &'static str {
+/// A failed report's `reason`: an unreadable record's refusal by its name, any other error by its
+/// class (`type(error).__name__`, as the Python platform printed it).
+fn reason(error: &Failure) -> &str {
     match error {
-        Failure::Os { class, .. } => class,
-        _ => "ValueError",
+        Failure::Value(text) if UNREADABLE.contains(&text.as_str()) => text,
+        Failure::Os { class, .. } | Failure::Crash { class, .. } => class,
+        Failure::Value(_) => "ValueError",
     }
 }
 
-/// `ctx.json(name)`: Python's json of `ctx.read(name)` (128 KiB), exactly.
+/// The SHA-256 of `data` in lowercase hex: report and panic signatures, file digests, the reset
+/// plan's confirmation.
+pub fn sha256_hex(data: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(data)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+/// A JSON record of at most 128 KiB, read with Python's json rules (integers of any size, NaN,
+/// duplicate keys): the records were written by Python and are compared with what was read before.
 pub fn json_at(root: &Root, name: &str) -> Option<Py> {
     pyjson::loads(&root.read(name)?)
 }
 
-/// `ctx.json(name, {})`.
+/// A JSON record that is an object, `{}` for anything else.
 pub fn json_dict(root: &Root, name: &str) -> Py {
     match json_at(root, name) {
         Some(value @ Py::Dict(_)) => value,
@@ -245,14 +271,6 @@ pub fn os_plain(error: std::io::Error) -> Failure {
 pub fn os_name(error: std::io::Error, name: &str) -> Failure {
     let (text, class) = y2p_core::py::os_error(&error, Some(name));
     Failure::Os { text, class }
-}
-
-/// For a unit test whose fixture commands are not all scripted on its own thread (a report runs its
-/// live commands on another, the service records a start): such tests run one at a time.
-#[cfg(test)]
-pub(crate) fn fixture_environment() -> std::sync::MutexGuard<'static, ()> {
-    static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    SERIAL.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 #[cfg(test)]

@@ -1,8 +1,9 @@
-//! The wall-clock forms report.py writes: `datetime.isoformat()` in UTC, the queue's
+//! The wall-clock forms of the report records (the receiver and the owner's analyses read them as
+//! Python's datetime wrote them): `datetime.isoformat()` in UTC, the queue's
 //! `%Y%m%dT%H%M%SZ`, the saved file's local `%Y%m%d-%H%M%S`, the local UTC offset, and
 //! `datetime.fromisoformat(...).timestamp()` for a queued report's age.
 // SPDX-License-Identifier: GPL-2.0-only
-use std::time::{SystemTime, UNIX_EPOCH};
+use y2p_core::Root;
 
 /// One instant: seconds since the epoch and microseconds (`datetime.now(timezone.utc)`).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -12,13 +13,12 @@ pub struct Instant {
 }
 
 impl Instant {
-    pub fn now() -> Instant {
-        let since = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default();
+    /// The root's wall clock now (a test's own clock in tests).
+    pub fn now(root: &Root) -> Instant {
+        let ns = root.clock().wall_ns();
         Instant {
-            secs: since.as_secs() as i64,
-            micros: since.subsec_micros(),
+            secs: (ns / 1_000_000_000) as i64,
+            micros: (ns % 1_000_000_000 / 1000) as u32,
         }
     }
 

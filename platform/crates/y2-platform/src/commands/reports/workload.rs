@@ -1,4 +1,4 @@
-//! workload.py's `@workload(class)`: the shared activity lease (sleep takes `/run/y2/activity.lock`
+//! A workload's lease: the shared activity lease (sleep takes `/run/y2/activity.lock`
 //! exclusively, so a held lease keeps the player awake) and the optional `/dev/y2-workload` QoS hint,
 //! renewed every second on its own thread while the work runs.
 // SPDX-License-Identifier: GPL-2.0-only

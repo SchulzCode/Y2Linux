@@ -1,4 +1,4 @@
-//! report.py's `build`: everything the player records about an error (kernel, platform,
+//! One error report: everything the player records about an error (kernel, platform,
 //! update/recovery and Reborn logs and state, hardware identity), every byte through the scrubber,
 //! packed as one tar.gz within the receiver's 2 MiB.
 // SPDX-License-Identifier: GPL-2.0-only
@@ -7,10 +7,9 @@ use super::{
     pyjson::{self, Py, Style},
     pyre,
     scrub::{self, Scrubber, SECTION_MAX},
-    secrets, tarball,
+    secrets, sha256_hex, tarball,
 };
 use crate::reply::Failure;
-use sha2::{Digest, Sha256};
 use std::{
     cell::Cell,
     fs::File,
@@ -18,7 +17,7 @@ use std::{
     path::PathBuf,
     sync::{mpsc, Mutex},
 };
-use y2p_core::{clock as kernel, command, Root};
+use y2p_core::{command, root::python_strip, Root};
 
 /// The compressed report (the receiver takes at most 2 MiB; real ones ≈0.5 MB).
 pub const BUDGET: usize = 2 * 1024 * 1024;
@@ -45,102 +44,16 @@ const READ_THROUGH_MAX: usize = 16 * 1024 * 1024;
 const PART: usize = 256 * 1024;
 /// The Y2's cores.
 const WORKERS: usize = 4;
-/// The stock LK and preloader regions (production-partitions.json): which bootloader a player carries
-/// (3.2.0 vs 3.2.1, #45/#46).
-const BOOTLOADERS: [(&str, &str, u64, usize); 2] = [
-    ("lk", "/dev/mmcblk0", 0x1d2_0000, 0x6_0000),
-    ("preloader", "/dev/mmcblk0boot0", 0, 0x4_0000),
-];
 
-/// Live progress of one report run for the owner's screen: the step (collect, scrub, pack, then
-/// upload or save), the whole run's percent and an estimate of the seconds left. At most five writes
-/// a second, in RAM.
-pub struct Progress {
-    path: Option<PathBuf>,
-    destination: Option<String>,
-    start: f64,
-    written: Cell<f64>,
-}
+mod facts;
+mod progress;
+mod sources;
+pub use facts::large_json;
+use facts::{hardware, library_statistics, session_projection};
+pub use progress::{Bytes, Progress};
+use sources::{never, COMMANDS, FILES};
 
-impl Progress {
-    pub fn new(root: &Root, destination: Option<&str>) -> Progress {
-        Progress {
-            path: Some(root.path(PROGRESS)),
-            destination: destination.map(str::to_owned),
-            start: kernel::monotonic(),
-            written: Cell::new(0.0),
-        }
-    }
-
-    /// `_quiet`: a run nobody watches.
-    pub fn quiet() -> Progress {
-        Progress {
-            path: None,
-            destination: None,
-            start: 0.0,
-            written: Cell::new(0.0),
-        }
-    }
-
-    pub fn update(&self, phase: &str, fraction: f64, force: bool, fields: &[(&str, Py)]) {
-        let Some(path) = &self.path else {
-            return;
-        };
-        let now = kernel::monotonic();
-        if !force && now - self.written.get() < 0.2 {
-            return;
-        }
-        self.written.set(now);
-        let (low, high) = match phase {
-            "collect" => (0.0, 12.0),
-            "scrub" => (12.0, 76.0),
-            "pack" => (76.0, 82.0),
-            _ => (82.0, 100.0), // upload, save
-        };
-        let percent = low + (high - low) * fraction.clamp(0.0, 1.0);
-        let elapsed = now - self.start;
-        let left = if percent >= 15.0 {
-            Py::Int(format!(
-                "{}",
-                (elapsed * (100.0 - percent) / percent).round_ties_even() as i64
-            ))
-        } else {
-            Py::None
-        };
-        let rounded: f64 = format!("{percent:.1}").parse().expect("number");
-        let mut record = Py::dict()
-            .with("schema", Py::int(1))
-            .with("phase", Py::str(phase))
-            .with("percent", Py::Float(rounded))
-            .with("seconds_left", left)
-            .with("destination", self.destination.clone().into());
-        for (key, value) in fields {
-            record.set(key, value.clone());
-        }
-        // The screen goes without; the report does not.
-        let parent = path.parent().expect("parent");
-        if std::fs::create_dir_all(parent).is_ok() || parent.is_dir() {
-            let _ = y2p_core::record::atomic_json(path, &record, false, 0o600);
-        }
-    }
-
-    pub fn close(&self) {
-        if let Some(path) = &self.path {
-            let _ = std::fs::remove_file(path);
-        }
-    }
-}
-
-/// `_large_json`: ctx.json() reads at most 128 KiB; Reborn's session (the whole queue) is larger.
-pub fn large_json(root: &Root, name: &str) -> Option<Py> {
-    let text = root.read_limited(name, 16 * 1024 * 1024);
-    match pyjson::loads(text.as_deref().filter(|t| !t.is_empty()).unwrap_or("null")) {
-        Some(Py::None) | None => None,
-        other => other,
-    }
-}
-
-/// `_tail`: the newest `limit` bytes, from the first line start within 4 KiB.
+/// The newest `limit` bytes, from the first line start within 4 KiB; and whether it was cut.
 pub fn tail(data: &[u8], limit: usize) -> (Vec<u8>, bool) {
     if data.len() <= limit {
         return (data.to_vec(), false);
@@ -152,7 +65,7 @@ pub fn tail(data: &[u8], limit: usize) -> (Vec<u8>, bool) {
     }
 }
 
-/// `_read_bytes`.
+/// A file's newest SECTION_MAX bytes (and whether it was cut); `None` when it cannot be read.
 fn read_bytes(root: &Root, name: &str) -> Option<(Vec<u8>, bool)> {
     let mut file = File::open(root.path(name)).ok()?;
     match file.seek(SeekFrom::End(0)) {
@@ -187,469 +100,14 @@ fn read_bytes(root: &Root, name: &str) -> Option<(Vec<u8>, bool)> {
     }
 }
 
-fn read(root: &Root, name: &str) -> Py {
-    root.read(name).into()
-}
-
-/// `_session_projection`: every setting and technical playback fact of session.json; no queue entries.
-fn session_projection(session: Option<Py>) -> Result<Py, Failure> {
-    let Some(session @ Py::Dict(_)) = session else {
-        return Ok(Py::None);
-    };
-    let model = match session.get("model") {
-        Some(m @ Py::Dict(_)) => m.clone(),
-        _ => Py::dict(),
-    };
-    let queue = match model.get("queue") {
-        Some(Py::List(q)) => q.clone(),
-        _ => Vec::new(),
-    };
-    let position = model.get("queue_position").cloned().unwrap_or(Py::None);
-    let index = match &position {
-        Py::Int(_) => position.as_int(),
-        Py::Bool(b) => Some(i64::from(*b)),
-        _ => None,
-    };
-    let current = index
-        .filter(|&i| 0 <= i && (i as usize) < queue.len())
-        .map(|i| queue[i as usize].clone());
-    const TECHNICAL: [&str; 9] = [
-        "codec",
-        "sample_rate",
-        "channels",
-        "bitrate",
-        "bits_per_sample",
-        "duration_ms",
-        "source_id",
-        "online",
-        "artwork",
-    ];
-    // `dict(model.get('settings') or {})`: a list of pairs is a dict too; a string's ValueError is
-    // report_failed, a number's TypeError main.py's traceback.
-    let mut settings = super::pyops::to_dict(model.get("settings").unwrap_or(&Py::None))?;
-    if let Some(Py::Str(zone)) = settings.get("time_zone") {
-        let set = if zone.is_empty() { "" } else { "set" };
-        settings.set("time_zone", Py::str(set));
-    }
-    let current_track = match current {
-        Some(track @ Py::Dict(_)) => {
-            let mut out = Py::dict();
-            for key in TECHNICAL {
-                if let Some(value) = track.get(key) {
-                    out.set(key, value.clone());
-                }
-            }
-            out
-        }
-        _ => Py::None,
-    };
-    let mut other: Vec<String> = match &model {
-        Py::Dict(items) => items
-            .iter()
-            .map(|(k, _)| k.clone())
-            .filter(|k| !matches!(k.as_str(), "queue" | "queue_entry_ids" | "settings"))
-            .collect(),
-        _ => Vec::new(),
-    };
-    other.sort();
-    let get = |key: &str| model.get(key).cloned().unwrap_or(Py::None);
-    Ok(Py::dict()
-        .with("schema", session.get("schema").cloned().unwrap_or(Py::None))
-        .with("settings", settings)
-        .with("playback", get("playback"))
-        .with("position_ms", get("position_ms"))
-        .with("output", get("output"))
-        .with("queue_length", Py::from(queue.len()))
-        .with("queue_position", position)
-        .with("current_track", current_track)
-        .with(
-            "other_keys",
-            Py::List(other.into_iter().map(Py::Str).collect()),
-        ))
-}
-
-/// `_library_statistics`: counts only (sqlite read-only); never a name, title or path.
-fn library_statistics(root: &Root) -> Py {
-    use y2p_core::reports_sqlite::{Database, Error, Value};
-    let path = root.path("/data/reborn/library.db");
-    if !path.exists() {
-        return Py::None;
-    }
-    let database = match Database::open(
-        &format!("file:{}?mode=ro&immutable=1", path.to_string_lossy()),
-        1000,
-    ) {
-        Ok(database) => database,
-        Err(error) => return Py::dict().with("error", Py::str(error.class())),
-    };
-    let size = std::fs::metadata(&path).map_or(0, |m| m.len());
-    let mut result = Py::dict().with("bytes", Py::from(size));
-    let value = |v: &Value| match v {
-        Value::Null => Py::None,
-        Value::Integer(i) => Py::int(*i),
-        Value::Real(f) => Py::Float(*f),
-        Value::Text(t) => Py::str(t.clone()),
-        Value::Blob(_) => Py::None,
-    };
-    let outcome = (|| -> Result<(), Error> {
-        let tables: Vec<String> = database
-            .query("select name from sqlite_master where type='table'")?
-            .into_iter()
-            .map(|row| match row.into_iter().next() {
-                Some(Value::Text(t)) => t,
-                _ => String::new(),
-            })
-            .collect();
-        result.set("tables", Py::dict());
-        for table in &tables {
-            if !table.is_empty()
-                && table
-                    .bytes()
-                    .all(|b| b.is_ascii_alphanumeric() || b == b'_')
-            {
-                let rows = database.query(&format!("select count(*) from \"{table}\""))?;
-                let count = rows.first().and_then(|r| r.first()).map_or(Py::None, value);
-                if let Some(tables) = result.get_mut("tables") {
-                    tables.set(table, count);
-                }
-            }
-        }
-        let columns: Vec<String> = if tables.iter().any(|t| t == "tracks") {
-            database
-                .query("pragma table_info(tracks)")?
-                .into_iter()
-                .filter_map(|row| match row.into_iter().nth(1) {
-                    Some(Value::Text(t)) => Some(t),
-                    _ => None,
-                })
-                .collect()
-        } else {
-            Vec::new()
-        };
-        for column in [
-            "codec",
-            "sample_rate",
-            "channels",
-            "source_id",
-            "bits_per_sample",
-            "online",
-        ] {
-            if columns.iter().any(|c| c == column) {
-                let rows = database.query(&format!(
-                    "select \"{column}\", count(*) from tracks group by 1 order by 2 desc limit 32"
-                ))?;
-                let list = rows
-                    .iter()
-                    .map(|row| {
-                        let first = row.first().map_or(Py::None, value);
-                        let count = row.get(1).map_or(Py::None, value);
-                        Py::List(vec![first, count])
-                    })
-                    .collect();
-                result.set(&format!("by_{column}"), Py::List(list));
-            }
-        }
-        let version = database.query("pragma user_version")?;
-        result.set(
-            "user_version",
-            version
-                .first()
-                .and_then(|r| r.first())
-                .map_or(Py::None, value),
-        );
-        Ok(())
-    })();
-    if let Err(error) = outcome {
-        result.set("error", Py::str(error.class()));
-    }
-    // Source IDs are SD card filesystem IDs: keep their number, not the value.
-    if let Some(Py::List(rows)) = result.get("by_source_id").cloned() {
-        let renamed = rows
-            .into_iter()
-            .enumerate()
-            .map(|(i, row)| {
-                let count = match row {
-                    Py::List(pair) => pair.get(1).cloned().unwrap_or(Py::None),
-                    _ => Py::None,
-                };
-                Py::List(vec![Py::Str(format!("source#{}", i + 1)), count])
-            })
-            .collect();
-        result.set("by_source_id", Py::List(renamed));
-    }
-    result
-}
-
-fn first(root: &Root, pattern: &str) -> Option<String> {
-    root.glob(pattern).first().map(|p| rel(root, p))
-}
-
-/// `_rel(ctx, path)`: a glob result as the player path ctx.read() expects.
+/// A glob result as the device path `Root::read` takes.
 pub fn rel(root: &Root, path: &std::path::Path) -> String {
     let base = root.path("/");
     let relative = path.strip_prefix(&base).unwrap_or(path);
     format!("/{}", relative.to_string_lossy().trim_start_matches('/'))
 }
 
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-/// `_hardware`.
-fn hardware(root: &Root) -> Py {
-    let compatible = root
-        .read("/proc/device-tree/compatible")
-        .unwrap_or_default()
-        .replace('\0', " ");
-    let mut data = Py::dict()
-        .with("compatible", Py::str(pyre::strip(&compatible)))
-        .with("cpuinfo", read(root, "/proc/cpuinfo"))
-        .with("meminfo_total", Py::None);
-    let mut boot = Py::dict();
-    for name in ["metadata", "lcm", "normal_boot"] {
-        boot.set(name, read(root, &format!("/sys/firmware/y2_boot/{name}")));
-    }
-    let mut panel = Py::dict();
-    for name in ["panel_kind", "panel_hint", "power_down", "stock_suspend"] {
-        panel.set(
-            name,
-            read(root, &format!("/sys/module/panel/parameters/{name}")),
-        );
-    }
-    data.set("y2_boot", boot);
-    data.set("panel", panel);
-    data.set("storage", Py::dict());
-    data.set(
-        "connectivity",
-        read(root, "/sys/devices/platform/18070000.connectivity/status"),
-    );
-    data.set("input_devices", read(root, "/proc/bus/input/devices"));
-    data.set("partitions", read(root, "/proc/partitions"));
-    data.set("bootloaders", Py::dict());
-    for line in pyre::splitlines(&root.read("/proc/meminfo").unwrap_or_default()) {
-        if let Some(rest) = line.strip_prefix("MemTotal:") {
-            data.set("meminfo_total", Py::str(pyre::strip(rest)));
-        }
-    }
-    for host in ["mmc0", "mmc1"] {
-        let Some(card) = first(root, &format!("/sys/class/mmc_host/{host}/{host}:*")) else {
-            continue;
-        };
-        let mut fields = Py::dict();
-        for name in [
-            "type",
-            "name",
-            "manfid",
-            "oemid",
-            "prv",
-            "rev",
-            "fwrev",
-            "hwrev",
-            "date",
-            "csd",
-            "ocr",
-            "life_time",
-            "pre_eol_info",
-            "enhanced_area_size",
-            "erase_size",
-            "preferred_erase_size",
-        ] {
-            fields.set(name, read(root, &format!("{card}/{name}")));
-        }
-        let ext_csd = first(root, &format!("/sys/kernel/debug/{host}/{host}:*/ext_csd"));
-        fields.set("ext_csd", ext_csd.map_or(Py::None, |p| read(root, &p)));
-        fields.set("ios", read(root, &format!("/sys/kernel/debug/{host}/ios")));
-        if let Some(storage) = data.get_mut("storage") {
-            storage.set(host, fields);
-        }
-    }
-    for (name, device, offset, length) in BOOTLOADERS {
-        let result = (|| -> std::io::Result<Vec<u8>> {
-            let mut file = File::open(root.path(device))?;
-            file.seek(SeekFrom::Start(offset))?;
-            let mut blob = Vec::new();
-            file.take(length as u64).read_to_end(&mut blob)?;
-            Ok(blob)
-        })();
-        let entry = match result {
-            Ok(blob) => Py::dict()
-                .with("sha256", Py::Str(hex(&Sha256::digest(&blob))))
-                .with("bytes", Py::from(blob.len()))
-                .with(
-                    "lk_v320_prefix_sha256",
-                    if name == "lk" {
-                        Py::Str(hex(&Sha256::digest(&blob[..blob.len().min(242_440)])))
-                    } else {
-                        Py::None
-                    },
-                ),
-            Err(error) => Py::dict().with("error", Py::Str(strerror(&error))),
-        };
-        if let Some(loaders) = data.get_mut("bootloaders") {
-            loaders.set(name, entry);
-        }
-    }
-    data
-}
-
-/// `error.strerror`.
-pub fn strerror(error: &std::io::Error) -> String {
-    match error.raw_os_error() {
-        // SAFETY: strerror returns a NUL-terminated static message.
-        Some(errno) => unsafe { std::ffi::CStr::from_ptr(libc::strerror(errno)) }
-            .to_string_lossy()
-            .into_owned(),
-        None => error.to_string(),
-    }
-}
-
-/// `_commands`: live state from tools; each bounded.
-const COMMANDS: [(&str, &[&str], f64, usize); 13] = [
-    ("dmesg", &["dmesg"], 10.0, 2 << 20),
-    ("platform_health", &["y2-platform", "health"], 10.0, 1 << 20),
-    ("platform_status", &["y2-platform", "status"], 10.0, 1 << 20),
-    (
-        "update_status",
-        &["y2-platform", "update", "status"],
-        10.0,
-        256 << 10,
-    ),
-    (
-        "reborn_status",
-        &["rebornctl", "status", "--json"],
-        5.0,
-        1 << 20,
-    ),
-    (
-        "reborn_health",
-        &["rebornctl", "health", "--json"],
-        5.0,
-        1 << 20,
-    ),
-    (
-        "reborn_metrics",
-        &["rebornctl", "metrics", "--json"],
-        5.0,
-        1 << 20,
-    ),
-    (
-        "reborn_audio",
-        &["rebornctl", "audio", "--json"],
-        5.0,
-        1 << 20,
-    ),
-    (
-        "reborn_snapshot",
-        &["rebornctl", "snapshot", "--json"],
-        5.0,
-        1 << 20,
-    ),
-    (
-        "reborn_events",
-        &["rebornctl", "events", "--last", "500", "--json"],
-        5.0,
-        2 << 20,
-    ),
-    (
-        "processes",
-        &["ps", "-o", "pid,ppid,stat,rss,vsz,time,args"],
-        5.0,
-        512 << 10,
-    ),
-    ("mounts_space", &["df", "-k"], 5.0, 64 << 10),
-    (
-        "amixer",
-        &["amixer", "-c", "Y2Audio", "contents"],
-        5.0,
-        256 << 10,
-    ),
-];
-
-/// Files copied whole (logs keep their newest end). Globs are bounded by ctx.glob.
-const FILES: [&str; 68] = [
-    "/sys/fs/pstore/*",
-    "/data/logs/system.log",
-    "/data/logs/system.log.0",
-    "/data/logs/recovery-last.log",
-    "/data/logs/recovery-display.txt",
-    "/data/logs/recovery-previous-boot.txt",
-    "/proc/version",
-    "/proc/cmdline",
-    "/proc/meminfo",
-    "/proc/vmstat",
-    "/proc/loadavg",
-    "/proc/interrupts",
-    "/proc/softirqs",
-    "/proc/stat",
-    "/proc/pressure/*",
-    "/proc/mounts",
-    "/proc/sys/kernel/tainted",
-    "/sys/power/suspend_stats/*",
-    "/sys/kernel/debug/wakeup_sources",
-    "/sys/kernel/debug/suspend_stats",
-    "/sys/kernel/debug/regulator/regulator_summary",
-    "/sys/kernel/debug/clk/clk_summary",
-    // The CS43131 at 0x30; its I2C bus number follows probe order (0 or 1).
-    "/sys/kernel/debug/regmap/*-0030/registers",
-    "/sys/bus/i2c/devices/*-0030/y2_hp/xtal",
-    "/sys/devices/system/cpu/cpu*/cpuidle/state*/usage",
-    "/sys/devices/system/cpu/cpu*/cpuidle/state*/time",
-    "/sys/devices/system/cpu/cpu*/cpuidle/state*/name",
-    "/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state",
-    "/sys/devices/system/cpu/online",
-    "/sys/class/thermal/thermal_zone*/temp",
-    "/sys/class/thermal/thermal_zone*/type",
-    "/sys/class/power_supply/*/uevent",
-    "/sys/class/power_supply/BAT0/charging_state",
-    "/sys/fs/ext4/*/errors_count",
-    "/sys/fs/ext4/*/first_error_time",
-    "/sys/devices/platform/11200000.usb/status",
-    "/sys/devices/platform/11200000.usb/rxdiag",
-    "/data/system/platform/boot.json",
-    "/data/system/platform/previous-boot-evidence.json",
-    "/data/system/platform/power-journal.jsonl",
-    "/data/system/platform/sleep-diagnostics.jsonl",
-    "/data/system/platform/suspend-last.json",
-    "/data/system/platform/product-sleep-guard.json",
-    "/data/system/platform/rtc-policy.json",
-    "/data/system/platform/time-last.json",
-    "/data/system/platform/battery-ui.json",
-    "/data/system/platform/panel.json",
-    "/data/system/platform/sd-admissions.json",
-    "/data/system/platform/sd-repair-last.json",
-    "/data/system/platform/wifi-journal*.jsonl",
-    "/data/system/platform/retained/*.tar",
-    "/data/updates/*.json",
-    "/data/updates/current/manifest.json",
-    "/data/updates/health/*.txt",
-    "/run/y2/*.json",
-    "/run/y2/*.jsonl",
-    "/run/y2/*.log",
-    "/data/bluetooth/codec-history.json",
-    "/data/bluetooth/enabled",
-    "/data/network/enabled",
-    "/data/network/power-save.json",
-    "/data/reborn/logs/*.jsonl",
-    "/data/reborn/logs/panic-last.json",
-    "/data/reborn/diagnostics/*.tar.gz",
-    // (padding entries keep the array length explicit; never matched)
-    "",
-    "",
-    "",
-    "",
-];
-
-/// Never read into a report, even if a glob above ever matched them.
-fn never(path: &str) -> bool {
-    static CELL: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    pyre::lazy(
-        &CELL,
-        r"^/(media|data/music|data/ssh|root/\.ssh)/|wpa_supplicant|lastfm\.json|scrobbles\.jsonl|library\.db|/bluez/|machine-id|entropy|/keys?/|\.pem\n?\z|\.key\n?\z|session\.json",
-    )
-    .is_match(path)
-}
-
-/// `_parts`: a file as pieces that scrub independently: logs split at line ends (no pattern spans a
+/// A file as pieces that scrub independently: logs split at line ends (no pattern spans a
 /// line), JSON documents and archives whole.
 fn parts(path: &str, data: &[u8]) -> Vec<Vec<u8>> {
     if path.ends_with(".json")
@@ -671,7 +129,7 @@ fn parts(path: &str, data: &[u8]) -> Vec<Vec<u8>> {
     parts
 }
 
-/// `_scrub_files`: each (path, data) scrubbed on the cores; `progress(fraction)` follows the bytes
+/// Each (path, data) scrubbed on the cores; `progress(fraction)` follows the bytes
 /// done.
 fn scrub_files(
     scrubber: &mut Scrubber,
@@ -697,7 +155,11 @@ fn scrub_files(
             let mut worker = scrubber.worker();
             let (jobs, next) = (&jobs, &next);
             scope.spawn(move || loop {
-                let Some(i) = next.lock().expect("queue").next() else {
+                let next = next
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .next();
+                let Some(i) = next else {
                     break;
                 };
                 let clean = scrub::blob(&mut worker, jobs[i].1, &jobs[i].2);
@@ -721,14 +183,15 @@ fn scrub_files(
         }
     });
     let mut cleaned = vec![Vec::new(); items.len()];
+    // Every job ran: a worker stops only when the queue is empty.
     for ((owner, _, _), clean) in jobs.iter().zip(results) {
-        cleaned[*owner].extend(clean.expect("every job ran"));
+        cleaned[*owner].extend(clean.unwrap_or_default());
     }
     cleaned
 }
 
-/// `_pack`: tar.gz within BUDGET: the largest optional sections are cut first.
-fn pack(index: &mut Py, members: &mut [(String, Vec<u8>)]) -> Vec<u8> {
+/// The tar.gz within BUDGET: the largest optional sections are cut first.
+fn pack(root: &Root, index: &mut Py, members: &mut [(String, Vec<u8>)]) -> Vec<u8> {
     let mut optional: Vec<usize> = (0..members.len())
         .filter(|&i| members[i].0.starts_with("files/"))
         .collect();
@@ -736,11 +199,7 @@ fn pack(index: &mut Py, members: &mut [(String, Vec<u8>)]) -> Vec<u8> {
     loop {
         let mut tar = tarball::Writer::new();
         let body = pyjson::dumps(index, Style::Indent).into_bytes();
-        let now = || {
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_or(0, |d| d.as_secs() as i64)
-        };
+        let now = || (root.clock().wall_ns() / 1_000_000_000) as i64;
         tar.add(
             &tarball::Info::file("report.json", body.len(), now(), 0o600),
             &body,
@@ -784,8 +243,7 @@ fn random_key() -> Result<[u8; 16], Failure> {
     Ok(key)
 }
 
-/// `build(ctx, trigger, detail, topic, install_id, now, progress, triggers)`: the complete report
-/// (tar.gz bytes) and its index.
+/// The complete report (tar.gz bytes) and its index (report.json).
 pub fn build(
     root: &Root,
     triggers: &[String],
@@ -798,9 +256,9 @@ pub fn build(
     if triggers.is_empty() || !triggers.iter().all(|t| TRIGGERS.contains(&t.as_str())) {
         return Err(Failure::value("unknown_trigger"));
     }
-    progress.update("collect", 0.0, true, &[]);
+    progress.update("collect", 0.0, true, Bytes::NONE);
     let known = secrets::secrets(root)?;
-    let mut scrubber = Scrubber::new(&known, random_key()?);
+    let mut scrubber = Scrubber::new(&known, random_key()?)?;
     let versions = json_dict(root, "/etc/y2linux/versions.json");
     let release = json_dict(root, "/etc/y2linux/release.json");
     let uptime = root
@@ -826,7 +284,7 @@ pub fn build(
         .with("created_utc", Py::Str(clock::isoformat(now)))
         .with(
             "utc_offset_minutes",
-            Py::int(clock::utc_offset_minutes(clock::Instant::now())),
+            Py::int(clock::utc_offset_minutes(clock::Instant::now(root))),
         )
         .with("uptime_seconds", Py::Str(uptime))
         .with("boot_id", root.boot_id().into())
@@ -897,14 +355,14 @@ pub fn build(
     };
     let mut seen = std::collections::HashSet::new();
     let mut files: Vec<(String, Vec<u8>, bool)> = Vec::new();
-    progress.update("collect", 0.3, false, &[]);
+    progress.update("collect", 0.3, false, Bytes::NONE);
     let patterns: Vec<&str> = FILES.iter().copied().filter(|p| !p.is_empty()).collect();
     for (n, pattern) in patterns.iter().enumerate() {
         progress.update(
             "collect",
             0.3 + 0.7 * n as f64 / patterns.len() as f64,
             false,
-            &[],
+            Bytes::NONE,
         );
         let paths = if pattern.contains('*') {
             root.glob(pattern)
@@ -922,16 +380,17 @@ pub fn build(
             }
         }
     }
-    progress.update("scrub", 0.0, true, &[]);
+    progress.update("scrub", 0.0, true, Bytes::NONE);
     let items: Vec<(String, Vec<u8>)> = files
         .iter()
         .map(|(r, d, _)| (r.clone(), d.clone()))
         .collect();
     let cleaned = scrub_files(&mut scrubber, &items, |fraction| {
-        progress.update("scrub", fraction, false, &[])
+        progress.update("scrub", fraction, false, Bytes::NONE)
     });
-    progress.update("pack", 0.0, true, &[]);
-    let commands = runner.join().expect("command runner");
+    progress.update("pack", 0.0, true, Bytes::NONE);
+    // The runner thread only collects outcomes (a panic aborts the process before this).
+    let commands = runner.join().unwrap_or_default();
     for (name, result) in commands {
         let output = result.output.clone().unwrap_or_default();
         let (data, cut) = tail(output.as_bytes(), SECTION_MAX);
@@ -972,8 +431,8 @@ pub fn build(
         .map(|(k, v)| (k.clone(), Py::from(*v)))
         .collect();
     index.set("scrubbed", Py::Dict(counts));
-    let packed = pack(&mut index, &mut members);
-    progress.update("pack", 1.0, true, &[]);
+    let packed = pack(root, &mut index, &mut members);
+    progress.update("pack", 1.0, true, Bytes::NONE);
     Ok((packed, index))
 }
 
