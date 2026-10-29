@@ -17,7 +17,7 @@ use std::{
     time::Duration,
 };
 pub use y2p_core::mounts::{mountinfo, mounts_at, Mount};
-use y2p_core::{clock as kernel, command, Root};
+use y2p_core::{command, Root};
 
 /// The mounts on /media/sd.
 fn mounts(root: &Root) -> Vec<Mount> {
@@ -127,14 +127,15 @@ fn write_window(root: &Root, seconds: i64, release: bool) -> Result<Vec<String>,
     let runtime = root.path("/run/y2");
     crate::reply::mkdir_parents(&runtime, 0o700)?;
     let path = runtime.join("media.lock");
-    // A real wait (it sleeps): the kernel's clock bounds it, whatever clock the root reads.
-    let deadline = kernel::monotonic() + 5.0;
+    // At most 5 s on the root's clock (a test's clock moves on at each sleep instead of waiting).
+    let clock = root.clock();
+    let deadline = clock.monotonic() + 5.0;
     let _lock = loop {
         match y2p_core::lock::try_exclusive(&path).map_err(|e| super::os(e, &path))? {
             Some(lock) => break lock,
             // A check or a repair holds the card; a short admission passes.
-            None if kernel::monotonic() >= deadline => return Ok(Vec::new()),
-            None => std::thread::sleep(Duration::from_millis(200)),
+            None if clock.monotonic() >= deadline => return Ok(Vec::new()),
+            None => clock.sleep(Duration::from_millis(200)),
         }
     };
     let (claim, mount) = sd_state(root);
