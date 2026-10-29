@@ -1,5 +1,6 @@
-import copy
-import fcntl
+"""The BlueALSA build manifest (codec_manifest.py, a host build tool) and the native observer/reconnect C
+helpers. The platform's Bluetooth observation and power action are tested in Rust
+(platform/crates/y2-platform/src/commands/connectivity/bluetooth_tests.rs, bt_control_tests.rs)."""
 import json
 import os
 from pathlib import Path
@@ -10,78 +11,13 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools/platform'))
-from y2_platform.bluetooth import normalize
-from y2_platform.common import Context
 from codec_manifest import manifest
-from y2_platform.bt_control import power
 
 
 class BluetoothObservation(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.ctx = Context(self.temp.name)
-        self.device = '/org/bluez/hci0/dev_00_11_22_33_44_55'
-        self.pcm = '/org/bluealsa/hci0/dev_00_11_22_33_44_55/a2dpsrc/sink'
-        self.raw = {'schema':1,'stable_owners':True,'bluez_owner':':1.2','bluealsa_owner':':1.3',
-                    'bluez':{'/org/bluez/hci0':{'org.bluez.Adapter1':{'Powered':True}},
-                             self.device:{'org.bluez.Device1':{'Address':'00:11:22:33:44:55','Connected':True,'Paired':True,'Trusted':True}}},
-                    'bluealsa':{self.pcm:{'org.bluealsa.PCM1':{'Device':self.device,'Transport':'A2DP-source','Mode':'sink',
-                        'Codec':'SBC','Format':0x8210,'Rate':44100,'Channels':2,'Sequence':3,'Running':True}}},
-                    'manager':{'Version':'5.0.0','Codecs':['a2dp-source:SBC']}, 'codec_pcm':self.pcm,
-                    'mutually_available_codecs':{'SBC':{'Rates':[44100,48000],'Channels':[2]}}}
-
-    def test_observation_separates_local_remote_mutual_and_actual_pcm(self):
-        result = normalize(self.ctx, self.raw)
-        self.assertEqual(result['negotiated_codec'], 'SBC')
-        self.assertEqual(result['pcm']['format'], 'S16_LE')
-        self.assertEqual(result['runtime_enabled'], ['SBC'])
-        self.assertIsNone(result['remote_advertised'])
-        self.assertIsNone(result['requested_codec'])
-        self.assertIsNone(result['actual_bitrate_bps'])
-        self.assertEqual(list(result['mutually_usable']), ['SBC'])
-        pcm = self.raw['bluealsa'][self.pcm]['org.bluealsa.PCM1']
-        pcm.update(Codec='aptX-HD', Format=0x8418)
-        result = normalize(self.ctx, self.raw)
-        self.assertEqual(result['pcm']['valid_bits'], 24)
-        self.assertEqual(result['pcm']['physical_bits'], 32)
-
-    def test_bonding_and_pairing_windows_are_independent_observations(self):
-        self.raw['bluez']['/org/bluez/hci0']['org.bluez.Adapter1'].update(Pairable=False, Discoverable=False)
-        device = self.raw['bluez'][self.device]['org.bluez.Device1']
-        device.update(Paired=True, Bonded=False, Trusted=True, Connected=True)
-        result = normalize(self.ctx, self.raw)
-        self.assertFalse(result['adapter']['pairable'])
-        self.assertFalse(result['adapter']['discoverable'])
-        self.assertTrue(result['selected_peer']['paired'])
-        self.assertFalse(result['selected_peer']['bonded'])
-        del device['Bonded']
-        self.assertIsNone(normalize(self.ctx, self.raw)['selected_peer']['bonded'])
-
-    def test_disappearance_wrong_direction_owner_change_and_missing_properties_fail_closed(self):
-        self.raw['bluez'][self.device]['org.bluez.Device1']['Connected'] = False
-        self.assertIsNone(normalize(self.ctx, self.raw)['negotiated_codec'])
-        self.raw['bluez'][self.device]['org.bluez.Device1']['Connected'] = True
-        pcm = self.raw['bluealsa'][self.pcm]['org.bluealsa.PCM1']
-        pcm['Mode'] = 'source'
-        self.assertIsNone(normalize(self.ctx, self.raw)['pcm'])
-        pcm['Mode'] = 'sink'
-        pcm['Format'] = 123
-        self.assertEqual(normalize(self.ctx, self.raw)['state'], 'Degraded')
-        self.raw['stable_owners'] = False
-        self.assertIsNone(normalize(self.ctx, self.raw)['pcm'])
-
-    def test_invalid_saved_codec_preferences_do_not_hide_observed_transport(self):
-        path = self.ctx.path('/data/bluetooth/codec-policy.json')
-        path.parent.mkdir(parents=True)
-        for invalid in ({'schema': 99}, {'schema': 1, 'ldac_abr': 'yes'}):
-            original = json.dumps(invalid)
-            path.write_text(original)
-            result = normalize(self.ctx, self.raw)
-            self.assertEqual(result['negotiated_codec'], 'SBC')
-            self.assertEqual(result['pcm']['format'], 'S16_LE')
-            self.assertEqual(result['codec_settings']['state'], 'Failed')
-            self.assertEqual(path.read_text(), original)
 
     def test_build_manifest_rejects_accidental_optional_encoder_enablement(self):
         root = Path(self.temp.name)
@@ -154,7 +90,7 @@ class BluetoothObservation(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, message):
                 manifest(root, 'owner-private-experiments')
 
-    def test_native_observer_private_bus_with_missing_owners_is_not_ready(self):
+    def test_native_observer_private_bus_reports_absent_owners_as_stable_none(self):
         result = subprocess.run(['pkg-config','--cflags','--libs','gio-2.0'], capture_output=True, text=True)
         if result.returncode:
             self.skipTest('native GIO development files unavailable; ARM package build covers compilation')
@@ -168,27 +104,8 @@ class BluetoothObservation(unittest.TestCase):
             raw = json.loads(answer.stdout)
             self.assertTrue(raw['stable_owners'])
             self.assertIsNone(raw['bluez_owner'])
-            self.assertEqual(normalize(self.ctx, raw)['state'], 'Unavailable')
         finally:
             daemon.terminate();daemon.communicate(timeout=3)
-
-    def test_manual_operation_cannot_overlap_auto_and_unknown_completion_inhibits(self):
-        directory = self.ctx.path('/run/y2'); directory.mkdir(parents=True)
-        boot = self.ctx.path('/proc/sys/kernel/random/boot_id')
-        boot.parent.mkdir(parents=True)
-        boot.write_text('11111111-1111-1111-1111-111111111111')
-        calls = []
-        def run(argv, **kwargs):
-            calls.append(argv)
-            return {'ok': False, 'reason': 'command_timeout', 'output': None}
-        self.ctx.runner = run
-        with (directory/'bt-operation.lock').open('w') as automatic:
-            fcntl.flock(automatic, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            self.assertEqual(power(self.ctx, 'on')['reason'], 'platform_bluetooth_operation_in_progress')
-            self.assertEqual(calls, [])
-        self.assertFalse(power(self.ctx, 'on')['ok'])
-        self.assertEqual(len(calls), 1)
-        self.assertIn('operation=uncertain', (directory/'bt-intent/bt-control.ini').read_text())
 
     def test_observer_numeric_manufacturer_keys_and_64_bit_counters_are_valid_json(self):
         flags = subprocess.run(['pkg-config', '--cflags', '--libs', 'gio-2.0'], capture_output=True, text=True)
