@@ -5,17 +5,9 @@ use super::{
     snapshot::{section, snapshot},
     util,
 };
-use crate::reply::{private_directory, Failure, Outcome, Reply};
+use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
-use std::{
-    fs::OpenOptions,
-    io::Write,
-    os::unix::fs::OpenOptionsExt,
-    sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError},
-    thread,
-    time::Duration,
-};
-use y2p_core::{command, lock, Root};
+use y2p_core::{command, Root};
 
 /// The peer as a dotted quad, unchanged, or the `AddressValueError` text for it (the error record
 /// shows it).
@@ -57,82 +49,6 @@ fn ipv4(text: &str) -> Result<String, Failure> {
     Ok(text.to_owned())
 }
 
-/// The stop flag, also from a holder that panicked (the flag stays meaningful).
-fn locked(flag: &Mutex<bool>) -> MutexGuard<'_, bool> {
-    flag.lock().unwrap_or_else(PoisonError::into_inner)
-}
-
-/// The semantic QoS lease (`workload.workload`): a shared activity lease (sleep takes it
-/// exclusively) and `<class> 3000` written to /dev/y2-workload now and every second until the work
-/// ends. Unlike optional frequency hints this is a mandatory operation exclusion; flock dies with the
-/// process, a leftover file is inert.
-struct Lease {
-    _lock: std::fs::File,
-    stop: Arc<(Mutex<bool>, Condvar)>,
-    worker: Option<thread::JoinHandle<()>>,
-}
-
-impl Lease {
-    fn take(root: &Root, class: &str) -> Result<Lease, Failure> {
-        let runtime = root.path("/run/y2");
-        private_directory(&runtime)?;
-        let path = runtime.join("activity.lock");
-        let lock = match lock::try_shared(&path) {
-            Ok(Some(file)) => file,
-            Ok(None) => return Err(Failure::value("sleep_operation_in_progress")),
-            Err(e) => return Err(Failure::os(e, &path)),
-        };
-        let stop = Arc::new((Mutex::new(false), Condvar::new()));
-        let payload = format!("{class} 3000\n").into_bytes();
-        let mut worker = None;
-        // QoS is optional; never fail a transfer on a hint.
-        if let Ok(mut device) = OpenOptions::new()
-            .write(true)
-            .custom_flags(libc::O_CLOEXEC)
-            .open(root.path("/dev/y2-workload"))
-        {
-            // Acquire before work starts; renew on an independent worker even when a blocking
-            // transfer subprocess runs for minutes.
-            if device.write(&payload).ok() == Some(payload.len()) {
-                let stop = Arc::clone(&stop);
-                worker = Some(thread::spawn(move || {
-                    let (stopped, wake) = &*stop;
-                    loop {
-                        if *locked(stopped) {
-                            return;
-                        }
-                        if device.write(&payload).ok() != Some(payload.len()) {
-                            return;
-                        }
-                        let (guard, _) = wake
-                            .wait_timeout_while(locked(stopped), Duration::from_secs(1), |s| !*s)
-                            .unwrap_or_else(PoisonError::into_inner);
-                        if *guard {
-                            return;
-                        }
-                    }
-                }));
-            }
-        }
-        Ok(Lease {
-            _lock: lock,
-            stop,
-            worker,
-        })
-    }
-}
-
-impl Drop for Lease {
-    fn drop(&mut self) {
-        let (stopped, wake) = &*self.stop;
-        *locked(stopped) = true;
-        wake.notify_all();
-        if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
-        }
-    }
-}
-
 fn outcome(answer: &command::Outcome) -> Value {
     json!({"ok": answer.ok, "reason": answer.reason, "output": answer.output})
 }
@@ -140,7 +56,7 @@ fn outcome(answer: &command::Outcome) -> Value {
 /// `y2-platform network-check --peer A [--seconds N] [--throughput] [--interface wlan0|usb0]`.
 pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &str) -> Outcome {
     // `@workload("NetworkTransfer")`: the lease comes first, then ipaddress reads the peer.
-    let _lease = Lease::take(root, "NetworkTransfer")?;
+    let _lease = crate::commands::workload::Lease::take(root, "NetworkTransfer")?;
     let peer = ipv4(peer)?;
     if !(1..=600).contains(&seconds) {
         return Err(Failure::value("invalid_network_qualification_parameters"));

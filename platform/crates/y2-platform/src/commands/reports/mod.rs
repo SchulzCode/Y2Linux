@@ -19,7 +19,6 @@ mod tarball;
 mod test_player;
 mod upload;
 mod volume;
-pub(crate) mod workload;
 
 use super::Command;
 use crate::reply::{Failure, Outcome, Reply};

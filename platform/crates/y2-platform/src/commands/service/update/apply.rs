@@ -90,51 +90,10 @@ fn rpc(root: &Root, action: &str) -> Result<Value> {
         .ok_or_else(|| Raise::value("invalid_power_response"))
 }
 
-/// The shared activity lease (sleep waits for it) and the
-/// optional QoS hint, renewed every second while `function` runs.
+/// `function` under the `Maintenance` workload lease (commands::workload).
 pub(super) fn maintenance<T>(root: &Root, function: impl FnOnce() -> Result<T>) -> Result<T> {
-    let runtime = root.path("/run/y2");
-    private_directory(&runtime)?;
-    let lease_path = runtime.join("activity.lock");
-    let _lease = match y2p_core::lock::try_shared(&lease_path) {
-        Ok(Some(lease)) => lease,
-        Ok(None) => return Err(Raise::value("sleep_operation_in_progress")),
-        Err(e) => return Err(Raise::os(e, &lease_path)),
-    };
-    let payload = b"Maintenance 3000\n";
-    // Dropping `stop` ends the renewal at once.
-    let (stop, stopped) = std::sync::mpsc::channel::<()>();
-    let mut worker = None;
-    if let Ok(mut fd) = OpenOptions::new()
-        .write(true)
-        .custom_flags(libc::O_CLOEXEC)
-        .open(root.path("/dev/y2-workload"))
-    {
-        // Acquire before work starts; renew on an independent worker.
-        if fd.write(payload).ok() == Some(payload.len()) {
-            use std::sync::mpsc::{RecvTimeoutError, TryRecvError};
-            worker = Some(std::thread::spawn(move || loop {
-                if !matches!(stopped.try_recv(), Err(TryRecvError::Empty)) {
-                    return;
-                }
-                if fd.write(payload).ok() != Some(payload.len()) {
-                    return;
-                }
-                if !matches!(
-                    stopped.recv_timeout(Duration::from_secs(1)),
-                    Err(RecvTimeoutError::Timeout)
-                ) {
-                    return;
-                }
-            }));
-        }
-    }
-    let result = function();
-    drop(stop);
-    if let Some(worker) = worker {
-        let _ = worker.join();
-    }
-    result
+    let _lease = crate::commands::workload::Lease::take(root, "Maintenance")?;
+    function()
 }
 
 /// Install (or restore) in the Y2 recovery image: LK starts RECOVERY from the MISC

@@ -10,7 +10,6 @@ use super::{
     STALE_COUNT_RETRIES,
 };
 use crate::commands::{
-    reports::workload::Lease,
     suspend::{
         admission::{admission, battery_and_cable, identity, operation_state, GUARD, RETRY},
         receipt::{record, Stage, RECEIPT},
@@ -18,6 +17,7 @@ use crate::commands::{
         test_support::{answer, ready, refusal, Reborn},
         wall, E,
     },
+    workload::Lease,
 };
 use crate::reply::Failure;
 use crate::testing::Fixture;

@@ -8,7 +8,7 @@ use super::{
     pyjson::{self, py_str, Py},
     pyops::{self, OrRefuse},
     state::{self, Reports, QUEUE},
-    tarball, workload, POWER_UNREADABLE, QUEUED_UNREADABLE, STATE_UNREADABLE,
+    tarball, POWER_UNREADABLE, QUEUED_UNREADABLE, STATE_UNREADABLE,
 };
 use crate::reply::{mkdir_parents, Failure};
 use std::{
@@ -238,7 +238,7 @@ pub fn upload(
     progress: Option<&build::Progress>,
     first: Option<&str>,
 ) -> Result<Py, Failure> {
-    let _lease = workload::Lease::take(root, "NetworkTransfer")?;
+    let _lease = crate::commands::workload::Lease::take(root, "NetworkTransfer")?;
     let now = wall(root);
     if let Some(blocked) = upload_blocked(root)? {
         return Ok(Py::dict()

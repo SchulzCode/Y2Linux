@@ -11,6 +11,7 @@ pub mod network;
 pub mod power_features;
 pub mod sleep;
 pub mod time;
+pub mod workload;
 // The remaining port groups, one module each, each with its own `route`.
 pub mod connectivity;
 pub mod devices;

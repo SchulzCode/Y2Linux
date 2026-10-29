@@ -17,9 +17,9 @@ use super::{
     state::uuid4,
     tarball,
     volume::{self, data_volume, free, open_directory},
-    workload::Lease,
     SCOPES,
 };
+use crate::commands::workload::Lease;
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
 use std::{
     ffi::CString,

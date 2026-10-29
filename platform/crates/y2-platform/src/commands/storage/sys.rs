@@ -3,14 +3,12 @@
 //! `space`, the media locks, the hand-off with the USB responder (its state, releasing the SD card
 //! or a view before an eject) and the `Maintenance` workload lease.
 // SPDX-License-Identifier: GPL-2.0-only
-use crate::reply::{atomic_json, mkdir_parents, private_directory, Failure};
+use crate::reply::{atomic_json, mkdir_parents, Failure};
 use serde_json::{json, Map, Value};
 use std::{
-    fs::{self, File, OpenOptions},
-    io::{self, Write},
-    os::unix::fs::OpenOptionsExt,
+    fs::{self, File},
+    io,
     path::{Component, Path, PathBuf},
-    sync::{mpsc, Arc},
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -386,68 +384,9 @@ pub fn release_view(root: &Root, path: &str) -> bool {
 
 // ---- the Maintenance workload lease ------------------------------------------------------------
 
-/// The scoped `Maintenance` QoS lease: the shared activity lease (a mandatory
-/// exclusion of sleep) and the optional `/dev/y2-workload` hint, renewed every second on its own
-/// thread while the work runs. Released when dropped.
-pub struct Lease {
-    _activity: File,
-    stop: Option<mpsc::Sender<()>>,
-    worker: Option<thread::JoinHandle<()>>,
-}
-
-impl Drop for Lease {
-    fn drop(&mut self) {
-        drop(self.stop.take());
-        if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
-        }
-    }
-}
-
-pub fn maintenance(root: &Root) -> Result<Lease, Failure> {
-    // Unlike optional frequency hints this is a mandatory operation
-    // exclusion. flock dies with the process; a leftover file is inert.
-    let directory = root.path("/run/y2");
-    private_directory(&directory)?;
-    let path = directory.join("activity.lock");
-    let activity = match lock::try_shared(&path) {
-        Ok(Some(file)) => file,
-        Ok(None) => return Err(Failure::value("sleep_operation_in_progress")),
-        Err(error) => return Err(Failure::os(error, &path)),
-    };
-    let payload = b"Maintenance 3000\n";
-    let mut lease = Lease {
-        _activity: activity,
-        stop: None,
-        worker: None,
-    };
-    // QoS is optional; never fail a transfer on a hint.
-    if let Ok(fd) = OpenOptions::new()
-        .write(true)
-        .custom_flags(libc::O_CLOEXEC)
-        .open(root.path("/dev/y2-workload"))
-    {
-        let fd = Arc::new(fd);
-        if (&*fd).write(payload).is_ok_and(|n| n == payload.len()) {
-            // Acquire before work starts; renew on an independent worker
-            // even when a blocking transfer subprocess runs for minutes.
-            let (sender, receiver) = mpsc::channel::<()>();
-            let writer = Arc::clone(&fd);
-            lease.worker = Some(thread::spawn(move || loop {
-                if !(&*writer).write(payload).is_ok_and(|n| n == payload.len()) {
-                    return;
-                }
-                if !matches!(
-                    receiver.recv_timeout(Duration::from_secs(1)),
-                    Err(mpsc::RecvTimeoutError::Timeout)
-                ) {
-                    return;
-                }
-            }));
-            lease.stop = Some(sender);
-        }
-    }
-    Ok(lease)
+/// The scoped `Maintenance` lease (commands::workload), released when dropped.
+pub fn maintenance(root: &Root) -> Result<crate::commands::workload::Lease, Failure> {
+    crate::commands::workload::Lease::take(root, "Maintenance")
 }
 
 #[cfg(test)]
