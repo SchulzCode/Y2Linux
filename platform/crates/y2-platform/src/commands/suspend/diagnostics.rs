@@ -7,7 +7,6 @@
 //! never blocks, delays or changes sleep.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    append,
     journal::{object, plain},
     text_value, E,
 };
@@ -16,6 +15,7 @@ use std::{fs::File, io::Read, os::unix::fs::OpenOptionsExt, path::Path};
 use y2p_core::mounts::data_ready;
 use y2p_core::{
     json::{dumps, Separators},
+    power_journal::append_bounded,
     root::read,
     suspend_text::{split, splitlines, Regex},
     Root,
@@ -439,8 +439,7 @@ fn row(root: &Root, stage: &str, golden: bool) -> Result<bool, E> {
     if encoded.len() > ROW_LIMIT {
         return Err(E::value("sleep_diagnostics_row_too_large"));
     }
-    let path = root.path(PATH);
-    append::append_bounded(&path, &encoded, LIMIT, true).map_err(|e| E::os(&e, Some(&path)))?;
+    append_bounded(root, PATH, &encoded, LIMIT, true).map_err(E::from)?;
     Ok(true)
 }
 

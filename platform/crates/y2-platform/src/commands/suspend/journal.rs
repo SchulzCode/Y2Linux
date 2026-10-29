@@ -6,12 +6,13 @@
 //! signature) and always writes, because an event is given. Every failure is counted and dropped:
 //! a journal failure must never delay or disable battery protection.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{append, diagnostics, text_value, E};
+use super::{diagnostics, text_value, E};
 use serde_json::Value;
 use std::path::Path;
 use y2p_core::py::PyValue;
 use y2p_core::{
     json::{dumps, Separators},
+    power_journal::append_bounded,
     root::{python_int, read},
     suspend_text::{split, splitlines},
     Root,
@@ -296,8 +297,6 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
     if encoded.len() > 16384 {
         return Err(E::value("power_journal_row_too_large"));
     }
-    let path = root.path(PATH);
-    append::append_bounded(&path, encoded.as_bytes(), LIMIT, true)
-        .map_err(|e| E::os(&e, Some(&path)))?;
+    append_bounded(root, PATH, encoded.as_bytes(), LIMIT, true).map_err(E::from)?;
     Ok(true)
 }

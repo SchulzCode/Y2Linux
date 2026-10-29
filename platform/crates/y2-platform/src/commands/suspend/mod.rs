@@ -11,7 +11,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 pub mod admission;
-pub mod append;
 pub mod audit;
 pub mod diagnostics;
 pub mod helper;
@@ -184,6 +183,22 @@ impl E {
             E::RuntimeError(_) => "RuntimeError",
             E::TypeError(_) => "TypeError",
             E::Crash(_) => "AttributeError",
+        }
+    }
+}
+
+/// A journal append failure (y2p_core::power_journal) as the error the suspend path counts.
+impl From<y2p_core::power_journal::AppendError> for E {
+    fn from(error: y2p_core::power_journal::AppendError) -> E {
+        use y2p_core::power_journal::AppendError;
+        match error {
+            AppendError::Value(text) => E::value(text),
+            AppendError::Os { error, path } => E::os(&error, path.as_deref()),
+            AppendError::OsMessage(text) => E::Os {
+                class: "OSError",
+                text: text.into(),
+                errno: None,
+            },
         }
     }
 }
