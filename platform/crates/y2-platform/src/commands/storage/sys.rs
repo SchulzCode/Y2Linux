@@ -45,9 +45,12 @@ pub fn get_eq(map: &Object, key: &str, value: &Value) -> bool {
     get(map, key).py_eq(value)
 }
 
-/// `d.get(key) in (a, b, …)` for strings.
-pub fn get_in(map: &Object, key: &str, choices: &[&str]) -> bool {
-    get(map, key).as_str().is_some_and(|s| choices.contains(&s))
+/// A record struct as the JSON object it serializes to (every struct of this group does).
+pub fn to_object<T: serde::Serialize>(value: &T) -> Object {
+    match serde_json::to_value(value) {
+        Ok(Value::Object(map)) => map,
+        _ => Object::new(),
+    }
 }
 
 /// An optional text as Python's `str | None`.

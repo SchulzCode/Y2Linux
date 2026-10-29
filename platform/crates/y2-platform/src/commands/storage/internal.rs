@@ -12,13 +12,16 @@
 //! and moved to "Old Player Files"), set up at once; a real library waits for the listener. Every step
 //! is recorded on Y2DATA and resumes after a power loss.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::media::{mkdir_io, properties};
+use super::media::mkdir_io;
 use super::observe::setup_status;
+use super::records::Properties;
 use super::sys::{
     device_instance, exists, get, get_eq, is_symlink, isdigit, lock_now, mkdir,
-    mounts as all_mounts, name, object, read, release_view, resolve, statvfs, text, Mount, Object,
+    mounts as all_mounts, name, object, read, release_view, resolve, statvfs, to_object, Mount,
+    Object,
 };
 use crate::reply::{atomic_json, atomic_json_mode, write_text, Failure};
+use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
     ffi::CString,
@@ -131,7 +134,7 @@ pub(crate) fn partition(root: &Root) -> Option<PathBuf> {
     (found.len() == 1).then(|| found[0].clone())
 }
 
-fn probe(root: &Root, entry: &Path) -> Object {
+fn probe(root: &Root, entry: &Path) -> Properties {
     let device = format!("/dev/{}", name(entry));
     let answer = command::run(
         root,
@@ -139,37 +142,96 @@ fn probe(root: &Root, entry: &Path) -> Object {
         command::TIMEOUT,
     );
     if !answer.ok {
-        return Object::new();
+        return Properties::default();
     }
-    properties(answer.output.as_deref())
+    Properties::parse(answer.output.as_deref())
 }
 
-fn valid(props: &Object) -> bool {
-    get(props, "TYPE").as_str() == Some("ext4")
-        && get(props, "LABEL").as_str() == Some(LABEL)
-        && get(props, "UUID").as_str() == Some(UUID)
+fn valid(props: &Properties) -> bool {
+    props.get("TYPE") == Some("ext4")
+        && props.get("LABEL") == Some(LABEL)
+        && props.get("UUID") == Some(UUID)
 }
 
-type Fields<'a> = &'a [(&'a str, Value)];
+/// internal-media.json: Y2Media's state this boot (`atomic_json` keeps it compact: sftp-server
+/// greps it for `"state":"Ready"`), also what the commands print.
+#[derive(Clone, Debug, Serialize)]
+struct Marker {
+    schema: u8,
+    state: &'static str,
+    reason: Option<String>,
+    path: &'static str,
+    boot_id: Option<String>,
+    /// What blkid found where Y2Media should be (`null` for what it did not print).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    filesystem: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    label: Option<Value>,
+    /// The stock FAT's serial a provision was not confirmed with.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    serial: Option<Value>,
+    #[serde(flatten)]
+    mounted: Option<Mounted>,
+}
 
-fn record(
-    root: &Root,
-    state: &str,
-    reason: Option<&str>,
-    fields: Fields,
-) -> Result<Object, Failure> {
-    let mut value = Object::new();
-    value.insert("schema".into(), json!(1));
-    value.insert("state".into(), json!(state));
-    value.insert("reason".into(), json!(reason));
-    value.insert("path".into(), json!(PATH));
-    value.insert("boot_id".into(), Value::from(root.boot_id()));
-    for (key, field) in fields {
-        value.insert((*key).into(), field.clone());
+/// The mount a marker names.
+#[derive(Clone, Debug, Serialize)]
+struct Mounted {
+    mount_id: i64,
+    device_id: String,
+    uuid: &'static str,
+    /// Only after a mount this command made (`Some(None)`: its block instance cannot be told).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_instance: Option<Option<String>>,
+}
+
+impl Mounted {
+    fn of(mount: &Mount) -> Mounted {
+        Mounted {
+            mount_id: mount.mount_id,
+            device_id: mount.device_id.clone(),
+            uuid: UUID,
+            source_instance: None,
+        }
     }
+}
+
+impl Marker {
+    fn new(root: &Root, state: &'static str, reason: Option<&str>) -> Marker {
+        Marker {
+            schema: 1,
+            state,
+            reason: reason.map(str::to_owned),
+            path: PATH,
+            boot_id: root.boot_id(),
+            filesystem: None,
+            label: None,
+            serial: None,
+            mounted: None,
+        }
+    }
+
+    fn mounted(self, mounted: Mounted) -> Marker {
+        Marker {
+            mounted: Some(mounted),
+            ..self
+        }
+    }
+
+    fn ready(&self) -> bool {
+        self.state == "Ready"
+    }
+
+    fn object(&self) -> Object {
+        to_object(self)
+    }
+}
+
+/// Write the marker; it is also the answer.
+fn record(root: &Root, marker: Marker) -> Result<Marker, Failure> {
     mkdir(&root.path("/run/y2"), 0o700)?;
-    atomic_json(&root.path(MARKER), &value, false)?;
-    Ok(value)
+    atomic_json(&root.path(MARKER), &marker, false)?;
+    Ok(marker)
 }
 
 fn lock_runtime(root: &Root) -> Result<File, Failure> {
@@ -191,49 +253,38 @@ fn ready(root: &Root) -> bool {
 
 pub fn mount(root: &Root) -> Result<Object, Failure> {
     let _lock = lock_runtime(root)?;
-    mount_locked(root)
+    Ok(mount_locked(root)?.object())
 }
 
-fn mount_locked(root: &Root) -> Result<Object, Failure> {
+fn mount_locked(root: &Root) -> Result<Marker, Failure> {
     let Some(entry) = partition(root) else {
-        return record(
-            root,
-            "Unavailable",
-            Some("partition_geometry_not_found"),
-            &[],
-        );
+        let marker = Marker::new(root, "Unavailable", Some("partition_geometry_not_found"));
+        return record(root, marker);
     };
     let props = probe(root, &entry);
     if !valid(&props) {
-        return record(
-            root,
-            "Unavailable",
-            Some("filesystem_identity_not_y2media"),
-            &[
-                ("filesystem", get(&props, "TYPE").clone()),
-                ("label", get(&props, "LABEL").clone()),
-            ],
-        );
+        let marker = Marker {
+            filesystem: Some(props.value("TYPE")),
+            label: Some(props.value("LABEL")),
+            ..Marker::new(root, "Unavailable", Some("filesystem_identity_not_y2media"))
+        };
+        return record(root, marker);
     }
     let device = format!("/dev/{}", name(&entry));
     let current = mounts_at(root, PATH);
     if let Some(first) = current.first() {
-        let same = current.len() == 1 && first.source == device;
-        return record(
-            root,
-            if same { "Ready" } else { "Failed" },
-            (!same).then_some("foreign_mount_at_path"),
-            &[
-                ("mount_id", json!(first.mount_id)),
-                ("device_id", json!(first.device_id)),
-                ("uuid", json!(UUID)),
-            ],
-        );
+        let marker = if current.len() == 1 && first.source == device {
+            Marker::new(root, "Ready", None)
+        } else {
+            Marker::new(root, "Failed", Some("foreign_mount_at_path"))
+        };
+        return record(root, marker.mounted(Mounted::of(first)));
     }
     // Same policy as Y2DATA in the initramfs: only safe automatic repairs (journal replay etc).
     let check = command::run(root, &["e2fsck", "-p", &device], 180.0);
     if !check.ok {
-        return record(root, "Degraded", Some("filesystem_check_failed"), &[]);
+        let marker = Marker::new(root, "Degraded", Some("filesystem_check_failed"));
+        return record(root, marker);
     }
     mkdir(&root.path(PATH), 0o777)?;
     let result = command::run(
@@ -242,56 +293,67 @@ fn mount_locked(root: &Root) -> Result<Object, Failure> {
         20.0,
     );
     let current = mounts_at(root, PATH);
-    if !result.ok || current.len() != 1 || current[0].source != device {
-        let reason = result
-            .reason
-            .unwrap_or_else(|| "mount_identity_failed".into());
-        return record(root, "Failed", Some(&reason), &[]);
+    match &current[..] {
+        [mounted] if result.ok && mounted.source == device => {
+            let made = Mounted {
+                source_instance: Some(device_instance(root, &mounted.device_id)),
+                ..Mounted::of(mounted)
+            };
+            record(root, Marker::new(root, "Ready", None).mounted(made))
+        }
+        _ => {
+            let reason = result.reason.as_deref().unwrap_or("mount_identity_failed");
+            record(root, Marker::new(root, "Failed", Some(reason)))
+        }
     }
-    record(
-        root,
-        "Ready",
-        None,
-        &[
-            ("mount_id", json!(current[0].mount_id)),
-            ("device_id", json!(current[0].device_id)),
-            ("uuid", json!(UUID)),
-            (
-                "source_instance",
-                text(&device_instance(root, &current[0].device_id)),
-            ),
-        ],
-    )
 }
 
 pub fn unmount(root: &Root) -> Result<Object, Failure> {
     let _lock = lock_runtime(root)?;
-    if mounts_at(root, PATH).is_empty() {
-        return record(root, "Unavailable", Some("not_mounted"), &[]);
-    }
-    let result = command::run(root, &["umount", PATH], 10.0);
-    if !result.ok || !mounts_at(root, PATH).is_empty() {
-        let reason = result.reason.unwrap_or_else(|| "unmount_busy".into());
-        return record(root, "Failed", Some(&reason), &[]);
-    }
-    record(root, "Unavailable", Some("unmounted"), &[])
+    let marker = if mounts_at(root, PATH).is_empty() {
+        Marker::new(root, "Unavailable", Some("not_mounted"))
+    } else {
+        let result = command::run(root, &["umount", PATH], 10.0);
+        if !result.ok || !mounts_at(root, PATH).is_empty() {
+            let reason = result.reason.as_deref().unwrap_or("unmount_busy");
+            Marker::new(root, "Failed", Some(reason))
+        } else {
+            Marker::new(root, "Unavailable", Some("unmounted"))
+        }
+    };
+    Ok(record(root, marker)?.object())
+}
+
+/// What `internal-media status` prints.
+#[derive(Serialize)]
+struct Status {
+    schema: u8,
+    path: &'static str,
+    partition: Option<String>,
+    filesystem: Value,
+    label: Value,
+    uuid: Value,
+    identity_valid: bool,
+    mounted: bool,
+    ready: bool,
+    marker: Object,
 }
 
 pub fn status(root: &Root) -> Object {
     let entry = partition(root);
     let props = entry.as_ref().map(|e| probe(root, e)).unwrap_or_default();
-    let mut value = Object::new();
-    value.insert("schema".into(), json!(1));
-    value.insert("path".into(), json!(PATH));
-    value.insert("partition".into(), json!(entry.as_deref().map(name)));
-    value.insert("filesystem".into(), get(&props, "TYPE").clone());
-    value.insert("label".into(), get(&props, "LABEL").clone());
-    value.insert("uuid".into(), get(&props, "UUID").clone());
-    value.insert("identity_valid".into(), json!(valid(&props)));
-    value.insert("mounted".into(), json!(!mounts_at(root, PATH).is_empty()));
-    value.insert("ready".into(), json!(ready(root)));
-    value.insert("marker".into(), Value::Object(object(root, MARKER)));
-    value
+    to_object(&Status {
+        schema: 1,
+        path: PATH,
+        partition: entry.as_deref().map(name),
+        filesystem: props.value("TYPE"),
+        label: props.value("LABEL"),
+        uuid: props.value("UUID"),
+        identity_valid: valid(&props),
+        mounted: !mounts_at(root, PATH).is_empty(),
+        ready: ready(root),
+        marker: object(root, MARKER),
+    })
 }
 
 // --- one-time provisioning ------------------------------------------------------------------
@@ -571,54 +633,18 @@ fn provision_with(
     migrate_music: bool,
     digest: Digest,
 ) -> Result<Object, Failure> {
-    {
-        let _lock = lock_runtime(root)?;
-        let Some(entry) = partition(root) else {
-            return record(
-                root,
-                "Unavailable",
-                Some("partition_geometry_not_found"),
-                &[],
-            );
-        };
-        let props = probe(root, &entry);
-        let device = format!("/dev/{}", name(&entry));
-        let in_use = !mounts_at(root, PATH).is_empty()
-            || all_mounts(root).iter().any(|m| m.source == device);
-        if in_use && !valid(&props) {
-            // Never replace a mounted filesystem. A finished Y2Media may be re-run to resume
-            // an interrupted migration.
-            return record(root, "Failed", Some("partition_is_mounted"), &[]);
-        }
-        if !valid(&props) {
-            if get(&props, "TYPE").as_str() != Some("vfat")
-                || !truthy(confirm_uuid)
-                || !get(&props, "UUID").py_eq(confirm_uuid)
-            {
-                // Only the stock FAT filesystem, named by its serial, may be replaced.
-                return record(
-                    root,
-                    "Failed",
-                    Some("confirmation_does_not_match_stock_filesystem"),
-                    &[
-                        ("filesystem", get(&props, "TYPE").clone()),
-                        ("serial", get(&props, "UUID").clone()),
-                    ],
-                );
-            }
-            let made = command::run(root, &mkfs(&device), 300.0);
-            if !made.ok {
-                let reason = format!("mkfs_failed:{}", py_str(&made.reason));
-                return record(root, "Failed", Some(&reason), &[]);
-            }
-        }
+    if let Some(refused) = replace_stock(root, confirm_uuid)? {
+        return Ok(refused.object());
     }
-    let state = mount(root)?;
-    if get(&state, "state").as_str() != Some("Ready") {
-        return Ok(state);
+    let state = {
+        let _lock = lock_runtime(root)?;
+        mount_locked(root)?
+    };
+    if !state.ready() {
+        return Ok(state.object());
     }
     mkdir(&root.path(MUSIC), 0o755)?;
-    let mut result = state.clone();
+    let mut result = state.object();
     if migrate_music {
         match migrate(root, LEGACY_MUSIC, MUSIC, &mut |_, _| {}, digest) {
             Ok(migration) => {
@@ -628,24 +654,64 @@ fn provision_with(
             Err(error) if !error.caught() => return Err(error),
             Err(error) => {
                 let reason = format!("migration_failed:{}", error.message());
-                return record(
-                    root,
-                    "Degraded",
-                    Some(&reason),
-                    &[
-                        ("mount_id", get(&state, "mount_id").clone()),
-                        ("device_id", get(&state, "device_id").clone()),
-                        ("uuid", json!(UUID)),
-                    ],
-                );
+                let mounted = state.mounted.map(|m| Mounted {
+                    source_instance: None,
+                    ..m
+                });
+                let marker = Marker {
+                    mounted,
+                    ..Marker::new(root, "Degraded", Some(&reason))
+                };
+                return Ok(record(root, marker)?.object());
             }
         }
     }
     Ok(result)
 }
 
-fn py_str(value: &Option<String>) -> String {
-    value.clone().unwrap_or_else(|| "None".into())
+/// The first half of `provision`: Y2Media made over the confirmed stock FAT (nothing when it is
+/// Y2Media already); `Some` refusal record otherwise.
+fn replace_stock(root: &Root, confirm_uuid: &Value) -> Result<Option<Marker>, Failure> {
+    let _lock = lock_runtime(root)?;
+    let Some(entry) = partition(root) else {
+        let marker = Marker::new(root, "Unavailable", Some("partition_geometry_not_found"));
+        return Ok(Some(record(root, marker)?));
+    };
+    let props = probe(root, &entry);
+    if valid(&props) {
+        return Ok(None);
+    }
+    let device = format!("/dev/{}", name(&entry));
+    let in_use =
+        !mounts_at(root, PATH).is_empty() || all_mounts(root).iter().any(|m| m.source == device);
+    if in_use {
+        // Never replace a mounted filesystem. A finished Y2Media may be re-run to resume
+        // an interrupted migration.
+        let marker = Marker::new(root, "Failed", Some("partition_is_mounted"));
+        return Ok(Some(record(root, marker)?));
+    }
+    if props.get("TYPE") != Some("vfat")
+        || !truthy(confirm_uuid)
+        || !props.value("UUID").py_eq(confirm_uuid)
+    {
+        // Only the stock FAT filesystem, named by its serial, may be replaced.
+        let reason = "confirmation_does_not_match_stock_filesystem";
+        let marker = Marker {
+            filesystem: Some(props.value("TYPE")),
+            serial: Some(props.value("UUID")),
+            ..Marker::new(root, "Failed", Some(reason))
+        };
+        return Ok(Some(record(root, marker)?));
+    }
+    let made = command::run(root, &mkfs(&device), 300.0);
+    if !made.ok {
+        let reason = format!("mkfs_failed:{}", made.reason.as_deref().unwrap_or("None"));
+        return Ok(Some(record(
+            root,
+            Marker::new(root, "Failed", Some(&reason)),
+        )?));
+    }
+    Ok(None)
 }
 
 // --- automatic setup (STORAGE-SETUP) ----------------------------------------------------------
@@ -687,24 +753,56 @@ fn decide(kept: &[(String, u64)], data_free: u64) -> u8 {
     3
 }
 
-/// This boot's setup state, for Reborn (counts only, never file names).
-fn note(root: &Root, state: &str, reason: Option<&str>, fields: Fields) -> Result<Object, Failure> {
-    let mut value = Object::new();
-    value.insert("schema".into(), json!(1));
-    value.insert("state".into(), json!(state));
-    value.insert("reason".into(), json!(reason));
-    value.insert("boot_id".into(), Value::from(root.boot_id()));
-    for (key, field) in fields {
-        value.insert((*key).into(), field.clone());
+/// internal-media-setup.json in /run: this boot's setup state, for Reborn (counts only, never file
+/// names).
+#[derive(Serialize)]
+struct Note {
+    schema: u8,
+    state: &'static str,
+    reason: Option<String>,
+    boot_id: Option<String>,
+    /// What p8 holds when it is not the stock FAT.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    filesystem: Option<Value>,
+    /// What is kept (Running) or waits for the listener (Waiting).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    files: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bytes: Option<Value>,
+    /// The old storage's serial the listener confirms with (Waiting).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    serial: Option<Value>,
+    /// The files moved to Old Player Files (Done).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    kept: Option<Value>,
+}
+
+impl Note {
+    fn new(root: &Root, state: &'static str, reason: Option<&str>) -> Note {
+        Note {
+            schema: 1,
+            state,
+            reason: reason.map(str::to_owned),
+            boot_id: root.boot_id(),
+            filesystem: None,
+            files: None,
+            bytes: None,
+            serial: None,
+            kept: None,
+        }
     }
+}
+
+/// Publish the note (others read it: 0644); it is also the answer.
+fn publish(root: &Root, note: Note) -> Result<Object, Failure> {
     mkdir(&root.path("/run/y2"), 0o700)?;
-    atomic_json_mode(
-        &root.path(STATUS),
-        &Value::Object(value.clone()),
-        false,
-        0o644,
-    )?;
-    Ok(value)
+    atomic_json_mode(&root.path(STATUS), &note, false, 0o644)?;
+    Ok(to_object(&note))
+}
+
+/// A note with no counts.
+fn note(root: &Root, state: &'static str, reason: Option<&str>) -> Result<Object, Failure> {
+    publish(root, Note::new(root, state, reason))
 }
 
 /// A progress step between `low` and `high`, rounded down to tens.
@@ -959,6 +1057,61 @@ fn save(root: &Root, value: &Object) -> Result<(), Failure> {
     directory.sync_all().map_err(|e| Failure::os(e, &folder))
 }
 
+/// The setup's resume record on Y2DATA (it survives formatting p8): the partition, the old
+/// storage's serial, the phase reached and what is kept. A phase moves on in place: fields this
+/// version does not know stay as they are.
+struct Resume(Object);
+
+impl Resume {
+    fn new(device: &str, serial: Value, kept: &[(String, u64)]) -> Resume {
+        let total: u64 = kept.iter().map(|(_, size)| size).sum();
+        let phase = if kept.is_empty() {
+            "formatting"
+        } else {
+            "staging"
+        };
+        let fields = [
+            ("schema", json!(1)),
+            ("device", json!(device)),
+            ("start", json!(START)),
+            ("size", json!(SIZE)),
+            ("serial", serial),
+            ("phase", json!(phase)),
+            ("files", json!(kept.len())),
+            ("bytes", json!(total)),
+        ];
+        Resume(fields.into_iter().map(|(k, v)| (k.to_owned(), v)).collect())
+    }
+
+    /// Made for this partition.
+    fn names(&self, device: &str) -> bool {
+        get_eq(&self.0, "device", &json!(device))
+            && get_eq(&self.0, "start", &json!(START))
+            && get_eq(&self.0, "size", &json!(SIZE))
+    }
+
+    /// `saved[key]`: a missing key is Python's KeyError (a traceback, after the records written so
+    /// far: the 'Running' note).
+    fn key(&self, name: &str) -> Result<&Value, Failure> {
+        self.0.get(name).ok_or_else(|| Failure::key_error(name))
+    }
+
+    fn phase(&self) -> Result<Option<&str>, Failure> {
+        Ok(self.key("phase")?.as_str())
+    }
+
+    /// A count as recorded (0 when missing).
+    fn count(&self, name: &str) -> Value {
+        self.0.get(name).cloned().unwrap_or(json!(0))
+    }
+
+    /// The next phase, saved before its work starts.
+    fn advance(&mut self, root: &Root, phase: &str) -> Result<(), Failure> {
+        self.0.insert("phase".into(), json!(phase));
+        save(root, &self.0)
+    }
+}
+
 /// Turn the stock FAT into Y2Media (see the module note). `automatic` at start decides by itself;
 /// otherwise the listener confirmed with the old storage's serial (erases what is too much to keep).
 /// Resumes an interrupted run from the Y2DATA record.
@@ -972,154 +1125,54 @@ pub fn setup(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<Obj
                 "setup_error:{}",
                 error.message().chars().take(100).collect::<String>()
             );
-            note(root, "Failed", Some(&reason), &[])
+            note(root, "Failed", Some(&reason))
         }
         ok => ok,
     }
 }
 
-/// `saved[key]` of the resume record: a missing key is Python's KeyError (a traceback, after the
-/// records written so far: the 'Running' note).
-fn key<'a>(saved: &'a Object, name: &str) -> Result<&'a Value, Failure> {
-    saved.get(name).ok_or_else(|| Failure::key_error(name))
-}
-
 fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<Object, Failure> {
     let Some(entry) = partition(root) else {
-        return note(
-            root,
-            "Unavailable",
-            Some("partition_geometry_not_found"),
-            &[],
-        );
+        return note(root, "Unavailable", Some("partition_geometry_not_found"));
     };
     let device = format!("/dev/{}", name(&entry));
     let props = probe(root, &entry);
     let stored = root.json(SETUP);
     if exists(&root.path(SETUP)) && !matches!(stored, Some(Value::Object(_))) {
-        return note(root, "Failed", Some("setup_record_unreadable"), &[]); // never guess: leave p8 alone
+        return note(root, "Failed", Some("setup_record_unreadable")); // never guess: leave p8 alone
     }
     let mut saved = match stored {
-        Some(Value::Object(map)) if !map.is_empty() => map,
-        _ => Object::new(),
+        Some(Value::Object(map)) if !map.is_empty() => {
+            let saved = Resume(map);
+            if !saved.names(&device) {
+                return note(root, "Failed", Some("setup_record_mismatch"));
+            }
+            if automatic && get(&saved.0, "phase").as_str() == Some("staging") {
+                if let Some(blocked) = automatic_blocked(root) {
+                    return note(root, "Pending", Some(blocked));
+                }
+            }
+            saved
+        }
+        _ => match begin_setup(root, automatic, confirm_serial, &device, &props)? {
+            Start::Run(fresh) => fresh,
+            Start::Answer(answer) => return Ok(answer),
+        },
     };
-    if !saved.is_empty() {
-        let matches = get_eq(&saved, "device", &json!(device))
-            && get_eq(&saved, "start", &json!(START))
-            && get_eq(&saved, "size", &json!(SIZE));
-        if !matches {
-            return note(root, "Failed", Some("setup_record_mismatch"), &[]);
-        }
-        if automatic && get(&saved, "phase").as_str() == Some("staging") {
-            if let Some(blocked) = automatic_blocked(root) {
-                return note(root, "Pending", Some(blocked), &[]);
-            }
-        }
-    } else {
-        if valid(&props) {
-            return note(root, "NotNeeded", None, &[]);
-        }
-        if get(&props, "TYPE").as_str() != Some("vfat") {
-            return note(
-                root,
-                "Unavailable",
-                Some("not_stock_storage"),
-                &[("filesystem", get(&props, "TYPE").clone())],
-            );
-        }
-        let serial = get(&props, "UUID").clone();
-        if automatic {
-            if let Some(blocked) = automatic_blocked(root) {
-                return note(root, "Pending", Some(blocked), &[]);
-            }
-        } else if !truthy(confirm_serial) || !confirm_serial.py_eq(&serial) {
-            return note(
-                root,
-                "Failed",
-                Some("confirmation_does_not_match_stock_filesystem"),
-                &[],
-            );
-        }
-        if all_mounts(root)
-            .iter()
-            .any(|m| m.source == device && m.path != OLD)
-        {
-            return note(root, "Failed", Some("partition_is_mounted"), &[]);
-        }
-        splash(root, 0);
-        let problem = mount_old(root, &device)?;
-        let mut kept = match problem {
-            Some(_) => Vec::new(),
-            None => keepable(&root.path(OLD))?,
-        };
-        let mut total: u64 = kept.iter().map(|(_, size)| size).sum();
-        let case = match problem {
-            Some(_) => 3,
-            None => {
-                let data = root.path("/data");
-                let free = statvfs(&data).map_err(|e| Failure::os(e, &data))?;
-                decide(&kept, free.available())
-            }
-        };
-        if case == 3 {
-            if automatic {
-                // Nothing changes; the old files stay readable (Old Storage) until the listener decides.
-                return note(
-                    root,
-                    "Waiting",
-                    Some(problem.unwrap_or("old_storage_has_files")),
-                    &[
-                        ("files", json!(kept.len())),
-                        ("bytes", json!(total)),
-                        ("serial", serial),
-                    ],
-                );
-            }
-            // confirmed: what was too much to keep is erased
-            kept.clear();
-            total = 0;
-        }
-        saved = [
-            ("schema", json!(1)),
-            ("device", json!(device)),
-            ("start", json!(START)),
-            ("size", json!(SIZE)),
-            ("serial", serial),
-            (
-                "phase",
-                json!(if kept.is_empty() {
-                    "formatting"
-                } else {
-                    "staging"
-                }),
-            ),
-            ("files", json!(kept.len())),
-            ("bytes", json!(total)),
-        ]
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), v))
-        .collect();
-        save(root, &saved)?;
-    }
-    note(
-        root,
-        "Running",
-        None,
-        &[
-            ("files", saved.get("files").cloned().unwrap_or(json!(0))),
-            ("bytes", saved.get("bytes").cloned().unwrap_or(json!(0))),
-        ],
-    )?;
+    let running = Note {
+        files: Some(saved.count("files")),
+        bytes: Some(saved.count("bytes")),
+        ..Note::new(root, "Running", None)
+    };
+    publish(root, running)?;
 
-    if key(&saved, "phase")?.as_str() == Some("staging") {
+    if saved.phase()? == Some("staging") {
         // `TYPE != 'vfat' or UUID != saved['serial']`: the serial is looked up only for a FAT.
-        if get(&props, "TYPE").as_str() != Some("vfat")
-            || !get(&props, "UUID").py_eq(key(&saved, "serial")?)
-        {
-            return note(root, "Failed", Some("old_storage_changed"), &[]);
+        if props.get("TYPE") != Some("vfat") || !props.value("UUID").py_eq(saved.key("serial")?) {
+            return note(root, "Failed", Some("old_storage_changed"));
         }
         if let Some(problem) = mount_old(root, &device)? {
-            return note(root, "Failed", Some(problem), &[]);
+            return note(root, "Failed", Some(problem));
         }
         let (source, staging) = (root.path(OLD), root.path(KEPT_STAGING));
         let kept = keepable(&source)?;
@@ -1133,48 +1186,42 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
             splash(root, tens(10, 50, done, total));
         }
         sync();
-        saved.insert("phase".into(), json!("formatting"));
-        save(root, &saved)?;
+        saved.advance(root, "formatting")?;
     }
 
-    if key(&saved, "phase")?.as_str() == Some("formatting") {
+    if saved.phase()? == Some("formatting") {
         // Old Storage leaves the computer first (its view ended with 'Running' above).
         if !release_view(root, OLD) || !unmount_old(root) {
-            return note(root, "Failed", Some("old_storage_busy"), &[]);
+            return note(root, "Failed", Some("old_storage_busy"));
         }
         let props = probe(root, &entry);
         if !valid(&props) {
             // `TYPE == 'vfat' and UUID != saved['serial']`: the serial only for a FAT.
-            if get(&props, "TYPE").as_str() == Some("vfat")
-                && !get(&props, "UUID").py_eq(key(&saved, "serial")?)
+            if props.get("TYPE") == Some("vfat") && !props.value("UUID").py_eq(saved.key("serial")?)
             {
-                return note(root, "Failed", Some("old_storage_changed"), &[]);
+                return note(root, "Failed", Some("old_storage_changed"));
             }
             // The recorded stock FAT, or what an interrupted format left: only this record
             // (same partition, serial, every kept file verified on Y2DATA) allows formatting.
             if all_mounts(root).iter().any(|m| m.source == device) {
-                return note(root, "Failed", Some("partition_is_mounted"), &[]);
+                return note(root, "Failed", Some("partition_is_mounted"));
             }
             splash(root, 50);
             let made = command::run(root, &mkfs(&device), 300.0);
             if !made.ok {
-                let reason = format!("mkfs_failed:{}", py_str(&made.reason));
-                return note(root, "Failed", Some(&reason), &[]);
+                let reason = format!("mkfs_failed:{}", made.reason.as_deref().unwrap_or("None"));
+                return note(root, "Failed", Some(&reason));
             }
         }
-        saved.insert("phase".into(), json!("migrating"));
-        save(root, &saved)?;
+        saved.advance(root, "migrating")?;
     }
 
-    if key(&saved, "phase")?.as_str() == Some("migrating") {
+    if saved.phase()? == Some("migrating") {
         splash(root, 60);
         let state = mount_locked(root)?;
-        if get(&state, "state").as_str() != Some("Ready") {
-            let reason = format!(
-                "mount_after_setup:{}",
-                get(&state, "reason").as_str().unwrap_or("None")
-            );
-            return note(root, "Failed", Some(&reason), &[]);
+        if !state.ready() {
+            let reason = state.reason.as_deref().unwrap_or("None");
+            return note(root, "Failed", Some(&format!("mount_after_setup:{reason}")));
         }
         mkdir(&root.path(MUSIC), 0o755)?;
         let staging = root.path(KEPT_STAGING);
@@ -1190,14 +1237,90 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         let path = root.path(SETUP);
         fs::remove_file(&path).map_err(|e| Failure::os(e, &path))?;
         splash(root, 100);
-        return note(
-            root,
-            "Done",
-            None,
-            &[("kept", saved.get("files").cloned().unwrap_or(json!(0)))],
-        );
+        let done = Note {
+            kept: Some(saved.count("files")),
+            ..Note::new(root, "Done", None)
+        };
+        return publish(root, done);
     }
-    note(root, "Failed", Some("setup_record_phase"), &[])
+    note(root, "Failed", Some("setup_record_phase"))
+}
+
+/// What a setup without a resume record does: run with the record it saved, or answer at once.
+enum Start {
+    Run(Resume),
+    Answer(Object),
+}
+
+/// A setup without a resume record decides from a read-only look at the old storage.
+fn begin_setup(
+    root: &Root,
+    automatic: bool,
+    confirm_serial: &Value,
+    device: &str,
+    props: &Properties,
+) -> Result<Start, Failure> {
+    if valid(props) {
+        return note(root, "NotNeeded", None).map(Start::Answer);
+    }
+    if props.get("TYPE") != Some("vfat") {
+        let other = Note {
+            filesystem: Some(props.value("TYPE")),
+            ..Note::new(root, "Unavailable", Some("not_stock_storage"))
+        };
+        return publish(root, other).map(Start::Answer);
+    }
+    let serial = props.value("UUID");
+    if automatic {
+        if let Some(blocked) = automatic_blocked(root) {
+            return note(root, "Pending", Some(blocked)).map(Start::Answer);
+        }
+    } else if !truthy(confirm_serial) || !confirm_serial.py_eq(&serial) {
+        let reason = "confirmation_does_not_match_stock_filesystem";
+        return note(root, "Failed", Some(reason)).map(Start::Answer);
+    }
+    if all_mounts(root)
+        .iter()
+        .any(|m| m.source == device && m.path != OLD)
+    {
+        return note(root, "Failed", Some("partition_is_mounted")).map(Start::Answer);
+    }
+    splash(root, 0);
+    let problem = mount_old(root, device)?;
+    let mut kept = match problem {
+        Some(_) => Vec::new(),
+        None => keepable(&root.path(OLD))?,
+    };
+    let case = match problem {
+        Some(_) => 3,
+        None => {
+            let data = root.path("/data");
+            let free = statvfs(&data).map_err(|e| Failure::os(e, &data))?;
+            decide(&kept, free.available())
+        }
+    };
+    if case == 3 {
+        if automatic {
+            // Nothing changes; the old files stay readable (Old Storage) until the listener decides.
+            let total: u64 = kept.iter().map(|(_, size)| size).sum();
+            let waiting = Note {
+                files: Some(json!(kept.len())),
+                bytes: Some(json!(total)),
+                serial: Some(serial),
+                ..Note::new(
+                    root,
+                    "Waiting",
+                    Some(problem.unwrap_or("old_storage_has_files")),
+                )
+            };
+            return publish(root, waiting).map(Start::Answer);
+        }
+        // confirmed: what was too much to keep is erased
+        kept.clear();
+    }
+    let fresh = Resume::new(device, serial, &kept);
+    save(root, &fresh.0)?;
+    Ok(Start::Run(fresh))
 }
 
 /// `os.walk(top, topdown=False)` removing every directory below `top` that is empty by then.

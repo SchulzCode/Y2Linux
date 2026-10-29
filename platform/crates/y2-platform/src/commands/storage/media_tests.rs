@@ -730,10 +730,11 @@ fn a_background_check_applies_only_to_the_card_it_read() {
 #[test]
 fn ext4_keeps_its_admission_check() {
     let card = Card::new("ext4");
-    let mut ext4 = Object::new();
-    set(&mut ext4, "filesystem", "ext4");
-    set(&mut ext4, "device", "/dev/mmcblk1p1");
-    read_only_check(card.root(), &ext4, false, None);
+    let [ext4] = &candidates(card.root())[..] else {
+        panic!("one ext4 card");
+    };
+    card.clear();
+    read_only_check(card.root(), ext4, false, None);
     assert_eq!(card.calls()[0].1, EXT4_CHECK_SECONDS);
 }
 

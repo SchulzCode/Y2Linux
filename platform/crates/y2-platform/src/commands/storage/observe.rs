@@ -3,9 +3,9 @@
 //! `internal_media.setup_status`. The `blocks`, `controllers` and the rest of `storage()` are only
 //! reads for `status` (group observation) and are not needed here.
 // SPDX-License-Identifier: GPL-2.0-only
+use super::records::{Claim, ReadOnly};
 use super::sys::{
-    device_instance, exists, get, get_eq, get_in, isdigit, mounts, object, read, resolve, statvfs,
-    text, Object,
+    device_instance, exists, get, get_eq, isdigit, mounts, read, resolve, statvfs, text, Object,
 };
 use serde_json::{json, Value};
 use std::path::Path;
@@ -217,7 +217,7 @@ pub fn volumes(root: &Root) -> Vec<Object> {
                 let identity = media_identity(&device, &mount.filesystem, uuid.as_str());
                 let identity_value = identity.clone().map_or(Value::Null, Value::Object);
                 set(&mut item, "identity", identity_value.clone());
-                let claim = object(root, MEDIA_MOUNT);
+                let claim = Claim::load(root);
                 let matches = [
                     ("boot_id", text(&boot)),
                     ("mount_id", json!(mount.mount_id)),
@@ -225,18 +225,18 @@ pub fn volumes(root: &Root) -> Vec<Object> {
                     ("uuid", uuid),
                 ]
                 .iter()
-                .all(|(k, v)| get_eq(&claim, k, v));
+                .all(|(k, v)| claim.get(k).py_eq(v));
                 if !matches {
                     failed(&mut item, "mount_claim_changed_or_missing");
                 }
-                let claimed = get(&claim, "identity");
+                let claimed = claim.get("identity");
                 if get(&item, "state") == "Ready"
                     && (identity.is_none()
                         || (!claimed.is_null() && !claimed.py_eq(&identity_value)))
                 {
                     failed(&mut item, "media_identity_changed_or_missing");
                 }
-                if instance.is_none() || !get(&claim, "source_instance").py_eq(&text(&instance)) {
+                if instance.is_none() || !claim.get("source_instance").py_eq(&text(&instance)) {
                     failed(&mut item, "block_instance_changed");
                 }
             }
@@ -246,10 +246,9 @@ pub fn volumes(root: &Root) -> Vec<Object> {
         if sd && readonly {
             // media.py mounts a healthy card read-only between writes: it is Ready;
             // so is one that plays while its check finishes in the background (F49).
-            protected = get_in(
-                &object(root, MEDIA_MOUNT),
-                "read_only",
-                &["protected", "checking"],
+            protected = matches!(
+                Claim::load(root).read_only(),
+                Some(ReadOnly::Protected | ReadOnly::Checking)
             );
         }
         if sd {
@@ -300,16 +299,9 @@ pub fn volumes(root: &Root) -> Vec<Object> {
             if sd {
                 // Why the platform mounted the card read-only (media.py): its
                 // check found errors or did not finish; Repair can make it writable.
-                let claim = object(root, MEDIA_MOUNT);
-                let cause = get(&claim, "read_only");
-                let reason = if get_in(
-                    &claim,
-                    "read_only",
-                    &["filesystem_errors", "check_timed_out"],
-                ) {
-                    cause.clone()
-                } else {
-                    json!("mounted_read_only")
+                let reason = match Claim::load(root).read_only() {
+                    Some(cause) if ReadOnly::damaged(Some(cause)) => cause.value(),
+                    _ => json!("mounted_read_only"),
                 };
                 set(&mut item, "read_only_reason", reason);
             }
