@@ -289,6 +289,28 @@ fn network(text: &str) -> Result<String, Failure> {
     ))
 }
 
+/// Whether udhcpc's environment repeats the Authenticated lease published for this boot and epoch:
+/// the same address and DNS servers.
+fn renews(
+    root: &Root,
+    previous: &Map<String, Value>,
+    epoch: Option<&str>,
+    var: &dyn Fn(&str) -> Option<String>,
+) -> bool {
+    let address = var("ip").and_then(|ip| ipv4(&ip).ok()).map(dotted);
+    let servers: Option<Vec<String>> = python_split(&var("dns").unwrap_or_default())
+        .iter()
+        .take(3)
+        .map(|s| ipv4(s).ok().map(dotted))
+        .collect();
+    previous.get("state") == Some(&json!("Authenticated"))
+        && previous.get("epoch").and_then(Value::as_str) == epoch
+        && previous.get("boot_id").and_then(Value::as_str)
+            == root.read("/proc/sys/kernel/random/boot_id").as_deref()
+        && address.is_some_and(|a| previous.get("address") == Some(&json!(a)))
+        && servers.is_some_and(|s| previous.get("dns_servers") == Some(&json!(s)))
+}
+
 /// `y2-platform dhcp-event deconfig|leasefail|nak|bound|renew` with udhcpc's environment.
 pub fn dhcp_event(root: &Root, event: &str) -> Outcome {
     // os.environ: a value that is not UTF-8 holds surrogate escapes (y2p_core::os_text).
@@ -303,7 +325,12 @@ pub fn dhcp_event(root: &Root, event: &str) -> Outcome {
     if epoch.is_none() || var("Y2_DHCP_GENERATION") != epoch {
         return Err(Failure::value("stale_dhcp_epoch"));
     }
-    unlink_missing_ok(&runtime.join("dns.json"))?;
+    // A renew of the same lease keeps its DNS result: deleting it showed dns_unavailable until the
+    // next probe, up to 300 s later. The reader still checks epoch, address and freshness.
+    let previous = root.json_object("/run/y2/dhcp.json");
+    if !(event == "renew" && renews(root, &previous, epoch.as_deref(), &var)) {
+        unlink_missing_ok(&runtime.join("dns.json"))?;
+    }
     let mut state = Ordered::new()
         .with("epoch", json!(epoch))
         .with("state", "AcquiringIP")
