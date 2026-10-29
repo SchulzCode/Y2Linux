@@ -15,7 +15,7 @@ use y2p_core::{
 
 /// A confirmed lease is re-probed every 300 s (network.DnsProbeSchedule); this keeps Online across
 /// one slow or skipped re-check.
-const DNS_FRESH_S: f64 = 420.0;
+pub(crate) const DNS_FRESH_S: f64 = 420.0;
 
 /// `/run/y2/wifi-failure.json` (connectivity): the last join failure, and a saved network's password
 /// failure (kept until the next connect).
@@ -75,7 +75,7 @@ struct SignalStamp {
     monotonic_s: Value,
 }
 
-fn wifi_state(
+pub(crate) fn wifi_state(
     radio: bool,
     wpa: &Map<String, Value>,
     address: bool,
@@ -181,7 +181,28 @@ fn entries(value: &Value) -> Result<Option<&[Value]>, Failure> {
     }
 }
 
+/// How an odd record (an `ip -j` entry or a network.json signal stamp of the wrong shape) is read:
+/// `status` refuses it; the connectivity and service daemons, which must keep running, read it as
+/// empty.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Odd {
+    Refuse,
+    Empty,
+}
+
+/// The `wifi` section of `status`.
 pub fn wifi(root: &Root) -> Result<Value, Failure> {
+    observe(root, None, Odd::Refuse)
+}
+
+/// What Wi-Fi looks like now: readiness above wpa_supplicant, the lease, DNS and the signal. The last
+/// RSSI poll (reused for 30 s on the same peer) is `signal_cache` (the daemon's previous look), else
+/// the one network.json published.
+pub fn observe(
+    root: &Root,
+    signal_cache: Option<&Map<String, Value>>,
+    odd: Odd,
+) -> Result<Value, Failure> {
     let radio = root.path("/sys/class/net/wlan0").exists();
     let started = root.clock().monotonic_ns();
     // Station statistics can hold the control loop for about 2.1 s on this firmware. Bound the
@@ -227,7 +248,12 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
     } else {
         (None, None)
     };
-    let (addresses, default_route) = match addresses(ip.as_deref())? {
+    let found = match addresses(ip.as_deref()) {
+        Err(refusal) if odd == Odd::Refuse => return Err(refusal),
+        Err(_) => None,
+        Ok(found) => found,
+    };
+    let (addresses, default_route) = match found {
         Some(found) => match serde_json::from_str::<Value>(
             routes.as_deref().filter(|r| !r.is_empty()).unwrap_or("[]"),
         ) {
@@ -267,10 +293,15 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
     for path in root.glob("/sys/class/net/wlan0/statistics/*") {
         stats.insert(name(&path), number(read(&path).as_deref()));
     }
-    let previous: Published = record_fields(root, "/run/y2/network.json");
+    let previous: Published = match signal_cache {
+        Some(cache) => fields(cache),
+        None => record_fields(root, "/run/y2/network.json"),
+    };
     let stamp: SignalStamp = match &previous.signal_observation {
         Value::Object(map) => fields(map),
-        other if truthy(other) => return Err(Failure::value("invalid_network_record")),
+        other if truthy(other) && odd == Odd::Refuse => {
+            return Err(Failure::value("invalid_network_record"))
+        }
         _ => SignalStamp::default(),
     };
     let fresh = stamp.boot_id.py_eq(&boot)

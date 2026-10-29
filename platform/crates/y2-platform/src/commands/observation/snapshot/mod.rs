@@ -9,7 +9,7 @@ mod power;
 mod readiness;
 mod storage;
 mod thermal;
-mod wifi;
+pub(crate) mod wifi;
 
 pub use cpu::{cpu, utilization};
 // For the suspend group's receipt tests.

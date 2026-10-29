@@ -136,7 +136,7 @@ struct Dns {
 /// Probe newly usable leases immediately; bound retries on the same lease.
 ///
 /// A confirmed lease is re-checked every five minutes, not every 30 s: each probe is a radio exchange
-/// (and cost ≈260 ms CPU while it was a Python resolver). observe_wifi::DNS_FRESH_S keeps Online
+/// (and cost ≈260 ms CPU while it was a Python resolver). snapshot::wifi::DNS_FRESH_S keeps Online
 /// across one late re-check.
 #[derive(Default)]
 pub struct DnsProbeSchedule {

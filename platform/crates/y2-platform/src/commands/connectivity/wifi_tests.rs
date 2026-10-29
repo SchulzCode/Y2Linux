@@ -2,10 +2,10 @@
 //! tests/test_platform_network_time.py and tests/test_wifi_failure_evidence.py checked of the Python
 //! platform (network.py).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::super::observe_wifi::{wifi_state, DNS_FRESH_S};
 use super::super::steps::Steps;
 use super::*;
 use crate::commands::network::wifi_event;
+use crate::commands::observation::snapshot::wifi::{wifi_state, DNS_FRESH_S};
 use crate::testing::{ok, Fixture};
 use serde_json::{json, Map, Value};
 use std::{
@@ -375,10 +375,10 @@ fn a_wrong_password_stays_reported_until_a_connect() {
             wifi_state(
                 true,
                 &wpa(state, &record["credential"]["error"]),
-                &[],
-                &json!([]),
                 false,
-                None
+                false,
+                false,
+                &Value::Null
             ),
             (json!("Failed"), json!("wrong_credentials"))
         );
@@ -387,10 +387,10 @@ fn a_wrong_password_stays_reported_until_a_connect() {
         wifi_state(
             true,
             &wpa("COMPLETED", &json!("wrong_credentials")),
-            &[json!("192.0.2.2")],
-            &json!([{}]),
             true,
-            None
+            true,
+            true,
+            &Value::Null
         ),
         (json!("Online"), Value::Null)
     );

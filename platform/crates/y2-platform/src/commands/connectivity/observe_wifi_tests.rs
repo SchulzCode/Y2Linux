@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::{ok, Fixture};
+use serde_json::json;
 use std::sync::Arc;
 use y2p_core::clock::{Clock, Manual};
 
