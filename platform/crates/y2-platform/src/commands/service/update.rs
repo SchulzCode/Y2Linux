@@ -39,6 +39,8 @@ const FILES: [&str; 5] = [
     "recovery.img.gz",
 ];
 const TERMINAL: [&str; 4] = ["Idle", "Acknowledged", "RolledBack", "Failed"];
+/// `update check/stage` while another one holds .stage.lock.
+const IN_PROGRESS: &str = "update_in_progress";
 const RESERVE: i128 = 96 * 1024 * 1024;
 const CHANNEL: &str = "/etc/y2linux/update-channel.json";
 /// Owner gate before the device turns off to install (decision 2026-10-15).
@@ -766,8 +768,7 @@ impl Staging<'_> {
     ) -> Result<Value> {
         let root = self.root;
         let download = self.directory.join("download.json");
-        // DEFECT (CONTRACT.md): a second `update check/stage` meeting the busy .stage.lock overwrites
-        // download.json with a Failed `[Errno 11]` while the first download continues.
+        // stage() refused a busy lock already; this one is held, or fails for another reason.
         match file.try_lock() {
             Ok(()) => {}
             Err(std::fs::TryLockError::WouldBlock) => {
@@ -1069,6 +1070,11 @@ pub fn stage(
         .custom_flags(libc::O_NOFOLLOW)
         .open(&lock)
         .map_err(|e| Raise::os(e, &lock))?;
+    // A second check or download while one runs (the daily automatic check meeting the owner's) is
+    // refused before anything is written: the running one keeps its download.json.
+    if let Err(std::fs::TryLockError::WouldBlock) = file.try_lock() {
+        return Err(Raise::value(IN_PROGRESS));
+    }
     let token = token(root)?;
     let terminate = Terminate::save();
     CANCELLED.store(false, Ordering::SeqCst);
@@ -1261,14 +1267,15 @@ fn maintenance<T>(root: &Root, function: impl FnOnce() -> Result<T>) -> Result<T
 /// request on the restart (or, with the owner's override, on the next Power press).
 fn apply(root: &Root, rollback: bool) -> Result<Value> {
     maintenance(root, || {
-        if rollback {
-            // DEFECT (CONTRACT.md): the core is asked for the rollback before the battery gate, so a
-            // battery refusal leaves the journal RollbackPending.
-            core(root, "rollback", None, 15.0)?;
-        } else if !state_is(&status(root), &["Queued"]) {
+        if !rollback && !state_is(&status(root), &["Queued"]) {
             return Err(Raise::value("no_verified_queued_update"));
         }
+        // Before the core's rollback: a battery refusal must leave the journal as it was, not
+        // RollbackPending with no restart to follow.
         battery_gate(root)?;
+        if rollback {
+            core(root, "rollback", None, 15.0)?;
+        }
         core(root, "prepare", None, 120.0)?;
         rpc(root, restart_mode(root))
     })
@@ -1314,7 +1321,7 @@ fn automatic_check(root: &Root) -> Result<Value> {
     }
     if let Some(stamp) = int_or_float(last.get("time")) {
         if (0.0..CHECK_INTERVAL).contains(&(now - stamp)) {
-            return Ok(Value::Null);
+            return Ok(skipped("not_due"));
         }
     }
     // Any attempt is recorded, so an unready clock retries hourly, not every tick.
@@ -1322,19 +1329,21 @@ fn automatic_check(root: &Root) -> Result<Value> {
     attempt.insert("schema".into(), json!(1));
     attempt.insert("attempt".into(), json!(now));
     atomic_json(&directory.join("last-check.json"), &attempt, false)?;
+    if !state_is(&status(root), &TERMINAL) {
+        return Ok(skipped("update_pending"));
+    }
     // `not channel(ctx).get('manifest_url')`: truthiness only; its type matters at the check below.
-    if !state_is(&status(root), &TERMINAL) || !channel(root).get("manifest_url").is_some_and(truthy)
-    {
-        return Ok(Value::Null);
+    if !channel(root).get("manifest_url").is_some_and(truthy) {
+        return Ok(skipped("no_channel"));
     }
     if root.json_object("/run/y2/network.json").get("state") != Some(&json!("Online")) {
-        return Ok(Value::Null);
+        return Ok(skipped("offline"));
     }
     if !super::time_status(root)
         .get("tls_ready")
         .is_some_and(truthy)
     {
-        return Ok(Value::Null);
+        return Ok(skipped("clock_not_ready"));
     }
     // Only a check that reached the server starts the next day; a failed one is tried again with the
     // hourly attempt (it waited a whole day).
@@ -1359,17 +1368,24 @@ fn automatic_check(root: &Root) -> Result<Value> {
             record["result"] = json!("failed");
             record["failure"] = json!(prefix(&error.text(), 120));
             // A failed background check is not the owner's failed update: keep what the Software
-            // Update page showed before.
+            // Update page showed before. A busy lock wrote nothing, and the owner's check or download
+            // that holds it keeps its record.
             let path = root.path("/data/updates/download.json");
-            if previous.is_null() {
+            let busy = error.text() == IN_PROGRESS;
+            if !busy && previous.is_null() {
                 let _ = crate::reply::unlink_missing_ok(&path);
-            } else {
+            } else if !busy {
                 let _ = atomic_json(&path, &previous, true);
             }
         }
     }
     atomic_json(&directory.join("last-check.json"), &record, true)?;
     Ok(record)
+}
+
+/// What `update auto-check` prints when it did not check (the service ignores it; `null` before).
+fn skipped(reason: &str) -> Value {
+    json!({"schema": 1, "result": "skipped", "reason": reason})
 }
 
 /// `update.application_healthy`: Reborn's own verdict (`healthy`, Beta 8): drawing, database working,
@@ -1545,7 +1561,6 @@ pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) 
                 };
                 stage(root, package, url.as_deref(), action == "check")
             }
-            // DEFECT (CONTRACT.md): `update auto-check` prints `null` when nothing was due.
             "auto-check" => automatic_check(root),
             "probe-recovery" => probe(root),
             "recovery-status" => Ok(Value::Object(core(root, "misc", None, 15.0)?.0)),
@@ -1576,6 +1591,93 @@ pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::{ok, scripted, Fixture};
+
+    /// A player whose verified /data is mounted (the transfer volume `stage` needs).
+    fn data_ready() -> Fixture {
+        let fixture = Fixture::new();
+        fixture
+            .put("/proc/sys/kernel/random/boot_id", "boot-a\n")
+            .put(
+                "/proc/self/mountinfo",
+                "30 22 179:9 / /data rw,noatime - ext4 /dev/mmcblk0p9 rw\n",
+            )
+            .put(
+                "/sys/devices/platform/11230000.mmc/mmc_host/mmc0/mmc0:0001/block/mmcblk0/mmcblk0p9/dev",
+                "179:9\n",
+            )
+            .mkdir("/sys/dev/block")
+            .mkdir("/data/updates");
+        std::os::unix::fs::symlink(
+            "../../devices/platform/11230000.mmc/mmc_host/mmc0/mmc0:0001/block/mmcblk0/mmcblk0p9",
+            fixture.path("/sys/dev/block/179:9"),
+        )
+        .unwrap();
+        fixture
+    }
+
+    fn data_uuid() -> Vec<(Vec<String>, command::Outcome)> {
+        vec![ok(
+            &["blkid", "-p", "-s", "UUID", "-o", "value", "/dev/mmcblk0p9"],
+            "79324c69-6e75-4801-8000-000000000102",
+        )]
+    }
+
+    #[test]
+    fn a_busy_stage_lock_leaves_the_running_download_alone() {
+        let fixture = data_ready();
+        let staging = r#"{"schema":1,"state":"Staging","id":".incoming-first"}"#;
+        fixture.put_mode("/data/updates/download.json", staging, 0o600);
+        fixture.put_mode("/data/updates/.stage.lock", "", 0o600);
+        // The first download holds the lock on its own open file.
+        let first = File::open(fixture.path("/data/updates/.stage.lock")).unwrap();
+        first.try_lock().unwrap();
+        let (result, _) = scripted(data_uuid(), || {
+            stage(
+                &fixture.root,
+                None,
+                Some("https://updates.example/m.json"),
+                true,
+            )
+        });
+        assert_eq!(result.err().map(|e| e.text()).as_deref(), Some(IN_PROGRESS));
+        assert_eq!(fixture.read("/data/updates/download.json"), staging);
+    }
+
+    #[test]
+    fn auto_check_says_why_it_did_not_check() {
+        let fixture = Fixture::new();
+        let now = super::super::time_wall();
+        fixture.put_json(
+            "/data/updates/last-check.json",
+            &json!({"schema": 1, "result": "checked", "time": now - 60.0}),
+        );
+        assert_eq!(
+            automatic_check(&fixture.root).ok(),
+            Some(json!({"schema": 1, "result": "skipped", "reason": "not_due"}))
+        );
+        // Due, but nothing to check against: the attempt is recorded and the reason given.
+        fixture.remove("/data/updates/last-check.json");
+        let answer = automatic_check(&fixture.root).ok().unwrap();
+        assert_eq!(answer["result"], json!("skipped"));
+        assert!(answer["reason"].is_string());
+        assert!(fixture.json("/data/updates/last-check.json")["attempt"].is_number());
+    }
+
+    #[test]
+    fn a_rollback_on_a_low_battery_never_reaches_the_core() {
+        let fixture = Fixture::new();
+        fixture.put_json(
+            "/run/y2/power.json",
+            &json!({"battery": {"percent": 20, "charging": false, "status": "Discharging"}}),
+        );
+        let (result, calls) = scripted(vec![], || apply(&fixture.root, true));
+        assert_eq!(
+            result.err().map(|e| e.text()).as_deref(),
+            Some("update_needs_charger_or_half_battery")
+        );
+        assert!(calls.is_empty(), "{calls:?}");
+    }
 
     #[test]
     fn health_debug_values_are_numbers_only() {
