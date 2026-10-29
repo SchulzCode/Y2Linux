@@ -18,7 +18,7 @@ use super::{
         admission, application_starting, battery_and_cable, failed_before_freeze, guard_record,
         lock_holders, operation_state, retry_later, spm_state,
     },
-    monotonic, py_eq,
+    py_eq,
     receipt::{self, record, wake_irqs, Stage},
     request, traceback, E, INTERRUPTED,
 };
@@ -94,6 +94,10 @@ use super::{interrupted as check, MASKED};
 
 /// `time.sleep(seconds)`: a signal handler that raises ends it.
 fn sleep(seconds: f64) -> Result<(), E> {
+    #[cfg(test)]
+    if let Some(result) = seams::with(|s| &mut s.sleep, |f| f(seconds)) {
+        return result;
+    }
     let until = std::time::Instant::now() + Duration::from_secs_f64(seconds);
     loop {
         let left = until.saturating_duration_since(std::time::Instant::now());
@@ -163,6 +167,24 @@ fn inherited(root: &Root, fd: i32) -> Result<(), E> {
         return Err(E::os(&io::Error::last_os_error(), None));
     }
     Ok(())
+}
+
+/// `time.monotonic()`.
+fn monotonic() -> f64 {
+    #[cfg(test)]
+    if let Some(now) = seams::with(|s| &mut s.monotonic, |f| f()) {
+        return now;
+    }
+    super::monotonic()
+}
+
+/// `common.command(ctx, argv, timeout=20)`.
+fn run(root: &Root, argv: &[&str]) -> command::Outcome {
+    #[cfg(test)]
+    if let Some(outcome) = seams::with(|s| &mut s.command, |f| f(argv)) {
+        return outcome;
+    }
+    command::run(root, argv, 20.0)
 }
 
 fn execute(root: &Root, fd: i32) -> Result<i64, E> {
@@ -470,7 +492,7 @@ fn operation_locks(root: &Root) -> Result<Vec<(&'static str, File)>, E> {
 
 /// `command(ctx, argv)`: a platform service the sleep needs, bounded at 20 s.
 fn service(root: &Root, argv: &[&str]) -> Result<(), E> {
-    let outcome = command::run(root, argv, 20.0);
+    let outcome = run(root, argv);
     check()?;
     if !outcome.ok {
         let name = Path::new(argv[0])
@@ -489,11 +511,14 @@ fn service(root: &Root, argv: &[&str]) -> Result<(), E> {
 /// whole sleep request.
 fn quiesce_radio(root: &Root, radio: &str) -> Result<u32, E> {
     let argv = ["/usr/sbin/y2-radio", radio, "off-runtime"];
-    let deadline = monotonic() + RADIO_QUIESCE_SECONDS;
+    let window = RADIO_QUIESCE_SECONDS;
+    #[cfg(test)]
+    let window = seams::SEAMS.with(|s| s.borrow().radio_quiesce_seconds.unwrap_or(window));
+    let deadline = monotonic() + window;
     let mut attempts = 0;
     loop {
         attempts += 1;
-        let outcome = command::run(root, &argv, 20.0);
+        let outcome = run(root, &argv);
         check()?;
         if outcome.ok {
             return Ok(attempts);
@@ -554,6 +579,8 @@ fn marker(root: &Root, stage: &str) -> Result<(), E> {
 /// `write(2)` on an unbuffered descriptor. A short write is also a failure (EIO), never a reason to
 /// issue the remaining command again.
 fn control_write(root: &Root, name: &str, value: &str) -> Result<(), E> {
+    #[cfg(test)]
+    seams::with(|s| &mut s.control, |f| f(root, name, value)).transpose()?;
     let path = root.path(name);
     // open(..., 'wb', buffering=0): O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666.
     let file = OpenOptions::new()
@@ -566,8 +593,7 @@ fn control_write(root: &Root, name: &str, value: &str) -> Result<(), E> {
         .map_err(|e| E::os(&e, Some(&path)))?;
     let data = value.as_bytes();
     loop {
-        // SAFETY: one write of `data` to the open descriptor.
-        let written = unsafe { libc::write(file.as_raw_fd(), data.as_ptr().cast(), data.len()) };
+        let written = store(&file, data);
         if written < 0 {
             let error = io::Error::last_os_error();
             if error.raw_os_error() == Some(libc::EINTR) {
@@ -588,6 +614,23 @@ fn control_write(root: &Root, name: &str, value: &str) -> Result<(), E> {
     }
 }
 
+/// One write(2) of `data`.
+fn store(file: &File, data: &[u8]) -> isize {
+    #[cfg(test)]
+    if let Some(result) = seams::with(|s| &mut s.store, |f| f(data)) {
+        return match result {
+            Ok(written) => written as isize,
+            Err(errno) => {
+                // SAFETY: this thread's errno, as the replaced write(2) sets it.
+                unsafe { *libc::__errno_location() = errno };
+                -1
+            }
+        };
+    }
+    // SAFETY: one write of `data` to the open descriptor.
+    unsafe { libc::write(file.as_raw_fd(), data.as_ptr().cast(), data.len()) }
+}
+
 /// The kernel entry: the backstop armed immediately before the blocking `mem` write and cleared
 /// immediately after it (Python's `try: enter(ctx) finally: backstop 0`).
 fn enter(root: &Root) -> Result<(), E> {
@@ -601,6 +644,10 @@ fn enter(root: &Root) -> Result<(), E> {
 }
 
 fn kernel_sleep(root: &Root) -> Result<(), E> {
+    #[cfg(test)]
+    if let Some(result) = seams::with(|s| &mut s.enter, |f| f(root)) {
+        return result;
+    }
     let result = control_write(root, "/sys/power/state", "mem\n");
     if result.is_ok() {
         check()?;
@@ -703,3 +750,61 @@ fn read_count(root: &Root) -> Result<Option<String>, E> {
     }
     Ok(Some(y2p_core::root::python_strip(&text).to_owned()))
 }
+
+/// Where Python's tests patch this module (`execute`'s `enter`, `time.sleep`, `time.monotonic`,
+/// `control_write`, the raw PM store, `command`, `RADIO_QUIESCE_SECONDS`) and `product_sleep.launch`:
+/// per thread, in unit tests only.
+#[cfg(test)]
+pub(crate) mod seams {
+    use super::{Root, E};
+    use std::{cell::RefCell, fs::File};
+    use y2p_core::command::Outcome;
+
+    /// One replaced call.
+    pub type Seam<F> = Option<Box<F>>;
+    pub type Enter = dyn FnMut(&Root) -> Result<(), E>;
+    pub type Sleep = dyn FnMut(f64) -> Result<(), E>;
+    pub type Control = dyn FnMut(&Root, &str, &str) -> Result<(), E>;
+    pub type Store = dyn FnMut(&[u8]) -> Result<usize, i32>;
+    pub type Command = dyn FnMut(&[&str]) -> Outcome;
+    pub type Launch = dyn FnMut(&Root, &File) -> Result<(), E>;
+
+    #[derive(Default)]
+    pub struct Seams {
+        /// The kernel entry (`kernel_sleep`); the backstop writes around it stay.
+        pub enter: Seam<Enter>,
+        pub sleep: Seam<Sleep>,
+        pub monotonic: Seam<dyn FnMut() -> f64>,
+        /// Runs before each PM control write; an error is raised instead of the write.
+        pub control: Seam<Control>,
+        /// The one write(2) of a PM control write: the bytes it wrote, or its errno.
+        pub store: Seam<Store>,
+        pub command: Seam<Command>,
+        pub radio_quiesce_seconds: Option<f64>,
+        /// `sleep request`'s helper start.
+        pub launch: Seam<Launch>,
+    }
+
+    thread_local! {
+        pub static SEAMS: RefCell<Seams> = RefCell::new(Seams::default());
+    }
+
+    /// Call the seam `pick` names, if set (taken out meanwhile: it may run code that asks for another).
+    pub fn with<F: ?Sized, R>(
+        pick: fn(&mut Seams) -> &mut Seam<F>,
+        call: impl FnOnce(&mut F) -> R,
+    ) -> Option<R> {
+        let mut seam = SEAMS.with(|s| pick(&mut s.borrow_mut()).take())?;
+        let result = call(&mut seam);
+        SEAMS.with(|s| *pick(&mut s.borrow_mut()) = Some(seam));
+        Some(result)
+    }
+
+    pub fn reset() {
+        SEAMS.with(|s| *s.borrow_mut() = Seams::default());
+    }
+}
+
+#[cfg(test)]
+#[path = "helper_tests.rs"]
+mod helper_tests;

@@ -812,3 +812,7 @@ mod tests {
         assert_eq!(other["reason"], "same_boot_not_proven");
     }
 }
+
+#[cfg(test)]
+#[path = "receipt_tests.rs"]
+mod receipt_tests;

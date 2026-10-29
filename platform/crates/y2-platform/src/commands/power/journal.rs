@@ -217,7 +217,7 @@ const KERNEL_TOKENS: [&str; 18] = [
     "PM: ",
 ];
 const PROCESSES: [&str; 2] = ["umtprd", "dropbear"];
-const FOLLOW_UP_S: f64 = 30.0;
+pub(crate) const FOLLOW_UP_S: f64 = 30.0;
 const MIN_INTERVAL_S: f64 = 10.0;
 
 /// `ipv4(ctx, interface)`: local IPv4 addresses of one interface from /proc/net/fib_trie: no

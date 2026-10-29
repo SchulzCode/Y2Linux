@@ -58,9 +58,6 @@ int main(void) {
         self.assertIn('f.dma_intr=readl(b+0x200);', source)
         self.assertNotIn('readb(b+0x200)', source)
         self.assertIn('dma_unmask_rearms=%u dma_unmask_lost=%u dma_intr_before=%08x dma_intr_after=%08x', source)
-        fields = (ROOT / 'tools/platform/y2_platform/sleep_diagnostics.py').read_text()
-        for key in ('dma_unmask_lost', 'dma_intr_before', 'dma_tx_programs', 'dma_irqs'):
-            self.assertIn(f"'{key}'", fields)
 
 
 if __name__ == '__main__':

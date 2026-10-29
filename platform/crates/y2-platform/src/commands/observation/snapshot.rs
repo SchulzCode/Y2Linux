@@ -96,7 +96,7 @@ pub fn device_instance(root: &Root, device_id: &str) -> Option<String> {
 
 // ---- cpu ---------------------------------------------------------------------------------------
 
-fn timer_runtime(root: &Root) -> Result<Map<String, Value>, Failure> {
+pub(crate) fn timer_runtime(root: &Root) -> Result<Map<String, Value>, Failure> {
     let text = if root.is_real() {
         let answer =
             command::run_with(root, &["/bin/cat", "/proc/timer_list"], 0.2, 262_144, false);

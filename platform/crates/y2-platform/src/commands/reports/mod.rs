@@ -18,7 +18,7 @@ pub(crate) mod state;
 mod tarball;
 mod upload;
 mod volume;
-mod workload;
+pub(crate) mod workload;
 
 use super::Command;
 use crate::reply::{Failure, Outcome, Reply};
