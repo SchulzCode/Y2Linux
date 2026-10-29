@@ -83,7 +83,7 @@ fn start(fixture: &Fixture, name: &str) -> (String, PathBuf) {
         &fixture.root,
         Some(name),
         Some(payload.len() as i64),
-        &hex(&Sha256::digest(&payload)),
+        &y2p_core::digest::sha256_hex(&payload),
     )
     .unwrap();
     (

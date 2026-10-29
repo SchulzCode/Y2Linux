@@ -8,6 +8,10 @@ mod argparse;
 mod cli;
 mod commands;
 mod reply;
+
+/// `regex!(pattern)`: a constant pattern compiled once (y2p_core's).
+pub(crate) use y2p_core::regex;
+
 #[cfg(test)]
 mod testing;
 

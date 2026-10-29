@@ -3,6 +3,7 @@
 //! records and outputs were defined by them: another split would change what the snapshot reports.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::Failure;
+use regex::Regex;
 use serde::de::{value::MapDeserializer, DeserializeOwned};
 use serde_json::{Map, Value};
 use std::{
@@ -14,7 +15,6 @@ pub use y2p_core::paths::{name, parent_name};
 use y2p_core::py::PyValue;
 pub use y2p_core::text::{split as split_ws, splitlines};
 use y2p_core::{
-    observation_support::regex::Regex,
     root::{self, python_strip},
     Root,
 };
@@ -125,18 +125,6 @@ pub fn findall2(pattern: &Regex, text: &str) -> Vec<(String, String)> {
 /// `dict(re.findall(pattern, text))` (a later key wins).
 pub fn findall_map(pattern: &Regex, text: &str) -> BTreeMap<String, String> {
     findall2(pattern, text).into_iter().collect()
-}
-
-/// A regex compiled once.
-#[macro_export]
-macro_rules! regex {
-    ($pattern:expr) => {{
-        static PATTERN: std::sync::LazyLock<y2p_core::observation_support::regex::Regex> =
-            std::sync::LazyLock::new(|| {
-                y2p_core::observation_support::regex::Regex::new($pattern).expect("pattern")
-            });
-        &*PATTERN
-    }};
 }
 
 fn as_i128(value: &Value) -> Option<i128> {

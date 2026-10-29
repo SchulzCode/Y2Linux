@@ -37,3 +37,16 @@ pub use root::Root;
 pub fn wide<T: Into<i64>>(value: T) -> i64 {
     value.into()
 }
+
+#[doc(hidden)]
+pub use regex as __regex;
+
+/// A constant regular expression, compiled on first use: `&'static Regex`.
+#[macro_export]
+macro_rules! regex {
+    ($pattern:expr) => {{
+        static PATTERN: std::sync::LazyLock<$crate::__regex::Regex> =
+            std::sync::LazyLock::new(|| $crate::__regex::Regex::new($pattern).expect("pattern"));
+        &*PATTERN
+    }};
+}

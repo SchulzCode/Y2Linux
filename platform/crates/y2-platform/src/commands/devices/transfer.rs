@@ -21,7 +21,8 @@ use std::{
 };
 use workload::workload;
 use y2p_core::{
-    devices_support::{hex, record, Digest, Sha256},
+    devices_support::record,
+    digest::Sha256,
     json::{Object, ObjectExt},
     py::{self, eq_int, exact_int},
     Root,
@@ -334,7 +335,7 @@ fn seal(stage: RawFd, size: i64, expected: &str) -> Result<(), Failure> {
         digest.update(&chunk);
         remaining -= chunk.len();
     }
-    if hex(&digest.finalize()) != expected || fstat(source.as_raw_fd())?.size != size {
+    if digest.hexdigest() != expected || fstat(source.as_raw_fd())?.size != size {
         return Err(Failure::value("upload_hash_or_size_mismatch"));
     }
     // SAFETY: plain syscall on an open descriptor.
@@ -427,7 +428,7 @@ fn publish_copy(
             digest.update(&chunk);
             remaining -= chunk.len();
         }
-        if hex(&digest.finalize()) != expected || fstat(out.as_raw_fd())?.size as u64 != size {
+        if digest.hexdigest() != expected || fstat(out.as_raw_fd())?.size as u64 != size {
             return Err(Failure::value("published_copy_hash_or_size_mismatch"));
         }
         fsync(out.as_raw_fd())?;

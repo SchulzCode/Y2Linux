@@ -155,8 +155,7 @@ pub fn flock_pids(root: &crate::Root, meta: &std::fs::Metadata) -> Vec<String> {
 /// The live holders of a flock on that file as `pid/comm` (the name with anything but word
 /// characters, `.` and `-` as `_`, at most 32 characters), at most 8: never inferred from old files.
 pub fn flock_holders(root: &crate::Root, meta: &std::fs::Metadata) -> Vec<String> {
-    static COMM: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    let comm = COMM.get_or_init(|| regex::Regex::new(r"[^\w.-]").expect("pattern"));
+    let comm = crate::regex!(r"[^\w.-]");
     flock_pids(root, meta)
         .into_iter()
         .take(8)

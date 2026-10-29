@@ -9,8 +9,6 @@ use crate::{
 use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub use sha2::{Digest, Sha256};
-
 /// The wall clock as ISO 8601 UTC with microseconds: `2026-10-28T20:25:20.108044+00:00`, without the
 /// fraction when the microseconds are zero (the records' established timestamp form).
 pub fn utc_isoformat_now() -> String {
@@ -93,7 +91,7 @@ mod tests {
     #[test]
     fn digests_are_lowercase_hex() {
         assert_eq!(
-            hex(&Sha256::digest(b"abc")),
+            hex(&<sha2::Sha256 as sha2::Digest>::digest(b"abc")),
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
     }

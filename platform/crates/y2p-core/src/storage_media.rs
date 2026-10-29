@@ -149,8 +149,7 @@ fn classified(output: &str) -> Vec<(&str, Previous)> {
 }
 
 fn offset_pairs() -> &'static Regex {
-    static PAIRS: OnceLock<Regex> = OnceLock::new();
-    PAIRS.get_or_init(|| Regex::new(r"\d+:[0-9a-f]{2}/[0-9a-f]{2}").expect("pattern"))
+    crate::regex!(r"\d+:[0-9a-f]{2}/[0-9a-f]{2}")
 }
 
 /// The classes a `fsck.fat -n` run reported, sorted; 'other' for any line that
@@ -186,13 +185,11 @@ pub fn fat_findings(output: Option<&str>) -> Vec<String> {
 }
 
 fn quoted() -> &'static Regex {
-    static QUOTED: OnceLock<Regex> = OnceLock::new();
-    QUOTED.get_or_init(|| Regex::new(r#"'[^']*'|"[^"]*""#).expect("pattern"))
+    crate::regex!(r#"'[^']*'|"[^"]*""#)
 }
 
 fn digits() -> &'static Regex {
-    static DIGITS: OnceLock<Regex> = OnceLock::new();
-    DIGITS.get_or_init(|| Regex::new(r"\d+").expect("pattern"))
+    crate::regex!(r"\d+")
 }
 
 /// What the 'other' lines of a `fsck.fat -n` run said, never a name (F12,

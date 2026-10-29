@@ -1,11 +1,7 @@
-//! What the `observation` port group needs beyond the shared primitives: the regular expression and
-//! hash crates for the multicall binary, Python's `random.Random` (bench-storage's data and offsets
+//! What the `observation` port group needs beyond the shared primitives: Python's `random.Random` (bench-storage's data and offsets
 //! are part of its output: CONTRACT.md "What a port must not miss") and `common.command` with one
 //! inherited descriptor (`pass_fds`, bench-library's scratch directory).
 // SPDX-License-Identifier: GPL-2.0-only
-pub use regex;
-pub use sha2;
-
 use crate::{command, Root};
 use std::{
     io::Read,

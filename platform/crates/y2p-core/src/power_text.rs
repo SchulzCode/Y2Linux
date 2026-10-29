@@ -3,11 +3,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 pub use crate::text::{is_space as python_space, split as python_split};
 use regex::Regex;
-use std::sync::OnceLock;
-
-fn cached(cell: &'static OnceLock<Regex>, pattern: &str) -> &'static Regex {
-    cell.get_or_init(|| Regex::new(pattern).expect("pattern"))
-}
 
 /// `re.findall(pattern, text)` for a two-group pattern.
 fn pairs(pattern: &Regex, text: &str) -> Vec<(String, String)> {
@@ -31,34 +26,30 @@ fn dict(found: Vec<(String, String)>) -> Vec<(String, String)> {
 
 /// `sleep_diagnostics.key_values`: `dict(re.findall(r'\b([a-z0-9_]+)=(\S+)', text or ''))`.
 pub fn key_values(text: Option<&str>) -> Vec<(String, String)> {
-    static PATTERN: OnceLock<Regex> = OnceLock::new();
     dict(pairs(
-        cached(&PATTERN, r"\b([a-z0-9_]+)=(\S+)"),
+        crate::regex!(r"\b([a-z0-9_]+)=(\S+)"),
         text.unwrap_or_default(),
     ))
 }
 
 /// `charger_state.classify`'s `dict(re.findall(r'(\w+)=(-?[\w.]+)', charging_state or ''))`.
 pub fn charger_fields(text: Option<&str>) -> Vec<(String, String)> {
-    static PATTERN: OnceLock<Regex> = OnceLock::new();
     dict(pairs(
-        cached(&PATTERN, r"(\w+)=(-?[\w.]+)"),
+        crate::regex!(r"(\w+)=(-?[\w.]+)"),
         text.unwrap_or_default(),
     ))
 }
 
 /// `observe.charge_field(charging_state, 'sense_current_est_ua')`: `\bsense_current_est_ua=(-?\d+)`.
 pub fn sense_current(text: Option<&str>) -> Option<i64> {
-    static PATTERN: OnceLock<Regex> = OnceLock::new();
-    let pattern = cached(&PATTERN, r"\bsense_current_est_ua=(-?\d+)");
+    let pattern = crate::regex!(r"\bsense_current_est_ua=(-?\d+)");
     let found = pattern.captures(text?)?;
     crate::root::python_int(&found[1])
 }
 
 /// `re.match(r'[|+`-]*\s*([0-9]+(?:\.[0-9]+){3})$', text)` on a stripped /proc/net/fib_trie line.
 pub fn trie_address(text: &str) -> Option<String> {
-    static PATTERN: OnceLock<Regex> = OnceLock::new();
-    let pattern = cached(&PATTERN, r"^[|+`-]*\s*([0-9]+(?:\.[0-9]+){3})$");
+    let pattern = crate::regex!(r"^[|+`-]*\s*([0-9]+(?:\.[0-9]+){3})$");
     pattern.captures(text).map(|c| c[1].to_owned())
 }
 

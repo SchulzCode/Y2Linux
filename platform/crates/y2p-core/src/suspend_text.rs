@@ -5,7 +5,6 @@
 pub use crate::text::{is_space, split, splitlines};
 pub use regex::Regex;
 use serde_json::{Map, Value};
-use std::sync::OnceLock;
 
 /// `str.isdecimal()` for the ASCII text sysfs gives (`''` is not decimal).
 pub fn is_decimal(text: &str) -> bool {
@@ -34,8 +33,7 @@ pub fn int16(text: &str) -> Option<i64> {
 }
 
 fn pairs() -> &'static Regex {
-    static PAIRS: OnceLock<Regex> = OnceLock::new();
-    PAIRS.get_or_init(|| Regex::new(r"(\w+)=(\S+)").expect("pattern"))
+    crate::regex!(r"(\w+)=(\S+)")
 }
 
 /// `dict(re.findall(r'(\w+)=(\S+)', text or ''))`: a later key wins.
