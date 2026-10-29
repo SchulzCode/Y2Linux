@@ -1,290 +1,143 @@
 #!/usr/bin/env python3
-"""Keep the Rust dispatcher's argument parser equal to the Python CLI's (PLATFORM-RUST-PORT-PLAN.md §3, §5a).
+"""Keep the Rust dispatcher's argument parser data consistent (PLATFORM-RUST-PORT-PLAN.md §3, §5a).
 
-/usr/sbin/y2-platform parses its arguments itself (platform/crates/y2-platform/src/argparse.rs) the way
-`python3 -I /usr/lib/y2-platform/main.py` does with the parser tools/platform/y2_platform/cli.py builds. Two files
-are this parser as data, both made by the real parser, run with sys.argv[0] = 'main.py', no terminal and no COLUMNS
-(as on the player, where the platform's callers read its output through pipes):
+/usr/sbin/y2-platform parses its arguments itself (platform/crates/y2-platform/src/argparse.rs) the way the Python
+platform's `main.py` did with its argparse parser. The parser is data, made once from that parser and edited by hand
+since (the Python platform is gone):
   src/argparse.json        per parser (main.py and each subcommand): its actions (kind, dest, option strings,
                            nargs, type, choices, default, required, the name errors use), the option strings in
-                           argparse's lookup order, prog, `main.py … --help` and the usage line errors print
-  src/argparse/unicode.rs  the Unicode tables of Python's int(), float(), repr() and re `\\d` the parser uses
-
-The reference interpreter is the player's Python 3.15 (Y2_PLAYER_PYTHON, else the build's host python3.15 under
-out/build/buildroot/host/bin of this checkout or of the main checkout). Without it the host python3 runs the parser
-with the 3.15 argparse default that changes this parser's behaviour (suggest_on_error=True: "maybe you meant"); the
-Unicode tables are then left alone (another Unicode version) and not checked.
-  platform-argparse.py --check        exit 1 when a file differs from the parser
-  platform-argparse.py --write        rewrite them
-  platform-argparse.py --reference    (tests) read a JSON list of argument lists on stdin and print, per list, what
-                                      main.py's parser does: exit code, stdout, stderr and the parsed namespace
+                           argparse's lookup order, prog, `main.py … --help` and the usage line errors print; one
+                           parser per line (argparse.rs reads only the lines of main.py and of the subcommand called)
+  src/argparse/unicode.rs  the Unicode tables of Python 3.15's int(), float(), repr() and re `\\d` the parser uses
+An edit of argparse.json changes the argument golden (tests/test_platform_argparse.py; re-record it with
+Y2_RECORD_GOLDENS=1 and review) and platform/contract.json's table (tools/development/platform-contract.py).
+  platform-argparse.py --check   exit 1 when argparse.json is not in its line layout or not consistent (each
+                                 parser's options index its actions, names, progs, usage and help agree,
+                                 subcommands are main.py's choices) or unicode.rs's tables are not sorted ranges
+  platform-argparse.py --write   rewrite argparse.json in its line layout (after a hand edit)
 """
 import argparse
-import io
 import json
-import os
 from pathlib import Path
-import subprocess
-import sys
+import re
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 SOURCE = REPOSITORY / 'platform/crates/y2-platform/src'
 SPEC = SOURCE / 'argparse.json'
 UNICODE = SOURCE / 'argparse/unicode.rs'
-PLAYER = (3, 15)
-PLAYER_BINARY = 'out/build/buildroot/host/bin/python3.15'
+KINDS = {'help', 'store', 'store_true', 'append', 'parsers'}
+TYPES = {None, 'int', 'float'}
+NARGS = {None, '?', '*', '+', '...', 'A...'}
+KEYS = {'prog', 'usage', 'help', 'suggest_on_error', 'options', 'actions'}
+ACTION_KEYS = {'kind', 'dest', 'options', 'nargs', 'type', 'choices', 'default', 'const', 'required', 'name'}
 
 
-def reference_python():
-    """The player's interpreter, if this host has one; otherwise None."""
-    named = os.environ.get('Y2_PLAYER_PYTHON')
-    if named:
-        return named
-    roots = [REPOSITORY]
-    try:
-        common = subprocess.run(['git', '-C', str(REPOSITORY), 'rev-parse', '--git-common-dir'],
-                                capture_output=True, text=True, check=True).stdout.strip()
-        roots.append((REPOSITORY / common).resolve().parent)  # a worktree's main checkout
-    except (OSError, subprocess.CalledProcessError):
-        pass
-    for root in roots:
-        candidate = root / PLAYER_BINARY
-        if candidate.is_file() and os.access(candidate, os.X_OK) and runs(candidate):
-            return str(candidate)
-    return None
+def layout(spec):
+    """argparse.json's text: main.py's parser on the first line, then one subcommand per line."""
+    def compact(value):
+        return json.dumps(value, ensure_ascii=False, separators=(',', ':'))
+    return '{"top":%s,\n"commands":[\n%s\n]}\n' % (compact(spec['top']), ',\n'.join(
+        compact(command) for command in spec['commands']))
 
 
-def runs(interpreter):
-    """Whether this host can start it (in the build container the build's host Python lacks its libraries)."""
-    try:
-        return subprocess.run([str(interpreter), '-I', '-c', 'pass'], capture_output=True, timeout=30).returncode == 0
-    except (OSError, subprocess.SubprocessError):
-        return False
-
-
-def inner(mode, stdin=None):
-    """Run this file's `mode` in the reference interpreter (or this one) as the player would: no terminal, no
-    COLUMNS, no colour variables, isolated mode."""
-    python = reference_python() or sys.executable
-    environment = {'PATH': os.environ.get('PATH', '/usr/bin:/bin')}
-    result = subprocess.run([python, '-I', str(Path(__file__).resolve()), mode], input=stdin,
-                            capture_output=True, text=True, env=environment)
-    if result.returncode != 0:
-        raise SystemExit('%s %s failed:\n%s' % (python, mode, result.stderr))
-    return json.loads(result.stdout)
-
-
-# ---- runs inside the reference interpreter ----
-
-def built_parser():
-    """The parser cli.main() builds (no handler runs), with prog 'main.py' as on the player."""
-    sys.argv[0] = 'main.py'
-    sys.path.insert(0, str(REPOSITORY / 'tools/platform'))
-    from y2_platform import cli
-
-    class Built(Exception):
-        pass
-
-    def capture(parser, *_, **__):
-        raise Built(parser)
-
-    original = argparse.ArgumentParser.parse_args
-    argparse.ArgumentParser.parse_args = capture
-    try:
-        cli.main()
-    except Built as built:
-        parser = built.args[0]
-    finally:
-        argparse.ArgumentParser.parse_args = original
-    parsers = [parser] + [sub for action in parser._actions if isinstance(action, argparse._SubParsersAction)
-                          for sub in action.choices.values()]
-    if sys.version_info[:2] < PLAYER:
-        for each in parsers:
-            each.suggest_on_error = True  # the 3.15 default
-    return parser
-
-
-def typed(value):
-    """A parsed value as JSON: int and float tagged (JSON has no inf/nan and no int/float distinction)."""
-    if value is argparse.SUPPRESS:
-        return {'suppress': True}
-    if value is None or isinstance(value, (bool, str)):
-        return value
-    if isinstance(value, int):
-        return {'int': str(value)}
-    if isinstance(value, float):
-        return {'float': repr(value)}
-    if isinstance(value, list):
-        return [typed(v) for v in value]
-    if isinstance(value, dict):
-        return {k: typed(v) for k, v in value.items()}
-    raise TypeError('unsupported value %r' % (value,))
-
-
-KINDS = {argparse._HelpAction: 'help', argparse._StoreAction: 'store', argparse._StoreTrueAction: 'store_true',
-         argparse._AppendAction: 'append', argparse._SubParsersAction: 'parsers'}
-TYPES = {None: None, int: 'int', float: 'float'}
-
-
-def plain(text):
-    # Names, option strings and choices are read without unescaping (borrowed from the embedded text).
-    if json.dumps(text, ensure_ascii=False)[1:-1] != text:
-        raise ValueError('%r needs JSON escapes' % text)
-    return text
-
-
-def describe_action(action):
-    if type(action) not in KINDS or action.type not in TYPES or getattr(action, 'deprecated', False):
-        raise ValueError('argparse.rs does not implement %r' % (action,))
-    if action.nargs not in (None, '?', '*', '+', '...', 'A...') and not isinstance(action.nargs, int):
-        raise ValueError('nargs %r' % (action.nargs,))
-    choices = list(action.choices) if action.choices is not None else None
-    if choices is not None and not all(isinstance(c, (str, int)) and not isinstance(c, bool) for c in choices):
-        raise ValueError('choices %r' % (choices,))
-    return {
-        'kind': KINDS[type(action)],
-        'dest': None if action.dest is argparse.SUPPRESS else plain(action.dest),
-        'options': [plain(o) for o in action.option_strings],
-        'nargs': action.nargs,
-        'type': TYPES[action.type],
-        'choices': [plain(c) if isinstance(c, str) else typed(c) for c in choices] if choices is not None else None,
-        'default': typed(action.default),
-        'const': typed(action.const),
-        'required': action.required,
-        'name': argparse._get_action_name(action),
-    }
-
-
-def describe_parser(parser):
-    if (parser.prefix_chars != '-' or not parser.allow_abbrev or not parser.exit_on_error or
-            parser.fromfile_prefix_chars or parser._mutually_exclusive_groups or parser._defaults or
-            parser._has_negative_number_optionals or parser.argument_default is not None):
-        raise ValueError('argparse.rs does not implement the settings of %s' % parser.prog)
-    dests = [a.dest for a in parser._actions if a.dest is not argparse.SUPPRESS]
+def parser_problems(name, parser, prog):
+    found = []
+    if set(parser) != KEYS:
+        return ['%s: keys %s' % (name, sorted(parser))]
+    if parser['prog'] != prog:
+        found.append('%s: prog %r, not %r' % (name, parser['prog'], prog))
+    if not parser['usage'].startswith('usage: ' + prog) or not parser['help'].startswith(parser['usage']):
+        found.append('%s: usage/help do not start with "usage: %s"' % (name, prog))
+    dests = [a['dest'] for a in parser['actions'] if a.get('dest') is not None]
     if len(dests) != len(set(dests)):
-        raise ValueError('%s: shared dest' % parser.prog)
-    index = {id(action): i for i, action in enumerate(parser._actions)}
-    return {
-        'prog': parser.prog,
-        'usage': parser.format_usage(),
-        'help': parser.format_help(),
-        'suggest_on_error': parser.suggest_on_error,
-        'options': [[plain(option), index[id(action)]] for option, action in parser._option_string_actions.items()],
-        'actions': [describe_action(a) for a in parser._actions],
-    }
-
-
-def ranges(flags):
-    """[[first, last], …] of the code points where flags[c] is true."""
-    found, start = [], None
-    for c, flag in enumerate(flags + [False]):
-        if flag and start is None:
-            start = c
-        elif not flag and start is not None:
-            found.append([start, c - 1])
-            start = None
+        found.append('%s: shared dest' % name)
+    for index, action in enumerate(parser['actions']):
+        where = '%s action %d' % (name, index)
+        if set(action) != ACTION_KEYS:
+            found.append('%s: keys %s' % (where, sorted(action)))
+            continue
+        if action['kind'] not in KINDS or action['type'] not in TYPES:
+            found.append('%s: kind %r type %r not implemented' % (where, action['kind'], action['type']))
+        if action['nargs'] not in NARGS and not isinstance(action['nargs'], int):
+            found.append('%s: nargs %r' % (where, action['nargs']))
+        if action['choices'] is not None and not all(
+                isinstance(c, str) or (isinstance(c, dict) and set(c) == {'int'} and re.fullmatch(r'-?\d+', c['int']))
+                for c in action['choices']):
+            found.append('%s: choices %r' % (where, action['choices']))
+        expected = '/'.join(action['options']) if action['options'] else action['dest']
+        if action['name'] != expected:
+            found.append('%s: name %r, not %r' % (where, action['name'], expected))
+        for option in action['options']:
+            if not option.startswith('-'):
+                found.append('%s: option %r' % (where, option))
+            if action['kind'] != 'help' and option not in parser['help']:
+                found.append('%s: %s not in the help text' % (where, option))
+    indexed = sorted((o, i) for o, i in parser['options'])
+    defined = sorted((o, i) for i, a in enumerate(parser['actions']) for o in a.get('options', ()))
+    if indexed != defined or len({o for o, _ in parser['options']}) != len(parser['options']):
+        found.append('%s: options do not index the actions\' option strings once each' % name)
     return found
 
 
-def extract():
-    import unicodedata
-    parser = built_parser()
-    subparsers = [a for a in parser._actions if isinstance(a, argparse._SubParsersAction)]
-    if len(subparsers) != 1 or any(isinstance(a, argparse._SubParsersAction)
-                                   for sub in subparsers[0].choices.values() for a in sub._actions):
-        raise ValueError('argparse.rs implements one level of subcommands')
-    spec = {'top': describe_parser(parser),
-            'commands': [[plain(name), describe_parser(sub)] for name, sub in subparsers[0].choices.items()]}
-    every = [chr(c) for c in range(0x110000)]
-    zeros = [c for c in range(0x110000) if unicodedata.decimal(every[c], None) == 0]
-    for zero in zeros:
-        assert all(unicodedata.decimal(every[zero + d], None) == d for d in range(10))
-    assert sum(1 for ch in every if unicodedata.decimal(ch, None) is not None) == 10 * len(zeros)
-    assert all(bool(__import__('re').match(r'\d', ch)) == (unicodedata.decimal(ch, None) is not None) for ch in every)
-    unicode = {'version': unicodedata.unidata_version, 'python': list(sys.version_info[:2]),
-               'nonprintable': ranges([not ch.isprintable() for ch in every]),
-               'space': [c for c in range(0x110000) if every[c].isspace()], 'zeros': zeros}
-    print(json.dumps({'spec': spec, 'unicode': unicode}))
+def problems(text):
+    try:
+        spec = json.loads(text)
+    except ValueError as error:
+        return ['argparse.json: %s' % error]
+    if set(spec) != {'top', 'commands'}:
+        return ['argparse.json: keys %s' % sorted(spec)]
+    found = [] if text == layout(spec) else ['argparse.json: not in its line layout (run --write)']
+    names = [name for name, _ in spec['commands']]
+    found += parser_problems('main.py', spec['top'], 'main.py')
+    subparsers = [a for a in spec['top']['actions'] if a.get('kind') == 'parsers']
+    if len(subparsers) != 1 or subparsers[0]['choices'] != names:
+        found.append('main.py: its subcommand choices are not the commands, in order')
+    if len(set(names)) != len(names):
+        found.append('argparse.json: a subcommand twice')
+    for name, parser in spec['commands']:
+        found += parser_problems(name, parser, 'main.py ' + name)
+        if name not in spec['top']['usage']:
+            found.append('main.py: %s not in its usage' % name)
+        if any(a.get('kind') == 'parsers' for a in parser['actions']):
+            found.append('%s: argparse.rs implements one level of subcommands' % name)
+    return found
 
 
-def reference():
-    """main.py's parse of each argument list on stdin: what it prints and exits with, or the namespace."""
-    parser = built_parser()
-    outcomes = []
-    for argv in json.load(sys.stdin):
-        out, err = io.StringIO(), io.StringIO()
-        saved = sys.stdout, sys.stderr
-        sys.stdout, sys.stderr = out, err
-        try:
-            namespace = parser.parse_args(argv)
-            code = 0
-        except SystemExit as stop:
-            namespace, code = None, stop.code
-        finally:
-            sys.stdout, sys.stderr = saved
-        outcomes.append({'exit': code, 'stdout': out.getvalue(), 'stderr': err.getvalue(),
-                         'namespace': None if namespace is None else typed(vars(namespace))})
-    print(json.dumps(outcomes))
-
-
-# ---- the files ----
-
-def unicode_source(table):
-    def rows(items, per):
-        return ''.join('\n   ' + ''.join(' %s,' % item for item in items[i:i + per]) for i in range(0, len(items), per))
-    return ('// Generated by tools/development/platform-argparse.py --write from Python %d.%d (unicodedata %s);\n'
-            '// do not edit. The player\'s Python decides: str.isprintable() (repr), str.isspace() and the\n'
-            '// decimal digits int(), float() and re `\\d` accept.\n'
-            '// SPDX-License-Identifier: GPL-2.0-only\n\n'
-            '/// Code points `repr()` escapes (not str.isprintable()), as inclusive ranges.\n'
-            'pub const NONPRINTABLE: &[(u32, u32)] = &[%s\n];\n\n'
-            '/// str.isspace(), which int() and float() turn into a space before parsing.\n'
-            'pub const SPACE: &[u32] = &[%s\n];\n\n'
-            '/// The zero of each run of ten decimal digits (Unicode Nd).\n'
-            'pub const DECIMAL_ZEROS: &[u32] = &[%s\n];\n' % (
-                *table['python'], table['version'],
-                rows(['(0x%x, 0x%x)' % tuple(r) for r in table['nonprintable']], 4),
-                rows(['0x%x' % c for c in table['space']], 8), rows(['0x%x' % c for c in table['zeros']], 8)))
+def unicode_problems(source):
+    found = []
+    for table in ('NONPRINTABLE', 'SPACE', 'DECIMAL_ZEROS'):
+        match = re.search(r'pub const %s: &\[[^\]]+\] = &\[(.*?)\n\];' % table, source, re.S)
+        if not match:
+            found.append('unicode.rs: no table %s' % table)
+            continue
+        if table == 'NONPRINTABLE':
+            ranges = [(int(a, 16), int(b, 16)) for a, b in re.findall(r'\(0x([0-9a-f]+), 0x([0-9a-f]+)\)', match[1])]
+            if not ranges or any(a > b for a, b in ranges) or any(
+                    b + 1 >= c for (_, b), (c, _) in zip(ranges, ranges[1:])):
+                found.append('unicode.rs: NONPRINTABLE is not sorted, disjoint, merged ranges')
+        else:
+            points = [int(p, 16) for p in re.findall(r'0x([0-9a-f]+)', match[1])]
+            if not points or points != sorted(set(points)):
+                found.append('unicode.rs: %s is not sorted' % table)
+            if table == 'DECIMAL_ZEROS' and (points[0] != 0x30 or any(b - a < 10 for a, b in zip(points, points[1:]))):
+                found.append('unicode.rs: DECIMAL_ZEROS are not runs of ten digits from 0x30')
+    return found
 
 
 def main():
-    if sys.argv[1:] == ['--extract']:
-        return extract()
-    if sys.argv[1:] == ['--inner-reference']:
-        return reference()
     options = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     mode = options.add_mutually_exclusive_group(required=True)
     mode.add_argument('--check', action='store_true')
     mode.add_argument('--write', action='store_true')
-    mode.add_argument('--reference', action='store_true')
     args = options.parse_args()
-    if args.reference:
-        print(json.dumps(inner('--inner-reference', sys.stdin.read())))
-        return 0
-    found = inner('--extract')
-    def compact(value):
-        return json.dumps(value, ensure_ascii=False, separators=(',', ':'))
-    # One parser per line: argparse.rs reads only the lines of main.py and of the subcommand called.
-    spec = '{"top":%s,\n"commands":[\n%s\n]}\n' % (compact(found['spec']['top']), ',\n'.join(
-        compact(command) for command in found['spec']['commands']))
-    table = found['unicode']
-    player = tuple(table['python']) == PLAYER
+    text = SPEC.read_text()
     if args.write:
-        SPEC.write_text(spec)
-        if player:
-            UNICODE.parent.mkdir(exist_ok=True)
-            UNICODE.write_text(unicode_source(table))
-        else:
-            print('%s: kept (Python %d.%d is not the player\'s %d.%d)' % (UNICODE.name, *table['python'], *PLAYER),
-                  file=sys.stderr)
+        SPEC.write_text(layout(json.loads(text)))
         return 0
-    stale = [path.relative_to(REPOSITORY) for path, text, checked in
-             [(SPEC, spec, True), (UNICODE, unicode_source(table), player)]
-             if checked and (not path.exists() or path.read_text() != text)]
-    if stale:
-        print('%s differ from cli.py\'s parser; run %s --write' % (', '.join(map(str, stale)), Path(__file__).name))
-        return 1
-    return 0
+    found = problems(text) + unicode_problems(UNICODE.read_text())
+    for problem in found:
+        print(problem)
+    return 1 if found else 0
 
 
 if __name__ == '__main__':
