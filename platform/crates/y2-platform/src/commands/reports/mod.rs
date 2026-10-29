@@ -9,7 +9,7 @@ mod diagnostics;
 mod fields;
 mod maintenance;
 pub(crate) mod media;
-pub(crate) mod pyjson;
+pub(crate) use y2p_core::pyjson;
 mod pyops;
 mod pyre;
 mod scrub;

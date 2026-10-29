@@ -4,9 +4,13 @@
 //! duplicate key replaces the value in place, as a dict does) and print sorted (`sort_keys=True`).
 //! serde_json would read some long floats one ulp off (its default parser is not correctly rounded),
 //! which changes a hash over a plan Python wrote.
+//!
+//! The one JSON value type besides `serde_json::Value`, kept only for what serde_json cannot do here:
+//! integers beyond 64 bits kept as digits, correctly rounded float parsing, `NaN`/`Infinity`. The
+//! report scrubber and the settings reset plan (its sha256) use it; everything else is `Value`.
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::json::float_repr;
 use serde::Serialize;
-use y2p_core::json::float_repr;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Py {
@@ -149,7 +153,7 @@ impl Py {
             serde_json::Value::String(s) => Py::Str(s.clone()),
             serde_json::Value::Array(a) => Py::List(a.iter().map(Py::from_serde).collect()),
             serde_json::Value::Object(o) => Py::Dict(
-                y2p_core::json::sorted_entries(o)
+                crate::json::sorted_entries(o)
                     .into_iter()
                     .map(|(k, v)| (k.clone(), Py::from_serde(v)))
                     .collect(),
@@ -624,7 +628,7 @@ pub fn py_repr(value: &Py) -> String {
         Py::Float(f) if f.is_nan() => "nan".into(),
         Py::Float(f) if f.is_infinite() => if *f > 0.0 { "inf" } else { "-inf" }.into(),
         Py::Float(f) => float_repr(*f),
-        Py::Str(s) => y2p_core::py::repr(s),
+        Py::Str(s) => crate::py::repr(s),
         Py::List(items) => format!(
             "[{}]",
             items.iter().map(py_repr).collect::<Vec<_>>().join(", ")
@@ -633,7 +637,7 @@ pub fn py_repr(value: &Py) -> String {
             "{{{}}}",
             items
                 .iter()
-                .map(|(k, v)| format!("{}: {}", y2p_core::py::repr(k), py_repr(v)))
+                .map(|(k, v)| format!("{}: {}", crate::py::repr(k), py_repr(v)))
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
