@@ -1,9 +1,9 @@
-//! `hashlib.sha256(...).hexdigest()` for the service group (update payloads, radio firmware), so the
-//! command crate needs no hash dependency of its own.
+//! SHA-256 as lowercase hex for the service group (update payloads, radio firmware), so the command
+//! crate needs no hash dependency of its own.
 // SPDX-License-Identifier: GPL-2.0-only
 use sha2::Digest;
 
-/// A running SHA-256 (`hashlib.sha256()` with `update`).
+/// A running SHA-256 of the bytes given to `update`.
 #[derive(Clone, Default)]
 pub struct Sha256(sha2::Sha256);
 
@@ -16,17 +16,20 @@ impl Sha256 {
         self.0.update(data);
     }
 
-    /// `hexdigest()`: lowercase hex.
+    /// The digest as lowercase hex.
     pub fn hexdigest(self) -> String {
+        use std::fmt::Write;
         self.0
             .finalize()
             .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect()
+            .fold(String::with_capacity(64), |mut hex, b| {
+                let _ = write!(hex, "{b:02x}");
+                hex
+            })
     }
 }
 
-/// `hashlib.sha256(data).hexdigest()`.
+/// The SHA-256 of `data` as lowercase hex.
 pub fn sha256_hex(data: &[u8]) -> String {
     let mut digest = Sha256::new();
     digest.update(data);

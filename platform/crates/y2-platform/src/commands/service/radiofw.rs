@@ -1,4 +1,4 @@
-//! `radiofw.py`: radio firmware from the owner's own copy (RELEASE-49).
+//! `y2-platform firmware`: radio firmware from the owner's own copy (RELEASE-49).
 //!
 //! Y2Linux images carry no MediaTek radio firmware: it may not be redistributed. Each player keeps the
 //! reviewed files on Y2DATA (`/data/firmware/mt6582`, which `/lib/firmware/mediatek/mt6582` links
@@ -10,27 +10,35 @@
 //! derives the two board defaults like tools/connectivity/provision.py, installs them, deletes the copy
 //! and starts the radios. Only names, sizes and hashes are in this file; never firmware bytes.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{
-    image::{self, Ext4, Image},
-    python::realpath,
-};
-use crate::reply::{atomic_json as publish, Failure, Outcome, Reply};
+use super::image::{self, Ext4, Image};
+use crate::commands::storage::media;
+use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use std::{
     fs::{self, OpenOptions},
     io::Write,
     os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt},
     path::{Path, PathBuf},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
-use y2p_core::mounts::{mounts_at, Mount};
+use y2p_core::mounts::mounts_at;
 use y2p_core::py::PyValue;
 use y2p_core::{
-    clock, command,
+    command,
     json::{Object, ObjectExt},
     py, record,
     service_digest::sha256_hex,
     Root,
+};
+
+mod copy;
+mod files;
+
+pub(crate) use self::copy::inbox;
+use self::{copy::*, files::*};
+pub use self::{
+    copy::{candidates, internal, leftover_waiting},
+    files::present,
 };
 
 /// docs/knowledge/evidence/m5-firmware-inventory.json (stock v3.2.0 FM, /etc/firmware).
@@ -168,574 +176,7 @@ fn os_path(error: std::io::Error, path: &Path) -> Error {
 type Result<T> = std::result::Result<T, Error>;
 type Files = Vec<(String, Vec<u8>)>;
 
-// ---- the five files ------------------------------------------------------------------------------
-
-/// `provision.defaults`: the generic Wi-Fi/BT board records of the stock reader library, with the
-/// default addresses cleared.
-fn defaults(custom: &[u8]) -> Result<Files> {
-    let slice = |a: usize, b: usize| custom.get(a..b.min(custom.len())).unwrap_or(&[]).to_vec();
-    let mut wifi = slice(0x5a8e, 0x5c8e);
-    let mut bt = slice(0x3a18, 0x3a58);
-    if wifi.len() < 4 {
-        return Err(Error::Value(
-            "unpack_from requires a buffer of at least 4 bytes".into(),
-        ));
-    }
-    let header = (
-        u16::from_le_bytes([wifi[0], wifi[1]]),
-        u16::from_le_bytes([wifi[2], wifi[3]]),
-    );
-    if !custom.starts_with(b"\x7fELF\x01\x01\x01")
-        || header != (0x104, 0)
-        || wifi.get(196..198) != Some(&b"\x01\x00"[..])
-    {
-        return Err(Error::Value("stock_reader_library_layout".into()));
-    }
-    for byte in wifi.iter_mut().take(10).skip(4) {
-        *byte = 0;
-    }
-    for byte in bt.iter_mut().take(6) {
-        *byte = 0;
-    }
-    Ok(vec![
-        ("WIFI.defaults".into(), wifi),
-        ("BT.defaults".into(), bt),
-    ])
-}
-
-fn get<'a>(files: &'a Files, name: &str) -> Option<&'a Vec<u8>> {
-    files.iter().find(|(n, _)| n == name).map(|(_, d)| d)
-}
-
-/// `radiofw.checked`: every reviewed file present, with the reviewed size and SHA-256.
-fn checked(reviewed: &Reviewed, files: Files) -> Result<Files> {
-    for (name, size, sha) in reviewed.all() {
-        match get(&files, name) {
-            Some(data) if data.len() as u64 == *size && sha256_hex(data) == *sha => {}
-            _ => return Err(Error::Value(format!("firmware_mismatch:{name}"))),
-        }
-    }
-    // The two Bluetooth patches in their download order (provision.py).
-    let mut order: Vec<u8> = Vec::new();
-    for (name, _, _) in &reviewed.files {
-        if name.ends_with("_hdr.bin") {
-            let data = get(&files, name).expect("checked");
-            let byte = *data
-                .get(24)
-                .ok_or_else(|| Error::Value("index out of range".into()))?;
-            order.push(byte & 15);
-        }
-    }
-    order.sort();
-    if order != [1, 2] {
-        return Err(Error::Value("firmware_patch_order".into()));
-    }
-    Ok(files)
-}
-
-/// `radiofw.from_system_image`: the seven files from the stock system.img (sparse or raw ext4).
-fn from_system_image(reviewed: &Reviewed, path: &Path) -> Result<Files> {
-    let mut fs = Ext4::new(Image::open(path)?)?;
-    let mut files: Files = Vec::new();
-    for (name, size, _) in &reviewed.files {
-        files.push((
-            name.clone(),
-            fs.read(&format!("/etc/firmware/{name}"), *size)?,
-        ));
-    }
-    let custom = fs.read(&reviewed.custom.0, reviewed.custom.1)?;
-    if custom.len() as u64 != reviewed.custom.1 || sha256_hex(&custom) != reviewed.custom.2 {
-        return Err(Error::Value("firmware_mismatch:libcustom_nvram.so".into()));
-    }
-    files.extend(defaults(&custom)?);
-    checked(reviewed, files)
-}
-
-/// `radiofw.from_directory`: the seven files from a directory (a root's /lib/firmware/mediatek/mt6582).
-fn from_directory(reviewed: &Reviewed, path: &Path) -> Result<Files> {
-    let mut files = Vec::new();
-    for (name, size, _) in reviewed.all() {
-        let file = path.join(name);
-        let info = file.symlink_metadata().map_err(|e| os_path(e, &file))?;
-        if !info.file_type().is_file() || info.len() != *size {
-            return Err(Error::Value(format!("firmware_mismatch:{name}")));
-        }
-        files.push((
-            name.clone(),
-            fs::read(&file).map_err(|e| os_path(e, &file))?,
-        ));
-    }
-    checked(reviewed, files)
-}
-
-/// `radiofw.present`: cheap check for status polling: every file there with its size.
-pub fn present(root: &Root) -> bool {
-    let target = root.path(TARGET);
-    Reviewed::stock().all().all(|(name, size, _)| {
-        target
-            .join(name)
-            .symlink_metadata()
-            .is_ok_and(|m| m.len() == *size && m.file_type().is_file())
-    })
-}
-
-/// `radiofw.installed`: every reviewed file is in place with the reviewed hash.
-fn installed(root: &Root, reviewed: &Reviewed) -> bool {
-    from_directory(reviewed, &root.path(TARGET)).is_ok()
-}
-
-/// `shutil.rmtree(path, ignore_errors=True)`.
-fn rmtree(path: &Path) {
-    if path
-        .symlink_metadata()
-        .is_ok_and(|m| m.file_type().is_dir())
-    {
-        let _ = fs::remove_dir_all(path);
-    }
-}
-
-/// `radiofw.install`: write the checked files to Y2DATA: a fresh directory, then one rename.
-fn install(root: &Root, reviewed: &Reviewed, files: Files) -> Result<()> {
-    let files = checked(reviewed, files)?;
-    let target = root.path(TARGET);
-    let parent = target.parent().expect("parent").to_path_buf();
-    crate::reply::mkdir_parents(&parent, 0o700)?;
-    let pid = std::process::id();
-    let staging = parent.join(format!(".mt6582.{pid}"));
-    rmtree(&staging);
-    fs::DirBuilder::new()
-        .mode(0o700)
-        .create(&staging)
-        .map_err(|e| os_path(e, &staging))?;
-    for (name, data) in &files {
-        let path = staging.join(name);
-        let mut out = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .custom_flags(libc::O_NOFOLLOW)
-            .open(&path)
-            .map_err(|e| os_path(e, &path))?;
-        out.write_all(data)
-            .and_then(|()| out.sync_all())
-            .map_err(|e| Error::Os(py::os_error(&e, None).0))?;
-    }
-    let meta = target.symlink_metadata();
-    if meta.as_ref().is_ok_and(|m| m.file_type().is_symlink())
-        || (target.exists() && !target.is_dir())
-    {
-        return Err(Error::Value("firmware_target_unsafe".into()));
-    }
-    let old = parent.join(format!(".mt6582.old.{pid}"));
-    if target.exists() {
-        fs::rename(&target, &old).map_err(|e| rename_error(e, &target, &old))?;
-    }
-    fs::rename(&staging, &target).map_err(|e| rename_error(e, &staging, &target))?;
-    rmtree(&old);
-    let directory = OpenOptions::new()
-        .read(true)
-        .custom_flags(libc::O_DIRECTORY)
-        .open(&parent)
-        .map_err(|e| os_path(e, &parent))?;
-    directory
-        .sync_all()
-        .map_err(|e| Error::Os(py::os_error(&e, None).0))
-}
-
-fn rename_error(error: std::io::Error, from: &Path, to: &Path) -> Error {
-    Error::Os(format!(
-        "{} -> {}",
-        py::os_error(&error, Some(&from.to_string_lossy())).0,
-        py::repr(&to.to_string_lossy())
-    ))
-}
-
-// ---- the owner's copy ----------------------------------------------------------------------------
-
-/// `radiofw.roots`: the MTP roots the responder exports (its record), as device paths below the root.
-fn roots(root: &Root) -> Vec<PathBuf> {
-    let value = root.json_object("/run/y2/mtp-roots.json");
-    // `for r in value.get('roots', [])`: a list's items, a dict's keys, a string's characters.
-    let items = value.get("roots").and_then(py::iterate).unwrap_or_default();
-    items
-        .iter()
-        .filter_map(Value::as_str)
-        .filter(|r| r.starts_with('/'))
-        .map(|r| root.path(r))
-        .collect()
-}
-
-fn get_or_null<'a>(map: &'a Map<String, Value>, key: &str) -> &'a Value {
-    map.get(key).unwrap_or(&Value::Null)
-}
-
-/// `internal_media.ready`: true only while the recorded mount is still the live, exact Y2Media mount.
-pub fn internal(root: &Root) -> bool {
-    let claim = root.json_object("/run/y2/internal-media.json");
-    let current = mounts_at(root, "/media/internal");
-    claim.get("state") == Some(&json!("Ready"))
-        && current.len() == 1
-        && *get_or_null(&claim, "boot_id") == Value::from(root.boot_id())
-        && py::eq_int(claim.get("mount_id"), current[0].mount_id)
-        && claim.get("device_id") == Some(&json!(current[0].device_id))
-}
-
-/// `Path.mkdir(mode, exist_ok=True)`.
-fn mkdir_exist_ok(path: &Path, mode: u32) -> Result<()> {
-    match fs::DirBuilder::new().mode(mode).create(path) {
-        Err(e) if !(e.kind() == std::io::ErrorKind::AlreadyExists && path.is_dir()) => {
-            Err(os_path(e, path))
-        }
-        _ => Ok(()),
-    }
-}
-
-/// `radiofw.inbox`: where the copy goes, created with its note when needed: the Firmware folder on
-/// Internal Storage, else the Firmware drive's folder on Y2DATA.
-pub(crate) fn inbox(root: &Root) -> Result<PathBuf> {
-    let folder = if internal(root) {
-        let folder = root.path(INTERNAL_INBOX);
-        mkdir_exist_ok(&folder, 0o755)?;
-        folder
-    } else {
-        let folder = root.path(INBOX);
-        crate::reply::mkdir_parents(folder.parent().expect("parent"), 0o700)?;
-        mkdir_exist_ok(&folder, 0o700)?;
-        folder
-    };
-    let note = folder.join("README.txt");
-    if !note.exists() {
-        fs::write(&note, README).map_err(|e| os_path(e, &note))?;
-    }
-    Ok(folder)
-}
-
-/// `radiofw.candidates`: where an owner's copy may be: the Firmware drive, or a Firmware folder on
-/// Internal Storage or the SD card (also while no computer is connected).
-pub fn candidates(root: &Root) -> Vec<PathBuf> {
-    let mut places = vec![root.path(INBOX), root.path(SD_INBOX)];
-    if internal(root) {
-        places.insert(0, root.path(INTERNAL_INBOX));
-    }
-    let inbox = root.path(INBOX);
-    places.extend(
-        roots(root)
-            .into_iter()
-            .filter(|r| *r != inbox)
-            .map(|r| r.join(FOLDER)),
-    );
-    let mut seen: Vec<PathBuf> = Vec::new();
-    for folder in places {
-        if !seen.contains(&folder) {
-            seen.push(folder);
-        }
-    }
-    seen.into_iter().map(|f| f.join(SOURCE)).collect()
-}
-
-// ---- the SD card's write window (media.write_window / sd_writable, holder `radiofw`) ------------
-
-const SD_WRITE: &str = "/run/y2/sd-write.json";
-const WRITE_HOLDERS: [&str; 4] = ["usb", "reborn", "report", "radiofw"];
-
-/// `media.owned_mount`.
-fn owned_mount(root: &Root, mounted: &Mount) -> bool {
-    let device = root.path(&format!("/sys/dev/block/{}", mounted.device_id));
-    if device.exists() {
-        return realpath(&device)
-            .to_string_lossy()
-            .contains("/11240000.mmc/");
-    }
-    let claim = root.json_object("/run/y2/media-mount.json");
-    // Removed cards no longer have a sysfs controller path. The retained claim permits only the exact
-    // mount we created, never an arbitrary mountpoint.
-    *get_or_null(&claim, "boot_id") == Value::from(root.boot_id())
-        && py::eq_int(claim.get("mount_id"), mounted.mount_id)
-        && claim.get("device_id") == Some(&json!(mounted.device_id))
-        && claim.get("device") == Some(&json!(mounted.source))
-}
-
-/// `media._sd_state`: (claim, mount) of our current SD mount.
-fn sd_state(root: &Root) -> (Map<String, Value>, Option<Mount>) {
-    let claim = root.json_object("/run/y2/media-mount.json");
-    let old = mounts_at(root, "/media/sd");
-    if old.len() == 1
-        && owned_mount(root, &old[0])
-        && py::eq_int(claim.get("mount_id"), old[0].mount_id)
-        && *get_or_null(&claim, "boot_id") == Value::from(root.boot_id())
-    {
-        let mount = old.into_iter().next();
-        return (claim, mount);
-    }
-    (claim, None)
-}
-
-/// `media._writers`: the live holders of this mount's window.
-fn writers(root: &Root, mount: &Mount) -> Vec<(String, f64)> {
-    let value = root.json_object(SD_WRITE);
-    if *get_or_null(&value, "boot_id") != Value::from(root.boot_id())
-        || !py::eq_int(value.get("mount_id"), mount.mount_id)
-    {
-        return Vec::new();
-    }
-    let now = clock::monotonic();
-    let Some(Value::Object(holders)) = value.get("holders") else {
-        return Vec::new();
-    };
-    y2p_core::json::sorted_entries(holders)
-        .into_iter()
-        .filter(|(k, _)| WRITE_HOLDERS.contains(&k.as_str()))
-        .filter_map(|(k, v)| {
-            py::number(Some(v))
-                .filter(|v| *v > now)
-                .map(|v| (k.clone(), v))
-        })
-        .collect()
-}
-
-/// `media._apply_window`: remount to match the holders; records them. Returns writable now.
-fn apply_window(root: &Root, mount: &Mount, holders: &[(String, f64)]) -> Result<bool> {
-    let map: Map<String, Value> = holders.iter().map(|(k, v)| (k.clone(), json!(v))).collect();
-    publish(
-        &root.path(SD_WRITE),
-        &json!({"schema": 1, "boot_id": Value::from(root.boot_id()), "mount_id": mount.mount_id, "holders": map}),
-        false,
-    )?;
-    let mut writable = mount.options.iter().any(|o| o == "rw");
-    if !holders.is_empty() != writable {
-        let option = if holders.is_empty() {
-            "remount,ro"
-        } else {
-            "remount,rw"
-        };
-        command::run(root, &["mount", "-o", option, "/media/sd"], 10.0);
-        let now = mounts_at(root, "/media/sd");
-        writable = now
-            .first()
-            .is_some_and(|m| m.options.iter().any(|o| o == "rw"));
-    }
-    Ok(writable)
-}
-
-/// `media.write_window(ctx, 'radiofw', seconds, release)`: whether holders were set (`answer.get('holders')`).
-fn write_window(root: &Root, seconds: i64, release: bool) -> Result<bool> {
-    let runtime = root.path("/run/y2");
-    crate::reply::mkdir_parents(&runtime, 0o700)?;
-    let lock_path = runtime.join("media.lock");
-    let deadline = clock::monotonic() + 5.0;
-    let _lock = loop {
-        match y2p_core::lock::try_exclusive(&lock_path) {
-            Ok(Some(lock)) => break lock,
-            Ok(None) => {
-                // A check or a repair holds the card; a short admission passes.
-                if clock::monotonic() >= deadline {
-                    return Ok(false);
-                }
-                std::thread::sleep(Duration::from_millis(200));
-            }
-            Err(e) => return Err(os_path(e, &lock_path)),
-        }
-    };
-    let (claim, mount) = sd_state(root);
-    let Some(mount) = mount else {
-        return Ok(false);
-    };
-    match claim.get("read_only") {
-        // Writable once its background check passes; damaged cards get no window; an unprotected card
-        // needs none.
-        Some(Value::String(s)) if s == "protected" => {}
-        _ => return Ok(false),
-    }
-    let mut holders = writers(root, &mount);
-    holders.retain(|(k, _)| k != "radiofw");
-    if !release {
-        holders.push((
-            "radiofw".into(),
-            clock::monotonic() + seconds.clamp(1, 600) as f64,
-        ));
-    }
-    apply_window(root, &mount, &holders)?;
-    Ok(!holders.is_empty())
-}
-
-/// `radiofw.remove`: delete the used system.img; on the SD card inside a write window (the card is
-/// read-only between writes, media.py).
-fn remove(root: &Root, source: &Path) {
-    let on_sd = source
-        .to_string_lossy()
-        .starts_with(&*root.path(SD_INBOX).to_string_lossy());
-    if !on_sd {
-        let _ = fs::remove_file(source);
-        return;
-    }
-    let Ok(held) = write_window(root, 30, false) else {
-        return;
-    };
-    let _ = fs::remove_file(source);
-    if held {
-        let _ = write_window(root, 30, true);
-    }
-}
-
-/// `radiofw.tidy`: after the install the Internal Storage Firmware folder goes away again (only its
-/// note; anything the owner put there stays).
-fn tidy(root: &Root) {
-    let folder = root.path(INTERNAL_INBOX);
-    if fs::remove_file(folder.join("README.txt")).is_ok() {
-        let _ = fs::remove_dir(&folder);
-    }
-}
-
-fn record_state(root: &Root, value: &Value) -> Result<()> {
-    let path = root.path(STATE);
-    record::atomic_json(&path, value, false, 0o644).map_err(|e| os_path(e, &path))
-}
-
-/// `radiofw.state`.
-fn state(root: &Root) -> Value {
-    let value = root.json_object(STATE);
-    if present(root) {
-        return json!({"state": "Ready"});
-    }
-    if super::python::is_one_of(value.get("state"), &["Installing", "Failed"]) {
-        return json!({"state": get_or_null(&value, "state"), "reason": get_or_null(&value, "reason")});
-    }
-    let mut missing = json!({"state": "Missing", "folder": FOLDER, "file": SOURCE,
-                             "location": if internal(root) { "internal" } else { "drive" }});
-    // The responder refuses a copy that does not fit before writing anything (mtp-safe space()), so
-    // nothing is left behind; only say why (#39).
-    if py::eq_int(
-        root.json_object("/run/y2/mtp-events.json").get("error"),
-        ENOSPC,
-    ) {
-        missing["reason"] = json!("no_space");
-    }
-    missing
-}
-
-/// `[st_size, st_mtime_ns]` and whether the copy is still arriving (changed within 5 s).
-fn seen(meta: &fs::Metadata) -> (Value, bool) {
-    let mtime_ns = meta.mtime() as i128 * 1_000_000_000 + meta.mtime_nsec() as i128;
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0.0, |d| d.as_secs_f64());
-    let mtime = meta.mtime() as f64 + meta.mtime_nsec() as f64 / 1e9;
-    (json!([meta.len(), mtime_ns as i64]), now - mtime < 5.0)
-}
-
-fn regular(path: &Path) -> Option<fs::Metadata> {
-    path.symlink_metadata()
-        .ok()
-        .filter(|m| m.file_type().is_file())
-}
-
-/// `radiofw.scan`: one pass of the owner flow: make the Firmware folder visible, then take a finished
-/// system.img copy from it. Returns the new state.
-fn scan(root: &Root, reviewed: &Reviewed) -> Result<Value> {
-    if installed(root, reviewed) {
-        return leftover(root, reviewed);
-    }
-    let previous = root.json_object(STATE);
-    let _ = inbox(root);
-    for source in candidates(root) {
-        let Some(info) = regular(&source) else {
-            continue;
-        };
-        let (seen, arriving) = seen(&info);
-        // A copy still arriving over USB changes size or time between passes.
-        if !get_or_null(&previous, "seen").py_eq(&seen) || arriving {
-            record_state(
-                root,
-                &json!({"schema": 1, "state": "Missing", "seen": seen}),
-            )?;
-            return Ok(json!({"state": "Missing"}));
-        }
-        if previous.get("state") == Some(&json!("Failed")) {
-            return Ok(json!({"state": "Failed", "reason": get_or_null(&previous, "reason")}));
-        }
-        record_state(
-            root,
-            &json!({"schema": 1, "state": "Installing", "seen": seen}),
-        )?;
-        if let Err(error) =
-            from_system_image(reviewed, &source).and_then(|files| install(root, reviewed, files))
-        {
-            let reason: String = error.text().chars().take(80).collect();
-            record_state(
-                root,
-                &json!({"schema": 1, "state": "Failed", "reason": reason, "seen": seen}),
-            )?;
-            return Ok(json!({"state": "Failed", "reason": reason}));
-        }
-        remove(root, &source);
-        tidy(root);
-        record_state(
-            root,
-            &json!({"schema": 1, "state": "Ready", "installed_from": "system.img"}),
-        )?;
-        start(root);
-        return Ok(json!({"state": "Ready"}));
-    }
-    if previous.get("state") == Some(&json!("Failed")) {
-        // The rejected copy is gone: back to asking for it.
-        record_state(root, &json!({"schema": 1, "state": "Missing"}))?;
-    }
-    Ok(json!({"state": "Missing"}))
-}
-
-/// `radiofw.leftover`: with the firmware in place, a finished system.img copy that arrives later
-/// (copied again, or after the recovery kept the files) holds 520–860 MB of the owner's storage for
-/// nothing: delete it like the first one. Only the firmware package's image goes; any other file of
-/// that name stays.
-fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
-    let previous = root.json_object(STATE);
-    let mut value = Object::new()
-        .with("schema", 1)
-        .with("state", "Ready")
-        .with("kept", get_or_null(&previous, "kept").clone());
-    for source in candidates(root) {
-        let Some(info) = regular(&source) else {
-            continue;
-        };
-        let (seen, arriving) = seen(&info);
-        if seen.py_eq(get_or_null(&previous, "kept")) {
-            continue;
-        }
-        // A copy still arriving changes size or time between passes.
-        if !get_or_null(&previous, "leftover").py_eq(&seen) || arriving {
-            value.set("leftover", seen);
-            break;
-        }
-        if from_system_image(reviewed, &source).is_err() {
-            value.set("kept", seen);
-            break;
-        }
-        remove(root, &source);
-        tidy(root);
-    }
-    let differs = value
-        .iter()
-        .any(|(k, v)| !v.py_eq(get_or_null(&previous, k)))
-        || previous.keys().any(|k| value.get(k).is_none());
-    if differs {
-        record_state(root, &serde_json::to_value(&value).expect("value"))?;
-    }
-    Ok(json!({"state": "Ready"}))
-}
-
-/// `radiofw.leftover_waiting`: cheap check for the service: a copy leftover() has not judged yet.
-pub fn leftover_waiting(root: &Root) -> bool {
-    let kept = root
-        .json_object(STATE)
-        .get("kept")
-        .cloned()
-        .unwrap_or(Value::Null);
-    candidates(root)
-        .iter()
-        .any(|source| regular(source).is_some_and(|info| !seen(&info).0.py_eq(&kept)))
-}
-
-/// `radiofw.start`: (re)start the radios with the installed firmware. Stopping running radios can take
+/// (re)start the radios with the installed firmware. Stopping running radios can take
 /// longer than a short command limit, which on 49 cut the combined restart off after its stop half
 /// (archive 154).
 fn start(root: &Root) {
@@ -790,6 +231,7 @@ mod radiofw_tests;
 mod tests {
     use super::*;
     use crate::testing::Fixture;
+    use std::time::Duration;
 
     #[test]
     fn a_scan_whose_copy_cannot_be_installed_exits_1() {
@@ -801,7 +243,7 @@ mod tests {
             .write(true)
             .open(fixture.path(&image))
             .unwrap();
-        file.set_modified(SystemTime::now() - std::time::Duration::from_secs(60))
+        file.set_modified(SystemTime::now() - Duration::from_secs(60))
             .unwrap();
         let (seen, arriving) = seen(&file.metadata().unwrap());
         assert!(!arriving);

@@ -1,5 +1,5 @@
-//! `radiofw.Image` and `radiofw.Ext4`: random access to an Android sparse image (or a raw ext4 image)
-//! and just enough ext2/3/4 to read a few named regular files from the stock `system.img`.
+//! Random access to an Android sparse image (or a raw ext4 image) and just enough ext2/3/4 to read a
+//! few named regular files from the stock `system.img`.
 // SPDX-License-Identifier: GPL-2.0-only
 use std::{
     fs::File,
@@ -8,7 +8,7 @@ use std::{
 };
 use y2p_core::py;
 
-/// What the Python reader raises: a ValueError (its own reasons, or `struct.error` texts for a
+/// Why an image cannot be read: a ValueError (its own reasons, or `struct.error` texts for a
 /// truncated structure, CONTRACT.md accepted differences), an OSError, or FileNotFoundError(path)
 /// from a lookup.
 #[derive(Debug, PartialEq, Eq)]
@@ -40,15 +40,13 @@ fn field(buffer: &[u8], offset: usize, size: usize) -> Result<&[u8]> {
 }
 
 fn u16_at(buffer: &[u8], offset: usize) -> Result<u16> {
-    Ok(u16::from_le_bytes(
-        field(buffer, offset, 2)?.try_into().expect("2"),
-    ))
+    let bytes = field(buffer, offset, 2)?;
+    Ok(u16::from_le_bytes([bytes[0], bytes[1]]))
 }
 
 fn u32_at(buffer: &[u8], offset: usize) -> Result<u32> {
-    Ok(u32::from_le_bytes(
-        field(buffer, offset, 4)?.try_into().expect("4"),
-    ))
+    let bytes = field(buffer, offset, 4)?;
+    Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
 }
 
 const RAW: u16 = 0xCAC1;
@@ -403,7 +401,7 @@ impl Ext4 {
     }
 
     /// One indirect level; `base` is how many block numbers were found before it (the walk stops once
-    /// `want` are known, as Python's, which also never needs a hole's zeros beyond that).
+    /// `want` are known: a hole's zeros beyond that are never needed).
     fn walk(
         &mut self,
         block: u128,
