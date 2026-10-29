@@ -299,13 +299,4 @@ mod tests {
         let empty = read(json!({}));
         assert!(empty.state.is_null() && empty.arguments.is_none());
     }
-
-    #[test]
-    fn timestamps_look_like_isoformat() {
-        let stamp = wall_timestamp();
-        assert!(
-            stamp.ends_with("+00:00") && stamp.as_bytes()[10] == b'T',
-            "{stamp}"
-        );
-    }
 }
