@@ -1,7 +1,7 @@
 """Power group goldens the plain run of tests/test_platform_differential.py cannot give (tests/platform_cases/power.py),
 run by the Rust host build (`Y2_PLATFORM_RUST`) and compared with tests/platform_goldens/power/<case>.json:
 
-- EXTRA_CASES: the daemon ending on an uncaught exception (a traceback, exit 1, nothing on stdout).
+- EXTRA_CASES: odd input the Python daemon ended on (an uncaught exception); the daemon now keeps running.
 - The power socket conversation (power.CONVERSATION): a live `power-daemon` on a fixture root, `y2-platform
   shutdown` clients and Reborn-style acknowledgements, the intent executed below the fixture root (every step's
   command gets the fixture answer `fixture`, no process is signalled), SIGTERM ending the daemon. The daemon serves
@@ -150,17 +150,25 @@ class PowerExtraCases(unittest.TestCase):
         check_all(self, [(('power', name), lambda argv=argv, case=case: run_case(self.fixture, argv, **case))
                          for name, argv, case in power.EXTRA_CASES])
 
-    def test_crashes_end_the_daemon_without_output(self):
+    def test_odd_input_never_ends_the_daemon(self):
         for name, _, _ in power.EXTRA_CASES:
             with self.subTest(name):
                 result = read_golden('power', name)
-                self.assertEqual((result['exit'], result['stdout']), (1, []))
-                self.assertIn('/run/y2/power.sock', result['tree']['added'])  # serve() never reached its unlink
+                self.assertEqual((result['exit'], result['stdout']), (0, []))
+                self.assertNotIn('/run/y2/power.sock', result['tree']['added'])  # serve() ended normally
+                self.assertIn('/run/y2/power.json', result['tree']['added'])
+                if name == 'power-daemon-receipt-pairs':
+                    self.assertNotIn('/data/system/platform/power-journal.jsonl', result['tree']['added'])
+                if name == 'power-daemon-resume-bad-ack':
+                    self.assertNotIn('/dev/pmsg0', touched(result))  # not due before its deadline
                 if name == 'power-daemon-resume-bad-ack-due':
-                    # The steps before the acknowledgement check ran, fed the watchdog, then the daemon ended.
-                    self.assertEqual(touched(result)['/dev/watchdog']['content'], ['.'])
-                    self.assertEqual(touched(result)['/dev/pmsg0']['content'][-1],
-                                     '<clock> shutdown journal_pending fixture')
+                    # Unacknowledged: every step ran, the init request (no fixture answer) failed.
+                    trail = touched(result)['/dev/pmsg0']['content']
+                    self.assertIn('<clock> shutdown S90reborn fixture', trail)
+                    self.assertEqual(trail[-1], '<clock> shutdown init_poweroff fixture')
+                    intent = touched(result)['/run/y2/shutdown.json']['content']
+                    self.assertEqual((intent['state'], intent['acknowledgement']), ('Failed', ['Ready']))
+                    self.assertIn('backlight_early', intent['stop_results'])
 
 
 class PowerConversation(unittest.TestCase):

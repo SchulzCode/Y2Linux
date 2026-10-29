@@ -113,6 +113,14 @@ def cases():
         ('power-daemon-low-battery-no-reborn', ['power-daemon'], daemon(2, {
             **battery(3390000), '/data/system/platform/power-policy.json': critical_once})),
         ('power-daemon-critical-counting', ['power-daemon'], daemon(2, battery(3390000))),
+        # Records that cannot be written (a directory in their place) are noted on stderr; the daemon goes on
+        # (the Python one ended with a failure record): power.json, and the low-battery intent, which stays
+        # pending in memory and runs after its grace.
+        ('power-daemon-power-json-unwritable', ['power-daemon'], daemon(1, {
+            **battery(3850000), '/run/y2/power.json/x': ''})),
+        ('power-daemon-low-battery-intent-unwritable', ['power-daemon'], daemon(1, {
+            **battery(3390000), '/data/system/platform/power-policy.json': critical_once,
+            '/run/y2/shutdown.json/x': ''})),
         # Journal and diagnostics inputs
         ('power-daemon-no-data-mount', ['power-daemon'], daemon(1, {**battery(3850000), '/run/y2-data-device': '/dev/sda1\n'})),
         ('power-daemon-journal-inputs', ['power-daemon'], daemon(1, {
@@ -180,16 +188,17 @@ def cases():
 
 
 def extra_cases():
-    """An uncaught exception ends the daemon: a traceback, exit 1 and nothing on stdout
+    """Odd input the Python daemon ended on (an uncaught exception): the daemon now keeps running
     (tests/test_platform_power_rpc.py runs them)."""
     return [
-        # A list of pairs becomes a dict in sleep.status, then `.get` on the list ends the daemon.
+        # A list of pairs as the receipt's product: the journal row is dropped (as for any other non-dict).
         ('power-daemon-receipt-pairs', ['power-daemon'], daemon(1, {
             **battery(3850000), '/data/system/platform/suspend-last.json': '{"product": [["state", "idle"]]}'})),
-        # A resumed acknowledgement that is not a dict: TypeError in due() before the deadline ...
+        # A resumed acknowledgement that is not a dict is no acknowledgement: before the deadline nothing
+        # happens ...
         ('power-daemon-resume-bad-ack', ['power-daemon'], daemon(1, {
             **battery(3850000), SHUTDOWN: intent(state='ShutdownPending', deadline=2**62, ack='Ready')})),
-        # ... and after it, AttributeError in execute() once the first steps ran.
+        # ... after it the shutdown runs as an unacknowledged one (the panel blanked before Reborn stops).
         ('power-daemon-resume-bad-ack-due', ['power-daemon'], daemon(1, {
             **battery(3850000), '/dev/watchdog': '', SHUTDOWN: intent(ack=['Ready'])})),
     ]

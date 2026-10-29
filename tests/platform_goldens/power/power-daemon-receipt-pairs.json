@@ -3,7 +3,7 @@
   "power-daemon"
  ],
  "calls": [],
- "exit": 1,
+ "exit": 0,
  "stdout": [],
  "tree": {
   "added": {
@@ -16,14 +16,46 @@
     "mode": "0o600",
     "type": "file"
    },
+   "/run/y2/power.json": {
+    "content": {
+     "battery": {
+      "anchor_percent": null,
+      "calibration_source": "stock Y2 fuel-gauge profile: fgauge_get_profile(25 C) 0xc09d117c and r_profile 0xc09d1d5c from the Y2 FM kernel, Q_MAX 1300 mAh (fgauge_get_Q_max 0xc039b124); DOD converted to SOC",
+      "charge_counter_uah": null,
+      "charging": false,
+      "confidence": "calibrated_estimate",
+      "current_ua": null,
+      "design_capacity_uah": 1300000,
+      "estimate_percent": 66,
+      "filtered_voltage_uv": 3850000,
+      "full_latched": false,
+      "percent": 66,
+      "provisional": false,
+      "remaining_uah_estimate": 864500,
+      "resting": false,
+      "source": "voltage_estimate",
+      "start": "unknown/live",
+      "status": "Discharging",
+      "temperature_millicelsius": null,
+      "voltage_uv": 3850000
+     },
+     "boot_id": "boot-a",
+     "monotonic_ns": "<volatile>",
+     "qualification_reference": null,
+     "reason": null,
+     "schema": 1,
+     "shutdown": null,
+     "state": "Normal",
+     "thresholds_enabled": true,
+     "voltage_uv": 3850000
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
    "/run/y2/power.lock": {
     "content": [],
     "mode": "0o600",
     "type": "file"
-   },
-   "/run/y2/power.sock": {
-    "mode": "0o600",
-    "type": "other"
    }
   },
   "changed": {},
