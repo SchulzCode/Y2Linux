@@ -33,6 +33,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 from pathlib import Path
 
@@ -148,10 +149,21 @@ def bump(args):
 
 # ---------------------------------------------------------------- build
 
+def stock_radio_files(stock_system):
+    """The reviewed radio files of the stock system.img, read by the platform's own reader: a host build
+    of y2-platform runs `firmware install` on a scratch root (no process starts below a fixture root)."""
+    subprocess.run(['cargo', 'build', '--offline', '--locked', '-q', '-p', 'y2-platform'],
+                   cwd=PROJECT / 'platform', check=True)
+    binary = PROJECT / 'platform/target/debug/y2-platform'
+    with tempfile.TemporaryDirectory(prefix='y2-radiofw-') as root:
+        subprocess.run([str(binary), 'firmware', 'install', str(stock_system)], check=True,
+                       stdout=subprocess.DEVNULL, env={'PATH': '/usr/bin:/bin', 'Y2_ROOT': root})
+        installed = Path(root, 'data/firmware/mt6582')
+        return {path.name: path.read_bytes() for path in sorted(installed.iterdir()) if path.is_file()}
+
+
 def firmware_free(images, stock_system):
-    sys.path.insert(0, str(PROJECT / 'tools/platform'))
-    from y2_platform import radiofw
-    files = radiofw.from_system_image(str(stock_system))
+    files = stock_radio_files(stock_system)
     probes = [data[4096:4160] for data in files.values() if len(data) > 8192]
     if not probes:
         raise SystemExit('firmware scan: no probes from the stock system.img')
