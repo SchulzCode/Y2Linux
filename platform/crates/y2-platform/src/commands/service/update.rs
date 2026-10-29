@@ -8,7 +8,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     download::{self, Error as Net, Response, CANCELLED},
-    python::{int_or_float, is_one_of, key_order, lock_held, prefix},
     storage,
 };
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
@@ -178,8 +177,7 @@ fn download_record(root: &Root) -> Value {
     let record = root
         .json("/data/updates/download.json")
         .unwrap_or(Value::Null);
-    if is_one_of(record.get("state"), &["Staging", "Checking"])
-        && record.is_object()
+    if matches!(string(record.get("state")), Some("Staging" | "Checking"))
         && !lock_held(root, &root.path("/data/updates/.stage.lock"))
     {
         return json!({"schema": 1, "state": "Failed", "failure": "download_interrupted"});
@@ -227,8 +225,53 @@ pub fn status(root: &Root) -> Map<String, Value> {
     value
 }
 
+/// A record's string field (any other value is no string).
+fn string(value: Option<&Value>) -> Option<&str> {
+    value.and_then(Value::as_str)
+}
+
+/// Whether the record's `state` is one of `choices`.
 fn state_is(map: &Map<String, Value>, choices: &[&str]) -> bool {
-    is_one_of(map.get("state"), choices)
+    string(map.get("state")).is_some_and(|state| choices.contains(&state))
+}
+
+/// The first `limit` characters of `text`: a failure kept in a record stays short.
+fn shortened(text: &str, limit: usize) -> String {
+    text.chars().take(limit).collect()
+}
+
+/// Whether any live process holds a flock on `path` (/proc/locks names the device and inode).
+fn lock_held(root: &Root, path: &Path) -> bool {
+    let Ok(meta) = fs::metadata(path) else {
+        return false;
+    };
+    let dev = meta.dev();
+    let (major, minor) = (libc::major(dev) as u64, libc::minor(dev) as u64);
+    for line in root.read("/proc/locks").unwrap_or_default().lines() {
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        if fields.len() < 6
+            || fields[1] != "FLOCK"
+            || fields[4].is_empty()
+            || !fields[4].chars().all(|c| c.is_numeric())
+        {
+            continue;
+        }
+        let parts: Vec<&str> = fields[5].split(':').collect();
+        let [a, b, c] = parts.as_slice() else {
+            continue;
+        };
+        let parsed = (
+            u64::from_str_radix(a, 16),
+            u64::from_str_radix(b, 16),
+            c.parse::<u64>(),
+        );
+        if let (Ok(a), Ok(b), Ok(c)) = parsed {
+            if (a, b, c) == (major, minor, meta.ino()) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Python's `json.loads` error text for the core's output (a ValueError).
@@ -256,7 +299,7 @@ pub fn core(
     action: &str,
     directory: Option<&str>,
     timeout: f64,
-) -> Result<(Map<String, Value>, String)> {
+) -> Result<Map<String, Value>> {
     let mut argv = vec!["/usr/sbin/y2-update-core", action];
     argv.extend(directory);
     let result = command::run_with(root, &argv, timeout, 20000, true);
@@ -285,7 +328,7 @@ pub fn core(
     }
     let output = result.output.unwrap_or_default();
     match serde_json::from_str::<Value>(&output) {
-        Ok(Value::Object(map)) => Ok((map, output)),
+        Ok(Value::Object(map)) => Ok(map),
         Ok(_) => Err(Raise::value("invalid_update_core_response")),
         Err(error) => Err(Raise::Value(json_error(&output, &error))),
     }
@@ -926,7 +969,7 @@ impl Staging<'_> {
             }
         }
         let device = format!("/data/updates/{}", self.token);
-        let (manifest, text) = match core(root, "check-manifest", Some(&device), 15.0) {
+        let manifest = match core(root, "check-manifest", Some(&device), 15.0) {
             Ok(answer) => answer,
             Err(Raise::Value(error)) if self.check_only && error.contains("downgrade/replay") => {
                 // The channel offers this release (or an older one): up to date.
@@ -947,12 +990,12 @@ impl Staging<'_> {
         };
         let mut items = Vec::new();
         let mut total: i64 = 0;
-        for key in key_order(&text, "payloads") {
-            let item = payloads.get(&key).ok_or_else(malformed)?;
+        // The core's payload order (the map keeps the order of the document).
+        for (key, item) in payloads {
             let bytes = py::exact_int(item.get("bytes")).ok_or_else(malformed)?;
             total += bytes;
             items.push((
-                key,
+                key.clone(),
                 bytes,
                 item.get("sha256").cloned().unwrap_or(Value::Null),
             ));
@@ -1048,7 +1091,7 @@ impl Staging<'_> {
             .sync_all()
             .map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
         drop(parent);
-        let (result, _) = core(root, "queue", None, 300.0)?;
+        let result = core(root, "queue", None, 300.0)?;
         if let Some(live) = self.live.as_mut() {
             live.finish("done");
         }
@@ -1134,11 +1177,11 @@ fn stage(
         Err(error) => {
             let text = error.text();
             let mut record = json!({"schema": 1, "state": "Failed", "failure": text});
-            if check_only && is_one_of(staging.previous.get("state"), &["Checked"]) {
+            if check_only && string(staging.previous.get("state")) == Some("Checked") {
                 // A check that couldn't reach the server keeps the release the page already offered
                 // (Update Now stays); the error goes to the caller.
                 let mut kept = staging.previous.as_object().cloned().unwrap_or_default();
-                kept.insert("last_check_failure".into(), json!(prefix(&text, 120)));
+                kept.insert("last_check_failure".into(), json!(shortened(&text, 120)));
                 record = Value::Object(kept);
             }
             if let Raise::NoSpace(needed) = error {
@@ -1181,7 +1224,9 @@ fn battery_gate(root: &Root) -> Result<()> {
     if !owner.is_null() && owner != Value::from(root.boot_id()) {
         battery = Map::new();
     }
-    if is_true(battery.get("charging")) || is_one_of(battery.get("status"), &["Charging", "Full"]) {
+    if is_true(battery.get("charging"))
+        || matches!(string(battery.get("status")), Some("Charging" | "Full"))
+    {
         return Ok(());
     }
     match py::exact_int(battery.get("percent")) {
@@ -1321,7 +1366,7 @@ fn probe(root: &Root) -> Result<Value> {
 
 /// `update.cancel`: cancel a queued update and free its package right away (OTA-46).
 fn cancel_update(root: &Root) -> Result<Value> {
-    let (result, _) = core(root, "cancel", None, 15.0)?;
+    let result = core(root, "cancel", None, 15.0)?;
     let _ = remove_package(&root.path("/data/updates/pending"));
     Ok(Value::Object(result))
 }
@@ -1348,7 +1393,7 @@ fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
     if last.get("result") != Some(&json!("checked")) {
         last.shift_remove("time");
     }
-    if let Some(stamp) = int_or_float(last.get("time")) {
+    if let Some(stamp) = last.get("time").and_then(Value::as_f64) {
         if (0.0..CHECK_INTERVAL).contains(&(now - stamp)) {
             return Ok(skipped("not_due"));
         }
@@ -1392,7 +1437,7 @@ fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
         Err(Raise::Crash) => return Err(Raise::Crash),
         Err(error) => {
             record["result"] = json!("failed");
-            record["failure"] = json!(prefix(&error.text(), 120));
+            record["failure"] = json!(shortened(&error.text(), 120));
             // A failed background check is not the owner's failed update: keep what the Software
             // Update page showed before. A busy lock wrote nothing, and the owner's check or download
             // that holds it keeps its record.
@@ -1446,7 +1491,7 @@ fn numbers_only(text: &str) -> bool {
 fn restore_health_debug(root: &Root) {
     // strict=False: a raw tab from /proc/sys/kernel/printk (8.22 test build).
     let Some(Value::Object(saved)) =
-        super::python::loads_lenient(&root.read("/run/y2/health-debug.json").unwrap_or_default())
+        loads_lenient(&root.read("/run/y2/health-debug.json").unwrap_or_default())
     else {
         return;
     };
@@ -1467,6 +1512,30 @@ fn restore_health_debug(root: &Root) {
         }
     }
     let _ = fs::remove_file(root.path("/run/y2/health-debug.json"));
+}
+
+/// `json.loads(text, strict=False)`: init writes /proc/sys/kernel/printk's raw tabs into the string.
+fn loads_lenient(text: &str) -> Option<Value> {
+    let mut escaped = String::with_capacity(text.len());
+    let (mut in_string, mut backslash) = (false, false);
+    for c in text.chars() {
+        if in_string {
+            if backslash {
+                backslash = false;
+            } else if c == '\\' {
+                backslash = true;
+            } else if c == '"' {
+                in_string = false;
+            } else if (c as u32) < 0x20 {
+                escaped.push_str(&format!("\\u{:04x}", c as u32));
+                continue;
+            }
+        } else if c == '"' {
+            in_string = true;
+        }
+        escaped.push(c);
+    }
+    serde_json::from_str(&escaped).ok()
 }
 
 /// Python `a == b` for an int (or None) read from /proc and a value from a record.
@@ -1501,7 +1570,7 @@ fn health_ack(root: &Root) -> Result<Value> {
         // Ask LK for the recovery image now, so even a later hang before the rescue restores on the
         // next power-on. Never an automatic power-off.
         core(root, "rollback", None, 15.0)?;
-        return Ok(Value::Object(core(root, "prepare", None, 120.0)?.0));
+        return Ok(Value::Object(core(root, "prepare", None, 120.0)?));
     }
     // A successful frame alone is insufficient: app must still answer, core mounts/devices must be
     // usable, and the same boot/process must own readiness.
@@ -1537,7 +1606,7 @@ fn health_ack(root: &Root) -> Result<Value> {
         return Ok(json!({"state": "PendingHealth", "reason": "application_not_ready"}));
     }
     super::super::boot::mark(root, "application_ready")?;
-    let (result, _) = core(root, "ack", None, 15.0)?;
+    let result = core(root, "ack", None, 15.0)?;
     restore_health_debug(root);
     // The core keeps the installed package as current/ (the next install's rollback copy); anything
     // left in pending/ is no longer needed.
@@ -1589,7 +1658,7 @@ pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) 
             }
             "auto-check" => automatic_check(root, &Player),
             "probe-recovery" => probe(root),
-            "recovery-status" => Ok(Value::Object(core(root, "misc", None, 15.0)?.0)),
+            "recovery-status" => Ok(Value::Object(core(root, "misc", None, 15.0)?)),
             "apply" | "rollback" => apply(root, action == "rollback"),
             "cancel" => cancel_update(root),
             "health-ack" => health_ack(root),
@@ -1779,6 +1848,33 @@ mod tests {
     fn pathlib_spells_paths() {
         assert_eq!(pathlib(Path::new("/a//b/./"), "x"), PathBuf::from("/a/b/x"));
         assert_eq!(pathlib(Path::new("./pkg"), "x"), PathBuf::from("pkg/x"));
+    }
+
+    #[test]
+    fn lenient_json_takes_raw_tabs() {
+        assert_eq!(
+            loads_lenient("{\"printk\": \"4\t4\t1\t7\"}"),
+            Some(json!({"printk": "4\t4\t1\t7"}))
+        );
+        assert_eq!(loads_lenient("nope"), None);
+    }
+
+    #[test]
+    fn payloads_keep_the_manifests_order() {
+        // The map keeps the document's order; a repeated key keeps its first place and its last value,
+        // as a Python dict does.
+        let text = r#"{"payloads": {"rootfs": 1, "bootimg": 2, "recovery": 3, "bootimg": 4}}"#;
+        let manifest: Map<String, Value> = serde_json::from_str(text).unwrap();
+        let payloads: Vec<(&String, &Value)> =
+            manifest["payloads"].as_object().unwrap().iter().collect();
+        assert_eq!(
+            payloads,
+            [
+                (&"rootfs".to_owned(), &json!(1)),
+                (&"bootimg".to_owned(), &json!(4)),
+                (&"recovery".to_owned(), &json!(3))
+            ]
+        );
     }
 
     #[test]

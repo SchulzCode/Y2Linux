@@ -5,7 +5,6 @@ pub(crate) mod daemon;
 mod download;
 mod image;
 mod process;
-mod python;
 pub mod radiofw;
 mod storage;
 pub mod update;

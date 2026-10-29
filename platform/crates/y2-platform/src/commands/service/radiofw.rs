@@ -10,20 +10,18 @@
 //! derives the two board defaults like tools/connectivity/provision.py, installs them, deletes the copy
 //! and starts the radios. Only names, sizes and hashes are in this file; never firmware bytes.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{
-    image::{self, Ext4, Image},
-    python::realpath,
-};
-use crate::reply::{atomic_json as publish, Failure, Outcome, Reply};
+use super::image::{self, Ext4, Image};
+use crate::commands::storage::media;
+use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use std::{
     fs::{self, OpenOptions},
     io::Write,
     os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt},
     path::{Path, PathBuf},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
-use y2p_core::mounts::{mounts_at, Mount};
+use y2p_core::mounts::mounts_at;
 use y2p_core::py::PyValue;
 use y2p_core::{
     command,
@@ -433,133 +431,8 @@ pub fn candidates(root: &Root) -> Vec<PathBuf> {
     seen.into_iter().map(|f| f.join(SOURCE)).collect()
 }
 
-// ---- the SD card's write window (media.write_window / sd_writable, holder `radiofw`) ------------
-
-const SD_WRITE: &str = "/run/y2/sd-write.json";
-const WRITE_HOLDERS: [&str; 4] = ["usb", "reborn", "report", "radiofw"];
-
-/// `media.owned_mount`.
-fn owned_mount(root: &Root, mounted: &Mount) -> bool {
-    let device = root.path(&format!("/sys/dev/block/{}", mounted.device_id));
-    if device.exists() {
-        return realpath(&device)
-            .to_string_lossy()
-            .contains("/11240000.mmc/");
-    }
-    let claim = root.json_object("/run/y2/media-mount.json");
-    // Removed cards no longer have a sysfs controller path. The retained claim permits only the exact
-    // mount we created, never an arbitrary mountpoint.
-    *get_or_null(&claim, "boot_id") == Value::from(root.boot_id())
-        && py::eq_int(claim.get("mount_id"), mounted.mount_id)
-        && claim.get("device_id") == Some(&json!(mounted.device_id))
-        && claim.get("device") == Some(&json!(mounted.source))
-}
-
-/// `media._sd_state`: (claim, mount) of our current SD mount.
-fn sd_state(root: &Root) -> (Map<String, Value>, Option<Mount>) {
-    let claim = root.json_object("/run/y2/media-mount.json");
-    let old = mounts_at(root, "/media/sd");
-    if old.len() == 1
-        && owned_mount(root, &old[0])
-        && py::eq_int(claim.get("mount_id"), old[0].mount_id)
-        && *get_or_null(&claim, "boot_id") == Value::from(root.boot_id())
-    {
-        let mount = old.into_iter().next();
-        return (claim, mount);
-    }
-    (claim, None)
-}
-
-/// `media._writers`: the live holders of this mount's window.
-fn writers(root: &Root, mount: &Mount) -> Vec<(String, f64)> {
-    let value = root.json_object(SD_WRITE);
-    if *get_or_null(&value, "boot_id") != Value::from(root.boot_id())
-        || !py::eq_int(value.get("mount_id"), mount.mount_id)
-    {
-        return Vec::new();
-    }
-    let now = root.clock().monotonic();
-    let Some(Value::Object(holders)) = value.get("holders") else {
-        return Vec::new();
-    };
-    y2p_core::json::sorted_entries(holders)
-        .into_iter()
-        .filter(|(k, _)| WRITE_HOLDERS.contains(&k.as_str()))
-        .filter_map(|(k, v)| {
-            py::number(Some(v))
-                .filter(|v| *v > now)
-                .map(|v| (k.clone(), v))
-        })
-        .collect()
-}
-
-/// `media._apply_window`: remount to match the holders; records them. Returns writable now.
-fn apply_window(root: &Root, mount: &Mount, holders: &[(String, f64)]) -> Result<bool> {
-    let map: Map<String, Value> = holders.iter().map(|(k, v)| (k.clone(), json!(v))).collect();
-    publish(
-        &root.path(SD_WRITE),
-        &json!({"schema": 1, "boot_id": Value::from(root.boot_id()), "mount_id": mount.mount_id, "holders": map}),
-        false,
-    )?;
-    let mut writable = mount.options.iter().any(|o| o == "rw");
-    if !holders.is_empty() != writable {
-        let option = if holders.is_empty() {
-            "remount,ro"
-        } else {
-            "remount,rw"
-        };
-        command::run(root, &["mount", "-o", option, "/media/sd"], 10.0);
-        let now = mounts_at(root, "/media/sd");
-        writable = now
-            .first()
-            .is_some_and(|m| m.options.iter().any(|o| o == "rw"));
-    }
-    Ok(writable)
-}
-
-/// `media.write_window(ctx, 'radiofw', seconds, release)`: whether holders were set (`answer.get('holders')`).
-fn write_window(root: &Root, seconds: i64, release: bool) -> Result<bool> {
-    let runtime = root.path("/run/y2");
-    crate::reply::mkdir_parents(&runtime, 0o700)?;
-    let lock_path = runtime.join("media.lock");
-    let deadline = root.clock().monotonic() + 5.0;
-    let _lock = loop {
-        match y2p_core::lock::try_exclusive(&lock_path) {
-            Ok(Some(lock)) => break lock,
-            Ok(None) => {
-                // A check or a repair holds the card; a short admission passes.
-                if root.clock().monotonic() >= deadline {
-                    return Ok(false);
-                }
-                std::thread::sleep(Duration::from_millis(200));
-            }
-            Err(e) => return Err(os_path(e, &lock_path)),
-        }
-    };
-    let (claim, mount) = sd_state(root);
-    let Some(mount) = mount else {
-        return Ok(false);
-    };
-    match claim.get("read_only") {
-        // Writable once its background check passes; damaged cards get no window; an unprotected card
-        // needs none.
-        Some(Value::String(s)) if s == "protected" => {}
-        _ => return Ok(false),
-    }
-    let mut holders = writers(root, &mount);
-    holders.retain(|(k, _)| k != "radiofw");
-    if !release {
-        holders.push((
-            "radiofw".into(),
-            root.clock().monotonic() + seconds.clamp(1, 600) as f64,
-        ));
-    }
-    apply_window(root, &mount, &holders)?;
-    Ok(!holders.is_empty())
-}
-
-/// `radiofw.remove`: delete the used system.img; on the SD card inside a write window (the card is
-/// read-only between writes, media.py).
+/// `radiofw.remove`: delete the used system.img; on the SD card inside a write window of its own (the
+/// card is read-only between writes, storage::media).
 fn remove(root: &Root, source: &Path) {
     let on_sd = source
         .to_string_lossy()
@@ -568,12 +441,12 @@ fn remove(root: &Root, source: &Path) {
         let _ = fs::remove_file(source);
         return;
     }
-    let Ok(held) = write_window(root, 30, false) else {
+    let Ok(answer) = media::write_window(root, "radiofw", 30, false) else {
         return;
     };
     let _ = fs::remove_file(source);
-    if held {
-        let _ = write_window(root, 30, true);
+    if answer.get("holders").is_some_and(py::truthy) {
+        let _ = media::write_window(root, "radiofw", 30, true);
     }
 }
 
@@ -597,7 +470,10 @@ fn state(root: &Root) -> Value {
     if present(root) {
         return json!({"state": "Ready"});
     }
-    if super::python::is_one_of(value.get("state"), &["Installing", "Failed"]) {
+    if matches!(
+        value.get("state").and_then(Value::as_str),
+        Some("Installing" | "Failed")
+    ) {
         return json!({"state": get_or_null(&value, "state"), "reason": get_or_null(&value, "reason")});
     }
     let mut missing = json!({"state": "Missing", "folder": FOLDER, "file": SOURCE,
@@ -790,6 +666,7 @@ mod radiofw_tests;
 mod tests {
     use super::*;
     use crate::testing::Fixture;
+    use std::time::Duration;
 
     #[test]
     fn a_scan_whose_copy_cannot_be_installed_exits_1() {
@@ -801,7 +678,7 @@ mod tests {
             .write(true)
             .open(fixture.path(&image))
             .unwrap();
-        file.set_modified(SystemTime::now() - std::time::Duration::from_secs(60))
+        file.set_modified(SystemTime::now() - Duration::from_secs(60))
             .unwrap();
         let (seen, arriving) = seen(&file.metadata().unwrap());
         assert!(!arriving);

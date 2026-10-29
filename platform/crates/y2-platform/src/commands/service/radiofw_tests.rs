@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::{ok, repository, Fixture};
-use std::process::Command;
+use std::{process::Command, time::Duration};
 
 /// Bytes that differ per file and per run of a test (`os.urandom` in Python).
 fn noise(size: usize, seed: u64) -> Vec<u8> {
