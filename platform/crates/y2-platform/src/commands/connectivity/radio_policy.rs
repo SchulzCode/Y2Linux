@@ -137,3 +137,7 @@ pub fn command(root: &Root) -> Outcome {
     let ready = value.get("state").and_then(Value::as_str) == Some("Ready");
     Reply::unsorted(&value, if ready { 0 } else { 1 })
 }
+
+#[cfg(test)]
+#[path = "radio_policy_tests.rs"]
+mod radio_policy_tests;

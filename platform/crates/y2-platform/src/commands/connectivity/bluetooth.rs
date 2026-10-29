@@ -532,3 +532,7 @@ pub fn normalize(root: &Root, raw: &Json) -> Result<Value, Failure> {
     }
     done(result)
 }
+
+#[cfg(test)]
+#[path = "bluetooth_tests.rs"]
+mod bluetooth_tests;

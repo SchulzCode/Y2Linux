@@ -567,14 +567,14 @@ pub fn scan_evidence(root: &Root) -> Ordered {
 /// Passive supplicant events. Never issues CONNECT or owns reconnect.
 pub struct EventMonitor {
     root: Root,
-    sock: Option<UnixDatagram>,
+    pub(crate) sock: Option<UnixDatagram>,
     path: Option<PathBuf>,
     generation: Option<(u64, i128)>,
     started: f64,
     counts: Vec<(String, u64)>,
     last: Vec<(String, f64)>,
     last_disconnect: Json,
-    interrupted_handshakes: u64,
+    pub(crate) interrupted_handshakes: u64,
     /// The network of the last connect: the one a self-heal selects.
     pub connected_network: Option<i64>,
     /// wpa_supplicant's handshake timeout (≈10 s; how a wrong password ends on the Y2) also
@@ -1081,6 +1081,10 @@ impl WifiRecovery {
         Some(action)
     }
 }
+
+#[cfg(test)]
+#[path = "wifi_tests.rs"]
+mod wifi_tests;
 
 #[cfg(test)]
 mod tests {

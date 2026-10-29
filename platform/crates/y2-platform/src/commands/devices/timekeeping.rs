@@ -283,3 +283,7 @@ pub fn alarm(root: &Root, seconds: i64) -> Outcome {
     atomic_json(&runtime.join("rtc-alarm.json"), &value, false)?;
     Reply::unsorted(&value, 0)
 }
+
+#[cfg(test)]
+#[path = "timekeeping_tests.rs"]
+mod timekeeping_tests;

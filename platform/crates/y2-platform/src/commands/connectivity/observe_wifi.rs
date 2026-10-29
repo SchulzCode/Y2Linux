@@ -332,6 +332,10 @@ impl IntoValue for Ordered {
 }
 
 #[cfg(test)]
+#[path = "observe_wifi_tests.rs"]
+mod observe_wifi_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

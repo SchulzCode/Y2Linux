@@ -117,6 +117,10 @@ pub fn command(root: &Root, value: &str) -> Outcome {
 }
 
 #[cfg(test)]
+#[path = "bt_control_tests.rs"]
+mod bt_control_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

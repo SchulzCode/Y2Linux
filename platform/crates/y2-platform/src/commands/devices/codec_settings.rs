@@ -225,6 +225,10 @@ fn python_equal(a: &Value, b: &Value) -> bool {
 }
 
 #[cfg(test)]
+#[path = "codec_settings_tests.rs"]
+mod codec_settings_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
