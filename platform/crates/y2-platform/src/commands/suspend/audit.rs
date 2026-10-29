@@ -6,9 +6,9 @@
 //! `--help`; abbreviations, `--x=y`, argparse's errors and texts at 80 columns, `prog` y2-power-audit),
 //! then its `bounded windows only` refusal (exit 2).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{journal::plain, monotonic, process_time, receipt, traceback, wall, E};
+use super::{as_map, journal::plain, monotonic, process_time, receipt, traceback, wall, E};
 use crate::{argparse::python, reply::Outcome};
-use serde::{ser::SerializeMap, Serialize, Serializer};
+use serde::Serialize;
 use serde_json::Value;
 use std::{
     collections::BTreeMap,
@@ -431,19 +431,6 @@ fn glob(root: &Root, pattern: &str) -> Vec<String> {
         .filter_map(|p| p.strip_prefix(&base).ok())
         .map(|p| format!("/{}", p.display()))
         .collect()
-}
-
-/// Pairs in their order as one JSON object (a later pair with the same key replaced the earlier
-/// one when the list was built).
-fn as_map<K: Serialize, V: Serialize, S: Serializer>(
-    pairs: &[(K, V)],
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    let mut map = serializer.serialize_map(Some(pairs.len()))?;
-    for (key, value) in pairs {
-        map.serialize_entry(key, value)?;
-    }
-    map.end()
 }
 
 /// Each file read (its device path) with its text, `None` when it could not be read.

@@ -24,6 +24,7 @@ mod test_support;
 
 use super::Command;
 use crate::reply::{Failure, Outcome, Reply};
+use serde::{ser::SerializeMap, Serialize, Serializer};
 use serde_json::Value;
 use std::{
     ffi::OsString,
@@ -322,6 +323,19 @@ pub fn py_add(current: Option<&Value>, n: f64, integer: bool) -> Result<Value, E
             None => Err(E::TypeError("unsupported operand type(s) for +".into())),
         },
     }
+}
+
+/// Pairs in their order as one JSON object (a later pair with the same key replaced the earlier
+/// one when the list was built).
+pub fn as_map<K: Serialize, V: Serialize, S: Serializer>(
+    pairs: &[(K, V)],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let mut map = serializer.serialize_map(Some(pairs.len()))?;
+    for (key, value) in pairs {
+        map.serialize_entry(key, value)?;
+    }
+    map.end()
 }
 
 /// `time.time()`.
