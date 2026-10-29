@@ -123,33 +123,6 @@ mod tests {
         assert_eq!(realpath(&base.join("missing/../x/./y")), base.join("x/y"));
         assert_eq!(realpath(&base.join("loop")), base.join("loop"));
         assert_eq!(realpath(Path::new("/")), PathBuf::from("/"));
-        // The same paths through host Python, when it is there.
-        if let Ok(out) = std::process::Command::new("python3")
-            .args([
-                "-I",
-                "-c",
-                "import os,sys\nfor p in sys.argv[1:]: print(os.path.realpath(p))",
-            ])
-            .args([
-                base.join("proc/77/exe"),
-                base.join("missing/../x/./y"),
-                base.join("loop"),
-            ])
-            .output()
-        {
-            let lines: Vec<String> = String::from_utf8_lossy(&out.stdout)
-                .lines()
-                .map(str::to_owned)
-                .collect();
-            assert_eq!(
-                lines,
-                [
-                    base.join("usr/bin/reborn").display().to_string(),
-                    base.join("x/y").display().to_string(),
-                    base.join("loop").display().to_string()
-                ]
-            );
-        }
         let root = Root::new(&base);
         fs::create_dir_all(base.join("run/reborn")).unwrap();
         fs::write(base.join("run/reborn/process.pid"), "77\n").unwrap();

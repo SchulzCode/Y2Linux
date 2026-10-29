@@ -289,8 +289,8 @@ mod tests {
     }
 
     #[test]
-    fn random_floats_match_host_python() {
-        // Bit patterns from a fixed xorshift sequence; host Python prints repr() of each.
+    fn random_floats_print_as_python_repr() {
+        // Bit patterns from a fixed xorshift sequence.
         let mut state = 0x9e37_79b9_7f4a_7c15u64;
         let bits: Vec<u64> = (0..20_000)
             .map(|_| {
@@ -301,26 +301,16 @@ mod tests {
             })
             .filter(|b| f64::from_bits(*b).is_finite())
             .collect();
-        let script = "import struct, sys\nfor line in sys.stdin:\n    print(repr(struct.unpack('<d', int(line).to_bytes(8, 'little'))[0]))";
-        let Ok(mut python) = std::process::Command::new("python3")
-            .args(["-I", "-c", script])
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
-            .spawn()
-        else {
-            return; // no host Python
-        };
-        let input: String = bits.iter().map(|b| format!("{b}\n")).collect();
-        let mut stdin = python.stdin.take().unwrap();
-        // Written from a thread: Python's answers would fill the pipe before all input is sent.
-        let writer = std::thread::spawn(move || stdin.write_all(input.as_bytes()));
-        let output = python.wait_with_output().unwrap();
-        writer.join().unwrap().unwrap();
-        let expected = String::from_utf8(output.stdout).unwrap();
-        for (b, python) in bits.iter().zip(expected.lines()) {
-            assert_eq!(float_repr(f64::from_bits(*b)), python, "bits {b:#x}");
-        }
-        assert_eq!(expected.lines().count(), bits.len());
+        // repr() of each as CPython printed it (recorded from host Python 3.15).
+        let ours: String = bits
+            .iter()
+            .map(|b| float_repr(f64::from_bits(*b)) + "\n")
+            .collect();
+        crate::recorded::check(
+            env!("CARGO_MANIFEST_DIR"),
+            "float-repr.txt",
+            ours.as_bytes(),
+        );
     }
 
     #[test]

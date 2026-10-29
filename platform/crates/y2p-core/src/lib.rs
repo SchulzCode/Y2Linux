@@ -18,6 +18,8 @@ pub mod power_json;
 pub mod power_text;
 pub mod py;
 pub mod record;
+#[cfg(any(test, feature = "testing"))]
+pub mod recorded;
 pub mod reports_sqlite;
 pub mod root;
 pub mod service_digest;

@@ -50,37 +50,17 @@ pub fn try_shared(path: &Path) -> io::Result<Option<File>> {
 mod tests {
     use super::*;
     use crate::root::tests::tempdir::Dir;
-    use std::process::Command;
 
     #[test]
-    fn a_python_holder_excludes_rust() {
+    fn another_holder_excludes_this_one() {
         let dir = Dir::new();
         let path = dir.path().join(".boot.lock");
-        // A Python holder as the platform takes it (`os.open` + `fcntl.flock(fd, LOCK_EX)`).
-        let Ok(mut holder) = Command::new("python3")
-            .args([
-                "-I",
-                "-c",
-                "import fcntl, os, sys, time\n\
-                    fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)\n\
-                    fcntl.flock(fd, fcntl.LOCK_EX)\ntime.sleep(5)",
-            ])
-            .arg(&path)
-            .spawn()
-        else {
-            return; // no host Python
-        };
-        let started = std::time::Instant::now();
-        while try_shared(&path).unwrap().is_some() {
-            assert!(
-                started.elapsed().as_secs() < 3,
-                "holder never took the lock"
-            );
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
+        // Another holder as a second daemon takes it: its own open file description, flock(LOCK_EX).
+        // flock excludes per open file description, in this process as in another.
+        let holder = try_exclusive(&path).unwrap().expect("free");
+        assert!(try_shared(&path).unwrap().is_none());
         assert!(try_exclusive(&path).unwrap().is_none());
-        holder.kill().unwrap();
-        holder.wait().unwrap();
+        drop(holder);
         let held = try_exclusive(&path)
             .unwrap()
             .expect("free after the holder ended");

@@ -272,29 +272,26 @@ mod tests {
     }
 
     #[test]
-    fn long_runs_match_host_python() {
-        let script = "import random, sys\nr = random.Random(int(sys.argv[1]))\n\
-                      print(r.randbytes(70001).hex(), r.randrange(4096), r.randrange(3), r.randrange(1 << 40))";
-        let Ok(output) = Command::new("python3")
-            .args(["-I", "-c", script, "1049087"])
-            .output()
-        else {
-            return; // no host Python
-        };
-        let expected = String::from_utf8(output.stdout).unwrap();
+    fn long_runs_match_python_random() {
+        // random.Random(1049087): randbytes(70001) (as its SHA-256), randrange(4096), randrange(3),
+        // randrange(1 << 40), recorded from host Python 3.15.
+        use sha2::{Digest, Sha256};
         let mut random = PyRandom::new(1_049_087);
-        let hex: String = random
-            .randbytes(70001)
+        let digest: String = Sha256::digest(random.randbytes(70001))
             .iter()
             .map(|b| format!("{b:02x}"))
             .collect();
         let line = format!(
-            "{hex} {} {} {}",
+            "{digest} {} {} {}\n",
             random.randrange(4096),
             random.randrange(3),
             random.randrange(1 << 40)
         );
-        assert_eq!(line, expected.trim());
+        crate::recorded::check(
+            env!("CARGO_MANIFEST_DIR"),
+            "random-1049087.txt",
+            line.as_bytes(),
+        );
     }
 
     #[test]
