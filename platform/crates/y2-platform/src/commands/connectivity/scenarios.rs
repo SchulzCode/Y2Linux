@@ -379,8 +379,10 @@ fn observation(pcm: Value, extra: Value) -> String {
         "/org/bluez/hci0/dev_BB": {"org.bluez.Device1": {"Address": "BB:BB:BB:BB:BB:BB", "Paired": true, "Bonded": true, "Trusted": true, "Connected": false, "ServicesResolved": false}},
         "/org/bluez/hci0/dev_AA": {"org.bluez.Device1": {"Address": "AA:AA:AA:AA:AA:AA", "Paired": true, "Bonded": true, "Trusted": true, "Connected": true, "ServicesResolved": true}},
         "/org/bluez/hci0/other": 5}"#;
-    let bluealsa = json!({"/org/bluealsa/hci0/dev_AA/a2dpsrc/sink": {"org.bluealsa.PCM1": pcm}});
-    let text = raw.to_string();
+    let bluealsa = y2p_core::json::sorted(
+        json!({"/org/bluealsa/hci0/dev_AA/a2dpsrc/sink": {"org.bluealsa.PCM1": pcm}}),
+    );
+    let text = y2p_core::json::sorted(raw).to_string();
     let text = text.trim_end_matches('}');
     if extra.get("bluez").is_some() {
         format!("{text}, \"bluealsa\": {bluealsa}}}")

@@ -1380,17 +1380,6 @@ fn wifi_state(
     (s("Online"), Value::Null)
 }
 
-/// What a `for` loop over a parsed JSON value yields: a list's items, a dict's keys, a str's
-/// characters (as str values); None where iterating raises TypeError (a number, bool or None).
-fn iterate(value: &Value) -> Option<Vec<Value>> {
-    match value {
-        Value::Array(items) => Some(items.clone()),
-        Value::Object(map) => Some(map.keys().map(|k| json!(k)).collect()),
-        Value::String(s) => Some(s.chars().map(|c| json!(c.to_string())).collect()),
-        _ => None,
-    }
-}
-
 /// The global addresses of `ip -j -4 addr`, as Python's comprehension reads them: Ok(None) where it
 /// raises what `wifi` catches (ValueError, TypeError, KeyError), the AttributeError of `.get` on an
 /// item that is no dict (a dict's key, a str's character, a list, a number) as Python's crash.
@@ -1399,7 +1388,7 @@ fn addresses(output: Option<&str>) -> Result<Option<Vec<Value>>, Failure> {
     let Ok(parsed) = serde_json::from_str::<Value>(text) else {
         return Ok(None);
     };
-    let Some(links) = iterate(&parsed) else {
+    let Some(links) = y2p_core::py::iterate(&parsed) else {
         return Ok(None); // not iterable: TypeError
     };
     let mut found = Vec::new();
@@ -1409,7 +1398,7 @@ fn addresses(output: Option<&str>) -> Result<Option<Vec<Value>>, Failure> {
         };
         let infos = match link.get("addr_info") {
             None => Vec::new(),
-            Some(value) => match iterate(value) {
+            Some(value) => match y2p_core::py::iterate(value) {
                 Some(items) => items,
                 None => return Ok(None),
             },

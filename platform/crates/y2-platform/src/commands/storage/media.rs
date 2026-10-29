@@ -729,7 +729,7 @@ pub fn write_window(
     }
     let mut holders = writers(root, &mount)?;
     if release {
-        holders.remove(holder);
+        holders.shift_remove(holder);
     } else {
         let hold = seconds.clamp(1, WRITE_HOLD_MAX);
         holders.insert(holder.into(), json!(clock::monotonic() + hold as f64));
@@ -741,12 +741,10 @@ pub fn write_window(
         if ok { None } else { Some("remount_failed") },
         writable,
     );
-    // sorted(holders): a Map's keys are sorted.
-    set(
-        &mut value,
-        "holders",
-        json!(holders.keys().collect::<Vec<_>>()),
-    );
+    // sorted(holders).
+    let mut names: Vec<&String> = holders.keys().collect();
+    names.sort();
+    set(&mut value, "holders", json!(names));
     Ok(value)
 }
 

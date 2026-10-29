@@ -52,12 +52,10 @@ fn codec_settings(root: &Root) -> Result<Value, Stop> {
             .as_str()
             .is_some_and(|a| a.rsplit('/').next() == Some("bluealsad"))
         && {
-            let arguments: Vec<Value> = match applied.get("arguments") {
+            let arguments = match applied.get("arguments") {
                 None => Vec::new(),
-                Some(Value::Array(items)) => items.clone(),
-                Some(Value::String(s)) => s.chars().map(|c| json!(c.to_string())).collect(),
-                Some(Value::Object(map)) => map.keys().map(|k| json!(k)).collect(),
-                Some(_) => return Err(Stop::Caught), // not iterable: TypeError
+                // Not iterable: TypeError.
+                Some(other) => y2p_core::py::iterate(other).ok_or(Stop::Caught)?,
             };
             arguments.iter().all(|a| contains(&argv, a))
         };

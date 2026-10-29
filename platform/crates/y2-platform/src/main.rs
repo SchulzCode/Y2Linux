@@ -14,7 +14,7 @@ mod testing;
 use reply::Failure;
 use std::{env, ffi::OsString, io::Write, process::ExitCode};
 use y2p_core::{
-    json::{dumps, Separators},
+    json::{dumps, dumps_sorted, Separators},
     os_text::{backslashreplace, fsdecode_os},
 };
 
@@ -62,7 +62,7 @@ fn main() -> ExitCode {
         // tests/test_platform_argparse.py: the parse itself, compared with Python's namespace (ASCII
         // JSON, so an escaped byte reads back as Python's surrogate).
         let echo = serde_json::json!({"namespace": parsed.typed(), "canonical": parsed.canonical});
-        let echo = dumps(&echo, Separators::Spaced).expect("echo");
+        let echo = dumps_sorted(&echo, Separators::Spaced).expect("echo");
         return print(&mut std::io::stdout().lock(), &format!("{echo}\n"), 0);
     }
     let canonical: Vec<&str> = parsed.canonical.iter().map(String::as_str).collect();

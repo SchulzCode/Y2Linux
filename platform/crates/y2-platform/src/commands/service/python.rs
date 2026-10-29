@@ -10,7 +10,10 @@ use std::{
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
 };
-use y2p_core::{json::float_repr, py, Root};
+use y2p_core::{
+    json::{float_repr, sorted_entries},
+    py, Root,
+};
 
 /// `os.path.realpath(path, strict=False)` (posixpath, Python 3.15): symlinks resolved where they
 /// exist, the rest of the path taken as written with `..` removed lexically.
@@ -177,9 +180,11 @@ pub fn repr_of(value: &Value) -> String {
             "[{}]",
             items.iter().map(repr_of).collect::<Vec<_>>().join(", ")
         ),
+        // Sorted keys: the records it spells are written sorted.
         Value::Object(map) => format!(
             "{{{}}}",
-            map.iter()
+            sorted_entries(map)
+                .into_iter()
                 .map(|(k, v)| format!("{}: {}", py::repr(k), repr_of(v)))
                 .collect::<Vec<_>>()
                 .join(", ")

@@ -169,10 +169,11 @@ pub fn py_dict(value: &Value) -> Result<Map<String, Value>, Failure> {
                 }
                 (json!(chars[0].to_string()), json!(chars[1].to_string()))
             }
-            // Its keys, in this reader's (sorted) order.
+            // Its keys, sorted (py::iterate).
             Value::Object(map) if map.len() == 2 => {
-                let mut keys = map.keys();
-                (json!(keys.next()), json!(keys.next()))
+                let mut keys = map.keys().collect::<Vec<_>>();
+                keys.sort();
+                (json!(keys[0]), json!(keys[1]))
             }
             Value::Object(map) => return Err(length(index, map.len())),
             _ => return Err(Failure::type_error("object is not iterable")),

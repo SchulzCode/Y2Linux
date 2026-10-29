@@ -136,7 +136,7 @@ impl Py {
         }
     }
 
-    /// From a serde value (records the platform itself wrote).
+    /// From a serde value (records the platform itself wrote), its objects with their keys sorted.
     pub fn from_serde(value: &serde_json::Value) -> Py {
         match value {
             serde_json::Value::Null => Py::None,
@@ -149,7 +149,8 @@ impl Py {
             serde_json::Value::String(s) => Py::Str(s.clone()),
             serde_json::Value::Array(a) => Py::List(a.iter().map(Py::from_serde).collect()),
             serde_json::Value::Object(o) => Py::Dict(
-                o.iter()
+                y2p_core::json::sorted_entries(o)
+                    .into_iter()
                     .map(|(k, v)| (k.clone(), Py::from_serde(v)))
                     .collect(),
             ),

@@ -177,9 +177,10 @@ pub fn check(
     rust: impl FnOnce(&Root) -> Value,
 ) -> Option<Outcome> {
     let outcome = run(files, answers, rust);
-    let text = serde_json::to_string_pretty(
-        &json!({"result": outcome.result, "calls": outcome.calls, "tree": outcome.tree}),
-    )
+    // Recorded sorted (the recordings were made so).
+    let text = serde_json::to_string_pretty(&y2p_core::json::sorted(
+        json!({"result": outcome.result, "calls": outcome.calls, "tree": outcome.tree}),
+    ))
     .unwrap()
         + "\n";
     y2p_core::recorded::check(

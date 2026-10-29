@@ -45,7 +45,8 @@ impl Serialize for Node {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeMap;
         match self {
-            Node::V(value) => value.serialize(serializer),
+            // A plain value's objects are sorted (a dict that came from a sorted record).
+            Node::V(value) => y2p_core::json::sorted(value.clone()).serialize(serializer),
             Node::L(items) => items.serialize(serializer),
             Node::O(entries) => {
                 let mut map = serializer.serialize_map(Some(entries.len()))?;

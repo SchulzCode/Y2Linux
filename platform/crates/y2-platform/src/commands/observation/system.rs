@@ -88,15 +88,12 @@ pub(crate) fn evidence_status(root: &Root) -> Result<Value, Failure> {
     // has no `.get`); a number, bool or None is not iterable.
     let logs = match value.get("logs") {
         None => Vec::new(),
-        Some(Value::Array(items)) => items.clone(),
-        Some(Value::Object(map)) => map.keys().map(|k| json!(k)).collect(),
-        Some(Value::String(s)) => s.chars().map(|c| json!(c.to_string())).collect(),
-        Some(other) => {
-            return Err(Failure::type_error(format!(
+        Some(other) => y2p_core::py::iterate(other).ok_or_else(|| {
+            Failure::type_error(format!(
                 "'{}' object is not iterable",
                 util::type_name(other)
-            )))
-        }
+            ))
+        })?,
     };
     let mut tails = Vec::new();
     for log in logs {

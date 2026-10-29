@@ -10,7 +10,7 @@ use crate::{
 use serde::Serialize;
 use serde_json::{json, Value};
 use y2p_core::{
-    json::Ordered,
+    json::{sorted, Ordered},
     py::{is_true, truthy},
     Root,
 };
@@ -146,7 +146,8 @@ fn status(root: &Root) -> Result<Status, Failure> {
     let same_boot = applied.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot)
         && boot.as_deref().is_some_and(|b| !b.is_empty());
     let effective = if live && same_boot {
-        applied.get("settings").cloned().unwrap_or(Value::Null)
+        // Printed with its keys sorted, as the runtime record is written.
+        sorted(applied.get("settings").cloned().unwrap_or(Value::Null))
     } else {
         Value::Null
     };

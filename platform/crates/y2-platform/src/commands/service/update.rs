@@ -1344,7 +1344,7 @@ fn automatic_check(root: &Root) -> Result<Value> {
     // `time` counts only from a check that reached the server: ≤ 8.14 kept it on a failed one too,
     // which held off every automatic check for a day (ef22a23d).
     if last.get("result") != Some(&json!("checked")) {
-        last.remove("time");
+        last.shift_remove("time");
     }
     if let Some(stamp) = int_or_float(last.get("time")) {
         if (0.0..CHECK_INTERVAL).contains(&(now - stamp)) {

@@ -77,7 +77,7 @@ fn bonding_and_pairing_windows_are_independent_observations() {
     raw["bluez"][DEVICE]["org.bluez.Device1"]
         .as_object_mut()
         .unwrap()
-        .remove("Bonded");
+        .shift_remove("Bonded");
     assert!(observe(&fixture, &raw)["selected_peer"]["bonded"].is_null());
 }
 

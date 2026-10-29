@@ -348,12 +348,7 @@ fn rename_error(error: std::io::Error, from: &Path, to: &Path) -> Error {
 fn roots(root: &Root) -> Vec<PathBuf> {
     let value = root.json_object("/run/y2/mtp-roots.json");
     // `for r in value.get('roots', [])`: a list's items, a dict's keys, a string's characters.
-    let items: Vec<Value> = match value.get("roots") {
-        Some(Value::Array(items)) => items.clone(),
-        Some(Value::Object(map)) => map.keys().map(|k| json!(k)).collect(),
-        Some(Value::String(text)) => text.chars().map(|c| json!(c.to_string())).collect(),
-        _ => Vec::new(),
-    };
+    let items = value.get("roots").and_then(py::iterate).unwrap_or_default();
     items
         .iter()
         .filter_map(Value::as_str)
@@ -490,8 +485,8 @@ fn writers(root: &Root, mount: &Mount) -> Vec<(String, f64)> {
     let Some(Value::Object(holders)) = value.get("holders") else {
         return Vec::new();
     };
-    holders
-        .iter()
+    y2p_core::json::sorted_entries(holders)
+        .into_iter()
         .filter(|(k, _)| WRITE_HOLDERS.contains(&k.as_str()))
         .filter_map(|(k, v)| {
             py::number(Some(v))

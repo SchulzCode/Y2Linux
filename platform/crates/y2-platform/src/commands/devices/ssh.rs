@@ -64,15 +64,9 @@ fn usb_address(root: &Root) -> Address {
     }
 }
 
-/// Python iteration of a parsed JSON value: a list's items, a dict's keys, a string's characters;
-/// anything else is a TypeError (`Err`).
+/// Python iteration of a parsed JSON value (`py::iterate`); anything else is a TypeError (`Err`).
 fn items(value: &Value) -> Result<Vec<Value>, ()> {
-    match value {
-        Value::Array(items) => Ok(items.clone()),
-        Value::Object(map) => Ok(map.keys().map(|k| json!(k)).collect()),
-        Value::String(text) => Ok(text.chars().map(|c| json!(c.to_string())).collect()),
-        _ => Err(()),
-    }
+    y2p_core::py::iterate(value).ok_or(())
 }
 
 /// `any(a.get('local') == '10.42.0.1' and a.get('prefixlen') == 24 for i in interfaces if

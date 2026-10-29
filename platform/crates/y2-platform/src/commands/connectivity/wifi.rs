@@ -104,7 +104,7 @@ impl Json {
 
     /// As a plain value, for records written sorted (`atomic_json`) or compared.
     pub fn into_value(self) -> Value {
-        match self {
+        y2p_core::json::sorted(match self {
             Json::Value(value) => value,
             Json::Object(pairs) => Value::Object(
                 pairs
@@ -112,7 +112,7 @@ impl Json {
                     .map(|(k, v)| (k, v.into_value()))
                     .collect(),
             ),
-        }
+        })
     }
 }
 
@@ -131,7 +131,7 @@ impl serde::Serialize for Json {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeMap;
         match self {
-            Json::Value(value) => value.serialize(serializer),
+            Json::Value(value) => y2p_core::json::sorted(value.clone()).serialize(serializer),
             Json::Object(pairs) => {
                 let mut map = serializer.serialize_map(Some(pairs.len()))?;
                 for (key, value) in pairs {

@@ -292,7 +292,7 @@ impl<T: Into<Json>> From<Option<T>> for Json {
 /// A `serde_json::Value` (its objects sorted) as a `Json`.
 impl From<serde_json::Value> for Json {
     fn from(value: serde_json::Value) -> Self {
-        match value {
+        match crate::json::sorted(value) {
             serde_json::Value::Null => Json::Null,
             serde_json::Value::Bool(b) => Json::Bool(b),
             serde_json::Value::Number(n) => Json::Number(n),

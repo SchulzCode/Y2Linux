@@ -41,6 +41,22 @@ pub fn number(value: Option<&Value>) -> Option<f64> {
     }
 }
 
+/// What a `for` loop over a parsed JSON value yields: a list's items, a dict's keys (sorted, the order
+/// of the records, which are written sorted), a str's characters (as str values); `None` where Python
+/// raises TypeError (a number, bool or None is not iterable).
+pub fn iterate(value: &Value) -> Option<Vec<Value>> {
+    match value {
+        Value::Array(items) => Some(items.clone()),
+        Value::Object(map) => {
+            let mut keys: Vec<&String> = map.keys().collect();
+            keys.sort();
+            Some(keys.into_iter().map(|k| Value::from(k.as_str())).collect())
+        }
+        Value::String(text) => Some(text.chars().map(|c| Value::from(c.to_string())).collect()),
+        _ => None,
+    }
+}
+
 /// `type(value) is int` (not a bool, not a float).
 pub fn exact_int(value: Option<&Value>) -> Option<i64> {
     match value? {
