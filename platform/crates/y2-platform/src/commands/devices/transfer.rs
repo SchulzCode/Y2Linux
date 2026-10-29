@@ -4,7 +4,7 @@
 //! directory descriptors opened without following symlinks, as Python's `dir_fd` calls, and an
 //! OSError names the relative name the call was given (Python's text).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::storage::{self, Volume, INTERNAL};
+use super::storage::{self, data_volume, Volume, INTERNAL};
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use std::os::fd::{AsFd, BorrowedFd};
@@ -286,21 +286,10 @@ fn stage_path(root: &Root, token: &str) -> Result<PathBuf, Failure> {
     Ok(root.path("/data/transfer-staging").join(token))
 }
 
-fn data_volume(root: &Root) -> Result<Volume, Failure> {
-    let value = storage::volume(root, "/data");
-    if value.state != "Ready" || value.generation.is_none() {
-        return Err(Failure::value("verified_data_unavailable"));
-    }
-    Ok(value)
-}
-
 /// The verified Y2Media volume; uploads are published there once it is mounted and recorded Ready.
 fn media_volume(root: &Root) -> Result<Volume, Failure> {
-    let value = storage::volume(root, INTERNAL);
-    if value.state != "Ready" || value.generation.is_none() {
-        return Err(Failure::value("verified_internal_media_unavailable"));
-    }
-    Ok(value)
+    y2p_core::volume::verified(root, INTERNAL)
+        .ok_or_else(|| Failure::value("verified_internal_media_unavailable"))
 }
 
 /// `common.json_read(path, default)`: any parsed document, the default when unreadable or not JSON.

@@ -164,6 +164,7 @@ fn interrupted_upload_bad_hash_and_reserve_never_publish() {
         path: "/data",
         state: "Ready",
         generation: Some("boot:1:179:7".into()),
+        uuid: None,
         space_state: "Normal",
         available_bytes: Some(97 * 1024 * 1024),
     };
