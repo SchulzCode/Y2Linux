@@ -77,6 +77,13 @@
   "error": "dns_unavailable",
   "lease_seconds": "86400",
   "monotonic_s": "<volatile>",
+  "prefix_length": 24,
+  "routes": [
+   [
+    "default",
+    "192.168.1.1"
+   ]
+  ],
   "schema": 1,
   "state": "Authenticated"
  },
@@ -91,6 +98,13 @@
      "error": "dns_unavailable",
      "lease_seconds": "86400",
      "monotonic_s": "<volatile>",
+     "prefix_length": 24,
+     "routes": [
+      [
+       "default",
+       "192.168.1.1"
+      ]
+     ],
      "schema": 1,
      "state": "Authenticated"
     },

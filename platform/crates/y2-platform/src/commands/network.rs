@@ -122,12 +122,15 @@ impl<'a> Dhcp<'a> {
     }
 }
 
-/// What an Authenticated lease adds.
+/// What an Authenticated lease adds: its DNS servers and what is configured on wlan0 (the prefix
+/// length of the address and the routes as destination and gateway), which a renew compares.
 #[derive(Serialize)]
 struct Lease {
     dns_servers: Vec<String>,
     /// udhcpc's `lease` as it gave it.
     lease_seconds: Option<String>,
+    prefix_length: u32,
+    routes: Vec<(String, String)>,
 }
 
 /// The published lease as `dhcp-event` reads it back.
@@ -144,6 +147,24 @@ struct Published {
     address: Option<String>,
     #[serde(deserialize_with = "record::texts")]
     dns_servers: Option<Vec<String>>,
+    #[serde(deserialize_with = "record::count")]
+    prefix_length: Option<u64>,
+    #[serde(deserialize_with = "record::pairs")]
+    routes: Option<Vec<(String, String)>>,
+}
+
+impl Published {
+    /// Whether this is the Authenticated lease of this boot and epoch with the same address, prefix,
+    /// routes and DNS servers: what wlan0 and resolv.conf already carry.
+    fn same(&self, root: &Root, epoch: &str, address: &str, lease: &Lease) -> bool {
+        self.state.as_deref() == Some("Authenticated")
+            && self.epoch.as_deref() == Some(epoch)
+            && self.boot_id == root.boot_id()
+            && self.address.as_deref() == Some(address)
+            && self.prefix_length == Some(u64::from(lease.prefix_length))
+            && self.routes.as_ref() == Some(&lease.routes)
+            && self.dns_servers.as_ref() == Some(&lease.dns_servers)
+    }
 }
 
 /// `y2-platform wifi-event CONNECTED|DISCONNECTED|SERVICE_RESTART`.
@@ -460,30 +481,37 @@ pub fn dhcp_event(root: &Root, event: &str) -> Outcome {
             if address == [0, 0, 0, 0] || (224..=239).contains(&address[0]) || address[0] == 127 {
                 return Err(Failure::value("invalid_dhcp_address"));
             }
-            let servers = addresses(&var, "dns")?;
-            let routes = routes(&var)?;
-            let interface = format!("{}/{length}", dotted(address));
-            for argv in configuration(&interface, &routes) {
-                let argv: Vec<&str> = argv.iter().map(String::as_str).collect();
-                if !command::run(root, &argv, command::TIMEOUT).ok {
-                    publish(
-                        root,
-                        "dhcp",
-                        &Dhcp::failed(&epoch, "lease_configuration_failed"),
-                    )?;
-                    return Err(Failure::value("lease_configuration_failed"));
+            let lease = Lease {
+                dns_servers: addresses(&var, "dns")?,
+                lease_seconds: var("lease"),
+                prefix_length: length,
+                routes: routes(&var)?,
+            };
+            let address = dotted(address);
+            // Owner decision (2026-10-29): udhcpc renews at half the lease time; a renew of the
+            // lease wlan0 already carries changes nothing (flushing and adding it again cut the
+            // link for a moment each time). Anything else is configured from scratch.
+            if !(event == "renew" && previous.same(root, &epoch, &address, &lease)) {
+                let interface = format!("{address}/{length}");
+                for argv in configuration(&interface, &lease.routes) {
+                    let argv: Vec<&str> = argv.iter().map(String::as_str).collect();
+                    if !command::run(root, &argv, command::TIMEOUT).ok {
+                        publish(
+                            root,
+                            "dhcp",
+                            &Dhcp::failed(&epoch, "lease_configuration_failed"),
+                        )?;
+                        return Err(Failure::value("lease_configuration_failed"));
+                    }
                 }
+                resolv(root, &lease.dns_servers)?;
             }
-            resolv(root, &servers)?;
             Dhcp {
                 epoch: &epoch,
                 state: "Authenticated",
-                error: servers.is_empty().then_some("dns_unavailable"),
-                address: Some(dotted(address)),
-                lease: Some(Lease {
-                    dns_servers: servers,
-                    lease_seconds: var("lease"),
-                }),
+                error: lease.dns_servers.is_empty().then_some("dns_unavailable"),
+                address: Some(address),
+                lease: Some(lease),
             }
         }
         _ => return Err(Failure::value("unknown_dhcp_event")),

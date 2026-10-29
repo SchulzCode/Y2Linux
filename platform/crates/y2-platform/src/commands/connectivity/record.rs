@@ -28,6 +28,30 @@ pub fn texts<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Vec<St
     })
 }
 
+/// A count: a JSON integer from 0 up, anything else (a bool, a float) none.
+pub fn count<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<u64>, D::Error> {
+    Ok(Value::deserialize(deserializer)?.as_u64())
+}
+
+/// A list of text pairs (`[["default", "192.0.2.1"]]`), anything else none.
+pub fn pairs<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Vec<(String, String)>>, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::Array(items) => items
+            .into_iter()
+            .map(|item| match item {
+                Value::Array(pair) => match <[Value; 2]>::try_from(pair) {
+                    Ok([Value::String(a), Value::String(b)]) => Some((a, b)),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect(),
+        _ => None,
+    })
+}
+
 /// A record's fields from its parsed object (every field lenient and defaulted, so this never fails
 /// for an object; an empty object gives the defaults).
 pub fn read<T: DeserializeOwned + Default>(object: Object) -> T {
