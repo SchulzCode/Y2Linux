@@ -840,3 +840,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "upload_tests.rs"]
+mod upload_tests;

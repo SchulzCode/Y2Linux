@@ -470,3 +470,7 @@ pub fn save_to(
         )
         .with("bytes", Py::from(data.len())))
 }
+
+#[cfg(test)]
+#[path = "media_tests.rs"]
+mod media_tests;

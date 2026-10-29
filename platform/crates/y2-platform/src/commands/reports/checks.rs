@@ -464,3 +464,7 @@ pub fn run_checks(root: &Root) -> Result<Py, Failure> {
     );
     Ok(Py::List(vec![result]))
 }
+
+#[cfg(test)]
+#[path = "checks_tests.rs"]
+mod checks_tests;

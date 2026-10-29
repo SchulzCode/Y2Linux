@@ -12,7 +12,7 @@
 pub mod bluetooth;
 pub mod bt_control;
 #[cfg(test)]
-mod crosscheck;
+pub(crate) mod crosscheck;
 pub mod daemon;
 #[allow(dead_code)]
 pub mod observe_wifi;

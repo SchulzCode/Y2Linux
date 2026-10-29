@@ -483,3 +483,7 @@ print(json.dumps(diagnostics.events(sys.argv[3]), sort_keys=True))
         assert_eq!(ours_events, lines.next().unwrap());
     }
 }
+
+#[cfg(test)]
+#[path = "diagnostics_tests.rs"]
+mod diagnostics_tests;

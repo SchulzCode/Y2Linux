@@ -16,6 +16,8 @@ mod scrub;
 mod secrets;
 pub(crate) mod state;
 mod tarball;
+#[cfg(test)]
+mod test_player;
 mod upload;
 mod volume;
 mod workload;
@@ -247,6 +249,19 @@ pub fn os_name(error: std::io::Error, name: &str) -> Failure {
     let (text, class) = y2p_core::py::os_error(&error, Some(name));
     Failure::Os { text, class }
 }
+
+/// For a unit test whose fixture commands are not all scripted on its own thread (a report runs its
+/// live commands on another, the service records a start): the connectivity crosschecks set the
+/// process-wide fixture variables while they hold this lock, which would answer and record those.
+#[cfg(test)]
+pub(crate) fn fixture_environment() -> std::sync::MutexGuard<'static, ()> {
+    crate::commands::connectivity::crosscheck::SERIAL
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+}
+
+#[cfg(test)]
+mod cli_tests;
 
 #[cfg(test)]
 mod tests {

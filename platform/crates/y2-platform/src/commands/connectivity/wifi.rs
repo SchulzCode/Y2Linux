@@ -567,7 +567,7 @@ pub fn scan_evidence(root: &Root) -> Ordered {
 /// Passive supplicant events. Never issues CONNECT or owns reconnect.
 pub struct EventMonitor {
     root: Root,
-    sock: Option<UnixDatagram>,
+    pub(crate) sock: Option<UnixDatagram>,
     path: Option<PathBuf>,
     generation: Option<(u64, i128)>,
     started: f64,

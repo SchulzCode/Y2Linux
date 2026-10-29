@@ -32,7 +32,7 @@ const VOLATILE: [&str; 8] = [
     "boottime_s",
 ];
 /// The fixture-command environment is the process's: one check at a time.
-static SERIAL: Mutex<()> = Mutex::new(());
+pub(crate) static SERIAL: Mutex<()> = Mutex::new(());
 
 const DRIVER: &str = r#"
 import json, sys, time
