@@ -193,3 +193,7 @@ pub fn run(root: &Root, full: bool) -> Outcome {
     let failed = result["state"] == "FAILED";
     Reply::sorted(&result, u8::from(failed))
 }
+
+#[cfg(test)]
+#[path = "health_tests.rs"]
+mod health_tests;

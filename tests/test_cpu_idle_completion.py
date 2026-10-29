@@ -31,50 +31,6 @@ int main(void) {
 }
 ''')
 
-    def test_diagnostics_do_not_fabricate_absent_states_or_mask_owners(self):
-        import sys
-        import tempfile
-        sys.path.insert(0, str(ROOT/'tools/platform'))
-        from y2_platform.common import Context
-        from y2_platform.observe import idle_completion
-        with tempfile.TemporaryDirectory() as directory:
-            ctx = Context(directory)
-            result = idle_completion(ctx, [])
-            self.assertFalse(result['C1']['registered'])
-            self.assertIsNone(result['C1']['entries'])
-            self.assertIsNone(result['C2']['blocker_owners'])
-            self.assertIsNone(result['C3']['unused_clock_handoff'])
-            self.assertIsNone(result['C3']['uart_clock_handoff'])
-            self.assertEqual(result['C3']['uart_sleep'], {})
-            for path, value in (
-                ('/sys/module/clocks/parameters/slow_blockers', str((1 << 11) | (1 << 12))),
-                ('/sys/bus/platform/devices/18070000.connectivity/power/runtime_status', 'active'),
-                ('/sys/bus/platform/devices/11230000.mmc/power/runtime_status', 'suspended'),
-                ('/sys/devices/platform/10006000.power-controller/dormant_preflight',
-                 'peri_blockers=0x400 infra_blockers=0x80 disp0=0x400 disp1=0x8 prerequisite_topology=1 prerequisite_frequency=0 unmet=frequency,'),
-                ('/sys/module/clocks/parameters/unused_handoff',
-                 'UART1 sampled=1 lcr=3 ier=0 lsr=0x60 dma=4 reason=quiet retained=0\nSPI0 sampled=1 command=0 status1=1 reason=quiet retained=0'),
-                ('/sys/devices/platform/10006000.power-controller/state',
-                 'dormant_entries=0 uart_sleep_attempts=1 uart_sleep_successes=0 uart_sleep_ack=0 uart_sleep_timeouts=1 uart_sleep_rejection=UART_BUSY uart_power_before=0x15820 uart_power_after=0x15820 uart_r13_ack=0'),
-                ('/sys/module/clocks/parameters/uart_sleep_handoff',
-                 'uart_sleep_owner_ready=1 uart1_deferred=0x20000 uart1_gate_before=0 uart1_gate_after=0'),
-            ):
-                p = ctx.path(path)
-                p.parent.mkdir(parents=True, exist_ok=True)
-                p.write_text(value)
-            rows = [dict(cpu='cpu0', name='WFI', disabled=0, usage=10, time_us=1000, rejected=0)]
-            result = idle_completion(ctx, rows)
-            self.assertTrue(result['C1']['enabled'])
-            self.assertEqual(result['C1']['residency_us'], 1000)
-            self.assertEqual([x['clock'] for x in result['C2']['blocker_owners']], ['APDMA', 'MSDC0'])
-            self.assertEqual([x['runtime_status'] for x in result['C2']['blocker_owners']], ['active', 'suspended'])
-            self.assertEqual(result['C3']['unmet'], ['frequency'])
-            self.assertIn('dma=4 reason=quiet', result['C3']['unused_clock_handoff'])
-            self.assertEqual([x['clock'] for x in result['C3']['blocker_owners']], ['USB0', 'L2C_SRAM', 'MDP_WROT', 'DPI_ENGINE'])
-            self.assertEqual(result['C3']['uart_sleep']['uart_sleep_rejection'], 'UART_BUSY')
-            self.assertEqual(result['C3']['uart_sleep']['uart_sleep_ack'], '0')
-            self.assertIn('uart1_gate_after=0', result['C3']['uart_clock_handoff'])
-
     def test_dt_authorizes_only_the_exact_new_usb_and_existing_consumers(self):
         from tools.validation.dev_dtb import clock_id_allowed
         top = '/clock-controller@10000000'

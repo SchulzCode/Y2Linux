@@ -320,3 +320,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "boot_tests.rs"]
+mod boot_tests;
