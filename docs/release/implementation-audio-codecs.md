@@ -36,13 +36,13 @@ Concrete fixes: Reborn's C membrane accepted enum S32 but its `pcm_format()` swi
 
 Low-bit proof now exercises packed24 WAV→FFmpeg decode→float DSP/limiter→S24/S32 packing at 44.1/48/88.2/96; samples ±1,±127,±255,±257 remain exact. Existing application volume tests preserve low bits at unity. This proves software precision, not native DAC precision.
 
-Changes: Reborn `crates/reborn-audio/native/audio.c`, `crates/reborn-audio/src/native.rs`, `crates/reborn-media/src/native.rs`; Linux [audio_precision.py](../../tools/platform/audio_precision.py), [capture tests](../../tests/test_audio_capture.py).
+Changes: Reborn `crates/reborn-audio/native/audio.c`, `crates/reborn-audio/src/native.rs`, `crates/reborn-media/src/native.rs`; Linux [audio_precision.py](../../tools/host/audio_precision.py), [capture tests](../../tests/test_audio_capture.py).
 
 ### Physical proof to add to the integrated harness
 
 1. Record candidate hashes, boot ID, `y2-audio-contract`, ALSA hw_params and existing AFE state while the supported direct path is open. Preserve S16 baseline first. No `plughw`/implicit resampler may stand in for native acceptance.
 2. Source-backed wider fetch and higher-rate programming must be resolved before enabling a new kernel mode. Needed evidence is an exact MT6582 register description/stock implementation establishing DMA fetch width and alignment, interconnect width, rate codes, generator/dividers and restoration ordering. Do not write candidate unknown register bits.
-3. Generate fixtures once with `python3 tools/platform/audio_precision.py <new-directory>`. Capture BCLK, LRCLK and SDATA at the established Y2 pads (GPIO43,44,46), with owner equipment and verified probe voltage. Retain original analyzer data, board/candidate/boot identity, measured MCLK, and capture configuration. I2S decoder must account for the one-bit delay, left/right order, slot width and signed payload alignment.
+3. Generate fixtures once with `python3 tools/host/audio_precision.py <new-directory>`. Capture BCLK, LRCLK and SDATA at the established Y2 pads (GPIO43,44,46), with owner equipment and verified probe voltage. Retain original analyzer data, board/candidate/boot identity, measured MCLK, and capture configuration. I2S decoder must account for the one-bit delay, left/right order, slot width and signed payload alignment.
 4. Normalize at least64 consecutive frames as CSV `time_s,left_s24,right_s24`; compare using `--verify-capture capture.csv --rate 44100 --first-frame N`. Checker rejects S16 truncation, channel/value mismatch and >1000ppm rate error; MATCH is only an offline capture match. It cannot authenticate hardware provenance or certify analog fidelity.
 5. Once native modes are source-backed, repeat44.1→48→44.1,44.1→88.2,48→96,88.2→96,96→88.2 and high→low with close/reopen, muted safe level, ALSA params, AFE/DAC state and measured clocks. Nominal BCLK at64fs:2.8224/3.072/5.6448/6.144MHz. Verify duration/frame count, pitch, low bits, no stale PLL state, pops, channel swap or underruns. Unsupported modes must refuse and retain family fallback. This is one integrated harness lane, not a separate flash workflow.
 
@@ -74,7 +74,7 @@ Remaining physical proof: per codec record daemon endpoints, mutual peer support
 
 ### Source/distribution review
 
-Reviewed primary [BlueALSA5 LDAC encoder](https://github.com/arkq/bluez-alsa/blob/v5.0.0/src/a2dp-ldac.c), pinned local SBC encoder/quality selector and corresponding library headers. [FDK NOTICE](https://github.com/mstorsjo/fdk-aac/blob/v2.0.3/NOTICE), [libfreeaptx COPYING](https://github.com/regularhunter/libfreeaptx/blob/0.2.2/COPYING) and [AOSP LDAC NOTICE](https://android.googlesource.com/platform/external/libldac/+/master/NOTICE) remain explicit source/notice/certification review inputs. No legal clearance was inferred. [Source ledger](../../tools/platform/codec-sources.json) records source URLs, exact hashes, license hashes, reviewed source and unresolved approval independently of technical enablement. Fresh legal-info must include the local BlueALSA modification and helper source.
+Reviewed primary [BlueALSA5 LDAC encoder](https://github.com/arkq/bluez-alsa/blob/v5.0.0/src/a2dp-ldac.c), pinned local SBC encoder/quality selector and corresponding library headers. [FDK NOTICE](https://github.com/mstorsjo/fdk-aac/blob/v2.0.3/NOTICE), [libfreeaptx COPYING](https://github.com/regularhunter/libfreeaptx/blob/0.2.2/COPYING) and [AOSP LDAC NOTICE](https://android.googlesource.com/platform/external/libldac/+/master/NOTICE) remain explicit source/notice/certification review inputs. No legal clearance was inferred. [Source ledger](../../tools/production/codec-sources.json) records source URLs, exact hashes, license hashes, reviewed source and unresolved approval independently of technical enablement. Fresh legal-info must include the local BlueALSA modification and helper source.
 
 ### Targeted validation
 

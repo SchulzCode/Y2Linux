@@ -40,7 +40,7 @@ class WiredPrecisionObservations(unittest.TestCase):
 
     def test_live_fixture_cli_succeeds_without_playing(self):
         with tempfile.TemporaryDirectory() as tmp:
-            result = subprocess.run([sys.executable, str(ROOT / 'tools/platform/audio_precision.py'),
+            result = subprocess.run([sys.executable, str(ROOT / 'tools/host/audio_precision.py'),
                                      str(Path(tmp) / 'fixtures'), '--live-safe',
                                      '--duration-seconds', '1'], text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr)

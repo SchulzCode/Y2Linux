@@ -135,7 +135,7 @@ radio-off windows cannot be continuously observed over Wi-Fi. Compare deltas
 and elapsed time on the same boot. A missing current sensor stays unavailable.
 
 Optionally repeat with radios idle, recording associated AP/peer condition
-privately. The existing `tools/platform/qualify.py capture` passive collector can
+privately. The existing `tools/host/qualify.py capture` passive collector can
 capture timed snapshots, but its SSH activity is a measurement workload and it
 does not create the owner condition or prove energy benefit. Review its
 default offline plan/profile before use. An owner-run overnight radio-off idle window is

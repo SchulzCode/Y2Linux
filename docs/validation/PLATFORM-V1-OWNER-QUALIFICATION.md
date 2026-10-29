@@ -43,7 +43,7 @@ is enabled by this plan.
 Local planning does not contact Y2:
 
 ```sh
-python3 tools/platform/qualify.py capture --profile wired-8h \
+python3 tools/host/qualify.py capture --profile wired-8h \
   --versions out/y2linux-platform-v1-candidate/metadata/versions.json
 ```
 
@@ -185,7 +185,7 @@ For this candidate only S16/44.1 is enabled in the product profile. Query direct
 extension. S24/S32 and 88.2/96 are unavailable; their tests are BLOCKED_BY_EVIDENCE
 until a source-backed AFE fetch/interconnect/clock implementation exists.
 
-`tools/platform/audio_precision.py` supplies low-bit/channel fixtures and exact
+`tools/host/audio_precision.py` supplies low-bit/channel fixtures and exact
 24-in-32/S32 words for that future milestone. Required proof is ALSA hw_params,
 DMA/sample packing, valid low bits, both channels, actual MCLK/BCLK/LRCLK, each
 rate family, switching, XRUNs and analog pop/click behavior. A 32-bit slot or a

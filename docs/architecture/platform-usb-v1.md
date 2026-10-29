@@ -56,7 +56,7 @@ and its storage permission requirements are settled. No private keys enter image
 On an owner computer with a verified host-key entry:
 
 ```sh
-python3 tools/platform/transfer.py song.flac --name 'Artist/Album/song.flac' \
+python3 tools/host/transfer.py song.flac --name 'Artist/Album/song.flac' \
   --private-key /owner/path/y2_key --known-hosts /owner/path/y2_known_hosts
 ```
 

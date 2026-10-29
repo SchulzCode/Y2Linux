@@ -23,7 +23,7 @@ promotion. Earlier bounded owner-confirmed SBC peer playback remains its named
 receipt. The UART01 CPU-idle campaign uses a Wi-Fi observer with radios off for
 C3 entry; it does not qualify optional Bluetooth peer/CPU/coexistence/endurance.
 Baseline02's new-image/cold-boot tests are pending. Current source/API references:
-[codec inventory](../../tools/platform/codec_manifest.py),
+[codec inventory](../../tools/production/codec_manifest.py),
 [quality controls](../../tools/platform/y2_platform/codec_controls.py),
 [Bluetooth observation](../../tools/platform/y2_platform/bluetooth.py),
 [service arguments](../../buildroot/board/y2/production-overlay/usr/libexec/y2/connectivity),

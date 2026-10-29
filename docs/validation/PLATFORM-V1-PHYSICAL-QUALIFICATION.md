@@ -464,7 +464,7 @@ infer endurance or electrical durability.
 Seven `ui-plan-*.json` records were generated locally using:
 
 ```sh
-python3 tools/platform/qualify.py capture --profile wired-8h \
+python3 tools/host/qualify.py capture --profile wired-8h \
   --versions out/y2linux-reborn-ui-v1-candidate/metadata/versions.json
 ```
 

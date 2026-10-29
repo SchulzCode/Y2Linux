@@ -142,7 +142,7 @@ class BluetoothObservation(unittest.TestCase):
             self.assertEqual(codec['default_runtime_enabled'], name == 'SBC')
             self.assertEqual(codec['distribution_approved'], name in ('SBC', 'AAC', 'LDAC'))
         args = root/'daemon.args'
-        subprocess.run([sys.executable, str(ROOT/'tools/platform/codec_manifest.py'), str(root),
+        subprocess.run([sys.executable, str(ROOT/'tools/production/codec_manifest.py'), str(root),
                         '--profile', 'owner-private-experiments', '--daemon-args', str(args)],
                        check=True, capture_output=True)
         self.assertEqual(args.read_text().split(),

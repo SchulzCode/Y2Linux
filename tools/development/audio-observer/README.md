@@ -31,7 +31,7 @@ Raw physical register/DMA observations remain valid independently of that label.
 Generate the conservative fixtures without playing anything:
 
 ```sh
-python3 tools/platform/audio_precision.py out/audio-fixtures --live-safe
+python3 tools/host/audio_precision.py out/audio-fixtures --live-safe
 ```
 
 They peak below -60 dBFS. Keep the mixer conservative, mute before configuring

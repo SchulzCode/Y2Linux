@@ -9183,7 +9183,7 @@
    "env": [],
    "notes": [
     "begin is NOT workload-decorated (no activity lock).",
-    "Host side tools/platform/transfer.py (NOT installed on the player; post-build-production.sh installs only y2_platform/*.py, main.py and listed tools) drives begin -> sftp put upload_path -> commit -> discard over ssh root@10.42.0.1 with 660 s per remote call. Since the SFTP server is chrooted to the music folder (overlay usr/libexec/sftp-server -d <root>), /data/transfer-staging/... is probably not reachable by that sftp put - verify whether this flow still works."
+    "Host side tools/host/transfer.py (NOT installed on the player; post-build-production.sh installs only y2_platform/*.py, main.py and listed tools) drives begin -> sftp put upload_path -> commit -> discard over ssh root@10.42.0.1 with 660 s per remote call. Since the SFTP server is chrooted to the music folder (overlay usr/libexec/sftp-server -d <root>), /data/transfer-staging/... is probably not reachable by that sftp put - verify whether this flow still works."
    ]
   },
   {
@@ -9351,7 +9351,7 @@
    "env": [],
    "notes": [
     "Generation checks (/data and Y2Media) before and after the seal; hash verified on the sealed copy, so a still-open SFTP fd cannot change published bytes.",
-    "Host side tools/platform/transfer.py (NOT installed on the player; post-build-production.sh installs only y2_platform/*.py, main.py and listed tools) drives begin -> sftp put upload_path -> commit -> discard over ssh root@10.42.0.1 with 660 s per remote call. Since the SFTP server is chrooted to the music folder (overlay usr/libexec/sftp-server -d <root>), /data/transfer-staging/... is probably not reachable by that sftp put - verify whether this flow still works."
+    "Host side tools/host/transfer.py (NOT installed on the player; post-build-production.sh installs only y2_platform/*.py, main.py and listed tools) drives begin -> sftp put upload_path -> commit -> discard over ssh root@10.42.0.1 with 660 s per remote call. Since the SFTP server is chrooted to the music folder (overlay usr/libexec/sftp-server -d <root>), /data/transfer-staging/... is probably not reachable by that sftp put - verify whether this flow still works."
    ]
   },
   {
@@ -9453,7 +9453,7 @@
    "env": [],
    "notes": [
     "No data_volume check and no lock; read-only.",
-    "Host side tools/platform/transfer.py (NOT installed on the player; post-build-production.sh installs only y2_platform/*.py, main.py and listed tools) drives begin -> sftp put upload_path -> commit -> discard over ssh root@10.42.0.1 with 660 s per remote call. Since the SFTP server is chrooted to the music folder (overlay usr/libexec/sftp-server -d <root>), /data/transfer-staging/... is probably not reachable by that sftp put - verify whether this flow still works."
+    "Host side tools/host/transfer.py (NOT installed on the player; post-build-production.sh installs only y2_platform/*.py, main.py and listed tools) drives begin -> sftp put upload_path -> commit -> discard over ssh root@10.42.0.1 with 660 s per remote call. Since the SFTP server is chrooted to the music folder (overlay usr/libexec/sftp-server -d <root>), /data/transfer-staging/... is probably not reachable by that sftp put - verify whether this flow still works."
    ]
   },
   {
@@ -9574,7 +9574,7 @@
    "env": [],
    "notes": [
     "Discards Committed stages too (the host tool discards after a successful commit; the published file stays).",
-    "Host side tools/platform/transfer.py (NOT installed on the player; post-build-production.sh installs only y2_platform/*.py, main.py and listed tools) drives begin -> sftp put upload_path -> commit -> discard over ssh root@10.42.0.1 with 660 s per remote call. Since the SFTP server is chrooted to the music folder (overlay usr/libexec/sftp-server -d <root>), /data/transfer-staging/... is probably not reachable by that sftp put - verify whether this flow still works."
+    "Host side tools/host/transfer.py (NOT installed on the player; post-build-production.sh installs only y2_platform/*.py, main.py and listed tools) drives begin -> sftp put upload_path -> commit -> discard over ssh root@10.42.0.1 with 660 s per remote call. Since the SFTP server is chrooted to the music folder (overlay usr/libexec/sftp-server -d <root>), /data/transfer-staging/... is probably not reachable by that sftp put - verify whether this flow still works."
    ]
   },
   {
@@ -14827,7 +14827,7 @@
     ],
     "important_fields": {
      "state": "'Complete'",
-     "path": "'/data/exports/y2-diagnostics-<int epoch>-<uuid4 hex32>.tar.gz'; host tool tools/platform/diagnostics.py:30-34 requires regex /data/exports/y2-diagnostics-[0-9]+-[0-9a-f]{32}\\.tar\\.gz, sha256 64 hex, 0<bytes≤2 MiB, redacted true, receipt ≤8192 bytes",
+     "path": "'/data/exports/y2-diagnostics-<int epoch>-<uuid4 hex32>.tar.gz'; host tool tools/host/diagnostics.py:30-34 requires regex /data/exports/y2-diagnostics-[0-9]+-[0-9a-f]{32}\\.tar\\.gz, sha256 64 hex, 0<bytes≤2 MiB, redacted true, receipt ≤8192 bytes",
      "redacted": "true; Reborn shows 'Retrieve report' fact when true (client.rs:1470-1490)"
     },
     "failure_shapes": [
@@ -14874,7 +14874,7 @@
     },
     {
      "what": "host retrieve ssh receipt / cat",
-     "seconds": "90 / 60 (tools/platform/diagnostics.py:25,39)"
+     "seconds": "90 / 60 (tools/host/diagnostics.py:25,39)"
     },
     {
      "what": "Reborn deadline (client.rs:214)",

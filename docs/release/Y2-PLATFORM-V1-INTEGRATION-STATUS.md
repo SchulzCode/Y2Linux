@@ -279,7 +279,7 @@ Files changed (committed plus staged/unstaged/untracked at observation):
 - `tests/test_audio_precision_contract.py`
 - `tests/test_platform_evidence.py`
 - `tools/connectivity/audio-contract.c`
-- `tools/platform/audio_precision.py`
+- `tools/host/audio_precision.py`
 - `tools/platform/y2_platform/diagnostic_fields.py`
 - `tools/platform/y2_platform/diagnostics.py`
 - `tools/platform/y2_platform/observe.py`

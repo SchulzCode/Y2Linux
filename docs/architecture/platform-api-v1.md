@@ -109,6 +109,6 @@ Kernel taint and actual CONSYS status are observations; no kernel warning count
 or packet-loss number is synthesized from log text or application XRUNs.
 
 The [owner qualification plan](../validation/PLATFORM-V1-OWNER-QUALIFICATION.md)
-uses `tools/platform/qualify.py`: local plan by default, explicit readonly USB
+uses `tools/host/qualify.py`: local plan by default, explicit readonly USB
 collection, exact source-pair matching, bounded gaps and no automatic hardware
 actions. Capture completion and qualification acceptance are separate states.

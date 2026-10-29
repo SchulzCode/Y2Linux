@@ -9280,8 +9280,8 @@
       "safe_fallback": "Mandatory SBC baseline / wired",
       "source_paths": [
         "buildroot/package/y2-codec-experiments/Config.in",
-        "tools/platform/codec_manifest.py",
-        "tools/platform/codec-sources.json",
+        "tools/production/codec_manifest.py",
+        "tools/production/codec-sources.json",
         "buildroot/board/y2/production-overlay/usr/libexec/y2/connectivity",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
@@ -9319,8 +9319,8 @@
         "technical_status": "SUPPORTED_BOUNDED_PLAYBACK",
         "legal_redistribution_status": "OSS_NOTICE_SOURCE_REVIEW",
         "source_paths": [
-          "tools/platform/codec_manifest.py",
-          "tools/platform/codec-sources.json",
+          "tools/production/codec_manifest.py",
+          "tools/production/codec-sources.json",
           "Y2Reborn:crates/reborn-platform/src/codecs.rs"
         ]
       },
@@ -9378,8 +9378,8 @@
       "safe_fallback": "Standard SBC",
       "source_paths": [
         "buildroot/package/y2-codec-experiments/Config.in",
-        "tools/platform/codec_manifest.py",
-        "tools/platform/codec-sources.json",
+        "tools/production/codec_manifest.py",
+        "tools/production/codec-sources.json",
         "buildroot/board/y2/production-overlay/usr/libexec/y2/connectivity",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
@@ -9419,8 +9419,8 @@
         "technical_status": "IMPLEMENTED_TECHNICALLY_VIABLE_PENDING_PRODUCT_QUALIFICATION",
         "legal_redistribution_status": "OSS_NOTICE_SOURCE_REVIEW",
         "source_paths": [
-          "tools/platform/codec_manifest.py",
-          "tools/platform/codec-sources.json",
+          "tools/production/codec_manifest.py",
+          "tools/production/codec-sources.json",
           "Y2Reborn:crates/reborn-platform/src/codecs.rs"
         ]
       },
@@ -9479,8 +9479,8 @@
       "safe_fallback": "SBC",
       "source_paths": [
         "buildroot/package/y2-codec-experiments/Config.in",
-        "tools/platform/codec_manifest.py",
-        "tools/platform/codec-sources.json",
+        "tools/production/codec_manifest.py",
+        "tools/production/codec-sources.json",
         "buildroot/board/y2/production-overlay/usr/libexec/y2/connectivity",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
@@ -9521,8 +9521,8 @@
         "technical_status": "IMPLEMENTED_TECHNICALLY_VIABLE_PENDING_PRODUCT_QUALIFICATION",
         "legal_redistribution_status": "DISTRIBUTION_BLOCKED_OR_REVIEW_REQUIRED",
         "source_paths": [
-          "tools/platform/codec_manifest.py",
-          "tools/platform/codec-sources.json",
+          "tools/production/codec_manifest.py",
+          "tools/production/codec-sources.json",
           "Y2Reborn:crates/reborn-platform/src/codecs.rs"
         ]
       },
@@ -9581,8 +9581,8 @@
       "safe_fallback": "SBC",
       "source_paths": [
         "buildroot/package/y2-codec-experiments/Config.in",
-        "tools/platform/codec_manifest.py",
-        "tools/platform/codec-sources.json",
+        "tools/production/codec_manifest.py",
+        "tools/production/codec-sources.json",
         "buildroot/board/y2/production-overlay/usr/libexec/y2/connectivity",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
@@ -9623,8 +9623,8 @@
         "technical_status": "IMPLEMENTED_TECHNICALLY_VIABLE_PENDING_PRODUCT_QUALIFICATION",
         "legal_redistribution_status": "DISTRIBUTION_BLOCKED_OR_REVIEW_REQUIRED",
         "source_paths": [
-          "tools/platform/codec_manifest.py",
-          "tools/platform/codec-sources.json",
+          "tools/production/codec_manifest.py",
+          "tools/production/codec-sources.json",
           "Y2Reborn:crates/reborn-platform/src/codecs.rs"
         ]
       },
@@ -9683,8 +9683,8 @@
       "safe_fallback": "SBC",
       "source_paths": [
         "buildroot/package/y2-codec-experiments/Config.in",
-        "tools/platform/codec_manifest.py",
-        "tools/platform/codec-sources.json",
+        "tools/production/codec_manifest.py",
+        "tools/production/codec-sources.json",
         "buildroot/board/y2/production-overlay/usr/libexec/y2/connectivity",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
@@ -9725,8 +9725,8 @@
         "technical_status": "IMPLEMENTED_TECHNICALLY_VIABLE_PENDING_PRODUCT_QUALIFICATION",
         "legal_redistribution_status": "DISTRIBUTION_BLOCKED_OR_REVIEW_REQUIRED",
         "source_paths": [
-          "tools/platform/codec_manifest.py",
-          "tools/platform/codec-sources.json",
+          "tools/production/codec_manifest.py",
+          "tools/production/codec-sources.json",
           "Y2Reborn:crates/reborn-platform/src/codecs.rs"
         ]
       },
@@ -9785,8 +9785,8 @@
       "safe_fallback": "SBC",
       "source_paths": [
         "buildroot/package/y2-codec-experiments/Config.in",
-        "tools/platform/codec_manifest.py",
-        "tools/platform/codec-sources.json",
+        "tools/production/codec_manifest.py",
+        "tools/production/codec-sources.json",
         "buildroot/board/y2/production-overlay/usr/libexec/y2/connectivity",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
@@ -9827,8 +9827,8 @@
         "technical_status": "IMPLEMENTED_TECHNICALLY_VIABLE_PENDING_PRODUCT_QUALIFICATION",
         "legal_redistribution_status": "DISTRIBUTION_BLOCKED_OR_REVIEW_REQUIRED",
         "source_paths": [
-          "tools/platform/codec_manifest.py",
-          "tools/platform/codec-sources.json",
+          "tools/production/codec_manifest.py",
+          "tools/production/codec-sources.json",
           "Y2Reborn:crates/reborn-platform/src/codecs.rs"
         ]
       },
@@ -9887,8 +9887,8 @@
       "safe_fallback": "SBC; no bitrate promise",
       "source_paths": [
         "buildroot/package/y2-codec-experiments/Config.in",
-        "tools/platform/codec_manifest.py",
-        "tools/platform/codec-sources.json",
+        "tools/production/codec_manifest.py",
+        "tools/production/codec-sources.json",
         "buildroot/board/y2/production-overlay/usr/libexec/y2/connectivity",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
@@ -9929,8 +9929,8 @@
         "technical_status": "IMPLEMENTED_TECHNICALLY_VIABLE_PENDING_PRODUCT_QUALIFICATION",
         "legal_redistribution_status": "DISTRIBUTION_BLOCKED_OR_REVIEW_REQUIRED",
         "source_paths": [
-          "tools/platform/codec_manifest.py",
-          "tools/platform/codec-sources.json",
+          "tools/production/codec_manifest.py",
+          "tools/production/codec-sources.json",
           "Y2Reborn:crates/reborn-platform/src/codecs.rs"
         ]
       },
@@ -9989,8 +9989,8 @@
       "safe_fallback": "SBC",
       "source_paths": [
         "buildroot/package/y2-codec-experiments/Config.in",
-        "tools/platform/codec_manifest.py",
-        "tools/platform/codec-sources.json",
+        "tools/production/codec_manifest.py",
+        "tools/production/codec-sources.json",
         "buildroot/board/y2/production-overlay/usr/libexec/y2/connectivity",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
@@ -10031,8 +10031,8 @@
         "technical_status": "IMPLEMENTED_TECHNICALLY_VIABLE_PENDING_PRODUCT_QUALIFICATION",
         "legal_redistribution_status": "DISTRIBUTION_BLOCKED_OR_REVIEW_REQUIRED",
         "source_paths": [
-          "tools/platform/codec_manifest.py",
-          "tools/platform/codec-sources.json",
+          "tools/production/codec_manifest.py",
+          "tools/production/codec-sources.json",
           "Y2Reborn:crates/reborn-platform/src/codecs.rs"
         ]
       },
@@ -10091,8 +10091,8 @@
       "safe_fallback": "Observed BlueALSA PCM and SBC",
       "source_paths": [
         "buildroot/package/y2-codec-experiments/Config.in",
-        "tools/platform/codec_manifest.py",
-        "tools/platform/codec-sources.json",
+        "tools/production/codec_manifest.py",
+        "tools/production/codec-sources.json",
         "buildroot/board/y2/production-overlay/usr/libexec/y2/connectivity",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
@@ -10168,8 +10168,8 @@
       "safe_fallback": "Classic SBC A2DP",
       "source_paths": [
         "buildroot/package/y2-codec-experiments/Config.in",
-        "tools/platform/codec_manifest.py",
-        "tools/platform/codec-sources.json",
+        "tools/production/codec_manifest.py",
+        "tools/production/codec-sources.json",
         "buildroot/board/y2/production-overlay/usr/libexec/y2/connectivity",
         "Y2Reborn:crates/reborn-platform/src/codecs.rs"
       ],
@@ -10201,7 +10201,7 @@
       "support_by_subfeature": {
         "LE_AUDIO": {
           "state": "NO_SUPPORTED_CONTROLLER_ISO_PATH",
-          "evidence": "tools/platform/codec_manifest.py:le_audio_iso_supported=false; no supported MT6627 LE Audio path in source"
+          "evidence": "tools/production/codec_manifest.py:le_audio_iso_supported=false; no supported MT6627 LE Audio path in source"
         },
         "APTX_ADAPTIVE": {
           "state": "NO_SUPPORTED_ENCODER_OR_INTEGRATION_PATH",
@@ -19124,7 +19124,7 @@
       "failure_mode": "Green software falsely treated as hardware success",
       "safe_fallback": "Exact source-qualified receipts and distinct hardware gate",
       "source_paths": [
-        "tools/platform/qualify.py",
+        "tools/host/qualify.py",
         "tools/platform/y2_platform/collect.py",
         "tools/production/tests.sh"
       ],
@@ -19203,7 +19203,7 @@
       "failure_mode": "Cross-subsystem regression unseen",
       "safe_fallback": "Safe profiles, rollback pair",
       "source_paths": [
-        "tools/platform/qualify.py",
+        "tools/host/qualify.py",
         "tools/platform/y2_platform/collect.py",
         "tools/production/tests.sh"
       ],
@@ -19283,7 +19283,7 @@
       "failure_mode": "Delayed audio/thermal/storage/service failure",
       "safe_fallback": "Stop release on required feature/safety failure; restrict a mode only for evidenced compatibility/hardware/distribution limits",
       "source_paths": [
-        "tools/platform/qualify.py",
+        "tools/host/qualify.py",
         "tools/platform/y2_platform/collect.py",
         "tools/production/tests.sh"
       ],
@@ -19364,7 +19364,7 @@
       "failure_mode": "Transport loss, dirty filesystem or state loss after reboot",
       "safe_fallback": "PIO/safe storage profiles; known recovery",
       "source_paths": [
-        "tools/platform/qualify.py",
+        "tools/host/qualify.py",
         "tools/platform/y2_platform/collect.py",
         "tools/production/tests.sh"
       ],
@@ -19444,7 +19444,7 @@
       "failure_mode": "Repeated reset/lost recovery",
       "safe_fallback": "Disable full sleep",
       "source_paths": [
-        "tools/platform/qualify.py",
+        "tools/host/qualify.py",
         "tools/platform/y2_platform/collect.py",
         "tools/production/tests.sh"
       ],
@@ -19524,7 +19524,7 @@
       "failure_mode": "Bad report, wrong instructions, tester confusion",
       "safe_fallback": "Single release guide and bundle button/path",
       "source_paths": [
-        "tools/platform/qualify.py",
+        "tools/host/qualify.py",
         "tools/platform/y2_platform/collect.py",
         "tools/production/tests.sh"
       ],
@@ -29192,7 +29192,7 @@
     },
     {
       "repository": "Y2Linux",
-      "path": "tools/platform/audio_precision.py",
+      "path": "tools/host/audio_precision.py",
       "scope": "implementation_or_tooling",
       "lines": 54
     },
@@ -29204,13 +29204,13 @@
     },
     {
       "repository": "Y2Linux",
-      "path": "tools/platform/codec-sources.json",
+      "path": "tools/production/codec-sources.json",
       "scope": "implementation_or_tooling",
       "lines": 37
     },
     {
       "repository": "Y2Linux",
-      "path": "tools/platform/codec_manifest.py",
+      "path": "tools/production/codec_manifest.py",
       "scope": "implementation_or_tooling",
       "lines": 61
     },
@@ -29222,13 +29222,13 @@
     },
     {
       "repository": "Y2Linux",
-      "path": "tools/platform/qualify.py",
+      "path": "tools/host/qualify.py",
       "scope": "implementation_or_tooling",
       "lines": 211
     },
     {
       "repository": "Y2Linux",
-      "path": "tools/platform/sftp_check.py",
+      "path": "tools/host/sftp_check.py",
       "scope": "implementation_or_tooling",
       "lines": 108
     },
@@ -29240,7 +29240,7 @@
     },
     {
       "repository": "Y2Linux",
-      "path": "tools/platform/transfer.py",
+      "path": "tools/host/transfer.py",
       "scope": "implementation_or_tooling",
       "lines": 61
     },
@@ -71208,7 +71208,7 @@
     },
     {
       "repository": "Y2Linux",
-      "path": "tools/platform/codec_manifest.py",
+      "path": "tools/production/codec_manifest.py",
       "line": 58,
       "terms": [
         "disabled"
@@ -71217,7 +71217,7 @@
     },
     {
       "repository": "Y2Linux",
-      "path": "tools/platform/codec_manifest.py",
+      "path": "tools/production/codec_manifest.py",
       "line": 60,
       "terms": [
         "disabled"

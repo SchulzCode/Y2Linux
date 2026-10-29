@@ -14,14 +14,124 @@ import json
 import os
 from pathlib import Path
 import re
+import selectors
 import shlex
+import signal
+import subprocess
 import sys
 import time
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from y2_platform.common import command
-from y2_platform.collect import Growth
-from y2_platform.observe import utilization
+
+
+def kill_tree(pid):
+    """SIGKILL a child, its process group and everything it started. Every
+    `command()` child runs in its own session, so killing the group alone left
+    a nested command running (V1 code review B5: a filesystem check outlived the
+    `media reconcile` that started it)."""
+    below = descendants(pid)
+    for target, group in [(pid, True)] + [(p, False) for p in below]:
+        try:
+            if group:
+                os.killpg(target, signal.SIGKILL)
+            else:
+                os.kill(target, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        try:
+            os.killpg(os.getpgid(target), signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+
+
+def command(argv, timeout=1.0, limit=65536, pass_fds=(), failure_output=False):
+    """No shell, bounded output/deadline; kill the process group on overrun."""
+    try:
+        process = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                   stderr=subprocess.DEVNULL, start_new_session=True,
+                                   pass_fds=pass_fds,
+                                   env={'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LC_ALL': 'C'})
+    except OSError:
+        return {'ok': False, 'reason': 'command_unavailable', 'output': None}
+    output = bytearray()
+    failure = None
+    deadline = time.monotonic() + timeout
+    with selectors.DefaultSelector() as selector:
+        selector.register(process.stdout, selectors.EVENT_READ)
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                failure = 'command_timeout'
+                break
+            events = selector.select(remaining)
+            if not events:
+                failure = 'command_timeout'
+                break
+            chunk = os.read(process.stdout.fileno(), 4096)
+            if not chunk:
+                break
+            output.extend(chunk)
+            if len(output) > limit:
+                failure = 'command_output_limit'
+                break
+    if not failure:
+        try:
+            process.wait(timeout=max(0.001, deadline - time.monotonic()))
+        except subprocess.TimeoutExpired:
+            failure = 'command_timeout'
+    if failure:
+        kill_tree(process.pid)
+        try:
+            process.wait(timeout=0.05)
+        except subprocess.TimeoutExpired:
+            pass  # A kernel D-state cannot be given a userspace deadline.
+    process.stdout.close()
+    ok = failure is None and process.returncode == 0
+    return {'ok': ok, 'reason': failure or (None if ok else 'command_failed'),
+            'output': output.decode('utf-8', errors='replace').strip() if ok or failure_output else None}
+
+
+class Growth:
+    """Constant-memory least squares; positive growth is not a leak diagnosis (as the platform's collect)."""
+    def __init__(self):
+        self.n = 0
+        self.mean_t = self.mean_y = self.xx = self.xy = 0.0
+        self.first = self.last = self.maximum = None
+
+    def add(self, seconds, kib):
+        if kib is None:
+            return
+        self.n += 1
+        dt, dy = seconds - self.mean_t, kib - self.mean_y
+        self.mean_t += dt / self.n
+        self.mean_y += dy / self.n
+        self.xx += dt * (seconds - self.mean_t)
+        self.xy += dt * (kib - self.mean_y)
+        self.first = kib if self.first is None else self.first
+        self.last = kib
+        self.maximum = kib if self.maximum is None else max(self.maximum, kib)
+
+    def result(self):
+        return {'samples': self.n, 'first_kib': self.first, 'last_kib': self.last,
+                'maximum_kib': self.maximum,
+                'slope_kib_per_hour': self.xy / self.xx * 3600 if self.xx > 0 else None,
+                'interpretation': 'growth_observation_not_leak_diagnosis'}
+
+
+def utilization(before, after):
+    """Busy percent per core between two `status` cpu tick lists (as the platform's snapshot)."""
+    result = {}
+    for core, new in (after or {}).items():
+        old = (before or {}).get(core)
+        if old is None or len(old) != len(new) or len(new) < 5:
+            continue
+        if any(v is None for v in old + new):
+            continue
+        diff = [b - a for a, b in zip(old, new)]
+        total = sum(diff)
+        if min(diff) >= 0 and total > 0:
+            result[core] = round(100 * (total - diff[3] - diff[4]) / total, 3)
+    return result or None
+
 
 PROFILES = {
     'wired-8h': (28800, 'Owner starts S16/44.1 wired playback, normal safe volume; observes sound and controls.'),

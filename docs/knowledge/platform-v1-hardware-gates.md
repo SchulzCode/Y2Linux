@@ -86,7 +86,7 @@ BLOCKED_BY_EVIDENCE / PHYSICAL_GATE, until the complete path is established.
 
 `y2-audio-contract` queries combinations without committing hw_params or writing
 PCM. An occupied direct PCM may return Unavailable. Its `--device null` option
-is host/QEMU validation only. `tools/platform/audio_precision.py OUTPUT` creates
+is host/QEMU validation only. `tools/host/audio_precision.py OUTPUT` creates
 24-bit WAV plus exact S24-in-32/S32 references and independent channel patterns;
 nonzero low bits reveal S16 truncation. It never plays them. After a future
 source-backed driver change, owner acceptance must compare DMA/sample words and

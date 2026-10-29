@@ -106,7 +106,7 @@ Y2Reborn: `codex/platform-v1-highres-audio`; worktree `/home/luca/Dokumente/Code
 
 **IMPORTANT FILES:**
 
-Y2Linux: `kernel/audio/mt6582-afe.c`, `tests/test_audio_capture.py`, `tests/test_audio_precision_contract.py`, `tests/test_platform_evidence.py`, `tools/connectivity/audio-contract.c`, `tools/platform/audio_precision.py`, `tools/platform/y2_platform/diagnostic_fields.py`, `tools/platform/y2_platform/diagnostics.py`, `tools/platform/y2_platform/observe.py`, `tools/production/check_installed_arm.py`
+Y2Linux: `kernel/audio/mt6582-afe.c`, `tests/test_audio_capture.py`, `tests/test_audio_precision_contract.py`, `tests/test_platform_evidence.py`, `tools/connectivity/audio-contract.c`, `tools/host/audio_precision.py`, `tools/platform/y2_platform/diagnostic_fields.py`, `tools/platform/y2_platform/diagnostics.py`, `tools/platform/y2_platform/observe.py`, `tools/production/check_installed_arm.py`
 
 Y2Reborn: `crates/reborn-audio/build.rs`, `crates/reborn-media/native/media.c`, `crates/reborn-media/src/native.rs`, `tools/build/fixtures.py`, `tools/build/precision-bench.c`
 

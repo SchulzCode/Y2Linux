@@ -5,7 +5,7 @@ import tempfile
 import unittest
 import sys
 ROOT=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT/'tools/platform'))
+sys.path.insert(0,str(ROOT/'tools/host'))
 from qualify import analyze, identity, run
 # A status snapshot as y2-platform prints it (the contract golden), for the player identity below.
 GOLDEN=ROOT/'platform/crates/y2p-contract/tests/golden/status.json'

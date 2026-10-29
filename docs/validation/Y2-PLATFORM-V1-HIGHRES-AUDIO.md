@@ -265,7 +265,7 @@ QEMU is used for ABI/correctness, never real CPU-headroom claims.
    any new mode. Resolve low24 versus high24 container alignment and any serial
    HD field from this silicon, never by copying adjacent-SoC constants.
 2. Preserve S16 fallback, native44100/48000 clocks and current volume/rail rules.
-   Generate fixtures into a new directory with `tools/platform/audio_precision.py`.
+   Generate fixtures into a new directory with `tools/host/audio_precision.py`.
 3. With an analyzer and established voltage/probe safety, acquire BCLK GPIO43,
    LRCLK GPIO44 and SDATA GPIO46; retain original data, board/boot/source identity,
    measured MCLK and analyzer setup. Observe LRCLK low=left, high=right and I2S
@@ -307,7 +307,7 @@ Early fixture expansion/constraint-count and sandbox mount failures were correct
 final receipts supersede those failed draft runs, without changing the hardware verdict.
 
 Changed files: kernel/audio/mt6582-afe.c; tools/connectivity/audio-contract.c;
-tools/platform/audio_precision.py; platform observe/diagnostic_fields/diagnostics;
+tools/host/audio_precision.py; platform observe/diagnostic_fields/diagnostics;
 tools/production/check_installed_arm.py; audio capture/platform evidence tests;
 new kernel precision-contract test; current state/audio knowledge, roadmap/audit
 and this report/evidence.

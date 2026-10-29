@@ -27,7 +27,7 @@ libfreeaptx 0.2.2 and LDAC encoder/ABR 2.0.2.3. BlueALSA enables AAC, aptX,
 aptX HD and LDAC together at compile time. The profile rejects libopenaptx,
 whose different licensing is unnecessary for this integration. Exact source
 URLs, archive hashes, commits, license-file hashes and distribution limits are
-in [codec-sources.json](../../tools/platform/codec-sources.json) and the
+in [codec-sources.json](../../tools/production/codec-sources.json) and the
 Buildroot package recipes/hash files.
 
 Source gates were checked against primary upstream material:

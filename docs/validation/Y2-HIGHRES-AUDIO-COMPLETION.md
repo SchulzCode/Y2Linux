@@ -461,7 +461,7 @@ exposed. Existing Git identity/account were preserved; no push occurred.
 
 | Repository | Files changed |
 | --- | --- |
-| Y2Linux diagnostics | `tools/development/audio-observer/Makefile`, `y2_audio_observer.c`, `README.md`; `tools/platform/audio_precision.py`; `tests/test_highres_observations.py` |
+| Y2Linux diagnostics | `tools/development/audio-observer/Makefile`, `y2_audio_observer.c`, `README.md`; `tools/host/audio_precision.py`; `tests/test_highres_observations.py` |
 | Y2Linux evidence | This report; `docs/validation/evidence/highres-audio-completion/{physical,fixtures,sources,software}.json`; superseding note in `Y2-PLATFORM-V1-HIGHRES-AUDIO.md` |
 | Y2Linux records | `docs/planning/{roadmap-gap-audit,platform-v1-roadmap}.md`; `docs/release/Y2-PLATFORM-V1-MASTER.md`; `Y2-COMMUNITY-BETA-FEATURE-AUDIT.md`; `Y2-COMMUNITY-BETA-FEATURES.json` (F075 only); `docs/validation/platform-v1-capabilities.json` (three precision rows only) |
 | Y2Reborn | `tools/build/precision-probe.c`; `docs/validation/REBORN-Y2-WIRED-PRECISION-COMPLETION.md` |

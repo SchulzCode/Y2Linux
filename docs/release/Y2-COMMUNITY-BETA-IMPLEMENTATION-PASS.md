@@ -48,7 +48,7 @@ remaining proof: [platform](implementation-platform.md),
 [audio/codecs](implementation-audio-codecs.md),
 [Reborn/power](implementation-reborn-power.md).
 Tester/release files: `tools/platform/y2_platform/diagnostics.py`,
-`diagnostic_fields.py`, `tools/platform/diagnostics.py`,
+`diagnostic_fields.py`, `tools/host/diagnostics.py`,
 `tools/development/qualify-feature-completion.py`,
 `tools/production/first_owner.py`, `privacy.py`, `composition.py`,
 `system_update.py`, `check_installed_arm.py`, `check_elf.py`, `seal_sources.py`,
@@ -73,7 +73,7 @@ exact restoration. Read-only observation still blocked by highOPP/domains/clocks
 Wired output currently remains S16_LE,16 meaningfulbits,32-bit I2S slots/64fs,
 16-bit DAC payload.44.1/48 are native;88.2/96 are family-converted. User-space
 S32 support is not a native24 hardware claim. Physical low-bit/rate fixture is
-`tools/platform/audio_precision.py`; source register evidence is required first.
+`tools/host/audio_precision.py`; source register evidence is required first.
 
 Battery remains estimatedSOC.70/450/650mA ceilings,4.175V target, charger hold,
 termination/recharge guards, low/critical handling and3.4V hard floor remain

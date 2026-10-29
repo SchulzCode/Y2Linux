@@ -81,7 +81,7 @@ a card while it is being written.
 For internal storage, connect USB and use the transfer tool on your computer:
 
 ```sh
-python3 tools/platform/transfer.py song.flac \
+python3 tools/host/transfer.py song.flac \
   --private-key ~/.ssh/y2linux_ed25519 --known-hosts ~/.ssh/known_hosts
 ```
 
@@ -99,7 +99,7 @@ export from a computer with the already verified
 owner connection:
 
 ```sh
-python3 tools/platform/diagnostics.py --host root@10.42.0.1 \
+python3 tools/host/diagnostics.py --host root@10.42.0.1 \
   --private-key ~/.ssh/y2linux_ed25519 --known-hosts ~/.ssh/known_hosts \
   --output ./y2-diagnostics.tar.gz
 ```

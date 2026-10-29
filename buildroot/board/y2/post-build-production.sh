@@ -58,7 +58,7 @@ if grep -qx 'BR2_PACKAGE_Y2_CODEC_EXPERIMENTS=y' "$Y2_ARTIFACT_DIR/buildroot/.co
         codec_profile=public
     fi
 fi
-python3 "$project/tools/platform/codec_manifest.py" "$Y2_ARTIFACT_DIR/buildroot/build/bluez-alsa-5.0.0" \
+python3 "$project/tools/production/codec_manifest.py" "$Y2_ARTIFACT_DIR/buildroot/build/bluez-alsa-5.0.0" \
     --profile "$codec_profile" --daemon-args "$target/etc/y2linux/bluetooth-daemon.args" \
     > "$target/etc/y2linux/bluetooth-codecs.json"
 for command in poweroff reboot; do

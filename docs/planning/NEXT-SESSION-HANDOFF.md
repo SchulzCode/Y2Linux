@@ -2120,11 +2120,11 @@ integration pass, so almost all of their code is present. What is genuinely new 
 
 | Repo | New in main from the merge |
 | --- | --- |
-| Linux | AFE register lab (`tools/development/afe-lab`), audio observer, `generate_live` low-bit fixtures in `tools/platform/audio_precision.py`, `tests/test_highres_observations.py` (now in `tests.sh`), planning/validation docs and evidence |
+| Linux | AFE register lab (`tools/development/afe-lab`), audio observer, `generate_live` low-bit fixtures in `tools/host/audio_precision.py`, `tests/test_highres_observations.py` (now in `tests.sh`), planning/validation docs and evidence |
 | Reborn | `tools/build/precision-probe.c`, docs |
 
 Proof that 03 is untouched: Linux `git diff ffddeb8 main -- kernel buildroot tools/production tools/connectivity initramfs tools/build tools/validation`
-is empty; the only image-reachable file that differs is `tools/platform/audio_precision.py` (additive). Reborn code differs from 03 only by the new
+is empty; the only image-reachable file that differs is `tools/host/audio_precision.py` (additive). Reborn code differs from 03 only by the new
 probe file. The sealed 03 images therefore still correspond to `main`.
 
 Final gates on the integrated trees: Linux production profile **515 cases** (511 plus 4 new), 10 skips, 0 failures; Reborn fmt, strict clippy and

@@ -244,7 +244,7 @@ Prepare one master entrypoint and one run directory bound to the sealed RC
 manifest/source pair/hashes. Reuse the current CPU and feature-completion helpers
 as modules, after adapting final contracts; do not launch eleven independent
 campaigns. Both current entrypoints were inspected in offline plan mode during
-this review. The passive `tools/platform/qualify.py` collector does not exercise
+this review. The passive `tools/host/qualify.py` collector does not exercise
 features and cannot itself certify endurance or playback.
 
 | Phase | Automated work and required physical result | Minimal owner action |
