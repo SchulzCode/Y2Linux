@@ -12,7 +12,8 @@ use y2p_core::{
 // oam_init: the PMIC's power-on OCV, latched before the boot load pulls the voltage down).
 const MIN_PERCENT: f64 = 25.0;
 
-/// `update.status(ctx).get('state')`.
+/// The update journal's state (`Idle` without a journal on a ready Y2DATA, `Failed` for one that
+/// cannot be read), as `update status` reports it.
 fn update_state(root: &Root) -> Value {
     let path = root.path("/data/updates/state.json");
     let value = root.json("/data/updates/state.json");
@@ -35,8 +36,8 @@ fn update_state(root: &Root) -> Value {
     }
 }
 
-/// `battery.ascending_table`: [[uv, value], ...]: 2..128 rows, strictly ascending voltage, bounded
-/// values.
+/// A battery profile table `[[uv, value], ...]`: 2..128 rows, strictly ascending voltage, bounded
+/// values (increasing too when `increasing`), as the power daemon accepts it.
 fn ascending_table(points: Option<&Value>, lower: i64, upper: i64, increasing: bool) -> bool {
     let Some(Value::Array(points)) = points else {
         return false;
@@ -68,7 +69,8 @@ fn ascending_table(points: Option<&Value>, lower: i64, upper: i64, increasing: b
     true
 }
 
-/// `battery.load_profile(ctx)['voltage_soc']`, or None for no valid profile.
+/// The voltage → percent table of the battery profile the power daemon uses (the calibrated one on
+/// Y2DATA, else the image's), or `None` for no valid profile.
 fn load_profile(root: &Root) -> Option<Vec<(i64, i64)>> {
     let value = match root.json("/data/system/platform/battery-profile.json") {
         None | Some(Value::Null) => root.json("/etc/y2linux/battery-profile.json"),
@@ -123,7 +125,7 @@ fn load_profile(root: &Root) -> Option<Vec<(i64, i64)>> {
     Some(points)
 }
 
-/// `battery.interpolate`.
+/// The percent at `uv`, linear between the table's rows, clamped at its ends.
 fn interpolate(points: &[(i64, i64)], uv: i64) -> f64 {
     if uv <= points[0].0 {
         return points[0].1 as f64;
@@ -178,7 +180,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn profiles_interpolate_as_python() {
+    fn profiles_interpolate_between_rows() {
         let points = [(3_400_000, 0), (3_800_000, 50), (4_200_000, 100)];
         assert_eq!(interpolate(&points, 3_000_000), 0.0);
         assert_eq!(interpolate(&points, 3_600_000), 25.0);

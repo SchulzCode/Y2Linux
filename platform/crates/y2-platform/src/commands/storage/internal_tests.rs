@@ -43,8 +43,8 @@ fn command_failed(output: Option<&str>) -> Outcome {
     answer(false, Some("command_failed"), output)
 }
 
-/// The Python Fixture's runner: blkid prints `fs`, mkfs.ext4 makes Y2Media's filesystem, a mount
-/// adds the Y2Media or the old storage line, umount removes it.
+/// The player's commands: blkid prints `fs`, mkfs.ext4 makes Y2Media's filesystem, a mount adds the
+/// Y2Media or the old storage line, umount removes it.
 struct Fake {
     mountinfo: PathBuf,
     phase: PathBuf,
@@ -418,7 +418,6 @@ fn nothing_else_is_ever_mounted() {
         );
         assert!(!player.ran("mount") && !player.ran("e2fsck"));
     }
-    // (Python's music_root, never ported, was MUSIC exactly when ready.)
     assert!(!player.ready());
 }
 
@@ -632,7 +631,7 @@ fn symlinks_special_files_and_oversized_libraries_are_refused_untouched() {
     assert!(player.fixture.exists("/data/music/a.flac"));
     fs::remove_file(player.path("/data/music/link")).unwrap();
     player.provisioned();
-    // A library larger than the free space (Python raised RESERVE instead): a sparse file.
+    // A library larger than the free space: a sparse file.
     let free = statvfs(&player.path(PATH)).unwrap().available();
     sparse(&player.path("/data/music/huge.flac"), free * 2 + (1 << 30));
     let result = player.provision(None);
@@ -796,7 +795,7 @@ fn a_few_files_are_kept_in_old_player_files_with_hashes_and_times() {
 #[test]
 fn a_large_library_waits_for_the_listener_and_nothing_is_written() {
     let player = Player::on_battery();
-    // More than KEEP_LIMIT (Python lowered the limit to 1000 bytes instead): sparse files.
+    // More than KEEP_LIMIT: sparse files.
     sparse(&player.path(&format!("{OLD}/Music/a.flac")), 200_000_000);
     sparse(&player.path(&format!("{OLD}/Music/b.flac")), 300_000_000);
     let result = player.automatic();
@@ -833,8 +832,8 @@ fn a_large_library_waits_for_the_listener_and_nothing_is_written() {
 
 #[test]
 fn y2data_must_keep_its_reserve() {
-    // Python raised DATA_RESERVE above any free space; a fixture's /data is a real filesystem, so
-    // the decision is checked at its edge: a few files are kept only with the reserve left over.
+    // A fixture's /data is a real filesystem, so the decision is checked at its edge: a few files
+    // are kept only with the reserve left over.
     let kept = [("Music/a.flac".to_string(), 2000)];
     assert_eq!(decide(&kept, DATA_RESERVE + 1999), 3);
     assert_eq!(decide(&kept, DATA_RESERVE + 2000), 2);

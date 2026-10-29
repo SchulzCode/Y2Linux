@@ -1,7 +1,7 @@
-//! What the storage group's Python leans on outside its own modules, as this group's own copies:
-//! Python value rules on parsed records, `Path.resolve`, `observe.mountinfo` (all fields),
-//! `observe.device_instance`, `ctx.record`, `os.statvfs`, the USB responder hand-off
-//! (`usb.status`, `release_sd`, `release_view`, `wake_service`) and the `Maintenance` workload lease.
+//! What the storage commands share beyond their records: reading parsed records, paths below the
+//! root (symlinks resolved as far as they exist), block device instances, the observation record of
+//! `space`, the media locks, the hand-off with the USB responder (its state, releasing the SD card
+//! or a view before an eject) and the `Maintenance` workload lease.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::{atomic_json, mkdir_parents, private_directory, Failure};
 use serde_json::{json, Map, Value};
@@ -25,14 +25,15 @@ use y2p_core::{
 
 pub type Object = Map<String, Value>;
 
-// ---- Python values ---------------------------------------------------------------------------
+// ---- parsed records ----------------------------------------------------------------------------
 
-/// `d.get(key)` (None when missing).
+/// A field of a record, `null` when it is missing.
 pub fn get<'a>(map: &'a Object, key: &str) -> &'a Value {
     map.get(key).unwrap_or(&Value::Null)
 }
 
-/// `d.get(key) == value`.
+/// A field equals `value` by JSON value (`1`, `1.0` and `true` alike: records written by older
+/// platforms compare as before).
 pub fn get_eq(map: &Object, key: &str, value: &Value) -> bool {
     get(map, key).py_eq(value)
 }
@@ -45,29 +46,30 @@ pub fn to_object<T: serde::Serialize>(value: &T) -> Object {
     }
 }
 
-/// An optional text as Python's `str | None`.
+/// An optional text as a record keeps it (`null` when missing).
 pub fn text(value: &Option<String>) -> Value {
     value.clone().map_or(Value::Null, Value::String)
 }
 
-/// `str.isdigit()` for the ASCII text sysfs gives (accepted difference: other Unicode digits).
+/// Only ASCII digits, at least one (sysfs numbers).
 pub fn isdigit(text: &str) -> bool {
     !text.is_empty() && text.chars().all(|c| c.is_ascii_digit())
 }
 
-/// `ctx.json(name, {}) or {}` and `ctx.json(name, {})`: an object, empty for anything else.
+/// The JSON object at a device path; empty when it is missing, unreadable or no object.
 pub fn object(root: &Root, name: &str) -> Object {
     root.json_object(name)
 }
 
 // ---- paths -------------------------------------------------------------------------------------
 
-/// `common.read` of a host path.
+/// A host path's text, trimmed; `None` when it cannot be read or is too long.
 pub fn read(path: &Path) -> Option<String> {
     read_text(path, READ_LIMIT)
 }
 
-/// `Path.resolve()` (not strict): symlinks followed as far as they exist, the rest kept as written.
+/// The path with its symlinks followed as far as they exist, the rest kept as written (a removed
+/// device's sysfs path still names its controller).
 pub fn resolve(path: &Path) -> PathBuf {
     if let Ok(real) = fs::canonicalize(path) {
         return real;
@@ -115,29 +117,29 @@ pub fn resolve(path: &Path) -> PathBuf {
     result
 }
 
-/// `Path.exists()` (follows symlinks).
+/// The path exists (a symlink to it counts).
 pub fn exists(path: &Path) -> bool {
     fs::metadata(path).is_ok()
 }
 
-/// `Path.is_symlink()`.
+/// The path itself is a symlink.
 pub fn is_symlink(path: &Path) -> bool {
     fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink())
 }
 
-/// The file name as `Path.name`.
+/// The last path component (empty for none).
 pub fn name(path: &Path) -> String {
     path.file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default()
 }
 
-/// `Path.mkdir(mode=mode, parents=True, exist_ok=True)`.
+/// The directory with its parents (`mode` for the last one), fine when it exists.
 pub fn mkdir(path: &Path, mode: u32) -> Result<(), Failure> {
     mkdir_parents(path, mode)
 }
 
-/// `Path.mkdir(mode=mode, parents=True, exist_ok=True)` with the OSError itself.
+/// `mkdir` with the I/O error itself.
 pub fn mkdir_io(path: &Path, mode: u32) -> io::Result<()> {
     use std::os::unix::fs::DirBuilderExt;
     if path.is_dir() {
@@ -154,7 +156,7 @@ pub fn mkdir_io(path: &Path, mode: u32) -> io::Result<()> {
 
 // ---- mounts and block devices ------------------------------------------------------------------
 
-/// `observe.device_instance`: one gendisk lifetime, stable across kernfs inode reclamation.
+/// One gendisk lifetime, stable across kernfs inode reclamation.
 ///
 /// dev_t selects the partition and diskseq distinguishes removal/reinsertion,
 /// including the same CID. Missing diskseq fails closed rather than falling
@@ -182,21 +184,21 @@ pub fn device_instance(root: &Root, device_id: &str) -> Option<String> {
 
 // ---- records -----------------------------------------------------------------------------------
 
-/// `time.time()`.
+/// Wall-clock seconds since the epoch.
 pub fn wall() -> f64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0.0, |d| d.as_secs_f64())
 }
 
-/// `int(time.time())`.
+/// Whole wall-clock seconds since the epoch.
 pub fn wall_seconds() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_secs() as i64)
 }
 
-/// `datetime.datetime.now(datetime.timezone.utc).isoformat()`.
+/// Now in UTC as ISO 8601 with microseconds when there are any (`2026-10-29T12:00:00.5+00:00`).
 pub fn utc_isoformat() -> String {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -226,7 +228,7 @@ pub fn utc_isoformat() -> String {
     }
 }
 
-/// `ctx.record(workload)`.
+/// The observation record a workload's result carries (build, kernel, boot and clocks).
 pub fn observation_record(root: &Root, workload: &str) -> Value {
     let versions = object(root, "/etc/y2linux/versions.json");
     json!({
@@ -243,18 +245,17 @@ pub fn observation_record(root: &Root, workload: &str) -> Value {
     })
 }
 
-/// `fcntl.flock(fd, LOCK_EX | LOCK_NB)` on a platform lock file; a busy lock is Python's uncaught
-/// `BlockingIOError`.
+/// An exclusive lock on a platform lock file if it is free now (`None` when another holds it).
 pub fn try_lock(path: &Path) -> Result<Option<File>, Failure> {
     lock::try_exclusive(path).map_err(|e| Failure::os(e, path))
 }
 
-pub fn busy() -> Failure {
+fn busy() -> Failure {
     let (text, class) = y2p_core::py::os_error(&io::Error::from_raw_os_error(libc::EAGAIN), None);
     Failure::Os { text, class }
 }
 
-/// `try_lock` that raises `BlockingIOError` when busy.
+/// `try_lock` with a busy lock an error (`[Errno 11] Resource temporarily unavailable`).
 pub fn lock_now(path: &Path) -> Result<File, Failure> {
     try_lock(path)?.ok_or_else(busy)
 }
@@ -264,11 +265,11 @@ pub fn lock_within(path: &Path, seconds: f64) -> Result<Option<File>, Failure> {
     lock::exclusive_within(path, Duration::from_secs_f64(seconds)).map_err(|e| Failure::os(e, path))
 }
 
-// ---- the USB responder (usb.py) ----------------------------------------------------------------
+// ---- the USB responder ----------------------------------------------------------------------
 
 const USB_SCHEMA: &str = "org.y2linux.usb-transfer/v1";
 
-/// `usb.status`.
+/// The USB responder's state this boot; one that did not report this boot is `Unavailable`.
 pub fn usb_status(root: &Root) -> Object {
     let state = object(root, "/run/y2/usb-transfer.json");
     if !get_eq(&state, "schema", &json!(USB_SCHEMA))
@@ -311,7 +312,7 @@ fn has_view(current: &Object, path: &str) -> Result<bool, Failure> {
     }
 }
 
-/// `usb.wake_service`: ask the readiness service to re-read the media views now.
+/// Ask the readiness service to re-read the media views now; false when it is gone.
 pub fn wake_service(root: &Root) -> bool {
     let pid = root.integer("/run/y2/readiness.pid");
     if let Some(pid) = pid.filter(|p| *p > 1) {
@@ -332,7 +333,7 @@ pub fn wake_service(root: &Root) -> bool {
     true
 }
 
-/// `usb.release_sd`: drop responder root pins before a device-side eject; never force umount.
+/// Drop the responder's pins on the SD card before a device-side eject; never force an unmount.
 ///
 /// An automatic eject refuses while a host cable is attached. An explicit owner
 /// command (format/grow, which name the card by CID) may release the SD view
@@ -365,8 +366,8 @@ pub fn release_sd(root: &Root, mount_id: i64, explicit: bool) -> Result<bool, Fa
     Ok(false)
 }
 
-/// `usb.release_view`: wait until the responder has dropped `path` (its view already left
-/// media_views); True when it is not pinned (also when no responder runs).
+/// Wait until the responder has dropped `path` (its view already left the media views); true when
+/// it is not pinned (also when no responder runs).
 pub fn release_view(root: &Root, path: &str) -> bool {
     if !wake_service(root) {
         return false;
@@ -383,9 +384,9 @@ pub fn release_view(root: &Root, path: &str) -> bool {
     false
 }
 
-// ---- workload.workload('Maintenance') ------------------------------------------------------------
+// ---- the Maintenance workload lease ------------------------------------------------------------
 
-/// The scoped `Maintenance` QoS lease (workload.py): the shared activity lease (a mandatory
+/// The scoped `Maintenance` QoS lease: the shared activity lease (a mandatory
 /// exclusion of sleep) and the optional `/dev/y2-workload` hint, renewed every second on its own
 /// thread while the work runs. Released when dropped.
 pub struct Lease {

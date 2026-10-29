@@ -19,8 +19,8 @@ use std::{
     time::UNIX_EPOCH,
     time::{Duration, Instant},
 };
-use y2p_core::clock::Manual;
 use y2p_core::storage_media::{fat_benign_only, fat_findings, fat_other_shapes};
+use y2p_core::{clock::Manual, command::Runner};
 
 // ---- the fixture card --------------------------------------------------------------------------
 
@@ -92,9 +92,33 @@ impl Fake {
     }
 }
 
+/// The card's runner: the fake answers, and every request is recorded with whether a failed run
+/// keeps its output.
+struct Answering {
+    fake: Arc<Mutex<Fake>>,
+    requests: Mutex<Vec<(Vec<String>, f64, bool)>>,
+}
+
+impl Runner for Answering {
+    fn run(&self, argv: &[&str], timeout: f64, _limit: usize, failure_output: bool) -> Outcome {
+        let request = argv.iter().map(|a| a.to_string()).collect();
+        self.requests
+            .lock()
+            .unwrap()
+            .push((request, timeout, failure_output));
+        self.fake.lock().unwrap().answer(argv, timeout)
+    }
+
+    fn calls(&self) -> Vec<(Vec<String>, f64)> {
+        let requests = self.requests.lock().unwrap();
+        requests.iter().map(|(a, t, _)| (a.clone(), *t)).collect()
+    }
+}
+
 struct Card {
     fixture: Fixture,
     fake: Arc<Mutex<Fake>>,
+    runner: Arc<Answering>,
     clock: Arc<Manual>,
     /// The commands before this many were cleared.
     cleared: Cell<usize>,
@@ -126,13 +150,16 @@ impl Card {
             special: None,
         }));
         let clock = Arc::new(Manual::at(1_000_000_000_000, 1_000_000_000_000));
-        let answering = Arc::clone(&fake);
-        let fixture = fixture
-            .responding(move |argv, timeout| answering.lock().unwrap().answer(argv, timeout))
-            .with_clock(clock.clone());
+        let runner = Arc::new(Answering {
+            fake: Arc::clone(&fake),
+            requests: Mutex::default(),
+        });
+        let mut fixture = fixture.with_clock(clock.clone());
+        fixture.root = fixture.root.clone().with_runner(runner.clone());
         Card {
             fixture,
             fake,
+            runner,
             clock,
             cleared: Cell::new(0),
             rereads: Cell::new(0),
@@ -210,6 +237,13 @@ impl Card {
 
     fn storage(&self) -> Value {
         snapshot::storage(self.root()).unwrap()
+    }
+
+    /// Whether each run of `program` keeps its output when it fails.
+    fn kept_output(&self, program: &str) -> Vec<bool> {
+        let requests = self.runner.requests.lock().unwrap();
+        let runs = requests.iter().filter(|(a, _, _)| a[0] == program);
+        runs.map(|(_, _, kept)| *kept).collect()
     }
 
     /// The commands since the last `clear` (argv, timeout).
@@ -410,10 +444,8 @@ fn fat_card_pulled_while_mounted_is_mounted_again() {
     // Admission still never repairs: no -a/-w/-r run.
     assert!(!card.repaired());
     assert_eq!(card.sd()["state"], "Ready");
-    // The checker's findings come from its output on failure (`failure_output` for FAT).
-    assert!(include_str!("media/check.rs").contains(
-        "command::run_with(root, &argv, timeout, command::LIMIT, filesystem == \"vfat\")"
-    ));
+    // The checker's findings come from its output on failure: a FAT check keeps it.
+    assert_eq!(card.kept_output("fsck.fat"), [true]);
 }
 
 #[test]
@@ -748,6 +780,8 @@ fn fsck_is_read_only_and_never_checks_mounted_media() {
     let card = Card::new("exfat");
     assert_eq!(card.operation("check")["state"], "Ready");
     assert!(card.called(&["fsck.exfat", "-n", "/dev/mmcblk1p1"]));
+    // Only FAT's output names finding classes; nothing else keeps a failed run's output.
+    assert_eq!(card.kept_output("fsck.exfat"), [false]);
     card.operation("mount");
     assert_eq!(card.operation("check")["reason"], "already_mounted");
     assert_eq!(
@@ -1150,8 +1184,8 @@ fn mounted_card_is_released_from_mtp_even_with_a_cable_then_unmounted_before_any
         card.path("/dev/mmcblk1"),
     );
     let (result, seen) = thread::scope(|scope| {
-        // The USB service answers the release (Python patched usb.release_sd). With the cable
-        // attached only an explicit release writes the request.
+        // The USB service answers the release. With the cable attached only an explicit release
+        // writes the request.
         let service = scope.spawn(|| {
             let deadline = Instant::now() + Duration::from_secs(10);
             while !marker.exists() {
@@ -1292,8 +1326,7 @@ fn a_recycled_mount_id_cannot_leave_the_new_card_hidden() {
 fn storage_reports_an_undersized_filesystem_without_changing_it() {
     let card = Card::change();
     card.operation("mount");
-    // The fixture's /media/sd is a real directory: size the partition against its filesystem
-    // (Python faked statvfs).
+    // The fixture's /media/sd is a real directory: size the partition against its filesystem.
     let vfs = statvfs(&card.path("/media/sd")).unwrap();
 
     let total = vfs.total();

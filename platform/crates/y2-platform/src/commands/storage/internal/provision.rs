@@ -32,7 +32,8 @@ use y2p_core::{
 const CHUNK: usize = 1 << 20;
 const RESERVE: u64 = 64 << 20; // keep this much free after a migration
 
-/// An OSError raised by a call on two paths (`os.replace`): `[Errno n] text: 'a' -> 'b'`.
+/// A failed rename's error, naming both paths (`[Errno n] text: 'a' -> 'b'`, as the migration's
+/// refusal reasons always read).
 fn os_error2(error: io::Error, a: &Path, b: &Path) -> Failure {
     let (text, class) = y2p_core::py::os_error(&error, Some(&a.to_string_lossy()));
     Failure::Os {
@@ -41,12 +42,12 @@ fn os_error2(error: io::Error, a: &Path, b: &Path) -> Failure {
     }
 }
 
-/// `os.path.join(relative, name)`.
+/// `name` below a walk's relative path.
 fn join(relative: &str, name: &str) -> String {
     format!("{relative}/{name}")
 }
 
-/// `os.path.normpath(os.path.join(relative, name))` for a walk's relative path.
+/// `name` below a walk's relative path, without the leading `./` of the top.
 fn normal(relative: &str, name: &str) -> String {
     if relative == "." {
         name.to_owned()
@@ -55,8 +56,8 @@ fn normal(relative: &str, name: &str) -> String {
     }
 }
 
-/// One `os.walk` directory: its path relative to the top, its directory and other names (scandir
-/// order).
+/// One directory of a walk: its path relative to the top, its directory and other names
+/// (directory order).
 pub(super) struct Walked {
     path: PathBuf,
     relative: String,
@@ -64,7 +65,8 @@ pub(super) struct Walked {
     pub(super) files: Vec<String>,
 }
 
-/// `os.walk(top, followlinks=False)`, top-down: a directory that cannot be listed is left out.
+/// Every directory below `top`, top-down, symlinks not followed; one that cannot be listed is
+/// left out.
 pub(super) fn walk(top: &Path) -> Vec<Walked> {
     fn visit(path: &Path, relative: String, out: &mut Vec<Walked>) {
         let Ok(entries) = fs::read_dir(path) else {
@@ -159,7 +161,7 @@ pub(super) fn sha256(path: &Path) -> Result<String, Failure> {
     Ok(hasher.hexdigest())
 }
 
-/// `os.utime(path, ns=(atime_ns, mtime_ns))`.
+/// Give `path` the access and modification times of `source` (nanoseconds kept).
 fn utime(path: &Path, source: &fs::Metadata) -> Result<(), Failure> {
     let name = CString::new(path.as_os_str().as_bytes()).map_err(Failure::value)?;
     // time_t and c_long are 32 bits on the ARM target, 64 on the host.
@@ -234,7 +236,7 @@ pub(super) fn copy_verified(
     Ok("copied")
 }
 
-/// `os.makedirs(path, mode=mode, exist_ok=True)`.
+/// The directory with its parents, fine when it exists; the error names the path.
 pub(super) fn makedirs(path: &Path, mode: u32) -> Result<(), Failure> {
     mkdir_io(path, mode).map_err(|e| Failure::os(e, path))
 }

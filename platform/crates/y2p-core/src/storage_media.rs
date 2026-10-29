@@ -1,15 +1,14 @@
-//! The pure parts of `media.py` and `space.py` the storage group needs: the `fsck.fat -n` line classes
-//! (#44, F12), the repair summary, the boot sector's table size, the media identity hash and the
-//! disposable-file names of the space cleanup. Python regular expressions are matched with `regex`
-//! (Unicode `\d`, `\S`, `\s` and `\b`, as Python's `str` patterns).
+//! The pure parts of the storage commands: the `fsck.fat -n` line classes (#44, F12), the repair
+//! summary, the boot sector's table size, the media identity hash and the disposable-file names of
+//! the space cleanup. The patterns are Unicode-aware (`\d`, `\S`, `\s`, `\b`), as the classes were
+//! recorded with.
 // SPDX-License-Identifier: GPL-2.0-only
 use regex::Regex;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeSet, sync::OnceLock};
 
-/// Python `str.splitlines()`: every line boundary Python knows (`\r\n` counts once), no trailing
-/// empty line.
+/// Lines split at every Unicode line boundary (`\r\n` counts once), no trailing empty line.
 pub fn splitlines(text: &str) -> Vec<&str> {
     let boundary = |c: char| {
         matches!(
@@ -153,7 +152,7 @@ fn classify(line: &str) -> Option<Option<&'static str>> {
         .map(|(class, _)| *class)
 }
 
-/// A line class as Python keeps it in `previous`: `None`, a class name or `'other'`.
+/// The class of the line before: neutral, a class name or `other`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Previous {
     Neutral,
@@ -195,7 +194,7 @@ fn offset_pairs() -> &'static Regex {
     PAIRS.get_or_init(|| Regex::new(r"\d+:[0-9a-f]{2}/[0-9a-f]{2}").expect("pattern"))
 }
 
-/// `media.fat_findings`: the classes a `fsck.fat -n` run reported, sorted; 'other' for any line that
+/// The classes a `fsck.fat -n` run reported, sorted; 'other' for any line that
 /// is not a benign class. Never any file or label text.
 pub fn fat_findings(output: Option<&str>) -> Vec<String> {
     let mut found = BTreeSet::new();
@@ -237,7 +236,7 @@ fn digits() -> &'static Regex {
     DIGITS.get_or_init(|| Regex::new(r"\d+").expect("pattern"))
 }
 
-/// `media.fat_other_shapes`: what the 'other' lines of a `fsck.fat -n` run said, never a name (F12,
+/// What the 'other' lines of a `fsck.fat -n` run said, never a name (F12,
 /// 29ed4ccb: refusals on 8.25 could not be told from a benign line nobody had classified). A line
 /// with a path (dosfstools prints every file and directory as one) only counts; quoted text and
 /// numbers are blanked.
@@ -265,7 +264,7 @@ pub fn fat_other_shapes(output: Option<&str>, limit: usize) -> Value {
     json!({"shapes": shapes, "path_lines": paths})
 }
 
-/// `media.fat_benign_only`: True when a failed `fsck.fat -n` reported only findings Windows mounts
+/// Whether a failed `fsck.fat -n` reported only findings Windows mounts
 /// over: an unclean unmount, a stale free count, a label mismatch, unused clusters, a differing backup
 /// boot sector.
 pub fn fat_benign_only(output: Option<&str>) -> bool {
@@ -286,14 +285,14 @@ fn repair_patterns() -> &'static [Regex; 4] {
     })
 }
 
-/// `media.repair_summary`: what a repair changed, as counts and name-free line shapes.
+/// What a repair changed, as counts and name-free line shapes.
 pub fn repair_summary(output: Option<&str>) -> Value {
     let text = output.unwrap_or_default();
     let [shortened, removed, shared, reclaimed] = repair_patterns();
     let freed: u64 = reclaimed
         .captures_iter(text)
         .map(|c| {
-            // int() of the digits; Unicode digits by their value.
+            // The digits' value (Unicode digits too), saturating.
             c[1].chars()
                 .filter_map(|d| d.to_digit(10))
                 .fold(0u64, |n, d| {
@@ -315,20 +314,24 @@ fn u16_at(boot: &[u8], offset: usize) -> u64 {
 }
 
 fn u32_at(boot: &[u8], offset: usize) -> u64 {
-    u64::from(u32::from_le_bytes(
-        boot[offset..offset + 4].try_into().expect("four bytes"),
-    ))
+    let bytes = [
+        boot[offset],
+        boot[offset + 1],
+        boot[offset + 2],
+        boot[offset + 3],
+    ];
+    u64::from(u32::from_le_bytes(bytes))
 }
 
-/// `media.tables_bytes`: bytes from the start of the filesystem to its first data cluster (boot
-/// sectors, FATs, root directory of FAT12/16; exFAT up to its cluster heap), None when the boot sector
-/// does not say. ext4 spreads its tables: None.
+/// Bytes from the start of the filesystem to its first data cluster (boot sectors, FATs, root
+/// directory of FAT12/16; exFAT up to its cluster heap), `None` when the boot sector does not say.
+/// ext4 spreads its tables: `None`; so does a boot sector shorter than 512 bytes.
 pub fn tables_bytes(boot: &[u8], filesystem: &str) -> Option<u64> {
     if boot.len() < 512 {
         return None;
     }
     if filesystem == "vfat" {
-        // struct.unpack_from('<HBHBHHBH', boot, 11)
+        // The BIOS parameter block from offset 11, little-endian.
         let sector = u16_at(boot, 11);
         let reserved = u16_at(boot, 14);
         let fats = u64::from(boot[16]);
@@ -347,7 +350,7 @@ pub fn tables_bytes(boot: &[u8], filesystem: &str) -> Option<u64> {
     None
 }
 
-/// `hashlib.sha256(text.encode()).hexdigest()`.
+/// The SHA-256 of `text` as lowercase hex.
 pub fn sha256_hex(text: &[u8]) -> String {
     Sha256::digest(text)
         .iter()
@@ -355,7 +358,7 @@ pub fn sha256_hex(text: &[u8]) -> String {
         .collect()
 }
 
-/// `hashlib.sha256()` fed in chunks (`internal_media.digest`).
+/// SHA-256 fed in chunks, as lowercase hex at the end (Y2Media's copy verification).
 #[derive(Default)]
 pub struct Sha256Stream(Sha256);
 
@@ -373,7 +376,7 @@ impl Sha256Stream {
     }
 }
 
-/// The disposable files `space.disposable_cleanup` may remove, by category (`re.fullmatch`).
+/// The disposable files the space cleanup may remove, by category (the whole name must match).
 pub fn disposable_name(category: &str, name: &str) -> bool {
     static PATTERNS: OnceLock<[Regex; 3]> = OnceLock::new();
     let [cache, diagnostics, platform] = PATTERNS.get_or_init(|| {
@@ -400,7 +403,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn lines_split_as_python() {
+    fn lines_split_at_every_boundary() {
         assert_eq!(
             splitlines("a\r\nb\rc\n\nd\u{2028}e\n"),
             ["a", "b", "c", "", "d", "e"]
@@ -410,8 +413,8 @@ mod tests {
     }
 
     #[test]
-    fn fat_runs_are_classified_as_python() {
-        // media.fat_findings / fat_other_shapes in Python for the same texts.
+    fn fat_runs_are_classified() {
+        // As recorded for the same texts before the port.
         let dirty = "fsck.fat 4.2 (2021-01-31)\nDirty bit is set. Fs was not properly unmounted and some data may be corrupt.\n Automatically removing dirty bit.\nThere are differences between boot sector and its backup.\nThis is mostly harmless. Differences: (offset:original/backup)\n  65:01/00\n  Not automatically fixing this.\nLeaving filesystem unchanged.\n/dev/mmcblk1p1: 12 files, 3/100 clusters";
         assert_eq!(fat_findings(Some(dirty)), ["dirty"]);
         assert!(fat_benign_only(Some(dirty)));

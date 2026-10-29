@@ -89,8 +89,8 @@ impl Claim {
     }
 }
 
-/// `dict(line.split('=', 1) for line in output.splitlines() if '=' in line)` of `blkid -p -o
-/// export`: a later line names a key again over an earlier one.
+/// The `KEY=value` lines of `blkid -p -o export` (split at the first `=`; a later line names a key
+/// again over an earlier one, a line without `=` is left out).
 #[derive(Clone, Debug, Default)]
 pub struct Properties(HashMap<String, String>);
 

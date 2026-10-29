@@ -27,7 +27,8 @@ use y2p_core::{
     Root,
 };
 
-pub(super) const SETUP: &str = "/data/system/internal-media-setup.json"; // survives formatting p8
+const SETUP_FOLDER: &str = "/data/system"; // Y2DATA: survives formatting p8
+pub(super) const SETUP: &str = "/data/system/internal-media-setup.json"; // the resume record
 pub(super) const KEPT_STAGING: &str = "/data/system/internal-media-kept"; // kept files while p8 is formatted
 pub(super) const OLD: &str = "/run/y2/old-storage"; // the stock FAT, read-only
 const STATUS: &str = "/run/y2/internal-media-setup.json";
@@ -155,7 +156,8 @@ pub(crate) fn splash(root: &Root, step: u64) {
     }
 }
 
-/// The stock FAT read-only at OLD after the read-only check (#44/F12 rules); None or a reason.
+/// The stock FAT mounted read-only at OLD after its read-only check (#44/F12 rules): `None`, or
+/// why not.
 fn mount_old(root: &Root, device: &str) -> Result<Option<&'static str>, Failure> {
     if all_mounts(root)
         .iter()
@@ -215,11 +217,11 @@ fn unmount_old(root: &Root) -> bool {
     true
 }
 
+/// The resume record, durable: the file and then its folder are synced before a phase starts.
 pub(super) fn save(root: &Root, value: &Object) -> Result<(), Failure> {
-    let path = root.path(SETUP);
-    let folder = path.parent().expect("parent").to_path_buf();
+    let folder = root.path(SETUP_FOLDER);
     mkdir(&folder, 0o700)?;
-    atomic_json(&path, value, true)?;
+    atomic_json(&root.path(SETUP), value, true)?;
     let directory = OpenOptions::new()
         .read(true)
         .custom_flags(libc::O_DIRECTORY | libc::O_CLOEXEC)
@@ -351,7 +353,9 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         let mut done = 0u64;
         for (relative, size) in &kept {
             let target = staging.join(relative);
-            makedirs(target.parent().expect("parent"), 0o700)?;
+            if let Some(folder) = target.parent() {
+                makedirs(folder, 0o700)?;
+            }
             copy_verified(&source.join(relative), &target, *size, sha256)?;
             done += size;
             splash(root, tens(10, 50, done, total));
@@ -498,7 +502,8 @@ fn begin_setup(
     Ok(Start::Run(fresh))
 }
 
-/// `os.walk(top, topdown=False)` removing every directory below `top` that is empty by then.
+/// Remove every directory below `top` that is empty once the ones below it are gone (symlinks are
+/// not followed).
 fn remove_empty_below(top: &Path) {
     let Ok(entries) = fs::read_dir(top) else {
         return;
@@ -516,7 +521,7 @@ fn remove_empty_below(top: &Path) {
     }
 }
 
-/// `setup --confirm-shown`: the serial this boot reported as waiting, else None.
+/// `setup --confirm-shown`: the serial this boot reported as waiting, else `null`.
 pub fn shown_serial(root: &Root) -> Value {
     let shown = setup_status(root);
     if get(&shown, "state").as_str() == Some("Waiting") {

@@ -52,7 +52,7 @@ fn state_is(map: &Object, state: &str) -> bool {
     get(map, "state").as_str() == Some(state)
 }
 
-/// The first 12 characters of an id, as `id[:12]`.
+/// The first 12 characters of an id: records name a card by this prefix, never by its CID.
 fn prefix(id: &str) -> String {
     id.chars().take(12).collect()
 }
@@ -235,7 +235,8 @@ pub fn reconcile(root: &Root) -> Result<Object, Failure> {
 
 pub fn operation(root: &Root, action: &str) -> Result<Object, Failure> {
     if action == "status" {
-        return Ok(volumes(root).swap_remove(2));
+        let [_, _, sd, _] = volumes(root);
+        return Ok(sd);
     }
     let runtime = runtime(root)?;
     let _lock = lock_now(&runtime.join("media.lock"))?;

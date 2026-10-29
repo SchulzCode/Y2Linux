@@ -87,7 +87,7 @@ fn battery_allows_repair(root: &Root) -> Result<bool, Failure> {
         || percent.is_some_and(|p| p >= REPAIR_MINIMUM_PERCENT))
 }
 
-/// `error.strerror or str(error)`.
+/// The error's message without its errno prefix (`No space left on device`).
 fn strerror(error: &io::Error) -> String {
     match error.raw_os_error() {
         // SAFETY: strerror returns a NUL-terminated message.
@@ -98,7 +98,7 @@ fn strerror(error: &io::Error) -> String {
     }
 }
 
-/// `BufferedReader.read(n)`: up to `n` bytes, fewer only at the end.
+/// Up to `n` bytes, fewer only at the end of the file.
 fn read_up_to(file: &mut File, n: usize) -> io::Result<Vec<u8>> {
     let mut buffer = Vec::with_capacity(n);
     file.take(n as u64).read_to_end(&mut buffer)?;
