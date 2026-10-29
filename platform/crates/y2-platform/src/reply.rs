@@ -86,12 +86,14 @@ impl Failure {
         }
     }
 
-    /// `int(text)` of a str that is no integer: `invalid literal for int() with base 10: '…'`.
+    /// `int(text)` of a str that is no integer: `invalid literal for int() with base 10: '…'` (CPython
+    /// formats the repr with `%.200R`: at most 200 characters).
     pub fn int_literal(text: &str) -> Failure {
-        Failure::Value(format!(
-            "invalid literal for int() with base 10: {}",
-            crate::argparse::python::repr(text)
-        ))
+        let shown: String = crate::argparse::python::repr(text)
+            .chars()
+            .take(200)
+            .collect();
+        Failure::Value(format!("invalid literal for int() with base 10: {shown}"))
     }
 
     /// An uncaught exception of class `class` with `str(error)` `message`.

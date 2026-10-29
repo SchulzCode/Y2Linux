@@ -198,34 +198,6 @@ fn int_literal(shown: &str) -> String {
     format!("invalid literal for int() with base 10: {shown}")
 }
 
-/// int()'s ValueError for an environment value that is not UTF-8 (Python reads it with surrogate
-/// escapes, which repr() shows as `\udcXX`; no such text is an int).
-fn int_literal_bytes(raw: &[u8]) -> String {
-    let mut text = String::new();
-    let mut escapes = Vec::new();
-    for chunk in raw.utf8_chunks() {
-        text.push_str(chunk.valid());
-        for byte in chunk.invalid() {
-            text.push('\u{ffff}');
-            escapes.push(*byte);
-        }
-    }
-    let shown = crate::argparse::python::repr(&text);
-    let mut out = String::new();
-    let mut escapes = escapes.into_iter();
-    let mut rest = shown.as_str();
-    while let Some(at) = rest.find("\\uffff") {
-        out.push_str(&rest[..at]);
-        match escapes.next() {
-            Some(byte) => out.push_str(&format!("\\udc{byte:02x}")),
-            None => out.push_str("\\uffff"),
-        }
-        rest = &rest[at + 6..];
-    }
-    out.push_str(rest);
-    int_literal(&out)
-}
-
 /// `y2-platform ntp-event <event>` from BusyBox ntpd (`stratum` in the environment).
 pub fn ntp_event(root: &Root, event: &str) -> Outcome {
     let now = wall();
@@ -234,16 +206,10 @@ pub fn ntp_event(root: &Root, event: &str) -> Outcome {
     // BusyBox explicitly permits overlapping step/stratum callbacks.
     let _lock = lock(&runtime.join("time.lock"))?;
     // `int(env.get('stratum', '16'))`: Python's int() of the text (any size), or its ValueError.
+    // os.environ reads a value that is not UTF-8 with surrogate escapes (y2p_core::os_text).
     let stratum = match std::env::var_os("stratum") {
         None => 16,
-        Some(raw) => match raw.to_str() {
-            Some(text) => python_int(text)?,
-            None => {
-                return Err(Failure::Value(int_literal_bytes(
-                    std::os::unix::ffi::OsStrExt::as_bytes(raw.as_os_str()),
-                )))
-            }
-        },
+        Some(raw) => python_int(&y2p_core::os_text::fsdecode_os(&raw))?,
     };
     if event == "unsync" || !(1..16).contains(&stratum) || !plausible(now, floor(root)) {
         return Reply::unsorted(

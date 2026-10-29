@@ -374,10 +374,9 @@ pub fn main(root: &Root, args: &[String]) -> Outcome {
             super::exit(0)
         }
         Err(Stop::Error(message)) => {
-            let _ = write!(
-                std::io::stderr(),
-                "{USAGE}y2-power-audit: error: {message}\n"
-            );
+            // stderr's backslashreplace: an argument that was not UTF-8 shows as \udcXX.
+            let message = y2p_core::os_text::backslashreplace(&message);
+            let _ = writeln!(std::io::stderr(), "{USAGE}y2-power-audit: error: {message}");
             super::exit(2)
         }
     };
@@ -1142,7 +1141,9 @@ fn run(root: &Root, args: &Args) -> Result<(), E> {
             ]),
         ),
     ]);
-    let path = Path::new(&args.output);
+    // os.fsencode: an --output given as bytes that are not UTF-8 names those bytes.
+    let encoded = y2p_core::os_text::fsencode(&args.output);
+    let path = Path::new(&encoded);
     let mut out = OpenOptions::new()
         .write(true)
         .create_new(true)

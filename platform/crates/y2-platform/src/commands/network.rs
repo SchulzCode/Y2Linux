@@ -291,7 +291,8 @@ fn network(text: &str) -> Result<String, Failure> {
 
 /// `y2-platform dhcp-event deconfig|leasefail|nak|bound|renew` with udhcpc's environment.
 pub fn dhcp_event(root: &Root, event: &str) -> Outcome {
-    let var = |name: &str| env::var(name).ok();
+    // os.environ: a value that is not UTF-8 holds surrogate escapes (y2p_core::os_text).
+    let var = |name: &str| env::var_os(name).map(|v| y2p_core::os_text::fsdecode_os(&v));
     if var("interface").as_deref() != Some("wlan0") {
         return Err(Failure::value("dhcp_interface_not_owned"));
     }

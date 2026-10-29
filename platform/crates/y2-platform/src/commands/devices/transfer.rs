@@ -254,6 +254,10 @@ fn hex_of(text: &str, length: usize) -> bool {
 fn filename(name: Option<&str>) -> Result<Vec<String>, Failure> {
     let invalid = || Failure::value("invalid_media_name");
     let name = name.ok_or_else(invalid)?;
+    // `len(name.encode())`: a name that was not UTF-8 (surrogate escapes) cannot be encoded.
+    if let Some(text) = y2p_core::os_text::encode_error(name) {
+        return Err(Failure::raised("UnicodeEncodeError", text));
+    }
     if name.len() > 512 {
         return Err(invalid());
     }

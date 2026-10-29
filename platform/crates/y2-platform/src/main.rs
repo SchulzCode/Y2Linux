@@ -2,8 +2,9 @@
 //! The arguments are parsed first, as `main.py`'s argparse parser does (argparse.rs): `--help` prints
 //! that parser's help (exit 0), an argument error its usage and message on stderr (exit 2). A parsed
 //! command goes to its Rust implementation in its canonical spelling (`argparse::Parsed::canonical`);
-//! every other one replaces this process with the Python platform, with the arguments as given, exactly
-//! as the shell wrapper it replaces did:
+//! one no route takes (only `service-daemon` now) replaces this process with the Python platform, with
+//! the arguments as given, exactly as the shell wrapper it replaces did (only in a build with the cargo
+//! feature `python-fallback`, the default until phase 6):
 //! `exec /usr/bin/python3 -I /usr/lib/y2-platform/main.py "$@"` with `PYTHONPATH=/usr/lib/y2-platform`
 //! and `PYTHONDONTWRITEBYTECODE=1`. Same process (callers signal and wait for this PID: Reborn sends
 //! SIGTERM to `update stage`), same argv and environment for Python, same stdin, stdout and stderr.

@@ -133,6 +133,9 @@ CASES = [
     ('transfer-begin-no-name', ['transfer', 'begin', '--bytes', '5', '--sha256', HASH], {'ported': True}),
     ('transfer-begin-deep-name', ['transfer', 'begin', '--name', '/'.join('abcdefghi'), '--bytes', '5', '--sha256', HASH],
      {'ported': True}),
+    # A name that is not UTF-8: Python's UnicodeEncodeError (len(name.encode())).
+    ('transfer-begin-not-utf8', ['transfer', 'begin', '--name', 'A/\udcff\udcfe.flac', '--bytes', '5', '--sha256', HASH],
+     {'ported': True}),
     ('transfer-begin-no-hash', ['transfer', 'begin', '--name', 'a.flac', '--bytes', '5'], {'ported': True}),
     ('transfer-begin-too-large', ['transfer', 'begin', '--name', 'a.flac', '--bytes', '536870913', '--sha256', HASH],
      {'ported': True}),

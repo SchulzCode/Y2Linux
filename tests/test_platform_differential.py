@@ -148,6 +148,11 @@ CASES = [
         ('bad-route', {'staticroutes': '10.0.0.0/33 192.168.1.2'}), ('bad-gateway', {'staticroutes': '10.0.0.0/8 x'}),
         ('route-slashes', {'staticroutes': '10.0.0.0/8/8 192.168.1.2'}), ('route-hostmask', {
             'staticroutes': '10.1.2.3/0.255.255.255 192.168.1.2'}), ('unicode-space', {'dns': '9.9.9.9\x1f1.1.1.1'})]],
+    # Bytes that are not UTF-8 (os.environ and sys.argv: surrogate escapes, shown as \\udcXX).
+    ('dhcp-bound-not-utf8', ['dhcp-event', 'bound'], {'ported': True, 'env': {**LEASE, 'ip': '192.168.1.\udcff'}}),
+    ('dhcp-interface-not-utf8', ['dhcp-event', 'bound'], {'ported': True, 'env': {**LEASE, 'interface': 'wlan\udcff'}}),
+    ('ntp-stratum-not-utf8', ['ntp-event', 'step'], {'ported': True, 'env': {'stratum': '\udce2\udc822'}}),
+    ('boot-stage-not-utf8', ['boot-stage', 'platform_\udcff'], {'ported': True}),
     ('dhcp-leasefail', ['dhcp-event', 'leasefail'], {'ported': True, 'env': LEASE}),
     ('dhcp-nak', ['dhcp-event', 'nak'], {'ported': True, 'env': LEASE}),
     ('dhcp-deconfig', ['dhcp-event', 'deconfig'], {'ported': True, 'env': LEASE}),
@@ -280,9 +285,12 @@ class PlatformDifferential(unittest.TestCase):
     def test_cases_stay_inside_the_fixture_root(self):
         # A path the Python side opens without ctx.path, or a process it starts without
         # ctx.command, would make both sides read the host and agree by accident.
+        # A crash's traceback (3.14 traceback.py, _should_show_carets: ast.parse of the failing line) opens
+        # the pseudo file '<unknown>' relative to the cwd: no device access (as tests/test_platform_suspend.py).
         for name, argv, options in CASES:
             with self.subTest(name):
-                self.assertEqual(host_access(self.fixture_for(name), argv, env=options.get('env'), files=options.get('files')), [])
+                found = host_access(self.fixture_for(name), argv, env=options.get('env'), files=options.get('files'))
+                self.assertEqual([e for e in found if not e['target'].endswith('/<unknown>')], [])
 
     def test_cases_exercise_exit_codes_files_and_subprocesses(self):
         results = {name: run_case(python_side, self.fixture, argv, **options) for name, argv, options in CASES

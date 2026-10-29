@@ -543,6 +543,10 @@ CASES += [
     # ipaddress.IPv4Address's AddressValueError, after the workload lease was taken.
     ('network-check-bad-peer', ['network-check', '--peer', '192.168.001.1'], {'ported': True}),
     ('network-check-hostname', ['network-check', '--peer', 'router'], {'ported': True}),
+    # A peer that is not UTF-8: ipaddress's error shows the surrogate escape (\\udcff).
+    ('network-check-not-utf8', ['network-check', '--peer', '192.168.1.\udcff'], {'ported': True}),
+    ('collect-workload-not-utf8', ['collect', '--seconds', '1', '--interval', '1', '--workload', 'w\udcff'], {
+        'ported': True, 'volatile': [*TIMING, 'bytes']}),
     ('network-check-empty-peer', ['network-check', '--peer', ''], {'ported': True}),
     ('network-check-peer-prefix', ['network-check', '--peer', '10.0.0.1/8'], {'ported': True}),
     ('network-check-peer-octet', ['network-check', '--peer', '1.2.3.256'], {'ported': True}),
