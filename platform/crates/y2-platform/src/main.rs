@@ -8,6 +8,8 @@
 mod argparse;
 mod commands;
 mod reply;
+#[cfg(test)]
+mod testing;
 
 use reply::Failure;
 use std::{env, ffi::OsString, io::Write, process::ExitCode};

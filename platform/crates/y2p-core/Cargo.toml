@@ -16,3 +16,7 @@ flate2.workspace = true
 tar.workspace = true
 sha2.workspace = true
 hmac.workspace = true
+
+[features]
+# Thread-local subprocess answers for unit tests (command::testing); only dev-dependencies enable it.
+testing = []

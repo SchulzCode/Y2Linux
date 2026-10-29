@@ -58,6 +58,10 @@ struct Answer {
 }
 
 fn fixture(argv: &[&str], timeout: f64) -> Outcome {
+    #[cfg(feature = "testing")]
+    if let Some(outcome) = testing::answer(argv, timeout) {
+        return outcome;
+    }
     if let Some(calls) = env::var_os("Y2_FIXTURE_CALLS") {
         let line = serde_json::json!({"argv": argv, "timeout": timeout}).to_string() + "\n";
         if let Ok(mut file) = fs::OpenOptions::new().append(true).create(true).open(calls) {
@@ -81,6 +85,84 @@ fn fixture(argv: &[&str], timeout: f64) -> Outcome {
             reason: Some("fixture".into()),
             output: None,
         })
+}
+
+/// Subprocess answers for in-process unit tests (feature `testing`, enabled by dev-dependencies only):
+/// `Y2_FIXTURE_COMMANDS`/`Y2_FIXTURE_CALLS` are process-wide and would mix the answers of tests running
+/// in parallel, so a test scripts the commands of its own thread instead.
+#[cfg(feature = "testing")]
+pub mod testing {
+    use super::Outcome;
+    use std::cell::RefCell;
+
+    struct Script {
+        answers: Vec<(Vec<String>, Outcome)>,
+        calls: Vec<(Vec<String>, f64)>,
+    }
+
+    thread_local! {
+        static SCRIPT: RefCell<Option<Script>> = const { RefCell::new(None) };
+    }
+
+    /// An answer as a fixture file gives it: ok with `output`, or failed with `reason`.
+    pub fn ok(argv: &[&str], output: &str) -> (Vec<String>, Outcome) {
+        let outcome = Outcome {
+            ok: true,
+            reason: None,
+            output: Some(output.into()),
+        };
+        (argv.iter().map(|a| a.to_string()).collect(), outcome)
+    }
+
+    pub fn failed(argv: &[&str], reason: &str) -> (Vec<String>, Outcome) {
+        let outcome = Outcome {
+            ok: false,
+            reason: Some(reason.into()),
+            output: None,
+        };
+        (argv.iter().map(|a| a.to_string()).collect(), outcome)
+    }
+
+    /// Run `f` with these answers for this thread's commands below a fixture root (anything else is
+    /// answered `fixture`, as without a script); returns its value and every request (argv, timeout).
+    pub fn scripted<T>(
+        answers: Vec<(Vec<String>, Outcome)>,
+        f: impl FnOnce() -> T,
+    ) -> (T, Vec<(Vec<String>, f64)>) {
+        SCRIPT.with(|s| {
+            *s.borrow_mut() = Some(Script {
+                answers,
+                calls: Vec::new(),
+            })
+        });
+        let value = f();
+        let calls = SCRIPT.with(|s| s.borrow_mut().take().map(|s| s.calls).unwrap_or_default());
+        (value, calls)
+    }
+
+    pub(super) fn answer(argv: &[&str], timeout: f64) -> Option<Outcome> {
+        SCRIPT.with(|s| {
+            let mut script = s.borrow_mut();
+            let script = script.as_mut()?;
+            script
+                .calls
+                .push((argv.iter().map(|a| a.to_string()).collect(), timeout));
+            Some(
+                script
+                    .answers
+                    .iter()
+                    .find(|(a, _)| a.iter().map(String::as_str).eq(argv.iter().copied()))
+                    .map_or(
+                        Outcome {
+                            ok: false,
+                            reason: Some("fixture".into()),
+                            output: None,
+                        },
+                        |(_, o)| o.clone(),
+                    ),
+            )
+        })
+    }
 }
 
 fn real(argv: &[&str], timeout: f64, limit: usize, failure_output: bool) -> Outcome {
