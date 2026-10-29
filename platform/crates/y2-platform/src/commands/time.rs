@@ -65,7 +65,15 @@ pub(crate) fn same_boot(anchor: &Map<String, Value>, boot: &Option<String>) -> b
 
 /// `y2-platform time`.
 pub fn status(root: &Root) -> Outcome {
-    let (now, monotonic, elapsed) = (wall(), root.clock().monotonic(), boottime_of(root));
+    let now = wall();
+    Reply::unsorted(&status_at(root, now, json!(now)), 0)
+}
+
+/// The clock status at wall time `now`: TLS ready only for a plausible clock whose anchor of this
+/// boot came from the network or a retained RTC and still agrees. `epoch` is `now` as it is printed
+/// (the wall clock's float for `time`, the owner's integer for `time-set`).
+pub(crate) fn status_at(root: &Root, now: f64, epoch: Value) -> Status {
+    let (monotonic, elapsed) = (root.clock().monotonic(), boottime_of(root));
     let floor = floor(root);
     let valid = plausible(now, floor);
     let anchor = root.json_object("/run/y2/time.json");
@@ -79,7 +87,7 @@ pub fn status(root: &Root) -> Outcome {
         && drift(&anchor, now, monotonic, elapsed).abs() <= 60.0;
     let source = anchor.value("source");
     let ready = valid && coherent && matches!(source.as_str(), Some("ntp" | "retained_rtc"));
-    let value = Status {
+    Status {
         schema: 1,
         clock_sane: valid,
         tls_ready: ready,
@@ -90,19 +98,18 @@ pub fn status(root: &Root) -> Outcome {
         },
         source,
         ntp_authenticated: false,
-        epoch: now,
+        epoch,
         build_epoch: floor,
         anchor: sorted_object(&anchor),
         // A fixture root has no random pool of its own.
         entropy_ready: root.is_real().then(py::entropy_ready),
         rtc_retention_qualified: false,
-    };
-    Reply::unsorted(&value, 0)
+    }
 }
 
 /// `y2-platform time`: whether the wall clock is good enough for TLS, and why.
 #[derive(Serialize)]
-struct Status {
+pub(crate) struct Status {
     schema: u8,
     clock_sane: bool,
     tls_ready: bool,
@@ -110,7 +117,7 @@ struct Status {
     /// The anchor's source as it reads (`ntp`, `retained_rtc`, `manual`, …).
     source: Value,
     ntp_authenticated: bool,
-    epoch: f64,
+    epoch: Value,
     build_epoch: Option<i64>,
     anchor: Object,
     entropy_ready: Option<bool>,
@@ -277,7 +284,7 @@ pub fn ntp_event(root: &Root, event: &str) -> Outcome {
 
 /// Source-backed default or an owner receipt admits normal NTP -> RTC synchronization. Mutable owner
 /// policy still takes precedence.
-fn rtc_write(root: &Root) -> Option<bool> {
+pub(crate) fn rtc_write(root: &Root) -> Option<bool> {
     let rtc = match root.json("/data/system/platform/rtc-policy.json") {
         Some(Value::Object(map)) => map,
         _ => root.json_object("/etc/y2linux/rtc-policy.json"),

@@ -3,7 +3,7 @@
 //! drift, build floor) these share.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::{
-    commands::time::{drift, floor, plausible, same_boot, wall},
+    commands::time::{floor, plausible, rtc_write, same_boot, status_at, wall},
     reply::{atomic_json, lock, private_directory, write_text, Failure, Outcome, Reply},
 };
 use serde::Serialize;
@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use y2p_core::{
     command,
     json::{Object, ObjectExt},
-    py::{self, is_true, number, truthy},
+    py::number,
     Root,
 };
 
@@ -51,73 +51,6 @@ impl Anchor {
             ntp_restart: None,
         }
     }
-}
-
-/// /run/y2/time-status.json: the status `time` prints, here at the owner's time (written sorted).
-#[derive(Serialize)]
-struct Status {
-    schema: u8,
-    clock_sane: bool,
-    tls_ready: bool,
-    reason: &'static str,
-    source: Value,
-    ntp_authenticated: bool,
-    epoch: i64,
-    build_epoch: Option<i64>,
-    anchor: Object,
-    /// The kernel CRNG (only the player's own root reads it).
-    entropy_ready: Option<bool>,
-    rtc_retention_qualified: bool,
-}
-
-/// The clock status at the owner's time `now`, as `time` reports it: TLS ready only for a plausible
-/// clock whose anchor of this boot came from the network or a retained RTC and still agrees.
-fn status_at(root: &Root, now: i64) -> Status {
-    let (monotonic, elapsed) = (root.clock().monotonic(), boottime(root));
-    let floor = floor(root);
-    let valid = plausible(now as f64, floor);
-    let anchor = root.json_object("/run/y2/time.json");
-    let (stamp, wall_anchor) = (
-        number(anchor.get("monotonic_s")),
-        number(anchor.get("epoch")),
-    );
-    let coherent = same_boot(&anchor, &root.boot_id())
-        && wall_anchor.is_some()
-        && stamp.is_some_and(|stamp| (0.0..=86_400.0).contains(&(monotonic - stamp)))
-        && drift(&anchor, now as f64, monotonic, elapsed).abs() <= 60.0;
-    let source = anchor.value("source");
-    let ready = valid && coherent && matches!(source.as_str(), Some("ntp" | "retained_rtc"));
-    Status {
-        schema: 1,
-        clock_sane: valid,
-        tls_ready: ready,
-        reason: if ready {
-            "reasonable_clock"
-        } else {
-            "clock_not_established"
-        },
-        source,
-        ntp_authenticated: false,
-        epoch: now,
-        build_epoch: floor,
-        anchor,
-        entropy_ready: root.is_real().then(py::entropy_ready),
-        rtc_retention_qualified: false,
-    }
-}
-
-/// Write the system clock to the RTC when the RTC policy allows it: a source-backed default or an
-/// owner receipt admits it, the owner's mutable policy on /data taking precedence. Whether the
-/// write worked, or `None` when the policy does not allow it.
-fn rtc_write(root: &Root) -> Option<bool> {
-    let rtc = match root.json("/data/system/platform/rtc-policy.json") {
-        Some(Value::Object(map)) => map,
-        _ => root.json_object("/etc/y2linux/rtc-policy.json"),
-    };
-    let referenced = rtc.get("qualification_reference").is_some_and(truthy)
-        || rtc.get("source").is_some_and(truthy);
-    (is_true(rtc.get("write_enabled")) && referenced)
-        .then(|| command::run(root, &["/bin/busybox", "hwclock", "-w", "-u"], 3.0).ok)
 }
 
 /// `y2-platform time-set <epoch>`: the owner's own date and time (#53), for a player without Wi-Fi.
@@ -162,7 +95,7 @@ fn set_manual_inner(root: &Root, epoch: i64) -> Result<Anchor, Failure> {
     // Readers of the status (scrobbling) see the untrusted clock at once.
     atomic_json(
         &runtime.join("time-status.json"),
-        &status_at(root, epoch),
+        &status_at(root, epoch as f64, json!(epoch)),
         false,
     )?;
     let directory = root.path("/data/system/platform");
