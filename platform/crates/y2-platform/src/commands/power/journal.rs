@@ -12,6 +12,7 @@
 mod counters;
 mod diagnostics;
 mod sleep;
+pub(crate) mod state;
 pub(crate) mod usb;
 
 pub use counters::idle_counters;

@@ -1,10 +1,9 @@
 //! The parts of `sleep_diagnostics` the power sample drives: a row around each USB state change
 //! (POWER-FINAL-14), with the USB, network and sleep-parity state; `sleep-diagnostics.jsonl`.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{glob_name, json, parent_name, Dropped};
+use super::{glob_name, json, Dropped};
 use crate::commands::time::wall;
 use serde_json::Value;
-use std::{fs, io::Read, os::unix::fs::OpenOptionsExt};
 use y2p_core::{
     json::{dumps, Separators},
     json::{Object, ObjectExt},
@@ -17,28 +16,6 @@ use y2p_core::{
 const DIAGNOSTICS: &str = "/data/system/platform/sleep-diagnostics.jsonl";
 const DIAGNOSTICS_LIMIT: u64 = 2097152;
 const DIAGNOSTICS_ROW: usize = 65536;
-const SPM: &str = "/sys/devices/platform/10006000.power-controller/";
-// Kernel messages kept in a row: USB, gadget, network and the sleep path.
-const KERNEL_TOKENS: [&str; 18] = [
-    "Y2USB",
-    "Y2NET",
-    "Y2SPM",
-    "Y2PM",
-    "Y2INFRA",
-    "Y2VPROC",
-    "Y2DVFS",
-    "Y2_DPM",
-    "y2-usb",
-    "y2-spm",
-    "y2-pmic",
-    "apt32f-wheel",
-    "musb",
-    "udc",
-    "configfs",
-    "gadget",
-    "usb0",
-    "PM: ",
-];
 pub(crate) const FOLLOW_UP_S: f64 = 30.0;
 const MIN_INTERVAL_S: f64 = 10.0;
 
@@ -48,112 +25,6 @@ pub fn usb_net(root: &Root) -> Result<Object, Dropped> {
         Ok(Value::Object(map)) => Ok(map),
         _ => Err(Dropped),
     }
-}
-
-/// `features(ctx, golden)`: the 13 sleep-parity switches and counters, the INFRA and SPM state.
-fn features(root: &Root, golden: bool) -> Object {
-    let by_parent = |pattern: &str| {
-        let mut out = Object::new();
-        for path in root.glob(pattern) {
-            out.set(&parent_name(&path), read(&path, 4096));
-        }
-        out
-    };
-    let r = |name: &str, limit: usize| root.read_limited(name, limit);
-    let mut value = Object::new()
-        .with(
-            "vproc_sleep",
-            r("/sys/module/pwrap/parameters/vproc_sleep", 16),
-        )
-        .with(
-            "vproc_sleep_state",
-            r("/sys/module/pwrap/parameters/vproc_sleep_state", 4096),
-        )
-        .with(
-            "pmic_sleep_state",
-            r("/sys/module/pwrap/parameters/pmic_sleep_state", 4096),
-        )
-        .with("lp_sel", r("/sys/firmware/y2_pmic/lp_sel", 4096))
-        .with(
-            "phy_savecurrent",
-            by_parent("/sys/bus/platform/drivers/y2-usb/*/phy_savecurrent"),
-        )
-        .with(
-            "wheel_sleep",
-            by_parent("/sys/bus/i2c/devices/*-0051/sleep"),
-        )
-        .with("infra", r("/sys/firmware/y2_infra/state", 4096))
-        .with("spm", r(&format!("{SPM}state"), 8192))
-        // 27: stock panel power-down and the idle VGP2 rail (ledger F20/F22).
-        .with(
-            "panel_stock_suspend",
-            r("/sys/module/panel/parameters/stock_suspend", 16),
-        )
-        .with(
-            "panel_power_down",
-            r("/sys/module/panel/parameters/power_down", 16),
-        )
-        .with(
-            "vgp2_idle_off",
-            r("/sys/module/y2_cs43131/parameters/vgp2_idle_off", 16),
-        )
-        // 32: deep idle during playback and how often it was admitted.
-        .with(
-            "deep_idle_audio",
-            r("/sys/module/clocks/parameters/deep_idle_audio", 16),
-        )
-        .with(
-            "deep_audio_entries",
-            r("/sys/module/clocks/parameters/deep_audio_entries", 32),
-        );
-    if golden {
-        // Read-only always-on/INFRA registers; the entry column is the last
-        // suspend-entry capture, so read it once Linux has returned.
-        value.set("golden", r(&format!("{SPM}golden"), 16384)).set(
-            "pmic_golden",
-            r("/sys/module/pwrap/parameters/pmic_golden", 16384),
-        );
-    }
-    value
-}
-
-/// `kernel_tail(ctx)`: the last relevant kernel messages, read non-blocking from /dev/kmsg.
-fn kernel_tail(root: &Root) -> Option<Vec<String>> {
-    const LINES: usize = 80;
-    const WIDTH: usize = 240;
-    let mut file = fs::OpenOptions::new()
-        .read(true)
-        .custom_flags(libc::O_NONBLOCK | libc::O_CLOEXEC)
-        .open(root.path("/dev/kmsg"))
-        .ok()?;
-    let mut kept: Vec<String> = Vec::new();
-    let mut block = vec![0u8; 8192];
-    for _ in 0..16384 {
-        let n = match file.read(&mut block) {
-            Ok(n) => n,
-            Err(e) if e.raw_os_error() == Some(libc::EPIPE) => continue,
-            Err(_) => break,
-        };
-        if n == 0 {
-            break;
-        }
-        for record in String::from_utf8_lossy(&block[..n]).lines() {
-            if record.starts_with(' ') {
-                continue;
-            }
-            let (header, message) = record.split_once(';').unwrap_or((record, ""));
-            let fields: Vec<&str> = header.split(',').collect();
-            let head: String = message.chars().take(96).collect();
-            if KERNEL_TOKENS.iter().any(|t| head.contains(t)) {
-                let stamp = fields.get(2).copied().unwrap_or("?");
-                kept.push(format!("{stamp} {message}").chars().take(WIDTH).collect());
-                if kept.len() > LINES {
-                    kept.drain(..kept.len() - LINES);
-                }
-            }
-        }
-    }
-    Some(kept)
 }
 
 /// `sleep_diagnostics.Diagnostics`: rows on suspend stages and around USB state changes.
@@ -203,7 +74,7 @@ impl Diagnostics {
             Value::Object(o) => o.value("build_id"),
             _ => Value::Null,
         };
-        let mut tail = kernel_tail(root);
+        let mut tail = super::state::kernel_tail(root, 80, 240);
         let mut row = Object::new()
             .with("schema", 1i64)
             .with("stage", stage)
@@ -213,7 +84,10 @@ impl Diagnostics {
             .with("boottime_s", root.clock().boottime_ns() as f64 / 1e9)
             .with("boot_id", root.boot_id())
             .with("build_id", build_id)
-            .with("features", features(root, golden))
+            .with(
+                "features",
+                serde_json::to_value(super::state::features(root, golden)).unwrap_or(Value::Null),
+            )
             .with("usb_net", usb_net(root)?)
             .with(
                 "kernel_pm",
@@ -293,6 +167,7 @@ impl Diagnostics {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use y2p_core::py::PyValue;
 
     /// POWER-FINAL-14: a UDC state change gives a durable row, then one follow-up 30 s later; rows
