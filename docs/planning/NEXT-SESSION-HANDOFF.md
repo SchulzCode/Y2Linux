@@ -2,7 +2,7 @@
 
 > **START HERE (2026-10-29, night): TEST BUILD 173 (DUPLICATION PASS + IDLE GAINS) ON THE OWNER'S PLAYER, NOT PUBLISHED.**
 > On top of 172 (refactor plan "Duplication pass and idle gains"): shared paths/digest/clock/json helpers; Wi-Fi
-> look and ssh's usb0 address without processes (`connectivity::direct`); power.json on change/2 s; NTP start only
+> look and ssh's usb0 address without processes (`connectivity::direct`); power.json on change/2 s (no effect: voltage changes every sample); NTP start only
 > without ntpd; Reborn (639049b) dark-quiet cadence and metrics from the control thread. 173 (seq 11180) by OTA,
 > Acknowledged ≈91 s. Idle dark: Reborn 45 → 19 s/h, process starts ≈140 → 34/min. **Owed:** dark-wake checks
 > (Power, USB plug, Bluetooth Play, automatic sleep on battery). Next free label 174, sequence above 11180.

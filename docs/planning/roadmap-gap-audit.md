@@ -9684,6 +9684,8 @@ supplicant query 0.48 ms; ssh.json Ready; `rebornctl metrics` 0.01 s, `status --
 Idle, screen off (bl_power 4), charging, 300 s window from 6 min uptime: Reborn 19.0 s/h (172: 45.0; main thread
 9.4 from 24.6, watchdog 3.4 from 14.4), process starts 33.6/min (172: ≈140), power-daemon 8.9, service-daemon 10.2,
 ssh-daemon 1.9, connectivity-daemon 0.1 s/h (172: 7.8/7.8/2.1/0.0, measured later after boot; within the window's
-noise and boot-time work, not a regression shown). Owed: the owner's dark-wake checks (Power, USB plug, Bluetooth
+noise and boot-time work, not a regression shown). power.json is still rewritten every second (10 inodes in 10 s): the intended change test sees
+the raw ADC voltage change each sample. Idle process starts after start-up ≈10/min (PID counter over 60 s), mostly
+kernel workers. Owed: the owner's dark-wake checks (Power, USB plug, Bluetooth
 Play, automatic sleep on battery) and PLATFORM-RUST-PORT-HANDOFF.md §6 A.
 

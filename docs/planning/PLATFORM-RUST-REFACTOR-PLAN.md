@@ -64,12 +64,54 @@ parent_name, realpath), `y2p_core::digest` (hex, sha256_hex), `clock::wall`, bat
 tests had two causes (a forked child holding `.stage.lock`: `lock::try_fd` got the test-build retry; the wake tests'
 process-wide SIGTERM during stage: `testing::process_signals`). Logic: the Wi-Fi look and ssh-daemon's usb0 address
 start no process on the player (`connectivity::direct`: wpa_supplicant control socket STATUS/SIGNAL_POLL, rtnetlink
-addresses and default route; below a fixture root the same fixture commands); power.json rewritten on change and at
-least every 2 s (Reborn refuses 5 s); the service daemon's minute `S43y2-time start` only when `ntp.pid` names no
+addresses and default route; below a fixture root the same fixture commands); power.json meant to be rewritten on change and at
+least every 2 s — **no effect on 173** (10 writes in 10 s: the raw ADC voltage in the record changes every sample; see
+the next pass, P1); the service daemon's minute `S43y2-time start` only when `ntp.pid` names no
 live process; `status --reborn` reads Reborn's metrics from its control socket (Reborn's control thread answers
 them); Reborn dark and quiet: a full main-loop pass on an event or a due timer, at most every 5 s, watchdog every 5
 s, observation 10 s, snapshot 30 s. **Left on purpose:** `space --cleanup` stays its own process (statvfs of the SD
 card can block in D state; that must not stop Wi-Fi), ssh.json keeps its 5-s renewal (`status` refuses one 10 s old).
+
+**Next pass — review of 2026-10-30 (four read-only reviewers, findings spot-checked; not started).** Ranked by gain
+per risk; "byte" = needs the raw byte comparison, "owner" = needs an owner decision.
+- **P1 power daemon sample (S, none):** of the 9 BAT0 files read every second, `capacity`, `current_now`, `temp`,
+  `charge_counter` do not exist (checked on 173); `charging_state` (≈1.2 KB under the charger mutex + regex) is used only
+  while Charging; `voltage_ocv` only in the first 120 s. Remember absence on the real root only. Then the power.json
+  change test on the typed record, serialised once; leaving raw voltage out of the test halves the writes (owner:
+  suspend admission and Reborn read the voltage, both accept ≤ 2 s old).
+- **P2 errors (M, none):** one `OsError` with `From<io::Error>`/`.at(path)` and `From` for the 7 error types (133
+  `py::os_error` calls, ~150 hand-written map_err closures, 5 copies of the no-path helper).
+- **P3 safe syscall wrappers (M–L, none):** `y2p_core::sys::{SignalPipe, poll, netlink_route, unix_connect, pidfd,
+  Dir(OwnedFd), kill/alive, detached spawn}`: ~130 of 185 unsafe blocks into ~15 audited wrappers; the signal
+  self-pipe is copied verbatim (connectivity/daemon/wait.rs, service/daemon/signals.rs, ssh/wake.rs), five poll loops,
+  five `*at` layers, six `pre_exec(setsid)`. Fixes a real leak: reports/maintenance/purge.rs forgets the dup'd fd when
+  `fdopendir` fails and never checks errno after `readdir`.
+- **P4 one volume probe (M, byte for calls lists):** `y2p_core::volume`, storage/observe.rs and snapshot/storage.rs are
+  three volume observers; every question probes all four volumes (blkid + statvfs, SD card included), also
+  `space --cleanup`, which needs only /data. One per-target probe and one UUID/geometry table (5 copies); then
+  `space --cleanup` could run in process (owner: the D-state reason goes away once the SD card is not touched).
+- **P5 service loop never blocks (M, owner/safety):** the USB tick waits up to 5 s for `media.lock` and 10 s for a
+  remount, and statvfs/blkid's the SD card in the daemon (views.rs); maintenance commands run synchronously
+  (health-ack 8 s). Try-lock and polled children. One `Job` type for the 5 hand-rolled child slots in jobs.rs.
+- **P6 status cost (M–L, byte):** a snapshot starts up to 8 processes (`cat` timer_list and wakeup_count, up to 4
+  `blkid -p`, `ip … usb0`, `y2-bt-observe`); `status <section>` builds all sections; export-diagnostics and the error
+  report build the snapshot 2–3 times (the report runs `y2-platform status/health` and `rebornctl metrics` as children).
+  Measure `y2-bt-observe`, `wakeup_count` and `blkid` on the player first.
+- **P7 enums and typed records (M, byte):** volume/space/update/LowBattery/shutdown/battery-source states as enums with
+  the same Serialize text; `y2p_contract::CheckState` exists but health builds "OK"/"DEGRADED" by hand; typed
+  previous-boot-evidence, report.json index, USB views, download.json, the Y2Media claim (4 copies with different
+  equality rules).
+- **P8 duplicates (S each):** low-battery policy re-implemented in suspend/admission.rs (safety logic, parity test);
+  power and suspend journal rows; reports' SD write-window copy (use `storage::media::write_window`); UTC ISO
+  formatting ×4; `/proc/locks` holders ×3; `/proc/interrupts` ×3; strerror ×3; process_time ×2; bounded journal append
+  ×2 (its error text still says power_journal); SHA-256 hex leftovers; 46 `OnceLock<Regex>` → one `regex!`; dead
+  `power_text::{key_values, trie_address, python_hex}`; boot id re-read per pass (16 hand-written "this boot" checks).
+- **P9 remaining spawns (M, device test):** `iw` power save every 30 s while connected → nl80211; wpa_cli in scan
+  evidence/recovery/global commands → control socket (`direct::wpa_cli` must upper-case only the verb); `ip` flush/
+  addr/route on DHCP events → rtnetlink; `busybox date -s` → clock_settime; `rebornctl status` in health-ack → socket.
+  Must stay external: curl, fsck/mkfs/resize2fs, y2-update-core, init scripts, dropbear, umtprd, every SD mount.
+- Checked and wrong in a review: Reborn does not call `status wifi` periodically (`NetworkCheck` is a user action; 25 is
+  its timeout). Idle process starts on 173 after start-up are ≈10/min, mostly kernel workers.
 
 **Owner decisions (2026-10-29, §7):** replace the argparse emulation with a small declarative parser (exact option
 names and `--opt=value`, errors exit 2, help says y2-platform); every fake-traceback crash path becomes a refusal
