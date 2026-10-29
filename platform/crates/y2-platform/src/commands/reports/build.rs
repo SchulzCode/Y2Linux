@@ -7,10 +7,9 @@ use super::{
     pyjson::{self, Py, Style},
     pyre,
     scrub::{self, Scrubber, SECTION_MAX},
-    secrets, tarball,
+    secrets, sha256_hex, tarball,
 };
 use crate::reply::Failure;
-use sha2::{Digest, Sha256};
 use std::{
     cell::Cell,
     fs::File,
@@ -18,7 +17,7 @@ use std::{
     path::PathBuf,
     sync::{mpsc, Mutex},
 };
-use y2p_core::{command, Root};
+use y2p_core::{command, root::python_strip, Root};
 
 /// The compressed report (the receiver takes at most 2 MiB; real ones ≈0.5 MB).
 pub const BUDGET: usize = 2 * 1024 * 1024;
@@ -440,10 +439,6 @@ pub fn rel(root: &Root, path: &std::path::Path) -> String {
     format!("/{}", relative.to_string_lossy().trim_start_matches('/'))
 }
 
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
 /// `_hardware`.
 fn hardware(root: &Root) -> Py {
     let compatible = root
@@ -451,7 +446,7 @@ fn hardware(root: &Root) -> Py {
         .unwrap_or_default()
         .replace('\0', " ");
     let mut data = Py::dict()
-        .with("compatible", Py::str(pyre::strip(&compatible)))
+        .with("compatible", Py::str(python_strip(&compatible)))
         .with("cpuinfo", read(root, "/proc/cpuinfo"))
         .with("meminfo_total", Py::None);
     let mut boot = Py::dict();
@@ -477,7 +472,7 @@ fn hardware(root: &Root) -> Py {
     data.set("bootloaders", Py::dict());
     for line in pyre::splitlines(&root.read("/proc/meminfo").unwrap_or_default()) {
         if let Some(rest) = line.strip_prefix("MemTotal:") {
-            data.set("meminfo_total", Py::str(pyre::strip(rest)));
+            data.set("meminfo_total", Py::str(python_strip(rest)));
         }
     }
     for host in ["mmc0", "mmc1"] {
@@ -522,12 +517,12 @@ fn hardware(root: &Root) -> Py {
         })();
         let entry = match result {
             Ok(blob) => Py::dict()
-                .with("sha256", Py::Str(hex(&Sha256::digest(&blob))))
+                .with("sha256", Py::Str(sha256_hex(&blob)))
                 .with("bytes", Py::from(blob.len()))
                 .with(
                     "lk_v320_prefix_sha256",
                     if name == "lk" {
-                        Py::Str(hex(&Sha256::digest(&blob[..blob.len().min(242_440)])))
+                        Py::Str(sha256_hex(&blob[..blob.len().min(242_440)]))
                     } else {
                         Py::None
                     },
@@ -845,7 +840,7 @@ pub fn build(
     }
     progress.update("collect", 0.0, true, Bytes::NONE);
     let known = secrets::secrets(root)?;
-    let mut scrubber = Scrubber::new(&known, random_key()?);
+    let mut scrubber = Scrubber::new(&known, random_key()?)?;
     let versions = json_dict(root, "/etc/y2linux/versions.json");
     let release = json_dict(root, "/etc/y2linux/release.json");
     let uptime = root

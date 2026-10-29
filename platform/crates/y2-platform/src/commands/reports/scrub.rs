@@ -129,7 +129,9 @@ pub fn trie_pattern(values: &[&str]) -> Option<String> {
 }
 
 impl Scrubber {
-    pub fn new(known: &Known, key: [u8; 16]) -> Scrubber {
+    /// A scrubber for these known values with this report's key; refused when the values make a
+    /// pattern beyond the regex size limit (a report without them would leak them).
+    pub fn new(known: &Known, key: [u8; 16]) -> Result<Scrubber, crate::reply::Failure> {
         let mut pairs: Vec<(String, &'static str)> = Vec::new();
         let mut original = HashMap::new();
         for (name, values) in known {
@@ -154,12 +156,18 @@ impl Scrubber {
                 .then_with(|| a.0.cmp(&b.0))
         });
         let values: Vec<&str> = pairs.iter().map(|(v, _)| v.as_str()).collect();
-        let pattern = trie_pattern(&values).map(|p| pyre::compile(&p));
+        let pattern = match trie_pattern(&values) {
+            Some(p) => Some(
+                pyre::try_compile(&p)
+                    .map_err(|_| crate::reply::Failure::value("scrubber_pattern_too_large"))?,
+            ),
+            None => None,
+        };
         let mut map = HashMap::new();
         for (value, name) in pairs {
             map.insert(value, name); // dict(pairs): the last pair of a value wins
         }
-        Scrubber {
+        Ok(Scrubber {
             key,
             shared: Arc::new(Shared {
                 known: map,
@@ -167,7 +175,7 @@ impl Scrubber {
                 pattern,
             }),
             counts: BTreeMap::new(),
-        }
+        })
     }
 
     /// A fresh worker with the same key and values (`_worker_start`).
@@ -387,7 +395,7 @@ const MEDIA_EXTENSIONS: &str = "flac|mp3|m4a|mp4|aac|ogg|oga|opus|wav|aiff?|ape|
 fn media() -> &'static Regex {
     static CELL: OnceLock<Regex> = OnceLock::new();
     CELL.get_or_init(|| {
-        pyre::compile(&format!(
+        pyre::constant(&format!(
             r#"(?i)((?:/run)?/media/[^\n\t"']*?\.(?:{MEDIA_EXTENSIONS}))(?:[{S}"',:;)\]]|\z)|((?:/run)?/media/[^\n\t"']*)"#
         ))
     })
@@ -757,7 +765,7 @@ fn keys() -> String {
 fn structured() -> &'static Regex {
     static CELL: OnceLock<Regex> = OnceLock::new();
     CELL.get_or_init(|| {
-        pyre::compile(&format!(
+        pyre::constant(&format!(
             r#"(?i)"(?:{})"[{S}]*:[{S}]*[\[{{]|"address"[{S}]*:"#,
             keys()
         ))
@@ -767,7 +775,7 @@ fn structured() -> &'static Regex {
 fn private_string() -> &'static Regex {
     static CELL: OnceLock<Regex> = OnceLock::new();
     CELL.get_or_init(|| {
-        pyre::compile(&format!(
+        pyre::constant(&format!(
             r#"(?i)"({})"([{S}]*:[{S}]*)"((?:[^"\\\n]|\\[^\n])*)""#,
             keys()
         ))
@@ -858,7 +866,7 @@ mod tests {
             .iter()
             .map(|(n, v)| (*n, v.iter().map(|s| s.to_string()).collect()))
             .collect();
-        Scrubber::new(&known, *b"0123456789abcdef")
+        Scrubber::new(&known, *b"0123456789abcdef").unwrap()
     }
 
     /// The texts the Python platform's Scrubber gave with the same key (recorded).

@@ -12,7 +12,7 @@ use super::{
 use crate::reply::Failure;
 use regex::Regex;
 use std::{collections::BTreeSet, sync::OnceLock};
-use y2p_core::Root;
+use y2p_core::{root::python_strip, Root};
 
 /// Never a secret, even when a key comment or account field holds one of them.
 const COMMON_WORDS: [&str; 9] = [
@@ -172,7 +172,7 @@ pub fn secrets(root: &Root) -> Result<Known, Failure> {
             .read_limited(&rel(root, &info), 65536)
             .unwrap_or_default();
         for caps in names.captures_iter(&text) {
-            found[bt].1.insert(pyre::strip(&caps[1]).to_owned());
+            found[bt].1.insert(python_strip(&caps[1]).to_owned());
         }
     }
     let mut out = Vec::new();
@@ -274,7 +274,7 @@ pub fn secrets(root: &Root) -> Result<Known, Failure> {
     // Too short to replace safely (would hit ordinary words and numbers).
     let kept = |name: &str, value: &str| {
         name == "music"
-            && (MUSIC_KEPT.contains(&pyre::strip(value))
+            && (MUSIC_KEPT.contains(&python_strip(value))
                 || !value
                     .chars()
                     .any(|c| pyre::isalnum(c) && !pyre::isdecimal(c) && c != '_'))
@@ -285,9 +285,9 @@ pub fn secrets(root: &Root) -> Result<Known, Failure> {
             let values = values
                 .into_iter()
                 .filter(|v| {
-                    pyre::strip(v).chars().count() >= 3
+                    python_strip(v).chars().count() >= 3
                         && !COMMON_WORDS.contains(&v.as_str())
-                        && pyre::strip(v) != "0000000000000000"
+                        && python_strip(v) != "0000000000000000"
                         && !kept(name, v)
                 })
                 .collect();

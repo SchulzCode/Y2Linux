@@ -13,13 +13,13 @@ use super::{
     json_dict, os, os_plain,
     pyjson::{self, Py, Style},
     pyre::{self, lazy, S},
+    sha256_hex,
     state::uuid4,
     tarball,
     volume::{admitted, data_volume},
 };
 use crate::reply::{private_directory, Failure, Outcome, Reply};
 use regex::Regex;
-use sha2::{Digest, Sha256};
 use std::{io::Write, os::unix::fs::OpenOptionsExt, sync::OnceLock};
 use y2p_core::json::ObjectExt;
 use y2p_core::{command, Root};
@@ -404,10 +404,7 @@ fn export_inner(root: &Root) -> Result<Py, Failure> {
             .and_then(|d| d.sync_all())
             .map_err(os_plain)?;
         let bytes = std::fs::read(&complete).map_err(|e| os(e, &complete))?;
-        let digest: String = Sha256::digest(&bytes)
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect();
+        let digest = sha256_hex(&bytes);
         Ok(Py::dict()
             .with("state", Py::str("Complete"))
             .with("path", Py::Str(format!("/data/exports/{name}")))

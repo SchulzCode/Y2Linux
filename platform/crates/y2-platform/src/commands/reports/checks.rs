@@ -6,14 +6,14 @@ use super::{
     pyjson::{self, py_str, Py},
     pyops::{self, OrRefuse},
     pyre::{self, lazy, S},
+    sha256_hex,
     state::Reports,
     HEALTH_UNREADABLE, STATE_UNREADABLE,
 };
 use crate::reply::Failure;
 use regex::Regex;
-use sha2::{Digest, Sha256};
 use std::sync::OnceLock;
-use y2p_core::{command, Root};
+use y2p_core::{command, root::python_strip, Root};
 
 fn crash() -> &'static Regex {
     static CELL: OnceLock<Regex> = OnceLock::new();
@@ -38,10 +38,6 @@ fn storage() -> &'static Regex {
         &CELL,
         r"EXT4-fs error|I/O error, dev mmcblk0|Remounting filesystem read-only|blk_update_request: I/O error, dev mmcblk0",
     )
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 /// `crash_signature(ctx)`: the newest retained kernel crash as (record time, kernel timestamp, text
@@ -91,7 +87,7 @@ fn crash_signature(root: &Root) -> Option<[String; 3]> {
     let digest = if *when > 0 || !uptime.is_empty() {
         String::new()
     } else {
-        hex(&Sha256::digest(text.as_bytes()))[..16].to_owned()
+        sha256_hex(text.as_bytes())[..16].to_owned()
     };
     Some([
         if *when > 0 {
@@ -212,7 +208,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             .collect();
         let signature = if parts.iter().any(Py::truthy) {
             let text = pyjson::dumps(&Py::List(parts), pyjson::Style::Spaced);
-            hex(&Sha256::digest(text.as_bytes()))[..16].to_owned()
+            sha256_hex(text.as_bytes())[..16].to_owned()
         } else {
             use std::os::unix::fs::MetadataExt;
             std::fs::metadata(&panic_path)
@@ -316,7 +312,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     .map(|n| int(root, &format!("{stats}{n}")).unwrap_or(0))
     .sum();
     let frozen = int(root, &format!("{stats}failed_freeze")).unwrap_or(0);
-    let code = pyre::strip(
+    let code = python_strip(
         &root
             .read(&format!("{stats}last_failed_errno"))
             .unwrap_or_default(),
@@ -332,7 +328,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     {
         let or_mark = |name: &str| {
             let text = root.read(&format!("{stats}{name}")).unwrap_or_default();
-            let text = pyre::strip(&text);
+            let text = python_strip(&text);
             if text.is_empty() {
                 "?".to_owned()
             } else {

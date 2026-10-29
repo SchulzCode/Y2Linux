@@ -18,7 +18,6 @@ use super::{
     tarball, workload, POWER_UNREADABLE, QUEUED_UNREADABLE, STATE_UNREADABLE,
 };
 use crate::reply::{mkdir_parents, Failure};
-use sha2::{Digest, Sha256};
 use std::{
     io::{Read, Write},
     os::unix::fs::OpenOptionsExt,
@@ -355,10 +354,7 @@ pub fn headers(data: &[u8], index: &Py, key: &str) -> Vec<(&'static str, String)
             .unwrap_or_default()
     };
     let schema = index.get("schema").map_or_else(|| "1".into(), py_str);
-    let digest: String = Sha256::digest(data)
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect();
+    let digest = super::sha256_hex(data);
     vec![
         ("Content-Type", "application/gzip".to_owned()),
         (

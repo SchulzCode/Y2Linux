@@ -11,6 +11,7 @@ use super::{
     os, os_name, os_plain,
     pyjson::{self, Py, Style},
     pyops::{self, OrRefuse},
+    sha256_hex,
     state::uuid4,
     tarball,
     volume::{self, data_volume, free, open_directory},
@@ -18,7 +19,6 @@ use super::{
     SCOPES,
 };
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
-use sha2::{Digest, Sha256};
 use std::{
     ffi::CString,
     io::{Read, Write},
@@ -35,10 +35,6 @@ const SETTINGS: &str = "reborn/state/session.json";
 const LASTFM: [&str; 2] = ["reborn/state/lastfm.json", "reborn/state/scrobbles.jsonl"];
 const TERMINAL: [&str; 4] = ["Idle", "Acknowledged", "RolledBack", "Failed"];
 const DIRECTORY: i32 = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC;
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
 
 /// The answer: the result, or `{"state": "Failed", "failure": str(error)}` (exit 1).
 fn answer(result: Result<Py, Failure>) -> Outcome {
@@ -316,9 +312,7 @@ fn paths(root: &Root, scope: &str) -> Result<Vec<String>, Failure> {
 }
 
 fn confirmation(value: &Py) -> String {
-    hex(&Sha256::digest(
-        pyjson::dumps(value, Style::Compact).as_bytes(),
-    ))
+    sha256_hex(pyjson::dumps(value, Style::Compact).as_bytes())
 }
 
 /// `plan(ctx, scope)`.
@@ -657,7 +651,7 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
                 .unwrap_or(Py::dict());
                 let sha = record.get("sha256").cloned();
                 if resume {
-                    let current = hex(&Sha256::digest(regular_bytes(&data, &relative, 8 << 20)?));
+                    let current = sha256_hex(&regular_bytes(&data, &relative, 8 << 20)?);
                     if sha.is_some_and(|s| s.py_eq(&Py::Str(current))) {
                         completed.push(Py::Str(relative.clone()));
                         continue;
@@ -742,7 +736,7 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
                 pyjson::dumps_strict(&model, Style::Compact).map_err(Failure::Value)? + "\n";
             atomic_json(
                 &location.join("settings-result.json"),
-                &Py::dict().with("sha256", Py::Str(hex(&Sha256::digest(result.as_bytes())))),
+                &Py::dict().with("sha256", Py::Str(sha256_hex(result.as_bytes()))),
                 true,
             )?;
             atomic_json(&root.path(&format!("/data/{relative}")), &model, true)?;
@@ -1012,7 +1006,7 @@ struct ExportedFile<'a> {
 
 fn file_digest(path: &Path) -> Result<String, Failure> {
     let data = std::fs::read(path).map_err(|e| os(e, path))?;
-    Ok(hex(&Sha256::digest(&data)))
+    Ok(sha256_hex(&data))
 }
 
 /// `export(ctx, include_database, include_network)` (Maintenance workload).

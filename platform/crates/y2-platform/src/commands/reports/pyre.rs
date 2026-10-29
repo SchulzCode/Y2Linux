@@ -1,9 +1,17 @@
-//! Python `re` and `str` semantics the scrubber depends on, where Rust's differ: `\s` (Python adds
-//! U+001C..U+001F), `\w` and `\b` (Python's word characters are `str.isalnum()` and `_`: letters and
-//! numbers, no combining marks), `str.splitlines()` (eleven separators), and `re.sub` with a lookbehind
-//! (Rust's regex has no lookaround: the pattern carries its lookahead as consumed context after the
-//! group it replaces, the lookbehind is checked here and a refused start is retried one character on,
-//! as Python's search does).
+//! The text rules of the scrubber and the diagnostic events, which are contract (reports already sent
+//! are compared with new ones, crates/y2-platform/tests/recorded/scrubber.json pins them): Python's
+//! `re`/`str` semantics where Rust's differ on text a log can hold.
+//!
+//! - `\s` and `str.isspace()` take U+001C..U+001F too (Rust's White_Space does not): binary junk in a
+//!   log must split and strip the same.
+//! - `\w`/`\b` and `str.isalnum()` are letters (L*) and numbers (N*) only: `char::is_alphanumeric`
+//!   also takes combining marks (Other_Alphabetic: Devanagari vowel signs), so a Hindi title would end
+//!   a word elsewhere. `\d` is Nd only (`char::is_numeric` is all of N*).
+//! - `str.splitlines()` splits at eleven separators (`str::lines` at two): a JSON line with U+2028 in a
+//!   title must split as before.
+//! - `re.sub`/`re.finditer` with a lookbehind: Rust's regex has no lookaround, so the pattern carries
+//!   its lookahead as consumed context after the group it replaces, the lookbehind is checked here and
+//!   a refused start is retried one character on, as Python's search does.
 // SPDX-License-Identifier: GPL-2.0-only
 use regex::{Captures, Regex};
 use std::sync::OnceLock;
@@ -11,13 +19,10 @@ use std::sync::OnceLock;
 /// Python's `\s` inside a character class.
 pub const S: &str = r"\s\x1C-\x1F";
 
-fn unicode(pattern: &'static str, cell: &'static OnceLock<Regex>) -> &'static Regex {
-    cell.get_or_init(|| Regex::new(pattern).expect("class"))
-}
-
-fn one(c: char, pattern: &'static str, cell: &'static OnceLock<Regex>) -> bool {
+/// Whether `c` is in the Unicode class `pattern` (a constant like `^\p{Nd}$`).
+fn in_class(c: char, cell: &'static OnceLock<Regex>, pattern: &str) -> bool {
     let mut buffer = [0u8; 4];
-    unicode(pattern, cell).is_match(c.encode_utf8(&mut buffer))
+    lazy(cell, pattern).is_match(c.encode_utf8(&mut buffer))
 }
 
 /// `str.isalnum()` for one character: a letter (L*) or a number (N*).
@@ -26,16 +31,16 @@ pub fn isalnum(c: char) -> bool {
         return c.is_ascii_alphanumeric();
     }
     static CELL: OnceLock<Regex> = OnceLock::new();
-    one(c, r"^[\p{L}\p{N}]$", &CELL)
+    in_class(c, &CELL, r"^[\p{L}\p{N}]$")
 }
 
-/// `str.isdecimal()` (Python's `\d`).
+/// `str.isdecimal()` (Python's `\d`): a decimal digit of any script (Nd).
 pub fn isdecimal(c: char) -> bool {
     if c.is_ascii() {
         return c.is_ascii_digit();
     }
     static CELL: OnceLock<Regex> = OnceLock::new();
-    one(c, r"^\p{Nd}$", &CELL)
+    in_class(c, &CELL, r"^\p{Nd}$")
 }
 
 /// A character of Python's `\w`.
@@ -43,7 +48,7 @@ pub fn is_word(c: char) -> bool {
     c == '_' || isalnum(c)
 }
 
-/// `str.isspace()`.
+/// `str.isspace()` (`y2p_core::root::python_strip` strips the same set).
 pub fn isspace(c: char) -> bool {
     c.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&c)
 }
@@ -51,11 +56,6 @@ pub fn isspace(c: char) -> bool {
 /// `str.rstrip()`.
 pub fn rstrip(text: &str) -> &str {
     text.trim_end_matches(isspace)
-}
-
-/// `str.strip()`.
-pub fn strip(text: &str) -> &str {
-    text.trim_matches(isspace)
 }
 
 /// `str.splitlines()`.
@@ -124,7 +124,9 @@ pub fn finditer<'t>(
         let Some(caps) = re.captures_at(text, at) else {
             break;
         };
-        let m = caps.get(group).expect("the match group");
+        let Some(m) = matched(&caps, group) else {
+            break;
+        };
         if !allowed(text, m.start()) {
             // No match starts here; Python tries the next position.
             at = m.start() + after(text, m.start()).map_or(1, char::len_utf8);
@@ -151,7 +153,9 @@ pub fn sub(
     let mut out = String::with_capacity(text.len());
     let mut copied = 0;
     for caps in finditer(re, text, group, allowed) {
-        let m = caps.get(group).expect("the match group");
+        let Some(m) = matched(&caps, group) else {
+            continue;
+        };
         out.push_str(&text[copied..m.start()]);
         out.push_str(&replace(&caps));
         copied = m.end();
@@ -160,19 +164,30 @@ pub fn sub(
     out
 }
 
-/// A regex with Python's IGNORECASE-free semantics where it matters; panics on a bad pattern (all are
-/// constants).
-pub fn compile(pattern: &str) -> Regex {
+/// The replaced group of a match: every pattern here has it outside any alternative, so it took part
+/// whenever the pattern matched (the whole match otherwise).
+fn matched<'t>(caps: &Captures<'t>, group: usize) -> Option<regex::Match<'t>> {
+    caps.get(group).or_else(|| caps.get(0))
+}
+
+/// A regex with room for the scrubber's prefix tree of known values (thousands of titles).
+pub fn try_compile(pattern: &str) -> Result<Regex, regex::Error> {
     regex::RegexBuilder::new(pattern)
         .size_limit(1 << 28)
         .dfa_size_limit(1 << 26)
         .nest_limit(4096)
         .build()
-        .expect("pattern")
 }
 
+/// A constant pattern of this group. One that does not compile is a programming error the tests meet
+/// first (each pattern is used by a test).
+pub fn constant(pattern: &str) -> Regex {
+    try_compile(pattern).expect("a constant pattern")
+}
+
+/// A constant pattern, compiled once.
 pub fn lazy(cell: &'static OnceLock<Regex>, pattern: &str) -> &'static Regex {
-    cell.get_or_init(|| compile(pattern))
+    cell.get_or_init(|| constant(pattern))
 }
 
 #[cfg(test)]
@@ -198,7 +213,7 @@ mod tests {
 
     #[test]
     fn lookbehind_retries_the_next_start() {
-        let re = compile(r"(ab)(?:[^b]|\z)");
+        let re = constant(r"(ab)(?:[^b]|\z)");
         let text = "xab abb ab";
         let starts: Vec<usize> = finditer(&re, text, 1, |t, at| before(t, at) != Some('x'))
             .iter()

@@ -222,6 +222,7 @@ fn a_queued_report_is_sent_with_its_identity_and_leaves_the_queue() {
     assert_eq!(header(argv, "X-Y2-Schema"), "1");
     assert_eq!(header(argv, "X-Y2-Install-Id"), install);
     assert_eq!(header(argv, "X-Y2-Report-Id"), text(&item, "report_id"));
+    use sha2::{Digest, Sha256};
     let digest: String = Sha256::digest(&body)
         .iter()
         .map(|b| format!("{b:02x}"))

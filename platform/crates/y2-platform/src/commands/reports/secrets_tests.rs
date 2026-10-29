@@ -52,6 +52,7 @@ fn library_names_that_are_versions_or_state_words_stay() {
     assert_eq!(class(&found, "ssid"), set(&["1234"]));
     assert_eq!(class(&found, "wifi_secret"), set(&["Ready"]));
     let text = Scrubber::new(&found, *b"0123456789abcdef")
+        .unwrap()
         .text("Y2LINUX-1.0.0-BETA-8.22 outcome Ready, playing Secret Song");
     assert!(text.contains("Y2LINUX-1.0.0-BETA-8.22"));
     assert!(!text.contains("Secret Song"));

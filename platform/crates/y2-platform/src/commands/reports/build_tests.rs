@@ -77,13 +77,13 @@ fn parallel_scrubbing_matches_one_process_and_tokens_hold_across_files() {
     .collect();
     assert!(parts(&items[0].0, &items[0].1).len() > 2);
     let key = random_key().unwrap();
-    let mut one = Scrubber::new(&known, key);
+    let mut one = Scrubber::new(&known, key).unwrap();
     // whole files, one thread
     let alone: Vec<Vec<u8>> = items
         .iter()
         .map(|(path, data)| scrub::blob(&mut one, path, data))
         .collect();
-    let mut together = Scrubber::new(&known, key);
+    let mut together = Scrubber::new(&known, key).unwrap();
     let parallel = scrub_files(&mut together, &items, |_| {});
     assert!(parallel == alone);
     assert_eq!(together.counts, one.counts);
@@ -93,10 +93,13 @@ fn parallel_scrubbing_matches_one_process_and_tokens_hold_across_files() {
     assert!(contains(&parallel[2], &token)); // and Reborn's log
     let all = parallel.concat();
     assert!(!contains(&all, SSID));
-    assert!(!contains(&all, &hex(&key)));
+    let key_hex: String = key.iter().map(|b| format!("{b:02x}")).collect();
+    assert!(!contains(&all, &key_hex));
     // a new report, new tokens
     assert_ne!(
-        Scrubber::new(&known, random_key().unwrap()).text(SSID),
+        Scrubber::new(&known, random_key().unwrap())
+            .unwrap()
+            .text(SSID),
         token
     );
 }

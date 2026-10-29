@@ -224,6 +224,16 @@ fn reason(error: &Failure) -> &str {
     }
 }
 
+/// The SHA-256 of `data` in lowercase hex: report and panic signatures, file digests, the reset
+/// plan's confirmation.
+pub fn sha256_hex(data: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(data)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
 /// `ctx.json(name)`: Python's json of `ctx.read(name)` (128 KiB), exactly.
 pub fn json_at(root: &Root, name: &str) -> Option<Py> {
     pyjson::loads(&root.read(name)?)
