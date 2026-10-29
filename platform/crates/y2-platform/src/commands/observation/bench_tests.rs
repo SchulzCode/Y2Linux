@@ -3,44 +3,49 @@
 //! the real identity checks accept, measured on the host's temporary filesystem.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::testing::{ok, scripted, Fixture};
-use std::{
-    cell::{Cell, RefCell},
-    collections::VecDeque,
-    fs,
-    io::Write,
-    os::unix::fs::symlink,
-};
+use crate::testing::{ok, Fixture};
+use std::{cell::RefCell, collections::VecDeque, fs, io::Write, os::unix::fs::symlink};
 
-thread_local! {
-    static WRITE_FAULT: Cell<Option<i32>> = const { Cell::new(None) };
-    static ALIASED_SIZE: Cell<Option<usize>> = const { Cell::new(None) };
-    static ADVICE: Cell<Option<i32>> = const { Cell::new(None) };
-    static SNAPSHOTS: RefCell<VecDeque<Value>> = const { RefCell::new(VecDeque::new()) };
+/// The faults Python's tests patched into write_all, os.pread, os.posix_fadvise and io_snapshot;
+/// anything not set is the kernel's.
+#[derive(Default)]
+struct Faults {
+    /// Every write fails with this errno.
+    write: Option<i32>,
+    /// A read of this many bytes reads offset 0 (address aliasing).
+    aliased_size: Option<usize>,
+    /// posix_fadvise answers this errno.
+    advice: Option<i32>,
+    /// The counters, one per read while any are queued.
+    counters: RefCell<VecDeque<Value>>,
 }
 
-/// Every write fails with this errno.
-pub(super) fn write_fault() -> Option<i32> {
-    WRITE_FAULT.with(Cell::get)
-}
-
-/// A read of ALIASED_SIZE bytes reads offset 0 (address aliasing).
-pub(super) fn read_offset(size: usize, offset: usize) -> usize {
-    if ALIASED_SIZE.with(Cell::get) == Some(size) {
-        0
-    } else {
-        offset
+impl Io for Faults {
+    fn pwrite(&self, fd: BorrowedFd, data: &[u8], offset: u64) -> io::Result<usize> {
+        match self.write {
+            Some(errno) => Err(io::Error::from_raw_os_error(errno)),
+            None => Kernel.pwrite(fd, data, offset),
+        }
     }
-}
 
-/// posix_fadvise answers this errno.
-pub(super) fn advice(error: i32) -> i32 {
-    ADVICE.with(Cell::get).unwrap_or(error)
-}
+    fn pread(&self, fd: BorrowedFd, buffer: &mut [u8], offset: u64) -> io::Result<usize> {
+        let offset = if self.aliased_size == Some(buffer.len()) {
+            0
+        } else {
+            offset
+        };
+        Kernel.pread(fd, buffer, offset)
+    }
 
-/// The next queued io_snapshot, while there are any.
-pub(super) fn snapshot() -> Option<Value> {
-    SNAPSHOTS.with(|s| s.borrow_mut().pop_front())
+    fn drop_cache(&self, fd: RawFd) -> i32 {
+        let error = Kernel.drop_cache(fd);
+        self.advice.unwrap_or(error)
+    }
+
+    fn counters(&self, root: &Root) -> Value {
+        let queued = self.counters.borrow_mut().pop_front();
+        queued.unwrap_or_else(|| Kernel.counters(root))
+    }
 }
 
 const DATA_UUID: &str = "79324c69-6e75-4801-8000-000000000102";
@@ -73,12 +78,19 @@ fn blkid() -> Vec<(Vec<String>, y2p_core::command::Outcome)> {
     )]
 }
 
-/// `storage_benchmark(ctx, size_mib=1, operations=…)` as its JSON answer.
-fn benchmark(fixture: &Fixture, operations: i64, seconds: i64) -> Value {
-    let (reply, _) = scripted(blkid(), || {
-        storage_benchmark(&fixture.root, "/data", 1, operations, seconds)
-    });
+/// The fixture's root answering blkid for Y2DATA.
+fn answered(fixture: &Fixture) -> Root {
+    fixture.root.clone().with_answers(blkid())
+}
+
+/// `storage_benchmark(ctx, size_mib=1, operations=…)` with these faults, as its JSON answer.
+fn benchmark_with(fixture: &Fixture, faults: &Faults, operations: i64, seconds: i64) -> Value {
+    let reply = storage_benchmark_with(&answered(fixture), faults, "/data", 1, operations, seconds);
     serde_json::from_str(&reply.unwrap().stdout).unwrap()
+}
+
+fn benchmark(fixture: &Fixture, operations: i64, seconds: i64) -> Value {
+    benchmark_with(fixture, &Faults::default(), operations, seconds)
 }
 
 fn scratch_is_empty(fixture: &Fixture) -> bool {
@@ -124,23 +136,23 @@ fn real_scratch_readback_latency_and_no_live_data_changes() {
 #[test]
 fn source_loss_during_operation_leaves_replacement_untouched() {
     let fixture = data();
-    let (failure, _) = scripted(blkid(), || {
-        let mut scratch = Scratch::new(&fixture.root, "/data", 4096).unwrap();
-        scratch
-            .open("payload")
-            .unwrap()
-            .write_all(b"old media")
-            .unwrap();
-        fs::rename(fixture.path("/data"), fixture.path("/detached")).unwrap();
-        fixture.mkdir("/data");
-        fixture.put("/data/payload", "new card");
-        // Another mount of another card (Python's guard returned a new epoch).
-        fixture.put(
-            "/proc/self/mountinfo",
-            "21 1 179:6 / /data rw,nosuid - ext4 /dev/mmcblk0p6 rw",
-        );
-        scratch.open("replacement").err()
-    });
+    let root = answered(&fixture);
+    let mut scratch = Scratch::new(&root, "/data", 4096).unwrap();
+    scratch
+        .open("payload")
+        .unwrap()
+        .write_all(b"old media")
+        .unwrap();
+    fs::rename(fixture.path("/data"), fixture.path("/detached")).unwrap();
+    fixture.mkdir("/data");
+    fixture.put("/data/payload", "new card");
+    // Another mount of another card (Python's guard returned a new epoch).
+    fixture.put(
+        "/proc/self/mountinfo",
+        "21 1 179:6 / /data rw,nosuid - ext4 /dev/mmcblk0p6 rw",
+    );
+    let failure = scratch.open("replacement").err();
+    drop(scratch);
     assert!(failure.unwrap().text.contains("generation"));
     assert_eq!(fixture.read("/data/payload"), "new card");
     assert!(!fixture.exists("/data/.y2-bench"));
@@ -151,13 +163,11 @@ fn symlink_scratch_and_arbitrary_volumes_refused() {
     let fixture = data();
     fixture.mkdir("/state");
     symlink(fixture.path("/state"), fixture.path("/data/.y2-bench")).unwrap();
-    let (refused, _) = scripted(blkid(), || {
-        let linked = Scratch::new(&fixture.root, "/data", 4096).err().unwrap();
-        let music = Scratch::new(&fixture.root, "/data/music", 4096)
-            .err()
-            .unwrap();
-        (linked, music)
-    });
+    let root = answered(&fixture);
+    let refused = (
+        Scratch::new(&root, "/data", 4096).err().unwrap(),
+        Scratch::new(&root, "/data/music", 4096).err().unwrap(),
+    );
     assert!(refused.0.errno.is_some(), "{:?}", refused.0); // an OSError
     assert_eq!(
         (refused.1.class.as_str(), refused.1.text.as_str()),
@@ -172,9 +182,11 @@ fn symlink_scratch_and_arbitrary_volumes_refused() {
 #[test]
 fn io_error_is_reported_with_completed_samples_not_a_pass() {
     let fixture = data();
-    WRITE_FAULT.with(|f| f.set(Some(libc::ENOSPC)));
-    let result = benchmark(&fixture, 1, 300);
-    WRITE_FAULT.with(|f| f.set(None));
+    let faults = Faults {
+        write: Some(libc::ENOSPC),
+        ..Faults::default()
+    };
+    let result = benchmark_with(&fixture, &faults, 1, 300);
     assert_eq!(result["record"]["result"], "FAILED");
     assert_eq!(result["record"]["failure"]["errno"], libc::ENOSPC);
     assert_eq!(result["measurements"], json!([]));
@@ -197,9 +209,11 @@ fn percentiles_and_units() {
 #[test]
 fn retried_controller_fault_is_not_a_clean_benchmark_pass() {
     let fixture = data();
-    SNAPSHOTS.with(|s| *s.borrow_mut() = VecDeque::from([sd_crc(0), sd_crc(1)]));
-    let result = benchmark(&fixture, 1, 300);
-    SNAPSHOTS.with(|s| s.borrow_mut().clear());
+    let faults = Faults {
+        counters: RefCell::new(VecDeque::from([sd_crc(0), sd_crc(1)])),
+        ..Faults::default()
+    };
+    let result = benchmark_with(&fixture, &faults, 1, 300);
     assert_eq!(result["record"]["result"], "FAILED");
     assert!(result["record"]["failure"]["reason"]
         .as_str()
@@ -216,9 +230,11 @@ fn retried_controller_fault_is_not_a_clean_benchmark_pass() {
 #[test]
 fn offset_specific_sha256_detects_address_aliasing() {
     let fixture = data();
-    ALIASED_SIZE.with(|a| a.set(Some(4099)));
-    let result = benchmark(&fixture, 1, 300);
-    ALIASED_SIZE.with(|a| a.set(None));
+    let faults = Faults {
+        aliased_size: Some(4099),
+        ..Faults::default()
+    };
+    let result = benchmark_with(&fixture, &faults, 1, 300);
     assert_eq!(result["record"]["result"], "FAILED");
     assert!(result["record"]["failure"]["reason"]
         .as_str()
@@ -232,9 +248,11 @@ fn retried_fault_during_sha256_is_not_a_clean_integrity_pass() {
     let fixture = data();
     let mut queue: VecDeque<Value> = std::iter::repeat_n(sd_crc(0), 49).collect();
     queue.push_back(sd_crc(1));
-    SNAPSHOTS.with(|s| *s.borrow_mut() = queue);
-    let result = benchmark(&fixture, 1, 300);
-    SNAPSHOTS.with(|s| s.borrow_mut().clear());
+    let faults = Faults {
+        counters: RefCell::new(queue),
+        ..Faults::default()
+    };
+    let result = benchmark_with(&fixture, &faults, 1, 300);
     assert_eq!(result["integrity"].as_array().unwrap().len(), 5);
     assert_eq!(result["record"]["result"], "FAILED");
     assert_eq!(
@@ -259,9 +277,11 @@ fn benchmark_reports_cpu_irq_and_storage_error_deltas() {
 #[test]
 fn missing_cache_advice_preserves_readback_without_cold_read_claim() {
     let fixture = data();
-    ADVICE.with(|a| a.set(Some(libc::EINVAL)));
-    let result = benchmark(&fixture, 1, 300);
-    ADVICE.with(|a| a.set(None));
+    let faults = Faults {
+        advice: Some(libc::EINVAL),
+        ..Faults::default()
+    };
+    let result = benchmark_with(&fixture, &faults, 1, 300);
     assert_eq!(result["record"]["result"], "OK");
     let advice = result["cache_advice"].as_array().unwrap();
     assert_eq!(advice.len(), 13);
@@ -283,9 +303,11 @@ fn missing_cache_advice_preserves_readback_without_cold_read_claim() {
 #[test]
 fn cache_advice_io_fault_is_not_downgraded_to_unavailable() {
     let fixture = data();
-    ADVICE.with(|a| a.set(Some(libc::EIO)));
-    let result = benchmark(&fixture, 1, 300);
-    ADVICE.with(|a| a.set(None));
+    let faults = Faults {
+        advice: Some(libc::EIO),
+        ..Faults::default()
+    };
+    let result = benchmark_with(&fixture, &faults, 1, 300);
     assert_eq!(result["record"]["result"], "FAILED");
     assert_eq!(result["record"]["failure"]["errno"], libc::EIO);
     assert!(!result["measurements"]

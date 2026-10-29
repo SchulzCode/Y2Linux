@@ -12,7 +12,6 @@ use std::{
 };
 use y2p_core::py::PyValue;
 use y2p_core::{
-    clock,
     observation_support::regex::Regex,
     root::{self, python_strip},
     Root,
@@ -306,8 +305,8 @@ pub fn is_number(value: Option<&Value>) -> Option<f64> {
 }
 
 /// `0 <= now - stamp < window` for a monotonic seconds stamp read from JSON.
-pub fn fresh_seconds(stamp: Option<&Value>, window: f64) -> bool {
-    is_number(stamp).is_some_and(|t| (0.0..window).contains(&(clock::monotonic() - t)))
+pub fn fresh_seconds(root: &Root, stamp: Option<&Value>, window: f64) -> bool {
+    is_number(stamp).is_some_and(|t| (0.0..window).contains(&(root.clock().monotonic() - t)))
 }
 
 /// Path.name.
@@ -428,7 +427,7 @@ pub fn record(root: &Root, workload: &str, parameters: Map<String, Value>) -> Ma
     let get = |key: &str| versions.get(key).cloned().unwrap_or(Value::Null);
     let mut value = Map::new();
     value.insert("wall_timestamp".into(), json!(wall_timestamp()));
-    value.insert("monotonic_ns".into(), json!(clock::monotonic_ns()));
+    value.insert("monotonic_ns".into(), json!(root.clock().monotonic_ns()));
     value.insert("boot_id".into(), text(root.boot_id()));
     value.insert("y2linux_commit".into(), get("build_git_commit"));
     value.insert("reborn_commit".into(), get("reborn_source_commit"));

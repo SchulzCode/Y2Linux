@@ -27,7 +27,6 @@ use std::{
 };
 use y2p_core::mounts::mounts_at;
 use y2p_core::{
-    clock,
     json::{dumps, dumps_sorted, Separators},
     observation_support::sha2::{Digest, Sha256},
     py::{self, is_false, truthy},
@@ -488,7 +487,10 @@ fn capture(
     })();
     let _ = fs::remove_file(&temporary);
     outcome?;
-    result.insert("captured_monotonic_s".into(), json!(clock::monotonic()));
+    result.insert(
+        "captured_monotonic_s".into(),
+        json!(root.clock().monotonic()),
+    );
     Ok(result)
 }
 

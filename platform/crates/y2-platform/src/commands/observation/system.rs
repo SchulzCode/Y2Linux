@@ -449,7 +449,7 @@ pub fn system(root: &Root) -> Result<Value, Failure> {
     let clock = time_status(root)?;
     let mut ssh = root.json_object("/run/y2/ssh.json");
     let boot = Value::from(root.boot_id());
-    if !get_eq(&ssh, "boot_id", &boot) || !util::fresh_seconds(ssh.get("monotonic_s"), 10.0) {
+    if !get_eq(&ssh, "boot_id", &boot) || !util::fresh_seconds(root, ssh.get("monotonic_s"), 10.0) {
         ssh = serde_json::from_value(
             json!({"state": "Unavailable", "reason": "ssh_record_stale_or_absent"}),
         )

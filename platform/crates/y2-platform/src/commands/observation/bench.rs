@@ -22,7 +22,6 @@ use std::{
     },
 };
 use y2p_core::{
-    clock,
     observation_support::{
         run_passing_fd,
         sha2::{Digest, Sha256},
@@ -126,15 +125,41 @@ fn sync(fd: RawFd, data_only: bool) -> Result<()> {
     check(result).map(drop).map_err(|e| Error::os(e, None))
 }
 
-/// `bench.write_all`.
-fn write_all(fd: RawFd, data: &[u8], offset: usize) -> Result<()> {
-    #[cfg(test)]
-    if let Some(errno) = bench_tests::write_fault() {
-        return Err(Error::os(io::Error::from_raw_os_error(errno), None));
+/// What a measurement does to its scratch file and reads around each step: the kernel's calls
+/// (`Kernel`), or a test's that brings the faults a fixture cannot cause (a failing write, aliased
+/// addresses, refused cache advice, controller counters that move).
+pub(super) trait Io {
+    fn pwrite(&self, fd: BorrowedFd, data: &[u8], offset: u64) -> io::Result<usize> {
+        y2p_core::sys::pwrite(fd, data, offset)
     }
+
+    fn pread(&self, fd: BorrowedFd, buffer: &mut [u8], offset: u64) -> io::Result<usize> {
+        y2p_core::sys::pread(fd, buffer, offset)
+    }
+
+    /// `posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED)`: 0 or the errno.
+    fn drop_cache(&self, fd: RawFd) -> i32 {
+        // SAFETY: an open descriptor; the whole file.
+        unsafe { libc::posix_fadvise(fd, 0, 0, libc::POSIX_FADV_DONTNEED) }
+    }
+
+    /// The passive counters a measurement is compared by.
+    fn counters(&self, root: &Root) -> Value {
+        io_snapshot(root)
+    }
+}
+
+/// The kernel's calls and counters.
+pub(super) struct Kernel;
+
+impl Io for Kernel {}
+
+/// `bench.write_all`.
+fn write_all(io: &dyn Io, fd: RawFd, data: &[u8], offset: usize) -> Result<()> {
     let mut written = 0;
     while written < data.len() {
-        let n = y2p_core::sys::pwrite(borrowed(fd), &data[written..], (offset + written) as u64)
+        let n = io
+            .pwrite(borrowed(fd), &data[written..], (offset + written) as u64)
             .map_err(|e| Error::os(e, None))?;
         if n == 0 {
             return Err(Error::raised(libc::EIO, "short_write"));
@@ -145,11 +170,10 @@ fn write_all(fd: RawFd, data: &[u8], offset: usize) -> Result<()> {
 }
 
 /// `os.pread(fd, size, offset)`: one call.
-fn pread(fd: RawFd, size: usize, offset: usize) -> Result<Vec<u8>> {
-    #[cfg(test)]
-    let offset = bench_tests::read_offset(size, offset);
+fn pread(io: &dyn Io, fd: RawFd, size: usize, offset: usize) -> Result<Vec<u8>> {
     let mut buffer = vec![0u8; size];
-    let n = y2p_core::sys::pread(borrowed(fd), &mut buffer, offset as u64)
+    let n = io
+        .pread(borrowed(fd), &mut buffer, offset as u64)
         .map_err(|e| Error::os(e, None))?;
     buffer.truncate(n);
     Ok(buffer)
@@ -498,10 +522,6 @@ fn distribution(samples: &[u64], bytes: u64, duration: Option<u64>) -> Map<Strin
 
 /// `bench.io_snapshot`: passive counters only; never resume MMC just to observe an idle gate.
 fn io_snapshot(root: &Root) -> Value {
-    #[cfg(test)]
-    if let Some(snapshot) = bench_tests::snapshot() {
-        return snapshot;
-    }
     let stat = root.read("/proc/stat").unwrap_or_default();
     let ticks = regex!(r"(?m)^cpu\s+([0-9 ]+)$").captures(&stat).map(|c| {
         split_ws(&c[1])
@@ -638,13 +658,14 @@ type Finalize<'f> = &'f dyn Fn(&Scratch) -> Result<()>;
 
 struct Bench<'a> {
     root: &'a Root,
+    io: &'a dyn Io,
     deadline: f64,
     result: Map<String, Value>,
 }
 
 impl Bench<'_> {
     fn ensure(&self, scratch: &Scratch) -> Result<()> {
-        if clock::monotonic() >= self.deadline {
+        if self.root.clock().monotonic() >= self.deadline {
             return Err(Error {
                 class: "TimeoutError".into(),
                 text: "benchmark_deadline".into(),
@@ -664,10 +685,7 @@ impl Bench<'_> {
     /// `advise_read`: older Y2 kernels omit ADVISE_SYSCALLS (EINVAL on ARM). Preserve verified
     /// readback while explicitly refusing a cold or media-throughput claim. Genuine I/O faults fail.
     fn advise(&mut self, fd: RawFd, operation: &str) -> Result<()> {
-        // SAFETY: an open descriptor; the whole file.
-        let error = unsafe { libc::posix_fadvise(fd, 0, 0, libc::POSIX_FADV_DONTNEED) };
-        #[cfg(test)]
-        let error = bench_tests::advice(error);
+        let error = self.io.drop_cache(fd);
         let (state, errno) = match error {
             0 => ("requested_advisory_only", Value::Null),
             libc::EINVAL | libc::ENOSYS | libc::EOPNOTSUPP => ("unavailable", json!(error)),
@@ -688,18 +706,18 @@ impl Bench<'_> {
         finalize: Option<Finalize>,
     ) -> Result<()> {
         let mut samples = Vec::with_capacity(count);
-        let before_io = io_snapshot(self.root);
-        let started = clock::monotonic_ns();
+        let before_io = self.io.counters(self.root);
+        let started = self.root.clock().monotonic_ns();
         for n in 0..count {
             self.ensure(scratch)?;
-            let before = clock::monotonic_ns();
+            let before = self.root.clock().monotonic_ns();
             step(scratch, n)?;
-            samples.push(clock::monotonic_ns() - before);
+            samples.push(self.root.clock().monotonic_ns() - before);
         }
         if let Some(finalize) = finalize {
             finalize(scratch)?;
         }
-        let elapsed = clock::monotonic_ns() - started;
+        let elapsed = self.root.clock().monotonic_ns() - started;
         let mut measurement = Map::new();
         measurement.insert("operation".into(), json!(name));
         measurement.insert("result".into(), json!("OK"));
@@ -708,7 +726,7 @@ impl Bench<'_> {
             count as u64 * bytes_per_op,
             Some(elapsed),
         ));
-        let system = io_delta(&before_io, &io_snapshot(self.root));
+        let system = io_delta(&before_io, &self.io.counters(self.root));
         let fault = controller_fault(&system);
         measurement.insert("system".into(), system);
         self.list("measurements").push(Value::Object(measurement));
@@ -729,6 +747,7 @@ impl Bench<'_> {
         rng: &mut PyRandom,
         block: &[u8],
     ) -> Result<()> {
+        let io = self.io;
         let data = scratch.open("data")?;
         let fd = data.as_raw_fd();
         let datasync = move |_: &Scratch| sync(fd, true);
@@ -740,7 +759,7 @@ impl Bench<'_> {
                 &format!("sequential_write_{bs}"),
                 count,
                 bs as u64,
-                |_, n| write_all(fd, chunk, n * bs),
+                |_, n| write_all(io, fd, chunk, n * bs),
                 Some(&datasync),
             )?;
             self.advise(fd, &format!("sequential_read_{bs}"))?;
@@ -750,7 +769,7 @@ impl Bench<'_> {
                 count,
                 bs as u64,
                 |_, n| {
-                    if pread(fd, bs, n * bs)? != chunk {
+                    if pread(io, fd, bs, n * bs)? != chunk {
                         Err(Error::raised(libc::EIO, "readback_mismatch"))
                     } else {
                         Ok(())
@@ -766,7 +785,7 @@ impl Bench<'_> {
                 &format!("random_write_{bs}"),
                 offsets.len(),
                 bs as u64,
-                |_, n| write_all(fd, chunk, offsets[n]),
+                |_, n| write_all(io, fd, chunk, offsets[n]),
                 Some(&datasync),
             )?;
             self.advise(fd, &format!("random_read_{bs}"))?;
@@ -776,7 +795,7 @@ impl Bench<'_> {
                 offsets.len(),
                 bs as u64,
                 |_, n| {
-                    if pread(fd, bs, offsets[n])? != chunk {
+                    if pread(io, fd, bs, offsets[n])? != chunk {
                         Err(Error::raised(libc::EIO, "readback_mismatch"))
                     } else {
                         Ok(())
@@ -792,7 +811,7 @@ impl Bench<'_> {
                 operations.min(64),
                 4096,
                 |_, _| {
-                    write_all(fd, &block[..4096], 0)?;
+                    write_all(io, fd, &block[..4096], 0)?;
                     sync(fd, data_only)
                 },
                 None,
@@ -808,7 +827,7 @@ impl Bench<'_> {
             4096,
             |s, n| {
                 let file = s.open(&format!("small{n}"))?;
-                write_all(file.as_raw_fd(), small, 0)?;
+                write_all(io, file.as_raw_fd(), small, 0)?;
                 sync(file.as_raw_fd(), false)
             },
             Some(&directory_sync),
@@ -860,7 +879,7 @@ impl Bench<'_> {
             4096,
             |s, _| {
                 let file = s.open("renameA")?;
-                write_all(file.as_raw_fd(), small, 0)?;
+                write_all(io, file.as_raw_fd(), small, 0)?;
                 sync(file.as_raw_fd(), false)?;
                 drop(file);
                 s.rename("renameA", "renameB")?;
@@ -880,11 +899,11 @@ impl Bench<'_> {
             }
             other => other?,
         }
-        let before_io = io_snapshot(self.root);
+        let before_io = self.io.counters(self.root);
         let integrity = self.regions(scratch)?;
         self.result
             .insert("integrity".into(), Value::Array(integrity));
-        let system = io_delta(&before_io, &io_snapshot(self.root));
+        let system = io_delta(&before_io, &self.io.counters(self.root));
         let fault = controller_fault(&system);
         self.result.insert("integrity_system".into(), system);
         if fault {
@@ -910,7 +929,7 @@ impl Bench<'_> {
         ] {
             self.ensure(scratch)?;
             let payload = PyRandom::new((6582 + offset + size) as u64).randbytes(size);
-            write_all(fd, &payload, offset)?;
+            write_all(self.io, fd, &payload, offset)?;
             sync(fd, false)?;
             result.push(json!({"offset": offset, "bytes": size, "expected_sha256": hex(&payload)}));
         }
@@ -923,7 +942,7 @@ impl Bench<'_> {
             );
             self.advise(fd, &format!("sha256_{offset}_{size}"))?;
             self.ensure(scratch)?;
-            let actual = hex(&pread(fd, size, offset)?);
+            let actual = hex(&pread(self.io, fd, size, offset)?);
             if actual != region["expected_sha256"] {
                 return Err(Error::raised(libc::EIO, "sha256_readback_mismatch"));
             }
@@ -949,6 +968,18 @@ pub fn storage_benchmark(
     operations: i64,
     seconds: i64,
 ) -> Outcome {
+    storage_benchmark_with(root, &Kernel, volume, size_mib, operations, seconds)
+}
+
+/// `storage_benchmark` with its scratch I/O and counters from `io`.
+fn storage_benchmark_with(
+    root: &Root,
+    io: &dyn Io,
+    volume: &str,
+    size_mib: i64,
+    operations: i64,
+    seconds: i64,
+) -> Outcome {
     if !(1..=128).contains(&size_mib)
         || !(1..=1024).contains(&operations)
         || !(1..=1800).contains(&seconds)
@@ -957,7 +988,7 @@ pub fn storage_benchmark(
     }
     let size = size_mib as usize * 1024 * 1024;
     let operations = operations as usize;
-    let deadline = clock::monotonic() + seconds as f64;
+    let deadline = root.clock().monotonic() + seconds as f64;
     let mut parameters = Map::new();
     parameters.insert("volume".into(), json!(volume));
     parameters.insert("size_mib".into(), json!(size_mib));
@@ -982,6 +1013,7 @@ pub fn storage_benchmark(
     let block = rng.randbytes(1024 * 1024);
     let mut bench = Bench {
         root,
+        io,
         deadline,
         result,
     };
@@ -1105,8 +1137,6 @@ pub fn library_benchmark(root: &Root, volume: &str, tracks: i64, scan: bool) -> 
     Reply::sorted(&result, u8::from(failed))
 }
 
-// Faults a fixture cannot cause (Python's tests patched write_all, os.pread, os.posix_fadvise and
-// io_snapshot): bench_tests injects them at the `#[cfg(test)]` lines above.
 #[cfg(test)]
 #[path = "bench_tests.rs"]
 mod bench_tests;

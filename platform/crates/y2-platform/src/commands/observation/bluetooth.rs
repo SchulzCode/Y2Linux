@@ -10,7 +10,7 @@ use serde::de::{Deserializer, IgnoredAny, MapAccess, Visitor};
 use serde_json::{json, Map, Value};
 use y2p_core::py::PyValue;
 use y2p_core::{
-    clock, command,
+    command,
     py::{exact_int, is_true, truthy},
     Root,
 };
@@ -350,7 +350,7 @@ fn normalize(root: &Root, raw: &Map<String, Value>, order: &[String]) -> Result<
         Value::Object(r) => {
             !get_eq(r, "boot_id", &Value::from(root.boot_id()))
                 || !is_int(r.get("monotonic_us")).is_some_and(|us| {
-                    let age = clock::monotonic() * 1e6 - us as f64;
+                    let age = root.clock().monotonic() * 1e6 - us as f64;
                     (0.0..10_000_000.0).contains(&age)
                 })
         }

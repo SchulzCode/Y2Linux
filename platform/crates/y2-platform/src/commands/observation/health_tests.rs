@@ -2,12 +2,12 @@
 //! tests/test_platform_contract.py).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::testing::{scripted, Fixture};
+use crate::testing::Fixture;
 
-/// Every command of this thread answered `fixture`, never from the process environment (as in
-/// snapshot_tests.rs).
-fn no_answers<T>(f: impl FnOnce() -> T) -> T {
-    scripted(vec![], f).0
+/// The fixture's root with every command answered `fixture`, never from the process environment (as
+/// in snapshot_tests.rs).
+fn unanswered(fixture: &Fixture) -> Root {
+    fixture.root.clone().with_answers(Vec::new())
 }
 
 fn contract() -> Fixture {
@@ -23,12 +23,11 @@ fn contract() -> Fixture {
 }
 
 fn audio(fixture: &Fixture) -> Value {
-    no_answers(|| snapshot(&fixture.root, &[], false, 0.0).unwrap())["readiness"]["audio"]["state"]
-        .clone()
+    snapshot(&unanswered(fixture), &[], false, 0.0).unwrap()["readiness"]["audio"]["state"].clone()
 }
 
 fn filesystem_errors(fixture: &Fixture) -> Value {
-    let health = no_answers(|| check(&fixture.root, false).unwrap());
+    let health = check(&unanswered(fixture), false).unwrap();
     health["checks"]
         .as_array()
         .unwrap()
@@ -46,10 +45,10 @@ fn record_corruption_and_no_devices_are_not_green() {
         .put("/data/updates/state.json", "{}")
         .put("/proc/asound/cards", "--- no soundcards ---")
         .put("/etc/y2linux/audio-qualified.json", "{}");
-    let result = no_answers(|| snapshot(&fixture.root, &[], false, 0.0).unwrap());
+    let result = snapshot(&unanswered(&fixture), &[], false, 0.0).unwrap();
     assert_eq!(result["readiness"]["audio"]["state"], "Unavailable");
     assert!(result["record"]["y2linux_commit"].is_null());
-    let health = no_answers(|| check(&fixture.root, false).unwrap());
+    let health = check(&unanswered(&fixture), false).unwrap();
     assert_ne!(health["state"], "OK");
     assert_eq!(filesystem_errors(&fixture), "UNAVAILABLE");
 }

@@ -77,6 +77,8 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
     if !(1..=96).contains(&length) || label.chars().any(|c| (c as u32) < 32) {
         return Err(Failure::value("invalid_workload_label"));
     }
+    // The pacing sleeps in real time, so it reads the kernel's clock, not the root's (a test clock
+    // standing still would never let the loop end); the snapshots read the root's.
     let start = clock::monotonic();
     let deadline = start + seconds as f64;
     let mut previous: Option<Map<String, Value>> = None;

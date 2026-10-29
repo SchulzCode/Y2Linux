@@ -2,16 +2,26 @@
 //! test_platform_telemetry_regressions.py, test_cpu_final.py and test_cpu_idle_completion.py).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::testing::{ok, scripted, Fixture};
-use std::{fs, path::PathBuf, time::Instant};
-use y2p_core::command::Outcome;
+use crate::testing::{ok, Fixture};
+use std::{fs, path::PathBuf, sync::Arc, time::Instant};
+use y2p_core::{clock::Manual, command::Outcome};
+
+/// A clock standing at 1000 s (monotonic and boottime).
+fn at_1000_s() -> Arc<Manual> {
+    Arc::new(Manual::at(1_000_000_000_000, 1_000_000_000_000))
+}
 
 const BLKID: [&str; 7] = ["blkid", "-p", "-s", "UUID", "-o", "value", "/dev/mmcblk1p1"];
 
-/// Run `f` with every command of this thread answered `fixture`, never from the process environment
-/// (connectivity's crosscheck sets Y2_FIXTURE_COMMANDS while it runs).
-fn no_answers<T>(f: impl FnOnce() -> T) -> T {
-    scripted(vec![], f).0
+/// The fixture's root with its commands answered from `answers` (anything else `fixture`), never
+/// from the process environment (connectivity's crosscheck sets Y2_FIXTURE_COMMANDS while it runs).
+fn answering(fixture: &Fixture, answers: Vec<(Vec<String>, Outcome)>) -> Root {
+    fixture.root.clone().with_answers(answers)
+}
+
+/// The fixture's root with every command answered `fixture`.
+fn unanswered(fixture: &Fixture) -> Root {
+    answering(fixture, Vec::new())
 }
 
 /// The contract fixture: a boot id, a kernel release and the installed versions.
@@ -55,10 +65,8 @@ fn mounted_sd(fixture: &Fixture, generation: i64) -> PathBuf {
 
 /// The SD card volume, every command answered `card-one` as the contract fixture's runner did.
 fn sd(fixture: &Fixture) -> Value {
-    let (storage, _) = scripted(vec![ok(&BLKID, "card-one")], || {
-        storage(&fixture.root).unwrap()
-    });
-    storage["volumes"][2].clone()
+    let root = answering(fixture, vec![ok(&BLKID, "card-one")]);
+    storage(&root).unwrap()["volumes"][2].clone()
 }
 
 #[test]
@@ -101,7 +109,7 @@ fn unknown_sensors_are_null_not_zero_and_die_temperature_is_separate() {
             "/sys/class/power_supply/battery/constant_charge_current",
             "450000",
         );
-    let result = no_answers(|| snapshot(&fixture.root, &[], false, 0.0).unwrap());
+    let result = snapshot(&unanswered(&fixture), &[], false, 0.0).unwrap();
     assert_eq!(
         result["thermal"]["zones"][0]["temperature_millicelsius"],
         46800
@@ -129,7 +137,7 @@ fn cpu_delta_rejects_reset_and_missing_cores() {
 
 #[test]
 fn wifi_authentication_is_insufficient_and_dns_epoch_expires() {
-    let fixture = contract();
+    let fixture = contract().with_clock(at_1000_s());
     fixture.mkdir("/sys/class/net/wlan0");
     let mut address: Vec<Value> = Vec::new();
     // The contract fixture's runner: the supplicant status, the address and route queries, '' else.
@@ -149,7 +157,7 @@ fn wifi_authentication_is_insufficient_and_dns_epoch_expires() {
             ),
             ok(&["wpa_cli", "-i", "wlan0", "signal_poll"], ""),
         ];
-        scripted(answers, || super::wifi(&fixture.root).unwrap()).0
+        super::wifi(&answering(&fixture, answers)).unwrap()
     };
     assert_eq!(wifi(&address)["state"], "AcquiringIP");
     fixture.put(
@@ -162,13 +170,13 @@ fn wifi_authentication_is_insufficient_and_dns_epoch_expires() {
     fixture.put("/run/y2/wifi-epoch", "lease-one");
     let mut record = json!({"ok": true, "boot_id": "boot-a", "epoch": "lease-one",
                             "address": "192.0.2.7", "bssid": "peer1",
-                            "monotonic_s": clock::monotonic()});
+                            "monotonic_s": 1000.0});
     fixture.put_json("/run/y2/dns.json", &record);
     assert_eq!(wifi(&address)["state"], "Online");
-    record["monotonic_s"] = json!(record["monotonic_s"].as_f64().unwrap() - 421.0);
+    record["monotonic_s"] = json!(1000.0 - 421.0);
     fixture.put_json("/run/y2/dns.json", &record);
     assert_eq!(wifi(&address)["dns_ready"], false);
-    record["monotonic_s"] = json!(clock::monotonic());
+    record["monotonic_s"] = json!(1000.0);
     record["bssid"] = json!("peer2");
     fixture.put_json("/run/y2/dns.json", &record);
     assert_eq!(wifi(&address)["dns_ready"], false);
@@ -196,7 +204,7 @@ fn space_reserve_and_read_only() {
 
 #[test]
 fn supplicant_timeout_is_observation_failure_not_disconnect_evidence() {
-    let fixture = Fixture::new();
+    let fixture = Fixture::new().with_clock(at_1000_s());
     fixture.mkdir("/sys/class/net/wlan0");
     let status = ["wpa_cli", "-i", "wlan0", "status"];
     let answers = vec![
@@ -207,19 +215,23 @@ fn supplicant_timeout_is_observation_failure_not_disconnect_evidence() {
             "[]",
         ),
     ];
-    let (result, calls) = scripted(answers, || wifi(&fixture.root).unwrap());
+    let root = answering(&fixture, answers);
+    let result = wifi(&root).unwrap();
+    let calls = root.calls();
     assert_eq!(result["reason"], "supplicant_unavailable");
     let observation = &result["supplicant_observation"];
     assert_eq!(observation["ok"], false);
     assert_eq!(observation["reason"], "command_timeout");
-    // Python's test fixed the clock at 1 s; here the scripted answer takes what it takes.
-    assert!(observation["duration_ns"].is_u64());
+    // The clock stands still: the answer took no time.
+    assert_eq!(observation["duration_ns"], 0);
     assert!(result["events"].is_null());
     // The accepted Wi-Fi policy allows measured >2 s STATUS replies. A timeout still means
     // unavailable observation, never disconnect.
     assert_eq!(calls[0], (status.map(String::from).to_vec(), 3.0));
     fs::remove_dir(fixture.path("/sys/class/net/wlan0")).unwrap();
-    let (result, calls) = scripted(vec![], || wifi(&fixture.root).unwrap());
+    let root = unanswered(&fixture);
+    let result = wifi(&root).unwrap();
+    let calls = root.calls();
     assert_eq!(
         result["supplicant_observation"],
         json!({"ok": null, "reason": "radio_off", "duration_ns": null})
@@ -254,7 +266,9 @@ fn active_wakeup_read_returns_without_leaving_a_reader() {
     assert_eq!(unsafe { libc::mkfifo(name.as_ptr(), 0o600) }, 0);
     let start = Instant::now();
     let answer = wakeup_answer(&fixture);
-    let (result, calls) = scripted(vec![answer.clone()], || cpu(&fixture.root).unwrap());
+    let root = answering(&fixture, vec![answer.clone()]);
+    let result = cpu(&root).unwrap();
+    let calls = root.calls();
     assert!(start.elapsed().as_secs_f64() < 2.0);
     assert!(result["wakeup_count"].is_null());
     assert_eq!(result["wakeup_count_reason"], "command_timeout");
@@ -280,7 +294,7 @@ fn wakeup_zero_is_observed_but_invalid_or_missing_data_is_unknown() {
     ] {
         fixture.put("/sys/power/wakeup_count", text);
         let answer = wakeup_answer(&fixture);
-        let (result, _) = scripted(vec![answer], || cpu(&fixture.root).unwrap());
+        let result = cpu(&answering(&fixture, vec![answer])).unwrap();
         assert_eq!(result["wakeup_count"], json!(expected), "{text}");
         assert_eq!(
             result["wakeup_count_reason"],
@@ -293,7 +307,7 @@ fn wakeup_zero_is_observed_but_invalid_or_missing_data_is_unknown() {
     }
     fixture.remove("/sys/power/wakeup_count");
     let answer = wakeup_answer(&fixture);
-    let (result, _) = scripted(vec![answer], || cpu(&fixture.root).unwrap());
+    let result = cpu(&answering(&fixture, vec![answer])).unwrap();
     assert!(result["wakeup_count"].is_null());
     assert_eq!(result["wakeup_count_reason"], "command_failed");
 }
@@ -303,7 +317,7 @@ fn wakeup_zero_is_observed_but_invalid_or_missing_data_is_unknown() {
 #[test]
 fn broadcast_and_dormant_abort_observations_are_explicit() {
     let fixture = Fixture::new();
-    assert!(no_answers(|| cpu(&fixture.root).unwrap())["timer"]["broadcast_clockevent"].is_null());
+    assert!(cpu(&unanswered(&fixture)).unwrap()["timer"]["broadcast_clockevent"].is_null());
     fixture
         .put(
             "/sys/devices/system/clockevents/broadcast/current_device",
@@ -311,7 +325,7 @@ fn broadcast_and_dormant_abort_observations_are_explicit() {
         )
         .put("/sys/module/idle/parameters/dormant_aborts", "7")
         .put("/sys/module/idle/parameters/last_error", "-62");
-    let result = no_answers(|| cpu(&fixture.root).unwrap());
+    let result = cpu(&unanswered(&fixture)).unwrap();
     assert_eq!(result["timer"]["broadcast_clockevent"], "y2-gpt4-broadcast");
     assert_eq!(result["idle_diagnostics"]["dormant_aborts"], "7");
     assert_eq!(result["idle_diagnostics"]["last_error"], "-62");
@@ -321,7 +335,7 @@ fn broadcast_and_dormant_abort_observations_are_explicit() {
 #[test]
 fn diagnostics_do_not_fabricate_absent_states_or_mask_owners() {
     let fixture = Fixture::new();
-    let result = no_answers(|| idle_completion(&fixture.root, &[]));
+    let result = idle_completion(&unanswered(&fixture), &[]);
     assert_eq!(result["C1"]["registered"], false);
     assert!(result["C1"]["entries"].is_null());
     assert!(result["C2"]["blocker_owners"].is_null());
@@ -353,7 +367,7 @@ fn diagnostics_do_not_fabricate_absent_states_or_mask_owners() {
     }
     let row = json!({"cpu": "cpu0", "name": "WFI", "disabled": 0, "usage": 10, "time_us": 1000,
                      "rejected": 0});
-    let result = no_answers(|| idle_completion(&fixture.root, &[row.as_object().unwrap().clone()]));
+    let result = idle_completion(&unanswered(&fixture), &[row.as_object().unwrap().clone()]);
     assert_eq!(result["C1"]["enabled"], true);
     assert_eq!(result["C1"]["residency_us"], 1000);
     let owners = |label: &str, key: &str| -> Vec<Value> {

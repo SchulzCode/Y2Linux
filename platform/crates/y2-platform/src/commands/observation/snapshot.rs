@@ -13,7 +13,7 @@ use std::path::Path;
 use y2p_core::mounts::Mount;
 use y2p_core::py::PyValue;
 use y2p_core::{
-    clock, command,
+    command,
     json::{dumps_sorted, Separators},
     observation_support::sha2::{Digest, Sha256},
     py::truthy,
@@ -896,8 +896,9 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
     }
     let mut policy = root.json_object("/run/y2/power.json");
     let boot = Value::from(root.boot_id());
-    let fresh = is_int(policy.get("monotonic_ns"))
-        .is_some_and(|t| (0..5_000_000_000).contains(&(i128::from(clock::monotonic_ns()) - t)));
+    let fresh = is_int(policy.get("monotonic_ns")).is_some_and(|t| {
+        (0..5_000_000_000).contains(&(i128::from(root.clock().monotonic_ns()) - t))
+    });
     if !get_eq(&policy, "boot_id", &boot) || !fresh {
         policy = serde_json::from_value(
             json!({"state": "Unavailable", "reason": "policy_not_running_or_stale"}),
@@ -1362,11 +1363,11 @@ fn addresses(output: Option<&str>) -> Result<Option<Vec<Value>>, Failure> {
 
 pub fn wifi(root: &Root) -> Result<Value, Failure> {
     let radio = root.path("/sys/class/net/wlan0").exists();
-    let started = clock::monotonic_ns();
+    let started = root.clock().monotonic_ns();
     // Station statistics can hold the control loop for about 2.1 s on this firmware. Bound the
     // observation above that measured delay.
     let wpa = radio.then(|| command::run(root, &["wpa_cli", "-i", "wlan0", "status"], 3.0));
-    let duration = radio.then(|| clock::monotonic_ns() - started);
+    let duration = radio.then(|| root.clock().monotonic_ns() - started);
     let mut properties: Map<String, Value> =
         key_values(wpa.as_ref().and_then(|w| w.output.as_deref()), "=")
             .into_iter()
@@ -1375,7 +1376,7 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
     let boot = Value::from(root.boot_id());
     let failure = root.json_object("/run/y2/wifi-failure.json");
     if get_eq(&failure, "boot_id", &boot)
-        && fresh_seconds(failure.get("monotonic_s"), 120.0)
+        && fresh_seconds(root, failure.get("monotonic_s"), 120.0)
         && failure.get("error").is_some_and(truthy)
     {
         properties.insert("failure_reason".into(), failure["error"].clone());
@@ -1426,7 +1427,7 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
         && get_eq(&dns, "epoch", &epoch)
         && util::contains(&addresses, dns.get("address").unwrap_or(&Value::Null))
         && get_eq(&dns, "bssid", &bssid)
-        && fresh_seconds(dns.get("monotonic_s"), DNS_FRESH_S);
+        && fresh_seconds(root, dns.get("monotonic_s"), DNS_FRESH_S);
     let dhcp = root.json_object("/run/y2/dhcp.json");
     let dhcp_error = if get_eq(&dhcp, "boot_id", &boot)
         && get_eq(&dhcp, "epoch", &text(root.read("/run/y2/wifi-epoch")))
@@ -1457,7 +1458,7 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
         let s = signal.as_object().expect("object");
         get_eq(s, "boot_id", &boot)
             && get_eq(s, "bssid", &bssid)
-            && fresh_seconds(s.get("monotonic_s"), 30.0)
+            && fresh_seconds(root, s.get("monotonic_s"), 30.0)
     };
     let mut rssi = if fresh {
         previous.get("rssi_dbm").cloned().unwrap_or(Value::Null)
@@ -1469,7 +1470,7 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
         let poll = command::run(root, &["wpa_cli", "-i", "wlan0", "signal_poll"], 3.0);
         let values = key_values(poll.output.as_deref(), "=");
         rssi = number(values.get("RSSI").map(String::as_str));
-        signal = json!({"boot_id": boot, "bssid": bssid, "monotonic_s": clock::monotonic(),
+        signal = json!({"boot_id": boot, "bssid": bssid, "monotonic_s": root.clock().monotonic(),
                         "ok": poll.ok, "reason": poll.reason});
     } else if association.as_str() != Some("COMPLETED") {
         rssi = Value::Null;
@@ -1575,7 +1576,7 @@ fn readiness(status: &Snapshot) -> Result<Value, Failure> {
 
 /// `observe.snapshot(ctx, pids, pss, interval)`.
 pub fn snapshot(root: &Root, pids: &[i64], pss: bool, interval: f64) -> Result<Snapshot, Failure> {
-    let start = clock::monotonic_ns();
+    let start = root.clock().monotonic_ns();
     let before = cpu(root)?;
     let mut after = before.clone();
     if interval > 0.0 {
@@ -1622,7 +1623,7 @@ pub fn snapshot(root: &Root, pids: &[i64], pss: bool, interval: f64) -> Result<S
     record.insert("units".into(), json!({"collection_duration": "ns"}));
     record.insert(
         "collection_duration_ns".into(),
-        json!(clock::monotonic_ns() - start),
+        json!(root.clock().monotonic_ns() - start),
     );
     Ok(result)
 }
