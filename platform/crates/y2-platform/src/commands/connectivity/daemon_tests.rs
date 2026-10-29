@@ -349,3 +349,16 @@ fn codec_policy_failure_does_not_tear_down_other_helpers() {
     assert!(restarted.is_ok());
     assert!(calls.is_empty());
 }
+
+#[test]
+fn an_unreadable_codec_inventory_keeps_bluealsa_down_and_the_daemon_running() {
+    let (fixture, steps) = fixture();
+    fixture.put(
+        "/etc/y2linux/bluetooth-codecs.json",
+        r#"{"schema": 1, "codecs": null}"#,
+    );
+    let mut monitor = Supervisor::new(&fixture.root);
+    let (restarted, calls) = run(&steps, Vec::new(), || monitor.restart("bluealsa"));
+    assert!(restarted.is_ok());
+    assert!(calls.is_empty());
+}

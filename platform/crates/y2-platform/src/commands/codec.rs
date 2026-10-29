@@ -147,6 +147,16 @@ fn flag(codec: Option<&Map<String, Value>>, key: &str) -> bool {
     is_true(codec.and_then(|c| c.get(key)))
 }
 
+/// The inventory entry of codec `name` for `codec-runtime`: an inventory whose `codecs`, or whose
+/// entry, is no object is refused (`invalid_codec_inventory`), so BlueALSA is never started with
+/// arguments made from it.
+fn runtime_codec<'a>(
+    inventory: &'a Map<String, Value>,
+    name: &str,
+) -> Result<Option<&'a Map<String, Value>>, Failure> {
+    inventory_codec(inventory, name).map_err(|_| Failure::value("invalid_codec_inventory"))
+}
+
 /// `y2-platform codec-runtime [--record]`: the BlueALSA arguments, space-separated, for
 /// `usr/libexec/y2/connectivity` (which runs under `set -e`).
 pub fn runtime(root: &Root, record: bool) -> Outcome {
@@ -158,7 +168,7 @@ pub fn runtime(root: &Root, record: bool) -> Outcome {
     let experimental = is_true(policy.get("experimental"));
     let mut args: Vec<String> = Vec::new();
     for name in ["AAC", "aptX", "aptX-HD", "LDAC"] {
-        let cap = inventory_codec(&inventory, name)?;
+        let cap = runtime_codec(&inventory, name)?;
         let eligible = flag(cap, "compiled_locally")
             && ((flag(cap, "distribution_approved") && flag(cap, "platform_qualified"))
                 || (experimental && flag(cap, "owner_private_experiment")));
@@ -186,7 +196,7 @@ pub fn runtime(root: &Root, record: bool) -> Outcome {
             args.push("--aac-abr".into());
         }
     }
-    if flag(inventory_codec(&inventory, "LDAC")?, "compiled_locally") {
+    if flag(runtime_codec(&inventory, "LDAC")?, "compiled_locally") {
         args.push(format!("--ldac-quality={}", text("ldac_quality")));
         if is_true(policy.get("ldac_abr")) {
             args.push("--ldac-abr".into());

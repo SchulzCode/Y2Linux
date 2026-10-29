@@ -389,11 +389,9 @@ impl Supervisor {
                             .to_vec();
                         extra.extend(reply.stdout.split(' ').map(str::to_owned));
                     }
-                    // codec_policy_unavailable: BlueALSA stays down until the next health look.
-                    Err(Failure::Value(_) | Failure::Os { .. }) => return Ok(()),
-                    // An inventory Python cannot read (AttributeError): the daemon ends as Python's,
-                    // with its traceback (main.rs).
-                    Err(error) => return Err(error),
+                    // A policy or inventory codec-runtime refuses (or a receipt it cannot write):
+                    // BlueALSA stays down until the next health look, the other helpers run on.
+                    Err(_) => return Ok(()),
                 }
                 "/usr/bin/bluealsad"
             }
@@ -724,8 +722,7 @@ pub fn serve(root: &Root) -> Outcome {
     match result {
         // A daemon prints nothing (main.rs would print a newline for a reply).
         Ok(()) => std::process::exit(0),
-        // An OSError is main.py's record; an AttributeError (an inventory `codecs` that is not an
-        // object) its traceback on stderr, no stdout, exit 1 (main.rs prints both).
+        // A failed wait or a runtime file it cannot write: the error record, exit 1.
         Err(error) => Err(error),
     }
 }
