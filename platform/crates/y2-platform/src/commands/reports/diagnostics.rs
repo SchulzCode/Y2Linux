@@ -419,13 +419,10 @@ fn export_inner(root: &Root) -> Result<Py, Failure> {
     result
 }
 
-/// cli.py's `export-diagnostics`: any OSError or ValueError is `diagnostic_export_failed`.
+/// cli.py's `export-diagnostics`: any failure is `diagnostic_export_failed` (exit 1).
 pub fn export(root: &Root) -> Outcome {
     match export_inner(root) {
         Ok(value) => Ok(Reply::text(pyjson::dumps(&value, Style::Spaced))),
-        // A snapshot Python crashes on (its traceback): by then only /data/exports and its lock file
-        // exist, which Python makes the same way again.
-        Err(error @ Failure::Crash { .. }) => Err(error),
         Err(_) => Reply::unsorted(
             &y2p_core::json::Object::new()
                 .with("state", "Failed")

@@ -245,18 +245,14 @@ pub fn secrets(root: &Root) -> Result<Known, Failure> {
     }
     let session = large_json(root, "/data/reborn/state/session.json");
     if let Some(model @ Py::Dict(_)) = session.as_ref().and_then(|s| s.get("model")) {
-        // `(model.get('queue') or [])[:5000]`: a string queue holds no dicts; a dict is a KeyError,
-        // a number a TypeError (main.py's traceback).
+        // `(model.get('queue') or [])[:5000]`: a string queue holds no dicts; a non-empty object or
+        // a number cannot be sliced and is refused.
         let tracks: Vec<Py> = match model.get("queue") {
             Some(Py::List(items)) => items.iter().take(5000).cloned().collect(),
-            Some(Py::Dict(items)) if !items.is_empty() => {
-                return Err(Failure::crash("KeyError", "slice(None, 5000, None)"))
-            }
-            Some(queue @ (Py::Int(_) | Py::Float(_) | Py::Bool(true))) if queue.truthy() => {
-                return Err(Failure::type_error(format!(
-                    "'{}' object is not subscriptable",
-                    super::pyops::type_name(queue)
-                )))
+            Some(queue @ (Py::Dict(_) | Py::Int(_) | Py::Float(_) | Py::Bool(_)))
+                if queue.truthy() =>
+            {
+                return Err(Failure::value(super::SESSION_UNREADABLE))
             }
             _ => Vec::new(),
         };

@@ -4,9 +4,9 @@ use super::{
     build::{rel, Progress},
     json_dict, or_dict,
     pyjson::{self, py_str, Py},
-    pyops,
+    pyops::{self, OrRefuse},
     pyre::{self, lazy, S},
-    state,
+    state, HEALTH_UNREADABLE, STATE_UNREADABLE,
 };
 use crate::reply::Failure;
 use regex::Regex;
@@ -103,14 +103,17 @@ fn crash_signature(root: &Root) -> Option<[String; 3]> {
     ])
 }
 
-/// `_changed(value, name, current)`: True once per new value of a watched marker (`value['seen']`
-/// that is no dict: AttributeError at its `.get`).
+/// `_changed(value, name, current)`: True once per new value of a watched marker (a `seen` that is
+/// no object is refused).
 fn changed(value: &mut Py, name: &str, current: Py) -> Result<bool, Failure> {
     if matches!(&current, Py::None) || current.py_eq(&Py::str("")) || current.py_eq(&Py::int(0)) {
         return Ok(false);
     }
     let seen = value.get_mut("seen").expect("state has seen");
-    if pyops::get(seen, name)?.is_some_and(|v| v.py_eq(&current)) {
+    if pyops::get(seen, name)
+        .or_refuse(STATE_UNREADABLE)?
+        .is_some_and(|v| v.py_eq(&current))
+    {
         return Ok(false);
     }
     seen.set(name, current);
@@ -127,7 +130,8 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     let mut fired: Vec<(String, String)> = Vec::new();
     let boot = root.boot_id().unwrap_or_default();
     if let Some(crash) = crash_signature(root) {
-        let previous = pyops::get(value.get("seen").expect("state has seen"), "pstore_crash")?
+        let previous = pyops::get(value.get("seen").expect("state has seen"), "pstore_crash")
+            .or_refuse(STATE_UNREADABLE)?
             .filter(|v| v.truthy())
             .map(py_str)
             .unwrap_or_default();
@@ -261,12 +265,12 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     );
     let output = health.output.unwrap_or_default();
     let subsystems = pyjson::loads(if output.is_empty() { "{}" } else { &output });
-    // `json.loads(...).get('subsystems', {})` on a non-dict answer raises AttributeError (a
-    // traceback); Python's run then stops here.
+    // An answer, or its subsystems, that is no object is refused: the check stops here, before
+    // reports.json is saved.
     let subsystems = match subsystems {
         None => Py::dict(),
         Some(v @ Py::Dict(_)) => v.get("subsystems").cloned().unwrap_or(Py::dict()),
-        Some(other) => return Err(pyops::no_attribute(&other, "get")), // a traceback
+        Some(_) => return Err(Failure::value(HEALTH_UNREADABLE)),
     };
     let mut failed: Vec<String> = match &subsystems {
         Py::Dict(items) => items
@@ -278,7 +282,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             })
             .map(|(k, _)| k.clone())
             .collect(),
-        other => return Err(pyops::no_attribute(other, "items")),
+        _ => return Err(Failure::value(HEALTH_UNREADABLE)),
     };
     failed.sort();
     if !failed.is_empty()
@@ -434,12 +438,13 @@ pub fn run_checks(root: &Root) -> Result<Py, Failure> {
         .get("boot_triggers")
         .cloned()
         .unwrap_or(Py::None);
-    let reported = pyops::get(&triggers, &boot)?
+    let reported = pyops::get(&triggers, &boot)
+        .or_refuse(STATE_UNREADABLE)?
         .cloned()
         .unwrap_or(Py::List(Vec::new()));
     let mut fresh: Vec<(String, String)> = Vec::new();
     for (t, d) in &fired {
-        if !pyops::contains(&reported, t)? {
+        if !pyops::contains(&reported, t).or_refuse(STATE_UNREADABLE)? {
             fresh.push((t.clone(), d.clone()));
         }
     }

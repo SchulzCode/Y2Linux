@@ -59,7 +59,7 @@ pub fn open_directory(parent: &OwnedFd, component: &str) -> Result<OwnedFd, Fail
     Ok(fd)
 }
 
-/// `update.status(ctx)['state']`: a journal without a state is a KeyError (main.py's traceback).
+/// `update.status(ctx)['state']`; a journal without a state is refused.
 pub fn update_state(root: &Root) -> Result<String, Failure> {
     use super::pyjson::Py;
     let path = root.path("/data/updates/state.json");
@@ -82,6 +82,6 @@ pub fn update_state(root: &Root) -> Result<String, Failure> {
     match value.get("state") {
         Some(Py::Str(state)) => Ok(state.clone()),
         Some(_) => Ok(String::new()), // a non-string state equals none of the names compared
-        None => Err(Failure::key_error("state")),
+        None => Err(Failure::value("update_state_unreadable")),
     }
 }

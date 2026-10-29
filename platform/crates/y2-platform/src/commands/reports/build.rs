@@ -230,9 +230,12 @@ fn session_projection(session: Option<Py>) -> Result<Py, Failure> {
         "online",
         "artwork",
     ];
-    // `dict(model.get('settings') or {})`: a list of pairs is a dict too; a string's ValueError is
-    // report_failed, a number's TypeError main.py's traceback.
-    let mut settings = super::pyops::to_dict(model.get("settings").unwrap_or(&Py::None))?;
+    // `dict(model.get('settings') or {})`: a list of pairs is a dict too; a string is Python's
+    // ValueError, anything else (a number) is refused.
+    let mut settings = super::pyops::to_dict(
+        model.get("settings").unwrap_or(&Py::None),
+        super::SESSION_UNREADABLE,
+    )?;
     if let Some(Py::Str(zone)) = settings.get("time_zone") {
         let set = if zone.is_empty() { "" } else { "set" };
         settings.set("time_zone", Py::str(set));

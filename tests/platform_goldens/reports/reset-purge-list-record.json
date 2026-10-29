@@ -22,7 +22,10 @@
   }
  ],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "reset_record_unreadable",
+  "state": "Failed"
+ },
  "tree": {
   "added": {
    "/run/y2/activity.lock": {

@@ -7,7 +7,10 @@
  ],
  "calls": [],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "reset_plan_unreadable",
+  "state": "Failed"
+ },
  "tree": {
   "added": {
    "/data/system/platform/.maintenance.lock": {

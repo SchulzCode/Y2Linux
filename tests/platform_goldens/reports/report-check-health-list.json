@@ -14,7 +14,10 @@
   }
  ],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "report_failed",
+  "reason": "reborn_health_unreadable"
+ },
  "tree": {
   "added": {},
   "changed": {},

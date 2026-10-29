@@ -626,7 +626,7 @@ fn a_sleep_in_progress_leaves_the_report_queued() {
     queued(root);
     // Sleep takes the activity lease exclusively.
     let sleep = y2p_core::lock::exclusive(&root.path("/run/y2/activity.lock")).unwrap();
-    let result = upload_now(root, None, None).unwrap();
+    let result = upload_now(root, None, None);
     drop(sleep);
     assert_eq!(reason(&result), "sleep_operation_in_progress");
     assert_eq!(queue_names(root).len(), 1);

@@ -1,98 +1,67 @@
-//! The Python operations report.py and maintenance.py apply to parsed JSON, with their exceptions: a
-//! record of an unexpected shape raises where Python raises (an uncaught `TypeError`, `KeyError` or
-//! `AttributeError` is main.py's traceback, `Failure::Crash`), after the same changes.
+//! The operations report.py and maintenance.py apply to parsed JSON records, taking the shapes Python
+//! takes (`in` on a str is a substring test, a dict iterates its keys, a bool adds as 0/1): a record of
+//! another shape is refused with the caller's reason where Python died with a traceback.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::pyjson::Py;
 use crate::reply::Failure;
 
-/// `type(value).__name__`.
-pub fn type_name(value: &Py) -> &'static str {
-    match value {
-        Py::None => "NoneType",
-        Py::Bool(_) => "bool",
-        Py::Int(_) => "int",
-        Py::Float(_) => "float",
-        Py::Str(_) => "str",
-        Py::List(_) => "list",
-        Py::Dict(_) => "dict",
+/// A value of another shape than the operation takes (where Python raised a TypeError, KeyError or
+/// AttributeError): the caller refuses with the name of the record it read (`or_refuse`).
+#[derive(Debug, PartialEq)]
+pub struct Shape;
+
+pub trait OrRefuse<T> {
+    /// `Failure::value(reason)` for a value of the wrong shape.
+    fn or_refuse(self, reason: &'static str) -> Result<T, Failure>;
+}
+
+impl<T> OrRefuse<T> for Result<T, Shape> {
+    fn or_refuse(self, reason: &'static str) -> Result<T, Failure> {
+        self.map_err(|Shape| Failure::value(reason))
     }
 }
 
-/// `value.<attribute>` of a value that is no dict (`AttributeError`).
-pub fn no_attribute(value: &Py, attribute: &str) -> Failure {
-    Failure::attribute_error(format!(
-        "'{}' object has no attribute '{attribute}'",
-        type_name(value)
-    ))
-}
-
-/// `value.get(key)` (`value.get(key, default)` is this or the default): a dict's entry, an
-/// `AttributeError` for anything else.
-pub fn get<'a>(value: &'a Py, key: &str) -> Result<Option<&'a Py>, Failure> {
+/// `value.get(key)` (`value.get(key, default)` is this or the default): a dict's entry; anything
+/// else has no `get`.
+pub fn get<'a>(value: &'a Py, key: &str) -> Result<Option<&'a Py>, Shape> {
     match value {
         Py::Dict(_) => Ok(value.get(key)),
-        other => Err(no_attribute(other, "get")),
+        _ => Err(Shape),
     }
 }
 
-/// `value[key]` with a str key.
-pub fn index<'a>(value: &'a Py, key: &str) -> Result<&'a Py, Failure> {
-    match value {
-        Py::Dict(_) => value.get(key).ok_or_else(|| Failure::key_error(key)),
-        Py::Str(_) => Err(Failure::type_error(
-            "string indices must be integers, not 'str'",
-        )),
-        Py::List(_) => Err(Failure::type_error(
-            "list indices must be integers or slices, not str",
-        )),
-        other => Err(Failure::type_error(format!(
-            "'{}' object is not subscriptable",
-            type_name(other)
-        ))),
-    }
+/// `value[key]` with a str key: a dict's entry that is there.
+pub fn index<'a>(value: &'a Py, key: &str) -> Result<&'a Py, Shape> {
+    value.get(key).ok_or(Shape)
 }
 
-/// `item in container` for a str item.
-pub fn contains(container: &Py, item: &str) -> Result<bool, Failure> {
+/// `item in container` for a str item: a list's equal item, a dict's key, a str's substring.
+pub fn contains(container: &Py, item: &str) -> Result<bool, Shape> {
     match container {
         Py::List(items) => Ok(items.iter().any(|v| v.py_eq(&Py::str(item)))),
         Py::Dict(_) => Ok(container.get(item).is_some()),
         Py::Str(text) => Ok(text.contains(item)),
-        other => Err(Failure::type_error(format!(
-            "argument of type '{}' is not a container or iterable",
-            type_name(other)
-        ))),
+        _ => Err(Shape),
     }
 }
 
 /// `for item in value`: a list's items, a str's characters, a dict's keys.
-pub fn iterate(value: &Py) -> Result<Vec<Py>, Failure> {
+pub fn iterate(value: &Py) -> Result<Vec<Py>, Shape> {
     match value {
         Py::List(items) => Ok(items.clone()),
         Py::Str(text) => Ok(text.chars().map(|c| Py::Str(c.to_string())).collect()),
         Py::Dict(items) => Ok(items.iter().map(|(k, _)| Py::Str(k.clone())).collect()),
-        other => Err(Failure::type_error(format!(
-            "'{}' object is not iterable",
-            type_name(other)
-        ))),
+        _ => Err(Shape),
     }
 }
 
-/// A number's value for an ordering comparison `left <op> right` (Python compares int, float and
-/// bool with each other and refuses every other pair).
-pub fn ordered(left: &Py, op: &str, right: &Py) -> Result<(f64, f64), Failure> {
-    match (left.number(), right.number()) {
-        (Some(a), Some(b)) => Ok((a, b)),
-        _ => Err(Failure::type_error(format!(
-            "'{op}' not supported between instances of '{}' and '{}'",
-            type_name(left),
-            type_name(right)
-        ))),
-    }
+/// Two values an ordering comparison takes: numbers (int, float and bool compare with each other).
+pub fn ordered(left: &Py, right: &Py) -> Result<(f64, f64), Shape> {
+    left.number().zip(right.number()).ok_or(Shape)
 }
 
-/// `value + n` for an int `n`.
-pub fn add_int(value: &Py, n: i64) -> Result<Py, Failure> {
+/// `value + n` for an int `n`: an int stays an int (of any size), a float a float, a bool adds as 0/1.
+pub fn add_int(value: &Py, n: i64) -> Result<Py, Shape> {
     match value {
         Py::Bool(b) => Ok(Py::int(i64::from(*b) + n)),
         Py::Int(digits) => Ok(match digits.parse::<i128>() {
@@ -100,38 +69,23 @@ pub fn add_int(value: &Py, n: i64) -> Result<Py, Failure> {
             Err(_) => Py::Int(digits.clone()),
         }),
         Py::Float(f) => Ok(Py::Float(f + n as f64)),
-        Py::Str(_) => Err(Failure::type_error(
-            "can only concatenate str (not \"int\") to str",
-        )),
-        Py::List(_) => Err(Failure::type_error(
-            "can only concatenate list (not \"int\") to list",
-        )),
-        other => Err(Failure::type_error(format!(
-            "unsupported operand type(s) for +: '{}' and 'int'",
-            type_name(other)
-        ))),
+        _ => Err(Shape),
     }
 }
 
 /// `value + items` for a list `items`.
-pub fn add_list(value: &Py, items: Vec<Py>) -> Result<Py, Failure> {
+pub fn add_list(value: &Py, items: Vec<Py>) -> Result<Py, Shape> {
     match value {
         Py::List(first) => Ok(Py::List(first.iter().cloned().chain(items).collect())),
-        Py::Str(_) => Err(Failure::type_error(
-            "can only concatenate str (not \"list\") to str",
-        )),
-        other => Err(Failure::type_error(format!(
-            "unsupported operand type(s) for +: '{}' and 'list'",
-            type_name(other)
-        ))),
+        _ => Err(Shape),
     }
 }
 
 /// `dict(value)` of a parsed JSON value (`dict(x or {})`: a falsy value is `{}`): a dict as it is, a
-/// list of two-item pairs (str or list) as its pairs; the `ValueError` of a pair of another length,
-/// the `TypeError` of anything else. A pair whose key is no str is outside what the port reads
-/// (Reborn writes a dict): a `TypeError` here.
-pub fn to_dict(value: &Py) -> Result<Py, Failure> {
+/// list of two-item pairs (str or list) as its pairs. A pair of another length is Python's
+/// `ValueError` (its text is the caller's answer); anything else, and a pair whose key is no str
+/// (Reborn writes a dict), is refused as `reason`.
+pub fn to_dict(value: &Py, reason: &'static str) -> Result<Py, Failure> {
     let length = |n: usize, at: usize| {
         Failure::value(format!(
             "dictionary update sequence element #{at} has length {n}; 2 is required"
@@ -155,34 +109,16 @@ pub fn to_dict(value: &Py) -> Result<Py, Failure> {
                     Py::List(pair) if pair.len() != 2 => return Err(length(pair.len(), at)),
                     Py::List(pair) => match &pair[0] {
                         Py::Str(key) => out.set(key, pair[1].clone()),
-                        key @ (Py::List(_) | Py::Dict(_)) => {
-                            return Err(Failure::type_error(format!(
-                                "unhashable type: '{}'",
-                                type_name(key)
-                            )))
-                        }
-                        key => {
-                            return Err(Failure::type_error(format!(
-                                "a settings key of type '{}' is not read",
-                                type_name(key)
-                            )))
-                        }
+                        _ => return Err(Failure::value(reason)),
                     },
                     Py::Dict(pair) if pair.len() != 2 => return Err(length(pair.len(), at)),
                     Py::Dict(pair) => out.set(&pair[0].0, Py::Str(pair[1].0.clone())),
-                    _ => {
-                        return Err(Failure::type_error(format!(
-                            "cannot convert dictionary update sequence element #{at} to a sequence"
-                        )))
-                    }
+                    _ => return Err(Failure::value(reason)),
                 }
             }
             Ok(out)
         }
-        other => Err(Failure::type_error(format!(
-            "'{}' object is not iterable",
-            type_name(other)
-        ))),
+        _ => Err(Failure::value(reason)),
     }
 }
 
@@ -208,57 +144,35 @@ mod tests {
     use super::*;
     use crate::commands::reports::pyjson::loads as parse;
 
-    fn crash(result: Result<impl std::fmt::Debug, Failure>) -> String {
-        match result {
-            Err(Failure::Crash { class, message }) => format!("{class}: {message}"),
-            Err(other) => format!("caught: {}", other.message()),
-            Ok(value) => format!("ok: {value:?}"),
-        }
-    }
-
     #[test]
-    fn exceptions_read_as_pythons() {
-        // python3 -c for each expression (3.14).
+    fn operations_take_what_python_takes() {
         let p = |t: &str| parse(t).unwrap();
+        assert_eq!(get(&p("[]"), "x"), Err(Shape));
+        assert_eq!(get(&p(r#"{"x": 1}"#), "x"), Ok(Some(&Py::int(1))));
+        assert_eq!(index(&p("{}"), "path"), Err(Shape));
+        assert_eq!(index(&p(r#""ab""#), "path"), Err(Shape));
+        assert_eq!(contains(&p(r#""a,b""#), "a"), Ok(true));
+        assert_eq!(contains(&p("5"), "a"), Err(Shape));
+        assert_eq!(ordered(&p(r#""x""#), &Py::int(5)), Err(Shape));
+        assert_eq!(ordered(&p("true"), &Py::Float(0.5)), Ok((1.0, 0.5)));
+        assert_eq!(add_int(&p("true"), 1), Ok(Py::Int("2".into())));
         assert_eq!(
-            crash(get(&p("[]"), "x")),
-            "AttributeError: 'list' object has no attribute 'get'"
+            add_int(&p("123456789012345678901234567890"), 1),
+            Ok(Py::Int("123456789012345678901234567891".into()))
         );
-        assert_eq!(crash(index(&p("{}"), "path")), "KeyError: 'path'");
+        assert_eq!(add_int(&p("null"), 1), Err(Shape));
+        assert_eq!(add_list(&p(r#""x""#), vec![]), Err(Shape));
+        let answer = |r: Result<Py, Failure>| r.map_err(|e| e.message());
         assert_eq!(
-            crash(index(&p("\"ab\""), "path")),
-            "TypeError: string indices must be integers, not 'str'"
-        );
-        assert_eq!(crash(contains(&p("\"a,b\""), "a")), "ok: true");
-        assert_eq!(
-            crash(contains(&p("5"), "a")),
-            "TypeError: argument of type 'int' is not a container or iterable"
-        );
-        assert_eq!(
-            crash(ordered(&p("\"x\""), ">=", &Py::int(5))),
-            "TypeError: '>=' not supported between instances of 'str' and 'int'"
-        );
-        assert_eq!(crash(add_int(&p("true"), 1)), "ok: Int(\"2\")");
-        assert_eq!(
-            crash(add_int(&p("null"), 1)),
-            "TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'"
+            answer(to_dict(&p(r#""ab""#), "bad")),
+            Err("dictionary update sequence element #0 has length 1; 2 is required".into())
         );
         assert_eq!(
-            crash(add_list(&p("\"x\""), vec![])),
-            "TypeError: can only concatenate str (not \"list\") to str"
+            answer(to_dict(&p(r#"["ab"]"#), "bad")),
+            Ok(Py::dict().with("a", Py::str("b")))
         );
-        assert_eq!(
-            crash(to_dict(&p("\"ab\""))),
-            "caught: dictionary update sequence element #0 has length 1; 2 is required"
-        );
-        assert_eq!(
-            crash(to_dict(&p("[\"ab\"]"))),
-            "ok: Dict([(\"a\", Str(\"b\"))])"
-        );
-        assert_eq!(
-            crash(to_dict(&p("5"))),
-            "TypeError: 'int' object is not iterable"
-        );
+        assert_eq!(answer(to_dict(&p("5"), "bad")), Err("bad".into()));
+        assert_eq!(answer(to_dict(&p("[[1, 2]]"), "bad")), Err("bad".into()));
         assert_eq!(
             json_error(b"{").message(),
             "Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"

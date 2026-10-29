@@ -5,7 +5,10 @@
  ],
  "calls": [],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "report_failed",
+  "reason": "power_record_unreadable"
+ },
  "tree": {
   "added": {
    "/run/y2/activity.lock": {

@@ -10,7 +10,7 @@ use super::{
     media::{fstat, open_at, rename_between, stat_at},
     os, os_name, os_plain,
     pyjson::{self, Py, Style},
-    pyops,
+    pyops::{self, OrRefuse},
     state::uuid4,
     tarball,
     volume::{self, data_volume, free, open_directory},
@@ -40,12 +40,11 @@ fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// `except (OSError, ValueError, TimeoutError)`: `{"state": "Failed", "failure": str(error)}`; any
-/// other exception is main.py's traceback.
-fn failed(error: Failure) -> Outcome {
-    match error {
-        error if !error.caught() => Err(error),
-        error => Reply::unsorted(
+/// The answer: the result, or `{"state": "Failed", "failure": str(error)}` (exit 1).
+fn answer(result: Result<Py, Failure>) -> Outcome {
+    match result {
+        Ok(value) => Ok(Reply::text(pyjson::dumps(&value, Style::Spaced))),
+        Err(error) => Reply::unsorted(
             &y2p_core::json::Object::new()
                 .with("state", "Failed")
                 .with("failure", error.message()),
@@ -54,12 +53,9 @@ fn failed(error: Failure) -> Outcome {
     }
 }
 
-fn answer(result: Result<Py, Failure>) -> Outcome {
-    match result {
-        Ok(value) => Ok(Reply::text(pyjson::dumps(&value, Style::Spaced))),
-        Err(error) => failed(error),
-    }
-}
+/// A reset plan field missing or of another type (the confirmation matched, so only a plan written
+/// by hand gets here).
+const PLAN_UNREADABLE: &str = "reset_plan_unreadable";
 
 /// cli.py's `reset` branch.
 pub fn reset(
@@ -469,26 +465,31 @@ fn text(value: Option<&Py>) -> Py {
 
 /// A plan target's path, identity and what is there now, in Python's order: `inspect(data,
 /// target['path']) != target['identity']` before the apply, `relative, expected = target['path'],
-/// target['identity']` then `inspect(data, relative)` in it (a path that is no str is an
-/// AttributeError at its `.split`).
+/// target['identity']` then `inspect(data, relative)` in it. A target without both, or whose path is
+/// no str, is refused.
 fn target(
     data: &OwnedFd,
     target: &Py,
     identity_first: bool,
 ) -> Result<(String, Py, Option<Py>), Failure> {
-    let path = pyops::index(target, "path")?.clone();
+    let field = |key| {
+        pyops::index(target, key)
+            .or_refuse(PLAN_UNREADABLE)
+            .cloned()
+    };
+    let path = field("path")?;
     let expected = if identity_first {
-        Some(pyops::index(target, "identity")?.clone())
+        Some(field("identity")?)
     } else {
         None
     };
     let Py::Str(path) = path else {
-        return Err(pyops::no_attribute(&path, "split"));
+        return Err(Failure::value(PLAN_UNREADABLE));
     };
     let source = inspect(data, &path)?;
     let expected = match expected {
         Some(expected) => expected,
-        None => pyops::index(target, "identity")?.clone(),
+        None => field("identity")?,
     };
     Ok((path, expected, source))
 }
@@ -504,7 +505,7 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
     let value = json_dict(root, "/data/system/platform/reset-plan.json");
     let required = || Failure::value("exact_reset_confirmation_required");
     // `not confirmation or value.get('confirmation') != confirmation or not re.fullmatch(...,
-    // value.get('id', ''))`: an id that is no str is a TypeError once the confirmation matched.
+    // value.get('id', ''))`: an id that is no str is refused once the confirmation matched.
     let confirmation_given = confirm
         .filter(|c| !c.is_empty())
         .filter(|c| {
@@ -516,12 +517,7 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
     let id = match value.get("id") {
         None => String::new(),
         Some(Py::Str(id)) => id.clone(),
-        Some(other) => {
-            return Err(Failure::type_error(format!(
-                "expected string or bytes-like object, got '{}'",
-                pyops::type_name(other)
-            )))
-        }
+        Some(_) => return Err(Failure::value(PLAN_UNREADABLE)),
     };
     let id_ok = id.len() == 32
         && id
@@ -552,8 +548,9 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
     }
     if !resume {
         // `time.monotonic() > value['expires_monotonic_s']`.
-        let expires = pyops::index(&value, "expires_monotonic_s")?;
-        let (now, expires) = pyops::ordered(&Py::Float(root.clock().monotonic()), ">", expires)?;
+        let (now, expires) = pyops::index(&value, "expires_monotonic_s")
+            .and_then(|expires| pyops::ordered(&Py::Float(root.clock().monotonic()), expires))
+            .or_refuse(PLAN_UNREADABLE)?;
         if now > expires {
             return Err(Failure::value("reset_plan_expired"));
         }
@@ -566,7 +563,9 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
         let uuid = value.get("data_uuid").filter(|u| u.truthy());
         uuid.is_none_or(|u| !u.py_eq(&volume.uuid.clone().into()))
     } else {
-        !pyops::index(&value, "data_generation")?.py_eq(&volume.generation.clone().into())
+        !pyops::index(&value, "data_generation")
+            .or_refuse(PLAN_UNREADABLE)?
+            .py_eq(&volume.generation.clone().into())
     };
     if changed {
         return Err(Failure::value("reset_data_generation_changed"));
@@ -588,7 +587,11 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
     }
     // `value['targets']`, iterated (a resume reads it first in the loop below, after the pending flag
     // and the record are written).
-    let targets = || pyops::iterate(pyops::index(&value, "targets")?);
+    let targets = || {
+        pyops::index(&value, "targets")
+            .and_then(pyops::iterate)
+            .or_refuse(PLAN_UNREADABLE)
+    };
     if !resume {
         for item in targets()? {
             let (_, expected, now) = target(&data, &item, false)?;
@@ -634,12 +637,13 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
             Err(e) => return Err(os_name(e, &saved)),
         };
         let field = |v: &Py, k: &str| v.get(k).cloned().unwrap_or(Py::None);
+        let planned = |k: &str| pyops::index(&expected, k).or_refuse(PLAN_UNREADABLE);
         let same_source = source.as_ref().is_some_and(|s| s.py_eq(&expected));
         if scope == "settings" && relative == SETTINGS {
             // `source != expected and not (resume and old and old['inode'] == expected['inode'])`.
             let old_same_inode = || -> Result<bool, Failure> {
                 Ok(match &old {
-                    Some(o) if resume => field(o, "inode").py_eq(pyops::index(&expected, "inode")?),
+                    Some(o) if resume => field(o, "inode").py_eq(planned("inode")?),
                     _ => false,
                 })
             };
@@ -663,10 +667,12 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
             }
             let raw = regular_bytes(&data, &relative, 8 << 20)?;
             let mut model = pyops::loads(&raw)?;
-            // `'schema' in model`, then `model.get('schema')`.
-            let wrapped = pyops::contains(&model, "schema")?;
-            if wrapped {
-                pyops::get(&model, "schema")?;
+            // `'schema' in model`, then `model.get('schema')`: a session that is no object (a
+            // number, or a list or text holding "schema") is refused.
+            let invalid = || Failure::value("invalid_saved_session");
+            let wrapped = pyops::contains(&model, "schema").map_err(|_| invalid())?;
+            if wrapped && !model.is_dict() {
+                return Err(invalid());
             }
             // Schema 3 (Reborn Beta 8.33) stores the queue by reference; only the settings change
             // here, the rest is kept as read.
@@ -686,7 +692,7 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
                 body.is_some_and(|b| b.is_dict() && b.get("settings").is_some())
             };
             if !body_ok {
-                return Err(Failure::value("invalid_saved_session"));
+                return Err(invalid());
             }
             let reply = command::run(root, &["/usr/bin/reborn", "--default-settings"], 2.0);
             let defaults = if reply.ok {
@@ -694,7 +700,9 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
             } else {
                 Py::dict()
             };
-            let schema_ok = pyops::get(&defaults, "session_schema")?
+            // Defaults that are no object (or of another schema) are none.
+            let schema_ok = defaults
+                .get("session_schema")
                 .is_some_and(|s| s.py_eq(&Py::int(2)) || s.py_eq(&Py::int(3)));
             let Some(settings @ Py::Dict(_)) =
                 defaults.get("settings").cloned().filter(|_| schema_ok)
@@ -722,11 +730,13 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
                 fsync(&quarantine)?;
             }
             let body = if wrapped {
-                model.get_mut("model").expect("checked")
+                model.get_mut("model")
             } else {
-                &mut model
+                Some(&mut model)
             };
-            body.set("settings", settings);
+            if let Some(body) = body {
+                body.set("settings", settings); // an object with settings (body_ok)
+            }
             // atomic_json's exact canonical encoding, including its newline.
             let result =
                 pyjson::dumps_strict(&model, Style::Compact).map_err(Failure::Value)? + "\n";
@@ -741,8 +751,8 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
             // expected['inode']`.
             let renamed_before = match (&old, &source) {
                 (Some(o), None) => {
-                    field(o, "device").py_eq(pyops::index(&expected, "device")?)
-                        && field(o, "inode").py_eq(pyops::index(&expected, "inode")?)
+                    field(o, "device").py_eq(planned("device")?)
+                        && field(o, "inode").py_eq(planned("inode")?)
                 }
                 _ => false,
             };
@@ -769,7 +779,12 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
         return Err(Failure::value("reset_data_generation_changed"));
     }
     let record = progress(&completed, "Complete")
-        .with("preserved", pyops::index(&value, "preserved")?.clone())
+        .with(
+            "preserved",
+            pyops::index(&value, "preserved")
+                .or_refuse(PLAN_UNREADABLE)?
+                .clone(),
+        )
         .with(
             "quarantine",
             Py::Str(format!("/data/reset-quarantine/{id}")),
@@ -834,10 +849,13 @@ fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Py, Failure>
     let parent = open_directory(&data, "reset-quarantine")?;
     let top = open_directory(&parent, token)?;
     drop((parent, data));
-    // `json.loads(...)` (its JSONDecodeError is a Failed answer), then `record.get(...)` (an
-    // AttributeError for a record that is no dict).
+    // `json.loads(...)` (its JSONDecodeError is a Failed answer); a record that is no object is
+    // refused.
     let record = pyops::loads(&regular_bytes(&top, "record.json", 16384)?)?;
-    if !pyops::get(&record, "id")?.is_some_and(|v| v.py_eq(&Py::str(token)))
+    if !record.is_dict() {
+        return Err(Failure::value("reset_record_unreadable"));
+    }
+    if !record.get("id").is_some_and(|v| v.py_eq(&Py::str(token)))
         || !record
             .get("state")
             .is_some_and(|v| v.py_eq(&Py::str("Complete")))

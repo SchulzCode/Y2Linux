@@ -37,7 +37,10 @@
   }
  ],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "application_defaults_unavailable",
+  "state": "Failed"
+ },
  "tree": {
   "added": {
    "/data/reset-quarantine": {

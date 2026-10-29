@@ -160,7 +160,23 @@ fn lower_priority() {
     }
 }
 
-/// cli.py's `report` branch: OSError and ValueError print `report_failed` with the class name.
+/// Refusals of a record of an unexpected shape (each was a traceback of the Python platform):
+/// reports.json, a queued report's report.json, Reborn's health answer, power.json's battery,
+/// Reborn's session.json.
+pub const STATE_UNREADABLE: &str = "report_state_unreadable";
+pub const QUEUED_UNREADABLE: &str = "queued_report_unreadable";
+pub const HEALTH_UNREADABLE: &str = "reborn_health_unreadable";
+pub const POWER_UNREADABLE: &str = "power_record_unreadable";
+pub const SESSION_UNREADABLE: &str = "session_unreadable";
+const UNREADABLE: [&str; 5] = [
+    STATE_UNREADABLE,
+    QUEUED_UNREADABLE,
+    HEALTH_UNREADABLE,
+    POWER_UNREADABLE,
+    SESSION_UNREADABLE,
+];
+
+/// cli.py's `report` branch: every failure prints `report_failed` (exit 1) with a reason.
 fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> Outcome {
     if matches!(action, "send" | "save" | "check" | "work") {
         lower_priority();
@@ -180,31 +196,31 @@ fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> O
             }
         },
         "upload" => upload::upload(root, None, None),
-        "work" => checks::run_checks(root).and_then(|reports| {
-            Ok(Py::dict()
+        "work" => checks::run_checks(root).map(|reports| {
+            Py::dict()
                 .with("reports", reports)
-                .with("upload", upload::upload_now(root, None, None)?))
+                .with("upload", upload::upload_now(root, None, None))
         }),
         _ => checks::run_checks(root).map(|reports| Py::dict().with("reports", reports)),
     };
     match result {
         Ok(value) => Ok(Reply::text(pyjson::dumps(&value, pyjson::Style::Spaced))),
-        // A TypeError, KeyError or AttributeError: main.py's traceback.
-        Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
             &y2p_core::json::Object::new()
                 .with("failure", "report_failed")
-                .with("reason", class(&error)),
+                .with("reason", reason(&error)),
             1,
         ),
     }
 }
 
-/// `type(error).__name__`.
-fn class(error: &Failure) -> &'static str {
+/// A failed report's `reason`: an unreadable record's refusal by its name, any other error by its
+/// class (`type(error).__name__`, as the Python platform printed it).
+fn reason(error: &Failure) -> &str {
     match error {
-        Failure::Os { class, .. } => class,
-        _ => "ValueError",
+        Failure::Value(text) if UNREADABLE.contains(&text.as_str()) => text,
+        Failure::Os { class, .. } | Failure::Crash { class, .. } => class,
+        Failure::Value(_) => "ValueError",
     }
 }
 

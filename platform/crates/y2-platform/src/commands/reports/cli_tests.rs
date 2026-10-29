@@ -26,3 +26,22 @@ fn the_command_saves_at_low_priority() {
         .join(result["file"].as_str().unwrap())
         .is_file());
 }
+
+#[test]
+fn an_unreadable_record_is_a_named_refusal_and_other_errors_keep_their_class() {
+    let fixture = Fixture::new();
+    test_player::player(fixture.base());
+    // A retained crash is compared with `seen`, which is no object here.
+    fixture.put(state::STATE, r#"{"enabled": true, "seen": []}"#);
+    let reply = report(&fixture.root, "check", None, None).unwrap();
+    assert_eq!(reply.code, 1);
+    assert_eq!(
+        reply.stdout,
+        r#"{"failure": "report_failed", "reason": "report_state_unreadable"}"#
+    );
+    let reply = report(&fixture.root, "save", None, None).unwrap();
+    assert_eq!(
+        (reply.code, reply.stdout.as_str()),
+        (1, r#"{"failure": "report_failed", "reason": "ValueError"}"#)
+    );
+}

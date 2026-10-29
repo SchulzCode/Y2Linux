@@ -5,7 +5,10 @@
  ],
  "calls": [],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "report_failed",
+  "reason": "report_state_unreadable"
+ },
  "tree": {
   "added": {
    "/data/system/platform/reports/.upload.lock": {

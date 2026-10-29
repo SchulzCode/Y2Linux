@@ -12,9 +12,9 @@
 use super::{
     build, clock, json_dict, or_dict,
     pyjson::{self, py_str, Py},
-    pyops,
+    pyops::{self, OrRefuse},
     state::{self, QUEUE},
-    tarball, workload,
+    tarball, workload, POWER_UNREADABLE, QUEUED_UNREADABLE, STATE_UNREADABLE,
 };
 use crate::reply::{mkdir_parents, Failure};
 use sha2::{Digest, Sha256};
@@ -61,7 +61,7 @@ pub fn queue(
     // `{k: v for k, v in value['daily'].items() if k == day}`.
     let daily = match value.get("daily").cloned().unwrap_or(Py::None) {
         Py::Dict(items) => items.into_iter().filter(|(k, _)| *k == day).collect(),
-        other => return Err(pyops::no_attribute(&other, "items")),
+        _ => return Err(Failure::value(STATE_UNREADABLE)),
     };
     value.set("daily", Py::Dict(daily));
     let boot_triggers = value.get("boot_triggers").cloned().unwrap_or(Py::None);
@@ -74,12 +74,14 @@ pub fn queue(
     };
     // `value['boot_triggers'].get(boot, [])`.
     let reported = |triggers: &Py| -> Result<Py, Failure> {
-        Ok(pyops::get(triggers, &boot)?
+        Ok(pyops::get(triggers, &boot)
+            .or_refuse(STATE_UNREADABLE)?
             .cloned()
             .unwrap_or(Py::List(Vec::new())))
     };
     if trigger != "manual" {
-        let (count, limit) = pyops::ordered(&today(), ">=", &Py::int(DAILY_MAX))?;
+        let (count, limit) =
+            pyops::ordered(&today(), &Py::int(DAILY_MAX)).or_refuse(STATE_UNREADABLE)?;
         if count >= limit {
             return Ok(Py::dict()
                 .with("queued", Py::Bool(false))
@@ -88,7 +90,7 @@ pub fn queue(
         // `all(t in value['boot_triggers'].get(boot, []) for t in triggers)`.
         let mut all = true;
         for t in triggers {
-            if !pyops::contains(&reported(&boot_triggers)?, t)? {
+            if !pyops::contains(&reported(&boot_triggers)?, t).or_refuse(STATE_UNREADABLE)? {
                 all = false;
                 break;
             }
@@ -131,14 +133,17 @@ pub fn queue(
     for old in &all[..keep] {
         crate::reply::unlink_missing_ok(old)?;
     }
-    // `daily.get(day, 0) + 1`: an int stays an int, a float a float (a TypeError after the report
-    // was queued leaves it queued and reports.json as it was).
-    let count = pyops::add_int(&today(), 1)?;
-    value.get_mut("daily").expect("set above").set(&day, count);
+    // `daily.get(day, 0) + 1`: an int stays an int, a float a float (a refusal here leaves the
+    // report queued and reports.json as it was).
+    let count = pyops::add_int(&today(), 1).or_refuse(STATE_UNREADABLE)?;
+    if let Some(daily) = value.get_mut("daily") {
+        daily.set(&day, count); // today's entry of the filtered dict above
+    }
     let boot_triggers = pyops::add_list(
         &reported(&boot_triggers)?,
         triggers.iter().cloned().map(Py::Str).collect(),
-    )?;
+    )
+    .or_refuse(STATE_UNREADABLE)?;
     value.set("boot_triggers", Py::dict().with(&boot, boot_triggers));
     value.set(
         "last",
@@ -216,7 +221,7 @@ fn upload_blocked(root: &Root) -> Result<Option<&'static str>, Failure> {
         Py::dict()
     };
     if !battery.is_dict() {
-        return Err(pyops::no_attribute(&battery, "get")); // `battery.get(...)`: a traceback
+        return Err(Failure::value(POWER_UNREADABLE));
     }
     let charging = matches!(battery.get("charging"), Some(Py::Bool(true)))
         || battery
@@ -560,14 +565,15 @@ fn upload_queue(
         _ => Vec::new(),
     };
     let mut results = Vec::new();
-    // `last = value.get('last') or {}; last.get('report_id')`: AttributeError for a truthy non-dict.
+    // `last = value.get('last') or {}; last.get('report_id')`: a truthy non-dict is refused.
     let settle = |value: &mut Py,
                   index: &Py,
                   outcome: &str,
                   fields: Vec<(&str, Py)>|
      -> Result<(), Failure> {
         let last = or_dict(value.get("last").cloned().unwrap_or(Py::None));
-        if pyops::get(&last, "report_id")?
+        if pyops::get(&last, "report_id")
+            .or_refuse(STATE_UNREADABLE)?
             .unwrap_or(&Py::None)
             .py_eq(index.get("report_id").unwrap_or(&Py::None))
         {
@@ -602,7 +608,7 @@ fn upload_queue(
         let entry = entry_of(&retries, &name);
         // `entry.get('next', 0) > now`.
         let next = entry.get("next").cloned().unwrap_or(Py::int(0));
-        let (next, now_) = pyops::ordered(&next, ">", &Py::Float(now))?;
+        let (next, now_) = pyops::ordered(&next, &Py::Float(now)).or_refuse(STATE_UNREADABLE)?;
         if next > now_ && !connected {
             continue;
         }
@@ -613,8 +619,8 @@ fn upload_queue(
         };
         let read = std::fs::read(path).ok();
         let index = read.as_deref().and_then(queued_index);
-        if let Some(other) = index.as_ref().filter(|i| !i.is_dict()) {
-            return Err(pyops::no_attribute(other, "get")); // `index.get('created_utc')`
+        if index.as_ref().is_some_and(|i| !i.is_dict()) {
+            return Err(Failure::value(QUEUED_UNREADABLE));
         }
         let (Some(index), Some(data)) = (index, read) else {
             crate::reply::unlink_missing_ok(path)?;
@@ -712,10 +718,11 @@ fn upload_queue(
                 );
             }
             (status, answer) => {
-                // `entry.get('attempts', 0) + 1` (after the request: a TypeError leaves the
+                // `entry.get('attempts', 0) + 1` (after the request: a refusal leaves the
                 // report queued and reports.json as it was).
                 let attempts_value =
-                    pyops::add_int(entry.get("attempts").unwrap_or(&Py::int(0)), 1)?;
+                    pyops::add_int(entry.get("attempts").unwrap_or(&Py::int(0)), 1)
+                        .or_refuse(STATE_UNREADABLE)?;
                 let attempts = attempts_value.number().unwrap_or(0.0);
                 let wait = if status == Some(429) {
                     clock::next_midnight(now)
@@ -764,24 +771,18 @@ fn upload_queue(
 }
 
 /// `upload_now(ctx, progress, first)`: upload() for callers whose own work must not fail with it (a
-/// queued report stays queued): a sleep in progress or an I/O error becomes the reason.
-pub fn upload_now(
-    root: &Root,
-    progress: Option<&build::Progress>,
-    first: Option<&str>,
-) -> Result<Py, Failure> {
-    match upload(root, progress, first) {
-        Ok(value) => Ok(value),
-        // `except (OSError, ValueError)`: anything else is main.py's traceback.
-        Err(error) if !error.caught() => Err(error),
-        Err(error) => Ok(Py::dict().with("uploaded", Py::List(Vec::new())).with(
-            "reason",
-            Py::Str(match &error {
-                Failure::Os { class, .. } => (*class).to_owned(),
-                other => other.message(),
-            }),
-        )),
-    }
+/// queued report stays queued): a sleep in progress, a refusal or an I/O error becomes the reason
+/// (an OSError by its class).
+pub fn upload_now(root: &Root, progress: Option<&build::Progress>, first: Option<&str>) -> Py {
+    upload(root, progress, first).unwrap_or_else(|error| {
+        let reason = match &error {
+            Failure::Os { class, .. } | Failure::Crash { class, .. } => (*class).to_owned(),
+            Failure::Value(text) => text.clone(),
+        };
+        Py::dict()
+            .with("uploaded", Py::List(Vec::new()))
+            .with("reason", Py::Str(reason))
+    })
 }
 
 /// cli.py's `report send`: queue a manual report, then send it at once when it can be; otherwise it
@@ -792,7 +793,7 @@ pub fn send(root: &Root, topic: Option<&str>) -> Result<Py, Failure> {
         let mut result = queue(root, &["manual".to_owned()], "", topic, &progress)?;
         if matches!(result.get("queued"), Some(Py::Bool(true))) {
             let name = result.get("name").and_then(Py::as_str).map(str::to_owned);
-            let upload = upload_now(root, Some(&progress), name.as_deref())?;
+            let upload = upload_now(root, Some(&progress), name.as_deref());
             result.set("upload", upload);
         }
         Ok(result)
