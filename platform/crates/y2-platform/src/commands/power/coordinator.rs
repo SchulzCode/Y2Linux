@@ -15,7 +15,7 @@ use std::{
     time::Duration,
 };
 use y2p_core::{
-    clock, command,
+    command,
     json::{Object, ObjectExt},
     power_identity::process_identity,
     py,
@@ -51,7 +51,7 @@ impl Step {
 
 /// `shutdown_trail(ctx, step, result)`: one pmsg line per shutdown step; best effort, never fails.
 pub fn shutdown_trail(root: &Root, step: &str, result: Option<&Step>) {
-    let mut line = format!("{:.2} shutdown {step}", clock::monotonic());
+    let mut line = format!("{:.2} shutdown {step}", root.clock().monotonic());
     if let Some(result) = result {
         if result.ok {
             line += " ok";
@@ -100,12 +100,13 @@ pub fn backlight_off(root: &Root) -> Step {
 
 /// `wait_gone(ctx, name, timeout)`: poll every 0.1 s until the path is gone.
 fn wait_gone(root: &Root, name: &str, timeout: f64) -> Step {
-    let deadline = clock::monotonic() + timeout;
+    let clock = root.clock();
+    let deadline = clock.monotonic() + timeout;
     while root.path(name).exists() {
-        if clock::monotonic() >= deadline {
+        if clock.monotonic() >= deadline {
             return Step::of(false, Some("still_present"));
         }
-        std::thread::sleep(Duration::from_millis(100));
+        clock.sleep(Duration::from_millis(100));
     }
     Step::of(true, None)
 }
@@ -157,7 +158,7 @@ impl Coordinator {
     }
 
     fn clock(&self) -> i128 {
-        i128::from(clock::monotonic_ns())
+        i128::from(self.root.clock().monotonic_ns())
     }
 
     fn intent(&mut self) -> &mut Object {

@@ -23,7 +23,6 @@ use std::{
 };
 use y2p_core::sys::{set_signal, Handler};
 use y2p_core::{
-    clock,
     json::{Object, ObjectExt},
     py::PyValue,
     Root,
@@ -54,10 +53,6 @@ fn tick_limit(root: &Root) -> Option<u64> {
     std::env::var("Y2_DAEMON_TICKS").ok()?.parse().ok()
 }
 
-fn now() -> i128 {
-    i128::from(clock::monotonic_ns())
-}
-
 pub fn serve(root: &Root) -> Outcome {
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
@@ -85,6 +80,8 @@ pub fn serve(root: &Root) -> Outcome {
     handle_signals();
     let server = unix::listen(&address)?;
     let ticks = tick_limit(root);
+    let clock = root.clock();
+    let now = || i128::from(clock.monotonic_ns());
     let mut iterations = 0u64;
     let mut next_sample: i128 = 0;
     let mut state = "Unavailable";
@@ -127,7 +124,7 @@ pub fn serve(root: &Root) -> Outcome {
             let record = Object::new()
                 .with("schema", 1i64)
                 .with("boot_id", coordinator.boot_id.clone())
-                .with("monotonic_ns", clock::monotonic_ns())
+                .with("monotonic_ns", clock.monotonic_ns())
                 .with("state", state)
                 .with("voltage_uv", voltage)
                 .with("reason", reason)

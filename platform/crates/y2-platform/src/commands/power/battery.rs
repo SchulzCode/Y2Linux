@@ -607,7 +607,7 @@ impl Soc {
 
 /// `sample(ctx, engine)`: one BAT0 reading on CLOCK_BOOTTIME (physical elapsed time incl. suspend).
 pub fn sample(root: &Root, engine: &mut Soc) -> Object {
-    let now = y2p_core::clock::boottime_ns() as f64 / 1e9;
+    let now = root.clock().boottime_ns() as f64 / 1e9;
     sample_at(root, engine, now)
 }
 

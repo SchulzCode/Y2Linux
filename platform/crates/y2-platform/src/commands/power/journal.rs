@@ -12,7 +12,6 @@ use serde_json::Value;
 use std::{fs, io::Read, os::unix::fs::OpenOptionsExt};
 use y2p_core::mounts::data_ready;
 use y2p_core::{
-    clock,
     json::{dumps, Separators},
     json::{Object, ObjectExt},
     power_journal::append_bounded,
@@ -515,7 +514,7 @@ impl Diagnostics {
             .with("usb_reason", usb_reason)
             .with("wall_time", wall())
             .with("monotonic_s", now)
-            .with("boottime_s", clock::boottime_ns() as f64 / 1e9)
+            .with("boottime_s", root.clock().boottime_ns() as f64 / 1e9)
             .with("boot_id", root.boot_id())
             .with("build_id", build_id)
             .with("features", features(root, golden))
@@ -728,7 +727,14 @@ impl PowerJournal {
         shutdown: Option<&Object>,
         event: Option<&str>,
     ) -> bool {
-        self.observe_at(root, state, battery, shutdown, event, clock::monotonic())
+        self.observe_at(
+            root,
+            state,
+            battery,
+            shutdown,
+            event,
+            root.clock().monotonic(),
+        )
     }
 
     /// `observe(..., now=now)`: at this CLOCK_MONOTONIC time (seconds).
@@ -860,7 +866,7 @@ impl PowerJournal {
             )
             .with("wall_time", wall())
             .with("monotonic_s", now)
-            .with("boottime_s", clock::boottime_ns() as f64 / 1e9)
+            .with("boottime_s", root.clock().boottime_ns() as f64 / 1e9)
             .with("boot_id", boot_id)
             .with("build", json(root, "/etc/y2linux/versions.json"))
             .with("state", state)
