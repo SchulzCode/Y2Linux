@@ -113,6 +113,14 @@ def cases():
         ('power-daemon-low-battery-no-reborn', ['power-daemon'], daemon(2, {
             **battery(3390000), '/data/system/platform/power-policy.json': critical_once})),
         ('power-daemon-critical-counting', ['power-daemon'], daemon(2, battery(3390000))),
+        # Records that cannot be written (a directory in their place) are noted on stderr; the daemon goes on
+        # (the Python one ended with a failure record): power.json, and the low-battery intent, which stays
+        # pending in memory and runs after its grace.
+        ('power-daemon-power-json-unwritable', ['power-daemon'], daemon(1, {
+            **battery(3850000), '/run/y2/power.json/x': ''})),
+        ('power-daemon-low-battery-intent-unwritable', ['power-daemon'], daemon(1, {
+            **battery(3390000), '/data/system/platform/power-policy.json': critical_once,
+            '/run/y2/shutdown.json/x': ''})),
         # Journal and diagnostics inputs
         ('power-daemon-no-data-mount', ['power-daemon'], daemon(1, {**battery(3850000), '/run/y2-data-device': '/dev/sda1\n'})),
         ('power-daemon-journal-inputs', ['power-daemon'], daemon(1, {

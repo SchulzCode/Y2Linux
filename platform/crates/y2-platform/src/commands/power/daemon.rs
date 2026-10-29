@@ -18,6 +18,7 @@ use crate::reply::{atomic_json, private_directory, unlink_missing_ok, Failure, O
 use serde::Serialize;
 use serde_json::Value;
 use std::{
+    io::Write,
     os::unix::{fs::FileTypeExt, net::UnixStream},
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
@@ -47,6 +48,29 @@ struct PowerRecord<'a> {
     battery: &'a BatteryStatus,
     qualification_reference: Option<&'a Value>,
     shutdown: Option<&'a Object>,
+}
+
+/// Failures the daemon outlives, on stderr (the supervisor's log) when one starts or its text
+/// changes: a write that fails every second leaves one line. The battery protection and the
+/// shutdown coordination go on; a daemon that ended here would only be restarted into the same
+/// failure, and a low-battery count would start over each time.
+#[derive(Default)]
+struct Notes(Vec<(&'static str, String)>);
+
+impl Notes {
+    fn check(&mut self, what: &'static str, result: Result<impl Sized, Failure>) {
+        let Err(error) = result else {
+            self.0.retain(|(w, _)| *w != what);
+            return;
+        };
+        let message = error.message();
+        if self.0.iter().any(|(w, m)| *w == what && *m == message) {
+            return;
+        }
+        let _ = writeln!(std::io::stderr(), "power-daemon: {what}: {message}");
+        self.0.retain(|(w, _)| *w != what);
+        self.0.push((what, message));
+    }
 }
 
 /// One request on the power socket.
@@ -133,6 +157,7 @@ pub fn serve(root: &Root) -> Outcome {
     let mut next_sample: i128 = 0;
     let mut state = "Unavailable";
     let mut battery_status = BatteryStatus::default();
+    let mut notes = Notes::default();
     while RUNNING.load(Ordering::SeqCst) {
         if now() >= next_sample {
             next_sample = now() + 1_000_000_000;
@@ -156,7 +181,11 @@ pub fn serve(root: &Root) -> Outcome {
             );
             if state == "ShutdownPending" && coordinator.intent.is_none() {
                 let grace = policy.as_ref().map_or(10, |p| p.grace_seconds);
-                coordinator.request(&"poweroff".into(), &"low_battery".into(), grace)?;
+                // An intent that could not be published is still pending here: it runs after
+                // its grace all the same.
+                let requested =
+                    coordinator.request(&"poweroff".into(), &"low_battery".into(), grace);
+                notes.check("low-battery shutdown request", requested);
             }
             journal.observe(
                 root,
@@ -177,7 +206,10 @@ pub fn serve(root: &Root) -> Outcome {
                 qualification_reference: policy.as_ref().map(|p| &p.qualification_reference),
                 shutdown: coordinator.intent.as_ref(),
             };
-            atomic_json(&runtime.join("power.json"), &record, false)?;
+            notes.check(
+                "/run/y2/power.json",
+                atomic_json(&runtime.join("power.json"), &record, false),
+            );
         }
         if coordinator.due() {
             journal.observe(
@@ -187,7 +219,7 @@ pub fn serve(root: &Root) -> Outcome {
                 coordinator.intent.as_ref(),
                 Some("shutdown_execute"),
             );
-            coordinator.execute()?;
+            coordinator.execute();
         }
         let wait = coordinator.wait_ns(next_sample);
         iterations += 1;

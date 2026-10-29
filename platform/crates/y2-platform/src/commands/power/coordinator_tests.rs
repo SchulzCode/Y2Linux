@@ -101,7 +101,7 @@ fn expire(c: &Coordinator, clock: &Manual) {
 /// The commands `execute` asked for.
 fn execute(c: &mut Coordinator, fixture: &Fixture) -> Calls {
     let before = fixture.calls().len();
-    c.execute().expect("execute");
+    c.execute();
     fixture.calls().split_off(before)
 }
 

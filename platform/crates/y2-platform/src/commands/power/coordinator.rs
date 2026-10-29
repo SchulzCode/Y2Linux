@@ -215,8 +215,11 @@ impl Coordinator {
         i128::from(self.root.clock().monotonic_ns())
     }
 
+    /// The intent `ack` and `execute` work on: both return before this when there is none.
     fn intent(&mut self) -> &mut Object {
-        self.intent.as_mut().expect("an intent")
+        self.intent
+            .as_mut()
+            .expect("ack and execute check for an intent first")
     }
 
     pub fn publish(&self) -> Result<(), Failure> {
@@ -336,11 +339,17 @@ impl Coordinator {
         (deadline - self.clock()).max(0)
     }
 
-    pub fn execute(&mut self) -> Result<Step, Failure> {
+    /// Run the shutdown steps of the pending intent and ask init for the transition; the init
+    /// request's result. A record that cannot be written stops no step (noted on stderr): a daemon
+    /// that ended here would resume the same intent and end again, and the player never went off.
+    pub fn execute(&mut self) -> Step {
         // Only the actual daemon entry point calls this; fixture contexts can
         // never signal a host process or execute host power commands.
-        self.intent().set("state", "Executing");
-        self.publish()?;
+        let Some(intent) = self.intent.as_mut() else {
+            return Step::of(false, Some("no_shutdown_intent"));
+        };
+        intent.set("state", "Executing");
+        self.publish_noted();
         let (action, reason) = {
             let intent = self.intent();
             (intent.value("action"), intent.value("reason"))
@@ -437,7 +446,7 @@ impl Coordinator {
             );
         }
         self.intent().set("stop_results", stop_results);
-        self.publish()?;
+        self.publish_noted();
         // BusyBox init owns rcK, unmount and final reboot(2). Never use -f.
         let action = action.as_str().unwrap_or_default().to_owned();
         let result = self.step(
@@ -449,13 +458,24 @@ impl Coordinator {
             self.intent()
                 .set("state", "Failed")
                 .set("failure", "init_shutdown_request_failed");
-            self.publish()?;
+            self.publish_noted();
         }
         // The watchdog stays armed and is fed no more (this daemon's exit at
         // rcK closes it without 'V': one last ping, still running). rcK,
         // unmount and reboot(2) take ~5 s and reboot(2) stops it (mtk_wdt
         // stop_on_reboot); a stall there, or a failed request, ends in its reset.
-        Ok(result)
+        result
+    }
+
+    /// `publish` during a shutdown: a failure is noted, the steps go on.
+    fn publish_noted(&self) {
+        if let Err(error) = self.publish() {
+            let _ = writeln!(
+                std::io::stderr(),
+                "power-daemon: /run/y2/shutdown.json: {}",
+                error.message()
+            );
+        }
     }
 
     fn begin(&mut self, name: &str) {
