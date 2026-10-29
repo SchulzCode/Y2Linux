@@ -2,20 +2,25 @@
 //! and test_exfat_readahead.py): the card's root answers commands with a fake whose state follows
 //! them (a `mount` writes its mountinfo line, blkid describes the card) and reads a manual clock.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{change::*, check::*, repair::*, *};
+use crate::commands::storage::{observe::MEDIA_STATE, sys::statvfs};
 use crate::commands::{observation::snapshot, reports::media::can_write};
 use crate::testing::{Fixture, Outcome};
 use std::{
     cell::Cell,
-    fs::FileTimes,
+    fs::{File, FileTimes},
+    io::{self, Read},
     os::unix::fs::symlink,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, MutexGuard,
     },
+    thread,
     time::UNIX_EPOCH,
+    time::{Duration, Instant},
 };
 use y2p_core::clock::Manual;
+use y2p_core::storage_media::{fat_benign_only, fat_findings, fat_other_shapes};
 
 // ---- the fixture card --------------------------------------------------------------------------
 
@@ -406,7 +411,7 @@ fn fat_card_pulled_while_mounted_is_mounted_again() {
     assert!(!card.repaired());
     assert_eq!(card.sd()["state"], "Ready");
     // The checker's findings come from its output on failure (`failure_output` for FAT).
-    assert!(include_str!("media.rs").contains(
+    assert!(include_str!("media/check.rs").contains(
         "command::run_with(root, &argv, timeout, command::LIMIT, filesystem == \"vfat\")"
     ));
 }

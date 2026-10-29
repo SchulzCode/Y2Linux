@@ -12,11 +12,10 @@
 //! and moved to "Old Player Files"), set up at once; a real library waits for the listener. Every step
 //! is recorded on Y2DATA and resumes after a power loss.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::media::mkdir_io;
 use super::observe::setup_status;
 use super::records::Properties;
 use super::sys::{
-    device_instance, exists, get, get_eq, is_symlink, isdigit, lock_now, mkdir,
+    device_instance, exists, get, get_eq, is_symlink, isdigit, lock_now, mkdir, mkdir_io,
     mounts as all_mounts, name, object, read, release_view, resolve, statvfs, to_object, Mount,
     Object,
 };

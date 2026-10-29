@@ -137,6 +137,21 @@ pub fn mkdir(path: &Path, mode: u32) -> Result<(), Failure> {
     mkdir_parents(path, mode)
 }
 
+/// `Path.mkdir(mode=mode, parents=True, exist_ok=True)` with the OSError itself.
+pub fn mkdir_io(path: &Path, mode: u32) -> io::Result<()> {
+    use std::os::unix::fs::DirBuilderExt;
+    if path.is_dir() {
+        return Ok(());
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    match fs::DirBuilder::new().mode(mode).create(path) {
+        Err(e) if !(e.kind() == io::ErrorKind::AlreadyExists && path.is_dir()) => Err(e),
+        _ => Ok(()),
+    }
+}
+
 // ---- mounts and block devices ------------------------------------------------------------------
 
 /// `observe.device_instance`: one gendisk lifetime, stable across kernfs inode reclamation.
