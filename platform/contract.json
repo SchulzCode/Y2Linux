@@ -8155,7 +8155,7 @@
     "Epoch check happens under the lock before any change; stale udhcpc from a previous association can never configure wlan0.",
     "Search domains from DHCP are never imported; only Wi-Fi supplies DNS; /etc/resolv.conf is a symlink into /run/y2/resolv.conf.",
     "Validation (ValueError) happens before the ip commands for bad env; a partial ip failure leaves wlan0 partially configured but publishes Failed.",
-    "renew flushes and re-adds the same address (brief outage) and deletes dns.json; DnsProbeSchedule key (epoch,bssid,ips) is unchanged so the next DNS probe waits for the confirmed deadline (<=300 s): status wifi shows Authenticated/dns_unavailable meanwhile. Preserve or fix deliberately."
+    "renew flushes and re-adds the same address (brief outage); a renew that repeats this boot and epoch's Authenticated lease (same address and DNS servers) keeps dns.json (fixed after the port (2026-10-29): every renew deleted it, so status wifi showed dns_unavailable for up to 300 s); other renews delete it"
    ]
   },
   {
@@ -10746,11 +10746,11 @@
    "exit_codes": [
     {
      "code": 0,
-     "when": "state Ready or Unavailable"
+     "when": "any card state it reports: Ready, Unavailable, Degraded, Failed (fixed after the port (2026-10-29): Degraded/Failed exited 1)"
     },
     {
      "code": 1,
-     "when": "state Failed or Degraded (e.g. a card mounted read-only after findings) (cli.py:423)"
+     "when": "an uncaught error (main.py error JSON)"
     },
     {
      "code": 2,
@@ -10990,7 +10990,8 @@
    "notes": [
     "early return when lifecycle.inventory == current and not retry: prints the OLD record unchanged",
     "inventory identity uses dev_t + diskseq + cid, never kernfs inode/ctime (media.py:231-237)",
-    "after an unmount the card is re-mounted only on inventory change (no remount after eject)"
+    "after an unmount the card is re-mounted only on inventory change (no remount after eject)",
+    "service-daemon also starts it when media::window_expired (a protected card mounted rw with no live holder): fixed after the port (2026-10-29); before, an expired window stayed writable until the next insertion, removal or retry"
    ]
   },
   {
@@ -11576,12 +11577,8 @@
      "when": "state Ready"
     },
     {
-     "code": 0,
-     "when": "state Unavailable not_mounted (failure key present but exit 0; cli.py:423 does not list write)"
-    },
-    {
      "code": 1,
-     "when": "state Failed (media_operation_in_progress|card_being_checked|remount_failed) or Degraded card_has_errors"
+     "when": "every answer with failure set: Unavailable not_mounted (fixed after the port (2026-10-29): it exited 0), Failed (media_operation_in_progress|card_being_checked|remount_failed), Degraded card_has_errors"
     },
     {
      "code": 2,
@@ -12503,6 +12500,10 @@
     },
     {
      "code": 1,
+     "when": ".stage.lock held by another check/stage -> {state: Failed, failure: update_in_progress}; download.json is not written (fixed after the port (2026-10-29): it was overwritten with Failed [Errno 11] while the first continued)"
+    },
+    {
+     "code": 1,
      "when": "any OSError/ValueError/TimeoutError (incl. stage lock busy, HTTPError, URLError after 3 attempts, core refusal) -> {'state':'Failed','failure':str} (cli.py:279-281)"
     },
     {
@@ -12657,6 +12658,10 @@
     {
      "code": 0,
      "when": "y2-update-core queue succeeded: prints the queued journal"
+    },
+    {
+     "code": 1,
+     "when": ".stage.lock held by another check/stage -> {state: Failed, failure: update_in_progress}; download.json is not written (fixed after the port (2026-10-29): it was overwritten with Failed [Errno 11] while the first continued)"
     },
     {
      "code": 1,
@@ -12989,7 +12994,7 @@
    "f_numbers": [],
    "env": [],
    "notes": [
-    "order matters: a battery refusal after 'rollback' leaves the journal RollbackPending (Reborn shows Restoring)",
+    "the battery gate runs before the core rollback, so a battery refusal leaves the journal unchanged (fixed after the port (2026-10-29): it left RollbackPending)",
     "core requires state Acknowledged|PendingHealth, backups root+bootimg, rollback_allowed or PendingHealth"
    ]
   },
@@ -13239,7 +13244,7 @@
    "exit_codes": [
     {
      "code": 0,
-     "when": "returns None (prints 'null') when not due / not terminal / no channel URL / not Online / clock not tls_ready, or the record dict"
+     "when": "{schema: 1, result: 'skipped', reason: not_due|update_pending|no_channel|offline|clock_not_ready} (fixed after the port (2026-10-29): it printed null), or the last-check record"
     },
     {
      "code": 1,
@@ -13330,7 +13335,8 @@
    "env": [],
    "notes": [
     "only reports availability; never downloads payloads",
-    "spawned only by service-daemon"
+    "spawned only by service-daemon",
+    "a busy .stage.lock (update_in_progress) leaves download.json alone"
    ]
   },
   {
@@ -13568,11 +13574,15 @@
    "exit_codes": [
     {
      "code": 0,
-     "when": "returns {'state':'Missing'|'Failed'|'Ready'} (install errors are caught and reported as state Failed with exit 0)"
+     "when": "{'state': 'Missing'|'Ready'}"
     },
     {
      "code": 1,
-     "when": "uncaught OSError/ValueError (e.g. atomic_json failure) -> {'state':'Failed','failure':str}"
+     "when": "{'state': 'Failed', 'reason': ...}: the copy could not be installed (fixed after the port (2026-10-29): it exited 0)"
+    },
+    {
+     "code": 1,
+     "when": "uncaught OSError/ValueError -> {state: Failed, failure: str}"
     },
     {
      "code": 2,

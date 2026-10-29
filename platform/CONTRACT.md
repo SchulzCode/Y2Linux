@@ -196,20 +196,22 @@ Python's (its last line, class and message, is). Compressed report archives diff
 members do not). File calls use the 64-bit interfaces on the 32-bit player (`stat64`, `statvfs64`, …), as Python
 does; `time_t` stays 32 bits there (dates after 2038, as the rest of the 32-bit userspace).
 
-## Suspected defects found while inventorying (not changed in Phase 0)
+## Defects found while inventorying and porting (fixed 2026-10-29)
 
-| Finding | Status |
+Ported 1:1 first (owner decision 2026-10-28: port, then fix), fixed in Rust after Phase 6, each with a test.
+
+| Finding | Fix |
 | --- | --- |
-| `usr/libexec/sftp-server` greps `internal-media.json` for `"state": "Ready"` (with a space); `atomic_json` writes `"state":"Ready"`, so SFTP is always rooted at `/data/music`, never Internal Storage | **confirmed on the player** (165: file has no space) |
-| `media status` exits 1 for a Degraded (read-only) card; `media write` exits 0 with `failure` set for `not_mounted`; `update auto-check` prints `null`; `firmware scan` exits 0 with install errors | read in code; behaviour callers rely on today |
-| A second `update check/stage` meeting the busy `.stage.lock` overwrites `download.json` with a Failed `[Errno 11]` while the first download continues | read in code |
-| `update rollback` calls the core before the battery gate: a battery refusal leaves the journal `RollbackPending` | read in code |
-| An expired media write window is re-protected only in a reconcile the service starts, which it skips when nothing changed | read in code; device check owed |
-| A DHCP renew deletes `dns.json`: Wi-Fi may show `dns_unavailable` for up to 300 s | read in code |
-
-Owner decision (2026-10-28): **port them 1:1 and fix them after parity** (plan §3.2, §8), so that the port ends with
-no Python in the image. A port of the affected code keeps the behaviour and marks it `// DEFECT (CONTRACT.md): …`;
-the differential tests keep expecting the Python behaviour until the fix.
+| `usr/libexec/sftp-server` grepped `internal-media.json` for `"state": "Ready"` (with a space); the record is compact, so SFTP always opened `/data/music` (confirmed on the player) | the grep takes both forms (`tests/test_sftp_root.py`) |
+| `media status` exited 1 for a Degraded (read-only) or Failed card | exits 0 for every state it reports (`storage::media_exit`) |
+| `media write` exited 0 with `failure` set for `not_mounted` | exits 1 whenever it sets `failure`; Reborn's write window treats it as no window |
+| A second `update check/stage` meeting the busy `.stage.lock` overwrote `download.json` with Failed `[Errno 11]` while the first download went on | refused as `update_in_progress` before anything is written; auto-check leaves the record alone; Reborn: "An update check is already running." |
+| `update rollback` asked the core before the battery gate: a battery refusal left the journal `RollbackPending` | the battery gate comes first |
+| `update auto-check` printed `null` when it did not check | prints `{"schema": 1, "result": "skipped", "reason": …}` (not_due, update_pending, no_channel, offline, clock_not_ready) |
+| `firmware scan` exited 0 when the owner's copy could not be installed | exits 1 with state Failed, as `firmware install` |
+| Battery: a voltage sample after fuel-gauge samples had no display value (Python's power daemon ended on a TypeError; found during the port) | it starts as a first sample |
+| An expired media write window was re-protected only by a reconcile, which the service started only on an insertion, removal or retry | the service also starts one when `media::window_expired` (protected, mounted rw, no live holder); device check owed |
+| A DHCP renew deleted `dns.json`: Wi-Fi showed `dns_unavailable` for up to 300 s | a renew of the same lease (boot, epoch, address, DNS servers) keeps it |
 
 ## Differential harness
 
