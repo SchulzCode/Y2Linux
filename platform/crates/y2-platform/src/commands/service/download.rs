@@ -139,7 +139,7 @@ pub fn base_url(url: &str) -> Result<String, String> {
 }
 
 /// `AllowlistedRedirect.redirect_request`'s check.
-fn redirect_allowed(url: &str, hosts: &[String]) -> bool {
+pub(super) fn redirect_allowed(url: &str, hosts: &[String]) -> bool {
     let parts = urlsplit(url);
     parts.scheme == "https"
         && parts
@@ -151,7 +151,7 @@ fn redirect_allowed(url: &str, hosts: &[String]) -> bool {
 }
 
 /// `quote(newurl, encoding='iso-8859-1', safe=string.punctuation)` then `urljoin(base, newurl)`.
-fn join(base: &str, location: &str) -> String {
+pub(super) fn join(base: &str, location: &str) -> String {
     let mut quoted = String::new();
     for c in location.chars() {
         if c.is_ascii_alphanumeric() || c.is_ascii_punctuation() {

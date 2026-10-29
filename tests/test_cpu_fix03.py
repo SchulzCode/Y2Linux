@@ -3,7 +3,6 @@ from pathlib import Path
 import importlib.util
 import json
 import sys
-import tempfile
 import unittest
 from test_audio import function
 from test_power import run_c
@@ -280,58 +279,6 @@ int main(void){
             self.assertIn('y2_system_idle_restore()', (ROOT/'kernel/platform'/caller).read_text())
 
 
-class SdInventoryIdentity(unittest.TestCase):
-    def setUp(self):
-        sys.path.insert(0, str(ROOT/'tools/platform'))
-        from y2_platform.common import Context
-        from y2_platform import service
-        self.service = service
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        self.ctx = Context(self.temp.name)
-        self.root = Path(self.temp.name)
-
-    def card(self, diskseq='17', cid='0353445331364780'):
-        disk = self.root/'sys/devices/platform/11240000.mmc/mmc_host/mmc1/mmc1:0001/block/mmcblk1'
-        part = disk/'mmcblk1p1'
-        part.mkdir(parents=True, exist_ok=True)
-        (disk/'device').mkdir(exist_ok=True)
-        (disk/'dev').write_text('179:24\n')
-        (disk/'diskseq').write_text(diskseq + '\n')
-        (disk/'device/cid').write_text(cid + '\n')
-        (part/'dev').write_text('179:25\n')
-        (part/'partition').write_text('1\n')
-        block = self.root/'sys/class/block'
-        block.mkdir(parents=True, exist_ok=True)
-        for name, target in (('mmcblk1', disk), ('mmcblk1p1', part)):
-            link = block/name
-            if link.is_symlink():
-                link.unlink()
-            link.symlink_to(target)
-
-    def test_kernfs_reclaim_is_not_a_media_change(self):
-        from y2_platform.media import inventory
-        self.card()
-        before = [list(v) for v in inventory(self.ctx)]
-        self.assertEqual(before, [['mmcblk1', '179:24', '17', '0353445331364780'],
-                                  ['mmcblk1p1', '179:25', '17', '0353445331364780']])
-        # drop_caches: kernfs recreates the class links (new inodes and ctimes).
-        self.card()
-        self.assertEqual([list(v) for v in inventory(self.ctx)], before)
-        path = self.root/'run/y2/media-lifecycle.json'
-        path.parent.mkdir(parents=True)
-        path.write_text(json.dumps({'schema': 1, 'inventory': before, 'retry': False}))
-        self.assertFalse(self.service.media_reconcile_needed(self.ctx))
-        # Re-enumeration of the identical card allocates a new diskseq.
-        self.card(diskseq='18')
-        self.assertTrue(self.service.media_reconcile_needed(self.ctx))
-
-    def test_source_no_longer_uses_inode_identity(self):
-        media = (ROOT/'tools/platform/y2_platform/media.py').read_text()
-        self.assertNotIn('st_ino', media)
-        self.assertNotIn('st_ctime', media)
-
-
 DEVICE = r'''
 enum { Y2_PM_PHASE_RESUME_NOIRQ = 5, Y2_PM_PHASE_EARLY = 6, Y2_PM_PHASE_RESUME = 7 };
 struct device { const char *name; };
@@ -442,21 +389,6 @@ int main(void){
                         probe.index('mtk_wdt_init(&mtk_wdt->wdt_dev);'))
         journal = (ROOT/'kernel/platform/pm-journal.c').read_text()
         self.assertIn('&reset_status_attr.attr', journal)
-
-    def test_boot_journal_records_the_decoded_cause(self):
-        sys.path.insert(0, str(ROOT/'tools/platform'))
-        from y2_platform.boot import reset_cause, transition
-        self.assertEqual(reset_cause('valid=1 raw=0x80000000 cause=watchdog_timeout hw_watchdog=1'),
-                         {'reset_cause': 'watchdog_timeout', 'reset_cause_reason': 'rgu_wdt_status_at_probe',
-                          'reset_status_raw': '0x80000000'})
-        zero = reset_cause('valid=1 raw=0x0 cause=none_reported')
-        self.assertIsNone(zero['reset_cause'])
-        self.assertEqual(zero['reset_cause_reason'], 'rgu_status_none_reported')
-        self.assertEqual(reset_cause(None)['reset_cause_reason'], 'not_observed')
-        record = transition(None, 'b1', 'platform_start', {}, 1,
-                            reset_cause('valid=1 raw=0x40000000 cause=software_reset'))
-        self.assertEqual(record['reset_cause'], 'software_reset')
-        self.assertIsNone(transition(None, 'b1', 'platform_start', {}, 1)['reset_cause'])
 
 
 class DvfsAdmissionLabel(unittest.TestCase):

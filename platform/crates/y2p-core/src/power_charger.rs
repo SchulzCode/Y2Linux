@@ -66,6 +66,10 @@ pub fn observe(root: &Root) -> Object {
 }
 
 #[cfg(test)]
+#[path = "charger_state_tests.rs"]
+mod charger_state_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::json::{dumps, Separators};

@@ -295,6 +295,10 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
 mod boot_tests;
 
 #[cfg(test)]
+#[path = "boot_reset_cause_tests.rs"]
+mod boot_reset_cause_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

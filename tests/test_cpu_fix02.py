@@ -471,92 +471,6 @@ int main(void){
         self.assertIn('!paused', function(s, 'sample_work_fn'))
 
 
-class ScreenOffBackground(unittest.TestCase):
-    """Userspace sources found for the recurring screen-off bursts."""
-    def setUp(self):
-        import sys
-        import tempfile
-        sys.path.insert(0, str(ROOT/'tools/platform'))
-        from y2_platform.common import Context
-        from y2_platform import service
-        self.service = service
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        self.ctx = Context(self.temp.name)
-        self.root = Path(self.temp.name)
-
-    def card(self, present):
-        block = self.root/'sys/class/block'
-        block.mkdir(parents=True, exist_ok=True)
-        target = self.root/'sys/devices/platform/11240000.mmc/mmc_host/mmc1/mmc1:0001/block/mmcblk1'
-        target.mkdir(parents=True, exist_ok=True)
-        link = block/'mmcblk1'
-        if present and not link.is_symlink():
-            link.symlink_to(target)
-        if not present and link.is_symlink():
-            link.unlink()
-
-    def lifecycle(self, value):
-        path = self.root/'run/y2/media-lifecycle.json'
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(value))
-
-    def test_media_reconcile_spawns_only_when_its_own_noop_is_false(self):
-        from y2_platform.media import inventory
-        self.assertTrue(self.service.media_reconcile_needed(self.ctx))  # first run
-        self.card(True)
-        current = [list(v) for v in inventory(self.ctx)]
-        self.assertEqual(len(current), 1)
-        self.lifecycle({'schema': 1, 'inventory': current, 'retry': False})
-        self.assertFalse(self.service.media_reconcile_needed(self.ctx))
-        self.lifecycle({'schema': 1, 'inventory': current, 'retry': True})
-        self.assertTrue(self.service.media_reconcile_needed(self.ctx))  # bounded retry kept
-        self.lifecycle({'schema': 1, 'inventory': current, 'retry': False})
-        self.card(False)
-        self.assertTrue(self.service.media_reconcile_needed(self.ctx))  # removal
-        self.lifecycle({'schema': 1, 'inventory': [], 'retry': False})
-        self.assertFalse(self.service.media_reconcile_needed(self.ctx))
-        self.card(True)
-        self.assertTrue(self.service.media_reconcile_needed(self.ctx))  # insertion
-
-    def test_dark_cadence_keeps_network_fresh_and_health_deadline_safe(self):
-        light = self.root/'sys/class/backlight/y2/brightness'
-        power = light.parent/'bl_power'
-        self.assertFalse(self.service.display_dark(self.ctx))  # unknown is not dark
-        light.parent.mkdir(parents=True)
-        light.write_text('7\n')
-        power.write_text('0\n')
-        self.assertFalse(self.service.display_dark(self.ctx))
-        power.write_text('4\n')  # Reborn ScreenSleep: FB_BLANK_POWERDOWN, brightness kept
-        self.assertTrue(self.service.display_dark(self.ctx))
-        power.write_text('0\n')
-        light.write_text('0\n')
-        self.assertTrue(self.service.display_dark(self.ctx))
-        reborn = (ROOT.parent/'Y2Reborn/crates/reborn-platform/src/power.rs')
-        if reborn.exists():
-            self.assertIn('bl_power', reborn.read_text())
-        self.assertEqual(self.service.cadence(False, True), (3, 30))
-        self.assertEqual(self.service.cadence(True, False), (10, 30))  # pending health keeps 30 s
-        self.assertEqual(self.service.cadence(True, True), (10, 300))
-        self.assertLess(self.service.DARK_INTERVAL_S + 3, 15)  # Reborn stale limit
-        settled = self.service.health_settled
-        self.assertFalse(settled(None))
-        self.assertFalse(settled({'ok': False, 'output': '{"state":"Idle"}'}))
-        self.assertFalse(settled({'ok': True, 'output': '{"state":"PendingHealth"}'}))
-        self.assertFalse(settled({'ok': True, 'output': 'garbage'}))
-        self.assertTrue(settled({'ok': True, 'output': '{"state":"Idle"}'}))
-
-    def test_service_loop_uses_gated_reconcile_and_cadence(self):
-        s = (ROOT/'tools/platform/y2_platform/service.py').read_text()
-        loop = s[s.index('def serve('):]
-        # B5: reconcile runs in its own process, still started only when needed.
-        self.assertIn("reconcile = media_reconcile(ctx, reconcile, before)", loop)
-        helper = s[s.index('def media_reconcile('):s.index('def daily_update_check(')]
-        self.assertIn("not media_reconcile_needed(ctx)", helper)
-        self.assertIn('next_maintenance = before + maintenance', loop)
-        self.assertIn('interval - (time.monotonic() - before)', loop)
-
-
 JOURNAL_FIXTURE = r'''
 #pragma clang diagnostic ignored "-Wunused-variable"
 #pragma clang diagnostic ignored "-Wunused-function"
@@ -838,23 +752,6 @@ def harness():
 
 
 class Fix02Harness(unittest.TestCase):
-    def test_charger_presence_is_not_charging(self):
-        import sys
-        sys.path.insert(0, str(ROOT/'tools/platform'))
-        from y2_platform.charger_state import classify
-        hold = 'phase=HOLD source=1 source_valid=1 charge_limit_ua=70000\nactive=0 online=1 present=1 fault=0x0 sample_error=0 stop_error=0 paused=0 last_error=0'
-        self.assertEqual(classify(hold, True, 'Not charging')['category'], 'charger_hold')
-        self.assertFalse(classify(hold, True, 'Not charging')['expect_refusal'])  # the Fix01 physical state
-        active = hold.replace('phase=HOLD', 'phase=CONSTANT_CURRENT').replace('active=0', 'active=1')
-        self.assertTrue(classify(active, True, 'Charging')['expect_refusal'])
-        self.assertTrue(classify(active, True, 'Charging')['phase_consistent'])
-        failed = hold.replace('stop_error=0', 'stop_error=-5')
-        self.assertEqual(classify(failed, True, 'Not charging')['category'], 'charger_stop_error')
-        inhibited = hold.replace('phase=HOLD', 'phase=INHIBITED')
-        self.assertEqual(classify(inhibited, True, 'Not charging')['category'], 'usb_present_not_charging')
-        self.assertEqual(classify(inhibited.replace('online=1', 'online=0'), False, 'Discharging')['category'], 'no_usb')
-        self.assertEqual(classify(None, True, None)['category'], 'unknown')
-
     def test_plan_is_offline_and_run_requires_independent_observer(self):
         import subprocess
         tool = str(ROOT/'tools/development/qualify-cpu-fix02.py')
