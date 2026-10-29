@@ -30,10 +30,11 @@ and the player; treat an entry as a map to the code, and re-read the code it cit
 
 ## Rules every subcommand shares
 
-**Entry and errors.** `/usr/sbin/y2-platform` is `exec /usr/bin/python3 -I /usr/lib/y2-platform/main.py "$@"`
-with `PYTHONPATH=/usr/lib/y2-platform`, `PYTHONDONTWRITEBYTECODE=1`. `main.py` turns an escaping `OSError`,
-`ValueError` or `RuntimeError` into `{"schema": "org.y2linux.error/v1", "state": "Failed", "reason": str(error),
-"type": <class name>}` and exit 1. Other exceptions give a traceback on stderr, empty stdout, exit 1. Argument
+**Entry and errors.** `/usr/sbin/y2-platform` is the Rust binary (it was `exec /usr/bin/python3 -I
+/usr/lib/y2-platform/main.py "$@"` until test build 169). An error no command turns into its own record gives
+`{"schema": "org.y2linux.error/v1", "state": "Failed", "reason": <message>, "type": <class name>}` and exit 1;
+since the refactor (test build 171) that includes input of an unexpected type, which the Python platform (and the
+1:1 port) ended with a traceback on stderr and empty stdout. Argument
 errors exit 2 with usage on stderr ([Arguments](#arguments)). Several commands catch their own errors first and print a different shape:
 `{"state": "Failed", "failure": str(error)}` (export-state, reset, firmware, update, time-set, time-remember),
 `{"failure": "report_failed", "reason": <class name>}` (report), `{"state": "Failed", "failure":
@@ -191,9 +192,8 @@ default, required, flag or append, help) and a small parser over it.
 Where Python raises an exception main.py catches, Rust prints main.py's error record with Python's exact
 `str(error)` and class (`ipaddress`'s `AddressValueError` and `NetmaskValueError`, `int()`'s `ValueError`,
 `UnicodeEncodeError`), or the command's own failure shape where the command catches it; where Python crashes
-(`TypeError`, `AttributeError`, `KeyError`, `IndexError`), Rust ends the same way (`Failure::Crash`: nothing more
-on stdout, a traceback on stderr, exit 1), after the same file changes and subprocess requests except where a
-module says otherwise (a few `update` crashes stop before records Python would have changed). Each command has
+(`TypeError`, `AttributeError`, `KeyError`, `IndexError`), the port ended the same way; since the refactor these
+are refusal records (see [the refactor](#refactor-2026-10-29-test-build-171)). Each command has
 golden cases, recorded from the Python platform before it was removed (see [below](#golden-suite)).
 
 | Command (forms) | Module | Python |
@@ -215,10 +215,41 @@ Known, accepted differences (none reachable from the platform's own records): JS
 record names the record, not Python's temporary file; `str.splitlines` separators other than `\n`/`\r\n` in
 sysfs text; a valid UTF-8 argument of an internal programme holding U+10DC80..U+10DCFF reads as an escaped
 byte; a `y2-suspend-record`
-result beyond 64 bits is refused like a non-number (y2-suspend passes exit codes). A traceback's frames are not
-Python's (its last line, class and message, is). Compressed report archives differ in bytes from zlib's (their
+result beyond 64 bits is refused like a non-number (y2-suspend passes exit codes). Compressed report archives differ in bytes from zlib's (their
 members do not). File calls use the 64-bit interfaces on the 32-bit player (`stat64`, `statvfs64`, …), as Python
 does; `time_t` stays 32 bits there (dates after 2038, as the rest of the 32-bit userspace).
+
+## Refactor (2026-10-29, test build 171)
+
+[PLATFORM-RUST-REFACTOR-PLAN.md](../docs/planning/PLATFORM-RUST-REFACTOR-PLAN.md): one shared core, typed records,
+split modules, tests through the root's runner and clock. Outputs stay byte-identical (checked against the build
+before it with `tools/development/platform-raw-goldens.py`, key order and spacing included) except these owner
+decisions and fixes, each a re-recorded golden:
+- **Arguments:** `cli.rs` replaces the argparse emulation ([Arguments](#arguments)): exact option names and
+  `--opt=value`, errors exit 2; abbreviations and Python's number spellings are refused.
+- **Crash paths are refusal records:** every input of an unexpected type that ended in a traceback now prints a
+  failure record and exits 1 (the command's own shape, e.g. `{"state": "Failed", "failure": "invalid_…"}`, or the
+  error record). Reasons by group: observation `invalid_timer_list`, `invalid_power_record`,
+  `invalid_sleep_receipt`, `invalid_ip_output`, `invalid_network_record`, `invalid_update_journal`,
+  `invalid_previous_boot_evidence`, `invalid_codec_inventory`, `invalid_capabilities_template`,
+  `evidence_record_too_large`; connectivity/devices `invalid_codec_inventory`, `invalid_codec_runtime_record`,
+  `invalid_transfer_manifest` (checked before anything is sealed or published); storage
+  `usb_transfer_views_invalid`, `sd_write_holders_invalid`, `card_identity_invalid`, `power_battery_invalid`,
+  `filesystem_check_invalid`, `setup_record_incomplete`; service `update_channel_unreadable`,
+  `update_health_record_unreadable`, `record_unreadable: …`, `responder_stop_timeout`; reports (as the `reason`
+  of `report_failed`) `report_state_unreadable`, `queued_report_unreadable`, `reborn_health_unreadable`,
+  `power_record_unreadable`, `session_unreadable`, `update_state_unreadable`, `reset_plan_unreadable`,
+  `reset_record_unreadable`, `scrubber_pattern_too_large`; power `invalid_power_response`. Some texts still carry
+  Python's message (owner review open).
+- **Daemons survive odd records:** power-daemon notes an unwritable power.json/shutdown.json or a damaged
+  acknowledgement and carries on (a shutdown still runs every step); service-daemon skips a report retry time,
+  traffic counter or USB mode of the wrong type; connectivity-daemon keeps the other helpers when the codec
+  inventory is unreadable. The sleep helper's restore runs every step even when one fails.
+- **DHCP:** a renew that repeats this boot's and epoch's Authenticated lease (address, prefix length, routes, DNS)
+  runs no `ip` command and keeps resolv.conf and dns.json; dhcp.json and the event's stdout gain `prefix_length`
+  and `routes` (`[[destination, gateway]]`) to compare with.
+- **Fixture argv:** below a fixture root the DNS probe records `["getaddrinfo", <host>]` (it named the Python
+  one-liner).
 
 ## Defects found while inventorying and porting (fixed 2026-10-29)
 
