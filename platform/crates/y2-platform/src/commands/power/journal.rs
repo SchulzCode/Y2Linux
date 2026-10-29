@@ -7,10 +7,10 @@
 //! disables battery protection: it is counted and the row dropped.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::crash;
-use crate::commands::boot::mountinfo;
 use crate::commands::time::wall;
 use serde_json::Value;
 use std::{fs, io::Read, os::unix::fs::OpenOptionsExt};
+use y2p_core::mounts::data_ready;
 use y2p_core::{
     clock,
     json::{dumps, Separators},
@@ -47,16 +47,6 @@ fn parent_name(path: &std::path::Path) -> String {
 /// `ctx.json(name)` without a default.
 fn json(root: &Root, name: &str) -> Value {
     root.json(name).unwrap_or(Value::Null)
-}
-
-/// `sleep_diagnostics.data_ready`: never create persistent state on an unverified or missing data
-/// mount.
-pub fn data_ready(root: &Root) -> bool {
-    let mounts = mountinfo(&root.read("/proc/self/mountinfo").unwrap_or_default());
-    let data: Vec<_> = mounts.iter().filter(|m| m.path == "/data").collect();
-    root.read("/data/.y2data-schema").as_deref() == Some("1")
-        && data.len() == 1
-        && Some(data[0].source.as_str()) == root.read("/run/y2-data-device").as_deref()
 }
 
 /// `idle_counters(ctx)`: cheap cumulative counters only when a journal row is already due.

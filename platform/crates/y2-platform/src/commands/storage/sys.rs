@@ -15,6 +15,7 @@ use std::{
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+pub use y2p_core::mounts::{mounts, Mount};
 use y2p_core::py::PyValue;
 use y2p_core::{
     lock,
@@ -165,101 +166,6 @@ pub fn available(vfs: &libc::statvfs64) -> u64 {
 }
 
 // ---- mounts and block devices ------------------------------------------------------------------
-
-/// One `observe.mountinfo` entry.
-#[derive(Clone, Debug)]
-pub struct Mount {
-    pub mount_id: i64,
-    pub device_id: String,
-    pub root: String,
-    pub path: String,
-    pub options: Vec<String>,
-    pub filesystem: String,
-    pub source: String,
-    pub super_options: Vec<String>,
-}
-
-impl Mount {
-    /// The dict Python builds.
-    pub fn value(&self) -> Object {
-        let mut map = Object::new();
-        map.insert("mount_id".into(), json!(self.mount_id));
-        map.insert("device_id".into(), json!(self.device_id));
-        map.insert("root".into(), json!(self.root));
-        map.insert("path".into(), json!(self.path));
-        map.insert("options".into(), json!(self.options));
-        map.insert("filesystem".into(), json!(self.filesystem));
-        map.insert("source".into(), json!(self.source));
-        map.insert("super_options".into(), json!(self.super_options));
-        map
-    }
-
-    pub fn has_option(&self, option: &str) -> bool {
-        self.options.iter().any(|o| o == option)
-    }
-
-    pub fn read_only(&self) -> bool {
-        self.has_option("ro") || self.super_options.iter().any(|o| o == "ro")
-    }
-}
-
-fn unescape(value: &str) -> String {
-    let (mut out, mut rest) = (String::new(), value);
-    while let Some(index) = rest.find('\\') {
-        out.push_str(&rest[..index]);
-        let code = &rest[index + 1..];
-        match ["040", "011", "012", "134"]
-            .iter()
-            .find(|c| code.starts_with(**c))
-        {
-            Some(c) => {
-                out.push(char::from(u8::from_str_radix(c, 8).expect("octal")));
-                rest = &code[3..];
-            }
-            None => {
-                out.push('\\');
-                rest = code;
-            }
-        }
-    }
-    out + rest
-}
-
-/// `observe.mountinfo`.
-pub fn mountinfo(text: &str) -> Vec<Mount> {
-    let mut result = Vec::new();
-    for line in text.lines() {
-        let Some((left, right)) = line.split_once(" - ") else {
-            continue;
-        };
-        let (a, b): (Vec<&str>, Vec<&str>) = (
-            left.split_whitespace().collect(),
-            right.split_whitespace().collect(),
-        );
-        if a.len() < 6 || b.len() < 3 || !isdigit(a[0]) {
-            continue;
-        }
-        let Ok(mount_id) = a[0].parse::<i64>() else {
-            continue;
-        };
-        result.push(Mount {
-            mount_id,
-            device_id: a[2].to_owned(),
-            root: unescape(a[3]),
-            path: unescape(a[4]),
-            options: a[5].split(',').map(str::to_owned).collect(),
-            filesystem: b[0].to_owned(),
-            source: unescape(b[1]),
-            super_options: b[2].split(',').map(str::to_owned).collect(),
-        });
-    }
-    result
-}
-
-/// `mountinfo(ctx.read('/proc/self/mountinfo'))`.
-pub fn mounts(root: &Root) -> Vec<Mount> {
-    mountinfo(&root.read("/proc/self/mountinfo").unwrap_or_default())
-}
 
 /// `observe.device_instance`: one gendisk lifetime, stable across kernfs inode reclamation.
 ///
@@ -597,18 +503,6 @@ pub fn maintenance(root: &Root) -> Result<Lease, Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn mountinfo_keeps_every_field() {
-        let mounts =
-            mountinfo("51 22 179:97 / /media/sd ro,nosuid - vfat /dev/mmcblk1p1 rw,fmask=0177\nx");
-        assert_eq!(mounts.len(), 1);
-        let value = mounts[0].value();
-        assert_eq!(value["mount_id"], 51);
-        assert_eq!(value["options"], json!(["ro", "nosuid"]));
-        assert_eq!(value["super_options"], json!(["rw", "fmask=0177"]));
-        assert!(mounts[0].read_only());
-    }
 
     #[test]
     fn timestamps_are_iso() {

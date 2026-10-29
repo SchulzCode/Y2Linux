@@ -15,80 +15,12 @@ use std::{
     path::Path,
     time::Duration,
 };
+pub use y2p_core::mounts::{mountinfo, mounts_at, Mount};
 use y2p_core::{clock as kernel, command, Root};
-
-pub struct Mount {
-    pub mount_id: i64,
-    pub device_id: String,
-    pub path: String,
-    pub options: Vec<String>,
-    pub source: String,
-    pub super_options: Vec<String>,
-}
-
-fn unescape(value: &str) -> String {
-    let mut out = String::new();
-    let mut rest = value;
-    while let Some(index) = rest.find('\\') {
-        out.push_str(&rest[..index]);
-        let code = &rest[index + 1..];
-        let replaced = ["040", "011", "012", "134"]
-            .iter()
-            .find(|c| code.starts_with(*c))
-            .map(|c| char::from(u8::from_str_radix(c, 8).expect("octal")));
-        match replaced {
-            Some(c) => {
-                out.push(c);
-                rest = &code[3..];
-            }
-            None => {
-                out.push('\\');
-                rest = code;
-            }
-        }
-    }
-    out + rest
-}
-
-/// `observe.mountinfo(text)`.
-pub fn mountinfo(text: Option<&str>) -> Vec<Mount> {
-    let mut result = Vec::new();
-    for line in super::pyre::splitlines(text.unwrap_or("")) {
-        let Some((left, right)) = line.split_once(" - ") else {
-            continue;
-        };
-        let a: Vec<&str> = left
-            .split(super::pyre::isspace)
-            .filter(|s| !s.is_empty())
-            .collect();
-        let b: Vec<&str> = right
-            .split(super::pyre::isspace)
-            .filter(|s| !s.is_empty())
-            .collect();
-        if a.len() < 6 || b.len() < 3 || !a[0].bytes().all(|c| c.is_ascii_digit()) {
-            continue;
-        }
-        let Ok(mount_id) = a[0].parse() else {
-            continue;
-        };
-        result.push(Mount {
-            mount_id,
-            device_id: a[2].to_owned(),
-            path: unescape(a[4]),
-            options: a[5].split(',').map(str::to_owned).collect(),
-            source: unescape(b[1]),
-            super_options: b[2].split(',').map(str::to_owned).collect(),
-        });
-    }
-    result
-}
 
 /// `media.mounts(ctx)`: the mounts on /media/sd.
 fn mounts(root: &Root) -> Vec<Mount> {
-    mountinfo(root.read("/proc/self/mountinfo").as_deref())
-        .into_iter()
-        .filter(|m| m.path == "/media/sd")
-        .collect()
+    mounts_at(root, "/media/sd")
 }
 
 fn eq(value: Option<&Py>, other: &Py) -> bool {

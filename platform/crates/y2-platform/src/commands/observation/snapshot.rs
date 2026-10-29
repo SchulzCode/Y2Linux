@@ -10,6 +10,7 @@ use super::{
 use crate::{regex, reply::Failure};
 use serde_json::{json, Map, Value};
 use std::path::Path;
+use y2p_core::mounts::Mount;
 use y2p_core::py::PyValue;
 use y2p_core::{
     clock, command,
@@ -20,53 +21,6 @@ use y2p_core::{
 };
 
 pub type Snapshot = Map<String, Value>;
-
-/// `observe.mountinfo`: every field, as the snapshot shows it.
-pub fn mountinfo(text: Option<&str>) -> Vec<Map<String, Value>> {
-    let mut result = Vec::new();
-    for line in splitlines(text.unwrap_or_default()) {
-        let (left, right) = line.split_once(" - ").unwrap_or((line, ""));
-        let (a, b) = (split_ws(left), split_ws(right));
-        if !line.contains(" - ")
-            || a.len() < 6
-            || b.len() < 3
-            || !a[0].chars().all(|c| c.is_ascii_digit())
-        {
-            continue;
-        }
-        let Some(mount_id) = int(a[0]) else { continue };
-        let list = |s: &str| Value::from(s.split(',').collect::<Vec<_>>());
-        let mut mount = Map::new();
-        mount.insert("mount_id".into(), json!(mount_id));
-        mount.insert("device_id".into(), json!(a[2]));
-        mount.insert("root".into(), json!(unescape(a[3])));
-        mount.insert("path".into(), json!(unescape(a[4])));
-        mount.insert("options".into(), list(a[5]));
-        mount.insert("filesystem".into(), json!(b[0]));
-        mount.insert("source".into(), json!(unescape(b[1])));
-        mount.insert("super_options".into(), list(b[2]));
-        result.push(mount);
-    }
-    result
-}
-
-fn unescape(value: &str) -> String {
-    regex!(r"\\(040|011|012|134)")
-        .replace_all(
-            value,
-            |c: &y2p_core::observation_support::regex::Captures| {
-                char::from(u8::from_str_radix(&c[1], 8).expect("octal")).to_string()
-            },
-        )
-        .into_owned()
-}
-
-pub fn mounts_at<'a>(mounts: &'a [Map<String, Value>], path: &str) -> Vec<&'a Map<String, Value>> {
-    mounts
-        .iter()
-        .filter(|m| m.get("path").and_then(Value::as_str) == Some(path))
-        .collect()
-}
 
 pub fn field<'a>(mount: &'a Map<String, Value>, key: &str) -> &'a str {
     mount.get(key).and_then(Value::as_str).unwrap_or_default()
@@ -1096,13 +1050,13 @@ fn statvfs(path: &Path) -> Option<libc::statvfs64> {
 }
 
 pub fn storage(root: &Root) -> Result<Value, Failure> {
-    let mounts = mountinfo(root.read("/proc/self/mountinfo").as_deref());
+    let mounts = y2p_core::mounts::mounts(root);
     let boot = root.read("/proc/sys/kernel/random/boot_id");
     let boot_value = text(boot.clone());
     let mut volumes = Vec::new();
     // Index order is a consumer contract: root, Y2DATA, SD, then Y2Media (internal user media).
     for target in ["/", "/data", "/media/sd", "/media/internal"] {
-        let found = mounts_at(&mounts, target);
+        let found: Vec<&Mount> = mounts.iter().filter(|m| m.path == target).collect();
         // Stacked mounts are ambiguous to consumers; fail closed.
         if found.len() != 1 {
             let mut volume: Map<String, Value> = serde_json::from_value(json!({"path": target,
@@ -1115,7 +1069,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
             volumes.push(Value::Object(volume));
             continue;
         }
-        let mut item = found[0].clone();
+        let mut item = found[0].value();
         let device_id = field(&item, "device_id").to_owned();
         let mount_id = item.get("mount_id").cloned().unwrap_or(Value::Null);
         item.insert(
@@ -1727,11 +1681,11 @@ mod tests {
 
     #[test]
     fn mount_lines_carry_every_field() {
-        let mounts = mountinfo(Some(
+        let mounts = y2p_core::mounts::mountinfo(
             "30 22 179:9 / /data rw,noatime - ext4 /dev/mmcblk0p9 rw\nx\n31 1 0:1 / /my\\040dir rw - tmpfs t rw",
-        ));
+        );
         assert_eq!(mounts.len(), 2);
-        assert_eq!(mounts[0]["options"], json!(["rw", "noatime"]));
-        assert_eq!(mounts[1]["path"], "/my dir");
+        assert_eq!(mounts[0].value()["options"], json!(["rw", "noatime"]));
+        assert_eq!(mounts[1].path, "/my dir");
     }
 }

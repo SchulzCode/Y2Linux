@@ -2,7 +2,7 @@
 //! (`bench-storage`, `bench-library`).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    snapshot::{device_instance, mountinfo, mounts_at, storage, storage_mode},
+    snapshot::{device_instance, storage, storage_mode},
     util::{self, read, split_ws, splitlines},
 };
 use crate::{
@@ -286,22 +286,19 @@ impl<'a> Scratch<'a> {
     }
 
     fn identity(&self) -> Result<Identity> {
-        let mounts = mountinfo(self.root.read("/proc/self/mountinfo").as_deref());
-        let found = mounts_at(&mounts, &self.volume);
+        let found = y2p_core::mounts::mounts_at(self.root, &self.volume);
         if found.len() != 1 {
             return Err(Error::raised(libc::ENODEV, "source_disappeared"));
         }
-        let mount = found[0];
-        let device = super::snapshot::field(mount, "device_id").to_owned();
-        let read_only = mount["options"]
-            .as_array()
-            .is_some_and(|o| o.iter().any(|v| v == "ro"));
+        let mount = &found[0];
+        let device = mount.device_id.clone();
+        let read_only = mount.has_option("ro");
         if !self.root.path(&format!("/sys/dev/block/{device}")).exists() || read_only {
             return Err(Error::raised(libc::ENODEV, "source_unavailable"));
         }
         Ok(Identity(
             util::boot_id(self.root),
-            mount["mount_id"].clone(),
+            json!(mount.mount_id),
             device.clone(),
             device_instance(self.root, &device),
         ))

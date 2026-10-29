@@ -32,6 +32,7 @@ use std::{
     },
     path::{Path, PathBuf},
 };
+use y2p_core::mounts::mounts_at;
 use y2p_core::py::PyValue;
 use y2p_core::{
     command,
@@ -150,13 +151,6 @@ fn valid(props: &Object) -> bool {
         && get(props, "UUID").as_str() == Some(UUID)
 }
 
-fn mounts(root: &Root) -> Vec<Mount> {
-    all_mounts(root)
-        .into_iter()
-        .filter(|m| m.path == PATH)
-        .collect()
-}
-
 type Fields<'a> = &'a [(&'a str, Value)];
 
 fn record(
@@ -188,7 +182,7 @@ fn lock_runtime(root: &Root) -> Result<File, Failure> {
 /// True only while the recorded mount is still the live, exact Y2Media mount.
 fn ready(root: &Root) -> bool {
     let claim = object(root, MARKER);
-    let current = mounts(root);
+    let current = mounts_at(root, PATH);
     get(&claim, "state").as_str() == Some("Ready")
         && current.len() == 1
         && get_eq(&claim, "boot_id", &boot_id(root))
@@ -223,7 +217,7 @@ fn mount_locked(root: &Root) -> Result<Object, Failure> {
         );
     }
     let device = format!("/dev/{}", name(&entry));
-    let current = mounts(root);
+    let current = mounts_at(root, PATH);
     if let Some(first) = current.first() {
         let same = current.len() == 1 && first.source == device;
         return record(
@@ -248,7 +242,7 @@ fn mount_locked(root: &Root) -> Result<Object, Failure> {
         &["mount", "-t", "ext4", "-o", OPTIONS, &device, PATH],
         20.0,
     );
-    let current = mounts(root);
+    let current = mounts_at(root, PATH);
     if !result.ok || current.len() != 1 || current[0].source != device {
         let reason = result
             .reason
@@ -273,11 +267,11 @@ fn mount_locked(root: &Root) -> Result<Object, Failure> {
 
 pub fn unmount(root: &Root) -> Result<Object, Failure> {
     let _lock = lock_runtime(root)?;
-    if mounts(root).is_empty() {
+    if mounts_at(root, PATH).is_empty() {
         return record(root, "Unavailable", Some("not_mounted"), &[]);
     }
     let result = command::run(root, &["umount", PATH], 10.0);
-    if !result.ok || !mounts(root).is_empty() {
+    if !result.ok || !mounts_at(root, PATH).is_empty() {
         let reason = result.reason.unwrap_or_else(|| "unmount_busy".into());
         return record(root, "Failed", Some(&reason), &[]);
     }
@@ -295,7 +289,7 @@ pub fn status(root: &Root) -> Object {
     value.insert("label".into(), get(&props, "LABEL").clone());
     value.insert("uuid".into(), get(&props, "UUID").clone());
     value.insert("identity_valid".into(), json!(valid(&props)));
-    value.insert("mounted".into(), json!(!mounts(root).is_empty()));
+    value.insert("mounted".into(), json!(!mounts_at(root, PATH).is_empty()));
     value.insert("ready".into(), json!(ready(root)));
     value.insert("marker".into(), Value::Object(object(root, MARKER)));
     value
@@ -575,8 +569,8 @@ pub fn provision(
         };
         let props = probe(root, &entry);
         let device = format!("/dev/{}", name(&entry));
-        let in_use =
-            !mounts(root).is_empty() || all_mounts(root).iter().any(|m| m.source == device);
+        let in_use = !mounts_at(root, PATH).is_empty()
+            || all_mounts(root).iter().any(|m| m.source == device);
         if in_use && !valid(&props) {
             // Never replace a mounted filesystem. A finished Y2Media may be re-run to resume
             // an interrupted migration.

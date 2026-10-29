@@ -63,7 +63,7 @@ fn resolve(path: &Path) -> PathBuf {
 #[allow(clippy::unnecessary_cast)]
 /// `observe.storage(ctx)`'s volume for `/data`; every target's blkid request is made as Python's.
 fn data(root: &Root) -> Volume {
-    let mounts = media::mountinfo(root.read("/proc/self/mountinfo").as_deref());
+    let mounts = y2p_core::mounts::mounts(root);
     let boot = super::boot_id(root);
     let mut result = None;
     for target in ["/", "/data", "/media/sd", "/media/internal"] {

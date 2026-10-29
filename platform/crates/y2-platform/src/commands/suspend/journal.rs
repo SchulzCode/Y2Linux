@@ -184,7 +184,7 @@ fn python_type(value: &Value) -> &'static str {
 
 fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
     // Do not create persistent state on an unverified/missing data mount.
-    if !diagnostics::data_ready(root) {
+    if !y2p_core::mounts::data_ready(root) {
         return Ok(false);
     }
     let receipt = root.json_object(super::receipt::RECEIPT);

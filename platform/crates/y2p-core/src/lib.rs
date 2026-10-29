@@ -9,6 +9,7 @@ pub mod connectivity_journal;
 pub mod devices_support;
 pub mod json;
 pub mod lock;
+pub mod mounts;
 pub mod observation_support;
 pub mod os_text;
 pub mod power_charger;

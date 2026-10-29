@@ -130,8 +130,9 @@ pub fn status(root: &Root) -> Result<Py, Failure> {
 /// `destinations(ctx)`: the music storage mounted writable now, in DESTINATIONS order.
 pub fn destinations(root: &Root) -> Vec<&'static str> {
     let table = media::mountinfo(
-        root.read_limited("/proc/self/mountinfo", 1 << 20)
-            .as_deref(),
+        &root
+            .read_limited("/proc/self/mountinfo", 1 << 20)
+            .unwrap_or_default(),
     );
     let mounted = |path: &str| table.iter().rev().find(|m| m.path == path);
     DESTINATIONS

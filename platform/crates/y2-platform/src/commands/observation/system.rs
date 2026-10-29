@@ -1,11 +1,8 @@
 //! `observe.system` and what it reads from other modules: `update.status`, `radiofw.state`,
 //! `boot.evidence_status`/`reset_cause`, `internal_media.setup_status`/`ready`, `usb_diagnostics`.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{
-    snapshot::{field, mountinfo, mounts_at},
-    util::{
-        self, findall2, findall_map, get_eq, name, number, read, read_limited, splitlines, text,
-    },
+use super::util::{
+    self, findall2, findall_map, get_eq, name, number, read, read_limited, splitlines, text,
 };
 use crate::{regex, reply::Failure};
 use serde_json::{json, Map, Value};
@@ -128,17 +125,12 @@ pub fn setup_status(root: &Root) -> Value {
 /// `internal_media.ready`: True only while the recorded mount is still the live, exact Y2Media mount.
 pub fn internal_ready(root: &Root) -> bool {
     let claim = root.json_object("/run/y2/internal-media.json");
-    let mounts = mountinfo(root.read("/proc/self/mountinfo").as_deref());
-    let current = mounts_at(&mounts, "/media/internal");
+    let current = y2p_core::mounts::mounts_at(root, "/media/internal");
     claim.get("state").and_then(Value::as_str) == Some("Ready")
         && current.len() == 1
         && get_eq(&claim, "boot_id", &util::boot_id(root))
-        && get_eq(
-            &claim,
-            "mount_id",
-            current[0].get("mount_id").unwrap_or(&Value::Null),
-        )
-        && get_eq(&claim, "device_id", &json!(field(current[0], "device_id")))
+        && get_eq(&claim, "mount_id", &json!(current[0].mount_id))
+        && get_eq(&claim, "device_id", &json!(current[0].device_id))
 }
 
 /// `int(text, 16)`.

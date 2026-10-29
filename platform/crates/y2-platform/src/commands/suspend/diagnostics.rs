@@ -13,6 +13,7 @@ use super::{
 };
 use serde_json::Value;
 use std::{fs::File, io::Read, os::unix::fs::OpenOptionsExt, path::Path};
+use y2p_core::mounts::data_ready;
 use y2p_core::{
     json::{dumps, Separators},
     root::read,
@@ -69,18 +70,6 @@ const KERNEL_TOKENS: [&str; 18] = [
     "PM: ",
 ];
 const PROCESSES: [&str; 2] = ["umtprd", "dropbear"];
-
-/// Never create persistent state on an unverified or missing data mount.
-pub fn data_ready(root: &Root) -> bool {
-    let text = root.read("/proc/self/mountinfo").unwrap_or_default();
-    let mounts: Vec<_> = super::super::boot::mountinfo(&text)
-        .into_iter()
-        .filter(|m| m.path == "/data")
-        .collect();
-    root.read("/data/.y2data-schema").as_deref() == Some("1")
-        && mounts.len() == 1
-        && Some(mounts[0].source.as_str()) == root.read("/run/y2-data-device").as_deref()
-}
 
 fn name(path: &Path) -> String {
     path.file_name()

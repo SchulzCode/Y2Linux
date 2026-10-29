@@ -4,7 +4,6 @@
 //! A panic may stop userspace before logging; absence of a marker proves nothing.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    snapshot::{mountinfo, mounts_at},
     system::{reset_cause, RESET_STATUS},
     util::{self, splitlines},
 };
@@ -26,6 +25,7 @@ use std::{
     },
     path::{Path, PathBuf},
 };
+use y2p_core::mounts::mounts_at;
 use y2p_core::{
     clock,
     json::{dumps, dumps_sorted, Separators},
@@ -361,10 +361,9 @@ fn capture(
         .strip_prefix(root.path("/"))
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_default();
-    let mounts = mountinfo(root.read("/proc/self/mountinfo").as_deref());
-    let pstore_mounted = mounts_at(&mounts, "/sys/fs/pstore")
+    let pstore_mounted = mounts_at(root, "/sys/fs/pstore")
         .iter()
-        .any(|m| m.get("filesystem").and_then(Value::as_str) == Some("pstore"));
+        .any(|m| m.filesystem == "pstore");
     let mut result = Map::new();
     result.insert("archive".into(), json!(relative));
     result.insert("files".into(), json!([]));
@@ -498,11 +497,9 @@ pub fn run(root: &Root) -> Outcome {
     if root.read("/data/.y2data-schema").as_deref() != Some("1") {
         return Err(Failure::value("data_schema_unavailable"));
     }
-    let mounts = mountinfo(root.read("/proc/self/mountinfo").as_deref());
-    let data = mounts_at(&mounts, "/data");
+    let data = mounts_at(root, "/data");
     if data.len() != 1
-        || Some(super::snapshot::field(data[0], "source"))
-            != root.read("/run/y2-data-device").as_deref()
+        || Some(data[0].source.as_str()) != root.read("/run/y2-data-device").as_deref()
     {
         return Err(Failure::value("verified_data_mount_unavailable"));
     }

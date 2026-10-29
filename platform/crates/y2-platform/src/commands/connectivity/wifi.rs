@@ -21,8 +21,9 @@ use std::{
 use y2p_core::py;
 use y2p_core::{
     clock, command,
-    connectivity_journal::{append_bounded, data_ready},
+    connectivity_journal::append_bounded,
     json::{dumps, Object, ObjectExt, Separators},
+    mounts::data_ready,
     py::truthy,
     Root,
 };

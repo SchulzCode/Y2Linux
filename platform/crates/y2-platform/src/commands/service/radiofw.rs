@@ -12,7 +12,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     image::{self, Ext4, Image},
-    python::{mountinfo, realpath, Mount},
+    python::realpath,
 };
 use crate::reply::{atomic_json as publish, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
@@ -23,6 +23,7 @@ use std::{
     path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+use y2p_core::mounts::{mounts_at, Mount};
 use y2p_core::py::PyValue;
 use y2p_core::{
     clock, command,
@@ -361,13 +362,6 @@ fn roots(root: &Root) -> Vec<PathBuf> {
         .filter_map(Value::as_str)
         .filter(|r| r.starts_with('/'))
         .map(|r| root.path(r))
-        .collect()
-}
-
-fn mounts_at(root: &Root, path: &str) -> Vec<Mount> {
-    mountinfo(&root.read("/proc/self/mountinfo").unwrap_or_default())
-        .into_iter()
-        .filter(|m| m.path == path)
         .collect()
 }
 

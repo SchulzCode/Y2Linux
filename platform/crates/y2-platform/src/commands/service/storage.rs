@@ -3,7 +3,7 @@
 //! (`blkid`) `observe.storage` makes on the way, in its order, so the subprocesses asked for are the
 //! same.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::python::{mountinfo, realpath};
+use super::python::realpath;
 use crate::reply::Failure;
 use y2p_core::{command, Root};
 
@@ -17,7 +17,7 @@ pub struct Volume {
 
 /// `observe.storage(ctx)['volumes']`, the `/data` entry.
 pub fn data(root: &Root) -> Volume {
-    let mounts = mountinfo(&root.read("/proc/self/mountinfo").unwrap_or_default());
+    let mounts = y2p_core::mounts::mounts(root);
     let boot_id = root.read("/proc/sys/kernel/random/boot_id");
     let mut result = Volume {
         state: "Unavailable",
