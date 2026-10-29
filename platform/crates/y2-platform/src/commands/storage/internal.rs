@@ -408,6 +408,11 @@ fn open_nofollow(path: &Path) -> Result<File, Failure> {
 }
 
 fn digest(path: &Path) -> Result<String, Failure> {
+    // A copy that reads back wrong cannot be made on a fixture: the unit tests fake the hash.
+    #[cfg(test)]
+    if let Some(fake) = internal_tests::digest(path) {
+        return Ok(fake);
+    }
     let mut file = open_nofollow(path)?;
     // SAFETY: an advisory hint on our own descriptor; read the media, not the page cache.
     unsafe {
@@ -1214,6 +1219,10 @@ pub fn shown_serial(root: &Root) -> Value {
         Value::Null
     }
 }
+
+#[cfg(test)]
+#[path = "internal_tests.rs"]
+mod internal_tests;
 
 #[cfg(test)]
 mod tests {
