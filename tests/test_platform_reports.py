@@ -251,8 +251,9 @@ class ReportsGoldens(unittest.TestCase):
         bundle = touched(diagnostics)['/data/exports/y2-diagnostics-<id>.tar.gz.members.json']['content'][0]['data']
         self.assertEqual(bundle['logs']['system'][0]['components'], ['msdc'])
         self.assertIn('checks', bundle['health'])
-        crashed = results['reset-execute-plan-no-expiry']
-        self.assertEqual((crashed['exit'], crashed['stdout']), (1, []))
+        refused = results['reset-execute-plan-no-expiry']
+        self.assertEqual((refused['exit'], refused['stdout']),
+                         (1, {'state': 'Failed', 'failure': 'reset_plan_unreadable'}))
 
 
 if __name__ == '__main__':

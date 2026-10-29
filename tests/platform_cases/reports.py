@@ -223,9 +223,10 @@ CASES = [
         **ENABLED, '/sys/power/suspend_stats/fail': '4\n', '/sys/power/suspend_stats/last_failed_errno': '-16\n',
         '/run/y2/application-ready.json': '{"boot_id": "boot-a", "first_frame": true}'},
         'commands': [answer(DMESG, 'DSI register reads still lag')]}),
-    # Shapes of reports.json and session.json Python reads as it finds them: an error, a traceback (an
-    # AttributeError, TypeError or KeyError: nothing on stdout, exit 1) or nothing at all when the shape
-    # is never used, after the same changes (check's seen markers are saved before the queue raises).
+    # Shapes of reports.json and session.json read as they are found: Python's error, a refusal where
+    # Python died with a traceback (report_failed naming the record: report_state_unreadable,
+    # session_unreadable, ...) or nothing at all when the shape is never used, after the same changes
+    # (check's seen markers are saved before the queue refuses).
     ('report-check-bad-daily', ['report', 'check'], {'files': {STATE: state(daily=[])}}),
     ('report-check-bad-queue', ['report', 'check'], {'files': {
         **ENABLED, SESSION_PATH: '{"model": {"queue": 5}}'}}),
@@ -323,7 +324,7 @@ CASES = [
         **DATA, '/data/updates/state.json': '{"schema": 2, "state": "Staged"}'}}),
     ('reset-plan-bad-journal', ['reset', 'plan', '--scope', 'caches'], {**RESET, 'commands': BLKID, 'files': {
         **DATA, '/data/updates/state.json': '{"schema": 7}'}}),
-    # A journal without a state: update.status's KeyError, after the volume check (blkid).
+    # A journal without a state: refused (update_state_unreadable), after the volume check (blkid).
     ('reset-plan-journal-no-state', ['reset', 'plan', '--scope', 'caches'], {**RESET, 'commands': BLKID, 'files': {
         **DATA, '/data/updates/state.json': '{"schema": 1}'}}),
     ('reset-plan-odd-pid', ['reset', 'plan', '--scope', 'caches'], {**RESET, 'commands': BLKID, 'files': {
@@ -368,7 +369,7 @@ CASES = [
         **RESET, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(targets=None))}}),
     ('reset-resume-number-targets', ['reset', 'resume', '--confirm', plan(targets=3)['confirmation']], {
         **RESET, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(targets=3))}}),
-    # Without `preserved` the targets are already moved when the KeyError comes.
+    # Without `preserved` the targets are already moved when the plan is refused (reset_plan_unreadable).
     ('reset-execute-no-preserved', ['reset', 'execute', '--confirm', plan_without('preserved')['confirmation']], {
         **RESET, 'commands': BLKID, 'files': {**DATA, **plan_files(plan_without('preserved'))}}),
     ('reset-execute-caches', ['reset', 'execute', '--confirm', CACHES['confirmation']], {
@@ -396,7 +397,7 @@ CASES = [
         'commands': BLKID, 'files': PURGE}),
     ('reset-purge', ['reset', 'purge', '--id', PLAN_ID, '--confirm', 'c' * 64], {
         'commands': BLKID, 'files': PURGE}),
-    # json.loads's JSONDecodeError text as the failure; a record that is no dict: a traceback.
+    # json.loads's JSONDecodeError text as the failure; a record that is no dict: reset_record_unreadable.
     ('reset-purge-bad-record', ['reset', 'purge', '--id', PLAN_ID, '--confirm', 'x'], {
         'commands': BLKID, 'files': {**PURGE, QUARANTINE + '/record.json': '{'}}),
     ('reset-purge-list-record', ['reset', 'purge', '--id', PLAN_ID, '--confirm', 'x'], {
@@ -413,7 +414,7 @@ CASES = [
 # Cases tests/test_platform_reports.py runs with archive normalisation (`archives`) or a plan made first
 # (`plan_first`: the scope) or a library database (`library`) or retained archives and a large log (`retained`) made first.
 EXTRA_CASES = [
-    # An expiry that is no number: Python's TypeError, a traceback (exit 1, nothing on stdout).
+    # An expiry that is no number: refused as reset_plan_unreadable (exit 1).
     ('reset-execute-plan-no-expiry', ['reset', 'execute', '--confirm', plan(expires_monotonic_s='x')['confirmation']],
      {'files': plan_files(plan(expires_monotonic_s='x'))}),
     ('reset-execute-plan-missing-expiry', ['reset', 'execute', '--confirm', plan_without('expires_monotonic_s')[
@@ -430,13 +431,14 @@ EXTRA_CASES = [
         **READY, STATE: state(uploads={A: {'next': 'soon'}})}}),
     ('report-upload-bad-last', ['report', 'upload'], {**UPLOAD, 'files': {**READY, STATE: state(last='x')},
                                                      'commands': [http(201, '{}')]}),
-    # A manual report is queued before its count fails (TypeError): it stays queued, reports.json unchanged.
+    # A manual report is queued before its count is refused: it stays queued, reports.json unchanged.
     ('report-send-odd-count', ['report', 'send'], {**UPLOAD, 'archives': True, 'files': {
         **READY, '/run/y2/network.json': None, STATE: state(daily={DAY: 'x'})}}),
     # dict() of a list of pairs: the settings as Python reads them.
     ('report-check-settings-pairs', ['report', 'check'], {**UPLOAD, 'archives': True, 'files': {
         **TAINTED, SESSION_PATH: '{"model": {"settings": [["volume", 3], "tz"], "queue": "ab"}}'}}),
-    # The saved session as json.loads reads it: its JSONDecodeError, or a traceback for a list with 'schema'.
+    # The saved session as json.loads reads it: its JSONDecodeError, or invalid_saved_session for a list with
+    # 'schema'.
     ('reset-execute-settings-bad-json', ['reset', 'execute'], {**RESET, 'plan_first': 'settings', 'commands': BLKID,
                                                                'files': {**DATA, SESSION_PATH: '{"a": '}}),
     ('reset-execute-settings-list', ['reset', 'execute'], {**RESET, 'plan_first': 'settings', 'commands': BLKID,
