@@ -112,32 +112,10 @@ impl Failure {
         Failure::crash("AttributeError", message)
     }
 
-    /// `KeyError(key)`, uncaught: its `str()` is the key's repr.
-    pub fn key_error(key: &str) -> Failure {
-        Failure::crash("KeyError", crate::argparse::python::repr(key))
-    }
-
     /// Whether this is an exception that `except (OSError, ValueError, RuntimeError)` (main.py's
     /// clause, and most commands' own) catches: not a crash, not a fallback.
     pub fn caught(&self) -> bool {
         matches!(self, Failure::Value(_) | Failure::Os { .. })
-    }
-
-    /// The traceback main.py's uncaught exception leaves on stderr (its last line is Python's).
-    pub fn traceback(&self) -> String {
-        let (class, message) = match self {
-            Failure::Crash { class, message } => (*class, message.clone()),
-            Failure::Os { class, text } => (*class, text.clone()),
-            Failure::Value(text) => ("ValueError", text.clone()),
-        };
-        let last = if message.is_empty() {
-            class.to_string()
-        } else {
-            format!("{class}: {message}")
-        };
-        format!(
-            "Traceback (most recent call last):\n  File \"/usr/lib/y2-platform/main.py\", line 7, in <module>\n    raise SystemExit(main())\n{last}\n"
-        )
     }
 
     /// An OSError raised with a plain message (`raise OSError('dormant budget readback')`).

@@ -6,7 +6,7 @@ use serde::Serialize;
 use serde_json::{json, Map, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 use y2p_core::{
-    clock, command,
+    command,
     json::{sorted_object, Object, ObjectExt},
     py::{self, is_true, number, truthy},
     Root,
@@ -21,11 +21,6 @@ pub fn wall() -> f64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0.0, |d| d.as_secs_f64())
-}
-
-/// CLOCK_BOOTTIME in seconds (the service daemon's anchor checks).
-pub(crate) fn boottime() -> f64 {
-    clock::boottime_ns() as f64 / 1e9
 }
 
 /// CLOCK_BOOTTIME in seconds as `root` reads it.

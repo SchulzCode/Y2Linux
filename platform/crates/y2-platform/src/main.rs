@@ -11,7 +11,6 @@ mod reply;
 #[cfg(test)]
 mod testing;
 
-use reply::Failure;
 use std::{env, ffi::OsString, io::Write, process::ExitCode};
 use y2p_core::{
     json::{dumps, Separators},
@@ -81,11 +80,8 @@ fn main() -> ExitCode {
     let root = y2p_core::Root::from_env();
     let (stdout, code) = match command(&root) {
         Ok(reply) => (reply.stdout, reply.code),
-        // An exception main.py does not catch: its traceback on stderr, nothing on stdout, exit 1.
-        Err(error @ Failure::Crash { .. }) => {
-            return print(&mut std::io::stderr().lock(), &error.traceback(), 1)
-        }
-        // main.py: an OSError, ValueError or RuntimeError no command caught.
+        // An error no command turned into its own record: the error record, exit 1 (an input of an
+        // unexpected type included; it no longer ends as a traceback with nothing on stdout).
         Err(error) => (
             dumps(&error.record(), Separators::Spaced).expect("record"),
             1,

@@ -28,7 +28,7 @@ fn anchor(fixture: &Fixture, ago: f64, awake: f64, asleep: f64) {
     fixture.put_json(
         "/run/y2/time.json",
         &json!({"schema": 1, "boot_id": "boot-one", "epoch": time::wall() - ago,
-                "monotonic_s": clock::monotonic() - awake, "boottime_s": time::boottime() - asleep,
+                "monotonic_s": clock::monotonic() - awake, "boottime_s": (clock::boottime_ns() as f64 / 1e9) - asleep,
                 "source": "manual"}),
     );
 }
@@ -65,7 +65,7 @@ fn running_clock_is_remembered_hourly_only_when_set() {
     fixture.put_json(
         "/run/y2/time.json",
         &json!({"schema": 1, "boot_id": "boot-one", "epoch": time::wall(),
-                "monotonic_s": clock::monotonic(), "boottime_s": time::boottime(),
+                "monotonic_s": clock::monotonic(), "boottime_s": (clock::boottime_ns() as f64 / 1e9),
                 "source": "build_floor"}),
     );
     remember_time(&fixture.root).unwrap();

@@ -99,14 +99,6 @@ pub fn no_get(value: &Value) -> Failure {
     ))
 }
 
-/// `iter(value)` (a `for`, `all(...)`) on a value that is not iterable: TypeError.
-pub fn not_iterable(value: &Value) -> Failure {
-    Failure::type_error(format!(
-        "'{}' object is not iterable",
-        PyValue::type_name(value)
-    ))
-}
-
 fn flag(codec: Option<&Map<String, Value>>, key: &str) -> bool {
     is_true(codec.and_then(|c| c.get(key)))
 }

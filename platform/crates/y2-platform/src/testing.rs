@@ -1,7 +1,5 @@
 //! Shared helpers for the unit tests: a fixture root in a self-cleaning directory whose root carries
-//! the test's subprocess answers and clock (`Fixture::with_answers`, `responding`, `with_clock`). The
-//! per-thread `scripted`/`responding` functions (`y2p_core::command::testing`) are the older seam the
-//! tests still use until they move to the root's runner.
+//! the test's subprocess answers and clock (`Fixture::with_answers`, `responding`, `with_clock`).
 // SPDX-License-Identifier: GPL-2.0-only
 #![allow(dead_code, unused_imports)] // each test module uses part of it
 use serde_json::Value;
@@ -11,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
     sync::atomic::{AtomicU32, Ordering},
 };
-pub use y2p_core::command::testing::{failed, ok, responding, scripted};
+pub use y2p_core::command::testing::{failed, ok};
 pub use y2p_core::command::{Outcome, Scripted};
 use y2p_core::Root;
 
@@ -149,21 +147,6 @@ impl Drop for Fixture {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn scripted_commands_answer_this_thread_only() {
-        let fixture = Fixture::new();
-        fixture.put("/etc/x", "1\n");
-        assert_eq!(fixture.root.read("/etc/x").as_deref(), Some("1"));
-        let (outcome, calls) = scripted(vec![ok(&["true"], "yes")], || {
-            y2p_core::command::run(&fixture.root, &["true"], 2.0)
-        });
-        assert!(outcome.ok);
-        assert_eq!(outcome.output.as_deref(), Some("yes"));
-        assert_eq!(calls, vec![(vec!["true".to_string()], 2.0)]);
-        let unknown = y2p_core::command::run(&fixture.root, &["true"], 1.0);
-        assert_eq!(unknown.reason.as_deref(), Some("fixture"));
-    }
 
     #[test]
     fn a_fixture_root_carries_its_answers_and_clock() {
