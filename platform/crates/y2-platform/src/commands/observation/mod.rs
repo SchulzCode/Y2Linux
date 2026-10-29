@@ -1,8 +1,8 @@
 //! Group `observation` of the port (docs/planning/PLATFORM-RUST-PORT-PLAN.md, "Remaining port groups"):
 //! `status`, `health`, `boot-evidence`, `network-check`, `collect`, `bench-storage`, `bench-library`
 //! (observe.py, health.py, boot.py, boot_retained.py, network_check.py, workload.py, collect.py,
-//! bench.py). Only well-formed argument forms run here; argparse's errors, `--help` and
-//! abbreviations stay Python's (the route answers None for them).
+//! bench.py). The dispatcher's argparse has parsed the arguments: a route sees their canonical form
+//! and takes every one of them (cli.py's own `parser.error` for `status` is printed here).
 // SPDX-License-Identifier: GPL-2.0-only
 mod bench;
 mod bluetooth;
@@ -120,20 +120,32 @@ fn parse(args: &[&str], spec: &Spec) -> Option<Parsed> {
     Some(parsed)
 }
 
-/// `type=int`: the plain decimal forms (others are argparse's or Python int()'s to word).
+/// `type=int` in its canonical form (`str(int(x))`). Python's int has no bounds: one beyond 64 bits
+/// is clamped, which every caller refuses as out of range exactly as it refuses the real value
+/// (`collection_bounds_exceeded`, `invalid pid`, …).
 fn integer(text: &str) -> Option<i64> {
-    crate::regex!(r"\A-?[0-9]+\z")
-        .is_match(text)
-        .then(|| text.parse().ok())
-        .flatten()
+    if !crate::regex!(r"\A-?[0-9]+\z").is_match(text) {
+        return None;
+    }
+    Some(text.parse().unwrap_or(if text.starts_with('-') {
+        i64::MIN
+    } else {
+        i64::MAX
+    }))
 }
 
-/// `type=float` for plain decimals.
+/// `type=float` in its canonical form (`repr(float(x))`: `0.5`, `1e-05`, `inf`, `nan`).
 fn decimal(text: &str) -> Option<f64> {
-    crate::regex!(r"\A(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)\z")
-        .is_match(text)
-        .then(|| text.parse().ok())
-        .flatten()
+    text.parse().ok()
+}
+
+/// cli.py's `parser.error(message)` after parsing: main.py's usage and the message on stderr, exit 2.
+fn parser_error(message: &'static str) -> Command {
+    Box::new(move |_| {
+        use std::io::Write;
+        let _ = std::io::stderr().write_all(crate::argparse::error_text(message).as_bytes());
+        std::process::exit(2)
+    })
 }
 
 fn integers(values: &[String]) -> Option<Vec<i64>> {
@@ -159,12 +171,14 @@ pub fn route(args: &[&str]) -> Option<Command> {
                 None => 0.0,
             };
             let pids = integers(parsed.appended("--pid"))?;
-            // parser.error (exit 2) stays argparse's.
+            // `not 0 <= interval <= 10 or 0 < interval < 0.1` (NaN too) `or len(pid) > 32`.
             if !(0.0..=10.0).contains(&interval)
                 || (interval > 0.0 && interval < 0.1)
                 || pids.len() > 32
             {
-                return None;
+                return Some(parser_error(
+                    "interval must be zero or 0.1–10 seconds; at most 32 PIDs",
+                ));
             }
             let options = StatusOptions {
                 section: parsed.positional.clone(),
@@ -280,23 +294,24 @@ pub fn route(args: &[&str]) -> Option<Command> {
     }
 }
 
-/// An input the Python platform crashes on (an uncaught AttributeError, TypeError, KeyError or
-/// IndexError: a traceback on stderr, nothing more on stdout, exit 1) after the snapshot already asked
-/// for its subprocesses, so handing the command to Python would ask for them twice: end the same way.
-pub fn crash(what: &str) -> ! {
+/// End the command as Python's uncaught exception `error` does (a traceback on stderr, nothing more
+/// on stdout, exit 1) from where it is raised, after what the command already did (bench scratch
+/// files, streamed `collect` lines).
+pub fn crash(error: &crate::reply::Failure) -> ! {
     use std::io::Write;
     let _ = std::io::stdout().flush();
-    let _ = writeln!(
-        std::io::stderr(),
-        "y2-platform: {what}: the Python platform raises an uncaught exception here"
-    );
+    let _ = std::io::stderr().write_all(error.traceback().as_bytes());
     std::process::exit(1)
 }
 
-/// `outcome`, with a crash (`Failure::Fallback` from the snapshot) ended as Python ends it.
+/// `outcome`; a `Failure::Fallback` from a helper of another group (an inventory Python cannot read)
+/// comes after the snapshot asked for its subprocesses, so it ends here as Python's crash instead of
+/// handing the command to Python (which would ask for them twice).
 pub fn crashing<T>(outcome: Result<T, crate::reply::Failure>) -> Result<T, crate::reply::Failure> {
     match outcome {
-        Err(crate::reply::Failure::Fallback) => crash("observation"),
+        Err(crate::reply::Failure::Fallback) => Err(crate::reply::Failure::attribute_error(
+            "an input the observation does not read",
+        )),
         other => other,
     }
 }
@@ -376,6 +391,7 @@ fn status(root: &Root, options: &StatusOptions) -> Outcome {
         reduced.insert(section.clone(), part);
         result = reduced;
     }
+    util::sortable(&Value::Object(result.clone()))?;
     Reply::sorted(&result, 0)
 }
 
@@ -404,10 +420,15 @@ mod tests {
         assert!(parse(&["--pss=1"], &spec).is_none());
         assert!(parse(&["--"], &spec).is_none());
         assert_eq!(decimal("0.5"), Some(0.5));
-        assert_eq!(decimal("1e-1"), None);
+        assert_eq!(decimal("1e-05"), Some(1e-5));
+        assert!(decimal("nan").is_some_and(f64::is_nan));
+        assert_eq!(decimal("inf"), Some(f64::INFINITY));
         assert_eq!(integer("-7"), Some(-7));
-        assert!(route(&["status", "--interval", "0.05"]).is_none());
-        assert!(route(&["status", "--interval", "11"]).is_none());
+        assert_eq!(integer("99999999999999999999"), Some(i64::MAX));
+        assert_eq!(integer("-99999999999999999999"), Some(i64::MIN));
+        // cli.py's parser.error is a route of its own (exit 2).
+        assert!(route(&["status", "--interval", "0.05"]).is_some());
+        assert!(route(&["status", "--interval", "11"]).is_some());
         assert!(route(&["status", "--reborn", "--pss"]).is_some());
         assert!(route(&["bench-library", "--tracks", "500"]).is_none());
         assert!(route(&["boot-evidence", "x"]).is_none());

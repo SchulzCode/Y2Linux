@@ -112,23 +112,22 @@ fn timer_runtime(root: &Root) -> Result<Map<String, Value>, Failure> {
     let mut cpus: Vec<Map<String, Value>> = Vec::new();
     for block in regex!(r"(?m)^cpu:\s*").split(&text).skip(1) {
         let lines = splitlines(block);
+        // `block.splitlines()[0]` of an empty block (`cpu:` at the end of the text).
         let Some(first) = lines.first() else {
-            return Err(Failure::Fallback); // IndexError
+            return Err(Failure::index_error("list index out of range"));
         };
-        if first.is_empty() || !first.chars().all(char::is_numeric) {
+        if !util::isdigit(first) {
             continue;
         }
-        if !first.is_ascii() {
-            return Err(Failure::Fallback); // a non-ASCII digit int() would read
-        }
+        // `int(first)`: a superscript or circled digit passes isdigit() but is no int.
         let mut core = Map::new();
-        core.insert("cpu".into(), json!(int(first).ok_or(Failure::Fallback)?));
+        core.insert("cpu".into(), json!(util::int_or_raise(first)?));
         let fields = findall_map(
             regex!(r"(?m)^\s*\.(hres_active|nohz|tick_stopped|nr_hangs)\s*:\s*(\d+)\s*$"),
             block,
         );
         for (key, value) in fields {
-            core.insert(key, json!(int(&value).ok_or(Failure::Fallback)?));
+            core.insert(key, json!(util::int_or_raise(&value)?));
         }
         cpus.push(core);
     }
@@ -951,30 +950,20 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
         )
         .expect("literal");
     }
+    // `battery = policy.get('battery', {})`, then `battery.get(...)`.
     let battery = match policy.get("battery") {
         None => Map::new(),
         Some(Value::Object(map)) => map.clone(),
-        Some(_) => return Err(Failure::Fallback), // AttributeError on .get
+        Some(other) => return Err(util::no_get(other)),
     };
     let get = |k: &str| battery.get(k).cloned().unwrap_or(Value::Null);
     let mut receipt = root.json_object("/data/system/platform/suspend-last.json");
-    // sleep.product: `dict(value.get('product') or {})` also takes a list of key/value pairs.
-    if let Some(Value::Array(pairs)) = receipt.get("product") {
-        let mut product = Map::new();
-        for pair in pairs {
-            let (key, value) = match pair {
-                Value::Array(kv) if kv.len() == 2 && kv[0].is_string() => {
-                    (kv[0].as_str().unwrap_or_default().to_owned(), kv[1].clone())
-                }
-                Value::String(s) if s.chars().count() == 2 => {
-                    let mut chars = s.chars();
-                    let key = chars.next().expect("two").to_string();
-                    (key, json!(chars.next().expect("two").to_string()))
-                }
-                _ => return Err(Failure::Fallback),
-            };
-            product.insert(key, value);
-        }
+    // sleep.product: `dict(value.get('product') or {})` of a product that is no dict.
+    if let Some(product) = receipt
+        .get("product")
+        .filter(|p| truthy(p) && !p.is_object())
+    {
+        let product = util::py_dict(product)?;
         receipt.insert("product".into(), Value::Object(product));
     }
     let sleep = super::super::sleep::product(
@@ -1239,10 +1228,8 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
                 if target == "/media/sd" {
                     // A filesystem far smaller than its partition (a copied image, an old partition
                     // layout) hides most of the card; report it, never auto-fix it.
-                    if let Some(sectors) = read(&device.join("size"))
-                        .filter(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit()))
-                    {
-                        let partition = int(&sectors).ok_or(Failure::Fallback)? as i128 * 512;
+                    if let Some(sectors) = read(&device.join("size")).filter(|s| util::isdigit(s)) {
+                        let partition = i128::from(util::int_or_raise(&sectors)?) * 512;
                         item.insert("partition_bytes".into(), json!(partition as u64));
                         item.insert(
                             "capacity_state".into(),
@@ -1305,7 +1292,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
             regex!(r"(cap_hz|actual_hz|transport_errors|fallbacks|clock_error)=(-?\d+)"),
             read(&path).as_deref().unwrap_or(""),
         ) {
-            controller.insert(key, json!(int(&value).ok_or(Failure::Fallback)?));
+            controller.insert(key, json!(util::int_or_raise(&value)?));
         }
         controller.insert(
             "mode".into(),
@@ -1393,36 +1380,43 @@ fn wifi_state(
     (s("Online"), Value::Null)
 }
 
-/// The global addresses of `ip -j -4 addr`, as Python's comprehension reads them: Err(Fallback)
-/// where it raises an AttributeError, Ok(None) where it raises what `wifi` catches.
+/// What a `for` loop over a parsed JSON value yields: a list's items, a dict's keys, a str's
+/// characters (as str values); None where iterating raises TypeError (a number, bool or None).
+fn iterate(value: &Value) -> Option<Vec<Value>> {
+    match value {
+        Value::Array(items) => Some(items.clone()),
+        Value::Object(map) => Some(map.keys().map(|k| json!(k)).collect()),
+        Value::String(s) => Some(s.chars().map(|c| json!(c.to_string())).collect()),
+        _ => None,
+    }
+}
+
+/// The global addresses of `ip -j -4 addr`, as Python's comprehension reads them: Ok(None) where it
+/// raises what `wifi` catches (ValueError, TypeError, KeyError), the AttributeError of `.get` on an
+/// item that is no dict (a dict's key, a str's character, a list, a number) as Python's crash.
 fn addresses(output: Option<&str>) -> Result<Option<Vec<Value>>, Failure> {
     let text = output.filter(|o| !o.is_empty()).unwrap_or("[]");
     let Ok(parsed) = serde_json::from_str::<Value>(text) else {
         return Ok(None);
     };
-    let links = match parsed {
-        Value::Array(items) => items,
-        Value::Object(map) if map.is_empty() => Vec::new(),
-        Value::String(s) if s.is_empty() => Vec::new(),
-        Value::Object(_) | Value::String(_) => return Err(Failure::Fallback),
-        _ => return Ok(None), // not iterable: TypeError
+    let Some(links) = iterate(&parsed) else {
+        return Ok(None); // not iterable: TypeError
     };
     let mut found = Vec::new();
     for link in links {
         let Value::Object(link) = link else {
-            return Err(Failure::Fallback);
+            return Err(util::no_get(&link));
         };
         let infos = match link.get("addr_info") {
             None => Vec::new(),
-            Some(Value::Array(items)) => items.clone(),
-            Some(Value::Object(m)) if m.is_empty() => Vec::new(),
-            Some(Value::String(s)) if s.is_empty() => Vec::new(),
-            Some(Value::Object(_) | Value::String(_)) => return Err(Failure::Fallback),
-            Some(_) => return Ok(None),
+            Some(value) => match iterate(value) {
+                Some(items) => items,
+                None => return Ok(None),
+            },
         };
         for info in infos {
             let Value::Object(info) = info else {
-                return Err(Failure::Fallback);
+                return Err(util::no_get(&info));
             };
             if info.get("scope").and_then(Value::as_str) == Some("global") {
                 match info.get("local") {
@@ -1525,7 +1519,7 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
     let previous = root.json_object("/run/y2/network.json");
     let mut signal = match previous.get("signal_observation") {
         Some(Value::Object(map)) => Value::Object(map.clone()),
-        Some(other) if truthy(other) => return Err(Failure::Fallback), // .get on a non-dict
+        Some(other) if truthy(other) => return Err(util::no_get(other)), // AttributeError
         _ => json!({}),
     };
     let fresh = {
@@ -1622,7 +1616,13 @@ fn readiness(status: &Snapshot) -> Result<Value, Failure> {
     let audio = regex!(r"(?m)^\s*\d+\s+\[Y2Audio\s*\]").is_match(cards) && valid;
     let update = &status["system"]["update"];
     let update_state = match update.get("state") {
-        Some(Value::Array(_) | Value::Object(_)) => return Err(Failure::Fallback), // unhashable
+        // `{...}.get(state)` of a list or dict: TypeError.
+        Some(state @ (Value::Array(_) | Value::Object(_))) => {
+            return Err(Failure::type_error(format!(
+                "unhashable type: '{}'",
+                util::type_name(state)
+            )))
+        }
         Some(Value::String(s)) => match s.as_str() {
             "Idle" | "Acknowledged" => "Ready",
             "RolledBack" | "RollbackPending" => "Degraded",

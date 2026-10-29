@@ -147,6 +147,7 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
                 .as_object()
                 .is_some_and(|r| r.values().any(|item| item["state"] == "Failed")),
         );
+        util::sortable(&Value::Object(value.clone()))?;
         let line = dumps_sorted(&value, Separators::Spaced).map_err(Failure::value)? + "\n";
         bytes += line.len();
         if bytes > 64 * 1024 * 1024 {

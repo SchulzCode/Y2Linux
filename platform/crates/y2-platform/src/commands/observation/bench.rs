@@ -204,8 +204,7 @@ impl<'a> Scratch<'a> {
             initial_uuid: Value::Null,
         };
         scratch.initial = scratch.identity()?;
-        let observed =
-            storage(root).map_err(|_| -> Error { super::crash("storage observation") })?;
+        let observed = observe_storage(root, &mut scratch)?;
         let item = observed["volumes"]
             .as_array()
             .and_then(|v| v.iter().find(|v| v["path"] == volume))
@@ -401,6 +400,25 @@ impl<'a> Scratch<'a> {
         }
         self.volume_fd = None;
     }
+}
+
+/// `storage(ctx)` inside a benchmark: its ValueError (an `int()` of odd sysfs text) is the
+/// benchmark's failure; an uncaught exception ends the command once `with Scratch` has cleaned up.
+fn observe_storage(root: &Root, scratch: &mut Scratch) -> Result<Value> {
+    storage(root).map_err(|error| {
+        if !error.caught() {
+            scratch.close();
+            super::crash(&error)
+        }
+        match error {
+            Failure::Os { text, class } => Error {
+                class: class.into(),
+                text,
+                errno: None,
+            },
+            other => Error::value(&other.message()),
+        }
+    })
 }
 
 impl Drop for Scratch<'_> {
@@ -994,10 +1012,7 @@ pub fn storage_benchmark(
             json!([initial.0, initial.1, initial.2, initial.3]),
         );
         described.insert("uuid".into(), scratch.initial_uuid.clone());
-        described.insert(
-            "observation".into(),
-            storage(root).map_err(|_| -> Error { super::crash("storage observation") })?,
-        );
+        described.insert("observation".into(), observe_storage(root, &mut scratch)?);
         bench
             .result
             .insert("volume".into(), Value::Object(described));
