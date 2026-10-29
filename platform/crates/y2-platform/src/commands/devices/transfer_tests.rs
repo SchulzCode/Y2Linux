@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::{ok, Fixture, Outcome};
-use std::{fs, os::unix::fs::MetadataExt};
+use std::{fs, io::Write, os::unix::fs::MetadataExt, thread};
 
 const DATA: &str = "22 1 179:2 / / ro - ext4 /dev/mmcblk0p2 ro\n\
                     30 22 259:1 / /data rw,noatime - ext4 /dev/mmcblk0p9 rw\n";

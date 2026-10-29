@@ -1,30 +1,25 @@
 //! `transfer.py`: verified owner uploads (private staging, identity/space checks, durable no-replace
 //! publish): `y2-platform transfer begin|commit|status|discard [--id] [--name] [--bytes] [--sha256]`.
-//! Output is sorted; errors are main.py's record. Every file operation below `/data` goes through
-//! directory descriptors opened without following symlinks, as Python's `dir_fd` calls, and an
-//! OSError names the relative name the call was given (Python's text).
+//! Output is sorted; errors are the error record. Every file operation below `/data` goes through
+//! directory descriptors opened without following symlinks (`fd`).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::storage::{self, data_volume, Volume, INTERNAL};
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
+use fd::{
+    available, check, flock, fstat, fsync, linkat, open_absolute_directory, open_directory, openat,
+    read_chunk, unlinkat, write_some,
+};
 use serde::Serialize;
 use serde_json::{json, Value};
-use std::os::fd::{AsFd, BorrowedFd};
 use std::{
-    ffi::CString,
-    io::{self, Write},
     os::{
-        fd::{AsRawFd, FromRawFd, OwnedFd, RawFd},
-        unix::{
-            ffi::OsStrExt,
-            fs::{DirBuilderExt, OpenOptionsExt},
-        },
+        fd::{AsFd, AsRawFd, RawFd},
+        unix::fs::DirBuilderExt,
     },
     path::{Path, PathBuf},
-    sync::{mpsc, Arc},
-    thread,
     time::{Duration, Instant},
 };
-use y2p_core::lock;
+use workload::workload;
 use y2p_core::{
     devices_support::{hex, record, Digest, Sha256},
     json::{Object, ObjectExt},
@@ -35,6 +30,9 @@ use y2p_core::{
 const MAX_BYTES: i64 = 512 * 1024 * 1024;
 const RESERVE: u64 = 96 * 1024 * 1024;
 const CHUNK: usize = 1024 * 1024;
+
+mod fd;
+mod workload;
 
 pub struct Request {
     pub id: Option<String>,
@@ -62,175 +60,6 @@ pub fn run(root: &Root, action: &str, request: Request) -> Outcome {
         }
     };
     Reply::sorted(&value, 0)
-}
-
-// ---- errors ---------------------------------------------------------------------------------------
-
-/// The OS error of a call without a file name (read, write, fsync, flock).
-fn unnamed(error: io::Error) -> Failure {
-    let (text, class) = py::os_error(&error, None);
-    Failure::Os { text, class }
-}
-
-// ---- descriptors ---------------------------------------------------------------------------------
-
-fn c_name(name: &str) -> CString {
-    CString::new(name).expect("validated names hold no NUL")
-}
-
-/// `os.open(name, flags, mode, dir_fd=dir)` (Python adds O_CLOEXEC).
-fn openat(dir: RawFd, name: &str, flags: i32, mode: u32) -> Result<OwnedFd, Failure> {
-    let c = c_name(name);
-    // SAFETY: a NUL-terminated name; the result is a new descriptor this function owns.
-    let fd = unsafe {
-        libc::openat(
-            dir,
-            c.as_ptr(),
-            flags | libc::O_CLOEXEC,
-            mode as libc::c_uint,
-        )
-    };
-    if fd < 0 {
-        return Err(Failure::os(io::Error::last_os_error(), Path::new(name)));
-    }
-    // SAFETY: fd was just opened and is owned by nobody else.
-    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
-}
-
-/// `os.open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW)` of an absolute (root-prefixed) path.
-fn open_absolute_directory(path: &Path) -> Result<OwnedFd, Failure> {
-    let name = CString::new(path.as_os_str().as_bytes()).expect("paths hold no NUL");
-    // SAFETY: as openat.
-    let fd = unsafe {
-        libc::open64(
-            name.as_ptr(),
-            libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-        )
-    };
-    if fd < 0 {
-        return Err(Failure::os(io::Error::last_os_error(), path));
-    }
-    // SAFETY: as openat.
-    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
-}
-
-fn fstat(fd: RawFd) -> Result<y2p_core::sys::Stat, Failure> {
-    // SAFETY: callers pass a descriptor they hold open for this call.
-    y2p_core::sys::fstat(unsafe { BorrowedFd::borrow_raw(fd) }).map_err(unnamed)
-}
-
-/// `f_bavail * f_frsize` of the filesystem holding `fd`.
-fn available(fd: RawFd) -> Result<u64, Failure> {
-    // SAFETY: callers pass a descriptor they hold open for this call.
-    let space = y2p_core::sys::fstatvfs(unsafe { BorrowedFd::borrow_raw(fd) }).map_err(unnamed)?;
-    Ok(space.available())
-}
-
-fn check(result: libc::c_int) -> Result<(), Failure> {
-    if result != 0 {
-        return Err(unnamed(io::Error::last_os_error()));
-    }
-    Ok(())
-}
-
-fn fsync(fd: RawFd) -> Result<(), Failure> {
-    // SAFETY: plain syscall on an open descriptor.
-    check(unsafe { libc::fsync(fd) })
-}
-
-/// `fcntl.flock(fd, LOCK_EX | LOCK_NB)`: busy is `[Errno 11] Resource temporarily unavailable`.
-fn flock(fd: BorrowedFd<'_>) -> Result<(), Failure> {
-    match lock::try_fd(fd, lock::Kind::Exclusive) {
-        Ok(true) => Ok(()),
-        Ok(false) => Err(unnamed(lock::would_block())),
-        Err(error) => Err(unnamed(error)),
-    }
-}
-
-/// `os.unlink(name, dir_fd=dir)` (`os.rmdir` with AT_REMOVEDIR); `missing_ok` as
-/// `except FileNotFoundError: pass`.
-fn unlinkat(dir: RawFd, name: &str, flags: libc::c_int, missing_ok: bool) -> Result<(), Failure> {
-    let c = c_name(name);
-    // SAFETY: a NUL-terminated name relative to an open directory.
-    if unsafe { libc::unlinkat(dir, c.as_ptr(), flags) } != 0 {
-        let error = io::Error::last_os_error();
-        if missing_ok && error.raw_os_error() == Some(libc::ENOENT) {
-            return Ok(());
-        }
-        return Err(Failure::os(error, Path::new(name)));
-    }
-    Ok(())
-}
-
-/// `os.link(source, name, src_dir_fd=…, dst_dir_fd=…, follow_symlinks=False)`: atomic, and fails
-/// on an existing name (`[Errno 17] File exists: 'sealed.part' -> 'name'`).
-fn linkat(from_dir: RawFd, from: &str, to_dir: RawFd, to: &str) -> Result<(), Failure> {
-    // SAFETY: NUL-terminated names relative to open directories.
-    let result = unsafe {
-        libc::linkat(
-            from_dir,
-            c_name(from).as_ptr(),
-            to_dir,
-            c_name(to).as_ptr(),
-            0,
-        )
-    };
-    if result != 0 {
-        let error = io::Error::last_os_error();
-        let (text, class) = py::os_error(&error, None);
-        return Err(Failure::Os {
-            text: format!("{text}: {} -> {}", py::repr(from), py::repr(to)),
-            class,
-        });
-    }
-    Ok(())
-}
-
-fn read_chunk(fd: RawFd, limit: usize) -> Result<Vec<u8>, Failure> {
-    let mut buffer = vec![0u8; limit];
-    // SAFETY: the buffer is writable for `limit` bytes.
-    let count = unsafe { libc::read(fd, buffer.as_mut_ptr().cast(), limit) };
-    if count < 0 {
-        return Err(unnamed(io::Error::last_os_error()));
-    }
-    buffer.truncate(count as usize);
-    Ok(buffer)
-}
-
-fn write_some(fd: RawFd, data: &[u8]) -> Result<usize, Failure> {
-    // SAFETY: the slice is readable for its length.
-    let count = unsafe { libc::write(fd, data.as_ptr().cast(), data.len()) };
-    if count < 0 {
-        return Err(unnamed(io::Error::last_os_error()));
-    }
-    Ok(count as usize)
-}
-
-/// `open_directory(parent, component, create)`: one component, never through a symlink, never onto
-/// another filesystem.
-fn open_directory(parent: RawFd, component: &str, create: bool) -> Result<OwnedFd, Failure> {
-    if create {
-        // SAFETY: a NUL-terminated name relative to an open directory.
-        let c = c_name(component);
-        if unsafe { libc::mkdirat(parent, c.as_ptr(), 0o755) } == 0 {
-            fsync(parent)?;
-        } else {
-            let error = io::Error::last_os_error();
-            if error.raw_os_error() != Some(libc::EEXIST) {
-                return Err(Failure::os(error, Path::new(component)));
-            }
-        }
-    }
-    let fd = openat(
-        parent,
-        component,
-        libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW,
-        0o777,
-    )?;
-    if fstat(fd.as_raw_fd())?.dev != fstat(parent)?.dev {
-        return Err(Failure::value("transfer_submount_refused"));
-    }
-    Ok(fd)
 }
 
 // ---- checks ---------------------------------------------------------------------------------------
@@ -432,8 +261,36 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
     if !storage::admitted(&volume, size as u64) {
         return Err(Failure::value("insufficient_space_for_seal_and_reserve"));
     }
-    let source = openat(
+    seal(stage.as_raw_fd(), size, &expected)?;
+    if data_volume(root)?.generation != volume.generation {
+        return Err(Failure::value("data_generation_changed"));
+    }
+    publish(
+        root,
+        data.as_raw_fd(),
         stage.as_raw_fd(),
+        &parts,
+        size,
+        &expected,
+    )?;
+    value.insert("state".into(), json!("Committed"));
+    // `staged` refused a manifest whose record is not an object.
+    if let Some(record) = value.get_mut("record").and_then(Value::as_object_mut) {
+        record.insert("result".into(), json!("OK"));
+        record.insert("failure".into(), Value::Null);
+    }
+    atomic_json(&anchored.join("manifest.json"), &value, true)?;
+    unlinkat(stage.as_raw_fd(), "sealed.part", 0, false)?;
+    unlinkat(stage.as_raw_fd(), "payload.part", 0, false)?;
+    fsync(stage.as_raw_fd())?;
+    Ok(Value::Object(value))
+}
+
+/// Copy the upload to an exclusive `sealed.part` while hashing it, within the deadline and the
+/// storage reserve; the copy must have the manifest's size and hash.
+fn seal(stage: RawFd, size: i64, expected: &str) -> Result<(), Failure> {
+    let source = openat(
+        stage,
         "payload.part",
         libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_NONBLOCK,
         0o777,
@@ -446,7 +303,7 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
     // Copy to an O_EXCL inode: an older SFTP FD cannot mutate the published bytes after
     // verification. Stale seal files are safe explicit retry artifacts.
     let sealed = openat(
-        stage.as_raw_fd(),
+        stage,
         "sealed.part",
         libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW,
         0o600,
@@ -482,9 +339,18 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
     // SAFETY: plain syscall on an open descriptor.
     check(unsafe { libc::fchmod(sealed.as_raw_fd(), 0o644) })?;
     fsync(sealed.as_raw_fd())?;
-    if data_volume(root)?.generation != volume.generation {
-        return Err(Failure::value("data_generation_changed"));
-    }
+    Ok(())
+}
+
+/// Publish the sealed upload as `music/<parts>` on its music volume without replacing anything.
+fn publish(
+    root: &Root,
+    data: RawFd,
+    stage: RawFd,
+    parts: &[String],
+    size: i64,
+    expected: &str,
+) -> Result<(), Failure> {
     // Music lives on Y2Media once it is mounted and recorded Ready, else on Y2DATA.
     let mut media = None;
     let mut destination = None;
@@ -492,7 +358,7 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
         destination = Some(media_volume(root)?);
         media = Some(open_absolute_directory(&root.path(INTERNAL))?);
     }
-    let base = media.as_ref().unwrap_or(&data).as_raw_fd();
+    let base = media.as_ref().map_or(data, AsRawFd::as_raw_fd);
     let mut target = open_directory(base, "music", true)?;
     for part in &parts[..parts.len() - 1] {
         target = open_directory(target.as_raw_fd(), part, true)?;
@@ -502,33 +368,17 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
         if media_volume(root)?.generation != destination.generation {
             return Err(Failure::value("media_generation_changed"));
         }
-        if fstat(stage.as_raw_fd())?.dev == fstat(target.as_raw_fd())?.dev {
-            linkat(stage.as_raw_fd(), "sealed.part", target.as_raw_fd(), leaf)?;
+        if fstat(stage)?.dev == fstat(target.as_raw_fd())?.dev {
+            linkat(stage, "sealed.part", target.as_raw_fd(), leaf)?;
         } else {
-            publish_copy(
-                stage.as_raw_fd(),
-                leaf,
-                target.as_raw_fd(),
-                size as u64,
-                &expected,
-            )?;
+            publish_copy(stage, leaf, target.as_raw_fd(), size as u64, expected)?;
         }
     } else {
         // linkat is atomic and fails on an existing name; never overwrite music.
-        linkat(stage.as_raw_fd(), "sealed.part", target.as_raw_fd(), leaf)?;
+        linkat(stage, "sealed.part", target.as_raw_fd(), leaf)?;
     }
     fsync(target.as_raw_fd())?;
-    value.insert("state".into(), json!("Committed"));
-    // `staged` refused a manifest whose record is not an object.
-    if let Some(record) = value.get_mut("record").and_then(Value::as_object_mut) {
-        record.insert("result".into(), json!("OK"));
-        record.insert("failure".into(), Value::Null);
-    }
-    atomic_json(&anchored.join("manifest.json"), &value, true)?;
-    unlinkat(stage.as_raw_fd(), "sealed.part", 0, false)?;
-    unlinkat(stage.as_raw_fd(), "payload.part", 0, false)?;
-    fsync(stage.as_raw_fd())?;
-    Ok(Value::Object(value))
+    Ok(())
 }
 
 /// Cross-filesystem publish: copy the sealed bytes into the target directory, verify, link without
@@ -619,62 +469,6 @@ fn discard(root: &Root, token: &str) -> Result<Value, Failure> {
     unlinkat(staging.as_raw_fd(), token, libc::AT_REMOVEDIR, false)?;
     fsync(staging.as_raw_fd())?;
     Ok(json!({"state": "Discarded", "id": token}))
-}
-
-// ---- workload.workload ----------------------------------------------------------------------------
-
-/// `@workload(class_name)`: a shared activity lease for the whole call (sleep takes it exclusively;
-/// unlike optional frequency hints this is a mandatory operation exclusion, and flock dies with the
-/// process), plus the optional `/dev/y2-workload` QoS hint renewed every second on its own thread,
-/// even while a blocking transfer runs for minutes. A missing or failing hint never fails the work.
-fn workload<T>(
-    root: &Root,
-    class: &str,
-    work: impl FnOnce() -> Result<T, Failure>,
-) -> Result<T, Failure> {
-    let runtime = root.path("/run/y2");
-    private_directory(&runtime)?;
-    let path = runtime.join("activity.lock");
-    let _lease = y2p_core::lock::try_shared(&path)
-        .map_err(|e| Failure::os(e, &path))?
-        .ok_or_else(|| Failure::value("sleep_operation_in_progress"))?;
-    let payload = format!("{class} 3000\n").into_bytes();
-    let mut renewal = None;
-    let mut hint = None;
-    if let Ok(file) = std::fs::OpenOptions::new()
-        .write(true)
-        .custom_flags(libc::O_CLOEXEC)
-        .open(root.path("/dev/y2-workload"))
-    {
-        let file = Arc::new(file);
-        if matches!((&*file).write(&payload), Ok(n) if n == payload.len()) {
-            let (stop, stopped) = mpsc::channel::<()>();
-            let (writer, payload) = (Arc::clone(&file), payload.clone());
-            let worker = thread::spawn(move || loop {
-                if !matches!(stopped.try_recv(), Err(mpsc::TryRecvError::Empty)) {
-                    return;
-                }
-                if !matches!((&*writer).write(&payload), Ok(n) if n == payload.len()) {
-                    return;
-                }
-                if !matches!(
-                    stopped.recv_timeout(Duration::from_secs(1)),
-                    Err(mpsc::RecvTimeoutError::Timeout)
-                ) {
-                    return;
-                }
-            });
-            renewal = Some((stop, worker));
-        }
-        hint = Some(file);
-    }
-    let result = work();
-    if let Some((stop, worker)) = renewal {
-        drop(stop);
-        let _ = worker.join();
-    }
-    drop(hint); // close/process death releases only this lease
-    result
 }
 
 #[cfg(test)]
