@@ -4,12 +4,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use serde::Serialize;
 use serde_json::Value;
-use std::sync::OnceLock;
 use y2p_core::paths::{name, parent_name};
 use y2p_core::{
     json::Object,
     root::read,
-    suspend_text::{int16, split, splitlines, Regex},
+    suspend_text::{int16, split, splitlines},
     Root,
 };
 
@@ -72,25 +71,16 @@ struct Usb0 {
     statistics: Object,
 }
 
-fn pattern(cell: &'static OnceLock<Option<Regex>>, text: &str) -> Option<&'static Regex> {
-    cell.get_or_init(|| Regex::new(text).ok()).as_ref()
-}
-
 /// `key=value` pairs of a status text, as the `keys` in this order (null where missing).
 pub(crate) fn key_values(text: Option<&str>, keys: &[&str]) -> Value {
-    static PAIR: OnceLock<Option<Regex>> = OnceLock::new();
-    let mut found = serde_json::Map::new();
-    if let Some(pattern) = pattern(&PAIR, r"\b([a-z0-9_]+)=(\S+)") {
-        for capture in pattern.captures_iter(text.unwrap_or_default()) {
-            found.insert(capture[1].to_owned(), Value::String(capture[2].to_owned()));
-        }
-    }
+    let found = y2p_core::power_text::key_values(text);
     Value::Object(
         keys.iter()
             .map(|k| {
+                let value = found.iter().find(|(key, _)| key == k);
                 (
                     (*k).to_owned(),
-                    found.get(*k).cloned().unwrap_or(Value::Null),
+                    value.map_or(Value::Null, |(_, v)| Value::String(v.clone())),
                 )
             })
             .collect(),
@@ -117,9 +107,6 @@ pub(crate) fn ipv4(root: &Root, interface: &str) -> Result<Vec<String>, Unreadab
             networks.push((hex(fields[1])?, hex(fields[7])?));
         }
     }
-    static ADDRESS: OnceLock<Option<Regex>> = OnceLock::new();
-    let address = pattern(&ADDRESS, r"^[|+`-]*\s*([0-9]+(?:\.[0-9]+){3})$")
-        .ok_or_else(|| Unreadable("address pattern".into()))?;
     let (mut found, mut previous): (Vec<String>, Option<String>) = (Vec::new(), None);
     let trie = root
         .read_limited("/proc/net/fib_trie", 262_144)
@@ -142,8 +129,8 @@ pub(crate) fn ipv4(root: &Root, interface: &str) -> Result<Vec<String>, Unreadab
                 }
             }
         }
-        previous = match address.captures(text) {
-            Some(capture) => Some(capture[1].to_owned()),
+        previous = match y2p_core::power_text::trie_address(text) {
+            Some(address) => Some(address),
             None if text.contains('/') => previous,
             None => None,
         };

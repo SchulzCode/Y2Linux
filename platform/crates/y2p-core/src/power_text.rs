@@ -62,31 +62,6 @@ pub fn trie_address(text: &str) -> Option<String> {
     pattern.captures(text).map(|c| c[1].to_owned())
 }
 
-/// Python `int(text, 16)`: sign, optional `0x`, hex digits with single `_` between them.
-pub fn python_hex(text: &str) -> Option<i128> {
-    let text = crate::root::python_strip(text);
-    let (sign, rest) = match text.strip_prefix('-') {
-        Some(rest) => (-1, rest),
-        None => (1, text.strip_prefix('+').unwrap_or(text)),
-    };
-    let digits = rest
-        .strip_prefix("0x")
-        .or_else(|| rest.strip_prefix("0X"))
-        .map(|d| d.strip_prefix('_').unwrap_or(d))
-        .unwrap_or(rest);
-    let valid = !digits.is_empty()
-        && !digits.starts_with('_')
-        && !digits.ends_with('_')
-        && !digits.contains("__")
-        && digits.chars().all(|c| c.is_ascii_hexdigit() || c == '_');
-    if !valid {
-        return None;
-    }
-    i128::from_str_radix(&digits.replace('_', ""), 16)
-        .ok()
-        .map(|v| sign * v)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,8 +93,5 @@ mod tests {
         assert_eq!(trie_address("|-- 192.168.7.2"), Some("192.168.7.2".into()));
         assert_eq!(trie_address("+-- 192.168.7.0/24 2 0 2"), None);
         assert_eq!(python_split(" a\x1cb  c\n"), ["a", "b", "c"]);
-        assert_eq!(python_hex("0007A8C0"), Some(0x7a8c0));
-        assert_eq!(python_hex("0x_ff"), Some(255));
-        assert_eq!(python_hex("zz"), None);
     }
 }

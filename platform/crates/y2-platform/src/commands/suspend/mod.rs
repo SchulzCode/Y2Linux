@@ -413,10 +413,7 @@ pub fn boottime() -> f64 {
     clock(libc::CLOCK_BOOTTIME)
 }
 
-/// `time.process_time()`.
-pub fn process_time() -> f64 {
-    clock(libc::CLOCK_PROCESS_CPUTIME_ID)
-}
+pub use y2p_core::clock::process_time;
 
 fn clock(id: libc::clockid_t) -> f64 {
     let mut now = libc::timespec {

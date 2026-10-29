@@ -4,6 +4,7 @@
 use super::{pyjson, pyre, python_strip, rel, sha256_hex, Failure, File, Py, Root, SeekFrom};
 use std::io::Read;
 use std::io::Seek;
+pub use y2p_core::py::strerror;
 
 /// A JSON record of up to 16 MiB (`json_at` reads 128 KiB; Reborn's session with its whole queue is
 /// larger); `None` for `null` or no JSON.
@@ -317,15 +318,4 @@ pub(super) fn hardware(root: &Root) -> Py {
         }
     }
     data
-}
-
-/// `error.strerror`.
-pub fn strerror(error: &std::io::Error) -> String {
-    match error.raw_os_error() {
-        // SAFETY: strerror returns a NUL-terminated static message.
-        Some(errno) => unsafe { std::ffi::CStr::from_ptr(libc::strerror(errno)) }
-            .to_string_lossy()
-            .into_owned(),
-        None => error.to_string(),
-    }
 }

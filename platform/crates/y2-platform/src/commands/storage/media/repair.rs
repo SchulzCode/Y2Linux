@@ -15,12 +15,12 @@ use crate::reply::{atomic_json, Failure};
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
-    ffi::CStr,
     fs::{self, File, OpenOptions},
     io::{self, Read, Seek, SeekFrom, Write},
     os::unix::fs::OpenOptionsExt,
     time::Instant,
 };
+use y2p_core::py::strerror;
 use y2p_core::{
     command,
     mounts::mounts_at,
@@ -85,17 +85,6 @@ fn battery_allows_repair(root: &Root) -> Result<bool, Failure> {
             .as_str()
             .is_some_and(|s| ["Charging", "Full"].contains(&s))
         || percent.is_some_and(|p| p >= REPAIR_MINIMUM_PERCENT))
-}
-
-/// The error's message without its errno prefix (`No space left on device`).
-fn strerror(error: &io::Error) -> String {
-    match error.raw_os_error() {
-        // SAFETY: strerror returns a NUL-terminated message.
-        Some(errno) => unsafe { CStr::from_ptr(libc::strerror(errno)) }
-            .to_string_lossy()
-            .into_owned(),
-        None => error.to_string(),
-    }
 }
 
 /// Up to `n` bytes, fewer only at the end of the file.

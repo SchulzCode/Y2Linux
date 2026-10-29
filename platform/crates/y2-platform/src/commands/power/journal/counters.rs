@@ -2,6 +2,7 @@
 //! blockers): the power journal's rows and the suspend group's stage rows in the same journal.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::glob_name;
+use y2p_core::clock::process_time;
 use y2p_core::{
     json::{Object, ObjectExt},
     power_text::python_split,
@@ -106,15 +107,4 @@ pub fn idle_counters(root: &Root) -> Object {
         );
     result.set("collector_cpu_seconds", process_time() - started);
     result
-}
-
-/// `time.process_time()`.
-fn process_time() -> f64 {
-    let mut now = libc::timespec {
-        tv_sec: 0,
-        tv_nsec: 0,
-    };
-    // SAFETY: a valid timespec and a clock every Linux has.
-    unsafe { libc::clock_gettime(libc::CLOCK_PROCESS_CPUTIME_ID, &mut now) };
-    now.tv_sec as f64 + now.tv_nsec as f64 * 1e-9
 }

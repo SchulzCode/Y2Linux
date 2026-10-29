@@ -131,6 +131,17 @@ impl Clock for Manual {
     }
 }
 
+/// `time.process_time()`: this process's CPU time in seconds.
+pub fn process_time() -> f64 {
+    let mut now = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    // SAFETY: a valid, writable timespec; CLOCK_PROCESS_CPUTIME_ID exists on Linux.
+    unsafe { libc::clock_gettime(libc::CLOCK_PROCESS_CPUTIME_ID, &mut now) };
+    now.tv_sec as f64 + now.tv_nsec as f64 * 1e-9
+}
+
 /// The wall clock in seconds since the epoch (`time.time()`); 0 before 1970.
 pub fn wall() -> f64 {
     std::time::SystemTime::now()

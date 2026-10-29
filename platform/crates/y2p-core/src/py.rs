@@ -70,15 +70,24 @@ pub fn os_error(error: &io::Error, path: Option<&str>) -> (String, &'static str)
     let Some(errno) = error.raw_os_error() else {
         return (error.to_string(), "OSError");
     };
-    // SAFETY: strerror returns a pointer to a NUL-terminated static or thread-local message.
-    let message = unsafe { CStr::from_ptr(libc::strerror(errno)) }
-        .to_string_lossy()
-        .into_owned();
+    let message = strerror(error);
     let text = match path {
         Some(path) => format!("[Errno {errno}] {message}: {}", repr(path)),
         None => format!("[Errno {errno}] {message}"),
     };
     (text, os_error_class(errno))
+}
+
+/// `error.strerror`: the message without its errno prefix (`No space left on device`), or the error's
+/// text when it carries no errno.
+pub fn strerror(error: &io::Error) -> String {
+    match error.raw_os_error() {
+        // SAFETY: strerror returns a pointer to a NUL-terminated static or thread-local message.
+        Some(errno) => unsafe { CStr::from_ptr(libc::strerror(errno)) }
+            .to_string_lossy()
+            .into_owned(),
+        None => error.to_string(),
+    }
 }
 
 /// The builtin `OSError` subclass Python raises for an errno (PEP 3151).
