@@ -9,8 +9,8 @@ fn reborn_is_installed_last_and_everything_else_runs_before_it() {
     for (name, text) in [
         ("power/coordinator.rs", include_str!("power/coordinator.rs")),
         (
-            "reports/maintenance.rs",
-            include_str!("reports/maintenance.rs"),
+            "reports/maintenance/plan.rs",
+            include_str!("reports/maintenance/plan.rs"),
         ),
     ] {
         assert!(text.contains("S90reborn"), "{name}");

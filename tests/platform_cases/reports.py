@@ -2,7 +2,7 @@
 reset (plan, execute, resume, purge), export-state, export-diagnostics.
 
 The report upload goes through `curl` (a fixture command below a fixture root: `http` is its answer, as
-upload.rs `answer` reads it).
+upload/curl.rs `answer` reads it).
 
 EXTRA_CASES (tests/test_platform_reports.py runs them): a report or export that stays on disk (a random report
 ID and wall-clock time in its name, a random scrubbing key in its tokens, deflate bytes), and a reset executed on
@@ -39,7 +39,7 @@ DAY = datetime.now(timezone.utc).date().isoformat()
 
 
 def curl(headers):
-    """upload.rs `argv`: the request (headers as urllib sends them, an empty one as curl's `Name;`), the body on
+    """upload/curl.rs `argv`: the request (headers as urllib sends them, an empty one as curl's `Name;`), the body on
     stdin."""
     argv = ['curl', '-q', '--silent', '--show-error', '--proto', '=https', '--noproxy', '*', '--connect-timeout',
             '30', '--speed-limit', '1', '--speed-time', '30', '--request', 'POST']
@@ -73,7 +73,7 @@ ARCHIVES = {name: archive(name[17:53], created, [('files/x.log', b'x\n')]) for n
 
 
 def request(name, key='K' * 40):
-    """The curl command upload.rs and `_post` make for one queued report of fixture()."""
+    """The curl command upload/curl.rs makes for one queued report of fixture()."""
     data = ARCHIVES[name]
     return curl([('Content-Type', 'application/gzip'), ('User-Agent', 'Y2Linux/1.0.0-fixture'),
                  ('X-Y2-Upload-Key', key), ('X-Y2-Schema', '1'), ('X-Y2-Install-Id', INSTALL),
