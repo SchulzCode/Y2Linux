@@ -60,7 +60,7 @@ fn answer(result: Result<Py, Failure>) -> Outcome {
     }
 }
 
-/// cli.py's `reset` branch.
+/// `reset plan|execute|resume|purge`.
 pub fn reset(
     root: &Root,
     action: &str,
@@ -76,7 +76,7 @@ pub fn reset(
     })
 }
 
-/// cli.py's `export-state`.
+/// `export-state`.
 pub fn export_state(root: &Root, database: bool, network: bool) -> Outcome {
     answer(export(root, database, network))
 }

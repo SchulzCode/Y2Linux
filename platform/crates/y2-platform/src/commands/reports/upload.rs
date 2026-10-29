@@ -37,8 +37,7 @@ fn wall(root: &Root) -> f64 {
     clock::Instant::now(root).timestamp()
 }
 
-/// `queue(ctx, trigger, detail, topic, now, progress, triggers)`: build and queue one report if the
-/// user opted in and the limits allow it.
+/// Build and queue one report if the owner opted in and the limits allow it.
 pub fn queue(
     root: &Root,
     triggers: &[String],
@@ -143,7 +142,7 @@ pub fn queue(
         .with("name", Py::Str(name)))
 }
 
-/// `upload_blocked(ctx, now)`: why queued reports must wait now, or None. Uploads run in the
+/// Why queued reports must wait now, or None. Uploads run in the
 /// background: only on Wi-Fi, with a trustworthy clock (TLS), never during an update and never below
 /// MINIMUM_PERCENT on battery.
 fn upload_blocked(root: &Root) -> Result<Option<&'static str>, Failure> {
@@ -224,7 +223,7 @@ fn queued_index(data: &[u8]) -> Option<Py> {
     pyjson::loads_bytes(&body?)
 }
 
-/// `upload(ctx, progress, first)`: send every queued report that is due, oldest first.
+/// `report upload`: send every queued report that is due, oldest first.
 ///
 /// A stored report (201, or 200 for one the receiver already has) leaves the queue; one the receiver
 /// refuses (REFUSED) is dropped; a full day (429) waits for the next UTC day; no answer or a server
@@ -256,7 +255,13 @@ pub fn upload(
             .with("uploaded", Py::List(Vec::new()))
             .with("reason", Py::str("busy")));
     };
-    let key = state::upload_key(root).expect("checked by upload_blocked");
+    // The key once more, under the lock (upload_blocked read it first): a key gone meanwhile is the
+    // same answer as no key.
+    let Some(key) = state::upload_key(root) else {
+        return Ok(Py::dict()
+            .with("uploaded", Py::List(Vec::new()))
+            .with("reason", Py::str("no_upload_key")));
+    };
     upload_queue(root, now, &key, progress, first)
 }
 
@@ -507,7 +512,7 @@ fn upload_queue(
     Ok(Py::dict().with("uploaded", Py::List(results)))
 }
 
-/// `upload_now(ctx, progress, first)`: upload() for callers whose own work must not fail with it (a
+/// `upload` for callers whose own work must not fail with it (a
 /// queued report stays queued): a sleep in progress, a refusal or an I/O error becomes the reason
 /// (an OSError by its class).
 pub fn upload_now(root: &Root, progress: Option<&build::Progress>, first: Option<&str>) -> Py {
@@ -522,7 +527,7 @@ pub fn upload_now(root: &Root, progress: Option<&build::Progress>, first: Option
     })
 }
 
-/// cli.py's `report send`: queue a manual report, then send it at once when it can be; otherwise it
+/// `report send`: queue a manual report, then send it at once when it can be; otherwise it
 /// waits in the queue.
 pub fn send(root: &Root, topic: Option<&str>) -> Result<Py, Failure> {
     let progress = build::Progress::new(root, None);

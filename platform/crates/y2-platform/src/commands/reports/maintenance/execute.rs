@@ -19,13 +19,15 @@ fn durable_flag(path: &Path) -> Result<(), Failure> {
     file.write_all(b"Owner maintenance pending; keep mutable consumers stopped\n")
         .and_then(|()| file.sync_all())
         .map_err(os_plain)?;
-    fsync_path(path.parent().expect("parent"))
+    match path.parent() {
+        Some(parent) => fsync_path(parent),
+        None => Ok(()),
+    }
 }
 
-/// A plan target's path, identity and what is there now, in Python's order: `inspect(data,
-/// target['path']) != target['identity']` before the apply, `relative, expected = target['path'],
-/// target['identity']` then `inspect(data, relative)` in it. A target without both, or whose path is
-/// no str, is refused.
+/// A plan target's path, identity and what is there now. Before the apply the path is inspected
+/// before the identity is read, in it the other way round, so an odd target is refused at the same
+/// step as before; a target without both, or whose path is no str, is refused.
 fn target(
     data: &OwnedFd,
     target: &Py,
@@ -53,7 +55,8 @@ fn target(
     Ok((path, expected, source))
 }
 
-/// `execute(ctx, confirmation, erase_music, resume)`.
+/// `reset execute|resume`: move a confirmed plan's targets (resume: those of an interrupted reset,
+/// after a restart).
 pub(super) fn execute(
     root: &Root,
     confirm: Option<&str>,

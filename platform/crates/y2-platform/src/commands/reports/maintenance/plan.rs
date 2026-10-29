@@ -19,7 +19,8 @@ fn base_name(token: &str) -> &str {
         .unwrap_or("")
 }
 
-/// `busy(ctx, scope)`: actual command lines, not stale PID files. Include supervision owners.
+/// The processes using the scope's data: their actual command lines (not stale PID files),
+/// supervision owners included.
 pub(super) fn busy(root: &Root, scope: &str) -> Result<Vec<Py>, Failure> {
     let mut needles = vec![
         "reborn",
@@ -173,7 +174,7 @@ pub(super) fn confirmation(value: &Py) -> String {
     sha256_hex(pyjson::dumps(value, Style::Compact).as_bytes())
 }
 
-/// `plan(ctx, scope)`.
+/// `reset plan`: the targets of a scope and their identities, once their consumers stopped.
 pub(super) fn plan(root: &Root, scope: Option<&str>) -> Result<Py, Failure> {
     let scope = scope
         .filter(|s| SCOPES.contains(s))

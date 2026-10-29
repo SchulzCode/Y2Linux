@@ -211,11 +211,15 @@ impl Scrubber {
     }
 
     fn known(&mut self, caps: &Captures, text: &str) -> String {
-        let m = caps.get(0).expect("match");
+        let Some(m) = caps.get(0) else {
+            return String::new();
+        };
         let value = m.as_str();
-        // Word-edged values only replace whole words ("Home", not "Homepage").
-        let first = value.chars().next().expect("non-empty");
-        let last = value.chars().next_back().expect("non-empty");
+        // Word-edged values only replace whole words ("Home", not "Homepage"). A known value is
+        // never empty (secrets keeps three characters or more); an empty match stays as it is.
+        let (Some(first), Some(last)) = (value.chars().next(), value.chars().next_back()) else {
+            return String::new();
+        };
         if pyre::isalnum(first) && pyre::before(text, m.start()).is_some_and(pyre::isalnum) {
             return value.to_owned();
         }

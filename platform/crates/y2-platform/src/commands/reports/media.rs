@@ -1,6 +1,6 @@
-//! What `report save` needs from observe.py and media.py: `mountinfo`, the SD card's state
-//! (`_sd_state`, `owned_mount`, `can_write`), its write window (`write_window`, `sd_writable`), and
-//! report.py's `save_to` / `_write_into`.
+//! `report save`: the SD card's state as the storage group records it (our mount, its claim,
+//! `can_write`), the report's own write window on a protected card, and writing the file below a
+//! destination without following a link out of it.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     build, clock, json_dict, or_dict,
@@ -284,7 +284,7 @@ pub fn rename_between(
     Ok(())
 }
 
-/// `save_to(ctx, destination, topic, progress)`: build a report and save it onto Internal Storage or
+/// Build a report and save it onto Internal Storage or
 /// the SD card. Asked for by the owner on the player, so no opt-in is needed: nothing leaves the
 /// player unless the owner sends the file. It carries the install ID only when error reports are on.
 pub fn save_to(

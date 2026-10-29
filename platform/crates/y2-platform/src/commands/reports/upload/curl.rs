@@ -17,11 +17,11 @@ pub(super) fn answer(outcome: &command::Outcome) -> (Option<i64>, Result<Py, Str
     };
     let mut fields = last.splitn(3, ' ');
     let (code, exit, message) = (fields.next(), fields.next(), fields.next().unwrap_or(""));
+    // `%{http_code}` is three digits (000 without an answer), `%{exitcode}` curl's exit code.
     let parsed = match (code, exit) {
-        (Some(c), Some(e)) if c.len() == 3 && c.bytes().all(|b| b.is_ascii_digit()) => e
-            .parse::<i64>()
-            .ok()
-            .map(|e| (c.parse::<i64>().expect("digits"), e)),
+        (Some(c), Some(e)) if c.len() == 3 && c.bytes().all(|b| b.is_ascii_digit()) => {
+            c.parse::<i64>().ok().zip(e.parse::<i64>().ok())
+        }
         _ => None,
     };
     let Some((status, exit)) = parsed else {
@@ -189,9 +189,12 @@ pub(super) fn stream(
         reason: Some(reason.into()),
         output,
     };
-    let mut process = Command::new(argv[0]);
+    let Some((program, arguments)) = argv.split_first() else {
+        return failed("command_unavailable", None);
+    };
+    let mut process = Command::new(program);
     process
-        .args(&argv[1..])
+        .args(arguments)
         .env_clear()
         .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
         .env("LC_ALL", "C")

@@ -1,4 +1,5 @@
-//! The wall-clock forms report.py writes: `datetime.isoformat()` in UTC, the queue's
+//! The wall-clock forms of the report records (the receiver and the owner's analyses read them as
+//! Python's datetime wrote them): `datetime.isoformat()` in UTC, the queue's
 //! `%Y%m%dT%H%M%SZ`, the saved file's local `%Y%m%d-%H%M%S`, the local UTC offset, and
 //! `datetime.fromisoformat(...).timestamp()` for a queued report's age.
 // SPDX-License-Identifier: GPL-2.0-only

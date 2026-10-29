@@ -88,7 +88,8 @@ fn file_digest(path: &Path) -> Result<String, Failure> {
     Ok(sha256_hex(&data))
 }
 
-/// `export(ctx, include_database, include_network)` (Maintenance workload).
+/// `export-state` (a Maintenance workload): the settings; network credentials and the library
+/// database on request.
 pub(super) fn export(
     root: &Root,
     include_database: bool,

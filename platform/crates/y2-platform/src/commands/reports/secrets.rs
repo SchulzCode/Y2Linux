@@ -1,4 +1,4 @@
-//! report.py's `secrets(ctx)`: this player's private strings by class, read from where they are
+//! This player's private strings by class, read from where they are
 //! stored (Wi-Fi networks, Bluetooth names, the Last.fm account, SSH keys, serial numbers, volume
 //! serials, the songs in the queue).
 // SPDX-License-Identifier: GPL-2.0-only

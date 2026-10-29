@@ -1,4 +1,4 @@
-//! report.py's `build`: everything the player records about an error (kernel, platform,
+//! One error report: everything the player records about an error (kernel, platform,
 //! update/recovery and Reborn logs and state, hardware identity), every byte through the scrubber,
 //! packed as one tar.gz within the receiver's 2 MiB.
 // SPDX-License-Identifier: GPL-2.0-only
@@ -100,7 +100,7 @@ fn read_bytes(root: &Root, name: &str) -> Option<(Vec<u8>, bool)> {
     }
 }
 
-/// `_rel(ctx, path)`: a glob result as the player path ctx.read() expects.
+/// A glob result as the device path `Root::read` takes.
 pub fn rel(root: &Root, path: &std::path::Path) -> String {
     let base = root.path("/");
     let relative = path.strip_prefix(&base).unwrap_or(path);
@@ -155,7 +155,11 @@ fn scrub_files(
             let mut worker = scrubber.worker();
             let (jobs, next) = (&jobs, &next);
             scope.spawn(move || loop {
-                let Some(i) = next.lock().expect("queue").next() else {
+                let next = next
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .next();
+                let Some(i) = next else {
                     break;
                 };
                 let clean = scrub::blob(&mut worker, jobs[i].1, &jobs[i].2);
@@ -179,8 +183,9 @@ fn scrub_files(
         }
     });
     let mut cleaned = vec![Vec::new(); items.len()];
+    // Every job ran: a worker stops only when the queue is empty.
     for ((owner, _, _), clean) in jobs.iter().zip(results) {
-        cleaned[*owner].extend(clean.expect("every job ran"));
+        cleaned[*owner].extend(clean.unwrap_or_default());
     }
     cleaned
 }
@@ -238,8 +243,7 @@ fn random_key() -> Result<[u8; 16], Failure> {
     Ok(key)
 }
 
-/// `build(ctx, trigger, detail, topic, install_id, now, progress, triggers)`: the complete report
-/// (tar.gz bytes) and its index.
+/// The complete report (tar.gz bytes) and its index (report.json).
 pub fn build(
     root: &Root,
     triggers: &[String],
@@ -385,7 +389,8 @@ pub fn build(
         progress.update("scrub", fraction, false, Bytes::NONE)
     });
     progress.update("pack", 0.0, true, Bytes::NONE);
-    let commands = runner.join().expect("command runner");
+    // The runner thread only collects outcomes (a panic aborts the process before this).
+    let commands = runner.join().unwrap_or_default();
     for (name, result) in commands {
         let output = result.output.clone().unwrap_or_default();
         let (data, cut) = tail(output.as_bytes(), SECTION_MAX);

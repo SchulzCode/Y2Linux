@@ -1,6 +1,5 @@
-//! Group `reports` of the port (docs/planning/PLATFORM-RUST-PORT-PLAN.md, "Remaining port groups"):
-//! `report` (report.py: opt-in error reports, the scrubber, the queue and its upload), `reset` and
-//! `export-state` (maintenance.py), `export-diagnostics` (diagnostics.py, diagnostic_fields.py).
+//! The reports group: `report` (opt-in error reports, the scrubber, the queue and its upload),
+//! `reset` and `export-state` (the owner's maintenance), `export-diagnostics` (the tester export).
 // SPDX-License-Identifier: GPL-2.0-only
 mod build;
 mod checks;
@@ -176,7 +175,7 @@ const UNREADABLE: [&str; 5] = [
     SESSION_UNREADABLE,
 ];
 
-/// cli.py's `report` branch: every failure prints `report_failed` (exit 1) with a reason.
+/// `report <action>`: every failure prints `report_failed` (exit 1) with a reason.
 fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> Outcome {
     if matches!(action, "send" | "save" | "check" | "work") {
         lower_priority();
@@ -234,7 +233,8 @@ pub fn sha256_hex(data: &[u8]) -> String {
         .collect()
 }
 
-/// `ctx.json(name)`: Python's json of `ctx.read(name)` (128 KiB), exactly.
+/// A JSON record of at most 128 KiB, read with Python's json rules (integers of any size, NaN,
+/// duplicate keys): the records were written by Python and are compared with what was read before.
 pub fn json_at(root: &Root, name: &str) -> Option<Py> {
     pyjson::loads(&root.read(name)?)
 }

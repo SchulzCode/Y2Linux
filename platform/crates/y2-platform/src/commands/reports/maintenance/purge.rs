@@ -38,7 +38,8 @@ fn three_digits(name: &str) -> bool {
     name.len() == 3 && name.bytes().all(|b| b.is_ascii_digit())
 }
 
-/// `purge(ctx, token, confirmation)` (Maintenance workload).
+/// `reset purge`: delete a completed reset's quarantine (a Maintenance workload), at most 256
+/// entries or 8 s per call.
 pub(super) fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Py, Failure> {
     let id_ok = token.len() == 32
         && token

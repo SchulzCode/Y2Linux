@@ -1,4 +1,4 @@
-//! report.py's automatic triggers: `crash_signature`, `check` and `run_checks`.
+//! The automatic triggers of an error report: `crash_signature`, `check` and `run_checks`.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     build::{rel, Progress},
@@ -40,8 +40,7 @@ fn storage() -> &'static Regex {
     )
 }
 
-/// `crash_signature(ctx)`: the newest retained kernel crash as (record time, kernel timestamp, text
-/// hash), or None.
+/// The newest retained kernel crash as (record time, kernel timestamp, text hash), or None.
 ///
 /// F50: a ramoops panic record stays in pstore over many starts, while the console and pmsg records
 /// change every start; a hash over all of them sent fcdf3a25's 10-25 panic again as 8e9181e5. The
@@ -117,7 +116,8 @@ fn int(root: &Root, name: &str) -> Option<i64> {
     root.integer(name)
 }
 
-/// `check(ctx)`: every automatic trigger that fired since the last check, as (trigger, detail).
+/// Every automatic trigger that fired since the last check, as (trigger, detail); what fired is
+/// marked as seen in reports.json.
 pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     let mut value = Reports::load(root);
     let mut fired: Vec<(String, String)> = Vec::new();
@@ -408,7 +408,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     Ok(fired)
 }
 
-/// `run_checks(ctx)`: queue one report for the triggers fired in this check (when enabled).
+/// `report check`: queue one report for the triggers fired in this check (when enabled).
 ///
 /// They usually share a cause (a crash loop: unclean restart, Reborn crash and a rolled-back update
 /// within seconds) and one report carries all of them; one report each sent near copies against the

@@ -1,12 +1,13 @@
-//! diagnostics.py: the tester export with an allowlisted projection, separate from private backup.
+//! `export-diagnostics`: the tester export with an allowlisted projection, separate from the
+//! private backup (`export-state`).
 //!
 //! No raw log, database, credential file, calibration or user filename is exported. Log excerpts are
 //! represented by fixed event classes and numeric errno only: free text cannot be reliably scrubbed by
 //! a password regular expression.
 //!
-//! The bundle carries `observe.snapshot(ctx)` and `health.check(ctx)`, the observation group's
-//! (`platform_state`), taken where Python's `collect` takes them: after the space admission, the lock
-//! and the export limit.
+//! The bundle carries the observation group's snapshot and health checks (`platform_state`), taken
+//! only after the space admission, the lock and the export limit: an export that cannot be written
+//! runs none of their commands.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     fields::{fields, kernel_fields, kernel_status_keys, public_words},
@@ -239,7 +240,7 @@ pub fn events(raw: Option<&str>) -> Py {
     Py::List(result)
 }
 
-/// `observe.snapshot(ctx)` and `health.check(ctx)`, in this order (each runs its own commands).
+/// The platform snapshot and the health checks, in this order (each runs its own commands).
 fn platform_state(root: &Root) -> Result<(Py, Py), Failure> {
     use crate::commands::observation::{health, snapshot};
     let status = snapshot::snapshot(root, &[], false, 0.0)?;
@@ -248,7 +249,8 @@ fn platform_state(root: &Root) -> Result<(Py, Py), Failure> {
     Ok((status, Py::from_serde(&serde_json::Value::Object(checks))))
 }
 
-/// `log_tail(ctx, relative)`: walk reviewed data paths with no symlinks; never read arbitrary files.
+/// The events of a log's tail: walk reviewed data paths with no symlinks; never read arbitrary
+/// files.
 fn log_tail(root: &Root, relative: &str) -> Result<Py, Failure> {
     use super::media::{fstat, open_at};
     use std::io::{Read, Seek, SeekFrom};
@@ -416,7 +418,7 @@ fn export_inner(root: &Root) -> Result<Py, Failure> {
     result
 }
 
-/// cli.py's `export-diagnostics`: any failure is `diagnostic_export_failed` (exit 1).
+/// `export-diagnostics`: any failure is `diagnostic_export_failed` (exit 1).
 pub fn export(root: &Root) -> Outcome {
     match export_inner(root) {
         Ok(value) => Ok(Reply::text(pyjson::dumps(&value, Style::Spaced))),

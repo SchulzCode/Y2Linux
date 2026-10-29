@@ -1,5 +1,5 @@
-//! report.py's state and queue: `reports.json` (opt-in, install ID, limits, seen markers, upload
-//! retries, the last report), `status`, `set_enabled`, `new_install_id`, `destinations`.
+//! The error-report state and queue: `reports.json` (opt-in, install ID, limits, seen markers,
+//! upload retries, the last report), `status`, `set_enabled`, `new_install_id`, `destinations`.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{json_at, media, pyjson::Py, pyops::OrRefuse};
 use crate::reply::{mkdir_parents, Failure};
@@ -24,7 +24,7 @@ pub const DESTINATIONS: [(&str, &str, &str); 2] = [
 pub struct Reports(Py);
 
 impl Reports {
-    /// `state(ctx)`: the record with its defaults (anything but an object reads as `{}`).
+    /// The record with its defaults (anything but an object reads as `{}`).
     pub fn load(root: &Root) -> Reports {
         let mut value = match json_at(root, STATE) {
             Some(v @ Py::Dict(_)) => v,
@@ -48,7 +48,7 @@ impl Reports {
         Reports(value)
     }
 
-    /// `save(ctx, value)`.
+    /// Write the record (sorted keys, durably).
     pub fn save(&self, root: &Root) -> Result<(), Failure> {
         let path = root.path(STATE);
         if let Some(parent) = path.parent() {
@@ -133,12 +133,12 @@ impl Reports {
     }
 }
 
-/// `state(ctx)`: reports.json with its defaults, as read.
+/// reports.json with its defaults, as read (the service reads it too).
 pub fn state(root: &Root) -> Py {
     Reports::load(root).into_py()
 }
 
-/// `save(ctx, value)` of a whole record (tests write odd ones).
+/// Write a whole record (tests write odd ones).
 #[cfg(test)]
 pub fn save(root: &Root, value: &Py) -> Result<(), Failure> {
     Reports(value.clone()).save(root)
@@ -155,7 +155,7 @@ pub fn name(path: &std::path::Path) -> String {
         .unwrap_or_default()
 }
 
-/// `upload_key(ctx)`: the build-wide upload key, or None when this build has none. It is public (it
+/// The build-wide upload key, or None when this build has none. It is public (it
 /// is in every image) and only keeps random internet traffic away from the receiver; the receiver's
 /// limits are the protection.
 pub fn upload_key(root: &Root) -> Option<String> {
@@ -197,7 +197,8 @@ impl From<Last<'_>> for Py {
     }
 }
 
-/// `set_enabled(ctx, enabled)`.
+/// `report enable|disable`: opting in marks what is already there as seen, opting out empties the
+/// queue.
 pub fn set_enabled(root: &Root, enabled: bool) -> Result<Py, Failure> {
     let mut value = Reports::load(root);
     let was = value.enabled();
@@ -221,7 +222,7 @@ pub fn set_enabled(root: &Root, enabled: bool) -> Result<Py, Failure> {
     status(root)
 }
 
-/// `new_install_id(ctx)`.
+/// `report new-id`: the receiver sees this player as a new one from now on.
 pub fn new_install_id(root: &Root) -> Result<Py, Failure> {
     let mut value = Reports::load(root);
     value.set("install_id", Py::str(uuid4()?));
@@ -233,7 +234,7 @@ pub fn uuid4() -> Result<String, Failure> {
     y2p_core::py::uuid4().map_err(super::os_plain)
 }
 
-/// `status(ctx)`.
+/// `report status`: what Reborn's report screen shows.
 pub fn status(root: &Root) -> Result<Py, Failure> {
     let value = Reports::load(root);
     let queued: Vec<Py> = queued(root).iter().map(|p| Py::Str(name(p))).collect();
@@ -250,7 +251,7 @@ pub fn status(root: &Root) -> Result<Py, Failure> {
         ))
 }
 
-/// `destinations(ctx)`: the music storage mounted writable now, in DESTINATIONS order.
+/// The music storage mounted writable now (or on a write window), in DESTINATIONS order.
 pub fn destinations(root: &Root) -> Vec<&'static str> {
     let table = media::mountinfo(
         &root
