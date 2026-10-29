@@ -654,6 +654,10 @@ pub fn run(root: &Root) -> Outcome {
 }
 
 #[cfg(test)]
+#[path = "evidence_tests.rs"]
+mod evidence_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
