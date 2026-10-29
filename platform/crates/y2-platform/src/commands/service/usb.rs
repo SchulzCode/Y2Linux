@@ -124,6 +124,8 @@ pub struct UsbService {
     /// path -> identity, in insertion order (a dict).
     mounted: Vec<(String, Value)>,
     sd_window: f64,
+    /// This boot's id, read for the first record: it cannot change while the service runs.
+    boot_id: Option<Option<String>>,
     /// What starts the responder and its IPC commands.
     launch: Launch,
 }
@@ -147,6 +149,7 @@ impl UsbService {
             terminal: false,
             mounted: Vec::new(),
             sd_window: 0.0,
+            boot_id: None,
             launch: process::launcher(),
         }
     }
@@ -163,9 +166,11 @@ impl UsbService {
         cable: &Option<String>,
         activity: &Activity,
     ) -> Result<Value, Failure> {
+        let root = &self.root;
+        let boot_id = self.boot_id.get_or_insert_with(|| root.boot_id()).clone();
         let record = Transfer {
             schema: SCHEMA,
-            boot_id: self.root.boot_id(),
+            boot_id,
             state,
             reason,
             mode: self.mode,

@@ -102,9 +102,11 @@ pub(super) fn from_directory(reviewed: &Reviewed, path: &Path) -> Result<Files> 
 }
 
 /// Cheap check for status polling: every file there with its size.
+///
+/// The service and the USB views ask every pass: the reviewed tables as they are, nothing copied.
 pub fn present(root: &Root) -> bool {
     let target = root.path(TARGET);
-    Reviewed::stock().all().all(|(name, size, _)| {
+    FILES.iter().chain(&DEFAULTS).all(|(name, size, _)| {
         target
             .join(name)
             .symlink_metadata()

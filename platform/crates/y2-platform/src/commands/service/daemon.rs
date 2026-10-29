@@ -141,6 +141,8 @@ impl Service {
         let (mut reconcile, mut verify) = (Run::default(), Run::default());
         let (mut firmware_scan, mut firmware_ready): (Option<Child>, bool) = (None, false);
         let mut done = 0u64;
+        // It cannot change while the service runs.
+        let boot_id = root.boot_id();
         while RUNNING.load(Ordering::SeqCst) {
             wake.drain();
             let before = root.clock().monotonic();
@@ -178,7 +180,7 @@ impl Service {
             value
                 .set("status_query_failures", query_failures.clone())
                 .set("schema", 1)
-                .set("boot_id", json!(root.boot_id()))
+                .set("boot_id", json!(boot_id))
                 .set("monotonic_s", root.clock().monotonic())
                 .set(
                     "supplicant_events",

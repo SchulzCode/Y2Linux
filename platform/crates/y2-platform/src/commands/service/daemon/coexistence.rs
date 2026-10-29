@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 
-/// radio_policy.Coexistence: the Wi-Fi transfer rate and the Bluetooth link for the radio policy
-/// (`/run/y2/coexistence.json`); provisional, no codec override.
+/// The Wi-Fi transfer rate and the Bluetooth link for the radio policy (`/run/y2/coexistence.json`);
+/// provisional, no codec override.
 #[derive(Default)]
 pub(super) struct Coexistence {
     previous: Option<(f64, f64)>,
+    /// This boot's id, read on the first pass: it cannot change while the service runs.
+    boot_id: Option<Option<String>>,
 }
 
 impl Coexistence {
@@ -33,7 +35,8 @@ impl Coexistence {
         self.previous = Some((now, total));
         let mut value = Map::new();
         value.insert("schema".into(), json!(1));
-        value.insert("boot_id".into(), json!(root.boot_id()));
+        let boot_id = self.boot_id.get_or_insert_with(|| root.boot_id());
+        value.insert("boot_id".into(), json!(boot_id));
         value.insert("monotonic_s".into(), json!(now));
         value.insert(
             "wifi_active".into(),
