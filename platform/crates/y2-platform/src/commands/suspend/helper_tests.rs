@@ -564,6 +564,33 @@ fn the_wait_for_application_ready_is_bounded_and_a_power_press_cancels_it() {
 }
 
 #[test]
+fn pm_writes_keep_their_order() {
+    // The handshake store, the backstop armed right before the blocking `mem` write and cleared
+    // right after it, and the stage marks around them.
+    let p = Player::new();
+    let writes = Rc::new(RefCell::new(Vec::new()));
+    let w = writes.clone();
+    p.control(move |_, name, value| {
+        w.borrow_mut().push(format!("{name} {}", value.trim()));
+        Ok(())
+    });
+    p.enter_returning();
+    assert_eq!(p.run_sleep(), 0);
+    assert_eq!(
+        *writes.borrow(),
+        [
+            "/sys/firmware/y2_pm/stage HELPER_REQUEST",
+            "/sys/power/wakeup_count 8",
+            "/sys/firmware/y2_pm/backstop_s 30",
+            "/sys/power/state mem",
+            "/sys/firmware/y2_pm/backstop_s 0",
+            "/sys/firmware/y2_pm/stage RADIOS_RESTORING",
+            "/sys/firmware/y2_pm/stage COMPLETE",
+        ]
+    );
+}
+
+#[test]
 fn rtc_restores_without_automatic_reentry() {
     let p = Player::new();
     let tree = p.tree.clone();
