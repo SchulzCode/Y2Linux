@@ -24,8 +24,16 @@ KEYS = ['name', 'positional', 'type', 'choices', 'default', 'required', 'nargs',
 
 
 def binary():
+    """The host build, if there is one that runs here: the release container (musl) also sees the
+    project's glibc build in platform/target, which it cannot execute."""
     path = Path(os.environ.get('Y2_PLATFORM_RUST') or DEFAULT_BINARY)
-    return path if path.is_file() else None
+    if not path.is_file():
+        return None
+    try:
+        subprocess.run([str(path), '__arguments'], capture_output=True, timeout=30, env={'PATH': '/usr/bin:/bin'})
+    except OSError:
+        return None
+    return path
 
 
 def parser_table(path):
