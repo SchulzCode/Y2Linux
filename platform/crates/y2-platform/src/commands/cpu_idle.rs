@@ -176,3 +176,7 @@ fn finish(result: Map<String, Value>) -> Outcome {
     let failed = result.get("state") == Some(&json!("Failed"));
     Reply::sorted(&result, u8::from(failed))
 }
+
+#[cfg(test)]
+#[path = "cpu_idle_tests.rs"]
+mod cpu_idle_tests;
