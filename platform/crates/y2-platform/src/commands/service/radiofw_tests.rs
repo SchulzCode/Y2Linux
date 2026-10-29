@@ -4,7 +4,7 @@
 //! owner's stock package present, the real system.img is read as well.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::testing::{ok, repository, scripted, Fixture};
+use crate::testing::{ok, repository, Fixture};
 use std::process::Command;
 
 /// Bytes that differ per file and per run of a test (`os.urandom` in Python).
@@ -151,7 +151,7 @@ impl Firmware {
             custom: (CUSTOM.0.into(), custom.len() as u64, sha256_hex(&custom)),
         };
         Self {
-            fixture: Fixture::new(),
+            fixture: Fixture::new().with_answers(radios()),
             files,
             custom,
             reviewed,
@@ -216,7 +216,7 @@ impl Firmware {
     }
 }
 
-/// The answers of `start()` (the radios restarted), recorded.
+/// The answers of `start()` (the radios restarted), recorded (`fixture.calls()`).
 fn radios() -> Vec<(Vec<String>, command::Outcome)> {
     vec![
         ok(&["/etc/init.d/S41y2-connectivity", "stop"], ""),
@@ -296,24 +296,22 @@ fn owner_copy_is_taken_once_complete_then_deleted_and_radios_start() {
     let root = firmware.root();
     let reviewed = &firmware.reviewed;
     assert_eq!(state(root)["state"], json!("Missing"));
-    let ((), calls) = scripted(radios(), || {
-        assert_eq!(scan(root, reviewed).unwrap()["state"], json!("Missing"));
-        let inbox = root.path(INBOX);
-        assert!(fs::read_to_string(inbox.join("README.txt"))
-            .unwrap()
-            .contains("system.img"));
-        let source = inbox.join("system.img");
-        fs::write(&source, &image).unwrap();
-        // Still arriving: the first pass only notes its size and time.
-        assert_eq!(scan(root, reviewed).unwrap()["state"], json!("Missing"));
-        settle(&source);
-        // The time changed.
-        assert_eq!(scan(root, reviewed).unwrap()["state"], json!("Missing"));
-        assert_eq!(scan(root, reviewed).unwrap()["state"], json!("Ready"));
-        assert!(!source.exists());
-    });
+    assert_eq!(scan(root, reviewed).unwrap()["state"], json!("Missing"));
+    let inbox = root.path(INBOX);
+    assert!(fs::read_to_string(inbox.join("README.txt"))
+        .unwrap()
+        .contains("system.img"));
+    let source = inbox.join("system.img");
+    fs::write(&source, &image).unwrap();
+    // Still arriving: the first pass only notes its size and time.
+    assert_eq!(scan(root, reviewed).unwrap()["state"], json!("Missing"));
+    settle(&source);
+    // The time changed.
+    assert_eq!(scan(root, reviewed).unwrap()["state"], json!("Missing"));
+    assert_eq!(scan(root, reviewed).unwrap()["state"], json!("Ready"));
+    assert!(!source.exists());
     assert_eq!(
-        argvs(&calls),
+        argvs(&firmware.fixture.calls()),
         vec![
             vec!["/etc/init.d/S41y2-connectivity", "stop"],
             vec!["/etc/init.d/S41y2-connectivity", "start"]
@@ -345,31 +343,29 @@ fn a_copy_arriving_after_the_install_is_deleted_too() {
     fs::create_dir_all(install.parent().unwrap()).unwrap();
     fs::write(&install, &image).unwrap();
     settle(&install);
-    let ((), calls) = scripted(radios(), || {
+    scan(root, reviewed).unwrap();
+    assert_eq!(scan(root, reviewed).unwrap()["state"], json!("Ready"));
+    let sd = root.path("/media/sd/Firmware");
+    fs::create_dir_all(&sd).unwrap();
+    fs::write(sd.join("system.img"), &image).unwrap();
+    settle(&sd.join("system.img"));
+    // First sight: may still be arriving.
+    assert_eq!(scan(root, reviewed).unwrap(), json!({"state": "Ready"}));
+    assert!(sd.join("system.img").exists());
+    assert_eq!(scan(root, reviewed).unwrap(), json!({"state": "Ready"}));
+    assert!(!sd.join("system.img").exists());
+    // Any other file of that name is the owner's and stays.
+    fs::write(sd.join("system.img"), vec![0u8; 10000]).unwrap();
+    settle(&sd.join("system.img"));
+    assert!(leftover_waiting(root));
+    for _ in 0..3 {
         scan(root, reviewed).unwrap();
-        assert_eq!(scan(root, reviewed).unwrap()["state"], json!("Ready"));
-        let sd = root.path("/media/sd/Firmware");
-        fs::create_dir_all(&sd).unwrap();
-        fs::write(sd.join("system.img"), &image).unwrap();
-        settle(&sd.join("system.img"));
-        // First sight: may still be arriving.
-        assert_eq!(scan(root, reviewed).unwrap(), json!({"state": "Ready"}));
-        assert!(sd.join("system.img").exists());
-        assert_eq!(scan(root, reviewed).unwrap(), json!({"state": "Ready"}));
-        assert!(!sd.join("system.img").exists());
-        // Any other file of that name is the owner's and stays.
-        fs::write(sd.join("system.img"), vec![0u8; 10000]).unwrap();
-        settle(&sd.join("system.img"));
-        assert!(leftover_waiting(root));
-        for _ in 0..3 {
-            scan(root, reviewed).unwrap();
-        }
-        assert!(sd.join("system.img").exists());
-        // Judged once, not every pass.
-        assert!(!leftover_waiting(root));
-    });
+    }
+    assert!(sd.join("system.img").exists());
+    // Judged once, not every pass.
+    assert!(!leftover_waiting(root));
     // The radios not restarted again.
-    assert_eq!(calls.len(), 2);
+    assert_eq!(firmware.fixture.calls().len(), 2);
     assert_eq!(state(root), json!({"state": "Ready"}));
 }
 
@@ -419,32 +415,30 @@ fn with_internal_storage_the_copy_goes_into_its_firmware_folder() {
     );
     assert!(internal(root));
     assert_eq!(state(root)["location"], json!("internal"));
-    scripted(radios(), || {
-        scan(root, reviewed).unwrap();
-        let folder = root.path(INTERNAL_INBOX);
-        assert!(fs::read_to_string(folder.join("README.txt"))
-            .unwrap()
-            .contains("folder named Firmware on the SD card"));
-        // No Y2DATA drive folder.
-        assert!(!root.path(INBOX).exists());
-        let listed = candidates(root);
-        assert_eq!(
-            listed[..3],
-            [
-                folder.join("system.img"),
-                root.path("/data/firmware/inbox/system.img"),
-                root.path("/media/sd/Firmware/system.img")
-            ]
-        );
-        let source = folder.join("system.img");
-        fs::write(&source, &image).unwrap();
-        settle(&source);
-        scan(root, reviewed).unwrap();
-        assert_eq!(scan(root, reviewed).unwrap()["state"], json!("Ready"));
-        // Note and folder removed.
-        assert!(!folder.exists());
-        assert!(installed(root, reviewed));
-    });
+    scan(root, reviewed).unwrap();
+    let folder = root.path(INTERNAL_INBOX);
+    assert!(fs::read_to_string(folder.join("README.txt"))
+        .unwrap()
+        .contains("folder named Firmware on the SD card"));
+    // No Y2DATA drive folder.
+    assert!(!root.path(INBOX).exists());
+    let listed = candidates(root);
+    assert_eq!(
+        listed[..3],
+        [
+            folder.join("system.img"),
+            root.path("/data/firmware/inbox/system.img"),
+            root.path("/media/sd/Firmware/system.img")
+        ]
+    );
+    let source = folder.join("system.img");
+    fs::write(&source, &image).unwrap();
+    settle(&source);
+    scan(root, reviewed).unwrap();
+    assert_eq!(scan(root, reviewed).unwrap()["state"], json!("Ready"));
+    // Note and folder removed.
+    assert!(!folder.exists());
+    assert!(installed(root, reviewed));
 }
 
 #[test]
