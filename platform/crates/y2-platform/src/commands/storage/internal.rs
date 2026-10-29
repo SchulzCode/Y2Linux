@@ -401,12 +401,11 @@ fn open_nofollow(path: &Path) -> Result<File, Failure> {
         .map_err(|e| Failure::os(e, path))
 }
 
-fn digest(path: &Path) -> Result<String, Failure> {
-    // A copy that reads back wrong cannot be made on a fixture: the unit tests fake the hash.
-    #[cfg(test)]
-    if let Some(fake) = internal_tests::digest(path) {
-        return Ok(fake);
-    }
+/// What a copy is verified by: the hex SHA-256 of a file's bytes (a test's may disagree, since a
+/// copy that reads back wrong cannot be made on a fixture).
+type Digest = fn(&Path) -> Result<String, Failure>;
+
+fn sha256(path: &Path) -> Result<String, Failure> {
     let mut file = open_nofollow(path)?;
     // SAFETY: an advisory hint on our own descriptor; read the media, not the page cache.
     unsafe {
@@ -447,7 +446,12 @@ fn utime(path: &Path, source: &fs::Metadata) -> Result<(), Failure> {
 }
 
 /// Copy to a temporary name, fsync, verify by hash, then publish atomically.
-fn copy_verified(source: &Path, target: &Path, size: u64) -> Result<&'static str, Failure> {
+fn copy_verified(
+    source: &Path,
+    target: &Path,
+    size: u64,
+    digest: Digest,
+) -> Result<&'static str, Failure> {
     if exists(target) {
         let length = fs::metadata(target)
             .map_err(|e| Failure::os(e, target))?
@@ -510,6 +514,7 @@ fn migrate(
     source: &str,
     target: &str,
     progress: &mut dyn FnMut(u64, u64),
+    digest: Digest,
 ) -> Result<Value, Failure> {
     let (src, dst) = (root.path(source), root.path(target));
     if !src.is_dir() {
@@ -528,7 +533,7 @@ fn migrate(
     }
     let (mut copied, mut done) = (0u64, 0u64);
     for (relative, size) in &files {
-        if copy_verified(&src.join(relative), &dst.join(relative), *size)? == "copied" {
+        if copy_verified(&src.join(relative), &dst.join(relative), *size, digest)? == "copied" {
             copied += 1;
         }
         done += size;
@@ -555,6 +560,16 @@ pub fn provision(
     root: &Root,
     confirm_uuid: &Value,
     migrate_music: bool,
+) -> Result<Object, Failure> {
+    provision_with(root, confirm_uuid, migrate_music, sha256)
+}
+
+/// `provision` with the migration's copies verified by `digest`.
+fn provision_with(
+    root: &Root,
+    confirm_uuid: &Value,
+    migrate_music: bool,
+    digest: Digest,
 ) -> Result<Object, Failure> {
     {
         let _lock = lock_runtime(root)?;
@@ -605,7 +620,7 @@ pub fn provision(
     mkdir(&root.path(MUSIC), 0o755)?;
     let mut result = state.clone();
     if migrate_music {
-        match migrate(root, LEGACY_MUSIC, MUSIC, &mut |_, _| {}) {
+        match migrate(root, LEGACY_MUSIC, MUSIC, &mut |_, _| {}, digest) {
             Ok(migration) => {
                 result.insert("migration".into(), migration);
             }
@@ -1113,7 +1128,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         for (relative, size) in &kept {
             let target = staging.join(relative);
             makedirs(target.parent().expect("parent"), 0o700)?;
-            copy_verified(&source.join(relative), &target, *size)?;
+            copy_verified(&source.join(relative), &target, *size, sha256)?;
             done += size;
             splash(root, tens(10, 50, done, total));
         }
@@ -1165,13 +1180,12 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         let staging = root.path(KEPT_STAGING);
         if staging.is_dir() {
             let target = format!("{MUSIC}/{KEPT}");
-            migrate(root, KEPT_STAGING, &target, &mut |done, total| {
-                splash(root, tens(60, 90, done, total))
-            })?;
+            let progress = &mut |done, total| splash(root, tens(60, 90, done, total));
+            migrate(root, KEPT_STAGING, &target, progress, sha256)?;
             remove_empty_below(&staging);
             let _ = fs::remove_dir(&staging);
         }
-        migrate(root, LEGACY_MUSIC, MUSIC, &mut |_, _| {})?; // the old /data/music library, as provision does
+        migrate(root, LEGACY_MUSIC, MUSIC, &mut |_, _| {}, sha256)?; // the old /data/music library, as provision does
         sync();
         let path = root.path(SETUP);
         fs::remove_file(&path).map_err(|e| Failure::os(e, &path))?;

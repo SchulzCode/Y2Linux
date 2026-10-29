@@ -24,7 +24,7 @@ use std::{
 use y2p_core::mounts::mounts_at;
 use y2p_core::py::PyValue;
 use y2p_core::{
-    clock, command,
+    command,
     py::{exact_int, is_true, number, truthy},
     storage_media::{
         fat_benign_only, fat_findings, fat_other_shapes, repair_summary, splitlines, tables_bytes,
@@ -599,16 +599,38 @@ fn detach_for_change(root: &Root, state: &mut Object) -> Result<bool, Failure> {
     Ok(true)
 }
 
+/// How format has the kernel re-read the partition table it wrote (a test's card is a plain file).
+pub(crate) type Reread<'a> = &'a dyn Fn(&File) -> io::Result<()>;
+
+/// BLKRRPART on the card's own descriptor.
+fn blkrrpart(card: &File) -> io::Result<()> {
+    // SAFETY: BLKRRPART on an open descriptor; no argument is read.
+    if unsafe { libc::ioctl(card.as_raw_fd(), BLKRRPART as _, 0) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
+}
+
 /// action: 'format' (new table + ext4 over the whole card) or 'grow' (ext4 to the partition).
 pub fn change_card(
     root: &Root,
     action: &str,
     confirm_cid: Option<&str>,
 ) -> Result<Object, Failure> {
+    change_card_with(root, action, confirm_cid, &blkrrpart)
+}
+
+/// `change_card` with the partition table re-read by `reread`.
+pub(crate) fn change_card_with(
+    root: &Root,
+    action: &str,
+    confirm_cid: Option<&str>,
+    reread: Reread,
+) -> Result<Object, Failure> {
     if action != "format" && action != "grow" {
         return Err(Failure::value("unknown_media_change"));
     }
-    let mut state = apply_change(root, action, confirm_cid)?;
+    let mut state = apply_change(root, action, confirm_cid, reread)?;
     if state_is(&state, "Starting") {
         // Mount through the normal admission path, after the change released the media lock.
         state.extend(operation(root, "mount")?);
@@ -658,7 +680,7 @@ fn writers(root: &Root, mount: &Mount) -> Result<Object, Failure> {
         Some(other) if truthy(other) => return Err(no_attribute(other, "items")),
         _ => Object::new(),
     };
-    let now = clock::monotonic();
+    let now = root.clock().monotonic();
     Ok(holders
         .into_iter()
         .filter(|(k, v)| {
@@ -727,7 +749,7 @@ pub fn write_window(
         holders.shift_remove(holder);
     } else {
         let hold = seconds.clamp(1, WRITE_HOLD_MAX);
-        holders.insert(holder.into(), json!(clock::monotonic() + hold as f64));
+        holders.insert(holder.into(), json!(root.clock().monotonic() + hold as f64));
     }
     let writable = apply_window(root, &mount, &holders)?;
     let ok = writable == !holders.is_empty() || release;
@@ -784,12 +806,9 @@ fn protect(root: &Root) -> Result<(), Failure> {
 // checker reads; the result applies only to the same mount of the same card.
 
 /// CLOCK_BOOTTIME − CLOCK_MONOTONIC: grows only while the system sleeps.
-fn slept_ns() -> i128 {
-    #[cfg(test)]
-    if let Some(slept) = media_tests::slept_ns() {
-        return slept;
-    }
-    clock::boottime_ns() as i128 - clock::monotonic_ns() as i128
+fn slept_ns(root: &Root) -> i128 {
+    let clock = root.clock();
+    i128::from(clock.boottime_ns()) - i128::from(clock.monotonic_ns())
 }
 
 /// `(claim.get('identity') or {}).get('id')`; a truthy identity that is not a dict is Python's
@@ -831,11 +850,11 @@ pub fn verify(root: &Root) -> Result<Object, Failure> {
         return Ok(state);
     }
     let card = &available[0];
-    let slept = slept_ns();
+    let slept = slept_ns(root);
     let mut result = read_only_check(root, card, false, Some(CHECK_SECONDS));
     set(&mut result, "background", true);
     let ok = truthy(get(&result, "ok"));
-    if !ok && slept_ns() - slept > 1_000_000_000 {
+    if !ok && slept_ns(root) - slept > 1_000_000_000 {
         // A check read across a system sleep is no verdict; the service runs it again.
         set_state(&mut state, "Failed", "slept_during_check");
         return Ok(state);
@@ -1127,7 +1146,12 @@ fn repair_locked(root: &Root, record: &mut Object) -> Result<Object, Failure> {
     Ok(state)
 }
 
-fn apply_change(root: &Root, action: &str, confirm_cid: Option<&str>) -> Result<Object, Failure> {
+fn apply_change(
+    root: &Root,
+    action: &str,
+    confirm_cid: Option<&str>,
+    reread: Reread,
+) -> Result<Object, Failure> {
     let runtime = runtime(root)?;
     let _lock = lock_now(&runtime.join("media.lock"))?;
     let mut state = begin(root, action);
@@ -1154,7 +1178,7 @@ fn apply_change(root: &Root, action: &str, confirm_cid: Option<&str>) -> Result<
                 set(&mut state, "device", device.clone());
                 if detach_for_change(root, &mut state)? {
                     if action == "format" {
-                        format_steps(root, &mut state, &device, sectors);
+                        format_steps(root, &mut state, &device, sectors, reread);
                     } else {
                         grow_steps(root, &mut state);
                     }
@@ -1173,7 +1197,7 @@ fn errno(error: &io::Error) -> Value {
     json!(error.raw_os_error())
 }
 
-fn format_steps(root: &Root, state: &mut Object, device: &str, sectors: u64) {
+fn format_steps(root: &Root, state: &mut Object, device: &str, sectors: u64, reread: Reread) {
     let Ok(card) = OpenOptions::new()
         .read(true)
         .write(true)
@@ -1197,14 +1221,7 @@ fn format_steps(root: &Root, state: &mut Object, device: &str, sectors: u64) {
         set(state, "errno", errno(&error));
         return;
     }
-    // A fixture's card is a plain file: the unit tests answer the ioctl (Python's `ctx.ioctl`).
-    #[cfg(test)]
-    let reread = media_tests::ioctl(card.as_raw_fd(), BLKRRPART);
-    #[cfg(not(test))]
-    // SAFETY: BLKRRPART on the card's own descriptor; no argument is read.
-    let reread = unsafe { libc::ioctl(card.as_raw_fd(), BLKRRPART as _, 0) };
-    if reread != 0 {
-        let error = io::Error::last_os_error();
+    if let Err(error) = reread(&card) {
         set_state(state, "Failed", "partition_reread_failed");
         set(state, "errno", errno(&error));
         return;
@@ -1277,9 +1294,16 @@ mod tests {
     use super::*;
     use crate::testing::Fixture;
 
-    /// A protected card mounted by this boot (mount 51), `rw` or `ro`, with these holders' deadlines.
+    const NOW: f64 = 1000.0;
+
+    /// A protected card mounted by this boot (mount 51), `rw` or `ro`, with these holders'
+    /// deadlines, at monotonic time NOW.
     fn protected(options: &str, holders: Value) -> Fixture {
-        let fixture = Fixture::new();
+        let clock = std::sync::Arc::new(y2p_core::clock::Manual::at(
+            1_000_000_000_000,
+            1_000_000_000_000,
+        ));
+        let fixture = Fixture::new().with_clock(clock);
         fixture
             .put("/proc/sys/kernel/random/boot_id", "boot-a\n")
             .put(
@@ -1303,7 +1327,7 @@ mod tests {
 
     #[test]
     fn an_expired_write_window_asks_for_a_reconcile() {
-        let now = clock::monotonic();
+        let now = NOW;
         assert!(window_expired(
             &protected("rw", json!({"reborn": now - 1.0})).root
         ));

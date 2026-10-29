@@ -221,7 +221,7 @@ pub fn observation_record(root: &Root, workload: &str) -> Value {
     let versions = object(root, "/etc/y2linux/versions.json");
     json!({
         "wall_timestamp": utc_isoformat(),
-        "monotonic_ns": y2p_core::clock::monotonic_ns(),
+        "monotonic_ns": root.clock().monotonic_ns(),
         "boot_id": Value::from(root.boot_id()),
         "y2linux_commit": get(&versions, "build_git_commit"),
         "reborn_commit": get(&versions, "reborn_source_commit"),
