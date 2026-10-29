@@ -6,10 +6,10 @@
 //! filtered kernel-log tail, appended to a bounded private file on Y2DATA. A failure is counted and
 //! never blocks, delays or changes sleep.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{journal::plain, pattern, text_value, E};
+use super::{journal::plain, name, parent_name, pattern, text_value, E};
 use serde::Serialize;
 use serde_json::Value;
-use std::{fs::File, io::Read, os::unix::fs::OpenOptionsExt, path::Path, sync::OnceLock};
+use std::{fs::File, io::Read, os::unix::fs::OpenOptionsExt, sync::OnceLock};
 use y2p_core::mounts::data_ready;
 use y2p_core::{
     json::{dumps, Object, Separators},
@@ -67,16 +67,6 @@ const KERNEL_TOKENS: [&str; 18] = [
     "usb0",
     "PM: ",
 ];
-
-fn name(path: &Path) -> String {
-    path.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
-
-fn parent_name(path: &Path) -> String {
-    path.parent().map(name).unwrap_or_default()
-}
 
 /// `key_values(text, keys)`: `\b([a-z0-9_]+)=(\S+)`, one entry per key (None when absent).
 fn key_values(text: Option<&str>, keys: &[&str]) -> Value {

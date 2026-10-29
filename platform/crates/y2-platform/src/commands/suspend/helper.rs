@@ -19,7 +19,7 @@ use super::{
         admission, application_starting, battery_and_cable, failed_before_freeze, guard_record,
         lock_holders, operation_state, retry_later, spm_state,
     },
-    fail,
+    fail, int_literal,
     receipt::{self, record, wake_irqs, Receipt, Stage},
     request, E, INTERRUPTED,
 };
@@ -68,13 +68,7 @@ pub fn main(root: &Root, args: &[String]) -> crate::reply::Outcome {
         fail(NAME, &E::value("descriptor_required"))
     };
     let Some(fd) = python_int(text).and_then(|fd| i32::try_from(fd).ok()) else {
-        fail(
-            NAME,
-            &E::value(format!(
-                "invalid literal for int() with base 10: {}",
-                y2p_core::py::repr(text)
-            )),
-        )
+        fail(NAME, &int_literal(text))
     };
     if fd < 0 {
         fail(

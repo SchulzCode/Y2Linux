@@ -6,10 +6,9 @@
 //! signature) and always writes, because an event is given. Every failure is counted and dropped:
 //! a journal failure must never delay or disable battery protection.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{as_map, diagnostics, text_value, E};
+use super::{as_map, diagnostics, name, text_value, E};
 use serde::Serialize;
 use serde_json::Value;
-use std::path::Path;
 use y2p_core::py::PyValue;
 use y2p_core::{
     json::{dumps, Object, Separators},
@@ -43,12 +42,6 @@ pub fn plain(value: Value) -> Value {
 /// A dict built in this order (`{k: v, ...}` written without `sort_keys`).
 pub fn object(entries: Vec<(String, Value)>) -> Value {
     Value::Object(entries.into_iter().collect())
-}
-
-fn name(path: &Path) -> String {
-    path.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
 }
 
 fn int(value: Option<i64>) -> Value {

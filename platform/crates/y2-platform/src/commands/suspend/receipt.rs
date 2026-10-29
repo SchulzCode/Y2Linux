@@ -9,7 +9,10 @@ pub use rpc::application_rpc;
 pub use transition::{raised, transition, transition_keys};
 use transition::{set, state};
 
-use super::{admission::spm_state, diagnostics, journal, pattern, py_add, text_value, E};
+use super::{
+    admission::spm_state, diagnostics, int_literal, journal, name, parent_name, pattern, py_add,
+    text_value, E,
+};
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 use std::{
@@ -304,12 +307,7 @@ pub fn record(root: &Root, s: Stage) -> Result<Receipt, E> {
                 Some(Value::String(t)) => t.clone(),
                 _ => "0".into(),
             };
-            let ticks = python_int(&text).ok_or_else(|| {
-                E::value(format!(
-                    "invalid literal for int() with base 10: {}",
-                    y2p_core::py::repr(&text)
-                ))
-            })?;
+            let ticks = python_int(&text).ok_or_else(|| int_literal(&text))?;
             let seconds = py_add(
                 value.get("suspended_seconds"),
                 ticks as f64 / 32768.0,
@@ -433,16 +431,6 @@ pub fn progress(root: &Root, stage: &str) -> Result<(), E> {
     };
     append_stage(&mut value, to_value(row)?)?;
     atomic_json(&directory.join("suspend-last.json"), &value, true)
-}
-
-fn name(path: &Path) -> String {
-    path.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
-
-fn parent_name(path: &Path) -> String {
-    path.parent().map(name).unwrap_or_default()
 }
 
 #[cfg(test)]

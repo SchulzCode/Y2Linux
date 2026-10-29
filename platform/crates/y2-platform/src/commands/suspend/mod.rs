@@ -367,6 +367,26 @@ pub fn as_map<K: Serialize, V: Serialize, S: Serializer>(
     map.end()
 }
 
+/// The last component of a sysfs path (a device or file name, lossy for bytes that are no text).
+pub fn name(path: &Path) -> String {
+    path.file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
+/// The name of a sysfs file's directory (the device a `.../<device>/status` belongs to).
+pub fn parent_name(path: &Path) -> String {
+    path.parent().map(name).unwrap_or_default()
+}
+
+/// A text that should hold a decimal integer and does not: the reason names it.
+pub fn int_literal(text: &str) -> E {
+    E::value(format!(
+        "invalid literal for int() with base 10: {}",
+        py::repr(text)
+    ))
+}
+
 /// A constant pattern, compiled once. `None` only if the text were no pattern (the tests compile
 /// each one): every caller then takes its safe answer instead of a panic, which on the sleep path
 /// could leave Reborn quiesced.

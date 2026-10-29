@@ -1,7 +1,9 @@
 //! What `y2-power-audit` reads at each end of the window: the cheap counters (`Sample`) and the heavy
 //! description outside it (`Snapshot`), with the files and threads they hold.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::super::{as_map, journal::plain, monotonic, process_time, receipt, wall, E};
+use super::super::{
+    as_map, int_literal, journal::plain, monotonic, process_time, receipt, wall, E,
+};
 use serde::Serialize;
 use serde_json::Value;
 use std::{
@@ -169,12 +171,7 @@ pub(super) struct Thread {
 pub(super) type Threads = Vec<(String, Thread)>;
 
 pub(super) fn int(text: &str) -> Result<i64, E> {
-    python_int(text).ok_or_else(|| {
-        E::value(format!(
-            "invalid literal for int() with base 10: {}",
-            y2p_core::py::repr(text)
-        ))
-    })
+    python_int(text).ok_or_else(|| int_literal(text))
 }
 
 pub(super) fn processes(root: &Root) -> Result<Threads, E> {
