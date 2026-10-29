@@ -95,8 +95,10 @@ pub mod testing {
     use super::Outcome;
     use std::cell::RefCell;
 
+    type Respond = Box<dyn FnMut(&[&str], f64) -> Outcome>;
+
     struct Script {
-        respond: Box<dyn FnMut(&[&str], f64) -> Outcome>,
+        respond: Respond,
         calls: Vec<(Vec<String>, f64)>,
     }
 
