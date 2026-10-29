@@ -473,6 +473,10 @@ pub fn serve(root: &Root) -> Outcome {
 }
 
 #[cfg(test)]
+#[path = "ssh_tests.rs"]
+mod ssh_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

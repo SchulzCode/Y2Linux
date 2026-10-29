@@ -211,9 +211,9 @@ int main(int argc,char **argv) {
         rcs = set(re.findall(r'milestone=(\w+)', (overlay / 'etc/init.d/rcS').read_text()))
         gate = set(re.findall(r'\bmilestone ([a-z][a-z_]*)', (overlay / 'usr/libexec/y2/boot-gate').read_text()))
         self.assertEqual((rcs | gate) - tokens, set(), 'a shell producer reports a milestone the splash does not know')
-        media = set(re.findall(r"'(media_setup\w*)'",
-                               (ROOT / 'tools/platform/y2_platform/internal_media.py').read_text()))
-        self.assertEqual(media - tokens, set(), 'the storage setup reports a milestone the splash does not know')
+        # The storage setup's media_setup milestones (both directions): platform/crates/y2-platform/src/
+        # commands/boot_tests.rs every_milestone_a_producer_reports_is_in_the_table.
+        media = {t for t in tokens if re.fullmatch(r'media_setup(_\d+)?', t)}
         main = (REBORN / 'app/reborn/src/main.rs').read_text()
         reported = set(re.findall(r'startup_phase\(&log, process_started, "(\w+)"\)', main))
         self.assertEqual(reported - tokens, set(), 'Reborn reports a milestone the splash does not know')

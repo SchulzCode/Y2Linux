@@ -58,7 +58,7 @@ pub fn reset_cause(text: Option<&str>, missing: &str) -> Map<String, Value> {
 }
 
 /// `boot.evidence_status`.
-fn evidence_status(root: &Root) -> Result<Value, Failure> {
+pub(crate) fn evidence_status(root: &Root) -> Result<Value, Failure> {
     let value = root.json_object("/data/system/platform/previous-boot-evidence.json");
     if value.is_empty() {
         return Ok(json!({"state": "Unavailable", "reason": "no_previous_boot_record"}));

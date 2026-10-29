@@ -825,6 +825,10 @@ impl UsbService {
 }
 
 #[cfg(test)]
+#[path = "usb_tests.rs"]
+mod usb_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

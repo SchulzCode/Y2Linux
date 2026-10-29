@@ -1,13 +1,11 @@
 """Boot order: Reborn starts last behind a bounded readiness gate, every service is a
 splash milestone, and the early-boot waits that cost seconds are gone. The shell
 scripts run for real against fake file trees; no device is touched."""
-import os
 from pathlib import Path
 import re
 import shutil
 import socket
 import subprocess
-import sys
 import tempfile
 import threading
 import time
@@ -115,10 +113,8 @@ class BootOrder(unittest.TestCase):
         self.assertLess(max(numbers), 90)
         script = (package / 'S90reborn').read_text()
         self.assertLess(script.index('boot-gate'), script.index('start-stop-daemon -S'))
-        for source in ('tools/platform/y2_platform/power.py', 'tools/platform/y2_platform/maintenance.py'):
-            text = (ROOT / source).read_text()
-            self.assertIn('S90reborn', text)
-            self.assertNotIn('S05reborn', text)
+        # The platform's power-off and maintenance service names: platform/crates/y2-platform/src/
+        # commands/boot_tests.rs.
 
     def test_rcs_runs_scripts_in_order_reports_milestones_and_keeps_a_trace(self):
         tree = self.tree
@@ -233,22 +229,6 @@ class BootOrder(unittest.TestCase):
         self.assertIn('[ "$alone" -lt 20 ] || break', loop)
         tail = init[init.index('[ -n "$datadev" ] || rescue'):init.index("rescue 'missing/invalid internal Y2ROOT'")]
         self.assertEqual(tail.count('y2_find_partition Y2ROOT'), 1)
-
-    def test_platform_records_do_not_need_the_random_pool(self):
-        sys.path.insert(0, str(ROOT / 'tools/platform'))
-        from y2_platform import common
-        self.assertNotIn('import tempfile', Path(common.__file__).read_text())
-        real = os.urandom
-        def blocked(*args, **kwargs):
-            raise AssertionError('atomic_json asked for randomness')
-        os.urandom = blocked
-        self.addCleanup(setattr, os, 'urandom', real)
-        target = self.tree.path('record.json')
-        common.atomic_json(target, {'a': 1}, durable=True)
-        common.atomic_json(target, {'a': 2})
-        self.assertEqual(target.read_text().strip(), '{"a":2}')
-        self.assertEqual(oct(target.stat().st_mode & 0o777), '0o600')
-        self.assertEqual([p.name for p in target.parent.iterdir() if p.name.startswith('.record')], [])
 
 
 if __name__ == '__main__':

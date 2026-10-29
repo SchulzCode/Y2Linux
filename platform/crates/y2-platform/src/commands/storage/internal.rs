@@ -699,7 +699,7 @@ fn tens(low: u64, high: u64, done: u64, total: u64) -> u64 {
 }
 
 /// Progress on the start screen while the setup runs at boot (0-100 in tens).
-fn splash(root: &Root, step: u64) {
+pub(crate) fn splash(root: &Root, step: u64) {
     let folder = root.path(SPLASH);
     if folder.is_dir() && step <= 100 && step.is_multiple_of(10) {
         let phase = if step == 0 {

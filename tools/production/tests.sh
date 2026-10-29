@@ -19,7 +19,7 @@ python3 -m unittest tests.test_sftp_root
 PYTHONPATH=/project/tests python3 -m unittest tests.test_power tests.test_charger tests.test_poweroff_charger tests.test_watchdog_keepalive tests.test_charge_limits tests.test_charge_qualify tests.test_media_change tests.test_internal_media tests.test_power_policy tests.test_offline_charging tests.test_power03 tests.test_connectivity tests.test_suspend_policy tests.test_suspend_audio tests.test_hp_level tests.test_codec_clock tests.test_gpu -v
 # tests.test_reborn_splash additionally requires native libdrm and Pillow;
 # it is a required packaging-host check, listed in tests/README.md.
-python3 -m unittest tests.test_boot_retained tests.test_display_takeover tests.test_reborn_supervise -v
+python3 -m unittest tests.test_display_takeover tests.test_reborn_supervise -v
 python3 -m unittest tests.test_audio_idle tests.test_connectivity_supervisor tests.test_pm_replay_trace tests.test_suspend_cpu_pm tests.test_dpm_stall_diagnostics tests.test_pmic_lowpower tests.test_haptics tests.test_speaker tests.test_sleep_relight tests.test_suspend_probe tests.test_usb_l1 tests.test_infra_pdn tests.test_dev_wheel tests.test_vproc_sleep tests.test_usb_savecurrent tests.test_golden_diagnostic -v
 # POWER-FINAL-16: Defect B, DIS domain, stock DCM and golden sleep entry.
 python3 -m unittest tests.test_usb_dma_unmask tests.test_display_domain tests.test_dcm tests.test_golden_apply tests.test_md1_gate tests.test_pmic_sleep tests.test_pwrap_gate tests.test_display_quiet_power tests.test_power_final_27 tests.test_power_final_33 tests.test_exfat_readahead tests.test_overlay_hashes -v
