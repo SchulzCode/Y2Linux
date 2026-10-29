@@ -457,6 +457,10 @@ pub fn dhcp_event(root: &Root, event: &str) -> Outcome {
 }
 
 #[cfg(test)]
+#[path = "network_tests.rs"]
+mod network_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

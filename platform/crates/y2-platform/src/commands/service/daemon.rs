@@ -457,6 +457,10 @@ impl Coexistence {
     }
 }
 
+#[cfg(test)]
+#[path = "daemon_connectivity_tests.rs"]
+mod connectivity_tests;
+
 /// `timekeeping.remember(ctx)` (every=RETAIN_S): keep the durable floor near the running clock, at
 /// most once an hour, only for a clock set from the network or by hand this boot that nobody stepped
 /// since: a restart without Wi-Fi then resumes about where it was rather than from the last sync or the

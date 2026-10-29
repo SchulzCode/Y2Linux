@@ -205,3 +205,7 @@ pub fn runtime(root: &Root, record: bool) -> Outcome {
     }
     Ok(Reply::text(args.join(" ")))
 }
+
+#[cfg(test)]
+#[path = "codec_tests.rs"]
+mod codec_tests;

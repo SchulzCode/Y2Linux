@@ -142,3 +142,7 @@ pub fn run(root: &Root) -> Outcome {
     result.insert("platform_version".into(), version);
     Reply::sorted(&result, 0)
 }
+
+#[cfg(test)]
+#[path = "capabilities_tests.rs"]
+mod capabilities_tests;

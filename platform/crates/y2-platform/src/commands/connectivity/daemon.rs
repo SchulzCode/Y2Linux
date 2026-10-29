@@ -27,7 +27,7 @@ use y2p_core::{
     Root,
 };
 
-const HELPERS: [(&str, &str); 4] = [
+pub(crate) const HELPERS: [(&str, &str); 4] = [
     ("calibration", "/usr/sbin/y2-calibration"),
     ("wpa", "/usr/sbin/wpa_supplicant"),
     ("bluealsa", "/usr/bin/bluealsad"),
@@ -85,7 +85,7 @@ fn realpath(path: &Path) -> PathBuf {
 
 /// `alive(ctx, name, binary)`: the helper's pid when its pid file names a live process running that
 /// binary. The liveness probe is a real `kill(pid, 0)`, also below a fixture root (as Python's).
-fn alive(root: &Root, name: &str, binary: &str) -> Option<i32> {
+pub(crate) fn alive(root: &Root, name: &str, binary: &str) -> Option<i32> {
     let pid = root.integer(&format!("/run/y2/{name}.pid"))?;
     if pid <= 1 {
         return None;
@@ -313,7 +313,7 @@ pub struct Supervisor {
     pub attached: bool,
     pub next_health: f64,
     pub retry_at: f64,
-    retry_delay: f64,
+    pub(crate) retry_delay: f64,
     next_restart: Vec<(&'static str, f64)>,
     pub pids: Vec<(&'static str, i32)>,
     /// The netdev the supplicant interface was added for.
@@ -358,7 +358,7 @@ impl Supervisor {
         );
     }
 
-    fn restart(&mut self, name: &str) -> Result<(), Failure> {
+    pub(crate) fn restart(&mut self, name: &str) -> Result<(), Failure> {
         let mut extra: Vec<String> = Vec::new();
         let binary = match name {
             "wpa" => {
@@ -714,6 +714,10 @@ pub fn serve(root: &Root) -> Outcome {
         Err(error) => Err(error),
     }
 }
+
+#[cfg(test)]
+#[path = "daemon_tests.rs"]
+mod daemon_tests;
 
 #[cfg(test)]
 mod tests {
