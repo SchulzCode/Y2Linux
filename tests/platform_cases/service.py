@@ -439,9 +439,10 @@ CASES += [
      for name in ('ext4', 'ext3', 'partial', 'large', 'text', 'badsparse')]
 
 
-# ---- service-daemon (still Python: its tick is mostly other groups' code, see service/mod.rs) -------------
+# ---- service-daemon (commands/service/daemon.rs, usb.rs) --------------------------------------------------
 TICKS = {'Y2_LAUNCHER_PATCH': 'platform_cases.service:daemon_ticks'}
-DAEMON = {'ported': False, 'volatile': ['attempt', 'deadline_monotonic_s']}
+# duration_ns: how long the (fixture) supplicant query took.
+DAEMON = {'ported': True, 'volatile': ['attempt', 'deadline_monotonic_s', 'duration_ns']}
 CASES += [
     ('service-daemon-one-tick', ['service-daemon'], {**DAEMON, 'env': {**TICKS, 'Y2_DAEMON_TICKS': '1'}}),
     ('service-daemon-three-ticks', ['service-daemon'], {**DAEMON, 'env': {**TICKS, 'Y2_DAEMON_TICKS': '3'}}),
@@ -453,6 +454,131 @@ CASES += [
         'commands': [answer(['/usr/sbin/y2-platform', 'update', 'health-ack'], '{"state": "Acknowledged"}')]}),
     ('service-daemon-online', ['service-daemon'], {**DAEMON, 'env': {**TICKS, 'Y2_DAEMON_TICKS': '1'}, 'files': {
         **ONLINE, '/run/y2/media-mount.json': '{"read_only": "checking", "boot_id": "boot-a"}'}}),
+]
+
+
+def ticks(n):
+    return {**TICKS, 'Y2_DAEMON_TICKS': str(n)}
+
+
+def wifi_online(status='wpa_state=COMPLETED\nbssid=00:11:22:33:44:55\nid=0\n', dns='2'):
+    """The supplicant associated, an address and a default route on wlan0, the DNS probe answering."""
+    return [answer(['wpa_cli', '-i', 'wlan0', 'status'], status),
+            answer(['ip', '-j', '-4', 'addr', 'show', 'dev', 'wlan0'],
+                   '[{"addr_info": [{"local": "192.168.1.40", "scope": "global"}]}]'),
+            answer(['ip', '-j', '-4', 'route', 'show', 'default', 'dev', 'wlan0'],
+                   '[{"dst": "default", "gateway": "192.168.1.1"}]'),
+            answer(['wpa_cli', '-i', 'wlan0', 'signal_poll'], 'RSSI=-52\nLINKSPEED=72\n'),
+            answer(['/usr/bin/python3', '-I', '-c',
+                    'import socket,sys; print(len(socket.getaddrinfo(sys.argv[1],None,socket.AF_INET)))',
+                    'pool.ntp.org'], dns),
+            answer(['/usr/sbin/iw', 'dev', 'wlan0', 'get', 'power_save'], 'Power save: off')]
+
+
+WLAN = {'/sys/class/net/wlan0/ifindex': '3\n', '/sys/class/net/wlan0/statistics/rx_bytes': '1000\n',
+        '/sys/class/net/wlan0/statistics/tx_bytes': '500\n', '/data/network/enabled': '1\n',
+        '/run/y2/bt-reconnect.json': '{"state": "Connected"}', '/proc/pressure/cpu': 'some avg10=0.00\n'}
+# One USB device controller with the gadget's configfs mounted (the gadget directory itself is the
+# service's to make).
+UDC = {'/sys/class/udc/musb-hdrc.0/state': 'not attached\n', '/sys/kernel/config/usb_gadget/.keep': ''}
+DEVELOPER = {'/data/system/platform/usb-mode.json': '{"mode": "developer"}'}
+FUNCTIONFS = answer(['mount', '-t', 'functionfs', 'mtp', '/dev/ffs-mtp'])
+# Internal Storage mounted and recorded Ready: the MTP view of its music folder, the Firmware folder there.
+INTERNAL_DEVICE = '../../devices/platform/11230000.mmc/mmcblk0p8'
+INTERNAL_MEDIA = {
+    **VOLUME, '/proc/self/mountinfo': MOUNTINFO + '40 30 %s / /media/internal rw - ext4 /dev/mmcblk0p8 rw\n'
+                                                  % INTERNAL_DEVICE,
+    '/sys/devices/platform/11230000.mmc/mmcblk0p8/dev': '179:8\n',
+    '/sys/devices/platform/11230000.mmc/mmcblk0p8/start': '3742720\n',
+    '/sys/devices/platform/11230000.mmc/mmcblk0p8/size': '11460608\n', '/media/internal/music/.keep': '',
+    '/run/y2/internal-media.json': json.dumps({'state': 'Ready', 'boot_id': 'boot-a', 'mount_id': 40,
+                                               'device_id': INTERNAL_DEVICE})}
+INTERNAL_BLKID = answer(['blkid', '-p', '-s', 'UUID', '-o', 'value', '/dev/mmcblk0p8'],
+                        '79324c69-6e75-4801-8000-000000000103')
+
+
+def firmware_present():
+    """Every reviewed radio firmware file with its size (present() looks at sizes only)."""
+    sizes = {'WIFI_RAM_CODE_MT6582': 160368, 'WMT_SOC.cfg': 80, 'mt6572_82_patch_e1_0_hdr.bin': 33120,
+             'mt6572_82_patch_e1_1_hdr.bin': 17476, 'modem_1_2g_n.img': 2424376, 'WIFI.defaults': 512,
+             'BT.defaults': 64}
+    return {'/data/firmware/mt6582/' + name: 'x' * size for name, size in sizes.items()}
+
+
+REPORTS_ON = {'/usr/share/y2linux/report-upload.json': json.dumps({'upload_key': 'K' * 40}),
+              '/data/system/platform/reports.json': json.dumps({'schema': 1, 'enabled': True}),
+              '/data/system/platform/reports/20261020T100000Z-x.tar.gz': 'queued'}
+
+CASES += [
+    # USB: the gadget for MTP, its responder refused (no umtprd below a fixture root) until the budget ends.
+    ('service-daemon-usb-no-configfs', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        '/sys/class/udc/musb-hdrc.0/state': 'not attached\n'}}),
+    ('service-daemon-usb-mtp-budget', ['service-daemon'], {**DAEMON, 'env': ticks(6), 'files': UDC,
+                                                           'commands': [FUNCTIONFS]}),
+    ('service-daemon-usb-functionfs-refused', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': UDC}),
+    ('service-daemon-usb-internal-storage', ['service-daemon'], {
+        **DAEMON, 'env': ticks(2), 'commands': [FUNCTIONFS, BLKID, INTERNAL_BLKID],
+        'files': {**UDC, **INTERNAL_MEDIA, '/sys/class/udc/musb-hdrc.0/state': 'configured\n'}}),
+    ('service-daemon-usb-old-gadget', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'commands': [FUNCTIONFS],
+                                                          'files': {
+        **UDC, '/sys/kernel/config/usb_gadget/y2/UDC': 'musb-hdrc.0\n',
+        '/sys/kernel/config/usb_gadget/y2/configs/c.1/old.usb0/.keep': ''}}),
+    ('service-daemon-usb-developer', ['service-daemon'], {**DAEMON, 'env': ticks(2), 'files': {
+        **UDC, **DEVELOPER, '/sys/class/udc/musb-hdrc.0/state': 'configured\n'}}),
+    ('service-daemon-usb-developer-unplugged', ['service-daemon'], {**DAEMON, 'env': ticks(2), 'files': {
+        **UDC, **DEVELOPER}}),
+    ('service-daemon-usb-developer-suspended', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        **UDC, **DEVELOPER, '/sys/class/udc/musb-hdrc.0/state': 'suspended\n'}}),
+    ('service-daemon-usb-unsupported-mode', ['service-daemon'], {**DAEMON, 'env': ticks(2), 'files': {
+        **UDC, '/data/system/platform/usb-mode.json': '{"mode": "mass-storage"}'}}),
+    ('service-daemon-usb-null-mode', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        **UDC, '/data/system/platform/usb-mode.json': '{"mode": null}'}}),
+    ('service-daemon-usb-two-controllers', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        **UDC, '/sys/class/udc/other.1/state': 'not attached\n'}}),
+    # Wi-Fi: associating (the 1 s cadence), a failed status query counted, online with the DNS probe, the
+    # power policy, the time service, the daily update check and the report run.
+    ('service-daemon-wifi-associating', ['service-daemon'], {**DAEMON, 'env': ticks(2), 'files': WLAN, 'commands': [
+        answer(['wpa_cli', '-i', 'wlan0', 'status'], 'wpa_state=ASSOCIATING\n')]}),
+    ('service-daemon-wifi-query-failures', ['service-daemon'], {**DAEMON, 'env': ticks(2), 'files': {
+        **WLAN, '/run/y2/network.json': '{"boot_id": "boot-a", "status_query_failures": 4}'}}),
+    ('service-daemon-wifi-query-failures-other-boot', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        **WLAN, '/run/y2/network.json': '{"boot_id": "boot-z", "status_query_failures": 4}'}}),
+    ('service-daemon-wifi-query-failures-odd', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        **WLAN, '/run/y2/network.json': '{"boot_id": "boot-a", "status_query_failures": -3}'}}),
+    ('service-daemon-wifi-online', ['service-daemon'], {**DAEMON, 'env': ticks(2), 'files': {**WLAN, **REPORTS_ON},
+                                                        'commands': wifi_online()}),
+    ('service-daemon-wifi-dns-fails', ['service-daemon'], {**DAEMON, 'env': ticks(2), 'files': WLAN,
+                                                           'commands': wifi_online(dns='0')}),
+    ('service-daemon-wifi-bad-probe-host', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        **WLAN, '/etc/y2linux/network-policy.json': '{"dns_probe_host": "not a host"}'}, 'commands': wifi_online()}),
+    ('service-daemon-wifi-online-checked', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        **WLAN, **REPORTS_ON, '/data/updates/last-check.json': last_check(),
+        '/data/system/platform/reports.json': json.dumps({'schema': 1, 'enabled': True, 'uploads': {
+            '20261020T100000Z-x.tar.gz': {'next': 4102444800}}})}, 'commands': wifi_online()}),
+    ('service-daemon-wifi-online-failed-check', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        **WLAN, '/data/updates/last-check.json': last_check('failed', age=7200)}, 'commands': wifi_online()}),
+    ('service-daemon-wifi-reports-off', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        **WLAN, **REPORTS_ON, '/data/system/platform/reports.json': '{"enabled": false}'},
+        'commands': wifi_online()}),
+    # Maintenance: the time floor, application_ready, firmware already there, a lit display.
+    ('service-daemon-time-floor', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        '/run/y2/time.json': anchor(), '/data/system/platform/time-last.json': None}}),
+    ('service-daemon-time-floor-recent', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        '/run/y2/time.json': anchor(), '/data/system/platform/time-last.json': lambda: json.dumps(
+            {'epoch': time.time() - 60, 'source': 'ntp'})}}),
+    ('service-daemon-application-ready', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        '/run/y2/application-ready.json': '{"boot_id": "boot-a", "first_frame": true}',
+        '/data/system/platform/boot.json': json.dumps({'schema': 1, 'boot_id': 'boot-a',
+                                                       'last_stage': 'services_started'})}}),
+    ('service-daemon-firmware-present', ['service-daemon'], {**DAEMON, 'env': ticks(2), 'files': {
+        **firmware_present(), '/sys/class/backlight/panel/bl_power': '0\n',
+        '/sys/class/backlight/panel/brightness': '120\n'}}),
+    ('service-daemon-firmware-copy-waiting', ['service-daemon'], {**DAEMON, 'env': ticks(2), 'files': {
+        '/data/firmware/inbox/system.img': 'copying'}}),
+    ('service-daemon-reconcile-retry', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        '/run/y2/media-lifecycle.json': '{"inventory": [], "retry": true}'}}),
+    ('service-daemon-verify-other-boot', ['service-daemon'], {**DAEMON, 'env': ticks(1), 'files': {
+        '/run/y2/media-mount.json': '{"read_only": "checking", "boot_id": "boot-z"}'}}),
 ]
 
 

@@ -295,7 +295,7 @@ fn owned_mount(root: &Root, mounted: &Mount) -> bool {
 /// recreated inode is not a new card. dev_t and the disk sequence number stay
 /// fixed for one gendisk; every re-enumeration allocates a new diskseq, which
 /// also distinguishes a reinserted identical card (same CID).
-fn inventory(root: &Root) -> Value {
+pub(crate) fn inventory(root: &Root) -> Value {
     let mut result = Vec::new();
     for entry in root.glob("/sys/class/block/mmcblk*") {
         let device = resolve(&entry);

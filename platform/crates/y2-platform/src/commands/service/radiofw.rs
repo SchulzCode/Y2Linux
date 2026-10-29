@@ -102,7 +102,7 @@ impl Reviewed {
 const TARGET: &str = "/data/firmware/mt6582";
 /// While the firmware is missing the computer sees this folder as the MTP storage "Firmware"
 /// (usb.media_views); nothing else of Y2DATA is exported.
-const INBOX: &str = "/data/firmware/inbox";
+pub(crate) const INBOX: &str = "/data/firmware/inbox";
 pub const STATE: &str = "/run/y2/radio-firmware.json";
 const FOLDER: &str = "Firmware";
 const SOURCE: &str = "system.img";
@@ -400,7 +400,7 @@ fn mkdir_exist_ok(path: &Path, mode: u32) -> Result<()> {
 
 /// `radiofw.inbox`: where the copy goes, created with its note when needed: the Firmware folder on
 /// Internal Storage, else the Firmware drive's folder on Y2DATA.
-fn inbox(root: &Root) -> Result<PathBuf> {
+pub(crate) fn inbox(root: &Root) -> Result<PathBuf> {
     let folder = if internal(root) {
         let folder = root.path(INTERNAL_INBOX);
         mkdir_exist_ok(&folder, 0o755)?;
@@ -733,8 +733,6 @@ fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
 }
 
 /// `radiofw.leftover_waiting`: cheap check for the service: a copy leftover() has not judged yet.
-/// Used by service-daemon's `radio_firmware` once the daemon is ported (still Python).
-#[allow(dead_code)]
 pub fn leftover_waiting(root: &Root) -> bool {
     let kept = root
         .json_object(STATE)

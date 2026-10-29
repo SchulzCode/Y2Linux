@@ -6,11 +6,11 @@
 //! positional action, then the options given with their full names, `--opt value` as two tokens, flags
 //! bare and ints as `str(int())`; argparse's help and errors never reach it.
 // SPDX-License-Identifier: GPL-2.0-only
-mod internal;
-mod media;
-mod observe;
+pub(crate) mod internal;
+pub(crate) mod media;
+pub(crate) mod observe;
 mod space;
-mod sys;
+pub(crate) mod sys;
 
 use super::Command;
 use crate::reply::{Outcome, Reply};

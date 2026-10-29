@@ -116,7 +116,7 @@ fn mkfs(device: &str) -> Vec<&str> {
 }
 
 /// The one internal partition with the Y2Media geometry, else None.
-fn partition(root: &Root) -> Option<PathBuf> {
+pub(crate) fn partition(root: &Root) -> Option<PathBuf> {
     let found: Vec<PathBuf> = root
         .glob("/sys/class/block/mmcblk*p*")
         .into_iter()

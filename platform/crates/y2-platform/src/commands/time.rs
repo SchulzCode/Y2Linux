@@ -11,8 +11,8 @@ use y2p_core::{
 };
 
 /// The durable floor (time-last.json) is written at most once an hour.
-const RETAIN_S: f64 = 3600.0;
-const LAST: &str = "/data/system/platform/time-last.json";
+pub(crate) const RETAIN_S: f64 = 3600.0;
+pub(crate) const LAST: &str = "/data/system/platform/time-last.json";
 
 /// `time.time()`.
 pub fn wall() -> f64 {
@@ -21,7 +21,7 @@ pub fn wall() -> f64 {
         .map_or(0.0, |d| d.as_secs_f64())
 }
 
-fn boottime() -> f64 {
+pub(crate) fn boottime() -> f64 {
     clock::boottime_ns() as f64 / 1e9
 }
 
@@ -38,7 +38,7 @@ pub fn plausible(epoch: f64, floor: Option<i64>) -> bool {
 /// running in suspend, CLOCK_MONOTONIC does not: after any sleep over 60 s the monotonic comparison
 /// called a correct clock incoherent and every update check failed until ntpd's next callback (Beta 4:
 /// "Connect to Wi-Fi" after sleep). Compare with CLOCK_BOOTTIME.
-fn drift(anchor: &Map<String, Value>, now: f64, monotonic: f64, elapsed: f64) -> f64 {
+pub(crate) fn drift(anchor: &Map<String, Value>, now: f64, monotonic: f64, elapsed: f64) -> f64 {
     let (stamp, wall, since) = (
         number(anchor.get("monotonic_s")),
         number(anchor.get("epoch")),
@@ -51,16 +51,16 @@ fn drift(anchor: &Map<String, Value>, now: f64, monotonic: f64, elapsed: f64) ->
     }
 }
 
-fn floor(root: &Root) -> Option<i64> {
+pub(crate) fn floor(root: &Root) -> Option<i64> {
     root.integer("/etc/y2linux/build-epoch")
 }
 
-fn boot_id(root: &Root) -> Option<String> {
+pub(crate) fn boot_id(root: &Root) -> Option<String> {
     root.read("/proc/sys/kernel/random/boot_id")
 }
 
 /// `anchor.get('boot_id') == ctx.read(boot_id)`: two missing values are equal too.
-fn same_boot(anchor: &Map<String, Value>, boot: &Option<String>) -> bool {
+pub(crate) fn same_boot(anchor: &Map<String, Value>, boot: &Option<String>) -> bool {
     anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot)
 }
 

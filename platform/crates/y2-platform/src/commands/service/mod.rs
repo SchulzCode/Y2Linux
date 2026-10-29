@@ -1,12 +1,15 @@
 //! Group `service` of the port (docs/planning/PLATFORM-RUST-PORT-PLAN.md, "Remaining port groups"):
 //! `update` (update.py), `firmware` (radiofw.py) and `service-daemon` (service.py).
 // SPDX-License-Identifier: GPL-2.0-only
+mod daemon;
 mod download;
 mod image;
+mod process;
 mod python;
 pub mod radiofw;
 mod storage;
 pub mod update;
+mod usb;
 
 use super::Command;
 use serde_json::{Map, Value};
@@ -66,6 +69,7 @@ fn update_route(args: &[&str]) -> Option<Command> {
 /// The Rust implementation of these exact arguments, if this group has one.
 pub fn route(args: &[&str]) -> Option<Command> {
     match args {
+        ["service-daemon"] => Some(Box::new(daemon::serve)),
         ["update", rest @ ..] => update_route(rest),
         ["firmware", action, path @ ..]
             if ["status", "scan", "install"].contains(action) && path.len() <= 1 =>
