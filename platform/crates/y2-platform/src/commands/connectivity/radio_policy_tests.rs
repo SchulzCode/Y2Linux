@@ -3,7 +3,7 @@
 //! given as it reads before and after the set.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::testing::{failed, ok, scripted, Fixture};
+use crate::testing::{failed, ok, Fixture};
 
 const GET: [&str; 5] = ["/usr/sbin/iw", "dev", "wlan0", "get", "power_save"];
 
@@ -29,10 +29,10 @@ fn policy(fixture: &Fixture, enabled: bool, activity: Option<Value>) -> (Object,
         ),
     ];
     let activity = activity.map(|a| a.as_object().cloned().unwrap());
-    let (value, calls) = scripted(answers, || {
-        wifi_policy(&fixture.root, activity.as_ref()).unwrap()
-    });
-    let set = calls
+    let root = fixture.root.clone().with_answers(answers);
+    let value = wifi_policy(&root, activity.as_ref()).unwrap();
+    let set = root
+        .calls()
         .iter()
         .any(|(argv, _)| argv.iter().any(|a| a == "set"));
     (value, set)
@@ -52,9 +52,11 @@ fn standard_ps_has_readback_and_failure_is_not_success() {
     let (value, _) = policy(&fixture, true, None);
     assert_eq!(value.get("enabled"), Some(&json!(true)));
     assert_eq!(value.get("state"), Some(&json!("Ready")));
-    let (value, _) = scripted(vec![failed(&GET, "timeout")], || {
-        wifi_policy(&fixture.root, None).unwrap()
-    });
+    let root = fixture
+        .root
+        .clone()
+        .with_answers(vec![failed(&GET, "timeout")]);
+    let value = wifi_policy(&root, None).unwrap();
     assert_eq!(value.get("enabled"), Some(&Value::Null));
 }
 

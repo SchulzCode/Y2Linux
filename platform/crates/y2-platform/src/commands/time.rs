@@ -1,6 +1,8 @@
-//! `timekeeping.py`: `time`, `time-remember`, `ntp-event` (reasonable-clock/TLS readiness; BusyBox NTP).
+//! `time`, `time-remember`, `ntp-event`: whether the wall clock is good enough for TLS, the anchor a
+//! BusyBox NTP sync leaves, and the durable floor a restart without Wi-Fi resumes from.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::{atomic_json, lock, private_directory, Failure, Outcome, Reply};
+use serde::Serialize;
 use serde_json::{json, Map, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 use y2p_core::{
@@ -14,15 +16,21 @@ use y2p_core::{
 pub(crate) const RETAIN_S: f64 = 3600.0;
 pub(crate) const LAST: &str = "/data/system/platform/time-last.json";
 
-/// `time.time()`.
+/// The wall clock in seconds since the epoch (0 before it).
 pub fn wall() -> f64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0.0, |d| d.as_secs_f64())
 }
 
+/// CLOCK_BOOTTIME in seconds (the service daemon's anchor checks).
 pub(crate) fn boottime() -> f64 {
     clock::boottime_ns() as f64 / 1e9
+}
+
+/// CLOCK_BOOTTIME in seconds as `root` reads it.
+fn boottime_of(root: &Root) -> f64 {
+    root.clock().boottime_ns() as f64 / 1e9
 }
 
 pub fn plausible(epoch: f64, floor: Option<i64>) -> bool {
@@ -55,14 +63,14 @@ pub(crate) fn floor(root: &Root) -> Option<i64> {
     root.integer("/etc/y2linux/build-epoch")
 }
 
-/// `anchor.get('boot_id') == ctx.read(boot_id)`: two missing values are equal too.
+/// Whether the anchor was written this boot (an anchor without a boot id matches an unreadable one).
 pub(crate) fn same_boot(anchor: &Map<String, Value>, boot: &Option<String>) -> bool {
     anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot)
 }
 
 /// `y2-platform time`.
 pub fn status(root: &Root) -> Outcome {
-    let (now, monotonic, elapsed) = (wall(), clock::monotonic(), boottime());
+    let (now, monotonic, elapsed) = (wall(), root.clock().monotonic(), boottime_of(root));
     let floor = floor(root);
     let valid = plausible(now, floor);
     let anchor = root.json_object("/run/y2/time.json");
@@ -74,38 +82,64 @@ pub fn status(root: &Root) -> Outcome {
         && wall_anchor.is_some()
         && stamp.is_some_and(|stamp| (0.0..=86_400.0).contains(&(monotonic - stamp)))
         && drift(&anchor, now, monotonic, elapsed).abs() <= 60.0;
-    let source = anchor.get("source").cloned().unwrap_or(Value::Null);
+    let source = anchor.value("source");
     let ready = valid && coherent && matches!(source.as_str(), Some("ntp" | "retained_rtc"));
-    let value = Object::new()
-        .with("schema", 1)
-        .with("clock_sane", valid)
-        .with("tls_ready", ready)
-        .with(
-            "reason",
-            if ready {
-                "reasonable_clock"
-            } else {
-                "clock_not_established"
-            },
-        )
-        .with("source", source)
-        .with("ntp_authenticated", false)
-        .with("epoch", now)
-        .with("build_epoch", json!(floor))
-        .with("anchor", Value::Object(sorted_object(&anchor)))
-        .with(
-            "entropy_ready",
-            if root.is_real() {
-                json!(py::entropy_ready())
-            } else {
-                Value::Null
-            },
-        )
-        .with("rtc_retention_qualified", false);
+    let value = Status {
+        schema: 1,
+        clock_sane: valid,
+        tls_ready: ready,
+        reason: if ready {
+            "reasonable_clock"
+        } else {
+            "clock_not_established"
+        },
+        source,
+        ntp_authenticated: false,
+        epoch: now,
+        build_epoch: floor,
+        anchor: sorted_object(&anchor),
+        // A fixture root has no random pool of its own.
+        entropy_ready: root.is_real().then(py::entropy_ready),
+        rtc_retention_qualified: false,
+    };
     Reply::unsorted(&value, 0)
 }
 
-/// `y2-platform time-remember` (`remember(ctx, every=0)`): keep the durable floor at the running clock,
+/// `y2-platform time`: whether the wall clock is good enough for TLS, and why.
+#[derive(Serialize)]
+struct Status {
+    schema: u8,
+    clock_sane: bool,
+    tls_ready: bool,
+    reason: &'static str,
+    /// The anchor's source as it reads (`ntp`, `retained_rtc`, `manual`, …).
+    source: Value,
+    ntp_authenticated: bool,
+    epoch: f64,
+    build_epoch: Option<i64>,
+    anchor: Object,
+    entropy_ready: Option<bool>,
+    rtc_retention_qualified: bool,
+}
+
+/// `/run/y2/time.json` (and the durable floor) after an NTP sync; `ntp-event` prints it with the RTC
+/// write's outcome when one ran.
+#[derive(Serialize)]
+struct Sync<'a> {
+    schema: u8,
+    boot_id: Option<String>,
+    epoch: f64,
+    monotonic_s: f64,
+    boottime_s: f64,
+    source: &'static str,
+    stratum: i64,
+    authenticated: bool,
+    event: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rtc_write: Option<bool>,
+}
+
+/// `y2-platform time-remember` (a shutdown step): keep the durable floor at the running clock,
 /// only for a clock set from the network or by hand this boot that nobody stepped since, so a restart
 /// without Wi-Fi resumes about where it was. Its own errors print `{"state": "Failed", "failure": …}`.
 pub fn remember(root: &Root) -> Outcome {
@@ -124,7 +158,7 @@ pub fn remember(root: &Root) -> Outcome {
 }
 
 fn remember_inner(root: &Root) -> Result<Option<Object>, Failure> {
-    let (now, monotonic, elapsed) = (wall(), clock::monotonic(), boottime());
+    let (now, monotonic, elapsed) = (wall(), root.clock().monotonic(), boottime_of(root));
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
     // Never over a record that a sync or the owner wrote meanwhile.
@@ -201,8 +235,8 @@ pub fn ntp_event(root: &Root, event: &str) -> Outcome {
     private_directory(&runtime)?;
     // BusyBox explicitly permits overlapping step/stratum callbacks.
     let _lock = lock(&runtime.join("time.lock"))?;
-    // `int(env.get('stratum', '16'))`: Python's int() of the text (any size), or its ValueError.
-    // os.environ reads a value that is not UTF-8 with surrogate escapes (y2p_core::os_text).
+    // ntpd's `stratum` (16, unsynchronised, when absent) as an integer of any size, or the refusal
+    // naming the text; a value that is not UTF-8 reads with surrogate escapes (y2p_core::os_text).
     let stratum = match std::env::var_os("stratum") {
         None => 16,
         Some(raw) => python_int(&y2p_core::os_text::fsdecode_os(&raw))?,
@@ -215,16 +249,18 @@ pub fn ntp_event(root: &Root, event: &str) -> Outcome {
             0,
         );
     }
-    let mut value = Object::new()
-        .with("schema", 1)
-        .with("boot_id", json!(root.boot_id()))
-        .with("epoch", now)
-        .with("monotonic_s", clock::monotonic())
-        .with("boottime_s", boottime())
-        .with("source", "ntp")
-        .with("stratum", stratum)
-        .with("authenticated", false)
-        .with("event", event);
+    let mut value = Sync {
+        schema: 1,
+        boot_id: root.boot_id(),
+        epoch: now,
+        monotonic_s: root.clock().monotonic(),
+        boottime_s: boottime_of(root),
+        source: "ntp",
+        stratum,
+        authenticated: false,
+        event,
+        rtc_write: None,
+    };
     atomic_json(&runtime.join("time.json"), &value, false)?;
     // Durable floor at most once an hour, plus the first sync (also the first after a time set by
     // hand, #53). No seeds or private credentials are present in this small record.
@@ -240,21 +276,19 @@ pub fn ntp_event(root: &Root, event: &str) -> Outcome {
         private_directory(&directory)?;
         atomic_json(&directory.join("time-last.json"), &value, true)?;
     }
-    rtc_write(root, &mut value);
+    value.rtc_write = rtc_write(root);
     Reply::unsorted(&value, 0)
 }
 
 /// Source-backed default or an owner receipt admits normal NTP -> RTC synchronization. Mutable owner
 /// policy still takes precedence.
-fn rtc_write(root: &Root, value: &mut Object) {
+fn rtc_write(root: &Root) -> Option<bool> {
     let rtc = match root.json("/data/system/platform/rtc-policy.json") {
         Some(Value::Object(map)) => map,
         _ => root.json_object("/etc/y2linux/rtc-policy.json"),
     };
     let referenced = rtc.get("qualification_reference").is_some_and(truthy)
         || rtc.get("source").is_some_and(truthy);
-    if is_true(rtc.get("write_enabled")) && referenced {
-        let ok = command::run(root, &["/bin/busybox", "hwclock", "-w", "-u"], 3.0).ok;
-        value.set("rtc_write", ok);
-    }
+    (is_true(rtc.get("write_enabled")) && referenced)
+        .then(|| command::run(root, &["/bin/busybox", "hwclock", "-w", "-u"], 3.0).ok)
 }

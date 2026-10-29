@@ -3,12 +3,21 @@
 //! platform (network.py).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::super::observe_wifi::{wifi_state, DNS_FRESH_S};
+use super::super::steps::Steps;
 use super::*;
 use crate::commands::network::wifi_event;
-use crate::testing::{ok, scripted, Fixture};
-use serde_json::Map;
-use std::time::Instant;
-use y2p_core::{command::Outcome, json::sorted_object};
+use crate::testing::{ok, Fixture};
+use serde_json::{json, Map, Value};
+use std::{
+    os::unix::net::UnixDatagram,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+use y2p_core::{
+    clock::Manual,
+    command::Outcome,
+    json::{sorted_object, Object, ObjectExt},
+};
 
 type Answer = (Vec<String>, Outcome);
 
@@ -35,19 +44,14 @@ fn failure(fixture: &Fixture) -> Option<Value> {
         .then(|| fixture.json("/run/y2/wifi-failure.json"))
 }
 
-const LOOKUP: [&str; 5] = [
-    "/usr/bin/python3",
-    "-I",
-    "-c",
-    "import socket,sys; print(len(socket.getaddrinfo(sys.argv[1],None,socket.AF_INET)))",
-    "pool.ntp.org",
-];
+const LOOKUP: [&str; 2] = ["getaddrinfo", "pool.ntp.org"];
 const ADDRESS: [&str; 7] = ["ip", "-j", "-4", "addr", "show", "dev", "wlan0"];
 const ROUTE: [&str; 8] = ["ip", "-j", "-4", "route", "show", "default", "dev", "wlan0"];
 
 #[test]
 fn probe_rejects_peer_disappearance_and_reports_auth_reason_without_ssid() {
-    let fixture = player();
+    let steps = Steps::default();
+    let fixture = steps.attach(player());
     wifi_event(&fixture.root, "CONNECTED").unwrap();
     fixture.mkdir("/sys/class/net/wlan0");
     let before = ordered(json!({"ip_addresses": ["192.0.2.2"], "default_route": [{}],
@@ -64,7 +68,11 @@ fn probe_rejects_peer_disappearance_and_reports_auth_reason_without_ssid() {
             ok(&LOOKUP, "1"),
         ]
     };
-    let probe = |answers| scripted(answers, || probe_dns(&fixture.root, &before).unwrap()).0;
+    let probe = |answers| {
+        steps
+            .run(answers, || probe_dns(&fixture.root, &before).unwrap())
+            .0
+    };
     assert!(probe(after("peer-two", "[{}]")).is_none());
     assert!(!fixture.exists("/run/y2/dns.json"));
     assert!(probe(after("peer-one", "[]")).is_none());
@@ -87,7 +95,9 @@ const SCAN_HEADER: &str = "bssid / frequency / signal level / flags / ssid\n";
 fn network_not_found_records_what_the_scan_saw_without_names() {
     // F13 (70cce0f1): after a wake the saved network was "not found" for minutes; nothing said whether
     // it was out of range, on a passive channel or not seen.
-    let fixture = player();
+    let steps = Steps::default();
+    let clock = Arc::new(Manual::at(1_000_000_000_000, 1_000_000_000_000));
+    let fixture = steps.attach(player()).with_clock(clock.clone());
     let answers = |scan: &str| {
         vec![
             wpa_answer(&["scan_results"], scan),
@@ -104,7 +114,7 @@ fn network_not_found_records_what_the_scan_saw_without_names() {
          aa:bb:cc:dd:ee:03\t2437\t-50\t[ESS]\tneighbour\n"
     );
     let mut monitor = EventMonitor::new(&fixture.root);
-    scripted(answers(&scan), || monitor.event(NOT_FOUND).unwrap());
+    steps.run(answers(&scan), || monitor.event(NOT_FOUND).unwrap());
     let record = failure(&fixture).unwrap();
     assert_eq!(record["error"], "ap_unavailable");
     assert_eq!(
@@ -119,16 +129,17 @@ fn network_not_found_records_what_the_scan_saw_without_names() {
         assert!(!text.contains(private), "{private}");
     }
     // Reported after every scan: wpa_cli is asked at most every 30 s.
-    let (_, calls) = scripted(answers(&scan), || monitor.event(NOT_FOUND).unwrap());
+    let (_, calls) = steps.run(answers(&scan), || monitor.event(NOT_FOUND).unwrap());
     assert!(calls.is_empty());
     let record = failure(&fixture).unwrap();
     assert_eq!(record["failures"], 2);
     assert_eq!(record["scan"]["saved_seen"], true);
-    // 31 s later (the record's scan that much older).
-    let mut record = record;
-    record["scan_monotonic_s"] = json!(record["scan_monotonic_s"].as_f64().unwrap() - 31.0);
-    fixture.put_json("/run/y2/wifi-failure.json", &record);
-    scripted(answers(SCAN_HEADER), || monitor.event(NOT_FOUND).unwrap());
+    // 29 s later the scan is still the cached one, 31 s later it is looked at again.
+    clock.advance(29_000_000_000);
+    let (_, calls) = steps.run(answers(SCAN_HEADER), || monitor.event(NOT_FOUND).unwrap());
+    assert!(calls.is_empty());
+    clock.advance(2_000_000_000);
+    steps.run(answers(SCAN_HEADER), || monitor.event(NOT_FOUND).unwrap());
     let scan = &failure(&fixture).unwrap()["scan"];
     assert_eq!(
         (&scan["networks"], &scan["saved_seen"]),
@@ -209,15 +220,21 @@ fn event_wait_wakes_for_real_supplicant_event() {
 /// A monitor whose wpa_cli answers as the player near one saved network in range.
 struct Evidence {
     fixture: Fixture,
+    steps: Steps,
     monitor: EventMonitor,
 }
 
 impl Evidence {
     fn new() -> Self {
-        let fixture = player();
+        let steps = Steps::default();
+        let fixture = steps.attach(player());
         fixture.put("/run/y2/wifi-epoch", "3");
         let monitor = EventMonitor::new(&fixture.root);
-        Self { fixture, monitor }
+        Self {
+            fixture,
+            steps,
+            monitor,
+        }
     }
 
     fn event(&mut self, text: &str) {
@@ -240,7 +257,7 @@ impl Evidence {
             wpa_answer(&["get_network", "0", "key_mgmt"], "WPA-PSK\n"),
         ];
         let monitor = &mut self.monitor;
-        scripted(answers, || monitor.event(text).unwrap());
+        self.steps.run(answers, || monitor.event(text).unwrap());
     }
 
     fn record(&self) -> Option<Value> {
@@ -461,6 +478,7 @@ fn a_handshake_cut_short_here_is_no_password_verdict() {
 /// A player with its /data verified (journal rows are written) and two saved networks in range.
 struct Recovery {
     fixture: Fixture,
+    steps: Steps,
     recovery: WifiRecovery,
     monitor: EventMonitor,
     scan: String,
@@ -470,7 +488,8 @@ struct Recovery {
 
 impl Recovery {
     fn new() -> Self {
-        let fixture = player();
+        let steps = Steps::default();
+        let fixture = steps.attach(player());
         fixture
             .put("/data/.y2data-schema", "1\n")
             .put("/run/y2-data-device", "/dev/mmcblk0p9\n")
@@ -482,6 +501,7 @@ impl Recovery {
         let monitor = EventMonitor::new(&fixture.root);
         Self {
             fixture,
+            steps,
             recovery,
             monitor,
             scan: format!(
@@ -513,7 +533,9 @@ impl Recovery {
         let (value, answers) = (ordered(value.clone()), self.answers());
         let monitor = monitor.then_some(&self.monitor);
         let recovery = &mut self.recovery;
-        let (action, calls) = scripted(answers, || recovery.observe(&value, now, monitor));
+        let (action, calls) = self
+            .steps
+            .run(answers, || recovery.observe(&value, now, monitor));
         self.calls
             .extend(calls.into_iter().map(|(argv, _)| argv[3..].to_vec()));
         action
@@ -522,7 +544,7 @@ impl Recovery {
     fn event(&mut self, text: &str) {
         let answers = self.answers();
         let monitor = &mut self.monitor;
-        scripted(answers, || monitor.event(text).unwrap());
+        self.steps.run(answers, || monitor.event(text).unwrap());
     }
 
     fn journal(&self) -> Vec<Value> {
