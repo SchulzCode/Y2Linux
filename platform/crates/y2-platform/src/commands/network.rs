@@ -1,10 +1,12 @@
 //! `network.lease_event` and `network.dhcp_event`: one DHCP lease lifecycle above wpa_supplicant
 //! (`wifi-event` from wpa-event, `dhcp-event` from udhcpc's script with its environment).
 // SPDX-License-Identifier: GPL-2.0-only
+use super::connectivity::record;
 use crate::reply::{
     atomic_json, lock, private_directory, unlink_missing_ok, write_text, Failure, Outcome, Reply,
 };
-use serde_json::{json, Map, Value};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use std::{env, fs, os::unix::fs::PermissionsExt, path::Path};
 use y2p_core::{
     command,
@@ -14,8 +16,16 @@ use y2p_core::{
     Root,
 };
 
-/// `publish(ctx, name, value)`: `value.update(schema, boot_id, monotonic_s)` and the runtime record.
-pub(crate) fn publish(root: &Root, name: &str, mut value: Object) -> Result<Object, Failure> {
+/// The runtime record `/run/y2/<name>.json`: `value`'s fields in their order, then `schema`, `boot_id`
+/// and `monotonic_s` (written sorted; the returned object keeps the order for stdout).
+pub(crate) fn publish<T: Serialize + ?Sized>(
+    root: &Root,
+    name: &str,
+    value: &T,
+) -> Result<Object, Failure> {
+    let Value::Object(mut value) = serde_json::to_value(value).map_err(Failure::value)? else {
+        return Err(Failure::value("record_not_an_object"));
+    };
     private_directory(&root.path("/run/y2"))?;
     value
         .set("schema", 1)
@@ -81,6 +91,61 @@ fn plus_one(value: &Value) -> Value {
     json!(py::number(Some(value)).unwrap_or(0.0) as u64 + 1)
 }
 
+/// `/run/y2/dhcp.json` (also `wifi-event`'s and `dhcp-event`'s stdout) before `publish` adds its
+/// identity: the lease state of one association epoch, in this key order.
+#[derive(Serialize)]
+struct Dhcp<'a> {
+    epoch: &'a str,
+    state: &'static str,
+    error: Option<&'static str>,
+    address: Option<String>,
+    #[serde(flatten)]
+    lease: Option<Lease>,
+}
+
+impl<'a> Dhcp<'a> {
+    fn new(epoch: &'a str, state: &'static str) -> Self {
+        Self {
+            epoch,
+            state,
+            error: None,
+            address: None,
+            lease: None,
+        }
+    }
+
+    fn failed(epoch: &'a str, error: &'static str) -> Self {
+        Self {
+            error: Some(error),
+            ..Self::new(epoch, "Failed")
+        }
+    }
+}
+
+/// What an Authenticated lease adds.
+#[derive(Serialize)]
+struct Lease {
+    dns_servers: Vec<String>,
+    /// udhcpc's `lease` as it gave it.
+    lease_seconds: Option<String>,
+}
+
+/// The published lease as `dhcp-event` reads it back.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Published {
+    #[serde(deserialize_with = "record::text")]
+    state: Option<String>,
+    #[serde(deserialize_with = "record::text")]
+    epoch: Option<String>,
+    #[serde(deserialize_with = "record::text")]
+    boot_id: Option<String>,
+    #[serde(deserialize_with = "record::text")]
+    address: Option<String>,
+    #[serde(deserialize_with = "record::texts")]
+    dns_servers: Option<Vec<String>>,
+}
+
 /// `y2-platform wifi-event CONNECTED|DISCONNECTED|SERVICE_RESTART`.
 pub fn wifi_event(root: &Root, event: &str) -> Outcome {
     let runtime = root.path("/run/y2");
@@ -91,8 +156,8 @@ pub fn wifi_event(root: &Root, event: &str) -> Outcome {
     write_text(&runtime.join("wifi-epoch"), &format!("{epoch}\n"))?;
     unlink_missing_ok(&runtime.join("dns.json"))?;
     let mut old = root.json_object("/run/y2/wifi-events.json");
-    if old.get("boot_id").cloned().unwrap_or(Value::Null) != json!(root.boot_id()) {
-        old = Map::new();
+    if old.value("boot_id") != json!(root.boot_id()) {
+        old = Object::new();
     }
     let active = match old.get("association_active") {
         Some(value) => is_true(Some(value)),
@@ -116,11 +181,11 @@ pub fn wifi_event(root: &Root, event: &str) -> Outcome {
         } else {
             "real_disconnects"
         };
-        let value = plus_one(record.get(name).expect("set above"));
+        let value = plus_one(&record.value(name));
         record.set(name, value);
     }
     if event == "CONNECTED" && !active && record.get("connected").is_some_and(truthy) {
-        let value = plus_one(record.get("reconnects").expect("set above"));
+        let value = plus_one(&record.value("reconnects"));
         record.set("reconnects", value);
     }
     record.set("association_active", event == "CONNECTED");
@@ -128,26 +193,19 @@ pub fn wifi_event(root: &Root, event: &str) -> Outcome {
     let current = count(record.get(&key));
     record.set(&key, plus_one(&current));
     record.set("last_event", event);
-    publish(root, "wifi-events", record)?;
+    publish(root, "wifi-events", &record)?;
     // Leases never survive a new association/service epoch. USB's fixed address and routes are outside
     // this interface-scoped lifecycle.
     for argv in FLUSH {
         command::run(root, argv, command::TIMEOUT);
     }
     resolv(root, &[])?;
-    let state = Object::new()
-        .with("epoch", epoch)
-        .with(
-            "state",
-            if event == "CONNECTED" {
-                "AcquiringIP"
-            } else {
-                "Unavailable"
-            },
-        )
-        .with("error", Value::Null)
-        .with("address", Value::Null);
-    Reply::unsorted(&publish(root, "dhcp", state)?, 0)
+    let state = if event == "CONNECTED" {
+        "AcquiringIP"
+    } else {
+        "Unavailable"
+    };
+    Reply::unsorted(&publish(root, "dhcp", &Dhcp::new(&epoch, state))?, 0)
 }
 
 // ---- ipaddress (Python 3.15's IPv4 parsing, with its exact error texts) ----------------------------
@@ -183,7 +241,10 @@ fn parse_octet(octet: &str) -> Result<u8, String> {
             repr(octet)
         ));
     }
-    let value: u32 = octet.parse().expect("three ASCII digits");
+    // At most three ASCII digits (checked above).
+    let value = octet
+        .bytes()
+        .fold(0u32, |value, digit| value * 10 + u32::from(digit - b'0'));
     u8::try_from(value).map_err(|_| format!("Octet {value} (> 255) not permitted"))
 }
 
@@ -288,8 +349,8 @@ fn network(text: &str) -> Result<String, Failure> {
 /// the same address and DNS servers.
 fn renews(
     root: &Root,
-    previous: &Map<String, Value>,
-    epoch: Option<&str>,
+    previous: &Published,
+    epoch: &str,
     var: &dyn Fn(&str) -> Option<String>,
 ) -> bool {
     let address = var("ip").and_then(|ip| ipv4(&ip).ok()).map(dotted);
@@ -298,11 +359,63 @@ fn renews(
         .take(3)
         .map(|s| ipv4(s).ok().map(dotted))
         .collect();
-    previous.get("state") == Some(&json!("Authenticated"))
-        && previous.get("epoch").and_then(Value::as_str) == epoch
-        && previous.get("boot_id").and_then(Value::as_str) == root.boot_id().as_deref()
-        && address.is_some_and(|a| previous.get("address") == Some(&json!(a)))
-        && servers.is_some_and(|s| previous.get("dns_servers") == Some(&json!(s)))
+    previous.state.as_deref() == Some("Authenticated")
+        && previous.epoch.as_deref() == Some(epoch)
+        && previous.boot_id == root.boot_id()
+        && address.is_some()
+        && previous.address == address
+        && servers.is_some()
+        && previous.dns_servers == servers
+}
+
+/// Up to three addresses of a space-separated udhcpc variable, each parsed.
+fn addresses(var: &dyn Fn(&str) -> Option<String>, name: &str) -> Result<Vec<String>, Failure> {
+    python_split(&var(name).unwrap_or_default())
+        .iter()
+        .take(3)
+        .map(|s| ipv4(s).map(dotted))
+        .collect()
+}
+
+/// The routes of a lease (destination, gateway): RFC3442 classless routes supersede the router
+/// option. The list is bounded and holds parsed addresses only, never shell text.
+fn routes(var: &dyn Fn(&str) -> Option<String>) -> Result<Vec<(String, String)>, Failure> {
+    let gateways = addresses(var, "router")?;
+    let classless = var("staticroutes").unwrap_or_default();
+    let classless = python_split(&classless);
+    if classless.is_empty() {
+        return Ok(gateways
+            .into_iter()
+            .take(1)
+            .map(|gateway| ("default".to_owned(), gateway))
+            .collect());
+    }
+    if classless.len() > 32 || classless.len() % 2 == 1 {
+        return Err(Failure::value("invalid_classless_routes"));
+    }
+    classless
+        .chunks(2)
+        .map(|pair| Ok((network(pair[0])?, dotted(ipv4(pair[1])?))))
+        .collect()
+}
+
+/// The `ip` commands that put a lease on wlan0: whatever the interface had goes first.
+fn configuration(interface: &str, routes: &[(String, String)]) -> Vec<Vec<String>> {
+    let words = |argv: &[&str]| argv.iter().map(|w| w.to_string()).collect::<Vec<_>>();
+    let mut commands: Vec<Vec<String>> = FLUSH.iter().map(|argv| words(argv)).collect();
+    commands.push(words(&["ip", "link", "set", "dev", "wlan0", "up"]));
+    commands.push(words(&[
+        "ip", "-4", "address", "add", interface, "dev", "wlan0",
+    ]));
+    for (destination, gateway) in routes {
+        let mut argv = words(&["ip", "-4", "route", "replace", destination]);
+        if gateway != "0.0.0.0" {
+            argv.extend(words(&["via", gateway]));
+        }
+        argv.extend(words(&["dev", "wlan0", "metric", "100"]));
+        commands.push(argv);
+    }
+    commands
 }
 
 /// `y2-platform dhcp-event deconfig|leasefail|nak|bound|renew` with udhcpc's environment.
@@ -316,35 +429,25 @@ pub fn dhcp_event(root: &Root, event: &str) -> Outcome {
     private_directory(&runtime)?;
     let _lock = lock(&runtime.join("dhcp.lock"))?;
     let epoch = root.read("/run/y2/wifi-epoch").filter(|e| !e.is_empty());
-    if epoch.is_none() || var("Y2_DHCP_GENERATION") != epoch {
+    let Some(epoch) = epoch.filter(|e| var("Y2_DHCP_GENERATION").as_ref() == Some(e)) else {
         return Err(Failure::value("stale_dhcp_epoch"));
-    }
+    };
     // A renew of the same lease keeps its DNS result: deleting it showed dns_unavailable until the
     // next probe, up to 300 s later. The reader still checks epoch, address and freshness.
-    let previous = root.json_object("/run/y2/dhcp.json");
-    if !(event == "renew" && renews(root, &previous, epoch.as_deref(), &var)) {
+    let previous: Published = record::read(root.json_object("/run/y2/dhcp.json"));
+    if !(event == "renew" && renews(root, &previous, &epoch, &var)) {
         unlink_missing_ok(&runtime.join("dns.json"))?;
     }
-    let mut state = Object::new()
-        .with("epoch", json!(epoch))
-        .with("state", "AcquiringIP")
-        .with("error", Value::Null)
-        .with("address", Value::Null);
-    match event {
+    let state = match event {
         "deconfig" | "nak" | "leasefail" => {
             for argv in FLUSH {
                 command::run(root, argv, command::TIMEOUT);
             }
             resolv(root, &[])?;
-            if event != "deconfig" {
-                state.set("state", "Failed").set(
-                    "error",
-                    if event == "leasefail" {
-                        "dhcp_timeout"
-                    } else {
-                        "dhcp_nak"
-                    },
-                );
+            match event {
+                "deconfig" => Dhcp::new(&epoch, "AcquiringIP"),
+                "leasefail" => Dhcp::failed(&epoch, "dhcp_timeout"),
+                _ => Dhcp::failed(&epoch, "dhcp_nak"),
             }
         }
         "bound" | "renew" => {
@@ -357,97 +460,35 @@ pub fn dhcp_event(root: &Root, event: &str) -> Outcome {
             if address == [0, 0, 0, 0] || (224..=239).contains(&address[0]) || address[0] == 127 {
                 return Err(Failure::value("invalid_dhcp_address"));
             }
-            let split = |name: &str| -> Vec<String> {
-                python_split(&var(name).unwrap_or_default())
-                    .into_iter()
-                    .map(str::to_owned)
-                    .collect()
-            };
-            let servers: Vec<String> = split("dns")
-                .iter()
-                .take(3)
-                .map(|s| ipv4(s).map(dotted))
-                .collect::<Result<_, _>>()?;
-            let gateways: Vec<String> = split("router")
-                .iter()
-                .take(3)
-                .map(|s| ipv4(s).map(dotted))
-                .collect::<Result<_, _>>()?;
-            // RFC3442: classless routes supersede the router option. Bound the list and restrict syntax
-            // to parsed addresses, never shell text.
-            let static_routes: Vec<String> = split("staticroutes");
-            let routes: Vec<(String, String)> = if !static_routes.is_empty() {
-                if static_routes.len() > 32 || static_routes.len() % 2 == 1 {
-                    return Err(Failure::value("invalid_classless_routes"));
-                }
-                static_routes
-                    .chunks(2)
-                    .map(|pair| Ok((network(&pair[0])?, dotted(ipv4(&pair[1])?))))
-                    .collect::<Result<_, Failure>>()?
-            } else {
-                gateways
-                    .iter()
-                    .take(1)
-                    .map(|g| ("default".to_owned(), g.clone()))
-                    .collect()
-            };
+            let servers = addresses(&var, "dns")?;
+            let routes = routes(&var)?;
             let interface = format!("{}/{length}", dotted(address));
-            let mut commands: Vec<Vec<String>> = FLUSH
-                .iter()
-                .map(|a| a.iter().map(|s| s.to_string()).collect())
-                .collect();
-            commands.push(
-                ["ip", "link", "set", "dev", "wlan0", "up"]
-                    .map(str::to_owned)
-                    .to_vec(),
-            );
-            commands.push(
-                ["ip", "-4", "address", "add", &interface, "dev", "wlan0"]
-                    .map(str::to_owned)
-                    .to_vec(),
-            );
-            for (destination, gateway) in &routes {
-                let mut argv = vec![
-                    "ip".to_owned(),
-                    "-4".into(),
-                    "route".into(),
-                    "replace".into(),
-                    destination.clone(),
-                ];
-                if gateway != "0.0.0.0" {
-                    argv.extend(["via".into(), gateway.clone()]);
-                }
-                argv.extend(["dev".into(), "wlan0".into(), "metric".into(), "100".into()]);
-                commands.push(argv);
-            }
-            for argv in &commands {
+            for argv in configuration(&interface, &routes) {
                 let argv: Vec<&str> = argv.iter().map(String::as_str).collect();
                 if !command::run(root, &argv, command::TIMEOUT).ok {
-                    state
-                        .set("state", "Failed")
-                        .set("error", "lease_configuration_failed");
-                    publish(root, "dhcp", state)?;
+                    publish(
+                        root,
+                        "dhcp",
+                        &Dhcp::failed(&epoch, "lease_configuration_failed"),
+                    )?;
                     return Err(Failure::value("lease_configuration_failed"));
                 }
             }
             resolv(root, &servers)?;
-            state
-                .set("state", "Authenticated")
-                .set("address", dotted(address))
-                .set("dns_servers", json!(servers))
-                .set(
-                    "error",
-                    if servers.is_empty() {
-                        json!("dns_unavailable")
-                    } else {
-                        Value::Null
-                    },
-                )
-                .set("lease_seconds", json!(var("lease")));
+            Dhcp {
+                epoch: &epoch,
+                state: "Authenticated",
+                error: servers.is_empty().then_some("dns_unavailable"),
+                address: Some(dotted(address)),
+                lease: Some(Lease {
+                    dns_servers: servers,
+                    lease_seconds: var("lease"),
+                }),
+            }
         }
         _ => return Err(Failure::value("unknown_dhcp_event")),
-    }
-    Reply::unsorted(&publish(root, "dhcp", state)?, 0)
+    };
+    Reply::unsorted(&publish(root, "dhcp", &state)?, 0)
 }
 
 #[cfg(test)]

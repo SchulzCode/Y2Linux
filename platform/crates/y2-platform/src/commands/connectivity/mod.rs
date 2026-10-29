@@ -17,6 +17,7 @@ pub mod daemon;
 #[allow(dead_code)]
 pub mod observe_wifi;
 pub mod radio_policy;
+pub(crate) mod record;
 #[cfg(test)]
 mod scenarios;
 #[cfg(test)]

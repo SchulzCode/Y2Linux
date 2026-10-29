@@ -12,6 +12,7 @@
 use super::wifi::journal;
 use crate::commands::{codec, network::wlan_switched_off};
 use crate::reply::{private_directory, unlink_missing_ok, Failure, Outcome};
+use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
     env,
@@ -504,11 +505,12 @@ impl Supervisor {
         journal(
             root,
             "wifi_interface_renewed",
-            Object::new()
-                .with("reason", "interface_disabled")
-                .with("renewals", u64::from(self.renewals))
-                .with("disabled_s", super::wifi::round1(now - since))
-                .with("rfkill", rfkill),
+            &Renewed {
+                reason: "interface_disabled",
+                renewals: Some(self.renewals),
+                disabled_s: Some(super::wifi::round1(now - since)),
+                rfkill: Some(rfkill),
+            },
         );
         self.disabled_since = None;
         self.detach();
@@ -528,7 +530,10 @@ impl Supervisor {
             journal(
                 &root,
                 "wifi_interface_renewed",
-                Object::new().with("reason", "new_netdev"),
+                &Renewed {
+                    reason: "new_netdev",
+                    ..Renewed::default()
+                },
             );
             self.detach();
         }
@@ -606,6 +611,19 @@ impl Supervisor {
             self.stop(name);
         }
     }
+}
+
+/// The journal row of a supplicant interface added again (F53): why; for one left disabled, how
+/// often and how long, and every rfkill switch as `[type, soft, hard]`.
+#[derive(Serialize, Default)]
+struct Renewed {
+    reason: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    renewals: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    disabled_s: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rfkill: Option<Object>,
 }
 
 fn pidfd_open(pid: i32) -> Option<OwnedFd> {

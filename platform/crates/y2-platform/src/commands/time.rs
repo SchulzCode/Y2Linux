@@ -1,6 +1,7 @@
 //! `timekeeping.py`: `time`, `time-remember`, `ntp-event` (reasonable-clock/TLS readiness; BusyBox NTP).
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::{atomic_json, lock, private_directory, Failure, Outcome, Reply};
+use serde::Serialize;
 use serde_json::{json, Map, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 use y2p_core::{
@@ -80,35 +81,61 @@ pub fn status(root: &Root) -> Outcome {
         && wall_anchor.is_some()
         && stamp.is_some_and(|stamp| (0.0..=86_400.0).contains(&(monotonic - stamp)))
         && drift(&anchor, now, monotonic, elapsed).abs() <= 60.0;
-    let source = anchor.get("source").cloned().unwrap_or(Value::Null);
+    let source = anchor.value("source");
     let ready = valid && coherent && matches!(source.as_str(), Some("ntp" | "retained_rtc"));
-    let value = Object::new()
-        .with("schema", 1)
-        .with("clock_sane", valid)
-        .with("tls_ready", ready)
-        .with(
-            "reason",
-            if ready {
-                "reasonable_clock"
-            } else {
-                "clock_not_established"
-            },
-        )
-        .with("source", source)
-        .with("ntp_authenticated", false)
-        .with("epoch", now)
-        .with("build_epoch", json!(floor))
-        .with("anchor", Value::Object(sorted_object(&anchor)))
-        .with(
-            "entropy_ready",
-            if root.is_real() {
-                json!(py::entropy_ready())
-            } else {
-                Value::Null
-            },
-        )
-        .with("rtc_retention_qualified", false);
+    let value = Status {
+        schema: 1,
+        clock_sane: valid,
+        tls_ready: ready,
+        reason: if ready {
+            "reasonable_clock"
+        } else {
+            "clock_not_established"
+        },
+        source,
+        ntp_authenticated: false,
+        epoch: now,
+        build_epoch: floor,
+        anchor: sorted_object(&anchor),
+        // A fixture root has no random pool of its own.
+        entropy_ready: root.is_real().then(py::entropy_ready),
+        rtc_retention_qualified: false,
+    };
     Reply::unsorted(&value, 0)
+}
+
+/// `y2-platform time`: whether the wall clock is good enough for TLS, and why.
+#[derive(Serialize)]
+struct Status {
+    schema: u8,
+    clock_sane: bool,
+    tls_ready: bool,
+    reason: &'static str,
+    /// The anchor's source as it reads (`ntp`, `retained_rtc`, `manual`, …).
+    source: Value,
+    ntp_authenticated: bool,
+    epoch: f64,
+    build_epoch: Option<i64>,
+    anchor: Object,
+    entropy_ready: Option<bool>,
+    rtc_retention_qualified: bool,
+}
+
+/// `/run/y2/time.json` (and the durable floor) after an NTP sync; `ntp-event` prints it with the RTC
+/// write's outcome when one ran.
+#[derive(Serialize)]
+struct Sync<'a> {
+    schema: u8,
+    boot_id: Option<String>,
+    epoch: f64,
+    monotonic_s: f64,
+    boottime_s: f64,
+    source: &'static str,
+    stratum: i64,
+    authenticated: bool,
+    event: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rtc_write: Option<bool>,
 }
 
 /// `y2-platform time-remember` (`remember(ctx, every=0)`): keep the durable floor at the running clock,
@@ -221,16 +248,18 @@ pub fn ntp_event(root: &Root, event: &str) -> Outcome {
             0,
         );
     }
-    let mut value = Object::new()
-        .with("schema", 1)
-        .with("boot_id", json!(root.boot_id()))
-        .with("epoch", now)
-        .with("monotonic_s", root.clock().monotonic())
-        .with("boottime_s", boottime_of(root))
-        .with("source", "ntp")
-        .with("stratum", stratum)
-        .with("authenticated", false)
-        .with("event", event);
+    let mut value = Sync {
+        schema: 1,
+        boot_id: root.boot_id(),
+        epoch: now,
+        monotonic_s: root.clock().monotonic(),
+        boottime_s: boottime_of(root),
+        source: "ntp",
+        stratum,
+        authenticated: false,
+        event,
+        rtc_write: None,
+    };
     atomic_json(&runtime.join("time.json"), &value, false)?;
     // Durable floor at most once an hour, plus the first sync (also the first after a time set by
     // hand, #53). No seeds or private credentials are present in this small record.
@@ -246,21 +275,19 @@ pub fn ntp_event(root: &Root, event: &str) -> Outcome {
         private_directory(&directory)?;
         atomic_json(&directory.join("time-last.json"), &value, true)?;
     }
-    rtc_write(root, &mut value);
+    value.rtc_write = rtc_write(root);
     Reply::unsorted(&value, 0)
 }
 
 /// Source-backed default or an owner receipt admits normal NTP -> RTC synchronization. Mutable owner
 /// policy still takes precedence.
-fn rtc_write(root: &Root, value: &mut Object) {
+fn rtc_write(root: &Root) -> Option<bool> {
     let rtc = match root.json("/data/system/platform/rtc-policy.json") {
         Some(Value::Object(map)) => map,
         _ => root.json_object("/etc/y2linux/rtc-policy.json"),
     };
     let referenced = rtc.get("qualification_reference").is_some_and(truthy)
         || rtc.get("source").is_some_and(truthy);
-    if is_true(rtc.get("write_enabled")) && referenced {
-        let ok = command::run(root, &["/bin/busybox", "hwclock", "-w", "-u"], 3.0).ok;
-        value.set("rtc_write", ok);
-    }
+    (is_true(rtc.get("write_enabled")) && referenced)
+        .then(|| command::run(root, &["/bin/busybox", "hwclock", "-w", "-u"], 3.0).ok)
 }

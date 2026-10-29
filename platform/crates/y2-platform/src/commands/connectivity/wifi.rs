@@ -6,6 +6,7 @@
 use super::observe_wifi::{clock_value, eq_text, wifi};
 use crate::commands::network::{publish, wlan_switched_off};
 use crate::reply::Failure;
+use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
     ffi::CString,
@@ -78,19 +79,18 @@ pub fn round1(x: f64) -> f64 {
 
 /// `journal(ctx, event, **fields)`: append one durable row (bounded, rotated once); false when /data
 /// is not ours or the row could not be written.
-pub fn journal(root: &Root, event: &str, fields: Object) -> bool {
+pub fn journal<T: Serialize>(root: &Root, event: &str, fields: &T) -> bool {
     if !data_ready(root) {
         return false;
     }
-    let mut row = Object::new()
-        .with("schema", 1)
-        .with("event", event)
-        .with("wall_time", wall())
-        .with("monotonic_s", root.clock().monotonic())
-        .with("boot_id", json!(root.boot_id()));
-    for (key, value) in fields {
-        row.set(&key, value);
-    }
+    let row = Row {
+        schema: 1,
+        event,
+        wall_time: wall(),
+        monotonic_s: root.clock().monotonic(),
+        boot_id: root.boot_id(),
+        fields,
+    };
     let Ok(text) = dumps(&row, Separators::Compact) else {
         return false;
     };
@@ -102,6 +102,19 @@ pub fn journal(root: &Root, event: &str, fields: Object) -> bool {
         true,
     )
     .is_ok()
+}
+
+/// One Wi-Fi journal row: these fields first, then the event's own, in their order (the rows are
+/// read as written, never sorted).
+#[derive(Serialize)]
+struct Row<'a, T> {
+    schema: u8,
+    event: &'a str,
+    wall_time: f64,
+    monotonic_s: f64,
+    boot_id: Option<String>,
+    #[serde(flatten)]
+    fields: &'a T,
 }
 
 fn value_of(ordered: Object) -> Value {
@@ -282,35 +295,34 @@ pub fn probe_dns(root: &Root, observed: &Object) -> Result<Option<Object>, Failu
     {
         return Ok(None);
     }
-    let output = answer.output.clone().unwrap_or_default();
+    let output = answer.output.unwrap_or_default();
     let ok = answer.ok && digits(&output) && !output.trim_start_matches('0').is_empty();
-    let first = observed
-        .get("ip_addresses")
-        .and_then(Value::as_array)
-        .and_then(|a| a.first())
-        .cloned()
-        .unwrap_or(Value::Null);
-    let value = Object::new()
-        .with("epoch", json!(epoch))
-        .with("ok", ok)
-        .with("address", first)
-        .with(
-            "bssid",
-            observed
-                .get("association_id")
-                .cloned()
-                .unwrap_or(Value::Null),
-        )
-        .with("probe_host", hostname)
-        .with(
-            "reason",
-            if ok {
-                Value::Null
-            } else {
-                json!("dns_unavailable")
-            },
-        );
-    publish(root, "dns", value).map(Some)
+    let value = Dns {
+        epoch,
+        ok,
+        address: observed
+            .get("ip_addresses")
+            .and_then(Value::as_array)
+            .and_then(|a| a.first())
+            .cloned()
+            .unwrap_or(Value::Null),
+        bssid: observed.value("association_id"),
+        probe_host: hostname,
+        reason: (!ok).then_some("dns_unavailable"),
+    };
+    publish(root, "dns", &value).map(Some)
+}
+
+/// `/run/y2/dns.json` before `publish` adds its identity: whether this lease's resolver answered.
+#[derive(Serialize)]
+struct Dns {
+    epoch: Option<String>,
+    ok: bool,
+    /// The lease's first address and the access point it was probed through.
+    address: Value,
+    bssid: Value,
+    probe_host: String,
+    reason: Option<&'static str>,
 }
 
 /// Probe newly usable leases immediately; bound retries on the same lease.
@@ -842,7 +854,7 @@ impl EventMonitor {
                     .set("scan_monotonic_s", root.clock().monotonic());
             }
         }
-        publish(root, "wifi-failure", record).map(drop)
+        publish(root, "wifi-failure", &record).map(drop)
     }
 }
 
@@ -890,9 +902,10 @@ impl WifiRecovery {
                 journal(
                     root,
                     "wifi_recovered",
-                    Object::new()
-                        .with("tries", self.tries)
-                        .with("seconds", seconds),
+                    &Recovered {
+                        tries: self.tries,
+                        seconds,
+                    },
                 );
             }
             self.since = None;
@@ -953,21 +966,7 @@ impl WifiRecovery {
             .collect();
         self.tries += 1;
         self.first_try.get_or_insert(now);
-        let mut fields = Object::new()
-            .with("state", state.clone())
-            .with("idle_s", round1(now - since))
-            .with("tries", self.tries)
-            .with("saved", saved.len())
-            .with("in_range", seen.len())
-            .with("scan_entries", signal.len())
-            .with(
-                "temp_disabled",
-                saved
-                    .iter()
-                    .filter(|row| row[3].contains("TEMP-DISABLED"))
-                    .count(),
-            );
-        let action = if !seen.is_empty() {
+        let (action, outcome) = if !seen.is_empty() {
             let last = monitor.and_then(|m| m.connected_network);
             let chosen = seen
                 .iter()
@@ -987,34 +986,80 @@ impl WifiRecovery {
                 });
             let selected = wpa(root, &["select_network", &chosen[0]]);
             let enabled = wpa(root, &["enable_network", "all"]);
-            let last_text = last.map_or_else(|| "None".to_owned(), |l| l.to_string());
-            fields = fields
-                .with("network_id", int(&chosen[0]))
-                .with("last_connected", chosen[0] == last_text)
-                .with(
-                    "ok",
-                    json!([selected, enabled]
-                        .iter()
-                        .map(|a| y2p_core::root::python_strip(
-                            a.output.as_deref().unwrap_or_default()
-                        ) == "OK")
-                        .collect::<Vec<bool>>()),
-                );
-            "wifi_reselect"
+            let outcome = Outcome::Reselect {
+                network_id: int(&chosen[0]),
+                last_connected: last.is_some_and(|l| chosen[0] == l.to_string()),
+                ok: [answered_ok(&selected), answered_ok(&enabled)],
+            };
+            ("wifi_reselect", outcome)
         } else {
             let answer = wpa(root, &["scan"]);
-            fields = fields.with(
-                "ok",
-                y2p_core::root::python_strip(answer.output.as_deref().unwrap_or_default()) == "OK",
-            );
-            "wifi_rescan"
+            (
+                "wifi_rescan",
+                Outcome::Rescan {
+                    ok: answered_ok(&answer),
+                },
+            )
         };
-        if let Some(monitor) = monitor {
-            fields = fields.with("events", monitor.summary(Some(now)));
-        }
-        journal(root, action, fields);
+        let attempt = Attempt {
+            state,
+            idle_s: round1(now - since),
+            tries: self.tries,
+            saved: saved.len(),
+            in_range: seen.len(),
+            scan_entries: signal.len(),
+            temp_disabled: saved
+                .iter()
+                .filter(|row| row[3].contains("TEMP-DISABLED"))
+                .count(),
+            outcome,
+            events: monitor.map(|m| m.summary(Some(now))),
+        };
+        journal(root, action, &attempt);
         Some(action)
     }
+}
+
+/// Whether wpa_cli answered `OK`.
+fn answered_ok(answer: &command::Outcome) -> bool {
+    y2p_core::root::python_strip(answer.output.as_deref().unwrap_or_default()) == "OK"
+}
+
+/// The journal row of a recovery: tries until the supplicant completed, seconds since the first.
+#[derive(Serialize)]
+struct Recovered {
+    tries: u64,
+    seconds: f64,
+}
+
+/// The journal row of one self-heal try (`wifi_reselect` or `wifi_rescan`).
+#[derive(Serialize)]
+struct Attempt {
+    state: Value,
+    idle_s: f64,
+    tries: u64,
+    saved: usize,
+    in_range: usize,
+    scan_entries: usize,
+    temp_disabled: usize,
+    #[serde(flatten)]
+    outcome: Outcome,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    events: Option<Object>,
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum Outcome {
+    /// The saved network selected (the last that connected, else the strongest) and the others
+    /// enabled again; whether each answered OK.
+    Reselect {
+        network_id: i64,
+        last_connected: bool,
+        ok: [bool; 2],
+    },
+    /// None in range: one scan.
+    Rescan { ok: bool },
 }
 
 #[cfg(test)]
