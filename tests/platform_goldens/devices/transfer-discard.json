@@ -1,0 +1,36 @@
+{
+ "argv": [
+  "transfer",
+  "discard",
+  "--id",
+  "0123456789abcdef0123456789abcdef"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "id": "0123456789abcdef0123456789abcdef",
+  "state": "Discarded"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": [
+   "/data/transfer-staging/0123456789abcdef0123456789abcdef",
+   "/data/transfer-staging/0123456789abcdef0123456789abcdef/manifest.json",
+   "/data/transfer-staging/0123456789abcdef0123456789abcdef/payload.part"
+  ]
+ }
+}

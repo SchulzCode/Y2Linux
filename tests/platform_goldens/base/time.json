@@ -1,0 +1,32 @@
+{
+ "argv": [
+  "time"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "anchor": {
+   "boot_id": "boot-a",
+   "boottime_s": "<volatile>",
+   "epoch": "<volatile>",
+   "monotonic_s": "<volatile>",
+   "schema": 1,
+   "source": "ntp"
+  },
+  "build_epoch": 1788000000,
+  "clock_sane": true,
+  "entropy_ready": null,
+  "epoch": "<volatile>",
+  "ntp_authenticated": false,
+  "reason": "reasonable_clock",
+  "rtc_retention_qualified": false,
+  "schema": 1,
+  "source": "ntp",
+  "tls_ready": true
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

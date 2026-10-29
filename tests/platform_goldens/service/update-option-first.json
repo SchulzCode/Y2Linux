@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "update",
+  "--package",
+  "/x",
+  "status"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "channel": null,
+  "download": null,
+  "failure": "data_state_unavailable",
+  "full_system": true,
+  "last_check": null,
+  "physical_qualification": false,
+  "schema": 1,
+  "state": "Unavailable"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

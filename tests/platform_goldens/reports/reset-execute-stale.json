@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "reset",
+  "execute",
+  "--confirm",
+  "b573af6cb0c4a84e3c41b15e482b227c106a94b3c1c9cdb4c7f6f7a8d3ca6097"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "stale_reset_plan",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/.maintenance.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,80 @@
+{
+ "argv": [
+  "update",
+  "check",
+  "--package",
+  "<repository>/tests/platform_cases/service_package"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-update-core",
+    "check-manifest",
+    "/data/updates/.incoming-0123456789abcdef0123456789abcdef"
+   ],
+   "timeout": 15.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "notes": "Fixture notes",
+  "payloads": {
+   "bootimg": {
+    "bytes": 22,
+    "sha256": "89b9ce7843528be95cb8a0a979caa762a50c57eeae7472487981cbed66d5627f"
+   },
+   "recovery": {
+    "bytes": 26,
+    "sha256": "819036595db72c77a5c1f97283d2754c0919b798ace595d38466714d58c12868"
+   },
+   "rootfs": {
+    "bytes": 22,
+    "raw_bytes": 4096,
+    "sha256": "4cdb86cf6c4e0dd67fd755ac99e4d71e02c1a29445e623c477ea49812c44f9b0"
+   }
+  },
+  "reborn_version": "reborn-fixture",
+  "release_version": "1.0.1-fixture",
+  "sequence": 11200
+ },
+ "tree": {
+  "added": {
+   "/data/updates": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/updates/.stage.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/updates/download.json": {
+    "content": {
+     "download_bytes": 70,
+     "notes": "Fixture notes",
+     "reborn_version": "reborn-fixture",
+     "release_version": "1.0.1-fixture",
+     "schema": 1,
+     "sequence": 11200,
+     "state": "Checked"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

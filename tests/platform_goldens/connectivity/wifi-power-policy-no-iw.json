@@ -1,0 +1,69 @@
+{
+ "argv": [
+  "wifi-power-policy"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/usr/sbin/iw",
+    "dev",
+    "wlan0",
+    "get",
+    "power_save"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/iw",
+    "dev",
+    "wlan0",
+    "set",
+    "power_save",
+    "off"
+   ],
+   "timeout": 2.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "applied": true,
+  "boot_id": "boot-a",
+  "enabled": null,
+  "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+  "ifindex": null,
+  "mode": "automatic",
+  "monotonic_s": "<volatile>",
+  "provisional": true,
+  "reason": "fixture",
+  "requested": false,
+  "requested_driver_profile": "CAM",
+  "schema": 1,
+  "state": "Unavailable"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/wifi-power.json": {
+    "content": {
+     "applied": true,
+     "boot_id": "boot-a",
+     "enabled": null,
+     "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+     "ifindex": null,
+     "mode": "automatic",
+     "monotonic_s": "<volatile>",
+     "provisional": true,
+     "reason": "fixture",
+     "requested": false,
+     "requested_driver_profile": "CAM",
+     "schema": 1,
+     "state": "Unavailable"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

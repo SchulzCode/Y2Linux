@@ -1,7 +1,6 @@
-"""Differential cases of port group `power` (see tests/platform_cases/__init__.py): `power-daemon` for one or a
-few loop iterations (Y2_DAEMON_TICKS; `stop_after_ticks` stops the Python loop at the same point) and the
-`shutdown` client without a daemon. The client against a live Python or Rust daemon (which needs the peer to be
-root) is tests/test_platform_power_rpc.py."""
+"""Golden cases of port group `power` (see tests/platform_cases/__init__.py): `power-daemon` for one or a
+few loop iterations (Y2_DAEMON_TICKS) and the `shutdown` client without a daemon. The client against a live
+daemon (which needs the peer to be root) is tests/test_platform_power_rpc.py."""
 import json
 import os
 from pathlib import Path
@@ -21,7 +20,7 @@ REBORN = {'/run/reborn/process.pid': '%d\n' % REBORN_PID, '/proc/%d/exe' % REBOR
 
 
 def ticks(n=1):
-    return {'Y2_DAEMON_TICKS': str(n), 'Y2_LAUNCHER_PATCH': 'platform_cases.power:stop_after_ticks'}
+    return {'Y2_DAEMON_TICKS': str(n)}
 
 
 def stock():
@@ -61,7 +60,7 @@ STEPS_OK = answers(STAGE + ['shutdown_pending'], ['/etc/init.d/S90reborn', 'stop
 # What a shutdown leaves: the watchdog, the PMIC long-press switch and a backlight to switch off.
 SHUTDOWN_NODES = {'/dev/watchdog': '', '/sys/firmware/y2_pmic/long_press_reset': '1\n',
                   '/sys/class/backlight/panel/bl_power': '0\n'}
-DAEMON = {'ported': True, 'patterns': [UUID],
+DAEMON = {'patterns': [UUID],
           'volatile': ['wall_time', 'collector_cpu_seconds', 'requested_monotonic_ns', 'deadline_monotonic_ns']}
 
 
@@ -70,8 +69,7 @@ def daemon(n=1, files=None, **options):
 
 
 def cases():
-    """The cases, built when the harness asks for CASES (PEP 562): the launcher imports this module only for
-    stop_after_ticks and so reads nothing outside the fixture root."""
+    """The cases, built when the harness asks for CASES (PEP 562)."""
     policy = stock()[1]
     critical_once = json.dumps({**policy, 'critical_samples': 1, 'grace_seconds': 3})
     return [
@@ -167,23 +165,22 @@ def cases():
             **battery(3850000), SHUTDOWN: json.dumps({'boot_id': 'boot-a', 'state': 'Executing', 'action': 'poweroff',
                                                       'deadline_monotonic_ns': 0, 'id': 'x', 'client': None})})),
         ('power-daemon-unsafe-socket', ['power-daemon'], daemon(1, {'/run/y2/power.sock': ''})),
-        ('power-daemon-help', ['power-daemon', '--help'], {'ported': True}),
+        ('power-daemon-help', ['power-daemon', '--help'], {}),
         # shutdown without a daemon
-        ('shutdown-no-daemon', ['shutdown', 'poweroff'], {'ported': True}),
+        ('shutdown-no-daemon', ['shutdown', 'poweroff'], {}),
         ('shutdown-refused-connection', ['shutdown', 'reboot', '--reason', 'update'],
-         {'ported': True, 'files': {'/run/y2/power.sock': ''}}),
-        ('shutdown-reason-first', ['shutdown', '--reason', 'service', 'poweroff'], {'ported': True}),
-        ('shutdown-reason-equals', ['shutdown', 'reboot', '--reason=user'], {'ported': True}),
-        ('shutdown-low-battery-reason', ['shutdown', 'poweroff', '--reason', 'low_battery'], {'ported': True}),
-        ('shutdown-halt', ['shutdown', 'halt'], {'ported': True}),
-        ('shutdown-abbreviated', ['shutdown', 'poweroff', '--rea', 'user'], {'ported': True}),
+         {'files': {'/run/y2/power.sock': ''}}),
+        ('shutdown-reason-first', ['shutdown', '--reason', 'service', 'poweroff'], {}),
+        ('shutdown-reason-equals', ['shutdown', 'reboot', '--reason=user'], {}),
+        ('shutdown-low-battery-reason', ['shutdown', 'poweroff', '--reason', 'low_battery'], {}),
+        ('shutdown-halt', ['shutdown', 'halt'], {}),
+        ('shutdown-abbreviated', ['shutdown', 'poweroff', '--rea', 'user'], {}),
     ]
 
 
 
 def extra_cases():
-    """Cases the shared host-access check cannot pass (a Python traceback opens source files outside the
-    root): an exception main.py does not catch ends the daemon, exit 1 and nothing on stdout, in both
+    """An uncaught exception ends the daemon: a traceback, exit 1 and nothing on stdout
     (tests/test_platform_power_rpc.py runs them)."""
     return [
         # A list of pairs becomes a dict in sleep.status, then `.get` on the list ends the daemon.
@@ -205,33 +202,14 @@ def __getattr__(name):
         return extra_cases()
     raise AttributeError(name)
 
+# tests/test_platform_power_rpc.py's power socket conversation (one golden).
+CONVERSATION = 'power-conversation'
+GOLDEN_NAMES = (CONVERSATION,)
+
+
 def fixture(root):
     """/usr/bin/reborn resolves to the exe of the Reborn process the cases name (REBORN): process_identity
     compares the two after Path.resolve()."""
     reborn = root / 'usr/bin/reborn'
     reborn.parent.mkdir(parents=True, exist_ok=True)
     reborn.symlink_to(os.path.relpath(root / 'proc' / str(REBORN_PID) / 'exe', reborn.parent))
-
-
-def stop_after_ticks():
-    """Y2_LAUNCHER_PATCH: the Python power-daemon ends after Y2_DAEMON_TICKS loop iterations where the Rust one
-    does below a fixture root: once the n-th iteration has computed its wait, before it accepts a client. The
-    SIGTERM handler serve() installs ends the loop (exit 0)."""
-    import signal
-    from y2_platform import power
-    limit, count, handlers = int(os.environ['Y2_DAEMON_TICKS']), [0], {}
-    install, wait_seconds = signal.signal, power.Coordinator.wait_seconds
-
-    def capture(number, handler):
-        handlers[number] = handler
-        return install(number, handler)
-
-    def counted(self, next_sample_ns):
-        wait = wait_seconds(self, next_sample_ns)
-        count[0] += 1
-        if count[0] >= limit:
-            handlers[signal.SIGTERM]()
-            return 0
-        return wait
-    signal.signal = capture
-    power.Coordinator.wait_seconds = counted

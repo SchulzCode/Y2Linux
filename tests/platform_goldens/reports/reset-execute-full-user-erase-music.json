@@ -1,0 +1,281 @@
+{
+ "argv": [
+  "reset",
+  "execute",
+  "--erase-user-music"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "completed": [
+   "music",
+   "network",
+   "logs",
+   "bluetooth/enabled",
+   "bluetooth/bluez/AA"
+  ],
+  "id": "<hex32>",
+  "preserved": [
+   "SSH identity",
+   "entropy",
+   "update/rollback",
+   "factory/calibration",
+   "unknown data directories",
+   "Y2Media internal music (/media/internal; delete files over MTP)"
+  ],
+  "purge_confirmation": "<hex64>",
+  "quarantine": "/data/reset-quarantine/<hex32>",
+  "schema": 1,
+  "scope": "full-user",
+  "state": "Complete"
+ },
+ "tree": {
+  "added": {
+   "/data/reset-quarantine": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/000": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/000/a.flac": {
+    "content": [
+     "x"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/001": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/001/enabled": {
+    "content": 0,
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/002": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/002/a": {
+    "content": [
+     "x"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/003": {
+    "content": 0,
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/004": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/004/info": {
+    "content": [
+     "Name=x"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/data/reset-quarantine/ffffffffffffffffffffffffffffffff/record.json": {
+    "content": {
+     "completed": [
+      "music",
+      "network",
+      "logs",
+      "bluetooth/enabled",
+      "bluetooth/bluez/AA"
+     ],
+     "id": "<hex32>",
+     "preserved": [
+      "SSH identity",
+      "entropy",
+      "update/rollback",
+      "factory/calibration",
+      "unknown data directories",
+      "Y2Media internal music (/media/internal; delete files over MTP)"
+     ],
+     "purge_confirmation": "<hex64>",
+     "quarantine": "/data/reset-quarantine/<hex32>",
+     "schema": 1,
+     "scope": "full-user",
+     "state": "Complete"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/.maintenance.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/maintenance-state.json": {
+    "content": {
+     "completed": [
+      "music",
+      "network",
+      "logs",
+      "bluetooth/enabled",
+      "bluetooth/bluez/AA"
+     ],
+     "id": "<hex32>",
+     "preserved": [
+      "SSH identity",
+      "entropy",
+      "update/rollback",
+      "factory/calibration",
+      "unknown data directories",
+      "Y2Media internal music (/media/internal; delete files over MTP)"
+     ],
+     "purge_confirmation": "<hex64>",
+     "quarantine": "/data/reset-quarantine/<hex32>",
+     "schema": 1,
+     "scope": "full-user",
+     "state": "Complete"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/reset-plan.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "confirmation": "<hex64>",
+     "data_generation": "boot-a:30:259:5",
+     "data_uuid": "79324c69-6e75-4801-8000-000000000102",
+     "expires_monotonic_s": "<volatile>",
+     "id": "<hex32>",
+     "preserved": [
+      "SSH identity",
+      "entropy",
+      "update/rollback",
+      "factory/calibration",
+      "unknown data directories",
+      "Y2Media internal music (/media/internal; delete files over MTP)"
+     ],
+     "restart": "owner reboot after completion",
+     "schema": 1,
+     "scope": "full-user",
+     "state": "Planned",
+     "stop_services": [
+      "S90reborn",
+      "S42y2-readiness",
+      "S41y2-connectivity",
+      "S40bluetoothd"
+     ],
+     "targets": [
+      {
+       "identity": {
+        "device": 53,
+        "inode": "<volatile>",
+        "mode": 16384,
+        "mtime_ns": "<volatile>",
+        "size": 60
+       },
+       "path": "music"
+      },
+      {
+       "identity": {
+        "device": 53,
+        "inode": "<volatile>",
+        "mode": 16384,
+        "mtime_ns": "<volatile>",
+        "size": 60
+       },
+       "path": "network"
+      },
+      {
+       "identity": {
+        "device": 53,
+        "inode": "<volatile>",
+        "mode": 16384,
+        "mtime_ns": "<volatile>",
+        "size": 60
+       },
+       "path": "logs"
+      },
+      {
+       "identity": {
+        "device": 53,
+        "inode": "<volatile>",
+        "mode": 32768,
+        "mtime_ns": "<volatile>",
+        "size": 2
+       },
+       "path": "bluetooth/enabled"
+      },
+      {
+       "identity": {
+        "device": 53,
+        "inode": "<volatile>",
+        "mode": 16384,
+        "mtime_ns": "<volatile>",
+        "size": 60
+       },
+       "path": "bluetooth/bluez/AA"
+      }
+     ]
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": [
+   "/data/bluetooth/bluez/AA",
+   "/data/bluetooth/bluez/AA/info",
+   "/data/bluetooth/enabled",
+   "/data/logs",
+   "/data/logs/a",
+   "/data/music",
+   "/data/music/a.flac",
+   "/data/network",
+   "/data/network/enabled"
+  ]
+ }
+}

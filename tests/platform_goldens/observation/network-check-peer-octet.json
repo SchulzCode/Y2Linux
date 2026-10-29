@@ -1,0 +1,26 @@
+{
+ "argv": [
+  "network-check",
+  "--peer",
+  "1.2.3.256"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "Octet 256 (> 255) not permitted in '1.2.3.256'",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "AddressValueError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

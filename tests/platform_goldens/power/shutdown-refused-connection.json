@@ -1,0 +1,21 @@
+{
+ "argv": [
+  "shutdown",
+  "reboot",
+  "--reason",
+  "update"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "[Errno 111] Connection refused",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ConnectionRefusedError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

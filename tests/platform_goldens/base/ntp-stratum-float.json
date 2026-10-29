@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "ntp-event",
+  "step"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "invalid literal for int() with base 10: '2.0'",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/time.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,37 @@
+{
+ "argv": [
+  "media",
+  "check"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "action": "check",
+  "boot_id": "boot-a",
+  "reason": "already_mounted",
+  "schema": 1,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.json": {
+    "content": {
+     "action": "check",
+     "boot_id": "boot-a",
+     "reason": "already_mounted",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

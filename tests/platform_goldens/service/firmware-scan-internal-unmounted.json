@@ -1,0 +1,16 @@
+{
+ "argv": [
+  "firmware",
+  "scan"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "state": "Missing"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

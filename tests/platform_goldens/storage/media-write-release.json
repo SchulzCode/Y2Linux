@@ -1,0 +1,39 @@
+{
+ "argv": [
+  "media",
+  "write",
+  "--holder",
+  "usb",
+  "--release"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "holders": [],
+  "reason": null,
+  "state": "Ready",
+  "writable": false
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/run/y2/sd-write.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "holders": {},
+     "mount_id": 51,
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

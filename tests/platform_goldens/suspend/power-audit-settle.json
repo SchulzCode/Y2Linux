@@ -1,0 +1,19 @@
+{
+ "argv": [
+  "__power-audit",
+  "--settle",
+  "121",
+  "--state",
+  "x",
+  "--output",
+  "/x"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,37 @@
+{
+ "argv": [
+  "media",
+  "mount"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "action": "mount",
+  "boot_id": "boot-a",
+  "reason": "mounted_source_not_sd",
+  "schema": 1,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.json": {
+    "content": {
+     "action": "mount",
+     "boot_id": "boot-a",
+     "reason": "mounted_source_not_sd",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

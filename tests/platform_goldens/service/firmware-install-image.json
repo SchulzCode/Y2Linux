@@ -1,0 +1,18 @@
+{
+ "argv": [
+  "firmware",
+  "install",
+  "<repository>/tests/platform_cases/service_package/manifest.json"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "not_ext4",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

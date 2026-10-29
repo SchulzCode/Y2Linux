@@ -1,0 +1,30 @@
+{
+ "argv": [
+  "update",
+  "check"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "failure": "verified_data_unavailable",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

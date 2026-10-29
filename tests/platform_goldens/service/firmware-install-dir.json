@@ -1,0 +1,18 @@
+{
+ "argv": [
+  "firmware",
+  "install",
+  "<repository>/tests/platform_cases/service_package"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "[Errno 2] No such file or directory: '<repository>/tests/platform_cases/service_package/WIFI_RAM_CODE_MT6582'",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

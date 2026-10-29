@@ -1,0 +1,14 @@
+{
+ "argv": [
+  "rtc-alarm",
+  "1h"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

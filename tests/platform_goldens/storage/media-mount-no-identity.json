@@ -1,0 +1,48 @@
+{
+ "argv": [
+  "media",
+  "mount"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "action": "mount",
+  "boot_id": "boot-a",
+  "reason": "no_unique_supported_filesystem",
+  "schema": 1,
+  "state": "Unavailable"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.json": {
+    "content": {
+     "action": "mount",
+     "boot_id": "boot-a",
+     "reason": "no_unique_supported_filesystem",
+     "schema": 1,
+     "state": "Unavailable"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

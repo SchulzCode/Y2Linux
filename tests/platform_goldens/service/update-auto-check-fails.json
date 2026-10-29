@@ -1,0 +1,66 @@
+{
+ "argv": [
+  "update",
+  "auto-check"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "attempt": "<volatile>",
+  "failure": "clock_or_entropy_not_ready_for_TLS",
+  "result": "failed",
+  "schema": 1
+ },
+ "tree": {
+  "added": {
+   "/data/updates/.incoming-0123456789abcdef0123456789abcdef": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/updates/.stage.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/updates": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/updates/download.json": {
+    "content": {
+     "failure": "download_interrupted",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/updates/last-check.json": {
+    "content": {
+     "attempt": "<volatile>",
+     "failure": "clock_or_entropy_not_ready_for_TLS",
+     "result": "failed",
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

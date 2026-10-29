@@ -59,12 +59,15 @@ RSS. Reborn itself (45 s/h, 26.7 MB) is now the largest consumer.
     service-daemon), reports, power, suspend.
 - `platform/CONTRACT.md` + `platform/contract.json` — the contract inventory (106 entries), callers, locks, the
   accepted differences, the defect list.
-- `tools/platform/` — the **Python reference** (no longer in the image; the host tests compare against it).
-- Tests: `tests/platform_differential.py` (harness), `tests/platform_differential_launcher.py`,
-  `tests/test_platform_differential.py`, `tests/platform_cases/<group>.py`, and
-  `tests/test_platform_{argparse,devices,power_rpc,observation,suspend,reports}.py`, all in `tools/production/tests.sh`.
-- Tools: `tools/development/platform-contract.py --check|--write`, `platform-goldens.py`, `platform-argparse.py`
-  (regenerates `argparse.json`; uses the build's Python 3.15 only where it runs), `host-tests.sh`.
+- `tools/platform/` — the former **Python reference** (no longer in the image; the platform goldens were
+  recorded from it and no test needs it).
+- Tests: `tests/platform_golden.py` (harness), goldens in `tests/platform_goldens/`, cases in
+  `tests/test_platform_differential.py` and `tests/platform_cases/<group>.py`, and
+  `tests/test_platform_{argparse,devices,power_rpc,observation,suspend,reports}.py`, all in `tools/production/tests.sh`
+  (platform/CONTRACT.md "Golden suite").
+- Tools: `tools/development/platform-contract.py --check|--write` (contract.json against `argparse.json`),
+  `platform-goldens.py [--check]` (y2p-contract goldens), `platform-argparse.py --check|--write` (`argparse.json`
+  is edited by hand; the check keeps it consistent), `host-tests.sh`.
 - Packaging: `buildroot/package/y2-platform/` (version = git tree hash of `HEAD:platform`, so every change rebuilds),
   `buildroot/configs/y2_production_defconfig` (no `PYTHON3*`), `buildroot/board/y2/post-build-production.sh`
   (links `y2-status`, `y2-health`, `y2-suspend-record`, `y2-power-audit`, `/sbin/poweroff`, `/sbin/reboot` to
@@ -84,10 +87,12 @@ Only the platform:
     cd platform && cargo test --offline --locked && cargo clippy --offline --locked
     cd platform && cargo check --offline --locked --target armv7-unknown-linux-gnueabihf
     Y2_PLATFORM_RUST=$PWD/platform/target/debug/y2-platform python3 -m unittest tests.test_platform_differential
+    tools/development/host-tests.sh tests.test_platform_differential tests.test_platform_argparse …  # only these
 
 Harness environment contract: `Y2_ROOT` (fixture root), `Y2_FIXTURE_COMMANDS` (subprocess answers),
-`Y2_FIXTURE_CALLS` (recorded requests), `Y2_DAEMON_TICKS` (bounded daemon loops), `Y2_LAUNCHER_PATCH` (Python side),
-`Y2_PLATFORM_RUST` (enables the comparison; skipped without it), `Y2_ARGPARSE_ECHO` (prints the parse, only below a
+`Y2_FIXTURE_CALLS` (recorded requests), `Y2_DAEMON_TICKS` (bounded daemon loops), `Y2_FIXTURE_TOKEN` (update
+staging token), `Y2_PLATFORM_RUST` (the host build the goldens are checked against; skipped without it),
+`Y2_RECORD_GOLDENS=1` (re-record the goldens that differ), `Y2_ARGPARSE_ECHO` (prints the parse, only below a
 fixture root).
 
 After changing Y2Linux's contract crate: `python3 tools/production/release.py sync-contract`, then commit Reborn
@@ -123,8 +128,8 @@ After the restart: `y2-platform update status` must show Acknowledged; check the
 6. Save and send an error report (upload now goes through `curl`).
 7. Wi-Fi join and a wrong password; Bluetooth headphones.
 
-**B. Then fix the defects carried 1:1** (plan §8), each as its own change with a test, the differential case
-flipped to the fixed behaviour, and a device check where hardware is involved. Markers: `grep -rn DEFECT platform/crates`.
+**B. Then fix the defects carried 1:1** (plan §8), each as its own change with a test, the golden re-recorded
+(`Y2_RECORD_GOLDENS=1`) with the fixed behaviour, and a device check where hardware is involved. Markers: `grep -rn DEFECT platform/crates`.
 
 | Defect | Where |
 | --- | --- |
@@ -141,14 +146,14 @@ flipped to the fixed behaviour, and a device check where hardware is involved. M
 Callers rely on some of these exit codes (Reborn, scripts): check every caller (CONTRACT.md "Callers") before
 changing one.
 
-**C. After the fixes:** drop the Python reference (`tools/platform`) from the host tests, or keep it only for the
-commands nobody changed; plan §9 for later work (plugin SDK, `platform_api_version` 2).
+**C. After the fixes:** plan §9 for later work (plugin SDK, `platform_api_version` 2). The host tests no longer
+use the Python reference (`tools/platform`): the goldens were recorded from it.
 
 **D. Smaller follow-ups:**
 - `status --reborn --pss` now spends most of its time in Reborn's `rebornctl metrics --json` (≈0.36 s CPU): the
   next speed-up is on Reborn's side.
-- Two product-sleep differential cases fail when the host is busy (Python against Python too); they pass alone.
-  Make them less timing-sensitive.
+- Done: the product-sleep cases that failed when the host was busy shared `/dev/null` as the helper's inherited
+  lock (any other process's flock on it refused the sleep); each case now has its own lock file.
 - Before publishing: a release (bump, build, docs, `release.py publish`) only on the owner's word; the release notes
   should say the platform is Rust and Python is gone (smaller image, lower idle CPU).
 

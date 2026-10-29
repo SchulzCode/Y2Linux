@@ -1,0 +1,14 @@
+{
+ "argv": [
+  "__power-command",
+  "y2-power-command"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

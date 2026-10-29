@@ -1,0 +1,32 @@
+{
+ "argv": [
+  "power-daemon"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {
+   "/data/system/platform/battery-ui.json": {
+    "content": {
+     "anchor_percent": null,
+     "schema": 1,
+     "ui_percent": 66
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/power.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/power.sock": {
+    "mode": "0o600",
+    "type": "other"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "time"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "anchor": {},
+  "build_epoch": 1788000000,
+  "clock_sane": true,
+  "entropy_ready": null,
+  "epoch": "<volatile>",
+  "ntp_authenticated": false,
+  "reason": "clock_not_established",
+  "rtc_retention_qualified": false,
+  "schema": 1,
+  "source": null,
+  "tls_ready": false
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

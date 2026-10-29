@@ -1,0 +1,101 @@
+{
+ "argv": [
+  "boot-evidence"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "captured_on_boot_id": "boot-a",
+  "kernel_panic_retention_guaranteed": false,
+  "loader": {
+   "boot_reason": null,
+   "reset": null
+  },
+  "logs": [],
+  "logs_are_private": true,
+  "pmic": {
+   "long_press_reset": null,
+   "long_press_reset_reason": "not_observed",
+   "state": "Unavailable"
+  },
+  "previous_boot_id": "boot-z",
+  "previous_last_stage": "application_ready",
+  "previous_orderly_shutdown": false,
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "evidence_level": "IMPLEMENTED",
+   "failure": null,
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {},
+   "reborn_commit": "reborn",
+   "result": null,
+   "rootfs_release": "v1.0",
+   "units": {},
+   "wall_timestamp": "<volatile>",
+   "workload": "previous-boot-evidence",
+   "y2linux_commit": "linux-commit"
+  },
+  "reset_cause": "software_reset",
+  "reset_cause_reason": "rgu_wdt_status_at_probe",
+  "reset_status_raw": "0x00000004",
+  "retained": {
+   "error": "state_directory_not_directory",
+   "source_entries_deleted": false
+  },
+  "schema": 1
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/previous-boot-evidence.json": {
+    "content": {
+     "captured_on_boot_id": "boot-a",
+     "kernel_panic_retention_guaranteed": false,
+     "loader": {
+      "boot_reason": null,
+      "reset": null
+     },
+     "logs": [],
+     "logs_are_private": true,
+     "pmic": {
+      "long_press_reset": null,
+      "long_press_reset_reason": "not_observed",
+      "state": "Unavailable"
+     },
+     "previous_boot_id": "boot-z",
+     "previous_last_stage": "application_ready",
+     "previous_orderly_shutdown": false,
+     "record": {
+      "boot_id": "boot-a",
+      "build_id": "fixture-build",
+      "evidence_level": "IMPLEMENTED",
+      "failure": null,
+      "kernel": "6.18.0-fixture",
+      "monotonic_ns": "<volatile>",
+      "parameters": {},
+      "reborn_commit": "reborn",
+      "result": null,
+      "rootfs_release": "v1.0",
+      "units": {},
+      "wall_timestamp": "<volatile>",
+      "workload": "previous-boot-evidence",
+      "y2linux_commit": "linux-commit"
+     },
+     "reset_cause": "software_reset",
+     "reset_cause_reason": "rgu_wdt_status_at_probe",
+     "reset_status_raw": "0x00000004",
+     "retained": {
+      "error": "state_directory_not_directory",
+      "source_entries_deleted": false
+     },
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

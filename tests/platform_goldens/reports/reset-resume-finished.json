@@ -1,0 +1,41 @@
+{
+ "argv": [
+  "reset",
+  "resume",
+  "--confirm",
+  "be339c8b234142a307f7022e1e42a8c70ee92926b21392680608e89c68a5cf73"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "id": "1234567890abcdef1234567890abcdef",
+  "state": "Complete",
+  "x": 1
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/.maintenance.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": [
+   "/data/system/platform/maintenance-pending"
+  ]
+ }
+}

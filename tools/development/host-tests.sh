@@ -19,13 +19,16 @@ echo "host-tests: build $Y2_ARTIFACT_TEST_ROOT" >&2
 missing=
 python3 -c 'import elftools' 2>/dev/null || missing="$missing pyelftools"
 [ -z "$missing" ] || echo "host-tests: missing$missing (Arch/CachyOS: python-pyelftools); its tests will error" >&2
-# The Rust platform's host build, so tests.test_platform_differential compares it with Python
-# (skipped without cargo, as in the container).
+# The Rust platform's host build, which the platform golden modules (tests.test_platform_differential,
+# _argparse, _devices, _observation, _reports, _suspend, _power_rpc) run and compare with tests/platform_goldens
+# (without cargo, as in the container, those runs are skipped; the goldens' own checks still run).
 if [ -z "${Y2_PLATFORM_RUST:-}" ] && command -v cargo >/dev/null 2>&1; then
     (cd platform && cargo build --offline --locked -q) && export Y2_PLATFORM_RUST="$PWD/platform/target/debug/y2-platform"
     # The player is 32-bit ARM (32-bit time_t, c_long, stat fields): type-check for it too (no linker needed).
     (cd platform && cargo check --offline --locked -q --target armv7-unknown-linux-gnueabihf) ||
         { echo 'host-tests: platform/ does not build for the ARM target' >&2; exit 1; }
 fi
+# Module names given (tests.test_…) run instead of the whole list; other arguments (-v, -k …) are unittest's.
+case " $* " in *' tests.test_'*) modules= ;; esac
 # shellcheck disable=SC2086 # one module name per word
 PYTHONPATH=.:tests:tools/platform exec python3 -m unittest "$@" $modules

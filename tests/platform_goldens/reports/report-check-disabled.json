@@ -1,0 +1,16 @@
+{
+ "argv": [
+  "report",
+  "check"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "reports": []
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

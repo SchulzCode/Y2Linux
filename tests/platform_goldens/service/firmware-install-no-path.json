@@ -1,0 +1,17 @@
+{
+ "argv": [
+  "firmware",
+  "install"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "install needs a system.img or a directory",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

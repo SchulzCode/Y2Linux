@@ -1,0 +1,36 @@
+{
+ "argv": [
+  "internal-media",
+  "status"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk0p8"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "filesystem": null,
+  "identity_valid": false,
+  "label": null,
+  "marker": {},
+  "mounted": false,
+  "partition": "mmcblk0p8",
+  "path": "/media/internal",
+  "ready": false,
+  "schema": 1,
+  "uuid": null
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

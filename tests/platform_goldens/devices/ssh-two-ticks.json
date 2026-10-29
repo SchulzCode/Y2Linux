@@ -1,0 +1,60 @@
+{
+ "argv": [
+  "ssh-daemon"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "ip",
+    "-j",
+    "-4",
+    "addr",
+    "show",
+    "dev",
+    "usb0"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-j",
+    "-4",
+    "addr",
+    "show",
+    "dev",
+    "usb0"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": [],
+ "tree": {
+  "added": {
+   "/run/y2/ssh.json": {
+    "content": {
+     "authentication": "owner_public_key",
+     "bind": "10.42.0.1:22",
+     "boot_id": "boot-a",
+     "interface": "usb0",
+     "monotonic_s": "<volatile>",
+     "pid": null,
+     "reason": "usb_interface_not_ready",
+     "schema": 1,
+     "sftp": false,
+     "state": "Starting"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/ssh.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,246 @@
+{
+ "argv": [
+  "boot-stage",
+  "application_ready"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "boot_count": 42,
+  "boot_id": "boot-a",
+  "consecutive_unclean": 3,
+  "history": [
+   {
+    "boot_id": "boot-1",
+    "last_stage": "shutdown_complete"
+   },
+   {
+    "boot_id": "boot-2",
+    "last_stage": "shutdown_complete"
+   },
+   {
+    "boot_id": "boot-3",
+    "last_stage": "shutdown_complete"
+   },
+   {
+    "boot_id": "boot-4",
+    "last_stage": "shutdown_complete"
+   },
+   {
+    "boot_id": "boot-5",
+    "last_stage": "shutdown_complete"
+   },
+   {
+    "boot_id": "boot-6",
+    "last_stage": "shutdown_complete"
+   },
+   {
+    "boot_id": "boot-7",
+    "last_stage": "shutdown_complete"
+   },
+   {
+    "boot_id": "boot-z",
+    "identity": {
+     "release_version": "1.0.0-old"
+    },
+    "last_stage": "application_ready",
+    "orderly_shutdown": false
+   }
+  ],
+  "identity": {
+   "build_git_commit": "linux-commit",
+   "feature_contract_version": 2,
+   "kernel_version": "6.18.0-fixture",
+   "platform_api_version": 1,
+   "reborn_source_commit": "reborn",
+   "release_version": "1.0.0-fixture",
+   "rootfs_version": "v1.0"
+  },
+  "last_stage": "application_ready",
+  "orderly_shutdown": false,
+  "previous_boot_id": "boot-z",
+  "recovery_recommended": true,
+  "reset_cause": "software_reset",
+  "reset_cause_reason": "rgu_wdt_status_at_probe",
+  "reset_status_raw": "0x00000004",
+  "schema": 1,
+  "stage_monotonic_ns": "<volatile>"
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/.boot.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/boot-stages.jsonl": {
+    "content": {
+     "monotonic_s": "<volatile>",
+     "stage": "application_ready"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/power-features.json": {
+    "content": {
+     "features": {
+      "deep_idle_audio": {
+       "value": "Y",
+       "wanted": true
+      },
+      "dis_pdn": {
+       "value": "N",
+       "wanted": false
+      },
+      "golden_apply": {
+       "value": "3",
+       "wanted": 3
+      },
+      "md1_gate": {
+       "value": "Y",
+       "wanted": 7
+      },
+      "panel_power_down": {
+       "value": "Y",
+       "wanted": true
+      },
+      "panel_stock_suspend": {
+       "value": "Y",
+       "wanted": true
+      },
+      "pmic_sleep": {
+       "error": "invalid_power_feature",
+       "wanted": 99
+      },
+      "pwrap_gate": {
+       "value": "Y",
+       "wanted": true
+      },
+      "vgp2_idle_off": {
+       "error": "No such file or directory",
+       "wanted": true
+      }
+     },
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/system/platform/boot.json": {
+    "content": {
+     "boot_count": 42,
+     "boot_id": "boot-a",
+     "consecutive_unclean": 3,
+     "history": [
+      {
+       "boot_id": "boot-1",
+       "last_stage": "shutdown_complete"
+      },
+      {
+       "boot_id": "boot-2",
+       "last_stage": "shutdown_complete"
+      },
+      {
+       "boot_id": "boot-3",
+       "last_stage": "shutdown_complete"
+      },
+      {
+       "boot_id": "boot-4",
+       "last_stage": "shutdown_complete"
+      },
+      {
+       "boot_id": "boot-5",
+       "last_stage": "shutdown_complete"
+      },
+      {
+       "boot_id": "boot-6",
+       "last_stage": "shutdown_complete"
+      },
+      {
+       "boot_id": "boot-7",
+       "last_stage": "shutdown_complete"
+      },
+      {
+       "boot_id": "boot-z",
+       "identity": {
+        "release_version": "1.0.0-old"
+       },
+       "last_stage": "application_ready",
+       "orderly_shutdown": false
+      }
+     ],
+     "identity": {
+      "build_git_commit": "linux-commit",
+      "feature_contract_version": 2,
+      "kernel_version": "6.18.0-fixture",
+      "platform_api_version": 1,
+      "reborn_source_commit": "reborn",
+      "release_version": "1.0.0-fixture",
+      "rootfs_version": "v1.0"
+     },
+     "last_stage": "application_ready",
+     "orderly_shutdown": false,
+     "previous_boot_id": "boot-z",
+     "recovery_recommended": true,
+     "reset_cause": "software_reset",
+     "reset_cause_reason": "rgu_wdt_status_at_probe",
+     "reset_status_raw": "0x00000004",
+     "schema": 1,
+     "stage_monotonic_ns": "<volatile>"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/dev/pmsg0": {
+    "content": [
+     "<clock> platform application_ready"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/module/clocks/parameters/deep_idle_audio": {
+    "content": [
+     "Y"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/module/panel/parameters/power_down": {
+    "content": [
+     "Y"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/module/panel/parameters/stock_suspend": {
+    "content": [
+     "Y"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/module/spm/parameters/golden_apply": {
+    "content": 3,
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/module/spm/parameters/md1_gate": {
+    "content": [
+     "Y"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/module/spm/parameters/pwrap_gate": {
+    "content": [
+     "Y"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

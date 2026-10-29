@@ -1,0 +1,26 @@
+{
+ "argv": [
+  "report",
+  "work"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "reports": [],
+  "upload": {
+   "reason": "no_upload_key",
+   "uploaded": []
+  }
+ },
+ "tree": {
+  "added": {
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

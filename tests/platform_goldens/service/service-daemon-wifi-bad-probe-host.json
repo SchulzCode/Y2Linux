@@ -1,0 +1,88 @@
+{
+ "argv": [
+  "service-daemon"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "wpa_cli",
+    "-i",
+    "wlan0",
+    "status"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-j",
+    "-4",
+    "addr",
+    "show",
+    "dev",
+    "wlan0"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-j",
+    "-4",
+    "route",
+    "show",
+    "default",
+    "dev",
+    "wlan0"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "wpa_cli",
+    "-i",
+    "wlan0",
+    "signal_poll"
+   ],
+   "timeout": 3.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "reason": "invalid_dns_probe_host",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/service.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/usb-transfer.json": {
+    "content": {
+     "active": false,
+     "block_export": false,
+     "boot_id": "boot-a",
+     "cable": null,
+     "error": null,
+     "filesystem_owner": "linux",
+     "functions": [],
+     "mode": null,
+     "reason": "no_unique_udc",
+     "refresh_generation": 0,
+     "restarts": 0,
+     "schema": "org.y2linux.usb-transfer/v1",
+     "state": "Unavailable",
+     "views": []
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

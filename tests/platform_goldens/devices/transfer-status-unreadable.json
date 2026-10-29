@@ -1,0 +1,17 @@
+{
+ "argv": [
+  "transfer",
+  "status",
+  "--id=0123456789abcdef0123456789abcdef"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "state": "Unavailable"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,19 @@
+{
+ "argv": [
+  "report",
+  "save",
+  "--to",
+  "sd"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "reason": "not_mounted",
+  "saved": false
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

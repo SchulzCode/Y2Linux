@@ -1,4 +1,4 @@
-"""Differential cases of port group `storage` (see tests/platform_cases/__init__.py): `media` (every action),
+"""Golden cases of port group `storage` (see tests/platform_cases/__init__.py): `media` (every action),
 `internal-media` (every action) and `space`.
 
 The shared fixture gets one SD card (mmcblk1 with partition p1 on the removable-card controller, inserted, not
@@ -91,186 +91,186 @@ REPAIR = ['fsck.fat', '-a', '-w', '/dev/mmcblk1p1']
 WRITE_VOLATILE = ('reborn', 'usb', 'report', 'radiofw')
 
 MEDIA = [
-    ('media-status', ['media', 'status'], {'ported': True}),
-    ('media-status-json', ['media', 'status', '--json'], {'ported': True}),
-    ('media-status-refused', ['media', 'status'], {'ported': True, 'files': {'/run/y2/media.json': REFUSED}}),
-    ('media-status-protected', ['media', 'status'], {'ported': True, 'files': MOUNTED, 'commands': SD_STATUS}),
-    ('media-status-errors', ['media', 'status'], {'ported': True, 'commands': SD_STATUS, 'files': {
+    ('media-status', ['media', 'status'], {}),
+    ('media-status-json', ['media', 'status', '--json'], {}),
+    ('media-status-refused', ['media', 'status'], {'files': {'/run/y2/media.json': REFUSED}}),
+    ('media-status-protected', ['media', 'status'], {'files': MOUNTED, 'commands': SD_STATUS}),
+    ('media-status-errors', ['media', 'status'], {'commands': SD_STATUS, 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('filesystem_errors')}}),
-    ('media-status-rw-undersized', ['media', 'status'], {'ported': True, 'commands': SD_STATUS, 'files': {
+    ('media-status-rw-undersized', ['media', 'status'], {'commands': SD_STATUS, 'files': {
         **MOUNTED, **mounts(SD_RW), PART + '/size': '99999999999\n'}}),
-    ('media-status-no-claim', ['media', 'status'], {'ported': True, 'commands': SD_STATUS, 'files': {
+    ('media-status-no-claim', ['media', 'status'], {'commands': SD_STATUS, 'files': {
         **MOUNTED, '/run/y2/media-mount.json': None}}),
-    ('media-status-other-card', ['media', 'status'], {'ported': True, 'commands': SD_STATUS, 'files': {
+    ('media-status-other-card', ['media', 'status'], {'commands': SD_STATUS, 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim(identity={'id': 'x'})}}),
-    ('media-status-no-mountpoint', ['media', 'status'], {'ported': True, 'commands': SD_STATUS, 'files': {
+    ('media-status-no-mountpoint', ['media', 'status'], {'commands': SD_STATUS, 'files': {
         **MOUNTED, '/media/sd/.keep': None}}),
-    ('media-mount', ['media', 'mount'], {'ported': True, 'commands': [VFAT, ok(FSCK), ok(MOUNT_RO)]}),
-    ('media-mount-dirty', ['media', 'mount'], {'ported': True, 'commands': [VFAT, failed(FSCK, DIRTY)]}),
-    ('media-mount-errors', ['media', 'mount'], {'ported': True, 'commands': [VFAT, failed(FSCK, DAMAGED)]}),
-    ('media-mount-timeout', ['media', 'mount'], {'ported': True, 'commands': [
+    ('media-mount', ['media', 'mount'], {'commands': [VFAT, ok(FSCK), ok(MOUNT_RO)]}),
+    ('media-mount-dirty', ['media', 'mount'], {'commands': [VFAT, failed(FSCK, DIRTY)]}),
+    ('media-mount-errors', ['media', 'mount'], {'commands': [VFAT, failed(FSCK, DAMAGED)]}),
+    ('media-mount-timeout', ['media', 'mount'], {'commands': [
         EXFAT, failed(['fsck.exfat', '-n', '/dev/mmcblk1p1'], reason='command_timeout')]}),
-    ('media-mount-exfat-errors', ['media', 'mount'], {'ported': True, 'commands': [
+    ('media-mount-exfat-errors', ['media', 'mount'], {'commands': [
         EXFAT, failed(['fsck.exfat', '-n', '/dev/mmcblk1p1'])]}),
-    ('media-mount-ext4-refused', ['media', 'mount'], {'ported': True, 'commands': [EXT4]}),
-    ('media-mount-ext4', ['media', 'mount'], {'ported': True, 'commands': [
+    ('media-mount-ext4-refused', ['media', 'mount'], {'commands': [EXT4]}),
+    ('media-mount-ext4', ['media', 'mount'], {'commands': [
         EXT4, ok(['e2fsck', '-n', '/dev/mmcblk1p1'])]}),
-    ('media-mount-always-writable', ['media', 'mount'], {'ported': True, 'commands': [VFAT, ok(FSCK)], 'files': {
+    ('media-mount-always-writable', ['media', 'mount'], {'commands': [VFAT, ok(FSCK)], 'files': {
         '/data/system/platform/sd-always-writable': ''}}),
-    ('media-mount-history', ['media', 'mount'], {'ported': True, 'commands': [VFAT, ok(FSCK)], 'files': {
+    ('media-mount-history', ['media', 'mount'], {'commands': [VFAT, ok(FSCK)], 'files': {
         '/data/system/platform/sd-admissions.json': json.dumps({'schema': 1, 'admissions': [
             {'time': 1, 'card': 'old%d' % i, 'ok': True} for i in range(10)] + ['not a dict']})}}),
-    ('media-mount-history-null', ['media', 'mount'], {'ported': True, 'commands': [VFAT, ok(FSCK)], 'files': {
+    ('media-mount-history-null', ['media', 'mount'], {'commands': [VFAT, ok(FSCK)], 'files': {
         '/data/system/platform/sd-admissions.json': '{"admissions": null}'}}),
-    ('media-mount-no-card', ['media', 'mount'], {'ported': True, 'files': {
+    ('media-mount-no-card', ['media', 'mount'], {'files': {
         '/sys/class/block/mmcblk1': None, '/sys/class/block/mmcblk1p1': None}}),
-    ('media-mount-no-identity', ['media', 'mount'], {'ported': True, 'commands': [ok(BLKID, 'TYPE=vfat')],
+    ('media-mount-no-identity', ['media', 'mount'], {'commands': [ok(BLKID, 'TYPE=vfat')],
                                                      'files': {BLOCK + '/cid': None}}),
-    ('media-mount-whole-disk', ['media', 'mount'], {'ported': True, 'commands': [
+    ('media-mount-whole-disk', ['media', 'mount'], {'commands': [
         ok(['blkid', '-p', '-o', 'export', '/dev/mmcblk1'], 'TYPE=exfat\nUUID=AB')], 'files': {
         '/sys/class/block/mmcblk1p1': None, PART + '/partition': None}}),
-    ('media-mount-already', ['media', 'mount'], {'ported': True, 'files': MOUNTED}),
-    ('media-mount-foreign', ['media', 'mount'], {'ported': True, 'files': mounts(SD_RO.replace('179:97', '8:1'))}),
-    ('media-mount-file-in-the-way', ['media', 'mount'], {'ported': True, 'commands': [VFAT, ok(FSCK)],
+    ('media-mount-already', ['media', 'mount'], {'files': MOUNTED}),
+    ('media-mount-foreign', ['media', 'mount'], {'files': mounts(SD_RO.replace('179:97', '8:1'))}),
+    ('media-mount-file-in-the-way', ['media', 'mount'], {'commands': [VFAT, ok(FSCK)],
                                                          'files': {'/media/sd': 'not a directory'}}),
-    ('media-unmount-not-mounted', ['media', 'unmount'], {'ported': True}),
-    ('media-unmount-busy', ['media', 'unmount'], {'ported': True, 'files': MOUNTED,
+    ('media-unmount-not-mounted', ['media', 'unmount'], {}),
+    ('media-unmount-busy', ['media', 'unmount'], {'files': MOUNTED,
                                                   'commands': [ok(['umount', '/media/sd'])]}),
-    ('media-unmount-fails', ['media', 'unmount'], {'ported': True, 'files': MOUNTED}),
-    ('media-unmount-stacked', ['media', 'unmount'], {'ported': True, 'files': mounts(SD_RO, SD_RO.replace('51', '57', 1))}),
-    ('media-unmount-usb', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+    ('media-unmount-fails', ['media', 'unmount'], {'files': MOUNTED}),
+    ('media-unmount-stacked', ['media', 'unmount'], {'files': mounts(SD_RO, SD_RO.replace('51', '57', 1))}),
+    ('media-unmount-usb', ['media', 'unmount'], {'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
         {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'attached',
          'views': [{'path': '/media/internal/music'}, {'path': '/media/sd'}]})}}),
     # Views Python cannot read: AttributeError (no dict) or TypeError (not iterable), a traceback.
-    ('media-unmount-usb-text-views', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+    ('media-unmount-usb-text-views', ['media', 'unmount'], {'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
         {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': '/media/sd'})}}),
-    ('media-unmount-usb-dict-views', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+    ('media-unmount-usb-dict-views', ['media', 'unmount'], {'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
         {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': {'path': '/media/sd'}})}}),
-    ('media-unmount-usb-number-view', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+    ('media-unmount-usb-number-view', ['media', 'unmount'], {'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
         {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': [{'path': '/x'}, 3]})}}),
-    ('media-unmount-usb-null-views', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+    ('media-unmount-usb-null-views', ['media', 'unmount'], {'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
         {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': None})}}),
-    ('media-unmount-usb-number-views', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+    ('media-unmount-usb-number-views', ['media', 'unmount'], {'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
         {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': 7})}}),
-    ('media-unmount-usb-empty-text-views', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+    ('media-unmount-usb-empty-text-views', ['media', 'unmount'], {'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
         {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': ''})}}),
-    ('media-unmount-usb-view-first', ['media', 'unmount'], {'ported': True, 'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
+    ('media-unmount-usb-view-first', ['media', 'unmount'], {'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
         {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': [{'path': '/media/sd'}, 3]})}}),
-    ('media-check', ['media', 'check'], {'ported': True, 'commands': [VFAT, ok(FSCK, 'clean')]}),
-    ('media-check-ext4', ['media', 'check'], {'ported': True, 'commands': [
+    ('media-check', ['media', 'check'], {'commands': [VFAT, ok(FSCK, 'clean')]}),
+    ('media-check-ext4', ['media', 'check'], {'commands': [
         EXT4, failed(['e2fsck', '-f', '-n', '/dev/mmcblk1p1'])]}),
-    ('media-check-mounted', ['media', 'check'], {'ported': True, 'files': MOUNTED}),
-    ('media-reconcile', ['media', 'reconcile'], {'ported': True, 'commands': [VFAT, ok(FSCK)]}),
-    ('media-reconcile-no-card', ['media', 'reconcile'], {'ported': True, 'files': {
+    ('media-check-mounted', ['media', 'check'], {'files': MOUNTED}),
+    ('media-reconcile', ['media', 'reconcile'], {'commands': [VFAT, ok(FSCK)]}),
+    ('media-reconcile-no-card', ['media', 'reconcile'], {'files': {
         '/sys/class/block/mmcblk1': None, '/sys/class/block/mmcblk1p1': None,
         '/run/y2/media-lifecycle.json': json.dumps({'inventory': LIFECYCLE, 'attempts': True})}}),
-    ('media-reconcile-same', ['media', 'reconcile'], {'ported': True, 'files': {
+    ('media-reconcile-same', ['media', 'reconcile'], {'files': {
         '/run/y2/media-lifecycle.json': json.dumps({'schema': 1, 'inventory': LIFECYCLE, 'attempts': 1,
                                                     'retry': False, 'state': 'Ready', 'reason': None})}}),
-    ('media-reconcile-retry', ['media', 'reconcile'], {'ported': True, 'files': {
+    ('media-reconcile-retry', ['media', 'reconcile'], {'files': {
         **MOUNTED, '/run/y2/media-lifecycle.json': json.dumps({'inventory': LIFECYCLE, 'attempts': 2, 'retry': True})}}),
-    ('media-reconcile-protect', ['media', 'reconcile'], {'ported': True, 'files': {
+    ('media-reconcile-protect', ['media', 'reconcile'], {'files': {
         **MOUNTED, **mounts(SD_RW), '/run/y2/media-lifecycle.json': json.dumps({'inventory': LIFECYCLE, 'state': 'Ready'})},
         'commands': [ok(['mount', '-o', 'remount,ro', '/media/sd'])]}),
-    ('media-verify-nothing', ['media', 'verify'], {'ported': True}),
-    ('media-verify', ['media', 'verify'], {'ported': True, 'commands': [VFAT, ok(FSCK)], 'files': {
+    ('media-verify-nothing', ['media', 'verify'], {}),
+    ('media-verify', ['media', 'verify'], {'commands': [VFAT, ok(FSCK)], 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('checking')}}),
-    ('media-verify-writable', ['media', 'verify'], {'ported': True, 'commands': [VFAT, ok(FSCK)], 'files': {
+    ('media-verify-writable', ['media', 'verify'], {'commands': [VFAT, ok(FSCK)], 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('checking'), '/data/system/platform/sd-always-writable': ''}}),
-    ('media-verify-errors', ['media', 'verify'], {'ported': True, 'commands': [VFAT, failed(FSCK, DAMAGED)], 'files': {
+    ('media-verify-errors', ['media', 'verify'], {'commands': [VFAT, failed(FSCK, DAMAGED)], 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('checking')}}),
-    ('media-verify-timeout', ['media', 'verify'], {'ported': True, 'commands': [
+    ('media-verify-timeout', ['media', 'verify'], {'commands': [
         VFAT, failed(FSCK, reason='command_timeout')], 'files': {**MOUNTED, '/run/y2/media-mount.json': claim('checking')}}),
-    ('media-verify-other-card', ['media', 'verify'], {'ported': True, 'commands': [VFAT], 'files': {
+    ('media-verify-other-card', ['media', 'verify'], {'commands': [VFAT], 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('checking', source_instance='block:179:97:diskseq:3')}}),
     # A claim Python cannot read crashes it (AttributeError: traceback, nothing on stdout, exit 1).
-    ('media-verify-bad-identity', ['media', 'verify'], {'ported': True, 'commands': [VFAT], 'files': {
+    ('media-verify-bad-identity', ['media', 'verify'], {'commands': [VFAT], 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('checking', identity=['x'])}}),
-    ('media-verify-text-identity', ['media', 'verify'], {'ported': True, 'commands': [VFAT], 'files': {
+    ('media-verify-text-identity', ['media', 'verify'], {'commands': [VFAT], 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('checking', identity='x')}}),
-    ('media-format-unconfirmed', ['media', 'format'], {'ported': True}),
-    ('media-format-wrong-card', ['media', 'format', '--confirm-cid', 'other'], {'ported': True}),
-    ('media-format', ['media', 'format', '--confirm-cid', CID], {'ported': True, 'files': SMALL}),
-    ('media-format-not-writable', ['media', '--confirm-cid', CID, 'format'], {'ported': True, 'files': {
+    ('media-format-unconfirmed', ['media', 'format'], {}),
+    ('media-format-wrong-card', ['media', 'format', '--confirm-cid', 'other'], {}),
+    ('media-format', ['media', 'format', '--confirm-cid', CID], {'files': SMALL}),
+    ('media-format-not-writable', ['media', '--confirm-cid', CID, 'format'], {'files': {
         DISK + '/size': '20000\n'}}),
-    ('media-format-too-small', ['media', 'format', '--confirm-cid', CID], {'ported': True, 'files': {
+    ('media-format-too-small', ['media', 'format', '--confirm-cid', CID], {'files': {
         DISK + '/size': '100\n'}}),
-    ('media-format-no-card', ['media', 'format', '--confirm-cid', CID], {'ported': True, 'files': {
+    ('media-format-no-card', ['media', 'format', '--confirm-cid', CID], {'files': {
         '/sys/class/block/mmcblk1': None}}),
-    ('media-format-mounted', ['media', 'format', '--confirm-cid', CID], {'ported': True, 'files': {**MOUNTED, **SMALL},
+    ('media-format-mounted', ['media', 'format', '--confirm-cid', CID], {'files': {**MOUNTED, **SMALL},
                                                                           'commands': [ok(['umount', '/media/sd'])]}),
-    ('media-grow-not-ext4', ['media', 'grow'], {'ported': True, 'commands': [VFAT]}),
-    ('media-grow-check-fails', ['media', 'grow'], {'ported': True, 'commands': [EXT4]}),
-    ('media-grow-resize-fails', ['media', 'grow'], {'ported': True, 'commands': [
+    ('media-grow-not-ext4', ['media', 'grow'], {'commands': [VFAT]}),
+    ('media-grow-check-fails', ['media', 'grow'], {'commands': [EXT4]}),
+    ('media-grow-resize-fails', ['media', 'grow'], {'commands': [
         EXT4, ok(['e2fsck', '-f', '-p', '/dev/mmcblk1p1'])]}),
-    ('media-grow', ['media', 'grow'], {'ported': True, 'commands': [
+    ('media-grow', ['media', 'grow'], {'commands': [
         EXT4, ok(['e2fsck', '-f', '-p', '/dev/mmcblk1p1']), ok(['resize2fs', '/dev/mmcblk1p1']),
         ok(['e2fsck', '-n', '/dev/mmcblk1p1'])]}),
-    ('media-repair-not-marked', ['media', 'repair'], {'ported': True}),
-    ('media-repair-on-battery', ['media', 'repair'], {'ported': True, 'files': {
+    ('media-repair-not-marked', ['media', 'repair'], {}),
+    ('media-repair-on-battery', ['media', 'repair'], {'files': {
         '/run/y2/media.json': REFUSED, '/run/y2/power.json': POWER.replace('64', '12')}}),
-    ('media-repair', ['media', 'repair'], {'ported': True, 'commands': [
+    ('media-repair', ['media', 'repair'], {'commands': [
         EXT4, ok(['e2fsck', '-p', '/dev/mmcblk1p1'], 'Truncating file to 0 bytes'), ok(['e2fsck', '-n', '/dev/mmcblk1p1']),
         ok(['mount', '-t', 'ext4', '-o', 'ro,nosuid,nodev,noexec,noatime', '/dev/mmcblk1p1', '/media/sd'])], 'files': {
         '/run/y2/media.json': REFUSED, '/run/y2/power.json': POWER, '/dev/mmcblk1p1': CARD}}),
-    ('media-repair-vfat', ['media', 'repair'], {'ported': True, 'commands': [
+    ('media-repair-vfat', ['media', 'repair'], {'commands': [
         VFAT, failed(REPAIR, 'Reclaimed 3 unused clusters (98304 bytes).\n/A/b.mp3\n  Truncating file to 0 bytes'),
         failed(FSCK, DIRTY)], 'files': {
         '/run/y2/media.json': REFUSED.replace('"ext4"', '"vfat"').replace(identity('ext4')['id'], identity()['id']),
         '/run/y2/power.json': POWER.replace('false', 'true', 1), '/dev/mmcblk1p1': CARD,
         '/data/system/platform/sd-repair/old.img': 'old'}}),
-    ('media-repair-timeout', ['media', 'repair'], {'ported': True, 'commands': [
+    ('media-repair-timeout', ['media', 'repair'], {'commands': [
         EXT4, failed(['e2fsck', '-p', '/dev/mmcblk1p1'], reason='command_timeout')], 'files': {
         '/run/y2/media.json': REFUSED, '/run/y2/power.json': POWER}}),
-    ('media-repair-short-device', ['media', 'repair'], {'ported': True, 'commands': [VFAT], 'files': {
+    ('media-repair-short-device', ['media', 'repair'], {'commands': [VFAT], 'files': {
         '/run/y2/media.json': REFUSED.replace('"ext4"', '"vfat"').replace(identity('ext4')['id'], identity()['id']),
         '/run/y2/power.json': POWER, '/dev/mmcblk1p1': BOOT}}),
-    ('media-repair-mounted', ['media', 'repair'], {'ported': True, 'commands': [ok(['umount', '/media/sd'])],
+    ('media-repair-mounted', ['media', 'repair'], {'commands': [ok(['umount', '/media/sd'])],
                                                    'files': {**MOUNTED, '/run/y2/power.json': POWER,
                                                              '/run/y2/media-mount.json': claim('check_timed_out')}}),
-    ('media-repair-changed-card', ['media', 'repair'], {'ported': True, 'commands': [VFAT], 'files': {
+    ('media-repair-changed-card', ['media', 'repair'], {'commands': [VFAT], 'files': {
         '/run/y2/media.json': REFUSED, '/run/y2/power.json': POWER}}),
     # A battery, identity or check that is no dict crashes Python: before the card is detached
     # (battery) or after it (identity, check), with no repair record written.
-    ('media-repair-bad-battery', ['media', 'repair'], {'ported': True, 'files': {
+    ('media-repair-bad-battery', ['media', 'repair'], {'files': {
         '/run/y2/media.json': REFUSED, '/run/y2/power.json': POWER.replace('{"charging"', '"x", "y": {"charging"')}}),
-    ('media-repair-bad-identity', ['media', 'repair'], {'ported': True, 'commands': [EXT4], 'files': {
+    ('media-repair-bad-identity', ['media', 'repair'], {'commands': [EXT4], 'files': {
         '/run/y2/media.json': REFUSED.replace('"identity": {', '"identity": ["x"], "old": {'),
         '/run/y2/power.json': POWER}}),
-    ('media-repair-bad-check', ['media', 'repair'], {'ported': True, 'commands': [EXT4], 'files': {
+    ('media-repair-bad-check', ['media', 'repair'], {'commands': [EXT4], 'files': {
         '/run/y2/media.json': json.dumps({**json.loads(REFUSED), 'filesystem_check': [1]}),
         '/run/y2/power.json': POWER}}),
-    ('media-write-not-mounted', ['media', 'write'], {'ported': True}),
-    ('media-write-bad-holders', ['media', 'write'], {'ported': True, 'files': {
+    ('media-write-not-mounted', ['media', 'write'], {}),
+    ('media-write-bad-holders', ['media', 'write'], {'files': {
         **MOUNTED, '/run/y2/sd-write.json': json.dumps({'boot_id': 'boot-a', 'mount_id': 51, 'holders': [1]})}}),
     ('media-write-huge-seconds', ['media', 'write', '--seconds', '99999999999999999999999'], {
-        'ported': True, 'files': MOUNTED, 'volatile': WRITE_VOLATILE,
+        'files': MOUNTED, 'volatile': WRITE_VOLATILE,
         'commands': [ok(['mount', '-o', 'remount,rw', '/media/sd'])]}),
     ('media-write-huge-negative-seconds', ['media', 'write', '--seconds', '-99999999999999999999999'], {
-        'ported': True, 'files': MOUNTED, 'volatile': WRITE_VOLATILE,
+        'files': MOUNTED, 'volatile': WRITE_VOLATILE,
         'commands': [ok(['mount', '-o', 'remount,rw', '/media/sd'])]}),
-    ('media-write', ['media', 'write'], {'ported': True, 'files': MOUNTED, 'volatile': WRITE_VOLATILE,
+    ('media-write', ['media', 'write'], {'files': MOUNTED, 'volatile': WRITE_VOLATILE,
                                          'commands': [ok(['mount', '-o', 'remount,rw', '/media/sd'])]}),
     ('media-write-long', ['media', 'write', '--holder', 'radiofw', '--seconds', '5000', '--holder', 'usb'], {
-        'ported': True, 'files': MOUNTED, 'volatile': WRITE_VOLATILE}),
-    ('media-write-release', ['media', 'write', '--holder', 'usb', '--release'], {'ported': True, 'files': {
+        'files': MOUNTED, 'volatile': WRITE_VOLATILE}),
+    ('media-write-release', ['media', 'write', '--holder', 'usb', '--release'], {'files': {
         **MOUNTED, '/run/y2/sd-write.json': json.dumps({'boot_id': 'boot-a', 'mount_id': 51, 'holders': {
             'usb': 1e12, 'reborn': 0, 'stranger': 1e12}})}, 'volatile': WRITE_VOLATILE}),
-    ('media-write-held', ['media', 'write', '--holder', 'report', '--seconds', '0'], {'ported': True, 'files': {
+    ('media-write-held', ['media', 'write', '--holder', 'report', '--seconds', '0'], {'files': {
         **MOUNTED, **mounts(SD_RW), '/run/y2/sd-write.json': json.dumps({'boot_id': 'boot-a', 'mount_id': 51.0, 'holders': {
             'usb': 1e12}})}, 'volatile': WRITE_VOLATILE}),
-    ('media-write-checking', ['media', 'write'], {'ported': True, 'files': {
+    ('media-write-checking', ['media', 'write'], {'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('checking')}}),
-    ('media-write-errors', ['media', 'write'], {'ported': True, 'files': {
+    ('media-write-errors', ['media', 'write'], {'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('filesystem_errors')}}),
-    ('media-write-unprotected', ['media', 'write'], {'ported': True, 'files': {
+    ('media-write-unprotected', ['media', 'write'], {'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim(None)}}),
-    ('media-help', ['media', '--help'], {'ported': True}),
-    ('media-no-action', ['media'], {'ported': True}),
-    ('media-bad-action', ['media', 'eject'], {'ported': True}),
-    ('media-bad-holder', ['media', 'write', '--holder', 'nobody'], {'ported': True}),
-    ('media-seconds-joined', ['media', 'write', '--seconds=5'], {'ported': True}),
-    ('media-seconds-negative', ['media', 'write', '--seconds', '-5'], {'ported': True}),
+    ('media-help', ['media', '--help'], {}),
+    ('media-no-action', ['media'], {}),
+    ('media-bad-action', ['media', 'eject'], {}),
+    ('media-bad-holder', ['media', 'write', '--holder', 'nobody'], {}),
+    ('media-seconds-joined', ['media', 'write', '--seconds=5'], {}),
+    ('media-seconds-negative', ['media', 'write', '--seconds', '-5'], {}),
 ]
 
 P8_BLKID = ['blkid', '-p', '-o', 'export', '/dev/mmcblk0p8']
@@ -293,122 +293,122 @@ PROFILE = json.dumps({'schema': 1, 'voltage_soc': [[3400000, 0], [3800000, 50], 
                       'seconds_per_percent': 60, 'provisional': True, 'source': 'fixture'})
 
 INTERNAL_CASES = [
-    ('internal-status', ['internal-media', 'status'], {'ported': True}),
-    ('internal-status-ready', ['internal-media', 'status'], {'ported': True, 'commands': [VALID], 'files': {
+    ('internal-status', ['internal-media', 'status'], {}),
+    ('internal-status-ready', ['internal-media', 'status'], {'commands': [VALID], 'files': {
         **MOUNTED_INTERNAL, '/run/y2/internal-media.json': json.dumps(
             {'state': 'Ready', 'boot_id': 'boot-a', 'mount_id': 52, 'device_id': '179:8'})}}),
-    ('internal-status-no-partition', ['internal-media', 'status'], {'ported': True, 'files': {
+    ('internal-status-no-partition', ['internal-media', 'status'], {'files': {
         P8 + '/start': '0\n'}}),
-    ('internal-mount-stock', ['internal-media', 'mount'], {'ported': True, 'commands': [STOCK]}),
-    ('internal-mount-ready', ['internal-media', 'mount'], {'ported': True, 'commands': [VALID], 'files': MOUNTED_INTERNAL}),
-    ('internal-mount-foreign', ['internal-media', 'mount'], {'ported': True, 'commands': [VALID], 'files': mounts(
+    ('internal-mount-stock', ['internal-media', 'mount'], {'commands': [STOCK]}),
+    ('internal-mount-ready', ['internal-media', 'mount'], {'commands': [VALID], 'files': MOUNTED_INTERNAL}),
+    ('internal-mount-foreign', ['internal-media', 'mount'], {'commands': [VALID], 'files': mounts(
         INTERNAL.replace('/dev/mmcblk0p8', '/dev/sda1'))}),
-    ('internal-mount-check-fails', ['internal-media', 'mount'], {'ported': True, 'commands': [VALID]}),
-    ('internal-mount-not-seen', ['internal-media', 'mount'], {'ported': True, 'commands': [
+    ('internal-mount-check-fails', ['internal-media', 'mount'], {'commands': [VALID]}),
+    ('internal-mount-not-seen', ['internal-media', 'mount'], {'commands': [
         VALID, ok(['e2fsck', '-p', '/dev/mmcblk0p8']),
         ok(['mount', '-t', 'ext4', '-o', 'rw,nosuid,nodev,noexec,noatime,noinit_itable', '/dev/mmcblk0p8',
             '/media/internal'])]}),
-    ('internal-mount-no-partition', ['internal-media', 'mount'], {'ported': True, 'files': {
+    ('internal-mount-no-partition', ['internal-media', 'mount'], {'files': {
         '/sys/class/block/mmcblk0p8': None}}),
-    ('internal-unmount-not-mounted', ['internal-media', 'unmount'], {'ported': True}),
-    ('internal-unmount-busy', ['internal-media', 'unmount'], {'ported': True, 'files': MOUNTED_INTERNAL,
+    ('internal-unmount-not-mounted', ['internal-media', 'unmount'], {}),
+    ('internal-unmount-busy', ['internal-media', 'unmount'], {'files': MOUNTED_INTERNAL,
                                                               'commands': [ok(['umount', '/media/internal'])]}),
-    ('internal-unmount-fails', ['internal-media', 'unmount'], {'ported': True, 'files': MOUNTED_INTERNAL}),
-    ('internal-provision-unconfirmed', ['internal-media', 'provision'], {'ported': True, 'commands': [STOCK]}),
+    ('internal-unmount-fails', ['internal-media', 'unmount'], {'files': MOUNTED_INTERNAL}),
+    ('internal-provision-unconfirmed', ['internal-media', 'provision'], {'commands': [STOCK]}),
     ('internal-provision-wrong-serial', ['internal-media', 'provision', '--confirm-serial', 'X'], {
-        'ported': True, 'commands': [STOCK]}),
+        'commands': [STOCK]}),
     ('internal-provision-mkfs-fails', ['internal-media', 'provision', '--confirm-serial', SERIAL], {
-        'ported': True, 'commands': [STOCK]}),
+        'commands': [STOCK]}),
     ('internal-provision-in-use', ['internal-media', 'provision', '--confirm-serial', SERIAL], {
-        'ported': True, 'commands': [STOCK], 'files': mounts(OLD)}),
-    ('internal-provision-migrate', ['internal-media', 'provision'], {'ported': True, 'commands': [VALID], 'files': {
+        'commands': [STOCK], 'files': mounts(OLD)}),
+    ('internal-provision-migrate', ['internal-media', 'provision'], {'commands': [VALID], 'files': {
         **MOUNTED_INTERNAL, **MUSIC}}),
     ('internal-provision-no-migrate', ['internal-media', 'provision', '--no-migrate'], {
-        'ported': True, 'commands': [VALID], 'files': {**MOUNTED_INTERNAL, **MUSIC}}),
-    ('internal-provision-present', ['internal-media', 'provision'], {'ported': True, 'commands': [VALID], 'files': {
+        'commands': [VALID], 'files': {**MOUNTED_INTERNAL, **MUSIC}}),
+    ('internal-provision-present', ['internal-media', 'provision'], {'commands': [VALID], 'files': {
         **MOUNTED_INTERNAL, **MUSIC, '/media/internal/music/02.flac': 'two two'}}),
-    ('internal-provision-differs', ['internal-media', 'provision'], {'ported': True, 'commands': [VALID], 'files': {
+    ('internal-provision-differs', ['internal-media', 'provision'], {'commands': [VALID], 'files': {
         **MOUNTED_INTERNAL, **MUSIC, '/media/internal/music/02.flac': 'other'}}),
     ('internal-provision-mkfs', ['internal-media', 'provision', '--confirm-serial', SERIAL], {
-        'ported': True, 'commands': [STOCK, ok(MKFS)]}),
-    ('internal-setup-not-needed', ['internal-media', 'setup'], {'ported': True, 'commands': [VALID]}),
-    ('internal-setup-not-stock', ['internal-media', 'setup'], {'ported': True, 'commands': [
+        'commands': [STOCK, ok(MKFS)]}),
+    ('internal-setup-not-needed', ['internal-media', 'setup'], {'commands': [VALID]}),
+    ('internal-setup-not-stock', ['internal-media', 'setup'], {'commands': [
         ok(P8_BLKID, 'TYPE=ext4\nLABEL=OTHER')]}),
-    ('internal-setup-unconfirmed', ['internal-media', 'setup'], {'ported': True, 'commands': [STOCK]}),
-    ('internal-setup-no-partition', ['internal-media', 'setup', '--automatic'], {'ported': True, 'files': {
+    ('internal-setup-unconfirmed', ['internal-media', 'setup'], {'commands': [STOCK]}),
+    ('internal-setup-no-partition', ['internal-media', 'setup', '--automatic'], {'files': {
         P8 + '/size': '1\n'}}),
-    ('internal-setup-mounted', ['internal-media', 'setup', '--automatic'], {'ported': True, 'commands': [STOCK],
+    ('internal-setup-mounted', ['internal-media', 'setup', '--automatic'], {'commands': [STOCK],
                                                                             'files': mounts(INTERNAL)}),
-    ('internal-setup-waiting', ['internal-media', 'setup', '--automatic'], {'ported': True, 'commands': [STOCK],
+    ('internal-setup-waiting', ['internal-media', 'setup', '--automatic'], {'commands': [STOCK],
                                                                             'files': {'/run/reborn-splash/.keep': ''}}),
-    ('internal-setup-update', ['internal-media', 'setup', '--automatic'], {'ported': True, 'commands': [STOCK], 'files': {
+    ('internal-setup-update', ['internal-media', 'setup', '--automatic'], {'commands': [STOCK], 'files': {
         '/data/updates/state.json': '{"schema": 2.0, "state": "PendingHealth"}'}}),
     ('internal-setup-battery-unknown', ['internal-media', 'setup', '--automatic'], {
-        'ported': True, 'commands': [STOCK], 'files': ON_BATTERY}),
-    ('internal-setup-battery-low', ['internal-media', 'setup', '--automatic'], {'ported': True, 'commands': [STOCK], 'files': {
+        'commands': [STOCK], 'files': ON_BATTERY}),
+    ('internal-setup-battery-low', ['internal-media', 'setup', '--automatic'], {'commands': [STOCK], 'files': {
         **ON_BATTERY, '/etc/y2linux/battery-profile.json': PROFILE, '/sys/class/power_supply/BAT0/voltage_ocv': '3500000\n'}}),
-    ('internal-setup-battery-enough', ['internal-media', 'setup', '--automatic'], {'ported': True, 'commands': [STOCK], 'files': {
+    ('internal-setup-battery-enough', ['internal-media', 'setup', '--automatic'], {'commands': [STOCK], 'files': {
         **ON_BATTERY, '/etc/y2linux/battery-profile.json': PROFILE, '/sys/class/power_supply/BAT0/voltage_ocv': 'x\n',
         '/sys/class/power_supply/BAT0/voltage_now': '3900000\n'}}),
-    ('internal-setup-keeps-files', ['internal-media', 'setup', '--automatic'], {'ported': True, 'commands': [
+    ('internal-setup-keeps-files', ['internal-media', 'setup', '--automatic'], {'commands': [
         STOCK, ok(['umount', '/run/y2/old-storage'])], 'files': {**mounts(OLD), **OLD_FILES, '/run/reborn-splash/.keep': ''}}),
-    ('internal-setup-nothing-kept', ['internal-media', 'setup', '--automatic'], {'ported': True, 'commands': [STOCK],
+    ('internal-setup-nothing-kept', ['internal-media', 'setup', '--automatic'], {'commands': [STOCK],
                                                                                  'files': mounts(OLD)}),
-    ('internal-setup-confirmed', ['internal-media', 'setup', '--confirm-shown'], {'ported': True, 'commands': [STOCK], 'files': {
+    ('internal-setup-confirmed', ['internal-media', 'setup', '--confirm-shown'], {'commands': [STOCK], 'files': {
         '/run/y2/internal-media-setup.json': json.dumps({'state': 'Waiting', 'boot_id': 'boot-a', 'serial': SERIAL,
                                                          'files': 900, 'bytes': 10})}}),
     ('internal-setup-confirmed-earlier-boot', ['internal-media', 'setup', '--confirm-shown'], {
-        'ported': True, 'commands': [STOCK], 'files': {'/run/y2/internal-media-setup.json': json.dumps(
+        'commands': [STOCK], 'files': {'/run/y2/internal-media-setup.json': json.dumps(
             {'state': 'Waiting', 'boot_id': 'boot-z', 'serial': SERIAL})}}),
-    ('internal-setup-serial', ['internal-media', 'setup', '--confirm-serial', SERIAL], {'ported': True, 'commands': [
+    ('internal-setup-serial', ['internal-media', 'setup', '--confirm-serial', SERIAL], {'commands': [
         STOCK, ok(MKFS)], 'files': {**mounts(OLD), **OLD_FILES}}),
-    ('internal-setup-resume', ['internal-media', 'setup', '--automatic'], {'ported': True, 'commands': [VALID], 'files': {
+    ('internal-setup-resume', ['internal-media', 'setup', '--automatic'], {'commands': [VALID], 'files': {
         **MOUNTED_INTERNAL, **MUSIC, SETUP: json.dumps(RECORD), '/data/system/internal-media-kept/Notes/b.txt': 'bbbbb',
         '/data/system/internal-media-kept/a.mp3': 'aaaa', '/run/reborn-splash/.keep': ''}}),
-    ('internal-setup-resume-mkfs', ['internal-media', 'setup'], {'ported': True, 'commands': [STOCK, ok(MKFS)], 'files': {
+    ('internal-setup-resume-mkfs', ['internal-media', 'setup'], {'commands': [STOCK, ok(MKFS)], 'files': {
         SETUP: json.dumps(RECORD)}}),
-    ('internal-setup-resume-changed', ['internal-media', 'setup'], {'ported': True, 'commands': [
+    ('internal-setup-resume-changed', ['internal-media', 'setup'], {'commands': [
         ok(P8_BLKID, 'TYPE=vfat\nUUID=0000-0000')], 'files': {SETUP: json.dumps(RECORD)}}),
-    ('internal-setup-resume-staging', ['internal-media', 'setup', '--automatic'], {'ported': True, 'commands': [STOCK], 'files': {
+    ('internal-setup-resume-staging', ['internal-media', 'setup', '--automatic'], {'commands': [STOCK], 'files': {
         **ON_BATTERY, SETUP: json.dumps({**RECORD, 'phase': 'staging'})}}),
-    ('internal-setup-resume-staging-charging', ['internal-media', 'setup'], {'ported': True, 'commands': [
+    ('internal-setup-resume-staging-charging', ['internal-media', 'setup'], {'commands': [
         STOCK, ok(['umount', '/run/y2/old-storage'])], 'files': {
         **mounts(OLD), **OLD_FILES, SETUP: json.dumps({**RECORD, 'phase': 'staging'})}}),
-    ('internal-setup-record-unreadable', ['internal-media', 'setup'], {'ported': True, 'commands': [STOCK], 'files': {
+    ('internal-setup-record-unreadable', ['internal-media', 'setup'], {'commands': [STOCK], 'files': {
         SETUP: '[1, 2]'}}),
-    ('internal-setup-record-mismatch', ['internal-media', 'setup'], {'ported': True, 'commands': [STOCK], 'files': {
+    ('internal-setup-record-mismatch', ['internal-media', 'setup'], {'commands': [STOCK], 'files': {
         SETUP: json.dumps({**RECORD, 'start': 0})}}),
-    ('internal-setup-record-phase', ['internal-media', 'setup'], {'ported': True, 'commands': [STOCK], 'files': {
+    ('internal-setup-record-phase', ['internal-media', 'setup'], {'commands': [STOCK], 'files': {
         SETUP: json.dumps({**RECORD, 'phase': 'done'})}}),
     # A resume record without its phase (or a FAT's serial) is Python's KeyError after the 'Running' note.
-    ('internal-setup-record-no-phase', ['internal-media', 'setup'], {'ported': True, 'commands': [STOCK], 'files': {
+    ('internal-setup-record-no-phase', ['internal-media', 'setup'], {'commands': [STOCK], 'files': {
         SETUP: json.dumps({k: v for k, v in RECORD.items() if k != 'phase'})}}),
-    ('internal-setup-staging-no-serial', ['internal-media', 'setup'], {'ported': True, 'commands': [STOCK], 'files': {
+    ('internal-setup-staging-no-serial', ['internal-media', 'setup'], {'commands': [STOCK], 'files': {
         SETUP: json.dumps({**{k: v for k, v in RECORD.items() if k != 'serial'}, 'phase': 'staging'})}}),
-    ('internal-setup-staging-no-serial-ext4', ['internal-media', 'setup'], {'ported': True, 'commands': [VALID],
+    ('internal-setup-staging-no-serial-ext4', ['internal-media', 'setup'], {'commands': [VALID],
                                                                              'files': {
         SETUP: json.dumps({**{k: v for k, v in RECORD.items() if k != 'serial'}, 'phase': 'staging'})}}),
-    ('internal-setup-formatting-no-serial', ['internal-media', 'setup'], {'ported': True, 'commands': [STOCK],
+    ('internal-setup-formatting-no-serial', ['internal-media', 'setup'], {'commands': [STOCK],
                                                                            'files': {
         SETUP: json.dumps({k: v for k, v in RECORD.items() if k != 'serial'})}}),
-    ('internal-help', ['internal-media', '--help'], {'ported': True}),
-    ('internal-serial-missing', ['internal-media', 'setup', '--confirm-serial'], {'ported': True}),
+    ('internal-help', ['internal-media', '--help'], {}),
+    ('internal-serial-missing', ['internal-media', 'setup', '--confirm-serial'], {}),
 ]
 
 DATA_READY = {'/proc/self/mountinfo': BASE_MOUNTS.replace('179:9', '179:8')}
 DATA_UUID = ok(['blkid', '-p', '-s', 'UUID', '-o', 'value', '/dev/mmcblk0p9'], '79324c69-6e75-4801-8000-000000000102')
 SPACE = [
-    ('space', ['space'], {'ported': True}),
-    ('space-cleanup', ['space', '--cleanup'], {'ported': True}),
-    ('space-ready', ['space'], {'ported': True, 'files': DATA_READY, 'commands': [DATA_UUID]}),
-    ('space-ready-cleanup', ['space', '--cleanup', '--cleanup'], {'ported': True, 'files': DATA_READY,
+    ('space', ['space'], {}),
+    ('space-cleanup', ['space', '--cleanup'], {}),
+    ('space-ready', ['space'], {'files': DATA_READY, 'commands': [DATA_UUID]}),
+    ('space-ready-cleanup', ['space', '--cleanup', '--cleanup'], {'files': DATA_READY,
                                                                   'commands': [DATA_UUID]}),
-    ('space-wrong-uuid', ['space'], {'ported': True, 'files': DATA_READY}),
-    ('space-read-only', ['space'], {'ported': True, 'commands': [DATA_UUID], 'files': {
+    ('space-wrong-uuid', ['space'], {'files': DATA_READY}),
+    ('space-read-only', ['space'], {'commands': [DATA_UUID], 'files': {
         '/proc/self/mountinfo': DATA_READY['/proc/self/mountinfo'].replace('/data rw', '/data ro')}}),
-    ('space-no-data', ['space'], {'ported': True, 'files': {'/proc/self/mountinfo': BASE_MOUNTS.splitlines()[0]}}),
-    ('space-help', ['space', '--help'], {'ported': True}),
-    ('space-extra', ['space', 'now'], {'ported': True}),
+    ('space-no-data', ['space'], {'files': {'/proc/self/mountinfo': BASE_MOUNTS.splitlines()[0]}}),
+    ('space-help', ['space', '--help'], {}),
+    ('space-extra', ['space', 'now'], {}),
 ]
 
 CASES = MEDIA + INTERNAL_CASES + SPACE

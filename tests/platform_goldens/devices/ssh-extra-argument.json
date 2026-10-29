@@ -1,0 +1,14 @@
+{
+ "argv": [
+  "ssh-daemon",
+  "--foreground"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

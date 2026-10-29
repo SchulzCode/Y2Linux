@@ -1,0 +1,23 @@
+{
+ "argv": [
+  "time-set",
+  "1788100000"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "network_time_active",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/time.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

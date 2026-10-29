@@ -1,0 +1,32 @@
+{
+ "argv": [
+  "reset",
+  "plan",
+  "--scope",
+  "caches"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "failure": "invalid literal for int() with base 10: '12a'",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "argv": [
+  "update",
+  "auto-check"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "reason": "no_channel",
+  "result": "skipped",
+  "schema": 1
+ },
+ "tree": {
+  "added": {},
+  "changed": {
+   "/data/updates": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/updates/last-check.json": {
+    "content": {
+     "attempt": "<volatile>",
+     "result": "failed",
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

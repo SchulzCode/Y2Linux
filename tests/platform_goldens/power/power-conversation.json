@@ -1,0 +1,511 @@
+{
+ "calls": [
+  [
+   [
+    "/usr/sbin/y2-platform",
+    "boot-stage",
+    "shutdown_pending"
+   ],
+   3.0
+  ],
+  [
+   [
+    "/etc/init.d/S90reborn",
+    "stop"
+   ],
+   3.0
+  ],
+  [
+   [
+    "/usr/sbin/y2-platform",
+    "time-remember"
+   ],
+   2.0
+  ],
+  [
+   [
+    "/bin/busybox",
+    "sync"
+   ],
+   5.0
+  ],
+  [
+   [
+    "/etc/init.d/S41y2-connectivity",
+    "stop-wifi"
+   ],
+   3.0
+  ],
+  [
+   [
+    "/etc/init.d/S41y2-connectivity",
+    "stop-bluetooth"
+   ],
+   3.0
+  ],
+  [
+   [
+    "/etc/init.d/S41y2-connectivity",
+    "stop-daemon"
+   ],
+   3.0
+  ],
+  [
+   [
+    "/usr/sbin/y2-platform",
+    "boot-stage",
+    "shutdown_complete"
+   ],
+   3.0
+  ],
+  [
+   [
+    "/bin/busybox",
+    "reboot"
+   ],
+   2.0
+  ]
+ ],
+ "results": [
+  {
+   "client": [
+    "reboot",
+    "--reason",
+    "update"
+   ],
+   "exit": 0,
+   "order": [
+    "schema",
+    "id",
+    "boot_id",
+    "state",
+    "action",
+    "reason",
+    "requested_monotonic_ns",
+    "deadline_monotonic_ns",
+    "client",
+    "acknowledgement",
+    "failure"
+   ],
+   "stdout": {
+    "acknowledgement": null,
+    "action": "reboot",
+    "boot_id": "boot-a",
+    "client": {
+     "pid": "<volatile>",
+     "start_ticks": "<volatile>"
+    },
+    "deadline_monotonic_ns": "<volatile>",
+    "failure": null,
+    "id": "<uuid>",
+    "reason": "update",
+    "requested_monotonic_ns": "<volatile>",
+    "schema": 1,
+    "state": "ShutdownPending"
+   }
+  },
+  {
+   "client": [
+    "poweroff"
+   ],
+   "exit": 1,
+   "order": [
+    "schema",
+    "state",
+    "reason",
+    "type"
+   ],
+   "stdout": {
+    "reason": "different_shutdown_already_pending",
+    "schema": "org.y2linux.error/v1",
+    "state": "Failed",
+    "type": "ValueError"
+   }
+  },
+  {
+   "client": [
+    "reboot"
+   ],
+   "exit": 0,
+   "order": [
+    "schema",
+    "id",
+    "boot_id",
+    "state",
+    "action",
+    "reason",
+    "requested_monotonic_ns",
+    "deadline_monotonic_ns",
+    "client",
+    "acknowledgement",
+    "failure"
+   ],
+   "stdout": {
+    "acknowledgement": null,
+    "action": "reboot",
+    "boot_id": "boot-a",
+    "client": {
+     "pid": "<volatile>",
+     "start_ticks": "<volatile>"
+    },
+    "deadline_monotonic_ns": "<volatile>",
+    "failure": null,
+    "id": "<uuid>",
+    "reason": "update",
+    "requested_monotonic_ns": "<volatile>",
+    "schema": 1,
+    "state": "ShutdownPending"
+   }
+  },
+  {
+   "answer": {
+    "error": "stale_shutdown_ack",
+    "ok": false
+   },
+   "raw": "{'operation': 'ack', 'id': 'other', 'outcome': 'Ready'}"
+  },
+  {
+   "answer": {
+    "error": "invalid_ack_outcome",
+    "ok": false
+   },
+   "raw": "{'operation': 'ack', 'id': '<uuid>', 'outcome': 'Maybe'}"
+  },
+  {
+   "answer": {
+    "error": "'id'",
+    "ok": false
+   },
+   "raw": "{'operation': 'ack', 'outcome': 'Ready'}"
+  },
+  {
+   "answer": {
+    "error": "'list' object has no attribute 'get'",
+    "ok": false
+   },
+   "raw": "[1]"
+  },
+  {
+   "answer": {
+    "error": "invalid_shutdown_request",
+    "ok": false
+   },
+   "raw": "b'{\"action\": \"halt\"}\\n'"
+  },
+  {
+   "answer": {
+    "error": "invalid_power_request",
+    "ok": false
+   },
+   "raw": "b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  },
+  {
+   "answer": {
+    "error": "invalid_shutdown_request",
+    "ok": false
+   },
+   "raw": "{'action': 'reboot', 'reason': None}"
+  },
+  {
+   "answer": {
+    "ok": true,
+    "result": {
+     "acknowledgement": {
+      "monotonic_ns": "<volatile>",
+      "outcome": "Ready"
+     },
+     "action": "reboot",
+     "boot_id": "boot-a",
+     "client": {
+      "pid": "<volatile>",
+      "start_ticks": "<volatile>"
+     },
+     "deadline_monotonic_ns": "<volatile>",
+     "failure": null,
+     "id": "<uuid>",
+     "reason": "update",
+     "requested_monotonic_ns": "<volatile>",
+     "schema": 1,
+     "state": "ShutdownPending"
+    }
+   },
+   "raw": "ack Ready"
+  },
+  {
+   "client": [
+    "reboot",
+    "--reason",
+    "service"
+   ],
+   "exit": 0,
+   "order": [
+    "schema",
+    "id",
+    "boot_id",
+    "state",
+    "action",
+    "reason",
+    "requested_monotonic_ns",
+    "deadline_monotonic_ns",
+    "client",
+    "acknowledgement",
+    "failure",
+    "stop_results"
+   ],
+   "stdout": {
+    "acknowledgement": {
+     "monotonic_ns": "<volatile>",
+     "outcome": "Ready"
+    },
+    "action": "reboot",
+    "boot_id": "boot-a",
+    "client": {
+     "pid": "<volatile>",
+     "start_ticks": "<volatile>"
+    },
+    "deadline_monotonic_ns": "<volatile>",
+    "failure": "init_shutdown_request_failed",
+    "id": "<uuid>",
+    "reason": "update",
+    "requested_monotonic_ns": "<volatile>",
+    "schema": 1,
+    "state": "Failed",
+    "stop_results": {
+     "S41_bluetooth": {
+      "ok": false,
+      "reason": "fixture"
+     },
+     "S41_daemon": {
+      "ok": false,
+      "reason": "fixture"
+     },
+     "S41_wifi": {
+      "ok": false,
+      "reason": "fixture"
+     },
+     "S41_wifi_removed": {
+      "ok": true,
+      "reason": null
+     },
+     "S90reborn": {
+      "ok": false,
+      "reason": "fixture"
+     },
+     "backlight": {
+      "ok": false,
+      "reason": "no_backlight"
+     },
+     "journal_complete": {
+      "ok": false,
+      "reason": "fixture"
+     },
+     "journal_pending": {
+      "ok": false,
+      "reason": "fixture"
+     },
+     "long_press_reset": {
+      "ok": false,
+      "reason": "long_press_reset_unavailable"
+     },
+     "sync": {
+      "ok": true,
+      "reason": null
+     },
+     "time_remember": {
+      "ok": false,
+      "reason": "fixture"
+     },
+     "watchdog": {
+      "ok": true,
+      "reason": null
+     }
+    }
+   }
+  },
+  {
+   "daemon_exit": 0,
+   "daemon_stdout": ""
+  }
+ ],
+ "tree": {
+  "added": {
+   "/data/system/platform/.power-journal.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/battery-ui.json": {
+    "content": {
+     "anchor_percent": null,
+     "schema": 1,
+     "ui_percent": 66
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/power-journal.jsonl": {
+    "content": [
+     "{\"backlight\": {}, \"battery\": {\"anchor_percent\": null, \"calibration_source\": \"stock Y2 fuel-gauge profile: fgauge_get_profile(25 C) 0xc09d117c and r_profile 0xc09d1d5c from the Y2 FM kernel, Q_MAX 1300 mAh (fgauge_get_Q_max 0xc039b124); DOD converted to SOC\", \"charge_counter_uah\": null, \"charging\": false, \"confidence\": \"calibrated_estimate\", \"current_ua\": null, \"design_capacity_uah\": 1300000, \"estimate_percent\": 66, \"filtered_voltage_uv\": 3850000, \"full_latched\": false, \"percent\": 66, \"provisional\": false, \"remaining_uah_estimate\": 864500, \"resting\": false, \"source\": \"voltage_estimate\", \"start\": \"unknown/live\", \"status\": \"Discharging\", \"temperature_millicelsius\": null, \"voltage_uv\": 3850000}, \"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build\": {\"build_git_commit\": \"linux-commit\", \"feature_contract_version\": 2, \"kernel_version\": \"6.18.0-fixture\", \"platform_api_version\": 1, \"reborn_source_commit\": \"reborn\", \"release_version\": \"1.0.0-fixture\", \"rootfs_version\": \"v1.0\"}, \"charger\": null, \"event\": \"snapshot\", \"idle_counters\": {\"clock_blockers\": {}, \"collector_cpu_seconds\": \"<volatile>\", \"counter_reset_rule\": \"decreasing per-core counters are unknown, not negative rates\", \"cpuidle\": {\"0\": {\"DORMANT\": {\"disable\": 1, \"rejected\": null, \"time\": \"<volatile>\", \"usage\": null}}}, \"frequency_khz\": null, \"frequency_ticks\": null, \"idle_rejections\": {}, \"online\": null, \"runtime_pm\": {}, \"scheduler\": {}}, \"idle_policy\": null, \"kernel_pm\": null, \"monotonic_s\": \"<volatile>\", \"radios\": {\"rfkill0\": {\"blocked\": \"0\", \"type\": \"wlan\"}}, \"schema\": 1, \"shutdown\": null, \"sleep\": {\"boot_id\": \"boot-a\", \"kernel_completed\": true, \"reason\": null, \"request_boot_id\": \"boot-a\", \"same_boot\": true, \"schema\": \"org.y2linux.sleep/v1\", \"state\": \"restored\", \"wake_reason\": \"power\"}, \"state\": \"Normal\", \"suspend\": {\"cycles\": null, \"error\": null, \"first_entry\": null, \"maintenance_wakes\": null, \"mode\": null, \"reason\": null, \"resume\": null, \"stage\": null, \"suspended_seconds\": null}, \"usb\": {}, \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"wall_time\": \"<volatile>\"}",
+     "{\"backlight\": {}, \"battery\": {\"anchor_percent\": null, \"calibration_source\": \"stock Y2 fuel-gauge profile: fgauge_get_profile(25 C) 0xc09d117c and r_profile 0xc09d1d5c from the Y2 FM kernel, Q_MAX 1300 mAh (fgauge_get_Q_max 0xc039b124); DOD converted to SOC\", \"charge_counter_uah\": null, \"charging\": false, \"confidence\": \"calibrated_estimate\", \"current_ua\": null, \"design_capacity_uah\": 1300000, \"estimate_percent\": 66, \"filtered_voltage_uv\": 3850000, \"full_latched\": false, \"percent\": 66, \"provisional\": false, \"remaining_uah_estimate\": 864500, \"resting\": false, \"source\": \"voltage_estimate\", \"start\": \"unknown/live\", \"status\": \"Discharging\", \"temperature_millicelsius\": null, \"voltage_uv\": 3850000}, \"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build\": {\"build_git_commit\": \"linux-commit\", \"feature_contract_version\": 2, \"kernel_version\": \"6.18.0-fixture\", \"platform_api_version\": 1, \"reborn_source_commit\": \"reborn\", \"release_version\": \"1.0.0-fixture\", \"rootfs_version\": \"v1.0\"}, \"charger\": null, \"event\": \"shutdown_execute\", \"idle_counters\": {\"clock_blockers\": {}, \"collector_cpu_seconds\": \"<volatile>\", \"counter_reset_rule\": \"decreasing per-core counters are unknown, not negative rates\", \"cpuidle\": {\"0\": {\"DORMANT\": {\"disable\": 1, \"rejected\": null, \"time\": \"<volatile>\", \"usage\": null}}}, \"frequency_khz\": null, \"frequency_ticks\": null, \"idle_rejections\": {}, \"online\": null, \"runtime_pm\": {}, \"scheduler\": {}}, \"idle_policy\": null, \"kernel_pm\": null, \"monotonic_s\": \"<volatile>\", \"radios\": {\"rfkill0\": {\"blocked\": \"0\", \"type\": \"wlan\"}}, \"schema\": 1, \"shutdown\": {\"acknowledgement\": {\"monotonic_ns\": \"<volatile>\", \"outcome\": \"Ready\"}, \"action\": \"reboot\", \"boot_id\": \"boot-a\", \"client\": {\"pid\": \"<volatile>\", \"start_ticks\": \"<volatile>\"}, \"deadline_monotonic_ns\": \"<volatile>\", \"failure\": null, \"id\": \"<uuid>\", \"reason\": \"update\", \"requested_monotonic_ns\": \"<volatile>\", \"schema\": 1, \"state\": \"ShutdownPending\"}, \"sleep\": {\"boot_id\": \"boot-a\", \"kernel_completed\": true, \"reason\": null, \"request_boot_id\": \"boot-a\", \"same_boot\": true, \"schema\": \"org.y2linux.sleep/v1\", \"state\": \"restored\", \"wake_reason\": \"power\"}, \"state\": \"Normal\", \"suspend\": {\"cycles\": null, \"error\": null, \"first_entry\": null, \"maintenance_wakes\": null, \"mode\": null, \"reason\": null, \"resume\": null, \"stage\": null, \"suspended_seconds\": null}, \"usb\": {}, \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"wall_time\": \"<volatile>\"}"
+    ],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/power.json": {
+    "content": {
+     "battery": {
+      "anchor_percent": null,
+      "calibration_source": "stock Y2 fuel-gauge profile: fgauge_get_profile(25 C) 0xc09d117c and r_profile 0xc09d1d5c from the Y2 FM kernel, Q_MAX 1300 mAh (fgauge_get_Q_max 0xc039b124); DOD converted to SOC",
+      "charge_counter_uah": null,
+      "charging": false,
+      "confidence": "calibrated_estimate",
+      "current_ua": null,
+      "design_capacity_uah": 1300000,
+      "estimate_percent": 66,
+      "filtered_voltage_uv": 3850000,
+      "full_latched": false,
+      "percent": 66,
+      "provisional": false,
+      "remaining_uah_estimate": 864500,
+      "resting": false,
+      "source": "voltage_estimate",
+      "start": "unknown/live",
+      "status": "Discharging",
+      "temperature_millicelsius": null,
+      "voltage_uv": 3850000
+     },
+     "boot_id": "boot-a",
+     "monotonic_ns": "<volatile>",
+     "qualification_reference": null,
+     "reason": null,
+     "schema": 1,
+     "shutdown": null,
+     "state": "Normal",
+     "thresholds_enabled": true,
+     "voltage_uv": 3850000
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/power.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/shutdown.json": {
+    "content": {
+     "acknowledgement": {
+      "monotonic_ns": "<volatile>",
+      "outcome": "Ready"
+     },
+     "action": "reboot",
+     "boot_id": "boot-a",
+     "client": {
+      "pid": "<volatile>",
+      "start_ticks": "<volatile>"
+     },
+     "deadline_monotonic_ns": "<volatile>",
+     "failure": "init_shutdown_request_failed",
+     "id": "<uuid>",
+     "reason": "update",
+     "requested_monotonic_ns": "<volatile>",
+     "schema": 1,
+     "state": "Failed",
+     "stop_results": {
+      "S41_bluetooth": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "S41_daemon": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "S41_wifi": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "S41_wifi_removed": {
+       "ok": true,
+       "reason": null
+      },
+      "S90reborn": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "backlight": {
+       "ok": false,
+       "reason": "no_backlight"
+      },
+      "journal_complete": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "journal_pending": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "long_press_reset": {
+       "ok": false,
+       "reason": "long_press_reset_unavailable"
+      },
+      "sync": {
+       "ok": true,
+       "reason": null
+      },
+      "time_remember": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "watchdog": {
+       "ok": true,
+       "reason": null
+      }
+     }
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/dev/pmsg0": {
+    "content": [
+     "<clock> shutdown execute reboot update",
+     "<clock> shutdown watchdog ok",
+     "<clock> shutdown long_press_reset long_press_reset_unavailable",
+     "<clock> shutdown begin journal_pending",
+     "<clock> shutdown journal_pending fixture",
+     "<clock> shutdown begin S90reborn",
+     "<clock> shutdown S90reborn fixture",
+     "<clock> shutdown begin kill",
+     "<clock> shutdown begin backlight",
+     "<clock> shutdown begin time_remember",
+     "<clock> shutdown time_remember fixture",
+     "<clock> shutdown begin sync",
+     "<clock> shutdown sync ok",
+     "<clock> shutdown begin S41_wifi",
+     "<clock> shutdown S41_wifi fixture",
+     "<clock> shutdown begin S41_wifi_removed",
+     "<clock> shutdown S41_wifi_removed ok",
+     "<clock> shutdown begin S41_bluetooth",
+     "<clock> shutdown S41_bluetooth fixture",
+     "<clock> shutdown begin S41_daemon",
+     "<clock> shutdown S41_daemon fixture",
+     "<clock> shutdown begin journal_complete",
+     "<clock> shutdown journal_complete fixture",
+     "<clock> shutdown begin init_reboot",
+     "<clock> shutdown init_reboot fixture"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/dev/watchdog": {
+    "content": [
+     "............"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

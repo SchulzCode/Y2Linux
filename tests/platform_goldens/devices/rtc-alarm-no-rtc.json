@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "rtc-alarm",
+  "60"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "rtc_time_unavailable",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/rtc-alarm.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

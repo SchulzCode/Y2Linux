@@ -1,0 +1,104 @@
+{
+ "argv": [
+  "reset",
+  "resume",
+  "--confirm",
+  "e11270e820a06acdcd25426d8ed0ed048e77bf05d9e11a7d28f2ec23a5168a15"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "completed": [
+   "reborn/state/session.json"
+  ],
+  "id": "1234567890abcdef1234567890abcdef",
+  "preserved": [
+   "SSH identity",
+   "entropy"
+  ],
+  "purge_confirmation": "e11270e820a06acdcd25426d8ed0ed048e77bf05d9e11a7d28f2ec23a5168a15",
+  "quarantine": "/data/reset-quarantine/1234567890abcdef1234567890abcdef",
+  "schema": 1,
+  "scope": "settings",
+  "state": "Complete"
+ },
+ "tree": {
+  "added": {
+   "/data/reset-quarantine/1234567890abcdef1234567890abcdef/record.json": {
+    "content": {
+     "completed": [
+      "reborn/state/session.json"
+     ],
+     "id": "1234567890abcdef1234567890abcdef",
+     "preserved": [
+      "SSH identity",
+      "entropy"
+     ],
+     "purge_confirmation": "e11270e820a06acdcd25426d8ed0ed048e77bf05d9e11a7d28f2ec23a5168a15",
+     "quarantine": "/data/reset-quarantine/1234567890abcdef1234567890abcdef",
+     "schema": 1,
+     "scope": "settings",
+     "state": "Complete"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/.maintenance.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/maintenance-state.json": {
+    "content": {
+     "completed": [
+      "reborn/state/session.json"
+     ],
+     "id": "1234567890abcdef1234567890abcdef",
+     "preserved": [
+      "SSH identity",
+      "entropy"
+     ],
+     "purge_confirmation": "e11270e820a06acdcd25426d8ed0ed048e77bf05d9e11a7d28f2ec23a5168a15",
+     "quarantine": "/data/reset-quarantine/1234567890abcdef1234567890abcdef",
+     "schema": 1,
+     "scope": "settings",
+     "state": "Complete"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/reset-quarantine": {
+    "mode": "0o700",
+    "type": "dir"
+   }
+  },
+  "removed": []
+ }
+}

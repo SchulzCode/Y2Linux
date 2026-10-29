@@ -1,0 +1,29 @@
+{
+ "argv": [
+  "__suspend-record",
+  "complete_result_0",
+  "0"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {
+   "/run/reborn/requests.jsonl": {
+    "content": {
+     "command": {
+      "op": "sleep_restore"
+     },
+     "id": 6582,
+     "version": 1
+    },
+    "mode": "0o644",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": [
+   "/run/reborn/control.sock"
+  ]
+ }
+}

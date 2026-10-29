@@ -1,0 +1,16 @@
+{
+ "argv": [
+  "shutdown",
+  "poweroff",
+  "--reason",
+  "low_battery"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,92 @@
+{
+ "argv": [
+  "status",
+  "memory",
+  "--reborn"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/cat",
+    "<root>/sys/power/wakeup_count"
+   ],
+   "timeout": 0.1
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-bt-observe"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/sbin/ip",
+    "-4",
+    "-o",
+    "addr",
+    "show",
+    "dev",
+    "usb0"
+   ],
+   "timeout": 0.5
+  },
+  {
+   "argv": [
+    "/usr/bin/rebornctl",
+    "metrics",
+    "--json"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "memory": {
+   "meminfo": {
+    "MemAvailable": 160000,
+    "MemFree": 120000,
+    "MemTotal": 245760
+   },
+   "pressure": null,
+   "processes": [
+    {
+     "involuntary_context_switches": null,
+     "name": "reborn",
+     "pid": 4242,
+     "pss_kib": null,
+     "rss_kib": 27500,
+     "start_ticks": 123456,
+     "threads": 7,
+     "voluntary_context_switches": 10
+    }
+   ],
+   "unit": "KiB",
+   "vmstat": null
+  },
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "collection_duration_ns": "<volatile>",
+   "evidence_level": "IMPLEMENTED",
+   "failure": null,
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {},
+   "reborn_commit": "reborn",
+   "result": "observed",
+   "rootfs_release": "v1.0",
+   "units": {
+    "collection_duration": "ns"
+   },
+   "wall_timestamp": "<volatile>",
+   "workload": "observation",
+   "y2linux_commit": "linux-commit"
+  },
+  "schema": "org.y2linux.status/v1"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

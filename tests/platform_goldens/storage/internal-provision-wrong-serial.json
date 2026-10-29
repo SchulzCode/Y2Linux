@@ -1,0 +1,54 @@
+{
+ "argv": [
+  "internal-media",
+  "provision",
+  "--confirm-serial",
+  "X"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk0p8"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "boot_id": "boot-a",
+  "filesystem": "vfat",
+  "path": "/media/internal",
+  "reason": "confirmation_does_not_match_stock_filesystem",
+  "schema": 1,
+  "serial": "B2C1-0A7F",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/internal-media.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "filesystem": "vfat",
+     "path": "/media/internal",
+     "reason": "confirmation_does_not_match_stock_filesystem",
+     "schema": 1,
+     "serial": "B2C1-0A7F",
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/internal-media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

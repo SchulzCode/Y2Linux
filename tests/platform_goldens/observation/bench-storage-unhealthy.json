@@ -1,0 +1,51 @@
+{
+ "argv": [
+  "bench-storage"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "cache_advice": [],
+  "integrity": [],
+  "measurements": [],
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "evidence_level": "IMPLEMENTED",
+   "failure": {
+    "errno": 19,
+    "reason": "[Errno 19] source_unavailable",
+    "type": "OSError"
+   },
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {
+    "cold_read": "not_guaranteed",
+    "deadline_seconds": 300,
+    "io": "buffered",
+    "operations": 64,
+    "seed": 6582,
+    "size_mib": 16,
+    "volume": "/data"
+   },
+   "reborn_commit": "reborn",
+   "result": "FAILED",
+   "rootfs_release": "v1.0",
+   "units": {
+    "latency": "ms",
+    "rate": "operations/s",
+    "throughput": "MB/s (decimal)"
+   },
+   "wall_timestamp": "<volatile>",
+   "workload": "storage",
+   "y2linux_commit": "linux-commit"
+  },
+  "schema": "org.y2linux.benchmark/v1",
+  "volume": null
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

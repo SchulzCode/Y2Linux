@@ -1,0 +1,34 @@
+{
+ "argv": [
+  "transfer",
+  "discard",
+  "--id",
+  "x"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "reason": "invalid_transfer_id",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

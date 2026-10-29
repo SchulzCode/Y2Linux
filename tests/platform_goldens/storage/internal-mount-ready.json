@@ -1,0 +1,54 @@
+{
+ "argv": [
+  "internal-media",
+  "mount"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk0p8"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "boot_id": "boot-a",
+  "device_id": "179:8",
+  "mount_id": 52,
+  "path": "/media/internal",
+  "reason": null,
+  "schema": 1,
+  "state": "Ready",
+  "uuid": "79324c69-6e75-4801-8000-000000000103"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/internal-media.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "device_id": "179:8",
+     "mount_id": 52,
+     "path": "/media/internal",
+     "reason": null,
+     "schema": 1,
+     "state": "Ready",
+     "uuid": "79324c69-6e75-4801-8000-000000000103"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/internal-media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

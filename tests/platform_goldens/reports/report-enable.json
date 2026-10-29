@@ -1,0 +1,55 @@
+{
+ "argv": [
+  "report",
+  "enable"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "rebornctl",
+    "health",
+    "--json"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "dmesg"
+   ],
+   "timeout": 5.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "destinations": [],
+  "enabled": true,
+  "install_id": "<uuid>",
+  "last": null,
+  "queued": [
+   "20261019T100000Z-<uuid>.tar.gz",
+   "20261020T100000Z-<uuid>.tar.gz",
+   "20261021T100000Z-<uuid>.tar.gz"
+  ],
+  "schema": 1,
+  "upload": false
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/reports.json": {
+    "content": {
+     "boot_triggers": {},
+     "daily": {},
+     "enabled": true,
+     "install_id": "<uuid>",
+     "schema": 1,
+     "seen": {},
+     "uploads": {}
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

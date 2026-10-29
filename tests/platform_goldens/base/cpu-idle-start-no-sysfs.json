@@ -1,0 +1,41 @@
+{
+ "argv": [
+  "cpu-idle-policy",
+  "start"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "boot_id": "boot-a",
+  "policy": "qualified_CPU0_DORMANT",
+  "reasons": [
+   "existing_owner_runtime_policy"
+  ],
+  "schema": "org.y2linux.cpu-idle-policy/v1",
+  "state": "Skipped"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/cpu-idle-policy.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "policy": "qualified_CPU0_DORMANT",
+     "reasons": [
+      "existing_owner_runtime_policy"
+     ],
+     "schema": "org.y2linux.cpu-idle-policy/v1",
+     "state": "Skipped"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/cpu-idle-policy.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

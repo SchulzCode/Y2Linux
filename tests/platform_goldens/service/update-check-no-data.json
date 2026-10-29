@@ -1,0 +1,17 @@
+{
+ "argv": [
+  "update",
+  "check"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "verified_data_unavailable",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

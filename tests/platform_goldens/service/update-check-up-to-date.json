@@ -1,0 +1,60 @@
+{
+ "argv": [
+  "update",
+  "check",
+  "--package",
+  "<repository>/tests/platform_cases/service_package"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-update-core",
+    "check-manifest",
+    "/data/updates/.incoming-0123456789abcdef0123456789abcdef"
+   ],
+   "timeout": 15.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "release_version": "1.0.0-fixture",
+  "state": "UpToDate"
+ },
+ "tree": {
+  "added": {
+   "/data/updates": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/updates/.stage.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/updates/download.json": {
+    "content": {
+     "release_version": "1.0.0-fixture",
+     "schema": 1,
+     "state": "Checked",
+     "up_to_date": true
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

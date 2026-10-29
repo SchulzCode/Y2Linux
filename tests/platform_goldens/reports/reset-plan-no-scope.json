@@ -1,0 +1,17 @@
+{
+ "argv": [
+  "reset",
+  "plan"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "unknown_reset_scope",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,224 @@
+{
+ "argv": [
+  "__suspend-record",
+  "product_failure",
+  "1",
+  "radio_power_down"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {
+   "/data/system/platform/.power-journal.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/.sleep-diagnostics.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/power-journal.jsonl": {
+    "content": {
+     "backlight": {},
+     "battery": {},
+     "boot_id": "boot-a",
+     "boottime_s": "<volatile>",
+     "build": {
+      "build_git_commit": "linux-commit",
+      "feature_contract_version": 2,
+      "kernel_version": "6.18.0-fixture",
+      "platform_api_version": 1,
+      "reborn_source_commit": "reborn",
+      "release_version": "1.0.0-fixture",
+      "rootfs_version": "v1.0"
+     },
+     "charger": null,
+     "event": "suspend_product_failure",
+     "idle_counters": {
+      "clock_blockers": {},
+      "collector_cpu_seconds": "<volatile>",
+      "counter_reset_rule": "decreasing per-core counters are unknown, not negative rates",
+      "cpuidle": {
+       "0": {
+        "DORMANT": {
+         "disable": 1,
+         "rejected": null,
+         "time": "<volatile>",
+         "usage": null
+        }
+       }
+      },
+      "frequency_khz": null,
+      "frequency_ticks": null,
+      "idle_rejections": {},
+      "online": null,
+      "runtime_pm": {},
+      "scheduler": {}
+     },
+     "idle_policy": null,
+     "kernel_pm": null,
+     "monotonic_s": "<volatile>",
+     "radios": {
+      "rfkill0": {
+       "blocked": "0",
+       "type": "wlan"
+      }
+     },
+     "schema": 1,
+     "shutdown": null,
+     "sleep": {
+      "boot_id": "boot-a",
+      "kernel_completed": true,
+      "reason": "radio_power_down",
+      "request_boot_id": "boot-a",
+      "same_boot": true,
+      "schema": "org.y2linux.sleep/v1",
+      "state": "restore_failed",
+      "wake_reason": "power"
+     },
+     "state": "Suspend",
+     "suspend": {
+      "cycles": null,
+      "error": "radio_power_down",
+      "first_entry": null,
+      "maintenance_wakes": null,
+      "mode": null,
+      "reason": "radio_power_down",
+      "resume": null,
+      "stage": "product_failure",
+      "suspended_seconds": null
+     },
+     "usb": {},
+     "usb_net": {
+      "controller": {},
+      "gadget_udc": null,
+      "out_path": {},
+      "processes": {
+       "dropbear": false,
+       "umtprd": false
+      },
+      "transfer": null,
+      "udc": {},
+      "usb0": {
+       "carrier": null,
+       "flags": null,
+       "ipv4": [],
+       "operstate": null,
+       "statistics": {
+        "rx_bytes": null,
+        "rx_dropped": null,
+        "rx_errors": null,
+        "rx_packets": null,
+        "tx_bytes": null,
+        "tx_dropped": null,
+        "tx_errors": null,
+        "tx_packets": null
+       }
+      }
+     },
+     "wall_time": "<volatile>"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/sleep-diagnostics.jsonl": {
+    "content": {
+     "boot_id": "boot-a",
+     "boottime_s": "<volatile>",
+     "build_id": null,
+     "features": {
+      "deep_audio_entries": null,
+      "deep_idle_audio": "N",
+      "infra": null,
+      "lp_sel": null,
+      "panel_power_down": "N",
+      "panel_stock_suspend": "N",
+      "phy_savecurrent": {},
+      "pmic_sleep_state": null,
+      "spm": null,
+      "vgp2_idle_off": null,
+      "vproc_sleep": null,
+      "vproc_sleep_state": null,
+      "wheel_sleep": {}
+     },
+     "kernel_pm": null,
+     "kernel_tail": null,
+     "monotonic_s": "<volatile>",
+     "schema": 1,
+     "stage": "product_failure",
+     "usb_net": {
+      "controller": {},
+      "gadget_udc": null,
+      "out_path": {},
+      "processes": {
+       "dropbear": false,
+       "umtprd": false
+      },
+      "transfer": null,
+      "udc": {},
+      "usb0": {
+       "carrier": null,
+       "flags": null,
+       "ipv4": [],
+       "operstate": null,
+       "statistics": {
+        "rx_bytes": null,
+        "rx_dropped": null,
+        "rx_errors": null,
+        "rx_packets": null,
+        "tx_bytes": null,
+        "tx_dropped": null,
+        "tx_errors": null,
+        "tx_packets": null
+       }
+      }
+     },
+     "usb_reason": null,
+     "wall_time": "<volatile>"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/system/platform/suspend-last.json": {
+    "content": {
+     "current_boot_id": "boot-a",
+     "error": "radio_power_down",
+     "persistent_kernel": null,
+     "product": {
+      "boot_id": "boot-a",
+      "kernel_completed": true,
+      "reason": "radio_power_down",
+      "request_boot_id": "boot-a",
+      "same_boot": true,
+      "schema": "org.y2linux.sleep/v1",
+      "state": "restore_failed",
+      "wake_reason": "power"
+     },
+     "radio_restore": null,
+     "result": 1,
+     "stage": "product_failure",
+     "stages": [
+      {
+       "result": 1,
+       "stage": "product_failure",
+       "time": "<volatile>"
+      }
+     ],
+     "updated": "<volatile>",
+     "usb_restore": {
+      "controllers": {},
+      "udcs": {}
+     }
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

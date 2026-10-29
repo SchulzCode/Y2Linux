@@ -1,0 +1,95 @@
+{
+ "argv": [
+  "internal-media",
+  "setup",
+  "--confirm-serial",
+  "B2C1-0A7F"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk0p8"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "umount",
+    "/run/y2/old-storage"
+   ],
+   "timeout": 10.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "boot_id": "boot-a",
+  "reason": "old_storage_busy",
+  "schema": 1,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/data/system/internal-media-kept": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/data/system/internal-media-kept/Music": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/system/internal-media-kept/Music/a.mp3": {
+    "content": [
+     "aaaa"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/data/system/internal-media-kept/Notes": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/system/internal-media-kept/Notes/b.txt": {
+    "content": [
+     "bbbbb"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/data/system/internal-media-setup.json": {
+    "content": {
+     "bytes": 9,
+     "device": "/dev/mmcblk0p8",
+     "files": 2,
+     "phase": "formatting",
+     "schema": 1,
+     "serial": "B2C1-0A7F",
+     "size": "11460608",
+     "start": "3742720"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/internal-media-setup.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "reason": "old_storage_busy",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/run/y2/internal-media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,14 @@
+{
+ "argv": [
+  "media",
+  "verify"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

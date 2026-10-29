@@ -1,0 +1,20 @@
+{
+ "argv": [
+  "sleep",
+  "request"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {
+   "/run/y2/suspend.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

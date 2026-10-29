@@ -1,16 +1,13 @@
-"""Differential cases of port group `reports` (see tests/platform_cases/__init__.py): report (every action),
+"""Golden cases of port group `reports` (see tests/platform_cases/__init__.py): report (every action),
 reset (plan, execute, resume, purge), export-state, export-diagnostics.
 
-The report upload goes through `curl` in Rust (a fixture command below a fixture root); the Python side's
-urllib request is turned into the same command by `fixture_curl` (Y2_LAUNCHER_PATCH), which answers urllib
-from the command's output as curl's answer is read in Rust (upload.rs `answer`), so the real `_post` and
-`_upload_queue` run unchanged.
+The report upload goes through `curl` (a fixture command below a fixture root: `http` is its answer, as
+upload.rs `answer` reads it).
 
-EXTRA_CASES (tests/test_platform_reports.py runs them) are those the shared checks cannot see as equal: a
-report or export that stays on disk (a random report ID and wall-clock time in its name, a random scrubbing
-key in its tokens, miniz's deflate instead of zlib's), and a reset executed on the plan made in the same root
-(a target's identity is its inode). The test normalises them: archives are decompressed and compared by
-member, tokens and IDs replaced.
+EXTRA_CASES (tests/test_platform_reports.py runs them): a report or export that stays on disk (a random report
+ID and wall-clock time in its name, a random scrubbing key in its tokens, deflate bytes), and a reset executed on
+the plan made in the same root (a target's identity is its inode). The test normalises them: archives are
+decompressed and recorded by member, tokens and IDs replaced.
 """
 import gzip
 import hashlib
@@ -27,7 +24,6 @@ HEX32 = (r'\b[0-9a-f]{32}\b', '<hex32>')
 HEX64 = (r'\b[0-9a-f]{64}\b', '<hex64>')
 STAMP = (r'\d{8}T\d{6}Z', '<stamp>')
 LOCAL = (r'y2linux-report-\d{8}-\d{6}', 'y2linux-report-<stamp>')
-PATCH = {'Y2_LAUNCHER_PATCH': 'platform_cases.reports:fixture_curl'}
 STATE = '/data/system/platform/reports.json'
 QUEUE = '/data/system/platform/reports'
 INSTALL = '6f1c3b2a-9d4e-4f5a-8b7c-0d1e2f3a4b5c'
@@ -107,7 +103,7 @@ ENABLED = {STATE: state()}
 READY = {**KEY, **ENABLED, '/run/y2/network.json': json.dumps({'state': 'Online', 'boot_id': 'boot-a'}),
          '/run/y2/time.json': anchor(), '/run/y2/power.json': json.dumps({'boot_id': 'boot-a',
                                                                           'battery': {'charging': True}})}
-UPLOAD = {'ported': True, 'env': PATCH, 'volatile': VOLATILE, 'patterns': [UUID, STAMP]}
+UPLOAD = {'volatile': VOLATILE, 'patterns': [UUID, STAMP]}
 SAVED = {**UPLOAD, 'archives': True, 'patterns': [UUID, STAMP, LOCAL]}
 
 # A verified /data and Y2Media (devices 259:5 and 259:6, whose sysfs links fixture() makes), an SD card (259:7).
@@ -126,7 +122,7 @@ SETTINGS = {'/data/reborn/state/session.json': SESSION}
 DEFAULTS = answer(['/usr/bin/reborn', '--default-settings'],
                   json.dumps({'session_schema': 3, 'settings': {'volume': 5}}))
 PLAN_ID = '1234567890abcdef1234567890abcdef'
-RESET = {'ported': True, 'volatile': ['expires_monotonic_s', 'inode', 'mtime_ns'], 'patterns': [HEX32, HEX64]}
+RESET = {'volatile': ['expires_monotonic_s', 'inode', 'mtime_ns'], 'patterns': [HEX32, HEX64]}
 SESSION_PATH = '/data/reborn/state/session.json'
 TAINTED = {**ENABLED, '/proc/sys/kernel/tainted': '1\n'}
 
@@ -187,88 +183,88 @@ FIRED_COMMANDS = [answer(HEALTH, json.dumps({'subsystems': {'audio': {'state': '
 
 CASES = [
     # report status / enable / disable / new-id
-    ('report-status', ['report', 'status'], {'ported': True}),
-    ('report-status-everything', ['report', 'status'], {'ported': True, 'files': {
+    ('report-status', ['report', 'status'], {}),
+    ('report-status-everything', ['report', 'status'], {'files': {
         **KEY, STATE: state(last={'report_id': 'r', 'state': 'queued'}),
         '/proc/self/mountinfo': MOUNTS + INTERNAL + SD, '/media/internal/music/.keep': '',
         '/media/sd/.keep': '', '/run/y2/media-mount.json': json.dumps(
             {'boot_id': 'boot-a', 'mount_id': 32, 'read_only': 'protected'})}}),
-    ('report-status-sd-unprotected', ['report', 'status'], {'ported': True, 'files': {
+    ('report-status-sd-unprotected', ['report', 'status'], {'files': {
         '/proc/self/mountinfo': MOUNTS + SD, '/media/sd/.keep': '',
         '/run/y2/media-mount.json': json.dumps({'boot_id': 'boot-a', 'mount_id': 32, 'read_only': 'filesystem_errors'})}}),
-    ('report-status-bad-key', ['report', 'status'], {'ported': True, 'files': {
+    ('report-status-bad-key', ['report', 'status'], {'files': {
         '/usr/share/y2linux/report-upload.json': '{"upload_key": "short"}', STATE: '[1, 2]'}}),
-    ('report-enable', ['report', 'enable'], {'ported': True, 'patterns': [UUID]}),
-    ('report-enable-again', ['report', 'enable'], {'ported': True, 'files': ENABLED}),
-    ('report-enable-marks-seen', ['report', 'enable'], {'ported': True, 'patterns': [UUID], 'commands': FIRED_COMMANDS,
+    ('report-enable', ['report', 'enable'], {'patterns': [UUID]}),
+    ('report-enable-again', ['report', 'enable'], {'files': ENABLED}),
+    ('report-enable-marks-seen', ['report', 'enable'], {'patterns': [UUID], 'commands': FIRED_COMMANDS,
                                                        'files': {**FIRED, STATE: state(enabled=False)}}),
-    ('report-disable', ['report', 'disable'], {'ported': True, 'files': ENABLED}),
-    ('report-new-id', ['report', 'new-id'], {'ported': True, 'patterns': [UUID], 'files': ENABLED}),
-    ('report-new-id-fresh', ['report', 'new-id', '--to', 'sd'], {'ported': True, 'patterns': [UUID]}),
+    ('report-disable', ['report', 'disable'], {'files': ENABLED}),
+    ('report-new-id', ['report', 'new-id'], {'patterns': [UUID], 'files': ENABLED}),
+    ('report-new-id-fresh', ['report', 'new-id', '--to', 'sd'], {'patterns': [UUID]}),
     # report check / work
-    ('report-check-disabled', ['report', 'check'], {'ported': True}),
-    ('report-check-nothing', ['report', 'check', '--topic', 'wifi'], {'ported': True, 'files': ENABLED}),
-    ('report-check-daily-limit', ['report', 'check'], {'ported': True, 'commands': FIRED_COMMANDS, 'files': {
+    ('report-check-disabled', ['report', 'check'], {}),
+    ('report-check-nothing', ['report', 'check', '--topic', 'wifi'], {'files': ENABLED}),
+    ('report-check-daily-limit', ['report', 'check'], {'commands': FIRED_COMMANDS, 'files': {
         **FIRED, STATE: state(daily={DAY: 5, '2020-01-01': 2})}}),
-    ('report-check-reported', ['report', 'check'], {'ported': True, 'files': {
+    ('report-check-reported', ['report', 'check'], {'files': {
         **ENABLED, '/proc/sys/kernel/tainted': '1\n', STATE: state(
             daily={DAY: 1}, boot_triggers={'boot-a': ['kernel_warning'], 'boot-old': ['manual']})}}),
-    ('report-check-seen', ['report', 'check'], {'ported': True, 'commands': FIRED_COMMANDS, 'files': {
+    ('report-check-seen', ['report', 'check'], {'commands': FIRED_COMMANDS, 'files': {
         **FIRED, STATE: state(seen={'pstore_crash': '|12.345678|', 'tainted': 'boot-a:512', 'unclean': 'boot-z',
                                     'reborn_failed': 'boot-a:audio', 'update': '11000:RolledBack',
                                     'suspend_fail': 'boot-a:3:1:0', 'conn_error': 'boot-a:-110', 'dark': 'boot-a',
                                     'storage': 'boot-a:True:2', 'reborn_panic': hashlib.sha256(json.dumps(
                                         ['1.0.0-fixture', 'a.rs:1', 'boom']).encode()).hexdigest()[:16]})}}),
-    ('report-check-old-crash-key', ['report', 'check'], {'ported': True, 'files': {
+    ('report-check-old-crash-key', ['report', 'check'], {'files': {
         **ENABLED, '/sys/fs/pstore/console-ramoops-0': 'Kernel panic\n', STATE: state(seen={'pstore': 'x'}),
         '/etc/y2linux/release.json': '{"reborn_version": "1.0"}',
         '/data/reborn/logs/panic-last.json': json.dumps({'version': '0.9', 'location': 'x', 'message': 'y'})}}),
-    ('report-check-routine-sleep', ['report', 'check'], {'ported': True, 'files': {
+    ('report-check-routine-sleep', ['report', 'check'], {'files': {
         **ENABLED, '/sys/power/suspend_stats/fail': '4\n', '/sys/power/suspend_stats/last_failed_errno': '-16\n',
         '/run/y2/application-ready.json': '{"boot_id": "boot-a", "first_frame": true}'},
         'commands': [answer(DMESG, 'DSI register reads still lag')]}),
     # Shapes of reports.json and session.json Python reads as it finds them: an error, a traceback (an
     # AttributeError, TypeError or KeyError: nothing on stdout, exit 1) or nothing at all when the shape
     # is never used, after the same changes (check's seen markers are saved before the queue raises).
-    ('report-check-bad-daily', ['report', 'check'], {'ported': True, 'files': {STATE: state(daily=[])}}),
-    ('report-check-bad-queue', ['report', 'check'], {'ported': True, 'files': {
+    ('report-check-bad-daily', ['report', 'check'], {'files': {STATE: state(daily=[])}}),
+    ('report-check-bad-queue', ['report', 'check'], {'files': {
         **ENABLED, SESSION_PATH: '{"model": {"queue": 5}}'}}),
-    ('report-check-fired-bad-daily', ['report', 'check'], {'ported': True, 'commands': FIRED_COMMANDS, 'files': {
+    ('report-check-fired-bad-daily', ['report', 'check'], {'commands': FIRED_COMMANDS, 'files': {
         **FIRED, STATE: state(daily=[])}}),
-    ('report-check-fired-reported-text', ['report', 'check'], {'ported': True, 'files': {
+    ('report-check-fired-reported-text', ['report', 'check'], {'files': {
         **TAINTED, STATE: state(boot_triggers={'boot-a': 'kernel_warning,x'})}}),
-    ('report-check-fired-reported-number', ['report', 'check'], {'ported': True, 'files': {
+    ('report-check-fired-reported-number', ['report', 'check'], {'files': {
         **TAINTED, STATE: state(boot_triggers={'boot-a': 7})}}),
-    ('report-check-fired-bad-triggers', ['report', 'check'], {'ported': True, 'files': {
+    ('report-check-fired-bad-triggers', ['report', 'check'], {'files': {
         **TAINTED, STATE: state(boot_triggers=[])}}),
-    ('report-check-fired-bad-seen', ['report', 'check'], {'ported': True, 'commands': FIRED_COMMANDS, 'files': {
+    ('report-check-fired-bad-seen', ['report', 'check'], {'commands': FIRED_COMMANDS, 'files': {
         **FIRED, STATE: state(seen=[])}}),
-    ('report-check-bad-seen-quiet', ['report', 'check'], {'ported': True, 'files': {**ENABLED, STATE: state(seen='x')}}),
-    ('report-check-fired-settings-text', ['report', 'check'], {'ported': True, 'files': {
+    ('report-check-bad-seen-quiet', ['report', 'check'], {'files': {**ENABLED, STATE: state(seen='x')}}),
+    ('report-check-fired-settings-text', ['report', 'check'], {'files': {
         **TAINTED, SESSION_PATH: '{"model": {"settings": "ab"}}'}}),
-    ('report-check-fired-settings-number', ['report', 'check'], {'ported': True, 'files': {
+    ('report-check-fired-settings-number', ['report', 'check'], {'files': {
         **TAINTED, SESSION_PATH: '{"model": {"settings": 3}}'}}),
-    ('report-check-health-list', ['report', 'check'], {'ported': True, 'files': ENABLED, 'commands': [
+    ('report-check-health-list', ['report', 'check'], {'files': ENABLED, 'commands': [
         answer(HEALTH, '[1]')]}),
-    ('report-enable-bad-seen', ['report', 'enable'], {'ported': True, 'patterns': [UUID], 'commands': FIRED_COMMANDS,
+    ('report-enable-bad-seen', ['report', 'enable'], {'patterns': [UUID], 'commands': FIRED_COMMANDS,
                                                     'files': {**FIRED, STATE: state(enabled=False, seen=[])}}),
-    ('report-send-bad-daily', ['report', 'send'], {'ported': True, 'env': PATCH, 'files': {
+    ('report-send-bad-daily', ['report', 'send'], {'files': {
         **READY, STATE: state(daily=5)}}),
     ('report-work', ['report', 'work'], {**UPLOAD, 'files': {**READY, '/run/y2/network.json': None}}),
-    ('report-work-disabled', ['report', 'work'], {'ported': True, 'env': PATCH}),
+    ('report-work-disabled', ['report', 'work'], {}),
     # report upload: why it waits
-    ('report-upload-no-key', ['report', 'upload'], {'ported': True}),
-    ('report-upload-not-enabled', ['report', 'upload'], {'ported': True, 'files': KEY}),
-    ('report-upload-offline', ['report', 'upload'], {'ported': True, 'files': {
+    ('report-upload-no-key', ['report', 'upload'], {}),
+    ('report-upload-not-enabled', ['report', 'upload'], {'files': KEY}),
+    ('report-upload-offline', ['report', 'upload'], {'files': {
         **READY, '/run/y2/network.json': json.dumps({'state': 'Online', 'boot_id': 'boot-old'})}}),
-    ('report-upload-no-clock', ['report', 'upload'], {'ported': True, 'files': {**READY, '/run/y2/time.json': None}}),
-    ('report-upload-updating', ['report', 'upload'], {'ported': True, 'files': {
+    ('report-upload-no-clock', ['report', 'upload'], {'files': {**READY, '/run/y2/time.json': None}}),
+    ('report-upload-updating', ['report', 'upload'], {'files': {
         **READY, '/data/updates/state.json': '{"state": "Queued"}'}}),
-    ('report-upload-maintenance', ['report', 'upload'], {'ported': True, 'files': {
+    ('report-upload-maintenance', ['report', 'upload'], {'files': {
         **READY, '/data/system/platform/maintenance-pending': 'x'}}),
-    ('report-upload-battery-low', ['report', 'upload'], {'ported': True, 'files': {
+    ('report-upload-battery-low', ['report', 'upload'], {'files': {
         **READY, '/run/y2/power.json': json.dumps({'boot_id': 'boot-a', 'battery': {'percent': 14.0}})}}),
-    ('report-upload-battery-other-boot', ['report', 'upload'], {'ported': True, 'files': {
+    ('report-upload-battery-other-boot', ['report', 'upload'], {'files': {
         **READY, '/run/y2/power.json': json.dumps({'boot_id': 'boot-old', 'battery': {'charging': True}})}}),
     # report upload: the receiver's answers
     ('report-upload-sent', ['report', 'upload'], {**UPLOAD, 'files': {
@@ -292,22 +288,22 @@ CASES = [
     ('report-upload-certificate', ['report', 'upload'], {**UPLOAD, 'files': READY, 'commands': [http(0, '', 60, 'x')]}),
     ('report-upload-bad-attempts', ['report', 'upload'], {**UPLOAD, 'files': {
         **READY, STATE: state(uploads={A: {'attempts': 'x'}})}, 'commands': [http(503, 'oops')]}),
-    ('report-upload-bad-battery', ['report', 'upload'], {'ported': True, 'files': {
+    ('report-upload-bad-battery', ['report', 'upload'], {'files': {
         **READY, '/run/y2/power.json': json.dumps({'boot_id': 'boot-a', 'battery': 'full'})}}),
-    ('report-work-bad-battery', ['report', 'work'], {'ported': True, 'env': PATCH, 'files': {
+    ('report-work-bad-battery', ['report', 'work'], {'files': {
         **READY, '/run/y2/power.json': json.dumps({'boot_id': 'boot-a', 'battery': [1]})}}),
     ('report-upload-not-due', ['report', 'upload'], {**UPLOAD, 'files': {
         **READY, STATE: state(uploads={A: {'attempts': 1, 'next': 9e12}, B: {'attempts': 5, 'next': 9e12}})},
         'commands': [http(201)]}),
     # report send / save
-    ('report-send-not-enabled', ['report', 'send', '--topic', 'sound'], {'ported': True, 'env': PATCH}),
-    ('report-save-needs-to', ['report', 'save'], {'ported': True}),
-    ('report-save-not-mounted', ['report', 'save', '--to', 'internal', '--topic', 'battery'], {'ported': True}),
-    ('report-save-sd-not-mounted', ['report', 'save', '--to', 'sd'], {'ported': True, 'files': {
+    ('report-send-not-enabled', ['report', 'send', '--topic', 'sound'], {}),
+    ('report-save-needs-to', ['report', 'save'], {}),
+    ('report-save-not-mounted', ['report', 'save', '--to', 'internal', '--topic', 'battery'], {}),
+    ('report-save-sd-not-mounted', ['report', 'save', '--to', 'sd'], {'files': {
         '/proc/self/mountinfo': MOUNTS + SD}}),
     # reset plan
-    ('reset-plan-no-scope', ['reset', 'plan'], {'ported': True}),
-    ('reset-plan-unverified', ['reset', 'plan', '--scope', 'settings'], {'ported': True}),
+    ('reset-plan-no-scope', ['reset', 'plan'], {}),
+    ('reset-plan-unverified', ['reset', 'plan', '--scope', 'settings'], {}),
     ('reset-plan-settings', ['reset', 'plan', '--scope', 'settings'], {**RESET, 'commands': BLKID, 'files': {
         **DATA, **SETTINGS, '/data/reborn/state/scrobbles.jsonl': '{}\n'}}),
     ('reset-plan-full-user', ['reset', 'plan', '--scope', 'full-user', '--confirm', 'x'], {
@@ -339,34 +335,34 @@ CASES = [
     ('reset-plan-unsafe', ['reset', 'plan', '--scope', 'caches'], {**RESET, 'commands': BLKID, 'files': {
         **DATA, '/data/cache': 'a file is fine'}}),
     # reset execute / resume
-    ('reset-execute-no-confirm', ['reset', 'execute'], {'ported': True, 'files': plan_files(CACHES)}),
-    ('reset-execute-wrong-confirm', ['reset', 'execute', '--confirm', 'f' * 64], {'ported': True,
+    ('reset-execute-no-confirm', ['reset', 'execute'], {'files': plan_files(CACHES)}),
+    ('reset-execute-wrong-confirm', ['reset', 'execute', '--confirm', 'f' * 64], {
                                                                                'files': plan_files(CACHES)}),
     ('reset-execute-changed', ['reset', 'execute', '--confirm', CACHES['confirmation']], {
-        'ported': True, 'files': plan_files(plan(tamper={'scope': 'full-user'}))}),
+        'files': plan_files(plan(tamper={'scope': 'full-user'}))}),
     ('reset-execute-stale', ['reset', 'execute', '--confirm', plan(boot_id='boot-z')['confirmation']], {
-        'ported': True, 'files': plan_files(plan(boot_id='boot-z'))}),
+        'files': plan_files(plan(boot_id='boot-z'))}),
     ('reset-execute-full-user', ['reset', 'execute', '--confirm', plan(scope='full-user')['confirmation']], {
-        'ported': True, 'files': plan_files(plan(scope='full-user'))}),
+        'files': plan_files(plan(scope='full-user'))}),
     ('reset-execute-expired', ['reset', 'execute', '--confirm', plan(expires_monotonic_s=1.5)['confirmation']], {
-        'ported': True, 'files': plan_files(plan(expires_monotonic_s=1.5))}),
+        'files': plan_files(plan(expires_monotonic_s=1.5))}),
     ('reset-execute-unverified', ['reset', 'execute', '--confirm', CACHES['confirmation']], {
-        'ported': True, 'files': plan_files(CACHES)}),
+        'files': plan_files(CACHES)}),
     ('reset-execute-generation', ['reset', 'execute', '--confirm', plan(data_generation='x')['confirmation']], {
-        'ported': True, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(data_generation='x'))}}),
+        'commands': BLKID, 'files': {**DATA, **plan_files(plan(data_generation='x'))}}),
     ('reset-execute-null-id-wrong', ['reset', 'execute', '--confirm', 'f' * 64], {
-        'ported': True, 'files': plan_files(plan(id=None))}),
+        'files': plan_files(plan(id=None))}),
     ('reset-execute-no-generation', ['reset', 'execute', '--confirm', plan(data_generation=None)['confirmation']], {
-        'ported': True, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(data_generation=None))}}),
+        'commands': BLKID, 'files': {**DATA, **plan_files(plan(data_generation=None))}}),
     ('reset-execute-no-generation-key', ['reset', 'execute', '--confirm', plan_without('data_generation')['confirmation']],
-     {'ported': True, 'commands': BLKID, 'files': {**DATA, **plan_files(plan_without('data_generation'))}}),
+     {'commands': BLKID, 'files': {**DATA, **plan_files(plan_without('data_generation'))}}),
     ('reset-execute-text-targets', ['reset', 'execute', '--confirm', plan(targets='ab')['confirmation']], {
-        'ported': True, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(targets='ab'))}}),
+        'commands': BLKID, 'files': {**DATA, **plan_files(plan(targets='ab'))}}),
     ('reset-execute-number-path', ['reset', 'execute', '--confirm', plan(targets=[{'path': 5, 'identity': None}])[
-        'confirmation']], {'ported': True, 'commands': BLKID, 'files': {
+        'confirmation']], {'commands': BLKID, 'files': {
             **DATA, **plan_files(plan(targets=[{'path': 5, 'identity': None}]))}}),
     ('reset-execute-no-identity', ['reset', 'execute', '--confirm', plan(targets=[{'path': 'cache'}])['confirmation']],
-     {'ported': True, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(targets=[{'path': 'cache'}]))}}),
+     {'commands': BLKID, 'files': {**DATA, **plan_files(plan(targets=[{'path': 'cache'}]))}}),
     # A resume reads the targets only after the pending flag and the Applying record are written.
     ('reset-resume-no-targets', ['reset', 'resume', '--confirm', plan(targets=None)['confirmation']], {
         **RESET, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(targets=None))}}),
@@ -376,59 +372,59 @@ CASES = [
     ('reset-execute-no-preserved', ['reset', 'execute', '--confirm', plan_without('preserved')['confirmation']], {
         **RESET, 'commands': BLKID, 'files': {**DATA, **plan_files(plan_without('preserved'))}}),
     ('reset-execute-caches', ['reset', 'execute', '--confirm', CACHES['confirmation']], {
-        'ported': True, 'commands': BLKID, 'files': {**DATA, **plan_files(CACHES)}}),
+        'commands': BLKID, 'files': {**DATA, **plan_files(CACHES)}}),
     ('reset-execute-target-changed', ['reset', 'execute', '--confirm', SETTINGS_PLAN['confirmation']], {
-        'ported': True, 'commands': BLKID, 'files': {**DATA, **SETTINGS, **plan_files(SETTINGS_PLAN)}}),
+        'commands': BLKID, 'files': {**DATA, **SETTINGS, **plan_files(SETTINGS_PLAN)}}),
     ('reset-resume-settings', ['reset', 'resume', '--confirm', SETTINGS_PLAN['confirmation']], {
-        'ported': True, 'commands': BLKID, 'files': {
+        'commands': BLKID, 'files': {
             **DATA, **SETTINGS, **plan_files(SETTINGS_PLAN), '/data/reset-quarantine/' + PLAN_ID + '/settings-result.json':
             json.dumps({'sha256': hashlib.sha256(SESSION.encode()).hexdigest()})}}),
     ('reset-resume-settings-changed', ['reset', 'resume', '--confirm', SETTINGS_PLAN['confirmation']], {
-        'ported': True, 'commands': BLKID, 'files': {**DATA, **SETTINGS, **plan_files(SETTINGS_PLAN)}}),
+        'commands': BLKID, 'files': {**DATA, **SETTINGS, **plan_files(SETTINGS_PLAN)}}),
     ('reset-resume-other-volume', ['reset', 'resume', '--confirm', plan(data_uuid=None)['confirmation']], {
-        'ported': True, 'commands': BLKID, 'files': {**DATA, **plan_files(plan(data_uuid=None))}}),
+        'commands': BLKID, 'files': {**DATA, **plan_files(plan(data_uuid=None))}}),
     ('reset-resume-finished', ['reset', 'resume', '--confirm', CACHES['confirmation']], {
-        'ported': True, 'commands': BLKID, 'files': {
+        'commands': BLKID, 'files': {
             **DATA, **plan_files(CACHES), '/data/system/platform/maintenance-pending': 'x',
             '/data/system/platform/maintenance-state.json': json.dumps({'id': PLAN_ID, 'state': 'Complete', 'x': 1})}}),
     # reset purge
-    ('reset-purge-no-id', ['reset', 'purge'], {'ported': True}),
-    ('reset-purge-unverified', ['reset', 'purge', '--id', PLAN_ID], {'ported': True}),
+    ('reset-purge-no-id', ['reset', 'purge'], {}),
+    ('reset-purge-unverified', ['reset', 'purge', '--id', PLAN_ID], {}),
     ('reset-purge-no-quarantine', ['reset', 'purge', '--id', PLAN_ID, '--confirm', 'x'], {
-        'ported': True, 'commands': BLKID, 'files': DATA}),
+        'commands': BLKID, 'files': DATA}),
     ('reset-purge-wrong-confirm', ['reset', 'purge', '--id', PLAN_ID, '--confirm', 'x'], {
-        'ported': True, 'commands': BLKID, 'files': PURGE}),
+        'commands': BLKID, 'files': PURGE}),
     ('reset-purge', ['reset', 'purge', '--id', PLAN_ID, '--confirm', 'c' * 64], {
-        'ported': True, 'commands': BLKID, 'files': PURGE}),
+        'commands': BLKID, 'files': PURGE}),
     # json.loads's JSONDecodeError text as the failure; a record that is no dict: a traceback.
     ('reset-purge-bad-record', ['reset', 'purge', '--id', PLAN_ID, '--confirm', 'x'], {
-        'ported': True, 'commands': BLKID, 'files': {**PURGE, QUARANTINE + '/record.json': '{'}}),
+        'commands': BLKID, 'files': {**PURGE, QUARANTINE + '/record.json': '{'}}),
     ('reset-purge-list-record', ['reset', 'purge', '--id', PLAN_ID, '--confirm', 'x'], {
-        'ported': True, 'commands': BLKID, 'files': {**PURGE, QUARANTINE + '/record.json': '[1]'}}),
+        'commands': BLKID, 'files': {**PURGE, QUARANTINE + '/record.json': '[1]'}}),
     # export-state / export-diagnostics
-    ('export-state-unverified', ['export-state', '--include-database'], {'ported': True}),
-    ('export-diagnostics', ['export-diagnostics'], {'ported': True}),
-    ('export-diagnostics-limit', ['export-diagnostics'], {'ported': True, 'commands': BLKID, 'files': {
+    ('export-state-unverified', ['export-state', '--include-database'], {}),
+    ('export-diagnostics', ['export-diagnostics'], {}),
+    ('export-diagnostics-limit', ['export-diagnostics'], {'commands': BLKID, 'files': {
         **DATA, **{'/data/exports/y2-diagnostics-%d-x.tar.gz' % i: '' for i in range(8)}}}),
-    ('export-diagnostics-not-a-directory', ['export-diagnostics'], {'ported': True, 'commands': BLKID, 'files': {
+    ('export-diagnostics-not-a-directory', ['export-diagnostics'], {'commands': BLKID, 'files': {
         **DATA, '/data/exports': 'a file'}}),
 ]
 
 # Cases tests/test_platform_reports.py runs with archive normalisation (`archives`) or a plan made first
 # (`plan_first`: the scope) or a library database (`library`) or retained archives and a large log (`retained`) made first.
 EXTRA_CASES = [
-    # Python's traceback parses its source: the shared host-access check (no fixture commands) sees '<unknown>'.
+    # An expiry that is no number: Python's TypeError, a traceback (exit 1, nothing on stdout).
     ('reset-execute-plan-no-expiry', ['reset', 'execute', '--confirm', plan(expires_monotonic_s='x')['confirmation']],
-     {'ported': True, 'files': plan_files(plan(expires_monotonic_s='x'))}),
+     {'files': plan_files(plan(expires_monotonic_s='x'))}),
     ('reset-execute-plan-missing-expiry', ['reset', 'execute', '--confirm', plan_without('expires_monotonic_s')[
-        'confirmation']], {'ported': True, 'files': plan_files(plan_without('expires_monotonic_s'))}),
+        'confirmation']], {'files': plan_files(plan_without('expires_monotonic_s'))}),
     ('reset-execute-number-id', ['reset', 'execute', '--confirm', plan(id=5)['confirmation']],
-     {'ported': True, 'files': plan_files(plan(id=5))}),
-    ('report-check-fired-odd-count', ['report', 'check'], {'ported': True, 'commands': FIRED_COMMANDS, 'files': {
+     {'files': plan_files(plan(id=5))}),
+    ('report-check-fired-odd-count', ['report', 'check'], {'commands': FIRED_COMMANDS, 'files': {
         **FIRED, STATE: state(daily={DAY: 'x'})}}),
-    ('report-check-seen-late', ['report', 'check'], {'ported': True, 'files': {
+    ('report-check-seen-late', ['report', 'check'], {'files': {
         **ENABLED, '/sys/fs/ext4/mmcblk0p9/errors_count': '2\n', STATE: state(seen=None)}}),
-    ('report-check-fired-queue-dict', ['report', 'check'], {'ported': True, 'files': {
+    ('report-check-fired-queue-dict', ['report', 'check'], {'files': {
         **TAINTED, SESSION_PATH: '{"model": {"queue": {"a": 1}}}'}}),
     ('report-upload-bad-next', ['report', 'upload'], {**UPLOAD, 'files': {
         **READY, STATE: state(uploads={A: {'next': 'soon'}})}}),
@@ -470,22 +466,22 @@ EXTRA_CASES = [
             {'boot_id': 'boot-a', 'mount_id': 32, 'read_only': 'protected'})},
         'commands': [answer(['mount', '-o', 'remount,rw', '/media/sd'])]}),
     ('export-state', ['export-state', '--include-database', '--include-network'], {
-        'ported': True, 'archives': True, 'library': True, 'commands': BLKID, 'volatile': ['wall_timestamp', 'monotonic_ns', 'bytes'],
+        'archives': True, 'library': True, 'commands': BLKID, 'volatile': ['wall_timestamp', 'monotonic_ns', 'bytes'],
         'patterns': [HEX32, HEX64], 'files': {**DATA, **SETTINGS, '/data/network/wpa_supplicant.conf': 'network={}\n'}}),
     # The tester export: the snapshot and health projected, log tails as event classes, dmesg unanswered.
     ('export-diagnostics-complete', ['export-diagnostics'], {
-        'ported': True, 'archives': True, 'commands': BLKID, 'volatile': ['bytes'],
+        'archives': True, 'commands': BLKID, 'volatile': ['bytes'],
         'patterns': [(r'y2-diagnostics-\d+-[0-9a-f]{32}', 'y2-diagnostics-<id>'), HEX64], 'files': {
             **DATA, '/data/logs/system.log': 'msdc0: cmd timeout error=-110\njoined Home at 192.168.1.40\n',
             '/data/reborn/logs/reborn.log': 'bluetooth reconnect failed ret: 5\n'}}),
-    ('export-state-plain', ['export-state'], {'ported': True, 'archives': True, 'commands': BLKID,
+    ('export-state-plain', ['export-state'], {'archives': True, 'commands': BLKID,
                                               'volatile': ['wall_timestamp', 'monotonic_ns', 'bytes'],
                                               'patterns': [HEX32, HEX64], 'files': DATA}),
     ('reset-execute-settings', ['reset', 'execute'], {**RESET, 'plan_first': 'settings', 'commands': BLKID + [DEFAULTS],
                                                       'files': {**DATA, **SETTINGS, '/data/reborn/state/lastfm.json': '{}'}}),
     ('reset-execute-network', ['reset', 'execute'], {**RESET, 'plan_first': 'network', 'commands': BLKID,
                                                      'files': {**DATA, '/data/network/wpa_supplicant.conf': 'x'}}),
-    ('reset-execute-full-user', ['reset', 'execute', '--erase-user-music'], {
+    ('reset-execute-full-user-erase-music', ['reset', 'execute', '--erase-user-music'], {
         **RESET, 'plan_first': 'full-user', 'commands': BLKID, 'files': {
             **DATA, '/data/music/a.flac': 'x', '/data/bluetooth/bluez/AA/info': 'Name=x\n', '/data/logs/a': 'x'}}),
     ('reset-execute-defaults-unavailable', ['reset', 'execute'], {**RESET, 'plan_first': 'settings',
@@ -511,62 +507,3 @@ def fixture(root):
         path = queue / name
         path.write_bytes(data)
         path.chmod(0o600)
-
-
-def fixture_curl():
-    """The Python side's upload as the Rust one: urllib's request becomes the same `curl` command through
-    ctx.command (a fixture answer), whose output is read into urllib's answer as upload.rs reads curl's."""
-    import urllib.error
-    from y2_platform import report
-
-    class Response:
-        def __init__(self, status, body):
-            self.status, self.body = status, body
-
-        def read(self, size=-1):
-            return self.body[:size]
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_):
-            return False
-
-    class Opener:
-        def __init__(self, ctx):
-            self.ctx = ctx
-
-        def open(self, request, timeout=None):
-            # The headers as urllib sends them (do_open title-cases every name).
-            argv = curl([(name.title(), value) for name, value in request.header_items()])
-            result = self.ctx.command(argv, timeout=600.0, limit=65536, failure_output=True)
-            output = result.get('output') or ''
-            body, _, last = output.rpartition('\n') if '\n' in output else ('', '', output)
-            fields = last.split(' ', 2)
-            if len(fields) >= 2 and len(fields[0]) == 3 and fields[0].isdigit() and fields[1].lstrip('-').isdigit():
-                code, exit_code, message = int(fields[0]), int(fields[1]), (fields[2] if len(fields) > 2 else '')
-                if code:
-                    data = body.encode()[:4096]
-                    if 200 <= code < 300:
-                        return Response(code, data)
-                    raise urllib.error.HTTPError(request.full_url, code, 'answer', {}, io.BytesIO(data))
-                lower = message.lower()
-                name = {6: 'gaierror', 28: 'TimeoutError', 35: 'SSLError', 60: 'SSLCertVerificationError',
-                        52: 'RemoteDisconnected'}.get(exit_code, 'OSError')
-                if exit_code == 7:
-                    name = ('ConnectionRefusedError' if 'refused' in lower else
-                            'TimeoutError' if 'timed out' in lower else 'OSError')
-                if exit_code in (55, 56) and 'reset' in lower:
-                    name = 'ConnectionResetError'
-                elif exit_code == 55 and 'broken pipe' in lower:
-                    name = 'BrokenPipeError'
-            else:
-                name = {'command_unavailable': 'FileNotFoundError',
-                        'command_timeout': 'TimeoutError'}.get(result.get('reason'), 'OSError')
-            raise urllib.error.URLError(type(name, (Exception,), {})())
-
-    original = report._upload_queue
-
-    def upload_queue(ctx, now, opener, key, progress=None, first=None):
-        return original(ctx, now, Opener(ctx), key, progress, first)
-    report._upload_queue = upload_queue

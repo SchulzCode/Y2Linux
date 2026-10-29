@@ -1,0 +1,52 @@
+{
+ "argv": [
+  "update",
+  "stage",
+  "--package",
+  "<repository>/tests/platform_cases/service_package"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "failure": "unsafe_staging_directory",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/data/updates/.stage.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/updates/download.json": {
+    "content": {
+     "failure": "unsafe_staging_directory",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/updates": {
+    "mode": "0o700",
+    "type": "dir"
+   }
+  },
+  "removed": []
+ }
+}

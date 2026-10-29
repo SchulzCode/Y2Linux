@@ -1,0 +1,33 @@
+{
+ "argv": [
+  "media",
+  "--help"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": [
+  "usage: main.py media [-h] [--holder {reborn,report,radiofw,usb}]",
+  "                     [--seconds SECONDS] [--release] [--json]",
+  "                     [--confirm-cid CONFIRM_CID]",
+  "                     {mount,unmount,check,status,reconcile,verify,format,grow,repair,write}",
+  "",
+  "positional arguments:",
+  "  {mount,unmount,check,status,reconcile,verify,format,grow,repair,write}",
+  "",
+  "options:",
+  "  -h, --help            show this help message and exit",
+  "  --holder {reborn,report,radiofw,usb}",
+  "                        write only: who holds the window",
+  "  --seconds SECONDS     write only: how long the card stays writable",
+  "  --release             write only: end the holder's window",
+  "  --json",
+  "  --confirm-cid CONFIRM_CID",
+  "                        format only: the CID shown by `media status`; formats",
+  "                        exactly that card"
+ ],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,77 @@
+{
+ "argv": [
+  "internal-media",
+  "provision",
+  "--confirm-serial",
+  "B2C1-0A7F"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-o",
+    "export",
+    "/dev/mmcblk0p8"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "mkfs.ext4",
+    "-F",
+    "-q",
+    "-L",
+    "Y2MEDIA",
+    "-U",
+    "79324c69-6e75-4801-8000-000000000103",
+    "-m",
+    "0",
+    "-J",
+    "size=64",
+    "-b",
+    "4096",
+    "-I",
+    "256",
+    "-i",
+    "16384",
+    "-O",
+    "none,has_journal,ext_attr,resize_inode,dir_index,orphan_file,filetype,extent,64bit,flex_bg,metadata_csum_seed,sparse_super,large_file,huge_file,dir_nlink,extra_isize,metadata_csum",
+    "-E",
+    "lazy_itable_init=1,lazy_journal_init=1,nodiscard",
+    "/dev/mmcblk0p8"
+   ],
+   "timeout": 300.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "boot_id": "boot-a",
+  "path": "/media/internal",
+  "reason": "mkfs_failed:fixture",
+  "schema": 1,
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/internal-media.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "path": "/media/internal",
+     "reason": "mkfs_failed:fixture",
+     "schema": 1,
+     "state": "Failed"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/internal-media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

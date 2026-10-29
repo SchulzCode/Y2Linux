@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "media",
+  "write"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "card_has_errors",
+  "reason": "card_has_errors",
+  "state": "Degraded",
+  "writable": false
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,77 @@
+{
+ "argv": [
+  "report",
+  "check"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "rebornctl",
+    "health",
+    "--json"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "dmesg"
+   ],
+   "timeout": 5.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "reports": [
+   {
+    "queued": false,
+    "reason": "daily_limit",
+    "trigger": "kernel_crash",
+    "triggers": [
+     "kernel_crash",
+     "kernel_warning",
+     "unclean_restart",
+     "reborn_crash",
+     "reborn_failure",
+     "update_failure",
+     "sleep_failure",
+     "radio_failure",
+     "display_failure",
+     "storage_error"
+    ]
+   }
+  ]
+ },
+ "tree": {
+  "added": {},
+  "changed": {
+   "/data/system/platform/reports.json": {
+    "content": {
+     "boot_triggers": {},
+     "daily": {
+      "2020-01-01": 2,
+      "<today>": 5
+     },
+     "enabled": true,
+     "install_id": "6f1c3b2a-9d4e-4f5a-8b7c-0d1e2f3a4b5c",
+     "schema": 1,
+     "seen": {
+      "conn_error": "boot-a:-110",
+      "dark": "boot-a",
+      "pstore_crash": "|12.345678|",
+      "reborn_failed": "boot-a:audio",
+      "reborn_panic": "60d0e8df42d45a4d",
+      "storage": "boot-a:True:2",
+      "suspend_fail": "boot-a:3:1:0",
+      "tainted": "boot-a:512",
+      "unclean": "boot-z",
+      "update": "11000:RolledBack"
+     },
+     "uploads": {}
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

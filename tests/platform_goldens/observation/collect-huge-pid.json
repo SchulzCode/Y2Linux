@@ -1,0 +1,32 @@
+{
+ "argv": [
+  "collect",
+  "--seconds",
+  "1",
+  "--interval",
+  "1",
+  "--pid",
+  "-99999999999999999999"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/cat",
+    "<root>/sys/power/wakeup_count"
+   ],
+   "timeout": 0.1
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "reason": "invalid pid",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

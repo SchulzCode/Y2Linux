@@ -1,0 +1,54 @@
+{
+ "argv": [
+  "report",
+  "upload"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "uploaded": [
+   {
+    "name": "<stamp>-<uuid>.tar.gz",
+    "outcome": "dropped",
+    "reason": "expired"
+   }
+  ]
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/reports/.upload.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/system/platform/reports.json": {
+    "content": {
+     "boot_triggers": {},
+     "daily": {},
+     "enabled": true,
+     "install_id": "<uuid>",
+     "schema": 1,
+     "seen": {},
+     "uploads": {
+      "<stamp>-<uuid>.tar.gz": {
+       "attempts": 5,
+       "next": "<volatile>"
+      }
+     }
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": [
+   "/data/system/platform/reports/20261019T100000Z-0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c0c.tar.gz"
+  ]
+ }
+}

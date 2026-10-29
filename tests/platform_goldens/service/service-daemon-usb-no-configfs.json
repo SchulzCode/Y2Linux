@@ -1,0 +1,182 @@
+{
+ "argv": [
+  "service-daemon"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "mount",
+    "-t",
+    "configfs",
+    "none",
+    "/sys/kernel/config"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-platform",
+    "media",
+    "reconcile"
+   ],
+   "timeout": 0.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-platform",
+    "firmware",
+    "scan"
+   ],
+   "timeout": 0.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-platform",
+    "space",
+    "--cleanup"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-platform",
+    "update",
+    "health-ack"
+   ],
+   "timeout": 8.0
+  }
+ ],
+ "exit": 0,
+ "stdout": [],
+ "tree": {
+  "added": {
+   "/data/firmware": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/firmware/inbox": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/firmware/inbox/README.txt": {
+    "content": [
+     "Wi-Fi and Bluetooth need the radio firmware from the Innioasis Y2 firmware package.",
+     "Copy (do not move) the file system.img from that package into this folder (about",
+     "520 MB). The player checks it, keeps the five small radio files and deletes the copy.",
+     "A larger system.img (about 860 MB) is an unpacked copy: if there is not enough space",
+     "here, put it into a folder named Firmware on the SD card instead."
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/run/y2/coexistence.json": {
+    "content": {
+     "bluetooth_link": {},
+     "boot_id": "boot-a",
+     "codec_bitrate_override": null,
+     "cpu_pressure": null,
+     "monotonic_s": "<volatile>",
+     "provisional": true,
+     "schema": 1,
+     "wifi_active": false,
+     "wifi_bytes_per_second": null,
+     "wifi_heavy_transfer": false
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/network.json": {
+    "content": {
+     "association": null,
+     "association_id": null,
+     "boot_id": "boot-a",
+     "coexistence": null,
+     "default_route": [],
+     "dns_ready": false,
+     "events": {
+      "boot_id": "boot-a",
+      "connected": 1,
+      "last_event": "CONNECTED",
+      "real_disconnects": 0
+     },
+     "failed_network_id": null,
+     "ip_addresses": [],
+     "monotonic_s": "<volatile>",
+     "power_save": null,
+     "radio_present": false,
+     "reason": "radio_off",
+     "reconnect_owner": "wpa_supplicant",
+     "rssi_dbm": null,
+     "schema": 1,
+     "signal_observation": null,
+     "state": "Off",
+     "status_query_failures": 0,
+     "supplicant_events": {
+      "ago_s": {},
+      "counts": {},
+      "interrupted_handshakes": 0,
+      "last_disconnect": null,
+      "since_s": 0.0
+     },
+     "supplicant_observation": {
+      "duration_ns": "<volatile>",
+      "ok": null,
+      "reason": "radio_off"
+     },
+     "traffic_counters": {}
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/service.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/time-status.json": {
+    "content": {
+     "anchor": {},
+     "build_epoch": 1788000000,
+     "clock_sane": true,
+     "entropy_ready": null,
+     "epoch": "<volatile>",
+     "ntp_authenticated": false,
+     "reason": "clock_not_established",
+     "rtc_retention_qualified": false,
+     "schema": 1,
+     "source": null,
+     "tls_ready": false
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/time.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/usb-transfer.json": {
+    "content": {
+     "active": false,
+     "block_export": false,
+     "boot_id": "boot-a",
+     "cable": "not attached",
+     "error": null,
+     "filesystem_owner": "linux",
+     "functions": [],
+     "mode": null,
+     "reason": "configfs_mount_failed",
+     "refresh_generation": 0,
+     "restarts": 1,
+     "schema": "org.y2linux.usb-transfer/v1",
+     "state": "Failed",
+     "views": []
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

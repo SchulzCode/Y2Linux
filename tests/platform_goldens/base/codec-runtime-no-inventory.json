@@ -1,0 +1,18 @@
+{
+ "argv": [
+  "codec-runtime"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "codec_policy_or_inventory_unavailable",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

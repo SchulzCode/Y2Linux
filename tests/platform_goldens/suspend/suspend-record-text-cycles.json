@@ -1,0 +1,15 @@
+{
+ "argv": [
+  "__suspend-record",
+  "kernel_resumed",
+  "0"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

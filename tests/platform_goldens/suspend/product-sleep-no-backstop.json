@@ -1,0 +1,235 @@
+{
+ "argv": [
+  "__product-sleep",
+  "0"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/usr/sbin/y2-radio",
+    "wifi",
+    "off-runtime"
+   ],
+   "timeout": 20.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-radio",
+    "bluetooth",
+    "off-runtime"
+   ],
+   "timeout": 20.0
+  },
+  {
+   "argv": [
+    "/bin/sync"
+   ],
+   "timeout": 20.0
+  }
+ ],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {
+   "/data/system/platform/.maintenance.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/.power-journal.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/.sleep-diagnostics.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/power-journal.jsonl": {
+    "content": [
+     "{\"backlight\": {}, \"battery\": {\"confidence\": \"hardware\", \"filtered_voltage_uv\": 3900000, \"percent\": 60, \"status\": \"Discharging\"}, \"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build\": {\"build_git_commit\": \"linux-commit\", \"feature_contract_version\": 2, \"kernel_version\": \"6.18.0-fixture\", \"platform_api_version\": 1, \"reborn_source_commit\": \"reborn\", \"release_version\": \"1.0.0-fixture\", \"rootfs_version\": \"v1.0\"}, \"charger\": null, \"event\": \"suspend_reborn_prepared\", \"idle_counters\": {\"clock_blockers\": {}, \"collector_cpu_seconds\": \"<volatile>\", \"counter_reset_rule\": \"decreasing per-core counters are unknown, not negative rates\", \"cpuidle\": {\"0\": {\"DORMANT\": {\"disable\": 1, \"rejected\": null, \"time\": \"<volatile>\", \"usage\": null}}}, \"frequency_khz\": null, \"frequency_ticks\": null, \"idle_rejections\": {}, \"online\": null, \"runtime_pm\": {}, \"scheduler\": {}}, \"idle_policy\": null, \"kernel_pm\": \"valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE\", \"monotonic_s\": \"<volatile>\", \"radios\": {\"rfkill0\": {\"blocked\": \"0\", \"type\": \"wlan\"}}, \"schema\": 1, \"shutdown\": null, \"sleep\": {\"boot_id\": \"boot-a\", \"kernel_completed\": false, \"reason\": null, \"request_boot_id\": \"boot-a\", \"same_boot\": true, \"schema\": \"org.y2linux.sleep/v1\", \"state\": \"preparing\", \"wake_reason\": \"unknown\"}, \"state\": \"Suspend\", \"suspend\": {\"cycles\": null, \"error\": null, \"first_entry\": null, \"maintenance_wakes\": null, \"mode\": \"product\", \"reason\": null, \"resume\": null, \"stage\": \"reborn_prepared\", \"suspended_seconds\": null}, \"usb\": {}, \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"wall_time\": \"<volatile>\"}",
+     "{\"backlight\": {}, \"battery\": {\"confidence\": \"hardware\", \"filtered_voltage_uv\": 3900000, \"percent\": 60, \"status\": \"Discharging\"}, \"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build\": {\"build_git_commit\": \"linux-commit\", \"feature_contract_version\": 2, \"kernel_version\": \"6.18.0-fixture\", \"platform_api_version\": 1, \"reborn_source_commit\": \"reborn\", \"release_version\": \"1.0.0-fixture\", \"rootfs_version\": \"v1.0\"}, \"charger\": null, \"event\": \"suspend_quiescing_radios\", \"idle_counters\": {\"clock_blockers\": {}, \"collector_cpu_seconds\": \"<volatile>\", \"counter_reset_rule\": \"decreasing per-core counters are unknown, not negative rates\", \"cpuidle\": {\"0\": {\"DORMANT\": {\"disable\": 1, \"rejected\": null, \"time\": \"<volatile>\", \"usage\": null}}}, \"frequency_khz\": null, \"frequency_ticks\": null, \"idle_rejections\": {}, \"online\": null, \"runtime_pm\": {}, \"scheduler\": {}}, \"idle_policy\": null, \"kernel_pm\": \"valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE\", \"monotonic_s\": \"<volatile>\", \"radios\": {\"rfkill0\": {\"blocked\": \"0\", \"type\": \"wlan\"}}, \"schema\": 1, \"shutdown\": null, \"sleep\": {\"boot_id\": \"boot-a\", \"kernel_completed\": false, \"reason\": null, \"request_boot_id\": \"boot-a\", \"same_boot\": true, \"schema\": \"org.y2linux.sleep/v1\", \"state\": \"preparing\", \"wake_reason\": \"unknown\"}, \"state\": \"Suspend\", \"suspend\": {\"cycles\": null, \"error\": null, \"first_entry\": null, \"maintenance_wakes\": null, \"mode\": \"product\", \"reason\": null, \"resume\": null, \"stage\": \"quiescing_radios\", \"suspended_seconds\": null}, \"usb\": {}, \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"wall_time\": \"<volatile>\"}",
+     "{\"backlight\": {}, \"battery\": {\"confidence\": \"hardware\", \"filtered_voltage_uv\": 3900000, \"percent\": 60, \"status\": \"Discharging\"}, \"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build\": {\"build_git_commit\": \"linux-commit\", \"feature_contract_version\": 2, \"kernel_version\": \"6.18.0-fixture\", \"platform_api_version\": 1, \"reborn_source_commit\": \"reborn\", \"release_version\": \"1.0.0-fixture\", \"rootfs_version\": \"v1.0\"}, \"charger\": null, \"event\": \"suspend_syncing\", \"idle_counters\": {\"clock_blockers\": {}, \"collector_cpu_seconds\": \"<volatile>\", \"counter_reset_rule\": \"decreasing per-core counters are unknown, not negative rates\", \"cpuidle\": {\"0\": {\"DORMANT\": {\"disable\": 1, \"rejected\": null, \"time\": \"<volatile>\", \"usage\": null}}}, \"frequency_khz\": null, \"frequency_ticks\": null, \"idle_rejections\": {}, \"online\": null, \"runtime_pm\": {}, \"scheduler\": {}}, \"idle_policy\": null, \"kernel_pm\": \"valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE\", \"monotonic_s\": \"<volatile>\", \"radios\": {\"rfkill0\": {\"blocked\": \"0\", \"type\": \"wlan\"}}, \"schema\": 1, \"shutdown\": null, \"sleep\": {\"boot_id\": \"boot-a\", \"kernel_completed\": false, \"reason\": null, \"request_boot_id\": \"boot-a\", \"same_boot\": true, \"schema\": \"org.y2linux.sleep/v1\", \"state\": \"preparing\", \"wake_reason\": \"unknown\"}, \"state\": \"Suspend\", \"suspend\": {\"cycles\": null, \"error\": null, \"first_entry\": null, \"maintenance_wakes\": null, \"mode\": \"product\", \"reason\": null, \"resume\": null, \"stage\": \"syncing\", \"suspended_seconds\": null}, \"usb\": {}, \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"wall_time\": \"<volatile>\"}",
+     "{\"backlight\": {}, \"battery\": {\"confidence\": \"hardware\", \"filtered_voltage_uv\": 3900000, \"percent\": 60, \"status\": \"Discharging\"}, \"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build\": {\"build_git_commit\": \"linux-commit\", \"feature_contract_version\": 2, \"kernel_version\": \"6.18.0-fixture\", \"platform_api_version\": 1, \"reborn_source_commit\": \"reborn\", \"release_version\": \"1.0.0-fixture\", \"rootfs_version\": \"v1.0\"}, \"charger\": null, \"event\": \"suspend_kernel_suspend\", \"idle_counters\": {\"clock_blockers\": {}, \"collector_cpu_seconds\": \"<volatile>\", \"counter_reset_rule\": \"decreasing per-core counters are unknown, not negative rates\", \"cpuidle\": {\"0\": {\"DORMANT\": {\"disable\": 1, \"rejected\": null, \"time\": \"<volatile>\", \"usage\": null}}}, \"frequency_khz\": null, \"frequency_ticks\": null, \"idle_rejections\": {}, \"online\": null, \"runtime_pm\": {}, \"scheduler\": {}}, \"idle_policy\": null, \"kernel_pm\": \"valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE\", \"monotonic_s\": \"<volatile>\", \"radios\": {\"rfkill0\": {\"blocked\": \"0\", \"type\": \"wlan\"}}, \"schema\": 1, \"shutdown\": null, \"sleep\": {\"boot_id\": \"boot-a\", \"kernel_completed\": false, \"reason\": null, \"request_boot_id\": \"boot-a\", \"same_boot\": true, \"schema\": \"org.y2linux.sleep/v1\", \"state\": \"sleeping\", \"wake_reason\": \"unknown\"}, \"state\": \"Suspend\", \"suspend\": {\"cycles\": null, \"error\": null, \"first_entry\": {\"battery\": {\"confidence\": \"hardware\", \"filtered_voltage_uv\": 3900000, \"percent\": 60, \"status\": \"Discharging\"}, \"boottime_s\": \"<volatile>\", \"monotonic_s\": \"<volatile>\", \"voltage_uv\": 4149316}, \"maintenance_wakes\": null, \"mode\": \"product\", \"reason\": null, \"resume\": null, \"stage\": \"kernel_suspend\", \"suspended_seconds\": null}, \"usb\": {}, \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"wall_time\": \"<volatile>\"}",
+     "{\"backlight\": {}, \"battery\": {\"confidence\": \"hardware\", \"filtered_voltage_uv\": 3900000, \"percent\": 60, \"status\": \"Discharging\"}, \"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build\": {\"build_git_commit\": \"linux-commit\", \"feature_contract_version\": 2, \"kernel_version\": \"6.18.0-fixture\", \"platform_api_version\": 1, \"reborn_source_commit\": \"reborn\", \"release_version\": \"1.0.0-fixture\", \"rootfs_version\": \"v1.0\"}, \"charger\": null, \"event\": \"suspend_product_failure\", \"idle_counters\": {\"clock_blockers\": {}, \"collector_cpu_seconds\": \"<volatile>\", \"counter_reset_rule\": \"decreasing per-core counters are unknown, not negative rates\", \"cpuidle\": {\"0\": {\"DORMANT\": {\"disable\": 1, \"rejected\": null, \"time\": \"<volatile>\", \"usage\": null}}}, \"frequency_khz\": null, \"frequency_ticks\": null, \"idle_rejections\": {}, \"online\": null, \"runtime_pm\": {}, \"scheduler\": {}}, \"idle_policy\": null, \"kernel_pm\": \"valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE\", \"monotonic_s\": \"<volatile>\", \"radios\": {\"rfkill0\": {\"blocked\": \"0\", \"type\": \"wlan\"}}, \"schema\": 1, \"shutdown\": null, \"sleep\": {\"boot_id\": \"boot-a\", \"kernel_completed\": false, \"reason\": \"[Errno 13] Permission denied: '<root>/sys/firmware/y2_pm/backstop_s'\", \"request_boot_id\": \"boot-a\", \"same_boot\": true, \"schema\": \"org.y2linux.sleep/v1\", \"state\": \"restore_failed\", \"wake_reason\": \"unknown\"}, \"state\": \"Suspend\", \"suspend\": {\"cycles\": null, \"error\": \"[Errno 13] Permission denied: '<root>/sys/firmware/y2_pm/backstop_s'\", \"first_entry\": {\"battery\": {\"confidence\": \"hardware\", \"filtered_voltage_uv\": 3900000, \"percent\": 60, \"status\": \"Discharging\"}, \"boottime_s\": \"<volatile>\", \"monotonic_s\": \"<volatile>\", \"voltage_uv\": 4149316}, \"maintenance_wakes\": null, \"mode\": \"product\", \"reason\": \"[Errno 13] Permission denied: '<root>/sys/firmware/y2_pm/backstop_s'\", \"resume\": null, \"stage\": \"product_failure\", \"suspended_seconds\": null}, \"usb\": {}, \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"wall_time\": \"<volatile>\"}",
+     "{\"backlight\": {}, \"battery\": {\"confidence\": \"hardware\", \"filtered_voltage_uv\": 3900000, \"percent\": 60, \"status\": \"Discharging\"}, \"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build\": {\"build_git_commit\": \"linux-commit\", \"feature_contract_version\": 2, \"kernel_version\": \"6.18.0-fixture\", \"platform_api_version\": 1, \"reborn_source_commit\": \"reborn\", \"release_version\": \"1.0.0-fixture\", \"rootfs_version\": \"v1.0\"}, \"charger\": null, \"event\": \"suspend_restoring_radios\", \"idle_counters\": {\"clock_blockers\": {}, \"collector_cpu_seconds\": \"<volatile>\", \"counter_reset_rule\": \"decreasing per-core counters are unknown, not negative rates\", \"cpuidle\": {\"0\": {\"DORMANT\": {\"disable\": 1, \"rejected\": null, \"time\": \"<volatile>\", \"usage\": null}}}, \"frequency_khz\": null, \"frequency_ticks\": null, \"idle_rejections\": {}, \"online\": null, \"runtime_pm\": {}, \"scheduler\": {}}, \"idle_policy\": null, \"kernel_pm\": \"valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE\", \"monotonic_s\": \"<volatile>\", \"radios\": {\"rfkill0\": {\"blocked\": \"0\", \"type\": \"wlan\"}}, \"schema\": 1, \"shutdown\": null, \"sleep\": {\"boot_id\": \"boot-a\", \"kernel_completed\": true, \"reason\": null, \"request_boot_id\": \"boot-a\", \"same_boot\": true, \"schema\": \"org.y2linux.sleep/v1\", \"state\": \"waking\", \"wake_reason\": \"unknown\"}, \"state\": \"Suspend\", \"suspend\": {\"cycles\": null, \"error\": \"[Errno 13] Permission denied: '<root>/sys/firmware/y2_pm/backstop_s'\", \"first_entry\": {\"battery\": {\"confidence\": \"hardware\", \"filtered_voltage_uv\": 3900000, \"percent\": 60, \"status\": \"Discharging\"}, \"boottime_s\": \"<volatile>\", \"monotonic_s\": \"<volatile>\", \"voltage_uv\": 4149316}, \"maintenance_wakes\": null, \"mode\": \"product\", \"reason\": null, \"resume\": null, \"stage\": \"restoring_radios\", \"suspended_seconds\": null}, \"usb\": {}, \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"wall_time\": \"<volatile>\"}",
+     "{\"backlight\": {}, \"battery\": {\"confidence\": \"hardware\", \"filtered_voltage_uv\": 3900000, \"percent\": 60, \"status\": \"Discharging\"}, \"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build\": {\"build_git_commit\": \"linux-commit\", \"feature_contract_version\": 2, \"kernel_version\": \"6.18.0-fixture\", \"platform_api_version\": 1, \"reborn_source_commit\": \"reborn\", \"release_version\": \"1.0.0-fixture\", \"rootfs_version\": \"v1.0\"}, \"charger\": null, \"event\": \"suspend_complete_result_1\", \"idle_counters\": {\"clock_blockers\": {}, \"collector_cpu_seconds\": \"<volatile>\", \"counter_reset_rule\": \"decreasing per-core counters are unknown, not negative rates\", \"cpuidle\": {\"0\": {\"DORMANT\": {\"disable\": 1, \"rejected\": null, \"time\": \"<volatile>\", \"usage\": null}}}, \"frequency_khz\": null, \"frequency_ticks\": null, \"idle_rejections\": {}, \"online\": null, \"runtime_pm\": {}, \"scheduler\": {}}, \"idle_policy\": null, \"kernel_pm\": \"valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE\", \"monotonic_s\": \"<volatile>\", \"radios\": {\"rfkill0\": {\"blocked\": \"0\", \"type\": \"wlan\"}}, \"schema\": 1, \"shutdown\": null, \"sleep\": {\"boot_id\": \"boot-a\", \"kernel_completed\": true, \"reason\": \"[Errno 13] Permission denied: '<root>/sys/firmware/y2_pm/backstop_s'\", \"request_boot_id\": \"boot-a\", \"same_boot\": true, \"schema\": \"org.y2linux.sleep/v1\", \"state\": \"restore_failed\", \"wake_reason\": \"unknown\"}, \"state\": \"Suspend\", \"suspend\": {\"cycles\": null, \"error\": \"[Errno 13] Permission denied: '<root>/sys/firmware/y2_pm/backstop_s'\", \"first_entry\": {\"battery\": {\"confidence\": \"hardware\", \"filtered_voltage_uv\": 3900000, \"percent\": 60, \"status\": \"Discharging\"}, \"boottime_s\": \"<volatile>\", \"monotonic_s\": \"<volatile>\", \"voltage_uv\": 4149316}, \"maintenance_wakes\": null, \"mode\": \"product\", \"reason\": \"[Errno 13] Permission denied: '<root>/sys/firmware/y2_pm/backstop_s'\", \"resume\": null, \"stage\": \"complete_result_1\", \"suspended_seconds\": null}, \"usb\": {}, \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"wall_time\": \"<volatile>\"}"
+    ],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/product-sleep-guard.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "identity": {
+      "build_git_commit": "linux-commit",
+      "build_id": null,
+      "kernel": "6.18.0-fixture",
+      "reborn_source_commit": "reborn"
+     },
+     "kernel_entry": true,
+     "pending": true,
+     "updated": "<volatile>"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/sleep-diagnostics.jsonl": {
+    "content": [
+     "{\"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build_id\": null, \"features\": {\"deep_audio_entries\": null, \"deep_idle_audio\": \"N\", \"infra\": null, \"lp_sel\": null, \"panel_power_down\": \"N\", \"panel_stock_suspend\": \"N\", \"phy_savecurrent\": {}, \"pmic_sleep_state\": null, \"spm\": null, \"vgp2_idle_off\": null, \"vproc_sleep\": null, \"vproc_sleep_state\": null, \"wheel_sleep\": {}}, \"kernel_pm\": \"valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE\", \"kernel_tail\": null, \"monotonic_s\": \"<volatile>\", \"schema\": 1, \"stage\": \"kernel_suspend\", \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"usb_reason\": null, \"wall_time\": \"<volatile>\"}",
+     "{\"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build_id\": null, \"features\": {\"deep_audio_entries\": null, \"deep_idle_audio\": \"N\", \"infra\": null, \"lp_sel\": null, \"panel_power_down\": \"N\", \"panel_stock_suspend\": \"N\", \"phy_savecurrent\": {}, \"pmic_sleep_state\": null, \"spm\": null, \"vgp2_idle_off\": null, \"vproc_sleep\": null, \"vproc_sleep_state\": null, \"wheel_sleep\": {}}, \"kernel_pm\": \"valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE\", \"kernel_tail\": null, \"monotonic_s\": \"<volatile>\", \"schema\": 1, \"stage\": \"product_failure\", \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"usb_reason\": null, \"wall_time\": \"<volatile>\"}",
+     "{\"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build_id\": null, \"features\": {\"deep_audio_entries\": null, \"deep_idle_audio\": \"N\", \"infra\": null, \"lp_sel\": null, \"panel_power_down\": \"N\", \"panel_stock_suspend\": \"N\", \"phy_savecurrent\": {}, \"pmic_sleep_state\": null, \"spm\": null, \"vgp2_idle_off\": null, \"vproc_sleep\": null, \"vproc_sleep_state\": null, \"wheel_sleep\": {}}, \"kernel_pm\": \"valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE\", \"kernel_tail\": null, \"monotonic_s\": \"<volatile>\", \"schema\": 1, \"stage\": \"restoring_radios\", \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"usb_reason\": null, \"wall_time\": \"<volatile>\"}",
+     "{\"boot_id\": \"boot-a\", \"boottime_s\": \"<volatile>\", \"build_id\": null, \"features\": {\"deep_audio_entries\": null, \"deep_idle_audio\": \"N\", \"infra\": null, \"lp_sel\": null, \"panel_power_down\": \"N\", \"panel_stock_suspend\": \"N\", \"phy_savecurrent\": {}, \"pmic_sleep_state\": null, \"spm\": null, \"vgp2_idle_off\": null, \"vproc_sleep\": null, \"vproc_sleep_state\": null, \"wheel_sleep\": {}}, \"kernel_pm\": \"valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE\", \"kernel_tail\": null, \"monotonic_s\": \"<volatile>\", \"schema\": 1, \"stage\": \"complete_result_1\", \"usb_net\": {\"controller\": {}, \"gadget_udc\": null, \"out_path\": {}, \"processes\": {\"dropbear\": false, \"umtprd\": false}, \"transfer\": null, \"udc\": {}, \"usb0\": {\"carrier\": null, \"flags\": null, \"ipv4\": [], \"operstate\": null, \"statistics\": {\"rx_bytes\": null, \"rx_dropped\": null, \"rx_errors\": null, \"rx_packets\": null, \"tx_bytes\": null, \"tx_dropped\": null, \"tx_errors\": null, \"tx_packets\": null}}}, \"usb_reason\": null, \"wall_time\": \"<volatile>\"}"
+    ],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/updates": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/updates/.stage.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/reborn/requests.jsonl": {
+    "content": [
+     "{\"command\": {\"op\": \"sleep_prepare\"}, \"id\": 6582, \"version\": 1}",
+     "{\"command\": {\"op\": \"sleep_restore\"}, \"id\": 6582, \"version\": 1}"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/system/platform/suspend-last.json": {
+    "content": {
+     "current_boot_id": "boot-a",
+     "entry": {
+      "battery": {
+       "confidence": "hardware",
+       "filtered_voltage_uv": 3900000,
+       "percent": 60,
+       "status": "Discharging"
+      },
+      "boottime_s": "<volatile>",
+      "monotonic_s": "<volatile>",
+      "voltage_uv": 4149316
+     },
+     "error": "[Errno 13] Permission denied: '<root>/sys/firmware/y2_pm/backstop_s'",
+     "first_entry": {
+      "battery": {
+       "confidence": "hardware",
+       "filtered_voltage_uv": 3900000,
+       "percent": 60,
+       "status": "Discharging"
+      },
+      "boottime_s": "<volatile>",
+      "monotonic_s": "<volatile>",
+      "voltage_uv": 4149316
+     },
+     "mode": "product",
+     "persistent_kernel": "valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE",
+     "pm_test": "none",
+     "product": {
+      "boot_id": "boot-a",
+      "kernel_completed": true,
+      "reason": "[Errno 13] Permission denied: '<root>/sys/firmware/y2_pm/backstop_s'",
+      "request_boot_id": "boot-a",
+      "same_boot": true,
+      "schema": "org.y2linux.sleep/v1",
+      "state": "restore_failed",
+      "wake_reason": "unknown"
+     },
+     "radio_restore": "powered=0 functions=0 refs=0",
+     "reborn_prepared": true,
+     "reborn_restore": true,
+     "request_boot_id": "boot-a",
+     "requested_mode": "deep",
+     "result": 1,
+     "schema": 1,
+     "stage": "complete_result_1",
+     "stages": [
+      {
+       "result": 0,
+       "stage": "reborn_prepared",
+       "time": "<volatile>"
+      },
+      {
+       "result": 0,
+       "stage": "quiescing_radios",
+       "time": "<volatile>"
+      },
+      {
+       "result": 0,
+       "stage": "syncing",
+       "time": "<volatile>"
+      },
+      {
+       "result": 0,
+       "stage": "kernel_suspend",
+       "time": "<volatile>"
+      },
+      {
+       "result": 1,
+       "stage": "product_failure",
+       "time": "<volatile>"
+      },
+      {
+       "boottime_s": "<volatile>",
+       "stage": "screen_restoring",
+       "time": "<volatile>"
+      },
+      {
+       "boottime_s": "<volatile>",
+       "stage": "screen_restored",
+       "time": "<volatile>"
+      },
+      {
+       "result": 1,
+       "stage": "restoring_radios",
+       "time": "<volatile>"
+      },
+      {
+       "result": 1,
+       "stage": "complete_result_1",
+       "time": "<volatile>"
+      }
+     ],
+     "updated": "<volatile>",
+     "usb_restore": {
+      "controllers": {},
+      "udcs": {}
+     },
+     "wake_irqs_after": {
+      "power": 4,
+      "rtc": 12
+     },
+     "wake_irqs_before": {
+      "power": 4,
+      "rtc": 12
+     }
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/sys/firmware/y2_pm/stage": {
+    "content": [
+     "RADIOS_RESTORING"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   }
+  },
+  "removed": [
+   "/run/reborn/control.sock"
+  ]
+ }
+}

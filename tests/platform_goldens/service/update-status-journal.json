@@ -1,0 +1,31 @@
+{
+ "argv": [
+  "update",
+  "status"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "channel": "owner",
+  "download": {
+   "failure": "download_interrupted",
+   "schema": 1,
+   "state": "Failed"
+  },
+  "full_system": true,
+  "last_check": {
+   "attempt": 5,
+   "result": "failed",
+   "schema": 1
+  },
+  "physical_qualification": false,
+  "release_version": "1.0.1",
+  "schema": 2,
+  "state": "Queued"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

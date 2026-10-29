@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "dhcp-event",
+  "bound"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "Leading zeros are not permitted in '001' in '192.168.001.1'",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "AddressValueError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/dhcp.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

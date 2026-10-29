@@ -1,0 +1,33 @@
+{
+ "argv": [
+  "time-bootstrap"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "boot_id": "boot-a",
+  "boottime_s": "<volatile>",
+  "epoch": "<volatile>",
+  "monotonic_s": "<volatile>",
+  "schema": 1,
+  "source": "build_floor"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/time.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "boottime_s": "<volatile>",
+     "epoch": "<volatile>",
+     "monotonic_s": "<volatile>",
+     "schema": 1,
+     "source": "build_floor"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

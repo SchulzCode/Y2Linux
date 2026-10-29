@@ -1,0 +1,16 @@
+{
+ "argv": [
+  "wifi-power-policy"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "invalid_wifi_power_policy",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "update",
+  "health-ack"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/usr/sbin/y2-update-core",
+    "rollback"
+   ],
+   "timeout": 15.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "failure": "update_core_fixture",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

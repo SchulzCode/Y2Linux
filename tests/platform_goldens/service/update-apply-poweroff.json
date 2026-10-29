@@ -1,0 +1,31 @@
+{
+ "argv": [
+  "update",
+  "apply"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/usr/sbin/y2-update-core",
+    "prepare"
+   ],
+   "timeout": 120.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "failure": "[Errno 2] No such file or directory",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

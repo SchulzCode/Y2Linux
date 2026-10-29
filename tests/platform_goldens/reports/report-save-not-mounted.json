@@ -1,0 +1,21 @@
+{
+ "argv": [
+  "report",
+  "save",
+  "--to",
+  "internal",
+  "--topic",
+  "battery"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "reason": "not_mounted",
+  "saved": false
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

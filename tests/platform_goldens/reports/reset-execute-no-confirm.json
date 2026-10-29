@@ -1,0 +1,23 @@
+{
+ "argv": [
+  "reset",
+  "execute"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "exact_reset_confirmation_required",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/.maintenance.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

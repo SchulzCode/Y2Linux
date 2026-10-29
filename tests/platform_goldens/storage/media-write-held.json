@@ -1,0 +1,46 @@
+{
+ "argv": [
+  "media",
+  "write",
+  "--holder",
+  "report",
+  "--seconds",
+  "0"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "holders": [
+   "report",
+   "usb"
+  ],
+  "reason": null,
+  "state": "Ready",
+  "writable": true
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/run/y2/sd-write.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "holders": {
+      "report": "<volatile>",
+      "usb": "<volatile>"
+     },
+     "mount_id": 51,
+     "schema": 1
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

@@ -1,0 +1,14 @@
+{
+ "argv": [
+  "bluetooth-power",
+  "maybe"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

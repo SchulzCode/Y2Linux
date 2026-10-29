@@ -1,0 +1,17 @@
+{
+ "argv": [
+  "boot-evidence"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "captured_on_boot_id": "boot-a",
+  "kept": "as it was",
+  "logs": []
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

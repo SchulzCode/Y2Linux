@@ -1,0 +1,24 @@
+{
+ "argv": [
+  "firmware",
+  "--help"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": [
+  "usage: main.py firmware [-h] {status,scan,install} [path]",
+  "",
+  "positional arguments:",
+  "  {status,scan,install}",
+  "  path                  install: stock system.img or a directory of the",
+  "                        reviewed files",
+  "",
+  "options:",
+  "  -h, --help            show this help message and exit"
+ ],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

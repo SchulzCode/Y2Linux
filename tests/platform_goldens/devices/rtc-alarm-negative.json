@@ -1,0 +1,19 @@
+{
+ "argv": [
+  "rtc-alarm",
+  "-1"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "rtc_alarm_seconds_out_of_range",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

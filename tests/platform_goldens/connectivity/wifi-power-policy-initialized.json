@@ -1,0 +1,58 @@
+{
+ "argv": [
+  "wifi-power-policy"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/usr/sbin/iw",
+    "dev",
+    "wlan0",
+    "get",
+    "power_save"
+   ],
+   "timeout": 3.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "applied": false,
+  "boot_id": "boot-a",
+  "enabled": false,
+  "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+  "ifindex": "3",
+  "mode": "automatic",
+  "monotonic_s": "<volatile>",
+  "provisional": true,
+  "reason": null,
+  "requested": false,
+  "requested_driver_profile": "CAM",
+  "schema": 1,
+  "state": "Ready"
+ },
+ "tree": {
+  "added": {},
+  "changed": {
+   "/run/y2/wifi-power.json": {
+    "content": {
+     "applied": false,
+     "boot_id": "boot-a",
+     "enabled": false,
+     "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+     "ifindex": "3",
+     "mode": "automatic",
+     "monotonic_s": "<volatile>",
+     "provisional": true,
+     "reason": null,
+     "requested": false,
+     "requested_driver_profile": "CAM",
+     "schema": 1,
+     "state": "Ready"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

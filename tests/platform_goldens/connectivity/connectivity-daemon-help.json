@@ -1,0 +1,19 @@
+{
+ "argv": [
+  "connectivity-daemon",
+  "--help"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": [
+  "usage: main.py connectivity-daemon [-h]",
+  "",
+  "options:",
+  "  -h, --help  show this help message and exit"
+ ],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

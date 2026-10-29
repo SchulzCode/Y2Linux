@@ -1,0 +1,48 @@
+{
+ "argv": [
+  "firmware",
+  "scan"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "state": "Missing"
+ },
+ "tree": {
+  "added": {
+   "/data/firmware": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/firmware/inbox": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/firmware/inbox/README.txt": {
+    "content": [
+     "Wi-Fi and Bluetooth need the radio firmware from the Innioasis Y2 firmware package.",
+     "Copy (do not move) the file system.img from that package into this folder (about",
+     "520 MB). The player checks it, keeps the five small radio files and deletes the copy.",
+     "A larger system.img (about 860 MB) is an unpacked copy: if there is not enough space",
+     "here, put it into a folder named Firmware on the SD card instead."
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/run/y2/radio-firmware.json": {
+    "content": {
+     "schema": 1,
+     "seen": [
+      1048576,
+      1788000000000000000
+     ],
+     "state": "Missing"
+    },
+    "mode": "0o644",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

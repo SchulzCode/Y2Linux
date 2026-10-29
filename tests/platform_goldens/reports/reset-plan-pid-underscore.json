@@ -1,0 +1,48 @@
+{
+ "argv": [
+  "reset",
+  "plan",
+  "--scope",
+  "caches"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "pids": [
+   12
+  ],
+  "preserved": [
+   "SSH identity",
+   "entropy",
+   "update/rollback",
+   "factory/calibration",
+   "unknown data directories",
+   "Y2Media internal music (/media/internal; delete files over MTP)"
+  ],
+  "restart": "owner reboot after completion",
+  "scope": "caches",
+  "state": "NeedsQuiescence",
+  "stop_services": [
+   "S90reborn",
+   "S42y2-readiness"
+  ]
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

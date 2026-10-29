@@ -1,0 +1,40 @@
+{
+ "argv": [
+  "reset",
+  "purge",
+  "--id",
+  "1234567890abcdef1234567890abcdef",
+  "--confirm",
+  "x"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "failure": "[Errno 2] No such file or directory: 'reset-quarantine'",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

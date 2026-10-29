@@ -1,0 +1,17 @@
+{
+ "argv": [
+  "capabilities"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "platform_version": "1.0.0-fixture",
+  "schema": "org.y2linux.capabilities/v1",
+  "state": "Unavailable"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

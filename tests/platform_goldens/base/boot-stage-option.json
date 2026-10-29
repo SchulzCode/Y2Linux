@@ -1,0 +1,14 @@
+{
+ "argv": [
+  "boot-stage",
+  "-x"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

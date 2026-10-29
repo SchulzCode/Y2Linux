@@ -1,0 +1,47 @@
+{
+ "argv": [
+  "reset",
+  "purge",
+  "--id",
+  "1234567890abcdef1234567890abcdef",
+  "--confirm",
+  "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "id": "1234567890abcdef1234567890abcdef",
+  "removed": 5,
+  "state": "Complete"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": [
+   "/data/reset-quarantine/1234567890abcdef1234567890abcdef/000",
+   "/data/reset-quarantine/1234567890abcdef1234567890abcdef/000/a",
+   "/data/reset-quarantine/1234567890abcdef1234567890abcdef/000/a/b.txt",
+   "/data/reset-quarantine/1234567890abcdef1234567890abcdef/000/c.txt",
+   "/data/reset-quarantine/1234567890abcdef1234567890abcdef/001"
+  ]
+ }
+}

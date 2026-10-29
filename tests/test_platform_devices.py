@@ -1,6 +1,8 @@
-"""Differential cases of port group `devices` that the shared checks of tests/test_platform_differential.py
-cannot see as equal (tests/platform_cases/devices.py, EXTRA_CASES): Python against Python, and against the Rust
-host build when `Y2_PLATFORM_RUST` is set. They run on the same player-shaped fixture root."""
+"""Golden cases of port group `devices` that need more than tests/test_platform_differential.py's plain run
+(tests/platform_cases/devices.py, EXTRA_CASES): the stage directory `transfer begin` names by a random id is
+renamed to a fixed one, `transfer commit` past its stage lock, an ssh-daemon that starts dropbear, and inputs the
+platform ends on with a traceback. Run by the Rust host build (`Y2_PLATFORM_RUST`) and compared with
+tests/platform_goldens/devices/<case>.json (tests/platform_golden.py)."""
 import os
 from pathlib import Path
 import re
@@ -9,7 +11,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from platform_differential import compare, python_side, run_case, rust_binary, rust_side, RUST_ENV  # noqa: E402
+from platform_golden import SKIP, check_all, read_golden, run_case, rust_binary, touched  # noqa: E402
 from platform_cases import devices  # noqa: E402
 import test_platform_differential  # noqa: E402
 
@@ -29,20 +31,21 @@ def renamed(side):
 
 
 def options(case):
-    """A case's options for run_case, and the side wrapper it needs."""
+    """A case's options for run_case."""
     case = dict(case)
-    wrap = renamed if case.pop('rename_stage', False) else (lambda side: side)
     case.pop('needs_no_dropbear', None)
-    if wrap is renamed:
+    if case.pop('rename_stage', False):
+        case['wrap'] = renamed
         case['patterns'] = [(STAGE_ID.pattern, '<id>')]
-    return case, wrap
+    return case
 
 
 def runnable(case):
+    # With a host /usr/sbin/dropbear the case would start it (a direct exec, no fixture command).
     return not (case.get('needs_no_dropbear') and os.path.exists('/usr/sbin/dropbear'))
 
 
-class DevicesDifferential(unittest.TestCase):
+class DevicesGoldens(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.directory = tempfile.TemporaryDirectory()
@@ -52,26 +55,21 @@ class DevicesDifferential(unittest.TestCase):
     def tearDownClass(cls):
         cls.directory.cleanup()
 
-    def test_python_against_python_is_identical(self):
-        for name, argv, case in devices.EXTRA_CASES:
-            with self.subTest(name):
-                if not runnable(case):
-                    self.skipTest('the host has /usr/sbin/dropbear')
-                case, wrap = options(case)
-                self.assertEqual(compare(self.fixture, argv, left=wrap(python_side), right=wrap(python_side),
-                                         **case), [])
+    @unittest.skipUnless(rust_binary(), SKIP)
+    def test_cases_match_their_goldens(self):
+        check_all(self, [(('devices', name), lambda argv=argv, case=case: run_case(self.fixture, argv, **options(case)))
+                         for name, argv, case in devices.EXTRA_CASES if runnable(case)])
 
-    def test_cases_exercise_the_paths_they_name(self):
-        results = {name: run_case(options(case)[1](python_side), self.fixture, argv, **options(case)[0])
-                   for name, argv, case in devices.EXTRA_CASES if runnable(case)}
+    def test_goldens_exercise_the_paths_they_name(self):
+        results = {name: read_golden('devices', name) for name, _, _ in devices.EXTRA_CASES}
         stage = '/data/transfer-staging/' + 'f' * 32
         self.assertEqual(results['transfer-begin']['stdout']['state'], 'Staging')
-        self.assertEqual(results['transfer-begin']['tree'][stage]['mode'], '0o700')
+        self.assertEqual(touched(results['transfer-begin'])[stage]['mode'], '0o700')
         commit = results['transfer-commit']
         self.assertEqual((commit['exit'], commit['stdout']['state']), (0, 'Committed'))
-        self.assertEqual(commit['tree']['/data/music/Album/song.flac']['content'], ['hello'])
-        self.assertNotIn(devices.STAGE + '/payload.part', commit['tree'])
-        self.assertIn('/media/internal/music/Album/song.flac', results['transfer-commit-internal']['tree'])
+        self.assertEqual(touched(commit)['/data/music/Album/song.flac']['content'], ['hello'])
+        self.assertIn(devices.STAGE + '/payload.part', commit['tree']['removed'])
+        self.assertIn('/media/internal/music/Album/song.flac', touched(results['transfer-commit-internal']))
         self.assertEqual(results['transfer-commit-internal-unverified']['stdout']['reason'],
                          'verified_internal_media_unavailable')
         self.assertEqual(results['transfer-commit-exists']['stdout']['type'], 'FileExistsError')
@@ -80,20 +78,8 @@ class DevicesDifferential(unittest.TestCase):
         self.assertEqual(results['transfer-commit-wrong-hash']['stdout']['reason'], 'upload_hash_or_size_mismatch')
         crashed = results['transfer-commit-record-not-dict']
         self.assertEqual((crashed['exit'], crashed['stdout']), (1, []))
-        self.assertIn('/data/music/Album/song.flac', crashed['tree'])
-        if 'ssh-starts-dropbear' in results:
-            self.assertEqual(results['ssh-starts-dropbear']['stdout']['type'], 'FileNotFoundError')
-
-    @unittest.skipUnless(rust_binary(), RUST_ENV + ' (host build of the Rust y2-platform) not given')
-    def test_rust_matches_python(self):
-        rust = rust_side(rust_binary())
-        for name, argv, case in devices.EXTRA_CASES:
-            with self.subTest(name):
-                if not runnable(case):
-                    self.skipTest('the host has /usr/sbin/dropbear')
-                case, wrap = options(case)
-                found = compare(self.fixture, argv, left=wrap(python_side), right=wrap(rust), **case)
-                self.assertEqual(found, [])
+        self.assertIn('/data/music/Album/song.flac', touched(crashed))
+        self.assertEqual(results['ssh-starts-dropbear']['stdout']['type'], 'FileNotFoundError')
 
 
 if __name__ == '__main__':

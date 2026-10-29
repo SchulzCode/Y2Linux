@@ -1,0 +1,14 @@
+{
+ "argv": [
+  "__product-sleep",
+  "1"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

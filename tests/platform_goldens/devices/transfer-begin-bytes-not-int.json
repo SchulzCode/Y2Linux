@@ -1,0 +1,16 @@
+{
+ "argv": [
+  "transfer",
+  "begin",
+  "--bytes",
+  "five"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,116 @@
+{
+ "argv": [
+  "dhcp-event",
+  "renew"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "ip",
+    "-4",
+    "address",
+    "flush",
+    "dev",
+    "wlan0",
+    "scope",
+    "global"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-4",
+    "route",
+    "flush",
+    "dev",
+    "wlan0"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "ip",
+    "link",
+    "set",
+    "dev",
+    "wlan0",
+    "up"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-4",
+    "address",
+    "add",
+    "192.168.1.40/24",
+    "dev",
+    "wlan0"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "ip",
+    "-4",
+    "route",
+    "replace",
+    "default",
+    "via",
+    "192.168.1.1",
+    "dev",
+    "wlan0",
+    "metric",
+    "100"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "address": "192.168.1.40",
+  "boot_id": "boot-a",
+  "dns_servers": [],
+  "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+  "error": "dns_unavailable",
+  "lease_seconds": "86400",
+  "monotonic_s": "<volatile>",
+  "schema": 1,
+  "state": "Authenticated"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/dhcp.json": {
+    "content": {
+     "address": "192.168.1.40",
+     "boot_id": "boot-a",
+     "dns_servers": [],
+     "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+     "error": "dns_unavailable",
+     "lease_seconds": "86400",
+     "monotonic_s": "<volatile>",
+     "schema": 1,
+     "state": "Authenticated"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/dhcp.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/resolv.conf": {
+    "content": [
+     "options timeout:2 attempts:1"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

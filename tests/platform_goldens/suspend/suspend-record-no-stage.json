@@ -1,0 +1,13 @@
+{
+ "argv": [
+  "__suspend-record"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

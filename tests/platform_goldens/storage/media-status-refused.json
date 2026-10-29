@@ -1,0 +1,24 @@
+{
+ "argv": [
+  "media",
+  "status"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "filesystem": "ext4",
+  "findings": [
+   "other"
+  ],
+  "generation": null,
+  "path": "/media/sd",
+  "reason": "filesystem_check_failed",
+  "space_state": "Unavailable",
+  "state": "Degraded"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

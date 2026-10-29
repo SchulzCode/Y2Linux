@@ -1,0 +1,118 @@
+{
+ "argv": [
+  "report",
+  "upload"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "curl",
+    "-q",
+    "--silent",
+    "--show-error",
+    "--proto",
+    "=https",
+    "--noproxy",
+    "*",
+    "--connect-timeout",
+    "30",
+    "--speed-limit",
+    "1",
+    "--speed-time",
+    "30",
+    "--request",
+    "POST",
+    "--header",
+    "Content-Type: application/gzip",
+    "--header",
+    "User-Agent: Y2Linux/1.0.0-fixture",
+    "--header",
+    "X-Y2-Upload-Key: KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK",
+    "--header",
+    "X-Y2-Schema: 1",
+    "--header",
+    "X-Y2-Install-Id: 6f1c3b2a-9d4e-4f5a-8b7c-0d1e2f3a4b5c",
+    "--header",
+    "X-Y2-Report-Id: 0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a",
+    "--header",
+    "X-Y2-Sha256: 93bc55949df179a4a9ca9d0b9d53eeb6939088c6d0f295f2d4e38e647e512414",
+    "--header",
+    "X-Y2-Trigger: manual",
+    "--header",
+    "X-Y2-Release: 1.0.0-fixture",
+    "--header",
+    "Content-Length: 311",
+    "--header",
+    "Accept-Encoding: identity",
+    "--header",
+    "Connection: close",
+    "--header",
+    "Accept:",
+    "--header",
+    "Expect:",
+    "--header",
+    "Transfer-Encoding:",
+    "--upload-file",
+    "-",
+    "--write-out",
+    "\\n%{http_code} %{exitcode} %{errormsg}",
+    "https://reports.schulzcode.dev/v1/report"
+   ],
+   "timeout": 600.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "uploaded": [
+   {
+    "name": "<stamp>-<uuid>.tar.gz",
+    "outcome": "dropped",
+    "reason": "expired"
+   },
+   {
+    "name": "<stamp>-<uuid>.tar.gz",
+    "next": "<volatile>",
+    "outcome": "retry",
+    "reason": "HTTP_503"
+   }
+  ]
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/reports/.upload.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/system/platform/reports.json": {
+    "content": {
+     "boot_triggers": {},
+     "daily": {},
+     "enabled": true,
+     "install_id": "<uuid>",
+     "schema": 1,
+     "seen": {},
+     "uploads": {
+      "<stamp>-<uuid>.tar.gz": {
+       "attempts": 1,
+       "error": "HTTP_503",
+       "next": "<volatile>"
+      }
+     }
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": [
+   "/data/system/platform/reports/20261019T100000Z-0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c0c.tar.gz"
+  ]
+ }
+}

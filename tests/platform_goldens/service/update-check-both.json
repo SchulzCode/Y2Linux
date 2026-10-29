@@ -1,0 +1,21 @@
+{
+ "argv": [
+  "update",
+  "check",
+  "--url",
+  "https://x/manifest.json",
+  "--package",
+  "<repository>/tests/platform_cases/service_package"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "exactly_one_local_package_or_HTTPS_manifest_required",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

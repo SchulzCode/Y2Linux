@@ -1,0 +1,242 @@
+{
+ "argv": [
+  "power-daemon"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": [],
+ "tree": {
+  "added": {
+   "/data/system/platform/.power-journal.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/battery-ui.json": {
+    "content": {
+     "anchor_percent": null,
+     "schema": 1,
+     "ui_percent": 66
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/power-journal.jsonl": {
+    "content": {
+     "backlight": {
+      "panel": "0"
+     },
+     "battery": {
+      "anchor_percent": null,
+      "calibration_source": "stock Y2 fuel-gauge profile: fgauge_get_profile(25 C) 0xc09d117c and r_profile 0xc09d1d5c from the Y2 FM kernel, Q_MAX 1300 mAh (fgauge_get_Q_max 0xc039b124); DOD converted to SOC",
+      "charge_counter_uah": null,
+      "charging": false,
+      "confidence": "calibrated_estimate",
+      "current_ua": null,
+      "design_capacity_uah": 1300000,
+      "estimate_percent": 66,
+      "filtered_voltage_uv": 3850000,
+      "full_latched": false,
+      "percent": 66,
+      "provisional": false,
+      "remaining_uah_estimate": 864500,
+      "resting": false,
+      "source": "voltage_estimate",
+      "start": "unknown/live",
+      "status": "Discharging",
+      "temperature_millicelsius": null,
+      "voltage_uv": 3850000
+     },
+     "boot_id": "boot-a",
+     "boottime_s": "<volatile>",
+     "build": {
+      "build_git_commit": "linux-commit",
+      "feature_contract_version": 2,
+      "kernel_version": "6.18.0-fixture",
+      "platform_api_version": 1,
+      "reborn_source_commit": "reborn",
+      "release_version": "1.0.0-fixture",
+      "rootfs_version": "v1.0"
+     },
+     "charger": null,
+     "event": "snapshot",
+     "idle_counters": {
+      "clock_blockers": {
+       "deep_blockers": "audio"
+      },
+      "collector_cpu_seconds": "<volatile>",
+      "counter_reset_rule": "decreasing per-core counters are unknown, not negative rates",
+      "cpuidle": {
+       "0": {
+        "DORMANT": {
+         "disable": 1,
+         "rejected": null,
+         "time": "<volatile>",
+         "usage": null
+        },
+        "WFI": {
+         "disable": null,
+         "rejected": null,
+         "time": "<volatile>",
+         "usage": 99
+        }
+       }
+      },
+      "frequency_khz": null,
+      "frequency_ticks": null,
+      "idle_rejections": {
+       "rejections": "3"
+      },
+      "online": null,
+      "runtime_pm": {
+       "11200000.usb": "active"
+      },
+      "scheduler": {}
+     },
+     "idle_policy": {
+      "a": 1,
+      "state": "Enabled"
+     },
+     "kernel_pm": "stage=EXIT",
+     "monotonic_s": "<volatile>",
+     "radios": {
+      "rfkill0": {
+       "blocked": "0",
+       "type": "wlan"
+      }
+     },
+     "schema": 1,
+     "shutdown": null,
+     "sleep": {
+      "boot_id": "boot-a",
+      "reason": "usb",
+      "request_boot_id": "boot-a",
+      "same_boot": true,
+      "schema": "org.y2linux.sleep/v1",
+      "state": "refused"
+     },
+     "state": "Normal",
+     "suspend": {
+      "cycles": 3,
+      "error": null,
+      "first_entry": null,
+      "maintenance_wakes": 1,
+      "mode": "product",
+      "reason": "usb",
+      "resume": null,
+      "stage": null,
+      "suspended_seconds": null
+     },
+     "usb": {
+      "11200000.usb": "configured"
+     },
+     "usb_net": {
+      "controller": {
+       "11200000.usb": {
+        "cable_events": null,
+        "configured": null,
+        "detached": null,
+        "dma_aborts": null,
+        "dma_errors": null,
+        "dma_intr_after": null,
+        "dma_intr_before": null,
+        "dma_irqs": null,
+        "dma_tx_programs": null,
+        "dma_unmask_lost": null,
+        "dma_unmask_rearms": null,
+        "error": "0",
+        "irqs": "12",
+        "monitor_failures": null,
+        "monitor_parked": null,
+        "pm_restores": null,
+        "pm_suspends": null,
+        "reconnect_failures": null,
+        "runtime_held": null,
+        "runtime_status": null,
+        "stage": "CONFIGURED"
+       }
+      },
+      "gadget_udc": null,
+      "out_path": {
+       "11200000.usb": [
+        "out=1 mode=1"
+       ]
+      },
+      "processes": {
+       "dropbear": false,
+       "umtprd": false
+      },
+      "transfer": null,
+      "udc": {
+       "11200000.usb": "configured"
+      },
+      "usb0": {
+       "carrier": null,
+       "flags": null,
+       "ipv4": [
+        "192.168.7.2"
+       ],
+       "operstate": "up",
+       "statistics": {
+        "rx_bytes": null,
+        "rx_dropped": null,
+        "rx_errors": null,
+        "rx_packets": 17,
+        "tx_bytes": null,
+        "tx_dropped": null,
+        "tx_errors": null,
+        "tx_packets": null
+       }
+      }
+     },
+     "wall_time": "<volatile>"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/power.json": {
+    "content": {
+     "battery": {
+      "anchor_percent": null,
+      "calibration_source": "stock Y2 fuel-gauge profile: fgauge_get_profile(25 C) 0xc09d117c and r_profile 0xc09d1d5c from the Y2 FM kernel, Q_MAX 1300 mAh (fgauge_get_Q_max 0xc039b124); DOD converted to SOC",
+      "charge_counter_uah": null,
+      "charging": false,
+      "confidence": "calibrated_estimate",
+      "current_ua": null,
+      "design_capacity_uah": 1300000,
+      "estimate_percent": 66,
+      "filtered_voltage_uv": 3850000,
+      "full_latched": false,
+      "percent": 66,
+      "provisional": false,
+      "remaining_uah_estimate": 864500,
+      "resting": false,
+      "source": "voltage_estimate",
+      "start": "unknown/live",
+      "status": "Discharging",
+      "temperature_millicelsius": null,
+      "voltage_uv": 3850000
+     },
+     "boot_id": "boot-a",
+     "monotonic_ns": "<volatile>",
+     "qualification_reference": null,
+     "reason": null,
+     "schema": 1,
+     "shutdown": null,
+     "state": "Normal",
+     "thresholds_enabled": true,
+     "voltage_uv": 3850000
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/power.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

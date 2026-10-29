@@ -1,0 +1,114 @@
+{
+ "argv": [
+  "bench-library",
+  "--tracks",
+  "10000",
+  "--scan"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p19"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p20"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk1p1"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p21"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "/usr/bin/reborn-bench",
+    "--scratch-fd",
+    "5",
+    "--tracks",
+    "10000",
+    "--scan"
+   ],
+   "timeout": 1800.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "measurements": {
+   "open_ms": 12.5,
+   "queries": [
+    1,
+    2
+   ]
+  },
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "evidence_level": "IMPLEMENTED",
+   "failure": null,
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {
+    "scan": true,
+    "tracks": 10000,
+    "volume": "/data"
+   },
+   "reborn_commit": "reborn",
+   "result": "OK",
+   "rootfs_release": "v1.0",
+   "units": {
+    "latency": "ms",
+    "memory": "KiB",
+    "size": "bytes"
+   },
+   "wall_timestamp": "<volatile>",
+   "workload": "reborn-library",
+   "y2linux_commit": "linux-commit"
+  },
+  "schema": "org.y2linux.benchmark/v1"
+ },
+ "tree": {
+  "added": {
+   "/data/.y2-bench": {
+    "mode": "0o700",
+    "type": "dir"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

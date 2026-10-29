@@ -1,0 +1,125 @@
+{
+ "argv": [
+  "space"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "admission": {
+   "cache": {
+    "allowed": false,
+    "reason": "Unavailable"
+   },
+   "database": {
+    "allowed": false,
+    "reason": "Unavailable"
+   },
+   "diagnostic": {
+    "allowed": false,
+    "reason": "Unavailable"
+   },
+   "transfer": {
+    "allowed": false,
+    "reason": "Unavailable"
+   },
+   "update": {
+    "allowed": false,
+    "reason": "Unavailable"
+   },
+   "user_state": {
+    "allowed": false,
+    "reason": "Unavailable"
+   }
+  },
+  "cleanup": null,
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "evidence_level": "IMPLEMENTED",
+   "failure": null,
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {},
+   "reborn_commit": "reborn",
+   "result": null,
+   "rootfs_release": "v1.0",
+   "units": {},
+   "wall_timestamp": "<volatile>",
+   "workload": "space-policy",
+   "y2linux_commit": "linux-commit"
+  },
+  "schema": "org.y2linux.space/v1",
+  "state": "Unavailable",
+  "volume": {
+   "generation": null,
+   "path": "/data",
+   "reason": "not_uniquely_mounted",
+   "space_state": "Unavailable",
+   "state": "Unavailable"
+  }
+ },
+ "tree": {
+  "added": {
+   "/run/y2/storage.json": {
+    "content": {
+     "admission": {
+      "cache": {
+       "allowed": false,
+       "reason": "Unavailable"
+      },
+      "database": {
+       "allowed": false,
+       "reason": "Unavailable"
+      },
+      "diagnostic": {
+       "allowed": false,
+       "reason": "Unavailable"
+      },
+      "transfer": {
+       "allowed": false,
+       "reason": "Unavailable"
+      },
+      "update": {
+       "allowed": false,
+       "reason": "Unavailable"
+      },
+      "user_state": {
+       "allowed": false,
+       "reason": "Unavailable"
+      }
+     },
+     "cleanup": null,
+     "record": {
+      "boot_id": "boot-a",
+      "build_id": "fixture-build",
+      "evidence_level": "IMPLEMENTED",
+      "failure": null,
+      "kernel": "6.18.0-fixture",
+      "monotonic_ns": "<volatile>",
+      "parameters": {},
+      "reborn_commit": "reborn",
+      "result": null,
+      "rootfs_release": "v1.0",
+      "units": {},
+      "wall_timestamp": "<volatile>",
+      "workload": "space-policy",
+      "y2linux_commit": "linux-commit"
+     },
+     "schema": "org.y2linux.space/v1",
+     "state": "Unavailable",
+     "volume": {
+      "generation": null,
+      "path": "/data",
+      "reason": "not_uniquely_mounted",
+      "space_state": "Unavailable",
+      "state": "Unavailable"
+     }
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

@@ -1,0 +1,112 @@
+{
+ "argv": [
+  "time-set",
+  "1788100000"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/bin/busybox",
+    "date",
+    "-u",
+    "-s",
+    "@1788100000"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/bin/busybox",
+    "hwclock",
+    "-w",
+    "-u"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/etc/init.d/S43y2-time",
+    "stop"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "/etc/init.d/S43y2-time",
+    "start"
+   ],
+   "timeout": 5.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "boot_id": "boot-a",
+  "boottime_s": "<volatile>",
+  "epoch": "<volatile>",
+  "monotonic_s": "<volatile>",
+  "ntp_restart": true,
+  "rtc_write": false,
+  "schema": 1,
+  "source": "manual"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/time-status.json": {
+    "content": {
+     "anchor": {
+      "boot_id": "boot-a",
+      "boottime_s": "<volatile>",
+      "epoch": "<volatile>",
+      "monotonic_s": "<volatile>",
+      "schema": 1,
+      "source": "manual"
+     },
+     "build_epoch": 1788000000,
+     "clock_sane": true,
+     "entropy_ready": null,
+     "epoch": "<volatile>",
+     "ntp_authenticated": false,
+     "reason": "clock_not_established",
+     "rtc_retention_qualified": false,
+     "schema": 1,
+     "source": "manual",
+     "tls_ready": false
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/time.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "boottime_s": "<volatile>",
+     "epoch": "<volatile>",
+     "monotonic_s": "<volatile>",
+     "schema": 1,
+     "source": "manual"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/time.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/system/platform/time-last.json": {
+    "content": {
+     "boot_id": "boot-a",
+     "boottime_s": "<volatile>",
+     "epoch": "<volatile>",
+     "monotonic_s": "<volatile>",
+     "schema": 1,
+     "source": "manual"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

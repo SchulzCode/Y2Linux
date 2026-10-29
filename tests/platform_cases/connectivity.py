@@ -1,7 +1,6 @@
-"""Differential cases of port group `connectivity` (see tests/platform_cases/__init__.py):
+"""Golden cases of port group `connectivity` (see tests/platform_cases/__init__.py):
 `wifi-power-policy`, `bluetooth-power on|off` and `connectivity-daemon` (ended after Y2_DAEMON_TICKS loop
-iterations; `stop_after_ticks` stops the Python daemon at the same point). Argument errors and --help are
-the dispatcher's argparse in Rust (`ported` True), never a fallback."""
+iterations). Argument errors and --help are the dispatcher's argparse."""
 import json
 import time
 
@@ -29,8 +28,8 @@ def readback(state):
 
 def daemon(ticks=1, **options):
     """A connectivity-daemon case: the loop ends after `ticks` iterations on both sides."""
-    env = {'Y2_DAEMON_TICKS': str(ticks), 'Y2_LAUNCHER_PATCH': 'platform_cases.connectivity:stop_after_ticks'}
-    return {'ported': True, 'env': env, 'volatile': ['wall_time'], **options}
+    env = {'Y2_DAEMON_TICKS': str(ticks)}
+    return {'env': env, 'volatile': ['wall_time'], **options}
 
 
 def network(association, boot='boot-a'):
@@ -42,39 +41,39 @@ def network(association, boot='boot-a'):
 ATTACHED = [answer(ADD, 'OK'), answer(AUTOSCAN, 'OK'), answer(ACTION)]
 
 CASES = [
-    ('wifi-power-policy', ['wifi-power-policy'], {'ported': True, 'commands': [readback('off'), answer(SET + ['off'])]}),
-    ('wifi-power-policy-initialized', ['wifi-power-policy'], {'ported': True, 'commands': [readback('off')], 'files': {
+    ('wifi-power-policy', ['wifi-power-policy'], {'commands': [readback('off'), answer(SET + ['off'])]}),
+    ('wifi-power-policy-initialized', ['wifi-power-policy'], {'commands': [readback('off')], 'files': {
         IFINDEX: '3\n', WIFI_POWER: json.dumps({'state': 'Ready', 'boot_id': 'boot-a', 'epoch': EPOCH,
                                                 'ifindex': '3', 'requested': False})}}),
-    ('wifi-power-policy-other-epoch', ['wifi-power-policy'], {'ported': True, 'commands': [readback('off'), answer(
+    ('wifi-power-policy-other-epoch', ['wifi-power-policy'], {'commands': [readback('off'), answer(
         SET + ['off'])], 'files': {WIFI_POWER: json.dumps({'state': 'Ready', 'boot_id': 'boot-a', 'epoch': 'old',
                                                            'ifindex': None, 'requested': False})}}),
-    ('wifi-power-policy-standard-unconfirmed', ['wifi-power-policy'], {'ported': True, 'commands': [
+    ('wifi-power-policy-standard-unconfirmed', ['wifi-power-policy'], {'commands': [
         readback('off'), answer(SET + ['on'])], 'files': {POWER_SAVE: '{"schema": 1, "mode": "standard"}'}}),
-    ('wifi-power-policy-automatic-standard', ['wifi-power-policy'], {'ported': True, 'commands': [
+    ('wifi-power-policy-automatic-standard', ['wifi-power-policy'], {'commands': [
         readback('on'), answer(SET + ['on'])], 'files': {
             POWER_SAVE: '{"schema": true, "mode": "automatic", "automatic_standard": true}'}}),
-    ('wifi-power-policy-no-iw', ['wifi-power-policy'], {'ported': True}),
-    ('wifi-power-policy-set-fails', ['wifi-power-policy'], {'ported': True, 'commands': [
+    ('wifi-power-policy-no-iw', ['wifi-power-policy'], {}),
+    ('wifi-power-policy-set-fails', ['wifi-power-policy'], {'commands': [
         readback('on'), answer(SET + ['off'], ok=False)]}),
-    ('wifi-power-policy-off', ['wifi-power-policy'], {'ported': True, 'commands': [readback('off')], 'files': {
+    ('wifi-power-policy-off', ['wifi-power-policy'], {'commands': [readback('off')], 'files': {
         POWER_SAVE: '{"schema": 1, "mode": "off"}', WIFI_POWER: '[]'}}),
-    ('wifi-power-policy-invalid', ['wifi-power-policy'], {'ported': True, 'files': {POWER_SAVE: '{"schema": 2, "mode": "off"}'}}),
-    ('wifi-power-policy-bad-mode', ['wifi-power-policy'], {'ported': True, 'files': {POWER_SAVE: '{"schema": 1, "mode": "turbo"}'}}),
-    ('wifi-power-policy-not-object', ['wifi-power-policy'], {'ported': True, 'commands': [readback('off')],
+    ('wifi-power-policy-invalid', ['wifi-power-policy'], {'files': {POWER_SAVE: '{"schema": 2, "mode": "off"}'}}),
+    ('wifi-power-policy-bad-mode', ['wifi-power-policy'], {'files': {POWER_SAVE: '{"schema": 1, "mode": "turbo"}'}}),
+    ('wifi-power-policy-not-object', ['wifi-power-policy'], {'commands': [readback('off')],
                                                              'files': {POWER_SAVE: '[1]'}}),
-    ('wifi-power-policy-help', ['wifi-power-policy', '--help'], {'ported': True}),
-    ('bluetooth-power-on', ['bluetooth-power', 'on'], {'ported': True, 'patterns': INTENT, 'commands': [
+    ('wifi-power-policy-help', ['wifi-power-policy', '--help'], {}),
+    ('bluetooth-power-on', ['bluetooth-power', 'on'], {'patterns': INTENT, 'commands': [
         answer(['bluetoothctl', 'power', 'on'], 'Changing power on succeeded')], 'files': {
             '/proc/sys/kernel/random/boot_id': BOOT + '\n'}}),
-    ('bluetooth-power-off', ['bluetooth-power', 'off'], {'ported': True, 'patterns': INTENT, 'commands': [
+    ('bluetooth-power-off', ['bluetooth-power', 'off'], {'patterns': INTENT, 'commands': [
         answer(['bluetoothctl', 'power', 'off'])], 'files': {'/proc/sys/kernel/random/boot_id': BOOT + '\n'}}),
-    ('bluetooth-power-fails', ['bluetooth-power', 'on'], {'ported': True, 'patterns': INTENT, 'files': {
+    ('bluetooth-power-fails', ['bluetooth-power', 'on'], {'patterns': INTENT, 'files': {
         '/proc/sys/kernel/random/boot_id': BOOT + '\n', '/run/y2/bt-intent/bt-control.ini': 'old\n'}}),
-    ('bluetooth-power-no-boot-identity', ['bluetooth-power', 'off'], {'ported': True}),
-    ('bluetooth-power-intent-not-directory', ['bluetooth-power', 'on'], {'ported': True, 'files': {
+    ('bluetooth-power-no-boot-identity', ['bluetooth-power', 'off'], {}),
+    ('bluetooth-power-intent-not-directory', ['bluetooth-power', 'on'], {'files': {
         '/proc/sys/kernel/random/boot_id': BOOT + '\n', '/run/y2/bt-intent': 'file\n'}}),
-    ('bluetooth-power-invalid', ['bluetooth-power', 'maybe'], {'ported': True}),
+    ('bluetooth-power-invalid', ['bluetooth-power', 'maybe'], {}),
     ('connectivity-daemon-cold', ['connectivity-daemon'], daemon()),
     ('connectivity-daemon-attach', ['connectivity-daemon'], daemon(3, commands=ATTACHED, files={IFINDEX: '3\n'})),
     ('connectivity-daemon-reuse', ['connectivity-daemon'], daemon(2, files={IFINDEX: '3\n'}, commands=[
@@ -99,47 +98,10 @@ CASES = [
         IFINDEX: '3\n', '/run/y2/network.json': network('INTERFACE_DISABLED')})),
     ('connectivity-daemon-disabled-other-boot', ['connectivity-daemon'], daemon(2, commands=ATTACHED, files={
         IFINDEX: '3\n', '/run/y2/network.json': network('INTERFACE_DISABLED', boot='boot-z')})),
-    ('connectivity-daemon-help', ['connectivity-daemon', '--help'], {'ported': True}),
-    ('connectivity-daemon-extra', ['connectivity-daemon', 'now'], {'ported': True}),
+    ('connectivity-daemon-help', ['connectivity-daemon', '--help'], {}),
+    ('connectivity-daemon-extra', ['connectivity-daemon', 'now'], {}),
 ]
 
 
 def fixture(root):
     """Add the files these cases need below `root` (a pathlib.Path): none, each case brings its own."""
-
-
-def stop_after_ticks():
-    """Y2_LAUNCHER_PATCH for connectivity-daemon cases: as the Rust daemon below a fixture root, the loop
-    does not wait, sees no netlink event (a socket that never becomes readable) and ends after
-    Y2_DAEMON_TICKS iterations (its wait is the last step of one)."""
-    import os
-    import types
-    from y2_platform import connectivity
-
-    ticks = int(os.environ['Y2_DAEMON_TICKS'])
-    state = {'running': None, 'selects': 0}
-
-    class Wake(connectivity.SignalWake):
-        def __init__(self, running):
-            super().__init__(running)
-            state['running'] = running
-
-    class Events:
-        def __init__(self):
-            self.sock = object()
-
-        def wait(self, timeout, wake_fd):
-            return False
-
-        def close(self):
-            self.sock = None
-
-    def select(readers, writers, errors, timeout=None):
-        state['selects'] += 1
-        if state['selects'] >= ticks:
-            state['running'][0] = False
-        return [], [], []
-
-    connectivity.SignalWake = Wake
-    connectivity.AddressEvents = Events
-    connectivity.select = types.SimpleNamespace(select=select)

@@ -1,0 +1,26 @@
+{
+ "argv": [
+  "usb-mode",
+  "developer"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "apply": "when_disconnected",
+  "mode": "developer",
+  "state": "Queued"
+ },
+ "tree": {
+  "added": {
+   "/data/system/platform/usb-mode.json": {
+    "content": {
+     "mode": "developer"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

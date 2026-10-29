@@ -1,0 +1,40 @@
+{
+ "argv": [
+  "export-diagnostics"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "failure": "diagnostic_export_failed",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {
+   "/data/exports/.diagnostics.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/exports": {
+    "mode": "0o700",
+    "type": "dir"
+   }
+  },
+  "removed": []
+ }
+}

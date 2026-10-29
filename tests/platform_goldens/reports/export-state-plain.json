@@ -1,0 +1,94 @@
+{
+ "argv": [
+  "export-state"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "bytes": "<volatile>",
+  "contains_network_credentials": false,
+  "path": "/data/exports/state-<hex32>.tar.gz",
+  "sha256": "<hex64>",
+  "state": "Complete"
+ },
+ "tree": {
+  "added": {
+   "/data/exports": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/exports/state-<hex>.tar.gz.members.json": {
+    "content": [
+     {
+      "data": {
+       "absent": [
+        "reborn/state/session.json",
+        "bluetooth/preferred-audio"
+       ],
+       "consistency": "SQLite online backup; each session file atomic; no cross-file transaction",
+       "contains_network_credentials": false,
+       "excludes_bonds_and_private_keys": true,
+       "files": [],
+       "record": {
+        "boot_id": "boot-a",
+        "build_id": "fixture-build",
+        "evidence_level": "IMPLEMENTED",
+        "failure": null,
+        "kernel": "6.18.0-fixture",
+        "monotonic_ns": "<volatile>",
+        "parameters": {},
+        "reborn_commit": "reborn",
+        "result": null,
+        "rootfs_release": "v1.0",
+        "units": {},
+        "wall_timestamp": "<volatile>",
+        "workload": "owner-state-export",
+        "y2linux_commit": "linux-commit"
+       },
+       "schema": 1
+      },
+      "gname": "<owner>",
+      "mode": "0o600",
+      "name": "manifest.json",
+      "type": "0",
+      "uname": "<owner>"
+     }
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

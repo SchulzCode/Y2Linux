@@ -1,0 +1,24 @@
+{
+ "argv": [
+  "media",
+  "write"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "reason": null,
+  "state": "Ready",
+  "writable": false
+ },
+ "tree": {
+  "added": {
+   "/run/y2/media.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

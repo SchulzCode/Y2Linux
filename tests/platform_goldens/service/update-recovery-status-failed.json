@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "update",
+  "recovery-status"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "/usr/sbin/y2-update-core",
+    "misc"
+   ],
+   "timeout": 15.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "failure": "update_core_command_failed",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

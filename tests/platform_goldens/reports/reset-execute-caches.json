@@ -1,0 +1,101 @@
+{
+ "argv": [
+  "reset",
+  "execute",
+  "--confirm",
+  "be339c8b234142a307f7022e1e42a8c70ee92926b21392680608e89c68a5cf73"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 0,
+ "stdout": {
+  "completed": [],
+  "id": "1234567890abcdef1234567890abcdef",
+  "preserved": [
+   "SSH identity",
+   "entropy"
+  ],
+  "purge_confirmation": "be339c8b234142a307f7022e1e42a8c70ee92926b21392680608e89c68a5cf73",
+  "quarantine": "/data/reset-quarantine/1234567890abcdef1234567890abcdef",
+  "schema": 1,
+  "scope": "caches",
+  "state": "Complete"
+ },
+ "tree": {
+  "added": {
+   "/data/reset-quarantine": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/reset-quarantine/1234567890abcdef1234567890abcdef": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/reset-quarantine/1234567890abcdef1234567890abcdef/record.json": {
+    "content": {
+     "completed": [],
+     "id": "1234567890abcdef1234567890abcdef",
+     "preserved": [
+      "SSH identity",
+      "entropy"
+     ],
+     "purge_confirmation": "be339c8b234142a307f7022e1e42a8c70ee92926b21392680608e89c68a5cf73",
+     "quarantine": "/data/reset-quarantine/1234567890abcdef1234567890abcdef",
+     "schema": 1,
+     "scope": "caches",
+     "state": "Complete"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/.maintenance.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/maintenance-state.json": {
+    "content": {
+     "completed": [],
+     "id": "1234567890abcdef1234567890abcdef",
+     "preserved": [
+      "SSH identity",
+      "entropy"
+     ],
+     "purge_confirmation": "be339c8b234142a307f7022e1e42a8c70ee92926b21392680608e89c68a5cf73",
+     "quarantine": "/data/reset-quarantine/1234567890abcdef1234567890abcdef",
+     "schema": 1,
+     "scope": "caches",
+     "state": "Complete"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

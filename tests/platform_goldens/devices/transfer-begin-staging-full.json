@@ -1,0 +1,43 @@
+{
+ "argv": [
+  "transfer",
+  "begin",
+  "--name",
+  "Album/song.flac",
+  "--bytes",
+  "5",
+  "--sha256",
+  "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "blkid",
+    "-p",
+    "-s",
+    "UUID",
+    "-o",
+    "value",
+    "/dev/mmcblk0p9"
+   ],
+   "timeout": 1.0
+  }
+ ],
+ "exit": 1,
+ "stdout": {
+  "reason": "staging_limit_remove_completed_or_aborted_transfers",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {
+   "/data/transfer-staging": {
+    "mode": "0o700",
+    "type": "dir"
+   }
+  },
+  "removed": []
+ }
+}

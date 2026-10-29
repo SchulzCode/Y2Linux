@@ -1,0 +1,23 @@
+{
+ "argv": [
+  "report",
+  "check"
+ ],
+ "calls": [
+  {
+   "argv": [
+    "rebornctl",
+    "health",
+    "--json"
+   ],
+   "timeout": 5.0
+  }
+ ],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

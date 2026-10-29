@@ -1,0 +1,22 @@
+{
+ "argv": [
+  "sleep",
+  "status"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "boot_id": "boot-a",
+  "kernel_completed": false,
+  "reason": "boot_changed_before_restoration",
+  "request_boot_id": "boot-old",
+  "same_boot": false,
+  "schema": "org.y2linux.sleep/v1",
+  "state": "restore_failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

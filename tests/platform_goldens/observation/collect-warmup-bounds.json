@@ -1,0 +1,22 @@
+{
+ "argv": [
+  "collect",
+  "--seconds",
+  "1",
+  "--warmup",
+  "2"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "collection_bounds_exceeded",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

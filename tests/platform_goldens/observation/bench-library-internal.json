@@ -1,0 +1,43 @@
+{
+ "argv": [
+  "bench-library",
+  "--volume",
+  "/media/internal",
+  "--scan"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "measurements": null,
+  "record": {
+   "boot_id": "boot-a",
+   "build_id": "fixture-build",
+   "evidence_level": "IMPLEMENTED",
+   "failure": "scratch_volume_not_allowed",
+   "kernel": "6.18.0-fixture",
+   "monotonic_ns": "<volatile>",
+   "parameters": {
+    "scan": true,
+    "tracks": 1000,
+    "volume": "/media/internal"
+   },
+   "reborn_commit": "reborn",
+   "result": "FAILED",
+   "rootfs_release": "v1.0",
+   "units": {
+    "latency": "ms",
+    "memory": "KiB",
+    "size": "bytes"
+   },
+   "wall_timestamp": "<volatile>",
+   "workload": "reborn-library",
+   "y2linux_commit": "linux-commit"
+  },
+  "schema": "org.y2linux.benchmark/v1"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

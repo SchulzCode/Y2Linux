@@ -1,0 +1,15 @@
+{
+ "argv": [
+  "internal-media",
+  "setup",
+  "--confirm-serial"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

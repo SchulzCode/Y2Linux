@@ -1,0 +1,53 @@
+{
+ "argv": [
+  "sleep",
+  "prepare"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {
+   "/data/system/platform/suspend-last.json": {
+    "content": {
+     "current_boot_id": "boot-a",
+     "persistent_kernel": null,
+     "pm_test": "none",
+     "product": {
+      "boot_id": "boot-a",
+      "kernel_completed": false,
+      "reason": "[Errno 2] No such file or directory",
+      "request_boot_id": "boot-a",
+      "same_boot": true,
+      "schema": "org.y2linux.sleep/v1",
+      "state": "refused",
+      "wake_reason": "unknown"
+     },
+     "radio_restore": null,
+     "request_boot_id": "boot-a",
+     "requested_mode": "deep",
+     "result": 1,
+     "schema": 1,
+     "stage": "refused_reborn_preparation",
+     "stages": [
+      {
+       "result": 1,
+       "stage": "refused_reborn_preparation",
+       "time": "<volatile>"
+      }
+     ],
+     "started": "<volatile>",
+     "updated": "<volatile>",
+     "usb_restore": {
+      "controllers": {},
+      "udcs": {}
+     }
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

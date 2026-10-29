@@ -1,0 +1,15 @@
+{
+ "argv": [
+  "status",
+  "--interval",
+  "0.05"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

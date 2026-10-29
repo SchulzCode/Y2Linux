@@ -1,0 +1,25 @@
+{
+ "argv": [
+  "bluetooth-power",
+  "on"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "reason": "state_directory_not_directory",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/bt-operation.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {},
+  "removed": []
+ }
+}

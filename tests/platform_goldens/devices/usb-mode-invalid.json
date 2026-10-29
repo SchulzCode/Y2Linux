@@ -1,0 +1,14 @@
+{
+ "argv": [
+  "usb-mode",
+  "mass-storage"
+ ],
+ "calls": [],
+ "exit": 2,
+ "stdout": [],
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

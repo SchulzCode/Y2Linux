@@ -1,0 +1,17 @@
+{
+ "argv": [
+  "update",
+  "check"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "exactly_one_local_package_or_HTTPS_manifest_required",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}
