@@ -8,7 +8,6 @@ use serde_json::{json, Map, Number, Value};
 use std::{fs::Metadata, os::unix::fs::MetadataExt, path::Path};
 use y2p_core::py::PyValue;
 use y2p_core::{
-    clock,
     py::{exact_int, is_true, truthy},
     root::read,
     suspend_text::{field, fields, split, splitlines, Regex},
@@ -112,7 +111,7 @@ pub fn admission(root: &Root) -> Result<(), E> {
         .get("boot_id")
         .unwrap_or(&Value::Null)
         .py_eq(&Value::from(root.boot_id()))
-        && before(retry.get("not_before_ns"), clock::boottime_ns())
+        && before(retry.get("not_before_ns"), root.clock().boottime_ns())
     {
         return Err(refused("kernel_prepare_retry_wait"));
     }
@@ -254,7 +253,7 @@ pub fn battery_and_cable(root: &Root) -> Result<(), E> {
                 .map(i128::from)
                 .or_else(|| n.as_u64().map(i128::from))
                 .unwrap_or(0);
-            i128::from(clock::monotonic_ns()) - sampled
+            i128::from(root.clock().monotonic_ns()) - sampled
         }
         _ => -1,
     };
@@ -461,7 +460,7 @@ pub fn failed_before_freeze(root: &Root) -> bool {
 pub fn retry_later(root: &Root) -> Result<(), E> {
     let path = root.path(RETRY);
     private_directory(path.parent().unwrap_or(Path::new("/")))?;
-    let not_before = clock::boottime_ns() + PREPARE_RETRY_SECONDS * 1_000_000_000;
+    let not_before = root.clock().boottime_ns() + PREPARE_RETRY_SECONDS * 1_000_000_000;
     let value = json!({"boot_id": Value::from(root.boot_id()), "not_before_ns": Value::Number(Number::from(not_before))});
     y2p_core::record::atomic_json(&path, &value, false, 0o600).map_err(|e| E::os(&e, Some(&path)))
 }

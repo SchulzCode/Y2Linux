@@ -62,9 +62,18 @@ pub fn prepare(root: &Root) -> Outcome {
     cli(prepare_owned(root).and_then(|p| Reply::sorted(&p, 0).map_err(|_| E::value("json"))))
 }
 
+/// Starts the product sleep helper with the request's lock (`launch` on the player; a test passes
+/// its own).
+pub type Launcher<'a> = &'a mut dyn FnMut(&Root, &File) -> Result<(), E>;
+
 /// `y2-platform sleep request`: acknowledge an owned request; the detached helper owns the blocking
 /// PM. Installed 04 lacks the built-in context-ownership ABI and stays refused.
 pub fn request(root: &Root) -> Outcome {
+    request_with(root, &mut launch)
+}
+
+/// `sleep request` with the helper started by `launcher`.
+pub fn request_with(root: &Root, launcher: Launcher) -> Outcome {
     let directory = root.path("/run/y2");
     y2p_core::record::private_directory(&directory)
         .map_err(|e| failure(E::os(&e, Some(&directory))))?;
@@ -85,10 +94,11 @@ pub fn request(root: &Root) -> Outcome {
         }
         Err(error) => return cli(Err(E::os(&error, None))),
     }
-    cli(admit(root, &lock).and_then(|p| Reply::sorted(&p, 0).map_err(|_| E::value("json"))))
+    cli(admit(root, &lock, launcher)
+        .and_then(|p| Reply::sorted(&p, 0).map_err(|_| E::value("json"))))
 }
 
-fn admit(root: &Root, lock: &File) -> Result<Map<String, Value>, E> {
+fn admit(root: &Root, lock: &File, launcher: Launcher) -> Result<Map<String, Value>, E> {
     let attempt = (|| {
         admission(root)?;
         battery_and_cable(root)?;
@@ -97,7 +107,7 @@ fn admit(root: &Root, lock: &File) -> Result<Map<String, Value>, E> {
             ..Stage::new("requested", Some(0))
         };
         let value = record(root, requested)?;
-        launch(root, lock)?;
+        launcher(root, lock)?;
         Ok(value)
     })();
     let value = match attempt {
@@ -122,10 +132,6 @@ fn admit(root: &Root, lock: &File) -> Result<Map<String, Value>, E> {
 /// description retains the request's flock across this process's exit, so another request cannot
 /// pass between acknowledgement and entry.
 fn launch(root: &Root, lock: &File) -> Result<(), E> {
-    #[cfg(test)]
-    if let Some(result) = super::helper::seams::with(|s| &mut s.launch, |f| f(root, lock)) {
-        return result;
-    }
     if !root.is_real() {
         return Err(E::refused("fixture_launcher_unavailable"));
     }

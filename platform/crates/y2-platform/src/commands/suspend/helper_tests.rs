@@ -1,11 +1,12 @@
 //! The product sleep helper's flows with real lock ownership, policy refusals and the PM writes
 //! (tests/test_product_auto_sleep.py, tests/test_pm_control_write.py and the helper's part of
-//! tests/test_sleep_product.py). Reborn is a fake control socket in the fixture root; the kernel
-//! entry, `time.sleep`, `time.monotonic`, `control_write` and the commands are this thread's seams.
+//! tests/test_sleep_product.py). Reborn is a fake control socket in the fixture root; the kernel is
+//! a fake `Pm` (the `mem` write, each control write, the pauses), the clock a `clock::Manual` that
+//! each pause moves on, and the commands are answered by the fixture root's runner.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    execute, kernel_sleep, operation_locks, screen_first, seams, APPLICATION_READY_WAIT_S,
-    STALE_COUNT_RETRIES,
+    control_write, execute, kernel_sleep, operation_locks, screen_first, write, Pm,
+    APPLICATION_READY_WAIT_S, RADIO_QUIESCE_SECONDS, STALE_COUNT_RETRIES,
 };
 use crate::commands::{
     reports::workload::Lease,
@@ -23,22 +24,20 @@ use serde_json::{json, Map, Value};
 use std::{
     cell::{Cell, RefCell},
     fs::{self, File, OpenOptions},
+    io,
     os::fd::AsRawFd,
     path::PathBuf,
     rc::Rc,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex},
 };
-use y2p_core::{clock, command::Outcome, Root};
+use y2p_core::{
+    clock::{Clock, Manual},
+    command::Outcome,
+    Root,
+};
 
-/// The helper's wake-count read arms the process's one ITIMER_REAL: one helper run at a time.
-static SERIAL: Mutex<()> = Mutex::new(());
-
-fn os_error(errno: i32, text: &str) -> E {
-    E::Os {
-        class: "OSError",
-        text: format!("[Errno {errno}] {text}"),
-        errno: Some(errno),
-    }
+fn os_error(errno: i32) -> io::Error {
+    io::Error::from_raw_os_error(errno)
 }
 
 fn done() -> Outcome {
@@ -49,10 +48,11 @@ fn done() -> Outcome {
     }
 }
 
-/// The fixture tree as the seams and the fake Reborn change it (from any thread).
+/// The fixture tree as the fake kernel and the fake Reborn change it (from any thread).
 #[derive(Clone)]
 struct Tree {
     base: PathBuf,
+    clock: Arc<Manual>,
     /// (Power, RTC) serviced IRQ counts.
     counts: Arc<Mutex<(u32, u32)>>,
 }
@@ -114,12 +114,18 @@ impl Tree {
         );
     }
 
+    /// A fresh `/run/y2/power.json` sample from the battery safety owner.
     fn power(&self) {
-        self.write(
-            "/run/y2/power.json",
-            &json!({"boot_id": "same-boot", "state": "Normal", "monotonic_ns": clock::monotonic_ns()})
-                .to_string(),
-        );
+        self.power_with("Normal", None);
+    }
+
+    fn power_with(&self, state: &str, battery: Option<Value>) {
+        let mut value = json!({"boot_id": "same-boot", "state": state,
+                               "monotonic_ns": self.clock.monotonic_ns()});
+        if let Some(battery) = battery {
+            value["battery"] = battery;
+        }
+        self.write("/run/y2/power.json", &value.to_string());
     }
 
     fn prepare_refusal_ring(&self, extra: &[&str]) {
@@ -146,6 +152,56 @@ impl Tree {
     }
 }
 
+type Enter = Box<dyn FnMut() -> io::Result<()>>;
+type Pause = Box<dyn FnMut(f64) -> Result<(), E>>;
+type Control = Box<dyn FnMut(&Root, &str, &str) -> io::Result<()>>;
+type Respond = Box<dyn FnMut(&[&str]) -> Outcome + Send>;
+
+/// What the fake kernel does, set by a test between runs.
+#[derive(Default)]
+struct Hooks {
+    /// The `mem` write, the kernel entry (without one: a plain write to the fixture file).
+    enter: Option<Enter>,
+    /// After each pause has moved the clock on.
+    pause: Option<Pause>,
+    /// Before each PM control write (device path, text): an error instead of the write (a sysfs
+    /// store the kernel refuses leaves the file as it was).
+    control: Option<Control>,
+}
+
+/// The kernel of one run: the hooks, the manual clock each pause moves on, the fixture files.
+struct FakeKernel<'a> {
+    hooks: &'a RefCell<Hooks>,
+    clock: &'a Manual,
+}
+
+impl Pm for FakeKernel<'_> {
+    fn wakeup_count(&mut self, root: &Root) -> Result<Option<String>, E> {
+        Ok(root.read("/sys/power/wakeup_count"))
+    }
+
+    fn control(&mut self, root: &Root, name: &str, value: &str) -> Result<(), E> {
+        let mut hooks = self.hooks.borrow_mut();
+        if let Some(control) = hooks.control.as_mut() {
+            control(root, name, value).map_err(|e| E::os(&e, None))?;
+        }
+        if name == "/sys/power/state" {
+            if let Some(enter) = hooks.enter.as_mut() {
+                return enter().map_err(|e| E::os(&e, None));
+            }
+        }
+        control_write(root, name, value, &mut write)
+    }
+
+    fn pause(&mut self, seconds: f64) -> Result<(), E> {
+        self.clock.advance((seconds * 1e9) as u64);
+        match self.hooks.borrow_mut().pause.as_mut() {
+            Some(pause) => pause(seconds),
+            None => Ok(()),
+        }
+    }
+}
+
 /// `ProductAutoSleep.setUp`: a qualified player on battery, the request's lock held, every command
 /// answered ok and Reborn ready.
 struct Player {
@@ -154,16 +210,20 @@ struct Player {
     lock: File,
     tree: Tree,
     root: Root,
+    clock: Arc<Manual>,
+    hooks: RefCell<Hooks>,
+    respond: Arc<Mutex<Respond>>,
     fixture: Fixture,
-    calls: Rc<RefCell<Vec<Vec<String>>>>,
-    _serial: MutexGuard<'static, ()>,
 }
 
 impl Player {
     fn new() -> Player {
-        let serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
-        seams::reset();
-        let fixture = Fixture::new();
+        let clock = Arc::new(Manual::at(1_000_000_000_000, 2_000_000_000_000));
+        let respond: Arc<Mutex<Respond>> = Arc::new(Mutex::new(Box::new(|_| done())));
+        let answer = respond.clone();
+        let fixture = Fixture::new()
+            .responding(move |argv, _| (answer.lock().unwrap())(argv))
+            .with_clock(clock.clone());
         for (name, text) in [
             ("/proc/sys/kernel/random/boot_id", "same-boot"),
             ("/proc/sys/kernel/osrelease", "corrected-kernel"),
@@ -202,6 +262,7 @@ impl Player {
         );
         let tree = Tree {
             base: fixture.base().to_owned(),
+            clock: clock.clone(),
             counts: Arc::new(Mutex::new((2, 1))),
         };
         tree.power();
@@ -215,58 +276,56 @@ impl Player {
             .unwrap();
         lock.try_lock().unwrap();
         let reborn = Reborn::ready(&fixture);
-        let player = Player {
+        Player {
             root: fixture.root.clone(),
+            clock,
+            hooks: RefCell::default(),
+            respond,
             fixture,
             tree,
             lock,
             reborn,
-            calls: Rc::default(),
-            _serial: serial,
-        };
-        player.answer_commands();
-        player
+        }
     }
 
-    /// `self.command`: every command recorded and ok.
+    /// Every command ok (each is recorded by the fixture root's runner: `commands`).
     fn answer_commands(&self) {
-        let calls = self.calls.clone();
-        self.command(move |argv| {
-            calls
-                .borrow_mut()
-                .push(argv.iter().map(|a| a.to_string()).collect());
-            done()
-        });
+        self.command(|_| done());
     }
 
-    fn command(&self, f: impl FnMut(&[&str]) -> Outcome + 'static) {
-        seams::SEAMS.with(|s| s.borrow_mut().command = Some(Box::new(f)));
+    fn command(&self, f: impl FnMut(&[&str]) -> Outcome + Send + 'static) {
+        *self.respond.lock().unwrap() = Box::new(f);
     }
 
-    fn enter(&self, f: impl FnMut(&Root) -> Result<(), E> + 'static) {
-        seams::SEAMS.with(|s| s.borrow_mut().enter = Some(Box::new(f)));
+    /// The commands asked for so far.
+    fn commands(&self) -> Vec<Vec<String>> {
+        self.fixture.calls().into_iter().map(|(a, _)| a).collect()
+    }
+
+    fn enter(&self, f: impl FnMut() -> io::Result<()> + 'static) {
+        self.hooks.borrow_mut().enter = Some(Box::new(f));
     }
 
     /// The kernel must not be entered.
     fn never_enter(&self, why: &'static str) {
-        self.enter(move |_| panic!("{why}"));
+        self.enter(move || panic!("{why}"));
     }
 
     /// Each entry returns from the kernel by Power.
     fn enter_returning(&self) {
         let tree = self.tree.clone();
-        self.enter(move |_| {
+        self.enter(move || {
             tree.returned(false, false);
             Ok(())
         });
     }
 
     fn sleep(&self, f: impl FnMut(f64) -> Result<(), E> + 'static) {
-        seams::SEAMS.with(|s| s.borrow_mut().sleep = Some(Box::new(f)));
+        self.hooks.borrow_mut().pause = Some(Box::new(f));
     }
 
-    fn control(&self, f: impl FnMut(&Root, &str, &str) -> Result<(), E> + 'static) {
-        seams::SEAMS.with(|s| s.borrow_mut().control = Some(Box::new(f)));
+    fn control(&self, f: impl FnMut(&Root, &str, &str) -> io::Result<()> + 'static) {
+        self.hooks.borrow_mut().control = Some(Box::new(f));
     }
 
     fn run_sleep(&self) -> i64 {
@@ -275,7 +334,11 @@ impl Player {
             ..Stage::new("requested", Some(0))
         };
         record(&self.root, requested).unwrap();
-        execute(&self.root, self.lock.as_raw_fd()).unwrap()
+        let mut kernel = FakeKernel {
+            hooks: &self.hooks,
+            clock: &self.clock,
+        };
+        execute(&self.root, self.lock.as_raw_fd(), &mut kernel).unwrap()
     }
 
     fn receipt(&self) -> Value {
@@ -296,12 +359,6 @@ impl Player {
 
     fn write(&self, name: &str, text: &str) {
         self.tree.write(name, text);
-    }
-}
-
-impl Drop for Player {
-    fn drop(&mut self) {
-        seams::reset();
     }
 }
 
@@ -329,12 +386,12 @@ fn index(stages: &[String], stage: &str) -> usize {
 /// invalidates the store even when no IRQ stays active. Every store is kept in `stores`.
 fn kernel_control(
     stores: Rc<RefCell<Vec<String>>>,
-) -> impl FnMut(&Root, &str, &str) -> Result<(), E> {
+) -> impl FnMut(&Root, &str, &str) -> io::Result<()> {
     move |root, name, value| {
         if name == "/sys/power/wakeup_count" {
             stores.borrow_mut().push(value.trim().to_owned());
             if Some(value.trim()) != root.read(name).as_deref() {
-                return Err(os_error(libc::EINVAL, "intervening battery notification"));
+                return Err(os_error(libc::EINVAL));
             }
         }
         Ok(())
@@ -346,13 +403,12 @@ fn timer_maintenance_keeps_app_quiesced_then_power_fully_restores() {
     let p = Player::new();
     let entries = Rc::new(Cell::new(0));
     let (tree, ops, n) = (p.tree.clone(), p.reborn.ops.clone(), entries.clone());
-    p.enter(move |_| {
+    p.enter(move || {
         n.set(n.get() + 1);
         assert_eq!(*ops.lock().unwrap(), ["sleep_prepare"]);
         tree.returned(n.get() == 1, false);
         Ok(())
     });
-    p.sleep(|_| Ok(()));
     assert_eq!(p.run_sleep(), 0);
     let receipt = p.receipt();
     assert_eq!(receipt["cycles"], 2);
@@ -381,7 +437,7 @@ fn playback_may_start_while_the_radios_come_back() {
     // radio restore had finished.
     let p = Player::new();
     p.write("/data/network/enabled", "1");
-    let lease = Rc::new(RefCell::new(Vec::new()));
+    let lease = Arc::new(Mutex::new(Vec::new()));
     let (seen, base) = (lease.clone(), p.fixture.base().to_owned());
     p.command(move |argv| {
         if argv.last() == Some(&"on-runtime") {
@@ -393,7 +449,8 @@ fn playback_may_start_while_the_radios_come_back() {
                     .unwrap()
             };
             let activity = open("run/y2/activity.lock");
-            seen.borrow_mut()
+            seen.lock()
+                .unwrap()
                 .push(if activity.try_lock_shared().is_ok() {
                     "free"
                 } else {
@@ -401,7 +458,8 @@ fn playback_may_start_while_the_radios_come_back() {
                 });
             // The firmware/update and maintenance locks stay held.
             let maintenance = open("data/system/platform/.maintenance.lock");
-            seen.borrow_mut()
+            seen.lock()
+                .unwrap()
                 .push(if maintenance.try_lock_shared().is_ok() {
                     "maintenance free"
                 } else {
@@ -412,7 +470,7 @@ fn playback_may_start_while_the_radios_come_back() {
     });
     p.enter_returning();
     assert_eq!(p.run_sleep(), 0);
-    assert_eq!(*lease.borrow(), ["free", "maintenance held"]);
+    assert_eq!(*lease.lock().unwrap(), ["free", "maintenance held"]);
 }
 
 #[test]
@@ -436,7 +494,7 @@ fn sleep_before_application_ready_waits_for_it_then_sleeps() {
     });
     let entered = Rc::new(RefCell::new(Vec::new()));
     let (e, t, tree) = (entered.clone(), ticks.clone(), p.tree.clone());
-    p.enter(move |_| {
+    p.enter(move || {
         e.borrow_mut().push(t.get());
         tree.returned(false, false);
         Ok(())
@@ -461,20 +519,23 @@ fn the_wait_for_application_ready_is_bounded_and_a_power_press_cancels_it() {
         "/data/system/platform/boot.json",
         &json!({"boot_id": "same-boot", "last_stage": "platform_start"}).to_string(),
     );
-    let clock = Rc::new(Cell::new(1000.0));
-    let c = clock.clone();
-    p.sleep(move |seconds| {
-        c.set(c.get() + seconds);
+    // The battery safety owner keeps publishing while the helper waits.
+    let tree = p.tree.clone();
+    p.sleep(move |_| {
+        tree.power();
         Ok(())
     });
-    let c = clock.clone();
-    seams::SEAMS.with(|s| s.borrow_mut().monotonic = Some(Box::new(move || c.get())));
+    let start = p.clock.monotonic();
     p.enter_returning();
     assert_eq!(p.run_sleep(), 0);
-    assert!(clock.get() - 1000.0 >= APPLICATION_READY_WAIT_S);
+    let waited = p.clock.monotonic() - start;
+    assert!(
+        (APPLICATION_READY_WAIT_S..APPLICATION_READY_WAIT_S + 1.0).contains(&waited),
+        "{waited}"
+    );
     assert_eq!(p.product()["state"], "restored");
     // Power during the wait: no kernel entry, the screen comes back.
-    seams::SEAMS.with(|s| s.borrow_mut().monotonic = None);
+    p.tree.power();
     p.reborn.clear();
     p.write(
         "/sys/firmware/y2_pm/backstop_s",
@@ -487,7 +548,7 @@ fn the_wait_for_application_ready_is_bounded_and_a_power_press_cancels_it() {
     });
     let entered = Rc::new(Cell::new(0));
     let e = entered.clone();
-    p.enter(move |_| {
+    p.enter(move || {
         e.set(e.get() + 1);
         Ok(())
     });
@@ -506,7 +567,7 @@ fn the_wait_for_application_ready_is_bounded_and_a_power_press_cancels_it() {
 fn rtc_restores_without_automatic_reentry() {
     let p = Player::new();
     let tree = p.tree.clone();
-    p.enter(move |_| {
+    p.enter(move || {
         tree.returned(false, true);
         Ok(())
     });
@@ -523,7 +584,7 @@ fn battery_notification_during_maintenance_uses_a_fresh_handshake() {
     p.control(kernel_control(writes.clone()));
     let entries = Rc::new(Cell::new(0));
     let (n, tree) = (entries.clone(), p.tree.clone());
-    p.enter(move |_| {
+    p.enter(move || {
         n.set(n.get() + 1);
         tree.returned(n.get() == 1, n.get() != 1);
         Ok(())
@@ -559,19 +620,18 @@ fn power_press_after_maintenance_read_still_cancels_entry() {
                 tree.press();
             }
             if Some(value.trim()) != root.read(name).as_deref() {
-                return Err(os_error(libc::EINVAL, "new wakeup before entry"));
+                return Err(os_error(libc::EINVAL));
             }
         }
         Ok(())
     });
     let entries = Rc::new(Cell::new(0));
     let (n, tree) = (entries.clone(), p.tree.clone());
-    p.enter(move |_| {
+    p.enter(move || {
         n.set(n.get() + 1);
         tree.returned(true, false);
         Ok(())
     });
-    p.sleep(|_| Ok(()));
     assert_eq!(p.run_sleep(), 2);
     assert_eq!(entries.get(), 1);
     assert_eq!(stores.borrow().len(), 2);
@@ -605,7 +665,7 @@ fn cable_during_preparation_cancels_instead_of_retrying() {
     let p = Player::new();
     p.control(|root, name, value| {
         if name == "/sys/power/wakeup_count" && Some(value.trim()) != root.read(name).as_deref() {
-            return Err(os_error(libc::EINVAL, "cable event"));
+            return Err(os_error(libc::EINVAL));
         }
         Ok(())
     });
@@ -634,7 +694,7 @@ fn continuous_events_refuse_after_bounded_retries() {
             s.borrow_mut().push(value.trim().to_owned());
             let count: u64 = value.trim().parse().unwrap();
             tree.write(name, &(count + 1).to_string()); // an event before every store
-            return Err(os_error(libc::EINVAL, "busy wake source"));
+            return Err(os_error(libc::EINVAL));
         }
         Ok(())
     });
@@ -658,7 +718,7 @@ fn screen_woken_before_preparation_cancels_without_a_restore() {
     assert_eq!(p.product()["reason"], "wake_event_in_progress");
     assert_eq!(p.rpc(), ["sleep_prepare"]);
     assert_eq!(p.guard()["pending"], false);
-    assert!(p.calls.borrow().is_empty()); // radios never quiesced
+    assert!(p.commands().is_empty()); // radios never quiesced
 }
 
 #[test]
@@ -666,9 +726,9 @@ fn kernel_busy_restores_once_without_claiming_sleep_or_retrying() {
     let p = Player::new();
     let calls = Rc::new(Cell::new(0));
     let c = calls.clone();
-    p.enter(move |_| {
+    p.enter(move || {
         c.set(c.get() + 1);
-        Err(os_error(libc::EBUSY, "wake event during device suspend"))
+        Err(os_error(libc::EBUSY))
     });
     assert_eq!(p.run_sleep(), 2);
     let receipt = p.receipt();
@@ -716,16 +776,15 @@ fn playback_preparation_refusal_remains_a_named_inhibitor() {
 fn request_passes_lock_ownership_to_detached_helper() {
     let p = Player::new();
     p.lock.unlock().unwrap();
-    let owned = Rc::new(RefCell::new(Vec::new()));
-    let o = owned.clone();
-    seams::SEAMS.with(|s| {
-        s.borrow_mut().launch = Some(Box::new(move |_, lock| {
-            o.borrow_mut().push(lock.try_clone().unwrap());
+    let owned = RefCell::new(Vec::new());
+    let request = || -> Value {
+        let mut launch = |_: &Root, lock: &File| {
+            owned.borrow_mut().push(lock.try_clone().unwrap());
             Ok(())
-        }))
-    });
-    let request =
-        || -> Value { serde_json::from_str(&request::request(&p.root).unwrap().stdout).unwrap() };
+        };
+        let reply = request::request_with(&p.root, &mut launch).unwrap();
+        serde_json::from_str(&reply.stdout).unwrap()
+    };
     assert_eq!(request()["state"], "requested");
     assert_eq!(request()["reason"], "sleep_operation_in_progress");
     owned.borrow_mut().clear();
@@ -738,7 +797,7 @@ fn power_press_during_maintenance_gap_cancels_next_entry() {
     let p = Player::new();
     let calls = Rc::new(Cell::new(0));
     let (c, tree) = (calls.clone(), p.tree.clone());
-    p.enter(move |_| {
+    p.enter(move || {
         c.set(c.get() + 1);
         tree.returned(true, false);
         Ok(())
@@ -759,7 +818,7 @@ fn rtc_during_maintenance_gap_cancels_next_entry() {
     let p = Player::new();
     let calls = Rc::new(Cell::new(0));
     let (c, tree) = (calls.clone(), p.tree.clone());
-    p.enter(move |_| {
+    p.enter(move || {
         c.set(c.get() + 1);
         tree.returned(true, false);
         Ok(())
@@ -796,13 +855,7 @@ fn active_owner_refuses_but_dead_owner_and_leftover_file_do_not() {
 #[test]
 fn kernel_fault_quarantines_same_image_and_new_image_retries() {
     let p = Player::new();
-    p.enter(|_| {
-        Err(E::Os {
-            class: "OSError",
-            text: "failed after kernel entry".into(),
-            errno: None,
-        })
-    });
+    p.enter(|| Err(io::Error::other("failed after kernel entry")));
     assert_eq!(p.run_sleep(), 1);
     assert_eq!(p.guard()["pending"], true);
     assert_eq!(
@@ -828,9 +881,9 @@ fn notifier_refusal_before_freeze_waits_instead_of_quarantining() {
     // guard then refused sleep 237 times in 4.4 h.
     let p = Player::new();
     let tree = p.tree.clone();
-    p.enter(move |_| {
+    p.enter(move || {
         tree.prepare_refusal_ring(&[]);
-        Err(os_error(libc::EPERM, "Operation not permitted"))
+        Err(os_error(libc::EPERM))
     });
     assert_eq!(p.run_sleep(), 2);
     assert_eq!(p.product()["reason"], "kernel_prepare_refused");
@@ -860,7 +913,7 @@ fn failure_after_freeze_or_unclear_ring_still_quarantines() {
     let p = Player::new();
     for (extra, ring) in [(&["TASKS_FROZEN"][..], true), (&[][..], false)] {
         let tree = p.tree.clone();
-        p.enter(move |_| {
+        p.enter(move || {
             if ring {
                 tree.prepare_refusal_ring(extra);
             } else {
@@ -869,7 +922,7 @@ fn failure_after_freeze_or_unclear_ring_still_quarantines() {
                     "ring=absent cycle=0 last=0 backstop_s=0",
                 );
             }
-            Err(os_error(libc::EPERM, "Operation not permitted"))
+            Err(os_error(libc::EPERM))
         });
         p.write(GUARD, "{}");
         p.write(
@@ -888,23 +941,21 @@ fn radio_quiesce_failure_before_kernel_entry_never_quarantines() {
     // never entered) left the guard pending and every later sleep was refused, across reboots,
     // until a reflash.
     let p = Player::new();
-    let calls = p.calls.clone();
-    p.command(move |argv| {
-        calls
-            .borrow_mut()
-            .push(argv.iter().map(|a| a.to_string()).collect());
-        Outcome {
-            ok: argv[1..] != ["bluetooth", "off-runtime"],
-            ..done()
-        }
+    p.command(move |argv| Outcome {
+        ok: argv[1..] != ["bluetooth", "off-runtime"],
+        ..done()
     });
-    p.sleep(|_| Ok(()));
-    seams::SEAMS.with(|s| s.borrow_mut().radio_quiesce_seconds = Some(0.0));
     p.never_enter("entered without radios off");
+    let start = p.clock.monotonic();
     assert_eq!(p.run_sleep(), 1);
+    // One try a second for the whole window, then the failure.
+    assert_eq!(p.clock.monotonic() - start, RADIO_QUIESCE_SECONDS);
     assert_eq!(
         p.product()["reason"],
-        "sleep_service_failed:y2-radio:bluetooth:attempts=1"
+        format!(
+            "sleep_service_failed:y2-radio:bluetooth:attempts={}",
+            RADIO_QUIESCE_SECONDS as u32 + 1
+        )
     );
     let guard = p.guard();
     assert_eq!(guard["pending"], false);
@@ -912,7 +963,7 @@ fn radio_quiesce_failure_before_kernel_entry_never_quarantines() {
     assert_eq!(p.rpc(), ["sleep_prepare", "sleep_restore"]);
     assert_eq!(admission(&p.root), Ok(()));
     // The next request succeeds normally.
-    seams::SEAMS.with(|s| s.borrow_mut().radio_quiesce_seconds = None);
+    p.tree.power();
     p.answer_commands();
     p.enter_returning();
     assert_eq!(p.run_sleep(), 0);
@@ -921,11 +972,12 @@ fn radio_quiesce_failure_before_kernel_entry_never_quarantines() {
 #[test]
 fn bluetooth_operation_in_progress_is_waited_out_within_the_window() {
     let p = Player::new();
-    let refusals = Rc::new(Cell::new(0));
+    let refusals = Arc::new(Mutex::new(0));
     let r = refusals.clone();
     p.command(move |argv| {
-        if argv[1..] == ["bluetooth", "off-runtime"] && r.get() < 3 {
-            r.set(r.get() + 1);
+        let mut refused = r.lock().unwrap();
+        if argv[1..] == ["bluetooth", "off-runtime"] && *refused < 3 {
+            *refused += 1;
             return Outcome {
                 ok: false,
                 reason: Some("command_failed".into()),
@@ -942,7 +994,7 @@ fn bluetooth_operation_in_progress_is_waited_out_within_the_window() {
     });
     p.enter_returning();
     assert_eq!(p.run_sleep(), 0);
-    assert_eq!(refusals.get(), 3);
+    assert_eq!(*refusals.lock().unwrap(), 3);
     assert_eq!(pauses.get(), 3);
     assert_eq!(p.product()["state"], "restored");
     assert_eq!(p.guard()["pending"], false);
@@ -1073,12 +1125,7 @@ fn low_battery_sleeps_until_the_low_battery_power_off() {
         if battery.get("confidence").is_none() {
             battery["confidence"] = json!("calibrated_estimate");
         }
-        p.write(
-            "/run/y2/power.json",
-            &json!({"boot_id": "same-boot", "state": state,
-                    "monotonic_ns": clock::monotonic_ns(), "battery": battery})
-            .to_string(),
-        );
+        p.tree.power_with(state, Some(battery));
     };
     p.write("/sys/class/power_supply/BAT0/voltage_now", "3558471");
     power(
@@ -1243,29 +1290,44 @@ fn early_screen_restore_is_reused_and_a_failed_one_retried() {
 
 // ---- tests/test_pm_control_write.py ------------------------------------------------------------
 
+/// A store whose first write(2) gives `result`, each later one all bytes; every write is kept.
+struct Store {
+    result: io::Result<usize>,
+    calls: Vec<Vec<u8>>,
+}
+
+impl Pm for Store {
+    fn wakeup_count(&mut self, _: &Root) -> Result<Option<String>, E> {
+        unreachable!("no handshake here")
+    }
+
+    fn control(&mut self, root: &Root, name: &str, value: &str) -> Result<(), E> {
+        control_write(root, name, value, &mut |_, data| {
+            self.calls.push(data.to_vec());
+            // The first store can refuse; a repeated store would enter suspend.
+            match self.calls.len() {
+                1 => std::mem::replace(&mut self.result, Ok(0)),
+                _ => Ok(data.len()),
+            }
+        })
+    }
+
+    fn pause(&mut self, _: f64) -> Result<(), E> {
+        Ok(())
+    }
+}
+
 /// `kernel_sleep` on a store whose first write(2) gives `result`; every write it was asked for.
-fn invoke(result: Result<usize, i32>) -> (Result<(), E>, Vec<Vec<u8>>) {
-    seams::reset();
+fn invoke(result: io::Result<usize>) -> (Result<(), E>, Vec<Vec<u8>>) {
     let fixture = Fixture::new();
     fixture.put("/sys/power/state", "");
-    let calls = Rc::new(RefCell::new(Vec::<Vec<u8>>::new()));
-    let c = calls.clone();
-    seams::SEAMS.with(|s| {
-        s.borrow_mut().store = Some(Box::new(move |data| {
-            c.borrow_mut().push(data.to_vec());
-            // The first store can refuse; a repeated store would enter suspend.
-            if c.borrow().len() == 1 {
-                result
-            } else {
-                Ok(data.len())
-            }
-        }))
-    });
-    let outcome = kernel_sleep(&fixture.root);
-    seams::reset();
-    let calls = calls.borrow().clone();
-    assert_eq!(calls, [b"mem\n".to_vec()], "PM command was replayed");
-    (outcome, calls)
+    let mut store = Store {
+        result,
+        calls: Vec::new(),
+    };
+    let outcome = kernel_sleep(&fixture.root, &mut store);
+    assert_eq!(store.calls, [b"mem\n".to_vec()], "PM command was replayed");
+    (outcome, store.calls)
 }
 
 fn errno(result: Result<(), E>) -> Option<i32> {
@@ -1278,7 +1340,7 @@ fn errno(result: Result<(), E>) -> Option<i32> {
 #[test]
 fn busy_and_failed_store_never_retries_during_close() {
     for code in [libc::EBUSY, libc::EAGAIN, libc::EIO] {
-        let (outcome, _) = invoke(Err(code));
+        let (outcome, _) = invoke(Err(os_error(code)));
         assert_eq!(errno(outcome), Some(code));
     }
 }
