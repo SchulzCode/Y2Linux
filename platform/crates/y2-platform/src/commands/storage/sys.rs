@@ -27,14 +27,6 @@ pub type Object = Map<String, Value>;
 
 // ---- Python values ---------------------------------------------------------------------------
 
-/// `value.<attribute>` on a value that has no such attribute: Python's uncaught AttributeError.
-pub fn no_attribute(value: &Value, attribute: &str) -> Failure {
-    Failure::attribute_error(format!(
-        "'{}' object has no attribute '{attribute}'",
-        PyValue::type_name(value)
-    ))
-}
-
 /// `d.get(key)` (None when missing).
 pub fn get<'a>(map: &'a Object, key: &str) -> &'a Value {
     map.get(key).unwrap_or(&Value::Null)
@@ -278,33 +270,29 @@ pub fn usb_status(root: &Root) -> Object {
     state
 }
 
-/// `any(v.get('path') == path for v in current.get('views', []))`, with Python's crashes: a view
-/// that is not a dict (also each character of a str, each key of a dict) has no `get`, a number,
-/// bool or null is not iterable.
+/// Whether the USB responder shows `path` to the computer (`views`: a list of `{"path": …}`
+/// objects, read up to the first match). Views that cannot be read are refused
+/// (`usb_transfer_views_invalid`) rather than guessed: the computer might still hold the card.
 fn has_view(current: &Object, path: &str) -> Result<bool, Failure> {
-    let empty = Value::Array(Vec::new());
-    let views = current.get("views").unwrap_or(&empty);
-    let string = Value::String(String::new());
-    match views {
-        Value::Array(items) => {
+    let invalid = || Failure::value("usb_transfer_views_invalid");
+    match current.get("views") {
+        None => Ok(false),
+        Some(Value::Array(items)) => {
             for item in items {
                 match item {
                     Value::Object(view) if get(view, "path").as_str() == Some(path) => {
                         return Ok(true)
                     }
                     Value::Object(_) => {}
-                    other => return Err(no_attribute(other, "get")),
+                    _ => return Err(invalid()),
                 }
             }
             Ok(false)
         }
-        Value::String(s) if s.is_empty() => Ok(false),
-        Value::Object(m) if m.is_empty() => Ok(false),
-        Value::String(_) | Value::Object(_) => Err(no_attribute(&string, "get")),
-        other => Err(Failure::type_error(format!(
-            "'{}' object is not iterable",
-            PyValue::type_name(other)
-        ))),
+        // An empty text or object holds no views.
+        Some(Value::String(text)) if text.is_empty() => Ok(false),
+        Some(Value::Object(map)) if map.is_empty() => Ok(false),
+        Some(_) => Err(invalid()),
     }
 }
 

@@ -650,8 +650,6 @@ fn provision_with(
             Ok(migration) => {
                 result.insert("migration".into(), migration);
             }
-            // `except (OSError, ValueError)`: anything else is uncaught.
-            Err(error) if !error.caught() => return Err(error),
             Err(error) => {
                 let reason = format!("migration_failed:{}", error.message());
                 let mounted = state.mounted.map(|m| Mounted {
@@ -1090,14 +1088,16 @@ impl Resume {
             && get_eq(&self.0, "size", &json!(SIZE))
     }
 
-    /// `saved[key]`: a missing key is Python's KeyError (a traceback, after the records written so
-    /// far: the 'Running' note).
-    fn key(&self, name: &str) -> Result<&Value, Failure> {
-        self.0.get(name).ok_or_else(|| Failure::key_error(name))
+    /// The phase reached; a record without one (or with one no version writes) stops the setup
+    /// (`setup_record_phase`).
+    fn phase(&self) -> Option<&str> {
+        get(&self.0, "phase").as_str()
     }
 
-    fn phase(&self) -> Result<Option<&str>, Failure> {
-        Ok(self.key("phase")?.as_str())
+    /// The old storage's serial; without it the record cannot tell the old storage is unchanged
+    /// (`setup_record_incomplete`).
+    fn serial(&self) -> Option<&Value> {
+        self.0.get("serial")
     }
 
     /// A count as recorded (0 when missing).
@@ -1117,18 +1117,10 @@ impl Resume {
 /// Resumes an interrupted run from the Y2DATA record.
 pub fn setup(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<Object, Failure> {
     let _lock = lock_runtime(root)?;
-    match setup_locked(root, automatic, confirm_serial) {
-        // `except (OSError, ValueError)`: a KeyError (or any other exception) is uncaught.
-        Err(error) if !error.caught() => Err(error),
-        Err(error) => {
-            let reason = format!(
-                "setup_error:{}",
-                error.message().chars().take(100).collect::<String>()
-            );
-            note(root, "Failed", Some(&reason))
-        }
-        ok => ok,
-    }
+    setup_locked(root, automatic, confirm_serial).or_else(|error| {
+        let reason: String = error.message().chars().take(100).collect();
+        note(root, "Failed", Some(&format!("setup_error:{reason}")))
+    })
 }
 
 fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<Object, Failure> {
@@ -1147,7 +1139,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
             if !saved.names(&device) {
                 return note(root, "Failed", Some("setup_record_mismatch"));
             }
-            if automatic && get(&saved.0, "phase").as_str() == Some("staging") {
+            if automatic && saved.phase() == Some("staging") {
                 if let Some(blocked) = automatic_blocked(root) {
                     return note(root, "Pending", Some(blocked));
                 }
@@ -1166,9 +1158,15 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
     };
     publish(root, running)?;
 
-    if saved.phase()? == Some("staging") {
-        // `TYPE != 'vfat' or UUID != saved['serial']`: the serial is looked up only for a FAT.
-        if props.get("TYPE") != Some("vfat") || !props.value("UUID").py_eq(saved.key("serial")?) {
+    if saved.phase() == Some("staging") {
+        // The old storage must still be the FAT the record was made for.
+        if props.get("TYPE") != Some("vfat") {
+            return note(root, "Failed", Some("old_storage_changed"));
+        }
+        let Some(serial) = saved.serial() else {
+            return note(root, "Failed", Some("setup_record_incomplete"));
+        };
+        if !props.value("UUID").py_eq(serial) {
             return note(root, "Failed", Some("old_storage_changed"));
         }
         if let Some(problem) = mount_old(root, &device)? {
@@ -1189,17 +1187,21 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         saved.advance(root, "formatting")?;
     }
 
-    if saved.phase()? == Some("formatting") {
+    if saved.phase() == Some("formatting") {
         // Old Storage leaves the computer first (its view ended with 'Running' above).
         if !release_view(root, OLD) || !unmount_old(root) {
             return note(root, "Failed", Some("old_storage_busy"));
         }
         let props = probe(root, &entry);
         if !valid(&props) {
-            // `TYPE == 'vfat' and UUID != saved['serial']`: the serial only for a FAT.
-            if props.get("TYPE") == Some("vfat") && !props.value("UUID").py_eq(saved.key("serial")?)
-            {
-                return note(root, "Failed", Some("old_storage_changed"));
+            // A FAT there must be the recorded one.
+            if props.get("TYPE") == Some("vfat") {
+                let Some(serial) = saved.serial() else {
+                    return note(root, "Failed", Some("setup_record_incomplete"));
+                };
+                if !props.value("UUID").py_eq(serial) {
+                    return note(root, "Failed", Some("old_storage_changed"));
+                }
             }
             // The recorded stock FAT, or what an interrupted format left: only this record
             // (same partition, serial, every kept file verified on Y2DATA) allows formatting.
@@ -1216,7 +1218,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         saved.advance(root, "migrating")?;
     }
 
-    if saved.phase()? == Some("migrating") {
+    if saved.phase() == Some("migrating") {
         splash(root, 60);
         let state = mount_locked(root)?;
         if !state.ready() {

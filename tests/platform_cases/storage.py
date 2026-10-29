@@ -141,7 +141,7 @@ MEDIA = [
     ('media-unmount-usb', ['media', 'unmount'], {'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
         {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'attached',
          'views': [{'path': '/media/internal/music'}, {'path': '/media/sd'}]})}}),
-    # Views Python cannot read: AttributeError (no dict) or TypeError (not iterable), a traceback.
+    # Views that cannot be read (no list of objects) are refused: usb_transfer_views_invalid, exit 1.
     ('media-unmount-usb-text-views', ['media', 'unmount'], {'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
         {'schema': 'org.y2linux.usb-transfer/v1', 'boot_id': 'boot-a', 'cable': 'not attached', 'views': '/media/sd'})}}),
     ('media-unmount-usb-dict-views', ['media', 'unmount'], {'files': {**MOUNTED, '/run/y2/usb-transfer.json': json.dumps(
@@ -183,7 +183,7 @@ MEDIA = [
         VFAT, failed(FSCK, reason='command_timeout')], 'files': {**MOUNTED, '/run/y2/media-mount.json': claim('checking')}}),
     ('media-verify-other-card', ['media', 'verify'], {'commands': [VFAT], 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('checking', source_instance='block:179:97:diskseq:3')}}),
-    # A claim Python cannot read crashes it (AttributeError: traceback, nothing on stdout, exit 1).
+    # A claim whose identity is no object is refused (card_identity_invalid, exit 1).
     ('media-verify-bad-identity', ['media', 'verify'], {'commands': [VFAT], 'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('checking', identity=['x'])}}),
     ('media-verify-text-identity', ['media', 'verify'], {'commands': [VFAT], 'files': {
@@ -230,8 +230,10 @@ MEDIA = [
                                                              '/run/y2/media-mount.json': claim('check_timed_out')}}),
     ('media-repair-changed-card', ['media', 'repair'], {'commands': [VFAT], 'files': {
         '/run/y2/media.json': REFUSED, '/run/y2/power.json': POWER}}),
-    # A battery, identity or check that is no dict crashes Python: before the card is detached
-    # (battery) or after it (identity, check), with no repair record written.
+    # A battery, identity or check that is no object is refused (power_battery_invalid,
+    # card_identity_invalid, filesystem_check_invalid): before the card is detached (battery) or after
+    # it (identity, check), with no repair record written. Holders that are no object:
+    # sd_write_holders_invalid.
     ('media-repair-bad-battery', ['media', 'repair'], {'files': {
         '/run/y2/media.json': REFUSED, '/run/y2/power.json': POWER.replace('{"charging"', '"x", "y": {"charging"')}}),
     ('media-repair-bad-identity', ['media', 'repair'], {'commands': [EXT4], 'files': {
@@ -381,7 +383,8 @@ INTERNAL_CASES = [
         SETUP: json.dumps({**RECORD, 'start': 0})}}),
     ('internal-setup-record-phase', ['internal-media', 'setup'], {'commands': [STOCK], 'files': {
         SETUP: json.dumps({**RECORD, 'phase': 'done'})}}),
-    # A resume record without its phase (or a FAT's serial) is Python's KeyError after the 'Running' note.
+    # A resume record without its phase stops at setup_record_phase, one without the serial a FAT is
+    # compared with at setup_record_incomplete (after the 'Running' note).
     ('internal-setup-record-no-phase', ['internal-media', 'setup'], {'commands': [STOCK], 'files': {
         SETUP: json.dumps({k: v for k, v in RECORD.items() if k != 'phase'})}}),
     ('internal-setup-staging-no-serial', ['internal-media', 'setup'], {'commands': [STOCK], 'files': {

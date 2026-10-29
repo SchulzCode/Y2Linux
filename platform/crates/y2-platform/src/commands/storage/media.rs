@@ -5,8 +5,8 @@ use super::observe::{media_identity, refused_card, volumes, MEDIA_MOUNT, MEDIA_S
 use super::records::{Claim, Properties, ReadOnly};
 use super::sys::{
     device_instance, exists, get, get_eq, is_symlink, isdigit, lock_now, lock_within, maintenance,
-    mkdir, name, no_attribute, object, read, release_sd, resolve, statvfs, to_object, try_lock,
-    wall_seconds, Mount, Object,
+    mkdir, name, object, read, release_sd, resolve, statvfs, to_object, try_lock, wall_seconds,
+    Mount, Object,
 };
 use crate::reply::{atomic_json, unlink_missing_ok, Failure};
 use serde::Serialize;
@@ -717,7 +717,7 @@ fn writers(root: &Root, mount: &Mount) -> Result<Object, Failure> {
     }
     let holders = match value.get("holders") {
         Some(Value::Object(holders)) => holders.clone(),
-        Some(other) if truthy(other) => return Err(no_attribute(other, "items")),
+        Some(other) if truthy(other) => return Err(Failure::value("sd_write_holders_invalid")),
         _ => Object::new(),
     };
     let now = root.clock().monotonic();
@@ -859,12 +859,12 @@ fn slept_ns(root: &Root) -> i128 {
     i128::from(clock.boottime_ns()) - i128::from(clock.monotonic_ns())
 }
 
-/// `(record.get('identity') or {}).get('id')`; a truthy identity that is not an object cannot be
-/// read.
+/// The id of a record's card identity (`null` without one); an identity that is not an object is
+/// refused.
 fn identity_id(identity: &Value) -> Result<Value, Failure> {
     match identity {
         Value::Object(identity) => Ok(get(identity, "id").clone()),
-        other if truthy(other) => Err(no_attribute(other, "get")),
+        other if truthy(other) => Err(Failure::value("card_identity_invalid")),
         _ => Ok(Value::Null),
     }
 }
@@ -995,7 +995,7 @@ fn battery_allows_repair(root: &Root) -> Result<bool, Failure> {
     }
     let battery = match power.get("battery") {
         Some(Value::Object(battery)) => battery.clone(),
-        Some(other) if truthy(other) => return Err(no_attribute(other, "get")),
+        Some(other) if truthy(other) => return Err(Failure::value("power_battery_invalid")),
         _ => Object::new(),
     };
     let percent = exact_int(battery.get("percent"));
@@ -1206,7 +1206,7 @@ fn repair_locked(root: &Root) -> Result<(Object, Option<RepairRecord>), Failure>
     };
     let findings_before = match before.get("filesystem_check") {
         Some(Value::Object(check)) => get(check, "findings").clone(),
-        Some(other) if truthy(other) => return Err(no_attribute(other, "get")),
+        Some(other) if truthy(other) => return Err(Failure::value("filesystem_check_invalid")),
         _ => Value::Null,
     };
     let backup = save_tables(root, card);
