@@ -4,9 +4,10 @@
 //! a fake `Pm` (the `mem` write, each control write, the pauses), the clock a `clock::Manual` that
 //! each pause moves on, and the commands are answered by the fixture root's runner.
 // SPDX-License-Identifier: GPL-2.0-only
+use super::kernel::{control_write, kernel_sleep, write};
 use super::{
-    control_write, execute, kernel_sleep, operation_locks, screen_first, write, Pm,
-    APPLICATION_READY_WAIT_S, RADIO_QUIESCE_SECONDS, STALE_COUNT_RETRIES,
+    execute, operation_locks, screen_first, Pm, APPLICATION_READY_WAIT_S, RADIO_QUIESCE_SECONDS,
+    STALE_COUNT_RETRIES,
 };
 use crate::commands::{
     reports::workload::Lease,
