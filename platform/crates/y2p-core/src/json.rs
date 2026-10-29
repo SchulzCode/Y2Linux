@@ -271,6 +271,26 @@ pub fn sorted_entries(
     entries
 }
 
+/// The message CPython's `json.loads` gives for a document serde_json refused: `Expecting value` or
+/// `Extra data`, with Python's line, column and character offset.
+pub fn python_error(text: &str, error: &serde_json::Error) -> String {
+    let column = error.column();
+    let line = error.line();
+    let offset: usize = text
+        .split('\n')
+        .take(line.saturating_sub(1))
+        .map(|l| l.chars().count() + 1)
+        .sum::<usize>()
+        + column.saturating_sub(1);
+    if text.trim().is_empty() {
+        return "Expecting value: line 1 column 1 (char 0)".into();
+    }
+    if error.to_string().starts_with("trailing characters") {
+        return format!("Extra data: line {line} column {column} (char {offset})");
+    }
+    format!("Expecting value: line {line} column {column} (char {offset})")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

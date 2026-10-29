@@ -14,6 +14,7 @@ use measure::{Bench, Measured};
 use scratch::{observe_storage, Scratch};
 use serde_json::{json, Map, Value};
 use std::io;
+use y2p_core::json::python_error as json_error;
 use y2p_core::{
     observation_support::{run_passing_fd, PyRandom},
     py, Root,
@@ -154,28 +155,6 @@ fn storage_benchmark_with(
     let failed = record["result"] == "FAILED";
     result.insert("record".into(), Value::Object(record));
     Reply::sorted(&result, u8::from(failed))
-}
-
-/// The error text for output that is not JSON, in json.loads's words (the messages a truncated or empty
-/// answer gives; others are worded from serde's position).
-fn json_error(text: &str, error: &serde_json::Error) -> String {
-    let column = error.column();
-    let line = error.line();
-    let offset: usize = text
-        .split('\n')
-        .take(line.saturating_sub(1))
-        .map(|l| l.len() + 1)
-        .sum::<usize>()
-        + column.saturating_sub(1);
-    if error.classify() == serde_json::error::Category::Syntax
-        && error.to_string().starts_with("trailing characters")
-    {
-        format!("Extra data: line {line} column {column} (char {offset})")
-    } else if text.trim().is_empty() {
-        "Expecting value: line 1 column 1 (char 0)".into()
-    } else {
-        format!("Expecting value: line {line} column {column} (char {offset})")
-    }
 }
 
 /// `y2-platform bench-library`.

@@ -5,6 +5,7 @@ use super::{
     channel, command, fs, json, py, sorted, string, truthy, Map, Path, Raise, Result, Root, Value,
 };
 use std::os::unix::fs::MetadataExt;
+pub(super) use y2p_core::json::python_error as json_error;
 use y2p_core::py::PyValue;
 
 pub(super) fn object(value: Option<Value>) -> Map<String, Value> {
@@ -101,26 +102,6 @@ fn lock_held(root: &Root, path: &Path) -> bool {
         }
     }
     false
-}
-
-/// Why the core's output is no JSON, worded as the failure records have always shown it
-/// (`Expecting value: line 1 column 1 (char 0)`).
-pub(super) fn json_error(text: &str, error: &serde_json::Error) -> String {
-    let column = error.column();
-    let line = error.line();
-    let offset: usize = text
-        .split('\n')
-        .take(line.saturating_sub(1))
-        .map(|l| l.chars().count() + 1)
-        .sum::<usize>()
-        + column.saturating_sub(1);
-    if text.trim().is_empty() {
-        return "Expecting value: line 1 column 1 (char 0)".into();
-    }
-    if error.to_string().starts_with("trailing characters") {
-        return format!("Extra data: line {line} column {column} (char {offset})");
-    }
-    format!("Expecting value: line {line} column {column} (char {offset})")
 }
 
 /// One action of the native core; its refusal becomes the error text.
