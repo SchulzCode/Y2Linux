@@ -40,15 +40,13 @@ fn field(buffer: &[u8], offset: usize, size: usize) -> Result<&[u8]> {
 }
 
 fn u16_at(buffer: &[u8], offset: usize) -> Result<u16> {
-    Ok(u16::from_le_bytes(
-        field(buffer, offset, 2)?.try_into().expect("2"),
-    ))
+    let bytes = field(buffer, offset, 2)?;
+    Ok(u16::from_le_bytes([bytes[0], bytes[1]]))
 }
 
 fn u32_at(buffer: &[u8], offset: usize) -> Result<u32> {
-    Ok(u32::from_le_bytes(
-        field(buffer, offset, 4)?.try_into().expect("4"),
-    ))
+    let bytes = field(buffer, offset, 4)?;
+    Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
 }
 
 const RAW: u16 = 0xCAC1;

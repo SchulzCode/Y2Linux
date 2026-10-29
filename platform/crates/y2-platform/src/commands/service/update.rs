@@ -324,6 +324,28 @@ mod tests {
     }
 
     #[test]
+    fn maintenance_renews_the_workload_lease_until_it_ends() {
+        let fixture = Fixture::new();
+        fixture.put("/dev/y2-workload", "");
+        let result = maintenance(&fixture.root, || {
+            std::thread::sleep(Duration::from_millis(1500));
+            Ok(7)
+        });
+        assert_eq!(result.ok(), Some(7));
+        // Acquired, renewed when the worker starts and again a second later; none after the end.
+        let writes = || {
+            fixture
+                .read("/dev/y2-workload")
+                .matches("Maintenance 3000\n")
+                .count()
+        };
+        let count = writes();
+        assert!((3..=4).contains(&count), "{count}");
+        std::thread::sleep(Duration::from_millis(1100));
+        assert_eq!(writes(), count);
+    }
+
+    #[test]
     fn health_debug_values_are_numbers_only() {
         assert!(numbers_only("4\t4\t1\t7"));
         assert!(numbers_only("10"));

@@ -257,8 +257,15 @@ fn spawn(url: &str) -> Result<(Child, ChildStdout), Error> {
         .stderr(Stdio::null())
         .spawn()
         .map_err(|e| Error::Url(y2p_core::py::os_error(&e, None).0))?;
-    let stdout = child.stdout.take().expect("piped");
-    Ok((child, stdout))
+    match child.stdout.take() {
+        Some(stdout) => Ok((child, stdout)),
+        // Not with a piped stdout; refused like a curl that could not start.
+        None => {
+            let _ = child.kill();
+            let _ = child.wait();
+            Err(Error::Url("curl gave no output pipe".into()))
+        }
+    }
 }
 
 /// Read from the pipe, waking every quarter second to notice a cancel.

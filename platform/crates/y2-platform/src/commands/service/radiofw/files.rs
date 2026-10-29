@@ -53,9 +53,8 @@ pub(super) fn checked(reviewed: &Reviewed, files: Files) -> Result<Files> {
     let mut order: Vec<u8> = Vec::new();
     for (name, _, _) in &reviewed.files {
         if name.ends_with("_hdr.bin") {
-            let data = get(&files, name).expect("checked");
-            let byte = *data
-                .get(24)
+            let byte = get(&files, name)
+                .and_then(|data| data.get(24))
                 .ok_or_else(|| Error::Value("index out of range".into()))?;
             order.push(byte & 15);
         }
@@ -132,7 +131,9 @@ fn rmtree(path: &Path) {
 pub(super) fn install(root: &Root, reviewed: &Reviewed, files: Files) -> Result<()> {
     let files = checked(reviewed, files)?;
     let target = root.path(TARGET);
-    let parent = target.parent().expect("parent").to_path_buf();
+    let Some(parent) = target.parent().map(Path::to_path_buf) else {
+        return Err(Error::Value("firmware_target_unsafe".into()));
+    };
     crate::reply::mkdir_parents(&parent, 0o700)?;
     let pid = std::process::id();
     let staging = parent.join(format!(".mt6582.{pid}"));

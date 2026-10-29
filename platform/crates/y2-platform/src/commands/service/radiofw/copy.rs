@@ -50,7 +50,9 @@ pub(crate) fn inbox(root: &Root) -> Result<PathBuf> {
         folder
     } else {
         let folder = root.path(INBOX);
-        crate::reply::mkdir_parents(folder.parent().expect("parent"), 0o700)?;
+        if let Some(parent) = folder.parent() {
+            crate::reply::mkdir_parents(parent, 0o700)?;
+        }
         mkdir_exist_ok(&folder, 0o700)?;
         folder
     };
@@ -247,7 +249,7 @@ pub(super) fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
         .any(|(k, v)| !v.py_eq(get_or_null(&previous, k)))
         || previous.keys().any(|k| value.get(k).is_none());
     if differs {
-        record_state(root, &serde_json::to_value(&value).expect("value"))?;
+        record_state(root, &Value::Object(value))?;
     }
     Ok(json!({"state": "Ready"}))
 }

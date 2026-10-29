@@ -102,7 +102,8 @@ pub(super) fn maintenance<T>(root: &Root, function: impl FnOnce() -> Result<T>) 
         Err(e) => return Err(Raise::os(e, &lease_path)),
     };
     let payload = b"Maintenance 3000\n";
-    let stop = std::sync::Arc::new((std::sync::Mutex::new(false), std::sync::Condvar::new()));
+    // Dropping `stop` ends the renewal at once.
+    let (stop, stopped) = std::sync::mpsc::channel::<()>();
     let mut worker = None;
     if let Ok(mut fd) = OpenOptions::new()
         .write(true)
@@ -111,28 +112,25 @@ pub(super) fn maintenance<T>(root: &Root, function: impl FnOnce() -> Result<T>) 
     {
         // Acquire before work starts; renew on an independent worker.
         if fd.write(payload).ok() == Some(payload.len()) {
-            let stop = stop.clone();
+            use std::sync::mpsc::{RecvTimeoutError, TryRecvError};
             worker = Some(std::thread::spawn(move || loop {
-                if *stop.0.lock().expect("lock") {
+                if !matches!(stopped.try_recv(), Err(TryRecvError::Empty)) {
                     return;
                 }
                 if fd.write(payload).ok() != Some(payload.len()) {
                     return;
                 }
-                let guard = stop.0.lock().expect("lock");
-                let (guard, _) = stop
-                    .1
-                    .wait_timeout_while(guard, Duration::from_secs(1), |stopped| !*stopped)
-                    .expect("wait");
-                if *guard {
+                if !matches!(
+                    stopped.recv_timeout(Duration::from_secs(1)),
+                    Err(RecvTimeoutError::Timeout)
+                ) {
                     return;
                 }
             }));
         }
     }
     let result = function();
-    *stop.0.lock().expect("lock") = true;
-    stop.1.notify_all();
+    drop(stop);
     if let Some(worker) = worker {
         let _ = worker.join();
     }
