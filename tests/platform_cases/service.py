@@ -118,6 +118,9 @@ CASES = [
     # update check / stage
     ('update-check-no-source', ['update', 'check'], {}),
     ('update-check-no-data', ['update', 'check'], {'files': CHANNEL}),
+    # A channel whose manifest URL is no text: refused before anything is written.
+    ('update-check-odd-url', ['update', 'check'], {'files': {
+        '/etc/y2linux/update-channel.json': '{"manifest_url": 5}'}}),
     ('update-check-both', ['update', 'check', '--url', 'https://x/manifest.json', '--package', str(PACKAGE)],
      {}),
     ('update-check-maintenance', ['update', 'check'], {'commands': [BLKID], 'files': {
@@ -219,6 +222,9 @@ CASES = [
         'commands': [core('rollback', {'state': 'RollbackPending'}), core('prepare', {'state': 'Prepared'})]}),
     ('update-health-ack-expired-refused', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'files': {
         **PENDING, '/run/y2/update-health.json': '{"boot_id": "boot-a", "deadline_monotonic_s": 1.5}'}}),
+    # A health record of this boot whose deadline is no number: refused, nothing changed.
+    ('update-health-ack-odd-deadline', ['update', 'health-ack'], {'files': {
+        **PENDING, '/run/y2/update-health.json': '{"boot_id": "boot-a", "deadline_monotonic_s": "soon"}'}}),
     ('update-health-ack-checks', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'files': {
         **PENDING, **READY, '/proc/1234/stat': stat_line(777)}}),
     ('update-health-ack-app-not-ready', ['update', 'health-ack'], {

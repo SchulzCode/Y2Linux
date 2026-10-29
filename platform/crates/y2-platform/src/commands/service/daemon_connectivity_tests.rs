@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::Fixture;
+use y2p_core::clock;
 
 #[test]
 fn heavy_transfer_is_observed_without_a_codec_override() {
@@ -109,4 +110,24 @@ fn running_clock_is_remembered_hourly_only_when_set() {
     let reply = time::remember(&fixture.root).unwrap();
     assert_eq!(reply.stdout, "{\"state\": \"Unchanged\"}");
     assert!(!current(&fixture));
+}
+
+#[test]
+fn counters_that_are_no_numbers_count_as_none() {
+    let fixture = Fixture::new();
+    fixture.mkdir("/run/y2");
+    let mut observe = Coexistence::default();
+    for (now, counters) in [
+        (1.0, json!("busy")),
+        (2.0, json!({"rx_bytes": "lots", "tx_bytes": 5})),
+    ] {
+        let wifi = Object::new()
+            .with("state", "Online")
+            .with("traffic_counters", counters);
+        assert!(observe.observe(&fixture.root, &wifi, now).is_ok());
+    }
+    assert_eq!(
+        fixture.json("/run/y2/coexistence.json")["wifi_bytes_per_second"],
+        json!(5.0)
+    );
 }

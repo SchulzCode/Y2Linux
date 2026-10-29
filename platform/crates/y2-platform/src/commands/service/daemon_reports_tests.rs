@@ -154,3 +154,17 @@ fn a_stuck_run_is_stopped() {
     let alive = unsafe { libc::kill(pid, 0) } == 0;
     assert!(!alive);
 }
+
+#[test]
+fn a_retry_time_that_is_no_number_never_stops_the_service_loop() {
+    let mut service = Service::new();
+    service.key();
+    service.fixture.put_json(
+        STATE,
+        &json!({"enabled": true, "uploads": {"a.tar.gz": {"next": "soon"}}}),
+    );
+    service.fixture.put(&format!("{QUEUE}/a.tar.gz"), "x");
+    let run = service.tick(None, 0.0, "Online");
+    service.tick(Some(run), REPORT_FIRST_S, "Online");
+    assert_eq!(service.started, 0);
+}
