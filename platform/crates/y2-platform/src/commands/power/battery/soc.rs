@@ -12,7 +12,7 @@ use super::{
     Reading,
 };
 use serde_json::Value;
-use std::collections::VecDeque;
+use std::{collections::VecDeque, sync::Arc};
 
 // Stock oam_init prefers the power-on OCV unless a charger moved it 31+ points.
 const OCV_CHARGER_POINTS: f64 = 31.0;
@@ -67,7 +67,8 @@ pub(super) fn py_max(a: f64, b: f64) -> f64 {
 /// resistance are supplied.
 #[derive(Clone, Debug)]
 pub struct Soc {
-    pub(super) profile: Option<Profile>,
+    /// Loaded once; shared, so a sample does not copy its tables.
+    pub(super) profile: Option<Arc<Profile>>,
     pub(super) filtered: Option<f64>,
     pub percent: Option<f64>,
     pub(super) last: Option<f64>,
@@ -86,6 +87,10 @@ pub struct Soc {
 
 impl Soc {
     pub fn new(profile: Option<Profile>, saved: Option<Value>) -> Soc {
+        Soc::fresh(profile.map(Arc::new), saved)
+    }
+
+    fn fresh(profile: Option<Arc<Profile>>, saved: Option<Value>) -> Soc {
         Soc {
             profile,
             filtered: None,
@@ -134,7 +139,7 @@ impl Soc {
         // The configured filter/rate and voltage curve remain unchanged.
         let dt = self.last.map_or(0., |last| py_max(0., now - last));
         if self.last.is_some_and(|last| now < last) {
-            *self = Soc::new(self.profile.take(), None);
+            *self = Soc::fresh(self.profile.take(), None);
         }
         self.last = Some(now);
         if let Some(hardware) = r.hardware_percent.filter(|p| (0..=100).contains(p)) {

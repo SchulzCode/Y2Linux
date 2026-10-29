@@ -66,18 +66,27 @@ pub struct Reading {
     pub boot: Option<&'static str>,
 }
 
-/// `sample(ctx, engine)`: one BAT0 reading on CLOCK_BOOTTIME (physical elapsed time incl. suspend).
-pub fn sample(root: &Root, engine: &mut Soc) -> BatteryStatus {
+/// One sample on CLOCK_BOOTTIME (physical elapsed time incl. suspend): the published status and
+/// the reading it came from (the low-battery policy takes the pack's presence from it).
+pub fn sample(root: &Root, engine: &mut Soc) -> (BatteryStatus, Reading) {
     let now = root.clock().boottime_ns() as f64 / 1e9;
-    sample_at(root, engine, now)
+    let reading = read(root, engine);
+    (engine.observe(now, &reading), reading)
 }
 
+/// One sample at `now` (CLOCK_BOOTTIME seconds), for the tests.
+#[cfg(test)]
 pub fn sample_at(root: &Root, engine: &mut Soc, now: f64) -> BatteryStatus {
+    engine.observe(now, &read(root, engine))
+}
+
+/// BAT0 as the estimate reads it; the boot metadata only until the first estimate.
+pub fn read(root: &Root, engine: &Soc) -> Reading {
     let base = "/sys/class/power_supply/BAT0/";
     let int = |name: &str| root.integer(&format!("{base}{name}"));
     // Read BAT0 only: PMIC/CPU temperatures and USB configured limits cannot
     // become pack sensor values. Missing hardware properties stay null.
-    let reading = Reading {
+    Reading {
         voltage: int("voltage_now"),
         present: int("present"),
         status: root.read(&format!("{base}status")),
@@ -92,8 +101,7 @@ pub fn sample_at(root: &Root, engine: &mut Soc, now: f64) -> BatteryStatus {
         } else {
             None
         },
-    };
-    engine.observe(now, &reading)
+    }
 }
 
 #[cfg(test)]

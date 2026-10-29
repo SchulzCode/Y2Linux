@@ -94,7 +94,8 @@ impl Daemon<'_> {
         let root = self.root;
         // SOC uses physical elapsed time including suspend. Keep the
         // shutdown grace/sampling scheduler on its existing clock.
-        self.battery_status = sample(root, &mut self.soc);
+        let (status, reading) = sample(root, &mut self.soc);
+        self.battery_status = status;
         let voltage = self.battery_status.voltage_uv;
         // 28: keep the displayed percentage across a restart (stock
         // RTC spare register); written only when it changes.
@@ -107,7 +108,8 @@ impl Daemon<'_> {
         self.state = self.battery.observe(
             self.policy.as_ref(),
             voltage,
-            root.integer("/sys/class/power_supply/BAT0/present"),
+            // The pack's presence of this sample (one read of BAT0/present per second).
+            reading.present,
             &self.battery_status,
         );
         if self.state == "ShutdownPending" && self.coordinator.intent.is_none() {
