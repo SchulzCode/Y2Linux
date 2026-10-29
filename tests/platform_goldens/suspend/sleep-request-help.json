@@ -7,7 +7,7 @@
  "calls": [],
  "exit": 0,
  "stdout": [
-  "usage: main.py sleep [-h] {request,status,prepare}",
+  "usage: y2-platform sleep [-h] {request,status,prepare}",
   "",
   "positional arguments:",
   "  {request,status,prepare}",

@@ -7,21 +7,10 @@
   "99999999999999999999"
  ],
  "calls": [],
- "exit": 1,
- "stdout": {
-  "reason": "invalid_network_qualification_parameters",
-  "schema": "org.y2linux.error/v1",
-  "state": "Failed",
-  "type": "ValueError"
- },
+ "exit": 2,
+ "stdout": [],
  "tree": {
-  "added": {
-   "/run/y2/activity.lock": {
-    "content": [],
-    "mode": "0o600",
-    "type": "file"
-   }
-  },
+  "added": {},
   "changed": {},
   "removed": []
  }

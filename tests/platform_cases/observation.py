@@ -451,7 +451,7 @@ CASES = [
     status('status-interval-too-long', ['--interval', '11']),
     status('status-interval-tiny', ['--interval', '1e-05']),
     status('status-interval-negative-zero', ['cpu', '--interval', '-0']),
-    status('status-huge-pid', ['memory', '--pid', '99999999999999999999']),
+    status('status-huge-pid', ['memory', '--pid', '99999999999999999999']),  # beyond 64 bits: the parser refuses it
     # health
     ('health-ported', ['health'], {}),
     ('health-json', ['health', '--json'], {}),
@@ -543,7 +543,7 @@ CASES += [
     # ipaddress.IPv4Address's AddressValueError, after the workload lease was taken.
     ('network-check-bad-peer', ['network-check', '--peer', '192.168.001.1'], {}),
     ('network-check-hostname', ['network-check', '--peer', 'router'], {}),
-    # A peer that is not UTF-8: ipaddress's error shows the surrogate escape (\\udcff).
+    # Arguments that are not UTF-8: the parser refuses them (exit 2).
     ('network-check-not-utf8', ['network-check', '--peer', '192.168.1.\udcff'], {}),
     ('collect-workload-not-utf8', ['collect', '--seconds', '1', '--interval', '1', '--workload', 'w\udcff'], {
         'volatile': [*TIMING, 'bytes']}),
@@ -553,6 +553,7 @@ CASES += [
     ('network-check-peer-long-octet', ['network-check', '--peer', '1.2.3.0004'], {}),
     ('network-check-peer-empty-octet', ['network-check', '--peer', '1..2.3'], {}),
     ('network-check-peer-arabic', ['network-check', '--peer', '\u0661.2.3.4'], {}),
+    # Integers beyond 64 bits: the parser refuses them (exit 2).
     ('network-check-huge-seconds', ['network-check', '--peer', '192.168.1.1', '--seconds', '99999999999999999999'],
      {}),
     ('collect-huge-seconds', ['collect', '--seconds', '99999999999999999999'], {}),

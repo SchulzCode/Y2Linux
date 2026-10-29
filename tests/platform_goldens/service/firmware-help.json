@@ -6,7 +6,7 @@
  "calls": [],
  "exit": 0,
  "stdout": [
-  "usage: main.py firmware [-h] {status,scan,install} [path]",
+  "usage: y2-platform firmware [-h] {status,scan,install} [path]",
   "",
   "positional arguments:",
   "  {status,scan,install}",

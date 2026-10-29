@@ -6,7 +6,7 @@
  "calls": [],
  "exit": 0,
  "stdout": [
-  "usage: main.py connectivity-daemon [-h]",
+  "usage: y2-platform connectivity-daemon [-h]",
   "",
   "options:",
   "  -h, --help  show this help message and exit"

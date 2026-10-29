@@ -6,7 +6,7 @@
  "calls": [],
  "exit": 0,
  "stdout": [
-  "usage: main.py space [-h] [--cleanup]",
+  "usage: y2-platform space [-h] [--cleanup]",
   "",
   "options:",
   "  -h, --help  show this help message and exit",
