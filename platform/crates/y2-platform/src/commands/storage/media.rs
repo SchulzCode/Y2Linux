@@ -747,6 +747,19 @@ pub fn write_window(
     Ok(value)
 }
 
+/// Whether `protect` has work: a protected card still mounted read-write with no live window. The
+/// service asks before it starts `media reconcile` (file reads only, no subprocess).
+pub fn window_expired(root: &Root) -> bool {
+    let (claim, mount) = sd_state(root);
+    match mount {
+        Some(m) if get(&claim, "read_only").as_str() == Some("protected") && m.has_option("rw") => {
+            // A holders record that is not an object fails reconcile too: never a restart per tick.
+            writers(root, &m).is_ok_and(|holders| holders.is_empty())
+        }
+        _ => false,
+    }
+}
+
 /// Reconcile tick: a protected card with no live window goes read-only.
 fn protect(root: &Root) -> Result<(), Failure> {
     let (claim, mount) = sd_state(root);
@@ -1253,6 +1266,49 @@ fn grow_steps(root: &Root, state: &mut Object) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::Fixture;
+
+    /// A protected card mounted by this boot (mount 51), `rw` or `ro`, with these holders' deadlines.
+    fn protected(options: &str, holders: Value) -> Fixture {
+        let fixture = Fixture::new();
+        fixture
+            .put("/proc/sys/kernel/random/boot_id", "boot-a\n")
+            .put(
+                "/proc/self/mountinfo",
+                &format!(
+                    "51 22 179:97 / /media/sd {options},nosuid,nodev,noexec,noatime - vfat \
+                     /dev/mmcblk1p1 {options}\n"
+                ),
+            )
+            .put_json(
+                MEDIA_MOUNT,
+                &json!({"boot_id": "boot-a", "mount_id": 51, "device_id": "179:97",
+                        "device": "/dev/mmcblk1p1", "read_only": "protected"}),
+            )
+            .put_json(
+                SD_WRITE,
+                &json!({"schema": 1, "boot_id": "boot-a", "mount_id": 51, "holders": holders}),
+            );
+        fixture
+    }
+
+    #[test]
+    fn an_expired_write_window_asks_for_a_reconcile() {
+        let now = clock::monotonic();
+        assert!(window_expired(
+            &protected("rw", json!({"reborn": now - 1.0})).root
+        ));
+        assert!(window_expired(&protected("rw", json!({})).root));
+        // A live window, or a card already read-only: nothing to do.
+        assert!(!window_expired(
+            &protected("rw", json!({"usb": now + 60.0})).root
+        ));
+        assert!(!window_expired(
+            &protected("ro", json!({"reborn": now - 1.0})).root
+        ));
+        // A record the reconcile fails on never restarts it every tick.
+        assert!(!window_expired(&protected("rw", json!(["reborn"])).root));
+    }
 
     #[test]
     fn the_partition_table_is_one_linux_partition() {

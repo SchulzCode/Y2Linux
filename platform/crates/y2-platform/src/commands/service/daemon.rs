@@ -18,7 +18,10 @@ use crate::commands::connectivity::{
     wifi::{probe_dns, DnsProbeSchedule, EventMonitor, WifiRecovery},
 };
 use crate::commands::reports::{pyjson::Py, state as reports};
-use crate::commands::{storage::media::inventory, time};
+use crate::commands::{
+    storage::media::{self, inventory},
+    time,
+};
 use crate::reply::{atomic_json, private_directory, Failure, Outcome};
 use serde_json::{json, Map, Value};
 use std::{
@@ -97,11 +100,15 @@ fn display_dark(root: &Root) -> bool {
         })
 }
 
-/// Mirror media.reconcile's own early return without mounting anything.
+/// Mirror media.reconcile's own early return without mounting anything. An expired write window
+/// needs a reconcile too (its protect step): without one the card stayed writable until the next
+/// insertion or removal.
 fn media_reconcile_needed(root: &Root) -> bool {
     let lifecycle = root.json_object("/run/y2/media-lifecycle.json");
     let current = inventory(root);
-    !py_eq(lifecycle.get("inventory"), Some(&current)) || lifecycle.get("retry").is_some_and(truthy)
+    !py_eq(lifecycle.get("inventory"), Some(&current))
+        || lifecycle.get("retry").is_some_and(truthy)
+        || media::window_expired(root)
 }
 
 /// A child the service runs for one of its jobs (`{'process', 'started'}`), or when it may start one
