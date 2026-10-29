@@ -252,6 +252,56 @@ fn config(views: &[Object]) -> Result<String, Failure> {
     Ok(lines.join("\n") + "\n")
 }
 
+/// /run/y2/usb-transfer.json (org.y2linux.usb-transfer/v1): what Reborn's USB screen and the
+/// storage commands read of the connection.
+#[derive(serde::Serialize)]
+struct Transfer<'a> {
+    schema: &'static str,
+    boot_id: Option<String>,
+    state: &'a str,
+    reason: Option<&'a str>,
+    mode: Option<&'static str>,
+    cable: &'a Option<String>,
+    functions: &'static [&'static str],
+    views: &'a [Object],
+    filesystem_owner: &'static str,
+    block_export: bool,
+    refresh_generation: u64,
+    active: bool,
+    error: &'a Value,
+    restarts: i64,
+}
+
+/// What the running responder reports in /run/y2/mtp-events.json (a record of another responder
+/// counts as none): a copy in progress, its last error (28: a copy that did not fit) and how many
+/// changes to the library it made (an integer; a bool counts as one).
+#[derive(Default)]
+struct Activity {
+    active: bool,
+    error: Value,
+    generation: Option<i64>,
+}
+
+impl Activity {
+    fn read(root: &Root, responder: Option<i32>) -> Self {
+        let Some(pid) = responder else {
+            return Self::default();
+        };
+        let record = root.json_object("/run/y2/mtp-events.json");
+        if !record.get("pid").unwrap_or(&Value::Null).py_eq(&json!(pid)) {
+            return Self::default();
+        }
+        Self {
+            active: record.get("active").is_some_and(py::truthy),
+            error: record.get("error").cloned().unwrap_or(Value::Null),
+            generation: match record.get("generation") {
+                Some(Value::Bool(b)) => Some(i64::from(*b)),
+                other => other.and_then(Value::as_i64),
+            },
+        }
+    }
+}
+
 /// What `tick` compares to reuse validated views until identity/options change.
 #[derive(PartialEq)]
 struct Signature {
@@ -574,30 +624,31 @@ impl UsbService {
         Ok(())
     }
 
+    /// usb-transfer.json, written only when it changed; its value.
     fn record(
         &mut self,
         state: &str,
         reason: Option<&str>,
         cable: &Option<String>,
-        activity: Option<&Object>,
+        activity: &Activity,
     ) -> Result<Value, Failure> {
-        let functions = self.mode.map_or(Ok(&[][..]), selection)?;
-        let value = json!({
-            "schema": SCHEMA,
-            "boot_id": self.root.boot_id(),
-            "state": state,
-            "reason": reason,
-            "mode": self.mode,
-            "cable": cable,
-            "functions": functions,
-            "views": self.views.clone().unwrap_or_default(),
-            "filesystem_owner": "linux",
-            "block_export": false,
-            "refresh_generation": self.refresh_generation,
-            "active": activity.and_then(|a| a.get("active")).is_some_and(py::truthy),
-            "error": activity.and_then(|a| a.get("error")).cloned().unwrap_or(Value::Null),
-            "restarts": self.failures,
-        });
+        let record = Transfer {
+            schema: SCHEMA,
+            boot_id: self.root.boot_id(),
+            state,
+            reason,
+            mode: self.mode,
+            cable,
+            functions: self.mode.map_or(Ok(&[][..]), selection)?,
+            views: self.views.as_deref().unwrap_or_default(),
+            filesystem_owner: "linux",
+            block_export: false,
+            refresh_generation: self.refresh_generation,
+            active: activity.active,
+            error: &activity.error,
+            restarts: self.failures,
+        };
+        let value = serde_json::to_value(&record).map_err(Failure::value)?;
         if !self.last_record.as_ref().is_some_and(|l| l.py_eq(&value)) {
             atomic_json(&self.root.path("/run/y2/usb-transfer.json"), &value, false)?;
             self.last_record = Some(value.clone());
@@ -630,13 +681,23 @@ impl UsbService {
         mkdir_parents(&self.root.path("/run/y2"), 0o777)?;
         let udcs = self.root.glob("/sys/class/udc/*");
         if udcs.len() != 1 {
-            return self.record("Unavailable", Some("no_unique_udc"), &None, None);
+            return self.record(
+                "Unavailable",
+                Some("no_unique_udc"),
+                &None,
+                &Activity::default(),
+            );
         }
         let udc = &udcs[0];
         let cable = read(&udc.join("state"));
         self.sd_writable(&cable)?;
         if self.terminal {
-            return self.record("Failed", Some("responder_restart_budget"), &cable, None);
+            return self.record(
+                "Failed",
+                Some("responder_restart_budget"),
+                &cable,
+                &Activity::default(),
+            );
         }
         let requested = match self
             .root
@@ -674,7 +735,12 @@ impl UsbService {
                 if self.failures < 5 {
                     self.mode = None;
                 }
-                self.record("Failed", Some(&error.message()), &cable, None)
+                self.record(
+                    "Failed",
+                    Some(&error.message()),
+                    &cable,
+                    &Activity::default(),
+                )
             }
             other => other,
         }
@@ -769,10 +835,20 @@ impl UsbService {
             self.failures += 1;
             if self.failures >= 5 {
                 self.terminal = true;
-                return self.record("Failed", Some("responder_restart_budget"), cable, None);
+                return self.record(
+                    "Failed",
+                    Some("responder_restart_budget"),
+                    cable,
+                    &Activity::default(),
+                );
             }
             self.mode = None;
-            return self.record("Starting", Some("responder_restarting"), cable, None);
+            return self.record(
+                "Starting",
+                Some("responder_restarting"),
+                cable,
+                &Activity::default(),
+            );
         }
         if !self.bound {
             let ready = self.mode == Some("developer")
@@ -786,28 +862,18 @@ impl UsbService {
                 if self.root.clock().monotonic() - self.started > 15.0 {
                     return Err(Failure::os_message("responder_descriptor_timeout"));
                 }
-                return self.record("Starting", Some("waiting_for_descriptors"), cable, None);
+                return self.record(
+                    "Starting",
+                    Some("waiting_for_descriptors"),
+                    cable,
+                    &Activity::default(),
+                );
             }
             self.write("UDC", udc)?;
             self.bound = true;
         }
-        let mut activity = self.root.json_object("/run/y2/mtp-events.json");
-        let pid = self.child.as_ref().map(Child::pid);
-        if pid.is_none_or(|pid| {
-            !activity
-                .get("pid")
-                .unwrap_or(&Value::Null)
-                .py_eq(&json!(pid))
-        }) {
-            activity = Object::new();
-        }
-        // isinstance(generation, int): a bool is an int too.
-        let generation = match activity.get("generation") {
-            None => Some(0),
-            Some(Value::Bool(b)) => Some(i64::from(*b)),
-            Some(value) => value.as_i64(),
-        };
-        if let Some(generation) = generation.filter(|g| *g > self.seen_generation) {
+        let activity = Activity::read(&self.root, self.child.as_ref().map(Child::pid));
+        if let Some(generation) = activity.generation.filter(|g| *g > self.seen_generation) {
             self.seen_generation = generation;
             self.refresh_generation = self.root.clock().monotonic_ns();
         }
@@ -821,7 +887,7 @@ impl UsbService {
             Some("configured") => "Ready",
             _ => "Starting",
         };
-        if state == "Ready" && activity.get("active").is_some_and(py::truthy) {
+        if state == "Ready" && activity.active {
             state = "Copying";
         }
         if state == "Ready"
@@ -830,7 +896,7 @@ impl UsbService {
         {
             state = "Unavailable";
         }
-        self.record(state, None, cable, Some(&activity))
+        self.record(state, None, cable, &activity)
     }
 }
 
