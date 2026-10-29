@@ -20,7 +20,7 @@ use std::{
     fs::{self, File},
     io::{self, Read, Seek, SeekFrom},
     os::{
-        fd::{AsRawFd, FromRawFd, OwnedFd},
+        fd::AsRawFd,
         unix::{
             ffi::OsStrExt,
             fs::{MetadataExt, OpenOptionsExt},
@@ -145,19 +145,13 @@ fn open_flags(path: &Path, flags: i32) -> io::Result<File> {
 fn openat(directory: &File, name: &OsStr, flags: i32) -> io::Result<File> {
     let name =
         CString::new(name.as_bytes()).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))?;
-    // SAFETY: a valid directory descriptor and a NUL-terminated name.
-    let fd = unsafe {
-        libc::openat(
-            directory.as_raw_fd(),
-            name.as_ptr(),
-            flags | libc::O_CLOEXEC,
-        )
-    };
-    if fd < 0 {
-        return Err(io::Error::last_os_error());
-    }
-    // SAFETY: openat returned a new descriptor this process owns.
-    Ok(File::from(unsafe { OwnedFd::from_raw_fd(fd) }))
+    y2p_core::sys::openat(
+        Some(std::os::fd::AsFd::as_fd(directory)),
+        &name,
+        flags | libc::O_CLOEXEC,
+        0,
+    )
+    .map(File::from)
 }
 
 /// Read up to `limit` bytes (a buffered `read(limit)`).

@@ -33,20 +33,10 @@ fn c_name(name: &str) -> Result<CString, Failure> {
 /// Open `name` relative to the directory `dir` (always close-on-exec).
 pub(super) fn openat(dir: RawFd, name: &str, flags: i32, mode: u32) -> Result<OwnedFd, Failure> {
     let c = c_name(name)?;
-    // SAFETY: a NUL-terminated name; the result is a new descriptor this function owns.
-    let fd = unsafe {
-        libc::openat(
-            dir,
-            c.as_ptr(),
-            flags | libc::O_CLOEXEC,
-            mode as libc::c_uint,
-        )
-    };
-    if fd < 0 {
-        return Err(Failure::os(io::Error::last_os_error(), Path::new(name)));
-    }
-    // SAFETY: fd was just opened and is owned by nobody else.
-    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+    // SAFETY: the caller's directory descriptor is open for this call.
+    let dir = unsafe { BorrowedFd::borrow_raw(dir) };
+    y2p_core::sys::openat(Some(dir), &c, flags | libc::O_CLOEXEC, mode as libc::mode_t)
+        .map_err(|e| Failure::os(e, Path::new(name)))
 }
 
 /// Open an absolute (root-prefixed) directory path, never through a final symlink.

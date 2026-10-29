@@ -12,7 +12,7 @@ use std::os::fd::AsFd;
 use std::{
     ffi::CString,
     io,
-    os::fd::{AsRawFd, FromRawFd, OwnedFd},
+    os::fd::{AsRawFd, OwnedFd},
     path::Path,
     time::Duration,
 };
@@ -234,14 +234,7 @@ fn write_into(mount: &Path, top: &str, data: &[u8], stamp: &str) -> io::Result<S
 
 pub fn open_at(dir: Option<&OwnedFd>, name: &str, flags: i32, mode: u32) -> io::Result<OwnedFd> {
     let c = CString::new(name).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))?;
-    let base = dir.map_or(libc::AT_FDCWD, |d| d.as_raw_fd());
-    // SAFETY: a valid directory fd (or AT_FDCWD) and a NUL-terminated name.
-    let fd = unsafe { libc::openat(base, c.as_ptr(), flags, mode as libc::c_uint) };
-    if fd < 0 {
-        return Err(io::Error::last_os_error());
-    }
-    // SAFETY: openat returned a new descriptor we own.
-    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+    y2p_core::sys::openat(dir.map(|d| d.as_fd()), &c, flags, mode as libc::mode_t)
 }
 
 pub fn fstat(fd: &OwnedFd) -> io::Result<y2p_core::sys::Stat> {

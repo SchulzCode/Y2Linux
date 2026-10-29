@@ -6,7 +6,7 @@ use std::{
     ffi::CString,
     fs::File,
     io,
-    os::fd::{BorrowedFd, FromRawFd, OwnedFd, RawFd},
+    os::fd::{BorrowedFd, RawFd},
 };
 
 pub(super) fn check(result: libc::c_int) -> io::Result<libc::c_int> {
@@ -26,18 +26,14 @@ pub(super) fn cname(name: &str) -> CString {
 /// Open `name` relative to `directory` (close-on-exec).
 pub(super) fn openat(directory: RawFd, name: &str, flags: i32, mode: libc::mode_t) -> Result<File> {
     let path = cname(name);
-    // SAFETY: a NUL-terminated name relative to a descriptor this process holds.
-    let fd = check(unsafe {
-        libc::openat(
-            directory,
-            path.as_ptr(),
-            flags | libc::O_CLOEXEC,
-            libc::c_uint::from(mode),
-        )
-    })
-    .map_err(|e| Error::os(e, Some(name)))?;
-    // SAFETY: a new descriptor this process owns.
-    Ok(File::from(unsafe { OwnedFd::from_raw_fd(fd) }))
+    y2p_core::sys::openat(
+        Some(borrowed(directory)),
+        &path,
+        flags | libc::O_CLOEXEC,
+        mode,
+    )
+    .map(File::from)
+    .map_err(|e| Error::os(e, Some(name)))
 }
 
 /// A descriptor of this run (the volume, its run directory, a file) for one call.

@@ -9,7 +9,7 @@ use std::{
     io,
     mem::MaybeUninit,
     os::{
-        fd::{AsRawFd, BorrowedFd},
+        fd::{AsRawFd, BorrowedFd, FromRawFd, OwnedFd},
         unix::ffi::OsStrExt,
     },
     path::Path,
@@ -131,6 +131,24 @@ impl Stat {
     pub fn is_file(&self) -> bool {
         self.mode & libc::S_IFMT == libc::S_IFREG
     }
+}
+
+/// `os.open(name, flags, mode, dir_fd=dir)`: openat(2) relative to `dir` (the working directory when
+/// `None`), with `flags` exactly as given; the new descriptor is owned by the caller.
+pub fn openat(
+    dir: Option<BorrowedFd<'_>>,
+    name: &CStr,
+    flags: libc::c_int,
+    mode: libc::mode_t,
+) -> io::Result<OwnedFd> {
+    let base = dir.map_or(libc::AT_FDCWD, |d| d.as_raw_fd());
+    // SAFETY: an open directory descriptor (the borrow) or AT_FDCWD, and a NUL-terminated name.
+    let fd = unsafe { libc::openat(base, name.as_ptr(), flags, libc::c_uint::from(mode)) };
+    if fd < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: openat returned a new descriptor nobody else owns.
+    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
 }
 
 /// `os.fstat(fd)`.
