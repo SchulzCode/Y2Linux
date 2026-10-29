@@ -9606,3 +9606,34 @@ Wi-Fi on (Python 91.8 s/h, Wi-Fi off); taint 0, supervisor logs empty. Restart: 
 platform data. Root tree 111 MB (130). **Owed to the owner:** sleep cycles, two overnight runs, low battery to
 power-off, charger plug/unplug (also asleep), power-off on a charger, SD insert/remove/repair, Internal Storage, an
 OTA from 169 and a rollback, error report save/send, MTP/SSH, Wi-Fi join/wrong password, Bluetooth.
+
+## PLATFORM-RUST after the port: carried defects fixed, Rust-only tests (test build 170): entry audit — 2026-10-29
+
+**Boundary:** the owner's "start fixing the defects … i want to have the newest build installed on my player and
+no python should be in that build … going forward, we only have the rust code", and (later) "just put it on the
+player and then review and see what works". Hardware evidence so far: test build 169 (the Rust platform, no
+Python on the player; Acknowledged, daemons 15.2 MB RSS, idle 19.6 s/h, restart trail 0.46 s, boot 36.8 s). The
+owner's hardware checks on 169 are **not done** yet; 170 replaces it on the player and carries them.
+Change: **behaviour fixes in the platform** (the ten defects carried 1:1, CONTRACT.md table: SFTP root on
+Internal Storage, `media status`/`media write` exit codes, busy update lock, rollback battery gate before the
+core, auto-check skip reasons, `firmware scan` exit code, battery fuel-gauge sample, expired SD write window,
+DHCP renew keeping dns.json; Reborn: a message for `update_in_progress`) and **test/tooling only** elsewhere: the
+Python reference platform (`tools/platform`) is deleted, its ≈630 unit tests are Rust tests (608 Rust tests in
+all), the Python-vs-Rust harness is a golden suite against the Rust binary (1 063 goldens recorded from Python,
+22 re-recorded for the fixes), host tools moved to tools/host and tools/production, the release's firmware-free
+check reads the stock radio files with the Rust reader (same seven files byte for byte). Port bug found by the
+test port: `media::change_card` ran grow for an unknown action (unreachable from the CLI; fixed). No kernel,
+device tree, memory map, partition, recovery or package-set change (the image already had no Python).
+
+| Area | Host evidence | Device gap (owner) |
+| --- | --- | --- |
+| Fixed defects | a Rust test each, golden diffs reviewed | SFTP opens Internal Storage; SD write window closes after use; Wi-Fi stays Online across a DHCP renew |
+| Update (Rust stage/apply never ran on a player: 169 was installed by 168's Python update) | update unit/golden cases | **the 169 → 170 OTA itself**, then an OTA and a rollback from 170 |
+| Sleep, battery, charging, shutdown | suspend/power Rust tests, goldens | sleep/wake cycles, two overnight runs, low battery to power-off, charger plug/unplug, power-off on a charger |
+| Storage, reports, MTP/SSH, Wi-Fi, Bluetooth | group Rust tests, goldens | SD insert/remove/repair, report save/send (curl), MTP copy, SSH/SFTP, Wi-Fi join and wrong password, BT headphones |
+
+Host: `tools/development/host-tests.sh` 577 OK (1:40, was 7:43 with the Python comparison), `cargo test` 608 OK
+(repeated runs), clippy clean, armv7 check clean. **Gate decision:** ready for an owner-installed test build
+(label 170, sequence 11150); not release-qualified until the owner's device checks above pass. The code-quality
+refactor is planned separately ([PLATFORM-RUST-REFACTOR-PLAN.md](PLATFORM-RUST-REFACTOR-PLAN.md)) and starts
+only after these checks.
