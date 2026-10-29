@@ -1,7 +1,7 @@
 //! The product sleep's gates: what must hold before a product sleep is acknowledged (`sleep
 //! request`) and again under the inherited lock (the helper), with the quarantine guard and the
-//! kernel-refusal retry gate. Also the two pieces of other modules the gates read: `power.load_policy`
-//! and `update.status(ctx).get('state')`.
+//! kernel-refusal retry gate. The low-battery thresholds are the power daemon's own
+//! (`power::policy::load_policy`).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{is_text, pattern, py_gt, text_value, wall, E};
 use serde::Serialize;
@@ -170,63 +170,6 @@ fn usb_host_configured(root: &Root) -> bool {
         .any(|p| read(p, y2p_core::root::READ_LIMIT).as_deref() == Some("configured"))
 }
 
-/// `power.load_policy`: the qualified low-battery thresholds, or why there are none.
-pub fn load_policy(root: &Root) -> Result<Map<String, Value>, &'static str> {
-    let shipped = root.json_object("/etc/y2linux/power-policy.json");
-    let value = match root.json("/data/system/platform/power-policy.json") {
-        Some(Value::Object(map)) => map,
-        _ => shipped,
-    };
-    // No derived or fallback voltage thresholds. A reference records who/what qualified the
-    // policy; software cannot certify that physical evidence.
-    let schema = value.get("schema").cloned().unwrap_or(Value::Null);
-    if !(schema.py_eq(&json!(1)) || schema.py_eq(&json!(2))) || !is_true(value.get("enabled")) {
-        return Err("thresholds_disabled_PHYSICAL_GATE");
-    }
-    let int = |key: &str| exact_int(value.get(key));
-    let keys = [
-        "critical_uv",
-        "low_uv",
-        "recover_uv",
-        "critical_samples",
-        "grace_seconds",
-    ];
-    if keys.iter().any(|k| int(k).is_none()) {
-        return Err("invalid_policy");
-    }
-    let (critical, low, recover) = (
-        int("critical_uv").unwrap_or(0),
-        int("low_uv").unwrap_or(0),
-        int("recover_uv").unwrap_or(0),
-    );
-    let reference = match value.get("qualification_reference") {
-        Some(v) if truthy(v) => Some(v),
-        _ => value.get("source"),
-    };
-    let named = match reference {
-        Some(Value::String(text)) => (1..=256).contains(&text.chars().count()),
-        _ => false,
-    };
-    if !(0 < critical
-        && critical < low
-        && low < recover
-        && (1..=60).contains(&int("critical_samples").unwrap_or(0))
-        && (3..=30).contains(&int("grace_seconds").unwrap_or(0))
-        && named)
-    {
-        return Err("invalid_policy");
-    }
-    if schema.py_eq(&json!(2)) {
-        let soc = ["warning_soc", "critical_soc", "shutdown_soc"].map(int);
-        match soc {
-            [Some(warning), Some(critical), Some(shutdown)]
-                if 0 <= shutdown && shutdown < critical && critical < warning && warning <= 50 => {}
-            _ => return Err("invalid_policy"),
-        }
-    }
-    Ok(value)
-}
-
 pub fn battery_and_cable(root: &Root) -> Result<(), E> {
     let status = root.read("/sys/class/power_supply/BAT0/status");
     if root
@@ -244,7 +187,8 @@ pub fn battery_and_cable(root: &Root) -> Result<(), E> {
     } else if status.as_deref() != Some("Discharging") {
         return Err(refused("battery_state_unavailable"));
     }
-    let policy = load_policy(root);
+    // The power daemon's own qualified thresholds (power::policy), never a copy of them.
+    let (policy, _) = crate::commands::power::policy::load_policy(root);
     let voltage = root.integer("/sys/class/power_supply/BAT0/voltage_now");
     let state = root.json_object("/run/y2/power.json");
     let age: i128 = match state.get("monotonic_ns") {
@@ -283,24 +227,18 @@ pub fn battery_and_cable(root: &Root) -> Result<(), E> {
     let filtered = exact_int(battery.get("filtered_voltage_uv")).filter(|f| *f > 0);
     let level = filtered.or(voltage);
     let percent = exact_int(battery.get("percent"));
-    let policy_ok = policy.as_ref().ok();
-    let flat = match (percent, policy_ok) {
+    let flat = match (percent, &policy) {
         (Some(percent), Some(policy)) => {
-            policy
-                .get("schema")
-                .unwrap_or(&Value::Null)
-                .py_eq(&json!(2))
+            policy.schema2
                 && ["hardware", "calibrated_estimate"]
                     .iter()
                     .any(|c| is_text(battery.get("confidence"), c))
-                && percent <= exact_int(policy.get("shutdown_soc")).unwrap_or(i64::MIN)
+                && percent <= policy.shutdown_soc
         }
         _ => false,
     };
-    let reserve = match (policy_ok, voltage, level) {
-        (Some(policy), Some(_), Some(level)) => {
-            level <= exact_int(policy.get("critical_uv")).unwrap_or(0) || flat
-        }
+    let reserve = match (&policy, voltage, level) {
+        (Some(policy), Some(_), Some(level)) => level <= policy.critical_uv || flat,
         _ => true,
     };
     if reserve {
@@ -459,6 +397,14 @@ mod tests {
         let path = dir.path().join(name.trim_start_matches('/'));
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(path, text).unwrap();
+    }
+
+    /// The power group's verdict on the policy files, as sleep admission takes it.
+    fn load_policy(root: &Root) -> Result<(), &'static str> {
+        match crate::commands::power::policy::load_policy(root) {
+            (Some(_), _) => Ok(()),
+            (None, reason) => Err(reason.unwrap_or("no reason")),
+        }
     }
 
     #[test]
