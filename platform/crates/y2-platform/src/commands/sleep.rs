@@ -21,9 +21,9 @@ const STATES: [&str; 8] = [
 ];
 
 /// `dict(x)` of a truthy JSON value that is no dict: a list of key/value pairs (each a 2-item list,
-/// a 2-character str or a 2-key dict) builds one; anything else is Python's `TypeError` or
-/// `ValueError`. The bool is true when a key is no str (a number, bool or null): such a dict exists
-/// only in memory, because every sorted `json.dumps` of it raises.
+/// a 2-character str or a 2-key dict) builds one; anything else is an error (`Failure::Value`, or
+/// `Failure::Crash` for a value of the wrong type). The bool is true when a key is no str (a number,
+/// bool or null): such a product cannot be written sorted, so every reader refuses it.
 fn dict(value: &Value) -> Result<(Map<String, Value>, bool), Failure> {
     let items = match value {
         Value::Array(items) => items,
@@ -119,8 +119,9 @@ pub fn odd_keys() -> Failure {
     Failure::type_error("'<' not supported between instances of 'int' and 'str'")
 }
 
-/// `sleep.product`: `Err` for Python's `ValueError` (`Failure::Value`) or `TypeError`
-/// (`Failure::Crash`); a dict whose keys are not all str is the `TypeError` of its sorted dump.
+/// `sleep.product`: the product state as this boot reads it; `Err` for a product it cannot read
+/// (`Failure::Value`, or `Failure::Crash` for a value of the wrong type or keys that are not all
+/// text), which `sleep status` reports as its refusal record.
 pub fn product(
     value: &Map<String, Value>,
     boot_id: Option<&str>,

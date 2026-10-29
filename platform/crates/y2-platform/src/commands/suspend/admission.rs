@@ -1,4 +1,4 @@
-//! `product_sleep.py`'s gates: what must hold before a product sleep is acknowledged (`sleep
+//! The product sleep's gates: what must hold before a product sleep is acknowledged (`sleep
 //! request`) and again under the inherited lock (the helper), with the quarantine guard and the
 //! kernel-refusal retry gate. Also the two pieces of other modules the gates read: `power.load_policy`
 //! and `update.status(ctx).get('state')`.

@@ -1,4 +1,4 @@
-//! `suspend_record.py` and `sleep.transition`/`sleep.wake_irqs`: durable suspend receipts, written
+//! The suspend receipt (`suspend-last.json`) and the Power/RTC wake counts: durable records, written
 //! only before entry or after Linux returns. No lock of its own: the caller holds
 //! `/run/y2/suspend.lock` (sleep request, the helper, y2-suspend).
 // SPDX-License-Identifier: GPL-2.0-only

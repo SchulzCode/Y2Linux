@@ -1,4 +1,4 @@
-//! The small programmes of the group: `suspend-record.py` (`/usr/sbin/y2-suspend-record`, used by
+//! The small programmes of the group: `y2-suspend-record` (`/usr/sbin/y2-suspend-record`, used by
 //! y2-suspend) and `y2-power-command` (installed as `/sbin/poweroff` and `/sbin/reboot`).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{exit, fail, platform, receipt, E};

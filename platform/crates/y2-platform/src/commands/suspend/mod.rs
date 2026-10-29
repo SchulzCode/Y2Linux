@@ -244,7 +244,7 @@ pub fn refusal(text: &str) -> Outcome {
 }
 
 /// A failure the subcommand reports as its refusal record (a record it could not read); any other
-/// stays the error main.py prints.
+/// stays the `org.y2linux.error/v1` record every subcommand prints.
 pub fn refused(failure: Failure) -> Outcome {
     match failure {
         Failure::Crash { message, .. } => refusal(&message),

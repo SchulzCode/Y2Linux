@@ -1,4 +1,4 @@
-//! `sleep_diagnostics.py`: persistent sleep and USB diagnostics that survive a hold-Power restart.
+//! Persistent sleep and USB diagnostics (`sleep-diagnostics.jsonl`) that survive a hold-Power restart.
 //!
 //! POWER-FINAL-14. 13's counters (VPROC sleep, PHY save-current, wheel sleep, INFRA power-down, the
 //! golden capture at sleep entry) live only in kernel memory, and the USB-after-wake defect is only
@@ -366,7 +366,7 @@ fn kernel_tail(root: &Root, lines: usize, width: usize) -> Option<Vec<String>> {
     Some(kept)
 }
 
-/// One `os.read(fd, 8192)` (EINTR retried, as Python does).
+/// One read of at most a block (an interrupted read is retried: a signal is no end of the log).
 fn read_once(file: &mut File, block: &mut [u8]) -> std::io::Result<usize> {
     loop {
         match file.read(block) {

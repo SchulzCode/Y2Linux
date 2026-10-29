@@ -25,7 +25,8 @@ fn timed_out() -> E {
     }
 }
 
-/// poll() one event on `fd` within the time left before `deadline` (CPython's `internal_select`).
+/// Wait for one event on `fd` within the time left before `deadline` (an interrupted poll goes on
+/// unless the helper was asked to stop).
 fn wait(fd: i32, events: i16, deadline: std::time::Instant) -> Result<(), E> {
     loop {
         let left = deadline.saturating_duration_since(std::time::Instant::now());

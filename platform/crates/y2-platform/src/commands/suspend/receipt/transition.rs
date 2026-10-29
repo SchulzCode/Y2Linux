@@ -81,8 +81,8 @@ pub fn transition(
     transition_keys(value, stage, result, boot_id, reason).map(|(p, _)| p)
 }
 
-/// `sleep.transition`, and whether the product holds a key that is no str (`dict()` of a list of
-/// pairs): Python keeps such a dict until its sorted `json.dump` raises.
+/// `sleep.transition`, and whether the product holds a key that is no str (built from a list of
+/// pairs): such a product is kept until the receipt is written, which then fails.
 pub fn transition_keys(
     value: &Map<String, Value>,
     stage: &str,

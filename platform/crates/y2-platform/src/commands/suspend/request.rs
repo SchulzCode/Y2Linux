@@ -166,7 +166,7 @@ fn launch(root: &Root, lock: &File) -> Result<(), E> {
             if libc::setsid() < 0 {
                 return Err(std::io::Error::last_os_error());
             }
-            // Python's close_fds=True with pass_fds=(fd,): nothing else is inherited.
+            // Only the request's lock is inherited: every other descriptor closes on exec.
             let ranged = libc::syscall(
                 libc::SYS_close_range,
                 3u32,
