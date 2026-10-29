@@ -115,11 +115,10 @@ fn invalid_override_fails_closed_and_real_fg_has_priority() {
     );
 }
 
-/// DEFECT (port): after a sample with BAT0 `capacity` the display value (`ui`) stays unset, so the
-/// next sample without it compares `None` and ends the daemon (`Soc::ui`, battery.rs). Ported 1:1;
-/// this pins today's state, not the wanted one.
+/// A fuel-gauge sample sets no display value (nothing is saved for the next start); the next sample
+/// without `capacity` starts the voltage estimate as a first sample (Python ended its daemon there).
 #[test]
-fn defect_fuel_gauge_sample_leaves_the_display_value_unset() {
+fn a_fuel_gauge_sample_saves_nothing_and_the_estimate_takes_over() {
     let fixture = fixture();
     let mut soc = Soc::new(Some(stock(&fixture)), None);
     let value = soc.observe(
@@ -130,9 +129,11 @@ fn defect_fuel_gauge_sample_leaves_the_display_value_unset() {
         },
     );
     assert_eq!(percent(&value), Some(71));
-    // DEFECT (port): ui is None after the fuel-gauge sample (Python: TypeError on the next one).
     assert_eq!(soc.ui, None);
     assert_eq!(soc.state(), None);
+    let next = soc.observe(1., &at(3800000, 1, "Discharging"));
+    assert_eq!(text(&next, "source"), Some("voltage_estimate".into()));
+    assert!(soc.state().is_some());
 }
 
 #[test]
