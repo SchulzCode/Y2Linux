@@ -1,37 +1,26 @@
 //! The SD lifecycle on a fixture card (from tests/test_platform_storage_tools.py, test_media_change.py
-//! and test_exfat_readahead.py): the fake answers commands as the Python tests' runners did (a
-//! `mount` writes its mountinfo line, blkid describes the card).
+//! and test_exfat_readahead.py): the card's root answers commands with a fake whose state follows
+//! them (a `mount` writes its mountinfo line, blkid describes the card) and reads a manual clock.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{change::*, check::*, repair::*, *};
+use crate::commands::storage::{observe::MEDIA_STATE, sys::statvfs};
 use crate::commands::{observation::snapshot, reports::media::can_write};
-use crate::testing::{responding, Fixture, Outcome};
+use crate::testing::{Fixture, Outcome};
 use std::{
-    cell::{Cell, RefCell},
-    collections::VecDeque,
-    fs::FileTimes,
+    cell::Cell,
+    fs::{File, FileTimes},
+    io::{self, Read},
     os::unix::fs::symlink,
-    rc::Rc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex, MutexGuard,
+    },
+    thread,
     time::UNIX_EPOCH,
+    time::{Duration, Instant},
 };
-
-// ---- what Python's tests patched and a fixture root cannot do ----------------------------------
-
-thread_local! {
-    static IOCTLS: RefCell<Vec<libc::c_ulong>> = const { RefCell::new(Vec::new()) };
-    static IOCTL_RESULT: Cell<libc::c_int> = const { Cell::new(0) };
-    static SLEPT: RefCell<VecDeque<i128>> = const { RefCell::new(VecDeque::new()) };
-}
-
-/// format_steps' partition re-read (`ctx.ioctl`): recorded, answered with IOCTL_RESULT.
-pub(super) fn ioctl(_fd: libc::c_int, request: libc::c_ulong) -> libc::c_int {
-    IOCTLS.with(|r| r.borrow_mut().push(request));
-    IOCTL_RESULT.with(Cell::get)
-}
-
-/// verify's `_slept_ns` while SLEPT has values, else the clocks.
-pub(super) fn slept_ns() -> Option<i128> {
-    SLEPT.with(|s| s.borrow_mut().pop_front())
-}
+use y2p_core::storage_media::{fat_benign_only, fat_findings, fat_other_shapes};
+use y2p_core::{clock::Manual, command::Runner};
 
 // ---- the fixture card --------------------------------------------------------------------------
 
@@ -56,7 +45,7 @@ fn command_failed(output: Option<&str>) -> Outcome {
     answer(false, Some("command_failed"), output)
 }
 
-type Special = Box<dyn FnMut(&[&str], f64) -> Option<Outcome>>;
+type Special = Box<dyn FnMut(&[&str], f64) -> Option<Outcome> + Send>;
 
 /// card_fixture's runner (MediaChange's with `changes`): blkid describes the card, `mount` writes its
 /// line (rw when the options say so), umount fails; `special` answers first when it has an answer.
@@ -103,10 +92,39 @@ impl Fake {
     }
 }
 
+/// The card's runner: the fake answers, and every request is recorded with whether a failed run
+/// keeps its output.
+struct Answering {
+    fake: Arc<Mutex<Fake>>,
+    requests: Mutex<Vec<(Vec<String>, f64, bool)>>,
+}
+
+impl Runner for Answering {
+    fn run(&self, argv: &[&str], timeout: f64, _limit: usize, failure_output: bool) -> Outcome {
+        let request = argv.iter().map(|a| a.to_string()).collect();
+        self.requests
+            .lock()
+            .unwrap()
+            .push((request, timeout, failure_output));
+        self.fake.lock().unwrap().answer(argv, timeout)
+    }
+
+    fn calls(&self) -> Vec<(Vec<String>, f64)> {
+        let requests = self.requests.lock().unwrap();
+        requests.iter().map(|(a, t, _)| (a.clone(), *t)).collect()
+    }
+}
+
 struct Card {
     fixture: Fixture,
-    fake: Rc<RefCell<Fake>>,
-    calls: RefCell<Vec<(Vec<String>, f64)>>,
+    fake: Arc<Mutex<Fake>>,
+    runner: Arc<Answering>,
+    clock: Arc<Manual>,
+    /// The commands before this many were cleared.
+    cleared: Cell<usize>,
+    /// Partition-table re-reads format asked for, and whether they fail (EBUSY).
+    rereads: Cell<usize>,
+    reread_fails: Cell<bool>,
 }
 
 impl Card {
@@ -125,16 +143,27 @@ impl Card {
         }
         fixture.put("/proc/self/mountinfo", "");
         fixture.mkdir("/media/sd");
-        let fake = Fake {
+        let fake = Arc::new(Mutex::new(Fake {
             mountinfo: fixture.path("/proc/self/mountinfo"),
             filesystem,
             changes: false,
             special: None,
-        };
+        }));
+        let clock = Arc::new(Manual::at(1_000_000_000_000, 1_000_000_000_000));
+        let runner = Arc::new(Answering {
+            fake: Arc::clone(&fake),
+            requests: Mutex::default(),
+        });
+        let mut fixture = fixture.with_clock(clock.clone());
+        fixture.root = fixture.root.clone().with_runner(runner.clone());
         Card {
             fixture,
-            fake: Rc::new(RefCell::new(fake)),
-            calls: RefCell::new(Vec::new()),
+            fake,
+            runner,
+            clock,
+            cleared: Cell::new(0),
+            rereads: Cell::new(0),
+            reread_fails: Cell::new(false),
         }
     }
 
@@ -149,7 +178,7 @@ impl Card {
     /// MediaChange.setUp: the whole 64 MiB card is a file full of old contents.
     fn change() -> Card {
         let card = Card::new("exfat");
-        card.fake.borrow_mut().changes = true;
+        card.fake().changes = true;
         card.fixture
             .put(&format!("{DISK}/size"), &SECTORS.to_string());
         card.fixture.put(&format!("{DISK}/dev"), "179:8");
@@ -161,8 +190,6 @@ impl Card {
         )
         .unwrap();
         fs::write(card.path("/dev/mmcblk1p1"), b"").unwrap(); // the node the kernel creates on re-read
-        IOCTLS.with(|r| r.borrow_mut().clear());
-        IOCTL_RESULT.with(|r| r.set(0));
         card
     }
 
@@ -174,39 +201,54 @@ impl Card {
         self.fixture.path(name)
     }
 
-    fn special(&self, special: impl FnMut(&[&str], f64) -> Option<Outcome> + 'static) {
-        self.fake.borrow_mut().special = Some(Box::new(special));
+    fn fake(&self) -> MutexGuard<'_, Fake> {
+        self.fake.lock().unwrap()
     }
 
-    /// Run `f` with the fake answering its commands, which are added to `calls`.
-    fn with<T>(&self, f: impl FnOnce(&Root) -> T) -> T {
-        let fake = Rc::clone(&self.fake);
-        let (value, calls) = responding(
-            move |argv, timeout| fake.borrow_mut().answer(argv, timeout),
-            || f(&self.fixture.root),
-        );
-        self.calls.borrow_mut().extend(calls);
-        value
+    fn special(&self, special: impl FnMut(&[&str], f64) -> Option<Outcome> + Send + 'static) {
+        self.fake().special = Some(Box::new(special));
     }
 
     fn operation(&self, action: &str) -> Value {
-        Value::Object(self.with(|root| operation(root, action).unwrap()))
+        Value::Object(operation(self.root(), action).unwrap())
+    }
+
+    /// The partition-table re-read format asks for, counted.
+    fn reread(&self, _card: &File) -> io::Result<()> {
+        self.rereads.set(self.rereads.get() + 1);
+        if self.reread_fails.get() {
+            return Err(io::Error::from_raw_os_error(libc::EBUSY));
+        }
+        Ok(())
     }
 
     fn change_card(&self, action: &str, cid: Option<&str>) -> Value {
-        Value::Object(self.with(|root| change_card(root, action, cid).unwrap()))
+        let reread = |card: &File| self.reread(card);
+        Value::Object(change_card_with(self.root(), action, cid, &reread).unwrap())
     }
 
     fn verify(&self) -> Value {
-        Value::Object(self.with(|root| verify(root).unwrap()))
+        Value::Object(verify(self.root()).unwrap())
     }
 
     fn window(&self, holder: &str, seconds: i64, release: bool) -> Value {
-        Value::Object(self.with(|root| write_window(root, holder, seconds, release).unwrap()))
+        Value::Object(write_window(self.root(), holder, seconds, release).unwrap())
     }
 
     fn storage(&self) -> Value {
-        self.with(|root| snapshot::storage(root).unwrap())
+        snapshot::storage(self.root()).unwrap()
+    }
+
+    /// Whether each run of `program` keeps its output when it fails.
+    fn kept_output(&self, program: &str) -> Vec<bool> {
+        let requests = self.runner.requests.lock().unwrap();
+        let runs = requests.iter().filter(|(a, _, _)| a[0] == program);
+        runs.map(|(_, _, kept)| *kept).collect()
+    }
+
+    /// The commands since the last `clear` (argv, timeout).
+    fn calls(&self) -> Vec<(Vec<String>, f64)> {
+        self.fixture.calls().split_off(self.cleared.get())
     }
 
     /// `storage(ctx)['volumes'][2]`.
@@ -215,7 +257,7 @@ impl Card {
     }
 
     fn argvs(&self) -> Vec<Vec<String>> {
-        self.calls.borrow().iter().map(|(a, _)| a.clone()).collect()
+        self.calls().into_iter().map(|(a, _)| a).collect()
     }
 
     fn names(&self) -> Vec<String> {
@@ -242,7 +284,7 @@ impl Card {
     }
 
     fn clear(&self) {
-        self.calls.borrow_mut().clear();
+        self.cleared.set(self.fixture.calls().len());
     }
 
     fn unmounted(&self) {
@@ -402,10 +444,8 @@ fn fat_card_pulled_while_mounted_is_mounted_again() {
     // Admission still never repairs: no -a/-w/-r run.
     assert!(!card.repaired());
     assert_eq!(card.sd()["state"], "Ready");
-    // The checker's findings come from its output on failure (`failure_output` for FAT).
-    assert!(include_str!("media.rs").contains(
-        "command::run_with(root, &argv, timeout, command::LIMIT, filesystem == \"vfat\")"
-    ));
+    // The checker's findings come from its output on failure: a FAT check keeps it.
+    assert_eq!(card.kept_output("fsck.fat"), [true]);
 }
 
 #[test]
@@ -598,7 +638,7 @@ fn admissions_are_remembered_across_boots_without_names() {
 
 /// A FAT card whose check outlasts admission; `background` answers the check `verify` runs (F49,
 /// d32f8f3c: 59 s on 71 400 songs).
-fn slow_card(background: impl Fn() -> Outcome + 'static) -> Card {
+fn slow_card(background: impl Fn() -> Outcome + Send + 'static) -> Card {
     let card = Card::new("vfat");
     card.special(move |argv, timeout| {
         (argv[0] == "fsck.fat").then(|| {
@@ -614,11 +654,9 @@ fn slow_card(background: impl Fn() -> Outcome + 'static) -> Card {
 
 impl Card {
     fn checks(&self) -> Vec<(Vec<String>, f64)> {
-        self.calls
-            .borrow()
-            .iter()
+        self.calls()
+            .into_iter()
             .filter(|(a, _)| a[0] == "fsck.fat")
-            .cloned()
             .collect()
     }
 }
@@ -711,7 +749,13 @@ fn a_background_check_applies_only_to_the_card_it_read() {
     let card = slow_card(|| command_failed(Some("I/O error")));
     card.operation("mount");
     // The player slept while the checker read: no verdict, it runs again.
-    SLEPT.with(|s| *s.borrow_mut() = VecDeque::from([0, 5_000_000_000]));
+    let clock = Arc::clone(&card.clock);
+    card.special(move |argv, timeout| {
+        (argv[0] == "fsck.fat" && timeout == CHECK_SECONDS).then(|| {
+            clock.suspend(5_000_000_000);
+            command_failed(Some("I/O error"))
+        })
+    });
     assert_eq!(card.verify()["reason"], "slept_during_check");
     assert_eq!(card.fixture.json(MEDIA_MOUNT)["read_only"], "checking");
     // Reinserted (new disk sequence) before or while it was checked.
@@ -723,11 +767,12 @@ fn a_background_check_applies_only_to_the_card_it_read() {
 #[test]
 fn ext4_keeps_its_admission_check() {
     let card = Card::new("ext4");
-    let mut ext4 = Object::new();
-    set(&mut ext4, "filesystem", "ext4");
-    set(&mut ext4, "device", "/dev/mmcblk1p1");
-    card.with(|root| read_only_check(root, &ext4, false, None));
-    assert_eq!(card.calls.borrow()[0].1, EXT4_CHECK_SECONDS);
+    let [ext4] = &candidates(card.root())[..] else {
+        panic!("one ext4 card");
+    };
+    card.clear();
+    read_only_check(card.root(), ext4, false, None);
+    assert_eq!(card.calls()[0].1, EXT4_CHECK_SECONDS);
 }
 
 #[test]
@@ -735,6 +780,8 @@ fn fsck_is_read_only_and_never_checks_mounted_media() {
     let card = Card::new("exfat");
     assert_eq!(card.operation("check")["state"], "Ready");
     assert!(card.called(&["fsck.exfat", "-n", "/dev/mmcblk1p1"]));
+    // Only FAT's output names finding classes; nothing else keeps a failed run's output.
+    assert_eq!(card.kept_output("fsck.exfat"), [false]);
     card.operation("mount");
     assert_eq!(card.operation("check")["reason"], "already_mounted");
     assert_eq!(
@@ -753,9 +800,8 @@ fn exfat_card_that_fails_its_check_plays_read_only() {
         });
         let result = card.operation("mount");
         let check = card
-            .calls
-            .borrow()
-            .iter()
+            .calls()
+            .into_iter()
             .find(|(a, _)| a[0] == "fsck.exfat")
             .unwrap()
             .1;
@@ -770,7 +816,7 @@ fn exfat_card_that_fails_its_check_plays_read_only() {
         );
         assert!(card.mount_options()[0].starts_with("ro,"));
         card.unmounted();
-        card.fake.borrow_mut().special = None;
+        card.fake().special = None;
     }
 }
 
@@ -831,7 +877,7 @@ fn removed_card_can_be_unmounted_only_with_its_retained_claim() {
 #[test]
 fn automatic_mount_runs_once_per_insertion_and_failed_eject_is_bounded() {
     let card = Card::new("exfat");
-    let reconcile = || Value::Object(card.with(|root| reconcile(root).unwrap()));
+    let reconcile = || Value::Object(reconcile(card.root()).unwrap());
     assert_eq!(reconcile()["state"], "Ready");
     assert_eq!(reconcile()["attempts"], 1);
     fs::remove_file(card.path("/sys/class/block/mmcblk1p1")).unwrap();
@@ -880,17 +926,12 @@ fn a_healthy_card_is_read_only_between_writes() {
     );
     // A forgotten window ends at the reconcile tick after its time.
     card.window("usb", 30, false);
-    card.with(|root| protect(root).unwrap());
+    protect(card.root()).unwrap();
     assert_eq!(card.sd()["writable"], true);
-    // Its time has passed (Python moved the clock 31 s on).
-    let mut window = card.fixture.json(SD_WRITE);
-    window["holders"]["usb"] = json!(clock::monotonic() - 1.0);
-    card.fixture.put_json(SD_WRITE, &window);
-    card.with(|root| protect(root).unwrap());
+    card.clock.advance(31_000_000_000);
+    protect(card.root()).unwrap();
     assert_eq!(card.sd()["writable"], false);
-    assert!(card
-        .with(|root| write_window(root, "anyone", 60, false))
-        .is_err());
+    assert!(write_window(card.root(), "anyone", 60, false).is_err());
 }
 
 #[test]
@@ -926,18 +967,21 @@ fn repair_fixture(damaged: bool, percent: i64, charging: bool) -> Card {
     let findings = if damaged { CHAIN_SHORTER } else { "" };
     let output = PULLED_FAT.replace("Dirty bit", &format!("{findings}Dirty bit"));
     let card = Card::new("vfat");
-    let (mountinfo, repaired) = (card.path("/proc/self/mountinfo"), Rc::new(Cell::new(false)));
+    let (mountinfo, repaired) = (
+        card.path("/proc/self/mountinfo"),
+        Arc::new(AtomicBool::new(false)),
+    );
     card.special(move |argv, _| match argv {
         ["umount", ..] => {
             fs::write(&mountinfo, "").unwrap();
             Some(answer(true, None, None))
         }
         ["fsck.fat", "-a", "-w", ..] => {
-            repaired.set(true);
+            repaired.store(true, Ordering::SeqCst);
             let output = format!("{CHAIN_SHORTER}Reclaimed 70 unused clusters (286720 bytes).\n");
             Some(command_failed(Some(&output)))
         }
-        ["fsck.fat", "-n", ..] if repaired.get() => Some(done("")),
+        ["fsck.fat", "-n", ..] if repaired.load(Ordering::SeqCst) => Some(done("")),
         ["fsck.fat", ..] => Some(command_failed(Some(&output))),
         _ => None,
     });
@@ -962,7 +1006,7 @@ fn repair_fixture(damaged: bool, percent: i64, charging: bool) -> Card {
 
 impl Card {
     fn repair(&self) -> Value {
-        Value::Object(self.with(|root| repair(root).unwrap()))
+        Value::Object(repair(self.root()).unwrap())
     }
 
     fn fixed(&self) -> bool {
@@ -1046,10 +1090,6 @@ impl Card {
     }
 }
 
-fn rereads() -> Vec<libc::c_ulong> {
-    IOCTLS.with(|r| r.borrow().clone())
-}
-
 #[test]
 fn format_needs_the_exact_card_cid_and_touches_nothing_otherwise() {
     let card = Card::change();
@@ -1062,8 +1102,8 @@ fn format_needs_the_exact_card_cid_and_touches_nothing_otherwise() {
         );
     }
     assert_eq!(card.device(), before);
-    assert!(card.calls.borrow().is_empty());
-    assert!(rereads().is_empty());
+    assert!(card.calls().is_empty());
+    assert_eq!(card.rereads.get(), 0);
 }
 
 #[test]
@@ -1080,7 +1120,7 @@ fn format_repartitions_wipes_stale_metadata_and_mounts_the_new_filesystem() {
     assert!(data[data.len() - tail..].iter().all(|b| *b == 0));
     // The partition interior is not written by the platform: mkfs owns it.
     assert!(data[start..start + 512].iter().all(|b| *b == 0xa5));
-    assert_eq!(rereads(), [0x125F]);
+    assert_eq!(card.rereads.get(), 1);
     let mkfs = card
         .argvs()
         .into_iter()
@@ -1109,7 +1149,7 @@ fn large_cards_get_a_bounded_journal() {
         .unwrap();
     let mut state = Object::new();
     set(&mut state, "state", "Starting");
-    card.with(|root| format_steps(root, &mut state, "/dev/mmcblk1", big));
+    format_steps(card.root(), &mut state, "/dev/mmcblk1", big, &|_| Ok(()));
     let mkfs = card
         .argvs()
         .into_iter()
@@ -1144,8 +1184,8 @@ fn mounted_card_is_released_from_mtp_even_with_a_cable_then_unmounted_before_any
         card.path("/dev/mmcblk1"),
     );
     let (result, seen) = thread::scope(|scope| {
-        // The USB service answers the release (Python patched usb.release_sd). With the cable
-        // attached only an explicit release writes the request.
+        // The USB service answers the release. With the cable attached only an explicit release
+        // writes the request.
         let service = scope.spawn(|| {
             let deadline = Instant::now() + Duration::from_secs(10);
             while !marker.exists() {
@@ -1213,7 +1253,7 @@ fn only_the_removable_card_controller_can_ever_be_formatted() {
         );
     }
     assert_eq!(fs::read(card.path("/dev/mmcblk0")).unwrap(), [0x11; 4096]);
-    assert!(card.calls.borrow().is_empty());
+    assert!(card.calls().is_empty());
 }
 
 #[test]
@@ -1224,14 +1264,14 @@ fn a_too_small_card_and_unknown_actions_are_refused() {
         card.change_card("format", Some(CID))["reason"],
         "card_too_small"
     );
-    let unknown = card.with(|root| change_card(root, "wipe", Some(CID)));
+    let unknown = change_card(card.root(), "wipe", Some(CID));
     assert!(matches!(unknown, Err(Failure::Value(text)) if text == "unknown_media_change"));
 }
 
 #[test]
 fn partition_reread_failure_stops_before_mkfs() {
     let card = Card::change();
-    IOCTL_RESULT.with(|r| r.set(-1)); // busy
+    card.reread_fails.set(true);
     let result = card.change_card("format", Some(CID));
     assert_eq!(
         pair(&result, "state", "reason"),
@@ -1243,7 +1283,7 @@ fn partition_reread_failure_stops_before_mkfs() {
 #[test]
 fn grow_checks_then_resizes_only_one_ext4_card() {
     let card = Card::change();
-    card.fake.borrow_mut().filesystem = "ext4";
+    card.fake().filesystem = "ext4";
     assert_eq!(card.change_card("grow", None)["state"], "Ready");
     assert!(card.index("e2fsck") < card.index("resize2fs"));
     assert!(card.index("resize2fs") < card.index("mount"));
@@ -1261,7 +1301,7 @@ fn grow_refuses_a_foreign_or_unchecked_filesystem() {
         json!(["Failed", "grow_requires_one_ext4_card"])
     );
     assert!(!card.names().iter().any(|n| n == "resize2fs"));
-    card.fake.borrow_mut().filesystem = "ext4";
+    card.fake().filesystem = "ext4";
     card.clear();
     card.special(|argv, _| (argv[0] == "e2fsck").then(|| command_failed(None)));
     let result = card.change_card("grow", None);
@@ -1286,8 +1326,7 @@ fn a_recycled_mount_id_cannot_leave_the_new_card_hidden() {
 fn storage_reports_an_undersized_filesystem_without_changing_it() {
     let card = Card::change();
     card.operation("mount");
-    // The fixture's /media/sd is a real directory: size the partition against its filesystem
-    // (Python faked statvfs).
+    // The fixture's /media/sd is a real directory: size the partition against its filesystem.
     let vfs = statvfs(&card.path("/media/sd")).unwrap();
 
     let total = vfs.total();
