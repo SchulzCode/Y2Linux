@@ -241,3 +241,7 @@ pub fn policy(root: &Root, cleanup: bool) -> Result<Value, Failure> {
     atomic_json(&directory.join("storage.json"), &result, false)?;
     Ok(result)
 }
+
+#[cfg(test)]
+#[path = "space_tests.rs"]
+mod space_tests;
