@@ -52,6 +52,50 @@ const BOOTLOADERS: [(&str, &str, u64, usize); 2] = [
     ("preloader", "/dev/mmcblk0boot0", 0, 0x4_0000),
 ];
 
+/// The bytes an upload or a save has done of its whole (the progress record shows them).
+#[derive(Clone, Copy, Default)]
+pub struct Bytes {
+    pub done: Option<usize>,
+    pub total: Option<usize>,
+}
+
+impl Bytes {
+    /// None: the collect, scrub and pack steps.
+    pub const NONE: Bytes = Bytes {
+        done: None,
+        total: None,
+    };
+
+    pub fn of(done: usize, total: usize) -> Bytes {
+        Bytes {
+            done: Some(done),
+            total: Some(total),
+        }
+    }
+
+    /// Only the whole (a save is one write).
+    pub fn total(total: usize) -> Bytes {
+        Bytes {
+            done: None,
+            total: Some(total),
+        }
+    }
+}
+
+/// /run/y2/report-progress.json, as Reborn's report screen reads it (written with sorted keys).
+#[derive(serde::Serialize)]
+struct ProgressRecord<'a> {
+    schema: u8,
+    phase: &'a str,
+    percent: f64,
+    seconds_left: Option<i64>,
+    destination: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bytes_done: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bytes_total: Option<usize>,
+}
+
 /// Live progress of one report run for the owner's screen: the step (collect, scrub, pack, then
 /// upload or save), the whole run's percent and an estimate of the seconds left. At most five writes
 /// a second, in RAM.
@@ -86,7 +130,9 @@ impl Progress {
         Progress { sink: None }
     }
 
-    pub fn update(&self, phase: &str, fraction: f64, force: bool, fields: &[(&str, Py)]) {
+    /// The step `phase` is `fraction` done; written at most every 0.2 s unless `force`d (a step's
+    /// start and end).
+    pub fn update(&self, phase: &str, fraction: f64, force: bool, bytes: Bytes) {
         let Some(sink) = &self.sink else {
             return;
         };
@@ -103,25 +149,19 @@ impl Progress {
         };
         let percent = low + (high - low) * fraction.clamp(0.0, 1.0);
         let elapsed = now - sink.start;
-        let left = if percent >= 15.0 {
-            Py::Int(format!(
-                "{}",
-                (elapsed * (100.0 - percent) / percent).round_ties_even() as i64
-            ))
-        } else {
-            Py::None
+        // From 15 % on the run so far is a fair estimate of the rest.
+        let seconds_left = (percent >= 15.0)
+            .then(|| (elapsed * (100.0 - percent) / percent).round_ties_even() as i64);
+        let record = ProgressRecord {
+            schema: 1,
+            phase,
+            // `round(percent, 1)`: the formatter rounds the exact binary value, as Python does.
+            percent: format!("{percent:.1}").parse().unwrap_or(percent),
+            seconds_left,
+            destination: sink.destination.as_deref(),
+            bytes_done: bytes.done,
+            bytes_total: bytes.total,
         };
-        // `round(percent, 1)`: the formatter rounds the exact binary value, as Python does.
-        let rounded: f64 = format!("{percent:.1}").parse().unwrap_or(percent);
-        let mut record = Py::dict()
-            .with("schema", Py::int(1))
-            .with("phase", Py::str(phase))
-            .with("percent", Py::Float(rounded))
-            .with("seconds_left", left)
-            .with("destination", sink.destination.clone().into());
-        for (key, value) in fields {
-            record.set(key, value.clone());
-        }
         // The screen goes without; the report does not.
         if let Some(parent) = sink.path.parent() {
             if std::fs::create_dir_all(parent).is_ok() || parent.is_dir() {
@@ -803,7 +843,7 @@ pub fn build(
     if triggers.is_empty() || !triggers.iter().all(|t| TRIGGERS.contains(&t.as_str())) {
         return Err(Failure::value("unknown_trigger"));
     }
-    progress.update("collect", 0.0, true, &[]);
+    progress.update("collect", 0.0, true, Bytes::NONE);
     let known = secrets::secrets(root)?;
     let mut scrubber = Scrubber::new(&known, random_key()?);
     let versions = json_dict(root, "/etc/y2linux/versions.json");
@@ -902,14 +942,14 @@ pub fn build(
     };
     let mut seen = std::collections::HashSet::new();
     let mut files: Vec<(String, Vec<u8>, bool)> = Vec::new();
-    progress.update("collect", 0.3, false, &[]);
+    progress.update("collect", 0.3, false, Bytes::NONE);
     let patterns: Vec<&str> = FILES.iter().copied().filter(|p| !p.is_empty()).collect();
     for (n, pattern) in patterns.iter().enumerate() {
         progress.update(
             "collect",
             0.3 + 0.7 * n as f64 / patterns.len() as f64,
             false,
-            &[],
+            Bytes::NONE,
         );
         let paths = if pattern.contains('*') {
             root.glob(pattern)
@@ -927,15 +967,15 @@ pub fn build(
             }
         }
     }
-    progress.update("scrub", 0.0, true, &[]);
+    progress.update("scrub", 0.0, true, Bytes::NONE);
     let items: Vec<(String, Vec<u8>)> = files
         .iter()
         .map(|(r, d, _)| (r.clone(), d.clone()))
         .collect();
     let cleaned = scrub_files(&mut scrubber, &items, |fraction| {
-        progress.update("scrub", fraction, false, &[])
+        progress.update("scrub", fraction, false, Bytes::NONE)
     });
-    progress.update("pack", 0.0, true, &[]);
+    progress.update("pack", 0.0, true, Bytes::NONE);
     let commands = runner.join().expect("command runner");
     for (name, result) in commands {
         let output = result.output.clone().unwrap_or_default();
@@ -978,7 +1018,7 @@ pub fn build(
         .collect();
     index.set("scrubbed", Py::Dict(counts));
     let packed = pack(root, &mut index, &mut members);
-    progress.update("pack", 1.0, true, &[]);
+    progress.update("pack", 1.0, true, Bytes::NONE);
     Ok((packed, index))
 }
 

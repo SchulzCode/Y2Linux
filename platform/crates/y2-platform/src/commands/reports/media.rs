@@ -5,7 +5,7 @@
 use super::{
     build, clock, json_dict, or_dict,
     pyjson::Py,
-    state::{self, DESTINATIONS},
+    state::{self, Reports, DESTINATIONS},
 };
 use crate::reply::{atomic_json, Failure};
 use std::os::fd::AsFd;
@@ -301,10 +301,10 @@ pub fn save_to(
             .with("saved", Py::Bool(false))
             .with("reason", Py::str("not_mounted")));
     }
-    let value = state::state(root);
+    let value = Reports::load(root);
     let now = clock::Instant::now(root);
-    let install = if matches!(value.get("enabled"), Some(Py::Bool(true))) {
-        value.get("install_id").cloned().unwrap_or(Py::None)
+    let install = if value.enabled() {
+        value.field("install_id")
     } else {
         Py::None
     };
@@ -317,7 +317,7 @@ pub fn save_to(
         now,
         progress,
     )?;
-    progress.update("save", 0.0, true, &[("bytes_total", Py::from(data.len()))]);
+    progress.update("save", 0.0, true, build::Bytes::total(data.len()));
     let window = if destination == "sd" {
         write_window(root, 120, false)
     } else {
@@ -337,7 +337,7 @@ pub fn save_to(
     };
     let name = match written {
         Ok(name) => {
-            progress.update("save", 1.0, true, &[("bytes_total", Py::from(data.len()))]);
+            progress.update("save", 1.0, true, build::Bytes::total(data.len()));
             name
         }
         Err(Failure::Os { text, .. }) => {
@@ -350,33 +350,26 @@ pub fn save_to(
         Err(other) => return Err(other),
     };
     let file = format!("{}/{name}", build::FOLDER);
-    let mut value = state::state(root);
+    let report_id = index.get("report_id").cloned().unwrap_or(Py::None);
+    let mut value = Reports::load(root);
     value.set(
         "last",
-        Py::dict()
-            .with(
-                "report_id",
-                index.get("report_id").cloned().unwrap_or(Py::None),
-            )
-            .with("trigger", Py::str("manual"))
-            .with("state", Py::str("saved"))
-            .with("destination", Py::str(destination))
-            .with("file", Py::str(file.clone()))
-            .with(
-                "created_utc",
-                index.get("created_utc").cloned().unwrap_or(Py::None),
-            )
-            .with("bytes", Py::from(data.len())),
+        state::Last {
+            report_id: report_id.clone(),
+            trigger: "manual",
+            state: "saved",
+            saved: Some((destination, &file)),
+            created_utc: index.get("created_utc").cloned().unwrap_or(Py::None),
+            bytes: data.len(),
+        }
+        .into(),
     );
-    state::save(root, &value)?;
+    value.save(root)?;
     Ok(Py::dict()
         .with("saved", Py::Bool(true))
         .with("destination", Py::str(destination))
         .with("file", Py::str(file))
-        .with(
-            "report_id",
-            index.get("report_id").cloned().unwrap_or(Py::None),
-        )
+        .with("report_id", report_id)
         .with("bytes", Py::from(data.len())))
 }
 

@@ -151,15 +151,15 @@ fn progress_writes_at_most_five_times_a_second() {
     let fixture = Fixture::new().with_clock(clock.clone());
     let progress = Progress::new(&fixture.root, Some("sd"));
     clock.advance(1_000_000_000);
-    progress.update("scrub", 0.5, false, &[]);
+    progress.update("scrub", 0.5, false, Bytes::NONE);
     let first = fixture.read(PROGRESS);
     clock.advance(199_000_000);
-    progress.update("scrub", 0.6, false, &[]); // within 0.2 s: skipped
+    progress.update("scrub", 0.6, false, Bytes::NONE); // within 0.2 s: skipped
     assert_eq!(fixture.read(PROGRESS), first);
     clock.advance(2_000_000);
-    progress.update("scrub", 0.6, false, &[]); // 0.2 s on
+    progress.update("scrub", 0.6, false, Bytes::NONE); // 0.2 s on
     assert_eq!(fixture.json(PROGRESS)["percent"], 50.4);
-    progress.update("scrub", 0.7, true, &[]);
+    progress.update("scrub", 0.7, true, Bytes::NONE);
     let value = fixture.json(PROGRESS);
     assert_eq!(
         (&value["phase"], &value["destination"], &value["schema"]),

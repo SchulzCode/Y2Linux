@@ -2,7 +2,7 @@
 //! event, an earlier release's or an already reported crash stays quiet, and one check makes one report.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::commands::reports::test_player as player;
+use crate::commands::reports::{state, test_player as player};
 use crate::testing::{ok, Fixture};
 use serde_json::json;
 use std::time::{Duration, UNIX_EPOCH};
