@@ -185,34 +185,7 @@ pub fn wall_seconds() -> i64 {
 }
 
 /// Now in UTC as ISO 8601 with microseconds when there are any (`2026-10-29T12:00:00.5+00:00`).
-pub fn utc_isoformat() -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    let (seconds, micros) = (now.as_secs() as i64, now.subsec_micros());
-    let (days, rest) = (seconds.div_euclid(86_400), seconds.rem_euclid(86_400));
-    // Howard Hinnant's civil_from_days.
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z.rem_euclid(146_097);
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = doy - (153 * mp + 2) / 5 + 1;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = yoe + era * 400 + i64::from(month <= 2);
-    let clock = format!(
-        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}",
-        rest / 3600,
-        rest / 60 % 60,
-        rest % 60
-    );
-    if micros == 0 {
-        format!("{clock}+00:00")
-    } else {
-        format!("{clock}.{micros:06}+00:00")
-    }
-}
+pub use y2p_core::devices_support::utc_isoformat_now as utc_isoformat;
 
 /// The observation record a workload's result carries (build, kernel, boot and clocks).
 pub fn observation_record(root: &Root, workload: &str) -> Value {

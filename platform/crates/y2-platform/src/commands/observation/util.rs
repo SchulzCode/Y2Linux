@@ -4,11 +4,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::Failure;
 use serde::de::{value::MapDeserializer, DeserializeOwned};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value};
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
 };
 pub use y2p_core::paths::realpath;
 pub use y2p_core::paths::{name, parent_name};
@@ -215,61 +214,10 @@ pub fn glob_dir(directory: &Path, pattern: &str) -> Vec<PathBuf> {
     found
 }
 
-/// Now in UTC, ISO 8601 with microseconds (no fraction when it is zero).
-pub fn wall_timestamp() -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    let seconds = now.as_secs() as i64;
-    let micros = now.subsec_micros();
-    let (days, rest) = (seconds.div_euclid(86_400), seconds.rem_euclid(86_400));
-    // Howard Hinnant's civil_from_days.
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z.rem_euclid(146_097);
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = doy - (153 * mp + 2) / 5 + 1;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = yoe + era * 400 + i64::from(month <= 2);
-    let clock = format!(
-        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}",
-        rest / 3600,
-        rest % 3600 / 60,
-        rest % 60
-    );
-    if micros == 0 {
-        format!("{clock}+00:00")
-    } else {
-        format!("{clock}.{micros:06}+00:00")
-    }
-}
-
 /// The record a measurement carries: when (wall clock, monotonic), which boot and build, the
 /// workload and its parameters; the caller fills in `result` and `failure`.
 pub fn record(root: &Root, workload: &str, parameters: Map<String, Value>) -> Map<String, Value> {
-    let versions = root.json_object("/etc/y2linux/versions.json");
-    let get = |key: &str| versions.get(key).cloned().unwrap_or(Value::Null);
-    let mut value = Map::new();
-    value.insert("wall_timestamp".into(), json!(wall_timestamp()));
-    value.insert("monotonic_ns".into(), json!(root.clock().monotonic_ns()));
-    value.insert("boot_id".into(), text(root.boot_id()));
-    value.insert("y2linux_commit".into(), get("build_git_commit"));
-    value.insert("reborn_commit".into(), get("reborn_source_commit"));
-    value.insert(
-        "kernel".into(),
-        text(root.read("/proc/sys/kernel/osrelease")),
-    );
-    value.insert("rootfs_release".into(), get("rootfs_version"));
-    value.insert("build_id".into(), text(root.read("/etc/y2linux/build-id")));
-    value.insert("workload".into(), json!(workload));
-    value.insert("parameters".into(), Value::Object(parameters));
-    value.insert("units".into(), json!({}));
-    value.insert("result".into(), Value::Null);
-    value.insert("failure".into(), Value::Null);
-    value.insert("evidence_level".into(), json!("IMPLEMENTED"));
-    value
+    y2p_core::devices_support::record(root, workload, Value::Object(parameters))
 }
 
 /// Each file matching `pattern` by its name (or its directory's), with its text.
@@ -289,6 +237,7 @@ pub fn reads_by_name(root: &Root, pattern: &str, parent: bool) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn ints_and_digits_as_python() {
