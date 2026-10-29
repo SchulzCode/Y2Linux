@@ -1,4 +1,4 @@
-//! `sleep_diagnostics.py`: persistent sleep and USB diagnostics that survive a hold-Power restart.
+//! Persistent sleep and USB diagnostics (`sleep-diagnostics.jsonl`) that survive a hold-Power restart.
 //!
 //! POWER-FINAL-14. 13's counters (VPROC sleep, PHY save-current, wheel sleep, INFRA power-down, the
 //! golden capture at sleep entry) live only in kernel memory, and the USB-after-wake defect is only
@@ -6,16 +6,14 @@
 //! filtered kernel-log tail, appended to a bounded private file on Y2DATA. A failure is counted and
 //! never blocks, delays or changes sleep.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{
-    append,
-    journal::{object, plain},
-    text_value, E,
-};
+use super::{journal::plain, name, parent_name, pattern, text_value, E};
+use serde::Serialize;
 use serde_json::Value;
-use std::{fs::File, io::Read, os::unix::fs::OpenOptionsExt, path::Path};
+use std::{fs::File, io::Read, os::unix::fs::OpenOptionsExt, sync::OnceLock};
 use y2p_core::mounts::data_ready;
 use y2p_core::{
-    json::{dumps, Separators},
+    json::{dumps, Object, Separators},
+    power_journal::append_bounded,
     root::read,
     suspend_text::{split, splitlines, Regex},
     Root,
@@ -69,35 +67,26 @@ const KERNEL_TOKENS: [&str; 18] = [
     "usb0",
     "PM: ",
 ];
-const PROCESSES: [&str; 2] = ["umtprd", "dropbear"];
-
-fn name(path: &Path) -> String {
-    path.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
-
-fn parent_name(path: &Path) -> String {
-    path.parent().map(name).unwrap_or_default()
-}
 
 /// `key_values(text, keys)`: `\b([a-z0-9_]+)=(\S+)`, one entry per key (None when absent).
 fn key_values(text: Option<&str>, keys: &[&str]) -> Value {
-    let pattern = Regex::new(r"\b([a-z0-9_]+)=(\S+)").expect("pattern");
+    static PAIR: OnceLock<Option<Regex>> = OnceLock::new();
     let mut found = serde_json::Map::new();
-    for capture in pattern.captures_iter(text.unwrap_or_default()) {
-        found.insert(capture[1].to_owned(), Value::String(capture[2].to_owned()));
+    if let Some(pattern) = pattern(&PAIR, r"\b([a-z0-9_]+)=(\S+)") {
+        for capture in pattern.captures_iter(text.unwrap_or_default()) {
+            found.insert(capture[1].to_owned(), Value::String(capture[2].to_owned()));
+        }
     }
-    object(
-        keys.iter()
-            .map(|k| {
-                (
-                    (*k).to_owned(),
-                    plain(found.get(*k).cloned().unwrap_or(Value::Null)),
-                )
-            })
-            .collect(),
-    )
+    let values: Object = keys
+        .iter()
+        .map(|k| {
+            (
+                (*k).to_owned(),
+                found.get(*k).cloned().unwrap_or(Value::Null),
+            )
+        })
+        .collect();
+    Value::Object(values)
 }
 
 /// Local IPv4 addresses of one interface from /proc/net/fib_trie: no subprocess, no ioctl.
@@ -120,7 +109,9 @@ fn ipv4(root: &Root, interface: &str) -> Result<Vec<String>, E> {
             networks.push((hex(fields[1])?, hex(fields[7])?));
         }
     }
-    let address = Regex::new(r"^[|+`-]*\s*([0-9]+(?:\.[0-9]+){3})$").expect("pattern");
+    static ADDRESS: OnceLock<Option<Regex>> = OnceLock::new();
+    let address = pattern(&ADDRESS, r"^[|+`-]*\s*([0-9]+(?:\.[0-9]+){3})$")
+        .ok_or_else(|| E::value("address pattern"))?;
     let (mut found, mut previous): (Vec<String>, Option<String>) = (Vec::new(), None);
     let trie = root
         .read_limited("/proc/net/fib_trie", 262_144)
@@ -153,31 +144,60 @@ fn ipv4(root: &Root, interface: &str) -> Result<Vec<String>, E> {
     Ok(found)
 }
 
-fn processes(root: &Root) -> Value {
-    let mut running = [false; 2];
+/// Which of the USB services run (`/proc/*/comm`).
+#[derive(Serialize)]
+struct Processes {
+    umtprd: bool,
+    dropbear: bool,
+}
+
+fn processes(root: &Root) -> Processes {
+    let mut running = Processes {
+        umtprd: false,
+        dropbear: false,
+    };
     if let Ok(entries) = std::fs::read_dir(root.path("/proc")) {
         for entry in entries.flatten() {
             let file = entry.file_name();
             let Some(text) = file.to_str() else { continue };
             if !text.is_empty() && text.chars().all(|c| c.is_ascii_digit()) {
-                let comm = read(&entry.path().join("comm"), 64);
-                if let Some(index) = PROCESSES.iter().position(|p| Some(*p) == comm.as_deref()) {
-                    running[index] = true;
+                match read(&entry.path().join("comm"), 64).as_deref() {
+                    Some("umtprd") => running.umtprd = true,
+                    Some("dropbear") => running.dropbear = true,
+                    _ => {}
                 }
             }
         }
     }
-    object(
-        PROCESSES
-            .iter()
-            .zip(running)
-            .map(|(name, on)| ((*name).to_owned(), plain(Value::Bool(on))))
-            .collect(),
-    )
+    running
 }
 
-/// Compact USB gadget and USB network state (about 1 KiB).
-pub fn usb_net(root: &Root) -> Result<Value, E> {
+/// Compact USB gadget and USB network state (about 1 KiB), in sleep diagnostics and power journal
+/// rows.
+#[derive(Serialize)]
+pub struct UsbNet {
+    /// Each UDC's state.
+    udc: Object,
+    gadget_udc: Option<String>,
+    /// Each controller's status counters (`USB_SUMMARY`, null when absent).
+    controller: Object,
+    /// Each controller's first `rxdiag` line.
+    out_path: Object,
+    usb0: Usb0,
+    transfer: Value,
+    processes: Processes,
+}
+
+#[derive(Serialize)]
+struct Usb0 {
+    operstate: Option<String>,
+    carrier: Option<String>,
+    flags: Option<String>,
+    ipv4: Vec<String>,
+    statistics: Object,
+}
+
+pub fn usb_net(root: &Root) -> Result<UsbNet, E> {
     let net = "/sys/class/net/usb0/";
     let statistics = [
         "rx_packets",
@@ -192,16 +212,13 @@ pub fn usb_net(root: &Root) -> Result<Value, E> {
     .iter()
     .map(|n| {
         let value = root.integer(&format!("{net}statistics/{n}"));
-        (
-            (*n).to_owned(),
-            plain(value.map_or(Value::Null, Value::from)),
-        )
+        ((*n).to_owned(), value.map_or(Value::Null, Value::from))
     })
     .collect();
     let udc = root
         .glob("/sys/class/udc/*")
         .iter()
-        .map(|p| (name(p), plain(text_value(read(&p.join("state"), 64)))))
+        .map(|p| (name(p), text_value(read(&p.join("state"), 64))))
         .collect();
     let controller = root
         .glob("/sys/bus/platform/drivers/y2-usb/*/status")
@@ -223,110 +240,82 @@ pub fn usb_net(root: &Root) -> Result<Value, E> {
                 .take(1)
                 .map(|l| Value::String(l.to_owned()))
                 .collect();
-            (parent_name(p), plain(Value::Array(first)))
+            (parent_name(p), Value::Array(first))
         })
         .collect();
-    let field = |n: &str, limit| plain(text_value(root.read_limited(&format!("{net}{n}"), limit)));
-    let addresses = ipv4(root, "usb0")?.into_iter().map(Value::String).collect();
-    Ok(object(vec![
-        ("udc".into(), object(udc)),
-        (
-            "gadget_udc".into(),
-            plain(text_value(
-                root.read_limited("/sys/kernel/config/usb_gadget/y2/UDC", 128),
-            )),
+    let field = |n: &str, limit| root.read_limited(&format!("{net}{n}"), limit);
+    Ok(UsbNet {
+        udc,
+        gadget_udc: root.read_limited("/sys/kernel/config/usb_gadget/y2/UDC", 128),
+        controller,
+        out_path,
+        usb0: Usb0 {
+            operstate: field("operstate", 64),
+            carrier: field("carrier", 8),
+            flags: field("flags", 32),
+            ipv4: ipv4(root, "usb0")?,
+            statistics,
+        },
+        transfer: plain(
+            root.json("/run/y2/usb-transfer.json")
+                .unwrap_or(Value::Null),
         ),
-        ("controller".into(), object(controller)),
-        ("out_path".into(), object(out_path)),
-        (
-            "usb0".into(),
-            object(vec![
-                ("operstate".into(), field("operstate", 64)),
-                ("carrier".into(), field("carrier", 8)),
-                ("flags".into(), field("flags", 32)),
-                ("ipv4".into(), plain(Value::Array(addresses))),
-                ("statistics".into(), object(statistics)),
-            ]),
-        ),
-        (
-            "transfer".into(),
-            plain(
-                root.json("/run/y2/usb-transfer.json")
-                    .unwrap_or(Value::Null),
-            ),
-        ),
-        ("processes".into(), processes(root)),
-    ]))
+        processes: processes(root),
+    })
 }
 
-/// The 13 sleep-parity switches and counters, the INFRA and SPM state.
-fn features(root: &Root, golden: bool) -> Value {
-    let text = |name: &str, limit| plain(text_value(root.read_limited(name, limit)));
+/// The 13 sleep-parity switches and counters, the INFRA and SPM state; after a return also the
+/// always-on/INFRA golden registers.
+#[derive(Serialize)]
+struct Features {
+    vproc_sleep: Option<String>,
+    vproc_sleep_state: Option<String>,
+    pmic_sleep_state: Option<String>,
+    lp_sel: Option<String>,
+    phy_savecurrent: Object,
+    wheel_sleep: Object,
+    infra: Option<String>,
+    spm: Option<String>,
+    // 27: stock panel power-down and the idle VGP2 rail (ledger F20/F22).
+    panel_stock_suspend: Option<String>,
+    panel_power_down: Option<String>,
+    vgp2_idle_off: Option<String>,
+    // 32: deep idle during playback and how often it was admitted.
+    deep_idle_audio: Option<String>,
+    deep_audio_entries: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    golden: Option<Option<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pmic_golden: Option<Option<String>>,
+}
+
+fn features(root: &Root, golden: bool) -> Features {
+    let text = |name: &str, limit| root.read_limited(name, limit);
     let each = |pattern: &str| {
-        object(
-            root.glob(pattern)
-                .iter()
-                .map(|p| (parent_name(p), plain(text_value(read(p, 4096)))))
-                .collect(),
-        )
+        root.glob(pattern)
+            .iter()
+            .map(|p| (parent_name(p), text_value(read(p, 4096))))
+            .collect()
     };
-    let mut value = vec![
-        (
-            "vproc_sleep".into(),
-            text("/sys/module/pwrap/parameters/vproc_sleep", 16),
-        ),
-        (
-            "vproc_sleep_state".into(),
-            text("/sys/module/pwrap/parameters/vproc_sleep_state", 4096),
-        ),
-        (
-            "pmic_sleep_state".into(),
-            text("/sys/module/pwrap/parameters/pmic_sleep_state", 4096),
-        ),
-        ("lp_sel".into(), text("/sys/firmware/y2_pmic/lp_sel", 4096)),
-        (
-            "phy_savecurrent".into(),
-            each("/sys/bus/platform/drivers/y2-usb/*/phy_savecurrent"),
-        ),
-        (
-            "wheel_sleep".into(),
-            each("/sys/bus/i2c/devices/*-0051/sleep"),
-        ),
-        ("infra".into(), text("/sys/firmware/y2_infra/state", 4096)),
-        ("spm".into(), text(&format!("{SPM}state"), 8192)),
-        // 27: stock panel power-down and the idle VGP2 rail (ledger F20/F22).
-        (
-            "panel_stock_suspend".into(),
-            text("/sys/module/panel/parameters/stock_suspend", 16),
-        ),
-        (
-            "panel_power_down".into(),
-            text("/sys/module/panel/parameters/power_down", 16),
-        ),
-        (
-            "vgp2_idle_off".into(),
-            text("/sys/module/y2_cs43131/parameters/vgp2_idle_off", 16),
-        ),
-        // 32: deep idle during playback and how often it was admitted.
-        (
-            "deep_idle_audio".into(),
-            text("/sys/module/clocks/parameters/deep_idle_audio", 16),
-        ),
-        (
-            "deep_audio_entries".into(),
-            text("/sys/module/clocks/parameters/deep_audio_entries", 32),
-        ),
-    ];
-    if golden {
-        // Read-only always-on/INFRA registers; the entry column is the last suspend-entry
-        // capture, so read it once Linux has returned.
-        value.push(("golden".into(), text(&format!("{SPM}golden"), 16384)));
-        value.push((
-            "pmic_golden".into(),
-            text("/sys/module/pwrap/parameters/pmic_golden", 16384),
-        ));
+    Features {
+        vproc_sleep: text("/sys/module/pwrap/parameters/vproc_sleep", 16),
+        vproc_sleep_state: text("/sys/module/pwrap/parameters/vproc_sleep_state", 4096),
+        pmic_sleep_state: text("/sys/module/pwrap/parameters/pmic_sleep_state", 4096),
+        lp_sel: text("/sys/firmware/y2_pmic/lp_sel", 4096),
+        phy_savecurrent: each("/sys/bus/platform/drivers/y2-usb/*/phy_savecurrent"),
+        wheel_sleep: each("/sys/bus/i2c/devices/*-0051/sleep"),
+        infra: text("/sys/firmware/y2_infra/state", 4096),
+        spm: text(&format!("{SPM}state"), 8192),
+        panel_stock_suspend: text("/sys/module/panel/parameters/stock_suspend", 16),
+        panel_power_down: text("/sys/module/panel/parameters/power_down", 16),
+        vgp2_idle_off: text("/sys/module/y2_cs43131/parameters/vgp2_idle_off", 16),
+        deep_idle_audio: text("/sys/module/clocks/parameters/deep_idle_audio", 16),
+        deep_audio_entries: text("/sys/module/clocks/parameters/deep_audio_entries", 32),
+        // Read-only always-on/INFRA registers; the entry column is the last suspend-entry capture,
+        // so they are read once Linux has returned.
+        golden: golden.then(|| text(&format!("{SPM}golden"), 16384)),
+        pmic_golden: golden.then(|| text("/sys/module/pwrap/parameters/pmic_golden", 16384)),
     }
-    object(value)
 }
 
 /// The last relevant kernel messages, read non-blocking from /dev/kmsg.
@@ -367,7 +356,7 @@ fn kernel_tail(root: &Root, lines: usize, width: usize) -> Option<Vec<String>> {
     Some(kept)
 }
 
-/// One `os.read(fd, 8192)` (EINTR retried, as Python does).
+/// One read of at most a block (an interrupted read is retried: a signal is no end of the log).
 fn read_once(file: &mut File, block: &mut [u8]) -> std::io::Result<usize> {
     loop {
         match file.read(block) {
@@ -387,60 +376,61 @@ pub fn record(root: &Root, stage: &str) -> Result<bool, E> {
     }
 }
 
+/// One `sleep-diagnostics.jsonl` row (compact JSON in this order).
+#[derive(Serialize)]
+struct Row<'a> {
+    schema: u8,
+    stage: &'a str,
+    usb_reason: Option<&'a str>,
+    wall_time: f64,
+    monotonic_s: f64,
+    boottime_s: f64,
+    boot_id: Option<String>,
+    build_id: Value,
+    features: Features,
+    usb_net: UsbNet,
+    kernel_pm: Option<String>,
+    kernel_tail: Option<Vec<String>>,
+}
+
 fn row(root: &Root, stage: &str, golden: bool) -> Result<bool, E> {
     let now = super::monotonic();
     if !data_ready(root) {
         return Ok(false);
     }
-    let build = match root.json("/etc/y2linux/versions.json") {
+    let build_id = match root.json("/etc/y2linux/versions.json") {
         Some(Value::Object(map)) => map.get("build_id").cloned().unwrap_or(Value::Null),
         _ => Value::Null,
     };
-    let head = vec![
-        ("schema".to_owned(), plain(1.into())),
-        ("stage".into(), plain(stage.into())),
-        ("usb_reason".into(), plain(Value::Null)),
-        ("wall_time".into(), plain(super::wall().into())),
-        ("monotonic_s".into(), plain(now.into())),
-        ("boottime_s".into(), plain(super::boottime().into())),
-        ("boot_id".into(), plain(text_value(root.boot_id()))),
-        ("build_id".into(), plain(build)),
-        ("features".into(), features(root, golden)),
-        ("usb_net".into(), usb_net(root)?),
-        (
-            "kernel_pm".into(),
-            plain(text_value(
-                root.read_limited("/sys/firmware/y2_pm/state", 8192),
-            )),
-        ),
-    ];
-    let mut tail = kernel_tail(root, 80, 240);
-    let encode = |tail: &Option<Vec<String>>| -> Result<Vec<u8>, E> {
-        let mut node = head.clone();
-        node.push((
-            "kernel_tail".into(),
-            plain(tail.as_ref().map_or(Value::Null, |t| {
-                Value::Array(t.iter().cloned().map(Value::String).collect())
-            })),
-        ));
-        Ok(
-            (dumps(&object(node), Separators::Compact).map_err(|e| E::value(e.to_string()))?
-                + "\n")
-                .into_bytes(),
-        )
+    let mut row = Row {
+        schema: 1,
+        stage,
+        usb_reason: None,
+        wall_time: super::wall(),
+        monotonic_s: now,
+        boottime_s: super::boottime(),
+        boot_id: root.boot_id(),
+        build_id: plain(build_id),
+        features: features(root, golden),
+        usb_net: usb_net(root)?,
+        kernel_pm: root.read_limited("/sys/firmware/y2_pm/state", 8192),
+        kernel_tail: kernel_tail(root, 80, 240),
     };
-    let mut encoded = encode(&tail)?;
-    while encoded.len() > ROW_LIMIT && tail.as_ref().is_some_and(|t| !t.is_empty()) {
-        let t = tail.as_mut().expect("tail");
-        let drop = (t.len() / 4).max(1);
-        t.drain(..drop);
-        encoded = encode(&tail)?;
+    let encode = |row: &Row| -> Result<Vec<u8>, E> {
+        let text = dumps(row, Separators::Compact).map_err(|e| E::value(e.to_string()))?;
+        Ok((text + "\n").into_bytes())
+    };
+    let mut encoded = encode(&row)?;
+    // An oversized row loses the oldest quarter of its kernel tail at a time, never the row.
+    while encoded.len() > ROW_LIMIT {
+        let Some(tail) = row.kernel_tail.as_mut().filter(|t| !t.is_empty()) else {
+            return Err(E::value("sleep_diagnostics_row_too_large"));
+        };
+        let drop = (tail.len() / 4).max(1);
+        tail.drain(..drop);
+        encoded = encode(&row)?;
     }
-    if encoded.len() > ROW_LIMIT {
-        return Err(E::value("sleep_diagnostics_row_too_large"));
-    }
-    let path = root.path(PATH);
-    append::append_bounded(&path, &encoded, LIMIT, true).map_err(|e| E::os(&e, Some(&path)))?;
+    append_bounded(root, PATH, &encoded, LIMIT, true).map_err(E::from)?;
     Ok(true)
 }
 
@@ -476,10 +466,7 @@ mod tests {
         assert!(ipv4(&root, "wlan0").unwrap().is_empty());
         assert_eq!(
             key_values(Some("stage=a error=0 x=1"), &["stage", "irqs"]),
-            object(vec![
-                ("stage".into(), plain("a".into())),
-                ("irqs".into(), plain(Value::Null))
-            ])
+            serde_json::json!({"stage": "a", "irqs": null})
         );
     }
 }

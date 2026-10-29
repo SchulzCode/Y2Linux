@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
-use y2p_core::{py::truthy, Root};
+use y2p_core::{
+    py::{truthy, PyValue},
+    Root,
+};
 
 const RECEIPT: &str = "/data/system/platform/suspend-last.json";
 const STATES: [&str; 8] = [
@@ -17,23 +20,10 @@ const STATES: [&str; 8] = [
     "restore_failed",
 ];
 
-/// `type(value).__name__` of a parsed JSON value.
-pub fn python_type(value: &Value) -> &'static str {
-    match value {
-        Value::Null => "NoneType",
-        Value::Bool(_) => "bool",
-        Value::Number(n) if n.is_f64() => "float",
-        Value::Number(_) => "int",
-        Value::String(_) => "str",
-        Value::Array(_) => "list",
-        Value::Object(_) => "dict",
-    }
-}
-
 /// `dict(x)` of a truthy JSON value that is no dict: a list of key/value pairs (each a 2-item list,
-/// a 2-character str or a 2-key dict) builds one; anything else is Python's `TypeError` or
-/// `ValueError`. The bool is true when a key is no str (a number, bool or null): such a dict exists
-/// only in memory, because every sorted `json.dumps` of it raises.
+/// a 2-character str or a 2-key dict) builds one; anything else is an error (`Failure::Value`, or
+/// `Failure::Crash` for a value of the wrong type). The bool is true when a key is no str (a number,
+/// bool or null): such a product cannot be written sorted, so every reader refuses it.
 fn dict(value: &Value) -> Result<(Map<String, Value>, bool), Failure> {
     let items = match value {
         Value::Array(items) => items,
@@ -46,7 +36,7 @@ fn dict(value: &Value) -> Result<(Map<String, Value>, bool), Failure> {
         _ => {
             return Err(Failure::type_error(format!(
                 "'{}' object is not iterable",
-                python_type(value)
+                value.type_name()
             )))
         }
     };
@@ -71,8 +61,8 @@ fn dict(value: &Value) -> Result<(Map<String, Value>, bool), Failure> {
             key @ (Value::Array(_) | Value::Object(_)) => {
                 return Err(Failure::type_error(format!(
                     "cannot use '{}' as a dict key (unhashable type: '{}')",
-                    python_type(key),
-                    python_type(key)
+                    key.type_name(),
+                    key.type_name()
                 )))
             }
             _ => odd = true,
@@ -98,8 +88,8 @@ pub fn product_keys(
         // `in STATES`: unhashable.
         return Err(Failure::type_error(format!(
             "cannot use '{}' as a set element (unhashable type: '{}')",
-            python_type(state),
-            python_type(state)
+            state.type_name(),
+            state.type_name()
         )));
     }
     let state = result
@@ -107,11 +97,21 @@ pub fn product_keys(
         .and_then(Value::as_str)
         .map(str::to_owned);
     if !state.as_deref().is_some_and(|s| STATES.contains(&s)) {
-        result = serde_json::from_value(json!({"state": "idle", "reason": null, "request_boot_id": null,
-                                               "kernel_completed": false, "wake_reason": "unknown"})).expect("literal");
+        result = idle();
         odd = false;
     }
     Ok((finish(result, boot_id), odd))
+}
+
+/// The product of a receipt that holds no known state.
+fn idle() -> Map<String, Value> {
+    Map::from_iter([
+        ("state".to_owned(), json!("idle")),
+        ("reason".to_owned(), Value::Null),
+        ("request_boot_id".to_owned(), Value::Null),
+        ("kernel_completed".to_owned(), json!(false)),
+        ("wake_reason".to_owned(), json!("unknown")),
+    ])
 }
 
 /// The TypeError of `json.dumps(..., sort_keys=True)` on a dict with str and other keys.
@@ -119,8 +119,9 @@ pub fn odd_keys() -> Failure {
     Failure::type_error("'<' not supported between instances of 'int' and 'str'")
 }
 
-/// `sleep.product`: `Err` for Python's `ValueError` (`Failure::Value`) or `TypeError`
-/// (`Failure::Crash`); a dict whose keys are not all str is the `TypeError` of its sorted dump.
+/// `sleep.product`: the product state as this boot reads it; `Err` for a product it cannot read
+/// (`Failure::Value`, or `Failure::Crash` for a value of the wrong type or keys that are not all
+/// text), which `sleep status` reports as its refusal record.
 pub fn product(
     value: &Map<String, Value>,
     boot_id: Option<&str>,
@@ -172,7 +173,11 @@ fn finish(mut result: Map<String, Value>, boot_id: Option<&str>) -> Map<String, 
     result
 }
 
+/// A receipt whose product it cannot read is the command's refusal record (exit 1).
 pub fn status(root: &Root) -> Outcome {
     let value = root.json_object(RECEIPT);
-    Reply::sorted(&product(&value, root.boot_id().as_deref())?, 0)
+    match product(&value, root.boot_id().as_deref()) {
+        Ok(product) => Reply::sorted(&product, 0),
+        Err(failure) => super::suspend::refused(failure),
+    }
 }
