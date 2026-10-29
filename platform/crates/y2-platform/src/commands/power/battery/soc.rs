@@ -1,8 +1,10 @@
 //! The SOC estimate (stock oam_init/oam_run on the profile's curve): bounded filter, monotonic trend,
 //! the power-on OCV at a cold start, the hybrid current correction.
 //!
-//! Every float operation is Python's, in Python's order (int operands converted where Python converts
-//! them, int/int true division on exact operands), so the percentages match the Python daemon's.
+//! Every float operation keeps the order of the reference the estimate is checked against
+//! (battery-soc.jsonl, recorded from the Python platform): int operands converted at the same
+//! point, int/int true division on exact operands, Python's rounding and min/max. A reordered sum
+//! would move a percentage by a rounding step at some sample.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     profile::{interpolate, interpolate_int, voltage_at, Profile},
@@ -38,7 +40,7 @@ pub(super) fn round_int(x: f64) -> i64 {
 
 /// Python `round(x, 2)`: the decimal rounding of the exact binary value (ties to even), read back.
 pub fn round2(x: f64) -> f64 {
-    format!("{x:.2}").parse().expect("float")
+    format!("{x:.2}").parse().unwrap_or(x)
 }
 
 /// Python `min(a, b)` / `max(a, b)` on floats: the first argument unless the second is smaller/larger.
@@ -110,18 +112,23 @@ impl Soc {
             charge_counter_uah: r.counter,
             ..BatteryStatus::default()
         };
-        let valid_voltage = r.voltage.is_some_and(|v| (2500000..=4400000).contains(&v));
-        if r.present != Some(1) || !valid_voltage || !now.is_finite() {
-            self.filtered = None;
-            self.percent = None;
-            self.last = None;
-            self.ui = None;
-            self.anchor = None;
-            self.full_latched = false;
-            self.samples.clear();
-            return result;
-        }
-        let voltage = r.voltage.expect("valid");
+        let voltage = match r.voltage {
+            Some(v)
+                if r.present == Some(1) && (2500000..=4400000).contains(&v) && now.is_finite() =>
+            {
+                v
+            }
+            _ => {
+                self.filtered = None;
+                self.percent = None;
+                self.last = None;
+                self.ui = None;
+                self.anchor = None;
+                self.full_latched = false;
+                self.samples.clear();
+                return result;
+            }
+        };
         // Real elapsed time includes suspend. Capping a ten-minute observation
         // gap to one minute would conceal loss even with a fresh ADC reading.
         // The configured filter/rate and voltage curve remain unchanged.
@@ -165,30 +172,57 @@ impl Soc {
                 <= p.rest_band_uv;
         let mut estimate_uv = filtered - if charging { p.charging_offset_uv } else { 0 } as f64;
         let table = p.resistance.as_ref();
-        let oam = charging
-            && table.is_some()
-            && r.charge_current.is_some_and(|c| (0..=1200000).contains(&c));
-        if oam {
-            // Stock oam_run: OCV = V - I * R(V) while the charger drives current
-            // in. The current is the charger-path sense estimate (200 mOhm basis).
-            let drop = r.charge_current.expect("oam") as f64
-                * interpolate(table.expect("oam"), filtered)
-                / 1000.;
+        // Stock oam_run: OCV = V - I * R(V) while the charger drives current
+        // in. The current is the charger-path sense estimate (200 mOhm basis).
+        let oam = table
+            .filter(|_| charging)
+            .zip(r.charge_current.filter(|c| (0..=1200000).contains(c)));
+        if let Some((table, current)) = oam {
+            let drop = current as f64 * interpolate(table, filtered) / 1000.;
             estimate_uv = filtered - py_max(0., py_min(300000., drop));
         }
-        let hybrid =
-            r.current.is_some() && p.calibrated_resistance.is_some_and(|r| 0 < r && r <= 1000);
-        if hybrid {
-            // power_supply convention: positive current flows into the battery.
-            let product = r.current.expect("hybrid") * p.calibrated_resistance.expect("hybrid");
+        // power_supply convention: positive current flows into the battery.
+        let hybrid = r
+            .current
+            .zip(p.calibrated_resistance.filter(|r| 0 < *r && *r <= 1000));
+        if let Some((current, resistance)) = hybrid {
+            // Saturating: a sysfs value beyond i64 is clamped below as an unbounded int would be.
+            let product = current.saturating_mul(resistance);
             estimate_uv -= py_max(-150000., py_min(150000., product as f64 / 1000.));
         }
         let mut target = interpolate(&p.voltage_soc, estimate_uv);
         let status = r.status.as_deref();
-        // After fuel-gauge samples the voltage estimate has no display value yet: it starts as a
-        // first sample (the Python platform went on with `ui` None and its daemon ended on a
-        // TypeError).
-        if self.percent.is_none() || self.ui.is_none() {
+        // The previous estimate and display value; after fuel-gauge samples the voltage estimate
+        // has no display value yet and starts as a first sample.
+        let previous = self.percent.zip(self.ui);
+        // POWER-FINAL-29: stock oam_run on battery (with r_profile and a design capacity, over an
+        // awake step).
+        let oam_run = table
+            .zip(p.design_capacity_uah)
+            .filter(|_| status == Some("Discharging") && hybrid.is_none())
+            .filter(|_| 0. < dt && dt <= OAM_MAX_STEP_SECONDS);
+        let (mut percent, ui) = if let Some((percent, ui)) = previous {
+            if let Some((table, capacity)) = oam_run {
+                // The model current is (OCV(SOC) - V) / R(V); integrated over awake time it
+                // follows the real drain instead of settling at the loaded-voltage SOC, which
+                // sits I*R (about 50 mV, 4-5 points) low whenever the Y2 is busy.
+                let model_ma =
+                    (voltage_at(&p.voltage_soc, percent) - filtered) / interpolate(table, filtered);
+                let percent = percent - model_ma * dt / 36. / (capacity as f64 / 1000.);
+                (py_max(0., py_min(100., percent)), ui)
+            } else {
+                // Positive net current is unknown unless measured. A charging state
+                // permits recovery but never itself proves a full battery.
+                if !charging && status != Some("Full") {
+                    target = py_min(target, percent);
+                }
+                let change = dt / p.seconds_per_percent as f64;
+                (
+                    percent + py_max(-change, py_min(change, target - percent)),
+                    ui,
+                )
+            }
+        } else {
             self.start = Some("live".into());
             // Stock oam_init: the PMIC's power-on OCV predates the boot load;
             // a charger that moved it by 31+ points leaves the live sample.
@@ -211,48 +245,24 @@ impl Soc {
                     self.start = Some("ocv".into());
                 }
             }
-            self.percent = Some(target);
-            self.restore(target, charging, r.boot);
-        } else if status == Some("Discharging")
-            && !hybrid
-            && table.is_some()
-            && p.design_capacity_uah.is_some()
-            && 0. < dt
-            && dt <= OAM_MAX_STEP_SECONDS
-        {
-            // POWER-FINAL-29: stock oam_run on battery. The model current is
-            // (OCV(SOC) - V) / R(V); integrated over awake time it follows the
-            // real drain instead of settling at the loaded-voltage SOC, which
-            // sits I*R (about 50 mV, 4-5 points) low whenever the Y2 is busy.
-            let percent = self.percent.expect("not first");
-            let model_ma = (voltage_at(&p.voltage_soc, percent) - filtered)
-                / interpolate(table.expect("oam"), filtered);
-            let capacity = p.design_capacity_uah.expect("capacity") as f64;
-            let percent = percent - model_ma * dt / 36. / (capacity / 1000.);
-            self.percent = Some(py_max(0., py_min(100., percent)));
-        } else {
-            // Positive net current is unknown unless measured. A charging state
-            // permits recovery but never itself proves a full battery.
-            let percent = self.percent.expect("not first");
-            if !charging && status != Some("Full") {
-                target = py_min(target, percent);
-            }
-            let change = dt / p.seconds_per_percent as f64;
-            self.percent = Some(percent + py_max(-change, py_min(change, target - percent)));
-        }
+            self.restore(target, charging, r.boot)
+        };
         let full = status == Some("Full") && voltage >= FULL_FLOOR_UV;
-        if voltage <= p.voltage_soc[0].0 {
-            self.percent = Some(py_min(self.percent.expect("set"), 1.));
+        // At or below the curve's empty point the estimate is at most 1 % and so is the display.
+        let empty = voltage <= p.voltage_soc[0].0;
+        if empty {
+            percent = py_min(percent, 1.);
         }
-        self.track(now, status, full, target);
-        if voltage <= p.voltage_soc[0].0 {
-            self.ui = Some(self.ui().min(1));
+        let (percent, mut ui) = self.track(now, status, full, target, (percent, ui));
+        if empty {
+            ui = ui.min(1);
         }
-        let percent = self.percent.expect("set");
-        result.percent = Some(self.ui());
-        result.source = if hybrid {
+        self.percent = Some(percent);
+        self.ui = Some(ui);
+        result.percent = Some(ui);
+        result.source = if hybrid.is_some() {
             "hybrid"
-        } else if oam {
+        } else if oam.is_some() {
             "stock_oam"
         } else {
             "voltage_estimate"

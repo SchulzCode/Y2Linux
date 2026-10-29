@@ -1,5 +1,5 @@
-//! `power.Coordinator`: the shutdown intent (`/run/y2/shutdown.json`) and Reborn's acknowledgement;
-//! the shutdown steps that execute it are steps.rs.
+//! The shutdown coordinator: one intent per boot (`/run/y2/shutdown.json`, resumed after a daemon
+//! restart), its grace and Reborn's acknowledgement; the steps that execute it are steps.rs.
 // SPDX-License-Identifier: GPL-2.0-only
 mod steps;
 
@@ -122,13 +122,6 @@ impl Coordinator {
         i128::from(self.root.clock().monotonic_ns())
     }
 
-    /// The intent `ack` and `execute` work on: both return before this when there is none.
-    fn intent(&mut self) -> &mut Object {
-        self.intent
-            .as_mut()
-            .expect("ack and execute check for an intent first")
-    }
-
     pub fn publish(&self) -> Result<(), Failure> {
         private_directory(&self.root.path("/run/y2"))?;
         atomic_json(
@@ -165,7 +158,7 @@ impl Coordinator {
             let (text, class) = py::os_error(&e, None);
             Failure::Os { text, class }
         })?;
-        self.intent = Some(
+        let intent = self.intent.insert(
             Object::new()
                 .with("schema", 1i64)
                 .with("id", id)
@@ -185,8 +178,9 @@ impl Coordinator {
                 .with("acknowledgement", Value::Null)
                 .with("failure", Value::Null),
         );
+        let answer = intent.clone();
         self.publish()?;
-        Ok(self.intent.clone().expect("set"))
+        Ok(answer)
     }
 
     pub fn ack(
@@ -195,16 +189,16 @@ impl Coordinator {
         pid: i64,
         outcome: &Value,
     ) -> Result<Object, Failure> {
-        let pending = self
+        let Some(intent) = self
             .intent
-            .as_ref()
-            .is_some_and(|i| i.pending() && i.value("id").py_eq(request_id));
-        if !pending {
+            .as_mut()
+            .filter(|i| i.pending() && i.value("id").py_eq(request_id))
+        else {
             return Err(Failure::value("stale_shutdown_ack"));
-        }
+        };
         let current = process_identity(&self.root, "process", "/usr/bin/reborn");
         let same = current.as_ref().is_some_and(|c| {
-            Value::Object(c.clone()).py_eq(&self.intent.as_ref().expect("pending").value("client"))
+            Value::Object(c.clone()).py_eq(&intent.value("client"))
                 && c.value("pid").py_eq(&Value::from(pid))
         });
         if !same {
@@ -213,15 +207,16 @@ impl Coordinator {
         if !(outcome.is_str("Ready") || outcome.is_str("Failed")) {
             return Err(Failure::value("invalid_ack_outcome"));
         }
-        let now = self.clock() as i64;
-        self.intent().set(
+        let now = self.root.clock().monotonic_ns() as i64;
+        intent.set(
             "acknowledgement",
             Object::new()
                 .with("outcome", outcome.clone())
                 .with("monotonic_ns", now),
         );
+        let answer = intent.clone();
         self.publish()?;
-        Ok(self.intent.clone().expect("set"))
+        Ok(answer)
     }
 
     pub fn due(&self) -> bool {

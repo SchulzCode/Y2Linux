@@ -1,4 +1,4 @@
-//! `y2-platform shutdown poweroff|reboot [--reason user|service|update]` (`power.rpc`): ask the power
+//! `y2-platform shutdown poweroff|reboot [--reason user|service|update]`: ask the power
 //! daemon for the transition and print the intent it answers with, in the daemon's key order. It
 //! returns at once; the daemon executes the intent after Reborn's acknowledgement or the 10 s grace.
 // SPDX-License-Identifier: GPL-2.0-only

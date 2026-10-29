@@ -23,14 +23,14 @@ impl Soc {
         }
     }
 
-    /// The display value; set by the first sample (restore) or a fuel-gauge sample.
-    pub(super) fn ui(&self) -> i64 {
-        self.ui.expect("set by the first sample")
-    }
-
     /// First sample: reuse the saved display value within 40 points, or after a warm restart unless
-    /// the live estimate is 40+ points above it.
-    pub(super) fn restore(&mut self, estimate: f64, charging: bool, boot: Option<&str>) {
+    /// the live estimate is 40+ points above it. The estimate and the display value it starts from.
+    pub(super) fn restore(
+        &mut self,
+        estimate: f64,
+        charging: bool,
+        boot: Option<&str>,
+    ) -> (f64, i64) {
         let saved = self.saved.take().unwrap_or_default();
         if let Some(anchor) = saved.anchor_percent.filter(|a| (80.0..=100.0).contains(a)) {
             self.anchor = Some(anchor);
@@ -55,14 +55,14 @@ impl Soc {
                     (*u as f64 - shown).abs()
                 } < UI_RESTORE_POINTS
         });
-        if let Some(ui) = restored {
-            self.ui = Some(ui);
+        let start = match restored {
             // The estimate restarts there too (stock dod_init sets the gauge).
-            let anchor = self.anchor.filter(|a| *a != 0.0).unwrap_or(100.);
-            self.percent = Some(py_min(100., ui as f64 * anchor / 100.));
-        } else {
-            self.ui = Some(round_int(shown));
-        }
+            Some(ui) => {
+                let anchor = self.anchor.filter(|a| *a != 0.0).unwrap_or(100.);
+                (py_min(100., ui as f64 * anchor / 100.), ui)
+            }
+            None => (estimate, round_int(shown)),
+        };
         self.start = Some(format!(
             "{}/{}",
             boot.unwrap_or("unknown"),
@@ -72,30 +72,39 @@ impl Soc {
                 self.start.as_deref().unwrap_or("None")
             }
         ));
+        start
     }
 
-    /// Stock mt_battery_update_status, on the display value only.
-    pub(super) fn track(&mut self, now: f64, status: Option<&str>, full: bool, target: f64) {
-        let shown = self.display(self.percent.expect("set"));
+    /// Stock mt_battery_update_status, on the display value only: the estimate and the display
+    /// value after this sample.
+    pub(super) fn track(
+        &mut self,
+        now: f64,
+        status: Option<&str>,
+        full: bool,
+        target: f64,
+        (percent, ui): (f64, i64),
+    ) -> (f64, i64) {
+        let shown = self.display(percent);
         if status == Some("Discharging") {
             // Charger gone: the display only follows the estimate down.
             self.full_latched = false;
             self.full_step_at = None;
-            self.ui = Some(self.ui().min(round_int(shown)));
-            return;
+            return (percent, ui.min(round_int(shown)));
         }
         if full && !self.full_latched {
             // Count up one point per tick, then re-anchor at this Full.
-            if self.ui() < 100 {
+            let mut ui = ui;
+            if ui < 100 {
                 if self
                     .full_step_at
                     .is_none_or(|at| now >= at + FULL_STEP_SECONDS)
                 {
-                    self.ui = Some(self.ui() + 1);
+                    ui += 1;
                     self.full_step_at = Some(now);
                 }
-                if self.ui() < 100 {
-                    return;
+                if ui < 100 {
+                    return (percent, ui);
                 }
             }
             self.full_latched = true;
@@ -104,19 +113,17 @@ impl Soc {
             // not on the rate-limited estimate that may still be catching up.
             let anchor = py_max(80., py_min(100., target));
             self.anchor = Some(anchor);
-            self.percent = Some(anchor);
-            return;
+            return (anchor, ui);
         }
         if self.full_latched {
             // Maintenance holds and recharges after Full stay at 100 until the
             // charger is removed (stock bat_in_recharging_state); the estimate
             // stays at the Full anchor as stock's gauge does after its reset.
             // Unplugged, it falls from there at the normal rate (stock Sync).
-            self.percent = self.anchor;
-            self.ui = Some(100);
-            return;
+            // (The anchor is set whenever the Full is latched.)
+            return (self.anchor.unwrap_or(percent), 100);
         }
         // Charging or holding, not yet Full: follow the estimate up, at most 99.
-        self.ui = Some(99.min(self.ui().max(round_int(shown))));
+        (percent, 99.min(ui.max(round_int(shown))))
     }
 }

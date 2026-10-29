@@ -1,11 +1,11 @@
-//! `y2-platform power-daemon` (`power.serve`): the battery and shutdown owner. Every second it samples
+//! `y2-platform power-daemon`: the battery and shutdown owner. Every second it samples
 //! BAT0 (CLOCK_BOOTTIME for the SOC), keeps the displayed percentage across restarts, runs the
 //! low-battery policy, journals, publishes `/run/y2/power.json` (Reborn's `power.rs` reads it directly:
 //! same boot, at most 5 s old) and executes a due shutdown; between samples it serves one client of
 //! `/run/y2/power.sock` (shutdown requests and Reborn's acknowledgement).
 //!
-//! Below a fixture root `Y2_DAEMON_TICKS=n` ends the loop after n iterations (exit 0), at the point
-//! where tests/platform_cases/power.py stops the Python daemon.
+//! Below a fixture root `Y2_DAEMON_TICKS=n` ends the loop after n iterations (exit 0): the golden
+//! cases' bounded runs (tests/platform_cases/power.py).
 // SPDX-License-Identifier: GPL-2.0-only
 mod requests;
 

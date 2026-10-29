@@ -2,9 +2,9 @@
 //! timer. With it the parts of `sleep_diagnostics` the power sample drives (USB state change rows,
 //! POWER-FINAL-14) and `sleep.status` as a journal row holds it.
 //!
-//! Rows are `json.dumps(row, separators=(',', ':'))` without sorting: built in Python's insertion
-//! order, records read from files in their file order. A journal failure never delays or
-//! disables battery protection: it is counted and the row dropped.
+//! Rows are compact JSON lines, not sorted: fields in their declared order, records read from files
+//! in their file order (the UserReports analyses and the report scrubber read them). A journal
+//! failure never delays or disables battery protection: it is counted and the row dropped.
 //!
 //! The idle counters are counters.rs, the USB rows of the sleep diagnostics diagnostics.rs, the
 //! sleep state sleep.rs.
@@ -41,7 +41,8 @@ const PERIOD: f64 = 300.0;
 const LIMIT: u64 = 8388608;
 const ROW: usize = 16384;
 
-/// Why a row was not written (Python's `OSError`, `ValueError`, `TypeError`, all caught).
+/// A row that was not written (a file error, an unreadable record, a row too large): counted,
+/// never passed on.
 #[derive(Debug)]
 pub struct Dropped;
 

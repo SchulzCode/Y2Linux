@@ -1,4 +1,4 @@
-//! `battery.py`: battery SOC policy; estimates never create measured current or temperature.
+//! The battery state of charge: estimates never create measured current or temperature.
 //! The profile (profile.rs), the estimate (soc.rs), the displayed percentage (display.rs) and the
 //! published records (status.rs); here the BAT0 sample that feeds them.
 // SPDX-License-Identifier: GPL-2.0-only
@@ -83,7 +83,7 @@ pub fn sample_at(root: &Root, engine: &mut Soc, now: f64) -> BatteryStatus {
         status: root.read(&format!("{base}status")),
         hardware_percent: int("capacity"),
         current: int("current_now"),
-        temperature: int("temp").map(|t| t * 100),
+        temperature: int("temp").map(|t| t.saturating_mul(100)),
         counter: int("charge_counter"),
         charge_current: sense_current(root.read(&format!("{base}charging_state")).as_deref()),
         boot_ocv: int("voltage_ocv"),

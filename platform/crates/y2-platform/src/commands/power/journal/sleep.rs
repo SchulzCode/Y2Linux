@@ -97,7 +97,7 @@ mod tests {
         assert!(sleep_status(&parse(r#"{"product": {"state": []}}"#), Some("b")).is_err());
         assert!(sleep_status(&parse(r#"{"product": 5}"#), Some("b")).is_err());
         assert!(sleep_status(&parse(r#"{"product": [1]}"#), Some("b")).is_err());
-        // A list of pairs (Python made it a dict and then ended the daemon): dropped as well.
+        // A list of pairs: dropped as well (the daemon goes on).
         assert!(sleep_status(&parse(r#"{"product": [["state", "idle"]]}"#), Some("b")).is_err());
     }
 }

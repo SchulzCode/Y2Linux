@@ -390,8 +390,11 @@ impl Diagnostics {
                 .map_err(|_| Dropped)
         };
         let mut encoded = encode(&row)?;
-        while encoded.len() > DIAGNOSTICS_ROW && tail.as_ref().is_some_and(|t| !t.is_empty()) {
-            let lines = tail.as_mut().expect("tail");
+        while encoded.len() > DIAGNOSTICS_ROW {
+            // Too large: drop the oldest quarter of the kernel lines, as long as there are any.
+            let Some(lines) = tail.as_mut().filter(|t| !t.is_empty()) else {
+                break;
+            };
             let cut = (lines.len() / 4).max(1);
             lines.drain(..cut);
             row.set(

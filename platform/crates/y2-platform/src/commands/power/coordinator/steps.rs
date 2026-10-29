@@ -20,7 +20,7 @@ const RADIO_STOP: [&str; 3] = ["wifi", "bluetooth", "daemon"];
 pub(super) const WATCHDOG_POWERS_OFF: &str = "/sys/class/power_supply/BAT0/watchdog_powers_off";
 pub(super) const LONG_PRESS_RESET: &str = "/sys/firmware/y2_pmic/long_press_reset";
 // F39 (471831b6, c14a3860): 2 of 55 update restarts lost these journal writes
-// and one never restarted. A stage write is a Python start and an fsync, which a
+// and one never restarted. A stage write is a process start and an fsync, which a
 // busy shutdown stretches past 1 s. Every step also goes to pstore pmsg (RAM, it
 // cannot stall); the next boot's retained capture or the recovery keeps it.
 const STAGE_SECONDS: f64 = 3.0;
@@ -114,18 +114,15 @@ impl Coordinator {
             return Step::of(false, Some("no_shutdown_intent"));
         };
         intent.set("state", "Executing");
+        let (action, reason) = (intent.value("action"), intent.value("reason"));
         self.publish_noted();
-        let (action, reason) = {
-            let intent = self.intent();
-            (intent.value("action"), intent.value("reason"))
-        };
         shutdown_trail(
             &self.root,
             &format!("execute {} {}", action.py_str(), reason.py_str()),
             None,
         );
         let mut results: Vec<(String, Step)> = Vec::new();
-        let watchdog = self.arm_watchdog();
+        let watchdog = self.arm_watchdog(action.is_str("poweroff"));
         shutdown_trail(&self.root, "watchdog", Some(&watchdog));
         results.push(("watchdog".into(), watchdog));
         let long_press = self.long_press_reset_off();
@@ -141,7 +138,7 @@ impl Coordinator {
         // before it acknowledges. If it never did (hung, crashed, deadline
         // reached) the light goes out before the kill: dropping DRM master would
         // otherwise restore the stale fbdev/console buffer on a lit panel.
-        if !self.intent().ready() {
+        if !self.intent.as_ref().is_some_and(|i| i.ready()) {
             results.push(("backlight_early".into(), backlight_off(&self.root)));
         }
         let reborn = self.step("S90reborn", Some(&["/etc/init.d/S90reborn", "stop"]), 3.0);
@@ -210,8 +207,9 @@ impl Coordinator {
                     .with("reason", step.reason.clone()),
             );
         }
-        self.intent().set("stop_results", stop_results);
-        self.publish_noted();
+        self.set_intent(|intent| {
+            intent.set("stop_results", stop_results);
+        });
         // BusyBox init owns rcK, unmount and final reboot(2). Never use -f.
         let action = action.as_str().unwrap_or_default().to_owned();
         let result = self.step(
@@ -220,16 +218,25 @@ impl Coordinator {
             2.0,
         );
         if !result.ok {
-            self.intent()
-                .set("state", "Failed")
-                .set("failure", "init_shutdown_request_failed");
-            self.publish_noted();
+            self.set_intent(|intent| {
+                intent
+                    .set("state", "Failed")
+                    .set("failure", "init_shutdown_request_failed");
+            });
         }
         // The watchdog stays armed and is fed no more (this daemon's exit at
         // rcK closes it without 'V': one last ping, still running). rcK,
         // unmount and reboot(2) take ~5 s and reboot(2) stops it (mtk_wdt
         // stop_on_reboot); a stall there, or a failed request, ends in its reset.
         result
+    }
+
+    /// Change the intent and publish it (`execute` runs only with one).
+    fn set_intent(&mut self, change: impl FnOnce(&mut Object)) {
+        if let Some(intent) = self.intent.as_mut() {
+            change(intent);
+        }
+        self.publish_noted();
     }
 
     /// `publish` during a shutdown: a failure is noted, the steps go on.
@@ -272,14 +279,12 @@ impl Coordinator {
     /// Its reset completes the requested transition whatever stalls: a restart (update: LK still finds
     /// MISC boot-recovery, written by `prepare` before the request, as after the F34 recovery
     /// watchdog), or for a power-off the loader's reason 3: charging mode on a charger, otherwise off.
-    fn arm_watchdog(&mut self) -> Step {
+    fn arm_watchdog(&mut self, poweroff: bool) -> Step {
         if self.watchdog.is_some() {
             return Step::of(true, None);
         }
         let mut failure = None;
-        if self.intent().value("action").is_str("poweroff")
-            && write_text(&self.root.path(WATCHDOG_POWERS_OFF), "1\n").is_err()
-        {
+        if poweroff && write_text(&self.root.path(WATCHDOG_POWERS_OFF), "1\n").is_err() {
             // Old kernel or no RGU mapping: the reset restarts instead.
             failure = Some("powers_off_unavailable");
         }

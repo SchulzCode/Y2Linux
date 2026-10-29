@@ -20,7 +20,8 @@ enum Request {
 }
 
 impl Request {
-    /// The request's fields, or Python's `str(error)` of the lookup that failed.
+    /// The request's fields, or the error text of the field that is missing (`'id'`, as the socket
+    /// has always answered it).
     fn of(request: Value) -> Result<Request, String> {
         let Value::Object(mut request) = request else {
             return Err(format!(
@@ -55,8 +56,8 @@ pub(super) fn serve_client(mut client: UnixStream, coordinator: &mut Coordinator
     }
 }
 
-/// The request, as `str(error)` of every error Python catches here (ValueError, OSError, KeyError,
-/// TypeError, AttributeError).
+/// The request's result, or its error text (the socket's answers keep the texts they had, e.g.
+/// `'list' object has no attribute 'get'`: callers log them).
 fn handle(client: &mut UnixStream, coordinator: &mut Coordinator) -> Result<Object, String> {
     unix::timeouts(client, Duration::from_millis(200)).map_err(|e| e.message())?;
     let (pid, uid) = unix::peer(client).map_err(|e| e.message())?;
