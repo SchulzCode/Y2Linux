@@ -291,6 +291,10 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
 }
 
 #[cfg(test)]
+#[path = "boot_tests.rs"]
+mod boot_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

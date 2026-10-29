@@ -85,6 +85,10 @@ pub fn private_directory(path: &Path) -> io::Result<()> {
 }
 
 #[cfg(test)]
+#[path = "record_tests.rs"]
+mod record_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::root::tests::tempdir::Dir;
