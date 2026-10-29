@@ -51,14 +51,10 @@ const MINIMUM_PERCENT: i64 = 50;
 const CHECK_INTERVAL: f64 = 24.0 * 3600.0;
 /// Wi-Fi needs 15-20 s to reconnect after the player wakes; a Check for Updates pressed meanwhile
 /// failed at once ("name resolution") and hid Update Now.
-#[cfg(not(test))]
 const NETWORK_WAIT_S: f64 = 30.0;
-/// Unit tests: `patch.object(update, 'NETWORK_WAIT_S', 0.05)` as tests/test_platform_update.py did.
-#[cfg(test)]
-const NETWORK_WAIT_S: f64 = 0.05;
 const MANIFEST_ATTEMPTS: u32 = 3;
-/// The pause before another manifest attempt (unit tests: none, as their patched `time.sleep`).
-const RETRY_PAUSE: Duration = Duration::from_secs(if cfg!(test) { 0 } else { 3 });
+/// The pause before another manifest attempt.
+const RETRY_PAUSE: Duration = Duration::from_secs(3);
 const PROGRESS: &str = "/run/y2/update-progress.json";
 const CHECK_PROGRESS: &str = "/run/y2/update-check-progress";
 /// Rollback copies of the running system. The recovery deletes them right before it writes the new
@@ -297,6 +293,7 @@ pub fn core(
 
 // ---- space ---------------------------------------------------------------------------------------
 
+/// What `fstatvfs` says about the volume an update writes to.
 struct Space {
     readonly: bool,
     available: i128,
@@ -304,29 +301,73 @@ struct Space {
     favail: u64,
 }
 
-fn fstatvfs(file: &File) -> Result<Space> {
-    #[cfg(test)]
-    if let Some(available) = seams::SPACE.with(|s| s.borrow().as_ref().map(|space| space())) {
-        return Ok(Space {
-            readonly: false,
-            available,
-            files: 0,
-            favail: 0,
-        });
+/// What a check or download needs beyond the root's files and commands: the clock's TLS readiness,
+/// the wall clock, the release server, the free space on Y2DATA, the staging directory's name and
+/// the waits for Wi-Fi. [`Player`] is the player's own; unit tests give theirs (update_tests.rs).
+trait Io {
+    /// `y2-platform time`'s record (`tls_ready`, `entropy_ready`).
+    fn time_status(&self, root: &Root) -> Map<String, Value> {
+        super::time_status(root)
     }
-    let info =
-        y2p_core::sys::fstatvfs(file.as_fd()).map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
-    Ok(Space {
-        readonly: info.read_only(),
-        available: info.bavail as i128 * info.frsize as i128,
-        files: info.files,
-        favail: info.favail,
-    })
+
+    /// Seconds since the epoch: when the daily check last ran and runs now.
+    fn now(&self) -> f64 {
+        super::super::time::wall()
+    }
+
+    /// One file of the release over HTTPS (`url`: the channel's base and the file's name), following
+    /// redirects only to `hosts`.
+    fn fetch(&self, url: &str, hosts: &[String], cancellable: bool) -> Result<Stream> {
+        let response = download::open(url, hosts, cancellable).map_err(Raise::Net)?;
+        if response.status != 200 {
+            return Err(Raise::value("HTTP_status"));
+        }
+        Ok(Stream::Http(response))
+    }
+
+    /// The free space and inodes of the volume `file` is on.
+    fn space(&self, file: &File) -> Result<Space> {
+        let info = y2p_core::sys::fstatvfs(file.as_fd())
+            .map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
+        Ok(Space {
+            readonly: info.read_only(),
+            available: info.bavail as i128 * info.frsize as i128,
+            files: info.files,
+            favail: info.favail,
+        })
+    }
+
+    /// The staging directory's name, `.incoming-<uuid4 hex>`; below a fixture root a host test may
+    /// fix it (`Y2_FIXTURE_TOKEN`, tests/platform_cases/service.py).
+    fn token(&self, root: &Root) -> Result<String> {
+        if !root.is_real() {
+            if let Ok(fixed) = std::env::var("Y2_FIXTURE_TOKEN") {
+                return Ok(format!(".incoming-{fixed}"));
+            }
+        }
+        let id = py::uuid4().map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
+        Ok(format!(".incoming-{}", id.replace('-', "")))
+    }
+
+    /// How long a check waits for Wi-Fi to be online.
+    fn network_wait(&self) -> f64 {
+        NETWORK_WAIT_S
+    }
+
+    /// The pause before another manifest attempt.
+    fn retry_pause(&self) -> Duration {
+        RETRY_PAUSE
+    }
 }
 
+/// The player's clocks, network and volume.
+struct Player;
+
+impl Io for Player {}
+
 /// `update.free`: the volume must keep the reserve after `size` more bytes.
-fn free(file: &File, size: i128) -> Result<()> {
-    let info = fstatvfs(file)?;
+fn free(io: &dyn Io, file: &File, size: i128) -> Result<()> {
+    let info = io.space(file)?;
     if info.readonly || info.available < size + RESERVE || (info.files != 0 && info.favail < 128) {
         return Err(Raise::value("update_data_space_reserve"));
     }
@@ -415,7 +456,7 @@ fn remove_disposable(path: &Path) -> std::io::Result<u64> {
 /// `update.make_room` (OTA-46): count the rollback copies the recovery replaces, then remove
 /// disposable data until the download fits. Returns the bytes removed; `NoSpace` with the total the
 /// update needs when even that is not enough.
-fn make_room(root: &Root, file: &File, size: i128) -> Result<i128> {
+fn make_room(root: &Root, io: &dyn Io, file: &File, size: i128) -> Result<i128> {
     let directory = root.path("/data/updates");
     let mut reclaimable: i128 = 0;
     for name in BACKUPS {
@@ -427,7 +468,7 @@ fn make_room(root: &Root, file: &File, size: i128) -> Result<i128> {
     }
     let need = size + RESERVE - reclaimable;
     let fits = || -> Result<bool> {
-        let info = fstatvfs(file)?;
+        let info = io.space(file)?;
         Ok(!info.readonly && info.available >= need && !(info.files != 0 && info.favail < 128))
     };
     let mut removed: i128 = 0;
@@ -604,23 +645,10 @@ fn pathlib(directory: &Path, name: &str) -> PathBuf {
 
 impl Source {
     /// `get(name)`: the opened response or file.
-    fn get(&self, name: &str, cancellable: bool) -> Result<Stream> {
+    fn get(&self, io: &dyn Io, name: &str, cancellable: bool) -> Result<Stream> {
         match self {
             Source::Remote { base, hosts } => {
-                #[cfg(test)]
-                if let Some(answer) = seams::REMOTE.with(|r| {
-                    r.borrow_mut()
-                        .as_mut()
-                        .map(|remote| remote(&format!("{base}{name}")))
-                }) {
-                    return answer;
-                }
-                let response = download::open(&format!("{base}{name}"), hosts, cancellable)
-                    .map_err(Raise::Net)?;
-                if response.status != 200 {
-                    return Err(Raise::value("HTTP_status"));
-                }
-                Ok(Stream::Http(response))
+                io.fetch(&format!("{base}{name}"), hosts, cancellable)
             }
             Source::Local(directory) => {
                 let path = pathlib(directory, name);
@@ -643,7 +671,9 @@ impl Source {
 
 /// `update.copy_stream`: at most `maximum` bytes (exactly `exact`), within `seconds`, keeping the
 /// reserve; returns the count and the SHA-256. Interrupted bytes stay for explicit diagnostics.
+#[allow(clippy::too_many_arguments)]
 fn copy_stream(
+    io: &dyn Io,
     source: &mut Stream,
     destination: &Path,
     maximum: i64,
@@ -675,7 +705,7 @@ fn copy_stream(
         if count > maximum {
             return Err(Raise::value("download_size_limit"));
         }
-        free(&stream, chunk.len() as i128)?;
+        free(io, &stream, chunk.len() as i128)?;
         stream
             .write_all(&chunk)
             .map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
@@ -740,24 +770,9 @@ fn installed_release(root: &Root) -> Value {
         .unwrap_or(Value::Null)
 }
 
-/// The staging token, `.incoming-<uuid4 hex>`; below a fixture root a test may name it
-/// (`Y2_FIXTURE_TOKEN`, tests/platform_cases/service.py patches Python's uuid4 the same way).
-fn token(root: &Root) -> Result<String> {
-    #[cfg(test)]
-    if let Some(fixed) = seams::TOKEN.with(|t| t.borrow().clone()) {
-        return Ok(format!(".incoming-{fixed}"));
-    }
-    if !root.is_real() {
-        if let Ok(fixed) = std::env::var("Y2_FIXTURE_TOKEN") {
-            return Ok(format!(".incoming-{fixed}"));
-        }
-    }
-    let id = py::uuid4().map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
-    Ok(format!(".incoming-{}", id.replace('-', "")))
-}
-
 struct Staging<'a> {
     root: &'a Root,
+    io: &'a dyn Io,
     directory: PathBuf,
     incoming: PathBuf,
     token: String,
@@ -781,7 +796,7 @@ impl Staging<'_> {
         source: Option<&str>,
         volume: &storage::Volume,
     ) -> Result<Value> {
-        let root = self.root;
+        let (root, io) = (self.root, self.io);
         let download = self.directory.join("download.json");
         // stage() refused a busy lock already; this one is held, or fails for another reason.
         match lock::try_fd(file.as_fd(), lock::Kind::Exclusive) {
@@ -817,7 +832,7 @@ impl Staging<'_> {
         }
         // Even the manifest needs the reserve: a nearly full volume is cleaned first, so a check can
         // still find the release (OTA-46).
-        let mut cleaned = make_room(root, file, 64 * 1024)?;
+        let mut cleaned = make_room(root, io, file, 64 * 1024)?;
         // What the Software Update page showed: a failed check keeps it.
         self.previous = root
             .json("/data/updates/download.json")
@@ -835,13 +850,13 @@ impl Staging<'_> {
         )?;
         let source = match url {
             Some(url) => {
-                let clock = super::time_status(root);
+                let clock = io.time_status(root);
                 if !clock.get("tls_ready").is_some_and(truthy)
                     || !clock.get("entropy_ready").is_some_and(truthy)
                 {
                     return Err(Raise::value("clock_or_entropy_not_ready_for_TLS"));
                 }
-                if !wait_online(root, NETWORK_WAIT_S) {
+                if !wait_online(root, io.network_wait()) {
                     return Err(Raise::value("network_not_online"));
                 }
                 let base = download::base_url(url).map_err(Raise::Value)?;
@@ -866,9 +881,10 @@ impl Staging<'_> {
         let remote = matches!(source, Source::Remote { .. });
         for (name, maximum) in [("manifest.json", 16384), ("manifest.sig", 64)] {
             for attempt in 1..=MANIFEST_ATTEMPTS {
-                let copied = source.get(name, false).and_then(|mut stream| {
+                let copied = source.get(io, name, false).and_then(|mut stream| {
                     let exact = name.ends_with(".sig").then_some(64);
                     copy_stream(
+                        io,
                         &mut stream,
                         &self.incoming.join(name),
                         maximum,
@@ -900,7 +916,7 @@ impl Staging<'_> {
                         // A lookup or handshake that failed while Wi-Fi was still settling: try again
                         // once it is online.
                         let _ = fs::remove_file(self.incoming.join(name));
-                        std::thread::sleep(RETRY_PAUSE);
+                        std::thread::sleep(io.retry_pause());
                         wait_online(root, 10.0);
                     }
                     Err(error) => return Err(error),
@@ -961,7 +977,7 @@ impl Staging<'_> {
         // leaves the release offered as before.
         Terminate::set(Handler::Call(cancel));
         // Root payload plus its backup during installation; refuse early, not in recovery.
-        cleaned += make_room(root, file, total as i128 + raw.div_euclid(4) as i128)?;
+        cleaned += make_room(root, io, file, total as i128 + raw.div_euclid(4) as i128)?;
         if CANCELLED.load(Ordering::SeqCst) {
             return Err(Raise::Net(Net::Cancelled));
         }
@@ -974,9 +990,10 @@ impl Staging<'_> {
         let mut count: i64 = 0;
         for (key, bytes, sha) in &items {
             let name = payload_file(key).ok_or_else(malformed)?;
-            let mut stream = source.get(name, true)?;
+            let mut stream = source.get(io, name, true)?;
             let live = self.live.as_mut().expect("progress");
             let (got, digest) = copy_stream(
+                io,
                 &mut stream,
                 &self.incoming.join(name),
                 *bytes,
@@ -1048,8 +1065,9 @@ impl Staging<'_> {
 
 /// `update.stage`: check the signed manifest, and unless `check_only` download the payloads and queue
 /// the package with the core.
-pub fn stage(
+fn stage(
     root: &Root,
+    io: &dyn Io,
     source: Option<&str>,
     url: Option<&str>,
     check_only: bool,
@@ -1084,11 +1102,12 @@ pub fn stage(
     if let Ok(false) = lock::try_fd(file.as_fd(), lock::Kind::Exclusive) {
         return Err(Raise::value(IN_PROGRESS));
     }
-    let token = token(root)?;
+    let token = io.token(root)?;
     let terminate = Terminate::save();
     CANCELLED.store(false, Ordering::SeqCst);
     let mut staging = Staging {
         root,
+        io,
         incoming: directory.join(&token),
         directory,
         token,
@@ -1317,8 +1336,8 @@ fn channel_url(root: &Root) -> Result<Option<String>> {
 
 /// `update.automatic_check`: daily check on Wi-Fi: only reports that an update exists, never downloads
 /// a payload or installs. Called by the maintenance loop; cheap when not due.
-fn automatic_check(root: &Root) -> Result<Value> {
-    let now = super::time_wall();
+fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
+    let now = io.now();
     let directory = root.path("/data/updates");
     private_directory(&directory)?;
     let mut last = root.json_object("/data/updates/last-check.json");
@@ -1347,10 +1366,7 @@ fn automatic_check(root: &Root) -> Result<Value> {
     if root.json_object("/run/y2/network.json").get("state") != Some(&json!("Online")) {
         return Ok(skipped("offline"));
     }
-    if !super::time_status(root)
-        .get("tls_ready")
-        .is_some_and(truthy)
-    {
+    if !io.time_status(root).get("tls_ready").is_some_and(truthy) {
         return Ok(skipped("clock_not_ready"));
     }
     // Only a check that reached the server starts the next day; a failed one is tried again with the
@@ -1362,7 +1378,7 @@ fn automatic_check(root: &Root) -> Result<Value> {
     // Never an interrupted download's leftover: a failed check would write it back.
     let previous = download_record(root);
     let url = channel_url(root)?;
-    match stage(root, None, url.as_deref(), true) {
+    match stage(root, io, None, url.as_deref(), true) {
         Ok(manifest) => {
             record["time"] = json!(now);
             record["result"] = json!("checked");
@@ -1567,9 +1583,9 @@ pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) 
                     None if package.is_none_or(str::is_empty) => channel_url(root)?,
                     None => None,
                 };
-                stage(root, package, url.as_deref(), action == "check")
+                stage(root, &Player, package, url.as_deref(), action == "check")
             }
-            "auto-check" => automatic_check(root),
+            "auto-check" => automatic_check(root, &Player),
             "probe-recovery" => probe(root),
             "recovery-status" => Ok(Value::Object(core(root, "misc", None, 15.0)?.0)),
             "apply" | "rollback" => apply(root, action == "rollback"),
@@ -1596,25 +1612,6 @@ pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) 
     }
 }
 
-/// What the Python unit tests patched (uuid4, `os.fstatvfs`, the release download), per thread and
-/// only in unit tests.
-#[cfg(test)]
-mod seams {
-    use super::{Result, Stream};
-    use std::cell::RefCell;
-
-    /// The answer for one release URL (`base` + file name).
-    pub type Remote = Box<dyn FnMut(&str) -> Result<Stream>>;
-
-    thread_local! {
-        /// The staging token's hex part.
-        pub static TOKEN: RefCell<Option<String>> = const { RefCell::new(None) };
-        /// The bytes `fstatvfs` reports available (writable, no inode limit).
-        pub static SPACE: RefCell<Option<Box<dyn Fn() -> i128>>> = const { RefCell::new(None) };
-        pub static REMOTE: RefCell<Option<Remote>> = const { RefCell::new(None) };
-    }
-}
-
 #[cfg(test)]
 #[path = "update_tests.rs"]
 mod update_tests;
@@ -1622,7 +1619,7 @@ mod update_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::{ok, scripted, Fixture};
+    use crate::testing::{ok, Fixture};
 
     /// A player whose verified /data is mounted (the transfer volume `stage` needs).
     fn data_ready() -> Fixture {
@@ -1663,14 +1660,14 @@ mod tests {
         // The first download holds the lock on its own open file.
         let first = File::open(fixture.path("/data/updates/.stage.lock")).unwrap();
         first.try_lock().unwrap();
-        let (result, _) = scripted(data_uuid(), || {
-            stage(
-                &fixture.root,
-                None,
-                Some("https://updates.example/m.json"),
-                true,
-            )
-        });
+        let root = fixture.root.clone().with_answers(data_uuid());
+        let result = stage(
+            &root,
+            &Player,
+            None,
+            Some("https://updates.example/m.json"),
+            true,
+        );
         assert_eq!(result.err().map(|e| e.text()).as_deref(), Some(IN_PROGRESS));
         assert_eq!(fixture.read("/data/updates/download.json"), staging);
     }
@@ -1678,18 +1675,18 @@ mod tests {
     #[test]
     fn auto_check_says_why_it_did_not_check() {
         let fixture = Fixture::new();
-        let now = super::super::time_wall();
+        let now = Player.now();
         fixture.put_json(
             "/data/updates/last-check.json",
             &json!({"schema": 1, "result": "checked", "time": now - 60.0}),
         );
         assert_eq!(
-            automatic_check(&fixture.root).ok(),
+            automatic_check(&fixture.root, &Player).ok(),
             Some(json!({"schema": 1, "result": "skipped", "reason": "not_due"}))
         );
         // Due, but nothing to check against: the attempt is recorded and the reason given.
         fixture.remove("/data/updates/last-check.json");
-        let answer = automatic_check(&fixture.root).ok().unwrap();
+        let answer = automatic_check(&fixture.root, &Player).ok().unwrap();
         assert_eq!(answer["result"], json!("skipped"));
         assert!(answer["reason"].is_string());
         assert!(fixture.json("/data/updates/last-check.json")["attempt"].is_number());
@@ -1697,17 +1694,17 @@ mod tests {
 
     #[test]
     fn a_rollback_on_a_low_battery_never_reaches_the_core() {
-        let fixture = Fixture::new();
+        let fixture = Fixture::new().with_answers(vec![]);
         fixture.put_json(
             "/run/y2/power.json",
             &json!({"battery": {"percent": 20, "charging": false, "status": "Discharging"}}),
         );
-        let (result, calls) = scripted(vec![], || apply(&fixture.root, true));
+        let result = apply(&fixture.root, true);
         assert_eq!(
             result.err().map(|e| e.text()).as_deref(),
             Some("update_needs_charger_or_half_battery")
         );
-        assert!(calls.is_empty(), "{calls:?}");
+        assert!(fixture.calls().is_empty(), "{:?}", fixture.calls());
     }
 
     #[test]

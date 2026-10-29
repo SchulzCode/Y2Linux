@@ -28,25 +28,12 @@ const UPDATE_ACTIONS: [&str; 10] = [
     "recovery-status",
 ];
 
-/// `timekeeping.status(ctx)` as a dict (the ported `time` command's value).
+/// The `time` command's record (clock and TLS readiness), as its fields.
 fn time_status(root: &Root) -> Map<String, Value> {
-    #[cfg(test)]
-    if let Some(value) = seams::TIME_STATUS.with(|t| t.borrow().clone()) {
-        return value;
-    }
     super::time::status(root)
         .ok()
         .and_then(|reply| serde_json::from_str(&reply.stdout).ok())
         .unwrap_or_default()
-}
-
-/// `time.time()`.
-fn time_wall() -> f64 {
-    #[cfg(test)]
-    if let Some(now) = seams::NOW.with(std::cell::Cell::get) {
-        return now;
-    }
-    super::time::wall()
 }
 
 /// `update <action>` with `--url URL` and `--package DIR` as the parser's canonical form gives them.
@@ -88,18 +75,5 @@ pub fn route(args: &[&str]) -> Option<Command> {
             }))
         }
         _ => None,
-    }
-}
-
-/// What the Python unit tests patched (`timekeeping.status`; `time.time()` as `automatic_check`'s
-/// `now`), per thread and only in unit tests.
-#[cfg(test)]
-mod seams {
-    use serde_json::{Map, Value};
-    use std::cell::{Cell, RefCell};
-
-    thread_local! {
-        pub static TIME_STATUS: RefCell<Option<Map<String, Value>>> = const { RefCell::new(None) };
-        pub static NOW: Cell<Option<f64>> = const { Cell::new(None) };
     }
 }
