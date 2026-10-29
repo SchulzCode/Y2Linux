@@ -7,10 +7,10 @@ use serde::de::{value::MapDeserializer, DeserializeOwned};
 use serde_json::{json, Map, Value};
 use std::{
     collections::BTreeMap,
-    ffi::OsString,
-    path::{Component, Path, PathBuf},
+    path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
+pub use y2p_core::paths::realpath;
 pub use y2p_core::paths::{name, parent_name};
 use y2p_core::py::PyValue;
 pub use y2p_core::text::{split as split_ws, splitlines};
@@ -195,58 +195,6 @@ pub fn is_number(value: Option<&Value>) -> Option<f64> {
 /// `0 <= now - stamp < window` for a monotonic seconds stamp read from JSON.
 pub fn fresh_seconds(root: &Root, stamp: Option<&Value>, window: f64) -> bool {
     is_number(stamp).is_some_and(|t| (0.0..window).contains(&(root.clock().monotonic() - t)))
-}
-
-/// `os.path.realpath(path)` (non-strict `Path.resolve()`): symlinks followed where they exist, the
-/// rest kept as written.
-pub fn realpath(path: &Path) -> PathBuf {
-    let absolute = if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        std::env::current_dir().unwrap_or_default().join(path)
-    };
-    let mut pending: Vec<OsString> = Vec::new();
-    push_components(&mut pending, &absolute);
-    let mut resolved = PathBuf::from("/");
-    let mut links = 0;
-    while let Some(part) = pending.pop() {
-        match part.to_str() {
-            Some(".") | Some("") => continue,
-            Some("..") => {
-                resolved.pop();
-                continue;
-            }
-            _ => {}
-        }
-        let candidate = resolved.join(&part);
-        match std::fs::symlink_metadata(&candidate) {
-            Ok(meta) if meta.file_type().is_symlink() && links < 40 => {
-                links += 1;
-                let Ok(target) = std::fs::read_link(&candidate) else {
-                    resolved = candidate;
-                    continue;
-                };
-                if target.is_absolute() {
-                    resolved = PathBuf::from("/");
-                }
-                push_components(&mut pending, &target);
-            }
-            _ => resolved = candidate,
-        }
-    }
-    resolved
-}
-
-fn push_components(pending: &mut Vec<OsString>, path: &Path) {
-    let parts: Vec<OsString> = path
-        .components()
-        .filter_map(|c| match c {
-            Component::Normal(n) => Some(n.to_os_string()),
-            Component::ParentDir => Some("..".into()),
-            _ => None,
-        })
-        .collect();
-    pending.extend(parts.into_iter().rev());
 }
 
 /// The entries of `directory` matching a one-component `pattern`, sorted (not capped, unlike

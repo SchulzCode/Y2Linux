@@ -8,11 +8,11 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
     cell::OnceCell,
-    ffi::OsString,
     fs,
-    path::{Component, Path, PathBuf},
+    path::{Path, PathBuf},
 };
 use y2p_core::json::{Object, ObjectExt};
+use y2p_core::paths::realpath;
 use y2p_core::{
     command,
     py::{number, truthy},
@@ -36,44 +36,6 @@ const AUTOSCAN: &str = "exponential:2:120";
 const DISABLED_S: f64 = 30.0;
 const RENEW_MAX_S: f64 = 600.0;
 const GLOBAL: &str = "/run/wpa_supplicant/global";
-
-/// A path with its symlinks resolved as far as it exists, `..` after resolving, the rest appended as
-/// written (what `/proc/<pid>/exe` is compared with).
-fn realpath(path: &Path) -> PathBuf {
-    let mut pending: Vec<OsString> = path
-        .components()
-        .rev()
-        .filter_map(|c| match c {
-            Component::Normal(n) => Some(n.to_owned()),
-            Component::ParentDir => Some("..".into()),
-            _ => None,
-        })
-        .collect();
-    let mut resolved = PathBuf::from("/");
-    let mut hops = 0;
-    while let Some(part) = pending.pop() {
-        if part == ".." {
-            resolved.pop();
-            continue;
-        }
-        let next = resolved.join(&part);
-        match fs::read_link(&next) {
-            Ok(target) if hops < 40 => {
-                hops += 1;
-                if target.is_absolute() {
-                    resolved = PathBuf::from("/");
-                }
-                pending.extend(target.components().rev().filter_map(|c| match c {
-                    Component::Normal(n) => Some(n.to_owned()),
-                    Component::ParentDir => Some("..".into()),
-                    _ => None,
-                }));
-            }
-            _ => resolved = next,
-        }
-    }
-    resolved
-}
 
 /// The helper's pid when its pid file names a live process running that binary (a reused pid runs
 /// something else). The liveness probe is a real `kill(pid, 0)`, also below a fixture root.
