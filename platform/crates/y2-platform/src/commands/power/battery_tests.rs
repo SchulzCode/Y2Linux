@@ -2,6 +2,7 @@
 //! `sample` and `boot_kind`, with `LowBattery` where the Python tests combined them.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
+use super::{profile::*, soc::*, status::*};
 use crate::commands::power::policy::{self, load_policy, LowBattery};
 use crate::testing::Fixture;
 use serde_json::Value;
