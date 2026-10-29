@@ -9,7 +9,7 @@
 //! and the export limit.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    fields::{FIELDS, KERNEL_FIELDS, KERNEL_STATUS_KEYS, PUBLIC_WORDS},
+    fields::{fields, kernel_fields, kernel_status_keys, public_words},
     json_dict, os, os_plain,
     pyjson::{self, Py, Style},
     pyre::{self, lazy, S},
@@ -123,7 +123,7 @@ pub fn project(value: &Py, key: &str, depth: usize) -> Py {
         Py::Dict(items) => {
             let mut out: Vec<(String, Py)> = Vec::new();
             for (k, v) in items.iter().take(512) {
-                if sorted_contains(&FIELDS, k) {
+                if sorted_contains(fields(), k) {
                     out.push((k.clone(), project(v, k, depth + 1)));
                 }
             }
@@ -137,7 +137,7 @@ pub fn project(value: &Py, key: &str, depth: usize) -> Py {
                 .collect(),
         ),
         Py::Str(text) => {
-            if sorted_contains(&KERNEL_STATUS_KEYS, key)
+            if sorted_contains(kernel_status_keys(), key)
                 || matches!(key, "11200000.usb" | "11230000.mmc" | "11240000.mmc")
             {
                 static PAIRS: OnceLock<Regex> = OnceLock::new();
@@ -145,7 +145,7 @@ pub fn project(value: &Py, key: &str, depth: usize) -> Py {
                 let mut out: Vec<(String, Py)> = Vec::new();
                 for caps in pairs.captures_iter(text) {
                     let field = &caps[1];
-                    if sorted_contains(&KERNEL_FIELDS, field) {
+                    if sorted_contains(kernel_fields(), field) {
                         let projected = project(&Py::str(&caps[2]), field, depth + 1);
                         match out.iter_mut().find(|(k, _)| k == field) {
                             Some(entry) => entry.1 = projected,
@@ -187,7 +187,7 @@ pub fn project(value: &Py, key: &str, depth: usize) -> Py {
             {
                 return value.clone();
             }
-            if PUBLIC_WORDS.binary_search(&text.as_str()).is_ok() {
+            if sorted_contains(public_words(), text) {
                 return value.clone();
             }
             Py::str("[redacted]")
