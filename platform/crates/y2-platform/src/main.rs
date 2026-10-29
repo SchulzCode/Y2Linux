@@ -1,11 +1,11 @@
 //! `/usr/sbin/y2-platform`, the platform service's command line (docs/planning/PLATFORM-RUST-PORT-PLAN.md).
-//! The arguments are parsed first, as `main.py`'s argparse parser did (argparse.rs): `--help` prints
-//! that parser's help (exit 0), an argument error its usage and message on stderr (exit 2). A parsed
-//! command goes to its Rust implementation in its canonical spelling (`argparse::Parsed::canonical`).
-//! There is no Python platform any more (phase 6); every command line argparse takes has a route (the
+//! The arguments are parsed first (cli.rs): `--help` prints that subcommand's help (exit 0), an argument
+//! error its usage and message on stderr (exit 2). A parsed command goes to its Rust implementation in
+//! its canonical spelling (`cli::Outcome::Parsed`); every command line the parser takes has a route (the
 //! test below).
 // SPDX-License-Identifier: GPL-2.0-only
 mod argparse;
+mod cli;
 mod commands;
 mod reply;
 #[cfg(test)]
@@ -32,12 +32,12 @@ fn main() -> ExitCode {
     {
         args = mapped;
     }
-    // Python's sys.argv (`os.fsdecode`): a byte that is not UTF-8 is a lone surrogate there, an escape
-    // character here (y2p_core::os_text), which repr(), json.dumps and stderr show as Python does.
+    // The internal programmes (the sleep helper, suspend records, the power audit and power command) read
+    // their arguments as the Python scripts they replace did (`os.fsdecode`: a byte that is not UTF-8 is
+    // an escape character, y2p_core::os_text, shown as Python shows a surrogate); each runs and exits
+    // itself.
     let decoded: Vec<String> = args.iter().map(|a| fsdecode_os(a)).collect();
     let text: Vec<&str> = decoded.iter().map(String::as_str).collect();
-    // Internal programmes (the sleep helper, suspend records, the power audit and power command): not
-    // main.py subcommands, so no argparse; each runs and exits itself.
     if let Some(programme) = commands::suspend::programme(&text) {
         let root = y2p_core::Root::from_env();
         return match programme(&root) {
@@ -53,19 +53,22 @@ fn main() -> ExitCode {
             ),
         };
     }
-    let parsed = match argparse::parse(&text) {
-        argparse::Outcome::Help(help) => return print(&mut std::io::stdout().lock(), &help, 0),
-        argparse::Outcome::Error(error) => return print(&mut std::io::stderr().lock(), &error, 2),
-        argparse::Outcome::Parsed(parsed) => parsed,
+    if text == ["__arguments"] {
+        // The argument table, for tools/development/platform-contract.py (platform/contract.json).
+        let table = cli::table_text();
+        return emit(&mut std::io::stdout().lock(), &format!("{table}\n"), 0);
+    }
+    let canonical = match cli::parse_os(&args) {
+        cli::Outcome::Help(help) => return emit(&mut std::io::stdout().lock(), &help, 0),
+        cli::Outcome::Error(error) => return emit(&mut std::io::stderr().lock(), &error, 2),
+        cli::Outcome::Parsed(canonical) => canonical,
     };
     if env::var_os("Y2_ROOT").is_some() && env::var_os("Y2_ARGPARSE_ECHO").is_some() {
-        // tests/test_platform_argparse.py: the parse itself, compared with Python's namespace (ASCII
-        // JSON, so an escaped byte reads back as Python's surrogate).
-        let echo = serde_json::json!({"namespace": parsed.typed(), "canonical": parsed.canonical});
-        let echo = dumps(&echo, Separators::Spaced).expect("echo");
-        return print(&mut std::io::stdout().lock(), &format!("{echo}\n"), 0);
+        // tests/test_platform_argparse.py: the canonical form itself instead of running it.
+        let echo = serde_json::json!({ "canonical": canonical });
+        return emit(&mut std::io::stdout().lock(), &format!("{echo}\n"), 0);
     }
-    let canonical: Vec<&str> = parsed.canonical.iter().map(String::as_str).collect();
+    let canonical: Vec<&str> = canonical.iter().map(String::as_str).collect();
     let Some(command) = commands::route(&canonical) else {
         // No build of this binary implements it (the route test below rules this out).
         let _ = writeln!(
@@ -97,76 +100,63 @@ fn main() -> ExitCode {
     ExitCode::from(code)
 }
 
-/// argparse's `_print_message` then `exit(code)`: a failed write is ignored. Python's stdout and stderr
-/// are UTF-8 with `backslashreplace` on stderr (only argument text can hold a surrogate).
+/// Text that can hold an escaped byte of a programme's argument, shown as Python's `backslashreplace`
+/// shows a surrogate (`\udcff`), then `emit`.
 fn print(out: &mut dyn Write, text: &str, code: u8) -> ExitCode {
-    let text = backslashreplace(text);
+    emit(out, &backslashreplace(text), code)
+}
+
+/// Write the text and exit with `code`; a failed write is ignored (a caller that closed the pipe gets
+/// no text, the exit code still tells).
+fn emit(out: &mut dyn Write, text: &str, code: u8) -> ExitCode {
     let _ = out.write_all(text.as_bytes()).and_then(|()| out.flush());
     ExitCode::from(code)
 }
 
 #[cfg(test)]
 mod tests {
-    use serde_json::Value;
+    use crate::cli::{Arg, Kind, Type, COMMANDS};
 
-    /// One sample value argparse takes for an action (its first choice, a number, or a word).
-    fn sample(action: &Value) -> String {
-        if let Some(choice) = action["choices"].as_array().and_then(|c| c.first()) {
-            return match choice {
-                Value::String(s) => s.clone(),
-                other => other.to_string(),
-            };
+    /// One sample value the parser takes for an argument (its first choice, a number, or a word).
+    fn sample(arg: &Arg) -> String {
+        if let Some(choice) = arg.choices.first() {
+            return choice.to_string();
         }
-        match action["type"].as_str() {
-            Some("int") => "1".into(),
-            Some("float") => "1.5".into(),
+        match arg.kind {
+            Kind::One(Type::Int) | Kind::Many(Type::Int) => "1".into(),
+            Kind::One(Type::Float) | Kind::Many(Type::Float) => "1.5".into(),
             _ => "x".into(),
         }
     }
 
-    /// Every command line of argparse.json's parser, as far as routes tell them apart: each subcommand,
-    /// each choice of its first positional with choices (the action), the other positionals with one
-    /// sample (an optional positional also left out), alone and with each of its options once.
+    /// Every command line of the table, as far as routes tell them apart: each subcommand, each choice
+    /// of its first positional with choices (the action), the other positionals with one sample (an
+    /// optional positional also left out), alone and with each of its options once.
     fn command_lines() -> Vec<(String, Vec<String>)> {
-        let spec: Value =
-            serde_json::from_str(include_str!("argparse.json")).expect("argparse.json");
         let mut lines = Vec::new();
-        for entry in spec["commands"].as_array().expect("commands") {
-            let name = entry[0].as_str().expect("name").to_owned();
-            let actions = entry[1]["actions"].as_array().expect("actions");
-            let named = |a: &&Value| a["options"].as_array().is_some_and(|o| !o.is_empty());
-            let positionals: Vec<&Value> = actions
-                .iter()
-                .filter(|a| !named(a) && a["kind"] != "help")
-                .collect();
-            let optionals: Vec<&Value> = actions
-                .iter()
-                .filter(|a| named(a) && a["kind"] != "help")
-                .collect();
-            let chooser = positionals.iter().position(|a| a["choices"].is_array());
-            let choices: Vec<Option<String>> = match chooser {
-                Some(i) => positionals[i]["choices"]
-                    .as_array()
-                    .expect("choices")
-                    .iter()
-                    .map(|c| c.as_str().map(str::to_owned))
-                    .collect(),
+        for command in COMMANDS {
+            let name = command.name.to_string();
+            let positionals: Vec<&Arg> = command.args.iter().filter(|a| a.positional()).collect();
+            let optionals: Vec<&Arg> = command.args.iter().filter(|a| !a.positional()).collect();
+            let chooser = positionals.iter().position(|a| !a.choices.is_empty());
+            let choices: Vec<Option<&str>> = match chooser {
+                Some(i) => positionals[i].choices.iter().map(|c| Some(*c)).collect(),
                 None => vec![None],
             };
             for choice in choices {
                 let mut full = vec![name.clone()];
                 let mut short = vec![name.clone()];
                 for (i, positional) in positionals.iter().enumerate() {
-                    let value = match (Some(i) == chooser, &choice) {
-                        (true, Some(c)) => c.clone(),
+                    let value = match (Some(i) == chooser, choice) {
+                        (true, Some(c)) => c.to_string(),
                         _ => sample(positional),
                     };
                     full.push(value.clone());
-                    if positional["nargs"] != "?" || Some(i) == chooser {
+                    if positional.required || Some(i) == chooser {
                         short.push(value);
                     }
                 }
-                let label = match &choice {
+                let label = match choice {
                     Some(c) => format!("{name} {c}"),
                     None => name.clone(),
                 };
@@ -174,13 +164,8 @@ mod tests {
                     lines.push((label.clone(), base.clone()));
                     for optional in &optionals {
                         let mut line = base.clone();
-                        let option = optional["options"]
-                            .as_array()
-                            .and_then(|o| o.iter().rev().find_map(Value::as_str))
-                            .expect("option")
-                            .to_owned();
-                        line.push(option);
-                        if optional["kind"] != "store_true" {
+                        line.push(optional.name.to_string());
+                        if optional.kind != Kind::Flag {
                             line.push(sample(optional));
                         }
                         lines.push((label.clone(), line));
@@ -192,17 +177,17 @@ mod tests {
     }
 
     #[test]
-    fn every_command_line_argparse_takes_has_a_route() {
+    fn every_command_line_the_parser_takes_has_a_route() {
         let mut unrouted = std::collections::BTreeSet::new();
         let mut missing = Vec::new();
         let mut parsed = 0;
         for (label, line) in command_lines() {
             let args: Vec<&str> = line.iter().map(String::as_str).collect();
-            let crate::argparse::Outcome::Parsed(result) = crate::argparse::parse(&args) else {
-                continue; // a combination argparse refuses (a required option missing)
+            let crate::cli::Outcome::Parsed(canonical) = crate::cli::parse(&args) else {
+                continue; // a combination the parser refuses (a required option missing)
             };
             parsed += 1;
-            let canonical: Vec<&str> = result.canonical.iter().map(String::as_str).collect();
+            let canonical: Vec<&str> = canonical.iter().map(String::as_str).collect();
             if crate::commands::route(&canonical).is_none() {
                 missing.push(format!("{canonical:?}"));
                 unrouted.insert(label);
