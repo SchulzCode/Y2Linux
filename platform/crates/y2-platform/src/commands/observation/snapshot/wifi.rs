@@ -1,5 +1,6 @@
 //! The `wifi` section: supplicant state, addresses, route, DNS readiness and signal.
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::commands::connectivity::direct;
 use crate::commands::observation::util::{
     self, fields, fresh_seconds, key_values, name, number, read, record_fields, text,
 };
@@ -207,7 +208,8 @@ pub fn observe(
     let started = root.clock().monotonic_ns();
     // Station statistics can hold the control loop for about 2.1 s on this firmware. Bound the
     // observation above that measured delay.
-    let wpa = radio.then(|| command::run(root, &["wpa_cli", "-i", "wlan0", "status"], 3.0));
+    // On the player wpa_supplicant's control socket answers in process (connectivity::direct).
+    let wpa = radio.then(|| direct::wpa_cli(root, "status", 3.0));
     let duration = radio.then(|| root.clock().monotonic_ns() - started);
     let mut properties: Map<String, Value> =
         key_values(wpa.as_ref().and_then(|w| w.output.as_deref()), "=")
@@ -232,18 +234,8 @@ pub fn observe(
     }
     let (ip, routes) = if radio {
         (
-            command::run(
-                root,
-                &["ip", "-j", "-4", "addr", "show", "dev", "wlan0"],
-                command::TIMEOUT,
-            )
-            .output,
-            command::run(
-                root,
-                &["ip", "-j", "-4", "route", "show", "default", "dev", "wlan0"],
-                command::TIMEOUT,
-            )
-            .output,
+            direct::ipv4_addresses(root, "wlan0", command::TIMEOUT).output,
+            direct::default_route(root, "wlan0", command::TIMEOUT).output,
         )
     } else {
         (None, None)
@@ -314,7 +306,7 @@ pub fn observe(
     };
     let association = properties.get("wpa_state").cloned().unwrap_or(Value::Null);
     if association.as_str() == Some("COMPLETED") && !fresh {
-        let poll = command::run(root, &["wpa_cli", "-i", "wlan0", "signal_poll"], 3.0);
+        let poll = direct::wpa_cli(root, "signal_poll", 3.0);
         let values = key_values(poll.output.as_deref(), "=");
         rssi = number(values.get("RSSI").map(String::as_str));
         signal = json!({"boot_id": boot, "bssid": bssid, "monotonic_s": root.clock().monotonic(),

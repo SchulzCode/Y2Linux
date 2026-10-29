@@ -23,7 +23,6 @@ use std::{
 };
 use wake::{AddressEvents, Signals, RUNNING};
 use y2p_core::{
-    command,
     py::{self, eq_int},
     Root,
 };
@@ -56,11 +55,7 @@ type Address = Result<(), &'static str>;
 /// usb0 carries exactly 10.42.0.1/24 (`ip -j` JSON); an answer that is not the expected shape is
 /// `usb_interface_not_ready`.
 fn usb_address(root: &Root) -> Address {
-    let result = command::run(
-        root,
-        &["ip", "-j", "-4", "addr", "show", "dev", "usb0"],
-        1.0,
-    );
+    let result = crate::commands::connectivity::direct::ipv4_addresses(root, "usb0", 1.0);
     let parsed: Option<Value> = serde_json::from_str(result.output.as_deref().unwrap_or("")).ok();
     match parsed.as_ref().map(configured) {
         Some(Ok(true)) => Ok(()),
