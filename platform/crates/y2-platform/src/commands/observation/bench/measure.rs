@@ -12,13 +12,8 @@ use std::{
     io,
     os::fd::{AsRawFd, RawFd},
 };
-use y2p_core::{
-    observation_support::{
-        sha2::{Digest, Sha256},
-        PyRandom,
-    },
-    Root,
-};
+use y2p_core::digest::sha256_hex as hex;
+use y2p_core::{observation_support::PyRandom, Root};
 
 /// What runs once after a measurement's steps (an fdatasync, a directory fsync).
 type Finalize<'f> = &'f dyn Fn(&Scratch) -> Result<()>;
@@ -322,11 +317,4 @@ impl Bench<'_> {
         }
         Ok(regions)
     }
-}
-
-fn hex(bytes: &[u8]) -> String {
-    Sha256::digest(bytes)
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
 }

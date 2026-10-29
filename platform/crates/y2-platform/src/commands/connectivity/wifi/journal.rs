@@ -2,7 +2,7 @@
 //! renewal, written only where /data is the platform's own verified mount.
 // SPDX-License-Identifier: GPL-2.0-only
 use serde::Serialize;
-use std::time::{SystemTime, UNIX_EPOCH};
+use y2p_core::clock::wall;
 use y2p_core::{
     connectivity_journal::append_bounded,
     json::{dumps, Separators},
@@ -13,12 +13,6 @@ use y2p_core::{
 /// Durable Wi-Fi self-heal rows (F52/F53); never a network name or address.
 pub const JOURNAL: &str = "/data/system/platform/wifi-journal.jsonl";
 pub const JOURNAL_LIMIT: u64 = 262_144;
-fn wall() -> f64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0.0, |d| d.as_secs_f64())
-}
-
 /// One decimal, rounded from the exact binary value (`round(x, 1)`), so the rows' ages and dwell times
 /// read as the report analyses have always parsed them.
 pub fn round1(x: f64) -> f64 {

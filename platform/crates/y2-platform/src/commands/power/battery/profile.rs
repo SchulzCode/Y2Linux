@@ -136,7 +136,7 @@ pub fn interpolate(points: &Table, uv: f64) -> f64 {
 
 /// `interpolate(points, uv)` for an int voltage: `(b - a) * (uv - low) / (high - low)` is int/int true
 /// division in Python, exact operands divided once.
-pub fn interpolate_int(points: &Table, uv: i64) -> f64 {
+pub fn interpolate_int(points: &[(i64, i64)], uv: i64) -> f64 {
     if uv <= points[0].0 {
         return points[0].1 as f64;
     }

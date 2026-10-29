@@ -40,6 +40,7 @@ use std::{
         OnceLock,
     },
 };
+pub use y2p_core::paths::{name, parent_name};
 use y2p_core::{json::ObjectExt, py, suspend_text::Regex, Root};
 
 /// The Rust implementation of these exact (canonical) arguments, if this group has one.
@@ -365,18 +366,6 @@ pub fn as_map<K: Serialize, V: Serialize, S: Serializer>(
         map.serialize_entry(key, value)?;
     }
     map.end()
-}
-
-/// The last component of a sysfs path (a device or file name, lossy for bytes that are no text).
-pub fn name(path: &Path) -> String {
-    path.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
-
-/// The name of a sysfs file's directory (the device a `.../<device>/status` belongs to).
-pub fn parent_name(path: &Path) -> String {
-    path.parent().map(name).unwrap_or_default()
 }
 
 /// A text that should hold a decimal integer and does not: the reason names it.

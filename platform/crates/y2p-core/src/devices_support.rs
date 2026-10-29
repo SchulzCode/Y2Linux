@@ -1,6 +1,7 @@
 //! Helpers of the devices commands that other groups use too: the evidence record a measured or
 //! user-visible operation carries, its UTC ISO 8601 timestamp, and SHA-256.
 // SPDX-License-Identifier: GPL-2.0-only
+pub use crate::digest::hex;
 use crate::{
     json::{Object, ObjectExt},
     Root,
@@ -69,17 +70,6 @@ pub fn record(root: &Root, workload: &str, parameters: Value) -> Object {
         .with("result", Value::Null)
         .with("failure", Value::Null)
         .with("evidence_level", "IMPLEMENTED")
-}
-
-/// A finished digest as lowercase hex.
-pub fn hex(digest: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut text = String::with_capacity(digest.len() * 2);
-    for byte in digest {
-        text.push(char::from(DIGITS[usize::from(byte >> 4)]));
-        text.push(char::from(DIGITS[usize::from(byte & 0xf)]));
-    }
-    text
 }
 
 #[cfg(test)]

@@ -12,7 +12,9 @@ use std::{
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+pub use y2p_core::clock::wall;
 pub use y2p_core::mounts::{mounts, Mount};
+pub use y2p_core::paths::name;
 use y2p_core::py::PyValue;
 pub use y2p_core::sys::statvfs;
 use y2p_core::{
@@ -125,13 +127,6 @@ pub fn is_symlink(path: &Path) -> bool {
     fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink())
 }
 
-/// The last path component (empty for none).
-pub fn name(path: &Path) -> String {
-    path.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
-
 /// The directory with its parents (`mode` for the last one), fine when it exists.
 pub fn mkdir(path: &Path, mode: u32) -> Result<(), Failure> {
     mkdir_parents(path, mode)
@@ -181,13 +176,6 @@ pub fn device_instance(root: &Root, device_id: &str) -> Option<String> {
 }
 
 // ---- records -----------------------------------------------------------------------------------
-
-/// Wall-clock seconds since the epoch.
-pub fn wall() -> f64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0.0, |d| d.as_secs_f64())
-}
 
 /// Whole wall-clock seconds since the epoch.
 pub fn wall_seconds() -> i64 {

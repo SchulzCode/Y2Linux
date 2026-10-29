@@ -2,6 +2,7 @@
 //! enough battery.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::super::sys::{exists, get, is_symlink, isdigit, read};
+use crate::commands::power::battery::interpolate_int;
 use serde_json::{json, Value};
 use y2p_core::{
     py::{exact_int, PyValue},
@@ -125,20 +126,6 @@ fn load_profile(root: &Root) -> Option<Vec<(i64, i64)>> {
     Some(points)
 }
 
-/// The percent at `uv`, linear between the table's rows, clamped at its ends.
-fn interpolate(points: &[(i64, i64)], uv: i64) -> f64 {
-    if uv <= points[0].0 {
-        return points[0].1 as f64;
-    }
-    for pair in points.windows(2) {
-        let ((low, a), (high, b)) = (pair[0], pair[1]);
-        if uv <= high {
-            return a as f64 + ((b - a) * (uv - low)) as f64 / (high - low) as f64;
-        }
-    }
-    points[points.len() - 1].1 as f64
-}
-
 /// Why the setup must not start on its own now (it runs at a later start).
 pub(super) fn automatic_blocked(root: &Root) -> Option<&'static str> {
     let update = update_state(root);
@@ -168,7 +155,7 @@ pub(super) fn automatic_blocked(root: &Root) -> Option<&'static str> {
         return Some("battery_unknown");
     };
     let uv = voltage.parse::<i64>().unwrap_or(i64::MAX);
-    if interpolate(&profile, uv) >= MIN_PERCENT {
+    if interpolate_int(&profile, uv) >= MIN_PERCENT {
         None
     } else {
         Some("battery_low")
@@ -182,9 +169,9 @@ mod tests {
     #[test]
     fn profiles_interpolate_between_rows() {
         let points = [(3_400_000, 0), (3_800_000, 50), (4_200_000, 100)];
-        assert_eq!(interpolate(&points, 3_000_000), 0.0);
-        assert_eq!(interpolate(&points, 3_600_000), 25.0);
-        assert_eq!(interpolate(&points, 4_300_000), 100.0);
-        assert_eq!(interpolate(&points, 3_700_001), 37.500125);
+        assert_eq!(interpolate_int(&points, 3_000_000), 0.0);
+        assert_eq!(interpolate_int(&points, 3_600_000), 25.0);
+        assert_eq!(interpolate_int(&points, 4_300_000), 100.0);
+        assert_eq!(interpolate_int(&points, 3_700_001), 37.500125);
     }
 }

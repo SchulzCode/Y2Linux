@@ -4,7 +4,7 @@
 use crate::reply::{atomic_json, lock, private_directory, Failure, Outcome, Reply};
 use serde::Serialize;
 use serde_json::{json, Map, Value};
-use std::time::{SystemTime, UNIX_EPOCH};
+pub use y2p_core::clock::wall;
 use y2p_core::{
     command,
     json::{sorted_object, Object, ObjectExt},
@@ -15,13 +15,6 @@ use y2p_core::{
 /// The durable floor (time-last.json) is written at most once an hour.
 pub(crate) const RETAIN_S: f64 = 3600.0;
 pub(crate) const LAST: &str = "/data/system/platform/time-last.json";
-
-/// The wall clock in seconds since the epoch (0 before it).
-pub fn wall() -> f64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0.0, |d| d.as_secs_f64())
-}
 
 /// CLOCK_BOOTTIME in seconds as `root` reads it.
 fn boottime_of(root: &Root) -> f64 {

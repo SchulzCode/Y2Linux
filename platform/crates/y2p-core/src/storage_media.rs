@@ -3,6 +3,7 @@
 //! the space cleanup. The patterns are Unicode-aware (`\d`, `\S`, `\s`, `\b`), as the classes were
 //! recorded with.
 // SPDX-License-Identifier: GPL-2.0-only
+pub use crate::digest::sha256_hex;
 pub use crate::text::splitlines;
 use crate::text::strip;
 use regex::Regex;
@@ -307,14 +308,6 @@ pub fn tables_bytes(boot: &[u8], filesystem: &str) -> Option<u64> {
         return (9..=12).contains(&shift).then(|| u32_at(boot, 88) << shift);
     }
     None
-}
-
-/// The SHA-256 of `text` as lowercase hex.
-pub fn sha256_hex(text: &[u8]) -> String {
-    Sha256::digest(text)
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
 }
 
 /// SHA-256 fed in chunks, as lowercase hex at the end (Y2Media's copy verification).

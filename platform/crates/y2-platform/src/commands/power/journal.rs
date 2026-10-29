@@ -26,6 +26,7 @@ use serde::Serialize;
 use serde_json::Value;
 use sleep::sleep_status;
 use y2p_core::mounts::data_ready;
+use y2p_core::paths::{name as glob_name, parent_name};
 use y2p_core::{
     json::{dumps, Separators},
     json::{Object, ObjectExt},
@@ -47,16 +48,6 @@ const ROW: usize = 16384;
 /// never passed on.
 #[derive(Debug)]
 pub struct Dropped;
-
-fn glob_name(path: &std::path::Path) -> String {
-    path.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
-
-fn parent_name(path: &std::path::Path) -> String {
-    path.parent().map(glob_name).unwrap_or_default()
-}
 
 /// `ctx.json(name)` without a default.
 fn json(root: &Root, name: &str) -> Value {

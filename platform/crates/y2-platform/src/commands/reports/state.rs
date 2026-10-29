@@ -4,6 +4,7 @@
 use super::{json_at, media, pyjson::Py, pyops::OrRefuse};
 use crate::reply::{mkdir_parents, Failure};
 use std::path::PathBuf;
+pub use y2p_core::paths::name;
 use y2p_core::Root;
 
 pub const STATE: &str = "/data/system/platform/reports.json";
@@ -147,12 +148,6 @@ pub fn save(root: &Root, value: &Py) -> Result<(), Failure> {
 /// The queued reports (`QUEUE/*.tar.gz`).
 pub fn queued(root: &Root) -> Vec<PathBuf> {
     root.glob(&format!("{QUEUE}/*.tar.gz"))
-}
-
-pub fn name(path: &std::path::Path) -> String {
-    path.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
 }
 
 /// The build-wide upload key, or None when this build has none. It is public (it

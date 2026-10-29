@@ -28,10 +28,10 @@ use std::{
     },
     path::{Path, PathBuf},
 };
+use y2p_core::digest::sha256_hex as hex;
 use y2p_core::mounts::mounts_at;
 use y2p_core::{
     json::{dumps, dumps_sorted, Separators},
-    observation_support::sha2::{Digest, Sha256},
     py::{self, is_false, truthy},
     Root,
 };
@@ -53,13 +53,6 @@ const PM_FILES: [&str; 6] = [
     "reset_status",
     "backstop_s",
 ];
-
-fn hex(bytes: &[u8]) -> String {
-    Sha256::digest(bytes)
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
-}
 
 /// F56: how LK says this boot started. The RGU status is cleared before Linux reads it (0x0 in
 /// every report), but a SoC reset (the watchdog, a restart) keeps the PMIC on: boot_reason 3-6 is

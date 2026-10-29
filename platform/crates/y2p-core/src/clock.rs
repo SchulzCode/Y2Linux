@@ -131,6 +131,13 @@ impl Clock for Manual {
     }
 }
 
+/// The wall clock in seconds since the epoch (`time.time()`); 0 before 1970.
+pub fn wall() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0.0, |d| d.as_secs_f64())
+}
+
 #[cfg(test)]
 mod tests {
     use super::Clock;

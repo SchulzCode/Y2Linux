@@ -11,6 +11,7 @@ use std::{
     path::{Component, Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
+pub use y2p_core::paths::{name, parent_name};
 use y2p_core::py::PyValue;
 pub use y2p_core::text::{split as split_ws, splitlines};
 use y2p_core::{
@@ -194,18 +195,6 @@ pub fn is_number(value: Option<&Value>) -> Option<f64> {
 /// `0 <= now - stamp < window` for a monotonic seconds stamp read from JSON.
 pub fn fresh_seconds(root: &Root, stamp: Option<&Value>, window: f64) -> bool {
     is_number(stamp).is_some_and(|t| (0.0..window).contains(&(root.clock().monotonic() - t)))
-}
-
-/// Path.name.
-pub fn name(path: &Path) -> String {
-    path.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
-
-/// The name of the parent directory (`path.parent.name`).
-pub fn parent_name(path: &Path) -> String {
-    path.parent().map(name).unwrap_or_default()
 }
 
 /// `os.path.realpath(path)` (non-strict `Path.resolve()`): symlinks followed where they exist, the

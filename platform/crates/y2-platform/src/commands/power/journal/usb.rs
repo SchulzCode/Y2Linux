@@ -4,7 +4,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use serde::Serialize;
 use serde_json::Value;
-use std::{path::Path, sync::OnceLock};
+use std::sync::OnceLock;
+use y2p_core::paths::{name, parent_name};
 use y2p_core::{
     json::Object,
     root::read,
@@ -69,16 +70,6 @@ struct Usb0 {
     flags: Option<String>,
     ipv4: Vec<String>,
     statistics: Object,
-}
-
-fn name(path: &Path) -> String {
-    path.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
-
-fn parent_name(path: &Path) -> String {
-    path.parent().map(name).unwrap_or_default()
 }
 
 fn pattern(cell: &'static OnceLock<Option<Regex>>, text: &str) -> Option<&'static Regex> {

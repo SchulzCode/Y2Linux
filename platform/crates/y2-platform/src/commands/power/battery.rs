@@ -7,7 +7,7 @@ mod profile;
 mod soc;
 mod status;
 
-pub use profile::load_profile;
+pub use profile::{interpolate_int, load_profile};
 pub use soc::Soc;
 pub use status::{BatteryStatus, DisplayRecord, UI_STATE};
 

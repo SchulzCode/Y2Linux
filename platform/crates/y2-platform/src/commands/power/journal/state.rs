@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use serde::Serialize;
 use serde_json::Value;
-use std::{fs::File, io::Read, os::unix::fs::OpenOptionsExt, path::Path};
+use std::{fs::File, io::Read, os::unix::fs::OpenOptionsExt};
+use y2p_core::paths::parent_name;
 use y2p_core::{json::Object, root::read, text::splitlines, Root};
 
 /// The SPM's sysfs directory.
@@ -29,13 +30,6 @@ const KERNEL_TOKENS: [&str; 18] = [
     "usb0",
     "PM: ",
 ];
-
-fn parent_name(path: &Path) -> String {
-    path.parent()
-        .and_then(Path::file_name)
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
 
 /// The 13 sleep-parity switches and counters, the INFRA and SPM state; after a return also the
 /// always-on/INFRA golden registers.
