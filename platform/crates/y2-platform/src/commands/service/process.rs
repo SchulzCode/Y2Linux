@@ -57,6 +57,11 @@ pub fn spawn(root: &Root, argv: &[&str], how: Start) -> Result<Child, Failure> {
         return Err(Failure::os_message("empty argv"));
     };
     if !root.is_real() {
+        #[cfg(test)]
+        if let Some(instead) = testing::instead(argv) {
+            let instead: Vec<&str> = instead.iter().map(String::as_str).collect();
+            return spawn(&Root::new("/"), &instead, how);
+        }
         record(argv);
         return Err(missing(program));
     }
@@ -171,6 +176,35 @@ pub fn run(root: &Root, argv: &[&str], seconds: f64) -> bool {
             }
             Err(_) => return false,
         }
+    }
+}
+
+/// Unit tests: what a fixture root starts in place of a request (per thread), as Python's tests hand
+/// `USBService` a `launch` and patch its `command`. `None` refuses the request as without a script.
+#[cfg(test)]
+pub mod testing {
+    use std::cell::RefCell;
+
+    type Launch = Box<dyn FnMut(&[&str]) -> Option<Vec<String>>>;
+
+    thread_local! {
+        static LAUNCH: RefCell<Option<Launch>> = const { RefCell::new(None) };
+    }
+
+    /// Run `f` with `launch` answering this thread's starts below a fixture root: the host argv to
+    /// start instead (a stand-in responder, `true` for an acknowledged command).
+    pub fn launching<T>(
+        launch: impl FnMut(&[&str]) -> Option<Vec<String>> + 'static,
+        f: impl FnOnce() -> T,
+    ) -> T {
+        LAUNCH.with(|l| *l.borrow_mut() = Some(Box::new(launch)));
+        let value = f();
+        LAUNCH.with(|l| *l.borrow_mut() = None);
+        value
+    }
+
+    pub(super) fn instead(argv: &[&str]) -> Option<Vec<String>> {
+        LAUNCH.with(|l| l.borrow_mut().as_mut().and_then(|launch| launch(argv)))
     }
 }
 
