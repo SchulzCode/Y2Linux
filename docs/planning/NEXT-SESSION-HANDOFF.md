@@ -1,6 +1,15 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-29, afternoon): TEST BUILD 170 ON THE OWNER'S PLAYER — PLATFORM DEFECTS FIXED, RUST-ONLY TESTS, NOT PUBLISHED.**
+> **START HERE (2026-10-29, evening): TEST BUILD 171 — THE REFACTORED RUST PLATFORM — ON THE OWNER'S PLAYER, NOT PUBLISHED.**
+> Owner: "just do the refactoring plan now and after you are finished install via ota". Done on `main` (not
+> pushed): [refactor plan](PLATFORM-RUST-REFACTOR-PLAN.md) waves 1 and 2 (cli.rs parser, one shared core in
+> y2p-core, typed records, split modules, tests through the root's runner/clock, crash paths → refusal records,
+> daemons survive odd records, same-lease DHCP renew changes nothing; CONTRACT.md "Refactor"). Test build **171**
+> (seq 11160) installed by OTA from 170, Acknowledged in 86 s, application_ready 37.45 s. **Owed:** the owner's
+> hardware checks (PLATFORM-RUST-PORT-HANDOFF.md §6 A) on 171; owner questions in the plan's status line. Next free
+> label 172, sequence above 11160.
+>
+> Previous entry: **START HERE (2026-10-29, afternoon): TEST BUILD 170 ON THE OWNER'S PLAYER — PLATFORM DEFECTS FIXED, RUST-ONLY TESTS, NOT PUBLISHED.**
 > Owner: "start fixing the defects … no python … going forward, we only have the rust code"; then "just put it on
 > the player and then review and see what works", and a code-quality refactor later. Done on `main` (not pushed):
 > the ten carried defects fixed (CONTRACT.md table; Reborn `9859348` adds the `update_in_progress` message),

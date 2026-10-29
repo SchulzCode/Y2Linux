@@ -9658,3 +9658,13 @@ records scripts grep, persistent /data formats, multicall names, stdout JSON for
 memory map, partition, recovery or package-set change. Gate: host suite + cargo tests + goldens green, then test
 build 171 by OTA; not release-qualified until the owner's checks pass on it.
 
+**Device result (2026-10-29 evening, owner's player, from 170 by staged OTA):** test build 171 (sequence 11160, the
+refactored platform: one shared core, typed records, split modules, cli.rs parser, refusal records instead of
+tracebacks, same-lease DHCP renew without `ip` commands) staged by 170's Rust update, applied 20:15:35,
+Acknowledged by 171's health-ack 20:17:01 (86 s); boot platform_start 6.52 s, services_started 19.85 s,
+application_ready 37.45 s; daemons 3.4–4.5 MB RSS each; the daily update check reached the server over Wi-Fi;
+SFTP root Internal Storage; help says y2-platform, an abbreviated option is refused (exit 2). Host evidence before
+the build: cargo test, clippy, armv7 check, golden suite, host suite 576 OK, byte comparison against the pre-wave-2
+build: every difference is a deliberately re-recorded golden. The owner's hardware checks (PLATFORM-RUST-PORT-HANDOFF.md
+§6 A) are owed on 171; 170 (sequence 11150) is the comparison point.
+

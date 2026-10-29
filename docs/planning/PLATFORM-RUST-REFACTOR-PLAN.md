@@ -1,9 +1,13 @@
 # Platform Rust refactor: from ported Python to idiomatic Rust
 
-Status: **in progress (started 2026-10-29 on the owner's word).** The owner chose to do it right away, before the
-hardware checks on test build 170 ("can you just do the refactoring plan now and after you are finished install via
-ota"); the result goes to the player as test build 171, and the hardware checks then cover both. If one fails, 170
-(sequence 11150) is the comparison point.
+Status: **done 2026-10-29: test build 171 (sequence 11160) is on the owner's player, Acknowledged.** Both waves are
+merged on `main`; the resume-point and progress notes below are history. Owed: the owner's hardware checks on 171
+(170 is the comparison point); open owner questions: Python wording left in some refusal texts, whether the
+remaining radios are restored after a failed Wi-Fi restore after sleep, whether service-daemon should skip odd
+records (now) or end with an error record, whether an unreadable queued error report should be dropped. Still
+open from the plan: event-driven daemons (§2.5, needs drain measurements), merging the Python text helpers that
+remain per group (suspend_text, power_text, observation util, reports pyre, storage_media), the reset plan and
+diagnostics input as `Py`, the duplicate journal code in suspend and power.
 
 **Progress (2026-10-29, stopped at the usage limit):** wave 1 is merged on `main` (2f5b5075): the argparse emulation
 is replaced by `crates/y2-platform/src/cli.rs` (table-driven, `y2-platform __arguments` feeds platform-contract.py)
