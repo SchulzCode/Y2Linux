@@ -15,7 +15,7 @@
 use super::media::{mkdir_io, properties};
 use super::observe::setup_status;
 use super::sys::{
-    available, device_instance, exists, get, get_eq, is_symlink, isdigit, lock_now, mkdir,
+    device_instance, exists, get, get_eq, is_symlink, isdigit, lock_now, mkdir,
     mounts as all_mounts, name, object, read, release_view, resolve, statvfs, text, Mount, Object,
 };
 use crate::reply::{atomic_json, atomic_json_mode, write_text, Failure};
@@ -519,7 +519,7 @@ fn migrate(
     let total: u64 = files.iter().map(|(_, size)| size).sum();
     let media = root.path(PATH);
     let free = statvfs(&media).map_err(|e| Failure::os(e, &media))?;
-    if total + RESERVE > available(&free) {
+    if total + RESERVE > free.available() {
         return Err(Failure::value("migration_does_not_fit"));
     }
     makedirs(&dst, 0o755)?;
@@ -1043,7 +1043,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
             None => {
                 let data = root.path("/data");
                 let free = statvfs(&data).map_err(|e| Failure::os(e, &data))?;
-                decide(&kept, available(&free))
+                decide(&kept, free.available())
             }
         };
         if case == 3 {

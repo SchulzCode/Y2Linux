@@ -6,7 +6,8 @@
 use super::{json_at, media};
 pub use crate::commands::devices::storage::{data_volume, Volume};
 use crate::reply::Failure;
-use std::os::fd::{AsRawFd, OwnedFd};
+use std::os::fd::AsFd;
+use std::os::fd::OwnedFd;
 use y2p_core::Root;
 
 pub const RESERVE: u64 = 96 * 1024 * 1024;
@@ -28,16 +29,11 @@ pub fn admitted(volume: &Volume, requested: u64) -> bool {
 
 /// `update.free(fd, size)`.
 pub fn free(fd: &OwnedFd, size: u64) -> Result<(), Failure> {
-    // SAFETY: a zeroed statvfs is a valid output buffer.
-    let mut info: libc::statvfs64 = unsafe { std::mem::zeroed() };
-    // SAFETY: a valid descriptor and buffer.
-    if unsafe { libc::fstatvfs64(fd.as_raw_fd(), &mut info) } != 0 {
-        return Err(super::os_plain(std::io::Error::last_os_error()));
-    }
-    let available = info.f_bavail as u128 * info.f_frsize as u128;
-    if info.f_flag & libc::ST_RDONLY != 0
+    let info = y2p_core::sys::fstatvfs(fd.as_fd()).map_err(super::os_plain)?;
+    let available = info.bavail as u128 * info.frsize as u128;
+    if info.read_only()
         || available < size as u128 + RESERVE as u128
-        || (info.f_files != 0 && info.f_favail < 128)
+        || (info.files != 0 && info.favail < 128)
     {
         return Err(Failure::value("update_data_space_reserve"));
     }
@@ -57,7 +53,7 @@ pub fn open_directory(parent: &OwnedFd, component: &str) -> Result<OwnedFd, Fail
         media::fstat(&fd).map_err(super::os_plain)?,
         media::fstat(parent).map_err(super::os_plain)?,
     );
-    if a.st_dev != b.st_dev {
+    if a.dev != b.dev {
         return Err(Failure::value("transfer_submount_refused"));
     }
     Ok(fd)

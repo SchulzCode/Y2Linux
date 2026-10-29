@@ -24,6 +24,7 @@ use std::{
     time::Duration,
 };
 use y2p_core::lock;
+use y2p_core::sys::{set_signal, signal_disposition, Disposition, Handler};
 use y2p_core::{
     clock, command,
     json::{sorted, Object, ObjectExt},
@@ -304,7 +305,6 @@ struct Space {
 }
 
 fn fstatvfs(file: &File) -> Result<Space> {
-    use std::os::fd::AsRawFd;
     #[cfg(test)]
     if let Some(available) = seams::SPACE.with(|s| s.borrow().as_ref().map(|space| space())) {
         return Ok(Space {
@@ -314,18 +314,13 @@ fn fstatvfs(file: &File) -> Result<Space> {
             favail: 0,
         });
     }
-    // SAFETY: a zeroed statvfs filled by the kernel for an open descriptor.
-    let mut info: libc::statvfs64 = unsafe { std::mem::zeroed() };
-    if unsafe { libc::fstatvfs64(file.as_raw_fd(), &mut info) } != 0 {
-        return Err(Raise::Os(
-            py::os_error(&std::io::Error::last_os_error(), None).0,
-        ));
-    }
+    let info =
+        y2p_core::sys::fstatvfs(file.as_fd()).map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
     Ok(Space {
-        readonly: info.f_flag & libc::ST_RDONLY != 0,
-        available: info.f_bavail as i128 * info.f_frsize as i128,
-        files: info.f_files as u64,
-        favail: info.f_favail as u64,
+        readonly: info.read_only(),
+        available: info.bavail as i128 * info.frsize as i128,
+        files: info.files,
+        favail: info.favail,
     })
 }
 
@@ -710,7 +705,7 @@ fn wait_online(root: &Root, seconds: f64) -> bool {
 
 /// The SIGTERM disposition while `stage` runs (`signal.signal(SIGTERM, …)`), restored when it ends.
 struct Terminate {
-    previous: libc::sigaction,
+    previous: Option<Disposition>,
 }
 
 extern "C" fn cancel(_: libc::c_int) {
@@ -719,27 +714,22 @@ extern "C" fn cancel(_: libc::c_int) {
 
 impl Terminate {
     fn save() -> Self {
-        // SAFETY: reading the current action into a zeroed struct.
-        let mut previous: libc::sigaction = unsafe { std::mem::zeroed() };
-        unsafe { libc::sigaction(libc::SIGTERM, std::ptr::null(), &mut previous) };
-        Self { previous }
+        Self {
+            previous: signal_disposition(libc::SIGTERM).ok(),
+        }
     }
 
-    fn set(handler: libc::sighandler_t) {
+    fn set(handler: Handler) {
         // SAFETY: a plain handler (an atomic store) or SIG_IGN, no SA_RESTART so reads are interrupted.
-        unsafe {
-            let mut action: libc::sigaction = std::mem::zeroed();
-            action.sa_sigaction = handler;
-            libc::sigemptyset(&mut action.sa_mask);
-            libc::sigaction(libc::SIGTERM, &action, std::ptr::null_mut());
-        }
+        let _ = unsafe { set_signal(libc::SIGTERM, handler, 0) };
     }
 }
 
 impl Drop for Terminate {
     fn drop(&mut self) {
-        // SAFETY: restoring the action saved at the start.
-        unsafe { libc::sigaction(libc::SIGTERM, &self.previous, std::ptr::null_mut()) };
+        if let Some(previous) = &self.previous {
+            previous.restore(libc::SIGTERM);
+        }
     }
 }
 
@@ -969,7 +959,7 @@ impl Staging<'_> {
             .ok_or_else(malformed)?;
         // Until the package is committed below, SIGTERM (Reborn's Cancel) stops the download and
         // leaves the release offered as before.
-        Terminate::set(cancel as *const () as libc::sighandler_t);
+        Terminate::set(Handler::Call(cancel));
         // Root payload plus its backup during installation; refuse early, not in recovery.
         cleaned += make_room(root, file, total as i128 + raw.div_euclid(4) as i128)?;
         if CANCELLED.load(Ordering::SeqCst) {
@@ -1017,7 +1007,7 @@ impl Staging<'_> {
             return Err(Raise::value("update_data_generation_changed"));
         }
         // The commit point: from here the package is queued, never half-cancelled.
-        Terminate::set(libc::SIG_IGN);
+        Terminate::set(Handler::Ignore);
         if CANCELLED.load(Ordering::SeqCst) {
             return Err(Raise::Net(Net::Cancelled));
         }

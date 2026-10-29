@@ -1289,8 +1289,8 @@ fn storage_reports_an_undersized_filesystem_without_changing_it() {
     // The fixture's /media/sd is a real directory: size the partition against its filesystem
     // (Python faked statvfs).
     let vfs = statvfs(&card.path("/media/sd")).unwrap();
-    #[allow(clippy::unnecessary_cast)] // the field widths differ on the player's 32-bit ARM
-    let total = vfs.f_blocks as u64 * vfs.f_frsize as u64;
+
+    let total = vfs.total();
     let sectors = total / 512 * 2;
     card.fixture
         .put("/sys/class/block/mmcblk1p1/size", &sectors.to_string());

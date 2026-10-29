@@ -1037,15 +1037,6 @@ fn media_identity(entry: &Path, filesystem: &Value, uuid: &Value) -> Value {
     identity
 }
 
-fn statvfs(path: &Path) -> Option<libc::statvfs64> {
-    let name = std::ffi::CString::new(path.as_os_str().as_encoded_bytes()).ok()?;
-    let mut vfs = std::mem::MaybeUninit::<libc::statvfs64>::uninit();
-    // SAFETY: a NUL-terminated path and a buffer for the result.
-    (unsafe { libc::statvfs64(name.as_ptr(), vfs.as_mut_ptr()) } == 0)
-        // SAFETY: statvfs filled it.
-        .then(|| unsafe { vfs.assume_init() })
-}
-
 pub fn storage(root: &Root) -> Result<Value, Failure> {
     let mounts = y2p_core::mounts::mounts(root);
     let boot = root.boot_id();
@@ -1158,21 +1149,21 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
         if target == "/media/sd" {
             item.insert("writable".into(), json!(!readonly));
         }
-        match statvfs(&root.path(target)) {
+        match y2p_core::sys::statvfs(&root.path(target)).ok() {
             Some(vfs) => {
-                let frsize = i128::from(vfs.f_frsize);
-                let total = i128::from(vfs.f_blocks) * frsize;
-                let available = i128::from(vfs.f_bavail) * frsize;
+                let frsize = i128::from(vfs.frsize);
+                let total = i128::from(vfs.blocks) * frsize;
+                let available = i128::from(vfs.bavail) * frsize;
                 item.insert("total_bytes".into(), json!(total as u64));
                 item.insert("available_bytes".into(), json!(available as u64));
                 item.insert(
                     "free_bytes".into(),
-                    json!((i128::from(vfs.f_bfree) * frsize) as u64),
+                    json!((i128::from(vfs.bfree) * frsize) as u64),
                 );
-                item.insert("available_inodes".into(), json!(vfs.f_favail));
+                item.insert("available_inodes".into(), json!(vfs.favail));
                 let mut space =
                     space_state(available, total, readonly && !protected, state == "Failed");
-                if vfs.f_files > 0 && vfs.f_favail == 0 {
+                if vfs.files > 0 && vfs.favail == 0 {
                     space = "CriticalSpace";
                 }
                 item.insert("space_state".into(), json!(space));

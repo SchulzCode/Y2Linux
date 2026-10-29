@@ -10,6 +10,7 @@ use crate::{
     reply::{Failure, Outcome, Reply},
 };
 use serde_json::{json, Map, Value};
+use std::os::fd::BorrowedFd;
 use std::{
     collections::BTreeSet,
     ffi::CString,
@@ -98,20 +99,19 @@ fn openat(directory: RawFd, name: &str, flags: i32, mode: libc::mode_t) -> Resul
     Ok(File::from(unsafe { OwnedFd::from_raw_fd(fd) }))
 }
 
-fn fstat(fd: RawFd) -> Result<libc::stat64> {
-    let mut meta = std::mem::MaybeUninit::<libc::stat64>::uninit();
-    // SAFETY: a descriptor and a buffer for the result.
-    check(unsafe { libc::fstat64(fd, meta.as_mut_ptr()) }).map_err(|e| Error::os(e, None))?;
-    // SAFETY: fstat filled it.
-    Ok(unsafe { meta.assume_init() })
+/// A descriptor of this run (the volume, its run directory, a file) for one call.
+fn borrowed(fd: RawFd) -> BorrowedFd<'static> {
+    // SAFETY: every descriptor a measurement passes stays open until the measurement ends, longer
+    // than any one call it is borrowed for.
+    unsafe { BorrowedFd::borrow_raw(fd) }
 }
 
-fn fstatvfs(fd: RawFd) -> Result<libc::statvfs64> {
-    let mut vfs = std::mem::MaybeUninit::<libc::statvfs64>::uninit();
-    // SAFETY: a descriptor and a buffer for the result.
-    check(unsafe { libc::fstatvfs64(fd, vfs.as_mut_ptr()) }).map_err(|e| Error::os(e, None))?;
-    // SAFETY: fstatvfs filled it.
-    Ok(unsafe { vfs.assume_init() })
+fn fstat(fd: RawFd) -> Result<y2p_core::sys::Stat> {
+    y2p_core::sys::fstat(borrowed(fd)).map_err(|e| Error::os(e, None))
+}
+
+fn fstatvfs(fd: RawFd) -> Result<y2p_core::sys::Space> {
+    y2p_core::sys::fstatvfs(borrowed(fd)).map_err(|e| Error::os(e, None))
 }
 
 fn sync(fd: RawFd, data_only: bool) -> Result<()> {
@@ -134,22 +134,12 @@ fn write_all(fd: RawFd, data: &[u8], offset: usize) -> Result<()> {
     }
     let mut written = 0;
     while written < data.len() {
-        // SAFETY: the unwritten tail of `data`.
-        let n = unsafe {
-            libc::pwrite64(
-                fd,
-                data[written..].as_ptr().cast(),
-                data.len() - written,
-                (offset + written) as libc::off64_t,
-            )
-        };
-        if n < 0 {
-            return Err(Error::os(io::Error::last_os_error(), None));
-        }
+        let n = y2p_core::sys::pwrite(borrowed(fd), &data[written..], (offset + written) as u64)
+            .map_err(|e| Error::os(e, None))?;
         if n == 0 {
             return Err(Error::raised(libc::EIO, "short_write"));
         }
-        written += n as usize;
+        written += n;
     }
     Ok(())
 }
@@ -159,19 +149,9 @@ fn pread(fd: RawFd, size: usize, offset: usize) -> Result<Vec<u8>> {
     #[cfg(test)]
     let offset = bench_tests::read_offset(size, offset);
     let mut buffer = vec![0u8; size];
-    // SAFETY: a buffer of `size` bytes.
-    let n = unsafe {
-        libc::pread64(
-            fd,
-            buffer.as_mut_ptr().cast(),
-            size,
-            offset as libc::off64_t,
-        )
-    };
-    if n < 0 {
-        return Err(Error::os(io::Error::last_os_error(), None));
-    }
-    buffer.truncate(n as usize);
+    let n = y2p_core::sys::pread(borrowed(fd), &mut buffer, offset as u64)
+        .map_err(|e| Error::os(e, None))?;
+    buffer.truncate(n);
     Ok(buffer)
 }
 
@@ -245,9 +225,9 @@ impl<'a> Scratch<'a> {
             .map_err(|e| Error::os(e, Some(&path.to_string_lossy())))?;
         let vfs = fstatvfs(volume.as_raw_fd())?;
         self.volume_fd = Some(volume);
-        let frsize = u128::from(vfs.f_frsize);
-        let reserve = (96u128 * 1024 * 1024).max(u128::from(vfs.f_blocks) * frsize / 10);
-        if u128::from(vfs.f_bavail) * frsize < u128::from(budget) + reserve {
+        let frsize = u128::from(vfs.frsize);
+        let reserve = (96u128 * 1024 * 1024).max(u128::from(vfs.blocks) * frsize / 10);
+        if u128::from(vfs.bavail) * frsize < u128::from(budget) + reserve {
             return Err(Error::value("insufficient_scratch_reserve"));
         }
         self.ensure()?;
@@ -268,7 +248,7 @@ impl<'a> Scratch<'a> {
         let meta = fstat(base.as_raw_fd())?;
         self.base_fd = Some(base);
         // SAFETY: geteuid has no preconditions.
-        if meta.st_uid != unsafe { libc::geteuid() } || meta.st_mode & 0o077 != 0 {
+        if meta.uid != unsafe { libc::geteuid() } || meta.mode & 0o077 != 0 {
             return Err(Error::value("unsafe_scratch_permissions"));
         }
         let base_fd = self.base_fd.as_ref().expect("base").as_raw_fd();
@@ -313,7 +293,7 @@ impl<'a> Scratch<'a> {
             let current = std::fs::metadata(&path)
                 .map_err(|e| Error::os(e, Some(&path.to_string_lossy())))?;
             use std::os::unix::fs::MetadataExt;
-            if current.dev() != fstat(volume.as_raw_fd())?.st_dev {
+            if current.dev() != fstat(volume.as_raw_fd())?.dev {
                 return Err(Error::raised(libc::ENODEV, "source_device_changed"));
             }
         }
@@ -851,18 +831,9 @@ impl Bench<'_> {
             0,
             |s, n| {
                 let path = cname(&format!("f{n}"));
-                let mut meta = std::mem::MaybeUninit::<libc::stat64>::uninit();
-                // SAFETY: a NUL-terminated name relative to the run directory and a result buffer.
-                check(unsafe {
-                    libc::fstatat64(
-                        s.fd(),
-                        path.as_ptr(),
-                        meta.as_mut_ptr(),
-                        libc::AT_SYMLINK_NOFOLLOW,
-                    )
-                })
-                .map(drop)
-                .map_err(|e| Error::os(e, Some(&format!("f{n}"))))
+                y2p_core::sys::fstatat(borrowed(s.fd()), &path, libc::AT_SYMLINK_NOFOLLOW)
+                    .map(drop)
+                    .map_err(|e| Error::os(e, Some(&format!("f{n}"))))
             },
             None,
         )?;
@@ -1091,7 +1062,7 @@ pub fn library_benchmark(root: &Root, volume: &str, tracks: i64, scan: bool) -> 
     let outcome = (|| -> Result<Value> {
         let mut scratch = Scratch::new(root, volume, (tracks as u64) * 8192 + 32 * 1024 * 1024)?;
         let vfs = fstatvfs(scratch.fd())?;
-        if scan && vfs.f_files != 0 && (vfs.f_favail as i64) < tracks + 2048 {
+        if scan && vfs.files != 0 && (vfs.favail as i64) < tracks + 2048 {
             return Err(Error::value("insufficient_scratch_inode_reserve"));
         }
         scratch.child_outputs = true;

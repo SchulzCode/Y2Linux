@@ -6,10 +6,9 @@
 use crate::reply::{atomic_json, mkdir_parents, private_directory, Failure};
 use serde_json::{json, Map, Value};
 use std::{
-    ffi::CString,
     fs::{self, File, OpenOptions},
     io::{self, Write},
-    os::unix::{ffi::OsStrExt, fs::OpenOptionsExt},
+    os::unix::fs::OpenOptionsExt,
     path::{Component, Path, PathBuf},
     sync::{mpsc, Arc},
     thread,
@@ -17,6 +16,7 @@ use std::{
 };
 pub use y2p_core::mounts::{mounts, Mount};
 use y2p_core::py::PyValue;
+pub use y2p_core::sys::statvfs;
 use y2p_core::{
     lock,
     root::{read as read_text, READ_LIMIT},
@@ -140,25 +140,6 @@ pub fn name(path: &Path) -> String {
 /// `Path.mkdir(mode=mode, parents=True, exist_ok=True)`.
 pub fn mkdir(path: &Path, mode: u32) -> Result<(), Failure> {
     mkdir_parents(path, mode)
-}
-
-/// `os.statvfs(path)`.
-pub fn statvfs(path: &Path) -> io::Result<libc::statvfs64> {
-    let name = CString::new(path.as_os_str().as_bytes()).map_err(io::Error::other)?;
-    // SAFETY: a NUL-terminated path and a zeroed, writable statvfs.
-    unsafe {
-        let mut out: libc::statvfs64 = std::mem::zeroed();
-        if libc::statvfs64(name.as_ptr(), &mut out) != 0 {
-            return Err(io::Error::last_os_error());
-        }
-        Ok(out)
-    }
-}
-
-/// `f_bavail * f_frsize`.
-#[allow(clippy::unnecessary_cast)] // the field widths differ on the player's 32-bit ARM
-pub fn available(vfs: &libc::statvfs64) -> u64 {
-    vfs.f_bavail as u64 * vfs.f_frsize as u64
 }
 
 // ---- mounts and block devices ------------------------------------------------------------------

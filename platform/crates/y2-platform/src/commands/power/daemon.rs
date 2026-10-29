@@ -21,6 +21,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
+use y2p_core::sys::{set_signal, Handler};
 use y2p_core::{
     clock,
     json::{Object, ObjectExt},
@@ -40,14 +41,8 @@ extern "C" fn stop(_: libc::c_int) {
 /// `signal.signal(SIGTERM/SIGINT, …)`: end the loop at its next iteration.
 fn handle_signals() {
     for signal in [libc::SIGTERM, libc::SIGINT] {
-        // SAFETY: an all-zero sigaction with a plain handler and an empty mask; the handler only
-        // stores to an atomic.
-        unsafe {
-            let mut action: libc::sigaction = std::mem::zeroed();
-            action.sa_sigaction = stop as *const () as libc::sighandler_t;
-            libc::sigemptyset(&mut action.sa_mask);
-            libc::sigaction(signal, &action, std::ptr::null_mut());
-        }
+        // SAFETY: the handler only stores to an atomic.
+        let _ = unsafe { set_signal(signal, Handler::Call(stop), 0) };
     }
 }
 

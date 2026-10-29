@@ -280,12 +280,12 @@ fn log_tail(root: &Root, relative: &str) -> Result<Py, Failure> {
         Err(e) => return missing(e, name).map(|_| Py::List(Vec::new())),
     };
     let meta = fstat(&file).map_err(os_plain)?;
-    if meta.st_mode & libc::S_IFMT != libc::S_IFREG || meta.st_nlink != 1 {
+    if meta.mode & libc::S_IFMT != libc::S_IFREG || meta.nlink != 1 {
         return Err(Failure::value("diagnostic_log_type"));
     }
     let mut stream = std::fs::File::from(file);
     stream
-        .seek(SeekFrom::Start((meta.st_size as u64).saturating_sub(65536)))
+        .seek(SeekFrom::Start((meta.size as u64).saturating_sub(65536)))
         .map_err(os_plain)?;
     let mut tail = Vec::new();
     stream

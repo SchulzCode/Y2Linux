@@ -92,17 +92,15 @@ fn dup(fd: &OwnedFd) -> Result<OwnedFd, Failure> {
 }
 
 /// `identity(meta)`.
-fn identity(meta: &libc::stat64) -> Py {
+fn identity(meta: &y2p_core::sys::Stat) -> Py {
     Py::dict()
-        .with("device", Py::from(meta.st_dev))
-        .with("inode", Py::from(meta.st_ino))
-        .with("mode", Py::int(i64::from(meta.st_mode & libc::S_IFMT)))
-        .with("size", Py::int(meta.st_size))
+        .with("device", Py::from(meta.dev))
+        .with("inode", Py::from(meta.ino))
+        .with("mode", Py::int(i64::from(meta.mode & libc::S_IFMT)))
+        .with("size", Py::int(meta.size))
         .with(
             "mtime_ns",
-            Py::int(
-                y2p_core::wide(meta.st_mtime) * 1_000_000_000 + y2p_core::wide(meta.st_mtime_nsec),
-            ),
+            Py::int(y2p_core::wide(meta.mtime) * 1_000_000_000 + y2p_core::wide(meta.mtime_nsec)),
         )
 }
 
@@ -142,9 +140,9 @@ fn inspect(data: &OwnedFd, relative: &str) -> Result<Option<Py>, Failure> {
         Err(e) if e.raw_os_error() == Some(libc::ENOENT) => Ok(None),
         Err(e) => Err(os_name(e, &name)),
         Ok(meta) => {
-            let kind = meta.st_mode & libc::S_IFMT;
+            let kind = meta.mode & libc::S_IFMT;
             if !(kind == libc::S_IFREG || kind == libc::S_IFDIR)
-                || meta.st_dev != fstat(data).map_err(os_plain)?.st_dev
+                || meta.dev != fstat(data).map_err(os_plain)?.dev
             {
                 return Err(Failure::value(format!(
                     "unsafe_maintenance_path:{relative}"
@@ -451,10 +449,7 @@ fn regular_bytes(data: &OwnedFd, relative: &str, maximum: u64) -> Result<Vec<u8>
     .map_err(|e| os_name(e, &name))?;
     drop(parent);
     let meta = fstat(&fd).map_err(os_plain)?;
-    if meta.st_mode & libc::S_IFMT != libc::S_IFREG
-        || meta.st_nlink != 1
-        || meta.st_size as u64 > maximum
-    {
+    if meta.mode & libc::S_IFMT != libc::S_IFREG || meta.nlink != 1 || meta.size as u64 > maximum {
         return Err(Failure::value(format!("export_file_bounds:{relative}")));
     }
     let mut value = Vec::new();
@@ -612,7 +607,7 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
     }
     let quarantine =
         open_at(None, &location.to_string_lossy(), DIRECTORY, 0).map_err(|e| os(e, &location))?;
-    if fstat(&quarantine).map_err(os_plain)?.st_dev != fstat(&data).map_err(os_plain)?.st_dev {
+    if fstat(&quarantine).map_err(os_plain)?.dev != fstat(&data).map_err(os_plain)?.dev {
         return Err(Failure::value("reset_quarantine_submount"));
     }
     let mut completed: Vec<Py> = Vec::new();
@@ -855,13 +850,13 @@ fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Py, Failure>
     if !y2p_core::lock::try_fd(top.as_fd(), y2p_core::lock::Kind::Exclusive).map_err(os_plain)? {
         return Err(os_plain(y2p_core::lock::would_block()));
     }
-    let device = fstat(&top).map_err(os_plain)?.st_dev;
+    let device = fstat(&top).map_err(os_plain)?.dev;
     let deadline = kernel::monotonic() + 8.0;
     let mut removed = 0usize;
     fn walk(
         fd: &OwnedFd,
         depth: usize,
-        device: libc::dev_t,
+        device: u64,
         deadline: f64,
         removed: &mut usize,
     ) -> Result<bool, Failure> {
@@ -876,11 +871,11 @@ fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Py, Failure>
                 return Ok(false);
             }
             let meta = stat_at(fd, &name).map_err(|e| os_name(e, &name))?;
-            if meta.st_dev != device {
+            if meta.dev != device {
                 return Err(Failure::value("purge_submount_refused"));
             }
             let c = CString::new(name.as_str()).expect("no NUL");
-            if meta.st_mode & libc::S_IFMT == libc::S_IFDIR {
+            if meta.mode & libc::S_IFMT == libc::S_IFDIR {
                 let child = open_directory(fd, &name)?;
                 let complete = walk(&child, depth + 1, device, deadline, removed)?;
                 drop(child);

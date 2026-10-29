@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::observe::{media_identity, refused_card, volumes, MEDIA_MOUNT, MEDIA_STATE};
 use super::sys::{
-    available, device_instance, exists, get, get_eq, get_in, is_symlink, isdigit, lock_now,
-    lock_within, maintenance, mkdir, name, no_attribute, object, read, release_sd, resolve,
-    statvfs, try_lock, wall_seconds, Mount, Object,
+    device_instance, exists, get, get_eq, get_in, is_symlink, isdigit, lock_now, lock_within,
+    maintenance, mkdir, name, no_attribute, object, read, release_sd, resolve, statvfs, try_lock,
+    wall_seconds, Mount, Object,
 };
 use crate::reply::{atomic_json, unlink_missing_ok, Failure};
 use serde_json::{json, Value};
@@ -997,7 +997,7 @@ fn save_tables(root: &Root, card: &Object) -> Value {
         }
         mkdir_io(&directory, 0o700)?;
         let space = statvfs(&directory)?;
-        if available(&space) < size + REPAIR_DATA_RESERVE {
+        if space.available() < size + REPAIR_DATA_RESERVE {
             return Ok(json!({"saved": false, "reason": "no_space", "bytes": size}));
         }
         for old in fs::read_dir(&directory)?.flatten() {

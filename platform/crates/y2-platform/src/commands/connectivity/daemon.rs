@@ -22,6 +22,7 @@ use std::{
     sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
 use y2p_core::json::{Object, ObjectExt};
+use y2p_core::sys::{set_signal, Disposition, Handler};
 use y2p_core::{
     clock, command,
     py::{number, truthy},
@@ -169,7 +170,7 @@ extern "C" fn on_signal(signal: libc::c_int) {
 struct SignalWake {
     read: OwnedFd,
     write: OwnedFd,
-    previous: Vec<(libc::c_int, libc::sigaction)>,
+    previous: Vec<(libc::c_int, Disposition)>,
 }
 
 impl SignalWake {
@@ -185,13 +186,9 @@ impl SignalWake {
         let mut previous = Vec::new();
         for signal in [libc::SIGTERM, libc::SIGINT, libc::SIGUSR1] {
             // SAFETY: a plain handler that only touches atomics and write(2); the old action is kept.
-            unsafe {
-                let mut action: libc::sigaction = std::mem::zeroed();
-                action.sa_sigaction = on_signal as *const () as usize;
-                action.sa_flags = libc::SA_RESTART;
-                libc::sigemptyset(&mut action.sa_mask);
-                let mut old: libc::sigaction = std::mem::zeroed();
-                libc::sigaction(signal, &action, &mut old);
+            if let Ok(old) =
+                unsafe { set_signal(signal, Handler::Call(on_signal), libc::SA_RESTART) }
+            {
                 previous.push((signal, old));
             }
         }
@@ -218,8 +215,7 @@ impl SignalWake {
 impl Drop for SignalWake {
     fn drop(&mut self) {
         for (signal, old) in &self.previous {
-            // SAFETY: restoring the action saved in new().
-            unsafe { libc::sigaction(*signal, old, std::ptr::null_mut()) };
+            old.restore(*signal);
         }
         WAKE_FD.store(-1, Ordering::SeqCst);
         let _ = &self.write;

@@ -20,6 +20,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+use y2p_core::sys::{set_signal, Disposition, Handler};
 use y2p_core::{
     clock, command,
     py::{self, eq_int},
@@ -147,7 +148,7 @@ extern "C" fn on_signal(signal: libc::c_int) {
 }
 
 struct Signals {
-    previous: Vec<(libc::c_int, libc::sigaction)>,
+    previous: Vec<(libc::c_int, Disposition)>,
 }
 
 impl Signals {
@@ -157,16 +158,11 @@ impl Signals {
         WAKE.store(wake, Ordering::SeqCst);
         let mut previous = Vec::new();
         for signal in SIGNALS {
-            // SAFETY: a zeroed sigaction with our handler and an empty mask; the old one is kept.
-            unsafe {
-                let mut action: libc::sigaction = std::mem::zeroed();
-                action.sa_sigaction = on_signal as *const () as usize;
-                libc::sigemptyset(&mut action.sa_mask);
-                action.sa_flags = libc::SA_ONSTACK;
-                let mut old: libc::sigaction = std::mem::zeroed();
-                if libc::sigaction(signal, &action, &mut old) == 0 {
-                    previous.push((signal, old));
-                }
+            // SAFETY: the handler only touches atomics and write(2); the old action is kept.
+            if let Ok(old) =
+                unsafe { set_signal(signal, Handler::Call(on_signal), libc::SA_ONSTACK) }
+            {
+                previous.push((signal, old));
             }
         }
         Signals { previous }
@@ -175,8 +171,7 @@ impl Signals {
     fn restore(self) {
         WAKE.store(-1, Ordering::SeqCst);
         for (signal, old) in self.previous {
-            // SAFETY: re-installing the disposition sigaction returned.
-            unsafe { libc::sigaction(signal, &old, std::ptr::null_mut()) };
+            old.restore(signal);
         }
     }
 }

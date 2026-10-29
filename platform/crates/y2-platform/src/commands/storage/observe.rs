@@ -257,17 +257,17 @@ pub fn volumes(root: &Root) -> Vec<Object> {
         }
         match statvfs(&root.path(target)) {
             Ok(vfs) => {
-                let frsize = vfs.f_frsize as u64;
-                let total = vfs.f_blocks as u64 * frsize;
-                let available = vfs.f_bavail as u64 * frsize;
+                let frsize = vfs.frsize;
+                let total = vfs.blocks * frsize;
+                let available = vfs.bavail * frsize;
                 set(&mut item, "total_bytes", json!(total));
                 set(&mut item, "available_bytes", json!(available));
-                set(&mut item, "free_bytes", json!(vfs.f_bfree as u64 * frsize));
-                set(&mut item, "available_inodes", json!(vfs.f_favail as u64));
+                set(&mut item, "free_bytes", json!(vfs.bfree * frsize));
+                set(&mut item, "available_inodes", json!(vfs.favail));
                 let error = get(&item, "state") == "Failed";
                 let mut state =
                     space_state(Some(available), Some(total), readonly && !protected, error);
-                if vfs.f_files > 0 && vfs.f_favail == 0 {
+                if vfs.files > 0 && vfs.favail == 0 {
                     state = "CriticalSpace";
                 }
                 set(&mut item, "space_state", json!(state));

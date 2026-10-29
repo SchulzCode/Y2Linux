@@ -8,6 +8,7 @@ use super::{
     state::{self, DESTINATIONS},
 };
 use crate::reply::{atomic_json, Failure};
+use std::os::fd::AsFd;
 use std::{
     ffi::CString,
     io,
@@ -161,7 +162,7 @@ fn write_window(root: &Root, seconds: i64, release: bool) -> Result<Vec<String>,
 fn write_into(mount: &Path, top: &str, data: &[u8], stamp: &str) -> io::Result<String> {
     let flags = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC;
     let mut dir = open_at(None, &mount.to_string_lossy(), flags, 0)?;
-    let device = fstat(&dir)?.st_dev;
+    let device = fstat(&dir)?.dev;
     for part in top.split('/').filter(|p| !p.is_empty()) {
         dir = open_at(Some(&dir), part, flags, 0)?;
     }
@@ -175,16 +176,11 @@ fn write_into(mount: &Path, top: &str, data: &[u8], stamp: &str) -> io::Result<S
     }
     let folder = open_at(Some(&dir), build::FOLDER, flags, 0)?;
     drop(dir);
-    if fstat(&folder)?.st_dev != device {
+    if fstat(&folder)?.dev != device {
         return Err(io::Error::from_raw_os_error(libc::EXDEV)); // report_folder_elsewhere
     }
-    // SAFETY: a zeroed statvfs is a valid output buffer.
-    let mut space: libc::statvfs64 = unsafe { std::mem::zeroed() };
-    // SAFETY: a valid fd and buffer.
-    if unsafe { libc::fstatvfs64(folder.as_raw_fd(), &mut space) } != 0 {
-        return Err(io::Error::last_os_error());
-    }
-    if (space.f_bavail as u128) * (space.f_frsize as u128) < data.len() as u128 + (1 << 20) {
+    let space = y2p_core::sys::fstatvfs(folder.as_fd())?;
+    if (space.bavail as u128) * (space.frsize as u128) < data.len() as u128 + (1 << 20) {
         return Err(io::Error::from_raw_os_error(libc::ENOSPC)); // report_no_space
     }
     let mut chosen = None;
@@ -245,33 +241,13 @@ pub fn open_at(dir: Option<&OwnedFd>, name: &str, flags: i32, mode: u32) -> io::
     Ok(unsafe { OwnedFd::from_raw_fd(fd) })
 }
 
-pub fn fstat(fd: &OwnedFd) -> io::Result<libc::stat64> {
-    // SAFETY: a zeroed stat is a valid output buffer.
-    let mut meta: libc::stat64 = unsafe { std::mem::zeroed() };
-    // SAFETY: a valid fd and buffer.
-    if unsafe { libc::fstat64(fd.as_raw_fd(), &mut meta) } != 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(meta)
+pub fn fstat(fd: &OwnedFd) -> io::Result<y2p_core::sys::Stat> {
+    y2p_core::sys::fstat(fd.as_fd())
 }
 
-pub fn stat_at(dir: &OwnedFd, name: &str) -> io::Result<libc::stat64> {
+pub fn stat_at(dir: &OwnedFd, name: &str) -> io::Result<y2p_core::sys::Stat> {
     let c = CString::new(name).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))?;
-    // SAFETY: a zeroed stat is a valid output buffer.
-    let mut meta: libc::stat64 = unsafe { std::mem::zeroed() };
-    // SAFETY: a valid fd, name and buffer.
-    if unsafe {
-        libc::fstatat64(
-            dir.as_raw_fd(),
-            c.as_ptr(),
-            &mut meta,
-            libc::AT_SYMLINK_NOFOLLOW,
-        )
-    } != 0
-    {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(meta)
+    y2p_core::sys::fstatat(dir.as_fd(), &c, libc::AT_SYMLINK_NOFOLLOW)
 }
 
 fn lstat_at(dir: &OwnedFd, name: &str) -> io::Result<()> {

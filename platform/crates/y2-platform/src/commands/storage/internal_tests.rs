@@ -648,7 +648,7 @@ fn symlinks_special_files_and_oversized_libraries_are_refused_untouched() {
     fs::remove_file(player.path("/data/music/link")).unwrap();
     player.provisioned();
     // A library larger than the free space (Python raised RESERVE instead): a sparse file.
-    let free = available(&statvfs(&player.path(PATH)).unwrap());
+    let free = statvfs(&player.path(PATH)).unwrap().available();
     sparse(&player.path("/data/music/huge.flac"), free * 2 + (1 << 30));
     let result = player.provision(None);
     assert!(result["reason"]
