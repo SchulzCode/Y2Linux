@@ -44,6 +44,18 @@ same-lease renew and DNS-argv cases may differ), update CONTRACT.md (refusal rea
 `routes`, same-lease renew, parser), the host suite, then `release.py build --label 171` (bump sequence above 11150
 first) and install by staged OTA (PLATFORM-RUST-PORT-HANDOFF.md §5).
 
+**Quick wins after 171 (2026-10-29, test build 172):** atomic_json no longer deletes after a successful rename;
+one `y2p_core::text` (Python's whitespace and line rules) instead of five copies; one Wi-Fi observer for `status
+wifi` and the daemons (observation `snapshot::wifi::observe`, lenient for the daemons); one workload lease
+(`commands::workload`) instead of five; `time-set` shares `time`'s status and RTC policy; the codec inventory refuses
+itself (Python's AttributeError text gone); the split modules import explicitly (no `use super::*` outside tests);
+stale Python references fixed in the living docs; one USB state, idle counters and sleep-diagnostics parts for the
+power journal and the suspend group (`power::journal::{usb, counters, state}`). Every step byte-identical against
+171 (`tools/development/platform-raw-goldens.py`). **Measured and skipped:** sorting `power.json` while printing
+(≈3 µs per write on the PC, ~0.1–0.2 s CPU per hour on the player) and the second `versions.json` read per status
+(tens of µs) — not worth the code. Known: `update_tests::space_cleanup_stale_package_and_cancel_free_the_data_volume`
+failed once under a full parallel run (passes alone and in 8 later full runs; not in the release gate).
+
 **Owner decisions (2026-10-29, §7):** replace the argparse emulation with a small declarative parser (exact option
 names and `--opt=value`, errors exit 2, help says y2-platform); every fake-traceback crash path becomes a refusal
 record (exit 1, JSON `{"state": "Failed", "failure": …}`); **keep the exact JSON output format** (json.dumps
