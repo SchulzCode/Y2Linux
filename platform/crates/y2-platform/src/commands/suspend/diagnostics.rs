@@ -6,7 +6,11 @@
 //! filtered kernel-log tail, appended to a bounded private file on Y2DATA. A failure is counted and
 //! never blocks, delays or changes sleep.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{append, journal::Node, text_value, E};
+use super::{
+    append,
+    journal::{object, plain},
+    text_value, E,
+};
 use serde_json::Value;
 use std::{fs::File, io::Read, os::unix::fs::OpenOptionsExt, path::Path};
 use y2p_core::{
@@ -89,18 +93,18 @@ fn parent_name(path: &Path) -> String {
 }
 
 /// `key_values(text, keys)`: `\b([a-z0-9_]+)=(\S+)`, one entry per key (None when absent).
-fn key_values(text: Option<&str>, keys: &[&str]) -> Node {
+fn key_values(text: Option<&str>, keys: &[&str]) -> Value {
     let pattern = Regex::new(r"\b([a-z0-9_]+)=(\S+)").expect("pattern");
     let mut found = serde_json::Map::new();
     for capture in pattern.captures_iter(text.unwrap_or_default()) {
         found.insert(capture[1].to_owned(), Value::String(capture[2].to_owned()));
     }
-    Node::O(
+    object(
         keys.iter()
             .map(|k| {
                 (
                     (*k).to_owned(),
-                    Node::V(found.get(*k).cloned().unwrap_or(Value::Null)),
+                    plain(found.get(*k).cloned().unwrap_or(Value::Null)),
                 )
             })
             .collect(),
@@ -160,7 +164,7 @@ fn ipv4(root: &Root, interface: &str) -> Result<Vec<String>, E> {
     Ok(found)
 }
 
-fn processes(root: &Root) -> Node {
+fn processes(root: &Root) -> Value {
     let mut running = [false; 2];
     if let Ok(entries) = std::fs::read_dir(root.path("/proc")) {
         for entry in entries.flatten() {
@@ -174,17 +178,17 @@ fn processes(root: &Root) -> Node {
             }
         }
     }
-    Node::O(
+    object(
         PROCESSES
             .iter()
             .zip(running)
-            .map(|(name, on)| ((*name).to_owned(), Node::V(Value::Bool(on))))
+            .map(|(name, on)| ((*name).to_owned(), plain(Value::Bool(on))))
             .collect(),
     )
 }
 
 /// Compact USB gadget and USB network state (about 1 KiB).
-pub fn usb_net(root: &Root) -> Result<Node, E> {
+pub fn usb_net(root: &Root) -> Result<Value, E> {
     let net = "/sys/class/net/usb0/";
     let statistics = [
         "rx_packets",
@@ -201,14 +205,14 @@ pub fn usb_net(root: &Root) -> Result<Node, E> {
         let value = root.integer(&format!("{net}statistics/{n}"));
         (
             (*n).to_owned(),
-            Node::V(value.map_or(Value::Null, Value::from)),
+            plain(value.map_or(Value::Null, Value::from)),
         )
     })
     .collect();
     let udc = root
         .glob("/sys/class/udc/*")
         .iter()
-        .map(|p| (name(p), Node::V(text_value(read(&p.join("state"), 64)))))
+        .map(|p| (name(p), plain(text_value(read(&p.join("state"), 64)))))
         .collect();
     let controller = root
         .glob("/sys/bus/platform/drivers/y2-usb/*/status")
@@ -230,35 +234,34 @@ pub fn usb_net(root: &Root) -> Result<Node, E> {
                 .take(1)
                 .map(|l| Value::String(l.to_owned()))
                 .collect();
-            (parent_name(p), Node::V(Value::Array(first)))
+            (parent_name(p), plain(Value::Array(first)))
         })
         .collect();
-    let field =
-        |n: &str, limit| Node::V(text_value(root.read_limited(&format!("{net}{n}"), limit)));
+    let field = |n: &str, limit| plain(text_value(root.read_limited(&format!("{net}{n}"), limit)));
     let addresses = ipv4(root, "usb0")?.into_iter().map(Value::String).collect();
-    Ok(Node::O(vec![
-        ("udc".into(), Node::O(udc)),
+    Ok(object(vec![
+        ("udc".into(), object(udc)),
         (
             "gadget_udc".into(),
-            Node::V(text_value(
+            plain(text_value(
                 root.read_limited("/sys/kernel/config/usb_gadget/y2/UDC", 128),
             )),
         ),
-        ("controller".into(), Node::O(controller)),
-        ("out_path".into(), Node::O(out_path)),
+        ("controller".into(), object(controller)),
+        ("out_path".into(), object(out_path)),
         (
             "usb0".into(),
-            Node::O(vec![
+            object(vec![
                 ("operstate".into(), field("operstate", 64)),
                 ("carrier".into(), field("carrier", 8)),
                 ("flags".into(), field("flags", 32)),
-                ("ipv4".into(), Node::V(Value::Array(addresses))),
-                ("statistics".into(), Node::O(statistics)),
+                ("ipv4".into(), plain(Value::Array(addresses))),
+                ("statistics".into(), object(statistics)),
             ]),
         ),
         (
             "transfer".into(),
-            Node::V(
+            plain(
                 root.json("/run/y2/usb-transfer.json")
                     .unwrap_or(Value::Null),
             ),
@@ -268,13 +271,13 @@ pub fn usb_net(root: &Root) -> Result<Node, E> {
 }
 
 /// The 13 sleep-parity switches and counters, the INFRA and SPM state.
-fn features(root: &Root, golden: bool) -> Node {
-    let text = |name: &str, limit| Node::V(text_value(root.read_limited(name, limit)));
+fn features(root: &Root, golden: bool) -> Value {
+    let text = |name: &str, limit| plain(text_value(root.read_limited(name, limit)));
     let each = |pattern: &str| {
-        Node::O(
+        object(
             root.glob(pattern)
                 .iter()
-                .map(|p| (parent_name(p), Node::V(text_value(read(p, 4096)))))
+                .map(|p| (parent_name(p), plain(text_value(read(p, 4096)))))
                 .collect(),
         )
     };
@@ -334,7 +337,7 @@ fn features(root: &Root, golden: bool) -> Node {
             text("/sys/module/pwrap/parameters/pmic_golden", 16384),
         ));
     }
-    Node::O(value)
+    object(value)
 }
 
 /// The last relevant kernel messages, read non-blocking from /dev/kmsg.
@@ -405,22 +408,22 @@ fn row(root: &Root, stage: &str, golden: bool) -> Result<bool, E> {
         _ => Value::Null,
     };
     let head = vec![
-        ("schema".to_owned(), Node::V(1.into())),
-        ("stage".into(), Node::V(stage.into())),
-        ("usb_reason".into(), Node::V(Value::Null)),
-        ("wall_time".into(), Node::V(super::wall().into())),
-        ("monotonic_s".into(), Node::V(now.into())),
-        ("boottime_s".into(), Node::V(super::boottime().into())),
+        ("schema".to_owned(), plain(1.into())),
+        ("stage".into(), plain(stage.into())),
+        ("usb_reason".into(), plain(Value::Null)),
+        ("wall_time".into(), plain(super::wall().into())),
+        ("monotonic_s".into(), plain(now.into())),
+        ("boottime_s".into(), plain(super::boottime().into())),
         (
             "boot_id".into(),
-            Node::V(text_value(root.read("/proc/sys/kernel/random/boot_id"))),
+            plain(text_value(root.read("/proc/sys/kernel/random/boot_id"))),
         ),
-        ("build_id".into(), Node::V(build)),
+        ("build_id".into(), plain(build)),
         ("features".into(), features(root, golden)),
         ("usb_net".into(), usb_net(root)?),
         (
             "kernel_pm".into(),
-            Node::V(text_value(
+            plain(text_value(
                 root.read_limited("/sys/firmware/y2_pm/state", 8192),
             )),
         ),
@@ -430,12 +433,12 @@ fn row(root: &Root, stage: &str, golden: bool) -> Result<bool, E> {
         let mut node = head.clone();
         node.push((
             "kernel_tail".into(),
-            Node::V(tail.as_ref().map_or(Value::Null, |t| {
+            plain(tail.as_ref().map_or(Value::Null, |t| {
                 Value::Array(t.iter().cloned().map(Value::String).collect())
             })),
         ));
         Ok(
-            (dumps(&Node::O(node), Separators::Compact).map_err(|e| E::value(e.to_string()))?
+            (dumps(&object(node), Separators::Compact).map_err(|e| E::value(e.to_string()))?
                 + "\n")
                 .into_bytes(),
         )
@@ -487,9 +490,9 @@ mod tests {
         assert!(ipv4(&root, "wlan0").unwrap().is_empty());
         assert_eq!(
             key_values(Some("stage=a error=0 x=1"), &["stage", "irqs"]),
-            Node::O(vec![
-                ("stage".into(), Node::V("a".into())),
-                ("irqs".into(), Node::V(Value::Null))
+            object(vec![
+                ("stage".into(), plain("a".into())),
+                ("irqs".into(), plain(Value::Null))
             ])
         );
     }

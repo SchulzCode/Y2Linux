@@ -7,7 +7,6 @@
 //! a journal failure must never delay or disable battery protection.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{append, diagnostics, text_value, E};
-use serde::Serialize;
 use serde_json::Value;
 use std::path::Path;
 use y2p_core::{
@@ -33,30 +32,14 @@ const RUNTIME: [&str; 8] = [
     "18070000.",
 ];
 
-/// A JSON value whose objects keep insertion order (a Python dict written without `sort_keys`).
-#[derive(Clone, Debug, PartialEq)]
-pub enum Node {
-    V(Value),
-    O(Vec<(String, Node)>),
-    L(Vec<Node>),
+/// A plain value in a row: its objects sorted (a dict that came from a sorted record).
+pub fn plain(value: Value) -> Value {
+    y2p_core::json::sorted(value)
 }
 
-impl Serialize for Node {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeMap;
-        match self {
-            // A plain value's objects are sorted (a dict that came from a sorted record).
-            Node::V(value) => y2p_core::json::sorted(value.clone()).serialize(serializer),
-            Node::L(items) => items.serialize(serializer),
-            Node::O(entries) => {
-                let mut map = serializer.serialize_map(Some(entries.len()))?;
-                for (key, value) in entries {
-                    map.serialize_entry(key, value)?;
-                }
-                map.end()
-            }
-        }
-    }
+/// A dict built in this order (`{k: v, ...}` written without `sort_keys`).
+pub fn object(entries: Vec<(String, Value)>) -> Value {
+    Value::Object(entries.into_iter().collect())
 }
 
 fn name(path: &Path) -> String {
@@ -65,19 +48,19 @@ fn name(path: &Path) -> String {
         .unwrap_or_default()
 }
 
-fn int(value: Option<i64>) -> Node {
-    Node::V(value.map_or(Value::Null, Value::from))
+fn int(value: Option<i64>) -> Value {
+    plain(value.map_or(Value::Null, Value::from))
 }
 
 /// Cheap cumulative counters only when a journal row is already due.
 ///
 /// No AUXADC, subprocess, RPC, tracing, or additional periodic wakeup. Missing interfaces stay null.
 /// Hotplug can reset per-core counters; readers must not turn decreasing values into negative rates.
-pub fn idle_counters(root: &Root) -> Node {
+pub fn idle_counters(root: &Root) -> Value {
     let started = super::process_time();
     let mut idle = Vec::new();
     for cpu in 0..4 {
-        let mut states: Vec<(String, Node)> = Vec::new();
+        let mut states: Vec<(String, Value)> = Vec::new();
         for index in 0..3 {
             let base = format!("/sys/devices/system/cpu/cpu{cpu}/cpuidle/state{index}");
             if let Some(state) = root.read_limited(&format!("{base}/name"), 64) {
@@ -85,14 +68,14 @@ pub fn idle_counters(root: &Root) -> Node {
                     .iter()
                     .map(|f| ((*f).to_owned(), int(root.integer(&format!("{base}/{f}")))))
                     .collect();
-                set(&mut states, &state, Node::O(fields));
+                set(&mut states, &state, object(fields));
             }
         }
         if !states.is_empty() {
-            idle.push((cpu.to_string(), Node::O(states)));
+            idle.push((cpu.to_string(), object(states)));
         }
     }
-    let mut scheduler: Vec<(String, Node)> = Vec::new();
+    let mut scheduler: Vec<(String, Value)> = Vec::new();
     for line in splitlines(&root.read("/proc/stat").unwrap_or_default()) {
         let fields = split(line);
         if let Some(&first) = fields.first() {
@@ -110,34 +93,34 @@ pub fn idle_counters(root: &Root) -> Node {
             RUNTIME
                 .iter()
                 .any(|p| device.starts_with(p))
-                .then(|| (device, Node::V(text_value(read(path, 64)))))
+                .then(|| (device, plain(text_value(read(path, 64)))))
         })
         .collect();
     let each = |pattern: &str| {
-        Node::O(
+        object(
             root.glob(pattern)
                 .iter()
-                .map(|p| (name(p), Node::V(text_value(read(p, 128)))))
+                .map(|p| (name(p), plain(text_value(read(p, 128)))))
                 .collect(),
         )
     };
     let mut result = vec![
         (
             "online".to_owned(),
-            Node::V(text_value(
+            plain(text_value(
                 root.read_limited("/sys/devices/system/cpu/online", 64),
             )),
         ),
-        ("cpuidle".into(), Node::O(idle)),
-        ("scheduler".into(), Node::O(scheduler)),
-        ("runtime_pm".into(), Node::O(runtime)),
+        ("cpuidle".into(), object(idle)),
+        ("scheduler".into(), object(scheduler)),
+        ("runtime_pm".into(), object(runtime)),
         (
             "frequency_khz".into(),
             int(root.integer("/sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq")),
         ),
         (
             "frequency_ticks".into(),
-            Node::V(text_value(root.read_limited(
+            plain(text_value(root.read_limited(
                 "/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state",
                 512,
             ))),
@@ -152,18 +135,18 @@ pub fn idle_counters(root: &Root) -> Node {
         ),
         (
             "counter_reset_rule".into(),
-            Node::V("decreasing per-core counters are unknown, not negative rates".into()),
+            plain("decreasing per-core counters are unknown, not negative rates".into()),
         ),
     ];
     result.push((
         "collector_cpu_seconds".into(),
-        Node::V((super::process_time() - started).into()),
+        plain((super::process_time() - started).into()),
     ));
-    Node::O(result)
+    object(result)
 }
 
 /// `dict[key] = value` on an ordered object.
-fn set(entries: &mut Vec<(String, Node)>, key: &str, value: Node) {
+fn set(entries: &mut Vec<(String, Value)>, key: &str, value: Value) {
     match entries.iter_mut().find(|(k, _)| k == key) {
         Some(entry) => entry.1 = value,
         None => entries.push((key.to_owned(), value)),
@@ -209,12 +192,7 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
     let usb = root
         .glob("/sys/class/udc/*")
         .iter()
-        .map(|p| {
-            (
-                name(p),
-                Node::V(text_value(read(&p.join("state"), 131_072))),
-            )
-        })
+        .map(|p| (name(p), plain(text_value(read(&p.join("state"), 131_072)))))
         .collect();
     let usb_net = diagnostics::usb_net(root)?;
     let backlight = root
@@ -223,7 +201,7 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
         .map(|p| {
             (
                 p.parent().map(name).unwrap_or_default(),
-                Node::V(text_value(read(p, 131_072))),
+                plain(text_value(read(p, 131_072))),
             )
         })
         .collect();
@@ -233,14 +211,14 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
         .map(|p| {
             (
                 name(p),
-                Node::O(vec![
+                object(vec![
                     (
                         "type".into(),
-                        Node::V(text_value(read(&p.join("type"), 131_072))),
+                        plain(text_value(read(&p.join("type"), 131_072))),
                     ),
                     (
                         "blocked".into(),
-                        Node::V(text_value(read(&p.join("soft"), 131_072))),
+                        plain(text_value(read(&p.join("soft"), 131_072))),
                     ),
                 ]),
             )
@@ -255,7 +233,7 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
         boot_id.as_deref(),
     )
     .map_err(super::receipt::raised)?;
-    let mut summary: Vec<(String, Node)> = [
+    let mut summary: Vec<(String, Value)> = [
         "mode",
         "stage",
         "first_entry",
@@ -269,7 +247,7 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
     .map(|k| {
         (
             (*k).to_owned(),
-            Node::V(receipt.get(*k).cloned().unwrap_or(Value::Null)),
+            plain(receipt.get(*k).cloned().unwrap_or(Value::Null)),
         )
     })
     .collect();
@@ -284,43 +262,43 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
         }
         _ => Value::Null,
     };
-    summary.push(("reason".into(), Node::V(reason)));
-    let node = Node::O(vec![
-        ("schema".into(), Node::V(1.into())),
-        ("event".into(), Node::V(event.into())),
-        ("wall_time".into(), Node::V(super::wall().into())),
-        ("monotonic_s".into(), Node::V(now.into())),
-        ("boottime_s".into(), Node::V(super::boottime().into())),
-        ("boot_id".into(), Node::V(text_value(boot_id))),
+    summary.push(("reason".into(), plain(reason)));
+    let node = object(vec![
+        ("schema".into(), plain(1.into())),
+        ("event".into(), plain(event.into())),
+        ("wall_time".into(), plain(super::wall().into())),
+        ("monotonic_s".into(), plain(now.into())),
+        ("boottime_s".into(), plain(super::boottime().into())),
+        ("boot_id".into(), plain(text_value(boot_id))),
         (
             "build".into(),
-            Node::V(
+            plain(
                 root.json("/etc/y2linux/versions.json")
                     .unwrap_or(Value::Null),
             ),
         ),
-        ("state".into(), Node::V("Suspend".into())),
-        ("battery".into(), Node::V(battery.clone())),
-        ("shutdown".into(), Node::V(Value::Null)),
-        ("usb".into(), Node::O(usb)),
+        ("state".into(), plain("Suspend".into())),
+        ("battery".into(), plain(battery.clone())),
+        ("shutdown".into(), plain(Value::Null)),
+        ("usb".into(), object(usb)),
         ("usb_net".into(), usb_net),
         (
             "charger".into(),
-            Node::V(text_value(
+            plain(text_value(
                 root.read("/sys/class/power_supply/BAT0/charging_state"),
             )),
         ),
-        ("backlight".into(), Node::O(backlight)),
-        ("radios".into(), Node::O(radios)),
-        ("idle_policy".into(), Node::V(idle_policy)),
+        ("backlight".into(), object(backlight)),
+        ("radios".into(), object(radios)),
+        ("idle_policy".into(), plain(idle_policy)),
         ("idle_counters".into(), idle_counters),
-        ("sleep".into(), Node::V(Value::Object(sleep))),
+        ("sleep".into(), plain(Value::Object(sleep))),
         // Preserve completed intervals when a later refusal replaces suspend-last.json. This
         // shares the existing event cadence.
-        ("suspend".into(), Node::O(summary)),
+        ("suspend".into(), object(summary)),
         (
             "kernel_pm".into(),
-            Node::V(text_value(
+            plain(text_value(
                 root.read_limited("/sys/firmware/y2_pm/state", 8192),
             )),
         ),
