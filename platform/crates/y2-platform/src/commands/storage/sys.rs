@@ -252,20 +252,6 @@ pub fn observation_record(root: &Root, workload: &str) -> Value {
     })
 }
 
-/// `common.atomic_json(path, value)` with a mode.
-pub fn atomic_json_mode(
-    path: &Path,
-    value: &Value,
-    durable: bool,
-    mode: u32,
-) -> Result<(), Failure> {
-    y2p_core::record::atomic_json(path, value, durable, mode).map_err(|e| Failure::os(e, path))
-}
-
-pub fn write_record(path: &Path, value: &Object) -> Result<(), Failure> {
-    atomic_json(path, &Value::Object(value.clone()), false)
-}
-
 /// `fcntl.flock(fd, LOCK_EX | LOCK_NB)` on a platform lock file; a busy lock is Python's uncaught
 /// `BlockingIOError`.
 pub fn try_lock(path: &Path) -> Result<Option<File>, Failure> {

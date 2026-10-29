@@ -15,11 +15,10 @@
 use super::media::{mkdir_io, properties};
 use super::observe::setup_status;
 use super::sys::{
-    atomic_json_mode, available, device_instance, exists, get, get_eq, is_symlink, isdigit,
-    lock_now, mkdir, mounts as all_mounts, name, object, read, release_view, resolve, statvfs,
-    text, Mount, Object,
+    available, device_instance, exists, get, get_eq, is_symlink, isdigit, lock_now, mkdir,
+    mounts as all_mounts, name, object, read, release_view, resolve, statvfs, text, Mount, Object,
 };
-use crate::reply::{atomic_json, write_text, Failure};
+use crate::reply::{atomic_json, atomic_json_mode, write_text, Failure};
 use serde_json::{json, Value};
 use std::{
     ffi::CString,

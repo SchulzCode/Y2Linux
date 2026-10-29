@@ -233,13 +233,23 @@ pub fn private_directory(path: &Path) -> Result<(), Failure> {
     })
 }
 
-/// `common.atomic_json`.
+/// `common.atomic_json`: a private (0600) record.
 pub fn atomic_json<T: Serialize + ?Sized>(
     path: &Path,
     value: &T,
     durable: bool,
 ) -> Result<(), Failure> {
-    y2p_core::record::atomic_json(path, value, durable, 0o600).map_err(|e| Failure::os(e, path))
+    atomic_json_mode(path, value, durable, 0o600)
+}
+
+/// `common.atomic_json(..., mode=mode)`: a record others read too (0644).
+pub fn atomic_json_mode<T: Serialize + ?Sized>(
+    path: &Path,
+    value: &T,
+    durable: bool,
+    mode: u32,
+) -> Result<(), Failure> {
+    y2p_core::record::atomic_json(path, value, durable, mode).map_err(|e| Failure::os(e, path))
 }
 
 /// `os.open(path, flags | O_CREAT, mode)` for a file whose content does not matter.

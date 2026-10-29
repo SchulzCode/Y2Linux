@@ -5,7 +5,7 @@ use super::observe::{media_identity, refused_card, volumes, MEDIA_MOUNT, MEDIA_S
 use super::sys::{
     available, device_instance, exists, get, get_eq, get_in, is_symlink, isdigit, lock_now,
     lock_within, maintenance, mkdir, name, no_attribute, object, read, release_sd, resolve,
-    statvfs, try_lock, wall_seconds, write_record, Mount, Object,
+    statvfs, try_lock, wall_seconds, Mount, Object,
 };
 use crate::reply::{atomic_json, unlink_missing_ok, Failure};
 use serde_json::{json, Value};
@@ -342,7 +342,7 @@ pub fn reconcile(root: &Root) -> Result<Object, Failure> {
         if !mounts_at(root, SD).is_empty() {
             set(&mut result, "retry", attempts < 4);
             set(&mut result, "reason", "source_change_unmount_failed");
-            write_record(&lifecycle, &result)?;
+            atomic_json(&lifecycle, &result, false)?;
             return Ok(result);
         }
     }
@@ -351,7 +351,7 @@ pub fn reconcile(root: &Root) -> Result<Object, Failure> {
     } else {
         set_state(&mut result, "Unavailable", "no_card");
     }
-    write_record(&lifecycle, &result)?;
+    atomic_json(&lifecycle, &result, false)?;
     Ok(result)
 }
 
@@ -366,7 +366,7 @@ pub fn operation(root: &Root, action: &str) -> Result<Object, Failure> {
     let old = mounts_at(root, SD);
     if !old.is_empty() && old.iter().any(|m| !owned_mount(root, m)) {
         set_state(&mut state, "Failed", "mounted_source_not_sd");
-        write_record(&record, &state)?;
+        atomic_json(&record, &state, false)?;
         return Ok(state);
     }
     if action == "unmount" {
@@ -375,7 +375,7 @@ pub fn operation(root: &Root, action: &str) -> Result<Object, Failure> {
         } else if let Some(mounted) = old.first() {
             if !release_sd(root, mounted.mount_id, false)? {
                 set_state(&mut state, "Failed", "usb_transfer_connected_or_busy");
-                write_record(&record, &state)?;
+                atomic_json(&record, &state, false)?;
                 return Ok(state);
             }
             let result = command::run(root, &["umount", SD], 3.0);
@@ -424,7 +424,7 @@ pub fn operation(root: &Root, action: &str) -> Result<Object, Failure> {
             }
         }
     }
-    write_record(&record, &state)?;
+    atomic_json(&record, &state, false)?;
     Ok(state)
 }
 
@@ -457,14 +457,14 @@ fn admit(
         // The music plays; Repair (or a computer) makes it writable.
         // ext4 stays out: even a read-only mount replays its journal.
         if !fallback_filesystem(filesystem) {
-            write_record(record, state)?;
+            atomic_json(record, state, false)?;
             return Ok(Some(state.clone()));
         }
         read_only = Some("filesystem_errors");
     }
     if candidates(root) != available {
         set_state(state, "Failed", "source_changed_during_check");
-        write_record(record, state)?;
+        atomic_json(record, state, false)?;
         return Ok(Some(state.clone()));
     }
     let target = root.path(SD);
@@ -521,7 +521,7 @@ fn admit(
         if candidates(root) != available {
             set_state(state, "Failed", "source_changed_during_mount");
         } else {
-            write_record(&root.path(MEDIA_MOUNT), state)?;
+            atomic_json(&root.path(MEDIA_MOUNT), state, false)?;
             // The kernel recycles mount ids, so a release marker for a card that was
             // ejected or reformatted must not hide the next mount that reuses its id.
             unlink_missing_ok(&root.path("/run/y2/usb-release-sd.json"))?;
@@ -881,8 +881,8 @@ pub fn verify(root: &Root) -> Result<Object, Failure> {
         );
     }
     set(&mut now, "filesystem_check", Value::Object(result));
-    write_record(&root.path(MEDIA_MOUNT), &now)?;
-    write_record(&runtime.join("media.json"), &now)?;
+    atomic_json(&root.path(MEDIA_MOUNT), &now, false)?;
+    atomic_json(&runtime.join("media.json"), &now, false)?;
     state.extend(now);
     set(&mut state, "action", "verify");
     Ok(state)
@@ -1164,7 +1164,7 @@ fn apply_change(root: &Root, action: &str, confirm_cid: Option<&str>) -> Result<
         _ => set_state(&mut state, "Unavailable", "no_unique_card"),
     }
     if !state_is(&state, "Starting") {
-        write_record(&runtime.join("media.json"), &state)?;
+        atomic_json(&runtime.join("media.json"), &state, false)?;
     }
     Ok(state)
 }
