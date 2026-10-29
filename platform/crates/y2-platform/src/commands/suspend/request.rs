@@ -49,12 +49,7 @@ pub fn prepare_owned(root: &Root) -> Result<Map<String, Value>, E> {
         reborn_ack: Some(true),
         ..Stage::new("reborn_prepared", Some(0))
     };
-    let value = record(root, prepared)?;
-    Ok(value
-        .get("product")
-        .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default())
+    Ok(record(root, prepared)?.into_product())
 }
 
 /// `y2-platform sleep prepare` (y2-suspend's owner path): takes no lock itself.
@@ -121,11 +116,7 @@ fn admit(root: &Root, lock: &File, launcher: Launcher) -> Result<Map<String, Val
         }
         Err(error) => return Err(error),
     };
-    Ok(value
-        .get("product")
-        .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default())
+    Ok(value.into_product())
 }
 
 /// Start the product sleep helper, detached, with this request's lock. The inherited open file

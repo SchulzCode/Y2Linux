@@ -4,7 +4,7 @@
 use super::{exit, platform, receipt, traceback, E};
 use crate::{argparse::python, reply::Outcome};
 use std::io::Write;
-use y2p_core::{py::truthy, Root};
+use y2p_core::Root;
 
 /// `suspend_record.main`: `record(Context(), argv[1], int(argv[2]) if given, argv[3] if given)`;
 /// exit 1 when the receipt has an `error`, a traceback (exit 1) for any exception: a missing stage
@@ -39,7 +39,7 @@ pub fn suspend_record(root: &Root, args: &[String]) -> Outcome {
     let mut record = receipt::Stage::new(stage, result);
     record.reason = args.get(2).cloned();
     match receipt::record(root, record) {
-        Ok(value) => exit(i32::from(value.get("error").is_some_and(truthy))),
+        Ok(value) => exit(i32::from(value.has_error())),
         Err(error) => traceback(&error, 1),
     }
 }

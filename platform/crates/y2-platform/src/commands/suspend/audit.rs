@@ -6,12 +6,10 @@
 //! `--help`; abbreviations, `--x=y`, argparse's errors and texts at 80 columns, `prog` y2-power-audit),
 //! then its `bounded windows only` refusal (exit 2).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{
-    journal::{object, plain},
-    monotonic, process_time, receipt, text_value, traceback, wall, E,
-};
+use super::{journal::plain, monotonic, process_time, receipt, traceback, wall, E};
 use crate::{argparse::python, reply::Outcome};
-use serde_json::{json, Map, Value};
+use serde::{ser::SerializeMap, Serialize, Serializer};
+use serde_json::Value;
 use std::{
     collections::BTreeMap,
     fs::{self, OpenOptions},
@@ -435,6 +433,20 @@ fn glob(root: &Root, pattern: &str) -> Vec<String> {
         .collect()
 }
 
+/// Pairs in their order as one JSON object (a later pair with the same key replaced the earlier
+/// one when the list was built).
+fn as_map<K: Serialize, V: Serialize, S: Serializer>(
+    pairs: &[(K, V)],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let mut map = serializer.serialize_map(Some(pairs.len()))?;
+    for (key, value) in pairs {
+        map.serialize_entry(key, value)?;
+    }
+    map.end()
+}
+
+/// Each file read (its device path) with its text, `None` when it could not be read.
 type Files = Vec<(String, Option<String>)>;
 
 fn files(root: &Root, patterns: &[&str]) -> Files {
@@ -459,23 +471,20 @@ fn get<'a>(files: &'a Files, key: &str) -> Option<&'a Option<String>> {
     files.iter().find(|(k, _)| k == key).map(|(_, v)| v)
 }
 
-fn files_node(files: &Files) -> Value {
-    object(
-        files
-            .iter()
-            .map(|(k, v)| (k.clone(), plain(text_value(v.clone()))))
-            .collect(),
-    )
-}
-
+/// One thread at one end of the window (`/proc/<pid>/task/<tid>/stat`, `status`, `wchan`).
+#[derive(Serialize)]
 struct Thread {
     name: String,
     state: String,
     utime: i64,
     stime: i64,
+    #[serde(rename = "context_switches", serialize_with = "as_map")]
     switches: Vec<(String, i64)>,
     wchan: Option<String>,
 }
+
+/// Threads by `pid:tid:starttime`.
+type Threads = Vec<(String, Thread)>;
 
 fn int(text: &str) -> Result<i64, E> {
     python_int(text).ok_or_else(|| {
@@ -486,8 +495,8 @@ fn int(text: &str) -> Result<i64, E> {
     })
 }
 
-fn processes(root: &Root) -> Result<Vec<(String, Thread)>, E> {
-    let mut result: Vec<(String, Thread)> = Vec::new();
+fn processes(root: &Root) -> Result<Threads, E> {
+    let mut result: Threads = Vec::new();
     for path in glob(root, "/proc/[0-9]*/task/[0-9]*/stat") {
         let Some(raw) = read(&root.path(&path)) else {
             continue;
@@ -530,70 +539,63 @@ fn processes(root: &Root) -> Result<Vec<(String, Thread)>, E> {
     Ok(result)
 }
 
-fn threads_node(threads: &[(String, Thread)]) -> Value {
-    object(
-        threads
-            .iter()
-            .map(|(key, t)| {
-                (
-                    key.clone(),
-                    object(vec![
-                        ("name".into(), plain(json!(t.name))),
-                        ("state".into(), plain(json!(t.state))),
-                        ("utime".into(), plain(json!(t.utime))),
-                        ("stime".into(), plain(json!(t.stime))),
-                        (
-                            "context_switches".into(),
-                            object(
-                                t.switches
-                                    .iter()
-                                    .map(|(k, v)| (k.clone(), plain(json!(v))))
-                                    .collect(),
-                            ),
-                        ),
-                        ("wchan".into(), plain(text_value(t.wchan.clone()))),
-                    ]),
-                )
-            })
-            .collect(),
-    )
+/// What Reborn says of itself, outside the counter window; no media names, paths or peer IDs.
+#[derive(Serialize)]
+#[serde(untagged)]
+#[allow(clippy::large_enum_variant)] // two values per run
+enum Application {
+    /// The status request failed (its error class), or its sections were not objects.
+    Unavailable { unavailable: &'static str },
+    Status {
+        screen_off: Value,
+        playback_state: Value,
+        scanning: Value,
+        audio_state: Value,
+        #[serde(serialize_with = "as_map")]
+        graphics: Vec<(&'static str, Value)>,
+    },
 }
 
-/// Outside the counter window; publish no media names, paths or peer IDs.
-fn application(root: &Root) -> Value {
+fn application(root: &Root) -> Application {
     let status = match receipt::application_rpc(root, "status", false) {
         Ok(status) => status,
-        Err(error) => return object(vec![("unavailable".into(), plain(json!(error.class())))]),
-    };
-    let empty = Value::Object(Map::new());
-    let section = |key: &str| status.get(key).unwrap_or(&empty);
-    let field = |key: &str, inner: &str| -> Result<Value, ()> {
-        match section(key) {
-            Value::Object(map) => Ok(map.get(inner).cloned().unwrap_or(Value::Null)),
-            _ => Err(()),
+        Err(error) => {
+            return Application::Unavailable {
+                unavailable: error.class(),
+            }
         }
     };
+    let empty = Value::Object(serde_json::Map::new());
+    let section = |key: &str| status.get(key).unwrap_or(&empty);
+    // A section that is not an object has no fields: the whole status is unavailable.
+    let field = |key: &str, inner: &str| -> Option<Value> {
+        let Value::Object(map) = section(key) else {
+            return None;
+        };
+        Some(plain(map.get(inner).cloned().unwrap_or(Value::Null)))
+    };
     let graphics = ["backend", "frames", "context_losses"]
-        .iter()
-        .map(|k| field("graphics", k).map(|v| ((*k).to_owned(), plain(v))))
-        .collect::<Result<Vec<_>, ()>>();
+        .into_iter()
+        .map(|k| field("graphics", k).map(|v| (k, v)))
+        .collect::<Option<Vec<_>>>();
     match (
         field("playback", "state"),
         field("library", "scanning"),
         field("audio", "state"),
         graphics,
     ) {
-        (Ok(playback), Ok(scanning), Ok(audio), Ok(graphics)) => object(vec![
-            (
-                "screen_off".into(),
-                plain(status.get("screen_off").cloned().unwrap_or(Value::Null)),
-            ),
-            ("playback_state".into(), plain(playback)),
-            ("scanning".into(), plain(scanning)),
-            ("audio_state".into(), plain(audio)),
-            ("graphics".into(), object(graphics)),
-        ]),
-        _ => object(vec![("unavailable".into(), plain(json!("AttributeError")))]),
+        (Some(playback_state), Some(scanning), Some(audio_state), Some(graphics)) => {
+            Application::Status {
+                screen_off: plain(status.get("screen_off").cloned().unwrap_or(Value::Null)),
+                playback_state,
+                scanning,
+                audio_state,
+                graphics,
+            }
+        }
+        _ => Application::Unavailable {
+            unavailable: "AttributeError",
+        },
     }
 }
 
@@ -607,40 +609,57 @@ fn release() -> String {
         .into_owned()
 }
 
-fn snapshot(root: &Root) -> Result<Value, E> {
-    let start = monotonic();
-    let mut entries = vec![
-        ("wall_time".to_owned(), plain(json!(wall()))),
-        ("monotonic".into(), plain(json!(start))),
-        (
-            "boot_id".into(),
-            plain(text_value(read(
-                &root.path("/proc/sys/kernel/random/boot_id"),
-            ))),
-        ),
-        (
-            "identity".into(),
-            plain(text_value(read(&root.path("/etc/y2linux/versions.json")))),
-        ),
-        ("kernel".into(), plain(json!(release()))),
-        ("application".into(), application(root)),
-    ];
-    let patterns: Vec<&str> = SNAPSHOT.iter().chain(&SNAPSHOT_TAIL).copied().collect();
-    entries.push(("files".into(), files_node(&files(root, &patterns))));
-    entries.push(("threads".into(), threads_node(&processes(root)?)));
-    entries.push((
-        "collection_seconds".into(),
-        plain(json!(monotonic() - start)),
-    ));
-    Ok(object(entries))
+/// The heavy description at each end, outside the counter window (`state_start`, `state_end`).
+#[derive(Serialize)]
+struct Snapshot {
+    wall_time: f64,
+    monotonic: f64,
+    boot_id: Option<String>,
+    identity: Option<String>,
+    kernel: String,
+    application: Application,
+    #[serde(serialize_with = "as_map")]
+    files: Files,
+    #[serde(serialize_with = "as_map")]
+    threads: Threads,
+    collection_seconds: f64,
 }
 
+fn snapshot(root: &Root) -> Result<Snapshot, E> {
+    let start = monotonic();
+    let wall_time = wall();
+    let boot_id = read(&root.path("/proc/sys/kernel/random/boot_id"));
+    let identity = read(&root.path("/etc/y2linux/versions.json"));
+    let kernel = release();
+    let application = application(root);
+    let patterns: Vec<&str> = SNAPSHOT.iter().chain(&SNAPSHOT_TAIL).copied().collect();
+    let files = files(root, &patterns);
+    let threads = processes(root)?;
+    Ok(Snapshot {
+        wall_time,
+        monotonic: start,
+        boot_id,
+        identity,
+        kernel,
+        application,
+        files,
+        threads,
+        collection_seconds: monotonic() - start,
+    })
+}
+
+/// The cheap counters at one end of the window (`start`, `end`).
+#[derive(Serialize)]
 struct Sample {
     boot_id: Option<String>,
-    threads: Vec<(String, Thread)>,
+    #[serde(serialize_with = "as_map")]
+    threads: Threads,
+    #[serde(serialize_with = "as_map")]
     files: Files,
     monotonic: f64,
+    #[serde(rename = "collection_seconds")]
     collection: f64,
+    #[serde(rename = "cpu_seconds")]
     cpu: f64,
 }
 
@@ -659,17 +678,6 @@ fn counters(root: &Root) -> Result<Sample, E> {
         collection: now - start,
         cpu: process_time() - cpu_start,
     })
-}
-
-fn sample_node(s: &Sample) -> Value {
-    object(vec![
-        ("boot_id".into(), plain(text_value(s.boot_id.clone()))),
-        ("threads".into(), threads_node(&s.threads)),
-        ("files".into(), files_node(&s.files)),
-        ("monotonic".into(), plain(json!(s.monotonic))),
-        ("collection_seconds".into(), plain(json!(s.collection))),
-        ("cpu_seconds".into(), plain(json!(s.cpu))),
-    ])
 }
 
 fn file<'a>(sample: &'a Sample, key: &str) -> &'a str {
@@ -720,21 +728,95 @@ fn column_keys(list: &[(String, i64)]) -> Vec<&String> {
     keys
 }
 
-fn float_or_null(value: Option<f64>) -> Value {
-    plain(value.map_or(Value::Null, |v| json!(v)))
+/// One thread's CPU and scheduling over the window.
+#[derive(Clone, Serialize)]
+struct Offender {
+    thread: String,
+    name: String,
+    ticks: i64,
+    cpu_percent_one_core: f64,
+    context_switches_per_second: f64,
 }
 
-fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Value, E> {
+/// One IRQ line's count over the window. Offline CPU columns disappear, even though their earlier
+/// IRQ totals remain relevant: a column change or a reset makes the delta unknown, and the
+/// common-CPU evidence is kept apart.
+#[derive(Serialize)]
+struct Irq {
+    #[serde(skip)]
+    rank: i64,
+    irq: String,
+    name: String,
+    delta: Option<i64>,
+    per_second: Option<f64>,
+    counter_discontinuity: bool,
+    cpu_columns_changed: bool,
+    #[serde(serialize_with = "as_map")]
+    common_cpu_deltas: Vec<(String, i64)>,
+    common_cpu_lower_bound_per_second: Option<f64>,
+}
+
+/// One CPU idle state's residency over the window.
+#[derive(Serialize)]
+struct Idle {
+    path: String,
+    name: Option<String>,
+    #[serde(rename = "raw_time_delta_us")]
+    raw: i64,
+    time_us: Option<i64>,
+    #[serde(rename = "percent_wall_time")]
+    percent: Option<f64>,
+    entries: Option<i64>,
+    #[serde(rename = "counter_discontinuity")]
+    discontinuity: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    residency_invalid_reason: Option<&'static str>,
+}
+
+/// One OPP's share of the recorded residency (keys sorted, as the record has always had them).
+#[derive(Serialize)]
+struct Frequency {
+    khz: i64,
+    percent_recorded_residency: Option<f64>,
+    ticks: i64,
+}
+
+#[derive(Serialize)]
+struct Rate {
+    delta: i64,
+    per_second: f64,
+}
+
+#[derive(Serialize)]
+struct Wakeup {
+    name: String,
+    #[serde(serialize_with = "as_map")]
+    deltas: Vec<(String, i64)>,
+}
+
+/// What the window measured.
+#[derive(Serialize)]
+struct Summary {
+    top_cpu_threads: Vec<Offender>,
+    top_context_switch_threads: Vec<Offender>,
+    irqs: Vec<Irq>,
+    cpuidle: Vec<Idle>,
+    cpu0_idle_exits_per_second: Option<f64>,
+    frequency_residency: Vec<Frequency>,
+    frequency_reason: Option<&'static str>,
+    #[serde(serialize_with = "as_map")]
+    scheduler: Vec<(String, Rate)>,
+    wakeup_sources: Vec<Wakeup>,
+    wakeups_per_second: Option<f64>,
+    wakeups_reason: &'static str,
+}
+
+fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Summary, E> {
     if duration <= 0.0 || a.boot_id != b.boot_id {
         return Err(E::value("counter_window_crosses_boot_or_has_no_duration"));
     }
     // SAFETY: sysconf has no preconditions.
     let clock = unsafe { libc::sysconf(libc::_SC_CLK_TCK) } as f64;
-    struct Offender {
-        node: Value,
-        ticks: i64,
-        rate: f64,
-    }
     let mut offenders = Vec::new();
     for (key, old) in &a.threads {
         let Some(new) = b.threads.iter().find(|(k, _)| k == key).map(|(_, t)| t) else {
@@ -742,24 +824,16 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Value, E> {
         };
         let ticks = new.utime + new.stime - old.utime - old.stime;
         let switches = |t: &Thread| t.switches.iter().map(|(_, v)| v).sum::<i64>();
-        let rate = (switches(new) - switches(old)) as f64 / duration;
         offenders.push(Offender {
-            node: object(vec![
-                ("thread".into(), plain(json!(key))),
-                ("name".into(), plain(json!(new.name))),
-                ("ticks".into(), plain(json!(ticks))),
-                (
-                    "cpu_percent_one_core".into(),
-                    plain(json!((100 * ticks) as f64 / clock / duration)),
-                ),
-                ("context_switches_per_second".into(), plain(json!(rate))),
-            ]),
+            thread: key.clone(),
+            name: new.name.clone(),
             ticks,
-            rate,
+            cpu_percent_one_core: (100 * ticks) as f64 / clock / duration,
+            context_switches_per_second: (switches(new) - switches(old)) as f64 / duration,
         });
     }
     let (ia, ib) = (interrupts(a)?, interrupts(b)?);
-    let mut irq: Vec<(i64, Value)> = Vec::new();
+    let mut irqs: Vec<Irq> = Vec::new();
     for (key, (counts, name)) in &ib {
         let old: &[(String, i64)] = ia
             .iter()
@@ -777,48 +851,21 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Value, E> {
         let reset = common.iter().any(|(_, v)| *v < 0);
         let valid = !common.is_empty() && !columns_changed && !reset;
         let sum: i64 = common.iter().map(|(_, v)| v).sum();
-        let d = valid.then_some(sum);
-        // Offline CPU columns disappear, even though their earlier IRQ totals remain relevant.
+        let delta = valid.then_some(sum);
         // Subtracting column sums can silently undercount even when the apparent delta is
-        // positive. Keep common-CPU evidence separate.
+        // positive: the lower bound counts only the CPUs present at both ends.
         let lower = (!common.is_empty() && !reset).then_some(sum);
-        irq.push((
-            d.unwrap_or(0),
-            object(vec![
-                ("irq".into(), plain(json!(key))),
-                ("name".into(), plain(json!(name))),
-                ("delta".into(), plain(d.map_or(Value::Null, |v| json!(v)))),
-                (
-                    "per_second".into(),
-                    float_or_null(d.map(|v| v as f64 / duration)),
-                ),
-                ("counter_discontinuity".into(), plain(json!(!valid))),
-                ("cpu_columns_changed".into(), plain(json!(columns_changed))),
-                (
-                    "common_cpu_deltas".into(),
-                    object(
-                        common
-                            .iter()
-                            .map(|(c, v)| (c.clone(), plain(json!(v))))
-                            .collect(),
-                    ),
-                ),
-                (
-                    "common_cpu_lower_bound_per_second".into(),
-                    float_or_null(lower.map(|v| v as f64 / duration)),
-                ),
-            ]),
-        ));
-    }
-    struct Idle {
-        path: String,
-        name: Option<String>,
-        raw: i64,
-        time_us: Option<i64>,
-        percent: Option<f64>,
-        entries: Option<i64>,
-        discontinuity: bool,
-        invalid: bool,
+        irqs.push(Irq {
+            rank: delta.unwrap_or(0),
+            irq: key.clone(),
+            name: name.clone(),
+            delta,
+            per_second: delta.map(|v| v as f64 / duration),
+            counter_discontinuity: !valid,
+            cpu_columns_changed: columns_changed,
+            common_cpu_deltas: common,
+            common_cpu_lower_bound_per_second: lower.map(|v| v as f64 / duration),
+        });
     }
     let mut idle: Vec<Idle> = Vec::new();
     for (path, value) in &a.files {
@@ -851,20 +898,22 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Value, E> {
             percent: (!discontinuity).then(|| time_us as f64 / duration / 10000.0),
             entries: (!discontinuity).then_some(entries),
             discontinuity,
-            invalid: false,
+            residency_invalid_reason: None,
         });
     }
     // An idle interval is charged when that CPU exits it. An untouched secondary CPU can therefore
     // charge time that began before the first endpoint read. Reject impossible per-CPU totals
     // instead of publishing/clamping >100%.
-    let mut cpus: Vec<String> = Vec::new();
-    for row in &idle {
-        let cpu = row
-            .path
+    let cpu_of = |row: &Idle| {
+        row.path
             .split("/cpuidle/")
             .next()
             .unwrap_or_default()
-            .to_owned();
+            .to_owned()
+    };
+    let mut cpus: Vec<String> = Vec::new();
+    for row in &idle {
+        let cpu = cpu_of(row);
         if !cpus.contains(&cpu) {
             cpus.push(cpu);
         }
@@ -884,7 +933,7 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Value, E> {
                 let row = &mut idle[i];
                 row.time_us = None;
                 row.percent = None;
-                row.invalid = true;
+                row.residency_invalid_reason = Some("idle_accounting_crosses_counter_window");
             }
         }
     }
@@ -916,11 +965,12 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Value, E> {
         }
     }
     let total: i64 = fd.values().sum();
-    let frequency: Vec<Value> = fd
+    let frequency: Vec<Frequency> = fd
         .iter()
-        .map(|(khz, ticks)| {
-            json!({"khz": khz, "ticks": ticks,
-                   "percent_recorded_residency": if total != 0 { json!((100 * ticks) as f64 / total as f64) } else { Value::Null }})
+        .map(|(&khz, &ticks)| Frequency {
+            khz,
+            percent_recorded_residency: (total != 0).then(|| (100 * ticks) as f64 / total as f64),
+            ticks,
         })
         .collect();
     let proc_stat = |s: &Sample| -> Result<Vec<(String, i64)>, E> {
@@ -940,15 +990,16 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Value, E> {
         Ok(map)
     };
     let (sa, sb) = (proc_stat(a)?, proc_stat(b)?);
-    let scheduler: Vec<(String, Value)> = sa
+    let scheduler: Vec<(String, Rate)> = sa
         .iter()
         .filter_map(|(key, old)| {
             let new = sb.iter().find(|(k, _)| k == key)?.1;
             (new >= *old).then(|| {
-                (
-                    key.clone(),
-                    plain(json!({"delta": new - old, "per_second": (new - old) as f64 / duration})),
-                )
+                let rate = Rate {
+                    delta: new - old,
+                    per_second: (new - old) as f64 / duration,
+                };
+                (key.clone(), rate)
             })
         })
         .collect();
@@ -982,7 +1033,7 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Value, E> {
         let Some((_, new)) = wb.iter().find(|(k, _)| k == name) else {
             continue;
         };
-        let mut changes = Vec::new();
+        let mut deltas = Vec::new();
         for key in ["event_count", "wakeup_count", "active_count"] {
             let lookup = |list: &[(String, String)]| {
                 list.iter()
@@ -991,13 +1042,13 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Value, E> {
                     .map(|(_, v)| v.clone())
             };
             if let (Some(o), Some(n)) = (lookup(old), lookup(new)) {
-                changes.push((key.to_owned(), plain(json!(int(&n)? - int(&o)?))));
+                deltas.push((key.to_owned(), int(&n)? - int(&o)?));
             }
         }
-        wakes.push(object(vec![
-            ("name".into(), plain(json!(name))),
-            ("deltas".into(), object(changes)),
-        ]));
+        wakes.push(Wakeup {
+            name: name.clone(),
+            deltas,
+        });
     }
     let cpu0: Vec<&Idle> = idle.iter().filter(|r| r.path.contains("/cpu0/")).collect();
     let exits = (!cpu0.is_empty() && cpu0.iter().all(|r| r.entries.is_some()))
@@ -1006,77 +1057,55 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Value, E> {
     by_ticks.sort_by_key(|x| std::cmp::Reverse(x.ticks));
     let mut by_rate: Vec<&Offender> = offenders.iter().collect();
     by_rate.sort_by(|x, y| {
-        y.rate
-            .partial_cmp(&x.rate)
+        y.context_switches_per_second
+            .partial_cmp(&x.context_switches_per_second)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    irq.sort_by_key(|x| std::cmp::Reverse(x.0));
-    let idle_nodes = idle
-        .iter()
-        .map(|r| {
-            let mut entries = vec![
-                ("path".to_owned(), plain(json!(r.path))),
-                ("name".into(), plain(text_value(r.name.clone()))),
-                ("raw_time_delta_us".into(), plain(json!(r.raw))),
-                (
-                    "time_us".into(),
-                    plain(r.time_us.map_or(Value::Null, |v| json!(v))),
-                ),
-                ("percent_wall_time".into(), float_or_null(r.percent)),
-                (
-                    "entries".into(),
-                    plain(r.entries.map_or(Value::Null, |v| json!(v))),
-                ),
-                (
-                    "counter_discontinuity".into(),
-                    plain(json!(r.discontinuity)),
-                ),
-            ];
-            if r.invalid {
-                entries.push((
-                    "residency_invalid_reason".into(),
-                    plain(json!("idle_accounting_crosses_counter_window")),
-                ));
-            }
-            object(entries)
-        })
-        .collect();
-    let list = Value::Array;
-    let frequency_reason = if frequency.is_empty() {
-        json!("Kernel does not expose OPP residency counters.")
-    } else {
-        Value::Null
-    };
-    Ok(object(vec![
-        (
-            "top_cpu_threads".into(),
-            list(by_ticks.iter().take(25).map(|o| o.node.clone()).collect()),
-        ),
-        (
-            "top_context_switch_threads".into(),
-            list(by_rate.iter().take(25).map(|o| o.node.clone()).collect()),
-        ),
-        (
-            "irqs".into(),
-            list(irq.into_iter().map(|(_, n)| n).collect()),
-        ),
-        ("cpuidle".into(), list(idle_nodes)),
-        (
-            "cpu0_idle_exits_per_second".into(),
-            float_or_null(exits.map(|e| e as f64 / duration)),
-        ),
-        ("frequency_residency".into(), plain(Value::Array(frequency))),
-        ("frequency_reason".into(), plain(frequency_reason)),
-        ("scheduler".into(), object(scheduler)),
-        ("wakeup_sources".into(), list(wakes)),
-        ("wakeups_per_second".into(), plain(Value::Null)),
-        (
-            "wakeups_reason".into(),
-            plain(json!(
-                "Context switches and IRQs are proxies; they are not independent unique CPU wakes."
-            )),
-        ),
-    ]))
+    irqs.sort_by_key(|x| std::cmp::Reverse(x.rank));
+    let frequency_reason = frequency
+        .is_empty()
+        .then_some("Kernel does not expose OPP residency counters.");
+    Ok(Summary {
+        top_cpu_threads: by_ticks.into_iter().take(25).cloned().collect(),
+        top_context_switch_threads: by_rate.into_iter().take(25).cloned().collect(),
+        irqs,
+        cpuidle: idle,
+        cpu0_idle_exits_per_second: exits.map(|e| e as f64 / duration),
+        frequency_residency: frequency,
+        frequency_reason,
+        scheduler,
+        wakeup_sources: wakes,
+        wakeups_per_second: None,
+        wakeups_reason:
+            "Context switches and IRQs are proxies; they are not independent unique CPU wakes.",
+    })
+}
+
+/// The audit's record (`--output`, compact JSON in this order).
+#[derive(Serialize)]
+struct Audit<'a> {
+    schema: &'static str,
+    state: &'a str,
+    duration_seconds: f64,
+    undisturbed_sleep_seconds: f64,
+    same_boot: bool,
+    start: Sample,
+    end: Sample,
+    state_start: Snapshot,
+    state_end: Snapshot,
+    summary: Summary,
+    observer: Observer,
+}
+
+/// What the observer itself cost.
+#[derive(Serialize)]
+struct Observer {
+    pid: u32,
+    total_cpu_seconds: f64,
+    counter_cpu_seconds: f64,
+    counter_collection_seconds: f64,
+    max_rss_kib: i64,
+    note: &'static str,
 }
 
 fn sleep(seconds: f64) {
@@ -1099,40 +1128,27 @@ fn run(root: &Root, args: &Args) -> Result<(), E> {
     let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
     // SAFETY: getrusage into a zeroed rusage.
     unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut usage) };
-    let result = object(vec![
-        ("schema".into(), plain(json!("org.y2linux.power-audit/v2"))),
-        ("state".into(), plain(json!(args.state))),
-        ("duration_seconds".into(), plain(json!(duration))),
-        (
-            "undisturbed_sleep_seconds".into(),
-            plain(json!(measured_end - measured_start)),
-        ),
-        ("same_boot".into(), plain(json!(a.boot_id == b.boot_id))),
-        ("start".into(), sample_node(&a)),
-        ("end".into(), sample_node(&b)),
-        ("state_start".into(), state_start),
-        ("state_end".into(), state_end),
-        ("summary".into(), summary),
-        (
-            "observer".into(),
-            object(vec![
-                ("pid".into(), plain(json!(std::process::id()))),
-                ("total_cpu_seconds".into(), plain(json!(process_time() - cpu_start))),
-                ("counter_cpu_seconds".into(), plain(json!(a.cpu + b.cpu))),
-                (
-                    "counter_collection_seconds".into(),
-                    plain(json!(a.collection + b.collection)),
-                ),
-                ("max_rss_kib".into(), plain(json!(usage.ru_maxrss))),
-                (
-                    "note".into(),
-                    plain(json!(
-                        "Endpoint counter skew is bounded by collection time; descriptions are outside the window."
-                    )),
-                ),
-            ]),
-        ),
-    ]);
+    let observer = Observer {
+        pid: std::process::id(),
+        total_cpu_seconds: process_time() - cpu_start,
+        counter_cpu_seconds: a.cpu + b.cpu,
+        counter_collection_seconds: a.collection + b.collection,
+        max_rss_kib: y2p_core::wide(usage.ru_maxrss),
+        note: "Endpoint counter skew is bounded by collection time; descriptions are outside the window.",
+    };
+    let result = Audit {
+        schema: "org.y2linux.power-audit/v2",
+        state: &args.state,
+        duration_seconds: duration,
+        undisturbed_sleep_seconds: measured_end - measured_start,
+        same_boot: a.boot_id == b.boot_id,
+        start: a,
+        end: b,
+        state_start,
+        state_end,
+        summary,
+        observer,
+    };
     // os.fsencode: an --output given as bytes that are not UTF-8 names those bytes.
     let encoded = y2p_core::os_text::fsencode(&args.output);
     let path = Path::new(&encoded);

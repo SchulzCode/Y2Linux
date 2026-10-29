@@ -18,7 +18,7 @@ use super::{
         admission, application_starting, battery_and_cable, failed_before_freeze, guard_record,
         lock_holders, operation_state, retry_later, spm_state,
     },
-    receipt::{self, record, wake_irqs, Stage},
+    receipt::{self, record, wake_irqs, Receipt, Stage},
     request, traceback, E, INTERRUPTED,
 };
 use serde_json::{Map, Value};
@@ -39,7 +39,7 @@ use y2p_core::py::PyValue;
 use y2p_core::sys::{set_signal, Disposition, Handler};
 use y2p_core::{
     command,
-    py::{is_true, truthy},
+    py::is_true,
     root::python_int,
     suspend_text::{is_decimal, Regex},
     Root,
@@ -361,8 +361,7 @@ impl Run {
             // Read as Python does (the count is not used again: the next pass reads a fresh one).
             pm.wakeup_count(root)?;
             let value = record(root, Stage::new("kernel_resumed", Some(0)))?;
-            let product = value.get("product").and_then(Value::as_object);
-            self.restored_kernel = product.is_some_and(|p| is_true(p.get("kernel_completed")));
+            self.restored_kernel = value.kernel_completed();
             if !self.restored_kernel {
                 return Err(E::RuntimeError("kernel_exit_not_proven".into()));
             }
@@ -372,11 +371,7 @@ impl Run {
             // No display, input reactivation, radio restore or library scan during a maintenance
             // return. Safety daemon gets a normal tick; the following admission also reads the
             // ADC directly.
-            previous_irqs = value
-                .get("wake_irqs_after")
-                .and_then(Value::as_object)
-                .cloned()
-                .unwrap_or_default();
+            previous_irqs = value.wake_irqs_after();
             record(root, Stage::new("maintenance_wake", Some(0)))?;
             pm.pause(2.0)?;
             // The safety tick may publish a normal BAT0 notification. Begin a new handshake after
@@ -439,7 +434,7 @@ impl Run {
                 ..Stage::new(&complete, Some(self.result))
             };
             let value = record(root, stage)?;
-            if let Some(result) = value.get("result").filter(|r| truthy(r)) {
+            if let Some(result) = value.failed_result() {
                 self.result = result.as_i64().unwrap_or(1);
             }
             if self.result == 0 {
@@ -642,12 +637,9 @@ fn kernel_sleep(root: &Root, pm: &mut dyn Pm) -> Result<(), E> {
     result
 }
 
-fn timer_only(value: &Map<String, Value>, spm: &Map<String, Value>) -> bool {
+fn timer_only(value: &Receipt, spm: &Map<String, Value>) -> bool {
     let empty = Map::new();
-    let p = value
-        .get("product")
-        .and_then(Value::as_object)
-        .unwrap_or(&empty);
+    let p = value.product().unwrap_or(&empty);
     let before = value
         .get("wake_irqs_before")
         .and_then(Value::as_object)

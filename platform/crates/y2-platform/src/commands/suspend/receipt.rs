@@ -6,6 +6,7 @@ use super::{
     admission::spm_state, diagnostics, interrupted, is_text, journal, py_add, py_gt, pyjson,
     text_value, E,
 };
+use serde::Serialize;
 use serde_json::{json, Map, Value};
 use std::{
     fs::{self, File},
@@ -83,7 +84,7 @@ fn contains(container: Option<&Value>, name: &str) -> Result<bool, E> {
         Some(Value::String(text)) => Ok(text.contains(name)),
         Some(other) => Err(E::TypeError(format!(
             "argument of type '{}' is not iterable",
-            super::super::sleep::python_type(other)
+            other.type_name()
         ))),
     }
 }
@@ -308,6 +309,98 @@ fn pm_test_none(value: Option<&Value>) -> Result<bool, E> {
     }
 }
 
+/// The receipt as `record` wrote it (`suspend-last.json`): every key it holds, with the views the
+/// helper and the commands read.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Receipt(pub Map<String, Value>);
+
+impl std::ops::Deref for Receipt {
+    type Target = Map<String, Value>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Receipt {
+    /// The product state (`sleep.product`'s fields as this record left them), if it is an object.
+    pub fn product(&self) -> Option<&Map<String, Value>> {
+        self.0.get("product").and_then(Value::as_object)
+    }
+
+    /// The product state, or an empty one.
+    pub fn into_product(mut self) -> Map<String, Value> {
+        match self.0.shift_remove("product") {
+            Some(Value::Object(product)) => product,
+            _ => Map::new(),
+        }
+    }
+
+    /// Linux returned through the qualified resume path on this boot (`product.kernel_completed`).
+    pub fn kernel_completed(&self) -> bool {
+        self.product()
+            .is_some_and(|p| is_true(p.get("kernel_completed")))
+    }
+
+    /// The Power/RTC IRQ counts after the return (`{}` when there are none).
+    pub fn wake_irqs_after(&self) -> Map<String, Value> {
+        self.0
+            .get("wake_irqs_after")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// The result the record kept (`None` when it is falsy: 0, null or absent).
+    pub fn failed_result(&self) -> Option<&Value> {
+        self.0.get("result").filter(|r| truthy(r))
+    }
+
+    /// The record names an error (`y2-suspend-record` exits 1 then).
+    pub fn has_error(&self) -> bool {
+        self.0.get("error").is_some_and(truthy)
+    }
+}
+
+/// One row of the receipt's `stages` (the last 32 are kept).
+#[derive(Serialize)]
+struct StageRow<'a> {
+    stage: &'a str,
+    time: f64,
+    result: Option<i64>,
+}
+
+/// A `progress` row: no product state, only where the helper is.
+#[derive(Serialize)]
+struct ProgressRow<'a> {
+    stage: &'a str,
+    time: f64,
+    boottime_s: f64,
+}
+
+/// The battery and clocks at a suspend entry (`entry`, `first_entry`) or a return (`resume`, with
+/// the SPM state).
+#[derive(Serialize)]
+struct Moment {
+    boottime_s: f64,
+    monotonic_s: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    spm: Option<Map<String, Value>>,
+    voltage_uv: Option<i64>,
+    battery: Value,
+}
+
+/// The USB state a receipt keeps (`usb_restore`): each controller's status, each UDC's state.
+#[derive(Serialize)]
+struct UsbRestore {
+    controllers: Map<String, Value>,
+    udcs: Map<String, Value>,
+}
+
+fn to_value(value: impl Serialize) -> Result<Value, E> {
+    serde_json::to_value(value).map_err(|e| E::value(e.to_string()))
+}
+
 /// `record(ctx, stage, result, reason, reborn_ack, mode, restore_ack, dark)`'s arguments.
 #[derive(Default)]
 pub struct Stage<'a> {
@@ -351,7 +444,7 @@ pub fn starts_receipt(stage: &str, value: &Map<String, Value>) -> bool {
 }
 
 /// `suspend_record.record`.
-pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
+pub fn record(root: &Root, s: Stage) -> Result<Receipt, E> {
     let directory = root.path(PLATFORM);
     private_directory(&directory)?;
     let path = directory.join("suspend-last.json");
@@ -407,10 +500,7 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
                 "persistent_kernel",
                 text_value(root.read("/sys/firmware/y2_pm/state")),
             ),
-            (
-                "usb_restore",
-                json!({"controllers": controllers, "udcs": udcs}),
-            ),
+            ("usb_restore", to_value(UsbRestore { controllers, udcs })?),
             (
                 "radio_restore",
                 text_value(root.read("/sys/devices/platform/18070000.connectivity/status")),
@@ -423,17 +513,19 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
             .cloned()
             .unwrap_or(Value::Null)
     };
-    let voltage = || {
-        root.integer("/sys/class/power_supply/BAT0/voltage_now")
-            .map_or(Value::Null, Value::from)
-    };
+    let voltage = || root.integer("/sys/class/power_supply/BAT0/voltage_now");
     if s.stage == "kernel_suspend" {
         value.insert(
             "wake_irqs_before".into(),
             Value::Object(wake_irqs(root.read("/proc/interrupts").as_deref())),
         );
-        let entry = json!({"boottime_s": super::boottime(), "monotonic_s": super::monotonic(),
-                           "voltage_uv": voltage(), "battery": battery()});
+        let entry = to_value(Moment {
+            boottime_s: super::boottime(),
+            monotonic_s: super::monotonic(),
+            spm: None,
+            voltage_uv: voltage(),
+            battery: battery(),
+        })?;
         value.insert("entry".into(), entry.clone());
         // Maintenance returns update entry for the next segment. Retain the actual first
         // pre-suspend ADC/timestamp for the whole sleep interval.
@@ -446,11 +538,14 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
     }
     if s.stage == "kernel_resumed" {
         let spm = spm_state(root);
-        value.insert(
-            "resume".into(),
-            json!({"boottime_s": super::boottime(), "monotonic_s": super::monotonic(),
-                   "spm": spm.clone(), "voltage_uv": voltage(), "battery": battery()}),
-        );
+        let resume = Moment {
+            boottime_s: super::boottime(),
+            monotonic_s: super::monotonic(),
+            spm: Some(spm.clone()),
+            voltage_uv: voltage(),
+            battery: battery(),
+        };
+        value.insert("resume".into(), to_value(resume)?);
         let cycles = py_add(value.get("cycles"), 1.0, true)?;
         value.insert("cycles".into(), cycles);
         // Only returned reset-path PCM596 entry counts, never a PM test/abort.
@@ -481,10 +576,12 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
     if let Some(ack) = s.reborn_ack {
         value.insert("reborn_prepared".into(), json!(ack));
     }
-    append_stage(
-        &mut value,
-        json!({"stage": s.stage, "time": super::wall(), "result": result}),
-    )?;
+    let row = StageRow {
+        stage: s.stage,
+        time: super::wall(),
+        result: s.result,
+    };
+    append_stage(&mut value, to_value(row)?)?;
     if s.stage.starts_with("complete_result_") {
         // An earlier successful restore (screen before radios) is reused; asking again would redraw
         // and reset Reborn's wake gesture. A dark restore (refused sleep, F47) keeps the screen off.
@@ -558,7 +655,7 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
         .open(parent)
         .map_err(|e| E::os(&e, Some(parent)))?;
     handle.sync_all().map_err(|e| E::os(&e, None))?;
-    Ok(value)
+    Ok(Receipt(value))
 }
 
 /// `value.setdefault('stages', []).append(row); value['stages'] = value['stages'][-32:]`.
@@ -580,10 +677,12 @@ pub fn progress(root: &Root, stage: &str) -> Result<(), E> {
     let directory = root.path(PLATFORM);
     private_directory(&directory)?;
     let mut value = root.json_object(RECEIPT);
-    append_stage(
-        &mut value,
-        json!({"stage": stage, "time": super::wall(), "boottime_s": super::boottime()}),
-    )?;
+    let row = ProgressRow {
+        stage,
+        time: super::wall(),
+        boottime_s: super::boottime(),
+    };
+    append_stage(&mut value, to_value(row)?)?;
     atomic_json(&directory.join("suspend-last.json"), &value, true)
 }
 

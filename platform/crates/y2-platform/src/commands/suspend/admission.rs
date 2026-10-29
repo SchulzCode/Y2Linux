@@ -4,7 +4,8 @@
 //! and `update.status(ctx).get('state')`.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{is_text, py_gt, text_value, wall, E};
-use serde_json::{json, Map, Number, Value};
+use serde::Serialize;
+use serde_json::{json, Map, Value};
 use std::{fs::Metadata, os::unix::fs::MetadataExt, path::Path};
 use y2p_core::py::PyValue;
 use y2p_core::{
@@ -412,12 +413,29 @@ fn private_directory(path: &Path) -> Result<(), E> {
     y2p_core::record::private_directory(path).map_err(|e| E::os(&e, Some(path)))
 }
 
+/// `product-sleep-guard.json`: whether an attempt of this image (`identity`) is still unproven.
+/// Only `pending` with `kernel_entry` quarantines the image (a record without `kernel_entry`, from
+/// 12, counts as one that reached the kernel).
+#[derive(Serialize)]
+struct Guard {
+    identity: Value,
+    pending: bool,
+    kernel_entry: bool,
+    boot_id: Option<String>,
+    updated: f64,
+}
+
 pub fn guard_record(root: &Root, pending: bool, kernel_entry: bool) -> Result<(), E> {
     let path = root.path(GUARD);
     private_directory(path.parent().unwrap_or(Path::new("/")))?;
-    let value = json!({"identity": identity(root), "pending": pending, "kernel_entry": kernel_entry,
-                       "boot_id": Value::from(root.boot_id()), "updated": wall()});
-    y2p_core::record::atomic_json(&path, &value, true, 0o600).map_err(|e| E::os(&e, Some(&path)))
+    let guard = Guard {
+        identity: identity(root),
+        pending,
+        kernel_entry,
+        boot_id: root.boot_id(),
+        updated: wall(),
+    };
+    y2p_core::record::atomic_json(&path, &guard, true, 0o600).map_err(|e| E::os(&e, Some(&path)))
 }
 
 /// True when the kernel returned an error before freezing any task.
@@ -457,12 +475,21 @@ pub fn failed_before_freeze(root: &Root) -> bool {
         && field(&kernel, "failed_stage") == Some("EXIT")
 }
 
+/// `product-sleep-retry.json`: no product sleep on this boot before `not_before_ns` (CLOCK_BOOTTIME).
+#[derive(Serialize)]
+struct Retry {
+    boot_id: Option<String>,
+    not_before_ns: u64,
+}
+
 pub fn retry_later(root: &Root) -> Result<(), E> {
     let path = root.path(RETRY);
     private_directory(path.parent().unwrap_or(Path::new("/")))?;
-    let not_before = root.clock().boottime_ns() + PREPARE_RETRY_SECONDS * 1_000_000_000;
-    let value = json!({"boot_id": Value::from(root.boot_id()), "not_before_ns": Value::Number(Number::from(not_before))});
-    y2p_core::record::atomic_json(&path, &value, false, 0o600).map_err(|e| E::os(&e, Some(&path)))
+    let retry = Retry {
+        boot_id: root.boot_id(),
+        not_before_ns: root.clock().boottime_ns() + PREPARE_RETRY_SECONDS * 1_000_000_000,
+    };
+    y2p_core::record::atomic_json(&path, &retry, false, 0o600).map_err(|e| E::os(&e, Some(&path)))
 }
 
 /// True only while this boot's journal says the UI has not reached `application_ready` yet; unknown

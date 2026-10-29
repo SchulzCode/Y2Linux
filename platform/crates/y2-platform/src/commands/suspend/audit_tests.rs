@@ -2,6 +2,7 @@
 //! not become fictitious power measurements.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
+use serde_json::json;
 
 const IDLE: &str = "/sys/devices/system/cpu/cpu0/cpuidle/state2";
 const OPP: &str = "/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state";
@@ -129,7 +130,9 @@ fn matching_cpu_columns_and_individual_counter_reset() {
 fn cross_boot_refused() {
     let (a, mut b) = samples();
     b.boot_id = Some("two".into());
-    let error = delta(&a, &b, 10.).expect_err("refused");
+    let Err(error) = delta(&a, &b, 10.) else {
+        panic!("refused")
+    };
     assert!(error.is_value(), "ValueError");
 }
 

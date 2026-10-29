@@ -43,7 +43,9 @@ fn reborn(fixture: &Fixture, ok: bool) -> Reborn {
 }
 
 fn stage(fixture: &Fixture, stage: &str, result: i64) -> Map<String, Value> {
-    record(&fixture.root, Stage::new(stage, Some(result))).unwrap()
+    record(&fixture.root, Stage::new(stage, Some(result)))
+        .unwrap()
+        .0
 }
 
 fn sleep_request(fixture: &Fixture) -> Value {

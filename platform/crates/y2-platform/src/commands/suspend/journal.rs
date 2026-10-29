@@ -9,6 +9,7 @@
 use super::{append, diagnostics, text_value, E};
 use serde_json::Value;
 use std::path::Path;
+use y2p_core::py::PyValue;
 use y2p_core::{
     json::{dumps, Separators},
     root::{python_int, read},
@@ -160,25 +161,13 @@ pub fn suspend(root: &Root, battery: &Value, event: &str) -> Result<bool, E> {
     if !battery.is_object() {
         return Err(E::Crash(format!(
             "'{}' object has no attribute 'get'",
-            python_type(battery)
+            battery.type_name()
         )));
     }
     match row(root, battery, event, now) {
         Ok(written) => Ok(written),
         Err(error) if error.is_recorded_failure() => Ok(false),
         Err(error) => Err(error),
-    }
-}
-
-fn python_type(value: &Value) -> &'static str {
-    match value {
-        Value::Null => "NoneType",
-        Value::Bool(_) => "bool",
-        Value::Number(n) if n.is_f64() => "float",
-        Value::Number(_) => "int",
-        Value::String(_) => "str",
-        Value::Array(_) => "list",
-        Value::Object(_) => "dict",
     }
 }
 
@@ -257,7 +246,7 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
         Some(other) if y2p_core::py::truthy(other) => {
             return Err(E::Crash(format!(
                 "'{}' object has no attribute 'get'",
-                python_type(other)
+                other.type_name()
             )))
         }
         _ => Value::Null,
