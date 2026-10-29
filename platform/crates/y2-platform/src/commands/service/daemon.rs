@@ -658,7 +658,10 @@ impl Service {
                 .set("schema", 1)
                 .set("boot_id", json!(boot_id(root)))
                 .set("monotonic_s", clock::monotonic())
-                .set("supplicant_events", self.monitor.summary(None).into_value());
+                .set(
+                    "supplicant_events",
+                    self.monitor.summary(None).into_sorted(),
+                );
             atomic_json(&runtime.join("network.json"), &value, false)?;
             let activity = coexistence.observe(root, &value, before)?;
             if before >= next_radio_policy

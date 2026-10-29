@@ -79,87 +79,20 @@ fn boot(root: &Root) -> Option<String> {
     root.read("/proc/sys/kernel/random/boot_id")
 }
 
-/// A JSON object that keeps insertion order also when nested (serde_json's `Map` sorts): the journal
-/// rows are `json.dumps(row, separators=(',', ':'))`, unsorted.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Json {
-    Value(Value),
-    Object(Vec<(String, Json)>),
-}
-
-impl Json {
-    pub fn object() -> Self {
-        Json::Object(Vec::new())
-    }
-
-    pub fn with(mut self, key: &str, value: impl Into<Json>) -> Self {
-        if let Json::Object(pairs) = &mut self {
-            let value = value.into();
-            match pairs.iter_mut().find(|(k, _)| k == key) {
-                Some(entry) => entry.1 = value,
-                None => pairs.push((key.to_owned(), value)),
-            }
-        }
-        self
-    }
-
-    /// As a plain value, for records written sorted (`atomic_json`) or compared.
-    pub fn into_value(self) -> Value {
-        y2p_core::json::sorted(match self {
-            Json::Value(value) => value,
-            Json::Object(pairs) => Value::Object(
-                pairs
-                    .into_iter()
-                    .map(|(k, v)| (k, v.into_value()))
-                    .collect(),
-            ),
-        })
-    }
-}
-
-macro_rules! leaf {
-    ($($t:ty),*) => {$(
-        impl From<$t> for Json {
-            fn from(value: $t) -> Self {
-                Json::Value(value.into())
-            }
-        }
-    )*};
-}
-leaf!(Value, bool, i32, i64, u64, usize, f64, &str, String);
-
-impl serde::Serialize for Json {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeMap;
-        match self {
-            Json::Value(value) => y2p_core::json::sorted(value.clone()).serialize(serializer),
-            Json::Object(pairs) => {
-                let mut map = serializer.serialize_map(Some(pairs.len()))?;
-                for (key, value) in pairs {
-                    map.serialize_entry(key, value)?;
-                }
-                map.end()
-            }
-        }
-    }
-}
-
 /// `journal(ctx, event, **fields)`: append one durable row (bounded, rotated once); false when /data
 /// is not ours or the row could not be written.
-pub fn journal(root: &Root, event: &str, fields: Json) -> bool {
+pub fn journal(root: &Root, event: &str, fields: Object) -> bool {
     if !data_ready(root) {
         return false;
     }
-    let mut row = Json::object()
+    let mut row = Object::new()
         .with("schema", 1)
         .with("event", event)
         .with("wall_time", wall())
         .with("monotonic_s", clock::monotonic())
         .with("boot_id", json!(boot(root)));
-    if let Json::Object(pairs) = fields {
-        for (key, value) in pairs {
-            row = row.with(&key, value);
-        }
+    for (key, value) in fields {
+        row.set(&key, value);
     }
     let Ok(text) = dumps(&row, Separators::Compact) else {
         return false;
@@ -576,7 +509,7 @@ pub struct EventMonitor {
     started: f64,
     counts: Vec<(String, u64)>,
     last: Vec<(String, f64)>,
-    last_disconnect: Json,
+    last_disconnect: Value,
     pub(crate) interrupted_handshakes: u64,
     /// The network of the last connect: the one a self-heal selects.
     pub connected_network: Option<i64>,
@@ -602,7 +535,7 @@ impl EventMonitor {
             started: clock::monotonic(),
             counts: Vec::new(),
             last: Vec::new(),
-            last_disconnect: Json::Value(Value::Null),
+            last_disconnect: Value::Null,
             interrupted_handshakes: 0,
             connected_network: None,
             timed_out: false,
@@ -612,17 +545,17 @@ impl EventMonitor {
     }
 
     /// Counts and ages of the supplicant's events for network.json and the journal.
-    pub fn summary(&self, now: Option<f64>) -> Json {
+    pub fn summary(&self, now: Option<f64>) -> Object {
         let now = now.unwrap_or_else(clock::monotonic);
-        let mut counts = Json::object();
+        let mut counts = Object::new();
         for (kind, n) in &self.counts {
             counts = counts.with(kind, *n);
         }
-        let mut ago = Json::object();
+        let mut ago = Object::new();
         for (kind, at) in &self.last {
             ago = ago.with(kind, round1(now - at));
         }
-        Json::object()
+        Object::new()
             .with("since_s", round1(now - self.started))
             .with("counts", counts)
             .with("ago_s", ago)
@@ -756,10 +689,12 @@ impl EventMonitor {
             let code = search_value(body, &["reason"], |c| c.is_ascii_digit(), 5)
                 .and_then(|c| c.parse::<i64>().ok());
             let local = body.contains("locally_generated=1");
-            self.last_disconnect = Json::object()
-                .with("reason", json!(code))
-                .with("local", local)
-                .with("timeout", self.timed_out);
+            self.last_disconnect = Value::Object(
+                Object::new()
+                    .with("reason", json!(code))
+                    .with("local", local)
+                    .with("timeout", self.timed_out),
+            );
             self.interrupted = local && !self.timed_out;
             self.held = self.interrupted && !wlan_switched_off(&self.root);
             self.timed_out = false;
@@ -958,7 +893,7 @@ impl WifiRecovery {
                 journal(
                     root,
                     "wifi_recovered",
-                    Json::object()
+                    Object::new()
                         .with("tries", self.tries)
                         .with("seconds", seconds),
                 );
@@ -1021,7 +956,7 @@ impl WifiRecovery {
             .collect();
         self.tries += 1;
         self.first_try.get_or_insert(now);
-        let mut fields = Json::object()
+        let mut fields = Object::new()
             .with("state", state.clone())
             .with("idle_s", round1(now - since))
             .with("tries", self.tries)
@@ -1120,7 +1055,7 @@ mod tests {
         assert!(monitor.fd().is_some(), "attached");
         assert!(dir.join("run/y2/wpa-events.sock").exists());
         monitor.poll();
-        let summary = monitor.summary(None).into_value();
+        let summary = monitor.summary(None).into_sorted();
         assert_eq!(
             summary["counts"],
             json!({"SCAN-STARTED": 1, "CONNECTED": 1})

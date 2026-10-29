@@ -250,7 +250,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
             .with("monotonic_s", clock::monotonic())
             .with("ok", poll.ok)
             .with("reason", json!(poll.reason))
-            .into_value();
+            .into_sorted();
     } else if !completed {
         rssi = Value::Null;
         signal_value = Value::Null;
@@ -280,7 +280,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
                     },
                 )
                 .with("duration_ns", json!(status_duration_ns))
-                .into_value(),
+                .into_sorted(),
         )
         .with(
             "association",
@@ -295,23 +295,11 @@ pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
         .with("dns_ready", dns_ready)
         .with("rssi_dbm", rssi)
         .with("signal_observation", signal_value)
-        .with("traffic_counters", stats.into_value())
+        .with("traffic_counters", stats.into_sorted())
         .with("events", json!(root.json("/run/y2/wifi-events.json")))
         .with("reconnect_owner", "wpa_supplicant")
         .with("power_save", json!(root.json("/run/y2/wifi-power.json")))
         .with("coexistence", json!(root.json("/run/y2/coexistence.json")))
-}
-
-/// A nested `Object` as a plain value, its keys sorted: the observation is written
-/// sorted (`network.json`, `status`) or compared, never printed in insertion order.
-trait IntoValue {
-    fn into_value(self) -> Value;
-}
-
-impl IntoValue for Object {
-    fn into_value(self) -> Value {
-        Value::Object(sorted_object(&self))
-    }
 }
 
 #[cfg(test)]

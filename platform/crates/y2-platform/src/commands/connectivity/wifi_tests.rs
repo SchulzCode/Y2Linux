@@ -441,7 +441,7 @@ fn a_handshake_cut_short_here_is_no_password_verdict() {
         json!([record["error"], record["credential"]["network_id"]]),
         json!(["wrong_credentials", 5])
     );
-    let summary = wifi.monitor.summary(None).into_value();
+    let summary = wifi.monitor.summary(None).into_sorted();
     assert_eq!(
         json!([
             summary["counts"]["DISCONNECTED"],

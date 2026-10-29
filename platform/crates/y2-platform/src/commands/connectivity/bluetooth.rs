@@ -1,14 +1,13 @@
 //! `bluetooth.normalize` (with `codec_observation.quality` and this group's copy of
 //! `codec_controls.status`): actual D-Bus observations, never codec requests, for platform clients.
 //! `status bluetooth` (observation group) gives it `/usr/sbin/y2-bt-observe`'s JSON, read with
-//! [`Json::parse`] so the devices keep the order y2-bt-observe printed them in. The result is printed
+//! `serde_json`, whose objects keep the order y2-bt-observe printed the devices in. The result is printed
 //! sorted (`status`), so it is a plain value.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::wifi::Json;
 use crate::commands::codec::{inventory_codec, not_iterable, requested, validate};
 use crate::reply::Failure;
-use serde::de::{Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{json, Map, Value};
+use y2p_core::json::sorted;
 use y2p_core::py;
 use y2p_core::{
     clock,
@@ -16,87 +15,14 @@ use y2p_core::{
     Root,
 };
 
-impl Json {
-    /// `json.loads(text)` keeping object order (a later duplicate key keeps the first one's place).
-    pub fn parse(text: &str) -> serde_json::Result<Json> {
-        serde_json::from_str(text)
-    }
-
-    pub fn get(&self, key: &str) -> Option<&Json> {
-        match self {
-            Json::Object(pairs) => pairs.iter().find(|(k, _)| k == key).map(|(_, v)| v),
-            Json::Value(_) => None,
-        }
-    }
-
-    pub fn pairs(&self) -> Option<&[(String, Json)]> {
-        match self {
-            Json::Object(pairs) => Some(pairs),
-            _ => None,
-        }
-    }
-
-    pub fn value(&self) -> Value {
-        self.clone().into_value()
-    }
-
-    fn leaf(&self) -> Option<&Value> {
-        match self {
-            Json::Value(value) => Some(value),
-            Json::Object(_) => None,
-        }
-    }
+/// A field that is no object (`CodecConfiguration`, `Running`, the encoder counters), as it reads.
+fn leaf(value: &Value) -> Option<&Value> {
+    (!value.is_object()).then_some(value)
 }
 
-impl<'de> Deserialize<'de> for Json {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct Tree;
-        impl<'de> Visitor<'de> for Tree {
-            type Value = Json;
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                f.write_str("JSON")
-            }
-            fn visit_bool<E>(self, v: bool) -> Result<Json, E> {
-                Ok(Json::Value(v.into()))
-            }
-            fn visit_i64<E>(self, v: i64) -> Result<Json, E> {
-                Ok(Json::Value(v.into()))
-            }
-            fn visit_u64<E>(self, v: u64) -> Result<Json, E> {
-                Ok(Json::Value(v.into()))
-            }
-            fn visit_f64<E>(self, v: f64) -> Result<Json, E> {
-                Ok(Json::Value(json!(v)))
-            }
-            fn visit_str<E>(self, v: &str) -> Result<Json, E> {
-                Ok(Json::Value(v.into()))
-            }
-            fn visit_string<E>(self, v: String) -> Result<Json, E> {
-                Ok(Json::Value(v.into()))
-            }
-            fn visit_unit<E>(self) -> Result<Json, E> {
-                Ok(Json::Value(Value::Null))
-            }
-            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Json, A::Error> {
-                let mut items = Vec::new();
-                while let Some(item) = seq.next_element::<Value>()? {
-                    items.push(item);
-                }
-                Ok(Json::Value(Value::Array(items)))
-            }
-            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Json, A::Error> {
-                let mut pairs: Vec<(String, Json)> = Vec::new();
-                while let Some((key, value)) = map.next_entry::<String, Json>()? {
-                    match pairs.iter_mut().find(|(k, _)| *k == key) {
-                        Some(entry) => entry.1 = value,
-                        None => pairs.push((key, value)),
-                    }
-                }
-                Ok(Json::Object(pairs))
-            }
-        }
-        deserializer.deserialize_any(Tree)
-    }
+/// A field as a plain value, its objects sorted (it is compared or printed sorted).
+fn plain(value: &Value) -> Value {
+    sorted(value.clone())
 }
 
 /// `codec_controls.status(ctx)` (the devices group ports `codec-settings` itself).
@@ -166,8 +92,8 @@ fn exact_int(value: Option<&Value>) -> Option<i64> {
 
 /// `codec_observation.quality(codec, pcm, settings)`: separate peer configuration, encoder
 /// observation and quality preference.
-pub fn quality(codec: Option<&str>, pcm: &Json, settings: &Value) -> Value {
-    let config: Vec<i64> = match pcm.get("CodecConfiguration").and_then(Json::leaf) {
+pub fn quality(codec: Option<&str>, pcm: &Value, settings: &Value) -> Value {
+    let config: Vec<i64> = match pcm.get("CodecConfiguration").and_then(leaf) {
         Some(Value::Array(items)) => {
             let ints: Vec<Option<i64>> = items
                 .iter()
@@ -181,13 +107,12 @@ pub fn quality(codec: Option<&str>, pcm: &Json, settings: &Value) -> Value {
         }
         _ => Vec::new(),
     };
-    let stats = pcm.get("EncoderStats").filter(|s| s.pairs().is_some());
-    let live = pcm.get("Running").and_then(Json::leaf) == Some(&Value::Bool(true))
-        && stats
-            .is_some_and(|s| py::eq(s.get("Active").map(Json::value).as_ref(), Some(&json!(1))));
+    let stats = pcm.get("EncoderStats").filter(|s| s.is_object());
+    let live = pcm.get("Running").and_then(leaf) == Some(&Value::Bool(true))
+        && stats.is_some_and(|s| py::eq(s.get("Active").map(plain).as_ref(), Some(&json!(1))));
     let observed = |key: &str, minimum: i64, maximum: i64| -> Value {
         let value = if live {
-            stats.and_then(|s| s.get(key)).and_then(Json::leaf)
+            stats.and_then(|s| s.get(key)).and_then(leaf)
         } else {
             None
         };
@@ -251,7 +176,7 @@ pub fn quality(codec: Option<&str>, pcm: &Json, settings: &Value) -> Value {
             );
         }
         Some("LDAC") => {
-            let rate = pcm.get("Rate").map(Json::value);
+            let rate = pcm.get("Rate").map(plain);
             let rate_in = |choices: [i64; 2]| {
                 choices
                     .iter()
@@ -316,13 +241,13 @@ fn is_mac(text: &str) -> bool {
             .all(|p| p.len() == 2 && p.bytes().all(|b| b.is_ascii_hexdigit()))
 }
 
-fn field(object: &Json, key: &str) -> Value {
-    object.get(key).map_or(Value::Null, Json::value)
+fn field(object: &Value, key: &str) -> Value {
+    object.get(key).map_or(Value::Null, plain)
 }
 
 /// `bluetooth.normalize(ctx, raw)`. `Err(Crash)` where Python raises something no caller catches
 /// (an inventory `codecs` that is not an object).
-pub fn normalize(root: &Root, raw: &Json) -> Result<Value, Failure> {
+pub fn normalize(root: &Root, raw: &Value) -> Result<Value, Failure> {
     let settings = match codec_settings(root) {
         Ok(settings) => settings,
         // Invalid saved preferences must not hide a live radio/PCM observation. The mutation/startup
@@ -366,22 +291,24 @@ pub fn normalize(root: &Root, raw: &Json) -> Result<Value, Failure> {
         );
     }
     let done = |result: Map<String, Value>| Ok(Value::Object(result));
-    if raw.pairs().is_none()
-        || !py::eq(raw.get("schema").map(Json::value).as_ref(), Some(&json!(1)))
-        || !raw.get("stable_owners").is_some_and(|s| truthy(&s.value()))
+    if !raw.is_object()
+        || !py::eq(raw.get("schema").map(plain).as_ref(), Some(&json!(1)))
+        || !raw.get("stable_owners").is_some_and(|s| truthy(&plain(s)))
     {
         return done(result);
     }
-    let (Some(bluez), bluealsa) = (raw.get("bluez").and_then(Json::pairs), raw.get("bluealsa"))
-    else {
+    let (Some(bluez), bluealsa) = (
+        raw.get("bluez").and_then(Value::as_object),
+        raw.get("bluealsa"),
+    ) else {
         return done(result);
     };
-    let adapters: Vec<(&String, &Json)> = bluez
+    let adapters: Vec<(&String, &Value)> = bluez
         .iter()
         .filter_map(|(path, interfaces)| {
             interfaces
                 .get("org.bluez.Adapter1")
-                .filter(|a| a.pairs().is_some())
+                .filter(|a| a.is_object())
                 .map(|a| (path, a))
         })
         .collect();
@@ -401,8 +328,8 @@ pub fn normalize(root: &Root, raw: &Json) -> Result<Value, Failure> {
         result.insert("reason".into(), json!("radio_off"));
         return done(result);
     }
-    let manager = raw.get("manager").filter(|m| m.pairs().is_some());
-    let bluealsa = bluealsa.and_then(Json::pairs);
+    let manager = raw.get("manager").filter(|m| m.is_object());
+    let bluealsa = bluealsa.and_then(Value::as_object);
     let (Some(manager), Some(bluealsa), true) =
         (manager, bluealsa, truthy(&field(raw, "bluealsa_owner")))
     else {
@@ -438,7 +365,7 @@ pub fn normalize(root: &Root, raw: &Json) -> Result<Value, Failure> {
     for (device_path, interfaces) in bluez {
         let Some(device) = interfaces
             .get("org.bluez.Device1")
-            .filter(|d| d.pairs().is_some())
+            .filter(|d| d.is_object())
         else {
             continue;
         };
@@ -476,12 +403,12 @@ pub fn normalize(root: &Root, raw: &Json) -> Result<Value, Failure> {
         );
         return done(result);
     }
-    let pcms: Vec<(&String, &Json)> = bluealsa
+    let pcms: Vec<(&String, &Value)> = bluealsa
         .iter()
         .filter_map(|(path, interfaces)| {
             let pcm = interfaces
                 .get("org.bluealsa.PCM1")
-                .filter(|p| p.pairs().is_some())?;
+                .filter(|p| p.is_object())?;
             (field(pcm, "Device") == device["path"]
                 && field(pcm, "Transport") == json!("A2DP-source")
                 && field(pcm, "Mode") == json!("sink"))
@@ -524,12 +451,12 @@ pub fn normalize(root: &Root, raw: &Json) -> Result<Value, Failure> {
         result.insert("state".into(), json!("Degraded"));
         result.insert("reason".into(), json!("unsupported_or_incomplete_pcm"));
     }
-    if raw.get("codec_pcm").map(Json::value) == Some(json!(path)) {
+    if raw.get("codec_pcm").map(plain) == Some(json!(path)) {
         if let Some(mutual) = raw
             .get("mutually_available_codecs")
-            .filter(|m| m.pairs().is_some())
+            .filter(|m| m.is_object())
         {
-            result.insert("mutually_usable".into(), mutual.value());
+            result.insert("mutually_usable".into(), plain(mutual));
         }
     }
     done(result)

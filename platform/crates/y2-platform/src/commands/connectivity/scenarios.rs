@@ -101,7 +101,7 @@ fn supplicant_events_latch_a_wrong_password_as_python_does() {
                 ]));
             }
             result.push(
-                json!({"summary": monitor.summary(None).into_value(), "held": monitor.held,
+                json!({"summary": monitor.summary(None).into_sorted(), "held": monitor.held,
                            "connected": monitor.connected_network}),
             );
             Value::Array(result)
@@ -518,7 +518,7 @@ fn bluetooth_observations_normalise_as_python_does() {
             &format!("bluetooth-normalize-{index}"),
             &files,
             json!([]),
-            |root| bluetooth::normalize(root, &wifi::Json::parse(&raw).unwrap()).unwrap(),
+            |root| bluetooth::normalize(root, &serde_json::from_str(&raw).unwrap()).unwrap(),
         );
         if let Some(outcome) = outcome {
             if raw.contains("dev_BB") && raw.contains("[36, 21, 2, 53]") {

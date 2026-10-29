@@ -9,7 +9,7 @@
 //! readable) and ends after `Y2_DAEMON_TICKS` iterations, as tests/platform_cases/connectivity.py stops
 //! the Python daemon.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::wifi::{journal, Json};
+use super::wifi::journal;
 use crate::commands::{codec, network::wlan_switched_off};
 use crate::reply::{private_directory, unlink_missing_ok, Failure, Outcome};
 use serde_json::{json, Value};
@@ -21,6 +21,7 @@ use std::{
     path::{Component, Path, PathBuf},
     sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
+use y2p_core::json::{Object, ObjectExt};
 use y2p_core::{
     clock, command,
     py::{number, truthy},
@@ -492,7 +493,7 @@ impl Supervisor {
         }
         self.renewals += 1;
         self.next_renew = now + RENEW_MAX_S.min(60.0 * 2f64.powi(self.renewals as i32 - 1));
-        let mut rfkill = Json::object();
+        let mut rfkill = Object::new();
         for path in root.glob("/sys/class/rfkill/rfkill*") {
             let name = path
                 .file_name()
@@ -507,7 +508,7 @@ impl Supervisor {
         journal(
             root,
             "wifi_interface_renewed",
-            Json::object()
+            Object::new()
                 .with("reason", "interface_disabled")
                 .with("renewals", u64::from(self.renewals))
                 .with("disabled_s", super::wifi::round1(now - since))
@@ -531,7 +532,7 @@ impl Supervisor {
             journal(
                 &root,
                 "wifi_interface_renewed",
-                Json::object().with("reason", "new_netdev"),
+                Object::new().with("reason", "new_netdev"),
             );
             self.detach();
         }

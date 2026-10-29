@@ -4,7 +4,6 @@
 //! subprocess requests and the resulting tree (clock readings normalised) must stay what the Python
 //! platform gave for the same steps (tests/recorded/connectivity, recorded while it existed).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::wifi::Json;
 use serde_json::{json, Value};
 use std::{
     env, fs,
@@ -49,14 +48,14 @@ pub fn normalise(value: Value) -> Value {
     }
 }
 
-fn normalise_ordered(value: Json) -> Json {
+/// A journal row normalised in its own key order; an object inside a list sorted (as recorded).
+fn normalise_ordered(value: Value) -> Value {
     match value {
-        Json::Object(pairs) => Json::Object(
-            pairs
-                .into_iter()
+        Value::Object(map) => Value::Object(
+            map.into_iter()
                 .map(|(k, v)| {
-                    let v = if VOLATILE.contains(&k.as_str()) && v != Json::Value(Value::Null) {
-                        Json::Value(json!("<volatile>"))
+                    let v = if VOLATILE.contains(&k.as_str()) && !v.is_null() {
+                        json!("<volatile>")
                     } else {
                         normalise_ordered(v)
                     };
@@ -64,7 +63,7 @@ fn normalise_ordered(value: Json) -> Json {
                 })
                 .collect(),
         ),
-        Json::Value(v) => Json::Value(normalise(v)),
+        other => y2p_core::json::sorted(normalise(other)),
     }
 }
 
@@ -92,7 +91,7 @@ fn tree(root: &Path) -> Value {
                 json!(text
                     .lines()
                     .map(|line| dumps(
-                        &normalise_ordered(Json::parse(line).expect("a JSON line")),
+                        &normalise_ordered(serde_json::from_str(line).expect("a JSON line")),
                         Separators::Compact
                     )
                     .unwrap())

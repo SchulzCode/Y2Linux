@@ -202,6 +202,9 @@ pub trait ObjectExt {
     fn with(self, key: &str, value: impl Into<serde_json::Value>) -> Self;
     /// `dict.get(key)` as a value (None for a missing key).
     fn value(&self, key: &str) -> serde_json::Value;
+    /// The object as a value with its keys sorted, nested ones too: for one that is written sorted or
+    /// compared, never printed in its own order.
+    fn into_sorted(self) -> serde_json::Value;
 }
 
 impl ObjectExt for Object {
@@ -217,6 +220,10 @@ impl ObjectExt for Object {
 
     fn value(&self, key: &str) -> serde_json::Value {
         self.get(key).cloned().unwrap_or(serde_json::Value::Null)
+    }
+
+    fn into_sorted(self) -> serde_json::Value {
+        sorted(serde_json::Value::Object(self))
     }
 }
 
