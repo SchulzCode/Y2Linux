@@ -7,31 +7,29 @@
 //! Below a fixture root `Y2_DAEMON_TICKS=n` ends the loop after n iterations (exit 0), at the point
 //! where tests/platform_cases/power.py stops the Python daemon.
 // SPDX-License-Identifier: GPL-2.0-only
+mod requests;
+
 use super::{
     battery::{load_profile, sample, BatteryStatus, DisplayRecord, Soc, UI_STATE},
     coordinator::Coordinator,
     journal::PowerJournal,
-    policy::{load_policy, LowBattery},
+    policy::{load_policy, LowBattery, Policy},
     quiet_exit, unix,
 };
 use crate::reply::{atomic_json, private_directory, unlink_missing_ok, Failure, Outcome};
+use requests::serve_client;
 use serde::Serialize;
 use serde_json::Value;
 use std::{
     io::Write,
-    os::unix::{fs::FileTypeExt, net::UnixStream},
+    os::unix::fs::FileTypeExt,
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
 use y2p_core::sys::{set_signal, Handler};
-use y2p_core::{
-    json::{Object, ObjectExt},
-    py::PyValue,
-    Root,
-};
+use y2p_core::{json::Object, Root};
 
 pub const SOCKET: &str = "/run/y2/power.sock";
-const REQUEST_LIMIT: usize = 2048;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 
@@ -73,34 +71,92 @@ impl Notes {
     }
 }
 
-/// One request on the power socket.
-enum Request {
-    /// Reborn's answer to a pending intent.
-    Ack { id: Value, outcome: Value },
-    /// A transition (`shutdown` or Reborn); the reason defaults to `user`.
-    Transition { action: Value, reason: Value },
+/// What the loop keeps from one iteration to the next.
+struct Daemon<'r> {
+    root: &'r Root,
+    coordinator: Coordinator,
+    journal: PowerJournal,
+    battery: LowBattery,
+    soc: Soc,
+    /// The display state last written to battery-ui.json.
+    ui_saved: Option<(i64, Option<f64>)>,
+    policy: Option<Policy>,
+    /// Why there is no policy (power.json `reason`).
+    reason: Option<&'static str>,
+    state: &'static str,
+    battery_status: BatteryStatus,
+    notes: Notes,
 }
 
-impl Request {
-    /// The request's fields, or Python's `str(error)` of the lookup that failed.
-    fn of(request: Value) -> Result<Request, String> {
-        let Value::Object(mut request) = request else {
-            return Err(format!(
-                "'{}' object has no attribute 'get'",
-                request.type_name()
-            ));
-        };
-        if request.value("operation").is_str("ack") {
-            let id = request.shift_remove("id").ok_or("'id'")?;
-            let outcome = request.shift_remove("outcome").ok_or("'outcome'")?;
-            return Ok(Request::Ack { id, outcome });
+impl Daemon<'_> {
+    /// One sample: BAT0, the kept display value, the low-battery policy, the journal, power.json.
+    fn sample(&mut self) {
+        let root = self.root;
+        // SOC uses physical elapsed time including suspend. Keep the
+        // shutdown grace/sampling scheduler on its existing clock.
+        self.battery_status = sample(root, &mut self.soc);
+        let voltage = self.battery_status.voltage_uv;
+        // 28: keep the displayed percentage across a restart (stock
+        // RTC spare register); written only when it changes.
+        if let Some(ui_state) = self.soc.state().filter(|s| Some(*s) != self.ui_saved) {
+            let record = DisplayRecord::new(ui_state);
+            if atomic_json(&root.path(UI_STATE), &record, true).is_ok() {
+                self.ui_saved = Some(ui_state);
+            }
         }
-        Ok(Request::Transition {
-            action: request.value("action"),
-            reason: request
-                .shift_remove("reason")
-                .unwrap_or_else(|| "user".into()),
-        })
+        self.state = self.battery.observe(
+            self.policy.as_ref(),
+            voltage,
+            root.integer("/sys/class/power_supply/BAT0/present"),
+            &self.battery_status,
+        );
+        if self.state == "ShutdownPending" && self.coordinator.intent.is_none() {
+            let grace = self.policy.as_ref().map_or(10, |p| p.grace_seconds);
+            // An intent that could not be published is still pending here: it runs after
+            // its grace all the same.
+            let requested =
+                self.coordinator
+                    .request(&"poweroff".into(), &"low_battery".into(), grace);
+            self.notes.check("low-battery shutdown request", requested);
+        }
+        self.journal.observe(
+            root,
+            self.state,
+            &self.battery_status,
+            self.coordinator.intent.as_ref(),
+            None,
+        );
+        let record = PowerRecord {
+            schema: 1,
+            boot_id: self.coordinator.boot_id.as_deref(),
+            monotonic_ns: root.clock().monotonic_ns(),
+            state: self.state,
+            voltage_uv: voltage,
+            reason: self.reason,
+            thresholds_enabled: self.policy.is_some(),
+            battery: &self.battery_status,
+            qualification_reference: self.policy.as_ref().map(|p| &p.qualification_reference),
+            shutdown: self.coordinator.intent.as_ref(),
+        };
+        self.notes.check(
+            "/run/y2/power.json",
+            atomic_json(&root.path("/run/y2/power.json"), &record, false),
+        );
+    }
+
+    /// A shutdown whose grace ended or that Reborn acknowledged: its journal row, then its steps.
+    fn execute_due(&mut self) {
+        if !self.coordinator.due() {
+            return;
+        }
+        self.journal.observe(
+            self.root,
+            self.state,
+            &self.battery_status,
+            self.coordinator.intent.as_ref(),
+            Some("shutdown_execute"),
+        );
+        self.coordinator.execute();
     }
 }
 
@@ -141,12 +197,24 @@ pub fn serve(root: &Root) -> Outcome {
         }
         std::fs::remove_file(&address).map_err(|e| Failure::os(e, &address))?;
     }
-    let mut coordinator = Coordinator::new(root);
-    let mut journal = PowerJournal::new();
-    let mut battery = LowBattery::default();
-    let mut soc = Soc::new(load_profile(root), root.json(UI_STATE));
-    let mut ui_saved = None;
+    let coordinator = Coordinator::new(root);
+    let journal = PowerJournal::new();
+    let battery = LowBattery::default();
+    let soc = Soc::new(load_profile(root), root.json(UI_STATE));
     let (policy, reason) = load_policy(root);
+    let mut daemon = Daemon {
+        root,
+        coordinator,
+        journal,
+        battery,
+        soc,
+        ui_saved: None,
+        policy,
+        reason,
+        state: "Unavailable",
+        battery_status: BatteryStatus::default(),
+        notes: Notes::default(),
+    };
     RUNNING.store(true, Ordering::SeqCst);
     handle_signals();
     let server = unix::listen(&address)?;
@@ -155,73 +223,13 @@ pub fn serve(root: &Root) -> Outcome {
     let now = || i128::from(clock.monotonic_ns());
     let mut iterations = 0u64;
     let mut next_sample: i128 = 0;
-    let mut state = "Unavailable";
-    let mut battery_status = BatteryStatus::default();
-    let mut notes = Notes::default();
     while RUNNING.load(Ordering::SeqCst) {
         if now() >= next_sample {
             next_sample = now() + 1_000_000_000;
-            // SOC uses physical elapsed time including suspend. Keep the
-            // shutdown grace/sampling scheduler on its existing clock.
-            battery_status = sample(root, &mut soc);
-            let voltage = battery_status.voltage_uv;
-            // 28: keep the displayed percentage across a restart (stock
-            // RTC spare register); written only when it changes.
-            if let Some(ui_state) = soc.state().filter(|s| Some(*s) != ui_saved) {
-                let record = DisplayRecord::new(ui_state);
-                if atomic_json(&root.path(UI_STATE), &record, true).is_ok() {
-                    ui_saved = Some(ui_state);
-                }
-            }
-            state = battery.observe(
-                policy.as_ref(),
-                voltage,
-                root.integer("/sys/class/power_supply/BAT0/present"),
-                &battery_status,
-            );
-            if state == "ShutdownPending" && coordinator.intent.is_none() {
-                let grace = policy.as_ref().map_or(10, |p| p.grace_seconds);
-                // An intent that could not be published is still pending here: it runs after
-                // its grace all the same.
-                let requested =
-                    coordinator.request(&"poweroff".into(), &"low_battery".into(), grace);
-                notes.check("low-battery shutdown request", requested);
-            }
-            journal.observe(
-                root,
-                state,
-                &battery_status,
-                coordinator.intent.as_ref(),
-                None,
-            );
-            let record = PowerRecord {
-                schema: 1,
-                boot_id: coordinator.boot_id.as_deref(),
-                monotonic_ns: clock.monotonic_ns(),
-                state,
-                voltage_uv: voltage,
-                reason,
-                thresholds_enabled: policy.is_some(),
-                battery: &battery_status,
-                qualification_reference: policy.as_ref().map(|p| &p.qualification_reference),
-                shutdown: coordinator.intent.as_ref(),
-            };
-            notes.check(
-                "/run/y2/power.json",
-                atomic_json(&runtime.join("power.json"), &record, false),
-            );
+            daemon.sample();
         }
-        if coordinator.due() {
-            journal.observe(
-                root,
-                state,
-                &battery_status,
-                coordinator.intent.as_ref(),
-                Some("shutdown_execute"),
-            );
-            coordinator.execute();
-        }
-        let wait = coordinator.wait_ns(next_sample);
+        daemon.execute_due();
+        let wait = daemon.coordinator.wait_ns(next_sample);
         iterations += 1;
         if ticks.is_some_and(|limit| iterations >= limit) {
             break;
@@ -232,48 +240,9 @@ pub fn serve(root: &Root) -> Outcome {
         let Some(client) = unix::accept(&server, Duration::from_nanos(wait as u64))? else {
             continue;
         };
-        serve_client(client, &mut coordinator);
+        serve_client(client, &mut daemon.coordinator);
     }
     drop(server);
     unlink_missing_ok(&address)?;
     quiet_exit(0)
-}
-
-/// One request line from one client; the answer is one line, `{"ok": true, "result": intent}` or
-/// `{"ok": false, "error": str(error)}`.
-fn serve_client(mut client: UnixStream, coordinator: &mut Coordinator) {
-    let result = handle(&mut client, coordinator);
-    let answer = match result {
-        Ok(intent) => Object::new().with("ok", true).with("result", intent),
-        Err(error) => Object::new().with("ok", false).with("error", error),
-    };
-    if let Ok(text) = y2p_core::json::dumps(&answer, y2p_core::json::Separators::Spaced) {
-        let _ = unix::send_all(&mut client, (text + "\n").as_bytes());
-    }
-}
-
-/// The request, as `str(error)` of every error Python catches here (ValueError, OSError, KeyError,
-/// TypeError, AttributeError).
-fn handle(client: &mut UnixStream, coordinator: &mut Coordinator) -> Result<Object, String> {
-    unix::timeouts(client, Duration::from_millis(200)).map_err(|e| e.message())?;
-    let (pid, uid) = unix::peer(client).map_err(|e| e.message())?;
-    if uid != 0 {
-        return Err("owner_privilege_required".into());
-    }
-    let mut data = Vec::new();
-    while !data.contains(&b'\n') {
-        let mut part = [0u8; REQUEST_LIMIT + 1];
-        let n = unix::recv(client, &mut part).map_err(|e| e.message())?;
-        if n == 0 || data.len() + n > REQUEST_LIMIT {
-            return Err("invalid_power_request".into());
-        }
-        data.extend_from_slice(&part[..n]);
-    }
-    // Accepted difference: text that is not JSON is refused with serde's message, not json's.
-    let request = serde_json::from_slice::<Value>(&data).map_err(|e| e.to_string())?;
-    match Request::of(request)? {
-        Request::Ack { id, outcome } => coordinator.ack(&id, pid, &outcome),
-        Request::Transition { action, reason } => coordinator.request(&action, &reason, 10),
-    }
-    .map_err(|e| e.message())
 }
