@@ -326,10 +326,7 @@ fn collect(root: &Root) -> Result<Py, Failure> {
             "versions",
             project(&json_dict(root, "/etc/y2linux/versions.json"), "", 0),
         )
-        .with(
-            "boot_id",
-            project(&super::boot_id(root).into(), "boot_id", 0),
-        )
+        .with("boot_id", project(&root.boot_id().into(), "boot_id", 0))
         .with("platform", project(&snapshot, "", 0))
         .with("health", project(&health, "", 0))
         .with(

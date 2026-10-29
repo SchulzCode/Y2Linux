@@ -29,7 +29,6 @@ const PRE_FREEZE_MARKS: [&str; 5] = [
     "FILESYSTEM_SYNCED",
     "EXIT",
 ];
-const BOOT_ID: &str = "/proc/sys/kernel/random/boot_id";
 // TAINT_WARN alone: a kernel WARN this boot (F26: one cfg80211 WARN kept the player awake for
 // hours). Every other bit (probe modules, forced loads, a machine check) still marks the kernel as
 // not trusted for sleep or deep idle.
@@ -66,10 +65,6 @@ pub fn identity(root: &Root) -> Value {
 fn kernel_trusted(root: &Root) -> bool {
     root.integer("/proc/sys/kernel/tainted")
         .is_some_and(|taint| taint & !TAINT_WARN == 0)
-}
-
-fn boot_id(root: &Root) -> Value {
-    text_value(root.read(BOOT_ID))
 }
 
 /// `type(value) is int and boottime_ns < value`.
@@ -116,7 +111,7 @@ pub fn admission(root: &Root) -> Result<(), E> {
     if retry
         .get("boot_id")
         .unwrap_or(&Value::Null)
-        .py_eq(&boot_id(root))
+        .py_eq(&Value::from(root.boot_id()))
         && before(retry.get("not_before_ns"), clock::boottime_ns())
     {
         return Err(refused("kernel_prepare_retry_wait"));
@@ -155,7 +150,7 @@ pub fn admission(root: &Root) -> Result<(), E> {
             && receipt
                 .get("current_boot_id")
                 .unwrap_or(&Value::Null)
-                .py_eq(&boot_id(root))
+                .py_eq(&Value::from(root.boot_id()))
             && py_gt(
                 receipt.get("updated").unwrap_or(&zero),
                 prior.get("updated").unwrap_or(&zero),
@@ -269,7 +264,7 @@ pub fn battery_and_cable(root: &Root) -> Result<(), E> {
     if !state
         .get("boot_id")
         .unwrap_or(&Value::Null)
-        .py_eq(&boot_id(root))
+        .py_eq(&Value::from(root.boot_id()))
         || !(0..=10_000_000_000).contains(&age)
         || !["Normal", "Low", "Critical"]
             .iter()
@@ -422,7 +417,7 @@ pub fn guard_record(root: &Root, pending: bool, kernel_entry: bool) -> Result<()
     let path = root.path(GUARD);
     private_directory(path.parent().unwrap_or(Path::new("/")))?;
     let value = json!({"identity": identity(root), "pending": pending, "kernel_entry": kernel_entry,
-                       "boot_id": boot_id(root), "updated": wall()});
+                       "boot_id": Value::from(root.boot_id()), "updated": wall()});
     y2p_core::record::atomic_json(&path, &value, true, 0o600).map_err(|e| E::os(&e, Some(&path)))
 }
 
@@ -467,8 +462,7 @@ pub fn retry_later(root: &Root) -> Result<(), E> {
     let path = root.path(RETRY);
     private_directory(path.parent().unwrap_or(Path::new("/")))?;
     let not_before = clock::boottime_ns() + PREPARE_RETRY_SECONDS * 1_000_000_000;
-    let value =
-        json!({"boot_id": boot_id(root), "not_before_ns": Value::Number(Number::from(not_before))});
+    let value = json!({"boot_id": Value::from(root.boot_id()), "not_before_ns": Value::Number(Number::from(not_before))});
     y2p_core::record::atomic_json(&path, &value, false, 0o600).map_err(|e| E::os(&e, Some(&path)))
 }
 
@@ -479,7 +473,7 @@ pub fn application_starting(root: &Root) -> bool {
     journal
         .get("boot_id")
         .unwrap_or(&Value::Null)
-        .py_eq(&boot_id(root))
+        .py_eq(&Value::from(root.boot_id()))
         && ["platform_start", "services_started"]
             .iter()
             .any(|s| is_text(journal.get("last_stage"), s))

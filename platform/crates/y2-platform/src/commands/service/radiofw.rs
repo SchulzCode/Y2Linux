@@ -365,10 +365,6 @@ fn roots(root: &Root) -> Vec<PathBuf> {
         .collect()
 }
 
-fn boot_id(root: &Root) -> Value {
-    json!(root.read("/proc/sys/kernel/random/boot_id"))
-}
-
 fn get_or_null<'a>(map: &'a Map<String, Value>, key: &str) -> &'a Value {
     map.get(key).unwrap_or(&Value::Null)
 }
@@ -379,7 +375,7 @@ pub fn internal(root: &Root) -> bool {
     let current = mounts_at(root, "/media/internal");
     claim.get("state") == Some(&json!("Ready"))
         && current.len() == 1
-        && *get_or_null(&claim, "boot_id") == boot_id(root)
+        && *get_or_null(&claim, "boot_id") == Value::from(root.boot_id())
         && py::eq_int(claim.get("mount_id"), current[0].mount_id)
         && claim.get("device_id") == Some(&json!(current[0].device_id))
 }
@@ -453,7 +449,7 @@ fn owned_mount(root: &Root, mounted: &Mount) -> bool {
     let claim = root.json_object("/run/y2/media-mount.json");
     // Removed cards no longer have a sysfs controller path. The retained claim permits only the exact
     // mount we created, never an arbitrary mountpoint.
-    *get_or_null(&claim, "boot_id") == boot_id(root)
+    *get_or_null(&claim, "boot_id") == Value::from(root.boot_id())
         && py::eq_int(claim.get("mount_id"), mounted.mount_id)
         && claim.get("device_id") == Some(&json!(mounted.device_id))
         && claim.get("device") == Some(&json!(mounted.source))
@@ -466,7 +462,7 @@ fn sd_state(root: &Root) -> (Map<String, Value>, Option<Mount>) {
     if old.len() == 1
         && owned_mount(root, &old[0])
         && py::eq_int(claim.get("mount_id"), old[0].mount_id)
-        && *get_or_null(&claim, "boot_id") == boot_id(root)
+        && *get_or_null(&claim, "boot_id") == Value::from(root.boot_id())
     {
         let mount = old.into_iter().next();
         return (claim, mount);
@@ -477,7 +473,7 @@ fn sd_state(root: &Root) -> (Map<String, Value>, Option<Mount>) {
 /// `media._writers`: the live holders of this mount's window.
 fn writers(root: &Root, mount: &Mount) -> Vec<(String, f64)> {
     let value = root.json_object(SD_WRITE);
-    if *get_or_null(&value, "boot_id") != boot_id(root)
+    if *get_or_null(&value, "boot_id") != Value::from(root.boot_id())
         || !py::eq_int(value.get("mount_id"), mount.mount_id)
     {
         return Vec::new();
@@ -502,7 +498,7 @@ fn apply_window(root: &Root, mount: &Mount, holders: &[(String, f64)]) -> Result
     let map: Map<String, Value> = holders.iter().map(|(k, v)| (k.clone(), json!(v))).collect();
     publish(
         &root.path(SD_WRITE),
-        &json!({"schema": 1, "boot_id": boot_id(root), "mount_id": mount.mount_id, "holders": map}),
+        &json!({"schema": 1, "boot_id": Value::from(root.boot_id()), "mount_id": mount.mount_id, "holders": map}),
         false,
     )?;
     let mut writable = mount.options.iter().any(|o| o == "rw");

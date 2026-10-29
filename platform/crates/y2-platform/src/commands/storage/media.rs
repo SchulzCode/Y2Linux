@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::observe::{media_identity, refused_card, volumes, MEDIA_MOUNT, MEDIA_STATE};
 use super::sys::{
-    available, boot_id, device_instance, exists, get, get_eq, get_in, is_symlink, isdigit,
-    lock_now, lock_within, maintenance, mkdir, name, no_attribute, object, read, release_sd,
-    resolve, statvfs, try_lock, wall_seconds, write_record, Mount, Object,
+    available, device_instance, exists, get, get_eq, get_in, is_symlink, isdigit, lock_now,
+    lock_within, maintenance, mkdir, name, no_attribute, object, read, release_sd, resolve,
+    statvfs, try_lock, wall_seconds, write_record, Mount, Object,
 };
 use crate::reply::{atomic_json, unlink_missing_ok, Failure};
 use serde_json::{json, Value};
@@ -99,7 +99,7 @@ fn begin(root: &Root, action: &str) -> Object {
     set(&mut state, "schema", 1);
     set(&mut state, "action", action);
     set_state(&mut state, "Starting", Value::Null);
-    set(&mut state, "boot_id", boot_id(root));
+    set(&mut state, "boot_id", Value::from(root.boot_id()));
     state
 }
 
@@ -278,7 +278,7 @@ fn owned_mount(root: &Root, mounted: &Mount) -> bool {
     let claim = object(root, MEDIA_MOUNT);
     // Removed cards no longer have a sysfs controller path. The retained claim
     // permits only the exact mount we created, never an arbitrary mountpoint.
-    get_eq(&claim, "boot_id", &boot_id(root))
+    get_eq(&claim, "boot_id", &Value::from(root.boot_id()))
         && get_eq(&claim, "mount_id", &json!(mounted.mount_id))
         && get_eq(&claim, "device_id", &json!(mounted.device_id))
         && get_eq(&claim, "device", &json!(mounted.source))
@@ -637,7 +637,7 @@ fn sd_state(root: &Root) -> (Object, Option<Mount>) {
     if old.len() == 1
         && owned_mount(root, &old[0])
         && get_eq(&claim, "mount_id", &json!(old[0].mount_id))
-        && get_eq(&claim, "boot_id", &boot_id(root))
+        && get_eq(&claim, "boot_id", &Value::from(root.boot_id()))
     {
         let mount = old[0].clone();
         return (claim, Some(mount));
@@ -647,7 +647,7 @@ fn sd_state(root: &Root) -> (Object, Option<Mount>) {
 
 fn writers(root: &Root, mount: &Mount) -> Result<Object, Failure> {
     let value = object(root, SD_WRITE);
-    if !get_eq(&value, "boot_id", &boot_id(root))
+    if !get_eq(&value, "boot_id", &Value::from(root.boot_id()))
         || !get_eq(&value, "mount_id", &json!(mount.mount_id))
     {
         return Ok(Object::new());
@@ -671,7 +671,7 @@ fn writers(root: &Root, mount: &Mount) -> Result<Object, Failure> {
 fn apply_window(root: &Root, mount: &Mount, holders: &Object) -> Result<bool, Failure> {
     atomic_json(
         &root.path(SD_WRITE),
-        &json!({"schema": 1, "boot_id": boot_id(root), "mount_id": mount.mount_id, "holders": holders}),
+        &json!({"schema": 1, "boot_id": Value::from(root.boot_id()), "mount_id": mount.mount_id, "holders": holders}),
         false,
     )?;
     let mut writable = mount.has_option("rw");
@@ -934,7 +934,7 @@ fn marked_for_repair(root: &Root) -> Option<Object> {
 
 fn battery_allows_repair(root: &Root) -> Result<bool, Failure> {
     let power = object(root, "/run/y2/power.json");
-    if !get_eq(&power, "boot_id", &boot_id(root)) {
+    if !get_eq(&power, "boot_id", &Value::from(root.boot_id())) {
         return Ok(false);
     }
     let battery = match power.get("battery") {
@@ -1061,7 +1061,7 @@ fn repair_locked(root: &Root, record: &mut Object) -> Result<Object, Failure> {
     let lock = try_lock(&runtime.join("media.lock"));
     set(record, "schema", 1);
     set(record, "time", wall_seconds());
-    set(record, "boot_id", boot_id(root));
+    set(record, "boot_id", Value::from(root.boot_id()));
     let Some(_lock) = lock? else {
         let mut state = Object::new();
         set(&mut state, "schema", 1);

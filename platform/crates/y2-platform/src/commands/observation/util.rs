@@ -429,10 +429,7 @@ pub fn record(root: &Root, workload: &str, parameters: Map<String, Value>) -> Ma
     let mut value = Map::new();
     value.insert("wall_timestamp".into(), json!(wall_timestamp()));
     value.insert("monotonic_ns".into(), json!(clock::monotonic_ns()));
-    value.insert(
-        "boot_id".into(),
-        text(root.read("/proc/sys/kernel/random/boot_id")),
-    );
+    value.insert("boot_id".into(), text(root.boot_id()));
     value.insert("y2linux_commit".into(), get("build_git_commit"));
     value.insert("reborn_commit".into(), get("reborn_source_commit"));
     value.insert(
@@ -462,11 +459,6 @@ pub fn reads_by_name(root: &Root, pattern: &str, parent: bool) -> Value {
         map.insert(key, text(read(&path)));
     }
     Value::Object(map)
-}
-
-/// The `boot_id` this boot reads (`ctx.read('/proc/sys/kernel/random/boot_id')`) as JSON.
-pub fn boot_id(root: &Root) -> Value {
-    text(root.read("/proc/sys/kernel/random/boot_id"))
 }
 
 #[cfg(test)]

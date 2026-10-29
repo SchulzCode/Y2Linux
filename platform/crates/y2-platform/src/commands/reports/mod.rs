@@ -230,10 +230,6 @@ pub fn or_dict(value: Py) -> Py {
     }
 }
 
-pub fn boot_id(root: &Root) -> Option<String> {
-    root.read("/proc/sys/kernel/random/boot_id")
-}
-
 /// An OSError raised by a call on `path` (the class follows errno).
 pub fn os(error: std::io::Error, path: &std::path::Path) -> Failure {
     Failure::os(error, path)

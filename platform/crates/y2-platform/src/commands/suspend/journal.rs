@@ -188,7 +188,7 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
         return Ok(false);
     }
     let receipt = root.json_object(super::receipt::RECEIPT);
-    let boot_id = root.read("/proc/sys/kernel/random/boot_id");
+    let boot_id = root.boot_id();
     let usb = root
         .glob("/sys/class/udc/*")
         .iter()

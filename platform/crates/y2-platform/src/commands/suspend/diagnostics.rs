@@ -403,10 +403,7 @@ fn row(root: &Root, stage: &str, golden: bool) -> Result<bool, E> {
         ("wall_time".into(), plain(super::wall().into())),
         ("monotonic_s".into(), plain(now.into())),
         ("boottime_s".into(), plain(super::boottime().into())),
-        (
-            "boot_id".into(),
-            plain(text_value(root.read("/proc/sys/kernel/random/boot_id"))),
-        ),
+        ("boot_id".into(), plain(text_value(root.boot_id()))),
         ("build_id".into(), plain(build)),
         ("features".into(), features(root, golden)),
         ("usb_net".into(), usb_net(root)?),

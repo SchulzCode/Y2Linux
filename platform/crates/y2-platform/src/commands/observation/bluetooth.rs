@@ -37,7 +37,7 @@ fn codec_settings(root: &Root) -> Result<Value, Stop> {
     let policy = validate(requested(root)?)?;
     let inventory = root.json_object("/etc/y2linux/bluetooth-codecs.json");
     let applied = root.json_object("/run/y2/codec-runtime.json");
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let boot = root.boot_id();
     // This receipt records startup arguments, never endpoint/negotiation success.
     let pid = root.integer("/run/y2/bluealsa.pid");
     let command = match pid {
@@ -348,7 +348,7 @@ fn normalize(root: &Root, raw: &Map<String, Value>, order: &[String]) -> Result<
     let reconnect = result.get("reconnect").cloned().unwrap_or(Value::Null);
     let stale = match &reconnect {
         Value::Object(r) => {
-            !get_eq(r, "boot_id", &util::boot_id(root))
+            !get_eq(r, "boot_id", &Value::from(root.boot_id()))
                 || !is_int(r.get("monotonic_us")).is_some_and(|us| {
                     let age = clock::monotonic() * 1e6 - us as f64;
                     (0.0..10_000_000.0).contains(&age)

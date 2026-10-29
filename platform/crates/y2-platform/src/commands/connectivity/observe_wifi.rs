@@ -143,7 +143,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
     let status_duration_ns = radio.then(|| clock::monotonic_ns() - status_started);
     let mut properties = key_values(wpa.as_ref().and_then(|w| w.output.as_deref()), '=');
     let failure = root.json_object("/run/y2/wifi-failure.json");
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let boot = root.boot_id();
     let fresh = |at: Option<f64>, window: f64| {
         at.is_some_and(|at| (0.0..window).contains(&(clock::monotonic() - at)))
     };

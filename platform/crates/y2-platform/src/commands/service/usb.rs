@@ -583,7 +583,7 @@ impl UsbService {
         let functions = self.mode.map_or(Ok(&[][..]), selection)?;
         let value = json!({
             "schema": SCHEMA,
-            "boot_id": self.root.read("/proc/sys/kernel/random/boot_id"),
+            "boot_id": self.root.boot_id(),
             "state": state,
             "reason": reason,
             "mode": self.mode,

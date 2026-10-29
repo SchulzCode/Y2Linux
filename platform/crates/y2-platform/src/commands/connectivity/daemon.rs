@@ -470,7 +470,7 @@ impl Supervisor {
     pub fn verify(&mut self, now: f64) {
         let root = &self.root;
         let net = root.json_object("/run/y2/network.json");
-        let boot = root.read("/proc/sys/kernel/random/boot_id");
+        let boot = root.boot_id();
         let fresh = super::observe_wifi::eq_text(net.get("boot_id"), boot.as_deref())
             && number(net.get("monotonic_s"))
                 .is_some_and(|at| (0.0..30.0).contains(&(clock::monotonic() - at)));

@@ -65,13 +65,9 @@ const REPORT_LIMIT_S: f64 = 600.0;
 const REPORT_SEND_GAP_S: f64 = 300.0;
 const PLATFORM: &str = "/usr/sbin/y2-platform";
 
-fn boot_id(root: &Root) -> Option<String> {
-    root.read("/proc/sys/kernel/random/boot_id")
-}
-
 /// `x == ctx.read(boot_id)` for a value from a record (None equals a missing boot id).
 fn this_boot(root: &Root, value: Option<&Value>) -> bool {
-    py::eq(value, Some(&json!(boot_id(root))))
+    py::eq(value, Some(&json!(root.boot_id())))
 }
 
 /// `subprocess.Popen(['/usr/sbin/y2-platform', …], DEVNULL…, start_new_session=True, close_fds=True)`.
@@ -432,7 +428,7 @@ impl Coexistence {
         self.previous = Some((now, total));
         let mut value = Map::new();
         value.insert("schema".into(), json!(1));
-        value.insert("boot_id".into(), json!(boot_id(root)));
+        value.insert("boot_id".into(), json!(root.boot_id()));
         value.insert("monotonic_s".into(), json!(now));
         value.insert(
             "wifi_active".into(),
@@ -478,7 +474,7 @@ fn remember_time(root: &Root) -> Result<(), Failure> {
         .and_then(Value::as_str)
         .map(str::to_owned);
     if !matches!(source.as_deref(), Some("ntp" | "manual"))
-        || !time::same_boot(&anchor, &time::boot_id(root))
+        || !time::same_boot(&anchor, &root.boot_id())
         || !time::plausible(now, time::floor(root))
         || time::drift(&anchor, now, monotonic, elapsed).abs() > 60.0
     {
@@ -656,7 +652,7 @@ impl Service {
             value
                 .set("status_query_failures", query_failures.clone())
                 .set("schema", 1)
-                .set("boot_id", json!(boot_id(root)))
+                .set("boot_id", json!(root.boot_id()))
                 .set("monotonic_s", clock::monotonic())
                 .set(
                     "supplicant_events",

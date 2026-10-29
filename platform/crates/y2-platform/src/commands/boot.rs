@@ -181,7 +181,7 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
     private_directory(&directory)?;
     let _lock = lock(&directory.join(".boot.lock"))?;
     let boot_id = root
-        .read("/proc/sys/kernel/random/boot_id")
+        .boot_id()
         .filter(|b| !b.is_empty())
         .ok_or_else(|| Failure::value("boot_id_unavailable"))?;
     let previous = root.json("/data/system/platform/boot.json");

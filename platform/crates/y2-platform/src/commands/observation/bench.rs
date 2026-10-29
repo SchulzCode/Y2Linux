@@ -297,7 +297,7 @@ impl<'a> Scratch<'a> {
             return Err(Error::raised(libc::ENODEV, "source_unavailable"));
         }
         Ok(Identity(
-            util::boot_id(self.root),
+            Value::from(self.root.boot_id()),
             json!(mount.mount_id),
             device.clone(),
             device_instance(self.root, &device),

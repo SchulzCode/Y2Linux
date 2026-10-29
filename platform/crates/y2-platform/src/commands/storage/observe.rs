@@ -4,8 +4,8 @@
 //! reads for `status` (group observation) and are not needed here.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::sys::{
-    boot_id, device_instance, exists, get, get_eq, get_in, isdigit, mounts, object, read, resolve,
-    statvfs, text, Object,
+    device_instance, exists, get, get_eq, get_in, isdigit, mounts, object, read, resolve, statvfs,
+    text, Object,
 };
 use serde_json::{json, Value};
 use std::path::Path;
@@ -122,7 +122,7 @@ pub fn refused_card(root: &Root) -> Object {
 /// `internal_media.setup_status`: this boot's setup state, else `{'state': 'Unknown'}`.
 pub fn setup_status(root: &Root) -> Object {
     match root.json(SETUP_STATUS) {
-        Some(Value::Object(value)) if get_eq(&value, "boot_id", &boot_id(root)) => {
+        Some(Value::Object(value)) if get_eq(&value, "boot_id", &Value::from(root.boot_id())) => {
             ["state", "reason", "files", "bytes", "serial", "kept"]
                 .iter()
                 .filter_map(|k| value.get(*k).map(|v| (k.to_string(), v.clone())))
@@ -140,7 +140,7 @@ pub fn setup_status(root: &Root) -> Object {
 #[allow(clippy::unnecessary_cast)]
 pub fn volumes(root: &Root) -> Vec<Object> {
     let mounts = mounts(root);
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let boot = root.boot_id();
     let mut volumes = Vec::new();
     for target in ["/", "/data", "/media/sd", "/media/internal"] {
         let sd = target == "/media/sd";

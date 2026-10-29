@@ -337,7 +337,7 @@ impl Daemon<'_> {
             };
         }
         let record = json!({
-            "schema": 1, "boot_id": self.root.read("/proc/sys/kernel/random/boot_id"),
+            "schema": 1, "boot_id": self.root.boot_id(),
             "monotonic_s": clock::monotonic(), "state": ready, "reason": reason,
             "bind": "10.42.0.1:22", "interface": "usb0", "authentication": "owner_public_key",
             "sftp": self.root.path("/usr/libexec/y2-sftp-server").is_file(),

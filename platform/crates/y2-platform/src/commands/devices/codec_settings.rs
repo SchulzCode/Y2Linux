@@ -130,7 +130,7 @@ fn status(root: &Root) -> Result<Status, Failure> {
     let policy = validate(requested(root)?)?;
     let inventory = root.json_object("/etc/y2linux/bluetooth-codecs.json");
     let applied = root.json_object("/run/y2/codec-runtime.json");
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let boot = root.boot_id();
     // This receipt records startup arguments, never endpoint/negotiation success.
     let pid = root.integer("/run/y2/bluealsa.pid");
     let command = match pid {

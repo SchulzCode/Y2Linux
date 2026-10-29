@@ -228,9 +228,7 @@ pub fn secrets(root: &Root) -> Result<Known, Failure> {
     }
     // A record that names the boot (a random ID per boot, kept in report.json) looks like an ext4
     // UUID; it is not a volume serial.
-    found[serial]
-        .1
-        .remove(&super::boot_id(root).unwrap_or_default());
+    found[serial].1.remove(&root.boot_id().unwrap_or_default());
     static CPU: OnceLock<Regex> = OnceLock::new();
     let cpu = lazy(&CPU, &format!(r"(?mi)^Serial[{S}]*:[{S}]*([^{S}]+)"));
     if let Some(caps) = cpu.captures(&root.read("/proc/cpuinfo").unwrap_or_default()) {

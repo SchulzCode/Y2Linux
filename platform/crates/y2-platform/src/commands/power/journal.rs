@@ -516,7 +516,7 @@ impl Diagnostics {
             .with("wall_time", wall())
             .with("monotonic_s", now)
             .with("boottime_s", clock::boottime_ns() as f64 / 1e9)
-            .with("boot_id", root.read("/proc/sys/kernel/random/boot_id"))
+            .with("boot_id", root.boot_id())
             .with("build_id", build_id)
             .with("features", features(root, golden))
             .with("usb_net", usb_net(root)?)
@@ -824,7 +824,7 @@ impl PowerJournal {
                     ),
             );
         }
-        let boot_id = root.read("/proc/sys/kernel/random/boot_id");
+        let boot_id = root.boot_id();
         let idle = idle_counters(root);
         let sleep = sleep_status(&receipt, boot_id.as_deref())?;
         let mut suspend = Object::new();

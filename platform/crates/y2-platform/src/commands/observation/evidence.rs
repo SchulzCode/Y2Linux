@@ -506,7 +506,7 @@ pub fn run(root: &Root) -> Outcome {
     let directory = root.path("/data/system/platform");
     private_directory(&directory)?;
     let boot = root
-        .read("/proc/sys/kernel/random/boot_id")
+        .boot_id()
         .filter(|b| !b.is_empty())
         .ok_or_else(|| Failure::value("boot_id_unavailable"))?;
     let previous = root.json_object("/data/system/platform/previous-boot-evidence.json");

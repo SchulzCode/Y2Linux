@@ -33,7 +33,7 @@ pub fn intent(root: &Root, operation: &str) -> Result<(), Failure> {
         return Err(Failure::value("invalid_bluetooth_intent"));
     }
     let boot = root
-        .read("/proc/sys/kernel/random/boot_id")
+        .boot_id()
         .filter(|b| b.chars().count() == 36)
         .ok_or_else(|| Failure::value("boot_identity_unavailable"))?;
     let now = clock::monotonic_ns() / 1000;

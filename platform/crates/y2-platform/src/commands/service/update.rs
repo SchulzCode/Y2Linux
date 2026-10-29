@@ -137,10 +137,6 @@ fn object(value: Option<Value>) -> Map<String, Value> {
     }
 }
 
-fn boot_id(root: &Root) -> Value {
-    json!(root.read("/proc/sys/kernel/random/boot_id"))
-}
-
 /// `update.channel`: the shipped release channel, or the owner's override on /data.
 pub fn channel(root: &Root) -> Map<String, Value> {
     let shipped = root.json_object(CHANNEL);
@@ -1175,7 +1171,7 @@ fn battery_gate(root: &Root) -> Result<()> {
         _ => Map::new(),
     };
     let owner = power.get("boot_id").cloned().unwrap_or(Value::Null);
-    if !owner.is_null() && owner != boot_id(root) {
+    if !owner.is_null() && owner != Value::from(root.boot_id()) {
         battery = Map::new();
     }
     if is_true(battery.get("charging")) || is_one_of(battery.get("status"), &["Charging", "Full"]) {
@@ -1488,7 +1484,7 @@ fn health_ack(root: &Root) -> Result<Value> {
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
     let mut progress = root.json_object("/run/y2/update-health.json");
-    let boot = boot_id(root);
+    let boot = Value::from(root.boot_id());
     if progress.get("boot_id").cloned().unwrap_or(Value::Null) != boot {
         progress = object(Some(json!({"boot_id": boot,
                                       "deadline_monotonic_s": clock::monotonic() + 180.0})));
@@ -1506,7 +1502,7 @@ fn health_ack(root: &Root) -> Result<Value> {
     // A successful frame alone is insufficient: app must still answer, core mounts/devices must be
     // usable, and the same boot/process must own readiness.
     let ready = root.json_object("/run/y2/application-ready.json");
-    if ready.get("boot_id").cloned().unwrap_or(Value::Null) != boot_id(root)
+    if ready.get("boot_id").cloned().unwrap_or(Value::Null) != Value::from(root.boot_id())
         || !is_true(ready.get("first_frame"))
     {
         return Ok(json!({"state": "PendingHealth", "reason": "application_first_frame_missing"}));

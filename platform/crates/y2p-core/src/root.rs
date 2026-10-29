@@ -47,6 +47,12 @@ impl Root {
         self.read_limited(name, READ_LIMIT)
     }
 
+    /// `ctx.read('/proc/sys/kernel/random/boot_id')`: this boot's id, which records carry to tell a
+    /// fact of this boot from one a restart left behind (`None` when unreadable; as a value, null).
+    pub fn boot_id(&self) -> Option<String> {
+        self.read("/proc/sys/kernel/random/boot_id")
+    }
+
     /// `ctx.integer`: Python `int()` of the stripped text.
     pub fn integer(&self, name: &str) -> Option<i64> {
         self.read(name).and_then(|text| python_int(&text))

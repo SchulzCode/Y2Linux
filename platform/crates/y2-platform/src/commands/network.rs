@@ -19,10 +19,7 @@ pub(crate) fn publish(root: &Root, name: &str, mut value: Object) -> Result<Obje
     private_directory(&root.path("/run/y2"))?;
     value
         .set("schema", 1)
-        .set(
-            "boot_id",
-            json!(root.read("/proc/sys/kernel/random/boot_id")),
-        )
+        .set("boot_id", json!(root.boot_id()))
         .set("monotonic_s", clock::monotonic());
     atomic_json(&root.path(&format!("/run/y2/{name}.json")), &value, false)?;
     Ok(value)
@@ -94,9 +91,7 @@ pub fn wifi_event(root: &Root, event: &str) -> Outcome {
     write_text(&runtime.join("wifi-epoch"), &format!("{epoch}\n"))?;
     unlink_missing_ok(&runtime.join("dns.json"))?;
     let mut old = root.json_object("/run/y2/wifi-events.json");
-    if old.get("boot_id").cloned().unwrap_or(Value::Null)
-        != json!(root.read("/proc/sys/kernel/random/boot_id"))
-    {
+    if old.get("boot_id").cloned().unwrap_or(Value::Null) != json!(root.boot_id()) {
         old = Map::new();
     }
     let active = match old.get("association_active") {
@@ -305,8 +300,7 @@ fn renews(
         .collect();
     previous.get("state") == Some(&json!("Authenticated"))
         && previous.get("epoch").and_then(Value::as_str) == epoch
-        && previous.get("boot_id").and_then(Value::as_str)
-            == root.read("/proc/sys/kernel/random/boot_id").as_deref()
+        && previous.get("boot_id").and_then(Value::as_str) == root.boot_id().as_deref()
         && address.is_some_and(|a| previous.get("address") == Some(&json!(a)))
         && servers.is_some_and(|s| previous.get("dns_servers") == Some(&json!(s)))
 }

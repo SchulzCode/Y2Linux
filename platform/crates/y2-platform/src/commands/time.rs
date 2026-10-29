@@ -55,10 +55,6 @@ pub(crate) fn floor(root: &Root) -> Option<i64> {
     root.integer("/etc/y2linux/build-epoch")
 }
 
-pub(crate) fn boot_id(root: &Root) -> Option<String> {
-    root.read("/proc/sys/kernel/random/boot_id")
-}
-
 /// `anchor.get('boot_id') == ctx.read(boot_id)`: two missing values are equal too.
 pub(crate) fn same_boot(anchor: &Map<String, Value>, boot: &Option<String>) -> bool {
     anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot)
@@ -74,7 +70,7 @@ pub fn status(root: &Root) -> Outcome {
         number(anchor.get("monotonic_s")),
         number(anchor.get("epoch")),
     );
-    let coherent = same_boot(&anchor, &boot_id(root))
+    let coherent = same_boot(&anchor, &root.boot_id())
         && wall_anchor.is_some()
         && stamp.is_some_and(|stamp| (0.0..=86_400.0).contains(&(monotonic - stamp)))
         && drift(&anchor, now, monotonic, elapsed).abs() <= 60.0;
@@ -139,7 +135,7 @@ fn remember_inner(root: &Root) -> Result<Option<Object>, Failure> {
         .and_then(Value::as_str)
         .map(str::to_owned);
     if !matches!(source.as_deref(), Some("ntp" | "manual"))
-        || !same_boot(&anchor, &boot_id(root))
+        || !same_boot(&anchor, &root.boot_id())
         || !plausible(now, floor(root))
         || drift(&anchor, now, monotonic, elapsed).abs() > 60.0
     {
@@ -221,7 +217,7 @@ pub fn ntp_event(root: &Root, event: &str) -> Outcome {
     }
     let mut value = Object::new()
         .with("schema", 1)
-        .with("boot_id", json!(boot_id(root)))
+        .with("boot_id", json!(root.boot_id()))
         .with("epoch", now)
         .with("monotonic_s", clock::monotonic())
         .with("boottime_s", boottime())

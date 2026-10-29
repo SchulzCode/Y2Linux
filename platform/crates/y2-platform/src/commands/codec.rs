@@ -193,7 +193,7 @@ pub fn runtime(root: &Root, record: bool) -> Outcome {
         }
     }
     if record {
-        let receipt = json!({"boot_id": root.read("/proc/sys/kernel/random/boot_id"), "settings": policy,
+        let receipt = json!({"boot_id": root.boot_id(), "settings": policy,
                              "arguments": args});
         atomic_json(&root.path("/run/y2/codec-runtime.json"), &receipt, false)?;
     }

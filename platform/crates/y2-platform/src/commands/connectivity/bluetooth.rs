@@ -30,7 +30,7 @@ pub fn codec_settings(root: &Root) -> Result<Value, Failure> {
     let policy = validate(requested(root)?)?;
     let inventory = root.json_object("/etc/y2linux/bluetooth-codecs.json");
     let applied = root.json_object("/run/y2/codec-runtime.json");
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let boot = root.boot_id();
     // This receipt records startup arguments, never endpoint/negotiation success.
     let pid = root.integer("/run/y2/bluealsa.pid").filter(|p| *p > 1);
     let command = pid.and_then(|p| root.read_limited(&format!("/proc/{p}/cmdline"), 8192));
@@ -274,10 +274,8 @@ pub fn normalize(root: &Root, raw: &Value) -> Result<Value, Failure> {
     .expect("object");
     let fresh = match &result["reconnect"] {
         Value::Object(reconnect) => {
-            super::observe_wifi::eq_text(
-                reconnect.get("boot_id"),
-                root.read("/proc/sys/kernel/random/boot_id").as_deref(),
-            ) && matches!(reconnect.get("monotonic_us"), Some(v) if v.is_boolean() || v.is_i64() || v.is_u64())
+            super::observe_wifi::eq_text(reconnect.get("boot_id"), root.boot_id().as_deref())
+                && matches!(reconnect.get("monotonic_us"), Some(v) if v.is_boolean() || v.is_i64() || v.is_u64())
                 && number(reconnect.get("monotonic_us")).is_some_and(|at| {
                     (0.0..10_000_000.0).contains(&(clock::monotonic() * 1e6 - at))
                 })

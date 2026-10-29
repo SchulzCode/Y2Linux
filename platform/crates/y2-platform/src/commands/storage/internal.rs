@@ -15,9 +15,9 @@
 use super::media::{mkdir_io, properties};
 use super::observe::setup_status;
 use super::sys::{
-    atomic_json_mode, available, boot_id, device_instance, exists, get, get_eq, is_symlink,
-    isdigit, lock_now, mkdir, mounts as all_mounts, name, object, read, release_view, resolve,
-    statvfs, text, Mount, Object,
+    atomic_json_mode, available, device_instance, exists, get, get_eq, is_symlink, isdigit,
+    lock_now, mkdir, mounts as all_mounts, name, object, read, release_view, resolve, statvfs,
+    text, Mount, Object,
 };
 use crate::reply::{atomic_json, write_text, Failure};
 use serde_json::{json, Value};
@@ -164,7 +164,7 @@ fn record(
     value.insert("state".into(), json!(state));
     value.insert("reason".into(), json!(reason));
     value.insert("path".into(), json!(PATH));
-    value.insert("boot_id".into(), boot_id(root));
+    value.insert("boot_id".into(), Value::from(root.boot_id()));
     for (key, field) in fields {
         value.insert((*key).into(), field.clone());
     }
@@ -185,7 +185,7 @@ fn ready(root: &Root) -> bool {
     let current = mounts_at(root, PATH);
     get(&claim, "state").as_str() == Some("Ready")
         && current.len() == 1
-        && get_eq(&claim, "boot_id", &boot_id(root))
+        && get_eq(&claim, "boot_id", &Value::from(root.boot_id()))
         && get_eq(&claim, "mount_id", &json!(current[0].mount_id))
         && get_eq(&claim, "device_id", &json!(current[0].device_id))
 }
@@ -679,7 +679,7 @@ fn note(root: &Root, state: &str, reason: Option<&str>, fields: Fields) -> Resul
     value.insert("schema".into(), json!(1));
     value.insert("state".into(), json!(state));
     value.insert("reason".into(), json!(reason));
-    value.insert("boot_id".into(), boot_id(root));
+    value.insert("boot_id".into(), Value::from(root.boot_id()));
     for (key, field) in fields {
         value.insert((*key).into(), field.clone());
     }

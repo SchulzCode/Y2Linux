@@ -65,10 +65,6 @@ pub fn object(root: &Root, name: &str) -> Object {
     root.json_object(name)
 }
 
-pub fn boot_id(root: &Root) -> Value {
-    text(&root.read("/proc/sys/kernel/random/boot_id"))
-}
-
 // ---- paths -------------------------------------------------------------------------------------
 
 /// `common.read` of a host path.
@@ -245,7 +241,7 @@ pub fn observation_record(root: &Root, workload: &str) -> Value {
     json!({
         "wall_timestamp": utc_isoformat(),
         "monotonic_ns": y2p_core::clock::monotonic_ns(),
-        "boot_id": boot_id(root),
+        "boot_id": Value::from(root.boot_id()),
         "y2linux_commit": get(&versions, "build_git_commit"),
         "reborn_commit": get(&versions, "reborn_source_commit"),
         "kernel": text(&root.read("/proc/sys/kernel/osrelease")),
@@ -320,7 +316,9 @@ const USB_SCHEMA: &str = "org.y2linux.usb-transfer/v1";
 /// `usb.status`.
 pub fn usb_status(root: &Root) -> Object {
     let state = object(root, "/run/y2/usb-transfer.json");
-    if !get_eq(&state, "schema", &json!(USB_SCHEMA)) || !get_eq(&state, "boot_id", &boot_id(root)) {
+    if !get_eq(&state, "schema", &json!(USB_SCHEMA))
+        || !get_eq(&state, "boot_id", &Value::from(root.boot_id()))
+    {
         let mut value = Object::new();
         value.insert("schema".into(), json!(USB_SCHEMA));
         value.insert("state".into(), json!("Unavailable"));

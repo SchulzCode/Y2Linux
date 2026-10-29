@@ -76,10 +76,6 @@ pub fn round1(x: f64) -> f64 {
     format!("{x:.1}").parse().unwrap_or(x)
 }
 
-fn boot(root: &Root) -> Option<String> {
-    root.read("/proc/sys/kernel/random/boot_id")
-}
-
 /// `journal(ctx, event, **fields)`: append one durable row (bounded, rotated once); false when /data
 /// is not ours or the row could not be written.
 pub fn journal(root: &Root, event: &str, fields: Object) -> bool {
@@ -91,7 +87,7 @@ pub fn journal(root: &Root, event: &str, fields: Object) -> bool {
         .with("event", event)
         .with("wall_time", wall())
         .with("monotonic_s", clock::monotonic())
-        .with("boot_id", json!(boot(root)));
+        .with("boot_id", json!(root.boot_id()));
     for (key, value) in fields {
         row.set(&key, value);
     }
@@ -738,7 +734,7 @@ impl EventMonitor {
         };
         let root = &self.root;
         let old = root.json_object("/run/y2/wifi-failure.json");
-        let boot = boot(root);
+        let boot = root.boot_id();
         // Failed handshakes per network since the last connect (kept here, so a service restart does
         // not forget the first one).
         let valid = match old.get("wrong_key") {

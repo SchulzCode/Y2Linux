@@ -174,11 +174,5 @@ fn finish(mut result: Map<String, Value>, boot_id: Option<&str>) -> Map<String, 
 
 pub fn status(root: &Root) -> Outcome {
     let value = root.json_object(RECEIPT);
-    Reply::sorted(
-        &product(
-            &value,
-            root.read("/proc/sys/kernel/random/boot_id").as_deref(),
-        )?,
-        0,
-    )
+    Reply::sorted(&product(&value, root.boot_id().as_deref())?, 0)
 }

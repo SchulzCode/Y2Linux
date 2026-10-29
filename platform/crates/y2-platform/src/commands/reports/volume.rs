@@ -64,7 +64,7 @@ fn resolve(path: &Path) -> PathBuf {
 /// `observe.storage(ctx)`'s volume for `/data`; every target's blkid request is made as Python's.
 fn data(root: &Root) -> Volume {
     let mounts = y2p_core::mounts::mounts(root);
-    let boot = super::boot_id(root);
+    let boot = root.boot_id();
     let mut result = None;
     for target in ["/", "/data", "/media/sd", "/media/internal"] {
         let found: Vec<&media::Mount> = mounts.iter().filter(|m| m.path == target).collect();

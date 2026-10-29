@@ -6,7 +6,7 @@
 //! plan Python made confirms here, and one made here confirms in Python.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    boot_id, json_dict,
+    json_dict,
     media::{fstat, open_at, rename_between, stat_at},
     os, os_name, os_plain,
     pyjson::{self, Py, Style},
@@ -388,7 +388,7 @@ fn plan(root: &Root, scope: Option<&str>) -> Result<Py, Failure> {
             .with("id", Py::Str(uuid4()?.replace('-', "")))
             .with("state", Py::str("Planned"))
             .with("scope", Py::str(scope))
-            .with("boot_id", boot_id(root).into())
+            .with("boot_id", root.boot_id().into())
             .with("data_generation", volume.generation.clone().into())
             .with("data_uuid", volume.uuid.clone().into())
             .with(
@@ -546,7 +546,7 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
         .unwrap_or("")
         .to_owned();
     if !SCOPES.contains(&scope.as_str())
-        || (!resume && !text(value.get("boot_id")).py_eq(&boot_id(root).into()))
+        || (!resume && !text(value.get("boot_id")).py_eq(&root.boot_id().into()))
     {
         return Err(Failure::value("stale_reset_plan"));
     }

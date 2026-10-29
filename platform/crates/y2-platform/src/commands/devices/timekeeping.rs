@@ -22,10 +22,6 @@ fn floor(root: &Root) -> Option<i64> {
     root.integer("/etc/y2linux/build-epoch")
 }
 
-fn boot_id(root: &Root) -> Option<String> {
-    root.read("/proc/sys/kernel/random/boot_id")
-}
-
 /// `timekeeping.drift` (as time.rs).
 fn drift(anchor: &Map<String, Value>, now: f64, monotonic: f64, elapsed: f64) -> f64 {
     let (stamp, wall, since) = (
@@ -50,7 +46,7 @@ fn status_at(root: &Root, now: i64) -> Object {
         number(anchor.get("monotonic_s")),
         number(anchor.get("epoch")),
     );
-    let coherent = anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot_id(root))
+    let coherent = anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(root.boot_id())
         && wall_anchor.is_some()
         && stamp.is_some_and(|stamp| (0.0..=86_400.0).contains(&(monotonic - stamp)))
         && drift(&anchor, now as f64, monotonic, elapsed).abs() <= 60.0;
@@ -129,7 +125,7 @@ fn set_manual_inner(root: &Root, epoch: i64) -> Result<Object, Failure> {
     // "ntp").
     let anchor = root.json_object("/run/y2/time.json");
     if anchor.get("source").and_then(Value::as_str) == Some("ntp")
-        && anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot_id(root))
+        && anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(root.boot_id())
     {
         return Err(Failure::value("network_time_active"));
     }
@@ -139,7 +135,7 @@ fn set_manual_inner(root: &Root, epoch: i64) -> Result<Object, Failure> {
     }
     let mut value = Object::new()
         .with("schema", 1)
-        .with("boot_id", json!(boot_id(root)))
+        .with("boot_id", json!(root.boot_id()))
         .with("epoch", epoch)
         .with("monotonic_s", clock::monotonic())
         .with("boottime_s", boottime())
@@ -227,7 +223,7 @@ pub fn bootstrap(root: &Root) -> Outcome {
     };
     let value = Object::new()
         .with("schema", 1)
-        .with("boot_id", json!(boot_id(root)))
+        .with("boot_id", json!(root.boot_id()))
         .with("epoch", now)
         .with("monotonic_s", clock::monotonic())
         .with("boottime_s", boottime())
@@ -268,7 +264,7 @@ pub fn alarm(root: &Root, seconds: i64) -> Outcome {
     }
     let value = Object::new()
         .with("schema", 1)
-        .with("boot_id", json!(boot_id(root)))
+        .with("boot_id", json!(root.boot_id()))
         .with(
             "alarm_epoch",
             if target != 0 {

@@ -1,7 +1,6 @@
 //! report.py's automatic triggers: `crash_signature`, `check` and `run_checks`.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    boot_id,
     build::{rel, Progress},
     json_dict, or_dict,
     pyjson::{self, py_str, Py},
@@ -126,7 +125,7 @@ fn int(root: &Root, name: &str) -> Option<i64> {
 pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     let mut value = state::state(root);
     let mut fired: Vec<(String, String)> = Vec::new();
-    let boot = boot_id(root).unwrap_or_default();
+    let boot = root.boot_id().unwrap_or_default();
     if let Some(crash) = crash_signature(root) {
         let previous = pyops::get(value.get("seen").expect("state has seen"), "pstore_crash")?
             .filter(|v| v.truthy())
@@ -429,7 +428,7 @@ pub fn run_checks(root: &Root) -> Result<Py, Failure> {
     if fired.is_empty() {
         return Ok(Py::List(Vec::new()));
     }
-    let boot = boot_id(root).unwrap_or_default();
+    let boot = root.boot_id().unwrap_or_default();
     // `state(ctx)['boot_triggers'].get(boot, [])`, then `t not in reported`.
     let triggers = state::state(root)
         .get("boot_triggers")

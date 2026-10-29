@@ -60,7 +60,7 @@ pub fn wifi_policy(root: &Root, activity: Option<&Map<String, Value>>) -> Result
     // Avoid resending CMD_ID_POWER_SAVE_MODE every 30 seconds when this same setting is already in
     // effect. Readback is host state, not proof of firmware sleep or electrical savings.
     let (mut actual, mut result) = readback(root);
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let boot = root.boot_id();
     let epoch = root.read("/run/y2/wifi-epoch");
     let ifindex = root.read("/sys/class/net/wlan0/ifindex");
     let previous = root.json_object("/run/y2/wifi-power.json");

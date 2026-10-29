@@ -18,7 +18,7 @@ pub struct Volume {
 /// `observe.storage(ctx)['volumes']`, the `/data` entry.
 pub fn data(root: &Root) -> Volume {
     let mounts = y2p_core::mounts::mounts(root);
-    let boot_id = root.read("/proc/sys/kernel/random/boot_id");
+    let boot_id = root.boot_id();
     let mut result = Volume {
         state: "Unavailable",
         generation: None,

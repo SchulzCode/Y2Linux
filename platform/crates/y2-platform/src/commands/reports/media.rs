@@ -3,7 +3,7 @@
 //! report.py's `save_to` / `_write_into`.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    boot_id, build, clock, json_dict, or_dict,
+    build, clock, json_dict, or_dict,
     pyjson::Py,
     state::{self, DESTINATIONS},
 };
@@ -41,7 +41,7 @@ fn owned_mount(root: &Root, mounted: &Mount) -> bool {
     let claim = json_dict(root, "/run/y2/media-mount.json");
     // Removed cards no longer have a sysfs controller path. The retained claim permits only the
     // exact mount we created, never an arbitrary mountpoint.
-    eq(claim.get("boot_id"), &text(boot_id(root)))
+    eq(claim.get("boot_id"), &text(root.boot_id()))
         && eq(claim.get("mount_id"), &Py::int(mounted.mount_id))
         && eq(claim.get("device_id"), &Py::str(mounted.device_id.clone()))
         && eq(claim.get("device"), &Py::str(mounted.source.clone()))
@@ -54,7 +54,7 @@ fn sd_state(root: &Root) -> (Py, Option<Mount>) {
     if old.len() == 1
         && owned_mount(root, &old[0])
         && eq(claim.get("mount_id"), &Py::int(old[0].mount_id))
-        && eq(claim.get("boot_id"), &text(boot_id(root)))
+        && eq(claim.get("boot_id"), &text(root.boot_id()))
     {
         let mount = old.remove(0);
         return (claim, Some(mount));
@@ -78,7 +78,7 @@ const WRITE_HOLDERS: [&str; 4] = ["usb", "reborn", "report", "radiofw"];
 /// `media._writers`.
 fn writers(root: &Root, mount: &Mount) -> Vec<(String, Py)> {
     let value = or_dict(json_dict(root, SD_WRITE));
-    if !eq(value.get("boot_id"), &text(boot_id(root)))
+    if !eq(value.get("boot_id"), &text(root.boot_id()))
         || !eq(value.get("mount_id"), &Py::int(mount.mount_id))
     {
         return Vec::new();
@@ -100,7 +100,7 @@ fn writers(root: &Root, mount: &Mount) -> Vec<(String, Py)> {
 fn apply_window(root: &Root, mount: &Mount, holders: &[(String, Py)]) -> Result<bool, Failure> {
     let record = Py::dict()
         .with("schema", Py::int(1))
-        .with("boot_id", text(boot_id(root)))
+        .with("boot_id", text(root.boot_id()))
         .with("mount_id", Py::int(mount.mount_id))
         .with("holders", Py::Dict(holders.to_vec()));
     atomic_json(&root.path(SD_WRITE), &record, false)?;

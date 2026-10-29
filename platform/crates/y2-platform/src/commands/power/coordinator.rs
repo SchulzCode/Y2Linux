@@ -119,7 +119,7 @@ pub struct Coordinator {
 
 impl Coordinator {
     pub fn new(root: &Root) -> Coordinator {
-        let boot_id = root.read("/proc/sys/kernel/random/boot_id");
+        let boot_id = root.boot_id();
         let previous = match root.json("/run/y2/shutdown.json") {
             Some(Value::Object(o)) => o,
             _ => Object::new(),

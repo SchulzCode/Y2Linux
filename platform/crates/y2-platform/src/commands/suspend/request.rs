@@ -79,7 +79,7 @@ pub fn request(root: &Root) -> Outcome {
         Err(std::fs::TryLockError::WouldBlock) => {
             let current = super::super::sleep::product(
                 &root.json_object(receipt::RECEIPT),
-                root.read("/proc/sys/kernel/random/boot_id").as_deref(),
+                root.boot_id().as_deref(),
             )?;
             let mut busy = current;
             busy.insert("state".into(), "refused".into());

@@ -95,7 +95,7 @@ fn statvfs(path: &Path) -> Option<Space> {
 /// `observe.storage(ctx)['volumes']`.
 pub fn volumes(root: &Root) -> Vec<Volume> {
     let mounts = mounts(root);
-    let boot_id = root.read("/proc/sys/kernel/random/boot_id");
+    let boot_id = root.boot_id();
     let mut volumes = Vec::new();
     // Index order is a consumer contract: root, Y2DATA, SD, then Y2Media (internal user media).
     for target in ["/", "/data", "/media/sd", INTERNAL] {
@@ -208,7 +208,7 @@ pub fn admitted(volume: &Volume, requested: u64) -> bool {
 pub fn internal_ready(root: &Root) -> bool {
     let claim = root.json_object(MARKER);
     let current = mounts_at(root, INTERNAL);
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let boot = root.boot_id();
     claim.get("state").and_then(Value::as_str) == Some("Ready")
         && current.len() == 1
         && claim.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot)

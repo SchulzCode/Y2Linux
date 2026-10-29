@@ -110,7 +110,7 @@ pub(crate) fn evidence_status(root: &Root) -> Result<Value, Failure> {
 /// `internal_media.setup_status`.
 pub fn setup_status(root: &Root) -> Value {
     match root.json("/run/y2/internal-media-setup.json") {
-        Some(Value::Object(value)) if get_eq(&value, "boot_id", &util::boot_id(root)) => {
+        Some(Value::Object(value)) if get_eq(&value, "boot_id", &Value::from(root.boot_id())) => {
             let picked: Map<String, Value> =
                 ["state", "reason", "files", "bytes", "serial", "kept"]
                     .iter()
@@ -128,7 +128,7 @@ pub fn internal_ready(root: &Root) -> bool {
     let current = y2p_core::mounts::mounts_at(root, "/media/internal");
     claim.get("state").and_then(Value::as_str) == Some("Ready")
         && current.len() == 1
-        && get_eq(&claim, "boot_id", &util::boot_id(root))
+        && get_eq(&claim, "boot_id", &Value::from(root.boot_id()))
         && get_eq(&claim, "mount_id", &json!(current[0].mount_id))
         && get_eq(&claim, "device_id", &json!(current[0].device_id))
 }
@@ -448,7 +448,7 @@ fn time_status(root: &Root) -> Result<Value, Failure> {
 pub fn system(root: &Root) -> Result<Value, Failure> {
     let clock = time_status(root)?;
     let mut ssh = root.json_object("/run/y2/ssh.json");
-    let boot = util::boot_id(root);
+    let boot = Value::from(root.boot_id());
     if !get_eq(&ssh, "boot_id", &boot) || !util::fresh_seconds(ssh.get("monotonic_s"), 10.0) {
         ssh = serde_json::from_value(
             json!({"state": "Unavailable", "reason": "ssh_record_stale_or_absent"}),

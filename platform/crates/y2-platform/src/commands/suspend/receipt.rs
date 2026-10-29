@@ -356,7 +356,7 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
     private_directory(&directory)?;
     let path = directory.join("suspend-last.json");
     let mut value = root.json_object(RECEIPT);
-    let boot = || text_value(root.read("/proc/sys/kernel/random/boot_id"));
+    let boot = || text_value(root.boot_id());
     if starts_receipt(s.stage, &value) {
         let pm_test = Regex::new(r"\[(\w+)\]")
             .expect("pattern")
@@ -394,7 +394,7 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
         .iter()
         .map(|p| (name(p), text_value(read(&p.join("state"), 131_072))))
         .collect();
-    let current = root.read("/proc/sys/kernel/random/boot_id");
+    let current = root.boot_id();
     let result = s.result.map_or(Value::Null, Value::from);
     set(
         &mut value,

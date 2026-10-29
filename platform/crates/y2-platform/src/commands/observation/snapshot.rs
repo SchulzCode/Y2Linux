@@ -895,7 +895,7 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
         supplies.push(Value::Object(supply));
     }
     let mut policy = root.json_object("/run/y2/power.json");
-    let boot = util::boot_id(root);
+    let boot = Value::from(root.boot_id());
     let fresh = is_int(policy.get("monotonic_ns"))
         .is_some_and(|t| (0..5_000_000_000).contains(&(i128::from(clock::monotonic_ns()) - t)));
     if !get_eq(&policy, "boot_id", &boot) || !fresh {
@@ -920,10 +920,7 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
         let product = util::py_dict(product)?;
         receipt.insert("product".into(), Value::Object(product));
     }
-    let sleep = super::super::sleep::product(
-        &receipt,
-        root.read("/proc/sys/kernel/random/boot_id").as_deref(),
-    )?;
+    let sleep = super::super::sleep::product(&receipt, root.boot_id().as_deref())?;
     Ok(json!({
         "supplies": supplies, "units": {"voltage": "uV", "configured_current": "uA"},
         "battery": battery.clone(),
@@ -1051,7 +1048,7 @@ fn statvfs(path: &Path) -> Option<libc::statvfs64> {
 
 pub fn storage(root: &Root) -> Result<Value, Failure> {
     let mounts = y2p_core::mounts::mounts(root);
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let boot = root.boot_id();
     let boot_value = text(boot.clone());
     let mut volumes = Vec::new();
     // Index order is a consumer contract: root, Y2DATA, SD, then Y2Media (internal user media).
@@ -1384,7 +1381,7 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
             .into_iter()
             .map(|(k, v)| (k, Value::String(v)))
             .collect();
-    let boot = util::boot_id(root);
+    let boot = Value::from(root.boot_id());
     let failure = root.json_object("/run/y2/wifi-failure.json");
     if get_eq(&failure, "boot_id", &boot)
         && fresh_seconds(failure.get("monotonic_s"), 120.0)
