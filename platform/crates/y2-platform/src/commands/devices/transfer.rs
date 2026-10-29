@@ -672,6 +672,10 @@ fn workload<T>(
 }
 
 #[cfg(test)]
+#[path = "transfer_tests.rs"]
+mod transfer_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

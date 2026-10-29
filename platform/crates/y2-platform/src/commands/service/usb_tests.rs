@@ -196,7 +196,10 @@ fn no_block_export_or_triple_function_selection() {
     assert_eq!(selection("developer").unwrap(), ["acm.usb0", "ecm.usb0"]);
     for path in ["/", "/data", "/dev/mmcblk0", "/data/reborn", "/data/ssh"] {
         let view = json!({"path": path, "name": "Internal Storage", "access": "rw"});
-        assert!(config(&[view.as_object().cloned().unwrap()]).is_err(), "{path}");
+        assert!(
+            config(&[view.as_object().cloned().unwrap()]).is_err(),
+            "{path}"
+        );
     }
     let view = json!({"path": INTERNAL, "name": "Internal Storage", "access": "rw", "mount_id": 5});
     assert!(config(&[view.as_object().cloned().unwrap()])
@@ -297,14 +300,9 @@ fn readiness_restart_unbinds_its_existing_gadget_before_setup() {
     // The UDC as the restarted service's setup leaves it when it starts its responder (the last
     // step before the bind).
     let seen = Rc::new(RefCell::new(Vec::new()));
-    let (record, udc) = (
-        Rc::clone(&seen),
-        usb.fixture.path(&format!("{GADGET}/UDC")),
-    );
+    let (record, udc) = (Rc::clone(&seen), usb.fixture.path(&format!("{GADGET}/UDC")));
     let launch: Launch = Box::new(move |argv| {
-        record
-            .borrow_mut()
-            .push(fs::read_to_string(&udc).unwrap());
+        record.borrow_mut().push(fs::read_to_string(&udc).unwrap());
         responder(argv)
     });
     let mut restarted = UsbService::new(&usb.fixture.root);
@@ -330,7 +328,8 @@ fn gadget_requests_validated_bus_powered_500ma_allocation() {
 
 #[test]
 fn both_views_declared_in_fixed_slots_missing_sd_is_notmounted() {
-    let internal = json!({"path": INTERNAL, "name": "Internal Storage", "access": "rw", "mount_id": 5});
+    let internal =
+        json!({"path": INTERNAL, "name": "Internal Storage", "access": "rw", "mount_id": 5});
     let internal = internal.as_object().cloned().unwrap();
     let text = config(std::slice::from_ref(&internal)).unwrap();
     assert!(text.contains("storage \"/media/internal/music\" \"Internal Storage\" \"rw\""));
@@ -361,8 +360,7 @@ fn sd_hotplug_changes_the_live_view_without_usb_reenumeration() {
             "/media/sd"
         };
         let current: Value = serde_json::from_str(&fs::read_to_string(&roots).unwrap()).unwrap();
-        let mut current: Vec<String> =
-            serde_json::from_value(current["roots"].clone()).unwrap();
+        let mut current: Vec<String> = serde_json::from_value(current["roots"].clone()).unwrap();
         current.retain(|p| p != path);
         if message.starts_with("mount") {
             current.push(path.into());
@@ -404,7 +402,9 @@ fn unacknowledged_unmount_falls_back_to_stopping_the_responder() {
     session(Box::new(responder), || usb.ready());
     let old = usb.pid();
     let sd = sd_view();
-    usb.service.mounted.push(("/media/sd".into(), identity(&sd)));
+    usb.service
+        .mounted
+        .push(("/media/sd".into(), identity(&sd)));
     usb.service.views = Some(vec![usb.internal_view(), sd]);
     // The responder takes the command but never drops the root.
     let launch: Launch = Box::new(|argv| {
@@ -437,8 +437,10 @@ fn developer_change_waits_for_disconnect() {
     let mut usb = Usb::new();
     session(Box::new(responder), || {
         usb.ready();
-        usb.fixture
-            .put("/data/system/platform/usb-mode.json", "{\"mode\":\"developer\"}");
+        usb.fixture.put(
+            "/data/system/platform/usb-mode.json",
+            "{\"mode\":\"developer\"}",
+        );
         assert_eq!(usb.tick()["mode"], "mtp");
         usb.cable("not attached");
         assert_eq!(usb.tick()["mode"], "developer");
@@ -554,8 +556,8 @@ fn wrong_internal_geometry_uuid_or_nested_mount_is_excluded() {
         .put("/sys/dev/block/179:2/start", "3742720")
         .put("/sys/dev/block/179:2/size", "11460608");
     assert_eq!(views(&fixture).len(), 1);
-    let text = mountinfo(&fixture)
-        + "\n8 5 179:1 / /media/internal/music rw - ext4 /dev/mmcblk0p1 rw";
+    let text =
+        mountinfo(&fixture) + "\n8 5 179:1 / /media/internal/music rw - ext4 /dev/mmcblk0p1 rw";
     fixture.put("/proc/self/mountinfo", &text);
     assert!(views(&fixture).is_empty());
 }
@@ -568,7 +570,9 @@ fn old_storage_is_read_only_and_only_while_the_setup_waits() {
         "/proc/self/mountinfo",
         "5 1 179:2 / /run/y2/old-storage ro - vfat /dev/mmcblk0p8 ro",
     );
-    fixture.mkdir("/run/y2/old-storage").mkdir("/sys/class/block");
+    fixture
+        .mkdir("/run/y2/old-storage")
+        .mkdir("/sys/class/block");
     // The Y2Media partition entry (internal_media.partition): mmcblk0p8.
     link(
         fixture.path(DEVICE),
