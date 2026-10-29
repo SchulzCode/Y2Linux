@@ -1,7 +1,14 @@
 //! `update apply`, `rollback`, `cancel` and `probe-recovery`: the battery gate, the maintenance
 //! lease, the core's request and the restart through the power daemon.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    core, is_true, json, json_error, py, remove_package, sorted, state_is, status, string, truthy,
+    Duration, Map, Object, Raise, Result, Root, Value, MINIMUM_PERCENT,
+};
+use std::io::Read;
+use std::io::Write;
+use y2p_core::json::ObjectExt;
+use y2p_core::py::PyValue;
 
 /// Restart into the installer and back (proven on 43 and 45). Owner override:
 /// /data/updates/restart.json {"mode": "poweroff"} turns off instead, and Power starts the installer and

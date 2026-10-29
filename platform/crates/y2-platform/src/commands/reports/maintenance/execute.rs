@@ -1,7 +1,16 @@
 //! `reset execute|resume`: move a confirmed plan's targets into the quarantine, durably and in
 //! order, so an interrupted reset resumes where it stopped (also after a restart).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    atomic_json, busy, command, confirmation, data_volume, free, fstat, fsync, fsync_path,
+    identity, inspect, json_dict, open_at, open_data, os, os_name, os_plain, parent_fd,
+    private_directory, pyjson, pyops, regular_bytes, rename_between, sha256_hex, stat_at, text,
+    volume, Failure, OwnedFd, Path, Py, Root, Style, DIRECTORY, SCOPES, SETTINGS, TERMINAL,
+};
+use crate::commands::reports::pyops::OrRefuse;
+use std::io::Write;
+use std::os::unix::fs::DirBuilderExt;
+use std::os::unix::fs::OpenOptionsExt;
 
 /// A reset plan field missing or of another type (the confirmation matched, so only a plan written
 /// by hand gets here).

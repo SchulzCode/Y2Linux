@@ -6,7 +6,11 @@
 //! screen follows the upload. Below a fixture root the call is a fixture command like any other (its
 //! argv carries the headers, so the golden cases compare them).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    build, command, or_dict, py_str, pyjson, Bytes, Duration, Monotonic, Py, Root, ENDPOINT,
+};
+use std::io::Read;
+use std::io::Write;
 
 /// curl's answer as urllib's: (HTTP status, answer) or (None, the exception class Python names).
 pub(super) fn answer(outcome: &command::Outcome) -> (Option<i64>, Result<Py, String>) {

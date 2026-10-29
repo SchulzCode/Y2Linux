@@ -2,7 +2,13 @@
 //! sizes and hashes (with the two board defaults derived from the stock reader library), installed
 //! on Y2DATA in one rename.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    fs, os_path, py, sha256_hex, Error, Ext4, Files, Image, OpenOptions, Path, Result, Reviewed,
+    Root, DEFAULTS, FILES, TARGET,
+};
+use std::io::Write;
+use std::os::unix::fs::DirBuilderExt;
+use std::os::unix::fs::OpenOptionsExt;
 
 /// The generic Wi-Fi/BT board records of the stock reader library, with the
 /// default addresses cleared.

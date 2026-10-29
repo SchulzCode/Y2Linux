@@ -12,7 +12,7 @@ use super::{
 };
 use crate::reply::{mkdir_parents, Failure};
 use std::{
-    io::{Read, Write},
+    io::Write,
     os::unix::fs::OpenOptionsExt,
     time::{Duration, Instant as Monotonic},
 };

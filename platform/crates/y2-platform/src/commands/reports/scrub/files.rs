@@ -1,7 +1,9 @@
 //! One file's bytes, scrubbed by its kind: JSON documents value by value, JSON lines as text with
 //! their private keys' strings replaced, archives member by member, anything else as text.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    pyjson, pyre, tarball, Captures, OnceLock, Regex, Scrubber, PRIVATE_KEYS, S, SECTION_MAX,
+};
 
 fn keys() -> String {
     let mut keys = PRIVATE_KEYS.to_vec();

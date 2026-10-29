@@ -1,7 +1,12 @@
 //! SIGTERM, SIGINT and SIGUSR1 as a readable pipe, so that the loop waits on them and on the
 //! supplicant's events in one place.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    io, py, set_signal, AtomicBool, AtomicI32, Disposition, Failure, Handler, Ordering, OwnedFd,
+    RawFd,
+};
+use std::os::fd::AsRawFd;
+use std::os::fd::FromRawFd;
 
 pub(super) static RUNNING: AtomicBool = AtomicBool::new(true);
 pub(super) static WAKE_FD: AtomicI32 = AtomicI32::new(-1);

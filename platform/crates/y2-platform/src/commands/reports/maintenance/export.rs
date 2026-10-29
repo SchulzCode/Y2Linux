@@ -1,7 +1,16 @@
 //! `export-state`: the owner's private backup of settings (network credentials and the library on
 //! request) as one archive with a manifest.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    atomic_json, data_volume, free, fsync_path, inspect, not_found, open_data, os, os_plain,
+    private_directory, regular_bytes, sha256_hex, tarball, uuid4, volume, Failure, Lease, OwnedFd,
+    Path, Py, Root, SETTINGS,
+};
+use std::io::Write;
+use std::os::unix::fs::DirBuilderExt;
+use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::fs::PermissionsExt;
 
 /// `urllib.parse.quote_from_bytes(path)` with `/` kept (`Path.as_uri()`).
 fn quote(path: &str) -> String {

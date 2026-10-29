@@ -6,6 +6,7 @@ use super::*;
 use crate::testing::{ok, Fixture};
 use serde_json::{json, Value};
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 
 const MOUNTS: &str = "22 1 179:2 / / ro - ext4 /dev/mmcblk0p2 ro\n\
     30 22 ../../devices/platform/11230000.mmc/mmcblk0p9 / /data rw,noatime - ext4 /dev/mmcblk0p9 rw\n";

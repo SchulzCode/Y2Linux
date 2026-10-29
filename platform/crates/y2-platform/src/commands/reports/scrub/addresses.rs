@@ -1,7 +1,7 @@
 //! The kind of an IP address the scrubber keeps in its token (private, link, public), as Python's
 //! ipaddress module names it (3.13+); loopback, unspecified and the players' USB network are kept.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::hex;
 
 /// ipaddress's IPv4 properties: (loopback, unspecified, private, link-local).
 fn ipv4_props(value: u32) -> (bool, bool, bool, bool) {

@@ -1,7 +1,7 @@
 //! The owner's screen during a report run: /run/y2/report-progress.json, rewritten at most five
 //! times a second, in RAM.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{Cell, PathBuf, Root, PROGRESS};
 
 /// The bytes an upload or a save has done of its whole (the progress record shows them).
 #[derive(Clone, Copy, Default)]

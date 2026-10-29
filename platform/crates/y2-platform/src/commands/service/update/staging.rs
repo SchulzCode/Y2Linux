@@ -1,8 +1,18 @@
 //! `update check` and `update stage`: room on Y2DATA, the signed manifest, the payloads and the
 //! package queued with the core; SIGTERM cancels until the commit point.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    atomic_json, channel, copy_stream, core, download, fs, installed_release, json, lock, pathlib,
+    private_directory, py, set_signal, shortened, signal_disposition, state_is, status, storage,
+    string, truthy, wait_online, Disposition, File, Handler, Io, Map, Net, OpenOptions, Ordering,
+    Path, PathBuf, Progress, Raise, Result, Root, Source, Value, BACKUPS, CANCELLED,
+    CHECK_PROGRESS, FILES, IN_PROGRESS, KEPT_LOGS, MANIFEST_ATTEMPTS, RESERVE, TERMINAL,
+};
 use std::ops::ControlFlow;
+use std::os::fd::AsFd;
+use std::os::unix::fs::DirBuilderExt;
+use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::OpenOptionsExt;
 
 fn payload_file(key: &str) -> Option<&'static str> {
     match key {

@@ -1,7 +1,11 @@
 //! The records an update reads besides its payloads: the native core's journal and answers
 //! (`status`, `core`) and download.json as the Software Update page sees it.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    channel, command, fs, json, py, sorted, string, truthy, Map, Path, Raise, Result, Root, Value,
+};
+use std::os::unix::fs::MetadataExt;
+use y2p_core::py::PyValue;
 
 pub(super) fn object(value: Option<Value>) -> Map<String, Value> {
     match value {

@@ -1,7 +1,15 @@
 //! The owner's system.img copy: where it may be (the Firmware folders), when it is complete, and the
 //! scan that takes it, or deletes a later one once the firmware is in place.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    from_system_image, fs, install, installed, json, media, mounts_at, os_path, present, py,
+    record, start, Map, Object, Path, PathBuf, Result, Reviewed, Root, SystemTime, Value, ENOSPC,
+    FOLDER, INBOX, INTERNAL_INBOX, README, SD_INBOX, SOURCE, STATE, UNIX_EPOCH,
+};
+use std::os::unix::fs::DirBuilderExt;
+use std::os::unix::fs::MetadataExt;
+use y2p_core::json::ObjectExt;
+use y2p_core::py::PyValue;
 
 /// The MTP roots the responder exports (its record), as device paths below the root.
 pub(super) fn roots(root: &Root) -> Vec<PathBuf> {

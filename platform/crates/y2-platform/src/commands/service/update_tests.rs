@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::{ok, Fixture};
+use std::os::unix::fs::MetadataExt;
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,

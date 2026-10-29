@@ -17,12 +17,10 @@ use super::{
 };
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
-use std::os::fd::AsFd;
 use std::{
     collections::VecDeque,
     fs::{self, File, OpenOptions},
-    io::{Read, Write},
-    os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt},
+    io::Read,
     path::{Path, PathBuf},
     sync::atomic::Ordering,
     time::Duration,
@@ -32,7 +30,7 @@ use y2p_core::sys::{set_signal, signal_disposition, Disposition, Handler};
 use y2p_core::{
     clock, command,
     json::{sorted, Object, ObjectExt},
-    py::{self, is_true, truthy, PyValue},
+    py::{self, is_true, truthy},
     record,
     service_digest::Sha256,
     Root,

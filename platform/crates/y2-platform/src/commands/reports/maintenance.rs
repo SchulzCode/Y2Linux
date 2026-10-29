@@ -12,7 +12,7 @@ use super::{
     media::{fstat, open_at, rename_between, stat_at},
     os, os_name, os_plain,
     pyjson::{self, Py, Style},
-    pyops::{self, OrRefuse},
+    pyops::{self},
     sha256_hex,
     state::uuid4,
     tarball,
@@ -23,9 +23,8 @@ use crate::commands::workload::Lease;
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
 use std::{
     ffi::CString,
-    io::{Read, Write},
-    os::fd::{AsFd, AsRawFd, OwnedFd},
-    os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt},
+    io::Read,
+    os::fd::{AsRawFd, OwnedFd},
     path::Path,
 };
 use y2p_core::json::ObjectExt;

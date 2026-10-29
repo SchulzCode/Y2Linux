@@ -1,7 +1,11 @@
 //! `reset plan`: what a reset of a scope would move, after the consumers stopped; the plan is
 //! signed by the hash of its exact bytes and expires after five minutes.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    atomic_json, data_volume, inspect, open_data, os, private_directory, pyjson, sha256_hex, uuid4,
+    volume, Failure, Py, Root, Style, LASTFM, SCOPES, SETTINGS, TERMINAL,
+};
+use std::io::Read;
 
 fn services(scope: &str) -> Vec<Py> {
     let mut value = vec!["S90reborn", "S42y2-readiness"];

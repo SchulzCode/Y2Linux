@@ -1,7 +1,9 @@
 //! The report's own projections: the hardware's identity (sysfs, the bootloaders' hashes), Reborn's
 //! session without its queue, the library's counts. Never a name, title or path.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{pyjson, pyre, python_strip, rel, sha256_hex, Failure, File, Py, Root, SeekFrom};
+use std::io::Read;
+use std::io::Seek;
 
 /// A JSON record of up to 16 MiB (`json_at` reads 128 KiB; Reborn's session with its whole queue is
 /// larger); `None` for `null` or no JSON.

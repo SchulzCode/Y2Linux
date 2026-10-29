@@ -2,7 +2,13 @@
 //! reconcile`, `media verify`, `update auto-check`, `report work`, `firmware scan`): when each starts,
 //! how long it may run, when it is tried again; and the hourly time floor, done in process.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    atomic_json, command, inventory, media, private_directory, process, py, radiofw, reports,
+    sorted_object, this_boot, time, truthy, update, Child, Failure, Object, Py, Root, Start, Value,
+    PLATFORM, RECONCILE_BACKOFF_S, RECONCILE_LIMIT_S, REPORT_CHECK_S, REPORT_FIRST_S,
+    REPORT_LIMIT_S, REPORT_SEND_GAP_S, VERIFY_RETRY_S,
+};
+use y2p_core::json::ObjectExt;
 
 /// `y2-platform <args>` in its own session, its standard streams on /dev/null.
 pub(super) fn start(root: &Root, args: &[&str]) -> Result<Child, Failure> {

@@ -1,6 +1,6 @@
 //! `/run/y2/coexistence.json`: the Wi-Fi transfer rate and the Bluetooth link for the radio policy.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{atomic_json, json, py, Failure, Map, Object, Root, Value};
 
 /// The Wi-Fi transfer rate and the Bluetooth link for the radio policy (`/run/y2/coexistence.json`);
 /// provisional, no codec override.

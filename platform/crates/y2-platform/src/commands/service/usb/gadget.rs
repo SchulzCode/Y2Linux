@@ -1,6 +1,9 @@
 //! The configfs USB gadget: its setup for a mode (with the responder for MTP) and its stop.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    config, expectations, fs, identity, mkdir_parents, mounts, py, selection, text, write_text,
+    Failure, Object, Path, Start, UsbService, Value, GADGET,
+};
 
 /// A symlink whose error names both paths (`[Errno 17] File exists: 'a' -> 'b'`).
 fn symlink(target: &Path, link: &Path) -> Result<(), Failure> {

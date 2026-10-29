@@ -1,6 +1,11 @@
 //! `reset purge`: delete a completed reset's quarantine, bounded per call (the owner asks again).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    data_volume, dup, fstat, fsync, open_data, open_directory, os_name, os_plain, pyops,
+    regular_bytes, stat_at, text, CString, Failure, Lease, OwnedFd, Py, Root,
+};
+use std::os::fd::AsFd;
+use std::os::fd::AsRawFd;
 
 /// The names in a directory, in readdir order (`os.scandir(fd)`).
 fn entries(fd: &OwnedFd) -> Result<Vec<String>, Failure> {

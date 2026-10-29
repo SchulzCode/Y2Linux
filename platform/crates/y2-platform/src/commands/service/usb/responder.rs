@@ -1,7 +1,11 @@
 //! The running responder's IPC: a view joins or leaves the live MTP session without a USB
 //! re-enumeration, acknowledged by the roots it pins (`mtp-roots.json`).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    expectations, identity, json, name_of, text, thread, write_text, Child, Duration, Failure,
+    Object, Start, UsbService, Value,
+};
+use y2p_core::py::PyValue;
 
 impl UsbService {
     /// `command(message)`: one IPC command to the running responder.

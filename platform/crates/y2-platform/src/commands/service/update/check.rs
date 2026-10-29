@@ -1,6 +1,10 @@
 //! `update auto-check`: the service's daily look for a release (never a download).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    atomic_json, channel, download_record, json, private_directory, shortened, stage, state_is,
+    status, truthy, Io, Map, Raise, Result, Root, Value, CHECK_INTERVAL, IN_PROGRESS, LAST_CHECK,
+    TERMINAL,
+};
 
 /// The manifest URL `stage` gets from the channel: none for a missing or empty one, refused for one
 /// that is not text (an owner's channel.json naming a number, say).

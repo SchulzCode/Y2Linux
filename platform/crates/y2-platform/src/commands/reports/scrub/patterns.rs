@@ -1,7 +1,7 @@
 //! Where the scrubber finds music paths, URLs, e-mail addresses, serial numbers, MAC and IP
 //! addresses: Python's patterns (report.py), lookbehinds checked by hand.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{lazy, pyre, OnceLock, Regex, S};
 
 const MEDIA_EXTENSIONS: &str = "flac|mp3|m4a|mp4|aac|ogg|oga|opus|wav|aiff?|ape|wv|dsf|dff|alac|\
                                 jpe?g|png|webp|bmp|gif|txt|cue|m3u8?|pls|lrc";

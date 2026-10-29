@@ -1,6 +1,6 @@
 //! What a report reads: the live commands and the files, and what it never reads.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::pyre;
 
 /// Live state from tools (name, argv, timeout, output limit); each bounded.
 pub(super) const COMMANDS: [(&str, &[&str], f64, usize); 13] = [

@@ -16,13 +16,10 @@ use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use std::{
     fs::{self, OpenOptions},
-    io::Write,
-    os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt},
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 use y2p_core::mounts::mounts_at;
-use y2p_core::py::PyValue;
 use y2p_core::{
     command,
     json::{Object, ObjectExt},

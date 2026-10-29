@@ -1,7 +1,14 @@
 //! Where a package comes from: the owner's local directory or the release channel over HTTPS
 //! (`Io`, the channel, the streams and their copy with its live progress).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{
+    clock, download, free, json, py, record, Duration, File, Map, Net, OpenOptions, Ordering, Path,
+    PathBuf, Raise, Read, Response, Result, Root, Sha256, Value, VecDeque, CANCELLED, CHANNEL,
+    NETWORK_WAIT_S, PROGRESS, RETRY_PAUSE,
+};
+use std::io::Write;
+use std::os::fd::AsFd;
+use std::os::unix::fs::OpenOptionsExt;
 
 /// The release channel: the shipped one, with the owner's `name` and `manifest_url` from
 /// /data/updates/channel.json where it names them. Redirects go only to the shipped hosts.
