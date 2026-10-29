@@ -281,9 +281,7 @@ fn lease_answers(dns: &str) -> Vec<Value> {
             "RSSI=-60\nLINKSPEED=72\nNOISE=9999\nFREQUENCY=2437",
         ),
         answer(
-            &["/usr/bin/python3", "-I", "-c",
-              "import socket,sys; print(len(socket.getaddrinfo(sys.argv[1],None,socket.AF_INET)))",
-              "pool.ntp.org"],
+            &["getaddrinfo", "pool.ntp.org"],
             dns,
         ),
     ]

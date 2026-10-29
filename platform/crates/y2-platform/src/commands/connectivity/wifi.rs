@@ -199,10 +199,12 @@ fn rows(output: Option<&str>) -> Vec<Vec<String>> {
 
 // ---- DNS ---------------------------------------------------------------------------------------
 
-/// The libc resolver in process on a bounded worker (plan §5a; Python ran
-/// `python3 -I -c 'getaddrinfo…'` for 3 s). The answer reads as that command's: ok with the number of
-/// addresses, `command_failed` on a resolver error, `command_timeout` after 3 s (the lookup is left to
-/// end on its own: resolv.conf bounds it to 2 s per server).
+/// How long a DNS probe waits for its answer.
+const LOOKUP_S: f64 = 3.0;
+
+/// The libc resolver in process on a bounded worker (plan §5a), answered as a command is: ok with
+/// the number of addresses, `command_failed` on a resolver error, `command_timeout` after
+/// `LOOKUP_S` (the lookup is left to end on its own: resolv.conf bounds it to 2 s per server).
 fn lookup(hostname: &str) -> command::Outcome {
     let host = hostname.to_owned();
     let (sender, receiver) = mpsc::channel();
@@ -219,7 +221,7 @@ fn lookup(hostname: &str) -> command::Outcome {
     if started.is_err() {
         return failed("command_unavailable");
     }
-    match receiver.recv_timeout(Duration::from_secs(3)) {
+    match receiver.recv_timeout(Duration::from_secs_f64(LOOKUP_S)) {
         Ok(Some(count)) => command::Outcome {
             ok: true,
             reason: None,
@@ -270,22 +272,12 @@ pub fn probe_dns(root: &Root, observed: &Object) -> Result<Option<Object>, Failu
         Some(_) => return Err(Failure::value("invalid_dns_probe_host")),
     };
     let epoch = root.read("/run/y2/wifi-epoch");
-    // Standard libc resolver, bounded; no custom DNS protocol. Below a fixture root the command
-    // Python ran is asked for, so the differential harness compares it.
+    // Standard libc resolver, bounded; no custom DNS protocol. Below a fixture root the lookup is a
+    // request the test answers (`getaddrinfo <host>`: the number of addresses).
     let answer = if root.is_real() {
         lookup(&hostname)
     } else {
-        command::run(
-            root,
-            &[
-                "/usr/bin/python3",
-                "-I",
-                "-c",
-                "import socket,sys; print(len(socket.getaddrinfo(sys.argv[1],None,socket.AF_INET)))",
-                &hostname,
-            ],
-            3.0,
-        )
+        command::run(root, &["getaddrinfo", &hostname], LOOKUP_S)
     };
     let after = wifi(root, Some(observed));
     if root.read("/run/y2/wifi-epoch") != epoch

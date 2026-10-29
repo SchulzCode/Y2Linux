@@ -36,13 +36,7 @@ fn failure(fixture: &Fixture) -> Option<Value> {
         .then(|| fixture.json("/run/y2/wifi-failure.json"))
 }
 
-const LOOKUP: [&str; 5] = [
-    "/usr/bin/python3",
-    "-I",
-    "-c",
-    "import socket,sys; print(len(socket.getaddrinfo(sys.argv[1],None,socket.AF_INET)))",
-    "pool.ntp.org",
-];
+const LOOKUP: [&str; 2] = ["getaddrinfo", "pool.ntp.org"];
 const ADDRESS: [&str; 7] = ["ip", "-j", "-4", "addr", "show", "dev", "wlan0"];
 const ROUTE: [&str; 8] = ["ip", "-j", "-4", "route", "show", "default", "dev", "wlan0"];
 
