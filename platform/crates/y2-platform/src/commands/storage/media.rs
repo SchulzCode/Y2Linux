@@ -610,6 +610,9 @@ pub fn change_card(
     action: &str,
     confirm_cid: Option<&str>,
 ) -> Result<Object, Failure> {
+    if action != "format" && action != "grow" {
+        return Err(Failure::value("unknown_media_change"));
+    }
     let mut state = apply_change(root, action, confirm_cid)?;
     if state_is(&state, "Starting") {
         // Mount through the normal admission path, after the change released the media lock.
