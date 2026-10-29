@@ -9,7 +9,8 @@ use std::{
     path::{Path, PathBuf},
     sync::atomic::{AtomicU32, Ordering},
 };
-pub use y2p_core::command::testing::{failed, ok, scripted};
+pub use y2p_core::command::testing::{failed, ok, responding, scripted};
+pub use y2p_core::command::Outcome;
 use y2p_core::Root;
 
 static NEXT: AtomicU32 = AtomicU32::new(0);
