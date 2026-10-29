@@ -188,6 +188,7 @@ pub fn run_passing_fd(
     };
     let pid = child.id() as libc::pid_t;
     let deadline = Instant::now() + Duration::from_secs_f64(timeout.max(0.0));
+    // Spawned with a piped stdout: always there.
     let mut stdout = child.stdout.take().expect("piped stdout");
     let (sender, receiver) = mpsc::channel();
     thread::spawn(move || {

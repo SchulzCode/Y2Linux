@@ -1,4 +1,4 @@
-//! `cpu.idle_completion`: whether C1 (WFI), C2 (SLIDLE) and C3 (DORMANT) are registered, enabled and
+//! Idle completion: whether C1 (WFI), C2 (SLIDLE) and C3 (DORMANT) are registered, enabled and
 //! entered, with what blocks C2 (the clocks' slow-idle blockers) and C3 (the SPM's dormant preflight:
 //! peripheral, infrastructure and display clocks, the UART sleep handshake) and the owner of each.
 // SPDX-License-Identifier: GPL-2.0-only
@@ -7,7 +7,8 @@ use crate::regex;
 use serde_json::{json, Map, Value};
 use y2p_core::Root;
 
-/// `int(text, 0)`: a Python integer literal (prefix, underscores), or None.
+/// An integer literal with an optional `0x`/`0o`/`0b` prefix and `_` separators (the preflight's
+/// masks), or None.
 fn int_base0(text: &str) -> Option<i128> {
     let text = y2p_core::root::python_strip(text);
     let (negative, body) = match text.strip_prefix('-') {

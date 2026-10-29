@@ -10,7 +10,10 @@ use crate::{regex, reply::Failure};
 use serde_json::{json, Map, Value};
 use y2p_core::{command, Root};
 
+/// Whether every CPU runs high-resolution timers and tickless idle, from /proc/timer_list.
 pub fn timer_runtime(root: &Root) -> Result<Map<String, Value>, Failure> {
+    // On the player through a bounded child (0.2 s, 256 KiB), as the wakeup counter: a slow procfs
+    // read cannot hold the snapshot.
     let text = if root.is_real() {
         let answer =
             command::run_with(root, &["/bin/cat", "/proc/timer_list"], 0.2, 262_144, false);
@@ -45,18 +48,20 @@ pub fn timer_runtime(root: &Root) -> Result<Map<String, Value>, Failure> {
         }
         cpus.push(core);
     }
+    // True or false only when every CPU reports the field.
     let observed = |key: &str| -> Value {
-        let values: Vec<Option<i64>> = cpus
+        let values: Option<Vec<i64>> = cpus
             .iter()
             .map(|c| c.get(key).and_then(Value::as_i64))
             .collect();
-        if values.is_empty() || values.iter().any(Option::is_none) {
-            return Value::Null;
+        match values {
+            Some(values) if !values.is_empty() => {
+                json!(values
+                    .iter()
+                    .all(|v| if key == "nohz" { *v > 0 } else { *v == 1 }))
+            }
+            _ => Value::Null,
         }
-        json!(values
-            .iter()
-            .flatten()
-            .all(|v| if key == "nohz" { *v > 0 } else { *v == 1 }))
     };
     let mut result = Map::new();
     result.insert("highres_active".into(), observed("hres_active"));
@@ -77,7 +82,7 @@ pub fn timer_runtime(root: &Root) -> Result<Map<String, Value>, Failure> {
     Ok(result)
 }
 
-/// `observe.cpu`.
+/// The `cpu` section.
 pub fn cpu(root: &Root) -> Result<Map<String, Value>, Failure> {
     let stat = root.read("/proc/stat");
     let mut ticks = Map::new();
@@ -372,7 +377,7 @@ pub fn cpu(root: &Root) -> Result<Map<String, Value>, Failure> {
     Ok(result)
 }
 
-/// `observe.utilization(before, after)`.
+/// Each core's busy percentage between two `ticks` readings (3 decimals); null without a valid pair.
 pub fn utilization(before: Option<&Value>, after: Option<&Value>) -> Value {
     let mut result = Map::new();
     let empty = Map::new();
@@ -409,7 +414,8 @@ pub fn utilization(before: Option<&Value>, after: Option<&Value>) -> Value {
     }
 }
 
-/// Python `round(x, 3)` (correctly rounded through the shortest decimal repr).
+/// `x` rounded to 3 decimals, half to even on the exact binary value (Python's `round(x, 3)`, which
+/// the percentages were defined by).
 pub fn round3(x: f64) -> f64 {
     let text = format!("{x:.3}");
     let candidate: f64 = text.parse().unwrap_or(x);

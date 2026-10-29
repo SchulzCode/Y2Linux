@@ -1,4 +1,4 @@
-//! `observe.snapshot`: read-only platform snapshots. Null means unobserved, never zero or success.
+//! `y2-platform status`: read-only platform snapshots. Null means unobserved, never zero or success.
 //! One submodule per section (`cpu`, `memory`, `thermal`, `power`, `storage`, `wifi`, `readiness`);
 //! `bluetooth` and `system` are the group's own modules.
 // SPDX-License-Identifier: GPL-2.0-only
@@ -31,7 +31,8 @@ use y2p_core::Root;
 
 pub type Snapshot = Map<String, Value>;
 
-/// `observe.device_instance`: one gendisk lifetime (dev_t plus diskseq), or None.
+/// One gendisk lifetime of a block device (`block:<dev_t>:diskseq:<n>`), or None: a card removed and
+/// inserted again (or another card) has another disk sequence number under the same dev_t.
 pub fn device_instance(root: &Root, device_id: &str) -> Option<String> {
     let path = std::fs::canonicalize(root.path(&format!("/sys/dev/block/{device_id}"))).ok()?;
     let disk = if path.join("partition").is_file() {
@@ -46,16 +47,17 @@ pub fn device_instance(root: &Root, device_id: &str) -> Option<String> {
     (int(&seq)? > 0).then(|| format!("block:{dev}:diskseq:{seq}"))
 }
 
-/// `observe.snapshot(ctx, pids, pss, interval)`.
+/// The whole snapshot: every section for these processes (`pss`: with their PSS), the CPU section
+/// read twice `interval` seconds apart for utilisation when it is not zero.
 pub fn snapshot(root: &Root, pids: &[i64], pss: bool, interval: f64) -> Result<Snapshot, Failure> {
     let start = root.clock().monotonic_ns();
-    let before = cpu(root)?;
-    let mut after = before.clone();
+    let mut processor = cpu(root)?;
     if interval > 0.0 {
         std::thread::sleep(std::time::Duration::from_secs_f64(interval));
-        after = cpu(root)?;
-        let busy = utilization(before.get("ticks"), after.get("ticks"));
-        after.insert("utilization_percent".into(), busy);
+        let later = cpu(root)?;
+        let busy = utilization(processor.get("ticks"), later.get("ticks"));
+        processor = later;
+        processor.insert("utilization_percent".into(), busy);
     }
     let mut result = Map::new();
     result.insert("schema".into(), json!(y2p_contract::schema::STATUS));
@@ -63,7 +65,7 @@ pub fn snapshot(root: &Root, pids: &[i64], pss: bool, interval: f64) -> Result<S
         "record".into(),
         Value::Object(util::record(root, "observation", Map::new())),
     );
-    result.insert("cpu".into(), Value::Object(after));
+    result.insert("cpu".into(), Value::Object(processor));
     result.insert("memory".into(), Value::Object(memory(root, pids, pss)?));
     result.insert("thermal".into(), thermal(root));
     result.insert("power".into(), power(root)?);
@@ -90,13 +92,14 @@ pub fn snapshot(root: &Root, pids: &[i64], pss: bool, interval: f64) -> Result<S
     }));
     let ready = readiness::readiness(&result)?;
     result.insert("readiness".into(), ready);
-    let record = result["record"].as_object_mut().expect("record");
-    record.insert("result".into(), json!("observed"));
-    record.insert("units".into(), json!({"collection_duration": "ns"}));
-    record.insert(
-        "collection_duration_ns".into(),
-        json!(root.clock().monotonic_ns() - start),
-    );
+    if let Some(Value::Object(record)) = result.get_mut("record") {
+        record.insert("result".into(), json!("observed"));
+        record.insert("units".into(), json!({"collection_duration": "ns"}));
+        record.insert(
+            "collection_duration_ns".into(),
+            json!(root.clock().monotonic_ns() - start),
+        );
+    }
     Ok(result)
 }
 

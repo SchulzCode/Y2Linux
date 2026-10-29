@@ -1,8 +1,8 @@
-//! Group `observation` of the port (docs/planning/PLATFORM-RUST-PORT-PLAN.md, "Remaining port groups"):
-//! `status`, `health`, `boot-evidence`, `network-check`, `collect`, `bench-storage`, `bench-library`
-//! (observe.py, health.py, boot.py, boot_retained.py, network_check.py, workload.py, collect.py,
-//! bench.py). The dispatcher's argparse has parsed the arguments: a route sees their canonical form
-//! and takes every one of them (cli.py's own `parser.error` for `status` is printed here).
+//! The observation commands: `status`, `health`, `boot-evidence`, `network-check`, `collect`,
+//! `bench-storage`, `bench-library`. They read the player and change nothing outside their own
+//! records (boot evidence, benchmark scratch files). cli.rs has parsed the arguments: a route sees
+//! their canonical form and takes every one of them; `status` refuses its out-of-range interval and
+//! PID count here, as an argument error.
 // SPDX-License-Identifier: GPL-2.0-only
 mod bench;
 mod bluetooth;
@@ -120,9 +120,9 @@ fn parse(args: &[&str], spec: &Spec) -> Option<Parsed> {
     Some(parsed)
 }
 
-/// `type=int` in its canonical form (`str(int(x))`). Python's int has no bounds: one beyond 64 bits
-/// is clamped, which every caller refuses as out of range exactly as it refuses the real value
-/// (`collection_bounds_exceeded`, `invalid pid`, …).
+/// An integer argument in its canonical form (`-?digits`). One beyond 64 bits is clamped, which every
+/// caller refuses as out of range like the real value (`collection_bounds_exceeded`, `invalid pid`,
+/// …).
 fn integer(text: &str) -> Option<i64> {
     if !crate::regex!(r"\A-?[0-9]+\z").is_match(text) {
         return None;
@@ -134,12 +134,12 @@ fn integer(text: &str) -> Option<i64> {
     }))
 }
 
-/// `type=float` in its canonical form (`repr(float(x))`: `0.5`, `1e-05`, `inf`, `nan`).
+/// A decimal argument in its canonical form (`0.5`, `1e-05`, `inf`, `nan`).
 fn decimal(text: &str) -> Option<f64> {
     text.parse().ok()
 }
 
-/// cli.py's `parser.error(message)` after parsing: main.py's usage and the message on stderr, exit 2.
+/// A refusal after parsing, as an argument error: the usage and `message` on stderr, exit 2.
 fn parser_error(message: &'static str) -> Command {
     Box::new(move |_| {
         use std::io::Write;
@@ -309,8 +309,8 @@ struct StatusOptions {
     interval: f64,
 }
 
-/// `power.process_identity(ctx, name, expected)`: the pid in /run/reborn/<name>.pid when its
-/// executable is `expected`, with its start time.
+/// The pid in /run/reborn/<name>.pid while its executable is still `expected` (not a reused pid),
+/// with its start time.
 pub fn process_identity(root: &Root, name: &str, expected: &str) -> Option<(i64, i64)> {
     let pid = root
         .integer(&format!("/run/reborn/{name}.pid"))
@@ -325,7 +325,7 @@ pub fn process_identity(root: &Root, name: &str, expected: &str) -> Option<(i64,
     Some((pid, start))
 }
 
-/// `collect.metrics`: Reborn's bounded metrics, or None.
+/// Reborn's own bounded metrics (`rebornctl metrics --json`), or null.
 pub fn reborn_metrics(root: &Root) -> Value {
     let answer = command::run(root, &["/usr/bin/rebornctl", "metrics", "--json"], 1.0);
     match answer
@@ -342,15 +342,17 @@ pub fn reborn_metrics(root: &Root) -> Value {
 fn status(root: &Root, options: &StatusOptions) -> Outcome {
     let mut pids = options.pids.clone();
     if options.reborn {
+        // Reborn's own process too, each pid once (the first mention keeps its place).
         if let Some((pid, _)) = process_identity(root, "process", "/usr/bin/reborn") {
             pids.push(pid);
         }
-        let mut seen = Vec::new();
-        pids.retain(|p| {
-            let first = !seen.contains(p);
-            seen.push(*p);
-            first
-        });
+        let mut unique = Vec::with_capacity(pids.len());
+        for pid in pids {
+            if !unique.contains(&pid) {
+                unique.push(pid);
+            }
+        }
+        pids = unique;
         pids.truncate(32);
     }
     let mut result = snapshot::snapshot(root, &pids, options.pss, options.interval)?;
@@ -358,15 +360,20 @@ fn status(root: &Root, options: &StatusOptions) -> Outcome {
         result.insert("reborn_metrics".into(), reborn_metrics(root));
     }
     if let Some(section) = &options.section {
+        // One section (`usb` is the system section's), with the schema and the record.
         let part = if section == "usb" {
-            result["system"]["usb"].clone()
+            result
+                .get_mut("system")
+                .and_then(|system| system.get_mut("usb"))
+                .map(Value::take)
         } else {
-            result[section.as_str()].clone()
+            result.shift_remove(section)
         };
         let mut reduced = serde_json::Map::new();
-        reduced.insert("schema".into(), result["schema"].clone());
-        reduced.insert("record".into(), result["record"].clone());
-        reduced.insert(section.clone(), part);
+        for key in ["schema", "record"] {
+            reduced.insert(key.into(), result.shift_remove(key).unwrap_or(Value::Null));
+        }
+        reduced.insert(section.clone(), part.unwrap_or(Value::Null));
         result = reduced;
     }
     snapshot::printable(&result)?;

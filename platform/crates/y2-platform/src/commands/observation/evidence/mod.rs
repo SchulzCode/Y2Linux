@@ -94,11 +94,11 @@ fn pmic_power_status(text: Option<&str>, earlier: Option<&Value>) -> Value {
     let fields = util::findall_map(regex!(r"(\w+)=(\S+)"), text.unwrap_or_default());
     let mut regs = std::collections::BTreeMap::new();
     for (name, value) in &fields {
-        if name != "valid" && regex!(r"\A0x[0-9a-fA-F]{1,4}\z").is_match(value) {
-            regs.insert(
-                name.clone(),
-                i64::from_str_radix(&value[2..], 16).expect("hex"),
-            );
+        if name == "valid" || !regex!(r"\A0x[0-9a-fA-F]{1,4}\z").is_match(value) {
+            continue;
+        }
+        if let Ok(register) = i64::from_str_radix(&value[2..], 16) {
+            regs.insert(name.clone(), register);
         }
     }
     let Some(&con8) = regs
@@ -148,7 +148,7 @@ fn open_flags(path: &Path, flags: i32) -> io::Result<File> {
         .open(path)
 }
 
-/// `os.open(name, flags, dir_fd=directory)`.
+/// Open `name` relative to `directory` (close-on-exec).
 fn openat(directory: &File, name: &OsStr, flags: i32) -> io::Result<File> {
     let name =
         CString::new(name.as_bytes()).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))?;
@@ -174,14 +174,15 @@ fn read_up_to(file: &mut File, limit: usize) -> io::Result<Vec<u8>> {
     Ok(data)
 }
 
-/// `os.fdopen(fd, 'rb')` of a directory: io.FileIO refuses it naming the descriptor, which it does
-/// not close (it did not open it), so later descriptors get higher numbers. Kept as Python does it.
+/// The refusal of a directory where a file was expected: its text names the descriptor, which stays
+/// open, so the next descriptors and the numbers in later texts are the ones the records always had.
 fn directory_error(file: File) -> String {
     use std::os::fd::IntoRawFd;
     format!("[Errno 21] Is a directory: {}", file.into_raw_fd())
 }
 
-/// `os.open(path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)` of a retained source, regular files only.
+/// A retained source, opened without following a link or blocking: regular files only, at most
+/// `limit` bytes.
 fn source(path: &Path, limit: usize) -> Result<Vec<u8>, SourceError> {
     let mut file =
         open_flags(path, libc::O_NOFOLLOW | libc::O_NONBLOCK).map_err(SourceError::Os)?;
@@ -206,7 +207,8 @@ enum SourceError {
     Text(String),
 }
 
-/// `boot_retained.capture`, or its error text (an OSError or ValueError the caller records).
+/// Archive this boot's retained PM and pstore bytes (`boot-<id>.tar`, the newest 8 kept, the kernel's
+/// entries never removed), or the error text the evidence record carries instead.
 fn capture(
     root: &Root,
     boot_id: &str,
@@ -364,9 +366,11 @@ pub fn run(root: &Root) -> Outcome {
         return Err(Failure::value("data_schema_unavailable"));
     }
     let data = mounts_at(root, "/data");
-    if data.len() != 1
-        || Some(data[0].source.as_str()) != root.read("/run/y2-data-device").as_deref()
-    {
+    let verified = match &data[..] {
+        [mount] => Some(mount.source.as_str()) == root.read("/run/y2-data-device").as_deref(),
+        _ => false,
+    };
+    if !verified {
         return Err(Failure::value("verified_data_mount_unavailable"));
     }
     let directory = root.path("/data/system/platform");
@@ -492,7 +496,9 @@ pub fn run(root: &Root) -> Outcome {
         if size <= 96_000 {
             break;
         }
-        let logs = result["logs"].as_array_mut().expect("logs");
+        let Some(Value::Array(logs)) = result.get_mut("logs") else {
+            break; // inserted above
+        };
         let Some(largest) = logs.iter_mut().fold(None::<&mut Value>, |best, item| {
             let length = item["tail_lines"].as_array().map_or(0, Vec::len);
             match best {
@@ -504,11 +510,12 @@ pub fn run(root: &Root) -> Outcome {
         };
         // Every log line dropped and still too large (a huge retained listing): refused, nothing
         // written.
-        let lines = largest["tail_lines"].as_array_mut().expect("lines");
-        if lines.is_empty() {
-            return Err(Failure::value("evidence_record_too_large"));
+        match largest.get_mut("tail_lines") {
+            Some(Value::Array(lines)) if !lines.is_empty() => {
+                lines.remove(0);
+            }
+            _ => return Err(Failure::value("evidence_record_too_large")),
         }
-        lines.remove(0);
     }
     atomic_json(
         &directory.join("previous-boot-evidence.json"),

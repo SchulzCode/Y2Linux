@@ -1,6 +1,6 @@
-//! Python semantics the observation code leans on: `str.splitlines`/`split`, `int()` of text,
-//! `common.key_values`/`counters`, `re.findall` pairs, `==` between parsed JSON values (`1 == 1.0 ==
-//! True`), `os.path.realpath`, uncapped `Path.glob`, and `ctx.record`.
+//! Text and value helpers the observation code shares, and the record every measurement carries.
+//! Their line splits, integer reading and equality (`1 == 1.0 == True`) are Python's because the
+//! records and outputs were defined by them: another split would change what the snapshot reports.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::Failure;
 use serde::de::{value::MapDeserializer, DeserializeOwned};
@@ -18,7 +18,7 @@ use y2p_core::{
     Root,
 };
 
-/// `common.read(path, limit)` on a host path.
+/// A host path's text, trimmed (`Root::read` for a path that is no device path).
 pub fn read(path: &Path) -> Option<String> {
     root::read(path, root::READ_LIMIT)
 }
@@ -122,7 +122,7 @@ pub fn isdigit(text: &str) -> bool {
         })
 }
 
-/// `common.number(value)` as JSON: an int or null.
+/// A decimal text as a JSON int, or null.
 pub fn number(text: Option<&str>) -> Value {
     text.and_then(int).map_or(Value::Null, Value::from)
 }
@@ -132,7 +132,7 @@ pub fn text(value: Option<String>) -> Value {
     value.map_or(Value::Null, Value::String)
 }
 
-/// `common.key_values(text, separator)`.
+/// `key<separator>value` lines as a map, trimmed; a later key wins.
 pub fn key_values(text: Option<&str>, separator: &str) -> BTreeMap<String, String> {
     let mut result = BTreeMap::new();
     for line in splitlines(text.unwrap_or_default()) {
@@ -143,7 +143,7 @@ pub fn key_values(text: Option<&str>, separator: &str) -> BTreeMap<String, Strin
     result
 }
 
-/// `common.counters(text)`.
+/// `name value…` lines as name → its first value (an int or null).
 pub fn counters(text: Option<&str>) -> Map<String, Value> {
     key_values(text, " ")
         .into_iter()
@@ -155,7 +155,7 @@ pub fn counters(text: Option<&str>) -> Map<String, Value> {
         .collect()
 }
 
-/// `re.findall(pattern, text)` for a pattern with two groups.
+/// Every match's two groups.
 pub fn findall2(pattern: &Regex, text: &str) -> Vec<(String, String)> {
     pattern
         .captures_iter(text)
@@ -306,7 +306,8 @@ fn push_components(pending: &mut Vec<OsString>, path: &Path) {
     pending.extend(parts.into_iter().rev());
 }
 
-/// `sorted(directory.glob(pattern))` for a one-component pattern (not capped, unlike `ctx.glob`).
+/// The entries of `directory` matching a one-component `pattern`, sorted (not capped, unlike
+/// `Root::glob`).
 pub fn glob_dir(directory: &Path, pattern: &str) -> Vec<PathBuf> {
     let mut found: Vec<PathBuf> = std::fs::read_dir(directory)
         .into_iter()
@@ -323,7 +324,7 @@ pub fn glob_dir(directory: &Path, pattern: &str) -> Vec<PathBuf> {
     found
 }
 
-/// `datetime.now(timezone.utc).isoformat()`.
+/// Now in UTC, ISO 8601 with microseconds (no fraction when it is zero).
 pub fn wall_timestamp() -> String {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -354,7 +355,8 @@ pub fn wall_timestamp() -> String {
     }
 }
 
-/// `ctx.record(workload, parameters)`.
+/// The record a measurement carries: when (wall clock, monotonic), which boot and build, the
+/// workload and its parameters; the caller fills in `result` and `failure`.
 pub fn record(root: &Root, workload: &str, parameters: Map<String, Value>) -> Map<String, Value> {
     let versions = root.json_object("/etc/y2linux/versions.json");
     let get = |key: &str| versions.get(key).cloned().unwrap_or(Value::Null);
@@ -379,7 +381,7 @@ pub fn record(root: &Root, workload: &str, parameters: Map<String, Value>) -> Ma
     value
 }
 
-/// `{p.name: read(p) for p in ctx.glob(pattern)}` (or the parent's name).
+/// Each file matching `pattern` by its name (or its directory's), with its text.
 pub fn reads_by_name(root: &Root, pattern: &str, parent: bool) -> Value {
     let mut map = Map::new();
     for path in root.glob(pattern) {

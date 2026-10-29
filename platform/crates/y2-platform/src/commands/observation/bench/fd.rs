@@ -17,11 +17,13 @@ pub(super) fn check(result: libc::c_int) -> io::Result<libc::c_int> {
     }
 }
 
+/// A name for a call: the run's own names (`run-<hex>`, `f<n>`, …) and directory entries, which never
+/// hold a NUL.
 pub(super) fn cname(name: &str) -> CString {
     CString::new(name).expect("scratch names have no NUL")
 }
 
-/// `os.open(name, flags, mode, dir_fd=directory)`.
+/// Open `name` relative to `directory` (close-on-exec).
 pub(super) fn openat(directory: RawFd, name: &str, flags: i32, mode: libc::mode_t) -> Result<File> {
     let path = cname(name);
     // SAFETY: a NUL-terminated name relative to a descriptor this process holds.

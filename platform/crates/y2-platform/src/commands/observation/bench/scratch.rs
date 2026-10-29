@@ -28,7 +28,8 @@ pub(super) struct Identity(
     pub(super) Option<String>,
 );
 
-/// `bench.Scratch`: never resolves workload names against a replaceable mountpoint path.
+/// A benchmark's private run directory: names are only ever resolved against its descriptors, never
+/// against a mountpoint path that could be replaced.
 pub(super) struct Scratch<'a> {
     root: &'a Root,
     volume: String,
@@ -93,6 +94,7 @@ impl<'a> Scratch<'a> {
             .open(&path)
             .map_err(|e| Error::os(e, Some(&path.to_string_lossy())))?;
         let vfs = fstatvfs(volume.as_raw_fd())?;
+        let volume_fd = volume.as_raw_fd();
         self.volume_fd = Some(volume);
         let frsize = u128::from(vfs.frsize);
         let reserve = (96u128 * 1024 * 1024).max(u128::from(vfs.blocks) * frsize / 10);
@@ -100,7 +102,6 @@ impl<'a> Scratch<'a> {
             return Err(Error::value("insufficient_scratch_reserve"));
         }
         self.ensure()?;
-        let volume_fd = self.volume_fd.as_ref().expect("volume").as_raw_fd();
         let bench = cname(".y2-bench");
         // SAFETY: a NUL-terminated name relative to the volume descriptor.
         match check(unsafe { libc::mkdirat(volume_fd, bench.as_ptr(), 0o700) }) {
@@ -115,12 +116,12 @@ impl<'a> Scratch<'a> {
             0,
         )?;
         let meta = fstat(base.as_raw_fd())?;
+        let base_fd = base.as_raw_fd();
         self.base_fd = Some(base);
         // SAFETY: geteuid has no preconditions.
         if meta.uid != unsafe { libc::geteuid() } || meta.mode & 0o077 != 0 {
             return Err(Error::value("unsafe_scratch_permissions"));
         }
-        let base_fd = self.base_fd.as_ref().expect("base").as_raw_fd();
         let run = cname(&self.name);
         // SAFETY: a NUL-terminated name relative to the base descriptor.
         check(unsafe { libc::mkdirat(base_fd, run.as_ptr(), 0o700) })
@@ -136,10 +137,9 @@ impl<'a> Scratch<'a> {
 
     fn identity(&self) -> Result<Identity> {
         let found = y2p_core::mounts::mounts_at(self.root, &self.volume);
-        if found.len() != 1 {
+        let [mount] = &found[..] else {
             return Err(Error::raised(libc::ENODEV, "source_disappeared"));
-        }
-        let mount = &found[0];
+        };
         let device = mount.device_id.clone();
         let read_only = mount.has_option("ro");
         if !self.root.path(&format!("/sys/dev/block/{device}")).exists() || read_only {
@@ -169,6 +169,7 @@ impl<'a> Scratch<'a> {
         Ok(())
     }
 
+    /// The run directory: open from `new` until `close`, the only times it is not.
     pub(super) fn fd(&self) -> RawFd {
         self.fd.as_ref().expect("scratch").as_raw_fd()
     }
@@ -280,7 +281,7 @@ impl Drop for Scratch<'_> {
     }
 }
 
-/// `shutil.rmtree(name, dir_fd=directory)`: descriptor-relative, never following a symlink.
+/// Remove the tree `name` relative to `directory`, never following a symlink.
 fn remove_tree(directory: RawFd, name: &str) -> io::Result<()> {
     let path = cname(name);
     // SAFETY: a NUL-terminated name relative to a directory descriptor.

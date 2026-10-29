@@ -44,7 +44,7 @@ pub(super) struct Kernel;
 
 impl Io for Kernel {}
 
-/// `bench.write_all`.
+/// Write all of `data` at `offset` (pwrite again after a short write).
 pub(super) fn write_all(io: &dyn Io, fd: RawFd, data: &[u8], offset: usize) -> Result<()> {
     let mut written = 0;
     while written < data.len() {
@@ -59,7 +59,7 @@ pub(super) fn write_all(io: &dyn Io, fd: RawFd, data: &[u8], offset: usize) -> R
     Ok(())
 }
 
-/// `os.pread(fd, size, offset)`: one call.
+/// One pread of up to `size` bytes at `offset`.
 pub(super) fn pread(io: &dyn Io, fd: RawFd, size: usize, offset: usize) -> Result<Vec<u8>> {
     let mut buffer = vec![0u8; size];
     let n = io
@@ -69,7 +69,7 @@ pub(super) fn pread(io: &dyn Io, fd: RawFd, size: usize, offset: usize) -> Resul
     Ok(buffer)
 }
 
-/// `bench.distribution`.
+/// Latency percentiles (nearest rank), throughput and rate of a measurement's samples (ns).
 pub(super) fn distribution(
     samples: &[u64],
     bytes: u64,
@@ -92,6 +92,7 @@ pub(super) fn distribution(
     }
     let mut sorted = samples.to_vec();
     sorted.sort_unstable();
+    let maximum = sorted.last().copied().unwrap_or_default();
     let elapsed = duration.unwrap_or_else(|| sorted.iter().sum());
     let percentile = |p: f64| {
         let index = ((sorted.len() as f64 * p).ceil() as i64 - 1).max(0) as usize;
@@ -101,10 +102,7 @@ pub(super) fn distribution(
     result.insert("p50_ms".into(), json!(percentile(0.5)));
     result.insert("p95_ms".into(), json!(percentile(0.95)));
     result.insert("p99_ms".into(), json!(percentile(0.99)));
-    result.insert(
-        "max_ms".into(),
-        json!(*sorted.last().expect("samples") as f64 / 1e6),
-    );
+    result.insert("max_ms".into(), json!(maximum as f64 / 1e6));
     let rate = |numerator: f64| {
         if elapsed != 0 {
             json!(numerator / elapsed as f64)
@@ -122,7 +120,8 @@ pub(super) fn distribution(
     result
 }
 
-/// `bench.io_snapshot`: passive counters only; never resume MMC just to observe an idle gate.
+/// The passive counters (CPU ticks, interrupt totals, the MMC controllers' modes and error counts);
+/// never resume MMC just to observe an idle gate.
 pub(super) fn io_snapshot(root: &Root) -> Value {
     let stat = root.read("/proc/stat").unwrap_or_default();
     let ticks = regex!(r"(?m)^cpu\s+([0-9 ]+)$").captures(&stat).map(|c| {
@@ -162,7 +161,8 @@ pub(super) fn io_snapshot(root: &Root) -> Value {
            "controllers": controllers})
 }
 
-/// `bench.io_delta`: unavailable/reset counters are explicit, not false zero-error passes.
+/// What changed between two counter readings: an unavailable or reset counter is an explicit null,
+/// not a zero-error pass.
 pub(super) fn io_delta(before: &Value, after: &Value) -> Value {
     let mut busy = Value::Null;
     if let (Some(a), Some(b)) = (

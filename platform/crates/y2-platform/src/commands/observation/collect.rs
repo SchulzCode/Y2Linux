@@ -98,13 +98,14 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
         }
         // A refused snapshot ends the stream with its refusal record after the lines so far.
         let mut value = snapshot(root, &pids, options.pss, 0.0)?;
-        let record = value["record"].as_object_mut().expect("record");
-        record.insert("workload".into(), json!(label));
-        if let Some(Value::Object(parameters)) = record.get_mut("parameters") {
-            parameters.insert("interval_seconds".into(), json!(interval));
-            parameters.insert("duration_seconds".into(), json!(seconds));
-            parameters.insert("pss".into(), json!(options.pss));
-            parameters.insert("warmup_seconds".into(), json!(warmup));
+        if let Some(Value::Object(record)) = value.get_mut("record") {
+            record.insert("workload".into(), json!(label));
+            if let Some(Value::Object(parameters)) = record.get_mut("parameters") {
+                parameters.insert("interval_seconds".into(), json!(interval));
+                parameters.insert("duration_seconds".into(), json!(seconds));
+                parameters.insert("pss".into(), json!(options.pss));
+                parameters.insert("warmup_seconds".into(), json!(warmup));
+            }
         }
         if let Some(previous) = previous.as_ref().filter(|p| !p.is_empty()) {
             if previous["record"]["boot_id"] == value["record"]["boot_id"] {

@@ -4,6 +4,7 @@ use super::codec;
 use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use y2p_core::{
+    json::{Object, ObjectExt},
     py::{eq_int, is_true},
     Root,
 };
@@ -30,10 +31,9 @@ fn entry<'a>(
 pub fn run(root: &Root) -> Outcome {
     let mut result = match root.json("/etc/y2linux/capabilities.json") {
         Some(Value::Object(map)) => map,
-        _ => serde_json::from_value(
-            json!({"schema": y2p_contract::schema::CAPABILITIES, "state": "Unavailable"}),
-        )
-        .expect("literal"),
+        _ => Object::new()
+            .with("schema", y2p_contract::schema::CAPABILITIES)
+            .with("state", "Unavailable"),
     };
     let version = root
         .json_object("/etc/y2linux/versions.json")

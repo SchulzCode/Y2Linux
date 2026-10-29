@@ -8,14 +8,14 @@ use std::{
     fs::OpenOptions,
     io::Write,
     os::unix::fs::OpenOptionsExt,
-    sync::{Arc, Condvar, Mutex},
+    sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError},
     thread,
     time::Duration,
 };
 use y2p_core::{command, lock, Root};
 
-/// `str(ipaddress.IPv4Address(text))`: the dotted quad unchanged, or the `AddressValueError` ipaddress
-/// words for it (main.py prints it as its error record).
+/// The peer as a dotted quad, unchanged, or the `AddressValueError` text for it (the error record
+/// shows it).
 fn ipv4(text: &str) -> Result<String, Failure> {
     let repr = crate::argparse::python::repr;
     let error = |message: String| Failure::raised("AddressValueError", message);
@@ -43,7 +43,8 @@ fn ipv4(text: &str) -> Result<String, Failure> {
                 repr(octet)
             ))
         } else {
-            let value: u16 = octet.parse().expect("three ASCII digits");
+            // At most three ASCII digits here: always a u16.
+            let value: u16 = octet.parse().unwrap_or(u16::MAX);
             (value > 255).then(|| format!("Octet {value} (> 255) not permitted"))
         };
         if let Some(problem) = problem {
@@ -51,6 +52,11 @@ fn ipv4(text: &str) -> Result<String, Failure> {
         }
     }
     Ok(text.to_owned())
+}
+
+/// The stop flag, also from a holder that panicked (the flag stays meaningful).
+fn locked(flag: &Mutex<bool>) -> MutexGuard<'_, bool> {
+    flag.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 /// The semantic QoS lease (`workload.workload`): a shared activity lease (sleep takes it
@@ -89,16 +95,15 @@ impl Lease {
                 worker = Some(thread::spawn(move || {
                     let (stopped, wake) = &*stop;
                     loop {
-                        if *stopped.lock().expect("lease") {
+                        if *locked(stopped) {
                             return;
                         }
                         if device.write(&payload).ok() != Some(payload.len()) {
                             return;
                         }
-                        let guard = stopped.lock().expect("lease");
                         let (guard, _) = wake
-                            .wait_timeout_while(guard, Duration::from_secs(1), |s| !*s)
-                            .expect("lease");
+                            .wait_timeout_while(locked(stopped), Duration::from_secs(1), |s| !*s)
+                            .unwrap_or_else(PoisonError::into_inner);
                         if *guard {
                             return;
                         }
@@ -117,7 +122,7 @@ impl Lease {
 impl Drop for Lease {
     fn drop(&mut self) {
         let (stopped, wake) = &*self.stop;
-        *stopped.lock().expect("lease") = true;
+        *locked(stopped) = true;
         wake.notify_all();
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();

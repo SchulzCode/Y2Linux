@@ -1,5 +1,6 @@
-//! `observe.system` and what it reads from other modules: `update.status`, `radiofw.state`,
-//! `boot.evidence_status`/`reset_cause`, `internal_media.setup_status`/`ready`, `usb_diagnostics`.
+//! The `system` section: versions, boot history and stages, the previous boot's evidence and reset
+//! cause, watchdogs, RTC, time, SSH, USB (link, charging, network, MTP), the update journal and the
+//! radio firmware.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::util::{
     self, findall2, findall_map, get_eq, name, number, read, read_limited, record_fields,
@@ -18,7 +19,7 @@ use y2p_core::{
 
 pub const RESET_STATUS: &str = "/sys/firmware/y2_pm/reset_status";
 
-/// `boot.reset_cause(text, missing_reason)`: the MT6582 RGU WDT_STATUS the watchdog driver read at
+/// The reset cause: the MT6582 RGU WDT_STATUS the watchdog driver read at
 /// probe, before its first write. Zero, unknown bits or an absent file never prove a power-on reset.
 pub fn reset_cause(text: Option<&str>, missing: &str) -> Map<String, Value> {
     let fields = findall_map(regex!(r"(\w+)=(\S+)"), text.unwrap_or_default());
@@ -61,7 +62,8 @@ pub fn reset_cause(text: Option<&str>, missing: &str) -> Map<String, Value> {
     result
 }
 
-/// `boot.evidence_status`.
+/// The previous boot's evidence (boot-evidence's record) as the snapshot shows it: its findings
+/// and the log tails' digests, never the private lines.
 pub(crate) fn evidence_status(root: &Root) -> Result<Value, Failure> {
     let value = root.json_object("/data/system/platform/previous-boot-evidence.json");
     if value.is_empty() {
@@ -109,7 +111,7 @@ pub(crate) fn evidence_status(root: &Root) -> Result<Value, Failure> {
     Ok(Value::Object(result))
 }
 
-/// `internal_media.setup_status`.
+/// This boot's internal storage setup (state, files, bytes, …), else Unknown.
 pub fn setup_status(root: &Root) -> Value {
     match root.json("/run/y2/internal-media-setup.json") {
         Some(Value::Object(value)) if get_eq(&value, "boot_id", &Value::from(root.boot_id())) => {
@@ -134,7 +136,8 @@ struct InternalClaim {
     device_id: Value,
 }
 
-/// `internal_media.ready`: True only while the recorded mount is still the live, exact Y2Media mount.
+/// Whether Y2Media is mounted as recorded: the claim's mount is still the only, live mount at
+/// /media/internal.
 pub fn internal_ready(root: &Root) -> bool {
     let claim: InternalClaim = record_fields(root, "/run/y2/internal-media.json");
     let current = y2p_core::mounts::mounts_at(root, "/media/internal");
@@ -171,7 +174,8 @@ fn int_hex(text: &str) -> Option<i64> {
     Some(if negative { -value } else { value })
 }
 
-/// `product_sleep.lock_holders`: actual live flock holders; never infer ownership from old files.
+/// The live holders of a flock on this file (`pid/comm`, at most 8), from /proc/locks; never inferred
+/// from old files.
 fn lock_holders(root: &Root, meta: &std::fs::Metadata) -> Vec<String> {
     let dev = meta.dev();
     let major = ((dev >> 8) & 0xfff) | ((dev >> 32) & !0xfff);
@@ -186,13 +190,16 @@ fn lock_holders(root: &Root, meta: &std::fs::Metadata) -> Vec<String> {
         {
             continue;
         }
+        // `<major hex>:<minor hex>:<inode>`.
         let parts: Vec<&str> = fields[5].split(':').collect();
-        if parts.len() != 3 {
+        let [major_text, minor_text, inode_text] = parts[..] else {
             continue;
-        }
-        let (Some(a), Some(b), Some(inode)) =
-            (int_hex(parts[0]), int_hex(parts[1]), util::int(parts[2]))
-        else {
+        };
+        let (Some(a), Some(b), Some(inode)) = (
+            int_hex(major_text),
+            int_hex(minor_text),
+            util::int(inode_text),
+        ) else {
             continue;
         };
         if (a, b, inode) == (major as i64, minor as i64, meta.ino() as i64) {
@@ -213,7 +220,7 @@ fn lock_holders(root: &Root, meta: &std::fs::Metadata) -> Vec<String> {
     holders
 }
 
-/// `update.download_record`: download.json, with a download or check whose process is gone shown as
+/// The update download's record (download.json), with a download or check whose process is gone shown as
 /// interrupted. A user's player (8.17) said "Downloading Update… Keep Wi-Fi on." for a day: the
 /// record a download writes first stays `Staging` when the download dies without reaching its own
 /// handler (power loss, a kill), and that page offered neither Cancel nor Check for Updates; a
@@ -235,7 +242,8 @@ fn download_record(root: &Root) -> Value {
     record.unwrap_or(Value::Null)
 }
 
-/// `update.status`.
+/// The update journal (state.json) with the download, the last check and the channel; Idle on a
+/// data volume that has none yet.
 pub fn update_status(root: &Root) -> Value {
     let path = root.path("/data/updates/state.json");
     let mut value = root.json("/data/updates/state.json");
@@ -285,7 +293,8 @@ struct FirmwareInstall {
     reason: Value,
 }
 
-/// `radiofw.state`.
+/// The radio firmware: Ready (every file there at its size), Installing or Failed (the install's
+/// answer), or Missing (and where system.img goes).
 fn radiofw_state(root: &Root) -> Value {
     let install: FirmwareInstall = record_fields(root, "/run/y2/radio-firmware.json");
     let target = root.path("/data/firmware/mt6582");
@@ -371,9 +380,9 @@ fn usb_diagnostics(
         .collect();
     functions.sort();
     let mut rx = Map::new();
-    let sources = root.glob("/sys/bus/platform/drivers/y2-usb/*/rxdiag");
-    if sources.len() == 1 {
-        let all = read_limited(&sources[0], 4096).unwrap_or_default();
+    // One y2-usb device: its OUT-path counters (the first line).
+    if let [source] = &root.glob("/sys/bus/platform/drivers/y2-usb/*/rxdiag")[..] {
+        let all = read_limited(source, 4096).unwrap_or_default();
         let first = splitlines(&all).first().copied().unwrap_or("");
         for (key, value) in findall2(regex!(r"\b([a-z_]+)=(\d+)\b"), first) {
             rx.insert(key, number(Some(&value)));
@@ -457,13 +466,13 @@ fn usb_diagnostics(
     Ok(result)
 }
 
-/// `timekeeping.status` as the snapshot embeds it.
+/// The time section: `y2-platform time`'s record.
 fn time_status(root: &Root) -> Result<Value, Failure> {
     let reply = super::super::time::status(root)?;
     serde_json::from_str(&reply.stdout).map_err(Failure::value)
 }
 
-/// `observe.system`.
+/// The `system` section.
 pub fn system(root: &Root) -> Result<Value, Failure> {
     let clock = time_status(root)?;
     // The SSH supervisor's record while it is renewed (every few seconds) this boot.
@@ -499,8 +508,8 @@ pub fn system(root: &Root) -> Result<Value, Failure> {
         })
         .collect();
     let sources = root.glob("/sys/bus/platform/drivers/y2-usb/*/status");
-    let (dma, link) = if sources.len() == 1 {
-        let status = read_limited(&sources[0], 8192).unwrap_or_default();
+    let (dma, link) = if let [source] = &sources[..] {
+        let status = read_limited(source, 8192).unwrap_or_default();
         let mut dma = Map::new();
         for (key, value) in findall_map(
             regex!(r"\b(transfer|dma_[a-z_]+|pio_[a-z_]+|irq_[a-z_]+)=([a-z_]+|-?\d+)\b"),

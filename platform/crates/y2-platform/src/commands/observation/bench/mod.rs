@@ -1,5 +1,5 @@
-//! `bench.py`: scratch-only storage measurements, descriptor-pinned across media removal
-//! (`bench-storage`, `bench-library`).
+//! `bench-storage` and `bench-library`: measurements on scratch files only, below a private directory
+//! held by descriptor, so a card removed during a run never takes a write meant for it.
 // SPDX-License-Identifier: GPL-2.0-only
 mod device;
 mod fd;
@@ -10,7 +10,7 @@ use super::util;
 use crate::reply::{Failure, Outcome, Reply};
 use device::{Io, Kernel};
 use fd::fstatvfs;
-use measure::Bench;
+use measure::{Bench, Measured};
 use scratch::{observe_storage, Scratch};
 use serde_json::{json, Map, Value};
 use std::io;
@@ -45,7 +45,7 @@ impl Error {
         }
     }
 
-    /// An OSError from a call (with the name Python passed it, if any).
+    /// An OSError from a call (with the file name, where its text carries one).
     fn os(error: io::Error, name: Option<&str>) -> Error {
         let (text, class) = py::os_error(&error, name);
         Error {
@@ -100,12 +100,6 @@ fn storage_benchmark_with(
         "units".into(),
         json!({"latency": "ms", "throughput": "MB/s (decimal)", "rate": "operations/s"}),
     );
-    let mut result = Map::new();
-    result.insert("schema".into(), json!("org.y2linux.benchmark/v1"));
-    result.insert("measurements".into(), json!([]));
-    result.insert("volume".into(), Value::Null);
-    result.insert("cache_advice".into(), json!([]));
-    result.insert("integrity".into(), json!([]));
     let mut rng = PyRandom::new(6582);
     // A repeatable nonzero 1-MiB pattern prepared outside timed I/O.
     let block = rng.randbytes(1024 * 1024);
@@ -113,7 +107,7 @@ fn storage_benchmark_with(
         root,
         io,
         deadline,
-        result,
+        measured: Measured::default(),
     };
     let outcome = (|| -> Result<()> {
         let mut scratch = Scratch::new(
@@ -130,14 +124,21 @@ fn storage_benchmark_with(
         );
         described.insert("uuid".into(), scratch.initial_uuid.clone());
         described.insert("observation".into(), observe_storage(root)?);
-        bench
-            .result
-            .insert("volume".into(), Value::Object(described));
+        bench.measured.volume = Value::Object(described);
         let ran = bench.run(&mut scratch, size, operations, &mut rng, &block);
         scratch.close();
         ran
     })();
-    let mut result = bench.result;
+    let measured = bench.measured;
+    let mut result = Map::new();
+    result.insert("schema".into(), json!("org.y2linux.benchmark/v1"));
+    result.insert("measurements".into(), Value::Array(measured.measurements));
+    result.insert("volume".into(), measured.volume);
+    result.insert("cache_advice".into(), Value::Array(measured.cache_advice));
+    result.insert("integrity".into(), Value::Array(measured.integrity));
+    if let Some(system) = measured.integrity_system {
+        result.insert("integrity_system".into(), system);
+    }
     match outcome {
         Ok(()) => {
             record.insert("result".into(), json!("OK"));
@@ -155,7 +156,7 @@ fn storage_benchmark_with(
     Reply::sorted(&result, u8::from(failed))
 }
 
-/// Python's `json.loads` error text for output that is not JSON (the messages a truncated or empty
+/// The error text for output that is not JSON, in json.loads's words (the messages a truncated or empty
 /// answer gives; others are worded from serde's position).
 fn json_error(text: &str, error: &serde_json::Error) -> String {
     let column = error.column();

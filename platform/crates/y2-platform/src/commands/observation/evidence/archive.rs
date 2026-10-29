@@ -59,8 +59,11 @@ pub(super) fn code_points(name: &[u8]) -> Vec<u32> {
             }
             Err(error) => {
                 let valid = error.valid_up_to();
-                let text = std::str::from_utf8(&rest[..valid]).expect("valid prefix");
-                points.extend(text.chars().map(u32::from));
+                points.extend(
+                    String::from_utf8_lossy(&rest[..valid])
+                        .chars()
+                        .map(u32::from),
+                );
                 let bad = error.error_len().unwrap_or(rest.len() - valid);
                 points.extend(
                     rest[valid..valid + bad]

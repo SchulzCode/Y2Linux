@@ -1,5 +1,5 @@
-//! `observe.bluetooth`, `bluetooth.normalize`, `codec_controls.status` and
-//! `codec_observation.quality`: actual D-Bus observations, never codec requests, for platform clients.
+//! The `bluetooth` section: what D-Bus shows of the adapter, the selected peer, its playback PCM and
+//! encoder (y2-bt-observe), next to the codec settings; observations only, never codec requests.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::util::{self, contains, fields, get_eq, is_int, present, record_fields};
 use crate::{
@@ -63,7 +63,8 @@ struct ReconnectStamp {
     monotonic_us: Value,
 }
 
-/// `codec_controls.status`.
+/// The codec settings: the owner's policy, what BlueALSA was started with this boot (its effective
+/// settings) and which qualities this build supports.
 fn codec_settings(root: &Root, inventory: &Map<String, Value>) -> Result<Value, Settings> {
     let policy = requested(root)
         .and_then(validate)
@@ -128,7 +129,8 @@ fn codec_settings(root: &Root, inventory: &Map<String, Value>) -> Result<Value, 
     }))
 }
 
-/// `codec_observation.quality`: separate peer configuration, encoder observation and preference.
+/// The encoder as observed, kept apart from the peer's configuration and the preference: BlueALSA's
+/// statistics count only while the PCM runs.
 fn quality(codec: &Value, pcm: &Map<String, Value>, settings: &Value) -> Map<String, Value> {
     let config: Vec<i64> = match pcm.get("CodecConfiguration") {
         Some(Value::Array(items)) => items
@@ -278,13 +280,13 @@ fn base(root: &Root, settings: Value, inventory: Option<Value>) -> Map<String, V
         "codec_inventory": inventory,
         "codec_settings": settings,
     });
-    match value {
-        Value::Object(map) => map,
-        _ => unreachable!(),
-    }
+    let Value::Object(map) = value else {
+        return Map::new(); // an object literal
+    };
+    map
 }
 
-/// `bluetooth.normalize(ctx, raw)`.
+/// The section from y2-bt-observe's answer (`raw`).
 fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
     // Read once: the settings check it and the section shows it.
     let inventory = root.json(INVENTORY);
@@ -336,11 +338,10 @@ fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
                 .map(|a| (path, a))
         })
         .collect();
-    if adapters.len() != 1 {
+    let [(path, adapter)] = adapters[..] else {
         result.insert("reason".into(), json!("no_unique_adapter"));
         return Ok(Value::Object(result));
-    }
-    let (path, adapter) = adapters[0];
+    };
     let get = |m: &Map<String, Value>, k: &str| m.get(k).cloned().unwrap_or(Value::Null);
     result.insert(
         "adapter".into(),
@@ -436,11 +437,11 @@ fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
             .filter(|d| is_true(d.get("connected")))
             .collect(),
     };
-    if selected.len() != 1 {
+    let [device] = selected[..] else {
         result.insert("transport_reason".into(), json!("no_unique_selected_peer"));
         return Ok(Value::Object(result));
-    }
-    let device = selected[0].clone();
+    };
+    let device = device.clone();
     result.insert("selected_peer".into(), device.clone());
     if !is_true(device.get("connected")) {
         result.insert(
@@ -459,11 +460,10 @@ fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
             .then_some((path, pcm))
         })
         .collect();
-    if pcms.len() != 1 {
+    let [(path, pcm)] = pcms[..] else {
         result.insert("transport_reason".into(), json!("no_unique_playback_pcm"));
         return Ok(Value::Object(result));
-    }
-    let (path, pcm) = pcms[0];
+    };
     let format_code = get(pcm, "Format");
     let format = match exact_int(Some(&format_code)) {
         Some(0x8210) => Some(("S16_LE", 16, 16)),
@@ -505,7 +505,7 @@ fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
     Ok(Value::Object(result))
 }
 
-/// `observe.bluetooth`.
+/// The `bluetooth` section; Unavailable when y2-bt-observe gives no usable answer.
 pub fn bluetooth(root: &Root) -> Result<Value, Failure> {
     let answer = command::run_with(root, &["/usr/sbin/y2-bt-observe"], 3.0, 262_144, false);
     let output = answer.output.unwrap_or_default();

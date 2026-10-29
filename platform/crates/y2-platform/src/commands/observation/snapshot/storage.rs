@@ -121,7 +121,8 @@ fn refused_card(root: &Root) -> Object {
         .with("findings", findings)
 }
 
-/// `media.media_identity`: CID/partition geometry supplies identity when a legal FAT UUID is absent.
+/// The SD card's identity: its UUID, or its CID and partition geometry where FAT has no usable UUID;
+/// the SHA-256 of it is the `id` the mount claim is compared by.
 fn media_identity(entry: &Path, filesystem: &Value, uuid: &Value) -> Value {
     let mut device = realpath(entry);
     let partition = read(&entry.join("partition"));
@@ -241,7 +242,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
         }
         item.insert("uuid".into(), uuid);
         let readonly = mount.read_only();
-        // media.py mounts a healthy card read-only between writes: it is Ready; so is one that
+        // The storage group mounts a healthy card read-only between writes: it is Ready; so is one that
         // plays while its check finishes in the background (F49).
         let protected = target == "/media/sd"
             && readonly
@@ -292,7 +293,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
         if state == "Ready" && readonly && !protected {
             (state, reason) = ("Degraded", Some("read_only"));
             if target == "/media/sd" {
-                // Why the platform mounted the card read-only (media.py): its check found errors or
+                // Why the storage group mounted the card read-only: its check found errors or
                 // did not finish; Repair can make it writable.
                 let cause = claim.read_only.as_str();
                 item.insert(

@@ -23,11 +23,23 @@ use y2p_core::{
 /// What runs once after a measurement's steps (an fdatasync, a directory fsync).
 type Finalize<'f> = &'f dyn Fn(&Scratch) -> Result<()>;
 
+/// What a run has measured so far: a failed run shows what it got to.
+#[derive(Default)]
+pub(super) struct Measured {
+    pub(super) measurements: Vec<Value>,
+    /// The volume measured and its storage observation, once the scratch directory is open.
+    pub(super) volume: Value,
+    pub(super) cache_advice: Vec<Value>,
+    pub(super) integrity: Vec<Value>,
+    /// The counters around the integrity check, once it ran.
+    pub(super) integrity_system: Option<Value>,
+}
+
 pub(super) struct Bench<'a> {
     pub(super) root: &'a Root,
     pub(super) io: &'a dyn Io,
     pub(super) deadline: f64,
-    pub(super) result: Map<String, Value>,
+    pub(super) measured: Measured,
 }
 
 impl Bench<'_> {
@@ -42,13 +54,6 @@ impl Bench<'_> {
         scratch.ensure()
     }
 
-    fn list(&mut self, key: &str) -> &mut Vec<Value> {
-        self.result
-            .get_mut(key)
-            .and_then(Value::as_array_mut)
-            .expect("list")
-    }
-
     /// `advise_read`: older Y2 kernels omit ADVISE_SYSCALLS (EINVAL on ARM). Preserve verified
     /// readback while explicitly refusing a cold or media-throughput claim. Genuine I/O faults fail.
     fn advise(&mut self, fd: RawFd, operation: &str) -> Result<()> {
@@ -58,7 +63,8 @@ impl Bench<'_> {
             libc::EINVAL | libc::ENOSYS | libc::EOPNOTSUPP => ("unavailable", json!(error)),
             other => return Err(Error::os(io::Error::from_raw_os_error(other), None)),
         };
-        self.list("cache_advice")
+        self.measured
+            .cache_advice
             .push(json!({"before": operation, "state": state, "errno": errno}));
         Ok(())
     }
@@ -96,7 +102,7 @@ impl Bench<'_> {
         let system = io_delta(&before_io, &self.io.counters(self.root));
         let fault = controller_fault(&system);
         measurement.insert("system".into(), system);
-        self.list("measurements").push(Value::Object(measurement));
+        self.measured.measurements.push(Value::Object(measurement));
         if fault {
             return Err(Error::raised(
                 libc::EIO,
@@ -261,18 +267,17 @@ impl Bench<'_> {
                 if matches!(error.errno, Some(libc::EINVAL | libc::EOPNOTSUPP))
                     && error.class != "ValueError" =>
             {
-                self.list("measurements").push(json!({"operation": "file_fsync_rename_directory_fsync",
+                self.measured.measurements.push(json!({"operation": "file_fsync_rename_directory_fsync",
                     "result": "UNAVAILABLE", "reason": "filesystem_does_not_support_directory_fsync"}));
             }
             other => other?,
         }
         let before_io = self.io.counters(self.root);
         let integrity = self.regions(scratch)?;
-        self.result
-            .insert("integrity".into(), Value::Array(integrity));
+        self.measured.integrity = integrity;
         let system = io_delta(&before_io, &self.io.counters(self.root));
         let fault = controller_fault(&system);
-        self.result.insert("integrity_system".into(), system);
+        self.measured.integrity_system = Some(system);
         if fault {
             return Err(Error::raised(
                 libc::EIO,
@@ -286,7 +291,7 @@ impl Bench<'_> {
     fn regions(&mut self, scratch: &mut Scratch) -> Result<Vec<Value>> {
         let file = scratch.open("integrity")?;
         let fd = file.as_raw_fd();
-        let mut result = Vec::new();
+        let mut written = Vec::new();
         for (offset, size) in [
             (0usize, 1usize),
             (511, 513),
@@ -298,25 +303,24 @@ impl Bench<'_> {
             let payload = PyRandom::new((6582 + offset + size) as u64).randbytes(size);
             write_all(self.io, fd, &payload, offset)?;
             sync(fd, false)?;
-            result.push(json!({"offset": offset, "bytes": size, "expected_sha256": hex(&payload)}));
+            written.push((offset, size, hex(&payload)));
         }
         // Verify only after every write: aliased writes must not erase another region undetected.
         // Advisory eviction is file-scoped, never global.
-        for region in &mut result {
-            let (offset, size) = (
-                region["offset"].as_u64().expect("offset") as usize,
-                region["bytes"].as_u64().expect("bytes") as usize,
-            );
+        let mut regions = Vec::new();
+        for (offset, size, expected) in written {
             self.advise(fd, &format!("sha256_{offset}_{size}"))?;
             self.ensure(scratch)?;
             let actual = hex(&pread(self.io, fd, size, offset)?);
-            if actual != region["expected_sha256"] {
+            if actual != expected {
                 return Err(Error::raised(libc::EIO, "sha256_readback_mismatch"));
             }
-            region["readback_sha256"] = json!(actual);
-            region["result"] = json!("OK");
+            regions.push(
+                json!({"offset": offset, "bytes": size, "expected_sha256": expected,
+                                "readback_sha256": actual, "result": "OK"}),
+            );
         }
-        Ok(result)
+        Ok(regions)
     }
 }
 

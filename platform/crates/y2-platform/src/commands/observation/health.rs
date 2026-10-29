@@ -1,4 +1,5 @@
-//! `health.check`: bounded observational health; full scratch checks are explicit.
+//! `y2-platform health`: each subsystem as OK, DEGRADED, UNAVAILABLE or FAILED from one snapshot;
+//! `--full` adds the ALSA and DRM queries (queries only, no playback or render takeover).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     snapshot::snapshot,
@@ -8,7 +9,7 @@ use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use y2p_core::{command, Root};
 
-/// `health.check(ctx, full)` as a value.
+/// The health record: every check and the worst state among them.
 pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
     let status = snapshot(root, &[], false, 0.0)?;
     let mut checks: Vec<Map<String, Value>> = Vec::new();
