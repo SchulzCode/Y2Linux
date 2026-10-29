@@ -468,8 +468,7 @@ fn usb_diagnostics(
 
 /// The time section: `y2-platform time`'s record.
 fn time_status(root: &Root) -> Result<Value, Failure> {
-    let reply = super::super::time::status(root)?;
-    serde_json::from_str(&reply.stdout).map_err(Failure::value)
+    Ok(Value::Object(super::super::time::record(root)))
 }
 
 /// The `system` section.

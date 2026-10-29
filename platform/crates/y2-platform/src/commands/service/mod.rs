@@ -28,10 +28,7 @@ const UPDATE_ACTIONS: [&str; 10] = [
 
 /// The `time` command's record (clock and TLS readiness), as its fields.
 fn time_status(root: &Root) -> Map<String, Value> {
-    super::time::status(root)
-        .ok()
-        .and_then(|reply| serde_json::from_str(&reply.stdout).ok())
-        .unwrap_or_default()
+    super::time::record(root)
 }
 
 /// `update <action>` with `--url URL` and `--package DIR` as the parser's canonical form gives them.

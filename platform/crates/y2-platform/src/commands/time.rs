@@ -62,6 +62,16 @@ pub fn status(root: &Root) -> Outcome {
     Reply::unsorted(&status_at(root, now, json!(now)), 0)
 }
 
+/// What `time` prints, as a record for the readers in-process (the system section, the service's
+/// readiness and update checks), without printing and parsing it.
+pub(crate) fn record(root: &Root) -> Map<String, Value> {
+    let now = wall();
+    match serde_json::to_value(status_at(root, now, json!(now))) {
+        Ok(Value::Object(map)) => map,
+        _ => Map::new(),
+    }
+}
+
 /// The clock status at wall time `now`: TLS ready only for a plausible clock whose anchor of this
 /// boot came from the network or a retained RTC and still agrees. `epoch` is `now` as it is printed
 /// (the wall clock's float for `time`, the owner's integer for `time-set`).
