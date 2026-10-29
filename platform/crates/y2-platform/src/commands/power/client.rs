@@ -2,7 +2,7 @@
 //! daemon for the transition and print the intent it answers with, in the daemon's key order. It
 //! returns at once; the daemon executes the intent after Reborn's acknowledgement or the 10 s grace.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{crash, daemon::SOCKET, unix};
+use super::{daemon::SOCKET, unix};
 use crate::reply::{Failure, Outcome, Reply};
 use serde_json::Value;
 use std::time::Duration;
@@ -36,11 +36,9 @@ pub fn rpc(root: &Root, request: &Object) -> Result<Value, Failure> {
     }
     // Accepted difference: an answer that is not JSON names serde's error, not json's.
     let result = serde_json::from_slice::<Value>(&answer).map_err(Failure::value)?;
-    let Value::Object(result) = result else {
-        crash(&format!(
-            "AttributeError: '{}' object has no attribute 'get'",
-            result.type_name()
-        ));
+    // An answer that is no object, or an `ok` one without its result, is no answer.
+    let Value::Object(mut result) = result else {
+        return Err(Failure::value("invalid_power_response"));
     };
     if !result.value("ok").truthy() {
         let error = result
@@ -48,13 +46,69 @@ pub fn rpc(root: &Root, request: &Object) -> Result<Value, Failure> {
             .map_or_else(|| "power_request_failed".to_owned(), Value::py_str);
         return Err(Failure::Value(error));
     }
-    match result.get("result") {
-        Some(value) => Ok(value.clone()),
-        None => crash("KeyError: 'result'"),
-    }
+    result
+        .shift_remove("result")
+        .ok_or_else(|| Failure::value("invalid_power_response"))
 }
 
 pub fn shutdown(root: &Root, action: &str, reason: &str) -> Outcome {
     let request = Object::new().with("action", action).with("reason", reason);
     Reply::unsorted(&rpc(root, &request)?, 0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testing::Fixture;
+    use std::io::{BufRead, BufReader, Write};
+    use std::os::unix::net::UnixListener;
+
+    /// A daemon that answers one request with `answer` (a line), as `rpc` sees it.
+    fn answered(answer: &'static str) -> Result<Value, Failure> {
+        let fixture = Fixture::new();
+        fixture.mkdir("/run/y2");
+        let listener = UnixListener::bind(fixture.path(SOCKET)).unwrap();
+        let daemon = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut line = String::new();
+            BufReader::new(&stream).read_line(&mut line).unwrap();
+            (&stream).write_all(answer.as_bytes()).unwrap();
+            line
+        });
+        let request = Object::new()
+            .with("action", "poweroff")
+            .with("reason", "user");
+        let result = rpc(&fixture.root, &request);
+        assert_eq!(
+            daemon.join().unwrap(),
+            "{\"action\": \"poweroff\", \"reason\": \"user\"}\n"
+        );
+        result
+    }
+
+    #[test]
+    fn the_daemons_result_is_returned_in_its_key_order() {
+        let result = answered("{\"ok\": true, \"result\": {\"state\": \"x\", \"id\": \"y\"}}\n");
+        let keys: Vec<String> = result
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
+        assert_eq!(keys, ["state", "id"]);
+    }
+
+    #[test]
+    fn odd_answers_are_refusals_not_crashes() {
+        for answer in ["[1]\n", "{\"ok\": true}\n", "5\n"] {
+            let failure = answered(answer).unwrap_err();
+            assert_eq!(failure.message(), "invalid_power_response", "{answer}");
+            assert!(failure.caught(), "a JSON failure record, exit 1");
+        }
+        let refused = answered("{\"ok\": false, \"error\": \"invalid_grace\"}\n").unwrap_err();
+        assert_eq!(refused.message(), "invalid_grace");
+        let silent = answered("{\"ok\": 0}\n").unwrap_err();
+        assert_eq!(silent.message(), "power_request_failed");
+    }
 }

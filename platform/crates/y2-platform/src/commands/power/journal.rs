@@ -6,7 +6,7 @@
 //! order, records read from files in their file order. A journal failure never delays or
 //! disables battery protection: it is counted and the row dropped.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{battery::BatteryStatus, crash};
+use super::battery::BatteryStatus;
 use crate::commands::time::wall;
 use serde::Serialize;
 use serde_json::Value;
@@ -606,56 +606,14 @@ const SLEEP_STATES: [&str; 8] = [
     "restore_failed",
 ];
 
-/// `dict(value)` of a truthy non-dict `product`: the pairs, or `Err` for Python's TypeError/ValueError.
-fn dict_of(value: &Value) -> Result<Vec<(Value, Value)>, Dropped> {
-    let Value::Array(items) = value else {
-        return Err(Dropped); // dict(str/int/bool): TypeError or ValueError
-    };
-    let mut pairs = Vec::new();
-    for item in items {
-        let (key, value) = match item {
-            Value::Array(pair) if pair.len() == 2 => (pair[0].clone(), pair[1].clone()),
-            Value::String(s) if s.chars().count() == 2 => {
-                let mut chars = s.chars();
-                (
-                    Value::from(chars.next().expect("two").to_string()),
-                    Value::from(chars.next().expect("two").to_string()),
-                )
-            }
-            Value::Object(o) if o.len() == 2 => {
-                let mut keys = o.iter().map(|(k, _)| Value::from(k.clone()));
-                (keys.next().expect("two"), keys.next().expect("two"))
-            }
-            _ => return Err(Dropped),
-        };
-        if !key.hashable() {
-            return Err(Dropped);
-        }
-        pairs.push((key, value));
-    }
-    Ok(pairs)
-}
-
 /// `sleep.status(ctx)` on the receipt: durable evidence interpreted without promoting a reset into a
 /// resume.
 fn sleep_status(receipt: &Object, boot_id: Option<&str>) -> Result<Object, Dropped> {
     let mut result = match receipt.value("product") {
         Value::Object(o) => o,
-        other if other.truthy() => {
-            // A list of pairs becomes a dict whose keys need not be strings; the row would then fail
-            // `receipt.get('product').get` below (AttributeError: the daemon ends) unless its 'state'
-            // is unhashable (TypeError here: dropped).
-            let pairs = dict_of(&other)?;
-            let state = pairs
-                .iter()
-                .rev()
-                .find(|(k, _)| k.is_str("state"))
-                .map(|(_, v)| v);
-            if state.is_some_and(|s| !s.hashable()) {
-                return Err(Dropped);
-            }
-            crash("AttributeError: 'list' object has no attribute 'get'");
-        }
+        // A product that is set but no dict (only a damaged receipt has one): the row is dropped
+        // and counted, the daemon goes on.
+        other if other.truthy() => return Err(Dropped),
         _ => Object::new(),
     };
     let state = result.value("state");
@@ -903,7 +861,7 @@ impl PowerJournal {
             "reason",
             match receipt.value("product") {
                 Value::Object(p) => p.value("reason"),
-                _ => Value::Null, // a falsy product (`or {}`); a truthy non-dict ended above
+                _ => Value::Null, // a falsy product (`or {}`); a truthy non-dict was dropped above
             },
         );
         Ok(Some(Row {
@@ -1011,6 +969,8 @@ mod tests {
         assert!(sleep_status(&parse(r#"{"product": {"state": []}}"#), Some("b")).is_err());
         assert!(sleep_status(&parse(r#"{"product": 5}"#), Some("b")).is_err());
         assert!(sleep_status(&parse(r#"{"product": [1]}"#), Some("b")).is_err());
+        // A list of pairs (Python made it a dict and then ended the daemon): dropped as well.
+        assert!(sleep_status(&parse(r#"{"product": [["state", "idle"]]}"#), Some("b")).is_err());
     }
 }
 

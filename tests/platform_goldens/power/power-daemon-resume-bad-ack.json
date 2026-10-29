@@ -3,7 +3,7 @@
   "power-daemon"
  ],
  "calls": [],
- "exit": 1,
+ "exit": 0,
  "stdout": [],
  "tree": {
   "added": {
@@ -209,10 +209,6 @@
     "content": [],
     "mode": "0o600",
     "type": "file"
-   },
-   "/run/y2/power.sock": {
-    "mode": "0o600",
-    "type": "other"
    }
   },
   "changed": {},

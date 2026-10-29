@@ -28,18 +28,6 @@ pub fn route(args: &[&str]) -> Option<Command> {
     Some(Box::new(move |root| client::shutdown(root, &a, &r)))
 }
 
-/// An exception Python's `main.py` does not catch (`TypeError`, `KeyError`, `AttributeError`): a
-/// traceback on stderr, nothing on stdout, exit 1. The daemon's supervisor restarts it, as it would the
-/// Python one.
-pub fn crash(message: &str) -> ! {
-    let _ = std::io::stdout().flush();
-    let _ = writeln!(
-        std::io::stderr(),
-        "Traceback (most recent call last):\n  (y2-platform, Rust port)\n{message}"
-    );
-    std::process::exit(1)
-}
-
 /// A daemon's return: nothing printed (main.py prints nothing after `serve`), this exit code.
 pub fn quiet_exit(code: i32) -> ! {
     let _ = std::io::stdout().flush();

@@ -559,6 +559,38 @@ fn ack_requires_same_request_pid_start_time_and_boot() {
     assert!(Coordinator::new(&fixture.root).intent.is_none());
 }
 
+#[test]
+fn a_resumed_intent_with_a_damaged_acknowledgement_waits_for_its_deadline() {
+    // The Python daemon ended on these (TypeError, KeyError, AttributeError) and its supervisor
+    // restarted it into the same file; now it is no acknowledgement and the deadline decides.
+    for ack in [
+        serde_json::json!("Ready"),
+        serde_json::json!(["Ready"]),
+        serde_json::json!({"monotonic_ns": 5}),
+        serde_json::json!(7),
+    ] {
+        let (fixture, clock) = player(false);
+        fixture.put("/sys/class/backlight/panel/bl_power", "0\n");
+        fixture.put_json(
+            "/run/y2/shutdown.json",
+            &serde_json::json!({"schema": 1, "id": "x", "boot_id": "one", "state": "ShutdownPending",
+                "action": "poweroff", "reason": "user", "requested_monotonic_ns": START_NS,
+                "deadline_monotonic_ns": START_NS + 3_000_000_000, "client": null,
+                "acknowledgement": ack, "failure": null}),
+        );
+        let mut c = Coordinator::new(&fixture.root);
+        assert!(c.intent.as_ref().is_some_and(|i| i.pending()), "{ack}");
+        assert!(!c.due(), "{ack}");
+        clock.advance(3_000_000_000);
+        assert!(c.due(), "{ack}");
+        let calls = execute(&mut c, &fixture);
+        assert_eq!(stop_result(&c, "backlight_early"), passed(), "{ack}");
+        assert_eq!(last(&calls), ["/bin/busybox", "poweroff"]);
+        // The damaged value stays as it was; only the steps' results are added.
+        assert_eq!(c.intent.as_ref().unwrap()["acknowledgement"], ack);
+    }
+}
+
 fn now(clock: &Manual) -> i128 {
     i128::from(clock.monotonic_ns())
 }

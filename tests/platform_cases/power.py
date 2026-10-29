@@ -180,16 +180,17 @@ def cases():
 
 
 def extra_cases():
-    """An uncaught exception ends the daemon: a traceback, exit 1 and nothing on stdout
+    """Odd input the Python daemon ended on (an uncaught exception): the daemon now keeps running
     (tests/test_platform_power_rpc.py runs them)."""
     return [
-        # A list of pairs becomes a dict in sleep.status, then `.get` on the list ends the daemon.
+        # A list of pairs as the receipt's product: the journal row is dropped (as for any other non-dict).
         ('power-daemon-receipt-pairs', ['power-daemon'], daemon(1, {
             **battery(3850000), '/data/system/platform/suspend-last.json': '{"product": [["state", "idle"]]}'})),
-        # A resumed acknowledgement that is not a dict: TypeError in due() before the deadline ...
+        # A resumed acknowledgement that is not a dict is no acknowledgement: before the deadline nothing
+        # happens ...
         ('power-daemon-resume-bad-ack', ['power-daemon'], daemon(1, {
             **battery(3850000), SHUTDOWN: intent(state='ShutdownPending', deadline=2**62, ack='Ready')})),
-        # ... and after it, AttributeError in execute() once the first steps ran.
+        # ... after it the shutdown runs as an unacknowledged one (the panel blanked before Reborn stops).
         ('power-daemon-resume-bad-ack-due', ['power-daemon'], daemon(1, {
             **battery(3850000), '/dev/watchdog': '', SHUTDOWN: intent(ack=['Ready'])})),
     ]

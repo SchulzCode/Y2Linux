@@ -5,7 +5,6 @@
 //! get the fixture answers (`y2p_core::command`) and the kill step runs only on the real root, as in
 //! Python, whose fixture `Context` answers `fixture` and whose kill is guarded by `ctx.root == '/'`.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::crash;
 use crate::reply::{atomic_json, private_directory, Failure};
 use serde_json::Value;
 use std::{
@@ -111,25 +110,17 @@ fn wait_gone(root: &Root, name: &str, timeout: f64) -> Step {
     Step::of(true, None)
 }
 
-/// How an intent's `acknowledgement` reads: Reborn's dict, or nothing yet; an intent resumed from
-/// shutdown.json may hold anything there.
-#[derive(Debug)]
-pub enum Acknowledgement<'a> {
-    /// Null (or another falsy value): Reborn has not answered.
-    Absent,
-    /// A dict, with its `outcome` if it has one.
-    Given(Option<&'a Value>),
-    /// Something truthy that is not a dict.
-    Odd(&'a Value),
-}
-
 /// What the coordinator reads of an intent: one it built, or one resumed from shutdown.json after a
-/// daemon restart.
+/// daemon restart (which may hold anything a file can).
 pub trait IntentFields {
     fn state(&self) -> Option<&str>;
     /// The deadline in CLOCK_MONOTONIC ns (0 when it is not an int).
     fn deadline_ns(&self) -> i128;
-    fn acknowledgement(&self) -> Acknowledgement<'_>;
+    /// Whether Reborn acknowledged with `Ready`. Anything but a dict with that outcome (null, or what
+    /// a damaged resumed intent holds) is no acknowledgement: the deadline still ends the grace.
+    fn ready(&self) -> bool;
+    /// An acknowledgement that is set but is no dict with an outcome (only a damaged file has one).
+    fn acknowledgement_odd(&self) -> bool;
 
     fn pending(&self) -> bool {
         self.state() == Some("ShutdownPending")
@@ -147,12 +138,18 @@ impl IntentFields for Object {
             .map_or(0, i128::from)
     }
 
-    fn acknowledgement(&self) -> Acknowledgement<'_> {
+    fn ready(&self) -> bool {
         match self.get("acknowledgement") {
-            None => Acknowledgement::Absent,
-            Some(ack) if !ack.truthy() => Acknowledgement::Absent,
-            Some(Value::Object(ack)) => Acknowledgement::Given(ack.get("outcome")),
-            Some(other) => Acknowledgement::Odd(other),
+            Some(Value::Object(ack)) => ack.get("outcome").is_some_and(|o| o.is_str("Ready")),
+            _ => false,
+        }
+    }
+
+    fn acknowledgement_odd(&self) -> bool {
+        match self.get("acknowledgement") {
+            Some(Value::Object(ack)) => !ack.contains_key("outcome"),
+            Some(ack) => ack.truthy(),
+            None => false,
         }
     }
 }
@@ -190,6 +187,16 @@ impl Coordinator {
             && previous.contains_key("acknowledgement");
         let mut intent = valid.then_some(previous);
         if let Some(intent) = intent.as_mut() {
+            if intent.acknowledgement_odd() {
+                // A damaged file: the shutdown goes on as unacknowledged (the panel is blanked
+                // before Reborn is stopped) once its deadline has passed.
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "power-daemon: resumed shutdown intent has no valid acknowledgement ({}); \
+                     waiting for its deadline",
+                    intent.value("acknowledgement")
+                );
+            }
             if intent.state() == Some("Executing") {
                 // Continue the already requested transition after a daemon crash,
                 // retaining its original deadline. No new boot is auto-rebooted.
@@ -314,22 +321,7 @@ impl Coordinator {
         if self.clock() >= intent.deadline_ns() {
             return true;
         }
-        // `bool(ack and ack['outcome'] == 'Ready')`: a resumed intent may carry anything here.
-        match intent.acknowledgement() {
-            Acknowledgement::Absent => false,
-            Acknowledgement::Given(Some(outcome)) => outcome.is_str("Ready"),
-            Acknowledgement::Given(None) => crash("KeyError: 'outcome'"),
-            Acknowledgement::Odd(Value::Array(_)) => {
-                crash("TypeError: list indices must be integers or slices, not str")
-            }
-            Acknowledgement::Odd(Value::String(_)) => {
-                crash("TypeError: string indices must be integers, not 'str'")
-            }
-            Acknowledgement::Odd(other) => crash(&format!(
-                "TypeError: '{}' object is not subscriptable",
-                other.type_name()
-            )),
-        }
+        intent.ready()
     }
 
     /// Seconds until the next sample or a pending deadline, as nanoseconds (0: no wait).
@@ -375,15 +367,7 @@ impl Coordinator {
         // before it acknowledges. If it never did (hung, crashed, deadline
         // reached) the light goes out before the kill: dropping DRM master would
         // otherwise restore the stale fbdev/console buffer on a lit panel.
-        let ready = match self.intent().acknowledgement() {
-            Acknowledgement::Absent => false,
-            Acknowledgement::Given(outcome) => outcome.is_some_and(|o| o.is_str("Ready")),
-            Acknowledgement::Odd(other) => crash(&format!(
-                "AttributeError: '{}' object has no attribute 'get'",
-                other.type_name()
-            )),
-        };
-        if !ready {
+        if !self.intent().ready() {
             results.push(("backlight_early".into(), backlight_off(&self.root)));
         }
         let reborn = self.step("S90reborn", Some(&["/etc/init.d/S90reborn", "stop"]), 3.0);
