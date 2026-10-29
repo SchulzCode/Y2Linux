@@ -2,7 +2,7 @@
 run by the Rust host build (`Y2_PLATFORM_RUST`) on the player-shaped fixture root and compared with
 tests/platform_goldens/<base|group>/<case>.json (tests/platform_golden.py; `Y2_RECORD_GOLDENS=1` re-records).
 Also: every golden has a case, the harness reports each kind of difference, and the contract inventory and the
-y2p-contract goldens agree with argparse.json and these goldens."""
+y2p-contract goldens agree with the parser's table and these goldens."""
 from collections import defaultdict
 import json
 from pathlib import Path
@@ -152,7 +152,8 @@ CASES = [
         ('bad-route', {'staticroutes': '10.0.0.0/33 192.168.1.2'}), ('bad-gateway', {'staticroutes': '10.0.0.0/8 x'}),
         ('route-slashes', {'staticroutes': '10.0.0.0/8/8 192.168.1.2'}), ('route-hostmask', {
             'staticroutes': '10.1.2.3/0.255.255.255 192.168.1.2'}), ('unicode-space', {'dns': '9.9.9.9\x1f1.1.1.1'})]],
-    # Bytes that are not UTF-8 (os.environ and sys.argv: surrogate escapes, shown as \\udcXX).
+    # Bytes that are not UTF-8: environment values read as surrogate escapes (shown as \\udcXX), an argument
+    # is refused by the parser (exit 2).
     ('dhcp-bound-not-utf8', ['dhcp-event', 'bound'], {'env': {**LEASE, 'ip': '192.168.1.\udcff'}}),
     ('dhcp-interface-not-utf8', ['dhcp-event', 'bound'], {'env': {**LEASE, 'interface': 'wlan\udcff'}}),
     ('ntp-stratum-not-utf8', ['ntp-event', 'step'], {'env': {'stratum': '\udce2\udc822'}}),
@@ -370,7 +371,7 @@ class PlatformGoldens(unittest.TestCase):
                 check(self, 'base', 'no-such-case', {})
 
     def test_contract_inventory_covers_the_cli(self):
-        # platform/CONTRACT.md: the argument table is argparse.json's; every subcommand
+        # platform/CONTRACT.md: the argument table is the parser's (cli.rs); every subcommand
         # and action has an inventory entry, so a new one cannot be added unseen.
         found = subprocess.run([sys.executable, str(REPOSITORY / 'tools/development/platform-contract.py'),
                                 '--check'], capture_output=True, text=True)
