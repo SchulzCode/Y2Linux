@@ -264,8 +264,9 @@ fn service_loop_uses_gated_reconcile_and_cadence() {
     let loop_ = &source[source.find("fn serve(&mut self").unwrap()..];
     // B5: reconcile runs in its own process, still started only when needed.
     assert!(loop_.contains("reconcile = media_reconcile(root, reconcile, before);"));
-    let helper = &source[source.find("fn media_reconcile(").unwrap()
-        ..source.find("fn media_verify_needed(").unwrap()];
+    let jobs = include_str!("daemon/jobs.rs");
+    let helper = &jobs
+        [jobs.find("fn media_reconcile(").unwrap()..jobs.find("fn media_verify_needed(").unwrap()];
     assert!(helper.contains("!media_reconcile_needed(root)"));
     assert!(loop_.contains("next_maintenance = before + maintenance;"));
     assert!(loop_.contains("interval - (root.clock().monotonic() - before)"));
