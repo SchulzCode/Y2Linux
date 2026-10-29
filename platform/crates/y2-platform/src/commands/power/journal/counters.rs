@@ -1,11 +1,12 @@
 //! The idle counters a journal row carries (cpuidle, scheduler, runtime PM, frequency, idle and clock
-//! blockers).
+//! blockers): the power journal's rows and the suspend group's stage rows in the same journal.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::glob_name;
 use y2p_core::{
     json::{Object, ObjectExt},
     power_text::python_split,
     root::{python_int, read},
+    text::splitlines,
     Root,
 };
 
@@ -33,7 +34,7 @@ pub fn idle_counters(root: &Root) -> Object {
         }
     }
     let mut scheduler = Object::new();
-    for line in root.read("/proc/stat").unwrap_or_default().lines() {
+    for line in splitlines(&root.read("/proc/stat").unwrap_or_default()) {
         let fields = python_split(line);
         if let Some(name) = fields
             .first()

@@ -13,8 +13,7 @@ use y2p_core::py::PyValue;
 use y2p_core::{
     json::{dumps, Object, Separators},
     power_journal::append_bounded,
-    root::{python_int, read},
-    suspend_text::{split, splitlines},
+    root::read,
     Root,
 };
 
@@ -23,130 +22,10 @@ pub const PATH: &str = "/data/system/platform/power-journal.jsonl";
 // snapshot, so 2 MiB kept only ~4.5 h (archive 109 lost the morning). 8 MiB keeps more than a day
 // per file; no change in write rate.
 const LIMIT: u64 = 8_388_608;
-const RUNTIME: [&str; 8] = [
-    "11200000.",
-    "11220000.",
-    "11230000.",
-    "11240000.",
-    "13010000.",
-    "14007000.",
-    "14008000.",
-    "18070000.",
-];
 
 /// A plain value in a row: its objects sorted (a dict that came from a sorted record).
 pub fn plain(value: Value) -> Value {
     y2p_core::json::sorted(value)
-}
-
-/// A dict built in this order (`{k: v, ...}` written without `sort_keys`).
-pub fn object(entries: Vec<(String, Value)>) -> Value {
-    Value::Object(entries.into_iter().collect())
-}
-
-fn int(value: Option<i64>) -> Value {
-    plain(value.map_or(Value::Null, Value::from))
-}
-
-/// Cheap cumulative counters only when a journal row is already due.
-///
-/// No AUXADC, subprocess, RPC, tracing, or additional periodic wakeup. Missing interfaces stay null.
-/// Hotplug can reset per-core counters; readers must not turn decreasing values into negative rates.
-pub fn idle_counters(root: &Root) -> Value {
-    let started = super::process_time();
-    let mut idle = Vec::new();
-    for cpu in 0..4 {
-        let mut states: Vec<(String, Value)> = Vec::new();
-        for index in 0..3 {
-            let base = format!("/sys/devices/system/cpu/cpu{cpu}/cpuidle/state{index}");
-            if let Some(state) = root.read_limited(&format!("{base}/name"), 64) {
-                let fields = ["usage", "time", "rejected", "disable"]
-                    .iter()
-                    .map(|f| ((*f).to_owned(), int(root.integer(&format!("{base}/{f}")))))
-                    .collect();
-                set(&mut states, &state, object(fields));
-            }
-        }
-        if !states.is_empty() {
-            idle.push((cpu.to_string(), object(states)));
-        }
-    }
-    let mut scheduler: Vec<(String, Value)> = Vec::new();
-    for line in splitlines(&root.read("/proc/stat").unwrap_or_default()) {
-        let fields = split(line);
-        if let Some(&first) = fields.first() {
-            if ["ctxt", "intr", "processes"].contains(&first) {
-                let value = fields.get(1).and_then(|f| python_int(f));
-                set(&mut scheduler, first, int(value));
-            }
-        }
-    }
-    let runtime = root
-        .glob("/sys/bus/platform/devices/*/power/runtime_status")
-        .iter()
-        .filter_map(|path| {
-            let device = path.parent()?.parent().map(name)?;
-            RUNTIME
-                .iter()
-                .any(|p| device.starts_with(p))
-                .then(|| (device, plain(text_value(read(path, 64)))))
-        })
-        .collect();
-    let each = |pattern: &str| {
-        object(
-            root.glob(pattern)
-                .iter()
-                .map(|p| (name(p), plain(text_value(read(p, 128)))))
-                .collect(),
-        )
-    };
-    let mut result = vec![
-        (
-            "online".to_owned(),
-            plain(text_value(
-                root.read_limited("/sys/devices/system/cpu/online", 64),
-            )),
-        ),
-        ("cpuidle".into(), object(idle)),
-        ("scheduler".into(), object(scheduler)),
-        ("runtime_pm".into(), object(runtime)),
-        (
-            "frequency_khz".into(),
-            int(root.integer("/sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq")),
-        ),
-        (
-            "frequency_ticks".into(),
-            plain(text_value(root.read_limited(
-                "/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state",
-                512,
-            ))),
-        ),
-        (
-            "idle_rejections".into(),
-            each("/sys/module/idle/parameters/*"),
-        ),
-        (
-            "clock_blockers".into(),
-            each("/sys/module/clocks/parameters/*blockers"),
-        ),
-        (
-            "counter_reset_rule".into(),
-            plain("decreasing per-core counters are unknown, not negative rates".into()),
-        ),
-    ];
-    result.push((
-        "collector_cpu_seconds".into(),
-        plain((super::process_time() - started).into()),
-    ));
-    object(result)
-}
-
-/// `dict[key] = value` on an ordered object.
-fn set(entries: &mut Vec<(String, Value)>, key: &str, value: Value) {
-    match entries.iter_mut().find(|(k, _)| k == key) {
-        Some(entry) => entry.1 = value,
-        None => entries.push((key.to_owned(), value)),
-    }
 }
 
 /// One `suspend_<stage>` row. `battery` is `/run/y2/power.json`'s `battery` (or `{}`).
@@ -252,7 +131,7 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
     let idle_policy = root
         .json("/run/y2/cpu-idle-policy.json")
         .unwrap_or(Value::Null);
-    let idle_counters = idle_counters(root);
+    let idle_counters = Value::Object(crate::commands::power::journal::idle_counters(root));
     let sleep = super::super::sleep::product(
         &root.json_object(super::receipt::RECEIPT),
         boot_id.as_deref(),
