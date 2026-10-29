@@ -45,9 +45,9 @@ def delivered(build, manifest):
         'CONFIG_DRM_LIMA': ('gpu_runtime_pm',),
     }
     symbol_for = {name: symbol for symbol,names in bindings.items() for name in names}
-    modules = {'telemetry':'observe.py','health':'health.py','shutdown':'power.py',
-               'low_battery_shutdown':'power.py','battery_soc':'battery.py','ota':'update.py',
-               'diagnostics':'diagnostics.py','memory_telemetry':'observe.py'}
+    modules = {'telemetry':'observation','health':'observation','shutdown':'power',
+               'low_battery_shutdown':'power','battery_soc':'power','ota':'service',
+               'diagnostics':'reports','memory_telemetry':'observation'}
     codec_names = {'bluetooth_sbc':'SBC','bluetooth_sbc_xq':'SBC','bluetooth_aac':'AAC',
                    'bluetooth_aptx':'aptX','bluetooth_aptx_hd':'aptX-HD','bluetooth_ldac':'LDAC'}
     conditional = {'cpu_power_down_idle','deep_suspend','wired_s32','wired_native_88200','wired_native_96000'}
@@ -60,15 +60,15 @@ def delivered(build, manifest):
             if name == 'usb_device' and value.get('transfer_protocol') == 'MTP':
                 prerequisites = ('CONFIG_USB_CONFIGFS', 'CONFIG_USB_CONFIGFS_F_FS',
                                  'CONFIG_USB_CONFIGFS_ECM')
-                installed_files = ('usr/sbin/umtprd',
-                                   'usr/lib/y2-platform/y2_platform/usb.py')
+                installed_files = ('usr/sbin/umtprd', 'usr/sbin/y2-platform')
                 compiled = (compiled and all(kernel.get(k) == 'y' for k in prerequisites)
                             and root.get('BR2_PACKAGE_Y2_MTP') == 'y'
                             and all((build/'buildroot/target'/p).is_file() for p in installed_files))
                 evidence = '; '.join((symbol, *prerequisites, 'BR2_PACKAGE_Y2_MTP', *installed_files))
         elif name in modules:
-            evidence = 'usr/lib/y2-platform/y2_platform/'+modules[name]
-            compiled = (build/'buildroot/target'/evidence).is_file()
+            # The Rust platform (platform/crates/y2-platform/src/commands/<group>) in the installed binary.
+            evidence = 'usr/sbin/y2-platform (commands/'+modules[name]+')'
+            compiled = (build/'buildroot/target/usr/sbin/y2-platform').is_file()
         elif name in codec_names:
             item = codecs['codecs'][codec_names[name]]
             compiled, evidence = item['compiled_locally'], 'configured BlueALSA encoder'

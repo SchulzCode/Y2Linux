@@ -93,8 +93,8 @@ class Composition(unittest.TestCase):
             path.write_text(json.dumps(value))
             with self.assertRaisesRegex(ValueError, 'shutdown'):
                 c.delivered(build,manifest)
-            module = build/'buildroot/target/usr/lib/y2-platform/y2_platform/power.py'
-            module.parent.mkdir(parents=True);module.write_text('# installed coordinator')
+            module = build/'buildroot/target/usr/sbin/y2-platform'
+            module.parent.mkdir(parents=True, exist_ok=True);module.write_text('# installed coordinator')
             self.assertTrue(c.delivered(build,manifest)['capabilities']['shutdown']['compiled'])
 
     def test_mtp_requires_config_package_responder_and_policy_together(self):
@@ -111,7 +111,7 @@ class Composition(unittest.TestCase):
             kernel.write_text(config)
             root = build/'buildroot/.config'
             root.write_text(root.read_text() + 'BR2_PACKAGE_Y2_MTP=y\n')
-            files = [target/'usr/sbin/umtprd', target/'usr/lib/y2-platform/y2_platform/usb.py']
+            files = [target/'usr/sbin/umtprd', target/'usr/sbin/y2-platform']
             for file in files:
                 file.parent.mkdir(parents=True, exist_ok=True)
                 file.write_text('fixture')

@@ -24,8 +24,8 @@ define Y2_PLATFORM_BUILD_CMDS
 		sh tools/cross.sh
 endef
 
-# Replaces the shell wrapper `exec python3 -I /usr/lib/y2-platform/main.py "$@"` (post-build installs
-# the Python platform it falls back to).
+# The whole platform service: every subcommand, daemon and programme (post-build links its other
+# names to it); there is no Python on the player.
 define Y2_PLATFORM_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/target/armv7-unknown-linux-gnueabihf/release/y2-platform \
 		$(TARGET_DIR)/usr/sbin/y2-platform

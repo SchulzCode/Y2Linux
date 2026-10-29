@@ -355,9 +355,15 @@ def validate_rootfs(out,build,m):
                 content=read(name)
                 require(content[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',content,18)[0]==40,'platform ARM binary '+name)
                 require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img'))==content,'platform ext4/tar agreement '+name)
+            # The platform is the Rust y2-platform; its other names are links to it and Python is gone.
+            for name, link in [('usr/sbin/y2-status','y2-platform'),('usr/sbin/y2-health','y2-platform'),
+                               ('usr/sbin/y2-suspend-record','y2-platform'),('usr/sbin/y2-power-audit','y2-platform'),
+                               ('sbin/poweroff','../usr/sbin/y2-platform'),('sbin/reboot','../usr/sbin/y2-platform')]:
+                require(name in members and members[name].issym() and members[name].linkname==link,'platform programme link '+name)
+            require(not any(n=='usr/bin/python3' or n.startswith(('usr/lib/python3','usr/lib/libpython3','usr/lib/y2-platform'))
+                            for n in members),'no Python in the root filesystem')
             for name in ('etc/y2linux/capabilities.json','etc/y2linux/update-trust.json','etc/y2linux/update-compat.json',
-                         'etc/y2linux/bluetooth-codecs.json','usr/lib/y2-platform/y2_platform/update.py',
-                         'usr/lib/y2-platform/y2_platform/maintenance.py','usr/libexec/reborn-boot-services'):
+                         'etc/y2linux/bluetooth-codecs.json','usr/libexec/reborn-boot-services'):
                 require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img'))==read(name),'platform contract ext4/tar agreement '+name)
             codec_inventory = json.loads(read('etc/y2linux/bluetooth-codecs.json'))
             # Historical SBC-only fallback images predate explicit codec

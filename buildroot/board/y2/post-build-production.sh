@@ -40,18 +40,13 @@ mv "$target/etc/init.d/S01seedrng" "$target/etc/init.d/S03seedrng" 2>/dev/null |
 install -m 644 "$project/initramfs/production/storage.sh" "$target/usr/lib/y2-storage.sh"
 # Never package host private keys, device calibration, or a universal login key.
 install -m 755 "$Y2_ARTIFACT_DIR/y2-platform-start" "$target/usr/sbin/y2-platform-start"
-install -m 755 "$project/tools/production/y2-status" "$target/usr/sbin/y2-status"
-mkdir -p "$target/usr/lib/y2-platform/y2_platform"
-install -m 644 "$project"/tools/platform/y2_platform/*.py "$target/usr/lib/y2-platform/y2_platform/"
-install -m 644 "$project/tools/platform/main.py" "$target/usr/lib/y2-platform/main.py"
-install -m 644 "$project/tools/platform/suspend-record.py" "$target/usr/lib/y2-platform/suspend-record.py"
-install -m 644 "$project/tools/platform/product-sleep.py" "$target/usr/lib/y2-platform/product-sleep.py"
-# /usr/sbin/y2-platform is the Rust dispatcher (package y2-platform); it runs the Python above for
-# every subcommand not ported yet (docs/planning/PLATFORM-RUST-PORT-PLAN.md).
+# The platform is the Rust y2-platform (package y2-platform, docs/planning/PLATFORM-RUST-PORT-PLAN.md);
+# there is no Python on the player. Its other names are links it answers to by argv[0].
 [ "$(head -c 4 "$target/usr/sbin/y2-platform" 2>/dev/null)" = "$(printf '\177ELF')" ] ||
     { echo 'post-build: /usr/sbin/y2-platform is not the Rust y2-platform binary' >&2; exit 1; }
+rm -rf "$target/usr/lib/y2-platform"
 for command in y2-status y2-health y2-suspend-record y2-power-audit; do
-    install -m 755 "$project/tools/platform/$command" "$target/usr/sbin/$command"
+    ln -sfn y2-platform "$target/usr/sbin/$command"
 done
 install -m 644 "$project/tools/platform/capabilities.json" "$target/etc/y2linux/capabilities.json"
 codec_profile=sbc-only
@@ -68,8 +63,12 @@ python3 "$project/tools/platform/codec_manifest.py" "$Y2_ARTIFACT_DIR/buildroot/
     > "$target/etc/y2linux/bluetooth-codecs.json"
 for command in poweroff reboot; do
     rm -f "$target/sbin/$command"
-    install -m 755 "$project/tools/platform/y2-power-command" "$target/sbin/$command"
+    ln -s ../usr/sbin/y2-platform "$target/sbin/$command"
 done
+# No Python interpreter or library may remain (phase 6).
+if [ -e "$target/usr/bin/python3" ] || ls -d "$target"/usr/lib/python3* >/dev/null 2>&1; then
+    echo 'post-build: Python is still in the image' >&2; exit 1
+fi
 install -m 755 "$Y2_ARTIFACT_DIR/y2-usb-status" "$target/usr/sbin/y2-usb-status"
 printf '%s\n' y2-platform-v1 > "$target/etc/y2linux/platform-contract"
 # The one OpenSSH build directory of this configuration (version follows Buildroot's pin).
