@@ -17,8 +17,30 @@ import time
 import uuid
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "platform"))
-from y2_platform.sleep import wake_irqs
+
+
+def wake_irqs(text):
+    """Serviced PMIC child IRQs in /proc/interrupts (as the platform's sleep receipts count them).
+
+    Both RTC and Power feed SPM EINT. That shared SPM wake bit is deliberately
+    insufficient; only a same-boot child-IRQ delta attributes their source.
+    """
+    counts = {}
+    for line in (text or '').splitlines():
+        fields = line.split()
+        if not fields or not fields[0].endswith(':'):
+            continue
+        for label, name in (('mt6397-rtc', 'rtc'), ('mtk-pmic-keys', 'power')):
+            if label not in fields:
+                continue
+            total = 0
+            for field in fields[1:]:
+                if not field.isdecimal():
+                    break
+                total += int(field)
+            counts[name] = counts.get(name, 0) + total
+    return counts
+
 
 DEVICE_LOCK = '/tmp/y2-platform-v1-device.lock'
 
