@@ -186,7 +186,7 @@ impl Scrubber {
         })
     }
 
-    /// A fresh worker with the same key and values (`_worker_start`).
+    /// A fresh worker with the same key and values (one per core).
     pub fn worker(&self) -> Scrubber {
         Scrubber {
             key: self.key,

@@ -121,7 +121,7 @@ pub(super) fn argv(headers: &[(&str, String)]) -> Vec<String> {
     argv
 }
 
-/// `_post`'s headers, in its order.
+/// The request's headers, in urllib's order (the receiver reads them by name).
 pub fn headers(data: &[u8], index: &Py, key: &str) -> Vec<(&'static str, String)> {
     let release = or_dict(index.get("release").cloned().unwrap_or(Py::None));
     let version = release

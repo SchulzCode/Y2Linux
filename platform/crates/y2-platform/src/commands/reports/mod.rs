@@ -239,7 +239,7 @@ pub fn json_at(root: &Root, name: &str) -> Option<Py> {
     pyjson::loads(&root.read(name)?)
 }
 
-/// `ctx.json(name, {})`.
+/// A JSON record that is an object, `{}` for anything else.
 pub fn json_dict(root: &Root, name: &str) -> Py {
     match json_at(root, name) {
         Some(value @ Py::Dict(_)) => value,

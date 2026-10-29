@@ -59,7 +59,7 @@ pub fn open_directory(parent: &OwnedFd, component: &str) -> Result<OwnedFd, Fail
     Ok(fd)
 }
 
-/// `update.status(ctx)['state']`; a journal without a state is refused.
+/// The update journal's state as `update status` reads it; a journal without a state is refused.
 pub fn update_state(root: &Root) -> Result<String, Failure> {
     use super::pyjson::Py;
     let path = root.path("/data/updates/state.json");

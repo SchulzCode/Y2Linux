@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 
-/// `_large_json`: ctx.json() reads at most 128 KiB; Reborn's session (the whole queue) is larger.
+/// A JSON record of up to 16 MiB (`json_at` reads 128 KiB; Reborn's session with its whole queue is
+/// larger); `None` for `null` or no JSON.
 pub fn large_json(root: &Root, name: &str) -> Option<Py> {
     let text = root.read_limited(name, 16 * 1024 * 1024);
     match pyjson::loads(text.as_deref().filter(|t| !t.is_empty()).unwrap_or("null")) {
@@ -16,7 +17,7 @@ fn read(root: &Root, name: &str) -> Py {
     root.read(name).into()
 }
 
-/// `_session_projection`: every setting and technical playback fact of session.json; no queue entries.
+/// Every setting and technical playback fact of session.json; no queue entries.
 pub(super) fn session_projection(session: Option<Py>) -> Result<Py, Failure> {
     let Some(session @ Py::Dict(_)) = session else {
         return Ok(Py::None);
@@ -96,7 +97,7 @@ pub(super) fn session_projection(session: Option<Py>) -> Result<Py, Failure> {
         ))
 }
 
-/// `_library_statistics`: counts only (sqlite read-only); never a name, title or path.
+/// The library's counts only (sqlite, read-only); never a name, title or path.
 pub(super) fn library_statistics(root: &Root) -> Py {
     use y2p_core::reports_sqlite::{Database, Error, Value};
     let path = root.path("/data/reborn/library.db");
@@ -219,7 +220,7 @@ const BOOTLOADERS: [(&str, &str, u64, usize); 2] = [
     ("preloader", "/dev/mmcblk0boot0", 0, 0x4_0000),
 ];
 
-/// `_hardware`.
+/// The hardware's identity: board, panel, storage chips, input devices, bootloader hashes.
 pub(super) fn hardware(root: &Root) -> Py {
     let compatible = root
         .read("/proc/device-tree/compatible")

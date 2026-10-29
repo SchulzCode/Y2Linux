@@ -19,7 +19,7 @@ use std::{
 pub use y2p_core::mounts::{mountinfo, mounts_at, Mount};
 use y2p_core::{clock as kernel, command, Root};
 
-/// `media.mounts(ctx)`: the mounts on /media/sd.
+/// The mounts on /media/sd.
 fn mounts(root: &Root) -> Vec<Mount> {
     mounts_at(root, "/media/sd")
 }
@@ -48,7 +48,7 @@ fn owned_mount(root: &Root, mounted: &Mount) -> bool {
         && eq(claim.get("device"), &Py::str(mounted.source.clone()))
 }
 
-/// `media._sd_state`: (claim, mount) of our current SD mount, else (claim, None).
+/// The SD claim and our current SD mount (None when the card is not mounted by us this boot).
 fn sd_state(root: &Root) -> (Py, Option<Mount>) {
     let claim = or_dict(json_dict(root, "/run/y2/media-mount.json"));
     let mut old = mounts(root);
@@ -121,7 +121,8 @@ fn apply_window(root: &Root, mount: &Mount, holders: &[(String, Py)]) -> Result<
     Ok(writable)
 }
 
-/// `media.write_window(ctx, 'report', seconds, release)`; its answer's holders.
+/// Open the report's write window for `seconds` (or close it, `release`) on a protected card; the
+/// holders of the window then (none when there is no window).
 fn write_window(root: &Root, seconds: i64, release: bool) -> Result<Vec<String>, Failure> {
     let runtime = root.path("/run/y2");
     crate::reply::mkdir_parents(&runtime, 0o700)?;

@@ -144,7 +144,7 @@ pub fn save(root: &Root, value: &Py) -> Result<(), Failure> {
     Reports(value.clone()).save(root)
 }
 
-/// `ctx.glob(QUEUE + '/*.tar.gz')`.
+/// The queued reports (`QUEUE/*.tar.gz`).
 pub fn queued(root: &Root) -> Vec<PathBuf> {
     root.glob(&format!("{QUEUE}/*.tar.gz"))
 }

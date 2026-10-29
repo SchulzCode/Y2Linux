@@ -51,7 +51,7 @@ fn private_strings(scrubber: &mut Scrubber, line: &str) -> String {
         .into_owned()
 }
 
-/// `_scrub_blob`: one file's bytes, scrubbed by its kind (JSON, JSON lines, tar, text).
+/// One file's bytes, scrubbed by its kind (JSON, JSON lines, tar, text).
 pub fn blob(scrubber: &mut Scrubber, path: &str, data: &[u8]) -> Vec<u8> {
     if path.ends_with(".tar") || path.ends_with(".tar.gz") {
         return tar(scrubber, data, path.ends_with(".gz"));
@@ -84,7 +84,7 @@ pub fn blob(scrubber: &mut Scrubber, path: &str, data: &[u8]) -> Vec<u8> {
     scrubber.text(&text).into_bytes()
 }
 
-/// `_scrub_tar`: members of a retained tar (boot archives, Reborn diagnostics), each scrubbed.
+/// The members of a retained tar (boot archives, Reborn diagnostics), each scrubbed.
 pub fn tar(scrubber: &mut Scrubber, data: &[u8], compressed: bool) -> Vec<u8> {
     let Ok(members) = tarball::members(data, compressed, 64, |m| {
         m.regular && m.size <= SECTION_MAX as u64

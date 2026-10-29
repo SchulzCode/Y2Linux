@@ -53,7 +53,7 @@ use facts::{hardware, library_statistics, session_projection};
 pub use progress::{Bytes, Progress};
 use sources::{never, COMMANDS, FILES};
 
-/// `_tail`: the newest `limit` bytes, from the first line start within 4 KiB.
+/// The newest `limit` bytes, from the first line start within 4 KiB; and whether it was cut.
 pub fn tail(data: &[u8], limit: usize) -> (Vec<u8>, bool) {
     if data.len() <= limit {
         return (data.to_vec(), false);
@@ -65,7 +65,7 @@ pub fn tail(data: &[u8], limit: usize) -> (Vec<u8>, bool) {
     }
 }
 
-/// `_read_bytes`.
+/// A file's newest SECTION_MAX bytes (and whether it was cut); `None` when it cannot be read.
 fn read_bytes(root: &Root, name: &str) -> Option<(Vec<u8>, bool)> {
     let mut file = File::open(root.path(name)).ok()?;
     match file.seek(SeekFrom::End(0)) {
@@ -107,7 +107,7 @@ pub fn rel(root: &Root, path: &std::path::Path) -> String {
     format!("/{}", relative.to_string_lossy().trim_start_matches('/'))
 }
 
-/// `_parts`: a file as pieces that scrub independently: logs split at line ends (no pattern spans a
+/// A file as pieces that scrub independently: logs split at line ends (no pattern spans a
 /// line), JSON documents and archives whole.
 fn parts(path: &str, data: &[u8]) -> Vec<Vec<u8>> {
     if path.ends_with(".json")
@@ -129,7 +129,7 @@ fn parts(path: &str, data: &[u8]) -> Vec<Vec<u8>> {
     parts
 }
 
-/// `_scrub_files`: each (path, data) scrubbed on the cores; `progress(fraction)` follows the bytes
+/// Each (path, data) scrubbed on the cores; `progress(fraction)` follows the bytes
 /// done.
 fn scrub_files(
     scrubber: &mut Scrubber,
@@ -190,7 +190,7 @@ fn scrub_files(
     cleaned
 }
 
-/// `_pack`: tar.gz within BUDGET: the largest optional sections are cut first.
+/// The tar.gz within BUDGET: the largest optional sections are cut first.
 fn pack(root: &Root, index: &mut Py, members: &mut [(String, Vec<u8>)]) -> Vec<u8> {
     let mut optional: Vec<usize> = (0..members.len())
         .filter(|&i| members[i].0.starts_with("files/"))

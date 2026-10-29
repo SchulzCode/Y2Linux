@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 
-/// `_commands`: live state from tools; each bounded.
+/// Live state from tools (name, argv, timeout, output limit); each bounded.
 pub(super) const COMMANDS: [(&str, &[&str], f64, usize); 13] = [
     ("dmesg", &["dmesg"], 10.0, 2 << 20),
     ("platform_health", &["y2-platform", "health"], 10.0, 1 << 20),
@@ -64,7 +64,7 @@ pub(super) const COMMANDS: [(&str, &[&str], f64, usize); 13] = [
     ),
 ];
 
-/// Files copied whole (logs keep their newest end). Globs are bounded by ctx.glob.
+/// Files copied whole (logs keep their newest end). Globs are bounded by `Root::glob`.
 pub(super) const FILES: [&str; 68] = [
     "/sys/fs/pstore/*",
     "/data/logs/system.log",
