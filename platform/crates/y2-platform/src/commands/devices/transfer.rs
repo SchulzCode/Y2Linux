@@ -1,31 +1,28 @@
-//! `transfer.py`: verified owner uploads (private staging, identity/space checks, durable no-replace
-//! publish): `y2-platform transfer begin|commit|status|discard [--id] [--name] [--bytes] [--sha256]`.
-//! Output is sorted; errors are main.py's record. Every file operation below `/data` goes through
-//! directory descriptors opened without following symlinks, as Python's `dir_fd` calls, and an
-//! OSError names the relative name the call was given (Python's text).
+//! Verified owner uploads (private staging, identity/space checks, durable no-replace publish):
+//! `y2-platform transfer begin|commit|status|discard [--id] [--name] [--bytes] [--sha256]`.
+//! Output is sorted; errors are the error record. Every file operation below `/data` goes through
+//! directory descriptors opened without following symlinks (`fd`).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::storage::{self, data_volume, Volume, INTERNAL};
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
-use serde_json::{json, Map, Value};
-use std::os::fd::{AsFd, BorrowedFd};
+use fd::{
+    available, check, flock, fstat, fsync, linkat, open_absolute_directory, open_directory, openat,
+    read_chunk, unlinkat, write_some,
+};
+use serde::Serialize;
+use serde_json::{json, Value};
 use std::{
-    ffi::CString,
-    io::{self, Write},
     os::{
-        fd::{AsRawFd, FromRawFd, OwnedFd, RawFd},
-        unix::{
-            ffi::OsStrExt,
-            fs::{DirBuilderExt, OpenOptionsExt},
-        },
+        fd::{AsFd, AsRawFd, RawFd},
+        unix::fs::DirBuilderExt,
     },
     path::{Path, PathBuf},
-    sync::{mpsc, Arc},
-    thread,
     time::{Duration, Instant},
 };
-use y2p_core::lock;
+use workload::workload;
 use y2p_core::{
     devices_support::{hex, record, Digest, Sha256},
+    json::{Object, ObjectExt},
     py::{self, eq_int, exact_int},
     Root,
 };
@@ -33,6 +30,9 @@ use y2p_core::{
 const MAX_BYTES: i64 = 512 * 1024 * 1024;
 const RESERVE: u64 = 96 * 1024 * 1024;
 const CHUNK: usize = 1024 * 1024;
+
+mod fd;
+mod workload;
 
 pub struct Request {
     pub id: Option<String>,
@@ -50,7 +50,7 @@ pub fn run(root: &Root, action: &str, request: Request) -> Outcome {
             request.sha256.as_deref().unwrap_or_default(),
         )?,
         other => {
-            // `args.id or ''`.
+            // No id is an invalid one.
             let token = request.id.unwrap_or_default();
             match other {
                 "commit" => workload(root, "NetworkTransfer", || commit(root, &token))?,
@@ -62,197 +62,18 @@ pub fn run(root: &Root, action: &str, request: Request) -> Outcome {
     Reply::sorted(&value, 0)
 }
 
-// ---- Python's errors ------------------------------------------------------------------------------
-
-/// An OSError of a call without a file name (read, write, fsync, flock).
-fn unnamed(error: io::Error) -> Failure {
-    let (text, class) = py::os_error(&error, None);
-    Failure::Os { text, class }
-}
-
-/// An exception no Python code catches (an AttributeError on a tampered manifest): its traceback on
-/// stderr, nothing on stdout, exit 1. Not a fallback: commands already ran, or files changed.
-fn crash(what: &str) -> ! {
-    let _ = writeln!(
-        io::stderr(),
-        "Traceback (most recent call last):\n  transfer.commit\n{what}"
-    );
-    std::process::exit(1)
-}
-
-// ---- descriptors ---------------------------------------------------------------------------------
-
-fn c_name(name: &str) -> CString {
-    CString::new(name).expect("validated names hold no NUL")
-}
-
-/// `os.open(name, flags, mode, dir_fd=dir)` (Python adds O_CLOEXEC).
-fn openat(dir: RawFd, name: &str, flags: i32, mode: u32) -> Result<OwnedFd, Failure> {
-    let c = c_name(name);
-    // SAFETY: a NUL-terminated name; the result is a new descriptor this function owns.
-    let fd = unsafe {
-        libc::openat(
-            dir,
-            c.as_ptr(),
-            flags | libc::O_CLOEXEC,
-            mode as libc::c_uint,
-        )
-    };
-    if fd < 0 {
-        return Err(Failure::os(io::Error::last_os_error(), Path::new(name)));
-    }
-    // SAFETY: fd was just opened and is owned by nobody else.
-    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
-}
-
-/// `os.open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW)` of an absolute (root-prefixed) path.
-fn open_absolute_directory(path: &Path) -> Result<OwnedFd, Failure> {
-    let name = CString::new(path.as_os_str().as_bytes()).expect("paths hold no NUL");
-    // SAFETY: as openat.
-    let fd = unsafe {
-        libc::open64(
-            name.as_ptr(),
-            libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-        )
-    };
-    if fd < 0 {
-        return Err(Failure::os(io::Error::last_os_error(), path));
-    }
-    // SAFETY: as openat.
-    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
-}
-
-fn fstat(fd: RawFd) -> Result<y2p_core::sys::Stat, Failure> {
-    // SAFETY: callers pass a descriptor they hold open for this call.
-    y2p_core::sys::fstat(unsafe { BorrowedFd::borrow_raw(fd) }).map_err(unnamed)
-}
-
-/// `f_bavail * f_frsize` of the filesystem holding `fd`.
-fn available(fd: RawFd) -> Result<u64, Failure> {
-    // SAFETY: callers pass a descriptor they hold open for this call.
-    let space = y2p_core::sys::fstatvfs(unsafe { BorrowedFd::borrow_raw(fd) }).map_err(unnamed)?;
-    Ok(space.available())
-}
-
-fn check(result: libc::c_int) -> Result<(), Failure> {
-    if result != 0 {
-        return Err(unnamed(io::Error::last_os_error()));
-    }
-    Ok(())
-}
-
-fn fsync(fd: RawFd) -> Result<(), Failure> {
-    // SAFETY: plain syscall on an open descriptor.
-    check(unsafe { libc::fsync(fd) })
-}
-
-/// `fcntl.flock(fd, LOCK_EX | LOCK_NB)`: busy is `[Errno 11] Resource temporarily unavailable`.
-fn flock(fd: BorrowedFd<'_>) -> Result<(), Failure> {
-    match lock::try_fd(fd, lock::Kind::Exclusive) {
-        Ok(true) => Ok(()),
-        Ok(false) => Err(unnamed(lock::would_block())),
-        Err(error) => Err(unnamed(error)),
-    }
-}
-
-/// `os.unlink(name, dir_fd=dir)` (`os.rmdir` with AT_REMOVEDIR); `missing_ok` as
-/// `except FileNotFoundError: pass`.
-fn unlinkat(dir: RawFd, name: &str, flags: libc::c_int, missing_ok: bool) -> Result<(), Failure> {
-    let c = c_name(name);
-    // SAFETY: a NUL-terminated name relative to an open directory.
-    if unsafe { libc::unlinkat(dir, c.as_ptr(), flags) } != 0 {
-        let error = io::Error::last_os_error();
-        if missing_ok && error.raw_os_error() == Some(libc::ENOENT) {
-            return Ok(());
-        }
-        return Err(Failure::os(error, Path::new(name)));
-    }
-    Ok(())
-}
-
-/// `os.link(source, name, src_dir_fd=…, dst_dir_fd=…, follow_symlinks=False)`: atomic, and fails
-/// on an existing name (`[Errno 17] File exists: 'sealed.part' -> 'name'`).
-fn linkat(from_dir: RawFd, from: &str, to_dir: RawFd, to: &str) -> Result<(), Failure> {
-    // SAFETY: NUL-terminated names relative to open directories.
-    let result = unsafe {
-        libc::linkat(
-            from_dir,
-            c_name(from).as_ptr(),
-            to_dir,
-            c_name(to).as_ptr(),
-            0,
-        )
-    };
-    if result != 0 {
-        let error = io::Error::last_os_error();
-        let (text, class) = py::os_error(&error, None);
-        return Err(Failure::Os {
-            text: format!("{text}: {} -> {}", py::repr(from), py::repr(to)),
-            class,
-        });
-    }
-    Ok(())
-}
-
-fn read_chunk(fd: RawFd, limit: usize) -> Result<Vec<u8>, Failure> {
-    let mut buffer = vec![0u8; limit];
-    // SAFETY: the buffer is writable for `limit` bytes.
-    let count = unsafe { libc::read(fd, buffer.as_mut_ptr().cast(), limit) };
-    if count < 0 {
-        return Err(unnamed(io::Error::last_os_error()));
-    }
-    buffer.truncate(count as usize);
-    Ok(buffer)
-}
-
-fn write_some(fd: RawFd, data: &[u8]) -> Result<usize, Failure> {
-    // SAFETY: the slice is readable for its length.
-    let count = unsafe { libc::write(fd, data.as_ptr().cast(), data.len()) };
-    if count < 0 {
-        return Err(unnamed(io::Error::last_os_error()));
-    }
-    Ok(count as usize)
-}
-
-/// `open_directory(parent, component, create)`: one component, never through a symlink, never onto
-/// another filesystem.
-fn open_directory(parent: RawFd, component: &str, create: bool) -> Result<OwnedFd, Failure> {
-    if create {
-        // SAFETY: a NUL-terminated name relative to an open directory.
-        let c = c_name(component);
-        if unsafe { libc::mkdirat(parent, c.as_ptr(), 0o755) } == 0 {
-            fsync(parent)?;
-        } else {
-            let error = io::Error::last_os_error();
-            if error.raw_os_error() != Some(libc::EEXIST) {
-                return Err(Failure::os(error, Path::new(component)));
-            }
-        }
-    }
-    let fd = openat(
-        parent,
-        component,
-        libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW,
-        0o777,
-    )?;
-    if fstat(fd.as_raw_fd())?.dev != fstat(parent)?.dev {
-        return Err(Failure::value("transfer_submount_refused"));
-    }
-    Ok(fd)
-}
-
 // ---- checks ---------------------------------------------------------------------------------------
 
 fn hex_of(text: &str, length: usize) -> bool {
     text.len() == length && text.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
-/// `filename(name)`: a relative path of 1-8 components, none empty or hidden, each at most 120 bytes
+/// A media name: a relative path of 1-8 components, none empty or hidden, each at most 120 bytes
 /// without control characters or backslashes, at most 512 bytes in all.
 fn filename(name: Option<&str>) -> Result<Vec<String>, Failure> {
     let invalid = || Failure::value("invalid_media_name");
     let name = name.ok_or_else(invalid)?;
-    // `len(name.encode())`: a name that was not UTF-8 (surrogate escapes) cannot be encoded.
+    // A name that was not UTF-8 (an escaped argument byte) is refused with the encoding error.
     if let Some(text) = y2p_core::os_text::encode_error(name) {
         return Err(Failure::raised("UnicodeEncodeError", text));
     }
@@ -285,7 +106,7 @@ fn media_volume(root: &Root) -> Result<Volume, Failure> {
         .ok_or_else(|| Failure::value("verified_internal_media_unavailable"))
 }
 
-/// `common.json_read(path, default)`: any parsed document, the default when unreadable or not JSON.
+/// Any parsed JSON document; `None` when unreadable or not JSON.
 fn json_read(path: &Path) -> Option<Value> {
     serde_json::from_str(
         &y2p_core::root::read(path, y2p_core::root::READ_LIMIT).unwrap_or_default(),
@@ -333,29 +154,69 @@ fn begin(
         .mode(0o700)
         .create(&directory)
         .map_err(|e| Failure::os(e, &directory))?;
-    let mut value = Map::new();
-    value.insert("schema".into(), json!(1));
-    value.insert("id".into(), json!(token));
-    value.insert("name".into(), json!(name));
-    value.insert("bytes".into(), json!(size));
-    value.insert("sha256".into(), json!(sha256));
-    value.insert("data_generation".into(), json!(volume.generation));
-    value.insert("state".into(), json!("Staging"));
-    value.insert(
-        "record".into(),
-        serde_json::to_value(record(
-            root,
-            "usb-transfer",
-            json!({"name": name, "bytes": size}),
-        ))
-        .map_err(Failure::value)?,
-    );
-    atomic_json(&directory.join("manifest.json"), &value, true)?;
-    value.insert(
-        "upload_path".into(),
-        json!(format!("/data/transfer-staging/{token}/payload.part")),
-    );
-    Ok(Value::Object(value))
+    let mut manifest = NewManifest {
+        schema: 1,
+        id: &token,
+        name,
+        bytes: size,
+        sha256,
+        data_generation: volume.generation,
+        state: "Staging",
+        record: record(root, "usb-transfer", json!({"name": name, "bytes": size})),
+        upload_path: None,
+    };
+    atomic_json(&directory.join("manifest.json"), &manifest, true)?;
+    manifest.upload_path = Some(format!("/data/transfer-staging/{token}/payload.part"));
+    serde_json::to_value(manifest).map_err(Failure::value)
+}
+
+/// manifest.json as `begin` writes it (sorted); it prints it with the path to upload to.
+#[derive(Serialize)]
+struct NewManifest<'a> {
+    schema: u8,
+    id: &'a str,
+    name: &'a str,
+    bytes: i64,
+    sha256: &'a str,
+    /// The /data volume the upload was admitted on; commit refuses another one.
+    data_generation: Option<String>,
+    state: &'static str,
+    /// The evidence record (`devices_support::record`) commit completes with its result.
+    record: Object,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    upload_path: Option<String>,
+}
+
+/// What commit takes from a Staging manifest, each field checked (in this order: the name, the
+/// /data generation, size, hash and evidence record).
+struct Staged {
+    /// The name's path components below `music`.
+    parts: Vec<String>,
+    size: i64,
+    sha256: String,
+}
+
+fn staged(manifest: &Object, volume: &Volume) -> Result<Staged, Failure> {
+    let parts = filename(manifest.get("name").and_then(Value::as_str))?;
+    if manifest.value("data_generation") != json!(volume.generation) {
+        return Err(Failure::value("data_generation_changed"));
+    }
+    let size = exact_int(manifest.get("bytes")).filter(|s| (1..=MAX_BYTES).contains(s));
+    let sha256 = manifest
+        .get("sha256")
+        .and_then(Value::as_str)
+        .filter(|s| hex_of(s, 64));
+    // The evidence record is completed once the upload is published: one that is not an object
+    // refuses before anything is copied.
+    let record = manifest.get("record").is_some_and(Value::is_object);
+    let (Some(size), Some(sha256), true) = (size, sha256, record) else {
+        return Err(Failure::value("invalid_transfer_manifest"));
+    };
+    Ok(Staged {
+        parts,
+        size,
+        sha256: sha256.to_owned(),
+    })
 }
 
 fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
@@ -371,13 +232,14 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
         0o600,
     )?;
     flock(lock.as_fd())?;
-    // The manifest through the stage's own descriptor ("used even under a test root").
+    // The manifest through the stage's own descriptor (/proc/self/fd, also below a fixture root):
+    // the stage cannot be swapped for another directory between the checks and the rewrite.
     let anchored = PathBuf::from(format!("/proc/self/fd/{}", stage.as_raw_fd()));
-    let mut value = match json_read(&anchored.join("manifest.json")).unwrap_or(json!({})) {
-        Value::Object(map) => map,
-        // `value.get` of a list or number: Python's AttributeError. No fallback: the volume's blkid
-        // requests already ran (a second run would ask again).
-        _ => crash("AttributeError: the manifest is not a dict"),
+    // A missing or unreadable manifest has no state; JSON that is not an object is no manifest.
+    let Value::Object(mut value) =
+        json_read(&anchored.join("manifest.json")).unwrap_or_else(|| json!({}))
+    else {
+        return Err(Failure::value("invalid_transfer_manifest"));
     };
     let state = value
         .get("state")
@@ -392,25 +254,44 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
     if state.as_deref() == Some("Committed") {
         return Ok(Value::Object(value));
     }
-    let parts = filename(value.get("name").and_then(Value::as_str))?;
-    let recorded_generation = value.get("data_generation").cloned().unwrap_or(Value::Null);
-    if recorded_generation != json!(volume.generation) {
-        return Err(Failure::value("data_generation_changed"));
-    }
-    let size = exact_int(value.get("bytes")).filter(|s| (1..=MAX_BYTES).contains(s));
-    let expected = value
-        .get("sha256")
-        .and_then(Value::as_str)
-        .filter(|s| hex_of(s, 64))
-        .map(str::to_owned);
-    let (Some(size), Some(expected)) = (size, expected) else {
-        return Err(Failure::value("invalid_transfer_manifest"));
-    };
+    let Staged {
+        parts,
+        size,
+        sha256: expected,
+    } = staged(&value, &volume)?;
     if !storage::admitted(&volume, size as u64) {
         return Err(Failure::value("insufficient_space_for_seal_and_reserve"));
     }
-    let source = openat(
+    seal(stage.as_raw_fd(), size, &expected)?;
+    if data_volume(root)?.generation != volume.generation {
+        return Err(Failure::value("data_generation_changed"));
+    }
+    publish(
+        root,
+        data.as_raw_fd(),
         stage.as_raw_fd(),
+        &parts,
+        size,
+        &expected,
+    )?;
+    value.insert("state".into(), json!("Committed"));
+    // `staged` refused a manifest whose record is not an object.
+    if let Some(record) = value.get_mut("record").and_then(Value::as_object_mut) {
+        record.insert("result".into(), json!("OK"));
+        record.insert("failure".into(), Value::Null);
+    }
+    atomic_json(&anchored.join("manifest.json"), &value, true)?;
+    unlinkat(stage.as_raw_fd(), "sealed.part", 0, false)?;
+    unlinkat(stage.as_raw_fd(), "payload.part", 0, false)?;
+    fsync(stage.as_raw_fd())?;
+    Ok(Value::Object(value))
+}
+
+/// Copy the upload to an exclusive `sealed.part` while hashing it, within the deadline and the
+/// storage reserve; the copy must have the manifest's size and hash.
+fn seal(stage: RawFd, size: i64, expected: &str) -> Result<(), Failure> {
+    let source = openat(
+        stage,
         "payload.part",
         libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_NONBLOCK,
         0o777,
@@ -423,7 +304,7 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
     // Copy to an O_EXCL inode: an older SFTP FD cannot mutate the published bytes after
     // verification. Stale seal files are safe explicit retry artifacts.
     let sealed = openat(
-        stage.as_raw_fd(),
+        stage,
         "sealed.part",
         libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW,
         0o600,
@@ -459,9 +340,18 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
     // SAFETY: plain syscall on an open descriptor.
     check(unsafe { libc::fchmod(sealed.as_raw_fd(), 0o644) })?;
     fsync(sealed.as_raw_fd())?;
-    if json!(data_volume(root)?.generation) != recorded_generation {
-        return Err(Failure::value("data_generation_changed"));
-    }
+    Ok(())
+}
+
+/// Publish the sealed upload as `music/<parts>` on its music volume without replacing anything.
+fn publish(
+    root: &Root,
+    data: RawFd,
+    stage: RawFd,
+    parts: &[String],
+    size: i64,
+    expected: &str,
+) -> Result<(), Failure> {
     // Music lives on Y2Media once it is mounted and recorded Ready, else on Y2DATA.
     let mut media = None;
     let mut destination = None;
@@ -469,45 +359,29 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
         destination = Some(media_volume(root)?);
         media = Some(open_absolute_directory(&root.path(INTERNAL))?);
     }
-    let base = media.as_ref().unwrap_or(&data).as_raw_fd();
+    let base = media.as_ref().map_or(data, AsRawFd::as_raw_fd);
     let mut target = open_directory(base, "music", true)?;
-    for part in &parts[..parts.len() - 1] {
+    let (leaf, directories) = parts
+        .split_last()
+        .ok_or_else(|| Failure::value("invalid_media_name"))?;
+    for part in directories {
         target = open_directory(target.as_raw_fd(), part, true)?;
     }
-    let leaf = &parts[parts.len() - 1];
     if let Some(destination) = destination {
         if media_volume(root)?.generation != destination.generation {
             return Err(Failure::value("media_generation_changed"));
         }
-        if fstat(stage.as_raw_fd())?.dev == fstat(target.as_raw_fd())?.dev {
-            linkat(stage.as_raw_fd(), "sealed.part", target.as_raw_fd(), leaf)?;
+        if fstat(stage)?.dev == fstat(target.as_raw_fd())?.dev {
+            linkat(stage, "sealed.part", target.as_raw_fd(), leaf)?;
         } else {
-            publish_copy(
-                stage.as_raw_fd(),
-                leaf,
-                target.as_raw_fd(),
-                size as u64,
-                &expected,
-            )?;
+            publish_copy(stage, leaf, target.as_raw_fd(), size as u64, expected)?;
         }
     } else {
         // linkat is atomic and fails on an existing name; never overwrite music.
-        linkat(stage.as_raw_fd(), "sealed.part", target.as_raw_fd(), leaf)?;
+        linkat(stage, "sealed.part", target.as_raw_fd(), leaf)?;
     }
     fsync(target.as_raw_fd())?;
-    value.insert("state".into(), json!("Committed"));
-    match value.get_mut("record") {
-        Some(Value::Object(record)) => {
-            record.insert("result".into(), json!("OK"));
-            record.insert("failure".into(), Value::Null);
-        }
-        _ => crash("AttributeError: the manifest's record is not a dict"),
-    }
-    atomic_json(&anchored.join("manifest.json"), &value, true)?;
-    unlinkat(stage.as_raw_fd(), "sealed.part", 0, false)?;
-    unlinkat(stage.as_raw_fd(), "payload.part", 0, false)?;
-    fsync(stage.as_raw_fd())?;
-    Ok(Value::Object(value))
+    Ok(())
 }
 
 /// Cross-filesystem publish: copy the sealed bytes into the target directory, verify, link without
@@ -561,8 +435,8 @@ fn publish_copy(
         linkat(target, &temporary, target, name)
     })();
     drop((source, out));
-    // An unlink error other than a missing file replaces the original exception, as in Python's
-    // `finally`.
+    // The temporary name goes either way; an unlink error other than a missing file is reported
+    // instead of the copy's own result.
     unlinkat(target, &temporary, 0, true)?;
     result
 }
@@ -600,62 +474,6 @@ fn discard(root: &Root, token: &str) -> Result<Value, Failure> {
     Ok(json!({"state": "Discarded", "id": token}))
 }
 
-// ---- workload.workload ----------------------------------------------------------------------------
-
-/// `@workload(class_name)`: a shared activity lease for the whole call (sleep takes it exclusively;
-/// unlike optional frequency hints this is a mandatory operation exclusion, and flock dies with the
-/// process), plus the optional `/dev/y2-workload` QoS hint renewed every second on its own thread,
-/// even while a blocking transfer runs for minutes. A missing or failing hint never fails the work.
-fn workload<T>(
-    root: &Root,
-    class: &str,
-    work: impl FnOnce() -> Result<T, Failure>,
-) -> Result<T, Failure> {
-    let runtime = root.path("/run/y2");
-    private_directory(&runtime)?;
-    let path = runtime.join("activity.lock");
-    let _lease = y2p_core::lock::try_shared(&path)
-        .map_err(|e| Failure::os(e, &path))?
-        .ok_or_else(|| Failure::value("sleep_operation_in_progress"))?;
-    let payload = format!("{class} 3000\n").into_bytes();
-    let mut renewal = None;
-    let mut hint = None;
-    if let Ok(file) = std::fs::OpenOptions::new()
-        .write(true)
-        .custom_flags(libc::O_CLOEXEC)
-        .open(root.path("/dev/y2-workload"))
-    {
-        let file = Arc::new(file);
-        if matches!((&*file).write(&payload), Ok(n) if n == payload.len()) {
-            let (stop, stopped) = mpsc::channel::<()>();
-            let (writer, payload) = (Arc::clone(&file), payload.clone());
-            let worker = thread::spawn(move || loop {
-                if !matches!(stopped.try_recv(), Err(mpsc::TryRecvError::Empty)) {
-                    return;
-                }
-                if !matches!((&*writer).write(&payload), Ok(n) if n == payload.len()) {
-                    return;
-                }
-                if !matches!(
-                    stopped.recv_timeout(Duration::from_secs(1)),
-                    Err(mpsc::RecvTimeoutError::Timeout)
-                ) {
-                    return;
-                }
-            });
-            renewal = Some((stop, worker));
-        }
-        hint = Some(file);
-    }
-    let result = work();
-    if let Some((stop, worker)) = renewal {
-        drop(stop);
-        let _ = worker.join();
-    }
-    drop(hint); // close/process death releases only this lease
-    result
-}
-
 #[cfg(test)]
 #[path = "transfer_tests.rs"]
 mod transfer_tests;
@@ -665,7 +483,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn names_and_ids_follow_transfer_py() {
+    fn media_names_and_stage_ids_are_checked() {
         assert_eq!(filename(Some("A/b.flac")).unwrap(), ["A", "b.flac"]);
         for bad in [
             "",

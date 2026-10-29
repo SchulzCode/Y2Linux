@@ -10,9 +10,58 @@
     "shutdown_pending"
    ],
    "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/etc/init.d/S90reborn",
+    "stop"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/usr/sbin/y2-platform",
+    "time-remember"
+   ],
+   "timeout": 2.0
+  },
+  {
+   "argv": [
+    "/bin/busybox",
+    "sync"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "/etc/init.d/S41y2-connectivity",
+    "stop-wifi"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/etc/init.d/S41y2-connectivity",
+    "stop-bluetooth"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/etc/init.d/S41y2-connectivity",
+    "stop-daemon"
+   ],
+   "timeout": 3.0
+  },
+  {
+   "argv": [
+    "/bin/busybox",
+    "poweroff"
+   ],
+   "timeout": 2.0
   }
  ],
- "exit": 1,
+ "exit": 0,
  "stdout": [],
  "tree": {
   "added": {
@@ -93,10 +142,6 @@
     "mode": "0o600",
     "type": "file"
    },
-   "/run/y2/power.sock": {
-    "mode": "0o600",
-    "type": "other"
-   },
    "/sys/class/power_supply/BAT0/watchdog_powers_off": {
     "content": 1,
     "mode": "0o644",
@@ -110,14 +155,32 @@
      "<clock> shutdown watchdog ok",
      "<clock> shutdown long_press_reset long_press_reset_unavailable",
      "<clock> shutdown begin journal_pending",
-     "<clock> shutdown journal_pending fixture"
+     "<clock> shutdown journal_pending fixture",
+     "<clock> shutdown begin S90reborn",
+     "<clock> shutdown S90reborn fixture",
+     "<clock> shutdown begin kill",
+     "<clock> shutdown begin backlight",
+     "<clock> shutdown begin time_remember",
+     "<clock> shutdown time_remember fixture",
+     "<clock> shutdown begin sync",
+     "<clock> shutdown sync fixture",
+     "<clock> shutdown begin S41_wifi",
+     "<clock> shutdown S41_wifi fixture",
+     "<clock> shutdown begin S41_wifi_removed",
+     "<clock> shutdown S41_wifi_removed ok",
+     "<clock> shutdown begin S41_bluetooth",
+     "<clock> shutdown S41_bluetooth fixture",
+     "<clock> shutdown begin S41_daemon",
+     "<clock> shutdown S41_daemon fixture",
+     "<clock> shutdown begin init_poweroff",
+     "<clock> shutdown init_poweroff fixture"
     ],
     "mode": "0o644",
     "type": "file"
    },
    "/dev/watchdog": {
     "content": [
-     "."
+     "..........."
     ],
     "mode": "0o644",
     "type": "file"
@@ -131,12 +194,62 @@
      "boot_id": "boot-a",
      "client": null,
      "deadline_monotonic_ns": "<volatile>",
-     "failure": null,
+     "failure": "init_shutdown_request_failed",
      "id": "<uuid>",
      "reason": "user",
      "requested_monotonic_ns": "<volatile>",
      "schema": 1,
-     "state": "Executing"
+     "state": "Failed",
+     "stop_results": {
+      "S41_bluetooth": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "S41_daemon": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "S41_wifi": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "S41_wifi_removed": {
+       "ok": true,
+       "reason": null
+      },
+      "S90reborn": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "backlight": {
+       "ok": false,
+       "reason": "no_backlight"
+      },
+      "backlight_early": {
+       "ok": false,
+       "reason": "no_backlight"
+      },
+      "journal_pending": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "long_press_reset": {
+       "ok": false,
+       "reason": "long_press_reset_unavailable"
+      },
+      "sync": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "time_remember": {
+       "ok": false,
+       "reason": "fixture"
+      },
+      "watchdog": {
+       "ok": true,
+       "reason": null
+      }
+     }
     },
     "mode": "0o600",
     "type": "file"

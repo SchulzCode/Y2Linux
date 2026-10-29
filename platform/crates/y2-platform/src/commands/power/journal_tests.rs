@@ -259,7 +259,7 @@ fn idle_counters_are_cumulative_and_collected_only_for_due_rows() {
             "/sys/devices/system/cpu/cpu0/cpuidle/state2/name",
             "DORMANT",
         ),
-        ("/sys/devices/system/cpu/cpu0/cpuidle/state2/usage", "123"),
+        ("/sys/devices/system/cpu/cpu0/cpuidle/state2/usage", "122"),
         (
             "/sys/devices/system/cpu/cpu0/cpuidle/state2/time",
             "4500000",
@@ -278,18 +278,22 @@ fn idle_counters_are_cumulative_and_collected_only_for_due_rows() {
     }
     let mut journal = PowerJournal::new();
     let sample = battery(json!({"status": "Discharging"}));
+    let usage = "/sys/devices/system/cpu/cpu0/cpuidle/state2/usage";
     for now in 0..601 {
+        if now == 450 {
+            fixture.put(usage, "123");
+        }
         journal.observe_at(&fixture.root, "Normal", &sample, None, None, now as f64);
     }
-    // Python counted three idle_counters calls in 601 samples: one per due row, each row has them.
+    // Three due rows in 601 samples, each with the counters as they were when it was written.
     let rows = rows(&fixture);
     assert_eq!(rows.len(), 3);
     assert!(rows.iter().all(|row| row["idle_counters"].is_object()));
-    let source = include_str!("journal.rs");
-    let row_fn =
-        source.find("    fn row(\n        &self,\n        root: &Root,\n        state: &str,");
-    assert_eq!(source.matches("idle_counters(root)").count(), 1);
-    assert!(row_fn.is_some_and(|start| source.find("idle_counters(root)").unwrap() > start));
+    let usages: Vec<&Value> = rows
+        .iter()
+        .map(|row| &row["idle_counters"]["cpuidle"]["0"]["DORMANT"]["usage"])
+        .collect();
+    assert_eq!(usages, [&json!(122), &json!(122), &json!(123)]);
     let row = &rows[2]["idle_counters"];
     assert_eq!(row["cpuidle"]["0"]["DORMANT"]["usage"], 123);
     assert!(row["cpuidle"]["0"]["DORMANT"]["rejected"].is_null());

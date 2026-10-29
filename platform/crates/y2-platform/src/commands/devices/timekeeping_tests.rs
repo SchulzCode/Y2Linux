@@ -1,6 +1,5 @@
-//! The RTC alarm (`rtc-alarm`, timekeeping.alarm): what tests/test_hardware_final_contract.py checked
-//! of the Python platform. The clock commands, which read the real clocks, are tested on the command
-//! line (tests/connectivity.rs).
+//! The RTC alarm (`rtc-alarm`). The other clock commands are tested on the command line
+//! (tests/connectivity.rs).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::Fixture;

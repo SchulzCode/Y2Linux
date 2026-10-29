@@ -1,28 +1,29 @@
-//! `ssh.py`: `y2-platform ssh-daemon`, USB-only owner SSH, started only after the kernel CRNG is
-//! initialized. One loop iteration is one `tick`; the loop publishes /run/y2/ssh.json each time (1 s
-//! while not Ready, 5 s while Ready, at once on a netlink address event or a signal), starts one
-//! dropbear per daemon lifetime once every prerequisite holds and calls it Ready only when its socket
-//! listens on 10.42.0.1:22. SIGTERM/SIGINT end it with exit 0 and no output, after which
-//! platform-supervise stops supervising for good; a dropbear that exits is `ssh_listener_exited`
-//! (exit 1, the supervisor restarts the daemon). Below a fixture root `Y2_DAEMON_TICKS=n` ends the
-//! loop after n iterations, as SIGTERM would.
+//! `y2-platform ssh-daemon`: USB-only owner SSH, started only after the kernel CRNG is initialized.
+//! One loop iteration is one `tick`; the loop publishes /run/y2/ssh.json each time (1 s while not
+//! Ready, 5 s while Ready, at once on a netlink address event or a signal), starts one dropbear per
+//! daemon lifetime once every prerequisite holds and calls it Ready only when its socket listens on
+//! 10.42.0.1:22. SIGTERM/SIGINT end it with exit 0 and no output, after which platform-supervise stops
+//! supervising for good; a dropbear that exits is `ssh_listener_exited` (exit 1, the supervisor
+//! restarts the daemon). Below a fixture root `Y2_DAEMON_TICKS=n` ends the loop after n iterations, as
+//! SIGTERM would.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::{atomic_json, private_directory, Failure, Outcome};
-use serde_json::{json, Value};
+use serde::Serialize;
+use serde_json::Value;
 use std::{
     io::{self, Write},
     os::{
-        fd::{AsRawFd, FromRawFd, OwnedFd, RawFd},
+        fd::{AsRawFd, FromRawFd, OwnedFd},
         unix::process::CommandExt,
     },
     process::{Child, Command, Stdio},
-    sync::atomic::{AtomicBool, AtomicI32, Ordering},
+    sync::atomic::Ordering,
     thread,
     time::{Duration, Instant},
 };
-use y2p_core::sys::{set_signal, Disposition, Handler};
+use wake::{AddressEvents, Signals, RUNNING};
 use y2p_core::{
-    clock, command,
+    command,
     py::{self, eq_int},
     Root,
 };
@@ -47,10 +48,13 @@ const DROPBEAR_ARGS: [&str; 15] = [
     "600",
 ];
 
-type Address = (bool, Option<&'static str>);
+mod wake;
 
-/// `usb_address(ctx)`: usb0 carries exactly 10.42.0.1/24 (`ip -j` JSON); an answer that is not the
-/// expected shape is `usb_interface_not_ready`.
+/// Whether usb0 carries the owner address, or the reason it does not yet.
+type Address = Result<(), &'static str>;
+
+/// usb0 carries exactly 10.42.0.1/24 (`ip -j` JSON); an answer that is not the expected shape is
+/// `usb_interface_not_ready`.
 fn usb_address(root: &Root) -> Address {
     let result = command::run(
         root,
@@ -59,20 +63,21 @@ fn usb_address(root: &Root) -> Address {
     );
     let parsed: Option<Value> = serde_json::from_str(result.output.as_deref().unwrap_or("")).ok();
     match parsed.as_ref().map(configured) {
-        Some(Ok(true)) => (true, None),
-        Some(Ok(false)) => (false, Some("usb_address_not_ready")),
-        _ => (false, Some("usb_interface_not_ready")),
+        Some(Ok(true)) => Ok(()),
+        Some(Ok(false)) => Err("usb_address_not_ready"),
+        _ => Err("usb_interface_not_ready"),
     }
 }
 
-/// Python iteration of a parsed JSON value (`py::iterate`); anything else is a TypeError (`Err`).
+/// The items of a JSON list (an object's keys, a string's characters: `py::iterate`); `Err` for a
+/// value that has none.
 fn items(value: &Value) -> Result<Vec<Value>, ()> {
     y2p_core::py::iterate(value).ok_or(())
 }
 
-/// `any(a.get('local') == '10.42.0.1' and a.get('prefixlen') == 24 for i in interfaces if
-/// i.get('ifname') == 'usb0' for a in i.get('addr_info', []))`, evaluated lazily as the generator:
-/// `.get` of a non-dict is an AttributeError, iterating a non-iterable a TypeError (both `Err`).
+/// Whether an interface named usb0 has the address 10.42.0.1 with prefix length 24. The interfaces
+/// are read in order and the first match ends the search; an interface or address that is not an
+/// object, or `addr_info` without items, before a match makes the answer malformed (`Err`).
 fn configured(interfaces: &Value) -> Result<bool, ()> {
     for interface in items(interfaces)? {
         let interface = interface.as_object().ok_or(())?;
@@ -95,7 +100,7 @@ fn configured(interfaces: &Value) -> Result<bool, ()> {
     Ok(false)
 }
 
-/// `prerequisites(ctx, entropy, address)`, in order: key, CRNG, usb0 address, verified /data.
+/// What SSH waits for, in order: the owner's key, the CRNG, the usb0 address, a verified /data.
 fn prerequisites(root: &Root, entropy: bool, address: Address) -> (&'static str, &'static str) {
     if root
         .read("/root/.ssh/authorized_keys")
@@ -106,8 +111,8 @@ fn prerequisites(root: &Root, entropy: bool, address: Address) -> (&'static str,
     if !entropy {
         return ("Starting", "kernel_crng_not_ready");
     }
-    if !address.0 {
-        return ("Starting", address.1.unwrap_or("usb_interface_not_ready"));
+    if let Err(reason) = address {
+        return ("Starting", reason);
     }
     if root.read("/data/.y2data-schema").as_deref() != Some("1") {
         return ("Failed", "data_schema_unavailable");
@@ -119,179 +124,42 @@ fn prerequisites(root: &Root, entropy: bool, address: Address) -> (&'static str,
 /// state 0A).
 fn listening(root: &Root) -> bool {
     let table = root.read("/proc/net/tcp").unwrap_or_default();
-    table.lines().skip(1).any(|line| {
-        let fields: Vec<&str> = line.split_whitespace().collect();
-        fields.len() > 3 && line.contains("01002A0A:0016") && fields[3] == "0A"
-    })
-}
-
-// ---- signals: Python's handlers and signal.set_wakeup_fd -----------------------------------------
-
-static RUNNING: AtomicBool = AtomicBool::new(true);
-static WAKE: AtomicI32 = AtomicI32::new(-1);
-const SIGNALS: [libc::c_int; 3] = [libc::SIGTERM, libc::SIGINT, libc::SIGCHLD];
-
-extern "C" fn on_signal(signal: libc::c_int) {
-    // SAFETY: only async-signal-safe calls; errno is restored for the interrupted code.
-    unsafe {
-        let errno = *libc::__errno_location();
-        if signal == libc::SIGTERM || signal == libc::SIGINT {
-            RUNNING.store(false, Ordering::SeqCst);
-        }
-        let fd = WAKE.load(Ordering::SeqCst);
-        if fd >= 0 {
-            let byte = signal as u8;
-            libc::write(fd, (&byte as *const u8).cast(), 1);
-        }
-        *libc::__errno_location() = errno;
-    }
-}
-
-struct Signals {
-    previous: Vec<(libc::c_int, Disposition)>,
-}
-
-impl Signals {
-    /// SIGTERM/SIGINT stop the loop, SIGCHLD only wakes it (a no-op handler); each writes its number
-    /// to the wakeup pipe.
-    fn install(wake: RawFd) -> Signals {
-        WAKE.store(wake, Ordering::SeqCst);
-        let mut previous = Vec::new();
-        for signal in SIGNALS {
-            // SAFETY: the handler only touches atomics and write(2); the old action is kept.
-            if let Ok(old) =
-                unsafe { set_signal(signal, Handler::Call(on_signal), libc::SA_ONSTACK) }
-            {
-                previous.push((signal, old));
-            }
-        }
-        Signals { previous }
-    }
-
-    fn restore(self) {
-        WAKE.store(-1, Ordering::SeqCst);
-        for (signal, old) in self.previous {
-            old.restore(signal);
-        }
-    }
-}
-
-// ---- AddressEvents -------------------------------------------------------------------------------
-
-/// Passive link/IPv4-address events; never configures the USB interface.
-struct AddressEvents {
-    sock: Option<OwnedFd>,
-}
-
-impl AddressEvents {
-    fn new() -> AddressEvents {
-        // SAFETY: plain socket calls; the descriptor is owned right after it is created.
-        unsafe {
-            let fd = libc::socket(
-                libc::AF_NETLINK,
-                libc::SOCK_RAW | libc::SOCK_NONBLOCK | libc::SOCK_CLOEXEC,
-                libc::NETLINK_ROUTE,
-            );
-            if fd < 0 {
-                return AddressEvents { sock: None };
-            }
-            let sock = OwnedFd::from_raw_fd(fd);
-            let mut address: libc::sockaddr_nl = std::mem::zeroed();
-            address.nl_family = libc::AF_NETLINK as libc::sa_family_t;
-            address.nl_groups = 1 | 0x10; // RTMGRP_LINK | RTMGRP_IPV4_IFADDR
-            let bound = libc::bind(
-                sock.as_raw_fd(),
-                (&address as *const libc::sockaddr_nl).cast(),
-                std::mem::size_of::<libc::sockaddr_nl>() as libc::socklen_t,
-            );
-            AddressEvents {
-                sock: (bound == 0).then_some(sock),
-            }
-        }
-    }
-
-    /// `select` on the wakeup pipe and the socket for up to `timeout` s; drain both; whether the
-    /// kernel reported an address or link change.
-    fn wait(&mut self, timeout: f64, wake: RawFd) -> bool {
-        let mut fds = vec![libc::pollfd {
-            fd: wake,
-            events: libc::POLLIN,
-            revents: 0,
-        }];
-        if let Some(sock) = &self.sock {
-            fds.push(libc::pollfd {
-                fd: sock.as_raw_fd(),
-                events: libc::POLLIN,
-                revents: 0,
-            });
-        }
-        let deadline = Instant::now() + Duration::from_secs_f64(timeout);
-        loop {
-            let left = deadline.saturating_duration_since(Instant::now());
-            // The full time left (as select's timeval), never rounded down to whole milliseconds:
-            // the next tick's `now >= refresh_at` relies on it.
-            let timeout = libc::timespec {
-                tv_sec: left.as_secs() as libc::time_t,
-                tv_nsec: left.subsec_nanos() as libc::c_long,
-            };
-            // SAFETY: a valid array of pollfd for its length and a valid timespec.
-            let ready = unsafe {
-                libc::ppoll(
-                    fds.as_mut_ptr(),
-                    fds.len() as libc::nfds_t,
-                    &timeout,
-                    std::ptr::null(),
-                )
-            };
-            // PEP 475: an interrupted select is retried with the time left (the handler has written
-            // to the pipe, so it returns at once).
-            if ready < 0 && io::Error::last_os_error().raw_os_error() == Some(libc::EINTR) {
-                continue;
-            }
-            break;
-        }
-        if fds[0].revents != 0 {
-            let mut buffer = [0u8; 4096];
-            // SAFETY: a writable buffer; the pipe is non-blocking.
-            while unsafe { libc::read(wake, buffer.as_mut_ptr().cast(), buffer.len()) } > 0 {}
-        }
-        let changed = fds.get(1).is_some_and(|f| f.revents != 0);
-        if changed {
-            // Drain a bounded burst. Remaining events stay readable next time.
-            let mut buffer = vec![0u8; 65_536];
-            for _ in 0..32 {
-                let Some(sock) = &self.sock else { break };
-                // SAFETY: a writable buffer; the socket is non-blocking.
-                let read = unsafe {
-                    libc::recv(
-                        sock.as_raw_fd(),
-                        buffer.as_mut_ptr().cast(),
-                        buffer.len(),
-                        0,
-                    )
-                };
-                if read >= 0 {
-                    continue;
-                }
-                match io::Error::last_os_error().raw_os_error() {
-                    Some(libc::EAGAIN) => break,
-                    Some(libc::EINTR) => continue,
-                    _ => {
-                        self.sock = None; // refresh on the bounded fallback cadence
-                        break;
-                    }
-                }
-            }
-        }
-        changed
-    }
+    table
+        .lines()
+        .skip(1)
+        .any(|line| line.contains("01002A0A:0016") && line.split_whitespace().nth(3) == Some("0A"))
 }
 
 // ---- the daemon ----------------------------------------------------------------------------------
 
+/// /run/y2/ssh.json, published every tick (sorted, compact: sftp-server greps `"state":"Ready"`);
+/// `monotonic_s` tells a reader how fresh it is.
+#[derive(Serialize)]
+struct State<'a> {
+    schema: u8,
+    boot_id: Option<&'a str>,
+    monotonic_s: f64,
+    state: &'static str,
+    reason: &'static str,
+    bind: &'static str,
+    interface: &'static str,
+    authentication: &'static str,
+    /// Whether the SFTP subsystem is installed.
+    sftp: bool,
+    /// dropbear's process id once it was started.
+    pid: Option<u32>,
+}
+
+/// The daemon between ticks. A tick runs every 1-5 s for as long as the player is awake, so what
+/// cannot change while it runs is read once: the boot id, whether SFTP is installed (the root
+/// filesystem is read-only; an update replaces it only across a restart) and, once ready, the CRNG
+/// (it never becomes unready again).
 struct Daemon<'a> {
     root: &'a Root,
-    runtime: std::path::PathBuf,
+    record: std::path::PathBuf,
+    boot_id: Option<String>,
+    sftp: bool,
+    entropy: bool,
     events: AddressEvents,
     address: Option<Address>,
     refresh_at: f64,
@@ -299,27 +167,49 @@ struct Daemon<'a> {
     child: Option<Child>,
 }
 
-impl Daemon<'_> {
+impl<'a> Daemon<'a> {
+    /// A daemon that has read no address yet: the first tick reads it.
+    fn new(root: &'a Root, events: AddressEvents) -> Daemon<'a> {
+        Daemon {
+            root,
+            record: root.path("/run/y2/ssh.json"),
+            boot_id: root.boot_id(),
+            sftp: root.path("/usr/libexec/y2-sftp-server").is_file(),
+            entropy: false,
+            events,
+            address: None,
+            refresh_at: 0.0,
+            changed: true,
+            child: None,
+        }
+    }
+
     /// One loop iteration up to (not including) its wait; the state it published.
     fn tick(&mut self) -> Result<&'static str, Failure> {
-        let now = clock::monotonic();
-        if self.changed
-            || self.events.sock.is_none()
-            || self.address.is_none()
-            || now >= self.refresh_at
-        {
-            let address = usb_address(self.root);
-            self.refresh_at = now + if address.0 { 60.0 } else { 1.0 };
-            self.address = Some(address);
-        }
-        let address = self.address.expect("just refreshed");
-        let (mut ready, mut reason) = prerequisites(self.root, py::entropy_ready(), address);
+        let now = self.root.clock().monotonic();
+        // The address is read again after an address event, without the event socket, and once
+        // its time is up (60 s while configured, 1 s while not).
+        let address = match self.address {
+            Some(address)
+                if !self.changed && self.events.sock.is_some() && now < self.refresh_at =>
+            {
+                address
+            }
+            _ => {
+                let address = usb_address(self.root);
+                self.refresh_at = now + if address.is_ok() { 60.0 } else { 1.0 };
+                self.address = Some(address);
+                address
+            }
+        };
+        self.entropy = self.entropy || py::entropy_ready();
+        let (mut ready, mut reason) = prerequisites(self.root, self.entropy, address);
         if self.child.is_none() && ready == "Ready" {
             self.child = Some(spawn_dropbear()?);
             (ready, reason) = ("Starting", "listener_starting");
         } else if let Some(child) = &mut self.child {
             if matches!(child.try_wait(), Ok(Some(_))) {
-                // A RuntimeError in Python: main.py's record names its class.
+                // The error record names the class RuntimeError (what the supervisor log shows).
                 return Err(Failure::Os {
                     text: "ssh_listener_exited".into(),
                     class: "RuntimeError",
@@ -331,18 +221,23 @@ impl Daemon<'_> {
                 ("Starting", reason)
             };
         }
-        let record = json!({
-            "schema": 1, "boot_id": self.root.boot_id(),
-            "monotonic_s": clock::monotonic(), "state": ready, "reason": reason,
-            "bind": "10.42.0.1:22", "interface": "usb0", "authentication": "owner_public_key",
-            "sftp": self.root.path("/usr/libexec/y2-sftp-server").is_file(),
-            "pid": self.child.as_ref().map(Child::id),
-        });
-        atomic_json(&self.runtime.join("ssh.json"), &record, false)?;
+        let record = State {
+            schema: 1,
+            boot_id: self.boot_id.as_deref(),
+            monotonic_s: self.root.clock().monotonic(),
+            state: ready,
+            reason,
+            bind: "10.42.0.1:22",
+            interface: "usb0",
+            authentication: "owner_public_key",
+            sftp: self.sftp,
+            pid: self.child.as_ref().map(Child::id),
+        };
+        atomic_json(&self.record, &record, false)?;
         Ok(ready)
     }
 
-    /// On the way out, as Python's `finally`: a running dropbear gets SIGTERM, 2 s, then SIGKILL.
+    /// On the way out (also after an error): a running dropbear gets SIGTERM, 2 s, then SIGKILL.
     fn stop_child(&mut self) {
         let Some(child) = &mut self.child else {
             return;
@@ -365,9 +260,9 @@ impl Daemon<'_> {
     }
 }
 
-/// `subprocess.Popen([dropbear, …], stdin/stdout/stderr=DEVNULL, start_new_session=True)`: started
-/// directly (not the command runner), inheriting the whole environment, never below a fixture guard.
-/// As Popen, the child gets no other descriptor (close_fds) and default SIGPIPE/SIGXFSZ.
+/// dropbear in its own session with stdin/stdout/stderr on /dev/null: started directly (not the
+/// command runner: it outlives a request's deadline), inheriting the whole environment, never below a
+/// fixture guard. It gets no other descriptor and default SIGPIPE/SIGXFSZ.
 fn spawn_dropbear() -> Result<Child, Failure> {
     let mut command = Command::new(DROPBEAR);
     command
@@ -393,7 +288,7 @@ fn spawn_dropbear() -> Result<Child, Failure> {
     })
 }
 
-/// `y2-platform ssh-daemon`.
+/// `y2-platform ssh-daemon`: the loop until SIGTERM/SIGINT (exit 0, nothing printed) or an error.
 pub fn serve(root: &Root) -> Outcome {
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
@@ -415,20 +310,12 @@ pub fn serve(root: &Root) -> Outcome {
     let (wake_read, wake_write) =
         unsafe { (OwnedFd::from_raw_fd(pipe[0]), OwnedFd::from_raw_fd(pipe[1])) };
     let signals = Signals::install(wake_write.as_raw_fd());
-    // Below a fixture root a test may end the loop after n iterations (tests/platform_differential.py).
+    // Below a fixture root a test may end the loop after n iterations (the golden suite).
     let ticks = (!root.is_real())
         .then(|| std::env::var("Y2_DAEMON_TICKS").ok())
         .flatten()
         .and_then(|n| n.trim().parse::<u64>().ok());
-    let mut daemon = Daemon {
-        root,
-        runtime,
-        events: AddressEvents::new(),
-        address: None,
-        refresh_at: 0.0,
-        changed: true,
-        child: None,
-    };
+    let mut daemon = Daemon::new(root, AddressEvents::new());
     let mut result = Ok(());
     let mut done = 0;
     while RUNNING.load(Ordering::SeqCst) {
@@ -456,7 +343,7 @@ pub fn serve(root: &Root) -> Outcome {
     daemon.stop_child();
     drop(lock);
     result?;
-    // cli.py returns 0 without printing anything (a Reply would print a line).
+    // Exit 0 without printing anything (a Reply would print a line).
     let _ = io::stdout().flush();
     std::process::exit(0)
 }
@@ -468,9 +355,10 @@ mod ssh_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
-    fn addresses_are_read_as_the_generator() {
+    fn addresses_are_read_in_order_until_the_first_match() {
         let ok =
             json!([{"ifname": "usb0", "addr_info": [{"local": "10.42.0.1", "prefixlen": 24}]}]);
         assert_eq!(configured(&ok), Ok(true));

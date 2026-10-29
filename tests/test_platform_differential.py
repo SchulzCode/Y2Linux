@@ -23,6 +23,12 @@ LEASE = {'interface': 'wlan0', 'Y2_DHCP_GENERATION': EPOCH, 'ip': '192.168.1.40'
          'router': '192.168.1.1', 'dns': '192.168.1.1 9.9.9.9', 'lease': '86400'}
 FLUSH = [['ip', '-4', 'address', 'flush', 'dev', 'wlan0', 'scope', 'global'], ['ip', '-4', 'route', 'flush', 'dev', 'wlan0']]
 LINK = [['ip', 'link', 'set', 'dev', 'wlan0', 'up'], ['ip', '-4', 'address', 'add', '192.168.1.40/24', 'dev', 'wlan0']]
+# The record `dhcp-event bound` publishes for LEASE, and its DNS probe result.
+SAME_LEASE = json.dumps({'address': '192.168.1.40', 'boot_id': 'boot-a', 'dns_servers': ['192.168.1.1', '9.9.9.9'],
+                         'epoch': EPOCH, 'error': None, 'lease_seconds': '86400', 'monotonic_s': 1.0,
+                         'prefix_length': 24, 'routes': [['default', '192.168.1.1']], 'schema': 1,
+                         'state': 'Authenticated'}, separators=(',', ':'))
+SAME_DNS = json.dumps({'address': '192.168.1.40', 'boot_id': 'boot-a', 'epoch': EPOCH, 'ok': True})
 
 
 def answers(*argvs, ok=True):
@@ -136,6 +142,14 @@ CASES = [
     ('dhcp-bound', ['dhcp-event', 'bound'], {'env': LEASE, 'commands': IP_OK}),
     ('dhcp-renew-prefix', ['dhcp-event', 'renew'], {'env': {**LEASE, 'subnet': '24', 'dns': ''},
                                                     'commands': IP_OK}),
+    # A renew of the lease wlan0 carries runs no ip command and keeps resolv.conf and dns.json; another
+    # route (or prefix, address, DNS server) configures the lease again.
+    *[('dhcp-renew-' + name, ['dhcp-event', 'renew'], {'env': {**LEASE, **env, 'lease': '43200'}, 'commands': ok,
+                                                         'files': {'/run/y2/dhcp.json': SAME_LEASE,
+                                                                   '/run/y2/dns.json': SAME_DNS}})
+      for name, env, ok in [('same', {}, IP_OK), ('other-route', {'router': '192.168.1.254'}, answers(
+          *FLUSH, *LINK, ['ip', '-4', 'route', 'replace', 'default', 'via', '192.168.1.254', 'dev', 'wlan0',
+                          'metric', '100']))]],
     ('dhcp-bound-static', ['dhcp-event', 'bound'], {'commands': STATIC_OK, 'env': {
         **LEASE, 'staticroutes': '10.1.2.3/8 192.168.1.2 0.0.0.0/0 0.0.0.0'}}),
     ('dhcp-bound-odd-routes', ['dhcp-event', 'bound'], {'env': {**LEASE, 'staticroutes': '10.0.0.0/8'}}),

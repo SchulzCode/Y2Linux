@@ -95,3 +95,21 @@ fn aac_quality_and_adaptive_rate_arguments() {
     assert!(has(&args, "--codec=-AAC"));
     assert!(!args.iter().any(|a| a.starts_with("--aac-")));
 }
+
+#[test]
+fn an_inventory_whose_codecs_are_no_objects_is_refused() {
+    let fixture = Fixture::new();
+    fixture.mkdir("/run/y2");
+    for codecs in [
+        json!(null),
+        json!("AAC"),
+        json!({"AAC": null}),
+        json!({"AAC": {}, "LDAC": [1]}),
+    ] {
+        fixture.put_json(INVENTORY, &json!({"schema": 1, "codecs": codecs}));
+        let refused = runtime(&fixture.root, true).err().expect("refused");
+        assert_eq!(refused.message(), "invalid_codec_inventory", "{codecs}");
+        assert!(refused.caught(), "a refusal record, not a traceback");
+        assert!(!fixture.exists("/run/y2/codec-runtime.json"));
+    }
+}

@@ -1,12 +1,16 @@
 //! tests/test_platform_update.py, the platform's part: `update.py` decisions (check, download,
 //! cancel, space, health, battery, channel, automatic check) on a fixture root. The native core
-//! (tools/update/core.c, its own Python tests) is a scripted command here; the seams stand in for what
-//! the Python tests patched (`timekeeping.status`, `time.time()`, uuid4, `os.fstatvfs`, urllib).
+//! (tools/update/core.c, its own Python tests) answers as a command of the fixture's root; `Fake`
+//! stands in for the clock's readiness, the wall clock, the staging token, the free space and the
+//! release server.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::commands::service::seams::{NOW, TIME_STATUS};
-use crate::testing::{ok, scripted, Fixture};
-use std::{cell::Cell, rc::Rc, sync::Mutex};
+use crate::testing::{ok, Fixture};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+    sync::Mutex,
+};
 use y2p_core::command::Outcome;
 
 /// `stage` keeps process-wide state (CANCELLED, the SIGTERM disposition): one at a time.
@@ -19,36 +23,88 @@ fn serial() -> std::sync::MutexGuard<'static, ()> {
     STAGE.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// Every seam of this thread cleared when the test ends (also on a failed assertion).
-struct Patched;
+/// The answer for one release URL (`base` + file name).
+type Remote = Box<dyn FnMut(&str) -> Result<Stream>>;
 
-impl Drop for Patched {
-    fn drop(&mut self) {
-        TIME_STATUS.with(|t| *t.borrow_mut() = None);
-        NOW.with(|n| n.set(None));
-        seams::TOKEN.with(|t| *t.borrow_mut() = None);
-        seams::SPACE.with(|s| *s.borrow_mut() = None);
-        seams::REMOTE.with(|r| *r.borrow_mut() = None);
+/// The test's clocks, release server and volume: the fixed token, no waits for Wi-Fi, and what a
+/// test sets (the player's own for the rest).
+#[derive(Default)]
+struct Fake {
+    time: Option<Map<String, Value>>,
+    now: Cell<Option<f64>>,
+    /// The bytes available (writable, no inode limit).
+    space: Option<Box<dyn Fn() -> i128>>,
+    remote: RefCell<Option<Remote>>,
+}
+
+impl Fake {
+    /// `patch('y2_platform.timekeeping.status', return_value=…)`.
+    fn clock(&mut self, tls: bool, entropy: bool) {
+        let value = json!({"tls_ready": tls, "entropy_ready": entropy});
+        self.time = value.as_object().cloned();
+    }
+
+    fn available(&mut self, available: impl Fn() -> i128 + 'static) {
+        self.space = Some(Box::new(available));
+    }
+
+    fn remote(&mut self, answer: impl FnMut(&str) -> Result<Stream> + 'static) {
+        *self.remote.get_mut() = Some(Box::new(answer));
     }
 }
 
-fn patched() -> Patched {
-    seams::TOKEN.with(|t| *t.borrow_mut() = Some(TOKEN.into()));
-    Patched
+impl Io for Fake {
+    fn time_status(&self, root: &Root) -> Map<String, Value> {
+        self.time
+            .clone()
+            .unwrap_or_else(|| Player.time_status(root))
+    }
+
+    fn now(&self) -> f64 {
+        self.now.get().unwrap_or_else(|| Player.now())
+    }
+
+    fn fetch(&self, url: &str, hosts: &[String], cancellable: bool) -> Result<Stream> {
+        match self.remote.borrow_mut().as_mut() {
+            Some(answer) => answer(url),
+            None => Player.fetch(url, hosts, cancellable),
+        }
+    }
+
+    fn space(&self, file: &File) -> Result<Space> {
+        match &self.space {
+            Some(available) => Ok(Space {
+                readonly: false,
+                available: available(),
+                files: 0,
+                favail: 0,
+            }),
+            None => Player.space(file),
+        }
+    }
+
+    fn token(&self, _: &Root) -> Result<String> {
+        Ok(format!(".incoming-{TOKEN}"))
+    }
+
+    fn network_wait(&self) -> f64 {
+        0.0
+    }
+
+    fn retry_pause(&self) -> Duration {
+        Duration::ZERO
+    }
 }
 
-/// `patch('y2_platform.timekeeping.status', return_value=…)`.
-fn clock(tls: bool, entropy: bool) {
-    let value = json!({"tls_ready": tls, "entropy_ready": entropy});
-    TIME_STATUS.with(|t| *t.borrow_mut() = value.as_object().cloned());
-}
-
-fn space(available: impl Fn() -> i128 + 'static) {
-    seams::SPACE.with(|s| *s.borrow_mut() = Some(Box::new(available)));
-}
-
-fn remote(answer: impl FnMut(&str) -> Result<Stream> + 'static) {
-    seams::REMOTE.with(|r| *r.borrow_mut() = Some(Box::new(answer)));
+/// `f` on the fixture's root with these command answers: its result and the requests it made.
+fn answering<T>(
+    fixture: &Fixture,
+    answers: Vec<(Vec<String>, Outcome)>,
+    f: impl FnOnce(&Root) -> T,
+) -> (T, Vec<(Vec<String>, f64)>) {
+    let root = fixture.root.clone().with_answers(answers);
+    let value = f(&root);
+    (value, root.calls())
 }
 
 /// PlatformPolicyTests.setUp: the update directories, this boot and the shipped channel.
@@ -213,15 +269,15 @@ fn sigterm_handler() -> libc::sighandler_t {
 #[test]
 fn download_stage_authenticates_before_payload_and_never_queues_partial() {
     let _serial = serial();
-    let _patched = patched();
+    let io = Fake::default();
     let fixture = policy();
     volume(&fixture);
     let package = package(&fixture, "test-v1", 4096);
     let source = package.path();
     let answers = || vec![blkid(), package.check(), queued()];
     // A check reads only the signed manifest: the core's verdict, no journal, no payload.
-    let (checked, calls) = scripted(answers(), || {
-        stage(&fixture.root, Some(&source), None, true)
+    let (checked, calls) = answering(&fixture, answers(), |root| {
+        stage(root, &io, Some(&source), None, true)
     });
     let checked = checked.unwrap();
     assert_eq!(checked["sequence"], json!(1));
@@ -239,8 +295,8 @@ fn download_stage_authenticates_before_payload_and_never_queues_partial() {
         false,
         r#"{"failure": "signature"}"#,
     );
-    let (result, calls) = scripted(vec![blkid(), refused], || {
-        stage(&fixture.root, Some(&source), None, false)
+    let (result, calls) = answering(&fixture, vec![blkid(), refused], |root| {
+        stage(root, &io, Some(&source), None, false)
     });
     assert_eq!(result.err().unwrap().text(), "signature");
     assert!(!asked(&calls, "queue"));
@@ -251,8 +307,8 @@ fn download_stage_authenticates_before_payload_and_never_queues_partial() {
         let payload = package.directory.join(name);
         let original = fs::read(&payload).unwrap();
         fs::write(&payload, &original[..original.len() - 10]).unwrap();
-        let (result, calls) = scripted(answers(), || {
-            stage(&fixture.root, Some(&source), None, false)
+        let (result, calls) = answering(&fixture, answers(), |root| {
+            stage(root, &io, Some(&source), None, false)
         });
         assert_eq!(result.err().unwrap().text(), "incomplete_download");
         assert_eq!(fixture.json(PROGRESS)["phase"], json!("failed"));
@@ -263,8 +319,8 @@ fn download_stage_authenticates_before_payload_and_never_queues_partial() {
     }
     // A stale check percentage is not left for Reborn (the queue writes its own, core.c).
     fixture.put(CHECK_PROGRESS, "40 check\n");
-    let (result, calls) = scripted(answers(), || {
-        stage(&fixture.root, Some(&source), None, false)
+    let (result, calls) = answering(&fixture, answers(), |root| {
+        stage(root, &io, Some(&source), None, false)
     });
     assert_eq!(result.unwrap()["state"], json!("Queued"));
     assert_eq!(
@@ -304,8 +360,8 @@ fn download_stage_authenticates_before_payload_and_never_queues_partial() {
         false,
         r#"{"failure": "downgrade/replay refused"}"#,
     );
-    let (result, _) = scripted(vec![blkid(), replay], || {
-        stage(&fixture.root, Some(&source), None, true)
+    let (result, _) = answering(&fixture, vec![blkid(), replay], |root| {
+        stage(root, &io, Some(&source), None, true)
     });
     assert_eq!(result.unwrap()["state"], json!("UpToDate"));
     let checked = fixture.json("/data/updates/download.json");
@@ -335,7 +391,7 @@ fn cancel_stops_a_running_download_and_offers_the_release_again() {
     // Beta 7.1: Reborn's Cancel sends SIGTERM to `update stage`. The download stops, its partial files
     // go and the page shows the release as available, exactly as after the check.
     let _serial = serial();
-    let _patched = patched();
+    let mut io = Fake::default();
     let fixture = policy();
     volume(&fixture);
     let package = package(&fixture, "test-v1", 4096);
@@ -345,7 +401,7 @@ fn cancel_stops_a_running_download_and_offers_the_release_again() {
     let sent = Rc::new(Cell::new(false));
     let once = sent.clone();
     // Cancel pressed mid-download (the manifest is read before): while the payload is written.
-    space(move || {
+    io.available(move || {
         if !once.get() && partial.exists() && sigterm_handler() == cancel as *const () as usize {
             once.set(true);
             // SAFETY: SIGTERM to this thread while stage's handler (an atomic store) is installed.
@@ -354,8 +410,8 @@ fn cancel_stops_a_running_download_and_offers_the_release_again() {
         1 << 40
     });
     let answers = || vec![blkid(), package.check(), queued()];
-    let (result, calls) = scripted(answers(), || {
-        stage(&fixture.root, Some(&source), None, false)
+    let (result, calls) = answering(&fixture, answers(), |root| {
+        stage(root, &io, Some(&source), None, false)
     });
     assert!(sent.get());
     let error = result.err().unwrap();
@@ -372,8 +428,8 @@ fn cancel_stops_a_running_download_and_offers_the_release_again() {
         (&json!("Checked"), &json!(1))
     );
     // Nothing was changed: the same download works afterwards.
-    let (result, _) = scripted(answers(), || {
-        stage(&fixture.root, Some(&source), None, false)
+    let (result, _) = answering(&fixture, answers(), |root| {
+        stage(root, &io, Some(&source), None, false)
     });
     assert_eq!(result.unwrap()["state"], json!("Queued"));
 }
@@ -383,7 +439,7 @@ fn space_cleanup_stale_package_and_cancel_free_the_data_volume() {
     // OTA-46: disposable data goes before the download is refused; music, settings, live logs and the
     // rollback copies stay.
     let _serial = serial();
-    let _patched = patched();
+    let mut io = Fake::default();
     let fixture = policy();
     volume(&fixture);
     let raw = 8 * 1024 * 1024;
@@ -420,9 +476,9 @@ fn space_cleanup_stale_package_and_cancel_free_the_data_volume() {
         );
     }
     let old = fixture.path("/data/logs/deepsleep-old");
-    space(move || if old.exists() { 0 } else { 1 << 40 });
-    let (result, _) = scripted(vec![blkid(), package.check(), queued()], || {
-        stage(&fixture.root, Some(&source), None, false)
+    io.available(move || if old.exists() { 0 } else { 1 << 40 });
+    let (result, _) = answering(&fixture, vec![blkid(), package.check(), queued()], |root| {
+        stage(root, &io, Some(&source), None, false)
     });
     assert_eq!(result.unwrap()["state"], json!("Queued"));
     // Only as much as needed: the first entry was enough.
@@ -435,9 +491,10 @@ fn space_cleanup_stale_package_and_cancel_free_the_data_volume() {
             >= 1000
     );
     // Cancel frees the package at once.
-    let (result, _) = scripted(
+    let (result, _) = answering(
+        &fixture,
         vec![core_answer("cancel", None, true, r#"{"state": "Failed"}"#)],
-        || cancel_update(&fixture.root),
+        cancel_update,
     );
     assert_eq!(result.unwrap()["state"], json!("Failed"));
     assert!(!fixture.exists("/data/updates/pending"));
@@ -454,9 +511,9 @@ fn space_cleanup_stale_package_and_cancel_free_the_data_volume() {
     }
     let need = package.bytes() as i128 + raw as i128 / 4 + RESERVE - 5000;
     // Room for the manifest, not for the payloads.
-    space(|| RESERVE + (1 << 20));
-    let (result, _) = scripted(vec![blkid(), package.check(), queued()], || {
-        stage(&fixture.root, Some(&source), None, false)
+    io.available(|| RESERVE + (1 << 20));
+    let (result, _) = answering(&fixture, vec![blkid(), package.check(), queued()], |root| {
+        stage(root, &io, Some(&source), None, false)
     });
     assert!(matches!(result, Err(Raise::NoSpace(n)) if n == need));
     let failed = fixture.json("/data/updates/download.json");
@@ -511,7 +568,7 @@ fn a_download_whose_process_is_gone_shows_as_interrupted() {
     // A user's 8.17 player said "Downloading Update… Keep Wi-Fi on." for a day: the record stayed
     // Staging after the download died, and that page had no way out.
     let _serial = serial();
-    let _patched = patched();
+    let mut io = Fake::default();
     let fixture = policy();
     fixture.put_json(
         "/data/updates/download.json",
@@ -537,10 +594,10 @@ fn a_download_whose_process_is_gone_shows_as_interrupted() {
     // A failed background check never writes the leftover back.
     fixture.put("/proc/locks", "");
     fixture.put_json("/run/y2/network.json", &json!({"state": "Online"}));
-    clock(true, true);
-    NOW.with(|n| n.set(Some(1e9)));
+    io.clock(true, true);
+    io.now.set(Some(1e9));
     // The check fails (here: no verified Y2DATA; Python patched stage to fail).
-    let (result, _) = scripted(vec![], || automatic_check(&fixture.root));
+    let (result, _) = answering(&fixture, vec![], |root| automatic_check(root, &io));
     assert_eq!(result.unwrap()["result"], json!("failed"));
     assert_ne!(
         fixture.json("/data/updates/download.json")["state"],
@@ -621,7 +678,7 @@ fn install_restarts_unless_the_owner_chose_power_off() {
 #[test]
 fn channel_override_and_redirect_allowlist() {
     let fixture = policy();
-    assert_eq!(channel(&fixture.root)["name"], json!("stable"));
+    assert_eq!(channel(&fixture.root).name, json!("stable"));
     fixture.put_json(
         "/data/updates/channel.json",
         &json!({"manifest_url": "https://example.org/x/manifest.json",
@@ -629,15 +686,15 @@ fn channel_override_and_redirect_allowlist() {
     );
     let value = channel(&fixture.root);
     assert_eq!(
-        value["manifest_url"],
-        json!("https://example.org/x/manifest.json")
+        value.manifest_url,
+        Some(json!("https://example.org/x/manifest.json"))
     );
     // Only the shipped list.
-    assert!(!value["allowed_redirect_hosts"]
-        .as_array()
-        .unwrap()
-        .contains(&json!("evil.example")));
-    let hosts = hosts(&fixture.root);
+    let hosts = value.allowed_redirect_hosts;
+    assert_eq!(
+        hosts,
+        ["github.com", "release-assets.githubusercontent.com"]
+    );
     for url in [
         "http://release-assets.githubusercontent.com/a",
         "https://evil.example/a",
@@ -660,7 +717,7 @@ fn channel_override_and_redirect_allowlist() {
 #[test]
 fn journal_schemas_and_unpublished_channel() {
     let _serial = serial();
-    let _patched = patched();
+    let mut io = Fake::default();
     let fixture = policy();
     fixture.put_json(
         "/data/updates/state.json",
@@ -682,17 +739,17 @@ fn journal_schemas_and_unpublished_channel() {
     );
     fixture.put_json("/run/y2/network.json", &json!({"state": "Online"}));
     volume(&fixture);
-    clock(true, true);
+    io.clock(true, true);
     // Nothing published on the channel yet: the manifest answers 404.
-    remote(|url| {
+    io.remote(|url| {
         assert_eq!(url, URL);
         Err(Raise::Net(Net::Http {
             code: 404,
             text: "HTTP Error 404: Not Found".into(),
         }))
     });
-    let (result, _) = scripted(vec![blkid()], || {
-        stage(&fixture.root, None, Some(URL), true)
+    let (result, _) = answering(&fixture, vec![blkid()], |root| {
+        stage(root, &io, None, Some(URL), true)
     });
     assert_eq!(result.unwrap()["state"], json!("UpToDate"));
     let checked = fixture.json("/data/updates/download.json");
@@ -705,8 +762,8 @@ fn journal_schemas_and_unpublished_channel() {
         (&json!("Checked"), &json!("v35"), &json!(false))
     );
     // A download never treats 404 as success.
-    let (result, _) = scripted(vec![blkid()], || {
-        stage(&fixture.root, None, Some(URL), false)
+    let (result, _) = answering(&fixture, vec![blkid()], |root| {
+        stage(root, &io, None, Some(URL), false)
     });
     assert!(matches!(
         result,
@@ -717,7 +774,7 @@ fn journal_schemas_and_unpublished_channel() {
 #[test]
 fn daily_check_is_rate_limited_and_never_shows_a_failed_update() {
     let _serial = serial();
-    let _patched = patched();
+    let mut io = Fake::default();
     let fixture = policy();
     volume(&fixture);
     fixture.put_json("/run/y2/network.json", &json!({"state": "Online"}));
@@ -725,13 +782,13 @@ fn daily_check_is_rate_limited_and_never_shows_a_failed_update() {
         "/data/updates/download.json",
         &json!({"schema": 1, "state": "Checked", "release_version": "old"}),
     );
-    clock(true, true);
+    io.clock(true, true);
     let package = package(&fixture, "new", 4096);
     // `stage` patched in Python; here the release channel answers (or fails) and the core checks.
     let staged = Rc::new(Cell::new(0));
     let fail = Rc::new(Cell::new(true));
     let (count, failing, directory) = (staged.clone(), fail.clone(), package.directory.clone());
-    remote(move |url| {
+    io.remote(move |url| {
         let name = url.rsplit('/').next().unwrap();
         if name == "manifest.json" {
             count.set(count.get() + 1);
@@ -751,8 +808,8 @@ fn daily_check_is_rate_limited_and_never_shows_a_failed_update() {
         ]
     };
     let at = |now: f64, release: &str| {
-        NOW.with(|n| n.set(Some(now)));
-        scripted(check(release), || automatic_check(&fixture.root))
+        io.now.set(Some(now));
+        answering(&fixture, check(release), |root| automatic_check(root, &io))
             .0
             .unwrap()
     };
@@ -803,7 +860,7 @@ fn a_check_waits_for_wifi_retries_and_keeps_the_offered_release() {
     // A Check for Updates right after a wake (Wi-Fi still reconnecting) failed at once and replaced
     // 'Update Available' with 'Connect to Wi-Fi' (reports 61caa81e/297f1032).
     let _serial = serial();
-    let _patched = patched();
+    let mut io = Fake::default();
     let fixture = policy();
     volume(&fixture);
     fixture.put_json(
@@ -815,10 +872,10 @@ fn a_check_waits_for_wifi_retries_and_keeps_the_offered_release() {
         &json!({"schema": 1, "state": "Checked", "release_version": "v36", "bytes": 1}),
     );
     fixture.put_json("/run/y2/network.json", &json!({"state": "Associating"}));
-    clock(true, true);
+    io.clock(true, true);
     let opened = Rc::new(Cell::new(0u32));
     let count = opened.clone();
-    remote(move |_| {
+    io.remote(move |_| {
         count.set(count.get() + 1);
         Err(Raise::Net(Net::Url(
             "[Errno -3] Temporary failure in name resolution".into(),
@@ -829,16 +886,16 @@ fn a_check_waits_for_wifi_retries_and_keeps_the_offered_release() {
         (value["state"].clone(), value["release_version"].clone())
     };
     // Never online: no request at all, the offered release stays.
-    let (result, _) = scripted(vec![blkid()], || {
-        stage(&fixture.root, None, Some(URL), true)
+    let (result, _) = answering(&fixture, vec![blkid()], |root| {
+        stage(root, &io, None, Some(URL), true)
     });
     assert_eq!(result.err().unwrap().text(), "network_not_online");
     assert_eq!(opened.get(), 0);
     assert_eq!(kept(), (json!("Checked"), json!("v36")));
     // Online, but every lookup fails: three tries, then the error; still offered.
     fixture.put_json("/run/y2/network.json", &json!({"state": "Online"}));
-    let (result, _) = scripted(vec![blkid()], || {
-        stage(&fixture.root, None, Some(URL), true)
+    let (result, _) = answering(&fixture, vec![blkid()], |root| {
+        stage(root, &io, None, Some(URL), true)
     });
     assert!(matches!(result, Err(Raise::Net(Net::Url(_)))));
     assert_eq!(opened.get(), MANIFEST_ATTEMPTS);
@@ -850,12 +907,60 @@ fn a_check_waits_for_wifi_retries_and_keeps_the_offered_release() {
             .contains("name resolution")
     );
     // A download that fails is still reported as failed.
-    let (result, _) = scripted(vec![blkid()], || {
-        stage(&fixture.root, None, Some(URL), false)
+    let (result, _) = answering(&fixture, vec![blkid()], |root| {
+        stage(root, &io, None, Some(URL), false)
     });
     assert!(matches!(result, Err(Raise::Net(Net::Url(_)))));
     assert_eq!(
         fixture.json("/data/updates/download.json")["state"],
         json!("Failed")
+    );
+}
+
+#[test]
+fn records_that_cannot_be_read_are_refused() {
+    let _serial = serial();
+    let mut io = Fake::default();
+    let fixture = policy();
+    fixture.put_json("/data/updates/channel.json", &json!({"manifest_url": 5}));
+    // `update check`: a refusal record before anything is written.
+    let reply = run(&fixture.root, "check", None, None).unwrap();
+    assert_eq!(
+        (reply.code, reply.stdout.as_str()),
+        (
+            1,
+            r#"{"state": "Failed", "failure": "update_channel_unreadable"}"#
+        )
+    );
+    assert!(!fixture.exists("/data/updates/download.json"));
+    // The daily check records it as a failed check.
+    fixture.put_json("/run/y2/network.json", &json!({"state": "Online"}));
+    io.clock(true, true);
+    let record = automatic_check(&fixture.root, &io).ok().unwrap();
+    assert_eq!(
+        (&record["result"], &record["failure"]),
+        (&json!("failed"), &json!("update_channel_unreadable"))
+    );
+    // A health record whose deadline is no number.
+    fixture.put_json(
+        "/data/updates/state.json",
+        &json!({"schema": 2, "state": "PendingHealth"}),
+    );
+    fixture.put_json(
+        "/run/y2/update-health.json",
+        &json!({"boot_id": "boot-a", "deadline_monotonic_s": "soon"}),
+    );
+    let reply = run(&fixture.root, "health-ack", None, None).unwrap();
+    assert_eq!(
+        (reply.code, reply.stdout.as_str()),
+        (
+            1,
+            r#"{"state": "Failed", "failure": "update_health_record_unreadable"}"#
+        )
+    );
+    // What another group's helper cannot read.
+    assert_eq!(
+        Raise::from(Failure::crash("KeyError", "'x'")).text(),
+        "record_unreadable: 'x'"
     );
 }

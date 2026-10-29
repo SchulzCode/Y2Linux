@@ -6,7 +6,10 @@
  ],
  "calls": [],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "invalid_codec_inventory",
+  "schema": "org.y2linux.codec-settings/v1"
+ },
  "tree": {
   "added": {
    "/run/y2/codec-settings.lock": {

@@ -1,6 +1,6 @@
-//! Group `power` of the port (docs/planning/PLATFORM-RUST-PORT-PLAN.md, "Remaining port groups"):
-//! `power-daemon` (battery, charger, low battery, shutdown coordinator) and its client `shutdown`.
-//! Python: power.py, battery.py, power_journal.py (charger_state.py is `y2p_core::power_charger`).
+//! The power group: `power-daemon` (the battery estimate, the low-battery policy, the power journal
+//! and the shutdown coordinator) and its client `shutdown`. The charger classification the power
+//! audit reads is `y2p_core::power_charger`.
 // SPDX-License-Identifier: GPL-2.0-only
 pub mod battery;
 pub mod client;
@@ -28,19 +28,8 @@ pub fn route(args: &[&str]) -> Option<Command> {
     Some(Box::new(move |root| client::shutdown(root, &a, &r)))
 }
 
-/// An exception Python's `main.py` does not catch (`TypeError`, `KeyError`, `AttributeError`): a
-/// traceback on stderr, nothing on stdout, exit 1. The daemon's supervisor restarts it, as it would the
-/// Python one.
-pub fn crash(message: &str) -> ! {
-    let _ = std::io::stdout().flush();
-    let _ = writeln!(
-        std::io::stderr(),
-        "Traceback (most recent call last):\n  (y2-platform, Rust port)\n{message}"
-    );
-    std::process::exit(1)
-}
-
-/// A daemon's return: nothing printed (main.py prints nothing after `serve`), this exit code.
+/// A daemon's return: nothing on stdout (its stdout is the supervisor's log), this exit code; 0 ends
+/// the supervision for good (`power-supervise`), so only a requested stop returns it.
 pub fn quiet_exit(code: i32) -> ! {
     let _ = std::io::stdout().flush();
     std::process::exit(code)

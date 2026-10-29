@@ -5,7 +5,12 @@
  ],
  "calls": [],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "reason": "sd_write_holders_invalid",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
+ },
  "tree": {
   "added": {
    "/run/y2/media.lock": {

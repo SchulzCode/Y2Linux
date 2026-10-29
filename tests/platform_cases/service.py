@@ -118,6 +118,9 @@ CASES = [
     # update check / stage
     ('update-check-no-source', ['update', 'check'], {}),
     ('update-check-no-data', ['update', 'check'], {'files': CHANNEL}),
+    # A channel whose manifest URL is no text: refused before anything is written.
+    ('update-check-odd-url', ['update', 'check'], {'files': {
+        '/etc/y2linux/update-channel.json': '{"manifest_url": 5}'}}),
     ('update-check-both', ['update', 'check', '--url', 'https://x/manifest.json', '--package', str(PACKAGE)],
      {}),
     ('update-check-maintenance', ['update', 'check'], {'commands': [BLKID], 'files': {
@@ -219,6 +222,9 @@ CASES = [
         'commands': [core('rollback', {'state': 'RollbackPending'}), core('prepare', {'state': 'Prepared'})]}),
     ('update-health-ack-expired-refused', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'files': {
         **PENDING, '/run/y2/update-health.json': '{"boot_id": "boot-a", "deadline_monotonic_s": 1.5}'}}),
+    # A health record of this boot whose deadline is no number: refused, nothing changed.
+    ('update-health-ack-odd-deadline', ['update', 'health-ack'], {'files': {
+        **PENDING, '/run/y2/update-health.json': '{"boot_id": "boot-a", "deadline_monotonic_s": "soon"}'}}),
     ('update-health-ack-checks', ['update', 'health-ack'], {'volatile': ['deadline_monotonic_s'], 'files': {
         **PENDING, **READY, '/proc/1234/stat': stat_line(777)}}),
     ('update-health-ack-app-not-ready', ['update', 'health-ack'], {
@@ -434,9 +440,7 @@ def wifi_online(status='wpa_state=COMPLETED\nbssid=00:11:22:33:44:55\nid=0\n', d
             answer(['ip', '-j', '-4', 'route', 'show', 'default', 'dev', 'wlan0'],
                    '[{"dst": "default", "gateway": "192.168.1.1"}]'),
             answer(['wpa_cli', '-i', 'wlan0', 'signal_poll'], 'RSSI=-52\nLINKSPEED=72\n'),
-            answer(['/usr/bin/python3', '-I', '-c',
-                    'import socket,sys; print(len(socket.getaddrinfo(sys.argv[1],None,socket.AF_INET)))',
-                    'pool.ntp.org'], dns),
+            answer(['getaddrinfo', 'pool.ntp.org'], dns),
             answer(['/usr/sbin/iw', 'dev', 'wlan0', 'get', 'power_save'], 'Power save: off')]
 
 

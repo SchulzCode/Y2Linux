@@ -1,14 +1,15 @@
-//! Group `storage` of the port (docs/planning/PLATFORM-RUST-PORT-PLAN.md, "Remaining port groups"):
-//! `media` (every action), `internal-media` (every action) and `space`, with cli.main's printing and
-//! exit-code rules. `/usr/sbin/y2-media` stays the overlay shell wrapper (`exec y2-platform media "$@"`).
+//! The storage commands: `media` (the SD card), `internal-media` (Y2Media) and `space` (Y2DATA's
+//! budget), each printing its record as sorted JSON with its own exit-code rule.
+//! `/usr/sbin/y2-media` is the overlay's shell wrapper (`exec y2-platform media "$@"`).
 //!
-//! `route` receives the canonical form of the parsed command line (the dispatcher's argparse.rs): the
-//! positional action, then the options given with their full names, `--opt value` as two tokens, flags
-//! bare and ints as `str(int())`; argparse's help and errors never reach it.
+//! `route` receives the canonical form of the parsed command line (cli.rs): the positional action,
+//! then the options given with their full names, `--opt value` as two tokens, flags bare and ints in
+//! decimal; help and argument errors never reach it.
 // SPDX-License-Identifier: GPL-2.0-only
 pub(crate) mod internal;
 pub(crate) mod media;
 pub(crate) mod observe;
+mod records;
 mod space;
 pub(crate) mod sys;
 
@@ -17,7 +18,6 @@ use crate::reply::{Outcome, Reply};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use sys::{get, Object};
-use y2p_core::py::truthy;
 
 /// The parsed tokens of one subcommand: positionals, options with their value, flags.
 struct Parsed<'a> {
@@ -88,8 +88,8 @@ pub fn route(args: &[&str]) -> Option<Command> {
                 return None;
             }
             let seconds = match parsed.options.get("--seconds") {
-                // `str(int())` from argparse; only `max(1, min(seconds, WRITE_HOLD_MAX))` reads it,
-                // so an int beyond 64 bits clamps as its saturated value does.
+                // Only the clamp to 1..WRITE_HOLD_MAX reads it, so an int beyond 64 bits clamps
+                // as its saturated value does.
                 Some(text) => text.parse::<i64>().unwrap_or(if text.starts_with('-') {
                     i64::MIN
                 } else {
@@ -175,7 +175,7 @@ struct MediaRequest {
 /// The exit code of a `media` action. `status` reports the card in any state (a Degraded card
 /// mounted read-only is an answer, not a failure); `write` fails whenever it sets `failure`
 /// (not_mounted included), so Reborn's window call sees a refusal as one. A lifecycle record
-/// without `state` exits 1 (Python's KeyError).
+/// without `state` (an unchanged media-lifecycle.json that has none) is no answer: exit 1.
 fn media_exit(action: &str, result: &Object) -> u8 {
     let failed = match result.get("state") {
         None => true,
@@ -191,37 +191,36 @@ fn media_exit(action: &str, result: &Object) -> u8 {
     u8::from(failed)
 }
 
+/// A record's field as non-empty text.
+fn text<'a>(result: &'a Object, key: &str) -> Option<&'a str> {
+    get(result, key).as_str().filter(|text| !text.is_empty())
+}
+
 fn media_command(root: &y2p_core::Root, request: &MediaRequest) -> Outcome {
     let action = request.action;
     let result: Object = match action {
         "format" | "grow" => media::change_card(root, action, request.confirm_cid.as_deref())?,
         "repair" => {
             let mut result = media::repair(root)?;
-            if get(&result, "state").as_str() != Some("Ready") {
-                // Reborn reads only `failure` from a refused command.
-                let failure = if get(&result, "state").as_str() == Some("Degraded")
-                    && truthy(get(&result, "read_only"))
+            if text(&result, "state") != Some("Ready") {
+                // Reborn reads only `failure` from a refused command (client.rs matches it).
+                let failure = if text(&result, "state") == Some("Degraded")
+                    && text(&result, "read_only").is_some()
                 {
-                    json!("errors_left")
-                } else if truthy(get(&result, "reason")) {
-                    get(&result, "reason").clone()
+                    "errors_left"
                 } else {
-                    json!("repair_failed")
+                    text(&result, "reason").unwrap_or("repair_failed")
                 };
-                result.insert("failure".into(), failure);
+                result.insert("failure".into(), json!(failure));
             }
             result
         }
         "write" => {
             let mut result =
                 media::write_window(root, &request.holder, request.seconds, request.release)?;
-            if get(&result, "state").as_str() != Some("Ready") {
-                let failure = if truthy(get(&result, "reason")) {
-                    get(&result, "reason").clone()
-                } else {
-                    json!("write_window_failed")
-                };
-                result.insert("failure".into(), failure);
+            if text(&result, "state") != Some("Ready") {
+                let failure = text(&result, "reason").unwrap_or("write_window_failed");
+                result.insert("failure".into(), json!(failure));
             }
             result
         }

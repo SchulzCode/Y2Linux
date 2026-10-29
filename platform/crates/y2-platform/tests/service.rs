@@ -97,17 +97,7 @@ fn online(fixture: &mut Fixture) {
             true,
             "RSSI=-52\nLINKSPEED=72\n",
         )
-        .answer(
-            &[
-                "/usr/bin/python3",
-                "-I",
-                "-c",
-                "import socket,sys; print(len(socket.getaddrinfo(sys.argv[1],None,socket.AF_INET)))",
-                "pool.ntp.org",
-            ],
-            true,
-            "2",
-        )
+        .answer(&["getaddrinfo", "pool.ntp.org"], true, "2")
         .answer(
             &["/usr/sbin/iw", "dev", "wlan0", "get", "power_save"],
             true,

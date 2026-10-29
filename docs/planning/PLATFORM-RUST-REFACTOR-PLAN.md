@@ -18,6 +18,28 @@ refusal records, split long modules, merge the duplicated Python text helpers (s
 observation util, reports pyre), per-tick work in the daemons, connectivity: same-lease renew no-op and the DNS
 fixture argv. Then host suite, build 171, OTA. Not built or installed yet; the player runs 170.
 
+**Resume point (2026-10-29, evening, usage limit near):** wave 2 runs as eight agents in git worktrees under
+`.claude/worktrees/agent-*`, one branch per group. **Merged on main:** devices, connectivity, power, storage, suspend, service (plus wave 1); observation and reports still on their branches.
+**Still on their branches** (each commits per step; continue or merge what is there):
+  - `worktree-agent-a0b52a2b44f9ce140` (reports, 13 commits ahead)
+  - `worktree-agent-a115c1c7ce4e9d7b8` (observation, 4 commits ahead)
+  - `worktree-agent-a1c2243b5ac75c531` (connectivity, 0 commits ahead)
+  - `worktree-agent-a477aa6d9dcdec7ee` (service, 14 commits ahead)
+  - `worktree-agent-ac8c4198751694718` (devices, 0 commits ahead)
+  - `worktree-agent-ac93928f7eee6d545` (storage, 6 commits ahead)
+  - `worktree-agent-ad5a8d3f056847cef` (suspend, 9 commits ahead)
+  - `worktree-agent-adb52e26588f16add` (power, 8 commits ahead)
+To resume in a fresh session: for each remaining branch, check `git log main..<branch>` and whether its worktree
+has uncommitted changes (`git -C .claude/worktrees/<agent> status`); merge finished branches into main
+(`git merge --no-edit <branch>`; conflicts so far were only test-module include lines and docs), or let a new agent
+finish a group from its branch with this plan's wave-2 brief (the step list in the progress note above). After all
+groups: delete `crate::testing::scripted` and the thread-local in `y2p_core::command::testing`, remove
+`codec::not_iterable` if unused, run `cargo test`/clippy/armv7, the golden suite and the byte check
+(`tools/development/platform-raw-goldens.py` against a pre-wave-2 build of main 342d08e0: only crash-path refusal,
+same-lease renew and DNS-argv cases may differ), update CONTRACT.md (refusal reasons, dhcp.json `prefix_length`/
+`routes`, same-lease renew, parser), the host suite, then `release.py build --label 171` (bump sequence above 11150
+first) and install by staged OTA (PLATFORM-RUST-PORT-HANDOFF.md §5).
+
 **Owner decisions (2026-10-29, §7):** replace the argparse emulation with a small declarative parser (exact option
 names and `--opt=value`, errors exit 2, help says y2-platform); every fake-traceback crash path becomes a refusal
 record (exit 1, JSON `{"state": "Failed", "failure": …}`); **keep the exact JSON output format** (json.dumps

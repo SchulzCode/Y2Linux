@@ -43,7 +43,9 @@ fn reborn(fixture: &Fixture, ok: bool) -> Reborn {
 }
 
 fn stage(fixture: &Fixture, stage: &str, result: i64) -> Map<String, Value> {
-    record(&fixture.root, Stage::new(stage, Some(result))).unwrap()
+    record(&fixture.root, Stage::new(stage, Some(result)))
+        .unwrap()
+        .0
 }
 
 fn sleep_request(fixture: &Fixture) -> Value {
@@ -262,6 +264,29 @@ fn older_or_malformed_receipt_is_idle_without_resume_claim() {
     );
     fixture.put("/data/system/platform/suspend-last.json", "[]");
     assert_eq!(sleep_status(&fixture)["state"], "idle");
+}
+
+#[test]
+fn a_product_that_is_no_object_is_a_refusal_record() {
+    let fixture = player();
+    for (product, failure) in [
+        ("5", "'int' object is not iterable"),
+        (
+            "[[1, \"a\"], [\"state\", \"requested\"]]",
+            "'<' not supported between instances of 'int' and 'str'",
+        ),
+    ] {
+        fixture.put(
+            "/data/system/platform/suspend-last.json",
+            &format!("{{\"product\": {product}}}"),
+        );
+        let reply = status(&fixture.root).unwrap();
+        assert_eq!(reply.code, 1);
+        assert_eq!(
+            reply.stdout,
+            format!("{{\"failure\": \"{failure}\", \"state\": \"Failed\"}}")
+        );
+    }
 }
 
 #[test]

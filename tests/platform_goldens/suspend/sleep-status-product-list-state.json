@@ -5,7 +5,10 @@
  ],
  "calls": [],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "cannot use 'list' as a set element (unhashable type: 'list')",
+  "state": "Failed"
+ },
  "tree": {
   "added": {},
   "changed": {},

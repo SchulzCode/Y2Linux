@@ -45,10 +45,7 @@
     },
     {
       "argv": [
-        "/usr/bin/python3",
-        "-I",
-        "-c",
-        "import socket,sys; print(len(socket.getaddrinfo(sys.argv[1],None,socket.AF_INET)))",
+        "getaddrinfo",
         "pool.ntp.org"
       ],
       "timeout": 3.0

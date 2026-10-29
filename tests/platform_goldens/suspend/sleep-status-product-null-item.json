@@ -5,7 +5,10 @@
  ],
  "calls": [],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "cannot convert dictionary update sequence element #0 to a sequence",
+  "state": "Failed"
+ },
  "tree": {
   "added": {},
   "changed": {},

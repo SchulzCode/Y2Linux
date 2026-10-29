@@ -1,14 +1,15 @@
-//! The storage group's copies of `observe.storage` (its `volumes`, which `media status` and `space`
-//! print), `observe.refused_card`, `observe.space_state`, `media.media_identity` and
-//! `internal_media.setup_status`. The `blocks`, `controllers` and the rest of `storage()` are only
-//! reads for `status` (group observation) and are not needed here.
+//! What the storage commands report of the volumes (`media status`, `space`): each mounted volume
+//! with its controller, identity and space, the SD card's identity hash, the card a mount refused,
+//! and this boot's Y2Media setup state. `status` (group observation) reports the volumes too, with
+//! the controllers and block devices.
 // SPDX-License-Identifier: GPL-2.0-only
+use super::records::{Claim, ReadOnly};
 use super::sys::{
-    device_instance, exists, get, get_eq, get_in, isdigit, mounts, object, read, resolve, statvfs,
-    text, Object,
+    device_instance, exists, get, get_eq, isdigit, mounts, read, resolve, statvfs, text, Mount,
+    Object,
 };
 use serde_json::{json, Value};
-use std::path::Path;
+use std::{cell::OnceCell, path::Path};
 use y2p_core::py::PyValue;
 use y2p_core::{
     command,
@@ -21,7 +22,8 @@ pub const MEDIA_MOUNT: &str = "/run/y2/media-mount.json";
 pub const MEDIA_STATE: &str = "/run/y2/media.json";
 pub const SETUP_STATUS: &str = "/run/y2/internal-media-setup.json";
 
-/// `media.media_identity`: CID/partition geometry supplies identity when a legal FAT UUID is absent.
+/// A card's identity, its `id` the hash of the rest: CID/partition geometry supplies identity when a
+/// legal FAT UUID is absent; `None` when neither can.
 pub fn media_identity(entry: &Path, filesystem: &str, uuid: Option<&str>) -> Option<Object> {
     let mut device = resolve(entry);
     let partition = read(&entry.join("partition"));
@@ -51,13 +53,13 @@ pub fn media_identity(entry: &Path, filesystem: &str, uuid: Option<&str>) -> Opt
     );
     identity.insert("filesystem".into(), json!(filesystem));
     identity.insert("uuid".into(), json!(uuid));
-    // json.dumps(identity, sort_keys=True): Python's default separators, byte for byte.
-    let encoded = dumps_sorted(&identity, Separators::Spaced).expect("identity");
+    // Sorted keys and the spaced separators: claims made by earlier versions keep their id.
+    let encoded = dumps_sorted(&identity, Separators::Spaced).ok()?;
     identity.insert("id".into(), json!(sha256_hex(encoded.as_bytes())));
     Some(identity)
 }
 
-/// `observe.space_state`: product capacity budget, not electrical thresholds. Never delete user data.
+/// Product capacity budget, not electrical thresholds. Never delete user data.
 pub fn space_state(
     available: Option<u64>,
     total: Option<u64>,
@@ -82,7 +84,7 @@ pub fn space_state(
     "Normal"
 }
 
-/// `observe.refused_card`: the card still inserted that the last mount refused (its check failed),
+/// The card still inserted that the last mount refused (its check failed),
 /// so the player can say so instead of "no card" (issue #44); {} otherwise. A removed or reinserted
 /// card has another disk sequence number.
 pub fn refused_card(root: &Root) -> Object {
@@ -119,7 +121,7 @@ pub fn refused_card(root: &Root) -> Object {
     value
 }
 
-/// `internal_media.setup_status`: this boot's setup state, else `{'state': 'Unknown'}`.
+/// This boot's Y2Media setup state (no file names), else `{"state": "Unknown"}`.
 pub fn setup_status(root: &Root) -> Object {
     match root.json(SETUP_STATUS) {
         Some(Value::Object(value)) if get_eq(&value, "boot_id", &Value::from(root.boot_id())) => {
@@ -134,189 +136,183 @@ pub fn setup_status(root: &Root) -> Object {
     }
 }
 
-/// `observe.storage(ctx)['volumes']`: root, Y2DATA, SD, then Y2Media (index order is a consumer
-/// contract). Runs `blkid` for every mount on its controller, in this order.
-// statvfs field widths differ between the host and the player's 32-bit ARM: the casts are needed.
-#[allow(clippy::unnecessary_cast)]
-pub fn volumes(root: &Root) -> Vec<Object> {
+/// The volumes `status` reports, in this order: root, Y2DATA, SD, then Y2Media (the order is a
+/// consumer contract). Runs `blkid` for every mount on its controller, in this order.
+pub fn volumes(root: &Root) -> [Object; 4] {
     let mounts = mounts(root);
     let boot = root.boot_id();
-    let mut volumes = Vec::new();
-    for target in ["/", "/data", "/media/sd", "/media/internal"] {
-        let sd = target == "/media/sd";
-        let found: Vec<_> = mounts.iter().filter(|m| m.path == target).collect();
-        // Stacked mounts are ambiguous to consumers; fail closed.
-        if found.len() != 1 {
-            let mut volume = Object::new();
-            volume.insert("path".into(), json!(target));
-            volume.insert("state".into(), json!("Unavailable"));
-            volume.insert("reason".into(), json!("not_uniquely_mounted"));
-            volume.insert("generation".into(), Value::Null);
-            volume.insert("space_state".into(), json!("Unavailable"));
-            if sd && found.is_empty() {
-                volume.extend(refused_card(root));
-            }
-            volumes.push(volume);
-            continue;
+    ["/", "/data", "/media/sd", "/media/internal"]
+        .map(|target| volume(root, &mounts, &boot, target))
+}
+
+/// One volume of `volumes`.
+// statvfs field widths differ between the host and the player's 32-bit ARM: the casts are needed.
+#[allow(clippy::unnecessary_cast)]
+fn volume(root: &Root, mounts: &[Mount], boot: &Option<String>, target: &str) -> Object {
+    let sd = target == "/media/sd";
+    let found: Vec<&Mount> = mounts.iter().filter(|m| m.path == target).collect();
+    // Stacked mounts are ambiguous to consumers; fail closed.
+    let [mount] = found[..] else {
+        let mut volume = Object::new();
+        volume.insert("path".into(), json!(target));
+        volume.insert("state".into(), json!("Unavailable"));
+        volume.insert("reason".into(), json!("not_uniquely_mounted"));
+        volume.insert("generation".into(), Value::Null);
+        volume.insert("space_state".into(), json!("Unavailable"));
+        if sd && found.is_empty() {
+            volume.extend(refused_card(root));
         }
-        let mount = found[0];
-        let mut item = mount.value();
-        let set = |item: &mut Object, key: &str, value: Value| {
-            item.insert(key.into(), value);
-        };
-        set(
-            &mut item,
-            "generation",
-            match boot.as_deref() {
-                Some(b) if !b.is_empty() => {
-                    json!(format!("{b}:{}:{}", mount.mount_id, mount.device_id))
-                }
-                _ => Value::Null,
-            },
+        return volume;
+    };
+    // The SD card's claim, read at most once.
+    let claim = OnceCell::new();
+    let claim = || claim.get_or_init(|| Claim::load(root));
+    let mut item = mount.value();
+    let set = |item: &mut Object, key: &str, value: Value| {
+        item.insert(key.into(), value);
+    };
+    set(
+        &mut item,
+        "generation",
+        match boot.as_deref() {
+            Some(b) if !b.is_empty() => {
+                json!(format!("{b}:{}:{}", mount.mount_id, mount.device_id))
+            }
+            _ => Value::Null,
+        },
+    );
+    let device = root.path(&format!("/sys/dev/block/{}", mount.device_id));
+    let real = resolve(&device).to_string_lossy().into_owned();
+    let expected = if sd { "11240000.mmc" } else { "11230000.mmc" };
+    let device_exists = exists(&device);
+    let instance = device_instance(root, &mount.device_id);
+    set(&mut item, "source_instance", text(&instance));
+    let controller_valid = real.contains(expected) && device_exists;
+    set(&mut item, "controller_valid", json!(controller_valid));
+    let failed = |item: &mut Object, reason: &str| {
+        item.insert("state".into(), json!("Failed"));
+        item.insert("reason".into(), json!(reason));
+    };
+    if controller_valid {
+        set(&mut item, "state", json!("Ready"));
+        set(&mut item, "reason", Value::Null);
+    } else {
+        failed(&mut item, "source_missing_or_wrong_controller");
+    }
+    set(&mut item, "uuid", Value::Null);
+    if controller_valid {
+        let answer = command::run(
+            root,
+            &["blkid", "-p", "-s", "UUID", "-o", "value", &mount.source],
+            command::TIMEOUT,
         );
-        let device = root.path(&format!("/sys/dev/block/{}", mount.device_id));
-        let real = resolve(&device).to_string_lossy().into_owned();
-        let expected = if sd { "11240000.mmc" } else { "11230000.mmc" };
-        let device_exists = exists(&device);
-        let instance = device_instance(root, &mount.device_id);
-        set(&mut item, "source_instance", text(&instance));
-        let controller_valid = real.contains(expected) && device_exists;
-        set(&mut item, "controller_valid", json!(controller_valid));
-        let failed = |item: &mut Object, reason: &str| {
-            item.insert("state".into(), json!("Failed"));
-            item.insert("reason".into(), json!(reason));
+        let uuid = answer
+            .output
+            .filter(|o| answer.ok && !o.is_empty())
+            .map_or(Value::Null, Value::String);
+        set(&mut item, "uuid", uuid.clone());
+        let expected_uuid = match target {
+            "/" => Some("79324c69-6e75-4801-8000-000000000101"),
+            "/data" => Some("79324c69-6e75-4801-8000-000000000102"),
+            "/media/internal" => Some("79324c69-6e75-4801-8000-000000000103"),
+            _ => None,
         };
-        if controller_valid {
-            set(&mut item, "state", json!("Ready"));
-            set(&mut item, "reason", Value::Null);
-        } else {
-            failed(&mut item, "source_missing_or_wrong_controller");
-        }
-        set(&mut item, "uuid", Value::Null);
-        if controller_valid {
-            let answer = command::run(
-                root,
-                &["blkid", "-p", "-s", "UUID", "-o", "value", &mount.source],
-                command::TIMEOUT,
-            );
-            let uuid = answer
-                .output
-                .filter(|o| answer.ok && !o.is_empty())
-                .map_or(Value::Null, Value::String);
-            set(&mut item, "uuid", uuid.clone());
-            let expected_uuid = match target {
-                "/" => Some("79324c69-6e75-4801-8000-000000000101"),
-                "/data" => Some("79324c69-6e75-4801-8000-000000000102"),
-                "/media/internal" => Some("79324c69-6e75-4801-8000-000000000103"),
-                _ => None,
-            };
-            if expected_uuid.is_some_and(|e| uuid.as_str() != Some(e)) {
-                failed(&mut item, "filesystem_identity_invalid");
-            }
-            if sd {
-                let identity = media_identity(&device, &mount.filesystem, uuid.as_str());
-                let identity_value = identity.clone().map_or(Value::Null, Value::Object);
-                set(&mut item, "identity", identity_value.clone());
-                let claim = object(root, MEDIA_MOUNT);
-                let matches = [
-                    ("boot_id", text(&boot)),
-                    ("mount_id", json!(mount.mount_id)),
-                    ("device_id", json!(mount.device_id)),
-                    ("uuid", uuid),
-                ]
-                .iter()
-                .all(|(k, v)| get_eq(&claim, k, v));
-                if !matches {
-                    failed(&mut item, "mount_claim_changed_or_missing");
-                }
-                let claimed = get(&claim, "identity");
-                if get(&item, "state") == "Ready"
-                    && (identity.is_none()
-                        || (!claimed.is_null() && !claimed.py_eq(&identity_value)))
-                {
-                    failed(&mut item, "media_identity_changed_or_missing");
-                }
-                if instance.is_none() || !get(&claim, "source_instance").py_eq(&text(&instance)) {
-                    failed(&mut item, "block_instance_changed");
-                }
-            }
-        }
-        let readonly = mount.read_only();
-        let mut protected = false;
-        if sd && readonly {
-            // media.py mounts a healthy card read-only between writes: it is Ready;
-            // so is one that plays while its check finishes in the background (F49).
-            protected = get_in(
-                &object(root, MEDIA_MOUNT),
-                "read_only",
-                &["protected", "checking"],
-            );
+        if expected_uuid.is_some_and(|e| uuid.as_str() != Some(e)) {
+            failed(&mut item, "filesystem_identity_invalid");
         }
         if sd {
-            set(&mut item, "writable", json!(!readonly));
-        }
-        match statvfs(&root.path(target)) {
-            Ok(vfs) => {
-                let frsize = vfs.frsize;
-                let total = vfs.blocks * frsize;
-                let available = vfs.bavail * frsize;
-                set(&mut item, "total_bytes", json!(total));
-                set(&mut item, "available_bytes", json!(available));
-                set(&mut item, "free_bytes", json!(vfs.bfree * frsize));
-                set(&mut item, "available_inodes", json!(vfs.favail));
-                let error = get(&item, "state") == "Failed";
-                let mut state =
-                    space_state(Some(available), Some(total), readonly && !protected, error);
-                if vfs.files > 0 && vfs.favail == 0 {
-                    state = "CriticalSpace";
-                }
-                set(&mut item, "space_state", json!(state));
-                if sd {
-                    // A filesystem far smaller than its partition (a copied image, an old
-                    // partition layout) hides most of the card; report it, never auto-fix it.
-                    if let Some(sectors) = read(&device.join("size"))
-                        .filter(|s| isdigit(s))
-                        .and_then(|s| s.parse::<u64>().ok())
-                    {
-                        let bytes = sectors.saturating_mul(512);
-                        set(&mut item, "partition_bytes", json!(bytes));
-                        let undersized = (total as f64) < 0.9 * bytes as f64;
-                        set(
-                            &mut item,
-                            "capacity_state",
-                            json!(if undersized { "Undersized" } else { "Full" }),
-                        );
-                    }
-                }
+            let identity = media_identity(&device, &mount.filesystem, uuid.as_str());
+            let identity_value = identity.clone().map_or(Value::Null, Value::Object);
+            set(&mut item, "identity", identity_value.clone());
+            let claim = claim();
+            let matches = [
+                ("boot_id", text(boot)),
+                ("mount_id", json!(mount.mount_id)),
+                ("device_id", json!(mount.device_id)),
+                ("uuid", uuid),
+            ]
+            .iter()
+            .all(|(k, v)| claim.get(k).py_eq(v));
+            if !matches {
+                failed(&mut item, "mount_claim_changed_or_missing");
             }
-            Err(_) => {
-                set(&mut item, "space_state", json!("Failed"));
-                failed(&mut item, "statvfs_failed");
+            let claimed = claim.get("identity");
+            if get(&item, "state") == "Ready"
+                && (identity.is_none() || (!claimed.is_null() && !claimed.py_eq(&identity_value)))
+            {
+                failed(&mut item, "media_identity_changed_or_missing");
+            }
+            if instance.is_none() || !claim.get("source_instance").py_eq(&text(&instance)) {
+                failed(&mut item, "block_instance_changed");
             }
         }
-        if get(&item, "state") == "Ready" && readonly && !protected {
-            set(&mut item, "state", json!("Degraded"));
-            set(&mut item, "reason", json!("read_only"));
-            if sd {
-                // Why the platform mounted the card read-only (media.py): its
-                // check found errors or did not finish; Repair can make it writable.
-                let claim = object(root, MEDIA_MOUNT);
-                let cause = get(&claim, "read_only");
-                let reason = if get_in(
-                    &claim,
-                    "read_only",
-                    &["filesystem_errors", "check_timed_out"],
-                ) {
-                    cause.clone()
-                } else {
-                    json!("mounted_read_only")
-                };
-                set(&mut item, "read_only_reason", reason);
-            }
-        }
-        volumes.push(item);
     }
-    volumes
+    let readonly = mount.read_only();
+    let mut protected = false;
+    if sd && readonly {
+        // A healthy card is mounted read-only between writes: it is Ready; so is one that
+        // plays while its check finishes in the background (F49).
+        protected = matches!(
+            claim().read_only(),
+            Some(ReadOnly::Protected | ReadOnly::Checking)
+        );
+    }
+    if sd {
+        set(&mut item, "writable", json!(!readonly));
+    }
+    match statvfs(&root.path(target)) {
+        Ok(vfs) => {
+            let frsize = vfs.frsize;
+            let total = vfs.blocks * frsize;
+            let available = vfs.bavail * frsize;
+            set(&mut item, "total_bytes", json!(total));
+            set(&mut item, "available_bytes", json!(available));
+            set(&mut item, "free_bytes", json!(vfs.bfree * frsize));
+            set(&mut item, "available_inodes", json!(vfs.favail));
+            let error = get(&item, "state") == "Failed";
+            let mut state =
+                space_state(Some(available), Some(total), readonly && !protected, error);
+            if vfs.files > 0 && vfs.favail == 0 {
+                state = "CriticalSpace";
+            }
+            set(&mut item, "space_state", json!(state));
+            if sd {
+                // A filesystem far smaller than its partition (a copied image, an old
+                // partition layout) hides most of the card; report it, never auto-fix it.
+                if let Some(sectors) = read(&device.join("size"))
+                    .filter(|s| isdigit(s))
+                    .and_then(|s| s.parse::<u64>().ok())
+                {
+                    let bytes = sectors.saturating_mul(512);
+                    set(&mut item, "partition_bytes", json!(bytes));
+                    let undersized = (total as f64) < 0.9 * bytes as f64;
+                    set(
+                        &mut item,
+                        "capacity_state",
+                        json!(if undersized { "Undersized" } else { "Full" }),
+                    );
+                }
+            }
+        }
+        Err(_) => {
+            set(&mut item, "space_state", json!("Failed"));
+            failed(&mut item, "statvfs_failed");
+        }
+    }
+    if get(&item, "state") == "Ready" && readonly && !protected {
+        set(&mut item, "state", json!("Degraded"));
+        set(&mut item, "reason", json!("read_only"));
+        if sd {
+            // Why the platform mounted the card read-only: its check found errors or did not
+            // finish; Repair can make it writable.
+            let reason = match claim().read_only() {
+                Some(cause) if ReadOnly::damaged(Some(cause)) => cause.value(),
+                _ => json!("mounted_read_only"),
+            };
+            set(&mut item, "read_only_reason", reason);
+        }
+    }
+    item
 }
 
 #[cfg(test)]

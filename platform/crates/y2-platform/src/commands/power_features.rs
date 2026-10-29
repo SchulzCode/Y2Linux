@@ -1,4 +1,4 @@
-//! `power_features.apply`: the POWER-FINAL-16/17/18/19/27/32 runtime power features, armed once the UI
+//! The POWER-FINAL-16/17/18/19/27/32 runtime power features, armed once the UI
 //! has drawn its first frame (`boot-stage application_ready`), never earlier: the display domain must
 //! not be cut while the loader-lit panel is still being taken over. Each feature is a kernel parameter
 //! whose kernel default is the safe behaviour. The owner keeps one off for an A/B night with
@@ -6,8 +6,10 @@
 //! recorded and never blocks boot, sleep or the UI.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::{atomic_json, mkdir_parents, write_text, Failure};
-use serde_json::{json, Map, Value};
-use y2p_core::{py::exact_int, Root};
+use serde::Serialize;
+use serde_json::{json, Value};
+use std::collections::BTreeMap;
+use y2p_core::{json::Object, py::exact_int, Root};
 
 const OVERRIDE: &str = "/data/system/platform/power-features.json";
 const STATE: &str = "/run/y2/power-features.json";
@@ -99,21 +101,34 @@ fn hint(name: &str) -> Option<i64> {
         .map(|(_, h)| *h)
 }
 
+/// /data/system/platform/panel.json: the panel LK identified on an earlier boot.
+#[derive(Serialize)]
+struct PanelRecord<'a> {
+    schema: u8,
+    panel: &'a str,
+    /// LK's `lcm` text of that boot, as evidence.
+    lcm: Option<String>,
+}
+
+/// The panel a record names (a record of any other shape names none).
+fn recorded_panel(record: &Object) -> Option<&str> {
+    record.get("panel").and_then(Value::as_str)
+}
+
 /// This player's panel: LK's identification (y2_boot/metadata panel=: a gc9503v name, or st7701 with
 /// lcm=1-; boot-policy.h), recorded on Y2DATA; on boots where LK did not identify it (lcm=0-st7701 can
 /// be a fallback), the record. The kernel gets the record as panel_hint; it never overrides LK.
 fn panel(root: &Root) -> Option<String> {
-    let mut lk = None;
-    for field in root
+    let metadata = root
         .read("/sys/firmware/y2_boot/metadata")
-        .unwrap_or_default()
+        .unwrap_or_default();
+    let mut lk = metadata
         .split_whitespace()
-    {
-        if let Some(name) = field.strip_prefix("panel=") {
-            lk = Some(name.to_owned());
-        }
-    }
-    if !lk.as_deref().is_some_and(|n| hint(n).is_some()) {
+        .filter_map(|field| field.strip_prefix("panel="))
+        .next_back()
+        .filter(|name| hint(name).is_some())
+        .map(str::to_owned);
+    if lk.is_none() {
         // The driver's own ID read at the first screen-on (stock compare_id registers).
         let kind = root.read(PANEL_KIND);
         lk = PANEL_HINTS
@@ -123,22 +138,27 @@ fn panel(root: &Root) -> Option<String> {
     }
     let record = root.json_object(PANEL_RECORD);
     if let Some(lk) = lk {
-        if record.get("panel").and_then(Value::as_str) != Some(lk.as_str()) {
+        if recorded_panel(&record) != Some(lk.as_str()) {
+            // Best effort: a panel that cannot be recorded is still this boot's.
             let path = root.path(PANEL_RECORD);
-            let value =
-                json!({"schema": 1, "panel": lk, "lcm": root.read("/sys/firmware/y2_boot/lcm")});
-            let _ = mkdir_parents(path.parent().expect("parent"), 0o700)
+            let value = PanelRecord {
+                schema: 1,
+                panel: &lk,
+                lcm: root.read("/sys/firmware/y2_boot/lcm"),
+            };
+            let _ = mkdir_parents(&root.path("/data/system/platform"), 0o700)
                 .and_then(|()| atomic_json(&path, &value, true));
         }
         return Some(lk);
     }
-    let remembered = record.get("panel").and_then(Value::as_str)?;
+    let remembered = recorded_panel(&record)?;
     let value = hint(remembered)?;
     write_text(&root.path(PANEL_HINT), &value.to_string()).ok()?;
     Some(remembered.to_owned())
 }
 
-/// `encode(default, value)`.
+/// The kernel parameter text for `value`: a flag is `N` only for `false`; a mask takes an integer
+/// within its bits (`true` all of them, `false` none).
 fn encode(default: Default, value: &Value) -> Result<String, Failure> {
     match default {
         Default::Flag => Ok(if *value == Value::Bool(false) {
@@ -161,9 +181,31 @@ fn encode(default: Default, value: &Value) -> Result<String, Failure> {
     }
 }
 
-pub fn apply(root: &Root) -> Map<String, Value> {
+/// What arming one feature did: the parameter's value read back, or why it was not written.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum Armed {
+    Written {
+        wanted: Value,
+        value: Option<String>,
+    },
+    Refused {
+        wanted: Value,
+        error: String,
+    },
+}
+
+/// /run/y2/power-features.json (sleep diagnostics and error reports read it).
+#[derive(Debug, Serialize)]
+pub struct PowerFeatures {
+    schema: u8,
+    pub features: BTreeMap<&'static str, Armed>,
+}
+
+/// Arm every feature as the owner's override (or its default) wants it and record the outcome.
+pub fn apply(root: &Root) -> PowerFeatures {
     let override_ = root.json_object(OVERRIDE);
-    let mut result = Map::new();
+    let mut features = BTreeMap::new();
     for (name, path, default) in FEATURES {
         let wanted = if name == "panel_power_down" && !override_.contains_key(name) {
             json!(panel(root).is_some_and(|p| CONFIRMED_PANELS.contains(&p.as_str())))
@@ -175,15 +217,25 @@ pub fn apply(root: &Root) -> Map<String, Value> {
         };
         let entry =
             match encode(default, &wanted).and_then(|value| write_text(&root.path(path), &value)) {
-                Ok(()) => json!({"wanted": wanted, "value": root.read(path)}),
-                Err(error) => json!({"wanted": wanted, "error": error.strerror()}),
+                Ok(()) => Armed::Written {
+                    wanted,
+                    value: root.read(path),
+                },
+                Err(error) => Armed::Refused {
+                    wanted,
+                    error: error.strerror(),
+                },
             };
-        result.insert(name.into(), entry);
+        features.insert(name, entry);
     }
-    let runtime = root.path(STATE);
-    let _ = mkdir_parents(runtime.parent().expect("parent"), 0o700)
-        .and_then(|()| atomic_json(&runtime, &json!({"schema": 1, "features": result}), false));
-    result
+    let state = PowerFeatures {
+        schema: 1,
+        features,
+    };
+    // Best effort: the features are armed whether or not the record can be written.
+    let _ = mkdir_parents(&root.path("/run/y2"), 0o700)
+        .and_then(|()| atomic_json(&root.path(STATE), &state, false));
+    state
 }
 
 #[cfg(test)]
