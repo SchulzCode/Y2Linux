@@ -75,7 +75,7 @@ fn ssh_waits_for_crng_and_usb_not_only_a_running_daemon() {
 #[test]
 fn ssh_passive_address_events_and_signal_fd_wake() {
     let (left, right) = socket_pair();
-    let mut events = AddressEvents { sock: Some(left) };
+    let mut events = AddressEvents::on(Some(left));
     let (rd, wr) = pipe();
     send(&right, b"address-change");
     assert!(events.wait(1.0, rd.as_raw_fd()));
@@ -116,7 +116,7 @@ fn ssh_ready_heartbeat_does_not_fork_ip_each_second() {
         .args(["-c", "exec sleep 30"])
         .spawn()
         .unwrap();
-    let mut daemon = Daemon::new(&fixture.root, AddressEvents { sock: Some(sock) });
+    let mut daemon = Daemon::new(&fixture.root, AddressEvents::on(Some(sock)));
     daemon.child = Some(listener);
     let mut waits = Vec::new();
     for _ in 0..5 {
