@@ -9668,3 +9668,11 @@ the build: cargo test, clippy, armv7 check, golden suite, host suite 576 OK, byt
 build: every difference is a deliberately re-recorded golden. The owner's hardware checks (PLATFORM-RUST-PORT-HANDOFF.md
 §6 A) are owed on 171; 170 (sequence 11150) is the comparison point.
 
+**Test build 172 (2026-10-29, the refactor's quick wins, PLATFORM-RUST-REFACTOR-PLAN.md):** no behaviour change
+intended (byte comparison against 171 at every step, host suite OK, build container 549 tests). On the owner's
+player from 171 by staged OTA: applied 21:33:53, Acknowledged 21:35:19 (86 s), application_ready 37.51 s; the four
+daemons 3.3–4.5 MB RSS; `status wifi` and the connectivity daemon's network.json agree (Online, DNS ready, −52
+dBm: one Wi-Fi observer now); clock TLS-ready from NTP; SFTP root Internal Storage; codec-runtime arguments as
+before. The owner's hardware checks (PLATFORM-RUST-PORT-HANDOFF.md §6 A) are owed on 172; 171 and 170 are the
+comparison points.
+

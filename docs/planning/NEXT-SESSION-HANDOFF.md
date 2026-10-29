@@ -1,6 +1,12 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-29, evening): TEST BUILD 171 — THE REFACTORED RUST PLATFORM — ON THE OWNER'S PLAYER, NOT PUBLISHED.**
+> **START HERE (2026-10-29, late evening): TEST BUILD 172 (REFACTOR QUICK WINS) ON THE OWNER'S PLAYER, NOT PUBLISHED.**
+> On top of 171: one text, Wi-Fi observer, workload lease, USB state and sleep-diagnostics parts each; explicit
+> imports; codec inventory refusal; atomic_json syscall; stale doc references (refactor plan "Quick wins").
+> Byte-identical outputs to 171. 172 (seq 11170) by OTA, Acknowledged in 86 s. **Owed:** the owner's hardware
+> checks on 172. Next free label 173, sequence above 11170.
+>
+> Previous entry: **START HERE (2026-10-29, evening): TEST BUILD 171 — THE REFACTORED RUST PLATFORM — ON THE OWNER'S PLAYER, NOT PUBLISHED.**
 > Owner: "just do the refactoring plan now and after you are finished install via ota". Done on `main` (not
 > pushed): [refactor plan](PLATFORM-RUST-REFACTOR-PLAN.md) waves 1 and 2 (cli.rs parser, one shared core in
 > y2p-core, typed records, split modules, tests through the root's runner/clock, crash paths → refusal records,
