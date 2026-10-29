@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 
-/// `update.application_healthy`: Reborn's own verdict (`healthy`, Beta 8): drawing, database working,
+/// Reborn's own verdict (`healthy`, Beta 8): drawing, database working,
 /// no stuck worker. A library scan that could not read some songs is not a reason to roll an update
 /// back (V1 code review B3). Without the field (a Reborn before Beta 8), the drawing and uptime checks
 /// alone.
@@ -29,7 +29,7 @@ pub(super) fn numbers_only(text: &str) -> bool {
         && !text.starts_with(space)
 }
 
-/// `update.restore_health_debug`: undo init's health-boot console level and stall panic (F23); best
+/// Undo init's health-boot console level and stall panic (F23); best
 /// effort. The panic timeout stays at 10 s: only the health boot's RCU stall panic and console level go
 /// back to the saved values.
 pub(super) fn restore_health_debug(root: &Root) {
@@ -101,7 +101,7 @@ impl ApplicationReady {
     }
 }
 
-/// Python `a == b` for an int (or None) read from /proc and a value from a record.
+/// Whether a number read from /proc (or none) is the recorded one (none equals null).
 fn same_number(read: Option<i64>, recorded: Option<&Value>) -> bool {
     match (read, recorded) {
         (None, None | Some(Value::Null)) => true,
@@ -110,7 +110,7 @@ fn same_number(read: Option<i64>, recorded: Option<&Value>) -> bool {
     }
 }
 
-/// `update.health_ack`: the first boot of an installed update confirms itself once Reborn draws and
+/// The first boot of an installed update confirms itself once Reborn draws and
 /// answers, or asks for the rollback after 180 s.
 pub(super) fn health_ack(root: &Root) -> Result<Value> {
     let pending = status(root);
@@ -175,7 +175,7 @@ pub(super) fn health_ack(root: &Root) -> Result<Value> {
     Ok(Value::Object(result))
 }
 
-/// `health.check`: root, data, filesystem_errors, display, render_node, audio and input all `OK`
+/// Root, data, filesystem_errors, display, render_node, audio and input all `OK`
 /// (`checks.get(name, {}).get('state')`: the dict comprehension keeps the last check of a name).
 fn core_health_ok(root: &Root) -> Result<bool> {
     let health = crate::commands::observation::health::check(root, false)?;

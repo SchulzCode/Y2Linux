@@ -12,7 +12,7 @@ pub(super) fn channel_url(root: &Root) -> Result<Option<String>> {
     }
 }
 
-/// `update.automatic_check`: daily check on Wi-Fi: only reports that an update exists, never downloads
+/// Daily check on Wi-Fi: only reports that an update exists, never downloads
 /// a payload or installs. Called by the maintenance loop; cheap when not due.
 pub(super) fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
     let now = io.now();

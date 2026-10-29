@@ -1,5 +1,5 @@
-//! `radiofw.Image` and `radiofw.Ext4`: random access to an Android sparse image (or a raw ext4 image)
-//! and just enough ext2/3/4 to read a few named regular files from the stock `system.img`.
+//! Random access to an Android sparse image (or a raw ext4 image) and just enough ext2/3/4 to read a
+//! few named regular files from the stock `system.img`.
 // SPDX-License-Identifier: GPL-2.0-only
 use std::{
     fs::File,
@@ -8,7 +8,7 @@ use std::{
 };
 use y2p_core::py;
 
-/// What the Python reader raises: a ValueError (its own reasons, or `struct.error` texts for a
+/// Why an image cannot be read: a ValueError (its own reasons, or `struct.error` texts for a
 /// truncated structure, CONTRACT.md accepted differences), an OSError, or FileNotFoundError(path)
 /// from a lookup.
 #[derive(Debug, PartialEq, Eq)]
@@ -401,7 +401,7 @@ impl Ext4 {
     }
 
     /// One indirect level; `base` is how many block numbers were found before it (the walk stops once
-    /// `want` are known, as Python's, which also never needs a hole's zeros beyond that).
+    /// `want` are known: a hole's zeros beyond that are never needed).
     fn walk(
         &mut self,
         block: u128,

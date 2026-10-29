@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 
-/// A symlink's OSError: Python names both paths.
+/// A symlink whose error names both paths (`[Errno 17] File exists: 'a' -> 'b'`).
 fn symlink(target: &Path, link: &Path) -> Result<(), Failure> {
     std::os::unix::fs::symlink(target, link).map_err(|error| {
         let (text, class) = py::os_error(&error, Some(&target.to_string_lossy()));

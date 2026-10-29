@@ -1,4 +1,4 @@
-//! `y2-platform service-daemon` (service.py): bounded readiness/maintenance work, separate from the
+//! `y2-platform service-daemon`: bounded readiness/maintenance work, separate from the
 //! battery deadline owner. Every pass publishes `network.json` (Wi-Fi with the supplicant events, the
 //! F52 self-heal and the DNS probe run in process), `coexistence.json` and `time-status.json`, ticks the
 //! USB service and the Wi-Fi power policy, and starts the slow work in its own processes: `media
@@ -7,8 +7,8 @@
 //! health-ack` and `boot-stage application_ready`.
 //!
 //! Below a fixture root the loop does not wait and ends after `Y2_DAEMON_TICKS` passes, and the
-//! children are recorded, never started (process.rs), as tests/platform_cases/service.py
-//! `daemon_ticks` stops the Python daemon.
+//! children are recorded, never started (process.rs; tests/platform_cases/service.py
+//! `daemon_ticks`).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::process::{self, Child, Start};
 use super::{radiofw, update, usb::UsbService};
@@ -258,7 +258,7 @@ impl Service {
 
 /// `y2-platform service-daemon`: prints nothing and exits 0 when stopped (SIGTERM/SIGINT); a second
 /// instance is refused (BlockingIOError) before it starts anything. An error escaping the loop ends
-/// it (exit 1: main.py's record, or a traceback for what Python would not catch) after the USB gadget
+/// it (exit 1 with the error's record) after the USB gadget
 /// and the responder are stopped; the supervisor restarts it.
 pub fn serve(root: &Root) -> Outcome {
     let runtime = root.path("/run/y2");

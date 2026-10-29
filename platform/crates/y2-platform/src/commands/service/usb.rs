@@ -1,4 +1,4 @@
-//! usb.py's `USBService` (and `media_views`, `config`, `expectations`): consumer MTP + advanced ECM;
+//! The USB service: consumer MTP + advanced ECM;
 //! Linux is the only block/filesystem owner. No block-export function is selectable. The responder
 //! pins media roots per lifetime; mount identity changes require unbinding/stopping it before a
 //! replacement view. `service-daemon` ticks it every pass and stops it when it ends.
@@ -266,7 +266,7 @@ impl UsbService {
         }
     }
 
-    /// The `try:` part of usb.py's tick.
+    /// The part of a tick whose refusal counts against the responder's restart budget.
     fn attempt(
         &mut self,
         requested: Value,

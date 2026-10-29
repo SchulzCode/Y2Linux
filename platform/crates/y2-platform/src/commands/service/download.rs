@@ -1,13 +1,13 @@
-//! The release download of `update.py` (urllib in Python) through the `curl` binary, as Reborn does:
-//! no TLS stack in this binary (plan §3.7). One request per hop, `curl --include` without following
-//! redirects, so this module applies `AllowlistedRedirect` itself: HTTPS only, to the channel's listed
-//! hosts, at most 5 hops; authenticity comes from the signed manifest, never from the transport. The
-//! request is urllib's: HTTP/1.1, no proxy, `Accept-Encoding: identity`, `Connection: close`, its
+//! The release download through the `curl` binary, as Reborn does: no TLS stack in this binary (plan
+//! §3.7). One request per hop, `curl --include` without following redirects, so this module checks
+//! each redirect itself: HTTPS only, to the channel's listed hosts, at most 5 hops; authenticity comes
+//! from the signed manifest, never from the transport. The request stays what the release server has
+//! always seen: HTTP/1.1, no proxy, `Accept-Encoding: identity`, `Connection: close`, the same
 //! User-Agent, 10 s for the connection and for each wait on data.
 //!
-//! Errors keep Python's classes and the texts callers match (Reborn's `update_problem` reads "url",
-//! "http", "network"): `<urlopen error …>` (URLError: retried for the manifest), `HTTP Error <code>:
-//! <reason>` (HTTPError: never retried), `timed out` (TimeoutError while reading the body).
+//! The error texts are what download.json and Reborn's `update_problem` read ("url", "http",
+//! "network"): `<urlopen error …>` before a response (retried for the manifest), `HTTP Error <code>:
+//! <reason>` (never retried), `timed out` while reading the body.
 // SPDX-License-Identifier: GPL-2.0-only
 use std::{
     io::Read,
@@ -16,15 +16,15 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-/// Set by the SIGTERM handler while a download may be cancelled (`update._cancel`).
+/// Set by `update stage`'s SIGTERM handler (Reborn's Cancel) while the download may be cancelled.
 pub static CANCELLED: AtomicBool = AtomicBool::new(false);
 
-/// What a read or a request can raise, in Python's terms.
+/// Why a request or a read failed.
 #[derive(Debug)]
 pub enum Error {
-    /// `urllib.error.HTTPError` (a URLError, but never retried by `stage`).
+    /// The server answered with an error status (never retried by `stage`).
     Http { code: u16, text: String },
-    /// `urllib.error.URLError` before a response arrived.
+    /// No response: name resolution, connection, TLS (retried for the manifest).
     Url(String),
     /// `TimeoutError('timed out')` while reading.
     Timeout,
@@ -48,7 +48,7 @@ impl Error {
     }
 }
 
-/// `urllib.parse.urlsplit` for what the checks need.
+/// A URL's parts as the checks need them (lowercase scheme and host; credentials apart).
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Parts {
     pub scheme: String,
@@ -122,7 +122,8 @@ fn has_credentials(parts: &Parts) -> bool {
         || parts.password.as_deref().is_some_and(|p| !p.is_empty())
 }
 
-/// `update.base_url`.
+/// The release's base URL from its manifest URL: HTTPS, a host, no credentials, query or fragment,
+/// ending in `/manifest.json`, no control characters or spaces.
 pub fn base_url(url: &str) -> Result<String, String> {
     let parts = urlsplit(url);
     if parts.scheme != "https"
@@ -303,7 +304,7 @@ fn read_some(
     }
 }
 
-/// What a curl failure before any response means to urllib (a URLError's reason).
+/// The reason a curl failure before any response gives (the texts records have always shown).
 fn before_response(code: Option<i32>) -> Error {
     Error::Url(match code {
         Some(6) => "[Errno -3] Temporary failure in name resolution".into(),
@@ -417,7 +418,7 @@ impl Response {
             if n == 0 {
                 self.finished = true;
                 match self.child.wait().ok().and_then(|s| s.code()) {
-                    // A short body ends like urllib's read(): the caller checks the size.
+                    // A short body just ends: the caller checks the size.
                     Some(0 | 18) => {}
                     Some(28) => return Err(Error::Timeout),
                     Some(56) => {

@@ -10,7 +10,7 @@ pub(super) fn object(value: Option<Value>) -> Map<String, Value> {
     }
 }
 
-/// `update.download_record`: download.json, with a download or check whose process is gone shown as
+/// Download.json, with a download or check whose process is gone shown as
 /// interrupted. A user's player (8.17) said "Downloading Update… Keep Wi-Fi on." for a day: the record
 /// a download writes first stays `Staging` when the download dies without reaching its own handler
 /// (power loss, a kill), and that page offered neither Cancel nor Check for Updates; a restart kept
@@ -27,7 +27,8 @@ pub(super) fn download_record(root: &Root) -> Value {
     record
 }
 
-/// `update.status`.
+/// `update status`: the core's journal (Idle on a ready Y2DATA without one, Unavailable without a
+/// ready Y2DATA), with the download and check records and the channel's name.
 pub fn status(root: &Root) -> Map<String, Value> {
     let path = root.path("/data/updates/state.json");
     let mut value = root.json("/data/updates/state.json");
@@ -98,7 +99,8 @@ fn lock_held(root: &Root, path: &Path) -> bool {
     false
 }
 
-/// Python's `json.loads` error text for the core's output (a ValueError).
+/// Why the core's output is no JSON, worded as the failure records have always shown it
+/// (`Expecting value: line 1 column 1 (char 0)`).
 pub(super) fn json_error(text: &str, error: &serde_json::Error) -> String {
     let column = error.column();
     let line = error.line();
@@ -117,7 +119,7 @@ pub(super) fn json_error(text: &str, error: &serde_json::Error) -> String {
     format!("Expecting value: line {line} column {column} (char {offset})")
 }
 
-/// `update.core`: one action of the native core; its refusal becomes the error text.
+/// One action of the native core; its refusal becomes the error text.
 pub fn core(
     root: &Root,
     action: &str,

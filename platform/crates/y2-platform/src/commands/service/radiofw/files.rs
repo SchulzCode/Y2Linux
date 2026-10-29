@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 
-/// `provision.defaults`: the generic Wi-Fi/BT board records of the stock reader library, with the
+/// The generic Wi-Fi/BT board records of the stock reader library, with the
 /// default addresses cleared.
 pub(super) fn defaults(custom: &[u8]) -> Result<Files> {
     let slice = |a: usize, b: usize| custom.get(a..b.min(custom.len())).unwrap_or(&[]).to_vec();
@@ -41,7 +41,7 @@ pub(super) fn get<'a>(files: &'a Files, name: &str) -> Option<&'a Vec<u8>> {
     files.iter().find(|(n, _)| n == name).map(|(_, d)| d)
 }
 
-/// `radiofw.checked`: every reviewed file present, with the reviewed size and SHA-256.
+/// Every reviewed file present, with the reviewed size and SHA-256.
 pub(super) fn checked(reviewed: &Reviewed, files: Files) -> Result<Files> {
     for (name, size, sha) in reviewed.all() {
         match get(&files, name) {
@@ -66,7 +66,7 @@ pub(super) fn checked(reviewed: &Reviewed, files: Files) -> Result<Files> {
     Ok(files)
 }
 
-/// `radiofw.from_system_image`: the seven files from the stock system.img (sparse or raw ext4).
+/// The seven files from the stock system.img (sparse or raw ext4).
 pub(super) fn from_system_image(reviewed: &Reviewed, path: &Path) -> Result<Files> {
     let mut fs = Ext4::new(Image::open(path)?)?;
     let mut files: Files = Vec::new();
@@ -84,7 +84,7 @@ pub(super) fn from_system_image(reviewed: &Reviewed, path: &Path) -> Result<File
     checked(reviewed, files)
 }
 
-/// `radiofw.from_directory`: the seven files from a directory (a root's /lib/firmware/mediatek/mt6582).
+/// The seven files from a directory (a root's /lib/firmware/mediatek/mt6582).
 pub(super) fn from_directory(reviewed: &Reviewed, path: &Path) -> Result<Files> {
     let mut files = Vec::new();
     for (name, size, _) in reviewed.all() {
@@ -101,7 +101,7 @@ pub(super) fn from_directory(reviewed: &Reviewed, path: &Path) -> Result<Files> 
     checked(reviewed, files)
 }
 
-/// `radiofw.present`: cheap check for status polling: every file there with its size.
+/// Cheap check for status polling: every file there with its size.
 pub fn present(root: &Root) -> bool {
     let target = root.path(TARGET);
     Reviewed::stock().all().all(|(name, size, _)| {
@@ -112,7 +112,7 @@ pub fn present(root: &Root) -> bool {
     })
 }
 
-/// `radiofw.installed`: every reviewed file is in place with the reviewed hash.
+/// Every reviewed file is in place with the reviewed hash.
 pub(super) fn installed(root: &Root, reviewed: &Reviewed) -> bool {
     from_directory(reviewed, &root.path(TARGET)).is_ok()
 }
@@ -127,7 +127,7 @@ fn rmtree(path: &Path) {
     }
 }
 
-/// `radiofw.install`: write the checked files to Y2DATA: a fresh directory, then one rename.
+/// Write the checked files to Y2DATA: a fresh directory, then one rename.
 pub(super) fn install(root: &Root, reviewed: &Reviewed, files: Files) -> Result<()> {
     let files = checked(reviewed, files)?;
     let target = root.path(TARGET);

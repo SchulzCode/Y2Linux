@@ -1,5 +1,4 @@
-//! Group `service` of the port (docs/planning/PLATFORM-RUST-PORT-PLAN.md, "Remaining port groups"):
-//! `update` (update.py), `firmware` (radiofw.py) and `service-daemon` (service.py).
+//! Group `service`: `update`, `firmware` and `service-daemon`.
 // SPDX-License-Identifier: GPL-2.0-only
 pub(crate) mod daemon;
 mod download;

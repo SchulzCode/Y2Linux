@@ -1,4 +1,4 @@
-//! `radiofw.py`: radio firmware from the owner's own copy (RELEASE-49).
+//! `y2-platform firmware`: radio firmware from the owner's own copy (RELEASE-49).
 //!
 //! Y2Linux images carry no MediaTek radio firmware: it may not be redistributed. Each player keeps the
 //! reviewed files on Y2DATA (`/data/firmware/mt6582`, which `/lib/firmware/mediatek/mt6582` links
@@ -176,7 +176,7 @@ fn os_path(error: std::io::Error, path: &Path) -> Error {
 type Result<T> = std::result::Result<T, Error>;
 type Files = Vec<(String, Vec<u8>)>;
 
-/// `radiofw.start`: (re)start the radios with the installed firmware. Stopping running radios can take
+/// (re)start the radios with the installed firmware. Stopping running radios can take
 /// longer than a short command limit, which on 49 cut the combined restart off after its stop half
 /// (archive 154).
 fn start(root: &Root) {

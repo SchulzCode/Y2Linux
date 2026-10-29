@@ -12,7 +12,7 @@ fn payload_file(key: &str) -> Option<&'static str> {
     }
 }
 
-/// `update.free`: the volume must keep the reserve after `size` more bytes.
+/// The volume must keep the reserve after `size` more bytes.
 pub(super) fn free(io: &dyn Io, file: &File, size: i128) -> Result<()> {
     let info = io.space(file)?;
     if info.readonly || info.available < size + RESERVE || (info.files != 0 && info.favail < 128) {
@@ -35,7 +35,7 @@ fn name_of(path: &Path) -> String {
         .unwrap_or_default()
 }
 
-/// `update.disposable`: data the player can lose without losing anything a user sees: rotated and
+/// Data the player can lose without losing anything a user sees: rotated and
 /// diagnostic logs, rotated platform journals and finished qualification runs. Never music,
 /// settings, the library or the rollback copies.
 pub(super) fn disposable(root: &Root) -> Vec<PathBuf> {
@@ -84,7 +84,7 @@ fn tree_bytes(path: &Path) -> u64 {
     total
 }
 
-/// `update.remove_disposable`: one entry without following links; the bytes freed.
+/// One entry without following links; the bytes freed.
 fn remove_disposable(path: &Path) -> std::io::Result<u64> {
     let info = path.symlink_metadata()?;
     if info.file_type().is_dir() {
@@ -100,8 +100,8 @@ fn remove_disposable(path: &Path) -> std::io::Result<u64> {
     })
 }
 
-/// `update.make_room` (OTA-46): count the rollback copies the recovery replaces, then remove
-/// disposable data until the download fits. Returns the bytes removed; `NoSpace` with the total the
+/// Count the rollback copies the recovery replaces, then remove disposable data until the download
+/// fits (OTA-46). Returns the bytes removed; `NoSpace` with the total the
 /// update needs when even that is not enough.
 fn make_room(root: &Root, io: &dyn Io, file: &File, size: i128) -> Result<i128> {
     let directory = root.path("/data/updates");
@@ -154,7 +154,7 @@ fn make_room(root: &Root, io: &dyn Io, file: &File, size: i128) -> Result<i128> 
     Err(Raise::NoSpace(need))
 }
 
-/// `update.remove_package`: only these known disposable files; unexpected contents stop cleanup.
+/// Only these known disposable files; unexpected contents stop cleanup.
 pub(super) fn remove_package(directory: &Path) -> Result<()> {
     if !directory.exists() {
         return Ok(());
@@ -560,7 +560,7 @@ impl Staging<'_> {
     }
 }
 
-/// `update.stage`: check the signed manifest, and unless `check_only` download the payloads and queue
+/// Check the signed manifest, and unless `check_only` download the payloads and queue
 /// the package with the core.
 pub(super) fn stage(
     root: &Root,

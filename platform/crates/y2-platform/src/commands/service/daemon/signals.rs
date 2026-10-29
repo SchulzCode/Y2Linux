@@ -23,7 +23,7 @@ pub(super) fn os(error: io::Error) -> Failure {
     Failure::Os { text, class }
 }
 
-/// `service.SignalWake`: wake the same select as supplicant events; retain signals until drained.
+/// Wake the same select as supplicant events; retain signals until drained.
 /// SIGTERM and SIGINT end the loop, SIGUSR1 (usb.wake_service: re-read the media views now) only wakes
 /// it. The previous handlers come back on drop.
 pub(super) struct SignalWake {

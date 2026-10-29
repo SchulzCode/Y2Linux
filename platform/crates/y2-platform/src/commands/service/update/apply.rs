@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 
-/// `update.restart_mode`: restart into the installer and back (proven on 43 and 45). Owner override:
+/// Restart into the installer and back (proven on 43 and 45). Owner override:
 /// /data/updates/restart.json {"mode": "poweroff"} turns off instead, and Power starts the installer and
 /// the new system.
 pub(super) fn restart_mode(root: &Root) -> &'static str {
@@ -14,7 +14,7 @@ pub(super) fn restart_mode(root: &Root) -> &'static str {
     }
 }
 
-/// `update.battery_gate`: charger connected, or at least MINIMUM_PERCENT from this boot's estimate.
+/// Charger connected, or at least MINIMUM_PERCENT from this boot's estimate.
 pub(super) fn battery_gate(root: &Root) -> Result<()> {
     let power = root.json_object("/run/y2/power.json");
     let mut battery = match power.get("battery") {
@@ -37,7 +37,7 @@ pub(super) fn battery_gate(root: &Root) -> Result<()> {
     }
 }
 
-/// `power.rpc`: one request to the power daemon's socket.
+/// One request to the power daemon's socket.
 fn rpc(root: &Root, action: &str) -> Result<Value> {
     use std::os::unix::net::UnixStream;
     let request = Object::new()
@@ -90,7 +90,7 @@ fn rpc(root: &Root, action: &str) -> Result<Value> {
         .ok_or_else(|| Raise::value("invalid_power_response"))
 }
 
-/// `workload.workload("Maintenance")`: the shared activity lease (sleep waits for it) and the
+/// The shared activity lease (sleep waits for it) and the
 /// optional QoS hint, renewed every second while `function` runs.
 pub(super) fn maintenance<T>(root: &Root, function: impl FnOnce() -> Result<T>) -> Result<T> {
     let runtime = root.path("/run/y2");
@@ -137,7 +137,7 @@ pub(super) fn maintenance<T>(root: &Root, function: impl FnOnce() -> Result<T>) 
     result
 }
 
-/// `update.apply`: install (or restore) in the Y2 recovery image: LK starts RECOVERY from the MISC
+/// Install (or restore) in the Y2 recovery image: LK starts RECOVERY from the MISC
 /// request on the restart (or, with the owner's override, on the next Power press).
 pub(super) fn apply(root: &Root, rollback: bool) -> Result<Value> {
     maintenance(root, || {
@@ -155,7 +155,7 @@ pub(super) fn apply(root: &Root, rollback: bool) -> Result<Value> {
     })
 }
 
-/// `update.probe`: owner test: enter the recovery image, which records that it ran and shows its
+/// Owner test: enter the recovery image, which records that it ran and shows its
 /// screen, then returns like an install (restart by default).
 pub(super) fn probe(root: &Root) -> Result<Value> {
     maintenance(root, || {
@@ -164,7 +164,7 @@ pub(super) fn probe(root: &Root) -> Result<Value> {
     })
 }
 
-/// `update.cancel`: cancel a queued update and free its package right away (OTA-46).
+/// Cancel a queued update and free its package right away (OTA-46).
 pub(super) fn cancel_update(root: &Root) -> Result<Value> {
     let result = core(root, "cancel", None, 15.0)?;
     let _ = remove_package(&root.path("/data/updates/pending"));

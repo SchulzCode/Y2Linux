@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 
-/// `radiofw.roots`: the MTP roots the responder exports (its record), as device paths below the root.
+/// The MTP roots the responder exports (its record), as device paths below the root.
 pub(super) fn roots(root: &Root) -> Vec<PathBuf> {
     let value = root.json_object("/run/y2/mtp-roots.json");
     // `for r in value.get('roots', [])`: a list's items, a dict's keys, a string's characters.
@@ -20,7 +20,7 @@ fn get_or_null<'a>(map: &'a Map<String, Value>, key: &str) -> &'a Value {
     map.get(key).unwrap_or(&Value::Null)
 }
 
-/// `internal_media.ready`: true only while the recorded mount is still the live, exact Y2Media mount.
+/// True only while the recorded mount is still the live, exact Y2Media mount.
 pub fn internal(root: &Root) -> bool {
     let claim = root.json_object("/run/y2/internal-media.json");
     let current = mounts_at(root, "/media/internal");
@@ -41,7 +41,7 @@ fn mkdir_exist_ok(path: &Path, mode: u32) -> Result<()> {
     }
 }
 
-/// `radiofw.inbox`: where the copy goes, created with its note when needed: the Firmware folder on
+/// Where the copy goes, created with its note when needed: the Firmware folder on
 /// Internal Storage, else the Firmware drive's folder on Y2DATA.
 pub(crate) fn inbox(root: &Root) -> Result<PathBuf> {
     let folder = if internal(root) {
@@ -63,7 +63,7 @@ pub(crate) fn inbox(root: &Root) -> Result<PathBuf> {
     Ok(folder)
 }
 
-/// `radiofw.candidates`: where an owner's copy may be: the Firmware drive, or a Firmware folder on
+/// Where an owner's copy may be: the Firmware drive, or a Firmware folder on
 /// Internal Storage or the SD card (also while no computer is connected).
 pub fn candidates(root: &Root) -> Vec<PathBuf> {
     let mut places = vec![root.path(INBOX), root.path(SD_INBOX)];
@@ -86,7 +86,7 @@ pub fn candidates(root: &Root) -> Vec<PathBuf> {
     seen.into_iter().map(|f| f.join(SOURCE)).collect()
 }
 
-/// `radiofw.remove`: delete the used system.img; on the SD card inside a write window of its own (the
+/// Delete the used system.img; on the SD card inside a write window of its own (the
 /// card is read-only between writes, storage::media).
 fn remove(root: &Root, source: &Path) {
     let on_sd = source
@@ -105,7 +105,7 @@ fn remove(root: &Root, source: &Path) {
     }
 }
 
-/// `radiofw.tidy`: after the install the Internal Storage Firmware folder goes away again (only its
+/// After the install the Internal Storage Firmware folder goes away again (only its
 /// note; anything the owner put there stays).
 fn tidy(root: &Root) {
     let folder = root.path(INTERNAL_INBOX);
@@ -119,7 +119,8 @@ fn record_state(root: &Root, value: &Value) -> Result<()> {
     record::atomic_json(&path, value, false, 0o644).map_err(|e| os_path(e, &path))
 }
 
-/// `radiofw.state`.
+/// `firmware status`: Ready, the scan's Installing or Failed, or Missing with where the copy goes
+/// (and `no_space` when the computer's copy did not fit, #39).
 pub(super) fn state(root: &Root) -> Value {
     let value = root.json_object(STATE);
     if present(root) {
@@ -160,7 +161,7 @@ fn regular(path: &Path) -> Option<fs::Metadata> {
         .filter(|m| m.file_type().is_file())
 }
 
-/// `radiofw.scan`: one pass of the owner flow: make the Firmware folder visible, then take a finished
+/// One pass of the owner flow: make the Firmware folder visible, then take a finished
 /// system.img copy from it. Returns the new state.
 pub(super) fn scan(root: &Root, reviewed: &Reviewed) -> Result<Value> {
     if installed(root, reviewed) {
@@ -214,7 +215,7 @@ pub(super) fn scan(root: &Root, reviewed: &Reviewed) -> Result<Value> {
     Ok(json!({"state": "Missing"}))
 }
 
-/// `radiofw.leftover`: with the firmware in place, a finished system.img copy that arrives later
+/// With the firmware in place, a finished system.img copy that arrives later
 /// (copied again, or after the recovery kept the files) holds 520–860 MB of the owner's storage for
 /// nothing: delete it like the first one. Only the firmware package's image goes; any other file of
 /// that name stays.
@@ -254,7 +255,7 @@ pub(super) fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
     Ok(json!({"state": "Ready"}))
 }
 
-/// `radiofw.leftover_waiting`: cheap check for the service: a copy leftover() has not judged yet.
+/// Cheap check for the service: a copy leftover() has not judged yet.
 pub fn leftover_waiting(root: &Root) -> bool {
     let kept = root
         .json_object(STATE)

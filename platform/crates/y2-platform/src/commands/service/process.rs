@@ -1,11 +1,11 @@
-//! The processes `service-daemon` starts itself with `subprocess.Popen` (service.py, usb.py), not
-//! through `common.command`: `y2-platform media reconcile|verify`, `update auto-check`, `report work`,
-//! `firmware scan` (stdin/stdout/stderr on /dev/null, a new session, the daemon's environment) and the
-//! MTP responder `umtprd` (a fixed environment, RLIMIT_AS 64 MiB, no core file).
+//! The processes `service-daemon` starts and keeps, not through `command::run` (which waits for its
+//! answer): `y2-platform media reconcile|verify`, `update auto-check`, `report work`, `firmware scan`
+//! (stdin/stdout/stderr on /dev/null, a new session, the daemon's environment) and the MTP responder
+//! `umtprd` (a fixed environment, RLIMIT_AS 64 MiB, no core file) with its IPC commands.
 //!
 //! Below a fixture root nothing starts: the request is recorded in `Y2_FIXTURE_CALLS` as
 //! `{"argv": …, "timeout": 0}` and refused like a missing binary (`[Errno 2] No such file or
-//! directory: '<argv[0]>'`), as tests/platform_cases/service.py `daemon_ticks` does to Python's Popen.
+//! directory: '<argv[0]>'`; tests/platform_cases/service.py `daemon_ticks`).
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::Failure;
 use std::{
@@ -19,7 +19,7 @@ use std::{
 };
 use y2p_core::Root;
 
-/// One started child (`Popen`): `poll`, `wait(timeout)`, `terminate`, `kill`.
+/// One started child: `running`, `wait(seconds)`, `terminate`, `kill`.
 pub struct Child {
     child: std::process::Child,
     exited: bool,
@@ -28,11 +28,11 @@ pub struct Child {
 /// How a child is started.
 #[derive(Clone, Copy)]
 pub enum Start {
-    /// service.py: a new session, the daemon's environment.
+    /// The service's jobs: a new session, the daemon's environment.
     Service,
-    /// usb.py `USBService.spawn`: a new session, a fixed environment, RLIMIT_AS 64 MiB, RLIMIT_CORE 0.
+    /// The MTP responder: a new session, a fixed environment, RLIMIT_AS 64 MiB, RLIMIT_CORE 0.
     Responder,
-    /// usb.py `USBService.command` (`subprocess.run`): a fixed environment, the daemon's session.
+    /// A responder IPC command: a fixed environment, the daemon's session.
     Command,
 }
 
@@ -45,8 +45,7 @@ fn record(argv: &[&str]) {
     }
 }
 
-/// `subprocess.Popen(argv, stdin=DEVNULL, stdout=DEVNULL, stderr=DEVNULL, …)`; an OSError when it
-/// cannot start.
+/// Start `argv` with its standard streams on /dev/null; an OSError when it cannot start.
 pub fn spawn(root: &Root, argv: &[&str], how: Start) -> Result<Child, Failure> {
     let missing = |program: &str| {
         Failure::os(
@@ -76,7 +75,7 @@ pub fn spawn(root: &Root, argv: &[&str], how: Start) -> Result<Child, Failure> {
     let session = !matches!(how, Start::Command);
     let limits = matches!(how, Start::Responder);
     // SAFETY: setsid() and setrlimit() are async-signal-safe; they run in the forked child before exec
-    // (Python's start_new_session=True, then the responder's preexec_fn).
+    // (the job's own session; the responder's limits).
     unsafe {
         command.pre_exec(move || {
             if session && libc::setsid() < 0 {
@@ -118,7 +117,7 @@ impl Child {
     /// `poll() is None`: still running (an exited child is reaped).
     pub fn running(&mut self) -> bool {
         if !self.exited {
-            // Python's poll() reads an unknown child (ECHILD) as exited too.
+            // An unknown child (ECHILD) has exited too.
             self.exited = !matches!(self.child.try_wait(), Ok(None));
         }
         !self.exited
@@ -164,8 +163,8 @@ pub fn launcher() -> Launch {
 }
 
 impl Child {
-    /// usb.py `USBService.command` (`subprocess.run(argv, timeout=3, env=fixed)`): true for exit 0,
-    /// false when it overruns `seconds` (killed, as subprocess.run does) or cannot be waited for.
+    /// A responder IPC command's verdict: true for exit 0, false when it overruns `seconds` (then
+    /// killed) or cannot be waited for.
     pub fn succeeds_within(mut self, seconds: f64) -> bool {
         let deadline = Instant::now() + Duration::from_secs_f64(seconds);
         loop {

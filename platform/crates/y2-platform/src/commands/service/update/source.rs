@@ -230,7 +230,7 @@ impl Source {
     }
 }
 
-/// `update.copy_stream`: at most `maximum` bytes (exactly `exact`), within `seconds`, keeping the
+/// At most `maximum` bytes (exactly `exact`), within `seconds`, keeping the
 /// reserve; returns the count and the SHA-256. Interrupted bytes stay for explicit diagnostics.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn copy_stream(
@@ -282,7 +282,7 @@ pub(super) fn copy_stream(
     Ok((count, digest.hexdigest()))
 }
 
-/// `update.wait_online`: true once Wi-Fi is Online (DNS answered), waiting at most `seconds`.
+/// True once Wi-Fi is Online (DNS answered), waiting at most `seconds`.
 pub(super) fn wait_online(root: &Root, seconds: f64) -> bool {
     let deadline = root.clock().monotonic() + seconds;
     while root.json_object("/run/y2/network.json").get("state") != Some(&json!("Online")) {

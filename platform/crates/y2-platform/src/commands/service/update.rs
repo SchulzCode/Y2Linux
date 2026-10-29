@@ -1,4 +1,5 @@
-//! `update.py`: signed full-system OTA (OTA-35): check, download, install request, boot health.
+//! `y2-platform update`: signed full-system OTA (OTA-35): check, download, install request, boot
+//! health.
 //!
 //! The small native core (`/usr/sbin/y2-update-core`, C) is the shared authentication/policy
 //! authority. It writes the RECOVERY image and the MISC request; the Y2 recovery image performs the

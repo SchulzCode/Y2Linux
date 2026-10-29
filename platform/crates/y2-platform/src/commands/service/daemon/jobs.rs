@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 
-/// `subprocess.Popen(['/usr/sbin/y2-platform', …], DEVNULL…, start_new_session=True, close_fds=True)`.
+/// `y2-platform <args>` in its own session, its standard streams on /dev/null.
 pub(super) fn start(root: &Root, args: &[&str]) -> Result<Child, Failure> {
     let mut argv = vec![PLATFORM];
     argv.extend_from_slice(args);
@@ -146,16 +146,16 @@ pub(super) fn daily_update_check(
     start(root, &["update", "auto-check"]).ok()
 }
 
-/// `report.next_upload`: when the earliest queued report may be sent.
+/// When the earliest queued report may be sent.
 pub(crate) enum Due {
     None,
     At(f64),
 }
 
-/// `report.next_upload(ctx)`; Err when the retry times are not all numbers (strings, a list, values
-/// that cannot be ordered at all): the record is unreadable.
+/// When the earliest queued report may be sent; Err when the retry times are not all numbers
+/// (strings, a list): the record is unreadable.
 pub(crate) fn next_upload(root: &Root) -> Result<Due, ()> {
-    // A glob names each file once: the set Python builds.
+    // A glob names each file once.
     let queued: Vec<String> = reports::queued(root)
         .iter()
         .map(|p| reports::name(p))
@@ -271,8 +271,7 @@ pub(super) fn radio_firmware(
     (start(root, &["firmware", "scan"]).ok(), false)
 }
 
-/// `timekeeping.remember(ctx)` (every=RETAIN_S): keep the durable floor near the running clock, at
-/// most once an hour, only for a clock set from the network or by hand this boot that nobody stepped
+/// Keep the durable time floor (time-last.json) near the running clock, at most once an hour, only for a clock set from the network or by hand this boot that nobody stepped
 /// since: a restart without Wi-Fi then resumes about where it was rather than from the last sync or the
 /// build date.
 pub(super) fn remember_time(root: &Root) -> Result<(), Failure> {
