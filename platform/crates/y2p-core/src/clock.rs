@@ -29,8 +29,85 @@ pub fn monotonic() -> f64 {
     monotonic_ns() as f64 / 1e9
 }
 
+/// The clocks a root reads (`root.clock()`): the kernel's, or a test's.
+pub trait Clock: Send + Sync {
+    fn monotonic_ns(&self) -> u64;
+    fn boottime_ns(&self) -> u64;
+
+    /// `time.monotonic()`.
+    fn monotonic(&self) -> f64 {
+        self.monotonic_ns() as f64 / 1e9
+    }
+}
+
+/// CLOCK_MONOTONIC and CLOCK_BOOTTIME.
+pub struct Kernel;
+
+impl Clock for Kernel {
+    fn monotonic_ns(&self) -> u64 {
+        monotonic_ns()
+    }
+
+    fn boottime_ns(&self) -> u64 {
+        boottime_ns()
+    }
+}
+
+/// A test's clock: it stands still until the test advances it; `suspend` moves only boottime (time
+/// spent asleep).
+#[derive(Debug, Default)]
+pub struct Manual {
+    monotonic_ns: std::sync::atomic::AtomicU64,
+    boottime_ns: std::sync::atomic::AtomicU64,
+}
+
+impl Manual {
+    pub fn at(monotonic_ns: u64, boottime_ns: u64) -> Self {
+        Self {
+            monotonic_ns: monotonic_ns.into(),
+            boottime_ns: boottime_ns.into(),
+        }
+    }
+
+    /// Both clocks run `ns` on.
+    pub fn advance(&self, ns: u64) {
+        use std::sync::atomic::Ordering::SeqCst;
+        self.monotonic_ns.fetch_add(ns, SeqCst);
+        self.boottime_ns.fetch_add(ns, SeqCst);
+    }
+
+    /// `ns` asleep: boottime runs on, monotonic does not.
+    pub fn suspend(&self, ns: u64) {
+        self.boottime_ns
+            .fetch_add(ns, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+impl Clock for Manual {
+    fn monotonic_ns(&self) -> u64 {
+        self.monotonic_ns.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    fn boottime_ns(&self) -> u64 {
+        self.boottime_ns.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::Clock;
+
+    #[test]
+    fn a_manual_clock_moves_only_when_told() {
+        let clock = super::Manual::at(5_000_000_000, 7_000_000_000);
+        clock.advance(1_000_000_000);
+        clock.suspend(3_000_000_000);
+        assert_eq!(clock.monotonic(), 6.0);
+        assert_eq!(clock.boottime_ns(), 11_000_000_000);
+        let monotonic = super::Kernel.monotonic_ns();
+        assert!(super::Kernel.boottime_ns() >= monotonic);
+    }
+
     #[test]
     fn boottime_never_runs_behind_monotonic() {
         let monotonic = super::monotonic_ns();
