@@ -22,6 +22,7 @@ use super::{
     request, traceback, E, INTERRUPTED,
 };
 use serde_json::{Map, Value};
+use std::os::fd::{AsFd, BorrowedFd};
 use std::{
     fs::{File, OpenOptions},
     io::{self, Read},
@@ -33,6 +34,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
+use y2p_core::lock;
 use y2p_core::py::PyValue;
 use y2p_core::{
     command,
@@ -162,11 +164,14 @@ fn inherited(root: &Root, fd: i32) -> Result<(), E> {
     if (meta.st_dev, meta.st_ino) != (lock.dev(), lock.ino()) {
         return Err(E::value("invalid_suspend_lock"));
     }
-    // SAFETY: flock on the inherited descriptor.
-    if unsafe { libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB) } != 0 {
-        return Err(E::os(&io::Error::last_os_error(), None));
+    // SAFETY: the inherited descriptor stays open until the helper closes it after its run (fstat
+    // above found it open).
+    let inherited = unsafe { BorrowedFd::borrow_raw(fd) };
+    match lock::try_fd(inherited, lock::Kind::Exclusive) {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(E::os(&lock::would_block(), None)),
+        Err(error) => Err(E::os(&error, None)),
     }
-    Ok(())
 }
 
 /// `time.monotonic()`.
@@ -465,17 +470,10 @@ fn operation_locks(root: &Root) -> Result<Vec<(&'static str, File)>, E> {
         let path = root.path(name);
         let parent = path.parent().unwrap_or(Path::new("/"));
         y2p_core::record::private_directory(parent).map_err(|e| E::os(&e, Some(parent)))?;
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .mode(0o600)
-            .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
-            .open(&path)
-            .map_err(|e| E::os(&e, Some(&path)))?;
-        match file.try_lock() {
-            Ok(()) => held.push((owner, file)),
-            Err(std::fs::TryLockError::WouldBlock) => {
+        let file = lock::open(&path).map_err(|e| E::os(&e, Some(&path)))?;
+        match lock::try_fd(file.as_fd(), lock::Kind::Exclusive) {
+            Ok(true) => held.push((owner, file)),
+            Ok(false) => {
                 let meta = file.metadata().map_err(|e| E::os(&e, None))?;
                 let holders = lock_holders(root, &meta);
                 let mut reason = owner.to_owned();
@@ -484,7 +482,7 @@ fn operation_locks(root: &Root) -> Result<Vec<(&'static str, File)>, E> {
                 }
                 return Err(E::refused(reason));
             }
-            Err(std::fs::TryLockError::Error(error)) => return Err(E::os(&error, None)),
+            Err(error) => return Err(E::os(&error, None)),
         }
     }
     Ok(held)

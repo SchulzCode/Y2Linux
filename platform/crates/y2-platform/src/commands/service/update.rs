@@ -13,6 +13,7 @@ use super::{
 };
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
+use std::os::fd::AsFd;
 use std::{
     collections::VecDeque,
     fs::{self, File, OpenOptions},
@@ -22,6 +23,7 @@ use std::{
     sync::atomic::Ordering,
     time::Duration,
 };
+use y2p_core::lock;
 use y2p_core::{
     clock, command,
     json::{sorted, Object, ObjectExt},
@@ -792,16 +794,10 @@ impl Staging<'_> {
         let root = self.root;
         let download = self.directory.join("download.json");
         // stage() refused a busy lock already; this one is held, or fails for another reason.
-        match file.try_lock() {
-            Ok(()) => {}
-            Err(std::fs::TryLockError::WouldBlock) => {
-                return Err(Raise::Os(
-                    py::os_error(&std::io::Error::from_raw_os_error(libc::EAGAIN), None).0,
-                ))
-            }
-            Err(std::fs::TryLockError::Error(e)) => {
-                return Err(Raise::Os(py::os_error(&e, None).0))
-            }
+        match lock::try_fd(file.as_fd(), lock::Kind::Exclusive) {
+            Ok(true) => {}
+            Ok(false) => return Err(Raise::Os(py::os_error(&lock::would_block(), None).0)),
+            Err(e) => return Err(Raise::Os(py::os_error(&e, None).0)),
         }
         if !state_is(&status(root), &TERMINAL) {
             return Err(Raise::value("update_already_pending"));
@@ -1095,7 +1091,7 @@ pub fn stage(
         .map_err(|e| Raise::os(e, &lock))?;
     // A second check or download while one runs (the daily automatic check meeting the owner's) is
     // refused before anything is written: the running one keeps its download.json.
-    if let Err(std::fs::TryLockError::WouldBlock) = file.try_lock() {
+    if let Ok(false) = lock::try_fd(file.as_fd(), lock::Kind::Exclusive) {
         return Err(Raise::value(IN_PROGRESS));
     }
     let token = token(root)?;

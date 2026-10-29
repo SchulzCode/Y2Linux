@@ -34,20 +34,8 @@ pub fn previous_path(path: &Path) -> PathBuf {
 pub fn append_bounded(path: &Path, encoded: &[u8], limit: u64, durable: bool) -> Result {
     let parent = path.parent().unwrap_or(Path::new("/"));
     private_directory(parent)?;
-    let lock = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .mode(0o600)
-        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
-        .open(lock_path(path))?;
-    match lock.try_lock() {
-        Ok(()) => {}
-        Err(fs::TryLockError::WouldBlock) => {
-            return Err(io::Error::from_raw_os_error(libc::EWOULDBLOCK))
-        }
-        Err(fs::TryLockError::Error(error)) => return Err(error),
-    }
+    let lock =
+        y2p_core::lock::try_exclusive(&lock_path(path))?.ok_or_else(y2p_core::lock::would_block)?;
     let result = append(path, encoded, limit, durable);
     drop(lock);
     result

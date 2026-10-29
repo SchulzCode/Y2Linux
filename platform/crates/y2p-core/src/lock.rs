@@ -1,15 +1,31 @@
-//! The platform's flock protocol: a lock file opened `O_RDWR|O_CREAT|O_NOFOLLOW` 0600 and locked with
-//! flock(2), so Python and Rust holders exclude each other on the same path (plan §3.3). The lock is
-//! released when the returned file is dropped or the process ends.
+//! The platform's flock protocol: a lock file opened `O_RDWR|O_CREAT|O_NOFOLLOW` 0600 (close-on-exec)
+//! and locked with flock(2), so every holder of the same path excludes the others (plan §3.3). A lock
+//! is released when the returned file is dropped or the process ends. A descriptor the caller already
+//! has (one inherited from the parent, a directory opened through `openat`) is locked with [`try_fd`].
 // SPDX-License-Identifier: GPL-2.0-only
 use std::{
-    fs::{File, OpenOptions, TryLockError},
+    fs::{File, OpenOptions},
     io,
-    os::unix::fs::OpenOptionsExt,
+    os::{
+        fd::{AsRawFd, BorrowedFd},
+        unix::fs::OpenOptionsExt,
+    },
     path::Path,
+    time::{Duration, Instant},
 };
 
-fn open(path: &Path) -> io::Result<File> {
+/// Who may hold the lock beside this holder.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Kind {
+    /// `LOCK_EX`: nobody.
+    Exclusive,
+    /// `LOCK_SH`: other shared holders (an activity lease).
+    Shared,
+}
+
+/// `os.open(path, O_RDWR | O_CREAT | O_NOFOLLOW, 0o600)` (close-on-exec): a lock file, never through a
+/// symlink.
+pub fn open(path: &Path) -> io::Result<File> {
     OpenOptions::new()
         .read(true)
         .write(true)
@@ -26,28 +42,57 @@ pub fn exclusive(path: &Path) -> io::Result<File> {
     Ok(file)
 }
 
-/// `fcntl.flock(fd, LOCK_EX | LOCK_NB)`: `Ok(None)` while another process holds it.
+/// `fcntl.flock(fd, LOCK_EX | LOCK_NB)`: `Ok(None)` while another holder has it.
 pub fn try_exclusive(path: &Path) -> io::Result<Option<File>> {
-    settle(|| {
-        let file = open(path)?;
-        match file.try_lock() {
-            Ok(()) => Ok(Some(file)),
-            Err(TryLockError::WouldBlock) => Ok(None),
-            Err(TryLockError::Error(error)) => Err(error),
-        }
-    })
+    settle(|| try_path(path, Kind::Exclusive))
 }
 
 /// `fcntl.flock(fd, LOCK_SH | LOCK_NB)`: a shared lease (the activity lease's holders).
 pub fn try_shared(path: &Path) -> io::Result<Option<File>> {
-    settle(|| {
-        let file = open(path)?;
-        match file.try_lock_shared() {
-            Ok(()) => Ok(Some(file)),
-            Err(TryLockError::WouldBlock) => Ok(None),
-            Err(TryLockError::Error(error)) => Err(error),
+    settle(|| try_path(path, Kind::Shared))
+}
+
+/// [`try_exclusive`] again every 0.2 s until `wait` has passed; `None` when it stayed busy (a check
+/// or a repair holds the card, a short admission passes).
+pub fn exclusive_within(path: &Path, wait: Duration) -> io::Result<Option<File>> {
+    let deadline = Instant::now() + wait;
+    loop {
+        if let Some(file) = try_exclusive(path)? {
+            return Ok(Some(file));
         }
-    })
+        if Instant::now() >= deadline {
+            return Ok(None);
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+}
+
+/// `fcntl.flock(fd, LOCK_EX | LOCK_NB)` (or `LOCK_SH`) on a descriptor the caller holds: `Ok(false)`
+/// while another holder has it. The lock lasts as long as the descriptor's open file description.
+pub fn try_fd(fd: BorrowedFd<'_>, kind: Kind) -> io::Result<bool> {
+    let operation = match kind {
+        Kind::Exclusive => libc::LOCK_EX,
+        Kind::Shared => libc::LOCK_SH,
+    };
+    // SAFETY: flock(2) on a descriptor the borrow keeps open; no memory is passed.
+    if unsafe { libc::flock(fd.as_raw_fd(), operation | libc::LOCK_NB) } == 0 {
+        return Ok(true);
+    }
+    let error = io::Error::last_os_error();
+    match error.raw_os_error() {
+        Some(libc::EWOULDBLOCK) => Ok(false),
+        _ => Err(error),
+    }
+}
+
+/// The busy answer of a non-blocking flock: `[Errno 11] Resource temporarily unavailable`.
+pub fn would_block() -> io::Error {
+    io::Error::from_raw_os_error(libc::EWOULDBLOCK)
+}
+
+fn try_path(path: &Path, kind: Kind) -> io::Result<Option<File>> {
+    let file = open(path)?;
+    Ok(try_fd(std::os::fd::AsFd::as_fd(&file), kind)?.then_some(file))
 }
 
 /// One attempt on the player. In test builds (feature `testing`) a busy lock is tried again for up to
@@ -68,6 +113,7 @@ fn settle(mut attempt: impl FnMut() -> io::Result<Option<File>>) -> io::Result<O
 mod tests {
     use super::*;
     use crate::root::tests::tempdir::Dir;
+    use std::os::fd::AsFd;
 
     #[test]
     fn another_holder_excludes_this_one() {
@@ -78,7 +124,16 @@ mod tests {
         let holder = try_exclusive(&path).unwrap().expect("free");
         assert!(try_shared(&path).unwrap().is_none());
         assert!(try_exclusive(&path).unwrap().is_none());
+        assert!(exclusive_within(&path, Duration::from_millis(250))
+            .unwrap()
+            .is_none());
+        let other = open(&path).unwrap();
+        assert!(!try_fd(other.as_fd(), Kind::Shared).unwrap());
         drop(holder);
+        assert!(try_fd(other.as_fd(), Kind::Shared).unwrap());
+        assert!(try_shared(&path).unwrap().is_some(), "shared holders share");
+        assert!(try_exclusive(&path).unwrap().is_none());
+        drop(other);
         let held = try_exclusive(&path)
             .unwrap()
             .expect("free after the holder ended");
@@ -88,5 +143,9 @@ mod tests {
         );
         drop(held);
         assert!(try_exclusive(&path).unwrap().is_some());
+        assert_eq!(
+            would_block().to_string(),
+            "Resource temporarily unavailable (os error 11)"
+        );
     }
 }

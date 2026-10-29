@@ -10,10 +10,14 @@ use super::{
 use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{Map, Value};
 use std::{
-    fs::{File, OpenOptions},
-    os::{fd::AsRawFd, unix::fs::OpenOptionsExt, unix::process::CommandExt},
+    fs::File,
+    os::{
+        fd::{AsFd, AsRawFd},
+        unix::process::CommandExt,
+    },
     process::{Command, Stdio},
 };
+use y2p_core::lock;
 use y2p_core::{py::is_true, Root};
 
 /// An exception main.py prints as its error record (an OSError here: `cli` ends a crash itself).
@@ -66,17 +70,10 @@ pub fn request(root: &Root) -> Outcome {
         .map_err(|e| failure(E::os(&e, Some(&directory))))?;
     let path = directory.join("suspend.lock");
     // os.open(O_RDWR | O_CREAT | O_NOFOLLOW, 0o600): close-on-exec, made inheritable for the helper.
-    let lock = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .mode(0o600)
-        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
-        .open(&path)
-        .map_err(|e| failure(E::os(&e, Some(&path))))?;
-    match lock.try_lock() {
-        Ok(()) => {}
-        Err(std::fs::TryLockError::WouldBlock) => {
+    let lock = lock::open(&path).map_err(|e| failure(E::os(&e, Some(&path))))?;
+    match lock::try_fd(lock.as_fd(), lock::Kind::Exclusive) {
+        Ok(true) => {}
+        Ok(false) => {
             let current = super::super::sleep::product(
                 &root.json_object(receipt::RECEIPT),
                 root.boot_id().as_deref(),
@@ -86,7 +83,7 @@ pub fn request(root: &Root) -> Outcome {
             busy.insert("reason".into(), "sleep_operation_in_progress".into());
             return Reply::sorted(&busy, 0);
         }
-        Err(std::fs::TryLockError::Error(error)) => return cli(Err(E::os(&error, None))),
+        Err(error) => return cli(Err(E::os(&error, None))),
     }
     cli(admit(root, &lock).and_then(|p| Reply::sorted(&p, 0).map_err(|_| E::value("json"))))
 }

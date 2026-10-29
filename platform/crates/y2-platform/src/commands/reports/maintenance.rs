@@ -22,7 +22,7 @@ use sha2::{Digest, Sha256};
 use std::{
     ffi::CString,
     io::{Read, Write},
-    os::fd::{AsRawFd, OwnedFd},
+    os::fd::{AsFd, AsRawFd, OwnedFd},
     os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt},
     path::Path,
 };
@@ -852,9 +852,8 @@ fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Py, Failure>
     {
         return Err(Failure::value("completed_reset_confirmation_required"));
     }
-    // SAFETY: flock on a valid directory descriptor.
-    if unsafe { libc::flock(top.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
-        return Err(os_plain(std::io::Error::last_os_error()));
+    if !y2p_core::lock::try_fd(top.as_fd(), y2p_core::lock::Kind::Exclusive).map_err(os_plain)? {
+        return Err(os_plain(y2p_core::lock::would_block()));
     }
     let device = fstat(&top).map_err(os_plain)?.st_dev;
     let deadline = kernel::monotonic() + 8.0;

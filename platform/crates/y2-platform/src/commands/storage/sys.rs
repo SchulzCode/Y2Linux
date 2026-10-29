@@ -255,19 +255,7 @@ pub fn observation_record(root: &Root, workload: &str) -> Value {
 /// `fcntl.flock(fd, LOCK_EX | LOCK_NB)` on a platform lock file; a busy lock is Python's uncaught
 /// `BlockingIOError`.
 pub fn try_lock(path: &Path) -> Result<Option<File>, Failure> {
-    let lock = lock::try_exclusive(path).map_err(|e| Failure::os(e, path))?;
-    // Unit tests run beside tests that start processes: a child holds a copy of every descriptor
-    // until its exec closes it, so a lock this thread just released can look busy for a moment.
-    #[cfg(test)]
-    if lock.is_none() {
-        for _ in 0..200 {
-            thread::sleep(Duration::from_millis(1));
-            if let Some(file) = lock::try_exclusive(path).map_err(|e| Failure::os(e, path))? {
-                return Ok(Some(file));
-            }
-        }
-    }
-    Ok(lock)
+    lock::try_exclusive(path).map_err(|e| Failure::os(e, path))
 }
 
 pub fn busy() -> Failure {
@@ -282,17 +270,7 @@ pub fn lock_now(path: &Path) -> Result<File, Failure> {
 
 /// A busy lock retried every 0.2 s until `seconds` passed; `None` when it stayed busy.
 pub fn lock_within(path: &Path, seconds: f64) -> Result<Option<File>, Failure> {
-    let deadline = Instant::now() + Duration::from_secs_f64(seconds);
-    loop {
-        if let Some(file) = try_lock(path)? {
-            return Ok(Some(file));
-        }
-        // A check or a repair holds the card; a short admission passes.
-        if Instant::now() >= deadline {
-            return Ok(None);
-        }
-        thread::sleep(Duration::from_millis(200));
-    }
+    lock::exclusive_within(path, Duration::from_secs_f64(seconds)).map_err(|e| Failure::os(e, path))
 }
 
 // ---- the USB responder (usb.py) ----------------------------------------------------------------

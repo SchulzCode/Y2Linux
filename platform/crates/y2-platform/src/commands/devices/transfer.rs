@@ -7,6 +7,7 @@
 use super::storage::{self, Volume, INTERNAL};
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
+use std::os::fd::{AsFd, BorrowedFd};
 use std::{
     ffi::CString,
     io::{self, Write},
@@ -22,6 +23,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+use y2p_core::lock;
 use y2p_core::{
     devices_support::{hex, record, Digest, Sha256},
     py::{self, eq_int, exact_int},
@@ -151,10 +153,13 @@ fn fsync(fd: RawFd) -> Result<(), Failure> {
     check(unsafe { libc::fsync(fd) })
 }
 
-/// `fcntl.flock(fd, operation | LOCK_NB)`: busy is `[Errno 11] Resource temporarily unavailable`.
-fn flock(fd: RawFd, operation: libc::c_int) -> Result<(), Failure> {
-    // SAFETY: plain syscall on an open descriptor.
-    check(unsafe { libc::flock(fd, operation | libc::LOCK_NB) })
+/// `fcntl.flock(fd, LOCK_EX | LOCK_NB)`: busy is `[Errno 11] Resource temporarily unavailable`.
+fn flock(fd: BorrowedFd<'_>) -> Result<(), Failure> {
+    match lock::try_fd(fd, lock::Kind::Exclusive) {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(unnamed(lock::would_block())),
+        Err(error) => Err(unnamed(error)),
+    }
 }
 
 /// `os.unlink(name, dir_fd=dir)` (`os.rmdir` with AT_REMOVEDIR); `missing_ok` as
@@ -383,7 +388,7 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
         libc::O_CREAT | libc::O_RDWR | libc::O_NOFOLLOW,
         0o600,
     )?;
-    flock(lock.as_raw_fd(), libc::LOCK_EX)?;
+    flock(lock.as_fd())?;
     // The manifest through the stage's own descriptor ("used even under a test root").
     let anchored = PathBuf::from(format!("/proc/self/fd/{}", stage.as_raw_fd()));
     let mut value = match json_read(&anchored.join("manifest.json")).unwrap_or(json!({})) {
@@ -606,7 +611,7 @@ fn discard(root: &Root, token: &str) -> Result<Value, Failure> {
         libc::O_CREAT | libc::O_RDWR | libc::O_NOFOLLOW,
         0o600,
     )?;
-    flock(lock.as_raw_fd(), libc::LOCK_EX)?;
+    flock(lock.as_fd())?;
     for name in ["manifest.json", "payload.part", "sealed.part", "lock"] {
         unlinkat(fd.as_raw_fd(), name, 0, true)?;
     }
