@@ -2,7 +2,7 @@
 //! tests/test_connectivity_supervisor.py checked of the Python platform (connectivity.py). The signal
 //! wait of the whole daemon is tested on the command line (tests/connectivity.rs).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::super::steps::Steps;
+use super::super::super::steps::Steps;
 use super::*;
 use crate::testing::{failed, ok, Fixture};
 use y2p_core::command::Outcome;
@@ -234,7 +234,7 @@ fn interface_left_disabled_with_radio_on_is_added_again() {
     let network = |association: &str, age: f64| {
         fixture.put_json(
             "/run/y2/network.json",
-            &json!({"boot_id": "boot-one", "monotonic_s": clock::monotonic() - age,
+            &json!({"boot_id": "boot-one", "monotonic_s": fixture.root.clock().monotonic() - age,
                     "association": association, "radio_present": true}),
         );
     };
