@@ -10,10 +10,11 @@ use std::{
 };
 use y2p_core::Root;
 
-/// `@workload(class_name)`: a shared activity lease for the whole call (sleep takes it exclusively;
-/// unlike optional frequency hints this is a mandatory operation exclusion, and flock dies with the
-/// process), plus the optional `/dev/y2-workload` QoS hint renewed every second on its own thread,
-/// even while a blocking transfer runs for minutes. A missing or failing hint never fails the work.
+/// Run `work` as workload `class`: under a shared activity lease for the whole call (sleep takes it
+/// exclusively; unlike optional frequency hints this is a mandatory operation exclusion, and flock
+/// dies with the process), plus the optional `/dev/y2-workload` QoS hint (`<class> 3000`: valid for
+/// 3 s) renewed every second on its own thread, even while a blocking transfer runs for minutes. A
+/// missing or failing hint never fails the work.
 pub(super) fn workload<T>(
     root: &Root,
     class: &str,
@@ -37,7 +38,8 @@ pub(super) fn workload<T>(
         if matches!((&*file).write(&payload), Ok(n) if n == payload.len()) {
             let (stop, stopped) = mpsc::channel::<()>();
             let (writer, payload) = (Arc::clone(&file), payload.clone());
-            let worker = thread::spawn(move || loop {
+            // Without a thread for the renewal the hint lapses after its 3 s; the work goes on.
+            let worker = thread::Builder::new().spawn(move || loop {
                 if !matches!(stopped.try_recv(), Err(mpsc::TryRecvError::Empty)) {
                     return;
                 }
@@ -51,7 +53,7 @@ pub(super) fn workload<T>(
                     return;
                 }
             });
-            renewal = Some((stop, worker));
+            renewal = worker.ok().map(|worker| (stop, worker));
         }
         hint = Some(file);
     }

@@ -142,7 +142,7 @@ fn deep_idle_audio_is_armed_by_userspace() {
     owner(&fixture, json!({"deep_idle_audio": false}));
     apply(&fixture.root);
     assert_eq!(fixture.read(param), "N");
-    // Python pinned sleep_diagnostics.py reading deep_audio_entries; the rows record it.
+    // The sleep diagnostics rows record deep_audio_entries.
     let fixture = diagnostics_fixture();
     parameter(
         &fixture,
@@ -263,7 +263,7 @@ fn diagnostics_fixture() -> Fixture {
     fixture
 }
 
-/// The `features` of one sleep diagnostics row from each port of sleep_diagnostics.py: the suspend
+/// The `features` of one sleep diagnostics row from each writer of the sleep diagnostics: the suspend
 /// helper's (`y2-suspend-record`) and the power daemon's (USB rows).
 fn sleep_row_features(fixture: &Fixture) -> Vec<Value> {
     assert_eq!(
@@ -303,7 +303,7 @@ fn sleep_rows_record_both() {
 
 #[test]
 fn pmic_sleep_state_is_recorded_in_sleep_rows() {
-    // The sleep_diagnostics.py pin of test_pmic_sleep.py::test_wiring_order_and_switch.
+    // The sleep rows record the PMIC sleep state (test_pmic_sleep.py::test_wiring_order_and_switch).
     let fixture = diagnostics_fixture();
     parameter(
         &fixture,

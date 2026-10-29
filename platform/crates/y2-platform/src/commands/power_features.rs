@@ -1,4 +1,4 @@
-//! `power_features.apply`: the POWER-FINAL-16/17/18/19/27/32 runtime power features, armed once the UI
+//! The POWER-FINAL-16/17/18/19/27/32 runtime power features, armed once the UI
 //! has drawn its first frame (`boot-stage application_ready`), never earlier: the display domain must
 //! not be cut while the loader-lit panel is still being taken over. Each feature is a kernel parameter
 //! whose kernel default is the safe behaviour. The owner keeps one off for an A/B night with

@@ -1,11 +1,11 @@
-//! `ssh.py`: `y2-platform ssh-daemon`, USB-only owner SSH, started only after the kernel CRNG is
-//! initialized. One loop iteration is one `tick`; the loop publishes /run/y2/ssh.json each time (1 s
-//! while not Ready, 5 s while Ready, at once on a netlink address event or a signal), starts one
-//! dropbear per daemon lifetime once every prerequisite holds and calls it Ready only when its socket
-//! listens on 10.42.0.1:22. SIGTERM/SIGINT end it with exit 0 and no output, after which
-//! platform-supervise stops supervising for good; a dropbear that exits is `ssh_listener_exited`
-//! (exit 1, the supervisor restarts the daemon). Below a fixture root `Y2_DAEMON_TICKS=n` ends the
-//! loop after n iterations, as SIGTERM would.
+//! `y2-platform ssh-daemon`: USB-only owner SSH, started only after the kernel CRNG is initialized.
+//! One loop iteration is one `tick`; the loop publishes /run/y2/ssh.json each time (1 s while not
+//! Ready, 5 s while Ready, at once on a netlink address event or a signal), starts one dropbear per
+//! daemon lifetime once every prerequisite holds and calls it Ready only when its socket listens on
+//! 10.42.0.1:22. SIGTERM/SIGINT end it with exit 0 and no output, after which platform-supervise stops
+//! supervising for good; a dropbear that exits is `ssh_listener_exited` (exit 1, the supervisor
+//! restarts the daemon). Below a fixture root `Y2_DAEMON_TICKS=n` ends the loop after n iterations, as
+//! SIGTERM would.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::{atomic_json, private_directory, Failure, Outcome};
 use serde::Serialize;
@@ -50,10 +50,11 @@ const DROPBEAR_ARGS: [&str; 15] = [
 
 mod wake;
 
-type Address = (bool, Option<&'static str>);
+/// Whether usb0 carries the owner address, or the reason it does not yet.
+type Address = Result<(), &'static str>;
 
-/// `usb_address(ctx)`: usb0 carries exactly 10.42.0.1/24 (`ip -j` JSON); an answer that is not the
-/// expected shape is `usb_interface_not_ready`.
+/// usb0 carries exactly 10.42.0.1/24 (`ip -j` JSON); an answer that is not the expected shape is
+/// `usb_interface_not_ready`.
 fn usb_address(root: &Root) -> Address {
     let result = command::run(
         root,
@@ -62,20 +63,21 @@ fn usb_address(root: &Root) -> Address {
     );
     let parsed: Option<Value> = serde_json::from_str(result.output.as_deref().unwrap_or("")).ok();
     match parsed.as_ref().map(configured) {
-        Some(Ok(true)) => (true, None),
-        Some(Ok(false)) => (false, Some("usb_address_not_ready")),
-        _ => (false, Some("usb_interface_not_ready")),
+        Some(Ok(true)) => Ok(()),
+        Some(Ok(false)) => Err("usb_address_not_ready"),
+        _ => Err("usb_interface_not_ready"),
     }
 }
 
-/// Python iteration of a parsed JSON value (`py::iterate`); anything else is a TypeError (`Err`).
+/// The items of a JSON list (an object's keys, a string's characters: `py::iterate`); `Err` for a
+/// value that has none.
 fn items(value: &Value) -> Result<Vec<Value>, ()> {
     y2p_core::py::iterate(value).ok_or(())
 }
 
-/// `any(a.get('local') == '10.42.0.1' and a.get('prefixlen') == 24 for i in interfaces if
-/// i.get('ifname') == 'usb0' for a in i.get('addr_info', []))`, evaluated lazily as the generator:
-/// `.get` of a non-dict is an AttributeError, iterating a non-iterable a TypeError (both `Err`).
+/// Whether an interface named usb0 has the address 10.42.0.1 with prefix length 24. The interfaces
+/// are read in order and the first match ends the search; an interface or address that is not an
+/// object, or `addr_info` without items, before a match makes the answer malformed (`Err`).
 fn configured(interfaces: &Value) -> Result<bool, ()> {
     for interface in items(interfaces)? {
         let interface = interface.as_object().ok_or(())?;
@@ -98,7 +100,7 @@ fn configured(interfaces: &Value) -> Result<bool, ()> {
     Ok(false)
 }
 
-/// `prerequisites(ctx, entropy, address)`, in order: key, CRNG, usb0 address, verified /data.
+/// What SSH waits for, in order: the owner's key, the CRNG, the usb0 address, a verified /data.
 fn prerequisites(root: &Root, entropy: bool, address: Address) -> (&'static str, &'static str) {
     if root
         .read("/root/.ssh/authorized_keys")
@@ -109,8 +111,8 @@ fn prerequisites(root: &Root, entropy: bool, address: Address) -> (&'static str,
     if !entropy {
         return ("Starting", "kernel_crng_not_ready");
     }
-    if !address.0 {
-        return ("Starting", address.1.unwrap_or("usb_interface_not_ready"));
+    if let Err(reason) = address {
+        return ("Starting", reason);
     }
     if root.read("/data/.y2data-schema").as_deref() != Some("1") {
         return ("Failed", "data_schema_unavailable");
@@ -122,10 +124,10 @@ fn prerequisites(root: &Root, entropy: bool, address: Address) -> (&'static str,
 /// state 0A).
 fn listening(root: &Root) -> bool {
     let table = root.read("/proc/net/tcp").unwrap_or_default();
-    table.lines().skip(1).any(|line| {
-        let fields: Vec<&str> = line.split_whitespace().collect();
-        fields.len() > 3 && line.contains("01002A0A:0016") && fields[3] == "0A"
-    })
+    table
+        .lines()
+        .skip(1)
+        .any(|line| line.contains("01002A0A:0016") && line.split_whitespace().nth(3) == Some("0A"))
 }
 
 // ---- the daemon ----------------------------------------------------------------------------------
@@ -175,23 +177,28 @@ impl<'a> Daemon<'a> {
     /// One loop iteration up to (not including) its wait; the state it published.
     fn tick(&mut self) -> Result<&'static str, Failure> {
         let now = self.root.clock().monotonic();
-        if self.changed
-            || self.events.sock.is_none()
-            || self.address.is_none()
-            || now >= self.refresh_at
-        {
-            let address = usb_address(self.root);
-            self.refresh_at = now + if address.0 { 60.0 } else { 1.0 };
-            self.address = Some(address);
-        }
-        let address = self.address.expect("just refreshed");
+        // The address is read again after an address event, without the event socket, and once
+        // its time is up (60 s while configured, 1 s while not).
+        let address = match self.address {
+            Some(address)
+                if !self.changed && self.events.sock.is_some() && now < self.refresh_at =>
+            {
+                address
+            }
+            _ => {
+                let address = usb_address(self.root);
+                self.refresh_at = now + if address.is_ok() { 60.0 } else { 1.0 };
+                self.address = Some(address);
+                address
+            }
+        };
         let (mut ready, mut reason) = prerequisites(self.root, py::entropy_ready(), address);
         if self.child.is_none() && ready == "Ready" {
             self.child = Some(spawn_dropbear()?);
             (ready, reason) = ("Starting", "listener_starting");
         } else if let Some(child) = &mut self.child {
             if matches!(child.try_wait(), Ok(Some(_))) {
-                // A RuntimeError in Python: main.py's record names its class.
+                // The error record names the class RuntimeError (what the supervisor log shows).
                 return Err(Failure::Os {
                     text: "ssh_listener_exited".into(),
                     class: "RuntimeError",
@@ -219,7 +226,7 @@ impl<'a> Daemon<'a> {
         Ok(ready)
     }
 
-    /// On the way out, as Python's `finally`: a running dropbear gets SIGTERM, 2 s, then SIGKILL.
+    /// On the way out (also after an error): a running dropbear gets SIGTERM, 2 s, then SIGKILL.
     fn stop_child(&mut self) {
         let Some(child) = &mut self.child else {
             return;
@@ -242,9 +249,9 @@ impl<'a> Daemon<'a> {
     }
 }
 
-/// `subprocess.Popen([dropbear, …], stdin/stdout/stderr=DEVNULL, start_new_session=True)`: started
-/// directly (not the command runner), inheriting the whole environment, never below a fixture guard.
-/// As Popen, the child gets no other descriptor (close_fds) and default SIGPIPE/SIGXFSZ.
+/// dropbear in its own session with stdin/stdout/stderr on /dev/null: started directly (not the
+/// command runner: it outlives a request's deadline), inheriting the whole environment, never below a
+/// fixture guard. It gets no other descriptor and default SIGPIPE/SIGXFSZ.
 fn spawn_dropbear() -> Result<Child, Failure> {
     let mut command = Command::new(DROPBEAR);
     command
@@ -270,7 +277,7 @@ fn spawn_dropbear() -> Result<Child, Failure> {
     })
 }
 
-/// `y2-platform ssh-daemon`.
+/// `y2-platform ssh-daemon`: the loop until SIGTERM/SIGINT (exit 0, nothing printed) or an error.
 pub fn serve(root: &Root) -> Outcome {
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
@@ -292,7 +299,7 @@ pub fn serve(root: &Root) -> Outcome {
     let (wake_read, wake_write) =
         unsafe { (OwnedFd::from_raw_fd(pipe[0]), OwnedFd::from_raw_fd(pipe[1])) };
     let signals = Signals::install(wake_write.as_raw_fd());
-    // Below a fixture root a test may end the loop after n iterations (tests/platform_differential.py).
+    // Below a fixture root a test may end the loop after n iterations (the golden suite).
     let ticks = (!root.is_real())
         .then(|| std::env::var("Y2_DAEMON_TICKS").ok())
         .flatten()
@@ -325,7 +332,7 @@ pub fn serve(root: &Root) -> Outcome {
     daemon.stop_child();
     drop(lock);
     result?;
-    // cli.py returns 0 without printing anything (a Reply would print a line).
+    // Exit 0 without printing anything (a Reply would print a line).
     let _ = io::stdout().flush();
     std::process::exit(0)
 }
@@ -340,7 +347,7 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn addresses_are_read_as_the_generator() {
+    fn addresses_are_read_in_order_until_the_first_match() {
         let ok =
             json!([{"ifname": "usb0", "addr_info": [{"local": "10.42.0.1", "prefixlen": 24}]}]);
         assert_eq!(configured(&ok), Ok(true));

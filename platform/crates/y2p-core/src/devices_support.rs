@@ -1,5 +1,5 @@
-//! Helpers of port group `devices` that other groups can use too: `ctx.record` (the evidence record a
-//! measured or user-visible operation carries), its UTC `isoformat()` timestamp, and SHA-256.
+//! Helpers of the devices commands that other groups use too: the evidence record a measured or
+//! user-visible operation carries, its UTC ISO 8601 timestamp, and SHA-256.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::{
     json::{Object, ObjectExt},
@@ -10,8 +10,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub use sha2::{Digest, Sha256};
 
-/// `datetime.datetime.now(datetime.timezone.utc).isoformat()`: `2026-10-28T20:25:20.108044+00:00`,
-/// without the fraction when the microseconds are zero (as Python).
+/// The wall clock as ISO 8601 UTC with microseconds: `2026-10-28T20:25:20.108044+00:00`, without the
+/// fraction when the microseconds are zero (the records' established timestamp form).
 pub fn utc_isoformat_now() -> String {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -45,14 +45,13 @@ pub fn utc_isoformat(seconds: i64, micros: u32) -> String {
     }
 }
 
-/// `ctx.record(workload, parameters)` (common.Context.record), in its insertion order.
+/// The evidence record of `workload` with its `parameters` (none: `{}`), keys in this order: when
+/// and on which build it ran; `result` and `failure` are filled in when it ends.
 pub fn record(root: &Root, workload: &str, parameters: Value) -> Object {
     let versions = root.json_object("/etc/y2linux/versions.json");
-    let version = |key: &str| versions.get(key).cloned().unwrap_or(Value::Null);
-    // `parameters or {}`.
+    let version = |key: &str| versions.value(key);
     let parameters = match parameters {
         Value::Null => json!({}),
-        Value::Object(map) if map.is_empty() => json!({}),
         other => other,
     };
     Object::new()
@@ -72,9 +71,15 @@ pub fn record(root: &Root, workload: &str, parameters: Value) -> Object {
         .with("evidence_level", "IMPLEMENTED")
 }
 
-/// `hashlib.sha256(data).hexdigest()` of a finished digest.
+/// A finished digest as lowercase hex.
 pub fn hex(digest: &[u8]) -> String {
-    digest.iter().map(|b| format!("{b:02x}")).collect()
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut text = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        text.push(char::from(DIGITS[usize::from(byte >> 4)]));
+        text.push(char::from(DIGITS[usize::from(byte & 0xf)]));
+    }
+    text
 }
 
 #[cfg(test)]
@@ -82,8 +87,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn timestamps_read_as_python_isoformat() {
-        // python3: datetime.datetime.fromtimestamp(1788000500.25, datetime.timezone.utc).isoformat()
+    fn timestamps_are_iso_8601_utc() {
+        // The expected texts are Python's datetime isoformat of these instants (the earlier writer).
         assert_eq!(
             utc_isoformat(1_788_000_500, 250_000),
             "2026-08-29T10:48:20.250000+00:00"

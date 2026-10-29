@@ -1,5 +1,5 @@
-//! ssh.py's tests (tests/test_platform_transfer.py `Transfer.test_ssh_*`): prerequisites, the passive
-//! address events with the signal wakeup pipe, and the Ready heartbeat's address refresh.
+//! The ssh daemon's tests: prerequisites, the passive address events with the signal wakeup pipe,
+//! and the Ready heartbeat's address refresh.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::{ok, Fixture};

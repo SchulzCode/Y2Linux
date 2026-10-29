@@ -9,10 +9,10 @@ use std::{
 };
 use y2p_core::sys::{set_signal, Disposition, Handler};
 
-// ---- signals: Python's handlers and signal.set_wakeup_fd -----------------------------------------
+// ---- signals: handlers that only note the signal and write it to a wakeup pipe -------------------
 
 pub(super) static RUNNING: AtomicBool = AtomicBool::new(true);
-pub(super) static WAKE: AtomicI32 = AtomicI32::new(-1);
+static WAKE: AtomicI32 = AtomicI32::new(-1);
 const SIGNALS: [libc::c_int; 3] = [libc::SIGTERM, libc::SIGINT, libc::SIGCHLD];
 
 extern "C" fn on_signal(signal: libc::c_int) {
@@ -94,7 +94,7 @@ impl AddressEvents {
         }
     }
 
-    /// `select` on the wakeup pipe and the socket for up to `timeout` s; drain both; whether the
+    /// Wait on the wakeup pipe and the socket for up to `timeout` s; drain both; whether the
     /// kernel reported an address or link change.
     pub(super) fn wait(&mut self, timeout: f64, wake: RawFd) -> bool {
         let mut fds = vec![libc::pollfd {
@@ -112,7 +112,7 @@ impl AddressEvents {
         let deadline = Instant::now() + Duration::from_secs_f64(timeout);
         loop {
             let left = deadline.saturating_duration_since(Instant::now());
-            // The full time left (as select's timeval), never rounded down to whole milliseconds:
+            // The full time left, never rounded down to whole milliseconds:
             // the next tick's `now >= refresh_at` relies on it.
             let timeout = libc::timespec {
                 tv_sec: left.as_secs() as libc::time_t,
@@ -127,7 +127,7 @@ impl AddressEvents {
                     std::ptr::null(),
                 )
             };
-            // PEP 475: an interrupted select is retried with the time left (the handler has written
+            // An interrupted wait is retried with the time left (the handler has written
             // to the pipe, so it returns at once).
             if ready < 0 && io::Error::last_os_error().raw_os_error() == Some(libc::EINTR) {
                 continue;

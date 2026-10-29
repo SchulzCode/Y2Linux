@@ -1,4 +1,4 @@
-//! The boot journal keeps failures and refuses unverified storage (were tests/test_platform_contract.py).
+//! The boot journal keeps failures and refuses unverified storage.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::Fixture;

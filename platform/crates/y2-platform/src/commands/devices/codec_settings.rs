@@ -1,5 +1,5 @@
-//! `codec_controls.configure` and `status`: `y2-platform codec-settings [--{sbc,ldac,aac}-quality …]
-//! [--{sbc,ldac,aac}-abr on|off]`. Validated codec quality preferences, separated from the active
+//! `y2-platform codec-settings [--{sbc,ldac,aac}-quality …] [--{sbc,ldac,aac}-abr on|off]`: the
+//! owner's Bluetooth codec quality. Validated codec quality preferences, separated from the active
 //! daemon contract: they take effect at the next bluealsad start (a player restart), never by
 //! restarting the daemon here. Errors print `{"schema": "org.y2linux.codec-settings/v1", "failure": …}`.
 // SPDX-License-Identifier: GPL-2.0-only
@@ -17,7 +17,7 @@ use y2p_core::{
 };
 
 const SCHEMA: &str = "org.y2linux.codec-settings/v1";
-/// requested()'s key order (the defaults' order after schema and experimental).
+/// The order `requested` is printed in (the defaults' order after schema and experimental).
 const KEYS: [&str; 8] = [
     "schema",
     "experimental",
@@ -29,7 +29,7 @@ const KEYS: [&str; 8] = [
     "aac_abr",
 ];
 
-/// The options given (argparse's None for the others); `on`/`off` already as booleans.
+/// The options given (`None` for the others); `on`/`off` already as booleans.
 pub struct Changes {
     pub sbc_quality: Option<String>,
     pub sbc_abr: Option<bool>,
@@ -40,7 +40,7 @@ pub struct Changes {
 }
 
 impl Changes {
-    /// `{k: v for k, v in changes.items() if v is not None}` in the keyword order.
+    /// The given options as policy keys, in the policy's key order.
     fn given(self) -> Vec<(&'static str, Value)> {
         [
             ("sbc_quality", self.sbc_quality.map(Value::from)),
@@ -74,7 +74,7 @@ fn configure_inner(root: &Root, changes: Changes) -> Result<Status, Failure> {
     if changes.is_empty() {
         return status(root);
     }
-    // No private_directory: a missing /run/y2 is the lock's OSError.
+    // /run/y2 is not created here: without it the lock fails (the runtime is not up).
     let path = root.path("/run/y2/codec-settings.lock");
     let _lock = y2p_core::lock::try_exclusive(&path)
         .map_err(|e| Failure::os(e, &path))?
@@ -103,7 +103,7 @@ fn configure_inner(root: &Root, changes: Changes) -> Result<Status, Failure> {
     status(root)
 }
 
-/// `codec_controls.status(ctx)` in its key order (nested dicts too).
+/// What `codec-settings` prints, in this key order (nested objects in theirs).
 #[derive(Serialize)]
 struct Status {
     schema: &'static str,
@@ -116,7 +116,7 @@ struct Status {
 }
 
 impl Status {
-    /// `bool(caps[key])` of a supported list.
+    /// Whether `key` lists any supported choice.
     fn listed(&self, key: &str) -> bool {
         self.supported
             .get(key)
@@ -140,11 +140,12 @@ fn status(root: &Root) -> Result<Status, Failure> {
         Some(text) if !text.is_empty() => text.split('\0').collect(),
         _ => Vec::new(),
     };
-    let live = !argv.is_empty()
-        && argv[0].rsplit('/').next() == Some("bluealsad")
+    let live = argv
+        .first()
+        .is_some_and(|program| program.rsplit('/').next() == Some("bluealsad"))
         && recorded_arguments_present(applied.get("arguments"), &argv)?;
-    let same_boot = applied.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot)
-        && boot.as_deref().is_some_and(|b| !b.is_empty());
+    let same_boot =
+        applied.value("boot_id") == json!(boot) && boot.as_deref().is_some_and(|b| !b.is_empty());
     let effective = if live && same_boot {
         // Printed with its keys sorted, as the runtime record is written.
         sorted(applied.get("settings").cloned().unwrap_or(Value::Null))
@@ -214,7 +215,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn equality_and_membership_follow_python() {
+    fn recorded_arguments_are_matched_by_shape() {
         let argv = ["/usr/bin/bluealsad", "-p", "a2dp-source", ""];
         assert!(recorded_arguments_present(Some(&json!(["-p", ""])), &argv).unwrap());
         assert!(!recorded_arguments_present(Some(&json!(["-p", 3])), &argv).unwrap());

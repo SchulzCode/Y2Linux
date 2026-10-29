@@ -1,4 +1,4 @@
-//! `y2-platform boot-stage <stage>` (`boot.mark`): one bounded durable boot journal; an unclean boot
+//! `y2-platform boot-stage <stage>`: one bounded durable boot journal; an unclean boot
 //! is not a reset diagnosis. `application_ready` also arms the runtime power features.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::power_features;
@@ -12,7 +12,7 @@ use std::{
     os::unix::fs::{MetadataExt, OpenOptionsExt},
 };
 use y2p_contract::BootStage;
-use y2p_core::mounts::{mountinfo, Mount};
+use y2p_core::mounts::mounts_at;
 use y2p_core::{
     json::{dumps, Object, ObjectExt, Separators},
     py::{number, truthy},
@@ -142,7 +142,7 @@ struct BootRecord {
     identity: Value,
 }
 
-/// `boot.transition`: the journal after `stage` of boot `boot_id`. A previous record that is not a
+/// The journal after `stage` of boot `boot_id`. A previous record that is not a
 /// schema-1 object starts a new journal. A new boot counts one more boot, and one more unclean boot
 /// unless the last one ended with `shutdown_complete`; three unclean boots in a row recommend
 /// recovery.
@@ -210,11 +210,12 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
     if root.read("/data/.y2data-schema").as_deref() != Some("1") {
         return Err(Failure::value("data_schema_unavailable"));
     }
-    let mounts = mountinfo(&root.read("/proc/self/mountinfo").unwrap_or_default());
-    let data: Vec<&Mount> = mounts.iter().filter(|m| m.path == "/data").collect();
-    if data.len() != 1
-        || Some(data[0].source.as_str()) != root.read("/run/y2-data-device").as_deref()
-    {
+    // Exactly one mount on /data, of the device the initramfs verified.
+    let verified = match &mounts_at(root, "/data")[..] {
+        [data] => root.read("/run/y2-data-device").as_deref() == Some(data.source.as_str()),
+        _ => false,
+    };
+    if !verified {
         return Err(Failure::value("verified_data_mount_unavailable"));
     }
     let directory = root.path("/data/system/platform");
@@ -238,8 +239,8 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
         reset,
     );
     atomic_json(&directory.join("boot.json"), &value, true)?;
+    crate::reply::mkdir_parents(&root.path("/run/y2"), 0o700)?;
     let runtime = root.path("/run/y2/boot-stages.jsonl");
-    crate::reply::mkdir_parents(runtime.parent().expect("parent"), 0o700)?;
     let mut trail = OpenOptions::new()
         .append(true)
         .create(true)
@@ -295,10 +296,11 @@ mod boot_reset_cause_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use y2p_core::mounts::mountinfo;
 
     #[test]
     fn findall_pairs_match_the_regex() {
-        // re.findall(r'(\w+)=(\S+)', ...) in Python
+        // What the pattern `(\w+)=(\S+)` finds in the text.
         let map = fields("valid=1 cause=watchdog_timeout raw=0x4 a-b=c =x=y z= w=1=2");
         assert_eq!(map["valid"], "1");
         assert_eq!(map["raw"], "0x4");

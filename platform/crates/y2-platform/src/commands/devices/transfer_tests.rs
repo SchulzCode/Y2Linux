@@ -1,6 +1,5 @@
-//! transfer.py's tests (tests/test_platform_transfer.py `Transfer`): verified uploads below a fixture
-//! root with a verified /data (and Y2Media) as tests/platform_cases/devices.py mounts them; `blkid`
-//! answers their UUIDs.
+//! Transfer tests: verified uploads below a fixture root with a verified /data (and Y2Media) as the
+//! golden cases (tests/platform_cases/devices.py) mount them; `blkid` answers their UUIDs.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::{ok, Fixture, Outcome};

@@ -1,5 +1,5 @@
-//! `transfer.py`: verified owner uploads (private staging, identity/space checks, durable no-replace
-//! publish): `y2-platform transfer begin|commit|status|discard [--id] [--name] [--bytes] [--sha256]`.
+//! Verified owner uploads (private staging, identity/space checks, durable no-replace publish):
+//! `y2-platform transfer begin|commit|status|discard [--id] [--name] [--bytes] [--sha256]`.
 //! Output is sorted; errors are the error record. Every file operation below `/data` goes through
 //! directory descriptors opened without following symlinks (`fd`).
 // SPDX-License-Identifier: GPL-2.0-only
@@ -50,7 +50,7 @@ pub fn run(root: &Root, action: &str, request: Request) -> Outcome {
             request.sha256.as_deref().unwrap_or_default(),
         )?,
         other => {
-            // `args.id or ''`.
+            // No id is an invalid one.
             let token = request.id.unwrap_or_default();
             match other {
                 "commit" => workload(root, "NetworkTransfer", || commit(root, &token))?,
@@ -68,12 +68,12 @@ fn hex_of(text: &str, length: usize) -> bool {
     text.len() == length && text.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
-/// `filename(name)`: a relative path of 1-8 components, none empty or hidden, each at most 120 bytes
+/// A media name: a relative path of 1-8 components, none empty or hidden, each at most 120 bytes
 /// without control characters or backslashes, at most 512 bytes in all.
 fn filename(name: Option<&str>) -> Result<Vec<String>, Failure> {
     let invalid = || Failure::value("invalid_media_name");
     let name = name.ok_or_else(invalid)?;
-    // `len(name.encode())`: a name that was not UTF-8 (surrogate escapes) cannot be encoded.
+    // A name that was not UTF-8 (an escaped argument byte) is refused with the encoding error.
     if let Some(text) = y2p_core::os_text::encode_error(name) {
         return Err(Failure::raised("UnicodeEncodeError", text));
     }
@@ -106,7 +106,7 @@ fn media_volume(root: &Root) -> Result<Volume, Failure> {
         .ok_or_else(|| Failure::value("verified_internal_media_unavailable"))
 }
 
-/// `common.json_read(path, default)`: any parsed document, the default when unreadable or not JSON.
+/// Any parsed JSON document; `None` when unreadable or not JSON.
 fn json_read(path: &Path) -> Option<Value> {
     serde_json::from_str(
         &y2p_core::root::read(path, y2p_core::root::READ_LIMIT).unwrap_or_default(),
@@ -181,7 +181,7 @@ struct NewManifest<'a> {
     /// The /data volume the upload was admitted on; commit refuses another one.
     data_generation: Option<String>,
     state: &'static str,
-    /// The evidence record (`ctx.record`) commit completes with its result.
+    /// The evidence record (`devices_support::record`) commit completes with its result.
     record: Object,
     #[serde(skip_serializing_if = "Option::is_none")]
     upload_path: Option<String>,
@@ -232,7 +232,8 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
         0o600,
     )?;
     flock(lock.as_fd())?;
-    // The manifest through the stage's own descriptor ("used even under a test root").
+    // The manifest through the stage's own descriptor (/proc/self/fd, also below a fixture root):
+    // the stage cannot be swapped for another directory between the checks and the rewrite.
     let anchored = PathBuf::from(format!("/proc/self/fd/{}", stage.as_raw_fd()));
     // A missing or unreadable manifest has no state; JSON that is not an object is no manifest.
     let Value::Object(mut value) =
@@ -360,10 +361,12 @@ fn publish(
     }
     let base = media.as_ref().map_or(data, AsRawFd::as_raw_fd);
     let mut target = open_directory(base, "music", true)?;
-    for part in &parts[..parts.len() - 1] {
+    let (leaf, directories) = parts
+        .split_last()
+        .ok_or_else(|| Failure::value("invalid_media_name"))?;
+    for part in directories {
         target = open_directory(target.as_raw_fd(), part, true)?;
     }
-    let leaf = &parts[parts.len() - 1];
     if let Some(destination) = destination {
         if media_volume(root)?.generation != destination.generation {
             return Err(Failure::value("media_generation_changed"));
@@ -432,8 +435,8 @@ fn publish_copy(
         linkat(target, &temporary, target, name)
     })();
     drop((source, out));
-    // An unlink error other than a missing file replaces the original exception, as in Python's
-    // `finally`.
+    // The temporary name goes either way; an unlink error other than a missing file is reported
+    // instead of the copy's own result.
     unlinkat(target, &temporary, 0, true)?;
     result
 }
@@ -480,7 +483,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn names_and_ids_follow_transfer_py() {
+    fn media_names_and_stage_ids_are_checked() {
         assert_eq!(filename(Some("A/b.flac")).unwrap(), ["A", "b.flac"]);
         for bad in [
             "",
