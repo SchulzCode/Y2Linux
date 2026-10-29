@@ -9676,3 +9676,14 @@ dBm: one Wi-Fi observer now); clock TLS-ready from NTP; SFTP root Internal Stora
 before. The owner's hardware checks (PLATFORM-RUST-PORT-HANDOFF.md §6 A) are owed on 172; 171 and 170 are the
 comparison points.
 
+**Test build 173 (2026-10-29, duplication pass and idle gains, PLATFORM-RUST-REFACTOR-PLAN.md):** byte comparison
+against 171 at every step (0 differences), host suite 576 OK, platform tests 5 clean runs. On the owner's player
+from 172 by staged OTA: applied 21:52:47, Acknowledged 21:54:18 (≈91 s), application_ready 40.3 s; `status wifi`
+equal to `wpa_cli status`/`ip -j -4 addr|route`/`signal_poll` (Online, BSSID, address, default route text, −37 dBm),
+supplicant query 0.48 ms; ssh.json Ready; `rebornctl metrics` 0.01 s, `status --reborn` +10 ms over `status`.
+Idle, screen off (bl_power 4), charging, 300 s window from 6 min uptime: Reborn 19.0 s/h (172: 45.0; main thread
+9.4 from 24.6, watchdog 3.4 from 14.4), process starts 33.6/min (172: ≈140), power-daemon 8.9, service-daemon 10.2,
+ssh-daemon 1.9, connectivity-daemon 0.1 s/h (172: 7.8/7.8/2.1/0.0, measured later after boot; within the window's
+noise and boot-time work, not a regression shown). Owed: the owner's dark-wake checks (Power, USB plug, Bluetooth
+Play, automatic sleep on battery) and PLATFORM-RUST-PORT-HANDOFF.md §6 A.
+

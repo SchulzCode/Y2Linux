@@ -50,7 +50,9 @@ build, test and install, what the owner decided, what is owed, and what we learn
 
 Measured with the idle sampler (600 s window, 11 samples) and the restart/boot trail, as in plan §7. Per daemon on
 169: power-daemon 9.1 s/h, service-daemon 8.1 s/h, ssh-daemon 2.4 s/h, connectivity-daemon 0.2 s/h; each 3.3–4.2 MB
-RSS. Reborn itself (45 s/h, 26.7 MB) is now the largest consumer.
+RSS. Reborn itself (45 s/h, 26.7 MB) is now the largest consumer. On 173 (screen off, charging, 300 s): Reborn 19.0 s/h (main
+thread 9.4, watchdog 3.4), ~34 process starts/min (≈140 on 172: the Wi-Fi look's wpa_cli/ip are gone),
+`rebornctl metrics` 0.01 s instead of ≈0.36 s (Reborn's control thread answers it).
 
 ## 4. Where everything lives
 
