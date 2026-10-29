@@ -135,9 +135,9 @@ fn listening(root: &Root) -> bool {
 /// /run/y2/ssh.json, published every tick (sorted, compact: sftp-server greps `"state":"Ready"`);
 /// `monotonic_s` tells a reader how fresh it is.
 #[derive(Serialize)]
-struct State {
+struct State<'a> {
     schema: u8,
-    boot_id: Option<String>,
+    boot_id: Option<&'a str>,
     monotonic_s: f64,
     state: &'static str,
     reason: &'static str,
@@ -150,9 +150,16 @@ struct State {
     pid: Option<u32>,
 }
 
+/// The daemon between ticks. A tick runs every 1-5 s for as long as the player is awake, so what
+/// cannot change while it runs is read once: the boot id, whether SFTP is installed (the root
+/// filesystem is read-only; an update replaces it only across a restart) and, once ready, the CRNG
+/// (it never becomes unready again).
 struct Daemon<'a> {
     root: &'a Root,
-    runtime: std::path::PathBuf,
+    record: std::path::PathBuf,
+    boot_id: Option<String>,
+    sftp: bool,
+    entropy: bool,
     events: AddressEvents,
     address: Option<Address>,
     refresh_at: f64,
@@ -161,11 +168,14 @@ struct Daemon<'a> {
 }
 
 impl<'a> Daemon<'a> {
-    /// A daemon that has read nothing yet: the first tick reads the address.
+    /// A daemon that has read no address yet: the first tick reads it.
     fn new(root: &'a Root, events: AddressEvents) -> Daemon<'a> {
         Daemon {
             root,
-            runtime: root.path("/run/y2"),
+            record: root.path("/run/y2/ssh.json"),
+            boot_id: root.boot_id(),
+            sftp: root.path("/usr/libexec/y2-sftp-server").is_file(),
+            entropy: false,
             events,
             address: None,
             refresh_at: 0.0,
@@ -192,7 +202,8 @@ impl<'a> Daemon<'a> {
                 address
             }
         };
-        let (mut ready, mut reason) = prerequisites(self.root, py::entropy_ready(), address);
+        self.entropy = self.entropy || py::entropy_ready();
+        let (mut ready, mut reason) = prerequisites(self.root, self.entropy, address);
         if self.child.is_none() && ready == "Ready" {
             self.child = Some(spawn_dropbear()?);
             (ready, reason) = ("Starting", "listener_starting");
@@ -212,17 +223,17 @@ impl<'a> Daemon<'a> {
         }
         let record = State {
             schema: 1,
-            boot_id: self.root.boot_id(),
+            boot_id: self.boot_id.as_deref(),
             monotonic_s: self.root.clock().monotonic(),
             state: ready,
             reason,
             bind: "10.42.0.1:22",
             interface: "usb0",
             authentication: "owner_public_key",
-            sftp: self.root.path("/usr/libexec/y2-sftp-server").is_file(),
+            sftp: self.sftp,
             pid: self.child.as_ref().map(Child::id),
         };
-        atomic_json(&self.runtime.join("ssh.json"), &record, false)?;
+        atomic_json(&self.record, &record, false)?;
         Ok(ready)
     }
 
