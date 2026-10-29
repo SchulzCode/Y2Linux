@@ -46,8 +46,14 @@ const MINIMUM_PERCENT: i64 = 50;
 const CHECK_INTERVAL: f64 = 24.0 * 3600.0;
 /// Wi-Fi needs 15-20 s to reconnect after the player wakes; a Check for Updates pressed meanwhile
 /// failed at once ("name resolution") and hid Update Now.
+#[cfg(not(test))]
 const NETWORK_WAIT_S: f64 = 30.0;
+/// Unit tests: `patch.object(update, 'NETWORK_WAIT_S', 0.05)` as tests/test_platform_update.py did.
+#[cfg(test)]
+const NETWORK_WAIT_S: f64 = 0.05;
 const MANIFEST_ATTEMPTS: u32 = 3;
+/// The pause before another manifest attempt (unit tests: none, as their patched `time.sleep`).
+const RETRY_PAUSE: Duration = Duration::from_secs(if cfg!(test) { 0 } else { 3 });
 const PROGRESS: &str = "/run/y2/update-progress.json";
 const CHECK_PROGRESS: &str = "/run/y2/update-check-progress";
 /// Rollback copies of the running system. The recovery deletes them right before it writes the new
@@ -299,6 +305,15 @@ struct Space {
 
 fn fstatvfs(file: &File) -> Result<Space> {
     use std::os::fd::AsRawFd;
+    #[cfg(test)]
+    if let Some(available) = seams::SPACE.with(|s| s.borrow().as_ref().map(|space| space())) {
+        return Ok(Space {
+            readonly: false,
+            available,
+            files: 0,
+            favail: 0,
+        });
+    }
     // SAFETY: a zeroed statvfs filled by the kernel for an open descriptor.
     let mut info: libc::statvfs64 = unsafe { std::mem::zeroed() };
     if unsafe { libc::fstatvfs64(file.as_raw_fd(), &mut info) } != 0 {
@@ -597,6 +612,14 @@ impl Source {
     fn get(&self, name: &str, cancellable: bool) -> Result<Stream> {
         match self {
             Source::Remote { base, hosts } => {
+                #[cfg(test)]
+                if let Some(answer) = seams::REMOTE.with(|r| {
+                    r.borrow_mut()
+                        .as_mut()
+                        .map(|remote| remote(&format!("{base}{name}")))
+                }) {
+                    return answer;
+                }
                 let response = download::open(&format!("{base}{name}"), hosts, cancellable)
                     .map_err(Raise::Net)?;
                 if response.status != 200 {
@@ -730,6 +753,10 @@ fn installed_release(root: &Root) -> Value {
 /// The staging token, `.incoming-<uuid4 hex>`; below a fixture root a test may name it
 /// (`Y2_FIXTURE_TOKEN`, tests/platform_cases/service.py patches Python's uuid4 the same way).
 fn token(root: &Root) -> Result<String> {
+    #[cfg(test)]
+    if let Some(fixed) = seams::TOKEN.with(|t| t.borrow().clone()) {
+        return Ok(format!(".incoming-{fixed}"));
+    }
     if !root.is_real() {
         if let Ok(fixed) = std::env::var("Y2_FIXTURE_TOKEN") {
             return Ok(format!(".incoming-{fixed}"));
@@ -890,7 +917,7 @@ impl Staging<'_> {
                         // A lookup or handshake that failed while Wi-Fi was still settling: try again
                         // once it is online.
                         let _ = fs::remove_file(self.incoming.join(name));
-                        std::thread::sleep(Duration::from_secs(3));
+                        std::thread::sleep(RETRY_PAUSE);
                         wait_online(root, 10.0);
                     }
                     Err(error) => return Err(error),
@@ -1572,6 +1599,29 @@ pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) 
         ),
     }
 }
+
+/// What the Python unit tests patched (uuid4, `os.fstatvfs`, the release download), per thread and
+/// only in unit tests.
+#[cfg(test)]
+mod seams {
+    use super::{Result, Stream};
+    use std::cell::RefCell;
+
+    /// The answer for one release URL (`base` + file name).
+    pub type Remote = Box<dyn FnMut(&str) -> Result<Stream>>;
+
+    thread_local! {
+        /// The staging token's hex part.
+        pub static TOKEN: RefCell<Option<String>> = const { RefCell::new(None) };
+        /// The bytes `fstatvfs` reports available (writable, no inode limit).
+        pub static SPACE: RefCell<Option<Box<dyn Fn() -> i128>>> = const { RefCell::new(None) };
+        pub static REMOTE: RefCell<Option<Remote>> = const { RefCell::new(None) };
+    }
+}
+
+#[cfg(test)]
+#[path = "update_tests.rs"]
+mod update_tests;
 
 #[cfg(test)]
 mod tests {

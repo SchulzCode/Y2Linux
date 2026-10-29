@@ -777,6 +777,10 @@ fn py_type(value: &Value) -> &'static str {
 }
 
 #[cfg(test)]
+#[path = "daemon_tests.rs"]
+mod daemon_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

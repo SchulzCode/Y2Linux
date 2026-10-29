@@ -334,6 +334,10 @@ pub fn kill_tree(pid: libc::pid_t) {
 }
 
 #[cfg(test)]
+#[path = "command_timeout_tests.rs"]
+mod command_timeout_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
