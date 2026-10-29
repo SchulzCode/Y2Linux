@@ -128,6 +128,10 @@ fn sync(fd: RawFd, data_only: bool) -> Result<()> {
 
 /// `bench.write_all`.
 fn write_all(fd: RawFd, data: &[u8], offset: usize) -> Result<()> {
+    #[cfg(test)]
+    if let Some(errno) = bench_tests::write_fault() {
+        return Err(Error::os(io::Error::from_raw_os_error(errno), None));
+    }
     let mut written = 0;
     while written < data.len() {
         // SAFETY: the unwritten tail of `data`.
@@ -152,6 +156,8 @@ fn write_all(fd: RawFd, data: &[u8], offset: usize) -> Result<()> {
 
 /// `os.pread(fd, size, offset)`: one call.
 fn pread(fd: RawFd, size: usize, offset: usize) -> Result<Vec<u8>> {
+    #[cfg(test)]
+    let offset = bench_tests::read_offset(size, offset);
     let mut buffer = vec![0u8; size];
     // SAFETY: a buffer of `size` bytes.
     let n = unsafe {
@@ -515,6 +521,10 @@ fn distribution(samples: &[u64], bytes: u64, duration: Option<u64>) -> Map<Strin
 
 /// `bench.io_snapshot`: passive counters only; never resume MMC just to observe an idle gate.
 fn io_snapshot(root: &Root) -> Value {
+    #[cfg(test)]
+    if let Some(snapshot) = bench_tests::snapshot() {
+        return snapshot;
+    }
     let stat = root.read("/proc/stat").unwrap_or_default();
     let ticks = regex!(r"(?m)^cpu\s+([0-9 ]+)$").captures(&stat).map(|c| {
         split_ws(&c[1])
@@ -679,6 +689,8 @@ impl Bench<'_> {
     fn advise(&mut self, fd: RawFd, operation: &str) -> Result<()> {
         // SAFETY: an open descriptor; the whole file.
         let error = unsafe { libc::posix_fadvise(fd, 0, 0, libc::POSIX_FADV_DONTNEED) };
+        #[cfg(test)]
+        let error = bench_tests::advice(error);
         let (state, errno) = match error {
             0 => ("requested_advisory_only", Value::Null),
             libc::EINVAL | libc::ENOSYS | libc::EOPNOTSUPP => ("unavailable", json!(error)),
@@ -1124,6 +1136,12 @@ pub fn library_benchmark(root: &Root, volume: &str, tracks: i64, scan: bool) -> 
     let result = json!({"schema": "org.y2linux.benchmark/v1", "record": record, "measurements": measurements});
     Reply::sorted(&result, u8::from(failed))
 }
+
+// Faults a fixture cannot cause (Python's tests patched write_all, os.pread, os.posix_fadvise and
+// io_snapshot): bench_tests injects them at the `#[cfg(test)]` lines above.
+#[cfg(test)]
+#[path = "bench_tests.rs"]
+mod bench_tests;
 
 #[cfg(test)]
 mod tests {

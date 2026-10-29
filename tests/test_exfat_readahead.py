@@ -38,13 +38,6 @@ class ExfatDirReadahead(unittest.TestCase):
             self.assertTrue(body and all(not l.startswith(('+', '-')) for l in body), name)
         self.assertIn('+#include <linux/blkdev.h>', (ROOT / 'kernel/patches/0069-fat-dir-readahead-plug.patch').read_text())
 
-    def test_every_card_format_mounts_noatime(self):
-        media = (ROOT / 'tools/platform/y2_platform/media.py').read_text()
-        # Read-only between writes since 8.27 (protected card), noatime either way.
-        self.assertIn("options = ('ro' if read_only else 'rw') + ',nosuid,nodev,noexec,noatime'", media)
-        internal = (ROOT / 'tools/platform/y2_platform/internal_media.py').read_text()
-        self.assertIn("OPTIONS = 'rw,nosuid,nodev,noexec,noatime,noinit_itable'", internal)
-
 
 if __name__ == '__main__':
     unittest.main()

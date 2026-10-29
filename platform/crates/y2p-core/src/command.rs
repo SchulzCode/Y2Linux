@@ -95,8 +95,10 @@ pub mod testing {
     use super::Outcome;
     use std::cell::RefCell;
 
+    type Respond = Box<dyn FnMut(&[&str], f64) -> Outcome>;
+
     struct Script {
-        answers: Vec<(Vec<String>, Outcome)>,
+        respond: Respond,
         calls: Vec<(Vec<String>, f64)>,
     }
 
@@ -129,9 +131,33 @@ pub mod testing {
         answers: Vec<(Vec<String>, Outcome)>,
         f: impl FnOnce() -> T,
     ) -> (T, Vec<(Vec<String>, f64)>) {
+        responding(
+            move |argv, _| {
+                answers
+                    .iter()
+                    .find(|(a, _)| a.iter().map(String::as_str).eq(argv.iter().copied()))
+                    .map_or(
+                        Outcome {
+                            ok: false,
+                            reason: Some("fixture".into()),
+                            output: None,
+                        },
+                        |(_, o)| o.clone(),
+                    )
+            },
+            f,
+        )
+    }
+
+    /// `scripted` with every answer from `respond(argv, timeout)`: a fake whose state changes with
+    /// the commands (a `mount` that adds its mountinfo line), as Python's test runners did.
+    pub fn responding<T>(
+        respond: impl FnMut(&[&str], f64) -> Outcome + 'static,
+        f: impl FnOnce() -> T,
+    ) -> (T, Vec<(Vec<String>, f64)>) {
         SCRIPT.with(|s| {
             *s.borrow_mut() = Some(Script {
-                answers,
+                respond: Box::new(respond),
                 calls: Vec::new(),
             })
         });
@@ -147,20 +173,7 @@ pub mod testing {
             script
                 .calls
                 .push((argv.iter().map(|a| a.to_string()).collect(), timeout));
-            Some(
-                script
-                    .answers
-                    .iter()
-                    .find(|(a, _)| a.iter().map(String::as_str).eq(argv.iter().copied()))
-                    .map_or(
-                        Outcome {
-                            ok: false,
-                            reason: Some("fixture".into()),
-                            output: None,
-                        },
-                        |(_, o)| o.clone(),
-                    ),
-            )
+            Some((script.respond)(argv, timeout))
         })
     }
 }

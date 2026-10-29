@@ -369,39 +369,6 @@ int main(void) {
 }''')
 
 
-class StorageStatus(unittest.TestCase):
-    def test_platform_status_reports_the_negotiated_mode_without_register_decoding(self):
-        import sys
-        sys.path.insert(0, str(ROOT / 'tools/platform'))
-        from y2_platform.common import Context
-        from y2_platform.observe import storage
-        with tempfile.TemporaryDirectory() as directory:
-            ctx = Context(directory)
-            base = Path(directory) / 'sys/bus/platform/devices'
-            for name, mode in (('11230000.mmc', 'host=emmc level=HS200 ceiling=HS200 timing=hs200 width=8 '
-                                'clock_hz=200000000 actual_hz=200000000 cap_hz=200000000 signal_mv=1800 '
-                                'vqmmc_mv=1800 card_level=HS200 card_caps=0x57 hs400_card=1 tuning=pass '
-                                'tune_pad=0x80000 verify=pass fallbacks=0 crc_events=0 timeout_events=2 tuning_events=0 '
-                                'verify_events=0\n'),
-                               ('11240000.mmc', None)):
-                (base / name).mkdir(parents=True)
-                (base / name / 'y2_performance').write_text('cap_hz=200000000 actual_hz=200000000 transport_errors=0 fallbacks=0 clock_error=0\n')
-                if mode:
-                    (base / name / 'y2_storage').write_text(mode)
-            controllers = {c['name']: c for c in storage(ctx)['controllers']}
-            emmc = controllers['11230000.mmc']['mode']
-            self.assertEqual(emmc['level'], 'HS200')
-            self.assertEqual(emmc['width'], 8)
-            self.assertEqual(emmc['signal_mv'], 1800)
-            self.assertEqual(emmc['card_caps'], 0x57)
-            self.assertEqual(emmc['tune_pad'], 0x80000)
-            self.assertEqual(emmc['verify'], 'pass')
-            self.assertEqual(emmc['tuning'], 'pass')  # result, not the event count
-            self.assertEqual(emmc['timeout_events'], 2)
-            self.assertIsNone(controllers['11240000.mmc']['mode'])  # older kernel
-            self.assertEqual(controllers['11240000.mmc']['cap_hz'], 200000000)
-
-
 class StorageDeviceTree(unittest.TestCase):
     def test_production_ceiling_and_rail_ownership(self):
         production = (ROOT / 'kernel/dts/innioasis-y2-production.dts').read_text()

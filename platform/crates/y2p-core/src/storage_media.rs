@@ -392,6 +392,10 @@ pub fn disposable_name(category: &str, name: &str) -> bool {
 }
 
 #[cfg(test)]
+#[path = "storage_media_tests.rs"]
+mod storage_media_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

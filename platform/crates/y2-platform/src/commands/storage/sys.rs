@@ -411,7 +411,19 @@ pub fn write_record(path: &Path, value: &Object) -> Result<(), Failure> {
 /// `fcntl.flock(fd, LOCK_EX | LOCK_NB)` on a platform lock file; a busy lock is Python's uncaught
 /// `BlockingIOError`.
 pub fn try_lock(path: &Path) -> Result<Option<File>, Failure> {
-    lock::try_exclusive(path).map_err(|e| Failure::os(e, path))
+    let lock = lock::try_exclusive(path).map_err(|e| Failure::os(e, path))?;
+    // Unit tests run beside tests that start processes: a child holds a copy of every descriptor
+    // until its exec closes it, so a lock this thread just released can look busy for a moment.
+    #[cfg(test)]
+    if lock.is_none() {
+        for _ in 0..200 {
+            thread::sleep(Duration::from_millis(1));
+            if let Some(file) = lock::try_exclusive(path).map_err(|e| Failure::os(e, path))? {
+                return Ok(Some(file));
+            }
+        }
+    }
+    Ok(lock)
 }
 
 pub fn busy() -> Failure {

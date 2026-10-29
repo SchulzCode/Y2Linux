@@ -319,6 +319,10 @@ pub fn volumes(root: &Root) -> Vec<Object> {
 }
 
 #[cfg(test)]
+#[path = "observe_tests.rs"]
+mod observe_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
