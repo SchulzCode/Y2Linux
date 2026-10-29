@@ -779,6 +779,10 @@ fn protect(root: &Root) -> Result<(), Failure> {
 
 /// CLOCK_BOOTTIME − CLOCK_MONOTONIC: grows only while the system sleeps.
 fn slept_ns() -> i128 {
+    #[cfg(test)]
+    if let Some(slept) = media_tests::slept_ns() {
+        return slept;
+    }
     clock::boottime_ns() as i128 - clock::monotonic_ns() as i128
 }
 
@@ -1187,8 +1191,13 @@ fn format_steps(root: &Root, state: &mut Object, device: &str, sectors: u64) {
         set(state, "errno", errno(&error));
         return;
     }
+    // A fixture's card is a plain file: the unit tests answer the ioctl (Python's `ctx.ioctl`).
+    #[cfg(test)]
+    let reread = media_tests::ioctl(card.as_raw_fd(), BLKRRPART);
+    #[cfg(not(test))]
     // SAFETY: BLKRRPART on the card's own descriptor; no argument is read.
-    if unsafe { libc::ioctl(card.as_raw_fd(), BLKRRPART as _, 0) } != 0 {
+    let reread = unsafe { libc::ioctl(card.as_raw_fd(), BLKRRPART as _, 0) };
+    if reread != 0 {
         let error = io::Error::last_os_error();
         set_state(state, "Failed", "partition_reread_failed");
         set(state, "errno", errno(&error));
@@ -1252,6 +1261,10 @@ fn grow_steps(root: &Root, state: &mut Object) {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "media_tests.rs"]
+mod media_tests;
 
 #[cfg(test)]
 mod tests {

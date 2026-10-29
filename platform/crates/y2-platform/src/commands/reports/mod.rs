@@ -8,7 +8,7 @@ mod clock;
 mod diagnostics;
 mod fields;
 mod maintenance;
-mod media;
+pub(crate) mod media;
 pub(crate) mod pyjson;
 mod pyops;
 mod pyre;
