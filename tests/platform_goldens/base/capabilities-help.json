@@ -6,7 +6,7 @@
  "calls": [],
  "exit": 0,
  "stdout": [
-  "usage: main.py capabilities [-h] [--json]",
+  "usage: y2-platform capabilities [-h] [--json]",
   "",
   "options:",
   "  -h, --help  show this help message and exit",

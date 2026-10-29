@@ -12,8 +12,10 @@ implementation and the Python platform is deleted (the goldens below were record
   subprocesses, kmsg/pmsg trail lines, signals, F-numbers on the code path, environment and porting notes;
   daemons also have `loop`.
 - `tools/development/platform-contract.py --check` (run by `tests.test_platform_differential`) fails when the
-  parser (`crates/y2-platform/src/argparse.json`) and the table differ or a subcommand/action has no entry. After
-  changing argparse.json: `--write`, then review that subcommand's entry by hand.
+  parser's table (`crates/y2-platform/src/cli.rs` `COMMANDS`, printed by `y2-platform __arguments`) and the
+  `arguments` table differ or a subcommand/action has no entry; `cargo test` compares the same
+  (`contract_json_holds_this_table`). After changing `COMMANDS`: build, `--write`, then review that subcommand's
+  entry by hand.
 - The golden suite that checks the platform against this contract is `tests/platform_golden.py`
   (see [below](#golden-suite)).
 - The Rust side of the contract: `crates/y2p-contract` (types and names, shared with Reborn, checked by its
@@ -31,8 +33,8 @@ and the player; treat an entry as a map to the code, and re-read the code it cit
 **Entry and errors.** `/usr/sbin/y2-platform` is `exec /usr/bin/python3 -I /usr/lib/y2-platform/main.py "$@"`
 with `PYTHONPATH=/usr/lib/y2-platform`, `PYTHONDONTWRITEBYTECODE=1`. `main.py` turns an escaping `OSError`,
 `ValueError` or `RuntimeError` into `{"schema": "org.y2linux.error/v1", "state": "Failed", "reason": str(error),
-"type": <class name>}` and exit 1. Other exceptions give a traceback on stderr, empty stdout, exit 1. argparse
-errors exit 2 with usage on stderr. Several commands catch their own errors first and print a different shape:
+"type": <class name>}` and exit 1. Other exceptions give a traceback on stderr, empty stdout, exit 1. Argument
+errors exit 2 with usage on stderr ([Arguments](#arguments)). Several commands catch their own errors first and print a different shape:
 `{"state": "Failed", "failure": str(error)}` (export-state, reset, firmware, update, time-set, time-remember),
 `{"failure": "report_failed", "reason": <class name>}` (report), `{"state": "Failed", "failure":
 "diagnostic_export_failed"}` (export-diagnostics), `{"schema": "org.y2linux.codec-settings/v1", "failure": …}`.
@@ -153,19 +155,38 @@ Most are `LOCK_EX|LOCK_NB` with a named refusal (`*_in_progress`, `busy`); the b
 
 ## Ported to Rust (`platform/crates/y2-platform/src/commands`)
 
-The dispatcher parses the arguments first, exactly as main.py's argparse parser (`src/argparse.rs` with the
-parser as data, `src/argparse.json`, made from it and edited by hand since, kept consistent by
-`tools/development/platform-argparse.py --check`): `--help`
-prints that parser's help (exit 0) and an argument error its usage and `main.py …: error: …` on stderr (exit 2),
-without Python. Rust then runs every subcommand from its canonical form (an abbreviated or `=` spelling, or options in another
-order, parse to the same canonical form: subcommand, positionals, then the options given in definition order).
-**There is no Python platform any more (phase 6, 2026-10-29):** every subcommand and action has a route (main.rs's
-test `every_command_line_argparse_takes_has_a_route`), the image has no Python, and `y2-status`, `y2-health`,
-`y2-suspend-record`, `y2-power-audit`, `/sbin/poweroff` and `/sbin/reboot` are links the binary answers to by
-argv[0] (`commands::suspend::program`). Help and usage texts are the 80-column ones (Python would use a terminal's
-width or COLUMNS; the platform's callers use pipes). Arguments and environment values that are not UTF-8 are read
-as Python reads them (`os.fsdecode`, `y2p_core::os_text`); `firmware` and `update` use such paths as text (an
-owner path that is not UTF-8 is not found).
+The dispatcher parses the arguments first ([Arguments](#arguments)), then runs every subcommand from its
+canonical form. **There is no Python platform any more (phase 6, 2026-10-29):** every subcommand and action has
+a route (main.rs's test `every_command_line_the_parser_takes_has_a_route`), the image has no Python, and
+`y2-status`, `y2-health`, `y2-suspend-record`, `y2-power-audit`, `/sbin/poweroff` and `/sbin/reboot` are links
+the binary answers to by argv[0] (`commands::suspend::program`). The internal programmes (`__product-sleep`,
+`__suspend-record`, `__power-command`, `__power-audit`) read their own arguments, as the Python scripts did
+(`os.fsdecode` for bytes that are not UTF-8, `y2p_core::os_text`); environment values (dhcp-event, ntp-event)
+too. `y2-platform __arguments` prints the argument table (for `platform-contract.py`).
+
+### Arguments
+
+Since 2026-10-29 (owner decision "replace, keep exit 2"; it replaced an emulation of CPython 3.15's argparse) the
+parser is `src/cli.rs`: a table of every subcommand's arguments (`COMMANDS`: type str/int/float, choices,
+default, required, flag or append, help) and a small parser over it.
+- Forms: `--opt value` and `--opt=value` (any text after `=`, also one starting with `-`), exact option names
+  only; a flag takes no value; an option given twice keeps the last value, an append option (`--pid`) every one;
+  positionals in order, options anywhere; `--` ends the options (for a subcommand without positionals it is an
+  argument too many); a token starting with `-` is a value when it is a negative number or holds a space.
+- Numbers: plain decimal integers with an optional sign that fit 64 bits; plain finite decimal floats (`1`, `.5`,
+  `5.`, `1e-3`). An int choice (`--tracks`) compares the number (`01000` is `1000`).
+- The canonical form handed to `commands::route`: the subcommand, the positionals given, then each option given in
+  table order under its full name (a flag bare, `--opt value` as two tokens, an append option once per value);
+  ints in plain decimal, floats in Python's repr (`1.0`, `1e-05`), which the routes read.
+- `-h`/`--help` anywhere before `--` prints that subcommand's help on stdout (exit 0), unless an argument before
+  it was already refused. The help texts are argparse's 80-column layout with `y2-platform` for `main.py`.
+- Errors: exit 2, nothing on stdout, the usage and one `y2-platform <cmd>: error: <message>` line on stderr
+  (values quoted). Refused since the decision (Python took them): abbreviations and ambiguous prefixes
+  (`--reb`), short-option clusters (`-hx`), Python's int()/float() spellings (spaces, `_`, non-ASCII digits,
+  `inf`, `nan`), numbers beyond 64 bits or out of float range, and arguments that are not UTF-8 (no caller passes
+  one: CONTRACT "Callers"; a non-UTF-8 `transfer --name` or owner path failed later before). No caller used any
+  of them (checked: Reborn's client.rs, the overlay scripts, the platform's own children; `cli_tests.rs`
+  `what_callers_pass_parses_as_given`).
 
 Where Python raises an exception main.py catches, Rust prints main.py's error record with Python's exact
 `str(error)` and class (`ipaddress`'s `AddressValueError` and `NetmaskValueError`, `int()`'s `ValueError`,
@@ -192,7 +213,8 @@ golden cases, recorded from the Python platform before it was removed (see [belo
 Known, accepted differences (none reachable from the platform's own records): JSON input with `NaN`,
 `Infinity` or integers beyond 64 bits reads as unreadable (Python reads them); an `OSError` while writing a
 record names the record, not Python's temporary file; `str.splitlines` separators other than `\n`/`\r\n` in
-sysfs text; a valid UTF-8 argument holding U+10DC80..U+10DCFF reads as an escaped byte; a `y2-suspend-record`
+sysfs text; a valid UTF-8 argument of an internal programme holding U+10DC80..U+10DCFF reads as an escaped
+byte; a `y2-suspend-record`
 result beyond 64 bits is refused like a non-number (y2-suspend passes exit codes). A traceback's frames are not
 Python's (its last line, class and message, is). Compressed report archives differ in bytes from zlib's (their
 members do not). File calls use the 64-bit interfaces on the 32-bit player (`stat64`, `statvfs64`, …), as Python
@@ -227,9 +249,12 @@ contents parsed per JSON line, symlink targets), after normalising clock reading
 are `tests/test_platform_differential.py`'s and `tests/platform_cases/<group>.py`'s; the groups' modules
 (`tests/test_platform_{devices,observation,reports,suspend,power_rpc}.py`) add the runs a plain one cannot give
 (renamed random names, archive listings, a plan made first, a fake Reborn socket, held locks, a live power
-daemon). `tests/test_platform_argparse.py` compares the Rust parse (`Y2_ARGPARSE_ECHO`) of about 5 700 generated
-argument lists with `tests/platform_goldens/argparse.jsonl.gz`. Every golden was first recorded from the Python
-platform (Linux `3ac47c6`, the Rust build of that commit matched each). All are in `tools/production/tests.sh`;
+daemon). `tests/test_platform_argparse.py` runs the 5 729 argument lists of `tests/platform_goldens/
+argparse.jsonl.gz` (the parse only: `Y2_ARGPARSE_ECHO` prints the canonical form below a fixture root); each line
+holds Python's argparse outcome with the canonical form routes got then (fixed) and today's outcome (`rust`,
+re-recorded). A list without a feature the [Arguments](#arguments) decision dropped must keep Python's exit code
+and canonical form (3 517 lists), one with such a feature is refused now (1 207) or unchanged (1 005). Every
+golden was first recorded from the Python platform (Linux `3ac47c6`, the Rust build of that commit matched each). All are in `tools/production/tests.sh`;
 without a host build (the release container has no cargo) the runs are skipped and the goldens' own checks run.
 
 A deliberate behaviour change (a defect fix) re-records the goldens it touches and shows in the git diff:

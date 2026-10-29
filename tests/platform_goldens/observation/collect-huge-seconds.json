@@ -5,13 +5,8 @@
   "99999999999999999999"
  ],
  "calls": [],
- "exit": 1,
- "stdout": {
-  "reason": "collection_bounds_exceeded",
-  "schema": "org.y2linux.error/v1",
-  "state": "Failed",
-  "type": "ValueError"
- },
+ "exit": 2,
+ "stdout": [],
  "tree": {
   "added": {},
   "changed": {},

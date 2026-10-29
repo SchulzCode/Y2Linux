@@ -6,7 +6,7 @@
  "calls": [],
  "exit": 0,
  "stdout": [
-  "usage: main.py power-daemon [-h]",
+  "usage: y2-platform power-daemon [-h]",
   "",
   "options:",
   "  -h, --help  show this help message and exit"

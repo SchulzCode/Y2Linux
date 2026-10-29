@@ -243,6 +243,7 @@ MEDIA = [
     ('media-write-not-mounted', ['media', 'write'], {}),
     ('media-write-bad-holders', ['media', 'write'], {'files': {
         **MOUNTED, '/run/y2/sd-write.json': json.dumps({'boot_id': 'boot-a', 'mount_id': 51, 'holders': [1]})}}),
+    # Seconds beyond 64 bits: the parser refuses them (exit 2) before anything is remounted.
     ('media-write-huge-seconds', ['media', 'write', '--seconds', '99999999999999999999999'], {
         'files': MOUNTED, 'volatile': WRITE_VOLATILE,
         'commands': [ok(['mount', '-o', 'remount,rw', '/media/sd'])]}),

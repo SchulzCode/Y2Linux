@@ -1,66 +1,55 @@
-"""The Rust platform's argument parsing (platform/crates/y2-platform/src/argparse.rs) against its golden.
+"""The platform's command line (platform/crates/y2-platform/src/cli.rs) against the argument corpus.
 
-The parser is data, src/argparse.json (main.py's argparse parser as the Python platform built it; edited by hand
-since, kept consistent by tools/development/platform-argparse.py --check). A generated corpus of argument lists
-(valid, permuted, abbreviated, ambiguous, invalid types and choices, missing and extra arguments, `--`, `=`, help)
-runs through the Rust binary (`Y2_PLATFORM_RUST`, with `Y2_ARGPARSE_ECHO=1` below a fixture root: it prints the
-parse instead of running anything). Exit code, stdout, stderr and the parsed namespace must be the golden's,
-tests/platform_goldens/argparse.jsonl.gz: one JSON line per list, first recorded from main.py's parser on the
-player's Python 3.15. The canonical argument list the Rust side hands its commands must parse back to the same
-namespace. After a deliberate change of argparse.json (the corpus changes with it) or of the parser,
-`Y2_RECORD_GOLDENS=1` rewrites the golden from the Rust binary; review the outcomes that changed.
+tests/platform_goldens/argparse.jsonl.gz holds 5 729 argument lists (valid, permuted, abbreviated, ambiguous, odd
+numbers, invalid types and choices, missing and extra arguments, `--`, `=`, help, arguments that are not UTF-8),
+one JSON line each with two outcomes:
+  python  what main.py's argparse parser did on the player's Python 3.15 (exit code, stdout, stderr) and, for a
+          parsed list, the canonical form commands::route got from the Rust port of that parser (which gave
+          Python's namespace for every parsed list); recorded once, never re-recorded
+  rust    what today's parser does (exit code, stdout, stderr, canonical form); `Y2_RECORD_GOLDENS=1` re-records it
+The binary runs with `Y2_ARGPARSE_ECHO=1` below a fixture root: it prints the canonical form instead of running it.
+
+The argparse emulation was replaced by a small table-driven parser (owner decision 2026-10-29): option
+abbreviations (and ambiguous prefixes), short-option clusters (`-hx`), Python's int()/float() spellings (spaces,
+underscores, non-ASCII digits, `inf`/`nan`) and values beyond 64 bits, and arguments that are not UTF-8 are
+refused now. `reasons` names which of these a list uses (from platform/contract.json's argument table). A list
+that uses none must reach the same outcome as under Python: the same exit code, the same canonical form, the same
+help (with `y2-platform` for `main.py`, rewrapped) or an error. A list that uses one either still has Python's
+outcome or is refused (exit 2); it shows help instead only where it holds an exact -h/--help that Python's refusal
+of the dropped spelling came before.
 """
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 import gzip
 import json
+import math
 from pathlib import Path
-import random
+import re
 import subprocess
 import sys
 import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from platform_golden import GOLDENS, RECORD_ENV, REPOSITORY, SKIP, recording, rust_binary  # noqa: E402
+from platform_golden import GOLDENS, REPOSITORY, SKIP, recording, rust_binary  # noqa: E402
 
-CHECKER = REPOSITORY / 'tools/development/platform-argparse.py'
-SPEC = json.loads((REPOSITORY / 'platform/crates/y2-platform/src/argparse.json').read_text())
-COMMANDS = dict(SPEC['commands'])
 GOLDEN = GOLDENS / 'argparse.jsonl.gz'
-
-STRINGS = ['x', 'value', 'a b', '', '-', '--', '-x', '-5', '-1.5', '-.5', '-1_0', '-5x', '--x=y', '=', "it's",
-           'q"uote', 'both\'"', 'ü', 'naïve', '​', ' ', '\t', 'tab\tnew\nline', 'back\\slash', '\x7f',
-           '\U0001f600', '\U000e0001', 'https://example.org/manifest.json', '/media/sd/system.img', '日本']
-INTS = ['0', '5', '-3', ' 7 ', '0_1', '+4', '007', '١٢', '１２', ' 9', '-0', '10',
-        '99999999999999999999999', '1_000', '१२', '\t8\n', ' 3']
-BAD_INTS = ['x', '1.5', '1e3', '_1', '1_', '1__0', '', ' ', '0x10', '+', '\x1c5', '−5', '1 2', '+-1', 'inf',
-            '1' * 4301]
-FLOATS = ['0', '0.1', '1e-1', ' 2.5 ', 'inf', '-Infinity', 'nan', '+nAn', '1_000.5', '.5', '5.', '1e400', '-1e400',
-          '١.٥', '-0', '10', '0.05', '1E+01', '1e1_0', '3']
-BAD_FLOATS = ['x', '1e', '.', 'e5', '1_.5', '0x1', 'infi', '1.2.3', '', '1_e5', 'nan_', '\x1c1']
-HELP = ['-h', '--help', '--he', '--h', '-hx', '-h=x', '--help=', '-hh', '--hel=1']
-UNKNOWN = ['--nope', '-q', '--', '-x', 'extra', '--js0n', '-=x', '--=x', '-', '-1', '-1e5']
-# Arguments that are not UTF-8: Python's sys.argv holds a lone surrogate per such byte (os.fsdecode), which
-# subprocess gives the Rust binary back as the byte. Its stderr writes them as \udcXX (backslashreplace).
-NON_UTF8 = [['\udcff'], ['sleep', '\udcff'], ['status', 'cpu\udcff'], ['status', '\udced\udca0\udc80'],
-            ['time-set', '\udcff'], ['time-set', '1\udcff'], ['boot-stage', 'a\udcffb'], ['stat\udcffus'],
-            ['heal\udcffth'], ['--\udcff'], ['-\udcff', 'time'], ['time', '\udcff'], ['time', '--\udcff'],
-            ['network-check', '--peer', '\udce2\udc82'], ['network-check', '--pe\udcff', 'x'],
-            ['network-check', '--peer=\udcff'], ['network-check', '--peer', 'x', '--seconds', '\udcfe'],
-            ['status', '--pid', '\udcff'], ['status', '--interval', '1\udcff'], ['status', '--pi\udcff', '1'],
-            ['transfer', 'begin', '--name', '\udcff\udcfe', '--bytes', '1', '--sha256', 'x'],
-            ['transfer', '\udcff'], ['collect', '--workload', 'w\udcff'], ['media', 'format', '--confirm-cid', '\udcff'],
-            ['firmware', 'install', '/media/\udcff'], ['report', 'save', '--to', '\udcff'],
-            ['reset', 'purge', '--id', '\udcff', '--confirm', '\udcfe'], ['codec-settings', '--sbc-quality', 'xq\udcff']]
+ARGUMENTS = json.loads((REPOSITORY / 'platform/contract.json').read_text())['arguments']
+HELP = ['-h', '--help']
+PLAIN_INT = re.compile(r'[+-]?[0-9]+\Z')
+PLAIN_FLOAT = re.compile(r'[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?\Z')
+ERROR = re.compile(r'y2-platform( [a-z-]+)?: error: .+\Z')
+# What the decision dropped, as `reasons` names it.
+REASONS = ['not UTF-8', 'abbreviation', 'ambiguous prefix', 'short-option cluster', 'int spelling',
+           'int beyond 64 bits', 'float spelling', 'float out of range']
 
 
 def golden():
-    """The recorded outcomes: [{argv, exit, stdout, stderr, namespace}] (namespace None: no parse)."""
     return [json.loads(line) for line in gzip.decompress(GOLDEN.read_bytes()).decode().splitlines()]
 
 
-def write_golden(outcomes):
-    text = ''.join(json.dumps(o, sort_keys=True) + '\n' for o in outcomes)
+def write_golden(lines):
+    text = ''.join(json.dumps(line, sort_keys=True) + '\n' for line in lines)
     GOLDEN.write_bytes(gzip.compress(text.encode(), compresslevel=9, mtime=0))
 
 
@@ -68,16 +57,11 @@ def rust(binary, root, argv):
     environment = {'PATH': '/usr/bin:/bin', 'Y2_ROOT': root, 'Y2_ARGPARSE_ECHO': '1'}
     result = subprocess.run([str(binary), *argv], capture_output=True, env=environment, stdin=subprocess.DEVNULL,
                             timeout=30)
-    return {'exit': result.returncode, 'stdout': result.stdout.decode(), 'stderr': result.stderr.decode()}
-
-
-def echoed(got):
-    """The namespace and canonical list a successful Rust parse prints (None, None otherwise)."""
-    try:
-        echo = json.loads(got['stdout']) if got['exit'] == 0 else None
-    except ValueError:
-        echo = None
-    return (echo['namespace'], echo['canonical']) if isinstance(echo, dict) and 'namespace' in echo else (None, None)
+    stdout = result.stdout.decode()
+    canonical = None
+    if result.returncode == 0 and stdout.startswith('{'):
+        canonical, stdout = json.loads(stdout)['canonical'], ''
+    return {'exit': result.returncode, 'canonical': canonical, 'stdout': stdout, 'stderr': result.stderr.decode()}
 
 
 def run_all(argvs):
@@ -85,235 +69,181 @@ def run_all(argvs):
         return list(pool.map(lambda argv: rust(rust_binary(), root, argv), argvs))
 
 
-def typo(rng, word):
-    if not word:
-        return 'x'
-    i = rng.randrange(len(word))
-    kind = rng.randrange(5)
-    if kind == 0:
-        return word[:i] + word[i + 1:]
-    if kind == 1:
-        return word[:i] + rng.choice('aeiouxz-') + word[i:]
-    if kind == 2 and len(word) > 1:
-        j = min(i + 1, len(word) - 1)
-        return word[:i] + word[j] + word[i] + word[j + 1:] if j != i else word + 'q'
-    if kind == 3:
-        return word.upper()
-    return rng.choice(STRINGS)
+def looks_like_option(token, names=()):
+    """argparse's test: one of `names` (exact or a prefix, `=value` attached or not), else anything with a leading
+    `-` but a negative number (Unicode digits included) or text with a space."""
+    if not token.startswith('-') or len(token) == 1:
+        return False
+    name = token.partition('=')[0]
+    if name in names or name.startswith('--') and any(n.startswith(name) for n in names if n.startswith('--')):
+        return True
+    return not re.match(r'-\.?\d', token) and ' ' not in token
 
 
-def good_value(rng, action):
-    if action['choices']:
-        choice = rng.choice(action['choices'])
-        if isinstance(choice, dict):  # an int choice: any spelling int() reads
-            return rng.choice([choice['int'], ' %s' % choice['int'], '0' + choice['int'],
-                               '{:_}'.format(int(choice['int']))])
-        return choice
-    if action['type'] == 'int':
-        return rng.choice(INTS)
-    if action['type'] == 'float':
-        return rng.choice(FLOATS)
-    return rng.choice(STRINGS[:6] + STRINGS[14:] if rng.random() < 0.8 else STRINGS)
+def number_reason(kind, text):
+    """Why Python took this int/float value and the parser does not (None: both take or both refuse it)."""
+    if kind in ('int', 'append'):  # the append options (status/collect --pid) take ints
+        try:
+            value = int(text)
+        except ValueError:
+            return None
+        if not PLAIN_INT.match(text):
+            return 'int spelling'
+        return None if -2 ** 63 <= value < 2 ** 63 else 'int beyond 64 bits'
+    if kind == 'float':
+        try:
+            value = float(text)
+        except ValueError:
+            return None
+        if not PLAIN_FLOAT.match(text):
+            return 'float spelling'
+        return None if math.isfinite(value) else 'float out of range'
+    return None
 
 
-def bad_value(rng, action):
-    if action['choices']:
-        choice = rng.choice(action['choices'])
-        if isinstance(choice, dict):
-            return rng.choice(['5', '999', 'x', '1e3', ' 1001'])
-        return typo(rng, choice)
-    if action['type'] == 'int':
-        return rng.choice(BAD_INTS)
-    if action['type'] == 'float':
-        return rng.choice(BAD_FLOATS)
-    return rng.choice(STRINGS)
+def spelling(name, names):
+    """(reason, the option meant) for an option name argparse resolved and the parser does not."""
+    if name in names:
+        return None, name
+    if name.startswith('--'):
+        matches = [n for n in names if n.startswith('--') and n.startswith(name)]
+        if len(matches) == 1:
+            return 'abbreviation', matches[0]
+        if matches:
+            return 'ambiguous prefix', None
+    elif name.startswith('-h'):
+        return 'short-option cluster', '-h'
+    return None, None
 
 
-def spelled(rng, parser, option):
-    """The option string, sometimes abbreviated (a unique or an ambiguous prefix)."""
-    if option.startswith('--') and rng.random() < 0.4:
-        return option[:rng.randrange(3, len(option) + 1)]
-    return option
-
-
-def command_case(rng, name):
-    parser = COMMANDS[name]
-    actions = [a for a in parser['actions'] if a['kind'] != 'help']
-    positionals = [a for a in actions if not a['options']]
-    optionals = [a for a in actions if a['options']]
-    invalid = rng.random() < 0.35
-    pieces = []
-    for action in positionals:
-        if action['nargs'] == '?' and rng.random() < 0.5:
-            continue
-        value = bad_value(rng, action) if invalid and rng.random() < 0.3 else good_value(rng, action)
-        pieces.append(('positional', [value]))
-    for action in optionals:
-        if not action['required'] and rng.random() < 0.5:
-            continue
-        for _ in range(rng.choice([1, 1, 1, 2, 3]) if action['kind'] != 'store_true' else rng.choice([1, 1, 2])):
-            option = spelled(rng, parser, action['options'][0])
-            if action['kind'] == 'store_true':
-                if invalid and rng.random() < 0.15:
-                    pieces.append(('option', [option + '=' + rng.choice(['1', '', 'x'])]))
-                else:
-                    pieces.append(('option', [option]))
+def reasons(argv):
+    """Which features the decision dropped this argument list uses."""
+    if any('\udc80' <= c <= '\udcff' for token in argv for c in token):
+        return {'not UTF-8'}
+    found = set()
+    at, ended = 0, False
+    while at < len(argv):  # before the subcommand
+        token = argv[at]
+        if token == '--' and not ended:
+            ended = True
+        elif not ended and looks_like_option(token, HELP):
+            found.add(spelling(token.partition('=')[0], HELP)[0])
+        else:
+            break
+        at += 1
+    if at < len(argv) and argv[at] in ARGUMENTS:
+        arguments = ARGUMENTS[argv[at]]
+        options = {a['name']: a for a in arguments if not a['positional']}
+        positionals = [a for a in arguments if a['positional']]
+        names = list(options) + HELP
+        at, ended, slot = at + 1, False, 0
+        while at < len(argv):
+            token = argv[at]
+            at += 1
+            if token == '--' and not ended:
+                ended = True
                 continue
-            value = bad_value(rng, action) if invalid and rng.random() < 0.3 else good_value(rng, action)
-            if rng.random() < 0.3:
-                pieces.append(('option', [option + '=' + value]))
-            elif invalid and rng.random() < 0.1:
-                pieces.append(('option', [option]))  # its value missing
-            else:
-                pieces.append(('option', [option, value]))
-    # Optionals anywhere; positionals keep their order.
-    ordered = [p for p in pieces if p[0] == 'positional']
-    for piece in [p for p in pieces if p[0] == 'option']:
-        ordered.insert(rng.randrange(len(ordered) + 1), piece)
-    argv = [token for _, tokens in ordered for token in tokens]
-    if invalid:
-        for _ in range(rng.choice([1, 1, 2])):
-            mutation = rng.randrange(6)
-            if mutation == 0 and argv:
-                del argv[rng.randrange(len(argv))]
-            elif mutation == 1:
-                argv.insert(rng.randrange(len(argv) + 1), rng.choice(UNKNOWN))
-            elif mutation == 2:
-                argv.insert(rng.randrange(len(argv) + 1), rng.choice(HELP))
-            elif mutation == 3 and argv:
-                i = rng.randrange(len(argv))
-                argv.insert(i, argv[i])
-            elif mutation == 4:
-                argv.insert(rng.randrange(len(argv) + 1), '--')
-            else:
-                argv.append(rng.choice(STRINGS))
-    elif rng.random() < 0.1 and positionals:
-        argv.insert(len(argv) - 1 if argv and rng.random() < 0.5 else 0, '--')
-    return [name, *argv]
+            if ended or not looks_like_option(token, names):
+                if slot < len(positionals):
+                    found.add(number_reason(positionals[slot]['type'], token))
+                    slot += 1
+                continue
+            name, sep, value = token.partition('=')
+            reason, meant = spelling(name, names)
+            found.add(reason)
+            argument = options.get(meant)
+            if argument is None or argument['type'] == 'flag':
+                continue
+            if not sep:
+                if at >= len(argv) or looks_like_option(argv[at], names):
+                    continue
+                value = argv[at]
+                at += 1
+            found.add(number_reason(argument['type'], value))
+    found.discard(None)
+    return found
 
 
-def top_cases(rng):
-    names = list(COMMANDS)
-    cases = [[], ['-h'], ['--help'], ['--he'], ['-hx'], ['-h=x'], ['--help=x'], ['--h=x', 'time'], ['-=x', 'time'],
-             ['nope'], ['-x', 'time'], ['-x', 'time', '-y'], ['--', 'time'], ['--', '--', 'time'], ['time', '--'],
-             ['time', '--', 'x'], ['-h', 'nope'], ['nope', '-h'], ['', 'time'], ['-'], ['--'], ['-5'], ['status', '--',
-             '--', 'cpu'], ['status', '--', 'cpu', '--pss'], ['sleep', '--', 'status'], ['boot-stage', '--', '-x'],
-             ['boot-stage', '-x'], ['boot-stage', '-1'], ['rtc-alarm', '-5'], ['rtc-alarm', '--', '-5'],
-             ['time-set', '-1_0'], ['time-set', '-.5'], ['network-check', '--peer'], ['network-check', '--peer', '-h'],
-             ['network-check', '--peer=-h'], ['firmware', 'install', '--', '--x'], ['firmware', '--', 'install', 'p'],
-             ['media', 'write', '--se', '5'], ['internal-media', 'setup', '--confirm'], ['codec-settings', '--sbc'],
-             ['codec-settings', '--aac-q=high', '--aac-q', 'standard'], ['status', '-hx', '--pid', 'x'],
-             ['status', '--pid', 'x', '-h'], ['status', '-p', '1'], ['status', '--pid', '1', '--pid=2', '--pi', '3'],
-             ['collect', '--pid', '-1'], ['collect', '--seconds', '-1'], ['status', '--interval', '-1'],
-             ['status', '--interval', '-inf'], ['bench-library', '--tracks', '1_000'], ['transfer', 'begin', '--bytes',
-             '-0'], ['report', 'save', '--t', 'sd'], ['report', 'save', '--to', 'sd', '--top', 'wifi'],
-             ['update', 'check', '--url=', '--package', ''], ['update', 'check', '--url', '--package'],
-             ['status', 'cpu', 'memory'], ['status', 'CPU'], ['status', 'cpuu'], ['sleep', 'stat'], ['stauts'],
-             ['helth'], ['time', 'x', 'y'], ['shutdown'], ['shutdown', 'reboot', 'now'],
-             # nargs='?' after a required positional, options between them (argparse's partial matches).
-             ['firmware', 'install', '--x', 'p'], ['firmware', '--x', 'install', 'p'], ['firmware', 'install', '-h', 'p'],
-             ['firmware', 'install', 'p', 'q'], ['firmware', 'install', '--', 'p', 'q'], ['firmware', '--', '--', 'p'],
-             ['status', '--pss', 'cpu', '--json'], ['status', 'cpu', '--pss', 'memory'], ['status', '--', '--pss'],
-             ['firmware', 'install', '-', '-'], ['media', '--json', 'status', '--seconds', '5', '--release'],
-             ['status', '-hh'], ['status', '-h-'], ['status', '--json=', '--pss'], ['time-set', '--', '--', '5']]
-    for _ in range(200):
-        name = rng.choice(names)
-        cases.append([typo(rng, name)] + ([rng.choice(STRINGS)] if rng.random() < 0.3 else []))
-        cases.append([rng.choice(UNKNOWN + HELP), name])
-    return cases
+def words(text):
+    """Help text as words: the same content however it is wrapped (a hyphenated word may break at a line end)."""
+    return re.sub(r'-\n\s+', '-', text).split()
 
 
-def corpus(seed=20261028, per_command=140):
-    """About 6 000 distinct argument lists (fewer for the subcommands with few arguments to vary)."""
-    rng = random.Random(seed)
-    cases = top_cases(rng) + [[name, flag] for name in COMMANDS for flag in HELP] + NON_UTF8
-    for name in COMMANDS:
-        found = set()
-        for _ in range(per_command * 5):
-            case = command_case(rng, name)
-            found.add(json.dumps(case))
-            cases.append(case)
-            if len(found) >= per_command:
-                break
-    unique = []
-    seen = set()
-    for case in cases:
-        key = json.dumps(case)
-        if key not in seen:
-            seen.add(key)
-            unique.append(case)
-    return unique
+def same_outcome(python, now):
+    if python['exit'] != now['exit']:
+        return False
+    if python['canonical'] is not None:
+        return now['canonical'] == python['canonical']
+    if python['exit'] == 0:
+        return now['stdout'].startswith('usage: y2-platform') and \
+            words(now['stdout']) == words(python['stdout'].replace('main.py', 'y2-platform'))
+    return now['stdout'] == '' and now['canonical'] is None and refused(now)
+
+
+def refused(now):
+    lines = now['stderr'].splitlines()
+    return now['exit'] == 2 and now['stdout'] == '' and len(lines) >= 2 and \
+        lines[0].startswith('usage: y2-platform') and bool(ERROR.match(lines[-1]))
 
 
 class PlatformArgparse(unittest.TestCase):
-    def test_embedded_parser_is_consistent(self):
-        check = subprocess.run([sys.executable, str(CHECKER), '--check'], capture_output=True, text=True)
-        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
-
-    @unittest.skipIf(recording(), 'recording the golden')
-    def test_golden_is_the_corpus(self):
-        # The corpus follows argparse.json: a changed parser is re-recorded (RECORD_ENV), never run partly.
-        recorded = [o['argv'] for o in golden()]
-        cases = corpus()
-        self.assertEqual(len(recorded), len(cases), 'the corpus changed: record the golden with %s=1' % RECORD_ENV)
-        self.assertEqual([a for a, b in zip(recorded, cases) if a != b][:5], [])
-
-    def test_golden_covers_every_kind_of_outcome(self):
-        outcomes = golden()
-        self.assertGreater(len(outcomes), 5000)
-        exits = [o['exit'] for o in outcomes]
-        self.assertGreater(exits.count(0), 1000)
-        self.assertGreater(exits.count(2), 1000)
-        errors = '\n'.join(o['stderr'] for o in outcomes)
-        for text in ['ambiguous option', 'ignored explicit argument', 'expected one argument', 'invalid int value',
-                     'invalid float value', 'invalid choice', 'maybe you meant', 'unrecognized arguments',
-                     'the following arguments are required']:
-            self.assertIn(text, errors)
-        self.assertTrue(any(o['exit'] == 0 and o['stdout'].startswith('usage:') for o in outcomes))
+    def test_golden_covers_every_kind_of_list(self):
+        lines = golden()
+        self.assertEqual(len(lines), 5729)
+        python = [line['python'] for line in lines]
+        self.assertGreater(sum(p['canonical'] is not None for p in python), 1000)
+        self.assertGreater(sum(p['exit'] == 2 for p in python), 1000)
+        self.assertTrue(any(p['exit'] == 0 and p['stdout'].startswith('usage:') for p in python))
+        found = Counter(reason for line in lines for reason in reasons(line['argv']))
+        for reason in REASONS:
+            self.assertGreater(found[reason], 0, reason)
 
     @unittest.skipUnless(rust_binary(), SKIP)
-    def test_rust_parses_like_the_golden(self):
+    def test_rust_parses_the_corpus_as_decided(self):
+        lines = golden()
+        actual = run_all([line['argv'] for line in lines])
         if recording():
-            cases = corpus()
-            outcomes = []
-            for argv, got in zip(cases, run_all(cases)):
-                namespace, _ = echoed(got)
-                outcomes.append({'argv': argv, 'exit': got['exit'], 'namespace': namespace,
-                                 'stdout': '' if namespace is not None else got['stdout'], 'stderr': got['stderr']})
-            write_golden(outcomes)
-            return
-        expected = golden()
-        actual = run_all([want['argv'] for want in expected])
-        failures, canonicals = [], []
-        for want, got in zip(expected, actual):
-            namespace, canonical = echoed(got)
-            if want['namespace'] is not None:
-                same = (got['exit'], namespace, got['stderr']) == (0, want['namespace'], want['stderr'])
-                if same:
-                    canonicals.append((want['argv'], namespace, canonical))
+            write_golden([dict(line, rust=now) for line, now in zip(lines, actual)])
+        unexplained, changed_badly, unrecorded, counts = [], [], [], Counter()
+        for line, now in zip(lines, actual):
+            python, why = line['python'], reasons(line['argv'])
+            was = 'parsed' if python['canonical'] is not None else 'help' if python['exit'] == 0 else 'refused'
+            # A list counts under the first dropped feature it uses, in the order of REASONS.
+            first = next((r for r in REASONS if r in why), None)
+            if same_outcome(python, now):
+                counts['%-7s -> same%s' % (was, ' (uses %s)' % first if first else '')] += 1
+            elif not why:
+                unexplained.append('%r\n  python: %r\n  rust:   %r' % (line['argv'], python, now))
+            elif refused(now) or (now['exit'] == 0 and now['stdout'].startswith('usage: y2-platform')
+                                  and any(t in HELP for t in line['argv'])):
+                counts['%-7s -> %s: %s' % (was, 'refused' if now['exit'] else 'help', first)] += 1
             else:
-                same = namespace is None and all(got[k] == want[k] for k in ('exit', 'stdout', 'stderr'))
-            if not same:
-                failures.append('%r\n  golden: %r\n  rust:   %r' % (want['argv'], want, got))
-        self.assertEqual(failures[:20], [], '%d of %d differ' % (len(failures), len(expected)))
-        # The canonical form: subcommand, positionals, then the options in definition order, full names; it
-        # parses back to the same namespace (unless a value itself starts with '-', which argparse would take
-        # for an option: commands read the canonical list by position, never through argparse).
-        back = [(argv, namespace, canonical) for argv, namespace, canonical in canonicals
-                if not any(token.startswith('-') and token not in self.options(canonical[0])
-                           for token in canonical[1:])]
-        self.assertGreater(len(back), 1000)
-        again = run_all([canonical for _, _, canonical in back])
-        for (argv, namespace, canonical), got in zip(back, again):
-            with self.subTest(argv=argv):
-                self.assertEqual(canonical[0], namespace['command'])
-                self.assertEqual(echoed(got)[0], namespace, canonical)
-                order = [self.options(canonical[0]).index(t) for t in canonical[1:] if t in self.options(canonical[0])]
-                self.assertEqual(order, sorted(order), canonical)
+                changed_badly.append('%r (%s)\n  python: %r\n  rust:   %r' % (line['argv'], why, python, now))
+            if line.get('rust') != now and not recording():
+                unrecorded.append('%r\n  recorded: %r\n  rust:     %r' % (line['argv'], line.get('rust'), now))
+        print('\nargument corpus, %d lists:\n%s' % (len(lines), '\n'.join(
+            '  %5d  %s' % (n, k) for k, n in sorted(counts.items()))), file=sys.stderr)
+        self.assertEqual(unexplained[:10], [], '%d lists without a dropped feature changed' % len(unexplained))
+        self.assertEqual(changed_badly[:10], [], '%d changed lists are not refused' % len(changed_badly))
+        self.assertEqual(unrecorded[:10], [], '%d outcomes differ from the golden (re-record with '
+                         'Y2_RECORD_GOLDENS=1 and review)' % len(unrecorded))
+
+    @unittest.skipUnless(rust_binary(), SKIP)
+    def test_the_canonical_form_parses_to_itself(self):
+        # Commands read the canonical list by position; it is also a command line the parser takes as it is
+        # (unless a value itself starts with '-' and would read as an option).
+        forms = [line['rust']['canonical'] for line in golden() if line.get('rust', {}).get('canonical')]
+        forms = [form for form in forms if not any(looks_like_option(t) and t not in self.options(form[0])
+                                                   for t in form[1:])]
+        self.assertGreater(len(forms), 500)
+        for form, now in zip(forms, run_all(forms)):
+            self.assertEqual(now['canonical'], form)
+            order = [self.options(form[0]).index(t) for t in form[1:] if t in self.options(form[0])]
+            self.assertEqual(order, sorted(order), form)
 
     @staticmethod
     def options(name):
-        return [o for a in COMMANDS[name]['actions'] if a['kind'] != 'help' for o in a['options']]
+        return [a['name'] for a in ARGUMENTS[name] if not a['positional']]
 
 
 if __name__ == '__main__':

@@ -4,13 +4,8 @@
   "platform_\udcff"
  ],
  "calls": [],
- "exit": 1,
- "stdout": {
-  "reason": "unknown_boot_stage",
-  "schema": "org.y2linux.error/v1",
-  "state": "Failed",
-  "type": "ValueError"
- },
+ "exit": 2,
+ "stdout": [],
  "tree": {
   "added": {},
   "changed": {},

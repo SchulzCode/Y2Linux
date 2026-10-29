@@ -6,9 +6,10 @@
  "calls": [],
  "exit": 0,
  "stdout": [
-  "usage: main.py internal-media [-h] [--confirm-serial CONFIRM_SERIAL]",
-  "                              [--automatic] [--confirm-shown] [--no-migrate]",
-  "                              {status,mount,unmount,provision,setup}",
+  "usage: y2-platform internal-media [-h] [--confirm-serial CONFIRM_SERIAL]",
+  "                                  [--automatic] [--confirm-shown]",
+  "                                  [--no-migrate]",
+  "                                  {status,mount,unmount,provision,setup}",
   "",
   "positional arguments:",
   "  {status,mount,unmount,provision,setup}",

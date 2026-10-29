@@ -1,7 +1,6 @@
-//! The Python builtins argparse calls while parsing: `int()` and `float()` of a str (the types cli.py names),
-//! `repr()` of a str (in error messages), re `\d` (argparse's negative-number test) and
-//! `difflib.get_close_matches(word, choices, 1)` (3.15's "maybe you meant"). Unicode properties are the
-//! player's Python's (unicode.rs, generated).
+//! Python builtins some commands still reproduce: `int()` and `float()` of a str, `repr()` of a str (in
+//! their error texts) and `unicodedata.decimal`. Unicode properties are the player's Python's
+//! (unicode.rs, generated). The command line parser (cli.rs) no longer uses them.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::unicode::{DECIMAL_ZEROS, NONPRINTABLE, SPACE};
 use y2p_core::os_text::surrogate;
@@ -196,104 +195,20 @@ pub fn float(text: &str) -> Option<f64> {
     Some(if negative { -value } else { value })
 }
 
-/// `repr(value)` of a float.
-pub fn float_repr(value: f64) -> String {
-    if value.is_nan() {
-        "nan".into()
-    } else if value.is_infinite() {
-        if value > 0.0 { "inf" } else { "-inf" }.into()
-    } else {
-        y2p_core::json::float_repr(value)
-    }
-}
-
-/// The matched length of `difflib.SequenceMatcher(None, a, b)` (autojunk on, as get_close_matches uses).
-fn matched(a: &[char], b: &[char]) -> usize {
-    use std::collections::HashMap;
-    let mut b2j: HashMap<char, Vec<usize>> = HashMap::new();
-    for (j, &c) in b.iter().enumerate() {
-        b2j.entry(c).or_default().push(j);
-    }
-    if b.len() >= 200 {
-        // Popular elements (more than 1% + 1) are not matched as anchors.
-        let limit = b.len() / 100 + 1;
-        b2j.retain(|_, indices| indices.len() <= limit);
-    }
-    let longest = |alo: usize, ahi: usize, blo: usize, bhi: usize| {
-        let (mut besti, mut bestj, mut best) = (alo, blo, 0usize);
-        let mut j2len: HashMap<usize, usize> = HashMap::new();
-        for (i, c) in a.iter().enumerate().take(ahi).skip(alo) {
-            let mut next: HashMap<usize, usize> = HashMap::new();
-            for &j in b2j.get(c).map(Vec::as_slice).unwrap_or_default() {
-                if j < blo {
-                    continue;
-                }
-                if j >= bhi {
-                    break;
-                }
-                let k = j
-                    .checked_sub(1)
-                    .and_then(|p| j2len.get(&p))
-                    .copied()
-                    .unwrap_or(0)
-                    + 1;
-                next.insert(j, k);
-                if k > best {
-                    (besti, bestj, best) = (i + 1 - k, j + 1 - k, k);
-                }
-            }
-            j2len = next;
-        }
-        // No junk function: extend over equal elements on both sides (the popular ones included).
-        while besti > alo && bestj > blo && a[besti - 1] == b[bestj - 1] {
-            (besti, bestj, best) = (besti - 1, bestj - 1, best + 1);
-        }
-        while besti + best < ahi && bestj + best < bhi && a[besti + best] == b[bestj + best] {
-            best += 1;
-        }
-        (besti, bestj, best)
-    };
-    let mut total = 0;
-    let mut queue = vec![(0, a.len(), 0, b.len())];
-    while let Some((alo, ahi, blo, bhi)) = queue.pop() {
-        let (i, j, k) = longest(alo, ahi, blo, bhi);
-        if k > 0 {
-            total += k;
-            if alo < i && blo < j {
-                queue.push((alo, i, blo, j));
-            }
-            if i + k < ahi && j + k < bhi {
-                queue.push((i + k, ahi, j + k, bhi));
-            }
-        }
-    }
-    total
-}
-
-/// `difflib.get_close_matches(word, possibilities, n=1, cutoff=0.6)`: the best match with a ratio of at
-/// least 0.6, the greater string on equal ratios (`heapq.nlargest` of `(ratio, x)`).
-pub fn close_match<'a>(word: &str, possibilities: &[&'a str]) -> Option<&'a str> {
-    let b: Vec<char> = word.chars().collect();
-    let mut best: Option<(f64, &str)> = None;
-    for &x in possibilities {
-        let a: Vec<char> = x.chars().collect();
-        let length = a.len() + b.len();
-        let ratio = if length == 0 {
-            1.0
-        } else {
-            2.0 * matched(&a, &b) as f64 / length as f64
-        };
-        // real_quick_ratio() and quick_ratio() are upper bounds of ratio(): only ratio() decides.
-        if ratio >= 0.6 && best.is_none_or(|(score, y)| (ratio, x) > (score, y)) {
-            best = Some((ratio, x));
-        }
-    }
-    best.map(|(_, x)| x)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `repr(value)` of a float.
+    fn float_repr(value: f64) -> String {
+        if value.is_nan() {
+            "nan".into()
+        } else if value.is_infinite() {
+            if value > 0.0 { "inf" } else { "-inf" }.into()
+        } else {
+            y2p_core::json::float_repr(value)
+        }
+    }
 
     #[test]
     fn int_is_pythons() {
@@ -387,14 +302,5 @@ mod tests {
             "'\\xa0\u{e9}\\u200b\\u2028'"
         );
         assert_eq!(repr("\u{e0001}\u{1f600}"), "'\\U000e0001\u{1f600}'");
-    }
-
-    #[test]
-    fn close_match_is_difflibs() {
-        let choices = ["status", "health", "stats"];
-        assert_eq!(close_match("stauts", &choices), Some("stats"));
-        assert_eq!(close_match("helth", &choices), Some("health"));
-        assert_eq!(close_match("zzz", &choices), None);
-        assert_eq!(close_match("", &["", "a"]), Some(""));
     }
 }

@@ -2,7 +2,7 @@
  "schema": "org.y2linux.platform-contract-inventory/v1",
  "source": "tools/platform (Python platform, Linux 4684423, Beta 8.44 test build 165)",
  "written": "2026-10-28",
- "how": "arguments: generated from cli.py (tools/development/platform-contract.py --write). entries: one per subcommand/action, read from the source with file:line references; review the entry when its code changes. Groups A observation/boot, B power/sleep/time, C connectivity/USB/SSH, D service/media/update/firmware, E reports/diagnostics/maintenance.",
+ "how": "arguments: the parser's table (crates/y2-platform/src/cli.rs, printed by y2-platform __arguments; tools/development/platform-contract.py --write). entries: one per subcommand/action, read from the source with file:line references; review the entry when its code changes. Groups A observation/boot, B power/sleep/time, C connectivity/USB/SSH, D service/media/update/firmware, E reports/diagnostics/maintenance.",
  "arguments": {
   "status": [
    {
