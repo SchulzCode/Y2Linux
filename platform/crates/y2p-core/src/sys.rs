@@ -1,0 +1,289 @@
+//! Safe wrappers for the libc calls the platform repeats: filesystem space (`statvfs64`,
+//! `fstatvfs64`), file status (`fstat64`, `fstatat64`), positioned I/O (`pread64`, `pwrite64`) and
+//! signal dispositions (`sigaction`). The 64-bit calls are used throughout: the plain ones fail with
+//! EOVERFLOW above 2 GiB on the player's 32-bit ARM, whose fields are also narrower; each figure is
+//! widened here once.
+// SPDX-License-Identifier: GPL-2.0-only
+use std::{
+    ffi::{CStr, CString},
+    io,
+    mem::MaybeUninit,
+    os::{
+        fd::{AsRawFd, BorrowedFd},
+        unix::ffi::OsStrExt,
+    },
+    path::Path,
+};
+
+/// `os.statvfs()` figures (`f_frsize`, `f_blocks`, …), widened to 64 bits.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Space {
+    pub frsize: u64,
+    pub blocks: u64,
+    pub bfree: u64,
+    pub bavail: u64,
+    pub files: u64,
+    pub ffree: u64,
+    pub favail: u64,
+    pub flag: u64,
+}
+
+impl Space {
+    #[allow(clippy::unnecessary_cast)] // the field widths differ on the player's 32-bit ARM
+    fn of(vfs: &libc::statvfs64) -> Space {
+        Space {
+            frsize: vfs.f_frsize as u64,
+            blocks: vfs.f_blocks as u64,
+            bfree: vfs.f_bfree as u64,
+            bavail: vfs.f_bavail as u64,
+            files: vfs.f_files as u64,
+            ffree: vfs.f_ffree as u64,
+            favail: vfs.f_favail as u64,
+            flag: vfs.f_flag as u64,
+        }
+    }
+
+    /// `f_blocks * f_frsize`.
+    pub fn total(&self) -> u64 {
+        self.blocks * self.frsize
+    }
+
+    /// `f_bavail * f_frsize`: what an unprivileged writer may still use.
+    pub fn available(&self) -> u64 {
+        self.bavail * self.frsize
+    }
+
+    /// `f_flag & ST_RDONLY`.
+    #[allow(clippy::unnecessary_cast)] // a c_ulong: 32 bits on the player
+    pub fn read_only(&self) -> bool {
+        self.flag & libc::ST_RDONLY as u64 != 0
+    }
+}
+
+fn c_path(path: &Path) -> io::Result<CString> {
+    CString::new(path.as_os_str().as_bytes())
+        .map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))
+}
+
+fn check(result: libc::c_int) -> io::Result<()> {
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+/// `os.statvfs(path)`.
+pub fn statvfs(path: &Path) -> io::Result<Space> {
+    let name = c_path(path)?;
+    let mut vfs = MaybeUninit::<libc::statvfs64>::uninit();
+    // SAFETY: a NUL-terminated path and a buffer the call fills on success.
+    check(unsafe { libc::statvfs64(name.as_ptr(), vfs.as_mut_ptr()) })?;
+    // SAFETY: statvfs64 returned 0, so it filled the buffer.
+    Ok(Space::of(&unsafe { vfs.assume_init() }))
+}
+
+/// `os.fstatvfs(fd)`.
+pub fn fstatvfs(fd: BorrowedFd<'_>) -> io::Result<Space> {
+    let mut vfs = MaybeUninit::<libc::statvfs64>::uninit();
+    // SAFETY: an open descriptor (the borrow) and a buffer the call fills on success.
+    check(unsafe { libc::fstatvfs64(fd.as_raw_fd(), vfs.as_mut_ptr()) })?;
+    // SAFETY: fstatvfs64 returned 0, so it filled the buffer.
+    Ok(Space::of(&unsafe { vfs.assume_init() }))
+}
+
+/// `os.stat_result` fields the platform reads, widened to 64 bits.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Stat {
+    pub dev: u64,
+    pub ino: u64,
+    pub mode: u32,
+    pub nlink: u64,
+    pub uid: u32,
+    pub gid: u32,
+    pub size: i64,
+    pub mtime: i64,
+    pub mtime_nsec: i64,
+}
+
+impl Stat {
+    #[allow(clippy::unnecessary_cast, clippy::useless_conversion)] // narrower on 32-bit ARM
+    fn of(meta: &libc::stat64) -> Stat {
+        Stat {
+            dev: meta.st_dev as u64,
+            ino: meta.st_ino as u64,
+            mode: meta.st_mode as u32,
+            nlink: meta.st_nlink as u64,
+            uid: meta.st_uid as u32,
+            gid: meta.st_gid as u32,
+            size: meta.st_size as i64,
+            mtime: crate::wide(meta.st_mtime),
+            mtime_nsec: crate::wide(meta.st_mtime_nsec),
+        }
+    }
+
+    /// `stat.S_ISDIR(mode)`.
+    pub fn is_dir(&self) -> bool {
+        self.mode & libc::S_IFMT == libc::S_IFDIR
+    }
+
+    /// `stat.S_ISREG(mode)`.
+    pub fn is_file(&self) -> bool {
+        self.mode & libc::S_IFMT == libc::S_IFREG
+    }
+}
+
+/// `os.fstat(fd)`.
+pub fn fstat(fd: BorrowedFd<'_>) -> io::Result<Stat> {
+    let mut meta = MaybeUninit::<libc::stat64>::uninit();
+    // SAFETY: an open descriptor (the borrow) and a buffer the call fills on success.
+    check(unsafe { libc::fstat64(fd.as_raw_fd(), meta.as_mut_ptr()) })?;
+    // SAFETY: fstat64 returned 0, so it filled the buffer.
+    Ok(Stat::of(&unsafe { meta.assume_init() }))
+}
+
+/// `os.stat(name, dir_fd=dir, follow_symlinks=…)`: `flags` as fstatat(2) takes them
+/// (`AT_SYMLINK_NOFOLLOW`).
+pub fn fstatat(dir: BorrowedFd<'_>, name: &CStr, flags: libc::c_int) -> io::Result<Stat> {
+    let mut meta = MaybeUninit::<libc::stat64>::uninit();
+    // SAFETY: an open directory descriptor, a NUL-terminated name and a buffer the call fills on
+    // success.
+    check(unsafe { libc::fstatat64(dir.as_raw_fd(), name.as_ptr(), meta.as_mut_ptr(), flags) })?;
+    // SAFETY: fstatat64 returned 0, so it filled the buffer.
+    Ok(Stat::of(&unsafe { meta.assume_init() }))
+}
+
+/// `os.pread(fd, len(buffer), offset)` into `buffer`: the bytes read.
+pub fn pread(fd: BorrowedFd<'_>, buffer: &mut [u8], offset: u64) -> io::Result<usize> {
+    let offset =
+        libc::off64_t::try_from(offset).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))?;
+    // SAFETY: the buffer is valid for writes of its length; the descriptor is open (the borrow).
+    let done = unsafe {
+        libc::pread64(
+            fd.as_raw_fd(),
+            buffer.as_mut_ptr().cast(),
+            buffer.len(),
+            offset,
+        )
+    };
+    usize::try_from(done).map_err(|_| io::Error::last_os_error())
+}
+
+/// `os.pwrite(fd, data, offset)`: the bytes written.
+pub fn pwrite(fd: BorrowedFd<'_>, data: &[u8], offset: u64) -> io::Result<usize> {
+    let offset =
+        libc::off64_t::try_from(offset).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))?;
+    // SAFETY: the data is valid for reads of its length; the descriptor is open (the borrow).
+    let done = unsafe { libc::pwrite64(fd.as_raw_fd(), data.as_ptr().cast(), data.len(), offset) };
+    usize::try_from(done).map_err(|_| io::Error::last_os_error())
+}
+
+/// A signal's disposition as sigaction(2) reports it, to put back later.
+#[derive(Clone, Copy)]
+pub struct Disposition(libc::sigaction);
+
+/// What a signal does once [`set_signal`] installed it.
+#[derive(Clone, Copy, Debug)]
+pub enum Handler {
+    /// `SIG_DFL`.
+    Default,
+    /// `SIG_IGN`.
+    Ignore,
+    /// A handler function.
+    Call(extern "C" fn(libc::c_int)),
+}
+
+/// `sigaction(signal, {handler, flags, empty mask})`: the disposition it replaced.
+///
+/// # Safety
+/// A [`Handler::Call`] function runs in signal context: it must only do async-signal-safe things
+/// (store to atomics, write(2) to a pipe), never allocate or lock.
+pub unsafe fn set_signal(
+    signal: libc::c_int,
+    handler: Handler,
+    flags: libc::c_int,
+) -> io::Result<Disposition> {
+    // SAFETY: an all-zero sigaction is valid (no handler, no flags); the mask is emptied below.
+    let mut action: libc::sigaction = unsafe { std::mem::zeroed() };
+    action.sa_sigaction = match handler {
+        Handler::Default => libc::SIG_DFL,
+        Handler::Ignore => libc::SIG_IGN,
+        Handler::Call(function) => function as libc::sighandler_t,
+    };
+    action.sa_flags = flags;
+    // SAFETY: both structs are valid and owned here; the caller vouches for the handler.
+    unsafe {
+        libc::sigemptyset(&mut action.sa_mask);
+        let mut old: libc::sigaction = std::mem::zeroed();
+        check(libc::sigaction(signal, &action, &mut old))?;
+        Ok(Disposition(old))
+    }
+}
+
+/// `signal.getsignal(signal)`: the current disposition, to put back later.
+pub fn signal_disposition(signal: libc::c_int) -> io::Result<Disposition> {
+    // SAFETY: an all-zero sigaction is a valid buffer; a null new action only reads.
+    unsafe {
+        let mut old: libc::sigaction = std::mem::zeroed();
+        check(libc::sigaction(signal, std::ptr::null(), &mut old))?;
+        Ok(Disposition(old))
+    }
+}
+
+impl Disposition {
+    /// Put this disposition back for `signal` (what `signal.signal(signal, saved)` restores).
+    pub fn restore(&self, signal: libc::c_int) {
+        // SAFETY: re-installing an action the kernel returned for this process.
+        unsafe { libc::sigaction(signal, &self.0, std::ptr::null_mut()) };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::root::tests::tempdir::Dir;
+    use std::{fs::File, os::fd::AsFd};
+
+    #[test]
+    fn space_status_and_positioned_io() {
+        let dir = Dir::new();
+        let path = dir.path().join("f");
+        std::fs::write(&path, b"hello world").unwrap();
+        let space = statvfs(dir.path()).unwrap();
+        assert!(space.frsize > 0 && space.total() >= space.available());
+        let file = File::options().read(true).write(true).open(&path).unwrap();
+        assert_eq!(fstatvfs(file.as_fd()).unwrap().frsize, space.frsize);
+        let meta = fstat(file.as_fd()).unwrap();
+        assert!(meta.is_file() && !meta.is_dir() && meta.size == 11 && meta.nlink == 1);
+        let directory = File::open(dir.path()).unwrap();
+        let name = CString::new("f").unwrap();
+        assert_eq!(
+            fstatat(directory.as_fd(), &name, libc::AT_SYMLINK_NOFOLLOW)
+                .unwrap()
+                .ino,
+            meta.ino
+        );
+        assert_eq!(pwrite(file.as_fd(), b"W", 6).unwrap(), 1);
+        let mut buffer = [0u8; 5];
+        assert_eq!(pread(file.as_fd(), &mut buffer, 6).unwrap(), 5);
+        assert_eq!(&buffer, b"World");
+        assert_eq!(
+            statvfs(&dir.path().join("missing"))
+                .unwrap_err()
+                .raw_os_error(),
+            Some(libc::ENOENT)
+        );
+    }
+
+    #[test]
+    fn signal_dispositions_restore() {
+        let before = signal_disposition(libc::SIGUSR2).unwrap();
+        // SAFETY: SIG_IGN runs no code.
+        let saved = unsafe { set_signal(libc::SIGUSR2, Handler::Ignore, 0) }.unwrap();
+        saved.restore(libc::SIGUSR2);
+        assert_eq!(
+            signal_disposition(libc::SIGUSR2).unwrap().0.sa_sigaction,
+            before.0.sa_sigaction
+        );
+    }
+}

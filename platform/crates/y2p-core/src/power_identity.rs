@@ -3,7 +3,12 @@
 //! (stat field 22) so a reused pid is told apart. The shutdown coordinator records it with an intent
 //! and accepts an acknowledgement only from the same process; `status --reborn` reads it too.
 // SPDX-License-Identifier: GPL-2.0-only
-use crate::{power_json::Object, power_text::python_split, root::python_int, Root};
+use crate::{
+    json::{Object, ObjectExt},
+    power_text::python_split,
+    root::python_int,
+    Root,
+};
 use std::{
     collections::HashMap,
     os::unix::ffi::OsStrExt,

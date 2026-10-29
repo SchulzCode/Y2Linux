@@ -3,19 +3,21 @@
 //! POWER-FINAL-14) and `sleep.status` as a journal row holds it.
 //!
 //! Rows are `json.dumps(row, separators=(',', ':'))` without sorting: built in Python's insertion
-//! order, records read from files in their file order (`power_json`). A journal failure never delays or
+//! order, records read from files in their file order. A journal failure never delays or
 //! disables battery protection: it is counted and the row dropped.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::crash;
-use crate::commands::boot::mountinfo;
 use crate::commands::time::wall;
+use serde_json::Value;
 use std::{fs, io::Read, os::unix::fs::OpenOptionsExt};
+use y2p_core::mounts::data_ready;
 use y2p_core::{
     clock,
     json::{dumps, Separators},
+    json::{Object, ObjectExt},
     power_journal::append_bounded,
-    power_json::{self, Json, Object},
     power_text::{key_values, python_hex, python_split, trie_address},
+    py::PyValue,
     root::{python_int, read},
     Root,
 };
@@ -43,18 +45,8 @@ fn parent_name(path: &std::path::Path) -> String {
 }
 
 /// `ctx.json(name)` without a default.
-fn json(root: &Root, name: &str) -> Json {
-    power_json::read(root, name).unwrap_or(Json::Null)
-}
-
-/// `sleep_diagnostics.data_ready`: never create persistent state on an unverified or missing data
-/// mount.
-pub fn data_ready(root: &Root) -> bool {
-    let mounts = mountinfo(&root.read("/proc/self/mountinfo").unwrap_or_default());
-    let data: Vec<_> = mounts.iter().filter(|m| m.path == "/data").collect();
-    root.read("/data/.y2data-schema").as_deref() == Some("1")
-        && data.len() == 1
-        && Some(data[0].source.as_str()) == root.read("/run/y2-data-device").as_deref()
+fn json(root: &Root, name: &str) -> Value {
+    root.json(name).unwrap_or(Value::Null)
 }
 
 /// `idle_counters(ctx)`: cheap cumulative counters only when a journal row is already due.
@@ -71,13 +63,13 @@ pub fn idle_counters(root: &Root) -> Object {
             if let Some(name) = root.read_limited(&format!("{base}/name"), 64) {
                 let mut fields = Object::new();
                 for field in ["usage", "time", "rejected", "disable"] {
-                    fields.insert(field, root.integer(&format!("{base}/{field}")));
+                    fields.set(field, root.integer(&format!("{base}/{field}")));
                 }
-                states.insert(&name, fields);
+                states.set(&name, fields);
             }
         }
         if !states.is_empty() {
-            idle.insert(&cpu.to_string(), states);
+            idle.set(&cpu.to_string(), states);
         }
     }
     let mut scheduler = Object::new();
@@ -87,7 +79,7 @@ pub fn idle_counters(root: &Root) -> Object {
             .first()
             .filter(|f| ["ctxt", "intr", "processes"].contains(f))
         {
-            scheduler.insert(name, fields.get(1).and_then(|v| python_int(v)));
+            scheduler.set(name, fields.get(1).and_then(|v| python_int(v)));
         }
     }
     let mut runtime = Object::new();
@@ -110,13 +102,13 @@ pub fn idle_counters(root: &Root) -> Object {
         .iter()
         .any(|prefix| name.starts_with(prefix))
         {
-            runtime.insert(&name, read(&path, 64));
+            runtime.set(&name, read(&path, 64));
         }
     }
     let named = |pattern: &str, limit: usize| {
         let mut out = Object::new();
         for path in root.glob(pattern) {
-            out.insert(&glob_name(&path), read(&path, limit));
+            out.set(&glob_name(&path), read(&path, limit));
         }
         out
     };
@@ -151,7 +143,7 @@ pub fn idle_counters(root: &Root) -> Object {
             "counter_reset_rule",
             "decreasing per-core counters are unknown, not negative rates",
         );
-    result.insert("collector_cpu_seconds", process_time() - started);
+    result.set("collector_cpu_seconds", process_time() - started);
     result
 }
 
@@ -307,33 +299,33 @@ pub fn usb_net(root: &Root) -> Result<Object, Dropped> {
         "rx_dropped",
         "tx_dropped",
     ] {
-        statistics.insert(name, root.integer(&format!("{net}statistics/{name}")));
+        statistics.set(name, root.integer(&format!("{net}statistics/{name}")));
     }
     let mut udc = Object::new();
     for path in root.glob("/sys/class/udc/*") {
-        udc.insert(&glob_name(&path), read(&path.join("state"), 64));
+        udc.set(&glob_name(&path), read(&path.join("state"), 64));
     }
     let mut controller = Object::new();
     for path in root.glob("/sys/bus/platform/drivers/y2-usb/*/status") {
         let found = key_values(read(&path, 8192).as_deref());
         let mut summary = Object::new();
         for key in USB_SUMMARY {
-            summary.insert(
+            summary.set(
                 key,
                 found.iter().find(|(k, _)| k == key).map(|(_, v)| v.clone()),
             );
         }
-        controller.insert(&parent_name(&path), summary);
+        controller.set(&parent_name(&path), summary);
     }
     let mut out_path = Object::new();
     for path in root.glob("/sys/bus/platform/drivers/y2-usb/*/rxdiag") {
-        let first: Vec<Json> = read(&path, 4096)
+        let first: Vec<Value> = read(&path, 4096)
             .unwrap_or_default()
             .lines()
             .take(1)
-            .map(Json::from)
+            .map(Value::from)
             .collect();
-        out_path.insert(&parent_name(&path), first);
+        out_path.set(&parent_name(&path), first);
     }
     let usb0 = Object::new()
         .with(
@@ -346,7 +338,7 @@ pub fn usb_net(root: &Root) -> Result<Object, Dropped> {
             "ipv4",
             ipv4(root, "usb0")?
                 .into_iter()
-                .map(Json::from)
+                .map(Value::from)
                 .collect::<Vec<_>>(),
         )
         .with("statistics", statistics);
@@ -368,7 +360,7 @@ fn features(root: &Root, golden: bool) -> Object {
     let by_parent = |pattern: &str| {
         let mut out = Object::new();
         for path in root.glob(pattern) {
-            out.insert(&parent_name(&path), read(&path, 4096));
+            out.set(&parent_name(&path), read(&path, 4096));
         }
         out
     };
@@ -422,12 +414,10 @@ fn features(root: &Root, golden: bool) -> Object {
     if golden {
         // Read-only always-on/INFRA registers; the entry column is the last
         // suspend-entry capture, so read it once Linux has returned.
-        value
-            .insert("golden", r(&format!("{SPM}golden"), 16384))
-            .insert(
-                "pmic_golden",
-                r("/sys/module/pwrap/parameters/pmic_golden", 16384),
-            );
+        value.set("golden", r(&format!("{SPM}golden"), 16384)).set(
+            "pmic_golden",
+            r("/sys/module/pwrap/parameters/pmic_golden", 16384),
+        );
     }
     value
 }
@@ -515,8 +505,8 @@ impl Diagnostics {
             return Ok(false);
         }
         let build_id = match json(root, "/etc/y2linux/versions.json") {
-            Json::Object(o) => o.value("build_id"),
-            _ => Json::Null,
+            Value::Object(o) => o.value("build_id"),
+            _ => Value::Null,
         };
         let mut tail = kernel_tail(root);
         let mut row = Object::new()
@@ -526,7 +516,7 @@ impl Diagnostics {
             .with("wall_time", wall())
             .with("monotonic_s", now)
             .with("boottime_s", clock::boottime_ns() as f64 / 1e9)
-            .with("boot_id", root.read("/proc/sys/kernel/random/boot_id"))
+            .with("boot_id", root.boot_id())
             .with("build_id", build_id)
             .with("features", features(root, golden))
             .with("usb_net", usb_net(root)?)
@@ -537,7 +527,7 @@ impl Diagnostics {
             .with(
                 "kernel_tail",
                 tail.clone()
-                    .map(|t| t.into_iter().map(Json::from).collect::<Vec<_>>()),
+                    .map(|t| t.into_iter().map(Value::from).collect::<Vec<_>>()),
             );
         let encode = |row: &Object| {
             dumps(row, Separators::Compact)
@@ -549,9 +539,9 @@ impl Diagnostics {
             let lines = tail.as_mut().expect("tail");
             let cut = (lines.len() / 4).max(1);
             lines.drain(..cut);
-            row.insert(
+            row.set(
                 "kernel_tail",
-                lines.iter().cloned().map(Json::from).collect::<Vec<_>>(),
+                lines.iter().cloned().map(Value::from).collect::<Vec<_>>(),
             );
             encoded = encode(&row)?;
         }
@@ -617,23 +607,23 @@ const SLEEP_STATES: [&str; 8] = [
 ];
 
 /// `dict(value)` of a truthy non-dict `product`: the pairs, or `Err` for Python's TypeError/ValueError.
-fn dict_of(value: &Json) -> Result<Vec<(Json, Json)>, Dropped> {
-    let Json::Array(items) = value else {
+fn dict_of(value: &Value) -> Result<Vec<(Value, Value)>, Dropped> {
+    let Value::Array(items) = value else {
         return Err(Dropped); // dict(str/int/bool): TypeError or ValueError
     };
     let mut pairs = Vec::new();
     for item in items {
         let (key, value) = match item {
-            Json::Array(pair) if pair.len() == 2 => (pair[0].clone(), pair[1].clone()),
-            Json::String(s) if s.chars().count() == 2 => {
+            Value::Array(pair) if pair.len() == 2 => (pair[0].clone(), pair[1].clone()),
+            Value::String(s) if s.chars().count() == 2 => {
                 let mut chars = s.chars();
                 (
-                    Json::from(chars.next().expect("two").to_string()),
-                    Json::from(chars.next().expect("two").to_string()),
+                    Value::from(chars.next().expect("two").to_string()),
+                    Value::from(chars.next().expect("two").to_string()),
                 )
             }
-            Json::Object(o) if o.len() == 2 => {
-                let mut keys = o.iter().map(|(k, _)| Json::from(k.clone()));
+            Value::Object(o) if o.len() == 2 => {
+                let mut keys = o.iter().map(|(k, _)| Value::from(k.clone()));
                 (keys.next().expect("two"), keys.next().expect("two"))
             }
             _ => return Err(Dropped),
@@ -650,7 +640,7 @@ fn dict_of(value: &Json) -> Result<Vec<(Json, Json)>, Dropped> {
 /// resume.
 fn sleep_status(receipt: &Object, boot_id: Option<&str>) -> Result<Object, Dropped> {
     let mut result = match receipt.value("product") {
-        Json::Object(o) => o,
+        Value::Object(o) => o,
         other if other.truthy() => {
             // A list of pairs becomes a dict whose keys need not be strings; the row would then fail
             // `receipt.get('product').get` below (AttributeError: the daemon ends) unless its 'state'
@@ -675,39 +665,39 @@ fn sleep_status(receipt: &Object, boot_id: Option<&str>) -> Result<Object, Dropp
     if !SLEEP_STATES.iter().any(|s| state.is_str(s)) {
         result = Object::new()
             .with("state", "idle")
-            .with("reason", Json::Null)
-            .with("request_boot_id", Json::Null)
+            .with("reason", Value::Null)
+            .with("request_boot_id", Value::Null)
             .with("kernel_completed", false)
             .with("wake_reason", "unknown");
     }
-    result.insert("schema", SLEEP_SCHEMA);
-    result.insert("boot_id", boot_id);
+    result.set("schema", SLEEP_SCHEMA);
+    result.set("boot_id", boot_id);
     let request = result.value("request_boot_id");
     let same = match boot_id {
-        Some(boot) if request.truthy() && !boot.is_empty() => Json::from(request.is_str(boot)),
-        _ => Json::Null,
+        Some(boot) if request.truthy() && !boot.is_empty() => Value::from(request.is_str(boot)),
+        _ => Value::Null,
     };
-    result.insert("same_boot", same.clone());
+    result.set("same_boot", same.clone());
     let state = result.value("state");
     let state = state.as_str().unwrap_or_default();
-    if matches!(state, "restored" | "refused") && same == Json::Bool(false) {
+    if matches!(state, "restored" | "refused") && same == Value::Bool(false) {
         result
-            .insert("state", "idle")
-            .insert("reason", Json::Null)
-            .insert("request_boot_id", Json::Null)
-            .insert("same_boot", Json::Null)
-            .insert("kernel_completed", false)
-            .insert("wake_reason", "unknown");
+            .set("state", "idle")
+            .set("reason", Value::Null)
+            .set("request_boot_id", Value::Null)
+            .set("same_boot", Value::Null)
+            .set("kernel_completed", false)
+            .set("wake_reason", "unknown");
     }
     if matches!(
         state,
         "requested" | "preparing" | "sleeping" | "restoring" | "waking"
-    ) && same == Json::Bool(false)
+    ) && same == Value::Bool(false)
     {
         result
-            .insert("state", "restore_failed")
-            .insert("reason", "boot_changed_before_restoration")
-            .insert("kernel_completed", false);
+            .set("state", "restore_failed")
+            .set("reason", "boot_changed_before_restoration")
+            .set("kernel_completed", false);
     }
     Ok(result)
 }
@@ -718,7 +708,7 @@ fn sleep_status(receipt: &Object, boot_id: Option<&str>) -> Result<Object, Dropp
 pub struct PowerJournal {
     next_snapshot: f64,
     next_event: f64,
-    signature: Option<(String, Json, Json)>,
+    signature: Option<(String, Value, Value)>,
     pub failures: u64,
     pub diagnostics: Diagnostics,
 }
@@ -806,13 +796,13 @@ impl PowerJournal {
         if !data_ready(root) {
             return Ok(None);
         }
-        let receipt = match power_json::read(root, "/data/system/platform/suspend-last.json") {
-            Some(Json::Object(o)) => o,
+        let receipt = match root.json("/data/system/platform/suspend-last.json") {
+            Some(Value::Object(o)) => o,
             _ => Object::new(),
         };
         let mut usb = Object::new();
         for path in root.glob("/sys/class/udc/*") {
-            usb.insert(
+            usb.set(
                 &glob_name(&path),
                 read(&path.join("state"), y2p_core::root::READ_LIMIT),
             );
@@ -820,11 +810,11 @@ impl PowerJournal {
         let usb_net = usb_net(root)?;
         let mut backlight = Object::new();
         for path in root.glob("/sys/class/backlight/*/bl_power") {
-            backlight.insert(&parent_name(&path), read(&path, y2p_core::root::READ_LIMIT));
+            backlight.set(&parent_name(&path), read(&path, y2p_core::root::READ_LIMIT));
         }
         let mut radios = Object::new();
         for path in root.glob("/sys/class/rfkill/*") {
-            radios.insert(
+            radios.set(
                 &glob_name(&path),
                 Object::new()
                     .with("type", read(&path.join("type"), y2p_core::root::READ_LIMIT))
@@ -834,7 +824,7 @@ impl PowerJournal {
                     ),
             );
         }
-        let boot_id = root.read("/proc/sys/kernel/random/boot_id");
+        let boot_id = root.boot_id();
         let idle = idle_counters(root);
         let sleep = sleep_status(&receipt, boot_id.as_deref())?;
         let mut suspend = Object::new();
@@ -848,14 +838,14 @@ impl PowerJournal {
             "maintenance_wakes",
             "error",
         ] {
-            suspend.insert(key, receipt.value(key));
+            suspend.set(key, receipt.value(key));
         }
         // POWER-FINAL-18: 17 lost why two requests were refused.
-        suspend.insert(
+        suspend.set(
             "reason",
             match receipt.value("product") {
-                Json::Object(p) => p.value("reason"),
-                _ => Json::Null, // a falsy product (`or {}`); a truthy non-dict ended above
+                Value::Object(p) => p.value("reason"),
+                _ => Value::Null, // a falsy product (`or {}`); a truthy non-dict ended above
             },
         );
         let row = Object::new()
@@ -932,10 +922,12 @@ mod tests {
             fs::read_to_string(dir.join("data/system/platform/sleep-diagnostics.jsonl"))
                 .unwrap_or_default()
                 .lines()
-                .map(|l| match Json::parse(l.as_bytes()).unwrap() {
-                    Json::Object(o) => o.value("usb_reason").py_str(),
-                    _ => unreachable!(),
-                })
+                .map(
+                    |l| match serde_json::from_slice::<Value>(l.as_bytes()).unwrap() {
+                        Value::Object(o) => o.value("usb_reason").py_str(),
+                        _ => unreachable!(),
+                    },
+                )
                 .collect::<Vec<_>>()
         };
         let mut diagnostics = Diagnostics::default();
@@ -956,8 +948,8 @@ mod tests {
 
     #[test]
     fn sleep_status_follows_sleep_py() {
-        let parse = |t: &str| match Json::parse(t.as_bytes()).unwrap() {
-            Json::Object(o) => o,
+        let parse = |t: &str| match serde_json::from_slice::<Value>(t.as_bytes()).unwrap() {
+            Value::Object(o) => o,
             _ => unreachable!(),
         };
         let text = |o: &Object| dumps(o, Separators::Spaced).unwrap();

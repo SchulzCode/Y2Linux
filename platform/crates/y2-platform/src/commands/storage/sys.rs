@@ -6,15 +6,17 @@
 use crate::reply::{atomic_json, mkdir_parents, private_directory, Failure};
 use serde_json::{json, Map, Value};
 use std::{
-    ffi::CString,
     fs::{self, File, OpenOptions},
     io::{self, Write},
-    os::unix::{ffi::OsStrExt, fs::OpenOptionsExt},
+    os::unix::fs::OpenOptionsExt,
     path::{Component, Path, PathBuf},
     sync::{mpsc, Arc},
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+pub use y2p_core::mounts::{mounts, Mount};
+use y2p_core::py::PyValue;
+pub use y2p_core::sys::statvfs;
 use y2p_core::{
     lock,
     root::{read as read_text, READ_LIMIT},
@@ -25,56 +27,11 @@ pub type Object = Map<String, Value>;
 
 // ---- Python values ---------------------------------------------------------------------------
 
-/// Python `a == b` on parsed JSON: numbers compare by value (`True == 1 == 1.0`), containers element
-/// by element.
-pub fn py_eq(a: &Value, b: &Value) -> bool {
-    fn numeric(v: &Value) -> Option<(Option<i128>, f64)> {
-        match v {
-            Value::Bool(b) => Some((Some(i128::from(*b)), f64::from(u8::from(*b)))),
-            Value::Number(n) => Some((
-                n.as_i64()
-                    .map(i128::from)
-                    .or_else(|| n.as_u64().map(i128::from)),
-                n.as_f64().unwrap_or(f64::NAN),
-            )),
-            _ => None,
-        }
-    }
-    match (a, b) {
-        (Value::Null, Value::Null) => true,
-        (Value::String(x), Value::String(y)) => x == y,
-        (Value::Array(x), Value::Array(y)) => {
-            x.len() == y.len() && x.iter().zip(y).all(|(a, b)| py_eq(a, b))
-        }
-        (Value::Object(x), Value::Object(y)) => {
-            x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| py_eq(v, w)))
-        }
-        _ => match (numeric(a), numeric(b)) {
-            (Some((Some(x), _)), Some((Some(y), _))) => x == y,
-            (Some((_, x)), Some((_, y))) => x == y,
-            _ => false,
-        },
-    }
-}
-
-/// `type(value).__name__` of a JSON value as `json.loads` makes it.
-pub fn py_type(value: &Value) -> &'static str {
-    match value {
-        Value::Null => "NoneType",
-        Value::Bool(_) => "bool",
-        Value::Number(n) if n.is_f64() => "float",
-        Value::Number(_) => "int",
-        Value::String(_) => "str",
-        Value::Array(_) => "list",
-        Value::Object(_) => "dict",
-    }
-}
-
 /// `value.<attribute>` on a value that has no such attribute: Python's uncaught AttributeError.
 pub fn no_attribute(value: &Value, attribute: &str) -> Failure {
     Failure::attribute_error(format!(
         "'{}' object has no attribute '{attribute}'",
-        py_type(value)
+        PyValue::type_name(value)
     ))
 }
 
@@ -85,7 +42,7 @@ pub fn get<'a>(map: &'a Object, key: &str) -> &'a Value {
 
 /// `d.get(key) == value`.
 pub fn get_eq(map: &Object, key: &str, value: &Value) -> bool {
-    py_eq(get(map, key), value)
+    get(map, key).py_eq(value)
 }
 
 /// `d.get(key) in (a, b, …)` for strings.
@@ -106,10 +63,6 @@ pub fn isdigit(text: &str) -> bool {
 /// `ctx.json(name, {}) or {}` and `ctx.json(name, {})`: an object, empty for anything else.
 pub fn object(root: &Root, name: &str) -> Object {
     root.json_object(name)
-}
-
-pub fn boot_id(root: &Root) -> Value {
-    text(&root.read("/proc/sys/kernel/random/boot_id"))
 }
 
 // ---- paths -------------------------------------------------------------------------------------
@@ -189,121 +142,7 @@ pub fn mkdir(path: &Path, mode: u32) -> Result<(), Failure> {
     mkdir_parents(path, mode)
 }
 
-/// `os.statvfs(path)`.
-pub fn statvfs(path: &Path) -> io::Result<libc::statvfs64> {
-    let name = CString::new(path.as_os_str().as_bytes()).map_err(io::Error::other)?;
-    // SAFETY: a NUL-terminated path and a zeroed, writable statvfs.
-    unsafe {
-        let mut out: libc::statvfs64 = std::mem::zeroed();
-        if libc::statvfs64(name.as_ptr(), &mut out) != 0 {
-            return Err(io::Error::last_os_error());
-        }
-        Ok(out)
-    }
-}
-
-/// `f_bavail * f_frsize`.
-#[allow(clippy::unnecessary_cast)] // the field widths differ on the player's 32-bit ARM
-pub fn available(vfs: &libc::statvfs64) -> u64 {
-    vfs.f_bavail as u64 * vfs.f_frsize as u64
-}
-
 // ---- mounts and block devices ------------------------------------------------------------------
-
-/// One `observe.mountinfo` entry.
-#[derive(Clone, Debug)]
-pub struct Mount {
-    pub mount_id: i64,
-    pub device_id: String,
-    pub root: String,
-    pub path: String,
-    pub options: Vec<String>,
-    pub filesystem: String,
-    pub source: String,
-    pub super_options: Vec<String>,
-}
-
-impl Mount {
-    /// The dict Python builds.
-    pub fn value(&self) -> Object {
-        let mut map = Object::new();
-        map.insert("mount_id".into(), json!(self.mount_id));
-        map.insert("device_id".into(), json!(self.device_id));
-        map.insert("root".into(), json!(self.root));
-        map.insert("path".into(), json!(self.path));
-        map.insert("options".into(), json!(self.options));
-        map.insert("filesystem".into(), json!(self.filesystem));
-        map.insert("source".into(), json!(self.source));
-        map.insert("super_options".into(), json!(self.super_options));
-        map
-    }
-
-    pub fn has_option(&self, option: &str) -> bool {
-        self.options.iter().any(|o| o == option)
-    }
-
-    pub fn read_only(&self) -> bool {
-        self.has_option("ro") || self.super_options.iter().any(|o| o == "ro")
-    }
-}
-
-fn unescape(value: &str) -> String {
-    let (mut out, mut rest) = (String::new(), value);
-    while let Some(index) = rest.find('\\') {
-        out.push_str(&rest[..index]);
-        let code = &rest[index + 1..];
-        match ["040", "011", "012", "134"]
-            .iter()
-            .find(|c| code.starts_with(**c))
-        {
-            Some(c) => {
-                out.push(char::from(u8::from_str_radix(c, 8).expect("octal")));
-                rest = &code[3..];
-            }
-            None => {
-                out.push('\\');
-                rest = code;
-            }
-        }
-    }
-    out + rest
-}
-
-/// `observe.mountinfo`.
-pub fn mountinfo(text: &str) -> Vec<Mount> {
-    let mut result = Vec::new();
-    for line in text.lines() {
-        let Some((left, right)) = line.split_once(" - ") else {
-            continue;
-        };
-        let (a, b): (Vec<&str>, Vec<&str>) = (
-            left.split_whitespace().collect(),
-            right.split_whitespace().collect(),
-        );
-        if a.len() < 6 || b.len() < 3 || !isdigit(a[0]) {
-            continue;
-        }
-        let Ok(mount_id) = a[0].parse::<i64>() else {
-            continue;
-        };
-        result.push(Mount {
-            mount_id,
-            device_id: a[2].to_owned(),
-            root: unescape(a[3]),
-            path: unescape(a[4]),
-            options: a[5].split(',').map(str::to_owned).collect(),
-            filesystem: b[0].to_owned(),
-            source: unescape(b[1]),
-            super_options: b[2].split(',').map(str::to_owned).collect(),
-        });
-    }
-    result
-}
-
-/// `mountinfo(ctx.read('/proc/self/mountinfo'))`.
-pub fn mounts(root: &Root) -> Vec<Mount> {
-    mountinfo(&root.read("/proc/self/mountinfo").unwrap_or_default())
-}
 
 /// `observe.device_instance`: one gendisk lifetime, stable across kernfs inode reclamation.
 ///
@@ -383,7 +222,7 @@ pub fn observation_record(root: &Root, workload: &str) -> Value {
     json!({
         "wall_timestamp": utc_isoformat(),
         "monotonic_ns": y2p_core::clock::monotonic_ns(),
-        "boot_id": boot_id(root),
+        "boot_id": Value::from(root.boot_id()),
         "y2linux_commit": get(&versions, "build_git_commit"),
         "reborn_commit": get(&versions, "reborn_source_commit"),
         "kernel": text(&root.read("/proc/sys/kernel/osrelease")),
@@ -394,36 +233,10 @@ pub fn observation_record(root: &Root, workload: &str) -> Value {
     })
 }
 
-/// `common.atomic_json(path, value)` with a mode.
-pub fn atomic_json_mode(
-    path: &Path,
-    value: &Value,
-    durable: bool,
-    mode: u32,
-) -> Result<(), Failure> {
-    y2p_core::record::atomic_json(path, value, durable, mode).map_err(|e| Failure::os(e, path))
-}
-
-pub fn write_record(path: &Path, value: &Object) -> Result<(), Failure> {
-    atomic_json(path, &Value::Object(value.clone()), false)
-}
-
 /// `fcntl.flock(fd, LOCK_EX | LOCK_NB)` on a platform lock file; a busy lock is Python's uncaught
 /// `BlockingIOError`.
 pub fn try_lock(path: &Path) -> Result<Option<File>, Failure> {
-    let lock = lock::try_exclusive(path).map_err(|e| Failure::os(e, path))?;
-    // Unit tests run beside tests that start processes: a child holds a copy of every descriptor
-    // until its exec closes it, so a lock this thread just released can look busy for a moment.
-    #[cfg(test)]
-    if lock.is_none() {
-        for _ in 0..200 {
-            thread::sleep(Duration::from_millis(1));
-            if let Some(file) = lock::try_exclusive(path).map_err(|e| Failure::os(e, path))? {
-                return Ok(Some(file));
-            }
-        }
-    }
-    Ok(lock)
+    lock::try_exclusive(path).map_err(|e| Failure::os(e, path))
 }
 
 pub fn busy() -> Failure {
@@ -438,17 +251,7 @@ pub fn lock_now(path: &Path) -> Result<File, Failure> {
 
 /// A busy lock retried every 0.2 s until `seconds` passed; `None` when it stayed busy.
 pub fn lock_within(path: &Path, seconds: f64) -> Result<Option<File>, Failure> {
-    let deadline = Instant::now() + Duration::from_secs_f64(seconds);
-    loop {
-        if let Some(file) = try_lock(path)? {
-            return Ok(Some(file));
-        }
-        // A check or a repair holds the card; a short admission passes.
-        if Instant::now() >= deadline {
-            return Ok(None);
-        }
-        thread::sleep(Duration::from_millis(200));
-    }
+    lock::exclusive_within(path, Duration::from_secs_f64(seconds)).map_err(|e| Failure::os(e, path))
 }
 
 // ---- the USB responder (usb.py) ----------------------------------------------------------------
@@ -458,7 +261,9 @@ const USB_SCHEMA: &str = "org.y2linux.usb-transfer/v1";
 /// `usb.status`.
 pub fn usb_status(root: &Root) -> Object {
     let state = object(root, "/run/y2/usb-transfer.json");
-    if !get_eq(&state, "schema", &json!(USB_SCHEMA)) || !get_eq(&state, "boot_id", &boot_id(root)) {
+    if !get_eq(&state, "schema", &json!(USB_SCHEMA))
+        || !get_eq(&state, "boot_id", &Value::from(root.boot_id()))
+    {
         let mut value = Object::new();
         value.insert("schema".into(), json!(USB_SCHEMA));
         value.insert("state".into(), json!("Unavailable"));
@@ -495,7 +300,7 @@ fn has_view(current: &Object, path: &str) -> Result<bool, Failure> {
         Value::String(_) | Value::Object(_) => Err(no_attribute(&string, "get")),
         other => Err(Failure::type_error(format!(
             "'{}' object is not iterable",
-            py_type(other)
+            PyValue::type_name(other)
         ))),
     }
 }
@@ -641,30 +446,6 @@ pub fn maintenance(root: &Root) -> Result<Lease, Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn values_compare_as_python() {
-        assert!(py_eq(&json!(1), &json!(1.0)) && py_eq(&json!(true), &json!(1)));
-        assert!(!py_eq(&json!("1"), &json!(1)) && !py_eq(&json!(null), &json!(0)));
-        assert!(py_eq(&json!([["a", null]]), &json!([["a", null]])));
-        assert!(py_eq(
-            &json!({"a": 1, "b": [2]}),
-            &json!({"b": [2.0], "a": true})
-        ));
-        assert!(!py_eq(&json!({"a": 1}), &json!({"a": 1, "b": 2})));
-    }
-
-    #[test]
-    fn mountinfo_keeps_every_field() {
-        let mounts =
-            mountinfo("51 22 179:97 / /media/sd ro,nosuid - vfat /dev/mmcblk1p1 rw,fmask=0177\nx");
-        assert_eq!(mounts.len(), 1);
-        let value = mounts[0].value();
-        assert_eq!(value["mount_id"], 51);
-        assert_eq!(value["options"], json!(["ro", "nosuid"]));
-        assert_eq!(value["super_options"], json!(["rw", "fmask=0177"]));
-        assert!(mounts[0].read_only());
-    }
 
     #[test]
     fn timestamps_are_iso() {

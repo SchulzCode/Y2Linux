@@ -1,5 +1,7 @@
-//! Shared helpers for the unit tests: a fixture root in a self-cleaning directory and scripted
-//! subprocess answers (`y2p_core::command::testing`, per thread).
+//! Shared helpers for the unit tests: a fixture root in a self-cleaning directory whose root carries
+//! the test's subprocess answers and clock (`Fixture::with_answers`, `responding`, `with_clock`). The
+//! per-thread `scripted`/`responding` functions (`y2p_core::command::testing`) are the older seam the
+//! tests still use until they move to the root's runner.
 // SPDX-License-Identifier: GPL-2.0-only
 #![allow(dead_code, unused_imports)] // each test module uses part of it
 use serde_json::Value;
@@ -10,7 +12,7 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 pub use y2p_core::command::testing::{failed, ok, responding, scripted};
-pub use y2p_core::command::Outcome;
+pub use y2p_core::command::{Outcome, Scripted};
 use y2p_core::Root;
 
 static NEXT: AtomicU32 = AtomicU32::new(0);
@@ -35,9 +37,39 @@ impl Fixture {
         ));
         fs::create_dir_all(&base).unwrap();
         Self {
-            root: Root::new(&base),
+            root: Root::fixture(&base),
             base,
         }
+    }
+
+    /// This fixture with its root's commands answered from `answers` (argv → outcome, anything else
+    /// `fixture`) and recorded (`calls()`), in every thread the root goes to.
+    pub fn with_answers(mut self, answers: Vec<(Vec<String>, Outcome)>) -> Self {
+        self.root = self.root.clone().with_answers(answers);
+        self
+    }
+
+    /// This fixture with its root's commands answered by `respond(argv, timeout)` and recorded.
+    pub fn responding(
+        mut self,
+        respond: impl FnMut(&[&str], f64) -> Outcome + Send + 'static,
+    ) -> Self {
+        self.root = self
+            .root
+            .clone()
+            .with_runner(std::sync::Arc::new(Scripted::responding(respond)));
+        self
+    }
+
+    /// This fixture with its root reading `clock` (a `y2p_core::clock::Manual` a test advances).
+    pub fn with_clock(mut self, clock: std::sync::Arc<dyn y2p_core::clock::Clock>) -> Self {
+        self.root = self.root.clone().with_clock(clock);
+        self
+    }
+
+    /// The commands the root's runner recorded (argv, timeout).
+    pub fn calls(&self) -> Vec<(Vec<String>, f64)> {
+        self.root.calls()
     }
 
     pub fn base(&self) -> &Path {
@@ -131,5 +163,28 @@ mod tests {
         assert_eq!(calls, vec![(vec!["true".to_string()], 2.0)]);
         let unknown = y2p_core::command::run(&fixture.root, &["true"], 1.0);
         assert_eq!(unknown.reason.as_deref(), Some("fixture"));
+    }
+
+    #[test]
+    fn a_fixture_root_carries_its_answers_and_clock() {
+        let clock = std::sync::Arc::new(y2p_core::clock::Manual::at(1_000_000_000, 1_000_000_000));
+        let fixture = Fixture::new()
+            .with_answers(vec![ok(&["blkid"], "id")])
+            .with_clock(clock.clone());
+        let root = fixture.root.clone();
+        let outcome = std::thread::spawn(move || y2p_core::command::run(&root, &["blkid"], 1.0))
+            .join()
+            .unwrap();
+        assert_eq!(outcome.output.as_deref(), Some("id"));
+        assert_eq!(fixture.calls(), vec![(vec!["blkid".to_string()], 1.0)]);
+        clock.advance(500_000_000);
+        assert_eq!(fixture.root.clock().monotonic(), 1.5);
+        let counting = Fixture::new().responding(|argv, _| Outcome {
+            ok: true,
+            reason: None,
+            output: Some(argv.join(" ")),
+        });
+        let echoed = y2p_core::command::run(&counting.root, &["a", "b"], 1.0);
+        assert_eq!(echoed.output.as_deref(), Some("a b"));
     }
 }

@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::observe::{media_identity, refused_card, volumes, MEDIA_MOUNT, MEDIA_STATE};
 use super::sys::{
-    available, boot_id, device_instance, exists, get, get_eq, get_in, is_symlink, isdigit,
-    lock_now, lock_within, maintenance, mkdir, mounts as all_mounts, name, no_attribute, object,
-    py_eq, read, release_sd, resolve, statvfs, try_lock, wall_seconds, write_record, Mount, Object,
+    device_instance, exists, get, get_eq, get_in, is_symlink, isdigit, lock_now, lock_within,
+    maintenance, mkdir, name, no_attribute, object, read, release_sd, resolve, statvfs, try_lock,
+    wall_seconds, Mount, Object,
 };
 use crate::reply::{atomic_json, unlink_missing_ok, Failure};
 use serde_json::{json, Value};
@@ -21,6 +21,8 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+use y2p_core::mounts::mounts_at;
+use y2p_core::py::PyValue;
 use y2p_core::{
     clock, command,
     py::{exact_int, is_true, number, truthy},
@@ -97,7 +99,7 @@ fn begin(root: &Root, action: &str) -> Object {
     set(&mut state, "schema", 1);
     set(&mut state, "action", action);
     set_state(&mut state, "Starting", Value::Null);
-    set(&mut state, "boot_id", boot_id(root));
+    set(&mut state, "boot_id", Value::from(root.boot_id()));
     state
 }
 
@@ -268,13 +270,6 @@ pub fn candidates(root: &Root) -> Vec<Object> {
     result
 }
 
-fn mounts(root: &Root) -> Vec<Mount> {
-    all_mounts(root)
-        .into_iter()
-        .filter(|m| m.path == SD)
-        .collect()
-}
-
 fn owned_mount(root: &Root, mounted: &Mount) -> bool {
     let device = root.path(&format!("/sys/dev/block/{}", mounted.device_id));
     if exists(&device) {
@@ -283,7 +278,7 @@ fn owned_mount(root: &Root, mounted: &Mount) -> bool {
     let claim = object(root, MEDIA_MOUNT);
     // Removed cards no longer have a sysfs controller path. The retained claim
     // permits only the exact mount we created, never an arbitrary mountpoint.
-    get_eq(&claim, "boot_id", &boot_id(root))
+    get_eq(&claim, "boot_id", &Value::from(root.boot_id()))
         && get_eq(&claim, "mount_id", &json!(mounted.mount_id))
         && get_eq(&claim, "device_id", &json!(mounted.device_id))
         && get_eq(&claim, "device", &json!(mounted.source))
@@ -321,7 +316,7 @@ pub fn reconcile(root: &Root) -> Result<Object, Failure> {
     let runtime = runtime(root)?;
     let current = inventory(root);
     let previous = object(root, "/run/y2/media-lifecycle.json");
-    let same = py_eq(get(&previous, "inventory"), &current);
+    let same = get(&previous, "inventory").py_eq(&current);
     if same && !truthy(get(&previous, "retry")) {
         protect(root)?;
         return Ok(previous);
@@ -342,12 +337,12 @@ pub fn reconcile(root: &Root) -> Result<Object, Failure> {
     set(&mut result, "attempts", attempts + 1);
     set(&mut result, "retry", false);
     let lifecycle = runtime.join("media-lifecycle.json");
-    if !mounts(root).is_empty() {
+    if !mounts_at(root, SD).is_empty() {
         result.extend(operation(root, "unmount")?);
-        if !mounts(root).is_empty() {
+        if !mounts_at(root, SD).is_empty() {
             set(&mut result, "retry", attempts < 4);
             set(&mut result, "reason", "source_change_unmount_failed");
-            write_record(&lifecycle, &result)?;
+            atomic_json(&lifecycle, &result, false)?;
             return Ok(result);
         }
     }
@@ -356,7 +351,7 @@ pub fn reconcile(root: &Root) -> Result<Object, Failure> {
     } else {
         set_state(&mut result, "Unavailable", "no_card");
     }
-    write_record(&lifecycle, &result)?;
+    atomic_json(&lifecycle, &result, false)?;
     Ok(result)
 }
 
@@ -368,10 +363,10 @@ pub fn operation(root: &Root, action: &str) -> Result<Object, Failure> {
     let _lock = lock_now(&runtime.join("media.lock"))?;
     let record = runtime.join("media.json");
     let mut state = begin(root, action);
-    let old = mounts(root);
+    let old = mounts_at(root, SD);
     if !old.is_empty() && old.iter().any(|m| !owned_mount(root, m)) {
         set_state(&mut state, "Failed", "mounted_source_not_sd");
-        write_record(&record, &state)?;
+        atomic_json(&record, &state, false)?;
         return Ok(state);
     }
     if action == "unmount" {
@@ -380,11 +375,11 @@ pub fn operation(root: &Root, action: &str) -> Result<Object, Failure> {
         } else if let Some(mounted) = old.first() {
             if !release_sd(root, mounted.mount_id, false)? {
                 set_state(&mut state, "Failed", "usb_transfer_connected_or_busy");
-                write_record(&record, &state)?;
+                atomic_json(&record, &state, false)?;
                 return Ok(state);
             }
             let result = command::run(root, &["umount", SD], 3.0);
-            if !result.ok || !mounts(root).is_empty() {
+            if !result.ok || !mounts_at(root, SD).is_empty() {
                 set_state(
                     &mut state,
                     "Failed",
@@ -429,7 +424,7 @@ pub fn operation(root: &Root, action: &str) -> Result<Object, Failure> {
             }
         }
     }
-    write_record(&record, &state)?;
+    atomic_json(&record, &state, false)?;
     Ok(state)
 }
 
@@ -462,14 +457,14 @@ fn admit(
         // The music plays; Repair (or a computer) makes it writable.
         // ext4 stays out: even a read-only mount replays its journal.
         if !fallback_filesystem(filesystem) {
-            write_record(record, state)?;
+            atomic_json(record, state, false)?;
             return Ok(Some(state.clone()));
         }
         read_only = Some("filesystem_errors");
     }
     if candidates(root) != available {
         set_state(state, "Failed", "source_changed_during_check");
-        write_record(record, state)?;
+        atomic_json(record, state, false)?;
         return Ok(Some(state.clone()));
     }
     let target = root.path(SD);
@@ -502,7 +497,7 @@ fn admit(
         &["mount", "-t", filesystem, "-o", &options, device, SD],
         3.0,
     );
-    let current = mounts(root);
+    let current = mounts_at(root, SD);
     if result.ok && current.len() == 1 && current[0].source == device {
         let damaged = !matches!(read_only, None | Some("protected" | "checking"));
         set(state, "state", if damaged { "Degraded" } else { "Ready" });
@@ -526,7 +521,7 @@ fn admit(
         if candidates(root) != available {
             set_state(state, "Failed", "source_changed_during_mount");
         } else {
-            write_record(&root.path(MEDIA_MOUNT), state)?;
+            atomic_json(&root.path(MEDIA_MOUNT), state, false)?;
             // The kernel recycles mount ids, so a release marker for a card that was
             // ejected or reformatted must not hide the next mount that reuses its id.
             unlink_missing_ok(&root.path("/run/y2/usb-release-sd.json"))?;
@@ -580,7 +575,7 @@ fn mbr_for(sectors: u64) -> Vec<u8> {
 
 /// Release the card from MTP and unmount it, for an explicit owner command.
 fn detach_for_change(root: &Root, state: &mut Object) -> Result<bool, Failure> {
-    let old = mounts(root);
+    let old = mounts_at(root, SD);
     if old.is_empty() {
         return Ok(true);
     }
@@ -593,7 +588,7 @@ fn detach_for_change(root: &Root, state: &mut Object) -> Result<bool, Failure> {
         return Ok(false);
     }
     let result = command::run(root, &["umount", SD], 10.0);
-    if !result.ok || !mounts(root).is_empty() {
+    if !result.ok || !mounts_at(root, SD).is_empty() {
         set_state(
             state,
             "Failed",
@@ -638,11 +633,11 @@ pub const WRITE_HOLDERS: [&str; 4] = ["usb", "reborn", "report", "radiofw"];
 /// (claim, mount) of our current SD mount, else (claim, None).
 fn sd_state(root: &Root) -> (Object, Option<Mount>) {
     let claim = object(root, MEDIA_MOUNT);
-    let old = mounts(root);
+    let old = mounts_at(root, SD);
     if old.len() == 1
         && owned_mount(root, &old[0])
         && get_eq(&claim, "mount_id", &json!(old[0].mount_id))
-        && get_eq(&claim, "boot_id", &boot_id(root))
+        && get_eq(&claim, "boot_id", &Value::from(root.boot_id()))
     {
         let mount = old[0].clone();
         return (claim, Some(mount));
@@ -652,7 +647,7 @@ fn sd_state(root: &Root) -> (Object, Option<Mount>) {
 
 fn writers(root: &Root, mount: &Mount) -> Result<Object, Failure> {
     let value = object(root, SD_WRITE);
-    if !get_eq(&value, "boot_id", &boot_id(root))
+    if !get_eq(&value, "boot_id", &Value::from(root.boot_id()))
         || !get_eq(&value, "mount_id", &json!(mount.mount_id))
     {
         return Ok(Object::new());
@@ -676,14 +671,14 @@ fn writers(root: &Root, mount: &Mount) -> Result<Object, Failure> {
 fn apply_window(root: &Root, mount: &Mount, holders: &Object) -> Result<bool, Failure> {
     atomic_json(
         &root.path(SD_WRITE),
-        &json!({"schema": 1, "boot_id": boot_id(root), "mount_id": mount.mount_id, "holders": holders}),
+        &json!({"schema": 1, "boot_id": Value::from(root.boot_id()), "mount_id": mount.mount_id, "holders": holders}),
         false,
     )?;
     let mut writable = mount.has_option("rw");
     if !holders.is_empty() != writable {
         let mode = if holders.is_empty() { "ro" } else { "rw" };
         command::run(root, &["mount", "-o", &format!("remount,{mode}"), SD], 10.0);
-        let now = mounts(root);
+        let now = mounts_at(root, SD);
         writable = now.first().is_some_and(|m| m.has_option("rw"));
     }
     Ok(writable)
@@ -729,7 +724,7 @@ pub fn write_window(
     }
     let mut holders = writers(root, &mount)?;
     if release {
-        holders.remove(holder);
+        holders.shift_remove(holder);
     } else {
         let hold = seconds.clamp(1, WRITE_HOLD_MAX);
         holders.insert(holder.into(), json!(clock::monotonic() + hold as f64));
@@ -741,12 +736,10 @@ pub fn write_window(
         if ok { None } else { Some("remount_failed") },
         writable,
     );
-    // sorted(holders): a Map's keys are sorted.
-    set(
-        &mut value,
-        "holders",
-        json!(holders.keys().collect::<Vec<_>>()),
-    );
+    // sorted(holders).
+    let mut names: Vec<&String> = holders.keys().collect();
+    names.sort();
+    set(&mut value, "holders", json!(names));
     Ok(value)
 }
 
@@ -818,7 +811,7 @@ fn card_keys(cards: &[Object]) -> Vec<(Value, Value)> {
 
 fn same_card(cards: &[Object], key: &(Value, Value)) -> bool {
     let keys = card_keys(cards);
-    keys.len() == 1 && py_eq(&keys[0].0, &key.0) && py_eq(&keys[0].1, &key.1)
+    keys.len() == 1 && keys[0].0.py_eq(&key.0) && keys[0].1.py_eq(&key.1)
 }
 
 pub fn verify(root: &Root) -> Result<Object, Failure> {
@@ -855,7 +848,7 @@ pub fn verify(root: &Root) -> Result<Object, Failure> {
     };
     let (mut now, mount) = sd_state(root);
     if mount.is_none()
-        || !py_eq(get(&now, "mount_id"), get(&claim, "mount_id"))
+        || !get(&now, "mount_id").py_eq(get(&claim, "mount_id"))
         || get(&now, "read_only").as_str() != Some("checking")
         || !same_card(&candidates(root), &key)
     {
@@ -866,7 +859,7 @@ pub fn verify(root: &Root) -> Result<Object, Failure> {
         let mut read_only = json!("protected");
         if exists(&root.path(PROTECT_OFF)) {
             command::run(root, &["mount", "-o", "remount,rw", SD], 10.0);
-            let current = mounts(root);
+            let current = mounts_at(root, SD);
             if current.first().is_some_and(|m| m.has_option("rw")) {
                 read_only = Value::Null;
             }
@@ -888,8 +881,8 @@ pub fn verify(root: &Root) -> Result<Object, Failure> {
         );
     }
     set(&mut now, "filesystem_check", Value::Object(result));
-    write_record(&root.path(MEDIA_MOUNT), &now)?;
-    write_record(&runtime.join("media.json"), &now)?;
+    atomic_json(&root.path(MEDIA_MOUNT), &now, false)?;
+    atomic_json(&runtime.join("media.json"), &now, false)?;
     state.extend(now);
     set(&mut state, "action", "verify");
     Ok(state)
@@ -920,7 +913,7 @@ fn repairer(filesystem: &str) -> Option<&'static [&'static str]> {
 /// The card the player marked: mounted read-only by us after its check, or refused and still
 /// inserted. Returns (state, mount or None) or None.
 fn marked_for_repair(root: &Root) -> Option<Object> {
-    let old = mounts(root);
+    let old = mounts_at(root, SD);
     let claim = object(root, MEDIA_MOUNT);
     if old.len() == 1
         && owned_mount(root, &old[0])
@@ -941,7 +934,7 @@ fn marked_for_repair(root: &Root) -> Option<Object> {
 
 fn battery_allows_repair(root: &Root) -> Result<bool, Failure> {
     let power = object(root, "/run/y2/power.json");
-    if !get_eq(&power, "boot_id", &boot_id(root)) {
+    if !get_eq(&power, "boot_id", &Value::from(root.boot_id())) {
         return Ok(false);
     }
     let battery = match power.get("battery") {
@@ -1004,7 +997,7 @@ fn save_tables(root: &Root, card: &Object) -> Value {
         }
         mkdir_io(&directory, 0o700)?;
         let space = statvfs(&directory)?;
-        if available(&space) < size + REPAIR_DATA_RESERVE {
+        if space.available() < size + REPAIR_DATA_RESERVE {
             return Ok(json!({"saved": false, "reason": "no_space", "bytes": size}));
         }
         for old in fs::read_dir(&directory)?.flatten() {
@@ -1068,7 +1061,7 @@ fn repair_locked(root: &Root, record: &mut Object) -> Result<Object, Failure> {
     let lock = try_lock(&runtime.join("media.lock"));
     set(record, "schema", 1);
     set(record, "time", wall_seconds());
-    set(record, "boot_id", boot_id(root));
+    set(record, "boot_id", Value::from(root.boot_id()));
     let Some(_lock) = lock? else {
         let mut state = Object::new();
         set(&mut state, "schema", 1);
@@ -1092,7 +1085,7 @@ fn repair_locked(root: &Root, record: &mut Object) -> Result<Object, Failure> {
     // A non-dict identity or check crashes Python here, after the card was detached (and, for the
     // check, before the record has a card: no repair record is written).
     let identity = identity_id(&before)?;
-    if available.len() != 1 || !py_eq(&json!(card_id(&available[0])), &identity) {
+    if available.len() != 1 || !json!(card_id(&available[0])).py_eq(&identity) {
         set_state(&mut state, "Failed", "card_changed");
         return Ok(state);
     }
@@ -1171,7 +1164,7 @@ fn apply_change(root: &Root, action: &str, confirm_cid: Option<&str>) -> Result<
         _ => set_state(&mut state, "Unavailable", "no_unique_card"),
     }
     if !state_is(&state, "Starting") {
-        write_record(&runtime.join("media.json"), &state)?;
+        atomic_json(&runtime.join("media.json"), &state, false)?;
     }
     Ok(state)
 }

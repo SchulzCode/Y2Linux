@@ -35,7 +35,7 @@ pub fn run(root: &Root) -> Outcome {
         .cloned()
         .unwrap_or(Value::Null);
     result.insert("platform_version".into(), version.clone());
-    let mut caps = match result.remove("capabilities") {
+    let mut caps = match result.shift_remove("capabilities") {
         None => None,
         Some(Value::Object(map)) => Some(map),
         // Not a dict (a JSON null too): `name in caps` then `caps[name]` raise TypeError; a list or

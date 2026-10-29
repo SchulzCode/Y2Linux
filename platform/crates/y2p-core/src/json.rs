@@ -1,7 +1,8 @@
 //! Python `json.dumps` output: what the CLI prints (`", "` and `": "` separators) and what
 //! `atomic_json` writes (`","` and `":"`), both with `ensure_ascii` and Python's float `repr`.
-//! Key order: a `serde_json::Value` serialises its keys sorted (Python's `sort_keys=True`); a struct
-//! serialises its fields in declaration order (Python's insertion order for the unsorted commands).
+//! Key order: a `serde_json::Map` keeps insertion (or file) order (serde_json's `preserve_order`), as a
+//! Python dict; `dumps_sorted` sorts every object while printing (Python's `sort_keys=True`), `dumps`
+//! prints the order the value has. A struct serialises its fields in declaration order.
 // SPDX-License-Identifier: GPL-2.0-only
 use serde::Serialize;
 use serde_json::ser::{CharEscape, Formatter};
@@ -191,49 +192,46 @@ fn decimal(text: &str) -> (String, i32) {
     )
 }
 
-/// A dict in insertion order, for the commands that print `json.dumps(result)` without `sort_keys`
-/// (a `serde_json::Map` keeps its keys sorted). Setting an existing key keeps its position, as a dict.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Ordered(pub Vec<(String, serde_json::Value)>);
+/// A JSON object: a dict in insertion order (serde_json's `preserve_order`).
+pub type Object = serde_json::Map<String, serde_json::Value>;
 
-impl Ordered {
-    pub fn new() -> Self {
-        Self::default()
-    }
+/// An object as a dict: built as a literal or with `dict[key] = value` (a new key goes last, an
+/// existing one keeps its position), read with `dict.get(key)`.
+pub trait ObjectExt {
+    fn set(&mut self, key: &str, value: impl Into<serde_json::Value>) -> &mut Self;
+    fn with(self, key: &str, value: impl Into<serde_json::Value>) -> Self;
+    /// `dict.get(key)` as a value (None for a missing key).
+    fn value(&self, key: &str) -> serde_json::Value;
+    /// The object as a value with its keys sorted, nested ones too: for one that is written sorted or
+    /// compared, never printed in its own order.
+    fn into_sorted(self) -> serde_json::Value;
+}
 
-    /// `dict[key] = value`.
-    pub fn set(&mut self, key: &str, value: impl Into<serde_json::Value>) -> &mut Self {
-        let value = value.into();
-        match self.0.iter_mut().find(|(k, _)| k == key) {
-            Some(entry) => entry.1 = value,
-            None => self.0.push((key.to_owned(), value)),
-        }
+impl ObjectExt for Object {
+    fn set(&mut self, key: &str, value: impl Into<serde_json::Value>) -> &mut Self {
+        self.insert(key.to_owned(), value.into());
         self
     }
 
-    pub fn with(mut self, key: &str, value: impl Into<serde_json::Value>) -> Self {
+    fn with(mut self, key: &str, value: impl Into<serde_json::Value>) -> Self {
         self.set(key, value);
         self
     }
 
-    pub fn get(&self, key: &str) -> Option<&serde_json::Value> {
-        self.0.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+    fn value(&self, key: &str) -> serde_json::Value {
+        self.get(key).cloned().unwrap_or(serde_json::Value::Null)
     }
 
-    /// The keys of a parsed record in their file order (sorted: records are written with sort_keys).
-    pub fn from_map(map: &serde_json::Map<String, serde_json::Value>) -> Self {
-        Self(map.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+    fn into_sorted(self) -> serde_json::Value {
+        sorted(serde_json::Value::Object(self))
     }
 }
 
-impl Serialize for Ordered {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeMap;
-        let mut map = serializer.serialize_map(Some(self.0.len()))?;
-        for (key, value) in &self.0 {
-            map.serialize_entry(key, value)?;
-        }
-        map.end()
+/// A parsed record's object with its keys sorted, nested objects too (records are written sorted).
+pub fn sorted_object(map: &Object) -> Object {
+    match sorted(serde_json::Value::Object(map.clone())) {
+        serde_json::Value::Object(map) => map,
+        _ => unreachable!("an object stays an object"),
     }
 }
 
@@ -249,12 +247,28 @@ pub fn dumps<T: Serialize + ?Sized>(
     Ok(String::from_utf8(out).expect("ensure_ascii output is ASCII"))
 }
 
-/// `json.dumps(value, sort_keys=True)`: through a `Value`, whose maps keep their keys sorted.
+/// `json.dumps(value, sort_keys=True)`: through a `Value` whose objects are then sorted at every level
+/// (by code point, the byte order of UTF-8).
 pub fn dumps_sorted<T: Serialize + ?Sized>(
     value: &T,
     separators: Separators,
 ) -> serde_json::Result<String> {
-    dumps(&serde_json::to_value(value)?, separators)
+    dumps(&sorted(serde_json::to_value(value)?), separators)
+}
+
+/// `value` with the keys of every object in it sorted, nested ones too.
+pub fn sorted(mut value: serde_json::Value) -> serde_json::Value {
+    value.sort_all_objects();
+    value
+}
+
+/// A map's entries by key (`sorted(d.items())`).
+pub fn sorted_entries(
+    map: &serde_json::Map<String, serde_json::Value>,
+) -> Vec<(&String, &serde_json::Value)> {
+    let mut entries: Vec<_> = map.iter().collect();
+    entries.sort_by(|a, b| a.0.cmp(b.0));
+    entries
 }
 
 #[cfg(test)]
@@ -319,15 +333,20 @@ mod tests {
                            "n": {"z": 0.00001, "y": -3}});
         // python3 -c 'import json; print(json.dumps(v, sort_keys=True))'
         assert_eq!(
-            dumps(&value, Separators::Spaced).unwrap(),
+            dumps_sorted(&value, Separators::Spaced).unwrap(),
             "{\"a\": \"\\u00e9\\u007f\\ud83d\\ude00\\\"\\n\\t/\", \"b\": [1, 2.0, null, true], \
                     \"n\": {\"y\": -3, \"z\": 1e-05}, \"schema\": \"org.y2linux.status/v1\"}"
         );
         // json.dump(v, sort_keys=True, separators=(',', ':'))
         assert_eq!(
-            dumps(&value, Separators::Compact).unwrap(),
+            dumps_sorted(&value, Separators::Compact).unwrap(),
             "{\"a\":\"\\u00e9\\u007f\\ud83d\\ude00\\\"\\n\\t/\",\"b\":[1,2.0,null,true],\
                     \"n\":{\"y\":-3,\"z\":1e-05},\"schema\":\"org.y2linux.status/v1\"}"
+        );
+        // json.dumps(v): the insertion order of the literal.
+        assert_eq!(
+            dumps(&json!({"b": 1, "a": {"d": 2, "c": 3}}), Separators::Compact).unwrap(),
+            "{\"b\":1,\"a\":{\"d\":2,\"c\":3}}"
         );
         assert_eq!(dumps(&json!({}), Separators::Spaced).unwrap(), "{}");
         assert_eq!(dumps(&json!([]), Separators::Spaced).unwrap(), "[]");
@@ -339,7 +358,7 @@ mod tests {
 
     #[test]
     fn ordered_objects_keep_insertion_order() {
-        let mut value = Ordered::new().with("state", "Ready").with("boot_id", "b");
+        let mut value = Object::new().with("state", "Ready").with("boot_id", "b");
         value.set("state", "Failed").set("monotonic_s", 1.5);
         assert_eq!(
             dumps(&value, Separators::Spaced).unwrap(),

@@ -13,7 +13,7 @@
 use super::process::{self, Child, Start};
 use super::{radiofw, usb::UsbService};
 use crate::commands::connectivity::{
-    observe_wifi::{py_eq, wifi},
+    observe_wifi::wifi,
     radio_policy::wifi_policy,
     wifi::{probe_dns, DnsProbeSchedule, EventMonitor, WifiRecovery},
 };
@@ -29,9 +29,11 @@ use std::{
     os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd},
     sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
+use y2p_core::py::PyValue;
+use y2p_core::sys::{set_signal, Disposition, Handler};
 use y2p_core::{
     clock, command,
-    json::Ordered,
+    json::{sorted_object, Object, ObjectExt},
     py::{self, is_true, truthy},
     root::read,
     Root,
@@ -64,13 +66,9 @@ const REPORT_LIMIT_S: f64 = 600.0;
 const REPORT_SEND_GAP_S: f64 = 300.0;
 const PLATFORM: &str = "/usr/sbin/y2-platform";
 
-fn boot_id(root: &Root) -> Option<String> {
-    root.read("/proc/sys/kernel/random/boot_id")
-}
-
 /// `x == ctx.read(boot_id)` for a value from a record (None equals a missing boot id).
 fn this_boot(root: &Root, value: Option<&Value>) -> bool {
-    py_eq(value, Some(&json!(boot_id(root))))
+    py::eq(value, Some(&json!(root.boot_id())))
 }
 
 /// `subprocess.Popen(['/usr/sbin/y2-platform', …], DEVNULL…, start_new_session=True, close_fds=True)`.
@@ -106,7 +104,7 @@ fn display_dark(root: &Root) -> bool {
 fn media_reconcile_needed(root: &Root) -> bool {
     let lifecycle = root.json_object("/run/y2/media-lifecycle.json");
     let current = inventory(root);
-    !py_eq(lifecycle.get("inventory"), Some(&current))
+    !py::eq(lifecycle.get("inventory"), Some(&current))
         || lifecycle.get("retry").is_some_and(truthy)
         || media::window_expired(root)
 }
@@ -205,7 +203,7 @@ fn health_settled(answer: &command::Outcome) -> bool {
 /// Start the daily release check (update.automatic_check) in its own process when Wi-Fi is online and
 /// it is due; the download may take seconds and must never stall this loop. Returns the still-running
 /// child, if any.
-fn daily_update_check(root: &Root, network: &Ordered, child: Option<Child>) -> Option<Child> {
+fn daily_update_check(root: &Root, network: &Object, child: Option<Child>) -> Option<Child> {
     if let Some(mut child) = child {
         if child.running() {
             return Some(child);
@@ -285,7 +283,7 @@ struct Reports {
 /// report may be sent and Wi-Fi is online.
 fn error_reports(
     root: &Root,
-    network: &Ordered,
+    network: &Object,
     run: Option<Reports>,
     now: f64,
 ) -> Result<Reports, Failure> {
@@ -391,7 +389,7 @@ impl Coexistence {
     fn observe(
         &mut self,
         root: &Root,
-        wifi: &Ordered,
+        wifi: &Object,
         now: f64,
     ) -> Result<Map<String, Value>, Failure> {
         let stats = match wifi.get("traffic_counters") {
@@ -399,7 +397,7 @@ impl Coexistence {
             Some(value) if truthy(value) => {
                 return Err(Failure::attribute_error(format!(
                     "'{}' object has no attribute 'get'",
-                    py_type(value)
+                    PyValue::type_name(value)
                 )))
             }
             _ => Map::new(),
@@ -415,7 +413,7 @@ impl Coexistence {
                             "TypeError",
                             format!(
                                 "unsupported operand type(s) for +=: 'int' and '{}'",
-                                py_type(value)
+                                PyValue::type_name(value)
                             ),
                         )
                     })?
@@ -431,7 +429,7 @@ impl Coexistence {
         self.previous = Some((now, total));
         let mut value = Map::new();
         value.insert("schema".into(), json!(1));
-        value.insert("boot_id".into(), json!(boot_id(root)));
+        value.insert("boot_id".into(), json!(root.boot_id()));
         value.insert("monotonic_s".into(), json!(now));
         value.insert(
             "wifi_active".into(),
@@ -477,7 +475,7 @@ fn remember_time(root: &Root) -> Result<(), Failure> {
         .and_then(Value::as_str)
         .map(str::to_owned);
     if !matches!(source.as_deref(), Some("ntp" | "manual"))
-        || !time::same_boot(&anchor, &time::boot_id(root))
+        || !time::same_boot(&anchor, &root.boot_id())
         || !time::plausible(now, time::floor(root))
         || time::drift(&anchor, now, monotonic, elapsed).abs() > 60.0
     {
@@ -490,7 +488,7 @@ fn remember_time(root: &Root) -> Result<(), Failure> {
     {
         return Ok(());
     }
-    let mut value = Ordered::from_map(&anchor);
+    let mut value = sorted_object(&anchor);
     value
         .set("epoch", now)
         .set("monotonic_s", monotonic)
@@ -528,7 +526,7 @@ fn os(error: io::Error) -> Failure {
 struct SignalWake {
     read: OwnedFd,
     _write: OwnedFd,
-    previous: Vec<(libc::c_int, libc::sigaction)>,
+    previous: Vec<(libc::c_int, Disposition)>,
 }
 
 impl SignalWake {
@@ -544,13 +542,9 @@ impl SignalWake {
         let mut previous = Vec::new();
         for signal in [libc::SIGTERM, libc::SIGINT, libc::SIGUSR1] {
             // SAFETY: a plain handler that only touches atomics and write(2); the old action is kept.
-            unsafe {
-                let mut action: libc::sigaction = std::mem::zeroed();
-                action.sa_sigaction = on_signal as *const () as usize;
-                action.sa_flags = libc::SA_RESTART;
-                libc::sigemptyset(&mut action.sa_mask);
-                let mut old: libc::sigaction = std::mem::zeroed();
-                libc::sigaction(signal, &action, &mut old);
+            if let Ok(old) =
+                unsafe { set_signal(signal, Handler::Call(on_signal), libc::SA_RESTART) }
+            {
                 previous.push((signal, old));
             }
         }
@@ -575,8 +569,7 @@ impl SignalWake {
 impl Drop for SignalWake {
     fn drop(&mut self) {
         for (signal, old) in &self.previous {
-            // SAFETY: restoring the action saved in new().
-            unsafe { libc::sigaction(*signal, old, std::ptr::null_mut()) };
+            old.restore(*signal);
         }
         WAKE_FD.store(-1, Ordering::SeqCst);
     }
@@ -655,9 +648,12 @@ impl Service {
             value
                 .set("status_query_failures", query_failures.clone())
                 .set("schema", 1)
-                .set("boot_id", json!(boot_id(root)))
+                .set("boot_id", json!(root.boot_id()))
                 .set("monotonic_s", clock::monotonic())
-                .set("supplicant_events", self.monitor.summary(None).into_value());
+                .set(
+                    "supplicant_events",
+                    self.monitor.summary(None).into_sorted(),
+                );
             atomic_json(&runtime.join("network.json"), &value, false)?;
             let activity = coexistence.observe(root, &value, before)?;
             if before >= next_radio_policy
@@ -771,19 +767,6 @@ pub fn serve(root: &Root) -> Outcome {
             std::process::exit(1)
         }
         Err(error) => Err(error),
-    }
-}
-
-/// Python's type name of a parsed JSON value (for the crash texts).
-fn py_type(value: &Value) -> &'static str {
-    match value {
-        Value::Null => "NoneType",
-        Value::Bool(_) => "bool",
-        Value::Number(n) if n.is_f64() => "float",
-        Value::Number(_) => "int",
-        Value::String(_) => "str",
-        Value::Array(_) => "list",
-        Value::Object(_) => "dict",
     }
 }
 

@@ -1,7 +1,11 @@
 //! Helpers of port group `devices` that other groups can use too: `ctx.record` (the evidence record a
 //! measured or user-visible operation carries), its UTC `isoformat()` timestamp, and SHA-256.
 // SPDX-License-Identifier: GPL-2.0-only
-use crate::{clock, json::Ordered, Root};
+use crate::{
+    clock,
+    json::{Object, ObjectExt},
+    Root,
+};
 use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -43,7 +47,7 @@ pub fn utc_isoformat(seconds: i64, micros: u32) -> String {
 }
 
 /// `ctx.record(workload, parameters)` (common.Context.record), in its insertion order.
-pub fn record(root: &Root, workload: &str, parameters: Value) -> Ordered {
+pub fn record(root: &Root, workload: &str, parameters: Value) -> Object {
     let versions = root.json_object("/etc/y2linux/versions.json");
     let version = |key: &str| versions.get(key).cloned().unwrap_or(Value::Null);
     // `parameters or {}`.
@@ -52,13 +56,10 @@ pub fn record(root: &Root, workload: &str, parameters: Value) -> Ordered {
         Value::Object(map) if map.is_empty() => json!({}),
         other => other,
     };
-    Ordered::new()
+    Object::new()
         .with("wall_timestamp", utc_isoformat_now())
         .with("monotonic_ns", clock::monotonic_ns())
-        .with(
-            "boot_id",
-            json!(root.read("/proc/sys/kernel/random/boot_id")),
-        )
+        .with("boot_id", json!(root.boot_id()))
         .with("y2linux_commit", version("build_git_commit"))
         .with("reborn_commit", version("reborn_source_commit"))
         .with("kernel", json!(root.read("/proc/sys/kernel/osrelease")))

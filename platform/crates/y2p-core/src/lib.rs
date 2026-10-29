@@ -9,14 +9,15 @@ pub mod connectivity_journal;
 pub mod devices_support;
 pub mod json;
 pub mod lock;
+pub mod mounts;
 pub mod observation_support;
 pub mod os_text;
 pub mod power_charger;
 pub mod power_identity;
 pub mod power_journal;
-pub mod power_json;
 pub mod power_text;
 pub mod py;
+pub mod pyjson;
 pub mod record;
 #[cfg(any(test, feature = "testing"))]
 pub mod recorded;
@@ -25,6 +26,8 @@ pub mod root;
 pub mod service_digest;
 pub mod storage_media;
 pub mod suspend_text;
+pub mod sys;
+pub mod volume;
 
 pub use root::Root;
 

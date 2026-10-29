@@ -14,7 +14,7 @@ mod testing;
 use reply::Failure;
 use std::{env, ffi::OsString, io::Write, process::ExitCode};
 use y2p_core::{
-    json::{dumps, Separators},
+    json::{dumps, dumps_sorted, Separators},
     os_text::{backslashreplace, fsdecode_os},
 };
 

@@ -21,6 +21,7 @@ use crate::reply::{private_directory, Failure, Outcome, Reply};
 use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::{io::Write, os::unix::fs::OpenOptionsExt, sync::OnceLock};
+use y2p_core::json::ObjectExt;
 use y2p_core::{command, Root};
 
 const MAX_BYTES: usize = 2 * 1024 * 1024;
@@ -279,12 +280,12 @@ fn log_tail(root: &Root, relative: &str) -> Result<Py, Failure> {
         Err(e) => return missing(e, name).map(|_| Py::List(Vec::new())),
     };
     let meta = fstat(&file).map_err(os_plain)?;
-    if meta.st_mode & libc::S_IFMT != libc::S_IFREG || meta.st_nlink != 1 {
+    if meta.mode & libc::S_IFMT != libc::S_IFREG || meta.nlink != 1 {
         return Err(Failure::value("diagnostic_log_type"));
     }
     let mut stream = std::fs::File::from(file);
     stream
-        .seek(SeekFrom::Start((meta.st_size as u64).saturating_sub(65536)))
+        .seek(SeekFrom::Start((meta.size as u64).saturating_sub(65536)))
         .map_err(os_plain)?;
     let mut tail = Vec::new();
     stream
@@ -325,10 +326,7 @@ fn collect(root: &Root) -> Result<Py, Failure> {
             "versions",
             project(&json_dict(root, "/etc/y2linux/versions.json"), "", 0),
         )
-        .with(
-            "boot_id",
-            project(&super::boot_id(root).into(), "boot_id", 0),
-        )
+        .with("boot_id", project(&root.boot_id().into(), "boot_id", 0))
         .with("platform", project(&snapshot, "", 0))
         .with("health", project(&health, "", 0))
         .with(
@@ -431,7 +429,7 @@ pub fn export(root: &Root) -> Outcome {
         // exist, which Python makes the same way again.
         Err(error @ Failure::Crash { .. }) => Err(error),
         Err(_) => Reply::unsorted(
-            &y2p_core::json::Ordered::new()
+            &y2p_core::json::Object::new()
                 .with("state", "Failed")
                 .with("failure", "diagnostic_export_failed"),
             1,

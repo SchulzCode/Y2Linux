@@ -15,11 +15,10 @@
 use super::media::{mkdir_io, properties};
 use super::observe::setup_status;
 use super::sys::{
-    atomic_json_mode, available, boot_id, device_instance, exists, get, get_eq, is_symlink,
-    isdigit, lock_now, mkdir, mounts as all_mounts, name, object, py_eq, read, release_view,
-    resolve, statvfs, text, Mount, Object,
+    device_instance, exists, get, get_eq, is_symlink, isdigit, lock_now, mkdir,
+    mounts as all_mounts, name, object, read, release_view, resolve, statvfs, text, Mount, Object,
 };
-use crate::reply::{atomic_json, write_text, Failure};
+use crate::reply::{atomic_json, atomic_json_mode, write_text, Failure};
 use serde_json::{json, Value};
 use std::{
     ffi::CString,
@@ -32,6 +31,8 @@ use std::{
     },
     path::{Path, PathBuf},
 };
+use y2p_core::mounts::mounts_at;
+use y2p_core::py::PyValue;
 use y2p_core::{
     command,
     py::{exact_int, truthy},
@@ -149,13 +150,6 @@ fn valid(props: &Object) -> bool {
         && get(props, "UUID").as_str() == Some(UUID)
 }
 
-fn mounts(root: &Root) -> Vec<Mount> {
-    all_mounts(root)
-        .into_iter()
-        .filter(|m| m.path == PATH)
-        .collect()
-}
-
 type Fields<'a> = &'a [(&'a str, Value)];
 
 fn record(
@@ -169,7 +163,7 @@ fn record(
     value.insert("state".into(), json!(state));
     value.insert("reason".into(), json!(reason));
     value.insert("path".into(), json!(PATH));
-    value.insert("boot_id".into(), boot_id(root));
+    value.insert("boot_id".into(), Value::from(root.boot_id()));
     for (key, field) in fields {
         value.insert((*key).into(), field.clone());
     }
@@ -187,10 +181,10 @@ fn lock_runtime(root: &Root) -> Result<File, Failure> {
 /// True only while the recorded mount is still the live, exact Y2Media mount.
 fn ready(root: &Root) -> bool {
     let claim = object(root, MARKER);
-    let current = mounts(root);
+    let current = mounts_at(root, PATH);
     get(&claim, "state").as_str() == Some("Ready")
         && current.len() == 1
-        && get_eq(&claim, "boot_id", &boot_id(root))
+        && get_eq(&claim, "boot_id", &Value::from(root.boot_id()))
         && get_eq(&claim, "mount_id", &json!(current[0].mount_id))
         && get_eq(&claim, "device_id", &json!(current[0].device_id))
 }
@@ -222,7 +216,7 @@ fn mount_locked(root: &Root) -> Result<Object, Failure> {
         );
     }
     let device = format!("/dev/{}", name(&entry));
-    let current = mounts(root);
+    let current = mounts_at(root, PATH);
     if let Some(first) = current.first() {
         let same = current.len() == 1 && first.source == device;
         return record(
@@ -247,7 +241,7 @@ fn mount_locked(root: &Root) -> Result<Object, Failure> {
         &["mount", "-t", "ext4", "-o", OPTIONS, &device, PATH],
         20.0,
     );
-    let current = mounts(root);
+    let current = mounts_at(root, PATH);
     if !result.ok || current.len() != 1 || current[0].source != device {
         let reason = result
             .reason
@@ -272,11 +266,11 @@ fn mount_locked(root: &Root) -> Result<Object, Failure> {
 
 pub fn unmount(root: &Root) -> Result<Object, Failure> {
     let _lock = lock_runtime(root)?;
-    if mounts(root).is_empty() {
+    if mounts_at(root, PATH).is_empty() {
         return record(root, "Unavailable", Some("not_mounted"), &[]);
     }
     let result = command::run(root, &["umount", PATH], 10.0);
-    if !result.ok || !mounts(root).is_empty() {
+    if !result.ok || !mounts_at(root, PATH).is_empty() {
         let reason = result.reason.unwrap_or_else(|| "unmount_busy".into());
         return record(root, "Failed", Some(&reason), &[]);
     }
@@ -294,7 +288,7 @@ pub fn status(root: &Root) -> Object {
     value.insert("label".into(), get(&props, "LABEL").clone());
     value.insert("uuid".into(), get(&props, "UUID").clone());
     value.insert("identity_valid".into(), json!(valid(&props)));
-    value.insert("mounted".into(), json!(!mounts(root).is_empty()));
+    value.insert("mounted".into(), json!(!mounts_at(root, PATH).is_empty()));
     value.insert("ready".into(), json!(ready(root)));
     value.insert("marker".into(), Value::Object(object(root, MARKER)));
     value
@@ -525,7 +519,7 @@ fn migrate(
     let total: u64 = files.iter().map(|(_, size)| size).sum();
     let media = root.path(PATH);
     let free = statvfs(&media).map_err(|e| Failure::os(e, &media))?;
-    if total + RESERVE > available(&free) {
+    if total + RESERVE > free.available() {
         return Err(Failure::value("migration_does_not_fit"));
     }
     makedirs(&dst, 0o755)?;
@@ -574,8 +568,8 @@ pub fn provision(
         };
         let props = probe(root, &entry);
         let device = format!("/dev/{}", name(&entry));
-        let in_use =
-            !mounts(root).is_empty() || all_mounts(root).iter().any(|m| m.source == device);
+        let in_use = !mounts_at(root, PATH).is_empty()
+            || all_mounts(root).iter().any(|m| m.source == device);
         if in_use && !valid(&props) {
             // Never replace a mounted filesystem. A finished Y2Media may be re-run to resume
             // an interrupted migration.
@@ -584,7 +578,7 @@ pub fn provision(
         if !valid(&props) {
             if get(&props, "TYPE").as_str() != Some("vfat")
                 || !truthy(confirm_uuid)
-                || !py_eq(get(&props, "UUID"), confirm_uuid)
+                || !get(&props, "UUID").py_eq(confirm_uuid)
             {
                 // Only the stock FAT filesystem, named by its serial, may be replaced.
                 return record(
@@ -684,7 +678,7 @@ fn note(root: &Root, state: &str, reason: Option<&str>, fields: Fields) -> Resul
     value.insert("schema".into(), json!(1));
     value.insert("state".into(), json!(state));
     value.insert("reason".into(), json!(reason));
-    value.insert("boot_id".into(), boot_id(root));
+    value.insert("boot_id".into(), Value::from(root.boot_id()));
     for (key, field) in fields {
         value.insert((*key).into(), field.clone());
     }
@@ -731,7 +725,7 @@ fn update_state(root: &Root) -> Value {
     // The native core writes journal schema 2 since OTA-35 (BOOTIMG + root).
     match value {
         Some(Value::Object(map))
-            if py_eq(get(&map, "schema"), &json!(1)) || py_eq(get(&map, "schema"), &json!(2)) =>
+            if get(&map, "schema").py_eq(&json!(1)) || get(&map, "schema").py_eq(&json!(2)) =>
         {
             get(&map, "state").clone()
         }
@@ -781,7 +775,7 @@ fn load_profile(root: &Root) -> Option<Vec<(i64, i64)>> {
     let Some(Value::Object(value)) = value else {
         return None;
     };
-    if !py_eq(get(&value, "schema"), &json!(1)) {
+    if !get(&value, "schema").py_eq(&json!(1)) {
         return None;
     }
     let points = value.get("voltage_soc");
@@ -1023,7 +1017,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
             if let Some(blocked) = automatic_blocked(root) {
                 return note(root, "Pending", Some(blocked), &[]);
             }
-        } else if !truthy(confirm_serial) || !py_eq(confirm_serial, &serial) {
+        } else if !truthy(confirm_serial) || !confirm_serial.py_eq(&serial) {
             return note(
                 root,
                 "Failed",
@@ -1049,7 +1043,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
             None => {
                 let data = root.path("/data");
                 let free = statvfs(&data).map_err(|e| Failure::os(e, &data))?;
-                decide(&kept, available(&free))
+                decide(&kept, free.available())
             }
         };
         if case == 3 {
@@ -1105,7 +1099,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
     if key(&saved, "phase")?.as_str() == Some("staging") {
         // `TYPE != 'vfat' or UUID != saved['serial']`: the serial is looked up only for a FAT.
         if get(&props, "TYPE").as_str() != Some("vfat")
-            || !py_eq(get(&props, "UUID"), key(&saved, "serial")?)
+            || !get(&props, "UUID").py_eq(key(&saved, "serial")?)
         {
             return note(root, "Failed", Some("old_storage_changed"), &[]);
         }
@@ -1137,7 +1131,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         if !valid(&props) {
             // `TYPE == 'vfat' and UUID != saved['serial']`: the serial only for a FAT.
             if get(&props, "TYPE").as_str() == Some("vfat")
-                && !py_eq(get(&props, "UUID"), key(&saved, "serial")?)
+                && !get(&props, "UUID").py_eq(key(&saved, "serial")?)
             {
                 return note(root, "Failed", Some("old_storage_changed"), &[]);
             }

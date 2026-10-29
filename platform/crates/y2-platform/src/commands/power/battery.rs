@@ -6,8 +6,9 @@
 use serde_json::Value;
 use std::collections::VecDeque;
 use y2p_core::{
-    power_json::{Json, Object},
+    json::{Object, ObjectExt},
     power_text::{python_split, sense_current},
+    py::PyValue,
     py::{eq_int, exact_int},
     root::python_int,
     Root,
@@ -281,7 +282,7 @@ pub struct Soc {
 }
 
 impl Soc {
-    pub fn new(profile: Option<Profile>, saved: Option<Json>) -> Soc {
+    pub fn new(profile: Option<Profile>, saved: Option<Value>) -> Soc {
         Soc {
             profile,
             filtered: None,
@@ -293,7 +294,7 @@ impl Soc {
             full_latched: false,
             full_step_at: None,
             saved: match saved {
-                Some(Json::Object(o)) => Some(o),
+                Some(Value::Object(o)) => Some(o),
                 _ => None,
             },
             start: None,
@@ -321,13 +322,13 @@ impl Soc {
     /// the live estimate is 40+ points above it.
     fn restore(&mut self, estimate: f64, charging: bool, boot: Option<&str>) {
         let saved = self.saved.take().unwrap_or_default();
-        if let Some(Json::Number(n)) = saved.get("anchor_percent") {
+        if let Some(Value::Number(n)) = saved.get("anchor_percent") {
             let value = n.as_f64().unwrap_or(f64::NAN);
             if (80.0..=100.0).contains(&value) {
                 self.anchor = Some(value);
             }
         }
-        let mut ui = saved.get("ui_percent").and_then(Json::exact_int);
+        let mut ui = saved.get("ui_percent").and_then(Value::exact_int);
         let shown = self.display(estimate);
         // F36 (97f11bb1): a player that turned off at 5 % and charged while off
         // started at 5 % again and turned off at once, on the charger, for 13 h.
@@ -369,7 +370,7 @@ impl Soc {
     pub fn observe(&mut self, now: f64, r: &Reading) -> Object {
         let charging = r.status.as_deref() == Some("Charging");
         let mut result = Object::new()
-            .with("percent", Json::Null)
+            .with("percent", Value::Null)
             .with("source", "unavailable")
             .with("confidence", "unavailable")
             .with("status", r.status.clone())
@@ -404,10 +405,10 @@ impl Soc {
             // Only BAT0's genuine capacity property can select FuelGaugeSoc.
             self.percent = Some(hardware as f64);
             result
-                .insert("percent", hardware)
-                .insert("source", "fuel_gauge")
-                .insert("confidence", "hardware")
-                .insert("provisional", false);
+                .set("percent", hardware)
+                .set("source", "fuel_gauge")
+                .set("confidence", "hardware")
+                .set("provisional", false);
             return result;
         }
         let Some(p) = self.profile.clone() else {
@@ -521,17 +522,17 @@ impl Soc {
         }
         let percent = self.percent.expect("set");
         if let Some(capacity) = p.design_capacity_uah {
-            result.insert("design_capacity_uah", capacity).insert(
+            result.set("design_capacity_uah", capacity).set(
                 "remaining_uah_estimate",
                 round_int(capacity as f64 * percent / 100.),
             );
         }
         result
-            .insert("percent", self.ui())
-            .insert("estimate_percent", round_int(self.display(percent)))
-            .insert("anchor_percent", self.anchor.map(round2))
-            .insert("full_latched", self.full_latched)
-            .insert(
+            .set("percent", self.ui())
+            .set("estimate_percent", round_int(self.display(percent)))
+            .set("anchor_percent", self.anchor.map(round2))
+            .set("full_latched", self.full_latched)
+            .set(
                 "source",
                 if hybrid {
                     "hybrid"
@@ -541,7 +542,7 @@ impl Soc {
                     "voltage_estimate"
                 },
             )
-            .insert(
+            .set(
                 "confidence",
                 if p.provisional {
                     "provisional"
@@ -549,11 +550,11 @@ impl Soc {
                     "calibrated_estimate"
                 },
             )
-            .insert("provisional", p.provisional)
-            .insert("resting", resting)
-            .insert("filtered_voltage_uv", round_int(filtered))
-            .insert("start", self.start.clone())
-            .insert("calibration_source", p.source.clone());
+            .set("provisional", p.provisional)
+            .set("resting", resting)
+            .set("filtered_voltage_uv", round_int(filtered))
+            .set("start", self.start.clone())
+            .set("calibration_source", p.source.clone());
         result
     }
 
@@ -675,13 +676,13 @@ mod tests {
         };
         assert_eq!(
             soc.observe(10.0, &reading(Some(55))).get("percent"),
-            Some(&Json::from(55i64))
+            Some(&Value::from(55i64))
         );
         let next = soc.observe(11.0, &reading(None));
         // The voltage estimate takes over as on a first sample (no TypeError, no crash).
-        assert_eq!(next.get("source"), Some(&Json::from("voltage_estimate")));
-        assert!(next.get("percent").and_then(Json::exact_int).is_some());
-        assert_eq!(next.get("start"), Some(&Json::from("unknown/live")));
+        assert_eq!(next.get("source"), Some(&Value::from("voltage_estimate")));
+        assert!(next.get("percent").and_then(Value::exact_int).is_some());
+        assert_eq!(next.get("start"), Some(&Value::from("unknown/live")));
     }
 
     #[test]
@@ -989,7 +990,10 @@ mod tests {
             if *name == "hybrid" {
                 p.calibrated_resistance = Some(180);
             }
-            let mut soc = Soc::new(Some(p), Json::parse(saved.as_bytes()).ok());
+            let mut soc = Soc::new(
+                Some(p),
+                serde_json::from_slice::<Value>(saved.as_bytes()).ok(),
+            );
             let mut out = Vec::new();
             for &(now, v, present, status, cap, cur, ocv, boot, cc) in steps {
                 let reading = Reading {
@@ -1010,7 +1014,7 @@ mod tests {
                         .with("ui_percent", ui)
                         .with("anchor_percent", anchor)
                 });
-                out.push(Json::Array(vec![result.into(), state.into()]));
+                out.push(Value::Array(vec![result.into(), state.into()]));
             }
             ours += &(dumps(&out, Separators::Spaced).unwrap() + "\n");
         }

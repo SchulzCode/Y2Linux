@@ -829,7 +829,7 @@ pub fn build(
             Py::int(clock::utc_offset_minutes(clock::Instant::now())),
         )
         .with("uptime_seconds", Py::Str(uptime))
-        .with("boot_id", super::boot_id(root).into())
+        .with("boot_id", root.boot_id().into())
         .with(
             "release",
             if release.truthy() {

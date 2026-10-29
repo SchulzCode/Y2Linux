@@ -5,7 +5,7 @@ use serde_json::{json, Map, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 use y2p_core::{
     clock, command,
-    json::Ordered,
+    json::{sorted_object, Object, ObjectExt},
     py::{self, is_true, number, truthy},
     Root,
 };
@@ -55,10 +55,6 @@ pub(crate) fn floor(root: &Root) -> Option<i64> {
     root.integer("/etc/y2linux/build-epoch")
 }
 
-pub(crate) fn boot_id(root: &Root) -> Option<String> {
-    root.read("/proc/sys/kernel/random/boot_id")
-}
-
 /// `anchor.get('boot_id') == ctx.read(boot_id)`: two missing values are equal too.
 pub(crate) fn same_boot(anchor: &Map<String, Value>, boot: &Option<String>) -> bool {
     anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot)
@@ -74,13 +70,13 @@ pub fn status(root: &Root) -> Outcome {
         number(anchor.get("monotonic_s")),
         number(anchor.get("epoch")),
     );
-    let coherent = same_boot(&anchor, &boot_id(root))
+    let coherent = same_boot(&anchor, &root.boot_id())
         && wall_anchor.is_some()
         && stamp.is_some_and(|stamp| (0.0..=86_400.0).contains(&(monotonic - stamp)))
         && drift(&anchor, now, monotonic, elapsed).abs() <= 60.0;
     let source = anchor.get("source").cloned().unwrap_or(Value::Null);
     let ready = valid && coherent && matches!(source.as_str(), Some("ntp" | "retained_rtc"));
-    let value = Ordered::new()
+    let value = Object::new()
         .with("schema", 1)
         .with("clock_sane", valid)
         .with("tls_ready", ready)
@@ -96,7 +92,7 @@ pub fn status(root: &Root) -> Outcome {
         .with("ntp_authenticated", false)
         .with("epoch", now)
         .with("build_epoch", json!(floor))
-        .with("anchor", Value::Object(anchor))
+        .with("anchor", Value::Object(sorted_object(&anchor)))
         .with(
             "entropy_ready",
             if root.is_real() {
@@ -115,11 +111,11 @@ pub fn status(root: &Root) -> Outcome {
 pub fn remember(root: &Root) -> Outcome {
     match remember_inner(root) {
         Ok(Some(value)) => Reply::unsorted(&value, 0),
-        Ok(None) => Reply::unsorted(&Ordered::new().with("state", "Unchanged"), 0),
+        Ok(None) => Reply::unsorted(&Object::new().with("state", "Unchanged"), 0),
         // `except (OSError, ValueError)`: anything else leaves the command.
         Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
-            &Ordered::new()
+            &Object::new()
                 .with("state", "Failed")
                 .with("failure", error.message()),
             1,
@@ -127,7 +123,7 @@ pub fn remember(root: &Root) -> Outcome {
     }
 }
 
-fn remember_inner(root: &Root) -> Result<Option<Ordered>, Failure> {
+fn remember_inner(root: &Root) -> Result<Option<Object>, Failure> {
     let (now, monotonic, elapsed) = (wall(), clock::monotonic(), boottime());
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
@@ -139,14 +135,14 @@ fn remember_inner(root: &Root) -> Result<Option<Ordered>, Failure> {
         .and_then(Value::as_str)
         .map(str::to_owned);
     if !matches!(source.as_deref(), Some("ntp" | "manual"))
-        || !same_boot(&anchor, &boot_id(root))
+        || !same_boot(&anchor, &root.boot_id())
         || !plausible(now, floor(root))
         || drift(&anchor, now, monotonic, elapsed).abs() > 60.0
     {
         return Ok(None);
     }
     // `0 <= now - last < every` with every=0 never holds: the CLI always writes.
-    let mut value = Ordered::from_map(&anchor);
+    let mut value = sorted_object(&anchor);
     value
         .set("epoch", now)
         .set("monotonic_s", monotonic)
@@ -213,15 +209,15 @@ pub fn ntp_event(root: &Root, event: &str) -> Outcome {
     };
     if event == "unsync" || !(1..16).contains(&stratum) || !plausible(now, floor(root)) {
         return Reply::unsorted(
-            &Ordered::new()
+            &Object::new()
                 .with("state", "Unavailable")
                 .with("reason", "ntp_unsynchronized_or_implausible"),
             0,
         );
     }
-    let mut value = Ordered::new()
+    let mut value = Object::new()
         .with("schema", 1)
-        .with("boot_id", json!(boot_id(root)))
+        .with("boot_id", json!(root.boot_id()))
         .with("epoch", now)
         .with("monotonic_s", clock::monotonic())
         .with("boottime_s", boottime())
@@ -250,7 +246,7 @@ pub fn ntp_event(root: &Root, event: &str) -> Outcome {
 
 /// Source-backed default or an owner receipt admits normal NTP -> RTC synchronization. Mutable owner
 /// policy still takes precedence.
-fn rtc_write(root: &Root, value: &mut Ordered) {
+fn rtc_write(root: &Root, value: &mut Object) {
     let rtc = match root.json("/data/system/platform/rtc-policy.json") {
         Some(Value::Object(map)) => map,
         _ => root.json_object("/etc/y2linux/rtc-policy.json"),

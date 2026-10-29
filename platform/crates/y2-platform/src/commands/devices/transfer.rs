@@ -4,9 +4,10 @@
 //! directory descriptors opened without following symlinks, as Python's `dir_fd` calls, and an
 //! OSError names the relative name the call was given (Python's text).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::storage::{self, Volume, INTERNAL};
+use super::storage::{self, data_volume, Volume, INTERNAL};
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
+use std::os::fd::{AsFd, BorrowedFd};
 use std::{
     ffi::CString,
     io::{self, Write},
@@ -22,6 +23,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+use y2p_core::lock;
 use y2p_core::{
     devices_support::{hex, record, Digest, Sha256},
     py::{self, eq_int, exact_int},
@@ -120,23 +122,16 @@ fn open_absolute_directory(path: &Path) -> Result<OwnedFd, Failure> {
     Ok(unsafe { OwnedFd::from_raw_fd(fd) })
 }
 
-fn fstat(fd: RawFd) -> Result<libc::stat64, Failure> {
-    // SAFETY: a writable stat buffer for an open descriptor.
-    let mut stat: libc::stat64 = unsafe { std::mem::zeroed() };
-    if unsafe { libc::fstat64(fd, &mut stat) } != 0 {
-        return Err(unnamed(io::Error::last_os_error()));
-    }
-    Ok(stat)
+fn fstat(fd: RawFd) -> Result<y2p_core::sys::Stat, Failure> {
+    // SAFETY: callers pass a descriptor they hold open for this call.
+    y2p_core::sys::fstat(unsafe { BorrowedFd::borrow_raw(fd) }).map_err(unnamed)
 }
 
 /// `f_bavail * f_frsize` of the filesystem holding `fd`.
 fn available(fd: RawFd) -> Result<u64, Failure> {
-    // SAFETY: a writable statvfs buffer for an open descriptor.
-    let mut vfs: libc::statvfs64 = unsafe { std::mem::zeroed() };
-    if unsafe { libc::fstatvfs64(fd, &mut vfs) } != 0 {
-        return Err(unnamed(io::Error::last_os_error()));
-    }
-    Ok(vfs.f_bavail as u64 * vfs.f_frsize as u64)
+    // SAFETY: callers pass a descriptor they hold open for this call.
+    let space = y2p_core::sys::fstatvfs(unsafe { BorrowedFd::borrow_raw(fd) }).map_err(unnamed)?;
+    Ok(space.available())
 }
 
 fn check(result: libc::c_int) -> Result<(), Failure> {
@@ -151,10 +146,13 @@ fn fsync(fd: RawFd) -> Result<(), Failure> {
     check(unsafe { libc::fsync(fd) })
 }
 
-/// `fcntl.flock(fd, operation | LOCK_NB)`: busy is `[Errno 11] Resource temporarily unavailable`.
-fn flock(fd: RawFd, operation: libc::c_int) -> Result<(), Failure> {
-    // SAFETY: plain syscall on an open descriptor.
-    check(unsafe { libc::flock(fd, operation | libc::LOCK_NB) })
+/// `fcntl.flock(fd, LOCK_EX | LOCK_NB)`: busy is `[Errno 11] Resource temporarily unavailable`.
+fn flock(fd: BorrowedFd<'_>) -> Result<(), Failure> {
+    match lock::try_fd(fd, lock::Kind::Exclusive) {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(unnamed(lock::would_block())),
+        Err(error) => Err(unnamed(error)),
+    }
 }
 
 /// `os.unlink(name, dir_fd=dir)` (`os.rmdir` with AT_REMOVEDIR); `missing_ok` as
@@ -237,7 +235,7 @@ fn open_directory(parent: RawFd, component: &str, create: bool) -> Result<OwnedF
         libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW,
         0o777,
     )?;
-    if fstat(fd.as_raw_fd())?.st_dev != fstat(parent)?.st_dev {
+    if fstat(fd.as_raw_fd())?.dev != fstat(parent)?.dev {
         return Err(Failure::value("transfer_submount_refused"));
     }
     Ok(fd)
@@ -281,21 +279,10 @@ fn stage_path(root: &Root, token: &str) -> Result<PathBuf, Failure> {
     Ok(root.path("/data/transfer-staging").join(token))
 }
 
-fn data_volume(root: &Root) -> Result<Volume, Failure> {
-    let value = storage::volume(root, "/data");
-    if value.state != "Ready" || value.generation.is_none() {
-        return Err(Failure::value("verified_data_unavailable"));
-    }
-    Ok(value)
-}
-
 /// The verified Y2Media volume; uploads are published there once it is mounted and recorded Ready.
 fn media_volume(root: &Root) -> Result<Volume, Failure> {
-    let value = storage::volume(root, INTERNAL);
-    if value.state != "Ready" || value.generation.is_none() {
-        return Err(Failure::value("verified_internal_media_unavailable"));
-    }
-    Ok(value)
+    y2p_core::volume::verified(root, INTERNAL)
+        .ok_or_else(|| Failure::value("verified_internal_media_unavailable"))
 }
 
 /// `common.json_read(path, default)`: any parsed document, the default when unreadable or not JSON.
@@ -383,7 +370,7 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
         libc::O_CREAT | libc::O_RDWR | libc::O_NOFOLLOW,
         0o600,
     )?;
-    flock(lock.as_raw_fd(), libc::LOCK_EX)?;
+    flock(lock.as_fd())?;
     // The manifest through the stage's own descriptor ("used even under a test root").
     let anchored = PathBuf::from(format!("/proc/self/fd/{}", stage.as_raw_fd()));
     let mut value = match json_read(&anchored.join("manifest.json")).unwrap_or(json!({})) {
@@ -429,9 +416,7 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
         0o777,
     )?;
     let original = fstat(source.as_raw_fd())?;
-    if original.st_mode & libc::S_IFMT != libc::S_IFREG
-        || original.st_nlink != 1
-        || original.st_size != size
+    if original.mode & libc::S_IFMT != libc::S_IFREG || original.nlink != 1 || original.size != size
     {
         return Err(Failure::value("incomplete_or_invalid_upload"));
     }
@@ -468,7 +453,7 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
         digest.update(&chunk);
         remaining -= chunk.len();
     }
-    if hex(&digest.finalize()) != expected || fstat(source.as_raw_fd())?.st_size != size {
+    if hex(&digest.finalize()) != expected || fstat(source.as_raw_fd())?.size != size {
         return Err(Failure::value("upload_hash_or_size_mismatch"));
     }
     // SAFETY: plain syscall on an open descriptor.
@@ -494,7 +479,7 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
         if media_volume(root)?.generation != destination.generation {
             return Err(Failure::value("media_generation_changed"));
         }
-        if fstat(stage.as_raw_fd())?.st_dev == fstat(target.as_raw_fd())?.st_dev {
+        if fstat(stage.as_raw_fd())?.dev == fstat(target.as_raw_fd())?.dev {
             linkat(stage.as_raw_fd(), "sealed.part", target.as_raw_fd(), leaf)?;
         } else {
             publish_copy(
@@ -568,7 +553,7 @@ fn publish_copy(
             digest.update(&chunk);
             remaining -= chunk.len();
         }
-        if hex(&digest.finalize()) != expected || fstat(out.as_raw_fd())?.st_size as u64 != size {
+        if hex(&digest.finalize()) != expected || fstat(out.as_raw_fd())?.size as u64 != size {
             return Err(Failure::value("published_copy_hash_or_size_mismatch"));
         }
         fsync(out.as_raw_fd())?;
@@ -606,7 +591,7 @@ fn discard(root: &Root, token: &str) -> Result<Value, Failure> {
         libc::O_CREAT | libc::O_RDWR | libc::O_NOFOLLOW,
         0o600,
     )?;
-    flock(lock.as_raw_fd(), libc::LOCK_EX)?;
+    flock(lock.as_fd())?;
     for name in ["manifest.json", "payload.part", "sealed.part", "lock"] {
         unlinkat(fd.as_raw_fd(), name, 0, true)?;
     }

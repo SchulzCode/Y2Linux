@@ -3,11 +3,12 @@
 //! report.py's `save_to` / `_write_into`.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    boot_id, build, clock, json_dict, or_dict,
+    build, clock, json_dict, or_dict,
     pyjson::Py,
     state::{self, DESTINATIONS},
 };
 use crate::reply::{atomic_json, Failure};
+use std::os::fd::AsFd;
 use std::{
     ffi::CString,
     io,
@@ -15,80 +16,12 @@ use std::{
     path::Path,
     time::Duration,
 };
+pub use y2p_core::mounts::{mountinfo, mounts_at, Mount};
 use y2p_core::{clock as kernel, command, Root};
-
-pub struct Mount {
-    pub mount_id: i64,
-    pub device_id: String,
-    pub path: String,
-    pub options: Vec<String>,
-    pub source: String,
-    pub super_options: Vec<String>,
-}
-
-fn unescape(value: &str) -> String {
-    let mut out = String::new();
-    let mut rest = value;
-    while let Some(index) = rest.find('\\') {
-        out.push_str(&rest[..index]);
-        let code = &rest[index + 1..];
-        let replaced = ["040", "011", "012", "134"]
-            .iter()
-            .find(|c| code.starts_with(*c))
-            .map(|c| char::from(u8::from_str_radix(c, 8).expect("octal")));
-        match replaced {
-            Some(c) => {
-                out.push(c);
-                rest = &code[3..];
-            }
-            None => {
-                out.push('\\');
-                rest = code;
-            }
-        }
-    }
-    out + rest
-}
-
-/// `observe.mountinfo(text)`.
-pub fn mountinfo(text: Option<&str>) -> Vec<Mount> {
-    let mut result = Vec::new();
-    for line in super::pyre::splitlines(text.unwrap_or("")) {
-        let Some((left, right)) = line.split_once(" - ") else {
-            continue;
-        };
-        let a: Vec<&str> = left
-            .split(super::pyre::isspace)
-            .filter(|s| !s.is_empty())
-            .collect();
-        let b: Vec<&str> = right
-            .split(super::pyre::isspace)
-            .filter(|s| !s.is_empty())
-            .collect();
-        if a.len() < 6 || b.len() < 3 || !a[0].bytes().all(|c| c.is_ascii_digit()) {
-            continue;
-        }
-        let Ok(mount_id) = a[0].parse() else {
-            continue;
-        };
-        result.push(Mount {
-            mount_id,
-            device_id: a[2].to_owned(),
-            path: unescape(a[4]),
-            options: a[5].split(',').map(str::to_owned).collect(),
-            source: unescape(b[1]),
-            super_options: b[2].split(',').map(str::to_owned).collect(),
-        });
-    }
-    result
-}
 
 /// `media.mounts(ctx)`: the mounts on /media/sd.
 fn mounts(root: &Root) -> Vec<Mount> {
-    mountinfo(root.read("/proc/self/mountinfo").as_deref())
-        .into_iter()
-        .filter(|m| m.path == "/media/sd")
-        .collect()
+    mounts_at(root, "/media/sd")
 }
 
 fn eq(value: Option<&Py>, other: &Py) -> bool {
@@ -109,7 +42,7 @@ fn owned_mount(root: &Root, mounted: &Mount) -> bool {
     let claim = json_dict(root, "/run/y2/media-mount.json");
     // Removed cards no longer have a sysfs controller path. The retained claim permits only the
     // exact mount we created, never an arbitrary mountpoint.
-    eq(claim.get("boot_id"), &text(boot_id(root)))
+    eq(claim.get("boot_id"), &text(root.boot_id()))
         && eq(claim.get("mount_id"), &Py::int(mounted.mount_id))
         && eq(claim.get("device_id"), &Py::str(mounted.device_id.clone()))
         && eq(claim.get("device"), &Py::str(mounted.source.clone()))
@@ -122,7 +55,7 @@ fn sd_state(root: &Root) -> (Py, Option<Mount>) {
     if old.len() == 1
         && owned_mount(root, &old[0])
         && eq(claim.get("mount_id"), &Py::int(old[0].mount_id))
-        && eq(claim.get("boot_id"), &text(boot_id(root)))
+        && eq(claim.get("boot_id"), &text(root.boot_id()))
     {
         let mount = old.remove(0);
         return (claim, Some(mount));
@@ -146,7 +79,7 @@ const WRITE_HOLDERS: [&str; 4] = ["usb", "reborn", "report", "radiofw"];
 /// `media._writers`.
 fn writers(root: &Root, mount: &Mount) -> Vec<(String, Py)> {
     let value = or_dict(json_dict(root, SD_WRITE));
-    if !eq(value.get("boot_id"), &text(boot_id(root)))
+    if !eq(value.get("boot_id"), &text(root.boot_id()))
         || !eq(value.get("mount_id"), &Py::int(mount.mount_id))
     {
         return Vec::new();
@@ -168,7 +101,7 @@ fn writers(root: &Root, mount: &Mount) -> Vec<(String, Py)> {
 fn apply_window(root: &Root, mount: &Mount, holders: &[(String, Py)]) -> Result<bool, Failure> {
     let record = Py::dict()
         .with("schema", Py::int(1))
-        .with("boot_id", text(boot_id(root)))
+        .with("boot_id", text(root.boot_id()))
         .with("mount_id", Py::int(mount.mount_id))
         .with("holders", Py::Dict(holders.to_vec()));
     atomic_json(&root.path(SD_WRITE), &record, false)?;
@@ -229,7 +162,7 @@ fn write_window(root: &Root, seconds: i64, release: bool) -> Result<Vec<String>,
 fn write_into(mount: &Path, top: &str, data: &[u8], stamp: &str) -> io::Result<String> {
     let flags = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC;
     let mut dir = open_at(None, &mount.to_string_lossy(), flags, 0)?;
-    let device = fstat(&dir)?.st_dev;
+    let device = fstat(&dir)?.dev;
     for part in top.split('/').filter(|p| !p.is_empty()) {
         dir = open_at(Some(&dir), part, flags, 0)?;
     }
@@ -243,16 +176,11 @@ fn write_into(mount: &Path, top: &str, data: &[u8], stamp: &str) -> io::Result<S
     }
     let folder = open_at(Some(&dir), build::FOLDER, flags, 0)?;
     drop(dir);
-    if fstat(&folder)?.st_dev != device {
+    if fstat(&folder)?.dev != device {
         return Err(io::Error::from_raw_os_error(libc::EXDEV)); // report_folder_elsewhere
     }
-    // SAFETY: a zeroed statvfs is a valid output buffer.
-    let mut space: libc::statvfs64 = unsafe { std::mem::zeroed() };
-    // SAFETY: a valid fd and buffer.
-    if unsafe { libc::fstatvfs64(folder.as_raw_fd(), &mut space) } != 0 {
-        return Err(io::Error::last_os_error());
-    }
-    if (space.f_bavail as u128) * (space.f_frsize as u128) < data.len() as u128 + (1 << 20) {
+    let space = y2p_core::sys::fstatvfs(folder.as_fd())?;
+    if (space.bavail as u128) * (space.frsize as u128) < data.len() as u128 + (1 << 20) {
         return Err(io::Error::from_raw_os_error(libc::ENOSPC)); // report_no_space
     }
     let mut chosen = None;
@@ -313,33 +241,13 @@ pub fn open_at(dir: Option<&OwnedFd>, name: &str, flags: i32, mode: u32) -> io::
     Ok(unsafe { OwnedFd::from_raw_fd(fd) })
 }
 
-pub fn fstat(fd: &OwnedFd) -> io::Result<libc::stat64> {
-    // SAFETY: a zeroed stat is a valid output buffer.
-    let mut meta: libc::stat64 = unsafe { std::mem::zeroed() };
-    // SAFETY: a valid fd and buffer.
-    if unsafe { libc::fstat64(fd.as_raw_fd(), &mut meta) } != 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(meta)
+pub fn fstat(fd: &OwnedFd) -> io::Result<y2p_core::sys::Stat> {
+    y2p_core::sys::fstat(fd.as_fd())
 }
 
-pub fn stat_at(dir: &OwnedFd, name: &str) -> io::Result<libc::stat64> {
+pub fn stat_at(dir: &OwnedFd, name: &str) -> io::Result<y2p_core::sys::Stat> {
     let c = CString::new(name).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))?;
-    // SAFETY: a zeroed stat is a valid output buffer.
-    let mut meta: libc::stat64 = unsafe { std::mem::zeroed() };
-    // SAFETY: a valid fd, name and buffer.
-    if unsafe {
-        libc::fstatat64(
-            dir.as_raw_fd(),
-            c.as_ptr(),
-            &mut meta,
-            libc::AT_SYMLINK_NOFOLLOW,
-        )
-    } != 0
-    {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(meta)
+    y2p_core::sys::fstatat(dir.as_fd(), &c, libc::AT_SYMLINK_NOFOLLOW)
 }
 
 fn lstat_at(dir: &OwnedFd, name: &str) -> io::Result<()> {

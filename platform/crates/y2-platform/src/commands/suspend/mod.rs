@@ -9,6 +9,7 @@
 //! and ends the process with the programme's own exit code, for every argument form and input the
 //! Python programme takes (its argparse texts, its tracebacks).
 // SPDX-License-Identifier: GPL-2.0-only
+
 pub mod admission;
 pub mod append;
 pub mod audit;
@@ -263,25 +264,6 @@ fn python(args: &[&str]) -> ! {
 
 // ---- Python value rules on parsed records ----------------------------------------------------------
 
-/// `a == b` between parsed JSON values as Python compares them (`1 == 1.0 == True`).
-pub fn py_eq(a: &Value, b: &Value) -> bool {
-    match (a, b) {
-        (Value::Number(_) | Value::Bool(_), Value::Number(_) | Value::Bool(_)) => {
-            match (exact(a), exact(b)) {
-                (Some(x), Some(y)) => x == y,
-                _ => py::number(Some(a)) == py::number(Some(b)),
-            }
-        }
-        (Value::Array(x), Value::Array(y)) => {
-            x.len() == y.len() && x.iter().zip(y).all(|(a, b)| py_eq(a, b))
-        }
-        (Value::Object(x), Value::Object(y)) => {
-            x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| py_eq(v, w)))
-        }
-        _ => a == b,
-    }
-}
-
 fn exact(value: &Value) -> Option<i128> {
     match value {
         Value::Bool(b) => Some(i128::from(*b)),
@@ -417,9 +399,6 @@ pub(crate) mod tests {
 
     #[test]
     fn values_compare_as_python_does() {
-        assert!(py_eq(&json!(1), &json!(1.0)) && py_eq(&json!(true), &json!(1)));
-        assert!(!py_eq(&json!("1"), &json!(1)));
-        assert!(py_eq(&json!({"a": [1, null]}), &json!({"a": [1.0, null]})));
         assert!(py_gt(&json!(3), &json!(2)).unwrap());
         assert!(py_gt(&json!("b"), &json!("a")).unwrap());
         assert!(py_gt(&json!("b"), &json!(1)).is_err());

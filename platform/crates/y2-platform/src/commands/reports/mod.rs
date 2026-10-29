@@ -9,7 +9,7 @@ mod diagnostics;
 mod fields;
 mod maintenance;
 pub(crate) mod media;
-pub(crate) mod pyjson;
+pub(crate) use y2p_core::pyjson;
 mod pyops;
 mod pyre;
 mod scrub;
@@ -25,6 +25,7 @@ pub(crate) mod workload;
 use super::Command;
 use crate::reply::{Failure, Outcome, Reply};
 use pyjson::Py;
+use y2p_core::json::ObjectExt;
 use y2p_core::Root;
 
 const TOPICS: [&str; 7] = [
@@ -191,7 +192,7 @@ fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> O
         // A TypeError, KeyError or AttributeError: main.py's traceback.
         Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
-            &y2p_core::json::Ordered::new()
+            &y2p_core::json::Object::new()
                 .with("failure", "report_failed")
                 .with("reason", class(&error)),
             1,
@@ -227,10 +228,6 @@ pub fn or_dict(value: Py) -> Py {
     } else {
         Py::dict()
     }
-}
-
-pub fn boot_id(root: &Root) -> Option<String> {
-    root.read("/proc/sys/kernel/random/boot_id")
 }
 
 /// An OSError raised by a call on `path` (the class follows errno).

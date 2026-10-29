@@ -5,7 +5,11 @@ use super::crosscheck::{answer, check, player, refused};
 use super::{bluetooth, daemon::Supervisor, observe_wifi, radio_policy, wifi};
 use serde_json::{json, Value};
 use std::fs;
-use y2p_core::{clock, json::Ordered, Root};
+use y2p_core::{
+    clock,
+    json::{Object, ObjectExt},
+    Root,
+};
 
 const SCAN: &[&str] = &["wpa_cli", "-i", "wlan0", "scan_results"];
 const LIST: &[&str] = &["wpa_cli", "-i", "wlan0", "list_networks"];
@@ -97,7 +101,7 @@ fn supplicant_events_latch_a_wrong_password_as_python_does() {
                 ]));
             }
             result.push(
-                json!({"summary": monitor.summary(None).into_value(), "held": monitor.held,
+                json!({"summary": monitor.summary(None).into_sorted(), "held": monitor.held,
                            "connected": monitor.connected_network}),
             );
             Value::Array(result)
@@ -161,7 +165,7 @@ fn the_self_heal_reselects_and_rescans_as_python_does() {
             let result: Vec<Value> = plan
                 .iter()
                 .map(|(at, state, reason)| {
-                    let value = Ordered::new()
+                    let value = Object::new()
                         .with("association", *state)
                         .with("radio_present", true)
                         .with("reason", json!(reason));
@@ -314,11 +318,11 @@ fn the_dns_probe_confirms_a_lease_as_python_does() {
                 let epoch = root.read("/run/y2/wifi-epoch");
                 let due = s.due(&v, epoch.as_deref(), 100.0);
                 let dns = match wifi::probe_dns(root, &v) {
-                    Ok(dns) => json!(dns.map(|d| Value::Object(d.0.into_iter().collect()))),
+                    Ok(dns) => json!(dns.map(|d| Value::Object(y2p_core::json::sorted_object(&d)))),
                     Err(error) => json!(error.message()),
                 };
                 s.confirmed(100.0);
-                let value = |o: Ordered| Value::Object(o.0.into_iter().collect());
+                let value = |o: Object| Value::Object(y2p_core::json::sorted_object(&o));
                 let again = s.due(&v, epoch.as_deref(), 101.0);
                 let after = observe_wifi::wifi(root, Some(&v));
                 json!([
@@ -359,7 +363,7 @@ fn power_save_with_a_heavy_transfer_as_python_does() {
                 let activity =
                     json!({"wifi_heavy_transfer": if heavy { json!(true) } else { json!(0) }});
                 let value = radio_policy::wifi_policy(root, activity.as_object()).unwrap();
-                Value::Object(value.0.into_iter().collect())
+                Value::Object(y2p_core::json::sorted_object(&value))
             },
         );
     }
@@ -379,8 +383,10 @@ fn observation(pcm: Value, extra: Value) -> String {
         "/org/bluez/hci0/dev_BB": {"org.bluez.Device1": {"Address": "BB:BB:BB:BB:BB:BB", "Paired": true, "Bonded": true, "Trusted": true, "Connected": false, "ServicesResolved": false}},
         "/org/bluez/hci0/dev_AA": {"org.bluez.Device1": {"Address": "AA:AA:AA:AA:AA:AA", "Paired": true, "Bonded": true, "Trusted": true, "Connected": true, "ServicesResolved": true}},
         "/org/bluez/hci0/other": 5}"#;
-    let bluealsa = json!({"/org/bluealsa/hci0/dev_AA/a2dpsrc/sink": {"org.bluealsa.PCM1": pcm}});
-    let text = raw.to_string();
+    let bluealsa = y2p_core::json::sorted(
+        json!({"/org/bluealsa/hci0/dev_AA/a2dpsrc/sink": {"org.bluealsa.PCM1": pcm}}),
+    );
+    let text = y2p_core::json::sorted(raw).to_string();
     let text = text.trim_end_matches('}');
     if extra.get("bluez").is_some() {
         format!("{text}, \"bluealsa\": {bluealsa}}}")
@@ -512,7 +518,7 @@ fn bluetooth_observations_normalise_as_python_does() {
             &format!("bluetooth-normalize-{index}"),
             &files,
             json!([]),
-            |root| bluetooth::normalize(root, &wifi::Json::parse(&raw).unwrap()).unwrap(),
+            |root| bluetooth::normalize(root, &serde_json::from_str(&raw).unwrap()).unwrap(),
         );
         if let Some(outcome) = outcome {
             if raw.contains("dev_BB") && raw.contains("[36, 21, 2, 53]") {

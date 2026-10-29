@@ -4,10 +4,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{crash, daemon::SOCKET, unix};
 use crate::reply::{Failure, Outcome, Reply};
+use serde_json::Value;
 use std::time::Duration;
 use y2p_core::{
     json::{dumps, Separators},
-    power_json::{Json, Object},
+    json::{Object, ObjectExt},
+    py::PyValue,
     Root,
 };
 
@@ -16,7 +18,7 @@ const REQUEST_LIMIT: usize = 2048;
 const RESPONSE_LIMIT: usize = 8192;
 
 /// `rpc(ctx, request)`: the daemon's `result`, or its `error` as a ValueError.
-pub fn rpc(root: &Root, request: &Object) -> Result<Json, Failure> {
+pub fn rpc(root: &Root, request: &Object) -> Result<Value, Failure> {
     let data = dumps(request, Separators::Spaced).map_err(Failure::value)? + "\n";
     if data.len() > REQUEST_LIMIT {
         return Err(Failure::value("request_too_large"));
@@ -33,8 +35,8 @@ pub fn rpc(root: &Root, request: &Object) -> Result<Json, Failure> {
         answer.extend_from_slice(&part[..n]);
     }
     // Accepted difference: an answer that is not JSON names serde's error, not json's.
-    let result = Json::parse(&answer).map_err(Failure::value)?;
-    let Json::Object(result) = result else {
+    let result = serde_json::from_slice::<Value>(&answer).map_err(Failure::value)?;
+    let Value::Object(result) = result else {
         crash(&format!(
             "AttributeError: '{}' object has no attribute 'get'",
             result.type_name()
@@ -43,7 +45,7 @@ pub fn rpc(root: &Root, request: &Object) -> Result<Json, Failure> {
     if !result.value("ok").truthy() {
         let error = result
             .get("error")
-            .map_or_else(|| "power_request_failed".to_owned(), Json::py_str);
+            .map_or_else(|| "power_request_failed".to_owned(), Value::py_str);
         return Err(Failure::Value(error));
     }
     match result.get("result") {

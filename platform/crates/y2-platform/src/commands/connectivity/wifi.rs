@@ -3,7 +3,7 @@
 //! password latch Reborn reads, the scan evidence of F13 and the F52 self-heal. The service daemon runs
 //! these in process; the connectivity daemon writes the journal (F53).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::observe_wifi::{clock_value, eq_text, py_eq, wifi};
+use super::observe_wifi::{clock_value, eq_text, wifi};
 use crate::commands::network::{publish, wlan_switched_off};
 use crate::reply::Failure;
 use serde_json::{json, Value};
@@ -18,10 +18,12 @@ use std::{
     sync::mpsc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+use y2p_core::py;
 use y2p_core::{
     clock, command,
-    connectivity_journal::{append_bounded, data_ready},
-    json::{dumps, Ordered, Separators},
+    connectivity_journal::append_bounded,
+    json::{dumps, Object, ObjectExt, Separators},
+    mounts::data_ready,
     py::truthy,
     Root,
 };
@@ -74,91 +76,20 @@ pub fn round1(x: f64) -> f64 {
     format!("{x:.1}").parse().unwrap_or(x)
 }
 
-fn boot(root: &Root) -> Option<String> {
-    root.read("/proc/sys/kernel/random/boot_id")
-}
-
-/// A JSON object that keeps insertion order also when nested (serde_json's `Map` sorts): the journal
-/// rows are `json.dumps(row, separators=(',', ':'))`, unsorted.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Json {
-    Value(Value),
-    Object(Vec<(String, Json)>),
-}
-
-impl Json {
-    pub fn object() -> Self {
-        Json::Object(Vec::new())
-    }
-
-    pub fn with(mut self, key: &str, value: impl Into<Json>) -> Self {
-        if let Json::Object(pairs) = &mut self {
-            let value = value.into();
-            match pairs.iter_mut().find(|(k, _)| k == key) {
-                Some(entry) => entry.1 = value,
-                None => pairs.push((key.to_owned(), value)),
-            }
-        }
-        self
-    }
-
-    /// As a plain value, for records written sorted (`atomic_json`) or compared.
-    pub fn into_value(self) -> Value {
-        match self {
-            Json::Value(value) => value,
-            Json::Object(pairs) => Value::Object(
-                pairs
-                    .into_iter()
-                    .map(|(k, v)| (k, v.into_value()))
-                    .collect(),
-            ),
-        }
-    }
-}
-
-macro_rules! leaf {
-    ($($t:ty),*) => {$(
-        impl From<$t> for Json {
-            fn from(value: $t) -> Self {
-                Json::Value(value.into())
-            }
-        }
-    )*};
-}
-leaf!(Value, bool, i32, i64, u64, usize, f64, &str, String);
-
-impl serde::Serialize for Json {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeMap;
-        match self {
-            Json::Value(value) => value.serialize(serializer),
-            Json::Object(pairs) => {
-                let mut map = serializer.serialize_map(Some(pairs.len()))?;
-                for (key, value) in pairs {
-                    map.serialize_entry(key, value)?;
-                }
-                map.end()
-            }
-        }
-    }
-}
-
 /// `journal(ctx, event, **fields)`: append one durable row (bounded, rotated once); false when /data
 /// is not ours or the row could not be written.
-pub fn journal(root: &Root, event: &str, fields: Json) -> bool {
+pub fn journal(root: &Root, event: &str, fields: Object) -> bool {
     if !data_ready(root) {
         return false;
     }
-    let mut row = Json::object()
+    let mut row = Object::new()
         .with("schema", 1)
         .with("event", event)
         .with("wall_time", wall())
         .with("monotonic_s", clock::monotonic())
-        .with("boot_id", json!(boot(root)));
-    if let Json::Object(pairs) = fields {
-        for (key, value) in pairs {
-            row = row.with(&key, value);
-        }
+        .with("boot_id", json!(root.boot_id()));
+    for (key, value) in fields {
+        row.set(&key, value);
     }
     let Ok(text) = dumps(&row, Separators::Compact) else {
         return false;
@@ -173,8 +104,8 @@ pub fn journal(root: &Root, event: &str, fields: Json) -> bool {
     .is_ok()
 }
 
-fn value_of(ordered: Ordered) -> Value {
-    Value::Object(ordered.0.into_iter().collect())
+fn value_of(ordered: Object) -> Value {
+    Value::Object(y2p_core::json::sorted_object(&ordered))
 }
 
 /// Python's `\w` (a Unicode letter, digit or `_`), for `\b`.
@@ -309,7 +240,7 @@ fn getaddrinfo(host: &str) -> Option<usize> {
 }
 
 /// `probe_dns(ctx, observed)`: the published `dns.json`, or None when the lease changed meanwhile.
-pub fn probe_dns(root: &Root, observed: &Ordered) -> Result<Option<Ordered>, Failure> {
+pub fn probe_dns(root: &Root, observed: &Object) -> Result<Option<Object>, Failure> {
     let empty = |key: &str| !observed.get(key).is_some_and(truthy);
     if empty("ip_addresses") || empty("default_route") {
         return Ok(None);
@@ -345,9 +276,9 @@ pub fn probe_dns(root: &Root, observed: &Ordered) -> Result<Option<Ordered>, Fai
     };
     let after = wifi(root, Some(observed));
     if root.read("/run/y2/wifi-epoch") != epoch
-        || !py_eq(after.get("association_id"), observed.get("association_id"))
-        || !py_eq(after.get("ip_addresses"), observed.get("ip_addresses"))
-        || !py_eq(after.get("default_route"), observed.get("default_route"))
+        || !py::eq(after.get("association_id"), observed.get("association_id"))
+        || !py::eq(after.get("ip_addresses"), observed.get("ip_addresses"))
+        || !py::eq(after.get("default_route"), observed.get("default_route"))
     {
         return Ok(None);
     }
@@ -359,7 +290,7 @@ pub fn probe_dns(root: &Root, observed: &Ordered) -> Result<Option<Ordered>, Fai
         .and_then(|a| a.first())
         .cloned()
         .unwrap_or(Value::Null);
-    let value = Ordered::new()
+    let value = Object::new()
         .with("epoch", json!(epoch))
         .with("ok", ok)
         .with("address", first)
@@ -405,7 +336,7 @@ impl DnsProbeSchedule {
         self.deadline = now + Self::CONFIRMED_S;
     }
 
-    pub fn due(&mut self, observed: &Ordered, epoch: Option<&str>, now: f64) -> bool {
+    pub fn due(&mut self, observed: &Object, epoch: Option<&str>, now: f64) -> bool {
         let epoch = epoch.unwrap_or_default();
         if observed.get("association").and_then(Value::as_str) != Some("COMPLETED")
             || epoch.is_empty()
@@ -423,7 +354,9 @@ impl DnsProbeSchedule {
             observed.get("ip_addresses").cloned().unwrap_or(Value::Null),
         );
         let same = self.key.as_ref().is_some_and(|old| {
-            old.0 == key.0 && py_eq(Some(&old.1), Some(&key.1)) && py_eq(Some(&old.2), Some(&key.2))
+            old.0 == key.0
+                && py::eq(Some(&old.1), Some(&key.1))
+                && py::eq(Some(&old.2), Some(&key.2))
         });
         if !same {
             self.key = Some(key);
@@ -461,11 +394,11 @@ fn wpa(root: &Root, argv: &[&str]) -> command::Outcome {
 /// cause unproven): how many networks the last scan saw, whether a saved one was among them, its best
 /// signal and channel, and the regulatory country (country=00 scans channels 12/13 passively). Never a
 /// network name or address.
-pub fn scan_evidence(root: &Root) -> Ordered {
+pub fn scan_evidence(root: &Root) -> Object {
     let scan = wpa(root, &["scan_results"]);
     let saved = wpa(root, &["list_networks"]);
     if !scan.ok || !saved.ok {
-        return Ordered::new().with("available", false);
+        return Object::new().with("available", false);
     }
     let saved_rows = rows(saved.output.as_deref());
     let mut names: Vec<&str> = Vec::new();
@@ -478,7 +411,7 @@ pub fn scan_evidence(root: &Root) -> Ordered {
         .into_iter()
         .filter(|row| row.len() >= 3 && digits(&row[1]) && signed(&row[2]))
         .collect();
-    let mut result = Ordered::new()
+    let mut result = Object::new()
         .with("available", true)
         .with("networks", found.len())
         .with("saved_networks", names.len())
@@ -573,7 +506,7 @@ pub struct EventMonitor {
     started: f64,
     counts: Vec<(String, u64)>,
     last: Vec<(String, f64)>,
-    last_disconnect: Json,
+    last_disconnect: Value,
     pub(crate) interrupted_handshakes: u64,
     /// The network of the last connect: the one a self-heal selects.
     pub connected_network: Option<i64>,
@@ -599,7 +532,7 @@ impl EventMonitor {
             started: clock::monotonic(),
             counts: Vec::new(),
             last: Vec::new(),
-            last_disconnect: Json::Value(Value::Null),
+            last_disconnect: Value::Null,
             interrupted_handshakes: 0,
             connected_network: None,
             timed_out: false,
@@ -609,17 +542,17 @@ impl EventMonitor {
     }
 
     /// Counts and ages of the supplicant's events for network.json and the journal.
-    pub fn summary(&self, now: Option<f64>) -> Json {
+    pub fn summary(&self, now: Option<f64>) -> Object {
         let now = now.unwrap_or_else(clock::monotonic);
-        let mut counts = Json::object();
+        let mut counts = Object::new();
         for (kind, n) in &self.counts {
             counts = counts.with(kind, *n);
         }
-        let mut ago = Json::object();
+        let mut ago = Object::new();
         for (kind, at) in &self.last {
             ago = ago.with(kind, round1(now - at));
         }
-        Json::object()
+        Object::new()
             .with("since_s", round1(now - self.started))
             .with("counts", counts)
             .with("ago_s", ago)
@@ -753,10 +686,12 @@ impl EventMonitor {
             let code = search_value(body, &["reason"], |c| c.is_ascii_digit(), 5)
                 .and_then(|c| c.parse::<i64>().ok());
             let local = body.contains("locally_generated=1");
-            self.last_disconnect = Json::object()
-                .with("reason", json!(code))
-                .with("local", local)
-                .with("timeout", self.timed_out);
+            self.last_disconnect = Value::Object(
+                Object::new()
+                    .with("reason", json!(code))
+                    .with("local", local)
+                    .with("timeout", self.timed_out),
+            );
             self.interrupted = local && !self.timed_out;
             self.held = self.interrupted && !wlan_switched_off(&self.root);
             self.timed_out = false;
@@ -799,7 +734,7 @@ impl EventMonitor {
         };
         let root = &self.root;
         let old = root.json_object("/run/y2/wifi-failure.json");
-        let boot = boot(root);
+        let boot = root.boot_id();
         // Failed handshakes per network since the last connect (kept here, so a service restart does
         // not forget the first one).
         let valid = match old.get("wrong_key") {
@@ -813,13 +748,13 @@ impl EventMonitor {
         let mut wrong_key = (valid && kind != "CONNECTED").then(|| old["wrong_key"].clone());
         if error == Some("handshake_failed") {
             let count = match &wrong_key {
-                Some(w) if py_eq(w.get("network_id"), Some(&json!(network))) => {
+                Some(w) if py::eq(w.get("network_id"), Some(&json!(network))) => {
                     y2p_core::py::number(w.get("count")).unwrap_or(0.0) as i64 + 1
                 }
                 _ => 1,
             };
             wrong_key = Some(value_of(
-                Ordered::new()
+                Object::new()
                     .with("network_id", json!(network))
                     .with("count", count)
                     .with("boot_id", json!(boot)),
@@ -833,7 +768,7 @@ impl EventMonitor {
             Some(Value::Bool(b)) => i64::from(*b),
             Some(v) => v.as_i64().unwrap_or(0),
         };
-        let mut record = Ordered::new()
+        let mut record = Object::new()
             .with("error", json!(error))
             .with("epoch", json!(root.read("/run/y2/wifi-epoch")))
             .with("failures", failures + i64::from(error.is_some()));
@@ -857,7 +792,7 @@ impl EventMonitor {
         };
         if let Some(Value::Object(last)) = last {
             if last.get("error").is_some_and(truthy) {
-                let mut kept = Ordered::new();
+                let mut kept = Object::new();
                 for key in LAST_FAILURE_KEYS {
                     if let Some(value) = last.get(key) {
                         kept.set(key, value.clone());
@@ -874,7 +809,7 @@ impl EventMonitor {
             record.set(
                 "credential",
                 value_of(
-                    Ordered::new()
+                    Object::new()
                         .with("error", json!(error))
                         .with("reason", reason)
                         .with("boot_id", json!(boot))
@@ -942,7 +877,7 @@ impl WifiRecovery {
 
     pub fn observe(
         &mut self,
-        value: &Ordered,
+        value: &Object,
         now: f64,
         monitor: Option<&EventMonitor>,
     ) -> Option<&'static str> {
@@ -955,7 +890,7 @@ impl WifiRecovery {
                 journal(
                     root,
                     "wifi_recovered",
-                    Json::object()
+                    Object::new()
                         .with("tries", self.tries)
                         .with("seconds", seconds),
                 );
@@ -1018,7 +953,7 @@ impl WifiRecovery {
             .collect();
         self.tries += 1;
         self.first_try.get_or_insert(now);
-        let mut fields = Json::object()
+        let mut fields = Object::new()
             .with("state", state.clone())
             .with("idle_s", round1(now - since))
             .with("tries", self.tries)
@@ -1117,7 +1052,7 @@ mod tests {
         assert!(monitor.fd().is_some(), "attached");
         assert!(dir.join("run/y2/wpa-events.sock").exists());
         monitor.poll();
-        let summary = monitor.summary(None).into_value();
+        let summary = monitor.summary(None).into_sorted();
         assert_eq!(
             summary["counts"],
             json!({"SCAN-STARTED": 1, "CONNECTED": 1})

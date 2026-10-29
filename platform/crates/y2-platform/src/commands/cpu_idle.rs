@@ -57,7 +57,7 @@ fn kernel_trusted(root: &Root) -> bool {
 /// Fail closed, run once per boot, and never override later manual policy.
 pub fn apply(root: &Root, action: &str) -> Outcome {
     mkdir_parents(&root.path("/run/y2"), 0o777)?;
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let boot = root.boot_id();
     let mut result = Map::new();
     result.insert("schema".into(), json!("org.y2linux.cpu-idle-policy/v1"));
     result.insert("boot_id".into(), json!(boot));

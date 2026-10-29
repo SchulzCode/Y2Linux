@@ -3,7 +3,7 @@
 //! `/run/y2/suspend.lock` (sleep request, the helper, y2-suspend).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    admission::spm_state, diagnostics, interrupted, is_text, journal, py_add, py_eq, py_gt, pyjson,
+    admission::spm_state, diagnostics, interrupted, is_text, journal, py_add, py_gt, pyjson,
     text_value, E,
 };
 use serde_json::{json, Map, Value};
@@ -15,6 +15,7 @@ use std::{
     },
     path::Path,
 };
+use y2p_core::py::PyValue;
 use y2p_core::{
     json::{dumps, Separators},
     py::{is_true, truthy},
@@ -295,7 +296,7 @@ pub fn transition_keys(
 
 /// `value.get('pm_test') == text`.
 fn pm_test_is(value: Option<&Value>, text: &str) -> bool {
-    value.is_some_and(|v| py_eq(v, &json!(text)))
+    value.is_some_and(|v| v.py_eq(&json!(text)))
 }
 
 /// `value.get('pm_test') in {None, 'none'}` (a list or dict is unhashable).
@@ -355,7 +356,7 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
     private_directory(&directory)?;
     let path = directory.join("suspend-last.json");
     let mut value = root.json_object(RECEIPT);
-    let boot = || text_value(root.read("/proc/sys/kernel/random/boot_id"));
+    let boot = || text_value(root.boot_id());
     if starts_receipt(s.stage, &value) {
         let pm_test = Regex::new(r"\[(\w+)\]")
             .expect("pattern")
@@ -393,7 +394,7 @@ pub fn record(root: &Root, s: Stage) -> Result<Map<String, Value>, E> {
         .iter()
         .map(|p| (name(p), text_value(read(&p.join("state"), 131_072))))
         .collect();
-    let current = root.read("/proc/sys/kernel/random/boot_id");
+    let current = root.boot_id();
     let result = s.result.map_or(Value::Null, Value::from);
     set(
         &mut value,
@@ -763,7 +764,7 @@ pub fn application_rpc(root: &Root, operation: &str, dark: bool) -> Result<Map<S
     let Value::Object(answer) = answer else {
         return Err(E::value("reborn_sleep_acknowledgement_failed"));
     };
-    if !answer.get("id").is_some_and(|id| py_eq(id, &json!(6582))) {
+    if !answer.get("id").is_some_and(|id| id.py_eq(&json!(6582))) {
         return Err(E::value("reborn_sleep_acknowledgement_failed"));
     }
     if !is_true(answer.get("ok")) {

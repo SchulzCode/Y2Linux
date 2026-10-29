@@ -5,7 +5,11 @@
 //! battery is NOT a refusal condition. Fix01's harness equated USB online with charging.
 //! (Read by the owner's qualification tools and the power audit; the power daemon does not use it.)
 // SPDX-License-Identifier: GPL-2.0-only
-use crate::{power_json::Object, power_text::charger_fields, root, Root};
+use crate::{
+    json::{Object, ObjectExt},
+    power_text::charger_fields,
+    root, Root,
+};
 
 pub const ACTIVE_PHASES: [&str; 3] = ["PRECHARGE", "CONSTANT_CURRENT", "CONSTANT_VOLTAGE"];
 

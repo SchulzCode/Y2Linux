@@ -6,7 +6,10 @@
 //! `--help`; abbreviations, `--x=y`, argparse's errors and texts at 80 columns, `prog` y2-power-audit),
 //! then its `bounded windows only` refusal (exit 2).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{journal::Node, monotonic, process_time, receipt, text_value, traceback, wall, E};
+use super::{
+    journal::{object, plain},
+    monotonic, process_time, receipt, text_value, traceback, wall, E,
+};
 use crate::{argparse::python, reply::Outcome};
 use serde_json::{json, Map, Value};
 use std::{
@@ -456,11 +459,11 @@ fn get<'a>(files: &'a Files, key: &str) -> Option<&'a Option<String>> {
     files.iter().find(|(k, _)| k == key).map(|(_, v)| v)
 }
 
-fn files_node(files: &Files) -> Node {
-    Node::O(
+fn files_node(files: &Files) -> Value {
+    object(
         files
             .iter()
-            .map(|(k, v)| (k.clone(), Node::V(text_value(v.clone()))))
+            .map(|(k, v)| (k.clone(), plain(text_value(v.clone()))))
             .collect(),
     )
 }
@@ -527,28 +530,28 @@ fn processes(root: &Root) -> Result<Vec<(String, Thread)>, E> {
     Ok(result)
 }
 
-fn threads_node(threads: &[(String, Thread)]) -> Node {
-    Node::O(
+fn threads_node(threads: &[(String, Thread)]) -> Value {
+    object(
         threads
             .iter()
             .map(|(key, t)| {
                 (
                     key.clone(),
-                    Node::O(vec![
-                        ("name".into(), Node::V(json!(t.name))),
-                        ("state".into(), Node::V(json!(t.state))),
-                        ("utime".into(), Node::V(json!(t.utime))),
-                        ("stime".into(), Node::V(json!(t.stime))),
+                    object(vec![
+                        ("name".into(), plain(json!(t.name))),
+                        ("state".into(), plain(json!(t.state))),
+                        ("utime".into(), plain(json!(t.utime))),
+                        ("stime".into(), plain(json!(t.stime))),
                         (
                             "context_switches".into(),
-                            Node::O(
+                            object(
                                 t.switches
                                     .iter()
-                                    .map(|(k, v)| (k.clone(), Node::V(json!(v))))
+                                    .map(|(k, v)| (k.clone(), plain(json!(v))))
                                     .collect(),
                             ),
                         ),
-                        ("wchan".into(), Node::V(text_value(t.wchan.clone()))),
+                        ("wchan".into(), plain(text_value(t.wchan.clone()))),
                     ]),
                 )
             })
@@ -557,10 +560,10 @@ fn threads_node(threads: &[(String, Thread)]) -> Node {
 }
 
 /// Outside the counter window; publish no media names, paths or peer IDs.
-fn application(root: &Root) -> Node {
+fn application(root: &Root) -> Value {
     let status = match receipt::application_rpc(root, "status", false) {
         Ok(status) => status,
-        Err(error) => return Node::O(vec![("unavailable".into(), Node::V(json!(error.class())))]),
+        Err(error) => return object(vec![("unavailable".into(), plain(json!(error.class())))]),
     };
     let empty = Value::Object(Map::new());
     let section = |key: &str| status.get(key).unwrap_or(&empty);
@@ -572,7 +575,7 @@ fn application(root: &Root) -> Node {
     };
     let graphics = ["backend", "frames", "context_losses"]
         .iter()
-        .map(|k| field("graphics", k).map(|v| ((*k).to_owned(), Node::V(v))))
+        .map(|k| field("graphics", k).map(|v| ((*k).to_owned(), plain(v))))
         .collect::<Result<Vec<_>, ()>>();
     match (
         field("playback", "state"),
@@ -580,20 +583,17 @@ fn application(root: &Root) -> Node {
         field("audio", "state"),
         graphics,
     ) {
-        (Ok(playback), Ok(scanning), Ok(audio), Ok(graphics)) => Node::O(vec![
+        (Ok(playback), Ok(scanning), Ok(audio), Ok(graphics)) => object(vec![
             (
                 "screen_off".into(),
-                Node::V(status.get("screen_off").cloned().unwrap_or(Value::Null)),
+                plain(status.get("screen_off").cloned().unwrap_or(Value::Null)),
             ),
-            ("playback_state".into(), Node::V(playback)),
-            ("scanning".into(), Node::V(scanning)),
-            ("audio_state".into(), Node::V(audio)),
-            ("graphics".into(), Node::O(graphics)),
+            ("playback_state".into(), plain(playback)),
+            ("scanning".into(), plain(scanning)),
+            ("audio_state".into(), plain(audio)),
+            ("graphics".into(), object(graphics)),
         ]),
-        _ => Node::O(vec![(
-            "unavailable".into(),
-            Node::V(json!("AttributeError")),
-        )]),
+        _ => object(vec![("unavailable".into(), plain(json!("AttributeError")))]),
     }
 }
 
@@ -607,22 +607,22 @@ fn release() -> String {
         .into_owned()
 }
 
-fn snapshot(root: &Root) -> Result<Node, E> {
+fn snapshot(root: &Root) -> Result<Value, E> {
     let start = monotonic();
     let mut entries = vec![
-        ("wall_time".to_owned(), Node::V(json!(wall()))),
-        ("monotonic".into(), Node::V(json!(start))),
+        ("wall_time".to_owned(), plain(json!(wall()))),
+        ("monotonic".into(), plain(json!(start))),
         (
             "boot_id".into(),
-            Node::V(text_value(read(
+            plain(text_value(read(
                 &root.path("/proc/sys/kernel/random/boot_id"),
             ))),
         ),
         (
             "identity".into(),
-            Node::V(text_value(read(&root.path("/etc/y2linux/versions.json")))),
+            plain(text_value(read(&root.path("/etc/y2linux/versions.json")))),
         ),
-        ("kernel".into(), Node::V(json!(release()))),
+        ("kernel".into(), plain(json!(release()))),
         ("application".into(), application(root)),
     ];
     let patterns: Vec<&str> = SNAPSHOT.iter().chain(&SNAPSHOT_TAIL).copied().collect();
@@ -630,9 +630,9 @@ fn snapshot(root: &Root) -> Result<Node, E> {
     entries.push(("threads".into(), threads_node(&processes(root)?)));
     entries.push((
         "collection_seconds".into(),
-        Node::V(json!(monotonic() - start)),
+        plain(json!(monotonic() - start)),
     ));
-    Ok(Node::O(entries))
+    Ok(object(entries))
 }
 
 struct Sample {
@@ -661,14 +661,14 @@ fn counters(root: &Root) -> Result<Sample, E> {
     })
 }
 
-fn sample_node(s: &Sample) -> Node {
-    Node::O(vec![
-        ("boot_id".into(), Node::V(text_value(s.boot_id.clone()))),
+fn sample_node(s: &Sample) -> Value {
+    object(vec![
+        ("boot_id".into(), plain(text_value(s.boot_id.clone()))),
         ("threads".into(), threads_node(&s.threads)),
         ("files".into(), files_node(&s.files)),
-        ("monotonic".into(), Node::V(json!(s.monotonic))),
-        ("collection_seconds".into(), Node::V(json!(s.collection))),
-        ("cpu_seconds".into(), Node::V(json!(s.cpu))),
+        ("monotonic".into(), plain(json!(s.monotonic))),
+        ("collection_seconds".into(), plain(json!(s.collection))),
+        ("cpu_seconds".into(), plain(json!(s.cpu))),
     ])
 }
 
@@ -720,18 +720,18 @@ fn column_keys(list: &[(String, i64)]) -> Vec<&String> {
     keys
 }
 
-fn float_or_null(value: Option<f64>) -> Node {
-    Node::V(value.map_or(Value::Null, |v| json!(v)))
+fn float_or_null(value: Option<f64>) -> Value {
+    plain(value.map_or(Value::Null, |v| json!(v)))
 }
 
-fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
+fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Value, E> {
     if duration <= 0.0 || a.boot_id != b.boot_id {
         return Err(E::value("counter_window_crosses_boot_or_has_no_duration"));
     }
     // SAFETY: sysconf has no preconditions.
     let clock = unsafe { libc::sysconf(libc::_SC_CLK_TCK) } as f64;
     struct Offender {
-        node: Node,
+        node: Value,
         ticks: i64,
         rate: f64,
     }
@@ -744,22 +744,22 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
         let switches = |t: &Thread| t.switches.iter().map(|(_, v)| v).sum::<i64>();
         let rate = (switches(new) - switches(old)) as f64 / duration;
         offenders.push(Offender {
-            node: Node::O(vec![
-                ("thread".into(), Node::V(json!(key))),
-                ("name".into(), Node::V(json!(new.name))),
-                ("ticks".into(), Node::V(json!(ticks))),
+            node: object(vec![
+                ("thread".into(), plain(json!(key))),
+                ("name".into(), plain(json!(new.name))),
+                ("ticks".into(), plain(json!(ticks))),
                 (
                     "cpu_percent_one_core".into(),
-                    Node::V(json!((100 * ticks) as f64 / clock / duration)),
+                    plain(json!((100 * ticks) as f64 / clock / duration)),
                 ),
-                ("context_switches_per_second".into(), Node::V(json!(rate))),
+                ("context_switches_per_second".into(), plain(json!(rate))),
             ]),
             ticks,
             rate,
         });
     }
     let (ia, ib) = (interrupts(a)?, interrupts(b)?);
-    let mut irq: Vec<(i64, Node)> = Vec::new();
+    let mut irq: Vec<(i64, Value)> = Vec::new();
     for (key, (counts, name)) in &ib {
         let old: &[(String, i64)] = ia
             .iter()
@@ -784,25 +784,22 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
         let lower = (!common.is_empty() && !reset).then_some(sum);
         irq.push((
             d.unwrap_or(0),
-            Node::O(vec![
-                ("irq".into(), Node::V(json!(key))),
-                ("name".into(), Node::V(json!(name))),
-                ("delta".into(), Node::V(d.map_or(Value::Null, |v| json!(v)))),
+            object(vec![
+                ("irq".into(), plain(json!(key))),
+                ("name".into(), plain(json!(name))),
+                ("delta".into(), plain(d.map_or(Value::Null, |v| json!(v)))),
                 (
                     "per_second".into(),
                     float_or_null(d.map(|v| v as f64 / duration)),
                 ),
-                ("counter_discontinuity".into(), Node::V(json!(!valid))),
-                (
-                    "cpu_columns_changed".into(),
-                    Node::V(json!(columns_changed)),
-                ),
+                ("counter_discontinuity".into(), plain(json!(!valid))),
+                ("cpu_columns_changed".into(), plain(json!(columns_changed))),
                 (
                     "common_cpu_deltas".into(),
-                    Node::O(
+                    object(
                         common
                             .iter()
-                            .map(|(c, v)| (c.clone(), Node::V(json!(v))))
+                            .map(|(c, v)| (c.clone(), plain(json!(v))))
                             .collect(),
                     ),
                 ),
@@ -943,16 +940,14 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
         Ok(map)
     };
     let (sa, sb) = (proc_stat(a)?, proc_stat(b)?);
-    let scheduler: Vec<(String, Node)> = sa
+    let scheduler: Vec<(String, Value)> = sa
         .iter()
         .filter_map(|(key, old)| {
             let new = sb.iter().find(|(k, _)| k == key)?.1;
             (new >= *old).then(|| {
                 (
                     key.clone(),
-                    Node::V(
-                        json!({"delta": new - old, "per_second": (new - old) as f64 / duration}),
-                    ),
+                    plain(json!({"delta": new - old, "per_second": (new - old) as f64 / duration})),
                 )
             })
         })
@@ -996,12 +991,12 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
                     .map(|(_, v)| v.clone())
             };
             if let (Some(o), Some(n)) = (lookup(old), lookup(new)) {
-                changes.push((key.to_owned(), Node::V(json!(int(&n)? - int(&o)?))));
+                changes.push((key.to_owned(), plain(json!(int(&n)? - int(&o)?))));
             }
         }
-        wakes.push(Node::O(vec![
-            ("name".into(), Node::V(json!(name))),
-            ("deltas".into(), Node::O(changes)),
+        wakes.push(object(vec![
+            ("name".into(), plain(json!(name))),
+            ("deltas".into(), object(changes)),
         ]));
     }
     let cpu0: Vec<&Idle> = idle.iter().filter(|r| r.path.contains("/cpu0/")).collect();
@@ -1020,39 +1015,39 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
         .iter()
         .map(|r| {
             let mut entries = vec![
-                ("path".to_owned(), Node::V(json!(r.path))),
-                ("name".into(), Node::V(text_value(r.name.clone()))),
-                ("raw_time_delta_us".into(), Node::V(json!(r.raw))),
+                ("path".to_owned(), plain(json!(r.path))),
+                ("name".into(), plain(text_value(r.name.clone()))),
+                ("raw_time_delta_us".into(), plain(json!(r.raw))),
                 (
                     "time_us".into(),
-                    Node::V(r.time_us.map_or(Value::Null, |v| json!(v))),
+                    plain(r.time_us.map_or(Value::Null, |v| json!(v))),
                 ),
                 ("percent_wall_time".into(), float_or_null(r.percent)),
                 (
                     "entries".into(),
-                    Node::V(r.entries.map_or(Value::Null, |v| json!(v))),
+                    plain(r.entries.map_or(Value::Null, |v| json!(v))),
                 ),
                 (
                     "counter_discontinuity".into(),
-                    Node::V(json!(r.discontinuity)),
+                    plain(json!(r.discontinuity)),
                 ),
             ];
             if r.invalid {
                 entries.push((
                     "residency_invalid_reason".into(),
-                    Node::V(json!("idle_accounting_crosses_counter_window")),
+                    plain(json!("idle_accounting_crosses_counter_window")),
                 ));
             }
-            Node::O(entries)
+            object(entries)
         })
         .collect();
-    let list = Node::L;
+    let list = Value::Array;
     let frequency_reason = if frequency.is_empty() {
         json!("Kernel does not expose OPP residency counters.")
     } else {
         Value::Null
     };
-    Ok(Node::O(vec![
+    Ok(object(vec![
         (
             "top_cpu_threads".into(),
             list(by_ticks.iter().take(25).map(|o| o.node.clone()).collect()),
@@ -1070,17 +1065,14 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Node, E> {
             "cpu0_idle_exits_per_second".into(),
             float_or_null(exits.map(|e| e as f64 / duration)),
         ),
-        (
-            "frequency_residency".into(),
-            Node::V(Value::Array(frequency)),
-        ),
-        ("frequency_reason".into(), Node::V(frequency_reason)),
-        ("scheduler".into(), Node::O(scheduler)),
+        ("frequency_residency".into(), plain(Value::Array(frequency))),
+        ("frequency_reason".into(), plain(frequency_reason)),
+        ("scheduler".into(), object(scheduler)),
         ("wakeup_sources".into(), list(wakes)),
-        ("wakeups_per_second".into(), Node::V(Value::Null)),
+        ("wakeups_per_second".into(), plain(Value::Null)),
         (
             "wakeups_reason".into(),
-            Node::V(json!(
+            plain(json!(
                 "Context switches and IRQs are proxies; they are not independent unique CPU wakes."
             )),
         ),
@@ -1107,15 +1099,15 @@ fn run(root: &Root, args: &Args) -> Result<(), E> {
     let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
     // SAFETY: getrusage into a zeroed rusage.
     unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut usage) };
-    let result = Node::O(vec![
-        ("schema".into(), Node::V(json!("org.y2linux.power-audit/v2"))),
-        ("state".into(), Node::V(json!(args.state))),
-        ("duration_seconds".into(), Node::V(json!(duration))),
+    let result = object(vec![
+        ("schema".into(), plain(json!("org.y2linux.power-audit/v2"))),
+        ("state".into(), plain(json!(args.state))),
+        ("duration_seconds".into(), plain(json!(duration))),
         (
             "undisturbed_sleep_seconds".into(),
-            Node::V(json!(measured_end - measured_start)),
+            plain(json!(measured_end - measured_start)),
         ),
-        ("same_boot".into(), Node::V(json!(a.boot_id == b.boot_id))),
+        ("same_boot".into(), plain(json!(a.boot_id == b.boot_id))),
         ("start".into(), sample_node(&a)),
         ("end".into(), sample_node(&b)),
         ("state_start".into(), state_start),
@@ -1123,18 +1115,18 @@ fn run(root: &Root, args: &Args) -> Result<(), E> {
         ("summary".into(), summary),
         (
             "observer".into(),
-            Node::O(vec![
-                ("pid".into(), Node::V(json!(std::process::id()))),
-                ("total_cpu_seconds".into(), Node::V(json!(process_time() - cpu_start))),
-                ("counter_cpu_seconds".into(), Node::V(json!(a.cpu + b.cpu))),
+            object(vec![
+                ("pid".into(), plain(json!(std::process::id()))),
+                ("total_cpu_seconds".into(), plain(json!(process_time() - cpu_start))),
+                ("counter_cpu_seconds".into(), plain(json!(a.cpu + b.cpu))),
                 (
                     "counter_collection_seconds".into(),
-                    Node::V(json!(a.collection + b.collection)),
+                    plain(json!(a.collection + b.collection)),
                 ),
-                ("max_rss_kib".into(), Node::V(json!(usage.ru_maxrss))),
+                ("max_rss_kib".into(), plain(json!(usage.ru_maxrss))),
                 (
                     "note".into(),
-                    Node::V(json!(
+                    plain(json!(
                         "Endpoint counter skew is bounded by collection time; descriptions are outside the window."
                     )),
                 ),

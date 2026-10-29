@@ -10,67 +10,15 @@ use std::{
     os::unix::fs::{MetadataExt, OpenOptionsExt},
 };
 use y2p_contract::BootStage;
+use y2p_core::mounts::{mountinfo, Mount};
 use y2p_core::{
     clock,
-    json::{dumps, Ordered, Separators},
+    json::{dumps, Object, ObjectExt, Separators},
     py::{number, truthy},
     Root,
 };
 
 const RESET_STATUS: &str = "/sys/firmware/y2_pm/reset_status";
-
-/// One mountinfo line (`observe.mountinfo`).
-pub struct Mount {
-    pub path: String,
-    pub source: String,
-}
-
-fn unescape(value: &str) -> String {
-    let (mut out, mut rest) = (String::new(), value);
-    while let Some(index) = rest.find('\\') {
-        out.push_str(&rest[..index]);
-        let code = &rest[index + 1..];
-        match ["040", "011", "012", "134"]
-            .iter()
-            .find(|c| code.starts_with(**c))
-        {
-            Some(c) => {
-                out.push(char::from(u8::from_str_radix(c, 8).expect("octal")));
-                rest = &code[3..];
-            }
-            None => {
-                out.push('\\');
-                rest = code;
-            }
-        }
-    }
-    out + rest
-}
-
-pub fn mountinfo(text: &str) -> Vec<Mount> {
-    let mut result = Vec::new();
-    for line in text.lines() {
-        let Some((left, right)) = line.split_once(" - ") else {
-            continue;
-        };
-        let (a, b): (Vec<&str>, Vec<&str>) = (
-            left.split_whitespace().collect(),
-            right.split_whitespace().collect(),
-        );
-        if a.len() < 6
-            || b.len() < 3
-            || !a[0].chars().all(|c| c.is_ascii_digit())
-            || a[0].is_empty()
-        {
-            continue;
-        }
-        result.push(Mount {
-            path: unescape(a[4]),
-            source: unescape(b[1]),
-        });
-    }
-    result
-}
 
 /// `re.findall(r'(\w+)=(\S+)', text)` into a dict (a later key wins).
 fn fields(text: &str) -> Map<String, Value> {
@@ -233,7 +181,7 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
     private_directory(&directory)?;
     let _lock = lock(&directory.join(".boot.lock"))?;
     let boot_id = root
-        .read("/proc/sys/kernel/random/boot_id")
+        .boot_id()
         .filter(|b| !b.is_empty())
         .ok_or_else(|| Failure::value("boot_id_unavailable"))?;
     let previous = root.json("/data/system/platform/boot.json");
@@ -265,7 +213,7 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
         .size()
         < 8192
     {
-        let line = Ordered::new()
+        let line = Object::new()
             .with("stage", stage.as_str())
             .with("monotonic_s", clock::monotonic());
         let text = dumps(&line, Separators::Spaced).map_err(Failure::value)? + "\n";

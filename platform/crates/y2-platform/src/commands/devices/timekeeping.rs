@@ -9,7 +9,7 @@ use crate::{
 use serde_json::{json, Map, Value};
 use y2p_core::{
     clock, command,
-    json::Ordered,
+    json::{Object, ObjectExt},
     py::{self, is_true, number, truthy},
     Root,
 };
@@ -20,10 +20,6 @@ fn boottime() -> f64 {
 
 fn floor(root: &Root) -> Option<i64> {
     root.integer("/etc/y2linux/build-epoch")
-}
-
-fn boot_id(root: &Root) -> Option<String> {
-    root.read("/proc/sys/kernel/random/boot_id")
 }
 
 /// `timekeeping.drift` (as time.rs).
@@ -41,7 +37,7 @@ fn drift(anchor: &Map<String, Value>, now: f64, monotonic: f64, elapsed: f64) ->
 }
 
 /// `timekeeping.status(ctx, now=epoch)`: the status `time` prints, at the owner's time.
-fn status_at(root: &Root, now: i64) -> Ordered {
+fn status_at(root: &Root, now: i64) -> Object {
     let (monotonic, elapsed) = (clock::monotonic(), boottime());
     let floor = floor(root);
     let valid = plausible(now as f64, floor);
@@ -50,13 +46,13 @@ fn status_at(root: &Root, now: i64) -> Ordered {
         number(anchor.get("monotonic_s")),
         number(anchor.get("epoch")),
     );
-    let coherent = anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot_id(root))
+    let coherent = anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(root.boot_id())
         && wall_anchor.is_some()
         && stamp.is_some_and(|stamp| (0.0..=86_400.0).contains(&(monotonic - stamp)))
         && drift(&anchor, now as f64, monotonic, elapsed).abs() <= 60.0;
     let source = anchor.get("source").cloned().unwrap_or(Value::Null);
     let ready = valid && coherent && matches!(source.as_str(), Some("ntp" | "retained_rtc"));
-    Ordered::new()
+    Object::new()
         .with("schema", 1)
         .with("clock_sane", valid)
         .with("tls_ready", ready)
@@ -86,7 +82,7 @@ fn status_at(root: &Root, now: i64) -> Ordered {
 
 /// `timekeeping.rtc_write` (as time.rs): a source-backed default or an owner receipt admits normal
 /// NTP -> RTC synchronization. Mutable owner policy still takes precedence.
-fn rtc_write(root: &Root, value: &mut Ordered) {
+fn rtc_write(root: &Root, value: &mut Object) {
     let rtc = match root.json("/data/system/platform/rtc-policy.json") {
         Some(Value::Object(map)) => map,
         _ => root.json_object("/etc/y2linux/rtc-policy.json"),
@@ -109,7 +105,7 @@ pub fn set_manual(root: &Root, epoch: i64) -> Outcome {
         // `except (ValueError, OSError)`: anything else leaves the command.
         Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
-            &Ordered::new()
+            &Object::new()
                 .with("state", "Failed")
                 .with("failure", error.message()),
             1,
@@ -117,7 +113,7 @@ pub fn set_manual(root: &Root, epoch: i64) -> Outcome {
     }
 }
 
-fn set_manual_inner(root: &Root, epoch: i64) -> Result<Ordered, Failure> {
+fn set_manual_inner(root: &Root, epoch: i64) -> Result<Object, Failure> {
     if !plausible(epoch as f64, floor(root)) {
         return Err(Failure::value("date_out_of_range"));
     }
@@ -129,7 +125,7 @@ fn set_manual_inner(root: &Root, epoch: i64) -> Result<Ordered, Failure> {
     // "ntp").
     let anchor = root.json_object("/run/y2/time.json");
     if anchor.get("source").and_then(Value::as_str) == Some("ntp")
-        && anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot_id(root))
+        && anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(root.boot_id())
     {
         return Err(Failure::value("network_time_active"));
     }
@@ -137,9 +133,9 @@ fn set_manual_inner(root: &Root, epoch: i64) -> Result<Ordered, Failure> {
     if !command::run(root, &["/bin/busybox", "date", "-u", "-s", &set], 3.0).ok {
         return Err(Failure::value("date_not_set"));
     }
-    let mut value = Ordered::new()
+    let mut value = Object::new()
         .with("schema", 1)
-        .with("boot_id", json!(boot_id(root)))
+        .with("boot_id", json!(root.boot_id()))
         .with("epoch", epoch)
         .with("monotonic_s", clock::monotonic())
         .with("boottime_s", boottime())
@@ -225,9 +221,9 @@ pub fn bootstrap(root: &Root) -> Outcome {
         }
         source
     };
-    let value = Ordered::new()
+    let value = Object::new()
         .with("schema", 1)
-        .with("boot_id", json!(boot_id(root)))
+        .with("boot_id", json!(root.boot_id()))
         .with("epoch", now)
         .with("monotonic_s", clock::monotonic())
         .with("boottime_s", boottime())
@@ -266,9 +262,9 @@ pub fn alarm(root: &Root, seconds: i64) -> Outcome {
         write_text(&path, "0\n")?;
         return Err(Failure::value("rtc_alarm_readback_mismatch"));
     }
-    let value = Ordered::new()
+    let value = Object::new()
         .with("schema", 1)
-        .with("boot_id", json!(boot_id(root)))
+        .with("boot_id", json!(root.boot_id()))
         .with(
             "alarm_epoch",
             if target != 0 {

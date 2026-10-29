@@ -2,10 +2,11 @@
 //! charger engine refuses system sleep.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::power_json::Json;
 
-fn field<'a>(value: &'a Object, key: &str) -> &'a Json {
-    value.get(key).unwrap_or(&Json::Null)
+use serde_json::Value;
+
+fn field<'a>(value: &'a Object, key: &str) -> &'a Value {
+    value.get(key).unwrap_or(&Value::Null)
 }
 
 #[test]
@@ -26,14 +27,14 @@ fn charger_presence_is_not_charging() {
             &classify(Some(hold), true, Some("Not charging")),
             "expect_refusal"
         ),
-        &Json::Bool(false)
+        &Value::Bool(false)
     );
     let active = hold
         .replace("phase=HOLD", "phase=CONSTANT_CURRENT")
         .replace("active=0", "active=1");
     let charging = classify(Some(&active), true, Some("Charging"));
-    assert_eq!(field(&charging, "expect_refusal"), &Json::Bool(true));
-    assert_eq!(field(&charging, "phase_consistent"), &Json::Bool(true));
+    assert_eq!(field(&charging, "expect_refusal"), &Value::Bool(true));
+    assert_eq!(field(&charging, "phase_consistent"), &Value::Bool(true));
     let failed = hold.replace("stop_error=0", "stop_error=-5");
     assert_eq!(
         category(&failed, true, "Not charging"),

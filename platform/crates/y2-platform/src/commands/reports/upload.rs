@@ -10,7 +10,7 @@
 //! like any other (its argv carries the headers, so the differential tests compare them).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    boot_id, build, clock, json_dict, or_dict,
+    build, clock, json_dict, or_dict,
     pyjson::{self, py_str, Py},
     pyops,
     state::{self, QUEUE},
@@ -57,7 +57,7 @@ pub fn queue(
     let trigger = &triggers[0];
     let now = clock::Instant::now();
     let day = clock::date(now);
-    let boot = boot_id(root).unwrap_or_default();
+    let boot = root.boot_id().unwrap_or_default();
     // `{k: v for k, v in value['daily'].items() if k == day}`.
     let daily = match value.get("daily").cloned().unwrap_or(Py::None) {
         Py::Dict(items) => items.into_iter().filter(|(k, _)| *k == day).collect(),
@@ -170,7 +170,7 @@ fn upload_blocked(root: &Root) -> Result<Option<&'static str>, Failure> {
     if !matches!(state::state(root).get("enabled"), Some(Py::Bool(true))) {
         return Ok(Some("not_enabled"));
     }
-    let boot: Py = boot_id(root).into();
+    let boot: Py = root.boot_id().into();
     let network = or_dict(json_dict(root, "/run/y2/network.json"));
     if !network
         .get("state")

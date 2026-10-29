@@ -8,21 +8,18 @@ use serde_json::{json, Map, Value};
 use std::{env, fs, os::unix::fs::PermissionsExt, path::Path};
 use y2p_core::{
     clock, command,
-    json::Ordered,
+    json::{sorted_object, Object, ObjectExt},
     power_text::python_split,
     py::{self, is_true, truthy},
     Root,
 };
 
 /// `publish(ctx, name, value)`: `value.update(schema, boot_id, monotonic_s)` and the runtime record.
-pub(crate) fn publish(root: &Root, name: &str, mut value: Ordered) -> Result<Ordered, Failure> {
+pub(crate) fn publish(root: &Root, name: &str, mut value: Object) -> Result<Object, Failure> {
     private_directory(&root.path("/run/y2"))?;
     value
         .set("schema", 1)
-        .set(
-            "boot_id",
-            json!(root.read("/proc/sys/kernel/random/boot_id")),
-        )
+        .set("boot_id", json!(root.boot_id()))
         .set("monotonic_s", clock::monotonic());
     atomic_json(&root.path(&format!("/run/y2/{name}.json")), &value, false)?;
     Ok(value)
@@ -94,9 +91,7 @@ pub fn wifi_event(root: &Root, event: &str) -> Outcome {
     write_text(&runtime.join("wifi-epoch"), &format!("{epoch}\n"))?;
     unlink_missing_ok(&runtime.join("dns.json"))?;
     let mut old = root.json_object("/run/y2/wifi-events.json");
-    if old.get("boot_id").cloned().unwrap_or(Value::Null)
-        != json!(root.read("/proc/sys/kernel/random/boot_id"))
-    {
+    if old.get("boot_id").cloned().unwrap_or(Value::Null) != json!(root.boot_id()) {
         old = Map::new();
     }
     let active = match old.get("association_active") {
@@ -105,7 +100,7 @@ pub fn wifi_event(root: &Root, event: &str) -> Outcome {
     };
     // Action calls include supervisory cleanup as well as native link events. Keep their historical
     // raw counts, but count a real loss only once after a known connection.
-    let mut record = Ordered::from_map(&old);
+    let mut record = sorted_object(&old);
     if record.get("link_counts_since_s").is_none() {
         record.set("link_counts_since_s", clock::monotonic());
     }
@@ -140,7 +135,7 @@ pub fn wifi_event(root: &Root, event: &str) -> Outcome {
         command::run(root, argv, command::TIMEOUT);
     }
     resolv(root, &[])?;
-    let state = Ordered::new()
+    let state = Object::new()
         .with("epoch", epoch)
         .with(
             "state",
@@ -305,8 +300,7 @@ fn renews(
         .collect();
     previous.get("state") == Some(&json!("Authenticated"))
         && previous.get("epoch").and_then(Value::as_str) == epoch
-        && previous.get("boot_id").and_then(Value::as_str)
-            == root.read("/proc/sys/kernel/random/boot_id").as_deref()
+        && previous.get("boot_id").and_then(Value::as_str) == root.boot_id().as_deref()
         && address.is_some_and(|a| previous.get("address") == Some(&json!(a)))
         && servers.is_some_and(|s| previous.get("dns_servers") == Some(&json!(s)))
 }
@@ -331,7 +325,7 @@ pub fn dhcp_event(root: &Root, event: &str) -> Outcome {
     if !(event == "renew" && renews(root, &previous, epoch.as_deref(), &var)) {
         unlink_missing_ok(&runtime.join("dns.json"))?;
     }
-    let mut state = Ordered::new()
+    let mut state = Object::new()
         .with("epoch", json!(epoch))
         .with("state", "AcquiringIP")
         .with("error", Value::Null)

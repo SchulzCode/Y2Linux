@@ -1,30 +1,99 @@
 //! Device paths below a root: `/` on the player, a fixture tree in tests (`Y2_ROOT`, as Python's
 //! `Context(root)`).
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::{
+    clock::{Clock, Kernel},
+    command::{FixtureFiles, Outcome, Processes, Runner, Scripted},
+};
 use serde_json::Value;
 use std::{
-    env,
+    env, fmt,
     fs::File,
     io::Read,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 /// `ctx.read`'s default limit in characters.
 pub const READ_LIMIT: usize = 131_072;
 
-#[derive(Clone, Debug)]
+/// Where the platform's device paths are, and what answers its subprocess requests and clock reads:
+/// the player's own (`Root::new("/")`), or a fixture's. Tests inject their own runner and clock here
+/// instead of patching process-wide state.
+#[derive(Clone)]
 pub struct Root {
     base: PathBuf,
+    runner: Arc<dyn Runner>,
+    clock: Arc<dyn Clock>,
+}
+
+impl fmt::Debug for Root {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Root").field("base", &self.base).finish()
+    }
 }
 
 impl Root {
+    /// The device paths below `base`: the player's processes at `/`, the fixture answers
+    /// (`Y2_FIXTURE_COMMANDS`, `Y2_FIXTURE_CALLS`) below any other base; the kernel clocks.
     pub fn new(base: impl Into<PathBuf>) -> Self {
-        Self { base: base.into() }
+        let base = base.into();
+        let runner: Arc<dyn Runner> = if base == Path::new("/") {
+            Arc::new(Processes)
+        } else {
+            Arc::new(FixtureFiles)
+        };
+        Self {
+            base,
+            runner,
+            clock: Arc::new(Kernel),
+        }
     }
 
     /// The real root, or the fixture tree a host test names in `Y2_ROOT`.
     pub fn from_env() -> Self {
         Self::new(env::var_os("Y2_ROOT").map_or_else(|| PathBuf::from("/"), PathBuf::from))
+    }
+
+    /// A fixture tree for a test (as `new`; a base of `/` would be the player itself).
+    pub fn fixture(base: impl Into<PathBuf>) -> Self {
+        let root = Self::new(base);
+        assert!(!root.is_real(), "a fixture root is not the player's");
+        root
+    }
+
+    /// This root with its subprocess requests answered by `runner`.
+    pub fn with_runner(mut self, runner: Arc<dyn Runner>) -> Self {
+        self.runner = runner;
+        self
+    }
+
+    /// This root with its requests answered from `answers` (argv → outcome, anything else
+    /// `fixture`) and recorded: `calls()` returns them.
+    pub fn with_answers(self, answers: Vec<(Vec<String>, Outcome)>) -> Self {
+        self.with_runner(Arc::new(Scripted::answers(answers)))
+    }
+
+    /// This root with its clock reads answered by `clock`.
+    pub fn with_clock(mut self, clock: Arc<dyn Clock>) -> Self {
+        self.clock = clock;
+        self
+    }
+
+    /// What answers this root's subprocess requests (`command::run`).
+    pub fn runner(&self) -> &dyn Runner {
+        &*self.runner
+    }
+
+    /// The requests this root's runner recorded (argv, timeout); none for the player's or the
+    /// fixture files' runner (those go to `Y2_FIXTURE_CALLS`).
+    pub fn calls(&self) -> Vec<(Vec<String>, f64)> {
+        self.runner.calls()
+    }
+
+    /// The clocks this root reads.
+    pub fn clock(&self) -> &dyn Clock {
+        &*self.clock
     }
 
     /// Whether this is the player's own root; fixture roots never run device commands.
@@ -45,6 +114,12 @@ impl Root {
 
     pub fn read(&self, name: &str) -> Option<String> {
         self.read_limited(name, READ_LIMIT)
+    }
+
+    /// `ctx.read('/proc/sys/kernel/random/boot_id')`: this boot's id, which records carry to tell a
+    /// fact of this boot from one a restart left behind (`None` when unreadable; as a value, null).
+    pub fn boot_id(&self) -> Option<String> {
+        self.read("/proc/sys/kernel/random/boot_id")
     }
 
     /// `ctx.integer`: Python `int()` of the stripped text.

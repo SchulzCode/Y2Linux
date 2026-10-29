@@ -3,14 +3,15 @@
 use super::{
     bluetooth, system,
     util::{
-        self, counters, eq, findall_map, fresh_seconds, get_eq, int, is_int, key_values, name,
-        number, parent_name, read, read_limited, reads_by_name, realpath, split_ws, splitlines,
-        text,
+        self, counters, findall_map, fresh_seconds, get_eq, int, is_int, key_values, name, number,
+        parent_name, read, read_limited, reads_by_name, realpath, split_ws, splitlines, text,
     },
 };
 use crate::{regex, reply::Failure};
 use serde_json::{json, Map, Value};
 use std::path::Path;
+use y2p_core::mounts::Mount;
+use y2p_core::py::PyValue;
 use y2p_core::{
     clock, command,
     json::{dumps_sorted, Separators},
@@ -20,53 +21,6 @@ use y2p_core::{
 };
 
 pub type Snapshot = Map<String, Value>;
-
-/// `observe.mountinfo`: every field, as the snapshot shows it.
-pub fn mountinfo(text: Option<&str>) -> Vec<Map<String, Value>> {
-    let mut result = Vec::new();
-    for line in splitlines(text.unwrap_or_default()) {
-        let (left, right) = line.split_once(" - ").unwrap_or((line, ""));
-        let (a, b) = (split_ws(left), split_ws(right));
-        if !line.contains(" - ")
-            || a.len() < 6
-            || b.len() < 3
-            || !a[0].chars().all(|c| c.is_ascii_digit())
-        {
-            continue;
-        }
-        let Some(mount_id) = int(a[0]) else { continue };
-        let list = |s: &str| Value::from(s.split(',').collect::<Vec<_>>());
-        let mut mount = Map::new();
-        mount.insert("mount_id".into(), json!(mount_id));
-        mount.insert("device_id".into(), json!(a[2]));
-        mount.insert("root".into(), json!(unescape(a[3])));
-        mount.insert("path".into(), json!(unescape(a[4])));
-        mount.insert("options".into(), list(a[5]));
-        mount.insert("filesystem".into(), json!(b[0]));
-        mount.insert("source".into(), json!(unescape(b[1])));
-        mount.insert("super_options".into(), list(b[2]));
-        result.push(mount);
-    }
-    result
-}
-
-fn unescape(value: &str) -> String {
-    regex!(r"\\(040|011|012|134)")
-        .replace_all(
-            value,
-            |c: &y2p_core::observation_support::regex::Captures| {
-                char::from(u8::from_str_radix(&c[1], 8).expect("octal")).to_string()
-            },
-        )
-        .into_owned()
-}
-
-pub fn mounts_at<'a>(mounts: &'a [Map<String, Value>], path: &str) -> Vec<&'a Map<String, Value>> {
-    mounts
-        .iter()
-        .filter(|m| m.get("path").and_then(Value::as_str) == Some(path))
-        .collect()
-}
 
 pub fn field<'a>(mount: &'a Map<String, Value>, key: &str) -> &'a str {
     mount.get(key).and_then(Value::as_str).unwrap_or_default()
@@ -941,7 +895,7 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
         supplies.push(Value::Object(supply));
     }
     let mut policy = root.json_object("/run/y2/power.json");
-    let boot = util::boot_id(root);
+    let boot = Value::from(root.boot_id());
     let fresh = is_int(policy.get("monotonic_ns"))
         .is_some_and(|t| (0..5_000_000_000).contains(&(i128::from(clock::monotonic_ns()) - t)));
     if !get_eq(&policy, "boot_id", &boot) || !fresh {
@@ -966,10 +920,7 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
         let product = util::py_dict(product)?;
         receipt.insert("product".into(), Value::Object(product));
     }
-    let sleep = super::super::sleep::product(
-        &receipt,
-        root.read("/proc/sys/kernel/random/boot_id").as_deref(),
-    )?;
+    let sleep = super::super::sleep::product(&receipt, root.boot_id().as_deref())?;
     Ok(json!({
         "supplies": supplies, "units": {"voltage": "uV", "configured_current": "uA"},
         "battery": battery.clone(),
@@ -1086,23 +1037,14 @@ fn media_identity(entry: &Path, filesystem: &Value, uuid: &Value) -> Value {
     identity
 }
 
-fn statvfs(path: &Path) -> Option<libc::statvfs64> {
-    let name = std::ffi::CString::new(path.as_os_str().as_encoded_bytes()).ok()?;
-    let mut vfs = std::mem::MaybeUninit::<libc::statvfs64>::uninit();
-    // SAFETY: a NUL-terminated path and a buffer for the result.
-    (unsafe { libc::statvfs64(name.as_ptr(), vfs.as_mut_ptr()) } == 0)
-        // SAFETY: statvfs filled it.
-        .then(|| unsafe { vfs.assume_init() })
-}
-
 pub fn storage(root: &Root) -> Result<Value, Failure> {
-    let mounts = mountinfo(root.read("/proc/self/mountinfo").as_deref());
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let mounts = y2p_core::mounts::mounts(root);
+    let boot = root.boot_id();
     let boot_value = text(boot.clone());
     let mut volumes = Vec::new();
     // Index order is a consumer contract: root, Y2DATA, SD, then Y2Media (internal user media).
     for target in ["/", "/data", "/media/sd", "/media/internal"] {
-        let found = mounts_at(&mounts, target);
+        let found: Vec<&Mount> = mounts.iter().filter(|m| m.path == target).collect();
         // Stacked mounts are ambiguous to consumers; fail closed.
         if found.len() != 1 {
             let mut volume: Map<String, Value> = serde_json::from_value(json!({"path": target,
@@ -1115,7 +1057,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
             volumes.push(Value::Object(volume));
             continue;
         }
-        let mut item = found[0].clone();
+        let mut item = found[0].value();
         let device_id = field(&item, "device_id").to_owned();
         let mount_id = item.get("mount_id").cloned().unwrap_or(Value::Null);
         item.insert(
@@ -1182,7 +1124,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
                 }
                 let claimed = claim.get("identity").filter(|v| !v.is_null());
                 if state == "Ready"
-                    && (identity.is_null() || claimed.is_some_and(|c| !eq(c, &identity)))
+                    && (identity.is_null() || claimed.is_some_and(|c| !c.py_eq(&identity)))
                 {
                     (state, reason) = ("Failed", Some("media_identity_changed_or_missing"));
                 }
@@ -1207,21 +1149,21 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
         if target == "/media/sd" {
             item.insert("writable".into(), json!(!readonly));
         }
-        match statvfs(&root.path(target)) {
+        match y2p_core::sys::statvfs(&root.path(target)).ok() {
             Some(vfs) => {
-                let frsize = i128::from(vfs.f_frsize);
-                let total = i128::from(vfs.f_blocks) * frsize;
-                let available = i128::from(vfs.f_bavail) * frsize;
+                let frsize = i128::from(vfs.frsize);
+                let total = i128::from(vfs.blocks) * frsize;
+                let available = i128::from(vfs.bavail) * frsize;
                 item.insert("total_bytes".into(), json!(total as u64));
                 item.insert("available_bytes".into(), json!(available as u64));
                 item.insert(
                     "free_bytes".into(),
-                    json!((i128::from(vfs.f_bfree) * frsize) as u64),
+                    json!((i128::from(vfs.bfree) * frsize) as u64),
                 );
-                item.insert("available_inodes".into(), json!(vfs.f_favail));
+                item.insert("available_inodes".into(), json!(vfs.favail));
                 let mut space =
                     space_state(available, total, readonly && !protected, state == "Failed");
-                if vfs.f_files > 0 && vfs.f_favail == 0 {
+                if vfs.files > 0 && vfs.favail == 0 {
                     space = "CriticalSpace";
                 }
                 item.insert("space_state".into(), json!(space));
@@ -1380,17 +1322,6 @@ fn wifi_state(
     (s("Online"), Value::Null)
 }
 
-/// What a `for` loop over a parsed JSON value yields: a list's items, a dict's keys, a str's
-/// characters (as str values); None where iterating raises TypeError (a number, bool or None).
-fn iterate(value: &Value) -> Option<Vec<Value>> {
-    match value {
-        Value::Array(items) => Some(items.clone()),
-        Value::Object(map) => Some(map.keys().map(|k| json!(k)).collect()),
-        Value::String(s) => Some(s.chars().map(|c| json!(c.to_string())).collect()),
-        _ => None,
-    }
-}
-
 /// The global addresses of `ip -j -4 addr`, as Python's comprehension reads them: Ok(None) where it
 /// raises what `wifi` catches (ValueError, TypeError, KeyError), the AttributeError of `.get` on an
 /// item that is no dict (a dict's key, a str's character, a list, a number) as Python's crash.
@@ -1399,7 +1330,7 @@ fn addresses(output: Option<&str>) -> Result<Option<Vec<Value>>, Failure> {
     let Ok(parsed) = serde_json::from_str::<Value>(text) else {
         return Ok(None);
     };
-    let Some(links) = iterate(&parsed) else {
+    let Some(links) = y2p_core::py::iterate(&parsed) else {
         return Ok(None); // not iterable: TypeError
     };
     let mut found = Vec::new();
@@ -1409,7 +1340,7 @@ fn addresses(output: Option<&str>) -> Result<Option<Vec<Value>>, Failure> {
         };
         let infos = match link.get("addr_info") {
             None => Vec::new(),
-            Some(value) => match iterate(value) {
+            Some(value) => match y2p_core::py::iterate(value) {
                 Some(items) => items,
                 None => return Ok(None),
             },
@@ -1441,7 +1372,7 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
             .into_iter()
             .map(|(k, v)| (k, Value::String(v)))
             .collect();
-    let boot = util::boot_id(root);
+    let boot = Value::from(root.boot_id());
     let failure = root.json_object("/run/y2/wifi-failure.json");
     if get_eq(&failure, "boot_id", &boot)
         && fresh_seconds(failure.get("monotonic_s"), 120.0)
@@ -1551,7 +1482,7 @@ pub fn wifi(root: &Root) -> Result<Value, Failure> {
     Ok(json!({
         "state": state, "reason": reason, "radio_present": radio,
         // The saved network whose password failed (wpa_supplicant's id).
-        "failed_network_id": if state == "Failed" && eq(&reason, &credential) { failed_network } else { Value::Null },
+        "failed_network_id": if state == "Failed" && reason.py_eq(&credential) { failed_network } else { Value::Null },
         // A missed control query does not prove a radio disconnect. Preserve the actual failure and
         // latency separately from event counters.
         "supplicant_observation": {"ok": wpa.as_ref().map(|w| w.ok),
@@ -1620,7 +1551,7 @@ fn readiness(status: &Snapshot) -> Result<Value, Failure> {
         Some(state @ (Value::Array(_) | Value::Object(_))) => {
             return Err(Failure::type_error(format!(
                 "unhashable type: '{}'",
-                util::type_name(state)
+                PyValue::type_name(state)
             )))
         }
         Some(Value::String(s)) => match s.as_str() {
@@ -1738,11 +1669,11 @@ mod tests {
 
     #[test]
     fn mount_lines_carry_every_field() {
-        let mounts = mountinfo(Some(
+        let mounts = y2p_core::mounts::mountinfo(
             "30 22 179:9 / /data rw,noatime - ext4 /dev/mmcblk0p9 rw\nx\n31 1 0:1 / /my\\040dir rw - tmpfs t rw",
-        ));
+        );
         assert_eq!(mounts.len(), 2);
-        assert_eq!(mounts[0]["options"], json!(["rw", "noatime"]));
-        assert_eq!(mounts[1]["path"], "/my dir");
+        assert_eq!(mounts[0].value()["options"], json!(["rw", "noatime"]));
+        assert_eq!(mounts[1].path, "/my dir");
     }
 }

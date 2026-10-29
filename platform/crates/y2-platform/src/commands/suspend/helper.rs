@@ -18,11 +18,11 @@ use super::{
         admission, application_starting, battery_and_cable, failed_before_freeze, guard_record,
         lock_holders, operation_state, retry_later, spm_state,
     },
-    py_eq,
     receipt::{self, record, wake_irqs, Stage},
     request, traceback, E, INTERRUPTED,
 };
 use serde_json::{Map, Value};
+use std::os::fd::{AsFd, BorrowedFd};
 use std::{
     fs::{File, OpenOptions},
     io::{self, Read},
@@ -34,6 +34,9 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
+use y2p_core::lock;
+use y2p_core::py::PyValue;
+use y2p_core::sys::{set_signal, Disposition, Handler};
 use y2p_core::{
     command,
     py::{is_true, truthy},
@@ -77,17 +80,9 @@ extern "C" fn alarm(_: libc::c_int) {
 }
 
 /// `signal.signal(sig, handler)` as CPython installs it (SA_ONSTACK, no SA_RESTART): the old action.
-fn install(sig: libc::c_int, handler: extern "C" fn(libc::c_int)) -> libc::sigaction {
-    // SAFETY: zeroed sigaction structs are valid; the handlers only store to atomics.
-    unsafe {
-        let mut action: libc::sigaction = std::mem::zeroed();
-        action.sa_sigaction = handler as usize;
-        action.sa_flags = libc::SA_ONSTACK;
-        libc::sigemptyset(&mut action.sa_mask);
-        let mut old: libc::sigaction = std::mem::zeroed();
-        libc::sigaction(sig, &action, &mut old);
-        old
-    }
+fn install(sig: libc::c_int, handler: extern "C" fn(libc::c_int)) -> Option<Disposition> {
+    // SAFETY: the handlers (stop, alarm) only store to atomics.
+    unsafe { set_signal(sig, Handler::Call(handler), libc::SA_ONSTACK) }.ok()
 }
 
 use super::{interrupted as check, MASKED};
@@ -152,21 +147,20 @@ pub fn main(root: &Root, args: &[String]) -> crate::reply::Outcome {
 
 /// Python's `os.path.samestat(os.fstat(fd), path.stat())`.
 fn inherited(root: &Root, fd: i32) -> Result<(), E> {
-    // SAFETY: fstat into a zeroed stat buffer.
-    let mut meta: libc::stat64 = unsafe { std::mem::zeroed() };
-    if unsafe { libc::fstat64(fd, &mut meta) } != 0 {
-        return Err(E::os(&io::Error::last_os_error(), None));
-    }
+    // SAFETY: the descriptor this programme was given stays open until it closes it after the run
+    // (one that is not open fails fstat with EBADF).
+    let inherited = unsafe { BorrowedFd::borrow_raw(fd) };
+    let meta = y2p_core::sys::fstat(inherited).map_err(|e| E::os(&e, None))?;
     let path = root.path("/run/y2/suspend.lock");
     let lock = std::fs::metadata(&path).map_err(|e| E::os(&e, Some(&path)))?;
-    if (meta.st_dev, meta.st_ino) != (lock.dev(), lock.ino()) {
+    if (meta.dev, meta.ino) != (lock.dev(), lock.ino()) {
         return Err(E::value("invalid_suspend_lock"));
     }
-    // SAFETY: flock on the inherited descriptor.
-    if unsafe { libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB) } != 0 {
-        return Err(E::os(&io::Error::last_os_error(), None));
+    match lock::try_fd(inherited, lock::Kind::Exclusive) {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(E::os(&lock::would_block(), None)),
+        Err(error) => Err(E::os(&error, None)),
     }
-    Ok(())
 }
 
 /// `time.monotonic()`.
@@ -465,17 +459,10 @@ fn operation_locks(root: &Root) -> Result<Vec<(&'static str, File)>, E> {
         let path = root.path(name);
         let parent = path.parent().unwrap_or(Path::new("/"));
         y2p_core::record::private_directory(parent).map_err(|e| E::os(&e, Some(parent)))?;
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .mode(0o600)
-            .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
-            .open(&path)
-            .map_err(|e| E::os(&e, Some(&path)))?;
-        match file.try_lock() {
-            Ok(()) => held.push((owner, file)),
-            Err(std::fs::TryLockError::WouldBlock) => {
+        let file = lock::open(&path).map_err(|e| E::os(&e, Some(&path)))?;
+        match lock::try_fd(file.as_fd(), lock::Kind::Exclusive) {
+            Ok(true) => held.push((owner, file)),
+            Ok(false) => {
                 let meta = file.metadata().map_err(|e| E::os(&e, None))?;
                 let holders = lock_holders(root, &meta);
                 let mut reason = owner.to_owned();
@@ -484,7 +471,7 @@ fn operation_locks(root: &Root) -> Result<Vec<(&'static str, File)>, E> {
                 }
                 return Err(E::refused(reason));
             }
-            Err(std::fs::TryLockError::Error(error)) => return Err(E::os(&error, None)),
+            Err(error) => return Err(E::os(&error, None)),
         }
     }
     Ok(held)
@@ -673,7 +660,7 @@ fn timer_only(value: &Map<String, Value>, spm: &Map<String, Value>) -> bool {
         && is_true(p.get("same_boot"))
         && spm.get("timer_wake").and_then(Value::as_str) == Some("1")
         && ["power", "rtc"].iter().all(|name| match before.get(*name) {
-            Some(b) => after.get(*name).is_some_and(|a| py_eq(a, b)),
+            Some(b) => after.get(*name).is_some_and(|a| a.py_eq(b)),
             None => false,
         })
 }
@@ -707,8 +694,9 @@ fn wakeup_count(root: &Root) -> Result<Option<String>, E> {
     timer(2);
     let result = read_count(root);
     timer(0);
-    // SAFETY: restore the previous action.
-    unsafe { libc::sigaction(libc::SIGALRM, &old, std::ptr::null_mut()) };
+    if let Some(old) = old {
+        old.restore(libc::SIGALRM);
+    }
     result
 }
 

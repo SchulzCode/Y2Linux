@@ -7,6 +7,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::crash;
 use crate::reply::{atomic_json, private_directory, Failure};
+use serde_json::Value;
 use std::{
     fs::{File, OpenOptions},
     io::Write,
@@ -15,9 +16,11 @@ use std::{
 };
 use y2p_core::{
     clock, command,
+    json::{Object, ObjectExt},
     power_identity::process_identity,
-    power_json::{self, Json, Object},
-    py, Root,
+    py,
+    py::PyValue,
+    Root,
 };
 
 // F39: the radio stop, one step per sub-command of the S41 script.
@@ -116,12 +119,12 @@ pub struct Coordinator {
 
 impl Coordinator {
     pub fn new(root: &Root) -> Coordinator {
-        let boot_id = root.read("/proc/sys/kernel/random/boot_id");
-        let previous = match power_json::read(root, "/run/y2/shutdown.json") {
-            Some(Json::Object(o)) => o,
+        let boot_id = root.boot_id();
+        let previous = match root.json("/run/y2/shutdown.json") {
+            Some(Value::Object(o)) => o,
             _ => Object::new(),
         };
-        let boot = Json::from(boot_id.clone());
+        let boot = Value::from(boot_id.clone());
         let one_of = |key: &str, choices: &[&str]| {
             previous
                 .get(key)
@@ -132,9 +135,9 @@ impl Coordinator {
             && one_of("action", &["poweroff", "reboot"])
             && previous
                 .get("deadline_monotonic_ns")
-                .and_then(Json::exact_int)
+                .and_then(Value::exact_int)
                 .is_some()
-            && previous.get("id").and_then(Json::as_str).is_some()
+            && previous.get("id").and_then(Value::as_str).is_some()
             && previous.contains_key("client")
             && previous.contains_key("acknowledgement");
         let mut intent = valid.then_some(previous);
@@ -142,7 +145,7 @@ impl Coordinator {
             if intent.value("state").is_str("Executing") {
                 // Continue the already requested transition after a daemon crash,
                 // retaining its original deadline. No new boot is auto-rebooted.
-                intent.insert("state", "ShutdownPending");
+                intent.set("state", "ShutdownPending");
             }
         }
         Coordinator {
@@ -165,7 +168,7 @@ impl Coordinator {
         self.intent
             .as_ref()
             .and_then(|i| i.get("deadline_monotonic_ns"))
-            .and_then(Json::exact_int)
+            .and_then(Value::exact_int)
             .map_or(0, i128::from)
     }
 
@@ -173,12 +176,17 @@ impl Coordinator {
         private_directory(&self.root.path("/run/y2"))?;
         atomic_json(
             &self.root.path("/run/y2/shutdown.json"),
-            &Json::from(self.intent.clone()),
+            &Value::from(self.intent.clone()),
             false,
         )
     }
 
-    pub fn request(&mut self, action: &Json, reason: &Json, grace: i64) -> Result<Object, Failure> {
+    pub fn request(
+        &mut self,
+        action: &Value,
+        reason: &Value,
+        grace: i64,
+    ) -> Result<Object, Failure> {
         let valid = ["poweroff", "reboot"].iter().any(|a| action.is_str(a))
             && ["user", "low_battery", "update", "service"]
                 .iter()
@@ -217,14 +225,19 @@ impl Coordinator {
                     "client",
                     process_identity(&self.root, "process", "/usr/bin/reborn"),
                 )
-                .with("acknowledgement", Json::Null)
-                .with("failure", Json::Null),
+                .with("acknowledgement", Value::Null)
+                .with("failure", Value::Null),
         );
         self.publish()?;
         Ok(self.intent.clone().expect("set"))
     }
 
-    pub fn ack(&mut self, request_id: &Json, pid: i64, outcome: &Json) -> Result<Object, Failure> {
+    pub fn ack(
+        &mut self,
+        request_id: &Value,
+        pid: i64,
+        outcome: &Value,
+    ) -> Result<Object, Failure> {
         let pending = self.intent.as_ref().is_some_and(|i| {
             i.value("state").is_str("ShutdownPending") && i.value("id").py_eq(request_id)
         });
@@ -233,8 +246,8 @@ impl Coordinator {
         }
         let current = process_identity(&self.root, "process", "/usr/bin/reborn");
         let same = current.as_ref().is_some_and(|c| {
-            Json::Object(c.clone()).py_eq(&self.intent.as_ref().expect("pending").value("client"))
-                && c.value("pid").py_eq(&Json::from(pid))
+            Value::Object(c.clone()).py_eq(&self.intent.as_ref().expect("pending").value("client"))
+                && c.value("pid").py_eq(&Value::from(pid))
         });
         if !same {
             return Err(Failure::value("ack_client_identity_changed"));
@@ -243,7 +256,7 @@ impl Coordinator {
             return Err(Failure::value("invalid_ack_outcome"));
         }
         let now = self.clock() as i64;
-        self.intent().insert(
+        self.intent().set(
             "acknowledgement",
             Object::new()
                 .with("outcome", outcome.clone())
@@ -266,12 +279,12 @@ impl Coordinator {
         // `bool(ack and ack['outcome'] == 'Ready')`: a resumed intent may carry anything here.
         match intent.value("acknowledgement") {
             ack if !ack.truthy() => false,
-            Json::Object(ack) => match ack.get("outcome") {
+            Value::Object(ack) => match ack.get("outcome") {
                 Some(outcome) => outcome.is_str("Ready"),
                 None => crash("KeyError: 'outcome'"),
             },
-            Json::Array(_) => crash("TypeError: list indices must be integers or slices, not str"),
-            Json::String(_) => crash("TypeError: string indices must be integers, not 'str'"),
+            Value::Array(_) => crash("TypeError: list indices must be integers or slices, not str"),
+            Value::String(_) => crash("TypeError: string indices must be integers, not 'str'"),
             other => crash(&format!(
                 "TypeError: '{}' object is not subscriptable",
                 other.type_name()
@@ -298,7 +311,7 @@ impl Coordinator {
     pub fn execute(&mut self) -> Result<Step, Failure> {
         // Only the actual daemon entry point calls this; fixture contexts can
         // never signal a host process or execute host power commands.
-        self.intent().insert("state", "Executing");
+        self.intent().set("state", "Executing");
         self.publish()?;
         let (action, reason) = {
             let intent = self.intent();
@@ -328,7 +341,7 @@ impl Coordinator {
         // otherwise restore the stale fbdev/console buffer on a lit panel.
         let ready = match self.intent().value("acknowledgement") {
             ack if !ack.truthy() => false,
-            Json::Object(ack) => ack.value("outcome").is_str("Ready"),
+            Value::Object(ack) => ack.value("outcome").is_str("Ready"),
             other => crash(&format!(
                 "AttributeError: '{}' object has no attribute 'get'",
                 other.type_name()
@@ -396,14 +409,14 @@ impl Coordinator {
         }
         let mut stop_results = Object::new();
         for (name, step) in &results {
-            stop_results.insert(
+            stop_results.set(
                 name,
                 Object::new()
                     .with("ok", step.ok)
                     .with("reason", step.reason.clone()),
             );
         }
-        self.intent().insert("stop_results", stop_results);
+        self.intent().set("stop_results", stop_results);
         self.publish()?;
         // BusyBox init owns rcK, unmount and final reboot(2). Never use -f.
         let action = action.as_str().unwrap_or_default().to_owned();
@@ -414,8 +427,8 @@ impl Coordinator {
         );
         if !result.ok {
             self.intent()
-                .insert("state", "Failed")
-                .insert("failure", "init_shutdown_request_failed");
+                .set("state", "Failed")
+                .set("failure", "init_shutdown_request_failed");
             self.publish()?;
         }
         // The watchdog stays armed and is fed no more (this daemon's exit at
@@ -502,7 +515,7 @@ impl Coordinator {
 
 /// SIGKILL through a pidfd, after checking the identity once more (only on the real root).
 fn kill(root: &Root, name: &str, executable: &str, identity: &Object) {
-    let Some(pid) = identity.get("pid").and_then(Json::exact_int) else {
+    let Some(pid) = identity.get("pid").and_then(Value::exact_int) else {
         return;
     };
     // SAFETY: pidfd_open takes a pid and flags and returns a new fd or -1.

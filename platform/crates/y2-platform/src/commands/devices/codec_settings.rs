@@ -9,8 +9,9 @@ use crate::{
 };
 use serde::Serialize;
 use serde_json::{json, Value};
+use y2p_core::py::PyValue;
 use y2p_core::{
-    json::Ordered,
+    json::{sorted, Object, ObjectExt},
     py::{is_true, truthy},
     Root,
 };
@@ -61,7 +62,7 @@ pub fn configure(root: &Root, changes: Changes) -> Outcome {
         // `except (ValueError, OSError)`: anything else leaves the command.
         Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
-            &Ordered::new()
+            &Object::new()
                 .with("schema", SCHEMA)
                 .with("failure", error.message()),
             1,
@@ -107,12 +108,12 @@ fn configure_inner(root: &Root, changes: Changes) -> Result<Status, Failure> {
 #[derive(Serialize)]
 struct Status {
     schema: &'static str,
-    requested: Ordered,
+    requested: Object,
     effective: Value,
     effective_scope: &'static str,
     pending_restart: bool,
     apply_action: &'static str,
-    supported: Ordered,
+    supported: Object,
 }
 
 impl Status {
@@ -129,7 +130,7 @@ fn status(root: &Root) -> Result<Status, Failure> {
     let policy = validate(requested(root)?)?;
     let inventory = root.json_object("/etc/y2linux/bluetooth-codecs.json");
     let applied = root.json_object("/run/y2/codec-runtime.json");
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let boot = root.boot_id();
     // This receipt records startup arguments, never endpoint/negotiation success.
     let pid = root.integer("/run/y2/bluealsa.pid");
     let command = match pid {
@@ -146,15 +147,16 @@ fn status(root: &Root) -> Result<Status, Failure> {
     let same_boot = applied.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot)
         && boot.as_deref().is_some_and(|b| !b.is_empty());
     let effective = if live && same_boot {
-        applied.get("settings").cloned().unwrap_or(Value::Null)
+        // Printed with its keys sorted, as the runtime record is written.
+        sorted(applied.get("settings").cloned().unwrap_or(Value::Null))
     } else {
         Value::Null
     };
-    let mut requested = Ordered::new();
+    let mut requested = Object::new();
     for key in KEYS {
         requested.set(key, policy.get(key).cloned().unwrap_or(Value::Null));
     }
-    let pending_restart = !python_equal(&effective, &Value::Object(policy));
+    let pending_restart = !effective.py_eq(&Value::Object(policy));
     let compiled = |name: &str| -> Result<Option<Value>, Failure> {
         Ok(inventory_codec(&inventory, name)?.and_then(|c| c.get("compiled_locally").cloned()))
     };
@@ -166,7 +168,7 @@ fn status(root: &Root) -> Result<Status, Failure> {
             json!([])
         }
     };
-    let supported = Ordered::new()
+    let supported = Object::new()
         .with("sbc_quality", json!(["high", "xq", "xq+"]))
         .with("sbc_abr", true)
         .with("aac_quality", listed(&aac, json!(["standard", "high"])))
@@ -200,30 +202,6 @@ fn recorded_arguments_present(arguments: Option<&Value>, argv: &[&str]) -> Resul
     })
 }
 
-/// Python `==` of two parsed JSON values: numbers by value (`1 == 1.0`, `True == 1`), dicts without
-/// regard to key order.
-fn python_equal(a: &Value, b: &Value) -> bool {
-    let numeric = |v: &Value| match v {
-        Value::Bool(b) => Some(f64::from(u8::from(*b))),
-        Value::Number(n) => n.as_f64(),
-        _ => None,
-    };
-    match (a, b) {
-        (Value::Array(x), Value::Array(y)) => {
-            x.len() == y.len() && x.iter().zip(y).all(|(p, q)| python_equal(p, q))
-        }
-        (Value::Object(x), Value::Object(y)) => {
-            x.len() == y.len()
-                && x.iter()
-                    .all(|(k, v)| y.get(k).is_some_and(|w| python_equal(v, w)))
-        }
-        _ => match (numeric(a), numeric(b)) {
-            (Some(x), Some(y)) => x == y,
-            _ => a == b,
-        },
-    }
-}
-
 #[cfg(test)]
 #[path = "codec_settings_tests.rs"]
 mod codec_settings_tests;
@@ -234,12 +212,6 @@ mod tests {
 
     #[test]
     fn equality_and_membership_follow_python() {
-        assert!(python_equal(
-            &json!({"a": 1, "b": [true]}),
-            &json!({"b": [1.0], "a": 1.0})
-        ));
-        assert!(!python_equal(&json!(null), &json!({})));
-        assert!(!python_equal(&json!("1"), &json!(1)));
         let argv = ["/usr/bin/bluealsad", "-p", "a2dp-source", ""];
         assert!(recorded_arguments_present(Some(&json!(["-p", ""])), &argv).unwrap());
         assert!(!recorded_arguments_present(Some(&json!(["-p", 3])), &argv).unwrap());

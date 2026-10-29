@@ -3,9 +3,10 @@
 //! wpa_supplicant: null means unobserved, never zero or success.
 // SPDX-License-Identifier: GPL-2.0-only
 use serde_json::{json, Map, Value};
+use y2p_core::py;
 use y2p_core::{
     clock, command,
-    json::Ordered,
+    json::{sorted_object, Object, ObjectExt},
     py::{number, truthy},
     root::{python_int, read, READ_LIMIT},
     Root,
@@ -27,26 +28,6 @@ pub fn key_values(text: Option<&str>, separator: char) -> Map<String, Value> {
         }
     }
     result
-}
-
-/// Python `==` between two JSON values (numbers by value, `True == 1`).
-pub fn py_eq(a: Option<&Value>, b: Option<&Value>) -> bool {
-    let a = a.unwrap_or(&Value::Null);
-    let b = b.unwrap_or(&Value::Null);
-    match (a, b) {
-        (Value::Number(_) | Value::Bool(_), Value::Number(_) | Value::Bool(_)) => {
-            number(Some(a)) == number(Some(b))
-        }
-        (Value::Array(x), Value::Array(y)) => {
-            x.len() == y.len() && x.iter().zip(y).all(|(p, q)| py_eq(Some(p), Some(q)))
-        }
-        (Value::Object(x), Value::Object(y)) => {
-            x.len() == y.len()
-                && x.iter()
-                    .all(|(k, v)| y.get(k).is_some_and(|w| py_eq(Some(v), Some(w))))
-        }
-        _ => a == b,
-    }
 }
 
 /// `x == text` for a JSON value and a text read from a file (`None` when unreadable).
@@ -153,7 +134,7 @@ fn addresses(ip: Option<&str>, routes: Option<&str>) -> (Vec<Value>, Value) {
 }
 
 /// `observe.wifi(ctx, signal_cache)`.
-pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
+pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
     let radio = root.path("/sys/class/net/wlan0").exists();
     let status_started = clock::monotonic_ns();
     // Station statistics can hold the control loop for about 2.1 s on this firmware. Bound the
@@ -162,7 +143,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
     let status_duration_ns = radio.then(|| clock::monotonic_ns() - status_started);
     let mut properties = key_values(wpa.as_ref().and_then(|w| w.output.as_deref()), '=');
     let failure = root.json_object("/run/y2/wifi-failure.json");
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let boot = root.boot_id();
     let fresh = |at: Option<f64>, window: f64| {
         at.is_some_and(|at| (0.0..window).contains(&(clock::monotonic() - at)))
     };
@@ -208,8 +189,10 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
         && eq_text(dns.get("boot_id"), boot.as_deref())
         && epoch.as_deref().is_some_and(|e| !e.is_empty())
         && eq_text(dns.get("epoch"), epoch.as_deref())
-        && addresses.iter().any(|a| py_eq(dns.get("address"), Some(a)))
-        && py_eq(dns.get("bssid"), properties.get("bssid"))
+        && addresses
+            .iter()
+            .any(|a| py::eq(dns.get("address"), Some(a)))
+        && py::eq(dns.get("bssid"), properties.get("bssid"))
         && fresh(clock_value(dns.get("monotonic_s")), DNS_FRESH_S);
     let dhcp = root.json_object("/run/y2/dhcp.json");
     let error = (eq_text(dhcp.get("boot_id"), boot.as_deref())
@@ -227,7 +210,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
         dns_ready,
         error.as_ref(),
     );
-    let mut stats = Ordered::new();
+    let mut stats = Object::new();
     for path in root.glob("/sys/class/net/wlan0/statistics/*") {
         let name = path
             .file_name()
@@ -238,11 +221,11 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
     }
     let previous = match signal_cache {
         Some(cache) => cache.clone(),
-        None => Ordered::from_map(&root.json_object("/run/y2/network.json")),
+        None => sorted_object(&root.json_object("/run/y2/network.json")),
     };
     let signal = object(previous.get("signal_observation").cloned().filter(truthy));
     let signal_fresh = eq_text(signal.get("boot_id"), boot.as_deref())
-        && py_eq(signal.get("bssid"), properties.get("bssid"))
+        && py::eq(signal.get("bssid"), properties.get("bssid"))
         && fresh(clock_value(signal.get("monotonic_s")), 30.0);
     let mut rssi = if signal_fresh {
         previous.get("rssi_dbm").cloned().unwrap_or(Value::Null)
@@ -258,7 +241,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
             .get("RSSI")
             .and_then(Value::as_str)
             .and_then(python_int));
-        signal_value = Ordered::new()
+        signal_value = Object::new()
             .with("boot_id", json!(boot))
             .with(
                 "bssid",
@@ -267,14 +250,14 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
             .with("monotonic_s", clock::monotonic())
             .with("ok", poll.ok)
             .with("reason", json!(poll.reason))
-            .into_value();
+            .into_sorted();
     } else if !completed {
         rssi = Value::Null;
         signal_value = Value::Null;
     }
     let failed = state.as_str() == Some("Failed")
-        && py_eq(Some(&reason), properties.get("credential_failure"));
-    Ordered::new()
+        && py::eq(Some(&reason), properties.get("credential_failure"));
+    Object::new()
         .with("state", state)
         .with("reason", reason)
         .with("radio_present", radio)
@@ -287,7 +270,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
         // latency separately from event counters.
         .with(
             "supplicant_observation",
-            Ordered::new()
+            Object::new()
                 .with("ok", json!(wpa.as_ref().map(|w| w.ok)))
                 .with(
                     "reason",
@@ -297,7 +280,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
                     },
                 )
                 .with("duration_ns", json!(status_duration_ns))
-                .into_value(),
+                .into_sorted(),
         )
         .with(
             "association",
@@ -312,23 +295,11 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
         .with("dns_ready", dns_ready)
         .with("rssi_dbm", rssi)
         .with("signal_observation", signal_value)
-        .with("traffic_counters", stats.into_value())
+        .with("traffic_counters", stats.into_sorted())
         .with("events", json!(root.json("/run/y2/wifi-events.json")))
         .with("reconnect_owner", "wpa_supplicant")
         .with("power_save", json!(root.json("/run/y2/wifi-power.json")))
         .with("coexistence", json!(root.json("/run/y2/coexistence.json")))
-}
-
-/// A nested `Ordered` as a plain value (`serde_json::Map` sorts its keys): the observation is written
-/// sorted (`network.json`, `status`) or compared, never printed in insertion order.
-trait IntoValue {
-    fn into_value(self) -> Value;
-}
-
-impl IntoValue for Ordered {
-    fn into_value(self) -> Value {
-        Value::Object(self.0.into_iter().collect())
-    }
 }
 
 #[cfg(test)]
@@ -422,10 +393,10 @@ mod tests {
 
     #[test]
     fn python_equality_and_addresses() {
-        assert!(py_eq(Some(&json!(1)), Some(&json!(1.0))));
-        assert!(py_eq(Some(&json!(true)), Some(&json!(1))));
-        assert!(py_eq(None, Some(&Value::Null)));
-        assert!(!py_eq(Some(&json!("1")), Some(&json!(1))));
+        assert!(py::eq(Some(&json!(1)), Some(&json!(1.0))));
+        assert!(py::eq(Some(&json!(true)), Some(&json!(1))));
+        assert!(py::eq(None, Some(&Value::Null)));
+        assert!(!py::eq(Some(&json!("1")), Some(&json!(1))));
         let ip = r#"[{"ifname": "wlan0", "addr_info": [{"local": "10.0.0.5", "scope": "global"},
                     {"local": "169.254.1.1", "scope": "link"}]}]"#;
         assert_eq!(

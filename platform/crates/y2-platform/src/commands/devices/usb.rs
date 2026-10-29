@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::{atomic_json, Outcome, Reply};
 use serde_json::json;
-use y2p_core::{json::Ordered, Root};
+use y2p_core::{
+    json::{Object, ObjectExt},
+    Root,
+};
 
 /// Queue the gadget mode the service daemon sets up next (USBService.tick applies it only while no
 /// host is attached). The gadget must request MaxPower 500 bus-powered when it is set up, or a PC port
@@ -17,7 +20,7 @@ pub fn request_mode(root: &Root, mode: &str) -> Outcome {
         true,
     )?;
     Reply::unsorted(
-        &Ordered::new()
+        &Object::new()
             .with("state", "Queued")
             .with("mode", mode)
             .with("apply", "when_disconnected"),

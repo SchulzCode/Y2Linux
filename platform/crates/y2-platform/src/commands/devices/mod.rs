@@ -11,7 +11,7 @@ use y2p_core::root::python_int;
 
 mod codec_settings;
 mod ssh;
-mod storage;
+pub(crate) mod storage;
 mod timekeeping;
 mod transfer;
 mod usb;

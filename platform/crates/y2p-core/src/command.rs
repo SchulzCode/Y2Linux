@@ -36,6 +36,8 @@ pub fn run(root: &Root, argv: &[&str], timeout: f64) -> Outcome {
     run_with(root, argv, timeout, LIMIT, false)
 }
 
+/// `common.command` through the root's runner: real processes on the player, fixture answers below a
+/// fixture root, or a test's own runner.
 pub fn run_with(
     root: &Root,
     argv: &[&str],
@@ -43,10 +45,98 @@ pub fn run_with(
     limit: usize,
     failure_output: bool,
 ) -> Outcome {
-    if !root.is_real() {
-        return fixture(argv, timeout);
+    root.runner().run(argv, timeout, limit, failure_output)
+}
+
+/// Who answers a root's subprocess requests.
+pub trait Runner: Send + Sync {
+    /// One request: `argv` with its deadline, output bounded by `limit`, the output kept on a
+    /// failure only with `failure_output`.
+    fn run(&self, argv: &[&str], timeout: f64, limit: usize, failure_output: bool) -> Outcome;
+
+    /// The requests made so far (argv, timeout), for a runner that records them.
+    fn calls(&self) -> Vec<(Vec<String>, f64)> {
+        Vec::new()
     }
-    real(argv, timeout, limit, failure_output)
+}
+
+/// The player's processes (`Root::new("/")`).
+pub struct Processes;
+
+impl Runner for Processes {
+    fn run(&self, argv: &[&str], timeout: f64, limit: usize, failure_output: bool) -> Outcome {
+        real(argv, timeout, limit, failure_output)
+    }
+}
+
+/// Below a fixture root no process starts: the answers of `Y2_FIXTURE_COMMANDS`, every request
+/// appended to `Y2_FIXTURE_CALLS` (and, in unit tests, this thread's `testing::scripted` answers
+/// first).
+pub struct FixtureFiles;
+
+impl Runner for FixtureFiles {
+    fn run(&self, argv: &[&str], timeout: f64, _limit: usize, _failure_output: bool) -> Outcome {
+        fixture(argv, timeout)
+    }
+}
+
+type Respond = Box<dyn FnMut(&[&str], f64) -> Outcome + Send>;
+
+/// A test's runner: answers from a list or a function, every request recorded
+/// (`Root::fixture(dir).with_answers(…)`, then `root.calls()`).
+pub struct Scripted {
+    respond: std::sync::Mutex<Respond>,
+    calls: std::sync::Mutex<Vec<(Vec<String>, f64)>>,
+}
+
+impl Scripted {
+    /// The answer whose argv equals the request; anything else is answered `fixture`.
+    pub fn answers(answers: Vec<(Vec<String>, Outcome)>) -> Self {
+        Self::responding(move |argv, _| {
+            answers
+                .iter()
+                .find(|(a, _)| a.iter().map(String::as_str).eq(argv.iter().copied()))
+                .map_or_else(unanswered, |(_, o)| o.clone())
+        })
+    }
+
+    /// Every answer from `respond(argv, timeout)`: a fake whose state changes with the commands (a
+    /// `mount` that adds its mountinfo line).
+    pub fn responding(respond: impl FnMut(&[&str], f64) -> Outcome + Send + 'static) -> Self {
+        Self {
+            respond: std::sync::Mutex::new(Box::new(respond)),
+            calls: std::sync::Mutex::new(Vec::new()),
+        }
+    }
+}
+
+impl Runner for Scripted {
+    fn run(&self, argv: &[&str], timeout: f64, _limit: usize, _failure_output: bool) -> Outcome {
+        self.calls
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push((argv.iter().map(|a| a.to_string()).collect(), timeout));
+        (self
+            .respond
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner))(argv, timeout)
+    }
+
+    fn calls(&self) -> Vec<(Vec<String>, f64)> {
+        self.calls
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+}
+
+/// What a fixture gives a request it has no answer for.
+fn unanswered() -> Outcome {
+    Outcome {
+        ok: false,
+        reason: Some("fixture".into()),
+        output: None,
+    }
 }
 
 #[derive(Deserialize)]
@@ -80,16 +170,14 @@ fn fixture(argv: &[&str], timeout: f64) -> Outcome {
             reason: a.reason,
             output: a.output,
         })
-        .unwrap_or(Outcome {
-            ok: false,
-            reason: Some("fixture".into()),
-            output: None,
-        })
+        .unwrap_or_else(unanswered)
 }
 
 /// Subprocess answers for in-process unit tests (feature `testing`, enabled by dev-dependencies only):
 /// `Y2_FIXTURE_COMMANDS`/`Y2_FIXTURE_CALLS` are process-wide and would mix the answers of tests running
-/// in parallel, so a test scripts the commands of its own thread instead.
+/// in parallel, so a test scripts the commands of its own thread instead. The older seam: a test that
+/// gives its root a runner (`Root::fixture(dir).with_answers(…)`, [`Scripted`]) needs none of this,
+/// also in the threads the root goes to; this module goes once no test uses it.
 #[cfg(feature = "testing")]
 pub mod testing {
     use super::Outcome;
@@ -426,6 +514,40 @@ mod tests {
                 output: None
             }
         );
+    }
+
+    #[test]
+    fn a_root_carries_its_own_runner_into_other_threads() {
+        let root = Root::fixture("/nonexistent-fixture").with_answers(vec![(
+            vec!["blkid".to_string()],
+            Outcome {
+                ok: true,
+                reason: None,
+                output: Some("uuid".into()),
+            },
+        )]);
+        let shared = root.clone();
+        let answer = std::thread::spawn(move || run(&shared, &["blkid"], 2.0))
+            .join()
+            .unwrap();
+        assert_eq!(answer.output.as_deref(), Some("uuid"));
+        assert_eq!(run(&root, &["true"], 1.0), unanswered());
+        assert_eq!(
+            root.calls(),
+            [
+                (vec!["blkid".to_string()], 2.0),
+                (vec!["true".to_string()], 1.0)
+            ]
+        );
+        let counted = Root::fixture("/nonexistent-fixture").with_runner(std::sync::Arc::new(
+            Scripted::responding(|argv, _| Outcome {
+                ok: true,
+                reason: None,
+                output: Some(argv.len().to_string()),
+            }),
+        ));
+        assert_eq!(run(&counted, &["a", "b"], 1.0).output.as_deref(), Some("2"));
+        assert!(Root::new("/nonexistent-fixture").calls().is_empty());
     }
 }
 

@@ -6,6 +6,7 @@ use super::{
 };
 use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
+use y2p_core::py::PyValue;
 use y2p_core::{command, Root};
 
 /// `health.check(ctx, full)` as a value.
@@ -118,7 +119,7 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
                     Value::String(state) => Failure::key_error(state),
                     state @ (Value::Array(_) | Value::Object(_)) => Failure::type_error(format!(
                         "unhashable type: '{}'",
-                        util::type_name(state)
+                        PyValue::type_name(state)
                     )),
                     Value::Null => Failure::crash("KeyError", "None"),
                     Value::Bool(b) => Failure::crash("KeyError", if *b { "True" } else { "False" }),

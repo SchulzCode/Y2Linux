@@ -1,0 +1,6 @@
+disallowed-methods = [
+    # With preserve_order these are swap_remove: the last key takes the removed one's place. A dict's
+    # `pop`/`del` keeps the order of the others (shift_remove).
+    { path = "serde_json::map::Map::remove", reason = "use shift_remove (keeps key order)" },
+    { path = "serde_json::map::Map::remove_entry", reason = "use shift_remove_entry (keeps key order)" },
+]

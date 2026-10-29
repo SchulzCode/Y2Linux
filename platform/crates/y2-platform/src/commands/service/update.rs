@@ -8,11 +8,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     download::{self, Error as Net, Response, CANCELLED},
-    python::{int_or_float, is_one_of, key_order, lock_held, prefix, str_of},
+    python::{int_or_float, is_one_of, key_order, lock_held, prefix},
     storage,
 };
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
+use std::os::fd::AsFd;
 use std::{
     collections::VecDeque,
     fs::{self, File, OpenOptions},
@@ -22,10 +23,12 @@ use std::{
     sync::atomic::Ordering,
     time::Duration,
 };
+use y2p_core::lock;
+use y2p_core::sys::{set_signal, signal_disposition, Disposition, Handler};
 use y2p_core::{
     clock, command,
-    json::Ordered,
-    py::{self, is_true, truthy},
+    json::{sorted, Object, ObjectExt},
+    py::{self, is_true, truthy, PyValue},
     record,
     service_digest::Sha256,
     Root,
@@ -135,10 +138,6 @@ fn object(value: Option<Value>) -> Map<String, Value> {
         Some(Value::Object(map)) => map,
         _ => Map::new(),
     }
-}
-
-fn boot_id(root: &Root) -> Value {
-    json!(root.read("/proc/sys/kernel/random/boot_id"))
 }
 
 /// `update.channel`: the shipped release channel, or the owner's override on /data.
@@ -277,7 +276,7 @@ pub fn core(
         .and_then(|v| v.get("failure").cloned())
         .filter(truthy);
         return Err(Raise::Value(match refusal {
-            Some(value) => str_of(&value),
+            Some(value) => sorted(value).py_str(),
             None => format!(
                 "update_core_{}",
                 result
@@ -306,7 +305,6 @@ struct Space {
 }
 
 fn fstatvfs(file: &File) -> Result<Space> {
-    use std::os::fd::AsRawFd;
     #[cfg(test)]
     if let Some(available) = seams::SPACE.with(|s| s.borrow().as_ref().map(|space| space())) {
         return Ok(Space {
@@ -316,18 +314,13 @@ fn fstatvfs(file: &File) -> Result<Space> {
             favail: 0,
         });
     }
-    // SAFETY: a zeroed statvfs filled by the kernel for an open descriptor.
-    let mut info: libc::statvfs64 = unsafe { std::mem::zeroed() };
-    if unsafe { libc::fstatvfs64(file.as_raw_fd(), &mut info) } != 0 {
-        return Err(Raise::Os(
-            py::os_error(&std::io::Error::last_os_error(), None).0,
-        ));
-    }
+    let info =
+        y2p_core::sys::fstatvfs(file.as_fd()).map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
     Ok(Space {
-        readonly: info.f_flag & libc::ST_RDONLY != 0,
-        available: info.f_bavail as i128 * info.f_frsize as i128,
-        files: info.f_files as u64,
-        favail: info.f_favail as u64,
+        readonly: info.read_only(),
+        available: info.bavail as i128 * info.frsize as i128,
+        files: info.files,
+        favail: info.favail,
     })
 }
 
@@ -712,7 +705,7 @@ fn wait_online(root: &Root, seconds: f64) -> bool {
 
 /// The SIGTERM disposition while `stage` runs (`signal.signal(SIGTERM, …)`), restored when it ends.
 struct Terminate {
-    previous: libc::sigaction,
+    previous: Option<Disposition>,
 }
 
 extern "C" fn cancel(_: libc::c_int) {
@@ -721,27 +714,22 @@ extern "C" fn cancel(_: libc::c_int) {
 
 impl Terminate {
     fn save() -> Self {
-        // SAFETY: reading the current action into a zeroed struct.
-        let mut previous: libc::sigaction = unsafe { std::mem::zeroed() };
-        unsafe { libc::sigaction(libc::SIGTERM, std::ptr::null(), &mut previous) };
-        Self { previous }
+        Self {
+            previous: signal_disposition(libc::SIGTERM).ok(),
+        }
     }
 
-    fn set(handler: libc::sighandler_t) {
+    fn set(handler: Handler) {
         // SAFETY: a plain handler (an atomic store) or SIG_IGN, no SA_RESTART so reads are interrupted.
-        unsafe {
-            let mut action: libc::sigaction = std::mem::zeroed();
-            action.sa_sigaction = handler;
-            libc::sigemptyset(&mut action.sa_mask);
-            libc::sigaction(libc::SIGTERM, &action, std::ptr::null_mut());
-        }
+        let _ = unsafe { set_signal(libc::SIGTERM, handler, 0) };
     }
 }
 
 impl Drop for Terminate {
     fn drop(&mut self) {
-        // SAFETY: restoring the action saved at the start.
-        unsafe { libc::sigaction(libc::SIGTERM, &self.previous, std::ptr::null_mut()) };
+        if let Some(previous) = &self.previous {
+            previous.restore(libc::SIGTERM);
+        }
     }
 }
 
@@ -796,16 +784,10 @@ impl Staging<'_> {
         let root = self.root;
         let download = self.directory.join("download.json");
         // stage() refused a busy lock already; this one is held, or fails for another reason.
-        match file.try_lock() {
-            Ok(()) => {}
-            Err(std::fs::TryLockError::WouldBlock) => {
-                return Err(Raise::Os(
-                    py::os_error(&std::io::Error::from_raw_os_error(libc::EAGAIN), None).0,
-                ))
-            }
-            Err(std::fs::TryLockError::Error(e)) => {
-                return Err(Raise::Os(py::os_error(&e, None).0))
-            }
+        match lock::try_fd(file.as_fd(), lock::Kind::Exclusive) {
+            Ok(true) => {}
+            Ok(false) => return Err(Raise::Os(py::os_error(&lock::would_block(), None).0)),
+            Err(e) => return Err(Raise::Os(py::os_error(&e, None).0)),
         }
         if !state_is(&status(root), &TERMINAL) {
             return Err(Raise::value("update_already_pending"));
@@ -977,7 +959,7 @@ impl Staging<'_> {
             .ok_or_else(malformed)?;
         // Until the package is committed below, SIGTERM (Reborn's Cancel) stops the download and
         // leaves the release offered as before.
-        Terminate::set(cancel as *const () as libc::sighandler_t);
+        Terminate::set(Handler::Call(cancel));
         // Root payload plus its backup during installation; refuse early, not in recovery.
         cleaned += make_room(root, file, total as i128 + raw.div_euclid(4) as i128)?;
         if CANCELLED.load(Ordering::SeqCst) {
@@ -1025,7 +1007,7 @@ impl Staging<'_> {
             return Err(Raise::value("update_data_generation_changed"));
         }
         // The commit point: from here the package is queued, never half-cancelled.
-        Terminate::set(libc::SIG_IGN);
+        Terminate::set(Handler::Ignore);
         if CANCELLED.load(Ordering::SeqCst) {
             return Err(Raise::Net(Net::Cancelled));
         }
@@ -1099,7 +1081,7 @@ pub fn stage(
         .map_err(|e| Raise::os(e, &lock))?;
     // A second check or download while one runs (the daily automatic check meeting the owner's) is
     // refused before anything is written: the running one keeps its download.json.
-    if let Err(std::fs::TryLockError::WouldBlock) = file.try_lock() {
+    if let Ok(false) = lock::try_fd(file.as_fd(), lock::Kind::Exclusive) {
         return Err(Raise::value(IN_PROGRESS));
     }
     let token = token(root)?;
@@ -1175,7 +1157,7 @@ fn battery_gate(root: &Root) -> Result<()> {
         _ => Map::new(),
     };
     let owner = power.get("boot_id").cloned().unwrap_or(Value::Null);
-    if !owner.is_null() && owner != boot_id(root) {
+    if !owner.is_null() && owner != Value::from(root.boot_id()) {
         battery = Map::new();
     }
     if is_true(battery.get("charging")) || is_one_of(battery.get("status"), &["Charging", "Full"]) {
@@ -1190,7 +1172,7 @@ fn battery_gate(root: &Root) -> Result<()> {
 /// `power.rpc`: one request to the power daemon's socket.
 fn rpc(root: &Root, action: &str) -> Result<Value> {
     use std::os::unix::net::UnixStream;
-    let request = Ordered::new()
+    let request = Object::new()
         .with("action", action)
         .with("reason", "update");
     let data = y2p_core::json::dumps(&request, y2p_core::json::Separators::Spaced)
@@ -1229,11 +1211,10 @@ fn rpc(root: &Root, action: &str) -> Result<Value> {
         return Err(Raise::value("invalid_power_response"));
     };
     if !result.get("ok").is_some_and(truthy) {
-        return Err(Raise::Value(
-            result
-                .get("error")
-                .map_or_else(|| "power_request_failed".into(), str_of),
-        ));
+        return Err(Raise::Value(result.get("error").map_or_else(
+            || "power_request_failed".into(),
+            |e| sorted(e.clone()).py_str(),
+        )));
     }
     result
         .get("result")
@@ -1344,7 +1325,7 @@ fn automatic_check(root: &Root) -> Result<Value> {
     // `time` counts only from a check that reached the server: ≤ 8.14 kept it on a failed one too,
     // which held off every automatic check for a day (ef22a23d).
     if last.get("result") != Some(&json!("checked")) {
-        last.remove("time");
+        last.shift_remove("time");
     }
     if let Some(stamp) = int_or_float(last.get("time")) {
         if (0.0..CHECK_INTERVAL).contains(&(now - stamp)) {
@@ -1489,7 +1470,7 @@ fn health_ack(root: &Root) -> Result<Value> {
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
     let mut progress = root.json_object("/run/y2/update-health.json");
-    let boot = boot_id(root);
+    let boot = Value::from(root.boot_id());
     if progress.get("boot_id").cloned().unwrap_or(Value::Null) != boot {
         progress = object(Some(json!({"boot_id": boot,
                                       "deadline_monotonic_s": clock::monotonic() + 180.0})));
@@ -1507,7 +1488,7 @@ fn health_ack(root: &Root) -> Result<Value> {
     // A successful frame alone is insufficient: app must still answer, core mounts/devices must be
     // usable, and the same boot/process must own readiness.
     let ready = root.json_object("/run/y2/application-ready.json");
-    if ready.get("boot_id").cloned().unwrap_or(Value::Null) != boot_id(root)
+    if ready.get("boot_id").cloned().unwrap_or(Value::Null) != Value::from(root.boot_id())
         || !is_true(ready.get("first_frame"))
     {
         return Ok(json!({"state": "PendingHealth", "reason": "application_first_frame_missing"}));
@@ -1607,7 +1588,7 @@ pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) 
             "a record of an unexpected type",
         )),
         Err(error) => Reply::unsorted(
-            &Ordered::new()
+            &Object::new()
                 .with("state", "Failed")
                 .with("failure", error.text()),
             1,

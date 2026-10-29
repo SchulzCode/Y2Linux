@@ -4,11 +4,12 @@
 //! reads for `status` (group observation) and are not needed here.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::sys::{
-    boot_id, device_instance, exists, get, get_eq, get_in, isdigit, mounts, object, py_eq, read,
-    resolve, statvfs, text, Object,
+    device_instance, exists, get, get_eq, get_in, isdigit, mounts, object, read, resolve, statvfs,
+    text, Object,
 };
 use serde_json::{json, Value};
 use std::path::Path;
+use y2p_core::py::PyValue;
 use y2p_core::{
     command,
     json::{dumps_sorted, Separators},
@@ -121,7 +122,7 @@ pub fn refused_card(root: &Root) -> Object {
 /// `internal_media.setup_status`: this boot's setup state, else `{'state': 'Unknown'}`.
 pub fn setup_status(root: &Root) -> Object {
     match root.json(SETUP_STATUS) {
-        Some(Value::Object(value)) if get_eq(&value, "boot_id", &boot_id(root)) => {
+        Some(Value::Object(value)) if get_eq(&value, "boot_id", &Value::from(root.boot_id())) => {
             ["state", "reason", "files", "bytes", "serial", "kept"]
                 .iter()
                 .filter_map(|k| value.get(*k).map(|v| (k.to_string(), v.clone())))
@@ -139,7 +140,7 @@ pub fn setup_status(root: &Root) -> Object {
 #[allow(clippy::unnecessary_cast)]
 pub fn volumes(root: &Root) -> Vec<Object> {
     let mounts = mounts(root);
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let boot = root.boot_id();
     let mut volumes = Vec::new();
     for target in ["/", "/data", "/media/sd", "/media/internal"] {
         let sd = target == "/media/sd";
@@ -231,11 +232,11 @@ pub fn volumes(root: &Root) -> Vec<Object> {
                 let claimed = get(&claim, "identity");
                 if get(&item, "state") == "Ready"
                     && (identity.is_none()
-                        || (!claimed.is_null() && !py_eq(claimed, &identity_value)))
+                        || (!claimed.is_null() && !claimed.py_eq(&identity_value)))
                 {
                     failed(&mut item, "media_identity_changed_or_missing");
                 }
-                if instance.is_none() || !py_eq(get(&claim, "source_instance"), &text(&instance)) {
+                if instance.is_none() || !get(&claim, "source_instance").py_eq(&text(&instance)) {
                     failed(&mut item, "block_instance_changed");
                 }
             }
@@ -256,17 +257,17 @@ pub fn volumes(root: &Root) -> Vec<Object> {
         }
         match statvfs(&root.path(target)) {
             Ok(vfs) => {
-                let frsize = vfs.f_frsize as u64;
-                let total = vfs.f_blocks as u64 * frsize;
-                let available = vfs.f_bavail as u64 * frsize;
+                let frsize = vfs.frsize;
+                let total = vfs.blocks * frsize;
+                let available = vfs.bavail * frsize;
                 set(&mut item, "total_bytes", json!(total));
                 set(&mut item, "available_bytes", json!(available));
-                set(&mut item, "free_bytes", json!(vfs.f_bfree as u64 * frsize));
-                set(&mut item, "available_inodes", json!(vfs.f_favail as u64));
+                set(&mut item, "free_bytes", json!(vfs.bfree * frsize));
+                set(&mut item, "available_inodes", json!(vfs.favail));
                 let error = get(&item, "state") == "Failed";
                 let mut state =
                     space_state(Some(available), Some(total), readonly && !protected, error);
-                if vfs.f_files > 0 && vfs.f_favail == 0 {
+                if vfs.files > 0 && vfs.favail == 0 {
                     state = "CriticalSpace";
                 }
                 set(&mut item, "space_state", json!(state));

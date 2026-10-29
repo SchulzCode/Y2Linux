@@ -6,7 +6,7 @@ use crate::reply::{atomic_json, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use y2p_core::{
     clock, command,
-    json::Ordered,
+    json::{Object, ObjectExt},
     py::{eq_int, is_true, truthy},
     Root,
 };
@@ -36,7 +36,7 @@ fn run(root: &Root, argv: &[&str], timeout: f64) -> command::Outcome {
 
 /// `wifi_policy(ctx, activity)`: the record written to `/run/y2/wifi-power.json`, or the refusal of
 /// an invalid policy (nothing written).
-pub fn wifi_policy(root: &Root, activity: Option<&Map<String, Value>>) -> Result<Ordered, Failure> {
+pub fn wifi_policy(root: &Root, activity: Option<&Map<String, Value>>) -> Result<Object, Failure> {
     let policy = match root.json("/data/network/power-save.json") {
         Some(Value::Object(map)) => map,
         _ => json!({"schema": 1, "mode": "automatic", "automatic_standard": false})
@@ -60,7 +60,7 @@ pub fn wifi_policy(root: &Root, activity: Option<&Map<String, Value>>) -> Result
     // Avoid resending CMD_ID_POWER_SAVE_MODE every 30 seconds when this same setting is already in
     // effect. Readback is host state, not proof of firmware sleep or electrical savings.
     let (mut actual, mut result) = readback(root);
-    let boot = root.read("/proc/sys/kernel/random/boot_id");
+    let boot = root.boot_id();
     let epoch = root.read("/run/y2/wifi-epoch");
     let ifindex = root.read("/sys/class/net/wlan0/ifindex");
     let previous = root.json_object("/run/y2/wifi-power.json");
@@ -93,7 +93,7 @@ pub fn wifi_policy(root: &Root, activity: Option<&Map<String, Value>>) -> Result
         actual = if result.ok { readback(root).0 } else { None };
     }
     let ready = actual == Some(requested);
-    let value = Ordered::new()
+    let value = Object::new()
         .with("schema", 1)
         .with("mode", mode)
         .with("requested", requested)
@@ -125,8 +125,8 @@ pub fn wifi_policy(root: &Root, activity: Option<&Map<String, Value>>) -> Result
     Ok(value)
 }
 
-fn invalid() -> Ordered {
-    Ordered::new()
+fn invalid() -> Object {
+    Object::new()
         .with("state", "Failed")
         .with("reason", "invalid_wifi_power_policy")
 }

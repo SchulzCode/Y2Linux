@@ -1,15 +1,13 @@
 //! `observe.system` and what it reads from other modules: `update.status`, `radiofw.state`,
 //! `boot.evidence_status`/`reset_cause`, `internal_media.setup_status`/`ready`, `usb_diagnostics`.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{
-    snapshot::{field, mountinfo, mounts_at},
-    util::{
-        self, findall2, findall_map, get_eq, name, number, read, read_limited, splitlines, text,
-    },
+use super::util::{
+    self, findall2, findall_map, get_eq, name, number, read, read_limited, splitlines, text,
 };
 use crate::{regex, reply::Failure};
 use serde_json::{json, Map, Value};
 use std::os::unix::fs::MetadataExt;
+use y2p_core::py::PyValue;
 use y2p_core::{command, py::truthy, Root};
 
 pub const RESET_STATUS: &str = "/sys/firmware/y2_pm/reset_status";
@@ -88,15 +86,12 @@ pub(crate) fn evidence_status(root: &Root) -> Result<Value, Failure> {
     // has no `.get`); a number, bool or None is not iterable.
     let logs = match value.get("logs") {
         None => Vec::new(),
-        Some(Value::Array(items)) => items.clone(),
-        Some(Value::Object(map)) => map.keys().map(|k| json!(k)).collect(),
-        Some(Value::String(s)) => s.chars().map(|c| json!(c.to_string())).collect(),
-        Some(other) => {
-            return Err(Failure::type_error(format!(
+        Some(other) => y2p_core::py::iterate(other).ok_or_else(|| {
+            Failure::type_error(format!(
                 "'{}' object is not iterable",
-                util::type_name(other)
-            )))
-        }
+                PyValue::type_name(other)
+            ))
+        })?,
     };
     let mut tails = Vec::new();
     for log in logs {
@@ -115,7 +110,7 @@ pub(crate) fn evidence_status(root: &Root) -> Result<Value, Failure> {
 /// `internal_media.setup_status`.
 pub fn setup_status(root: &Root) -> Value {
     match root.json("/run/y2/internal-media-setup.json") {
-        Some(Value::Object(value)) if get_eq(&value, "boot_id", &util::boot_id(root)) => {
+        Some(Value::Object(value)) if get_eq(&value, "boot_id", &Value::from(root.boot_id())) => {
             let picked: Map<String, Value> =
                 ["state", "reason", "files", "bytes", "serial", "kept"]
                     .iter()
@@ -130,17 +125,12 @@ pub fn setup_status(root: &Root) -> Value {
 /// `internal_media.ready`: True only while the recorded mount is still the live, exact Y2Media mount.
 pub fn internal_ready(root: &Root) -> bool {
     let claim = root.json_object("/run/y2/internal-media.json");
-    let mounts = mountinfo(root.read("/proc/self/mountinfo").as_deref());
-    let current = mounts_at(&mounts, "/media/internal");
+    let current = y2p_core::mounts::mounts_at(root, "/media/internal");
     claim.get("state").and_then(Value::as_str) == Some("Ready")
         && current.len() == 1
-        && get_eq(&claim, "boot_id", &util::boot_id(root))
-        && get_eq(
-            &claim,
-            "mount_id",
-            current[0].get("mount_id").unwrap_or(&Value::Null),
-        )
-        && get_eq(&claim, "device_id", &json!(field(current[0], "device_id")))
+        && get_eq(&claim, "boot_id", &Value::from(root.boot_id()))
+        && get_eq(&claim, "mount_id", &json!(current[0].mount_id))
+        && get_eq(&claim, "device_id", &json!(current[0].device_id))
 }
 
 /// `int(text, 16)`.
@@ -458,7 +448,7 @@ fn time_status(root: &Root) -> Result<Value, Failure> {
 pub fn system(root: &Root) -> Result<Value, Failure> {
     let clock = time_status(root)?;
     let mut ssh = root.json_object("/run/y2/ssh.json");
-    let boot = util::boot_id(root);
+    let boot = Value::from(root.boot_id());
     if !get_eq(&ssh, "boot_id", &boot) || !util::fresh_seconds(ssh.get("monotonic_s"), 10.0) {
         ssh = serde_json::from_value(
             json!({"state": "Unavailable", "reason": "ssh_record_stale_or_absent"}),

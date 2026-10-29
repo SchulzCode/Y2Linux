@@ -15,14 +15,17 @@ use super::{
     quiet_exit, unix,
 };
 use crate::reply::{atomic_json, private_directory, unlink_missing_ok, Failure, Outcome};
+use serde_json::Value;
 use std::{
     os::unix::{fs::FileTypeExt, net::UnixStream},
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
+use y2p_core::sys::{set_signal, Handler};
 use y2p_core::{
     clock,
-    power_json::{self, Json, Object},
+    json::{Object, ObjectExt},
+    py::PyValue,
     Root,
 };
 
@@ -38,14 +41,8 @@ extern "C" fn stop(_: libc::c_int) {
 /// `signal.signal(SIGTERM/SIGINT, …)`: end the loop at its next iteration.
 fn handle_signals() {
     for signal in [libc::SIGTERM, libc::SIGINT] {
-        // SAFETY: an all-zero sigaction with a plain handler and an empty mask; the handler only
-        // stores to an atomic.
-        unsafe {
-            let mut action: libc::sigaction = std::mem::zeroed();
-            action.sa_sigaction = stop as *const () as libc::sighandler_t;
-            libc::sigemptyset(&mut action.sa_mask);
-            libc::sigaction(signal, &action, std::ptr::null_mut());
-        }
+        // SAFETY: the handler only stores to an atomic.
+        let _ = unsafe { set_signal(signal, Handler::Call(stop), 0) };
     }
 }
 
@@ -81,7 +78,7 @@ pub fn serve(root: &Root) -> Outcome {
     let mut coordinator = Coordinator::new(root);
     let mut journal = PowerJournal::new();
     let mut battery = LowBattery::default();
-    let mut soc = Soc::new(load_profile(root), power_json::read(root, UI_STATE));
+    let mut soc = Soc::new(load_profile(root), root.json(UI_STATE));
     let mut ui_saved = None;
     let (policy, reason) = load_policy(root);
     RUNNING.store(true, Ordering::SeqCst);
@@ -98,7 +95,7 @@ pub fn serve(root: &Root) -> Outcome {
             // SOC uses physical elapsed time including suspend. Keep the
             // shutdown grace/sampling scheduler on its existing clock.
             battery_status = sample(root, &mut soc);
-            let voltage = battery_status.get("voltage_uv").and_then(Json::exact_int);
+            let voltage = battery_status.get("voltage_uv").and_then(Value::exact_int);
             // 28: keep the displayed percentage across a restart (stock
             // RTC spare register); written only when it changes.
             if let Some(ui_state) = soc.state().filter(|s| Some(*s) != ui_saved) {
@@ -138,14 +135,9 @@ pub fn serve(root: &Root) -> Outcome {
                 .with("battery", battery_status.clone())
                 .with(
                     "qualification_reference",
-                    policy.as_ref().map(|p| {
-                        Json::from(
-                            p.value
-                                .get("qualification_reference")
-                                .cloned()
-                                .unwrap_or_default(),
-                        )
-                    }),
+                    policy
+                        .as_ref()
+                        .map(|p| p.value.value("qualification_reference")),
                 )
                 .with("shutdown", coordinator.intent.clone());
             atomic_json(&runtime.join("power.json"), &record, false)?;
@@ -209,8 +201,8 @@ fn handle(client: &mut UnixStream, coordinator: &mut Coordinator) -> Result<Obje
         data.extend_from_slice(&part[..n]);
     }
     // Accepted difference: text that is not JSON is refused with serde's message, not json's.
-    let request = Json::parse(&data).map_err(|e| e.to_string())?;
-    let Json::Object(request) = request else {
+    let request = serde_json::from_slice::<Value>(&data).map_err(|e| e.to_string())?;
+    let Value::Object(request) = request else {
         return Err(format!(
             "'{}' object has no attribute 'get'",
             request.type_name()

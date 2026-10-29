@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::{failed, ok, scripted, Fixture};
+use serde_json::Value;
 use std::time::Instant;
 use y2p_core::command::Outcome;
 
@@ -45,8 +46,8 @@ fn fixture() -> Fixture {
     fixture
 }
 
-fn json(text: &str) -> Json {
-    Json::from(text)
+fn json(text: &str) -> Value {
+    Value::from(text)
 }
 
 fn request(c: &mut Coordinator, action: &str, reason: &str, grace: i64) -> Object {
@@ -60,7 +61,7 @@ fn expire(c: &mut Coordinator) {
     c.intent
         .as_mut()
         .expect("intent")
-        .insert("deadline_monotonic_ns", now);
+        .set("deadline_monotonic_ns", now);
 }
 
 fn execute(c: &mut Coordinator, answers: Answers) -> Calls {
@@ -73,12 +74,12 @@ fn execute(c: &mut Coordinator, answers: Answers) -> Calls {
 fn stop_result(c: &Coordinator, name: &str) -> Option<(bool, Option<String>)> {
     let results = c.intent.as_ref()?.value("stop_results");
     let result = results.get(name)?;
-    let ok = matches!(result.get("ok"), Some(Json::Bool(true)));
+    let ok = matches!(result.get("ok"), Some(Value::Bool(true)));
     Some((
         ok,
         result
             .get("reason")
-            .and_then(Json::as_str)
+            .and_then(Value::as_str)
             .map(str::to_owned),
     ))
 }
@@ -497,7 +498,7 @@ fn idle_waits_for_observation_but_never_past_shutdown_deadline() {
     c.intent
         .as_mut()
         .unwrap()
-        .insert("deadline_monotonic_ns", deadline as i64);
+        .set("deadline_monotonic_ns", deadline as i64);
     assert_wait(&c, now() + 1_000_000_000, 0.125);
     expire(&mut c);
     assert_eq!(c.wait_ns(now() + 1_000_000_000), 0);

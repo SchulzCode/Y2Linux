@@ -22,7 +22,8 @@ fn raw() -> Value {
 }
 
 fn observe(fixture: &Fixture, raw: &Value) -> Value {
-    normalize(&fixture.root, &Json::parse(&raw.to_string()).unwrap()).unwrap()
+    // As a sorted text read back (the order these cases were written for).
+    normalize(&fixture.root, &sorted(raw.clone())).unwrap()
 }
 
 fn pcm(raw: &mut Value) -> &mut Value {
@@ -77,7 +78,7 @@ fn bonding_and_pairing_windows_are_independent_observations() {
     raw["bluez"][DEVICE]["org.bluez.Device1"]
         .as_object_mut()
         .unwrap()
-        .remove("Bonded");
+        .shift_remove("Bonded");
     assert!(observe(&fixture, &raw)["selected_peer"]["bonded"].is_null());
 }
 
@@ -129,11 +130,7 @@ fn native_observer_private_bus_with_missing_owners_is_not_ready() {
 // ---- codec_observation.quality (tests/test_radio_policy.py, CodecQuality) ----------------------
 
 fn encoder(codec: &str, pcm: &Value) -> Value {
-    quality(
-        Some(codec),
-        &Json::parse(&pcm.to_string()).unwrap(),
-        &json!({}),
-    )
+    quality(Some(codec), &sorted(pcm.clone()), &json!({}))
 }
 
 #[test]

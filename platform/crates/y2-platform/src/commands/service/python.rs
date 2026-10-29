@@ -2,6 +2,7 @@
 //! `observe.mountinfo` with every field, `str()` of a parsed JSON value, `json.loads(strict=False)`,
 //! the key order of one parsed object, and `product_sleep.lock_holders`.
 // SPDX-License-Identifier: GPL-2.0-only
+
 use serde::de::{Deserializer, IgnoredAny, MapAccess, Visitor};
 use serde_json::Value;
 use std::{
@@ -10,7 +11,7 @@ use std::{
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
 };
-use y2p_core::{json::float_repr, py, Root};
+use y2p_core::Root;
 
 /// `os.path.realpath(path, strict=False)` (posixpath, Python 3.15): symlinks resolved where they
 /// exist, the rest of the path taken as written with `..` removed lexically.
@@ -88,127 +89,6 @@ pub fn realpath(path: &Path) -> PathBuf {
         rest.extend(target.split('/').rev().map(|s| Some(s.to_owned())));
     }
     PathBuf::from(current)
-}
-
-/// One line of /proc/self/mountinfo with the fields `observe.mountinfo` keeps.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Mount {
-    pub mount_id: i64,
-    pub device_id: String,
-    pub path: String,
-    pub options: Vec<String>,
-    pub filesystem: String,
-    pub source: String,
-    pub super_options: Vec<String>,
-}
-
-fn unescape(value: &str) -> String {
-    let (mut out, mut rest) = (String::new(), value);
-    while let Some(index) = rest.find('\\') {
-        out.push_str(&rest[..index]);
-        let code = &rest[index + 1..];
-        match ["040", "011", "012", "134"]
-            .iter()
-            .find(|c| code.starts_with(**c))
-        {
-            Some(c) => {
-                out.push(char::from(u8::from_str_radix(c, 8).expect("octal")));
-                rest = &code[3..];
-            }
-            None => {
-                out.push('\\');
-                rest = code;
-            }
-        }
-    }
-    out + rest
-}
-
-/// `observe.mountinfo`.
-pub fn mountinfo(text: &str) -> Vec<Mount> {
-    let mut result = Vec::new();
-    for line in text.lines() {
-        let Some((left, right)) = line.split_once(" - ") else {
-            continue;
-        };
-        let a: Vec<&str> = left.split_whitespace().collect();
-        let b: Vec<&str> = right.split_whitespace().collect();
-        if a.len() < 6
-            || b.len() < 3
-            || a[0].is_empty()
-            || !a[0].bytes().all(|c| c.is_ascii_digit())
-        {
-            continue;
-        }
-        let Ok(mount_id) = a[0].parse() else {
-            continue;
-        };
-        result.push(Mount {
-            mount_id,
-            device_id: a[2].to_owned(),
-            path: unescape(a[4]),
-            options: a[5].split(',').map(str::to_owned).collect(),
-            filesystem: b[0].to_owned(),
-            source: unescape(b[1]),
-            super_options: b[2].split(',').map(str::to_owned).collect(),
-        });
-    }
-    result
-}
-
-/// `str(value)` of a parsed JSON value.
-pub fn str_of(value: &Value) -> String {
-    match value {
-        Value::String(text) => text.clone(),
-        other => repr_of(other),
-    }
-}
-
-/// `repr(value)` of a parsed JSON value.
-pub fn repr_of(value: &Value) -> String {
-    match value {
-        Value::Null => "None".into(),
-        Value::Bool(true) => "True".into(),
-        Value::Bool(false) => "False".into(),
-        Value::Number(n) if n.is_f64() => float_repr(n.as_f64().unwrap_or(0.0)),
-        Value::Number(n) => n.to_string(),
-        Value::String(text) => py::repr(text),
-        Value::Array(items) => format!(
-            "[{}]",
-            items.iter().map(repr_of).collect::<Vec<_>>().join(", ")
-        ),
-        Value::Object(map) => format!(
-            "{{{}}}",
-            map.iter()
-                .map(|(k, v)| format!("{}: {}", py::repr(k), repr_of(v)))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-    }
-}
-
-/// Python `a == b` for parsed JSON values: numbers by value (`1 == 1.0`, `True == 1`), containers
-/// element by element.
-pub fn py_eq(a: &Value, b: &Value) -> bool {
-    match (a, b) {
-        (Value::Number(x), Value::Number(y)) => match (x.as_i64(), y.as_i64()) {
-            (Some(x), Some(y)) => x == y,
-            _ => match (x.as_u64(), y.as_u64()) {
-                (Some(x), Some(y)) => x == y,
-                _ => x.as_f64() == y.as_f64(),
-            },
-        },
-        (Value::Bool(_), Value::Number(_)) | (Value::Number(_), Value::Bool(_)) => {
-            py::number(Some(a)) == py::number(Some(b))
-        }
-        (Value::Array(x), Value::Array(y)) => {
-            x.len() == y.len() && x.iter().zip(y).all(|(a, b)| py_eq(a, b))
-        }
-        (Value::Object(x), Value::Object(y)) => {
-            x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| py_eq(v, w)))
-        }
-        _ => a == b,
-    }
 }
 
 /// `text[:limit]` by characters.
@@ -367,19 +247,6 @@ pub fn lock_held(root: &Root, path: &Path) -> bool {
 mod tests {
     use super::*;
     use serde_json::json;
-
-    #[test]
-    fn values_print_as_python_str() {
-        assert_eq!(str_of(&json!("x")), "x");
-        assert_eq!(str_of(&json!(5)), "5");
-        assert_eq!(str_of(&json!(1.0)), "1.0");
-        assert_eq!(str_of(&json!(true)), "True");
-        assert_eq!(str_of(&json!([1, "a", null])), "[1, 'a', None]");
-        assert_eq!(
-            str_of(&json!({"b": 1, "a": "it's"})),
-            "{'a': \"it's\", 'b': 1}"
-        );
-    }
 
     #[test]
     fn key_order_is_the_documents() {

@@ -12,7 +12,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     image::{self, Ext4, Image},
-    python::{mountinfo, py_eq, realpath, Mount},
+    python::realpath,
 };
 use crate::reply::{atomic_json as publish, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
@@ -23,7 +23,15 @@ use std::{
     path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use y2p_core::{clock, command, json::Ordered, py, record, service_digest::sha256_hex, Root};
+use y2p_core::mounts::{mounts_at, Mount};
+use y2p_core::py::PyValue;
+use y2p_core::{
+    clock, command,
+    json::{Object, ObjectExt},
+    py, record,
+    service_digest::sha256_hex,
+    Root,
+};
 
 /// docs/knowledge/evidence/m5-firmware-inventory.json (stock v3.2.0 FM, /etc/firmware).
 pub const FILES: [(&str, u64, &str); 5] = [
@@ -348,29 +356,13 @@ fn rename_error(error: std::io::Error, from: &Path, to: &Path) -> Error {
 fn roots(root: &Root) -> Vec<PathBuf> {
     let value = root.json_object("/run/y2/mtp-roots.json");
     // `for r in value.get('roots', [])`: a list's items, a dict's keys, a string's characters.
-    let items: Vec<Value> = match value.get("roots") {
-        Some(Value::Array(items)) => items.clone(),
-        Some(Value::Object(map)) => map.keys().map(|k| json!(k)).collect(),
-        Some(Value::String(text)) => text.chars().map(|c| json!(c.to_string())).collect(),
-        _ => Vec::new(),
-    };
+    let items = value.get("roots").and_then(py::iterate).unwrap_or_default();
     items
         .iter()
         .filter_map(Value::as_str)
         .filter(|r| r.starts_with('/'))
         .map(|r| root.path(r))
         .collect()
-}
-
-fn mounts_at(root: &Root, path: &str) -> Vec<Mount> {
-    mountinfo(&root.read("/proc/self/mountinfo").unwrap_or_default())
-        .into_iter()
-        .filter(|m| m.path == path)
-        .collect()
-}
-
-fn boot_id(root: &Root) -> Value {
-    json!(root.read("/proc/sys/kernel/random/boot_id"))
 }
 
 fn get_or_null<'a>(map: &'a Map<String, Value>, key: &str) -> &'a Value {
@@ -383,7 +375,7 @@ pub fn internal(root: &Root) -> bool {
     let current = mounts_at(root, "/media/internal");
     claim.get("state") == Some(&json!("Ready"))
         && current.len() == 1
-        && *get_or_null(&claim, "boot_id") == boot_id(root)
+        && *get_or_null(&claim, "boot_id") == Value::from(root.boot_id())
         && py::eq_int(claim.get("mount_id"), current[0].mount_id)
         && claim.get("device_id") == Some(&json!(current[0].device_id))
 }
@@ -457,7 +449,7 @@ fn owned_mount(root: &Root, mounted: &Mount) -> bool {
     let claim = root.json_object("/run/y2/media-mount.json");
     // Removed cards no longer have a sysfs controller path. The retained claim permits only the exact
     // mount we created, never an arbitrary mountpoint.
-    *get_or_null(&claim, "boot_id") == boot_id(root)
+    *get_or_null(&claim, "boot_id") == Value::from(root.boot_id())
         && py::eq_int(claim.get("mount_id"), mounted.mount_id)
         && claim.get("device_id") == Some(&json!(mounted.device_id))
         && claim.get("device") == Some(&json!(mounted.source))
@@ -470,7 +462,7 @@ fn sd_state(root: &Root) -> (Map<String, Value>, Option<Mount>) {
     if old.len() == 1
         && owned_mount(root, &old[0])
         && py::eq_int(claim.get("mount_id"), old[0].mount_id)
-        && *get_or_null(&claim, "boot_id") == boot_id(root)
+        && *get_or_null(&claim, "boot_id") == Value::from(root.boot_id())
     {
         let mount = old.into_iter().next();
         return (claim, mount);
@@ -481,7 +473,7 @@ fn sd_state(root: &Root) -> (Map<String, Value>, Option<Mount>) {
 /// `media._writers`: the live holders of this mount's window.
 fn writers(root: &Root, mount: &Mount) -> Vec<(String, f64)> {
     let value = root.json_object(SD_WRITE);
-    if *get_or_null(&value, "boot_id") != boot_id(root)
+    if *get_or_null(&value, "boot_id") != Value::from(root.boot_id())
         || !py::eq_int(value.get("mount_id"), mount.mount_id)
     {
         return Vec::new();
@@ -490,8 +482,8 @@ fn writers(root: &Root, mount: &Mount) -> Vec<(String, f64)> {
     let Some(Value::Object(holders)) = value.get("holders") else {
         return Vec::new();
     };
-    holders
-        .iter()
+    y2p_core::json::sorted_entries(holders)
+        .into_iter()
         .filter(|(k, _)| WRITE_HOLDERS.contains(&k.as_str()))
         .filter_map(|(k, v)| {
             py::number(Some(v))
@@ -506,7 +498,7 @@ fn apply_window(root: &Root, mount: &Mount, holders: &[(String, f64)]) -> Result
     let map: Map<String, Value> = holders.iter().map(|(k, v)| (k.clone(), json!(v))).collect();
     publish(
         &root.path(SD_WRITE),
-        &json!({"schema": 1, "boot_id": boot_id(root), "mount_id": mount.mount_id, "holders": map}),
+        &json!({"schema": 1, "boot_id": Value::from(root.boot_id()), "mount_id": mount.mount_id, "holders": map}),
         false,
     )?;
     let mut writable = mount.options.iter().any(|o| o == "rw");
@@ -651,7 +643,7 @@ fn scan(root: &Root, reviewed: &Reviewed) -> Result<Value> {
         };
         let (seen, arriving) = seen(&info);
         // A copy still arriving over USB changes size or time between passes.
-        if !py_eq(get_or_null(&previous, "seen"), &seen) || arriving {
+        if !get_or_null(&previous, "seen").py_eq(&seen) || arriving {
             record_state(
                 root,
                 &json!({"schema": 1, "state": "Missing", "seen": seen}),
@@ -697,7 +689,7 @@ fn scan(root: &Root, reviewed: &Reviewed) -> Result<Value> {
 /// that name stays.
 fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
     let previous = root.json_object(STATE);
-    let mut value = Ordered::new()
+    let mut value = Object::new()
         .with("schema", 1)
         .with("state", "Ready")
         .with("kept", get_or_null(&previous, "kept").clone());
@@ -706,11 +698,11 @@ fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
             continue;
         };
         let (seen, arriving) = seen(&info);
-        if py_eq(&seen, get_or_null(&previous, "kept")) {
+        if seen.py_eq(get_or_null(&previous, "kept")) {
             continue;
         }
         // A copy still arriving changes size or time between passes.
-        if !py_eq(get_or_null(&previous, "leftover"), &seen) || arriving {
+        if !get_or_null(&previous, "leftover").py_eq(&seen) || arriving {
             value.set("leftover", seen);
             break;
         }
@@ -722,9 +714,8 @@ fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
         tidy(root);
     }
     let differs = value
-        .0
         .iter()
-        .any(|(k, v)| !py_eq(v, get_or_null(&previous, k)))
+        .any(|(k, v)| !v.py_eq(get_or_null(&previous, k)))
         || previous.keys().any(|k| value.get(k).is_none());
     if differs {
         record_state(root, &serde_json::to_value(&value).expect("value"))?;
@@ -741,7 +732,7 @@ pub fn leftover_waiting(root: &Root) -> bool {
         .unwrap_or(Value::Null);
     candidates(root)
         .iter()
-        .any(|source| regular(source).is_some_and(|info| !py_eq(&seen(&info).0, &kept)))
+        .any(|source| regular(source).is_some_and(|info| !seen(&info).0.py_eq(&kept)))
 }
 
 /// `radiofw.start`: (re)start the radios with the installed firmware. Stopping running radios can take
@@ -783,7 +774,7 @@ pub fn run(root: &Root, action: &str, path: Option<&str>) -> Outcome {
             u8::from(value.get("state") == Some(&json!("Failed"))),
         ),
         Err(error) => Reply::unsorted(
-            &Ordered::new()
+            &Object::new()
                 .with("state", "Failed")
                 .with("failure", error.text()),
             1,

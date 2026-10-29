@@ -20,6 +20,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+use y2p_core::sys::{set_signal, Disposition, Handler};
 use y2p_core::{
     clock, command,
     py::{self, eq_int},
@@ -64,15 +65,9 @@ fn usb_address(root: &Root) -> Address {
     }
 }
 
-/// Python iteration of a parsed JSON value: a list's items, a dict's keys, a string's characters;
-/// anything else is a TypeError (`Err`).
+/// Python iteration of a parsed JSON value (`py::iterate`); anything else is a TypeError (`Err`).
 fn items(value: &Value) -> Result<Vec<Value>, ()> {
-    match value {
-        Value::Array(items) => Ok(items.clone()),
-        Value::Object(map) => Ok(map.keys().map(|k| json!(k)).collect()),
-        Value::String(text) => Ok(text.chars().map(|c| json!(c.to_string())).collect()),
-        _ => Err(()),
-    }
+    y2p_core::py::iterate(value).ok_or(())
 }
 
 /// `any(a.get('local') == '10.42.0.1' and a.get('prefixlen') == 24 for i in interfaces if
@@ -153,7 +148,7 @@ extern "C" fn on_signal(signal: libc::c_int) {
 }
 
 struct Signals {
-    previous: Vec<(libc::c_int, libc::sigaction)>,
+    previous: Vec<(libc::c_int, Disposition)>,
 }
 
 impl Signals {
@@ -163,16 +158,11 @@ impl Signals {
         WAKE.store(wake, Ordering::SeqCst);
         let mut previous = Vec::new();
         for signal in SIGNALS {
-            // SAFETY: a zeroed sigaction with our handler and an empty mask; the old one is kept.
-            unsafe {
-                let mut action: libc::sigaction = std::mem::zeroed();
-                action.sa_sigaction = on_signal as *const () as usize;
-                libc::sigemptyset(&mut action.sa_mask);
-                action.sa_flags = libc::SA_ONSTACK;
-                let mut old: libc::sigaction = std::mem::zeroed();
-                if libc::sigaction(signal, &action, &mut old) == 0 {
-                    previous.push((signal, old));
-                }
+            // SAFETY: the handler only touches atomics and write(2); the old action is kept.
+            if let Ok(old) =
+                unsafe { set_signal(signal, Handler::Call(on_signal), libc::SA_ONSTACK) }
+            {
+                previous.push((signal, old));
             }
         }
         Signals { previous }
@@ -181,8 +171,7 @@ impl Signals {
     fn restore(self) {
         WAKE.store(-1, Ordering::SeqCst);
         for (signal, old) in self.previous {
-            // SAFETY: re-installing the disposition sigaction returned.
-            unsafe { libc::sigaction(signal, &old, std::ptr::null_mut()) };
+            old.restore(signal);
         }
     }
 }
@@ -343,7 +332,7 @@ impl Daemon<'_> {
             };
         }
         let record = json!({
-            "schema": 1, "boot_id": self.root.read("/proc/sys/kernel/random/boot_id"),
+            "schema": 1, "boot_id": self.root.boot_id(),
             "monotonic_s": clock::monotonic(), "state": ready, "reason": reason,
             "bind": "10.42.0.1:22", "interface": "usb0", "authentication": "owner_public_key",
             "sftp": self.root.path("/usr/libexec/y2-sftp-server").is_file(),

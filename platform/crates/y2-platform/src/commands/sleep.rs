@@ -53,16 +53,11 @@ fn dict(value: &Value) -> Result<(Map<String, Value>, bool), Failure> {
     let mut result = Map::new();
     let mut odd = false;
     for (index, item) in items.iter().enumerate() {
-        let pair: Vec<Value> = match item {
-            Value::Array(pair) => pair.clone(),
-            Value::String(text) => text.chars().map(|c| json!(c.to_string())).collect(),
-            Value::Object(map) => map.keys().map(|k| json!(k)).collect(),
-            _ => {
-                return Err(Failure::type_error(format!(
-                    "cannot convert dictionary update sequence element #{index} to a sequence"
-                )))
-            }
-        };
+        let pair = y2p_core::py::iterate(item).ok_or_else(|| {
+            Failure::type_error(format!(
+                "cannot convert dictionary update sequence element #{index} to a sequence"
+            ))
+        })?;
         if pair.len() != 2 {
             return Err(Failure::Value(format!(
                 "dictionary update sequence element #{index} has length {}; 2 is required",
@@ -179,11 +174,5 @@ fn finish(mut result: Map<String, Value>, boot_id: Option<&str>) -> Map<String, 
 
 pub fn status(root: &Root) -> Outcome {
     let value = root.json_object(RECEIPT);
-    Reply::sorted(
-        &product(
-            &value,
-            root.read("/proc/sys/kernel/random/boot_id").as_deref(),
-        )?,
-        0,
-    )
+    Reply::sorted(&product(&value, root.boot_id().as_deref())?, 0)
 }
