@@ -3,16 +3,12 @@
 Register layout from the owner-authorised live test on 16 (ledger F11):
 MD1_SET 0x20 / MD1_CLR 0x28 write-one, STA 0x30, 26 request bits.
 """
-import json
 from pathlib import Path
-import sys
-import tempfile
 import unittest
 
 from test_power import run_c
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'tools/platform'))
 
 
 class Md1Gate(unittest.TestCase):
@@ -58,22 +54,6 @@ int main(void) {
         apply = spm[spm.index('static void y2_golden_entry_apply(void)'):]
         self.assertLess(apply.index('y2_md1_regate'), apply.index('if (!groups'))
         self.assertIn('md1_gate=%u md1_result=%d md1_sta=%#x md1_regates=%u', spm)
-
-    def test_userspace_arms_with_owner_override(self):
-        from y2_platform.common import Context
-        from y2_platform.power_features import apply
-        with tempfile.TemporaryDirectory() as temp:
-            ctx = Context(temp)
-            param = ctx.path('/sys/module/spm/parameters/md1_gate')
-            param.parent.mkdir(parents=True)
-            param.write_text('N')
-            self.assertEqual(apply(ctx)['md1_gate']['wanted'], True)
-            self.assertEqual(param.read_text(), 'Y')
-            override = ctx.path('/data/system/platform/power-features.json')
-            override.parent.mkdir(parents=True)
-            override.write_text(json.dumps({'md1_gate': False}))
-            apply(ctx)
-            self.assertEqual(param.read_text(), 'N')
 
 
 if __name__ == '__main__':

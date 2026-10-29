@@ -185,3 +185,7 @@ pub fn apply(root: &Root) -> Map<String, Value> {
         .and_then(|()| atomic_json(&runtime, &json!({"schema": 1, "features": result}), false));
     result
 }
+
+#[cfg(test)]
+#[path = "power_features_tests.rs"]
+mod power_features_tests;

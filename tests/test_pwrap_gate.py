@@ -4,14 +4,10 @@ Live test 2026-10-13 (ledger F17): with bit 23 set the AP-side wrapper reads as 
 and every WACS2 transfer fails, so the gate must follow the last AP PMIC access
 and the ungate must precede the first restore.
 """
-import json
 from pathlib import Path
-import sys
-import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'tools/platform'))
 
 
 class PwrapGate(unittest.TestCase):
@@ -52,22 +48,6 @@ class PwrapGate(unittest.TestCase):
         self.assertLess(gate.index('pwrap_gated = true;'), gate.index('pwrap_gate_sta = '))
         self.assertIn('#define Y2_INFRA_PMIC_WRAP (1U << 23)', self.spm)
         self.assertIn('static bool pwrap_gate;', self.spm)   # kernel default off
-
-    def test_userspace_arms_with_owner_override(self):
-        from y2_platform.common import Context
-        from y2_platform.power_features import apply
-        with tempfile.TemporaryDirectory() as temp:
-            ctx = Context(temp)
-            param = ctx.path('/sys/module/spm/parameters/pwrap_gate')
-            param.parent.mkdir(parents=True)
-            param.write_text('N')
-            self.assertEqual(apply(ctx)['pwrap_gate']['wanted'], True)
-            self.assertEqual(param.read_text(), 'Y')
-            override = ctx.path('/data/system/platform/power-features.json')
-            override.parent.mkdir(parents=True)
-            override.write_text(json.dumps({'pwrap_gate': False}))
-            apply(ctx)
-            self.assertEqual(param.read_text(), 'N')
 
 
 if __name__ == '__main__':
