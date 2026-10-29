@@ -155,15 +155,21 @@ pub fn write_window(
 /// Whether `protect` has work: a protected card still mounted read-write with no live window. The
 /// service asks before it starts `media reconcile` (file reads only, no subprocess).
 pub fn window_expired(root: &Root) -> bool {
-    match sd_state(root) {
-        (claim, Some(m))
-            if claim.read_only() == Some(ReadOnly::Protected) && m.has_option("rw") =>
-        {
-            // A holders record that is not an object fails reconcile too: never a restart per tick.
-            writers(root, &m).is_ok_and(|holders| holders.is_empty())
-        }
-        _ => false,
+    // The service asks every tick: cheapest first. With no card, or a card read-only between
+    // writes (the steady state), the answer comes from the mountinfo alone.
+    let current = mounts_at(root, SD);
+    let [mount] = &current[..] else {
+        return false;
+    };
+    if !mount.has_option("rw") {
+        return false;
     }
+    let claim = Claim::load(root);
+    claim.read_only() == Some(ReadOnly::Protected)
+        && claim.holds(root, mount.mount_id)
+        && owned_mount(root, mount)
+        // A holders record that is not an object fails reconcile too: never a restart per tick.
+        && writers(root, mount).is_ok_and(|holders| holders.is_empty())
 }
 
 /// Reconcile tick: a protected card with no live window goes read-only.

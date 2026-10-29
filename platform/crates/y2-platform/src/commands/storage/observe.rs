@@ -9,7 +9,7 @@ use super::sys::{
     Object,
 };
 use serde_json::{json, Value};
-use std::path::Path;
+use std::{cell::OnceCell, path::Path};
 use y2p_core::py::PyValue;
 use y2p_core::{
     command,
@@ -164,6 +164,9 @@ fn volume(root: &Root, mounts: &[Mount], boot: &Option<String>, target: &str) ->
         }
         return volume;
     };
+    // The SD card's claim, read at most once.
+    let claim = OnceCell::new();
+    let claim = || claim.get_or_init(|| Claim::load(root));
     let mut item = mount.value();
     let set = |item: &mut Object, key: &str, value: Value| {
         item.insert(key.into(), value);
@@ -221,7 +224,7 @@ fn volume(root: &Root, mounts: &[Mount], boot: &Option<String>, target: &str) ->
             let identity = media_identity(&device, &mount.filesystem, uuid.as_str());
             let identity_value = identity.clone().map_or(Value::Null, Value::Object);
             set(&mut item, "identity", identity_value.clone());
-            let claim = Claim::load(root);
+            let claim = claim();
             let matches = [
                 ("boot_id", text(boot)),
                 ("mount_id", json!(mount.mount_id)),
@@ -250,7 +253,7 @@ fn volume(root: &Root, mounts: &[Mount], boot: &Option<String>, target: &str) ->
         // A healthy card is mounted read-only between writes: it is Ready; so is one that
         // plays while its check finishes in the background (F49).
         protected = matches!(
-            Claim::load(root).read_only(),
+            claim().read_only(),
             Some(ReadOnly::Protected | ReadOnly::Checking)
         );
     }
@@ -302,7 +305,7 @@ fn volume(root: &Root, mounts: &[Mount], boot: &Option<String>, target: &str) ->
         if sd {
             // Why the platform mounted the card read-only: its check found errors or did not
             // finish; Repair can make it writable.
-            let reason = match Claim::load(root).read_only() {
+            let reason = match claim().read_only() {
                 Some(cause) if ReadOnly::damaged(Some(cause)) => cause.value(),
                 _ => json!("mounted_read_only"),
             };
