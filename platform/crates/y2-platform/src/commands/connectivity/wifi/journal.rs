@@ -4,9 +4,9 @@
 use serde::Serialize;
 use y2p_core::clock::wall;
 use y2p_core::{
-    connectivity_journal::append_bounded,
     json::{dumps, Separators},
     mounts::data_ready,
+    power_journal::append_bounded,
     Root,
 };
 

@@ -198,4 +198,66 @@ mod tests {
         fs::create_dir(&journal).unwrap();
         assert!(append_bounded(&root, name, b"x\n", 20, false).is_err());
     }
+
+    // The Wi-Fi journal (`wifi-journal.jsonl`) appends the same way, on the verified /data only.
+    use crate::{mounts::data_ready, root::tests::tempdir::Dir as WifiDir};
+    fn put_file(dir: &WifiDir, name: &str, text: &str) {
+        let path = dir.path().join(name);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, text).unwrap();
+    }
+
+    #[test]
+    fn data_is_ready_only_on_the_verified_mount() {
+        let dir = WifiDir::new();
+        let root = Root::new(dir.path());
+        assert!(!data_ready(&root));
+        put_file(&dir, "data/.y2data-schema", "1\n");
+        put_file(&dir, "run/y2-data-device", "/dev/mmcblk0p9\n");
+        put_file(
+            &dir,
+            "proc/self/mountinfo",
+            "22 1 179:2 / / ro - ext4 /dev/mmcblk0p2 ro\n30 22 179:9 / /data rw - ext4 /dev/mmcblk0p9 rw\n",
+        );
+        assert!(data_ready(&root));
+        put_file(&dir, "run/y2-data-device", "/dev/sda1\n");
+        assert!(!data_ready(&root));
+    }
+
+    #[test]
+    fn wifi_rows_append_rotate_once_and_skip_a_busy_lock() {
+        let dir = WifiDir::new();
+        let root = Root::new(dir.path());
+        let name = "/data/system/platform/wifi-journal.jsonl";
+        append_bounded(&root, name, b"{\"a\":1}\n", 16, true).unwrap();
+        append_bounded(&root, name, b"{\"b\":2}\n", 16, false).unwrap();
+        let platform = dir.path().join("data/system/platform");
+        assert_eq!(
+            fs::read_to_string(platform.join("wifi-journal.jsonl")).unwrap(),
+            "{\"a\":1}\n{\"b\":2}\n"
+        );
+        append_bounded(&root, name, b"{\"c\":3}\n", 16, false).unwrap();
+        assert_eq!(
+            fs::read_to_string(platform.join("wifi-journal.jsonl")).unwrap(),
+            "{\"c\":3}\n"
+        );
+        assert_eq!(
+            fs::read_to_string(platform.join("wifi-journal.previous.jsonl")).unwrap(),
+            "{\"a\":1}\n{\"b\":2}\n"
+        );
+        assert!(platform.join(".wifi-journal.lock").exists());
+        assert_eq!(
+            fs::metadata(platform.join("wifi-journal.jsonl"))
+                .unwrap()
+                .mode()
+                & 0o777,
+            0o600
+        );
+        let busy = crate::lock::exclusive(&platform.join(".wifi-journal.lock")).unwrap();
+        let error = append_bounded(&root, name, b"x\n", 16, false).unwrap_err();
+        assert!(
+            matches!(error, AppendError::Os { error, path: None } if error.raw_os_error() == Some(libc::EWOULDBLOCK))
+        );
+        drop(busy);
+    }
 }
