@@ -17,20 +17,95 @@ const STATES: [&str; 8] = [
     "restore_failed",
 ];
 
-pub fn product(
+/// `type(value).__name__` of a parsed JSON value.
+pub fn python_type(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "NoneType",
+        Value::Bool(_) => "bool",
+        Value::Number(n) if n.is_f64() => "float",
+        Value::Number(_) => "int",
+        Value::String(_) => "str",
+        Value::Array(_) => "list",
+        Value::Object(_) => "dict",
+    }
+}
+
+/// `dict(x)` of a truthy JSON value that is no dict: a list of key/value pairs (each a 2-item list,
+/// a 2-character str or a 2-key dict) builds one; anything else is Python's `TypeError` or
+/// `ValueError`. The bool is true when a key is no str (a number, bool or null): such a dict exists
+/// only in memory, because every sorted `json.dumps` of it raises.
+fn dict(value: &Value) -> Result<(Map<String, Value>, bool), Failure> {
+    let items = match value {
+        Value::Array(items) => items,
+        // A non-empty str: its first item is a 1-character str.
+        Value::String(_) => {
+            return Err(Failure::Value(
+                "dictionary update sequence element #0 has length 1; 2 is required".into(),
+            ))
+        }
+        _ => {
+            return Err(Failure::type_error(format!(
+                "'{}' object is not iterable",
+                python_type(value)
+            )))
+        }
+    };
+    let mut result = Map::new();
+    let mut odd = false;
+    for (index, item) in items.iter().enumerate() {
+        let pair: Vec<Value> = match item {
+            Value::Array(pair) => pair.clone(),
+            Value::String(text) => text.chars().map(|c| json!(c.to_string())).collect(),
+            Value::Object(map) => map.keys().map(|k| json!(k)).collect(),
+            _ => {
+                return Err(Failure::type_error(format!(
+                    "cannot convert dictionary update sequence element #{index} to a sequence"
+                )))
+            }
+        };
+        if pair.len() != 2 {
+            return Err(Failure::Value(format!(
+                "dictionary update sequence element #{index} has length {}; 2 is required",
+                pair.len()
+            )));
+        }
+        match &pair[0] {
+            Value::String(key) => {
+                result.insert(key.clone(), pair[1].clone());
+            }
+            key @ (Value::Array(_) | Value::Object(_)) => {
+                return Err(Failure::type_error(format!(
+                    "cannot use '{}' as a dict key (unhashable type: '{}')",
+                    python_type(key),
+                    python_type(key)
+                )))
+            }
+            _ => odd = true,
+        }
+    }
+    Ok((result, odd))
+}
+
+/// `sleep.product` for a caller that keeps the dict in memory before it is written: also whether
+/// the dict holds a key that is no str (`dict()` of a list of pairs), which a later sorted
+/// `json.dumps` refuses (`odd_keys`).
+pub fn product_keys(
     value: &Map<String, Value>,
     boot_id: Option<&str>,
-) -> Result<Map<String, Value>, Failure> {
-    let mut result = match value.get("product") {
-        Some(Value::Object(map)) => map.clone(),
-        Some(other) if truthy(other) => return Err(Failure::Fallback), // dict() of a non-dict
-        _ => Map::new(),
+) -> Result<(Map<String, Value>, bool), Failure> {
+    // dict(value.get('product') or {})
+    let (mut result, mut odd) = match value.get("product") {
+        Some(Value::Object(map)) => (map.clone(), false),
+        Some(other) if truthy(other) => dict(other)?,
+        _ => (Map::new(), false),
     };
-    if matches!(
-        result.get("state"),
-        Some(Value::Array(_) | Value::Object(_))
-    ) {
-        return Err(Failure::Fallback); // unhashable: `in STATES` raises
+    if let Some(state @ (Value::Array(_) | Value::Object(_))) = result.get("state") {
+        // `in STATES`: unhashable.
+        return Err(Failure::type_error(format!(
+            "cannot use '{}' as a set element (unhashable type: '{}')",
+            python_type(state),
+            python_type(state)
+        )));
     }
     let state = result
         .get("state")
@@ -39,7 +114,29 @@ pub fn product(
     if !state.as_deref().is_some_and(|s| STATES.contains(&s)) {
         result = serde_json::from_value(json!({"state": "idle", "reason": null, "request_boot_id": null,
                                                "kernel_completed": false, "wake_reason": "unknown"})).expect("literal");
+        odd = false;
     }
+    Ok((finish(result, boot_id), odd))
+}
+
+/// The TypeError of `json.dumps(..., sort_keys=True)` on a dict with str and other keys.
+pub fn odd_keys() -> Failure {
+    Failure::type_error("'<' not supported between instances of 'int' and 'str'")
+}
+
+/// `sleep.product`: `Err` for Python's `ValueError` (`Failure::Value`) or `TypeError`
+/// (`Failure::Crash`); a dict whose keys are not all str is the `TypeError` of its sorted dump.
+pub fn product(
+    value: &Map<String, Value>,
+    boot_id: Option<&str>,
+) -> Result<Map<String, Value>, Failure> {
+    match product_keys(value, boot_id)? {
+        (_, true) => Err(odd_keys()),
+        (result, false) => Ok(result),
+    }
+}
+
+fn finish(mut result: Map<String, Value>, boot_id: Option<&str>) -> Map<String, Value> {
     result.insert("schema".into(), json!(y2p_contract::schema::SLEEP));
     result.insert("boot_id".into(), json!(boot_id));
     let request = result
@@ -77,7 +174,7 @@ pub fn product(
         result.insert("reason".into(), json!("boot_changed_before_restoration"));
         result.insert("kernel_completed".into(), json!(false));
     }
-    Ok(result)
+    result
 }
 
 pub fn status(root: &Root) -> Outcome {

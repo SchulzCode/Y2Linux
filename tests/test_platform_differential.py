@@ -76,7 +76,7 @@ CASES = [
         {'product': {'state': 'sleeping', 'request_boot_id': 'boot-old', 'reason': None, 'kernel_completed': True}})}}),
     ('sleep-status-refused-before', ['sleep', 'status'], {'ported': True, 'files': {SLEEP: json.dumps(
         {'product': {'state': 'refused', 'request_boot_id': 'boot-old', 'reason': 'usb'}})}}),
-    ('sleep-status-list', ['sleep', 'status'], {'ported': False, 'files': {SLEEP: '{"product": [["state", "idle"]]}'}}),
+    ('sleep-status-list', ['sleep', 'status'], {'ported': True, 'files': {SLEEP: '{"product": [["state", "idle"]]}'}}),
     ('time', ['time'], {'ported': True, 'files': {'/run/y2/time.json': anchor()}}),
     ('time-no-anchor', ['time'], {'ported': True}),
     ('time-other-boot', ['time'], {'ported': True, 'files': {'/run/y2/time.json': anchor(boot='x')}}),
