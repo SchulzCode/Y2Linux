@@ -49,9 +49,17 @@ def reference_python():
         pass
     for root in roots:
         candidate = root / PLAYER_BINARY
-        if candidate.is_file() and os.access(candidate, os.X_OK):
+        if candidate.is_file() and os.access(candidate, os.X_OK) and runs(candidate):
             return str(candidate)
     return None
+
+
+def runs(interpreter):
+    """Whether this host can start it (in the build container the build's host Python lacks its libraries)."""
+    try:
+        return subprocess.run([str(interpreter), '-I', '-c', 'pass'], capture_output=True, timeout=30).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 def inner(mode, stdin=None):

@@ -414,7 +414,7 @@ def validate_rootfs(out,build,m):
         require(b'root:$6$y2linux$disabled:' in read('etc/shadow'),'password disabled')
         release=(build/'kernel/include/config/kernel.release').read_text().strip()
         require('display.ko' not in members and not any('.ko' in n and n.startswith('lib/modules/') for n in members),'kernel modules must be owned by BOOTIMG')
-        for name in ('etc/y2linux/layout-version','etc/y2linux/versions.json','etc/y2linux/platform-contract','usr/sbin/y2-platform-start','usr/sbin/y2-status','etc/init.d/S02y2-data','usr/sbin/y2-media','usr/bin/aplay','etc/fstab'):
+        for name in ('etc/y2linux/layout-version','etc/y2linux/versions.json','etc/y2linux/platform-contract','usr/sbin/y2-platform-start','usr/sbin/y2-platform','etc/init.d/S02y2-data','usr/sbin/y2-media','usr/bin/aplay','etc/fstab'):
             require(run('debugfs','-R','cat /'+name,str(out/'Y2ROOT.img'))==read(name),'raw ext4/tar agreement '+name)
     if m.get('installation_profile')=='system-update':
         print('PASS new root contents; existing Y2DATA preserved without a data payload')
