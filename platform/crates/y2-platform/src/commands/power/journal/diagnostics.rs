@@ -10,7 +10,6 @@ use y2p_core::{
     json::{Object, ObjectExt},
     mounts::data_ready,
     power_journal::append_bounded,
-    power_text::{key_values, python_hex, python_split, trie_address},
     root::read,
     Root,
 };
@@ -19,29 +18,6 @@ const DIAGNOSTICS: &str = "/data/system/platform/sleep-diagnostics.jsonl";
 const DIAGNOSTICS_LIMIT: u64 = 2097152;
 const DIAGNOSTICS_ROW: usize = 65536;
 const SPM: &str = "/sys/devices/platform/10006000.power-controller/";
-const USB_SUMMARY: [&str; 21] = [
-    "stage",
-    "error",
-    "configured",
-    "detached",
-    "monitor_parked",
-    "cable_events",
-    "runtime_status",
-    "runtime_held",
-    "pm_suspends",
-    "pm_restores",
-    "irqs",
-    "dma_errors",
-    "dma_aborts",
-    "reconnect_failures",
-    "monitor_failures",
-    "dma_tx_programs",
-    "dma_irqs",
-    "dma_unmask_rearms",
-    "dma_unmask_lost",
-    "dma_intr_before",
-    "dma_intr_after",
-];
 // Kernel messages kept in a row: USB, gadget, network and the sleep path.
 const KERNEL_TOKENS: [&str; 18] = [
     "Y2USB",
@@ -63,151 +39,15 @@ const KERNEL_TOKENS: [&str; 18] = [
     "usb0",
     "PM: ",
 ];
-const PROCESSES: [&str; 2] = ["umtprd", "dropbear"];
 pub(crate) const FOLLOW_UP_S: f64 = 30.0;
 const MIN_INTERVAL_S: f64 = 10.0;
 
-/// `ipv4(ctx, interface)`: local IPv4 addresses of one interface from /proc/net/fib_trie: no
-/// subprocess, no ioctl. A route field that is not hex is `ValueError` (the row is dropped).
-fn ipv4(root: &Root, interface: &str) -> Result<Vec<String>, Dropped> {
-    let routes = root
-        .read_limited("/proc/net/route", 65536)
-        .unwrap_or_default();
-    let mut networks = Vec::new();
-    for line in routes.lines().skip(1) {
-        let fields = python_split(line);
-        if fields.len() >= 8 && fields[0] == interface {
-            let network = python_hex(fields[1]).ok_or(Dropped)?;
-            let mask = python_hex(fields[7]).ok_or(Dropped)?;
-            networks.push((network, mask));
-        }
-    }
-    let mut found: Vec<String> = Vec::new();
-    let mut previous: Option<String> = None;
-    for line in root
-        .read_limited("/proc/net/fib_trie", 262144)
-        .unwrap_or_default()
-        .lines()
-    {
-        let text = y2p_core::root::python_strip(line);
-        if text.contains("/32 host LOCAL") {
-            if let Some(address) = previous.as_ref().filter(|p| !p.is_empty()) {
-                // Python's ints are unbounded; an octet beyond 64 bits matches no route here.
-                let octets: Option<Vec<i128>> = address
-                    .split('.')
-                    .map(|x| x.parse::<u64>().ok().map(i128::from))
-                    .collect();
-                if let Some(o) = octets.filter(|o| o.len() == 4) {
-                    let value = o[0] | o[1] << 8 | o[2] << 16 | o[3] << 24;
-                    if networks
-                        .iter()
-                        .any(|(network, mask)| value & mask == *network)
-                        && !found.contains(address)
-                    {
-                        found.push(address.clone());
-                    }
-                }
-            }
-        }
-        previous = match trie_address(text) {
-            Some(address) => Some(address),
-            None if text.contains('/') => previous,
-            None => None,
-        };
-    }
-    found.sort();
-    Ok(found)
-}
-
-/// `processes(ctx)`: whether umtprd and dropbear run (their `comm` under /proc).
-fn processes(root: &Root) -> Object {
-    let mut running: Vec<(&str, bool)> = PROCESSES.iter().map(|p| (*p, false)).collect();
-    if let Ok(entries) = fs::read_dir(root.path("/proc")) {
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            let name = name.to_string_lossy();
-            if !name.is_empty() && name.chars().all(|c| c.is_numeric()) {
-                if let Some(comm) = read(&entry.path().join("comm"), 64) {
-                    if let Some(slot) = running.iter_mut().find(|(p, _)| *p == comm) {
-                        slot.1 = true;
-                    }
-                }
-            }
-        }
-    }
-    running
-        .into_iter()
-        .fold(Object::new(), |o, (name, on)| o.with(name, on))
-}
-
-/// `usb_net(ctx)`: compact USB gadget and USB network state (about 1 KiB).
+/// The USB state (journal::usb) as a row's object; a row without it is dropped.
 pub fn usb_net(root: &Root) -> Result<Object, Dropped> {
-    let net = "/sys/class/net/usb0/";
-    let mut statistics = Object::new();
-    for name in [
-        "rx_packets",
-        "tx_packets",
-        "rx_bytes",
-        "tx_bytes",
-        "rx_errors",
-        "tx_errors",
-        "rx_dropped",
-        "tx_dropped",
-    ] {
-        statistics.set(name, root.integer(&format!("{net}statistics/{name}")));
+    match serde_json::to_value(super::usb::usb_net(root).map_err(|_| Dropped)?) {
+        Ok(Value::Object(map)) => Ok(map),
+        _ => Err(Dropped),
     }
-    let mut udc = Object::new();
-    for path in root.glob("/sys/class/udc/*") {
-        udc.set(&glob_name(&path), read(&path.join("state"), 64));
-    }
-    let mut controller = Object::new();
-    for path in root.glob("/sys/bus/platform/drivers/y2-usb/*/status") {
-        let found = key_values(read(&path, 8192).as_deref());
-        let mut summary = Object::new();
-        for key in USB_SUMMARY {
-            summary.set(
-                key,
-                found.iter().find(|(k, _)| k == key).map(|(_, v)| v.clone()),
-            );
-        }
-        controller.set(&parent_name(&path), summary);
-    }
-    let mut out_path = Object::new();
-    for path in root.glob("/sys/bus/platform/drivers/y2-usb/*/rxdiag") {
-        let first: Vec<Value> = read(&path, 4096)
-            .unwrap_or_default()
-            .lines()
-            .take(1)
-            .map(Value::from)
-            .collect();
-        out_path.set(&parent_name(&path), first);
-    }
-    let usb0 = Object::new()
-        .with(
-            "operstate",
-            root.read_limited(&format!("{net}operstate"), 64),
-        )
-        .with("carrier", root.read_limited(&format!("{net}carrier"), 8))
-        .with("flags", root.read_limited(&format!("{net}flags"), 32))
-        .with(
-            "ipv4",
-            ipv4(root, "usb0")?
-                .into_iter()
-                .map(Value::from)
-                .collect::<Vec<_>>(),
-        )
-        .with("statistics", statistics);
-    Ok(Object::new()
-        .with("udc", udc)
-        .with(
-            "gadget_udc",
-            root.read_limited("/sys/kernel/config/usb_gadget/y2/UDC", 128),
-        )
-        .with("controller", controller)
-        .with("out_path", out_path)
-        .with("usb0", usb0)
-        .with("transfer", json(root, "/run/y2/usb-transfer.json"))
-        .with("processes", processes(root)))
 }
 
 /// `features(ctx, golden)`: the 13 sleep-parity switches and counters, the INFRA and SPM state.
