@@ -1,6 +1,6 @@
 # Platform service: port from Python to Rust, then remove Python from the player
 
-Status: **Phases 2–6 implemented on `main` (2026-10-29): the whole platform is Rust and the image has no Python; test build 169 and the owner's hardware checks (incl. two overnight runs) are next.** Owner's goal: everything that runs on the player is Rust (Reborn), C
+Status: **All phases implemented on `main` (2026-10-29): the whole platform is Rust and the image has no Python; test build 169 is on the owner's player (Acknowledged), the owner's hardware checks (incl. two overnight runs) are next. Handoff: [PLATFORM-RUST-PORT-HANDOFF.md](PLATFORM-RUST-PORT-HANDOFF.md).** Owner's goal: everything that runs on the player is Rust (Reborn), C
 (kernel, early boot, installer) or shell (init scripts); **no Python in the image**. Host-side tooling (release,
 build, validation, the test harness) may stay Python.
 

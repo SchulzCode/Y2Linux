@@ -8,7 +8,8 @@
 > Internal Storage, OTA+rollback from 169, reports, MTP/SSH, Wi-Fi, Bluetooth. Known: two product-sleep differential
 > cases are timing-sensitive under load (Python vs Python too); `status --reborn --pss` CPU is now mostly Reborn's
 > `rebornctl metrics --json`. Then (§8): fix the defects carried 1:1, drop the Python reference from the host tests.
-> Next free label 170, sequence above 11140.
+> Next free label 170, sequence above 11140. **Full port handoff (state, layout, build/test/install commands,
+> decisions, defect list with locations, lessons): [PLATFORM-RUST-PORT-HANDOFF.md](PLATFORM-RUST-PORT-HANDOFF.md).**
 >
 > Previous entry: **START HERE (2026-10-29): PLATFORM RUST PORT — ALL GROUPS MERGED ON MAIN, PHASE 6 (REMOVE PYTHON) NOT DONE. Stopped at the usage limit.**
 > On `main` (not pushed): argparse-identical dispatcher and every group ported and merged (observation, connectivity,
