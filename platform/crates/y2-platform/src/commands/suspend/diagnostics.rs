@@ -494,3 +494,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "diagnostics_tests.rs"]
+mod diagnostics_tests;

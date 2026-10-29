@@ -190,24 +190,3 @@ int main(void){
         self.assertNotIn('CLOCK_EVT_FEAT_DUMMY',setup)
         self.assertIn('frequency != 13000000',function(s,'arch_timer_of_init'))
         self.assertIn('y2_local_timer_cpu_init',function(s,'arch_timer_starting_cpu'))
-
-    def test_durable_pre_entry_receipt_and_nohz_highres_mode(self):
-        import sys,tempfile
-        sys.path.insert(0,str(ROOT/'tools/platform'))
-        from y2_platform.common import Context
-        from y2_platform.suspend_record import record
-        from y2_platform.observe import timer_runtime
-        with tempfile.TemporaryDirectory() as root:
-            ctx=Context(root)
-            usb=ctx.path('/sys/bus/platform/drivers/y2-usb/11200000.usb/status')
-            usb.parent.mkdir(parents=True);usb.write_text('pm_suspends=1 pm_restores=1\n')
-            value=record(ctx,'quiescing_radios',0)
-            self.assertIn('pm_restores=1',value['usb_restore']['controllers']['11200000.usb'])
-            record(ctx,'kernel_suspend',0)
-            self.assertEqual(ctx.json('/data/system/platform/suspend-last.json')['stage'],'kernel_suspend')
-            self.assertEqual(value['requested_mode'],'deep')
-            timer=ctx.path('/proc/timer_list');timer.parent.mkdir(parents=True,exist_ok=True)
-            timer.write_text('cpu: 0\n .hres_active : 1\n .nohz : 2\n')
-            result=timer_runtime(ctx)
-        self.assertTrue(result['highres_active'])
-        self.assertTrue(result['no_hz_active'])

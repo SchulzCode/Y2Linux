@@ -804,3 +804,7 @@ pub(crate) mod seams {
         SEAMS.with(|s| *s.borrow_mut() = Seams::default());
     }
 }
+
+#[cfg(test)]
+#[path = "helper_tests.rs"]
+mod helper_tests;

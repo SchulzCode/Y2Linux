@@ -19,6 +19,8 @@ pub mod pyjson;
 pub mod receipt;
 pub mod request;
 pub mod scripts;
+#[cfg(test)]
+mod test_support;
 
 use super::Command;
 use crate::reply::{Failure, Outcome, Reply};
