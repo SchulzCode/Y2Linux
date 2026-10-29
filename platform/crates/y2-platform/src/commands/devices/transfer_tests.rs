@@ -349,3 +349,24 @@ fn mount_replacement_and_symlink_escape_fail_closed() {
         assert!(matches!(result, Err(Failure::Value(_))), "{name:?}");
     }
 }
+
+#[test]
+fn a_tampered_manifest_refuses_before_publishing() {
+    let fixture = fixture();
+    let root = &fixture.root;
+    let payload = payload();
+    let (id, path) = start(&fixture, "Album/track.flac");
+    fs::write(&path, &payload).unwrap();
+    let manifest = path.with_file_name("manifest.json");
+    let mut staged: Value = serde_json::from_slice(&fs::read(&manifest).unwrap()).unwrap();
+    staged["record"] = Value::Null;
+    for tampered in [staged.to_string(), "[]".to_owned()] {
+        fs::write(&manifest, &tampered).unwrap();
+        assert_eq!(
+            message(locked(|| commit(root, &id))),
+            "invalid_transfer_manifest"
+        );
+        assert!(!fixture.exists("/data/music"));
+        assert_eq!(fs::read_to_string(&manifest).unwrap(), tampered);
+    }
+}

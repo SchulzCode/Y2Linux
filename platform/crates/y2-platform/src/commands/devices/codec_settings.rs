@@ -4,7 +4,7 @@
 //! restarting the daemon here. Errors print `{"schema": "org.y2linux.codec-settings/v1", "failure": …}`.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::{
-    commands::codec::{inventory_codec, not_iterable, requested, validate},
+    commands::codec::{inventory_codec, requested, validate},
     reply::{atomic_json, Failure, Outcome, Reply},
 };
 use serde::Serialize;
@@ -56,11 +56,10 @@ impl Changes {
     }
 }
 
+/// The status after the changes, or `{"schema": …, "failure": …}` with exit 1 (Reborn shows it).
 pub fn configure(root: &Root, changes: Changes) -> Outcome {
     match configure_inner(root, changes) {
         Ok(value) => Reply::unsorted(&value, 0),
-        // `except (ValueError, OSError)`: anything else leaves the command.
-        Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
             &Object::new()
                 .with("schema", SCHEMA)
@@ -157,8 +156,11 @@ fn status(root: &Root) -> Result<Status, Failure> {
         requested.set(key, policy.get(key).cloned().unwrap_or(Value::Null));
     }
     let pending_restart = !effective.py_eq(&Value::Object(policy));
+    // The build's codec inventory: `codecs` and each codec in it must be objects.
     let compiled = |name: &str| -> Result<Option<Value>, Failure> {
-        Ok(inventory_codec(&inventory, name)?.and_then(|c| c.get("compiled_locally").cloned()))
+        let codec = inventory_codec(&inventory, name)
+            .map_err(|_| Failure::value("invalid_codec_inventory"))?;
+        Ok(codec.and_then(|c| c.get("compiled_locally").cloned()))
     };
     let (aac, ldac) = (compiled("AAC")?, compiled("LDAC")?);
     let listed = |v: &Option<Value>, choices: Value| {
@@ -189,8 +191,9 @@ fn status(root: &Root) -> Result<Status, Failure> {
     })
 }
 
-/// `all(arg in argv for arg in applied.get('arguments', []))`: a string iterates its characters, a
-/// dict its keys; anything else that is not iterable is a TypeError in Python (its traceback).
+/// Whether every argument the runtime record lists is in the daemon's argv: a list's items, a
+/// string's characters, an object's keys (none listed: all present). Any other JSON value is a broken
+/// record, refused as `invalid_codec_runtime_record`.
 fn recorded_arguments_present(arguments: Option<&Value>, argv: &[&str]) -> Result<bool, Failure> {
     let has = |text: &str| argv.contains(&text);
     Ok(match arguments {
@@ -198,7 +201,7 @@ fn recorded_arguments_present(arguments: Option<&Value>, argv: &[&str]) -> Resul
         Some(Value::Array(items)) => items.iter().all(|item| item.as_str().is_some_and(has)),
         Some(Value::String(text)) => text.chars().all(|c| has(c.encode_utf8(&mut [0; 4]))),
         Some(Value::Object(map)) => map.keys().all(|key| has(key)),
-        Some(other) => return Err(not_iterable(other)),
+        Some(_) => return Err(Failure::value("invalid_codec_runtime_record")),
     })
 }
 
@@ -219,10 +222,7 @@ mod tests {
         assert!(recorded_arguments_present(None, &argv).unwrap());
         assert!(matches!(
             recorded_arguments_present(Some(&json!(null)), &argv),
-            Err(Failure::Crash {
-                class: "TypeError",
-                ..
-            })
+            Err(Failure::Value(reason)) if reason == "invalid_codec_runtime_record"
         ));
     }
 }

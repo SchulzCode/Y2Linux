@@ -64,22 +64,12 @@ pub fn run(root: &Root, action: &str, request: Request) -> Outcome {
     Reply::sorted(&value, 0)
 }
 
-// ---- Python's errors ------------------------------------------------------------------------------
+// ---- errors ---------------------------------------------------------------------------------------
 
-/// An OSError of a call without a file name (read, write, fsync, flock).
+/// The OS error of a call without a file name (read, write, fsync, flock).
 fn unnamed(error: io::Error) -> Failure {
     let (text, class) = py::os_error(&error, None);
     Failure::Os { text, class }
-}
-
-/// An exception no Python code catches (an AttributeError on a tampered manifest): its traceback on
-/// stderr, nothing on stdout, exit 1. Not a fallback: commands already ran, or files changed.
-fn crash(what: &str) -> ! {
-    let _ = writeln!(
-        io::stderr(),
-        "Traceback (most recent call last):\n  transfer.commit\n{what}"
-    );
-    std::process::exit(1)
 }
 
 // ---- descriptors ---------------------------------------------------------------------------------
@@ -369,7 +359,7 @@ struct NewManifest<'a> {
 }
 
 /// What commit takes from a Staging manifest, each field checked (in this order: the name, the
-/// /data generation, size and hash).
+/// /data generation, size, hash and evidence record).
 struct Staged {
     /// The name's path components below `music`.
     parts: Vec<String>,
@@ -387,7 +377,10 @@ fn staged(manifest: &Object, volume: &Volume) -> Result<Staged, Failure> {
         .get("sha256")
         .and_then(Value::as_str)
         .filter(|s| hex_of(s, 64));
-    let (Some(size), Some(sha256)) = (size, sha256) else {
+    // The evidence record is completed once the upload is published: one that is not an object
+    // refuses before anything is copied.
+    let record = manifest.get("record").is_some_and(Value::is_object);
+    let (Some(size), Some(sha256), true) = (size, sha256, record) else {
         return Err(Failure::value("invalid_transfer_manifest"));
     };
     Ok(Staged {
@@ -412,11 +405,11 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
     flock(lock.as_fd())?;
     // The manifest through the stage's own descriptor ("used even under a test root").
     let anchored = PathBuf::from(format!("/proc/self/fd/{}", stage.as_raw_fd()));
-    let mut value = match json_read(&anchored.join("manifest.json")).unwrap_or(json!({})) {
-        Value::Object(map) => map,
-        // `value.get` of a list or number: Python's AttributeError. No fallback: the volume's blkid
-        // requests already ran (a second run would ask again).
-        _ => crash("AttributeError: the manifest is not a dict"),
+    // A missing or unreadable manifest has no state; JSON that is not an object is no manifest.
+    let Value::Object(mut value) =
+        json_read(&anchored.join("manifest.json")).unwrap_or_else(|| json!({}))
+    else {
+        return Err(Failure::value("invalid_transfer_manifest"));
     };
     let state = value
         .get("state")
@@ -526,12 +519,10 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
     }
     fsync(target.as_raw_fd())?;
     value.insert("state".into(), json!("Committed"));
-    match value.get_mut("record") {
-        Some(Value::Object(record)) => {
-            record.insert("result".into(), json!("OK"));
-            record.insert("failure".into(), Value::Null);
-        }
-        _ => crash("AttributeError: the manifest's record is not a dict"),
+    // `staged` refused a manifest whose record is not an object.
+    if let Some(record) = value.get_mut("record").and_then(Value::as_object_mut) {
+        record.insert("result".into(), json!("OK"));
+        record.insert("failure".into(), Value::Null);
     }
     atomic_json(&anchored.join("manifest.json"), &value, true)?;
     unlinkat(stage.as_raw_fd(), "sealed.part", 0, false)?;
