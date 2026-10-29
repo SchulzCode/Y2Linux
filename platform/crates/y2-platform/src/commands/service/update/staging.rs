@@ -2,6 +2,7 @@
 //! package queued with the core; SIGTERM cancels until the commit point.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
+use std::ops::ControlFlow;
 
 fn payload_file(key: &str) -> Option<&'static str> {
     match key {
@@ -312,8 +313,34 @@ impl Staging<'_> {
         source: Option<&str>,
         volume: &storage::Volume,
     ) -> Result<Value> {
+        let cleaned = self.begin(file)?;
+        let source = self.source(url, source)?;
+        if let ControlFlow::Break(up_to_date) = self.fetch_manifest(&source)? {
+            return Ok(up_to_date);
+        }
+        let manifest = match self.check_manifest()? {
+            ControlFlow::Break(up_to_date) => return Ok(up_to_date),
+            ControlFlow::Continue(manifest) => manifest,
+        };
+        self.summary = manifest.offer();
+        if self.check_only {
+            remove_package(&self.incoming)?;
+            atomic_json(&self.record(), &self.summary, false)?;
+            return Ok(Value::Object(manifest.answer));
+        }
+        self.download(file, &source, manifest, volume, cleaned)
+    }
+
+    /// download.json, what the Software Update page shows.
+    fn record(&self) -> PathBuf {
+        self.directory.join("download.json")
+    }
+
+    /// Everything before the manifest: the lock held, no update pending, earlier leftovers gone, room
+    /// for the manifest, the staging directory and download.json saying a check or download runs.
+    /// Returns the bytes cleaned.
+    fn begin(&mut self, file: &File) -> Result<i128> {
         let (root, io) = (self.root, self.io);
-        let download = self.directory.join("download.json");
         // stage() refused a busy lock already; this one is held, or fails for another reason.
         match lock::try_fd(file.as_fd(), lock::Kind::Exclusive) {
             Ok(true) => {}
@@ -348,7 +375,7 @@ impl Staging<'_> {
         }
         // Even the manifest needs the reserve: a nearly full volume is cleaned first, so a check can
         // still find the release (OTA-46).
-        let mut cleaned = make_room(root, io, file, 64 * 1024)?;
+        let cleaned = make_room(root, io, file, 64 * 1024)?;
         // What the Software Update page showed: a failed check keeps it.
         self.previous = root
             .json("/data/updates/download.json")
@@ -359,41 +386,50 @@ impl Staging<'_> {
             .map_err(|e| Raise::os(e, &self.incoming))?;
         // A check only reads the signed manifest; it never shows as a download.
         atomic_json(
-            &download,
+            &self.record(),
             &json!({"schema": 1, "state": if self.check_only { "Checking" } else { "Staging" },
                     "id": self.token}),
             true,
         )?;
-        let source = match url {
-            Some(url) => {
-                let clock = io.time_status(root);
-                if !clock.get("tls_ready").is_some_and(truthy)
-                    || !clock.get("entropy_ready").is_some_and(truthy)
-                {
-                    return Err(Raise::value("clock_or_entropy_not_ready_for_TLS"));
-                }
-                if !wait_online(root, io.network_wait()) {
-                    return Err(Raise::value("network_not_online"));
-                }
-                let base = download::base_url(url).map_err(Raise::Value)?;
-                Source::Remote {
-                    base,
-                    hosts: channel(root).allowed_redirect_hosts,
-                }
+        Ok(cleaned)
+    }
+
+    /// The release channel (TLS needs a set clock and entropy, and Wi-Fi online), or the owner's
+    /// local package directory.
+    fn source(&self, url: Option<&str>, source: Option<&str>) -> Result<Source> {
+        let (root, io) = (self.root, self.io);
+        let Some(url) = url else {
+            let directory = PathBuf::from(source.unwrap_or_default());
+            let shown = pathlib(&directory, "");
+            let shown = PathBuf::from(shown.to_string_lossy().trim_end_matches('/'));
+            let meta = directory
+                .symlink_metadata()
+                .map_err(|e| Raise::os(e, &shown))?;
+            if !meta.file_type().is_dir() {
+                return Err(Raise::value("local_package_directory_required"));
             }
-            None => {
-                let directory = PathBuf::from(source.unwrap_or_default());
-                let shown = pathlib(&directory, "");
-                let shown = PathBuf::from(shown.to_string_lossy().trim_end_matches('/'));
-                let meta = directory
-                    .symlink_metadata()
-                    .map_err(|e| Raise::os(e, &shown))?;
-                if !meta.file_type().is_dir() {
-                    return Err(Raise::value("local_package_directory_required"));
-                }
-                Source::Local(directory)
-            }
+            return Ok(Source::Local(directory));
         };
+        let clock = io.time_status(root);
+        if !clock.get("tls_ready").is_some_and(truthy)
+            || !clock.get("entropy_ready").is_some_and(truthy)
+        {
+            return Err(Raise::value("clock_or_entropy_not_ready_for_TLS"));
+        }
+        if !wait_online(root, io.network_wait()) {
+            return Err(Raise::value("network_not_online"));
+        }
+        let base = download::base_url(url).map_err(Raise::Value)?;
+        Ok(Source::Remote {
+            base,
+            hosts: channel(root).allowed_redirect_hosts,
+        })
+    }
+
+    /// The manifest and its signature into the staging directory; a channel that publishes nothing
+    /// yet (404 to a check) is up to date.
+    fn fetch_manifest(&self, source: &Source) -> Result<ControlFlow<Value>> {
+        let (root, io) = (self.root, self.io);
         let remote = matches!(source, Source::Remote { .. });
         for (name, maximum) in [("manifest.json", 16384), ("manifest.sig", 64)] {
             for attempt in 1..=MANIFEST_ATTEMPTS {
@@ -416,15 +452,7 @@ impl Staging<'_> {
                         if self.check_only && code == 404 && name == "manifest.json" =>
                     {
                         // Nothing published on the channel yet: nothing newer to install.
-                        remove_package(&self.incoming)?;
-                        let installed = installed_release(root);
-                        atomic_json(
-                            &download,
-                            &json!({"schema": 1, "state": "Checked", "up_to_date": true,
-                                    "release_version": installed, "published": false}),
-                            false,
-                        )?;
-                        return Ok(json!({"state": "UpToDate", "release_version": installed}));
+                        return self.up_to_date(Some(false)).map(ControlFlow::Break);
                     }
                     Err(Raise::Net(Net::Url(_) | Net::Timeout))
                         if remote && attempt != MANIFEST_ATTEMPTS =>
@@ -439,30 +467,47 @@ impl Staging<'_> {
                 }
             }
         }
+        Ok(ControlFlow::Continue(()))
+    }
+
+    /// The core's verdict on the signed manifest; to a check, a release no newer than this one is
+    /// up to date.
+    fn check_manifest(&self) -> Result<ControlFlow<Value, Manifest>> {
         let device = format!("/data/updates/{}", self.token);
-        let manifest = match core(root, "check-manifest", Some(&device), 15.0) {
-            Ok(answer) => answer,
+        match core(self.root, "check-manifest", Some(&device), 15.0) {
+            Ok(answer) => Manifest::read(answer).map(ControlFlow::Continue),
             Err(Raise::Value(error)) if self.check_only && error.contains("downgrade/replay") => {
                 // The channel offers this release (or an older one): up to date.
-                remove_package(&self.incoming)?;
-                let installed = installed_release(root);
-                atomic_json(
-                    &download,
-                    &json!({"schema": 1, "state": "Checked", "up_to_date": true,
-                            "release_version": installed}),
-                    false,
-                )?;
-                return Ok(json!({"state": "UpToDate", "release_version": installed}));
+                self.up_to_date(None).map(ControlFlow::Break)
             }
-            Err(error) => return Err(error),
-        };
-        let manifest = Manifest::read(manifest)?;
-        self.summary = manifest.offer();
-        if self.check_only {
-            remove_package(&self.incoming)?;
-            atomic_json(&download, &self.summary, false)?;
-            return Ok(Value::Object(manifest.answer));
+            Err(error) => Err(error),
         }
+    }
+
+    /// A check that found nothing newer: download.json says so (`published` false: the channel has
+    /// no release yet).
+    fn up_to_date(&self, published: Option<bool>) -> Result<Value> {
+        remove_package(&self.incoming)?;
+        let installed = installed_release(self.root);
+        let mut record = json!({"schema": 1, "state": "Checked", "up_to_date": true,
+                                "release_version": installed});
+        if let Some(published) = published {
+            record["published"] = json!(published);
+        }
+        atomic_json(&self.record(), &record, false)?;
+        Ok(json!({"state": "UpToDate", "release_version": installed}))
+    }
+
+    /// The payloads, checked against the manifest, then the package queued with the core.
+    fn download(
+        &mut self,
+        file: &File,
+        source: &Source,
+        manifest: Manifest,
+        volume: &storage::Volume,
+        mut cleaned: i128,
+    ) -> Result<Value> {
+        let (root, io) = (self.root, self.io);
         let raw = manifest.raw_bytes.ok_or_else(malformed)?;
         // Until the package is committed below, SIGTERM (Reborn's Cancel) stops the download and
         // leaves the release offered as before.
@@ -548,7 +593,7 @@ impl Staging<'_> {
             live.finish("done");
         }
         atomic_json(
-            &download,
+            &self.record(),
             &json!({"schema": 1, "state": "Verified", "bytes": count,
                     "release_version": manifest.release,
                     "notes": manifest.notes(),
