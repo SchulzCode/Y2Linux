@@ -2,7 +2,6 @@
 //! measured or user-visible operation carries), its UTC `isoformat()` timestamp, and SHA-256.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::{
-    clock,
     json::{Object, ObjectExt},
     Root,
 };
@@ -58,7 +57,7 @@ pub fn record(root: &Root, workload: &str, parameters: Value) -> Object {
     };
     Object::new()
         .with("wall_timestamp", utc_isoformat_now())
-        .with("monotonic_ns", clock::monotonic_ns())
+        .with("monotonic_ns", root.clock().monotonic_ns())
         .with("boot_id", json!(root.boot_id()))
         .with("y2linux_commit", version("build_git_commit"))
         .with("reborn_commit", version("reborn_source_commit"))

@@ -22,7 +22,7 @@ use std::{
 };
 use y2p_core::sys::{set_signal, Disposition, Handler};
 use y2p_core::{
-    clock, command,
+    command,
     py::{self, eq_int},
     Root,
 };
@@ -299,10 +299,23 @@ struct Daemon<'a> {
     child: Option<Child>,
 }
 
-impl Daemon<'_> {
+impl<'a> Daemon<'a> {
+    /// A daemon that has read nothing yet: the first tick reads the address.
+    fn new(root: &'a Root, events: AddressEvents) -> Daemon<'a> {
+        Daemon {
+            root,
+            runtime: root.path("/run/y2"),
+            events,
+            address: None,
+            refresh_at: 0.0,
+            changed: true,
+            child: None,
+        }
+    }
+
     /// One loop iteration up to (not including) its wait; the state it published.
     fn tick(&mut self) -> Result<&'static str, Failure> {
-        let now = clock::monotonic();
+        let now = self.root.clock().monotonic();
         if self.changed
             || self.events.sock.is_none()
             || self.address.is_none()
@@ -333,7 +346,7 @@ impl Daemon<'_> {
         }
         let record = json!({
             "schema": 1, "boot_id": self.root.boot_id(),
-            "monotonic_s": clock::monotonic(), "state": ready, "reason": reason,
+            "monotonic_s": self.root.clock().monotonic(), "state": ready, "reason": reason,
             "bind": "10.42.0.1:22", "interface": "usb0", "authentication": "owner_public_key",
             "sftp": self.root.path("/usr/libexec/y2-sftp-server").is_file(),
             "pid": self.child.as_ref().map(Child::id),
@@ -420,15 +433,7 @@ pub fn serve(root: &Root) -> Outcome {
         .then(|| std::env::var("Y2_DAEMON_TICKS").ok())
         .flatten()
         .and_then(|n| n.trim().parse::<u64>().ok());
-    let mut daemon = Daemon {
-        root,
-        runtime,
-        events: AddressEvents::new(),
-        address: None,
-        refresh_at: 0.0,
-        changed: true,
-        child: None,
-    };
+    let mut daemon = Daemon::new(root, AddressEvents::new());
     let mut result = Ok(());
     let mut done = 0;
     while RUNNING.load(Ordering::SeqCst) {

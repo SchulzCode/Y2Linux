@@ -12,7 +12,6 @@ use std::{
 use y2p_contract::BootStage;
 use y2p_core::mounts::{mountinfo, Mount};
 use y2p_core::{
-    clock,
     json::{dumps, Object, ObjectExt, Separators},
     py::{number, truthy},
     Root,
@@ -194,7 +193,7 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
         &boot_id,
         stage,
         identity,
-        clock::monotonic_ns(),
+        root.clock().monotonic_ns(),
         reset,
     );
     atomic_json(&directory.join("boot.json"), &value, true)?;
@@ -215,7 +214,7 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
     {
         let line = Object::new()
             .with("stage", stage.as_str())
-            .with("monotonic_s", clock::monotonic());
+            .with("monotonic_s", root.clock().monotonic());
         let text = dumps(&line, Separators::Spaced).map_err(Failure::value)? + "\n";
         trail
             .write_all(text.as_bytes())
@@ -229,7 +228,12 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
         .open(root.path("/dev/pmsg0"))
     {
         let _ = pmsg.write_all(
-            format!("{:.2} platform {}\n", clock::monotonic(), stage.as_str()).as_bytes(),
+            format!(
+                "{:.2} platform {}\n",
+                root.clock().monotonic(),
+                stage.as_str()
+            )
+            .as_bytes(),
         );
     }
     if stage == BootStage::ApplicationReady {

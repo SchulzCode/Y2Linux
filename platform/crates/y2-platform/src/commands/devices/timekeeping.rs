@@ -8,14 +8,14 @@ use crate::{
 };
 use serde_json::{json, Map, Value};
 use y2p_core::{
-    clock, command,
+    command,
     json::{Object, ObjectExt},
     py::{self, is_true, number, truthy},
     Root,
 };
 
-fn boottime() -> f64 {
-    clock::boottime_ns() as f64 / 1e9
+fn boottime(root: &Root) -> f64 {
+    root.clock().boottime_ns() as f64 / 1e9
 }
 
 fn floor(root: &Root) -> Option<i64> {
@@ -38,7 +38,7 @@ fn drift(anchor: &Map<String, Value>, now: f64, monotonic: f64, elapsed: f64) ->
 
 /// `timekeeping.status(ctx, now=epoch)`: the status `time` prints, at the owner's time.
 fn status_at(root: &Root, now: i64) -> Object {
-    let (monotonic, elapsed) = (clock::monotonic(), boottime());
+    let (monotonic, elapsed) = (root.clock().monotonic(), boottime(root));
     let floor = floor(root);
     let valid = plausible(now as f64, floor);
     let anchor = root.json_object("/run/y2/time.json");
@@ -137,8 +137,8 @@ fn set_manual_inner(root: &Root, epoch: i64) -> Result<Object, Failure> {
         .with("schema", 1)
         .with("boot_id", json!(root.boot_id()))
         .with("epoch", epoch)
-        .with("monotonic_s", clock::monotonic())
-        .with("boottime_s", boottime())
+        .with("monotonic_s", root.clock().monotonic())
+        .with("boottime_s", boottime(root))
         .with("source", "manual");
     atomic_json(&runtime.join("time.json"), &value, false)?;
     // Readers of the status (scrobbling) see the untrusted clock at once.
@@ -225,8 +225,8 @@ pub fn bootstrap(root: &Root) -> Outcome {
         .with("schema", 1)
         .with("boot_id", json!(root.boot_id()))
         .with("epoch", now)
-        .with("monotonic_s", clock::monotonic())
-        .with("boottime_s", boottime())
+        .with("monotonic_s", root.clock().monotonic())
+        .with("boottime_s", boottime(root))
         .with("source", source);
     atomic_json(&runtime.join("time.json"), &value, false)?;
     Reply::unsorted(&value, 0)
