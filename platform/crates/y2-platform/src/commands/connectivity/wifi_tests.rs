@@ -7,9 +7,17 @@ use super::super::steps::Steps;
 use super::*;
 use crate::commands::network::wifi_event;
 use crate::testing::{ok, Fixture};
-use serde_json::Map;
-use std::{sync::Arc, time::Instant};
-use y2p_core::{clock::Manual, command::Outcome, json::sorted_object};
+use serde_json::{json, Map, Value};
+use std::{
+    os::unix::net::UnixDatagram,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+use y2p_core::{
+    clock::Manual,
+    command::Outcome,
+    json::{sorted_object, Object, ObjectExt},
+};
 
 type Answer = (Vec<String>, Outcome);
 
