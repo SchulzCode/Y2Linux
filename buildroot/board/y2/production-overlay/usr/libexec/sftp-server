@@ -1,8 +1,9 @@
 #!/bin/sh
 # Authenticated owner SFTP over the USB-only Dropbear listener. Rooted at the internal music
 # folder: Y2Media when it is mounted and recorded Ready, the legacy Y2DATA folder otherwise.
+# The record is compact JSON ("state":"Ready"); the space is optional for an indented one.
 root=/data/music
-if mountpoint -q /media/internal && grep -q '"state": "Ready"' /run/y2/internal-media.json 2>/dev/null; then
+if mountpoint -q /media/internal && grep -Eq '"state": ?"Ready"' /run/y2/internal-media.json 2>/dev/null; then
     root=/media/internal/music
 fi
 exec /usr/libexec/y2-sftp-server -d "$root" -u 0022 -P symlink,hardlink,copy-data
