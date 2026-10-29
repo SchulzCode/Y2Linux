@@ -47,7 +47,12 @@ const RESERVE: i128 = 96 * 1024 * 1024;
 const CHANNEL: &str = "/etc/y2linux/update-channel.json";
 /// Owner gate before the device turns off to install (decision 2026-10-15).
 const MINIMUM_PERCENT: i64 = 50;
-const CHECK_INTERVAL: f64 = 24.0 * 3600.0;
+/// A check that reached the server holds off the next for a day.
+pub(super) const CHECK_INTERVAL: f64 = 24.0 * 3600.0;
+/// The service tries a due check at most once an hour (any attempt is recorded, so an unready clock
+/// or no Wi-Fi does not start one every pass).
+pub(super) const ATTEMPT_INTERVAL: f64 = 3600.0;
+const LAST_CHECK: &str = "/data/updates/last-check.json";
 /// Wi-Fi needs 15-20 s to reconnect after the player wakes; a Check for Updates pressed meanwhile
 /// failed at once ("name resolution") and hid Update Now.
 const NETWORK_WAIT_S: f64 = 30.0;
@@ -135,36 +140,32 @@ fn object(value: Option<Value>) -> Map<String, Value> {
     }
 }
 
-/// `update.channel`: the shipped release channel, or the owner's override on /data.
-pub fn channel(root: &Root) -> Map<String, Value> {
-    let shipped = root.json_object(CHANNEL);
-    let mut value = shipped.clone();
-    for (key, item) in root.json_object("/data/updates/channel.json") {
-        if key == "manifest_url" || key == "name" {
-            value.insert(key, item);
-        }
-    }
-    let hosts = match shipped.get("allowed_redirect_hosts") {
-        Some(Value::Array(items))
-            if items
-                .iter()
-                .all(|h| matches!(h, Value::String(s) if !s.is_empty())) =>
-        {
-            Value::Array(items.clone())
-        }
-        _ => json!([]),
-    };
-    value.insert("allowed_redirect_hosts".into(), hosts);
-    value
+/// The release channel: the shipped one, with the owner's `name` and `manifest_url` from
+/// /data/updates/channel.json where it names them. Redirects go only to the shipped hosts.
+struct Channel {
+    /// Shown as `update status`'s `channel` (null without one).
+    name: Value,
+    manifest_url: Option<Value>,
+    allowed_redirect_hosts: Vec<String>,
 }
 
-fn hosts(root: &Root) -> Vec<String> {
-    match channel(root).get("allowed_redirect_hosts") {
+fn channel(root: &Root) -> Channel {
+    let shipped = root.json_object(CHANNEL);
+    let owner = root.json_object("/data/updates/channel.json");
+    let pick = |key: &str| owner.get(key).or_else(|| shipped.get(key)).cloned();
+    // Only a list of names: anything else (an empty or non-string entry too) allows no redirect.
+    let allowed_redirect_hosts = match shipped.get("allowed_redirect_hosts") {
         Some(Value::Array(items)) => items
             .iter()
-            .filter_map(|h| h.as_str().map(str::to_owned))
-            .collect(),
+            .map(|h| h.as_str().filter(|s| !s.is_empty()).map(str::to_owned))
+            .collect::<Option<Vec<String>>>()
+            .unwrap_or_default(),
         _ => Vec::new(),
+    };
+    Channel {
+        name: pick("name").unwrap_or(Value::Null),
+        manifest_url: pick("manifest_url"),
+        allowed_redirect_hosts,
     }
 }
 
@@ -216,10 +217,7 @@ pub fn status(root: &Root) -> Map<String, Value> {
         root.json("/data/updates/last-check.json")
             .unwrap_or(Value::Null),
     );
-    value.insert(
-        "channel".into(),
-        channel(root).get("name").cloned().unwrap_or(Value::Null),
-    );
+    value.insert("channel".into(), channel(root).name);
     value.insert("full_system".into(), json!(true));
     value.insert("physical_qualification".into(), json!(false));
     value
@@ -907,7 +905,7 @@ impl Staging<'_> {
                 let base = download::base_url(url).map_err(Raise::Value)?;
                 Source::Remote {
                     base,
-                    hosts: hosts(root),
+                    hosts: channel(root).allowed_redirect_hosts,
                 }
             }
             None => {
@@ -1374,9 +1372,9 @@ fn cancel_update(root: &Root) -> Result<Value> {
 /// The manifest URL `stage` would get, or a fallback when the channel names something that is not a
 /// string (Python fails on it later, after its records changed).
 fn channel_url(root: &Root) -> Result<Option<String>> {
-    match channel(root).get("manifest_url") {
-        Some(Value::String(url)) => Ok(Some(url.clone())),
-        Some(value) if truthy(value) => Err(Raise::Crash),
+    match channel(root).manifest_url {
+        Some(Value::String(url)) => Ok(Some(url)),
+        Some(value) if truthy(&value) => Err(Raise::Crash),
         _ => Ok(None),
     }
 }
@@ -1387,19 +1385,12 @@ fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
     let now = io.now();
     let directory = root.path("/data/updates");
     private_directory(&directory)?;
-    let mut last = root.json_object("/data/updates/last-check.json");
-    // `time` counts only from a check that reached the server: ≤ 8.14 kept it on a failed one too,
-    // which held off every automatic check for a day (ef22a23d).
-    if last.get("result") != Some(&json!("checked")) {
-        last.shift_remove("time");
-    }
-    if let Some(stamp) = last.get("time").and_then(Value::as_f64) {
-        if (0.0..CHECK_INTERVAL).contains(&(now - stamp)) {
-            return Ok(skipped("not_due"));
-        }
+    let last = LastCheck::read(root);
+    if within(last.checked(), now, CHECK_INTERVAL) {
+        return Ok(skipped("not_due"));
     }
     // Any attempt is recorded, so an unready clock retries hourly, not every tick.
-    let mut attempt = last.clone();
+    let mut attempt = last.record.clone();
     attempt.insert("schema".into(), json!(1));
     attempt.insert("attempt".into(), json!(now));
     atomic_json(&directory.join("last-check.json"), &attempt, false)?;
@@ -1407,7 +1398,7 @@ fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
         return Ok(skipped("update_pending"));
     }
     // `not channel(ctx).get('manifest_url')`: truthiness only; its type matters at the check below.
-    if !channel(root).get("manifest_url").is_some_and(truthy) {
+    if !channel(root).manifest_url.is_some_and(|url| truthy(&url)) {
         return Ok(skipped("no_channel"));
     }
     if root.json_object("/run/y2/network.json").get("state") != Some(&json!("Online")) {
@@ -1419,7 +1410,7 @@ fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
     // Only a check that reached the server starts the next day; a failed one is tried again with the
     // hourly attempt (it waited a whole day).
     let mut record = json!({"schema": 1, "attempt": now});
-    if let Some(time) = last.get("time").filter(|t| t.is_number()) {
+    if let Some(time) = last.record.get("time").filter(|t| t.is_number()) {
         record["time"] = time.clone();
     }
     // Never an interrupted download's leftover: a failed check would write it back.
@@ -1452,6 +1443,40 @@ fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
     }
     atomic_json(&directory.join("last-check.json"), &record, true)?;
     Ok(record)
+}
+
+/// last-check.json as the daily check reads it: when a check last reached the server (`time`, only
+/// with `result` "checked": ≤ 8.14 also stamped a failed one, which held off every automatic check
+/// for a day, report ef22a23d) and when one was last tried (`attempt`).
+pub(super) struct LastCheck {
+    /// The record without a `time` that no successful check wrote.
+    record: Map<String, Value>,
+}
+
+impl LastCheck {
+    pub(super) fn read(root: &Root) -> Self {
+        let mut record = root.json_object(LAST_CHECK);
+        if record.get("result") != Some(&json!("checked")) {
+            record.shift_remove("time");
+        }
+        Self { record }
+    }
+
+    /// When a check last reached the server (seconds since the epoch; a number only).
+    pub(super) fn checked(&self) -> Option<f64> {
+        self.record.get("time").and_then(Value::as_f64)
+    }
+
+    /// When a check was last tried.
+    pub(super) fn attempted(&self) -> Option<f64> {
+        self.record.get("attempt").and_then(Value::as_f64)
+    }
+}
+
+/// Whether `stamp` lies less than `period` seconds before `now` (one in the future does not: a clock
+/// set back must not hold checks off).
+pub(super) fn within(stamp: Option<f64>, now: f64, period: f64) -> bool {
+    stamp.is_some_and(|stamp| (0.0..period).contains(&(now - stamp)))
 }
 
 /// What `update auto-check` prints when it did not check (the service ignores it; `null` before).

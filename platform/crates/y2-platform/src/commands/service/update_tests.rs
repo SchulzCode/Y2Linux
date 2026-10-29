@@ -678,7 +678,7 @@ fn install_restarts_unless_the_owner_chose_power_off() {
 #[test]
 fn channel_override_and_redirect_allowlist() {
     let fixture = policy();
-    assert_eq!(channel(&fixture.root)["name"], json!("stable"));
+    assert_eq!(channel(&fixture.root).name, json!("stable"));
     fixture.put_json(
         "/data/updates/channel.json",
         &json!({"manifest_url": "https://example.org/x/manifest.json",
@@ -686,15 +686,15 @@ fn channel_override_and_redirect_allowlist() {
     );
     let value = channel(&fixture.root);
     assert_eq!(
-        value["manifest_url"],
-        json!("https://example.org/x/manifest.json")
+        value.manifest_url,
+        Some(json!("https://example.org/x/manifest.json"))
     );
     // Only the shipped list.
-    assert!(!value["allowed_redirect_hosts"]
-        .as_array()
-        .unwrap()
-        .contains(&json!("evil.example")));
-    let hosts = hosts(&fixture.root);
+    let hosts = value.allowed_redirect_hosts;
+    assert_eq!(
+        hosts,
+        ["github.com", "release-assets.githubusercontent.com"]
+    );
     for url in [
         "http://release-assets.githubusercontent.com/a",
         "https://evil.example/a",

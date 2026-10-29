@@ -11,7 +11,7 @@
 //! `daemon_ticks` stops the Python daemon.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::process::{self, Child, Start};
-use super::{radiofw, usb::UsbService};
+use super::{radiofw, update, usb::UsbService};
 use crate::commands::connectivity::{
     observe_wifi::wifi,
     radio_policy::wifi_policy,
@@ -212,22 +212,12 @@ fn daily_update_check(root: &Root, network: &Object, child: Option<Child>) -> Op
     if network.get("state").and_then(Value::as_str) != Some("Online") {
         return None;
     }
-    let last = root.json_object("/data/updates/last-check.json");
+    let last = update::LastCheck::read(root);
     let now = time::wall();
-    for (key, period) in [("time", 24.0 * 3600.0), ("attempt", 3600.0)] {
-        // Only a check that reached the server starts the next day; ≤ 8.14 also stamped `time` on a
-        // failed one (report ef22a23d: no check for a day).
-        if key == "time" && last.get("result").and_then(Value::as_str) != Some("checked") {
-            continue;
-        }
-        // type(stamp) in (int, float): not a bool.
-        let stamp = match last.get(key) {
-            Some(Value::Number(n)) => n.as_f64(),
-            _ => None,
-        };
-        if stamp.is_some_and(|stamp| (0.0..period).contains(&(now - stamp))) {
-            return None;
-        }
+    if update::within(last.checked(), now, update::CHECK_INTERVAL)
+        || update::within(last.attempted(), now, update::ATTEMPT_INTERVAL)
+    {
+        return None;
     }
     start(root, &["update", "auto-check"]).ok()
 }
