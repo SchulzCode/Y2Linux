@@ -1,6 +1,16 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-29): PLATFORM RUST PORT — ALL GROUPS MERGED ON MAIN, PHASE 6 (REMOVE PYTHON) NOT DONE. Stopped at the usage limit.**
+> **START HERE (2026-10-29): NO PYTHON ON THE PLAYER — TEST BUILD 169 (WHOLE PLATFORM IN RUST) INSTALLED, NOT PUBLISHED.**
+> All phases implemented on `main` (not pushed): Linux `5640949` + docs, Reborn `dc38c55`, sequence 11140, label 169,
+> Acknowledged by the Rust health-ack. Device (audit "PLATFORM-RUST phases 2–6"): daemons 15.2 MB RSS (Python 58.4),
+> idle 19.6 s/h CPU (91.8), restart trail 0.46 s (2.57), boot 36.8 s (44.4), root 111 MB (130). **Owed (owner's
+> hardware tests):** sleep cycles, two overnight runs, low battery, charger plug/unplug, power-off on a charger, SD,
+> Internal Storage, OTA+rollback from 169, reports, MTP/SSH, Wi-Fi, Bluetooth. Known: two product-sleep differential
+> cases are timing-sensitive under load (Python vs Python too); `status --reborn --pss` CPU is now mostly Reborn's
+> `rebornctl metrics --json`. Then (§8): fix the defects carried 1:1, drop the Python reference from the host tests.
+> Next free label 170, sequence above 11140.
+>
+> Previous entry: **START HERE (2026-10-29): PLATFORM RUST PORT — ALL GROUPS MERGED ON MAIN, PHASE 6 (REMOVE PYTHON) NOT DONE. Stopped at the usage limit.**
 > On `main` (not pushed): argparse-identical dispatcher and every group ported and merged (observation, connectivity,
 > devices, storage, service: update+firmware, reports, power, suspend); 30 test modules green with `Y2_PLATFORM_RUST`.
 > Last device build: 168. **Open:** (1) stopped agent branches `worktree-agent-a9cbacb26426e3605` (export-diagnostics

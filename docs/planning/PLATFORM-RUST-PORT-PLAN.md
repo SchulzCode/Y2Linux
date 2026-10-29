@@ -211,11 +211,14 @@ Acknowledged, the phase's device checks, a handoff entry. Publish only when the 
   charger (charging screen), update restart, **two overnight runs** with drain compared to the Phase 0 baseline.
 
 ### Phase 6 — Remove Python
-- Prepared (2026-10-29): no ported command hands itself to Python any more (Python's errors and crashes are
-  reproduced, `Failure::Crash`; arguments that are not UTF-8 are parsed as `os.fsdecode` reads them). The hand-off
-  is the cargo feature `python-fallback` (default on); `--no-default-features` builds a binary without any Python
-  path, and main.rs's route test then requires a route for every subcommand and action (open: `service-daemon`,
-  and the service group's `update health-ack`/`export-diagnostics` fallbacks, ported separately).
+- **Done on `main` (2026-10-29):** no command hands itself to Python (Python's errors and crashes are reproduced,
+  `Failure::Crash`; arguments that are not UTF-8 are parsed as `os.fsdecode` reads them); the dispatcher has no
+  Python path (feature, exec and `Failure::Fallback` removed; main.rs's route test requires a route for every
+  subcommand and action); `BR2_PACKAGE_PYTHON3*` removed (the only other Python option, alsa-lib's, is off);
+  post-build links the programme names to `y2-platform` and refuses an image with Python; validators updated.
+  The host keeps `tools/platform` (Python) as the reference of the differential tests until the defects carried
+  1:1 are fixed after parity (§8); then the reference goes with them. Test build 169 (seq 11140): see §7 and the
+  audit entry "PLATFORM-RUST phases 2–6".
 - Remove the dispatcher fallback, `/usr/lib/y2-platform`, Python scripts, `BR2_PACKAGE_PYTHON3*` from the production
   defconfig; confirm with `make … show-depends`/the legal-info manifest that nothing else pulls Python; firmware scan
   and package validation still pass; image size and RAM measured (§7).
@@ -281,14 +284,14 @@ Rules for every group (the phase 2 part 1 code is the pattern: `commands/*.rs`, 
 
 | Metric | Phase 0 (Python) | Target | Phase 6 (Rust) |
 | --- | --- | --- | --- |
-| Platform RSS (all daemons) | 58.4 MB RSS, 35.0 MB PSS (power 12.5, service 19.8, connectivity 14.9, ssh 11.2 MB RSS) | < 15 MB | |
-| Platform CPU, 1 h awake idle | ≈92 s/h (2.5 % of the one online core; power-daemon 60, service 24, ssh 7, connectivity 1) | ≥ 5× less | |
+| Platform RSS (all daemons) | 58.4 MB RSS, 35.0 MB PSS (power 12.5, service 19.8, connectivity 14.9, ssh 11.2 MB RSS) | < 15 MB | 15.2 MB RSS, 4.6 MB PSS (power 4.2, service 4.2, connectivity 3.4, ssh 3.3 MB RSS; 169) |
+| Platform CPU, 1 h awake idle | ≈92 s/h (2.5 % of the one online core; power-daemon 60, service 24, ssh 7, connectivity 1) | ≥ 5× less | 19.6 s/h, 4.7× less, with Wi-Fi on (power 9.1, service 8.1, ssh 2.4, connectivity 0.2; 612 s on 169) |
 | Platform CPU, playing | ≈109 s/h (power 62, service 38; Wi-Fi on in this window) | ≥ 5× less | |
-| `y2-platform status --reborn --pss` latency | 1.49 s wall, 1.37 s CPU (a Reborn refresh with `capabilities` and `report status`: ≈3.0 s CPU) | < 50 ms | |
-| Root image size | 130 MB tree, Python 21.3 MB (stdlib 16.1, libpython 5.1) + platform 0.7 MB | −22 MB or more | |
+| `y2-platform status --reborn --pss` latency | 1.49 s wall, 1.37 s CPU (a Reborn refresh with `capabilities` and `report status`: ≈3.0 s CPU) | < 50 ms | 0.48 s wall, 0.32 s CPU, nearly all in Reborn's `rebornctl metrics --json` (≈0.36 s CPU on its own); `capabilities` 16 ms, `report status` 14 ms |
+| Root image size | 130 MB tree, Python 21.3 MB (stdlib 16.1, libpython 5.1) + platform 0.7 MB | −22 MB or more | 111 MB tree (−19 MB; the binary is part of it); OTA root 50.3 MB instead of 56.5 MB |
 | Awake idle current | not measurable on the charger (no `current_now`; the player only runs unplugged when asleep) | lower | |
-| Overnight drain | ≈2 mA (161, estimate); 165 overnight owed (owner unplugs) | not worse | |
-| Host tests / container suite | host 967 tests OK (2 skips incl. the Rust comparison); container not run | green | |
+| Overnight drain | ≈2 mA (161, estimate); 165 overnight owed (owner unplugs) | not worse | owed (owner, two nights on 169) |
+| Host tests / container suite | host 967 tests OK (2 skips incl. the Rust comparison); container not run | green | host suite OK; release build 169's container suite, package and first-install validation, ELF and installed-ARM checks pass |
 
 ### Phase 0 measurements (owner's player, test build 165, 2026-10-28)
 

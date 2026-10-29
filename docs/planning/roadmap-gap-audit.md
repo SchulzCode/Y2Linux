@@ -9594,3 +9594,15 @@ Known host-test issue: two product-sleep differential cases are timing-sensitive
 Python too); they pass when run alone. **Gate decision:** ready for an owner-installed test build (label 169,
 sequence 11140, `release.py build --clean`: Buildroot does not remove a disabled package from the target); not
 release-qualified until the owner's device checks above pass.
+
+**Device result, test build 169** (Linux `5640949`, Reborn `dc38c55`, sequence 11140; first build failed on the
+32-bit ARM target, fixed with the 64-bit file interfaces and time widths; the second on the argparse generator in
+the container and the y2-status link in `validate.py`): staged OTA from 168 → health boot **Acknowledged by the
+Rust `update health-ack`**; no `/usr/bin/python3`, no `/usr/lib/y2-platform`; the four daemons are
+`/usr/sbin/y2-platform <daemon>`: 15.2 MB RSS / 4.6 MB PSS together (Python 58.4 / 35.0), idle CPU 19.6 s/h with
+Wi-Fi on (Python 91.8 s/h, Wi-Fi off); taint 0, supervisor logs empty. Restart: every shutdown step in order,
+`execute` → `init_reboot ok` 0.46 s (Python 2.57 s), watchdog and long-press reset ok; boot application_ready
+36.8 s (Python 44.4 s plain, 48.6 s after an update; this update boot 37.6 s). Reborn's About & Updates shows its
+platform data. Root tree 111 MB (130). **Owed to the owner:** sleep cycles, two overnight runs, low battery to
+power-off, charger plug/unplug (also asleep), power-off on a charger, SD insert/remove/repair, Internal Storage, an
+OTA from 169 and a rollback, error report save/send, MTP/SSH, Wi-Fi join/wrong password, Bluetooth.
