@@ -1,15 +1,15 @@
-"""Execute the kernel's precision snapshot and retain its truthful API fields."""
+"""Execute the kernel's precision snapshot and retain its truthful API fields.
+
+That the tester export keeps these fields is tested in Rust (diagnostics_tests.rs,
+idle_configured_and_running_driver_contract, on the rows this driver function prints)."""
 import json
 from pathlib import Path
 import subprocess
-import sys
 import tempfile
 import unittest
 from test_audio import function
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'tools/platform'))
-from y2_platform.diagnostics import project
 
 
 class PrecisionContract(unittest.TestCase):
@@ -57,10 +57,7 @@ int main(void) {
                               mode['i2s_slot_bits'], mode['i2s_payload_bits']),
                              (16, 16, 32, 16))
             self.assertIsNone(mode['afe_interconnect_physical_bits'])
-            exported = project({'audio': {'pcm_contract': row}})['audio']['pcm_contract']
-            self.assertEqual(exported['current'], row['current'])
-            self.assertEqual(exported['supported_modes'], row['supported_modes'])
-            self.assertEqual(exported['evidence'], 'driver_contract')
+            self.assertEqual(row['evidence'], 'driver_contract')
 
 
 if __name__ == '__main__':
