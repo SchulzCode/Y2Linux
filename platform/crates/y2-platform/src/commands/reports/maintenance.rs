@@ -986,6 +986,30 @@ fn tar_info(path: &Path, name: &str) -> Result<tarball::Info, Failure> {
     })
 }
 
+/// manifest.json of a state export: what it holds and how consistent it is (written sorted).
+#[derive(serde::Serialize)]
+struct Manifest<'a> {
+    schema: u8,
+    /// The workload record of the export (time, boot, versions).
+    record: y2p_core::json::Object,
+    contains_network_credentials: bool,
+    excludes_bonds_and_private_keys: bool,
+    consistency: &'static str,
+    files: Vec<ExportedFile<'a>>,
+    /// The sources that do not exist on this player.
+    absent: Vec<&'a str>,
+}
+
+#[derive(serde::Serialize)]
+struct ExportedFile<'a> {
+    /// The member's name in the archive.
+    name: &'a str,
+    /// Its path below /data.
+    original: &'a str,
+    sha256: String,
+    bytes: u64,
+}
+
 fn file_digest(path: &Path) -> Result<String, Failure> {
     let data = std::fs::read(path).map_err(|e| os(e, path))?;
     Ok(hex(&Sha256::digest(&data)))
@@ -1044,7 +1068,7 @@ fn export_into(
     include_network: bool,
 ) -> Result<Py, Failure> {
     let mut files: Vec<(String, String)> = Vec::new();
-    let mut absent: Vec<Py> = Vec::new();
+    let mut absent: Vec<&str> = Vec::new();
     let mut sources = vec![SETTINGS, "bluetooth/preferred-audio"];
     if include_network {
         sources.extend(["network/wpa_supplicant.conf", "network/enabled"]);
@@ -1052,7 +1076,7 @@ fn export_into(
     for relative in sources {
         let raw = match regular_bytes(data, relative, 8 << 20) {
             Err(e) if not_found(&e) => {
-                absent.push(Py::str(relative));
+                absent.push(relative);
                 continue;
             }
             other => other?,
@@ -1068,7 +1092,7 @@ fn export_into(
     if include_database {
         let relative = "reborn/library.db";
         match inspect(data, relative)? {
-            None => absent.push(Py::str(relative)),
+            None => absent.push(relative),
             Some(before) => {
                 use y2p_core::reports_sqlite::{Database, Error, Value};
                 let database = root.path(&format!("/data/{relative}"));
@@ -1111,34 +1135,29 @@ fn export_into(
             }
         }
     }
-    let record =
-        y2p_core::devices_support::record(root, "owner-state-export", serde_json::json!({}));
-    let record = Py::from_serde(&serde_json::to_value(&record).map_err(Failure::value)?);
     let mut listed = Vec::new();
-    for (name, relative) in &files {
+    for (name, original) in &files {
         let path = scratch.join(name);
-        listed.push(
-            Py::dict()
-                .with("name", Py::str(name.clone()))
-                .with("original", Py::str(relative.clone()))
-                .with("sha256", Py::Str(file_digest(&path)?))
-                .with(
-                    "bytes",
-                    Py::from(std::fs::metadata(&path).map_err(|e| os(e, &path))?.len()),
-                ),
-        );
+        listed.push(ExportedFile {
+            name,
+            original,
+            sha256: file_digest(&path)?,
+            bytes: std::fs::metadata(&path).map_err(|e| os(e, &path))?.len(),
+        });
     }
-    let manifest = Py::dict()
-        .with("schema", Py::int(1))
-        .with("record", record)
-        .with("contains_network_credentials", Py::Bool(include_network))
-        .with("excludes_bonds_and_private_keys", Py::Bool(true))
-        .with(
-            "consistency",
-            Py::str("SQLite online backup; each session file atomic; no cross-file transaction"),
-        )
-        .with("files", Py::List(listed))
-        .with("absent", Py::List(absent));
+    let manifest = Manifest {
+        schema: 1,
+        record: y2p_core::devices_support::record(
+            root,
+            "owner-state-export",
+            serde_json::json!({}),
+        ),
+        contains_network_credentials: include_network,
+        excludes_bonds_and_private_keys: true,
+        consistency: "SQLite online backup; each session file atomic; no cross-file transaction",
+        files: listed,
+        absent,
+    };
     atomic_json(&scratch.join("manifest.json"), &manifest, true)?;
     let output = directory.join(format!(".state-{token}.partial"));
     let mut stream = std::fs::OpenOptions::new()
